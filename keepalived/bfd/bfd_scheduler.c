@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include <assert.h>
 #include <netdb.h>
+#include <inttypes.h>
 
 #include "bfd.h"
 #include "bfd_data.h"
@@ -572,12 +573,12 @@ bfd_dump_timers(bfd_t *bfd)
 		    "        min_tx  min_rx  tx_intv  mult  detect_time",
 		    bfd->iname);
 	log_message(LOG_INFO, "BFD_Instance(%s)"
-		    " local %7u %7u %8u %5u %12u",
+		    " local %7u %7u %8u %5u %12" PRIu64,
 		    bfd->iname, (bfd->local_state == BFD_STATE_UP ? bfd->local_min_tx_intv : bfd->local_idle_tx_intv) / 1000,
 		    bfd->local_min_rx_intv / 1000,
 		    bfd->local_tx_intv / 1000, bfd->local_detect_mult,
 		    bfd->local_detect_time / 1000);
-	log_message(LOG_INFO, "BFD_Instance(%s)" " remote %6u %7u %8u %5u %12u",
+	log_message(LOG_INFO, "BFD_Instance(%s)" " remote %6u %7u %8u %5u %12" PRIu64,
 		    bfd->iname, bfd->remote_min_tx_intv / 1000,
 		    bfd->remote_min_rx_intv / 1000,
 		    bfd->remote_tx_intv / 1000, bfd->remote_detect_mult,
@@ -619,11 +620,11 @@ bfd_send_packet(int fd, bfdpkt_t *pkt)
 static void
 bfd_handle_packet(bfdpkt_t *pkt)
 {
-	unsigned int old_local_tx_intv;
-	unsigned int old_remote_rx_intv;
-	unsigned int old_remote_tx_intv;
-	unsigned int old_remote_detect_mult;
-	unsigned int old_local_detect_time;
+	uint32_t old_local_tx_intv;
+	uint32_t old_remote_rx_intv;
+	uint32_t old_remote_tx_intv;
+	uint8_t old_remote_detect_mult;
+	uint64_t old_local_detect_time;
 	bfd_t *bfd;
 
 	assert(pkt);
@@ -729,9 +730,7 @@ bfd_handle_packet(bfdpkt_t *pkt)
 	     (bfd->remote_min_rx_intv != old_remote_rx_intv ||
 	      bfd->remote_min_tx_intv != old_remote_tx_intv ||
 	      bfd->remote_detect_mult != old_remote_detect_mult ||
-	      (bfd->local_min_tx_intv != bfd->local_idle_tx_intv &&
-	       ((bfd->local_state == BFD_STATE_DOWN && bfd->remote_state == BFD_STATE_INIT) ||
-	        (bfd->local_state == BFD_STATE_INIT && (bfd->remote_state == BFD_STATE_INIT || bfd->remote_state == BFD_STATE_UP)))))))
+	      bfd->local_tx_intv != old_local_tx_intv)))
 		bfd_dump_timers(bfd);
 
 	/* Reschedule sender if local_tx_intv is being reduced */
@@ -742,7 +741,7 @@ bfd_handle_packet(bfdpkt_t *pkt)
 	/* Report detection time changes */
 	if (bfd->local_detect_time != old_local_detect_time)
 		log_message(LOG_INFO, "BFD_Instance(%s) Detection time"
-			    " is %u ms (was %u ms)", bfd->iname,
+			    " is %" PRIu64 " ms (was %" PRIu64 " ms)", bfd->iname,
 			    bfd->local_detect_time / 1000,
 			    old_local_detect_time / 1000);
 

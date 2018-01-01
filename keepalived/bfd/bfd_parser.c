@@ -31,6 +31,7 @@
 #include "parser.h"
 #include "global_parser.h"
 #include "utils.h"
+#include "global_data.h"
 
 #ifdef _WITH_LVS_
 #include "check_parser.h"
@@ -40,13 +41,17 @@
 #include "vrrp_track.h"
 #include "vrrp_data.h"
 #endif
+#include "main.h"
 
 static void
 bfd_handler(vector_t *strvec)
 {
 	char *name;
 
-	assert(strvec);
+	if (!strvec) {
+		have_bfd_instances = true;
+		return;
+	}
 
 	name = vector_slot(strvec, 1);
 
@@ -131,7 +136,8 @@ static void
 bfd_minrx_handler(vector_t *strvec)
 {
 	bfd_t *bfd;
-	int value;
+	char *endptr;
+	unsigned long value;
 
 	assert(strvec);
 	assert(bfd_data);
@@ -139,22 +145,28 @@ bfd_minrx_handler(vector_t *strvec)
 	bfd = LIST_TAIL_DATA(bfd_data->bfd);
 	assert(bfd);
 
-	value = atoi(vector_slot(strvec, 1));
+	value = strtoul(vector_slot(strvec, 1), &endptr, 10);
 
-	if (value < BFD_MINRX_MIN || value > BFD_MINRX_MAX) {
+	if (*endptr || value < BFD_MINRX_MIN || value > BFD_MINRX_MAX)
 		log_message(LOG_ERR, "Configuration error: BFD instance %s"
-			    " min_rx value %i is not valid (must be in range"
-			    " [%u-%u]), ignoring", bfd->iname, value,
+			    " min_rx value %s is not valid (must be in range"
+			    " [%u-%u]), ignoring", bfd->iname, FMT_STR_VSLOT(strvec, 1),
 			    BFD_MINRX_MIN, BFD_MINRX_MAX);
-	} else
-		bfd->local_min_rx_intv = value * 1000;
+	else
+		bfd->local_min_rx_intv = value * 1000U;
+
+	if (value > BFD_MINRX_MAX_SENSIBLE)
+		log_message(LOG_INFO, "Configuration warning: BFD instance %s"
+			    " min_rx value %lu is larger than max sensible (%u)",
+			    bfd->iname, value, BFD_MINRX_MAX_SENSIBLE);
 }
 
 static void
 bfd_mintx_handler(vector_t *strvec)
 {
 	bfd_t *bfd;
-	int value;
+	char *endptr;
+	unsigned long value;
 
 	assert(strvec);
 	assert(bfd_data);
@@ -162,22 +174,28 @@ bfd_mintx_handler(vector_t *strvec)
 	bfd = LIST_TAIL_DATA(bfd_data->bfd);
 	assert(bfd);
 
-	value = atoi(vector_slot(strvec, 1));
+	value = strtoul(vector_slot(strvec, 1), &endptr, 10);
 
-	if (value < BFD_MINTX_MIN || value > BFD_MINTX_MAX) {
+	if (*endptr || value < BFD_MINTX_MIN || value > BFD_MINTX_MAX)
 		log_message(LOG_ERR, "Configuration error: BFD instance %s"
-			    " min_tx value %i is not valid (must be in range"
-			    " [%u-%u]), ignoring", bfd->iname, value,
+			    " min_tx value %s is not valid (must be in range"
+			    " [%u-%u]), ignoring", bfd->iname, FMT_STR_VSLOT(strvec, 1),
 			    BFD_MINTX_MIN, BFD_MINTX_MAX);
-	} else
-		bfd->local_min_tx_intv = value * 1000;
+	else
+		bfd->local_min_tx_intv = value * 1000U;
+
+	if (value > BFD_MINTX_MAX_SENSIBLE)
+		log_message(LOG_INFO, "Configuration warning: BFD instance %s"
+			    " min_tx value %lu is larger than max sensible (%u)",
+			    bfd->iname, value, BFD_MINTX_MAX_SENSIBLE);
 }
 
 static void
 bfd_idletx_handler(vector_t *strvec)
 {
 	bfd_t *bfd;
-	int value;
+	char *endptr;
+	unsigned long value;
 
 	assert(strvec);
 	assert(bfd_data);
@@ -185,22 +203,28 @@ bfd_idletx_handler(vector_t *strvec)
 	bfd = LIST_TAIL_DATA(bfd_data->bfd);
 	assert(bfd);
 
-	value = atoi(vector_slot(strvec, 1));
+	value = strtoul(vector_slot(strvec, 1), &endptr, 10);
 
-	if (value < BFD_IDLETX_MIN || value > BFD_IDLETX_MAX) {
+	if (*endptr || value < BFD_IDLETX_MIN || value > BFD_IDLETX_MAX)
 		log_message(LOG_ERR, "Configuration error: BFD instance %s"
-			    " idle_tx value %i is not valid (must be in range"
-			    " [%u-%u]), ignoring", bfd->iname, value,
+			    " idle_tx value %s is not valid (must be in range"
+			    " [%u-%u]), ignoring", bfd->iname, FMT_STR_VSLOT(strvec, 1),
 			    BFD_IDLETX_MIN, BFD_IDLETX_MAX);
-	} else
-		bfd->local_idle_tx_intv = value * 1000;
+	else
+		bfd->local_idle_tx_intv = value * 1000U;
+
+	if (value > BFD_IDLETX_MAX_SENSIBLE)
+		log_message(LOG_INFO, "Configuration warning: BFD instance %s"
+			    " idle_tx value %lu is larger than max sensible (%u)",
+			    bfd->iname, value, BFD_IDLETX_MAX_SENSIBLE);
 }
 
 static void
 bfd_multiplier_handler(vector_t *strvec)
 {
 	bfd_t *bfd;
-	int value;
+	char *endptr;
+	unsigned long value;
 
 	assert(strvec);
 	assert(bfd_data);
@@ -208,14 +232,14 @@ bfd_multiplier_handler(vector_t *strvec)
 	bfd = LIST_TAIL_DATA(bfd_data->bfd);
 	assert(bfd);
 
-	value = atoi(vector_slot(strvec, 1));
+	value = strtoul(vector_slot(strvec, 1), &endptr, 10);
 
-	if (value < BFD_MULTIPLIER_MIN || value > BFD_MULTIPLIER_MAX) {
+	if (*endptr || value < BFD_MULTIPLIER_MIN || value > BFD_MULTIPLIER_MAX)
 		log_message(LOG_ERR, "Configuration error: BFD instance %s"
-			    " multiplier value %i not valid (must be in range"
-			    " [%u-%u]), ignoring", bfd->iname, value,
+			    " multiplier value %s not valid (must be in range"
+			    " [%u-%u]), ignoring", bfd->iname, FMT_STR_VSLOT(strvec, 1),
 			    BFD_MULTIPLIER_MIN, BFD_MULTIPLIER_MAX);
-	} else
+	else
 		bfd->local_detect_mult = value;
 }
 
@@ -325,7 +349,8 @@ bfd_vrrp_handler(vector_t *strvec)
 	element e;
 	char *name;
 
-	assert(strvec);
+	if (!strvec)
+		return;
 
 	name = vector_slot(strvec, 1);
 
@@ -360,7 +385,8 @@ static void
 bfd_vrrp_weight_handler(vector_t *strvec)
 {
 	vrrp_tracked_bfd_t *tbfd;
-	int value;
+	char *endptr;
+	long value;
 
 	assert(strvec);
 	assert(vrrp_data);
@@ -368,12 +394,12 @@ bfd_vrrp_weight_handler(vector_t *strvec)
 	tbfd = LIST_TAIL_DATA(vrrp_data->vrrp_track_bfds);
 	assert(tbfd);
 
-	value = atoi(vector_slot(strvec, 1));
+	value = strtol(vector_slot(strvec, 1), &endptr, 10);
 
-	if (value < -253 || value > 253) {
+	if (*endptr || value < -253 || value > 253) {
 		log_message(LOG_ERR, "Configuration error: BFD instance %s"
-			    " weight value %i not valid (must be in range"
-			    " [%u-%u]), ignoring", tbfd->bname, value,
+			    " weight value %s not valid (must be in range"
+			    " [%u-%u]), ignoring", tbfd->bname, FMT_STR_VSLOT(strvec, 1),
 			    -253, 253);
 	} else
 		tbfd->weight = value;
@@ -389,7 +415,10 @@ ignore_handler(__attribute__((unused)) vector_t *strvec)
 void
 init_bfd_keywords(bool active)
 {
-	if (prog_type == PROG_TYPE_BFD) {
+#ifdef _WITH_VRRP_
+	if (prog_type != PROG_TYPE_VRRP)
+#endif
+	{
 		install_keyword_root("bfd_instance", &bfd_handler, active);
 		install_sublevel_end_handler(bfd_config_check_handler);
 		install_keyword("source_ip", &bfd_srcip_handler);

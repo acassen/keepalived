@@ -40,6 +40,7 @@ enum daemon_bits {
 #ifdef _WITH_BFD_
 	DAEMON_BFD,
 #endif
+	RUN_ALL_CHILDREN,
 };
 
 /* Reloading helpers */
@@ -54,14 +55,17 @@ extern int log_facility;		/* Optional logging facilities */
 #ifdef _WITH_VRRP_
 extern pid_t vrrp_child;		/* VRRP child process ID */
 extern char *vrrp_pidfile;		/* overrule default pidfile */
+extern bool have_vrrp_instances;	/* vrrp instances configured */
 #endif
 #ifdef _WITH_LVS_
 extern pid_t checkers_child;		/* Healthcheckers child process ID */
 extern char *checkers_pidfile;		/* overrule default pidfile */
+extern bool have_virtual_servers;	/* virtual servers configured */
 #endif
 #ifdef _WITH_BFD_
 extern pid_t bfd_child;			/* BFD child process ID */
 extern char *bfd_pidfile;		/* overrule default pidfile */
+extern bool have_bfd_instances;		/* bfd instances configured */
 #endif
 extern bool reload;			/* Set during a reload */
 extern char *main_pidfile;		/* overrule default pidfile */

@@ -330,6 +330,7 @@ start_check_child(void)
 		/* Start respawning thread */
 		thread_add_child(master, check_respawn_thread, NULL,
 				 pid, RESPAWN_TIMER);
+
 		return 0;
 	}
 	prctl(PR_SET_PDEATHSIG, SIGTERM);

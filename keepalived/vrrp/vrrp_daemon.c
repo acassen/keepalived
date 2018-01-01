@@ -68,6 +68,9 @@
 #ifdef _WITH_JSON_
 #include "vrrp_json.h"
 #endif
+#ifdef _WITH_BFD_
+#include "bfd_daemon.h"
+#endif
 
 /* Global variables */
 bool non_existent_interface_specified;
@@ -558,11 +561,17 @@ start_vrrp_child(void)
 		/* Start respawning thread */
 		thread_add_child(master, vrrp_respawn_thread, NULL,
 				 pid, RESPAWN_TIMER);
+
 		return 0;
 	}
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
 	prog_type = PROG_TYPE_VRRP;
+
+#ifdef _WITH_BFD_
+	/* Close the write end of the BFD event notification pipe */
+        close(bfd_event_pipe[1]);
+#endif
 
 	/* Opening local VRRP syslog channel */
 	if ((instance_name
