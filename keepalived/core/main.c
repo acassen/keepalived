@@ -470,7 +470,7 @@ propogate_signal(__attribute__((unused)) void *v, int sig)
 		if (checkers_child > 0)
 			kill(checkers_child, sig);
 		else if (__test_bit(DAEMON_CHECKERS, &daemon_mode) &&
-			 have_vrrp_instances)
+			 have_virtual_servers)
 			start_check_child();
 	}
 #endif
