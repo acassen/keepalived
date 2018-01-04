@@ -48,6 +48,10 @@
   #include "check_snmp.h"
 #endif
 #include "utils.h"
+#ifdef _WITH_BFD_
+#include "bfd_daemon.h"
+#include "check_bfd.h"
+#endif
 
 /* Global variables */
 bool using_ha_suspend;
@@ -94,6 +98,7 @@ stop_check(int status)
 	pidfile_rm(checkers_pidfile);
 
 	/* Clean data */
+	checker_dispatcher_release();
 	if (global_data)
 		free_global_data(global_data);
 	if (check_data)
@@ -222,6 +227,9 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
         notify_fifo_close(&global_data->notify_fifo, &global_data->lvs_notify_fifo);
 
 	/* Destroy master thread */
+#ifdef _WITH_BFD_
+	checker_dispatcher_release();
+#endif
 	if (using_ha_suspend)
 		kernel_netlink_close();
 	thread_cleanup_master(master);
@@ -340,6 +348,16 @@ start_check_child(void)
 	set_child_finder(NULL, NULL, NULL, NULL, NULL, 0);	/* Currently these won't be set */
 
 	prog_type = PROG_TYPE_CHECKER;
+
+#ifdef _WITH_BFD_
+        /* Close the write end of the BFD checker event notification pipe */
+        close(bfd_checker_event_pipe[1]);
+
+#ifdef _WITH_VRRP_
+        close(bfd_vrrp_event_pipe[0]);
+        close(bfd_vrrp_event_pipe[1]);
+#endif
+#endif
 
 	if ((instance_name
 #if HAVE_DECL_CLONE_NEWNET

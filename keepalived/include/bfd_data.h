@@ -48,9 +48,9 @@ extern void free_bfd_data(bfd_data_t *);
 extern void bfd_complete_init(void);
 extern void alloc_bfd_buffer(void);
 extern void free_bfd_buffer(void);
-extern bfd_t *find_bfd_by_addr(struct sockaddr_storage *);
-extern bfd_t *find_bfd_by_discr(uint32_t);
-extern bfd_t *find_bfd_by_name(char *);
+extern bfd_t *find_bfd_by_addr(const struct sockaddr_storage *);
+extern bfd_t *find_bfd_by_discr(const uint32_t);
+extern bfd_t *find_bfd_by_name(const char *);
 extern uint32_t rand_intv(uint32_t, uint32_t);
 extern uint32_t bfd_get_random_discr(bfd_data_t *);
 

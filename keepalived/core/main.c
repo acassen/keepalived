@@ -174,20 +174,27 @@ extern void print_vrrp_scheduler_addresses(void);
 void global_print(void)
 {
 	print_smtp_addresses();
+#ifdef _WITH_LVS_
 	print_check_daemon_addresses();
 	print_check_dns_addresses();
 	print_check_http_addresses();
 	print_check_misc_addresses();
 	print_check_smtp_addresses();
+	print_check_ssl_addresses();
 	print_check_tcp_addresses();
+#ifdef _WITH_BFD_
+	print_check_bfd_addresses();
+#endif
+#endif
+#ifdef _WITH_VRRP_
 #ifdef _WITH_DBUS_
 	print_vrrp_dbus_addresses();
 #endif
 	print_vrrp_if_addresses();
 	print_vrrp_netlink_addresses();
 	print_vrrp_daemon_addresses();
-	print_check_ssl_addresses();
 	print_vrrp_scheduler_addresses();
+#endif
 }
 #endif
 
@@ -390,7 +397,7 @@ start_keepalived(void)
 {
 #ifdef _WITH_BFD_
 	/* must be opened before vrrp and bfd start */
-	open_bfd_pipe();
+	open_bfd_pipes();
 #endif
 
 #ifdef _WITH_LVS_

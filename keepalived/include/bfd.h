@@ -83,6 +83,12 @@ typedef struct _bfd {
 	uint8_t ttl;			/* TTL/hopcount to send */
 	uint8_t max_hops;		/* Maximum number of hops allowed to be traversed by received packet */
 	bool passive;			/* Operate in passive mode */
+#ifdef _WITH_VRRP_
+	bool vrrp;			/* Only send events to VRRP process */
+#endif
+#ifdef _WITH_LVS_
+	bool checker;			/* Only send events to checker process */
+#endif
 
 	/* Internal variables */
 	int fd_out;		/* Output socket fd */

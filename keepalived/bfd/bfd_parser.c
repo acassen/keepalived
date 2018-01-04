@@ -33,8 +33,10 @@
 #include "utils.h"
 #include "global_data.h"
 
+#include "bitops.h"
 #ifdef _WITH_LVS_
 #include "check_parser.h"
+#include "check_bfd.h"
 #endif
 #ifdef _WITH_VRRP_
 #include "vrrp_parser.h"
@@ -42,6 +44,30 @@
 #include "vrrp_data.h"
 #endif
 #include "main.h"
+
+static unsigned long specified_event_processes;
+
+static bool
+check_new_bfd(const char *name)
+{
+	if (strlen(name) >= BFD_INAME_MAX) {
+		log_message(LOG_ERR, "Configuration error: BFD instance %s"
+			    " name too long (maximum length is %i"
+			    " characters) - ignoring", name,
+			    BFD_INAME_MAX - 1);
+		skip_block();
+		return false;
+	}
+
+	if (find_bfd_by_name(name)) {
+		log_message(LOG_ERR,
+			    "Configuration error: BFD instance %s"
+			    " already configured - ignoring", name);
+		skip_block();
+		return false;
+	}
+	return true;
+}
 
 static void
 bfd_handler(vector_t *strvec)
@@ -55,24 +81,14 @@ bfd_handler(vector_t *strvec)
 
 	name = vector_slot(strvec, 1);
 
-	if (strlen(name) >= BFD_INAME_MAX) {
-		log_message(LOG_ERR, "Configuration error: BFD instance %s"
-			    " name too long (maximum length is %i"
-			    " characters) - ignoring", name,
-			    BFD_INAME_MAX - 1);
-		skip_block();
-		return;
-	}
-
-	if (find_bfd_by_name(name)) {
-		log_message(LOG_ERR,
-			    "Configuration error: BFD instance %s"
-			    " already configured - ignoring", name);
+	if (!check_new_bfd(name)) {
 		skip_block();
 		return;
 	}
 
 	alloc_bfd(name);
+
+	specified_event_processes = 0;
 }
 
 static void
@@ -306,7 +322,7 @@ bfd_maxhops_handler(vector_t *strvec)
 
 /* Checks for minimum configuration requirements */
 static void
-bfd_config_check_handler(void)
+bfd_end_handler(void)
 {
 	bfd_t *bfd = LIST_TAIL_DATA(bfd_data->bfd);
 
@@ -339,6 +355,15 @@ bfd_config_check_handler(void)
 		log_message(LOG_INFO, "BFD instance %s: max_hops exceeds ttl/hoplimit - setting to ttl/hoplimit", bfd->iname);
 		bfd->max_hops = bfd->ttl;
 	}
+
+#ifdef _WITH_VRRP_
+	if (!specified_event_processes || __test_bit(DAEMON_VRRP, &specified_event_processes))
+		bfd->vrrp = true;
+#endif
+#ifdef _WITH_LVS_
+	if (!specified_event_processes || __test_bit(DAEMON_CHECKERS, &specified_event_processes))
+		bfd->checker = true;
+#endif
 }
 
 #ifdef _WITH_VRRP_
@@ -346,29 +371,17 @@ static void
 bfd_vrrp_handler(vector_t *strvec)
 {
 	vrrp_tracked_bfd_t *tbfd;
-	element e;
 	char *name;
+	element e;
 
 	if (!strvec)
 		return;
 
 	name = vector_slot(strvec, 1);
 
-	if (strlen(name) >= BFD_INAME_MAX) {
-		log_message(LOG_ERR, "Configuration error: BFD instance %s"
-			    " name too long (maximum length is %i"
-			    " characters), ignoring instance", name,
-			    BFD_INAME_MAX - 1);
-		skip_block();
-		return;
-	}
-
 	LIST_FOREACH(vrrp_data->vrrp_track_bfds, tbfd, e) {
-		if (!strcmp(tbfd->bname, name)) {
-			log_message(LOG_ERR,
-				    "Configuration error: BFD instance %s"
-				    " already configured,"
-				    " ignoring instance", name);
+		if (!strcmp(name, tbfd->bname)) {
+			log_message(LOG_INFO, "BFD %s already specified", name);
 			skip_block();
 			return;
 		}
@@ -406,52 +419,117 @@ bfd_vrrp_weight_handler(vector_t *strvec)
 }
 
 static void
+bfd_event_vrrp_handler(__attribute__((unused)) vector_t *strvec)
+{
+	__set_bit(DAEMON_VRRP, &specified_event_processes);
+}
+
+static void
+bfd_vrrp_end_handler(void)
+{
+	if (specified_event_processes && !__test_bit(DAEMON_VRRP, &specified_event_processes))
+		list_del(vrrp_data->vrrp_track_bfds, LIST_TAIL_DATA(vrrp_data->vrrp_track_bfds));
+}
+#endif
+
+#ifdef _WITH_LVS_
+static void
+bfd_checker_handler(vector_t *strvec)
+{
+	checker_tracked_bfd_t *tbfd;
+	char *name;
+	element e;
+
+	if (!strvec)
+		return;
+
+	name = vector_slot(strvec, 1);
+
+	LIST_FOREACH(check_data->track_bfds, tbfd, e) {
+		if (!strcmp(name, tbfd->bname)) {
+			log_message(LOG_INFO, "BFD %s already specified", name);
+			skip_block();
+			return;
+		}
+	}
+
+	PMALLOC(tbfd);
+	tbfd->bname = MALLOC(strlen(name)+1);
+	strcpy(tbfd->bname, name);
+//	tbfd->weight = 0;
+
+	list_add(check_data->track_bfds, tbfd);
+}
+
+static void
+bfd_event_checker_handler(__attribute__((unused)) vector_t *strvec)
+{
+	__set_bit(DAEMON_CHECKERS, &specified_event_processes);
+}
+
+static void
+bfd_checker_end_handler(void)
+{
+	if (specified_event_processes && !__test_bit(DAEMON_CHECKERS, &specified_event_processes))
+		list_del(check_data->track_bfds, LIST_TAIL_DATA(check_data->track_bfds));
+}
+#endif
+
+static void
 ignore_handler(__attribute__((unused)) vector_t *strvec)
 {
 	return;
 }
-#endif
+
+static void
+install_keyword_conditional(const char *string, void (*handler) (vector_t *), bool want_handler)
+{
+	install_keyword(string, want_handler ? handler : ignore_handler);
+}
 
 void
 init_bfd_keywords(bool active)
 {
-#ifdef _WITH_VRRP_
-	if (prog_type != PROG_TYPE_VRRP)
-#endif
+	bool bfd_handlers = false;
+
+	/* This will be called with active == false for parent and checker process,
+	 * for bfd, checker and vrrp process active will be true, but they are only interested
+	 * in different keywords. */
+	if (prog_type == PROG_TYPE_BFD || !active)
 	{
 		install_keyword_root("bfd_instance", &bfd_handler, active);
-		install_sublevel_end_handler(bfd_config_check_handler);
-		install_keyword("source_ip", &bfd_srcip_handler);
-		install_keyword("neighbor_ip", &bfd_nbrip_handler);
-		install_keyword("min_rx", &bfd_minrx_handler);
-		install_keyword("min_tx", &bfd_mintx_handler);
-		install_keyword("idle_tx", &bfd_idletx_handler);
-		install_keyword("multiplier", &bfd_multiplier_handler);
-		install_keyword("passive", &bfd_passive_handler);
-		install_keyword("ttl", &bfd_ttl_handler);
-		install_keyword("hoplimit", &bfd_ttl_handler);
-		install_keyword("max_hops", &bfd_maxhops_handler);
-
-#ifdef _WITH_VRRP_
-		install_keyword("weight", &ignore_handler);
-#endif
+		install_sublevel_end_handler(bfd_end_handler);
+		bfd_handlers = true;
 	}
 #ifdef _WITH_VRRP_
-	else {
+	else if (prog_type == PROG_TYPE_VRRP) {
 		install_keyword_root("bfd_instance", &bfd_vrrp_handler, active);
-		install_keyword("source_ip", &ignore_handler);
-		install_keyword("neighbor_ip", &ignore_handler);
-		install_keyword("min_rx", &ignore_handler);
-		install_keyword("min_tx", &ignore_handler);
-		install_keyword("idle_tx", &ignore_handler);
-		install_keyword("multiplier", &ignore_handler);
-		install_keyword("passive", &ignore_handler);
-		install_keyword("ttl", &ignore_handler);
-		install_keyword("hoplimit", &ignore_handler);
-		install_keyword("max_hops", &ignore_handler);
-
-		install_keyword("weight", &bfd_vrrp_weight_handler);
+		install_sublevel_end_handler(bfd_vrrp_end_handler);
 	}
+#endif
+#ifdef _WITH_LVS_
+	else if (prog_type == PROG_TYPE_CHECKER) {
+		install_keyword_root("bfd_instance", &bfd_checker_handler, active);
+		install_sublevel_end_handler(bfd_checker_end_handler);
+	}
+#endif
+
+	install_keyword_conditional("source_ip", &bfd_srcip_handler, bfd_handlers);
+	install_keyword_conditional("neighbor_ip", &bfd_nbrip_handler, bfd_handlers);
+	install_keyword_conditional("min_rx", &bfd_minrx_handler, bfd_handlers);
+	install_keyword_conditional("min_tx", &bfd_mintx_handler, bfd_handlers);
+	install_keyword_conditional("idle_tx", &bfd_idletx_handler, bfd_handlers);
+	install_keyword_conditional("multiplier", &bfd_multiplier_handler, bfd_handlers);
+	install_keyword_conditional("passive", &bfd_passive_handler, bfd_handlers);
+	install_keyword_conditional("ttl", &bfd_ttl_handler, bfd_handlers);
+	install_keyword_conditional("hoplimit", &bfd_ttl_handler, bfd_handlers);
+	install_keyword_conditional("max_hops", &bfd_maxhops_handler, bfd_handlers);
+#ifdef _WITH_VRRP_
+	install_keyword_conditional("weight", &bfd_vrrp_weight_handler, !bfd_handlers);
+	install_keyword("vrrp", &bfd_event_vrrp_handler);
+#endif
+#ifdef _WITH_LVS_
+	install_keyword("checker", &bfd_event_checker_handler);
 #endif
 }
 

@@ -92,7 +92,7 @@ dump_bfd(void *data)
 	log_message(LOG_INFO, "   Neighbor IP = %s",
 		    inet_sockaddrtos(&bfd->nbr_addr));
 
-	if (bfd->src_addr.ss_family)
+	if (bfd->src_addr.ss_family != AF_UNSPEC)
 		log_message(LOG_INFO, "   Source IP = %s",
 			    inet_sockaddrtos(&bfd->src_addr));
 
@@ -104,11 +104,24 @@ dump_bfd(void *data)
 		    bfd->local_idle_tx_intv / TIMER_HZ);
 	log_message(LOG_INFO, "   Detection multiplier = %i",
 		    bfd->local_detect_mult);
+	log_message(LOG_INFO, "   %s = %d",
+		    bfd->nbr_addr.ss_family == AF_INET ? "TTL" : "hoplimit",
+		    bfd->ttl);
+	log_message(LOG_INFO, "   max_hops = %d",
+		    bfd->max_hops);
+#ifdef _WITH_VRRP_
+	log_message(LOG_INFO, "   send event to VRRP process = %s",
+		    bfd->vrrp ? "Yes" : "No");
+#endif
+#ifdef _WITH_LVS_
+	log_message(LOG_INFO, "   send event to checker process = %s",
+		    bfd->checker ? "Yes" : "No");
+#endif
 }
 
 /* Looks up bfd instance by name */
 static bfd_t *
-find_bfd_by_name2(char *name, bfd_data_t *data)
+find_bfd_by_name2(const char *name, const bfd_data_t *data)
 {
 	element e;
 	bfd_t *bfd;
@@ -130,7 +143,7 @@ find_bfd_by_name2(char *name, bfd_data_t *data)
 }
 
 bfd_t *
-find_bfd_by_name(char *name)
+find_bfd_by_name(const char *name)
 {
 	return find_bfd_by_name2(name, bfd_data);
 }
@@ -228,7 +241,7 @@ free_bfd_buffer(void)
  */
 /* Looks up bfd instance by neighbor address */
 bfd_t *
-find_bfd_by_addr(struct sockaddr_storage *addr)
+find_bfd_by_addr(const struct sockaddr_storage *addr)
 {
 	element e;
 	bfd_t *bfd;
@@ -249,7 +262,7 @@ find_bfd_by_addr(struct sockaddr_storage *addr)
 
 /* Looks up bfd instance by local discriminator */
 bfd_t *
-find_bfd_by_discr(uint32_t discr)
+find_bfd_by_discr(const uint32_t discr)
 {
 	element e;
 	bfd_t *bfd;

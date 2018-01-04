@@ -55,7 +55,6 @@ typedef struct _checker {
 	unsigned			retry_it;		/* number of successive failures */
 	unsigned			default_retry;		/* number of retries before failing */
 	unsigned long			default_delay_before_retry; /* interval between retries */
-
 } checker_t;
 
 /* Checkers queue */

@@ -18,7 +18,7 @@
 #
 # Keepalived OpenSource project.
 #
-# Copyright (C) 2001-2016 Alexandre Cassen, <acassen@gmail.com>
+# Copyright (C) 2001-2018 Alexandre Cassen, <acassen@gmail.com>
 
 VPATH = @srcdir@
 am__is_gnu_make = { \
@@ -94,6 +94,8 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 @SNMP_CHECKER_TRUE@am__append_1 = check_snmp.o
 @SNMP_CHECKER_TRUE@am__append_2 = check_snmp.c
+@WITH_BFD_TRUE@am__append_3 = check_bfd.o
+@WITH_BFD_TRUE@am__append_4 = check_bfd.c
 subdir = keepalived/check
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
@@ -110,13 +112,13 @@ am__v_AR_ = $(am__v_AR_@AM_DEFAULT_V@)
 am__v_AR_0 = @echo "  AR      " $@;
 am__v_AR_1 = 
 libcheck_a_AR = $(AR) $(ARFLAGS)
-libcheck_a_DEPENDENCIES = $(am__append_1)
+libcheck_a_DEPENDENCIES = $(am__append_1) $(am__append_3)
 am_libcheck_a_OBJECTS = check_daemon.$(OBJEXT) check_data.$(OBJEXT) \
 	check_parser.$(OBJEXT) check_api.$(OBJEXT) check_tcp.$(OBJEXT) \
 	check_http.$(OBJEXT) check_ssl.$(OBJEXT) check_smtp.$(OBJEXT) \
 	check_misc.$(OBJEXT) check_dns.$(OBJEXT) ipwrapper.$(OBJEXT) \
 	ipvswrapper.$(OBJEXT) libipvs.$(OBJEXT)
-am__EXTRA_libcheck_a_SOURCES_DIST = check_snmp.c
+am__EXTRA_libcheck_a_SOURCES_DIST = check_snmp.c check_bfd.c
 libcheck_a_OBJECTS = $(am_libcheck_a_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -296,8 +298,8 @@ libcheck_a_SOURCES = \
 	check_smtp.c check_misc.c check_dns.c ipwrapper.c \
 	ipvswrapper.c libipvs.c
 
-EXTRA_libcheck_a_SOURCES = $(am__append_2)
-libcheck_a_LIBADD = $(am__append_1)
+EXTRA_libcheck_a_SOURCES = $(am__append_2) $(am__append_4)
+libcheck_a_LIBADD = $(am__append_1) $(am__append_3)
 all: all-am
 
 .SUFFIXES:
@@ -347,6 +349,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_api.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_bfd.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_daemon.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_data.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_dns.Po@am__quote@

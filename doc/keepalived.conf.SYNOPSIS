@@ -534,6 +534,7 @@ bfd_instance <STRING> {
     max_hops <INTEGER 0..255>          # maximum reduction of ttl/hoplimit in received packet (default 0)
                                        #   (255 disables hop count checking)
     weight                             # Default tracking weight
+    vrrp|checker                       # Only notify vrrp or checker process. Default is notify both.
 }
 
     2.4. VRRP synchronization group
@@ -959,9 +960,10 @@ virtual_server group <STRING>      {          # VS group declaration
                                               #  virtual_server virtualhost)
 
         # healthcheckers. Can be multiple of each type
-        # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|DNS_CHECK|MISC_CHECK
+        # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|DNS_CHECK|MISC_CHECK|BFD_CHECK
 
-        # All checkers have the following options, except MISC_CHECK which only has alpha onwards:
+        # All checkers have the following options, except MISC_CHECK which only has alpha onwards,
+	#  and BFD_CHECK which has no standard options:
         CHECKER_TYPE {
             connect_ip <IP ADDRESS>           # IP address to connect (default real_server address)
             connect_port <PORT>               # Port to connect (default real_server port)
@@ -1033,6 +1035,9 @@ virtual_server group <STRING>      {          # VS group declaration
             # NOTE: do not have more than one dynamic MISC_CHECK per real_server.
             misc_dynamic
             user USERNAME [GROUPNAME]         # Specify user/group to run script under
+        }
+        BFD_CHECK {
+            name <STRING>                     # the name of the bfd instance
         }
     }
 }

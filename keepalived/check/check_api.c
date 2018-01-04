@@ -41,6 +41,11 @@
 #include "check_dns.h"
 #include "ipwrapper.h"
 #include "check_daemon.h"
+#ifdef _WITH_BFD_
+#include "check_bfd.h"
+#include "bfd_event.h"
+#include "bfd_daemon.h"
+#endif
 
 /* Global vars */
 list checkers_queue;
@@ -49,7 +54,7 @@ list checkers_queue;
 static void
 free_checker(void *data)
 {
-	checker_t *checker= data;
+	checker_t *checker = data;
 	(*checker->free_func) (checker);
 }
 
@@ -410,10 +415,11 @@ register_checkers_thread(void)
 
 	for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
 		checker = ELEMENT_DATA(e);
-		log_message(LOG_INFO, "%sctivating healthchecker for service %s for VS %s"
-				    , checker->enabled ? "A" : "Dea", FMT_RS(checker->rs, checker->vs), FMT_VS(checker->vs));
 		if (checker->launch)
 		{
+			log_message(LOG_INFO, "%sctivating healthchecker for service %s for VS %s"
+					    , checker->enabled ? "A" : "Dea", FMT_RS(checker->rs, checker->vs), FMT_VS(checker->vs));
+
 			/* wait for a random timeout to begin checker thread.
 			   It helps avoiding multiple simultaneous checks to
 			   the same RS.
@@ -425,6 +431,14 @@ register_checkers_thread(void)
 					 BOOTSTRAP_DELAY + warmup);
 		}
 	}
+
+#ifdef _WITH_BFD_
+	log_message(LOG_INFO, "Activating BFD healthchecker");
+
+	/* We need to always enable this, since the bfd process may write to the pipe, and we
+	 * need to ensure that messages are stripped out. */
+	start_bfd_monitoring(master);
+#endif
 }
 
 /* Sync checkers activity with netlink kernel reflection */
@@ -582,4 +596,7 @@ install_checkers_keyword(void)
 	install_http_check_keyword();
 	install_ssl_check_keyword();
 	install_dns_check_keyword();
+#ifdef _WITH_BFD_
+	install_bfd_check_keyword();
+#endif
 }

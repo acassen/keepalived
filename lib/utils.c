@@ -394,7 +394,7 @@ inet_sockaddrip6(struct sockaddr_storage *addr, struct in6_addr *ip6)
 
 /* IPv6 address compare */
 int
-inet_inaddrcmp(int family, void *a, void *b)
+inet_inaddrcmp(const int family, const void *a, const void *b)
 {
 	int64_t addr_diff;
 
@@ -424,7 +424,7 @@ inet_inaddrcmp(int family, void *a, void *b)
 }
 
 int
-inet_sockaddrcmp(struct sockaddr_storage *a, struct sockaddr_storage *b)
+inet_sockaddrcmp(const struct sockaddr_storage *a, const struct sockaddr_storage *b)
 {
 	if (a->ss_family != b->ss_family)
 		return -2;

@@ -40,6 +40,7 @@
 #include "list.h"
 #include "vector.h"
 #include "notify.h"
+#include "utils.h"
 
 /* Daemon dynamic data structure definition */
 #define KEEPALIVED_DEFAULT_DELAY	(60 * TIMER_HZ)
@@ -92,6 +93,9 @@ typedef struct _real_server {
 #else
 	struct ip_vs_stats64		stats;
 #endif
+#endif
+#ifdef _WITH_BFD_
+	list				tracked_bfds;	/* list of bfd_checker_t */
 #endif
 } real_server_t;
 
@@ -175,6 +179,9 @@ typedef struct _check_data {
 	ssl_data_t			*ssl;
 	list				vs_group;
 	list				vs;
+#ifdef _WITH_BFD_
+	list				track_bfds;	/* list of checker_tracked_bfd_t */
+#endif
 } check_data_t;
 
 /* macro utility */

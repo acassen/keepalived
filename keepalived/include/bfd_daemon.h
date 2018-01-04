@@ -25,9 +25,14 @@
 
 #define PROG_BFD "Keepalived_bfd"
 
-extern int bfd_event_pipe[2];
+#ifdef _WITH_VRRP_
+extern int bfd_vrrp_event_pipe[2];
+#endif
+#ifdef _WITH_LVS_
+extern int bfd_checker_event_pipe[2];
+#endif
 
-extern void open_bfd_pipe(void);
+extern void open_bfd_pipes(void);
 extern int start_bfd_child(void);
 
 #endif				/* _BFD_DAEMON_H_ */

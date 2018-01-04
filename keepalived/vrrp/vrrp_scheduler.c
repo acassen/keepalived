@@ -66,7 +66,7 @@ bool vrrp_initialised;
 
 /* local variables */
 #ifdef _WITH_BFD_
-thread_t *bfd_thread;		 /* BFD control pipe read thread */
+static thread_t *bfd_thread;		 /* BFD control pipe read thread */
 #endif
 
 /* VRRP FSM (Finite State Machine) design.
@@ -94,10 +94,10 @@ thread_t *bfd_thread;		 /* BFD control pipe read thread */
  *     +---------------+                       +---------------+
  */
 
-static int vrrp_script_child_thread(thread_t * thread);
-static int vrrp_script_thread(thread_t * thread);
+static int vrrp_script_child_thread(thread_t *);
+static int vrrp_script_thread(thread_t *);
 #ifdef _WITH_BFD_
-static int vrrp_bfd_thread(thread_t * thread);
+static int vrrp_bfd_thread(thread_t *);
 #endif
 
 static int vrrp_read_dispatcher_thread(thread_t *);
@@ -409,7 +409,7 @@ vrrp_register_workers(list l)
 	if (!LIST_ISEMPTY(vrrp_data->vrrp)) {
 		/* Init BFD tracking thread */
 		bfd_thread = thread_add_read(master, vrrp_bfd_thread, NULL,
-					     bfd_event_pipe[0], TIMER_HZ);
+					     bfd_vrrp_event_pipe[0], TIMER_HZ);
 	}
 #endif
 
