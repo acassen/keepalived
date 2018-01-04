@@ -618,6 +618,13 @@ bool validate_check_config(void)
 				continue;
 			}
 
+			/* Check that the quorum isn't higher than the number of real servers,
+			 * otherwise we will never be able to come up. */
+			if (vs->quorum > LIST_SIZE(vs->rs)) {
+				log_message(LOG_INFO, "Warning - quorum %1$d for %2$s exceeds number of real servers %3$d, reducing quorum to %3$d", vs->quorum, FMT_VS(vs), LIST_SIZE(vs->rs));
+				vs->quorum = LIST_SIZE(vs->rs);
+			}
+
 			/* Ensure that no virtual server hysteresis >= quorum */
 			if (vs->hysteresis >= vs->quorum) {
 				log_message(LOG_INFO, "Virtual server %s: hysteresis %u >= quorum %u; setting hysteresis to %u",
