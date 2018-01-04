@@ -758,10 +758,10 @@ bool validate_check_config(void)
 		if (!checker->vs->ha_suspend)
 			checker->enabled = true;
 
+		/* Take default values from real server */
+		if (checker->alpha == -1)
+			checker->alpha = checker->rs->alpha;
 		if (checker->launch) {
-			/* Take default values from real server */
-			if (checker->alpha == -1)
-				checker->alpha = checker->rs->alpha;
 			if (checker->retry == UINT_MAX)
 				checker->retry = checker->rs->retry != UINT_MAX ? checker->rs->retry : checker->default_retry;
 			if (checker->delay_loop == ULONG_MAX)
@@ -776,12 +776,12 @@ bool validate_check_config(void)
 						checker->default_delay_before_retry :
 						checker->delay_loop;
 			}
+		}
 
-			/* In Alpha mode also mark the checker as failed. */
-			if (checker->alpha) {
-				set_checker_state(checker, false);
-				UNSET_ALIVE(checker->rs);
-			}
+		/* In Alpha mode also mark the checker as failed. */
+		if (checker->alpha) {
+			set_checker_state(checker, false);
+			UNSET_ALIVE(checker->rs);
 		}
 	}
 

@@ -310,7 +310,7 @@ set_quorum_states(void)
 
 /* set quorum state depending on current weight of real servers */
 static void
-update_quorum_state(virtual_server_t * vs)
+update_quorum_state(virtual_server_t * vs, bool init)
 {
 	long weight_sum = weigh_live_realservers(vs);
 	long up_threshold = vs->quorum + vs->hysteresis;
@@ -346,13 +346,18 @@ update_quorum_state(virtual_server_t * vs)
 #endif
 		return;
 	}
-	else if (vs->quorum_state_up &&
-		 (!weight_sum || weight_sum < down_threshold)) {
+	else if ((vs->quorum_state_up &&
+		  (!weight_sum || weight_sum < down_threshold)) ||
+		 (init && !vs->quorum_state_up &&
+		  vs->s_svr && !ISALIVE(vs->s_svr))) {
 		/* We have just lost quorum for the VS, we need to consider
 		 * VS notify_down and sorry_server cases
+		 *   or
+		 * We are starting up and need to add the sorry server
 		 */
 		vs->quorum_state_up = false;
-		log_message(LOG_INFO, "Lost quorum %u-%u=%ld > %ld for VS %s"
+		log_message(LOG_INFO, "%s %u-%u=%ld > %ld for VS %s"
+				    , init ? "Starting with quorum down" : "Lost quorum"
 				    , vs->quorum
 				    , vs->hysteresis
 				    , down_threshold
@@ -420,7 +425,7 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 
 	/* We may have changed quorum state. If the quorum wasn't up
 	 * but is now up, this is where the rs is added. */
-	update_quorum_state(vs);
+	update_quorum_state(vs, false);
 
 	return true;
 }
@@ -446,7 +451,7 @@ init_service_vs(virtual_server_t * vs)
 
 	/* we may have got/lost quorum due to quorum setting changed */
 	/* also update, in case we need the sorry server in alpha mode */
-	update_quorum_state(vs);
+	update_quorum_state(vs, true);
 
 	return true;
 }
@@ -490,7 +495,7 @@ update_svr_wgt(int weight, virtual_server_t * vs, real_server_t * rs
 		    (vs->quorum_state_up || !vs->s_svr || !ISALIVE(vs->s_svr)))
 			ipvs_cmd(LVS_CMD_EDIT_DEST, vs, rs);
 		if (update_quorum)
-			update_quorum_state(vs);
+			update_quorum_state(vs, false);
 	}
 }
 
