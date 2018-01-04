@@ -98,7 +98,9 @@ stop_check(int status)
 	pidfile_rm(checkers_pidfile);
 
 	/* Clean data */
+#ifdef _WITH_BFD_
 	checker_dispatcher_release();
+#endif
 	if (global_data)
 		free_global_data(global_data);
 	if (check_data)

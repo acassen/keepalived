@@ -573,10 +573,12 @@ dump_check_data(check_data_t *data)
 	}
 	dump_checkers_queue();
 
+#ifdef _WITH_BFD_
 	if (!LIST_ISEMPTY(data->track_bfds)) {
 		log_message(LOG_INFO, "------< Checker track BFDs >------");
 		dump_list(data->track_bfds);
 	}
+#endif
 }
 
 char *
