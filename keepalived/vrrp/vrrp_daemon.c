@@ -569,8 +569,13 @@ start_vrrp_child(void)
 	prog_type = PROG_TYPE_VRRP;
 
 #ifdef _WITH_BFD_
-	/* Close the write end of the BFD event notification pipe */
-        close(bfd_event_pipe[1]);
+	/* Close the write end of the BFD vrrp event notification pipe */
+        close(bfd_vrrp_event_pipe[1]);
+
+#ifdef _WITH_LVS_
+	close(bfd_checker_event_pipe[0]);
+	close(bfd_checker_event_pipe[1]);
+#endif
 #endif
 
 	/* Opening local VRRP syslog channel */

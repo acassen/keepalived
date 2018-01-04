@@ -36,6 +36,9 @@
 #include "parser.h"
 #include "libipvs.h"
 #include "keepalived_magic.h"
+#ifdef _WITH_BFD_
+#include "check_bfd.h"
+#endif
 
 /* global vars */
 check_data_t *check_data = NULL;
@@ -501,6 +504,31 @@ alloc_rs(char *ip, char *port)
 	clear_dynamic_misc_check_flag();
 }
 
+#ifdef _WITH_BFD_
+/* Track bfd dump */
+static void
+dump_checker_bfd(void *track_data)
+{
+	checker_tracked_bfd_t *cbfd = track_data;
+
+	log_message(LOG_INFO, " Checker Track BFD = %s", cbfd->bname);
+//	log_message(LOG_INFO, "   Weight = %d", cbfd->weight);
+	log_message(LOG_INFO, "   Tracking RS = %d", cbfd->tracking_rs ? LIST_SIZE(cbfd->tracking_rs) : 0);
+	if (cbfd->tracking_rs)
+		dump_list(cbfd->tracking_rs);
+}
+
+static void
+free_checker_bfd(void *track_data)
+{
+	checker_tracked_bfd_t *cbfd = track_data;
+
+	FREE(cbfd->bname);
+	free_list(&cbfd->tracking_rs);
+	FREE(track_data);
+}
+#endif
+
 /* data facility functions */
 check_data_t *
 alloc_check_data(void)
@@ -510,6 +538,9 @@ alloc_check_data(void)
 	new = (check_data_t *) MALLOC(sizeof(check_data_t));
 	new->vs = alloc_list(free_vs, dump_vs);
 	new->vs_group = alloc_list(free_vsg, dump_vsg);
+#ifdef _WITH_BFD_
+	new->track_bfds = alloc_list(free_checker_bfd, dump_checker_bfd);
+#endif
 
 	return new;
 }
@@ -519,6 +550,9 @@ free_check_data(check_data_t *data)
 {
 	free_list(&data->vs);
 	free_list(&data->vs_group);
+#ifdef _WITH_BFD_
+	free_list(&data->track_bfds);
+#endif
 	FREE(data);
 }
 
@@ -538,6 +572,13 @@ dump_check_data(check_data_t *data)
 		dump_list(data->vs);
 	}
 	dump_checkers_queue();
+
+#ifdef _WITH_BFD_
+	if (!LIST_ISEMPTY(data->track_bfds)) {
+		log_message(LOG_INFO, "------< Checker track BFDs >------");
+		dump_list(data->track_bfds);
+	}
+#endif
 }
 
 char *
@@ -612,121 +653,112 @@ bool validate_check_config(void)
 	element next;
 
 	using_ha_suspend = false;
-	if (!LIST_ISEMPTY(check_data->vs)) {
-		for (e = LIST_HEAD(check_data->vs); e; e = next) {
-			next = e->next;
+	LIST_FOREACH_NEXT(check_data->vs, vs, e, next) {
+		if (!vs->rs || LIST_ISEMPTY(vs->rs)) {
+			log_message(LOG_INFO, "Virtual server %s has no real servers - ignoring", FMT_VS(vs));
+			free_list_element(check_data->vs, e);
+			continue;
+		}
 
-			vs = ELEMENT_DATA(e);
+		/* Ensure that no virtual server hysteresis >= quorum */
+		if (vs->hysteresis >= vs->quorum) {
+			log_message(LOG_INFO, "Virtual server %s: hysteresis %u >= quorum %u; setting hysteresis to %u",
+					FMT_VS(vs), vs->hysteresis, vs->quorum, vs->quorum -1);
+			vs->hysteresis = vs->quorum - 1;
+		}
 
-			if (!vs->rs || LIST_ISEMPTY(vs->rs)) {
-				log_message(LOG_INFO, "Virtual server %s has no real servers - ignoring", FMT_VS(vs));
-				free_list_element(check_data->vs, e);
-				continue;
+		/* Ensure that ha_suspend is not set for any virtual server using fwmarks */
+		if (vs->ha_suspend &&
+		    (vs->vfwmark || (vs->vsg && !LIST_ISEMPTY(vs->vsg->vfwmark)))) {
+			log_message(LOG_INFO, "Virtual server %s: cannot use ha_suspend with fwmarks - clearing ha_suspend", FMT_VS(vs));
+			vs->ha_suspend = false;
+		}
+
+		if (vs->ha_suspend)
+			using_ha_suspend = true;
+
+		/* If the virtual server is specified by address (rather than fwmark), make some further checks */
+		if ((vs->vsg && !LIST_ISEMPTY(vs->vsg->addr_range)) ||
+		    (!vs->vsg && !vs->vfwmark)) {
+			/* Check protocol set */
+			if (!vs->service_type) {
+				/* If the protocol is 0, the kernel defaults to UDP, so set it explicitly */
+				log_message(LOG_INFO, "Virtual server %s: no protocol set - defaulting to UDP", FMT_VS(vs));
+				vs->service_type = IPPROTO_UDP;
 			}
-
-			/* Ensure that no virtual server hysteresis >= quorum */
-			if (vs->hysteresis >= vs->quorum) {
-				log_message(LOG_INFO, "Virtual server %s: hysteresis %u >= quorum %u; setting hysteresis to %u",
-						FMT_VS(vs), vs->hysteresis, vs->quorum, vs->quorum -1);
-				vs->hysteresis = vs->quorum - 1;
-			}
-
-			/* Ensure that ha_suspend is not set for any virtual server using fwmarks */
-			if (vs->ha_suspend &&
-			    (vs->vfwmark || (vs->vsg && !LIST_ISEMPTY(vs->vsg->vfwmark)))) {
-				log_message(LOG_INFO, "Virtual server %s: cannot use ha_suspend with fwmarks - clearing ha_suspend", FMT_VS(vs));
-				vs->ha_suspend = false;
-			}
-
-			if (vs->ha_suspend)
-				using_ha_suspend = true;
-
-			/* If the virtual server is specified by address (rather than fwmark), make some further checks */
-			if ((vs->vsg && !LIST_ISEMPTY(vs->vsg->addr_range)) ||
-			    (!vs->vsg && !vs->vfwmark)) {
-				/* Check protocol set */
-				if (!vs->service_type) {
-					/* If the protocol is 0, the kernel defaults to UDP, so set it explicitly */
-					log_message(LOG_INFO, "Virtual server %s: no protocol set - defaulting to UDP", FMT_VS(vs));
-					vs->service_type = IPPROTO_UDP;
-				}
 
 #ifdef IP_VS_SVC_F_ONEPACKET
-				/* Check OPS not set for TCP or SCTP */
-				if (vs->flags & IP_VS_SVC_F_ONEPACKET &&
-				    vs->service_type != IPPROTO_UDP) {
-					/* OPS is only valid for UDP, or with a firewall mark */
-					log_message(LOG_INFO, "Virtual server %s: one packet scheduling requires UDP - resetting", FMT_VS(vs));
-					vs->flags &= ~(unsigned)IP_VS_SVC_F_ONEPACKET;
-				}
+			/* Check OPS not set for TCP or SCTP */
+			if (vs->flags & IP_VS_SVC_F_ONEPACKET &&
+			    vs->service_type != IPPROTO_UDP) {
+				/* OPS is only valid for UDP, or with a firewall mark */
+				log_message(LOG_INFO, "Virtual server %s: one packet scheduling requires UDP - resetting", FMT_VS(vs));
+				vs->flags &= ~(unsigned)IP_VS_SVC_F_ONEPACKET;
+			}
 #endif
 
-				/* Check port specified for udp/tcp/sctp unless persistent */
-				if (!vs->persistence_timeout &&
-				    ((vs->addr.ss_family == AF_INET6 && !((struct sockaddr_in6 *)&vs->addr)->sin6_port) ||
-				     (vs->addr.ss_family == AF_INET && !((struct sockaddr_in *)&vs->addr)->sin_port))) {
-					log_message(LOG_INFO, "Virtual server %s: zero port only valid for persistent sevices - setting", FMT_VS(vs));
-					vs->persistence_timeout = IPVS_SVC_PERSISTENT_TIMEOUT;
+			/* Check port specified for udp/tcp/sctp unless persistent */
+			if (!vs->persistence_timeout &&
+			    ((vs->addr.ss_family == AF_INET6 && !((struct sockaddr_in6 *)&vs->addr)->sin6_port) ||
+			     (vs->addr.ss_family == AF_INET && !((struct sockaddr_in *)&vs->addr)->sin_port))) {
+				log_message(LOG_INFO, "Virtual server %s: zero port only valid for persistent sevices - setting", FMT_VS(vs));
+				vs->persistence_timeout = IPVS_SVC_PERSISTENT_TIMEOUT;
+			}
+		}
+
+		/* A virtual server using fwmarks will ignore any protocol setting, so warn if one is set */
+		if (vs->service_type &&
+		    ((vs->vsg && !LIST_ISEMPTY(vs->vsg->vfwmark)) ||
+		     (!vs->vsg && vs->vfwmark)))
+			log_message(LOG_INFO, "Warning: Virtual server %s: protocol specified for fwmark - protocol will be ignored", FMT_VS(vs));
+
+		/* Check scheduler set */
+		if (!vs->sched[0]) {
+			log_message(LOG_INFO, "Virtual server %s: no scheduler set, setting default '%s'", FMT_VS(vs), IPVS_DEF_SCHED);
+			strcpy(vs->sched, IPVS_DEF_SCHED);
+		}
+
+
+		/* Set default values */
+
+		/* Spin through all the real servers */
+		LIST_FOREACH(vs->rs, rs, e1) {
+			/* Set the forwarding method if necessary */
+			if (rs->forwarding_method == IP_VS_CONN_F_FWD_MASK) {
+				if (vs->forwarding_method == IP_VS_CONN_F_FWD_MASK) {
+					log_message(LOG_INFO, "Virtual server %s: no forwarding method set, setting default NAT", FMT_VS(vs));
+					vs->forwarding_method = IP_VS_CONN_F_MASQ;
 				}
+				rs->forwarding_method = vs->forwarding_method;
 			}
 
-			/* A virtual server using fwmarks will ignore any protocol setting, so warn if one is set */
-			if (vs->service_type &&
-			    ((vs->vsg && !LIST_ISEMPTY(vs->vsg->vfwmark)) ||
-			     (!vs->vsg && vs->vfwmark)))
-				log_message(LOG_INFO, "Warning: Virtual server %s: protocol specified for fwmark - protocol will be ignored", FMT_VS(vs));
-
-			/* Check scheduler set */
-			if (!vs->sched[0]) {
-				log_message(LOG_INFO, "Virtual server %s: no scheduler set, setting default '%s'", FMT_VS(vs), IPVS_DEF_SCHED);
-				strcpy(vs->sched, IPVS_DEF_SCHED);
-			}
-
-
-			/* Set default values */
-
-			/* Spin through all the real servers */
-			for (e1 = LIST_HEAD(vs->rs); e1; ELEMENT_NEXT(e1)) {
-				rs = ELEMENT_DATA(e1);
-
-				/* Set the forwarding method if necessary */
-				if (rs->forwarding_method == IP_VS_CONN_F_FWD_MASK) {
-					if (vs->forwarding_method == IP_VS_CONN_F_FWD_MASK) {
-						log_message(LOG_INFO, "Virtual server %s: no forwarding method set, setting default NAT", FMT_VS(vs));
-						vs->forwarding_method = IP_VS_CONN_F_MASQ;
-					}
-					rs->forwarding_method = vs->forwarding_method;
-				}
-
-				/* Take default values from virtual server */
-				if (rs->alpha == -1)
-					rs->alpha = vs->alpha;
-				if (rs->inhibit == -1)
-					rs->inhibit = vs->inhibit;
-				if (rs->retry == UINT_MAX)
-					rs->retry = vs->retry;
-				if (rs->delay_loop == ULONG_MAX)
-					rs->delay_loop = vs->delay_loop;
-				if (rs->warmup == ULONG_MAX)
-					rs->warmup = vs->warmup;
-				if (rs->delay_before_retry == ULONG_MAX)
-					rs->delay_before_retry = vs->delay_before_retry;
-				if (rs->weight == INT_MAX) {
-					rs->weight = vs->weight;
-					rs->iweight = rs->weight;
-				}
+			/* Take default values from virtual server */
+			if (rs->alpha == -1)
+				rs->alpha = vs->alpha;
+			if (rs->inhibit == -1)
+				rs->inhibit = vs->inhibit;
+			if (rs->retry == UINT_MAX)
+				rs->retry = vs->retry;
+			if (rs->delay_loop == ULONG_MAX)
+				rs->delay_loop = vs->delay_loop;
+			if (rs->warmup == ULONG_MAX)
+				rs->warmup = vs->warmup;
+			if (rs->delay_before_retry == ULONG_MAX)
+				rs->delay_before_retry = vs->delay_before_retry;
+			if (rs->weight == INT_MAX) {
+				rs->weight = vs->weight;
+				rs->iweight = rs->weight;
 			}
 		}
 	}
 
-	if (!LIST_ISEMPTY(checkers_queue)) {
-		for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
-			checker = ELEMENT_DATA(e);
+	LIST_FOREACH(checkers_queue, checker, e)
+	{
+		/* Ensure any checkers that don't have ha_suspend set are enabled */
+		if (!checker->vs->ha_suspend)
+			checker->enabled = true;
 
-			/* Ensure any checkers that don't have ha_suspend set are enabled */
-			if (!checker->vs->ha_suspend)
-				checker->enabled = true;
-
+		if (checker->launch) {
 			/* Take default values from real server */
 			if (checker->alpha == -1)
 				checker->alpha = checker->rs->alpha;

@@ -44,7 +44,14 @@ bfd_event_send(bfd_t *bfd)
 	assert(bfd);
 
 	/* If there is no VRRP process running, don't write to the pipe */
-	if (!__test_bit(DAEMON_VRRP, &daemon_mode) || !have_vrrp_instances)
+	if (true
+#ifdef _WITH_VRRP_
+	    && !(__test_bit(DAEMON_VRRP, &daemon_mode) && have_vrrp_instances)
+#endif
+#ifdef _WITH_LVS_
+	    && !(__test_bit(DAEMON_CHECKERS, &daemon_mode) && have_virtual_servers)
+#endif
+	        )
 		return;
 
 	memset(&evt, 0, sizeof evt);
@@ -52,8 +59,21 @@ bfd_event_send(bfd_t *bfd)
 	evt.state = bfd->local_state == BFD_STATE_UP ? BFD_STATE_UP : BFD_STATE_DOWN;
 	evt.sent_time = timer_now();
 
-	ret = write(bfd_event_pipe[1], &evt, sizeof evt);
-	if (ret == -1 && __test_bit(LOG_DETAIL_BIT, &debug))
-		log_message(LOG_ERR, "BFD_Instance(%s) write() error %m",
-			    bfd->iname);
+#ifdef _WITH_VRRP_
+	if (bfd->vrrp) {
+		ret = write(bfd_vrrp_event_pipe[1], &evt, sizeof evt);
+		if (ret == -1 && __test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_ERR, "BFD_Instance(%s) vrrp pipe write() error %m",
+				    bfd->iname);
+	}
+#endif
+
+#ifdef _WITH_LVS_
+	if (bfd->checker) {
+		ret = write(bfd_checker_event_pipe[1], &evt, sizeof evt);
+		if (ret == -1 && __test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_ERR, "BFD_Instance(%s) checker pipe write() error %m",
+				    bfd->iname);
+	}
+#endif
 }

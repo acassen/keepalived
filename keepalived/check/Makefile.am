@@ -2,7 +2,7 @@
 #
 # Keepalived OpenSource project.
 #
-# Copyright (C) 2001-2016 Alexandre Cassen, <acassen@gmail.com>
+# Copyright (C) 2001-2018 Alexandre Cassen, <acassen@gmail.com>
 
 AM_CPPFLAGS		= $(KA_CPPFLAGS) $(DEBUG_CPPFLAGS)
 AM_CFLAGS		= $(KA_CFLAGS) $(DEBUG_CFLAGS)
@@ -26,6 +26,11 @@ libcheck_a_LIBADD =
 if SNMP_CHECKER
   libcheck_a_LIBADD	+= check_snmp.o
   EXTRA_libcheck_a_SOURCES += check_snmp.c
+endif
+
+if WITH_BFD
+  libcheck_a_LIBADD	+= check_bfd.o
+  EXTRA_libcheck_a_SOURCES += check_bfd.c
 endif
 
 MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@

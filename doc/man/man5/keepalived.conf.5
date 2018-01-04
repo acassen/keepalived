@@ -1102,10 +1102,11 @@ A virtual_server can be a declaration of one of
            inhibit_on_failure <BOOL>       # see above
 
            # healthcheckers. Can be multiple of each type
-           # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|DNS_CHECK|MISC_CHECK
+           # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|DNS_CHECK|MISC_CHECK|BFD_CHECK
 
            # All checkers have the following options, except MISC_CHECK
-           # which only has options alpha onwards:
+           # which only has options alpha onwards, and BFD_CHECK which has none
+           # of the standard options:
            CHECKER_TYPE {
                # ======== generic connection options
                # Optional IP address to connect to.
@@ -1223,6 +1224,9 @@ A virtual_server can be a declaration of one of
                # If GROUPNAME is not specified, the group of the user
                #   is used
                user USERNAME [GROUPNAME]
+           }
+           BFD_CHECK {
+               name <STRING>                     # the name of the bfd instance
            }
        } # realserver defn
     } # virtual service

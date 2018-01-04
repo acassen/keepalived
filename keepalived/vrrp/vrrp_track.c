@@ -295,7 +295,7 @@ alloc_group_track_script(vrrp_sgroup_t *sgroup, vector_t *strvec)
 }
 
 vrrp_tracked_file_t *
-find_tracked_file_by_name(char *name)
+find_tracked_file_by_name(const char *name)
 {
 	element e;
 	vrrp_tracked_file_t *file;
@@ -439,7 +439,7 @@ alloc_group_track_file(vrrp_sgroup_t *sgroup, vector_t *strvec)
 
 #ifdef _WITH_BFD_
 vrrp_tracked_bfd_t *
-find_tracked_bfd_by_name(char *name)
+find_vrrp_tracked_bfd_by_name(const char *name)
 {
 	element e;
 	vrrp_tracked_bfd_t *bfd;
@@ -453,14 +453,14 @@ find_tracked_bfd_by_name(char *name)
 
 /* Track bfd dump */
 void
-dump_track_bfd(void *track_data)
+dump_vrrp_tracked_bfd(void *track_data)
 {
 	tracked_bfd_t *tbfd = track_data;
 	log_message(LOG_INFO, "     %s: weight %d", tbfd->bfd->bname, tbfd->weight);
 }
 
 void
-free_track_bfd(void *bfd)
+free_vrrp_tracked_bfd(void *bfd)
 {
 	FREE(bfd);
 }
@@ -475,7 +475,7 @@ alloc_track_bfd(vrrp_t *vrrp, vector_t *strvec)
 	element e;
 	int weight;
 
-	vtb = find_tracked_bfd_by_name(tracked);
+	vtb = find_vrrp_tracked_bfd_by_name(tracked);
 
 	/* Ignoring if no bfd found */
 	if (!vtb) {
@@ -528,7 +528,7 @@ alloc_group_track_bfd(vrrp_sgroup_t *sgroup, vector_t *strvec)
 	element e;
 	int weight;
 
-	vtb = find_tracked_bfd_by_name(tracked);
+	vtb = find_vrrp_tracked_bfd_by_name(tracked);
 
 	/* Ignoring if no bfd found */
 	if (!vtb) {

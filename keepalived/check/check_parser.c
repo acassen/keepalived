@@ -756,7 +756,7 @@ check_init_keywords(void)
 	init_vrrp_keywords(false);
 #endif
 #ifdef _WITH_BFD_
-	init_bfd_keywords(false);
+	init_bfd_keywords(true);
 #endif
 	return keywords;
 }

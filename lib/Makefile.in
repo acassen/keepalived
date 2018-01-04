@@ -115,7 +115,7 @@ am_liblib_a_OBJECTS = memory.$(OBJEXT) utils.$(OBJEXT) \
 	notify.$(OBJEXT) timer.$(OBJEXT) scheduler.$(OBJEXT) \
 	vector.$(OBJEXT) list.$(OBJEXT) html.$(OBJEXT) \
 	parser.$(OBJEXT) signals.$(OBJEXT) logger.$(OBJEXT) \
-	rttables.$(OBJEXT)
+	rttables.$(OBJEXT) assert.$(OBJEXT)
 am__EXTRA_liblib_a_SOURCES_DIST = old_socket.c old_socket.h
 liblib_a_OBJECTS = $(am_liblib_a_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
@@ -294,6 +294,7 @@ BUILT_SOURCES = $(GIT_COMMIT_FILE)
 noinst_LIBRARIES = liblib.a
 liblib_a_SOURCES = memory.c utils.c notify.c timer.c scheduler.c \
 	vector.c list.c html.c parser.c signals.c logger.c rttables.c \
+	assert.c \
 	bitops.h timer.h scheduler.h rttables.h vector.h parser.h \
 	signals.h notify.h logger.h list.h memory.h html.h utils.h \
 	keepalived_magic.h
@@ -365,6 +366,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/assert.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/html.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/list.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/logger.Po@am__quote@
