@@ -118,8 +118,8 @@ open_bfd_pipes(void)
 		stop_keepalived();
 		return;
 	}
-}
 #endif
+}
 
 /* Daemon init sequence */
 static void

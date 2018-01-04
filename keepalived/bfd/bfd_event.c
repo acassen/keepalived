@@ -44,8 +44,14 @@ bfd_event_send(bfd_t *bfd)
 	assert(bfd);
 
 	/* If there is no VRRP process running, don't write to the pipe */
-	if ((!__test_bit(DAEMON_VRRP, &daemon_mode) || !have_vrrp_instances) &&
-	    (!__test_bit(DAEMON_CHECKERS, &daemon_mode) || !have_virtual_servers))
+	if (true
+#ifdef _WITH_VRRP_
+	    && !(__test_bit(DAEMON_VRRP, &daemon_mode) && have_vrrp_instances)
+#endif
+#ifdef _WITH_LVS_
+	    && !(__test_bit(DAEMON_CHECKERS, &daemon_mode) && have_virtual_servers)
+#endif
+	        )
 		return;
 
 	memset(&evt, 0, sizeof evt);
