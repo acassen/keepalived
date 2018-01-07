@@ -637,7 +637,7 @@ notify_fifo(vector_t *strvec, const char *type, notify_fifo_t *fifo)
 		return;
 	}
 
-	fifo->name = MALLOC(strlen(strvec_slot(strvec, 1) + 1));
+	fifo->name = MALLOC(strlen(strvec_slot(strvec, 1)) + 1);
 	strcpy(fifo->name, strvec_slot(strvec, 1));
 }
 static void
@@ -655,7 +655,7 @@ notify_fifo_script(vector_t *strvec, const char *type, notify_fifo_t *fifo)
 		return;
 	}
 
-	id_str = MALLOC(strlen(type) + strlen("notify_fifo"));
+	id_str = MALLOC(strlen(type) + strlen("notify_fifo") + 1);
 	strcpy(id_str, type);
 	strcat(id_str, "notify_fifo");
 	fifo->script = notify_script_init(strvec, true, id_str);
