@@ -447,7 +447,7 @@ misc_check_child_thread(thread_t * thread)
 
 		snprintf(message, sizeof(message), "=> MISC CHECK %s on service <=", script_exit_type);
 		smtp_alert(checker, NULL, NULL,
-			   script_success ? "UP " : "DOWN", message);
+			   script_success ? "UP" : "DOWN", message);
 		update_svr_checker_state(script_success ? UP : DOWN, checker);
 	}
 
