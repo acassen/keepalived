@@ -182,7 +182,7 @@ fifo_open(notify_fifo_t* fifo, int (*script_exit)(thread_t *), const char *type)
 		if (!sav_errno || sav_errno == EEXIST) {
 			/* Run the notify script if there is one */
 			if (fifo->script)
-				notify_fifo_exec(master, script_exit, NULL, fifo->script);
+				notify_fifo_exec(master, script_exit, fifo, fifo->script);
 
 			/* Now open the fifo */
 			if ((fifo->fd = open(fifo->name, O_RDWR | O_CLOEXEC | O_NONBLOCK)) == -1) {
