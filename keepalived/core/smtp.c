@@ -613,21 +613,17 @@ smtp_connect(smtp_t * smtp)
 
 /* Main entry point */
 void
-smtp_alert(
-#ifndef _WITH_LVS_
-	   __attribute__((unused)) void *dummy1,
-#else
-	   checker_t* checker,
-#endif
-#ifndef _WITH_VRRP_
-	   __attribute__((unused)) void *dummy2, __attribute__((unused)) void *dummy3,
-#else
-	   vrrp_t * vrrp, vrrp_sgroup_t * vgroup,
-#endif
-	   const char *subject, const char *body)
+smtp_alert(smtp_msg_t msg_type, void* data, const char *subject, const char *body)
 {
 	smtp_t *smtp;
 	size_t cur_len;
+#ifdef _WITH_VRRP_
+	vrrp_t *vrrp;
+	vrrp_sgroup_t *vgroup;
+#endif
+#ifdef _WITH_LVS_
+	checker_t *checker;
+#endif
 
 	/* Only send mail if email specified */
 	if (!LIST_ISEMPTY(global_data->email) && global_data->smtp_server.ss_family != 0) {
@@ -640,25 +636,36 @@ smtp_alert(
 
 		/* format subject if rserver is specified */
 #ifdef _WITH_LVS_
-		if (checker) {
+		if (msg_type == SMTP_MSG_RS) {
+			checker = (checker_t *)data;
 			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Realserver %s - %s",
 						global_data->router_id,
 						FMT_RS(checker->rs, checker->vs),
 						subject);
 		}
+		else if (msg_type == SMTP_MSG_VS) {
+			checker = (checker_t *)data;
+			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Virtualserver %s - %s",
+						global_data->router_id,
+						FMT_VS(checker->vs),
+						subject);
+		}
 		else
 #endif
 #ifdef _WITH_VRRP_
-		if (vrrp)
+		if (msg_type == SMTP_MSG_VRRP) {
+			vrrp = (vrrp_t *)data;
 			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] VRRP Instance %s - %s"
 					      , global_data->router_id
 					      , vrrp->iname
 					      , subject);
-		else if (vgroup)
+		} else if (msg_type == SMTP_MSG_VGROUP) {
+			vgroup = (vrrp_sgroup_t *)data;
 			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] VRRP Group %s - %s"
 					      , global_data->router_id
 					      , vgroup->gname
 					      , subject);
+		}
 		else
 #endif
 		if (global_data->router_id)
