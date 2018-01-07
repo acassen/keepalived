@@ -40,6 +40,7 @@
 #include "check_api.h"
 #endif
 #include "main.h"
+#include "parser.h"
 
 /* SMTP FSM definition */
 static int connection_error(thread_t *);
