@@ -623,6 +623,7 @@ smtp_alert(smtp_msg_t msg_type, void* data, const char *subject, const char *bod
 #endif
 #ifdef _WITH_LVS_
 	checker_t *checker;
+	virtual_server_t *vs;
 #endif
 
 	/* Only send mail if email specified */
@@ -644,10 +645,10 @@ smtp_alert(smtp_msg_t msg_type, void* data, const char *subject, const char *bod
 						subject);
 		}
 		else if (msg_type == SMTP_MSG_VS) {
-			checker = (checker_t *)data;
+			vs = (virtual_server_t *)data;
 			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Virtualserver %s - %s",
 						global_data->router_id,
-						FMT_VS(checker->vs),
+						FMT_VS(vs),
 						subject);
 		}
 		else
@@ -655,16 +656,16 @@ smtp_alert(smtp_msg_t msg_type, void* data, const char *subject, const char *bod
 #ifdef _WITH_VRRP_
 		if (msg_type == SMTP_MSG_VRRP) {
 			vrrp = (vrrp_t *)data;
-			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] VRRP Instance %s - %s"
-					      , global_data->router_id
-					      , vrrp->iname
-					      , subject);
+			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] VRRP Instance %s - %s",
+					        global_data->router_id,
+					        vrrp->iname,
+					        subject);
 		} else if (msg_type == SMTP_MSG_VGROUP) {
 			vgroup = (vrrp_sgroup_t *)data;
-			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] VRRP Group %s - %s"
-					      , global_data->router_id
-					      , vgroup->gname
-					      , subject);
+			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] VRRP Group %s - %s",
+					        global_data->router_id,
+					        vgroup->gname,
+					        subject);
 		}
 		else
 #endif
