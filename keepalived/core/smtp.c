@@ -672,7 +672,9 @@ smtp_alert(
 				 config_id ? config_id : "");
 		}
 
-		strncpy(smtp->body, body, MAX_BODY_LENGTH);
+		strncpy(smtp->body, body, MAX_BODY_LENGTH - 1);
+		smtp->body[MAX_BODY_LENGTH - 1]= '\0';
+
 		build_to_header_rcpt_addrs(smtp);
 
 		smtp_connect(smtp);
