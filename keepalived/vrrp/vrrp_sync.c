@@ -315,8 +315,10 @@ vrrp_sync_fault(vrrp_t * vrrp)
 		if (isync != vrrp && isync->state != VRRP_STATE_FAULT) {
 			if (isync->state == VRRP_STATE_MAST)
 				isync->wantstate = VRRP_STATE_GOTO_FAULT;
-			if (isync->state == VRRP_STATE_BACK)
+			if (isync->state == VRRP_STATE_BACK) {
 				isync->state = VRRP_STATE_FAULT;
+				notify_instance_exec(isync, VRRP_STATE_FAULT);
+			}
 		}
 	}
 	vgroup->state = VRRP_STATE_FAULT;
