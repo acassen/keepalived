@@ -318,6 +318,9 @@ vrrp_sync_fault(vrrp_t * vrrp)
 			if (isync->state == VRRP_STATE_BACK) {
 				isync->state = VRRP_STATE_FAULT;
 				notify_instance_exec(isync, VRRP_STATE_FAULT);
+#ifdef _WITH_SNMP_VRRP_
+				vrrp_snmp_instance_trap(isync);
+#endif
 			}
 		}
 	}
