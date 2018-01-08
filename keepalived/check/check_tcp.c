@@ -104,8 +104,9 @@ tcp_epilog(thread_t * thread, bool is_success)
 		if (is_success && !checker->is_up) {
 			log_message(LOG_INFO, "TCP connection to %s success."
 					, FMT_TCP_RS(checker));
-			smtp_alert(SMTP_MSG_RS, checker, "UP",
-				   "=> TCP CHECK succeed on service <=");
+			if (checker->rs->smtp_alert)
+				smtp_alert(SMTP_MSG_RS, checker, "UP",
+					   "=> TCP CHECK succeed on service <=");
 			update_svr_checker_state(UP, checker);
 		} else if (!is_success
 			   && checker->is_up) {
@@ -114,8 +115,9 @@ tcp_epilog(thread_t * thread, bool is_success)
 				    , "Check on service %s failed after %d retry."
 				    , FMT_TCP_RS(checker)
 				    , checker->retry);
-			smtp_alert(SMTP_MSG_RS, checker, "DOWN",
-				   "=> TCP CHECK failed on service <=");
+			if (checker->rs->smtp_alert)
+				smtp_alert(SMTP_MSG_RS, checker, "DOWN",
+					   "=> TCP CHECK failed on service <=");
 			update_svr_checker_state(DOWN, checker);
 		}
 	} else {

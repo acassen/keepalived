@@ -349,7 +349,8 @@ update_quorum_state(virtual_server_t * vs, bool init)
 				    vs->hysteresis,
 				    up_threshold,
 				    weight_sum);
-		smtp_alert(SMTP_MSG_VS, vs, "UP", message); 
+		if (vs->smtp_alert)
+			smtp_alert(SMTP_MSG_VS, vs, "UP", message); 
 #ifdef _WITH_SNMP_CHECKER_
 		check_snmp_quorum_trap(vs);
 #endif
@@ -396,7 +397,8 @@ update_quorum_state(virtual_server_t * vs, bool init)
 				    vs->hysteresis,
 				    up_threshold,
 				    weight_sum);
-		smtp_alert(SMTP_MSG_VS, vs, "DOWN", message); 
+		if (vs->smtp_alert)
+			smtp_alert(SMTP_MSG_VS, vs, "DOWN", message); 
 #ifdef _WITH_SNMP_CHECKER_
 		check_snmp_quorum_trap(vs);
 #endif

@@ -329,7 +329,8 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 				strncpy(smtp_buff, "=> CHECK failed on service <=", sizeof(smtp_buff));
 
 			smtp_buff[sizeof(smtp_buff) - 1] = '\0';
-			smtp_alert(SMTP_MSG_RS, checker, "DOWN", smtp_buff);
+			if (checker->rs->smtp_alert)
+				smtp_alert(SMTP_MSG_RS, checker, "DOWN", smtp_buff);
 			update_svr_checker_state(DOWN, checker);
 		}
 
@@ -769,8 +770,9 @@ smtp_connect_thread(thread_t *thread)
 			log_message(LOG_INFO, "Remote SMTP server %s succeed on service."
 					    , FMT_CHK(checker));
 
-			smtp_alert(SMTP_MSG_RS, checker, "UP",
-				   "=> CHECK succeed on service <=");
+			if (checker->rs->smtp_alert)
+				smtp_alert(SMTP_MSG_RS, checker, "UP",
+					   "=> CHECK succeed on service <=");
 			update_svr_checker_state(UP, checker);
 		}
 

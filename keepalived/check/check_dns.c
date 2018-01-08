@@ -132,13 +132,15 @@ dns_final(thread_t * thread, int error, const char *fmt, ...)
 				return 0;
 			}
 			update_svr_checker_state(DOWN, checker);
-			smtp_alert(SMTP_MSG_RS, checker, "DOWN",
-				   "=> DNS_CHECK: failed on service <=");
+			if (checker->rs->smtp_alert)
+				smtp_alert(SMTP_MSG_RS, checker, "DOWN",
+					   "=> DNS_CHECK: failed on service <=");
 		}
 	} else {
 		if (!checker->is_up) {
-			smtp_alert(SMTP_MSG_RS, checker, "UP",
-				   "=> DNS_CHECK: succeed on service <=");
+			if (checker->rs->smtp_alert)
+				smtp_alert(SMTP_MSG_RS, checker, "UP",
+					   "=> DNS_CHECK: succeed on service <=");
 			update_svr_checker_state(UP, checker);
 		}
 	}

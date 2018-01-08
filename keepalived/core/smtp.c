@@ -688,6 +688,10 @@ smtp_alert(smtp_msg_t msg_type, void* data, const char *subject, const char *bod
 
 		strncpy(smtp->body, body, MAX_BODY_LENGTH - 1);
 		smtp->body[MAX_BODY_LENGTH - 1]= '\0';
+log_message(LOG_INFO, "SMTP(%s): %s", smtp->email_to, smtp->subject);
+log_message(LOG_INFO, "SMTP body: %s", smtp->body);
+free_smtp_all(smtp);
+return;
 
 		build_to_header_rcpt_addrs(smtp);
 

@@ -293,13 +293,13 @@ dump_vs(void *data)
 		log_message(LOG_INFO, "   protocol = %d", vs->service_type);
 	log_message(LOG_INFO, "   alpha is %s, omega is %s",
 		    vs->alpha ? "ON" : "OFF", vs->omega ? "ON" : "OFF");
-        if (vs->retry != UINT_MAX)
-                log_message(LOG_INFO, "   Retry count = %u" , vs->retry);
+	if (vs->retry != UINT_MAX)
+		log_message(LOG_INFO, "   Retry count = %u" , vs->retry);
 	if (vs->delay_before_retry != ULONG_MAX)
 		log_message(LOG_INFO, "   Retry delay = %lu" , vs->delay_before_retry / TIMER_HZ);
 	if (vs->warmup != ULONG_MAX)
 		log_message(LOG_INFO, "   Warmup = %lu", vs->warmup / TIMER_HZ);
-        log_message(LOG_INFO, "   Inhibit on failure is %s", vs->inhibit ? "ON" : "OFF");
+	log_message(LOG_INFO, "   Inhibit on failure is %s", vs->inhibit ? "ON" : "OFF");
 	log_message(LOG_INFO, "   quorum = %u, hysteresis = %u", vs->quorum, vs->hysteresis);
 	if (vs->notify_quorum_up)
 		log_message(LOG_INFO, "   -> Notify script UP = %s, uid:gid %d:%d",
@@ -309,6 +309,8 @@ dump_vs(void *data)
 			    vs->notify_quorum_down->cmd_str, vs->notify_quorum_down->uid, vs->notify_quorum_down->gid);
 	if (vs->ha_suspend)
 		log_message(LOG_INFO, "   Using HA suspend");
+	if (vs->smtp_alert)
+                log_message(LOG_INFO, "   Using smtp notification");
 
 	switch (vs->forwarding_method) {
 	case IP_VS_CONN_F_MASQ:
@@ -445,14 +447,14 @@ dump_rs(void *data)
 	}
 
 	log_message(LOG_INFO, "   Alpha is %s", rs->alpha ? "ON" : "OFF");
-        log_message(LOG_INFO, "   Delay loop = %lu" , rs->delay_loop / TIMER_HZ);
-        if (rs->retry != UINT_MAX)
-                log_message(LOG_INFO, "   Retry count = %u" , rs->retry);
+	log_message(LOG_INFO, "   Delay loop = %lu" , rs->delay_loop / TIMER_HZ);
+	if (rs->retry != UINT_MAX)
+		log_message(LOG_INFO, "   Retry count = %u" , rs->retry);
 	if (rs->delay_before_retry != ULONG_MAX)
-                log_message(LOG_INFO, "   Retry delay = %lu" , rs->delay_before_retry / TIMER_HZ);
+		log_message(LOG_INFO, "   Retry delay = %lu" , rs->delay_before_retry / TIMER_HZ);
 	if (rs->warmup != ULONG_MAX)
 		log_message(LOG_INFO, "   Warmup = %lu", rs->warmup / TIMER_HZ);
-        log_message(LOG_INFO, "   Inhibit on failure is %s", rs->inhibit ? "ON" : "OFF");
+	log_message(LOG_INFO, "   Inhibit on failure is %s", rs->inhibit ? "ON" : "OFF");
 
 	if (rs->notify_up)
 		log_message(LOG_INFO, "     -> Notify script UP = %s, uid:gid %d:%d",
@@ -462,6 +464,8 @@ dump_rs(void *data)
 		       rs->notify_down->cmd_str, rs->notify_down->uid, rs->notify_down->gid);
 	if (rs->virtualhost)
 		log_message(LOG_INFO, "    VirtualHost = %s", rs->virtualhost);
+	if (rs->smtp_alert)
+                log_message(LOG_INFO, "   Using smtp notification");
 }
 
 void
@@ -491,10 +495,11 @@ alloc_rs(char *ip, char *port)
 	new->forwarding_method = vs->forwarding_method;
 	new->alpha = -1;
 	new->delay_loop = ULONG_MAX;
-        new->warmup = ULONG_MAX;
-        new->retry = UINT_MAX;
-        new->delay_before_retry = ULONG_MAX;
+	new->warmup = ULONG_MAX;
+	new->retry = UINT_MAX;
+	new->delay_before_retry = ULONG_MAX;
 	new->virtualhost = NULL;
+	new->smtp_alert = true;
 
 // ??? alloc list in alloc_vs
 	if (!LIST_EXISTS(vs->rs))

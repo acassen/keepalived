@@ -626,8 +626,8 @@ bfd_instance <STRING> {
             notify /path/notify.sh [username [groupname]]
 
             # Send email notification during state transition,
-            # using addresses in global_defs above.
-            smtp_alert
+            # using addresses in global_defs above (default no).
+            smtp_alert <BOOL>
 
             global_tracking     # DEPRECATED. Use track_interface, track_script and
                                 # track_file on vrrp_sync_groups instead.
@@ -902,7 +902,7 @@ bfd_instance <STRING> {
            notify_fault <STRING>|<QUOTED-STRING> [username [groupname]]
            notify_stop <STRING>|<QUOTED-STRING> [username [groupname]]      # executed when stopping vrrp
            notify <STRING>|<QUOTED-STRING> [username [groupname]]
-           smtp_alert
+           smtp_alert <BOOL>
        }
 .SH LVS CONFIGURATION
 contains subblocks of
@@ -1005,6 +1005,10 @@ A virtual_server can be a declaration of one of
     lb_algo     # deprecated synonym for lvs_sched
     lb_kind     # deprecated synonym for lvs_method
 
+    # Send email notification during quorum up/down transition,
+    # using addresses in global_defs above (default no).
+    smtp_alert <BOOL>
+
     # Default VirtualHost string for HTTP_GET or SSL_GET
     # eg virtualhost www.firewall.loc
     # Overridden by virtualhost config of real server or checker
@@ -1088,6 +1092,10 @@ A virtual_server can be a declaration of one of
 
            uthreshold <INTEGER> # maximum number of connections to server
            lthreshold <INTEGER> # minimum number of connections to server
+
+           # Send email notification during state transition,
+           # using addresses in global_defs above (default yes).
+           smtp_alert <BOOL>
 
            # Default VirtualHost string for HTTP_GET or SSL_GET
            # eg virtualhost www.firewall.loc

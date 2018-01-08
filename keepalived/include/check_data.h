@@ -77,6 +77,7 @@ typedef struct _real_server {
 	unsigned long			warmup;		/* max random timeout to start checker */
 	unsigned			retry;		/* number of retries before failing */
 	unsigned long			delay_before_retry; /* interval between retries */
+	bool				smtp_alert;	/* Send email on status change */
 
 	bool				alive;
 	unsigned			num_failed_checkers;/* Number of failed checkers */
@@ -160,6 +161,7 @@ typedef struct _virtual_server {
 	notify_script_t			*notify_quorum_down;	/* A hook to call when the VS loses quorum. */
 	unsigned			quorum;		/* Minimum live RSs to consider VS up. */
 	unsigned			hysteresis;	/* up/down events "lag" WRT quorum. */
+	bool				smtp_alert;	/* Send email on status change */
 	bool				quorum_state_up; /* Reflects result of the last transition done. */
 	bool				reloaded;	/* quorum_state was copied from old config while reloading */
 #if defined(_WITH_SNMP_CHECKER_) && defined(_WITH_LVS_)
