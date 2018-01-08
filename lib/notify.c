@@ -182,7 +182,7 @@ fifo_open(notify_fifo_t* fifo, int (*script_exit)(thread_t *), const char *type)
 		if (!sav_errno || sav_errno == EEXIST) {
 			/* Run the notify script if there is one */
 			if (fifo->script)
-				notify_fifo_exec(master, script_exit, NULL, fifo->script);
+				notify_fifo_exec(master, script_exit, fifo, fifo->script);
 
 			/* Now open the fifo */
 			if ((fifo->fd = open(fifo->name, O_RDWR | O_CLOEXEC | O_NONBLOCK)) == -1) {
@@ -1104,10 +1104,16 @@ add_script_param(notify_script_t *script, char *param)
 	char *cmd_str;
 	char *args;
 
+	/* We store the args as an array of pointers to the args, terminated
+	 * by a NULL pointer, followed by the null terminated strings themselves
+	 */
+
 	/* Find out how many args there are */
-	for (num = 0, len = 0; script->args[num]; num++)
-		len += sizeof(char *) + strlen(script->args[num]);
-	len += 2 * sizeof(char *) + strlen(param);
+	for (num = 0, len = 0; script->args[num]; num++) {
+		/* For each arg we need char *, the string, and the null termination */
+		len += sizeof(char *) + strlen(script->args[num]) + 1;
+	}
+	len += 2 * sizeof(char *) + strlen(param) + 1;	/* Pointer for new param, termination null pointer, and the string */
 	num += 2;
 
 	new_args = MALLOC(len);

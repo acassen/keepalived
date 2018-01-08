@@ -33,6 +33,7 @@
   #include "check_snmp.h"
 #endif
 #include "global_data.h"
+#include "smtp.h"
 
 /* Returns the sum of all alive RS weight in a virtual server. */
 static unsigned long
@@ -315,6 +316,7 @@ update_quorum_state(virtual_server_t * vs, bool init)
 	long weight_sum = weigh_live_realservers(vs);
 	long up_threshold = vs->quorum + vs->hysteresis;
 	long down_threshold = vs->quorum - vs->hysteresis;
+	char message[80];
 
 	/* If we have just gained quorum, it's time to consider notify_up. */
 	if (!vs->quorum_state_up &&
@@ -341,6 +343,14 @@ update_quorum_state(virtual_server_t * vs, bool init)
 		if (vs->notify_quorum_up)
 			notify_exec(vs->notify_quorum_up);
 		notify_fifo_vs(vs, true);
+
+		snprintf(message, sizeof(message), "=> Gained quorum %u+%u=%ld <= %ld <=",
+				    vs->quorum,
+				    vs->hysteresis,
+				    up_threshold,
+				    weight_sum);
+		if (vs->smtp_alert)
+			smtp_alert(SMTP_MSG_VS, vs, "UP", message); 
 #ifdef _WITH_SNMP_CHECKER_
 		check_snmp_quorum_trap(vs);
 #endif
@@ -381,6 +391,14 @@ update_quorum_state(virtual_server_t * vs, bool init)
 		if (vs->notify_quorum_down)
 			notify_exec(vs->notify_quorum_down);
 		notify_fifo_vs(vs, false);
+		snprintf(message, sizeof(message), "=> %s %u+%u=%ld <= %ld <=",
+				    init ? "Starting with quorum down" : "Lost quorum",
+				    vs->quorum,
+				    vs->hysteresis,
+				    up_threshold,
+				    weight_sum);
+		if (vs->smtp_alert)
+			smtp_alert(SMTP_MSG_VS, vs, "DOWN", message); 
 #ifdef _WITH_SNMP_CHECKER_
 		check_snmp_quorum_trap(vs);
 #endif

@@ -147,6 +147,13 @@ alloc_global_data(void)
 
 	new = (data_t *) MALLOC(sizeof(data_t));
 	new->email = alloc_list(free_email, dump_email);
+	new->smtp_alert = -1;
+#ifdef _WITH_VRRP_
+	new->smtp_alert_vrrp = -1;
+#endif
+#ifdef _WITH_LVS_
+	new->smtp_alert_checker = -1;
+#endif
 
 #ifdef _WITH_VRRP_
 	set_default_mcast_group(new);
@@ -258,8 +265,7 @@ init_global_data(data_t * data)
 		log_message(LOG_INFO, "notify FIFO %s has been specified for global and vrrp FIFO - ignoring vrrp FIFO", data->vrrp_notify_fifo.name);
 		FREE_PTR(data->vrrp_notify_fifo.name);
 		data->vrrp_notify_fifo.name = NULL;
-		FREE_PTR(data->vrrp_notify_fifo.script);
-		data->vrrp_notify_fifo.script = NULL;
+		free_notify_script(&data->vrrp_notify_fifo.script);
 	}
 #endif
 #ifdef _WITH_LVS_
@@ -274,8 +280,7 @@ init_global_data(data_t * data)
 			log_message(LOG_INFO, "notify FIFO %s has been specified for global and LVS FIFO - ignoring LVS FIFO", data->lvs_notify_fifo.name);
 			FREE_PTR(data->lvs_notify_fifo.name);
 			data->lvs_notify_fifo.name = NULL;
-			FREE_PTR(data->lvs_notify_fifo.script);
-			data->lvs_notify_fifo.script = NULL;
+			free_notify_script(&data->lvs_notify_fifo.script);
 		}
 
 #ifdef _WITH_VRRP_
@@ -286,15 +291,12 @@ init_global_data(data_t * data)
 		    data->lvs_notify_fifo.script &&
 		    data->vrrp_notify_fifo.script) {
 			log_message(LOG_INFO, "LVS notify FIFO and vrrp FIFO are the same both with scripts - ignoring LVS FIFO script");
-			FREE_PTR(data->lvs_notify_fifo.script);
-			data->lvs_notify_fifo.script = NULL;
+			free_notify_script(&data->lvs_notify_fifo.script);
 		}
 
 		/* If there is a script for global notify FIFO, it must only be run once, so let VRRP run it */
-		if (data->notify_fifo.script) {
-			FREE_PTR(data->notify_fifo.script);
-			data->notify_fifo.script = NULL;
-		}
+		if (data->notify_fifo.script)
+			free_notify_script(&data->notify_fifo.script);
 #endif
 	}
 #endif
@@ -357,6 +359,16 @@ dump_global_data(data_t * data)
 				    , data->email_from);
 		dump_list(data->email);
 	}
+	log_message(LOG_INFO, " Default smtp_alert = %s",
+			data->smtp_alert == -1 ? "unset" : data->smtp_alert ? "on" : "off");
+#ifdef _WITH_VRRP_
+	log_message(LOG_INFO, " Default smtp_alert_vrrp = %s",
+			data->smtp_alert_vrrp == -1 ? "unset" : data->smtp_alert_vrrp ? "on" : "off");
+#endif
+#ifdef _WITH_LVS_
+	log_message(LOG_INFO, " Default smtp_alert_checker = %s",
+			data->smtp_alert_checker == -1 ? "unset" : data->smtp_alert_checker ? "on" : "off");
+#endif
 #ifdef _WITH_VRRP_
 	log_message(LOG_INFO, " Dynamic interfaces = %s", data->dynamic_interfaces ? "true" : "false");
 	if (data->email_faults)

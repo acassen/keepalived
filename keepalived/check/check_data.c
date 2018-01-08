@@ -293,13 +293,13 @@ dump_vs(void *data)
 		log_message(LOG_INFO, "   protocol = %d", vs->service_type);
 	log_message(LOG_INFO, "   alpha is %s, omega is %s",
 		    vs->alpha ? "ON" : "OFF", vs->omega ? "ON" : "OFF");
-        if (vs->retry != UINT_MAX)
-                log_message(LOG_INFO, "   Retry count = %u" , vs->retry);
+	if (vs->retry != UINT_MAX)
+		log_message(LOG_INFO, "   Retry count = %u" , vs->retry);
 	if (vs->delay_before_retry != ULONG_MAX)
 		log_message(LOG_INFO, "   Retry delay = %lu" , vs->delay_before_retry / TIMER_HZ);
 	if (vs->warmup != ULONG_MAX)
 		log_message(LOG_INFO, "   Warmup = %lu", vs->warmup / TIMER_HZ);
-        log_message(LOG_INFO, "   Inhibit on failure is %s", vs->inhibit ? "ON" : "OFF");
+	log_message(LOG_INFO, "   Inhibit on failure is %s", vs->inhibit ? "ON" : "OFF");
 	log_message(LOG_INFO, "   quorum = %u, hysteresis = %u", vs->quorum, vs->hysteresis);
 	if (vs->notify_quorum_up)
 		log_message(LOG_INFO, "   -> Notify script UP = %s, uid:gid %d:%d",
@@ -309,6 +309,7 @@ dump_vs(void *data)
 			    vs->notify_quorum_down->cmd_str, vs->notify_quorum_down->uid, vs->notify_quorum_down->gid);
 	if (vs->ha_suspend)
 		log_message(LOG_INFO, "   Using HA suspend");
+	log_message(LOG_INFO, "   Using smtp notification = %s", vs->smtp_alert ? "yes" : "no");
 
 	switch (vs->forwarding_method) {
 	case IP_VS_CONN_F_MASQ:
@@ -389,6 +390,7 @@ alloc_vs(char *param1, char *param2)
 	new->delay_before_retry = ULONG_MAX;
 	new->weight = 1;
 	new->af = AF_UNSPEC;
+	new->smtp_alert = -1;
 
 	list_add(check_data->vs, new);
 }
@@ -445,14 +447,14 @@ dump_rs(void *data)
 	}
 
 	log_message(LOG_INFO, "   Alpha is %s", rs->alpha ? "ON" : "OFF");
-        log_message(LOG_INFO, "   Delay loop = %lu" , rs->delay_loop / TIMER_HZ);
-        if (rs->retry != UINT_MAX)
-                log_message(LOG_INFO, "   Retry count = %u" , rs->retry);
+	log_message(LOG_INFO, "   Delay loop = %lu" , rs->delay_loop / TIMER_HZ);
+	if (rs->retry != UINT_MAX)
+		log_message(LOG_INFO, "   Retry count = %u" , rs->retry);
 	if (rs->delay_before_retry != ULONG_MAX)
-                log_message(LOG_INFO, "   Retry delay = %lu" , rs->delay_before_retry / TIMER_HZ);
+		log_message(LOG_INFO, "   Retry delay = %lu" , rs->delay_before_retry / TIMER_HZ);
 	if (rs->warmup != ULONG_MAX)
 		log_message(LOG_INFO, "   Warmup = %lu", rs->warmup / TIMER_HZ);
-        log_message(LOG_INFO, "   Inhibit on failure is %s", rs->inhibit ? "ON" : "OFF");
+	log_message(LOG_INFO, "   Inhibit on failure is %s", rs->inhibit ? "ON" : "OFF");
 
 	if (rs->notify_up)
 		log_message(LOG_INFO, "     -> Notify script UP = %s, uid:gid %d:%d",
@@ -462,6 +464,7 @@ dump_rs(void *data)
 		       rs->notify_down->cmd_str, rs->notify_down->uid, rs->notify_down->gid);
 	if (rs->virtualhost)
 		log_message(LOG_INFO, "    VirtualHost = %s", rs->virtualhost);
+	log_message(LOG_INFO, "   Using smtp notification = %s", rs->smtp_alert ? "yes" : "no");
 }
 
 void
@@ -491,10 +494,11 @@ alloc_rs(char *ip, char *port)
 	new->forwarding_method = vs->forwarding_method;
 	new->alpha = -1;
 	new->delay_loop = ULONG_MAX;
-        new->warmup = ULONG_MAX;
-        new->retry = UINT_MAX;
-        new->delay_before_retry = ULONG_MAX;
+	new->warmup = ULONG_MAX;
+	new->retry = UINT_MAX;
+	new->delay_before_retry = ULONG_MAX;
 	new->virtualhost = NULL;
+	new->smtp_alert = -1;
 
 // ??? alloc list in alloc_vs
 	if (!LIST_EXISTS(vs->rs))
@@ -725,8 +729,15 @@ bool validate_check_config(void)
 			strcpy(vs->sched, IPVS_DEF_SCHED);
 		}
 
-
 		/* Set default values */
+		if (vs->smtp_alert == -1) {
+			if (global_data->smtp_alert_checker != -1)
+				vs->smtp_alert = global_data->smtp_alert_checker;
+			else if (global_data->smtp_alert != -1)
+				vs->smtp_alert = global_data->smtp_alert;
+			else
+				vs->smtp_alert = false;
+		}
 
 		/* Spin through all the real servers */
 		LIST_FOREACH(vs->rs, rs, e1) {
@@ -755,6 +766,18 @@ bool validate_check_config(void)
 			if (rs->weight == INT_MAX) {
 				rs->weight = vs->weight;
 				rs->iweight = rs->weight;
+			}
+
+			if (rs->smtp_alert == -1) {
+				if (global_data->smtp_alert_checker != -1)
+					rs->smtp_alert = global_data->smtp_alert_checker;
+				else if (global_data->smtp_alert != -1)
+					rs->smtp_alert = global_data->smtp_alert;
+				else {
+					/* This is inconsistent with the defaults for other smtp_alerts
+					 * in order to maintain backwards compatibility */
+					rs->smtp_alert = true;
+				}
 			}
 		}
 	}

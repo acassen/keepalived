@@ -235,6 +235,10 @@ and
  smtp_helo_name <HOST_NAME>   # name to use in HELO messages
                               #  defaults to local host name
  smtp_connect_timeout 30      # integer, seconds
+ smtp_alert <BOOL>            # Sets default state for all smtp_alerts
+ smtp_alert_vrrp <BOOL>       # Sets default state for vrrp smtp_alerts
+ smtp_alert_checker <BOOL>    # Sets default state for checker smtp_alerts
+
  email_faults                 # Send smtp alerts for fault conditions
  router_id my_hostname        # string identifying the machine,
                               # (doesn't have to be hostname).
@@ -626,8 +630,9 @@ bfd_instance <STRING> {
             notify /path/notify.sh [username [groupname]]
 
             # Send email notification during state transition,
-            # using addresses in global_defs above.
-            smtp_alert
+            # using addresses in global_defs above (default no,
+            # unless global smtp_alert/smtp_alert_vrrp set)
+            smtp_alert <BOOL>
 
             global_tracking     # DEPRECATED. Use track_interface, track_script and
                                 # track_file on vrrp_sync_groups instead.
@@ -902,7 +907,7 @@ bfd_instance <STRING> {
            notify_fault <STRING>|<QUOTED-STRING> [username [groupname]]
            notify_stop <STRING>|<QUOTED-STRING> [username [groupname]]      # executed when stopping vrrp
            notify <STRING>|<QUOTED-STRING> [username [groupname]]
-           smtp_alert
+           smtp_alert <BOOL>
        }
 .SH LVS CONFIGURATION
 contains subblocks of
@@ -1005,6 +1010,11 @@ A virtual_server can be a declaration of one of
     lb_algo     # deprecated synonym for lvs_sched
     lb_kind     # deprecated synonym for lvs_method
 
+    # Send email notification during quorum up/down transition,
+    # using addresses in global_defs above (default no,
+    # unless global smtp_alert/smtp_alert_checker set)
+    smtp_alert <BOOL>
+
     # Default VirtualHost string for HTTP_GET or SSL_GET
     # eg virtualhost www.firewall.loc
     # Overridden by virtualhost config of real server or checker
@@ -1088,6 +1098,11 @@ A virtual_server can be a declaration of one of
 
            uthreshold <INTEGER> # maximum number of connections to server
            lthreshold <INTEGER> # minimum number of connections to server
+
+           # Send email notification during state transition,
+           # using addresses in global_defs above (default yes,
+           # unless global smtp_alert/smtp_alert_checker set)
+           smtp_alert <BOOL>
 
            # Default VirtualHost string for HTTP_GET or SSL_GET
            # eg virtualhost www.firewall.loc

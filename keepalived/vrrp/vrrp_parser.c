@@ -232,7 +232,16 @@ static void
 vrrp_gsmtp_handler(__attribute__((unused)) vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
-	vgroup->smtp_alert = true;
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec, 1));
+		if (res == -1) {
+			log_message(LOG_INFO, "Invalid vrrp_group smtp_alert parameter %s", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+	vgroup->smtp_alert = res;
 }
 static void
 vrrp_gglobal_tracking_handler(__attribute__((unused)) vector_t *strvec)
@@ -620,7 +629,16 @@ static void
 vrrp_smtp_handler(__attribute__((unused)) vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->smtp_alert = true;
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec, 1));
+		if (res == -1) {
+			log_message(LOG_INFO, "Invalid vrrp_instance smtp_alert parameter %s", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+	vrrp->smtp_alert = res;
 }
 #ifdef _WITH_LVS_
 static void

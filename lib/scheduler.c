@@ -941,6 +941,9 @@ retry:	/* When thread can't fetch try to find next thread again. */
 			t = thread;
 			thread = t->next;
 
+			if (t->sands.tv_sec == TIMER_DISABLED)
+				break;
+
 			if (timercmp(&time_now, &t->sands, >=)) {
 				thread_list_make_ready(&m->child, t, m, THREAD_CHILD_TIMEOUT);
 				if (child_remover)

@@ -139,6 +139,55 @@ email_handler(vector_t *strvec)
 
 	free_strvec(email_vec);
 }
+static void
+smtp_alert_handler(vector_t *strvec)
+{
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			log_message(LOG_INFO, "Invalid value '%s' for global smtp_alert specified", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+
+	global_data->smtp_alert = res;
+}
+#ifdef _WITH_VRRP_
+static void
+smtp_alert_vrrp_handler(vector_t *strvec)
+{
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			log_message(LOG_INFO, "Invalid value '%s' for global smtp_alert_vrrp specified", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+
+	global_data->smtp_alert_vrrp = res;
+}
+#endif
+#ifdef _WITH_LVS_
+static void
+smtp_alert_checker_handler(vector_t *strvec)
+{
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			log_message(LOG_INFO, "Invalid value '%s' for global smtp_alert_checker specified", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+
+	global_data->smtp_alert_checker = res;
+}
+#endif
 #ifdef _WITH_VRRP_
 static void
 default_interface_handler(vector_t *strvec)
@@ -637,7 +686,7 @@ notify_fifo(vector_t *strvec, const char *type, notify_fifo_t *fifo)
 		return;
 	}
 
-	fifo->name = MALLOC(strlen(strvec_slot(strvec, 1) + 1));
+	fifo->name = MALLOC(strlen(strvec_slot(strvec, 1)) + 1);
 	strcpy(fifo->name, strvec_slot(strvec, 1));
 }
 static void
@@ -655,7 +704,7 @@ notify_fifo_script(vector_t *strvec, const char *type, notify_fifo_t *fifo)
 		return;
 	}
 
-	id_str = MALLOC(strlen(type) + strlen("notify_fifo"));
+	id_str = MALLOC(strlen(type) + strlen("notify_fifo") + 1);
 	strcpy(id_str, type);
 	strcat(id_str, "notify_fifo");
 	fifo->script = notify_script_init(strvec, true, id_str);
@@ -946,6 +995,13 @@ init_global_keywords(bool global_active)
 	install_keyword("smtp_helo_name", &smtphelo_handler);
 	install_keyword("smtp_connect_timeout", &smtpto_handler);
 	install_keyword("notification_email", &email_handler);
+	install_keyword("smtp_alert", &smtp_alert_handler);
+#ifdef _WITH_VRRP_
+	install_keyword("smtp_alert_vrrp", &smtp_alert_vrrp_handler);
+#endif
+#ifdef _WITH_LVS_
+	install_keyword("smtp_alert_checker", &smtp_alert_checker_handler);
+#endif
 #ifdef _WITH_VRRP_
 	install_keyword("dynamic_interfaces", &dynamic_interfaces_handler);
 	install_keyword("email_faults", &email_faults_handler);

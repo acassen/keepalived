@@ -233,6 +233,9 @@ global_defs {                                 # Block identification
                                               #  defaults to local host name
     smtp_connect_timeout <INTEGER>            # Number of seconds timeout connect
                                               #  remote SMTP server
+    smtp_alert <BOOL>                         # Sets default state for all smtp_alerts
+    smtp_alert_vrrp <BOOL>                    # Sets default state for vrrp smtp_alerts
+    smtp_alert_checker <BOOL>                 # Sets default state for checker smtp_alerts
     email_faults                              # Send smtp alerts for fault conditions
     router_id <STRING>                        # String identifying router
     vrrp_garp_interval <DECIMAL>              # Sets the default interval between Gratuitous ARP
@@ -590,7 +593,8 @@ vrrp_sync_group <STRING> {      # VRRP sync group declaration
                                 # Script to run during FAULT transit
     notify <STRING>|<QUOTED-STRING> [username [groupname]]
                                 # Script to run during ANY state transit (1)
-    smtp_alert                  # Send email notification during state transit
+    smtp_alert <BOOL>           # Send email notification during state transit
+                                #   (default no, unless global smtp_alert/smtp_alert_vrrp set)
 }
 
     Synchronization group tracking scripts and files will update
@@ -787,7 +791,8 @@ vrrp_instance <STRING> {                      # VRRP instance declaration
                                               # Script to launch when stopping vrrp
     notify <STRING>|<QUOTED-STRING> [username [groupname]]
                                               # Same as vrrp_sync_group
-    smtp_alert                                # Same as vrrp_sync_group
+    smtp_alert <BOOL>                         # Same as vrrp_sync_group
+                                              #   (default no, unless global smtp_alert/smtp_alert_vrrp set)
 }
 
 SCOPE can take the following values :
@@ -935,6 +940,8 @@ virtual_server group <STRING>      {          # VS group declaration
     warmup <INTEGER>                          # random delay for maximum N seconds
     delay_loop <INTEGER>                      # delay timer for service polling
     inhibit_on_failure                        # Set weight to 0 on healthchecker failure
+    smtp_alert <BOOL>                         # Send email notification when quorum gained/lost
+                                              #   (default no, unless global smtp_alert/smtp_alert_checker set)
 
     real_server <IP ADDRESS> <PORT> {         # RS declaration
         weight <INTEGER>                      # weight to use (default: 1)
@@ -955,6 +962,8 @@ virtual_server group <STRING>      {          # VS group declaration
         warmup <INTEGER>                      # see above
         delay_loop <INTEGER>                  # see above
         inhibit_on_failure <BOOL>             # see above
+        smtp_alert <BOOL>                     # Send email notification when quorum gained/lost
+                                              #   (default yes, unless global smtp_alert/smtp_alert_checker set)
         virtualhost <STRING>                  # Default VirtualHost string to use for
                                               #  HTTP_GET or SSL_GET (overrides
                                               #  virtual_server virtualhost)

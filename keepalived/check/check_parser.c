@@ -399,6 +399,22 @@ hasuspend_handler(__attribute__((unused)) vector_t *strvec)
 }
 
 static void
+vs_smtp_alert_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec, 1));
+		if (res == -1) {
+			log_message(LOG_INFO, "Invalid virtual_server smtp_alert parameter %s", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+	vs->smtp_alert = res;
+}
+
+static void
 vs_virtualhost_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
@@ -600,6 +616,22 @@ rs_alpha_handler(vector_t *strvec)
 	rs->alpha = res;
 }
 static void
+rs_smtp_alert_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec, 1));
+		if (res == -1) {
+			log_message(LOG_INFO, "Invalid real_server smtp_alert parameter %s", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+	rs->smtp_alert = res;
+}
+static void
 rs_virtualhost_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
@@ -707,6 +739,7 @@ init_check_keywords(bool active)
 	install_keyword("persistence_granularity", &pgr_handler);
 	install_keyword("protocol", &proto_handler);
 	install_keyword("ha_suspend", &hasuspend_handler);
+	install_keyword("smtp_alert", &vs_smtp_alert_handler);
 	install_keyword("virtualhost", &vs_virtualhost_handler);
 
 	/* Pool regression detection and handling. */
@@ -736,6 +769,7 @@ init_check_keywords(bool active)
 	install_keyword("delay_before_retry", &rs_delay_before_retry_handler);
 	install_keyword("warmup", &rs_warmup_handler);
 	install_keyword("delay_loop", &rs_delay_handler);
+	install_keyword("smtp_alert", &rs_smtp_alert_handler);
 	install_keyword("virtualhost", &rs_virtualhost_handler);
 
 	install_sublevel_end_handler(&rs_end_handler);

@@ -2580,6 +2580,15 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		vrrp->higher_prio_send_advert = false;
 	}
 
+	if (vrrp->smtp_alert == -1) {
+		if (global_data->smtp_alert_vrrp != -1)
+			vrrp->smtp_alert = global_data->smtp_alert_vrrp;
+		else if (global_data->smtp_alert != -1)
+			vrrp->smtp_alert = global_data->smtp_alert;
+		else
+			vrrp->smtp_alert = false;
+	}
+
 	/* Check that the advertisement interval is valid */
 	if (!vrrp->adver_int)
 		vrrp->adver_int = VRRP_ADVER_DFL * TIMER_HZ;
@@ -3031,6 +3040,16 @@ sync_group_tracking_init(void)
 
 			LIST_FOREACH(sgroup->vrrp_instances, vrrp, e2)
 				add_vrrp_to_interface(vrrp, tif->ifp, tif->weight, true);
+		}
+
+		/* Set default smtp_alert */
+		if (sgroup->smtp_alert == -1) {
+			if (global_data->smtp_alert_vrrp != -1)
+				sgroup->smtp_alert = global_data->smtp_alert_vrrp;
+			else if (global_data->smtp_alert != -1)
+				sgroup->smtp_alert = global_data->smtp_alert;
+			else
+				sgroup->smtp_alert = false;
 		}
 	}
 }

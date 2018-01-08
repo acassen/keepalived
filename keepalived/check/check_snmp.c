@@ -109,6 +109,7 @@ enum check_snmp_virtualserver_magic {
 	CHECK_SNMP_VSDELAYBEFORERETRY,
 	CHECK_SNMP_VSWARMUP,
 	CHECK_SNMP_VSWEIGHT,
+	CHECK_SNMP_VSSMTPALERT,
 };
 
 enum check_snmp_realserver_magic {
@@ -158,7 +159,8 @@ enum check_snmp_realserver_magic {
 	CHECK_SNMP_RSRETRY,
 	CHECK_SNMP_RSDELAYBEFORERETRY,
 	CHECK_SNMP_RSWARMUP,
-	CHECK_SNMP_RSDELAYLOOP
+	CHECK_SNMP_RSDELAYLOOP,
+	CHECK_SNMP_RSSMTPALERT,
 };
 
 #define STATE_VSGM_FWMARK 1
@@ -665,17 +667,20 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = v->inhibit?2:1;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSRETRY:
-		long_ret.u = v->retry;
+		long_ret.u = v->retry == UINT_MAX ? 0 : v->retry;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSDELAYBEFORERETRY:
-		long_ret.u = v->delay_before_retry / TIMER_HZ;
+		long_ret.u = v->delay_before_retry == ULONG_MAX ? 0 : v->delay_before_retry / TIMER_HZ;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSWARMUP:
-		long_ret.u = v->warmup / TIMER_HZ;
+		long_ret.u = v->warmup == ULONG_MAX ? 0 : v->warmup / TIMER_HZ;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSWEIGHT:
 		long_ret.s = v->weight;
 		return (u_char*)&long_ret;
+	case CHECK_SNMP_VSSMTPALERT:
+		long_ret.u = v->smtp_alert?1:2;
+		return (u_char *)&long_ret;
 	default:
 		return NULL;
 	}
@@ -1032,17 +1037,20 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = be->alpha?1:2;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSRETRY:
-		long_ret.u = be->retry;
+		long_ret.u = be->retry == UINT_MAX ? 0 : be->retry;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSDELAYBEFORERETRY:
-		long_ret.u = be->delay_before_retry / TIMER_HZ;
+		long_ret.u = be->delay_before_retry == ULONG_MAX ? 0 : be->delay_before_retry / TIMER_HZ;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSWARMUP:
-		long_ret.u = be->warmup / TIMER_HZ;
+		long_ret.u = be->warmup == ULONG_MAX ? 0 : be->warmup / TIMER_HZ;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSDELAYLOOP:
-		long_ret.u = be->delay_loop / TIMER_HZ;
+		long_ret.u = be->delay_loop == ULONG_MAX ? 0 : be->delay_loop / TIMER_HZ;
 		return (u_char*)&long_ret;
+	case CHECK_SNMP_RSSMTPALERT:
+		long_ret.u = be->smtp_alert?1:2;
+		return (u_char *)&long_ret;
 	default:
 		return NULL;
 	}
@@ -1280,14 +1288,16 @@ static struct variable8 check_vars[] = {
 	 check_snmp_virtualserver, 3, {3, 1, 55}},
 	{CHECK_SNMP_VSACTIONWHENDOWN, ASN_INTEGER, RONLY,
 	 check_snmp_virtualserver, 3, {3, 1, 56}},
-	{CHECK_SNMP_VSRETRY, ASN_INTEGER, RONLY,
+	{CHECK_SNMP_VSRETRY, ASN_UNSIGNED, RONLY,
 	 check_snmp_virtualserver, 3, {3, 1, 57}},
-	{CHECK_SNMP_VSDELAYBEFORERETRY, ASN_INTEGER, RONLY,
+	{CHECK_SNMP_VSDELAYBEFORERETRY, ASN_UNSIGNED, RONLY,
 	 check_snmp_virtualserver, 3, {3, 1, 58}},
-	{CHECK_SNMP_VSWARMUP, ASN_INTEGER, RONLY,
+	{CHECK_SNMP_VSWARMUP, ASN_UNSIGNED, RONLY,
 	 check_snmp_virtualserver, 3, {3, 1, 59}},
 	{CHECK_SNMP_VSWEIGHT, ASN_INTEGER, RONLY,
 	 check_snmp_virtualserver, 3, {3, 1, 60}},
+	{CHECK_SNMP_VSSMTPALERT, ASN_INTEGER, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 61}},
 
 	/* realServerTable */
 	{CHECK_SNMP_RSTYPE, ASN_INTEGER, RONLY,
@@ -1368,20 +1378,22 @@ static struct variable8 check_vars[] = {
 	{CHECK_SNMP_RSRATEOUTBPSHIGH, ASN_UNSIGNED, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 39}},
 #endif
-	{CHECK_SNMP_RSLOADBALANCINGKIND, ASN_UNSIGNED, RONLY,
+	{CHECK_SNMP_RSLOADBALANCINGKIND, ASN_INTEGER, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 40}},
 	{CHECK_SNMP_RSVIRTUALHOST, ASN_OCTET_STR, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 41}},
 	{CHECK_SNMP_RSALPHA, ASN_INTEGER, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 42}},
-	{CHECK_SNMP_RSRETRY, ASN_INTEGER, RONLY,
+	{CHECK_SNMP_RSRETRY, ASN_UNSIGNED, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 43}},
-	{CHECK_SNMP_RSDELAYBEFORERETRY, ASN_INTEGER, RONLY,
+	{CHECK_SNMP_RSDELAYBEFORERETRY, ASN_UNSIGNED, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 44}},
-	{CHECK_SNMP_RSWARMUP, ASN_INTEGER, RONLY,
+	{CHECK_SNMP_RSWARMUP, ASN_UNSIGNED, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 45}},
-	{CHECK_SNMP_RSDELAYLOOP, ASN_INTEGER, RONLY,
+	{CHECK_SNMP_RSDELAYLOOP, ASN_UNSIGNED, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 46}},
+	{CHECK_SNMP_RSSMTPALERT, ASN_INTEGER, RONLY,
+	 check_snmp_realserver, 3, {4, 1, 47}},
 #ifdef _WITH_VRRP_
 	/* LVS sync daemon configuration */
 	{CHECK_SNMP_LVSSYNCDAEMONENABLED, ASN_INTEGER, RONLY,

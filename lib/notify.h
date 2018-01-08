@@ -79,6 +79,7 @@ free_notify_script(notify_script_t **script)
 	FREE_PTR((*script)->args);
 	FREE_PTR((*script)->cmd_str);
 	FREE_PTR(*script);
+	*script = NULL;
 }
 
 /* Default user/group for script execution */

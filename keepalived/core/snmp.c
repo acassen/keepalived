@@ -108,6 +108,9 @@ enum snmp_global_magic {
 	SNMP_NET_NAMESPACE,
 	SNMP_DBUS,
 	SNMP_DYNAMIC_INTERFACES,
+	SNMP_SMTP_ALERT,
+	SNMP_SMTP_ALERT_VRRP,
+	SNMP_SMTP_ALERT_CHECKER,
 };
 
 static u_char*
@@ -196,6 +199,19 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 		long_ret = global_data->dynamic_interfaces ? 1 : 2;
 		return (u_char *)&long_ret;
 #endif
+	case SNMP_SMTP_ALERT:
+		long_ret = global_data->smtp_alert == -1 ? 3 : global_data->smtp_alert ? 1 : 2;
+		return (u_char *)&long_ret;
+#ifdef _WITH_VRRP_
+	case SNMP_SMTP_ALERT_VRRP:
+		long_ret = global_data->smtp_alert_vrrp == -1 ? 3 : global_data->smtp_alert_vrrp ? 1 : 2;
+		return (u_char *)&long_ret;
+#endif
+#ifdef _WITH_LVS_
+	case SNMP_SMTP_ALERT_CHECKER:
+		long_ret = global_data->smtp_alert_checker == -1 ? 3 : global_data->smtp_alert_checker ? 1 : 2;
+		return (u_char *)&long_ret;
+#endif
 	default:
 		break;
 	}
@@ -240,6 +256,13 @@ static struct variable8 global_vars[] = {
 	{SNMP_MAIL_SMTPSERVERPORT, ASN_UNSIGNED, RONLY, snmp_scalar, 2, {3, 6}},
 	/* are vrrp fault state transitions emailed */
 	{SNMP_MAIL_EMAILFAULTS, ASN_INTEGER, RONLY, snmp_scalar, 2, {3, 7}},
+	{SNMP_SMTP_ALERT, ASN_INTEGER, RONLY, snmp_scalar, 2, {3, 8}},
+#ifdef _WITH_VRRP_
+	{SNMP_SMTP_ALERT_VRRP, ASN_INTEGER, RONLY, snmp_scalar, 2, {3, 9}},
+#endif
+#ifdef _WITH_LVS_
+	{SNMP_SMTP_ALERT_CHECKER, ASN_INTEGER, RONLY, snmp_scalar, 2, {3, 10}},
+#endif
 	/* trapEnable */
 	{SNMP_TRAPS, ASN_INTEGER, RONLY, snmp_scalar, 1, {4}},
 	/* linkBeat */

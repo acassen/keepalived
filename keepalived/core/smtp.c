@@ -39,6 +39,8 @@
 #ifdef _WITH_LVS_
 #include "check_api.h"
 #endif
+#include "main.h"
+#include "parser.h"
 
 /* SMTP FSM definition */
 static int connection_error(thread_t *);
@@ -611,20 +613,18 @@ smtp_connect(smtp_t * smtp)
 
 /* Main entry point */
 void
-smtp_alert(
-#ifndef _WITH_LVS_
-	   __attribute__((unused)) void *dummy1,
-#else
-	   checker_t* checker,
-#endif
-#ifndef _WITH_VRRP_
-	   __attribute__((unused)) void *dummy2, __attribute__((unused)) void *dummy3,
-#else
-	   vrrp_t * vrrp, vrrp_sgroup_t * vgroup,
-#endif
-	   const char *subject, const char *body)
+smtp_alert(smtp_msg_t msg_type, void* data, const char *subject, const char *body)
 {
 	smtp_t *smtp;
+	size_t cur_len;
+#ifdef _WITH_VRRP_
+	vrrp_t *vrrp;
+	vrrp_sgroup_t *vgroup;
+#endif
+#ifdef _WITH_LVS_
+	checker_t *checker;
+	virtual_server_t *vs;
+#endif
 
 	/* Only send mail if email specified */
 	if (!LIST_ISEMPTY(global_data->email) && global_data->smtp_server.ss_family != 0) {
@@ -637,25 +637,36 @@ smtp_alert(
 
 		/* format subject if rserver is specified */
 #ifdef _WITH_LVS_
-		if (checker) {
+		if (msg_type == SMTP_MSG_RS) {
+			checker = (checker_t *)data;
 			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Realserver %s - %s",
 						global_data->router_id,
 						FMT_RS(checker->rs, checker->vs),
 						subject);
 		}
+		else if (msg_type == SMTP_MSG_VS) {
+			vs = (virtual_server_t *)data;
+			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Virtualserver %s - %s",
+						global_data->router_id,
+						FMT_VS(vs),
+						subject);
+		}
 		else
 #endif
 #ifdef _WITH_VRRP_
-		if (vrrp)
-			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] VRRP Instance %s - %s"
-					      , global_data->router_id
-					      , vrrp->iname
-					      , subject);
-		else if (vgroup)
-			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] VRRP Group %s - %s"
-					      , global_data->router_id
-					      , vgroup->gname
-					      , subject);
+		if (msg_type == SMTP_MSG_VRRP) {
+			vrrp = (vrrp_t *)data;
+			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] VRRP Instance %s - %s",
+					        global_data->router_id,
+					        vrrp->iname,
+					        subject);
+		} else if (msg_type == SMTP_MSG_VGROUP) {
+			vgroup = (vrrp_sgroup_t *)data;
+			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] VRRP Group %s - %s",
+					        global_data->router_id,
+					        vgroup->gname,
+					        subject);
+		}
 		else
 #endif
 		if (global_data->router_id)
@@ -665,7 +676,19 @@ smtp_alert(
 		else
 			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "%s", subject);
 
-		strncpy(smtp->body, body, MAX_BODY_LENGTH);
+		/* If we are running with an instance name/config_id, append them to the subject */
+		if (instance_name || config_id) {
+			cur_len = strlen(smtp->subject);
+			snprintf(smtp->subject + cur_len, MAX_HEADERS_LENGTH - cur_len,
+				 " - instance %s%s%s",
+				 instance_name ? instance_name : "",
+				 instance_name && config_id ? ":" : "",
+				 config_id ? config_id : "");
+		}
+
+		strncpy(smtp->body, body, MAX_BODY_LENGTH - 1);
+		smtp->body[MAX_BODY_LENGTH - 1]= '\0';
+
 		build_to_header_rcpt_addrs(smtp);
 
 		smtp_connect(smtp);

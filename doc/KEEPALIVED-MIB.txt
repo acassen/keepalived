@@ -22,12 +22,16 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201710260000Z"
+     LAST-UPDATED "201801080001Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201801080001Z"
+     DESCRIPTION "add SmtpAlert global defaults"
+     REVISION "201801080000Z"
+     DESCRIPTION "add SmtpAlert for real and virtual servers"
      REVISION "201710260000Z"
      DESCRIPTION "remove vrrpScriptResult disabled status"
      REVISION "201710030001Z"
@@ -248,6 +252,30 @@ smtpEmailFaults OBJECT-TYPE
     DESCRIPTION
         "Email vrrp fault state transitions."
     ::= { mail 7 }
+
+smtpEmailSmtpAlert OBJECT-TYPE
+    SYNTAX INTEGER { on(1), off(2), unset(3) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Email default smtp alert."
+    ::= { mail 8 }
+
+smtpEmailSmtpAlertVrrp OBJECT-TYPE
+    SYNTAX INTEGER { on(1), off(2), unset(3) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Email default smtp alert for vrrp."
+    ::= { mail 9 }
+
+smtpEmailSmtpAlertChecker OBJECT-TYPE
+    SYNTAX INTEGER { on(1), off(2), unset(3) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Email default smtp alert for checkers."
+    ::= { mail 10 }
 
 emailEntry OBJECT-TYPE
     SYNTAX EmailEntry
@@ -2628,7 +2656,8 @@ VirtualServerEntry ::= SEQUENCE {
     virtualServerRetry Unsigned32,
     virtualServerDelayBeforeRetry Unsigned32,
     virtualServerWarmup Unsigned32,
-    virtualServerWeight INTEGER
+    virtualServerWeight INTEGER,
+    virtualServerSmtpAlert INTEGER
 }
 
 virtualServerIndex OBJECT-TYPE
@@ -3176,6 +3205,14 @@ virtualServerWeight OBJECT-TYPE
         "Default wieght for each real server."
     ::= { virtualServerEntry 60 }
 
+virtualServerSmtpAlert OBJECT-TYPE
+    SYNTAX INTEGER { enabled(1), disabled(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Will SMTP alert be sent for this virtual server?"
+    ::= { virtualServerEntry 61 }
+
 -- real servers
 
 realServerTable OBJECT-TYPE
@@ -3241,7 +3278,8 @@ RealServerEntry ::= SEQUENCE {
     realServerRetry Unsigned32,
     realServerDelayBeforeRetry Unsigned32,
     realServerWarmup Unsigned32,
-    realServerDelayLoop Unsigned32
+    realServerDelayLoop Unsigned32,
+    realServerSmtpAlert INTEGER
 }
 
 realServerIndex OBJECT-TYPE
@@ -3654,6 +3692,14 @@ realServerDelayLoop OBJECT-TYPE
         "Delay in seconds between two checks."
     ::= { realServerEntry 46 }
 
+realServerSmtpAlert OBJECT-TYPE
+    SYNTAX INTEGER { enabled(1), disabled(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Will SMTP alert be sent for this real server?"
+    ::= {realServerEntry 47 }
+
 lvsSyncDaemon    OBJECT IDENTIFIER ::= { check 6 }
 
 lvsSyncDaemonEnabled OBJECT-TYPE
@@ -3874,6 +3920,9 @@ globalGroup OBJECT-GROUP
     emailAddress,
     smtpServerPort,
     smtpEmailFaults,
+    smtpEmailSmtpAlert,
+    smtpEmailSmtpAlertVrrp,
+    smtpEmailSmtpAlertChecker,
     trapEnable,
     linkBeat,
     lvsFlush,
@@ -4195,7 +4244,8 @@ virtualServerGroup OBJECT-GROUP
     virtualServerRetry,
     virtualServerDelayBeforeRetry,
     virtualServerWarmup,
-    virtualServerWeight
+    virtualServerWeight,
+    virtualServerSmtpAlert
     }
     STATUS current
     DESCRIPTION
@@ -4248,7 +4298,8 @@ realServerGroup OBJECT-GROUP
     realServerRetry,
     realServerDelayBeforeRetry,
     realServerWarmup,
-    realServerDelayLoop
+    realServerDelayLoop,
+    realServerSmtpAlert
     }
     STATUS current
     DESCRIPTION

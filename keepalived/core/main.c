@@ -906,8 +906,11 @@ parse_cmdline(int argc, char **argv)
 		{NULL,			0,			NULL,  0 }
 	};
 
+	/* Unfortunately, if a short option is used, getopt_long() doesn't change the value
+	 * of longindex, so we need to ensure that before calling getopt_long(), longindex
+	 * is set to a know invalid value */
 	curind = optind;
-	while ((c = getopt_long(argc, argv, ":vhlndDRS:f:p:i:mM::g::G"
+	while (longindex = -1, (c = getopt_long(argc, argv, ":vhlndDRS:f:p:i:mM::g::G"
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 					    "PC"
 #endif
@@ -930,12 +933,6 @@ parse_cmdline(int argc, char **argv)
 					    "s:"
 #endif
 				, long_options, &longindex)) != -1) {
-
-		/* If there isn't a corresponding long option, getopt_long()
-		 * unfortunately sets longindex == 0, which isn't helpful. */
-		if (longindex == 0 &&
-		    (c == '?' || (optopt && optopt != long_options[0].val)))
-			longindex = -1;
 
 		/* Check for an empty option argument. For example --use-file= returns
 		 * a 0 length option, which we don't want */

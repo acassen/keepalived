@@ -52,6 +52,18 @@
 #define END	10
 #define ERROR	11
 
+/* SMTP mesage type format */
+typedef enum {
+#ifdef _WITH_LVS_
+	SMTP_MSG_RS,
+	SMTP_MSG_VS,
+#endif
+#ifdef _WITH_VRRP_
+	SMTP_MSG_VGROUP,
+	SMTP_MSG_VRRP,
+#endif
+} smtp_msg_t;
+
 /* SMTP thread argument structure */
 #define MAX_HEADERS_LENGTH 256
 #define MAX_BODY_LENGTH    512
@@ -103,17 +115,6 @@ typedef void vrrp_sgroup_t;
 #endif
 
 /* Prototypes defs */
-extern void smtp_alert(
-#ifdef _WITH_LVS_
-			checker_t *,
-#else
-			__attribute__((unused)) void *,
-#endif
-#ifdef _WITH_VRRP_
-			vrrp_t *, vrrp_sgroup_t *,
-#else
-			void *, void *,
-#endif
-			const char *, const char *);
+extern void smtp_alert(smtp_msg_t, void *data, const char *, const char *);
 
 #endif
