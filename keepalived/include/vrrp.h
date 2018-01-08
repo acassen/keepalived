@@ -126,7 +126,7 @@ typedef struct _vrrp_sgroup {
 	notify_script_t		*script_master;
 	notify_script_t		*script_fault;
 	notify_script_t		*script;
-	bool			smtp_alert;
+	int			smtp_alert;
 	int			last_email_state;
 } vrrp_sgroup_t;
 
@@ -266,7 +266,7 @@ typedef struct _vrrp_t {
 	int			version;		/* VRRP version (2 or 3) */
 
 	/* State transition notification */
-	bool			smtp_alert;
+	int			smtp_alert;
 	int			last_email_state;
 	bool			notify_exec;
 	notify_script_t		*script_backup;

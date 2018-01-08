@@ -309,8 +309,7 @@ dump_vs(void *data)
 			    vs->notify_quorum_down->cmd_str, vs->notify_quorum_down->uid, vs->notify_quorum_down->gid);
 	if (vs->ha_suspend)
 		log_message(LOG_INFO, "   Using HA suspend");
-	if (vs->smtp_alert)
-                log_message(LOG_INFO, "   Using smtp notification");
+	log_message(LOG_INFO, "   Using smtp notification = %s", vs->smtp_alert ? "yes" : "no");
 
 	switch (vs->forwarding_method) {
 	case IP_VS_CONN_F_MASQ:
@@ -391,6 +390,7 @@ alloc_vs(char *param1, char *param2)
 	new->delay_before_retry = ULONG_MAX;
 	new->weight = 1;
 	new->af = AF_UNSPEC;
+	new->smtp_alert = -1;
 
 	list_add(check_data->vs, new);
 }
@@ -464,8 +464,7 @@ dump_rs(void *data)
 		       rs->notify_down->cmd_str, rs->notify_down->uid, rs->notify_down->gid);
 	if (rs->virtualhost)
 		log_message(LOG_INFO, "    VirtualHost = %s", rs->virtualhost);
-	if (rs->smtp_alert)
-                log_message(LOG_INFO, "   Using smtp notification");
+	log_message(LOG_INFO, "   Using smtp notification = %s", rs->smtp_alert ? "yes" : "no");
 }
 
 void
@@ -499,7 +498,7 @@ alloc_rs(char *ip, char *port)
 	new->retry = UINT_MAX;
 	new->delay_before_retry = ULONG_MAX;
 	new->virtualhost = NULL;
-	new->smtp_alert = true;
+	new->smtp_alert = -1;
 
 // ??? alloc list in alloc_vs
 	if (!LIST_EXISTS(vs->rs))
@@ -730,8 +729,15 @@ bool validate_check_config(void)
 			strcpy(vs->sched, IPVS_DEF_SCHED);
 		}
 
-
 		/* Set default values */
+		if (vs->smtp_alert == -1) {
+			if (global_data->smtp_alert_checker != -1)
+				vs->smtp_alert = global_data->smtp_alert_checker;
+			else if (global_data->smtp_alert != -1)
+				vs->smtp_alert = global_data->smtp_alert;
+			else
+				vs->smtp_alert = false;
+		}
 
 		/* Spin through all the real servers */
 		LIST_FOREACH(vs->rs, rs, e1) {
@@ -760,6 +766,18 @@ bool validate_check_config(void)
 			if (rs->weight == INT_MAX) {
 				rs->weight = vs->weight;
 				rs->iweight = rs->weight;
+			}
+
+			if (rs->smtp_alert == -1) {
+				if (global_data->smtp_alert_checker != -1)
+					rs->smtp_alert = global_data->smtp_alert_checker;
+				else if (global_data->smtp_alert != -1)
+					rs->smtp_alert = global_data->smtp_alert;
+				else {
+					/* This is inconsistent with the defaults for other smtp_alerts
+					 * in order to maintain backwards compatibility */
+					rs->smtp_alert = true;
+				}
 			}
 		}
 	}

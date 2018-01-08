@@ -147,6 +147,13 @@ alloc_global_data(void)
 
 	new = (data_t *) MALLOC(sizeof(data_t));
 	new->email = alloc_list(free_email, dump_email);
+	new->smtp_alert = -1;
+#ifdef _WITH_VRRP_
+	new->smtp_alert_vrrp = -1;
+#endif
+#ifdef _WITH_LVS_
+	new->smtp_alert_checker = -1;
+#endif
 
 #ifdef _WITH_VRRP_
 	set_default_mcast_group(new);
@@ -352,6 +359,16 @@ dump_global_data(data_t * data)
 				    , data->email_from);
 		dump_list(data->email);
 	}
+	log_message(LOG_INFO, " Default smtp_alert = %s",
+			data->smtp_alert == -1 ? "unset" : data->smtp_alert ? "on" : "off");
+#ifdef _WITH_VRRP_
+	log_message(LOG_INFO, " Default smtp_alert_vrrp = %s",
+			data->smtp_alert_vrrp == -1 ? "unset" : data->smtp_alert_vrrp ? "on" : "off");
+#endif
+#ifdef _WITH_LVS_
+	log_message(LOG_INFO, " Default smtp_alert_checker = %s",
+			data->smtp_alert_checker == -1 ? "unset" : data->smtp_alert_checker ? "on" : "off");
+#endif
 #ifdef _WITH_VRRP_
 	log_message(LOG_INFO, " Dynamic interfaces = %s", data->dynamic_interfaces ? "true" : "false");
 	if (data->email_faults)

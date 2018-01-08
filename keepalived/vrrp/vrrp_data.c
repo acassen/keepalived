@@ -127,6 +127,7 @@ dump_vgroup(void *data)
 	}
 	if (vgroup->sgroup_tracking_weight)
 		log_message(LOG_INFO, "   sync group tracking weight set");
+	log_message(LOG_INFO, "   Using smtp notification = %s", vgroup->smtp_alert ? "yes" : "no");
 	if (!LIST_ISEMPTY(vgroup->track_ifp)) {
 		log_message(LOG_INFO, "   Tracked interfaces = %d", LIST_SIZE(vgroup->track_ifp));
 		dump_list(vgroup->track_ifp);
@@ -143,8 +144,6 @@ dump_vgroup(void *data)
 	dump_notify_script(vgroup->script_master, "Master");
 	dump_notify_script(vgroup->script_fault, "Fault");
 	dump_notify_script(vgroup->script, "Generic");
-	if (vgroup->smtp_alert)
-		log_message(LOG_INFO, "   Using smtp notification");
 }
 
 void
@@ -381,6 +380,7 @@ dump_vrrp(void *data)
 		}
 	}
 #endif
+	log_message(LOG_INFO, "   Using smtp notification = %s", vrrp->smtp_alert ? "yes" : "no");
 	if (!LIST_ISEMPTY(vrrp->track_ifp)) {
 		log_message(LOG_INFO, "   Tracked interfaces = %d", LIST_SIZE(vrrp->track_ifp));
 		dump_list(vrrp->track_ifp);
@@ -430,8 +430,6 @@ dump_vrrp(void *data)
 	dump_notify_script(vrrp->script_fault, "Fault");
 	dump_notify_script(vrrp->script_stop, "Stop");
 	dump_notify_script(vrrp->script, "Generic");
-	if (vrrp->smtp_alert)
-		log_message(LOG_INFO, "   Using smtp notification");
 #ifdef _HAVE_VRRP_VMAC_
 	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
 		log_message(LOG_INFO, "   Using VRRP VMAC (flags:%s|%s), vmac ifindex %u"
@@ -454,6 +452,7 @@ alloc_vrrp_sync_group(char *gname)
 	new->last_email_state = VRRP_STATE_INIT;
 	memcpy(new->gname, gname, size);
 	new->sgroup_tracking_weight = false;
+	new->smtp_alert = -1;
 
 	list_add(vrrp_data->vrrp_sync_group, new);
 }
@@ -518,6 +517,7 @@ alloc_vrrp(char *iname)
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 	new->unicast_chksum_compat = CHKSUM_COMPATIBILITY_NONE;
 #endif
+	new->smtp_alert = -1;
 
 	new->skip_check_adv_addr = global_data->vrrp_skip_check_adv_addr;
 	new->strict_mode = PARAMETER_UNSET;

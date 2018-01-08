@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201801080000Z"
+     LAST-UPDATED "201801080001Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201801080001Z"
+     DESCRIPTION "add SmtpAlert global defaults"
      REVISION "201801080000Z"
      DESCRIPTION "add SmtpAlert for real and virtual servers"
      REVISION "201710260000Z"
@@ -250,6 +252,30 @@ smtpEmailFaults OBJECT-TYPE
     DESCRIPTION
         "Email vrrp fault state transitions."
     ::= { mail 7 }
+
+smtpEmailSmtpAlert OBJECT-TYPE
+    SYNTAX INTEGER { on(1), off(2), unset(3) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Email default smtp alert."
+    ::= { mail 8 }
+
+smtpEmailSmtpAlertVrrp OBJECT-TYPE
+    SYNTAX INTEGER { on(1), off(2), unset(3) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Email default smtp alert for vrrp."
+    ::= { mail 9 }
+
+smtpEmailSmtpAlertChecker OBJECT-TYPE
+    SYNTAX INTEGER { on(1), off(2), unset(3) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Email default smtp alert for checkers."
+    ::= { mail 10 }
 
 emailEntry OBJECT-TYPE
     SYNTAX EmailEntry
@@ -3894,6 +3920,9 @@ globalGroup OBJECT-GROUP
     emailAddress,
     smtpServerPort,
     smtpEmailFaults,
+    smtpEmailSmtpAlert,
+    smtpEmailSmtpAlertVrrp,
+    smtpEmailSmtpAlertChecker,
     trapEnable,
     linkBeat,
     lvsFlush,

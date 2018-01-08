@@ -74,15 +74,18 @@ typedef struct _data {
 	char				*smtp_helo_name;
 	unsigned long			smtp_connection_to;
 	list				email;
+	int				smtp_alert;
 #ifdef _WITH_VRRP_
 	bool				dynamic_interfaces;
 	bool				email_faults;
+	int				smtp_alert_vrrp;
 	interface_t			*default_ifp;		/* Default interface for static addresses */
 #endif
 #ifdef _WITH_LVS_
 	int				lvs_tcp_timeout;
 	int				lvs_tcpfin_timeout;
 	int				lvs_udp_timeout;
+	int				smtp_alert_checker;
 #ifdef _WITH_VRRP_
 	struct lvs_syncd_config		lvs_syncd;
 #endif
