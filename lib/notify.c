@@ -635,6 +635,7 @@ check_script_secure(notify_script_t *script, bool script_security, bool full_str
 {
 	int flags;
 	char *space = NULL;
+	char *slash;
 	int ret;
 	struct stat file_buf;
 	bool need_script_protection = false;
@@ -652,7 +653,12 @@ check_script_secure(notify_script_t *script, bool script_security, bool full_str
 	if (!script)
 		return 0;
 
-	if (!strchr(script->name, '/')) {
+	if (!full_string)
+		space = strchr(script->name, ' ');
+
+	slash = strchr(script->name, '/');
+	if (!slash ||
+	    (space && space < slash)) {
 		/* It is a bare file name, so do a path search */
 		if ((ret = find_path(script, full_string))) {
 			if (ret == EACCES)
