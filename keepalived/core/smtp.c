@@ -39,7 +39,6 @@
 #ifdef _WITH_LVS_
 #include "check_api.h"
 #endif
-#include "main.h"
 
 /* SMTP FSM definition */
 static int connection_error(thread_t *);
@@ -621,7 +620,6 @@ smtp_alert(
 	   const char *subject, const char *body)
 {
 	smtp_t *smtp;
-	size_t cur_len;
 
 	/* Only send mail if email specified */
 	if (!LIST_ISEMPTY(global_data->email) && global_data->smtp_server.ss_family != 0) {
@@ -661,16 +659,6 @@ smtp_alert(
 					      , subject);
 		else
 			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "%s", subject);
-
-		/* If we are running with an instance name/config_id, append them to the subject */
-		if (instance_name || config_id) {
-			cur_len = strlen(smtp->subject);
-			snprintf(smtp->subject + cur_len, MAX_HEADERS_LENGTH - cur_len,
-				 " - instance %s%s%s",
-				 instance_name ? instance_name : "",
-				 instance_name && config_id ? ":" : "",
-				 config_id ? config_id : "");
-		}
 
 		strncpy(smtp->body, body, MAX_BODY_LENGTH - 1);
 		smtp->body[MAX_BODY_LENGTH - 1]= '\0';
