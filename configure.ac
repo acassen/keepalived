@@ -186,6 +186,8 @@ AC_ARG_ENABLE(mem-check-log,
   [AS_HELP_STRING([--enable-mem-check-log], [compile with memory alloc checking writing to syslog])])
 AC_ARG_ENABLE(debug,
   [AS_HELP_STRING([--enable-debug], [compile with debugging flags])])
+AC_ARG_ENABLE(smtp-alert-debug,
+  [AS_HELP_STRING([--enable-smtp-alert-debug], [compile with smtp-alert debugging])])
 AC_ARG_ENABLE(stacktrace,
   [AS_HELP_STRING([--enable-stacktrace], [compile with stacktrace support])])
 AC_ARG_ENABLE(profile,
@@ -1339,6 +1341,15 @@ else
 fi
 AM_CONDITIONAL([DEBUG], [test $ENABLE_DEBUG = Yes])
 
+dnl ----[ smtp-alert debugging or not ? ]----
+if test "${enable_smtp_alert_debug}" = yes; then
+  AC_DEFINE([_SMTP_ALERT_DEBUG_], [ 1 ], [Define to 1 to build with smtp-alert debugging support])
+  ENABLE_SMTP_ALERT_DEBUG=Yes
+  add_build_opt([SMTP_ALERT_DEBUG])
+else
+  ENABLE_SMTP_ALERT_DEBUG=No
+fi
+
 dnl ----[ Stacktrace support or not ? ]----
 if test "${enable_stacktrace}" = yes; then
   AC_DEFINE([_WITH_STACKTRACE_], [ 1 ], [Define to 1 to build with stacktrace support])
@@ -1457,6 +1468,7 @@ if test ${DBUS_SUPPORT} = Yes; then
 fi
 echo "SHA1 support             : ${SHA1_SUPPORT}"
 echo "Use Debug flags          : ${ENABLE_DEBUG}"
+echo "smtp-alert debugging     : ${ENABLE_SMTP_ALERT_DEBUG}"
 echo "Use Json output          : ${ENABLE_JSON}"
 echo "Stacktrace support       : ${ENABLE_STACKTRACE}"
 echo "Memory alloc check       : ${MEM_CHECK}"

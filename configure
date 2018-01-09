@@ -831,6 +831,7 @@ enable_libnl
 enable_mem_check
 enable_mem_check_log
 enable_debug
+enable_smtp_alert_debug
 enable_stacktrace
 enable_profile
 enable_conversion_checks
@@ -1511,6 +1512,8 @@ Optional Features:
   --enable-mem-check      compile with memory alloc checking
   --enable-mem-check-log  compile with memory alloc checking writing to syslog
   --enable-debug          compile with debugging flags
+  --enable-smtp-alert-debug
+                          compile with smtp-alert debugging
   --enable-stacktrace     compile with stacktrace support
   --enable-profile        compile with profiling flags
   --enable-conversion-checks
@@ -3572,6 +3575,11 @@ fi
 # Check whether --enable-debug was given.
 if test "${enable_debug+set}" = set; then :
   enableval=$enable_debug;
+fi
+
+# Check whether --enable-smtp-alert-debug was given.
+if test "${enable_smtp_alert_debug+set}" = set; then :
+  enableval=$enable_smtp_alert_debug;
 fi
 
 # Check whether --enable-stacktrace was given.
@@ -10288,6 +10296,16 @@ else
 fi
 
 
+if test "${enable_smtp_alert_debug}" = yes; then
+
+$as_echo "#define _SMTP_ALERT_DEBUG_  1 " >>confdefs.h
+
+  ENABLE_SMTP_ALERT_DEBUG=Yes
+  BUILD_OPTIONS="$BUILD_OPTIONS SMTP_ALERT_DEBUG"
+else
+  ENABLE_SMTP_ALERT_DEBUG=No
+fi
+
 if test "${enable_stacktrace}" = yes; then
 
 $as_echo "#define _WITH_STACKTRACE_  1 " >>confdefs.h
@@ -12040,6 +12058,7 @@ if test ${DBUS_SUPPORT} = Yes; then
 fi
 echo "SHA1 support             : ${SHA1_SUPPORT}"
 echo "Use Debug flags          : ${ENABLE_DEBUG}"
+echo "smtp-alert debugging     : ${ENABLE_SMTP_ALERT_DEBUG}"
 echo "Use Json output          : ${ENABLE_JSON}"
 echo "Stacktrace support       : ${ENABLE_STACKTRACE}"
 echo "Memory alloc check       : ${MEM_CHECK}"
