@@ -665,6 +665,28 @@ smtp_alert(
 
 		build_to_header_rcpt_addrs(smtp);
 
+#ifdef _SMTP_ALERT_DEBUG_
+		FILE *fp = fopen("/tmp/smtp-alert.log", "a");
+		struct tm tm;
+		char time_buf[25];
+		int time_buf_len;
+
+		localtime_r(&time_now.tv_sec, &tm);
+		time_buf_len = strftime(time_buf, sizeof time_buf, "%a %b %e %X %Y", &tm);
+
+		fprintf(fp, "%s: %s -> %s\n"
+			    "%*sSubject: %s\n"
+			    "%*sBody:    %s\n\n",
+			    time_buf, global_data->email_from, smtp->email_to,
+			    time_buf_len - 7, "", smtp->subject,
+			    time_buf_len - 7, "", smtp->body);
+
+		fclose(fp);
+
+		free_smtp_all(smtp);
+		return;
+#endif
+
 		smtp_connect(smtp);
 	}
 }
