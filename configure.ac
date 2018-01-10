@@ -1206,6 +1206,7 @@ CPPFLAGS="$SAV_CPPFLAGS"
 
 dnl ----[ Checks for SNMP support ]----
 SNMP_SUPPORT=No
+SNMP_KEEPALIVED_SUPPORT=No
 SNMP_VRRP_SUPPORT=No
 SNMP_RFC_SUPPORT=No
 SNMP_RFCV2_SUPPORT=No
@@ -1311,6 +1312,17 @@ if test "$enable_snmp" = yes -o \
     AC_MSG_ERROR([CHECKER SNMP support requires checker])
   fi
 
+  if test ${SNMP_VRRP_SUPPORT} = Yes -o \
+	  ${SNMP_CHECKER_SUPPORT} = Yes; then
+    SNMP_KEEPALIVED_SUPPORT=Yes
+  fi
+
+  if test ${SNMP_RFC_SUPPORT} = Yes -o \
+	  ${SNMP_KEEPALIVED} = Yes; then
+    SNMP_SUPPORT=Yes
+  fi
+
+  CPPFLAGS="$SAV_CPPFLAGS"
   CPPFLAGS="$SAV_CPPFLAGS"
   CFLAGS="$SAV_CFLAGS"
   LIBS="$SAV_LIBS"
@@ -1318,8 +1330,10 @@ fi
 
 dnl ----[What SNMP support is required]----
 if test $SNMP_SUPPORT = Yes; then
-  AC_DEFINE([_WITH_SNMP_], [ 1 ], [Define to 1 to have keepalived SNMP support])
-  add_config_opt([SNMP])
+  AC_DEFINE([_WITH_SNMP_], [ 1 ], [Define to 1 to have SNMP support])
+fi
+if test $SNMP_KEEPALIVED_SUPPORT = Yes; then
+  AC_DEFINE([_WITH_SNMP_KEEPALIVED_], [ 1 ], [Define to 1 to have keepalived SNMP support])
 fi
 if test $SNMP_VRRP_SUPPORT = Yes; then
   AC_DEFINE([_WITH_SNMP_VRRP_], [ 1 ], [Define to 1 to have keepalived SNMP VRRP support])
@@ -1331,7 +1345,6 @@ if test $SNMP_CHECKER_SUPPORT = Yes; then
 fi
 if test $SNMP_RFC_SUPPORT = Yes; then
   AC_DEFINE([_WITH_SNMP_RFC_], [ 1 ], [Define to 1 to have RFC SNMP support])
-  add_config_opt([SNMP_RFC])
 fi
 if test $SNMP_RFCV2_SUPPORT = Yes; then
   AC_DEFINE([_WITH_SNMP_RFCV2_], [ 1 ], [Define to 1 to have RFCv2 SNMP support])
@@ -1342,6 +1355,7 @@ if test $SNMP_RFCV3_SUPPORT = Yes; then
   add_config_opt([SNMP_RFCV3])
 fi
 AM_CONDITIONAL([SNMP], [test $SNMP_SUPPORT = Yes])
+AM_CONDITIONAL([SNMP_KEEPALIVED], [test $SNMP_KEEPALIVED_SUPPORT = Yes])
 AM_CONDITIONAL([SNMP_VRRP], [test $SNMP_VRRP_SUPPORT = Yes])
 AM_CONDITIONAL([SNMP_CHECKER], [test $SNMP_CHECKER_SUPPORT = Yes])
 AM_CONDITIONAL([SNMP_RFC], [test $SNMP_RFC_SUPPORT = Yes])

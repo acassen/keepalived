@@ -676,11 +676,14 @@
 /* Define to 1 to have SHA1 support */
 #undef _WITH_SHA1_
 
-/* Define to 1 to have keepalived SNMP support */
+/* Define to 1 to have SNMP support */
 #undef _WITH_SNMP_
 
 /* Define to 1 to have keepalived SNMP checker support */
 #undef _WITH_SNMP_CHECKER_
+
+/* Define to 1 to have keepalived SNMP support */
+#undef _WITH_SNMP_KEEPALIVED_
 
 /* Define to 1 to have RFCv2 SNMP support */
 #undef _WITH_SNMP_RFCV2_

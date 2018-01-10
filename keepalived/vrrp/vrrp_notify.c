@@ -270,7 +270,7 @@ void
 send_instance_notifies(vrrp_t *vrrp)
 {
 	notify_instance_exec(vrrp);
-#ifdef _WITH_SNMP_KEEPALIVED_
+#ifdef _WITH_SNMP_VRRP_
 	vrrp_snmp_instance_trap(vrrp);
 #endif
 	if (vrrp->state == VRRP_STATE_MAST) {
@@ -288,7 +288,7 @@ void
 send_group_notifies(vrrp_sgroup_t *vgroup)
 {
 	notify_group_exec(vgroup);
-#ifdef _WITH_SNMP_KEEPALIVED_
+#ifdef _WITH_SNMP_VRRP_
 	vrrp_snmp_group_trap(vgroup);
 #endif
 	vrrp_sync_smtp_notifier(vgroup);

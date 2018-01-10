@@ -663,6 +663,8 @@ SNMP_CHECKER_FALSE
 SNMP_CHECKER_TRUE
 SNMP_VRRP_FALSE
 SNMP_VRRP_TRUE
+SNMP_KEEPALIVED_FALSE
+SNMP_KEEPALIVED_TRUE
 SNMP_FALSE
 SNMP_TRUE
 NETSNMP_CONFIG
@@ -9816,6 +9818,7 @@ fi
 CPPFLAGS="$SAV_CPPFLAGS"
 
 SNMP_SUPPORT=No
+SNMP_KEEPALIVED_SUPPORT=No
 SNMP_VRRP_SUPPORT=No
 SNMP_RFC_SUPPORT=No
 SNMP_RFCV2_SUPPORT=No
@@ -10059,6 +10062,17 @@ $as_echo "#define _SNMP_REPLY_V3_FOR_V2_  1 " >>confdefs.h
     as_fn_error $? "CHECKER SNMP support requires checker" "$LINENO" 5
   fi
 
+  if test ${SNMP_VRRP_SUPPORT} = Yes -o \
+	  ${SNMP_CHECKER_SUPPORT} = Yes; then
+    SNMP_KEEPALIVED_SUPPORT=Yes
+  fi
+
+  if test ${SNMP_RFC_SUPPORT} = Yes -o \
+	  ${SNMP_KEEPALIVED} = Yes; then
+    SNMP_SUPPORT=Yes
+  fi
+
+  CPPFLAGS="$SAV_CPPFLAGS"
   CPPFLAGS="$SAV_CPPFLAGS"
   CFLAGS="$SAV_CFLAGS"
   LIBS="$SAV_LIBS"
@@ -10068,7 +10082,11 @@ if test $SNMP_SUPPORT = Yes; then
 
 $as_echo "#define _WITH_SNMP_  1 " >>confdefs.h
 
-  CONFIG_OPTIONS="$CONFIG_OPTIONS SNMP"
+fi
+if test $SNMP_KEEPALIVED_SUPPORT = Yes; then
+
+$as_echo "#define _WITH_SNMP_KEEPALIVED_  1 " >>confdefs.h
+
 fi
 if test $SNMP_VRRP_SUPPORT = Yes; then
 
@@ -10086,7 +10104,6 @@ if test $SNMP_RFC_SUPPORT = Yes; then
 
 $as_echo "#define _WITH_SNMP_RFC_  1 " >>confdefs.h
 
-  CONFIG_OPTIONS="$CONFIG_OPTIONS SNMP_RFC"
 fi
 if test $SNMP_RFCV2_SUPPORT = Yes; then
 
@@ -10106,6 +10123,14 @@ fi
 else
   SNMP_TRUE='#'
   SNMP_FALSE=
+fi
+
+ if test $SNMP_KEEPALIVED_SUPPORT = Yes; then
+  SNMP_KEEPALIVED_TRUE=
+  SNMP_KEEPALIVED_FALSE='#'
+else
+  SNMP_KEEPALIVED_TRUE='#'
+  SNMP_KEEPALIVED_FALSE=
 fi
 
  if test $SNMP_VRRP_SUPPORT = Yes; then
@@ -10973,6 +10998,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${SNMP_TRUE}" && test -z "${SNMP_FALSE}"; then
   as_fn_error $? "conditional \"SNMP\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${SNMP_KEEPALIVED_TRUE}" && test -z "${SNMP_KEEPALIVED_FALSE}"; then
+  as_fn_error $? "conditional \"SNMP_KEEPALIVED\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${SNMP_VRRP_TRUE}" && test -z "${SNMP_VRRP_FALSE}"; then
