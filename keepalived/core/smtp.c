@@ -39,8 +39,8 @@
 #ifdef _WITH_LVS_
 #include "check_api.h"
 #endif
-#include "main.h"
-#include "parser.h"
+//#include "main.h"
+//#include "parser.h"
 
 /* SMTP FSM definition */
 static int connection_error(thread_t *);
@@ -616,7 +616,6 @@ void
 smtp_alert(smtp_msg_t msg_type, void* data, const char *subject, const char *body)
 {
 	smtp_t *smtp;
-	size_t cur_len;
 #ifdef _WITH_VRRP_
 	vrrp_t *vrrp;
 	vrrp_sgroup_t *vgroup;
@@ -676,20 +675,32 @@ smtp_alert(smtp_msg_t msg_type, void* data, const char *subject, const char *bod
 		else
 			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "%s", subject);
 
-		/* If we are running with an instance name/config_id, append them to the subject */
-		if (instance_name || config_id) {
-			cur_len = strlen(smtp->subject);
-			snprintf(smtp->subject + cur_len, MAX_HEADERS_LENGTH - cur_len,
-				 " - instance %s%s%s",
-				 instance_name ? instance_name : "",
-				 instance_name && config_id ? ":" : "",
-				 config_id ? config_id : "");
-		}
-
 		strncpy(smtp->body, body, MAX_BODY_LENGTH - 1);
 		smtp->body[MAX_BODY_LENGTH - 1]= '\0';
 
 		build_to_header_rcpt_addrs(smtp);
+
+#ifdef _SMTP_ALERT_DEBUG_
+		FILE *fp = fopen("/tmp/smtp-alert.log", "a");
+		struct tm tm;
+		char time_buf[25];
+		int time_buf_len;
+
+		localtime_r(&time_now.tv_sec, &tm);
+		time_buf_len = strftime(time_buf, sizeof time_buf, "%a %b %e %X %Y", &tm);
+
+		fprintf(fp, "%s: %s -> %s\n"
+			    "%*sSubject: %s\n"
+			    "%*sBody:    %s\n\n",
+			    time_buf, global_data->email_from, smtp->email_to,
+			    time_buf_len - 7, "", smtp->subject,
+			    time_buf_len - 7, "", smtp->body);
+
+		fclose(fp);
+
+		free_smtp_all(smtp);
+		return;
+#endif
 
 		smtp_connect(smtp);
 	}
