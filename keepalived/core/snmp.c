@@ -156,7 +156,7 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 		return (u_char *)global_data->email_from;
 #ifdef _WITH_VRRP_
 	case SNMP_MAIL_EMAILFAULTS:
-		long_ret = global_data->email_faults?1:2;
+		long_ret = global_data->no_email_faults?2:1;
 		return (u_char *)&long_ret;
 #endif
 	case SNMP_TRAPS:

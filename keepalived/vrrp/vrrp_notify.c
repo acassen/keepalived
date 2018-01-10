@@ -223,7 +223,7 @@ static void
 vrrp_smtp_notifier(vrrp_t * vrrp)
 {
 	if (vrrp->smtp_alert &&
-	    (global_data->email_faults || vrrp->state != VRRP_STATE_FAULT) &&
+	    (!global_data->no_email_faults || vrrp->state != VRRP_STATE_FAULT) &&
 	    vrrp->last_email_state != vrrp->state) {
 		if (vrrp->state == VRRP_STATE_MAST)
 			smtp_alert(SMTP_MSG_VRRP, vrrp,
@@ -247,7 +247,7 @@ static void
 vrrp_sync_smtp_notifier(vrrp_sgroup_t *vgroup)
 {
 	if (vgroup->smtp_alert &&
-	    (global_data->email_faults || vgroup->state != VRRP_STATE_FAULT) &&
+	    (!global_data->no_email_faults || vgroup->state != VRRP_STATE_FAULT) &&
 	    vgroup->last_email_state != vgroup->state) {
 		if (vgroup->state == VRRP_STATE_MAST)
 			smtp_alert(SMTP_MSG_VGROUP, vgroup,

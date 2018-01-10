@@ -87,9 +87,9 @@ dynamic_interfaces_handler(__attribute__((unused))vector_t *strvec)
 	global_data->dynamic_interfaces = true;
 }
 static void
-email_faults_handler(__attribute__((unused))vector_t *strvec)
+no_email_faults_handler(__attribute__((unused))vector_t *strvec)
 {
-	global_data->email_faults = true;
+	global_data->no_email_faults = true;
 }
 #endif
 static void
@@ -1004,7 +1004,7 @@ init_global_keywords(bool global_active)
 #endif
 #ifdef _WITH_VRRP_
 	install_keyword("dynamic_interfaces", &dynamic_interfaces_handler);
-	install_keyword("email_faults", &email_faults_handler);
+	install_keyword("no_email_faults", &no_email_faults_handler);
 	install_keyword("default_interface", &default_interface_handler);
 #endif
 #ifdef _WITH_LVS_
