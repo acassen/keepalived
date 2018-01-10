@@ -624,6 +624,9 @@
 /* Define to 1 to build with select debugging support */
 #undef _SELECT_DEBUG_
 
+/* Define to 1 to build with smtp-alert debugging support */
+#undef _SMTP_ALERT_DEBUG_
+
 /* Define to 1 to have keepalived send RFC6257 SNMP responses for VRRPv2
    instances */
 #undef _SNMP_REPLY_V3_FOR_V2_
