@@ -47,6 +47,9 @@
 
 static unsigned long specified_event_processes;
 
+/* Allow for English spelling */
+static const char * neighbor_str = "neighbor";
+
 static bool
 check_new_bfd(const char *name)
 {
@@ -104,20 +107,23 @@ bfd_nbrip_handler(vector_t *strvec)
 	bfd = LIST_TAIL_DATA(bfd_data->bfd);
 	assert(bfd);
 
+	if (!strcmp(vector_slot(strvec, 1), "neighbour"))
+		neighbor_str = "neighbour";
+
 	ret = inet_stosockaddr(vector_slot(strvec, 1), BFD_CONTROL_PORT, &nbr_addr);
 	if (ret < 0) {
 		log_message(LOG_ERR,
 			    "Configuration error: BFD instance %s has"
-			    " malformed neighbor address %s, ignoring instance",
-			    bfd->iname, FMT_STR_VSLOT(strvec, 1));
+			    " malformed %s address %s, ignoring instance",
+			    bfd->iname, neighbor_str, FMT_STR_VSLOT(strvec, 1));
 		list_del(bfd_data->bfd, bfd);
 		skip_block();
 		return;
 	} else if (find_bfd_by_addr(&nbr_addr)) {
 		log_message(LOG_ERR,
 			    "Configuration error: BFD instance %s has"
-			    " duplicate neighbor address %s, ignoring instance",
-			    bfd->iname, FMT_STR_VSLOT(strvec, 1));
+			    " duplicate %s address %s, ignoring instance",
+			    bfd->iname, neighbor_str, FMT_STR_VSLOT(strvec, 1));
 		list_del(bfd_data->bfd, bfd);
 		skip_block();
 		return;
@@ -331,8 +337,8 @@ bfd_end_handler(void)
 	if (!bfd->nbr_addr.ss_family) {
 		log_message(LOG_ERR,
 			    "Configuration error: BFD instance %s has"
-			    " no neighbor address set, disabling instance",
-			    bfd->iname);
+			    " no %s address set, disabling instance",
+			    bfd->iname, neighbor_str);
 		list_del(bfd_data->bfd, bfd);
 		return;
 	}
@@ -341,10 +347,10 @@ bfd_end_handler(void)
 	    && bfd->nbr_addr.ss_family != bfd->src_addr.ss_family) {
 		log_message(LOG_ERR,
 			    "Configuration error: BFD instance %s source"
-			    " address %s and neighbor address %s"
+			    " address %s and %s address %s"
 			    " are not of the same family, disabling instance",
-			    bfd->iname, inet_sockaddrtos(&bfd->src_addr)
-			    , inet_sockaddrtos(&bfd->nbr_addr));
+			    bfd->iname, inet_sockaddrtos(&bfd->src_addr),
+			    neighbor_str, inet_sockaddrtos(&bfd->nbr_addr));
 		list_del(bfd_data->bfd, bfd);
 		return;
 	}
@@ -516,6 +522,7 @@ init_bfd_keywords(bool active)
 
 	install_keyword_conditional("source_ip", &bfd_srcip_handler, bfd_handlers);
 	install_keyword_conditional("neighbor_ip", &bfd_nbrip_handler, bfd_handlers);
+	install_keyword_conditional("neighbour_ip", &bfd_nbrip_handler, bfd_handlers);
 	install_keyword_conditional("min_rx", &bfd_minrx_handler, bfd_handlers);
 	install_keyword_conditional("min_tx", &bfd_mintx_handler, bfd_handlers);
 	install_keyword_conditional("idle_tx", &bfd_idletx_handler, bfd_handlers);
