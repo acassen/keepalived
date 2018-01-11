@@ -382,11 +382,12 @@ proto_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	char *str = strvec_slot(strvec, 1);
-	if (!strcmp(str, "TCP"))
+
+	if (!strcasecmp(str, "TCP"))
 		vs->service_type = IPPROTO_TCP;
-	else if (!strcmp(str, "SCTP"))
+	else if (!strcasecmp(str, "SCTP"))
 		vs->service_type = IPPROTO_SCTP;
-	else if (!strcmp(str, "UDP"))
+	else if (!strcasecmp(str, "UDP"))
 		vs->service_type = IPPROTO_UDP;
 	else
 		log_message(LOG_INFO, "Unknown protocol %s - ignoring", str);
