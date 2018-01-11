@@ -157,6 +157,8 @@ do_rs_notifies(virtual_server_t* vs, real_server_t* rs)
 
 	/* The sending of smtp_alerts is handled by the individual checker
 	 * so that the message can have context for the checker */
+// TODO - we want a function in the RS to call for smtp alerts, so it can all be done here
+//        but then we would need a flag so don't email if removing vs or clear_diff
 
 #ifdef _WITH_SNMP_CHECKER_
 	check_snmp_rs_trap(rs, vs);
@@ -171,27 +173,18 @@ clear_service_rs(virtual_server_t * vs, list l)
 	real_server_t *rs;
 	long weight_sum;
 	long threshold = vs->quorum - vs->hysteresis;
-	bool sav_inhibit;
 
-	LIST_FOREACH(l, rs, e) {
-		if (!rs->set)
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		rs = ELEMENT_DATA(e);
+// ??? What about inhibit_on_failre mode. Use ->set TODOTODO
+		if (!ISALIVE(rs))
 			continue;
 
-		log_message(LOG_INFO, "Removing %sservice %s from VS %s",
-					rs->inhibit && !rs->alive ? "(inhibited) " : "",
-					FMT_RS(rs, vs),
-					FMT_VS(vs));
-
-		/* Force removal of real servers with inhibit_on_failure set */
-		sav_inhibit = rs->inhibit;
-		rs->inhibit = false;
-
+		log_message(LOG_INFO, "Removing service %s from VS %s"
+					, FMT_RS(rs, vs)
+					, FMT_VS(vs));
 		ipvs_cmd(LVS_CMD_DEL_DEST, vs, rs);
-
-		rs->inhibit = sav_inhibit;	/* Restore inhibit flag */
-
 		UNSET_ALIVE(rs);
-
 		if (!vs->omega)
 			continue;
 
@@ -217,23 +210,16 @@ clear_service_rs(virtual_server_t * vs, list l)
 static void
 clear_service_vs(virtual_server_t * vs)
 {
-	bool sav_inhibit;
-
+// TODO - If we remove the vs, we don't need to remove the individual RSs
 	/* Processing real server queue */
-	if (vs->s_svr && vs->s_svr->set) {
-		/* Ensure removed if inhibit_on_failure set */
-		sav_inhibit = vs->s_svr->inhibit;
-		vs->s_svr->inhibit = false;
-
-		ipvs_cmd(LVS_CMD_DEL_DEST, vs, vs->s_svr);
-
-		vs->s_svr->inhibit = sav_inhibit;
-
-		UNSET_ALIVE(vs->s_svr);
+	if (vs->s_svr) {
+		if (ISALIVE(vs->s_svr)) {
+			ipvs_cmd(LVS_CMD_DEL_DEST, vs, vs->s_svr);
+			UNSET_ALIVE(vs->s_svr);
+		}
 	}
-
-	/* Even if the sorry server was configured, if we are using
-	 * inhibit_on_failure, then real servers may be configured. */
+	//
+// ??? what about inhibit_on_failure mode ? TODOTODO
 	clear_service_rs(vs, vs->rs);
 
 	/* The above will handle Omega case for VS as well. */
@@ -720,21 +706,28 @@ static void
 clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs, list old_checkers_queue)
 {
 	element e;
+	list l = old_vs->rs;
 	real_server_t *rs, *new_rs;
-	list rs_to_remove;
 
 	/* If old vs didn't own rs then nothing return */
-	if (LIST_ISEMPTY(old_vs->rs))
+	if (LIST_ISEMPTY(l))
 		return;
 
 	/* remove RS from old vs which are not found in new vs */
-	rs_to_remove = alloc_list (NULL, NULL);
-	LIST_FOREACH(old_vs->rs, rs, e) {
+	list rs_to_remove = alloc_list (NULL, NULL);
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		rs = ELEMENT_DATA(e);
 		new_rs = rs_exist(rs, new_vs->rs);
 		if (!new_rs) {
 			log_message(LOG_INFO, "service %s no longer exist"
 					    , FMT_RS(rs, old_vs));
 
+			/* Reset inhibit flag to delete inhibit entries */
+			if (rs->inhibit) {
+				if (!ISALIVE(rs) && rs->set)
+					SET_ALIVE(rs);
+				rs->inhibit = false;
+			}
 			list_add (rs_to_remove, rs);
 		} else {
 			/*
