@@ -2220,12 +2220,10 @@ shutdown_vrrp_instances(void)
 {
 	element e;
 	vrrp_t *vrrp;
-	vrrp_sgroup_t *vgroup;
 
 #ifdef _HAVE_VRRP_VMAC_
 	restore_rp_filter();
 #endif
-
 
 	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
 		/* We may not have an ifp if we are aborting at startup */
