@@ -307,7 +307,7 @@ start_bfd_child(void)
 	signal_handler_destroy();
 
 #ifdef _MEM_CHECK_
-	mem_log_init(PROG_CHECK, "BFD child process");
+	mem_log_init(PROG_BFD, "BFD child process");
 #endif
 
 	free_parent_mallocs_startup(true);
