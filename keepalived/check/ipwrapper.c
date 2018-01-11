@@ -52,9 +52,9 @@ weigh_live_realservers(virtual_server_t * vs)
 }
 
 static void
-notify_fifo_vs(virtual_server_t* vs, bool is_up)
+notify_fifo_vs(virtual_server_t* vs)
 {
-	char *state = is_up ? "UP" : "DOWN";
+	char *state = vs->quorum_state_up ? "UP" : "DOWN";
 	size_t size;
 	char *line;
 	char *vs_str;
@@ -82,9 +82,9 @@ notify_fifo_vs(virtual_server_t* vs, bool is_up)
 }
 
 static void
-notify_fifo_rs(virtual_server_t* vs, real_server_t* rs, bool is_up)
+notify_fifo_rs(virtual_server_t* vs, real_server_t* rs)
 {
-	char *state = is_up ? "UP" : "DOWN";
+	char *state = rs->alive ? "UP" : "DOWN";
 	size_t size;
 	char *line;
 	char *str;
@@ -117,6 +117,52 @@ notify_fifo_rs(virtual_server_t* vs, real_server_t* rs, bool is_up)
 	FREE(line);
 }
 
+static void
+do_vs_notifies(virtual_server_t* vs, bool init, long threshold, long weight_sum)
+{
+	notify_script_t *notify_script = vs->quorum_state_up ? vs->notify_quorum_up : vs->notify_quorum_down;
+	char message[80];
+
+	if (notify_script)
+		notify_exec(notify_script);
+
+	notify_fifo_vs(vs);
+
+	if (vs->smtp_alert) {
+		snprintf(message, sizeof(message), "=> %s %u+%u=%ld <= %ld <=",
+			    vs->quorum_state_up ? "Gained quorum" :
+					   init ? "Starting with quorum down" :
+						  "Lost quorum",
+			    vs->quorum,
+			    vs->hysteresis,
+			    threshold,
+			    weight_sum);
+		smtp_alert(SMTP_MSG_VS, vs, vs->quorum_state_up ? "UP" : "DOWN", message);
+	}
+
+#ifdef _WITH_SNMP_CHECKER_
+	check_snmp_quorum_trap(vs);
+#endif
+}
+
+static void
+do_rs_notifies(virtual_server_t* vs, real_server_t* rs)
+{
+	notify_script_t *notify_script = rs->alive ? rs->notify_up : rs->notify_down;
+
+	if (notify_script)
+		notify_exec(notify_script);
+
+	notify_fifo_rs(vs, rs);
+
+	/* The sending of smtp_alerts is handled by the individual checker
+	 * so that the message can have context for the checker */
+
+#ifdef _WITH_SNMP_CHECKER_
+	check_snmp_rs_trap(rs, vs);
+#endif
+}
+
 /* Remove a realserver IPVS rule */
 static void
 clear_service_rs(virtual_server_t * vs, list l)
@@ -124,7 +170,7 @@ clear_service_rs(virtual_server_t * vs, list l)
 	element e;
 	real_server_t *rs;
 	long weight_sum;
-	long down_threshold = vs->quorum - vs->hysteresis;
+	long threshold = vs->quorum - vs->hysteresis;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
@@ -143,12 +189,7 @@ clear_service_rs(virtual_server_t * vs, list l)
 		/* In Omega mode we call VS and RS down notifiers
 		 * all the way down the exit, as necessary.
 		 */
-		if (rs->notify_down)
-			notify_exec(rs->notify_down);
-		notify_fifo_rs(vs, rs, false);
-#ifdef _WITH_SNMP_CHECKER_
-		check_snmp_rs_trap(rs, vs);
-#endif
+		do_rs_notifies(vs, rs);
 
 		/* Sooner or later VS will lose the quorum (if any). However,
 		 * we don't push in a sorry server then, hence the regression
@@ -156,14 +197,9 @@ clear_service_rs(virtual_server_t * vs, list l)
 		 */
 		weight_sum = weigh_live_realservers(vs);
 		if (vs->quorum_state_up &&
-		    (!weight_sum || weight_sum < down_threshold)) {
+		    (!weight_sum || weight_sum < threshold)) {
 			vs->quorum_state_up = false;
-			if (vs->notify_quorum_down)
-				notify_exec(vs->notify_quorum_down);
-			notify_fifo_vs(vs, false);
-#ifdef _WITH_SNMP_CHECKER_
-			check_snmp_quorum_trap(vs);
-#endif
+			do_vs_notifies(vs, false, threshold, weight_sum);
 		}
 	}
 }
@@ -314,18 +350,18 @@ static void
 update_quorum_state(virtual_server_t * vs, bool init)
 {
 	long weight_sum = weigh_live_realservers(vs);
-	long up_threshold = vs->quorum + vs->hysteresis;
-	long down_threshold = vs->quorum - vs->hysteresis;
-	char message[80];
+	long threshold;
+
+	threshold = vs->quorum + (vs->quorum_state_up ? -1 : 1) * vs->hysteresis;
 
 	/* If we have just gained quorum, it's time to consider notify_up. */
 	if (!vs->quorum_state_up &&
-	    weight_sum >= up_threshold) {
+	    weight_sum >= threshold) {
 		vs->quorum_state_up = true;
 		log_message(LOG_INFO, "Gained quorum %u+%u=%ld <= %ld for VS %s"
 				    , vs->quorum
 				    , vs->hysteresis
-				    , up_threshold
+				    , threshold
 				    , weight_sum
 				    , FMT_VS(vs));
 		if (vs->s_svr && ISALIVE(vs->s_svr)) {
@@ -340,24 +376,13 @@ update_quorum_state(virtual_server_t * vs, bool init)
 			ipvs_cmd(LVS_CMD_DEL_DEST, vs, vs->s_svr);
 			vs->s_svr->alive = false;
 		}
-		if (vs->notify_quorum_up)
-			notify_exec(vs->notify_quorum_up);
-		notify_fifo_vs(vs, true);
 
-		snprintf(message, sizeof(message), "=> Gained quorum %u+%u=%ld <= %ld <=",
-				    vs->quorum,
-				    vs->hysteresis,
-				    up_threshold,
-				    weight_sum);
-		if (vs->smtp_alert)
-			smtp_alert(SMTP_MSG_VS, vs, "UP", message); 
-#ifdef _WITH_SNMP_CHECKER_
-		check_snmp_quorum_trap(vs);
-#endif
+		do_vs_notifies(vs, init, threshold, weight_sum);
+
 		return;
 	}
 	else if ((vs->quorum_state_up &&
-		  (!weight_sum || weight_sum < down_threshold)) ||
+		  (!weight_sum || weight_sum < threshold)) ||
 		 (init && !vs->quorum_state_up &&
 		  vs->s_svr && !ISALIVE(vs->s_svr))) {
 		/* We have just lost quorum for the VS, we need to consider
@@ -370,7 +395,7 @@ update_quorum_state(virtual_server_t * vs, bool init)
 				    , init ? "Starting with quorum down" : "Lost quorum"
 				    , vs->quorum
 				    , vs->hysteresis
-				    , down_threshold
+				    , threshold
 				    , weight_sum
 				    , FMT_VS(vs));
 
@@ -388,20 +413,7 @@ update_quorum_state(virtual_server_t * vs, bool init)
 			perform_quorum_state(vs, false);
 		}
 
-		if (vs->notify_quorum_down)
-			notify_exec(vs->notify_quorum_down);
-		notify_fifo_vs(vs, false);
-		snprintf(message, sizeof(message), "=> %s %u+%u=%ld <= %ld <=",
-				    init ? "Starting with quorum down" : "Lost quorum",
-				    vs->quorum,
-				    vs->hysteresis,
-				    up_threshold,
-				    weight_sum);
-		if (vs->smtp_alert)
-			smtp_alert(SMTP_MSG_VS, vs, "DOWN", message); 
-#ifdef _WITH_SNMP_CHECKER_
-		check_snmp_quorum_trap(vs);
-#endif
+		do_vs_notifies(vs, init, threshold, weight_sum);
 	}
 }
 
@@ -409,7 +421,6 @@ update_quorum_state(virtual_server_t * vs, bool init)
 static bool
 perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 {
-	notify_script_t *notify_script;
 	/*
 	 * | ISALIVE(rs) | alive | context
 	 * | false       | false | first check failed under alpha mode, unreachable here
@@ -433,13 +444,7 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 			return false;
 	}
 	rs->alive = alive;
-	notify_script = alive ? rs->notify_up : rs->notify_down;
-	if (notify_script)
-		notify_exec(notify_script);
-	notify_fifo_rs(vs, rs, alive);
-#ifdef _WITH_SNMP_CHECKER_
-	check_snmp_rs_trap(rs, vs);
-#endif
+	do_rs_notifies(vs, rs);
 
 	/* We may have changed quorum state. If the quorum wasn't up
 	 * but is now up, this is where the rs is added. */
