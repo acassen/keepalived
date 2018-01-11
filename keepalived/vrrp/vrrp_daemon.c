@@ -61,6 +61,7 @@
 #include "main.h"
 #include "parser.h"
 #include "utils.h"
+#include "vrrp_notify.h"
 #ifdef _LIBNL_DYNAMIC_
 #include "libnl_link.h"
 #endif
@@ -134,6 +135,9 @@ stop_vrrp(int status)
 
 	/* Clean data */
 	vrrp_dispatcher_release(vrrp_data);
+
+	/* Send shutdown notifications */
+	notify_shutdown();
 
 	/* This is not nice, but it significantly increases the chances
 	 * of an IGMP leave group being sent for some reason.

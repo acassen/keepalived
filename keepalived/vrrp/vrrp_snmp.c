@@ -141,6 +141,7 @@ enum snmp_vrrp_magic {
 	VRRP_SNMP_SYNCGROUP_SCRIPTMASTER,
 	VRRP_SNMP_SYNCGROUP_SCRIPTBACKUP,
 	VRRP_SNMP_SYNCGROUP_SCRIPTFAULT,
+	VRRP_SNMP_SYNCGROUP_SCRIPTSTOP,
 	VRRP_SNMP_SYNCGROUP_SCRIPT,
 	VRRP_SNMP_SYNCGROUPMEMBER_INSTANCE,
 	VRRP_SNMP_SYNCGROUPMEMBER_NAME,
@@ -1576,6 +1577,12 @@ vrrp_snmp_syncgroup(struct variable *vp, oid *name, size_t *length,
 			return (u_char *)group->script_fault->cmd_str;
 		}
 		break;
+	case VRRP_SNMP_SYNCGROUP_SCRIPTSTOP:
+		if (group->script_stop) {
+			*var_len = strlen(group->script_stop->cmd_str);
+			return (u_char *)group->script_stop->cmd_str;
+		}
+		break;
 	case VRRP_SNMP_SYNCGROUP_SCRIPT:
 		if (group->script) {
 			*var_len = strlen(group->script->cmd_str);
@@ -2523,6 +2530,8 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_syncgroup, 3, {1, 1, 9}},
 	{VRRP_SNMP_SYNCGROUP_TRACKINGWEIGHT, ASN_INTEGER, RONLY,
 	 vrrp_snmp_syncgroup, 3, {1, 1, 10}},
+	{VRRP_SNMP_SYNCGROUP_SCRIPTSTOP, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_syncgroup, 3, {1, 1, 11}},
 
 	/* vrrpSyncGroupMemberTable */
 	{VRRP_SNMP_SYNCGROUPMEMBER_NAME, ASN_OCTET_STR, RONLY,

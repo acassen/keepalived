@@ -591,6 +591,8 @@ vrrp_sync_group <STRING> {      # VRRP sync group declaration
                                 # Script to run during BACKUP transit
     notify_fault <STRING>|<QUOTED-STRING> [username [groupname]]
                                 # Script to run during FAULT transit
+    notify_stop <STRING>|<QUOTED-STRING> [username [groupname]]
+                                # Script to launch when stopping vrrp
     notify <STRING>|<QUOTED-STRING> [username [groupname]]
                                 # Script to run during ANY state transit (1)
     smtp_alert <BOOL>           # Send email notification during state transit

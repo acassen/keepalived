@@ -156,6 +156,8 @@ vgroup_print(FILE *file, void *data)
 		print_script(file, vgroup->script_master, "Master");
 	if (vgroup->script_fault)
 		print_script(file, vgroup->script_fault, "Fault");
+	if (vgroup->script_stop)
+		print_script(file, vgroup->script_stop, "Stop");
 	if (vgroup->script)
 		print_script(file, vgroup->script, "Generic");
 	if (vgroup->smtp_alert)

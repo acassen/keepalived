@@ -28,6 +28,7 @@
 
 /* local include */
 #include "vrrp_notify.h"
+#include "vrrp_data.h"
 #ifdef _WITH_DBUS_
 #include "vrrp_dbus.h"
 #endif
@@ -117,7 +118,7 @@ notify_fifo(const char *name, int state_num, bool group, uint8_t priority)
 	FREE(line);
 }
 
-void
+static void
 notify_instance_fifo(const vrrp_t *vrrp, int state_num)
 {
 	notify_fifo(vrrp->iname, state_num, false, vrrp->effective_priority);
@@ -292,4 +293,24 @@ send_group_notifies(vrrp_sgroup_t *vgroup)
 	vrrp_snmp_group_trap(vgroup);
 #endif
 	vrrp_sync_smtp_notifier(vgroup);
+}
+
+/* handle terminate state */
+void
+notify_shutdown(void)
+{
+	element e;
+	vrrp_t *vrrp;
+	vrrp_sgroup_t *vgroup;
+
+	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+		/* Run stop script */
+		if (vrrp->script_stop)
+			notify_exec(vrrp->script_stop);
+	}
+
+	LIST_FOREACH(vrrp_data->vrrp_sync_group, vgroup, e) {
+		if (vgroup->script_stop)
+			notify_exec(vgroup->script_stop);
+	}
 }

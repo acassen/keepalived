@@ -27,8 +27,8 @@
 /* local include */
 #include "vrrp.h"
 
-extern void notify_instance_fifo(const vrrp_t *, int);
 extern void send_instance_notifies(vrrp_t *);
 extern void send_group_notifies(vrrp_sgroup_t *);
+extern void notify_shutdown(void);
 
 #endif

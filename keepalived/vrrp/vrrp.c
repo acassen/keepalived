@@ -2218,17 +2218,16 @@ restore_vrrp_interfaces(void)
 void
 shutdown_vrrp_instances(void)
 {
-	list l = vrrp_data->vrrp;
 	element e;
 	vrrp_t *vrrp;
+	vrrp_sgroup_t *vgroup;
 
 #ifdef _HAVE_VRRP_VMAC_
 	restore_rp_filter();
 #endif
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
 
+	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
 		/* We may not have an ifp if we are aborting at startup */
 		if (vrrp->ifp) {
 #ifdef _HAVE_VRRP_VMAC_
@@ -2242,12 +2241,6 @@ shutdown_vrrp_instances(void)
 			if (vrrp->ifp->reset_promote_secondaries)
 				reset_promote_secondaries(vrrp->ifp);
 		}
-
-		/* Run stop script */
-		if (vrrp->script_stop)
-			notify_exec(vrrp->script_stop);
-
-		notify_instance_fifo(vrrp, VRRP_STATE_STOP);
 
 #ifdef _WITH_LVS_
 		/*

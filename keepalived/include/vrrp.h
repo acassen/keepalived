@@ -125,6 +125,7 @@ typedef struct _vrrp_sgroup {
 	notify_script_t		*script_backup;
 	notify_script_t		*script_master;
 	notify_script_t		*script_fault;
+	notify_script_t		*script_stop;
 	notify_script_t		*script;
 	int			smtp_alert;
 	int			last_email_state;

@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201801080001Z"
+     LAST-UPDATED "201801100000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201801100000Z"
+     DESCRIPTION "add sync group notify_stop script"
      REVISION "201801080001Z"
      DESCRIPTION "add SmtpAlert global defaults"
      REVISION "201801080000Z"
@@ -400,7 +402,8 @@ VrrpSyncGroupEntry ::= SEQUENCE {
     vrrpSyncGroupScriptBackup DisplayString,
     vrrpSyncGroupScriptFault DisplayString,
     vrrpSyncGroupScript DisplayString,
-    vrrpSyncGroupTrackingWeight INTEGER
+    vrrpSyncGroupTrackingWeight INTEGER,
+    vrrpSyncGroupScriptStop DisplayString
 }
 
 vrrpSyncGroupIndex OBJECT-TYPE
@@ -482,6 +485,14 @@ vrrpSyncGroupTrackingWeight OBJECT-TYPE
     DESCRIPTION
         "Allow differing tracking weights for sync group members"
     ::= {vrrpSyncGroupEntry 10 }
+
+vrrpSyncGroupScriptStop OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Script to execute when the keepalived stops."
+    ::= {vrrpSyncGroupEntry 11 }
 
 
 vrrpSyncTrackedInterfaceTable OBJECT-TYPE
@@ -3949,6 +3960,7 @@ vrrpSyncGroup OBJECT-GROUP
     vrrpSyncGroupScriptFault,
     vrrpSyncGroupScript,
     vrrpSyncGroupTrackingWeight,
+    vrrpSyncGroupScriptStop,
     vrrpSyncGroupMemberName,
     vrrpSyncTrackedInterfaceName,
     vrrpSyncTrackedInterfaceWeight,

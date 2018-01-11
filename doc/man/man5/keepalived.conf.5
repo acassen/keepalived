@@ -615,6 +615,8 @@ bfd_instance <STRING> {
             notify_backup /path/to_backup.sh [username [groupname]]
             # FAULT transition
             notify_fault "/path/fault.sh VG_1" [username [groupname]]
+            # executed when stopping vrrp
+            notify_stop <STRING>|<QUOTED-STRING> [username [groupname]]
 
             # for ANY state transition.
             # "notify" script is called AFTER the
