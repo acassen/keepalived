@@ -1,19 +1,29 @@
 #!/bin/bash
 
 # To use this script, copy it to directory /etc/keepalived/scripts
-# and add the following to the keepalived configuration file in the
-# global_defs section:
-#     vrrp_notify_fifo /tmp/notify_fifo
-# This script will then need to be executed.
+# and add one or more of the following to the keepalived configuration
+# file in the global_defs section:
+#     notify_fifo /tmp/notify_fifo
+#     vrrp_notify_fifo /tmp/vrrp_notify_fifo
+#     lvs_notify_fifo /tmp/lvs_notify_fifo
+# This script will then need to be executed, passing it the name of the
+# fifo.
 #
-# As an alternative to executing this script manually, add the following
-# in the global_defs section of the config:
+# As an alternative to executing this script manually, add one or more of
+# the following in the global_defs section of the config:
+#     notify_fifo_script /etc/keepalived/scripts/sample_notify_fifo.sh
 #     vrrp_notify_fifo_script /etc/keepalived/scripts/sample_notify_fifo.sh
-# If this approach is used, comment out the lines 'mkfifo $FIFO' and trap ...
-# below, since keepalived can create the FIFO.
+#     lvs_notify_fifo_script /etc/keepalived/scripts/sample_notify_fifo.sh
+# If run this way, Keepalived will terminate the script with SIGTERM when
+# it exits.
+
+CREATED_FIFO=0
+# PARENT=$(ps -p $PPID -o cmd --no-headers)
+# PARENT=${PARENT##*/}
 
 FIFO=$1
-CREATED_FIFO=0
+[[ -z $FIFO ]] && echo "A FIFO name must be specified" && exit 1
+
 LOG_FILE=/tmp/${FIFO##*/}.log
 
 stopping()
@@ -25,13 +35,17 @@ trap "{ stopping; [[ $CREATED_FIFO -eq 1 ]] && rm -f $FIFO; exit 0; }" HUP INT Q
 
 if [[ ! -p $FIFO ]]; then
 	mkfifo $FIFO
-	[[ $? -eq 0 ]] && CREATED_FIFO=1
+	if [[ $? -eq 0 ]]; then
+	       CREATED_FIFO=1
+	else
+		echo "Unable to create fifo $FIFO"
+		exit 1
 fi
 
 # If keepalived terminates, the FIFO will be closed, so
 # read the FIFO in a loop. It keepalived hasn't opened the
 # FIFO, the script will be blocked until it has been opened.
-while [ 1 ]
+while [[ 1 ]]
 do
 	[[ ! -p $FIFO ]] && echo FIFO $FIFO missing && exit 1
 
@@ -62,4 +76,6 @@ do
 			echo $TYPE - unknown >>$LOG_FILE
 		fi
 	done < $FIFO
+
+	echo STOPPED >>$LOG_FILE
 done
