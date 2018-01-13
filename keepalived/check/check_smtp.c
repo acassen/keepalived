@@ -320,17 +320,19 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 		 * we don't have to keep them statically allocated.
 		 */
 		if (checker->is_up) {
-			if (format != NULL) {
-				snprintf(error_buff, sizeof(error_buff), "=> CHECK failed on service : %s <=", format);
-				va_start(varg_list, format);
-				vsnprintf(smtp_buff, sizeof(smtp_buff), error_buff, varg_list);
-				va_end(varg_list);
-			} else
-				strncpy(smtp_buff, "=> CHECK failed on service <=", sizeof(smtp_buff));
+			if (checker->rs->smtp_alert) {
+				if (format != NULL) {
+					snprintf(error_buff, sizeof(error_buff), "=> CHECK failed on service : %s <=", format);
+					va_start(varg_list, format);
+					vsnprintf(smtp_buff, sizeof(smtp_buff), error_buff, varg_list);
+					va_end(varg_list);
+				} else
+					strncpy(smtp_buff, "=> CHECK failed on service <=", sizeof(smtp_buff));
 
-			smtp_buff[sizeof(smtp_buff) - 1] = '\0';
-			if (checker->rs->smtp_alert)
+				smtp_buff[sizeof(smtp_buff) - 1] = '\0';
 				smtp_alert(SMTP_MSG_RS, checker, "DOWN", smtp_buff);
+			}
+
 			update_svr_checker_state(DOWN, checker);
 		}
 

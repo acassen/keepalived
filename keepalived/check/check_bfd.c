@@ -265,9 +265,10 @@ bfd_check_handle_event(bfd_event_t * evt)
 			log_message(LOG_INFO, "BFD check of [%s] RS(%s) is %s",
 				    evt->iname, FMT_RS(checker->rs, checker->vs), evt->state == BFD_STATE_UP ? "UP" : "DOWN");
 
-			snprintf(message, sizeof(message), "=> BFD CHECK %s %s on service <=", evt->iname, evt->state == BFD_STATE_UP ? "succeeded" : "failed");
-			if (checker->rs->smtp_alert)
+			if (checker->rs->smtp_alert) {
+				snprintf(message, sizeof(message), "=> BFD CHECK %s %s on service <=", evt->iname, evt->state == BFD_STATE_UP ? "succeeded" : "failed");
 				smtp_alert(SMTP_MSG_RS, checker, evt->state == BFD_STATE_UP ? "UP" : "DOWN", message);
+			}
 			update_svr_checker_state(evt->state == BFD_STATE_UP ? UP : DOWN, checker);
 		}
 		break;
