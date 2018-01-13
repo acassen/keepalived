@@ -199,6 +199,9 @@ clear_service_rs(virtual_server_t * vs, list l)
 		 * all the way down the exit, as necessary.
 		 */
 		do_rs_notifies(vs, rs);
+
+		/* Send SMTP alert */
+		smtp_alert(SMTP_MSG_RS_SHUT, FMT_RS(rs, vs), "DOWN", "=> Shutting down <=");
 	}
 
 	/* Sooner or later VS will lose the quorum (if any). However,

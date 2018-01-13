@@ -626,84 +626,91 @@ smtp_alert(smtp_msg_t msg_type, void* data, const char *subject, const char *bod
 #endif
 
 	/* Only send mail if email specified */
-	if (!LIST_ISEMPTY(global_data->email) && global_data->smtp_server.ss_family != 0) {
-		/* allocate & initialize smtp argument data structure */
-		smtp = (smtp_t *) MALLOC(sizeof(smtp_t));
-		smtp->subject = (char *) MALLOC(MAX_HEADERS_LENGTH);
-		smtp->body = (char *) MALLOC(MAX_BODY_LENGTH);
-		smtp->buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
-		smtp->email_to = (char *) MALLOC(SMTP_BUFFER_MAX);
+	if (LIST_ISEMPTY(global_data->email) || !global_data->smtp_server.ss_family)
+		return;
 
-		/* format subject if rserver is specified */
+	/* allocate & initialize smtp argument data structure */
+	smtp = (smtp_t *) MALLOC(sizeof(smtp_t));
+	smtp->subject = (char *) MALLOC(MAX_HEADERS_LENGTH);
+	smtp->body = (char *) MALLOC(MAX_BODY_LENGTH);
+	smtp->buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
+	smtp->email_to = (char *) MALLOC(SMTP_BUFFER_MAX);
+
+	/* format subject if rserver is specified */
 #ifdef _WITH_LVS_
-		if (msg_type == SMTP_MSG_RS) {
-			checker = (checker_t *)data;
-			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Realserver %s - %s",
-						global_data->router_id,
-						FMT_RS(checker->rs, checker->vs),
-						subject);
-		}
-		else if (msg_type == SMTP_MSG_VS) {
-			vs = (virtual_server_t *)data;
-			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Virtualserver %s - %s",
-						global_data->router_id,
-						FMT_VS(vs),
-						subject);
-		}
-		else
+	if (msg_type == SMTP_MSG_RS) {
+		checker = (checker_t *)data;
+		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Realserver %s - %s",
+					global_data->router_id,
+					FMT_RS(checker->rs, checker->vs),
+					subject);
+	}
+	else if (msg_type == SMTP_MSG_VS) {
+		vs = (virtual_server_t *)data;
+		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Virtualserver %s - %s",
+					global_data->router_id,
+					FMT_VS(vs),
+					subject);
+	}
+	else if (msg_type == SMTP_MSG_RS_SHUT) {
+		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Realserver %s - %s",
+					global_data->router_id,
+					(char *)data,
+					subject);
+	}
+	else
 #endif
 #ifdef _WITH_VRRP_
-		if (msg_type == SMTP_MSG_VRRP) {
-			vrrp = (vrrp_t *)data;
-			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] VRRP Instance %s - %s",
-					        global_data->router_id,
-					        vrrp->iname,
-					        subject);
-		} else if (msg_type == SMTP_MSG_VGROUP) {
-			vgroup = (vrrp_sgroup_t *)data;
-			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] VRRP Group %s - %s",
-					        global_data->router_id,
-					        vgroup->gname,
-					        subject);
-		}
-		else
+	if (msg_type == SMTP_MSG_VRRP) {
+		vrrp = (vrrp_t *)data;
+		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] VRRP Instance %s - %s",
+					global_data->router_id,
+					vrrp->iname,
+					subject);
+	} else if (msg_type == SMTP_MSG_VGROUP) {
+		vgroup = (vrrp_sgroup_t *)data;
+		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] VRRP Group %s - %s",
+					global_data->router_id,
+					vgroup->gname,
+					subject);
+	}
+	else
 #endif
-		if (global_data->router_id)
-			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] %s"
-					      , global_data->router_id
-					      , subject);
-		else
-			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "%s", subject);
+	if (global_data->router_id)
+		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] %s"
+				      , global_data->router_id
+				      , subject);
+	else
+		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "%s", subject);
 
-		strncpy(smtp->body, body, MAX_BODY_LENGTH - 1);
-		smtp->body[MAX_BODY_LENGTH - 1]= '\0';
+	strncpy(smtp->body, body, MAX_BODY_LENGTH - 1);
+	smtp->body[MAX_BODY_LENGTH - 1]= '\0';
 
-		build_to_header_rcpt_addrs(smtp);
+	build_to_header_rcpt_addrs(smtp);
 
 #ifdef _SMTP_ALERT_DEBUG_
-		FILE *fp = fopen("/tmp/smtp-alert.log", "a");
-		struct tm tm;
-		char time_buf[25];
-		int time_buf_len;
+	FILE *fp = fopen("/tmp/smtp-alert.log", "a");
+	struct tm tm;
+	char time_buf[25];
+	int time_buf_len;
 
-		localtime_r(&time_now.tv_sec, &tm);
-		time_buf_len = strftime(time_buf, sizeof time_buf, "%a %b %e %X %Y", &tm);
+	localtime_r(&time_now.tv_sec, &tm);
+	time_buf_len = strftime(time_buf, sizeof time_buf, "%a %b %e %X %Y", &tm);
 
-		fprintf(fp, "%s: %s -> %s\n"
-			    "%*sSubject: %s\n"
-			    "%*sBody:    %s\n\n",
-			    time_buf, global_data->email_from, smtp->email_to,
-			    time_buf_len - 7, "", smtp->subject,
-			    time_buf_len - 7, "", smtp->body);
+	fprintf(fp, "%s: %s -> %s\n"
+		    "%*sSubject: %s\n"
+		    "%*sBody:    %s\n\n",
+		    time_buf, global_data->email_from, smtp->email_to,
+		    time_buf_len - 7, "", smtp->subject,
+		    time_buf_len - 7, "", smtp->body);
 
-		fclose(fp);
+	fclose(fp);
 
-		free_smtp_all(smtp);
-		return;
+	free_smtp_all(smtp);
+	return;
 #endif
 
-		smtp_connect(smtp);
-	}
+	smtp_connect(smtp);
 }
 
 #ifdef _TIMER_DEBUG_
