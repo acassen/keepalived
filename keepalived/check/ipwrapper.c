@@ -192,8 +192,13 @@ clear_service_rs(virtual_server_t * vs, list l)
 
 		UNSET_ALIVE(rs);
 
-		if (!vs->omega)
+		/* We always want to send SNMP messages on shutdown */
+		if (!vs->omega) {
+#ifdef _WITH_SNMP_CHECKER_
+			check_snmp_rs_trap(rs, vs);
+#endif
 			continue;
+		}
 
 		/* In Omega mode we call VS and RS down notifiers
 		 * all the way down the exit, as necessary.
