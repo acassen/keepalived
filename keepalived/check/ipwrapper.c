@@ -199,17 +199,17 @@ clear_service_rs(virtual_server_t * vs, list l)
 		 * all the way down the exit, as necessary.
 		 */
 		do_rs_notifies(vs, rs);
+	}
 
-		/* Sooner or later VS will lose the quorum (if any). However,
-		 * we don't push in a sorry server then, hence the regression
-		 * is intended.
-		 */
-		weight_sum = weigh_live_realservers(vs);
-		if (vs->quorum_state_up &&
-		    (!weight_sum || weight_sum < threshold)) {
-			vs->quorum_state_up = false;
-			do_vs_notifies(vs, false, threshold, weight_sum);
-		}
+	/* Sooner or later VS will lose the quorum (if any). However,
+	 * we don't push in a sorry server then, hence the regression
+	 * is intended.
+	 */
+	weight_sum = weigh_live_realservers(vs);
+	if (vs->quorum_state_up &&
+	    (!weight_sum || weight_sum < threshold)) {
+		vs->quorum_state_up = false;
+		do_vs_notifies(vs, false, threshold, weight_sum);
 	}
 }
 
@@ -256,8 +256,9 @@ clear_services(void)
 	for (e = LIST_HEAD(check_data->vs); e; ELEMENT_NEXT(e)) {
 		vs = ELEMENT_DATA(e);
 
-		/* If it is a virtual server group, only clear the vs if it is the last vs using the group
-		 * of the same protocol or address family. */
+		/* Remove the real servers, and clear the vs unless it is
+		 * using a VS group and it is not the last vs of the same
+		 * protocol or address family using the group. */
 		clear_service_vs(vs);
 	}
 }
@@ -804,17 +805,10 @@ void
 clear_diff_services(list old_checkers_queue)
 {
 	element e;
-	list l = old_check_data->vs;
 	virtual_server_t *vs, *new_vs;
 
-	/* If old config didn't own vs then nothing return */
-	if (LIST_ISEMPTY(l))
-		return;
-
 	/* Remove diff entries from previous IPVS rules */
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vs = ELEMENT_DATA(e);
-
+	LIST_FOREACH(old_check_data->vs, vs, e) {
 		/*
 		 * Try to find this vs into the new conf data
 		 * reloaded.
