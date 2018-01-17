@@ -120,7 +120,7 @@ vs_end_handler(void)
 
 	/* If the real (sorry) server uses tunnel forwarding, the address family
 	 * does not have to match the address family of the virtaul server */
-	if (vs->s_svr->forwarding_method != IP_VS_CONN_F_TUNNEL) {
+	if (vs->s_svr && vs->s_svr->forwarding_method != IP_VS_CONN_F_TUNNEL) {
 		if (vs->af == AF_UNSPEC)
 			vs->af = vs->s_svr->addr.ss_family;
 		else if (vs->af != vs->s_svr->addr.ss_family) {
