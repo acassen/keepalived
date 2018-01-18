@@ -1727,8 +1727,12 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		   (hd->priority == vrrp->effective_priority &&
 		    addr_cmp > 0)) {
 
-		log_message(LOG_INFO, "VRRP_Instance(%s) Received advert with higher priority %d, ours %d"
-				    , vrrp->iname, hd->priority, vrrp->effective_priority);
+		if (hd->priority > vrrp->effective_priority)
+			log_message(LOG_INFO, "VRRP_Instance(%s) Master received advert with higher priority %d, ours %d"
+					    , vrrp->iname, hd->priority, vrrp->effective_priority);
+		else
+			log_message(LOG_INFO, "VRRP_Instance(%s) Master received advert with same priority %d but higher IP address than ours (%s)"
+					    , vrrp->iname, hd->priority, inet_sockaddrtos(&vrrp->pkt_saddr));
 #ifdef _WITH_VRRP_AUTH_
 		if (proto == IPPROTO_IPSEC_AH) {
 			ah = (ipsec_ah_t *) (buf + sizeof(struct iphdr));
