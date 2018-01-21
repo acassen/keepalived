@@ -761,7 +761,8 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	exceptfd = m->exceptfd;
 
 	signal_fd = signal_rfd();
-	FD_SET(signal_fd, &readfd);
+	if (signal_fd != -1)
+		FD_SET(signal_fd, &readfd);
 
 #ifdef _WITH_SNMP_
 	/* When SNMP is enabled, we may have to select() on additional
@@ -782,6 +783,12 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	/* we have to save errno here because the next syscalls will set it */
 	old_errno = errno;
 
+	if (ret < 0 && old_errno != EINTR) {
+		/* Real error. */
+		DBG("select error: %s", strerror(old_errno));
+		assert(0);
+	}
+
 	/* Handle SNMP stuff */
 #ifdef _WITH_SNMP_
 	if (ret > 0)
@@ -796,12 +803,6 @@ retry:	/* When thread can't fetch try to find next thread again. */
 
 	/* Update current time */
 	set_time_now();
-
-	if (ret < 0 && old_errno != EINTR) {
-		/* Real error. */
-		DBG("select error: %s", strerror(old_errno));
-		assert(0);
-	}
 
 	/* Timeout children */
 	thread = m->child.head;

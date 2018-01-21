@@ -209,6 +209,7 @@ start_check(list old_checkers_queue)
 	register_checkers_thread();
 }
 
+#ifndef _DEBUG_
 /* Reload thread */
 static int
 reload_check_thread(__attribute__((unused)) thread_t * thread)
@@ -280,7 +281,6 @@ check_signal_init(void)
 }
 
 /* CHECK Child respawning thread */
-#ifndef _DEBUG_
 static int
 check_respawn_thread(thread_t * thread)
 {
@@ -385,11 +385,17 @@ start_check_child(void)
 	 */
 	UNSET_RELOAD;
 
+#ifndef _DEBUG_
 	/* Signal handling initialization */
 	check_signal_init();
+#endif
 
 	/* Start Healthcheck daemon */
 	start_check(NULL);
+
+#ifdef _DEBUG_
+	return 0;
+#endif
 
 	/* Launch the scheduling I/O multiplexer */
 	launch_scheduler();
