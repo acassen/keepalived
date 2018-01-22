@@ -1426,10 +1426,8 @@ keepalived_main(int argc, char **argv)
 	signal_set(SIGCHLD, thread_child_handler, master);	/* Set this before creating children */
 	start_keepalived();
 
-#ifndef _DEBUG_
 	/* Launch the scheduling I/O multiplexer */
 	launch_scheduler();
-#endif
 
 	/* Finish daemon process */
 	stop_keepalived();

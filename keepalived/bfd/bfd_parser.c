@@ -327,6 +327,24 @@ bfd_maxhops_handler(vector_t *strvec)
 }
 
 /* Checks for minimum configuration requirements */
+#ifdef _WITH_VRRP_
+static void
+bfd_vrrp_end_handler(void)
+{
+	if (specified_event_processes && !__test_bit(DAEMON_VRRP, &specified_event_processes))
+		list_del(vrrp_data->vrrp_track_bfds, LIST_TAIL_DATA(vrrp_data->vrrp_track_bfds));
+}
+#endif
+
+#ifdef _WITH_LVS_
+static void
+bfd_checker_end_handler(void)
+{
+	if (specified_event_processes && !__test_bit(DAEMON_CHECKERS, &specified_event_processes))
+		list_del(check_data->track_bfds, LIST_TAIL_DATA(check_data->track_bfds));
+}
+#endif
+
 static void
 bfd_end_handler(void)
 {
@@ -365,14 +383,23 @@ bfd_end_handler(void)
 #ifdef _WITH_VRRP_
 	if (!specified_event_processes || __test_bit(DAEMON_VRRP, &specified_event_processes))
 		bfd->vrrp = true;
+
+#ifdef _DEBUG_
+	bfd_vrrp_end_handler();
+#endif
 #endif
 #ifdef _WITH_LVS_
 	if (!specified_event_processes || __test_bit(DAEMON_CHECKERS, &specified_event_processes))
 		bfd->checker = true;
+
+#ifdef _DEBUG_
+	bfd_checker_end_handler();
+#endif
 #endif
 }
 
 #ifdef _WITH_VRRP_
+#ifndef _DEBUG_
 static void
 bfd_vrrp_handler(vector_t *strvec)
 {
@@ -399,6 +426,7 @@ bfd_vrrp_handler(vector_t *strvec)
 	tbfd->bfd_up = false;
 	list_add(vrrp_data->vrrp_track_bfds, tbfd);
 }
+#endif
 
 static void
 bfd_vrrp_weight_handler(vector_t *strvec)
@@ -429,16 +457,10 @@ bfd_event_vrrp_handler(__attribute__((unused)) vector_t *strvec)
 {
 	__set_bit(DAEMON_VRRP, &specified_event_processes);
 }
-
-static void
-bfd_vrrp_end_handler(void)
-{
-	if (specified_event_processes && !__test_bit(DAEMON_VRRP, &specified_event_processes))
-		list_del(vrrp_data->vrrp_track_bfds, LIST_TAIL_DATA(vrrp_data->vrrp_track_bfds));
-}
 #endif
 
 #ifdef _WITH_LVS_
+#ifndef _DEBUG_
 static void
 bfd_checker_handler(vector_t *strvec)
 {
@@ -466,18 +488,12 @@ bfd_checker_handler(vector_t *strvec)
 
 	list_add(check_data->track_bfds, tbfd);
 }
+#endif
 
 static void
 bfd_event_checker_handler(__attribute__((unused)) vector_t *strvec)
 {
 	__set_bit(DAEMON_CHECKERS, &specified_event_processes);
-}
-
-static void
-bfd_checker_end_handler(void)
-{
-	if (specified_event_processes && !__test_bit(DAEMON_CHECKERS, &specified_event_processes))
-		list_del(check_data->track_bfds, LIST_TAIL_DATA(check_data->track_bfds));
 }
 #endif
 
@@ -501,12 +517,15 @@ init_bfd_keywords(bool active)
 	/* This will be called with active == false for parent and checker process,
 	 * for bfd, checker and vrrp process active will be true, but they are only interested
 	 * in different keywords. */
+#ifndef _DEBUG_
 	if (prog_type == PROG_TYPE_BFD || !active)
+#endif
 	{
 		install_keyword_root("bfd_instance", &bfd_handler, active);
 		install_sublevel_end_handler(bfd_end_handler);
 		bfd_handlers = true;
 	}
+#ifndef _DEBUG_
 #ifdef _WITH_VRRP_
 	else if (prog_type == PROG_TYPE_VRRP) {
 		install_keyword_root("bfd_instance", &bfd_vrrp_handler, active);
@@ -518,6 +537,7 @@ init_bfd_keywords(bool active)
 		install_keyword_root("bfd_instance", &bfd_checker_handler, active);
 		install_sublevel_end_handler(bfd_checker_end_handler);
 	}
+#endif
 #endif
 
 	install_keyword_conditional("source_ip", &bfd_srcip_handler, bfd_handlers);

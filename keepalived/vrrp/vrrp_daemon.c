@@ -82,7 +82,9 @@ static int print_vrrp_stats(thread_t * thread);
 #ifdef _WITH_JSON_
 static int print_vrrp_json(thread_t * thread);
 #endif
+#ifndef _DEBUG_
 static int reload_vrrp_thread(thread_t * thread);
+#endif
 
 static char *vrrp_syslog_ident;
 
@@ -363,6 +365,7 @@ start_vrrp(void)
 			 VRRP_DISPATCHER);
 }
 
+#ifndef _DEBUG_
 static void
 sighup_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
@@ -485,6 +488,7 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 
 	return 0;
 }
+#endif
 
 static int
 print_vrrp_data(__attribute__((unused)) thread_t * thread)
@@ -629,8 +633,10 @@ start_vrrp_child(void)
 	 */
 	UNSET_RELOAD;
 
+#ifndef _DEBUG_
 	/* Signal handling initialization */
 	vrrp_signal_init();
+#endif
 
 #ifdef _LIBNL_DYNAMIC_
 	libnl_init();
@@ -638,6 +644,10 @@ start_vrrp_child(void)
 
 	/* Start VRRP daemon */
 	start_vrrp();
+
+#ifdef _DEBUG_
+	return 0;
+#endif
 
 	/* Launch the scheduling I/O multiplexer */
 	launch_scheduler();
