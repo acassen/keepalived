@@ -9297,20 +9297,24 @@ $as_echo "#define _HAVE_VRRP_VMAC_  1 " >>confdefs.h
   CPPFLAGS="$SAV_CPPFLAGS"
 
     if test "${enable_json}" = yes; then
-    for ac_header in json-c/json.h
+    JSON_HEADERS=$($PKG_CONFIG --cflags-only-I json-c)
+    SAV_CPPFLAGS="$CPPFLAGS"
+    CPPFLAGS="$CPPFLAGS $JSON_HEADERS"
+    for ac_header in json.h
 do :
-  ac_fn_c_check_header_mongrel "$LINENO" "json-c/json.h" "ac_cv_header_json_c_json_h" "$ac_includes_default"
-if test "x$ac_cv_header_json_c_json_h" = xyes; then :
+  ac_fn_c_check_header_mongrel "$LINENO" "json.h" "ac_cv_header_json_h" "$ac_includes_default"
+if test "x$ac_cv_header_json_h" = xyes; then :
   cat >>confdefs.h <<_ACEOF
-#define HAVE_JSON_C_JSON_H 1
+#define HAVE_JSON_H 1
 _ACEOF
 
 else
-  as_fn_error $? "unable to find json-c/json.h" "$LINENO" 5
+  as_fn_error $? "unable to find json.h" "$LINENO" 5
 fi
 
 done
 
+    CPPFLAGS="$SAV_CPPFLAGS"
 
 $as_echo "#define _WITH_JSON_  1 " >>confdefs.h
 

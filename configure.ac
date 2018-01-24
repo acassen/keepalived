@@ -992,7 +992,11 @@ if test "$enable_vrrp" != no; then
 
   dnl ----[ Json output or not ? ]----
   if test "${enable_json}" = yes; then
-    AC_CHECK_HEADERS(json-c/json.h,,AC_MSG_ERROR([unable to find json-c/json.h]))
+    JSON_HEADERS=$($PKG_CONFIG --cflags-only-I json-c)
+    SAV_CPPFLAGS="$CPPFLAGS"
+    CPPFLAGS="$CPPFLAGS $JSON_HEADERS"
+    AC_CHECK_HEADERS(json.h,,AC_MSG_ERROR([unable to find json.h]))
+    CPPFLAGS="$SAV_CPPFLAGS"
     AC_DEFINE([_WITH_JSON_], [ 1 ], [Define to 1 to build with json output support])
     add_pkg_config([json-c])
     ENABLE_JSON=Yes
