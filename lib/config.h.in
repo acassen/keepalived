@@ -477,6 +477,9 @@
 /* Define to 1 if libipvs can use netlink */
 #undef LIBIPVS_USE_NL
 
+/* The type of parameter __line passed to __assert_fail() */
+#undef LINE_type
+
 /* Define to 1 if <linux/netlink.h> needs <sys/socket.h> */
 #undef NETLINK_H_NEEDS_SYS_SOCKET_H
 

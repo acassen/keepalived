@@ -376,6 +376,19 @@ AC_CHECK_FUNCS([dup2 getcwd gettimeofday memmove memset select setenv socket str
 dnl - pipe2() since Linux 2.6.27 and glibc 2.9.
 AC_CHECK_FUNCS([pipe2], [add_build_opt([PIPE2])])
 
+# glibc uses unsigned int as 3rd parameter to __assert_fail(), musl uses int.
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+  #include <assert.h>
+  #include <stdlib.h>
+
+  void __assert_fail(const char * a, const char *b, unsigned int l, const char *c)
+  {
+    exit(a[0] + b[0] + c[0] + l == 0);
+  }
+  ]])],
+  [LINE_type="unsigned int"], [LINE_type="int"])
+AC_DEFINE_UNQUOTED([LINE_type], [ $LINE_type ], [The type of parameter __line passed to __assert_fail()])
+
 dnl - Do we want to override dynamic/static linking?
 if test -n "$enable_dynamic_linking"; then
   enable_libiptc_dynamic=$enable_dynamic_linking

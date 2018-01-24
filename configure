@@ -6522,6 +6522,31 @@ fi
 done
 
 
+# glibc uses unsigned int as 3rd parameter to __assert_fail(), musl uses int.
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+  #include <assert.h>
+  #include <stdlib.h>
+
+  void __assert_fail(const char * a, const char *b, unsigned int l, const char *c)
+  {
+    exit(a[0] + b[0] + c[0] + l == 0);
+  }
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  LINE_type="unsigned int"
+else
+  LINE_type="int"
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+cat >>confdefs.h <<_ACEOF
+#define LINE_type  $LINE_type
+_ACEOF
+
+
 if test -n "$enable_dynamic_linking"; then
   enable_libiptc_dynamic=$enable_dynamic_linking
   enable_libipset_dynamic=$enable_dynamic_linking
