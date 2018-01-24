@@ -1095,10 +1095,8 @@ keepalived_main(int argc, char **argv)
 	/* Init daemon */
 	start_keepalived();
 
-#ifndef _DEBUG_
 	/* Launch the scheduling I/O multiplexer */
 	launch_scheduler();
-#endif
 
 	/* Finish daemon process */
 	stop_keepalived();

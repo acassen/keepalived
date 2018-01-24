@@ -49,23 +49,34 @@
 #include "../keepalived/include/vrrp_json.h"
 #endif
 
-/* Local Vars */
-static void (*signal_SIGHUP_handler) (void *, int sig);
-static void *signal_SIGHUP_v;
-static void (*signal_SIGINT_handler) (void *, int sig);
-static void *signal_SIGINT_v;
-static void (*signal_SIGTERM_handler) (void *, int sig);
-static void *signal_SIGTERM_v;
-static void (*signal_SIGCHLD_handler) (void *, int sig);
-static void *signal_SIGCHLD_v;
-static void (*signal_SIGUSR1_handler) (void *, int sig);
-static void *signal_SIGUSR1_v;
-static void (*signal_SIGUSR2_handler) (void *, int sig);
-static void *signal_SIGUSR2_v;
 #ifdef _WITH_JSON_
-static void (*signal_SIGJSON_handler) (void *, int sig);
-static void *signal_SIGJSON_v;
+  /* We need to include the realtime signals, but
+   * unfortunately SIGRTMIN/SIGRTMAX are not constants.
+   * I'm not clear if _NSIG is always defined, so play safe.
+   * Although we are not meant to use __SIGRTMAX, we are
+   * using it here as an upper bound, which is eather different. */
+  #ifdef _NSIG
+    #define SIG_MAX	_NSIG
+  #elif defined __SIGRTMAX
+    #define SIG_MAX __SIGRTMAX
+  #else
+    #define SIG_MAX 64
+  #endif
+#else
+  /* The signals currently used are HUP, INT, TERM, USR1,
+   * USR2 and CHLD. */
+  #if SIGCHLD > SIGUSR2
+    /* Architectures except alpha and sparc - see signal(7) */
+    #define SIG_MAX SIGCHLD
+  #else
+    /* alpha and sparc */
+    #define SIG_MAX SIGUSR2
+  #endif
 #endif
+
+/* Local Vars */
+static void (*signal_handler_func[SIG_MAX]) (void *, int sig);
+static void *signal_v[SIG_MAX];
 
 static int signal_pipe[2] = { -1, -1 };
 
@@ -138,6 +149,11 @@ signal_set(int signo, void (*func) (void *, int), void *v)
 	struct sigaction sig;
 	struct sigaction osig;
 
+	if (signo < 1 || signo > SIG_MAX) {
+		log_message(LOG_INFO, "Invalid signal number %d passed to signal_set(). Max signal is %d", signo, SIG_MAX);
+		return NULL;
+	}
+
 	if (func == (void*)SIG_IGN || func == (void*)SIG_DFL) {
 		sig.sa_handler = (void*)func;
 
@@ -168,40 +184,8 @@ signal_set(int signo, void (*func) (void *, int), void *v)
 
 	ret = sigaction(signo, &sig, &osig);
 
-	switch(signo) {
-	case SIGHUP:
-		signal_SIGHUP_handler = func;
-		signal_SIGHUP_v = v;
-		break;
-	case SIGINT:
-		signal_SIGINT_handler = func;
-		signal_SIGINT_v = v;
-		break;
-	case SIGTERM:
-		signal_SIGTERM_handler = func;
-		signal_SIGTERM_v = v;
-		break;
-	case SIGCHLD:
-		signal_SIGCHLD_handler = func;
-		signal_SIGCHLD_v = v;
-		break;
-	case SIGUSR1:
-		signal_SIGUSR1_handler = func;
-		signal_SIGUSR1_v = v;
-		break;
-	case SIGUSR2:
-		signal_SIGUSR2_handler = func;
-		signal_SIGUSR2_v = v;
-		break;
-#ifdef _WITH_JSON_
-	default:
-		if (signo == SIGJSON) {
-			signal_SIGJSON_handler = func;
-			signal_SIGJSON_v = v;
-			break;
-		}
-#endif
-	}
+	signal_handler_func[signo-1] = func;
+	signal_v[signo-1] = v;
 
 	if (ret < 0)
 		return (SIG_ERR);
@@ -223,15 +207,10 @@ signal_ignore(int signo)
 static void
 clear_signal_handler_addresses(void)
 {
-	signal_SIGHUP_handler = NULL;
-	signal_SIGINT_handler = NULL;
-	signal_SIGTERM_handler = NULL;
-	signal_SIGCHLD_handler = NULL;
-	signal_SIGUSR1_handler = NULL;
-	signal_SIGUSR2_handler = NULL;
-#ifdef _WITH_JSON_
-	signal_SIGJSON_handler = NULL;
-#endif
+	int i;
+
+	for (i = 0; i < SIG_MAX; i++)
+		signal_handler_func[i] = NULL;
 }
 
 /* Handlers intialization */
@@ -385,41 +364,8 @@ signal_run_callback(void)
 	int sig;
 
 	while(read(signal_pipe[0], &sig, sizeof(int)) == sizeof(int)) {
-		switch(sig) {
-		case SIGHUP:
-			if (signal_SIGHUP_handler)
-				signal_SIGHUP_handler(signal_SIGHUP_v, SIGHUP);
-			break;
-		case SIGINT:
-			if (signal_SIGINT_handler)
-				signal_SIGINT_handler(signal_SIGINT_v, SIGINT);
-			break;
-		case SIGTERM:
-			if (signal_SIGTERM_handler)
-				signal_SIGTERM_handler(signal_SIGTERM_v, SIGTERM);
-			break;
-		case SIGCHLD:
-			if (signal_SIGCHLD_handler)
-				signal_SIGCHLD_handler(signal_SIGCHLD_v, SIGCHLD);
-			break;
-		case SIGUSR1:
-			if (signal_SIGUSR1_handler)
-				signal_SIGUSR1_handler(signal_SIGUSR1_v, SIGUSR1);
-			break;
-		case SIGUSR2:
-			if (signal_SIGUSR2_handler)
-				signal_SIGUSR2_handler(signal_SIGUSR2_v, SIGUSR2);
-			break;
-		default:
-#ifdef _WITH_JSON_
-			if (sig == SIGJSON) {
-				if (signal_SIGJSON_handler)
-					signal_SIGJSON_handler(signal_SIGJSON_v, SIGJSON);
-				break;
-			}
-#endif
-			break;
-		}
+		if (sig >= 1 && sig <= SIG_MAX && signal_handler_func[sig-1])
+			signal_handler_func[sig-1](signal_v[sig-1], sig);
 	}
 }
 
