@@ -2,16 +2,18 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <signal.h>
 #include <string.h>
 #include <stdbool.h>
+#include <errno.h>
 
 int main(int argc, char **argv)
 {
-	int family = AF_INET6;
+	int family = AF_UNSPEC;
 	int port = 30080;
 	int listenfd, connfd;
 	pid_t childpid;
@@ -24,14 +26,19 @@ int main(int argc, char **argv)
 	char buf[128];
 	struct sigaction sa;
 	bool silent = false;
+	char *addr_str = NULL;
+	char addr_buf[sizeof (struct in6_addr)];
 
-	while ((opt = getopt(argc, argv, "46p:su")) != -1) {
+	while ((opt = getopt(argc, argv, "46a:p:su")) != -1) {
 		switch (opt) {
 		case '4':
 			family = AF_INET;
 			break;
 		case '6':
 			family = AF_INET6;
+			break;
+		case 'a':
+			addr_str = optarg;
 			break;
 		case 'p':
 			port = atoi(optarg);
@@ -43,28 +50,52 @@ int main(int argc, char **argv)
 			sock_type = SOCK_DGRAM;
 			break;
 		default: /* '?' */
-			fprintf(stderr, "Usage: %s [-p port] [-4] [-6] [-s] [-u]\n", argv[0]);
+			fprintf(stderr, "Usage: %s [-a bind address] [-p port] [-4] [-6] [-s] [-u]\n", argv[0]);
 			exit(EXIT_FAILURE);
 		}
 	}
 
-	listenfd = socket(family, sock_type, 0);
+	if (addr_str) {
+		if (family == AF_UNSPEC) {
+			if (strchr(addr_str, ':'))
+				family = AF_INET6;
+			else
+				family = AF_INET;
+		}
+			
+		if (inet_pton(family, addr_str, addr_buf) != 1) {
+			printf("Invalid IPv%d address - %s\n", family == AF_INET ? 4 : 6, addr_str);
+			exit (1);
+		}
+	}
+	else if (family == AF_UNSPEC)
+		family = AF_INET6;
+ 
+	if ((listenfd = socket(family, sock_type, 0)) == -1) {
+		printf ("Unable to create socket, errno %d (%m)\n", errno);
+		exit(1);
+	}
 
 	if (family == AF_INET) {
 		bzero(&servaddr, sizeof(servaddr));
 		servaddr.sin_family = AF_INET;
-		servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+		servaddr.sin_addr.s_addr = addr_str ? *(uint32_t*)addr_buf : htonl(INADDR_ANY);
 		servaddr.sin_port = htons(port);
 
-		bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
-	}
-	else {
+		if (bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr))) {
+			printf ("bind returned %d (%m)\n", errno);
+			exit(1);
+		}
+	} else {
 		bzero(&servaddr6, sizeof(servaddr6));
 		servaddr6.sin6_family = AF_INET6;
-		servaddr6.sin6_addr = in6addr_any;
+		servaddr6.sin6_addr = addr_str ? *(struct in6_addr *)addr_buf : in6addr_any;
 		servaddr6.sin6_port = htons(port);
 
-		bind(listenfd, (struct sockaddr *)&servaddr6, sizeof(servaddr6));
+		if (bind(listenfd, (struct sockaddr *)&servaddr6, sizeof(servaddr6))) {
+			printf ("bind returned %d (%m)\n", errno);
+			exit(1);
+		}
 	}
 
 	memset(&sa, 0, sizeof(sa));
