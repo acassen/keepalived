@@ -1,0 +1,73 @@
+#!/bin/bash
+
+a()
+{
+	ip netns exec $1 iptables -I INPUT -p udp --dport 3784 -j DROP
+}
+
+d()
+{
+	ip netns exec $1 iptables -D INPUT -p udp --dport 3784 -j DROP
+}
+
+s()
+{
+	keepalived/keepalived -DRMmf /etc/keepalived/bfd.conf ${1:+-i $1}
+}
+
+k()
+{
+	if [[ -z $1 ]]; then
+		kill -TERM $(cat /var/run/keepalived.pid)
+	else
+		kill -TERM $(cat /var/run/keepalived/$1/keepalived.pid)
+		fi
+}
+
+j()
+{
+	killall -q -TERM journalctl
+
+	LIST="-t Keepalived"
+	[[ $# -eq 0 ]] && set low high
+	PROG="bfd vrrp healthcheckers"
+	while [[ $# -gt 0 ]]; do
+		for p in "" $PROG; do
+			LIST+=" -t Keepalived${p:+_$p}${1:+_$1}"
+		done
+		shift
+	done
+	journalctl -f $LIST &
+}
+
+rl()
+{
+	rm -f /tmp/*.log
+}
+
+sb()
+{
+	snmpd -LS0-6d
+}
+
+st()
+{
+	MIBS="+KEEPALIVED-MIB:VRRP-MIB:VRRPV3-MIB" snmptrapd -f -Lo | sed -e "s/^2018/\\n2018/" -e "s/\t/@\t/g" | tr "@" "\n" | tee --output-error=exit /dev/tty >>/tmp/snmp.trap.log &
+}
+
+sk()
+{
+	killall -TERM snmptrapd
+}
+
+fl () 
+{ 
+    KPID=$(ps -o pid h -C keepalived);
+    ls --color=auto -l /proc/$KPID/fd;
+#    cat /proc/$KPID/fd/*;
+    ls --color=auto -l /proc/$KPID/fdinfo;
+    cat /proc/$KPID/fdinfo/*
+    echo
+    lsof -p $KPID
+}
+
