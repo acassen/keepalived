@@ -31,7 +31,7 @@
 
 /* This prints an "Assertion failed" message and aborts.  */
 void __assert_fail (const char *__assertion, const char *__file,
-                           unsigned int __line, const char *__function)
+                           LINE_type __line, const char *__function)
 {
 	log_message(LOG_ERR, "assert: %s:%d: %s: Assertion: `%s' failed.", __file, __line, __function, __assertion);
 	abort();
