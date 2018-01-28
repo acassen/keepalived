@@ -443,6 +443,7 @@ http_handle_response(thread_t * thread, unsigned char digest[16]
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
 	request_t *req = http_get_check->req;
+	url_t *url;
 	int r, di = 0;
 	char *digest_tmp;
 	url_t *fetched_url = fetch_next_url(http_get_check);
@@ -466,6 +467,19 @@ http_handle_response(thread_t * thread, unsigned char digest[16]
 	}
 	else if (req->status_code >= 200 && req->status_code <= 299)
 		last_success = ON_SUCCESS;
+
+	/* Report a length mismatch the first time we get the specific difference */
+	url = list_element(http_get_check->url, http_get_check->url_it);
+	if (req->content_len != UINT_MAX && req->content_len != req->rx_bytes) {
+		if (url->len_mismatch != (ssize_t)req->content_len - (ssize_t)req->rx_bytes) {
+			log_message(LOG_INFO, "http_check for RS %s VS %s url %s%s: content_length (%lu) does not match received bytes (%lu)",
+				    FMT_RS(checker->rs, checker->vs), FMT_VS(checker->vs), url->virtualhost ? url->virtualhost : "",
+				    url->path, req->content_len, req->rx_bytes);
+			url->len_mismatch = (ssize_t)req->content_len - (ssize_t)req->rx_bytes;
+		}
+	}
+	else
+		url->len_mismatch = 0;
 
 	/* Continue with MD5SUM */
 	if (fetched_url->digest) {
@@ -518,13 +532,22 @@ http_process_response(request_t *req, size_t r, bool do_md5)
 	if (!req->extracted) {
 		if ((req->extracted = extract_html(req->buffer, req->len))) {
 			req->status_code = extract_status_code(req->buffer, req->len);
+			req->content_len = extract_content_length(req->buffer, req->len);
 			r = req->len - (size_t)(req->extracted - req->buffer);
-			if (r && do_md5)
-				MD5_Update(&req->context, req->extracted, r);
+			if (r && do_md5) {
+				if (req->content_len == UINT_MAX || req->content_len > req->rx_bytes)
+					MD5_Update(&req->context, req->extracted,
+						   req->content_len == UINT_MAX || req->content_len >= req->rx_bytes + r ? r : req->content_len - req->rx_bytes);
+			}
+			req->rx_bytes = r;
 			req->len = 0;
 		}
 	} else if (req->len) {
-		MD5_Update(&req->context, req->buffer, req->len);
+		if (req->content_len == UINT_MAX || req->content_len > req->rx_bytes) {
+			MD5_Update(&req->context, req->buffer,
+				   req->content_len == UINT_MAX || req->content_len >= req->rx_bytes + req->len ? req->len : req->content_len - req->rx_bytes);
+		}
+		req->rx_bytes += req->len;
 		req->len = 0;
 	}
 }

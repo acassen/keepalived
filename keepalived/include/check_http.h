@@ -45,6 +45,8 @@ typedef struct _request {
 	SSL				*ssl;
 	BIO				*bio;
 	MD5_CTX				context;
+	size_t				content_len;
+	size_t				rx_bytes;
 } request_t;
 
 typedef struct _url {
@@ -52,6 +54,7 @@ typedef struct _url {
 	char				*digest;
 	int				status_code;
 	char				*virtualhost;
+	ssize_t				len_mismatch;
 } url_t;
 
 typedef struct _http_checker {

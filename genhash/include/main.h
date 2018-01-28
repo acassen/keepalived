@@ -75,12 +75,15 @@ typedef struct {
 	enum		feat_hashes hash;
 	unsigned long	ref_time;
 	unsigned long	response_time;
-	unsigned int mark;
+#ifdef _WITH_SO_MARK_
+	unsigned int	mark;
+#endif
 } REQ;
 
 /* Global variables */
 extern thread_master_t *master;
 extern REQ *req;		/* Cmd line arguments */
+extern int exit_code;
 
 /* Data buffer length description */
 #define BUFSIZE		1024
