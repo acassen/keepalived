@@ -42,6 +42,7 @@
 
 /* global var */
 REQ *req = NULL;
+int exit_code;
 
 /* Terminate handler */
 static void
@@ -71,23 +72,23 @@ usage(const char *prog)
 	fprintf(stderr, VERSION_STRING);
 	fprintf(stderr,
 		"Usage:\n"
-		"  %s -s server-address -p port -u url\n"
-		"  %s -S -s server-address -p port -u url\n"
-		"  %s -h\n" "  %s -r\n\n", prog, prog, prog, prog);
+		"  %1$s -s server-address -p port -u url\n"
+		"  %1$s -S -s server-address -p port -u url\n"
+		"  %1$s -h\n" "  %1$s -r\n\n", prog);
 	fprintf(stderr,
 		"Commands:\n"
 		"Either long or short options are allowed.\n"
-		"  %s --use-ssl         -S       Use SSL connection to remote server.\n"
-		"  %s --server          -s       Use the specified remote server address.\n"
-		"  %s --port            -p       Use the specified remote server port.\n"
-		"  %s --url             -u       Use the specified remote server url.\n"
-		"  %s --use-virtualhost -V       Use the specified virtualhost in GET query.\n"
-		"  %s --hash            -H       Use the specified hash algorithm.\n"
-		"  %s --verbose         -v       Use verbose mode output.\n"
-		"  %s --help            -h       Display this short inlined help screen.\n"
-		"  %s --release         -r       Display the release number.\n"
-		"  %s --fwmark          -m       Use the specified FW mark.\n",
-		prog, prog, prog, prog, prog, prog, prog, prog, prog, prog);
+		"  %1$s --use-ssl         -S       Use SSL connection to remote server.\n"
+		"  %1$s --server          -s       Use the specified remote server address.\n"
+		"  %1$s --port            -p       Use the specified remote server port.\n"
+		"  %1$s --url             -u       Use the specified remote server url.\n"
+		"  %1$s --use-virtualhost -V       Use the specified virtualhost in GET query.\n"
+		"  %1$s --hash            -H       Use the specified hash algorithm.\n"
+		"  %1$s --verbose         -v       Use verbose mode output.\n"
+		"  %1$s --help            -h       Display this short inlined help screen.\n"
+		"  %1$s --release         -r       Display the release number.\n"
+		"  %1$s --fwmark          -m       Use the specified FW mark.\n",
+		prog);
 	fprintf(stderr, "\nSupported hash algorithms:\n");
 	for (i = hash_first; i < hash_guard; i++)
 		fprintf(stderr, "  %s%s\n",
@@ -221,7 +222,7 @@ main(int argc, char **argv)
 	if (!parse_cmdline(argc, argv, req)) {
 		FREE(url_default);
 		FREE(req);
-		exit(0);
+		exit(1);
 	}
 
 	/* Check minimum configuration need */
@@ -229,7 +230,7 @@ main(int argc, char **argv)
 		FREE(url_default);
 		freeaddrinfo(req->dst);
 		FREE(req);
-		exit(0);
+		exit(1);
 	}
 
 	if(!req->url){
@@ -274,5 +275,5 @@ main(int argc, char **argv)
 	free_sock(sock);
 	freeaddrinfo(req->dst);
 	FREE(req);
-	exit(0);
+	exit(exit_code);
 }

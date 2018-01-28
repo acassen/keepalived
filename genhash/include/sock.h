@@ -42,6 +42,8 @@ typedef struct {
 	char		*extracted;
 	int		size;
 	int		total_size;
+	ssize_t		content_len;
+	ssize_t		rx_bytes;
 } SOCK;
 
 /* global vars exported */

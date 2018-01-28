@@ -27,27 +27,21 @@
 #include "html.h"
 #include "memory.h"
 
-#ifdef _INCLUDE_UNUSED_CODE_
-
 /* HTTP header tag */
 #define CONTENT_LENGTH	"Content-Length:"
 
 /* Return the http header content length */
-int extract_content_length(char *buffer, size_t size)
+size_t extract_content_length(char *buffer, size_t size)
 {
 	char *clen = strstr(buffer, CONTENT_LENGTH);
 
 	/* Pattern not found */
-	if (!clen)
-		return 0;
+	if (!clen || clen > buffer + size)
+		return -1;
 
 	/* Content-Length extraction */
-	if (!(clen = strchr(clen, ':')))
-		return 0;
-
-	return atoi(clen+1);
+	return atoi(clen + strlen(CONTENT_LENGTH));
 }
-#endif
 
 /*
  * Return the http header error code. According
