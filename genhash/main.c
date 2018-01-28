@@ -42,6 +42,7 @@
 
 /* global var */
 REQ *req = NULL;
+int exit_code;
 
 /* Terminate handler */
 static void
@@ -221,7 +222,7 @@ main(int argc, char **argv)
 	if (!parse_cmdline(argc, argv, req)) {
 		FREE(url_default);
 		FREE(req);
-		exit(0);
+		exit(1);
 	}
 
 	/* Check minimum configuration need */
@@ -229,7 +230,7 @@ main(int argc, char **argv)
 		FREE(url_default);
 		freeaddrinfo(req->dst);
 		FREE(req);
-		exit(0);
+		exit(1);
 	}
 
 	if(!req->url){
@@ -274,5 +275,5 @@ main(int argc, char **argv)
 	free_sock(sock);
 	freeaddrinfo(req->dst);
 	FREE(req);
-	exit(0);
+	exit(exit_code);
 }

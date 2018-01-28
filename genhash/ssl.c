@@ -156,8 +156,10 @@ ssl_read_thread(thread_t * thread)
 	int error;
 
 	/* Handle read timeout */
-	if (thread->type == THREAD_READ_TIMEOUT)
+	if (thread->type == THREAD_READ_TIMEOUT) {
+		exit_code = 1;
 		return epilog(thread);
+	}
 
 	/*
 	 * The design implemented here is a workaround for use

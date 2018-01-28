@@ -213,8 +213,10 @@ http_read_thread(thread_t * thread)
 	ssize_t r = 0;
 
 	/* Handle read timeout */
-	if (thread->type == THREAD_READ_TIMEOUT)
+	if (thread->type == THREAD_READ_TIMEOUT) {
+		exit_code = 1;
 		return epilog(thread);
+	}
 
 	/* read the HTTP stream */
 	r = MAX_BUFFER_LENGTH - sock_obj->size;
@@ -234,6 +236,7 @@ http_read_thread(thread_t * thread)
 			DBG("Read error with server [%s]:%d: %s\n",
 			    req->ipaddress, ntohs(req->addr_port),
 			    strerror(errno));
+			exit_code = 1;
 			return epilog(thread);
 		}
 
@@ -264,8 +267,10 @@ http_response_thread(thread_t * thread)
 	SOCK *sock_obj = THREAD_ARG(thread);
 
 	/* Handle read timeout */
-	if (thread->type == THREAD_READ_TIMEOUT)
+	if (thread->type == THREAD_READ_TIMEOUT) {
+		exit_code = 1;
 		return epilog(thread);
+	}
 
 	/* Allocate & clean the get buffer */
 	sock_obj->buffer = (char *) MALLOC(MAX_BUFFER_LENGTH);
@@ -295,8 +300,10 @@ http_request_thread(thread_t * thread)
 	int ret = 0;
 
 	/* Handle read timeout */
-	if (thread->type == THREAD_WRITE_TIMEOUT)
+	if (thread->type == THREAD_WRITE_TIMEOUT) {
+		exit_code = 1;
 		return epilog(thread);
+	}
 
 	/* Allocate & clean the GET string */
 	str_request = (char *) MALLOC(GET_BUFFER_LENGTH);
@@ -335,6 +342,7 @@ http_request_thread(thread_t * thread)
 		fprintf(stderr, "Cannot send get request to [%s]:%d.\n",
 			req->ipaddress,
 			ntohs(req->addr_port));
+		exit_code = 1;
 		return epilog(thread);
 	}
 

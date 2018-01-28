@@ -81,6 +81,7 @@ typedef struct {
 /* Global variables */
 extern thread_master_t *master;
 extern REQ *req;		/* Cmd line arguments */
+extern int exit_code;
 
 /* Data buffer length description */
 #define BUFSIZE		1024
