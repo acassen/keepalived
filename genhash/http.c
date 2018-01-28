@@ -150,13 +150,10 @@ finalize(thread_t * thread)
 static void
 http_dump_header(char *buffer, size_t size)
 {
-	size_t r;
 
 	dump_buffer(buffer, size, stdout);
 	printf(HTTP_HEADER_ASCII);
-	for (r = 0; r < size; r++)
-		printf("%c", buffer[r]);
-	printf("\n");
+	printf("%*s\n", (int)size, buffer);
 }
 
 /* Process incoming stream */
