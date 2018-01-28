@@ -577,7 +577,7 @@ rta_nest_end(struct rtattr *rta, struct rtattr *nest)
 
 static inline __u8 rta_getattr_u8(const struct rtattr *rta)
 {
-        return *(__u8 *)RTA_DATA(rta);
+	return *(__u8 *)RTA_DATA(rta);
 }
 
 static void

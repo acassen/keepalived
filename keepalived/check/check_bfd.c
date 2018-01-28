@@ -96,15 +96,15 @@ bfd_check_compare(void *a, void *b)
 checker_tracked_bfd_t *
 find_checker_tracked_bfd_by_name(char *name)
 {
-        element e;
-        checker_tracked_bfd_t *bfd;
+	element e;
+	checker_tracked_bfd_t *bfd;
 
-        LIST_FOREACH(check_data->track_bfds, bfd, e) {
-                if (!strcmp(bfd->bname, name))
-                        return bfd;
-        }
+	LIST_FOREACH(check_data->track_bfds, bfd, e) {
+		if (!strcmp(bfd->bname, name))
+			return bfd;
+	}
 
-        return NULL;
+	return NULL;
 }
 
 static void

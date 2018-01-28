@@ -51,7 +51,7 @@ bfd_event_send(bfd_t *bfd)
 #ifdef _WITH_LVS_
 	    && !(__test_bit(DAEMON_CHECKERS, &daemon_mode) && have_virtual_servers)
 #endif
-	        )
+		)
 		return;
 
 	memset(&evt, 0, sizeof evt);

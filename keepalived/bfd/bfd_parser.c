@@ -563,16 +563,16 @@ init_bfd_keywords(bool active)
 vector_t *
 bfd_init_keywords(void)
 {
-        /* global definitions mapping */
-        init_global_keywords(true);
+	/* global definitions mapping */
+	init_global_keywords(true);
 
-        init_bfd_keywords(true);
+	init_bfd_keywords(true);
 #ifdef _WITH_LVS_
-        init_check_keywords(false);
+	init_check_keywords(false);
 #endif
 #ifdef _WITH_VRRP_
-        init_vrrp_keywords(false);
+	init_vrrp_keywords(false);
 #endif
 
-        return keywords;
+	return keywords;
 }

@@ -826,8 +826,8 @@ usage(const char *prog)
 	fprintf(stderr, "  -L, --mem-check-log          Log malloc/frees to syslog\n");
 #endif
 	fprintf(stderr, "  -i, --config-id id           Skip any configuration lines beginning '@' that don't match id\n"
-		        "                                or any lines beginning @^ that do match.\n"
-		        "                                The config-id defaults to the node name if option not used\n");
+			"                                or any lines beginning @^ that do match.\n"
+			"                                The config-id defaults to the node name if option not used\n");
 	fprintf(stderr, "      --signum=SIGFUNC         Return signal number for STOP, RELOAD, DATA, STATS"
 #ifdef _WITH_JSON_
 								", JSON"

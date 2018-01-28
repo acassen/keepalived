@@ -578,7 +578,7 @@ start_vrrp_child(void)
 
 #ifdef _WITH_BFD_
 	/* Close the write end of the BFD vrrp event notification pipe */
-        close(bfd_vrrp_event_pipe[1]);
+	close(bfd_vrrp_event_pipe[1]);
 
 #ifdef _WITH_LVS_
 	close(bfd_checker_event_pipe[0]);

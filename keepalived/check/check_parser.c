@@ -482,7 +482,7 @@ rs_end_handler(void)
 			log_message(LOG_INFO, "Address family of virtual server and real server %s don't match - skipping real server.", inet_sockaddrtos(&rs->addr));
 			free_list_element(vs->rs, vs->rs->tail);
 		}
-        }
+	}
 }
 static void
 rs_weight_handler(vector_t *strvec)

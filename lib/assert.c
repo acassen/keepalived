@@ -31,7 +31,7 @@
 
 /* This prints an "Assertion failed" message and aborts.  */
 void __assert_fail (const char *__assertion, const char *__file,
-                           LINE_type __line, const char *__function)
+			   LINE_type __line, const char *__function)
 {
 	log_message(LOG_ERR, "assert: %s:%d: %s: Assertion: `%s' failed.", __file, __line, __function, __assertion);
 	abort();
@@ -40,7 +40,7 @@ void __assert_fail (const char *__assertion, const char *__file,
 #ifdef __USE_GNU
 /* Likewise, but prints the error text for ERRNUM.  */
 void __assert_perror_fail (int __errnum, const char *__file,
-                                  unsigned int __line, const char *__function)
+				  unsigned int __line, const char *__function)
 {
 	log_message(LOG_ERR, "assert: %s:%d: %s: Unexpected error: %s.", __file, __line, __function, strerror(__errnum));
 	abort();

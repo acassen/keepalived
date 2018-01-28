@@ -31,14 +31,14 @@
 static inline magic_t
 ka_magic_open(void)
 {
-        magic_t magic = magic_open(MAGIC_PRESERVE_ATIME | MAGIC_ERROR | MAGIC_NO_CHECK_CDF | MAGIC_NO_CHECK_COMPRESS | MAGIC_NO_CHECK_ENCODING);
-        if (!magic)
-                log_message(LOG_INFO, "Unable to open magic");
-        else if (magic_load(magic, NULL)) {
-                log_message(LOG_INFO, "Unable to load magic database");
-                magic_close(magic);
-                magic = NULL;
-        }
+	magic_t magic = magic_open(MAGIC_PRESERVE_ATIME | MAGIC_ERROR | MAGIC_NO_CHECK_CDF | MAGIC_NO_CHECK_COMPRESS | MAGIC_NO_CHECK_ENCODING);
+	if (!magic)
+		log_message(LOG_INFO, "Unable to open magic");
+	else if (magic_load(magic, NULL)) {
+		log_message(LOG_INFO, "Unable to load magic database");
+		magic_close(magic);
+		magic = NULL;
+	}
 
 	return magic;
 }

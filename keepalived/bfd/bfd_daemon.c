@@ -86,8 +86,8 @@ stop_bfd(int status)
 #ifndef _MEM_CHECK_LOG_
 	FREE_PTR(bfd_syslog_ident);
 #else
-        if (bfd_syslog_ident)
-                free(bfd_syslog_ident);
+	if (bfd_syslog_ident)
+		free(bfd_syslog_ident);
 #endif
 	close_std_fd();
 

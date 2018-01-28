@@ -62,9 +62,9 @@ static char *check_syslog_ident;
 static int
 lvs_notify_fifo_script_exit(__attribute__((unused)) thread_t *thread)
 {
-        log_message(LOG_INFO, "lvs notify fifo script terminated");
+	log_message(LOG_INFO, "lvs notify fifo script terminated");
 
-        return 0;
+	return 0;
 }
 
 
@@ -78,8 +78,8 @@ stop_check(int status)
 	/* Terminate all script process */
 	script_killall(master, SIGTERM);
 
-        /* Remove the notify fifo */
-        notify_fifo_close(&global_data->notify_fifo, &global_data->lvs_notify_fifo);
+	/* Remove the notify fifo */
+	notify_fifo_close(&global_data->notify_fifo, &global_data->lvs_notify_fifo);
 
 	/* Destroy master thread */
 	signal_handler_destroy();
@@ -168,9 +168,9 @@ start_check(list old_checkers_queue)
 		return;
 	}
 
-        /* Create a notify FIFO if needed, and open it */
-        if (global_data->lvs_notify_fifo.name)
-                notify_fifo_open(&global_data->notify_fifo, &global_data->lvs_notify_fifo, lvs_notify_fifo_script_exit, "lvs_");
+	/* Create a notify FIFO if needed, and open it */
+	if (global_data->lvs_notify_fifo.name)
+		notify_fifo_open(&global_data->notify_fifo, &global_data->lvs_notify_fifo, lvs_notify_fifo_script_exit, "lvs_");
 
 	/* Get current active addresses, and start update process */
 	if (using_ha_suspend || __test_bit(LOG_ADDRESS_CHANGES, &debug))
@@ -226,8 +226,8 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 	/* Terminate all script process */
 	script_killall(master, SIGTERM);
 
-        /* Remove the notify fifo - we don't know if it will be the same after a reload */
-        notify_fifo_close(&global_data->notify_fifo, &global_data->lvs_notify_fifo);
+	/* Remove the notify fifo - we don't know if it will be the same after a reload */
+	notify_fifo_close(&global_data->notify_fifo, &global_data->lvs_notify_fifo);
 
 	/* Destroy master thread */
 #ifdef _WITH_BFD_
@@ -352,12 +352,12 @@ start_check_child(void)
 	prog_type = PROG_TYPE_CHECKER;
 
 #ifdef _WITH_BFD_
-        /* Close the write end of the BFD checker event notification pipe */
-        close(bfd_checker_event_pipe[1]);
+	/* Close the write end of the BFD checker event notification pipe */
+	close(bfd_checker_event_pipe[1]);
 
 #ifdef _WITH_VRRP_
-        close(bfd_vrrp_event_pipe[0]);
-        close(bfd_vrrp_event_pipe[1]);
+	close(bfd_vrrp_event_pipe[0]);
+	close(bfd_vrrp_event_pipe[1]);
 #endif
 #endif
 
