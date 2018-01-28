@@ -84,7 +84,8 @@ const hash_t hashes[hash_guard] = {
 #define HASH_LABEL(sock)	((sock)->hash->label)
 #define HASH_INIT(sock)		((sock)->hash->init(&(sock)->context))
 #define HASH_UPDATE(sock, buf, len) \
-	((sock)->hash->update(&(sock)->context, (buf), (len)))
+	if ((sock)->content_len == -1 || (sock)->rx_bytes < (sock)->content_len) \
+		((sock)->hash->update(&(sock)->context, (buf), (sock)->content_len == -1 || (sock)->content_len - (sock)->rx_bytes >= len ? len : (sock)->content_len - (sock)->rx_bytes))
 #define HASH_FINAL(sock, digest) \
 	((sock)->hash->final((digest), &(sock)->context))
 
@@ -139,6 +140,8 @@ finalize(thread_t * thread)
 	printf("%s = ", HASH_LABEL(sock_obj));
 	for (i = 0; i < digest_length; i++)
 		printf("%02x", digest[i]);
+	if (sock_obj->content_len != -1 && sock_obj->content_len != sock_obj->rx_bytes)
+		printf ("\nWARNING - Content-Length (%ld) does not match received bytes (%ld).", sock_obj->content_len, sock_obj->rx_bytes);
 	printf("\n\n");
 
 	DBG("Finalize : [%s]\n", req->url);
@@ -150,10 +153,38 @@ finalize(thread_t * thread)
 static void
 http_dump_header(char *buffer, size_t size)
 {
-
 	dump_buffer(buffer, size, stdout);
 	printf(HTTP_HEADER_ASCII);
 	printf("%*s\n", (int)size, buffer);
+}
+
+static ssize_t
+find_content_len(char *buffer, size_t size)
+{
+	char *content_len_str = "Content-Length:";
+	unsigned long content_len;
+	bool valid_len = false;
+	char sav_char = buffer[size];
+	char *p;
+	char *end;
+
+	buffer[size] = '\0';
+	p = strstr(buffer, content_len_str);
+	if (p &&
+	    (p == buffer || p[-1] == '\r' || p[-1] == '\n')) {
+		p += strlen(content_len_str);
+		content_len = strtoul(p, &end, 10);
+
+		/* Make sure we have read to the end of the line */
+		if (!*end || *end == '\r' || *end != '\n')
+			valid_len = true;
+	}
+	buffer[size] = sav_char;
+
+	if (valid_len)
+		return content_len;
+
+	return -1;
 }
 
 /* Process incoming stream */
@@ -167,6 +198,9 @@ http_process_stream(SOCK * sock_obj, int r)
 		if (req->verbose)
 			printf(HTTP_HEADER_HEXA);
 		if ((sock_obj->extracted = extract_html(sock_obj->buffer, (size_t)sock_obj->size))) {
+			sock_obj->content_len =
+				find_content_len(sock_obj->buffer + (sock_obj->size - r),
+					 (size_t)((sock_obj->extracted - sock_obj->buffer) - (sock_obj->size - r)));
 			if (req->verbose)
 				http_dump_header(sock_obj->buffer + (sock_obj->size - r),
 						 (size_t)((sock_obj->extracted - sock_obj->buffer) - (sock_obj->size - r)));
@@ -177,11 +211,13 @@ http_process_stream(SOCK * sock_obj, int r)
 					dump_buffer(sock_obj->extracted, (size_t)r, stdout);
 				}
 				memmove(sock_obj->buffer, sock_obj->extracted, (size_t)r);
-				HASH_UPDATE(sock_obj, sock_obj->buffer, (size_t)r);
+				HASH_UPDATE(sock_obj, sock_obj->buffer, (ssize_t)r);
+				sock_obj->rx_bytes += r;
 				r = 0;
 			}
 			sock_obj->size = r;
 		} else {
+			sock_obj->content_len = find_content_len(sock_obj->buffer + (sock_obj->size - r), (size_t)r);
 			if (req->verbose)
 				http_dump_header(sock_obj->buffer + (sock_obj->size - r), (size_t)r);
 
@@ -195,7 +231,8 @@ http_process_stream(SOCK * sock_obj, int r)
 	} else if (sock_obj->size) {
 		if (req->verbose)
 			dump_buffer(sock_obj->buffer, (size_t)r, stdout);
-		HASH_UPDATE(sock_obj, sock_obj->buffer, (size_t)sock_obj->size);
+		HASH_UPDATE(sock_obj, sock_obj->buffer, (ssize_t)sock_obj->size);
+		sock_obj->rx_bytes += sock_obj->size;
 		sock_obj->size = 0;
 	}
 
@@ -275,6 +312,8 @@ http_response_thread(thread_t * thread)
 	/* Initalize the hash context */
 	sock_obj->hash = &hashes[req->hash];
 	HASH_INIT(sock_obj);
+
+	sock_obj->rx_bytes = 0;
 
 	/* Register asynchronous http/ssl read thread */
 	if (req->ssl)
