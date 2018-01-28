@@ -75,7 +75,9 @@ typedef struct {
 	enum		feat_hashes hash;
 	unsigned long	ref_time;
 	unsigned long	response_time;
-	unsigned int mark;
+#ifdef _WITH_SO_MARK_
+	unsigned int	mark;
+#endif
 } REQ;
 
 /* Global variables */
