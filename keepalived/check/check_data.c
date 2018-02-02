@@ -719,7 +719,7 @@ bool validate_check_config(void)
 
 		/* A virtual server using fwmarks will ignore any protocol setting, so warn if one is set */
 		if (vs->service_type &&
-		    ((vs->vsg && !LIST_ISEMPTY(vs->vsg->vfwmark)) ||
+		    ((vs->vsg && LIST_ISEMPTY(vs->vsg->addr_range)) ||
 		     (!vs->vsg && vs->vfwmark)))
 			log_message(LOG_INFO, "Warning: Virtual server %s: protocol specified for fwmark - protocol will be ignored", FMT_VS(vs));
 

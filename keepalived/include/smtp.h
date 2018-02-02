@@ -57,6 +57,7 @@ typedef enum {
 #ifdef _WITH_LVS_
 	SMTP_MSG_RS,
 	SMTP_MSG_VS,
+	SMTP_MSG_RS_SHUT,
 #endif
 #ifdef _WITH_VRRP_
 	SMTP_MSG_VGROUP,

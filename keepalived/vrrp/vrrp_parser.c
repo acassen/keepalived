@@ -218,6 +218,17 @@ vrrp_gnotify_fault_handler(vector_t *strvec)
 	vgroup->notify_exec = true;
 }
 static void
+vrrp_gnotify_stop_handler(vector_t *strvec)
+{
+	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
+	if (vgroup->script_stop) {
+		log_message(LOG_INFO, "vrrp group %s: notify_stop script already specified - ignoring %s", vgroup->gname, FMT_STR_VSLOT(strvec,1));
+		return;
+	}
+	vgroup->script_stop = set_vrrp_notify_script(strvec, true);
+	vgroup->notify_exec = true;
+}
+static void
 vrrp_gnotify_handler(vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
@@ -1173,6 +1184,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("notify_backup", &vrrp_gnotify_backup_handler);
 	install_keyword("notify_master", &vrrp_gnotify_master_handler);
 	install_keyword("notify_fault", &vrrp_gnotify_fault_handler);
+	install_keyword("notify_stop", &vrrp_gnotify_stop_handler);
 	install_keyword("notify", &vrrp_gnotify_handler);
 	install_keyword("smtp_alert", &vrrp_gsmtp_handler);
 	install_keyword("global_tracking", &vrrp_gglobal_tracking_handler);

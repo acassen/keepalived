@@ -863,9 +863,11 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	fdsetsize = m->max_fd + 1;
 
 	signal_fd = signal_rfd();
-	FD_SET(signal_fd, &readfd);
-	if (signal_fd >= m->max_fd)
-		fdsetsize = signal_fd + 1;
+	if (signal_fd != -1) {
+		FD_SET(signal_fd, &readfd);
+		if (signal_fd >= m->max_fd)
+			fdsetsize = signal_fd + 1;
+	}
 
 	if (inotify_fd != -1) {
 		FD_SET(inotify_fd, &readfd);

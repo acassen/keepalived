@@ -239,7 +239,7 @@ and
  smtp_alert_vrrp <BOOL>       # Sets default state for vrrp smtp_alerts
  smtp_alert_checker <BOOL>    # Sets default state for checker smtp_alerts
 
- email_faults                 # Send smtp alerts for fault conditions
+ no_email_faults              # Don't send smtp alerts for fault conditions
  router_id my_hostname        # string identifying the machine,
                               # (doesn't have to be hostname).
                               # default: local host name
@@ -425,6 +425,9 @@ and
 
  linkbeat_use_polling         # Poll to detect media link failure otherwise attempt to use ETHTOOL or MII interface
 
+ child_wait_time SECS         # Time for main process to allow for child processes to exit on termination
+                              #   in seconds (default 5). This can be needed for very large configurations.
+
 .SH Static routes/addresses/rules
 .PP
 Keepalived can configure static addresses, routes, and rules. These addresses are
@@ -538,7 +541,7 @@ https://github.com/dyninc/OpenBFDD).
 The configuration block looks like:
 .PP
 bfd_instance <STRING> {
-    neighbor_ip <IP ADDRESS>           # BFD Neighbor IP
+    neighbor_ip <IP ADDRESS>           # BFD Neighbor IP (synonym neighbour_ip)
     source_ip <IP ADDRESS>             # Source IP to use (optional)
     mix_rx <INTEGER>                   # Required min RX interval, in ms
                                        # (default is 10 ms)
@@ -615,6 +618,8 @@ bfd_instance <STRING> {
             notify_backup /path/to_backup.sh [username [groupname]]
             # FAULT transition
             notify_fault "/path/fault.sh VG_1" [username [groupname]]
+            # executed when stopping vrrp
+            notify_stop <STRING>|<QUOTED-STRING> [username [groupname]]
 
             # for ANY state transition.
             # "notify" script is called AFTER the

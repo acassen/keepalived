@@ -135,7 +135,7 @@ vs_end_handler(void)
 
 	/* If the real (sorry) server uses tunnel forwarding, the address family
 	 * does not have to match the address family of the virtaul server */
-	if (vs->s_svr->forwarding_method != IP_VS_CONN_F_TUNNEL) {
+	if (vs->s_svr && vs->s_svr->forwarding_method != IP_VS_CONN_F_TUNNEL) {
 		if (vs->af == AF_UNSPEC)
 			vs->af = vs->s_svr->addr.ss_family;
 		else if (vs->af != vs->s_svr->addr.ss_family) {
@@ -382,11 +382,12 @@ proto_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	char *str = strvec_slot(strvec, 1);
-	if (!strcmp(str, "TCP"))
+
+	if (!strcasecmp(str, "TCP"))
 		vs->service_type = IPPROTO_TCP;
-	else if (!strcmp(str, "SCTP"))
+	else if (!strcasecmp(str, "SCTP"))
 		vs->service_type = IPPROTO_SCTP;
-	else if (!strcmp(str, "UDP"))
+	else if (!strcasecmp(str, "UDP"))
 		vs->service_type = IPPROTO_UDP;
 	else
 		log_message(LOG_INFO, "Unknown protocol %s - ignoring", str);
@@ -481,7 +482,7 @@ rs_end_handler(void)
 			log_message(LOG_INFO, "Address family of virtual server and real server %s don't match - skipping real server.", inet_sockaddrtos(&rs->addr));
 			free_list_element(vs->rs, vs->rs->tail);
 		}
-        }
+	}
 }
 static void
 rs_weight_handler(vector_t *strvec)

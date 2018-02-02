@@ -140,6 +140,8 @@ bool namespace_with_ipsets;				/* Override for using namespaces and ipsets with 
 static char *override_namespace;			/* If namespace specified on command line */
 #endif
 
+unsigned child_wait_time = CHILD_WAIT_SECS;		/* Time to wait for children to exit */
+
 /* Log facility table */
 static struct {
 	int facility;
@@ -502,7 +504,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 	struct timeval start_time, now;
 #ifdef HAVE_SIGNALFD
 	struct timeval timeout = {
-		.tv_sec = CHILD_WAIT_SECS,
+		.tv_sec = child_wait_time,
 		.tv_usec = 0
 	};
 	int signal_fd = signal_rfd();
@@ -512,7 +514,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 #else
 	sigset_t old_set, child_wait;
 	struct timespec timeout = {
-		.tv_sec = CHILD_WAIT_SECS,
+		.tv_sec = child_wait_time,
 		.tv_nsec = 0
 	};
 #endif
@@ -644,7 +646,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 
 		if (wait_count) {
 			gettimeofday(&now, NULL);
-			timeout.tv_sec = CHILD_WAIT_SECS - (now.tv_sec - start_time.tv_sec);
+			timeout.tv_sec = child_wait_time - (now.tv_sec - start_time.tv_sec);
 #ifdef HAVE_SIGNALFD
 			timeout.tv_usec = (start_time.tv_usec - now.tv_usec);
 			if (timeout.tv_usec < 0) {
@@ -826,8 +828,8 @@ usage(const char *prog)
 	fprintf(stderr, "  -L, --mem-check-log          Log malloc/frees to syslog\n");
 #endif
 	fprintf(stderr, "  -i, --config-id id           Skip any configuration lines beginning '@' that don't match id\n"
-		        "                                or any lines beginning @^ that do match.\n"
-		        "                                The config-id defaults to the node name if option not used\n");
+			"                                or any lines beginning @^ that do match.\n"
+			"                                The config-id defaults to the node name if option not used\n");
 	fprintf(stderr, "      --signum=SIGFUNC         Return signal number for STOP, RELOAD, DATA, STATS"
 #ifdef _WITH_JSON_
 								", JSON"
@@ -1426,10 +1428,8 @@ keepalived_main(int argc, char **argv)
 	signal_set(SIGCHLD, thread_child_handler, master);	/* Set this before creating children */
 	start_keepalived();
 
-#ifndef _DEBUG_
 	/* Launch the scheduling I/O multiplexer */
 	launch_scheduler();
-#endif
 
 	/* Finish daemon process */
 	stop_keepalived();

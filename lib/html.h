@@ -26,6 +26,7 @@
 #include <sys/types.h>
 
 /* Prototypes */
+extern size_t extract_content_length(char *buffer, size_t size);
 extern int extract_status_code(char *buffer, size_t size);
 extern char *extract_html(char *buffer, size_t size_buffer);
 

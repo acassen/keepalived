@@ -89,4 +89,7 @@ extern char *make_syslog_ident(const char*);
 
 extern void stop_keepalived(void);
 extern int keepalived_main(int, char**); /* The "real" main function */
+
+extern unsigned child_wait_time;
+
 #endif

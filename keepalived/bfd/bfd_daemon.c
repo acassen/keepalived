@@ -73,10 +73,6 @@ stop_bfd(int status)
 	free_bfd_buffer();
 	thread_destroy_master(master);
 
-#ifdef _DEBUG_
-	keepalived_free_final("BFD Child process");
-#endif
-
 	/*
 	 * Reached when terminate signal catched.
 	 * finally return to parent process.
@@ -90,8 +86,8 @@ stop_bfd(int status)
 #ifndef _MEM_CHECK_LOG_
 	FREE_PTR(bfd_syslog_ident);
 #else
-        if (bfd_syslog_ident)
-                free(bfd_syslog_ident);
+	if (bfd_syslog_ident)
+		free(bfd_syslog_ident);
 #endif
 	close_std_fd();
 
@@ -214,6 +210,7 @@ reload_bfd_thread(__attribute__((unused)) thread_t * thread)
 	return 0;
 }
 
+#ifndef _DEBUG_
 /* BFD Child respawning thread */
 static int
 bfd_respawn_thread(thread_t * thread)
@@ -242,6 +239,7 @@ bfd_respawn_thread(thread_t * thread)
 	}
 	return 0;
 }
+#endif
 
 int
 start_bfd_child(void)
@@ -307,7 +305,7 @@ start_bfd_child(void)
 	signal_handler_destroy();
 
 #ifdef _MEM_CHECK_
-	mem_log_init(PROG_CHECK, "BFD child process");
+	mem_log_init(PROG_BFD, "BFD child process");
 #endif
 
 	free_parent_mallocs_startup(true);
@@ -340,11 +338,17 @@ start_bfd_child(void)
 	 */
 	UNSET_RELOAD;
 
+#ifndef _DEBUG_
 	/* Signal handling initialization */
 	bfd_signal_init();
+#endif
 
 	/* Start BFD daemon */
 	start_bfd();
+
+#ifdef _DEBUG_
+	return 0;
+#else
 
 	/* Launch the scheduling I/O multiplexer */
 	launch_scheduler();
@@ -354,4 +358,5 @@ start_bfd_child(void)
 
 	/* unreachable */
 	exit(EXIT_SUCCESS);
+#endif
 }

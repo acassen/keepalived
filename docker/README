@@ -60,3 +60,6 @@ before the RUN line.
 
 To change the command line options that keepalived is run with,
 edit image/service/keepalived/process.sh
+
+https://github.com/acassen/keepalived/issues/758 has another example
+of building a docker image.

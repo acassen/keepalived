@@ -87,9 +87,9 @@ dynamic_interfaces_handler(__attribute__((unused))vector_t *strvec)
 	global_data->dynamic_interfaces = true;
 }
 static void
-email_faults_handler(__attribute__((unused))vector_t *strvec)
+no_email_faults_handler(__attribute__((unused))vector_t *strvec)
 {
-	global_data->email_faults = true;
+	global_data->no_email_faults = true;
 }
 #endif
 static void
@@ -977,6 +977,24 @@ script_security_handler(__attribute__((unused)) vector_t *strvec)
 	script_security = true;
 }
 
+static void
+child_wait_handler(vector_t *strvec)
+{
+	char *endptr;
+	unsigned long secs;
+
+	if (!strvec)
+		return;
+
+	secs = strtoul(strvec_slot(strvec,1), &endptr, 10);
+	if (*endptr) {
+		log_message(LOG_INFO, "Invalid child_wait_time %s", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+
+	child_wait_time = secs;
+}
+
 void
 init_global_keywords(bool global_active)
 {
@@ -988,6 +1006,7 @@ init_global_keywords(bool global_active)
 #endif
 	install_keyword_root("use_pid_dir", &use_pid_dir_handler, !global_active);
 	install_keyword_root("instance", &instance_handler, !global_active);
+	install_keyword_root("child_wait_time", &child_wait_handler, !global_active);
 	install_keyword_root("global_defs", NULL, global_active);
 	install_keyword("router_id", &routerid_handler);
 	install_keyword("notification_email_from", &emailfrom_handler);
@@ -1004,7 +1023,7 @@ init_global_keywords(bool global_active)
 #endif
 #ifdef _WITH_VRRP_
 	install_keyword("dynamic_interfaces", &dynamic_interfaces_handler);
-	install_keyword("email_faults", &email_faults_handler);
+	install_keyword("no_email_faults", &no_email_faults_handler);
 	install_keyword("default_interface", &default_interface_handler);
 #endif
 #ifdef _WITH_LVS_

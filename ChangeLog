@@ -1,3 +1,86 @@
+2018-01-27 Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.4.1 released.
+	* Improve and fix use of getopt_long().
+	  We musn't use a long option val of 1, since getopt_long() can return
+	  that value.
+	  getopt_long() also returns longindex == 0 when there is no matching
+	  long option, and there needs to be careful checking if there is an
+	  error to work out whether a long or short option was used, which is
+	  needed for meaningful error messages.
+	* Write assert() messages to syslog.
+	  assert()s are nasty things, but at least let's get the benefit of
+	  them, and write the messages to syslog, rather than losing them down
+	  stderr.
+	* Enable sorry server at startup if quorum down due to alpha mode
+	  If alpha mode is configured on sufficient checkers so that a
+	  virtual server doesn't have a quorum, we need to add the sorry
+	  server at startup, otherwise it won't be added until a quorum has
+	  been achieved and subsequently lost again. In the case where some
+	  of the checkers remain in the down state at startup, this would have
+	  meant that the sorry server never got added.
+	* For virtual servers, ensure quorum <= number of real servers
+	  If the quorum were gigher than the number of real servers, the
+	  quorum for the real server to come up could never be achieved, so
+	  if the quorum is greater than the number of real servers, reduce it
+	  to the number of real servers.
+	* Fix some SNMP keepalived checker integer types and default values.
+	  Some virtual server and real server values were being sent to SNMP
+	  with a signed type whereas the value is unsigned, so set the type
+	  field correctly.
+	  Some virtual server and real server values that apply to checkers
+	  are set to nonsense default values in order to determine if a
+	  value has been specified. Handle these values when reporting them
+	  to SNMP replying with 0 rather than a nonsense value.
+	* Fix some MALLOC/FREE issues with notify FIFOs.
+	*  Add instance_name/config_id to alert emails' subjects if configured.
+	  If multiple instances of keepalived are running, either different
+	  instance_names and/or config_ids, it is useful to know which
+	  keepalived instance the email relates to.
+	* Ensure that email body string isn't unterminated.
+	  Using strncpy() needs to ensure that there is a nul termination byte,
+	  so this commits adds always writing a nul byte to the end of the buffer.
+	* Remove duplicate fault notification.
+	* Fix problem with scripts found via PATH with a '/' in parameters.
+	  Recent discussions on issue #101 led to discovering that if an
+	  executable without a fully qualified name was specified as a script
+	  and there was a '/' character in the parameters, then the path
+	  resolution would not work.
+	* Send SNMP traps when go from backup to fault due to sync group.
+	  Commit 020a9ab added executing notify_fault for vrrp instances
+	  transitioning from backup to fault state due to another instance
+	  in the sync group going to fault state. This commit adds sending
+	  SNMP traps in the same circumstance.
+	* Revert "Add instance_name/config_id to alert emails' subjects if
+	  configured". This should be handled by setting router_id
+	* Add config option to send smtp-alerts to file rather than send emails
+	  This is useful for debugging purposes.
+	* Add additional entry to Travis-CI build matrix.
+	* Fix segfault if no sorry server configured for a virtual server.
+	  Issue #751 identified a segfault in vs_end_handler(), and it
+	  transpires that the forwarding method of the sorry server was being
+	  checked without first testing that a sorry server had been configured.
+	* Improve the log message when a master receives higher priority advert.
+	  The log message reported in issue #754
+	  "VRRP_Instance(VI_1) Received advert with higher priority 253, ours 253"
+	  is somewhat misleading since 253 == 253.
+	  This commit improves the log message in this case be reporting that
+	  the sender's IP address is higher and the priority is equal. It also
+	  states the it was a master receiving the advert.
+	* First stage of making --enable-debug work
+	  Issue #582 identified that compiling with --enable-debug produced
+	  an executable that didn't work.
+	  This commit largely makes that option work, but there needs to be
+	  more work to make signals work.
+	* Generalise handling of signals.
+	* Don't assume json header files are in /usr/include/json-c
+	  Use pkg-config to find the location of the json header files
+	  when testing for the presence of the header files in configure.
+	* Add file updated by configure.ac change.
+	* Log more helpful message when healthchecker activated or suspended
+	  Include the realserver in the log message
+	* Fix building with musl libc.
+	* fix spelling mistakes about keyword promote_secondaries in man page.
+
 2017-12-29 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.4.0 released.
 	* Add Linux build and runtime versions to -v output.

@@ -97,6 +97,7 @@ free_vgroup(void *data)
 	free_notify_script(&vgroup->script_backup);
 	free_notify_script(&vgroup->script_master);
 	free_notify_script(&vgroup->script_fault);
+	free_notify_script(&vgroup->script_stop);
 	free_notify_script(&vgroup->script);
 	FREE(vgroup);
 }
@@ -143,6 +144,7 @@ dump_vgroup(void *data)
 	dump_notify_script(vgroup->script_backup, "Backup");
 	dump_notify_script(vgroup->script_master, "Master");
 	dump_notify_script(vgroup->script_fault, "Fault");
+	dump_notify_script(vgroup->script_stop, "Stop");
 	dump_notify_script(vgroup->script, "Generic");
 }
 

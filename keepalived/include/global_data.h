@@ -77,7 +77,7 @@ typedef struct _data {
 	int				smtp_alert;
 #ifdef _WITH_VRRP_
 	bool				dynamic_interfaces;
-	bool				email_faults;
+	bool				no_email_faults;
 	int				smtp_alert_vrrp;
 	interface_t			*default_ifp;		/* Default interface for static addresses */
 #endif

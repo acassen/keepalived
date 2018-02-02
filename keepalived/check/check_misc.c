@@ -445,10 +445,11 @@ misc_check_child_thread(thread_t * thread)
 					    , misck_checker->script.args[0]
 					    , script_exit_type);
 
-		snprintf(message, sizeof(message), "=> MISC CHECK %s on service <=", script_exit_type);
-		if (checker->rs->smtp_alert)
+		if (checker->rs->smtp_alert) {
+			snprintf(message, sizeof(message), "=> MISC CHECK %s on service <=", script_exit_type);
 			smtp_alert(SMTP_MSG_RS, checker,
 				   script_success ? "UP" : "DOWN", message);
+		}
 		update_svr_checker_state(script_success ? UP : DOWN, checker);
 	}
 

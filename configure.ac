@@ -463,6 +463,19 @@ AC_CHECK_FUNCS([signalfd], [add_system_opt([SIGNALFD])])
 dnl - inotify_init1() since Linux 2.6.27
 AC_CHECK_FUNCS([inotify_init1], [add_system_opt([INOTIFY_INIT1])])
 
+# glibc uses unsigned int as 3rd parameter to __assert_fail(), musl uses int.
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+  #include <assert.h>
+  #include <stdlib.h>
+
+  void __assert_fail(const char * a, const char *b, unsigned int l, const char *c)
+  {
+    exit(a[0] + b[0] + c[0] + l == 0);
+  }
+  ]])],
+  [LINE_type="unsigned int"], [LINE_type="int"])
+AC_DEFINE_UNQUOTED([LINE_type], [ $LINE_type ], [The type of parameter __line passed to __assert_fail()])
+
 dnl - Do we want to override dynamic/static linking?
 if test -n "$enable_dynamic_linking"; then
   enable_libiptc_dynamic=$enable_dynamic_linking
@@ -1109,7 +1122,11 @@ if test "$enable_vrrp" != no; then
 
   dnl ----[ Json output or not ? ]----
   if test "${enable_json}" = yes; then
-    AC_CHECK_HEADERS(json-c/json.h,,AC_MSG_ERROR([unable to find json-c/json.h]))
+    JSON_HEADERS=$($PKG_CONFIG --cflags-only-I json-c)
+    SAV_CPPFLAGS="$CPPFLAGS"
+    CPPFLAGS="$CPPFLAGS $JSON_HEADERS"
+    AC_CHECK_HEADERS(json.h,,AC_MSG_ERROR([unable to find json.h]))
+    CPPFLAGS="$SAV_CPPFLAGS"
     AC_DEFINE([_WITH_JSON_], [ 1 ], [Define to 1 to build with json output support])
     add_pkg_config([json-c])
     ENABLE_JSON=Yes

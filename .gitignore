@@ -33,6 +33,9 @@ stamp-h?
 
 .deps/
 
+/tmp/
+/devel/
+
 # To be able to build without automake/autoconf comment out the following
 # lib/config.h.in
 # Makefile.in

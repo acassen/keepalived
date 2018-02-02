@@ -371,9 +371,8 @@ dump_global_data(data_t * data)
 #endif
 #ifdef _WITH_VRRP_
 	log_message(LOG_INFO, " Dynamic interfaces = %s", data->dynamic_interfaces ? "true" : "false");
-	if (data->email_faults)
-		log_message(LOG_INFO, " Send emails for fault transitions = %s"
-				    , data->email_faults ? "true" : "false");
+	if (data->no_email_faults)
+		log_message(LOG_INFO, " Send emails for fault transitions = off");
 #endif
 #ifdef _WITH_LVS_
 	if (data->lvs_tcp_timeout)

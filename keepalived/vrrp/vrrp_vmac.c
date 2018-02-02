@@ -312,7 +312,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		 * eVIPs, so disable it if not needed */
 		if (!vrrp->evip_add_ipv6)
 			link_set_ipv6(ifp, false);
-		else if (!create_interface && vrrp->evip_add_ipv6) {
+		else if (!create_interface) {
 			/* If we didn't create the VMAC we don't know what state it is in */
 			link_set_ipv6(ifp, true);
 		}

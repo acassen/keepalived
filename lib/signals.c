@@ -48,27 +48,38 @@
 #include "../keepalived/include/vrrp_json.h"
 #endif
 
-/* Local Vars */
-static void (*signal_SIGHUP_handler) (void *, int sig);
-static void *signal_SIGHUP_v;
-static void (*signal_SIGINT_handler) (void *, int sig);
-static void *signal_SIGINT_v;
-static void (*signal_SIGTERM_handler) (void *, int sig);
-static void *signal_SIGTERM_v;
-static void (*signal_SIGCHLD_handler) (void *, int sig);
-static void *signal_SIGCHLD_v;
-static void (*signal_SIGUSR1_handler) (void *, int sig);
-static void *signal_SIGUSR1_v;
-static void (*signal_SIGUSR2_handler) (void *, int sig);
-static void *signal_SIGUSR2_v;
-#if HAVE_DECL_RLIMIT_RTTIME == 1
-static void (*signal_SIGXCPU_handler) (void *, int sig);
-static void *signal_SIGXCPU_v;
-#endif
 #ifdef _WITH_JSON_
-static void (*signal_SIGJSON_handler) (void *, int sig);
-static void *signal_SIGJSON_v;
+  /* We need to include the realtime signals, but
+   * unfortunately SIGRTMIN/SIGRTMAX are not constants.
+   * I'm not clear if _NSIG is always defined, so play safe.
+   * Although we are not meant to use __SIGRTMAX, we are
+   * using it here as an upper bound, which is eather different. */
+  #ifdef _NSIG
+    #define SIG_MAX	_NSIG
+  #elif defined __SIGRTMAX
+    #define SIG_MAX __SIGRTMAX
+  #else
+    #define SIG_MAX 64
+  #endif
+#else
+  /* The signals currently used are HUP, INT, TERM, USR1,
+   * USR2, CHLD and XCPU. */
+  #if SIGCHLD > SIGUSR2
+    /* Architectures except alpha and sparc - see signal(7) */
+    #if HAVE_DECL_RLIMIT_RTTIME == 1
+      #define SIG_MAX SIGXCPU
+    #else
+      #define SIG_MAX SIGUSR2
+    #endif
+  #else
+    /* alpha and sparc */
+    #define SIG_MAX SIGUSR2
+  #endif
 #endif
+
+/* Local Vars */
+static void (*signal_handler_func[SIG_MAX]) (void *, int sig);
+static void *signal_v[SIG_MAX];
 
 #ifdef HAVE_SIGNALFD
 static int signal_fd = -1;
@@ -108,6 +119,9 @@ static void
 log_sigxcpu(__attribute__((unused)) void * ptr, __attribute__((unused)) int signum)
 {
 	log_message(LOG_INFO, "%s process has used too much CPU time, %s_rlimit_rtime may need to be increased",
+#ifdef _DEBUG_
+		    "Main debug",
+#else
 #ifdef _WITH_VRRP_
 		    prog_type == PROG_TYPE_VRRP ? "VRRP" :
 #endif
@@ -118,6 +132,10 @@ log_sigxcpu(__attribute__((unused)) void * ptr, __attribute__((unused)) int sign
 		    prog_type == PROG_TYPE_BFD ? "BFD" :
 #endif
 		    "Unknown",
+#endif
+#ifdef _DEBUG_
+		    "UNDEFINED"
+#else
 #ifdef _WITH_VRRP_
 		    prog_type == PROG_TYPE_VRRP ? "vrrp" :
 #endif
@@ -127,7 +145,9 @@ log_sigxcpu(__attribute__((unused)) void * ptr, __attribute__((unused)) int sign
 #ifdef _WITH_BFD_
 		    prog_type == PROG_TYPE_BFD ? "bfd" :
 #endif
-		    "Unknown");
+		    "Unknown"
+#endif
+		    );
 }
 #endif
 
@@ -250,46 +270,8 @@ signal_set(int signo, void (*func) (void *, int), void *v)
 	ret = sigaction(signo, &sig, &osig);
 #endif
 
-	switch(signo) {
-	case SIGHUP:
-		signal_SIGHUP_handler = func;
-		signal_SIGHUP_v = v;
-		break;
-	case SIGINT:
-		signal_SIGINT_handler = func;
-		signal_SIGINT_v = v;
-		break;
-	case SIGTERM:
-		signal_SIGTERM_handler = func;
-		signal_SIGTERM_v = v;
-		break;
-	case SIGCHLD:
-		signal_SIGCHLD_handler = func;
-		signal_SIGCHLD_v = v;
-		break;
-	case SIGUSR1:
-		signal_SIGUSR1_handler = func;
-		signal_SIGUSR1_v = v;
-		break;
-	case SIGUSR2:
-		signal_SIGUSR2_handler = func;
-		signal_SIGUSR2_v = v;
-		break;
-#if HAVE_DECL_RLIMIT_RTTIME == 1
-	case SIGXCPU:
-		signal_SIGXCPU_handler = func;
-		signal_SIGXCPU_v = v;
-		break;
-#endif
-#ifdef _WITH_JSON_
-	default:
-		if (signo == SIGJSON) {
-			signal_SIGJSON_handler = func;
-			signal_SIGJSON_v = v;
-			break;
-		}
-#endif
-	}
+	signal_handler_func[signo-1] = func;
+	signal_v[signo-1] = v;
 
 #ifndef HAVE_SIGNALFD
 	if (ret < 0)
@@ -311,18 +293,10 @@ signal_ignore(int signo)
 static void
 clear_signal_handler_addresses(void)
 {
-	signal_SIGHUP_handler = NULL;
-	signal_SIGINT_handler = NULL;
-	signal_SIGTERM_handler = NULL;
-	signal_SIGCHLD_handler = NULL;
-	signal_SIGUSR1_handler = NULL;
-	signal_SIGUSR2_handler = NULL;
-#if HAVE_DECL_RLIMIT_RTTIME == 1
-	signal_SIGXCPU_handler = NULL;
-#endif
-#ifdef _WITH_JSON_
-	signal_SIGJSON_handler = NULL;
-#endif
+	int i;
+
+	for (i = 0; i < SIG_MAX; i++)
+		signal_handler_func[i] = NULL;
 }
 
 /* Handlers intialization */
@@ -489,61 +463,17 @@ signal_rfd(void)
 void
 signal_run_callback(void)
 {
+	int sig;
 #ifdef HAVE_SIGNALFD
 	struct signalfd_siginfo siginfo;
 
 	while(read(signal_fd, &siginfo, sizeof(struct signalfd_siginfo)) == sizeof(struct signalfd_siginfo)) {
-		switch(siginfo.ssi_signo) {
+		sig = siginfo.ssi_signo;
 #else
-	int sig;
-
 	while(read(signal_pipe[0], &sig, sizeof(int)) == sizeof(int)) {
-		switch(sig) {
 #endif
-		case SIGHUP:
-			if (signal_SIGHUP_handler)
-				signal_SIGHUP_handler(signal_SIGHUP_v, SIGHUP);
-			break;
-		case SIGINT:
-			if (signal_SIGINT_handler)
-				signal_SIGINT_handler(signal_SIGINT_v, SIGINT);
-			break;
-		case SIGTERM:
-			if (signal_SIGTERM_handler)
-				signal_SIGTERM_handler(signal_SIGTERM_v, SIGTERM);
-			break;
-		case SIGCHLD:
-			if (signal_SIGCHLD_handler)
-				signal_SIGCHLD_handler(signal_SIGCHLD_v, SIGCHLD);
-			break;
-		case SIGUSR1:
-			if (signal_SIGUSR1_handler)
-				signal_SIGUSR1_handler(signal_SIGUSR1_v, SIGUSR1);
-			break;
-		case SIGUSR2:
-			if (signal_SIGUSR2_handler)
-				signal_SIGUSR2_handler(signal_SIGUSR2_v, SIGUSR2);
-			break;
-#if HAVE_DECL_RLIMIT_RTTIME == 1
-		case SIGXCPU:
-			if (signal_SIGXCPU_handler)
-				signal_SIGXCPU_handler(signal_SIGXCPU_v, SIGXCPU);
-			break;
-#endif
-		default:
-#ifdef _WITH_JSON_
-#ifdef HAVE_SIGNALFD
-			if ((int)siginfo.ssi_signo == SIGJSON) {
-#else
-			if (sig == SIGJSON) {
-#endif
-				if (signal_SIGJSON_handler)
-					signal_SIGJSON_handler(signal_SIGJSON_v, SIGJSON);
-				break;
-			}
-#endif
-			break;
-		}
+		if (sig >= 1 && sig <= SIG_MAX && signal_handler_func[sig-1])
+			signal_handler_func[sig-1](signal_v[sig-1], sig);
 	}
 }
 

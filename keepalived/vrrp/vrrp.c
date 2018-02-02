@@ -1869,11 +1869,17 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 
 	if (hd->priority > vrrp->effective_priority ||
 	    (hd->priority == vrrp->effective_priority && addr_cmp > 0)) {
-		log_message(LOG_INFO, "(%s) Received advert from %s with higher priority %d, ours %d",
-					vrrp->iname,
-					inet_sockaddrtos(&vrrp->pkt_saddr),
-					hd->priority,
-					vrrp->effective_priority);
+		if (hd->priority > vrrp->effective_priority)
+			log_message(LOG_INFO, "(%s) Master received advert from %s with higher priority %d, ours %d",
+						vrrp->iname,
+						inet_sockaddrtos(&vrrp->pkt_saddr),
+						hd->priority,
+						vrrp->effective_priority);
+		else
+			log_message(LOG_INFO, "(%s) Master received advert from %s with same priority %d but higher IP address than ours",
+						vrrp->iname,
+						inet_sockaddrtos(&vrrp->pkt_saddr),
+						hd->priority);
 #ifdef _WITH_VRRP_AUTH_
 		if (proto == IPPROTO_AH) {
 			ah = (ipsec_ah_t *) (buf + sizeof(struct iphdr));
@@ -2218,7 +2224,6 @@ restore_vrrp_interfaces(void)
 void
 shutdown_vrrp_instances(void)
 {
-	list l = vrrp_data->vrrp;
 	element e;
 	vrrp_t *vrrp;
 
@@ -2226,9 +2231,7 @@ shutdown_vrrp_instances(void)
 	restore_rp_filter();
 #endif
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
-
+	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
 		/* We may not have an ifp if we are aborting at startup */
 		if (vrrp->ifp) {
 #ifdef _HAVE_VRRP_VMAC_
@@ -2242,12 +2245,6 @@ shutdown_vrrp_instances(void)
 			if (vrrp->ifp->reset_promote_secondaries)
 				reset_promote_secondaries(vrrp->ifp);
 		}
-
-		/* Run stop script */
-		if (vrrp->script_stop)
-			notify_exec(vrrp->script_stop);
-
-		notify_instance_fifo(vrrp, VRRP_STATE_STOP);
 
 #ifdef _WITH_LVS_
 		/*
