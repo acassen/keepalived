@@ -144,7 +144,7 @@ void
 install_keyword_root(const char *string, void (*handler) (vector_t *), bool active)
 {
 	/* If the root keyword is inactive, the handler will still be called,
-	 * but with a NUMM strvec */
+	 * but with a NULL strvec */
 	keyword_alloc(keywords, string, handler, active);
 }
 

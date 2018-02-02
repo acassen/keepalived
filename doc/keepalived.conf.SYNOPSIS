@@ -388,6 +388,9 @@ use_pid_dir                                   # Create pid files in /var/run/kee
 
 linkbeat_use_polling                          # Use media link failure detection polling fashion
 
+child_wait_time SECS                          # Time for main process to allow for child processes to exit on termination
+                                              #   in seconds (default 5). This can be needed for very large configurations.
+
     1.2. Static addresses
 
     The configuration block looks like :

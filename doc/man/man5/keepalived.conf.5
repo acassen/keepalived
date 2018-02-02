@@ -425,6 +425,9 @@ and
 
  linkbeat_use_polling         # Poll to detect media link failure otherwise attempt to use ETHTOOL or MII interface
 
+ child_wait_time SECS         # Time for main process to allow for child processes to exit on termination
+                              #   in seconds (default 5). This can be needed for very large configurations.
+
 .SH Static routes/addresses/rules
 .PP
 Keepalived can configure static addresses, routes, and rules. These addresses are
