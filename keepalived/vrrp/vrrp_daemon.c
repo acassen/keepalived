@@ -209,7 +209,6 @@ static void
 start_vrrp(void)
 {
 	/* Initialize sub-system */
-	init_interface_queue();
 	kernel_netlink_init();
 	gratuitous_arp_init();
 	ndisc_init();

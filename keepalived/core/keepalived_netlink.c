@@ -346,65 +346,6 @@ netlink_close(nl_handle_t *nl)
 #endif
 }
 
-#ifdef _WITH_VRRP_
-/* Set netlink socket channel as blocking */
-static int
-netlink_set_block(nl_handle_t *nl, int *flags)
-{
-	if ((*flags = fcntl(nl->fd, F_GETFL, 0)) < 0) {
-		log_message(LOG_INFO, "Netlink: Cannot F_GETFL socket : (%s)",
-		       strerror(errno));
-		return -1;
-	}
-	*flags &= ~O_NONBLOCK;
-	if (fcntl(nl->fd, F_SETFL, *flags) < 0) {
-		log_message(LOG_INFO, "Netlink: Cannot F_SETFL socket : (%s)",
-		       strerror(errno));
-		return -1;
-	}
-	return 0;
-}
-
-/* Set netlink socket channel as non-blocking */
-static int
-netlink_set_nonblock(nl_handle_t *nl,
-#ifdef _HAVE_LIBNL3_
-				     __attribute__((unused))
-#endif
-							     int *flags)
-{
-#ifdef _HAVE_LIBNL3_
-#ifdef _LIBNL_DYNAMIC_
-	if (use_nl)
-#endif
-	{
-		int ret;
-
-		if ((ret = nl_socket_set_nonblocking(nl->sk)) < 0 ) {
-			log_message(LOG_INFO, "Netlink: Cannot set nonblocking : (%s)",
-				strerror(ret));
-			return -1;
-		}
-	}
-#endif
-#if !defined _HAVE_LIBNL3_ || defined _LIBNL_DYNAMIC_
-#if defined _HAVE_LIBNL3_ && defined _LIBNL_DYNAMIC_
-	else
-#endif
-	{
-		*flags |= O_NONBLOCK;
-		if (fcntl(nl->fd, F_SETFL, *flags) < 0) {
-			log_message(LOG_INFO, "Netlink: Cannot F_SETFL socket : (%s)",
-			       strerror(errno));
-			return -1;
-		}
-	}
-#endif
-
-	return 0;
-}
-#endif
-
 /* iproute2 utility function */
 int
 addattr_l(struct nlmsghdr *n, size_t maxlen, unsigned short type, void *data, size_t alen)
@@ -922,14 +863,20 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 				break;
 			if (errno == ENOBUFS) {
 				/* It appears the if we add a large number of interfaces, then
-				 * within a few seconds of starting up the kernel can decide to
-				 * notify us again of all the new interfaces (or it may have something
-				 * to do with becoming master). In any event, if we add a
-				 * kernel_netlink_poll() at every stage of the process, we suddenly
-				 * go from having nothing to receive on nl_kernel to ENOBUFS. Since it
+				 * while adding the interfaces the kernel can decide suddenly to
+				 * notify us again of all the new interfaces, and this notification causes
+				 * us to receive ENOBUFS on the nl_kernel socket. Since it
 				 * relates to the interfaces, and we have already got the information
-				 * about the interfaces, it appears that we aren't losing any useful info. */
-				log_message(LOG_INFO, "Netlink: Received message overrun - (%m)");
+				 * about the interfaces, it appears that we aren't losing any useful information.
+				 *
+				 * Running "ip monitor addr link route" we can see that it also get all
+				 * the link messages again, but somehow if doesn't suffer a buffer overrun.
+				 * This problem feels as though a circular buffer is wrapping around, and causes
+				 * all the old messages in the buffer to be resent, but the first one is omitted.
+				 * Note that it is only the interfaces that keepalived creates that are resent,
+				 * not interfaces that already existed on the system before keepalived starts. */
+
+				log_message(LOG_INFO, "Netlink: Receive buffer overrun - (%m)");
 			}
 			else
 				log_message(LOG_INFO, "Netlink: recvmsg error - %d (%m)", errno);
@@ -1041,8 +988,8 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 static int
 netlink_talk_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlmsghdr *h)
 {
-	log_message(LOG_INFO, "Netlink: ignoring message type 0x%04x",
-	       h->nlmsg_type);
+	log_message(LOG_INFO, "Netlink: ignoring message type 0x%04x", h->nlmsg_type);
+
 	return 0;
 }
 
@@ -1051,7 +998,6 @@ ssize_t
 netlink_talk(nl_handle_t *nl, struct nlmsghdr *n)
 {
 	ssize_t status;
-	int ret, flags;
 	struct sockaddr_nl snl;
 	struct iovec iov = {
 		.iov_base = n,
@@ -1078,22 +1024,13 @@ netlink_talk(nl_handle_t *nl, struct nlmsghdr *n)
 	/* Send message to netlink interface. */
 	status = sendmsg(nl->fd, &msg, 0);
 	if (status < 0) {
-		log_message(LOG_INFO, "Netlink: sendmsg() error: %s",
+		log_message(LOG_INFO, "Netlink: sendmsg(%d) error: %s", nl->fd,
 		       strerror(errno));
 		return -1;
 	}
 
-	/* Set blocking flag */
-	ret = netlink_set_block(nl, &flags);
-	if (ret < 0)
-		log_message(LOG_INFO, "Netlink: Warning, couldn't set "
-		       "blocking flag to netlink socket...");
-
 	status = netlink_parse_info(netlink_talk_filter, nl, n, false);
 
-	/* Restore previous flags */
-	if (ret == 0)
-		netlink_set_nonblock(nl, &flags);
 	return status;
 }
 #endif
@@ -1347,22 +1284,11 @@ netlink_if_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 int
 netlink_interface_lookup(char *name)
 {
-	nl_handle_t nlh;
-	int status = 0;
-
-	if (netlink_socket(&nlh, 0, 0) < 0)
+	/* Interface lookup */
+	if (netlink_request(&nl_cmd, AF_PACKET, RTM_GETLINK, name) < 0)
 		return -1;
 
-	/* Interface lookup */
-	if (netlink_request(&nlh, AF_PACKET, RTM_GETLINK, name) < 0) {
-		status = -1;
-		goto end_int;
-	}
-	status = netlink_parse_info(netlink_if_link_filter, &nlh, NULL, false);
-
-end_int:
-	netlink_close(&nlh);
-	return status;
+	return netlink_parse_info(netlink_if_link_filter, &nl_cmd, NULL, false);
 }
 #endif
 
@@ -1370,29 +1296,20 @@ end_int:
 static int
 netlink_address_lookup(void)
 {
-	nl_handle_t nlh;
-	int status = 0;
-
-	if (netlink_socket(&nlh, 0, 0) < 0)
-		return -1;
+	int status;
 
 	/* IPv4 Address lookup */
-	if (netlink_request(&nlh, AF_INET, RTM_GETADDR, NULL) < 0) {
-		status = -1;
-		goto end_addr;
-	}
-	status = netlink_parse_info(netlink_if_address_filter, &nlh, NULL, false);
+	if (netlink_request(&nl_cmd, AF_INET, RTM_GETADDR, NULL) < 0)
+		return -1;
+
+	if ((status = netlink_parse_info(netlink_if_address_filter, &nl_cmd, NULL, false)))
+		return status;
 
 	/* IPv6 Address lookup */
-	if (netlink_request(&nlh, AF_INET6, RTM_GETADDR, NULL) < 0) {
-		status = -1;
-		goto end_addr;
-	}
-	status = netlink_parse_info(netlink_if_address_filter, &nlh, NULL, false);
+	if (netlink_request(&nl_cmd, AF_INET6, RTM_GETADDR, NULL) < 0)
+		return -1;
 
-end_addr:
-	netlink_close(&nlh);
-	return status;
+	return netlink_parse_info(netlink_if_address_filter, &nl_cmd, NULL, false);
 }
 
 #ifdef _WITH_VRRP_
@@ -1620,15 +1537,12 @@ kernel_netlink_poll(void)
 void
 kernel_netlink_init(void)
 {
-	/* Start with a netlink address lookup */
-	netlink_address_lookup();
-
 	/*
 	 * Prepare netlink kernel broadcast channel
 	 * subscription. We subscribe to LINK, ADDR,
 	 * and ROUTE netlink broadcast messages, but
 	 * the checker process does not need the
-	 * route messages.
+	 * route or link messages.
 	 */
 	/* TODO
 	 * If an interface goes down, or an address is removed, any routes that specify the interface or address are deleted.
@@ -1670,14 +1584,18 @@ kernel_netlink_init(void)
 	if (prog_type == PROG_TYPE_VRRP)
 #endif
 	{
-		/* Prepare netlink command channel. */
-		netlink_socket(&nl_cmd, SOCK_NONBLOCK, 0);
+		/* Prepare netlink command channel. The cmd socket is used synchronously.*/
+		netlink_socket(&nl_cmd, 0, 0);
 		if (nl_cmd.fd > 0)
 			log_message(LOG_INFO, "Registering Kernel netlink command channel");
 		else
 			log_message(LOG_INFO, "Error while registering Kernel netlink cmd channel");
 	}
 #endif
+
+	/* Start with netlink interface and address lookup */
+	init_interface_queue();
+	netlink_address_lookup();
 }
 
 void
