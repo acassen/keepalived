@@ -690,12 +690,14 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 		sigmask_func(SIG_UNBLOCK, &child_wait, NULL);
 #endif
 }
+#endif
 
 /* Initialize signal handler */
 static void
 signal_init(void)
 {
 	signal_handler_init();
+#ifndef _DEBUG_
 	signal_set(SIGHUP, propogate_signal, NULL);
 	signal_set(SIGUSR1, propogate_signal, NULL);
 	signal_set(SIGUSR2, propogate_signal, NULL);
@@ -704,9 +706,9 @@ signal_init(void)
 #endif
 	signal_set(SIGINT, sigend, NULL);
 	signal_set(SIGTERM, sigend, NULL);
+#endif
 	signal_ignore(SIGPIPE);
 }
-#endif
 
 /* To create a core file when abrt is running (a RedHat distribution),
  * and keepalived isn't installed from an RPM package, edit the file
@@ -1416,10 +1418,8 @@ keepalived_main(int argc, char **argv)
 	if (!pidfile_write(main_pidfile, getpid()))
 		goto end;
 
-#ifndef _DEBUG_
 	/* Signal handling initialization  */
 	signal_init();
-#endif
 
 	/* Create the master thread */
 	master = thread_make_master();
