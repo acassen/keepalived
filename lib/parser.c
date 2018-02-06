@@ -967,66 +967,6 @@ read_line(char *buf, size_t size)
 	return !eof;
 }
 
-vector_t *
-read_value_block(vector_t *strvec)
-{
-	char *buf;
-	unsigned int word;
-	char *str = NULL;
-	char *dup;
-	vector_t *vec = NULL;
-	vector_t *elements = vector_alloc();
-	bool first = true;
-	bool need_bob = true;
-	bool got_eob = false;
-
-	buf = (char *) MALLOC(MAXBUF);
-	while (first || read_line(buf, MAXBUF)) {
-		if (first) {
-			first = false;
-			if (vector_size(strvec) <= 1)
-				continue;
-			vec = strvec;
-			word = 1;
-		}
-		else {
-			vec = alloc_strvec(buf);
-			word = 0;
-		}
-		if (!vec)
-			continue;
-
-		if (need_bob) {
-			if (!strcmp(vector_slot(vec, word), BOB))
-				word++;
-			else
-				log_message(LOG_INFO, "'%s' missing at beginning of block %s", BOB, FMT_STR_VSLOT(strvec,0));
-			need_bob = false;
-		}
-
-		for (str = vector_slot(vec, word); word < vector_size(vec); word++) {
-			str = vector_slot(vec, word);
-			if (!strcmp(str, EOB)) {
-//				if (word != vector_size(vec) - 1)
-//					log_message(LOG_INFO, "Extra characters after '%s' - \"%s\"", EOB, buf);
-				got_eob = true;
-				break;
-			}
-			dup = (char *) MALLOC(strlen(str) + 1);
-			memcpy(dup, str, strlen(str));
-			vector_alloc_slot(elements);
-			vector_set_slot(elements, dup);
-		}
-		if (vec != strvec)
-			free_strvec(vec);
-		if (got_eob)
-			break;
-	}
-
-	FREE(buf);
-	return elements;
-}
-
 void
 alloc_value_block(void (*alloc_func) (vector_t *), const char *block_type)
 {
@@ -1061,6 +1001,38 @@ alloc_value_block(void (*alloc_func) (vector_t *), const char *block_type)
 		free_strvec(vec);
 	}
 	FREE(buf);
+}
+
+static vector_t *read_value_block_vec;
+void
+read_value_block_line(vector_t *strvec)
+{
+	size_t word;
+	char *str;
+	char *dup;
+
+	if (!read_value_block_vec)
+		read_value_block_vec = vector_alloc();
+
+	vector_foreach_slot(strvec, str, word) {
+		dup = (char *) MALLOC(strlen(str) + 1);
+		memcpy(dup, str, strlen(str));
+		vector_alloc_slot(read_value_block_vec);
+		vector_set_slot(read_value_block_vec, dup);
+	}
+}
+
+vector_t *
+read_value_block(vector_t *strvec)
+{
+	vector_t *ret_vec;
+
+	alloc_value_block(read_value_block_line, vector_slot(strvec,0));
+
+	ret_vec = read_value_block_vec;
+	read_value_block_vec = NULL;
+
+	return ret_vec;
 }
 
 void *
