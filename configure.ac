@@ -1507,3 +1507,9 @@ if test ${IPVS_SUPPORT} = Yes -a ${IPVS_USE_NL} = No; then
   echo "*** WARNING - this build will not support IPVS with IPv6. Please install libnl/libnl-3 dev libraries to support IPv6 with IPVS."
   echo
 fi
+
+if test ${ENABLE_DEBUG} = Yes; then
+  echo
+  echo "*** WARNING --enable-debug is only for debugging purposes and isn't expected to work properly"
+  echo
+fi

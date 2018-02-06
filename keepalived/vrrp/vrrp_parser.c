@@ -53,24 +53,24 @@ static bool remove_script;
 
 /* Static addresses handler */
 static void
-static_addresses_handler(__attribute__((unused)) vector_t *strvec)
+static_addresses_handler(vector_t *strvec)
 {
-	alloc_value_block(alloc_saddress);
+	alloc_value_block(alloc_saddress, vector_slot(strvec, 0));
 }
 
 #ifdef _HAVE_FIB_ROUTING_
 /* Static routes handler */
 static void
-static_routes_handler(__attribute__((unused)) vector_t *strvec)
+static_routes_handler(vector_t *strvec)
 {
-	alloc_value_block(alloc_sroute);
+	alloc_value_block(alloc_sroute, vector_slot(strvec, 0));
 }
 
 /* Static rules handler */
 static void
-static_rules_handler(__attribute__((unused)) vector_t *strvec)
+static_rules_handler(vector_t *strvec)
 {
-	alloc_value_block(alloc_srule);
+	alloc_value_block(alloc_srule, vector_slot(strvec, 0));
 }
 #endif
 
@@ -106,6 +106,7 @@ vrrp_sync_group_handler(vector_t *strvec)
 
 	alloc_vrrp_sync_group(gname);
 }
+
 static void
 vrrp_group_handler(vector_t *strvec)
 {
@@ -242,9 +243,9 @@ vrrp_vmac_xmit_base_handler(__attribute__((unused)) vector_t *strvec)
 }
 #endif
 static void
-vrrp_unicast_peer_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_unicast_peer_handler(vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_unicast_peer);
+	alloc_value_block(alloc_vrrp_unicast_peer, vector_slot(strvec, 0));
 }
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 static void
@@ -313,14 +314,14 @@ vrrp_int_handler(vector_t *strvec)
 	}
 }
 static void
-vrrp_track_int_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_track_int_handler(vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_track);
+	alloc_value_block(alloc_vrrp_track, vector_slot(strvec, 0));
 }
 static void
-vrrp_track_scr_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_track_scr_handler(vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_track_script);
+	alloc_value_block(alloc_vrrp_track_script, vector_slot(strvec, 0));
 }
 static void
 vrrp_dont_track_handler(__attribute__((unused)) vector_t *strvec)
@@ -665,14 +666,14 @@ vrrp_auth_pass_handler(vector_t *strvec)
 }
 #endif
 static void
-vrrp_vip_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_vip_handler(vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_vip);
+	alloc_value_block(alloc_vrrp_vip, vector_slot(strvec, 0));
 }
 static void
-vrrp_evip_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_evip_handler(vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_evip);
+	alloc_value_block(alloc_vrrp_evip, vector_slot(strvec, 0));
 }
 static void
 vrrp_promote_secondaries(__attribute__((unused)) vector_t *strvec)
@@ -683,14 +684,14 @@ vrrp_promote_secondaries(__attribute__((unused)) vector_t *strvec)
 }
 #ifdef _HAVE_FIB_ROUTING_
 static void
-vrrp_vroutes_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_vroutes_handler(vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_vroute);
+	alloc_value_block(alloc_vrrp_vroute, vector_slot(strvec, 0));
 }
 static void
-vrrp_vrules_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_vrules_handler(vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_vrule);
+	alloc_value_block(alloc_vrrp_vrule, vector_slot(strvec, 0));
 }
 #endif
 static void
@@ -837,7 +838,7 @@ garp_group_garp_interval_handler(vector_t *strvec)
 {
 	garp_delay_t *delay = LIST_TAIL_DATA(garp_delay);
 
-	delay->garp_interval.tv_usec = (useconds_t)atof(strvec_slot(strvec, 1)) * 1000000;
+	delay->garp_interval.tv_usec = (suseconds_t)(atof(strvec_slot(strvec, 1)) * 1000000);
 	delay->garp_interval.tv_sec = delay->garp_interval.tv_usec / 1000000;
 	delay->garp_interval.tv_usec %= 1000000;
 	delay->have_garp_interval = true;

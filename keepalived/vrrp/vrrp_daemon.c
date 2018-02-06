@@ -335,6 +335,7 @@ start_vrrp(void)
 		list ifl;
 
 		dump_global_data(global_data);
+		dump_list(garp_delay);
 		dump_vrrp_data(vrrp_data);
 		ifl = get_if_list();
 		if (!LIST_ISEMPTY(ifl))

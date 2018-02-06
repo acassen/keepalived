@@ -45,6 +45,15 @@
 
 #define DUMP_KEYWORDS	0
 
+#define MAXBUF  1024
+
+#define DEF_LINE_END	'\n'
+
+#define COMMENT_START_CHRS "!#"
+#define BOB "{"
+#define EOB "}"
+#define WHITE_SPACE " \t\f\n\r\v"
+
 typedef struct _defs {
 	char *name;
 	size_t name_len;
@@ -52,8 +61,6 @@ typedef struct _defs {
 	size_t value_len;
 	bool multiline;
 } def_t;
-
-#define DEF_LINE_END	'\n'
 
 /* global vars */
 vector_t *keywords;
@@ -234,39 +241,28 @@ alloc_strvec(char *string)
 	if (!string)
 		return NULL;
 
-	cp = string;
-
-	/* Skip white spaces */
-	while (isspace((int) *cp) && *cp != '\0')
-		cp++;
-
-	/* Return if there is only white spaces */
-	if (*cp == '\0')
-		return NULL;
-
-	/* Return if string begin with a comment */
-	if (*cp == '!' || *cp == '#')
-		return NULL;
-
 	/* Create a vector and alloc each command piece */
 	strvec = vector_alloc();
 
-	while (1) {
+	cp = string;
+	while (true) {
+		cp += strspn(cp, WHITE_SPACE);
+		if (!*cp || strchr(COMMENT_START_CHRS, *cp))
+			break;
+
 		start = cp;
 
-		/* Save a quoted string without the "s as a single string */
-		if (*cp == '"') {
+		/* Save a quoted string without the ""s as a single string */
+		if (*start == '"') {
 			start++;
 			if (!(cp = strchr(start, '"'))) {
 				log_message(LOG_INFO, "Unmatched quote: '%s'", string);
-				return strvec;
+				break;
 			}
 			str_len = (size_t)(cp - start);
 			cp++;
 		} else {
-			while (!isspace((int) *cp) && *cp != '\0' && *cp != '"'
-						   && *cp != '!' && *cp != '#')
-				cp++;
+			cp += strcspn(start, WHITE_SPACE COMMENT_START_CHRS "\"");
 			str_len = (size_t)(cp - start);
 		}
 		token = MALLOC(str_len + 1);
@@ -276,12 +272,14 @@ alloc_strvec(char *string)
 		/* Alloc & set the slot */
 		vector_alloc_slot(strvec);
 		vector_set_slot(strvec, token);
-
-		while (isspace((int) *cp) && *cp != '\0')
-			cp++;
-		if (*cp == '\0' || *cp == '!' || *cp == '#')
-			return strvec;
 	}
+
+	if (!vector_size(strvec)) {
+		free_strvec(strvec);
+		return NULL;
+	}
+
+	return strvec;
 }
 
 /* recursive configuration stream handler */
@@ -315,10 +313,9 @@ process_stream(vector_t *keywords_vec, int need_bob)
 				free_strvec(strvec);
 				continue;
 			}
-			else {
-				/* The skipped keyword doesn't have a {} block, so we no longer want to skip */
-				skip_sublevel = 0;
-			}
+
+			/* The skipped keyword doesn't have a {} block, so we no longer want to skip */
+			skip_sublevel = 0;
 		}
 		if (skip_sublevel) {
 			for (i = 0; i < vector_size(strvec); i++) {
@@ -342,10 +339,10 @@ process_stream(vector_t *keywords_vec, int need_bob)
 				continue;
 			}
 			else
-				log_message(LOG_INFO, "Missing '{' at beginning of configuration block");
+				log_message(LOG_INFO, "Missing '%s' at beginning of configuration block", BOB);
 		}
 		else if (!strcmp(str, BOB)) {
-			log_message(LOG_INFO, "Unexpected '{' - ignoring");
+			log_message(LOG_INFO, "Unexpected '%s' - ignoring", BOB);
 			free_strvec(strvec);
 			continue;
 		}
@@ -564,6 +561,10 @@ check_include(char *buf)
 	bool ret = false;
 	FILE *prev_stream;
 
+	/* Simple check first for include */
+	if (!strstr(buf, "include"))
+		return false;
+
 	strvec = alloc_strvec(buf);
 
 	if (!strvec)
@@ -594,7 +595,7 @@ find_definition(const char *name, size_t len, bool definition)
 	if (LIST_ISEMPTY(defs))
 		return NULL;
 
-	if (!definition && *name == '{') {
+	if (!definition && *name == BOB[0]) {
 		using_braces = true;
 		name++;
 	}
@@ -606,7 +607,7 @@ find_definition(const char *name, size_t len, bool definition)
 		for (len = 1, p = name + 1; *p != '\0' && (isalnum(*p) || *p == '_'); len++, p++);
 
 		/* Check we have a suitable end character */
-		if (using_braces && *p != '}')
+		if (using_braces && *p != EOB[0])
 			return NULL;
 
 		if (!using_braces && !definition &&
@@ -646,7 +647,7 @@ replace_param(char *buf, size_t max_len, bool in_multiline)
 
 	while ((cur_pos = strchr(cur_pos, '$')) && cur_pos[1] != '\0') {
 		if ((def = find_definition(cur_pos + 1, 0, false))) {
-			extra_braces = cur_pos[1] == '{' ? 2 : 0;
+			extra_braces = cur_pos[1] == BOB[0] ? 2 : 0;
 
 			/* We can't handle nest multiline definitions */
 			if (def->multiline && in_multiline) {
@@ -800,10 +801,20 @@ read_line(char *buf, size_t size)
 	char *new_str;
 	char *end;
 	char *next_ptr1;
+	static char *line_residue = NULL;
+	size_t skip;
+	char *p;
 
 	config_id_len = config_id ? strlen(config_id) : 0;
 	do {
-		if (next_ptr) {
+		text_start = NULL;
+
+		if (line_residue) {
+			strcpy(buf, line_residue);
+			FREE(line_residue);
+			line_residue = NULL;
+		}
+		else if (next_ptr) {
 			/* We are expanding a multiline parameter, so copy next line */
 			end = strchr(next_ptr, DEF_LINE_END);
 			if (!end) {
@@ -923,92 +934,105 @@ read_line(char *buf, size_t size)
 		} while (recheck);
 	} while (buf[0] == '\0' || check_include(buf));
 
+	/* Search for BOB[0] or EOB[0] not in "" and before ! or # */
+	if (buf[0] && text_start) {
+		p = text_start;
+		if (p[0] != BOB[0] && p[0] != EOB[0]) {
+			while ((p = strpbrk(p, BOB EOB "!#\""))) {
+				if (*p != '"')
+					break;
+
+				/* Skip over anything in ""s */
+				if (!(p = strchr(p + 1, '"')))
+					break;
+
+				p++;
+			}
+		}
+
+		if (p && (p[0] == BOB[0] || p[0] == EOB[0])) {
+			if (p == text_start)
+				skip = strspn(p + 1, " \t") + 1;
+			else
+				skip = 0;
+
+			if (p[skip] && p[skip] != '#' && p[skip] != '!') {
+				line_residue = MALLOC(strlen(p + skip) + 1);
+				strcpy(line_residue, p + skip);
+				p[skip] = '\0';
+			}
+		}
+	}
+
 	return !eof;
+}
+
+void
+alloc_value_block(void (*alloc_func) (vector_t *), const char *block_type)
+{
+	char *buf;
+	char *str = NULL;
+	vector_t *vec = NULL;
+	bool first_line = true;
+
+	buf = (char *) MALLOC(MAXBUF);
+	while (read_line(buf, MAXBUF)) {
+		if (!(vec = alloc_strvec(buf)))
+			continue;
+
+		if (first_line) {
+			first_line = false;
+
+			if (!strcmp(vector_slot(vec, 0), BOB))
+				continue;
+
+			log_message(LOG_INFO, "'%s' missing from beginning of block %s", BOB, block_type);
+		}
+
+		str = vector_slot(vec, 0);
+		if (!strcmp(str, EOB)) {
+			free_strvec(vec);
+			break;
+		}
+
+		if (vector_size(vec))
+			(*alloc_func) (vec);
+
+		free_strvec(vec);
+	}
+	FREE(buf);
+}
+
+static vector_t *read_value_block_vec;
+void
+read_value_block_line(vector_t *strvec)
+{
+	size_t word;
+	char *str;
+	char *dup;
+
+	if (!read_value_block_vec)
+		read_value_block_vec = vector_alloc();
+
+	vector_foreach_slot(strvec, str, word) {
+		dup = (char *) MALLOC(strlen(str) + 1);
+		memcpy(dup, str, strlen(str));
+		vector_alloc_slot(read_value_block_vec);
+		vector_set_slot(read_value_block_vec, dup);
+	}
 }
 
 vector_t *
 read_value_block(vector_t *strvec)
 {
-	char *buf;
-	unsigned int word;
-	char *str = NULL;
-	char *dup;
-	vector_t *vec = NULL;
-	vector_t *elements = vector_alloc();
-	int first = 1;
-	int need_bob = 1;
-	int got_eob = 0;
+	vector_t *ret_vec;
 
-	buf = (char *) MALLOC(MAXBUF);
-	while (first || read_line(buf, MAXBUF)) {
-		if (first && vector_size(strvec) > 1) {
-			vec = strvec;
-			word = 1;
-		}
-		else {
-			vec = alloc_strvec(buf);
-			word = 0;
-		}
-		if (vec) {
-			str = vector_slot(vec, word);
-			if (need_bob) {
-				if (!strcmp(str, BOB))
-					word++;
-				else
-					log_message(LOG_INFO, "'{' missing at beginning of block %s", FMT_STR_VSLOT(strvec,0));
-				need_bob = 0;
-			}
+	alloc_value_block(read_value_block_line, vector_slot(strvec,0));
 
-			for (; word < vector_size(vec); word++) {
-				str = vector_slot(vec, word);
-				if (!strcmp(str, EOB)) {
-					if (word != vector_size(vec) - 1)
-						log_message(LOG_INFO, "Extra characters after '}' - \"%s\"", buf);
-					got_eob = 1;
-					break;
-				}
-				dup = (char *) MALLOC(strlen(str) + 1);
-				memcpy(dup, str, strlen(str));
-				vector_alloc_slot(elements);
-				vector_set_slot(elements, dup);
-			}
-			if (vec != strvec)
-				free_strvec(vec);
-			if (got_eob)
-				break;
-		}
-		memset(buf, 0, MAXBUF);
-		first = 0;
-	}
+	ret_vec = read_value_block_vec;
+	read_value_block_vec = NULL;
 
-	FREE(buf);
-	return elements;
-}
-
-void
-alloc_value_block(void (*alloc_func) (vector_t *))
-{
-	char *buf;
-	char *str = NULL;
-	vector_t *vec = NULL;
-
-	buf = (char *) MALLOC(MAXBUF);
-	while (read_line(buf, MAXBUF)) {
-		vec = alloc_strvec(buf);
-		if (vec) {
-			str = vector_slot(vec, 0);
-			if (!strcmp(str, EOB)) {
-				free_strvec(vec);
-				break;
-			}
-
-			if (vector_size(vec))
-				(*alloc_func) (vec);
-
-			free_strvec(vec);
-		}
-	}
-	FREE(buf);
+	return ret_vec;
 }
 
 void *
