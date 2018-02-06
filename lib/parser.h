@@ -37,9 +37,6 @@
 
 /* Global definitions */
 #define KEEPALIVED_CONFIG_FILE "/etc/keepalived/keepalived.conf"
-#define BOB  "{"
-#define EOB  "}"
-#define MAXBUF	1024
 
 /* keyword definition */
 typedef struct _keyword {

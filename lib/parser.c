@@ -45,6 +45,15 @@
 
 #define DUMP_KEYWORDS	0
 
+#define MAXBUF  1024
+
+#define DEF_LINE_END	'\n'
+
+#define COMMENT_START_CHRS "!#"
+#define BOB "{"
+#define EOB "}"
+#define WHITE_SPACE " \t\f\n\r\v"
+
 typedef struct _defs {
 	char *name;
 	size_t name_len;
@@ -52,8 +61,6 @@ typedef struct _defs {
 	size_t value_len;
 	bool multiline;
 } def_t;
-
-#define DEF_LINE_END	'\n'
 
 /* global vars */
 vector_t *keywords;
@@ -234,28 +241,19 @@ alloc_strvec(char *string)
 	if (!string)
 		return NULL;
 
-	cp = string;
-
-	/* Skip white spaces */
-	while (isspace((int) *cp) && *cp != '\0')
-		cp++;
-
-	/* Return if there is only white spaces */
-	if (*cp == '\0')
-		return NULL;
-
-	/* Return if string begin with a comment */
-	if (*cp == '!' || *cp == '#')
-		return NULL;
-
 	/* Create a vector and alloc each command piece */
 	strvec = vector_alloc();
 
-	while (1) {
+	cp = string;
+	while (true) {
+		cp += strspn(cp, WHITE_SPACE);
+		if (!*cp || strchr(COMMENT_START_CHRS, *cp))
+			break;
+
 		start = cp;
 
-		/* Save a quoted string without the "s as a single string */
-		if (*cp == '"') {
+		/* Save a quoted string without the ""s as a single string */
+		if (*start == '"') {
 			start++;
 			if (!(cp = strchr(start, '"'))) {
 				log_message(LOG_INFO, "Unmatched quote: '%s'", string);
@@ -264,9 +262,7 @@ alloc_strvec(char *string)
 			str_len = (size_t)(cp - start);
 			cp++;
 		} else {
-			while (!isspace((int) *cp) && *cp != '\0' && *cp != '"'
-						   && *cp != '!' && *cp != '#')
-				cp++;
+			cp += strcspn(start, WHITE_SPACE COMMENT_START_CHRS "\"");
 			str_len = (size_t)(cp - start);
 		}
 		token = MALLOC(str_len + 1);
@@ -276,11 +272,6 @@ alloc_strvec(char *string)
 		/* Alloc & set the slot */
 		vector_alloc_slot(strvec);
 		vector_set_slot(strvec, token);
-
-		while (isspace((int) *cp) && *cp != '\0')
-			cp++;
-		if (*cp == '\0' || *cp == '!' || *cp == '#')
-			break;
 	}
 
 	if (!vector_size(strvec)) {
@@ -322,10 +313,9 @@ process_stream(vector_t *keywords_vec, int need_bob)
 				free_strvec(strvec);
 				continue;
 			}
-			else {
-				/* The skipped keyword doesn't have a {} block, so we no longer want to skip */
-				skip_sublevel = 0;
-			}
+
+			/* The skipped keyword doesn't have a {} block, so we no longer want to skip */
+			skip_sublevel = 0;
 		}
 		if (skip_sublevel) {
 			for (i = 0; i < vector_size(strvec); i++) {
@@ -570,6 +560,10 @@ check_include(char *buf)
 	vector_t *strvec;
 	bool ret = false;
 	FILE *prev_stream;
+
+	/* Simple check first for include */
+	if (!strstr(buf, "include"))
+		return false;
 
 	strvec = alloc_strvec(buf);
 
@@ -982,13 +976,16 @@ read_value_block(vector_t *strvec)
 	char *dup;
 	vector_t *vec = NULL;
 	vector_t *elements = vector_alloc();
-	int first = 1;
-	int need_bob = 1;
-	int got_eob = 0;
+	bool first = true;
+	bool need_bob = true;
+	bool got_eob = false;
 
 	buf = (char *) MALLOC(MAXBUF);
 	while (first || read_line(buf, MAXBUF)) {
-		if (first && vector_size(strvec) > 1) {
+		if (first) {
+			first = false;
+			if (vector_size(strvec) <= 1)
+				continue;
 			vec = strvec;
 			word = 1;
 		}
@@ -996,36 +993,34 @@ read_value_block(vector_t *strvec)
 			vec = alloc_strvec(buf);
 			word = 0;
 		}
-		if (vec) {
-			str = vector_slot(vec, word);
-			if (need_bob) {
-				if (!strcmp(str, BOB))
-					word++;
-				else
-					log_message(LOG_INFO, "'%s' missing at beginning of block %s", BOB, FMT_STR_VSLOT(strvec,0));
-				need_bob = 0;
-			}
+		if (!vec)
+			continue;
 
-			for (; word < vector_size(vec); word++) {
-				str = vector_slot(vec, word);
-				if (!strcmp(str, EOB)) {
-					if (word != vector_size(vec) - 1)
-						log_message(LOG_INFO, "Extra characters after '%s' - \"%s\"", EOB, buf);
-					got_eob = 1;
-					break;
-				}
-				dup = (char *) MALLOC(strlen(str) + 1);
-				memcpy(dup, str, strlen(str));
-				vector_alloc_slot(elements);
-				vector_set_slot(elements, dup);
-			}
-			if (vec != strvec)
-				free_strvec(vec);
-			if (got_eob)
-				break;
+		if (need_bob) {
+			if (!strcmp(vector_slot(vec, word), BOB))
+				word++;
+			else
+				log_message(LOG_INFO, "'%s' missing at beginning of block %s", BOB, FMT_STR_VSLOT(strvec,0));
+			need_bob = false;
 		}
-		memset(buf, 0, MAXBUF);
-		first = 0;
+
+		for (str = vector_slot(vec, word); word < vector_size(vec); word++) {
+			str = vector_slot(vec, word);
+			if (!strcmp(str, EOB)) {
+//				if (word != vector_size(vec) - 1)
+//					log_message(LOG_INFO, "Extra characters after '%s' - \"%s\"", EOB, buf);
+				got_eob = true;
+				break;
+			}
+			dup = (char *) MALLOC(strlen(str) + 1);
+			memcpy(dup, str, strlen(str));
+			vector_alloc_slot(elements);
+			vector_set_slot(elements, dup);
+		}
+		if (vec != strvec)
+			free_strvec(vec);
+		if (got_eob)
+			break;
 	}
 
 	FREE(buf);
