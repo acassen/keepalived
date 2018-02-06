@@ -1033,7 +1033,7 @@ read_value_block(vector_t *strvec)
 }
 
 void
-alloc_value_block(void (*alloc_func) (vector_t *))
+alloc_value_block(void (*alloc_func) (vector_t *), const char *block_type)
 {
 	char *buf;
 	char *str = NULL;
@@ -1051,7 +1051,7 @@ alloc_value_block(void (*alloc_func) (vector_t *))
 			if (!strcmp(vector_slot(vec, 0), BOB))
 				continue;
 
-			log_message(LOG_INFO, "'%s' missing from beginning of block", BOB);
+			log_message(LOG_INFO, "'%s' missing from beginning of block %s", BOB, block_type);
 		}
 
 		str = vector_slot(vec, 0);
