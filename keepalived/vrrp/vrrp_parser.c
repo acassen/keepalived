@@ -838,7 +838,7 @@ garp_group_garp_interval_handler(vector_t *strvec)
 {
 	garp_delay_t *delay = LIST_TAIL_DATA(garp_delay);
 
-	delay->garp_interval.tv_usec = (useconds_t)atof(strvec_slot(strvec, 1)) * 1000000;
+	delay->garp_interval.tv_usec = (suseconds_t)(atof(strvec_slot(strvec, 1)) * 1000000);
 	delay->garp_interval.tv_sec = delay->garp_interval.tv_usec / 1000000;
 	delay->garp_interval.tv_usec %= 1000000;
 	delay->have_garp_interval = true;
