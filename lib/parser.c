@@ -259,7 +259,7 @@ alloc_strvec(char *string)
 			start++;
 			if (!(cp = strchr(start, '"'))) {
 				log_message(LOG_INFO, "Unmatched quote: '%s'", string);
-				return strvec;
+				break;
 			}
 			str_len = (size_t)(cp - start);
 			cp++;
@@ -280,8 +280,15 @@ alloc_strvec(char *string)
 		while (isspace((int) *cp) && *cp != '\0')
 			cp++;
 		if (*cp == '\0' || *cp == '!' || *cp == '#')
-			return strvec;
+			break;
 	}
+
+	if (!vector_size(strvec)) {
+		free_strvec(strvec);
+		return NULL;
+	}
+
+	return strvec;
 }
 
 /* recursive configuration stream handler */
@@ -342,10 +349,10 @@ process_stream(vector_t *keywords_vec, int need_bob)
 				continue;
 			}
 			else
-				log_message(LOG_INFO, "Missing '{' at beginning of configuration block");
+				log_message(LOG_INFO, "Missing '%s' at beginning of configuration block", BOB);
 		}
 		else if (!strcmp(str, BOB)) {
-			log_message(LOG_INFO, "Unexpected '{' - ignoring");
+			log_message(LOG_INFO, "Unexpected '%s' - ignoring", BOB);
 			free_strvec(strvec);
 			continue;
 		}
@@ -594,7 +601,7 @@ find_definition(const char *name, size_t len, bool definition)
 	if (LIST_ISEMPTY(defs))
 		return NULL;
 
-	if (!definition && *name == '{') {
+	if (!definition && *name == BOB[0]) {
 		using_braces = true;
 		name++;
 	}
@@ -606,7 +613,7 @@ find_definition(const char *name, size_t len, bool definition)
 		for (len = 1, p = name + 1; *p != '\0' && (isalnum(*p) || *p == '_'); len++, p++);
 
 		/* Check we have a suitable end character */
-		if (using_braces && *p != '}')
+		if (using_braces && *p != EOB[0])
 			return NULL;
 
 		if (!using_braces && !definition &&
@@ -646,7 +653,7 @@ replace_param(char *buf, size_t max_len, bool in_multiline)
 
 	while ((cur_pos = strchr(cur_pos, '$')) && cur_pos[1] != '\0') {
 		if ((def = find_definition(cur_pos + 1, 0, false))) {
-			extra_braces = cur_pos[1] == '{' ? 2 : 0;
+			extra_braces = cur_pos[1] == BOB[0] ? 2 : 0;
 
 			/* We can't handle nest multiline definitions */
 			if (def->multiline && in_multiline) {
@@ -800,10 +807,20 @@ read_line(char *buf, size_t size)
 	char *new_str;
 	char *end;
 	char *next_ptr1;
+	static char *line_residue = NULL;
+	size_t skip;
+	char *p;
 
 	config_id_len = config_id ? strlen(config_id) : 0;
 	do {
-		if (next_ptr) {
+		text_start = NULL;
+
+		if (line_residue) {
+			strcpy(buf, line_residue);
+			FREE(line_residue);
+			line_residue = NULL;
+		}
+		else if (next_ptr) {
 			/* We are expanding a multiline parameter, so copy next line */
 			end = strchr(next_ptr, DEF_LINE_END);
 			if (!end) {
@@ -923,6 +940,36 @@ read_line(char *buf, size_t size)
 		} while (recheck);
 	} while (buf[0] == '\0' || check_include(buf));
 
+	/* Search for BOB[0] or EOB[0] not in "" and before ! or # */
+	if (buf[0] && text_start) {
+		p = text_start;
+		if (p[0] != BOB[0] && p[0] != EOB[0]) {
+			while ((p = strpbrk(p, BOB EOB "!#\""))) {
+				if (*p != '"')
+					break;
+
+				/* Skip over anything in ""s */
+				if (!(p = strchr(p + 1, '"')))
+					break;
+
+				p++;
+			}
+		}
+
+		if (p && (p[0] == BOB[0] || p[0] == EOB[0])) {
+			if (p == text_start)
+				skip = strspn(p + 1, " \t") + 1;
+			else
+				skip = 0;
+
+			if (p[skip] && p[skip] != '#' && p[skip] != '!') {
+				line_residue = MALLOC(strlen(p + skip) + 1);
+				strcpy(line_residue, p + skip);
+				p[skip] = '\0';
+			}
+		}
+	}
+
 	return !eof;
 }
 
@@ -955,7 +1002,7 @@ read_value_block(vector_t *strvec)
 				if (!strcmp(str, BOB))
 					word++;
 				else
-					log_message(LOG_INFO, "'{' missing at beginning of block %s", FMT_STR_VSLOT(strvec,0));
+					log_message(LOG_INFO, "'%s' missing at beginning of block %s", BOB, FMT_STR_VSLOT(strvec,0));
 				need_bob = 0;
 			}
 
@@ -963,7 +1010,7 @@ read_value_block(vector_t *strvec)
 				str = vector_slot(vec, word);
 				if (!strcmp(str, EOB)) {
 					if (word != vector_size(vec) - 1)
-						log_message(LOG_INFO, "Extra characters after '}' - \"%s\"", buf);
+						log_message(LOG_INFO, "Extra characters after '%s' - \"%s\"", EOB, buf);
 					got_eob = 1;
 					break;
 				}
@@ -991,22 +1038,32 @@ alloc_value_block(void (*alloc_func) (vector_t *))
 	char *buf;
 	char *str = NULL;
 	vector_t *vec = NULL;
+	bool first_line = true;
 
 	buf = (char *) MALLOC(MAXBUF);
 	while (read_line(buf, MAXBUF)) {
-		vec = alloc_strvec(buf);
-		if (vec) {
-			str = vector_slot(vec, 0);
-			if (!strcmp(str, EOB)) {
-				free_strvec(vec);
-				break;
-			}
+		if (!(vec = alloc_strvec(buf)))
+			continue;
 
-			if (vector_size(vec))
-				(*alloc_func) (vec);
+		if (first_line) {
+			first_line = false;
 
-			free_strvec(vec);
+			if (!strcmp(vector_slot(vec, 0), BOB))
+				continue;
+
+			log_message(LOG_INFO, "'%s' missing from beginning of block", BOB);
 		}
+
+		str = vector_slot(vec, 0);
+		if (!strcmp(str, EOB)) {
+			free_strvec(vec);
+			break;
+		}
+
+		if (vector_size(vec))
+			(*alloc_func) (vec);
+
+		free_strvec(vec);
 	}
 	FREE(buf);
 }
