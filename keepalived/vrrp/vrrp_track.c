@@ -802,15 +802,15 @@ remove_track_file(list track_files, element e)
 	vrrp_tracked_file_t *tfile = ELEMENT_DATA(e);
 	element e1;
 	element e2, next2;
-	vrrp_t *vrrp;
+	tracking_vrrp_t *tvp;
 	tracked_file_t *tft;
 
 	/* Search through the vrrp instances tracking this file */
-	LIST_FOREACH(tfile->tracking_vrrp, vrrp, e1) {
+	LIST_FOREACH(tfile->tracking_vrrp, tvp, e1) {
 		/* Search for the matching track file */
-		LIST_FOREACH_NEXT(vrrp->track_file, tft, e2, next2) {
+		LIST_FOREACH_NEXT(tvp->vrrp->track_file, tft, e2, next2) {
 			if (tft->file == tfile)
-				free_list_element(vrrp->track_file, e2);
+				free_list_element(tvp->vrrp->track_file, e2);
 		}
 	}
 
@@ -996,11 +996,8 @@ init_track_files(list track_files)
 		return ;
 	}
 
-	for (e = LIST_HEAD(track_files); e; e = next) {
-		next = e->next;
-		tfile = ELEMENT_DATA(e);
-
-		if (!tfile->tracking_vrrp) {
+	LIST_FOREACH_NEXT(track_files, tfile, e, next) {
+		if (LIST_ISEMPTY(tfile->tracking_vrrp)) {
 			/* No vrrp instance is tracking this file, so forget it */
 			log_message(LOG_INFO, "Track file %s is not being used - removing", tfile->fname);
 			remove_track_file(track_files, e);

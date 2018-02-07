@@ -32,9 +32,6 @@
 
 /* Global definitions */
 #define KEEPALIVED_CONFIG_FILE "/etc/keepalived/keepalived.conf"
-#define BOB  "{"
-#define EOB  "}"
-#define MAXBUF	1024
 
 /* keyword definition */
 typedef struct _keyword {
@@ -59,7 +56,7 @@ extern void install_keyword(const char *, void (*handler) (vector_t *));
 extern vector_t *alloc_strvec(char *);
 extern bool check_conf_file(const char*);
 extern vector_t *read_value_block(vector_t *);
-extern void alloc_value_block(void (*alloc_func) (vector_t *));
+extern void alloc_value_block(void (*alloc_func) (vector_t *), const char *);
 extern void *set_value(vector_t *);
 extern unsigned long read_timer(vector_t *);
 extern int check_true_false(char *);

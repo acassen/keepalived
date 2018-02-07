@@ -108,10 +108,20 @@ vrrp_notify_fifo_script_exit(__attribute__((unused)) thread_t *thread)
 static void
 stop_vrrp(int status)
 {
+	kernel_netlink_close_monitor();
+
+#ifdef _NETLINK_TIMERS_
+	report_and_clear_netlink_timers("Start shutdown");
+#endif
+
 	/* Ensure any interfaces are in backup mode,
 	 * sending a priority 0 vrrp message
 	 */
 	restore_vrrp_interfaces();
+
+#ifdef _NETLINK_TIMERS_
+	report_and_clear_netlink_timers("Restored interfaces");
+#endif
 
 	if (vrrp_data->vrrp_track_files)
 		stop_track_files();
@@ -126,6 +136,10 @@ stop_vrrp(int status)
 	netlink_rtlist(vrrp_data->static_routes, IPROUTE_DEL);
 #endif
 	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_DEL, false);
+
+#ifdef _NETLINK_TIMERS_
+	report_and_clear_netlink_timers("Static addresses/routes/rules cleared");
+#endif
 
 #ifdef _WITH_SNMP_
 	if (global_data->enable_snmp_keepalived || global_data->enable_snmp_rfcv2 || global_data->enable_snmp_rfcv3)
@@ -151,6 +165,10 @@ stop_vrrp(int status)
 	if (!__test_bit(DONT_RELEASE_VRRP_BIT, &debug))
 		shutdown_vrrp_instances();
 
+#ifdef _NETLINK_TIMERS_
+	report_and_clear_netlink_timers("Completed shutdown instances");
+#endif
+
 #ifdef _WITH_LVS_
 	if (vrrp_ipvs_needed()) {
 		/* Clean ipvs related */
@@ -164,7 +182,7 @@ stop_vrrp(int status)
 	/* We mustn't receive a SIGCHLD after master is destroyed */
 	signal_handler_destroy();
 
-	kernel_netlink_close();
+	kernel_netlink_close_cmd();
 	thread_destroy_master(master);
 	gratuitous_arp_close();
 	ndisc_close();
@@ -209,7 +227,6 @@ static void
 start_vrrp(void)
 {
 	/* Initialize sub-system */
-	init_interface_queue();
 	kernel_netlink_init();
 	gratuitous_arp_init();
 	ndisc_init();
@@ -352,6 +369,7 @@ start_vrrp(void)
 		list ifl;
 
 		dump_global_data(global_data);
+		dump_list(garp_delay);
 		dump_vrrp_data(vrrp_data);
 		ifl = get_if_list();
 		if (!LIST_ISEMPTY(ifl))

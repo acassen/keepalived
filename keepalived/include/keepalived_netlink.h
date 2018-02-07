@@ -70,6 +70,9 @@ extern int netlink_error_ignore; /* If we get this error, ignore it */
 #endif
 
 /* prototypes */
+#ifdef _NETLINK_TIMERS_
+extern void report_and_clear_netlink_timers(const char *);
+#endif
 extern void netlink_set_recv_buf_size(void);
 #ifdef _WITH_VRRP_
 extern int addattr_l(struct nlmsghdr *, size_t, unsigned short, void *, size_t);
@@ -93,5 +96,7 @@ extern void process_if_status_change(interface_t *);
 #endif
 extern void kernel_netlink_init(void);
 extern void kernel_netlink_close(void);
+extern void kernel_netlink_close_monitor(void);
+extern void kernel_netlink_close_cmd(void);
 
 #endif

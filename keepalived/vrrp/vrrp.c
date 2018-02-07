@@ -3121,10 +3121,7 @@ vrrp_complete_init(void)
 
 	/* Build synchronization group index, and remove any
 	 * empty groups, or groups with only one member */
-	for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; e = next) {
-		next = e->next;
-		sgroup = ELEMENT_DATA(e);
-
+	LIST_FOREACH_NEXT(vrrp_data->vrrp_sync_group, sgroup, e, next) {
 		/* A group needs at least two members */
 		if (!sgroup->iname) {
 			log_message(LOG_INFO, "Sync group %s has no virtual router(s) - removing", sgroup->gname);
@@ -3132,8 +3129,7 @@ vrrp_complete_init(void)
 			continue;
 		}
 
-		if (sgroup->iname->active > 1)
-			vrrp_sync_set_group(sgroup);
+		vrrp_sync_set_group(sgroup);
 
 		if (!sgroup->vrrp_instances) {
 			free_list_element(vrrp_data->vrrp_sync_group, e);

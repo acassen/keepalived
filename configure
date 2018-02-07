@@ -837,6 +837,8 @@ enable_hardening
 enable_mem_check
 enable_mem_check_log
 enable_debug
+enable_netlink_timers
+enable_netlink_enobufs
 enable_smtp_alert_debug
 enable_stacktrace
 enable_dump_threads
@@ -1523,6 +1525,9 @@ Optional Features:
   --enable-mem-check      compile with memory alloc checking
   --enable-mem-check-log  compile with memory alloc checking writing to syslog
   --enable-debug          compile with debugging flags
+  --enable-netlink-timers compile with netlink command timers
+  --enable-netlink-enobufs
+                          compile with netlink ENOBUFS errors reported
   --enable-smtp-alert-debug
                           compile with smtp-alert debugging
   --enable-stacktrace     compile with stacktrace support
@@ -3601,6 +3606,16 @@ fi
 # Check whether --enable-debug was given.
 if test "${enable_debug+set}" = set; then :
   enableval=$enable_debug;
+fi
+
+# Check whether --enable-netlink-timers was given.
+if test "${enable_netlink_timers+set}" = set; then :
+  enableval=$enable_netlink_timers;
+fi
+
+# Check whether --enable-netlink-enobufs was given.
+if test "${enable_netlink_enobufs+set}" = set; then :
+  enableval=$enable_netlink_enobufs;
 fi
 
 # Check whether --enable-smtp-alert-debug was given.
@@ -10666,6 +10681,44 @@ else
 fi
 
 
+ac_fn_c_check_decl "$LINENO" "NETLINK_NO_ENOBUFS" "ac_cv_have_decl_NETLINK_NO_ENOBUFS" "#include <linux/netlink.h>
+"
+if test "x$ac_cv_have_decl_NETLINK_NO_ENOBUFS" = xyes; then :
+  ac_have_decl=1
+else
+  ac_have_decl=0
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_DECL_NETLINK_NO_ENOBUFS $ac_have_decl
+_ACEOF
+
+
+if test "${enable_netlink_enobufs}" = yes -o \
+	"${ac_cv_have_decl_NETLINK_NO_ENOBUFS}" = no; then
+
+$as_echo "#define _NETLINK_RCV_ENOBUFS_  1 " >>confdefs.h
+
+  ENABLE_NETLINK_ENOBUFS=Yes
+  if test "${ac_cv_have_decl_NETLINK_NO_ENOBUFS}" = no; then
+    SYSTEM_OPTIONS="$SYSTEM_OPTIONS NETLINK_ENOBUFS"
+  else
+    CONFIG_OPTIONS="$CONFIG_OPTIONS NETLINK_ENOBUFS"
+  fi
+else
+  ENABLE_NETLINK_ENOBUFS=No
+fi
+
+if test "${enable_netlink_timers}" = yes; then
+
+$as_echo "#define _NETLINK_TIMERS_  1 " >>confdefs.h
+
+  ENABLE_NETLINK_TIMERS=Yes
+  CONFIG_OPTIONS="$CONFIG_OPTIONS NETLINK_TIMERS"
+else
+  ENABLE_NETLINK_TIMERS=No
+fi
+
 if test "${enable_smtp_alert_debug}" = yes; then
 
 $as_echo "#define _SMTP_ALERT_DEBUG_  1 " >>confdefs.h
@@ -12479,17 +12532,7 @@ if test ${DBUS_SUPPORT} = Yes; then
   echo "DBUS create instance     : ${DBUS_CREATE_INSTANCE}"
 fi
 echo "SHA1 support             : ${SHA1_SUPPORT}"
-echo "Use Debug flags          : ${ENABLE_DEBUG}"
-echo "smtp-alert debugging     : ${ENABLE_SMTP_ALERT_DEBUG}"
 echo "Use Json output          : ${ENABLE_JSON}"
-echo "Stacktrace support       : ${ENABLE_STACKTRACE}"
-echo "Memory alloc check       : ${MEM_CHECK}"
-if test ${MEM_CHECK} = Yes; then
-  echo "Memory alloc check log   : ${MEM_CHECK_LOG}"
-fi
-echo "Thread debugging         : ${ENABLE_DUMP_THREADS}"
-echo "Select() debugging       : ${ENABLE_SELECT_DEBUG}"
-echo "Timer debugging          : ${ENABLE_TIMER_DEBUG}"
 echo "libnl version            : ${NETLINK_VER}"
 echo "Use IPv4 devconf         : ${IPV4_DEVCONF}"
 echo "Use libiptc              : ${USE_LIBIPTC}"
@@ -12497,10 +12540,44 @@ echo "Use libipset             : ${USE_LIBIPSET}"
 echo "init type                : ${INIT_TYPE}"
 echo "Build genhash            : ${BUILD_GENHASH}"
 echo "Build documentation      : ${HAVE_SPHINX_BUILD}"
+if test ${ENABLE_NETLINK_ENOBUFS} = Yes; then
+  echo "Netlink ENOBUFS          : ${ENABLE_NETLINK_ENOBUFS}"
+fi
+if test ${ENABLE_STACKTRACE} = Yes; then
+  echo "Stacktrace support       : ${ENABLE_STACKTRACE}"
+fi
+if test ${MEM_CHECK} = Yes; then
+  echo "Memory alloc check       : ${MEM_CHECK}"
+  echo "Memory alloc check log   : ${MEM_CHECK_LOG}"
+fi
+if test ${ENABLE_DUMP_THREADS} = Yes; then
+  echo "Thread debugging         : ${ENABLE_DUMP_THREADS}"
+fi
+if test ${ENABLE_SELECT_DEBUG} = Yes; then
+  echo "Select() debugging       : ${ENABLE_SELECT_DEBUG}"
+fi
+if test ${ENABLE_TIMER_DEBUG} = Yes; then
+  echo "Timer debugging          : ${ENABLE_TIMER_DEBUG}"
+fi
+if test ${ENABLE_DEBUG} = Yes; then
+  echo "Use Debug flags          : ${ENABLE_DEBUG}"
+fi
+if test ${ENABLE_NETLINK_TIMERS} = Yes; then
+  echo "Netlink command timers   : ${ENABLE_NETLINK_TIMERS}"
+fi
+if test ${ENABLE_SMTP_ALERT_DEBUG} = Yes; then
+  echo "smtp-alert debugging     : ${ENABLE_SMTP_ALERT_DEBUG}"
+fi
 
 
 if test ${IPVS_SUPPORT} = Yes -a ${IPVS_USE_NL} = No; then
   echo
   echo "*** WARNING - this build will not support IPVS with IPv6. Please install libnl/libnl-3 dev libraries to support IPv6 with IPVS."
+  echo
+fi
+
+if test ${ENABLE_DEBUG} = Yes; then
+  echo
+  echo "*** WARNING --enable-debug is only for debugging purposes and isn't expected to work properly"
   echo
 fi

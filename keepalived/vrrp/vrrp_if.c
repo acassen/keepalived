@@ -350,10 +350,22 @@ free_if(void *data)
 
 /* garp_delay facility function */
 void
+dump_garp_delay(void *data)
+{
+	garp_delay_t *gd = data;
+
+	log_message(LOG_INFO, "------< GARP delay group %d >------", gd->aggregation_group);
+	if (gd->have_garp_interval)
+		log_message(LOG_INFO, " GARP interval = %ld.%6.6ld", gd->garp_interval.tv_sec, gd->garp_interval.tv_usec);
+	if (gd->have_gna_interval)
+		log_message(LOG_INFO, " GNA interval = %ld.%6.6ld", gd->gna_interval.tv_sec, gd->gna_interval.tv_usec);
+}
+
+void
 alloc_garp_delay(void)
 {
 	if (!LIST_EXISTS(garp_delay))
-		garp_delay = alloc_list(NULL, NULL);
+		garp_delay = alloc_list(NULL, dump_garp_delay);
 
 	list_add(garp_delay, MALLOC(sizeof(garp_delay_t)));
 }

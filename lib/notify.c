@@ -862,7 +862,8 @@ check_script_secure(notify_script_t *script,
 #ifdef _HAVE_LIBMAGIC_
 	if (magic && flags & SC_EXECUTABLE) {
 		const char *magic_desc = magic_file(magic, real_file_path ? real_file_path : script->args[0]);
-		if (!strstr(magic_desc, " executable")) {
+		if (!strstr(magic_desc, " executable") &&
+		    !strstr(magic_desc, " shared object")) {
 			log_message(LOG_INFO, "Please add a #! shebang to script %s", script->args[0]);
 			script->flags &= ~SC_EXECABLE;
 		}
