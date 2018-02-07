@@ -110,10 +110,18 @@ stop_vrrp(int status)
 {
 	kernel_netlink_close_monitor();
 
+#ifdef _NETLINK_TIMERS_
+	report_and_clear_netlink_timers("Start shutdown");
+#endif
+
 	/* Ensure any interfaces are in backup mode,
 	 * sending a priority 0 vrrp message
 	 */
 	restore_vrrp_interfaces();
+
+#ifdef _NETLINK_TIMERS_
+	report_and_clear_netlink_timers("Restored interfaces");
+#endif
 
 	if (vrrp_data->vrrp_track_files)
 		stop_track_files();
@@ -128,6 +136,10 @@ stop_vrrp(int status)
 	netlink_rtlist(vrrp_data->static_routes, IPROUTE_DEL);
 #endif
 	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_DEL, false);
+
+#ifdef _NETLINK_TIMERS_
+	report_and_clear_netlink_timers("Static addresses/routes/rules cleared");
+#endif
 
 #ifdef _WITH_SNMP_
 	if (global_data->enable_snmp_keepalived || global_data->enable_snmp_rfcv2 || global_data->enable_snmp_rfcv3)
@@ -152,6 +164,10 @@ stop_vrrp(int status)
 
 	if (!__test_bit(DONT_RELEASE_VRRP_BIT, &debug))
 		shutdown_vrrp_instances();
+
+#ifdef _NETLINK_TIMERS_
+	report_and_clear_netlink_timers("Completed shutdown instances");
+#endif
 
 #ifdef _WITH_LVS_
 	if (vrrp_ipvs_needed()) {

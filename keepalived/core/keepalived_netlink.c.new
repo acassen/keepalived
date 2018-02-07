@@ -82,32 +82,6 @@ int netlink_error_ignore;	/* If we get this error, ignore it */
 static nl_handle_t nl_kernel;	/* Kernel reflection channel */
 static int nlmsg_buf_size;	/* Size of netlink message buffer */
 
-#ifdef _NETLINK_TIMERS_
-/* The maximum netlink command we use is RTM_DELRULE.
- * If that changes, the following definition will need changing. */
-#define MAX_NETLINK_TIMER	RTM_DELRULE
-
-static struct timeval netlink_times[MAX_NETLINK_TIMER+1];
-static unsigned netlink_count[MAX_NETLINK_TIMER+1];
-static struct timeval start_time, end_time;
-#endif
-
-#ifdef _NETLINK_TIMERS_
-void
-report_and_clear_netlink_timers(const char * str)
-{
-	int i;
-
-	log_message(LOG_INFO, "Netlink timers - %s", str);
-	for (i = 0; i <= MAX_NETLINK_TIMER; i++) {
-		if (netlink_count[i]) {
-			log_message(LOG_INFO, "  netlink cmd %d (%d calls), time %ld.%6.6ld", i, netlink_count[i], netlink_times[i].tv_sec, netlink_times[i].tv_usec);
-			netlink_times[i].tv_sec = netlink_times[i].tv_usec = netlink_count[i] = 0;
-		}
-	}
-}
-#endif
-
 static inline bool
 addr_is_equal(struct ifaddrmsg* ifa, void* addr, ip_address_t* vip_addr, interface_t *ifp)
 {
@@ -921,8 +895,10 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 			return -1;
 		}
 
+log_message(LOG_INFO, "Received netlink message on socket %d size %ld", nl->fd, status);
 		for (h = (struct nlmsghdr *) buf; NLMSG_OK(h, (size_t)status);
 		     h = NLMSG_NEXT(h, status)) {
+log_message(LOG_INFO, "nlmsg_type 0x%04x", h->nlmsg_type);
 			/* Finish off reading. */
 			if (h->nlmsg_type == NLMSG_DONE)
 				return ret;
@@ -973,6 +949,15 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 
 				return -1;
 			}
+
+log_message(LOG_INFO, "net message %s (%d)",
+		h->nlmsg_type == RTM_NEWROUTE ? "new route" :
+		h->nlmsg_type == RTM_DELROUTE ? "del route" :
+		h->nlmsg_type == RTM_NEWADDR ? "new address" :
+		h->nlmsg_type == RTM_DELADDR ? "del address" :
+		h->nlmsg_type == RTM_NEWLINK ? "new link" :
+		h->nlmsg_type == RTM_DELLINK ? "del link" :
+		"unknown", h->nlmsg_type);
 
 #ifdef _WITH_VRRP_
 			/* Skip unsolicited messages from cmd channel */
@@ -1045,11 +1030,7 @@ netlink_talk(nl_handle_t *nl, struct nlmsghdr *n)
 	n->nlmsg_seq = ++nl->seq;
 
 	/* Request Netlink acknowledgement */
-	n->nlmsg_flags |= NLM_F_ACK;
-
-#ifdef _NETLINK_TIMERS_
-	gettimeofday(&start_time, NULL);
-#endif
+	n->nlmsg_flags |= NLM_F_ACK | NLM_F_ECHO;
 
 	/* Send message to netlink interface. */
 	status = sendmsg(nl->fd, &msg, 0);
@@ -1058,23 +1039,9 @@ netlink_talk(nl_handle_t *nl, struct nlmsghdr *n)
 		       strerror(errno));
 		return -1;
 	}
+log_message(LOG_INFO, "Send netlink msg type %d on socket %d", n->nlmsg_type, nl->fd);
 
 	status = netlink_parse_info(netlink_talk_filter, nl, n, false);
-
-#ifdef _NETLINK_TIMERS_
-	/* Special case for NEWLINK - treat create separately; it is also used to up an interface etc. */
-	int index = n->nlmsg_type == RTM_NEWLINK && (n->nlmsg_flags & NLM_F_CREATE) ? 0 : n->nlmsg_type;
-	gettimeofday(&end_time, NULL);
-	if (index <= MAX_NETLINK_TIMER) {
-		netlink_times[index].tv_sec += end_time.tv_sec - start_time.tv_sec;
-		netlink_times[index].tv_usec += end_time.tv_usec - start_time.tv_usec;
-		netlink_count[index]++;
-		if (netlink_times[index].tv_usec < 0)
-			netlink_times[index].tv_usec += 1000000, netlink_times[index].tv_sec--;
-		else if (netlink_times[index].tv_usec > 1000000)
-			netlink_times[index].tv_usec -= 1000000, netlink_times[index].tv_sec++;
-	}
-#endif
 
 	return status;
 }
@@ -1644,27 +1611,15 @@ kernel_netlink_init(void)
 }
 
 void
-kernel_netlink_close_monitor(void)
+kernel_netlink_close(void)
 {
 	netlink_close(&nl_kernel);
-}
-
-void
-kernel_netlink_close_cmd(void)
-{
 #ifdef _WITH_VRRP_
 #ifndef _DEBUG_
 	if (prog_type == PROG_TYPE_VRRP)
 #endif
 		netlink_close(&nl_cmd);
 #endif
-}
-
-void
-kernel_netlink_close(void)
-{
-	kernel_netlink_close_monitor();
-	kernel_netlink_close_cmd();
 }
 
 #ifdef _TIMER_DEBUG_

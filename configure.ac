@@ -197,6 +197,8 @@ AC_ARG_ENABLE(mem-check-log,
   [AS_HELP_STRING([--enable-mem-check-log], [compile with memory alloc checking writing to syslog])])
 AC_ARG_ENABLE(debug,
   [AS_HELP_STRING([--enable-debug], [compile with debugging flags])])
+AC_ARG_ENABLE(netlink-timers,
+  [AS_HELP_STRING([--enable-netlink-timers], [compile with netlink command timers])])
 AC_ARG_ENABLE(smtp-alert-debug,
   [AS_HELP_STRING([--enable-smtp-alert-debug], [compile with smtp-alert debugging])])
 AC_ARG_ENABLE(stacktrace,
@@ -1520,6 +1522,15 @@ else
 fi
 AM_CONDITIONAL([DEBUG], [test $ENABLE_DEBUG = Yes])
 
+dnl ----[ Netlink command timers or not ? ]----
+if test "${enable_netlink_timers}" = yes; then
+  AC_DEFINE([_NETLINK_TIMERS_], [ 1 ], [Define to 1 to build with netlink command timers support])
+  ENABLE_NETLINK_TIMERS=Yes
+  add_config_opt([NETLINK_TIMERS])
+else
+  ENABLE_NETLINK_TIMERS=No
+fi
+
 dnl ----[ smtp-alert debugging or not ? ]----
 if test "${enable_smtp_alert_debug}" = yes; then
   AC_DEFINE([_SMTP_ALERT_DEBUG_], [ 1 ], [Define to 1 to build with smtp-alert debugging support])
@@ -1681,17 +1692,7 @@ if test ${DBUS_SUPPORT} = Yes; then
   echo "DBUS create instance     : ${DBUS_CREATE_INSTANCE}"
 fi
 echo "SHA1 support             : ${SHA1_SUPPORT}"
-echo "Use Debug flags          : ${ENABLE_DEBUG}"
-echo "smtp-alert debugging     : ${ENABLE_SMTP_ALERT_DEBUG}"
 echo "Use Json output          : ${ENABLE_JSON}"
-echo "Stacktrace support       : ${ENABLE_STACKTRACE}"
-echo "Memory alloc check       : ${MEM_CHECK}"
-if test ${MEM_CHECK} = Yes; then
-  echo "Memory alloc check log   : ${MEM_CHECK_LOG}"
-fi
-echo "Thread debugging         : ${ENABLE_DUMP_THREADS}"
-echo "Select() debugging       : ${ENABLE_SELECT_DEBUG}"
-echo "Timer debugging          : ${ENABLE_TIMER_DEBUG}"
 echo "libnl version            : ${NETLINK_VER}"
 echo "Use IPv4 devconf         : ${IPV4_DEVCONF}"
 echo "Use libiptc              : ${USE_LIBIPTC}"
@@ -1699,6 +1700,31 @@ echo "Use libipset             : ${USE_LIBIPSET}"
 echo "init type                : ${INIT_TYPE}"
 echo "Build genhash            : ${BUILD_GENHASH}"
 echo "Build documentation      : ${HAVE_SPHINX_BUILD}"
+if test ${ENABLE_STACKTRACE} = Yes; then
+  echo "Stacktrace support       : ${ENABLE_STACKTRACE}"
+fi
+if test ${MEM_CHECK} = Yes; then
+  echo "Memory alloc check       : ${MEM_CHECK}"
+  echo "Memory alloc check log   : ${MEM_CHECK_LOG}"
+fi
+if test ${ENABLE_DUMP_THREADS} = Yes; then
+  echo "Thread debugging         : ${ENABLE_DUMP_THREADS}"
+fi
+if test ${ENABLE_SELECT_DEBUG} = Yes; then
+  echo "Select() debugging       : ${ENABLE_SELECT_DEBUG}"
+fi
+if test ${ENABLE_TIMER_DEBUG} = Yes; then
+  echo "Timer debugging          : ${ENABLE_TIMER_DEBUG}"
+fi
+if test ${ENABLE_DEBUG} = Yes; then
+  echo "Use Debug flags          : ${ENABLE_DEBUG}"
+fi
+if test ${ENABLE_NETLINK_TIMERS} = Yes; then
+  echo "Netlink command timers   : ${ENABLE_NETLINK_TIMERS}"
+fi
+if test ${ENABLE_SMTP_ALERT_DEBUG} = Yes; then
+  echo "smtp-alert debugging     : ${ENABLE_SMTP_ALERT_DEBUG}"
+fi
 
 dnl ----[ end configure ]---
 

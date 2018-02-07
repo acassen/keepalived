@@ -624,6 +624,9 @@
 /* Define to 1 to log malloc/free checks to syslog */
 #undef _MEM_CHECK_LOG_
 
+/* Define to 1 to build with netlink command timers support */
+#undef _NETLINK_TIMERS_
+
 /* Define to 1 to build with select debugging support */
 #undef _SELECT_DEBUG_
 
