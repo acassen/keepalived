@@ -1599,15 +1599,27 @@ kernel_netlink_init(void)
 }
 
 void
-kernel_netlink_close(void)
+kernel_netlink_close_monitor(void)
 {
 	netlink_close(&nl_kernel);
+}
+
+void
+kernel_netlink_close_cmd(void)
+{
 #ifdef _WITH_VRRP_
 #ifndef _DEBUG_
 	if (prog_type == PROG_TYPE_VRRP)
 #endif
 		netlink_close(&nl_cmd);
 #endif
+}
+
+void
+kernel_netlink_close(void)
+{
+	kernel_netlink_close_monitor();
+	kernel_netlink_close_cmd();
 }
 
 #ifdef _TIMER_DEBUG_

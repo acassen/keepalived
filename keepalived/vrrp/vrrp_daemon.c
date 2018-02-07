@@ -108,6 +108,8 @@ vrrp_notify_fifo_script_exit(__attribute__((unused)) thread_t *thread)
 static void
 stop_vrrp(int status)
 {
+	kernel_netlink_close_monitor();
+
 	/* Ensure any interfaces are in backup mode,
 	 * sending a priority 0 vrrp message
 	 */
@@ -164,7 +166,7 @@ stop_vrrp(int status)
 	/* We mustn't receive a SIGCHLD after master is destroyed */
 	signal_handler_destroy();
 
-	kernel_netlink_close();
+	kernel_netlink_close_cmd();
 	thread_destroy_master(master);
 	gratuitous_arp_close();
 	ndisc_close();

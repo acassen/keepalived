@@ -93,5 +93,7 @@ extern void process_if_status_change(interface_t *);
 #endif
 extern void kernel_netlink_init(void);
 extern void kernel_netlink_close(void);
+extern void kernel_netlink_close_monitor(void);
+extern void kernel_netlink_close_cmd(void);
 
 #endif
