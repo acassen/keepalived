@@ -80,13 +80,13 @@
 #endif
 
 /* Global vars */
-nl_handle_t nl_cmd;		/* Command channel */
+nl_handle_t nl_cmd = { .fd = -1 };	/* Command channel */
 #ifdef _WITH_VRRP_
 int netlink_error_ignore;	/* If we get this error, ignore it */
 #endif
 
 /* Static vars */
-static nl_handle_t nl_kernel;	/* Kernel reflection channel */
+static nl_handle_t nl_kernel = { .fd = -1 };	/* Kernel reflection channel */
 static int nlmsg_buf_size;	/* Size of netlink message buffer */
 
 #ifdef _NETLINK_TIMERS_
@@ -389,21 +389,32 @@ netlink_close(nl_handle_t *nl)
 	if (!nl)
 		return;
 
-	/* First of all release pending thread */
-	thread_cancel(nl->thread);
+	/* First of all release pending thread. There is no thread
+	 * for nl_cmd since it is used synchronously. */
+	if (nl->thread)
+		thread_cancel(nl->thread);
 
 #ifdef _HAVE_LIBNL3_
 #ifdef _LIBNL_DYNAMIC_
 	if (use_nl)
 #endif
-		nl_socket_free(nl->sk);
+	{
+		if (nl->sk) {
+			nl_socket_free(nl->sk);
+			nl->sk = NULL;
+		}
+	}
 #endif
 #if !defined _HAVE_LIBNL3_ || defined _LIBNL_DYNAMIC_
 #if defined _HAVE_LIBNL3_ && defined _LIBNL_DYNAMIC_
 	else
 #endif
-		close(nl->fd);
+	{
+		if (nl->fd != -1)
+			close(nl->fd);
+	}
 #endif
+	nl->fd = -1;
 }
 
 /* iproute2 utility function */
@@ -1599,6 +1610,25 @@ kernel_netlink_poll(void)
 #endif
 
 void
+kernel_netlink_close_monitor(void)
+{
+	netlink_close(&nl_kernel);
+}
+
+void
+kernel_netlink_close_cmd(void)
+{
+	netlink_close(&nl_cmd);
+}
+
+void
+kernel_netlink_close(void)
+{
+	kernel_netlink_close_monitor();
+	kernel_netlink_close_cmd();
+}
+
+void
 kernel_netlink_init(void)
 {
 	/*
@@ -1643,19 +1673,12 @@ kernel_netlink_init(void)
 	} else
 		log_message(LOG_INFO, "Error while registering Kernel netlink reflector channel");
 
-#ifdef _WITH_VRRP_
-#ifndef _DEBUG_
-	if (prog_type == PROG_TYPE_VRRP)
-#endif
-	{
-		/* Prepare netlink command channel. The cmd socket is used synchronously.*/
-		netlink_socket(&nl_cmd, 0, 0);
-		if (nl_cmd.fd > 0)
-			log_message(LOG_INFO, "Registering Kernel netlink command channel");
-		else
-			log_message(LOG_INFO, "Error while registering Kernel netlink cmd channel");
-	}
-#endif
+	/* Prepare netlink command channel. The cmd socket is used synchronously.*/
+	netlink_socket(&nl_cmd, 0, 0);
+	if (nl_cmd.fd > 0)
+		log_message(LOG_INFO, "Registering Kernel netlink command channel");
+	else
+		log_message(LOG_INFO, "Error while registering Kernel netlink cmd channel");
 
 	/* Start with netlink interface and address lookup */
 #ifdef _WITH_VRRP_
@@ -1664,31 +1687,13 @@ kernel_netlink_init(void)
 #endif
 		init_interface_queue();
 #endif
+
 	netlink_address_lookup();
-}
 
-void
-kernel_netlink_close_monitor(void)
-{
-	netlink_close(&nl_kernel);
-}
-
-void
-kernel_netlink_close_cmd(void)
-{
-#ifdef _WITH_VRRP_
-#ifndef _DEBUG_
-	if (prog_type == PROG_TYPE_VRRP)
+#if !defined _DEBUG_ && defined _WITH_CHECKER_
+	if (prog_type == PROG_TYPE_CHECKER)
+		kernel_netlink_close_cmd();
 #endif
-		netlink_close(&nl_cmd);
-#endif
-}
-
-void
-kernel_netlink_close(void)
-{
-	kernel_netlink_close_monitor();
-	kernel_netlink_close_cmd();
 }
 
 #ifdef _TIMER_DEBUG_
