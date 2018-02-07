@@ -70,7 +70,9 @@
 #include "vrrp_ipaddress.h"
 
 /* Default values */
+#ifdef _NETLINK_RCV_ENOBUFS_
 #define IF_DEFAULT_BUFSIZE	(65*1024)
+#endif
 
 /* Global vars */
 #ifdef _WITH_VRRP_
@@ -194,6 +196,9 @@ netlink_socket(nl_handle_t *nl, int flags, int group, ...)
 #if !defined _HAVE_LIBNL3_ || defined _LIBNL_DYNAMIC_
 	int rcvbuf_size;
 #endif
+#ifndef _NETLINK_RCV_ENOBUFS_
+	int one = 1;
+#endif
 
 	memset(nl, 0, sizeof (*nl));
 
@@ -241,10 +246,10 @@ netlink_socket(nl_handle_t *nl, int flags, int group, ...)
 			}
 		}
 
-		if ((ret = nl_socket_set_buffer_size(nl->sk, IF_DEFAULT_BUFSIZE, 0))) {
+#ifdef _NETLINK_RCV_ENOBUFS_
+		if ((ret = nl_socket_set_buffer_size(nl->sk, IF_DEFAULT_BUFSIZE, 0)))
 			log_message(LOG_INFO, "Netlink: Cannot set netlink buffer size : (%d)", ret);
-			return -1;
-		}
+#endif
 
 		nl->nl_pid = nl_socket_get_local_port(nl->sk);
 
@@ -329,15 +334,39 @@ netlink_socket(nl_handle_t *nl, int flags, int group, ...)
 		/* Save the port id for checking message source later */
 		nl->nl_pid = snl.nl_pid;
 
+#ifdef _NETLINK_RCV_ENOBUFS_
 		/* Set default rcvbuf size */
 		rcvbuf_size = IF_DEFAULT_BUFSIZE;
-		ret = setsockopt(nl->fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf_size, sizeof(rcvbuf_size));
-		if (ret < 0) {
+		if ((ret = setsockopt(nl->fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf_size, sizeof(rcvbuf_size)) < 0)
 			log_message(LOG_INFO, "cant set SO_RCVBUF IP option. errno=%d (%m)", errno);
-			close(nl->fd);
-			return -1;
-		}
+#endif
 	}
+#endif
+
+#ifndef _NETLINK_RCV_ENOBUFS_
+	/* There appears to be a kernel bug that manifests itself when we have a large number
+	 * of VMAC interfaces to add (i.e. 200 or more). After approx 200 interfaces have been
+	 * added the kernel will return ENOBUFS on the nl_kernel socket, and then repeat the
+	 * first 30 or so RTM_NEWLINK messages, omitting the first one. Then, at the end of
+	 * creating all the interfaces, i.e. after a slight delay with no new messages,
+	 * we get another ENOBUFS and all the RTM_NEWLINK messages from the time of the
+	 * first ENOBUFS message repeated.
+	 *
+	 * This problem feels as though a circular buffer is wrapping around, and causes
+	 * all the old messages in the buffer to be resent, but the first one is omitted.
+	 * Note that it is only the interfaces that keepalived creates that are resent,
+	 * not interfaces that already existed on the system before keepalived starts.
+	 *
+	 * We can also get ENOBUFS on the nl_cmd socket if the NLM_F_ECHO flag is set as well as
+	 * the NLM_F_ACK flag when a command is sent on the nl_cmd socket.
+	 *
+	 * It appears that this must be a kernel bug, since when it happens on interface creation,
+	 * if we are also running `ip monitor link addr route`, i.e. the same as the nl_kernel
+	 * socket, then precisely the same messages are repeated (provided we have set the buffer
+	 * IF_DEFAULT_BUFSIZE (the rcvbuf size) to be 1024 * 1024 to match what ip monitor does).
+	 */
+	if ((ret = setsockopt(nl->fd, SOL_NETLINK, NETLINK_NO_ENOBUFS, &one, sizeof(one))) < 0)
+		log_message(LOG_INFO, "cant set NETLINK_NO_ENOBUFS option. errno=%d (%m)", errno);
 #endif
 
 	nl->seq = (uint32_t)time(NULL);
@@ -887,25 +916,10 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 				continue;
 			if (errno == EWOULDBLOCK || errno == EAGAIN)
 				break;
-			if (errno == ENOBUFS) {
-				/* It appears the if we add a large number of interfaces, then
-				 * while adding the interfaces the kernel can decide suddenly to
-				 * notify us again of all the new interfaces, and this notification causes
-				 * us to receive ENOBUFS on the nl_kernel socket. Since it
-				 * relates to the interfaces, and we have already got the information
-				 * about the interfaces, it appears that we aren't losing any useful information.
-				 *
-				 * Running "ip monitor addr link route" we can see that it also get all
-				 * the link messages again, but somehow if doesn't suffer a buffer overrun.
-				 * This problem feels as though a circular buffer is wrapping around, and causes
-				 * all the old messages in the buffer to be resent, but the first one is omitted.
-				 * Note that it is only the interfaces that keepalived creates that are resent,
-				 * not interfaces that already existed on the system before keepalived starts. */
-
-				log_message(LOG_INFO, "Netlink: Receive buffer overrun - (%m)");
-			}
+			if (errno == ENOBUFS)
+				log_message(LOG_INFO, "Netlink: Receive buffer overrun on %s socket - (%m) - usually a kernel bug", nl == &nl_kernel ? "kernel" : "cmd");
 			else
-				log_message(LOG_INFO, "Netlink: recvmsg error - %d (%m)", errno);
+				log_message(LOG_INFO, "Netlink: recvmsg error on %s socket  - %d (%m)", nl == &nl_kernel ? "kernel" : "cmd", errno);
 			continue;
 		}
 
