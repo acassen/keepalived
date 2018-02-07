@@ -80,8 +80,8 @@
 #endif
 
 /* Global vars */
-#ifdef _WITH_VRRP_
 nl_handle_t nl_cmd;		/* Command channel */
+#ifdef _WITH_VRRP_
 int netlink_error_ignore;	/* If we get this error, ignore it */
 #endif
 
@@ -1658,7 +1658,12 @@ kernel_netlink_init(void)
 #endif
 
 	/* Start with netlink interface and address lookup */
-	init_interface_queue();
+#ifdef _WITH_VRRP_
+#ifndef _DEBUG_
+	if (prog_type == PROG_TYPE_VRRP)
+#endif
+		init_interface_queue();
+#endif
 	netlink_address_lookup();
 }
 
