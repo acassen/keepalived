@@ -69,6 +69,11 @@
 #endif
 #include "vrrp_ipaddress.h"
 
+/* This seems a nasty hack, but it's what iproute2 does */
+#ifndef SOL_NETLINK
+#define SOL_NETLINK 270
+#endif
+
 /* Default values */
 #ifdef _NETLINK_RCV_ENOBUFS_
 #define IF_DEFAULT_BUFSIZE	(65*1024)

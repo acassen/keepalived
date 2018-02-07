@@ -431,9 +431,9 @@ vrrp_dont_track_handler(__attribute__((unused)) vector_t *strvec)
 }
 #ifdef _WITH_BFD_
 static void
-vrrp_track_bfd_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_track_bfd_handler(vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_track_bfd);
+	alloc_value_block(alloc_vrrp_track_bfd, vector_slot(strvec, 0));
 }
 #endif
 static void
