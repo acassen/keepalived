@@ -24,6 +24,7 @@
 #define _VRRP_ARP_H
 
 /* system includes */
+#include <netinet/in.h>
 #include <net/ethernet.h>
 #include <net/if_arp.h>
 
