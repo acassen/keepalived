@@ -108,7 +108,8 @@ stop_vrrp(int status)
 	/* Ensure any interfaces are in backup mode,
 	 * sending a priority 0 vrrp message
 	 */
-	restore_vrrp_interfaces();
+	if (!__test_bit(DONT_RELEASE_VRRP_BIT, &debug))
+		restore_vrrp_interfaces();
 
 #ifdef _HAVE_LIBIPTC_
 	iptables_fini();
