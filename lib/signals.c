@@ -23,9 +23,6 @@
 
 #include "config.h"
 
-#if defined HAVE_PIPE2 && !defined _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
 #include <signal.h>
 #include <string.h>
 

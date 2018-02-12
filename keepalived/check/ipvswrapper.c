@@ -23,10 +23,6 @@
 
 #include "config.h"
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE /* to make O_CLOEXEC available */
-#endif
-
 #include <fcntl.h>
 #include <stdint.h>
 #include <stdbool.h>

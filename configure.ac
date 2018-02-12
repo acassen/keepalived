@@ -233,17 +233,20 @@ AC_SUBST(ARFLAGS)
 # AC_PROG_LIBTOOL
 
 KA_CPPFLAGS="$kernelinc"
-KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -g -O2 -fPIE"
+KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -g -O2 -fPIE -D_GNU_SOURCE"
 KA_LDFLAGS="-pie"
 KA_LIBS=
 NEED_LIBDL=No
 #KA_LIBTOOLFLAGS =
 
+# We want _GNU_SOURCE defined always
+add_to_var([CFLAGS], [-D_GNU_SOURCE])
+
 if test "$enable_conversion_checks" = yes; then
   # Check if we can sensibly enable -Wconversion
   AC_MSG_CHECKING([for usable -Wconversion])
   SAV_CFLAGS="$CFLAGS"
-  CFLAGS="-Wconversion -O2  -Wp,-D_FORTIFY_SOURCE=2  -Werror"
+  CFLAGS="-Wconversion -O2 -Wp,-D_FORTIFY_SOURCE=2 -Werror"
   AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
     #include <sys/types.h>
     #include <sys/select.h>
@@ -286,7 +289,7 @@ if test "$enable_conversion_checks" = yes; then
     ]])],
     [
       AC_MSG_RESULT([yes])
-      KA_CFLAGS="$KA_CFLAGS -Wconversion"
+      add_to_var([KA_CFLAGS], [-Wconversion])
     ],
     [
       AC_MSG_RESULT([no])
@@ -294,11 +297,11 @@ if test "$enable_conversion_checks" = yes; then
     ])
   CFLAGS="$SAV_CFLAGS"
 elif test "$enable_force_conversion_checks" = yes; then
-  KA_CFLAGS="$KA_CFLAGS -Wconversion"
+  add_to_var([KA_CFLAGS], [-Wconversion])
 fi
 
 if test "$enable_Werror" = yes; then
-  KA_CFLAGS="$KA_CFLAGS -Werror"
+  add_to_var([KA_CFLAGS], [-Werror])
 fi
 
 AC_MSG_CHECKING([for -Wimplicit-fallthrough])
@@ -311,7 +314,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   ]])],
   [
     AC_MSG_RESULT([yes])
-    KA_CFLAGS="$KA_CFLAGS -Wimplicit-fallthrough=3"
+    add_to_var([KA_CFLAGS], [-Wimplicit-fallthrough=3])
   ],
   [
     AC_MSG_RESULT([no])
@@ -1049,7 +1052,6 @@ CFLAGS="$CFLAGS -D_GNU_SOURCE"
 AC_CHECK_DECLS([O_PATH],
   [
     add_build_opt([O_PATH])
-    add_to_var([KA_CFLAGS], ["-D_GNU_SOURCE"])
   ], [],[[#include <fcntl.h>]])
 CFLAGS="$SAV_CFLAGS"
 
