@@ -26,6 +26,7 @@
 #include "config.h"
 
 /* local include */
+#define _GNU_SOURCE
 #include "vrrp_arp.h"
 #include "vrrp_ndisc.h"
 #include "vrrp_scheduler.h"
