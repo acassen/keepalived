@@ -15,6 +15,7 @@
  * or linux/netlink.h to include linux/netfilter.h */
 #include <linux/netfilter.h>	/* For nf_inet_addr */
 #include <stdint.h>
+#include <net/if.h>
 
 #ifdef _WITH_LVS_64BIT_STATS_
 struct ip_vs_stats64 {
@@ -99,6 +100,11 @@ struct ip_vs_get_services_app {
 	struct ip_vs_service_entry_app entrytable[0];
 	} user;
 };
+
+/* Make sure we don't have an inconsistent definition */
+#if IP_VS_IFNAME_MAXLEN > IFNAMSIZ
+	#error The code assumes that IP_VS_IFNAME_MAXLEN <= IFNAMSIZ
+#endif
 
 /* The argument to IP_VS_SO_GET_DAEMON */
 struct ip_vs_daemon_kern {

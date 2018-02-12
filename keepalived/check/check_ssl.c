@@ -56,7 +56,7 @@ password_cb(char *buf, int num, __attribute__((unused)) int rwflag, void *userda
 	if ((unsigned)num < plen + 1)
 		return (0);
 
-	strncpy(buf, ssl->password, plen);
+	strcpy(buf, ssl->password);
 	return (int)plen;
 }
 
