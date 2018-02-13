@@ -40,7 +40,6 @@
 
 #define LINK_UP   1
 #define LINK_DOWN 0
-#define IF_NAMESIZ    20	/* Max interface length size */
 #define IF_HWADDR_MAX 20	/* Max MAC address length size */
 #define ARPHRD_ETHER 1
 #define ARPHRD_LOOPBACK 772
@@ -73,7 +72,7 @@ typedef struct _garp_delay {
 
 /* Interface structure definition */
 typedef struct _interface {
-	char			ifname[IF_NAMESIZ + 1];	/* Interface name */
+	char			ifname[IFNAMSIZ];	/* Interface name */
 	ifindex_t		ifindex;		/* Interface index */
 	struct in_addr		sin_addr;		/* IPv4 primary IPv4 address */
 	struct in6_addr		sin6_addr;		/* IPv6 link address */

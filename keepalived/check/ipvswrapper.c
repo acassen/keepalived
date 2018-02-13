@@ -23,10 +23,6 @@
 
 #include "config.h"
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE /* to make O_CLOEXEC available */
-#endif
-
 #include <fcntl.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -257,7 +253,7 @@ ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool i
 	if (config) {
 		daemonrule.syncid = (int)config->syncid;
 		if (!ignore_interface)
-			strncpy(daemonrule.mcast_ifn, config->ifname, IP_VS_IFNAME_MAXLEN);
+			strcpy(daemonrule.mcast_ifn, config->ifname);
 #ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
 		if (cmd == IPVS_STARTDAEMON) {
 			if (config->sync_maxlen)

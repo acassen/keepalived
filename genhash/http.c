@@ -85,7 +85,7 @@ const hash_t hashes[hash_guard] = {
 #define HASH_INIT(sock)		((sock)->hash->init(&(sock)->context))
 #define HASH_UPDATE(sock, buf, len) \
 	if ((sock)->content_len == -1 || (sock)->rx_bytes < (sock)->content_len) \
-		((sock)->hash->update(&(sock)->context, (buf), (sock)->content_len == -1 || (sock)->content_len - (sock)->rx_bytes >= len ? len : (sock)->content_len - (sock)->rx_bytes))
+		((sock)->hash->update(&(sock)->context, (buf), (sock)->content_len == -1 || (unsigned int)((sock)->content_len - (sock)->rx_bytes >= len ? len : (sock)->content_len - (sock)->rx_bytes)))
 #define HASH_FINAL(sock, digest) \
 	((sock)->hash->final((digest), &(sock)->context))
 
@@ -182,7 +182,7 @@ find_content_len(char *buffer, size_t size)
 	buffer[size] = sav_char;
 
 	if (valid_len)
-		return content_len;
+		return (ssize_t)content_len;
 
 	return -1;
 }

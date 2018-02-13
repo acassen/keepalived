@@ -240,7 +240,7 @@ if_mii_probe(const char *ifname)
 #endif
 
 	memset(&ifr, 0, sizeof (struct ifreq));
-	strncpy(ifr.ifr_name, ifname, sizeof (ifr.ifr_name));
+	strcpy(ifr.ifr_name, ifname);
 	if (ioctl(fd, SIOCGMIIPHY, &ifr) < 0) {
 		close(fd);
 		return -1;
@@ -290,7 +290,7 @@ if_ethtool_probe(const char *ifname)
 #endif
 
 	memset(&ifr, 0, sizeof (struct ifreq));
-	strncpy(ifr.ifr_name, ifname, sizeof (ifr.ifr_name));
+	strcpy(ifr.ifr_name, ifname);
 
 	status = if_ethtool_status(fd);
 	close(fd);
@@ -311,7 +311,7 @@ if_ioctl_flags(interface_t * ifp)
 #endif
 
 	memset(&ifr, 0, sizeof (struct ifreq));
-	strncpy(ifr.ifr_name, ifp->ifname, sizeof (ifr.ifr_name));
+	strcpy(ifr.ifr_name, ifp->ifname);
 	if (ioctl(fd, SIOCGIFFLAGS, &ifr) < 0) {
 		close(fd);
 		return;
