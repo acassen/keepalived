@@ -24,6 +24,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include "html.h"
 #include "memory.h"
 
@@ -34,13 +35,19 @@
 size_t extract_content_length(char *buffer, size_t size)
 {
 	char *clen = strstr(buffer, CONTENT_LENGTH);
+	size_t len;
+	char *end;
 
 	/* Pattern not found */
 	if (!clen || clen > buffer + size)
-		return -1;
+		return SIZE_MAX;
 
 	/* Content-Length extraction */
-	return atoi(clen + strlen(CONTENT_LENGTH));
+	len = strtoul(clen + strlen(CONTENT_LENGTH), &end, 10);
+	if (*end)
+		return SIZE_MAX;
+
+	return len;
 }
 
 /*
