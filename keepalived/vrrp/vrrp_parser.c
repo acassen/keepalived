@@ -33,6 +33,7 @@
 //#include <unistd.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <net/if.h>
 
 #include "vrrp_parser.h"
 #include "logger.h"
@@ -315,7 +316,12 @@ vrrp_vmac_handler(vector_t *strvec)
 	__set_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags);
 
 	if (vector_size(strvec) >= 2) {
-		strncpy(vrrp->vmac_ifname, strvec_slot(strvec, 1), IFNAMSIZ - 1);
+		if (strlen(strvec_slot(strvec, 1)) >= IFNAMSIZ) {
+			log_message(LOG_INFO, "VMAC interface name '%s' too long - ignoring", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+
+		strcpy(vrrp->vmac_ifname, strvec_slot(strvec, 1));
 
 		/* Check if the interface exists and is a macvlan we can use */
 		if ((ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_NO_CREATE)) &&
@@ -392,6 +398,11 @@ vrrp_int_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	char *name = strvec_slot(strvec, 1);
+
+	if (strlen(name) >= IFNAMSIZ) {
+		log_message(LOG_INFO, "Interface name '%s' too long - ignoring", name);
+		return;
+	}
 
 	vrrp->ifp = if_get_by_ifname(name, IF_CREATE_IF_DYNAMIC);
 	if (!vrrp->ifp)

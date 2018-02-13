@@ -5358,18 +5358,21 @@ ARFLAGS=cr
 # AC_PROG_LIBTOOL
 
 KA_CPPFLAGS="$kernelinc"
-KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -Winit-self -g -O2"
+KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -Winit-self -g -O2 -D_GNU_SOURCE"
 KA_LDFLAGS=
 KA_LIBS=
 NEED_LIBDL=No
 #KA_LIBTOOLFLAGS =
+
+# We want _GNU_SOURCE defined always
+CFLAGS="$CFLAGS -D_GNU_SOURCE"
 
 if test "$enable_conversion_checks" = yes; then
   # Check if we can sensibly enable -Wconversion
   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for usable -Wconversion" >&5
 $as_echo_n "checking for usable -Wconversion... " >&6; }
   SAV_CFLAGS="$CFLAGS"
-  CFLAGS="-Wconversion -O2  -Wp,-D_FORTIFY_SOURCE=2  -Werror"
+  CFLAGS="-Wconversion -O2 -Wp,-D_FORTIFY_SOURCE=2 -Werror"
   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -9775,7 +9778,6 @@ _ACEOF
 if test $ac_have_decl = 1; then :
 
     SYSTEM_OPTIONS="$SYSTEM_OPTIONS O_PATH"
-    KA_CFLAGS="$KA_CFLAGS "-D_GNU_SOURCE""
 
 fi
 
