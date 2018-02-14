@@ -29,10 +29,10 @@ For DBUS support:
 For JSON support:
 	json-c-devel
 
-To build the documentation
---------------------------
-Install:
-	python2-sphinx python-sphinx-latex
+For building the documentation, the following packages need to be installed:
+	python2-sphinx
+   For latex or pdf files, the following are also needed:
+	python-sphinx-latex
 
 Debian/Ubuntu
 -------------
@@ -46,6 +46,11 @@ For DBUS support:
 	libglib2.0-dev
 For JSON support:
 	libjson-c-dev
+
+For building the documentation, the following packages need to be installed:
+	python-sphinx python-sphinx-rtd-theme
+   For latex or pdf files, the following are also needed:
+	texlive-latex-base texlive-generic-extra texlive-latex-recommended texlive-fonts-recommended texlive-latex-extra
 
 Alpine Linux
 ------------
