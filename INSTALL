@@ -29,6 +29,11 @@ For DBUS support:
 For JSON support:
 	json-c-devel
 
+To build the documentation
+--------------------------
+Install:
+	python2-sphinx python-sphinx-latex
+
 Debian/Ubuntu
 -------------
 On Debian, install:

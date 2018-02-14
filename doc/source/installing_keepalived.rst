@@ -89,4 +89,12 @@ Setup Init Scripts
 After compiling, create an init script in order to control the keepalived
 daemon.
 
-On RHEL, 
+On RHEL::
+
+    ln -s /etc/rc.d/init.d/keepalived.init /etc/rc.d/rc3.d/S99keepalived
+
+On Debian::
+
+    ln -s /etc/init.d/keepalived.init /etc/rc2.d/S99keepalived
+
+Note: The link should be added in your default run level directory.
