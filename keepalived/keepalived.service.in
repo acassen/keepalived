@@ -1,6 +1,7 @@
 [Unit]
 Description=LVS and VRRP High Availability Monitor
-After=syslog.target network-online.target
+After= network-online.target syslog.target
+Wants=network-online.target
 
 [Service]
 Type=forking
