@@ -211,13 +211,18 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		/* We don't want IPv6 running on the interface unless we have some IPv6
 		 * eVIPs, so disable it if not needed */
 		if (!vrrp->evip_add_ipv6)
-			link_disable_ipv6(ifp);
+			link_enable_ipv6(ifp, false);
 	}
 	if (vrrp->family == AF_INET6 || vrrp->evip_add_ipv6) {
-		// We don't want a link-local address auto assigned - see RFC5798 paragraph 7.4.
-		// If we have a sufficiently recent kernel, we can stop a link local address
-		// based on the MAC address being automatically assigned. If not, then we have
-		// to delete the generated address after bringing the interface up (see below).
+		/* Make sure IPv6 is enabled for the interface, in case the
+		 * sysctl net.ipv6.conf.default.disable_ipv6 is set true. */
+		link_enable_ipv6(ifp, true);
+
+		/* We don't want a link-local address auto assigned - see RFC5798 paragraph 7.4.
+		 * If we have a sufficiently recent kernel, we can stop a link local address
+		 * based on the MAC address being automatically assigned. If not, then we have
+		 * to delete the generated address after bringing the interface up (see below).
+		 */
 #if HAVE_DECL_IFLA_INET6_ADDR_GEN_MODE
 		memset(&req, 0, sizeof (req));
 		req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
