@@ -442,28 +442,37 @@ AC_CHECK_HEADERS([openssl/md5.h], [],
     NEED_MD5=no
     break
   ])
-
 unset LIBS
+
+$PKG_CONFIG --exists openssl
+if test $? -eq 0; then
+  add_pkg_config([openssl], [OPENSSL])
+else
+  OPENSSL_LIBS="-lssl -lcrypto"
+fi
+
+EXTRA_LIBS=`echo $OPENSSL_LIBS | sed -e "s/-lcrypto//"`
 AC_CHECK_LIB(crypto, MD5_Init, [],
   [
     if test $NEED_MD5 = yes; then
       AC_MSG_ERROR([OpenSSL MD5 libraries are required])
     fi
     BUILD_GENHASH=No
-  ])
+  ], [$EXTRA_LIBS])
 if test $NEED_MD5 = yes; then
   add_to_var([KA_LIBS], [$LIBS])
 fi
 add_to_var([GENHASH_LIBS], [$LIBS])
 unset LIBS
 
+EXTRA_LIBS=`echo $OPENSSL_LIBS | sed -e "s/-lssl//"`
 AC_CHECK_LIB(ssl, SSL_CTX_new, [],
   [
     if test $NEED_SSL = yes; then
       AC_MSG_ERROR([OpenSSL libraries are required])
     fi
     BUILD_GENHASH=No
-  ])
+  ], [$EXTRA_LIBS])
 if test $NEED_SSL = yes; then
   add_to_var([KA_LIBS], [$LIBS])
 fi
