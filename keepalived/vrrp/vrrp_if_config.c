@@ -655,11 +655,13 @@ void reset_interface_parameters(interface_t *base_ifp)
 }
 #endif
 
+#ifdef _HAVE_VRRP_VMAC_
 void link_set_ipv6(const interface_t* ifp, bool enable)
 {
 	/* libnl3, nor the kernel, support setting IPv6 options */
 	set_sysctl("net/ipv6/conf", ifp->ifname, "disable_ipv6", enable ? 0 : 1);
 }
+#endif
 
 bool get_ipv6_forwarding(const interface_t* ifp)
 {

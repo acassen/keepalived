@@ -84,9 +84,9 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 		char buf[256];
 	} req;
 #if HAVE_DECL_IFA_FLAGS
-	uint32_t ifa_flags;
+	uint32_t ifa_flags = 0;
 #else
-	uint8_t ifa_flags;
+	uint8_t ifa_flags = 0;
 #endif
 
 	if (cmd == IPADDRESS_ADD) {

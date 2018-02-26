@@ -6813,15 +6813,71 @@ fi
 
 done
 
-
 unset LIBS
+
+$PKG_CONFIG --exists openssl
+if test $? -eq 0; then
+   if test -n "OPENSSL"; then
+      KA_PKG_PFX=OPENSSL
+    else
+      KA_PKG_PFX=KA
+    fi
+    ADD_NEW=
+   eval var=\$${KA_PKG_PFX}_CPPFLAGS
+    for item in `$PKG_CONFIG --cflags-only-I openssl`; do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval ${KA_PKG_PFX}_CPPFLAGS=\"\$${KA_PKG_PFX}_CPPFLAGS $ADD_NEW\"
+
+    ADD_NEW=
+   eval var=\$${KA_PKG_PFX}_CFLAGS
+    for item in `$PKG_CONFIG --cflags-only-other openssl`; do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval ${KA_PKG_PFX}_CFLAGS=\"\$${KA_PKG_PFX}_CFLAGS $ADD_NEW\"
+
+    ADD_NEW=
+   eval var=\$${KA_PKG_PFX}_LIBS
+    for item in `$PKG_CONFIG --libs openssl`; do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval ${KA_PKG_PFX}_LIBS=\"\$${KA_PKG_PFX}_LIBS $ADD_NEW\"
+
+
+    if test . = .remove-requires; then
+      REQUIRES=`$PKG_CONFIG --print-requires openssl`
+      eval var=\$${KA_PKG_PFX}_LIBS
+      for r in $REQUIRES; do
+	REQ_LIBS=`$PKG_CONFIG --libs $r`
+	for l in $REQ_LIBS; do
+	  var=`echo " $var " | sed -e "s/ $l / /g"`
+	done
+      done
+      var=`echo $var | sed -e "s/^ *//" -e "s/  *$//"`
+      eval ${KA_PKG_PFX}_LIBS="\"$var\""
+    fi
+
+else
+  OPENSSL_LIBS="-lssl -lcrypto"
+fi
+
+EXTRA_LIBS=`echo $OPENSSL_LIBS | sed -e "s/-lcrypto//"`
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for MD5_Init in -lcrypto" >&5
 $as_echo_n "checking for MD5_Init in -lcrypto... " >&6; }
 if ${ac_cv_lib_crypto_MD5_Init+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lcrypto  $LIBS"
+LIBS="-lcrypto $EXTRA_LIBS $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -6873,13 +6929,14 @@ fi
 GENHASH_LIBS="$GENHASH_LIBS $LIBS"
 unset LIBS
 
+EXTRA_LIBS=`echo $OPENSSL_LIBS | sed -e "s/-lssl//"`
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for SSL_CTX_new in -lssl" >&5
 $as_echo_n "checking for SSL_CTX_new in -lssl... " >&6; }
 if ${ac_cv_lib_ssl_SSL_CTX_new+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lssl  $LIBS"
+LIBS="-lssl $EXTRA_LIBS $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -7002,8 +7059,8 @@ if test .${enable_libnl} != .no; then
     fi
 
     NL3_LIB=`echo $NL3_LIBS | sed -e "s/-l//g"`
-  fi
-  as_ac_Lib=`$as_echo "ac_cv_lib_$NL3_LIB''_nl_socket_alloc" | $as_tr_sh`
+
+    as_ac_Lib=`$as_echo "ac_cv_lib_$NL3_LIB''_nl_socket_alloc" | $as_tr_sh`
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for nl_socket_alloc in -l$NL3_LIB" >&5
 $as_echo_n "checking for nl_socket_alloc in -l$NL3_LIB... " >&6; }
 if eval \${$as_ac_Lib+:} false; then :
@@ -7043,9 +7100,9 @@ eval ac_res=\$$as_ac_Lib
 $as_echo "$ac_res" >&6; }
 if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
 
-      NETLINK_VER=3
-      NEED_NL3=No
-       if test -n "NL3"; then
+        NETLINK_VER=3
+        NEED_NL3=No
+         if test -n "NL3"; then
       KA_PKG_PFX=NL3
     else
       KA_PKG_PFX=KA
@@ -7095,8 +7152,8 @@ if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
     fi
 
 
-      if test .$enable_lvs != .no; then
-	 if test -n "GENL"; then
+        if test .$enable_lvs != .no; then
+	   if test -n "GENL"; then
       KA_PKG_PFX=GENL
     else
       KA_PKG_PFX=KA
@@ -7145,8 +7202,8 @@ if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
       eval ${KA_PKG_PFX}_LIBS="\"$var\""
     fi
 
-	GENL_LIB=`echo $GENL_LIBS | sed -e "s/-l//g"`
-	as_ac_Lib=`$as_echo "ac_cv_lib_$GENL_LIB''_genl_connect" | $as_tr_sh`
+	  GENL_LIB=`echo $GENL_LIBS | sed -e "s/-l//g"`
+	  as_ac_Lib=`$as_echo "ac_cv_lib_$GENL_LIB''_genl_connect" | $as_tr_sh`
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for genl_connect in -l$GENL_LIB" >&5
 $as_echo_n "checking for genl_connect in -l$GENL_LIB... " >&6; }
 if eval \${$as_ac_Lib+:} false; then :
@@ -7195,9 +7252,9 @@ else
   as_fn_error $? "libnl-3 is installed but not libnl-gen-3. Please, install libnl-gen-3/libnl-genl-3." "$LINENO" 5
 fi
 
-	IPVS_USE_NL=Yes
-	if test .$enable_libnl_dynamic = .yes; then
-	   if test -n ""; then
+	  IPVS_USE_NL=Yes
+	  if test .$enable_libnl_dynamic = .yes; then
+	     if test -n ""; then
       KA_PKG_PFX=
     else
       KA_PKG_PFX=KA
@@ -7256,8 +7313,8 @@ cat >>confdefs.h <<_ACEOF
 #define NL3_GENL_LIB_NAME  "$LIB_NAME"
 _ACEOF
 
-	else
-	   if test -n ""; then
+	  else
+	     if test -n ""; then
       KA_PKG_PFX=
     else
       KA_PKG_PFX=KA
@@ -7306,17 +7363,17 @@ _ACEOF
       eval ${KA_PKG_PFX}_LIBS="\"$var\""
     fi
 
-	fi
-	NEED_NL3=Yes
-      fi
+	  fi
+	  NEED_NL3=Yes
+        fi
 
-      if test $NETLINK_VER -eq 3 -a .$disable_vrrp != .no; then
-	NEED_NL3=Yes
+        if test $NETLINK_VER -eq 3 -a .$disable_vrrp != .no; then
+	  NEED_NL3=Yes
 
-		SAV_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$CPP_FLAGS $kernelinc"
-	IPV4_DEVCONF=Yes
-	ac_fn_c_check_decl "$LINENO" "IPV4_DEVCONF_ARP_IGNORE" "ac_cv_have_decl_IPV4_DEVCONF_ARP_IGNORE" "#include <linux/ip.h>
+	  	  SAV_CPPFLAGS="$CPPFLAGS"
+	  CPPFLAGS="$CPP_FLAGS $kernelinc"
+	  IPV4_DEVCONF=Yes
+	  ac_fn_c_check_decl "$LINENO" "IPV4_DEVCONF_ARP_IGNORE" "ac_cv_have_decl_IPV4_DEVCONF_ARP_IGNORE" "#include <linux/ip.h>
 "
 if test "x$ac_cv_have_decl_IPV4_DEVCONF_ARP_IGNORE" = xyes; then :
   ac_have_decl=1
@@ -7331,8 +7388,8 @@ if test $ac_have_decl = 1; then :
 
 else
 
-	    IPV4_DEVCONF=No
-	    break
+	      IPV4_DEVCONF=No
+	      break
 
 fi
 ac_fn_c_check_decl "$LINENO" "IPV4_DEVCONF_ACCEPT_LOCAL" "ac_cv_have_decl_IPV4_DEVCONF_ACCEPT_LOCAL" "#include <linux/ip.h>
@@ -7350,8 +7407,8 @@ if test $ac_have_decl = 1; then :
 
 else
 
-	    IPV4_DEVCONF=No
-	    break
+	      IPV4_DEVCONF=No
+	      break
 
 fi
 ac_fn_c_check_decl "$LINENO" "IPV4_DEVCONF_RP_FILTER" "ac_cv_have_decl_IPV4_DEVCONF_RP_FILTER" "#include <linux/ip.h>
@@ -7369,8 +7426,8 @@ if test $ac_have_decl = 1; then :
 
 else
 
-	    IPV4_DEVCONF=No
-	    break
+	      IPV4_DEVCONF=No
+	      break
 
 fi
 ac_fn_c_check_decl "$LINENO" "IPV4_DEVCONF_ARPFILTER" "ac_cv_have_decl_IPV4_DEVCONF_ARPFILTER" "#include <linux/ip.h>
@@ -7388,14 +7445,14 @@ if test $ac_have_decl = 1; then :
 
 else
 
-	    IPV4_DEVCONF=No
-	    break
+	      IPV4_DEVCONF=No
+	      break
 
 fi
 
-	if test $IPV4_DEVCONF = Yes; then
-	  CPPFLAGS="$SAV_CPPFLAGS $NL3_CPPFLAGS"
-	  for ac_header in netlink/route/link.h netlink/route/link/inet.h
+	  if test $IPV4_DEVCONF = Yes; then
+	    CPPFLAGS="$SAV_CPPFLAGS $NL3_CPPFLAGS"
+	    for ac_header in netlink/route/link.h netlink/route/link/inet.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
@@ -7413,39 +7470,39 @@ done
 
 $as_echo "#define _HAVE_IPV4_DEVCONF_  1 " >>confdefs.h
 
-	  SYSTEM_OPTIONS="$SYSTEM_OPTIONS IPV4_DEVCONF"
+	    SYSTEM_OPTIONS="$SYSTEM_OPTIONS IPV4_DEVCONF"
 
-	  	  	  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for net/if.h and libnl3/netlink/route/link.h namespace collision" >&5
+	    	    	    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for net/if.h and libnl3/netlink/route/link.h namespace collision" >&5
 $as_echo_n "checking for net/if.h and libnl3/netlink/route/link.h namespace collision... " >&6; }
-	  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+	    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
-	      #include <netlink/route/link.h>
-	      #include <net/if.h>
+	        #include <netlink/route/link.h>
+	        #include <net/if.h>
 
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
 
-	      { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+	        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 else
 
-	      { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+	        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
 $as_echo "#define _HAVE_IF_H_LINK_H_COLLISION_  1 " >>confdefs.h
 
-	      SYSTEM_OPTIONS="$SYSTEM_OPTIONS IF_H_LINK_H_COLLISION"
+	        SYSTEM_OPTIONS="$SYSTEM_OPTIONS IF_H_LINK_H_COLLISION"
 
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-	fi
-	CPPFLAGS="$SAV_CPPFLAGS"
-      fi
+	  fi
+	  CPPFLAGS="$SAV_CPPFLAGS"
+        fi
 
-      if test $IPV4_DEVCONF = Yes; then
-	 if test -n "ROUTE"; then
+        if test $IPV4_DEVCONF = Yes; then
+	   if test -n "ROUTE"; then
       KA_PKG_PFX=ROUTE
     else
       KA_PKG_PFX=KA
@@ -7494,8 +7551,8 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
       eval ${KA_PKG_PFX}_LIBS="\"$var\""
     fi
 
-	ROUTE_LIB=`echo $ROUTE_LIBS | sed -e "s/-l//g"`
-	as_ac_Lib=`$as_echo "ac_cv_lib_$ROUTE_LIB''_nl_rtgen_request" | $as_tr_sh`
+	  ROUTE_LIB=`echo $ROUTE_LIBS | sed -e "s/-l//g"`
+	  as_ac_Lib=`$as_echo "ac_cv_lib_$ROUTE_LIB''_nl_rtgen_request" | $as_tr_sh`
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for nl_rtgen_request in -l$ROUTE_LIB" >&5
 $as_echo_n "checking for nl_rtgen_request in -l$ROUTE_LIB... " >&6; }
 if eval \${$as_ac_Lib+:} false; then :
@@ -7544,8 +7601,8 @@ else
   as_fn_error $? "libnl-3 is installed but not libnl-route-3. Please, install libnl-route-3." "$LINENO" 5
 fi
 
-	if test .$enable_libnl_dynamic = .yes; then
-	   if test -n ""; then
+	  if test .$enable_libnl_dynamic = .yes; then
+	     if test -n ""; then
       KA_PKG_PFX=
     else
       KA_PKG_PFX=KA
@@ -7604,8 +7661,8 @@ cat >>confdefs.h <<_ACEOF
 #define NL3_ROUTE_LIB_NAME  "$LIB_NAME"
 _ACEOF
 
-	else
-	   if test -n ""; then
+	  else
+	     if test -n ""; then
       KA_PKG_PFX=
     else
       KA_PKG_PFX=KA
@@ -7654,17 +7711,17 @@ _ACEOF
       eval ${KA_PKG_PFX}_LIBS="\"$var\""
     fi
 
-	fi
-      fi
+	  fi
+        fi
 
-      if test $NEED_NL3 = Yes; then
+        if test $NEED_NL3 = Yes; then
 
 $as_echo "#define _HAVE_LIBNL3_  1 " >>confdefs.h
 
-	SYSTEM_OPTIONS="$SYSTEM_OPTIONS LIBNL3"
-	if test .$enable_libnl_dynamic = .yes; then
-	  SYSTEM_OPTIONS="$SYSTEM_OPTIONS LIBNL_DYNAMIC"
-	   if test -n ""; then
+	  SYSTEM_OPTIONS="$SYSTEM_OPTIONS LIBNL3"
+	  if test .$enable_libnl_dynamic = .yes; then
+	    SYSTEM_OPTIONS="$SYSTEM_OPTIONS LIBNL_DYNAMIC"
+	     if test -n ""; then
       KA_PKG_PFX=
     else
       KA_PKG_PFX=KA
@@ -7693,7 +7750,7 @@ $as_echo "#define _HAVE_LIBNL3_  1 " >>confdefs.h
 
 $as_echo "#define _LIBNL_DYNAMIC_  1 " >>confdefs.h
 
-	  NEED_LIBDL=Yes
+	    NEED_LIBDL=Yes
 
     if test $LDD = :; then
       as_fn_error $? "ldd is required for dynamic run-time linking support" "$LINENO" 5
@@ -7727,8 +7784,8 @@ cat >>confdefs.h <<_ACEOF
 #define NL3_LIB_NAME  "$LIB_NAME"
 _ACEOF
 
-	else
-	   if test -n ""; then
+	  else
+	     if test -n ""; then
       KA_PKG_PFX=
     else
       KA_PKG_PFX=KA
@@ -7777,13 +7834,15 @@ _ACEOF
       eval ${KA_PKG_PFX}_LIBS="\"$var\""
     fi
 
-	fi
-      fi
+	  fi
+        fi
 
-else
+fi
 
-      if test .$enable_lvs != .no; then
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for nl_socket_modify_cb in -lnl" >&5
+  fi
+
+  if test $NETLINK_VER -eq 0 -a .$enable_lvs != .no; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for nl_socket_modify_cb in -lnl" >&5
 $as_echo_n "checking for nl_socket_modify_cb in -lnl... " >&6; }
 if ${ac_cv_lib_nl_nl_socket_modify_cb+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -7821,14 +7880,14 @@ fi
 $as_echo "$ac_cv_lib_nl_nl_socket_modify_cb" >&6; }
 if test "x$ac_cv_lib_nl_nl_socket_modify_cb" = xyes; then :
 
-	    IPVS_USE_NL=Yes
-	    NETLINK_VER=1
+	IPVS_USE_NL=Yes
+	NETLINK_VER=1
 
 $as_echo "#define _HAVE_LIBNL1_  1 " >>confdefs.h
 
-	    SYSTEM_OPTIONS="$SYSTEM_OPTIONS LIBNL1"
-	    if test .$enable_libnl_dynamic = .yes; then
-	       if test -n ""; then
+	SYSTEM_OPTIONS="$SYSTEM_OPTIONS LIBNL1"
+	if test .$enable_libnl_dynamic = .yes; then
+	   if test -n ""; then
       KA_PKG_PFX=
     else
       KA_PKG_PFX=KA
@@ -7854,11 +7913,11 @@ $as_echo "#define _HAVE_LIBNL1_  1 " >>confdefs.h
     eval ${KA_PKG_PFX}_CFLAGS=\"\$${KA_PKG_PFX}_CFLAGS $ADD_NEW\"
 
 
-	      CONFIG_OPTIONS="$CONFIG_OPTIONS LIBNL_DYNAMIC"
+	  CONFIG_OPTIONS="$CONFIG_OPTIONS LIBNL_DYNAMIC"
 
 $as_echo "#define _LIBNL_DYNAMIC_  1 " >>confdefs.h
 
-	      NEED_LIBDL=Yes
+	  NEED_LIBDL=Yes
 
     if test $LDD = :; then
       as_fn_error $? "ldd is required for dynamic run-time linking support" "$LINENO" 5
@@ -7892,8 +7951,8 @@ cat >>confdefs.h <<_ACEOF
 #define NL_LIB_NAME  "$LIB_NAME"
 _ACEOF
 
-	    else
-	       if test -n ""; then
+	else
+	   if test -n ""; then
       KA_PKG_PFX=
     else
       KA_PKG_PFX=KA
@@ -7942,19 +8001,15 @@ _ACEOF
       eval ${KA_PKG_PFX}_LIBS="\"$var\""
     fi
 
-	    fi
+	fi
 
 else
-
-	    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: keepalived will be built without libnl support." >&5
+   { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: keepalived will be built without libnl support." >&5
 $as_echo "$as_me: WARNING: keepalived will be built without libnl support." >&2;}
 
 fi
 
-      fi
-
-fi
-
+  fi
 
   if test $NETLINK_VER -ne 0; then
     SAV_CPPFLAGS="$CPPFLAGS"
