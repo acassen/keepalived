@@ -215,6 +215,7 @@ typedef struct _vrrp_t {
 	list			vroutes;		/* list of virtual routes */
 	list			vrules;			/* list of virtual rules */
 	unsigned		adver_int;		/* locally configured delay between advertisements*/
+	unsigned		reload_adver_int; /* locally configured delay between advertisements during a reload */
 	unsigned		master_adver_int;	/* In v3, when we become BACKUP, we use the MASTER's
 							 * adver_int. If we become MASTER again, we use the
 							 * value we were originally configured with.
