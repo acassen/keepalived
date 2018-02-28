@@ -410,12 +410,43 @@ vrrp_signal_init(void)
 	signal_ignore(SIGPIPE);
 }
 
+static void send_advert_on_reload(list vrrps)
+{
+	element e;
+	vrrp_t *vrrp;
+
+	if (!LIST_ISEMPTY(vrrps)) {
+		for (e = LIST_HEAD(vrrps); e; ELEMENT_NEXT(e)) {
+			unsigned saved_adver_int;
+
+			vrrp = ELEMENT_DATA(e);
+			saved_adver_int = vrrp->adver_int;
+
+			if (vrrp->state != VRRP_STATE_MAST)
+				continue;
+			
+			if (vrrp->reload_adver_int > 0) {
+				vrrp->adver_int = vrrp->reload_adver_int;
+			}
+			
+			vrrp_send_adv(vrrp, vrrp->effective_priority);
+
+			if (vrrp->reload_adver_int > 0) {
+				vrrp->adver_int = saved_adver_int;
+			}
+		}
+	}
+}
+
 /* Reload thread */
 static int
 reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 {
 	/* set the reloading flag */
 	SET_RELOAD;
+
+	/* send advert before reload */
+	send_advert_on_reload(old_vrrp_data->vrrp);
 
 	/* Terminate all script process */
 	script_killall(master, SIGTERM);
