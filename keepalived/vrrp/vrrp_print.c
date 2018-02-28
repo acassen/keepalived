@@ -342,7 +342,7 @@ vrrp_print(FILE *file, void *data)
 			LIST_SIZE(vrrp->unicast_peer));
 		vrrp_print_list(file, vrrp->unicast_peer, &sockaddr_print);
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
-		fprintf(file, "   Unicast checksum compatibility = %s",
+		fprintf(file, "   Unicast checksum compatibility = %s\n",
 				vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_NONE ? "no" :
 			        vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_NEVER ? "never" :
 			        vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_CONFIG ? "config" :
