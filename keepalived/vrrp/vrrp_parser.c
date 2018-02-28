@@ -408,6 +408,18 @@ vrrp_adv_handler(vector_t *strvec)
 		vrrp->adver_int = (unsigned)adver_int;
 }
 static void
+vrrp_reload_adv_handler(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	int reload_adver_int = (int)(atof(strvec_slot(strvec, 1)) * TIMER_HZ);
+
+	/* Simple check - just positive */
+	if (reload_adver_int <= 0)
+		log_message(LOG_INFO, "(%s): Reload advert interval (%s) not valid! Must be > 0 - ignoring", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+	else
+		vrrp->reload_adver_int = (unsigned)reload_adver_int;
+}
+static void
 vrrp_debug_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
@@ -981,6 +993,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("version", &vrrp_version_handler);
 	install_keyword("priority", &vrrp_prio_handler);
 	install_keyword("advert_int", &vrrp_adv_handler);
+	install_keyword("reload_advert_int", &vrrp_reload_adv_handler);
 	install_keyword("virtual_ipaddress", &vrrp_vip_handler);
 	install_keyword("virtual_ipaddress_excluded", &vrrp_evip_handler);
 	install_keyword("promote_secondaries", &vrrp_promote_secondaries);
