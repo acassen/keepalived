@@ -417,10 +417,10 @@ static void send_advert_on_reload(list vrrps)
 
 	if (!LIST_ISEMPTY(vrrps)) {
 		for (e = LIST_HEAD(vrrps); e; ELEMENT_NEXT(e)) {
-			unsigned old_adver_int;
+			unsigned saved_adver_int;
 
 			vrrp = ELEMENT_DATA(e);
-			old_adver_int = vrrp->adver_int;
+			saved_adver_int = vrrp->adver_int;
 
 			if (vrrp->state != VRRP_STATE_MAST)
 				continue;
@@ -432,7 +432,7 @@ static void send_advert_on_reload(list vrrps)
 			vrrp_send_adv(vrrp, vrrp->effective_priority);
 
 			if (vrrp->reload_adver_int > 0) {
-				vrrp->adver_int = old_adver_int;
+				vrrp->adver_int = saved_adver_int;
 			}
 		}
 	}
