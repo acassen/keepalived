@@ -560,6 +560,7 @@ vrrp_instance <STRING> {  # VRRP instance declaration
     virtual_router_id <INTEGER-1..255>  # VRRP VRID
     priority <INTEGER-1..255>  # VRRP PRIO
     advert_int <FLOAT>         # VRRP Advert interval (use default)
+    reload_advert_int <FLOAT>  # VRRP Advert interval during reload (if not specified use advert_int)
 
     lower_prio_no_advert [<BOOL>]  # If a lower priority advert is received, don't
                                    # send another advert. This causes adherence
