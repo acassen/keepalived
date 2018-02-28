@@ -354,10 +354,50 @@ start_vrrp(void)
 }
 
 #ifndef _DEBUG_
+static int
+send_reload_advert_thread(thread_t *thread)
+{
+	vrrp_t *vrrp = THREAD_ARG(thread);
+
+	if (vrrp->state == VRRP_STATE_MAST)
+		vrrp_send_adv(vrrp, vrrp->effective_priority);
+
+	/* If this is the last vrrp instance to send an advert, schedule the
+	 * actual reload. */
+	if (THREAD_VAL(thread))
+		thread_add_event(master, reload_vrrp_thread, NULL, 0);
+
+	return 0;
+}
+
 static void
 sighup_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
-	thread_add_event(master, reload_vrrp_thread, NULL, 0);
+	element e;
+	vrrp_t *vrrp;
+	int num_master_inst = 0;
+	int i;
+
+	/* We want to send adverts for the vrrp instances which are
+	 * in master state. After that the reload can be initiated */
+	if (!LIST_ISEMPTY(vrrp_data->vrrp)) {
+		for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
+			vrrp = ELEMENT_DATA(e);
+			if (vrrp->state == VRRP_STATE_MAST)
+				num_master_inst++;
+		}
+
+		for (e = LIST_HEAD(vrrp_data->vrrp), i = 0; e; ELEMENT_NEXT(e)) {
+			vrrp = ELEMENT_DATA(e);
+			if (vrrp->state == VRRP_STATE_MAST) {
+				i++;
+				thread_add_event(master, send_reload_advert_thread, vrrp, i == num_master_inst);
+			}
+		}
+	}
+
+	if (num_master_inst == 0)
+		thread_add_event(master, reload_vrrp_thread, NULL, 0);
 }
 
 static void

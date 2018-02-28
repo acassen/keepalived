@@ -268,10 +268,12 @@ vrrp_init_state(list l)
 					       false,
 					       false);
 #endif
+			if (vrrp->state != VRRP_STATE_MASTER_RELOAD) {
 #ifdef _WITH_SNMP_RFCV3_
-			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
+				vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
 #endif
-			vrrp->state = VRRP_STATE_GOTO_MASTER;
+				vrrp->state = VRRP_STATE_GOTO_MASTER;
+			}
 		} else {
 			vrrp->ms_down_timer = 3 * vrrp->adver_int
 			    + VRRP_TIMER_SKEW(vrrp);
@@ -325,6 +327,8 @@ vrrp_init_sands(list l)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 		vrrp_init_instance_sands(vrrp);
+		if (vrrp->state == VRRP_STATE_MASTER_RELOAD)
+			vrrp->state = VRRP_STATE_MAST;
 	}
 }
 
