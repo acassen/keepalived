@@ -414,13 +414,18 @@ static void send_advert_on_reload(list vrrps)
 {
 	element e;
 	vrrp_t *vrrp;
-	unsigned old_adver_int;
 
 	if (!LIST_ISEMPTY(vrrps)) {
 		for (e = LIST_HEAD(vrrps); e; ELEMENT_NEXT(e)) {
+			unsigned old_adver_int;
+
 			vrrp = ELEMENT_DATA(e);
+			old_adver_int = vrrp->adver_int;
+
+			if (vrrp->state != VRRP_STATE_MAST)
+				continue;
+			
 			if (vrrp->reload_adver_int > 0) {
-				old_adver_int = vrrp->adver_int;
 				vrrp->adver_int = vrrp->reload_adver_int;
 			}
 			
