@@ -28,7 +28,7 @@ keepalived MODULE-IDENTITY
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
-     REVISION "201802280000Z"
+     REVISION "201803010000Z"
      DESCRIPTION "add route option fastopen_no_cookie and rule option l3mdev"
      REVISION "201709150000Z"
      DESCRIPTION "add sctp and none as virtual server protocol types"
@@ -1028,7 +1028,7 @@ VrrpRouteEntry ::= SEQUENCE {
     vrrpRouteEncapTTL Unsigned32,
     vrrpRouteEncapFlags Unsigned32,
     vrrpRouteEncapIlaLocator Counter64,
-    vrrpRouteFastOpenNoCookie TruthValue,
+    vrrpRouteFastOpenNoCookie TruthValue
 }
 
 vrrpRouteIndex OBJECT-TYPE
@@ -1469,7 +1469,7 @@ vrrpRouteFastOpenNoCookie OBJECT-TYPE
     MAX-ACCESS read-only
     STATUS current
     DESCRIPTION
-        "Fast open on cookie."
+        "Fast open no cookie."
     ::= { vrrpRouteEntry 55 }
 
 -- Route next hops
@@ -1711,7 +1711,8 @@ VrrpRuleEntry ::= SEQUENCE {
     vrrpRuleTunnelIdHigh Unsigned32,
     vrrpRuleTunnelIdLow Unsigned32,
     vrrpRuleUidRangeStart Unsigned32,
-    vrrpRuleUidRangeEnd Unsigned32
+    vrrpRuleUidRangeEnd Unsigned32,
+    vrrpRuleL3mdev TruthValue
 }
 
 vrrpRuleIndex OBJECT-TYPE
@@ -3748,7 +3749,8 @@ vrrpInstanceGroup OBJECT-GROUP
     vrrpRuleTunnelIdHigh,
     vrrpRuleTunnelIdLow,
     vrrpRuleUidRangeStart,
-    vrrpRuleUidRangeEnd
+    vrrpRuleUidRangeEnd,
+    vrrpRuleL3mdev
     }
     STATUS current
     DESCRIPTION
