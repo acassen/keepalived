@@ -78,6 +78,9 @@ typedef struct _ip_rule {
 #if HAVE_DECL_FRA_UID_RANGE
 	struct fib_rule_uid_range uid_range;
 #endif
+#if HAVE_DECL_FRA_L3MDEV
+	bool		l3mdev;
+#endif
 	bool		set;
 } ip_rule_t;
 
