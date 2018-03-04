@@ -46,6 +46,7 @@
 #endif
 #endif
 #include <inttypes.h>
+#include <stdbool.h>
 
 /* Buffer sizes for netlink messages. Increase if needed. */
 #define	RTM_SIZE		1024
@@ -460,6 +461,11 @@ netlink_route(ip_route_t *iproute, int cmd)
 		addattr8(&req.n, sizeof(req), RTA_PREF, iproute->pref);
 #endif
 
+#if HAVE_DECL_RTAX_FASTOPEN_NO_COOKIE
+	if (iproute->mask & IPROUTE_BIT_FASTOPEN_NO_COOKIE)
+		rta_addattr32(rta, sizeof(buf), RTAX_FASTOPEN_NO_COOKIE, iproute->fastopen_no_cookie);
+#endif
+
 	if (rta->rta_len > RTA_LENGTH(0)) {
 		if (iproute->lock)
 			rta_addattr32(rta, sizeof(buf), RTAX_LOCK, iproute->lock);
@@ -836,6 +842,11 @@ format_iproute(ip_route_t *route, char *buf, size_t buf_len)
 			"unknown");
 #endif
 
+#if HAVE_DECL_RTAX_FASTOPEN_NO_COOKIE
+	if (route->mask & IPROUTE_BIT_FASTOPEN_NO_COOKIE)
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s %u", "fastopen_no_cookie", route->fastopen_no_cookie);
+#endif
+
 	if (!LIST_ISEMPTY(route->nhs)) {
 		for (e = LIST_HEAD(route->nhs); e; ELEMENT_NEXT(e)) {
 			nh = ELEMENT_DATA(e);
@@ -1209,7 +1220,7 @@ parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 #if HAVE_DECL_RTA_ENCAP
 				parse_encap(strvec, &i, &new->encap);
 #else
-				log_message(LOG_INFO, "encap not supported by kernel - please remove configuration");
+				log_message(LOG_INFO, "%s not supported by kernel", "encap");
 #endif
 			}
 			else if (!strcmp(str, "realms")) {
@@ -1298,7 +1309,7 @@ alloc_route(list rt_list, vector_t *strvec)
 #if HAVE_DECL_RTA_NEWDST
 			log_message(LOG_INFO, "\"as to\" for MPLS only - ignoring");
 #else
-			log_message(LOG_INFO, "'as [to]' not supported by kernel");
+			log_message(LOG_INFO, "%s not supported by kernel", "'as [to]'");
 #endif
 		}
 		else if (!strcmp(str, "via") || !strcmp(str, "gw")) {
@@ -1418,7 +1429,7 @@ alloc_route(list rt_list, vector_t *strvec)
 #if HAVE_DECL_RTA_ENCAP
 			parse_encap(strvec, &i, &new->encap);
 #else
-			log_message(LOG_INFO, "encap not supported by kernel - please remove configuration");
+			log_message(LOG_INFO, "%s not supported by kernel", "encap");
 #endif
 		}
 		else if (!strcmp(str, "expires")) {	// New in 4.4
@@ -1433,7 +1444,7 @@ alloc_route(list rt_list, vector_t *strvec)
 				goto err;
 			new->mask |= IPROUTE_BIT_EXPIRES;
 #else
-			log_message(LOG_INFO, "expires not supported by kernel");
+			log_message(LOG_INFO, "%s not supported by kernel", "expires");
 #endif
 		}
 		else if (!strcmp(str, "mtu")) {
@@ -1568,7 +1579,7 @@ alloc_route(list rt_list, vector_t *strvec)
 			new->quickack = val;
 			new->mask |= IPROUTE_BIT_QUICKACK;
 #else
-			log_message(LOG_INFO, "quickack for route not supported by kernel");
+			log_message(LOG_INFO, "%s not supported by kernel", "quickack for route");
 #endif
 		}
 		else if (!strcmp(str, "congctl")) {
@@ -1582,7 +1593,7 @@ alloc_route(list rt_list, vector_t *strvec)
 			new->congctl = malloc(strlen(str) + 1);
 			strcpy(new->congctl, str); 
 #else
-			log_message(LOG_INFO, "congctl for route not supported by kernel");
+			log_message(LOG_INFO, "%s not supported by kernel", "congctl for route");
 #endif
 		}
 		else if (!strcmp(str, "pref")) {
@@ -1606,7 +1617,19 @@ alloc_route(list rt_list, vector_t *strvec)
 				goto err;
 			new->mask |= IPROUTE_BIT_PREF;
 #else
-			log_message(LOG_INFO, "pref not supported by kernel");
+			log_message(LOG_INFO, "%s not supported by kernel", "pref");
+#endif
+		}
+		else if (!strcmp(str, "fastopen_no_cookie")) {
+			i++;
+#if HAVE_DECL_RTAX_FASTOPEN_NO_COOKIE
+			uint32_t val;
+			if (get_u32(&val, strvec_slot(strvec, i), 1, "Invalid fastopen_no_cookie value %s specified for route"))
+				goto err;
+			new->fastopen_no_cookie = !!val;
+			new->mask |= IPROUTE_BIT_FASTOPEN_NO_COOKIE;
+#else
+			log_message(LOG_INFO, "%s not supported by kernel", "fastopen_no_cookie");
 #endif
 		}
 		/* Maintained for backward compatibility */
@@ -1687,7 +1710,7 @@ err:
 }
 
 /* Try to find a route in a list */
-static int
+static bool
 route_exist(list l, ip_route_t *iproute)
 {
 	ip_route_t *ipr;
@@ -1704,10 +1727,10 @@ route_exist(list l, ip_route_t *iproute)
 		     ipr->metric == iproute->metric) &&
 		    ipr->table == iproute->table) {
 			ipr->set = iproute->set;
-			return 1;
+			return true;
 		}
 	}
-	return 0;
+	return false;
 }
 
 /* Clear diff routes */

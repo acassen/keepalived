@@ -68,6 +68,9 @@ rule_is_equal(const ip_rule_t *x, const ip_rule_t *y)
 	    x->uid_range.start != y->uid_range.start ||
 	    x->uid_range.end != y->uid_range.end ||
 #endif
+#if HAVE_DECL_FRA_L3MDEV
+	    x->l3mdev != y->l3mdev ||
+#endif
 	    !(x->iif) != !(y->iif) ||
 	    !(x->oif) != !(y->oif) ||
 	    x->goto_target != y->goto_target ||
@@ -118,7 +121,11 @@ netlink_rule(ip_rule_t *iprule, int cmd)
 	else
 		req.frh.family = AF_INET;
 
-	if (iprule->action == FR_ACT_TO_TBL) {
+	if (iprule->action == FR_ACT_TO_TBL
+#if HAVE_DECL_FRA_L3MDEV
+	    && !iprule->l3mdev
+#endif
+					   ) {
 		if (iprule->table < 256)	// "Table" or "lookup"
 			req.frh.table = iprule->table ? iprule->table & 0xff : RT_TABLE_MAIN;
 		else {
@@ -181,6 +188,11 @@ netlink_rule(ip_rule_t *iprule, int cmd)
 #if HAVE_DECL_FRA_UID_RANGE
 	if (iprule->mask & IPRULE_BIT_UID_RANGE)
 		addattr_l(&req.n, sizeof(req), FRA_UID_RANGE, &iprule->uid_range, sizeof(iprule->uid_range));
+#endif
+
+#if HAVE_DECL_FRA_L3MDEV
+	if (iprule->l3mdev)
+		addattr8(&req.n, sizeof(req), FRA_L3MDEV, 1);
 #endif
 
 	if (iprule->action == FR_ACT_GOTO) {	// "goto"
@@ -306,6 +318,11 @@ format_iprule(ip_rule_t *rule, char *buf, size_t buf_len)
 #if HAVE_DECL_FRA_UID_RANGE
 	if (rule->mask & IPRULE_BIT_UID_RANGE)
 		op += snprintf(op, (size_t)(buf_end - op), " uidrange %" PRIu32 "-%" PRIu32, rule->uid_range.start, rule->uid_range.end);
+#endif
+
+#if HAVE_DECL_FRA_L3MDEV
+	if (rule->l3mdev)
+		op += snprintf(op, (size_t)(buf_end - op), " l3mdev");
 #endif
 
 	if (rule->realms)
@@ -551,6 +568,16 @@ fwmark_err:
 			new->uid_range.end = end;
 		}
 #endif
+#if HAVE_DECL_FRA_L3MDEV
+		else if (!strcmp(str, "l3mdev")) {
+			new->l3mdev = true;
+			if (new->action != FR_ACT_UNSPEC) {
+				log_message(LOG_INFO, "Cannot specify l3mdev with other action");
+				goto err;
+			}
+			new->action = FR_ACT_TO_TBL;
+		}
+#endif
 		else {
 			uint8_t action = FR_ACT_UNSPEC;
 
@@ -586,7 +613,7 @@ fwmark_err:
 				goto err;
 			}
 			if (new->action != FR_ACT_UNSPEC) {
-				log_message(LOG_INFO, "Cannot specify more than one of table/nop/goto/blackhole/prohibit/unreachable for rule");
+				log_message(LOG_INFO, "Cannot specify more than one of table/nop/goto/blackhole/prohibit/unreachable/l3mdev for rule");
 				goto err;
 			}
 			new->action = action;
@@ -611,6 +638,13 @@ fwmark_err:
 		log_message(LOG_INFO, "suppressor/realm specified for non table action - skipping");
 		goto err;
 	}
+
+#if HAVE_DECL_FRA_L3MDEV
+	if (new->table && new->l3mdev) {
+		log_message(LOG_INFO, "table cannot be specified for l3mdev rules");
+		goto err;
+	}
+#endif
 
 	list_add(rule_list, new);
 	return;

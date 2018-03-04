@@ -231,14 +231,13 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		req.ifi.ifi_family = AF_UNSPEC;
 		req.ifi.ifi_index = (int)vrrp->vmac_ifindex;
 
-		u_char val = IN6_ADDR_GEN_MODE_NONE;
 		struct rtattr* spec;
 
 		spec = NLMSG_TAIL(&req.n);
 		addattr_l(&req.n, sizeof(req), IFLA_AF_SPEC, NULL,0);
 		data = NLMSG_TAIL(&req.n);
 		addattr_l(&req.n, sizeof(req), AF_INET6, NULL,0);
-		addattr_l(&req.n, sizeof(req), IFLA_INET6_ADDR_GEN_MODE, &val, sizeof(val));
+		addattr8(&req.n, sizeof(req), IFLA_INET6_ADDR_GEN_MODE, IN6_ADDR_GEN_MODE_NONE);
 		data->rta_len = (unsigned short)((void *)NLMSG_TAIL(&req.n) - (void *)data);
 		spec->rta_len = (unsigned short)((void *)NLMSG_TAIL(&req.n) - (void *)spec);
 

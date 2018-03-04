@@ -205,6 +205,7 @@ enum snmp_rule_magic {
 	VRRP_SNMP_RULE_TUNNELID_LOW,
 	VRRP_SNMP_RULE_UID_RANGE_START,
 	VRRP_SNMP_RULE_UID_RANGE_END,
+	VRRP_SNMP_RULE_L3MDEV,
 };
 
 enum snmp_route_magic {
@@ -261,6 +262,7 @@ enum snmp_route_magic {
 	VRRP_SNMP_ROUTE_ENCAP_TTL,
 	VRRP_SNMP_ROUTE_ENCAP_FLAGS,
 	VRRP_SNMP_ROUTE_ENCAP_ILA_LOCATOR,
+	VRRP_SNMP_ROUTE_FASTOPEN_NO_COOKIE,
 };
 
 enum snmp_next_hop_magic {
@@ -1083,6 +1085,15 @@ vrrp_snmp_route(struct variable *vp, oid *name, size_t *length,
 			route->pref == ICMPV6_ROUTER_PREF_HIGH ? 3 : 0;
 		return (u_char *)&long_ret;
 #endif
+	case VRRP_SNMP_ROUTE_FASTOPEN_NO_COOKIE:
+#if !HAVE_DECL_RTAX_FASTOPEN_NO_COOKIE
+		break;
+#else
+		if (!(route->mask & IPROUTE_BIT_FASTOPEN_NO_COOKIE))
+			break;
+		long_ret.u = route->fastopen_no_cookie;
+		return (u_char *)&long_ret;
+#endif
 	case VRRP_SNMP_ROUTE_REALM_DST:
 		if (!route->realms)
 			break;
@@ -1475,6 +1486,14 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_RULE_UID_RANGE_END:
 		if (rule->mask & IPRULE_BIT_UID_RANGE)
 			long_ret.u = rule->uid_range.end;
+		else
+#endif
+			break;
+		return (u_char *)&long_ret;
+#if HAVE_DECL_FRA_L3MDEV
+	case VRRP_SNMP_RULE_L3MDEV:
+		if (rule->l3mdev)
+			long_ret.u = 1;
 		else
 #endif
 			break;
@@ -2323,6 +2342,10 @@ static struct variable8 vrrp_vars[] = {
 	{VRRP_SNMP_ROUTE_ENCAP_ILA_LOCATOR, ASN_COUNTER64, RONLY,
 	 vrrp_snmp_encap, 3, {7, 1, 54}},
 #endif
+#if HAVE_DECL_RTAX_FASTOPEN_NO_COOKIE
+	{VRRP_SNMP_ROUTE_FASTOPEN_NO_COOKIE, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 55}},
+#endif
 #endif
 
 	 /* vrrpRuleTable */
@@ -2387,6 +2410,10 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_rule, 3, {8, 1, 30}},
 	{VRRP_SNMP_RULE_UID_RANGE_END, ASN_UNSIGNED, RONLY,
 	 vrrp_snmp_rule, 3, {8, 1, 31}},
+#endif
+#if HAVE_DECL_FRA_L3MDEV
+	{VRRP_SNMP_RULE_L3MDEV, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 32}},
 #endif
 #endif
 

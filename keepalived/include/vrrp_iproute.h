@@ -145,6 +145,7 @@ enum ip_route {
 	IPROUTE_INITRWND,
 	IPROUTE_QUICKACK,
 	IPROUTE_PREF,
+	IPROUTE_FASTOPEN_NO_COOKIE,
 };
 
 #define	IPROUTE_BIT_DSFIELD	(1<<IPROUTE_DSFIELD)
@@ -168,6 +169,7 @@ enum ip_route {
 #define	IPROUTE_BIT_INITRWND	(1<<IPROUTE_INITRWND)
 #define	IPROUTE_BIT_QUICKACK	(1<<IPROUTE_QUICKACK)
 #define	IPROUTE_BIT_PREF	(1<<IPROUTE_PREF)
+#define	IPROUTE_BIT_FASTOPEN_NO_COOKIE	(1<<IPROUTE_FASTOPEN_NO_COOKIE)
 
 typedef struct _ip_route {
 	ip_address_t		*dst;
@@ -210,6 +212,9 @@ typedef struct _ip_route {
 #endif
 #if HAVE_DECL_RTA_PREF
 	uint8_t			pref;
+#endif
+#if HAVE_DECL_RTAX_FASTOPEN_NO_COOKIE
+	bool			fastopen_no_cookie;
 #endif
 	uint8_t			type;
 

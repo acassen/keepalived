@@ -8059,6 +8059,19 @@ fi
 cat >>confdefs.h <<_ACEOF
 #define HAVE_DECL_RTEXT_FILTER_SKIP_STATS $ac_have_decl
 _ACEOF
+ac_fn_c_check_decl "$LINENO" "FRA_L3MDEV" "ac_cv_have_decl_FRA_L3MDEV" "#include <linux/rtnetlink.h>
+    #include <sys/socket.h>
+    #include <linux/fib_rules.h>
+"
+if test "x$ac_cv_have_decl_FRA_L3MDEV" = xyes; then :
+  ac_have_decl=1
+else
+  ac_have_decl=0
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_DECL_FRA_L3MDEV $ac_have_decl
+_ACEOF
 ac_fn_c_check_decl "$LINENO" "FRA_UID_RANGE" "ac_cv_have_decl_FRA_UID_RANGE" "#include <linux/rtnetlink.h>
     #include <sys/socket.h>
     #include <linux/fib_rules.h>
@@ -8072,7 +8085,19 @@ fi
 cat >>confdefs.h <<_ACEOF
 #define HAVE_DECL_FRA_UID_RANGE $ac_have_decl
 _ACEOF
+ac_fn_c_check_decl "$LINENO" "RTAX_FASTOPEN_NO_COOKIE" "ac_cv_have_decl_RTAX_FASTOPEN_NO_COOKIE" "#include <linux/rtnetlink.h>
+    #include <sys/socket.h>
+    #include <linux/fib_rules.h>
+"
+if test "x$ac_cv_have_decl_RTAX_FASTOPEN_NO_COOKIE" = xyes; then :
+  ac_have_decl=1
+else
+  ac_have_decl=0
+fi
 
+cat >>confdefs.h <<_ACEOF
+#define HAVE_DECL_RTAX_FASTOPEN_NO_COOKIE $ac_have_decl
+_ACEOF
 ac_fn_c_check_decl "$LINENO" "RTA_VIA" "ac_cv_have_decl_RTA_VIA" "#include <linux/rtnetlink.h>
     #include <sys/socket.h>
     #include <linux/fib_rules.h>
@@ -8100,7 +8125,7 @@ cat >>confdefs.h <<_ACEOF
 #define HAVE_DECL_FRA_OIFNAME $ac_have_decl
 _ACEOF
 
-for flag in RTA_ENCAP RTA_EXPIRES RTA_NEWDST RTA_PREF RTA_VIA FRA_OIFNAME FRA_SUPPRESS_PREFIXLEN FRA_SUPPRESS_IFGROUP FRA_TUN_ID RTAX_CC_ALGO RTAX_QUICKACK RTEXT_FILTER_SKIP_STATS FRA_UID_RANGE; do
+for flag in RTA_ENCAP RTA_EXPIRES RTA_NEWDST RTA_PREF FRA_SUPPRESS_PREFIXLEN FRA_SUPPRESS_IFGROUP FRA_TUN_ID RTAX_CC_ALGO RTAX_QUICKACK RTEXT_FILTER_SKIP_STATS FRA_L3MDEV FRA_UID_RANGE RTAX_FASTOPEN_NO_COOKIE RTA_VIA FRA_OIFNAME; do
   eval decl_var=\$ac_cv_have_decl_$flag
   if test ${decl_var} = yes; then
     BUILD_OPTIONS="$BUILD_OPTIONS "${flag}
