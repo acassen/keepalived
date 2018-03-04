@@ -264,7 +264,7 @@ vrrp_init_state(list l)
 			    global_data->lvs_syncd.vrrp == vrrp)
 				ipvs_syncd_cmd(IPVS_STARTDAEMON,
 					       &global_data->lvs_syncd,
-					       IPVS_MASTER,
+					       vrrp->state == VRRP_STATE_MAST ? IPVS_MASTER : IPVS_BACKUP,
 					       false,
 					       false);
 #endif
