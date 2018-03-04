@@ -121,7 +121,11 @@ netlink_rule(ip_rule_t *iprule, int cmd)
 	else
 		req.frh.family = AF_INET;
 
-	if (iprule->action == FR_ACT_TO_TBL && !iprule->l3mdev) {
+	if (iprule->action == FR_ACT_TO_TBL
+#if HAVE_DECL_FRA_L3MDEV
+	    && !iprule->l3mdev
+#endif
+					   ) {
 		if (iprule->table < 256)	// "Table" or "lookup"
 			req.frh.table = iprule->table ? iprule->table & 0xff : RT_TABLE_MAIN;
 		else {
