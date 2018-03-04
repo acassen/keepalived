@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201801100000Z"
+     LAST-UPDATED "201803010000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201803010000Z"
+     DESCRIPTION "add route option fastopen_no_cookie and rule option l3mdev"
      REVISION "201801100000Z"
      DESCRIPTION "add sync group notify_stop script"
      REVISION "201801080001Z"
@@ -1259,7 +1261,8 @@ VrrpRouteEntry ::= SEQUENCE {
     vrrpRouteEncapTOS Unsigned32,
     vrrpRouteEncapTTL Unsigned32,
     vrrpRouteEncapFlags Unsigned32,
-    vrrpRouteEncapIlaLocator Counter64
+    vrrpRouteEncapIlaLocator Counter64,
+    vrrpRouteFastOpenNoCookie TruthValue
 }
 
 vrrpRouteIndex OBJECT-TYPE
@@ -1695,6 +1698,14 @@ vrrpRouteEncapIlaLocator OBJECT-TYPE
         "ILA locator for this encapsulation."
     ::= { vrrpRouteEntry 54 }
 
+vrrpRouteFastOpenNoCookie OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Fast open no cookie."
+    ::= { vrrpRouteEntry 55 }
+
 -- Route next hops
 -- see vrrp_iproute.h
 
@@ -1934,7 +1945,8 @@ VrrpRuleEntry ::= SEQUENCE {
     vrrpRuleTunnelIdHigh Unsigned32,
     vrrpRuleTunnelIdLow Unsigned32,
     vrrpRuleUidRangeStart Unsigned32,
-    vrrpRuleUidRangeEnd Unsigned32
+    vrrpRuleUidRangeEnd Unsigned32,
+    vrrpRuleL3mdev TruthValue
 }
 
 vrrpRuleIndex OBJECT-TYPE
@@ -2184,6 +2196,14 @@ vrrpRuleUidRangeEnd OBJECT-TYPE
     DESCRIPTION
         "Rule Uid range end."
     ::= { vrrpRuleEntry 31 }
+
+vrrpRuleL3mdev OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Use routing device specified for layer 3 VRF device."
+    ::= { vrrpRuleEntry 32 }
 
 -- VRRP scripts
 -- see vrrp_track.h
@@ -4071,6 +4091,7 @@ vrrpInstanceGroup OBJECT-GROUP
     vrrpRouteEncapTTL,
     vrrpRouteEncapFlags,
     vrrpRouteEncapIlaLocator,
+    vrrpRouteFastOpenNoCookie,
     vrrpRouteNextHopAddressType,
     vrrpRouteNextHopAddress,
     vrrpRouteNextHopIfIndex,
@@ -4112,7 +4133,8 @@ vrrpInstanceGroup OBJECT-GROUP
     vrrpRuleTunnelIdHigh,
     vrrpRuleTunnelIdLow,
     vrrpRuleUidRangeStart,
-    vrrpRuleUidRangeEnd
+    vrrpRuleUidRangeEnd,
+    vrrpRuleL3mdev
     }
     STATUS current
     DESCRIPTION

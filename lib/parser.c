@@ -502,6 +502,11 @@ read_conf_file(const char *conf_file)
 	if (LIST_EXISTS(defs))
 		free_list(&defs);
 
+	if (skip_sublevel) {
+		log_message(LOG_INFO, "WARNING - %d missing '}'(s) in the config file(s)", skip_sublevel);
+		skip_sublevel = 0;
+	}
+
 	if (!num_matches)
 		log_message(LOG_INFO, "No config files matched '%s'.", conf_file);
 

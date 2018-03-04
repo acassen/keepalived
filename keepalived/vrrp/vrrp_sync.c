@@ -39,18 +39,62 @@ vrrp_init_instance_sands(vrrp_t * vrrp)
 {
 	set_time_now();
 
+<<<<<<< HEAD
 	if (vrrp->state == VRRP_STATE_MAST)
+||||||| merged common ancestors
+	if (vrrp->state == VRRP_STATE_MAST	  ||
+	    vrrp->state == VRRP_STATE_GOTO_MASTER ||
+	    vrrp->state == VRRP_STATE_GOTO_FAULT  ||
+	    vrrp->wantstate == VRRP_STATE_GOTO_MASTER) {
+// TIMER  - GOTO_MASTER shouldn't be adver_int. Look at circumstances to set GOTO_MASTER
+// i) backup and expire timer
+// ii) backup and receive prio 0
+// iii) master and receive higher prio advert
+=======
+	if (vrrp->state == VRRP_STATE_MASTER_RELOAD)
+		vrrp->sands = time_now;
+	else if (vrrp->state == VRRP_STATE_MAST	  ||
+	    vrrp->state == VRRP_STATE_GOTO_MASTER ||
+	    vrrp->state == VRRP_STATE_GOTO_FAULT  ||
+	    vrrp->wantstate == VRRP_STATE_GOTO_MASTER)
+>>>>>>> fixes
 		vrrp->sands = timer_add_long(time_now, vrrp->adver_int);
+<<<<<<< HEAD
 	else if (vrrp->state == VRRP_STATE_BACK) {
 		/*
 		 * When in the BACKUP state the expiry timer should be updated to
 		 * time_now plus the Master Down Timer, when a non-preemptable packet is
 		 * received.
 		 */
+||||||| merged common ancestors
+		return;
+	}
+
+	/*
+	 * When in the BACKUP state the expiry timer should be updated to
+	 * time_now plus the Master Down Timer, when a non-preemptable packet is
+	 * received. (When a preemptable packet is received, the wantstate is
+	 * moved to GOTO_MASTER and this condition is caught above).
+	 */
+	if (vrrp->state == VRRP_STATE_BACK || vrrp->state == VRRP_STATE_FAULT)
+=======
+	else if (vrrp->state == VRRP_STATE_BACK || vrrp->state == VRRP_STATE_FAULT) {
+		/*
+		 * When in the BACKUP state the expiry timer should be updated to
+		 * time_now plus the Master Down Timer, when a non-preemptable packet is
+		 * received. (When a preemptable packet is received, the wantstate is
+		 * moved to GOTO_MASTER and this condition is caught above).
+		 */
+>>>>>>> fixes
 		vrrp->sands = timer_add_long(time_now, vrrp->ms_down_timer);
+<<<<<<< HEAD
 	}
 	else if (vrrp->state == VRRP_STATE_FAULT || vrrp->state == VRRP_STATE_INIT)
 		vrrp->sands.tv_sec = TIMER_DISABLED;
+||||||| merged common ancestors
+=======
+	}
+>>>>>>> fixes
 }
 
 /* Instance name lookup */

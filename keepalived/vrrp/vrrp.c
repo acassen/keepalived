@@ -1308,7 +1308,7 @@ vrrp_alloc_send_buffer(vrrp_t * vrrp)
 }
 
 /* send VRRP advertisement */
-static void
+void
 vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 {
 	struct sockaddr_storage *addr;
