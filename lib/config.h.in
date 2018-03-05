@@ -31,6 +31,10 @@
    you don't. */
 #undef HAVE_DECL_ETHERTYPE_IPV6
 
+/* Define to 1 if you have the declaration of `FRA_L3MDEV', and to 0 if you
+   don't. */
+#undef HAVE_DECL_FRA_L3MDEV
+
 /* Define to 1 if you have the declaration of `FRA_OIFNAME', and to 0 if you
    don't. */
 #undef HAVE_DECL_FRA_OIFNAME
@@ -146,6 +150,10 @@
 /* Define to 1 if you have the declaration of `RTAX_CC_ALGO', and to 0 if you
    don't. */
 #undef HAVE_DECL_RTAX_CC_ALGO
+
+/* Define to 1 if you have the declaration of `RTAX_FASTOPEN_NO_COOKIE', and
+   to 0 if you don't. */
+#undef HAVE_DECL_RTAX_FASTOPEN_NO_COOKIE
 
 /* Define to 1 if you have the declaration of `RTAX_QUICKACK', and to 0 if you
    don't. */

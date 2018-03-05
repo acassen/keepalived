@@ -192,7 +192,8 @@ vrrp_init_state(list l)
 		if (is_up &&
 		    new_state == VRRP_STATE_MAST &&
 		    !vrrp->num_script_init && (!vrrp->sync || !vrrp->sync->num_member_init) &&
-		    vrrp->base_priority == VRRP_PRIO_OWNER &&
+		    (vrrp->base_priority == VRRP_PRIO_OWNER ||
+		     vrrp->reload_master) &&
 		    vrrp->wantstate == VRRP_STATE_MAST) {
 #ifdef _WITH_LVS_
 			/* Check if sync daemon handling is needed */
@@ -200,18 +201,20 @@ vrrp_init_state(list l)
 			    global_data->lvs_syncd.vrrp == vrrp)
 				ipvs_syncd_cmd(IPVS_STARTDAEMON,
 					       &global_data->lvs_syncd,
-					       IPVS_MASTER,
+					       vrrp->state == VRRP_STATE_MAST ? IPVS_MASTER : IPVS_BACKUP,
 					       false,
 					       false);
 #endif
+			if (!vrrp->reload_master) {
 #ifdef _WITH_SNMP_RFCV3_
-			vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
+				vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
 #endif
 
-			/* The simplest way to become master is to timeout from the backup state
-			 * very quickly (1usec) */
-			vrrp->state = VRRP_STATE_BACK;
-			vrrp->ms_down_timer = 1;
+				/* The simplest way to become master is to timeout from the backup state
+				 * very quickly (1usec) */
+				vrrp->state = VRRP_STATE_BACK;
+				vrrp->ms_down_timer = 1;
+			}
 
 // TODO Do we need ->	vrrp_restore_interface(vrrp, false, false);
 // It removes everything, so probably if !reload
@@ -267,6 +270,7 @@ vrrp_init_sands(list l)
 		vrrp = ELEMENT_DATA(e);
 
 		vrrp_init_instance_sands(vrrp);
+		vrrp->reload_master = false;
 	}
 }
 

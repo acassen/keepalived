@@ -181,6 +181,8 @@ reload_bfd_thread(__attribute__((unused)) thread_t * thread)
 	timeval_t timer;
 	timer = timer_now();
 
+	log_message(LOG_INFO, "Reloading");
+
 	/* set the reloading flag */
 	SET_RELOAD;
 

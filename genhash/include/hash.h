@@ -52,9 +52,9 @@ typedef union {
 	char			*dummy;
 } hash_context_t;
 
-typedef void (*hash_init_f)(hash_context_t *);
-typedef void (*hash_update_f)(hash_context_t *, const void *, unsigned long);
-typedef void (*hash_final_f)(unsigned char *, hash_context_t *);
+typedef int (*hash_init_f)(hash_context_t *);
+typedef int (*hash_update_f)(hash_context_t *, const void *, unsigned long);
+typedef int (*hash_final_f)(unsigned char *, hash_context_t *);
 
 typedef struct {
 	hash_init_f		init;

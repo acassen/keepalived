@@ -114,6 +114,7 @@ typedef enum {
 
 /* Macros. */
 #define THREAD_ARG(X) ((X)->arg)
+#define THREAD_VAL(X) ((X)->u.val)
 #define THREAD_CHILD_PID(X) ((X)->u.c.pid)
 #define THREAD_CHILD_STATUS(X) ((X)->u.c.status)
 

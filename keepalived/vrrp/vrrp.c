@@ -1308,7 +1308,7 @@ vrrp_alloc_send_buffer(vrrp_t * vrrp)
 }
 
 /* send VRRP advertisement */
-static void
+void
 vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 {
 	struct sockaddr_storage *addr;
@@ -2711,9 +2711,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			strncpy(vrrp->vmac_ifname, ifname, IFNAMSIZ);
 		}
 
-		ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_CREATE_ALWAYS);
-		ifp->base_ifp = vrrp->ifp;
-		vrrp->ifp = ifp;
+		if (!interface_already_existed) {
+			ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_CREATE_ALWAYS);
+			ifp->base_ifp = vrrp->ifp;
+			vrrp->ifp = ifp;
+		}
 
 		if (vrrp->strict_mode && __test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) {
 			log_message(LOG_INFO, "(%s) xmit_base is incompatible with strict mode - resetting", vrrp->iname);
@@ -2764,12 +2766,14 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	/* Add us to the interfaces we are tracking. This must be
 	 * done before the vrrp's own interface(s) is added, since
 	 * the interface is then added to the track_ifp list */
-	if (!LIST_ISEMPTY(vrrp->track_ifp)) {
-		tracked_if_t *tip;
-		for (e = LIST_HEAD(vrrp->track_ifp); e; ELEMENT_NEXT(e)) {
-			tip = ELEMENT_DATA(e);
-			add_vrrp_to_interface(vrrp, tip->ifp, tip->weight, false);
+	LIST_FOREACH_NEXT(vrrp->track_ifp, tip, e, next) {
+		/* Check the configuration doesn't explicitly state to track our own interface */
+		if (tip->ifp == IF_BASE_IFP(vrrp->ifp)) {
+			log_message(LOG_INFO, "(%s) Ignoring track_interface %s since own interface", vrrp->iname, IF_BASE_IFP(vrrp->ifp)->ifname);
+			free_list_element(vrrp->track_ifp, e);
 		}
+		else
+			add_vrrp_to_interface(vrrp, tip->ifp, tip->weight, false);
 	}
 
 	/* Add this instance to the physical interface and vice versa */
@@ -3358,6 +3362,7 @@ restore_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 
 	/* Keep VRRP state, ipsec AH seq_number */
 	vrrp->state = old_vrrp->state;
+	vrrp->reload_master = old_vrrp->state == VRRP_STATE_MAST;
 	vrrp->wantstate = old_vrrp->wantstate;
 	if (!old_vrrp->sync)
 		vrrp->effective_priority = old_vrrp->effective_priority + vrrp->base_priority - old_vrrp->base_priority;

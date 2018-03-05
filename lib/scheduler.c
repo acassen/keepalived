@@ -817,7 +817,9 @@ thread_fetch(thread_master_t * m, thread_t * fetch)
 	int signal_fd;
 	int fdsetsize;
 #ifdef _WITH_SNMP_
-	int snmpblock = 0;
+	int snmpblock;
+	timeval_t snmp_timer_wait;
+	bool is_snmp_timer;
 #endif
 	bool timer_expired;
 	bool timers_done;
@@ -881,8 +883,12 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	 * with this function is its last argument. We need to set it
 	 * to 0 to update our timer. */
 	if (snmp_running) {
-		snmpblock = 0;
-		snmp_select_info(&fdsetsize, &readfd, &timer_wait, &snmpblock);
+		snmpblock = false;
+		snmp_select_info(&fdsetsize, &readfd, &snmp_timer_wait, &snmpblock);
+		if (!snmpblock && timercmp(&snmp_timer_wait, &timer_wait, <=)) {
+			timer_wait = snmp_timer_wait;
+			is_snmp_timer = true;
+		}
 	}
 #endif
 
@@ -891,7 +897,11 @@ retry:	/* When thread can't fetch try to find next thread again. */
 		log_message(LOG_INFO, "select with timer %lu.%6.6ld, fdsetsize %d, readfds 0x%lx", timer_wait.tv_sec, timer_wait.tv_usec, fdsetsize, readfd.fds_bits[0]);
 #endif
 
-	num_fds = select(fdsetsize, &readfd, &writefd, &exceptfd, &timer_wait);
+	/* Don't call select() if timer_wait is 0 */
+	if (!timerisset(&timer_wait))
+		num_fds = 0;
+	else
+		num_fds = select(fdsetsize, &readfd, &writefd, &exceptfd, &timer_wait);
 
 #ifdef _SELECT_DEBUG_
 	if (prog_type == PROG_TYPE_VRRP)
@@ -909,12 +919,17 @@ retry:	/* When thread can't fetch try to find next thread again. */
 		assert(0);
 	}
 
+	timer_expired = !timerisset(&timer_wait);
+
 	/* Handle SNMP stuff */
 #ifdef _WITH_SNMP_
 	if (snmp_running) {
+		/* We could optimise this by calling snmp_select_info() BEFORE
+		 * setting the timer and fds we want, so we see what snmp wants.
+		 * We would then know if any of snmp's fds were set */
 		if (num_fds > 0)
 			snmp_read(&readfd);
-		else if (num_fds == 0)
+		else if (timer_expired && is_snmp_timer)
 			snmp_timeout();
 	}
 #endif
@@ -935,7 +950,6 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	/* Update current time */
 	set_time_now();
 
-	timer_expired = !timerisset(&timer_wait);
 	if (timer_expired) {
 		/* Timeout children */
 		thread = m->child.head;
@@ -959,7 +973,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	/* Read thread. */
 	thread = m->read.head;
 	timers_done = !timer_expired;
-	while (thread && (num_fds || timer_expired)) {
+	while (thread && (num_fds || !timers_done)) {
 		t = thread;
 		thread = t->next;
 
@@ -981,7 +995,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	/* Write thead. */
 	thread = m->write.head;
 	timers_done = !timer_expired;
-	while (thread && (num_fds || timer_expired)) {
+	while (thread && (num_fds || !timers_done)) {
 		t = thread;
 		thread = t->next;
 

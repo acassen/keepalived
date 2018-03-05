@@ -117,7 +117,8 @@ stop_vrrp(int status)
 	/* Ensure any interfaces are in backup mode,
 	 * sending a priority 0 vrrp message
 	 */
-	restore_vrrp_interfaces();
+	if (!__test_bit(DONT_RELEASE_VRRP_BIT, &debug))
+		restore_vrrp_interfaces();
 
 #ifdef _NETLINK_TIMERS_
 	report_and_clear_netlink_timers("Restored interfaces");
@@ -142,7 +143,7 @@ stop_vrrp(int status)
 #endif
 
 #ifdef _WITH_SNMP_
-	if (global_data->enable_snmp_keepalived || global_data->enable_snmp_rfcv2 || global_data->enable_snmp_rfcv3)
+	if (global_data->enable_snmp_vrrp || global_data->enable_snmp_rfcv2 || global_data->enable_snmp_rfcv3)
 		vrrp_snmp_agent_close();
 #endif
 
@@ -255,7 +256,7 @@ start_vrrp(void)
 			global_data->vrrp_process_priority, global_data->vrrp_no_swap ? 4096 : 0);
 
 #ifdef _WITH_SNMP_
-	if (!reload && (global_data->enable_snmp_keepalived || global_data->enable_snmp_rfcv2 || global_data->enable_snmp_rfcv3)) {
+	if (!reload && (global_data->enable_snmp_vrrp || global_data->enable_snmp_rfcv2 || global_data->enable_snmp_rfcv3)) {
 		vrrp_snmp_agent_init(global_data->snmp_socket);
 #ifdef _WITH_SNMP_RFC_
 		vrrp_start_time = timer_now();
@@ -384,10 +385,50 @@ start_vrrp(void)
 }
 
 #ifndef _DEBUG_
+static int
+send_reload_advert_thread(thread_t *thread)
+{
+	vrrp_t *vrrp = THREAD_ARG(thread);
+
+	if (vrrp->state == VRRP_STATE_MAST)
+		vrrp_send_adv(vrrp, vrrp->effective_priority);
+
+	/* If this is the last vrrp instance to send an advert, schedule the
+	 * actual reload. */
+	if (THREAD_VAL(thread))
+		thread_add_event(master, reload_vrrp_thread, NULL, 0);
+
+	return 0;
+}
+
 static void
 sighup_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
-	thread_add_event(master, reload_vrrp_thread, NULL, 0);
+	element e;
+	vrrp_t *vrrp;
+	int num_master_inst = 0;
+	int i;
+
+	/* We want to send adverts for the vrrp instances which are
+	 * in master state. After that the reload can be initiated */
+	if (!LIST_ISEMPTY(vrrp_data->vrrp)) {
+		for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
+			vrrp = ELEMENT_DATA(e);
+			if (vrrp->state == VRRP_STATE_MAST)
+				num_master_inst++;
+		}
+
+		for (e = LIST_HEAD(vrrp_data->vrrp), i = 0; e; ELEMENT_NEXT(e)) {
+			vrrp = ELEMENT_DATA(e);
+			if (vrrp->state == VRRP_STATE_MAST) {
+				i++;
+				thread_add_event(master, send_reload_advert_thread, vrrp, i == num_master_inst);
+			}
+		}
+	}
+
+	if (num_master_inst == 0)
+		thread_add_event(master, reload_vrrp_thread, NULL, 0);
 }
 
 static void
@@ -444,6 +485,8 @@ vrrp_signal_init(void)
 static int
 reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 {
+	log_message(LOG_INFO, "Reloading");
+
 	/* set the reloading flag */
 	SET_RELOAD;
 

@@ -50,7 +50,7 @@
 
 #define MAXBUF  1024
 
-#define DEF_LINE_END	'\n'
+#define DEF_LINE_END	"\n"
 
 #define COMMENT_START_CHRS "!#"
 #define BOB "{"
@@ -236,7 +236,7 @@ free_keywords(vector_t *keywords_vec)
 }
 
 vector_t *
-alloc_strvec(char *string)
+alloc_strvec_r(char *string)
 {
 	char *cp, *start, *token;
 	size_t str_len;
@@ -502,6 +502,11 @@ read_conf_file(const char *conf_file)
 	if (LIST_EXISTS(defs))
 		free_list(&defs);
 
+	if (skip_sublevel) {
+		log_message(LOG_INFO, "WARNING - %d missing '}'(s) in the config file(s)", skip_sublevel);
+		skip_sublevel = 0;
+	}
+
 	if (!num_matches)
 		log_message(LOG_INFO, "No config files matched '%s'.", conf_file);
 
@@ -670,7 +675,7 @@ replace_param(char *buf, size_t max_len, bool in_multiline)
 
 			/* Ensure there is enough room to replace $PARAM or ${PARAM} with value */
 			if (def->multiline) {
-				replacing_len = strchr(def->value, DEF_LINE_END) - def->value;
+				replacing_len = strcspn(def->value, DEF_LINE_END);
 				in_multiline = true;
 				next_ptr = def->value + replacing_len + 1;
 			}
@@ -735,6 +740,7 @@ check_definition(const char *buf)
 {
 	const char *p;
 	def_t* def;
+	size_t def_name_len;
 	char *str;
 
 	if (buf[0] != '$')
@@ -755,11 +761,12 @@ check_definition(const char *buf)
 	if (*p != '=')
 		return false;
 
-	if ((def = find_definition(&buf[1], p - &buf[1], true)))
+	def_name_len = (size_t)(p - &buf[1]);
+	if ((def = find_definition(&buf[1], def_name_len, true)))
 		FREE(def->value);
 	else {
 		def = MALLOC(sizeof(*def));
-		def->name_len = p - &buf[1];
+		def->name_len = def_name_len;
 		str = MALLOC(def->name_len + 1);
 		strncpy(str, &buf[1], def->name_len);
 		str[def->name_len] = '\0';
@@ -781,7 +788,7 @@ check_definition(const char *buf)
 				def->value_len--;
 		}
 		if (def->value_len >= 2)
-			def->value[def->value_len - 1] = DEF_LINE_END;
+			def->value[def->value_len - 1] = DEF_LINE_END[0];
 		else {
 			p += def->value_len;
 			def->value_len = 0;
@@ -828,12 +835,12 @@ read_line(char *buf, size_t size)
 		}
 		else if (next_ptr) {
 			/* We are expanding a multiline parameter, so copy next line */
-			end = strchr(next_ptr, DEF_LINE_END);
+			end = strchr(next_ptr, DEF_LINE_END[0]);
 			if (!end) {
 				strcpy(buf, next_ptr);
 				next_ptr = NULL;
 			} else {
-				strncpy(buf, next_ptr, end - next_ptr);
+				strncpy(buf, next_ptr, (size_t)(end - next_ptr));
 				buf[end - next_ptr] = '\0';
 				next_ptr = end + 1;
 			}
@@ -853,12 +860,13 @@ read_line(char *buf, size_t size)
 		/* Handle multi-line definitions */
 		if (multiline_param_def) {
 			/* Remove leading and trailing spaces and tabs */
-			text_start = buf + strspn(buf, " \t");
-			len -= text_start - buf;
+			skip = strspn(buf, " \t");
+			len -= skip;
+			text_start = buf + skip;
 			if (len && text_start[len-1] == '\\') {
 				while (len >= 2 && isblank(text_start[len - 2]))
 					len--;
-				text_start[len-1] = DEF_LINE_END;
+				text_start[len-1] = DEF_LINE_END[0];
 			} else {
 				while (len >= 1 && isblank(text_start[len - 1]))
 					len--;
@@ -995,8 +1003,10 @@ alloc_value_block(void (*alloc_func) (vector_t *), const char *block_type)
 		if (first_line) {
 			first_line = false;
 
-			if (!strcmp(vector_slot(vec, 0), BOB))
+			if (!strcmp(vector_slot(vec, 0), BOB)) {
+				free_strvec(vec);
 				continue;
+			}
 
 			log_message(LOG_INFO, "'%s' missing from beginning of block %s", BOB, block_type);
 		}

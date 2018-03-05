@@ -1,3 +1,70 @@
+2018-02-25 Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.4.2 released.
+	* Make genhash exit with exit code 1 on error.
+	  Issue #766 identified that genhash always exits with exit code 1
+	  even if an error has occurred.
+	* Rationalise printing of http header in genhash.
+	* Use http header Content-Length field in HTTP_CHECK/SSL_CHECK.
+	  If a Content-Length is supplied in the http header, use that as a
+	  limit to the data length (as wget does). If the length of data
+	  received does not match the Content-Length log a warning.
+	* Optimise parameter passing to fprintf in genhash.
+	* Don't declare mark variable if don't have MARK socket option.
+	* Fix sync groups with only one member.
+	  Commit c88744a0 allowed sync groups with only 1 member again, but
+	  didn't stop removing the sync group if there was only 1 member.
+	  This commit now doesn't remove sync groups with only one member.
+	* Make track scripts work with --enable-debug config option.
+	* Add warning if --enable-debug configure option is used.
+	* Allow more flexibility of layout of { and } in config files.
+	  keepalived was a bit fussy about where '{'s and '}'s (braces) could
+	  be placed in terms of after the keyword, or on a line on their own.
+	  It certainly was not possible to have multiple braces on one line.
+	  This commit now provides complete flexibility of where braces are, so
+	  long as they occur in the correct order.
+	* Make alloc_value_block() report block type if there is an error.
+	* Simplify alloc_value_block() by using libc string functions.
+	* Add dumping of garp delay config when using -d option.
+	* Fix fractions of seconds for garp group garp_interval.
+	* Make read_value_block() use alloc_value_block().
+	  This removes quite a bit of duplication of functionality, and
+	  ensures the configuration parsing will be more consistent.
+	* Fix build with Linux kernel headers v4.15.
+	  Linux kernel version 4.15 changed the libc/kernel headers suppression
+	  logic in a way that introduces collisions.
+	* Add missing command line options to keepalived(8) man page.
+	* Fix --dont-release-vrrp.
+	  On github, ushuz reported that commit 62e8455 - "Don't delete vmac
+	  interfaces before dropping multicast membership" broke --dont-release-vrrp.
+	  This commit restores the correct functionality.
+	* Define _GNU_SOURCE for all compilation units.
+	  Rather than defining _GNU_SOURCE when needed, let configure add
+	  it to the flags passed to the C compiler, so that it is defined
+	  for all compilation units. This ensures consistence.
+	* Fix new warnings procuded by gcc 8.
+	* Fix dumping empty lists.
+	  Add a check in dump_list() for an empty list, and don't attempt
+	  to dump it if it is empty.
+	* Resolve conversion-check compiler warnings.
+	* Add missing content to installing_keepalived.rst documentation.
+	  Issue #778 identified that there was text missing at the end of
+	  the document, and that is now added.
+	* Fix systemd service to start after network-online.target.
+	  This fix was merged downstream by RedHat in response to
+	  RHBZ #1413320.
+	* Update INSTALL file to describe packages needed for building
+	  documentation.
+	* INSTALL: note linux distro package that provides 'sphinx_rtd_theme'
+	* Clear /proc/sys/net/ipv6/conf/IF/disable_ipv6 when create VMACs.
+	  An issue was identified where keepalived was reporting permission
+	  denied when attempting to add an IPv6 address to a VMAC interface.
+	  It turned out that this was because
+	  /proc/sys/net/ipv6/conf/default/disable_ipv6
+	  was set to 1, causing IPv6 to be disables on all interfaces that
+	  keepalived created.
+	  This commit clears disable_ipv6 on any VMAC interfaces that
+	  keepalived creates if the vrrp instance is using IPv6.
+	
 2018-01-27 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.4.1 released.
 	* Improve and fix use of getopt_long().

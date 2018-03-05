@@ -52,8 +52,8 @@
      MIBS="+KEEPALIVED-MIB:VRRP-MIB:VRRPV3-MIB" snmptrapd -f -M "+$HOME/.snmp/mibs" -Lo
 
  * Enable SNMP in config file, by adding some or all of the following, depending on which configure options were chosen
-     enable_snmp	(enables enable_snmp_keepalived and enable_snmp_checker)
-     enable_snmp_keepalived
+     enable_snmp	(enables enable_snmp_vrrp and enable_snmp_checker)
+     enable_snmp_vrrp
      enable_snmp_checker
      enable_snmp_rfc	(enables enable_snmp_rfcv2 enable_snmp_rfcv3)
      enable_snmp_rfcv2
@@ -219,6 +219,7 @@ enum snmp_rule_magic {
 	VRRP_SNMP_RULE_TUNNELID_LOW,
 	VRRP_SNMP_RULE_UID_RANGE_START,
 	VRRP_SNMP_RULE_UID_RANGE_END,
+	VRRP_SNMP_RULE_L3MDEV,
 };
 
 enum snmp_route_magic {
@@ -275,6 +276,7 @@ enum snmp_route_magic {
 	VRRP_SNMP_ROUTE_ENCAP_TTL,
 	VRRP_SNMP_ROUTE_ENCAP_FLAGS,
 	VRRP_SNMP_ROUTE_ENCAP_ILA_LOCATOR,
+	VRRP_SNMP_ROUTE_FASTOPEN_NO_COOKIE,
 };
 
 enum snmp_next_hop_magic {
@@ -1123,6 +1125,15 @@ vrrp_snmp_route(struct variable *vp, oid *name, size_t *length,
 			route->pref == ICMPV6_ROUTER_PREF_HIGH ? 3 : 0;
 		return (u_char *)&long_ret;
 #endif
+	case VRRP_SNMP_ROUTE_FASTOPEN_NO_COOKIE:
+#if !HAVE_DECL_RTAX_FASTOPEN_NO_COOKIE
+		break;
+#else
+		if (!(route->mask & IPROUTE_BIT_FASTOPEN_NO_COOKIE))
+			break;
+		long_ret.u = route->fastopen_no_cookie;
+		return (u_char *)&long_ret;
+#endif
 	case VRRP_SNMP_ROUTE_REALM_DST:
 		if (!route->realms)
 			break;
@@ -1515,6 +1526,14 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_RULE_UID_RANGE_END:
 		if (rule->mask & IPRULE_BIT_UID_RANGE)
 			long_ret.u = rule->uid_range.end;
+		else
+#endif
+			break;
+		return (u_char *)&long_ret;
+#if HAVE_DECL_FRA_L3MDEV
+	case VRRP_SNMP_RULE_L3MDEV:
+		if (rule->l3mdev)
+			long_ret.u = 1;
 		else
 #endif
 			break;
@@ -2742,6 +2761,10 @@ static struct variable8 vrrp_vars[] = {
 	{VRRP_SNMP_ROUTE_ENCAP_ILA_LOCATOR, ASN_COUNTER64, RONLY,
 	 vrrp_snmp_encap, 3, {7, 1, 54}},
 #endif
+#if HAVE_DECL_RTAX_FASTOPEN_NO_COOKIE
+	{VRRP_SNMP_ROUTE_FASTOPEN_NO_COOKIE, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 55}},
+#endif
 #endif
 
 	 /* vrrpRuleTable */
@@ -2806,6 +2829,10 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_rule, 3, {8, 1, 30}},
 	{VRRP_SNMP_RULE_UID_RANGE_END, ASN_UNSIGNED, RONLY,
 	 vrrp_snmp_rule, 3, {8, 1, 31}},
+#endif
+#if HAVE_DECL_FRA_L3MDEV
+	{VRRP_SNMP_RULE_L3MDEV, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 32}},
 #endif
 #endif
 
@@ -2916,7 +2943,7 @@ vrrp_snmp_instance_trap(vrrp_t *vrrp)
 
 	netsnmp_variable_list *notification_vars = NULL;
 
-	if (!global_data->enable_traps || !global_data->enable_snmp_keepalived)
+	if (!global_data->enable_traps || !global_data->enable_snmp_vrrp)
 		return;
 
 	/* snmpTrapOID */
@@ -2978,7 +3005,7 @@ vrrp_snmp_group_trap(vrrp_sgroup_t *group)
 
 	netsnmp_variable_list *notification_vars = NULL;
 
-	if (!global_data->enable_traps || !global_data->enable_snmp_keepalived)
+	if (!global_data->enable_traps || !global_data->enable_snmp_vrrp)
 		return;
 
 	/* snmpTrapOID */
@@ -4368,7 +4395,7 @@ vrrp_rfcv3_snmp_proto_err_notify(vrrp_t *vrrp)
 static bool
 vrrp_handles_global_oid(void)
 {
-	if (global_data->enable_snmp_keepalived) {
+	if (global_data->enable_snmp_vrrp) {
 #ifdef _WITH_LVS_
 		if (!__test_bit(DAEMON_CHECKERS, &daemon_mode) || !global_data->enable_snmp_checker)
 			return true;
@@ -4387,7 +4414,7 @@ vrrp_snmp_agent_init(const char *snmp_socket)
 	snmp_agent_init(snmp_socket, vrrp_handles_global_oid());
 
 #ifdef _WITH_SNMP_VRRP_
-	if (global_data->enable_snmp_keepalived)
+	if (global_data->enable_snmp_vrrp)
 		snmp_register_mib(vrrp_oid, OID_LENGTH(vrrp_oid), "KEEPALIVED-VRRP",
 				  (struct variable *)vrrp_vars,
 				  sizeof(struct variable8),
@@ -4413,7 +4440,7 @@ void
 vrrp_snmp_agent_close(void)
 {
 #ifdef _WITH_SNMP_VRRP_
-	if (global_data->enable_snmp_keepalived)
+	if (global_data->enable_snmp_vrrp)
 		snmp_unregister_mib(vrrp_oid, OID_LENGTH(vrrp_oid));
 #endif
 #ifdef _WITH_SNMP_RFCV2_

@@ -71,20 +71,20 @@ typedef struct _ip_address {
 #define IP_IS6(X)	((X)->ifa.ifa_family == AF_INET6)
 #define IP_IS4(X)	((X)->ifa.ifa_family == AF_INET)
 
-#define IP4_ISEQ(X,Y)   ((X)->u.sin.sin_addr.s_addr == (Y)->u.sin.sin_addr.s_addr	&& \
-			 (X)->ifa.ifa_prefixlen     == (Y)->ifa.ifa_prefixlen		&& \
-			 (X)->ifp		    == (Y)->ifp				&& \
+#define IPcommon_ISEQ(X,Y) \
+			((X)->ifa.ifa_prefixlen     == (Y)->ifa.ifa_prefixlen		&& \
+			 (X)->ifp->ifindex	    == (Y)->ifp->ifindex		&& \
 			 (X)->ifa.ifa_scope	    == (Y)->ifa.ifa_scope		&& \
 			 string_equal((X)->label, (Y)->label))
+
+#define IP4_ISEQ(X,Y)   ((X)->u.sin.sin_addr.s_addr == (Y)->u.sin.sin_addr.s_addr	&& \
+			 IPcommon_ISEQ((X),(Y)))
 
 #define IP6_ISEQ(X,Y)   ((X)->u.sin6_addr.s6_addr32[0] == (Y)->u.sin6_addr.s6_addr32[0]	&& \
 			 (X)->u.sin6_addr.s6_addr32[1] == (Y)->u.sin6_addr.s6_addr32[1]	&& \
 			 (X)->u.sin6_addr.s6_addr32[2] == (Y)->u.sin6_addr.s6_addr32[2]	&& \
 			 (X)->u.sin6_addr.s6_addr32[3] == (Y)->u.sin6_addr.s6_addr32[3]	&& \
-			 (X)->ifa.ifa_prefixlen     == (Y)->ifa.ifa_prefixlen		&& \
-			 (X)->ifp		    == (Y)->ifp				&& \
-			 (X)->ifa.ifa_scope	    == (Y)->ifa.ifa_scope		&& \
-			 string_equal((X)->label, (Y)->label))
+			 IPcommon_ISEQ((X),(Y)))
 
 #define IP_ISEQ(X,Y)    (!(X) && !(Y) ? true : !(X) != !(Y) ? false : (IP_FAMILY(X) != IP_FAMILY(Y) ? false : IP_IS6(X) ? IP6_ISEQ(X, Y) : IP4_ISEQ(X, Y)))
 

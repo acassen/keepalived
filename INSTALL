@@ -31,6 +31,13 @@ For DBUS support:
 For JSON support:
 	json-c-devel
 
+For building the documentation, the following packages need to be installed:
+	Fedora: python-sphinx (will pull in: python2-sphinx_rtd_theme)
+	CentOS-and-friends: python-sphinx epel-release python-sphinx_rtd_theme
+   For latex or pdf files, the following are also needed:
+	Fedora: latexmk python-sphinx-latex
+	CentOS-and-friends: latexmk texlive texlive-titlesec texlive-framed texlive-threeparttable texlive-wrapfig texlive-multirow
+
 Debian/Ubuntu
 -------------
 On Debian, install:
@@ -46,6 +53,11 @@ For DBUS support:
 For JSON support:
 	libjson-c-dev
 
+For building the documentation, the following packages need to be installed:
+	python-sphinx python-sphinx-rtd-theme
+   For latex or pdf files, the following are also needed:
+	texlive-latex-base texlive-generic-extra texlive-latex-recommended texlive-fonts-recommended texlive-latex-extra
+
 Alpine Linux
 ------------
 The following libraries need to be installed:
@@ -55,6 +67,12 @@ For magic file identification support:
 For SNMP support:
 	net-snmp-dev (requires libressl-dev and not openssl-dev)
 
+For building the documentation, the following packages need to be installed:
+	py-sphinx py3-sphinx_rtd_theme
+   For latex or pdf files, you'll need texlive or similar, which is not yet
+   available as a distro package.
+
+
 Archlinux
 ---------
 Run the following to install the required libraries:
@@ -63,6 +81,10 @@ For magic file identification support:
 	TBD
 For SNMP support:
 	pacman -S net-snmp
+For building the documentation, the following packages need to be installed:
+	python-sphinx python-sphinx_rtd_theme
+   For latex or pdf files, the following are also needed:
+	texlive-core texlive-bin texlive-latexextra
 
 Installation
 ============

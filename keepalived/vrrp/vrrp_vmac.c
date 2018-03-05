@@ -319,10 +319,15 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	}
 
 	if (vrrp->family == AF_INET6 || vrrp->evip_add_ipv6) {
-		// We don't want a link-local address auto assigned - see RFC5798 paragraph 7.4.
-		// If we have a sufficiently recent kernel, we can stop a link local address
-		// based on the MAC address being automatically assigned. If not, then we have
-		// to delete the generated address after bringing the interface up (see below).
+		/* Make sure IPv6 is enabled for the interface, in case the
+		 * sysctl net.ipv6.conf.default.disable_ipv6 is set true. */
+		link_set_ipv6(ifp, true);
+
+		/* We don't want a link-local address auto assigned - see RFC5798 paragraph 7.4.
+		 * If we have a sufficiently recent kernel, we can stop a link local address
+		 * based on the MAC address being automatically assigned. If not, then we have
+		 * to delete the generated address after bringing the interface up (see below).
+		 */
 #if HAVE_DECL_IFLA_INET6_ADDR_GEN_MODE
 		memset(&req, 0, sizeof (req));
 		req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
@@ -331,14 +336,13 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		req.ifi.ifi_family = AF_UNSPEC;
 		req.ifi.ifi_index = (int)vrrp->ifp->ifindex;
 
-		u_char val = IN6_ADDR_GEN_MODE_NONE;
 		struct rtattr* spec;
 
 		spec = NLMSG_TAIL(&req.n);
 		addattr_l(&req.n, sizeof(req), IFLA_AF_SPEC, NULL,0);
 		data = NLMSG_TAIL(&req.n);
 		addattr_l(&req.n, sizeof(req), AF_INET6, NULL,0);
-		addattr_l(&req.n, sizeof(req), IFLA_INET6_ADDR_GEN_MODE, &val, sizeof(val));
+		addattr8(&req.n, sizeof(req), IFLA_INET6_ADDR_GEN_MODE, IN6_ADDR_GEN_MODE_NONE);
 		data->rta_len = (unsigned short)((void *)NLMSG_TAIL(&req.n) - (void *)data);
 		spec->rta_len = (unsigned short)((void *)NLMSG_TAIL(&req.n) - (void *)spec);
 
