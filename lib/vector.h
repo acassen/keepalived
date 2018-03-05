@@ -48,16 +48,29 @@ typedef char *(*null_strvec_handler_t)(const vector_t *, size_t);
 	for (i = 0; i < (v)->allocated && ((p) = (v)->slot[i]); i++)
 #define FMT_STR_VSLOT(V,E) ((char*)strvec_slot(V,E))
 
+#ifdef _MEM_CHECK_
+#define vector_alloc()		(memcheck_log("vector_alloc", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+				 vector_alloc_r())
+#define vector_alloc_slot(v)	(memcheck_log("vector_alloc_slot", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+				 vector_alloc_slot_r(v))
+#define vector_free(v)		(memcheck_log("vector_free", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+				 vector_free_r(v))
+#else
+#define vector_alloc()		(vector_alloc_r())
+#define vector_alloc_slot(v)	(vector_alloc_slot_r(v))
+#define vector_free(v)		(vector_free_r(v))
+#endif
+
 /* Prototypes */
 extern null_strvec_handler_t register_null_strvec_handler(null_strvec_handler_t);
 extern null_strvec_handler_t unregister_null_strvec_handler(void);
 extern void *strvec_slot(const vector_t *strvec, size_t index);
-extern vector_t *vector_alloc(void);
-extern void vector_alloc_slot(vector_t *);
+extern vector_t *vector_alloc_r(void);
+extern void vector_alloc_slot_r(vector_t *);
 extern void vector_set_slot(vector_t *, void *);
 extern void vector_unset(vector_t *, unsigned int);
 extern unsigned int vector_count(vector_t *);
-extern void vector_free(vector_t *);
+extern void vector_free_r(vector_t *);
 extern void vector_dump(FILE *fp, vector_t *);
 extern void free_strvec(vector_t *);
 

@@ -232,7 +232,7 @@ free_keywords(vector_t *keywords_vec)
 }
 
 vector_t *
-alloc_strvec(char *string)
+alloc_strvec_r(char *string)
 {
 	char *cp, *start, *token;
 	size_t str_len;
@@ -991,8 +991,10 @@ alloc_value_block(void (*alloc_func) (vector_t *), const char *block_type)
 		if (first_line) {
 			first_line = false;
 
-			if (!strcmp(vector_slot(vec, 0), BOB))
+			if (!strcmp(vector_slot(vec, 0), BOB)) {
+				free_strvec(vec);
 				continue;
+			}
 
 			log_message(LOG_INFO, "'%s' missing from beginning of block %s", BOB, block_type);
 		}
