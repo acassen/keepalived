@@ -52,8 +52,8 @@
      MIBS="+KEEPALIVED-MIB:VRRP-MIB:VRRPV3-MIB" snmptrapd -f -M "+$HOME/.snmp/mibs" -Lo
 
  * Enable SNMP in config file, by adding some or all of the following, depending on which configure options were chosen
-     enable_snmp	(enables enable_snmp_keepalived and enable_snmp_checker)
-     enable_snmp_keepalived
+     enable_snmp	(enables enable_snmp_vrrp and enable_snmp_checker)
+     enable_snmp_vrrp
      enable_snmp_checker
      enable_snmp_rfc	(enables enable_snmp_rfcv2 enable_snmp_rfcv3)
      enable_snmp_rfcv2
@@ -2943,7 +2943,7 @@ vrrp_snmp_instance_trap(vrrp_t *vrrp)
 
 	netsnmp_variable_list *notification_vars = NULL;
 
-	if (!global_data->enable_traps || !global_data->enable_snmp_keepalived)
+	if (!global_data->enable_traps || !global_data->enable_snmp_vrrp)
 		return;
 
 	/* snmpTrapOID */
@@ -3005,7 +3005,7 @@ vrrp_snmp_group_trap(vrrp_sgroup_t *group)
 
 	netsnmp_variable_list *notification_vars = NULL;
 
-	if (!global_data->enable_traps || !global_data->enable_snmp_keepalived)
+	if (!global_data->enable_traps || !global_data->enable_snmp_vrrp)
 		return;
 
 	/* snmpTrapOID */
@@ -4395,7 +4395,7 @@ vrrp_rfcv3_snmp_proto_err_notify(vrrp_t *vrrp)
 static bool
 vrrp_handles_global_oid(void)
 {
-	if (global_data->enable_snmp_keepalived) {
+	if (global_data->enable_snmp_vrrp) {
 #ifdef _WITH_LVS_
 		if (!__test_bit(DAEMON_CHECKERS, &daemon_mode) || !global_data->enable_snmp_checker)
 			return true;
@@ -4414,7 +4414,7 @@ vrrp_snmp_agent_init(const char *snmp_socket)
 	snmp_agent_init(snmp_socket, vrrp_handles_global_oid());
 
 #ifdef _WITH_SNMP_VRRP_
-	if (global_data->enable_snmp_keepalived)
+	if (global_data->enable_snmp_vrrp)
 		snmp_register_mib(vrrp_oid, OID_LENGTH(vrrp_oid), "KEEPALIVED-VRRP",
 				  (struct variable *)vrrp_vars,
 				  sizeof(struct variable8),
@@ -4440,7 +4440,7 @@ void
 vrrp_snmp_agent_close(void)
 {
 #ifdef _WITH_SNMP_VRRP_
-	if (global_data->enable_snmp_keepalived)
+	if (global_data->enable_snmp_vrrp)
 		snmp_unregister_mib(vrrp_oid, OID_LENGTH(vrrp_oid));
 #endif
 #ifdef _WITH_SNMP_RFCV2_

@@ -156,7 +156,7 @@ typedef struct _data {
 	bool				enable_traps;
 	char				*snmp_socket;
 #ifdef _WITH_VRRP_
-	bool				enable_snmp_keepalived;
+	bool				enable_snmp_vrrp;
 	bool				enable_snmp_rfcv2;
 	bool				enable_snmp_rfcv3;
 #endif

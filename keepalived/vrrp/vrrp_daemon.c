@@ -143,7 +143,7 @@ stop_vrrp(int status)
 #endif
 
 #ifdef _WITH_SNMP_
-	if (global_data->enable_snmp_keepalived || global_data->enable_snmp_rfcv2 || global_data->enable_snmp_rfcv3)
+	if (global_data->enable_snmp_vrrp || global_data->enable_snmp_rfcv2 || global_data->enable_snmp_rfcv3)
 		vrrp_snmp_agent_close();
 #endif
 
@@ -256,7 +256,7 @@ start_vrrp(void)
 			global_data->vrrp_process_priority, global_data->vrrp_no_swap ? 4096 : 0);
 
 #ifdef _WITH_SNMP_
-	if (!reload && (global_data->enable_snmp_keepalived || global_data->enable_snmp_rfcv2 || global_data->enable_snmp_rfcv3)) {
+	if (!reload && (global_data->enable_snmp_vrrp || global_data->enable_snmp_rfcv2 || global_data->enable_snmp_rfcv3)) {
 		vrrp_snmp_agent_init(global_data->snmp_socket);
 #ifdef _WITH_SNMP_RFC_
 		vrrp_start_time = timer_now();

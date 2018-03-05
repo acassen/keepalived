@@ -358,7 +358,7 @@ and
  # Note: Keepalived, checker and RFC support can be individually enabled/disabled
  snmp_socket udp:1.2.3.4:705  # specify socket to use for connecting to SNMP master agent (default unix:/var/agentx/master)
                               # unless using a network namespace, when the default is udp:localhost:705
- enable_snmp_keepalived       # enable SNMP handling of vrrp element of KEEPALIVED MIB
+ enable_snmp_vrrp             # enable SNMP handling of vrrp element of KEEPALIVED MIB
  enable_snmp_checker          # enable SNMP handling of checker element of KEEPALIVED MIB
  enable_snmp_rfc              # enable SNMP handling of RFC2787 and RFC6527 VRRP MIBs
  enable_snmp_rfcv2            # enable SNMP handling of RFC2787 VRRP MIB
