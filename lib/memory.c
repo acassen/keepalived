@@ -124,6 +124,13 @@ static int f = 0;		/* Free list pointer */
 
 static FILE *log_op = NULL;
 
+void
+memcheck_log(const char *called_func, const char *param, const char *file, const char *function, int line)
+{
+	fprintf(log_op, "%s(%s) at %s, %d, %s\n",
+	       called_func, param ? param : "", file, line, function);
+}
+
 void *
 keepalived_malloc(size_t size, char *file, char *function, int line)
 {

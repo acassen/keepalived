@@ -232,7 +232,7 @@ free_keywords(vector_t *keywords_vec)
 }
 
 vector_t *
-alloc_strvec(char *string)
+alloc_strvec_r(char *string)
 {
 	char *cp, *start, *token;
 	size_t str_len;

@@ -44,6 +44,7 @@
 extern size_t mem_allocated;
 
 /* Memory debug prototypes defs */
+extern void memcheck_log(const char *, const char *, const char *, const char *, int);
 extern void *keepalived_malloc(size_t, char *, char *, int)
 		__attribute__((alloc_size(1))) __attribute__((malloc));
 extern int keepalived_free(void *, char *, char *, int);
