@@ -285,7 +285,8 @@ vector_only_index_free(void *slot)
 void
 vector_free(vector_t *v)
 {
-	FREE(v->slot);
+	if (v->slot)
+		FREE(v->slot);
 	FREE(v);
 }
 
