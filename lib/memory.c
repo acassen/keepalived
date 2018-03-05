@@ -127,8 +127,13 @@ static FILE *log_op = NULL;
 void
 memcheck_log(const char *called_func, const char *param, const char *file, const char *function, int line)
 {
-	fprintf(log_op, "%s(%s) at %s, %d, %s\n",
-	       called_func, param ? param : "", file, line, function);
+	int len = strlen(called_func) + (param ? strlen(param) : 0);
+
+	if ((len = 35 - len) < 0)
+		len = 0;
+
+	fprintf(log_op, "%*s%s(%s) at %s, %d, %s\n",
+	       len, "", called_func, param ? param : "", file, line, function);
 }
 
 void *
