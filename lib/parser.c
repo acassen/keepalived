@@ -991,8 +991,10 @@ alloc_value_block(void (*alloc_func) (vector_t *), const char *block_type)
 		if (first_line) {
 			first_line = false;
 
-			if (!strcmp(vector_slot(vec, 0), BOB))
+			if (!strcmp(vector_slot(vec, 0), BOB)) {
+				free_strvec(vec);
 				continue;
+			}
 
 			log_message(LOG_INFO, "'%s' missing from beginning of block %s", BOB, block_type);
 		}
