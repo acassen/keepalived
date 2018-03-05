@@ -3358,6 +3358,7 @@ restore_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 
 	/* Keep VRRP state, ipsec AH seq_number */
 	vrrp->state = old_vrrp->state;
+	vrrp->reload_master = old_vrrp->state == VRRP_STATE_MAST;
 	vrrp->wantstate = old_vrrp->wantstate;
 	if (!old_vrrp->sync)
 		vrrp->effective_priority = old_vrrp->effective_priority + vrrp->base_priority - old_vrrp->base_priority;

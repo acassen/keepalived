@@ -192,7 +192,8 @@ vrrp_init_state(list l)
 		if (is_up &&
 		    new_state == VRRP_STATE_MAST &&
 		    !vrrp->num_script_init && (!vrrp->sync || !vrrp->sync->num_member_init) &&
-		    vrrp->base_priority == VRRP_PRIO_OWNER &&
+		    (vrrp->base_priority == VRRP_PRIO_OWNER ||
+		     vrrp->reload_master) &&
 		    vrrp->wantstate == VRRP_STATE_MAST) {
 #ifdef _WITH_LVS_
 			/* Check if sync daemon handling is needed */
@@ -204,31 +205,19 @@ vrrp_init_state(list l)
 					       false,
 					       false);
 #endif
-			if (vrrp->state != VRRP_STATE_MASTER_RELOAD) {
+			if (!vrrp->reload_master) {
 #ifdef _WITH_SNMP_RFCV3_
-<<<<<<< HEAD
-			vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
-||||||| merged common ancestors
-			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
-=======
-				vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
->>>>>>> fixes
+				vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
 #endif
-<<<<<<< HEAD
 
-			/* The simplest way to become master is to timeout from the backup state
-			 * very quickly (1usec) */
-			vrrp->state = VRRP_STATE_BACK;
-			vrrp->ms_down_timer = 1;
+				/* The simplest way to become master is to timeout from the backup state
+				 * very quickly (1usec) */
+				vrrp->state = VRRP_STATE_BACK;
+				vrrp->ms_down_timer = 1;
+			}
 
 // TODO Do we need ->	vrrp_restore_interface(vrrp, false, false);
 // It removes everything, so probably if !reload
-||||||| merged common ancestors
-			vrrp->state = VRRP_STATE_GOTO_MASTER;
-=======
-				vrrp->state = VRRP_STATE_GOTO_MASTER;
-			}
->>>>>>> fixes
 		} else {
 			if (new_state == VRRP_STATE_BACK && vrrp->wantstate == VRRP_STATE_MAST)
 				vrrp->ms_down_timer = vrrp->master_adver_int + VRRP_TIMER_SKEW_MIN(vrrp);
@@ -281,8 +270,7 @@ vrrp_init_sands(list l)
 		vrrp = ELEMENT_DATA(e);
 
 		vrrp_init_instance_sands(vrrp);
-		if (vrrp->state == VRRP_STATE_MASTER_RELOAD)
-			vrrp->state = VRRP_STATE_MAST;
+		vrrp->reload_master = false;
 	}
 }
 

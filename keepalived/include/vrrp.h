@@ -260,6 +260,7 @@ typedef struct _vrrp_t {
 	int			init_state;		/* the initial state of the instance */
 #endif
 	int			wantstate;		/* user explicitly wants a state (back/mast) */
+	bool			reload_master;		/* set if the instance is a master being reloaded */
 	sock_t			*sockets;		/* In and out socket descriptors */
 
 	int			debug;			/* Debug level 0-4 */
