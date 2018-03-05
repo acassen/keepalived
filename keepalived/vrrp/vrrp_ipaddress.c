@@ -661,27 +661,27 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 }
 
 /* Find an address in a list */
-static int
+static bool
 address_exist(list l, ip_address_t *ipaddress)
 {
 	ip_address_t *ipaddr;
 	element e;
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		ipaddr = ELEMENT_DATA(e);
+	LIST_FOREACH(l, ipaddr, e) {
 		if (IP_ISEQ(ipaddr, ipaddress)) {
 			ipaddr->set = ipaddress->set;
 			ipaddr->iptable_rule_set = ipaddress->iptable_rule_set;
-			return 1;
+			ipaddr->ifa.ifa_index = ipaddress->ifa.ifa_index;
+			return true;
 		}
 	}
 
-	return 0;
+	return false;
 }
 
 /* Clear diff addresses */
 void
-clear_diff_address(struct ipt_handle *h, list l, list n)
+clear_diff_address(struct ipt_handle *h, list old, list new)
 {
 	ip_address_t *ipaddr;
 	element e;
@@ -689,23 +689,19 @@ clear_diff_address(struct ipt_handle *h, list l, list n)
 	void *addr;
 
 	/* No addresses in previous conf */
-	if (LIST_ISEMPTY(l))
+	if (LIST_ISEMPTY(old))
 		return;
 
-	ipaddr = ELEMENT_DATA(LIST_HEAD(l));
-
 	/* All addresses removed */
-	if (LIST_ISEMPTY(n)) {
+	if (LIST_ISEMPTY(new)) {
 		log_message(LOG_INFO, "Removing a complete VIP or e-VIP block");
-		netlink_iplist(l, IPADDRESS_DEL, false);
-		handle_iptable_rule_to_iplist(h, l, IPADDRESS_DEL, false);
+		netlink_iplist(old, IPADDRESS_DEL, false);
+		handle_iptable_rule_to_iplist(h, old, IPADDRESS_DEL, false);
 		return;
 	}
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		ipaddr = ELEMENT_DATA(e);
-
-		if (!address_exist(n, ipaddr) && ipaddr->set) {
+	LIST_FOREACH(old, ipaddr, e) {
+		if (!address_exist(new, ipaddr) && ipaddr->set) {
 			addr = (IP_IS6(ipaddr)) ? (void *) &ipaddr->u.sin6_addr :
 						  (void *) &ipaddr->u.sin.sin_addr;
 			inet_ntop(IP_FAMILY(ipaddr), addr, addr_str, INET6_ADDRSTRLEN);
