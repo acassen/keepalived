@@ -2711,9 +2711,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			strncpy(vrrp->vmac_ifname, ifname, IFNAMSIZ);
 		}
 
-		ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_CREATE_ALWAYS);
-		ifp->base_ifp = vrrp->ifp;
-		vrrp->ifp = ifp;
+		if (!interface_already_existed) {
+			ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_CREATE_ALWAYS);
+			ifp->base_ifp = vrrp->ifp;
+			vrrp->ifp = ifp;
+		}
 
 		if (vrrp->strict_mode && __test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) {
 			log_message(LOG_INFO, "(%s) xmit_base is incompatible with strict mode - resetting", vrrp->iname);
