@@ -218,6 +218,8 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 {
 	list old_checkers_queue;
 
+	log_message(LOG_INFO, "Reloading");
+
 	/* set the reloading flag */
 	SET_RELOAD;
 

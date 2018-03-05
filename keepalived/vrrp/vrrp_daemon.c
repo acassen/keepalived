@@ -485,6 +485,8 @@ vrrp_signal_init(void)
 static int
 reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 {
+	log_message(LOG_INFO, "Reloading");
+
 	/* set the reloading flag */
 	SET_RELOAD;
 
