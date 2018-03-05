@@ -129,7 +129,7 @@ memcheck_log(const char *called_func, const char *param, const char *file, const
 {
 	int len = strlen(called_func) + (param ? strlen(param) : 0);
 
-	if ((len = 35 - len) < 0)
+	if ((len = 36 - len) < 0)
 		len = 0;
 
 	fprintf(log_op, "%*s%s(%s) at %s, %d, %s\n",
@@ -169,7 +169,7 @@ keepalived_malloc(size_t size, char *file, char *function, int line)
 	alloc_list[i].csum = check;
 	alloc_list[i].type = 9;
 
-	fprintf(log_op, "zalloc[%3d:%3d], %p, %4zu at %s, %3d, %s\n",
+	fprintf(log_op, "zalloc [%3d:%3d], %p, %4zu at %s, %3d, %s\n",
 	       i, number_alloc_list, buf, size, file, line, function);
 #ifdef _MEM_CHECK_LOG_
 	if (__test_bit(MEM_CHECK_LOG_BIT, &debug))
@@ -249,7 +249,7 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 		return n;
 	}
 
-	fprintf(log_op, "free  [%3d:%3d], %p, %4zu at %s, %3d, %s\n",
+	fprintf(log_op, "free   [%3d:%3d], %p, %4zu at %s, %3d, %s\n",
 	       i, number_alloc_list, buf,
 	       alloc_list[i].size, file, line, function);
 #ifdef _MEM_CHECK_LOG_
@@ -418,7 +418,7 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 	*(long *) ((char *) buf + size) = check;
 	alloc_list[i].csum = check;
 
-	fprintf(log_op, "realloc [%3d:%3d] %p, %4zu %s %d %s -> %p %4zu %s %d %s\n",
+	fprintf(log_op, "realloc[%3d:%3d], %p, %4zu at %s, %3d, %s -> %p, %4zu at %s, %3d, %s\n",
 	       i, number_alloc_list, alloc_list[i].ptr,
 	       alloc_list[i].size, file, line, function, buf, size,
 	       alloc_list[i].file, alloc_list[i].line,
