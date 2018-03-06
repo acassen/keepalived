@@ -173,6 +173,7 @@ enum snmp_vrrp_magic {
 	VRRP_SNMP_INSTANCE_ACCEPT,
 	VRRP_SNMP_INSTANCE_PROMOTE_SECONDARIES,
 	VRRP_SNMP_INSTANCE_USE_LINKBEAT,
+	VRRP_SNMP_INSTANCE_VRRP_VERSION,
 	VRRP_SNMP_TRACKEDINTERFACE_NAME,
 	VRRP_SNMP_TRACKEDINTERFACE_WEIGHT,
 	VRRP_SNMP_TRACKEDSCRIPT_NAME,
@@ -1988,6 +1989,9 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_INSTANCE_USE_LINKBEAT:
 		long_ret.u = rt->linkbeat_use_polling ? 1:2;
 		return (u_char *)&long_ret;
+	case VRRP_SNMP_INSTANCE_VRRP_VERSION:
+		long_ret.u = rt->version;
+		return (u_char *)&long_ret;
 	default:
 		return NULL;
 	}
@@ -2613,6 +2617,8 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_instance, 3, {3, 1, 28} },
 	{VRRP_SNMP_INSTANCE_USE_LINKBEAT, ASN_INTEGER, RWRITE,
 	 vrrp_snmp_instance, 3, {3, 1, 29} },
+	{VRRP_SNMP_INSTANCE_VRRP_VERSION, ASN_INTEGER, RONLY,
+	 vrrp_snmp_instance, 3, {3, 1, 30} },
 
 	/* vrrpTrackedInterfaceTable */
 	{VRRP_SNMP_TRACKEDINTERFACE_NAME, ASN_OCTET_STR, RONLY,

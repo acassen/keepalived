@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201803010000Z"
+     LAST-UPDATED "201803060000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201803060000Z"
+     DESCRIPTION "add VRRP protocol version to VRRP instance"
      REVISION "201803010000Z"
      DESCRIPTION "add route option fastopen_no_cookie and rule option l3mdev"
      REVISION "201801100000Z"
@@ -723,7 +725,8 @@ VrrpInstanceEntry ::= SEQUENCE {
     vrrpInstanceScript DisplayString,
     vrrpInstanceAccept INTEGER,
     vrrpInstancePromoteSecondaries INTEGER,
-    vrrpInstanceUseLinkbeat INTEGER
+    vrrpInstanceUseLinkbeat INTEGER,
+    vrrpInstanceVrrpVersion INTEGER
 }
 
 vrrpInstanceIndex OBJECT-TYPE
@@ -824,7 +827,7 @@ vrrpInstanceTrackPrimaryIf OBJECT-TYPE
 
 vrrpInstanceAdvertisementsInt OBJECT-TYPE
     SYNTAX Unsigned32
-    UNITS "seconds"
+    UNITS "seconds(VRRPv2) / centiseconds(VRRPv3)"
     MAX-ACCESS read-only
     STATUS current
     DESCRIPTION
@@ -974,6 +977,14 @@ vrrpInstanceUseLinkbeat OBJECT-TYPE
     DESCRIPTION
         "Use linkbeat for interface status."
     ::= { vrrpInstanceEntry 29 }
+
+vrrpInstanceVrrpVersion OBJECT-TYPE
+    SYNTAX INTEGER { vrrpv2(2), vrrpv3(3) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "VRRP protocol version."
+    ::= { vrrpInstanceEntry 30 }
 
 vrrpTrackedInterfaceTable OBJECT-TYPE
     SYNTAX SEQUENCE OF VrrpTrackedInterfaceEntry
@@ -4022,6 +4033,7 @@ vrrpInstanceGroup OBJECT-GROUP
     vrrpInstanceAccept,
     vrrpInstancePromoteSecondaries,
     vrrpInstanceUseLinkbeat,
+    vrrpInstanceVrrpVersion,
     vrrpTrackedInterfaceName,
     vrrpTrackedInterfaceWeight,
     vrrpTrackedScriptName,
