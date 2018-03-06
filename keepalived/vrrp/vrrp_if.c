@@ -67,7 +67,6 @@
 static list if_queue;
 static struct ifreq ifr;
 
-static list old_if_queue;
 static list old_garp_delay;
 
 /* Global vars */
@@ -171,11 +170,17 @@ get_if_list(void)
 void
 reset_interface_queue(void)
 {
-	old_if_queue = if_queue;
 	old_garp_delay = garp_delay;
+	interface_t *ifp;
+	element e;
 
-	if_queue = NULL;
 	garp_delay = NULL;
+
+	LIST_FOREACH(if_queue, ifp, e) {
+		ifp->linkbeat_use_polling = false;
+		ifp->garp_delay = NULL;
+		free_list(&ifp->tracking_vrrp);
+	}
 }
 
 /* MII Transceiver Registers poller functions */
@@ -599,7 +604,6 @@ free_interface_queue(void)
 void
 free_old_interface_queue(void)
 {
-	free_list(&old_if_queue);
 	free_list(&old_garp_delay);
 }
 

@@ -34,6 +34,7 @@
 #endif
 #include "global_data.h"
 #include "smtp.h"
+#include "check_daemon.h"
 
 /* Returns the sum of all alive RS weight in a virtual server. */
 static unsigned long
@@ -835,6 +836,8 @@ clear_diff_services(list old_checkers_queue)
 			SET_ALIVE(new_vs);
 			new_vs->quorum_state_up = vs->quorum_state_up;
 			new_vs->reloaded = true;
+			if (using_ha_suspend)
+				new_vs->ha_suspend_addr_count = vs->ha_suspend_addr_count;
 
 			if (vs->vsgname)
 				clear_diff_vsg(vs, new_vs);
