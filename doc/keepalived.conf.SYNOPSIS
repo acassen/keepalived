@@ -156,7 +156,7 @@ vrrp_instance VI_0 {
 
 will produce:
 ...
-vrrp_instance VI_0 }
+vrrp_instance VI_0 {
     priority 240
 }
 if the config_id is main.
