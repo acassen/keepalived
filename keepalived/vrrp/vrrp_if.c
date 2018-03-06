@@ -60,7 +60,6 @@
 #endif
 #include "vrrp_index.h"
 #include "vrrp_track.h"
-#include "vrrp_sync.h"
 #include "vrrp_scheduler.h"
 
 /* Local vars */

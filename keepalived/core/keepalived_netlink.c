@@ -55,7 +55,6 @@
 #include "vrrp_scheduler.h"
 #include "vrrp_track.h"
 #include "vrrp_data.h"
-#include "vrrp_sync.h"
 #ifdef _HAVE_VRRP_VMAC_
 #include "vrrp_vmac.h"
 #endif

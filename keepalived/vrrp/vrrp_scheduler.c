@@ -260,6 +260,30 @@ vrrp_init_state(list l)
 	}
 }
 
+/* Compute the new instance sands */
+void
+vrrp_init_instance_sands(vrrp_t * vrrp)
+{
+	set_time_now();
+
+	if (vrrp->state == VRRP_STATE_MAST) {
+		if (vrrp->reload_master)
+			vrrp->sands = time_now;
+		else
+			vrrp->sands = timer_add_long(time_now, vrrp->adver_int);
+	}
+	else if (vrrp->state == VRRP_STATE_BACK) {
+		/*
+		 * When in the BACKUP state the expiry timer should be updated to
+		 * time_now plus the Master Down Timer, when a non-preemptable packet is
+		 * received.
+		 */
+		vrrp->sands = timer_add_long(time_now, vrrp->ms_down_timer);
+	}
+	else if (vrrp->state == VRRP_STATE_FAULT || vrrp->state == VRRP_STATE_INIT)
+		vrrp->sands.tv_sec = TIMER_DISABLED;
+}
+
 static void
 vrrp_init_sands(list l)
 {
