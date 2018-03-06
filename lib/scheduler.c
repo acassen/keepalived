@@ -404,7 +404,6 @@ thread_cleanup_master(thread_master_t * m)
 	/* Clear all FDs */
 	FD_ZERO(&m->readfd);
 	FD_ZERO(&m->writefd);
-	FD_ZERO(&m->exceptfd);
 
 	/* Clean garbage */
 	thread_clean_unuse(m);
@@ -812,7 +811,6 @@ thread_fetch(thread_master_t * m, thread_t * fetch)
 	thread_t *t;
 	fd_set readfd;
 	fd_set writefd;
-	fd_set exceptfd;
 	timeval_t timer_wait;
 	int signal_fd;
 	int fdsetsize;
@@ -861,7 +859,6 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	/* Call select function. */
 	readfd = m->readfd;
 	writefd = m->writefd;
-	exceptfd = m->exceptfd;
 	fdsetsize = m->max_fd + 1;
 
 	signal_fd = signal_rfd();
@@ -901,11 +898,11 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	if (!timerisset(&timer_wait))
 		num_fds = 0;
 	else
-		num_fds = select(fdsetsize, &readfd, &writefd, &exceptfd, &timer_wait);
+		num_fds = select(fdsetsize, &readfd, &writefd, NULL, &timer_wait);
 
 #ifdef _SELECT_DEBUG_
 	if (prog_type == PROG_TYPE_VRRP)
-		log_message(LOG_INFO, "Select returned %d, readfd 0x%lx, writefd 0x%lx, exceptfd 0x%lx, timer %lu.%6.6ld", num_fds, readfd.fds_bits[0], writefd.fds_bits[0], exceptfd.fds_bits[0], timer_wait.tv_sec, timer_wait.tv_usec);
+		log_message(LOG_INFO, "Select returned %d, readfd 0x%lx, writefd 0x%lx, timer %lu.%6.6ld", num_fds, readfd.fds_bits[0], writefd.fds_bits[0], timer_wait.tv_sec, timer_wait.tv_usec);
 #endif
 
 	/* we have to save errno here because the next syscalls will set it */

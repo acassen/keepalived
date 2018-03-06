@@ -88,7 +88,6 @@ typedef struct _thread_master {
 	list child_pid_index;
 	fd_set readfd;
 	fd_set writefd;
-	fd_set exceptfd;
 	int max_fd;
 	unsigned long alloc;
 } thread_master_t;

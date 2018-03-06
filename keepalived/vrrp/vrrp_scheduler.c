@@ -1283,7 +1283,6 @@ dump_threads(void)
 	dump_thread_list(fp, &master->unuse, "unuse");
 	dump_fd_set(fp, &master->readfd, "read");
 	dump_fd_set(fp, &master->writefd, "write");
-	dump_fd_set(fp, &master->exceptfd, "except");
 	fprintf(fp, "alloc = %lu\n", master->alloc);
 
 	fprintf(fp, "\n");
