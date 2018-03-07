@@ -60,7 +60,6 @@ prog_type_t prog_type;		/* Parent/VRRP/Checker process */
 #ifdef _WITH_SNMP_
 bool snmp_running;		/* True if this process is running SNMP */
 #endif
-int inotify_fd = -1;
 
 #ifdef _WITH_LVS_
 #include "../keepalived/include/check_daemon.h"
@@ -78,8 +77,6 @@ static thread_t *(*child_finder)(pid_t);
 static void (*child_remover)(thread_t *);
 static void (*child_finder_destroy)(void);
 static size_t child_finder_list_size;
-
-static void (*process_track_inotify)(int fd);
 
 static size_t
 get_pid_hash(pid_t pid)
@@ -149,12 +146,6 @@ void
 set_child_finder_name(char const * (*func)(pid_t))
 {
 	child_finder_name = func;
-}
-
-void
-set_process_track_inotify(void (*func)(int))
-{
-	process_track_inotify = func;
 }
 
 void
@@ -860,13 +851,6 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	writefd = m->writefd;
 	fdsetsize = m->max_fd + 1;
 
-//This needs to be handled by thread_add_read();
-	if (inotify_fd != -1) {
-		FD_SET(inotify_fd, &readfd);
-		if (inotify_fd > m->max_fd)
-			fdsetsize = inotify_fd + 1;
-	}
-
 #ifdef _WITH_SNMP_
 	/* When SNMP is enabled, we may have to select() on additional
 	 * FD. snmp_select_info() will add them to `readfd'. The trick
@@ -923,13 +907,6 @@ retry:	/* When thread can't fetch try to find next thread again. */
 			snmp_timeout();
 	}
 #endif
-
-	/* handle signals synchronously, including child reaping */
-	if (num_fds && inotify_fd != -1 && FD_ISSET(inotify_fd, &readfd)) {
-		if (process_track_inotify)
-			process_track_inotify(inotify_fd);
-		num_fds--;
-	}
 
 	/* Update current time */
 	set_time_now();

@@ -42,6 +42,9 @@
 #include "vrrp_scheduler.h"
 #include "scheduler.h"
 
+static int inotify_fd = -1;
+static thread_t *inotify_thread;
+
 /* Track interface dump */
 void
 dump_track_if(void *track_data)
@@ -903,8 +906,8 @@ process_track_file(vrrp_tracked_file_t *tfile)
 	update_track_file_status(tfile, (int)new_status);
 }
 
-static void
-process_inotify(int fd)
+static int
+process_inotify(thread_t *thread)
 {
 	char buf[sizeof(struct inotify_event) + NAME_MAX + 1];
 	char *buf_ptr;
@@ -912,22 +915,25 @@ process_inotify(int fd)
 	struct inotify_event* event;
 	vrrp_tracked_file_t *tfile;
 	element e;
+	int fd = thread->u.fd;
+
+	inotify_thread = thread_add_read(master, process_inotify, NULL, fd, TIMER_NEVER);
 
 	while (true) {
 		if ((len = read(fd, buf, sizeof(buf))) < (ssize_t)sizeof(struct inotify_event)) {
 			if (len == -1) {
 				if (errno == EAGAIN)
-					return;
+					return 0;
 
 				if (errno == EINTR)
 					continue;
 
 				log_message(LOG_INFO, "inotify read() returned error %d - %m", errno);
-				return;
+				return 0;
 			}
 
 			log_message(LOG_INFO, "inotify read() returned short length %zd", len);
-			return;
+			return 0;
 		}
 
 		for (buf_ptr = buf; buf_ptr < buf + len; buf_ptr += event->len + sizeof(struct inotify_event)) {
@@ -961,6 +967,8 @@ process_inotify(int fd)
 			}
 		}
 	}
+
+	return 0;
 }
 
 void
@@ -978,8 +986,6 @@ init_track_files(list track_files)
 
 	if (LIST_ISEMPTY(track_files))
 		return;
-
-	set_process_track_inotify(&process_inotify);
 
 #ifdef HAVE_INOTIFY_INIT1
 	inotify_fd = inotify_init1(IN_CLOEXEC | IN_NONBLOCK);
@@ -1066,11 +1072,20 @@ init_track_files(list track_files)
 		tfile->wd = inotify_add_watch(inotify_fd, tfile->file_path, IN_CLOSE_WRITE | IN_DELETE | IN_MOVE);
 		*tfile->file_part = sav_ch;
 	}
+
+	inotify_thread = thread_add_read(master, process_inotify, NULL, inotify_fd, TIMER_NEVER);
 }
 
 void
 stop_track_files(void)
 {
-	close(inotify_fd);
-	inotify_fd = -1;
+	if (inotify_thread) {
+		thread_cancel(inotify_thread);
+		inotify_thread = NULL;
+	}
+
+	if (inotify_fd != -1) {
+		close(inotify_fd);
+		inotify_fd = -1;
+	}
 }
