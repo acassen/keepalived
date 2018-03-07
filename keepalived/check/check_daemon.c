@@ -82,6 +82,9 @@ stop_check(int status)
 	notify_fifo_close(&global_data->notify_fifo, &global_data->lvs_notify_fifo);
 
 	/* Destroy master thread */
+#ifdef _WITH_BFD_
+	checker_dispatcher_release();
+#endif
 	signal_handler_destroy();
 	thread_destroy_master(master);
 	free_checkers_queue();
@@ -98,9 +101,6 @@ stop_check(int status)
 	pidfile_rm(checkers_pidfile);
 
 	/* Clean data */
-#ifdef _WITH_BFD_
-	checker_dispatcher_release();
-#endif
 	if (global_data)
 		free_global_data(global_data);
 	if (check_data)
