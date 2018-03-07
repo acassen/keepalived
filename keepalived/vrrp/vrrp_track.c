@@ -825,7 +825,7 @@ process_update_track_file_status(vrrp_tracked_file_t *tfile, int new_status, tra
 {
 	int previous_status;
 
-	previous_status = tfile->last_status * tvp->weight;
+	previous_status = !tvp->weight ? (tfile->last_status ? -254 : 0 ) : tfile->last_status * tvp->weight;
 	if (previous_status < -254)
 		previous_status = -254;
 	else if (previous_status > 253)
@@ -859,9 +859,7 @@ update_track_file_status(vrrp_tracked_file_t* tfile, int new_status)
 		return;
 
 	/* Process the VRRP instances tracking the file */
-	for (e = LIST_HEAD(tfile->tracking_vrrp); e;  ELEMENT_NEXT(e)) {
-		tvp = ELEMENT_DATA(e);
-
+	LIST_FOREACH(tfile->tracking_vrrp, tvp, e) {
 		/* If the tracking weight is 0, a non-zero value means
 		 * failure, a 0 status means success */
 		if (!tvp->weight)
@@ -968,7 +966,7 @@ process_inotify(thread_t *thread)
 		}
 	}
 
-	return 0;
+	/* NOT REACHED */
 }
 
 void
