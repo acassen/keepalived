@@ -247,6 +247,8 @@ main(int argc, char **argv)
 	/* Create the master thread */
 	master = thread_make_master();
 
+	add_signal_read_thread();
+
 	/* Register the GET request */
 	init_sock();
 
