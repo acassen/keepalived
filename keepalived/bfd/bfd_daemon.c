@@ -206,8 +206,8 @@ reload_bfd_thread(__attribute__((unused)) thread_t * thread)
 	free_bfd_data(old_bfd_data);
 	UNSET_RELOAD;
 
-	log_message(LOG_INFO, "Reload finished in %li usec",
-		    timer_tol(timer_sub_now(timer)));
+	set_time_now();
+	log_message(LOG_INFO, "Reload finished in %li usec", -timer_tol(timer_sub_now(timer)));
 
 	return 0;
 }
