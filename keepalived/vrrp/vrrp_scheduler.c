@@ -47,6 +47,7 @@
 #include "list.h"
 #include "logger.h"
 #include "main.h"
+#include "signals.h"
 #include "utils.h"
 #include "bitops.h"
 #include "vrrp_print.h"
@@ -433,6 +434,8 @@ vrrp_register_workers(list l)
 		vrrp_init_script(vrrp_data->vrrp_script);
 	}
 
+	add_signal_read_thread();
+
 #ifdef _WITH_BFD_
 	if (!LIST_ISEMPTY(vrrp_data->vrrp)) {
 		/* Init BFD tracking thread */
@@ -637,6 +640,7 @@ vrrp_dispatcher_release(vrrp_data_t *data)
 #ifdef _WITH_BFD_
 	thread_cancel(bfd_thread);
 #endif
+	cancel_signal_read_thread();
 }
 
 static void

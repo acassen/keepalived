@@ -54,6 +54,6 @@ typedef struct _bfd_checker {
 /* Prototypes defs */
 extern void install_bfd_check_keyword(void);
 extern void start_bfd_monitoring(thread_master_t *);
-extern void checker_dispatcher_release(void);
+extern void checker_bfd_dispatcher_release(void);
 
 #endif

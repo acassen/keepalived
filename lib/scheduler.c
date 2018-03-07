@@ -812,7 +812,6 @@ thread_fetch(thread_master_t * m, thread_t * fetch)
 	fd_set readfd;
 	fd_set writefd;
 	timeval_t timer_wait;
-	int signal_fd;
 	int fdsetsize;
 #ifdef _WITH_SNMP_
 	int snmpblock;
@@ -861,13 +860,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	writefd = m->writefd;
 	fdsetsize = m->max_fd + 1;
 
-	signal_fd = signal_rfd();
-	if (signal_fd != -1) {
-		FD_SET(signal_fd, &readfd);
-		if (signal_fd >= m->max_fd)
-			fdsetsize = signal_fd + 1;
-	}
-
+//This needs to be handled by thread_add_read();
 	if (inotify_fd != -1) {
 		FD_SET(inotify_fd, &readfd);
 		if (inotify_fd > m->max_fd)
@@ -932,12 +925,6 @@ retry:	/* When thread can't fetch try to find next thread again. */
 #endif
 
 	/* handle signals synchronously, including child reaping */
-	if (num_fds && FD_ISSET(signal_fd, &readfd)) {
-		signal_run_callback();
-		num_fds--;
-	}
-
-	/* Handle any inotifies */
 	if (num_fds && inotify_fd != -1 && FD_ISSET(inotify_fd, &readfd)) {
 		if (process_track_inotify)
 			process_track_inotify(inotify_fd);

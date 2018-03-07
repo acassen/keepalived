@@ -67,6 +67,15 @@ lvs_notify_fifo_script_exit(__attribute__((unused)) thread_t *thread)
 	return 0;
 }
 
+void
+checker_dispatcher_release(void)
+{
+#ifdef _WITH_BFD_
+	checker_bfd_dispatcher_release();
+#endif
+	cancel_signal_read_thread();
+}
+
 
 /* Daemon stop sequence */
 static void
@@ -82,10 +91,8 @@ stop_check(int status)
 	notify_fifo_close(&global_data->notify_fifo, &global_data->lvs_notify_fifo);
 
 	/* Destroy master thread */
-#ifdef _WITH_BFD_
-	checker_dispatcher_release();
-#endif
 	signal_handler_destroy();
+	checker_dispatcher_release();
 	thread_destroy_master(master);
 	free_checkers_queue();
 	free_ssl();
@@ -211,6 +218,8 @@ start_check(list old_checkers_queue)
 
 	/* Register checkers thread */
 	register_checkers_thread();
+
+	add_signal_read_thread();
 }
 
 #ifndef _DEBUG_
@@ -234,9 +243,7 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 	notify_fifo_close(&global_data->notify_fifo, &global_data->lvs_notify_fifo);
 
 	/* Destroy master thread */
-#ifdef _WITH_BFD_
 	checker_dispatcher_release();
-#endif
 	thread_cleanup_master(master);
 	free_global_data(global_data);
 
