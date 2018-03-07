@@ -537,20 +537,33 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 
 #ifdef _WITH_VRRP_
 	if (vrrp_child > 0) {
-		kill(vrrp_child, SIGTERM);
-		wait_count++;
+		if (kill(vrrp_child, SIGTERM)) {
+			/* ESRCH means no such process */
+			if (errno == ESRCH)
+				vrrp_child = 0;
+		}
+		else
+			wait_count++;
 	}
 #endif
 #ifdef _WITH_LVS_
 	if (checkers_child > 0) {
-		kill(checkers_child, SIGTERM);
-		wait_count++;
+		if (kill(checkers_child, SIGTERM)) {
+			if (errno == ESRCH)
+				checkers_child = 0;
+		}
+		else
+			wait_count++;
 	}
 #endif
 #ifdef _WITH_BFD_
 	if (bfd_child > 0) {
-		kill(bfd_child, SIGTERM);
-		wait_count++;
+		if (kill(bfd_child, SIGTERM)) {
+			if (errno == ESRCH)
+				bfd_child = 0;
+		}
+		else
+			wait_count++;
 	}
 #endif
 
