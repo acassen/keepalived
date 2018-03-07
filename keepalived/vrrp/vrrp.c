@@ -3402,7 +3402,6 @@ clear_diff_vrrp(void)
 	element e;
 	list l = old_vrrp_data->vrrp;
 	vrrp_t *vrrp;
-	interface_t *ifp;
 
 	if (LIST_ISEMPTY(l))
 		return;
@@ -3462,19 +3461,11 @@ clear_diff_vrrp(void)
 				/* There were addresses added, so set GARP/GNA for them.
 				 * This is a bit over the top since it will send GARPs/GNAs for
 				 * all the addresses, but at least we will do so for the new addresses. */
-
-				/* remotes neighbour update */
-				if (new_vrrp->family == AF_INET6) {
-					/* Refresh whether we are acting as a router for NA messages */
-					ifp = IF_BASE_IFP(new_vrrp->ifp);
-					ifp->gna_router = get_ipv6_forwarding(ifp);
-				}
 				vrrp_send_link_update(new_vrrp, new_vrrp->garp_rep);
 
 				/* set refresh timer */
-				if (timerisset(&new_vrrp->garp_refresh)) {
+				if (timerisset(&new_vrrp->garp_refresh))
 					new_vrrp->garp_refresh_timer = timer_add_now(new_vrrp->garp_refresh);
-				}
 			}
 		}
 	}

@@ -123,7 +123,7 @@ For example:
 .PP
 will produce:
     ...
-    vrrp_instance VI_0 }
+    vrrp_instance VI_0 {
         priority 240
     }
 .PP
@@ -435,7 +435,8 @@ Keepalived can configure static addresses, routes, and rules. These addresses ar
 moved by vrrpd, they stay on the machine.
 If you already have IPs and routes on your machines and
 your machines can ping each other, you don't need this section.
-The syntax for rules and routes is that same as for ip rule add/ip route add.
+The syntax for rules and routes is that same as for ip rule add/ip route add
+(except shorted option names aren't supported due to ambiguities).
 .PP
 The syntax is the same for virtual addresses and virtual routes. If no dev element
 is specified, it defaults to default_interface (default eth0).

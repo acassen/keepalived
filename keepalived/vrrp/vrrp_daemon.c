@@ -229,8 +229,10 @@ start_vrrp(void)
 {
 	/* Initialize sub-system */
 	kernel_netlink_init();
-	gratuitous_arp_init();
-	ndisc_init();
+	if (!reload) {
+		gratuitous_arp_init();
+		ndisc_init();
+	}
 
 	global_data = alloc_global_data();
 
@@ -500,7 +502,6 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 
 	/* Destroy master thread */
 	vrrp_dispatcher_release(vrrp_data);
-	kernel_netlink_close();
 	thread_cleanup_master(master);
 #ifdef _WITH_LVS_
 	if (global_data->lvs_syncd.ifname)
@@ -515,8 +516,6 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 
 	free_global_data(global_data);
 	free_vrrp_buffer();
-	gratuitous_arp_close();
-	ndisc_close();
 
 #ifdef _WITH_LVS_
 	if (vrrp_ipvs_needed()) {

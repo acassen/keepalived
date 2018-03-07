@@ -88,7 +88,6 @@ typedef struct _thread_master {
 	list child_pid_index;
 	fd_set readfd;
 	fd_set writefd;
-	fd_set exceptfd;
 	int max_fd;
 	unsigned long alloc;
 } thread_master_t;
@@ -132,7 +131,6 @@ extern prog_type_t prog_type;		/* Parent/VRRP/Checker process */
 #ifdef _WITH_SNMP_
 extern bool snmp_running;
 #endif
-extern int inotify_fd;
 
 /* Prototypes. */
 extern void set_child_finder_name(char const * (*)(pid_t));
@@ -140,7 +138,6 @@ extern void set_child_finder(void (*)(thread_t *), thread_t *(*)(pid_t), void (*
 #ifndef _DEBUG_
 extern bool report_child_status(int, pid_t, const char *);
 #endif
-extern void set_process_track_inotify(void (*)(int));
 extern thread_master_t *thread_make_master(void);
 extern thread_t *thread_add_terminate_event(thread_master_t *);
 extern void thread_cleanup_master(thread_master_t *);

@@ -1420,6 +1420,8 @@ keepalived_main(int argc, char **argv)
 	/* Create the master thread */
 	master = thread_make_master();
 
+	add_signal_read_thread();
+
 	/* Init daemon */
 	signal_set(SIGCHLD, thread_child_handler, master);	/* Set this before creating children */
 	start_keepalived();

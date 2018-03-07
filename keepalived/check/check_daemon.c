@@ -67,6 +67,15 @@ lvs_notify_fifo_script_exit(__attribute__((unused)) thread_t *thread)
 	return 0;
 }
 
+void
+checker_dispatcher_release(void)
+{
+#ifdef _WITH_BFD_
+	checker_bfd_dispatcher_release();
+#endif
+	cancel_signal_read_thread();
+}
+
 
 /* Daemon stop sequence */
 static void
@@ -83,6 +92,7 @@ stop_check(int status)
 
 	/* Destroy master thread */
 	signal_handler_destroy();
+	checker_dispatcher_release();
 	thread_destroy_master(master);
 	free_checkers_queue();
 	free_ssl();
@@ -98,9 +108,6 @@ stop_check(int status)
 	pidfile_rm(checkers_pidfile);
 
 	/* Clean data */
-#ifdef _WITH_BFD_
-	checker_dispatcher_release();
-#endif
 	if (global_data)
 		free_global_data(global_data);
 	if (check_data)
@@ -175,6 +182,8 @@ start_check(list old_checkers_queue)
 	/* Get current active addresses, and start update process */
 	if (using_ha_suspend || __test_bit(LOG_ADDRESS_CHANGES, &debug))
 		kernel_netlink_init();
+	else if (reload)
+		kernel_netlink_close();
 
 	/* Remove any entries left over from previous invocation */
 	if (!reload && global_data->lvs_flush)
@@ -209,6 +218,8 @@ start_check(list old_checkers_queue)
 
 	/* Register checkers thread */
 	register_checkers_thread();
+
+	add_signal_read_thread();
 }
 
 #ifndef _DEBUG_
@@ -232,11 +243,7 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 	notify_fifo_close(&global_data->notify_fifo, &global_data->lvs_notify_fifo);
 
 	/* Destroy master thread */
-#ifdef _WITH_BFD_
 	checker_dispatcher_release();
-#endif
-	if (using_ha_suspend)
-		kernel_netlink_close();
 	thread_cleanup_master(master);
 	free_global_data(global_data);
 

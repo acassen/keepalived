@@ -187,7 +187,7 @@ reload_bfd_thread(__attribute__((unused)) thread_t * thread)
 	SET_RELOAD;
 
 	/* Signal handling */
-	signal_handler_destroy();
+//	signal_handler_destroy();
 
 	/* Destroy master thread */
 	bfd_dispatcher_release(bfd_data);
@@ -321,7 +321,6 @@ start_bfd_child(void)
 	}
 
 	/* Create the new master thread */
-	signal_handler_destroy();
 	thread_destroy_master(master);
 	master = thread_make_master();
 

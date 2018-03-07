@@ -60,7 +60,6 @@ prog_type_t prog_type;		/* Parent/VRRP/Checker process */
 #ifdef _WITH_SNMP_
 bool snmp_running;		/* True if this process is running SNMP */
 #endif
-int inotify_fd = -1;
 
 #ifdef _WITH_LVS_
 #include "../keepalived/include/check_daemon.h"
@@ -78,8 +77,6 @@ static thread_t *(*child_finder)(pid_t);
 static void (*child_remover)(thread_t *);
 static void (*child_finder_destroy)(void);
 static size_t child_finder_list_size;
-
-static void (*process_track_inotify)(int fd);
 
 static size_t
 get_pid_hash(pid_t pid)
@@ -149,12 +146,6 @@ void
 set_child_finder_name(char const * (*func)(pid_t))
 {
 	child_finder_name = func;
-}
-
-void
-set_process_track_inotify(void (*func)(int))
-{
-	process_track_inotify = func;
 }
 
 void
@@ -404,7 +395,6 @@ thread_cleanup_master(thread_master_t * m)
 	/* Clear all FDs */
 	FD_ZERO(&m->readfd);
 	FD_ZERO(&m->writefd);
-	FD_ZERO(&m->exceptfd);
 
 	/* Clean garbage */
 	thread_clean_unuse(m);
@@ -812,9 +802,7 @@ thread_fetch(thread_master_t * m, thread_t * fetch)
 	thread_t *t;
 	fd_set readfd;
 	fd_set writefd;
-	fd_set exceptfd;
 	timeval_t timer_wait;
-	int signal_fd;
 	int fdsetsize;
 #ifdef _WITH_SNMP_
 	int snmpblock;
@@ -861,21 +849,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	/* Call select function. */
 	readfd = m->readfd;
 	writefd = m->writefd;
-	exceptfd = m->exceptfd;
 	fdsetsize = m->max_fd + 1;
-
-	signal_fd = signal_rfd();
-	if (signal_fd != -1) {
-		FD_SET(signal_fd, &readfd);
-		if (signal_fd >= m->max_fd)
-			fdsetsize = signal_fd + 1;
-	}
-
-	if (inotify_fd != -1) {
-		FD_SET(inotify_fd, &readfd);
-		if (inotify_fd > m->max_fd)
-			fdsetsize = inotify_fd + 1;
-	}
 
 #ifdef _WITH_SNMP_
 	/* When SNMP is enabled, we may have to select() on additional
@@ -901,11 +875,11 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	if (!timerisset(&timer_wait))
 		num_fds = 0;
 	else
-		num_fds = select(fdsetsize, &readfd, &writefd, &exceptfd, &timer_wait);
+		num_fds = select(fdsetsize, &readfd, &writefd, NULL, &timer_wait);
 
 #ifdef _SELECT_DEBUG_
 	if (prog_type == PROG_TYPE_VRRP)
-		log_message(LOG_INFO, "Select returned %d, readfd 0x%lx, writefd 0x%lx, exceptfd 0x%lx, timer %lu.%6.6ld", num_fds, readfd.fds_bits[0], writefd.fds_bits[0], exceptfd.fds_bits[0], timer_wait.tv_sec, timer_wait.tv_usec);
+		log_message(LOG_INFO, "Select returned %d, readfd 0x%lx, writefd 0x%lx, timer %lu.%6.6ld", num_fds, readfd.fds_bits[0], writefd.fds_bits[0], timer_wait.tv_sec, timer_wait.tv_usec);
 #endif
 
 	/* we have to save errno here because the next syscalls will set it */
@@ -933,19 +907,6 @@ retry:	/* When thread can't fetch try to find next thread again. */
 			snmp_timeout();
 	}
 #endif
-
-	/* handle signals synchronously, including child reaping */
-	if (num_fds && FD_ISSET(signal_fd, &readfd)) {
-		signal_run_callback();
-		num_fds--;
-	}
-
-	/* Handle any inotifies */
-	if (num_fds && inotify_fd != -1 && FD_ISSET(inotify_fd, &readfd)) {
-		if (process_track_inotify)
-			process_track_inotify(inotify_fd);
-		num_fds--;
-	}
 
 	/* Update current time */
 	set_time_now();

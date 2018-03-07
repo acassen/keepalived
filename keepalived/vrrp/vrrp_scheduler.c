@@ -47,6 +47,7 @@
 #include "list.h"
 #include "logger.h"
 #include "main.h"
+#include "signals.h"
 #include "utils.h"
 #include "bitops.h"
 #include "vrrp_print.h"
@@ -260,6 +261,30 @@ vrrp_init_state(list l)
 	}
 }
 
+/* Compute the new instance sands */
+void
+vrrp_init_instance_sands(vrrp_t * vrrp)
+{
+	set_time_now();
+
+	if (vrrp->state == VRRP_STATE_MAST) {
+		if (vrrp->reload_master)
+			vrrp->sands = time_now;
+		else
+			vrrp->sands = timer_add_long(time_now, vrrp->adver_int);
+	}
+	else if (vrrp->state == VRRP_STATE_BACK) {
+		/*
+		 * When in the BACKUP state the expiry timer should be updated to
+		 * time_now plus the Master Down Timer, when a non-preemptable packet is
+		 * received.
+		 */
+		vrrp->sands = timer_add_long(time_now, vrrp->ms_down_timer);
+	}
+	else if (vrrp->state == VRRP_STATE_FAULT || vrrp->state == VRRP_STATE_INIT)
+		vrrp->sands.tv_sec = TIMER_DISABLED;
+}
+
 static void
 vrrp_init_sands(list l)
 {
@@ -408,6 +433,8 @@ vrrp_register_workers(list l)
 	if (!LIST_ISEMPTY(vrrp_data->vrrp_script)) {
 		vrrp_init_script(vrrp_data->vrrp_script);
 	}
+
+	add_signal_read_thread();
 
 #ifdef _WITH_BFD_
 	if (!LIST_ISEMPTY(vrrp_data->vrrp)) {
@@ -613,6 +640,7 @@ vrrp_dispatcher_release(vrrp_data_t *data)
 #ifdef _WITH_BFD_
 	thread_cancel(bfd_thread);
 #endif
+	cancel_signal_read_thread();
 }
 
 static void
@@ -1259,7 +1287,6 @@ dump_threads(void)
 	dump_thread_list(fp, &master->unuse, "unuse");
 	dump_fd_set(fp, &master->readfd, "read");
 	dump_fd_set(fp, &master->writefd, "write");
-	dump_fd_set(fp, &master->exceptfd, "except");
 	fprintf(fp, "alloc = %lu\n", master->alloc);
 
 	fprintf(fp, "\n");

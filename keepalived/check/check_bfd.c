@@ -299,7 +299,7 @@ start_bfd_monitoring(thread_master_t *master)
 }
 
 void
-checker_dispatcher_release(void)
+checker_bfd_dispatcher_release(void)
 {
 	thread_cancel(bfd_thread);
 }

@@ -38,6 +38,7 @@
 #include "main.h"
 #include "bitops.h"
 #include "utils.h"
+#include "signals.h"
 
 static int bfd_send_packet(int, bfdpkt_t *);
 static void bfd_sender_schedule(bfd_t *);
@@ -1064,6 +1065,8 @@ bfd_register_workers(bfd_data_t *data)
 		if (!reload && !bfd->passive)
 			thread_add_event(master, bfd_sender_thread, bfd, 0);
 	}
+
+	add_signal_read_thread();
 }
 
 /* Suspends threads, closes sockets */
@@ -1110,6 +1113,8 @@ bfd_dispatcher_release(bfd_data_t *data)
 		close(bfd->fd_out);
 		bfd->fd_out = -1;
 	}
+
+	cancel_signal_read_thread();
 }
 
 /* Starts BFD dispatcher */

@@ -48,6 +48,7 @@ do {						\
 } while (0)
 
 /* extern prototypes */
+extern void vrrp_init_instance_sands(vrrp_t *);
 extern void vrrp_thread_requeue_read(vrrp_t *);
 extern void vrrp_thread_add_read(vrrp_t *);
 extern void vrrp_thread_requeue_read_relative(vrrp_t *, uint32_t);

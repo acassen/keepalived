@@ -55,7 +55,6 @@
 #include "vrrp_scheduler.h"
 #include "vrrp_track.h"
 #include "vrrp_data.h"
-#include "vrrp_sync.h"
 #ifdef _HAVE_VRRP_VMAC_
 #include "vrrp_vmac.h"
 #endif
@@ -391,8 +390,10 @@ netlink_close(nl_handle_t *nl)
 
 	/* First of all release pending thread. There is no thread
 	 * for nl_cmd since it is used synchronously. */
-	if (nl->thread)
+	if (nl->thread) {
 		thread_cancel(nl->thread);
+		nl->thread = NULL;
+	}
 
 #ifdef _HAVE_LIBNL3_
 #ifdef _LIBNL_DYNAMIC_
@@ -1649,6 +1650,14 @@ kernel_netlink_init(void)
 	 * No ipaddr on i/f <=> link down, for us
 	 * Do LVS services get lost on addr/link deletion?
 	 */
+
+	/* If the netlink kernel fd is already open, just register a read thread.
+	 * This will happen at reload. */
+	if (nl_kernel.fd > 0) {
+		nl_kernel.thread = thread_add_read(master, kernel_netlink, &nl_kernel, nl_kernel.fd, NETLINK_TIMER);
+		return;
+	}
+
 #ifdef _DEBUG_
 #ifdef _WITH_VRRP_
 	netlink_socket(&nl_kernel, SOCK_NONBLOCK, RTNLGRP_LINK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, 0);

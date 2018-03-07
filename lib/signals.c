@@ -39,10 +39,7 @@
 #include "signals.h"
 #include "utils.h"
 #include "logger.h"
-
-#if HAVE_DECL_RLIMIT_RTTIME == 1
 #include "scheduler.h"
-#endif
 
 #ifdef _WITH_JSON_
 #include "../keepalived/include/vrrp_json.h"
@@ -93,6 +90,9 @@ static sigset_t dfl_sig;
 
 /* Signal handlers set in parent */
 static sigset_t parent_sig;
+
+/* Signal handling thread */
+static thread_t *signal_thread;
 
 int
 get_signum(const char *sigfunc)
@@ -290,6 +290,28 @@ signal_ignore(int signo)
 	signal_set(signo, (void *)SIG_IGN, NULL);
 }
 
+/* Handlers callback  */
+static int
+signal_run_callback(__attribute__((unused)) thread_t *thread)
+{
+	int sig;
+#ifdef HAVE_SIGNALFD
+	struct signalfd_siginfo siginfo;
+
+	while(read(signal_fd, &siginfo, sizeof(struct signalfd_siginfo)) == sizeof(struct signalfd_siginfo)) {
+		sig = siginfo.ssi_signo;
+#else
+	while(read(signal_pipe[0], &sig, sizeof(int)) == sizeof(int)) {
+#endif
+		if (sig >= 1 && sig <= SIG_MAX && signal_handler_func[sig-1])
+			signal_handler_func[sig-1](signal_v[sig-1], sig);
+	}
+
+	signal_thread = thread_add_read(master, signal_run_callback, NULL, signal_rfd(), TIMER_NEVER);
+
+	return 0;
+}
+
 static void
 clear_signal_handler_addresses(void)
 {
@@ -299,7 +321,32 @@ clear_signal_handler_addresses(void)
 		signal_handler_func[i] = NULL;
 }
 
+int
+signal_rfd(void)
+{
+#ifdef HAVE_SIGNALFD
+	return signal_fd;
+#else
+	return signal_pipe[0];
+#endif
+}
+
 /* Handlers intialization */
+void
+add_signal_read_thread(void)
+{
+	signal_thread = thread_add_read(master, signal_run_callback, NULL, signal_rfd(), TIMER_NEVER);
+}
+
+void
+cancel_signal_read_thread(void)
+{
+	if (signal_thread) {
+		thread_cancel(signal_thread);
+		signal_thread = NULL;
+	}
+}
+
 static void
 open_signal_fd(void)
 {
@@ -402,6 +449,11 @@ signal_handlers_clear(void *state)
 void
 signal_handler_destroy(void)
 {
+	if (signal_thread) {
+		thread_cancel(signal_thread);
+		signal_thread = NULL;
+	}
+
 #ifdef HAVE_SIGNALFD
 	close(signal_fd);
 	signal_fd = -1;
@@ -447,34 +499,6 @@ signal_handler_script(void)
 	sigemptyset(&sset);
 	sigmask_func(SIG_SETMASK, &sset, NULL);
 #endif
-}
-
-int
-signal_rfd(void)
-{
-#ifdef HAVE_SIGNALFD
-	return signal_fd;
-#else
-	return signal_pipe[0];
-#endif
-}
-
-/* Handlers callback  */
-void
-signal_run_callback(void)
-{
-	int sig;
-#ifdef HAVE_SIGNALFD
-	struct signalfd_siginfo siginfo;
-
-	while(read(signal_fd, &siginfo, sizeof(struct signalfd_siginfo)) == sizeof(struct signalfd_siginfo)) {
-		sig = siginfo.ssi_signo;
-#else
-	while(read(signal_pipe[0], &sig, sizeof(int)) == sizeof(int)) {
-#endif
-		if (sig >= 1 && sig <= SIG_MAX && signal_handler_func[sig-1])
-			signal_handler_func[sig-1](signal_v[sig-1], sig);
-	}
 }
 
 #if HAVE_DECL_RLIMIT_RTTIME == 1
