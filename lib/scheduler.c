@@ -794,8 +794,8 @@ thread_compute_timer(thread_master_t * m, timeval_t * timer_wait)
 }
 
 /* Fetch next ready thread. */
-thread_t *
-thread_fetch(thread_master_t * m, thread_t * fetch)
+static thread_list_t *
+thread_fetch_next_queue(thread_master_t *m)
 {
 	int num_fds, old_errno;
 	thread_t *thread;
@@ -820,24 +820,12 @@ thread_fetch(thread_master_t * m, thread_t * fetch)
 retry:	/* When thread can't fetch try to find next thread again. */
 
 	/* If there is event process it first. */
-	while ((thread = thread_trim_head(&m->event))) {
-		*fetch = *thread;
-
-		/* If daemon hanging event is received return NULL pointer */
-		t = thread->type == THREAD_TERMINATE ? NULL : fetch;
-
-		thread->type = THREAD_UNUSED;
-		thread_add_unuse(m, thread);
-		return t;
-	}
+	if (m->event.head)
+		return &m->event;
 
 	/* If there is ready threads process them */
-	while ((thread = thread_trim_head(&m->ready))) {
-		*fetch = *thread;
-		thread->type = THREAD_UNUSED;
-		thread_add_unuse(m, thread);
-		return fetch;
-	}
+	if (m->ready.head)
+		return &m->ready;
 
 	/*
 	 * Re-read the current time to get the maximum accuracy.
@@ -996,18 +984,53 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	netsnmp_check_outstanding_agent_requests();
 #endif
 
-	/* Return one event. */
-	thread = thread_trim_head(&m->ready);
-
 	/* There is no ready thread. */
-	if (!thread)
+	if (!m->ready.head)
 		goto retry;
 
-	*fetch = *thread;
-	thread->type = THREAD_UNUSED;
-	thread_add_unuse(m, thread);
+	return &m->ready;
+}
 
-	return fetch;
+void
+process_threads(thread_master_t *m)
+{
+	thread_t* thread;
+	thread_list_t* thread_list;
+	int thread_type;
+
+	/*
+	 * Processing the master thread queues,
+	 * return and execute one ready thread.
+	 */
+	while ((thread_list = thread_fetch_next_queue(m))) {
+		/* Run until error, used for debuging only */
+#if defined _DEBUG_ && defined _MEM_CHECK_
+		if (__test_bit(MEM_ERR_DETECT_BIT, &debug)
+#ifdef _WITH_VRRP_
+		    && __test_bit(DONT_RELEASE_VRRP_BIT, &debug)
+#endif
+								) {
+			__clear_bit(MEM_ERR_DETECT_BIT, &debug);
+#ifdef _WITH_VRRP_
+			__clear_bit(DONT_RELEASE_VRRP_BIT, &debug);
+#endif
+			thread_add_terminate_event(master);
+		}
+#endif
+
+		thread = thread_trim_head(thread_list);
+
+		if (thread->func)
+			thread_call(thread);
+
+		thread_type = thread->type;
+		thread->type = THREAD_UNUSED;
+		thread_add_unuse(master, thread);
+
+		/* If daemon hanging event is received stop processing */
+		if (thread_type == THREAD_TERMINATE)
+			return;
+	}
 }
 
 static void
@@ -1073,7 +1096,7 @@ thread_child_handler(__attribute__((unused)) void *v, __attribute__((unused)) in
 }
 
 /* Make unique thread id for non pthread version of thread manager. */
-static unsigned long
+static inline unsigned long
 thread_get_id(void)
 {
 	static unsigned long int counter = 0;
@@ -1119,29 +1142,7 @@ thread_call(thread_t * thread)
 void
 launch_scheduler(void)
 {
-	thread_t thread;
-
 	signal_set(SIGCHLD, thread_child_handler, master);
 
-	/*
-	 * Processing the master thread queues,
-	 * return and execute one ready thread.
-	 */
-	while (thread_fetch(master, &thread)) {
-		/* Run until error, used for debuging only */
-#if defined _DEBUG_ && defined _MEM_CHECK_
-		if (__test_bit(MEM_ERR_DETECT_BIT, &debug)
-#ifdef _WITH_VRRP_
-		    && __test_bit(DONT_RELEASE_VRRP_BIT, &debug)
-#endif
-								) {
-			__clear_bit(MEM_ERR_DETECT_BIT, &debug);
-#ifdef _WITH_VRRP_
-			__clear_bit(DONT_RELEASE_VRRP_BIT, &debug);
-#endif
-			thread_add_terminate_event(master);
-		}
-#endif
-		thread_call(&thread);
-	}
+	process_threads(master);
 }

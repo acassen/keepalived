@@ -204,7 +204,6 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 int
 main(int argc, char **argv)
 {
-	thread_t thread;
 	char *url_default = "/";
 
 #ifdef _MEM_CHECK_
@@ -260,8 +259,7 @@ main(int argc, char **argv)
 	 * not activate SIGCHLD handling, however, this
 	 * is no issue here.
 	 */
-	while (thread_fetch(master, &thread))
-		thread_call(&thread);
+	process_threads(master);
 
 	/* Finalize output informations */
 	if (req->verbose)
