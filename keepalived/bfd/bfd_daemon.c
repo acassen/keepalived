@@ -167,7 +167,7 @@ sigend_bfd(__attribute__ ((unused)) void *v,
 static void
 bfd_signal_init(void)
 {
-	signal_handler_init();
+	signal_handler_child_init();
 	signal_set(SIGHUP, sighup_bfd, NULL);
 	signal_set(SIGINT, sigend_bfd, NULL);
 	signal_set(SIGTERM, sigend_bfd, NULL);
