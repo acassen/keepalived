@@ -210,6 +210,7 @@ free_vfile(void *data)
 
 	free_list(&vfile->tracking_vrrp);
 	FREE(vfile->fname);
+	FREE(vfile->file_path);
 	FREE(vfile);
 }
 static void

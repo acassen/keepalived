@@ -117,7 +117,7 @@ typedef struct _vrrp_sgroup {
 							 * It probably won't work properly. */
 	list			track_ifp;		/* Interface state we monitor */
 	list			track_script;		/* Script state we monitor */
-	list			track_file;		/* Files whose value we monitor */
+	list			track_file;		/* Files whose value we monitor (list of tracked_file_t) */
 	list			track_bfd;		/* List of tracked_bfd_t */
 
 	/* State transition notification */
