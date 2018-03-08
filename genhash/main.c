@@ -220,14 +220,12 @@ main(int argc, char **argv)
 
 	/* Command line parser */
 	if (!parse_cmdline(argc, argv, req)) {
-		FREE(url_default);
 		FREE(req);
 		exit(1);
 	}
 
 	/* Check minimum configuration need */
 	if (!req->dst && !req->addr_port && !req->url) {
-		FREE(url_default);
 		freeaddrinfo(req->dst);
 		FREE(req);
 		exit(1);
