@@ -212,6 +212,11 @@ main(int argc, char **argv)
 	url_default[0] = '/';
 	url_default[1] = '\0';
 
+#ifdef _MEM_CHECK_
+	mem_log_init("Genhash", "Genhash process");
+	enable_mem_log_termination();
+#endif
+
 	/* Allocate the room */
 	req = (REQ *) MALLOC(sizeof (REQ));
 
