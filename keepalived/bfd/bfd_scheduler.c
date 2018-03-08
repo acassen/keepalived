@@ -917,8 +917,6 @@ bfd_open_fd_in(bfd_data_t *data)
 	hints.ai_protocol = IPPROTO_UDP;
 	hints.ai_socktype = SOCK_DGRAM;
 
-	ai_in = (struct addrinfo *)MALLOC(sizeof (struct addrinfo));
-
 	if ((ret = getaddrinfo(NULL, BFD_CONTROL_PORT, &hints, &ai_in)))
 		log_message(LOG_ERR, "getaddrinfo() error (%s)", gai_strerror(ret));
 	else if ((data->fd_in = socket(AF_INET6, ai_in->ai_socktype, ai_in->ai_protocol)) == -1)
