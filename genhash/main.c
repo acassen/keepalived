@@ -208,9 +208,7 @@ int
 main(int argc, char **argv)
 {
 	thread_t thread;
-	char *url_default = malloc(2);
-	url_default[0] = '/';
-	url_default[1] = '\0';
+	char *url_default = "/";
 
 #ifdef _MEM_CHECK_
 	mem_log_init("Genhash", "Genhash process");
@@ -238,9 +236,8 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-	if(!req->url){
+	if(!req->url)
 		req->url = url_default;
-	}
 
 	/* Init the reference timer */
 	req->ref_time = timer_tol(timer_now());
@@ -275,7 +272,7 @@ main(int argc, char **argv)
 			    req->url, req->response_time - req->ref_time);
 
 	/* exit cleanly */
-	FREE(url_default);
+	thread_destroy_master(master);
 	SSL_CTX_free(req->ctx);
 	free_sock(sock);
 	freeaddrinfo(req->dst);
