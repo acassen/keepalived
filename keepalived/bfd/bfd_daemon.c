@@ -72,6 +72,8 @@ stop_bfd(int status)
 	free_bfd_data(bfd_data);
 	free_bfd_buffer();
 	thread_destroy_master(master);
+	free_parent_mallocs_exit();
+
 
 	/*
 	 * Reached when terminate signal catched.
