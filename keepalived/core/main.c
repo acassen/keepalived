@@ -1260,35 +1260,6 @@ keepalived_main(int argc, char **argv)
 
 	netlink_set_recv_buf_size();
 
-	/* Some functionality depends on kernel version, so get the version here */
-	if (uname(&uname_buf))
-		log_message(LOG_INFO, "Unable to get uname() information - error %d", errno);
-	else {
-		os_major = (unsigned)strtoul(uname_buf.release, &end, 10);
-		if (*end != '.')
-			os_major = 0;
-		else {
-			os_minor = (unsigned)strtoul(end + 1, &end, 10);
-			if (*end != '.')
-				os_major = 0;
-			else {
-				os_release = (unsigned)strtoul(end + 1, &end, 10);
-				if (*end && *end != '-')
-					os_major = 0;
-			}
-		}
-		if (!os_major)
-			log_message(LOG_INFO, "Unable to parse kernel version %s", uname_buf.release);
-
-		/* config_id defaults to hostname */
-		if (!config_id) {
-			end = strchrnul(uname_buf.nodename, '.');
-			config_id = MALLOC((size_t)(end - uname_buf.nodename) + 1);
-			strncpy(config_id, uname_buf.nodename, ((size_t)(end - uname_buf.nodename)));
-			config_id[end - uname_buf.nodename] = '\0';
-		}
-	}
-
 	/* Check we can read the configuration file(s).
 	   NOTE: the working directory will be / if we
 	   forked, but will be the current working directory
