@@ -208,9 +208,12 @@ int
 main(int argc, char **argv)
 {
 	thread_t thread;
-	char *url_default = malloc(2);
-	url_default[0] = '/';
-	url_default[1] = '\0';
+	char *url_default = "/";
+
+#ifdef _MEM_CHECK_
+	mem_log_init("Genhash", "Genhash process");
+	enable_mem_log_termination();
+#endif
 
 	/* Allocate the room */
 	req = (REQ *) MALLOC(sizeof (REQ));
@@ -220,22 +223,19 @@ main(int argc, char **argv)
 
 	/* Command line parser */
 	if (!parse_cmdline(argc, argv, req)) {
-		FREE(url_default);
 		FREE(req);
 		exit(1);
 	}
 
 	/* Check minimum configuration need */
 	if (!req->dst && !req->addr_port && !req->url) {
-		FREE(url_default);
 		freeaddrinfo(req->dst);
 		FREE(req);
 		exit(1);
 	}
 
-	if(!req->url){
+	if(!req->url)
 		req->url = url_default;
-	}
 
 	/* Init the reference timer */
 	req->ref_time = timer_tol(timer_now());
@@ -270,7 +270,7 @@ main(int argc, char **argv)
 			    req->url, req->response_time - req->ref_time);
 
 	/* exit cleanly */
-	FREE(url_default);
+	thread_destroy_master(master);
 	SSL_CTX_free(req->ctx);
 	free_sock(sock);
 	freeaddrinfo(req->dst);
