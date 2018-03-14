@@ -1202,7 +1202,7 @@ keepalived_main(int argc, char **argv)
 				os_major = 0;
 			else {
 				os_release = (unsigned)strtoul(end + 1, &end, 10);
-				if (*end && *end != '-')
+				if (*end && *end != '-' && *end != '.')
 					os_major = 0;
 			}
 		}
