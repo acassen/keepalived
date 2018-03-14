@@ -339,7 +339,7 @@ pgr_handler(vector_t *strvec)
 			return;
 		}
 	} else {
-		if (inet_aton(strvec_slot(strvec, 1), &addr)) {
+		if (!inet_aton(strvec_slot(strvec, 1), &addr)) {
 			log_message(LOG_INFO, "Invalid IPv4 persistence_granularity specified - %s", FMT_STR_VSLOT(strvec, 1));
 			return;
 		}
