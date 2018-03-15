@@ -662,7 +662,14 @@ start_vrrp_child(void)
 				    , (log_facility==LOG_DAEMON) ? LOG_LOCAL1 : log_facility);
 
 	if (log_file_name)
-		open_log_file(log_file_name, "vrrp", network_namespace, instance_name);
+		open_log_file(log_file_name,
+				"vrrp",
+#if HAVE_DECL_CLONE_NEWNET
+				network_namespace,
+#else
+				NULL,
+#endif
+				instance_name);
 
 	signal_handler_destroy();
 
