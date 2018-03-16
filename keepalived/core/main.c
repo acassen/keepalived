@@ -1199,9 +1199,10 @@ keepalived_main(int argc, char **argv)
 			if (*end != '.')
 				os_major = 0;
 			else {
-				os_release = (unsigned)strtoul(end + 1, &end, 10);
-				if (*end && *end != '-' && *end != '.')
+				if (!isdigit(end[1]))
 					os_major = 0;
+				else
+					os_release = (unsigned)strtoul(end + 1, &end, 10);
 			}
 		}
 		if (!os_major)
