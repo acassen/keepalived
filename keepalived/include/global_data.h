@@ -171,7 +171,8 @@ typedef struct _data {
 } data_t;
 
 /* Global vars exported */
-extern data_t *global_data; /* Global configuration data */
+extern data_t *global_data;	/* Global configuration data */
+extern data_t *old_global_data;	/* Old global configuration data - used during reload */
 
 /* Prototypes */
 extern void alloc_email(char *);

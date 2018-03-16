@@ -743,6 +743,9 @@ alloc_vrrp_file(char *fname)
 void
 alloc_vrrp_buffer(size_t len)
 {
+	if (vrrp_buffer)
+		return;
+
 	vrrp_buffer = (char *) MALLOC(len);
 	vrrp_buffer_len = (vrrp_buffer) ? len : 0;
 }

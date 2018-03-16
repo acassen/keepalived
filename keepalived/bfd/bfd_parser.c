@@ -564,7 +564,7 @@ vector_t *
 bfd_init_keywords(void)
 {
 	/* global definitions mapping */
-	init_global_keywords(true);
+	init_global_keywords(reload);
 
 	init_bfd_keywords(true);
 #ifdef _WITH_LVS_

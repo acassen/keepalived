@@ -339,7 +339,7 @@ static vector_t *
 global_init_keywords(void)
 {
 	/* global definitions mapping */
-	init_global_keywords(false);
+	init_global_keywords(true);
 
 #ifdef _WITH_VRRP_
 	init_vrrp_keywords(false);
@@ -429,6 +429,10 @@ propogate_signal(__attribute__((unused)) void *v, int sig)
 
 	if (sig == SIGHUP) {
 		/* Make sure there isn't an attempt to change the network namespace or instance name */
+		old_global_data = global_data;
+		global_data = NULL;
+		global_data = alloc_global_data();
+
 #if HAVE_DECL_CLONE_NEWNET
 		char *old_network_namespace = network_namespace;
 		network_namespace = NULL;
@@ -437,6 +441,8 @@ propogate_signal(__attribute__((unused)) void *v, int sig)
 		instance_name = NULL;
 
 		read_config_file();
+
+		init_global_data(global_data);
 
 #if HAVE_DECL_CLONE_NEWNET
 		if (!!old_network_namespace != !!network_namespace ||
@@ -455,6 +461,8 @@ propogate_signal(__attribute__((unused)) void *v, int sig)
 		}
 		FREE_PTR(instance_name);
 		instance_name = old_instance_name;
+
+		free_global_data (old_global_data);
 
 		if (unsupported_change)
 			return;
@@ -1270,7 +1278,11 @@ keepalived_main(int argc, char **argv)
 	if (!check_conf_file(conf_file))
 		goto end;
 
+	global_data = alloc_global_data();
+
 	read_config_file();
+
+	init_global_data(global_data);
 
 #if HAVE_DECL_CLONE_NEWNET
 	if (override_namespace) {
@@ -1450,6 +1462,7 @@ end:
 
 	free_parent_mallocs_startup(false);
 	free_parent_mallocs_exit();
+	free_global_data(global_data);
 
 	closelog();
 

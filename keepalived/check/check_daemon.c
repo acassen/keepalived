@@ -142,14 +142,16 @@ start_check(list old_checkers_queue)
 	init_checkers_queue();
 
 	/* Parse configuration file */
-	global_data = alloc_global_data();
+	if (reload)
+		global_data = alloc_global_data();
 	check_data = alloc_check_data();
 	if (!check_data)
 		stop_check(KEEPALIVED_EXIT_FATAL);
 
 	init_data(conf_file, check_init_keywords);
 
-	init_global_data(global_data);
+	if (reload)
+		init_global_data(global_data);
 
 	/* fill 'vsg' members of the virtual_server_t structure.
 	 * We must do that after parsing config, because
@@ -245,7 +247,6 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 	/* Destroy master thread */
 	checker_dispatcher_release();
 	thread_cleanup_master(master);
-	free_global_data(global_data);
 
 	/* Save previous checker data */
 	old_checkers_queue = checkers_queue;
@@ -257,12 +258,15 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 	/* Save previous conf data */
 	old_check_data = check_data;
 	check_data = NULL;
+	old_global_data = global_data;
+	global_data = NULL;
 
 	/* Reload the conf */
 	start_check(old_checkers_queue);
 
 	/* free backup data */
 	free_check_data(old_check_data);
+	free_global_data(old_global_data);
 	free_list(&old_checkers_queue);
 	UNSET_RELOAD;
 

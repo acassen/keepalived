@@ -125,7 +125,8 @@ start_bfd(void)
 {
 	srand(time(NULL));
 
-	global_data = alloc_global_data();
+	if (reload)
+		global_data = alloc_global_data();
 	if (!(bfd_data = alloc_bfd_data())) {
 		stop_bfd(KEEPALIVED_EXIT_FATAL);
 		return;
@@ -134,6 +135,12 @@ start_bfd(void)
 	alloc_bfd_buffer();
 
 	init_data(conf_file, bfd_init_keywords);
+	/* At the moment bfd doesn't need global data initialising, but
+	 * leave the call here but commented out so we know where we want it
+	 * it if is needed.
+	if (reload)
+		init_global_data();
+	*/
 
 	/* Set the process priority and non swappable if configured */
 // TODO - measure max stack usage
@@ -195,17 +202,19 @@ reload_bfd_thread(__attribute__((unused)) thread_t * thread)
 	bfd_dispatcher_release(bfd_data);
 	thread_destroy_master(master);
 	master = thread_make_master();
-	free_global_data(global_data);
-	free_bfd_buffer();
 
 	old_bfd_data = bfd_data;
 	bfd_data = NULL;
+	old_global_data = global_data;
+	global_data = NULL;
 
 	/* Reload the conf */
 	signal_set(SIGCHLD, thread_child_handler, master);
 	start_bfd();
 
 	free_bfd_data(old_bfd_data);
+	free_global_data(old_global_data);
+
 	UNSET_RELOAD;
 
 	set_time_now();

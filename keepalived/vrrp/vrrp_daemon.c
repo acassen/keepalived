@@ -234,7 +234,8 @@ start_vrrp(void)
 		ndisc_init();
 	}
 
-	global_data = alloc_global_data();
+	if (reload)
+		global_data = alloc_global_data();
 
 	/* Parse configuration file */
 	vrrp_data = alloc_vrrp_data();
@@ -251,7 +252,8 @@ start_vrrp(void)
 		return;
 	}
 
-	init_global_data(global_data);
+	if (reload)
+		init_global_data(global_data);
 
 	/* Set the process priority and non swappable if configured */
 	set_process_priorities(global_data->vrrp_realtime_priority, global_data->vrrp_rlimit_rt,
@@ -514,9 +516,6 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 	/* Remove the notify fifo - we don't know if it will be the same after a reload */
 	notify_fifo_close(&global_data->notify_fifo, &global_data->vrrp_notify_fifo);
 
-	free_global_data(global_data);
-	free_vrrp_buffer();
-
 #ifdef _WITH_LVS_
 	if (vrrp_ipvs_needed()) {
 		/* Clean ipvs related */
@@ -527,6 +526,8 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 	/* Save previous conf data */
 	old_vrrp_data = vrrp_data;
 	vrrp_data = NULL;
+	old_global_data = global_data;
+	global_data = NULL;
 	reset_interface_queue();
 
 	/* Reload the conf */
@@ -542,6 +543,8 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 
 	/* free backup data */
 	free_vrrp_data(old_vrrp_data);
+	free_global_data(old_global_data);
+
 	free_old_interface_queue();
 
 	UNSET_RELOAD;

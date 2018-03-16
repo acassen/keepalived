@@ -1011,12 +1011,12 @@ init_global_keywords(bool global_active)
 	/* global definitions mapping */
 	install_keyword_root("linkbeat_use_polling", use_polling_handler, global_active);
 #if HAVE_DECL_CLONE_NEWNET
-	install_keyword_root("net_namespace", &net_namespace_handler, !global_active);
-	install_keyword_root("namespace_with_ipsets", &namespace_ipsets_handler, !global_active);
+	install_keyword_root("net_namespace", &net_namespace_handler, global_active);
+	install_keyword_root("namespace_with_ipsets", &namespace_ipsets_handler, global_active);
 #endif
-	install_keyword_root("use_pid_dir", &use_pid_dir_handler, !global_active);
-	install_keyword_root("instance", &instance_handler, !global_active);
-	install_keyword_root("child_wait_time", &child_wait_handler, !global_active);
+	install_keyword_root("use_pid_dir", &use_pid_dir_handler, global_active);
+	install_keyword_root("instance", &instance_handler, global_active);
+	install_keyword_root("child_wait_time", &child_wait_handler, global_active);
 	install_keyword_root("global_defs", NULL, global_active);
 	install_keyword("router_id", &routerid_handler);
 	install_keyword("notification_email_from", &emailfrom_handler);

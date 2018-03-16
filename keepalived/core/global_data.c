@@ -42,6 +42,7 @@
 
 /* global vars */
 data_t *global_data = NULL;
+data_t *old_global_data = NULL;
 
 /* Default settings */
 static void
@@ -144,6 +145,9 @@ data_t *
 alloc_global_data(void)
 {
 	data_t *new;
+
+	if (global_data)
+		return;
 
 	new = (data_t *) MALLOC(sizeof(data_t));
 	new->email = alloc_list(free_email, dump_email);

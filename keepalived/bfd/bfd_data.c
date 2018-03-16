@@ -227,13 +227,15 @@ bfd_complete_init(void)
 void
 alloc_bfd_buffer(void)
 {
-	bfd_buffer = (char *) MALLOC(BFD_BUFFER_SIZE);
+	if (!bfd_buffer)
+		bfd_buffer = (char *) MALLOC(BFD_BUFFER_SIZE);
 }
 
 void
 free_bfd_buffer(void)
 {
 	FREE(bfd_buffer);
+	bfd_buffer = NULL;
 }
 
 /*
