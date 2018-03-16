@@ -39,6 +39,7 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <linux/version.h>
+#include <ctype.h>
 
 #include "main.h"
 #include "global_data.h"
