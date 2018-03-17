@@ -67,6 +67,11 @@ typedef struct _email {
 
 /* Configuration data root */
 typedef struct _data {
+#if HAVE_DECL_CLONE_NEWNET
+	char				*network_namespace;	/* network namespace name */
+	bool				namespace_with_ipsets;	/* override for namespaces with ipsets on Linux < 3.13 */
+#endif
+	char				*instance_name;		/* keepalived instance name */
 	bool				linkbeat_use_polling;
 	char				*router_id;
 	char				*email_from;

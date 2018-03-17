@@ -192,9 +192,9 @@ dbus_object_create_path_vrrp(void)
 {
 	return g_strconcat(DBUS_VRRP_OBJECT_ROOT,
 #if HAVE_DECL_CLONE_NEWNET
-			  (network_namespace) ? "/" : "", (network_namespace) ? network_namespace : "",
+			  global_data->network_namespace ? "/" : "", global_data->network_namespace ? global_data->network_namespace : "",
 #endif
-			  (instance_name) ? "/" : "", (instance_name) ? instance_name : "",
+			  global_data->instance_name ? "/" : "", global_data->instance_name ? global_data->instance_name : "",
 
 			  "/Vrrp", NULL);
 }
@@ -210,9 +210,9 @@ dbus_object_create_path_instance(const gchar *interface, int vrid, sa_family_t f
 
 	object_path = g_strconcat(DBUS_VRRP_OBJECT_ROOT,
 #if HAVE_DECL_CLONE_NEWNET
-				  (network_namespace) ? "/" : "", (network_namespace) ? network_namespace : "",
+				  global_data->network_namespace ? "/" : "", global_data->network_namespace ? global_data->network_namespace : "",
 #endif
-				  (instance_name) ? "/" : "", (instance_name) ? instance_name : "",
+				  global_data->instance_name ? "/" : "", global_data->instance_name ? global_data->instance_name : "",
 
 				  "/Instance/",
 				  standardized_name, "/", vrid_str,
@@ -270,10 +270,10 @@ get_interface_ids(const gchar *object_path, gchar *interface, uint8_t *vrid, uin
 	gchar **dirs;
 
 #if HAVE_DECL_CLONE_NEWNET
-	if(network_namespace)
+	if(global_data->network_namespace)
 		path_length++;
 #endif
-	if(instance_name)
+	if(global_data->instance_name)
 		path_length++;
 
 	/* object_path will have interface, vrid and family as

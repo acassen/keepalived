@@ -892,8 +892,8 @@ net_namespace_handler(vector_t *strvec)
 	/* If we are reloading, there has already been a check that the
 	 * namespace hasn't changed */
 	if (!reload) {
-		if (!network_namespace) {
-			network_namespace = set_value(strvec);
+		if (!global_data->network_namespace) {
+			global_data->network_namespace = set_value(strvec);
 			use_pid_dir = true;
 		}
 		else
@@ -925,7 +925,7 @@ namespace_ipsets_handler(vector_t *strvec)
 	if (!strvec)
 		return;
 
-	namespace_with_ipsets = true;
+	global_data->namespace_with_ipsets = true;
 }
 #endif
 
@@ -951,8 +951,8 @@ instance_handler(vector_t *strvec)
 		return;
 
 	if (!reload) {
-		if (!instance_name) {
-			instance_name = set_value(strvec);
+		if (!global_data->instance_name) {
+			global_data->instance_name = set_value(strvec);
 			use_pid_dir = true;
 		}
 		else

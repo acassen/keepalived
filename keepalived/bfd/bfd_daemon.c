@@ -297,9 +297,9 @@ start_bfd_child(void)
 	close(bfd_checker_event_pipe[0]);
 #endif
 
-	if ((instance_name
+	if ((global_data->instance_name
 #if HAVE_DECL_CLONE_NEWNET
-			   || network_namespace
+			   || global_data->network_namespace
 #endif
 					       ) &&
 	     (bfd_syslog_ident = make_syslog_ident(PROG_BFD)))
@@ -316,11 +316,11 @@ start_bfd_child(void)
 		open_log_file(log_file_name,
 				"bfd",
 #if HAVE_DECL_CLONE_NEWNET
-				network_namespace,
+				global_data->network_namespace,
 #else
 				NULL,
 #endif
-				instance_name);
+				global_data->instance_name);
 
 	signal_handler_destroy();
 

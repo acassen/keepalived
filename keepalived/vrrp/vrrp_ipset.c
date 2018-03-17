@@ -230,8 +230,8 @@ bool ipset_init(void)
 	/* Don't attempt to use ipsets if running in a namespace and the default
 	 * set names have not been overridden and the kernel version is less
 	 * than Linux 3.13, since ipsets didn't understand namespaces prior to that. */
-	if (network_namespace &&
-	    !namespace_with_ipsets &&
+	if (global_data->network_namespace &&
+	    !global_data->namespace_with_ipsets &&
 	    !strcmp(global_data->vrrp_ipset_address, "keepalived") &&
 	    (os_major <= 2 ||
 	     (os_major == 3 && os_minor < 13))) {

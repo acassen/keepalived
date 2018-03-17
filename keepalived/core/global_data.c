@@ -147,7 +147,7 @@ alloc_global_data(void)
 	data_t *new;
 
 	if (global_data)
-		return;
+		return global_data;
 
 	new = (data_t *) MALLOC(sizeof(data_t));
 	new->email = alloc_list(free_email, dump_email);
@@ -312,6 +312,10 @@ void
 free_global_data(data_t * data)
 {
 	free_list(&data->email);
+#if HAVE_DECL_CLONE_NEWNET
+	FREE_PTR(data->network_namespace);
+#endif
+	FREE_PTR(data->instance_name);
 	FREE_PTR(data->router_id);
 	FREE_PTR(data->email_from);
 	FREE_PTR(data->smtp_helo_name);
@@ -332,10 +336,6 @@ free_global_data(data_t * data)
 	FREE_PTR(data->lvs_notify_fifo.name);
 	free_notify_script(&data->lvs_notify_fifo.script);
 #endif
-#if HAVE_DECL_CLONE_NEWNET
-	if (!reload)
-		FREE_PTR(network_namespace);
-#endif
 	FREE(data);
 }
 
@@ -347,6 +347,12 @@ dump_global_data(data_t * data)
 
 	log_message(LOG_INFO, "------< Global definitions >------");
 
+#if HAVE_DECL_CLONE_NEWNET
+	if (data->network_namespace)
+		log_message(LOG_INFO, " Net namespace = %s", data->network_namespace);
+#endif
+	if (data->instance_name)
+		log_message(LOG_INFO, " Instance name = %s", data->instance_name);
 	if (data->router_id)
 		log_message(LOG_INFO, " Router ID = %s", data->router_id);
 	if (data->smtp_server.ss_family) {
@@ -500,7 +506,7 @@ dump_global_data(data_t * data)
 	log_message(LOG_INFO, " SNMP socket = %s", data->snmp_socket ? data->snmp_socket : "default (unix:/var/agentx/master)");
 #endif
 #if HAVE_DECL_CLONE_NEWNET
-	log_message(LOG_INFO, " Network namespace = %s", network_namespace ? network_namespace : "(default)");
+	log_message(LOG_INFO, " Network namespace = %s", data->network_namespace ? data->network_namespace : "(default)");
 #endif
 #ifdef _WITH_DBUS_
 	log_message(LOG_INFO, " DBus %s", data->enable_dbus ? "enabled" : "disabled");
