@@ -650,6 +650,8 @@ fwmark_err:
 	return;
 
 err:
+	FREE_PTR(new->to_addr);
+	FREE_PTR(new->from_addr);
 	FREE_PTR(new);
 }
 
