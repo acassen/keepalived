@@ -321,6 +321,9 @@ free_vrrp(void *data)
 	free_list(&vrrp->track_ifp);
 	free_list(&vrrp->track_script);
 	free_list(&vrrp->track_file);
+#ifdef _WITH_BFD_
+	free_list(&vrrp->track_bfd);
+#endif
 	free_list(&vrrp->unicast_peer);
 	free_list(&vrrp->vip);
 	free_list(&vrrp->evip);
