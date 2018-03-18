@@ -347,7 +347,12 @@ typedef struct _vrrp_t {
 extern bool block_ipv4;
 extern bool block_ipv6;
 
+/* Configuration summary flags */
+extern bool have_ipv4_instance;
+extern bool have_ipv6_instance;
+
 /* prototypes */
+extern void clear_summary_flags(void);
 extern vrrphdr_t *vrrp_get_header(sa_family_t, char *, unsigned *);
 extern int open_vrrp_send_socket(sa_family_t, int, interface_t *, bool);
 extern int open_vrrp_read_socket(sa_family_t, int, interface_t *, bool);

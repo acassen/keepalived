@@ -227,12 +227,11 @@ stop_vrrp(int status)
 static void
 start_vrrp(void)
 {
+	/* Clear the flags used for optimising performance */
+	clear_summary_flags();
+
 	/* Initialize sub-system */
 	kernel_netlink_init();
-	if (!reload) {
-		gratuitous_arp_init();
-		ndisc_init();
-	}
 
 	if (reload)
 		global_data = alloc_global_data();
@@ -323,6 +322,16 @@ start_vrrp(void)
 		stop_vrrp(KEEPALIVED_EXIT_CONFIG);
 		return;
 	}
+
+	/* Start or stop gratuitous arp/ndisc as appropriate */
+	if (have_ipv4_instance)
+		gratuitous_arp_init();
+	else
+		gratuitous_arp_close();
+	if (have_ipv6_instance)
+		ndisc_init();
+	else
+		ndisc_close();
 
 	/* We need to delay the init of iptables to after vrrp_complete_init()
 	 * has been called so we know whether we want IPv4 and/or IPv6 */

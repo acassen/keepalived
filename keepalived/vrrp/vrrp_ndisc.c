@@ -43,7 +43,7 @@
 
 /* static vars */
 static char *ndisc_buffer;
-static int ndisc_fd;
+static int ndisc_fd = -1;
 
 /*
  *	Neighbour Advertisement sending routine.
@@ -242,6 +242,9 @@ ndisc_send_unsolicited_na(vrrp_t *vrrp, ip_address_t *ipaddress)
 void
 ndisc_init(void)
 {
+	if (ndisc_buffer)
+		return;
+
 	/* Initalize shared buffer */
 	ndisc_buffer = (char *) MALLOC(ETHER_HDR_LEN + sizeof(struct ip6hdr) +
 				       sizeof(struct nd_neighbor_advert) + sizeof(struct nd_opt_hdr) + ETH_ALEN);
@@ -251,11 +254,21 @@ ndisc_init(void)
 #if !HAVE_DECL_SOCK_CLOEXEC
 	set_sock_flags(ndisc_fd, F_SETFD, FD_CLOEXEC);
 #endif
+
+	if (ndisc_fd > 0)
+		log_message(LOG_INFO, "Registering gratuitous NDISC shared channel");
+	else
+		log_message(LOG_INFO, "Error while registering gratuitous NDISC shared channel");
 }
 
 void
 ndisc_close(void)
 {
+	if (!ndisc_buffer)
+		return;
+
 	FREE(ndisc_buffer);
+	ndisc_buffer = NULL;
 	close(ndisc_fd);
+	ndisc_fd = -1;
 }
