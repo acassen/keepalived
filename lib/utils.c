@@ -545,19 +545,15 @@ get_local_name(void)
 }
 
 /* String compare with NULL string handling */
-int
+bool
 string_equal(const char *str1, const char *str2)
 {
 	if (!str1 && !str2)
-		return 1;
-	if ((!str1 && str2) || (str1 && !str2))
-		return 0;
-	for (; *str1 == *str2; str1++, str2++) {
-		if (*str1 == 0 || *str2 == 0)
-			break;
-	}
+		return true;
+	if (!str1 != !str2)
+		return false;
 
-	return (*str1 == 0 && *str2 == 0);
+	return !strcmp(str1, str2);
 }
 
 void
