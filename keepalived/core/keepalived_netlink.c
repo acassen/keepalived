@@ -190,6 +190,40 @@ netlink_set_recv_buf_size(void)
 		nlmsg_buf_size = 8192;
 }
 
+/* Update the netlink socket receive buffer sizes */
+static int
+netlink_set_rx_buf_size(nl_handle_t *nl, unsigned rcvbuf_size, bool force)
+{
+	int ret;
+
+	if (force) {
+		if ((ret = setsockopt(nl->fd, SOL_SOCKET, SO_RCVBUFFORCE, &rcvbuf_size, sizeof(rcvbuf_size))) < 0)
+			log_message(LOG_INFO, "cant set SO_RCVBUFFORCE IP option. errno=%d (%m)", errno);
+	} else {
+#ifdef _HAVE_LIBNL3_
+#ifdef _LIBNL_DYNAMIC_
+		if (use_nl)
+#endif
+		{
+			if ((ret = nl_socket_set_buffer_size(nl->sk, rcvbuf_size, 0)))
+				log_message(LOG_INFO, "Netlink: Cannot set netlink buffer size : (%d)", ret);
+		}
+#endif
+#if !defined _HAVE_LIBNL3_ || defined _LIBNL_DYNAMIC_
+#if defined _HAVE_LIBNL3_ && defined _LIBNL_DYNAMIC_
+		else
+#endif
+		{
+			/* Set rcvbuf size */
+			if ((ret = setsockopt(nl->fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf_size, sizeof(rcvbuf_size))) < 0)
+				log_message(LOG_INFO, "Cannot set SO_RCVBUF IP option. errno=%d (%m)", errno);
+		}
+#endif
+	}
+
+	return ret;
+}
+
 /* Create a socket to netlink interface_t */
 static int
 netlink_socket(nl_handle_t *nl, unsigned rcvbuf_size, bool force, int flags, int group, ...)
@@ -250,14 +284,6 @@ netlink_socket(nl_handle_t *nl, unsigned rcvbuf_size, bool force, int flags, int
 
 		nl->fd = nl_socket_get_fd(nl->sk);
 
-		if (force) {
-			if ((ret = setsockopt(nl->fd, SOL_SOCKET, SO_RCVBUFFORCE, &rcvbuf_size, sizeof(rcvbuf_size))) < 0)
-				log_message(LOG_INFO, "cant set SO_RCVBUFFORCE IP option. errno=%d (%m)", errno);
-		} else {
-			if ((ret = nl_socket_set_buffer_size(nl->sk, rcvbuf_size, 0)))
-				log_message(LOG_INFO, "Netlink: Cannot set netlink buffer size : (%d)", ret);
-		}
-
 		/* Set CLOEXEC */
 		fcntl(nl->fd, F_SETFD, fcntl(nl->fd, F_GETFD) | FD_CLOEXEC);
 	}
@@ -295,6 +321,7 @@ netlink_socket(nl_handle_t *nl, unsigned rcvbuf_size, bool force, int flags, int
 			log_message(LOG_INFO, "Netlink: Cannot bind netlink socket : (%s)",
 			       strerror(errno));
 			close(nl->fd);
+			nl->fd = -1;
 			return -1;
 		}
 
@@ -336,10 +363,6 @@ netlink_socket(nl_handle_t *nl, unsigned rcvbuf_size, bool force, int flags, int
 
 		/* Save the port id for checking message source later */
 		nl->nl_pid = snl.nl_pid;
-
-		/* Set default rcvbuf size */
-		if ((ret = setsockopt(nl->fd, SOL_SOCKET, force ? SO_RCVBUFFORCE : SO_RCVBUF, &rcvbuf_size, sizeof(rcvbuf_size))) < 0)
-			log_message(LOG_INFO, "Cannot set SO_RCVBUF%s IP option. errno=%d (%m)", force ? "FORCE" : "", errno);
 	}
 #endif
 
@@ -380,6 +403,8 @@ netlink_socket(nl_handle_t *nl, unsigned rcvbuf_size, bool force, int flags, int
 
 	if (nl->fd < 0)
 		return -1;
+
+	ret = netlink_set_rx_buf_size(nl, rcvbuf_size, force);
 
 	return ret;
 }
@@ -1614,6 +1639,33 @@ kernel_netlink_poll(void)
 	netlink_parse_info(netlink_broadcast_filter, &nl_kernel, NULL, true);
 }
 #endif
+
+void
+kernel_netlink_set_recv_bufs(void)
+{
+#ifdef _DEBUG_
+#ifdef _WITH_VRRP_
+	netlink_set_rx_buf_size(&nl_kernel, global_data->vrrp_netlink_monitor_rcv_bufs, global_data->vrrp_netlink_monitor_rcv_bufs_force);
+	netlink_set_rx_buf_size(&nl_cmd, global_data->vrrp_netlink_cmd_rcv_bufs, global_data->vrrp_netlink_cmd_rcv_bufs_force);
+#else
+	netlink_set_rx_buf_size(&nl_kernel, global_data->lvs_netlink_monitor_rcv_bufs, global_data->lvs_netlink_monitor_rcv_bufs_force);
+	netlink_set_rx_buf_size(&nl_cmd, global_data->lvs_netlink_cmd_rcv_bufs, global_data->lvs_netlink_cmd_rcv_bufs_force);
+#endif
+#else
+#ifdef _WITH_VRRP_
+	if (prog_type == PROG_TYPE_VRRP) {
+		netlink_set_rx_buf_size(&nl_kernel, global_data->vrrp_netlink_monitor_rcv_bufs, global_data->vrrp_netlink_monitor_rcv_bufs_force);
+		netlink_set_rx_buf_size(&nl_cmd, global_data->vrrp_netlink_cmd_rcv_bufs, global_data->vrrp_netlink_cmd_rcv_bufs_force);
+	}
+#endif
+#ifdef _WITH_LVS_
+	if (prog_type == PROG_TYPE_CHECKER) {
+		netlink_set_rx_buf_size(&nl_kernel, global_data->lvs_netlink_monitor_rcv_bufs, global_data->lvs_netlink_monitor_rcv_bufs_force);
+		netlink_set_rx_buf_size(&nl_cmd, global_data->lvs_netlink_cmd_rcv_bufs, global_data->lvs_netlink_cmd_rcv_bufs_force);
+	}
+#endif
+#endif
+}
 
 void
 kernel_netlink_close_monitor(void)

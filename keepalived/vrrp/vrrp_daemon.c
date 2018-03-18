@@ -290,6 +290,8 @@ start_vrrp(void)
 #endif
 
 	if (reload) {
+		kernel_netlink_set_recv_bufs();
+
 		clear_diff_saddresses();
 #ifdef _HAVE_FIB_ROUTING_
 		clear_diff_srules();

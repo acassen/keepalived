@@ -182,8 +182,12 @@ start_check(list old_checkers_queue)
 		notify_fifo_open(&global_data->notify_fifo, &global_data->lvs_notify_fifo, lvs_notify_fifo_script_exit, "lvs_");
 
 	/* Get current active addresses, and start update process */
-	if (using_ha_suspend || __test_bit(LOG_ADDRESS_CHANGES, &debug))
-		kernel_netlink_init();
+	if (using_ha_suspend || __test_bit(LOG_ADDRESS_CHANGES, &debug)) {
+		if (reload)
+			kernel_netlink_set_recv_bufs();
+		else
+			kernel_netlink_init();
+	}
 	else if (reload)
 		kernel_netlink_close();
 

@@ -94,6 +94,7 @@ extern int netlink_interface_lookup(char *);
 extern void kernel_netlink_poll(void);
 extern void process_if_status_change(interface_t *);
 #endif
+extern void kernel_netlink_set_recv_bufs(void);
 extern void kernel_netlink_init(void);
 extern void kernel_netlink_close(void);
 extern void kernel_netlink_close_monitor(void);
