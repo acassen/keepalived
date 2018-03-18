@@ -412,46 +412,57 @@ start_keepalived(void)
 #endif
 }
 
+static bool reload_config(void)
+{
+	bool unsupported_change = false;
+
+	/* Make sure there isn't an attempt to change the network namespace or instance name */
+	old_global_data = global_data;
+	global_data = NULL;
+	global_data = alloc_global_data();
+
+	read_config_file();
+
+	init_global_data(global_data);
+
+#if HAVE_DECL_CLONE_NEWNET
+	if (!!old_global_data->network_namespace != !!global_data->network_namespace ||
+	    (global_data->network_namespace && strcmp(old_global_data->network_namespace, global_data->network_namespace))) {
+		log_message(LOG_INFO, "Cannot change network namespace at a reload - please restart %s", PACKAGE);
+		unsupported_change = true;
+	}
+	FREE_PTR(global_data->network_namespace);
+	global_data->network_namespace = old_global_data->network_namespace;
+	old_global_data->network_namespace = NULL;
+#endif
+
+	if (!!old_global_data->instance_name != !!global_data->instance_name ||
+	    (global_data->instance_name && strcmp(old_global_data->instance_name, global_data->instance_name))) {
+		log_message(LOG_INFO, "Cannot change instance name at a reload - please restart %s", PACKAGE);
+		unsupported_change = true;
+	}
+	FREE_PTR(global_data->instance_name);
+	global_data->instance_name = old_global_data->instance_name;
+	old_global_data->instance_name = NULL;
+
+	if (unsupported_change) {
+		/* We cannot reload the configuration, so continue with the old config */
+		free_global_data (global_data);
+		global_data = old_global_data;
+	}
+	else
+		free_global_data (old_global_data);
+
+	return !unsupported_change;
+}
+
 /* SIGHUP/USR1/USR2 handler */
 #ifndef _DEBUG_
 static void
 propogate_signal(__attribute__((unused)) void *v, int sig)
 {
-	bool unsupported_change = false;
-
 	if (sig == SIGHUP) {
-		/* Make sure there isn't an attempt to change the network namespace or instance name */
-		old_global_data = global_data;
-		global_data = NULL;
-		global_data = alloc_global_data();
-
-		read_config_file();
-
-		init_global_data(global_data);
-
-#if HAVE_DECL_CLONE_NEWNET
-		if (!!old_global_data->network_namespace != !!global_data->network_namespace ||
-		    (global_data->network_namespace && strcmp(old_global_data->network_namespace, global_data->network_namespace))) {
-			log_message(LOG_INFO, "Cannot change network namespace at a reload - please restart %s", PACKAGE);
-			unsupported_change = true;
-		}
-		FREE_PTR(global_data->network_namespace);
-		global_data->network_namespace = old_global_data->network_namespace;
-		old_global_data->network_namespace = NULL;
-#endif
-
-		if (!!old_global_data->instance_name != !!global_data->instance_name ||
-		    (global_data->instance_name && strcmp(old_global_data->instance_name, global_data->instance_name))) {
-			log_message(LOG_INFO, "Cannot change instance name at a reload - please restart %s", PACKAGE);
-			unsupported_change = true;
-		}
-		FREE_PTR(global_data->instance_name);
-		global_data->instance_name = old_global_data->instance_name;
-		old_global_data->instance_name = NULL;
-
-		free_global_data (old_global_data);
-
-		if (unsupported_change)
+		if (!reload_config())
 			return;
 	}
 
