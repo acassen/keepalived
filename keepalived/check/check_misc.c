@@ -27,6 +27,7 @@
 
 #include <errno.h>
 #include <signal.h>
+#include <stdio.h>
 
 #include "main.h"
 #include "check_misc.h"
@@ -67,17 +68,17 @@ free_misc_check(void *data)
 }
 
 static void
-dump_misc_check(void *data)
+dump_misc_check(FILE *fp, void *data)
 {
 	checker_t *checker = data;
 	misc_checker_t *misck_checker = checker->data;
 
-	log_message(LOG_INFO, "   Keepalive method = MISC_CHECK");
-	log_message(LOG_INFO, "   script = %s", misck_checker->script.cmd_str);
-	log_message(LOG_INFO, "   timeout = %lu", misck_checker->timeout/TIMER_HZ);
-	log_message(LOG_INFO, "   dynamic = %s", misck_checker->dynamic ? "YES" : "NO");
-	log_message(LOG_INFO, "   uid:gid = %d:%d", misck_checker->script.uid, misck_checker->script.gid);
-	dump_checker_opts(checker);
+	conf_write(fp, "   Keepalive method = MISC_CHECK");
+	conf_write(fp, "   script = %s", misck_checker->script.cmd_str);
+	conf_write(fp, "   timeout = %lu", misck_checker->timeout/TIMER_HZ);
+	conf_write(fp, "   dynamic = %s", misck_checker->dynamic ? "YES" : "NO");
+	conf_write(fp, "   uid:gid = %d:%d", misck_checker->script.uid, misck_checker->script.gid);
+	dump_checker_opts(fp, checker);
 }
 
 static bool

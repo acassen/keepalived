@@ -27,6 +27,7 @@
 /* global includes */
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <sys/types.h>
 #if HAVE_DECL_FRA_UID_RANGE
 #include <linux/fib_rules.h>
@@ -92,7 +93,7 @@ typedef struct _ip_rule {
 extern void netlink_rulelist(list, int, bool);
 extern void free_iprule(void *);
 extern void format_iprule(ip_rule_t *, char *, size_t);
-extern void dump_iprule(void *);
+extern void dump_iprule(FILE *, void *);
 extern void alloc_rule(list, vector_t *);
 extern void clear_diff_rules(list, list);
 extern void clear_diff_srules(void);

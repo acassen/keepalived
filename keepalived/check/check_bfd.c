@@ -23,9 +23,8 @@
 
 #include "config.h"
 
-//#include <errno.h>
-//#include <signal.h>
 #include <unistd.h>
+#include <stdio.h>
 
 #include "main.h"
 #include "check_bfd.h"
@@ -33,9 +32,7 @@
 #include "ipwrapper.h"
 #include "logger.h"
 #include "smtp.h"
-//#include "utils.h"
 #include "parser.h"
-//#include "daemon.h"
 #include "global_data.h"
 #include "global_parser.h"
 #include "bfd.h"
@@ -61,24 +58,24 @@ free_bfd_check(void *data)
 }
 
 static void
-dump_bfd_check(void *data)
+dump_bfd_check(FILE *fp, void *data)
 {
 	checker_t *checker = data;
 	bfd_checker_t *bfd_checker = CHECKER_DATA(checker);
 
-	log_message(LOG_INFO, "   Keepalive method = BFD_CHECK");
-	log_message(LOG_INFO, "   Name = %s", bfd_checker->bfd->bname);
-	log_message(LOG_INFO, "   Alpha is %s", checker->alpha ? "ON" : "OFF");
+	conf_write(fp, "   Keepalive method = BFD_CHECK");
+	conf_write(fp, "   Name = %s", bfd_checker->bfd->bname);
+	conf_write(fp, "   Alpha is %s", checker->alpha ? "ON" : "OFF");
 
-//	log_message(LOG_INFO, "   weight = %d", bfd_checker->weight);
+//	conf_write(fp, "   weight = %d", bfd_checker->weight);
 }
 
 /* Dump a real server on a BFD's list */
 static void
-dump_bfds_rs(void *data)
+dump_bfds_rs(FILE *fp, void *data)
 {
 	checker_t *checker = data;
-	log_message(LOG_INFO, "   %s", FMT_RS(checker->rs, checker->vs));
+	conf_write(fp, "   %s", FMT_RS(checker->rs, checker->vs));
 }
 
 static bool

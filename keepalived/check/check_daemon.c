@@ -214,8 +214,8 @@ start_check(list old_checkers_queue)
 
 	/* Dump configuration */
 	if (__test_bit(DUMP_CONF_BIT, &debug)) {
-		dump_global_data(global_data);
-		dump_check_data(check_data);
+		dump_global_data(NULL, global_data);
+		dump_check_data(NULL, check_data);
 	}
 
 	/* Register checkers thread */

@@ -23,6 +23,7 @@
 #include "config.h"
 
 #include <unistd.h>
+#include <stdio.h>
 
 #include "check_tcp.h"
 #include "check_api.h"
@@ -49,12 +50,12 @@ free_tcp_check(void *data)
 }
 
 static void
-dump_tcp_check(void *data)
+dump_tcp_check(FILE *fp, void *data)
 {
 	checker_t *checker = data;
 
-	log_message(LOG_INFO, "   Keepalive method = TCP_CHECK");
-	dump_checker_opts(checker);
+	conf_write(fp, "   Keepalive method = TCP_CHECK");
+	dump_checker_opts(fp, checker);
 }
 
 static bool

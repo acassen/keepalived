@@ -66,7 +66,6 @@
 #include "utils.h"
 #include "bitops.h"
 #include "keepalived_netlink.h"
-#include "vrrp_print.h"
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif

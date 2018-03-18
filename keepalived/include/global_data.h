@@ -27,6 +27,7 @@
 
 /* system includes */
 #include <stdbool.h>
+#include <stdio.h>
 #include <sys/socket.h>
 
 #ifdef HAVE_LINUX_NETFILTER_X_TABLES_H
@@ -184,6 +185,6 @@ extern void alloc_email(char *);
 extern data_t *alloc_global_data(void);
 extern void init_global_data(data_t *);
 extern void free_global_data(data_t *);
-extern void dump_global_data(data_t *);
+extern void dump_global_data(FILE *, data_t *);
 
 #endif

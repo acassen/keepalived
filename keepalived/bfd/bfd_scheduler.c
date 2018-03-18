@@ -27,6 +27,7 @@
 #include <assert.h>
 #include <netdb.h>
 #include <inttypes.h>
+#include <stdio.h>
 
 #include "bfd.h"
 #include "bfd_data.h"
@@ -46,7 +47,7 @@ static void bfd_sender_schedule(bfd_t *);
 static void bfd_state_down(bfd_t *, char diag);
 static void bfd_state_admindown(bfd_t *);
 static void bfd_state_up(bfd_t *);
-static void bfd_dump_timers(bfd_t *);
+static void bfd_dump_timers(FILE *fp, bfd_t *);
 
 /*
  * Session sender thread
@@ -563,23 +564,23 @@ bfd_state_init(bfd_t *bfd)
 
 /* Dumps current timers values */
 static void
-bfd_dump_timers(bfd_t *bfd)
+bfd_dump_timers(FILE *fp, bfd_t *bfd)
 {
 	assert(bfd);
 
-	log_message(LOG_INFO, "BFD_Instance(%s)"
+	conf_write(fp, "BFD_Instance(%s)"
 		    " --------------< Session parameters >-------------",
 		    bfd->iname);
-	log_message(LOG_INFO, "BFD_Instance(%s)"
+	conf_write(fp, "BFD_Instance(%s)"
 		    "        min_tx  min_rx  tx_intv  mult  detect_time",
 		    bfd->iname);
-	log_message(LOG_INFO, "BFD_Instance(%s)"
+	conf_write(fp, "BFD_Instance(%s)"
 		    " local %7u %7u %8u %5u %12" PRIu64,
 		    bfd->iname, (bfd->local_state == BFD_STATE_UP ? bfd->local_min_tx_intv : bfd->local_idle_tx_intv) / 1000,
 		    bfd->local_min_rx_intv / 1000,
 		    bfd->local_tx_intv / 1000, bfd->local_detect_mult,
 		    bfd->local_detect_time / 1000);
-	log_message(LOG_INFO, "BFD_Instance(%s)" " remote %6u %7u %8u %5u %12" PRIu64,
+	conf_write(fp, "BFD_Instance(%s)" " remote %6u %7u %8u %5u %12" PRIu64,
 		    bfd->iname, bfd->remote_min_tx_intv / 1000,
 		    bfd->remote_min_rx_intv / 1000,
 		    bfd->remote_tx_intv / 1000, bfd->remote_detect_mult,
@@ -732,7 +733,7 @@ bfd_handle_packet(bfdpkt_t *pkt)
 	      bfd->remote_min_tx_intv != old_remote_tx_intv ||
 	      bfd->remote_detect_mult != old_remote_detect_mult ||
 	      bfd->local_tx_intv != old_local_tx_intv)))
-		bfd_dump_timers(bfd);
+		bfd_dump_timers(NULL, bfd);
 
 	/* Reschedule sender if local_tx_intv is being reduced */
 	if (bfd->local_tx_intv < old_local_tx_intv &&

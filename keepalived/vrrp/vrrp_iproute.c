@@ -45,6 +45,7 @@
 #endif
 #include <inttypes.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 #include <linux/rtnetlink.h>
 
@@ -887,7 +888,7 @@ format_iproute(ip_route_t *route, char *buf, size_t buf_len)
 }
 
 void
-dump_iproute(void *rt_data)
+dump_iproute(FILE *fp, void *rt_data)
 {
 	ip_route_t *route = rt_data;
 	char *buf = MALLOC(ROUTE_BUF_SIZE);
@@ -896,8 +897,12 @@ dump_iproute(void *rt_data)
 
 	format_iproute(route, buf, ROUTE_BUF_SIZE);
 
-	for (i = 0, len = strlen(buf); i < len; i += i ? MAX_LOG_MSG - 7 : MAX_LOG_MSG - 5)
-		log_message(LOG_INFO, "%*s%s", i ? 7 : 5, "", buf + i);
+	if (fp)
+		conf_write(fp, "%*s%s", 4, "", buf);
+	else {
+		for (i = 0, len = strlen(buf); i < len; i += i ? MAX_LOG_MSG - 7 : MAX_LOG_MSG - 5)
+			conf_write(fp, "%*s%s", i ? 6 : 4, "", buf + i);
+	}
 
 	FREE(buf);
 }

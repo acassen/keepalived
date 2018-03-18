@@ -31,8 +31,6 @@
 #include "logger.h"
 #include "vrrp_scheduler.h"
 
-#include "vrrp_print.h"
-
 /* Instance name lookup */
 static vrrp_t *
 vrrp_get_instance(char *iname)

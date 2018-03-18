@@ -24,6 +24,7 @@
 #define _LIST_H
 
 #include <sys/types.h>
+#include <stdio.h>
 
 /* list definition */
 typedef struct _element *element;
@@ -40,7 +41,7 @@ struct _list {
 	struct _element *tail;
 	unsigned int count;
 	void (*free) (void *);
-	void (*dump) (void *);
+	void (*dump) (FILE *, void *);
 };
 
 /* utility macro */
@@ -55,15 +56,15 @@ struct _list {
 #define LIST_FOREACH_NEXT(L,V,E,N) for ((E) = LIST_HEAD(L); (E) && ((N) = (E)->next, (V) = ELEMENT_DATA(E), 1); (E) = (N))
 
 /* Prototypes */
-extern list alloc_list(void (*free_func) (void *), void (*dump_func) (void *));
+extern list alloc_list(void (*free_func) (void *), void (*dump_func) (FILE *, void *));
 extern void free_list(list *);
 extern void free_list_elements(list l);
 extern void free_list_element(list l, element e);
 extern void *list_element(list l, size_t num);
-extern void dump_list(list l);
+extern void dump_list(FILE *, list l);
 extern void list_add(list l, void *data);
 extern void list_del(list l, void *data);
-extern list alloc_mlist(void (*free_func) (void *), void (*dump_func) (void *), size_t size);
+extern list alloc_mlist(void (*free_func) (void *), void (*dump_func) (FILE *, void *), size_t size);
 extern void free_mlist(list l, size_t size);
 
 #endif

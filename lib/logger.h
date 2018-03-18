@@ -25,6 +25,7 @@
 
 #include <stdarg.h>
 #include <syslog.h>
+#include <stdio.h>
 
 #define	MAX_LOG_MSG	255
 
@@ -38,6 +39,8 @@ extern void flush_log_file(void);
 extern void vlog_message(const int facility, const char* format, va_list args)
 	__attribute__ ((format (printf, 2, 0)));
 extern void log_message(int priority, const char* format, ...)
+	__attribute__ ((format (printf, 2, 3)));
+extern void conf_write(FILE *fp, const char *format, ...)
 	__attribute__ ((format (printf, 2, 3)));
 
 #endif

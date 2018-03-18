@@ -1114,7 +1114,7 @@ garp_group_interface_handler(vector_t *strvec)
 {
 	interface_t *ifp = if_get_by_ifname(strvec_slot(strvec, 1), IF_CREATE_IF_DYNAMIC);
 	if (!ifp) {
-		log_message(LOG_INFO, "WARNING - interface %s specified for garp_group doesn't exist", ifp->ifname);
+		log_message(LOG_INFO, "WARNING - interface %s specified for garp_group doesn't exist", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
 
@@ -1153,7 +1153,7 @@ garp_group_interfaces_handler(vector_t *strvec)
 	for (i = 0; i < vector_size(interface_vec); i++) {
 		ifp = if_get_by_ifname(vector_slot(interface_vec, i), IF_CREATE_IF_DYNAMIC);
 		if (!ifp) {
-			log_message(LOG_INFO, "WARNING - interface %s specified for garp_group doesn't exist", ifp->ifname);
+			log_message(LOG_INFO, "WARNING - interface %s specified for garp_group doesn't exist", FMT_STR_VSLOT(strvec, i));
 			continue;
 		}
 

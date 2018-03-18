@@ -32,6 +32,7 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdio.h>
 
 /* local include */
 #include "vrrp_iproute.h"
@@ -338,14 +339,14 @@ format_iprule(ip_rule_t *rule, char *buf, size_t buf_len)
 }
 
 void
-dump_iprule(void *rule_data)
+dump_iprule(FILE *fp, void *rule_data)
 {
 	ip_rule_t *rule = rule_data;
 	char *buf = MALLOC(RULE_BUF_SIZE);
 
 	format_iprule(rule, buf, RULE_BUF_SIZE);
 
-	log_message(LOG_INFO, "     %s", buf);
+	conf_write(fp, "     %s", buf);
 
 	FREE(buf);
 }

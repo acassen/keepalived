@@ -28,6 +28,7 @@
 /* system includes */
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <openssl/ssl.h>
@@ -238,7 +239,7 @@ extern void alloc_rs(char *, char *);
 extern void alloc_ssvr(char *, char *);
 extern check_data_t *alloc_check_data(void);
 extern void free_check_data(check_data_t *);
-extern void dump_check_data(check_data_t *);
+extern void dump_check_data(FILE *, check_data_t *);
 extern char *format_vs (virtual_server_t *);
 extern bool validate_check_config(void);
 

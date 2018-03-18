@@ -150,7 +150,7 @@ start_bfd(void)
 	bfd_complete_init();
 
 	if (__test_bit(DUMP_CONF_BIT, &debug))
-		dump_bfd_data(bfd_data);
+		dump_bfd_data(NULL, bfd_data);
 
 	thread_add_event(master, bfd_dispatcher_init, bfd_data, 0);
 }

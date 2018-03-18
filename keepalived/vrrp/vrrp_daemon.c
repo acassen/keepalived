@@ -370,18 +370,8 @@ start_vrrp(void)
 #endif
 
 	/* Dump configuration */
-	if (__test_bit(DUMP_CONF_BIT, &debug)) {
-		list ifl;
-
-		dump_global_data(global_data);
-		dump_list(garp_delay);
-		dump_vrrp_data(vrrp_data);
-		ifl = get_if_list();
-		if (!LIST_ISEMPTY(ifl))
-			dump_list(ifl);
-
-		clear_rt_names();
-	}
+	if (__test_bit(DUMP_CONF_BIT, &debug))
+		dump_data_vrrp(NULL);
 
 	/* Init & start the VRRP packet dispatcher */
 	thread_add_event(master, vrrp_dispatcher_init, NULL,

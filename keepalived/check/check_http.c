@@ -26,6 +26,8 @@
 #include <openssl/err.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <stdio.h>
+
 #include "check_http.h"
 #include "check_api.h"
 #include "check_ssl.h"
@@ -58,16 +60,16 @@ free_url(void *data)
 }
 
 static void
-dump_url(void *data)
+dump_url(FILE *fp, void *data)
 {
 	url_t *url = data;
-	log_message(LOG_INFO, "   Checked url = %s", url->path);
+	conf_write(fp, "   Checked url = %s", url->path);
 	if (url->digest)
-		log_message(LOG_INFO, "     digest = %s", url->digest);
+		conf_write(fp, "     digest = %s", url->digest);
 	if (url->status_code)
-		log_message(LOG_INFO, "     HTTP Status Code = %d", url->status_code);
+		conf_write(fp, "     HTTP Status Code = %d", url->status_code);
 	if (url->virtualhost)
-		log_message(LOG_INFO, "     Virtual host = %s", url->virtualhost);
+		conf_write(fp, "     Virtual host = %s", url->virtualhost);
 }
 
 static void
@@ -97,17 +99,17 @@ free_http_get_check(void *data)
 }
 
 static void
-dump_http_get_check(void *data)
+dump_http_get_check(FILE *fp, void *data)
 {
 	checker_t *checker = data;
 	http_checker_t *http_get_chk = checker->data;
 
-	log_message(LOG_INFO, "   Keepalive method = %s_GET",
+	conf_write(fp, "   Keepalive method = %s_GET",
 			http_get_chk->proto == PROTO_HTTP ? "HTTP" : "SSL");
-	dump_checker_opts(checker);
+	dump_checker_opts(fp, checker);
 	if (http_get_chk->virtualhost)
-		log_message(LOG_INFO, "   Virtualhost = %s", http_get_chk->virtualhost);
-	dump_list(http_get_chk->url);
+		conf_write(fp, "   Virtualhost = %s", http_get_chk->virtualhost);
+	dump_list(fp, http_get_chk->url);
 }
 static http_checker_t *
 alloc_http_get(char *proto)

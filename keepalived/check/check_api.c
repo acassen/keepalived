@@ -24,6 +24,7 @@
 
 #include <dlfcn.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <arpa/inet.h>
 
 #include "check_api.h"
@@ -61,53 +62,53 @@ free_checker(void *data)
 
 /* dump checker data */
 static void
-dump_checker(void *data)
+dump_checker(FILE *fp, void *data)
 {
 	checker_t *checker = data;
-	log_message(LOG_INFO, " %s", FMT_CHK(checker));
-	(*checker->dump_func) (checker);
+	conf_write(fp, " %s", FMT_CHK(checker));
+	(*checker->dump_func) (fp, checker);
 }
 
 void
-dump_connection_opts(void *data)
+dump_connection_opts(FILE *fp, void *data)
 {
 	conn_opts_t *conn = data;
 
-	log_message(LOG_INFO, "     Dest = %s", inet_sockaddrtopair(&conn->dst));
+	conf_write(fp, "     Dest = %s", inet_sockaddrtopair(&conn->dst));
 	if (conn->bindto.ss_family)
-		log_message(LOG_INFO, "     Bind to = %s", inet_sockaddrtopair(&conn->bindto));
+		conf_write(fp, "     Bind to = %s", inet_sockaddrtopair(&conn->bindto));
 	if (conn->bind_if[0])
-		log_message(LOG_INFO, "     Bind i/f = %s", conn->bind_if);
+		conf_write(fp, "     Bind i/f = %s", conn->bind_if);
 #ifdef _WITH_SO_MARK_
 	if (conn->fwmark != 0)
-		log_message(LOG_INFO, "     Mark = %u", conn->fwmark);
+		conf_write(fp, "     Mark = %u", conn->fwmark);
 #endif
-	log_message(LOG_INFO, "     Timeout = %d", conn->connection_to/TIMER_HZ);
+	conf_write(fp, "     Timeout = %d", conn->connection_to/TIMER_HZ);
 }
 
 void
-dump_checker_opts(void *data)
+dump_checker_opts(FILE *fp, void *data)
 {
 	checker_t *checker = data;
 	conn_opts_t *conn = checker->co;
 
 	if (conn) {
-		log_message(LOG_INFO, "   Connection");
-		dump_connection_opts(conn);
+		conf_write(fp, "   Connection");
+		dump_connection_opts(fp, conn);
 	}
 
-	log_message(LOG_INFO, "   Alpha is %s", checker->alpha ? "ON" : "OFF");
-	log_message(LOG_INFO, "   Delay loop = %lu" , checker->delay_loop / TIMER_HZ);
+	conf_write(fp, "   Alpha is %s", checker->alpha ? "ON" : "OFF");
+	conf_write(fp, "   Delay loop = %lu" , checker->delay_loop / TIMER_HZ);
 	if (checker->retry) {
-		log_message(LOG_INFO, "   Retry count = %u" , checker->retry);
-		log_message(LOG_INFO, "   Retry delay = %lu" , checker->delay_before_retry / TIMER_HZ);
+		conf_write(fp, "   Retry count = %u" , checker->retry);
+		conf_write(fp, "   Retry delay = %lu" , checker->delay_before_retry / TIMER_HZ);
 	}
-	log_message(LOG_INFO, "   Warmup = %lu", checker->warmup / TIMER_HZ);
+	conf_write(fp, "   Warmup = %lu", checker->warmup / TIMER_HZ);
 }
 
 /* Queue a checker into the checkers_queue */
 checker_t *
-queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
+queue_checker(void (*free_func) (void *), void (*dump_func) (FILE *, void *)
 	      , int (*launch) (thread_t *)
 	      , bool (*compare) (void *, void *)
 	      , void *data
@@ -358,11 +359,11 @@ install_checker_common_keywords(bool connection_keywords)
 
 /* dump the checkers_queue */
 void
-dump_checkers_queue(void)
+dump_checkers_queue(FILE *fp)
 {
 	if (!LIST_ISEMPTY(checkers_queue)) {
-		log_message(LOG_INFO, "------< Health checkers >------");
-		dump_list(checkers_queue);
+		conf_write(fp, "------< Health checkers >------");
+		dump_list(fp, checkers_queue);
 	}
 }
 
