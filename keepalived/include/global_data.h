@@ -174,6 +174,18 @@ typedef struct _data {
 	bool				enable_dbus;
 	char				*dbus_service_name;
 #endif
+#ifdef _WITH_VRRP_
+	unsigned			vrrp_netlink_cmd_rcv_bufs;
+	bool				vrrp_netlink_cmd_rcv_bufs_force;
+	unsigned			vrrp_netlink_monitor_rcv_bufs;
+	bool				vrrp_netlink_monitor_rcv_bufs_force;
+#endif
+#ifdef _WITH_LVS_
+	unsigned			lvs_netlink_cmd_rcv_bufs;
+	bool				lvs_netlink_cmd_rcv_bufs_force;
+	unsigned			lvs_netlink_monitor_rcv_bufs;
+	bool				lvs_netlink_monitor_rcv_bufs_force;
+#endif
 } data_t;
 
 /* Global vars exported */

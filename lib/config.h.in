@@ -135,10 +135,6 @@
    if you don't. */
 #undef HAVE_DECL_MACVLAN_MODE_PRIVATE
 
-/* Define to 1 if you have the declaration of `NETLINK_NO_ENOBUFS', and to 0
-   if you don't. */
-#undef HAVE_DECL_NETLINK_NO_ENOBUFS
-
 /* Define to 1 if you have the declaration of `O_PATH', and to 0 if you don't.
    */
 #undef HAVE_DECL_O_PATH
@@ -635,9 +631,6 @@
 
 /* Define to 1 to log malloc/free checks to syslog */
 #undef _MEM_CHECK_LOG_
-
-/* Define to 1 to build with netlink ENOBUFS reported */
-#undef _NETLINK_RCV_ENOBUFS_
 
 /* Define to 1 to build with netlink command timers support */
 #undef _NETLINK_TIMERS_

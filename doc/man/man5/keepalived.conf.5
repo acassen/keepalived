@@ -404,6 +404,21 @@ and
                               # The FIFO name will be passed to the script as the last parameter
  dynamic_interfaces           # Allow configuration to include interfaces that don't exist at startup.
                               #   This allows keepalived to work with interfaces that may be deleted and restored.
+                              #
+                              # The following options are only needed for large configurations, where either
+                              # keepalived creates a large number of interface, or the system has a large
+                              # number of interface. These options only need using if
+                              # "Netlink: Receive buffer overrun" messages are seen in the system logs.
+                              # If the buffer size needed exceeds the value in /proc/sys/net/core/rmem_max
+                              #  the corresponding force option will need to be set.
+ vrrp_netlink_cmd_rcv_bufs BYTES
+ vrrp_netlink_cmd_rcv_bufs_force <BOOL>
+ vrrp_netlink_monitor_rcv_bufs BYTES
+ vrrp_netlink_monitor_rcv_bufs_force <BOOL>
+ lvs_netlink_cmd_rcv_bufs BYTES
+ lvs_netlink_cmd_rcv_bufs_force <BOOL>
+ lvs_netlink_monitor_rcv_bufs BYTES
+ lvs_netlink_monitor_rcv_bufs_force <BOOL>
  }
 
  # For running keepalived in a separate network namespace

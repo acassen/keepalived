@@ -514,4 +514,16 @@ dump_global_data(FILE *fp, data_t * data)
 #endif
 	conf_write(fp, " Script security %s", script_security ? "enabled" : "disabled");
 	conf_write(fp, " Default script uid:gid %d:%d", default_script_uid, default_script_gid);
+#ifdef _WITH_VRRP_
+	conf_write(fp, " vrrp_netlink_cmd_rcv_bufs = %u", global_data->vrrp_netlink_cmd_rcv_bufs);
+	conf_write(fp, " vrrp_netlink_cmd_rcv_bufs_force = %u", global_data->vrrp_netlink_cmd_rcv_bufs_force);
+	conf_write(fp, " vrrp_netlink_monitor_rcv_bufs = %u", global_data->vrrp_netlink_monitor_rcv_bufs);
+	conf_write(fp, " vrrp_netlink_monitor_rcv_bufs_force = %u", global_data->vrrp_netlink_monitor_rcv_bufs_force);
+#endif
+#ifdef _WITH_LVS_
+	conf_write(fp, " lvs_netlink_cmd_rcv_bufs = %u", global_data->lvs_netlink_cmd_rcv_bufs);
+	conf_write(fp, " lvs_netlink_cmd_rcv_bufs_force = %u", global_data->lvs_netlink_cmd_rcv_bufs_force);
+	conf_write(fp, " lvs_netlink_monitor_rcv_bufs = %u", global_data->lvs_netlink_monitor_rcv_bufs);
+	conf_write(fp, " lvs_netlink_monitor_rcv_bufs_force = %u", global_data->lvs_netlink_monitor_rcv_bufs_force);
+#endif
 }

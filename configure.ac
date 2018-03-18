@@ -199,8 +199,6 @@ AC_ARG_ENABLE(debug,
   [AS_HELP_STRING([--enable-debug], [compile with debugging flags])])
 AC_ARG_ENABLE(netlink-timers,
   [AS_HELP_STRING([--enable-netlink-timers], [compile with netlink command timers])])
-AC_ARG_ENABLE(netlink-enobufs,
-  [AS_HELP_STRING([--enable-netlink-enobufs], [compile with netlink ENOBUFS errors reported])])
 AC_ARG_ENABLE(smtp-alert-debug,
   [AS_HELP_STRING([--enable-smtp-alert-debug], [compile with smtp-alert debugging])])
 AC_ARG_ENABLE(stacktrace,
@@ -1531,23 +1529,6 @@ else
 fi
 AM_CONDITIONAL([DEBUG], [test $ENABLE_DEBUG = Yes])
 
-dnl ----[ Netlink ENOBUFS reported ? ]----
-dnl -- Since Linux 2.6.30
-AC_CHECK_DECLS([NETLINK_NO_ENOBUFS], [], [], [[#include <linux/netlink.h>]])
-
-if test "${enable_netlink_enobufs}" = yes -o \
-	"${ac_cv_have_decl_NETLINK_NO_ENOBUFS}" = no; then
-  AC_DEFINE([_NETLINK_RCV_ENOBUFS_], [ 1 ], [Define to 1 to build with netlink ENOBUFS reported])
-  ENABLE_NETLINK_ENOBUFS=Yes
-  if test "${ac_cv_have_decl_NETLINK_NO_ENOBUFS}" = no; then
-    add_system_opt([NETLINK_ENOBUFS])
-  else
-    add_config_opt([NETLINK_ENOBUFS])
-  fi
-else
-  ENABLE_NETLINK_ENOBUFS=No
-fi
-
 dnl ----[ Netlink command timers or not ? ]----
 if test "${enable_netlink_timers}" = yes; then
   AC_DEFINE([_NETLINK_TIMERS_], [ 1 ], [Define to 1 to build with netlink command timers support])
@@ -1726,9 +1707,6 @@ echo "Use libipset             : ${USE_LIBIPSET}"
 echo "init type                : ${INIT_TYPE}"
 echo "Build genhash            : ${BUILD_GENHASH}"
 echo "Build documentation      : ${HAVE_SPHINX_BUILD}"
-if test ${ENABLE_NETLINK_ENOBUFS} = Yes; then
-  echo "Netlink ENOBUFS          : ${ENABLE_NETLINK_ENOBUFS}"
-fi
 if test ${ENABLE_STACKTRACE} = Yes; then
   echo "Stacktrace support       : ${ENABLE_STACKTRACE}"
 fi

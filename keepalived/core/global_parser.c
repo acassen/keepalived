@@ -1005,6 +1005,172 @@ child_wait_handler(vector_t *strvec)
 	child_wait_time = secs;
 }
 
+#if defined _WITH_VRRP_ || defined _WITH_LVS_
+static unsigned
+get_netlink_rcv_bufs_size(vector_t *strvec, const char *type)
+{
+	char *end;
+	unsigned long val;
+
+	if (!strvec)
+		return 0;
+
+	if (vector_size(strvec) < 2) {
+		log_message(LOG_INFO, "%s_rcv_bufs size missing", type);
+		return 0;
+	}
+	val = strtoul(strvec_slot(strvec, 1), &end, 10);
+
+	if (*end) {
+		log_message(LOG_INFO, "%s_rcv_bufs size (%s) invalid", type, FMT_STR_VSLOT(strvec, 1));
+		return 0;
+	}
+
+	if (val > UINT_MAX) {
+		log_message(LOG_INFO, "%s_rcv_bufs size (%lu) too large", type, val);
+		return 0;
+	}
+
+	return (unsigned)val;
+}
+#endif
+
+#ifdef _WITH_VRRP_
+static void
+vrrp_netlink_monitor_rcv_bufs_handler(vector_t *strvec)
+{
+	unsigned val;
+
+	if (!strvec)
+		return;
+
+	val = get_netlink_rcv_bufs_size(strvec, "vrrp_netlink_monitor");
+
+	if (val)
+		global_data->vrrp_netlink_monitor_rcv_bufs = val;
+}
+
+static void
+vrrp_netlink_monitor_rcv_bufs_force_handler(vector_t *strvec)
+{
+	int res = true;
+
+	if (!strvec)
+		return;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			log_message(LOG_INFO, "Invalid value '%s' for global vrrp_netlink_monitor_rcv_bufs_force specified", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+
+	global_data->vrrp_netlink_monitor_rcv_bufs_force = res;
+}
+
+static void
+vrrp_netlink_cmd_rcv_bufs_handler(vector_t *strvec)
+{
+	unsigned val;
+
+	if (!strvec)
+		return;
+
+	val = get_netlink_rcv_bufs_size(strvec, "vrrp_netlink_cmd");
+
+	if (val)
+		global_data->vrrp_netlink_cmd_rcv_bufs = val;
+}
+
+static void
+vrrp_netlink_cmd_rcv_bufs_force_handler(vector_t *strvec)
+{
+	int res = true;
+
+	if (!strvec)
+		return;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			log_message(LOG_INFO, "Invalid value '%s' for global vrrp_netlink_cmd_rcv_bufs_force specified", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+
+	global_data->vrrp_netlink_cmd_rcv_bufs_force = res;
+}
+#endif
+
+#ifdef _WITH_LVS_
+static void
+lvs_netlink_monitor_rcv_bufs_handler(vector_t *strvec)
+{
+	unsigned val;
+
+	if (!strvec)
+		return;
+
+	val = get_netlink_rcv_bufs_size(strvec, "lvs_netlink_monitor");
+
+	if (val)
+		global_data->lvs_netlink_monitor_rcv_bufs = val;
+}
+
+static void
+lvs_netlink_monitor_rcv_bufs_force_handler(vector_t *strvec)
+{
+	int res = true;
+
+	if (!strvec)
+		return;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			log_message(LOG_INFO, "Invalid value '%s' for global lvs_netlink_monitor_rcv_bufs_force specified", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+
+	global_data->lvs_netlink_monitor_rcv_bufs_force = res;
+}
+
+static void
+lvs_netlink_cmd_rcv_bufs_handler(vector_t *strvec)
+{
+	unsigned val;
+
+	if (!strvec)
+		return;
+
+	val = get_netlink_rcv_bufs_size(strvec, "lvs_netlink_cmd");
+
+	if (val)
+		global_data->lvs_netlink_cmd_rcv_bufs = val;
+}
+
+static void
+lvs_netlink_cmd_rcv_bufs_force_handler(vector_t *strvec)
+{
+	int res = true;
+
+	if (!strvec)
+		return;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			log_message(LOG_INFO, "Invalid value '%s' for global lvs_netlink_cmd_rcv_bufs_force specified", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+
+	global_data->lvs_netlink_cmd_rcv_bufs_force = res;
+}
+#endif
+
 void
 init_global_keywords(bool global_active)
 {
@@ -1127,4 +1293,16 @@ init_global_keywords(bool global_active)
 #endif
 	install_keyword("script_user", &script_user_handler);
 	install_keyword("enable_script_security", &script_security_handler);
+#ifdef _WITH_VRRP_
+	install_keyword("vrrp_netlink_cmd_rcv_bufs", &vrrp_netlink_cmd_rcv_bufs_handler);
+	install_keyword("vrrp_netlink_cmd_rcv_bufs_force", &vrrp_netlink_cmd_rcv_bufs_force_handler);
+	install_keyword("vrrp_netlink_monitor_rcv_bufs", &vrrp_netlink_monitor_rcv_bufs_handler);
+	install_keyword("vrrp_netlink_monitor_rcv_bufs_force", &vrrp_netlink_monitor_rcv_bufs_force_handler);
+#endif
+#ifdef _WITH_LVS_
+	install_keyword("lvs_netlink_cmd_rcv_bufs", &lvs_netlink_cmd_rcv_bufs_handler);
+	install_keyword("lvs_netlink_cmd_rcv_bufs_force", &lvs_netlink_cmd_rcv_bufs_force_handler);
+	install_keyword("lvs_netlink_monitor_rcv_bufs", &lvs_netlink_monitor_rcv_bufs_handler);
+	install_keyword("lvs_netlink_monitor_rcv_bufs_force", &lvs_netlink_monitor_rcv_bufs_force_handler);
+#endif
 }
