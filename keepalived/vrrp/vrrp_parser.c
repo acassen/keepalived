@@ -1173,6 +1173,26 @@ garp_group_interfaces_handler(vector_t *strvec)
 
 	free_strvec(interface_vec);
 }
+static void
+garp_group_end_handler(void)
+{
+	garp_delay_t *delay = LIST_TAIL_DATA(garp_delay);
+	element e, next;
+	interface_t *ifp;
+
+	if (!delay->have_garp_interval && !delay->have_gna_interval) {
+		log_message(LOG_INFO, "garp group %d does not have any delay set - removing", delay->aggregation_group);
+
+		/* Remove the garp_delay from any interfaces that are using it */
+		LIST_FOREACH_NEXT(get_if_list(), ifp, e, next) {
+			if (ifp->garp_delay == delay)
+				ifp->garp_delay = NULL;
+		}
+
+		free_list_element(garp_delay, garp_delay->tail);
+		FREE_PTR(delay);
+	}
+}
 
 void
 init_vrrp_keywords(bool active)
@@ -1207,6 +1227,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("gna_interval", &garp_group_gna_interval_handler);
 	install_keyword("interface", &garp_group_interface_handler);
 	install_keyword("interfaces", &garp_group_interfaces_handler);
+	install_sublevel_end_handler(&garp_group_end_handler);
 
 	/* VRRP Instance mapping */
 	install_keyword_root("vrrp_instance", &vrrp_handler, active);
