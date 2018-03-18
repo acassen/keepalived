@@ -74,7 +74,9 @@ typedef struct _ip_address {
 
 #define IPcommon_ISEQ(X,Y) \
 			((X)->ifa.ifa_prefixlen     == (Y)->ifa.ifa_prefixlen		&& \
-			 (X)->ifp->ifindex	    == (Y)->ifp->ifindex		&& \
+			 !(X)->ifp                  == !(Y)->ifp                        && \
+			 (!(X)->ifp                                                     || \
+			  (X)->ifp->ifindex	    == (Y)->ifp->ifindex)		&& \
 			 (X)->ifa.ifa_scope	    == (Y)->ifa.ifa_scope		&& \
 			 string_equal((X)->label, (Y)->label))
 
