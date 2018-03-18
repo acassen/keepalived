@@ -42,7 +42,7 @@
 
 /* static vars */
 static char *garp_buffer;
-static int garp_fd;
+static int garp_fd = -1;
 
 /* Send the gratuitous ARP message */
 static ssize_t send_arp(ip_address_t *ipaddress)
@@ -148,6 +148,9 @@ void send_gratuitous_arp(vrrp_t *vrrp, ip_address_t *ipaddress)
  */
 void gratuitous_arp_init(void)
 {
+	if (garp_buffer)
+		return;
+
 	/* Initalize shared buffer */
 	garp_buffer = (char *)MALLOC(sizeof(struct ether_arp) + ETHER_HDR_LEN);
 
@@ -168,6 +171,11 @@ void gratuitous_arp_init(void)
 }
 void gratuitous_arp_close(void)
 {
+	if (!garp_buffer)
+		return;
+
 	FREE(garp_buffer);
+	garp_buffer = NULL;
 	close(garp_fd);
+	garp_fd = -1;
 }

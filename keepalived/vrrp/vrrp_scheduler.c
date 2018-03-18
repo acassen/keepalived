@@ -29,6 +29,7 @@
 #include <netinet/in.h>
 #endif
 #include <stdint.h>
+#include <stdio.h>
 
 #include "vrrp_scheduler.h"
 #include "vrrp_track.h"
@@ -50,7 +51,6 @@
 #include "signals.h"
 #include "utils.h"
 #include "bitops.h"
-#include "vrrp_print.h"
 #include "vrrp_sock.h"
 #ifdef _WITH_SNMP_RFCV3_
 #include "vrrp_snmp.h"
@@ -626,7 +626,7 @@ vrrp_dispatcher_init(__attribute__((unused)) thread_t * thread)
 
 	/* Dump socket pool */
 	if (__test_bit(LOG_DETAIL_BIT, &debug))
-		dump_list(vrrp_data->vrrp_socket_pool);
+		dump_list(NULL, vrrp_data->vrrp_socket_pool);
 
 	vrrp_initialised = true;
 
@@ -1222,7 +1222,7 @@ func
 }
 
 static void
-dump_thread_list( FILE *fp, thread_list_t *tlist, const char *type)
+dump_thread_list(FILE *fp, thread_list_t *tlist, const char *type)
 {
 	thread_t *thread;
 	char time_buf[26];

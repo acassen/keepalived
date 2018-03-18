@@ -31,6 +31,7 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <fcntl.h>
+#include <stdio.h>
 
 /* local include */
 #include "vrrp_track.h"
@@ -47,10 +48,10 @@ static thread_t *inotify_thread;
 
 /* Track interface dump */
 void
-dump_track_if(void *track_data)
+dump_track_if(FILE *fp, void *track_data)
 {
 	tracked_if_t *tip = track_data;
-	log_message(LOG_INFO, "     %s weight %d", IF_NAME(tip->ifp), tip->weight);
+	conf_write(fp, "     %s weight %d", IF_NAME(tip->ifp), tip->weight);
 }
 
 void
@@ -175,10 +176,10 @@ find_script_by_name(char *name)
 
 /* Track script dump */
 void
-dump_track_script(void *track_data)
+dump_track_script(FILE *fp, void *track_data)
 {
 	tracked_sc_t *tsc = track_data;
-	log_message(LOG_INFO, "     %s weight %d", tsc->scr->sname, tsc->weight);
+	conf_write(fp, "     %s weight %d", tsc->scr->sname, tsc->weight);
 }
 
 void
@@ -316,10 +317,10 @@ find_tracked_file_by_name(const char *name)
 
 /* Track file dump */
 void
-dump_track_file(void *track_data)
+dump_track_file(FILE *fp, void *track_data)
 {
 	tracked_file_t *tfile = track_data;
-	log_message(LOG_INFO, "     %s", tfile->file->fname);
+	conf_write(fp, "     %s, weight %d", tfile->file->fname, tfile->weight);
 }
 
 void
@@ -456,10 +457,10 @@ find_vrrp_tracked_bfd_by_name(const char *name)
 
 /* Track bfd dump */
 void
-dump_vrrp_tracked_bfd(void *track_data)
+dump_vrrp_tracked_bfd(FILE *fp, void *track_data)
 {
 	tracked_bfd_t *tbfd = track_data;
-	log_message(LOG_INFO, "     %s: weight %d", tbfd->bfd->bname, tbfd->weight);
+	conf_write(fp, "     %s: weight %d", tbfd->bfd->bname, tbfd->weight);
 }
 
 void

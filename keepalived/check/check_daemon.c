@@ -142,14 +142,16 @@ start_check(list old_checkers_queue)
 	init_checkers_queue();
 
 	/* Parse configuration file */
-	global_data = alloc_global_data();
+	if (reload)
+		global_data = alloc_global_data();
 	check_data = alloc_check_data();
 	if (!check_data)
 		stop_check(KEEPALIVED_EXIT_FATAL);
 
 	init_data(conf_file, check_init_keywords);
 
-	init_global_data(global_data);
+	if (reload)
+		init_global_data(global_data);
 
 	/* fill 'vsg' members of the virtual_server_t structure.
 	 * We must do that after parsing config, because
@@ -212,8 +214,8 @@ start_check(list old_checkers_queue)
 
 	/* Dump configuration */
 	if (__test_bit(DUMP_CONF_BIT, &debug)) {
-		dump_global_data(global_data);
-		dump_check_data(check_data);
+		dump_global_data(NULL, global_data);
+		dump_check_data(NULL, check_data);
 	}
 
 	/* Register checkers thread */
@@ -245,7 +247,6 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 	/* Destroy master thread */
 	checker_dispatcher_release();
 	thread_cleanup_master(master);
-	free_global_data(global_data);
 
 	/* Save previous checker data */
 	old_checkers_queue = checkers_queue;
@@ -257,12 +258,15 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 	/* Save previous conf data */
 	old_check_data = check_data;
 	check_data = NULL;
+	old_global_data = global_data;
+	global_data = NULL;
 
 	/* Reload the conf */
 	start_check(old_checkers_queue);
 
 	/* free backup data */
 	free_check_data(old_check_data);
+	free_global_data(old_global_data);
 	free_list(&old_checkers_queue);
 	UNSET_RELOAD;
 
@@ -370,9 +374,9 @@ start_check_child(void)
 #endif
 #endif
 
-	if ((instance_name
+	if ((global_data->instance_name
 #if HAVE_DECL_CLONE_NEWNET
-			   || network_namespace
+			   || global_data->network_namespace
 #endif
 					       ) &&
 	     (check_syslog_ident = make_syslog_ident(PROG_CHECK)))
@@ -386,7 +390,14 @@ start_check_child(void)
 				    , (log_facility==LOG_DAEMON) ? LOG_LOCAL2 : log_facility);
 
 	if (log_file_name)
-		open_log_file(log_file_name, "check", network_namespace, instance_name);
+		open_log_file(log_file_name,
+				"check",
+#if HAVE_DECL_CLONE_NEWNET
+				global_data->network_namespace,
+#else
+				NULL,
+#endif
+				global_data->instance_name);
 
 #ifdef _MEM_CHECK_
 	mem_log_init(PROG_CHECK, "Healthcheck child process");

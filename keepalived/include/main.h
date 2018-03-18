@@ -73,11 +73,6 @@ extern char *main_pidfile;		/* overrule default pidfile */
 extern bool snmp;			/* Enable SNMP support */
 extern const char *snmp_socket;		/* Socket to use for SNMP agent */
 #endif
-#if HAVE_DECL_CLONE_NEWNET
-extern char *network_namespace;		/* network namespace name */
-extern bool namespace_with_ipsets;	/* override for namespaces with ipsets on Linux < 3.13 */
-#endif
-extern char *instance_name;		/* keepalived instance name */
 extern bool use_pid_dir;		/* pid files in /var/run/keepalived */
 extern unsigned os_major;		/* Kernel version */
 extern unsigned os_minor;

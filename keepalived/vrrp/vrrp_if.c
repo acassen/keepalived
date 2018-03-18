@@ -25,6 +25,7 @@
 /* global include */
 #include <unistd.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <syslog.h>
@@ -353,23 +354,42 @@ free_if(void *data)
 }
 
 /* garp_delay facility function */
-void
-dump_garp_delay(void *data)
+static void
+free_garp_delay(void *data)
+{
+	FREE(data);
+}
+
+static void
+dump_garp_delay(FILE *fp, void *data)
 {
 	garp_delay_t *gd = data;
+	char time_str[26];
 
-	log_message(LOG_INFO, "------< GARP delay group %d >------", gd->aggregation_group);
-	if (gd->have_garp_interval)
-		log_message(LOG_INFO, " GARP interval = %ld.%6.6ld", gd->garp_interval.tv_sec, gd->garp_interval.tv_usec);
-	if (gd->have_gna_interval)
-		log_message(LOG_INFO, " GNA interval = %ld.%6.6ld", gd->gna_interval.tv_sec, gd->gna_interval.tv_usec);
+	conf_write(fp, "------< GARP delay group %d >------", gd->aggregation_group);
+
+	if (gd->have_garp_interval) {
+		conf_write(fp, " GARP interval = %ld.%6.6ld", gd->garp_interval.tv_sec, gd->garp_interval.tv_usec);
+		if (!ctime_r(&gd->garp_next_time.tv_sec, time_str))
+                        strcpy(time_str, "invalid time ");
+		conf_write(fp, " GARP next time %ld.%6.6ld (%.19s.%6.6ld)", gd->garp_next_time.tv_sec, gd->garp_next_time.tv_usec, time_str, gd->garp_next_time.tv_usec);
+	}
+
+	if (gd->have_gna_interval) {
+		conf_write(fp, " GNA interval = %ld.%6.6ld", gd->gna_interval.tv_sec, gd->gna_interval.tv_usec);
+		if (!ctime_r(&gd->gna_next_time.tv_sec, time_str))
+                        strcpy(time_str, "invalid time ");
+		conf_write(fp, " GNA next time %ld.%6.6ld (%.19s.%6.6ld)", gd->gna_next_time.tv_sec, gd->gna_next_time.tv_usec, time_str, gd->gna_next_time.tv_usec);
+	}
+	else if (!gd->have_garp_interval)
+		conf_write(fp, " No configuration");
 }
 
 void
 alloc_garp_delay(void)
 {
 	if (!LIST_EXISTS(garp_delay))
-		garp_delay = alloc_list(NULL, dump_garp_delay);
+		garp_delay = alloc_list(free_garp_delay, dump_garp_delay);
 
 	list_add(garp_delay, MALLOC(sizeof(garp_delay_t)));
 }
@@ -411,88 +431,71 @@ set_default_garp_delay(void)
 }
 
 static void
-dump_if(void *data)
+dump_if(FILE *fp, void *data)
 {
 	interface_t *ifp = data;
-#ifdef _HAVE_VRRP_VMAC_
-	interface_t *ifp_u;
-#endif
 	char addr_str[INET6_ADDRSTRLEN];
-	unsigned ifi_flags;
 	char mac_str[3 * ifp->hw_addr_len];
 	char *mac_ptr = mac_str;
 	unsigned int i;
 
-	log_message(LOG_INFO, "------< NIC >------");
-	log_message(LOG_INFO, " Name = %s", ifp->ifname);
-	log_message(LOG_INFO, " index = %u", ifp->ifindex);
-	log_message(LOG_INFO, " IPv4 address = %s", inet_ntop2(ifp->sin_addr.s_addr));
+	conf_write(fp, " Name = %s", ifp->ifname);
+	conf_write(fp, "   index = %u", ifp->ifindex);
+	conf_write(fp, "   IPv4 address = %s",
+			ifp->sin_addr.s_addr ? inet_ntop2(ifp->sin_addr.s_addr) : "(none)");
 	inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, sizeof(addr_str));
-	log_message(LOG_INFO, " IPv6 address = %s", addr_str);
+	conf_write(fp, "   IPv6 address = %s", ifp->sin6_addr.s6_addr32[0] ? addr_str : "(none)");
 
 	mac_ptr[0] = '\0';
 	for (i = 0; i < ifp->hw_addr_len; i++)
 		mac_ptr += sprintf(mac_ptr, "%s%.2x", i ? ":" : "", ifp->hw_addr[i]);
-	log_message(LOG_INFO, " MAC = %s", mac_str);
+	conf_write(fp, "   MAC = %s", mac_str);
 
-	ifi_flags = ifp->ifi_flags & (IFF_UP | IFF_RUNNING);
+	conf_write(fp, "   State = %sUP, %sRUNNING", ifp->ifi_flags & IFF_UP ? "" : "not ", ifp->ifi_flags & IFF_RUNNING ? "" : "not " );
 #ifdef _HAVE_VRRP_VMAC_
-	ifi_flags &= ifp->base_ifp->ifi_flags;
+	if (ifp->vmac && ifp->base_ifp)
+		conf_write(fp, "   VMAC underlying interface = %s, state = %sUP, %sRUNNING", ifp->base_ifp->ifname,
+				ifp->base_ifp->ifi_flags & IFF_UP ? "" : "not ", ifp->base_ifp->ifi_flags & IFF_RUNNING ? "" : "not " );
 #endif
-	if (ifi_flags == (IFF_UP | IFF_RUNNING))
-		log_message(LOG_INFO, " is UP");
-	else if (ifi_flags & IFF_UP)
-		log_message(LOG_INFO, " is UP not RUNNING");
-	else if (ifi_flags & IFF_RUNNING)
-		log_message(LOG_INFO, " is RUNNING not UP");
-	else
-		log_message(LOG_INFO, " is DOWN");
-
-	log_message(LOG_INFO, " MTU = %d", ifp->mtu);
+	conf_write(fp, "   MTU = %d", ifp->mtu);
 
 	switch (ifp->hw_type) {
 	case ARPHRD_LOOPBACK:
-		log_message(LOG_INFO, " HW Type = LOOPBACK");
+		conf_write(fp, "   HW Type = LOOPBACK");
 		break;
 	case ARPHRD_ETHER:
-		log_message(LOG_INFO, " HW Type = ETHERNET");
+		conf_write(fp, "   HW Type = ETHERNET");
 		break;
 	default:
-		log_message(LOG_INFO, " HW Type = UNKNOWN");
+		conf_write(fp, "   HW Type = UNKNOWN (%d)", ifp->hw_type);
 		break;
 	}
 
-#ifdef _HAVE_VRRP_VMAC_
-	if (ifp->vmac && (ifp_u = ifp->base_ifp))
-		log_message(LOG_INFO, " VMAC underlying interface = %s", ifp_u->ifname);
-#endif
-
-	if (ifp->linkbeat_use_polling) {
-		/* MII channel supported ? */
-		if (IF_MII_SUPPORTED(ifp))
-			log_message(LOG_INFO, " NIC support MII regs");
-		else if (IF_ETHTOOL_SUPPORTED(ifp))
-			log_message(LOG_INFO, " NIC support ETHTOOL GLINK interface");
-		else
-			log_message(LOG_INFO, " NIC ioctl refresh polling");
-	}
+	if (!ifp->linkbeat_use_polling)
+		conf_write(fp, "   NIC netlink status update");
+	else if (IF_MII_SUPPORTED(ifp))
+		conf_write(fp, "   NIC support MII regs");
+	else if (IF_ETHTOOL_SUPPORTED(ifp))
+		conf_write(fp, "   NIC support ETHTOOL GLINK interface");
+	else
+		conf_write(fp, "   NIC ioctl refresh polling");
 
 	if (ifp->garp_delay) {
 		if (ifp->garp_delay->have_garp_interval)
-			log_message(LOG_INFO, " Gratuitous ARP interval %ldms",
+			conf_write(fp, "   Gratuitous ARP interval %ldms",
 				    ifp->garp_delay->garp_interval.tv_sec * 100 +
 				     ifp->garp_delay->garp_interval.tv_usec / (TIMER_HZ / 100));
 
 		if (ifp->garp_delay->have_gna_interval)
-			log_message(LOG_INFO, " Gratuitous NA interval %ldms",
+			conf_write(fp, "   Gratuitous NA interval %ldms",
 				    ifp->garp_delay->gna_interval.tv_sec * 100 +
 				     ifp->garp_delay->gna_interval.tv_usec / (TIMER_HZ / 100));
 		if (ifp->garp_delay->aggregation_group)
-			log_message(LOG_INFO, " Gratuitous ARP aggregation group %d", ifp->garp_delay->aggregation_group);
+			conf_write(fp, "   Gratuitous ARP aggregation group %d", ifp->garp_delay->aggregation_group);
 	}
-	log_message(LOG_INFO, " Tracking VRRP = %d", !LIST_ISEMPTY(ifp->tracking_vrrp) ? LIST_SIZE(ifp->tracking_vrrp) : 0);
+	conf_write(fp, "   Tracking VRRP instances = %d", !LIST_ISEMPTY(ifp->tracking_vrrp) ? LIST_SIZE(ifp->tracking_vrrp) : 0);
 	if (!LIST_ISEMPTY(ifp->tracking_vrrp))
-		dump_list(ifp->tracking_vrrp);
+		dump_list(fp, ifp->tracking_vrrp);
 }
 
 static void
@@ -617,7 +620,7 @@ init_interface_queue(void)
 	 * interface pointers are all set */
 	set_base_ifp();
 #endif
-//	dump_list(if_queue);
+//	dump_list(NULL, if_queue);
 }
 
 int

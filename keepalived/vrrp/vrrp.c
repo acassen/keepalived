@@ -66,7 +66,6 @@
 #include "utils.h"
 #include "bitops.h"
 #include "keepalived_netlink.h"
-#include "vrrp_print.h"
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif
@@ -83,6 +82,20 @@
 /* Set if need to block ip addresses and are able to do so */
 bool block_ipv4;
 bool block_ipv6;
+
+/* If we don't have certain configuration, then we can optimise the
+ * resources that keepalived uses. These are cleared by start_vrrp()
+ * in clear_summary_flags() and set in vrrp_complete_instance()
+ */
+bool have_ipv4_instance;
+bool have_ipv6_instance;
+
+void
+clear_summary_flags(void)
+{
+	have_ipv4_instance = false;
+	have_ipv6_instance = false;
+}
 
 /* add/remove Virtual IP addresses */
 static bool
@@ -2398,6 +2411,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	/* Default to IPv4. This can only happen if no VIPs are specified. */
 	if (vrrp->family == AF_UNSPEC)
 		vrrp->family = AF_INET;
+
+	if (vrrp->family == AF_INET)
+		have_ipv4_instance = true;
+	else
+		have_ipv6_instance = true;
 
 	if (vrrp->version == 0) {
 		if (vrrp->family == AF_INET6)

@@ -26,6 +26,7 @@
 /* global includes */
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <sys/types.h>
 #if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
 #include <linux/mpls.h>
@@ -233,7 +234,7 @@ extern unsigned short add_addr2req(struct nlmsghdr *, size_t, unsigned short, ip
 extern void netlink_rtlist(list, int);
 extern void free_iproute(void *);
 extern void format_iproute(ip_route_t *, char *, size_t);
-extern void dump_iproute(void *);
+extern void dump_iproute(FILE *, void *);
 extern void alloc_route(list, vector_t *);
 extern void clear_diff_routes(list, list);
 extern void clear_diff_sroutes(void);

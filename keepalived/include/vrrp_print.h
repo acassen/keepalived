@@ -25,7 +25,6 @@
 #ifndef _VRRP_PRINT_H
 #define _VRRP_PRINT_H
 
-extern char * get_state_str(int);
 extern void vrrp_print_data(void);
 extern void vrrp_print_stats(void);
 

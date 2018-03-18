@@ -25,6 +25,7 @@
 /* Global include */
 #include <errno.h>
 #include <arpa/inet.h>
+#include <stdio.h>
 
 /* local include */
 #include "vrrp_ipaddress.h"
@@ -420,17 +421,17 @@ free_ipaddress(void *if_data)
 }
 
 void
-dump_ipaddress(void *if_data)
+dump_ipaddress(FILE *fp, void *if_data)
 {
 	ip_address_t *ipaddr = if_data;
 	char broadcast[INET_ADDRSTRLEN + 5] = "";
 
 	if (!IP_IS6(ipaddr) && ipaddr->u.sin.sin_brd.s_addr) {
-		snprintf(broadcast, 21, " brd %s",
+		snprintf(broadcast, sizeof broadcast, " brd %s",
 			 inet_ntop2(ipaddr->u.sin.sin_brd.s_addr));
 	}
 
-	log_message(LOG_INFO, "     %s/%d%s dev %s scope %s%s%s"
+	conf_write(fp, "     %s/%d%s dev %s scope %s%s%s"
 			    , ipaddresstos(NULL, ipaddr)
 			    , ipaddr->ifa.ifa_prefixlen
 			    , broadcast

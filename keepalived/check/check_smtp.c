@@ -25,6 +25,7 @@
 
 #include <errno.h>
 #include <unistd.h>
+#include <stdio.h>
 #include <ctype.h>
 
 #include "check_smtp.h"
@@ -74,18 +75,18 @@ free_smtp_check(void *data)
  * configuration.
  */
 static void
-dump_smtp_check(void *data)
+dump_smtp_check(FILE *fp, void *data)
 {
 	checker_t *checker = data;
 	smtp_checker_t *smtp_checker = checker->data;
 
-	log_message(LOG_INFO, "   Keepalive method = SMTP_CHECK");
-	log_message(LOG_INFO, "   helo = %s", smtp_checker->helo_name);
-	dump_checker_opts(checker);
+	conf_write(fp, "   Keepalive method = SMTP_CHECK");
+	conf_write(fp, "   helo = %s", smtp_checker->helo_name);
+	dump_checker_opts(fp, checker);
 
 	if (smtp_checker->host) {
-		log_message(LOG_INFO,"   Host list");
-		dump_list(smtp_checker->host);
+		conf_write(fp, "   Host list");
+		dump_list(fp, smtp_checker->host);
 	}
 }
 

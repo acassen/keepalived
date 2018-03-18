@@ -27,6 +27,7 @@
 
 /* system includes */
 #include <stdbool.h>
+#include <stdio.h>
 #include <sys/socket.h>
 
 #ifdef HAVE_LINUX_NETFILTER_X_TABLES_H
@@ -67,6 +68,11 @@ typedef struct _email {
 
 /* Configuration data root */
 typedef struct _data {
+#if HAVE_DECL_CLONE_NEWNET
+	char				*network_namespace;	/* network namespace name */
+	bool				namespace_with_ipsets;	/* override for namespaces with ipsets on Linux < 3.13 */
+#endif
+	char				*instance_name;		/* keepalived instance name */
 	bool				linkbeat_use_polling;
 	char				*router_id;
 	char				*email_from;
@@ -168,16 +174,29 @@ typedef struct _data {
 	bool				enable_dbus;
 	char				*dbus_service_name;
 #endif
+#ifdef _WITH_VRRP_
+	unsigned			vrrp_netlink_cmd_rcv_bufs;
+	bool				vrrp_netlink_cmd_rcv_bufs_force;
+	unsigned			vrrp_netlink_monitor_rcv_bufs;
+	bool				vrrp_netlink_monitor_rcv_bufs_force;
+#endif
+#ifdef _WITH_LVS_
+	unsigned			lvs_netlink_cmd_rcv_bufs;
+	bool				lvs_netlink_cmd_rcv_bufs_force;
+	unsigned			lvs_netlink_monitor_rcv_bufs;
+	bool				lvs_netlink_monitor_rcv_bufs_force;
+#endif
 } data_t;
 
 /* Global vars exported */
-extern data_t *global_data; /* Global configuration data */
+extern data_t *global_data;	/* Global configuration data */
+extern data_t *old_global_data;	/* Old global configuration data - used during reload */
 
 /* Prototypes */
 extern void alloc_email(char *);
 extern data_t *alloc_global_data(void);
 extern void init_global_data(data_t *);
 extern void free_global_data(data_t *);
-extern void dump_global_data(data_t *);
+extern void dump_global_data(FILE *, data_t *);
 
 #endif

@@ -107,7 +107,7 @@ extern unsigned long debug;
 /* Prototypes defs */
 extern void dump_buffer(char *, size_t, FILE *);
 #ifdef _WITH_STACKTRACE_
-extern void write_stacktrace(const char *);
+extern void write_stacktrace(const char *, const char *);
 #endif
 extern uint16_t in_csum(const uint16_t *, size_t, uint32_t, uint32_t *);
 extern char *inet_ntop2(uint32_t);
@@ -125,7 +125,7 @@ extern int inet_sockaddrip6(struct sockaddr_storage *, struct in6_addr *);
 extern int inet_inaddrcmp(int, const void *, const void *);
 extern int inet_sockaddrcmp(const struct sockaddr_storage *, const struct sockaddr_storage *);
 extern char *get_local_name(void);
-extern int string_equal(const char *, const char *);
+extern bool string_equal(const char *, const char *);
 extern void set_std_fd(bool);
 extern void close_std_fd(void);
 #if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_

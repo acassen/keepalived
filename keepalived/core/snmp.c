@@ -179,9 +179,9 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 		return (u_char *)&long_ret;
 	case SNMP_NET_NAMESPACE:
 #if HAVE_DECL_CLONE_NEWNET
-		if (network_namespace) {
-			*var_len = strlen(network_namespace);
-			return (u_char *)network_namespace;
+		if (global_data->network_namespace) {
+			*var_len = strlen(global_data->network_namespace);
+			return (u_char *)global_data->network_namespace;
 		}
 #endif
 		*var_len = 0;

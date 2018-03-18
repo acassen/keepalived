@@ -23,6 +23,7 @@
 #include "config.h"
 
 #include <stdint.h>
+#include <stdio.h>
 
 #include "check_data.h"
 #include "check_api.h"
@@ -70,23 +71,23 @@ free_ssl(void)
 	check_data->ssl = NULL;
 }
 static void
-dump_ssl(void)
+dump_ssl(FILE *fp)
 {
 	ssl_data_t *ssl = check_data->ssl;
 
 	if (!ssl->password && !ssl->cafile && !ssl->certfile && !ssl->keyfile) {
-		log_message(LOG_INFO, " Using autogen SSL context");
+		conf_write(fp, " Using autogen SSL context");
 		return;
 	}
 
 	if (ssl->password)
-		log_message(LOG_INFO, " Password : %s", ssl->password);
+		conf_write(fp, " Password : %s", ssl->password);
 	if (ssl->cafile)
-		log_message(LOG_INFO, " CA-file : %s", ssl->cafile);
+		conf_write(fp, " CA-file : %s", ssl->cafile);
 	if (ssl->certfile)
-		log_message(LOG_INFO, " Certificate file : %s", ssl->certfile);
+		conf_write(fp, " Certificate file : %s", ssl->certfile);
 	if (ssl->keyfile)
-		log_message(LOG_INFO, " Key file : %s", ssl->keyfile);
+		conf_write(fp, " Key file : %s", ssl->keyfile);
 }
 
 /* Virtual server group facility functions */
@@ -100,13 +101,13 @@ free_vsg(void *data)
 	FREE(vsg);
 }
 static void
-dump_vsg(void *data)
+dump_vsg(FILE *fp, void *data)
 {
 	virtual_server_group_t *vsg = data;
 
-	log_message(LOG_INFO, " Virtual Server Group = %s", vsg->gname);
-	dump_list(vsg->addr_range);
-	dump_list(vsg->vfwmark);
+	conf_write(fp, " Virtual Server Group = %s", vsg->gname);
+	dump_list(fp, vsg->addr_range);
+	dump_list(fp, vsg->vfwmark);
 }
 static void
 free_vsg_entry(void *data)
@@ -114,19 +115,19 @@ free_vsg_entry(void *data)
 	FREE(data);
 }
 static void
-dump_vsg_entry(void *data)
+dump_vsg_entry(FILE *fp, void *data)
 {
 	virtual_server_group_entry_t *vsg_entry = data;
 	uint16_t start;
 
 	if (vsg_entry->vfwmark)
-		log_message(LOG_INFO, "   FWMARK = %u", vsg_entry->vfwmark);
+		conf_write(fp, "   FWMARK = %u", vsg_entry->vfwmark);
 	else {
 		if (vsg_entry->range) {
 			start = vsg_entry->addr.ss_family == AF_INET ?
 				  ntohl(((struct sockaddr_in*)&vsg_entry->addr)->sin_addr.s_addr) & 0xFF :
 				  ntohs(((struct sockaddr_in6*)&vsg_entry->addr)->sin6_addr.s6_addr16[7]);
-			log_message(LOG_INFO,
+			conf_write(fp,
 				    vsg_entry->addr.ss_family == AF_INET ?
 					"   VIP Range = %s-%d, VPORT = %d" :
 					"   VIP Range = %s-%x, VPORT = %d",
@@ -134,7 +135,7 @@ dump_vsg_entry(void *data)
 				    start + vsg_entry->range,
 				    ntohs(inet_sockaddrport(&vsg_entry->addr)));
 		} else
-			log_message(LOG_INFO, "   VIP = %s, VPORT = %d"
+			conf_write(fp, "   VIP = %s, VPORT = %d"
 					    , inet_sockaddrtos(&vsg_entry->addr)
 					    , ntohs(inet_sockaddrport(&vsg_entry->addr)));
 	}
@@ -234,111 +235,111 @@ free_vs(void *data)
 	FREE(vs);
 }
 static void
-dump_vs(void *data)
+dump_vs(FILE *fp, void *data)
 {
 	virtual_server_t *vs = data;
 
-	log_message(LOG_INFO, " ------< Virtual server >------");
+	conf_write(fp, " ------< Virtual server >------");
 	if (vs->vsgname)
-		log_message(LOG_INFO, " VS GROUP = %s", FMT_VS(vs));
+		conf_write(fp, " VS GROUP = %s", FMT_VS(vs));
 	else if (vs->vfwmark)
-		log_message(LOG_INFO, " VS FWMARK = %u", vs->vfwmark);
+		conf_write(fp, " VS FWMARK = %u", vs->vfwmark);
 	else
-		log_message(LOG_INFO, " VS VIP = %s, VPORT = %d"
+		conf_write(fp, " VS VIP = %s, VPORT = %d"
 				    , inet_sockaddrtos(&vs->addr), ntohs(inet_sockaddrport(&vs->addr)));
 	if (vs->virtualhost)
-		log_message(LOG_INFO, "   VirtualHost = %s", vs->virtualhost);
+		conf_write(fp, "   VirtualHost = %s", vs->virtualhost);
 	if (vs->af != AF_UNSPEC)
-		log_message(LOG_INFO, "   Address family = inet%s", vs->af == AF_INET ? "" : "6");
-	log_message(LOG_INFO, "   delay_loop = %lu, lb_algo = %s", vs->delay_loop / TIMER_HZ, vs->sched);
-	log_message(LOG_INFO, "   Hashed = %sabled", vs->flags & IP_VS_SVC_F_HASHED ? "en" : "dis");
+		conf_write(fp, "   Address family = inet%s", vs->af == AF_INET ? "" : "6");
+	conf_write(fp, "   delay_loop = %lu, lb_algo = %s", vs->delay_loop / TIMER_HZ, vs->sched);
+	conf_write(fp, "   Hashed = %sabled", vs->flags & IP_VS_SVC_F_HASHED ? "en" : "dis");
 #ifdef IP_VS_SVC_F_SCHED1
 	if (!strcmp(vs->sched, "sh"))
 	{
-		log_message(LOG_INFO, "   sh-port = %sabled", vs->flags & IP_VS_SVC_F_SCHED_SH_PORT ? "en" : "dis");
-		log_message(LOG_INFO, "   sh-fallback = %sabled", vs->flags & IP_VS_SVC_F_SCHED_SH_FALLBACK ? "en" : "dis");
+		conf_write(fp, "   sh-port = %sabled", vs->flags & IP_VS_SVC_F_SCHED_SH_PORT ? "en" : "dis");
+		conf_write(fp, "   sh-fallback = %sabled", vs->flags & IP_VS_SVC_F_SCHED_SH_FALLBACK ? "en" : "dis");
 	}
 	else
 	{
-		log_message(LOG_INFO, "   flag-1 = %sabled", vs->flags & IP_VS_SVC_F_SCHED1 ? "en" : "dis");
-		log_message(LOG_INFO, "   flag-2 = %sabled", vs->flags & IP_VS_SVC_F_SCHED2 ? "en" : "dis");
-		log_message(LOG_INFO, "   flag-3 = %sabled", vs->flags & IP_VS_SVC_F_SCHED3 ? "en" : "dis");
+		conf_write(fp, "   flag-1 = %sabled", vs->flags & IP_VS_SVC_F_SCHED1 ? "en" : "dis");
+		conf_write(fp, "   flag-2 = %sabled", vs->flags & IP_VS_SVC_F_SCHED2 ? "en" : "dis");
+		conf_write(fp, "   flag-3 = %sabled", vs->flags & IP_VS_SVC_F_SCHED3 ? "en" : "dis");
 	}
 #endif
 #ifdef IP_VS_SVC_F_ONEPACKET
-	log_message(LOG_INFO, "   One packet scheduling = %sabled%s",
+	conf_write(fp, "   One packet scheduling = %sabled%s",
 			(vs->flags & IP_VS_SVC_F_ONEPACKET) ? "en" : "dis",
 			((vs->flags & IP_VS_SVC_F_ONEPACKET) && vs->service_type != IPPROTO_UDP) ? " (inactive due to not UDP)" : "");
 #endif
 
 	if (vs->persistence_timeout)
-		log_message(LOG_INFO, "   persistence timeout = %u", vs->persistence_timeout);
+		conf_write(fp, "   persistence timeout = %u", vs->persistence_timeout);
 	if (vs->persistence_granularity) {
 		if (vs->af == AF_INET6)
-			log_message(LOG_INFO, "   persistence granularity = %d",
+			conf_write(fp, "   persistence granularity = %d",
 				       vs->persistence_granularity);
 		else
-			log_message(LOG_INFO, "   persistence granularity = %s",
+			conf_write(fp, "   persistence granularity = %s",
 				       inet_ntop2(vs->persistence_granularity));
 	}
 	if (vs->service_type == IPPROTO_TCP)
-		log_message(LOG_INFO, "   protocol = TCP");
+		conf_write(fp, "   protocol = TCP");
 	else if (vs->service_type == IPPROTO_UDP)
-		log_message(LOG_INFO, "   protocol = UDP");
+		conf_write(fp, "   protocol = UDP");
 	else if (vs->service_type == IPPROTO_SCTP)
-		log_message(LOG_INFO, "   protocol = SCTP");
+		conf_write(fp, "   protocol = SCTP");
 	else if (vs->service_type == 0)
-		log_message(LOG_INFO, "   protocol = none");
+		conf_write(fp, "   protocol = none");
 	else
-		log_message(LOG_INFO, "   protocol = %d", vs->service_type);
-	log_message(LOG_INFO, "   alpha is %s, omega is %s",
+		conf_write(fp, "   protocol = %d", vs->service_type);
+	conf_write(fp, "   alpha is %s, omega is %s",
 		    vs->alpha ? "ON" : "OFF", vs->omega ? "ON" : "OFF");
 	if (vs->retry != UINT_MAX)
-		log_message(LOG_INFO, "   Retry count = %u" , vs->retry);
+		conf_write(fp, "   Retry count = %u" , vs->retry);
 	if (vs->delay_before_retry != ULONG_MAX)
-		log_message(LOG_INFO, "   Retry delay = %lu" , vs->delay_before_retry / TIMER_HZ);
+		conf_write(fp, "   Retry delay = %lu" , vs->delay_before_retry / TIMER_HZ);
 	if (vs->warmup != ULONG_MAX)
-		log_message(LOG_INFO, "   Warmup = %lu", vs->warmup / TIMER_HZ);
-	log_message(LOG_INFO, "   Inhibit on failure is %s", vs->inhibit ? "ON" : "OFF");
-	log_message(LOG_INFO, "   quorum = %u, hysteresis = %u", vs->quorum, vs->hysteresis);
+		conf_write(fp, "   Warmup = %lu", vs->warmup / TIMER_HZ);
+	conf_write(fp, "   Inhibit on failure is %s", vs->inhibit ? "ON" : "OFF");
+	conf_write(fp, "   quorum = %u, hysteresis = %u", vs->quorum, vs->hysteresis);
 	if (vs->notify_quorum_up)
-		log_message(LOG_INFO, "   -> Notify script UP = %s, uid:gid %d:%d",
+		conf_write(fp, "   -> Notify script UP = %s, uid:gid %d:%d",
 			    vs->notify_quorum_up->cmd_str, vs->notify_quorum_up->uid, vs->notify_quorum_up->gid);
 	if (vs->notify_quorum_down)
-		log_message(LOG_INFO, "   -> Notify script DOWN = %s, uid:gid %d:%d",
+		conf_write(fp, "   -> Notify script DOWN = %s, uid:gid %d:%d",
 			    vs->notify_quorum_down->cmd_str, vs->notify_quorum_down->uid, vs->notify_quorum_down->gid);
 	if (vs->ha_suspend)
-		log_message(LOG_INFO, "   Using HA suspend");
-	log_message(LOG_INFO, "   Using smtp notification = %s", vs->smtp_alert ? "yes" : "no");
+		conf_write(fp, "   Using HA suspend");
+	conf_write(fp, "   Using smtp notification = %s", vs->smtp_alert ? "yes" : "no");
 
 	switch (vs->forwarding_method) {
 	case IP_VS_CONN_F_MASQ:
-		log_message(LOG_INFO, "   default forwarding method = NAT");
+		conf_write(fp, "   default forwarding method = NAT");
 		break;
 	case IP_VS_CONN_F_DROUTE:
-		log_message(LOG_INFO, "   default forwarding method = DR");
+		conf_write(fp, "   default forwarding method = DR");
 		break;
 	case IP_VS_CONN_F_TUNNEL:
-		log_message(LOG_INFO, "   default forwarding method = TUN");
+		conf_write(fp, "   default forwarding method = TUN");
 		break;
 	}
 
 	if (vs->s_svr) {
-		log_message(LOG_INFO, "   sorry server = %s"
+		conf_write(fp, "   sorry server = %s"
 				    , FMT_RS(vs->s_svr, vs));
 		switch (vs->s_svr->forwarding_method) {
 		case IP_VS_CONN_F_MASQ:
-			log_message(LOG_INFO, "   sorry server forwarding method = NAT");
+			conf_write(fp, "   sorry server forwarding method = NAT");
 			break;
 		case IP_VS_CONN_F_DROUTE:
-			log_message(LOG_INFO, "   sorry server forwarding method = DR");
+			conf_write(fp, "   sorry server forwarding method = DR");
 			break;
 		case IP_VS_CONN_F_TUNNEL:
-			log_message(LOG_INFO, "   sorry server forwarding method = TUN");
+			conf_write(fp, "   sorry server forwarding method = TUN");
 			break;
 		}
 	}
-	dump_list(vs->rs);
+	dump_list(fp, vs->rs);
 }
 
 void
@@ -425,46 +426,46 @@ free_rs(void *data)
 }
 
 static void
-dump_rs(void *data)
+dump_rs(FILE *fp, void *data)
 {
 	real_server_t *rs = data;
 
-	log_message(LOG_INFO, "   ------< Real server >------");
-	log_message(LOG_INFO, "   RIP = %s, RPORT = %d, WEIGHT = %d"
+	conf_write(fp, "   ------< Real server >------");
+	conf_write(fp, "   RIP = %s, RPORT = %d, WEIGHT = %d"
 			    , inet_sockaddrtos(&rs->addr)
 			    , ntohs(inet_sockaddrport(&rs->addr))
 			    , rs->weight);
 	switch (rs->forwarding_method) {
 	case IP_VS_CONN_F_MASQ:
-		log_message(LOG_INFO, "    forwarding method = NAT");
+		conf_write(fp, "    forwarding method = NAT");
 		break;
 	case IP_VS_CONN_F_DROUTE:
-		log_message(LOG_INFO, "    forwarding method = DR");
+		conf_write(fp, "    forwarding method = DR");
 		break;
 	case IP_VS_CONN_F_TUNNEL:
-		log_message(LOG_INFO, "    forwarding method = TUN");
+		conf_write(fp, "    forwarding method = TUN");
 		break;
 	}
 
-	log_message(LOG_INFO, "   Alpha is %s", rs->alpha ? "ON" : "OFF");
-	log_message(LOG_INFO, "   Delay loop = %lu" , rs->delay_loop / TIMER_HZ);
+	conf_write(fp, "   Alpha is %s", rs->alpha ? "ON" : "OFF");
+	conf_write(fp, "   Delay loop = %lu" , rs->delay_loop / TIMER_HZ);
 	if (rs->retry != UINT_MAX)
-		log_message(LOG_INFO, "   Retry count = %u" , rs->retry);
+		conf_write(fp, "   Retry count = %u" , rs->retry);
 	if (rs->delay_before_retry != ULONG_MAX)
-		log_message(LOG_INFO, "   Retry delay = %lu" , rs->delay_before_retry / TIMER_HZ);
+		conf_write(fp, "   Retry delay = %lu" , rs->delay_before_retry / TIMER_HZ);
 	if (rs->warmup != ULONG_MAX)
-		log_message(LOG_INFO, "   Warmup = %lu", rs->warmup / TIMER_HZ);
-	log_message(LOG_INFO, "   Inhibit on failure is %s", rs->inhibit ? "ON" : "OFF");
+		conf_write(fp, "   Warmup = %lu", rs->warmup / TIMER_HZ);
+	conf_write(fp, "   Inhibit on failure is %s", rs->inhibit ? "ON" : "OFF");
 
 	if (rs->notify_up)
-		log_message(LOG_INFO, "     -> Notify script UP = %s, uid:gid %d:%d",
+		conf_write(fp, "     -> Notify script UP = %s, uid:gid %d:%d",
 		       rs->notify_up->cmd_str, rs->notify_up->uid, rs->notify_up->gid);
 	if (rs->notify_down)
-		log_message(LOG_INFO, "     -> Notify script DOWN = %s, uid:gid %d:%d",
+		conf_write(fp, "     -> Notify script DOWN = %s, uid:gid %d:%d",
 		       rs->notify_down->cmd_str, rs->notify_down->uid, rs->notify_down->gid);
 	if (rs->virtualhost)
-		log_message(LOG_INFO, "    VirtualHost = %s", rs->virtualhost);
-	log_message(LOG_INFO, "   Using smtp notification = %s", rs->smtp_alert ? "yes" : "no");
+		conf_write(fp, "    VirtualHost = %s", rs->virtualhost);
+	conf_write(fp, "   Using smtp notification = %s", rs->smtp_alert ? "yes" : "no");
 }
 
 void
@@ -511,15 +512,15 @@ alloc_rs(char *ip, char *port)
 #ifdef _WITH_BFD_
 /* Track bfd dump */
 static void
-dump_checker_bfd(void *track_data)
+dump_checker_bfd(FILE *fp, void *track_data)
 {
 	checker_tracked_bfd_t *cbfd = track_data;
 
-	log_message(LOG_INFO, " Checker Track BFD = %s", cbfd->bname);
-//	log_message(LOG_INFO, "   Weight = %d", cbfd->weight);
-	log_message(LOG_INFO, "   Tracking RS = %d", cbfd->tracking_rs ? LIST_SIZE(cbfd->tracking_rs) : 0);
+	conf_write(fp, " Checker Track BFD = %s", cbfd->bname);
+//	conf_write(fp, "   Weight = %d", cbfd->weight);
+	conf_write(fp, "   Tracking RS = %d", cbfd->tracking_rs ? LIST_SIZE(cbfd->tracking_rs) : 0);
 	if (cbfd->tracking_rs)
-		dump_list(cbfd->tracking_rs);
+		dump_list(fp, cbfd->tracking_rs);
 }
 
 static void
@@ -561,26 +562,26 @@ free_check_data(check_data_t *data)
 }
 
 void
-dump_check_data(check_data_t *data)
+dump_check_data(FILE *fp, check_data_t *data)
 {
 	if (data->ssl) {
-		log_message(LOG_INFO, "------< SSL definitions >------");
-		dump_ssl();
+		conf_write(fp, "------< SSL definitions >------");
+		dump_ssl(fp);
 	}
 	if (!LIST_ISEMPTY(data->vs)) {
-		log_message(LOG_INFO, "------< LVS Topology >------");
-		log_message(LOG_INFO, " System is compiled with LVS v%d.%d.%d",
+		conf_write(fp, "------< LVS Topology >------");
+		conf_write(fp, " System is compiled with LVS v%d.%d.%d",
 		       NVERSION(IP_VS_VERSION_CODE));
 		if (!LIST_ISEMPTY(data->vs_group))
-			dump_list(data->vs_group);
-		dump_list(data->vs);
+			dump_list(fp, data->vs_group);
+		dump_list(fp, data->vs);
 	}
-	dump_checkers_queue();
+	dump_checkers_queue(fp);
 
 #ifdef _WITH_BFD_
 	if (!LIST_ISEMPTY(data->track_bfds)) {
-		log_message(LOG_INFO, "------< Checker track BFDs >------");
-		dump_list(data->track_bfds);
+		conf_write(fp, "------< Checker track BFDs >------");
+		dump_list(fp, data->track_bfds);
 	}
 #endif
 }

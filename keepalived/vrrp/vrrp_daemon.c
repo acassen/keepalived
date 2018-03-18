@@ -227,14 +227,14 @@ stop_vrrp(int status)
 static void
 start_vrrp(void)
 {
+	/* Clear the flags used for optimising performance */
+	clear_summary_flags();
+
 	/* Initialize sub-system */
 	kernel_netlink_init();
-	if (!reload) {
-		gratuitous_arp_init();
-		ndisc_init();
-	}
 
-	global_data = alloc_global_data();
+	if (reload)
+		global_data = alloc_global_data();
 
 	/* Parse configuration file */
 	vrrp_data = alloc_vrrp_data();
@@ -251,7 +251,8 @@ start_vrrp(void)
 		return;
 	}
 
-	init_global_data(global_data);
+	if (reload)
+		init_global_data(global_data);
 
 	/* Set the process priority and non swappable if configured */
 	set_process_priorities(global_data->vrrp_realtime_priority, global_data->vrrp_rlimit_rt,
@@ -322,6 +323,16 @@ start_vrrp(void)
 		return;
 	}
 
+	/* Start or stop gratuitous arp/ndisc as appropriate */
+	if (have_ipv4_instance)
+		gratuitous_arp_init();
+	else
+		gratuitous_arp_close();
+	if (have_ipv6_instance)
+		ndisc_init();
+	else
+		ndisc_close();
+
 	/* We need to delay the init of iptables to after vrrp_complete_init()
 	 * has been called so we know whether we want IPv4 and/or IPv6 */
 	iptables_init();
@@ -368,18 +379,8 @@ start_vrrp(void)
 #endif
 
 	/* Dump configuration */
-	if (__test_bit(DUMP_CONF_BIT, &debug)) {
-		list ifl;
-
-		dump_global_data(global_data);
-		dump_list(garp_delay);
-		dump_vrrp_data(vrrp_data);
-		ifl = get_if_list();
-		if (!LIST_ISEMPTY(ifl))
-			dump_list(ifl);
-
-		clear_rt_names();
-	}
+	if (__test_bit(DUMP_CONF_BIT, &debug))
+		dump_data_vrrp(NULL);
 
 	/* Init & start the VRRP packet dispatcher */
 	thread_add_event(master, vrrp_dispatcher_init, NULL,
@@ -514,9 +515,6 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 	/* Remove the notify fifo - we don't know if it will be the same after a reload */
 	notify_fifo_close(&global_data->notify_fifo, &global_data->vrrp_notify_fifo);
 
-	free_global_data(global_data);
-	free_vrrp_buffer();
-
 #ifdef _WITH_LVS_
 	if (vrrp_ipvs_needed()) {
 		/* Clean ipvs related */
@@ -527,6 +525,8 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 	/* Save previous conf data */
 	old_vrrp_data = vrrp_data;
 	vrrp_data = NULL;
+	old_global_data = global_data;
+	global_data = NULL;
 	reset_interface_queue();
 
 	/* Reload the conf */
@@ -542,6 +542,8 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 
 	/* free backup data */
 	free_vrrp_data(old_vrrp_data);
+	free_global_data(old_global_data);
+
 	free_old_interface_queue();
 
 	UNSET_RELOAD;
@@ -647,9 +649,9 @@ start_vrrp_child(void)
 #endif
 
 	/* Opening local VRRP syslog channel */
-	if ((instance_name
+	if ((global_data->instance_name
 #if HAVE_DECL_CLONE_NEWNET
-			   || network_namespace
+			   || global_data->network_namespace
 #endif
 					       ) &&
 	    (vrrp_syslog_ident = make_syslog_ident(PROG_VRRP)))
@@ -662,7 +664,14 @@ start_vrrp_child(void)
 				    , (log_facility==LOG_DAEMON) ? LOG_LOCAL1 : log_facility);
 
 	if (log_file_name)
-		open_log_file(log_file_name, "vrrp", network_namespace, instance_name);
+		open_log_file(log_file_name,
+				"vrrp",
+#if HAVE_DECL_CLONE_NEWNET
+				global_data->network_namespace,
+#else
+				NULL,
+#endif
+				global_data->instance_name);
 
 	signal_handler_destroy();
 

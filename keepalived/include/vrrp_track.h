@@ -25,6 +25,7 @@
 
 /* global includes */
 #include <stdbool.h>
+#include <stdio.h>
 #include <sys/types.h>
 
 /* local includes */
@@ -122,21 +123,21 @@ typedef struct _tracking_vrrp {
 } tracking_vrrp_t;
 
 /* prototypes */
-extern void dump_track_if(void *);
+extern void dump_track_if(FILE *, void *);
 extern void free_track_if(void *);
 extern void alloc_track_if(struct _vrrp_t *, vector_t *);
 extern void alloc_group_track_if(struct _vrrp_sgroup *, vector_t *);
-extern void dump_track_script(void *);
+extern void dump_track_script(FILE *, void *);
 extern void free_track_script(void *);
 extern void alloc_track_script(struct _vrrp_t *, vector_t *);
 extern void alloc_group_track_script(struct _vrrp_sgroup *, vector_t *);
-extern void dump_track_file(void *);
+extern void dump_track_file(FILE *, void *);
 extern void free_track_file(void *);
 extern void alloc_track_file(struct _vrrp_t *, vector_t *);
 extern void alloc_group_track_file(struct _vrrp_sgroup *, vector_t *);
 #ifdef _WITH_BFD_
 extern vrrp_tracked_bfd_t *find_vrrp_tracked_bfd_by_name(const char *);
-extern void dump_vrrp_tracked_bfd(void *);
+extern void dump_vrrp_tracked_bfd(FILE *, void *);
 extern void free_vrrp_tracked_bfd(void *);
 extern void alloc_track_bfd(struct _vrrp_t *, vector_t *);
 extern void alloc_group_track_bfd(struct _vrrp_sgroup *, vector_t *);

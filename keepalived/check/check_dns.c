@@ -27,6 +27,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "check_dns.h"
 #include "check_api.h"
@@ -399,15 +400,15 @@ dns_free(void *data)
 }
 
 static void
-dns_dump(void *data)
+dns_dump(FILE *fp, void *data)
 {
 	checker_t *checker = data;
 	dns_check_t *dns_check = checker->data;
 
-	log_message(LOG_INFO, "   Keepalive method = DNS_CHECK");
-	dump_checker_opts(checker);
-	log_message(LOG_INFO, "   Type = %s", dns_type_name(dns_check->type));
-	log_message(LOG_INFO, "   Name = %s", dns_check->name);
+	conf_write(fp, "   Keepalive method = DNS_CHECK");
+	dump_checker_opts(fp, checker);
+	conf_write(fp, "   Type = %s", dns_type_name(dns_check->type));
+	conf_write(fp, "   Name = %s", dns_check->name);
 }
 
 static bool

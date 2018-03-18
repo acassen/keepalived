@@ -72,6 +72,8 @@ stop_bfd(int status)
 	free_bfd_data(bfd_data);
 	free_bfd_buffer();
 	thread_destroy_master(master);
+	free_parent_mallocs_exit();
+
 
 	/*
 	 * Reached when terminate signal catched.
@@ -123,7 +125,8 @@ start_bfd(void)
 {
 	srand(time(NULL));
 
-	global_data = alloc_global_data();
+	if (reload)
+		global_data = alloc_global_data();
 	if (!(bfd_data = alloc_bfd_data())) {
 		stop_bfd(KEEPALIVED_EXIT_FATAL);
 		return;
@@ -132,6 +135,12 @@ start_bfd(void)
 	alloc_bfd_buffer();
 
 	init_data(conf_file, bfd_init_keywords);
+	/* At the moment bfd doesn't need global data initialising, but
+	 * leave the call here but commented out so we know where we want it
+	 * it if is needed.
+	if (reload)
+		init_global_data();
+	*/
 
 	/* Set the process priority and non swappable if configured */
 // TODO - measure max stack usage
@@ -141,7 +150,7 @@ start_bfd(void)
 	bfd_complete_init();
 
 	if (__test_bit(DUMP_CONF_BIT, &debug))
-		dump_bfd_data(bfd_data);
+		dump_bfd_data(NULL, bfd_data);
 
 	thread_add_event(master, bfd_dispatcher_init, bfd_data, 0);
 }
@@ -167,7 +176,7 @@ sigend_bfd(__attribute__ ((unused)) void *v,
 static void
 bfd_signal_init(void)
 {
-	signal_handler_init();
+	signal_handler_child_init();
 	signal_set(SIGHUP, sighup_bfd, NULL);
 	signal_set(SIGINT, sigend_bfd, NULL);
 	signal_set(SIGTERM, sigend_bfd, NULL);
@@ -193,21 +202,23 @@ reload_bfd_thread(__attribute__((unused)) thread_t * thread)
 	bfd_dispatcher_release(bfd_data);
 	thread_destroy_master(master);
 	master = thread_make_master();
-	free_global_data(global_data);
-	free_bfd_buffer();
 
 	old_bfd_data = bfd_data;
 	bfd_data = NULL;
+	old_global_data = global_data;
+	global_data = NULL;
 
 	/* Reload the conf */
 	signal_set(SIGCHLD, thread_child_handler, master);
 	start_bfd();
 
 	free_bfd_data(old_bfd_data);
+	free_global_data(old_global_data);
+
 	UNSET_RELOAD;
 
-	log_message(LOG_INFO, "Reload finished in %li usec",
-		    timer_tol(timer_sub_now(timer)));
+	set_time_now();
+	log_message(LOG_INFO, "Reload finished in %li usec", -timer_tol(timer_sub_now(timer)));
 
 	return 0;
 }
@@ -286,9 +297,9 @@ start_bfd_child(void)
 	close(bfd_checker_event_pipe[0]);
 #endif
 
-	if ((instance_name
+	if ((global_data->instance_name
 #if HAVE_DECL_CLONE_NEWNET
-			   || network_namespace
+			   || global_data->network_namespace
 #endif
 					       ) &&
 	     (bfd_syslog_ident = make_syslog_ident(PROG_BFD)))
@@ -302,7 +313,14 @@ start_bfd_child(void)
 				    , (log_facility==LOG_DAEMON) ? LOG_LOCAL2 : log_facility);
 
 	if (log_file_name)
-		open_log_file(log_file_name, "bfd", network_namespace, instance_name);
+		open_log_file(log_file_name,
+				"bfd",
+#if HAVE_DECL_CLONE_NEWNET
+				global_data->network_namespace,
+#else
+				NULL,
+#endif
+				global_data->instance_name);
 
 	signal_handler_destroy();
 

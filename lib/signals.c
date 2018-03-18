@@ -262,10 +262,11 @@ signal_set(int signo, void (*func) (void *, int), void *v)
 		sigaddset(&sset, signo);
 		sigmask_func(SIG_BLOCK, &sset, NULL);
 
-		/* If we are the parent, remember what signals
-		 * we set, so vrrp and checker children can clear them */
+		/* Remember what signals we set, so any child processes can clear them */
 		sigaddset(&parent_sig, signo);
 	}
+	else
+		sigdelset(&parent_sig, signo);
 
 	ret = sigaction(signo, &sig, &osig);
 #endif
@@ -288,6 +289,7 @@ void
 signal_ignore(int signo)
 {
 	signal_set(signo, (void *)SIG_IGN, NULL);
+	sigdelset(&parent_sig, signo);
 }
 
 /* Handlers callback  */
@@ -422,6 +424,8 @@ signal_handler_child_init(void)
 		if (sigismember(&parent_sig, sig))
 			sigaction(sig, &act, NULL);
 	}
+
+	sigemptyset(&parent_sig);
 
 	open_signal_fd();
 

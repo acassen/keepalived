@@ -81,40 +81,40 @@ free_bfd(void *data)
 
 /* Dump BFD instance configuration parameters */
 static void
-dump_bfd(void *data)
+dump_bfd(FILE *fp, void *data)
 {
 	bfd_t *bfd;
 
 	assert(data);
 	bfd = (bfd_t *)data;
 
-	log_message(LOG_INFO, " BFD Instance = %s", bfd->iname);
-	log_message(LOG_INFO, "   Neighbor IP = %s",
+	conf_write(fp, " BFD Instance = %s", bfd->iname);
+	conf_write(fp, "   Neighbor IP = %s",
 		    inet_sockaddrtos(&bfd->nbr_addr));
 
 	if (bfd->src_addr.ss_family != AF_UNSPEC)
-		log_message(LOG_INFO, "   Source IP = %s",
+		conf_write(fp, "   Source IP = %s",
 			    inet_sockaddrtos(&bfd->src_addr));
 
-	log_message(LOG_INFO, "   Required min RX interval = %i ms",
+	conf_write(fp, "   Required min RX interval = %i ms",
 		    bfd->local_min_rx_intv / TIMER_HZ);
-	log_message(LOG_INFO, "   Desired min TX interval = %i ms",
+	conf_write(fp, "   Desired min TX interval = %i ms",
 		    bfd->local_min_tx_intv / TIMER_HZ);
-	log_message(LOG_INFO, "   Desired idle TX interval = %i ms",
+	conf_write(fp, "   Desired idle TX interval = %i ms",
 		    bfd->local_idle_tx_intv / TIMER_HZ);
-	log_message(LOG_INFO, "   Detection multiplier = %i",
+	conf_write(fp, "   Detection multiplier = %i",
 		    bfd->local_detect_mult);
-	log_message(LOG_INFO, "   %s = %d",
+	conf_write(fp, "   %s = %d",
 		    bfd->nbr_addr.ss_family == AF_INET ? "TTL" : "hoplimit",
 		    bfd->ttl);
-	log_message(LOG_INFO, "   max_hops = %d",
+	conf_write(fp, "   max_hops = %d",
 		    bfd->max_hops);
 #ifdef _WITH_VRRP_
-	log_message(LOG_INFO, "   send event to VRRP process = %s",
+	conf_write(fp, "   send event to VRRP process = %s",
 		    bfd->vrrp ? "Yes" : "No");
 #endif
 #ifdef _WITH_LVS_
-	log_message(LOG_INFO, "   send event to checker process = %s",
+	conf_write(fp, "   send event to checker process = %s",
 		    bfd->checker ? "Yes" : "No");
 #endif
 }
@@ -184,13 +184,13 @@ free_bfd_data(bfd_data_t * data)
 }
 
 void
-dump_bfd_data(bfd_data_t * data)
+dump_bfd_data(FILE *fp, bfd_data_t * data)
 {
 	assert(data);
 
 	if (!LIST_ISEMPTY(data->bfd)) {
-		log_message(LOG_INFO, "------< BFD Topology >------");
-		dump_list(data->bfd);
+		conf_write(fp, "------< BFD Topology >------");
+		dump_list(fp, data->bfd);
 	}
 }
 
@@ -227,13 +227,15 @@ bfd_complete_init(void)
 void
 alloc_bfd_buffer(void)
 {
-	bfd_buffer = (char *) MALLOC(BFD_BUFFER_SIZE);
+	if (!bfd_buffer)
+		bfd_buffer = (char *) MALLOC(BFD_BUFFER_SIZE);
 }
 
 void
 free_bfd_buffer(void)
 {
 	FREE(bfd_buffer);
+	bfd_buffer = NULL;
 }
 
 /*

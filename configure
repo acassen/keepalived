@@ -838,7 +838,6 @@ enable_mem_check
 enable_mem_check_log
 enable_debug
 enable_netlink_timers
-enable_netlink_enobufs
 enable_smtp_alert_debug
 enable_stacktrace
 enable_dump_threads
@@ -1526,8 +1525,6 @@ Optional Features:
   --enable-mem-check-log  compile with memory alloc checking writing to syslog
   --enable-debug          compile with debugging flags
   --enable-netlink-timers compile with netlink command timers
-  --enable-netlink-enobufs
-                          compile with netlink ENOBUFS errors reported
   --enable-smtp-alert-debug
                           compile with smtp-alert debugging
   --enable-stacktrace     compile with stacktrace support
@@ -3611,11 +3608,6 @@ fi
 # Check whether --enable-netlink-timers was given.
 if test "${enable_netlink_timers+set}" = set; then :
   enableval=$enable_netlink_timers;
-fi
-
-# Check whether --enable-netlink-enobufs was given.
-if test "${enable_netlink_enobufs+set}" = set; then :
-  enableval=$enable_netlink_enobufs;
 fi
 
 # Check whether --enable-smtp-alert-debug was given.
@@ -10763,34 +10755,6 @@ else
 fi
 
 
-ac_fn_c_check_decl "$LINENO" "NETLINK_NO_ENOBUFS" "ac_cv_have_decl_NETLINK_NO_ENOBUFS" "#include <linux/netlink.h>
-"
-if test "x$ac_cv_have_decl_NETLINK_NO_ENOBUFS" = xyes; then :
-  ac_have_decl=1
-else
-  ac_have_decl=0
-fi
-
-cat >>confdefs.h <<_ACEOF
-#define HAVE_DECL_NETLINK_NO_ENOBUFS $ac_have_decl
-_ACEOF
-
-
-if test "${enable_netlink_enobufs}" = yes -o \
-	"${ac_cv_have_decl_NETLINK_NO_ENOBUFS}" = no; then
-
-$as_echo "#define _NETLINK_RCV_ENOBUFS_  1 " >>confdefs.h
-
-  ENABLE_NETLINK_ENOBUFS=Yes
-  if test "${ac_cv_have_decl_NETLINK_NO_ENOBUFS}" = no; then
-    SYSTEM_OPTIONS="$SYSTEM_OPTIONS NETLINK_ENOBUFS"
-  else
-    CONFIG_OPTIONS="$CONFIG_OPTIONS NETLINK_ENOBUFS"
-  fi
-else
-  ENABLE_NETLINK_ENOBUFS=No
-fi
-
 if test "${enable_netlink_timers}" = yes; then
 
 $as_echo "#define _NETLINK_TIMERS_  1 " >>confdefs.h
@@ -12622,9 +12586,6 @@ echo "Use libipset             : ${USE_LIBIPSET}"
 echo "init type                : ${INIT_TYPE}"
 echo "Build genhash            : ${BUILD_GENHASH}"
 echo "Build documentation      : ${HAVE_SPHINX_BUILD}"
-if test ${ENABLE_NETLINK_ENOBUFS} = Yes; then
-  echo "Netlink ENOBUFS          : ${ENABLE_NETLINK_ENOBUFS}"
-fi
 if test ${ENABLE_STACKTRACE} = Yes; then
   echo "Stacktrace support       : ${ENABLE_STACKTRACE}"
 fi

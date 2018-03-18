@@ -27,6 +27,7 @@
 
 /* global includes */
 #include <stdbool.h>
+#include <stdio.h>
 
 /* local includes */
 #include "list.h"
@@ -38,7 +39,7 @@
 /* Checkers structure definition */
 typedef struct _checker {
 	void				(*free_func) (void *);
-	void				(*dump_func) (void *);
+	void				(*dump_func) (FILE *, void *);
 	int				(*launch) (struct _thread *);
 	bool				(*compare) (void *, void *);
 	virtual_server_t		*vs;			/* pointer to the checker thread virtualserver */
@@ -67,8 +68,8 @@ extern list checkers_queue;
 #define CHECKER_GET_CURRENT() (LIST_TAIL_DATA(checkers_queue))
 #define CHECKER_GET() (CHECKER_DATA(CHECKER_GET_CURRENT()))
 #define CHECKER_GET_CO() (((checker_t *)CHECKER_GET_CURRENT())->co)
-#define CHECKER_VALUE_INT(X) (atoi(vector_slot(X,1)))
-#define CHECKER_VALUE_UINT(X) ((unsigned)strtoul(vector_slot(X,1), NULL, 10))
+#define CHECKER_VALUE_INT(X) (atoi(strvec_slot(X,1)))
+#define CHECKER_VALUE_UINT(X) ((unsigned)strtoul(strvec_slot(X,1), NULL, 10))
 #define CHECKER_VALUE_STRING(X) (set_value(X))
 #define CHECKER_HA_SUSPEND(C) ((C)->vs->ha_suspend)
 #define CHECKER_NEW_CO() ((conn_opts_t *) MALLOC(sizeof (conn_opts_t)))
@@ -77,9 +78,9 @@ extern list checkers_queue;
 /* Prototypes definition */
 extern void init_checkers_queue(void);
 extern void free_vs_checkers(virtual_server_t *);
-extern void dump_connection_opts(void *);
-extern void dump_checker_opts(void *);
-extern checker_t *queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
+extern void dump_connection_opts(FILE *, void *);
+extern void dump_checker_opts(FILE *, void *);
+extern checker_t *queue_checker(void (*free_func) (void *), void (*dump_func) (FILE *, void *)
 			  , int (*launch) (thread_t *)
 			  , bool (*compare) (void *, void *)
 			  , void *
@@ -87,7 +88,7 @@ extern checker_t *queue_checker(void (*free_func) (void *), void (*dump_func) (v
 extern void dequeue_new_checker(void);
 extern bool check_conn_opts(conn_opts_t *);
 extern bool compare_conn_opts(conn_opts_t *, conn_opts_t *);
-extern void dump_checkers_queue(void);
+extern void dump_checkers_queue(FILE *);
 extern void free_checkers_queue(void);
 extern void register_checkers_thread(void);
 extern void install_checkers_keyword(void);

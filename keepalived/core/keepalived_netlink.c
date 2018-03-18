@@ -67,6 +67,7 @@
 #include "old_socket.h"
 #endif
 #include "vrrp_ipaddress.h"
+#include "global_data.h"
 
 /* This seems a nasty hack, but it's what iproute2 does */
 #ifndef SOL_NETLINK
@@ -74,9 +75,7 @@
 #endif
 
 /* Default values */
-#ifdef _NETLINK_RCV_ENOBUFS_
-#define IF_DEFAULT_BUFSIZE	(65*1024)
-#endif
+#define IF_DEFAULT_BUFSIZE	(64*1024)
 
 /* Global vars */
 nl_handle_t nl_cmd = { .fd = -1 };	/* Command channel */
@@ -193,18 +192,15 @@ netlink_set_recv_buf_size(void)
 
 /* Create a socket to netlink interface_t */
 static int
-netlink_socket(nl_handle_t *nl, int flags, int group, ...)
+netlink_socket(nl_handle_t *nl, unsigned rcvbuf_size, bool force, int flags, int group, ...)
 {
 	int ret;
 	va_list gp;
-#if !defined _HAVE_LIBNL3_ || defined _LIBNL_DYNAMIC_
-	int rcvbuf_size;
-#endif
-#ifndef _NETLINK_RCV_ENOBUFS_
-	int one = 1;
-#endif
 
 	memset(nl, 0, sizeof (*nl));
+
+	if (!rcvbuf_size)
+		rcvbuf_size = IF_DEFAULT_BUFSIZE;
 
 #ifdef _HAVE_LIBNL3_
 #ifdef _LIBNL_DYNAMIC_
@@ -250,14 +246,17 @@ netlink_socket(nl_handle_t *nl, int flags, int group, ...)
 			}
 		}
 
-#ifdef _NETLINK_RCV_ENOBUFS_
-		if ((ret = nl_socket_set_buffer_size(nl->sk, IF_DEFAULT_BUFSIZE, 0)))
-			log_message(LOG_INFO, "Netlink: Cannot set netlink buffer size : (%d)", ret);
-#endif
-
 		nl->nl_pid = nl_socket_get_local_port(nl->sk);
 
 		nl->fd = nl_socket_get_fd(nl->sk);
+
+		if (force) {
+			if ((ret = setsockopt(nl->fd, SOL_SOCKET, SO_RCVBUFFORCE, &rcvbuf_size, sizeof(rcvbuf_size))) < 0)
+				log_message(LOG_INFO, "cant set SO_RCVBUFFORCE IP option. errno=%d (%m)", errno);
+		} else {
+			if ((ret = nl_socket_set_buffer_size(nl->sk, rcvbuf_size, 0)))
+				log_message(LOG_INFO, "Netlink: Cannot set netlink buffer size : (%d)", ret);
+		}
 
 		/* Set CLOEXEC */
 		fcntl(nl->fd, F_SETFD, fcntl(nl->fd, F_GETFD) | FD_CLOEXEC);
@@ -338,16 +337,13 @@ netlink_socket(nl_handle_t *nl, int flags, int group, ...)
 		/* Save the port id for checking message source later */
 		nl->nl_pid = snl.nl_pid;
 
-#ifdef _NETLINK_RCV_ENOBUFS_
 		/* Set default rcvbuf size */
-		rcvbuf_size = IF_DEFAULT_BUFSIZE;
-		if ((ret = setsockopt(nl->fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf_size, sizeof(rcvbuf_size)) < 0)
-			log_message(LOG_INFO, "cant set SO_RCVBUF IP option. errno=%d (%m)", errno);
-#endif
+		if ((ret = setsockopt(nl->fd, SOL_SOCKET, force ? SO_RCVBUFFORCE : SO_RCVBUF, &rcvbuf_size, sizeof(rcvbuf_size))) < 0)
+			log_message(LOG_INFO, "Cannot set SO_RCVBUF%s IP option. errno=%d (%m)", force ? "FORCE" : "", errno);
 	}
 #endif
 
-#ifndef _NETLINK_RCV_ENOBUFS_
+#ifdef _UNUSED_CODE_
 	/* There appears to be a kernel bug that manifests itself when we have a large number
 	 * of VMAC interfaces to add (i.e. 200 or more). After approx 200 interfaces have been
 	 * added the kernel will return ENOBUFS on the nl_kernel socket, and then repeat the
@@ -355,6 +351,9 @@ netlink_socket(nl_handle_t *nl, int flags, int group, ...)
 	 * creating all the interfaces, i.e. after a slight delay with no new messages,
 	 * we get another ENOBUFS and all the RTM_NEWLINK messages from the time of the
 	 * first ENOBUFS message repeated.
+	 *
+	 * This problem also happens if the system already has a large (e.g. 200 or more)
+	 * number of interfaces configured before keepalived starts.
 	 *
 	 * This problem feels as though a circular buffer is wrapping around, and causes
 	 * all the old messages in the buffer to be resent, but the first one is omitted.
@@ -365,12 +364,16 @@ netlink_socket(nl_handle_t *nl, int flags, int group, ...)
 	 * the NLM_F_ACK flag when a command is sent on the nl_cmd socket.
 	 *
 	 * It appears that this must be a kernel bug, since when it happens on interface creation,
-	 * if we are also running `ip monitor link addr route`, i.e. the same as the nl_kernel
-	 * socket, then precisely the same messages are repeated (provided we have set the buffer
-	 * IF_DEFAULT_BUFSIZE (the rcvbuf size) to be 1024 * 1024 to match what ip monitor does).
+	 * if we are also running `ip -ts monitor link addr route`, i.e. the same as the nl_kernel
+	 * socket, then precisely the same messages are repeated (provided we have set the
+	 * vrrp_netlink_cmd_rcv_bufs global configuration option to 1048576 (1024k) to match what
+	 * ip monitor does).
+	 *
+	 * NETLINK_NO_ENOBUFS was introduced in Linux 2.6.30
 	 */
+	int one = 1;
 	if ((ret = setsockopt(nl->fd, SOL_NETLINK, NETLINK_NO_ENOBUFS, &one, sizeof(one))) < 0)
-		log_message(LOG_INFO, "cant set NETLINK_NO_ENOBUFS option. errno=%d (%m)", errno);
+		log_message(LOG_INFO, "Cannot set NETLINK_NO_ENOBUFS option. errno=%d (%m)", errno);
 #endif
 
 	nl->seq = (uint32_t)time(NULL);
@@ -933,10 +936,12 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 				continue;
 			if (errno == EWOULDBLOCK || errno == EAGAIN)
 				break;
-			if (errno == ENOBUFS)
-				log_message(LOG_INFO, "Netlink: Receive buffer overrun on %s socket - (%m) - usually a kernel bug", nl == &nl_kernel ? "kernel" : "cmd");
+			if (errno == ENOBUFS) {
+				log_message(LOG_INFO, "Netlink: Receive buffer overrun on %s socket - (%m)", nl == &nl_kernel ? "monitor" : "cmd");
+				log_message(LOG_INFO, "  - increase the relevant netlink_rcv_bufs global parameter and/or set force");
+			}
 			else
-				log_message(LOG_INFO, "Netlink: recvmsg error on %s socket  - %d (%m)", nl == &nl_kernel ? "kernel" : "cmd", errno);
+				log_message(LOG_INFO, "Netlink: recvmsg error on %s socket  - %d (%m)", nl == &nl_kernel ? "monitor" : "cmd", errno);
 			continue;
 		}
 
@@ -1660,18 +1665,22 @@ kernel_netlink_init(void)
 
 #ifdef _DEBUG_
 #ifdef _WITH_VRRP_
-	netlink_socket(&nl_kernel, SOCK_NONBLOCK, RTNLGRP_LINK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, 0);
+	netlink_socket(&nl_kernel, global_data->vrrp_netlink_monitor_rcv_bufs, global_data->vrrp_netlink_monitor_rcv_bufs_force,
+			SOCK_NONBLOCK, RTNLGRP_LINK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, 0);
 #else
-	netlink_socket(&nl_kernel, SOCK_NONBLOCK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, 0);
+	netlink_socket(&nl_kernel, global_data->lvs_netlink_monitor_rcv_bufs, global_data->lvs_netlink_monitor_rcv_bufs_force,
+			SOCK_NONBLOCK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, 0);
 #endif
 #else
 #ifdef _WITH_VRRP_
 	if (prog_type == PROG_TYPE_VRRP)
-		netlink_socket(&nl_kernel, SOCK_NONBLOCK, RTNLGRP_LINK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, RTNLGRP_IPV4_ROUTE, RTNLGRP_IPV6_ROUTE, 0);
+		netlink_socket(&nl_kernel, global_data->vrrp_netlink_monitor_rcv_bufs, global_data->vrrp_netlink_monitor_rcv_bufs_force,
+				SOCK_NONBLOCK, RTNLGRP_LINK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, RTNLGRP_IPV4_ROUTE, RTNLGRP_IPV6_ROUTE, 0);
 #endif
 #ifdef _WITH_LVS_
 	if (prog_type == PROG_TYPE_CHECKER)
-		netlink_socket(&nl_kernel, SOCK_NONBLOCK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, 0);
+		netlink_socket(&nl_kernel, global_data->lvs_netlink_monitor_rcv_bufs, global_data->lvs_netlink_monitor_rcv_bufs_force,
+				SOCK_NONBLOCK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, 0);
 #endif
 #endif
 
@@ -1683,7 +1692,22 @@ kernel_netlink_init(void)
 		log_message(LOG_INFO, "Error while registering Kernel netlink reflector channel");
 
 	/* Prepare netlink command channel. The cmd socket is used synchronously.*/
-	netlink_socket(&nl_cmd, 0, 0);
+#ifdef _DEBUG_
+#ifdef _WITH_VRRP_
+	netlink_socket(&nl_cmd, global_data->vrrp_netlink_cmd_rcv_bufs, global_data->vrrp_netlink_cmd_rcv_bufs_force, 0, 0);
+#else
+	netlink_socket(&nl_cmd, global_data->lvs_netlink_cmd_rcv_bufs, global_data->lvs_netlink_cmd_rcv_bufs_force, 0, 0);
+#endif
+#else
+#ifdef _WITH_VRRP_
+	if (prog_type == PROG_TYPE_VRRP)
+		netlink_socket(&nl_cmd, global_data->vrrp_netlink_cmd_rcv_bufs, global_data->vrrp_netlink_cmd_rcv_bufs_force, 0, 0);
+#endif
+#ifdef _WITH_LVS_
+	if (prog_type == PROG_TYPE_CHECKER)
+		netlink_socket(&nl_cmd, global_data->lvs_netlink_cmd_rcv_bufs, global_data->lvs_netlink_cmd_rcv_bufs_force, 0, 0);
+#endif
+#endif
 	if (nl_cmd.fd > 0)
 		log_message(LOG_INFO, "Registering Kernel netlink command channel");
 	else

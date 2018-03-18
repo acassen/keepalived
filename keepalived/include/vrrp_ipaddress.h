@@ -29,6 +29,7 @@
 #include <netinet/in.h>
 #include <linux/if_addr.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 /* local includes */
 #include "vrrp_if.h"
@@ -73,7 +74,9 @@ typedef struct _ip_address {
 
 #define IPcommon_ISEQ(X,Y) \
 			((X)->ifa.ifa_prefixlen     == (Y)->ifa.ifa_prefixlen		&& \
-			 (X)->ifp->ifindex	    == (Y)->ifp->ifindex		&& \
+			 !(X)->ifp                  == !(Y)->ifp                        && \
+			 (!(X)->ifp                                                     || \
+			  (X)->ifp->ifindex	    == (Y)->ifp->ifindex)		&& \
 			 (X)->ifa.ifa_scope	    == (Y)->ifa.ifa_scope		&& \
 			 string_equal((X)->label, (Y)->label))
 
@@ -97,7 +100,7 @@ extern int netlink_ipaddress(ip_address_t *, int);
 extern bool netlink_iplist(list, int, bool);
 extern void handle_iptable_rule_to_iplist(struct ipt_handle *, list, int, bool force);
 extern void free_ipaddress(void *);
-extern void dump_ipaddress(void *);
+extern void dump_ipaddress(FILE *, void *);
 extern ip_address_t *parse_ipaddress(ip_address_t *, char *, int);
 extern void alloc_ipaddress(list, vector_t *, interface_t *);
 extern void clear_diff_address(struct ipt_handle *, list, list);

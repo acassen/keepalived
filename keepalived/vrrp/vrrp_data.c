@@ -27,6 +27,7 @@
 #include "utils.h"
 #include "logger.h"
 #include "bitops.h"
+#include "rttables.h"
 
 #include "global_data.h"
 #include "vrrp_data.h"
@@ -34,7 +35,6 @@
 #ifdef _HAVE_VRRP_VMAC_
 #include "vrrp_vmac.h"
 #endif
-#include "vrrp_print.h"
 #include "vrrp_ipaddress.h"
 #ifdef _HAVE_FIB_ROUTING_
 #include "vrrp_iprule.h"
@@ -52,6 +52,17 @@ vrrp_data_t *vrrp_data = NULL;
 vrrp_data_t *old_vrrp_data = NULL;
 char *vrrp_buffer;
 size_t vrrp_buffer_len;
+
+static char *
+get_state_str(int state)
+{
+	if (state == VRRP_STATE_INIT) return "INIT";
+	if (state == VRRP_STATE_BACK) return "BACKUP";
+	if (state == VRRP_STATE_MAST) return "MASTER";
+	if (state == VRRP_STATE_FAULT) return "FAULT";
+	if (state == VRRP_DISPATCHER) return "DISPATCHER";
+	return "unknown";
+}
 
 /* Static addresses facility function */
 void
@@ -103,58 +114,58 @@ free_vgroup(void *data)
 }
 
 static void
-dump_notify_script(notify_script_t *script, char *type)
+dump_notify_script(FILE *fp, notify_script_t *script, char *type)
 {
 	if (!script)
 		return;
 
-	log_message(LOG_INFO, "   %s state transition script = %s, uid:gid %d:%d", type,
+	conf_write(fp, "   %s state transition script = %s, uid:gid %d:%d", type,
 	       script->cmd_str, script->uid, script->gid);
 }
 
 static void
-dump_vgroup(void *data)
+dump_vgroup(FILE *fp, void *data)
 {
 	vrrp_sgroup_t *vgroup = data;
 	element e;
 
-	log_message(LOG_INFO, " VRRP Sync Group = %s, %s", vgroup->gname, get_state_str(vgroup->state));
+	conf_write(fp, " VRRP Sync Group = %s, %s", vgroup->gname, get_state_str(vgroup->state));
 	if (vgroup->vrrp_instances) {
-		log_message(LOG_INFO, "   VRRP member instances = %d\n", LIST_SIZE(vgroup->vrrp_instances));
+		conf_write(fp, "   VRRP member instances = %d", LIST_SIZE(vgroup->vrrp_instances));
 		for (e = LIST_HEAD(vgroup->vrrp_instances); e; ELEMENT_NEXT(e)) {
 			vrrp_t *vrrp = ELEMENT_DATA(e);
-			log_message(LOG_INFO, "     %s", vrrp->iname);
+			conf_write(fp, "     %s", vrrp->iname);
 		}
 	}
 	if (vgroup->sgroup_tracking_weight)
-		log_message(LOG_INFO, "   sync group tracking weight set");
-	log_message(LOG_INFO, "   Using smtp notification = %s", vgroup->smtp_alert ? "yes" : "no");
+		conf_write(fp, "   sync group tracking weight set");
+	conf_write(fp, "   Using smtp notification = %s", vgroup->smtp_alert ? "yes" : "no");
 	if (!LIST_ISEMPTY(vgroup->track_ifp)) {
-		log_message(LOG_INFO, "   Tracked interfaces = %d", LIST_SIZE(vgroup->track_ifp));
-		dump_list(vgroup->track_ifp);
+		conf_write(fp, "   Tracked interfaces = %d", LIST_SIZE(vgroup->track_ifp));
+		dump_list(fp, vgroup->track_ifp);
 	}
 	if (!LIST_ISEMPTY(vgroup->track_script)) {
-		log_message(LOG_INFO, "   Tracked scripts = %d", LIST_SIZE(vgroup->track_script));
-		dump_list(vgroup->track_script);
+		conf_write(fp, "   Tracked scripts = %d", LIST_SIZE(vgroup->track_script));
+		dump_list(fp, vgroup->track_script);
 	}
 	if (!LIST_ISEMPTY(vgroup->track_file)) {
-		log_message(LOG_INFO, "   Tracked files = %d", LIST_SIZE(vgroup->track_file));
-		dump_list(vgroup->track_file);
+		conf_write(fp, "   Tracked files = %d", LIST_SIZE(vgroup->track_file));
+		dump_list(fp, vgroup->track_file);
 	}
-	dump_notify_script(vgroup->script_backup, "Backup");
-	dump_notify_script(vgroup->script_master, "Master");
-	dump_notify_script(vgroup->script_fault, "Fault");
-	dump_notify_script(vgroup->script_stop, "Stop");
-	dump_notify_script(vgroup->script, "Generic");
+	dump_notify_script(fp, vgroup->script_backup, "Backup");
+	dump_notify_script(fp, vgroup->script_master, "Master");
+	dump_notify_script(fp, vgroup->script_fault, "Fault");
+	dump_notify_script(fp, vgroup->script_stop, "Stop");
+	dump_notify_script(fp, vgroup->script, "Generic");
 }
 
 void
-dump_tracking_vrrp(void *data)
+dump_tracking_vrrp(FILE *fp, void *data)
 {
 	tracking_vrrp_t *tvp = (tracking_vrrp_t *)data;
 	vrrp_t *vrrp = tvp->vrrp;
 
-	log_message(LOG_INFO, "     %s, weight %d", vrrp->iname, tvp->weight);
+	conf_write(fp, "     %s, weight %d", vrrp->iname, tvp->weight);
 }
 
 static void
@@ -169,19 +180,19 @@ free_vscript(void *data)
 	FREE(vscript);
 }
 static void
-dump_vscript(void *data)
+dump_vscript(FILE *fp, void *data)
 {
 	vrrp_script_t *vscript = data;
 	const char *str;
 
-	log_message(LOG_INFO, " VRRP Script = %s", vscript->sname);
-	log_message(LOG_INFO, "   Command = %s", vscript->script.cmd_str);
-	log_message(LOG_INFO, "   Interval = %lu sec", vscript->interval / TIMER_HZ);
-	log_message(LOG_INFO, "   Timeout = %lu sec", vscript->timeout / TIMER_HZ);
-	log_message(LOG_INFO, "   Weight = %d", vscript->weight);
-	log_message(LOG_INFO, "   Rise = %d", vscript->rise);
-	log_message(LOG_INFO, "   Fall = %d", vscript->fall);
-	log_message(LOG_INFO, "   Insecure = %s", vscript->insecure ? "yes" : "no");
+	conf_write(fp, " VRRP Script = %s", vscript->sname);
+	conf_write(fp, "   Command = %s", vscript->script.cmd_str);
+	conf_write(fp, "   Interval = %lu sec", vscript->interval / TIMER_HZ);
+	conf_write(fp, "   Timeout = %lu sec", vscript->timeout / TIMER_HZ);
+	conf_write(fp, "   Weight = %d", vscript->weight);
+	conf_write(fp, "   Rise = %d", vscript->rise);
+	conf_write(fp, "   Fall = %d", vscript->fall);
+	conf_write(fp, "   Insecure = %s", vscript->insecure ? "yes" : "no");
 
 	switch (vscript->init_state) {
 	case SCRIPT_INIT_STATE_INIT:
@@ -191,12 +202,12 @@ dump_vscript(void *data)
 	default:
 		str = (vscript->result >= vscript->rise) ? "GOOD" : "BAD";
 	}
-	log_message(LOG_INFO, "   Status = %s", str);
-	log_message(LOG_INFO, "   Script uid:gid = %d:%d", vscript->script.uid, vscript->script.gid);
-	log_message(LOG_INFO, "   VRRP instances = %d", vscript->tracking_vrrp ? LIST_SIZE(vscript->tracking_vrrp) : 0);
+	conf_write(fp, "   Status = %s", str);
+	conf_write(fp, "   Script uid:gid = %d:%d", vscript->script.uid, vscript->script.gid);
+	conf_write(fp, "   VRRP instances = %d", vscript->tracking_vrrp ? LIST_SIZE(vscript->tracking_vrrp) : 0);
 	if (vscript->tracking_vrrp)
-		dump_list(vscript->tracking_vrrp);
-	log_message(LOG_INFO, "   State = %s",
+		dump_list(fp, vscript->tracking_vrrp);
+	conf_write(fp, "   State = %s",
 			vscript->state == SCRIPT_STATE_IDLE ? "idle" :
 			vscript->state == SCRIPT_STATE_RUNNING ? "running" :
 			vscript->state == SCRIPT_STATE_REQUESTING_TERMINATION ? "requested termination" :
@@ -210,33 +221,34 @@ free_vfile(void *data)
 
 	free_list(&vfile->tracking_vrrp);
 	FREE(vfile->fname);
+	FREE(vfile->file_path);
 	FREE(vfile);
 }
 static void
-dump_vfile(void *data)
+dump_vfile(FILE *fp, void *data)
 {
 	vrrp_tracked_file_t *vfile = data;
 
-	log_message(LOG_INFO, " VRRP Track file = %s", vfile->fname);
-	log_message(LOG_INFO, "   File = %s", vfile->file_path);
-	log_message(LOG_INFO, "   Weight = %d", vfile->weight);
-	log_message(LOG_INFO, "   Tracking VRRP = %d", vfile->tracking_vrrp ? LIST_SIZE(vfile->tracking_vrrp) : 0);
+	conf_write(fp, " VRRP Track file = %s", vfile->fname);
+	conf_write(fp, "   File = %s", vfile->file_path);
+	conf_write(fp, "   Weight = %d", vfile->weight);
+	conf_write(fp, "   Tracking VRRP instances = %d", vfile->tracking_vrrp ? LIST_SIZE(vfile->tracking_vrrp) : 0);
 	if (vfile->tracking_vrrp)
-		dump_list(vfile->tracking_vrrp);
+		dump_list(fp, vfile->tracking_vrrp);
 }
 
 #ifdef _WITH_BFD_
 /* Track bfd dump */
 static void
-dump_vrrp_bfd(void *track_data)
+dump_vrrp_bfd(FILE *fp, void *track_data)
 {
 	vrrp_tracked_bfd_t *vbfd = track_data;
 
-	log_message(LOG_INFO, " VRRP Track BFD = %s", vbfd->bname);
-	log_message(LOG_INFO, "   Weight = %d", vbfd->weight);
-	log_message(LOG_INFO, "   Tracking VRRP = %d", vbfd->tracking_vrrp ? LIST_SIZE(vbfd->tracking_vrrp) : 0);
+	conf_write(fp, " VRRP Track BFD = %s", vbfd->bname);
+	conf_write(fp, "   Weight = %d", vbfd->weight);
+	conf_write(fp, "   Tracking VRRP instances = %d", vbfd->tracking_vrrp ? LIST_SIZE(vbfd->tracking_vrrp) : 0);
 	if (vbfd->tracking_vrrp)
-		dump_list(vbfd->tracking_vrrp);
+		dump_list(fp, vbfd->tracking_vrrp);
 }
 
 static void
@@ -267,10 +279,10 @@ free_sock(void *sock_data)
 }
 
 static void
-dump_sock(void *sock_data)
+dump_sock(FILE *fp, void *sock_data)
 {
 	sock_t *sock = sock_data;
-	log_message(LOG_INFO, "VRRP sockpool: [ifindex(%u), proto(%u), unicast(%d), fd(%d,%d)]"
+	conf_write(fp, "VRRP sockpool: [ifindex(%u), proto(%u), unicast(%d), fd(%d,%d)]"
 			    , sock->ifindex
 			    , sock->proto
 			    , sock->unicast
@@ -285,11 +297,11 @@ free_unicast_peer(void *data)
 }
 
 static void
-dump_unicast_peer(void *data)
+dump_unicast_peer(FILE *fp, void *data)
 {
 	struct sockaddr_storage *peer = data;
 
-	log_message(LOG_INFO, "     %s", inet_sockaddrtos(peer));
+	conf_write(fp, "     %s", inet_sockaddrtos(peer));
 }
 
 static void
@@ -309,6 +321,9 @@ free_vrrp(void *data)
 	free_list(&vrrp->track_ifp);
 	free_list(&vrrp->track_script);
 	free_list(&vrrp->track_file);
+#ifdef _WITH_BFD_
+	free_list(&vrrp->track_bfd);
+#endif
 	free_list(&vrrp->unicast_peer);
 	free_list(&vrrp->vip);
 	free_list(&vrrp->evip);
@@ -317,128 +332,171 @@ free_vrrp(void *data)
 	FREE(vrrp);
 }
 static void
-dump_vrrp(void *data)
+dump_vrrp(FILE *fp, void *data)
 {
 	vrrp_t *vrrp = data;
 #ifdef _WITH_VRRP_AUTH_
 	char auth_data[sizeof(vrrp->auth_data) + 1];
 #endif
+	char time_str[26];
 
-	log_message(LOG_INFO, " VRRP Instance = %s", vrrp->iname);
-	log_message(LOG_INFO, "   Using VRRPv%d", vrrp->version);
+	/* If fp is NULL, we are writing configuration to syslog at
+	 * startup, so there is no point writing transient state information.
+	 */
+
+	conf_write(fp, " VRRP Instance = %s", vrrp->iname);
+	conf_write(fp, "   VRRP Version = %d", vrrp->version);
+	if (vrrp->sync)
+		conf_write(fp, "   Sync group = %s", vrrp->sync->gname);
 	if (vrrp->family == AF_INET6)
-		log_message(LOG_INFO, "   Using Native IPv6");
-	if (vrrp->wantstate == VRRP_STATE_BACK)
-		log_message(LOG_INFO, "   Want State = BACKUP");
+		conf_write(fp, "   Using Native IPv6");
+	if (fp) {
+		conf_write(fp, "   State = %s", get_state_str(vrrp->state));
+		if (vrrp->state == VRRP_STATE_BACK) {
+			conf_write(fp, "   Master router = %s", inet_sockaddrtos(&vrrp->master_saddr));
+			conf_write(fp, "   Master priority = %d", vrrp->master_priority);
+			if (vrrp->version == VRRP_VERSION_3)
+				conf_write(fp, "   Master advert int = %.2f sec", (float)vrrp->master_adver_int / TIMER_HZ);
+		}
+	}
+	conf_write(fp, "   Wantstate = %s", get_state_str(vrrp->wantstate));
+	if (fp) {
+		conf_write(fp, "   Number of interface and track script faults = %u", vrrp->num_script_if_fault);
+		conf_write(fp, "   Number of track scripts init = %d", vrrp->num_script_init);
+		ctime_r(&vrrp->last_transition.tv_sec, time_str);
+		conf_write(fp, "   Last transition = %ld (%.24s)", vrrp->last_transition.tv_sec, time_str);
+		if (!ctime_r(&vrrp->sands.tv_sec, time_str))
+			strcpy(time_str, "invalid time ");
+		if (vrrp->sands.tv_sec == TIMER_DISABLED)
+			conf_write(fp, "   Read timeout = DISABLED");
+		else
+			conf_write(fp, "   Read timeout = %ld.%6.6ld (%.19s.%6.6ld)", vrrp->sands.tv_sec, vrrp->sands.tv_usec, time_str, vrrp->sands.tv_usec);
+		conf_write(fp, "   Master down timer = %u usecs", vrrp->ms_down_timer);
+	}
+#ifdef _HAVE_VRRP_VMAC_
+	if (vrrp->ifp != vrrp->ifp->base_ifp)
+		conf_write(fp, "   Interface = %s, vmac on %s, xmit %s i/f", IF_NAME(vrrp->ifp),
+				vrrp->ifp->base_ifp->ifname, __test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) ? "base" : "vmac");
 	else
-		log_message(LOG_INFO, "   Want State = MASTER");
-	log_message(LOG_INFO, "   Running on device = %s", IF_NAME(vrrp->ifp));
-#ifdef _WITH_VRRP_VMAC_
-	if (vrrp->ifp->vmac)
-		log_message(LOG_INFO, "   Real interface = %s\n", IF_NAME(if_get_by_ifindex(vrrp->ifp->base_ifindex)));
 #endif
+		conf_write(fp, "   Interface = %s", IF_NAME(vrrp->ifp));
 	if (vrrp->dont_track_primary)
-		log_message(LOG_INFO, "   VRRP interface tracking disabled");
-	log_message(LOG_INFO, "   Skip checking advert IP addresses = %s", vrrp->skip_check_adv_addr ? "yes" : "no");
-	log_message(LOG_INFO, "   Enforcing strict VRRP compliance = %s", vrrp->strict_mode ? "yes" : "no");
-	if (vrrp->saddr.ss_family)
-		log_message(LOG_INFO, "   Using src_ip = %s"
-				    , inet_sockaddrtos(&vrrp->saddr));
-	log_message(LOG_INFO, "   Gratuitous ARP delay = %d",
+		conf_write(fp, "   VRRP interface tracking disabled");
+	if (vrrp->skip_check_adv_addr)
+		conf_write(fp, "   Skip checking advert IP addresses");
+	if (vrrp->strict_mode)
+		conf_write(fp, "   Enforcing strict VRRP compliance");
+	conf_write(fp, "   Using src_ip = %s%s", vrrp->saddr.ss_family != AF_UNSPEC
+						    ? inet_sockaddrtos(&vrrp->saddr)
+						    : "(none)",
+						  vrrp->saddr_from_config ? " (from configuration)" : "");
+	conf_write(fp, "   Gratuitous ARP delay = %d",
 		       vrrp->garp_delay/TIMER_HZ);
-	log_message(LOG_INFO, "   Gratuitous ARP repeat = %d", vrrp->garp_rep);
-	log_message(LOG_INFO, "   Gratuitous ARP refresh timer = %lu",
-		       vrrp->garp_refresh.tv_sec);
-	log_message(LOG_INFO, "   Gratuitous ARP refresh repeat = %d", vrrp->garp_refresh_rep);
-	log_message(LOG_INFO, "   Gratuitous ARP lower priority delay = %d", vrrp->garp_lower_prio_delay / TIMER_HZ);
-	log_message(LOG_INFO, "   Gratuitous ARP lower priority repeat = %d", vrrp->garp_lower_prio_rep);
-	log_message(LOG_INFO, "   Send advert after receive lower priority advert = %s", vrrp->lower_prio_no_advert ? "false" : "true");
-	log_message(LOG_INFO, "   Send advert after receive higher priority advert = %s", vrrp->higher_prio_send_advert ? "true" : "false");
-	log_message(LOG_INFO, "   Virtual Router ID = %d", vrrp->vrid);
-	log_message(LOG_INFO, "   Priority = %d", vrrp->base_priority);
-	log_message(LOG_INFO, "   Advert interval = %d %s",
+	conf_write(fp, "   Gratuitous ARP repeat = %d", vrrp->garp_rep);
+	conf_write(fp, "   Gratuitous ARP refresh = %lu",
+		       vrrp->garp_refresh.tv_sec/TIMER_HZ);
+	conf_write(fp, "   Gratuitous ARP refresh repeat = %d", vrrp->garp_refresh_rep);
+	conf_write(fp, "   Gratuitous ARP lower priority delay = %u", vrrp->garp_lower_prio_delay / TIMER_HZ);
+	conf_write(fp, "   Gratuitous ARP lower priority repeat = %u", vrrp->garp_lower_prio_rep);
+	conf_write(fp, "   Send advert after receive lower priority advert = %s", vrrp->lower_prio_no_advert ? "false" : "true");
+	conf_write(fp, "   Send advert after receive higher priority advert = %s", vrrp->higher_prio_send_advert ? "true" : "false");
+	conf_write(fp, "   Virtual Router ID = %d", vrrp->vrid);
+	conf_write(fp, "   Priority = %d", vrrp->base_priority);
+	if (fp) {
+		conf_write(fp, "   Effective priority = %d", vrrp->effective_priority);
+		conf_write(fp, "   Total priority = %d", vrrp->total_priority);
+	}
+	conf_write(fp, "   Advert interval = %d %s",
 		(vrrp->version == VRRP_VERSION_2) ? (vrrp->adver_int / TIMER_HZ) :
 		(vrrp->adver_int / (TIMER_HZ / 1000)),
 		(vrrp->version == VRRP_VERSION_2) ? "sec" : "milli-sec");
-	log_message(LOG_INFO, "   Accept %s", vrrp->accept ? "enabled" : "disabled");
-	if (vrrp->nopreempt)
-		log_message(LOG_INFO, "   Preempt disabled");
+	if (vrrp->state == VRRP_STATE_BACK && vrrp->version == VRRP_VERSION_3)
+		conf_write(fp, "   Master advert interval = %d milli-sec", vrrp->master_adver_int / (TIMER_HZ / 1000));
+	conf_write(fp, "   Accept = %s", vrrp->accept ? "enabled" : "disabled");
+	conf_write(fp, "   Preempt = %s", vrrp->nopreempt ? "disabled" : "enabled");
 	if (vrrp->preempt_delay)
-		log_message(LOG_INFO, "   Preempt delay = %ld secs",
+		conf_write(fp, "   Preempt delay = %ld secs",
 		       vrrp->preempt_delay / TIMER_HZ);
-	log_message(LOG_INFO, "   Promote_secondaries %s", vrrp->promote_secondaries ? "enabled" : "disabled");
+	conf_write(fp, "   Promote_secondaries = %s", vrrp->promote_secondaries ? "enabled" : "disabled");
 #if defined _WITH_VRRP_AUTH_
-	if (vrrp->version == VRRP_VERSION_2) {
-		if (vrrp->auth_type) {
-			log_message(LOG_INFO, "   Authentication type = %s",
-				    (vrrp->auth_type ==
-				     VRRP_AUTH_AH) ? "IPSEC_AH" : "SIMPLE_PASSWORD");
-			if (vrrp->auth_type != VRRP_AUTH_AH) {
-				/* vrrp->auth_data is not \0 terminated */
-				memcpy(auth_data, vrrp->auth_data, sizeof(vrrp->auth_data));
-				auth_data[sizeof(vrrp->auth_data)] = '\0';
-				log_message(LOG_INFO, "   Password = %s", auth_data);
-			}
+	if (vrrp->auth_type) {
+		conf_write(fp, "   Authentication type = %s",
+		       (vrrp->auth_type ==
+			VRRP_AUTH_AH) ? "IPSEC_AH" : "SIMPLE_PASSWORD");
+		if (vrrp->auth_type != VRRP_AUTH_AH) {
+			/* vrrp->auth_data is not \0 terminated */
+			memcpy(auth_data, vrrp->auth_data, sizeof(vrrp->auth_data));
+			auth_data[sizeof(vrrp->auth_data)] = '\0';
+			conf_write(fp, "   Password = %s", auth_data);
 		}
 	}
+	else if (vrrp->version == VRRP_VERSION_2)
+		conf_write(fp, "   Authentication type = none");
 #endif
-	log_message(LOG_INFO, "   Using smtp notification = %s", vrrp->smtp_alert ? "yes" : "no");
-	if (!LIST_ISEMPTY(vrrp->track_ifp)) {
-		log_message(LOG_INFO, "   Tracked interfaces = %d", LIST_SIZE(vrrp->track_ifp));
-		dump_list(vrrp->track_ifp);
+
+	if (!LIST_ISEMPTY(vrrp->vip)) {
+		conf_write(fp, "   Virtual IP = %d", LIST_SIZE(vrrp->vip));
+		dump_list(fp, vrrp->vip);
 	}
-	if (!LIST_ISEMPTY(vrrp->track_script)) {
-		log_message(LOG_INFO, "   Tracked scripts = %d", LIST_SIZE(vrrp->track_script));
-		dump_list(vrrp->track_script);
+	if (!LIST_ISEMPTY(vrrp->evip)) {
+		conf_write(fp, "   Virtual IP Excluded = %d",
+			LIST_SIZE(vrrp->evip));
+		dump_list(fp, vrrp->evip);
 	}
-	if (!LIST_ISEMPTY(vrrp->track_file)) {
-		log_message(LOG_INFO, "   Tracked files = %d", LIST_SIZE(vrrp->track_file));
-		dump_list(vrrp->track_file);
+	if (!LIST_ISEMPTY(vrrp->unicast_peer)) {
+		conf_write(fp, "   Unicast Peer = %d",
+			LIST_SIZE(vrrp->unicast_peer));
+		dump_list(fp, vrrp->unicast_peer);
+#ifdef _WITH_UNICAST_CHKSUM_COMPAT_
+		conf_write(fp, "   Unicast checksum compatibility = %s",
+				vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_NONE ? "no" :
+				vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_NEVER ? "never" :
+				vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_CONFIG ? "config" :
+				vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_AUTO ? "auto" : "unknown");
+#endif
 	}
-#ifdef _WITH_BFD_
-	if (vrrp->track_bfd) {
-		log_message(LOG_INFO, "   Tracked BFD instances = %d", LIST_SIZE(vrrp->track_bfd));
-		dump_list(vrrp->track_bfd);
+#ifdef _HAVE_FIB_ROUTING_
+	if (!LIST_ISEMPTY(vrrp->vroutes)) {
+		conf_write(fp, "   Virtual Routes = %d", LIST_SIZE(vrrp->vroutes));
+		dump_list(fp, vrrp->vroutes);
+	}
+	if (!LIST_ISEMPTY(vrrp->vrules)) {
+		conf_write(fp, "   Virtual Rules = %d", LIST_SIZE(vrrp->vrules));
+		dump_list(fp, vrrp->vrules);
 	}
 #endif
 
-	if (!LIST_ISEMPTY(vrrp->unicast_peer)) {
-		log_message(LOG_INFO, "   Unicast Peer = %d", LIST_SIZE(vrrp->unicast_peer));
-		dump_list(vrrp->unicast_peer);
-#ifdef _WITH_UNICAST_CHKSUM_COMPAT_
-		log_message(LOG_INFO, "   Unicast checksum compatibility = %s",
-					vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_NONE ? "no" :
-					vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_NEVER ? "never" : "yes");
+	if (!LIST_ISEMPTY(vrrp->track_ifp)) {
+		conf_write(fp, "   Tracked interfaces = %d", LIST_SIZE(vrrp->track_ifp));
+		dump_list(fp, vrrp->track_ifp);
+	}
+	if (!LIST_ISEMPTY(vrrp->track_script)) {
+		conf_write(fp, "   Tracked scripts = %d", LIST_SIZE(vrrp->track_script));
+		dump_list(fp, vrrp->track_script);
+	}
+	if (!LIST_ISEMPTY(vrrp->track_file)) {
+		conf_write(fp, "   Tracked files = %d", LIST_SIZE(vrrp->track_file));
+		dump_list(fp, vrrp->track_file);
+	}
+#ifdef _WITH_BFD_
+	if (!LIST_ISEMPTY(vrrp->track_bfd)) {
+		conf_write(fp, "   Tracked BFDs = %d", LIST_SIZE(vrrp->track_bfd));
+		dump_list(fp, vrrp->track_bfd);
+	}
 #endif
-	}
-	if (!LIST_ISEMPTY(vrrp->vip)) {
-		log_message(LOG_INFO, "   Virtual IP = %d", LIST_SIZE(vrrp->vip));
-		dump_list(vrrp->vip);
-	}
-	if (!LIST_ISEMPTY(vrrp->evip)) {
-		log_message(LOG_INFO, "   Virtual IP Excluded = %d", LIST_SIZE(vrrp->evip));
-		dump_list(vrrp->evip);
-	}
-	if (!LIST_ISEMPTY(vrrp->vroutes)) {
-		log_message(LOG_INFO, "   Virtual Routes = %d", LIST_SIZE(vrrp->vroutes));
-		dump_list(vrrp->vroutes);
-	}
-	if (!LIST_ISEMPTY(vrrp->vrules)) {
-		log_message(LOG_INFO, "   Virtual Rules = %d", LIST_SIZE(vrrp->vrules));
-		dump_list(vrrp->vrules);
-	}
-	dump_notify_script(vrrp->script_backup, "Backup");
-	dump_notify_script(vrrp->script_master, "Master");
-	dump_notify_script(vrrp->script_fault, "Fault");
-	dump_notify_script(vrrp->script_stop, "Stop");
-	dump_notify_script(vrrp->script, "Generic");
-#ifdef _HAVE_VRRP_VMAC_
-	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
-		log_message(LOG_INFO, "   Using VRRP VMAC (flags:%s|%s), vmac ifindex %u"
-				    , (__test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags)) ? "UP" : "DOWN"
-				    , (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? "xmit_base" : "xmit"
-				    , vrrp->ifp->base_ifp->ifindex);
-#endif
+
+	conf_write(fp, "   Using smtp notification = %s", vrrp->smtp_alert ? "yes" : "no");
+
+	if (vrrp->script_backup)
+		dump_notify_script(fp, vrrp->script_backup, "Backup");
+	if (vrrp->script_master)
+		dump_notify_script(fp, vrrp->script_master, "Master");
+	if (vrrp->script_fault)
+		dump_notify_script(fp, vrrp->script_fault, "Fault");
+	if (vrrp->script_stop)
+		dump_notify_script(fp, vrrp->script_stop, "Stop");
+	if (vrrp->script)
+		dump_notify_script(fp, vrrp->script, "Generic");
 }
 
 void
@@ -742,6 +800,9 @@ alloc_vrrp_file(char *fname)
 void
 alloc_vrrp_buffer(size_t len)
 {
+	if (vrrp_buffer)
+		return;
+
 	vrrp_buffer = (char *) MALLOC(len);
 	vrrp_buffer_len = (vrrp_buffer) ? len : 0;
 }
@@ -797,41 +858,64 @@ free_vrrp_data(vrrp_data_t * data)
 	FREE(data);
 }
 
-void
-dump_vrrp_data(vrrp_data_t * data)
+static void
+dump_vrrp_data(FILE *fp, vrrp_data_t * data)
 {
 	if (!LIST_ISEMPTY(data->static_addresses)) {
-		log_message(LOG_INFO, "------< Static Addresses >------");
-		dump_list(data->static_addresses);
+		conf_write(fp, "------< Static Addresses >------");
+		dump_list(fp, data->static_addresses);
 	}
 	if (!LIST_ISEMPTY(data->static_routes)) {
-		log_message(LOG_INFO, "------< Static Routes >------");
-		dump_list(data->static_routes);
+		conf_write(fp, "------< Static Routes >------");
+		dump_list(fp, data->static_routes);
 	}
 	if (!LIST_ISEMPTY(data->static_rules)) {
-		log_message(LOG_INFO, "------< Static Rules >------");
-		dump_list(data->static_rules);
+		conf_write(fp, "------< Static Rules >------");
+		dump_list(fp, data->static_rules);
 	}
 	if (!LIST_ISEMPTY(data->vrrp)) {
-		log_message(LOG_INFO, "------< VRRP Topology >------");
-		dump_list(data->vrrp);
+		conf_write(fp, "------< VRRP Topology >------");
+		dump_list(fp, data->vrrp);
 	}
 	if (!LIST_ISEMPTY(data->vrrp_sync_group)) {
-		log_message(LOG_INFO, "------< VRRP Sync groups >------");
-		dump_list(data->vrrp_sync_group);
+		conf_write(fp, "------< VRRP Sync groups >------");
+		dump_list(fp, data->vrrp_sync_group);
 	}
 	if (!LIST_ISEMPTY(data->vrrp_script)) {
-		log_message(LOG_INFO, "------< VRRP Scripts >------");
-		dump_list(data->vrrp_script);
+		conf_write(fp, "------< VRRP Scripts >------");
+		dump_list(fp, data->vrrp_script);
 	}
 	if (!LIST_ISEMPTY(data->vrrp_track_files)) {
-		log_message(LOG_INFO, "------< VRRP Track files >------");
-		dump_list(data->vrrp_track_files);
+		conf_write(fp, "------< VRRP Track files >------");
+		dump_list(fp, data->vrrp_track_files);
 	}
 #ifdef _WITH_BFD_
 	if (!LIST_ISEMPTY(data->vrrp_track_bfds)) {
-		log_message(LOG_INFO, "------< VRRP Track BFDs >------");
-		dump_list(data->vrrp_track_bfds);
+		conf_write(fp, "------< VRRP Track BFDs >------");
+		dump_list(fp, data->vrrp_track_bfds);
 	}
 #endif
+}
+
+void
+dump_data_vrrp(FILE *fp)
+{
+	list ifl;
+
+	dump_global_data(fp, global_data);
+
+	if (!LIST_ISEMPTY(garp_delay)) {
+		conf_write(fp, "------< Gratuitous ARP delays >------");
+		dump_list(fp, garp_delay);
+	}
+
+	dump_vrrp_data(fp, vrrp_data);
+
+	ifl = get_if_list();
+	if (!LIST_ISEMPTY(ifl)) {
+		conf_write(fp, "------< Interfaces >------");
+		dump_list(fp, ifl);
+	}
+
+	clear_rt_names();
 }

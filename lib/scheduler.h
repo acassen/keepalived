@@ -150,7 +150,7 @@ extern thread_t *thread_add_child(thread_master_t *, int (*func) (thread_t *), v
 extern thread_t *thread_add_event(thread_master_t *, int (*func) (thread_t *), void *, int);
 extern int thread_cancel(thread_t *);
 extern void thread_cancel_read(thread_master_t *, int);
-extern thread_t *thread_fetch(thread_master_t *, thread_t *);
+extern void process_threads(thread_master_t *);
 extern void thread_call(thread_t *);
 extern void thread_child_handler(void *, int);
 extern void launch_scheduler(void);

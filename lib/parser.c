@@ -1038,7 +1038,7 @@ read_value_block_line(vector_t *strvec)
 
 	vector_foreach_slot(strvec, str, word) {
 		dup = (char *) MALLOC(strlen(str) + 1);
-		memcpy(dup, str, strlen(str));
+		strcpy(dup, str);
 		vector_alloc_slot(read_value_block_vec);
 		vector_set_slot(read_value_block_vec, dup);
 	}

@@ -39,6 +39,7 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <linux/version.h>
+#include <ctype.h>
 
 #include "main.h"
 #include "global_data.h"
@@ -122,7 +123,6 @@ bool snmp;						/* Enable SNMP support */
 const char *snmp_socket;				/* Socket to use for SNMP agent */
 #endif
 static char *syslog_ident;				/* syslog ident if not default */
-char *instance_name;					/* keepalived instance name */
 bool use_pid_dir;					/* Put pid files in /var/run/keepalived or @localstatedir@/run/keepalived */
 
 unsigned os_major;					/* Kernel version */
@@ -131,8 +131,6 @@ unsigned os_release;
 char *hostname;						/* Initial part of hostname */
 
 #if HAVE_DECL_CLONE_NEWNET
-char *network_namespace;				/* The network namespace we are running in */
-bool namespace_with_ipsets;				/* Override for using namespaces and ipsets with Linux < 3.13 */
 static char *override_namespace;			/* If namespace specified on command line */
 #endif
 
@@ -226,10 +224,6 @@ free_parent_mallocs_startup(bool am_child)
 void
 free_parent_mallocs_exit(void)
 {
-#if HAVE_DECL_CLONE_NEWNET
-	FREE_PTR(network_namespace);
-#endif
-
 #ifdef _WITH_VRRP_
 	if (free_vrrp_pidfile)
 		FREE_PTR(vrrp_pidfile);
@@ -243,7 +237,6 @@ free_parent_mallocs_exit(void)
 		FREE_PTR(bfd_pidfile);
 #endif
 
-	FREE_PTR(instance_name);
 	FREE_PTR(config_id);
 }
 
@@ -254,11 +247,11 @@ make_syslog_ident(const char* name)
 	char *ident;
 
 #if HAVE_DECL_CLONE_NEWNET
-	if (network_namespace)
-		ident_len += strlen(network_namespace) + 1;
+	if (global_data->network_namespace)
+		ident_len += strlen(global_data->network_namespace) + 1;
 #endif
-	if (instance_name)
-		ident_len += strlen(instance_name) + 1;
+	if (global_data->instance_name)
+		ident_len += strlen(global_data->instance_name) + 1;
 
 	/* If we are writing MALLOC/FREE info to the log, we have
 	 * trouble FREEing the syslog_ident */
@@ -273,14 +266,14 @@ make_syslog_ident(const char* name)
 
 	strcpy(ident, name);
 #if HAVE_DECL_CLONE_NEWNET
-	if (network_namespace) {
+	if (global_data->network_namespace) {
 		strcat(ident, "_");
-			strcat(ident, network_namespace);
+			strcat(ident, global_data->network_namespace);
 		}
 #endif
-	if (instance_name) {
+	if (global_data->instance_name) {
 		strcat(ident, "_");
-		strcat(ident, instance_name);
+		strcat(ident, global_data->instance_name);
 	}
 
 	return ident;
@@ -334,12 +327,11 @@ find_keepalived_child_name(pid_t pid)
 	return NULL;
 }
 
-#if HAVE_DECL_CLONE_NEWNET
 static vector_t *
 global_init_keywords(void)
 {
 	/* global definitions mapping */
-	init_global_keywords(false);
+	init_global_keywords(true);
 
 #ifdef _WITH_VRRP_
 	init_vrrp_keywords(false);
@@ -359,7 +351,6 @@ read_config_file(void)
 {
 	init_data(conf_file, global_init_keywords);
 }
-#endif
 
 /* Daemon stop sequence */
 void
@@ -421,43 +412,57 @@ start_keepalived(void)
 #endif
 }
 
+static bool reload_config(void)
+{
+	bool unsupported_change = false;
+
+	/* Make sure there isn't an attempt to change the network namespace or instance name */
+	old_global_data = global_data;
+	global_data = NULL;
+	global_data = alloc_global_data();
+
+	read_config_file();
+
+	init_global_data(global_data);
+
+#if HAVE_DECL_CLONE_NEWNET
+	if (!!old_global_data->network_namespace != !!global_data->network_namespace ||
+	    (global_data->network_namespace && strcmp(old_global_data->network_namespace, global_data->network_namespace))) {
+		log_message(LOG_INFO, "Cannot change network namespace at a reload - please restart %s", PACKAGE);
+		unsupported_change = true;
+	}
+	FREE_PTR(global_data->network_namespace);
+	global_data->network_namespace = old_global_data->network_namespace;
+	old_global_data->network_namespace = NULL;
+#endif
+
+	if (!!old_global_data->instance_name != !!global_data->instance_name ||
+	    (global_data->instance_name && strcmp(old_global_data->instance_name, global_data->instance_name))) {
+		log_message(LOG_INFO, "Cannot change instance name at a reload - please restart %s", PACKAGE);
+		unsupported_change = true;
+	}
+	FREE_PTR(global_data->instance_name);
+	global_data->instance_name = old_global_data->instance_name;
+	old_global_data->instance_name = NULL;
+
+	if (unsupported_change) {
+		/* We cannot reload the configuration, so continue with the old config */
+		free_global_data (global_data);
+		global_data = old_global_data;
+	}
+	else
+		free_global_data (old_global_data);
+
+	return !unsupported_change;
+}
+
 /* SIGHUP/USR1/USR2 handler */
 #ifndef _DEBUG_
 static void
 propogate_signal(__attribute__((unused)) void *v, int sig)
 {
-	bool unsupported_change = false;
-
 	if (sig == SIGHUP) {
-		/* Make sure there isn't an attempt to change the network namespace or instance name */
-#if HAVE_DECL_CLONE_NEWNET
-		char *old_network_namespace = network_namespace;
-		network_namespace = NULL;
-#endif
-		char *old_instance_name = instance_name;
-		instance_name = NULL;
-
-		read_config_file();
-
-#if HAVE_DECL_CLONE_NEWNET
-		if (!!old_network_namespace != !!network_namespace ||
-		    (network_namespace && strcmp(old_network_namespace, network_namespace))) {
-			log_message(LOG_INFO, "Cannot change network namespace at a reload - please restart %s", PACKAGE);
-			unsupported_change = true;
-		}
-		FREE_PTR(network_namespace);
-		network_namespace = old_network_namespace;
-#endif
-
-		if (!!old_instance_name != !!instance_name ||
-		    (instance_name && strcmp(old_instance_name, instance_name))) {
-			log_message(LOG_INFO, "Cannot change instance name at a reload - please restart %s", PACKAGE);
-			unsupported_change = true;
-		}
-		FREE_PTR(instance_name);
-		instance_name = old_instance_name;
-
-		if (unsupported_change)
+		if (!reload_config())
 			return;
 	}
 
@@ -537,20 +542,33 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 
 #ifdef _WITH_VRRP_
 	if (vrrp_child > 0) {
-		kill(vrrp_child, SIGTERM);
-		wait_count++;
+		if (kill(vrrp_child, SIGTERM)) {
+			/* ESRCH means no such process */
+			if (errno == ESRCH)
+				vrrp_child = 0;
+		}
+		else
+			wait_count++;
 	}
 #endif
 #ifdef _WITH_LVS_
 	if (checkers_child > 0) {
-		kill(checkers_child, SIGTERM);
-		wait_count++;
+		if (kill(checkers_child, SIGTERM)) {
+			if (errno == ESRCH)
+				checkers_child = 0;
+		}
+		else
+			wait_count++;
 	}
 #endif
 #ifdef _WITH_BFD_
 	if (bfd_child > 0) {
-		kill(bfd_child, SIGTERM);
-		wait_count++;
+		if (kill(bfd_child, SIGTERM)) {
+			if (errno == ESRCH)
+				bfd_child = 0;
+		}
+		else
+			wait_count++;
 	}
 #endif
 
@@ -1188,9 +1206,10 @@ keepalived_main(int argc, char **argv)
 			if (*end != '.')
 				os_major = 0;
 			else {
-				os_release = (unsigned)strtoul(end + 1, &end, 10);
-				if (*end && *end != '-')
+				if (!isdigit(end[1]))
 					os_major = 0;
+				else
+					os_release = (unsigned)strtoul(end + 1, &end, 10);
 			}
 		}
 		if (!os_major)
@@ -1247,35 +1266,6 @@ keepalived_main(int argc, char **argv)
 
 	netlink_set_recv_buf_size();
 
-	/* Some functionality depends on kernel version, so get the version here */
-	if (uname(&uname_buf))
-		log_message(LOG_INFO, "Unable to get uname() information - error %d", errno);
-	else {
-		os_major = (unsigned)strtoul(uname_buf.release, &end, 10);
-		if (*end != '.')
-			os_major = 0;
-		else {
-			os_minor = (unsigned)strtoul(end + 1, &end, 10);
-			if (*end != '.')
-				os_major = 0;
-			else {
-				os_release = (unsigned)strtoul(end + 1, &end, 10);
-				if (*end && *end != '-')
-					os_major = 0;
-			}
-		}
-		if (!os_major)
-			log_message(LOG_INFO, "Unable to parse kernel version %s", uname_buf.release);
-
-		/* config_id defaults to hostname */
-		if (!config_id) {
-			end = strchrnul(uname_buf.nodename, '.');
-			config_id = MALLOC((size_t)(end - uname_buf.nodename) + 1);
-			strncpy(config_id, uname_buf.nodename, ((size_t)(end - uname_buf.nodename)));
-			config_id[end - uname_buf.nodename] = '\0';
-		}
-	}
-
 	/* Check we can read the configuration file(s).
 	   NOTE: the working directory will be / if we
 	   forked, but will be the current working directory
@@ -1286,22 +1276,26 @@ keepalived_main(int argc, char **argv)
 	if (!check_conf_file(conf_file))
 		goto end;
 
+	global_data = alloc_global_data();
+
 	read_config_file();
+
+	init_global_data(global_data);
 
 #if HAVE_DECL_CLONE_NEWNET
 	if (override_namespace) {
-		if (network_namespace) {
-			log_message(LOG_INFO, "Overriding config net_namespace '%s' with command line namespace '%s'", network_namespace, override_namespace);
-			FREE(network_namespace);
+		if (global_data->network_namespace) {
+			log_message(LOG_INFO, "Overriding config net_namespace '%s' with command line namespace '%s'", global_data->network_namespace, override_namespace);
+			FREE(global_data->network_namespace);
 		}
-		network_namespace = override_namespace;
+		global_data->network_namespace = override_namespace;
 		override_namespace = NULL;
 	}
 #endif
 
-	if (instance_name
+	if (global_data->instance_name
 #if HAVE_DECL_CLONE_NEWNET
-			  || network_namespace
+			  || global_data->network_namespace
 #endif
 					      ) {
 		if ((syslog_ident = make_syslog_ident(PACKAGE_NAME))) {
@@ -1314,7 +1308,14 @@ keepalived_main(int argc, char **argv)
 
 		use_pid_dir = true;
 
-		open_log_file(log_file_name, NULL, network_namespace, instance_name);
+		open_log_file(log_file_name,
+				NULL,
+#if HAVE_DECL_CLONE_NEWNET
+				global_data->network_namespace,
+#else
+				NULL,
+#endif
+				global_data->instance_name);
 	}
 
 #ifdef _TIMER_DEBUG_
@@ -1327,27 +1328,27 @@ keepalived_main(int argc, char **argv)
 	}
 
 #if HAVE_DECL_CLONE_NEWNET
-	if (network_namespace) {
-		if (network_namespace && !set_namespaces(network_namespace)) {
-			log_message(LOG_ERR, "Unable to set network namespace %s - exiting", network_namespace);
+	if (global_data->network_namespace) {
+		if (global_data->network_namespace && !set_namespaces(global_data->network_namespace)) {
+			log_message(LOG_ERR, "Unable to set network namespace %s - exiting", global_data->network_namespace);
 			goto end;
 		}
 	}
 #endif
 
-	if (instance_name) {
-		if (!main_pidfile && (main_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE, instance_name, PID_EXTENSION)))
+	if (global_data->instance_name) {
+		if (!main_pidfile && (main_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE, global_data->instance_name, PID_EXTENSION)))
 			free_main_pidfile = true;
 #ifdef _WITH_LVS_
-		if (!checkers_pidfile && (checkers_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR CHECKERS_PID_FILE, instance_name, PID_EXTENSION)))
+		if (!checkers_pidfile && (checkers_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR CHECKERS_PID_FILE, global_data->instance_name, PID_EXTENSION)))
 			free_checkers_pidfile = true;
 #endif
 #ifdef _WITH_VRRP_
-		if (!vrrp_pidfile && (vrrp_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, instance_name, PID_EXTENSION)))
+		if (!vrrp_pidfile && (vrrp_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, global_data->instance_name, PID_EXTENSION)))
 			free_vrrp_pidfile = true;
 #endif
 #ifdef _WITH_BFD_
-		if (!bfd_pidfile && (bfd_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, instance_name, PID_EXTENSION)))
+		if (!bfd_pidfile && (bfd_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, global_data->instance_name, PID_EXTENSION)))
 			free_bfd_pidfile = true;
 #endif
 	}
@@ -1446,7 +1447,7 @@ end:
 	}
 
 #if HAVE_DECL_CLONE_NEWNET
-	if (network_namespace)
+	if (global_data->network_namespace)
 		clear_namespaces();
 #endif
 
@@ -1459,6 +1460,7 @@ end:
 
 	free_parent_mallocs_startup(false);
 	free_parent_mallocs_exit();
+	free_global_data(global_data);
 
 	closelog();
 
