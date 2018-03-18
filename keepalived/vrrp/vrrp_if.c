@@ -355,6 +355,12 @@ free_if(void *data)
 
 /* garp_delay facility function */
 static void
+free_garp_delay(void *data)
+{
+	FREE(data);
+}
+
+static void
 dump_garp_delay(FILE *fp, void *data)
 {
 	garp_delay_t *gd = data;
@@ -383,7 +389,7 @@ void
 alloc_garp_delay(void)
 {
 	if (!LIST_EXISTS(garp_delay))
-		garp_delay = alloc_list(NULL, dump_garp_delay);
+		garp_delay = alloc_list(free_garp_delay, dump_garp_delay);
 
 	list_add(garp_delay, MALLOC(sizeof(garp_delay_t)));
 }

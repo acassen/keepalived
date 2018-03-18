@@ -1190,7 +1190,6 @@ garp_group_end_handler(void)
 		}
 
 		free_list_element(garp_delay, garp_delay->tail);
-		FREE_PTR(delay);
 	}
 }
 
