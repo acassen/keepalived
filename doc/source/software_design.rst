@@ -3,10 +3,10 @@ Software Design
 ###############
 
 
-Keepalived is written is pure ANSI/ISO C. The software is articulated around a
+Keepalived is written in pure ANSI/ISO C. The software is articulated around a
 central I/O multiplexer that provides realtime networking design. The main
 design focus is to provide a homogenous modularity between all elements. This
-why a core library was created to remove code duplication. The goal is to
+is why a core library was created to remove code duplication. The goal is to
 produce a safe and secure code, ensuring production robustness and stability.
 
 To ensure robustness and stability, daemon is split into 3 distinct processes:
@@ -16,15 +16,15 @@ To ensure robustness and stability, daemon is split into 3 distinct processes:
     
 Each children process has its own scheduling I/O multiplexer, that way VRRP
 scheduling jitter is optimized since VRRP scheduling is more sensible/critical
-than healthcheckers. This split design minimalize for healthchecking the usage
-of foreign libraries and minimalize its own action down to and idle mainloop in
+than healthcheckers. This split design minimalizes for healthchecking the usage
+of foreign libraries and minimalizes its own action down to and idle mainloop in
 order to avoid malfunctions caused by itself. 
 
 The parent process monitoring framework is called watchdog, the design is each
-children process open an accept unix domain socket, then while daemon
+children process opens an accept unix domain socket, then while daemon
 bootstrap, parent process connect to those unix domain socket and send periodic
 (5s) hello packets to children. If parent cannot send hello packet to remote
-connected unix domain socket it simply restart children process. 
+connected unix domain socket it simply restarts children process. 
 
 This watchdog design offers 2 benefits, first of all hello packets sent from
 parent process to remote connected children is done throught I/O multiplexer
@@ -58,80 +58,80 @@ Atomic Elements
 Control Plane
 =============
 
-Keepalived configuration is done throught the file keepalived.conf. A compiler
+Keepalived configuration is done through the file keepalived.conf. A compiler
 design is used for parsing. Parser work with a keyword tree hierarchy for
 mapping each configuration keyword with specifics handler. A central
-multi-level recursive function read the configuration file and traverse the
+multi-level recursive function reads the configuration file and traverses the
 keyword tree. During parsing, configuration file is translated into an internal
 memory representation.
 
 Scheduler - I/O Multiplexer
 ===========================
 
-All the event are scheduled into the same process. Keepalived is a single
+All the events are scheduled into the same process. Keepalived is a single
 process. Keepalived is a network routing software, it is so closed to I/O. The
 design used here is a central select(...) that is in charge of scheduling all
-internal task. POSIX thread libs are NOT used. This framework provide its own
+internal task. POSIX thread libs are NOT used. This framework provides its own
 thread abstraction optimized for networking purpose.
 
 Memory Management
 =================
 
-This framework provides acces to some generic memory managements functions like
+This framework provides access to some generic memory managements functions like
 allocation, reallocation, release,... This framework can be used in two mode :
 normal_mode & debug_mode. When using debug_mode it provide a strong way to
-eradicate and track memory leaks. This low level env provide buffer under-run
-protection by tracking allocation memory and released. All the buffer used are
+eradicate and track memory leaks. This low level env provides buffer under-run
+protection by tracking allocation and release of memory. All the buffer used are
 length fixed to prevent against eventual buffer-overflow.
 
 Core Components
 ===============
 
-This framework define some common and global libraries that are used in all the
+This framework defines some common and global libraries that are used in all the
 code. Those libraries are : html parsing, link-list, timer, vector, string
 formating, buffer dump, networking utils, daemon management, pid handling, low
-level TCP layer4. The goal here is to factorize code to the max to limite as
+level TCP layer4. The goal here is to factorize code to the max to limit as
 possible code duplication to increase modularity.
 
 WatchDog
 ========
 
-This framework provide children processes monitoring (VRRP & Healthchecking).
-Each child accept connection to its own watchdog unix domain socket. Parent
+This framework provides children processes monitoring (VRRP & Healthchecking).
+Each child accepts connection to its own watchdog unix domain socket. Parent
 process send "hello" messages to this child unix domain socket. Hello messages
 are sent using I/O multiplexer on the parent side and accepted/processed using
-I/O multiplexer on children side. If parent detect broken pipe it test using
-sysV signal if child is still alive and restart it.
+I/O multiplexer on children side. If parent detects broken pipe it tests using
+sysV signal if child is still alive and restarts it.
 
 Checkers
 ========
 
 This is one of the main Keepalived functionality. Checkers are in charge of
-realserver healthchecking. A checker test if realserver is alive, this test end
+realserver healthchecking. A checker tests if realserver is alive, this test ends
 on a binary decision : remove or add realserver from/into the LVS topology. The
-internal checker design is realtime networking software, it use a fully
-multi-threaded FSM design (Finite State Machine). This checker stack provide
-LVS topology manipulation accoring to layer4 to layer5/7 test results. Its run
+internal checker design is realtime networking software, it uses a fully
+multi-threaded FSM design (Finite State Machine). This checker stack provides
+LVS topology manipulation accoring to layer4 to layer5/7 test results. It's run
 in an independent process monitored by parent process.
 
 VRRP Stack
 ==========
 
 The other most important Keepalived functionality. VRRP (Virtual Router
-Redundancy Protocol : RFC2338) is focused on director takeover, it provide
+Redundancy Protocol : RFC2338) is focused on director takeover, it provides
 low-level design for router backup. It implements full IETF RFC2338 standard
 with some provisions and extensions for LVS and Firewall design. It implements
-the vrrp_sync_group extension that guarantee persistence routing path after
+the vrrp_sync_group extension that guarantees persistence routing path after
 protocol takeover. It implements IPSEC-AH using MD5-96bit crypto provision for
 securing protocol adverts exchange. For more informations on VRRP please read
 the RFC. Important things : VRRP code can be used without the LVS support, it
-has been designed for independant use.Its run in an independent process
+has been designed for independent use. It's run in an independent process
 monitored by parent process.
 
 System Call
 ===========
 
-This framework offer the ability to launch extra system script. It is mainly
+This framework offers the ability to launch extra system script. It is mainly
 used in the MISC checker. In VRRP framework it provides the ability to launch
 extra script during protocol state transition. The system call is done into a
 forked process to not pertube the global scheduling timer.
@@ -139,7 +139,7 @@ forked process to not pertube the global scheduling timer.
 Netlink Reflector
 =================
 
-Same as IPVS wrapper. Keepalived work with its own network interface
+Same as IPVS wrapper. Keepalived works with its own network interface
 representation. IP address and interface flags are set and monitored through
 kernel Netlink channel. The Netlink messaging sub-system is used for setting
 VRRP VIPs. On the other hand, the Netlink kernel messaging broadcast capability
@@ -199,7 +199,7 @@ health check worker threads implement the following types of health checks:
         Working at layer4. To ensure this check, we use a TCP Vanilla check using nonblocking/timed-out TCP connections. If the remote server does not reply to this request (timed-out), then the test is wrong and the server is removed from the server pool.
 
     HTTP_GET
-        Working at layer5. Performs a HTTP GET to a specified URL. The HTTP GET result is then summed using the MD5 algorithm. If this sum does not match with the expected value, the test is wrong and the server is removed from the server pool. This module implements a multi-URL get check on the same service. This functionality is useful if you are using a server hosting more than one application server. This functionality gives you the ability to check if an application server is working properly. The MD5 digests are generated using the genhash utility (included in the keepalived package).
+        Working at layer5. Performs a HTTP GET to a specified URL. The HTTP GET result is then summed using the MD5 algorithm. If this sum does not match with the expected value, the test is wrong and the server is removed from the server pool. This module implements a multi-URL get check on the same service. This functionality is useful if you are using a server hosting more than one application servers. This functionality gives you the ability to check if an application server is working properly. The MD5 digests are generated using the genhash utility (included in the keepalived package).
 
     SSL_GET
         Same as HTTP_GET but uses a SSL connection to the remote webservers.
