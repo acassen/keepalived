@@ -241,7 +241,6 @@ find_keepalived_child_name(pid_t pid)
 	return NULL;
 }
 
-#if HAVE_DECL_CLONE_NEWNET
 static vector_t *
 global_init_keywords(void)
 {
@@ -263,7 +262,6 @@ read_config_file(void)
 {
 	init_data(conf_file, global_init_keywords);
 }
-#endif
 
 /* Daemon stop sequence */
 static void
@@ -901,9 +899,10 @@ keepalived_main(int argc, char **argv)
 			if (*end != '.')
 				os_major = 0;
 			else {
-				os_release = (unsigned)strtoul(end + 1, &end, 10);
-				if (*end && *end != '-')
+				if (!isdigit(end[1]))
 					os_major = 0;
+				else
+					os_release = (unsigned)strtoul(end + 1, &end, 10);
 			}
 		}
 		if (!os_major)
@@ -998,7 +997,14 @@ keepalived_main(int argc, char **argv)
 
 		use_pid_dir = true;
 
-		open_log_file(log_file_name, NULL, network_namespace, instance_name);
+		open_log_file(log_file_name,
+				NULL,
+#if HAVE_DECL_CLONE_NEWNET
+				network_namespace,
+#else
+				NULL,
+#endif
+				instance_name);
 	}
 
 	if (use_pid_dir) {
