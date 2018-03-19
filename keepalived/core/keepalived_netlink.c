@@ -196,6 +196,9 @@ netlink_set_rx_buf_size(nl_handle_t *nl, unsigned rcvbuf_size, bool force)
 {
 	int ret;
 
+	if (!rcvbuf_size)
+		rcvbuf_size = IF_DEFAULT_BUFSIZE;
+
 	if (force) {
 		if ((ret = setsockopt(nl->fd, SOL_SOCKET, SO_RCVBUFFORCE, &rcvbuf_size, sizeof(rcvbuf_size))) < 0)
 			log_message(LOG_INFO, "cant set SO_RCVBUFFORCE IP option. errno=%d (%m)", errno);
@@ -232,9 +235,6 @@ netlink_socket(nl_handle_t *nl, unsigned rcvbuf_size, bool force, int flags, int
 	va_list gp;
 
 	memset(nl, 0, sizeof (*nl));
-
-	if (!rcvbuf_size)
-		rcvbuf_size = IF_DEFAULT_BUFSIZE;
 
 #ifdef _HAVE_LIBNL3_
 #ifdef _LIBNL_DYNAMIC_
