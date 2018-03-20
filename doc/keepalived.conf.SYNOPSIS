@@ -835,6 +835,10 @@ virtual_server group <STRING>      {  # VS group declaration
                                   #  virtual_server.
         }
 
+        SSL_GET {
+            enable_sni            # send Server Name Indication during SSL handshake
+        }
+
         TCP_CHECK {  # TCP healthchecker
             # No additional options
         }

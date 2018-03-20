@@ -65,6 +65,7 @@ typedef struct _http_checker {
 	request_t			*req;		/* GET buffer and SSL args */
 	list				url;
 	char				*virtualhost;
+	bool				enable_sni;
 } http_checker_t;
 
 /* global defs */

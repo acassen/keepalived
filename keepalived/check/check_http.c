@@ -253,6 +253,22 @@ url_virtualhost_handler(vector_t *strvec)
 }
 
 static void
+enable_sni_handler(vector_t *strvec)
+{
+	http_checker_t *http_get_chk = CHECKER_GET();
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec, 1));
+		if (res == -1) {
+			log_message(LOG_INFO, "Invalid enable_sni parameter %s", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+	http_get_chk->enable_sni = res;
+}
+
+static void
 url_check(void)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
@@ -271,6 +287,7 @@ install_http_ssl_check_keyword(const char *keyword)
 	install_checker_common_keywords(true);
 	install_keyword("nb_get_retry", &http_get_retry_handler);	/* Deprecated */
 	install_keyword("virtualhost", &virtualhost_handler);
+	install_keyword("enable_sni", &enable_sni_handler);
 	install_keyword("url", &url_handler);
 	install_sublevel();
 	install_keyword("path", &path_handler);

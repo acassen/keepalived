@@ -118,6 +118,11 @@ ssl_connect(thread_t * thread)
 	SSL_set0_rbio(sock_obj->ssl, sock_obj->bio);
 	SSL_set0_wbio(sock_obj->ssl, sock_obj->bio);
 #endif
+#if OPENSSL_VERSION_NUMBER > 0x10000000L
+		if (req->vhost != NULL && req->sni) {
+			SSL_set_tlsext_host_name(sock_obj->ssl, req->vhost);
+		}
+#endif
 
 	ret = SSL_connect(sock_obj->ssl);
 

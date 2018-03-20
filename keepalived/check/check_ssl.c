@@ -190,6 +190,7 @@ ssl_connect(thread_t * thread, int new_req)
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
 	request_t *req = http_get_check->req;
+	url_t *url = list_element(http_get_check->url, http_get_check->url_it);
 	int ret = 0;
 	int val = 0;
 
@@ -206,6 +207,21 @@ ssl_connect(thread_t * thread, int new_req)
 		BIO_up_ref(req->bio);
 		SSL_set0_rbio(req->ssl, req->bio);
 		SSL_set0_wbio(req->ssl, req->bio);
+#endif
+#if OPENSSL_VERSION_NUMBER > 0x10000000L
+		char* vhost = NULL;
+		if (checker->vs->virtualhost != NULL) {
+			vhost = checker->vs->virtualhost;
+		}
+		if (http_get_check->virtualhost != NULL) {
+			vhost = http_get_check->virtualhost;
+		}
+		if (url != NULL && url->virtualhost != NULL) {
+			vhost = url->virtualhost;
+		}
+		if (vhost != NULL && http_get_check->enable_sni) {
+			SSL_set_tlsext_host_name(req->ssl, vhost);
+		}
 #endif
 	}
 
