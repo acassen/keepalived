@@ -479,6 +479,7 @@ fi
 add_to_var([GENHASH_LIBS], [$LIBS])
 
 # Introduced in OpenSSL ver 0.9.9
+LIBS=$OPENSSL_LIBS
 AC_MSG_CHECKING([SSL_set_tlsext_host_name() - may be a definition])
 AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
     #include <openssl/ssl.h>
@@ -493,6 +494,12 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
     AC_MSG_RESULT([yes])
     AC_DEFINE([_HAVE_SSL_SET_TLSEXT_HOST_NAME_], [ 1 ], [Define to 1 if have SSL_set_tlsext_host_name()])
 ])
+
+# SSL_CTX_set_verify_depth() introduced OpenSSL v0.9.5a
+AC_CHECK_FUNCS([SSL_CTX_set_verify_depth])
+
+# SSL_set0_rbio(), SSL_set0_wbio() and OPENSSL_init_crypto() introduced OpenSSL v1.1.0
+AC_CHECK_FUNCS([SSL_set0_rbio OPENSSL_init_crypto])
 
 unset LIBS
 
