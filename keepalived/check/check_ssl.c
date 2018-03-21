@@ -190,10 +190,12 @@ ssl_connect(thread_t * thread, int new_req)
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
 	request_t *req = http_get_check->req;
+#ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 	url_t *url = list_element(http_get_check->url, http_get_check->url_it);
+	char* vhost = NULL;
+#endif
 	int ret = 0;
 	int val = 0;
-	char* vhost = NULL;
 
 	/* First round, create SSL context */
 	if (new_req) {
@@ -209,7 +211,7 @@ ssl_connect(thread_t * thread, int new_req)
 		SSL_set0_rbio(req->ssl, req->bio);
 		SSL_set0_wbio(req->ssl, req->bio);
 #endif
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L || LIBRESSL_VERSION_NUMBER >= 0x10000000L
+#ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 		if (http_get_check->enable_sni) {
 			if (url && url->virtualhost)
 				vhost = url->virtualhost;

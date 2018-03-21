@@ -6812,6 +6812,37 @@ if test $NEED_SSL = yes; then
   KA_LIBS="$KA_LIBS $LIBS"
 fi
 GENHASH_LIBS="$GENHASH_LIBS $LIBS"
+
+# Introduced in OpenSSL ver 0.9.9
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking SSL_set_tlsext_host_name() - may be a definition" >&5
+$as_echo_n "checking SSL_set_tlsext_host_name() - may be a definition... " >&6; }
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+    #include <openssl/ssl.h>
+    int main(void)
+    {
+      request_t req;
+      SSL_set_tlsext_host_name(req.ssl, "SSL");
+    }
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+else
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define _HAVE_SSL_SET_TLSEXT_HOST_NAME_  1 " >>confdefs.h
+
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
 unset LIBS
 
 if test $BUILD_GENHASH = No; then
