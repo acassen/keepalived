@@ -477,6 +477,23 @@ if test $NEED_SSL = yes; then
   add_to_var([KA_LIBS], [$LIBS])
 fi
 add_to_var([GENHASH_LIBS], [$LIBS])
+
+# Introduced in OpenSSL ver 0.9.9
+AC_MSG_CHECKING([SSL_set_tlsext_host_name() - may be a definition])
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+    #include <openssl/ssl.h>
+    int main(void)
+    {
+      request_t req;
+      SSL_set_tlsext_host_name(req.ssl, "SSL");
+    }
+  ]])], [
+    AC_MSG_RESULT([no])
+  ], [
+    AC_MSG_RESULT([yes])
+    AC_DEFINE([_HAVE_SSL_SET_TLSEXT_HOST_NAME_], [ 1 ], [Define to 1 if have SSL_set_tlsext_host_name()])
+])
+
 unset LIBS
 
 if test $BUILD_GENHASH = No; then

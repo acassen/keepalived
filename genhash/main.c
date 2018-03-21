@@ -79,7 +79,9 @@ usage(const char *prog)
 		"Commands:\n"
 		"Either long or short options are allowed.\n"
 		"  %1$s --use-ssl         -S       Use SSL connection to remote server.\n"
+#ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 		"  %1$s --use-sni         -I       Use SNI during SSL handshake (uses virtualhost setting; see -V).\n"
+#endif
 		"  %1$s --server          -s       Use the specified remote server address.\n"
 		"  %1$s --port            -p       Use the specified remote server port.\n"
 		"  %1$s --url             -u       Use the specified remote server url.\n"
@@ -116,7 +118,9 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 		{"help",            no_argument,       0, 'h'},
 		{"verbose",         no_argument,       0, 'v'},
 		{"use-ssl",         no_argument,       0, 'S'},
+#ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 		{"use-sni",         no_argument,       0, 'I'},
+#endif
 		{"server",          required_argument, 0, 's'},
 		{"hash",            required_argument, 0, 'H'},
 		{"use-virtualhost", required_argument, 0, 'V'},
@@ -127,7 +131,11 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 	};
 
 	/* Parse the command line arguments */
-	while ((c = getopt_long (argc, argv, "rhvSIs:H:V:p:u:m:", long_options, NULL)) != EOF) {
+	while ((c = getopt_long (argc, argv, "rhvSs:H:V:p:u:m:"
+#ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
+							       "I"
+#endif
+				  , long_options, NULL)) != EOF) {
 		switch (c) {
 		case 'r':
 			fprintf(stderr, VERSION_STRING);
@@ -141,9 +149,11 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 		case 'S':
 			req_obj->ssl = 1;
 			break;
+#ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 		case 'I':
 			req_obj->sni = 1;
-			break;	
+			break;
+#endif
 		case 's':
 			if ((ret = getaddrinfo(optarg, NULL, &hint, &res)) != 0){
 				fprintf(stderr, "server should be an IP, not %s\n", optarg);

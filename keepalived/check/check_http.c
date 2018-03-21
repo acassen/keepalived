@@ -252,6 +252,7 @@ url_virtualhost_handler(vector_t *strvec)
 	url->virtualhost = CHECKER_VALUE_STRING(strvec);
 }
 
+#ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 static void
 enable_sni_handler(vector_t *strvec)
 {
@@ -267,6 +268,7 @@ enable_sni_handler(vector_t *strvec)
 	}
 	http_get_chk->enable_sni = res;
 }
+#endif
 
 static void
 url_check(void)
@@ -287,7 +289,9 @@ install_http_ssl_check_keyword(const char *keyword)
 	install_checker_common_keywords(true);
 	install_keyword("nb_get_retry", &http_get_retry_handler);	/* Deprecated */
 	install_keyword("virtualhost", &virtualhost_handler);
+#ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 	install_keyword("enable_sni", &enable_sni_handler);
+#endif
 	install_keyword("url", &url_handler);
 	install_sublevel();
 	install_keyword("path", &path_handler);
