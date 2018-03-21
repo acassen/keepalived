@@ -1012,6 +1012,11 @@ A virtual_server can be a declaration of one of
                }
            }
 
+           SSL_GET {
+               # when provided, send Server Name Indicator during SSL handshake
+               enable_sni
+           }
+
            # TCP healthchecker
            TCP_CHECK
            {

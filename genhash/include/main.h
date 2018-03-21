@@ -70,6 +70,7 @@ typedef struct {
 	char		*vhost;
 	int		verbose;
 	int		ssl;
+	int		sni;
 	SSL_CTX		*ctx;
 	SSL_METHOD	*meth;
 	enum		feat_hashes hash;
