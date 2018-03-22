@@ -224,6 +224,14 @@ check_misc_script_security(void)
 			continue;
 
 		misc_script = CHECKER_ARG(checker);
+
+		/* If the misc check script starts "</" (possibly with white space between
+		 * the '<' and '/'), it is checking for a file being openable,
+		 * so it won't be executed */
+		if (misc_script->path[0] == '<' &&
+		    misc_script->path[strspn(misc_script->path + 1, " \t") + 1] == '/')
+			return 0;
+
 		script.name = misc_script->path;
 		script.uid = misc_script->uid;
 		script.gid = misc_script->gid;

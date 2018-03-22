@@ -160,6 +160,13 @@ check_track_script_secure(tracked_sc_t *script)
 	if (script->scr->insecure)
 		return 0;
 
+	/* If the track script starts "</" (possibly with white space between
+	 * the '<' and '/'), it is checking for a file being openable,
+	 * so it won't be executed */
+	if (script->scr->script[0] == '<' &&
+	    script->scr->script[strspn(script->scr->script + 1, " \t") + 1] == '/')
+		return 0;
+
 	ns.name = script->scr->script;
 	ns.uid = script->scr->uid;
 	ns.gid = script->scr->gid;
