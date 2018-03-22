@@ -886,7 +886,7 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	if (tb[IFLA_ADDRESS]) {
 		size_t hw_addr_len = RTA_PAYLOAD(tb[IFLA_ADDRESS]);
 
-		if (hw_addr_len > IF_HWADDR_MAX) {
+		if (hw_addr_len > sizeof(ifp->hw_addr)) {
 			log_message(LOG_ERR, "MAC address for %s is too large: %zu",
 				name, hw_addr_len);
 			return -1;

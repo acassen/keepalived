@@ -67,12 +67,12 @@ build_ssl_ctx(void)
 	ssl_data_t *ssl;
 
 	/* Library initialization */
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined LIBRESSL_VERSION_NUMBER
-	SSL_library_init();
-	SSL_load_error_strings();
-#else
+#if HAVE_OPENSSL_INIT_CRYPTO
 	if (!OPENSSL_init_crypto(OPENSSL_INIT_NO_LOAD_CONFIG, NULL))
 		log_message(LOG_INFO, "OPENSSL_init_crypto failed");
+#else
+	SSL_library_init();
+	SSL_load_error_strings();
 #endif
 
 	if (!check_data->ssl)
@@ -125,7 +125,7 @@ build_ssl_ctx(void)
 		}
 
       end:
-#if (OPENSSL_VERSION_NUMBER < 0x00905100L) || defined LIBRESSL_VERSION_NUMBER
+#if HAVE_SSL_CTX_SET_VERIFY_DEPTH
 	SSL_CTX_set_verify_depth(ssl->ctx, 1);
 #endif
 
@@ -204,12 +204,12 @@ ssl_connect(thread_t * thread, int new_req)
 		req->bio = BIO_new_socket(thread->u.fd, BIO_NOCLOSE);
 		BIO_get_fd(req->bio, &bio_fd);
 		fcntl(bio_fd, F_SETFD, fcntl(bio_fd, F_GETFD) | FD_CLOEXEC);
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined LIBRESSL_VERSION_NUMBER
-		SSL_set_bio(req->ssl, req->bio, req->bio);
-#else
+#if HAVE_SSL_SET0_RBIO
 		BIO_up_ref(req->bio);
 		SSL_set0_rbio(req->ssl, req->bio);
 		SSL_set0_wbio(req->ssl, req->bio);
+#else
+		SSL_set_bio(req->ssl, req->bio, req->bio);
 #endif
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 		if (http_get_check->enable_sni) {
