@@ -30,6 +30,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
+#ifdef _HAVE_NET_LINUX_IF_H_COLLISION_
+#define _LINUX_IF_H
+#endif
+#include <linux/netdevice.h>
 
 /* needed to get correct values for SIOC* */
 #include <linux/sockios.h>
@@ -40,7 +44,6 @@
 
 #define LINK_UP   1
 #define LINK_DOWN 0
-#define IF_HWADDR_MAX 20	/* Max MAC address length size */
 #define ARPHRD_ETHER 1
 #define ARPHRD_LOOPBACK 772
 #define POLLING_DELAY TIMER_HZ
@@ -79,7 +82,7 @@ typedef struct _interface {
 	unsigned long		flags;			/* flags */
 	uint32_t		mtu;			/* MTU for this interface_t */
 	unsigned short		hw_type;		/* Type of hardware address */
-	u_char			hw_addr[IF_HWADDR_MAX];	/* MAC address */
+	u_char			hw_addr[MAX_ADDR_LEN];	/* MAC address */
 	size_t			hw_addr_len;		/* MAC addresss length */
 	int			lb_type;		/* Interface regs selection */
 	bool			linkbeat;		/* LinkBeat from MII BMSR req, SIOCETHTOOL or SIOCGIFFLAGS ioctls */

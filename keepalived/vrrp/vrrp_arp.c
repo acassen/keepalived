@@ -24,7 +24,7 @@
 
 /* system includes */
 #include <unistd.h>
-#include <netpacket/packet.h>
+#include <linux/if_packet.h>
 
 /* local includes */
 #include "logger.h"
