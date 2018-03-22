@@ -37,12 +37,114 @@
 #include "old_socket.h"
 #endif
 
+/*
+ * The size of the garp_buffer should be the large enough to hold
+ * the largest arp packet to be sent + the size of the link layer header
+ * for the corresponding protocol
+ * For infiniband the link layer header consists of the destination MAC
+ * address(20 bytes) and protocol identifier of the encapsulated
+ * datagram(4 bytes). This is larger than the space required for Ethernet
+ */
+#define GARP_BUFFER_SIZE (sizeof(inf_arphdr_t) + sizeof (ipoib_hdr_t) +\
+			  (INFINIBAND_ALEN))
+
+/*
+ * Private link layer socket structure to hold infiniband size address
+ * The infiniband MAC address is 20 bytes long an additional 4 bytes have
+ * been added to provide enough padding and align on a 4 byte boundary.
+ */
+struct sockaddr_large_ll {
+	unsigned short	sll_family;
+	__be16		sll_protocol;
+	int		sll_ifindex;
+	unsigned short	sll_hatype;
+	unsigned char	sll_pkttype;
+	unsigned char	sll_halen;
+	unsigned char	sll_addr[24];
+};
+
 /* static vars */
 static char *garp_buffer;
 static int garp_fd;
 
+/*
+ * See RFC 4391(Section 4 ) and RFC 4392 for details
+ * This is modified by the IPoIB driver to add the P_key
+ */
+static const unsigned char  ipv4_bcast_addr[] = {
+        0x00, 0xff, 0xff, 0xff,
+        0xff, 0x12, 0x40, 0x1b, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff
+};
+
+/* send out grat arp for infiniband IPOIB */
+static ssize_t send_ipoib_arp(ip_address_t *ipaddress)
+{
+	struct sockaddr_storage sll;
+	ssize_t len;
+
+	memset(&sll, 0, sizeof(sll));
+	((struct sockaddr_large_ll *)&sll)->sll_family = AF_PACKET;
+	((struct sockaddr_large_ll *)&sll)->sll_hatype = ARPHRD_INFINIBAND;
+	((struct sockaddr_large_ll *)&sll)->sll_halen = INFINIBAND_ALEN;
+	((struct sockaddr_large_ll *)&sll)->sll_ifindex =
+		(int) IF_INDEX(ipaddress->ifp);
+	memcpy(((struct sockaddr_large_ll *)&sll)->sll_addr,
+	       ipv4_bcast_addr, INFINIBAND_ALEN);
+
+	if (__test_bit(LOG_DETAIL_BIT, &debug))
+		log_message(LOG_INFO, "Sending gratuitous ARP on %s for %s",
+			    IF_NAME(ipaddress->ifp),
+			    inet_ntop2(ipaddress->u.sin.sin_addr.s_addr));
+
+	/* Send packet */
+	len = sendto(garp_fd, garp_buffer, sizeof(inf_arphdr_t) +
+		     INFINIBAND_ALEN + sizeof(struct ipoib_hdr),
+		     0, (struct sockaddr *)&sll, sizeof(sll));
+	if (len < 0)
+		log_message(LOG_INFO, "Error sending gratuitous ARP on %s for %s",
+			    IF_NAME(ipaddress->ifp),
+			    inet_ntop2(ipaddress->u.sin.sin_addr.s_addr));
+	return len;
+}
+
+/* set up infiniband arp for IPOIB and send it out */
+static ssize_t send_ipoib_gratuitous_arp(ip_address_t *ipaddress)
+{
+	struct ipoib_hdr  *ipoib = (struct ipoib_hdr *) (garp_buffer +
+							 INFINIBAND_ALEN);
+	inf_arphdr_t *arph = (inf_arphdr_t *) (garp_buffer + INFINIBAND_ALEN
+					       + sizeof(*ipoib));
+	char *hwaddr		 = (char *) IF_HWADDR(ipaddress->ifp);
+	ssize_t len;
+
+	/*  Add ipoib pseudo header MAC destination mcast address */
+	memcpy(garp_buffer, ipv4_bcast_addr, INFINIBAND_ALEN);
+
+	/* IPOIB header */
+	ipoib->proto = htons(ETHERTYPE_ARP);
+	ipoib->reserved = 0;
+
+	/* ARP payload */
+	arph->ar_hrd = htons(ARPHRD_INFINIBAND);
+	arph->ar_pro = htons(ETHERTYPE_IP);
+	arph->ar_hln = INFINIBAND_ALEN;
+	arph->ar_pln = sizeof(struct in_addr);
+	arph->ar_op = htons(ARPOP_REQUEST);
+	memcpy(arph->__ar_sha, hwaddr, INFINIBAND_ALEN);
+	memcpy(arph->__ar_sip, &ipaddress->u.sin.sin_addr.s_addr,
+	       sizeof(struct in_addr));
+	memset(arph->__ar_tha, 0xFF, INFINIBAND_ALEN);
+	memcpy(arph->__ar_tip, &ipaddress->u.sin.sin_addr.s_addr,
+	       sizeof(struct in_addr));
+
+	len = send_ipoib_arp(ipaddress);
+
+	return len;
+}
+
 /* Send the gratuitous ARP message */
-static ssize_t send_arp(ip_address_t *ipaddress)
+static ssize_t send_eth_arp(ip_address_t *ipaddress)
 {
 	struct sockaddr_ll sll;
 	ssize_t len;
@@ -67,8 +169,7 @@ static ssize_t send_arp(ip_address_t *ipaddress)
 	return len;
 }
 
-/* Build a gratuitous ARP message over a specific interface */
-ssize_t send_gratuitous_arp_immediate(interface_t *ifp, ip_address_t *ipaddress)
+static ssize_t send_eth_gratuitous_arp(ip_address_t *ipaddress)
 {
 	struct ether_header *eth = (struct ether_header *) garp_buffer;
 	arphdr_t *arph		 = (arphdr_t *) (garp_buffer + ETHER_HDR_LEN);
@@ -92,14 +193,30 @@ ssize_t send_gratuitous_arp_immediate(interface_t *ifp, ip_address_t *ipaddress)
 	memcpy(arph->__ar_tip, &ipaddress->u.sin.sin_addr.s_addr, sizeof(struct in_addr));
 
 	/* Send the ARP message */
-	len = send_arp(ipaddress);
+	len = send_eth_arp(ipaddress);
+
+	return len;
+}
+
+
+/* Build a gratuitous ARP message over a specific interface */
+ssize_t send_gratuitous_arp_immediate(interface_t *ifp, ip_address_t *ipaddress)
+{
+	ssize_t len;
+
+	if (ifp->hw_type == ARPHRD_INFINIBAND) {
+		len = send_ipoib_gratuitous_arp(ipaddress);
+	} else {
+		len = send_eth_gratuitous_arp(ipaddress);
+	}
 
 	/* If we have to delay between sending garps, note the next time we can */
 	if (ifp->garp_delay && ifp->garp_delay->have_garp_interval)
 		ifp->garp_delay->garp_next_time = timer_add_now(ifp->garp_delay->garp_interval);
 
 	/* Cleanup room for next round */
-	memset(garp_buffer, 0, sizeof(arphdr_t) + ETHER_HDR_LEN);
+	memset(garp_buffer, 0, GARP_BUFFER_SIZE);
+
 	return len;
 }
 
@@ -146,7 +263,7 @@ void send_gratuitous_arp(vrrp_t *vrrp, ip_address_t *ipaddress)
 void gratuitous_arp_init(void)
 {
 	/* Initalize shared buffer */
-	garp_buffer = (char *)MALLOC(sizeof(arphdr_t) + ETHER_HDR_LEN);
+	garp_buffer = (char *)MALLOC(GARP_BUFFER_SIZE);
 
 	/* Create the socket descriptor */
 	garp_fd = socket(PF_PACKET, SOCK_RAW | SOCK_CLOEXEC, htons(ETH_P_RARP));
