@@ -738,6 +738,13 @@ check_script_secure(notify_script_t *script,
 	if (!script)
 		return 0;
 
+	/* If the script starts "</" (possibly with white space between
+	 * the '<' and '/'), it is checking for a file being openable,
+	 * so it won't be executed */
+	if (script->args[0][0] == '<' &&
+	    script->args[0][strspn(script->args[0] + 1, " \t") + 1] == '/')
+		return SC_SYSTEM;
+
 	if (!strchr(script->args[0], '/')) {
 		/* It is a bare file name, so do a path search */
 		if ((ret = find_path(script))) {
