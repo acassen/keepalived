@@ -407,7 +407,7 @@ send_reload_advert_thread(thread_t *thread)
 }
 
 static void
-sighup_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
+sigreload_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
 	element e;
 	vrrp_t *vrrp;
@@ -475,7 +475,7 @@ static void
 vrrp_signal_init(void)
 {
 	signal_handler_child_init();
-	signal_set(SIGHUP, sighup_vrrp, NULL);
+	signal_set(SIGHUP, sigreload_vrrp, NULL);
 	signal_set(SIGINT, sigend_vrrp, NULL);
 	signal_set(SIGTERM, sigend_vrrp, NULL);
 	signal_set(SIGUSR1, sigusr1_vrrp, NULL);

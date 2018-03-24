@@ -278,7 +278,7 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 }
 
 static void
-sighup_check(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
+sigreload_check(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
 	thread_add_event(master, reload_check_thread, NULL, 0);
 }
@@ -296,7 +296,7 @@ static void
 check_signal_init(void)
 {
 	signal_handler_child_init();
-	signal_set(SIGHUP, sighup_check, NULL);
+	signal_set(SIGHUP, sigreload_check, NULL);
 	signal_set(SIGINT, sigend_check, NULL);
 	signal_set(SIGTERM, sigend_check, NULL);
 	signal_ignore(SIGPIPE);
