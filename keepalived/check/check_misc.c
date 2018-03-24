@@ -229,6 +229,13 @@ check_misc_script_security(magic_t magic)
 
 		misc_script = CHECKER_ARG(checker);
 
+		/* If the misc check script starts "</" (possibly with white space between
+		 * the '<' and '/'), it is checking for a file being openable,
+		 * so it won't be executed */
+		if (misc_script->script.args[0][0] == '<' &&
+		    misc_script->script.args[0][strspn(misc_script->script.args[0] + 1, " \t") + 1] == '/')
+			return 0;
+
 		script_flags |= (flags = check_script_secure(&misc_script->script, magic));
 
 		/* Mark not to run if needs inhibiting */

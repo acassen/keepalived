@@ -357,6 +357,9 @@
 /* Define to 1 if you have the <openssl/err.h> header file. */
 #undef HAVE_OPENSSL_ERR_H
 
+/* Define to 1 if you have the `OPENSSL_init_crypto' function. */
+#undef HAVE_OPENSSL_INIT_CRYPTO
+
 /* Define to 1 if you have the <openssl/md5.h> header file. */
 #undef HAVE_OPENSSL_MD5_H
 
@@ -387,6 +390,12 @@
 
 /* Define to 1 if you have the `socket' function. */
 #undef HAVE_SOCKET
+
+/* Define to 1 if you have the `SSL_CTX_set_verify_depth' function. */
+#undef HAVE_SSL_CTX_SET_VERIFY_DEPTH
+
+/* Define to 1 if you have the `SSL_set0_rbio' function. */
+#undef HAVE_SSL_SET0_RBIO
 
 /* Define to 1 if stdbool.h conforms to C99. */
 #undef HAVE_STDBOOL_H
@@ -610,6 +619,9 @@
 
 /* Define to 1 if have SCHED_RR */
 #undef _HAVE_SCHED_RT_
+
+/* Define to 1 if have SSL_set_tlsext_host_name() */
+#undef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 
 /* Define to 1 if have MAC VLAN support */
 #undef _HAVE_VRRP_VMAC_

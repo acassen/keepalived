@@ -180,6 +180,13 @@ check_track_script_secure(vrrp_script_t *script, magic_t magic)
 	if (script->insecure)
 		return 0;
 
+	/* If the track script starts "</" (possibly with white space between
+	 * the '<' and '/'), it is checking for a file being openable,
+	 * so it won't be executed */
+	if (script->script.args[0][0] == '<' &&
+	    script->script.args[0][strspn(script->script.args[0] + 1, " \t") + 1] == '/')
+		return 0;
+
 	flags = check_script_secure(&script->script, magic);
 
 	/* Mark not to run if needs inhibiting */

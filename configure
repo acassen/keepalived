@@ -6978,6 +6978,65 @@ if test $NEED_SSL = yes; then
   KA_LIBS="$KA_LIBS $LIBS"
 fi
 GENHASH_LIBS="$GENHASH_LIBS $LIBS"
+
+# Introduced in OpenSSL ver 0.9.9
+LIBS=$OPENSSL_LIBS
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking SSL_set_tlsext_host_name() - may be a definition" >&5
+$as_echo_n "checking SSL_set_tlsext_host_name() - may be a definition... " >&6; }
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+    #include <openssl/ssl.h>
+    int main(void)
+    {
+      request_t req;
+      SSL_set_tlsext_host_name(req.ssl, "SSL");
+    }
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+else
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define _HAVE_SSL_SET_TLSEXT_HOST_NAME_  1 " >>confdefs.h
+
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+# SSL_CTX_set_verify_depth() introduced OpenSSL v0.9.5a
+for ac_func in SSL_CTX_set_verify_depth
+do :
+  ac_fn_c_check_func "$LINENO" "SSL_CTX_set_verify_depth" "ac_cv_func_SSL_CTX_set_verify_depth"
+if test "x$ac_cv_func_SSL_CTX_set_verify_depth" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_SSL_CTX_SET_VERIFY_DEPTH 1
+_ACEOF
+
+fi
+done
+
+
+# SSL_set0_rbio(), SSL_set0_wbio() and OPENSSL_init_crypto() introduced OpenSSL v1.1.0
+for ac_func in SSL_set0_rbio OPENSSL_init_crypto
+do :
+  as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
+ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
+if eval test \"x\$"$as_ac_var"\" = x"yes"; then :
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_func" | $as_tr_cpp` 1
+_ACEOF
+
+fi
+done
+
+
 unset LIBS
 
 if test $BUILD_GENHASH = No; then
