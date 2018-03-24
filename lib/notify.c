@@ -247,6 +247,10 @@ system_call(const notify_script_t* script)
 	if (set_privileges(script->uid, script->gid))
 		exit(0);
 
+	/* Move us into our own process group, so if the script needs to be killed
+	 * all its child processes will also be killed. */
+	setpgid(0, 0);
+
 	if (script->flags & SC_EXECABLE) {
 		execve(script->args[0], script->args, environ);
 
@@ -365,10 +369,6 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, uns
 #ifdef _MEM_CHECK_
 	skip_mem_dump();
 #endif
-
-	/* Move us into our own process group, so if the script needs to be killed
-	 * all its child processes will also be killed. */
-	setpgid(0, 0);
 
 	system_call(script);
 
