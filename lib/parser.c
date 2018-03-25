@@ -60,6 +60,7 @@ typedef struct _defs {
 	char *value;
 	size_t value_len;
 	bool multiline;
+	char *(*fn)(void);
 } def_t;
 
 /* global vars */
@@ -229,6 +230,17 @@ free_keywords(vector_t *keywords_vec)
 		FREE(keyword_vec);
 	}
 	vector_free(keywords_vec);
+}
+
+/* Functions used for standard definitions */
+static char *
+get_cwd(void)
+{
+	char *dir = MALLOC(PATH_MAX);
+
+	/* Since keepalived doesn't do a chroot(), we don't need to be concerned
+	 * about (unreachable) - see getcwd(3) man page. */
+	return getcwd(dir, PATH_MAX);
 }
 
 vector_t *
@@ -487,8 +499,6 @@ read_conf_file(const char *conf_file)
 	}
 
 	globfree(&globbuf);
-	if (LIST_EXISTS(defs))
-		free_list(&defs);
 
 	if (skip_sublevel) {
 		log_message(LOG_INFO, "WARNING - %d missing '}'(s) in the config file(s)", skip_sublevel);
@@ -661,6 +671,14 @@ replace_param(char *buf, size_t max_len, bool in_multiline)
 				continue;
 			}
 
+			if (def->fn) {
+				/* This is a standard definition that uses a function for the replacement text */
+				if (def->value)
+					FREE(def->value);
+				def->value = (*def->fn)();
+				def->value_len = strlen(def->value);
+			}
+
 			/* Ensure there is enough room to replace $PARAM or ${PARAM} with value */
 			if (def->multiline) {
 				replacing_len = strcspn(def->value, DEF_LINE_END);
@@ -718,7 +736,7 @@ free_definition(void *d)
 	def_t *def = d;
 
 	FREE(def->name);
-	FREE(def->value);
+	FREE_PTR(def->value);
 	FREE(def);
 }
 
@@ -750,8 +768,10 @@ check_definition(const char *buf)
 		return false;
 
 	def_name_len = (size_t)(p - &buf[1]);
-	if ((def = find_definition(&buf[1], def_name_len, true)))
+	if ((def = find_definition(&buf[1], def_name_len, true))) {
 		FREE(def->value);
+		def->fn = NULL;		/* Allow a standard definition to be overridden */
+	}
 	else {
 		def = MALLOC(sizeof(*def));
 		def->name_len = def_name_len;
@@ -789,6 +809,42 @@ check_definition(const char *buf)
 	def->value = str;
 
 	return def;
+}
+
+static void
+add_std_definition(const char *name, const char *value, char *(*fn)(void))
+{
+	def_t* def;
+
+	def = MALLOC(sizeof(*def));
+	def->name_len = strlen(name);
+	def->name = MALLOC(def->name_len + 1);
+	strcpy(def->name, name);
+	if (value) {
+		def->value_len = strlen(value);
+		def->value = MALLOC(def->value_len + 1);
+		strcpy(def->value, value);
+	}
+	def->fn = fn;
+
+	if (!LIST_EXISTS(defs))
+		defs = alloc_list(free_definition, NULL);
+	list_add(defs, def);
+}
+
+static void
+set_std_definitions(void)
+{
+	add_std_definition("_PWD", NULL, get_cwd);
+}
+
+static void
+free_definitions(void)
+{
+	if (LIST_EXISTS(defs)) {
+		free_list(&defs);
+		defs = NULL;
+	}
 }
 
 static bool
@@ -1106,6 +1162,9 @@ init_data(const char *conf_file, vector_t * (*init_keywords) (void))
 
 	(*init_keywords) ();
 
+	/* Add out standard definitions */
+	set_std_definitions();
+
 #if DUMP_KEYWORDS
 	/* Dump configuration */
 	dump_keywords(keywords, 0, NULL);
@@ -1122,5 +1181,6 @@ init_data(const char *conf_file, vector_t * (*init_keywords) (void))
 	endpwent();
 
 	free_keywords(keywords);
+	free_definitions();
 	clear_rt_names();
 }
