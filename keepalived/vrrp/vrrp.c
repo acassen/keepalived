@@ -250,6 +250,7 @@ check_vrrp_script_security(void)
 			script_flags |= check_notify_script_secure(&sg->script_backup, magic);
 			script_flags |= check_notify_script_secure(&sg->script_master, magic);
 			script_flags |= check_notify_script_secure(&sg->script_fault, magic);
+			script_flags |= check_notify_script_secure(&sg->script_stop, magic);
 			script_flags |= check_notify_script_secure(&sg->script, magic);
 
 			for (e1 = LIST_HEAD(sg->track_script); e1; e1 = next) {
