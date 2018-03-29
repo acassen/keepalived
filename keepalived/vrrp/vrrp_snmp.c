@@ -4403,7 +4403,7 @@ vrrp_handles_global_oid(void)
 {
 	if (global_data->enable_snmp_vrrp) {
 #ifdef _WITH_LVS_
-		if (!__test_bit(DAEMON_CHECKERS, &daemon_mode) || !global_data->enable_snmp_checker)
+		if (!running_checker() || !global_data->enable_snmp_checker)
 			return true;
 #else
 		return true;
