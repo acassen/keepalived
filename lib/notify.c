@@ -137,6 +137,9 @@ notify_fifo_exec(thread_master_t *m, int (*func) (thread_t *), void *arg, const 
 	set_privileges(script->uid, script->gid);
 
 	if (script->flags | SC_EXECABLE) {
+		/* If keepalived dies, we want the script to die */
+		prctl(PR_SET_PDEATHSIG, SIGTERM);
+
 		execve(script->args[0], script->args, environ);
 
 		if (errno == EACCES)
@@ -253,6 +256,9 @@ system_call(const notify_script_t* script)
 	setpgid(0, 0);
 
 	if (script->flags & SC_EXECABLE) {
+		/* If keepalived dies, we want the script to die */
+		prctl(PR_SET_PDEATHSIG, SIGTERM);
+
 		execve(script->args[0], script->args, environ);
 
 		/* error */
