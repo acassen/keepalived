@@ -45,6 +45,7 @@
 #define LINK_UP   1
 #define LINK_DOWN 0
 #define ARPHRD_ETHER 1
+#define ARPHRD_INFINIBAND 32
 #define ARPHRD_LOOPBACK 772
 #define POLLING_DELAY TIMER_HZ
 
@@ -83,6 +84,7 @@ typedef struct _interface {
 	uint32_t		mtu;			/* MTU for this interface_t */
 	unsigned short		hw_type;		/* Type of hardware address */
 	u_char			hw_addr[MAX_ADDR_LEN];	/* MAC address */
+	u_char			hw_addr_bcast[MAX_ADDR_LEN]; /* broadcast address */
 	size_t			hw_addr_len;		/* MAC addresss length */
 	int			lb_type;		/* Interface regs selection */
 	bool			linkbeat;		/* LinkBeat from MII BMSR req, SIOCETHTOOL or SIOCGIFFLAGS ioctls */

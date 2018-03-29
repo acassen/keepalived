@@ -393,6 +393,10 @@ dump_if(void *data)
 	interface_t *ifp_u;
 #endif
 	char addr_str[INET6_ADDRSTRLEN];
+	char *mac_buf;
+	size_t mac_buf_len;
+	char *p;
+	size_t i;
 
 	log_message(LOG_INFO, "------< NIC >------");
 	log_message(LOG_INFO, " Name = %s", ifp->ifname);
@@ -401,11 +405,24 @@ dump_if(void *data)
 	inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, sizeof(addr_str));
 	log_message(LOG_INFO, " IPv6 address = %s", addr_str);
 
-	/* FIXME: Hardcoded for ethernet */
-	if (ifp->hw_type == ARPHRD_ETHER)
-		log_message(LOG_INFO, " MAC = %.2x:%.2x:%.2x:%.2x:%.2x:%.2x",
-		       ifp->hw_addr[0], ifp->hw_addr[1], ifp->hw_addr[2]
-		       , ifp->hw_addr[3], ifp->hw_addr[4], ifp->hw_addr[5]);
+	if (ifp->hw_addr_len) {
+		mac_buf_len = 3 * ifp->hw_addr_len;
+		mac_buf = MALLOC(mac_buf_len);
+
+		for (i = 0, p = mac_buf; i < ifp->hw_addr_len; i++)
+			p += snprintf(p, mac_buf_len - (p - mac_buf), "%.2x%s",
+				      ifp->hw_addr[i], i < ifp->hw_addr_len -1 ? ":" : "");
+
+		log_message(LOG_INFO, " MAC = %s", mac_buf);
+
+		for (i = 0, p = mac_buf; i < ifp->hw_addr_len; i++)
+			p += snprintf(p, mac_buf_len - (p - mac_buf), "%.2x%s",
+				      ifp->hw_addr_bcast[i], i < ifp->hw_addr_len - 1 ? ":" : "");
+
+		log_message(LOG_INFO, " MAC broadcast = %s", mac_buf);
+
+		FREE(mac_buf);
+	}
 
 	if (ifp->flags & IFF_UP)
 		log_message(LOG_INFO, " is UP");
@@ -424,6 +441,9 @@ dump_if(void *data)
 		break;
 	case ARPHRD_ETHER:
 		log_message(LOG_INFO, " HW Type = ETHERNET");
+		break;
+	case ARPHRD_INFINIBAND:
+		log_message(LOG_INFO, " HW Type = INFINIBAND");
 		break;
 	default:
 		log_message(LOG_INFO, " HW Type = UNKNOWN");
@@ -883,6 +903,10 @@ print_interface(FILE *fp, interface_t *ifp)
 	interface_t *ifp_u;
 #endif
 	char addr_str[INET6_ADDRSTRLEN];
+	char *mac_buf;
+	size_t mac_buf_len;
+	char *p;
+	size_t i;
 
 	fprintf(fp, "------< NIC >------\n");
 	fprintf(fp, " Name = %s\n", ifp->ifname);
@@ -891,11 +915,24 @@ print_interface(FILE *fp, interface_t *ifp)
 	inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, sizeof(addr_str));
 	fprintf(fp, " IPv6 address = %s\n", addr_str);
 
-	/* FIXME: Hardcoded for ethernet */
-	if (ifp->hw_type == ARPHRD_ETHER)
-		fprintf(fp, " MAC = %.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
-		       ifp->hw_addr[0], ifp->hw_addr[1], ifp->hw_addr[2]
-		       , ifp->hw_addr[3], ifp->hw_addr[4], ifp->hw_addr[5]);
+	if (ifp->hw_addr_len) {
+		mac_buf_len = 3 * ifp->hw_addr_len;
+		mac_buf = MALLOC(mac_buf_len);
+
+		for (i = 0, p = mac_buf; i < ifp->hw_addr_len; i++)
+			p += snprintf(p, mac_buf_len - (p - mac_buf), "%.2x%s",
+				      ifp->hw_addr[i], i < ifp->hw_addr_len -1 ? ":" : "");
+
+		fprintf(fp, " MAC = %s", mac_buf);
+
+		for (i = 0, p = mac_buf; i < ifp->hw_addr_len; i++)
+			p += snprintf(p, mac_buf_len - (p - mac_buf), "%.2x%s",
+				      ifp->hw_addr_bcast[i], i < ifp->hw_addr_len - 1 ? ":" : "");
+
+		fprintf(fp, " MAC broadcast = %s", mac_buf);
+
+		FREE(mac_buf);
+	}
 
 	if (ifp->flags & IFF_UP)
 		fprintf(fp, " is UP\n");
@@ -914,6 +951,9 @@ print_interface(FILE *fp, interface_t *ifp)
 		break;
 	case ARPHRD_ETHER:
 		fprintf(fp, " HW Type = ETHERNET\n");
+		break;
+	case ARPHRD_INFINIBAND:
+		fprintf(fp, " HW Type = INFINIBAND\n");
 		break;
 	default:
 		fprintf(fp, " HW Type = UNKNOWN\n");

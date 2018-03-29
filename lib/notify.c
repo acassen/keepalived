@@ -101,7 +101,8 @@ notify_fifo_open(notify_fifo_t* global_fifo, notify_fifo_t* fifo, int (*script_e
 		fifo_open(global_fifo, script_exit, "");
 
 	/* Now the specific FIFO */
-	fifo_open(fifo, script_exit, type);
+	if (fifo->name)
+		fifo_open(fifo, script_exit, type);
 }
 
 static void

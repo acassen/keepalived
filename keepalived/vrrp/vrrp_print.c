@@ -184,6 +184,10 @@ if_print(FILE *file, void * data)
 	interface_t *ifp = tip->ifp;
 	char addr_str[INET6_ADDRSTRLEN];
 	int weight = tip->weight;
+	size_t mac_buf_len;
+	char *mac_buf;
+	char *p;
+	size_t i;
 
 	fprintf(file, "------< NIC >------\n");
 	fprintf(file, " Name = %s\n", ifp->ifname);
@@ -193,11 +197,24 @@ if_print(FILE *file, void * data)
 	inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, sizeof(addr_str));
 	fprintf(file, " IPv6 address = %s\n", addr_str);
 
-	/* FIXME: Harcoded for ethernet */
-	if (ifp->hw_type == ARPHRD_ETHER)
-	fprintf(file, " MAC = %.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
-		ifp->hw_addr[0], ifp->hw_addr[1], ifp->hw_addr[2]
-		, ifp->hw_addr[3], ifp->hw_addr[4], ifp->hw_addr[5]);
+	if (ifp->hw_addr_len) {
+		mac_buf_len = 3 * ifp->hw_addr_len;
+		mac_buf = MALLOC(mac_buf_len);
+
+		for (i = 0, p = mac_buf; i < ifp->hw_addr_len; i++)
+			p += snprintf(p, mac_buf_len - (p - mac_buf), "%.2x%s",
+				      ifp->hw_addr[i], i < ifp->hw_addr_len -1 ? ":" : "");
+
+		fprintf(file, " MAC = %s", mac_buf);
+
+		for (i = 0, p = mac_buf; i < ifp->hw_addr_len; i++)
+			p += snprintf(p, mac_buf_len - (p - mac_buf), "%.2x%s",
+				      ifp->hw_addr_bcast[i], i < ifp->hw_addr_len - 1 ? ":" : "");
+
+		fprintf(file, " MAC broadcast = %s", mac_buf);
+
+		FREE(mac_buf);
+	}
 
 	if (ifp->flags & IFF_UP)
 		fprintf(file, " is UP\n");
@@ -219,6 +236,9 @@ if_print(FILE *file, void * data)
 		break;
 	case ARPHRD_ETHER:
 		fprintf(file, " HW Type = ETHERNET\n");
+		break;
+	case ARPHRD_INFINIBAND:
+		fprintf(file, " HW Type = INFINIBAND\n");
 		break;
 	default:
 		fprintf(file, " HW Type = UNKNOWN\n");

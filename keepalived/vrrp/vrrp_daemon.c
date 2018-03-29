@@ -294,9 +294,17 @@ start_vrrp(void)
 	 * has been called so we know whether we want IPv4 and/or IPv6 */
 	iptables_init();
 
+#if !defined _DEBUG_ && defined _WITH_LVS_
+	/* Only one process must run the script to process the global fifo,
+	 * so let the checker process do so. */
+	if (__test_bit(DAEMON_CHECKERS, &daemon_mode)) {
+		FREE_PTR(global_data->notify_fifo.script);
+		global_data->notify_fifo.script = NULL;
+	}
+#endif
+
 	/* Create a notify FIFO if needed, and open it */
-	if (global_data->vrrp_notify_fifo.name)
-		notify_fifo_open(&global_data->notify_fifo, &global_data->vrrp_notify_fifo, vrrp_notify_fifo_script_exit, "vrrp_");
+	notify_fifo_open(&global_data->notify_fifo, &global_data->vrrp_notify_fifo, vrrp_notify_fifo_script_exit, "vrrp_");
 
 	/* Make sure we don't have any old iptables/ipsets settings left around */
 #ifdef _HAVE_LIBIPTC_

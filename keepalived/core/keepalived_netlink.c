@@ -865,11 +865,70 @@ netlink_request(nl_handle_t *nl,
 }
 
 #ifdef _WITH_VRRP_
+
+static char *get_mac_string(int type)
+{
+	switch (type) {
+	case IFLA_BROADCAST:
+		return "Broadcast";
+	case IFLA_ADDRESS:
+		return "Address";
+	default:
+		return "Unknown Type";
+	}
+}
+
+
+static int netlink_if_get_ll_addr(interface_t *ifp, struct rtattr *tb[],
+				  int type, char *name)
+{
+	size_t i;
+
+	if (tb[type]) {
+		size_t hw_addr_len = RTA_PAYLOAD(tb[type]);
+
+		if (hw_addr_len > sizeof(ifp->hw_addr)) {
+			log_message(LOG_ERR,
+				    " %s MAC address for %s is too large: %zu",
+				    get_mac_string(type), name, hw_addr_len);
+			return -1;
+		}
+
+		switch (type) {
+
+		case IFLA_ADDRESS:
+			ifp->hw_addr_len = hw_addr_len;
+			memcpy(ifp->hw_addr, RTA_DATA(tb[type]), hw_addr_len);
+			/*
+			 * Don't allow a hardware address of all zeroes
+			 * Mark hw_addr_len as 0 to warn
+			 */
+			for (i = 0; i < hw_addr_len; i++)
+				if (ifp->hw_addr[i] != 0)
+					break;
+			if (i == hw_addr_len)
+				ifp->hw_addr_len = 0;
+			else
+				ifp->hw_addr_len = hw_addr_len;
+			break;
+
+		case IFLA_BROADCAST:
+			memcpy(ifp->hw_addr_bcast, RTA_DATA(tb[type]),
+			       hw_addr_len);
+			break;
+
+		default:
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 static int
 netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg *ifi)
 {
 	char *name;
-	size_t i;
 #ifdef _HAVE_VRRP_VMAC_
 	struct rtattr* linkinfo[IFLA_INFO_MAX+1];
 	struct rtattr* linkattr[IFLA_MACVLAN_MAX+1];
@@ -883,26 +942,10 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	ifp->mtu = *(uint32_t *)RTA_DATA(tb[IFLA_MTU]);
 	ifp->hw_type = ifi->ifi_type;
 
-	if (tb[IFLA_ADDRESS]) {
-		size_t hw_addr_len = RTA_PAYLOAD(tb[IFLA_ADDRESS]);
-
-		if (hw_addr_len > sizeof(ifp->hw_addr)) {
-			log_message(LOG_ERR, "MAC address for %s is too large: %zu",
-				name, hw_addr_len);
-			return -1;
-		}
-		else {
-			ifp->hw_addr_len = hw_addr_len;
-			memcpy(ifp->hw_addr, RTA_DATA(tb[IFLA_ADDRESS]), hw_addr_len);
-			for (i = 0; i < hw_addr_len; i++)
-				if (ifp->hw_addr[i] != 0)
-					break;
-			if (i == hw_addr_len)
-				ifp->hw_addr_len = 0;
-			else
-				ifp->hw_addr_len = hw_addr_len;
-		}
-	}
+	if (netlink_if_get_ll_addr(ifp, tb, IFLA_ADDRESS, name) == -1)
+		return -1;
+	if (netlink_if_get_ll_addr(ifp, tb, IFLA_BROADCAST, name) == -1)
+		return -1;
 
 #ifdef _HAVE_VRRP_VMAC_
 	/* See if this interface is a MACVLAN of ours */
