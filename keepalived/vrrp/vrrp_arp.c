@@ -107,7 +107,7 @@ ssize_t send_gratuitous_arp_immediate(interface_t *ifp, ip_address_t *ipaddress)
 	char *arp_ptr;
 	ssize_t len, pack_len;
 
-	if (ifp->hw_addr_len <= 0)
+	if (ifp->hw_addr_len == 0)
 		return -1;
 
 	/* Setup link layer header */

@@ -2102,6 +2102,14 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		return false;
 	}
 
+#ifdef _HAVE_VRRP_VMAC_
+	/* Check that the underlying interface type is Ethernet if using a VMAC */
+	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) && vrrp->ifp->hw_type != ARPHRD_ETHER) {
+		log_message(LOG_INFO, "(%s): vmacs are only supported on Ethernet type interfaces", vrrp->iname);
+		return false;
+	}
+#endif
+
 	/* If the addresses are IPv6, then the first one must be link local */
 	if (vrrp->family == AF_INET6 && LIST_ISEMPTY(vrrp->unicast_peer) &&
 		  !IN6_IS_ADDR_LINKLOCAL(&((ip_address_t *)LIST_HEAD(vrrp->vip)->data)->u.sin6_addr)) {
