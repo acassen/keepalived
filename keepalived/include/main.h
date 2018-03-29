@@ -81,6 +81,7 @@ extern unsigned os_release;
 extern void free_parent_mallocs_startup(bool);
 extern void free_parent_mallocs_exit(void);
 extern char *make_syslog_ident(const char*);
+extern bool running_checker(void);
 
 extern void stop_keepalived(void);
 extern int keepalived_main(int, char**); /* The "real" main function */

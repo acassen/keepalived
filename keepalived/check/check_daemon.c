@@ -178,8 +178,7 @@ start_check(list old_checkers_queue)
 	}
 
 	/* Create a notify FIFO if needed, and open it */
-	if (global_data->lvs_notify_fifo.name)
-		notify_fifo_open(&global_data->notify_fifo, &global_data->lvs_notify_fifo, lvs_notify_fifo_script_exit, "lvs_");
+	notify_fifo_open(&global_data->notify_fifo, &global_data->lvs_notify_fifo, lvs_notify_fifo_script_exit, "lvs_");
 
 	/* Get current active addresses, and start update process */
 	if (using_ha_suspend || __test_bit(LOG_ADDRESS_CHANGES, &debug)) {
