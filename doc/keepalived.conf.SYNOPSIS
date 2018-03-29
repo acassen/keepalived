@@ -336,7 +336,7 @@ global_defs {                                 # Block identification
                                               # Note: keepalived, checker and rfc support can be
                                               #   individually enabled/disabled
     snmp_socket <PROTOCOL>:<ADDRESS>[:<PORT>] # specify socket to use for connecting to SNMP master agent (default unix:/var/agentx/master)
-                                              #   unless using a network namespace, when the default is udp:localhost:705
+                                              #   (see source module keepalived/vrrp/vrrp_snmp.c for more details)
     enable_snmp_vrrp                          # enable SNMP handling of vrrp element of KEEPALIVED MIB
     enable_snmp_checker                       # enable SNMP handling of checker element of KEEPALIVED MIB
     enable_snmp_rfc                           # enable SNMP handling of RFC2787 and RFC6527 VRRP MIBs
