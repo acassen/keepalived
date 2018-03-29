@@ -339,7 +339,7 @@ start_vrrp(void)
 	 * has been called so we know whether we want IPv4 and/or IPv6 */
 	iptables_init();
 
-#ifndef _DEBUG_
+#if !defined _DEBUG_ && defined _WITH_LVS_
 	/* Only one process must run the script to process the global fifo,
 	 * so let the checker process do so. */
 	if (running_checker()) {
