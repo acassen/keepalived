@@ -402,8 +402,6 @@ start_keepalived(void)
 #ifdef _WITH_LVS_
 	/* start healthchecker child */
 	if (running_checker())
-	    (have_virtual_servers ||
-	     __test_bit(RUN_ALL_CHILDREN, &daemon_mode)))
 		start_check_child();
 #endif
 #ifdef _WITH_VRRP_
