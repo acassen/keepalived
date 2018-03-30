@@ -84,8 +84,7 @@ vgroup_print(FILE *file, void *data)
 static void
 vscript_print(FILE *file, void *data)
 {
-	tracked_sc_t *tsc = data;
-	vrrp_script_t *vscript = tsc->scr;
+	vrrp_script_t *vscript = data;
 	const char *str;
 
 	fprintf(file, " VRRP Script = %s\n", vscript->sname);
@@ -110,7 +109,15 @@ vscript_print(FILE *file, void *data)
 		str = (vscript->result >= vscript->rise) ? "GOOD" : "BAD";
 	}
 	fprintf(file, "   Status = %s\n", str);
-	fprintf(file, "   Interface weight %d\n", tsc->weight);
+}
+
+static void
+script_print(FILE *file, void *data)
+{
+	tracked_sc_t *tsc = data;
+	vrrp_script_t *vscript = tsc->scr;
+
+	fprintf(file, "     %s weight %d\n", vscript->sname, tsc->weight);
 }
 
 static void
@@ -180,78 +187,9 @@ rule_print(FILE *file, void *data)
 static void
 if_print(FILE *file, void * data)
 {
-	tracked_if_t *tip = data;
-	interface_t *ifp = tip->ifp;
-	char addr_str[INET6_ADDRSTRLEN];
-	int weight = tip->weight;
-	size_t mac_buf_len;
-	char *mac_buf;
-	char *p;
-	size_t i;
-
-	fprintf(file, "------< NIC >------\n");
-	fprintf(file, " Name = %s\n", ifp->ifname);
-	fprintf(file, " index = %u\n", ifp->ifindex);
-	fprintf(file, " IPv4 address = %s\n",
-		inet_ntop2(ifp->sin_addr.s_addr));
-	inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, sizeof(addr_str));
-	fprintf(file, " IPv6 address = %s\n", addr_str);
-
-	if (ifp->hw_addr_len) {
-		mac_buf_len = 3 * ifp->hw_addr_len;
-		mac_buf = MALLOC(mac_buf_len);
-
-		for (i = 0, p = mac_buf; i < ifp->hw_addr_len; i++)
-			p += snprintf(p, mac_buf_len - (p - mac_buf), "%.2x%s",
-				      ifp->hw_addr[i], i < ifp->hw_addr_len -1 ? ":" : "");
-
-		fprintf(file, " MAC = %s", mac_buf);
-
-		for (i = 0, p = mac_buf; i < ifp->hw_addr_len; i++)
-			p += snprintf(p, mac_buf_len - (p - mac_buf), "%.2x%s",
-				      ifp->hw_addr_bcast[i], i < ifp->hw_addr_len - 1 ? ":" : "");
-
-		fprintf(file, " MAC broadcast = %s", mac_buf);
-
-		FREE(mac_buf);
-	}
-
-	if (ifp->flags & IFF_UP)
-		fprintf(file, " is UP\n");
-
-	if (ifp->flags & IFF_RUNNING)
-		fprintf(file, " is RUNNING\n");
-
-	if (!(ifp->flags & IFF_UP) && !(ifp->flags & IFF_RUNNING))
-		fprintf(file, " is DOWN\n");
-
-	if (weight)
-		fprintf(file, " weight = %d\n", weight);
-
-	fprintf(file, " MTU = %d\n", ifp->mtu);
-
-	switch (ifp->hw_type) {
-	case ARPHRD_LOOPBACK:
-		fprintf(file, " HW Type = LOOPBACK\n");
-		break;
-	case ARPHRD_ETHER:
-		fprintf(file, " HW Type = ETHERNET\n");
-		break;
-	case ARPHRD_INFINIBAND:
-		fprintf(file, " HW Type = INFINIBAND\n");
-		break;
-	default:
-		fprintf(file, " HW Type = UNKNOWN\n");
-		break;
-	}
-
-	/* MII channel supported ? */
-	if (IF_MII_SUPPORTED(ifp))
-		fprintf(file, " NIC support MII regs\n");
-	else if (IF_ETHTOOL_SUPPORTED(ifp))
-		fprintf(file, " NIC support ETHTOOL GLINK interface\n");
-	else
-		fprintf(file, " Enabling NIC ioctl refresh polling\n");
+	/* Track interface dump */
+        tracked_if_t *tip = data;
+        fprintf(file, "     %s weight %d\n", IF_NAME(tip->ifp), tip->weight);
 }
 
 static void
@@ -346,7 +284,7 @@ vrrp_print(FILE *file, void *data)
 	if (!LIST_ISEMPTY(vrrp->track_script)) {
 		fprintf(file, "   Tracked scripts = %d\n",
 		       LIST_SIZE(vrrp->track_script));
-		vrrp_print_list(file, vrrp->track_script, &vscript_print);
+		vrrp_print_list(file, vrrp->track_script, &script_print);
 	}
 	if (!LIST_ISEMPTY(vrrp->vip)) {
 		fprintf(file, "   Virtual IP = %d\n", LIST_SIZE(vrrp->vip));
@@ -416,6 +354,11 @@ vrrp_print_data(void)
 	if (!LIST_ISEMPTY(vrrp_data->vrrp_sync_group)) {
 		fprintf(file, "------< VRRP Sync groups >------\n");
 		vrrp_print_list(file, vrrp_data->vrrp_sync_group, &vgroup_print);
+	}
+
+	if (!LIST_ISEMPTY(vrrp_data->vrrp_script)) {
+		fprintf(file, "------< VRRP Scripts >------\n");
+		vrrp_print_list(file, vrrp_data->vrrp_script, &vscript_print);
 	}
 
 	print_interface_list(file);
