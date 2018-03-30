@@ -83,6 +83,7 @@ typedef struct _interface {
 	uint32_t		mtu;			/* MTU for this interface_t */
 	unsigned short		hw_type;		/* Type of hardware address */
 	u_char			hw_addr[MAX_ADDR_LEN];	/* MAC address */
+	u_char			hw_addr_bcast[MAX_ADDR_LEN]; /* broadcast address */
 	size_t			hw_addr_len;		/* MAC addresss length */
 	int			lb_type;		/* Interface regs selection */
 #ifdef _HAVE_VRRP_VMAC_
