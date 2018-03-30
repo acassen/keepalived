@@ -157,7 +157,7 @@ start_bfd(void)
 
 /* Reload handler */
 static void
-sighup_bfd(__attribute__ ((unused)) void *v,
+sigreload_bfd(__attribute__ ((unused)) void *v,
 	   __attribute__ ((unused)) int sig)
 {
 	thread_add_event(master, reload_bfd_thread, NULL, 0);
@@ -177,7 +177,7 @@ static void
 bfd_signal_init(void)
 {
 	signal_handler_child_init();
-	signal_set(SIGHUP, sighup_bfd, NULL);
+	signal_set(SIGHUP, sigreload_bfd, NULL);
 	signal_set(SIGINT, sigend_bfd, NULL);
 	signal_set(SIGTERM, sigend_bfd, NULL);
 	signal_ignore(SIGPIPE);

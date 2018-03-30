@@ -105,7 +105,7 @@ After opening an included file, the current directory is set to the directory of
 the file itself, so any relative paths included from a file are relative to the
 directory of the including file itself.
 
-0.4 Parameter substitution
+0.5 Parameter substitution
 
 Substitutable parameters can be specified. The format for defining a parameter is:
 $PARAMETER=VALUE
@@ -113,7 +113,8 @@ where there must be no space before the '=' and only whitespace may preceed to '
 Empty values are allowed.
 
 Parameter names can be made up of any combination of A-Za-z0-9 and _, but cannot start
-with a digit.
+with a digit. Parameter names starting with an underscore should be considered
+reserved names that keepalived will define for various pre-defined options.
 
 After a parameter is defined, any occurrence of $PARAMETER followed by
 whitespace, or any occurrence of ${PARAMETER} (which need not be followed by
@@ -198,6 +199,17 @@ $INSTANCE
 
 $NUM=1
 $INSTANCE
+
+0.5.1 Pre-defined definitions
+
+The following pre-defined definitions are defined:
+${_PWD}		The directory of the current configuration file
+		(this can be changed if using the include directive).
+
+Additional pre-defiend definitions will be added as their need is identified.
+It will normally be quite straightforward to add additional pre-defiend
+definitions, so if you need one, or have a good idea for one, then raise
+an issue at https://github.com/acasson/keepalived/issues requesting it.
 
 0.6 Configuration file syntax parser
 
@@ -324,7 +336,7 @@ global_defs {                                 # Block identification
                                               # Note: keepalived, checker and rfc support can be
                                               #   individually enabled/disabled
     snmp_socket <PROTOCOL>:<ADDRESS>[:<PORT>] # specify socket to use for connecting to SNMP master agent (default unix:/var/agentx/master)
-                                              #   unless using a network namespace, when the default is udp:localhost:705
+                                              #   (see source module keepalived/vrrp/vrrp_snmp.c for more details)
     enable_snmp_vrrp                          # enable SNMP handling of vrrp element of KEEPALIVED MIB
     enable_snmp_checker                       # enable SNMP handling of checker element of KEEPALIVED MIB
     enable_snmp_rfc                           # enable SNMP handling of RFC2787 and RFC6527 VRRP MIBs
@@ -1036,6 +1048,10 @@ virtual_server group <STRING>      {          # VS group declaration
             virtualhost <STRING>              # VirtualHost string to use. If not set
                                               #  uses virtualhost from real or
                                               #  virtual_server.
+        }
+
+        SSL_GET {
+            enable_sni            # send Server Name Indication during SSL handshake
         }
 
         TCP_CHECK {                           # TCP healthchecker

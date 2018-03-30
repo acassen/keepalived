@@ -899,24 +899,6 @@ net_namespace_handler(vector_t *strvec)
 		else
 			log_message(LOG_INFO, "Duplicate net_namespace definition %s - ignoring", FMT_STR_VSLOT(strvec, 1));
 	}
-
-#ifdef _WITH_SNMP_
-	/* Multiple instances of keepalived cannot register the same MIB
-	 * with the same instance of snmpd. In order for snmpd to work
-	 * with multiple instances of keepalived, there would need to be
-	 * one instance of snmpd per keepalived instance. Using unix domain
-	 * sockets will not work for this, so set the default snmp_socket
-	 * to udp:localhost:705 which will enable keepalived to communicate
-	 * with its own instance of snmpd running in the same network namespace. */
-	if (global_data && !global_data->snmp_socket) {
-		global_data->snmp_socket = MALLOC(strlen(SNMP_DEFAULT_NETWORK_SOCKET) + 1);
-		if (!global_data->snmp_socket) {
-			log_message(LOG_INFO, "Unable to set default SNMP socket for network namespace");
-			return;
-		}
-		strcpy(global_data->snmp_socket, SNMP_DEFAULT_NETWORK_SOCKET);
-	}
-#endif
 }
 
 static void

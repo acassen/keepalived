@@ -38,8 +38,9 @@
 #define SC_ISSCRIPT     0x02    /* It is a script */
 #define SC_INHIBIT      0x04    /* Script needs inhibiting */
 #define SC_NOTFOUND	0x08	/* Cannot find element of path */
-#define	SC_EXECUTABLE	0x10	/* The script is marked executable */
+#define SC_EXECUTABLE	0x10	/* The script is marked executable */
 #define SC_EXECABLE	0x20	/* The script can be invoked via execve() */
+#define SC_SYSTEM	0x40	/* The script can safely be executed via system() */
 
 typedef enum {
 	SCRIPT_STATE_IDLE,

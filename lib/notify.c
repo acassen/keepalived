@@ -137,6 +137,9 @@ notify_fifo_exec(thread_master_t *m, int (*func) (thread_t *), void *arg, const 
 	set_privileges(script->uid, script->gid);
 
 	if (script->flags | SC_EXECABLE) {
+		/* If keepalived dies, we want the script to die */
+		prctl(PR_SET_PDEATHSIG, SIGTERM);
+
 		execve(script->args[0], script->args, environ);
 
 		if (errno == EACCES)
@@ -209,7 +212,8 @@ notify_fifo_open(notify_fifo_t* global_fifo, notify_fifo_t* fifo, int (*script_e
 		fifo_open(global_fifo, script_exit, "");
 
 	/* Now the specific FIFO */
-	fifo_open(fifo, script_exit, type);
+	if (fifo->name)
+		fifo_open(fifo, script_exit, type);
 }
 
 static void
@@ -247,7 +251,14 @@ system_call(const notify_script_t* script)
 	if (set_privileges(script->uid, script->gid))
 		exit(0);
 
+	/* Move us into our own process group, so if the script needs to be killed
+	 * all its child processes will also be killed. */
+	setpgid(0, 0);
+
 	if (script->flags & SC_EXECABLE) {
+		/* If keepalived dies, we want the script to die */
+		prctl(PR_SET_PDEATHSIG, SIGTERM);
+
 		execve(script->args[0], script->args, environ);
 
 		/* error */
@@ -366,10 +377,6 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, uns
 	skip_mem_dump();
 #endif
 
-	/* Move us into our own process group, so if the script needs to be killed
-	 * all its child processes will also be killed. */
-	setpgid(0, 0);
-
 	system_call(script);
 
 	exit(0); /* Script errors aren't server errors */
@@ -378,9 +385,10 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, uns
 void
 script_killall(thread_master_t *m, int signo)
 {
-	sigset_t old_set, child_wait;
 	thread_t *thread;
 	pid_t p_pgid, c_pgid;
+#ifndef HAVE_SIGNALFD
+	sigset_t old_set, child_wait;
 
 	sigmask_func(0, NULL, &old_set);
 	if (!sigismember(&old_set, SIGCHLD)) {
@@ -388,21 +396,24 @@ script_killall(thread_master_t *m, int signo)
 		sigaddset(&child_wait, SIGCHLD);
 		sigmask_func(SIG_BLOCK, &child_wait, NULL);
 	}
-
-	thread = m->child.head;
+#endif
 
 	p_pgid = getpgid(0);
 
-	while (thread) {
+	for (thread = m->child.head; thread; thread = thread->next) {
 		c_pgid = getpgid(thread->u.c.pid);
-		if (c_pgid != p_pgid) {
+		if (c_pgid != p_pgid)
 			kill(-c_pgid, signo);
+		else {
+			log_message(LOG_INFO, "Child process %d in our process group %d", c_pgid, p_pgid);
+			kill(thread->u.c.pid, signo);
 		}
-		thread = thread->next;
 	}
 
+#ifndef HAVE_SIGNALFD
 	if (!sigismember(&old_set, SIGCHLD))
 		sigmask_func(SIG_UNBLOCK, &child_wait, NULL);
+#endif
 }
 
 static bool
@@ -737,6 +748,13 @@ check_script_secure(notify_script_t *script,
 
 	if (!script)
 		return 0;
+
+	/* If the script starts "</" (possibly with white space between
+	 * the '<' and '/'), it is checking for a file being openable,
+	 * so it won't be executed */
+	if (script->args[0][0] == '<' &&
+	    script->args[0][strspn(script->args[0] + 1, " \t") + 1] == '/')
+		return SC_SYSTEM;
 
 	if (!strchr(script->args[0], '/')) {
 		/* It is a bare file name, so do a path search */

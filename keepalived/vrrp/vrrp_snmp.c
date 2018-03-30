@@ -32,6 +32,16 @@
      rwcommunity private
      master agentx
 
+     # agentaddress is what clients such as snmpwalk talk over to make SNMP requests and receive responses.
+     #   This can be specified as the "LISTENING ADDRESS" option to snmpd, and is the AGENT parameter to most
+     #   SNMP client commands. Processes using udp or tcp addresses will need to be in the same network
+     #    namespace.
+     # agentaddress udp:localhost:161		# default
+
+     # agentxsocket is what sub-agents (such as keepalived) communicate via with snmp. This is what keepalived
+     #   needs to match with its snmp_socket parameter, and can be specified to snmpd with the -x option.
+     # agentxsocket unix:/var/agentx/master	# default
+
      trapcommunity public
      trap2sink localhost:162
 
@@ -44,7 +54,9 @@
      cp doc/[VK]*-MIB.txt ~/.snmp/mibs
 
  * Run snmpd (in background)
-     snmpd -LS0-6d
+     snmpd -LS0-6d [-x agentxsocket] [AGENT]
+    If running in a network namespace, run snmpd, snmptrapd etc in that network namespace. To specify
+    a different port/socket to listen on, see above in sample snmpd.conf
 
  * Run snmptrapd (in foreground)
      MIBS="+KEEPALIVED-MIB:VRRP-MIB:VRRPV3-MIB" snmptrapd -f -Lo
@@ -62,7 +74,7 @@
 
  * Run keepalived. Some traps/notifications should be generated which will be displayed on the terminal running snmptrapd
 
- * To see the MIB trees, run
+ * To see the MIB trees, where localhost can be replaced by an appropriate AGENT, run (in the same namespace as snmpd)
      MIBS="+KEEPALIVED-MIB" snmpwalk -v2c -c public localhost KEEPALIVED-MIB::keepalived
     or
      MIBS="+VRRP-MIB" snmpwalk -v2c -c public localhost VRRP-MIB::vrrpMIB
@@ -71,6 +83,18 @@
 
  * To check the validity of a MIB file:
      smilint doc/KEEPALIVED-MIB.txt
+
+ * Multiple instances of keepalived cannot register the same MIB
+     with the same instance of snmpd. In order for snmpd to work
+     with multiple instances of keepalived, there would need to be
+     one instance of snmpd per keepalived instance. Using unix domain
+     sockets will not work for this, unless each instance of snmpd
+     is configured to use a different socket, so use network domain
+     sockets e.g. to udp:localhost:705 which will enable keepalived to communicate
+     with its own instance of snmpd running in the same network namespace,
+     and then set snmp_socket in the keepalived global configuration.
+     To run snmpd use snmpd -Ls0-6d -x udp:localhost:705, which it appears
+     should work but it doesn't seem to.
 
  */
 
@@ -4403,7 +4427,7 @@ vrrp_handles_global_oid(void)
 {
 	if (global_data->enable_snmp_vrrp) {
 #ifdef _WITH_LVS_
-		if (!__test_bit(DAEMON_CHECKERS, &daemon_mode) || !global_data->enable_snmp_checker)
+		if (!running_checker() || !global_data->enable_snmp_checker)
 			return true;
 #else
 		return true;

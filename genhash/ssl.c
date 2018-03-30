@@ -43,19 +43,19 @@ void
 init_ssl(void)
 {
 	/* Library initialization */
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined LIBRESSL_VERSION_NUMBER
-	SSL_library_init();
-	SSL_load_error_strings();
-#else
+#if HAVE_OPENSSL_INIT_CRYPTO
 	if (!OPENSSL_init_crypto(OPENSSL_INIT_NO_LOAD_CONFIG, NULL))
 		fprintf(stderr, "OPENSSL_init_crypto failed\n");
+#else
+	SSL_library_init();
+	SSL_load_error_strings();
 #endif
 
 	/* Initialize SSL context for SSL v2/3 */
 	req->meth = SSLv23_method();
 	req->ctx = SSL_CTX_new(req->meth);
 
-#if (OPENSSL_VERSION_NUMBER < 0x00905100L) || defined LIBRESSL_VERSION_NUMBER
+#if HAVE_SSL_CTX_SET_VERIFY_DEPTH
 	SSL_CTX_set_verify_depth(req->ctx, 1);
 #endif
 }
@@ -99,12 +99,17 @@ ssl_connect(thread_t * thread)
 	sock_obj->ssl = SSL_new(req->ctx);
 	sock_obj->bio = BIO_new_socket(sock_obj->fd, BIO_NOCLOSE);
 	BIO_set_nbio(sock_obj->bio, 1);	/* Set the Non-Blocking flag */
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined LIBRESSL_VERSION_NUMBER
-	SSL_set_bio(sock_obj->ssl, sock_obj->bio, sock_obj->bio);
-#else
+#if HAVE_SSL_SET0_RBIO
 	BIO_up_ref(sock_obj->bio);
 	SSL_set0_rbio(sock_obj->ssl, sock_obj->bio);
 	SSL_set0_wbio(sock_obj->ssl, sock_obj->bio);
+#else
+	SSL_set_bio(sock_obj->ssl, sock_obj->bio, sock_obj->bio);
+#endif
+#ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
+		if (req->vhost != NULL && req->sni) {
+			SSL_set_tlsext_host_name(sock_obj->ssl, req->vhost);
+		}
 #endif
 
 	ret = SSL_connect(sock_obj->ssl);

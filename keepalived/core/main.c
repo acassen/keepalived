@@ -308,6 +308,16 @@ make_pidfile_name(const char* start, const char* instance, const char* extn)
 	return name;
 }
 
+#ifdef _WITH_LVS_
+bool
+running_checker(void)
+{
+	return (__test_bit(DAEMON_CHECKERS, &daemon_mode) &&
+	    (have_virtual_servers ||
+	     __test_bit(RUN_ALL_CHILDREN, &daemon_mode)));
+}
+#endif
+
 static char const *
 find_keepalived_child_name(pid_t pid)
 {
@@ -391,9 +401,7 @@ start_keepalived(void)
 
 #ifdef _WITH_LVS_
 	/* start healthchecker child */
-	if (__test_bit(DAEMON_CHECKERS, &daemon_mode) &&
-	    (have_virtual_servers ||
-	     __test_bit(RUN_ALL_CHILDREN, &daemon_mode)))
+	if (running_checker())
 		start_check_child();
 #endif
 #ifdef _WITH_VRRP_

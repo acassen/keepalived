@@ -241,7 +241,7 @@ check_misc_script_security(magic_t magic)
 			log_message(LOG_INFO, "Disabling misc script %s since not found/accessible", misc_script->script.cmd_str);
 			insecure = true;
 		}
-		else if (!(flags & SC_EXECUTABLE))
+		else if (!(flags & (SC_EXECUTABLE | SC_SYSTEM)))
 			insecure = true;
 
 		if (insecure) {

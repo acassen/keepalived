@@ -36,6 +36,7 @@
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
 #include <stdint.h>
+#include <net/if_arp.h>
 
 /* local include */
 #include "parser.h"
@@ -191,7 +192,7 @@ check_track_script_secure(vrrp_script_t *script, magic_t magic)
 		log_message(LOG_INFO, "Disabling track script %s since not found/accessible", script->sname);
 		script->insecure = true;
 	}
-	else if (!(flags & SC_EXECUTABLE))
+	else if (!(flags & (SC_EXECUTABLE | SC_SYSTEM)))
 		script->insecure = true;
 
 	return flags;
@@ -250,6 +251,7 @@ check_vrrp_script_security(void)
 			script_flags |= check_notify_script_secure(&sg->script_backup, magic);
 			script_flags |= check_notify_script_secure(&sg->script_master, magic);
 			script_flags |= check_notify_script_secure(&sg->script_fault, magic);
+			script_flags |= check_notify_script_secure(&sg->script_stop, magic);
 			script_flags |= check_notify_script_secure(&sg->script, magic);
 
 			for (e1 = LIST_HEAD(sg->track_script); e1; e1 = next) {
@@ -2461,6 +2463,14 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		log_message(LOG_INFO, "(%s) Unicast peers are not supported in strict mode", vrrp->iname);
 		return false;
 	}
+
+#ifdef _HAVE_VRRP_VMAC_
+	/* Check that the underlying interface type is Ethernet if using a VMAC */
+	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) && vrrp->ifp->hw_type != ARPHRD_ETHER) {
+		log_message(LOG_INFO, "(%s): vmacs are only supported on Ethernet type interfaces", vrrp->iname);
+		return false;
+	}
+#endif
 
 	/* If the addresses are IPv6, then the first one must be link local */
 	if (vrrp->family == AF_INET6 && LIST_ISEMPTY(vrrp->unicast_peer) &&

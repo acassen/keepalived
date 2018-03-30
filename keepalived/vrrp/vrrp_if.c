@@ -435,9 +435,10 @@ dump_if(FILE *fp, void *data)
 {
 	interface_t *ifp = data;
 	char addr_str[INET6_ADDRSTRLEN];
-	char mac_str[3 * ifp->hw_addr_len];
-	char *mac_ptr = mac_str;
-	unsigned int i;
+	char *mac_buf;
+	size_t mac_buf_len;
+	char *p;
+	size_t i;
 
 	conf_write(fp, " Name = %s", ifp->ifname);
 	conf_write(fp, "   index = %u", ifp->ifindex);
@@ -446,10 +447,24 @@ dump_if(FILE *fp, void *data)
 	inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, sizeof(addr_str));
 	conf_write(fp, "   IPv6 address = %s", ifp->sin6_addr.s6_addr32[0] ? addr_str : "(none)");
 
-	mac_ptr[0] = '\0';
-	for (i = 0; i < ifp->hw_addr_len; i++)
-		mac_ptr += sprintf(mac_ptr, "%s%.2x", i ? ":" : "", ifp->hw_addr[i]);
-	conf_write(fp, "   MAC = %s", mac_str);
+	if (ifp->hw_addr_len) {
+		mac_buf_len = 3 * ifp->hw_addr_len;
+		mac_buf = MALLOC(mac_buf_len);
+
+		for (i = 0, p = mac_buf; i < ifp->hw_addr_len; i++)
+			p += snprintf(p, mac_buf_len - (p - mac_buf), "%.2x%s",
+				      ifp->hw_addr[i], i < ifp->hw_addr_len -1 ? ":" : "");
+
+		log_message(LOG_INFO, " MAC = %s", mac_buf);
+
+		for (i = 0, p = mac_buf; i < ifp->hw_addr_len; i++)
+			p += snprintf(p, mac_buf_len - (p - mac_buf), "%.2x%s",
+				      ifp->hw_addr_bcast[i], i < ifp->hw_addr_len - 1 ? ":" : "");
+
+		log_message(LOG_INFO, " MAC broadcast = %s", mac_buf);
+
+		FREE(mac_buf);
+	}
 
 	conf_write(fp, "   State = %sUP, %sRUNNING", ifp->ifi_flags & IFF_UP ? "" : "not ", ifp->ifi_flags & IFF_RUNNING ? "" : "not " );
 #ifdef _HAVE_VRRP_VMAC_
@@ -465,6 +480,9 @@ dump_if(FILE *fp, void *data)
 		break;
 	case ARPHRD_ETHER:
 		conf_write(fp, "   HW Type = ETHERNET");
+		break;
+	case ARPHRD_INFINIBAND:
+		log_message(LOG_INFO, " HW Type = INFINIBAND");
 		break;
 	default:
 		conf_write(fp, "   HW Type = UNKNOWN (%d)", ifp->hw_type);

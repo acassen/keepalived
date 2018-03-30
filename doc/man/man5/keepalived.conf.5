@@ -79,7 +79,8 @@ where there must be no space before the '=' and only whitespace may preceed to '
 Empty values are allowed.
 
 Parameter names can be made up of any combination of A-Za-z0-9 and _, but cannot start
-with a digit.
+with a digit. Parameter names starting with an underscore should be considered
+reserved names that keepalived will define for various pre-defined options.
 
 After a parameter is defined, any occurrence of $PARAMETER followed by
 whitespace, or any occurrence of ${PARAMETER} (which need not be followed by
@@ -170,6 +171,16 @@ vrrp_instance VI_${NUM} { \e
 .PP
  $NUM=1
  $INSTANCE
+.SH Pre-defined definitions
+The following pre-defined definitions are defined:
+.PP
+${_PWD}         The directory of the current configuration file
+                (this can be changed if using the include directive).
+
+Additional pre-defined definitions will be added as their need is identified.
+It will normally be quite straightforward to add additional pre-defined
+definitions, so if you need one, or have a good idea for one, then raise
+an issue at https://github.com/acasson/keepalived/issues requesting it.
 .SH SCRIPTS
 There are three classes of scripts can be configured to be executed.
 
@@ -357,7 +368,7 @@ and
  # If Keepalived has been build with SNMP support, the following keywords are available
  # Note: Keepalived, checker and RFC support can be individually enabled/disabled
  snmp_socket udp:1.2.3.4:705  # specify socket to use for connecting to SNMP master agent (default unix:/var/agentx/master)
-                              # unless using a network namespace, when the default is udp:localhost:705
+                              #  (see source module keepalived/vrrp/vrrp_snmp.c for more details)
  enable_snmp_vrrp             # enable SNMP handling of vrrp element of KEEPALIVED MIB
  enable_snmp_checker          # enable SNMP handling of checker element of KEEPALIVED MIB
  enable_snmp_rfc              # enable SNMP handling of RFC2787 and RFC6527 VRRP MIBs
@@ -1204,6 +1215,11 @@ A virtual_server can be a declaration of one of
                  # If not set, uses virtualhost from real or virtual server
                  virtualhost <STRING>
                }
+           }
+
+           SSL_GET {
+               # when provided, send Server Name Indicator during SSL handshake
+               enable_sni
            }
 
            # TCP healthchecker

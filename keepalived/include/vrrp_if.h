@@ -33,6 +33,10 @@
 #include <sys/types.h>
 #include <net/if.h>
 #include <stdio.h>
+#ifdef _HAVE_NET_LINUX_IF_H_COLLISION_
+#define _LINUX_IF_H
+#endif
+#include <linux/netdevice.h>
 
 /* local includes */
 #include "scheduler.h"
@@ -78,7 +82,8 @@ typedef struct _interface {
 	bool			linkbeat_use_polling;	/* Poll the interface for status, rather than use netlink */
 	uint32_t		mtu;			/* MTU for this interface_t */
 	unsigned short		hw_type;		/* Type of hardware address */
-	u_char			hw_addr[IFHWADDRLEN];	/* MAC address */
+	u_char			hw_addr[MAX_ADDR_LEN];	/* MAC address */
+	u_char			hw_addr_bcast[MAX_ADDR_LEN]; /* broadcast address */
 	size_t			hw_addr_len;		/* MAC addresss length */
 	int			lb_type;		/* Interface regs selection */
 #ifdef _HAVE_VRRP_VMAC_
