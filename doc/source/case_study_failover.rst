@@ -27,12 +27,16 @@ Keepalived Configuration
 The whole configuration is done in the /etc/keepalived/keepalived.conf file. In our case study this file on LVS director 1 looks like::
 
     vrrp_sync_group VG1 {
-        VI_1
-        VI_2
+        group {
+            VI_1
+            VI_2
+        }
     }
     vrrp_sync_group VG2 {
-        VI_3
-        VI_4
+        group {
+            VI_3
+            VI_4
+        }
     }
     vrrp_instance VI_1 {
         state MASTER
