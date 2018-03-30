@@ -455,13 +455,13 @@ dump_if(FILE *fp, void *data)
 			p += snprintf(p, mac_buf_len - (p - mac_buf), "%.2x%s",
 				      ifp->hw_addr[i], i < ifp->hw_addr_len -1 ? ":" : "");
 
-		log_message(LOG_INFO, " MAC = %s", mac_buf);
+		conf_write(fp, "   MAC = %s", mac_buf);
 
 		for (i = 0, p = mac_buf; i < ifp->hw_addr_len; i++)
 			p += snprintf(p, mac_buf_len - (p - mac_buf), "%.2x%s",
 				      ifp->hw_addr_bcast[i], i < ifp->hw_addr_len - 1 ? ":" : "");
 
-		log_message(LOG_INFO, " MAC broadcast = %s", mac_buf);
+		conf_write(fp, "   MAC broadcast = %s", mac_buf);
 
 		FREE(mac_buf);
 	}
