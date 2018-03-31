@@ -752,13 +752,13 @@ bfd_instance <STRING> {
              eth2 weight <-253..253>
              ...
            }
-       
+
            # add a tracking script to the interface (<SCRIPT_NAME> is the name of the vrrp_track_script entry)
            track_script {
                <SCRIPT_NAME>
                <SCRIPT_NAME> weight <-253..253>
            }
-       
+
            # Files whose state we monitor, value is added to effective priority. <STRING> is the name of a vrrp_track_file
            track_file {
                <STRING>
@@ -766,7 +766,7 @@ bfd_instance <STRING> {
                <STRING> weight <-254..254>
                ...
            }
-       
+
            # BFD instances we monitor, value is added to effective priority. <STRING> is the name of a BFD instance
            track_bfd {
                <STRING>
@@ -784,10 +784,10 @@ bfd_instance <STRING> {
            mcast_src_ip <IPADDR>
            unicast_src_ip <IPADDR>
            track_src_ip                # if the configured src_ip doesn't exist or is removed put the instance into fault state
-       
+
            version <2 or 3>            # VRRP version to run on interface
                                        #  default is global parameter vrrp_version.
-       
+
            # Do not send VRRP adverts over a VRRP multicast group.
            # Instead it sends adverts to the following list of
            # ip addresses using unicast. It can be cool to use
@@ -806,7 +806,7 @@ bfd_instance <STRING> {
            #  of old checksums. [This option may not be enabled - check output
            #  of `keepalived -v` for OLD_CHKSUM_COMPAT.]
            old_unicast_checksum [never]
-       
+
            # interface specific settings, same as global parameters; default to global parameters
            garp_master_delay 10
            garp_master_repeat 1
@@ -816,22 +816,22 @@ bfd_instance <STRING> {
            garp_master_refresh_repeat 2
            garp_interval 100
            gna_interval 100
-       
+
            lower_prio_no_advert [<BOOL>]
            higher_prio_send_advert [<BOOL>]
-       
+
            # arbitrary unique number from 0 to 255
            # used to differentiate multiple instances of vrrpd
            # running on the same NIC (and hence same socket).
            virtual_router_id 51
-       
+
            # for electing MASTER, highest priority wins.
            # to be MASTER, make this 50 more than on other machines.
            priority 100
-       
+
            # VRRP Advert interval in seconds (e.g. 0.92) (use default)
            advert_int 1
-       
+
            # Note: authentication was removed from the VRRPv2 specification by RFC3768 in 2004.
            #   Use of this option is non-compliant and can cause problems; avoid using if possible,
            #   except when using unicast, where it can be helpful.
@@ -845,7 +845,7 @@ bfd_instance <STRING> {
                # Only the first eight (8) characters are used.
                auth_pass 1234
            }
-       
+
            #addresses add|del on change to MASTER, to BACKUP.
            #With the same entries on other machines,
            #the opposite transition will be occurring.
@@ -854,7 +854,7 @@ bfd_instance <STRING> {
                192.168.200.17/24 dev eth1
                192.168.200.18/24 dev eth2 label eth2:1
            }
-       
+
            #VRRP IP excluded from VRRP
            #optional.
            #For cases with large numbers (eg 200) of IPs
@@ -871,14 +871,14 @@ bfd_instance <STRING> {
                <IPADDR>[/<MASK>] ...
                ...
            }
-       
+
            # Set the promote_secondaries flag on the interface to stop other
            # addresses in the same CIDR being removed when 1 of them is removed
            # For example if 10.1.1.2/24 and 10.1.1.3/24 are both configured on an
            # interface, and one is removed, unless promote_secondaries is set on
            # the interface the other address will also be removed.
            prompte_secondaries
-       
+
            # routes add|del when changing to MASTER, to BACKUP.
            # See static_routes for more details
            virtual_routes {
@@ -891,20 +891,20 @@ bfd_instance <STRING> {
                blackhole 192.168.114.0/24
                0.0.0.0/0 gw 192.168.0.1 table 100  # To set a default gateway into table 100.
            }
-       
+
            # rules add|del when changing to MASTER, to BACKUP
            # See static_rules for more details
            virtual_rules {
                from 192.168.2.0/24 table 1
                to 192.168.2.0/24 table 1
            }
-       
+
            # VRRPv3 has an Accept Mode to allow the virtual router when not the address owner to
            # receive packets addressed to a VIP. This is the default setting unless strict mode is set.
            # As an extension, this also works for VRRPv2 (RFC 3768 doesn't define an accept mode).
            accept              # Accept packets to non address-owner
            no_accept           # Drop packets to non address-owner.
-       
+
            # VRRP will normally preempt a lower priority
            # machine when a higher priority machine comes
            # online.  "nopreempt" allows the lower priority
@@ -914,26 +914,26 @@ bfd_instance <STRING> {
            # entry must be BACKUP.
            nopreempt
            preempt             # for backwards compatibility
-       
+
            # See description of global vrrp_skip_check_adv_addr, which
            # sets the default value. Defaults to vrrp_skip_check_adv_addr
            skip_check_adv_addr [on|off|true|false|yes|no]
-       
+
            # See description of global vrrp_strict
            # If vrrp_strict is not specified, it takes the value of vrrp_strict
            # If strict_mode without a parameter is specified, it defaults to on
            strict_mode [on|off|true|false|yes|no]
-       
+
            # Seconds after startup or seeing a lower priority master until preemption
            # (if not disabled by "nopreempt").
            # Range: 0 (default) to 1000 (e.g. 4.12)
            # NOTE: For this to work, the initial state of this
            # entry must be BACKUP.
            preempt_delay 300    # waits 5 minutes
-       
+
            # Debug level, not implemented yet.
            debug <LEVEL>        # LEVEL is a number in the range 0 to 4
-       
+
            # notify scripts, alert as above
            notify_master <STRING>|<QUOTED-STRING> [username [groupname]]
            notify_backup <STRING>|<QUOTED-STRING> [username [groupname]]
