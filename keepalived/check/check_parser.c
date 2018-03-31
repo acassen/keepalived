@@ -119,10 +119,11 @@ vsg_handler(vector_t *strvec)
 static void
 vs_handler(vector_t *strvec)
 {
-	if (!strvec) {
-		have_virtual_servers = true;
+	global_data->have_checker_config = true;
+
+	/* If we are not in the checker process, we don't want any more info */
+	if (!strvec)
 		return;
-	}
 
 	alloc_vs(strvec_slot(strvec, 1), strvec_slot(strvec, 2));
 }

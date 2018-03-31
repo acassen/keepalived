@@ -76,6 +76,8 @@ static bool remove_script;
 static void
 static_addresses_handler(vector_t *strvec)
 {
+	global_data->have_vrrp_config = true;
+
 	if (!strvec)
 		return;
 
@@ -87,6 +89,8 @@ static_addresses_handler(vector_t *strvec)
 static void
 static_routes_handler(vector_t *strvec)
 {
+	global_data->have_vrrp_config = true;
+
 	if (!strvec)
 		return;
 
@@ -97,6 +101,8 @@ static_routes_handler(vector_t *strvec)
 static void
 static_rules_handler(vector_t *strvec)
 {
+	global_data->have_vrrp_config = true;
+
 	if (!strvec)
 		return;
 
@@ -278,10 +284,10 @@ vrrp_handler(vector_t *strvec)
 	vrrp_t *vrrp;
 	char *iname;
 
-	if (!strvec) {
-		have_vrrp_instances = true;
+	global_data->have_vrrp_config = true;
+
+	if (!strvec)
 		return;
-	}
 
 	if (vector_count(strvec) != 2) {
 		log_message(LOG_INFO, "vrrp_instance must have a name");

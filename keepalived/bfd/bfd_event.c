@@ -46,10 +46,10 @@ bfd_event_send(bfd_t *bfd)
 	/* If there is no VRRP process running, don't write to the pipe */
 	if (true
 #ifdef _WITH_VRRP_
-	    && !(__test_bit(DAEMON_VRRP, &daemon_mode) && have_vrrp_instances)
+	    && !running_vrrp()
 #endif
 #ifdef _WITH_LVS_
-	    && !(__test_bit(DAEMON_CHECKERS, &daemon_mode) && have_virtual_servers)
+	    && !running_checker()
 #endif
 		)
 		return;
