@@ -1401,6 +1401,11 @@ vrrp_send_link_update(vrrp_t * vrrp, unsigned rep)
 	if (!VRRP_VIP_ISSET(vrrp))
 		return;
 
+	/* If the interface doesn't support ARP, then don't send
+	 * any ARP messages. */
+	if (vrrp->ifp->ifi_flags | IFF_NOARP)
+		return;
+
 	/* send gratuitous arp for each virtual ip */
 	for (j = 0; j < rep; j++) {
 		if (!LIST_ISEMPTY(vrrp->vip)) {
@@ -2458,19 +2463,33 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	if (!chk_min_cfg(vrrp))
 		return false;
 
-	/* unicast peers aren't allowed in strict mode */
-	if (vrrp->strict_mode && !LIST_ISEMPTY(vrrp->unicast_peer)) {
+	/* unicast peers aren't allowed in strict mode if the interface supports multicast */
+	if (vrrp->strict_mode && vrrp->ifp->ifindex && (vrrp->ifp->ifi_flags & IFF_MULTICAST) && !LIST_ISEMPTY(vrrp->unicast_peer)) {
 		log_message(LOG_INFO, "(%s) Unicast peers are not supported in strict mode", vrrp->iname);
 		return false;
 	}
 
 #ifdef _HAVE_VRRP_VMAC_
 	/* Check that the underlying interface type is Ethernet if using a VMAC */
-	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) && vrrp->ifp->hw_type != ARPHRD_ETHER) {
+	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) && vrrp->ifp->ifindex && vrrp->ifp->hw_type != ARPHRD_ETHER) {
+		__clear_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags);
 		log_message(LOG_INFO, "(%s): vmacs are only supported on Ethernet type interfaces", vrrp->iname);
-		return false;
+		vrrp->num_script_if_fault++;	// Stop the vrrp instance running
 	}
 #endif
+
+	/* If the interface doesn't support multicast, then we need to use unicast */
+	if (vrrp->ifp->ifindex && !(vrrp->ifp->ifi_flags & IFF_MULTICAST) && LIST_ISEMPTY(vrrp->unicast_peer)) {
+		log_message(LOG_INFO, "(%s) interface %s does not support multicast, specify unicast peers - disabling", vrrp->iname, vrrp->ifp->ifname);
+		vrrp->num_script_if_fault++;	// Stop the vrrp instance running
+	}
+
+	/* Warn if ARP not supported on interface */
+	if (__test_bit(LOG_DETAIL_BIT, &debug) &&
+	    vrrp->ifp->ifindex &&
+	    (vrrp->ifp->ifi_flags & IFF_NOARP) &&
+	    !(vrrp->ifp->ifi_flags & IFF_POINTOPOINT))
+		log_message(LOG_INFO, "(%s) disabling ARP since interface does not support it", vrrp->iname);
 
 	/* If the addresses are IPv6, then the first one must be link local */
 	if (vrrp->family == AF_INET6 && LIST_ISEMPTY(vrrp->unicast_peer) &&

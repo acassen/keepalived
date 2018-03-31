@@ -466,11 +466,17 @@ dump_if(FILE *fp, void *data)
 		FREE(mac_buf);
 	}
 
-	conf_write(fp, "   State = %sUP, %sRUNNING", ifp->ifi_flags & IFF_UP ? "" : "not ", ifp->ifi_flags & IFF_RUNNING ? "" : "not " );
+	conf_write(fp, "   State = %sUP, %sRUNNING%s%s%s%s%s", ifp->ifi_flags & IFF_UP ? "" : "not ", ifp->ifi_flags & IFF_RUNNING ? "" : "not ", 
+			!(ifp->ifi_flags & IFF_BROADCAST) ? ", no broadcast" : "",
+			ifp->ifi_flags & IFF_LOOPBACK ? ", loopback" : "",
+			ifp->ifi_flags & IFF_POINTOPOINT ? ", point to point" : "",
+			ifp->ifi_flags & IFF_NOARP ? ", no arp" : "",
+			!(ifp->ifi_flags & IFF_MULTICAST) ? ", no multicast" : "");
+
 #ifdef _HAVE_VRRP_VMAC_
 	if (ifp->vmac && ifp->base_ifp)
 		conf_write(fp, "   VMAC underlying interface = %s, state = %sUP, %sRUNNING", ifp->base_ifp->ifname,
-				ifp->base_ifp->ifi_flags & IFF_UP ? "" : "not ", ifp->base_ifp->ifi_flags & IFF_RUNNING ? "" : "not " );
+				ifp->base_ifp->ifi_flags & IFF_UP ? "" : "not ", ifp->base_ifp->ifi_flags & IFF_RUNNING ? "" : "not ");
 #endif
 	conf_write(fp, "   MTU = %d", ifp->mtu);
 
