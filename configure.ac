@@ -233,8 +233,8 @@ AC_SUBST(ARFLAGS)
 # AC_PROG_LIBTOOL
 
 KA_CPPFLAGS="$kernelinc"
-KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -g -O2 -fPIE -D_GNU_SOURCE"
-KA_LDFLAGS="-pie"
+KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -g -O2 -D_GNU_SOURCE"
+KA_LDFLAGS=""
 KA_LIBS=
 NEED_LIBDL=No
 #KA_LIBTOOLFLAGS =
