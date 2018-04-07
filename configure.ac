@@ -233,14 +233,35 @@ AC_SUBST(ARFLAGS)
 # AC_PROG_LIBTOOL
 
 KA_CPPFLAGS="$kernelinc"
-KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -g -O2 -fPIE -D_GNU_SOURCE"
-KA_LDFLAGS="-pie"
+KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -g -O2 -D_GNU_SOURCE"
+KA_LDFLAGS=
 KA_LIBS=
 NEED_LIBDL=No
 #KA_LIBTOOLFLAGS =
 
 # We want _GNU_SOURCE defined always
 add_to_var([CFLAGS], [-D_GNU_SOURCE])
+
+# Check if PIE is supported
+AC_MSG_CHECKING([whether -fPIE and -pie are supported])
+SAV_CFLAGS="$CFLAGS"
+SAV_LDFLAGS="$LDFLAGS"
+CFLAGS="$CFLAGS -fPIE"
+LDFLAGS="$LDFLAGS -pie"
+AC_LINK_IFELSE([AC_LANG_SOURCE([[
+    int main(void)
+    {
+      return 0;
+    }
+  ]])], [
+    AC_MSG_RESULT(yes)
+    add_to_var([KA_CFLAGS], [-fPIE])
+    add_to_var([KA_LDFLAGS], [-pie])
+  ],[
+   AC_MSG_RESULT(no)
+  ])
+CFLAGS="$SAV_CFLAGS"
+LDFLAGS="$SAV_LDFLAGS"
 
 if test "$enable_conversion_checks" = yes; then
   # Check if we can sensibly enable -Wconversion
