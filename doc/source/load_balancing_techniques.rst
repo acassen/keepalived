@@ -25,6 +25,18 @@ while also forwarding to and from the private real servers.
 Virtual Server via Tunneling
 ****************************
 
+In Tunneling mode Load-Balancer sends requests to real servers through IP tunnel
+in the former, and the Load-Balancer sends request to real servers via network
+address translation in the latter.
+
+The main advantage with this metho is scalability, Load-Balancer will forward
+incoming request to farm nodes, latter nodes will then respond directly to the
+client requests without having to proxy through Load-Balancer. It offers you
+a way to locate nodes in differents networking segments.
+
+The main disavantage is the cost you will put into it to finally get a working
+env since it is deeply dependent uppon your network architecture.
+
 Virtual Server via Direct Routing
 *********************************
 
