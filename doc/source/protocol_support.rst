@@ -9,6 +9,7 @@ IPVS supports load balancing the following transport protocols:
 
 * TCP
 * UDP
+* SCTP
 * ESP (Encapsulation Security Payload)
 * AH (Authentication Header)
 
