@@ -4,7 +4,7 @@
 # Configuration template file for keepalived.
 # autoconf will generate & check deps for proper compilation
 #
-# Copyright (C) 2001-2017 Alexandre Cassen, <acassen@linux-vs.org>
+# Copyright (C) 2001-2018 Alexandre Cassen, <acassen@linux-vs.org>
 
 AC_DEFUN([add_to_var], [$1="$$1 $2"])
 AC_DEFUN([add_to_var_ind], [eval $1=\"\$$1 $2\"]) dnl "
