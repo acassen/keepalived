@@ -563,7 +563,7 @@ if test .${enable_libnl} != .no; then
 	  NEED_NL3=Yes
 	fi
 
-	if test $disable_vrrp != .no; then
+	if test .$enable_vrrp != .no; then
 	  NEED_NL3=Yes
 
           dnl ----[Check have IPV4_DEVCONF defines - since Linux 3.11]----
@@ -927,6 +927,25 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
     AC_MSG_RESULT([yes])
     AC_DEFINE([_HAVE_NET_LINUX_IF_H_COLLISION_], [ 1 ], [Define to 1 if have linux/if.h followed by net/if.h namespace collision])
     add_build_opt([NET_LINUX_IF_H_COLLISION])
+  ])
+CPPFLAGS="$SAV_CPPFLAGS"
+
+dnl ----[Check if have linux/if_ether.h and netinet/if_ether.h namespace collision]----
+# Including <linux/if_ether.h> and <netinet/if_ether.h> can cause a namespace collision (musl libc).
+AC_MSG_CHECKING([for linux/if_ether.h and netinet/if_ether.h namespace collision])
+SAV_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $kernelinc"
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+    #include <linux/if_ether.h>
+    #include <netinet/if_ether.h>
+  ]])],
+  [
+    AC_MSG_RESULT([no])
+  ],
+  [
+    AC_MSG_RESULT([yes])
+    AC_DEFINE([_HAVE_NETINET_LINUX_IF_ETHER_H_COLLISION_], [ 1 ], [Define to 1 if have linux/if_ether.h followed by netinet/if_ether.h namespace collision])
+    add_build_opt([NETINET_LINUX_IF_ETHER_H_COLLISION])
   ])
 CPPFLAGS="$SAV_CPPFLAGS"
 
@@ -1472,11 +1491,12 @@ else
   INIT_TYPE=$init_type
 fi
 
-if test $INIT_TYPE = systemd; then
+if test -z $INIT_TYPE; then
+  INIT_TYPE=undetected
+elif test $INIT_TYPE = systemd; then
   AC_SUBST([systemdsystemunitdir], [$with_systemdsystemunitdir])
 fi
 
-if test -z $INIT_TYPE; then INIT_TYPE=undetected; fi
 AM_CONDITIONAL([INIT_UPSTART], [test $INIT_TYPE = upstart])
 AM_CONDITIONAL([INIT_SYSTEMD], [test $INIT_TYPE = systemd])
 AM_CONDITIONAL([INIT_SYSV], [test $INIT_TYPE = SYSV])

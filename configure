@@ -7286,7 +7286,7 @@ _ACEOF
 	  NEED_NL3=Yes
 	fi
 
-	if test $disable_vrrp != .no; then
+	if test .$enable_vrrp != .no; then
 	  NEED_NL3=Yes
 
                     SAV_CPPFLAGS="$CPPFLAGS"
@@ -9165,6 +9165,36 @@ fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 CPPFLAGS="$SAV_CPPFLAGS"
 
+# Including <linux/if_ether.h> and <netinet/if_ether.h> can cause a namespace collision (musl libc).
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for linux/if_ether.h and netinet/if_ether.h namespace collision" >&5
+$as_echo_n "checking for linux/if_ether.h and netinet/if_ether.h namespace collision... " >&6; }
+SAV_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $kernelinc"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+    #include <linux/if_ether.h>
+    #include <netinet/if_ether.h>
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+else
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define _HAVE_NETINET_LINUX_IF_ETHER_H_COLLISION_  1 " >>confdefs.h
+
+    BUILD_OPTIONS="$BUILD_OPTIONS NETINET_LINUX_IF_ETHER_H_COLLISION"
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+CPPFLAGS="$SAV_CPPFLAGS"
+
 # Linux 4.5 to 4.5.4 has <libiptc/libiptc.h> indirectly including <net/if.h>
 # and <linux/if.h> which causes a namespace collision.
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for libiptc/libiptc.h linux/if.h and net/if.h namespace collision" >&5
@@ -10569,12 +10599,13 @@ else
   INIT_TYPE=$init_type
 fi
 
-if test $INIT_TYPE = systemd; then
+if test -z $INIT_TYPE; then
+  INIT_TYPE=undetected
+elif test $INIT_TYPE = systemd; then
   systemdsystemunitdir=$with_systemdsystemunitdir
 
 fi
 
-if test -z $INIT_TYPE; then INIT_TYPE=undetected; fi
  if test $INIT_TYPE = upstart; then
   INIT_UPSTART_TRUE=
   INIT_UPSTART_FALSE='#'
