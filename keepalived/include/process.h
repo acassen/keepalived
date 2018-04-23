@@ -31,6 +31,14 @@
 
 extern void set_process_dont_swap(size_t);
 extern void set_process_priority(int);
-extern void set_process_priorities(int, int, int, int);
+extern void set_process_priorities(
+#ifdef _HAVE_SCHED_RT_
+			           int,
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+			           int,
+#endif
+#endif
+				   int, int);
+
 
 #endif

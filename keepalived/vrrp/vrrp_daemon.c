@@ -255,8 +255,14 @@ start_vrrp(void)
 		init_global_data(global_data);
 
 	/* Set the process priority and non swappable if configured */
-	set_process_priorities(global_data->vrrp_realtime_priority, global_data->vrrp_rlimit_rt,
-			global_data->vrrp_process_priority, global_data->vrrp_no_swap ? 4096 : 0);
+	set_process_priorities(
+#ifdef _HAVE_SCHED_RT_
+			       global_data->vrrp_realtime_priority,
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+                               global_data->vrrp_rlimit_rt,
+#endif
+#endif
+			       global_data->vrrp_process_priority, global_data->vrrp_no_swap ? 4096 : 0);
 
 #ifdef _WITH_SNMP_
 	if (!reload && (global_data->enable_snmp_vrrp || global_data->enable_snmp_rfcv2 || global_data->enable_snmp_rfcv3)) {

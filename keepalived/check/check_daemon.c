@@ -204,8 +204,14 @@ start_check(list old_checkers_queue)
 		stop_check(KEEPALIVED_EXIT_FATAL);
 
 	/* Set the process priority and non swappable if configured */
-	set_process_priorities(global_data->checker_realtime_priority, global_data->checker_rlimit_rt,
-			global_data->checker_process_priority, global_data->checker_no_swap ? 4096 : 0);
+	set_process_priorities(
+#ifdef _HAVE_SCHED_RT_
+                               global_data->checker_realtime_priority,
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+                               global_data->checker_rlimit_rt,
+#endif
+#endif
+			       global_data->checker_process_priority, global_data->checker_no_swap ? 4096 : 0);
 
 	/* Processing differential configuration parsing */
 	if (reload)
