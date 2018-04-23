@@ -25,6 +25,11 @@
 
 /* global includes */
 #include <sys/types.h>
+#if defined _HAVE_NETINET_LINUX_IF_ETHER_H_COLLISION_ && \
+    defined _LINUX_IF_ETHER_H && \
+    !defined _NETINET_IF_ETHER_H
+#define _NETINET_IF_ETHER_H
+#endif
 #include <net/ethernet.h>
 #include <stdbool.h>
 
