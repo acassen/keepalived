@@ -580,6 +580,10 @@
 /* Define to 1 if using libnl-3 */
 #undef _HAVE_LIBNL3_
 
+/* Define to 1 if have linux/if_ether.h followed by netinet/if_ether.h
+   namespace collision */
+#undef _HAVE_NETINET_LINUX_IF_ETHER_H_COLLISION_
+
 /* Define to 1 if have linux/if.h followed by net/if.h namespace collision */
 #undef _HAVE_NET_LINUX_IF_H_COLLISION_
 
