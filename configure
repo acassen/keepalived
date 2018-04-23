@@ -7286,7 +7286,7 @@ _ACEOF
 	  NEED_NL3=Yes
 	fi
 
-	if test $disable_vrrp != .no; then
+	if test .$enable_vrrp != .no; then
 	  NEED_NL3=Yes
 
                     SAV_CPPFLAGS="$CPPFLAGS"
@@ -10569,12 +10569,13 @@ else
   INIT_TYPE=$init_type
 fi
 
-if test $INIT_TYPE = systemd; then
+if test -z $INIT_TYPE; then
+  INIT_TYPE=undetected
+elif test $INIT_TYPE = systemd; then
   systemdsystemunitdir=$with_systemdsystemunitdir
 
 fi
 
-if test -z $INIT_TYPE; then INIT_TYPE=undetected; fi
  if test $INIT_TYPE = upstart; then
   INIT_UPSTART_TRUE=
   INIT_UPSTART_FALSE='#'

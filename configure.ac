@@ -563,7 +563,7 @@ if test .${enable_libnl} != .no; then
 	  NEED_NL3=Yes
 	fi
 
-	if test $disable_vrrp != .no; then
+	if test .$enable_vrrp != .no; then
 	  NEED_NL3=Yes
 
           dnl ----[Check have IPV4_DEVCONF defines - since Linux 3.11]----
@@ -1472,11 +1472,12 @@ else
   INIT_TYPE=$init_type
 fi
 
-if test $INIT_TYPE = systemd; then
+if test -z $INIT_TYPE; then
+  INIT_TYPE=undetected
+elif test $INIT_TYPE = systemd; then
   AC_SUBST([systemdsystemunitdir], [$with_systemdsystemunitdir])
 fi
 
-if test -z $INIT_TYPE; then INIT_TYPE=undetected; fi
 AM_CONDITIONAL([INIT_UPSTART], [test $INIT_TYPE = upstart])
 AM_CONDITIONAL([INIT_SYSTEMD], [test $INIT_TYPE = systemd])
 AM_CONDITIONAL([INIT_SYSV], [test $INIT_TYPE = SYSV])
