@@ -29,7 +29,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <syslog.h>
-#ifdef _HAVE_NET_LINUX_IF_H_COLLISION_
+#ifdef _HAVE_NETINET_LINUX_IF_ETHER_H_COLLISION_
 #define _NETINET_IF_ETHER_H
 #include <linux/if_ether.h>
 #endif
