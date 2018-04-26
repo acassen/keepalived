@@ -117,6 +117,11 @@ email_handler(vector_t *strvec)
 	unsigned int i;
 	char *str;
 
+	if (!email_vec) {
+		log_message(LOG_INFO, "Warning - empty notification_email block");
+		return;
+	}
+
 	for (i = 0; i < vector_size(email_vec); i++) {
 		str = vector_slot(email_vec, i);
 		alloc_email(str);

@@ -1070,7 +1070,7 @@ alloc_value_block(void (*alloc_func) (vector_t *), const char *block_type)
 }
 
 static vector_t *read_value_block_vec;
-void
+static void
 read_value_block_line(vector_t *strvec)
 {
 	size_t word;
