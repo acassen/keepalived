@@ -120,6 +120,9 @@ vrrp_group_handler(vector_t *strvec)
 	}
 
 	vgroup->iname = read_value_block(strvec);
+
+	if (!vgroup->iname)
+		log_message(LOG_INFO, "Warning - sync group %s has empty group block", vgroup->gname);
 }
 
 static inline notify_script_t*
@@ -901,6 +904,12 @@ garp_group_interfaces_handler(vector_t *strvec)
 	size_t i;
 	garp_delay_t *gd;
 	element e;
+
+	/* Handle the interfaces block being empty */
+	if (!interface_vec) {
+		log_message(LOG_INFO, "Warning - empty garp_group interfaces block");
+		return;
+	}
 
 	/* First set the next aggregation group number */
 	delay->aggregation_group = 1;
