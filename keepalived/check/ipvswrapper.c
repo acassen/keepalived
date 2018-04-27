@@ -656,8 +656,8 @@ vsd_equal(real_server_t *rs, struct ip_vs_dest_entry_app *entry)
 					     : (void *)&((struct sockaddr_in6 *)&rs->addr)->sin6_addr))
 		return false;
 
-	if (entry->user.port != (entry->af == AF_INET) ? ((struct sockaddr_in *)&rs->addr)->sin_port
-						       : ((struct sockaddr_in6 *)&rs->addr)->sin6_port)
+	if (entry->user.port != (entry->af == AF_INET ? ((struct sockaddr_in *)&rs->addr)->sin_port
+						      : ((struct sockaddr_in6 *)&rs->addr)->sin6_port))
 		return false;
 
 	return true;
@@ -706,6 +706,8 @@ ipvs_update_vs_stats(virtual_server_t *vs, uint32_t fwmark, union nf_inet_addr *
 				if (vsd_equal(rs, &dests->user.entrytable[i]))
 					break;
 			}
+			if (!e)
+				rs = NULL;
 		}
 
 		if (rs) {
