@@ -816,9 +816,10 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 			if ((result = snmp_oid_compare(current, 2, target,
 						       target_len)) < 0)
 				continue;
-			if ((result == 0) && !exact)
-				continue;
 			if (result == 0) {
+				if (!exact)
+					continue;
+
 				/* Got an exact match and asked for it */
 				be = e;
 				bvs = vs;
@@ -841,10 +842,12 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	if (exact)
 		/* No exact match */
 		return NULL;
+
  real_be_found:
 	/* Let's use our best match */
 	memcpy(target, best, sizeof(oid) * 2);
 	*length = (unsigned)vp->namelen + 2;
+
  real_found:
 	switch (vp->magic) {
 	case CHECK_SNMP_RSTYPE:
