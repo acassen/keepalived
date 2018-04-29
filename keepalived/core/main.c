@@ -1464,7 +1464,7 @@ end:
 	}
 
 #if HAVE_DECL_CLONE_NEWNET
-	if (global_data->network_namespace)
+	if (global_data && global_data->network_namespace)
 		clear_namespaces();
 #endif
 
