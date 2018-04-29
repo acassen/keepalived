@@ -847,9 +847,10 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	/* When SNMP is enabled, we may have to select() on additional
 	 * FD. snmp_select_info() will add them to `readfd'. The trick
 	 * with this function is its last argument. We need to set it
-	 * to 0 to update our timer. */
+	 * true to set its own timer that we then compare against ours. */
+	is_snmp_timer = false;
 	if (snmp_running) {
-		snmpblock = false;
+		snmpblock = true;
 		snmp_select_info(&fdsetsize, &readfd, &snmp_timer_wait, &snmpblock);
 		if (!snmpblock && timercmp(&snmp_timer_wait, &timer_wait, <=)) {
 			timer_wait = snmp_timer_wait;
@@ -885,7 +886,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 		assert(0);
 	}
 
-	timer_expired = !timerisset(&timer_wait);
+	timer_expired = (num_fds == 0 || !timerisset(&timer_wait));
 
 	/* Handle SNMP stuff */
 #ifdef _WITH_SNMP_
