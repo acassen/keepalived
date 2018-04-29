@@ -311,6 +311,9 @@ init_global_data(data_t * data)
 void
 free_global_data(data_t * data)
 {
+	if (!data)
+		return;
+
 	free_list(&data->email);
 #if HAVE_DECL_CLONE_NEWNET
 	FREE_PTR(data->network_namespace);
