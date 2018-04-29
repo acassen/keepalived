@@ -157,6 +157,7 @@ enum snmp_vrrp_magic {
 	VRRP_SNMP_ADDRESS_IFALIAS,
 	VRRP_SNMP_ADDRESS_ISSET,
 	VRRP_SNMP_ADDRESS_ISADVERTISED,
+	VRRP_SNMP_ADDRESS_PEER,
 	VRRP_SNMP_SYNCGROUP_NAME,
 	VRRP_SNMP_SYNCGROUP_STATE,
 	VRRP_SNMP_SYNCGROUP_TRACKINGWEIGHT,
@@ -858,6 +859,18 @@ vrrp_snmp_address(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_ADDRESS_ISADVERTISED:
 		long_ret.u = (state == HEADER_STATE_VIRTUAL_ADDRESS)?1:2;
 		return (u_char *)&long_ret;
+	case VRRP_SNMP_ADDRESS_PEER:
+		if (!addr->have_peer)
+			break;
+		if (addr->ifa.ifa_family == AF_INET6) {
+			*var_len = sizeof addr->peer.sin6_addr;
+			return (u_char *)&addr->peer.sin6_addr;
+		} else {
+			*var_len = sizeof addr->peer.sin_addr;
+log_message(LOG_INFO, "Returning %x", addr->peer.sin_addr.s_addr);
+			return (u_char *)&addr->peer.sin_addr;
+		}
+		break;
 	default:
 		return NULL;
 	}
@@ -2677,6 +2690,8 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_address, 3, {6, 1, 10}},
 	{VRRP_SNMP_ADDRESS_ISADVERTISED, ASN_INTEGER, RONLY,
 	 vrrp_snmp_address, 3, {6, 1, 11}},
+	{VRRP_SNMP_ADDRESS_PEER, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_address, 3, {6, 1, 12}},
 
 #ifdef _HAVE_FIB_ROUTING_
 	/* vrrpRouteTable */

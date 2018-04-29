@@ -148,8 +148,6 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 
 		addattr_l(&req.n, sizeof(req), IFA_LOCAL,
 			  &ipaddress->u.sin6_addr, sizeof(ipaddress->u.sin6_addr));
-
-
 	} else {
 		addattr_l(&req.n, sizeof(req), IFA_LOCAL,
 			  &ipaddress->u.sin.sin_addr, sizeof(ipaddress->u.sin.sin_addr));
@@ -176,6 +174,9 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 		if (ipaddress->label)
 			addattr_l(&req.n, sizeof (req), IFA_LABEL,
 				  ipaddress->label, strlen(ipaddress->label) + 1);
+
+		if (ipaddress->have_peer)
+                        addattr_l(&req.n, sizeof(req), IFA_ADDRESS, &ipaddress->peer, req.ifa.ifa_family == AF_INET6 ? 16 : 4);
 	}
 
 	/* If the state of the interface or its parent is down, it might be because the interface
@@ -425,20 +426,34 @@ dump_ipaddress(FILE *fp, void *if_data)
 {
 	ip_address_t *ipaddr = if_data;
 	char broadcast[INET_ADDRSTRLEN + 5] = "";
+	char peer[INET6_ADDRSTRLEN];
 
 	if (!IP_IS6(ipaddr) && ipaddr->u.sin.sin_brd.s_addr) {
 		snprintf(broadcast, sizeof broadcast, " brd %s",
 			 inet_ntop2(ipaddr->u.sin.sin_brd.s_addr));
 	}
 
-	conf_write(fp, "     %s/%d%s dev %s scope %s%s%s"
-			    , ipaddresstos(NULL, ipaddr)
-			    , ipaddr->ifa.ifa_prefixlen
-			    , broadcast
-			    , IF_NAME(ipaddr->ifp)
-			    , get_rttables_scope(ipaddr->ifa.ifa_scope)
-			    , ipaddr->label ? " label " : ""
-			    , ipaddr->label ? ipaddr->label : "");
+	if (ipaddr->have_peer) {
+		inet_ntop(ipaddr->ifa.ifa_family, &ipaddr->peer, peer, sizeof(peer));
+		conf_write(fp, "     %s%s dev %s scope %s%s%s peer %s/%d"
+				    , ipaddresstos(NULL, ipaddr)
+				    , broadcast
+				    , IF_NAME(ipaddr->ifp)
+				    , get_rttables_scope(ipaddr->ifa.ifa_scope)
+				    , ipaddr->label ? " label " : ""
+				    , ipaddr->label ? ipaddr->label : ""
+				    , peer
+				    , ipaddr->ifa.ifa_prefixlen);
+	}
+	else
+		conf_write(fp, "     %s/%d%s dev %s scope %s%s%s"
+				    , ipaddresstos(NULL, ipaddr)
+				    , ipaddr->ifa.ifa_prefixlen
+				    , broadcast
+				    , IF_NAME(ipaddr->ifp)
+				    , get_rttables_scope(ipaddr->ifa.ifa_scope)
+				    , ipaddr->label ? " label " : ""
+				    , ipaddr->label ? ipaddr->label : "");
 }
 ip_address_t *
 parse_ipaddress(ip_address_t *ip_address, char *str, int allow_default)
@@ -506,11 +521,13 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 	interface_t *ifp_local;
 	char *str;
 	unsigned int i = 0, addr_idx = 0;
-	unsigned int j;
 	uint8_t scope;
 	bool param_avail;
 	bool param_missing = false;
 	char *param;
+	ip_address_t peer = { .ifa.ifa_family = AF_UNSPEC };
+	int brd_len = 0;
+	uint32_t mask;
 
 	new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
 
@@ -572,17 +589,10 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 			}
 
 			param = strvec_slot(strvec, ++i);
-			if (!strcmp(param, "-") || !strcmp(param, "+")) {
-				if (new->ifa.ifa_prefixlen <= 30) {
-					new->u.sin.sin_brd = new->u.sin.sin_addr;
-					for (j = 31; j >= new->ifa.ifa_prefixlen; j--) {
-						if (param[0] == '+')
-							new->u.sin.sin_brd.s_addr |= htonl(1U<<(31-j));
-						else
-							new->u.sin.sin_brd.s_addr &= ~htonl(1U<<(31-j));
-					}
-				}
-			}
+			if (!strcmp(param, "-"))
+			       brd_len = -2;
+			else if (!strcmp(param, "+"))
+				brd_len = -1;
 			else if (!inet_pton(AF_INET, param, &new->u.sin.sin_brd)) {
 				log_message(LOG_INFO, "VRRP is trying to assign invalid broadcast %s. "
 						      "skipping VIP...", FMT_STR_VSLOT(strvec, i));
@@ -597,6 +607,31 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 
 			new->label = MALLOC(IFNAMSIZ);
 			strncpy(new->label, strvec_slot(strvec, ++i), IFNAMSIZ);
+		} else if (!strcmp(str, "peer")) {
+			if (!param_avail) {
+				param_missing = true;
+				break;
+			}
+
+			i++;
+			if (new->have_peer) {
+				log_message(LOG_INFO, "Peer %s - another peer has already been specified", FMT_STR_VSLOT(strvec, i));
+				continue;
+			}
+
+			if (!parse_ipaddress(&peer, strvec_slot(strvec,i), false))
+				log_message(LOG_INFO, "Invalid peer address %s", FMT_STR_VSLOT(strvec, i));
+			else if (peer.ifa.ifa_family != new->ifa.ifa_family)
+				log_message(LOG_INFO, "Peer address %s does not match address family", FMT_STR_VSLOT(strvec, i));
+			else {
+				new->have_peer = true;
+				new->ifa.ifa_prefixlen = peer.ifa.ifa_prefixlen;
+				if (new->ifa.ifa_family == AF_INET6)
+					new->peer.sin6_addr = peer.u.sin6_addr;
+				else
+					new->peer.sin_addr = peer.u.sin.sin_addr;
+				new->ifa.ifa_prefixlen = peer.ifa.ifa_prefixlen;
+			}
 #ifdef IFA_F_HOMEADDRESS		/* Linux 2.6.19 */
 		} else if (!strcmp(str, "home")) {
 			new->flags |= IFA_F_HOMEADDRESS;
@@ -631,6 +666,17 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 		log_message(LOG_INFO, "No %s parameter specified for %s", str, FMT_STR_VSLOT(strvec, addr_idx));
 		free(new);
 		return;
+	}
+
+	/* Set the broadcast address if necessary */
+	if (brd_len < 0  && new->ifa.ifa_prefixlen <= 30) {
+		new->u.sin.sin_brd = (new->have_peer) ? new->peer.sin_addr : new->u.sin.sin_addr;
+		mask = 0xffffffffU >> new->ifa.ifa_prefixlen;
+		mask = htonl(mask);
+		if (brd_len == -1)	/* '+' */
+			new->u.sin.sin_brd.s_addr |= mask;
+		else
+			new->u.sin.sin_brd.s_addr &= ~mask;
 	}
 
 	if (!ifp && !new->ifp) {

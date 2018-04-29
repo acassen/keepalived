@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201803060000Z"
+     LAST-UPDATED "201804280000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201804280000Z"
+     DESCRIPTION "add VRRP address peers"
      REVISION "201803060000Z"
      DESCRIPTION "add VRRP protocol version to VRRP instance"
      REVISION "201803010000Z"
@@ -1106,7 +1108,8 @@ VrrpAddressEntry ::= SEQUENCE {
     vrrpAddressIfName DisplayString,
     vrrpAddressIfAlias DisplayString,
     vrrpAddressStatus INTEGER,
-    vrrpAddressAdvertising INTEGER
+    vrrpAddressAdvertising INTEGER,
+    vrrpAddressPeer InetAddress
 }
 
 vrrpAddressIndex OBJECT-TYPE
@@ -1196,6 +1199,14 @@ vrrpAddressAdvertising OBJECT-TYPE
     DESCRIPTION
         "Status of VRRP advertising for this IP address."
     ::= { vrrpAddressEntry 11 }
+
+vrrpAddressPeer OBJECT-TYPE
+    SYNTAX InetAddress
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "The peer address."
+    ::= { vrrpAddressEntry 12 }
 
 -- Routes
 -- see vrrp_iproute.h
@@ -4050,6 +4061,7 @@ vrrpInstanceGroup OBJECT-GROUP
     vrrpAddressIfAlias,
     vrrpAddressStatus,
     vrrpAddressAdvertising,
+    vrrpAddressPeer,
     vrrpRouteAddressType,
     vrrpRouteDestination,
     vrrpRouteDestinationMask,

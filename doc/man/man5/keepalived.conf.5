@@ -472,7 +472,7 @@ bits of the address.
 .PP
  static_ipaddress
  {
- <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
+ <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IPADDR>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
  192.168.1.1/24 dev eth0 scope global
  ...
  }
@@ -850,7 +850,7 @@ bfd_instance <STRING> {
            #With the same entries on other machines,
            #the opposite transition will be occurring.
            virtual_ipaddress {
-               <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
+               <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IPADDR>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
                192.168.200.17/24 dev eth1
                192.168.200.18/24 dev eth2 label eth2:1
            }
@@ -867,7 +867,7 @@ bfd_instance <STRING> {
            # addresses in virtual_ipaddress must be of the
            # same family.
            virtual_ipaddress_excluded {
-               <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
+               <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IPADDR>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
                <IPADDR>[/<MASK>] ...
                ...
            }
