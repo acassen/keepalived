@@ -1403,7 +1403,7 @@ vrrp_send_link_update(vrrp_t * vrrp, unsigned rep)
 
 	/* If the interface doesn't support ARP, then don't send
 	 * any ARP messages. */
-	if (vrrp->ifp->ifi_flags | IFF_NOARP)
+	if (vrrp->ifp->ifi_flags & IFF_NOARP)
 		return;
 
 	/* send gratuitous arp for each virtual ip */
