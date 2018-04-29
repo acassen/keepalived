@@ -57,6 +57,11 @@ typedef struct _ip_address {
 	uint8_t			flags;			/* Address flags */
 	uint8_t			flagmask;		/* Bitmaps of flags set */
 #endif
+	bool                    have_peer;
+	union {
+		struct in_addr sin_addr;
+		struct in6_addr sin6_addr;
+	} peer;
 	bool			set;			/* TRUE if addr is set */
 	bool			iptable_rule_set;	/* TRUE if iptable drop rule
 							 * set to addr */

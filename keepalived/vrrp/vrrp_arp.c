@@ -89,17 +89,14 @@ static ssize_t send_arp(ip_address_t *ipaddress, ssize_t pack_len)
 			    ifp->ifname,
 			    inet_ntop2(ipaddress->u.sin.sin_addr.s_addr));
 
-
 	/* Send packet */
-	len = sendto(garp_fd, garp_buffer, pack_len , 0,
+	len = sendto(garp_fd, garp_buffer, pack_len, 0,
 		     (struct sockaddr *)&sll, sizeof(sll));
 	if (len < 0)
 		log_message(LOG_INFO, "Error sending gratuitous ARP on %s for %s",
 			    IF_NAME(ipaddress->ifp), inet_ntop2(ipaddress->u.sin.sin_addr.s_addr));
 	return len;
 }
-
-
 
 /* Build a gratuitous ARP message over a specific interface */
 ssize_t send_gratuitous_arp_immediate(interface_t *ifp, ip_address_t *ipaddress)
@@ -131,7 +128,6 @@ ssize_t send_gratuitous_arp_immediate(interface_t *ifp, ip_address_t *ipaddress)
 		memcpy(eth->ether_shost, hwaddr, ETH_ALEN);
 		eth->ether_type = htons(ETHERTYPE_ARP);
 		arph = (struct arphdr *) (garp_buffer + ETHER_HDR_LEN);
-
 	}
 
 	/* ARP payload */
@@ -145,7 +141,7 @@ ssize_t send_gratuitous_arp_immediate(interface_t *ifp, ip_address_t *ipaddress)
 	arp_ptr += ifp->hw_addr_len;
 	memcpy(arp_ptr, &ipaddress->u.sin.sin_addr.s_addr,
 	       sizeof(struct in_addr));
-	arp_ptr += sizeof (struct in_addr);;
+	arp_ptr += sizeof (struct in_addr);
 	memcpy(arp_ptr, ifp->hw_addr_bcast, ifp->hw_addr_len);
 	arp_ptr += ifp->hw_addr_len;
 	memcpy(arp_ptr, &ipaddress->u.sin.sin_addr.s_addr,
@@ -154,6 +150,7 @@ ssize_t send_gratuitous_arp_immediate(interface_t *ifp, ip_address_t *ipaddress)
 
 	pack_len = arp_ptr - garp_buffer;
 	len = send_arp(ipaddress, pack_len);
+
 	/* If we have to delay between sending garps, note the next time we can */
 	if (ifp->garp_delay && ifp->garp_delay->have_garp_interval)
 		ifp->garp_delay->garp_next_time = timer_add_now(ifp->garp_delay->garp_interval);
@@ -185,6 +182,10 @@ static void queue_garp(vrrp_t *vrrp, interface_t *ifp, ip_address_t *ipaddress)
 void send_gratuitous_arp(vrrp_t *vrrp, ip_address_t *ipaddress)
 {
 	interface_t *ifp = IF_BASE_IFP(ipaddress->ifp);
+
+	/* If the interface doesn't support ARP, don't try sending */
+	if (ifp->ifi_flags & IFF_NOARP)
+		return;
 
 	set_time_now();
 

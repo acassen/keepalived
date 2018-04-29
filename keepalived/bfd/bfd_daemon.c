@@ -144,7 +144,13 @@ start_bfd(void)
 
 	/* Set the process priority and non swappable if configured */
 // TODO - measure max stack usage
-	set_process_priorities(global_data->bfd_realtime_priority, global_data->bfd_rlimit_rt,
+	set_process_priorities(
+#ifdef _HAVE_SCHED_RT_
+			global_data->bfd_realtime_priority,
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+			global_data->bfd_rlimit_rt,
+#endif
+#endif
 			global_data->bfd_process_priority, global_data->bfd_no_swap ? 4096 : 0);
 
 	bfd_complete_init();

@@ -4,7 +4,7 @@
 # Configuration template file for keepalived.
 # autoconf will generate & check deps for proper compilation
 #
-# Copyright (C) 2001-2017 Alexandre Cassen, <acassen@linux-vs.org>
+# Copyright (C) 2001-2018 Alexandre Cassen, <acassen@linux-vs.org>
 
 AC_DEFUN([add_to_var], [$1="$$1 $2"])
 AC_DEFUN([add_to_var_ind], [eval $1=\"\$$1 $2\"]) dnl "
@@ -631,7 +631,7 @@ if test .${enable_libnl} != .no; then
 	  NEED_NL3=Yes
         fi
 
-        if test $NETLINK_VER -eq 3 -a .$disable_vrrp != .no; then
+        if test $NETLINK_VER -eq 3 -a .$enable_vrrp != .no; then
 	  NEED_NL3=Yes
 
 	  dnl ----[Check have IPV4_DEVCONF defines - since Linux 3.11]----
@@ -1495,7 +1495,7 @@ AC_CHECK_DECLS([SCHED_RR],
     AC_DEFINE([_HAVE_SCHED_RT_], [ 1 ], [Define to 1 if have SCHED_RR])
     add_system_opt([SCHED_RT])
 
-    dnl -- RLIMIT_RTTIME since Linux 2.6.25
+    dnl -- RLIMIT_RTTIME since Linux 2.6.25 - not supported wwith musl libc
     AC_CHECK_DECLS([RLIMIT_RTTIME], [], [], [[#include <sys/resource.h>]])
 
     dnl -- SCHED_RESET_ON_FORK since Linux 2.6.32
@@ -1657,11 +1657,12 @@ else
   INIT_TYPE=$init_type
 fi
 
-if test $INIT_TYPE = systemd; then
+if test -z $INIT_TYPE; then
+  INIT_TYPE=undetected
+elif test $INIT_TYPE = systemd; then
   AC_SUBST([systemdsystemunitdir], [$with_systemdsystemunitdir])
 fi
 
-if test -z $INIT_TYPE; then INIT_TYPE=undetected; fi
 AM_CONDITIONAL([INIT_UPSTART], [test $INIT_TYPE = upstart])
 AM_CONDITIONAL([INIT_SYSTEMD], [test $INIT_TYPE = systemd])
 AM_CONDITIONAL([INIT_SYSV], [test $INIT_TYPE = SYSV])

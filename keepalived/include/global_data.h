@@ -122,6 +122,7 @@ typedef struct _data {
 	bool				vrrp_check_unicast_src;
 	bool				vrrp_skip_check_adv_addr;
 	bool				vrrp_strict;
+	bool				have_vrrp_config;
 	char				vrrp_process_priority;
 	bool				vrrp_no_swap;
 #ifdef _HAVE_SCHED_RT_
@@ -132,6 +133,7 @@ typedef struct _data {
 #endif
 #endif
 #ifdef _WITH_LVS_
+	bool				have_checker_config;
 	char				checker_process_priority;
 	bool				checker_no_swap;
 #ifdef _HAVE_SCHED_RT_
@@ -142,6 +144,7 @@ typedef struct _data {
 #endif
 #endif
 #ifdef _WITH_BFD_
+	bool				have_bfd_config;
 	char				bfd_process_priority;
 	bool				bfd_no_swap;
 #ifdef _HAVE_SCHED_RT_

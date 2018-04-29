@@ -66,7 +66,14 @@ set_process_priority(int priority)
 }
 
 void
-set_process_priorities(int realtime_priority, int rlimit_rt, int process_priority, int no_swap_stack_size)
+set_process_priorities(
+#ifdef _HAVE_SCHED_RT_
+		       int realtime_priority,
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+		       int rlimit_rt,
+#endif
+#endif
+		       int process_priority, int no_swap_stack_size)
 {
 #ifdef _HAVE_SCHED_RT_
 	if (realtime_priority) {

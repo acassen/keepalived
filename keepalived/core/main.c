@@ -102,19 +102,16 @@ static bool free_main_pidfile;
 #ifdef _WITH_LVS_
 pid_t checkers_child;					/* Healthcheckers child process ID */
 char *checkers_pidfile;					/* overrule default pidfile */
-bool have_virtual_servers;				/* virtual servers configured */
 static bool free_checkers_pidfile;
 #endif
 #ifdef _WITH_VRRP_
 pid_t vrrp_child;					/* VRRP child process ID */
 char *vrrp_pidfile;					/* overrule default pidfile */
-bool have_vrrp_instances;				/* vrrp instances configured */
 static bool free_vrrp_pidfile;
 #endif
 #ifdef _WITH_BFD_
 pid_t bfd_child;					/* BFD child process ID */
 char *bfd_pidfile;					/* overrule default pidfile */
-bool have_bfd_instances;				/* bfd instances configured */
 static bool free_bfd_pidfile;
 #endif
 unsigned long daemon_mode;				/* VRRP/CHECK/BFD subsystem selection */
@@ -308,12 +305,32 @@ make_pidfile_name(const char* start, const char* instance, const char* extn)
 	return name;
 }
 
+#ifdef _WITH_VRRP_
+bool
+running_vrrp(void)
+{
+	return (__test_bit(DAEMON_VRRP, &daemon_mode) &&
+	    (global_data->have_vrrp_config ||
+	     __test_bit(RUN_ALL_CHILDREN, &daemon_mode)));
+}
+#endif
+
 #ifdef _WITH_LVS_
 bool
 running_checker(void)
 {
 	return (__test_bit(DAEMON_CHECKERS, &daemon_mode) &&
-	    (have_virtual_servers ||
+	    (global_data->have_checker_config ||
+	     __test_bit(RUN_ALL_CHILDREN, &daemon_mode)));
+}
+#endif
+
+#ifdef _WITH_BFD_
+bool
+running_bfd(void)
+{
+	return (__test_bit(DAEMON_BFD, &daemon_mode) &&
+	    (global_data->have_bfd_config ||
 	     __test_bit(RUN_ALL_CHILDREN, &daemon_mode)));
 }
 #endif
@@ -406,16 +423,12 @@ start_keepalived(void)
 #endif
 #ifdef _WITH_VRRP_
 	/* start vrrp child */
-	if (__test_bit(DAEMON_VRRP, &daemon_mode) &&
-	    (have_vrrp_instances ||
-	     __test_bit(RUN_ALL_CHILDREN, &daemon_mode)))
+	if (running_vrrp())
 		start_vrrp_child();
 #endif
 #ifdef _WITH_BFD_
 	/* start bfd child */
-	if (__test_bit(DAEMON_BFD, &daemon_mode) &&
-	    (have_bfd_instances ||
-	     __test_bit(RUN_ALL_CHILDREN, &daemon_mode)))
+	if (running_bfd())
 		start_bfd_child();
 #endif
 }
@@ -478,17 +491,14 @@ propogate_signal(__attribute__((unused)) void *v, int sig)
 #ifdef _WITH_VRRP_
 	if (vrrp_child > 0)
 		kill(vrrp_child, sig);
-	else if (sig == SIGHUP &&
-		 __test_bit(DAEMON_VRRP, &daemon_mode) &&
-		 have_vrrp_instances)
-		 start_vrrp_child();
+	else if (sig == SIGHUP && running_vrrp())
+		start_vrrp_child();
 #endif
 #ifdef _WITH_LVS_
 	if (sig == SIGHUP) {
 		if (checkers_child > 0)
 			kill(checkers_child, sig);
-		else if (__test_bit(DAEMON_CHECKERS, &daemon_mode) &&
-			 have_virtual_servers)
+		else if (running_checker())
 			start_check_child();
 	}
 #endif
@@ -496,8 +506,7 @@ propogate_signal(__attribute__((unused)) void *v, int sig)
 	if (sig == SIGHUP) {
 		if (bfd_child > 0)
 			kill(bfd_child, sig);
-		else if (__test_bit(DAEMON_BFD, &daemon_mode) &&
-			 have_bfd_instances)
+		else if (running_bfd())
 			start_bfd_child();
 	}
 #endif

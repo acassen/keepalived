@@ -77,10 +77,11 @@ bfd_handler(vector_t *strvec)
 {
 	char *name;
 
-	if (!strvec) {
-		have_bfd_instances = true;
+	global_data->have_bfd_config = true;
+
+	/* If we are not the bfd process, we don't need any more information */
+	if (!strvec)
 		return;
-	}
 
 	name = vector_slot(strvec, 1);
 

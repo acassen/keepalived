@@ -1,3 +1,108 @@
+2018-04-09 Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.4.3 released.
+	* vrrp: setting '0' as default value for ifa_flags to make gcc happy.
+	* Add additional libraries when testing for presence of SSL_CTX_new().
+	  It appears that some systems need -lcrypto when linking with -lssl.
+	* Sanitise checking of libnl3 in configure.ac.
+	* Report and handle missing '}'s in config files.
+	* Add missing '\n' in keepalived.data output.
+	* Stop backup taking over as master while master reloads.
+	  If a reload was initiated just before an advert, and since it took
+	  one advert interval after a reload before an advert was sent, if the
+	  reload itself took more than one advert interval, the backup could
+	  time out and take over as master.
+	  This commit makes keepalived send adverts for all instances that are
+	  master immediately before a reload, and also sends adverts immediately
+	  after a reload, thereby trippling the time available for the reload
+	  to complete.
+	* Add route option fastopen_no_cookie and rule option l3mdev.
+	* Fix errors in KEEPALIVED-MIB.txt.
+	* Simplify setting on IN6_ADDR_GEN_MODE.
+	* Cosmetic changes to keepalived(8) man page.
+	* Don't set ipvs sync daemon to master state before becoming master
+	  If a vrrp instance which was the one specified for the ipvs sync
+	  daemon was configured with initial state master, the sync daemon
+	  was being set to master mode before the vrrp instance transitioned
+	  to master mode. This caused an error message when the vrrp instance
+	  transitioned to master and attempted to make the sync daemon go from
+	  backup to master mode.
+	  This commit stops setting the sync daemon to master mode at initialisation
+	  time, and it is set to master mode when the vrrp instance transitions
+	  to master.
+	* Fix freeing vector which has not had any entries allocated.
+	* Add additional mem-check disgnostics
+	  vector_alloc, vectot_alloc_slot, vector_free and alloc_strvec all
+	  call MALLOC/FREE but the functions written in the mem_check log
+	  are vector_alloc etc, not the functions that call them.
+	  This commit adds logging of the originating calling function.
+	* Fix memory leak in parser.c.
+	* Improve alignment of new mem-check logging.
+	* Disable all checkers on a virtual server when ha_suspend set.
+	  Only the first checker was being disabled; this commit now disables
+	  all of them.
+	  Also, make the decision to disable a checker when starting/reloading
+	  when scheduling the checker, so that the existance of the required
+	  address can be checked.
+	* Stop genhash segfaulting when built with --enable-mem-check.
+	* Fix memory allocation problems in genhash.
+	* Properly fix memory allocation problems in genhash.
+	* Fix persistence_granularity IPv4 netmask validation.
+	  The logic test from inet_aton() appears to be inverted.
+	* Fix segfault when checker configuration is missing expected parameter
+	  Issue #806 mentioned as an aside that "nb_get_retry" without a parameter
+	  was sigfaulting. Commit be7ae80 - "Stop segfaulting when configuration
+	  keyword is missing its parameter" missed the "hidden" uses of vector_slot()
+	  (i.e. those used via definitions in header files).
+	  This commit now updates those uses of vector_slot() to use strvec_slot()
+	  instead.
+	* Fix compiling on Linux 2.x kernels.
+	  There were missing checks for HAVE_DECL_CLONE_NEWNET causing
+	  references to an undeclared variable if CLONE_NEWNET wasn't defined.
+	* Improve parsing of kernel release.
+	  The kernel EXTRAVERSION can start with any character (although
+	  starting with a digit would be daft), so relax the check for it
+	  starting with a '-'. Kernels using both '+' and '.' being the
+	  first character of EXTRAVERSION have been reported.
+	* Improve grammer.
+	* add support for SNI in SSL_GET check.
+	  this adds a `enable_sni` parameter to SSL_GET, making sure the check
+	  passes the virtualhost in the SNI extension during SSL handshake.
+	* Optimise setting host name for SSL_GET requests with SNI.
+	* Allow SNI to be used with SSL_GET with OpenSSL v1.0.0 and LibreSSL.
+	* Use configure to check for SSL_set_tlsext_host_name()
+	  Rather than checking for a specific version of the OpenSSL library
+	  (and it would also need checking the version of the LibreSSL library)
+	  let configure check for the presence of SSL_set_tlsext_host_name().
+	  Also omit all code related to SNI of SSL_set_tlsext_host_name() is
+	  not available.
+	* Use configure to determine available OpenSSL functionality
+	  Rather than using version numbers of the OpenSSL library to determine
+	  what functions are available, let configure determine whether the
+	  functions are supported.
+	  The also means that the same tests work for LibreSSL.
+	* Add support for gratuitous ARPs for IP over Infiniband.
+	* Use system header definition instead of local definition IF_HWADDR_MAX
+	  linux/netdevice.h has definition MAX_ADDR_LEN, which is 32, whereas
+	  IF_HWADDR_MAX was locally defined to be 20.
+	  Unfortunately we end up with more system header file juggling to ensure
+	  we don't have duplicate definitions.
+	* Fix vrrp_script and check_misc scripts of type </dev/tcp/127.0.0.1/80.
+	* Add the first pre-defined config definition (${_PWD})
+	  ${_PWD} in a configuration file will be replaced with the full
+	  path name of the directory that keepalived is reading the current
+	  configuration file from.
+	* Open and run the notify fifo and script if no other fifo
+	  Due to the way the code was structured the notify_fifo for both
+	  checker and vrrp messages wasn't run if neither the vrrp or checker
+	  fifo wasn't configured.
+	  Also, if all three fifos were configured, the general fifo script
+	  was executed by both the vrrp and checker process, causing problems.
+	* Add support for Infiniband interfaces when dumping configuration.
+	* Tidy up layout in vrrp_arp.c.
+	* Add configure check for support of position independant executables (PIE).
+	* Add check for -pie support, and fix writing to keepalived.data.
+
+
 2018-02-25 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.4.2 released.
 	* Make genhash exit with exit code 1 on error.

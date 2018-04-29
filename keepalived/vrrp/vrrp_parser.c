@@ -76,6 +76,8 @@ static bool remove_script;
 static void
 static_addresses_handler(vector_t *strvec)
 {
+	global_data->have_vrrp_config = true;
+
 	if (!strvec)
 		return;
 
@@ -87,6 +89,8 @@ static_addresses_handler(vector_t *strvec)
 static void
 static_routes_handler(vector_t *strvec)
 {
+	global_data->have_vrrp_config = true;
+
 	if (!strvec)
 		return;
 
@@ -97,6 +101,8 @@ static_routes_handler(vector_t *strvec)
 static void
 static_rules_handler(vector_t *strvec)
 {
+	global_data->have_vrrp_config = true;
+
 	if (!strvec)
 		return;
 
@@ -152,6 +158,9 @@ vrrp_group_handler(vector_t *strvec)
 	}
 
 	vgroup->iname = read_value_block(strvec);
+
+	if (!vgroup->iname)
+		log_message(LOG_INFO, "Warning - sync group %s has empty group block", vgroup->gname);
 }
 
 static void
@@ -278,10 +287,10 @@ vrrp_handler(vector_t *strvec)
 	vrrp_t *vrrp;
 	char *iname;
 
-	if (!strvec) {
-		have_vrrp_instances = true;
+	global_data->have_vrrp_config = true;
+
+	if (!strvec)
 		return;
-	}
 
 	if (vector_count(strvec) != 2) {
 		log_message(LOG_INFO, "vrrp_instance must have a name");
@@ -1141,6 +1150,12 @@ garp_group_interfaces_handler(vector_t *strvec)
 	size_t i;
 	garp_delay_t *gd;
 	element e;
+
+	/* Handle the interfaces block being empty */
+	if (!interface_vec) {
+		log_message(LOG_INFO, "Warning - empty garp_group interfaces block");
+		return;
+	}
 
 	/* First set the next aggregation group number */
 	delay->aggregation_group = 1;

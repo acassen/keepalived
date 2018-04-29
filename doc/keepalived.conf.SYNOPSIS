@@ -426,7 +426,7 @@ static_ipaddress {                            # block identification
                                               # If no dev element is specified, it defaults to the default_interface (default eth0)
                                               # Note: the broadcast address may be specified as '-' or '+' to clear or set the host
                                               #       bits of the address.
-    <IP ADDRESS>[/<MASK>] [brd <IP ADDRESS>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
+    <IP ADDRESS>[/<MASK>] [brd <IP ADDRESS>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IP ADDRESS>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
     <IP ADDRESS>[/<MASK>] ...
     ...
 }
@@ -791,12 +791,12 @@ vrrp_instance <STRING> {                      # VRRP instance declaration
         auth_pass <STRING>                    # Password string (up to 8 characters)
     }
     virtual_ipaddress {                       # VRRP IP addres block
-        <IP ADDRESS>[/<MASK>] [brd <IP ADDRESS>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
+        <IP ADDRESS>[/<MASK>] [brd <IP ADDRESS>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IP ADDRESS>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
         <IP ADDRESS>[/<MASK>] ...
         ...
     }
     virtual_ipaddress_excluded {              # VRRP IP excluded from VRRP packets
-        <IP ADDRESS>[/<MASK>] [brd <IP ADDRESS>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
+        <IP ADDRESS>[/<MASK>] [brd <IP ADDRESS>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IP ADDRESS>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
         <IP ADDRESS>[/<MASK>] ...
         ...
     }
