@@ -287,6 +287,7 @@ typedef struct _vrrp_t {
 #define VRRP_STATE_MAST			2	/* rfc2338.6.4.3 */
 #define VRRP_STATE_FAULT		3	/* internal */
 #define VRRP_STATE_GOTO_MASTER		4	/* internal */
+#define VRRP_STATE_READD		95	/* internal */
 #define VRRP_STATE_MASTER_RELOAD	96	/* internal */
 #define VRRP_STATE_STOP			97	/* internal */
 #define VRRP_STATE_GOTO_FAULT		98	/* internal */
@@ -358,5 +359,6 @@ extern void clear_diff_vrrp(void);
 extern void clear_diff_script(void);
 extern void vrrp_restore_interface(vrrp_t *, bool, bool);
 extern void vrrp_remove_delayed_arp_na(vrrp_t *);
+extern int vrrp_handle_ip_change(const char *iface, sa_family_t family, void *address, int action);
 
 #endif
