@@ -1182,10 +1182,12 @@ netlink_broadcast_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 		 * when RTNLGRP_LINK has not been subscribed to. This
 		 * occurs when the link is set to up state.
 		 * Only the VRRP process is interested in link messages. */
-#if defined _WITH_VRRP_ && !defined _DEBUG_
+#ifdef _WITH_VRRP_ 
+#ifndef _DEBUG_
 		if (prog_type == PROG_TYPE_VRRP)
 #endif
 			return netlink_reflect_filter(snl, h);
+#endif
 		break;
 	case RTM_NEWADDR:
 	case RTM_DELADDR:
