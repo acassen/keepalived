@@ -1175,12 +1175,20 @@ static int
 netlink_broadcast_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 {
 	switch (h->nlmsg_type) {
-#ifdef _WITH_VRRP_
 	case RTM_NEWLINK:
 	case RTM_DELLINK:
-		return netlink_reflect_filter(snl, h);
-		break;
+		/* It appears that older kernels (certainly 2.6.32) can
+		 * send RTM_NEWLINK (but not RTM_DELLINK) messages even
+		 * when RTNLGRP_LINK has not been subscribed to. This
+		 * occurs when the link is set to up state.
+		 * Only the VRRP process is interested in link messages. */
+#ifdef _WITH_VRRP_ 
+#ifndef _DEBUG_
+		if (prog_type == PROG_TYPE_VRRP)
 #endif
+			return netlink_reflect_filter(snl, h);
+#endif
+		break;
 	case RTM_NEWADDR:
 	case RTM_DELADDR:
 		return netlink_if_address_filter(snl, h);
