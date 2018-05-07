@@ -35,7 +35,7 @@
 #include "global_data.h"
 #include "notify.h"
 #include "logger.h"
-#ifdef _WITH_SNMP_
+#if defined _WITH_SNMP_RFC_ || defined _WITH_SNMP_VRRP_
 #include "vrrp_snmp.h"
 #endif
 #include "smtp.h"

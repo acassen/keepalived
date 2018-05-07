@@ -657,8 +657,6 @@ SNMP_RFCV3_FALSE
 SNMP_RFCV3_TRUE
 SNMP_RFCV2_FALSE
 SNMP_RFCV2_TRUE
-SNMP_RFC_FALSE
-SNMP_RFC_TRUE
 SNMP_CHECKER_FALSE
 SNMP_CHECKER_TRUE
 SNMP_VRRP_FALSE
@@ -10329,7 +10327,7 @@ else
   SNMP_KEEPALIVED_FALSE=
 fi
 
- if test $SNMP_VRRP_SUPPORT = Yes; then
+ if test $SNMP_VRRP_SUPPORT = Yes -o $SNMP_RFC_SUPPORT = Yes; then
   SNMP_VRRP_TRUE=
   SNMP_VRRP_FALSE='#'
 else
@@ -10343,14 +10341,6 @@ fi
 else
   SNMP_CHECKER_TRUE='#'
   SNMP_CHECKER_FALSE=
-fi
-
- if test $SNMP_RFC_SUPPORT = Yes; then
-  SNMP_RFC_TRUE=
-  SNMP_RFC_FALSE='#'
-else
-  SNMP_RFC_TRUE='#'
-  SNMP_RFC_FALSE=
 fi
 
  if test $SNMP_RFCV2_SUPPORT = Yes; then
@@ -11217,10 +11207,6 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${SNMP_CHECKER_TRUE}" && test -z "${SNMP_CHECKER_FALSE}"; then
   as_fn_error $? "conditional \"SNMP_CHECKER\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
-if test -z "${SNMP_RFC_TRUE}" && test -z "${SNMP_RFC_FALSE}"; then
-  as_fn_error $? "conditional \"SNMP_RFC\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${SNMP_RFCV2_TRUE}" && test -z "${SNMP_RFCV2_FALSE}"; then
