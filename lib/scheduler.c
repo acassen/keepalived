@@ -51,6 +51,9 @@
 #ifdef _DEBUG_
 #include "bitops.h"
 #endif
+#include "git-commit.h"
+#include <sys/utsname.h>
+#include <linux/version.h>
 
 /* global vars */
 thread_master_t *master = NULL;
@@ -196,6 +199,48 @@ destroy_child_finder(void)
 }
 
 #ifndef _DEBUG_
+static const char *
+get_end(const char *str, size_t max_len)
+{
+	size_t len = strlen(str);
+	const char *end;
+
+	if (len <= max_len)
+		return str + len;
+
+	end = str + max_len;
+	if (*end == ' ')
+		return end;
+
+	while (end > str && *--end != ' ');
+	if (end > str)
+		return end;
+
+	return str + max_len;
+}
+
+static void
+log_options(const char *option, const char *option_str)
+{
+	const char *p = option_str;
+	size_t opt_len = strlen(option);
+	const char *end;
+	bool first_line = true;
+
+	while (*p) {
+		end = get_end(p, 100 - opt_len);
+		if (first_line) {
+			log_message(LOG_INFO, "  %s: %.*s", option, (int)(end - p), p);
+			first_line = false;
+		}
+		else
+			log_message(LOG_INFO, "%*s%.*s", (int)(3 + strlen(option) + 2), "", (int)(end - p), p);
+		p = end;
+		while (*p == ' ')
+			p++;
+	}
+}
+
 /* report_child_status returns true if the exit is a hard error, so unable to continue */
 bool
 report_child_status(int status, pid_t pid, char const *prog_name)
@@ -228,14 +273,32 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 			log_message(LOG_INFO, "%s exited with status %d", prog_id, exit_status);
 	} else if (WIFSIGNALED(status)) {
 		if (WTERMSIG(status) == SIGSEGV) {
+			struct utsname uname_buf;
+
 			log_message(LOG_INFO, "%s exited due to segmentation fault (SIGSEGV).", prog_id);
 			log_message(LOG_INFO, "  %s", "Please report a bug at https://github.com/acassen/keepalived/issues");
 			log_message(LOG_INFO, "  %s", "and include this log from when keepalived started, a description");
-			log_message(LOG_INFO, "  %s", "of what happened before the crash and your configuration file.");
+			log_message(LOG_INFO, "  %s", "of what happened before the crash, your configuration file and the details below.");
 			log_message(LOG_INFO, "  %s", "Also provide the output of keepalived -v, what Linux distro and version");
 			log_message(LOG_INFO, "  %s", "you are running on, and whether keepalived is being run in a container or VM.");
 			log_message(LOG_INFO, "  %s", "A failure to provide all this information may mean the crash cannot be investigated.");
 			log_message(LOG_INFO, "  %s", "If you are able to provide a stack backtrace with gdb that would really help.");
+			log_message(LOG_INFO, "  Source version %s %s%s", PACKAGE_VERSION,
+#ifdef GIT_COMMIT
+									   ", git commit ", GIT_COMMIT
+#else
+									   "", ""
+#endif
+				   );
+			log_message(LOG_INFO, "  Built with kernel headers for Linux %d.%d.%d\n",
+						(LINUX_VERSION_CODE >> 16) & 0xff,
+						(LINUX_VERSION_CODE >>  8) & 0xff,
+						(LINUX_VERSION_CODE      ) & 0xff);
+			uname(&uname_buf);
+			log_message(LOG_INFO, "  Running on %s %s %s", uname_buf.sysname, uname_buf.release, uname_buf.version);
+			log_options("configure options", KEEPALIVED_CONFIGURE_OPTIONS);
+			log_options("Config options", CONFIGURATION_OPTIONS);
+			log_options("System options", SYSTEM_OPTIONS);
 		}
 		else
 			log_message(LOG_INFO, "%s exited due to signal %d", prog_id, WTERMSIG(status));
