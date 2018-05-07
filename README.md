@@ -14,9 +14,13 @@ Keepalived implementation is based on an I/O multiplexer to handle a
 strong multi-threading framework. All the events process use this I/O
 multiplexer.
 
+To build keepalived from the git source tree, you will need to have
+autoconf, automake and various libraries installed. See the INSTALL
+file for details of what needs to be installed and what needs to be
+executed before building keepalived.
+
 Keepalived is free software, Copyright (C) Alexandre Cassen.
 See the file COPYING for copying conditions.
-
 
 OPENSSL TOOLKIT LICENCE EXCEPTION
 
