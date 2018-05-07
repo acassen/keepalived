@@ -10268,11 +10268,6 @@ $as_echo "#define _SNMP_REPLY_V3_FOR_V2_  1 " >>confdefs.h
     SNMP_KEEPALIVED_SUPPORT=Yes
   fi
 
-  if test ${SNMP_RFC_SUPPORT} = Yes -o \
-	  ${SNMP_KEEPALIVED_SUPPORT} = Yes; then
-    SNMP_SUPPORT=Yes
-  fi
-
   CPPFLAGS="$SAV_CPPFLAGS"
   CPPFLAGS="$SAV_CPPFLAGS"
   CFLAGS="$SAV_CFLAGS"

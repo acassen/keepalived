@@ -1389,11 +1389,6 @@ if test "$enable_snmp" = yes -o \
     SNMP_KEEPALIVED_SUPPORT=Yes
   fi
 
-  if test ${SNMP_RFC_SUPPORT} = Yes -o \
-	  ${SNMP_KEEPALIVED_SUPPORT} = Yes; then
-    SNMP_SUPPORT=Yes
-  fi
-
   CPPFLAGS="$SAV_CPPFLAGS"
   CPPFLAGS="$SAV_CPPFLAGS"
   CFLAGS="$SAV_CFLAGS"
