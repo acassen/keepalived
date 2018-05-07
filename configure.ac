@@ -1390,7 +1390,7 @@ if test "$enable_snmp" = yes -o \
   fi
 
   if test ${SNMP_RFC_SUPPORT} = Yes -o \
-	  ${SNMP_KEEPALIVED} = Yes; then
+	  ${SNMP_KEEPALIVED_SUPPORT} = Yes; then
     SNMP_SUPPORT=Yes
   fi
 
