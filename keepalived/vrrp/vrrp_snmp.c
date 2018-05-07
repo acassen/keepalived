@@ -4440,14 +4440,20 @@ vrrp_rfcv3_snmp_proto_err_notify(vrrp_t *vrrp)
 static bool
 vrrp_handles_global_oid(void)
 {
+#ifdef _WITH_SNMP_VRRP_
 	if (global_data->enable_snmp_vrrp) {
 #ifdef _WITH_LVS_
-		if (!running_checker() || !global_data->enable_snmp_checker)
+		if (!running_checker())
 			return true;
+#ifdef _WITH_SNMP_CHECKER_
+		if (!global_data->enable_snmp_checker)
+			return true;
+#endif
 #else
 		return true;
 #endif
 	}
+#endif
 
 	return false;
 }

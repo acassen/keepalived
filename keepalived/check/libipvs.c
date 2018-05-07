@@ -149,7 +149,7 @@ static struct nla_policy ipvs_stats_policy[IPVS_STATS_ATTR_MAX + 1] = {
 	[IPVS_STATS_ATTR_INBPS]		= { .type = NLA_U32 },
 	[IPVS_STATS_ATTR_OUTBPS]	= { .type = NLA_U32 },
 };
-#endif	/* _WITH_SNMP_CHECKER */
+#endif	/* _WITH_SNMP_CHECKER_ */
 
 static struct nla_policy ipvs_info_policy[IPVS_INFO_ATTR_MAX + 1] = {
 	[IPVS_INFO_ATTR_VERSION]	= { .type = NLA_U32 },

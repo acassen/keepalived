@@ -51,7 +51,7 @@
 #include "process.h"
 #include "bitops.h"
 #include "rttables.h"
-#ifdef _WITH_SNMP_
+#if defined _WITH_SNMP_RFC || defined _WITH_SNMP_VRRP_
   #include "vrrp_snmp.h"
 #endif
 #ifdef _WITH_DBUS_
@@ -142,8 +142,18 @@ stop_vrrp(int status)
 	report_and_clear_netlink_timers("Static addresses/routes/rules cleared");
 #endif
 
-#ifdef _WITH_SNMP_
-	if (global_data->enable_snmp_vrrp || global_data->enable_snmp_rfcv2 || global_data->enable_snmp_rfcv3)
+#if defined _WITH_SNMP_RFC || defined _WITH_SNMP_VRRP_
+	if (
+#ifdef _WITH_SNMP_RFC_
+	    global_data->enable_snmp_vrrp ||
+#endif
+#ifdef _WITH_SNMP_RFCV2_
+	    global_data->enable_snmp_rfcv2 ||
+#endif
+#ifdef _WITH_SNMP_RFCV3_
+	    global_data->enable_snmp_rfcv3 ||
+#endif
+	    false)
 		vrrp_snmp_agent_close();
 #endif
 
@@ -264,8 +274,18 @@ start_vrrp(void)
 #endif
 			       global_data->vrrp_process_priority, global_data->vrrp_no_swap ? 4096 : 0);
 
-#ifdef _WITH_SNMP_
-	if (!reload && (global_data->enable_snmp_vrrp || global_data->enable_snmp_rfcv2 || global_data->enable_snmp_rfcv3)) {
+#if defined _WITH_SNMP_RFC || defined _WITH_SNMP_VRRP_
+	if (!reload && (
+#ifdef _WITH_SNMP_VRRP_
+	     global_data->enable_snmp_vrrp ||
+#endif
+#ifdef _WITH_SNMP_RFCV2_
+	     global_data->enable_snmp_rfcv2 ||
+#endif
+#ifdef _WITH_SNMP_RFCV3_
+	     global_data->enable_snmp_rfcv3 ||
+#endif
+	     false)) {
 		vrrp_snmp_agent_init(global_data->snmp_socket);
 #ifdef _WITH_SNMP_RFC_
 		vrrp_start_time = timer_now();

@@ -1282,6 +1282,28 @@ if test "$enable_snmp" = yes -o \
   NETSNMP_LIBS="$NETSNMP_LIBS_AGENT $NETSNMP_LIBS_EXT"
   NETSNMP_CFLAGS="`${NETSNMP_CONFIG} --base-cflags` -DNETSNMP_NO_INLINE"
 
+  # net-snmp-config adds compiler and linker options that were set at the time
+  # net-snmp was built, and this can include spec files that may not exist
+  # on the system building keepalived. We need to check if any spec files
+  # are specified, and if they do not exist on this system, then remove them
+  # from NETSNMP_LIBS or NETSNMP_CFLAGS.
+  # For further information, see https://bugzilla.redhat.com/show_bug.cgi?id=1544527
+  # and the other bugs referred to in it.
+  for spec in `echo $NETSNMP_LIBS | sed -e "s? ?\n?g" | grep "^-specs="`; do
+    SPEC_FILE=`echo $spec | sed -e "s?^-spaces=??"`
+    if test ! -f $SPEC_FILE; then
+      NETSNMP_LIBS=`echo $NETSNMP_LIBS | sed -e "s? *$spec *? ?"`
+      AC_MSG_WARN([Removing $spec from NETSNMP_LIBS since spec file not installed])
+    fi
+  done
+  for spec in `echo $NETSNMP_CFLAGS | sed -e "s? ?\n?g" | grep "^-specs="`; do
+    SPEC_FILE=`echo $spec | sed -e "s?^-spaces=??"`
+    if test ! -f $SPEC_FILE; then
+      NETSNMP_CFLAGS=`echo $NETSNMP_CFLAGS | sed -e "s? *$spec *? ?"`
+      AC_MSG_WARN([Removing $spec from NETSNMP_CFLAGS since spec file not installed])
+    fi
+  done
+
   SAV_CFLAGS="$CFLAGS"
   CFLAGS="$CFLAGS ${NETSNMP_CFLAGS}"
   SAV_LIBS="$LIBS"
@@ -1367,11 +1389,6 @@ if test "$enable_snmp" = yes -o \
     SNMP_KEEPALIVED_SUPPORT=Yes
   fi
 
-  if test ${SNMP_RFC_SUPPORT} = Yes -o \
-	  ${SNMP_KEEPALIVED} = Yes; then
-    SNMP_SUPPORT=Yes
-  fi
-
   CPPFLAGS="$SAV_CPPFLAGS"
   CPPFLAGS="$SAV_CPPFLAGS"
   CFLAGS="$SAV_CFLAGS"
@@ -1406,9 +1423,8 @@ if test $SNMP_RFCV3_SUPPORT = Yes; then
 fi
 AM_CONDITIONAL([SNMP], [test $SNMP_SUPPORT = Yes])
 AM_CONDITIONAL([SNMP_KEEPALIVED], [test $SNMP_KEEPALIVED_SUPPORT = Yes])
-AM_CONDITIONAL([SNMP_VRRP], [test $SNMP_VRRP_SUPPORT = Yes])
+AM_CONDITIONAL([SNMP_VRRP], [test $SNMP_VRRP_SUPPORT = Yes -o $SNMP_RFC_SUPPORT = Yes])
 AM_CONDITIONAL([SNMP_CHECKER], [test $SNMP_CHECKER_SUPPORT = Yes])
-AM_CONDITIONAL([SNMP_RFC], [test $SNMP_RFC_SUPPORT = Yes])
 AM_CONDITIONAL([SNMP_RFCV2], [test $SNMP_RFCV2_SUPPORT = Yes])
 AM_CONDITIONAL([SNMP_RFCV3], [test $SNMP_RFCV3_SUPPORT = Yes])
 

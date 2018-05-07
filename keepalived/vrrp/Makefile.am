@@ -54,7 +54,7 @@ if LIBIPSET
   EXTRA_libvrrp_a_SOURCES += vrrp_ipset.c
 endif
 
-if SNMP
+if SNMP_VRRP
   libvrrp_a_LIBADD	+= vrrp_snmp.o
   EXTRA_libvrrp_a_SOURCES += vrrp_snmp.c
 endif
