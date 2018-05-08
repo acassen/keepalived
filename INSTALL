@@ -86,6 +86,15 @@ For building the documentation, the following packages need to be installed:
    For latex or pdf files, the following are also needed:
 	texlive-core texlive-bin texlive-latexextra
 
+Installing from a git repo
+==========================
+To install from a git repo, execute:
+  1. Ensure you have autoconf and automake installed
+  2. git clone http://github.com/acassen/keepalived
+  3. cd keepalived
+  4. ./build_setup	# generate the autoconf and automake environment
+  5. Follow the instructions below for Installation, omitting the first two steps.
+
 Installation
 ============
 
@@ -114,18 +123,6 @@ Modifying source code
 If you modify the source code, especially configure.ac or any Makefile.am
 file, you will need to regenerate the build files. Keepalived uses automake
 and so you will need to have automake and autoconf installed.
-
-To regenerate the build environment, you will need to run the following
-commands before following the instuctions under 'Installation' above:
-
-  1. 'aclocal'
-  2. 'autoheader'
-  3. 'automake --add-missing' # add -c option if going to commit to git
-  4. 'autoreconf'
-
-If you are attempting to build keepalived after cloning
-https://github.com/acassen/keepalived and you don't have automake available,
-you may find it useful first to run 'find . -exec touch -r configure {} +'.
 
 Configuration
 =============

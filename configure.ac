@@ -251,6 +251,12 @@ AC_SUBST(ARFLAGS)
 
 # AC_PROG_LIBTOOL
 
+#
+# save the configure arguments
+#
+AC_DEFINE_UNQUOTED(KEEPALIVED_CONFIGURE_OPTIONS,"$ac_configure_args",
+  [configure options specified])
+
 KA_CPPFLAGS="$kernelinc"
 KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -Winit-self -g -O2 -D_GNU_SOURCE"
 KA_LDFLAGS=
