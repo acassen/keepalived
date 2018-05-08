@@ -1,3 +1,37 @@
+2018-05-08 Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.4.4 released.
+	* doc: ipvs schedulers update
+	* Fix a couple of typos in configure.ac.
+	* Fix namespace collision with musl if_ether.h.
+	* Check if return value from read_value_block() is null before using.
+	* Fix reporting real server stats via SNMP.
+	* Make checker process handle RTM_NEWLINK messages with -a option
+	  Even though the checker process doesn't subscribe to RTNLGRP_LINK
+	  messages, it appears that older kernels (certainly 2.6.32) can
+	  send RTM_NEWLINK (but not RTM_DELLINK) messages. This occurs
+	  when the link is set to up state.
+	  Only the VRRP process is interested in link messages, and so the
+	  checker process doesn't do the necessary initialisation to be able
+	  to handle RTM_NEWLINK messages.
+	  This commit makes the checker process simply discard RTM_NEWLINK
+	  and RTM_DELLINK messages, rather than assuming that if it receives
+	  an RTM_NEWLINK message it must be the VRRP process.
+	  This problem was reported in issue #848 since the checker process
+	  was segfaulting when a new interface was added when the -a command
+	  line option was specified.
+	* Fix handling RTM_NEWLINK when building without VRRP code.
+	* Fix building on Fedora 28.
+	  net-snmp-config output can include compiler and linker flags that
+	  refer to spec files that were used to build net-snmp but may not
+	  exist on the system building keepalived. That would cause the build
+	  done by configure to test for net-snmp support to fail; in particular
+	  on a Fedora 28 system that doesn't have the redhat-rpm-config package
+	  installed.
+	  This commit checks that any spec files in the compiler and linker
+	  flags returned by net-snmp-config exist on the system building
+	  keepalived, and if not it removes the reference(s) to the spec file(s).
+
+
 2018-04-09 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.4.3 released.
 	* vrrp: setting '0' as default value for ifa_flags to make gcc happy.
