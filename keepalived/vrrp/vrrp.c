@@ -2939,61 +2939,66 @@ clear_diff_script(void)
 }
 
 /* Handle IP address or interface changes to add/delete VIP */
-int
-vrrp_handle_ip_change(const char *iface, sa_family_t family, void *address, int action)
+void
+vrrp_handle_ip_change(interface_t *iface, sa_family_t family, void *address, int action)
 {
 	list    l;
+	list    lv;
 	element e;
+	int     type;
 
 	if (!vrrp_data)
-		return 1;
+		return;
 
 	l = vrrp_data->vrrp;
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp_t		*vrrp = ELEMENT_DATA(e);
-		list		vips = alloc_list(NULL, dump_ipaddress);
+		list		vips;
 		element		ve;
-		int		n = 0;
 
-		if (!vrrp->vipset) {
-			/* VIPs not set for this VRRP, no need to evaluate VIP address(es)
-			 * for this interface.
-			 */
+		if ((!vrrp->vipset) || (family != vrrp->family)) {
 			continue;
 		}
 
-		for (ve = LIST_HEAD(vrrp->vip); ve; ELEMENT_NEXT(ve)) {
-			ip_address_t	*ipaddr = ELEMENT_DATA(ve);
+		vips = alloc_list(NULL, dump_ipaddress);
+		type = VRRP_VIP_TYPE;
+		do {
+			lv = (type == VRRP_VIP_TYPE) ? vrrp->vip : vrrp->evip;
+			if (!LIST_ISEMPTY(lv)) {
+				for (ve = LIST_HEAD(lv); ve; ELEMENT_NEXT(ve)) {
+					ip_address_t	*ipaddr = ELEMENT_DATA(ve);
 
-			if ((action == IPADDRESS_ADD) && !ipaddr->set) {
-				if ((family == IP_FAMILY(ipaddr)) &&
-				    (strcmp(IF_NAME(ipaddr->ifp), iface) == 0) ) {
-					// Match address/mask?
-					list_add(vips, ipaddr);
-					n++;
-				}
+					if ((action == IPADDRESS_ADD) && !ipaddr->set) {
+						if ((family == IP_FAMILY(ipaddr)) &&
+						    (ipaddr->ifp->ifindex == iface->ifindex) ) {
+							list_add(vips, ipaddr);
+						}
 
-			} else if (action == IPADDRESS_DEL) {
-				/* Clear VIP state on delete */
-				if ((family == IP_FAMILY(ipaddr)) &&
-				    (IP_IS6(ipaddr) ? (memcmp((void*)&ipaddr->u.sin6_addr, address,
-							      sizeof(ipaddr->u.sin6_addr)) == 0) :
-				     (memcmp((void*)&ipaddr->u.sin.sin_addr, address,
-					     sizeof(ipaddr->u.sin.sin_addr)) == 0)) )
-				{
-					log_message(LOG_INFO, "Clearing VIP %s\n", ipaddresstos(NULL, ipaddr));
-					ipaddr->set = 0;
+					} else if (action == IPADDRESS_DEL) {
+						/* Clear VIP state on delete (match interface and address) */
+						if (ipaddr->set &&
+						    (family == IP_FAMILY(ipaddr)) &&
+						    (ipaddr->ifp->ifindex == iface->ifindex) &&
+						    (IP_IS6(ipaddr) ? (memcmp((void*)&ipaddr->u.sin6_addr, address,
+										sizeof(ipaddr->u.sin6_addr)) == 0) :
+								      (memcmp((void*)&ipaddr->u.sin.sin_addr, address,
+										sizeof(ipaddr->u.sin.sin_addr)) == 0)) )
+						{
+							log_message(LOG_INFO, "Clearing VIP %s\n", ipaddresstos(NULL, ipaddr));
+							ipaddr->set = 0;
+						}
+					}
 				}
 			}
-		}
+			type = (type == VRRP_VIP_TYPE) ? VRRP_EVIP_TYPE : 0;
+		} while (type);
 
 		/* Add matching VIPs */
 		if (!LIST_ISEMPTY(vips)) {
-			log_message(LOG_INFO, "(re)adding VIP%s:\n", n?"s":"");
+			log_message(LOG_INFO, "(re)adding VIP%s:\n", LIST_SIZE(vips) > 1 ? "s":"");
 			dump_list(vips);
 
 			netlink_iplist(vips, IPADDRESS_ADD, false);
-			vrrp_handle_accept_mode(vrrp, IPADDRESS_ADD, false);
 
 			/* Send gratitious ARP */
 			vrrp_send_link_update(vrrp, vrrp->garp_rep);
@@ -3004,5 +3009,5 @@ vrrp_handle_ip_change(const char *iface, sa_family_t family, void *address, int 
 		free_list(&vips);
 	}
 
-	return 0;
+	return;
 }

@@ -359,6 +359,6 @@ extern void clear_diff_vrrp(void);
 extern void clear_diff_script(void);
 extern void vrrp_restore_interface(vrrp_t *, bool, bool);
 extern void vrrp_remove_delayed_arp_na(vrrp_t *);
-extern int vrrp_handle_ip_change(const char *iface, sa_family_t family, void *address, int action);
+extern void vrrp_handle_ip_change(interface_t *iface, sa_family_t family, void *address, int action);
 
 #endif
