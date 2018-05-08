@@ -34,7 +34,7 @@ incoming request to farm nodes, latter nodes will then respond directly to the
 client requests without having to proxy through Load-Balancer. It offers you
 a way to locate nodes in differents networking segments.
 
-The main disavantage is the cost you will put into it to finally get a working
+The main disadvantage is the cost you will put into it to finally get a working
 env since it is deeply dependent uppon your network architecture.
 
 Virtual Server via Direct Routing
