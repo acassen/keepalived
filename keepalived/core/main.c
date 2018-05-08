@@ -546,7 +546,6 @@ usage(const char *prog)
 #ifdef _WITH_VRRP_
 	fprintf(stderr, "  -X, --release-vips           Drop VIP on transition from signal.\n");
 	fprintf(stderr, "  -V, --dont-release-vrrp      Don't remove VRRP VIPs and VROUTEs on daemon stop\n");
-	fprintf(stderr, "      --readd-vips             Readd VIP after i/f becomes available.\n");
 #endif
 #ifdef _WITH_LVS_
 	fprintf(stderr, "  -I, --dont-release-ipvs      Don't remove IPVS topology on daemon stop\n");
@@ -613,7 +612,6 @@ parse_cmdline(int argc, char **argv)
 #ifdef _WITH_VRRP_
 		{"release-vips",	no_argument,		NULL, 'X'},
 		{"dont-release-vrrp",	no_argument,		NULL, 'V'},
-		{"readd-vips",		no_argument,		NULL,  5 },
 #endif
 #ifdef _WITH_LVS_
 		{"dont-release-ipvs",	no_argument,		NULL, 'I'},
@@ -730,9 +728,6 @@ parse_cmdline(int argc, char **argv)
 #ifdef _WITH_VRRP_
 		case 'X':
 			__set_bit(RELEASE_VIPS_BIT, &debug);
-			break;
-		case 5:
-			__set_bit(READD_VIPS_BIT, &debug);
 			break;
 #endif
 		case 'S':

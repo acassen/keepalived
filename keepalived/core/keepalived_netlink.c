@@ -586,10 +586,8 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 		}
 
 		/* Re-add VIP(s) */
-		if (__test_bit(READD_VIPS_BIT, &debug)) {
-			vrrp_handle_ip_change(ifp, ifa->ifa_family, addr,
-					      (h->nlmsg_type == RTM_NEWADDR) ? IPADDRESS_ADD : IPADDRESS_DEL);
-		}
+		vrrp_handle_ip_change(ifp, ifa->ifa_family, addr,
+				      (h->nlmsg_type == RTM_NEWADDR) ? IPADDRESS_ADD : IPADDRESS_DEL);
 	}
 #endif
 

@@ -2956,7 +2956,7 @@ vrrp_handle_ip_change(interface_t *iface, sa_family_t family, void *address, int
 		list		vips;
 		element		ve;
 
-		if ((!vrrp->vipset) || (family != vrrp->family)) {
+		if ((!vrrp->readd_vips) || (!vrrp->vipset) || (family != vrrp->family)) {
 			continue;
 		}
 

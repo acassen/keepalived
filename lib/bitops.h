@@ -55,7 +55,6 @@ enum global_bits {
 #ifdef _WITH_VRRP_
 	DONT_RELEASE_VRRP_BIT,
 	RELEASE_VIPS_BIT,
-	READD_VIPS_BIT,
 #endif
 #ifdef _WITH_LVS_
 	DONT_RELEASE_IPVS_BIT,

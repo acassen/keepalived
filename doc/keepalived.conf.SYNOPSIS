@@ -605,6 +605,7 @@ vrrp_instance <STRING> {  # VRRP instance declaration
         <IP ADDRESS>[/<MASK>] ...
         ...
     }
+    readd_virtual_ipaddresses     # Re-add virtual_ipaddress(_excluded)es after interface down/up
     promote_secondaries  # Set the promote_secondaries flag on the interface to stop other
                          # addresses in the same CIDR being removed when 1 of them is removed
     virtual_routes {     # VRRP virtual routes
