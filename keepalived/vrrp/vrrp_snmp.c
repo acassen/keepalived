@@ -1495,11 +1495,13 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 			break;
 		*var_len = strlen(rule->iif->ifname);
 		return (u_char *)rule->iif->ifname;
+#if HAVE_DECL_FRA_OIFNAME
 	case VRRP_SNMP_RULE_OUTINTERFACE:
 		if (!rule->oif)
 			break;
 		*var_len = strlen(rule->oif->ifname);
 		return (u_char *)rule->oif->ifname;
+#endif
 	case VRRP_SNMP_RULE_TARGET:
 		if (!(rule->action == FR_ACT_GOTO))
 			break;
@@ -1523,9 +1525,9 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 		if (rule->mask & IPRULE_BIT_SUP_PREFIXLEN)
 			long_ret.u = rule->suppress_prefix_len;
 		else
-#endif
 			break;
 		return (u_char *)&long_ret;
+#endif
 #if HAVE_DECL_FRA_SUPPRESS_IFGROUP
 	case VRRP_SNMP_RULE_SUPPRESSGROUP:
 		if (rule->mask & IPRULE_BIT_SUP_GROUP) {
@@ -1533,49 +1535,49 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 			*var_len = strlen(str);
 		}
 		else
-#endif
 			break;
 		return (u_char *)str;
+#endif
 #if HAVE_DECL_FRA_TUN_ID
 	case VRRP_SNMP_RULE_TUNNELID_HIGH:
 		if (rule->tunnel_id)
 			long_ret.u = rule->tunnel_id >> 32;
 		else
-#endif
 			break;
 		return (u_char *)&long_ret;
+#endif
 #if HAVE_DECL_FRA_TUN_ID
 	case VRRP_SNMP_RULE_TUNNELID_LOW:
 		if (rule->tunnel_id)
 			long_ret.u = rule->tunnel_id & 0xffffffff;
 		else
-#endif
 			break;
 		return (u_char *)&long_ret;
+#endif
 #if HAVE_DECL_FRA_UID_RANGE
 	case VRRP_SNMP_RULE_UID_RANGE_START:
 		if (rule->mask & IPRULE_BIT_UID_RANGE)
 			long_ret.u = rule->uid_range.start;
 		else
-#endif
 			break;
 		return (u_char *)&long_ret;
+#endif
 #if HAVE_DECL_FRA_UID_RANGE
 	case VRRP_SNMP_RULE_UID_RANGE_END:
 		if (rule->mask & IPRULE_BIT_UID_RANGE)
 			long_ret.u = rule->uid_range.end;
 		else
-#endif
 			break;
 		return (u_char *)&long_ret;
+#endif
 #if HAVE_DECL_FRA_L3MDEV
 	case VRRP_SNMP_RULE_L3MDEV:
 		if (rule->l3mdev)
 			long_ret.u = 1;
 		else
-#endif
 			break;
 		return (u_char *)&long_ret;
+#endif
 	default:
 		return NULL;
 	}
