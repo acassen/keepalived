@@ -172,6 +172,10 @@ Beta branch 2017-10-29 Quentin Armitage <quentin@armitage.org.uk>
 	* Add static addresses and routes on vmacs
 	* Ensure all relevant notifications sent
 	* Rate limit respawning if a child process dies
+	* Have a socket to connect to for receiving notifications. A process
+	    can register for what notifications it wants to receive.
+	* Allow variable parameters to be passed to scripts - see issue #837
+	* Make tarball include git version of not a tag
 
 2018-05-08 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.4.4 released.
@@ -207,7 +211,6 @@ Beta branch 2017-10-29 Quentin Armitage <quentin@armitage.org.uk>
 	  keepalived, and if not it removes the reference(s) to the spec file(s).
 
 
->>>>>>> fixes
 2018-04-09 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.4.3 released.
 	* vrrp: setting '0' as default value for ifa_flags to make gcc happy.
