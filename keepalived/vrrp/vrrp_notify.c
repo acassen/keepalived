@@ -173,60 +173,6 @@ notify_script_exec(notify_script_t* script, char *type, int state_num, char* nam
 		notify_exec(&new_script);
 }
 
-static int
-notify_instance_exec(vrrp_t * vrrp)
-{
-	notify_script_t *script = get_iscript(vrrp);
-	notify_script_t *gscript = get_igscript(vrrp);
-	int ret = 0;
-
-	/* Launch the notify_* script */
-	if (script) {
-		notify_exec(script);
-		ret = 1;
-	}
-
-	/* Launch the generic notify script */
-	if (gscript) {
-		notify_script_exec(gscript, "INSTANCE", vrrp->state, vrrp->iname,
-				   vrrp->effective_priority);
-		ret = 1;
-	}
-
-	notify_instance_fifo(vrrp);
-
-#ifdef _WITH_DBUS_
-	if (global_data->enable_dbus)
-		dbus_send_state_signal(vrrp); // send signal to all subscribers
-#endif
-
-	return ret;
-}
-
-static int
-notify_group_exec(vrrp_sgroup_t * vgroup)
-{
-	notify_script_t *script = get_gscript(vgroup, vgroup->state);
-	notify_script_t *gscript = get_ggscript(vgroup);
-	int ret = 0;
-
-	/* Launch the notify_* script */
-	if (script) {
-		notify_exec(script);
-		ret = 1;
-	}
-
-	/* Launch the generic notify script */
-	if (gscript) {
-		notify_script_exec(gscript, "GROUP", vgroup->state, vgroup->gname, 0);
-		ret = 1;
-	}
-
-	notify_group_fifo(vgroup);
-
-	return ret;
-}
-
 /* SMTP alert notifier */
 static void
 vrrp_smtp_notifier(vrrp_t * vrrp)
@@ -290,7 +236,29 @@ vrrp_sync_smtp_notifier(vrrp_sgroup_t *vgroup)
 void
 send_instance_notifies(vrrp_t *vrrp)
 {
-	notify_instance_exec(vrrp);
+	notify_script_t *script = get_iscript(vrrp);
+	notify_script_t *gscript = get_igscript(vrrp);
+
+	/* Launch the notify_* script */
+	if (script) {
+		if (vrrp->state == VRRP_STATE_STOP)
+			system_call_script(master, child_killed_thread, NULL, TIMER_HZ, script);
+		else
+			notify_exec(script);
+	}
+
+	/* Launch the generic notify script */
+	if (gscript)
+		notify_script_exec(gscript, "INSTANCE", vrrp->state, vrrp->iname,
+				   vrrp->effective_priority);
+
+	notify_instance_fifo(vrrp);
+
+#ifdef _WITH_DBUS_
+	if (global_data->enable_dbus)
+		dbus_send_state_signal(vrrp); // send signal to all subscribers
+#endif
+
 #ifdef _WITH_SNMP_VRRP_
 	vrrp_snmp_instance_trap(vrrp);
 #endif
@@ -308,7 +276,19 @@ send_instance_notifies(vrrp_t *vrrp)
 void
 send_group_notifies(vrrp_sgroup_t *vgroup)
 {
-	notify_group_exec(vgroup);
+	notify_script_t *script = get_gscript(vgroup, vgroup->state);
+	notify_script_t *gscript = get_ggscript(vgroup);
+
+	/* Launch the notify_* script */
+	if (script)
+		notify_exec(script);
+
+	/* Launch the generic notify script */
+	if (gscript)
+		notify_script_exec(gscript, "GROUP", vgroup->state, vgroup->gname, 0);
+
+	notify_group_fifo(vgroup);
+
 #ifdef _WITH_SNMP_VRRP_
 	vrrp_snmp_group_trap(vgroup);
 #endif
