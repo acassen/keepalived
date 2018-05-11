@@ -41,6 +41,7 @@
 #include "utils.h"
 #include "parser.h"
 #include "keepalived_magic.h"
+#include "scheduler.h"
 
 /* Default user/group for script execution */
 uid_t default_script_uid;
@@ -382,8 +383,25 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, uns
 	exit(0); /* Script errors aren't server errors */
 }
 
+int
+child_killed_thread(thread_t *thread)
+{
+	thread_master_t *m = thread->master;
+
+	/* If the child didn't die, then force it */
+	if (thread->type == THREAD_CHILD_TIMEOUT)
+		kill(-getpgid(thread->u.c.pid), SIGKILL);
+
+	/* If all children have died, we can now complete the
+	 * termination process */
+	if (!m->child.count && !m->shutdown_timer_running)
+		thread_add_terminate_event(m);
+
+	return 0;
+}
+
 void
-script_killall(thread_master_t *m, int signo)
+script_killall(thread_master_t *m, int signo, bool requeue)
 {
 	thread_t *thread;
 	pid_t p_pgid, c_pgid;
@@ -409,6 +427,10 @@ script_killall(thread_master_t *m, int signo)
 			kill(thread->u.c.pid, signo);
 		}
 	}
+
+	/* We want to timeout the killed children in 1 second */
+	if (requeue && signo != SIGKILL)
+		thread_children_reschedule(m, child_killed_thread, TIMER_HZ);
 
 #ifndef HAVE_SIGNALFD
 	if (!sigismember(&old_set, SIGCHLD))

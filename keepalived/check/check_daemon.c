@@ -52,12 +52,14 @@
 #include "bfd_daemon.h"
 #include "check_bfd.h"
 #endif
+#include "timer.h"
 
 /* Global variables */
 bool using_ha_suspend;
 
 /* local variables */
 static char *check_syslog_ident;
+static bool two_phase_terminate;
 
 static int
 lvs_notify_fifo_script_exit(__attribute__((unused)) thread_t *thread)
@@ -78,15 +80,9 @@ checker_dispatcher_release(void)
 
 
 /* Daemon stop sequence */
-static void
-stop_check(int status)
+static int
+checker_terminate_phase2(__attribute__((unused)) thread_t *thread)
 {
-	if (using_ha_suspend || __test_bit(LOG_ADDRESS_CHANGES, &debug))
-		kernel_netlink_close();
-
-	/* Terminate all script process */
-	script_killall(master, SIGTERM);
-
 	/* Remove the notify fifo */
 	notify_fifo_close(&global_data->notify_fifo, &global_data->lvs_notify_fifo);
 
@@ -94,10 +90,10 @@ stop_check(int status)
 	signal_handler_destroy();
 	checker_dispatcher_release();
 	thread_destroy_master(master);
+	master = NULL;
 	free_checkers_queue();
 	free_ssl();
-	if (!__test_bit(DONT_RELEASE_IPVS_BIT, &debug))
-		clear_services();
+
 	ipvs_stop();
 #ifdef _WITH_SNMP_CHECKER_
 	if (global_data && global_data->enable_snmp_checker)
@@ -132,6 +128,67 @@ stop_check(int status)
 #endif
 	close_std_fd();
 
+	return 0;
+}
+
+static int
+checker_shutdown_backstop_thread(thread_t *thread)
+{
+        log_message(LOG_ERR, "backstop thread invoked: shutdown timer %srunning, child count %d",
+			thread->master->shutdown_timer_running ? "" : "not ", thread->master->child.count);
+
+        checker_terminate_phase2(thread);
+
+        return 0;
+}
+
+static void
+checker_terminate_phase1(bool schedule_next_thread)
+{
+	if (using_ha_suspend || __test_bit(LOG_ADDRESS_CHANGES, &debug))
+		kernel_netlink_close();
+
+	/* Terminate all script processes */
+	if (master->child.count)
+		script_killall(master, SIGTERM, true);
+
+	/* Send shutdown messages */
+	if (!__test_bit(DONT_RELEASE_IPVS_BIT, &debug))
+		clear_services();
+
+	if (schedule_next_thread) {
+		/* If there are no child processes, we can terminate immediately,
+		 * otherwise add a thread to allow reasonable time for children to terminate */
+		if (master->child.count) {
+			/* Add a backstop timer for the shutdown */
+			thread_add_timer(master, checker_shutdown_backstop_thread, NULL, TIMER_HZ);
+		}
+		else
+			thread_add_terminate_event(master);
+	}
+}
+
+static int
+start_checker_termination_thread(__attribute__((unused)) thread_t * thread)
+{
+	/* This runs in the context of a thread */
+	two_phase_terminate = true;
+
+	checker_terminate_phase1(true);
+
+	return 0;
+}
+
+/* Daemon stop sequence */
+static void
+stop_check(int status)
+{
+	/* This runs in the main process, not in the context of a thread */
+	checker_terminate_phase1(false);
+
+	checker_terminate_phase2(NULL);
+
+	/* unreachable */
 	exit(status);
 }
 
@@ -251,7 +308,7 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 	log_message(LOG_INFO, "Got SIGHUP, reloading checker configuration");
 
 	/* Terminate all script process */
-	script_killall(master, SIGTERM);
+	script_killall(master, SIGTERM, false);
 
 	/* Remove the notify fifo - we don't know if it will be the same after a reload */
 	notify_fifo_close(&global_data->notify_fifo, &global_data->lvs_notify_fifo);
@@ -296,7 +353,7 @@ static void
 sigend_check(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
 	if (master)
-		thread_add_terminate_event(master);
+		thread_add_start_terminate_event(master, start_checker_termination_thread);
 }
 
 /* CHECK Child signal handling */
@@ -450,7 +507,10 @@ start_check_child(void)
 	launch_scheduler();
 
 	/* Finish healthchecker daemon process */
-	stop_check(EXIT_SUCCESS);
+	if (two_phase_terminate)
+		checker_terminate_phase2(NULL);
+	else
+		stop_check(EXIT_SUCCESS);
 
 	/* unreachable */
 	exit(EXIT_SUCCESS);

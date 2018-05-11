@@ -36,6 +36,7 @@ typedef enum {
 	THREAD_READ,
 	THREAD_WRITE,
 	THREAD_TIMER,
+	THREAD_TIMER_SHUTDOWN,
 	THREAD_EVENT,
 	THREAD_CHILD,
 	THREAD_READY,
@@ -43,6 +44,7 @@ typedef enum {
 	THREAD_WRITE_TIMEOUT,
 	THREAD_READ_TIMEOUT,
 	THREAD_CHILD_TIMEOUT,
+	THREAD_TERMINATE_START,
 	THREAD_TERMINATE,
 	THREAD_READY_FD,
 	THREAD_IF_UP,
@@ -90,6 +92,7 @@ typedef struct _thread_master {
 	fd_set writefd;
 	int max_fd;
 	unsigned long alloc;
+	bool shutdown_timer_running;
 } thread_master_t;
 
 #ifndef _DEBUG_
@@ -140,14 +143,17 @@ extern bool report_child_status(int, pid_t, const char *);
 #endif
 extern thread_master_t *thread_make_master(void);
 extern thread_t *thread_add_terminate_event(thread_master_t *);
+extern thread_t *thread_add_start_terminate_event(thread_master_t *, int (*)(thread_t *));
 extern void thread_cleanup_master(thread_master_t *);
 extern void thread_destroy_master(thread_master_t *);
-extern thread_t *thread_add_read(thread_master_t *, int (*func) (thread_t *), void *, int, unsigned long);
+extern thread_t *thread_add_read(thread_master_t *, int (*) (thread_t *), void *, int, unsigned long);
 extern void thread_requeue_read(thread_master_t *, int, unsigned long);
-extern thread_t *thread_add_write(thread_master_t *, int (*func) (thread_t *), void *, int, unsigned long);
-extern thread_t *thread_add_timer(thread_master_t *, int (*func) (thread_t *), void *, unsigned long);
-extern thread_t *thread_add_child(thread_master_t *, int (*func) (thread_t *), void *, pid_t, unsigned long);
-extern thread_t *thread_add_event(thread_master_t *, int (*func) (thread_t *), void *, int);
+extern thread_t *thread_add_write(thread_master_t *, int (*) (thread_t *), void *, int, unsigned long);
+extern thread_t *thread_add_timer(thread_master_t *, int (*) (thread_t *), void *, unsigned long);
+extern thread_t *thread_add_timer_shutdown(thread_master_t *, int (*) (thread_t *), void *, unsigned long);
+extern thread_t *thread_add_child(thread_master_t *, int (*) (thread_t *), void *, pid_t, unsigned long);
+extern void thread_children_reschedule(thread_master_t *, int (*) (thread_t *), unsigned long);
+extern thread_t *thread_add_event(thread_master_t *, int (*) (thread_t *), void *, int);
 extern int thread_cancel(thread_t *);
 extern void thread_cancel_read(thread_master_t *, int);
 extern void process_threads(thread_master_t *);

@@ -51,6 +51,8 @@ get_iscript(vrrp_t * vrrp)
 		return vrrp->script_master;
 	if (vrrp->state == VRRP_STATE_FAULT)
 		return vrrp->script_fault;
+	if (vrrp->state == VRRP_STATE_STOP)
+		return vrrp->script_stop;
 	return NULL;
 }
 
@@ -65,16 +67,18 @@ get_gscript(vrrp_sgroup_t * vgroup, int state)
 		return vgroup->script_master;
 	if (state == VRRP_STATE_FAULT)
 		return vgroup->script_fault;
+	if (state == VRRP_STATE_STOP)
+		return vgroup->script_stop;
 	return NULL;
 }
 
-static notify_script_t*
+static inline notify_script_t*
 get_igscript(vrrp_t *vrrp)
 {
 	return vrrp->script;
 }
 
-static notify_script_t*
+static inline notify_script_t*
 get_ggscript(vrrp_sgroup_t * vgroup)
 {
 	return vgroup->script;
@@ -138,7 +142,7 @@ notify_script_exec(notify_script_t* script, char *type, int state_num, char* nam
 	char prio_buf[4];
 
 	/*
-	 * script {GROUP|INSTANCE} NAME {MASTER|BACKUP|FAULT} PRIO
+	 * script {GROUP|INSTANCE} NAME {MASTER|BACKUP|FAULT|STOP} PRIO
 	 *
 	 * Note that the prio will be indicated as zero for a group.
 	 *
@@ -150,6 +154,7 @@ notify_script_exec(notify_script_t* script, char *type, int state_num, char* nam
 		case VRRP_STATE_MAST  : args[3] = "MASTER" ; break;
 		case VRRP_STATE_BACK  : args[3] = "BACKUP" ; break;
 		case VRRP_STATE_FAULT : args[3] = "FAULT" ; break;
+		case VRRP_STATE_STOP  : args[3] = "STOP" ; break;
 		default:		args[3] = "{UNKNOWN}"; break;
 	}
 	snprintf(prio_buf, sizeof(prio_buf), "%d", prio);
@@ -162,7 +167,10 @@ notify_script_exec(notify_script_t* script, char *type, int state_num, char* nam
 	new_script.uid = script->uid;
 	new_script.gid = script->gid;
 
-	notify_exec(&new_script);
+	if (state_num == VRRP_STATE_STOP)
+		system_call_script(master, child_killed_thread, NULL, TIMER_HZ, &new_script);
+	else
+		notify_exec(&new_script);
 }
 
 static int
@@ -238,6 +246,12 @@ vrrp_smtp_notifier(vrrp_t * vrrp)
 			smtp_alert(SMTP_MSG_VRRP, vrrp,
 				   "Entering FAULT state",
 				   "=> VRRP Instance is no longer owning VRRP VIPs <=");
+		else if (vrrp->state == VRRP_STATE_STOP)
+			smtp_alert(SMTP_MSG_VRRP, vrrp,
+				   "Stopping",
+				   "=> VRRP Instance stopping <=");
+		else
+			return;
 
 		vrrp->last_email_state = vrrp->state;
 	}
@@ -262,6 +276,12 @@ vrrp_sync_smtp_notifier(vrrp_sgroup_t *vgroup)
 			smtp_alert(SMTP_MSG_VGROUP, vgroup,
 				   "Entering FAULT state",
 				   "=> All VRRP group instances are now in FAULT state <=");
+		else if (vgroup->state == VRRP_STATE_STOP)
+			smtp_alert(SMTP_MSG_VGROUP, vgroup,
+				   "Stopping",
+				   "=> All VRRP group instances are now stopping <=");
+		else
+			return;
 
 		vgroup->last_email_state = vgroup->state;
 	}
@@ -304,13 +324,12 @@ notify_shutdown(void)
 	vrrp_sgroup_t *vgroup;
 
 	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
-		/* Run stop script */
-		if (vrrp->script_stop)
-			notify_exec(vrrp->script_stop);
+		vrrp->state = VRRP_STATE_STOP;
+		send_instance_notifies(vrrp);
 	}
 
 	LIST_FOREACH(vrrp_data->vrrp_sync_group, vgroup, e) {
-		if (vgroup->script_stop)
-			notify_exec(vgroup->script_stop);
+		vgroup->state = VRRP_STATE_STOP;
+		send_group_notifies(vgroup);
 	}
 }

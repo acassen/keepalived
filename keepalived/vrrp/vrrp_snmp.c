@@ -2988,9 +2988,18 @@ vrrp_snmp_instance_trap(vrrp_t *vrrp)
 	size_t routerId_oid_len = OID_LENGTH(routerId_oid);
 
 	netsnmp_variable_list *notification_vars = NULL;
+	int state = 4;		/* unknown */
 
 	if (!global_data->enable_traps || !global_data->enable_snmp_vrrp)
 		return;
+
+	if (vrrp->state == VRRP_STATE_INIT ||
+	    vrrp->state == VRRP_STATE_BACK ||
+	    vrrp->state == VRRP_STATE_MAST ||
+	    vrrp->state == VRRP_STATE_FAULT)
+		state = vrrp->state;
+	else if (vrrp->state == VRRP_STATE_STOP)
+		state = 5;
 
 	/* snmpTrapOID */
 	snmp_varlist_add_variable(&notification_vars,
@@ -3008,8 +3017,8 @@ vrrp_snmp_instance_trap(vrrp_t *vrrp)
 	snmp_varlist_add_variable(&notification_vars,
 				  state_oid, state_oid_len,
 				  ASN_INTEGER,
-				  (u_char *)&vrrp->state,
-				  sizeof(vrrp->state));
+				  (u_char *)&state,
+				  sizeof(state));
 	/* vrrpInstanceInitialState */
 	snmp_varlist_add_variable(&notification_vars,
 				  initialstate_oid, initialstate_oid_len,
@@ -3050,9 +3059,18 @@ vrrp_snmp_group_trap(vrrp_sgroup_t *group)
 	size_t routerId_oid_len = OID_LENGTH(routerId_oid);
 
 	netsnmp_variable_list *notification_vars = NULL;
+	int state = 4;		/* unknown */
 
 	if (!global_data->enable_traps || !global_data->enable_snmp_vrrp)
 		return;
+
+	if (group->state == VRRP_STATE_INIT ||
+	    group->state == VRRP_STATE_BACK ||
+	    group->state == VRRP_STATE_MAST ||
+	    group->state == VRRP_STATE_FAULT)
+		state = group->state;
+	else if (group->state == VRRP_STATE_STOP)
+		state = 5;
 
 	/* snmpTrapOID */
 	snmp_varlist_add_variable(&notification_vars,
@@ -3071,8 +3089,8 @@ vrrp_snmp_group_trap(vrrp_sgroup_t *group)
 	snmp_varlist_add_variable(&notification_vars,
 				  state_oid, state_oid_len,
 				  ASN_INTEGER,
-				  (u_char *)&group->state,
-				  sizeof(group->state));
+				  (u_char *)&state,
+				  sizeof(state));
 
 	/* routerId */
 	snmp_varlist_add_variable(&notification_vars,

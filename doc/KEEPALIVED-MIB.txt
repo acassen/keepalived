@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201804280000Z"
+     LAST-UPDATED "201804290000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201804290000Z"
+     DESCRIPTION "add VRRP state stop"
      REVISION "201804280000Z"
      DESCRIPTION "add VRRP address peers"
      REVISION "201803060000Z"
@@ -125,10 +127,11 @@ VrrpState ::= TEXTUAL-CONVENTION
     "Represents a VRRP state."
     SYNTAX INTEGER {
         init(0),
-    backup(1),
-    master(2),
-    fault(3),
-    unknown(4)
+        backup(1),
+        master(2),
+        fault(3),
+        unknown(4),
+        stop(5)
     }
 
 RouteType ::= TEXTUAL-CONVENTION

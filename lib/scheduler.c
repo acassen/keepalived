@@ -64,6 +64,9 @@ prog_type_t prog_type;		/* Parent/VRRP/Checker process */
 bool snmp_running;		/* True if this process is running SNMP */
 #endif
 
+/* local variables */
+static bool shutting_down;
+
 #ifdef _WITH_LVS_
 #include "../keepalived/include/check_daemon.h"
 #endif
@@ -427,11 +430,11 @@ thread_add_unuse(thread_master_t * m, thread_t * thread)
 
 /* Move list element to unuse queue */
 static void
-thread_destroy_list(thread_master_t * m, thread_list_t thread_list)
+thread_destroy_list(thread_master_t *m, thread_list_t *thread_list)
 {
 	thread_t *thread;
 
-	thread = thread_list.head;
+	thread = thread_list->head;
 
 	while (thread) {
 		thread_t *t;
@@ -439,7 +442,7 @@ thread_destroy_list(thread_master_t * m, thread_list_t thread_list)
 		t = thread;
 		thread = t->next;
 
-		thread_list_delete(&thread_list, t);
+		thread_list_delete(thread_list, t);
 		t->type = THREAD_UNUSED;
 		thread_add_unuse(m, t);
 	}
@@ -450,12 +453,12 @@ void
 thread_cleanup_master(thread_master_t * m)
 {
 	/* Unuse current thread lists */
-	thread_destroy_list(m, m->read);
-	thread_destroy_list(m, m->write);
-	thread_destroy_list(m, m->timer);
-	thread_destroy_list(m, m->child);
-	thread_destroy_list(m, m->event);
-	thread_destroy_list(m, m->ready);
+	thread_destroy_list(m, &m->read);
+	thread_destroy_list(m, &m->write);
+	thread_destroy_list(m, &m->timer);
+	thread_destroy_list(m, &m->child);
+	thread_destroy_list(m, &m->event);
+	thread_destroy_list(m, &m->ready);
 
 	destroy_child_finder();
 
@@ -653,6 +656,17 @@ thread_add_timer(thread_master_t * m, int (*func) (thread_t *)
 	return thread;
 }
 
+thread_t *
+thread_add_timer_shutdown(thread_master_t *m, int(*func)(thread_t *),
+			  void *arg, unsigned long timer)
+{
+	thread_t *thread = thread_add_timer(m, func, arg, timer);
+
+	thread->type = THREAD_TIMER_SHUTDOWN;
+
+	return thread;
+}
+
 /* Add a child thread. */
 thread_t *
 thread_add_child(thread_master_t * m, int (*func) (thread_t *)
@@ -688,6 +702,18 @@ thread_add_child(thread_master_t * m, int (*func) (thread_t *)
 	return thread;
 }
 
+void
+thread_children_reschedule(thread_master_t *m, int (*func)(thread_t *), unsigned long timer)
+{
+	thread_t *thread;
+
+	set_time_now();
+	for (thread = m->child.head; thread; thread = thread->next) {
+		thread->func = func;
+		thread->sands = timer_add_long(time_now, timer);
+	}
+}
+
 /* Add simple event thread. */
 thread_t *
 thread_add_event(thread_master_t * m, int (*func) (thread_t *)
@@ -709,24 +735,36 @@ thread_add_event(thread_master_t * m, int (*func) (thread_t *)
 	return thread;
 }
 
-/* Add simple event thread. */
-thread_t *
-thread_add_terminate_event(thread_master_t * m)
+/* Add terminate event thread. */
+static thread_t *
+thread_add_generic_terminate_event(thread_master_t * m, thread_type_t type, int (*func)(thread_t *))
 {
 	thread_t *thread;
 
 	assert(m != NULL);
 
 	thread = thread_new(m);
-	thread->type = THREAD_TERMINATE;
+	thread->type = type;
 	thread->id = 0;
 	thread->master = m;
-	thread->func = NULL;
+	thread->func = func;
 	thread->arg = NULL;
 	thread->u.val = 0;
 	thread_list_add(&m->event, thread);
 
 	return thread;
+}
+
+thread_t *
+thread_add_terminate_event(thread_master_t *m)
+{
+	return thread_add_generic_terminate_event(m, THREAD_TERMINATE, NULL);
+}
+
+thread_t *
+thread_add_start_terminate_event(thread_master_t *m, int(*func)(thread_t *))
+{
+	return thread_add_generic_terminate_event(m, THREAD_TERMINATE_START, func);
 }
 
 /* Cancel thread from scheduler. */
@@ -890,7 +928,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	if (m->event.head)
 		return &m->event;
 
-	/* If there is ready threads process them */
+	/* If there are ready threads process them */
 	if (m->ready.head)
 		return &m->ready;
 
@@ -923,23 +961,24 @@ retry:	/* When thread can't fetch try to find next thread again. */
 #endif
 
 #ifdef _SELECT_DEBUG_
-	if (prog_type == PROG_TYPE_VRRP)
+	if (prog_type == PROG_TYPE_VRRP && shutting_down)
 		log_message(LOG_INFO, "select with timer %lu.%6.6ld, fdsetsize %d, readfds 0x%lx", timer_wait.tv_sec, timer_wait.tv_usec, fdsetsize, readfd.fds_bits[0]);
 #endif
 
 	/* Don't call select() if timer_wait is 0 */
+	errno = 0;
 	if (!timerisset(&timer_wait))
 		num_fds = 0;
 	else
 		num_fds = select(fdsetsize, &readfd, &writefd, NULL, &timer_wait);
 
-#ifdef _SELECT_DEBUG_
-	if (prog_type == PROG_TYPE_VRRP)
-		log_message(LOG_INFO, "Select returned %d, readfd 0x%lx, writefd 0x%lx, timer %lu.%6.6ld", num_fds, readfd.fds_bits[0], writefd.fds_bits[0], timer_wait.tv_sec, timer_wait.tv_usec);
-#endif
-
 	/* we have to save errno here because the next syscalls will set it */
 	old_errno = errno;
+
+#ifdef _SELECT_DEBUG_
+	if (prog_type == PROG_TYPE_VRRP && shutting_down)
+		log_message(LOG_INFO, "Select returned %d, errno %d, readfd 0x%lx, writefd 0x%lx, timer %lu.%6.6ld", num_fds, old_errno, readfd.fds_bits[0], writefd.fds_bits[0], timer_wait.tv_sec, timer_wait.tv_usec);
+#endif
 
 	if (num_fds < 0) {
 		if (old_errno == EINTR)
@@ -1009,7 +1048,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 			timers_done = true;
 	}
 
-	/* Write thead. */
+	/* Write thread. */
 	thread = m->write.head;
 	timers_done = !timer_expired;
 	while (thread && (num_fds || !timers_done)) {
@@ -1041,7 +1080,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 			thread = t->next;
 
 			if (timercmp(&time_now, &t->sands, >=))
-				thread_list_make_ready(&m->timer, t, m, THREAD_READY);
+				thread_list_make_ready(&m->timer, t, m, t->type);
 			else
 				break;
 		}
@@ -1087,9 +1126,21 @@ process_threads(thread_master_t *m)
 #endif
 
 		thread = thread_trim_head(thread_list);
+		/* If we are shutting down, only process relevant thread types */
+		if (!shutting_down ||
+(thread->type == THREAD_READY_FD && thread->sands.tv_sec == TIMER_DISABLED) ||
+		    thread->type == THREAD_CHILD ||
+		    thread->type == THREAD_CHILD_TIMEOUT ||
+		    thread->type == THREAD_TIMER_SHUTDOWN ||
+		    thread->type == THREAD_TERMINATE) {
+			if (thread->func)
+				thread_call(thread);
 
-		if (thread->func)
-			thread_call(thread);
+			if (!shutting_down && thread->type == THREAD_TERMINATE_START)
+{
+				shutting_down = true;
+}
+		}
 
 		thread_type = thread->type;
 		thread->type = THREAD_UNUSED;
@@ -1139,7 +1190,6 @@ process_child_termination(pid_t pid, int status)
 	}
 	else
 	{
-		thread->type = THREAD_READY;
 		thread->u.c.status = status;
 		thread_list_add(&m->ready, thread);
 	}

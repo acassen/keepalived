@@ -643,7 +643,6 @@ vrrp_dispatcher_release(vrrp_data_t *data)
 #ifdef _WITH_BFD_
 	thread_cancel(bfd_thread);
 #endif
-	cancel_signal_read_thread();
 }
 
 static void
