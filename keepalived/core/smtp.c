@@ -623,6 +623,7 @@ smtp_alert(smtp_msg_t msg_type, void* data, const char *subject, const char *bod
 #ifdef _WITH_LVS_
 	checker_t *checker;
 	virtual_server_t *vs;
+	smtp_rs *rs_info;
 #endif
 
 	/* Only send mail if email specified */
@@ -640,9 +641,10 @@ smtp_alert(smtp_msg_t msg_type, void* data, const char *subject, const char *bod
 #ifdef _WITH_LVS_
 	if (msg_type == SMTP_MSG_RS) {
 		checker = (checker_t *)data;
-		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Realserver %s - %s",
+		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Realserver %s of virtual server %s - %s",
 					global_data->router_id,
 					FMT_RS(checker->rs, checker->vs),
+					FMT_VS(checker->vs),
 					subject);
 	}
 	else if (msg_type == SMTP_MSG_VS) {
@@ -653,9 +655,11 @@ smtp_alert(smtp_msg_t msg_type, void* data, const char *subject, const char *bod
 					subject);
 	}
 	else if (msg_type == SMTP_MSG_RS_SHUT) {
-		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Realserver %s - %s",
+		rs_info = (smtp_rs *)data;
+		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Realserver %s of virtual server %s - %s",
 					global_data->router_id,
-					(char *)data,
+					FMT_RS(rs_info->rs, rs_info->vs),
+					FMT_VS(rs_info->vs),
 					subject);
 	}
 	else

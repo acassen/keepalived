@@ -183,6 +183,7 @@ clear_service_rs(virtual_server_t * vs, list l, bool stopping)
 	long weight_sum;
 	long threshold = vs->quorum - vs->hysteresis;
 	bool sav_inhibit;
+	smtp_rs rs_info = { .vs = vs };
 
 	LIST_FOREACH(l, rs, e) {
 		if (!rs->set)
@@ -217,7 +218,10 @@ clear_service_rs(virtual_server_t * vs, list l, bool stopping)
 		do_rs_notifies(vs, rs, stopping);
 
 		/* Send SMTP alert */
-		smtp_alert(SMTP_MSG_RS_SHUT, FMT_RS(rs, vs), "DOWN", "=> Shutting down <=");
+		if (rs->smtp_alert) {
+			rs_info.rs = rs;
+			smtp_alert(SMTP_MSG_RS_SHUT, &rs_info, "DOWN", "=> Shutting down <=");
+		}
 	}
 
 	/* Sooner or later VS will lose the quorum (if any). However,

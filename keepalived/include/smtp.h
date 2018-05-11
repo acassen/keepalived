@@ -107,7 +107,12 @@ typedef struct _smtp {
 
 #define FMT_SMTP_HOST()	inet_sockaddrtopair(&global_data->smtp_server)
 
-#ifndef _WITH_LVS_
+#ifdef _WITH_LVS_
+typedef struct _smtp_rs {
+	real_server_t *rs;
+	virtual_server_t *vs;
+} smtp_rs;
+#else
 typedef void real_server_t;
 #endif
 #ifndef _WITH_VRRP_
