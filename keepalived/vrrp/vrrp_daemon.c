@@ -368,10 +368,8 @@ start_vrrp(void)
 #if !defined _DEBUG_ && defined _WITH_LVS_
 	/* Only one process must run the script to process the global fifo,
 	 * so let the checker process do so. */
-	if (running_checker()) {
-		FREE_PTR(global_data->notify_fifo.script);
-		global_data->notify_fifo.script = NULL;
-	}
+	if (running_checker())
+		free_notify_script(&global_data->notify_fifo.script);
 #endif
 
 	/* Create a notify FIFO if needed, and open it */
