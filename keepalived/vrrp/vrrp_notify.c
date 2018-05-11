@@ -239,6 +239,12 @@ send_instance_notifies(vrrp_t *vrrp)
 	notify_script_t *script = get_iscript(vrrp);
 	notify_script_t *gscript = get_igscript(vrrp);
 
+	if (vrrp->sync && vrrp->state == vrrp->sync->state) {
+		/* We are already in the required state due to our sync group,
+		 * so don't send further notifies. */
+		return;
+	}
+
 	/* Launch the notify_* script */
 	if (script) {
 		if (vrrp->state == VRRP_STATE_STOP)
