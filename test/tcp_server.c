@@ -11,6 +11,20 @@
 #include <stdbool.h>
 #include <errno.h>
 
+static void
+process_data(int fd)
+{
+	char buf[128];
+	int len;
+
+	while ((len = read(fd, buf, sizeof(buf))) > 0) {
+		/* Exit if receive ^D */
+		if (len == 1 && buf[0] == 4)
+			return;
+		write(fd, buf, len);
+	}
+}
+
 int main(int argc, char **argv)
 {
 	int family = AF_UNSPEC;
@@ -28,8 +42,9 @@ int main(int argc, char **argv)
 	bool silent = false;
 	char *addr_str = NULL;
 	char addr_buf[sizeof (struct in6_addr)];
+	bool echo_data = false;
 
-	while ((opt = getopt(argc, argv, "46a:p:su")) != -1) {
+	while ((opt = getopt(argc, argv, "46a:p:sue")) != -1) {
 		switch (opt) {
 		case '4':
 			family = AF_INET;
@@ -49,8 +64,11 @@ int main(int argc, char **argv)
 		case 'u':
 			sock_type = SOCK_DGRAM;
 			break;
+		case 'e':
+			echo_data = true;
+			break;
 		default: /* '?' */
-			fprintf(stderr, "Usage: %s [-a bind address] [-p port] [-4] [-6] [-s] [-u]\n", argv[0]);
+			fprintf(stderr, "Usage: %s [-a bind address] [-p port] [-4] [-6] [-s(ilent)] [-u(dp)] [-e(cho)]\n", argv[0]);
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -120,7 +138,10 @@ int main(int argc, char **argv)
 				printf("Received connection\n");
 			if ((childpid = fork()) == 0) {
 				close(listenfd);
-				sleep (1);
+				if (echo_data)
+					process_data(connfd);
+				else
+					sleep (1);
 				exit(0);
 			}
 
