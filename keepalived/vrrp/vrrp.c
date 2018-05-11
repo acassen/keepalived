@@ -3118,7 +3118,7 @@ vrrp_complete_init(void)
 	 * e - Element equal to a specific VRRP instance
 	 * eo- Element equal to a specific group within old global group list
 	 */
-	element e;
+	element e, e1;
 	vrrp_t *vrrp, *old_vrrp;
 	vrrp_sgroup_t *sgroup;
 	list l_o;
@@ -3128,6 +3128,7 @@ vrrp_complete_init(void)
 	interface_t *ifp;
 	ifindex_t ifindex_o;
 	size_t max_mtu_len = 0;
+	bool have_master, have_backup;
 
 	/* Set defaults of not specified, depending on strict mode */
 	if (global_data->vrrp_garp_lower_prio_rep == PARAMETER_UNSET)
@@ -3240,9 +3241,7 @@ vrrp_complete_init(void)
 	init_interface_linkbeat();
 
 	/* Check for instance down due to an interface or script */
-	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
-
+	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
 		/* Set effective priority and fault state */
 		initialise_tracking_priorities(vrrp);
 
@@ -3260,6 +3259,28 @@ vrrp_complete_init(void)
 				vrrp->sync->num_member_init++;
 				if (vrrp->sync->state != VRRP_STATE_FAULT)
 					vrrp->sync->state = VRRP_STATE_INIT;
+			}
+		}
+	}
+
+	/* Make sure that if any sync group has member wanting to start in
+	 * master state, then all can start in master state. */
+	LIST_FOREACH(vrrp_data->vrrp_sync_group, sgroup, e1) {
+		have_backup = false;
+		have_master = false;
+		LIST_FOREACH(sgroup->vrrp_instances, vrrp, e) {
+			if (vrrp->wantstate == VRRP_STATE_BACK || vrrp->base_priority != VRRP_PRIO_OWNER)
+				have_backup = true;
+			if (vrrp->wantstate == VRRP_STATE_MAST)
+				have_master = true;
+			if (have_master && have_backup) {
+				/* This looks wrong using the same loop variables as a containing
+				 * loop, but we break out of the outer loop after this loop */
+				LIST_FOREACH(sgroup->vrrp_instances, vrrp, e) {
+					if (vrrp->wantstate == VRRP_STATE_MAST)
+						vrrp->wantstate = VRRP_STATE_BACK;
+				}
+				break;
 			}
 		}
 	}
