@@ -7,6 +7,14 @@ os: linux
 dist: trusty
 sudo: require
 
+addons:
+  apt:
+    update: true
+
+#  - sudo apt-get -qq update
+before_install:
+  - sudo apt-get -y install libsnmp-dev iptables-dev libipset-dev libnfnetlink-dev libnl-3-dev libnl-genl-3-dev libnl-route-3-dev libssl-dev libmagic-dev libglib2.0-dev libjson-c-dev
+
 install:
   - autoreconf -W portability -visf
 

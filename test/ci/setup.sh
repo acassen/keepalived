@@ -13,7 +13,7 @@
 #sudo apt list --installed
 
 # Install development libraries
-sudo apt -qq install libsnmp-dev iptables-dev libipset-dev libnfnetlink-dev libnl-3-dev libnl-genl-3-dev libnl-route-3-dev libssl-dev libmagic-dev libglib2.0-dev libjson-c-dev
+# sudo apt -qq install libsnmp-dev iptables-dev libipset-dev libnfnetlink-dev libnl-3-dev libnl-genl-3-dev libnl-route-3-dev libssl-dev libmagic-dev libglib2.0-dev libjson-c-dev
 
 # Update kernel headers to match kernel
 CURDIR=$(pwd)
