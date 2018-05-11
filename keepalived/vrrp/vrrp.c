@@ -2589,7 +2589,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	vrrp->state = VRRP_STATE_INIT;
 #ifdef _WITH_SNMP_VRRP_
-	vrrp->init_state = vrrp->wantstate;
+	vrrp->configured_state = vrrp->wantstate;
 #endif
 
 	/* Set default for accept mode if not specified. If we are running in strict mode,

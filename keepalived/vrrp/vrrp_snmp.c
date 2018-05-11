@@ -1917,7 +1917,7 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 		long_ret.s = vrrp_snmp_state(rt->state);
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_INSTANCE_INITIALSTATE:
-		long_ret.s = vrrp_snmp_state(rt->init_state);
+		long_ret.s = vrrp_snmp_state(rt->configured_state);
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_INSTANCE_WANTEDSTATE:
 		long_ret.s = vrrp_snmp_state(rt->wantstate);
@@ -3014,8 +3014,8 @@ vrrp_snmp_instance_trap(vrrp_t *vrrp)
 	snmp_varlist_add_variable(&notification_vars,
 				  initialstate_oid, initialstate_oid_len,
 				  ASN_INTEGER,
-				  (u_char *)&vrrp->init_state,
-				  sizeof(vrrp->init_state));
+				  (u_char *)&vrrp->configured_state,
+				  sizeof(vrrp->configured_state));
 
 	/* routerId */
 	snmp_varlist_add_variable(&notification_vars,

@@ -257,7 +257,7 @@ typedef struct _vrrp_t {
 	timeval_t		preempt_time;		/* Time after which preemption can happen */
 	int			state;			/* internal state (init/backup/master/fault) */
 #ifdef _WITH_SNMP_VRRP_
-	int			init_state;		/* the initial state of the instance */
+	int			configured_state;	/* the configured state of the instance */
 #endif
 	int			wantstate;		/* user explicitly wants a state (back/mast) */
 	bool			reload_master;		/* set if the instance is a master being reloaded */
