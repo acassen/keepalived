@@ -119,19 +119,25 @@ notify_fifo_rs(virtual_server_t* vs, real_server_t* rs)
 }
 
 static void
-do_vs_notifies(virtual_server_t* vs, bool init, long threshold, long weight_sum)
+do_vs_notifies(virtual_server_t* vs, bool init, long threshold, long weight_sum, bool stopping)
 {
 	notify_script_t *notify_script = vs->quorum_state_up ? vs->notify_quorum_up : vs->notify_quorum_down;
 	char message[80];
 
-	if (notify_script)
-		notify_exec(notify_script);
+	if (notify_script) {
+		if (stopping)
+			system_call_script(master, child_killed_thread, NULL, TIMER_HZ, notify_script);
+		else
+			notify_exec(notify_script);
+	}
 
 	notify_fifo_vs(vs);
 
 	if (vs->smtp_alert) {
 		snprintf(message, sizeof(message), "=> %s %u+%u=%ld <= %ld <=",
-			    vs->quorum_state_up ? "Gained quorum" :
+			    vs->quorum_state_up ?
+					   init ? "Starting with quorum up" :
+						  "Gained quorum" :
 					   init ? "Starting with quorum down" :
 						  "Lost quorum",
 			    vs->quorum,
@@ -147,12 +153,16 @@ do_vs_notifies(virtual_server_t* vs, bool init, long threshold, long weight_sum)
 }
 
 static void
-do_rs_notifies(virtual_server_t* vs, real_server_t* rs)
+do_rs_notifies(virtual_server_t* vs, real_server_t* rs, bool stopping)
 {
 	notify_script_t *notify_script = rs->alive ? rs->notify_up : rs->notify_down;
 
-	if (notify_script)
-		notify_exec(notify_script);
+	if (notify_script) {
+		if (stopping)
+			system_call_script(master, child_killed_thread, NULL, TIMER_HZ, notify_script);
+		else
+			notify_exec(notify_script);
+	}
 
 	notify_fifo_rs(vs, rs);
 
@@ -166,13 +176,14 @@ do_rs_notifies(virtual_server_t* vs, real_server_t* rs)
 
 /* Remove a realserver IPVS rule */
 static void
-clear_service_rs(virtual_server_t * vs, list l)
+clear_service_rs(virtual_server_t * vs, list l, bool stopping)
 {
 	element e;
 	real_server_t *rs;
 	long weight_sum;
 	long threshold = vs->quorum - vs->hysteresis;
 	bool sav_inhibit;
+	smtp_rs rs_info = { .vs = vs };
 
 	LIST_FOREACH(l, rs, e) {
 		if (!rs->set)
@@ -204,10 +215,13 @@ clear_service_rs(virtual_server_t * vs, list l)
 		/* In Omega mode we call VS and RS down notifiers
 		 * all the way down the exit, as necessary.
 		 */
-		do_rs_notifies(vs, rs);
+		do_rs_notifies(vs, rs, stopping);
 
 		/* Send SMTP alert */
-		smtp_alert(SMTP_MSG_RS_SHUT, FMT_RS(rs, vs), "DOWN", "=> Shutting down <=");
+		if (rs->smtp_alert) {
+			rs_info.rs = rs;
+			smtp_alert(SMTP_MSG_RS_SHUT, &rs_info, "DOWN", "=> Shutting down <=");
+		}
 	}
 
 	/* Sooner or later VS will lose the quorum (if any). However,
@@ -218,13 +232,13 @@ clear_service_rs(virtual_server_t * vs, list l)
 	if (vs->quorum_state_up &&
 	    (!weight_sum || weight_sum < threshold)) {
 		vs->quorum_state_up = false;
-		do_vs_notifies(vs, false, threshold, weight_sum);
+		do_vs_notifies(vs, false, threshold, weight_sum, stopping);
 	}
 }
 
 /* Remove a virtualserver IPVS rule */
 static void
-clear_service_vs(virtual_server_t * vs)
+clear_service_vs(virtual_server_t * vs, bool stopping)
 {
 	bool sav_inhibit;
 
@@ -243,7 +257,7 @@ clear_service_vs(virtual_server_t * vs)
 
 	/* Even if the sorry server was configured, if we are using
 	 * inhibit_on_failure, then real servers may be configured. */
-	clear_service_rs(vs, vs->rs);
+	clear_service_rs(vs, vs->rs, stopping);
 
 	/* The above will handle Omega case for VS as well. */
 
@@ -262,13 +276,11 @@ clear_services(void)
 	if (!check_data || !check_data->vs)
 		return;
 
-	for (e = LIST_HEAD(check_data->vs); e; ELEMENT_NEXT(e)) {
-		vs = ELEMENT_DATA(e);
-
+	LIST_FOREACH(check_data->vs, vs, e) {
 		/* Remove the real servers, and clear the vs unless it is
 		 * using a VS group and it is not the last vs of the same
 		 * protocol or address family using the group. */
-		clear_service_vs(vs);
+		clear_service_vs(vs, true);
 	}
 }
 
@@ -406,7 +418,7 @@ update_quorum_state(virtual_server_t * vs, bool init)
 			vs->s_svr->alive = false;
 		}
 
-		do_vs_notifies(vs, init, threshold, weight_sum);
+		do_vs_notifies(vs, init, threshold, weight_sum, NULL);
 
 		return;
 	}
@@ -442,7 +454,7 @@ update_quorum_state(virtual_server_t * vs, bool init)
 			perform_quorum_state(vs, false);
 		}
 
-		do_vs_notifies(vs, init, threshold, weight_sum);
+		do_vs_notifies(vs, init, threshold, weight_sum, NULL);
 	}
 }
 
@@ -473,7 +485,7 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 			return false;
 	}
 	rs->alive = alive;
-	do_rs_notifies(vs, rs);
+	do_rs_notifies(vs, rs, NULL);
 
 	/* We may have changed quorum state. If the quorum wasn't up
 	 * but is now up, this is where the rs is added. */
@@ -771,7 +783,7 @@ clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs, list old_check
 			migrate_checkers(rs, new_rs, old_checkers_queue);
 		}
 	}
-	clear_service_rs(old_vs, rs_to_remove);
+	clear_service_rs(old_vs, rs_to_remove, false);
 	free_list(&rs_to_remove);
 }
 
@@ -830,7 +842,7 @@ clear_diff_services(list old_checkers_queue)
 				log_message(LOG_INFO, "Removing Virtual Server %s", FMT_VS(vs));
 
 			/* Clear VS entry */
-			clear_service_vs(vs);
+			clear_service_vs(vs, false);
 		} else {
 			/* copy status fields from old VS */
 			SET_ALIVE(new_vs);

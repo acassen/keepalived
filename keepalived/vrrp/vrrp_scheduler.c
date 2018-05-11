@@ -168,6 +168,9 @@ vrrp_init_state(list l)
 	bool is_up;
 	int new_state;
 
+	/* We can send SMTP messages from this point, so set the time */
+	set_time_now();
+
 	/* Do notifications for any sync groups in fault state */
 	for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; ELEMENT_NEXT(e)) {
 		/* Init group if needed  */
@@ -181,11 +184,9 @@ vrrp_init_state(list l)
 		vrrp = ELEMENT_DATA(e);
 
 		/* wantstate is the state we would be in disregarding any sync group */
-		if (vrrp->wantstate == VRRP_STATE_INIT) {
-			vrrp->wantstate = vrrp->state == VRRP_STATE_FAULT ? VRRP_STATE_FAULT :
-					    vrrp->wantstate == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST :
-					    VRRP_STATE_BACK;
-		}
+		if (vrrp->state == VRRP_STATE_FAULT)
+			vrrp->wantstate = VRRP_STATE_FAULT;
+
 		new_state = vrrp->sync ? vrrp->sync->state : vrrp->wantstate;
 
 		is_up = VRRP_ISUP(vrrp);
@@ -640,7 +641,6 @@ vrrp_dispatcher_release(vrrp_data_t *data)
 #ifdef _WITH_BFD_
 	thread_cancel(bfd_thread);
 #endif
-	cancel_signal_read_thread();
 }
 
 static void

@@ -86,7 +86,9 @@ static int print_vrrp_json(thread_t * thread);
 static int reload_vrrp_thread(thread_t * thread);
 #endif
 
+/* local variables */
 static char *vrrp_syslog_ident;
+static bool two_phase_terminate;
 
 #ifdef _WITH_LVS_
 static bool
@@ -97,49 +99,17 @@ vrrp_ipvs_needed(void)
 #endif
 
 static int
-vrrp_notify_fifo_script_exit(__attribute__((unused)) thread_t *thread)
+vrrp_terminate_phase2(__attribute__((unused)) thread_t *thread)
 {
-	log_message(LOG_INFO, "vrrp notify fifo script terminated");
-
-	return 0;
-}
-
-/* Daemon stop sequence */
-static void
-stop_vrrp(int status)
-{
-	kernel_netlink_close_monitor();
-
 #ifdef _NETLINK_TIMERS_
-	report_and_clear_netlink_timers("Start shutdown");
+	report_and_clear_netlink_timers("Starting shutdown instances");
 #endif
 
-	/* Ensure any interfaces are in backup mode,
-	 * sending a priority 0 vrrp message
-	 */
 	if (!__test_bit(DONT_RELEASE_VRRP_BIT, &debug))
-		restore_vrrp_interfaces();
+		shutdown_vrrp_instances();
 
 #ifdef _NETLINK_TIMERS_
-	report_and_clear_netlink_timers("Restored interfaces");
-#endif
-
-	if (vrrp_data->vrrp_track_files)
-		stop_track_files();
-
-#ifdef _HAVE_LIBIPTC_
-	iptables_fini();
-#endif
-
-	/* Clear static entries */
-#ifdef _HAVE_FIB_ROUTING_
-	netlink_rulelist(vrrp_data->static_rules, IPRULE_DEL, false);
-	netlink_rtlist(vrrp_data->static_routes, IPROUTE_DEL);
-#endif
-	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_DEL, false);
-
-#ifdef _NETLINK_TIMERS_
-	report_and_clear_netlink_timers("Static addresses/routes/rules cleared");
+	report_and_clear_netlink_timers("Completed shutdown instances");
 #endif
 
 #if defined _WITH_SNMP_RFC || defined _WITH_SNMP_VRRP_
@@ -157,29 +127,6 @@ stop_vrrp(int status)
 		vrrp_snmp_agent_close();
 #endif
 
-	/* Stop daemon */
-	pidfile_rm(vrrp_pidfile);
-
-	/* Clean data */
-	vrrp_dispatcher_release(vrrp_data);
-
-	/* Send shutdown notifications */
-	notify_shutdown();
-
-	/* This is not nice, but it significantly increases the chances
-	 * of an IGMP leave group being sent for some reason.
-	 * Since we are about to exit, it doesn't affect anything else
-	 * running. */
-	if (!LIST_ISEMPTY(vrrp_data->vrrp))
-		sleep(1);
-
-	if (!__test_bit(DONT_RELEASE_VRRP_BIT, &debug))
-		shutdown_vrrp_instances();
-
-#ifdef _NETLINK_TIMERS_
-	report_and_clear_netlink_timers("Completed shutdown instances");
-#endif
-
 #ifdef _WITH_LVS_
 	if (vrrp_ipvs_needed()) {
 		/* Clean ipvs related */
@@ -187,14 +134,12 @@ stop_vrrp(int status)
 	}
 #endif
 
-	/* Terminate all script processes */
-	script_killall(master, SIGTERM);
-
 	/* We mustn't receive a SIGCHLD after master is destroyed */
 	signal_handler_destroy();
 
 	kernel_netlink_close_cmd();
 	thread_destroy_master(master);
+	master = NULL;
 	gratuitous_arp_close();
 	ndisc_close();
 
@@ -230,6 +175,119 @@ stop_vrrp(int status)
 #endif
 	close_std_fd();
 
+	/* Stop daemon */
+	pidfile_rm(vrrp_pidfile);
+
+	exit(EXIT_SUCCESS);
+}
+
+static int
+vrrp_shutdown_timer_thread( thread_t *thread)
+{
+	thread->master->shutdown_timer_running = false;
+	thread_add_terminate_event(thread->master);
+
+	return 0;
+}
+
+static int
+vrrp_shutdown_backstop_thread(thread_t *thread)
+{
+	log_message(LOG_ERR, "Backstop thread invoked: shutdown timer %srunning, child count %d",
+			thread->master->shutdown_timer_running ? "" : "not ", thread->master->child.count);
+
+	thread_add_terminate_event(thread->master);
+
+	return 0;
+}
+
+/* Daemon stop sequence */
+static void
+vrrp_terminate_phase1(bool schedule_next_thread)
+{
+	/* Terminate all script processes */
+	if (master->child.count)
+		script_killall(master, SIGTERM, true);
+
+	kernel_netlink_close_monitor();
+
+#ifdef _NETLINK_TIMERS_
+	report_and_clear_netlink_timers("Start shutdown");
+#endif
+
+	/* Ensure any interfaces are in backup mode,
+	 * sending a priority 0 vrrp message
+	 */
+	if (!__test_bit(DONT_RELEASE_VRRP_BIT, &debug))
+		restore_vrrp_interfaces();
+
+#ifdef _NETLINK_TIMERS_
+	report_and_clear_netlink_timers("Restored interfaces");
+#endif
+
+	if (vrrp_data->vrrp_track_files)
+		stop_track_files();
+
+#ifdef _HAVE_LIBIPTC_
+	iptables_fini();
+#endif
+
+	/* Clear static entries */
+#ifdef _HAVE_FIB_ROUTING_
+	netlink_rulelist(vrrp_data->static_rules, IPRULE_DEL, false);
+	netlink_rtlist(vrrp_data->static_routes, IPROUTE_DEL);
+#endif
+	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_DEL, false);
+
+#ifdef _NETLINK_TIMERS_
+	report_and_clear_netlink_timers("Static addresses/routes/rules cleared");
+#endif
+
+	/* Clean data */
+	vrrp_dispatcher_release(vrrp_data);
+
+	/* Send shutdown notifications */
+	notify_shutdown();
+
+	if (schedule_next_thread) {
+		if (!LIST_ISEMPTY(vrrp_data->vrrp)) {
+			/* This is not nice, but it significantly increases the chances
+			 * of an IGMP leave group being sent for some reason.
+			 * Since we are about to exit, it doesn't affect anything else
+			 * running. */
+			thread_add_timer_shutdown(master, vrrp_shutdown_timer_thread, NULL, TIMER_HZ);
+			master->shutdown_timer_running = true;
+		}
+		else if (master->child.count) {
+			/* Add a backstop timer for the shutdown */
+			thread_add_timer_shutdown(master, vrrp_shutdown_backstop_thread, NULL, TIMER_HZ);
+		}
+		else
+			thread_add_terminate_event(master);
+	}
+}
+
+static int
+start_vrrp_termination_thread(__attribute__((unused)) thread_t * thread)
+{
+	/* This runs in the context of a thread */
+	two_phase_terminate = true;
+
+	vrrp_terminate_phase1(true);
+
+	return 0;
+}
+
+/* Daemon stop sequence */
+static void
+stop_vrrp(int status)
+{
+	/* This runs in the main process, not in the context of a thread */
+	vrrp_terminate_phase1(false);
+
+	vrrp_terminate_phase2(NULL);
+
+	/* unreachable */
 	exit(status);
 }
 
@@ -274,6 +332,9 @@ start_vrrp(void)
 #endif
 			       global_data->vrrp_process_priority, global_data->vrrp_no_swap ? 4096 : 0);
 
+	/* Set our copy of time */
+	set_time_now();
+
 #if defined _WITH_SNMP_RFC || defined _WITH_SNMP_VRRP_
 	if (!reload && (
 #ifdef _WITH_SNMP_VRRP_
@@ -288,7 +349,7 @@ start_vrrp(void)
 	     false)) {
 		vrrp_snmp_agent_init(global_data->snmp_socket);
 #ifdef _WITH_SNMP_RFC_
-		vrrp_start_time = timer_now();
+		vrrp_start_time = time_now;
 #endif
 	}
 #endif
@@ -364,18 +425,6 @@ start_vrrp(void)
 	/* We need to delay the init of iptables to after vrrp_complete_init()
 	 * has been called so we know whether we want IPv4 and/or IPv6 */
 	iptables_init();
-
-#if !defined _DEBUG_ && defined _WITH_LVS_
-	/* Only one process must run the script to process the global fifo,
-	 * so let the checker process do so. */
-	if (running_checker()) {
-		FREE_PTR(global_data->notify_fifo.script);
-		global_data->notify_fifo.script = NULL;
-	}
-#endif
-
-	/* Create a notify FIFO if needed, and open it */
-	notify_fifo_open(&global_data->notify_fifo, &global_data->vrrp_notify_fifo, vrrp_notify_fifo_script_exit, "vrrp_");
 
 	/* Initialise any tracking files */
 	if (vrrp_data->vrrp_track_files)
@@ -501,7 +550,7 @@ static void
 sigend_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
 	if (master)
-		thread_add_terminate_event(master);
+		thread_add_start_terminate_event(master, start_vrrp_termination_thread);
 }
 
 /* VRRP Child signal handling */
@@ -530,7 +579,7 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 	SET_RELOAD;
 
 	/* Terminate all script process */
-	script_killall(master, SIGTERM);
+	script_killall(master, SIGTERM, false);
 
 	if (vrrp_data->vrrp_track_files)
 		stop_track_files();
@@ -758,7 +807,7 @@ start_vrrp_child(void)
 	launch_scheduler();
 
 	/* Finish VRRP daemon process */
-	stop_vrrp(EXIT_SUCCESS);
+	vrrp_terminate_phase2(NULL);
 
 	/* unreachable */
 	exit(EXIT_SUCCESS);

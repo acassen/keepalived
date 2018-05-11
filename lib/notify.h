@@ -95,7 +95,8 @@ extern void notify_fifo_open(notify_fifo_t*, notify_fifo_t*, int (*)(thread_t *)
 extern void notify_fifo_close(notify_fifo_t*, notify_fifo_t*);
 extern int system_call_script(thread_master_t *, int (*)(thread_t *), void *, unsigned long, notify_script_t *);
 extern int notify_exec(const notify_script_t *);
-extern void script_killall(thread_master_t *, int);
+extern int child_killed_thread(thread_t *);
+extern void script_killall(thread_master_t *, int, bool);
 extern int check_script_secure(notify_script_t *, magic_t);
 extern int check_notify_script_secure(notify_script_t **, magic_t);
 extern bool set_default_script_user(const char *, const char *);

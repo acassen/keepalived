@@ -989,6 +989,7 @@ parse_cmdline(int argc, char **argv)
 						(LINUX_VERSION_CODE      ) & 0xff);
 			uname(&uname_buf);
 			fprintf(stderr, "Running on %s %s %s\n\n", uname_buf.sysname, uname_buf.release, uname_buf.version);
+			fprintf(stderr, "configure options: %s\n\n", KEEPALIVED_CONFIGURE_OPTIONS);
 			fprintf(stderr, "Config options: %s\n\n", CONFIGURATION_OPTIONS);
 			fprintf(stderr, "System options: %s\n", SYSTEM_OPTIONS);
 			exit(0);

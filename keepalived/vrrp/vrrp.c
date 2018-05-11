@@ -91,6 +91,14 @@ bool block_ipv6;
 bool have_ipv4_instance;
 bool have_ipv6_instance;
 
+static int
+vrrp_notify_fifo_script_exit(__attribute__((unused)) thread_t *thread)
+{
+	log_message(LOG_INFO, "vrrp notify fifo script terminated");
+
+	return 0;
+}
+
 void
 clear_summary_flags(void)
 {
@@ -2225,15 +2233,13 @@ vrrp_exist(vrrp_t *old_vrrp)
 void
 restore_vrrp_interfaces(void)
 {
-	list l = vrrp_data->vrrp;
 	element e;
 	vrrp_t *vrrp;
 
 	/* Ensure any interfaces are in backup mode,
 	 * sending a priority 0 vrrp message
 	 */
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
+	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
 		/* Remove VIPs/VROUTEs/VRULEs */
 		if (vrrp->state == VRRP_STATE_MAST)
 			vrrp_restore_interface(vrrp, true, false);
@@ -2436,6 +2442,23 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		return false;
 	}
 
+	/* If no priority has been set, derive it from the initial state */
+	if (vrrp->base_priority == 0) {
+		if (vrrp->wantstate == VRRP_STATE_MAST)
+			vrrp->base_priority = VRRP_PRIO_OWNER;
+		else
+			vrrp->base_priority = VRRP_PRIO_DFL;
+	}
+
+	/* If no initial state has been set, derive it from the priority */
+	if (vrrp->wantstate == VRRP_STATE_INIT)
+		vrrp->wantstate = (vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST : VRRP_STATE_BACK);
+	else if (vrrp->strict_mode &&
+		 ((vrrp->wantstate == VRRP_STATE_MAST) != (vrrp->base_priority == VRRP_PRIO_OWNER))) {
+			log_message(LOG_INFO,"(%s) State MASTER must match being address owner", vrrp->iname);
+			vrrp->wantstate = (vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST : VRRP_STATE_BACK);
+	}
+
 #ifdef _WITH_VRRP_AUTH_
 	if (vrrp->strict_mode && vrrp->auth_type != VRRP_AUTH_NONE) {
 		log_message(LOG_INFO, "(%s) Strict mode does not support authentication. Ignoring.", vrrp->iname);
@@ -2536,20 +2559,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		}
 	}
 
-	if (vrrp->base_priority == 0) {
-		if (vrrp->wantstate == VRRP_STATE_MAST)
-			vrrp->base_priority = VRRP_PRIO_OWNER;
-		else
-			vrrp->base_priority = VRRP_PRIO_DFL;
-	}
-	else if (vrrp->wantstate == VRRP_STATE_INIT)
-		vrrp->wantstate = vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST : VRRP_STATE_BACK;
-	else if (vrrp->strict_mode &&
-		 ((vrrp->wantstate == VRRP_STATE_MAST) != (vrrp->base_priority == VRRP_PRIO_OWNER))) {
-			log_message(LOG_INFO,"(%s) State MASTER must match being address owner", vrrp->iname);
-			vrrp->wantstate = vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST : VRRP_STATE_BACK;
-	}
-
 	if (vrrp->base_priority == VRRP_PRIO_OWNER && vrrp->nopreempt) {
 		log_message(LOG_INFO, "(%s) nopreempt is incompatible with priority %d - resetting nopreempt", vrrp->iname, VRRP_PRIO_OWNER);
 		vrrp->nopreempt = false;
@@ -2581,7 +2590,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	vrrp->state = VRRP_STATE_INIT;
 #ifdef _WITH_SNMP_VRRP_
-	vrrp->init_state = vrrp->wantstate;
+	vrrp->configured_state = vrrp->wantstate;
 #endif
 
 	/* Set default for accept mode if not specified. If we are running in strict mode,
@@ -3109,7 +3118,7 @@ vrrp_complete_init(void)
 	 * e - Element equal to a specific VRRP instance
 	 * eo- Element equal to a specific group within old global group list
 	 */
-	element e;
+	element e, e1;
 	vrrp_t *vrrp, *old_vrrp;
 	vrrp_sgroup_t *sgroup;
 	list l_o;
@@ -3119,6 +3128,7 @@ vrrp_complete_init(void)
 	interface_t *ifp;
 	ifindex_t ifindex_o;
 	size_t max_mtu_len = 0;
+	bool have_master, have_backup;
 
 	/* Set defaults of not specified, depending on strict mode */
 	if (global_data->vrrp_garp_lower_prio_rep == PARAMETER_UNSET)
@@ -3134,6 +3144,16 @@ vrrp_complete_init(void)
 
 	/* Mark any scripts as insecure */
 	check_vrrp_script_security();
+
+#if !defined _DEBUG_ && defined _WITH_LVS_
+	/* Only one process must run the script to process the global fifo,
+	 * so let the checker process do so. */
+	if (running_checker())
+		free_notify_script(&global_data->notify_fifo.script);
+#endif
+
+	/* Create a notify FIFO if needed, and open it */
+	notify_fifo_open(&global_data->notify_fifo, &global_data->vrrp_notify_fifo, vrrp_notify_fifo_script_exit, "vrrp_");
 
 	/* Make sure don't have same vrid on same interface with same address family */
 	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
@@ -3221,9 +3241,7 @@ vrrp_complete_init(void)
 	init_interface_linkbeat();
 
 	/* Check for instance down due to an interface or script */
-	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
-
+	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
 		/* Set effective priority and fault state */
 		initialise_tracking_priorities(vrrp);
 
@@ -3241,6 +3259,28 @@ vrrp_complete_init(void)
 				vrrp->sync->num_member_init++;
 				if (vrrp->sync->state != VRRP_STATE_FAULT)
 					vrrp->sync->state = VRRP_STATE_INIT;
+			}
+		}
+	}
+
+	/* Make sure that if any sync group has member wanting to start in
+	 * master state, then all can start in master state. */
+	LIST_FOREACH(vrrp_data->vrrp_sync_group, sgroup, e1) {
+		have_backup = false;
+		have_master = false;
+		LIST_FOREACH(sgroup->vrrp_instances, vrrp, e) {
+			if (vrrp->wantstate == VRRP_STATE_BACK || vrrp->base_priority != VRRP_PRIO_OWNER)
+				have_backup = true;
+			if (vrrp->wantstate == VRRP_STATE_MAST)
+				have_master = true;
+			if (have_master && have_backup) {
+				/* This looks wrong using the same loop variables as a containing
+				 * loop, but we break out of the outer loop after this loop */
+				LIST_FOREACH(sgroup->vrrp_instances, vrrp, e) {
+					if (vrrp->wantstate == VRRP_STATE_MAST)
+						vrrp->wantstate = VRRP_STATE_BACK;
+				}
+				break;
 			}
 		}
 	}

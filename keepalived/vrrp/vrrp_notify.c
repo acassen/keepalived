@@ -51,6 +51,8 @@ get_iscript(vrrp_t * vrrp)
 		return vrrp->script_master;
 	if (vrrp->state == VRRP_STATE_FAULT)
 		return vrrp->script_fault;
+	if (vrrp->state == VRRP_STATE_STOP)
+		return vrrp->script_stop;
 	return NULL;
 }
 
@@ -65,16 +67,18 @@ get_gscript(vrrp_sgroup_t * vgroup, int state)
 		return vgroup->script_master;
 	if (state == VRRP_STATE_FAULT)
 		return vgroup->script_fault;
+	if (state == VRRP_STATE_STOP)
+		return vgroup->script_stop;
 	return NULL;
 }
 
-static notify_script_t*
+static inline notify_script_t*
 get_igscript(vrrp_t *vrrp)
 {
 	return vrrp->script;
 }
 
-static notify_script_t*
+static inline notify_script_t*
 get_ggscript(vrrp_sgroup_t * vgroup)
 {
 	return vgroup->script;
@@ -119,9 +123,9 @@ notify_fifo(const char *name, int state_num, bool group, uint8_t priority)
 }
 
 static void
-notify_instance_fifo(const vrrp_t *vrrp, int state_num)
+notify_instance_fifo(const vrrp_t *vrrp)
 {
-	notify_fifo(vrrp->iname, state_num, false, vrrp->effective_priority);
+	notify_fifo(vrrp->iname, vrrp->state, false, vrrp->effective_priority);
 }
 
 static void
@@ -138,7 +142,7 @@ notify_script_exec(notify_script_t* script, char *type, int state_num, char* nam
 	char prio_buf[4];
 
 	/*
-	 * script {GROUP|INSTANCE} NAME {MASTER|BACKUP|FAULT} PRIO
+	 * script {GROUP|INSTANCE} NAME {MASTER|BACKUP|FAULT|STOP} PRIO
 	 *
 	 * Note that the prio will be indicated as zero for a group.
 	 *
@@ -150,6 +154,7 @@ notify_script_exec(notify_script_t* script, char *type, int state_num, char* nam
 		case VRRP_STATE_MAST  : args[3] = "MASTER" ; break;
 		case VRRP_STATE_BACK  : args[3] = "BACKUP" ; break;
 		case VRRP_STATE_FAULT : args[3] = "FAULT" ; break;
+		case VRRP_STATE_STOP  : args[3] = "STOP" ; break;
 		default:		args[3] = "{UNKNOWN}"; break;
 	}
 	snprintf(prio_buf, sizeof(prio_buf), "%d", prio);
@@ -162,61 +167,10 @@ notify_script_exec(notify_script_t* script, char *type, int state_num, char* nam
 	new_script.uid = script->uid;
 	new_script.gid = script->gid;
 
-	notify_exec(&new_script);
-}
-
-static int
-notify_instance_exec(vrrp_t * vrrp)
-{
-	notify_script_t *script = get_iscript(vrrp);
-	notify_script_t *gscript = get_igscript(vrrp);
-	int ret = 0;
-
-	/* Launch the notify_* script */
-	if (script) {
-		notify_exec(script);
-		ret = 1;
-	}
-
-	/* Launch the generic notify script */
-	if (gscript) {
-		notify_script_exec(gscript, "INSTANCE", vrrp->state, vrrp->iname,
-				   vrrp->effective_priority);
-		ret = 1;
-	}
-
-	notify_instance_fifo(vrrp, vrrp->state);
-
-#ifdef _WITH_DBUS_
-	if (global_data->enable_dbus)
-		dbus_send_state_signal(vrrp); // send signal to all subscribers
-#endif
-
-	return ret;
-}
-
-static int
-notify_group_exec(vrrp_sgroup_t * vgroup)
-{
-	notify_script_t *script = get_gscript(vgroup, vgroup->state);
-	notify_script_t *gscript = get_ggscript(vgroup);
-	int ret = 0;
-
-	/* Launch the notify_* script */
-	if (script) {
-		notify_exec(script);
-		ret = 1;
-	}
-
-	/* Launch the generic notify script */
-	if (gscript) {
-		notify_script_exec(gscript, "GROUP", vgroup->state, vgroup->gname, 0);
-		ret = 1;
-	}
-
-	notify_group_fifo(vgroup);
-
-	return ret;
+	if (state_num == VRRP_STATE_STOP)
+		system_call_script(master, child_killed_thread, NULL, TIMER_HZ, &new_script);
+	else
+		notify_exec(&new_script);
 }
 
 /* SMTP alert notifier */
@@ -238,6 +192,12 @@ vrrp_smtp_notifier(vrrp_t * vrrp)
 			smtp_alert(SMTP_MSG_VRRP, vrrp,
 				   "Entering FAULT state",
 				   "=> VRRP Instance is no longer owning VRRP VIPs <=");
+		else if (vrrp->state == VRRP_STATE_STOP)
+			smtp_alert(SMTP_MSG_VRRP, vrrp,
+				   "Stopping",
+				   "=> VRRP Instance stopping <=");
+		else
+			return;
 
 		vrrp->last_email_state = vrrp->state;
 	}
@@ -262,6 +222,12 @@ vrrp_sync_smtp_notifier(vrrp_sgroup_t *vgroup)
 			smtp_alert(SMTP_MSG_VGROUP, vgroup,
 				   "Entering FAULT state",
 				   "=> All VRRP group instances are now in FAULT state <=");
+		else if (vgroup->state == VRRP_STATE_STOP)
+			smtp_alert(SMTP_MSG_VGROUP, vgroup,
+				   "Stopping",
+				   "=> All VRRP group instances are now stopping <=");
+		else
+			return;
 
 		vgroup->last_email_state = vgroup->state;
 	}
@@ -270,7 +236,35 @@ vrrp_sync_smtp_notifier(vrrp_sgroup_t *vgroup)
 void
 send_instance_notifies(vrrp_t *vrrp)
 {
-	notify_instance_exec(vrrp);
+	notify_script_t *script = get_iscript(vrrp);
+	notify_script_t *gscript = get_igscript(vrrp);
+
+	if (vrrp->sync && vrrp->state == vrrp->sync->state) {
+		/* We are already in the required state due to our sync group,
+		 * so don't send further notifies. */
+		return;
+	}
+
+	/* Launch the notify_* script */
+	if (script) {
+		if (vrrp->state == VRRP_STATE_STOP)
+			system_call_script(master, child_killed_thread, NULL, TIMER_HZ, script);
+		else
+			notify_exec(script);
+	}
+
+	/* Launch the generic notify script */
+	if (gscript)
+		notify_script_exec(gscript, "INSTANCE", vrrp->state, vrrp->iname,
+				   vrrp->effective_priority);
+
+	notify_instance_fifo(vrrp);
+
+#ifdef _WITH_DBUS_
+	if (global_data->enable_dbus)
+		dbus_send_state_signal(vrrp); // send signal to all subscribers
+#endif
+
 #ifdef _WITH_SNMP_VRRP_
 	vrrp_snmp_instance_trap(vrrp);
 #endif
@@ -288,7 +282,19 @@ send_instance_notifies(vrrp_t *vrrp)
 void
 send_group_notifies(vrrp_sgroup_t *vgroup)
 {
-	notify_group_exec(vgroup);
+	notify_script_t *script = get_gscript(vgroup, vgroup->state);
+	notify_script_t *gscript = get_ggscript(vgroup);
+
+	/* Launch the notify_* script */
+	if (script)
+		notify_exec(script);
+
+	/* Launch the generic notify script */
+	if (gscript)
+		notify_script_exec(gscript, "GROUP", vgroup->state, vgroup->gname, 0);
+
+	notify_group_fifo(vgroup);
+
 #ifdef _WITH_SNMP_VRRP_
 	vrrp_snmp_group_trap(vgroup);
 #endif
@@ -304,13 +310,12 @@ notify_shutdown(void)
 	vrrp_sgroup_t *vgroup;
 
 	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
-		/* Run stop script */
-		if (vrrp->script_stop)
-			notify_exec(vrrp->script_stop);
+		vrrp->state = VRRP_STATE_STOP;
+		send_instance_notifies(vrrp);
 	}
 
 	LIST_FOREACH(vrrp_data->vrrp_sync_group, vgroup, e) {
-		if (vgroup->script_stop)
-			notify_exec(vgroup->script_stop);
+		vgroup->state = VRRP_STATE_STOP;
+		send_group_notifies(vgroup);
 	}
 }

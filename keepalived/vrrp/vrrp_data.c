@@ -557,7 +557,7 @@ alloc_vrrp(char *iname)
 	/* Set default values */
 	new->family = AF_UNSPEC;
 	new->saddr.ss_family = AF_UNSPEC;
-	new->wantstate = VRRP_STATE_BACK;
+	new->wantstate = VRRP_STATE_INIT;
 	new->last_email_state = VRRP_STATE_INIT;
 	new->version = 0;
 	new->master_priority = 0;

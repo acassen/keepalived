@@ -867,7 +867,6 @@ vrrp_snmp_address(struct variable *vp, oid *name, size_t *length,
 			return (u_char *)&addr->peer.sin6_addr;
 		} else {
 			*var_len = sizeof addr->peer.sin_addr;
-log_message(LOG_INFO, "Returning %x", addr->peer.sin_addr.s_addr);
 			return (u_char *)&addr->peer.sin_addr;
 		}
 		break;
@@ -1918,7 +1917,7 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 		long_ret.s = vrrp_snmp_state(rt->state);
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_INSTANCE_INITIALSTATE:
-		long_ret.s = vrrp_snmp_state(rt->init_state);
+		long_ret.s = vrrp_snmp_state(rt->configured_state);
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_INSTANCE_WANTEDSTATE:
 		long_ret.s = vrrp_snmp_state(rt->wantstate);
@@ -2989,9 +2988,18 @@ vrrp_snmp_instance_trap(vrrp_t *vrrp)
 	size_t routerId_oid_len = OID_LENGTH(routerId_oid);
 
 	netsnmp_variable_list *notification_vars = NULL;
+	int state = 4;		/* unknown */
 
 	if (!global_data->enable_traps || !global_data->enable_snmp_vrrp)
 		return;
+
+	if (vrrp->state == VRRP_STATE_INIT ||
+	    vrrp->state == VRRP_STATE_BACK ||
+	    vrrp->state == VRRP_STATE_MAST ||
+	    vrrp->state == VRRP_STATE_FAULT)
+		state = vrrp->state;
+	else if (vrrp->state == VRRP_STATE_STOP)
+		state = 5;
 
 	/* snmpTrapOID */
 	snmp_varlist_add_variable(&notification_vars,
@@ -3009,14 +3017,14 @@ vrrp_snmp_instance_trap(vrrp_t *vrrp)
 	snmp_varlist_add_variable(&notification_vars,
 				  state_oid, state_oid_len,
 				  ASN_INTEGER,
-				  (u_char *)&vrrp->state,
-				  sizeof(vrrp->state));
+				  (u_char *)&state,
+				  sizeof(state));
 	/* vrrpInstanceInitialState */
 	snmp_varlist_add_variable(&notification_vars,
 				  initialstate_oid, initialstate_oid_len,
 				  ASN_INTEGER,
-				  (u_char *)&vrrp->init_state,
-				  sizeof(vrrp->init_state));
+				  (u_char *)&vrrp->configured_state,
+				  sizeof(vrrp->configured_state));
 
 	/* routerId */
 	snmp_varlist_add_variable(&notification_vars,
@@ -3051,9 +3059,18 @@ vrrp_snmp_group_trap(vrrp_sgroup_t *group)
 	size_t routerId_oid_len = OID_LENGTH(routerId_oid);
 
 	netsnmp_variable_list *notification_vars = NULL;
+	int state = 4;		/* unknown */
 
 	if (!global_data->enable_traps || !global_data->enable_snmp_vrrp)
 		return;
+
+	if (group->state == VRRP_STATE_INIT ||
+	    group->state == VRRP_STATE_BACK ||
+	    group->state == VRRP_STATE_MAST ||
+	    group->state == VRRP_STATE_FAULT)
+		state = group->state;
+	else if (group->state == VRRP_STATE_STOP)
+		state = 5;
 
 	/* snmpTrapOID */
 	snmp_varlist_add_variable(&notification_vars,
@@ -3072,8 +3089,8 @@ vrrp_snmp_group_trap(vrrp_sgroup_t *group)
 	snmp_varlist_add_variable(&notification_vars,
 				  state_oid, state_oid_len,
 				  ASN_INTEGER,
-				  (u_char *)&group->state,
-				  sizeof(group->state));
+				  (u_char *)&state,
+				  sizeof(state));
 
 	/* routerId */
 	snmp_varlist_add_variable(&notification_vars,
@@ -3106,9 +3123,11 @@ vrrp_snmp_rfc_state(int state)
 static bool
 suitable_for_rfc2787(vrrp_t* vrrp)
 {
+#ifdef _WITH_SNMP_RFCV3_
 	/* We mustn't return any VRRP instances that aren't version 2 */
 	if (vrrp->version != VRRP_VERSION_2)
 		return false;
+#endif
 
 	/* We have to skip VRRPv2 with IPv6 since it won't be understood */
 	if (vrrp->family == AF_INET6)

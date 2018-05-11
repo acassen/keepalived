@@ -488,10 +488,17 @@ rs_end_handler(void)
 static void
 rs_weight_handler(vector_t *strvec)
 {
+	int weight;
+
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
-	rs->weight = atoi(strvec_slot(strvec, 1));
-	rs->iweight = rs->weight;
+	weight = atoi(strvec_slot(strvec, 1));
+	if (weight <= 0 || weight > 65535) {
+		log_message(LOG_INFO, "Real server weight %d is outside range 1-65535", weight);
+		return;
+	}
+	rs->weight = weight;
+	rs->iweight = weight;
 }
 static void
 rs_forwarding_handler(vector_t *strvec)
@@ -694,8 +701,15 @@ hysteresis_handler(vector_t *strvec)
 static void
 vs_weight_handler(vector_t *strvec)
 {
+	int weight;
+
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	vs->weight = atoi(strvec_slot(strvec, 1));
+	weight = atoi(strvec_slot(strvec, 1));
+	if (weight <= 0 || weight > 65535) {
+		log_message(LOG_INFO, "Virtual server weight %d is outside range 1-65535", weight);
+		return;
+	}
+	vs->weight = weight;
 }
 
 void
