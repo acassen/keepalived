@@ -217,6 +217,9 @@ start_check(list old_checkers_queue)
 	if (reload)
 		clear_diff_services(old_checkers_queue);
 
+	/* We can send SMTP messages from here so set the time */
+	set_time_now();
+
 	/* Initialize IPVS topology */
 	if (!init_services())
 		stop_check(KEEPALIVED_EXIT_FATAL);

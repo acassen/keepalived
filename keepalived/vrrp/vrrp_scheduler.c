@@ -168,6 +168,9 @@ vrrp_init_state(list l)
 	bool is_up;
 	int new_state;
 
+	/* We can send SMTP messages from this point, so set the time */
+	set_time_now();
+
 	/* Do notifications for any sync groups in fault state */
 	for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; ELEMENT_NEXT(e)) {
 		/* Init group if needed  */

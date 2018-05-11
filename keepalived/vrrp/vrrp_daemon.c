@@ -266,6 +266,9 @@ start_vrrp(void)
 #endif
 			       global_data->vrrp_process_priority, global_data->vrrp_no_swap ? 4096 : 0);
 
+	/* Set our copy of time */
+	set_time_now();
+
 #if defined _WITH_SNMP_RFC || defined _WITH_SNMP_VRRP_
 	if (!reload && (
 #ifdef _WITH_SNMP_VRRP_
@@ -280,7 +283,7 @@ start_vrrp(void)
 	     false)) {
 		vrrp_snmp_agent_init(global_data->snmp_socket);
 #ifdef _WITH_SNMP_RFC_
-		vrrp_start_time = timer_now();
+		vrrp_start_time = time_now;
 #endif
 	}
 #endif
