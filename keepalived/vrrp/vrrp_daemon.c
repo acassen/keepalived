@@ -96,14 +96,6 @@ vrrp_ipvs_needed(void)
 }
 #endif
 
-static int
-vrrp_notify_fifo_script_exit(__attribute__((unused)) thread_t *thread)
-{
-	log_message(LOG_INFO, "vrrp notify fifo script terminated");
-
-	return 0;
-}
-
 /* Daemon stop sequence */
 static void
 stop_vrrp(int status)
@@ -364,16 +356,6 @@ start_vrrp(void)
 	/* We need to delay the init of iptables to after vrrp_complete_init()
 	 * has been called so we know whether we want IPv4 and/or IPv6 */
 	iptables_init();
-
-#if !defined _DEBUG_ && defined _WITH_LVS_
-	/* Only one process must run the script to process the global fifo,
-	 * so let the checker process do so. */
-	if (running_checker())
-		free_notify_script(&global_data->notify_fifo.script);
-#endif
-
-	/* Create a notify FIFO if needed, and open it */
-	notify_fifo_open(&global_data->notify_fifo, &global_data->vrrp_notify_fifo, vrrp_notify_fifo_script_exit, "vrrp_");
 
 	/* Initialise any tracking files */
 	if (vrrp_data->vrrp_track_files)

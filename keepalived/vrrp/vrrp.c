@@ -91,6 +91,14 @@ bool block_ipv6;
 bool have_ipv4_instance;
 bool have_ipv6_instance;
 
+static int
+vrrp_notify_fifo_script_exit(__attribute__((unused)) thread_t *thread)
+{
+	log_message(LOG_INFO, "vrrp notify fifo script terminated");
+
+	return 0;
+}
+
 void
 clear_summary_flags(void)
 {
@@ -3134,6 +3142,16 @@ vrrp_complete_init(void)
 
 	/* Mark any scripts as insecure */
 	check_vrrp_script_security();
+
+#if !defined _DEBUG_ && defined _WITH_LVS_
+	/* Only one process must run the script to process the global fifo,
+	 * so let the checker process do so. */
+	if (running_checker())
+		free_notify_script(&global_data->notify_fifo.script);
+#endif
+
+	/* Create a notify FIFO if needed, and open it */
+	notify_fifo_open(&global_data->notify_fifo, &global_data->vrrp_notify_fifo, vrrp_notify_fifo_script_exit, "vrrp_");
 
 	/* Make sure don't have same vrid on same interface with same address family */
 	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
