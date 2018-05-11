@@ -119,9 +119,9 @@ notify_fifo(const char *name, int state_num, bool group, uint8_t priority)
 }
 
 static void
-notify_instance_fifo(const vrrp_t *vrrp, int state_num)
+notify_instance_fifo(const vrrp_t *vrrp)
 {
-	notify_fifo(vrrp->iname, state_num, false, vrrp->effective_priority);
+	notify_fifo(vrrp->iname, vrrp->state, false, vrrp->effective_priority);
 }
 
 static void
@@ -185,7 +185,7 @@ notify_instance_exec(vrrp_t * vrrp)
 		ret = 1;
 	}
 
-	notify_instance_fifo(vrrp, vrrp->state);
+	notify_instance_fifo(vrrp);
 
 #ifdef _WITH_DBUS_
 	if (global_data->enable_dbus)
