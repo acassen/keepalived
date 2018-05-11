@@ -2233,15 +2233,13 @@ vrrp_exist(vrrp_t *old_vrrp)
 void
 restore_vrrp_interfaces(void)
 {
-	list l = vrrp_data->vrrp;
 	element e;
 	vrrp_t *vrrp;
 
 	/* Ensure any interfaces are in backup mode,
 	 * sending a priority 0 vrrp message
 	 */
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
+	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
 		/* Remove VIPs/VROUTEs/VRULEs */
 		if (vrrp->state == VRRP_STATE_MAST)
 			vrrp_restore_interface(vrrp, true, false);
@@ -2444,6 +2442,23 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		return false;
 	}
 
+	/* If no priority has been set, derive it from the initial state */
+	if (vrrp->base_priority == 0) {
+		if (vrrp->wantstate == VRRP_STATE_MAST)
+			vrrp->base_priority = VRRP_PRIO_OWNER;
+		else
+			vrrp->base_priority = VRRP_PRIO_DFL;
+	}
+
+	/* If no initial state has been set, derive it from the priority */
+	if (vrrp->wantstate == VRRP_STATE_INIT)
+		vrrp->wantstate = (vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST : VRRP_STATE_BACK);
+	else if (vrrp->strict_mode &&
+		 ((vrrp->wantstate == VRRP_STATE_MAST) != (vrrp->base_priority == VRRP_PRIO_OWNER))) {
+			log_message(LOG_INFO,"(%s) State MASTER must match being address owner", vrrp->iname);
+			vrrp->wantstate = (vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST : VRRP_STATE_BACK);
+	}
+
 #ifdef _WITH_VRRP_AUTH_
 	if (vrrp->strict_mode && vrrp->auth_type != VRRP_AUTH_NONE) {
 		log_message(LOG_INFO, "(%s) Strict mode does not support authentication. Ignoring.", vrrp->iname);
@@ -2542,20 +2557,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				vrrp->evip = alloc_list(free_ipaddress, dump_ipaddress);
 			list_add(vrrp->evip, vip);
 		}
-	}
-
-	if (vrrp->base_priority == 0) {
-		if (vrrp->wantstate == VRRP_STATE_MAST)
-			vrrp->base_priority = VRRP_PRIO_OWNER;
-		else
-			vrrp->base_priority = VRRP_PRIO_DFL;
-	}
-	else if (vrrp->wantstate == VRRP_STATE_INIT)
-		vrrp->wantstate = vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST : VRRP_STATE_BACK;
-	else if (vrrp->strict_mode &&
-		 ((vrrp->wantstate == VRRP_STATE_MAST) != (vrrp->base_priority == VRRP_PRIO_OWNER))) {
-			log_message(LOG_INFO,"(%s) State MASTER must match being address owner", vrrp->iname);
-			vrrp->wantstate = vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST : VRRP_STATE_BACK;
 	}
 
 	if (vrrp->base_priority == VRRP_PRIO_OWNER && vrrp->nopreempt) {

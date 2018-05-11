@@ -184,11 +184,9 @@ vrrp_init_state(list l)
 		vrrp = ELEMENT_DATA(e);
 
 		/* wantstate is the state we would be in disregarding any sync group */
-		if (vrrp->wantstate == VRRP_STATE_INIT) {
-			vrrp->wantstate = vrrp->state == VRRP_STATE_FAULT ? VRRP_STATE_FAULT :
-					    vrrp->wantstate == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST :
-					    VRRP_STATE_BACK;
-		}
+		if (vrrp->state == VRRP_STATE_FAULT)
+			vrrp->wantstate = VRRP_STATE_FAULT;
+
 		new_state = vrrp->sync ? vrrp->sync->state : vrrp->wantstate;
 
 		is_up = VRRP_ISUP(vrrp);
