@@ -867,7 +867,6 @@ vrrp_snmp_address(struct variable *vp, oid *name, size_t *length,
 			return (u_char *)&addr->peer.sin6_addr;
 		} else {
 			*var_len = sizeof addr->peer.sin_addr;
-log_message(LOG_INFO, "Returning %x", addr->peer.sin_addr.s_addr);
 			return (u_char *)&addr->peer.sin_addr;
 		}
 		break;
