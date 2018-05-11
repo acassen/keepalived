@@ -3123,9 +3123,11 @@ vrrp_snmp_rfc_state(int state)
 static bool
 suitable_for_rfc2787(vrrp_t* vrrp)
 {
+#ifdef _WITH_SNMP_RFCV3_
 	/* We mustn't return any VRRP instances that aren't version 2 */
 	if (vrrp->version != VRRP_VERSION_2)
 		return false;
+#endif
 
 	/* We have to skip VRRPv2 with IPv6 since it won't be understood */
 	if (vrrp->family == AF_INET6)
