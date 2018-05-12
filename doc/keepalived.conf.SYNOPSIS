@@ -386,14 +386,14 @@ global_defs {                                 # Block identification
                                               # "Netlink: Receive buffer overrun" messages are seen in the system logs.
                                               # If the buffer size needed exceeds the value in /proc/sys/net/core/rmem_max
                                               #  the corresponding force option will need to be set.
-    vrrp_netlink_cmd_rcv_bufs BYTES
-    vrrp_netlink_cmd_rcv_bufs_force <BOOL>
-    vrrp_netlink_monitor_rcv_bufs BYTES
-    vrrp_netlink_monitor_rcv_bufs_force <BOOL>
-    lvs_netlink_cmd_rcv_bufs BYTES
-    lvs_netlink_cmd_rcv_bufs_force <BOOL>
-    lvs_netlink_monitor_rcv_bufs BYTES
-    lvs_netlink_monitor_rcv_bufs_force <BOOL>
+    vrrp_netlink_cmd_rcv_bufs BYTES           # Set netlink receive buffer size. This is useful for
+    vrrp_netlink_cmd_rcv_bufs_force <BOOL>    #  very large configurations where a large number of interfaces exist, and
+    vrrp_netlink_monitor_rcv_bufs BYTES       #  the initial read of the interfaces on the system causes a netlink buffer
+    vrrp_netlink_monitor_rcv_bufs_force <BOOL> # overrun.
+    lvs_netlink_cmd_rcv_bufs BYTES            #  The vrrp netlink command and monitor socket and the checker command
+    lvs_netlink_cmd_rcv_bufs_force <BOOL>     #  and monitor socket buffer sizes can be independently set. 
+    lvs_netlink_monitor_rcv_bufs BYTES        #  The force flag means to use SO_RCVBUFFORCE, so that the buffer size can
+    lvs_netlink_monitor_rcv_bufs_force <BOOL> #  exceed /proc/sys/net/core/rmem_max.
 }
 
 net_namespace NAME                            # Set the network namespace to run in
