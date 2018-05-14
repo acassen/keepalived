@@ -28,10 +28,10 @@
 /* global includes */
 #include <stdbool.h>
 #include <stdio.h>
+#include <sys/socket.h>
 
 /* local includes */
 #include "list.h"
-#include <sys/socket.h>
 #include "check_data.h"
 #include "vector.h"
 #include "layer4.h"
@@ -47,6 +47,7 @@ typedef struct _checker {
 	void				*data;
 	bool				enabled;		/* Activation flag */
 	bool				is_up;			/* Set if checker is up */
+	bool				has_run;		/* Set if the checker has completed at least once */
 	conn_opts_t			*co;			/* connection options */
 	int				alpha;			/* Alpha mode enabled */
 	unsigned long			delay_loop;		/* Interval between running checker */

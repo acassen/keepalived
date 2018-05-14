@@ -291,9 +291,7 @@ init_service_rs(virtual_server_t * vs)
 	element e;
 	real_server_t *rs;
 
-	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
-		rs = ELEMENT_DATA(e);
-
+	LIST_FOREACH(vs->rs, rs, e) {
 		if (rs->reloaded) {
 			if (rs->iweight != rs->pweight)
 				update_svr_wgt(rs->iweight, vs, rs, false);
@@ -308,8 +306,11 @@ init_service_rs(virtual_server_t * vs)
 		if ((!rs->num_failed_checkers && !ISALIVE(rs)) ||
 		    (rs->inhibit && !rs->set)) {
 			ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs);
-			if (!rs->num_failed_checkers)
+			if (!rs->num_failed_checkers) {
 				SET_ALIVE(rs);
+				if (global_data->rs_init_notifies)
+					do_rs_notifies(vs, rs, false);
+			}
 		}
 	}
 
@@ -460,7 +461,7 @@ update_quorum_state(virtual_server_t * vs, bool init)
 
 /* manipulate add/remove rs according to alive state */
 static bool
-perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
+perform_svr_state(bool alive, checker_t *checker)
 {
 	/*
 	 * | ISALIVE(rs) | alive | context
@@ -469,6 +470,9 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 	 * | true        | false | RS went down, remove it from the pool
 	 * | true        | true  | first check succeeded w/o alpha mode, unreachable here
 	 */
+
+	virtual_server_t * vs = checker->vs;
+	real_server_t * rs = checker->rs;
 
 	if (ISALIVE(rs) == alive)
 		return true;
@@ -485,7 +489,7 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 			return false;
 	}
 	rs->alive = alive;
-	do_rs_notifies(vs, rs, NULL);
+	do_rs_notifies(vs, rs, false);
 
 	/* We may have changed quorum state. If the quorum wasn't up
 	 * but is now up, this is where the rs is added. */
@@ -525,14 +529,13 @@ bool
 init_services(void)
 {
 	element e;
-	list l = check_data->vs;
 	virtual_server_t *vs;
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vs = ELEMENT_DATA(e);
+	LIST_FOREACH(check_data->vs, vs, e) {
 		if (!init_service_vs(vs))
 			return false;
 	}
+
 	return true;
 }
 
@@ -581,20 +584,28 @@ set_checker_state(checker_t *checker, bool up)
 void
 update_svr_checker_state(bool alive, checker_t *checker)
 {
-	if (checker->is_up == alive)
+	if (checker->is_up == alive) {
+		if (!checker->has_run) {
+			if (checker->alpha || !alive)
+				do_rs_notifies(checker->vs, checker->rs, false);
+			checker->has_run = true;
+		}
 		return;
+	}
+
+	checker->has_run = true;
 
 	if (alive) {
 		/* call the UP handler unless any more failed checks found */
 		if (checker->rs->num_failed_checkers <= 1) {
-			if (!perform_svr_state(true, checker->vs, checker->rs))
+			if (!perform_svr_state(true, checker))
 				return;
 		}
 	}
 	else {
 		/* Handle not alive state */
 		if (checker->rs->num_failed_checkers == 0) {
-			if (!perform_svr_state(false, checker->vs, checker->rs))
+			if (!perform_svr_state(false, checker))
 				return;
 		}
 	}
@@ -707,24 +718,25 @@ migrate_checkers(real_server_t *old_rs, real_server_t *new_rs, list old_checkers
 	checker_t *old_c, *new_c;
 
 	l = alloc_list(NULL, NULL);
-	for (e = LIST_HEAD(old_checkers_queue); e; ELEMENT_NEXT(e)) {
-		old_c = ELEMENT_DATA(e);
-		if (old_c->rs == old_rs) {
+	LIST_FOREACH(old_checkers_queue, old_c, e) {
+		if (old_c->rs == old_rs)
 			list_add(l, old_c);
-		}
 	}
 
 	if (!LIST_ISEMPTY(l)) {
-		for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
-			new_c = ELEMENT_DATA(e);
+		LIST_FOREACH(checkers_queue, new_c, e) {
 			if (new_c->rs != new_rs || !new_c->compare)
 				continue;
-			for (e1 = LIST_HEAD(l); e1; ELEMENT_NEXT(e1)) {
-				old_c = ELEMENT_DATA(e1);
+			LIST_FOREACH(l, old_c, e1) {
 				if (old_c->compare == new_c->compare && new_c->compare(old_c, new_c)) {
 					/* Update status if different */
 					if (old_c->is_up != new_c->is_up)
 						set_checker_state(new_c, old_c->is_up);
+
+					/* Transfer some other state flags */
+					new_c->has_run = old_c->has_run;
+					new_c->retry_it = old_c->retry_it;
+
 					break;
 				}
 			}

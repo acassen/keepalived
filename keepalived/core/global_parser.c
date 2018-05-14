@@ -1160,6 +1160,22 @@ lvs_netlink_cmd_rcv_bufs_force_handler(vector_t *strvec)
 
 	global_data->lvs_netlink_cmd_rcv_bufs_force = res;
 }
+
+static void
+rs_init_notifies_handler(vector_t *strvec)
+{
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			log_message(LOG_INFO, "Invalid value '%s' for global rs_init_notifies specified", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+
+	global_data->rs_init_notifies = res;
+}
 #endif
 
 void
@@ -1295,5 +1311,8 @@ init_global_keywords(bool global_active)
 	install_keyword("lvs_netlink_cmd_rcv_bufs_force", &lvs_netlink_cmd_rcv_bufs_force_handler);
 	install_keyword("lvs_netlink_monitor_rcv_bufs", &lvs_netlink_monitor_rcv_bufs_handler);
 	install_keyword("lvs_netlink_monitor_rcv_bufs_force", &lvs_netlink_monitor_rcv_bufs_force_handler);
+#endif
+#ifdef _WITH_LVS_
+	install_keyword("rs_init_notifies", &rs_init_notifies_handler);
 #endif
 }

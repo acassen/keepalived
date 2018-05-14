@@ -430,6 +430,8 @@ and
  lvs_netlink_cmd_rcv_bufs_force <BOOL>      #  and monitor socket buffer sizes can be independently set.
  lvs_netlink_monitor_rcv_bufs BYTES         #  The force flag means to use SO_RCVBUFFORCE, so that the buffer size can
  lvs_netlink_monitor_rcv_bufs_force <BOOL>  #  exceed /proc/sys/net/core/rmem_max.
+
+ rs_init_notifies             # Send notifies at startup for real servers that are starting up
  }
 
  # For running keepalived in a separate network namespace
