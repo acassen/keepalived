@@ -102,21 +102,25 @@ tcp_epilog(thread_t * thread, bool is_success)
 		delay = checker->delay_loop;
 		checker->retry_it = 0;
 
-		if (is_success && !checker->is_up) {
+		if (is_success && (!checker->is_up || !checker->has_run)) {
 			log_message(LOG_INFO, "TCP connection to %s success."
 					, FMT_TCP_RS(checker));
-			if (checker->rs->smtp_alert)
+			if (checker->rs->smtp_alert && is_success)
 				smtp_alert(SMTP_MSG_RS, checker, "UP",
 					   "=> TCP CHECK succeed on service <=");
 			update_svr_checker_state(UP, checker);
-		} else if (!is_success
-			   && checker->is_up) {
+		} else if (!is_success && 
+			   (checker->is_up || !checker->has_run)) {
 			if (checker->retry)
 				log_message(LOG_INFO
-				    , "Check on service %s failed after %d retry."
+				    , "Check on service %s failed after %d retries."
 				    , FMT_TCP_RS(checker)
 				    , checker->retry);
-			if (checker->rs->smtp_alert)
+			else
+				log_message(LOG_INFO
+				    , "Check on service %s failed."
+				    , FMT_TCP_RS(checker));
+			if (checker->rs->smtp_alert && !is_success)
 				smtp_alert(SMTP_MSG_RS, checker, "DOWN",
 					   "=> TCP CHECK failed on service <=");
 			update_svr_checker_state(DOWN, checker);

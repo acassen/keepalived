@@ -320,8 +320,8 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 		 * be noted that smtp_alert makes a copy of the string arguments, so
 		 * we don't have to keep them statically allocated.
 		 */
-		if (checker->is_up) {
-			if (checker->rs->smtp_alert) {
+		if (checker->is_up || !checker->has_run) {
+			if (checker->rs->smtp_alert && checker->is_up) {
 				if (format != NULL) {
 					snprintf(error_buff, sizeof(error_buff), "=> CHECK failed on service : %s <=", format);
 					va_start(varg_list, format);
@@ -769,11 +769,11 @@ smtp_connect_thread(thread_t *thread)
 	 * will be reset and we will continue on checking them one by one.
 	 */
 	if ((smtp_checker->host_ptr = list_element(smtp_checker->host, smtp_checker->host_ctr)) == NULL) {
-		if (!checker->is_up) {
+		if (!checker->is_up || !checker->has_run) {
 			log_message(LOG_INFO, "Remote SMTP server %s succeed on service."
 					    , FMT_CHK(checker));
 
-			if (checker->rs->smtp_alert)
+			if (checker->rs->smtp_alert && !checker->is_up)
 				smtp_alert(SMTP_MSG_RS, checker, "UP",
 					   "=> CHECK succeed on service <=");
 			update_svr_checker_state(UP, checker);

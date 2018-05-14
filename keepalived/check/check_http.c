@@ -371,10 +371,10 @@ epilog(thread_t * thread, int method, unsigned t, unsigned c)
 		 * Check completed.
 		 * check if server is currently alive.
 		 */
-		if (!checker->is_up) {
+		if (!checker->is_up || !checker->has_run) {
 			log_message(LOG_INFO, "Remote Web server %s succeed on service."
 					    , FMT_HTTP_RS(checker));
-			if (checker->rs->smtp_alert)
+			if (!checker->is_up && checker->rs->smtp_alert)
 				smtp_alert(SMTP_MSG_RS, checker, "UP",
 					   "=> CHECK succeed on service <=");
 			update_svr_checker_state(UP, checker);
@@ -391,13 +391,17 @@ epilog(thread_t * thread, int method, unsigned t, unsigned c)
 	 * servers.
 	 */
 	else if (method == REGISTER_CHECKER_RETRY && checker->retry_it > checker->retry) {
-		if (checker->is_up) {
-			if (checker->retry)
+		if (checker->is_up || !checker->has_run) {
+			if (checker->has_run && checker->retry)
 				log_message(LOG_INFO
 				   , "Check on service %s failed after %u retry."
 				   , FMT_HTTP_RS(checker)
 				   , checker->retry_it - 1);
-			if (checker->rs->smtp_alert)
+			else
+				log_message(LOG_INFO
+				   , "Check on service %s failed."
+				   , FMT_HTTP_RS(checker));
+			if (checker->is_up && checker->rs->smtp_alert)
 				smtp_alert(SMTP_MSG_RS, checker, "DOWN",
 					   "=> CHECK failed on service"
 					   " : HTTP request failed <=");

@@ -256,13 +256,15 @@ bfd_check_handle_event(bfd_event_t * evt)
 		 * matches the checker up state due to the potential of
 		 * alpha state for some checkers and not others */
 		LIST_FOREACH(cbfd->tracking_rs, checker, e1) {
-			if ((evt->state == BFD_STATE_UP) == checker->is_up)
+			if ((evt->state == BFD_STATE_UP) == checker->is_up &&
+			    !checker->has_run)
 				continue;
 
 			log_message(LOG_INFO, "BFD check of [%s] RS(%s) is %s",
 				    evt->iname, FMT_RS(checker->rs, checker->vs), evt->state == BFD_STATE_UP ? "UP" : "DOWN");
 
-			if (checker->rs->smtp_alert) {
+			if (checker->rs->smtp_alert &&
+			    (evt->state == BFD_STATE_UP) != checker->is_up) {
 				snprintf(message, sizeof(message), "=> BFD CHECK %s %s on service <=", evt->iname, evt->state == BFD_STATE_UP ? "succeeded" : "failed");
 				smtp_alert(SMTP_MSG_RS, checker, evt->state == BFD_STATE_UP ? "UP" : "DOWN", message);
 			}
