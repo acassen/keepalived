@@ -66,7 +66,7 @@
     #if HAVE_DECL_RLIMIT_RTTIME == 1
       #define SIG_MAX SIGXCPU
     #else
-      #define SIG_MAX SIGUSR2
+      #define SIG_MAX SIGCHLD
     #endif
   #else
     /* alpha and sparc */
@@ -202,6 +202,11 @@ signal_set(int signo, void (*func) (void *, int), void *v)
 #ifndef HAVE_SIGNALFD
 	struct sigaction osig;
 #endif
+
+	if ((signo < 1) || (signo > SIG_MAX)) {
+		log_message(LOG_ERR, "BUG - signal %d out of range (1..%d)", signo, SIG_MAX);
+		return;
+	}
 
 	if (func == (void *)SIG_DFL)
 		sigaddset(&dfl_sig, signo);
