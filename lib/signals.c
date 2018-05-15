@@ -202,11 +202,19 @@ signal_set(int signo, void (*func) (void *, int), void *v)
 #ifndef HAVE_SIGNALFD
 	struct sigaction osig;
 #endif
+#ifdef _SIGNAL_DEBUG_
+	static int max_signo = SIG_MAX;
+	static int min_signo = 1;
 
-	if ((signo < 1) || (signo > SIG_MAX)) {
+	if ((signo < min_signo) || (signo > max_signo)) {
 		log_message(LOG_ERR, "BUG - signal %d out of range (1..%d)", signo, SIG_MAX);
+		if (signo > max_signo)
+			max_signo = signo;
+		else
+			min_signo = signo;
 		return;
 	}
+#endif
 
 	if (func == (void *)SIG_DFL)
 		sigaddset(&dfl_sig, signo);
