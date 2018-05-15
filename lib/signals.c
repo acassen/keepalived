@@ -66,7 +66,7 @@
     #if HAVE_DECL_RLIMIT_RTTIME == 1
       #define SIG_MAX SIGXCPU
     #else
-      #define SIG_MAX SIGUSR2
+      #define SIG_MAX SIGCHLD
     #endif
   #else
     /* alpha and sparc */
