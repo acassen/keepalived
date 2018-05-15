@@ -373,19 +373,18 @@ misc_check_child_thread(thread_t * thread)
 			 * the exit status returned.  Effective range is 0..253.
 			 * Catch legacy case of status being 0 but misc_dynamic being set.
 			 */
-			if (misck_checker->dynamic && status != 0)
+			if (status != 0)
 				update_svr_wgt(status - 2, checker->vs,
 					       checker->rs, true);
 
 			/* everything is good */
-			if (!checker->is_up || !misck_checker->initial_state_reported) {
+			if (!checker->is_up || !checker->has_run) {
 				script_exit_type = "succeeded";
 				script_success = true;
-				misck_checker->initial_state_reported = true;
 			}
 
 			checker->retry_it = 0;
-		} else if (checker->is_up) {
+		} else if (checker->is_up || !checker->has_run) {
 			if (checker->retry_it < checker->retry)
 				checker->retry_it++;
 			else {
@@ -408,7 +407,7 @@ misc_check_child_thread(thread_t * thread)
 		}
 
 		/* We treat forced termination as a failure */
-		if (checker->is_up) {
+		if (checker->is_up || !checker->has_run) {
 			if (checker->retry_it < checker->retry)
 				checker->retry_it++;
 			else {
@@ -434,15 +433,17 @@ misc_check_child_thread(thread_t * thread)
 		char message[40];
 
 		if (reason)
-			log_message(LOG_INFO, "Misc check to [%s] for [%s] %s (%s %d)."
-					    , inet_sockaddrtos(&checker->rs->addr)
+			log_message(LOG_INFO, "Misc check for [%s VS %s] by [%s] %s (%s %d)."
+					    , FMT_CHK(checker)
+					    , FMT_VS(checker->vs)
 					    , misck_checker->script.args[0]
 					    , script_exit_type
 					    , reason
 					    , reason_code);
 		else
-			log_message(LOG_INFO, "Misc check to [%s] for [%s] %s."
-					    , inet_sockaddrtos(&checker->rs->addr)
+			log_message(LOG_INFO, "Misc check for [%s VS %s] by [%s] %s."
+					    , FMT_CHK(checker)
+					    , FMT_VS(checker->vs)
 					    , misck_checker->script.args[0]
 					    , script_exit_type);
 

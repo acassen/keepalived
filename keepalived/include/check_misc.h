@@ -38,7 +38,6 @@ typedef struct _misc_checker {
 	unsigned long		timeout;
 	bool			dynamic;	/* false: old-style, true: exit code from checker affects weight */
 	script_state_t		state;		/* current state of script */
-	bool			initial_state_reported;
 	timeval_t		last_ran;	/* Time script last ran */
 } misc_checker_t;
 

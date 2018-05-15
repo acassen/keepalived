@@ -195,6 +195,9 @@ typedef struct _data {
 	unsigned			lvs_netlink_monitor_rcv_bufs;
 	bool				lvs_netlink_monitor_rcv_bufs_force;
 #endif
+#ifdef _WITH_LVS_
+	bool				rs_init_notifies;
+#endif
 } data_t;
 
 /* Global vars exported */

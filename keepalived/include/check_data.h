@@ -73,7 +73,7 @@ typedef struct _real_server {
 							 */
 	notify_script_t			*notify_up;	/* Script to launch when RS is added to LVS */
 	notify_script_t			*notify_down;	/* Script to launch when RS is removed from LVS */
-	int				alpha;		/* 1 if alpha mode is default. */
+	int				alpha;		/* true if alpha mode is default. */
 	unsigned long			delay_loop;	/* Interval between running checker */
 	unsigned long			warmup;		/* max random timeout to start checker */
 	unsigned			retry;		/* number of retries before failing */

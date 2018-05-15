@@ -109,6 +109,7 @@ dns_final(thread_t * thread, int error, const char *fmt, ...)
 {
 	char buf[MAX_LOG_MSG];
 	va_list args;
+	int len;
 
 	checker_t *checker = THREAD_ARG(thread);
 
@@ -118,13 +119,7 @@ dns_final(thread_t * thread, int error, const char *fmt, ...)
 	close(thread->u.fd);
 
 	if (error) {
-		if (checker->is_up) {
-			if (fmt) {
-				va_start(args, fmt);
-				vsnprintf(buf, sizeof (buf), fmt, args);
-				dns_log_message(thread, LOG_INFO, buf);
-				va_end(args);
-			}
+		if (checker->is_up || !checker->has_run) {
 			if (checker->retry_it < checker->retry) {
 				checker->retry_it++;
 				thread_add_timer(thread->master,
@@ -132,14 +127,22 @@ dns_final(thread_t * thread, int error, const char *fmt, ...)
 						 checker->delay_before_retry);
 				return 0;
 			}
+			if (fmt) {
+				va_start(args, fmt);
+				len = vsnprintf(buf, sizeof (buf), fmt, args);
+				va_end(args);
+				if (checker->has_run && checker->retry)
+					snprintf(buf + len, sizeof(buf) - len, " after %d retries", checker->retry);
+				dns_log_message(thread, LOG_INFO, buf);
+			}
 			update_svr_checker_state(DOWN, checker);
-			if (checker->rs->smtp_alert)
+			if (checker->is_up && checker->rs->smtp_alert)
 				smtp_alert(SMTP_MSG_RS, checker, "DOWN",
 					   "=> DNS_CHECK: failed on service <=");
 		}
 	} else {
-		if (!checker->is_up) {
-			if (checker->rs->smtp_alert)
+		if (!checker->is_up || !checker->has_run) {
+			if (!checker->is_up && checker->rs->smtp_alert)
 				smtp_alert(SMTP_MSG_RS, checker, "UP",
 					   "=> DNS_CHECK: succeed on service <=");
 			update_svr_checker_state(UP, checker);
@@ -166,7 +169,7 @@ dns_recv_thread(thread_t * thread)
 	dns_check_t *dns_check = CHECKER_ARG(checker);
 
 	if (thread->type == THREAD_READ_TIMEOUT) {
-		dns_final(thread, 1, "read timeout from socket.");
+		dns_final(thread, 1, "read timeout from socket");
 		return 0;
 	}
 
@@ -179,7 +182,7 @@ dns_recv_thread(thread_t * thread)
 					checker, thread->u.fd, timeout);
 			return 0;
 		}
-		dns_final(thread, 1, "failed to read socket. %s.", strerror(errno));
+		dns_final(thread, 1, "failed to read socket. %s", strerror(errno));
 		return 0;
 	}
 

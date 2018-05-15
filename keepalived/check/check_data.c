@@ -809,10 +809,15 @@ bool validate_check_config(void)
 			}
 		}
 
-		/* In Alpha mode also mark the checker as failed. */
-		if (checker->alpha) {
-			set_checker_state(checker, false);
-			UNSET_ALIVE(checker->rs);
+		/* In Alpha mode also mark the checker as failed, unless we are reloading and it has already run. */
+		if (!checker->has_run) {
+			if (checker->alpha) {
+				set_checker_state(checker, false);
+				UNSET_ALIVE(checker->rs);
+			} else {
+				/* For non alpha mode, one failure is enough initially */
+				checker->retry_it = checker->retry;
+			}
 		}
 	}
 
