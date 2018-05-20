@@ -1448,7 +1448,7 @@ check_snmp_agent_close()
 }
 
 void
-check_snmp_rs_trap(real_server_t *rs, virtual_server_t *vs)
+check_snmp_rs_trap(real_server_t *rs, virtual_server_t *vs, bool stopping)
 {
 	element e;
 
@@ -1610,7 +1610,7 @@ check_snmp_rs_trap(real_server_t *rs, virtual_server_t *vs)
 				  (u_char *)&vsprotocol,
 				  sizeof(vsprotocol));
 	if (!rs) {
-		quorumstatus = vs->quorum_state_up ? 1 : 2;
+		quorumstatus = stopping ? 3 : vs->quorum_state_up ? 1 : 2;
 		snmp_varlist_add_variable(&notification_vars,
 					  quorumstatus_oid, quorumstatus_oid_len,
 					  ASN_INTEGER,
@@ -1646,7 +1646,7 @@ check_snmp_rs_trap(real_server_t *rs, virtual_server_t *vs)
 }
 
 void
-check_snmp_quorum_trap(virtual_server_t *vs)
+check_snmp_quorum_trap(virtual_server_t *vs, bool stopping)
 {
-	check_snmp_rs_trap(NULL, vs);
+	check_snmp_rs_trap(NULL, vs, stopping);
 }

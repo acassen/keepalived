@@ -148,7 +148,7 @@ do_vs_notifies(virtual_server_t* vs, bool init, long threshold, long weight_sum,
 	}
 
 #ifdef _WITH_SNMP_CHECKER_
-	check_snmp_quorum_trap(vs);
+	check_snmp_quorum_trap(vs, stopping);
 #endif
 }
 
@@ -170,7 +170,7 @@ do_rs_notifies(virtual_server_t* vs, real_server_t* rs, bool stopping)
 	 * so that the message can have context for the checker */
 
 #ifdef _WITH_SNMP_CHECKER_
-	check_snmp_rs_trap(rs, vs);
+	check_snmp_rs_trap(rs, vs, stopping);
 #endif
 }
 
@@ -186,13 +186,15 @@ clear_service_rs(virtual_server_t * vs, list l, bool stopping)
 	smtp_rs rs_info = { .vs = vs };
 
 	LIST_FOREACH(l, rs, e) {
-		if (!rs->set)
-			continue;
-
-		log_message(LOG_INFO, "Removing %sservice %s from VS %s",
+		if (rs->set || stopping)
+			log_message(LOG_INFO, "%s %sservice %s from VS %s",
+					stopping ? "Shutting down" : "Removing",
 					rs->inhibit && !rs->alive ? "(inhibited) " : "",
 					FMT_RS(rs, vs),
 					FMT_VS(vs));
+
+		if (!rs->set)
+			continue;
 
 		/* Force removal of real servers with inhibit_on_failure set */
 		sav_inhibit = rs->inhibit;
@@ -202,12 +204,15 @@ clear_service_rs(virtual_server_t * vs, list l, bool stopping)
 
 		rs->inhibit = sav_inhibit;	/* Restore inhibit flag */
 
+		if (!rs->alive)
+			continue;
+
 		UNSET_ALIVE(rs);
 
 		/* We always want to send SNMP messages on shutdown */
 		if (!vs->omega) {
 #ifdef _WITH_SNMP_CHECKER_
-			check_snmp_rs_trap(rs, vs);
+			check_snmp_rs_trap(rs, vs, true);
 #endif
 			continue;
 		}
@@ -220,7 +225,7 @@ clear_service_rs(virtual_server_t * vs, list l, bool stopping)
 		/* Send SMTP alert */
 		if (rs->smtp_alert) {
 			rs_info.rs = rs;
-			smtp_alert(SMTP_MSG_RS_SHUT, &rs_info, "DOWN", "=> Shutting down <=");
+			smtp_alert(SMTP_MSG_RS_SHUT, &rs_info, "DOWN", stopping ? "=> Shutting down <=" : "=> Removing <=");
 		}
 	}
 
@@ -229,8 +234,9 @@ clear_service_rs(virtual_server_t * vs, list l, bool stopping)
 	 * is intended.
 	 */
 	weight_sum = weigh_live_realservers(vs);
-	if (vs->quorum_state_up &&
-	    (!weight_sum || weight_sum < threshold)) {
+	if (stopping ||
+	    (vs->quorum_state_up &&
+	     (!weight_sum || weight_sum < threshold))) {
 		vs->quorum_state_up = false;
 		do_vs_notifies(vs, false, threshold, weight_sum, stopping);
 	}
