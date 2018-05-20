@@ -159,6 +159,7 @@ Beta branch 2017-10-29 Quentin Armitage <quentin@armitage.org.uk>
 	  sequence number checking for VMACs and sync groups
 	* Remove autoconf/automake generated files from git repo.
 	    Script build_setup will create the necessary build environment.
+	* Improve and standardise notifications
 
 2018-05-08 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.4.4 released.

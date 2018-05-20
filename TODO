@@ -35,6 +35,8 @@ development:
 	* Only send correct type of trap, and respond to correct SNMP version,
 	  controlled by config, defaults to type of instance. Flags snmp_v2 and
 	  snmp_v3 to force other, or both.
+	* Add config option for smtp_alert for checker up/down as opposed to
+	  RS up/down
 
 
 Other issues awaiting resolution:
