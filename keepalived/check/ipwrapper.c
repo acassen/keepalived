@@ -134,16 +134,19 @@ do_vs_notifies(virtual_server_t* vs, bool init, long threshold, long weight_sum,
 	notify_fifo_vs(vs);
 
 	if (vs->smtp_alert) {
-		snprintf(message, sizeof(message), "=> %s %u+%u=%ld <= %ld <=",
-			    vs->quorum_state_up ?
-					   init ? "Starting with quorum up" :
-						  "Gained quorum" :
-					   init ? "Starting with quorum down" :
-						  "Lost quorum",
-			    vs->quorum,
-			    vs->hysteresis,
-			    threshold,
-			    weight_sum);
+		if (stopping)
+			snprintf(message, sizeof(message), "=> Shutting down <=");
+		else
+			snprintf(message, sizeof(message), "=> %s %u+%u=%ld <= %ld <=",
+				    vs->quorum_state_up ?
+						   init ? "Starting with quorum up" :
+							  "Gained quorum" :
+						   init ? "Starting with quorum down" :
+							  "Lost quorum",
+				    vs->quorum,
+				    vs->hysteresis,
+				    threshold,
+				    weight_sum);
 		smtp_alert(SMTP_MSG_VS, vs, vs->quorum_state_up ? "UP" : "DOWN", message);
 	}
 
