@@ -92,12 +92,12 @@ in the value will then be replaced; the substitution is done at replacement
 time and not at definition time, so for example:
 .PP
 $ADDRESS_BASE=10.2.${ADDRESS_BASE_SUB}
-$ADDRESS_BASE_SUB=0
+ $ADDRESS_BASE_SUB=0
     ${ADDRESS_BASE}.100/32
-$ADDRESS_BASE_SUB=10
+ $ADDRESS_BASE_SUB=10
     ${ADDRESS_BASE}.100/32
 .PP
-will produce:
+  will produce:
     10.2.0.100/32
     10.2.10.100/32
 .PP
@@ -127,31 +127,24 @@ will produce:
     vrrp_instance VI_0 {
         priority 240
     }
+  if the config_id is main.
 .PP
-if the config_id is main.
-.PP
-    $IF_MAIN=@main
-    $IF_MAIN priority 240
-.PP
-will produce:
-.PP
+ $IF_MAIN=@main
+ $IF_MAIN priority 240
+  will produce:
     priority 240
-.PP
-if the config_id is main and nothing if the config_id is not main, although
+  if the config_id is main and nothing if the config_id is not main, although
 why anyone would want to use this rather than simply
-.PP
     @main priority 240
-.PP
-is not known.
+  is not known.
 .PP
 Multiline definitions are also supported, but when used there must be nothing on
 the line after the parameter name. A multiline definition is specified by ending
-each line except the last with a '\' character.
+each line except the last with a '\\' character.
 .PP
 Example:
-.PP
-$INSTANCE= \e
-vrrp_instance VI_${NUM} { \e
+ $INSTANCE= \e
+  vrrp_instance VI_${NUM} { \e
     interface eth0.${NUM} \e
     use_vmac vrrp${NUM}.1 \e
     virtual_router_id 1 \e
@@ -171,6 +164,47 @@ vrrp_instance VI_${NUM} { \e
 .PP
  $NUM=1
  $INSTANCE
+.PP
+The use of multiline definitions can be nested.
+.PP
+Example:
+ $RS= \e
+  real_server 192.168.${VS_NUM}.${RS_NUM} 80 { \e
+    weight 1 \e
+    inhibit_on_failure \e
+    smtp_alert \e
+    MISC_CHECK { \e
+        misc_path "${_PWD}/scripts/vs.sh RS_misc.${INST}.${VS_NUM}.${RS_NUM}.0 10.0.${VS_NUM}.4:80->192.168.${VS_NUM}.${RS_NUM}:80" \e
+    } \e
+    MISC_CHECK { \e
+        misc_path "${_PWD}/scripts/vs.sh RS_misc.${INST}.${VS_NUM}.${RS_NUM}.1 10.0.${VS_NUM}.4:80->192.168.${VS_NUM}.${RS_NUM}:80" \e
+    } \e
+    notify_up "${_PWD}/scripts/notify.sh RS_notify.${INST}.${VS_NUM}.${RS_NUM} UP 10.0.${VS_NUM}.4:80->192.168.${VS_NUM}.${RS_NUM}:80" \e
+    notify_down "${_PWD}/scripts/notify.sh RS_notify.${INST}.${VS_NUM}.${RS_NUM} DOWN 10.0.${VS_NUM}.4:80->192.168.${VS_NUM}.${RS_NUM}:80" \e
+  }
+
+ $VS= \e
+   virtual_server 10.0.${VS_NUM}.4 80 { \e
+     quorum 2 \e
+     quorum_up "${_PWD}/scripts/notify.sh VS_notify.${INST} UP 10.0.${VS_NUM}.4:80" \e
+     quorum_down "${_PWD}/scripts/notify.sh VS_notify.${INST} DOWN 10.0.${VS_NUM}.4:80" \e
+     $RS_NUM=1 \e
+     $RS \e
+     $RS_NUM=2 \e
+     $RS \e
+     $RS_NUM=3 \e
+     $RS \e
+   }
+
+ $VS_NUM=0
+ $ALPHA=alpha
+ $VS
+
+ $VS_NUM=1
+ $ALPHA=
+ $VS
+.PP
+The above will create 2 virtual servers, each with 3 real servers
 .SH Pre-defined definitions
 The following pre-defined definitions are defined:
 .PP

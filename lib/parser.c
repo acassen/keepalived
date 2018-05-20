@@ -75,6 +75,7 @@ static vector_t *current_keywords;
 static FILE *current_stream;
 static int sublevel = 0;
 static int skip_sublevel = 0;
+static list multiline_stack;
 
 /* Parameter definitions */
 static list defs;
@@ -661,7 +662,7 @@ find_definition(const char *name, size_t len, bool definition)
 }
 
 static char *
-replace_param(char *buf, size_t max_len, bool in_multiline)
+replace_param(char *buf, size_t max_len, char *multiline_ptr)
 {
 	char *cur_pos = buf;
 	size_t len_used = strlen(buf);
@@ -675,12 +676,14 @@ replace_param(char *buf, size_t max_len, bool in_multiline)
 	while ((cur_pos = strchr(cur_pos, '$')) && cur_pos[1] != '\0') {
 		if ((def = find_definition(cur_pos + 1, 0, false))) {
 			extra_braces = cur_pos[1] == BOB[0] ? 2 : 0;
+			next_ptr = multiline_ptr;
 
-			/* We can't handle nest multiline definitions */
-			if (def->multiline && in_multiline) {
-				log_message(LOG_INFO, "Expansion of multiline definition within multiline definitions not supported");
-				cur_pos += def->name_len + 1 + extra_braces;
-				continue;
+			/* We are in a multiline expansion, and now have another
+			 * one, so save the previous state on the multiline stack */
+			if (def->multiline && multiline_ptr) {
+				if (!LIST_EXISTS(multiline_stack))
+					multiline_stack = alloc_list(NULL, NULL);
+				list_add(multiline_stack, multiline_ptr);
 			}
 
 			if (def->fn) {
@@ -694,8 +697,8 @@ replace_param(char *buf, size_t max_len, bool in_multiline)
 			/* Ensure there is enough room to replace $PARAM or ${PARAM} with value */
 			if (def->multiline) {
 				replacing_len = strcspn(def->value, DEF_LINE_END);
-				in_multiline = true;
 				next_ptr = def->value + replacing_len + 1;
+				multiline_ptr = next_ptr;
 			}
 			else
 				replacing_len = def->value_len;
@@ -851,12 +854,13 @@ set_std_definitions(void)
 }
 
 static void
-free_definitions(void)
+free_parser_data(void)
 {
-	if (LIST_EXISTS(defs)) {
+	if (LIST_EXISTS(defs))
 		free_list(&defs);
-		defs = NULL;
-	}
+
+	if (LIST_EXISTS(multiline_stack))
+		free_list(&multiline_stack);
 }
 
 static bool
@@ -875,7 +879,6 @@ read_line(char *buf, size_t size)
 	bool multiline_param_def = false;
 	char *new_str;
 	char *end;
-	char *next_ptr1;
 	static char *line_residue = NULL;
 	size_t skip;
 	char *p;
@@ -894,7 +897,12 @@ read_line(char *buf, size_t size)
 			end = strchr(next_ptr, DEF_LINE_END[0]);
 			if (!end) {
 				strcpy(buf, next_ptr);
-				next_ptr = NULL;
+				if (!LIST_ISEMPTY(multiline_stack)) {
+					next_ptr = LIST_TAIL_DATA(multiline_stack);
+					list_remove(multiline_stack, multiline_stack->tail);
+				}
+				else
+					next_ptr = NULL;
 			} else {
 				strncpy(buf, next_ptr, (size_t)(end - next_ptr));
 				buf[end - next_ptr] = '\0';
@@ -1000,9 +1008,7 @@ read_line(char *buf, size_t size)
 			}
 
 			if (!LIST_ISEMPTY(defs) && strchr(text_start, '$')) {
-				next_ptr1 = replace_param(buf, size, !!next_ptr);
-				if (!next_ptr)
-					next_ptr = next_ptr1;
+				next_ptr = replace_param(buf, size, next_ptr);
 				text_start += strspn(text_start, " \t");
 				if (text_start[0] == '@')
 					recheck = true;
@@ -1040,6 +1046,7 @@ read_line(char *buf, size_t size)
 		}
 	}
 
+log_message(LOG_INFO, "Next line: %s", buf);
 	return !eof;
 }
 
@@ -1193,7 +1200,7 @@ init_data(const char *conf_file, vector_t * (*init_keywords) (void))
 	endpwent();
 
 	free_keywords(keywords);
-	free_definitions();
+	free_parser_data();
 	clear_rt_names();
 	notify_resource_release();
 }

@@ -200,6 +200,49 @@ $INSTANCE
 $NUM=1
 $INSTANCE
 
+The use of multiline definitions can be nested.
+
+Example:
+
+$RS= \
+  real_server 192.168.${VS_NUM}.${RS_NUM} 80 { \
+    weight 1 \
+    inhibit_on_failure \
+    smtp_alert \
+    MISC_CHECK { \
+	misc_path "${_PWD}/scripts/vs.sh RS_misc.${INST}.${VS_NUM}.${RS_NUM}.0 10.0.${VS_NUM}.4:80->192.168.${VS_NUM}.${RS_NUM}:80" \
+    } \
+    MISC_CHECK { \
+        misc_path "${_PWD}/scripts/vs.sh RS_misc.${INST}.${VS_NUM}.${RS_NUM}.1 10.0.${VS_NUM}.4:80->192.168.${VS_NUM}.${RS_NUM}:80" \
+    } \
+    notify_up "${_PWD}/scripts/notify.sh RS_notify.${INST}.${VS_NUM}.${RS_NUM} UP 10.0.${VS_NUM}.4:80->192.168.${VS_NUM}.${RS_NUM}:80" \
+    notify_down "${_PWD}/scripts/notify.sh RS_notify.${INST}.${VS_NUM}.${RS_NUM} DOWN 10.0.${VS_NUM}.4:80->192.168.${VS_NUM}.${RS_NUM}:80" \
+  }
+
+$VS= \
+virtual_server 10.0.${VS_NUM}.4 80 { \
+  quorum 2 \
+  quorum_up "${_PWD}/scripts/notify.sh VS_notify.${INST} UP 10.0.${VS_NUM}.4:80" \
+  quorum_down "${_PWD}/scripts/notify.sh VS_notify.${INST} DOWN 10.0.${VS_NUM}.4:80" \
+$RS_NUM=1 \
+$RS \
+$RS_NUM=2 \
+$RS \
+$RS_NUM=3 \
+$RS \
+}
+
+$VS_NUM=0
+$ALPHA=alpha
+$VS
+
+$VS_NUM=1
+$ALPHA=
+$VS
+
+The above will create 2 virtual servers, each with 3 real servers
+
+
 0.5.1 Pre-defined definitions
 
 The following pre-defined definitions are defined:
