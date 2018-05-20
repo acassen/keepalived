@@ -530,6 +530,16 @@ init_service_vs(virtual_server_t * vs)
 	/* also update, in case we need the sorry server in alpha mode */
 	update_quorum_state(vs, true);
 
+	/* If we have a sorry server with inhibit, add it now */
+	if (vs->s_svr && vs->s_svr->inhibit && !vs->s_svr->set) {
+		/* Make sure the sorry server is configured with weight 0 */
+		vs->s_svr->num_failed_checkers = 1;
+
+		ipvs_cmd(LVS_CMD_ADD_DEST, vs, vs->s_svr);
+
+		vs->s_svr->num_failed_checkers = 0;
+	}
+
 	return true;
 }
 
