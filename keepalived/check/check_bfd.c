@@ -238,6 +238,7 @@ bfd_check_handle_event(bfd_event_t * evt)
 	checker_tracked_bfd_t *cbfd;
 	checker_t *checker;
 	char message[80];
+	bool checker_was_up;
 
 	if (__test_bit(LOG_DETAIL_BIT, &debug)) {
 		time_now = timer_now();
@@ -269,12 +270,13 @@ bfd_check_handle_event(bfd_event_t * evt)
 			log_message(LOG_INFO, "BFD check of [%s] RS(%s) is %s",
 				    evt->iname, FMT_RS(checker->rs, checker->vs), evt->state == BFD_STATE_UP ? "UP" : "DOWN");
 
-			if (checker->rs->smtp_alert &&
-			    (evt->state == BFD_STATE_UP) != checker->is_up) {
-				snprintf(message, sizeof(message), "=> BFD CHECK %s %s on service <=", evt->iname, evt->state == BFD_STATE_UP ? "succeeded" : "failed");
-				smtp_alert(SMTP_MSG_RS, checker, evt->state == BFD_STATE_UP ? "UP" : "DOWN", message);
-			}
+			checker_was_up = checker->is_up;
 			update_svr_checker_state(evt->state == BFD_STATE_UP ? UP : DOWN, checker);
+			if (checker->rs->smtp_alert &&
+			    (evt->state == BFD_STATE_UP) != checker_was_up) {
+				snprintf(message, sizeof(message), "=> BFD CHECK %s %s on service <=", evt->iname, evt->state == BFD_STATE_UP ? "succeeded" : "failed");
+				smtp_alert(SMTP_MSG_RS, checker, NULL, message);
+			}
 		}
 		break;
 	}

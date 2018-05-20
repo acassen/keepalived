@@ -645,7 +645,7 @@ smtp_alert(smtp_msg_t msg_type, void* data, const char *subject, const char *bod
 					global_data->router_id,
 					FMT_RS(checker->rs, checker->vs),
 					FMT_VS(checker->vs),
-					subject);
+					checker->rs->alive ? "UP" : "DOWN");
 	}
 	else if (msg_type == SMTP_MSG_VS) {
 		vs = (virtual_server_t *)data;

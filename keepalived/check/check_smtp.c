@@ -280,6 +280,7 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 	char error_buff[512];
 	char smtp_buff[542];
 	va_list varg_list;
+	bool checker_was_up;
 
 	/* Error or no error we should always have to close the socket */
 	close(thread->u.fd);
@@ -321,7 +322,9 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 		 * we don't have to keep them statically allocated.
 		 */
 		if (checker->is_up || !checker->has_run) {
-			if (checker->rs->smtp_alert && checker->is_up) {
+			checker_was_up = checker->is_up;
+			update_svr_checker_state(DOWN, checker);
+			if (checker->rs->smtp_alert && checker_was_up) {
 				if (format != NULL) {
 					snprintf(error_buff, sizeof(error_buff), "=> CHECK failed on service : %s <=", format);
 					va_start(varg_list, format);
@@ -331,10 +334,8 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 					strncpy(smtp_buff, "=> CHECK failed on service <=", sizeof(smtp_buff));
 
 				smtp_buff[sizeof(smtp_buff) - 1] = '\0';
-				smtp_alert(SMTP_MSG_RS, checker, "DOWN", smtp_buff);
+				smtp_alert(SMTP_MSG_RS, checker, NULL, smtp_buff);
 			}
-
-			update_svr_checker_state(DOWN, checker);
 		}
 
 		/* Reset everything back to the first host in the list */
@@ -724,6 +725,7 @@ smtp_connect_thread(thread_t *thread)
 	conn_opts_t *smtp_host;
 	enum connect_result status;
 	int sd;
+	bool checker_was_up;
 
 	/* Let's review our data structures.
 	 *
@@ -773,10 +775,11 @@ smtp_connect_thread(thread_t *thread)
 			log_message(LOG_INFO, "Remote SMTP server %s succeed on service."
 					    , FMT_CHK(checker));
 
-			if (checker->rs->smtp_alert && !checker->is_up)
-				smtp_alert(SMTP_MSG_RS, checker, "UP",
-					   "=> CHECK succeed on service <=");
+			checker_was_up = checker->is_up;
 			update_svr_checker_state(UP, checker);
+			if (checker->rs->smtp_alert && !checker_was_up)
+				smtp_alert(SMTP_MSG_RS, checker, NULL,
+					   "=> CHECK succeed on service <=");
 		}
 
 		checker->retry_it = 0;
