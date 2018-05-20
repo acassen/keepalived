@@ -110,6 +110,7 @@ dns_final(thread_t * thread, int error, const char *fmt, ...)
 	char buf[MAX_LOG_MSG];
 	va_list args;
 	int len;
+	bool checker_was_up;
 
 	checker_t *checker = THREAD_ARG(thread);
 
@@ -135,17 +136,19 @@ dns_final(thread_t * thread, int error, const char *fmt, ...)
 					snprintf(buf + len, sizeof(buf) - len, " after %d retries", checker->retry);
 				dns_log_message(thread, LOG_INFO, buf);
 			}
+			checker_was_up = checker->is_up;
 			update_svr_checker_state(DOWN, checker);
-			if (checker->is_up && checker->rs->smtp_alert)
-				smtp_alert(SMTP_MSG_RS, checker, "DOWN",
+			if (checker_was_up && checker->rs->smtp_alert)
+				smtp_alert(SMTP_MSG_RS, checker, NULL,
 					   "=> DNS_CHECK: failed on service <=");
 		}
 	} else {
 		if (!checker->is_up || !checker->has_run) {
-			if (!checker->is_up && checker->rs->smtp_alert)
-				smtp_alert(SMTP_MSG_RS, checker, "UP",
-					   "=> DNS_CHECK: succeed on service <=");
+			checker_was_up = checker->is_up;
 			update_svr_checker_state(UP, checker);
+			if (!checker_was_up && checker->rs->smtp_alert)
+				smtp_alert(SMTP_MSG_RS, checker, NULL,
+					   "=> DNS_CHECK: succeed on service <=");
 		}
 	}
 

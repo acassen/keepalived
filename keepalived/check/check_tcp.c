@@ -95,6 +95,7 @@ tcp_epilog(thread_t * thread, bool is_success)
 {
 	checker_t *checker;
 	unsigned long delay;
+	bool checker_was_up;
 
 	checker = THREAD_ARG(thread);
 
@@ -105,10 +106,11 @@ tcp_epilog(thread_t * thread, bool is_success)
 		if (is_success && (!checker->is_up || !checker->has_run)) {
 			log_message(LOG_INFO, "TCP connection to %s success."
 					, FMT_TCP_RS(checker));
-			if (checker->rs->smtp_alert && is_success)
-				smtp_alert(SMTP_MSG_RS, checker, "UP",
-					   "=> TCP CHECK succeed on service <=");
+			checker_was_up = checker->is_up;
 			update_svr_checker_state(UP, checker);
+			if (checker->rs->smtp_alert && !checker_was_up)
+				smtp_alert(SMTP_MSG_RS, checker, NULL,
+					   "=> TCP CHECK succeed on service <=");
 		} else if (!is_success && 
 			   (checker->is_up || !checker->has_run)) {
 			if (checker->retry)
@@ -120,10 +122,11 @@ tcp_epilog(thread_t * thread, bool is_success)
 				log_message(LOG_INFO
 				    , "Check on service %s failed."
 				    , FMT_TCP_RS(checker));
-			if (checker->rs->smtp_alert && !is_success)
-				smtp_alert(SMTP_MSG_RS, checker, "DOWN",
-					   "=> TCP CHECK failed on service <=");
+			checker_was_up = checker->is_up;
 			update_svr_checker_state(DOWN, checker);
+			if (checker->rs->smtp_alert && checker_was_up)
+				smtp_alert(SMTP_MSG_RS, checker, NULL,
+					   "=> TCP CHECK failed on service <=");
 		}
 	} else {
 		delay = checker->delay_before_retry;

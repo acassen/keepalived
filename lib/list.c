@@ -59,24 +59,30 @@ list_add(list l, void *data)
 }
 
 void
+list_remove(list l, element e)
+{
+	if (e->prev)
+		e->prev->next = e->next;
+	else
+		l->head = e->next;
+
+	if (e->next)
+		e->next->prev = e->prev;
+	else
+		l->tail = e->prev;
+
+	l->count--;
+	FREE(e);
+}
+
+void
 list_del(list l, void *data)
 {
 	element e;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		if (ELEMENT_DATA(e) == data) {
-			if (e->prev)
-				e->prev->next = e->next;
-			else
-				l->head = e->next;
-
-			if (e->next)
-				e->next->prev = e->prev;
-			else
-				l->tail = e->prev;
-
-			l->count--;
-			FREE(e);
+			list_remove(l, e);
 			return;
 		}
 	}

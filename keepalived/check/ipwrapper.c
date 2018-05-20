@@ -134,21 +134,24 @@ do_vs_notifies(virtual_server_t* vs, bool init, long threshold, long weight_sum,
 	notify_fifo_vs(vs);
 
 	if (vs->smtp_alert) {
-		snprintf(message, sizeof(message), "=> %s %u+%u=%ld <= %ld <=",
-			    vs->quorum_state_up ?
-					   init ? "Starting with quorum up" :
-						  "Gained quorum" :
-					   init ? "Starting with quorum down" :
-						  "Lost quorum",
-			    vs->quorum,
-			    vs->hysteresis,
-			    threshold,
-			    weight_sum);
+		if (stopping)
+			snprintf(message, sizeof(message), "=> Shutting down <=");
+		else
+			snprintf(message, sizeof(message), "=> %s %u+%u=%ld <= %ld <=",
+				    vs->quorum_state_up ?
+						   init ? "Starting with quorum up" :
+							  "Gained quorum" :
+						   init ? "Starting with quorum down" :
+							  "Lost quorum",
+				    vs->quorum,
+				    vs->hysteresis,
+				    threshold,
+				    weight_sum);
 		smtp_alert(SMTP_MSG_VS, vs, vs->quorum_state_up ? "UP" : "DOWN", message);
 	}
 
 #ifdef _WITH_SNMP_CHECKER_
-	check_snmp_quorum_trap(vs);
+	check_snmp_quorum_trap(vs, stopping);
 #endif
 }
 
@@ -170,7 +173,7 @@ do_rs_notifies(virtual_server_t* vs, real_server_t* rs, bool stopping)
 	 * so that the message can have context for the checker */
 
 #ifdef _WITH_SNMP_CHECKER_
-	check_snmp_rs_trap(rs, vs);
+	check_snmp_rs_trap(rs, vs, stopping);
 #endif
 }
 
@@ -186,13 +189,15 @@ clear_service_rs(virtual_server_t * vs, list l, bool stopping)
 	smtp_rs rs_info = { .vs = vs };
 
 	LIST_FOREACH(l, rs, e) {
-		if (!rs->set)
-			continue;
-
-		log_message(LOG_INFO, "Removing %sservice %s from VS %s",
+		if (rs->set || stopping)
+			log_message(LOG_INFO, "%s %sservice %s from VS %s",
+					stopping ? "Shutting down" : "Removing",
 					rs->inhibit && !rs->alive ? "(inhibited) " : "",
 					FMT_RS(rs, vs),
 					FMT_VS(vs));
+
+		if (!rs->set)
+			continue;
 
 		/* Force removal of real servers with inhibit_on_failure set */
 		sav_inhibit = rs->inhibit;
@@ -202,12 +207,15 @@ clear_service_rs(virtual_server_t * vs, list l, bool stopping)
 
 		rs->inhibit = sav_inhibit;	/* Restore inhibit flag */
 
+		if (!rs->alive)
+			continue;
+
 		UNSET_ALIVE(rs);
 
 		/* We always want to send SNMP messages on shutdown */
 		if (!vs->omega) {
 #ifdef _WITH_SNMP_CHECKER_
-			check_snmp_rs_trap(rs, vs);
+			check_snmp_rs_trap(rs, vs, true);
 #endif
 			continue;
 		}
@@ -220,7 +228,7 @@ clear_service_rs(virtual_server_t * vs, list l, bool stopping)
 		/* Send SMTP alert */
 		if (rs->smtp_alert) {
 			rs_info.rs = rs;
-			smtp_alert(SMTP_MSG_RS_SHUT, &rs_info, "DOWN", "=> Shutting down <=");
+			smtp_alert(SMTP_MSG_RS_SHUT, &rs_info, "DOWN", stopping ? "=> Shutting down <=" : "=> Removing <=");
 		}
 	}
 
@@ -229,8 +237,9 @@ clear_service_rs(virtual_server_t * vs, list l, bool stopping)
 	 * is intended.
 	 */
 	weight_sum = weigh_live_realservers(vs);
-	if (vs->quorum_state_up &&
-	    (!weight_sum || weight_sum < threshold)) {
+	if (stopping ||
+	    (vs->quorum_state_up &&
+	     (!weight_sum || weight_sum < threshold))) {
 		vs->quorum_state_up = false;
 		do_vs_notifies(vs, false, threshold, weight_sum, stopping);
 	}
@@ -520,6 +529,16 @@ init_service_vs(virtual_server_t * vs)
 	/* we may have got/lost quorum due to quorum setting changed */
 	/* also update, in case we need the sorry server in alpha mode */
 	update_quorum_state(vs, true);
+
+	/* If we have a sorry server with inhibit, add it now */
+	if (vs->s_svr && vs->s_svr->inhibit && !vs->s_svr->set) {
+		/* Make sure the sorry server is configured with weight 0 */
+		vs->s_svr->num_failed_checkers = 1;
+
+		ipvs_cmd(LVS_CMD_ADD_DEST, vs, vs->s_svr);
+
+		vs->s_svr->num_failed_checkers = 0;
+	}
 
 	return true;
 }

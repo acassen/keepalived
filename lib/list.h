@@ -63,6 +63,7 @@ extern void free_list_element(list l, element e);
 extern void *list_element(list l, size_t num);
 extern void dump_list(FILE *, list l);
 extern void list_add(list l, void *data);
+extern void list_remove(list l, element);
 extern void list_del(list l, void *data);
 extern list alloc_mlist(void (*free_func) (void *), void (*dump_func) (FILE *, void *), size_t size);
 extern void free_mlist(list l, size_t size);

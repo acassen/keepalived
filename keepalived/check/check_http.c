@@ -362,6 +362,7 @@ epilog(thread_t * thread, int method, unsigned t, unsigned c)
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
 	request_t *req = http_get_check->req;
 	unsigned long delay = 0;
+	bool checker_was_up;
 
 	http_get_check->url_it += t ? t : -http_get_check->url_it;
 	checker->retry_it += c ? c : -checker->retry_it;
@@ -374,10 +375,11 @@ epilog(thread_t * thread, int method, unsigned t, unsigned c)
 		if (!checker->is_up || !checker->has_run) {
 			log_message(LOG_INFO, "Remote Web server %s succeed on service."
 					    , FMT_HTTP_RS(checker));
-			if (!checker->is_up && checker->rs->smtp_alert)
-				smtp_alert(SMTP_MSG_RS, checker, "UP",
-					   "=> CHECK succeed on service <=");
+			checker_was_up = checker->is_up;
 			update_svr_checker_state(UP, checker);
+			if (!checker_was_up && checker->rs->smtp_alert)
+				smtp_alert(SMTP_MSG_RS, checker, NULL,
+					   "=> CHECK succeed on service <=");
 		}
 
 		/* Reset it counters */
@@ -401,11 +403,12 @@ epilog(thread_t * thread, int method, unsigned t, unsigned c)
 				log_message(LOG_INFO
 				   , "Check on service %s failed."
 				   , FMT_HTTP_RS(checker));
-			if (checker->is_up && checker->rs->smtp_alert)
-				smtp_alert(SMTP_MSG_RS, checker, "DOWN",
+			checker_was_up = checker->is_up;
+			update_svr_checker_state(DOWN, checker);
+			if (checker_was_up && checker->rs->smtp_alert)
+				smtp_alert(SMTP_MSG_RS, checker, NULL,
 					   "=> CHECK failed on service"
 					   " : HTTP request failed <=");
-			update_svr_checker_state(DOWN, checker);
 		}
 
 		/* Reset it counters */
