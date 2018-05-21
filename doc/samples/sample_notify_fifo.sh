@@ -18,8 +18,6 @@
 # it exits.
 
 CREATED_FIFO=0
-# PARENT=$(ps -p $PPID -o cmd --no-headers)
-# PARENT=${PARENT##*/}
 
 FIFO=$1
 [[ -z $FIFO ]] && echo "A FIFO name must be specified" && exit 1
@@ -28,18 +26,31 @@ LOG_FILE=/tmp/${FIFO##*/}.log
 
 stopping()
 {
-	echo STOPPING >>$LOG_FILE
+	PROLOGUE=$(echo "$(date +"%a %b %e %X %Y")": \[$PPID:$$\])
+	echo "$PROLOGUE" STOPPING >>$LOG_FILE
 }
 
-trap "{ stopping; [[ $CREATED_FIFO -eq 1 ]] && rm -f $FIFO; exit 0; }" HUP INT QUIT USR1 USR2 PIPE TERM
+start_shutdown()
+{
+	# When keepalived terminates, it sends a TERM signal to this script before
+	#  sending the fifo notifies. We catch the SIGTERM here, and after a short
+	#  delay send a SIGALRM to the main script process
+	( sleep 0.5
+	  kill -ALRM $$
+	) &
+}
+
+trap "{ stopping; [[ $CREATED_FIFO -eq 1 ]] && rm -f $FIFO; exit 0; }" HUP INT QUIT USR1 USR2 PIPE ALRM
+trap start_shutdown TERM
 
 if [[ ! -p $FIFO ]]; then
 	mkfifo $FIFO
 	if [[ $? -eq 0 ]]; then
-	       CREATED_FIFO=1
+		CREATED_FIFO=1
 	else
 		echo "Unable to create fifo $FIFO"
 		exit 1
+	fi
 fi
 
 # If keepalived terminates, the FIFO will be closed, so
@@ -50,6 +61,7 @@ do
 	[[ ! -p $FIFO ]] && echo FIFO $FIFO missing && exit 1
 
 	while read line; do
+		PROLOGUE=$(echo "$(date +"%a %b %e %X %Y")": \[$PPID:$$\])
 		set $line
 		TYPE=$1
 		if [[ $TYPE = INSTANCE || $TYPE = GROUP ]]; then
@@ -58,24 +70,24 @@ do
 			PRIORITY=$4
 
 			# Now take whatever action is required
-			echo $TYPE $VRRP_INST $STATE $PRIORITY >>$LOG_FILE
+			echo "$PROLOGUE" $TYPE $VRRP_INST $STATE $PRIORITY >>$LOG_FILE
 		elif [[ $TYPE = VS ]]; then
 			VS=$2
 			STATE=$3
 
 			# Now take whatever action is required
-			echo $TYPE $VS $STATE >>$LOG_FILE
+			echo "$PROLOGUE" $TYPE $VS $STATE >>$LOG_FILE
 		elif [[ $TYPE = RS ]]; then
 			RS=$2
 			VS=$3
 			STATE=$4
 
 			# Now take whatever action is required
-			echo $TYPE $RS $VS $STATE >>$LOG_FILE
+			echo "$PROLOGUE" $TYPE $RS $VS $STATE >>$LOG_FILE
 		else
-			echo $TYPE - unknown >>$LOG_FILE
+			echo "$PROLOGUE" $TYPE - unknown "($*)" >>$LOG_FILE
 		fi
 	done < $FIFO
 
-	echo STOPPED >>$LOG_FILE
+	echo "$PROLOGUE" STOPPED >>$LOG_FILE
 done
