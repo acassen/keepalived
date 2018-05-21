@@ -1046,7 +1046,6 @@ read_line(char *buf, size_t size)
 		}
 	}
 
-log_message(LOG_INFO, "Next line: %s", buf);
 	return !eof;
 }
 

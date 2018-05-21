@@ -160,6 +160,9 @@ Beta branch 2017-10-29 Quentin Armitage <quentin@armitage.org.uk>
 	* Remove autoconf/automake generated files from git repo.
 	    Script build_setup will create the necessary build environment.
 	* Improve and standardise notifications
+	* Fix not sending RS and VS notifies if omega set
+	* Add no_checker_emails to not send emails every time a checker
+	    changes state, but only if a real server changes state
 
 2018-05-08 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.4.4 released.

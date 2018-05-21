@@ -1176,6 +1176,22 @@ rs_init_notifies_handler(vector_t *strvec)
 
 	global_data->rs_init_notifies = res;
 }
+
+static void
+no_checker_emails_handler(vector_t *strvec)
+{
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			log_message(LOG_INFO, "Invalid value '%s' for global no_checker_emails specified", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+
+	global_data->no_checker_emails = res;
+}
 #endif
 
 void
@@ -1314,5 +1330,6 @@ init_global_keywords(bool global_active)
 #endif
 #ifdef _WITH_LVS_
 	install_keyword("rs_init_notifies", &rs_init_notifies_handler);
+	install_keyword("no_checker_emails", &no_checker_emails_handler);
 #endif
 }

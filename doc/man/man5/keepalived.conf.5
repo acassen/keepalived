@@ -466,6 +466,8 @@ and
  lvs_netlink_monitor_rcv_bufs_force <BOOL>  #  exceed /proc/sys/net/core/rmem_max.
 
  rs_init_notifies             # Send notifies at startup for real servers that are starting up
+ no_checker_emails            # Don't send an email every time a real server checker changes state;
+                              #   only send email when a real server is added or removed
  }
 
  # For running keepalived in a separate network namespace
