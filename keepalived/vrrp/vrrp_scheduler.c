@@ -814,6 +814,9 @@ vrrp_goto_master(vrrp_t * vrrp)
 	    (vrrp->version == VRRP_VERSION_3 && vrrp->ms_down_timer >= 3 * vrrp->master_adver_int))
 		vrrp->stats->master_reason = VRRPV3_MASTER_REASON_MASTER_NO_RESPONSE;
 #endif
+	log_message(LOG_INFO, "VRRP_Instance(%s) No more adverts received from master",
+		    vrrp->iname);
+
 	/* handle master state transition */
 	vrrp->wantstate = VRRP_STATE_MAST;
 	vrrp_state_goto_master(vrrp);
