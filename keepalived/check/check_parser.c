@@ -437,11 +437,25 @@ rs_handler(vector_t *strvec)
 static void
 rs_end_handler(void)
 {
-	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	virtual_server_t *vs;
+	real_server_t *rs;
 
-	/* For tunnelled forwarding, the address families don't have to be the same */
-	if (rs->forwarding_method != IP_VS_CONN_F_TUNNEL) {
+	if (LIST_ISEMPTY(check_data->vs))
+		return;
+
+	vs = LIST_TAIL_DATA(check_data->vs);
+
+	if (LIST_ISEMPTY(vs->rs))
+		return;
+
+	rs = LIST_TAIL_DATA(vs->rs);
+
+	/* For tunnelled forwarding, the address families don't have to be the same, so
+	 * long as the kernel supports IPVS_DEST_ATTR_ADDR_FAMILY */
+#if HAVE_DECL_IPVS_DEST_ATTR_ADDR_FAMILY
+	if (rs->forwarding_method != IP_VS_CONN_F_TUNNEL)
+#endif
+	{
 		if (vs->af == AF_UNSPEC)
 			vs->af = rs->addr.ss_family;
 		else if (vs->af != rs->addr.ss_family) {
