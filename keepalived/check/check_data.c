@@ -345,6 +345,8 @@ alloc_vs(char *param1, char *param2)
 
 	new = (virtual_server_t *) MALLOC(sizeof(virtual_server_t));
 
+	new->af = AF_UNSPEC;
+
 	if (!strcmp(param1, "group")) {
 		size = strlen(param2);
 		new->vsgname = (char *) MALLOC(size + 1);
@@ -385,7 +387,6 @@ alloc_vs(char *param1, char *param2)
 	new->retry = UINT_MAX;
 	new->delay_before_retry = ULONG_MAX;
 	new->weight = 1;
-	new->af = AF_UNSPEC;
 
 	list_add(check_data->vs, new);
 }
