@@ -173,7 +173,7 @@ ip_family_handler(vector_t *strvec)
 	else if (!strcmp(strvec_slot(strvec, 1), "inet6")) {
 #ifndef LIBIPVS_USE_NL
 		log_message(LOG_INFO, "IPVS with IPv6 is not supported by this build");
-		skip_block();
+		skip_block(false);
 		return;
 #endif
 		af = AF_INET6;
