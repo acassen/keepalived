@@ -86,7 +86,7 @@ vrrp_sync_group_handler(vector_t *strvec)
 
 	if (vector_count(strvec) != 2) {
 		log_message(LOG_INFO, "vrrp_sync_group must have a name - skipping");
-		skip_block();
+		skip_block(true);
 		return;
 	}
 
@@ -99,7 +99,7 @@ vrrp_sync_group_handler(vector_t *strvec)
 			sg = ELEMENT_DATA(e);
 			if (!strcmp(gname,sg->gname)) {
 				log_message(LOG_INFO, "vrrp sync group %s already defined", gname);
-				skip_block();
+				skip_block(true);
 				return;
 			}
 		}
@@ -115,7 +115,7 @@ vrrp_group_handler(vector_t *strvec)
 
 	if (vgroup->iname) {
 		log_message(LOG_INFO, "Group list already specified for sync group %s", vgroup->gname);
-		skip_block();
+		skip_block(true);
 		return;
 	}
 
@@ -197,7 +197,7 @@ vrrp_handler(vector_t *strvec)
 
 	if (vector_count(strvec) != 2) {
 		log_message(LOG_INFO, "vrrp_instance must have a name");
-		skip_block();
+		skip_block(true);
 		return;
 	}
 
@@ -210,7 +210,7 @@ vrrp_handler(vector_t *strvec)
 			vrrp = ELEMENT_DATA(e);
 			if (!strcmp(iname,vrrp->iname)) {
 				log_message(LOG_INFO, "vrrp instance %s already defined", iname );
-				skip_block();
+				skip_block(true);
 				return;
 			}
 		}

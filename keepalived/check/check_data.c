@@ -356,7 +356,7 @@ alloc_vs(char *param1, char *param2)
 	} else {
 		if (inet_stosockaddr(param1, param2, &new->addr)) {
 			log_message(LOG_INFO, "Invalid virtual server IP address %s - skipping", param1);
-			skip_block();
+			skip_block(true);
 			FREE(new);
 			return;
 		}
@@ -366,7 +366,7 @@ alloc_vs(char *param1, char *param2)
 		if (new->af != AF_INET) {
 			log_message(LOG_INFO, "IPVS with IPv6 is not supported by this build");
 			FREE(new);
-			skip_block();
+			skip_block(true);
 			return;
 		}
 #endif
@@ -471,7 +471,7 @@ alloc_rs(char *ip, char *port)
 	new = (real_server_t *) MALLOC(sizeof(real_server_t));
 	if (inet_stosockaddr(ip, port, &new->addr)) {
 		log_message(LOG_INFO, "Invalid real server ip address %s - skipping", ip);
-		skip_block();
+		skip_block(true);
 		FREE(new);
 		return;
 	}
@@ -479,10 +479,19 @@ alloc_rs(char *ip, char *port)
 #ifndef LIBIPVS_USE_NL
 	if (new->addr.ss_family != AF_INET) {
 		log_message(LOG_INFO, "IPVS does not support IPv6 in this build - skipping %s", ip);
-		skip_block();
+		skip_block(true);
 		FREE(new);
 		return;
 	}
+#else
+#if !HAVE_DECL_IPVS_DEST_ATTR_ADDR_FAMILY
+	if (vs->af != AF_UNSPEC && new->addr.ss_family != vs->af) {
+		log_message(LOG_INFO, "Your kernel doesn't support mixed IPv4/IPv6 for virtual/real servers");
+		skip_block(true);
+		FREE(new);
+		return;
+	}
+#endif
 #endif
 
 	new->weight = INT_MAX;

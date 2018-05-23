@@ -78,7 +78,7 @@ extern void alloc_value_block(void (*alloc_func) (vector_t *), const char *);
 extern void *set_value(vector_t *);
 extern unsigned long read_timer(vector_t *);
 extern int check_true_false(char *);
-extern void skip_block(void);
+extern void skip_block(bool);
 extern void init_data(const char *, vector_t * (*init_keywords) (void));
 
 #endif
