@@ -130,20 +130,18 @@ vs_end_handler(void)
 		}
 	}
 
-	if (!vs->af) {
+	if (vs->af == AF_UNSPEC) {
 		/* This only occurs if the virtual server uses a fwmark, and all the
 		 * real/sorry servers are tunnelled.
 		 *
 		 * Maintain backward compatibility. Prior to the commit following 17fa4a3c
 		 * the address family of the virtual server was set from any of its
-		 * real or sorry servers, even if it was tunnelled. However, all the real
+		 * real or sorry servers, even if they were tunnelled. However, all the real
 		 * and sorry servers had to be the same address family, even if tunnelled,
 		 * so only set the address family from the tunnelled real/sorry servers
 		 * if all the real/sorry servers are of the same address family. */
 		if (vs->s_svr)
 			vs->af = vs->s_svr->addr.ss_family;
-		else
-			vs->af = AF_UNSPEC;
 
 		if (!LIST_ISEMPTY(vs->rs)) {
 			for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
