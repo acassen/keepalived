@@ -253,7 +253,7 @@ notify_instance_exec(vrrp_t * vrrp, int state)
 
 #ifdef _WITH_DBUS_
 	if (global_data->enable_dbus)
-		dbus_send_state_signal(vrrp); // send signal to all subscribers
+		dbus_send_state_signal(vrrp, state); // send signal to all subscribers
 #endif
 
 	return ret;

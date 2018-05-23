@@ -547,7 +547,7 @@ on_bus_acquired(GDBusConnection *connection,
 	/* Notify DBus of the state of our instances */
 	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
 		vrrp_t * vrrp = ELEMENT_DATA(e);
-		dbus_send_state_signal(vrrp);
+		dbus_send_state_signal(vrrp, vrrp->state);
 	}
 }
 
@@ -674,7 +674,7 @@ dbus_main(__attribute__ ((unused)) void *unused)
 /* send signal VrrpStatusChange
  * containing the new state of vrrp */
 void
-dbus_send_state_signal(vrrp_t *vrrp)
+dbus_send_state_signal(vrrp_t *vrrp, int state)
 {
 	gchar *object_path;
 	GVariant *args;
@@ -686,7 +686,7 @@ dbus_send_state_signal(vrrp_t *vrrp)
 
 	object_path = dbus_object_create_path_instance(IF_NAME(IF_BASE_IFP(vrrp->ifp)), vrrp->vrid, vrrp->family);
 
-	args = g_variant_new("(u)", vrrp->state);
+	args = g_variant_new("(u)", state);
 	dbus_emit_signal(global_connection, object_path, DBUS_VRRP_INSTANCE_INTERFACE, "VrrpStatusChange", args);
 	g_free(object_path);
 }
