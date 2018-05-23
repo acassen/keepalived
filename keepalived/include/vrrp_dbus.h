@@ -38,7 +38,7 @@
 #define DBUS_VRRP_INTERFACE_FILE_PATH           "/usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml"
 #define DBUS_VRRP_INSTANCE_INTERFACE_FILE_PATH  "/usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml"
 
-void dbus_send_state_signal(vrrp_t *);
+void dbus_send_state_signal(vrrp_t *, int);
 void dbus_remove_object(vrrp_t *);
 void dbus_reload(list, list);
 bool dbus_start(void);
