@@ -483,6 +483,15 @@ alloc_rs(char *ip, char *port)
 		FREE(new);
 		return;
 	}
+#else
+#if !HAVE_DECL_IPVS_DEST_ATTR_ADDR_FAMILY
+	if (vs->af != AF_UNSPEC && new->addr.ss_family != vs->af) {
+		log_message(LOG_INFO, "Your kernel doesn't support mixed IPv4/IPv6 for virtual/real servers");
+		skip_block(true);
+		FREE(new);
+		return;
+	}
+#endif
 #endif
 
 	new->weight = INT_MAX;

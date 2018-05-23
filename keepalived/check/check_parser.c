@@ -450,7 +450,11 @@ rs_end_handler(void)
 
 	rs = LIST_TAIL_DATA(vs->rs);
 
+	/* For tunnelled forwarding, the address families don't have to be the same, so
+	 * long as the kernel supports IPVS_DEST_ATTR_ADDR_FAMILY */
+#if HAVE_DECL_IPVS_DEST_ATTR_ADDR_FAMILY
 	if (rs->forwarding_method != IP_VS_CONN_F_TUNNEL)
+#endif
 	{
 		if (vs->af == AF_UNSPEC)
 			vs->af = rs->addr.ss_family;
