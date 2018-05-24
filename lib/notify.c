@@ -240,7 +240,8 @@ notify_fifo_exec(thread_master_t *m, int (*func) (thread_t *), void *arg, const 
 int
 notify_exec(const notify_script_t *script)
 {
-	pid_t pid;
+	pid_t pid, cpid;
+	int status = 0;
 
 	if (log_file_name)
 		flush_log_file();
@@ -253,9 +254,15 @@ notify_exec(const notify_script_t *script)
 		return -1;
 	}
 
-	/* In case of this is parent process */
-	if (pid)
+	/* In case of parent process, wait for the exit status of child, this is
+        * to synchronize consecutive status update.
+        */
+	if (pid) {
+                while ((cpid = wait(&status)) > 0) {
+                     log_message(LOG_INFO,"Exit status to invoke %s from %d was %d \n",cmd, (int)cpid, status);
+                }
 		return 0;
+        }
 
 #ifdef _MEM_CHECK_
 	skip_mem_dump();
