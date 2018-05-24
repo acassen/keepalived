@@ -24,6 +24,21 @@
  * and https://developer.gnome.org/gio/stable/GDBusConnection.html#gdbus-server
  * for examples of coding.
  *
+ * Create a general /org/keepalived/Vrrp1/Vrrp DBus
+ * object and a /org/keepalived/Vrrp1/Instance/#interface#/#group# object for
+ * each VRRP instance.
+ * Interface org.keepalived.Vrrp1.Vrrp implements methods PrintData,
+ * PrintStats and signal VrrpStopped.
+ * Interface com.keepalived.Vrrp1.Instance implements method SendGarp
+ * (sends a single Gratuitous ARP from the given Instance),
+ * signal VrrpStatusChange, and properties Name and State (retrievable
+ * through calls to org.freedesktop.DBus.Properties.Get)
+ *
+ * Interface files need to be installed in /usr/share/dbus-1/interfaces/
+ * A policy file, which determines who has access to the service, is
+ * installed in /etc/dbus-1/system.d/. Sources for the policy and interface
+ * files are in keepalived/dbus.
+ *
  * To test the DBus service run a command like: dbus-send --system --dest=org.keepalived.Vrrp1 --print-reply object interface.method type:argument
  * e.g.
  * dbus-send --system --dest=org.keepalived.Vrrp1 --print-reply /org/keepalived/Vrrp1/Vrrp org.keepalived.Vrrp1.Vrrp.PrintData
