@@ -204,6 +204,7 @@ typedef struct _vrrp_t {
 	uint8_t			vrid;			/* virtual id. from 1(!) to 255 */
 	uint8_t			base_priority;		/* configured priority value */
 	uint8_t			effective_priority;	/* effective priority value */
+	bool			readd_vips;		/* Readd VIPs after an interface goes down/up */
 	bool			vipset;			/* All the vips are set ? */
 	list			vip;			/* list of virtual ip addresses */
 	list			evip;			/* list of protocol excluded VIPs.
@@ -287,6 +288,7 @@ typedef struct _vrrp_t {
 #define VRRP_STATE_MAST			2	/* rfc2338.6.4.3 */
 #define VRRP_STATE_FAULT		3	/* internal */
 #define VRRP_STATE_GOTO_MASTER		4	/* internal */
+#define VRRP_STATE_READD		95	/* internal */
 #define VRRP_STATE_MASTER_RELOAD	96	/* internal */
 #define VRRP_STATE_STOP			97	/* internal */
 #define VRRP_STATE_GOTO_FAULT		98	/* internal */
@@ -358,5 +360,6 @@ extern void clear_diff_vrrp(void);
 extern void clear_diff_script(void);
 extern void vrrp_restore_interface(vrrp_t *, bool, bool);
 extern void vrrp_remove_delayed_arp_na(vrrp_t *);
+extern void vrrp_handle_ip_change(interface_t *iface, sa_family_t family, void *address, int action);
 
 #endif

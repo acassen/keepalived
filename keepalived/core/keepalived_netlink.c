@@ -584,6 +584,10 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 			if (!ifp->sin6_addr.s6_addr16[0] && ifa->ifa_scope == RT_SCOPE_LINK)
 				ifp->sin6_addr = *(struct in6_addr *) addr;
 		}
+
+		/* Re-add VIP(s) */
+		vrrp_handle_ip_change(ifp, ifa->ifa_family, addr,
+				      (h->nlmsg_type == RTM_NEWADDR) ? IPADDRESS_ADD : IPADDRESS_DEL);
 	}
 #endif
 

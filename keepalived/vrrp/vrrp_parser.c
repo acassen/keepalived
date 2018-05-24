@@ -680,6 +680,12 @@ vrrp_auth_pass_handler(vector_t *strvec)
 }
 #endif
 static void
+vrrp_readd_vip_handler(__attribute__((unused)) vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp->readd_vips = true;
+}
+static void
 vrrp_vip_handler(vector_t *strvec)
 {
 	alloc_value_block(alloc_vrrp_vip, vector_slot(strvec, 0));
@@ -990,6 +996,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("version", &vrrp_version_handler);
 	install_keyword("priority", &vrrp_prio_handler);
 	install_keyword("advert_int", &vrrp_adv_handler);
+	install_keyword("readd_virtual_ipaddresses", &vrrp_readd_vip_handler);
 	install_keyword("virtual_ipaddress", &vrrp_vip_handler);
 	install_keyword("virtual_ipaddress_excluded", &vrrp_evip_handler);
 	install_keyword("promote_secondaries", &vrrp_promote_secondaries);

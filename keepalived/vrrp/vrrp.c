@@ -2938,3 +2938,76 @@ clear_diff_script(void)
 	}
 }
 
+/* Handle IP address or interface changes to add/delete VIP */
+void
+vrrp_handle_ip_change(interface_t *iface, sa_family_t family, void *address, int action)
+{
+	list    l;
+	list    lv;
+	element e;
+	int     type;
+
+	if (!vrrp_data)
+		return;
+
+	l = vrrp_data->vrrp;
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		vrrp_t		*vrrp = ELEMENT_DATA(e);
+		list		vips;
+		element		ve;
+
+		if ((!vrrp->readd_vips) || (!vrrp->vipset) || (family != vrrp->family)) {
+			continue;
+		}
+
+		vips = alloc_list(NULL, dump_ipaddress);
+		type = VRRP_VIP_TYPE;
+		do {
+			lv = (type == VRRP_VIP_TYPE) ? vrrp->vip : vrrp->evip;
+			if (!LIST_ISEMPTY(lv)) {
+				for (ve = LIST_HEAD(lv); ve; ELEMENT_NEXT(ve)) {
+					ip_address_t	*ipaddr = ELEMENT_DATA(ve);
+
+					if ((action == IPADDRESS_ADD) && !ipaddr->set) {
+						if ((family == IP_FAMILY(ipaddr)) &&
+						    (ipaddr->ifp->ifindex == iface->ifindex) ) {
+							list_add(vips, ipaddr);
+						}
+
+					} else if (action == IPADDRESS_DEL) {
+						/* Clear VIP state on delete (match interface and address) */
+						if (ipaddr->set &&
+						    (family == IP_FAMILY(ipaddr)) &&
+						    (ipaddr->ifp->ifindex == iface->ifindex) &&
+						    (IP_IS6(ipaddr) ? (memcmp((void*)&ipaddr->u.sin6_addr, address,
+										sizeof(ipaddr->u.sin6_addr)) == 0) :
+								      (memcmp((void*)&ipaddr->u.sin.sin_addr, address,
+										sizeof(ipaddr->u.sin.sin_addr)) == 0)) )
+						{
+							log_message(LOG_INFO, "Clearing VIP %s\n", ipaddresstos(NULL, ipaddr));
+							ipaddr->set = 0;
+						}
+					}
+				}
+			}
+			type = (type == VRRP_VIP_TYPE) ? VRRP_EVIP_TYPE : 0;
+		} while (type);
+
+		/* Add matching VIPs */
+		if (!LIST_ISEMPTY(vips)) {
+			log_message(LOG_INFO, "(re)adding VIP%s:\n", LIST_SIZE(vips) > 1 ? "s":"");
+			dump_list(vips);
+
+			netlink_iplist(vips, IPADDRESS_ADD, false);
+
+			/* Send gratitious ARP */
+			vrrp_send_link_update(vrrp, vrrp->garp_rep);
+
+			/* Invoke notify script to indicate readding VIP */
+			notify_instance_exec(vrrp, VRRP_STATE_READD);
+		}
+		free_list(&vips);
+	}
+
+	return;
+}

@@ -138,8 +138,9 @@ notify_fifo(const char *name, int state_num, bool group, uint8_t priority)
 	switch (state_num) {
 		case VRRP_STATE_MAST  : state = "MASTER" ; break;
 		case VRRP_STATE_BACK  : state = "BACKUP" ; break;
-		case VRRP_STATE_FAULT : state = "FAULT" ; break;
-		case VRRP_STATE_STOP  : state = "STOP" ; break;
+		case VRRP_STATE_FAULT : state = "FAULT"  ; break;
+		case VRRP_STATE_STOP  : state = "STOP"   ; break;
+		case VRRP_STATE_READD : state = "READD"  ; break;
 	}
 
 	type = group ? "GROUP" : "INSTANCE";
