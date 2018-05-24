@@ -837,13 +837,16 @@ vrrp_instance <STRING> {                      # VRRP instance declaration
         auth_type PASS|AH                     # Simple password or IPSEC AH
         auth_pass <STRING>                    # Password string (up to 8 characters)
     }
+    # For virutal_ipaddress and virtual_ipaddress_excluded most of the options match the options
+    #   of the command ip address add. no-track is specific to keepalived and means that the
+    #   vrrp_instance will not transition out of master state if the address is deleted.
     virtual_ipaddress {                       # VRRP IP addres block
-        <IP ADDRESS>[/<MASK>] [brd <IP ADDRESS>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IP ADDRESS>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
+        <IP ADDRESS>[/<MASK>] [brd <IP ADDRESS>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IP ADDRESS>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin] [no-track]
         <IP ADDRESS>[/<MASK>] ...
         ...
     }
     virtual_ipaddress_excluded {              # VRRP IP excluded from VRRP packets
-        <IP ADDRESS>[/<MASK>] [brd <IP ADDRESS>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IP ADDRESS>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
+        <IP ADDRESS>[/<MASK>] [brd <IP ADDRESS>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IP ADDRESS>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin] [no-track]
         <IP ADDRESS>[/<MASK>] ...
         ...
     }

@@ -1966,7 +1966,6 @@ free_tracking_vrrp(void *data)
 static void
 add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool log_addr)
 {
-	tracking_vrrp_t *tvp;
 	tracking_vrrp_t *etvp = NULL;
 	element e;
 	char addr_str[INET6_ADDRSTRLEN];
@@ -1989,37 +1988,28 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool log_addr)
 	}
 	else {
 		/* Check if this is already in the list, and adjust the weight appropriately */
-		for (e = LIST_HEAD(ifp->tracking_vrrp); e; ELEMENT_NEXT(e)) {
-			etvp = ELEMENT_DATA(e);
+		LIST_FOREACH(ifp->tracking_vrrp, etvp, e) {
 			if (etvp->vrrp == vrrp) {
+				if (etvp->weight != VRRP_NOT_TRACK_IF && weight != VRRP_NOT_TRACK_IF)
+					log_message(LOG_INFO, "(%s) track_interface %s is configured on VRRP instance and sync group. Remove vrrp instance or sync group config",
+							vrrp->iname, ifp->ifname);
+
 				/* Update the weight appropriately. We will use the sync group's
 				 * weight unless the vrrp setting is unweighted. */
-				log_message(LOG_INFO, "(%s) track_interface %s is configured on VRRP instance and sync group. Remove vrrp instance or sync group config",
-						vrrp->iname, ifp->ifname);
-				if (etvp->weight)
+				if (etvp->weight && weight != VRRP_NOT_TRACK_IF)
 					etvp->weight = weight;
-				else {
-					/* We don't need to update the failed state
-					 * if previously it was unweighted. */
-					return;
-				}
-				break;
+
+				return;
 			}
 		}
-		if (!e)
-			etvp = NULL;
 	}
 
-	if (!etvp) {
-		/* Not in list so add */
-		tvp = MALLOC(sizeof *tvp);
-		tvp->vrrp = vrrp;
-		tvp->weight = weight;
+	/* Not in list so add */
+	etvp = MALLOC(sizeof *etvp);
+	etvp->vrrp = vrrp;
+	etvp->weight = weight;
 
-		list_add(ifp->tracking_vrrp, tvp);
-
-		etvp = tvp;
-	}
+	list_add(ifp->tracking_vrrp, etvp);
 
 	/* if vrrp->num_if_script_fault needs incrementing, it will be
 	 * done in initialise_tracking_priorities() */
@@ -2882,31 +2872,21 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		else
 			block_ipv6 = true;
 	}
-	if (!LIST_ISEMPTY(vrrp->vip)) {
-		for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
-			vip = ELEMENT_DATA(e);
-			if (!vip->ifp)
-				vip->ifp = vrrp->ifp;
-		}
-	}
-	if (!LIST_ISEMPTY(vrrp->evip)) {
-		for (e = LIST_HEAD(vrrp->evip); e; ELEMENT_NEXT(e)) {
-			vip = ELEMENT_DATA(e);
-			if (!vip->ifp)
-				vip->ifp = vrrp->ifp;
-		}
-	}
 
-	/* Add each VIP/eVIP's interface to the interface list */
+	/* Add each VIP/eVIP's interface to the interface list, unless we aren't tracking it.
+	 * If the interface goes down, then we will not be able to re-add the address, and so
+	 * we should go to fault state. */
 	LIST_FOREACH(vrrp->vip, vip, e) {
 		if (!vip->ifp)
 			vip->ifp = vrrp->ifp;
-		add_vrrp_to_interface(vrrp, vip->ifp, VRRP_NOT_TRACK_IF, false);
+		if (!vip->dont_track)
+			add_vrrp_to_interface(vrrp, vip->ifp, 0, false);
 	}
 	LIST_FOREACH(vrrp->evip, vip, e) {
 		if (!vip->ifp)
 			vip->ifp = vrrp->ifp;
-		add_vrrp_to_interface(vrrp, vip->ifp, VRRP_NOT_TRACK_IF, false);
+		if (!vip->dont_track)
+			add_vrrp_to_interface(vrrp, vip->ifp, 0, false);
 	}
 
 	/* In case of VRRP SYNC, we have to carefully check that we are

@@ -142,31 +142,28 @@ address_is_ours(struct ifaddrmsg* ifa, struct in_addr* addr, interface_t* ifp)
 	element e, e1;
 	tracking_vrrp_t* tvp;
 	vrrp_t* vrrp;
+	ip_address_t* vaddr;
 
 	if (LIST_ISEMPTY(ifp->tracking_vrrp))
 		return NULL;
 
-	for (e = LIST_HEAD(ifp->tracking_vrrp); e; ELEMENT_NEXT(e)) {
-		tvp = ELEMENT_DATA(e);
+	LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {
 		vrrp = tvp->vrrp;
 
 		/* If we are not master, then we won't have the address configured */
 		if (vrrp->state != VRRP_STATE_MAST)
 			continue;
 
-		if (ifa->ifa_family == vrrp->family &&
-		    !LIST_ISEMPTY(vrrp->vip)) {
-			for (e1 = LIST_HEAD(vrrp->vip); e1; ELEMENT_NEXT(e1)) {
-				if (addr_is_equal(ifa, addr, ELEMENT_DATA(e1), ifp))
-					return vrrp;
+		if (ifa->ifa_family == vrrp->family) {
+			LIST_FOREACH(vrrp->vip, vaddr, e1) {
+				if (addr_is_equal(ifa, addr, vaddr, ifp))
+					return vaddr->dont_track ? NULL : vrrp;
 			}
 		}
 
-		if (!LIST_ISEMPTY(vrrp->evip)) {
-			for (e1 = LIST_HEAD(vrrp->evip); e1; ELEMENT_NEXT(e1)) {
-				if (addr_is_equal(ifa, addr, ELEMENT_DATA(e1), ifp))
-					return vrrp;
-			}
+		LIST_FOREACH(vrrp->evip, vaddr, e1) {
+			if (addr_is_equal(ifa, addr, vaddr, ifp))
+				return vaddr->dont_track ? NULL : vrrp;
 		}
 	}
 

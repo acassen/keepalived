@@ -435,25 +435,27 @@ dump_ipaddress(FILE *fp, void *if_data)
 
 	if (ipaddr->have_peer) {
 		inet_ntop(ipaddr->ifa.ifa_family, &ipaddr->peer, peer, sizeof(peer));
-		conf_write(fp, "     %s%s dev %s scope %s%s%s peer %s/%d"
+		conf_write(fp, "     %s%s dev %s scope %s%s%s%s peer %s/%d"
 				    , ipaddresstos(NULL, ipaddr)
 				    , broadcast
 				    , IF_NAME(ipaddr->ifp)
 				    , get_rttables_scope(ipaddr->ifa.ifa_scope)
 				    , ipaddr->label ? " label " : ""
 				    , ipaddr->label ? ipaddr->label : ""
+				    , ipaddr->dont_track ? " no-track" : ""
 				    , peer
 				    , ipaddr->ifa.ifa_prefixlen);
 	}
 	else
-		conf_write(fp, "     %s/%d%s dev %s scope %s%s%s"
+		conf_write(fp, "     %s/%d%s dev %s scope %s%s%s%s"
 				    , ipaddresstos(NULL, ipaddr)
 				    , ipaddr->ifa.ifa_prefixlen
 				    , broadcast
 				    , IF_NAME(ipaddr->ifp)
 				    , get_rttables_scope(ipaddr->ifa.ifa_scope)
 				    , ipaddr->label ? " label " : ""
-				    , ipaddr->label ? ipaddr->label : "");
+				    , ipaddr->label ? ipaddr->label : ""
+				    , ipaddr->dont_track ? " no-track" : "");
 }
 ip_address_t *
 parse_ipaddress(ip_address_t *ip_address, char *str, int allow_default)
@@ -656,6 +658,8 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 			new->flags |= IFA_F_MCAUTOJOIN;
 			new->flagmask |= IFA_F_MCAUTOJOIN;
 #endif
+		} else if (!strcmp(str, "no-track")) {
+			new->dont_track = true;
 		} else
 			log_message(LOG_INFO, "Unknown configuration entry '%s' for ip address - ignoring", str);
 		i++;
