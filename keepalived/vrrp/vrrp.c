@@ -2897,6 +2897,18 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		}
 	}
 
+	/* Add each VIP/eVIP's interface to the interface list */
+	LIST_FOREACH(vrrp->vip, vip, e) {
+		if (!vip->ifp)
+			vip->ifp = vrrp->ifp;
+		add_vrrp_to_interface(vrrp, vip->ifp, VRRP_NOT_TRACK_IF, false);
+	}
+	LIST_FOREACH(vrrp->evip, vip, e) {
+		if (!vip->ifp)
+			vip->ifp = vrrp->ifp;
+		add_vrrp_to_interface(vrrp, vip->ifp, VRRP_NOT_TRACK_IF, false);
+	}
+
 	/* In case of VRRP SYNC, we have to carefully check that we are
 	 * not running floating priorities on any VRRP instance, unless
 	 * sgroup_tracking_weight is set.
