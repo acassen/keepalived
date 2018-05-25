@@ -324,6 +324,7 @@ misc_check_child_thread(thread_t * thread)
 	bool script_success;
 	char *reason = NULL;
 	int reason_code;
+	bool rs_was_alive;
 
 	checker = THREAD_ARG(thread);
 	misck_checker = CHECKER_ARG(checker);
@@ -447,9 +448,11 @@ misc_check_child_thread(thread_t * thread)
 					    , misck_checker->script.args[0]
 					    , script_exit_type);
 
+		rs_was_alive = checker->rs->alive;
 		update_svr_checker_state(script_success ? UP : DOWN, checker);
 
-		if (checker->rs->smtp_alert) {
+		if (checker->rs->smtp_alert &&
+		    (rs_was_alive != checker->rs->alive || !global_data->no_checker_emails)) {
 			snprintf(message, sizeof(message), "=> MISC CHECK %s on service <=", script_exit_type);
 			smtp_alert(SMTP_MSG_RS, checker, NULL, message);
 		}

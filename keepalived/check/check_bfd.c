@@ -239,6 +239,7 @@ bfd_check_handle_event(bfd_event_t * evt)
 	checker_t *checker;
 	char message[80];
 	bool checker_was_up;
+	bool rs_was_alive;
 
 	if (__test_bit(LOG_DETAIL_BIT, &debug)) {
 		time_now = timer_now();
@@ -271,8 +272,10 @@ bfd_check_handle_event(bfd_event_t * evt)
 				    evt->iname, FMT_RS(checker->rs, checker->vs), evt->state == BFD_STATE_UP ? "UP" : "DOWN");
 
 			checker_was_up = checker->is_up;
+			rs_was_alive = checker->rs->alive;
 			update_svr_checker_state(evt->state == BFD_STATE_UP ? UP : DOWN, checker);
 			if (checker->rs->smtp_alert &&
+			    (rs_was_alive != checker->rs->alive || !global_data->no_checker_emails) &&
 			    (evt->state == BFD_STATE_UP) != checker_was_up) {
 				snprintf(message, sizeof(message), "=> BFD CHECK %s %s on service <=", evt->iname, evt->state == BFD_STATE_UP ? "succeeded" : "failed");
 				smtp_alert(SMTP_MSG_RS, checker, NULL, message);

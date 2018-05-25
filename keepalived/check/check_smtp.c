@@ -281,6 +281,7 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 	char smtp_buff[542];
 	va_list varg_list;
 	bool checker_was_up;
+	bool rs_was_alive;
 
 	/* Error or no error we should always have to close the socket */
 	close(thread->u.fd);
@@ -323,8 +324,10 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 		 */
 		if (checker->is_up || !checker->has_run) {
 			checker_was_up = checker->is_up;
+			rs_was_alive = checker->rs->alive;
 			update_svr_checker_state(DOWN, checker);
-			if (checker->rs->smtp_alert && checker_was_up) {
+			if (checker->rs->smtp_alert && checker_was_up &&
+			    (rs_was_alive != checker->rs->alive || !global_data->no_checker_emails)) {
 				if (format != NULL) {
 					snprintf(error_buff, sizeof(error_buff), "=> CHECK failed on service : %s <=", format);
 					va_start(varg_list, format);
@@ -726,6 +729,7 @@ smtp_connect_thread(thread_t *thread)
 	enum connect_result status;
 	int sd;
 	bool checker_was_up;
+	bool rs_was_alive;
 
 	/* Let's review our data structures.
 	 *
@@ -776,8 +780,10 @@ smtp_connect_thread(thread_t *thread)
 					    , FMT_CHK(checker));
 
 			checker_was_up = checker->is_up;
+			rs_was_alive = checker->rs->alive;
 			update_svr_checker_state(UP, checker);
-			if (checker->rs->smtp_alert && !checker_was_up)
+			if (checker->rs->smtp_alert && !checker_was_up &&
+			    (rs_was_alive != checker->rs->alive || !global_data->no_checker_emails))
 				smtp_alert(SMTP_MSG_RS, checker, NULL,
 					   "=> CHECK succeed on service <=");
 		}

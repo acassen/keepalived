@@ -327,6 +327,7 @@ process_stream(vector_t *keywords_vec, int need_bob)
 			if (!strcmp(str, BOB)) {
 				/* We've got the opening '{' now */
 				skip_sublevel = 1;
+				need_bob = 0;
 				free_strvec(strvec);
 				continue;
 			}
@@ -343,6 +344,14 @@ process_stream(vector_t *keywords_vec, int need_bob)
 					if (--skip_sublevel == 0)
 						break;
 				}
+			}
+
+			/* If we have reached the outer level of the block and we have
+			 * nested keyword level, then we need to return to restore the
+			 * next level up of keywords. */
+			if (!strcmp(str, EOB) && skip_sublevel == 0 && kw_level > 0) {
+				free_strvec(strvec);
+				break;
 			}
 
 			free_strvec(strvec);
@@ -1046,7 +1055,6 @@ read_line(char *buf, size_t size)
 		}
 	}
 
-log_message(LOG_INFO, "Next line: %s", buf);
 	return !eof;
 }
 
@@ -1166,10 +1174,13 @@ check_true_false(char *str)
 	return -1;	/* error */
 }
 
-void skip_block(void)
+void skip_block(bool need_block_start)
 {
 	/* Don't process the rest of the configuration block */
-	skip_sublevel = 1;
+	if (need_block_start)
+		skip_sublevel = -1;
+	else
+		skip_sublevel = 1;
 }
 
 /* Data initialization */

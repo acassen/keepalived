@@ -197,6 +197,7 @@ typedef struct _data {
 #endif
 #ifdef _WITH_LVS_
 	bool				rs_init_notifies;
+	bool				no_checker_emails;
 #endif
 } data_t;
 

@@ -146,20 +146,18 @@ vs_end_handler(void)
 		}
 	}
 
-	if (!vs->af) {
+	if (vs->af == AF_UNSPEC) {
 		/* This only occurs if the virtual server uses a fwmark, and all the
 		 * real/sorry servers are tunnelled.
 		 *
 		 * Maintain backward compatibility. Prior to the commit following 17fa4a3c
 		 * the address family of the virtual server was set from any of its
-		 * real or sorry servers, even if it was tunnelled. However, all the real
+		 * real or sorry servers, even if they were tunnelled. However, all the real
 		 * and sorry servers had to be the same address family, even if tunnelled,
 		 * so only set the address family from the tunnelled real/sorry servers
 		 * if all the real/sorry servers are of the same address family. */
 		if (vs->s_svr)
 			vs->af = vs->s_svr->addr.ss_family;
-		else
-			vs->af = AF_UNSPEC;
 
 		if (!LIST_ISEMPTY(vs->rs)) {
 			for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
@@ -191,7 +189,7 @@ ip_family_handler(vector_t *strvec)
 	else if (!strcmp(strvec_slot(strvec, 1), "inet6")) {
 #ifndef LIBIPVS_USE_NL
 		log_message(LOG_INFO, "IPVS with IPv6 is not supported by this build");
-		skip_block();
+		skip_block(false);
 		return;
 #endif
 		af = AF_INET6;
@@ -472,11 +470,25 @@ rs_handler(vector_t *strvec)
 static void
 rs_end_handler(void)
 {
-	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	virtual_server_t *vs;
+	real_server_t *rs;
 
-	/* For tunnelled forwarding, the address families don't have to be the same */
-	if (rs->forwarding_method != IP_VS_CONN_F_TUNNEL) {
+	if (LIST_ISEMPTY(check_data->vs))
+		return;
+
+	vs = LIST_TAIL_DATA(check_data->vs);
+
+	if (LIST_ISEMPTY(vs->rs))
+		return;
+
+	rs = LIST_TAIL_DATA(vs->rs);
+
+	/* For tunnelled forwarding, the address families don't have to be the same, so
+	 * long as the kernel supports IPVS_DEST_ATTR_ADDR_FAMILY */
+#if HAVE_DECL_IPVS_DEST_ATTR_ADDR_FAMILY
+	if (rs->forwarding_method != IP_VS_CONN_F_TUNNEL)
+#endif
+	{
 		if (vs->af == AF_UNSPEC)
 			vs->af = rs->addr.ss_family;
 		else if (vs->af != rs->addr.ss_family) {

@@ -58,7 +58,6 @@ check_new_bfd(const char *name)
 			    " name too long (maximum length is %i"
 			    " characters) - ignoring", name,
 			    BFD_INAME_MAX - 1);
-		skip_block();
 		return false;
 	}
 
@@ -66,7 +65,6 @@ check_new_bfd(const char *name)
 		log_message(LOG_ERR,
 			    "Configuration error: BFD instance %s"
 			    " already configured - ignoring", name);
-		skip_block();
 		return false;
 	}
 	return true;
@@ -86,7 +84,7 @@ bfd_handler(vector_t *strvec)
 	name = vector_slot(strvec, 1);
 
 	if (!check_new_bfd(name)) {
-		skip_block();
+		skip_block(true);
 		return;
 	}
 
@@ -108,7 +106,7 @@ bfd_nbrip_handler(vector_t *strvec)
 	bfd = LIST_TAIL_DATA(bfd_data->bfd);
 	assert(bfd);
 
-	if (!strcmp(vector_slot(strvec, 1), "neighbour"))
+	if (!strcmp(vector_slot(strvec, 1), "neighbour_ip"))
 		neighbor_str = "neighbour";
 
 	ret = inet_stosockaddr(vector_slot(strvec, 1), BFD_CONTROL_PORT, &nbr_addr);
@@ -118,7 +116,7 @@ bfd_nbrip_handler(vector_t *strvec)
 			    " malformed %s address %s, ignoring instance",
 			    bfd->iname, neighbor_str, FMT_STR_VSLOT(strvec, 1));
 		list_del(bfd_data->bfd, bfd);
-		skip_block();
+		skip_block(false);
 		return;
 	} else if (find_bfd_by_addr(&nbr_addr)) {
 		log_message(LOG_ERR,
@@ -126,7 +124,7 @@ bfd_nbrip_handler(vector_t *strvec)
 			    " duplicate %s address %s, ignoring instance",
 			    bfd->iname, neighbor_str, FMT_STR_VSLOT(strvec, 1));
 		list_del(bfd_data->bfd, bfd);
-		skip_block();
+		skip_block(false);
 		return;
 	} else
 		bfd->nbr_addr = nbr_addr;
@@ -416,7 +414,7 @@ bfd_vrrp_handler(vector_t *strvec)
 	LIST_FOREACH(vrrp_data->vrrp_track_bfds, tbfd, e) {
 		if (!strcmp(name, tbfd->bname)) {
 			log_message(LOG_INFO, "BFD %s already specified", name);
-			skip_block();
+			skip_block(true);
 			return;
 		}
 	}
@@ -477,7 +475,7 @@ bfd_checker_handler(vector_t *strvec)
 	LIST_FOREACH(check_data->track_bfds, tbfd, e) {
 		if (!strcmp(name, tbfd->bname)) {
 			log_message(LOG_INFO, "BFD %s already specified", name);
-			skip_block();
+			skip_block(true);
 			return;
 		}
 	}

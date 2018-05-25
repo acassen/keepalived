@@ -52,8 +52,8 @@ struct _list {
 #define LIST_ISEMPTY(L)		((L) == NULL || ((L)->head == NULL && (L)->tail == NULL))
 #define LIST_EXISTS(L)		((L) != NULL)
 #define LIST_SIZE(L)		((L)->count)
-#define LIST_FOREACH(L,V,E)	for ((E) = LIST_HEAD(L); (E) && ((V) = ELEMENT_DATA(E), 1); ELEMENT_NEXT(E))
-#define LIST_FOREACH_NEXT(L,V,E,N) for ((E) = LIST_HEAD(L); (E) && ((N) = (E)->next, (V) = ELEMENT_DATA(E), 1); (E) = (N))
+#define LIST_FOREACH(L,V,E)	for ((E) = ((L) ? LIST_HEAD(L) : NULL); (E) && ((V) = ELEMENT_DATA(E), 1); ELEMENT_NEXT(E))
+#define LIST_FOREACH_NEXT(L,V,E,N) for ((E) = ((L) ? LIST_HEAD(L) : NULL); (E) && ((N) = (E)->next, (V) = ELEMENT_DATA(E), 1); (E) = (N))
 
 /* Prototypes */
 extern list alloc_list(void (*free_func) (void *), void (*dump_func) (FILE *, void *));

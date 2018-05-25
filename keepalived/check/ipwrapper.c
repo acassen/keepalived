@@ -124,6 +124,14 @@ do_vs_notifies(virtual_server_t* vs, bool init, long threshold, long weight_sum,
 	notify_script_t *notify_script = vs->quorum_state_up ? vs->notify_quorum_up : vs->notify_quorum_down;
 	char message[80];
 
+#ifdef _WITH_SNMP_CHECKER_
+	check_snmp_quorum_trap(vs, stopping);
+#endif
+
+	/* Only send non SNMP notifies when stopping if omega set */
+	if (stopping && !vs->omega)
+		return;
+
 	if (notify_script) {
 		if (stopping)
 			system_call_script(master, child_killed_thread, NULL, TIMER_HZ, notify_script);
@@ -149,10 +157,6 @@ do_vs_notifies(virtual_server_t* vs, bool init, long threshold, long weight_sum,
 				    weight_sum);
 		smtp_alert(SMTP_MSG_VS, vs, vs->quorum_state_up ? "UP" : "DOWN", message);
 	}
-
-#ifdef _WITH_SNMP_CHECKER_
-	check_snmp_quorum_trap(vs, stopping);
-#endif
 }
 
 static void
@@ -213,7 +217,7 @@ clear_service_rs(virtual_server_t * vs, list l, bool stopping)
 		UNSET_ALIVE(rs);
 
 		/* We always want to send SNMP messages on shutdown */
-		if (!vs->omega) {
+		if (!vs->omega && stopping) {
 #ifdef _WITH_SNMP_CHECKER_
 			check_snmp_rs_trap(rs, vs, true);
 #endif
@@ -428,7 +432,7 @@ update_quorum_state(virtual_server_t * vs, bool init)
 			vs->s_svr->alive = false;
 		}
 
-		do_vs_notifies(vs, init, threshold, weight_sum, NULL);
+		do_vs_notifies(vs, init, threshold, weight_sum, false);
 
 		return;
 	}
@@ -464,7 +468,7 @@ update_quorum_state(virtual_server_t * vs, bool init)
 			perform_quorum_state(vs, false);
 		}
 
-		do_vs_notifies(vs, init, threshold, weight_sum, NULL);
+		do_vs_notifies(vs, init, threshold, weight_sum, false);
 	}
 }
 

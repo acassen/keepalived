@@ -425,36 +425,52 @@ void
 dump_ipaddress(FILE *fp, void *if_data)
 {
 	ip_address_t *ipaddr = if_data;
-	char broadcast[INET_ADDRSTRLEN + 5] = "";
 	char peer[INET6_ADDRSTRLEN];
+	char buf[256];
+	char *buf_p = buf;
 
+	buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, "     %s", ipaddresstos(NULL, ipaddr));
+	if (!ipaddr->have_peer)
+		buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, "/%d", ipaddr->ifa.ifa_prefixlen);
 	if (!IP_IS6(ipaddr) && ipaddr->u.sin.sin_brd.s_addr) {
-		snprintf(broadcast, sizeof broadcast, " brd %s",
+		buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, " brd %s",
 			 inet_ntop2(ipaddr->u.sin.sin_brd.s_addr));
 	}
-
+	buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, " dev %s scope %s",
+			    IF_NAME(ipaddr->ifp),
+			    get_rttables_scope(ipaddr->ifa.ifa_scope));
+	if (ipaddr->label)
+		buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, " label %s", ipaddr->label);
 	if (ipaddr->have_peer) {
 		inet_ntop(ipaddr->ifa.ifa_family, &ipaddr->peer, peer, sizeof(peer));
-		conf_write(fp, "     %s%s dev %s scope %s%s%s peer %s/%d"
-				    , ipaddresstos(NULL, ipaddr)
-				    , broadcast
-				    , IF_NAME(ipaddr->ifp)
-				    , get_rttables_scope(ipaddr->ifa.ifa_scope)
-				    , ipaddr->label ? " label " : ""
-				    , ipaddr->label ? ipaddr->label : ""
-				    , peer
-				    , ipaddr->ifa.ifa_prefixlen);
+		buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, " peer %s/%d" , peer , ipaddr->ifa.ifa_prefixlen);
 	}
-	else
-		conf_write(fp, "     %s/%d%s dev %s scope %s%s%s"
-				    , ipaddresstos(NULL, ipaddr)
-				    , ipaddr->ifa.ifa_prefixlen
-				    , broadcast
-				    , IF_NAME(ipaddr->ifp)
-				    , get_rttables_scope(ipaddr->ifa.ifa_scope)
-				    , ipaddr->label ? " label " : ""
-				    , ipaddr->label ? ipaddr->label : "");
+#ifdef IFA_F_HOMEADDRESS		/* Linux 2.6.19 */
+	if (ipaddr->flags & IFA_F_HOMEADDRESS)
+		buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, " home");
+#endif
+#ifdef IFA_F_NODAD			/* Linux 2.6.19 */
+	if (ipaddr->flagmask & IFA_F_NODAD)
+		buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, " -nodad");
+#endif
+#ifdef IFA_F_MANAGETEMPADDR		/* Linux 3.14 */
+	if (ipaddr->flags & IFA_F_MANAGETEMPADDR)
+		buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, " mngtmpaddr");
+#endif
+#ifdef IFA_F_NOPREFIXROUTE		/* Linux 3.14 */
+	if (ipaddr->flags & IFA_F_NOPREFIXROUTE)
+		buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, " noprefixroute");
+#endif
+#ifdef IFA_F_MCAUTOJOIN			/* Linux 4.1 */
+	if (ipaddr->flags & IFA_F_MCAUTOJOIN)
+		buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, " autojoin");
+#endif
+	if (ipaddr->dont_track)
+		buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, "%s", " no-track");
+
+	conf_write(fp, "%s", buf);
 }
+
 ip_address_t *
 parse_ipaddress(ip_address_t *ip_address, char *str, int allow_default)
 {
@@ -528,6 +544,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 	ip_address_t peer = { .ifa.ifa_family = AF_UNSPEC };
 	int brd_len = 0;
 	uint32_t mask;
+	bool have_broadcast = false;
 
 	new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
 
@@ -588,9 +605,11 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 				return;
 			}
 
+			have_broadcast = true;
+
 			param = strvec_slot(strvec, ++i);
 			if (!strcmp(param, "-"))
-			       brd_len = -2;
+				brd_len = -2;
 			else if (!strcmp(param, "+"))
 				brd_len = -1;
 			else if (!inet_pton(AF_INET, param, &new->u.sin.sin_brd)) {
@@ -624,13 +643,15 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 			else if (peer.ifa.ifa_family != new->ifa.ifa_family)
 				log_message(LOG_INFO, "Peer address %s does not match address family", FMT_STR_VSLOT(strvec, i));
 			else {
+				if ((new->ifa.ifa_family == AF_INET6 && new->ifa.ifa_prefixlen != 128) ||
+				    (new->ifa.ifa_family == AF_INET && new->ifa.ifa_prefixlen != 32))
+					log_message(LOG_INFO, "Cannot specify address prefix when specifying peer address - ignoring");
 				new->have_peer = true;
 				new->ifa.ifa_prefixlen = peer.ifa.ifa_prefixlen;
 				if (new->ifa.ifa_family == AF_INET6)
 					new->peer.sin6_addr = peer.u.sin6_addr;
 				else
 					new->peer.sin_addr = peer.u.sin.sin_addr;
-				new->ifa.ifa_prefixlen = peer.ifa.ifa_prefixlen;
 			}
 #ifdef IFA_F_HOMEADDRESS		/* Linux 2.6.19 */
 		} else if (!strcmp(str, "home")) {
@@ -656,6 +677,8 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 			new->flags |= IFA_F_MCAUTOJOIN;
 			new->flagmask |= IFA_F_MCAUTOJOIN;
 #endif
+		} else if (!strcmp(str, "no-track")) {
+			new->dont_track = true;
 		} else
 			log_message(LOG_INFO, "Unknown configuration entry '%s' for ip address - ignoring", str);
 		i++;
@@ -669,7 +692,11 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 	}
 
 	/* Set the broadcast address if necessary */
-	if (brd_len < 0  && new->ifa.ifa_prefixlen <= 30) {
+	if (have_broadcast && new->have_peer) {
+		log_message(LOG_INFO, "Cannot specify broadcast and peer addresses - ignoring broadcast address");
+		new->u.sin.sin_brd.s_addr = 0;
+	}
+	else if (brd_len < 0 && new->ifa.ifa_prefixlen <= 30) {
 		new->u.sin.sin_brd = (new->have_peer) ? new->peer.sin_addr : new->u.sin.sin_addr;
 		mask = 0xffffffffU >> new->ifa.ifa_prefixlen;
 		mask = htonl(mask);
@@ -678,6 +705,8 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 		else
 			new->u.sin.sin_brd.s_addr &= ~mask;
 	}
+	else if (brd_len < 0)
+		log_message(LOG_INFO, "Address prefix length %d too long for broadcast", new->ifa.ifa_prefixlen);
 
 	if (!ifp && !new->ifp) {
 		if (!global_data->default_ifp) {

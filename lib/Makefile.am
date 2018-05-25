@@ -34,7 +34,7 @@ EXTRA_DIST		= $(GIT_COMMIT_FILE)
 
 MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@
 
-.FORCE:
+.PHONY: $(GIT_COMMIT_FILE)
 
 # The git commit file will contain the git version and date of last commit,
 # unless this is a tagged version, in which case the git commit is omitted.
@@ -73,7 +73,7 @@ $(GIT_COMMIT_FILE):
 			else \
 				EXTRA=""; \
 			fi; \
-			echo $${GIT_REV} | grep -qE -- "-[1-9][0-9]*-g[0-9a-f]{7}$$"; \
+			echo $${GIT_REV} | grep -qE -- "-[1-9][0-9]*-g[0-9a-f]{7,}$$"; \
 			if [ $$? -eq 0 -o -n "$${EXTRA}" ]; then \
 				echo "#define GIT_COMMIT \"$${GIT_REV}$${EXTRA}\"" >$(abs_builddir)/$@.new; \
 			fi; \
