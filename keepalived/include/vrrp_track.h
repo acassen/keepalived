@@ -116,10 +116,18 @@ typedef struct _tracked_bfd {
 struct _vrrp_t;
 struct _vrrp_sgroup;
 
+typedef enum {
+	TRACK_VRRP = 0x01,
+	TRACK_IF = 0x02,
+	TRACK_SG = 0x04,
+	TRACK_ADDR = 0x04,
+} track_t;
+
 /* List structure from scripts, files and interfaces to tracking vrrp */
 typedef struct _tracking_vrrp {
 	int			weight;		/* Tracking weight, or zero for down instance */
 	struct _vrrp_t		*vrrp;		/* The vrrp instance */
+	track_t			type;		/* Type of object being tracked */
 } tracking_vrrp_t;
 
 /* prototypes */
