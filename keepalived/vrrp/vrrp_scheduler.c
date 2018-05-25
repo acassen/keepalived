@@ -103,7 +103,6 @@ static int vrrp_bfd_thread(thread_t *);
 
 static int vrrp_read_dispatcher_thread(thread_t *);
 
-
 /* VRRP TSM (Transition State Matrix) design.
  *
  * Introducing the Synchronization extension to VRRP
@@ -847,9 +846,11 @@ vrrp_dispatcher_read_timeout(int fd)
 			vrrp_master(vrrp);
 
 		/* handle instance synchronization */
+#ifdef _TSM_DEBUG_
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
-			log_message(LOG_INFO, "Send [%s] TSM transtition : [%d,%d] Wantstate = [%d]\n",
+			log_message(LOG_INFO, "Send [%s] TSM transition : [%d,%d] Wantstate = [%d]\n",
 				vrrp->iname, prev_state, vrrp->state, vrrp->wantstate);
+#endif
 		VRRP_TSM_HANDLE(prev_state, vrrp);
 
 		vrrp_init_instance_sands(vrrp);
@@ -904,9 +905,11 @@ vrrp_dispatcher_read(sock_t * sock)
 		log_message(LOG_INFO, "(%s) In dispatcher_read with state %d", vrrp->iname, vrrp->state);
 
 	/* handle instance synchronization */
+#ifdef _TSM_DEBUG_
 	if (__test_bit(LOG_DETAIL_BIT, &debug))
-		log_message(LOG_INFO, "Read [%s] TSM transtition : [%d,%d] Wantstate = [%d]\n",
+		log_message(LOG_INFO, "Read [%s] TSM transition : [%d,%d] Wantstate = [%d]\n",
 			vrrp->iname, prev_state, vrrp->state, vrrp->wantstate);
+#endif
 	VRRP_TSM_HANDLE(prev_state, vrrp);
 
 	/* If we have sent an advert, reset the timer */
