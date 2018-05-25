@@ -430,7 +430,8 @@ dump_ipaddress(FILE *fp, void *if_data)
 	char *buf_p = buf;
 
 	buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, "     %s", ipaddresstos(NULL, ipaddr));
-	buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, "/%d", ipaddr->ifa.ifa_prefixlen);
+	if (!ipaddr->have_peer)
+		buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, "/%d", ipaddr->ifa.ifa_prefixlen);
 	if (!IP_IS6(ipaddr) && ipaddr->u.sin.sin_brd.s_addr) {
 		buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, " brd %s",
 			 inet_ntop2(ipaddr->u.sin.sin_brd.s_addr));
@@ -543,6 +544,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 	ip_address_t peer = { .ifa.ifa_family = AF_UNSPEC };
 	int brd_len = 0;
 	uint32_t mask;
+	bool have_broadcast = false;
 
 	new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
 
@@ -603,9 +605,11 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 				return;
 			}
 
+			have_broadcast = true;
+
 			param = strvec_slot(strvec, ++i);
 			if (!strcmp(param, "-"))
-			       brd_len = -2;
+				brd_len = -2;
 			else if (!strcmp(param, "+"))
 				brd_len = -1;
 			else if (!inet_pton(AF_INET, param, &new->u.sin.sin_brd)) {
@@ -639,13 +643,15 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 			else if (peer.ifa.ifa_family != new->ifa.ifa_family)
 				log_message(LOG_INFO, "Peer address %s does not match address family", FMT_STR_VSLOT(strvec, i));
 			else {
+				if ((new->ifa.ifa_family == AF_INET6 && new->ifa.ifa_prefixlen != 128) ||
+				    (new->ifa.ifa_family == AF_INET && new->ifa.ifa_prefixlen != 32))
+					log_message(LOG_INFO, "Cannot specify address prefix when specifying peer address - ignoring");
 				new->have_peer = true;
 				new->ifa.ifa_prefixlen = peer.ifa.ifa_prefixlen;
 				if (new->ifa.ifa_family == AF_INET6)
 					new->peer.sin6_addr = peer.u.sin6_addr;
 				else
 					new->peer.sin_addr = peer.u.sin.sin_addr;
-				new->ifa.ifa_prefixlen = peer.ifa.ifa_prefixlen;
 			}
 #ifdef IFA_F_HOMEADDRESS		/* Linux 2.6.19 */
 		} else if (!strcmp(str, "home")) {
@@ -686,7 +692,11 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 	}
 
 	/* Set the broadcast address if necessary */
-	if (brd_len < 0  && new->ifa.ifa_prefixlen <= 30) {
+	if (have_broadcast && new->have_peer) {
+		log_message(LOG_INFO, "Cannot specify broadcast and peer addresses - ignoring broadcast address");
+		new->u.sin.sin_brd.s_addr = 0;
+	}
+	else if (brd_len < 0 && new->ifa.ifa_prefixlen <= 30) {
 		new->u.sin.sin_brd = (new->have_peer) ? new->peer.sin_addr : new->u.sin.sin_addr;
 		mask = 0xffffffffU >> new->ifa.ifa_prefixlen;
 		mask = htonl(mask);
@@ -695,6 +705,8 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 		else
 			new->u.sin.sin_brd.s_addr &= ~mask;
 	}
+	else if (brd_len < 0)
+		log_message(LOG_INFO, "Address prefix length %d too long for broadcast", new->ifa.ifa_prefixlen);
 
 	if (!ifp && !new->ifp) {
 		if (!global_data->default_ifp) {
