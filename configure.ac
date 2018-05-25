@@ -162,6 +162,8 @@ AC_ARG_ENABLE(dbus-create-instance,
   [AS_HELP_STRING([--enable-dbus-create-instance], [compile with dbus support for creating instances])])
 AC_ARG_ENABLE(sha1,
   [AS_HELP_STRING([--enable-sha1], [compile with SHA1 support])])
+AC_ARG_ENABLE(json,
+  [AS_HELP_STRING([--enable-json], [compile with signal to dump configuration and stats as json])])
 AC_ARG_WITH(init,
   [AS_HELP_STRING([--with-init=(upstart|systemd|SYSV|SUSE|openrc)], [specify init type])],
   [init_type="$withval"], [init_type=""])
@@ -207,6 +209,8 @@ AC_ARG_ENABLE(dump-threads,
   [  --enable-dump-threads   compile with thread dumping support])
 AC_ARG_ENABLE(select-debug,
   [  --enable-select-debug   compile with select debugging support])
+AC_ARG_ENABLE(tsm-debug,
+  [  --enable-tsm-debug      compile with TSM debugging support])
 AC_ARG_ENABLE(timer-debug-threads,
   [  --enable-timer-debug    compile with timer debugging support])
 AC_ARG_ENABLE(profile,
@@ -217,8 +221,6 @@ AC_ARG_ENABLE(force-conversion-checks,
   [AS_HELP_STRING([--enable-force-conversion-checks], [compile with conversion warnings])])
 AC_ARG_ENABLE(Werror,
   [AS_HELP_STRING([--enable-Werror], [compile with warnings being errors])])
-AC_ARG_ENABLE(json,
-  [AS_HELP_STRING([--enable-json], [compile with signal to dump configuration and stats as json])])
 
 AC_ARG_WITH([systemdsystemunitdir],
 	AS_HELP_STRING([--with-systemdsystemunitdir=DIR], [Directory for systemd service files]),
@@ -1621,6 +1623,15 @@ else
   ENABLE_SELECT_DEBUG=No
 fi
 
+dnl ----[ TSM debugging support or not ? ]----
+if test "${enable_tsm_debug}" = yes; then
+  AC_DEFINE([_TSM_DEBUG_], [ 1 ], [Define to 1 to build with TSM debugging support])
+  ENABLE_TSM_DEBUG=Yes
+  add_config_opt([TSM_DEBUG])
+else
+  ENABLE_TSM_DEBUG=No
+fi
+
 dnl ----[ Timer debugging support or not ? ]----
 if test "${enable_timer_debug}" = yes; then
   AC_DEFINE([_TIMER_DEBUG_], [ 1 ], [Define to 1 to build with timer debugging support])
@@ -1766,6 +1777,9 @@ if test ${ENABLE_DUMP_THREADS} = Yes; then
 fi
 if test ${ENABLE_SELECT_DEBUG} = Yes; then
   echo "Select() debugging       : ${ENABLE_SELECT_DEBUG}"
+fi
+if test ${ENABLE_TSM_DEBUG} = Yes; then
+  echo "TSM debugging            : ${ENABLE_TSM_DEBUG}"
 fi
 if test ${ENABLE_TIMER_DEBUG} = Yes; then
   echo "Timer debugging          : ${ENABLE_TIMER_DEBUG}"
