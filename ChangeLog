@@ -163,6 +163,8 @@ Beta branch 2017-10-29 Quentin Armitage <quentin@armitage.org.uk>
 	* Fix not sending RS and VS notifies if omega set
 	* Add no_checker_emails to not send emails every time a checker
 	    changes state, but only if a real server changes state
+	* Monitor VIP/eVIP deletion and transition to backup if a VIP/eVIP
+	    is removed unloes it is configured with the no-track option.
 
 2018-05-08 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.4.4 released.
