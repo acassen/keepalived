@@ -303,10 +303,10 @@ dump_vs(FILE *fp, void *data)
 	conf_write(fp, "   Inhibit on failure is %s", vs->inhibit ? "ON" : "OFF");
 	conf_write(fp, "   quorum = %u, hysteresis = %u", vs->quorum, vs->hysteresis);
 	if (vs->notify_quorum_up)
-		conf_write(fp, "   -> Notify script UP = %s, uid:gid %d:%d",
+		conf_write(fp, "   Quorum up notify script = %s, uid:gid %d:%d",
 			    vs->notify_quorum_up->cmd_str, vs->notify_quorum_up->uid, vs->notify_quorum_up->gid);
 	if (vs->notify_quorum_down)
-		conf_write(fp, "   -> Notify script DOWN = %s, uid:gid %d:%d",
+		conf_write(fp, "   Quorum down notify script = %s, uid:gid %d:%d",
 			    vs->notify_quorum_down->cmd_str, vs->notify_quorum_down->uid, vs->notify_quorum_down->gid);
 	if (vs->ha_suspend)
 		conf_write(fp, "   Using HA suspend");
@@ -459,10 +459,10 @@ dump_rs(FILE *fp, void *data)
 	conf_write(fp, "   Inhibit on failure is %s", rs->inhibit ? "ON" : "OFF");
 
 	if (rs->notify_up)
-		conf_write(fp, "     -> Notify script UP = %s, uid:gid %d:%d",
+		conf_write(fp, "     RS up notify script = %s, uid:gid %d:%d",
 		       rs->notify_up->cmd_str, rs->notify_up->uid, rs->notify_up->gid);
 	if (rs->notify_down)
-		conf_write(fp, "     -> Notify script DOWN = %s, uid:gid %d:%d",
+		conf_write(fp, "     RS down notify script = %s, uid:gid %d:%d",
 		       rs->notify_down->cmd_str, rs->notify_down->uid, rs->notify_down->gid);
 	if (rs->virtualhost)
 		conf_write(fp, "    VirtualHost = %s", rs->virtualhost);
