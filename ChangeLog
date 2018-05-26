@@ -1,4 +1,4 @@
-Beta branch 2017-10-29 Quentin Armitage <quentin@armitage.org.uk>
+Beta branch 2018-05-26 Quentin Armitage <quentin@armitage.org.uk>
 
 	* Transition to master as soon as decision is made to do so
 	    Previously keepalived waited one further advert interval before
@@ -166,6 +166,25 @@ Beta branch 2017-10-29 Quentin Armitage <quentin@armitage.org.uk>
 	* Monitor VIP/eVIP deletion and transition to backup if a VIP/eVIP
 	    is removed unloes it is configured with the no-track option.
 
+2018-05-26 Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.4.5 released.
+	* Update snapcraft.yaml for 1.4.x+git
+	* Fix generation of git-commit.h with git commit number.
+	* Set virtual server address family correctly.
+	* Set virtual server address family correctly when using tunnelled
+	  real servers.
+	* Fix handling of virtual servers with no real servers at config time.
+	* Add warning if virtual and real servers are different address families.
+	  Although normally the virtual server and real servers must have the
+	  same address family, if a real server is tunnelled, the address families
+	  can be different. However, the kernel didn't support that until 3.18,
+	  so add a check that the address families are the same if different
+	  address families are not supported by the kernel.
+	* Send correct status in Dbus VrrpStatusChange notification.
+	  When an instance transitioned from BACKUP to FAULT, the Dbus
+	  status change message reported the old status (BACKUP) rather than
+	  the new status (FAULT). This commit attempts to resolved that.
+
 2018-05-08 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.4.4 released.
 	* doc: ipvs schedulers update
@@ -198,7 +217,6 @@ Beta branch 2017-10-29 Quentin Armitage <quentin@armitage.org.uk>
 	  This commit checks that any spec files in the compiler and linker
 	  flags returned by net-snmp-config exist on the system building
 	  keepalived, and if not it removes the reference(s) to the spec file(s).
-
 
 2018-04-09 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.4.3 released.
@@ -303,7 +321,6 @@ Beta branch 2017-10-29 Quentin Armitage <quentin@armitage.org.uk>
 	* Tidy up layout in vrrp_arp.c.
 	* Add configure check for support of position independant executables (PIE).
 	* Add check for -pie support, and fix writing to keepalived.data.
-
 
 2018-02-25 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.4.2 released.
