@@ -37,6 +37,11 @@ development:
 	* Ensure unicast peers groups check source address of received advert
 	  so that the same VRID can be used between different peer groups on the
 	  same interface.
+	* Add process checking:
+	    Add track_process for vrrp instances
+	    Add PROCESS_CHECK for checkers
+	    - Find PID and remember it. If PID has gone, try and find new pid
+	    Look at how pidof/killall find processes
 
 
 Other issues awaiting resolution:
