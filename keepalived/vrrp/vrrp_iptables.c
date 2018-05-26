@@ -53,7 +53,9 @@
 #include <net/if.h>
 #endif
 
-#include <libiptc/libiptc.h>
+#ifdef _HAVE_LIBIPTC_
+#include <libiptc/libxtc.h>
+#endif
 #include <stdint.h>
 #ifdef _HAVE_LIBIPSET_
 #include <xtables.h>
@@ -74,8 +76,8 @@
 #include "vrrp_ipset.h"
 #endif
 #include "logger.h"
-#include "memory.h"
 #include "global_data.h"
+#include "memory.h"
 
 struct ipt_handle {
 	struct iptc_handle *h4;

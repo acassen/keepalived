@@ -160,10 +160,8 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <stdio.h>
 #include <sys/mount.h>
-#include <stdlib.h>
 #include <stdbool.h>
 
 #ifndef HAVE_SETNS
@@ -176,8 +174,10 @@
 
 #include <sys/syscall.h>
 
-#include "namespaces.h"
-#include "main.h"
+/* For some reason Centos 6.5 doesn't define SYS_setns */
+#ifndef SYS_setns
+#define SYS_setns __NR_setns
+#endif
 
 #ifndef MS_SLAVE	/* Since glibc 2.12, but Linux since 2.6.15 */
 #include <linux/fs.h>
@@ -188,6 +188,7 @@ int setns(int fd, int nstype)
 }
 #endif
 
+#include "namespaces.h"
 #include "memory.h"
 #include "logger.h"
 #include "pidfile.h"

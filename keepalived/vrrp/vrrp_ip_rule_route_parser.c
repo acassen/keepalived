@@ -212,7 +212,7 @@ get_time_rtt(uint32_t *val, const char *str, bool *raw)
 	*val = (uint32_t)t;
 	if (*val < t)
 		(*val)++;
-	
+
 	return false;
 }
 

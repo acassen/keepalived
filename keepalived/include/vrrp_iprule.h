@@ -25,17 +25,17 @@
 #define _VRRP_IPRULE_H
 
 /* global includes */
-#include <stdio.h>
-#include <stdlib.h>
-#include <arpa/inet.h>
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <sys/types.h>
+#if HAVE_DECL_FRA_UID_RANGE
 #include <linux/fib_rules.h>
+#endif
 
 /* local includes */
-#include "list.h"
-#include "vector.h"
-#include "utils.h"
+#include "vrrp_if.h"
+#include "vrrp_ipaddress.h"
 
 /* print buffer sizes */
 #define	RULE_BUF_SIZE	256
@@ -68,7 +68,9 @@ typedef struct _ip_rule {
 	uint32_t	suppress_group;
 #endif
 	interface_t	*iif;
+#if HAVE_DECL_FRA_OIFNAME
 	interface_t	*oif;
+#endif
 	uint32_t	goto_target;
 	uint32_t	table;
 	uint8_t		action;
@@ -87,14 +89,11 @@ typedef struct _ip_rule {
 #define IPRULE_DEL 0
 #define IPRULE_ADD 1
 
-#define VRRP_RULE_FROM	1
-#define VRRP_RULE_TO	2
-
 /* prototypes */
 extern void netlink_rulelist(list, int, bool);
 extern void free_iprule(void *);
 extern void format_iprule(ip_rule_t *, char *, size_t);
-extern void dump_iprule(void *);
+extern void dump_iprule(FILE *, void *);
 extern void alloc_rule(list, vector_t *);
 extern void clear_diff_rules(list, list);
 extern void clear_diff_srules(void);

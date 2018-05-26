@@ -21,7 +21,7 @@ The VRRP Instances are compounded with the following IP addresses:
 * VRRP Instance VI_3: owning VRRIP VIPs VIP3 & VIP4. This instance is in default MASTER state on LVS director 2. It stays synchronized with VI_4.
 * VRRP Instance VI_4: owning DIP2. This instance is in default MASTER state on LVS director 2. It stays synchronized with VI_3.
 
-Keepalived Configuration 
+Keepalived Configuration
 ************************
 
 The whole configuration is done in the /etc/keepalived/keepalived.conf file. In our case study this file on LVS director 1 looks like::
@@ -138,7 +138,7 @@ Then simply start Keepalived on the LVS director 2 and you will see::
         inet 192.168.100.5/24 brd 192.168.201.255 scope global eth1
         inet 192.168.100.10/32 scope global eth1
 
-Symmetrically on LVS director 2 you will see:: 
+Symmetrically on LVS director 2 you will see::
 
     [root@lvs2 tmp]# ip address list
     1: lo: <LOOPBACK,UP> mtu 3924 qdisc noqueue
@@ -164,11 +164,11 @@ The VRRP VIPs are:
 * DIP2 = 192.168.100.11
 
 The use of VRRP keyword “sync_instance” imply that we have defined a pair of MASTER VRRP Instance per LVS directors ó (VI_1,VI_2) & (VI_3,VI_4). This means that if eth0 on LVS director 1 fails then VI_1 enters the MASTER state on LVS director 2 so the MASTER Instance distribution on both directors will be: (VI_2) on director 1 & (VI_1,VI_3,VI_4) on director 2. We use “sync_instance”
-so VI_2 is forced to BACKUP the state on LVS director 1. The final VRRP MASTER instance distribution will be: (none) on LVS director 1 & (VI_1,VI_2,VI_3,VI_4) on LVS director 2. If eth0 on LVS director 1 became available the distribution will transition back to the initial state.  
+so VI_2 is forced to BACKUP the state on LVS director 1. The final VRRP MASTER instance distribution will be: (none) on LVS director 1 & (VI_1,VI_2,VI_3,VI_4) on LVS director 2. If eth0 on LVS director 1 became available the distribution will transition back to the initial state.
 
 For more details on this state transition please refer to the “Linux Virtual Server High Availability using VRRPv2” paper (available at http://www.linux-vs.org/~acassen/), which explains the implementation of this functionality.
 
 Using this configuration both LVS directors are active at a time, thus sharing LVS directors for a global director. That way we introduce a virtual LVS director.
 
 .. note::
-   This VRRP configuration sample is an illustration for a high availability router (not LVS specific). It can be used for many more common/simple needs. 
+   This VRRP configuration sample is an illustration for a high availability router (not LVS specific). It can be used for many more common/simple needs.

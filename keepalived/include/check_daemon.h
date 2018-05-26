@@ -24,13 +24,10 @@
 #define _CHECK_DAEMON_H
 
 /* system include */
-#include <stdlib.h>
-#include <signal.h>
 #include <stdbool.h>
 
 /* Daemon define */
 #define PROG_CHECK	"Keepalived_healthcheckers"
-#define WDOG_CHECK	"/tmp/.healthcheckers"
 
 /* Global data */
 extern bool using_ha_suspend;

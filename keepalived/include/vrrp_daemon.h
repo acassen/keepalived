@@ -23,9 +23,12 @@
 #ifndef _VRRP_DAEMON_H
 #define _VRRP_DAEMON_H
 
+#include <stdbool.h>
+
 /* Daemon define */
 #define PROG_VRRP	"Keepalived_vrrp"
-#define WDOG_VRRP	"/tmp/.vrrp"
+
+extern bool non_existent_interface_specified;
 
 /* Prototypes */
 extern int start_vrrp_child(void);

@@ -24,24 +24,29 @@
 #ifndef _VRRP_H
 #define _VRRP_H
 
+#include "config.h"
+
 /* system include */
-#include <unistd.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <net/if.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#ifdef HAVE_LIBNFNETLINK_LIBNFNETLINK_H
+#include <libnfnetlink/libnfnetlink.h>
+#endif
 
 /* local include */
-#include "vrrp_ipaddress.h"
-#ifdef _WITH_VRRP_AUTH_
+#include "vector.h"
+#include "list.h"
+#include "timer.h"
+#include "notify.h"
+#if defined _WITH_VRRP_AUTH_
 #include "vrrp_ipsecah.h"
 #endif
 #include "vrrp_if.h"
-#include "vrrp_track.h"
-#include "timer.h"
-#include "utils.h"
-#include "vector.h"
-#include "list.h"
-#include "notify.h"
+#include "vrrp_sock.h"
 
 /* Special value for parameters when we want to know they haven't been set */
 #define	PARAMETER_UNSET		UINT_MAX
@@ -53,7 +58,7 @@ typedef struct _vrrphdr {			/* rfc2338.5.1 */
 	uint8_t			naddr;		/* address counter */
 	union {
 		struct {
-	uint8_t			auth_type;	/* authentification type */
+			uint8_t	auth_type;	/* authentification type */
 			uint8_t adver_int;	/* advertisement interval (in sec) */
 		} v2;
 		struct {
@@ -74,7 +79,8 @@ typedef struct {
 } ipv4_phdr_t;
 
 /* protocol constants */
-#define INADDR_VRRP_GROUP	0xe0000012	/* multicast addr - rfc2338.5.2.2 */
+#define INADDR_VRRP_GROUP	"224.0.0.18"	/* multicast IPv4 addr - rfc2338.5.2.2 */
+#define INADDR6_VRRP_GROUP	"ff02::12"	/* multicast IPv6 addr - rfc5798.5.1.2.2 */
 #define VRRP_IP_TTL		255		/* in and out pkt ttl -- rfc2338.5.2.3 */
 #define IPPROTO_VRRP		112		/* IP protocol number -- rfc2338.5.2.4 */
 #define VRRP_VERSION_2		2		/* VRRP version 2 -- rfc2338.5.3.1 */
@@ -101,20 +107,28 @@ typedef struct {
  */
 typedef struct _vrrp_sgroup {
 	char			*gname;			/* Group name */
-	vector_t		*iname;			/* Set of VRRP instances in this group */
-	list			index_list;		/* List of VRRP instances */
+	vector_t		*iname;			/* Set of VRRP instances in this group, only used during initialisation */
+	list			vrrp_instances;		/* List of VRRP instances */
+	unsigned		num_member_fault;	/* Number of members of group in fault state */
+	unsigned		num_member_init;	/* Number of members of group in pending state */
 	int			state;			/* current stable state */
-	int			global_tracking;	/* Use floating priority and scripts
-							 * All VRRP must share same tracking conf
-							 */
+	bool			sgroup_tracking_weight;	/* Use floating priority and scripts
+							 * Used if need different priorities needed on a track object in a sync group.
+							 * It probably won't work properly. */
+	list			track_ifp;		/* Interface state we monitor */
+	list			track_script;		/* Script state we monitor */
+	list			track_file;		/* Files whose value we monitor (list of tracked_file_t) */
+	list			track_bfd;		/* List of tracked_bfd_t */
 
 	/* State transition notification */
 	bool			notify_exec;
 	notify_script_t		*script_backup;
 	notify_script_t		*script_master;
 	notify_script_t		*script_fault;
+	notify_script_t		*script_stop;
 	notify_script_t		*script;
-	bool			smtp_alert;
+	int			smtp_alert;
+	int			last_email_state;
 } vrrp_sgroup_t;
 
 /* Statistics */
@@ -147,6 +161,7 @@ typedef struct _vrrp_stats {
 	timeval_t	uptime;
 #ifdef _WITH_SNMP_RFCV3_
 	uint32_t	master_reason;
+	uint32_t	next_master_reason;
 	uint32_t	proto_err_reason;
 #endif
 #endif
@@ -171,17 +186,25 @@ typedef struct _vrrp_t {
 	vrrp_stats		*stats;			/* Statistics */
 	interface_t		*ifp;			/* Interface we belong to */
 	bool			dont_track_primary;	/* If set ignores ifp faults */
+	bool			linkbeat_use_polling;	/* Don't use netlink for interface status */
 	bool			skip_check_adv_addr;	/* If set, don't check the VIPs in subsequent
 							 * adverts from the same master */
 	unsigned		strict_mode;		/* Enforces strict VRRP compliance */
 #ifdef _HAVE_VRRP_VMAC_
 	unsigned long		vmac_flags;		/* VRRP VMAC flags */
 	char			vmac_ifname[IFNAMSIZ];	/* Name of VRRP VMAC interface */
-	ifindex_t		vmac_ifindex;		/* ifindex of vmac interface */
 #endif
 	list			track_ifp;		/* Interface state we monitor */
 	list			track_script;		/* Script state we monitor */
+	list			track_file;		/* list of tracked_file_t - Files whose value we monitor */
+#ifdef _WITH_BFD_
+	list			track_bfd;		/* List of tracked_bfd_t */
+#endif
+	unsigned		num_script_if_fault;	/* Number of scripts and interfaces in fault state */
+	unsigned		num_script_init;	/* Number of scripts in init state */
 	struct sockaddr_storage	saddr;			/* Src IP address to use in VRRP IP header */
+	bool			saddr_from_config;	/* Set if the source address is from configuration */
+	bool			track_saddr;		/* Fault state if configured saddr is missing */
 	struct sockaddr_storage	pkt_saddr;		/* Src IP address received in VRRP IP header */
 	list			unicast_peer;		/* List of Unicast peer to send advert to */
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
@@ -204,6 +227,8 @@ typedef struct _vrrp_t {
 	uint8_t			vrid;			/* virtual id. from 1(!) to 255 */
 	uint8_t			base_priority;		/* configured priority value */
 	uint8_t			effective_priority;	/* effective priority value */
+	int			total_priority;		/* base_priority +/- track_script, track_interface and track_file weights.
+							   effective_priority is this within the range [1,254]. */
 	bool			vipset;			/* All the vips are set ? */
 	list			vip;			/* list of virtual ip addresses */
 	list			evip;			/* list of protocol excluded VIPs.
@@ -218,6 +243,7 @@ typedef struct _vrrp_t {
 	unsigned		master_adver_int;	/* In v3, when we become BACKUP, we use the MASTER's
 							 * adver_int. If we become MASTER again, we use the
 							 * value we were originally configured with.
+							 * In v2, this will always be the configured adver_int.
 							 */
 	unsigned		accept;			/* Allow the non-master owner to process
 							 * the packets destined to VIP.
@@ -231,24 +257,19 @@ typedef struct _vrrp_t {
 	timeval_t		preempt_time;		/* Time after which preemption can happen */
 	int			state;			/* internal state (init/backup/master/fault) */
 #ifdef _WITH_SNMP_VRRP_
-	int			init_state;		/* the initial state of the instance */
+	int			configured_state;	/* the configured state of the instance */
 #endif
 	int			wantstate;		/* user explicitly wants a state (back/mast) */
-	int			fd_in;			/* IN socket descriptor */
-	int			fd_out;			/* OUT socket descriptor */
+	bool			reload_master;		/* set if the instance is a master being reloaded */
+	sock_t			*sockets;		/* In and out socket descriptors */
 
 	int			debug;			/* Debug level 0-4 */
 
-	bool			quick_sync;		/* Will be set when waiting for the other members
-							 * in the sync group to become master.
-							 * If set the next check will occur in one interval
-							 * instead of three intervals.
-							 */
-
-	int version;		/* VRRP version (2 or 3) */
+	int			version;		/* VRRP version (2 or 3) */
 
 	/* State transition notification */
-	bool			smtp_alert;
+	int			smtp_alert;
+	int			last_email_state;
 	bool			notify_exec;
 	notify_script_t		*script_backup;
 	notify_script_t		*script_master;
@@ -263,12 +284,15 @@ typedef struct _vrrp_t {
 	/* Sending buffer */
 	char			*send_buffer;		/* Allocated send buffer */
 	size_t			send_buffer_size;
+	uint32_t		ipv4_csum;		/* Checksum ip IPv4 pseudo header for VRRPv3 */
 
 #if defined _WITH_VRRP_AUTH_
 	/* Authentication data (only valid for VRRPv2) */
 	uint8_t			auth_type;		/* authentification type. VRRP_AUTH_* */
 	uint8_t			auth_data[8];		/* authentification data */
-	seq_counter_t		*ipsecah_counter;
+
+	/* IPSEC AH counter def (only valid for VRRPv2) --rfc2402.3.3.2 */
+	seq_counter_t		ipsecah_counter;
 #endif
 
 	/*
@@ -286,20 +310,15 @@ typedef struct _vrrp_t {
 #define VRRP_STATE_BACK			1	/* rfc2338.6.4.2 */
 #define VRRP_STATE_MAST			2	/* rfc2338.6.4.3 */
 #define VRRP_STATE_FAULT		3	/* internal */
-#define VRRP_STATE_GOTO_MASTER		4	/* internal */
-#define VRRP_STATE_MASTER_RELOAD	96	/* internal */
-#define VRRP_STATE_STOP			97	/* internal */
-#define VRRP_STATE_GOTO_FAULT		98	/* internal */
+#define VRRP_STATE_STOP			98	/* internal */
 #define VRRP_DISPATCHER			99	/* internal */
-#define VRRP_MCAST_RETRY		10	/* internal */
-#define VRRP_MAX_FSM_STATE		4	/* internal */
 
 /* VRRP packet handling */
 #define VRRP_PACKET_OK       0
 #define VRRP_PACKET_KO       1
 #define VRRP_PACKET_DROP     2
 #define VRRP_PACKET_NULL     3
-#define VRRP_PACKET_OTHER    4	/* Muliple VRRP on LAN, Identify "other" VRRP */
+#define VRRP_PACKET_OTHER    4	/* Multiple VRRP on LAN, Identify "other" VRRP */
 
 /* VRRP Packet fixed length */
 #define VRRP_AUTH_LEN		8
@@ -309,54 +328,51 @@ typedef struct _vrrp_t {
 /* VRRP macro */
 #define VRRP_IS_BAD_VERSION(id)		((id) < 2 || (id) > 3)
 #define VRRP_IS_BAD_VID(id)		((id) < 1 || (id) > 255)	/* rfc2338.6.1.vrid */
-#define VRRP_IS_BAD_PRIORITY(p)		((p)<1 || (p)>255)	/* rfc2338.6.1.prio */
-#define VRRP_IS_BAD_ADVERT_INT(d)	((d)<1)
-#define VRRP_IS_BAD_DEBUG_INT(d)	((d)<0 || (d)>4)
-#define VRRP_IS_BAD_PREEMPT_DELAY(d)	((d)>TIMER_MAX_SEC)
-#define VRRP_SEND_BUFFER(V)		((V)->send_buffer)
-#define VRRP_SEND_BUFFER_SIZE(V)	((V)->send_buffer_size)
+#define VRRP_IS_BAD_PRIORITY(p)		((p) < 1 || (p) > VRRP_PRIO_OWNER)	/* rfc2338.6.1.prio */
+#define VRRP_IS_BAD_DEBUG_INT(d)	((d) < 0 || (d) > 4)
 
 /* We have to do some reduction of the calculation for VRRPv3 in order not to overflow a uint32; 625 / 16 == TIMER_CENTI_HZ / 256 */
-#define VRRP_TIMER_SKEW(svr)	((svr)->version == VRRP_VERSION_3 ? (((256U-(svr)->base_priority) * ((svr)->adver_int / TIMER_CENTI_HZ) * 625U) / 16U) : ((256U-(svr)->base_priority) * TIMER_HZ/256U))
+#define VRRP_TIMER_SKEW(svr)	((svr)->version == VRRP_VERSION_3 ? (((256U-(svr)->effective_priority) * ((svr)->master_adver_int / TIMER_CENTI_HZ) * 625U) / 16U) : ((256U-(svr)->effective_priority) * TIMER_HZ/256U))
+#define VRRP_TIMER_SKEW_MIN(svr)	((svr)->version == VRRP_VERSION_3 ? ((((svr)->master_adver_int / TIMER_CENTI_HZ) * 625U) / 16U) : (TIMER_HZ/256U))
 #define VRRP_VIP_ISSET(V)	((V)->vipset)
 
 #define VRRP_MIN(a, b)	((a) < (b)?(a):(b))
 #define VRRP_MAX(a, b)	((a) > (b)?(a):(b))
 
 #define VRRP_PKT_SADDR(V) (((V)->saddr.ss_family) ? ((struct sockaddr_in *) &(V)->saddr)->sin_addr.s_addr : IF_ADDR((V)->ifp))
-#define VRRP_PKT_SADDR6(V) (((V)->saddr.ss_family) ? ((struct sockaddr_in6 *) &(V)->saddr)->sin6_addr : IF_ADDR6((V)->ifp))
 
-#define VRRP_IF_ISUP(V)		((IF_ISUP((V)->ifp) || (V)->dont_track_primary) & \
-				((!LIST_ISEMPTY((V)->track_ifp)) ? TRACK_ISUP((V)->track_ifp) : 1))
-
-#define VRRP_SCRIPT_ISUP(V)	((!LIST_ISEMPTY((V)->track_script)) ? SCRIPT_ISUP((V)->track_script) : 1)
-
-#define VRRP_ISUP(V)		(VRRP_IF_ISUP(V) && VRRP_SCRIPT_ISUP(V))
+#define VRRP_ISUP(V)		(!(V)->num_script_if_fault)
 
 /* Global variables */
 extern bool block_ipv4;
 extern bool block_ipv6;
 
+/* Configuration summary flags */
+extern bool have_ipv4_instance;
+extern bool have_ipv6_instance;
+
 /* prototypes */
+extern void clear_summary_flags(void);
 extern vrrphdr_t *vrrp_get_header(sa_family_t, char *, unsigned *);
-extern int open_vrrp_send_socket(sa_family_t, int, ifindex_t, bool);
-extern int open_vrrp_read_socket(sa_family_t, int, ifindex_t, bool);
+extern int open_vrrp_send_socket(sa_family_t, int, interface_t *, bool);
+extern int open_vrrp_read_socket(sa_family_t, int, interface_t *, bool);
 extern int new_vrrp_socket(vrrp_t *);
+extern void vrrp_send_adv(vrrp_t *, uint8_t);
 extern void vrrp_send_link_update(vrrp_t *, unsigned);
-extern int vrrp_send_adv(vrrp_t *, uint8_t);
-extern int vrrp_state_fault_rx(vrrp_t *, char *, ssize_t);
-extern int vrrp_state_master_rx(vrrp_t *, char *, ssize_t);
-extern int vrrp_state_master_tx(vrrp_t *, const int);
+extern bool vrrp_state_fault_rx(vrrp_t *, char *, ssize_t);
+extern bool vrrp_state_master_rx(vrrp_t *, char *, ssize_t);
+extern void vrrp_state_master_tx(vrrp_t *);
 extern void vrrp_state_backup(vrrp_t *, char *, ssize_t);
 extern void vrrp_state_goto_master(vrrp_t *);
-extern void vrrp_state_leave_master(vrrp_t *);
+extern void vrrp_state_leave_master(vrrp_t *, bool);
+extern void vrrp_state_leave_fault(vrrp_t *);
 extern bool vrrp_complete_init(void);
 extern void vrrp_restore_interfaces_startup(void);
 extern void restore_vrrp_interfaces(void);
 extern void shutdown_vrrp_instances(void);
 extern void clear_diff_vrrp(void);
 extern void clear_diff_script(void);
+extern void clear_diff_bfd(void);
 extern void vrrp_restore_interface(vrrp_t *, bool, bool);
-extern void vrrp_remove_delayed_arp_na(vrrp_t *);
 
 #endif

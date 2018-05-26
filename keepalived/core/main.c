@@ -28,9 +28,22 @@
 #include <sys/utsname.h>
 #include <sys/resource.h>
 #include <stdbool.h>
+#ifdef HAVE_SIGNALFD
+#include <sys/signalfd.h>
+#endif
+#include <errno.h>
+#include <signal.h>
+#include <fcntl.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <getopt.h>
 #include <linux/version.h>
+#include <ctype.h>
 
 #include "main.h"
+#include "global_data.h"
+#include "daemon.h"
 #include "config.h"
 #include "git-commit.h"
 #include "utils.h"
@@ -40,25 +53,42 @@
 #include "logger.h"
 #include "parser.h"
 #include "notify.h"
+#include "utils.h"
 #ifdef _WITH_LVS_
 #include "check_parser.h"
+#include "check_daemon.h"
 #endif
 #ifdef _WITH_VRRP_
+#include "vrrp_daemon.h"
 #include "vrrp_parser.h"
+#include "vrrp_if.h"
 #ifdef _WITH_JSON_
 #include "vrrp_json.h"
 #endif
+#endif
+#ifdef _WITH_BFD_
+#include "bfd_daemon.h"
+#include "bfd_parser.h"
 #endif
 #include "global_parser.h"
 #if HAVE_DECL_CLONE_NEWNET
 #include "namespaces.h"
 #endif
+#include "scheduler.h"
 #include "keepalived_netlink.h"
+#include "git-commit.h"
+
+/* musl libc doesn't define the following */
+#ifndef	W_EXITCODE
+#define	W_EXITCODE(ret, sig)	((ret) << 8 | (sig))
+#endif
+#ifndef	WCOREFLAG
+#define	WCOREFLAG		((int32_t)WCOREDUMP(0xffffffff))
+#endif
 
 #define	LOG_FACILITY_MAX	7
 #define	VERSION_STRING		PACKAGE_NAME " v" PACKAGE_VERSION " (" GIT_DATE ")"
 #define COPYRIGHT_STRING	"Copyright(C) 2001-" GIT_YEAR " Alexandre Cassen, <acassen@gmail.com>"
-#define BUILD_OPTIONS		CONFIGURATION_OPTIONS
 
 #define CHILD_WAIT_SECS	5
 
@@ -66,25 +96,30 @@
 const char *version_string = VERSION_STRING;		/* keepalived version */
 char *conf_file = KEEPALIVED_CONFIG_FILE;		/* Configuration file */
 int log_facility = LOG_DAEMON;				/* Optional logging facilities */
+bool reload;						/* Set during a reload */
 char *main_pidfile;					/* overrule default pidfile */
 static bool free_main_pidfile;
 #ifdef _WITH_LVS_
-pid_t checkers_child = -1;				/* Healthcheckers child process ID */
+pid_t checkers_child;					/* Healthcheckers child process ID */
 char *checkers_pidfile;					/* overrule default pidfile */
 static bool free_checkers_pidfile;
 #endif
 #ifdef _WITH_VRRP_
-pid_t vrrp_child = -1;					/* VRRP child process ID */
+pid_t vrrp_child;					/* VRRP child process ID */
 char *vrrp_pidfile;					/* overrule default pidfile */
 static bool free_vrrp_pidfile;
 #endif
-unsigned long daemon_mode;				/* VRRP/CHECK subsystem selection */
+#ifdef _WITH_BFD_
+pid_t bfd_child;					/* BFD child process ID */
+char *bfd_pidfile;					/* overrule default pidfile */
+static bool free_bfd_pidfile;
+#endif
+unsigned long daemon_mode;				/* VRRP/CHECK/BFD subsystem selection */
 #ifdef _WITH_SNMP_
 bool snmp;						/* Enable SNMP support */
 const char *snmp_socket;				/* Socket to use for SNMP agent */
 #endif
 static char *syslog_ident;				/* syslog ident if not default */
-char *instance_name;					/* keepalived instance name */
 bool use_pid_dir;					/* Put pid files in /var/run/keepalived or @localstatedir@/run/keepalived */
 
 unsigned os_major;					/* Kernel version */
@@ -93,10 +128,10 @@ unsigned os_release;
 char *hostname;						/* Initial part of hostname */
 
 #if HAVE_DECL_CLONE_NEWNET
-char *network_namespace;				/* The network namespace we are running in */
-bool namespace_with_ipsets;				/* Override for using namespaces and ipsets with Linux < 3.13 */
 static char *override_namespace;			/* If namespace specified on command line */
 #endif
+
+unsigned child_wait_time = CHILD_WAIT_SECS;		/* Time to wait for children to exit */
 
 /* Log facility table */
 static struct {
@@ -111,6 +146,50 @@ static bool set_core_dump_pattern = false;
 static bool create_core_dump = false;
 static const char *core_dump_pattern = "core";
 static char *orig_core_dump_pattern = NULL;
+
+#ifdef _TIMER_DEBUG_
+extern void print_smtp_addresses(void);
+extern void print_check_daemon_addresses(void);
+extern void print_check_dns_addresses(void);
+extern void print_check_http_addresses(void);
+extern void print_check_misc_addresses(void);
+extern void print_check_smtp_addresses(void);
+extern void print_check_tcp_addresses(void);
+#ifdef _WITH_DBUS_
+extern void print_vrrp_dbus_addresses(void);
+#endif
+extern void print_vrrp_if_addresses(void);
+extern void print_vrrp_netlink_addresses(void);
+extern void print_vrrp_daemon_addresses(void);
+extern void print_check_ssl_addresses(void);
+extern void print_vrrp_scheduler_addresses(void);
+
+void global_print(void)
+{
+	print_smtp_addresses();
+#ifdef _WITH_LVS_
+	print_check_daemon_addresses();
+	print_check_dns_addresses();
+	print_check_http_addresses();
+	print_check_misc_addresses();
+	print_check_smtp_addresses();
+	print_check_ssl_addresses();
+	print_check_tcp_addresses();
+#ifdef _WITH_BFD_
+	print_check_bfd_addresses();
+#endif
+#endif
+#ifdef _WITH_VRRP_
+#ifdef _WITH_DBUS_
+	print_vrrp_dbus_addresses();
+#endif
+	print_vrrp_if_addresses();
+	print_vrrp_netlink_addresses();
+	print_vrrp_daemon_addresses();
+	print_vrrp_scheduler_addresses();
+#endif
+}
+#endif
 
 void
 free_parent_mallocs_startup(bool am_child)
@@ -142,10 +221,6 @@ free_parent_mallocs_startup(bool am_child)
 void
 free_parent_mallocs_exit(void)
 {
-#if HAVE_DECL_CLONE_NEWNET
-	FREE_PTR(network_namespace);
-#endif
-
 #ifdef _WITH_VRRP_
 	if (free_vrrp_pidfile)
 		FREE_PTR(vrrp_pidfile);
@@ -154,8 +229,12 @@ free_parent_mallocs_exit(void)
 	if (free_checkers_pidfile)
 		FREE_PTR(checkers_pidfile);
 #endif
+#ifdef _WITH_BFD_
+	if (free_bfd_pidfile)
+		FREE_PTR(bfd_pidfile);
+#endif
 
-	FREE_PTR(instance_name);
+	FREE_PTR(config_id);
 }
 
 char *
@@ -165,11 +244,11 @@ make_syslog_ident(const char* name)
 	char *ident;
 
 #if HAVE_DECL_CLONE_NEWNET
-	if (network_namespace)
-		ident_len += strlen(network_namespace) + 1;
+	if (global_data->network_namespace)
+		ident_len += strlen(global_data->network_namespace) + 1;
 #endif
-	if (instance_name)
-		ident_len += strlen(instance_name) + 1;
+	if (global_data->instance_name)
+		ident_len += strlen(global_data->instance_name) + 1;
 
 	/* If we are writing MALLOC/FREE info to the log, we have
 	 * trouble FREEing the syslog_ident */
@@ -184,14 +263,14 @@ make_syslog_ident(const char* name)
 
 	strcpy(ident, name);
 #if HAVE_DECL_CLONE_NEWNET
-	if (network_namespace) {
+	if (global_data->network_namespace) {
 		strcat(ident, "_");
-			strcat(ident, network_namespace);
+			strcat(ident, global_data->network_namespace);
 		}
 #endif
-	if (instance_name) {
+	if (global_data->instance_name) {
 		strcat(ident, "_");
-		strcat(ident, instance_name);
+		strcat(ident, global_data->instance_name);
 	}
 
 	return ident;
@@ -226,6 +305,36 @@ make_pidfile_name(const char* start, const char* instance, const char* extn)
 	return name;
 }
 
+#ifdef _WITH_VRRP_
+bool
+running_vrrp(void)
+{
+	return (__test_bit(DAEMON_VRRP, &daemon_mode) &&
+	    (global_data->have_vrrp_config ||
+	     __test_bit(RUN_ALL_CHILDREN, &daemon_mode)));
+}
+#endif
+
+#ifdef _WITH_LVS_
+bool
+running_checker(void)
+{
+	return (__test_bit(DAEMON_CHECKERS, &daemon_mode) &&
+	    (global_data->have_checker_config ||
+	     __test_bit(RUN_ALL_CHILDREN, &daemon_mode)));
+}
+#endif
+
+#ifdef _WITH_BFD_
+bool
+running_bfd(void)
+{
+	return (__test_bit(DAEMON_BFD, &daemon_mode) &&
+	    (global_data->have_bfd_config ||
+	     __test_bit(RUN_ALL_CHILDREN, &daemon_mode)));
+}
+#endif
+
 static char const *
 find_keepalived_child_name(pid_t pid)
 {
@@ -237,6 +346,10 @@ find_keepalived_child_name(pid_t pid)
 	if (pid == vrrp_child)
 		return PROG_VRRP;
 #endif
+#ifdef _WITH_BFD_
+	if (pid == bfd_child)
+		return PROG_BFD;
+#endif
 
 	return NULL;
 }
@@ -245,13 +358,16 @@ static vector_t *
 global_init_keywords(void)
 {
 	/* global definitions mapping */
-	init_global_keywords(false);
+	init_global_keywords(true);
 
 #ifdef _WITH_VRRP_
 	init_vrrp_keywords(false);
 #endif
 #ifdef _WITH_LVS_
 	init_check_keywords(false);
+#endif
+#ifdef _WITH_BFD_
+	init_bfd_keywords(false);
 #endif
 
 	return keywords;
@@ -264,7 +380,7 @@ read_config_file(void)
 }
 
 /* Daemon stop sequence */
-static void
+void
 stop_keepalived(void)
 {
 #ifndef _DEBUG_
@@ -282,6 +398,11 @@ stop_keepalived(void)
 		pidfile_rm(checkers_pidfile);
 #endif
 
+#ifdef _WITH_BFD_
+	if (__test_bit(DAEMON_BFD, &daemon_mode))
+		pidfile_rm(bfd_pidfile);
+#endif
+
 	pidfile_rm(main_pidfile);
 #endif
 }
@@ -290,16 +411,70 @@ stop_keepalived(void)
 static void
 start_keepalived(void)
 {
+#ifdef _WITH_BFD_
+	/* must be opened before vrrp and bfd start */
+	open_bfd_pipes();
+#endif
+
 #ifdef _WITH_LVS_
 	/* start healthchecker child */
-	if (__test_bit(DAEMON_CHECKERS, &daemon_mode))
+	if (running_checker())
 		start_check_child();
 #endif
 #ifdef _WITH_VRRP_
 	/* start vrrp child */
-	if (__test_bit(DAEMON_VRRP, &daemon_mode))
+	if (running_vrrp())
 		start_vrrp_child();
 #endif
+#ifdef _WITH_BFD_
+	/* start bfd child */
+	if (running_bfd())
+		start_bfd_child();
+#endif
+}
+
+static bool reload_config(void)
+{
+	bool unsupported_change = false;
+
+	/* Make sure there isn't an attempt to change the network namespace or instance name */
+	old_global_data = global_data;
+	global_data = NULL;
+	global_data = alloc_global_data();
+
+	read_config_file();
+
+	init_global_data(global_data);
+
+#if HAVE_DECL_CLONE_NEWNET
+	if (!!old_global_data->network_namespace != !!global_data->network_namespace ||
+	    (global_data->network_namespace && strcmp(old_global_data->network_namespace, global_data->network_namespace))) {
+		log_message(LOG_INFO, "Cannot change network namespace at a reload - please restart %s", PACKAGE);
+		unsupported_change = true;
+	}
+	FREE_PTR(global_data->network_namespace);
+	global_data->network_namespace = old_global_data->network_namespace;
+	old_global_data->network_namespace = NULL;
+#endif
+
+	if (!!old_global_data->instance_name != !!global_data->instance_name ||
+	    (global_data->instance_name && strcmp(old_global_data->instance_name, global_data->instance_name))) {
+		log_message(LOG_INFO, "Cannot change instance name at a reload - please restart %s", PACKAGE);
+		unsupported_change = true;
+	}
+	FREE_PTR(global_data->instance_name);
+	global_data->instance_name = old_global_data->instance_name;
+	old_global_data->instance_name = NULL;
+
+	if (unsupported_change) {
+		/* We cannot reload the configuration, so continue with the old config */
+		free_global_data (global_data);
+		global_data = old_global_data;
+	}
+	else
+		free_global_data (old_global_data);
+
+	return !unsupported_change;
 }
 
 /* SIGHUP/USR1/USR2 handler */
@@ -307,50 +482,33 @@ start_keepalived(void)
 static void
 propogate_signal(__attribute__((unused)) void *v, int sig)
 {
-	bool unsupported_change = false;
-
 	if (sig == SIGHUP) {
-		/* Make sure there isn't an attempt to change the network namespace or instance name */
-#if HAVE_DECL_CLONE_NEWNET
-		char *old_network_namespace = network_namespace;
-		network_namespace = NULL;
-#endif
-		char *old_instance_name = instance_name;
-		instance_name = NULL;
-
-		/* The only parameters handled are net_namespace and instance_name */
-		read_config_file();
-
-#if HAVE_DECL_CLONE_NEWNET
-		if (!!old_network_namespace != !!network_namespace ||
-		    (network_namespace && strcmp(old_network_namespace, network_namespace))) {
-			log_message(LOG_INFO, "Cannot change network namespace at a reload - please restart %s", PACKAGE);
-			unsupported_change = true;
-		}
-		FREE_PTR(network_namespace);
-		network_namespace = old_network_namespace;
-#endif
-
-		if (!!old_instance_name != !!instance_name ||
-		    (instance_name && strcmp(old_instance_name, instance_name))) {
-			log_message(LOG_INFO, "Cannot change instance name at a reload - please restart %s", PACKAGE);
-			unsupported_change = true;
-		}
-		FREE_PTR(instance_name);
-		instance_name = old_instance_name;
-
-		if (unsupported_change)
+		if (!reload_config())
 			return;
 	}
 
-	/* Signal child process */
+	/* Signal child processes */
 #ifdef _WITH_VRRP_
 	if (vrrp_child > 0)
 		kill(vrrp_child, sig);
+	else if (sig == SIGHUP && running_vrrp())
+		start_vrrp_child();
 #endif
 #ifdef _WITH_LVS_
-	if (checkers_child > 0 && sig == SIGHUP)
-		kill(checkers_child, sig);
+	if (sig == SIGHUP) {
+		if (checkers_child > 0)
+			kill(checkers_child, sig);
+		else if (running_checker())
+			start_check_child();
+	}
+#endif
+#ifdef _WITH_BFD_
+	if (sig == SIGHUP) {
+		if (bfd_child > 0)
+			kill(bfd_child, sig);
+		else if (running_bfd())
+			start_bfd_child();
+	}
 #endif
 }
 
@@ -361,39 +519,129 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 	int status;
 	int ret;
 	int wait_count = 0;
+	struct timeval start_time, now;
+#ifdef HAVE_SIGNALFD
+	struct timeval timeout = {
+		.tv_sec = child_wait_time,
+		.tv_usec = 0
+	};
+	int signal_fd = signal_rfd();
+	fd_set read_set;
+	struct signalfd_siginfo siginfo;
+	sigset_t sigmask;
+#else
 	sigset_t old_set, child_wait;
 	struct timespec timeout = {
-		.tv_sec = CHILD_WAIT_SECS,
+		.tv_sec = child_wait_time,
 		.tv_nsec = 0
 	};
-	struct timeval start_time, now;
+#endif
 
 	/* register the terminate thread */
 	thread_add_terminate_event(master);
 
 	log_message(LOG_INFO, "Stopping");
-	sigprocmask(0, NULL, &old_set);
+
+#ifdef HAVE_SIGNALFD
+	/* We only want to receive SIGCHLD now */
+	sigemptyset(&sigmask);
+	sigaddset(&sigmask, SIGCHLD);
+	signalfd(signal_fd, &sigmask, 0);
+	FD_ZERO(&read_set);
+#else
+	sigmask_func(0, NULL, &old_set);
 	if (!sigismember(&old_set, SIGCHLD)) {
 		sigemptyset(&child_wait);
 		sigaddset(&child_wait, SIGCHLD);
-		sigprocmask(SIG_BLOCK, &child_wait, NULL);
+		sigmask_func(SIG_BLOCK, &child_wait, NULL);
 	}
+#endif
 
 #ifdef _WITH_VRRP_
 	if (vrrp_child > 0) {
-		kill(vrrp_child, SIGTERM);
-		wait_count++;
+		if (kill(vrrp_child, SIGTERM)) {
+			/* ESRCH means no such process */
+			if (errno == ESRCH)
+				vrrp_child = 0;
+		}
+		else
+			wait_count++;
 	}
 #endif
 #ifdef _WITH_LVS_
 	if (checkers_child > 0) {
-		kill(checkers_child, SIGTERM);
-		wait_count++;
+		if (kill(checkers_child, SIGTERM)) {
+			if (errno == ESRCH)
+				checkers_child = 0;
+		}
+		else
+			wait_count++;
+	}
+#endif
+#ifdef _WITH_BFD_
+	if (bfd_child > 0) {
+		if (kill(bfd_child, SIGTERM)) {
+			if (errno == ESRCH)
+				bfd_child = 0;
+		}
+		else
+			wait_count++;
 	}
 #endif
 
 	gettimeofday(&start_time, NULL);
 	while (wait_count) {
+#ifdef HAVE_SIGNALFD
+		FD_SET(signal_fd, &read_set);
+		ret = select(signal_fd + 1, &read_set, NULL, NULL, &timeout);
+		if (ret == 0)
+			break;
+		if (ret == -1) {
+			if (errno == EINTR)
+				continue;
+
+			log_message(LOG_INFO, "Terminating select returned errno %d", errno);
+			break;
+		}
+
+		if (!FD_ISSET(signal_fd, &read_set)) {
+			log_message(LOG_INFO, "Terminating select did not return select_fd");
+			continue;
+		}
+
+		if (read(signal_fd, &siginfo, sizeof(siginfo)) != sizeof(siginfo)) {
+			log_message(LOG_INFO, "Terminating signal read did not read entire siginfo");
+			break;
+		}
+
+		status = siginfo.ssi_code == CLD_EXITED ? W_EXITCODE(siginfo.ssi_status, 0) :
+			 siginfo.ssi_code == CLD_KILLED ? W_EXITCODE(0, siginfo.ssi_status) :
+							   WCOREFLAG;
+
+#ifdef _WITH_VRRP_
+		if (vrrp_child > 0 && vrrp_child == (pid_t)siginfo.ssi_pid) {
+			report_child_status(status, vrrp_child, PROG_VRRP);
+			vrrp_child = 0;
+			wait_count--;
+		}
+#endif
+
+#ifdef _WITH_LVS_
+		if (checkers_child > 0 && checkers_child == (pid_t)siginfo.ssi_pid) {
+			report_child_status(status, checkers_child, PROG_CHECK);
+			checkers_child = 0;
+			wait_count--;
+		}
+#endif
+#ifdef _WITH_BFD_
+		if (bfd_child > 0 && bfd_child == (pid_t)siginfo.ssi_pid) {
+			report_child_status(status, bfd_child, PROG_BFD);
+			bfd_child = 0;
+			wait_count--;
+		}
+#endif
+
+#else
 		ret = sigtimedwait(&child_wait, NULL, &timeout);
 		if (ret == -1) {
 			if (errno == EINTR)
@@ -405,6 +653,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 #ifdef _WITH_VRRP_
 		if (vrrp_child > 0 && vrrp_child == waitpid(vrrp_child, &status, WNOHANG)) {
 			report_child_status(status, vrrp_child, PROG_VRRP);
+			vrrp_child = 0;
 			wait_count--;
 		}
 #endif
@@ -412,34 +661,65 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 #ifdef _WITH_LVS_
 		if (checkers_child > 0 && checkers_child == waitpid(checkers_child, &status, WNOHANG)) {
 			report_child_status(status, checkers_child, PROG_CHECK);
+			checkers_child = 0;
+			wait_count--;
+		}
+#endif
+#ifdef _WITH_BFD_
+		if (bfd_child > 0 && bfd_child == waitpid(bfd_child, &status, WNOHANG)) {
+			report_child_status(status, bfd_child, PROG_BFD);
+			bfd_child = 0;
 			wait_count--;
 		}
 #endif
 
+#endif
+
 		if (wait_count) {
 			gettimeofday(&now, NULL);
-			if (now.tv_usec < start_time.tv_usec) {
-				timeout.tv_nsec = (start_time.tv_usec - now.tv_usec) * 1000;
-				timeout.tv_sec = CHILD_WAIT_SECS - (now.tv_sec - start_time.tv_sec);
-			} else if (now.tv_usec == start_time.tv_usec) {
-				timeout.tv_nsec = 0;
-				timeout.tv_sec = CHILD_WAIT_SECS - (now.tv_sec - start_time.tv_sec);
-			} else {
-				timeout.tv_nsec = (1000000L + start_time.tv_usec - now.tv_usec) * 1000;
-				timeout.tv_sec = CHILD_WAIT_SECS - (now.tv_sec - start_time.tv_sec + 1);
+			timeout.tv_sec = child_wait_time - (now.tv_sec - start_time.tv_sec);
+#ifdef HAVE_SIGNALFD
+			timeout.tv_usec = (start_time.tv_usec - now.tv_usec);
+			if (timeout.tv_usec < 0) {
+				timeout.tv_usec += 1000000L;
+				timeout.tv_sec--;
 			}
-
+#else
 			timeout.tv_nsec = (start_time.tv_usec - now.tv_usec) * 1000;
-			timeout.tv_sec = CHILD_WAIT_SECS - (now.tv_sec - start_time.tv_sec);
 			if (timeout.tv_nsec < 0) {
 				timeout.tv_nsec += 1000000000L;
 				timeout.tv_sec--;
 			}
+#endif
+			if (timeout.tv_sec < 0)
+				break;
 		}
 	}
 
+	/* A child may not have terminated, so force its termination */
+#ifdef _WITH_VRRP_
+	if (vrrp_child) {
+		log_message(LOG_INFO, "vrrp process failed to die - forcing termination");
+		kill(vrrp_child, SIGKILL);
+	}
+#endif
+#ifdef _WITH_LVS_
+	if (checkers_child) {
+		log_message(LOG_INFO, "checker process failed to die - forcing termination");
+		kill(checkers_child, SIGKILL);
+	}
+#endif
+#ifdef _WITH_BFD_
+	if (bfd_child) {
+		log_message(LOG_INFO, "bfd process failed to die - forcing termination");
+		kill(bfd_child, SIGKILL);
+	}
+#endif
+
+#ifndef HAVE_SIGNALFD
 	if (!sigismember(&old_set, SIGCHLD))
-		sigprocmask(SIG_UNBLOCK, &child_wait, NULL);
+		sigmask_func(SIG_UNBLOCK, &child_wait, NULL);
+#endif
 }
 #endif
 
@@ -513,7 +793,7 @@ core_dump_init(void)
 
 	if (set_core_dump_pattern) {
 		/* If we set the core_pattern here, we will attempt to restore it when we
-		 * exit. This will be fine if it is a child of ours that core dumps, 
+		 * exit. This will be fine if it is a child of ours that core dumps,
 		 * but if we ourself core dump, then the core_pattern will not be restored */
 		update_core_dump_pattern(core_dump_pattern);
 	}
@@ -537,6 +817,10 @@ usage(const char *prog)
 	fprintf(stderr, "  -P, --vrrp                   Only run with VRRP subsystem\n");
 	fprintf(stderr, "  -C, --check                  Only run with Health-checker subsystem\n");
 #endif
+#ifdef _WITH_BFD_
+	fprintf(stderr, "  -B, --no_bfd                 Don't run BFD subsystem\n");
+#endif
+	fprintf(stderr, "      --all                    Force all child processes to run, even if have no configuration\n");
 	fprintf(stderr, "  -l, --log-console            Log messages to local console\n");
 	fprintf(stderr, "  -D, --log-detail             Detailed log messages\n");
 	fprintf(stderr, "  -S, --log-facility=[0-7]     Set syslog facility to LOG_LOCAL[0-7]\n");
@@ -561,6 +845,9 @@ usage(const char *prog)
 	fprintf(stderr, "  -c, --checkers_pid=FILE      Use specified pidfile for checkers child process\n");
 	fprintf(stderr, "  -a, --address-monitoring     Report all address additions/deletions notified via netlink\n");
 #endif
+#ifdef _WITH_BFD_
+	fprintf(stderr, "  -b, --bfd_pid=FILE           Use specified pidfile for BFD child process\n");
+#endif
 #ifdef _WITH_SNMP_
 	fprintf(stderr, "  -x, --snmp                   Enable SNMP subsystem\n");
 	fprintf(stderr, "  -A, --snmp-agent-socket=FILE Use the specified socket for master agent\n");
@@ -574,8 +861,8 @@ usage(const char *prog)
 	fprintf(stderr, "  -L, --mem-check-log          Log malloc/frees to syslog\n");
 #endif
 	fprintf(stderr, "  -i, --config-id id           Skip any configuration lines beginning '@' that don't match id\n"
-		        "                                or any lines beginning @^ that do match.\n"
-		        "                                The config-id defaults to the node name if option not used\n");
+			"                                or any lines beginning @^ that do match.\n"
+			"                                The config-id defaults to the node name if option not used\n");
 	fprintf(stderr, "      --signum=SIGFUNC         Return signal number for STOP, RELOAD, DATA, STATS"
 #ifdef _WITH_JSON_
 								", JSON"
@@ -603,6 +890,10 @@ parse_cmdline(int argc, char **argv)
 		{"vrrp",		no_argument,		NULL, 'P'},
 		{"check",		no_argument,		NULL, 'C'},
 #endif
+#ifdef _WITH_BFD_
+		{"no_bfd",		no_argument,		NULL, 'B'},
+#endif
+		{"all",			no_argument,		NULL,  3 },
 		{"log-console",		no_argument,		NULL, 'l'},
 		{"log-detail",		no_argument,		NULL, 'D'},
 		{"log-facility",	required_argument,	NULL, 'S'},
@@ -627,6 +918,9 @@ parse_cmdline(int argc, char **argv)
 		{"checkers_pid",	required_argument,	NULL, 'c'},
 		{"address-monitoring",	no_argument,		NULL, 'a'},
 #endif
+#ifdef _WITH_BFD_
+		{"bfd_pid",		required_argument,	NULL, 'b'},
+#endif
 #ifdef _WITH_SNMP_
 		{"snmp",		no_argument,		NULL, 'x'},
 		{"snmp-agent-socket",	required_argument,	NULL, 'A'},
@@ -638,7 +932,7 @@ parse_cmdline(int argc, char **argv)
 #endif
 #if HAVE_DECL_CLONE_NEWNET
 		{"namespace",		required_argument,	NULL, 's'},
-#endif	
+#endif
 		{"config-id",		required_argument,	NULL, 'i'},
 		{"signum",		required_argument,	NULL,  4 },
 		{"version",		no_argument,		NULL, 'v'},
@@ -655,11 +949,14 @@ parse_cmdline(int argc, char **argv)
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 					    "PC"
 #endif
-#ifdef _WITH_VRRP_ 
+#ifdef _WITH_VRRP_
 					    "r:VX"
 #endif
 #ifdef _WITH_LVS_
 					    "ac:I"
+#endif
+#ifdef _WITH_BFD_
+					    "Bb:"
 #endif
 #ifdef _WITH_SNMP_
 					    "xA:"
@@ -692,7 +989,9 @@ parse_cmdline(int argc, char **argv)
 						(LINUX_VERSION_CODE      ) & 0xff);
 			uname(&uname_buf);
 			fprintf(stderr, "Running on %s %s %s\n\n", uname_buf.sysname, uname_buf.release, uname_buf.version);
-			fprintf(stderr, "Build options: %s\n", BUILD_OPTIONS);
+			fprintf(stderr, "configure options: %s\n\n", KEEPALIVED_CONFIGURE_OPTIONS);
+			fprintf(stderr, "Config options: %s\n\n", CONFIGURATION_OPTIONS);
+			fprintf(stderr, "System options: %s\n", SYSTEM_OPTIONS);
 			exit(0);
 			break;
 		case 'h':
@@ -720,7 +1019,10 @@ parse_cmdline(int argc, char **argv)
 			break;
 #endif
 		case 'D':
-			__set_bit(LOG_DETAIL_BIT, &debug);
+			if (__test_bit(LOG_DETAIL_BIT, &debug))
+				__set_bit(LOG_EXTRA_DETAIL_BIT, &debug);
+			else
+				__set_bit(LOG_DETAIL_BIT, &debug);
 			break;
 		case 'R':
 			__set_bit(DONT_RESPAWN_BIT, &debug);
@@ -753,12 +1055,15 @@ parse_cmdline(int argc, char **argv)
 			break;
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 		case 'P':
-			daemon_mode = 0;
-			__set_bit(DAEMON_VRRP, &daemon_mode);
+			__clear_bit(DAEMON_CHECKERS, &daemon_mode);
 			break;
 		case 'C':
-			daemon_mode = 0;
-			__set_bit(DAEMON_CHECKERS, &daemon_mode);
+			__clear_bit(DAEMON_VRRP, &daemon_mode);
+			break;
+#endif
+#ifdef _WITH_BFD_
+		case 'B':
+			__clear_bit(DAEMON_BFD, &daemon_mode);
 			break;
 #endif
 		case 'p':
@@ -775,6 +1080,11 @@ parse_cmdline(int argc, char **argv)
 #ifdef _WITH_VRRP_
 		case 'r':
 			vrrp_pidfile = optarg;
+			break;
+#endif
+#ifdef _WITH_BFD_
+		case 'b':
+			bfd_pidfile = optarg;
 			break;
 #endif
 #ifdef _WITH_SNMP_
@@ -818,6 +1128,18 @@ parse_cmdline(int argc, char **argv)
 
 			printf("%d\n", signum);
 			exit(0);
+			break;
+		case 3:			/* --all */
+			__set_bit(RUN_ALL_CHILDREN, &daemon_mode);
+#ifdef _WITH_VRRP_
+			__set_bit(DAEMON_VRRP, &daemon_mode);
+#endif
+#ifdef _WITH_LVS_
+			__set_bit(DAEMON_CHECKERS, &daemon_mode);
+#endif
+#ifdef _WITH_BFD_
+			__set_bit(DAEMON_BFD, &daemon_mode);
+#endif
 			break;
 		case '?':
 			if (optopt && argv[curind][1] != '-')
@@ -878,6 +1200,9 @@ keepalived_main(int argc, char **argv)
 #endif
 #ifdef _WITH_LVS_
 	__set_bit(DAEMON_CHECKERS, &daemon_mode);
+#endif
+#ifdef _WITH_BFD_
+	__set_bit(DAEMON_BFD, &daemon_mode);
 #endif
 
 	/* Open log with default settings so we can log initially */
@@ -969,22 +1294,26 @@ keepalived_main(int argc, char **argv)
 	if (!check_conf_file(conf_file))
 		goto end;
 
+	global_data = alloc_global_data();
+
 	read_config_file();
+
+	init_global_data(global_data);
 
 #if HAVE_DECL_CLONE_NEWNET
 	if (override_namespace) {
-		if (network_namespace) {
-			log_message(LOG_INFO, "Overriding config net_namespace '%s' with command line namespace '%s'", network_namespace, override_namespace);
-			FREE(network_namespace);
+		if (global_data->network_namespace) {
+			log_message(LOG_INFO, "Overriding config net_namespace '%s' with command line namespace '%s'", global_data->network_namespace, override_namespace);
+			FREE(global_data->network_namespace);
 		}
-		network_namespace = override_namespace;
+		global_data->network_namespace = override_namespace;
 		override_namespace = NULL;
 	}
 #endif
 
-	if (instance_name
+	if (global_data->instance_name
 #if HAVE_DECL_CLONE_NEWNET
-			  || network_namespace
+			  || global_data->network_namespace
 #endif
 					      ) {
 		if ((syslog_ident = make_syslog_ident(PACKAGE_NAME))) {
@@ -1000,12 +1329,16 @@ keepalived_main(int argc, char **argv)
 		open_log_file(log_file_name,
 				NULL,
 #if HAVE_DECL_CLONE_NEWNET
-				network_namespace,
+				global_data->network_namespace,
 #else
 				NULL,
 #endif
-				instance_name);
+				global_data->instance_name);
 	}
+
+#ifdef _TIMER_DEBUG_
+	global_print();
+#endif
 
 	if (use_pid_dir) {
 		/* Create the directory for pid files */
@@ -1013,24 +1346,28 @@ keepalived_main(int argc, char **argv)
 	}
 
 #if HAVE_DECL_CLONE_NEWNET
-	if (network_namespace) {
-		if (network_namespace && !set_namespaces(network_namespace)) {
-			log_message(LOG_ERR, "Unable to set network namespace %s - exiting", network_namespace);
+	if (global_data->network_namespace) {
+		if (global_data->network_namespace && !set_namespaces(global_data->network_namespace)) {
+			log_message(LOG_ERR, "Unable to set network namespace %s - exiting", global_data->network_namespace);
 			goto end;
 		}
 	}
 #endif
 
-	if (instance_name) {
-		if (!main_pidfile && (main_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE, instance_name, PID_EXTENSION)))
+	if (global_data->instance_name) {
+		if (!main_pidfile && (main_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE, global_data->instance_name, PID_EXTENSION)))
 			free_main_pidfile = true;
 #ifdef _WITH_LVS_
-		if (!checkers_pidfile && (checkers_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR CHECKERS_PID_FILE, instance_name, PID_EXTENSION)))
+		if (!checkers_pidfile && (checkers_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR CHECKERS_PID_FILE, global_data->instance_name, PID_EXTENSION)))
 			free_checkers_pidfile = true;
 #endif
 #ifdef _WITH_VRRP_
-		if (!vrrp_pidfile && (vrrp_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, instance_name, PID_EXTENSION)))
+		if (!vrrp_pidfile && (vrrp_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, global_data->instance_name, PID_EXTENSION)))
 			free_vrrp_pidfile = true;
+#endif
+#ifdef _WITH_BFD_
+		if (!bfd_pidfile && (bfd_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, global_data->instance_name, PID_EXTENSION)))
+			free_bfd_pidfile = true;
 #endif
 	}
 
@@ -1045,6 +1382,10 @@ keepalived_main(int argc, char **argv)
 		if (!vrrp_pidfile)
 			vrrp_pidfile = KEEPALIVED_PID_DIR VRRP_PID_FILE PID_EXTENSION;
 #endif
+#ifdef _WITH_BFD_
+		if (!bfd_pidfile)
+			bfd_pidfile = KEEPALIVED_PID_DIR BFD_PID_FILE PID_EXTENSION;
+#endif
 	}
 	else
 	{
@@ -1057,6 +1398,10 @@ keepalived_main(int argc, char **argv)
 #ifdef _WITH_VRRP_
 		if (!vrrp_pidfile)
 			vrrp_pidfile = PID_DIR VRRP_PID_FILE PID_EXTENSION;
+#endif
+#ifdef _WITH_BFD_
+		if (!bfd_pidfile)
+			bfd_pidfile = PID_DIR BFD_PID_FILE PID_EXTENSION;
 #endif
 	}
 
@@ -1094,7 +1439,10 @@ keepalived_main(int argc, char **argv)
 	/* Create the master thread */
 	master = thread_make_master();
 
+	add_signal_read_thread();
+
 	/* Init daemon */
+	signal_set(SIGCHLD, thread_child_handler, master);	/* Set this before creating children */
 	start_keepalived();
 
 	/* Launch the scheduling I/O multiplexer */
@@ -1117,7 +1465,7 @@ end:
 	}
 
 #if HAVE_DECL_CLONE_NEWNET
-	if (network_namespace)
+	if (global_data && global_data->network_namespace)
 		clear_namespaces();
 #endif
 
@@ -1130,10 +1478,9 @@ end:
 
 	free_parent_mallocs_startup(false);
 	free_parent_mallocs_exit();
+	free_global_data(global_data);
 
 	closelog();
-
-	FREE(config_id);
 
 #ifndef _MEM_CHECK_LOG_
 	FREE_PTR(syslog_ident);

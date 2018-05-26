@@ -17,18 +17,16 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2016 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #ifndef _VRRP_IPSEC_AH_H
 #define _VRRP_IPSEC_AH_H
 
-#include <stdlib.h>
-#include <stdio.h>
 #include <sys/types.h>
-#include <string.h>
 #include <stdint.h>
 #include <openssl/md5.h>
+#include <stdbool.h>
 
 /* Predefined values */
 #define HMAC_MD5_TRUNC 0x0C	/* MD5 digest truncate value : 96-bit
@@ -37,7 +35,6 @@
 				   Computed in 32-bit words minus 2
 				   => (HMAC_MD5_TRUNC*8+3*32)/32 - 2
 				   -- rfc2402.2.2 */
-#define IPPROTO_IPSEC_AH 51	/* IP protocol number -- rfc2402.2 */
 
 typedef struct _ipsec_ah {				/* rfc2402.2 */
 	uint8_t			next_header;	/* Next header field */
@@ -45,19 +42,18 @@ typedef struct _ipsec_ah {				/* rfc2402.2 */
 	uint16_t		reserved;	/* Reserved field */
 	uint32_t		spi;		/* Security Parameter Index */
 	uint32_t		seq_number;	/* Sequence number */
-	uint32_t		auth_data[3];	/* Authentication data 128-bit MD5 digest trucated
-						   => HMAC_MD5_TRUNC*8/32 */
+	char			auth_data[HMAC_MD5_TRUNC];
+						/* Authentication data 128-bit MD5 digest trucated */
 } ipsec_ah_t;
 
 typedef struct {		/* rfc2402.3.3.3.1.1.1 */
 	uint8_t			tos;
 	uint8_t			ttl;
 	uint16_t		frag_off;
-	uint16_t		check;
 } ICV_mutable_fields;		/* We need to zero this fields to compute the ICV */
 
 typedef struct _seq_counter {
-	int			cycle;
+	bool			cycle;
 	uint32_t		seq_number;
 } seq_counter_t;
 

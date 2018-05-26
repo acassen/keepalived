@@ -22,7 +22,7 @@ Kevin Lindsay, <kevinl@netnation.com> :
 	o Redesigned signal handling.
 
 Nick Couchman, <nick.couchman at seakr.com> :
-        o Patch for u_threshold and l_threshold support.
+	o Patch for u_threshold and l_threshold support.
 
 Willy Tarreau, <w at 1wt.eu> :
 	o Extended VRRP framework to support floating

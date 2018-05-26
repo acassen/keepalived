@@ -24,8 +24,10 @@
 
 #include "config.h"
 
-#include <strings.h>
+#include <errno.h>
+#include <unistd.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "check_dns.h"
 #include "check_api.h"
@@ -35,11 +37,10 @@
 #include "smtp.h"
 #include "utils.h"
 #include "parser.h"
-#include "timer.h"
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
-#include "string.h"
 #endif
+#include "layer4.h"
 
 #ifdef _DEBUG_
 #define DNS_DBG(args...) dns_log_message(thread, LOG_DEBUG, ## args)
@@ -108,6 +109,9 @@ dns_final(thread_t * thread, int error, const char *fmt, ...)
 {
 	char buf[MAX_LOG_MSG];
 	va_list args;
+	int len;
+	bool checker_was_up;
+	bool rs_was_alive;
 
 	checker_t *checker = THREAD_ARG(thread);
 
@@ -117,13 +121,7 @@ dns_final(thread_t * thread, int error, const char *fmt, ...)
 	close(thread->u.fd);
 
 	if (error) {
-		if (checker->is_up) {
-			if (fmt) {
-				va_start(args, fmt);
-				vsnprintf(buf, sizeof (buf), fmt, args);
-				dns_log_message(thread, LOG_INFO, buf);
-				va_end(args);
-			}
+		if (checker->is_up || !checker->has_run) {
 			if (checker->retry_it < checker->retry) {
 				checker->retry_it++;
 				thread_add_timer(thread->master,
@@ -131,15 +129,31 @@ dns_final(thread_t * thread, int error, const char *fmt, ...)
 						 checker->delay_before_retry);
 				return 0;
 			}
+			if (fmt) {
+				va_start(args, fmt);
+				len = vsnprintf(buf, sizeof (buf), fmt, args);
+				va_end(args);
+				if (checker->has_run && checker->retry)
+					snprintf(buf + len, sizeof(buf) - len, " after %d retries", checker->retry);
+				dns_log_message(thread, LOG_INFO, buf);
+			}
+			checker_was_up = checker->is_up;
+			rs_was_alive = checker->rs->alive;
 			update_svr_checker_state(DOWN, checker);
-			smtp_alert(checker, NULL, NULL, "DOWN",
-				   "=> DNS_CHECK: failed on service <=");
+			if (checker_was_up && checker->rs->smtp_alert &&
+			    (rs_was_alive != checker->rs->alive || !global_data->no_checker_emails))
+				smtp_alert(SMTP_MSG_RS, checker, NULL,
+					   "=> DNS_CHECK: failed on service <=");
 		}
 	} else {
-		if (!checker->is_up) {
-			smtp_alert(checker, NULL, NULL, "UP",
-				   "=> DNS_CHECK: succeed on service <=");
+		if (!checker->is_up || !checker->has_run) {
+			checker_was_up = checker->is_up;
+			rs_was_alive = checker->rs->alive;
 			update_svr_checker_state(UP, checker);
+			if (!checker_was_up && checker->rs->smtp_alert &&
+			    (rs_was_alive != checker->rs->alive || !global_data->no_checker_emails))
+				smtp_alert(SMTP_MSG_RS, checker, NULL,
+					   "=> DNS_CHECK: succeed on service <=");
 		}
 	}
 
@@ -163,7 +177,7 @@ dns_recv_thread(thread_t * thread)
 	dns_check_t *dns_check = CHECKER_ARG(checker);
 
 	if (thread->type == THREAD_READ_TIMEOUT) {
-		dns_final(thread, 1, "read timeout from socket.");
+		dns_final(thread, 1, "read timeout from socket");
 		return 0;
 	}
 
@@ -176,7 +190,7 @@ dns_recv_thread(thread_t * thread)
 					checker, thread->u.fd, timeout);
 			return 0;
 		}
-		dns_final(thread, 1, "failed to read socket. %s.", strerror(errno));
+		dns_final(thread, 1, "failed to read socket. %s", strerror(errno));
 		return 0;
 	}
 
@@ -201,14 +215,14 @@ dns_recv_thread(thread_t * thread)
 	flags = ntohs(r_header->flags);
 
 	if (!DNS_QR(flags)) {
-		DNS_DBG("recieve query message?");
+		DNS_DBG("receive query message?");
 		thread_add_read(thread->master, dns_recv_thread, checker,
 				thread->u.fd, timeout);
 		return 0;
 	}
 
 	if ((rcode = DNS_RC(flags)) != 0) {
-		dns_final(thread, 1, "error occurread. (rcode = %d)", rcode);
+		dns_final(thread, 1, "read error occurred. (rcode = %d)", rcode);
 		return 0;
 	}
 
@@ -329,8 +343,6 @@ dns_check_thread(thread_t * thread)
 		break;
 	case connect_success:
 		dns_make_query(thread);
-		fcntl(thread->u.fd, F_SETFL,
-		      fcntl(thread->u.fd, F_GETFL, 0) | O_NONBLOCK);
 		timeout = timer_long(thread->sands) - timer_long(time_now);
 		thread_add_write(thread->master, dns_send_thread, checker,
 				 thread->u.fd, timeout);
@@ -354,13 +366,21 @@ dns_connect_thread(thread_t * thread)
 		return 0;
 	}
 
-	if ((fd = socket(co->dst.ss_family, SOCK_DGRAM | SOCK_CLOEXEC, IPPROTO_UDP)) == -1) {
+	if ((fd = socket(co->dst.ss_family, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, IPPROTO_UDP)) == -1) {
 		dns_log_message(thread, LOG_INFO,
 				"failed to create socket. Rescheduling.");
 		thread_add_timer(thread->master, dns_connect_thread, checker,
 				 checker->delay_loop);
 		return 0;
 	}
+
+#if !HAVE_DECL_SOCK_NONBLOCK
+	if (set_sock_flags(fd, F_SETFL, O_NONBLOCK))
+		dns_log_message(thread, LOG_INFO,
+				"unable to set NONBLOCK on socket - %s (%d)",
+				strerror(errno), errno);
+#endif
+
 #if !HAVE_DECL_SOCK_CLOEXEC
 	if (set_sock_flags(fd, F_SETFD, FD_CLOEXEC))
 		dns_log_message(thread, LOG_INFO,
@@ -391,18 +411,18 @@ dns_free(void *data)
 }
 
 static void
-dns_dump(void *data)
+dns_dump(FILE *fp, void *data)
 {
 	checker_t *checker = data;
 	dns_check_t *dns_check = checker->data;
 
-	log_message(LOG_INFO, "   Keepalive method = DNS_CHECK");
-	dump_checker_opts(checker);
-	log_message(LOG_INFO, "   Type = %s", dns_type_name(dns_check->type));
-	log_message(LOG_INFO, "   Name = %s", dns_check->name);
+	conf_write(fp, "   Keepalive method = DNS_CHECK");
+	dump_checker_opts(fp, checker);
+	conf_write(fp, "   Type = %s", dns_type_name(dns_check->type));
+	conf_write(fp, "   Name = %s", dns_check->name);
 }
 
-static bool 
+static bool
 dns_check_compare(void *a, void *b)
 {
 	dns_check_t *old = CHECKER_DATA(a);
@@ -427,7 +447,7 @@ dns_check_handler(__attribute__((unused)) vector_t * strvec)
 	dns_check->type = DNS_DEFAULT_TYPE;
 	dns_check->name = DNS_DEFAULT_NAME;
 	checker = queue_checker(dns_free, dns_dump, dns_connect_thread,
-			        dns_check_compare, dns_check, CHECKER_NEW_CO());
+				dns_check_compare, dns_check, CHECKER_NEW_CO());
 
 	/* Set the non-standard retry time */
 	checker->default_retry = DNS_DEFAULT_RETRY;
@@ -473,3 +493,15 @@ install_dns_check_keyword(void)
 	install_sublevel_end_handler(dns_check_end);
 	install_sublevel_end();
 }
+
+#ifdef _TIMER_DEBUG_
+void
+print_check_dns_addresses(void)
+{
+	log_message(LOG_INFO, "Address of dns_check_thread() is 0x%p", dns_check_thread);
+	log_message(LOG_INFO, "Address of dns_connect_thread() is 0x%p", dns_connect_thread);
+	log_message(LOG_INFO, "Address of dns_dump() is 0x%p", dns_dump);
+	log_message(LOG_INFO, "Address of dns_recv_thread() is 0x%p", dns_recv_thread);
+	log_message(LOG_INFO, "Address of dns_send_thread() is 0x%p", dns_send_thread);
+}
+#endif

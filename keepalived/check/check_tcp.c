@@ -22,6 +22,9 @@
 
 #include "config.h"
 
+#include <unistd.h>
+#include <stdio.h>
+
 #include "check_tcp.h"
 #include "check_api.h"
 #include "memory.h"
@@ -33,7 +36,6 @@
 #include "parser.h"
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
-#include "string.h"
 #endif
 
 static int tcp_connect_thread(thread_t *);
@@ -48,12 +50,12 @@ free_tcp_check(void *data)
 }
 
 static void
-dump_tcp_check(void *data)
+dump_tcp_check(FILE *fp, void *data)
 {
 	checker_t *checker = data;
 
-	log_message(LOG_INFO, "   Keepalive method = TCP_CHECK");
-	dump_checker_opts(checker);
+	conf_write(fp, "   Keepalive method = TCP_CHECK");
+	dump_checker_opts(fp, checker);
 }
 
 static bool
@@ -93,6 +95,8 @@ tcp_epilog(thread_t * thread, bool is_success)
 {
 	checker_t *checker;
 	unsigned long delay;
+	bool checker_was_up;
+	bool rs_was_alive;
 
 	checker = THREAD_ARG(thread);
 
@@ -100,24 +104,34 @@ tcp_epilog(thread_t * thread, bool is_success)
 		delay = checker->delay_loop;
 		checker->retry_it = 0;
 
-		if (is_success && !checker->is_up) {
+		if (is_success && (!checker->is_up || !checker->has_run)) {
 			log_message(LOG_INFO, "TCP connection to %s success."
 					, FMT_TCP_RS(checker));
-			smtp_alert(checker, NULL, NULL,
-				   "UP",
-				   "=> TCP CHECK succeed on service <=");
+			checker_was_up = checker->is_up;
+			rs_was_alive = checker->rs->alive;
 			update_svr_checker_state(UP, checker);
-		} else if (!is_success
-			   && checker->is_up) {
+			if (checker->rs->smtp_alert && !checker_was_up &&
+			    (rs_was_alive != checker->rs->alive || !global_data->no_checker_emails))
+				smtp_alert(SMTP_MSG_RS, checker, NULL,
+					   "=> TCP CHECK succeed on service <=");
+		} else if (!is_success && 
+			   (checker->is_up || !checker->has_run)) {
 			if (checker->retry)
 				log_message(LOG_INFO
-				    , "Check on service %s failed after %d retry."
+				    , "Check on service %s failed after %d retries."
 				    , FMT_TCP_RS(checker)
 				    , checker->retry);
-			smtp_alert(checker, NULL, NULL,
-				   "DOWN",
-				   "=> TCP CHECK failed on service <=");
+			else
+				log_message(LOG_INFO
+				    , "Check on service %s failed."
+				    , FMT_TCP_RS(checker));
+			checker_was_up = checker->is_up;
+			rs_was_alive = checker->rs->alive;
 			update_svr_checker_state(DOWN, checker);
+			if (checker->rs->smtp_alert && checker_was_up &&
+			    (rs_was_alive != checker->rs->alive || !global_data->no_checker_emails))
+				smtp_alert(SMTP_MSG_RS, checker, NULL,
+					   "=> TCP CHECK failed on service <=");
 		}
 	} else {
 		delay = checker->delay_before_retry;
@@ -182,13 +196,18 @@ tcp_connect_thread(thread_t * thread)
 		return 0;
 	}
 
-	if ((fd = socket(co->dst.ss_family, SOCK_STREAM | SOCK_CLOEXEC, IPPROTO_TCP)) == -1) {
+	if ((fd = socket(co->dst.ss_family, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, IPPROTO_TCP)) == -1) {
 		log_message(LOG_INFO, "TCP connect fail to create socket. Rescheduling.");
 		thread_add_timer(thread->master, tcp_connect_thread, checker,
 				checker->delay_loop);
 
 		return 0;
 	}
+
+#if !HAVE_DECL_SOCK_NONBLOCK
+	if (set_sock_flags(fd, F_SETFL, O_NONBLOCK))
+		log_message(LOG_INFO, "Unable to set NONBLOCK on tcp_connect socket - %s (%d)", strerror(errno), errno);
+#endif
 
 #if !HAVE_DECL_SOCK_CLOEXEC
 	if (set_sock_flags(fd, F_SETFD, FD_CLOEXEC))
@@ -208,3 +227,13 @@ tcp_connect_thread(thread_t * thread)
 
 	return 0;
 }
+
+#ifdef _TIMER_DEBUG_
+void
+print_check_tcp_addresses(void)
+{
+	log_message(LOG_INFO, "Address of dump_tcp_check() is 0x%p", dump_tcp_check);
+	log_message(LOG_INFO, "Address of tcp_check_thread() is 0x%p", tcp_check_thread);
+	log_message(LOG_INFO, "Address of tcp_connect_thread() is 0x%p", tcp_connect_thread);
+}
+#endif

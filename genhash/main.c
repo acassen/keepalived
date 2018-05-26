@@ -23,14 +23,11 @@
 #include "config.h"
 
 /* system includes */
-#include <signal.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
-#include <sys/types.h>
 #include <stdio.h>
-#include <string.h>
 #include <sys/socket.h>
-#include <netdb.h>
+#include <arpa/inet.h>
 
 /* keepalived includes */
 #include "utils.h"
@@ -114,19 +111,19 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 	hint.ai_flags = AI_NUMERICHOST;
 
 	struct option long_options[] = {
-		{"release",         no_argument,       0, 'r'},
-		{"help",            no_argument,       0, 'h'},
-		{"verbose",         no_argument,       0, 'v'},
-		{"use-ssl",         no_argument,       0, 'S'},
+		{"release",		no_argument,       0, 'r'},
+		{"help",		no_argument,       0, 'h'},
+		{"verbose",		no_argument,       0, 'v'},
+		{"use-ssl",		no_argument,       0, 'S'},
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
-		{"use-sni",         no_argument,       0, 'I'},
+		{"use-sni",		no_argument,       0, 'I'},
 #endif
-		{"server",          required_argument, 0, 's'},
-		{"hash",            required_argument, 0, 'H'},
-		{"use-virtualhost", required_argument, 0, 'V'},
-		{"port",            required_argument, 0, 'p'},
-		{"url",             required_argument, 0, 'u'},
-		{"fwmark",          required_argument, 0, 'm'},
+		{"server",		required_argument, 0, 's'},
+		{"hash",		required_argument, 0, 'H'},
+		{"use-virtualhost",	required_argument, 0, 'V'},
+		{"port",		required_argument, 0, 'p'},
+		{"url",			required_argument, 0, 'u'},
+		{"fwmark",		required_argument, 0, 'm'},
 		{0, 0, 0, 0}
 	};
 
@@ -222,7 +219,6 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 int
 main(int argc, char **argv)
 {
-	thread_t thread;
 	char *url_default = "/";
 
 #ifdef _MEM_CHECK_
@@ -265,6 +261,8 @@ main(int argc, char **argv)
 	/* Create the master thread */
 	master = thread_make_master();
 
+	add_signal_read_thread();
+
 	/* Register the GET request */
 	init_sock();
 
@@ -276,8 +274,7 @@ main(int argc, char **argv)
 	 * not activate SIGCHLD handling, however, this
 	 * is no issue here.
 	 */
-	while (thread_fetch(master, &thread))
-		thread_call(&thread);
+	process_threads(master);
 
 	/* Finalize output informations */
 	if (req->verbose)

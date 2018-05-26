@@ -1,5 +1,5 @@
 name: keepalived
-version: 'v1.4+git'
+version: 'v2.0+git'
 summary: High availability VRRP and load-balancing for Linux
 description: |
   Keepalived provides simple and robust loadbalancing and high-availability

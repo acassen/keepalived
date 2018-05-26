@@ -18,7 +18,7 @@
  *              2 of the License, or (at your option) any later version.
  *
  * Copyright (C) 2016 Quentin Armitage, <quentin@armitage.org.uk>
- * Copyright (C) 2016-2016 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2016-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #ifndef _VRRP_IP_RULE_ROUTE_PARSER_H
@@ -26,7 +26,6 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <linux/rtnetlink.h>
 #if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
 #include "vrrp_iproute.h"
 #endif

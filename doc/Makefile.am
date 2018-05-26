@@ -15,7 +15,7 @@ sample_DATA	= $(srcdir)/samples/*
 
 mibsdir		= $(datarootdir)/snmp/mibs
 mibs_DATA	=
-if SNMP
+if SNMP_KEEPALIVED
 mibs_DATA	+= KEEPALIVED-MIB.txt
 endif
 if SNMP_RFCV2

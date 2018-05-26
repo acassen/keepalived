@@ -23,13 +23,12 @@
 #ifndef _GLOBAL_DATA_H
 #define _GLOBAL_DATA_H
 
+#include "config.h"
+
 /* system includes */
-#include <stdlib.h>
-#include <string.h>
-#include <stdint.h>
-#include <sys/socket.h>
 #include <stdbool.h>
-#include <sys/types.h>
+#include <stdio.h>
+#include <sys/socket.h>
 
 #ifdef HAVE_LINUX_NETFILTER_X_TABLES_H
 #include <linux/netfilter/x_tables.h>
@@ -39,8 +38,13 @@
 #include <linux/netfilter/ipset/ip_set.h>
 #endif
 
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+#include <sys/resource.h>
+#endif
+
 /* local includes */
 #include "list.h"
+#include "vrrp_if.h"
 #include "timer.h"
 #ifdef _WITH_VRRP_
 #include "vrrp.h"
@@ -55,7 +59,6 @@
 #endif
 
 /* constants */
-#define DEFAULT_SMTP_SERVER 0x7f000001
 #define DEFAULT_SMTP_CONNECTION_TIMEOUT (30 * TIMER_HZ)
 
 /* email link list */
@@ -65,6 +68,11 @@ typedef struct _email {
 
 /* Configuration data root */
 typedef struct _data {
+#if HAVE_DECL_CLONE_NEWNET
+	char				*network_namespace;	/* network namespace name */
+	bool				namespace_with_ipsets;	/* override for namespaces with ipsets on Linux < 3.13 */
+#endif
+	char				*instance_name;		/* keepalived instance name */
 	bool				linkbeat_use_polling;
 	char				*router_id;
 	char				*email_from;
@@ -72,21 +80,26 @@ typedef struct _data {
 	char				*smtp_helo_name;
 	unsigned long			smtp_connection_to;
 	list				email;
+	int				smtp_alert;
 #ifdef _WITH_VRRP_
+	bool				dynamic_interfaces;
+	bool				no_email_faults;
+	int				smtp_alert_vrrp;
 	interface_t			*default_ifp;		/* Default interface for static addresses */
 #endif
 #ifdef _WITH_LVS_
 	int				lvs_tcp_timeout;
 	int				lvs_tcpfin_timeout;
 	int				lvs_udp_timeout;
+	int				smtp_alert_checker;
 #ifdef _WITH_VRRP_
 	struct lvs_syncd_config		lvs_syncd;
 #endif
 	bool				lvs_flush;		/* flush any residual LVS config at startup */
 #endif
 #ifdef _WITH_VRRP_
-	struct sockaddr_storage		vrrp_mcast_group4;
-	struct sockaddr_storage		vrrp_mcast_group6;
+	struct sockaddr_in		vrrp_mcast_group4;
+	struct sockaddr_in6		vrrp_mcast_group6;
 	unsigned			vrrp_garp_delay;
 	timeval_t			vrrp_garp_refresh;
 	unsigned			vrrp_garp_rep;
@@ -109,12 +122,37 @@ typedef struct _data {
 	bool				vrrp_check_unicast_src;
 	bool				vrrp_skip_check_adv_addr;
 	bool				vrrp_strict;
+	bool				have_vrrp_config;
 	char				vrrp_process_priority;
 	bool				vrrp_no_swap;
+#ifdef _HAVE_SCHED_RT_
+	unsigned			vrrp_realtime_priority;
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+	rlim_t				vrrp_rlimit_rt;
+#endif
+#endif
 #endif
 #ifdef _WITH_LVS_
+	bool				have_checker_config;
 	char				checker_process_priority;
 	bool				checker_no_swap;
+#ifdef _HAVE_SCHED_RT_
+	unsigned			checker_realtime_priority;
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+	rlim_t				checker_rlimit_rt;
+#endif
+#endif
+#endif
+#ifdef _WITH_BFD_
+	bool				have_bfd_config;
+	char				bfd_process_priority;
+	bool				bfd_no_swap;
+#ifdef _HAVE_SCHED_RT_
+	unsigned			bfd_realtime_priority;
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+	rlim_t				bfd_rlimit_rt;
+#endif
+#endif
 #endif
 	notify_fifo_t			notify_fifo;
 #ifdef _WITH_VRRP_
@@ -127,9 +165,15 @@ typedef struct _data {
 	bool				enable_traps;
 	char				*snmp_socket;
 #ifdef _WITH_VRRP_
-	bool				enable_snmp_keepalived;
+#ifdef _WITH_SNMP_VRRP_
+	bool				enable_snmp_vrrp;
+#endif
+#ifdef _WITH_SNMP_RFCV2_
 	bool				enable_snmp_rfcv2;
+#endif
+#ifdef _WITH_SNMP_RFCV3_
 	bool				enable_snmp_rfcv3;
+#endif
 #endif
 #ifdef _WITH_LVS_
 	bool				enable_snmp_checker;
@@ -139,17 +183,33 @@ typedef struct _data {
 	bool				enable_dbus;
 	char				*dbus_service_name;
 #endif
-	bool				script_security;
+#ifdef _WITH_VRRP_
+	unsigned			vrrp_netlink_cmd_rcv_bufs;
+	bool				vrrp_netlink_cmd_rcv_bufs_force;
+	unsigned			vrrp_netlink_monitor_rcv_bufs;
+	bool				vrrp_netlink_monitor_rcv_bufs_force;
+#endif
+#ifdef _WITH_LVS_
+	unsigned			lvs_netlink_cmd_rcv_bufs;
+	bool				lvs_netlink_cmd_rcv_bufs_force;
+	unsigned			lvs_netlink_monitor_rcv_bufs;
+	bool				lvs_netlink_monitor_rcv_bufs_force;
+#endif
+#ifdef _WITH_LVS_
+	bool				rs_init_notifies;
+	bool				no_checker_emails;
+#endif
 } data_t;
 
 /* Global vars exported */
-extern data_t *global_data; /* Global configuration data */
+extern data_t *global_data;	/* Global configuration data */
+extern data_t *old_global_data;	/* Old global configuration data - used during reload */
 
 /* Prototypes */
 extern void alloc_email(char *);
 extern data_t *alloc_global_data(void);
 extern void init_global_data(data_t *);
 extern void free_global_data(data_t *);
-extern void dump_global_data(data_t *);
+extern void dump_global_data(FILE *, data_t *);
 
 #endif

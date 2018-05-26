@@ -17,13 +17,15 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2016 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #include "config.h"
 
 /* system includes */
 #include <unistd.h>
+#include <net/ethernet.h>
+#include <net/if_arp.h>
 #include <linux/if_packet.h>
 
 /* local includes */
@@ -64,7 +66,7 @@ struct sockaddr_large_ll {
 
 /* static vars */
 static char *garp_buffer;
-static int garp_fd;
+static int garp_fd = -1;
 
 /* Send the gratuitous ARP message */
 static ssize_t send_arp(ip_address_t *ipaddress, ssize_t pack_len)
@@ -132,7 +134,7 @@ ssize_t send_gratuitous_arp_immediate(interface_t *ifp, ip_address_t *ipaddress)
 	arph->ar_hrd = htons(ifp->hw_type);
 	arph->ar_pro = htons(ETHERTYPE_IP);
 	arph->ar_hln = ifp->hw_addr_len;
-	arph->ar_pln = IPPROTO_ADDR_LEN;
+	arph->ar_pln = sizeof(struct in_addr);
 	arph->ar_op = htons(ARPOP_REQUEST);
 	arp_ptr = (char *) (arph + 1);
 	memcpy(arp_ptr, hwaddr, ifp->hw_addr_len);
@@ -167,7 +169,7 @@ static void queue_garp(vrrp_t *vrrp, interface_t *ifp, ip_address_t *ipaddress)
 	ipaddress->garp_gna_pending = true;
 
 	/* Do we need to reschedule the garp thread? */
-	if (!garp_thread || timer_cmp(next_time, garp_next_time) < 0) {
+	if (!garp_thread || timercmp(&next_time, &garp_next_time, <)) {
 		if (garp_thread)
 			thread_cancel(garp_thread);
 
@@ -181,13 +183,17 @@ void send_gratuitous_arp(vrrp_t *vrrp, ip_address_t *ipaddress)
 {
 	interface_t *ifp = IF_BASE_IFP(ipaddress->ifp);
 
+	/* If the interface doesn't support ARP, don't try sending */
+	if (ifp->ifi_flags & IFF_NOARP)
+		return;
+
 	set_time_now();
 
 	/* Do we need to delay sending the garp? */
 	if (ifp->garp_delay &&
 	    ifp->garp_delay->have_garp_interval &&
 	    ifp->garp_delay->garp_next_time.tv_sec) {
-		if (timer_cmp(time_now, ifp->garp_delay->garp_next_time) < 0) {
+		if (timercmp(&time_now, &ifp->garp_delay->garp_next_time, <)) {
 			queue_garp(vrrp, ifp, ipaddress);
 			return;
 		}
@@ -201,6 +207,9 @@ void send_gratuitous_arp(vrrp_t *vrrp, ip_address_t *ipaddress)
  */
 void gratuitous_arp_init(void)
 {
+	if (garp_buffer)
+		return;
+
 	/* Initalize shared buffer */
 	garp_buffer = (char *)MALLOC(GARP_BUFFER_SIZE);
 
@@ -221,6 +230,11 @@ void gratuitous_arp_init(void)
 }
 void gratuitous_arp_close(void)
 {
+	if (!garp_buffer)
+		return;
+
 	FREE(garp_buffer);
+	garp_buffer = NULL;
 	close(garp_fd);
+	garp_fd = -1;
 }

@@ -22,15 +22,12 @@
  */
 #include "config.h"
 
-#include <stdint.h>
-#include <stdbool.h>
 #include <errno.h>
-
-#include <linux/socket.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <linux/rtnetlink.h>
 
-#include "vector.h"
 #include "list.h"
 #include "memory.h"
 #include "logger.h"
@@ -132,11 +129,11 @@ free_rt_entry(void *e)
 }
 
 static void
-dump_rt_entry(void *e)
+dump_rt_entry(FILE *fp, void *e)
 {
 	rt_entry_t *rte = (rt_entry_t *)e;
 
-	log_message(LOG_INFO, "rt_table %u, name %s", rte->id, rte->name);
+	conf_write(fp, "rt_table %u, name %s", rte->id, rte->name);
 }
 
 static void
@@ -309,7 +306,7 @@ find_rttables_dsfield(const char *name, uint8_t *id)
 {
 	uint32_t val;
 	bool ret;
-	
+
 	ret = find_entry(name, &val, &rt_dsfields, RT_DSFIELD_FILE, NULL, 255);
 	*id = val & 0xff;
 
@@ -335,7 +332,7 @@ find_rttables_proto(const char *name, uint8_t *id)
 {
 	uint32_t val;
 	bool ret;
-	
+
 	ret = find_entry(name, &val, &rt_protos, RT_PROTOS_FILE, rtprot_default, 255);
 	*id = val & 0xff;
 
@@ -347,7 +344,7 @@ find_rttables_scope(const char *name, uint8_t *id)
 {
 	uint32_t val;
 	bool ret;
-	
+
 	ret = find_entry(name, &val, &rt_scopes, RT_SCOPES_FILE, rtscope_default, 255);
 	*id = val & 0xff;
 

@@ -24,6 +24,21 @@
  * and https://developer.gnome.org/gio/stable/GDBusConnection.html#gdbus-server
  * for examples of coding.
  *
+ * Create a general /org/keepalived/Vrrp1/Vrrp DBus
+ * object and a /org/keepalived/Vrrp1/Instance/#interface#/#group# object for
+ * each VRRP instance.
+ * Interface org.keepalived.Vrrp1.Vrrp implements methods PrintData,
+ * PrintStats and signal VrrpStopped.
+ * Interface com.keepalived.Vrrp1.Instance implements method SendGarp
+ * (sends a single Gratuitous ARP from the given Instance),
+ * signal VrrpStatusChange, and properties Name and State (retrievable
+ * through calls to org.freedesktop.DBus.Properties.Get)
+ *
+ * Interface files need to be installed in /usr/share/dbus-1/interfaces/
+ * A policy file, which determines who has access to the service, is
+ * installed in /etc/dbus-1/system.d/. Sources for the policy and interface
+ * files are in keepalived/dbus.
+ *
  * To test the DBus service run a command like: dbus-send --system --dest=org.keepalived.Vrrp1 --print-reply object interface.method type:argument
  * e.g.
  * dbus-send --system --dest=org.keepalived.Vrrp1 --print-reply /org/keepalived/Vrrp1/Vrrp org.keepalived.Vrrp1.Vrrp.PrintData
@@ -38,26 +53,23 @@
 
 #include "config.h"
 
+#include <errno.h>
 #include <pthread.h>
 #include <semaphore.h>
-#include <signal.h>
 #include <gio/gio.h>
 #include <ctype.h>
 #include <fcntl.h>
-#include <unistd.h>
 #include <sys/types.h>
+#include <stdlib.h>
 #include <stdint.h>
 
 #include "vrrp_dbus.h"
 #include "vrrp_data.h"
-#include "vrrp_if.h"
 #include "vrrp_print.h"
 #include "global_data.h"
 #include "main.h"
-#include "memory.h"
 #include "logger.h"
-#include "timer.h"
-#include "scheduler.h"
+#include "utils.h"
 
 typedef enum dbus_action {
 	DBUS_ACTION_NONE,
@@ -157,10 +169,6 @@ state_str(int state)
 		return "Master";
 	case VRRP_STATE_FAULT:
 		return "Fault";
-	case VRRP_STATE_GOTO_MASTER:
-		return "Goto master";
-	case VRRP_STATE_GOTO_FAULT:
-		return "Goto fault";
 	}
 	return "Unknown";
 }
@@ -199,9 +207,9 @@ dbus_object_create_path_vrrp(void)
 {
 	return g_strconcat(DBUS_VRRP_OBJECT_ROOT,
 #if HAVE_DECL_CLONE_NEWNET
-			  (network_namespace) ? "/" : "", (network_namespace) ? network_namespace : "",
+			  global_data->network_namespace ? "/" : "", global_data->network_namespace ? global_data->network_namespace : "",
 #endif
-			  (instance_name) ? "/" : "", (instance_name) ? instance_name : "",
+			  global_data->instance_name ? "/" : "", global_data->instance_name ? global_data->instance_name : "",
 
 			  "/Vrrp", NULL);
 }
@@ -217,9 +225,9 @@ dbus_object_create_path_instance(const gchar *interface, int vrid, sa_family_t f
 
 	object_path = g_strconcat(DBUS_VRRP_OBJECT_ROOT,
 #if HAVE_DECL_CLONE_NEWNET
-				  (network_namespace) ? "/" : "", (network_namespace) ? network_namespace : "",
+				  global_data->network_namespace ? "/" : "", global_data->network_namespace ? global_data->network_namespace : "",
 #endif
-				  (instance_name) ? "/" : "", (instance_name) ? instance_name : "",
+				  global_data->instance_name ? "/" : "", global_data->instance_name ? global_data->instance_name : "",
 
 				  "/Instance/",
 				  standardized_name, "/", vrid_str,
@@ -277,10 +285,10 @@ get_interface_ids(const gchar *object_path, gchar *interface, uint8_t *vrid, uin
 	gchar **dirs;
 
 #if HAVE_DECL_CLONE_NEWNET
-	if(network_namespace)
+	if(global_data->network_namespace)
 		path_length++;
 #endif
-	if(instance_name)
+	if(global_data->instance_name)
 		path_length++;
 
 	/* object_path will have interface, vrid and family as
@@ -296,13 +304,13 @@ get_interface_ids(const gchar *object_path, gchar *interface, uint8_t *vrid, uin
 
 /* handles reply to org.freedesktop.DBus.Properties.Get method on any object*/
 static GVariant *
-handle_get_property(__attribute__((unused)) GDBusConnection  *connection,
-		    __attribute__((unused)) const gchar      *sender,
-		    const gchar      *object_path,
-		    const gchar      *interface_name,
-		    const gchar      *property_name,
-		    GError          **error,
-		    __attribute__((unused)) gpointer          user_data)
+handle_get_property(__attribute__((unused)) GDBusConnection *connection,
+		    __attribute__((unused)) const gchar     *sender,
+					    const gchar     *object_path,
+					    const gchar     *interface_name,
+					    const gchar     *property_name,
+					    GError	   **error,
+		    __attribute__((unused)) gpointer	     user_data)
 {
 	GVariant *ret = NULL;
 	dbus_queue_ent_t ent;
@@ -340,16 +348,16 @@ handle_get_property(__attribute__((unused)) GDBusConnection  *connection,
 /* handles method_calls on any object */
 static void
 handle_method_call(__attribute__((unused)) GDBusConnection *connection,
-		   __attribute__((unused)) const gchar           *sender,
-		   const gchar           *object_path,
-		   const gchar           *interface_name,
-		   const gchar           *method_name,
+		   __attribute__((unused)) const gchar	   *sender,
+					   const gchar	   *object_path,
+					   const gchar	   *interface_name,
+					   const gchar	   *method_name,
 #ifndef _WITH_DBUS_CREATE_INSTANCE_
 		   __attribute__((unused))
 #endif
 					   GVariant *parameters,
 		   GDBusMethodInvocation *invocation,
-		   __attribute__((unused)) gpointer               user_data)
+		   __attribute__((unused)) gpointer user_data)
 {
 #ifdef _WITH_DBUS_CREATE_INSTANCE_
 	char *iname;
@@ -508,7 +516,7 @@ dbus_emit_signal(GDBusConnection *connection,
 static void
 on_bus_acquired(GDBusConnection *connection,
 		const gchar     *name,
-		__attribute__((unused)) gpointer         user_data)
+		__attribute__((unused)) gpointer user_data)
 {
 	global_connection = connection;
 	gchar *path;
@@ -547,7 +555,7 @@ on_bus_acquired(GDBusConnection *connection,
 	/* Notify DBus of the state of our instances */
 	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
 		vrrp_t * vrrp = ELEMENT_DATA(e);
-		dbus_send_state_signal(vrrp, vrrp->state);
+		dbus_send_state_signal(vrrp);
 	}
 }
 
@@ -555,7 +563,7 @@ on_bus_acquired(GDBusConnection *connection,
 static void
 on_name_acquired(__attribute__((unused)) GDBusConnection *connection,
 		 const gchar     *name,
-		 __attribute__((unused)) gpointer         user_data)
+		 __attribute__((unused)) gpointer user_data)
 {
 	log_message(LOG_INFO, "Acquired the name %s on the session bus\n", name);
 }
@@ -587,7 +595,7 @@ read_file(gchar* filepath)
 		fseek(f, 0, SEEK_SET);
 
 		/* We can't use MALLOC since it isn't thread safe */
-		ret = malloc(length + 1);
+		ret = MALLOC(length + 1);
 		if (ret) {
 			if (fread(ret, length, 1, f) != 1) {
 				log_message(LOG_INFO, "Failed to read all of %s", filepath);
@@ -627,7 +635,7 @@ dbus_main(__attribute__ ((unused)) void *unused)
 	if (!introspection_xml)
 		return NULL;
 	vrrp_introspection_data = g_dbus_node_info_new_for_xml(introspection_xml, &error);
-	free(introspection_xml);
+	FREE(introspection_xml);
 	if (error != NULL) {
 		log_message(LOG_INFO, "Parsing DBus interface %s from file %s failed: %s",
 			    DBUS_VRRP_INTERFACE, DBUS_VRRP_INTERFACE_FILE_PATH, error->message);
@@ -639,7 +647,7 @@ dbus_main(__attribute__ ((unused)) void *unused)
 	if (!introspection_xml)
 		return NULL;
 	vrrp_instance_introspection_data = g_dbus_node_info_new_for_xml(introspection_xml, &error);
-	free(introspection_xml);
+	FREE(introspection_xml);
 	if (error != NULL) {
 		log_message(LOG_INFO, "Parsing DBus interface %s from file %s failed: %s",
 			    DBUS_VRRP_INSTANCE_INTERFACE, DBUS_VRRP_INSTANCE_INTERFACE_FILE_PATH, error->message);
@@ -674,7 +682,7 @@ dbus_main(__attribute__ ((unused)) void *unused)
 /* send signal VrrpStatusChange
  * containing the new state of vrrp */
 void
-dbus_send_state_signal(vrrp_t *vrrp, int state)
+dbus_send_state_signal(vrrp_t *vrrp)
 {
 	gchar *object_path;
 	GVariant *args;
@@ -686,7 +694,7 @@ dbus_send_state_signal(vrrp_t *vrrp, int state)
 
 	object_path = dbus_object_create_path_instance(IF_NAME(IF_BASE_IFP(vrrp->ifp)), vrrp->vrid, vrrp->family);
 
-	args = g_variant_new("(u)", state);
+	args = g_variant_new("(u)", vrrp->state);
 	dbus_emit_signal(global_connection, object_path, DBUS_VRRP_INSTANCE_INTERFACE, "VrrpStatusChange", args);
 	g_free(object_path);
 }
@@ -867,37 +875,21 @@ dbus_start(void)
 	pthread_t dbus_thread;
 	sigset_t sigset, cursigset;
 
-#ifdef HAVE_PIPE2
-	if (pipe2(dbus_in_pipe, O_CLOEXEC)) {
+	if (open_pipe(dbus_in_pipe)) {
 		log_message(LOG_INFO, "Unable to create inbound dbus pipe - disabling DBus");
 		return false;
 	}
-	if (pipe2(dbus_out_pipe, O_CLOEXEC)) {
+	if (open_pipe(dbus_out_pipe)) {
 		log_message(LOG_INFO, "Unable to create outbound dbus pipe - disabling DBus");
 		close(dbus_in_pipe[0]);
 		close(dbus_in_pipe[1]);
 		return false;
 	}
-#else
-	if (pipe(dbus_in_pipe)) {
-		log_message(LOG_INFO, "Unable to create inbound dbus pipe - disabling DBus");
-		return false;
-	}
-	if (pipe(dbus_out_pipe)) {
-		log_message(LOG_INFO, "Unable to create outbound dbus pipe - disabling DBus");
-		close(dbus_in_pipe[0]);
-		close(dbus_in_pipe[1]);
-		return false;
-	}
-	fcntl (dbus_in_pipe[0], F_SETFD, FD_CLOEXEC | fcntl(dbus_in_pipe[0], F_GETFD));
-	fcntl (dbus_in_pipe[1], F_SETFD, FD_CLOEXEC | fcntl(dbus_in_pipe[1], F_GETFD));
-	fcntl (dbus_out_pipe[0], F_SETFD, FD_CLOEXEC | fcntl(dbus_out_pipe[0], F_GETFD));
-	fcntl (dbus_out_pipe[1], F_SETFD, FD_CLOEXEC | fcntl(dbus_out_pipe[1], F_GETFD));
-#endif
 
-	/* We don't want the main thread to block when using the pipes */
-	fcntl(dbus_in_pipe[0], F_SETFL, O_NONBLOCK | fcntl(dbus_in_pipe[0], F_GETFL));
-	fcntl(dbus_out_pipe[1], F_SETFL, O_NONBLOCK | fcntl(dbus_out_pipe[1], F_GETFL));
+	/* We don't want the main thread to block when using the pipes,
+	 * but the other side of the pipes should block. */
+	fcntl(dbus_in_pipe[1], F_SETFL, fcntl(dbus_in_pipe[1], F_GETFL) & ~O_NONBLOCK);
+	fcntl(dbus_out_pipe[0], F_SETFL, fcntl(dbus_out_pipe[0], F_GETFL) & ~O_NONBLOCK);
 
 	thread_add_read(master, handle_dbus_msg, NULL, dbus_in_pipe[0], TIMER_NEVER);
 
@@ -905,7 +897,7 @@ dbus_start(void)
 	sem_init(&thread_end, 0, 0);
 
 	/* Block signals (all) we don't want the new thread to process */
-	sigemptyset(&sigset);
+	sigfillset(&sigset);
 	pthread_sigmask(SIG_SETMASK, &sigset, &cursigset);
 
 	/* Now create the dbus thread */
@@ -950,3 +942,11 @@ dbus_stop(void)
 		sem_destroy(&thread_end);
 	}
 }
+
+#ifdef _TIMER_DEBUG_
+void
+print_vrrp_dbus_addresses(void)
+{
+	log_message(LOG_INFO, "Address of handle_dbus_msg() is 0x%p", handle_dbus_msg);
+}
+#endif

@@ -13,22 +13,23 @@ keepalived-*.tar.gz
 
 # http://www.gnu.org/software/automake
 Makefile
+Makefile.in
 
 # http://www.gnu.org/software/autoconf
-# /ar-lib
+/ar-lib
 /autom4te.cache
 /autoscan.log
 /autoscan-*.log
-# /aclocal.m4
-# /compile
+/aclocal.m4
+/compile
 /config.cache
-#/config.h.in
+/config.h.in
 /config.log
 /config.status
 /configure.scan
-# /depcomp
+/depcomp
 /install-sh
-# /missing
+/missing
 stamp-h?
 
 .deps/
@@ -37,9 +38,8 @@ stamp-h?
 /devel/
 
 # To be able to build without automake/autoconf comment out the following
-# lib/config.h.in
-# Makefile.in
-# /configure
+lib/config.h.in
+/configure
 
 # For snap builds
 parts/

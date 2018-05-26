@@ -23,19 +23,15 @@
 #include "config.h"
 
 /* system includes */
-#include <errno.h>
 #include <openssl/err.h>
 
 /* keepalived includes */
-#include "memory.h"
 #include "utils.h"
 #include "html.h"
-#include "timer.h"
 
 /* genhash includes */
 #include "include/http.h"
 #include "include/layer4.h"
-#include "include/main.h"
 
 /*
  * The global design of this checker is the following :

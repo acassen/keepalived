@@ -23,8 +23,10 @@
 
 #include "config.h"
 
+#include <errno.h>
+#include <unistd.h>
+
 #include "layer4.h"
-#include "utils.h"
 #include "logger.h"
 
 #ifndef _WITH_LVS_
@@ -38,7 +40,6 @@ socket_bind_connect(int fd, conn_opts_t *co)
 	struct linger li;
 	socklen_t addrlen;
 	int ret;
-	int val;
 	struct sockaddr_storage *addr = &co->dst;
 	struct sockaddr_storage *bind_addr = &co->bindto;
 
@@ -53,10 +54,6 @@ socket_bind_connect(int fd, conn_opts_t *co)
 		li.l_linger = 0;
 		setsockopt(fd, SOL_SOCKET, SO_LINGER, (char *) &li, sizeof (struct linger));
 	}
-
-	/* Make socket non-block. */
-	val = fcntl(fd, F_GETFL, 0);
-	fcntl(fd, F_SETFL, val | O_NONBLOCK);
 
 #ifdef _WITH_SO_MARK_
 	if (co->fwmark) {
@@ -88,21 +85,15 @@ socket_bind_connect(int fd, conn_opts_t *co)
 	ret = connect(fd, (struct sockaddr *) addr, addrlen);
 
 	/* Immediate success */
-	if (ret == 0) {
-		fcntl(fd, F_SETFL, val);
+	if (ret == 0)
 		return connect_success;
-	}
 
 	/* If connect is in progress then return 1 else it's real error. */
 	if (ret < 0) {
-		if (errno != EINPROGRESS) {
-/*			log_message(LOG_INFO, "Checker connect failed: %s", strerror(errno)); */
+		if (errno != EINPROGRESS)
 			return connect_error;
-		}
 	}
 
-	/* restore previous fd args */
-	fcntl(fd, F_SETFL, val);
 	return connect_in_progress;
 }
 
@@ -159,7 +150,7 @@ socket_state(thread_t * thread, int (*func) (thread_t *))
 }
 
 #ifdef _WITH_LVS_
-int
+bool
 socket_connection_state(int fd, enum connect_result status, thread_t * thread,
 		     int (*func) (thread_t *), unsigned long timeout)
 {
@@ -167,18 +158,12 @@ socket_connection_state(int fd, enum connect_result status, thread_t * thread,
 
 	checker = THREAD_ARG(thread);
 
-	switch (status) {
-	case connect_success:
+	if (status == connect_success ||
+	    status == connect_in_progress) {
 		thread_add_write(thread->master, func, checker, fd, timeout);
-		return 0;
-
-		/* Checking non-blocking connect, we wait until socket is writable */
-	case connect_in_progress:
-		thread_add_write(thread->master, func, checker, fd, timeout);
-		return 0;
-
-	default:
-		return 1;
+		return false;
 	}
+
+	return true;
 }
 #endif

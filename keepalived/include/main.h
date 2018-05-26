@@ -23,25 +23,11 @@
 #ifndef _MAIN_H
 #define _MAIN_H
 
-/* global includes */
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <getopt.h>
+#include "config.h"
 
-/* local includes */
-#include "daemon.h"
-#include "memory.h"
-#include "utils.h"
-#include "pidfile.h"
-#include "scheduler.h"
-#include "parser.h"
-#ifdef _WITH_VRRP_
-#include "vrrp_daemon.h"
-#endif
-#ifdef _WITH_LVS_
-#include "check_daemon.h"
-#endif
-#include "global_data.h"
+/* global includes */
+#include <stdbool.h>
+#include <sys/types.h>
 
 /* State flags */
 enum daemon_bits {
@@ -51,27 +37,42 @@ enum daemon_bits {
 #ifdef _WITH_LVS_
 	DAEMON_CHECKERS,
 #endif
+#ifdef _WITH_BFD_
+	DAEMON_BFD,
+#endif
+	RUN_ALL_CHILDREN,
 };
+
+/* Reloading helpers */
+#define SET_RELOAD      (reload = 1)
+#define UNSET_RELOAD    (reload = 0)
 
 /* Global vars exported */
 extern const char *version_string;	/* keepalived version */
 extern unsigned long daemon_mode;	/* Which child processes are run */
 extern char *conf_file;			/* Configuration file */
 extern int log_facility;		/* Optional logging facilities */
+#ifdef _WITH_VRRP_
 extern pid_t vrrp_child;		/* VRRP child process ID */
-extern pid_t checkers_child;		/* Healthcheckers child process ID */
-extern char *main_pidfile;		/* overrule default pidfile */
-extern char *checkers_pidfile;		/* overrule default pidfile */
 extern char *vrrp_pidfile;		/* overrule default pidfile */
+extern bool have_vrrp_instances;	/* vrrp instances configured */
+#endif
+#ifdef _WITH_LVS_
+extern pid_t checkers_child;		/* Healthcheckers child process ID */
+extern char *checkers_pidfile;		/* overrule default pidfile */
+extern bool have_virtual_servers;	/* virtual servers configured */
+#endif
+#ifdef _WITH_BFD_
+extern pid_t bfd_child;			/* BFD child process ID */
+extern char *bfd_pidfile;		/* overrule default pidfile */
+extern bool have_bfd_instances;		/* bfd instances configured */
+#endif
+extern bool reload;			/* Set during a reload */
+extern char *main_pidfile;		/* overrule default pidfile */
 #ifdef _WITH_SNMP_
 extern bool snmp;			/* Enable SNMP support */
 extern const char *snmp_socket;		/* Socket to use for SNMP agent */
 #endif
-#if HAVE_DECL_CLONE_NEWNET
-extern char *network_namespace;		/* network namespace name */
-extern bool namespace_with_ipsets;	/* override for namespaces with ipsets on Linux < 3.13 */
-#endif
-extern char *instance_name;		/* keepalived instance name */
 extern bool use_pid_dir;		/* pid files in /var/run/keepalived */
 extern unsigned os_major;		/* Kernel version */
 extern unsigned os_minor;
@@ -80,6 +81,19 @@ extern unsigned os_release;
 extern void free_parent_mallocs_startup(bool);
 extern void free_parent_mallocs_exit(void);
 extern char *make_syslog_ident(const char*);
+#ifdef _WITH_VRRP_
+extern bool running_vrrp(void);
+#endif
+#ifdef _WITH_LVS_
+extern bool running_checker(void);
+#endif
+#ifdef _WITH_BFD
+extern bool running_bfd(void);
+#endif
 
+extern void stop_keepalived(void);
 extern int keepalived_main(int, char**); /* The "real" main function */
+
+extern unsigned child_wait_time;
+
 #endif

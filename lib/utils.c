@@ -22,23 +22,34 @@
 
 #include "config.h"
 
-#include <sys/wait.h>
+/* System includes */
+#include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <stdlib.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+#include <sys/utsname.h>
 #include <stdint.h>
 
-#ifdef _WITH_STACKTRACE_
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <execinfo.h>
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
+#include <signal.h>
+#include <sys/wait.h>
 #endif
 
+#ifdef _WITH_STACKTRACE_
+#include <sys/stat.h>
+#include <execinfo.h>
+#include <memory.h>
+#endif
+
+/* Local includes */
+#include "utils.h"
 #include "memory.h"
 #include "utils.h"
 #include "signals.h"
 #include "bitops.h"
-#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_ || defined _WITH_STACKTRACE_
 #include "logger.h"
 #endif
 
@@ -90,18 +101,38 @@ dump_buffer(char *buff, size_t count, FILE* fp)
 
 #ifdef _WITH_STACKTRACE_
 void
-write_stacktrace(const char *file_name)
+write_stacktrace(const char *file_name, const char *str)
 {
-	int fd = open(file_name, O_WRONLY | O_APPEND | O_CREAT, 0644);
+	int fd;
 	void *buffer[100];
 	int nptrs;
+	int i;
+	char **strs;
 
 	nptrs = backtrace(buffer, 100);
-	backtrace_symbols_fd(buffer, nptrs, fd);
-	if (write(fd, "\n", 1) != 1) {
-		/* We don't care, but this stops a warning on Ubuntu */
+	if (file_name) {
+		fd = open(file_name, O_WRONLY | O_APPEND | O_CREAT, 0644);
+		if (str)
+			dprintf(fd, "%s\n", str);
+		backtrace_symbols_fd(buffer, nptrs, fd);
+		if (write(fd, "\n", 1) != 1) {
+			/* We don't care, but this stops a warning on Ubuntu */
+		}
+		close(fd);
+	} else {
+		if (str)
+			log_message(LOG_INFO, "%s", str);
+		strs = backtrace_symbols(buffer, nptrs);
+		if (strs == NULL) {
+			log_message(LOG_INFO, "Unable to get stack backtrace");
+			return;
+		}
+
+		/* We don't need the call to this function, or the first two entries on the stack */
+		for (i = 1; i < nptrs - 2; i++)
+			log_message(LOG_INFO, "  %s", strs[i]);
+		free(strs);
 	}
-	close(fd);
 }
 #endif
 
@@ -274,13 +305,6 @@ inet_ip6tosockaddr(struct in6_addr *sin_addr, struct sockaddr_storage *addr)
 	addr6->sin6_addr = *sin_addr;
 }
 
-void
-inet_ip6scopeid(uint32_t ifindex, struct sockaddr_storage *addr)
-{
-	struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) addr;
-	addr6->sin6_scope_id = ifindex;
-}
-
 /* IP network to string representation */
 static char *
 inet_sockaddrtos2(struct sockaddr_storage *addr, char *addr_str)
@@ -374,7 +398,7 @@ inet_sockaddrip6(struct sockaddr_storage *addr, struct in6_addr *ip6)
 
 /* IPv6 address compare */
 int
-inet_inaddrcmp(int family, void *a, void *b)
+inet_inaddrcmp(const int family, const void *a, const void *b)
 {
 	int64_t addr_diff;
 
@@ -404,7 +428,7 @@ inet_inaddrcmp(int family, void *a, void *b)
 }
 
 int
-inet_sockaddrcmp(struct sockaddr_storage *a, struct sockaddr_storage *b)
+inet_sockaddrcmp(const struct sockaddr_storage *a, const struct sockaddr_storage *b)
 {
 	if (a->ss_family != b->ss_family)
 		return -2;
@@ -521,19 +545,15 @@ get_local_name(void)
 }
 
 /* String compare with NULL string handling */
-int
+bool
 string_equal(const char *str1, const char *str2)
 {
 	if (!str1 && !str2)
-		return 1;
-	if ((!str1 && str2) || (str1 && !str2))
-		return 0;
-	for (; *str1 == *str2; str1++, str2++) {
-		if (*str1 == 0 || *str2 == 0)
-			break;
-	}
+		return true;
+	if (!str1 != !str2)
+		return false;
 
-	return (*str1 == 0 && *str2 == 0);
+	return !strcmp(str1, str2);
 }
 
 void
@@ -552,7 +572,7 @@ set_std_fd(bool force)
 		}
 	}
 
-	signal_pipe_close(STDERR_FILENO+1);
+	signal_fd_close(STDERR_FILENO+1);
 }
 
 void
@@ -603,5 +623,29 @@ fork_exec(char **argv)
 	sigaction(SIGCHLD, &old_act, NULL);
 
 	return res;
+}
+#endif
+
+#if defined _WITH_VRRP_ || defined _WITH_BFD_
+int
+open_pipe(int pipe_arr[2])
+{
+	/* Open pipe */
+#ifdef HAVE_PIPE2
+	if (pipe2(pipe_arr, O_CLOEXEC | O_NONBLOCK) == -1)
+#else
+	if (pipe(pipe_arr) == -1)
+#endif
+		return -1;
+
+#ifndef HAVE_PIPE2
+	fcntl(pipe_arr[0], F_SETFL, O_NONBLOCK | fcntl(pipe_arr[0], F_GETFL));
+	fcntl(pipe_arr[1], F_SETFL, O_NONBLOCK | fcntl(pipe_arr[1], F_GETFL));
+
+	fcntl(pipe_arr[0], F_SETFD, FD_CLOEXEC | fcntl(pipe_arr[0], F_GETFD));
+	fcntl(pipe_arr[1], F_SETFD, FD_CLOEXEC | fcntl(pipe_arr[1], F_GETFD));
+#endif
+
+	return 0;
 }
 #endif

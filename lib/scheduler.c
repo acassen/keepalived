@@ -29,7 +29,6 @@
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
-#include <net-snmp/agent/snmp_vars.h>
 #undef FREE
 #endif
 
@@ -37,23 +36,36 @@
 #define NDEBUG
 #endif
 #include <assert.h>
-#include <signal.h>
+#include <errno.h>
 #include <sys/wait.h>
-#include <sys/select.h>
 #include <unistd.h>
+#ifdef HAVE_SIGNALFD
+#include <sys/signalfd.h>
+#endif
 
 #include "scheduler.h"
 #include "memory.h"
 #include "utils.h"
 #include "signals.h"
 #include "logger.h"
+#ifdef _DEBUG_
 #include "bitops.h"
+#endif
+#include "git-commit.h"
+#include <sys/utsname.h>
+#include <linux/version.h>
 
 /* global vars */
 thread_master_t *master = NULL;
 #ifndef _DEBUG_
 prog_type_t prog_type;		/* Parent/VRRP/Checker process */
 #endif
+#ifdef _WITH_SNMP_
+bool snmp_running;		/* True if this process is running SNMP */
+#endif
+
+/* local variables */
+static bool shutting_down;
 
 #ifdef _WITH_LVS_
 #include "../keepalived/include/check_daemon.h"
@@ -61,7 +73,6 @@ prog_type_t prog_type;		/* Parent/VRRP/Checker process */
 #ifdef _WITH_VRRP_
 #include "../keepalived/include/vrrp_daemon.h"
 #endif
-#include "../keepalived/include/main.h"
 
 /* Function that returns prog_name if pid is a known child */
 static char const * (*child_finder_name)(pid_t);
@@ -191,6 +202,48 @@ destroy_child_finder(void)
 }
 
 #ifndef _DEBUG_
+static const char *
+get_end(const char *str, size_t max_len)
+{
+	size_t len = strlen(str);
+	const char *end;
+
+	if (len <= max_len)
+		return str + len;
+
+	end = str + max_len;
+	if (*end == ' ')
+		return end;
+
+	while (end > str && *--end != ' ');
+	if (end > str)
+		return end;
+
+	return str + max_len;
+}
+
+static void
+log_options(const char *option, const char *option_str)
+{
+	const char *p = option_str;
+	size_t opt_len = strlen(option);
+	const char *end;
+	bool first_line = true;
+
+	while (*p) {
+		end = get_end(p, 100 - opt_len);
+		if (first_line) {
+			log_message(LOG_INFO, "  %s: %.*s", option, (int)(end - p), p);
+			first_line = false;
+		}
+		else
+			log_message(LOG_INFO, "%*s%.*s", (int)(3 + strlen(option) + 2), "", (int)(end - p), p);
+		p = end;
+		while (*p == ' ')
+			p++;
+	}
+}
+
 /* report_child_status returns true if the exit is a hard error, so unable to continue */
 bool
 report_child_status(int status, pid_t pid, char const *prog_name)
@@ -223,10 +276,32 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 			log_message(LOG_INFO, "%s exited with status %d", prog_id, exit_status);
 	} else if (WIFSIGNALED(status)) {
 		if (WTERMSIG(status) == SIGSEGV) {
+			struct utsname uname_buf;
+
 			log_message(LOG_INFO, "%s exited due to segmentation fault (SIGSEGV).", prog_id);
-			log_message(LOG_INFO, "  Please report a bug at %s", "https://github.com/acassen/keepalived/issues");
-			log_message(LOG_INFO, "  %s", "and include this log from when keepalived started, what happened");
-			log_message(LOG_INFO, "  %s", "immediately before the crash, and your configuration file.");
+			log_message(LOG_INFO, "  %s", "Please report a bug at https://github.com/acassen/keepalived/issues");
+			log_message(LOG_INFO, "  %s", "and include this log from when keepalived started, a description");
+			log_message(LOG_INFO, "  %s", "of what happened before the crash, your configuration file and the details below.");
+			log_message(LOG_INFO, "  %s", "Also provide the output of keepalived -v, what Linux distro and version");
+			log_message(LOG_INFO, "  %s", "you are running on, and whether keepalived is being run in a container or VM.");
+			log_message(LOG_INFO, "  %s", "A failure to provide all this information may mean the crash cannot be investigated.");
+			log_message(LOG_INFO, "  %s", "If you are able to provide a stack backtrace with gdb that would really help.");
+			log_message(LOG_INFO, "  Source version %s %s%s", PACKAGE_VERSION,
+#ifdef GIT_COMMIT
+									   ", git commit ", GIT_COMMIT
+#else
+									   "", ""
+#endif
+				   );
+			log_message(LOG_INFO, "  Built with kernel headers for Linux %d.%d.%d\n",
+						(LINUX_VERSION_CODE >> 16) & 0xff,
+						(LINUX_VERSION_CODE >>  8) & 0xff,
+						(LINUX_VERSION_CODE      ) & 0xff);
+			uname(&uname_buf);
+			log_message(LOG_INFO, "  Running on %s %s %s", uname_buf.sysname, uname_buf.release, uname_buf.version);
+			log_options("configure options", KEEPALIVED_CONFIGURE_OPTIONS);
+			log_options("Config options", CONFIGURATION_OPTIONS);
+			log_options("System options", SYSTEM_OPTIONS);
 		}
 		else
 			log_message(LOG_INFO, "%s exited due to signal %d", prog_id, WTERMSIG(status));
@@ -280,8 +355,13 @@ thread_list_add_timeval(thread_list_t * list, thread_t * thread)
 {
 	thread_t *tt;
 
+	if (thread->sands.tv_sec == TIMER_DISABLED) {
+		thread_list_add(list, thread);
+		return;
+	}
+
 	for (tt = list->head; tt; tt = tt->next) {
-		if (timer_cmp(thread->sands, tt->sands) <= 0)
+		if (tt->sands.tv_sec == TIMER_DISABLED || timercmp(&thread->sands, &tt->sands, <=))
 			break;
 	}
 
@@ -306,6 +386,14 @@ thread_list_delete(thread_list_t * list, thread_t * thread)
 	thread->next = thread->prev = NULL;
 	list->count--;
 	return thread;
+}
+
+static void
+thread_list_make_ready(thread_list_t *list, thread_t *thread, thread_master_t *m, thread_type_t type)
+{
+	thread_list_delete(list, thread);
+	thread->type = type;
+	thread_list_add(&m->ready, thread);
 }
 
 /* Free all unused thread. */
@@ -342,11 +430,11 @@ thread_add_unuse(thread_master_t * m, thread_t * thread)
 
 /* Move list element to unuse queue */
 static void
-thread_destroy_list(thread_master_t * m, thread_list_t thread_list)
+thread_destroy_list(thread_master_t *m, thread_list_t *thread_list)
 {
 	thread_t *thread;
 
-	thread = thread_list.head;
+	thread = thread_list->head;
 
 	while (thread) {
 		thread_t *t;
@@ -354,7 +442,7 @@ thread_destroy_list(thread_master_t * m, thread_list_t thread_list)
 		t = thread;
 		thread = t->next;
 
-		thread_list_delete(&thread_list, t);
+		thread_list_delete(thread_list, t);
 		t->type = THREAD_UNUSED;
 		thread_add_unuse(m, t);
 	}
@@ -365,19 +453,18 @@ void
 thread_cleanup_master(thread_master_t * m)
 {
 	/* Unuse current thread lists */
-	thread_destroy_list(m, m->read);
-	thread_destroy_list(m, m->write);
-	thread_destroy_list(m, m->timer);
-	thread_destroy_list(m, m->child);
-	thread_destroy_list(m, m->event);
-	thread_destroy_list(m, m->ready);
+	thread_destroy_list(m, &m->read);
+	thread_destroy_list(m, &m->write);
+	thread_destroy_list(m, &m->timer);
+	thread_destroy_list(m, &m->child);
+	thread_destroy_list(m, &m->event);
+	thread_destroy_list(m, &m->ready);
 
 	destroy_child_finder();
 
 	/* Clear all FDs */
 	FD_ZERO(&m->readfd);
 	FD_ZERO(&m->writefd);
-	FD_ZERO(&m->exceptfd);
 
 	/* Clean garbage */
 	thread_clean_unuse(m);
@@ -443,14 +530,59 @@ thread_add_read(thread_master_t * m, int (*func) (thread_t *)
 	FD_SET(fd, &m->readfd);
 	thread->u.fd = fd;
 
+	/* Ensure we can be efficient with select */
+	if (fd > m->max_fd)
+		m->max_fd = fd;
+
 	/* Compute read timeout value */
-	set_time_now();
-	thread->sands = timer_add_long(time_now, timer);
+	if (timer == TIMER_NEVER)
+		thread->sands.tv_sec = TIMER_DISABLED;
+	else {
+		set_time_now();
+		thread->sands = timer_add_long(time_now, timer);
+	}
 
 	/* Sort the thread. */
 	thread_list_add_timeval(&m->read, thread);
 
 	return thread;
+}
+
+static void
+thread_read_requeue(thread_master_t *m, int fd, timeval_t new_sands)
+{
+	thread_t *tt;
+	thread_t *insert = NULL;
+
+	for (tt = m->read.head; tt; tt = tt->next) {
+		if (!insert && timercmp(&new_sands, &tt->sands, <=))
+			insert = tt;
+		if (tt->u.fd == fd)
+			break;
+	}
+
+	if (!tt)
+		return;
+
+	tt->sands = new_sands;
+
+	if (tt == insert)
+		return;
+
+	thread_list_delete(&m->read, tt);
+
+	if (insert)
+		thread_list_add_before(&m->read, insert, tt);
+	else
+		thread_list_add_timeval(&m->read, tt);
+}
+
+void
+thread_requeue_read(thread_master_t *m, int fd, unsigned long timer)
+{
+	set_time_now();
+
+	thread_read_requeue(m, fd, timer_add_long(time_now, timer));
 }
 
 /* Add new write thread. */
@@ -476,9 +608,17 @@ thread_add_write(thread_master_t * m, int (*func) (thread_t *)
 	FD_SET(fd, &m->writefd);
 	thread->u.fd = fd;
 
+	/* Ensure we can be efficient with select */
+	if (fd > m->max_fd)
+		m->max_fd = fd;
+
 	/* Compute write timeout value */
-	set_time_now();
-	thread->sands = timer_add_long(time_now, timer);
+	if (timer == TIMER_NEVER)
+		thread->sands.tv_sec = TIMER_DISABLED;
+	else {
+		set_time_now();
+		thread->sands = timer_add_long(time_now, timer);
+	}
 
 	/* Sort the thread. */
 	thread_list_add_timeval(&m->write, thread);
@@ -503,11 +643,26 @@ thread_add_timer(thread_master_t * m, int (*func) (thread_t *)
 	thread->arg = arg;
 
 	/* Do we need jitter here? */
-	set_time_now();
-	thread->sands = timer_add_long(time_now, timer);
+	if (timer == TIMER_NEVER)
+		thread->sands.tv_sec = TIMER_DISABLED;
+	else {
+		set_time_now();
+		thread->sands = timer_add_long(time_now, timer);
+	}
 
 	/* Sort by timeval. */
 	thread_list_add_timeval(&m->timer, thread);
+
+	return thread;
+}
+
+thread_t *
+thread_add_timer_shutdown(thread_master_t *m, int(*func)(thread_t *),
+			  void *arg, unsigned long timer)
+{
+	thread_t *thread = thread_add_timer(m, func, arg, timer);
+
+	thread->type = THREAD_TIMER_SHUTDOWN;
 
 	return thread;
 }
@@ -530,9 +685,13 @@ thread_add_child(thread_master_t * m, int (*func) (thread_t *)
 	thread->u.c.pid = pid;
 	thread->u.c.status = 0;
 
-	/* Compute write timeout value */
-	set_time_now();
-	thread->sands = timer_add_long(time_now, timer);
+	/* Compute child timeout value */
+	if (timer == TIMER_NEVER)
+		thread->sands.tv_sec = TIMER_DISABLED;
+	else {
+		set_time_now();
+		thread->sands = timer_add_long(time_now, timer);
+	}
 
 	/* Sort by timeval. */
 	thread_list_add_timeval(&m->child, thread);
@@ -541,6 +700,18 @@ thread_add_child(thread_master_t * m, int (*func) (thread_t *)
 		child_adder(thread);
 
 	return thread;
+}
+
+void
+thread_children_reschedule(thread_master_t *m, int (*func)(thread_t *), unsigned long timer)
+{
+	thread_t *thread;
+
+	set_time_now();
+	for (thread = m->child.head; thread; thread = thread->next) {
+		thread->func = func;
+		thread->sands = timer_add_long(time_now, timer);
+	}
 }
 
 /* Add simple event thread. */
@@ -564,24 +735,36 @@ thread_add_event(thread_master_t * m, int (*func) (thread_t *)
 	return thread;
 }
 
-/* Add simple event thread. */
-thread_t *
-thread_add_terminate_event(thread_master_t * m)
+/* Add terminate event thread. */
+static thread_t *
+thread_add_generic_terminate_event(thread_master_t * m, thread_type_t type, int (*func)(thread_t *))
 {
 	thread_t *thread;
 
 	assert(m != NULL);
 
 	thread = thread_new(m);
-	thread->type = THREAD_TERMINATE;
+	thread->type = type;
 	thread->id = 0;
 	thread->master = m;
-	thread->func = NULL;
+	thread->func = func;
 	thread->arg = NULL;
 	thread->u.val = 0;
 	thread_list_add(&m->event, thread);
 
 	return thread;
+}
+
+thread_t *
+thread_add_terminate_event(thread_master_t *m)
+{
+	return thread_add_generic_terminate_event(m, THREAD_TERMINATE, NULL);
+}
+
+thread_t *
+thread_add_start_terminate_event(thread_master_t *m, int(*func)(thread_t *))
+{
+	return thread_add_generic_terminate_event(m, THREAD_TERMINATE_START, func);
 }
 
 /* Cancel thread from scheduler. */
@@ -631,6 +814,23 @@ thread_cancel(thread_t * thread)
 	return 0;
 }
 
+void
+thread_cancel_read(thread_master_t *m, int fd)
+{
+	thread_t *thread;
+
+	thread = m->read.head;
+	while (thread) {
+		thread_t *t = thread;
+		thread = t->next;
+
+		if (t->u.fd == fd) {
+			thread_cancel(t);
+			return;
+		}
+	}
+}
+
 #ifdef _INCLUDE_UNUSED_CODE_
 /* Delete all events which has argument value arg. */
 void
@@ -658,15 +858,15 @@ thread_cancel_event(thread_master_t * m, void *arg)
 static void
 thread_update_timer(thread_list_t *list, timeval_t *timer_min)
 {
-	if (list->head) {
-		if (!timer_isnull(*timer_min)) {
-			if (timer_cmp(list->head->sands, *timer_min) <= 0) {
-				*timer_min = list->head->sands;
-			}
-		} else {
-			*timer_min = list->head->sands;
-		}
-	}
+	if (!list->head)
+		return;
+
+	if (list->head->sands.tv_sec == TIMER_DISABLED)
+		return;
+
+	if (!timerisset(timer_min) ||
+	    timercmp(&list->head->sands, timer_min, <=))
+		*timer_min = list->head->sands;
 }
 
 /* Compute the wait timer. Take care of timeouted fd */
@@ -676,46 +876,45 @@ thread_compute_timer(thread_master_t * m, timeval_t * timer_wait)
 	timeval_t timer_min;
 
 	/* Prepare timer */
-	timer_reset(timer_min);
+	timerclear(&timer_min);
 	thread_update_timer(&m->timer, &timer_min);
 	thread_update_timer(&m->write, &timer_min);
 	thread_update_timer(&m->read, &timer_min);
 	thread_update_timer(&m->child, &timer_min);
 
-	/* Take care about monotonic clock */
-	if (!timer_isnull(timer_min)) {
-		timer_min = timer_sub(timer_min, time_now);
+	if (timerisset(&timer_min)) {
+		/* Take care about monotonic clock */
+		timersub(&timer_min, &time_now, &timer_min);
 		if (timer_min.tv_sec < 0) {
 			timer_min.tv_sec = timer_min.tv_usec = 0;
-		} else if (timer_min.tv_sec >= 1) {
-			timer_min.tv_sec = 1;
-			timer_min.tv_usec = 0;
 		}
 
 		timer_wait->tv_sec = timer_min.tv_sec;
 		timer_wait->tv_usec = timer_min.tv_usec;
 	} else {
-		timer_wait->tv_sec = 1;
+		/* set timer to a VERY long time */
+		timer_wait->tv_sec = LONG_MAX;
 		timer_wait->tv_usec = 0;
 	}
 }
 
 /* Fetch next ready thread. */
-thread_t *
-thread_fetch(thread_master_t * m, thread_t * fetch)
+static thread_list_t *
+thread_fetch_next_queue(thread_master_t *m)
 {
-	int ret, old_errno;
+	int num_fds, old_errno;
 	thread_t *thread;
+	thread_t *t;
 	fd_set readfd;
 	fd_set writefd;
-	fd_set exceptfd;
 	timeval_t timer_wait;
-	int signal_fd;
-#ifdef _WITH_SNMP_
-	timeval_t snmp_timer_wait;
-	int snmpblock = 0;
 	int fdsetsize;
+#ifdef _WITH_SNMP_
+	int snmpblock;
+	timeval_t snmp_timer_wait;
+	bool is_snmp_timer;
 #endif
+	bool timer_expired;
 	bool timers_done;
 
 	assert(m != NULL);
@@ -726,27 +925,12 @@ thread_fetch(thread_master_t * m, thread_t * fetch)
 retry:	/* When thread can't fetch try to find next thread again. */
 
 	/* If there is event process it first. */
-	while ((thread = thread_trim_head(&m->event))) {
-		*fetch = *thread;
+	if (m->event.head)
+		return &m->event;
 
-		/* If daemon hanging event is received return NULL pointer */
-		if (thread->type == THREAD_TERMINATE) {
-			thread->type = THREAD_UNUSED;
-			thread_add_unuse(m, thread);
-			return NULL;
-		}
-		thread->type = THREAD_UNUSED;
-		thread_add_unuse(m, thread);
-		return fetch;
-	}
-
-	/* If there is ready threads process them */
-	while ((thread = thread_trim_head(&m->ready))) {
-		*fetch = *thread;
-		thread->type = THREAD_UNUSED;
-		thread_add_unuse(m, thread);
-		return fetch;
-	}
+	/* If there are ready threads process them */
+	if (m->ready.head)
+		return &m->ready;
 
 	/*
 	 * Re-read the current time to get the maximum accuracy.
@@ -758,144 +942,149 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	/* Call select function. */
 	readfd = m->readfd;
 	writefd = m->writefd;
-	exceptfd = m->exceptfd;
-
-	signal_fd = signal_rfd();
-	if (signal_fd != -1)
-		FD_SET(signal_fd, &readfd);
+	fdsetsize = m->max_fd + 1;
 
 #ifdef _WITH_SNMP_
 	/* When SNMP is enabled, we may have to select() on additional
 	 * FD. snmp_select_info() will add them to `readfd'. The trick
 	 * with this function is its last argument. We need to set it
-	 * to 0 and we need to use the provided new timer only if it
-	 * is still set to 0. */
-	fdsetsize = FD_SETSIZE;
-	snmpblock = 0;
-	memcpy(&snmp_timer_wait, &timer_wait, sizeof(timeval_t));
-	snmp_select_info(&fdsetsize, &readfd, &snmp_timer_wait, &snmpblock);
-	if (snmpblock == 0)
-		memcpy(&timer_wait, &snmp_timer_wait, sizeof(timeval_t));
+	 * true to set its own timer that we then compare against ours. */
+	is_snmp_timer = false;
+	if (snmp_running) {
+		snmpblock = true;
+		snmp_select_info(&fdsetsize, &readfd, &snmp_timer_wait, &snmpblock);
+		if (!snmpblock && timercmp(&snmp_timer_wait, &timer_wait, <=)) {
+			timer_wait = snmp_timer_wait;
+			is_snmp_timer = true;
+		}
+	}
 #endif
 
-	ret = select(FD_SETSIZE, &readfd, &writefd, &exceptfd, &timer_wait);
+#ifdef _SELECT_DEBUG_
+	if (prog_type == PROG_TYPE_VRRP && shutting_down)
+		log_message(LOG_INFO, "select with timer %lu.%6.6ld, fdsetsize %d, readfds 0x%lx", timer_wait.tv_sec, timer_wait.tv_usec, fdsetsize, readfd.fds_bits[0]);
+#endif
+
+	/* Don't call select() if timer_wait is 0 */
+	errno = 0;
+	if (!timerisset(&timer_wait))
+		num_fds = 0;
+	else
+		num_fds = select(fdsetsize, &readfd, &writefd, NULL, &timer_wait);
 
 	/* we have to save errno here because the next syscalls will set it */
 	old_errno = errno;
 
-	if (ret < 0 && old_errno != EINTR) {
+#ifdef _SELECT_DEBUG_
+	if (prog_type == PROG_TYPE_VRRP && shutting_down)
+		log_message(LOG_INFO, "Select returned %d, errno %d, readfd 0x%lx, writefd 0x%lx, timer %lu.%6.6ld", num_fds, old_errno, readfd.fds_bits[0], writefd.fds_bits[0], timer_wait.tv_sec, timer_wait.tv_usec);
+#endif
+
+	if (num_fds < 0) {
+		if (old_errno == EINTR)
+			goto retry;
 		/* Real error. */
 		DBG("select error: %s", strerror(old_errno));
 		assert(0);
 	}
 
+	timer_expired = (num_fds == 0 || !timerisset(&timer_wait));
+
 	/* Handle SNMP stuff */
 #ifdef _WITH_SNMP_
-	if (ret > 0)
-		snmp_read(&readfd);
-	else if (ret == 0)
-		snmp_timeout();
+	if (snmp_running) {
+		/* We could optimise this by calling snmp_select_info() BEFORE
+		 * setting the timer and fds we want, so we see what snmp wants.
+		 * We would then know if any of snmp's fds were set */
+		if (num_fds > 0)
+			snmp_read(&readfd);
+		else if (timer_expired && is_snmp_timer)
+			snmp_timeout();
+	}
 #endif
-
-	/* handle signals synchronously, including child reaping */
-	if (ret > 0 && FD_ISSET(signal_fd, &readfd))
-		signal_run_callback();
 
 	/* Update current time */
 	set_time_now();
 
-	/* Timeout children */
-	thread = m->child.head;
-	while (thread) {
-		thread_t *t;
+	if (timer_expired) {
+		/* Timeout children */
+		thread = m->child.head;
+		while (thread) {
+			t = thread;
+			thread = t->next;
 
-		t = thread;
-		thread = t->next;
+			if (t->sands.tv_sec == TIMER_DISABLED)
+				break;
 
-		if (timer_cmp(time_now, t->sands) >= 0) {
-			thread_list_delete(&m->child, t);
-			thread_list_add(&m->ready, t);
-			if (child_remover)
-				child_remover(t);
-			t->type = THREAD_CHILD_TIMEOUT;
-		} else
-			break;
+			if (timercmp(&time_now, &t->sands, >=)) {
+				thread_list_make_ready(&m->child, t, m, THREAD_CHILD_TIMEOUT);
+				if (child_remover)
+					child_remover(t);
+			}
+			else
+				break;
+		}
 	}
 
-	/* Read thead. */
+	/* Read thread. */
 	thread = m->read.head;
-	timers_done = false;
-	while (thread) {
-		thread_t *t;
-
+	timers_done = !timer_expired;
+	while (thread && (num_fds || !timers_done)) {
 		t = thread;
 		thread = t->next;
 
-		if (ret > 0 && FD_ISSET(t->u.fd, &readfd)) {
+		if (num_fds && FD_ISSET(t->u.fd, &readfd)) {
 			assert(FD_ISSET(t->u.fd, &m->readfd));
+			num_fds--;
 			FD_CLR(t->u.fd, &m->readfd);
-			thread_list_delete(&m->read, t);
-			thread_list_add(&m->ready, t);
-			t->type = THREAD_READY_FD;
-		} else if (!timers_done) {
-			if (timer_cmp(time_now, t->sands) >= 0) {
-				FD_CLR(t->u.fd, &m->readfd);
-				thread_list_delete(&m->read, t);
-				thread_list_add(&m->ready, t);
-				t->type = THREAD_READ_TIMEOUT;
-			}
-			else
-				timers_done = true;
+			thread_list_make_ready(&m->read, t, m, THREAD_READY_FD);
+		} else if (!timers_done &&
+			   t->sands.tv_sec != TIMER_DISABLED &&
+			   timercmp(&time_now, &t->sands, >=)) {
+			FD_CLR(t->u.fd, &m->readfd);
+			thread_list_make_ready(&m->read, t, m, THREAD_READ_TIMEOUT);
 		}
+		else
+			timers_done = true;
 	}
 
-	/* Write thead. */
+	/* Write thread. */
 	thread = m->write.head;
-	timers_done = false;
-	while (thread) {
-		thread_t *t;
-
+	timers_done = !timer_expired;
+	while (thread && (num_fds || !timers_done)) {
 		t = thread;
 		thread = t->next;
 
-		if (ret > 0 && FD_ISSET(t->u.fd, &writefd)) {
+		if (num_fds && FD_ISSET(t->u.fd, &writefd)) {
 			assert(FD_ISSET(t->u.fd, &writefd));
+			num_fds--;
 			FD_CLR(t->u.fd, &m->writefd);
-			thread_list_delete(&m->write, t);
-			thread_list_add(&m->ready, t);
-			t->type = THREAD_READY_FD;
-		} else if (!timers_done) {
-			if (timer_cmp(time_now, t->sands) >= 0) {
-				FD_CLR(t->u.fd, &m->writefd);
-				thread_list_delete(&m->write, t);
-				thread_list_add(&m->ready, t);
-				t->type = THREAD_WRITE_TIMEOUT;
-			}
-			else
-				timers_done = true;
+			thread_list_make_ready(&m->write, t, m, THREAD_READY_FD);
+		} else if (!timers_done &&
+			   t->sands.tv_sec != TIMER_DISABLED &&
+			   timercmp(&time_now, &t->sands, >=)) {
+			FD_CLR(t->u.fd, &m->writefd);
+			thread_list_make_ready(&m->write, t, m, THREAD_WRITE_TIMEOUT);
 		}
+		else
+			timers_done = true;
 	}
 	/* Exception thead. */
 	/*... */
 
 	/* Timer update. */
-	thread = m->timer.head;
-	while (thread) {
-		thread_t *t;
+	if (timer_expired) {
+		thread = m->timer.head;
+		while (thread) {
+			t = thread;
+			thread = t->next;
 
-		t = thread;
-		thread = t->next;
-
-		if (timer_cmp(time_now, t->sands) >= 0) {
-			thread_list_delete(&m->timer, t);
-			thread_list_add(&m->ready, t);
-			t->type = THREAD_READY;
-		} else
-			break;
+			if (timercmp(&time_now, &t->sands, >=))
+				thread_list_make_ready(&m->timer, t, m, t->type);
+			else
+				break;
+		}
 	}
-
-	/* Return one event. */
-	thread = thread_trim_head(&m->ready);
 
 #ifdef _WITH_SNMP_
 	run_alarms();
@@ -903,109 +1092,31 @@ retry:	/* When thread can't fetch try to find next thread again. */
 #endif
 
 	/* There is no ready thread. */
-	if (!thread)
+	if (!m->ready.head)
 		goto retry;
 
-	*fetch = *thread;
-	thread->type = THREAD_UNUSED;
-	thread_add_unuse(m, thread);
-
-	return fetch;
+	return &m->ready;
 }
 
-/* Synchronous signal handler to reap child processes */
-static void
-thread_child_handler(void * v, __attribute__ ((unused)) int unused)
-{
-	thread_master_t * m = v;
-	thread_t *thread;
-	pid_t pid;
-	int status;
-	bool permanent_vrrp_checker_error = false;
-
-	while ((pid = waitpid(-1, &status, WNOHANG))) {
-		if (pid == -1) {
-			if (errno == ECHILD)
-				return;
-			DBG("waitpid error: %s", strerror(errno));
-			assert(0);
-		} else {
-#ifndef _DEBUG_
-			if (prog_type == PROG_TYPE_PARENT)
-				permanent_vrrp_checker_error = report_child_status(status, pid, NULL);
-#endif
-
-			if (child_finder)
-				thread = child_finder(pid);
-			else {
-				for (thread = m->child.head; thread; thread = thread->next) {
-					if (pid == thread->u.c.pid)
-						break;
-				}
-			}
-
-			if (!thread)
-				return;
-
-			thread_list_delete(&m->child, thread);
-			if (child_remover)
-				child_remover(thread);
-
-			if (permanent_vrrp_checker_error)
-			{
-				/* The child had a permanant error, so no point in respawning */
-				thread->type = THREAD_UNUSED;
-				thread_list_add(&m->unuse, thread);
-
-				raise(SIGTERM);
-			}
-			else
-			{
-				thread->type = THREAD_READY;
-				thread->u.c.status = status;
-				thread_list_add(&m->ready, thread);
-			}
-		}
-	}
-}
-
-
-/* Make unique thread id for non pthread version of thread manager. */
-static unsigned long
-thread_get_id(void)
-{
-	static unsigned long int counter = 0;
-	return ++counter;
-}
-
-/* Call thread ! */
 void
-thread_call(thread_t * thread)
+process_threads(thread_master_t *m)
 {
-	thread->id = thread_get_id();
-	(*thread->func) (thread);
-}
-
-/* Our infinite scheduling loop */
-void
-launch_scheduler(void)
-{
-	thread_t thread;
-
-	signal_set(SIGCHLD, thread_child_handler, master);
+	thread_t* thread;
+	thread_list_t* thread_list;
+	int thread_type;
 
 	/*
 	 * Processing the master thread queues,
 	 * return and execute one ready thread.
 	 */
-	while (thread_fetch(master, &thread)) {
+	while ((thread_list = thread_fetch_next_queue(m))) {
 		/* Run until error, used for debuging only */
 #if defined _DEBUG_ && defined _MEM_CHECK_
 		if (__test_bit(MEM_ERR_DETECT_BIT, &debug)
 #ifdef _WITH_VRRP_
 		    && __test_bit(DONT_RELEASE_VRRP_BIT, &debug)
 #endif
-							        ) {
+								) {
 			__clear_bit(MEM_ERR_DETECT_BIT, &debug);
 #ifdef _WITH_VRRP_
 			__clear_bit(DONT_RELEASE_VRRP_BIT, &debug);
@@ -1013,6 +1124,143 @@ launch_scheduler(void)
 			thread_add_terminate_event(master);
 		}
 #endif
-		thread_call(&thread);
+
+		thread = thread_trim_head(thread_list);
+		/* If we are shutting down, only process relevant thread types */
+		if (!shutting_down ||
+(thread->type == THREAD_READY_FD && thread->sands.tv_sec == TIMER_DISABLED) ||
+		    thread->type == THREAD_CHILD ||
+		    thread->type == THREAD_CHILD_TIMEOUT ||
+		    thread->type == THREAD_TIMER_SHUTDOWN ||
+		    thread->type == THREAD_TERMINATE) {
+			if (thread->func)
+				thread_call(thread);
+
+			if (!shutting_down && thread->type == THREAD_TERMINATE_START)
+{
+				shutting_down = true;
+}
+		}
+
+		thread_type = thread->type;
+		thread->type = THREAD_UNUSED;
+		thread_add_unuse(master, thread);
+
+		/* If daemon hanging event is received stop processing */
+		if (thread_type == THREAD_TERMINATE)
+			return;
 	}
+}
+
+static void
+process_child_termination(pid_t pid, int status)
+{
+	thread_master_t * m = master;
+	thread_t *thread;
+	bool permanent_vrrp_checker_error = false;
+
+#ifndef _DEBUG_
+	if (prog_type == PROG_TYPE_PARENT)
+		permanent_vrrp_checker_error = report_child_status(status, pid, NULL);
+#endif
+
+	if (child_finder)
+		thread = child_finder(pid);
+	else {
+		for (thread = m->child.head; thread; thread = thread->next) {
+			if (pid == thread->u.c.pid)
+				break;
+		}
+	}
+
+	if (!thread)
+		return;
+
+	thread_list_delete(&m->child, thread);
+	if (child_remover)
+		child_remover(thread);
+
+	if (permanent_vrrp_checker_error)
+	{
+		/* The child had a permanant error, so no point in respawning */
+		thread->type = THREAD_UNUSED;
+		thread_list_add(&m->unuse, thread);
+
+		raise(SIGTERM);
+	}
+	else
+	{
+		thread->u.c.status = status;
+		thread_list_add(&m->ready, thread);
+	}
+}
+
+/* Synchronous signal handler to reap child processes */
+void
+thread_child_handler(__attribute__((unused)) void *v, __attribute__((unused)) int unused)
+{
+	pid_t pid;
+	int status;
+
+	while ((pid = waitpid(-1, &status, WNOHANG))) {
+		if (pid == -1) {
+			if (errno == ECHILD)
+				return;
+			DBG("waitpid error: %s", strerror(errno));
+			assert(0);
+		}
+		process_child_termination(pid, status);
+	}
+}
+
+/* Make unique thread id for non pthread version of thread manager. */
+static inline unsigned long
+thread_get_id(void)
+{
+	static unsigned long int counter = 0;
+	return ++counter;
+}
+
+#ifdef _TIMER_DEBUG_
+static const char *
+get_thread_type_str(thread_type_t id)
+{
+	if (id == THREAD_READ) return "READ";
+	if (id == THREAD_WRITE) return "WRITE";
+	if (id == THREAD_TIMER) return "TIMER";
+	if (id == THREAD_EVENT) return "EVENT";
+	if (id == THREAD_CHILD) return "CHILD";
+	if (id == THREAD_READY) return "READY";
+	if (id == THREAD_UNUSED) return "UNUSED";
+	if (id == THREAD_WRITE_TIMEOUT) return "WRITE_TIMEOUT";
+	if (id == THREAD_READ_TIMEOUT) return "READ_TIMEOUT";
+	if (id == THREAD_CHILD_TIMEOUT) return "CHILD_TIMEOUT";
+	if (id == THREAD_TERMINATE) return "TERMINATE";
+	if (id == THREAD_READY_FD) return "READY_FD";
+
+	return "unknown";
+}
+#endif
+
+/* Call thread ! */
+void
+thread_call(thread_t * thread)
+{
+	thread->id = thread_get_id();
+#ifdef _TIMER_DEBUG_
+#ifndef _DEBUG_
+	if (prog_type == PROG_TYPE_VRRP)
+#endif
+		log_message(LOG_INFO, "Calling thread function, type %s, addr 0x%p, val/fd/pid %d, status %d", get_thread_type_str(thread->type), thread->func, thread->u.val, thread->u.c.status);
+#endif
+	(*thread->func) (thread);
+}
+
+/* Our infinite scheduling loop */
+void
+launch_scheduler(void)
+{
+	signal_set(SIGCHLD, thread_child_handler, master);
+
+	process_threads(master);
 }

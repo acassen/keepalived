@@ -22,15 +22,13 @@
 
 #include "config.h"
 
+#include <fcntl.h>
+
 /* keepalived include */
 #include "utils.h"
 
 /* genhash includes */
 #include "include/layer4.h"
-#include "include/main.h"
-#include "include/sock.h"
-#include "include/http.h"
-#include "include/ssl.h"
 
 static enum connect_result
 tcp_connect(int fd, REQ * req_obj)

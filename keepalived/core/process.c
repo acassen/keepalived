@@ -26,9 +26,16 @@
 #include <sys/resource.h>
 #include <errno.h>
 #include <string.h>
-#include <limits.h>
 #include <unistd.h>
+#ifdef _HAVE_SCHED_RT_
+#include <sched.h>
+#endif
+
+#include "process.h"
 #include "logger.h"
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+#include "signals.h"
+#endif
 
 void
 set_process_dont_swap(size_t stack_reserve)
@@ -56,4 +63,45 @@ set_process_priority(int priority)
 		if (setpriority(PRIO_PROCESS, 0, priority) == -1 && errno)
 			log_message(LOG_INFO, "Unable to set process priority to %d - %s", priority, strerror(errno));
 	}
+}
+
+void
+set_process_priorities(
+#ifdef _HAVE_SCHED_RT_
+		       int realtime_priority,
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+		       int rlimit_rt,
+#endif
+#endif
+		       int process_priority, int no_swap_stack_size)
+{
+#ifdef _HAVE_SCHED_RT_
+	if (realtime_priority) {
+		/* Set realtime priority */
+		struct sched_param sp;
+		sp.sched_priority = realtime_priority;
+		if (sched_setscheduler(getpid(), SCHED_RR | SCHED_RESET_ON_FORK, &sp))
+			log_message(LOG_WARNING, "child process: cannot raise priority");
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+		else if (rlimit_rt)
+		{
+			struct rlimit rlim;
+
+			set_sigxcpu_handler();
+
+			rlim.rlim_cur = rlimit_rt / 2;	/* Get warnings if approaching limit */
+			rlim.rlim_max = rlimit_rt;
+			if (setrlimit(RLIMIT_RTTIME, &rlim))
+				log_message(LOG_WARNING, "child process cannot set realtime rlimit");
+		}
+#endif
+	}
+	else
+#endif
+	     if (process_priority)
+		set_process_priority(process_priority);
+
+// TODO - measure max stack usage
+	if (no_swap_stack_size)
+		set_process_dont_swap(no_swap_stack_size);
 }

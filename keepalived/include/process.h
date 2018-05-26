@@ -17,13 +17,28 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2016 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #ifndef _PROCESS_H
 #define _PROCESS_H
 
+#include <sys/types.h>
+
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+#define	RT_RLIMIT_DEFAULT	1000
+#endif
+
 extern void set_process_dont_swap(size_t);
 extern void set_process_priority(int);
+extern void set_process_priorities(
+#ifdef _HAVE_SCHED_RT_
+			           int,
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+			           int,
+#endif
+#endif
+				   int, int);
+
 
 #endif

@@ -25,10 +25,9 @@
 #define _CHECK_SMTP_H
 
 /* system includes */
-#include <stdlib.h>
+#include <sys/types.h>
 
 /* local includes */
-#include "check_data.h"
 #include "scheduler.h"
 #include "list.h"
 #include "check_api.h"

@@ -11,10 +11,10 @@ export			DEBUG_LDFLAGS
 edit = echo "  EDIT     $@"; \
 	 sed -e "/^\[\!\[/d"
 
-SUBDIRS 		= lib keepalived doc
+SUBDIRS			= lib keepalived doc
 
 if BUILD_GENHASH
-  SUBDIRS 		+= genhash
+  SUBDIRS		+= genhash
 endif
 
 SUBDIRS			+= bin_install
@@ -31,7 +31,7 @@ README:	$(srcdir)/README.md
 	@$(edit) '$(srcdir)/$@.md' >$@
 
 distclean-local:
-	@rm -f aclocal.m4 ar-lib compile depcomp missing keepalived-$(VERSION).tar.gz config.log config.status
+	@rm -f aclocal.m4 ar-lib compile depcomp install-sh missing keepalived-$(VERSION).tar.gz config.log config.status
 	@rm -rf autom4te.cache
 
 dist-hook:
@@ -45,6 +45,9 @@ docker:
 autoclean:
 	@$(MAKE) distclean
 	@rm -f configure `find . -name Makefile.in` lib/config.h.in lib/git-commit.h
+
+git-clean:
+	@$(MAKE) autoclean
 
 clean-local: clean-local-snap
 

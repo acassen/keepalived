@@ -34,21 +34,64 @@ Compiling and Building from Source
 
 In order to run the latest stable version, compile keepalived from source.
 Compiling keepalived requires a compiler, OpenSSL and the Netlink Library.  You
-may optionally install Net-SNMP, which is required for SNMP support. 
+may optionally install Net-SNMP, which is required for SNMP support.
 
-Install Prerequisites on RHEL/CentOS 
-====================================
+Install Prerequisites on RHEL/CentOS/Fedora
+===========================================
 
-On RHEL, install the following prerequisites::
+On RHEL, Centos, Fedora etc install the following prerequisites
+(on older systems replace dnf with yum)::
 
-    yum install curl gcc openssl-devel libnl3-devel net-snmp-devel
+    dnf install curl gcc autoconf automake openssl-devel libnl3-devel \
+        iptables-devel ipset-devel net-snmp-devel libnfnetlink-devel file-devel
 
-Install Prerequisites on Debian
-===============================
+For DBUS support::
 
-On Debian, install the following prerequisites::
+    dnf install glib2-devel
 
-    apt-get install curl gcc libssl-dev libnl-3-dev libnl-genl-3-dev libsnmp-dev
+For JSON support::
+
+    dnf install json-c-devel
+
+Install Prerequisites on Debian/Ubuntu
+======================================
+
+On Debian/Ubuntu, install the following prerequisites::
+
+    apt-get install pkg-config curl gcc autoconf automake libssl-dev libnl-3-dev \
+        libnl-genl-3-dev libsnmp-dev libnl-route-3-dev libnfnetlink-dev libipset-dev \
+        iptables-dev libsnmp-dev
+
+For DBUS support::
+
+    dnf install libglib2.0-dev
+
+For JSON support::
+
+    dnf install libjson-c-dev
+
+Install Prerequisites on Alpine Linux
+=====================================
+
+On Alpine Linux install the following prerequisites::
+
+    autoconf automake iptables-dev ipset-dev libnfnetlink-dev libnl3-dev musl-dev and
+        openssl-dev or libressl-dev
+ 
+For SNMP support::
+
+    net-snmp-dev (requires libressl-dev and not openssl-dev)
+
+Install Prerequisites on Archlinux
+==================================
+
+On Archlinux run the following to install the required libraries::
+
+    pacman -S ipset libnfnetlink libnl1
+
+For SNMP support::
+
+    pacman -S net-snmp
 
 
 Build and Install
@@ -60,7 +103,8 @@ https://github.com/acassen/keepalived. Then, compile the package::
 
     curl --progress http://keepalived.org/software/keepalived-1.2.15.tar.gz | tar xz
     cd keepalived-1.2.15
-    ./configure 
+    ./build_setup
+    ./configure
     make
     sudo make install
 

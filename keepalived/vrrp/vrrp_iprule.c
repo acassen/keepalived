@@ -24,17 +24,20 @@
 #include "config.h"
 
 /* global includes */
+#include <errno.h>
+#ifdef NETLINK_H_NEEDS_SYS_SOCKET_H
 #include <sys/socket.h>
+#endif
 #include <linux/fib_rules.h>
 #include <inttypes.h>
+#include <stdlib.h>
 #include <stdint.h>
+#include <stdio.h>
 
 /* local include */
-#include "vrrp_ipaddress.h"
 #include "vrrp_iproute.h"
 #include "vrrp_iprule.h"
 #include "keepalived_netlink.h"
-#include "vrrp_if.h"
 #include "vrrp_data.h"
 #include "logger.h"
 #include "memory.h"
@@ -71,16 +74,13 @@ rule_is_equal(const ip_rule_t *x, const ip_rule_t *y)
 #if HAVE_DECL_FRA_L3MDEV
 	    x->l3mdev != y->l3mdev ||
 #endif
-	    !(x->iif) != !(y->iif) ||
-	    !(x->oif) != !(y->oif) ||
+	    x->iif != y->iif ||
+#if HAVE_DECL_FRA_OIFNAME
+	    x->oif != y->oif ||
+#endif
 	    x->goto_target != y->goto_target ||
 	    x->table != y->table ||
 	    x->action != y->action)
-		return false;
-
-	if (x->iif && x->iif->ifindex != y->iif->ifindex)
-		return false;
-	if (x->oif && x->oif->ifindex != y->oif->ifindex)
 		return false;
 
 	return true;
@@ -222,7 +222,7 @@ netlink_rulelist(list rule_list, int cmd, bool force)
 	 * rule might not exist. That's not an error, so indicate not
 	 * to report such a situation */
 	if (force && cmd == IPRULE_DEL)
-	         netlink_error_ignore = ENOENT;
+		netlink_error_ignore = ENOENT;
 
 	for (e = LIST_HEAD(rule_list); e; ELEMENT_NEXT(e)) {
 		iprule = ELEMENT_DATA(e);
@@ -339,14 +339,14 @@ format_iprule(ip_rule_t *rule, char *buf, size_t buf_len)
 }
 
 void
-dump_iprule(void *rule_data)
+dump_iprule(FILE *fp, void *rule_data)
 {
 	ip_rule_t *rule = rule_data;
 	char *buf = MALLOC(RULE_BUF_SIZE);
 
 	format_iprule(rule, buf, RULE_BUF_SIZE);
 
-	log_message(LOG_INFO, "     %s", buf);
+	conf_write(fp, "     %s", buf);
 
 	FREE(buf);
 }
@@ -461,7 +461,7 @@ alloc_rule(list rule_list, vector_t *strvec)
 			if (*end == '/') {
 				if (end[1] == '-')
 					goto fwmark_err;
-					
+
 				val1 = strtoul(end+1, &end, 0);
 				if (val1 > UINT32_MAX)
 					goto fwmark_err;
@@ -527,9 +527,9 @@ fwmark_err:
 #endif
 		else if (!strcmp(str, "dev") || !strcmp(str, "iif")) {
 			str = strvec_slot(strvec, ++i);
-			ifp = if_get_by_ifname(str);
+			ifp = if_get_by_ifname(str, IF_CREATE_IF_DYNAMIC);
 			if (!ifp) {
-				log_message(LOG_INFO, "Unknown interface %s for rule",  str);
+				log_message(LOG_INFO, "WARNING - interface %s for rule doesn't exist",  str);
 				goto err;
 			}
 			new->iif = ifp;
@@ -537,9 +537,9 @@ fwmark_err:
 #if HAVE_DECL_FRA_OIFNAME
 		else if (!strcmp(str, "oif")) {
 			str = strvec_slot(strvec, ++i);
-			ifp = if_get_by_ifname(str);
+			ifp = if_get_by_ifname(str, IF_CREATE_IF_DYNAMIC);
 			if (!ifp) {
-				log_message(LOG_INFO, "Unknown interface %s for rule",  str);
+				log_message(LOG_INFO, "WARNING - interface %s for rule doesn't exist",  str);
 				goto err;
 			}
 			new->oif = ifp;
@@ -650,6 +650,8 @@ fwmark_err:
 	return;
 
 err:
+	FREE_PTR(new->to_addr);
+	FREE_PTR(new->from_addr);
 	FREE_PTR(new);
 }
 

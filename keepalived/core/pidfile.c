@@ -17,14 +17,19 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2016 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #include "config.h"
 
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/stat.h>
+
 #include "logger.h"
 #include "pidfile.h"
 #include "main.h"
@@ -120,6 +125,10 @@ keepalived_running(unsigned long mode)
 #endif
 #ifdef _WITH_LVS_
 	if (__test_bit(DAEMON_CHECKERS, &mode) && process_running(checkers_pidfile))
+		return true;
+#endif
+#ifdef _WITH_BFD_
+	if (__test_bit(DAEMON_BFD, &mode) && process_running(bfd_pidfile))
 		return true;
 #endif
 	return false;

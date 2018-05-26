@@ -23,10 +23,8 @@
 #include "config.h"
 
 /* local include */
-#include "vrrp_ipaddress.h"
 #include "vrrp_iproute.h"
 #include "keepalived_netlink.h"
-#include "vrrp_if.h"
 #include "vrrp_data.h"
 #include "logger.h"
 #include "memory.h"
@@ -35,7 +33,7 @@
 #include "vrrp_ip_rule_route_parser.h"
 
 #include <linux/icmpv6.h>
-#include <linux/rtnetlink.h>
+#include <inttypes.h>
 #if HAVE_DECL_RTA_ENCAP
 #include <linux/lwtunnel.h>
 #if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
@@ -47,6 +45,13 @@
 #endif
 #include <inttypes.h>
 #include <stdbool.h>
+#include <stdio.h>
+
+#include <linux/rtnetlink.h>
+
+#ifndef RTPROT_KEEPALIVED
+#define RTPROT_KEEPALIVED	112	/* Keepalived daemon */
+#endif
 
 /* Buffer sizes for netlink messages. Increase if needed. */
 #define	RTM_SIZE		1024
@@ -336,13 +341,14 @@ netlink_route(ip_route_t *iproute, int cmd)
 			req.r.rtm_type = iproute->type;
 	}
 	else {
-		req.r.rtm_protocol = RTPROT_BOOT;
 		req.r.rtm_scope = RT_SCOPE_UNIVERSE;
 		req.r.rtm_type = iproute->type;
 	}
 
 	if (iproute->mask & IPROUTE_BIT_PROTOCOL)
 		req.r.rtm_protocol = iproute->protocol;
+	else
+		req.r.rtm_protocol = RTPROT_KEEPALIVED;
 
 	if (iproute->mask & IPROUTE_BIT_SCOPE)
 		req.r.rtm_scope = iproute->scope;
@@ -390,7 +396,7 @@ netlink_route(ip_route_t *iproute, int cmd)
 
 	if (iproute->mask & IPROUTE_BIT_DSFIELD)
 		req.r.rtm_tos = iproute->tos;
-	
+
 	if (iproute->oif)
 		addattr32(&req.n, sizeof(req), RTA_OIF, iproute->oif->ifindex);
 
@@ -882,7 +888,7 @@ format_iproute(ip_route_t *route, char *buf, size_t buf_len)
 }
 
 void
-dump_iproute(void *rt_data)
+dump_iproute(FILE *fp, void *rt_data)
 {
 	ip_route_t *route = rt_data;
 	char *buf = MALLOC(ROUTE_BUF_SIZE);
@@ -891,8 +897,12 @@ dump_iproute(void *rt_data)
 
 	format_iproute(route, buf, ROUTE_BUF_SIZE);
 
-	for (i = 0, len = strlen(buf); i < len; i += i ? MAX_LOG_MSG - 7 : MAX_LOG_MSG - 5)
-		log_message(LOG_INFO, "%*s%s", i ? 7 : 5, "", buf + i);
+	if (fp)
+		conf_write(fp, "%*s%s", 4, "", buf);
+	else {
+		for (i = 0, len = strlen(buf); i < len; i += i ? MAX_LOG_MSG - 7 : MAX_LOG_MSG - 5)
+			conf_write(fp, "%*s%s", i ? 6 : 4, "", buf + i);
+	}
 
 	FREE(buf);
 }
@@ -1194,11 +1204,10 @@ parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 					route->family = new->addr->ifa.ifa_family;
 			}
 			else if (!strcmp(str, "dev")) {
-				new->ifp = if_get_by_ifname(strvec_slot(strvec, ++i));
+				str = strvec_slot(strvec, ++i);
+				new->ifp = if_get_by_ifname(str, IF_CREATE_IF_DYNAMIC);
 				if (!new->ifp) {
-					log_message(LOG_INFO, "VRRP is trying to assign VROUTE to unknown "
-					       "%s interface !!! go out and fix your conf !!!",
-					       FMT_STR_VSLOT(strvec, i));
+					log_message(LOG_INFO, "WARNING - interface %s for VROUTE nexthop doesn't exist", str);
 					goto err;
 				}
 			}
@@ -1412,11 +1421,10 @@ alloc_route(list rt_list, vector_t *strvec)
 			new->mask |= IPROUTE_BIT_METRIC;
 		}
 		else if (!strcmp(str, "dev") || !strcmp(str, "oif")) {
-			ifp = if_get_by_ifname(strvec_slot(strvec, ++i));
+			str = strvec_slot(strvec, ++i);
+			ifp = if_get_by_ifname(str, IF_CREATE_IF_DYNAMIC);
 			if (!ifp) {
-				log_message(LOG_INFO, "VRRP is trying to assign VROUTE to unknown "
-				       "%s interface !!! go out and fix your conf !!!",
-				       FMT_STR_VSLOT(strvec, i));
+				log_message(LOG_INFO, "WARNING - interface %s for VROUTE nexthop doesn't exist", str);
 				goto err;
 			}
 			new->oif = ifp;
@@ -1591,7 +1599,7 @@ alloc_route(list rt_list, vector_t *strvec)
 			}
 			str = strvec_slot(strvec, i);
 			new->congctl = malloc(strlen(str) + 1);
-			strcpy(new->congctl, str); 
+			strcpy(new->congctl, str);
 #else
 			log_message(LOG_INFO, "%s not supported by kernel", "congctl for route");
 #endif

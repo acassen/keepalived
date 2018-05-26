@@ -24,17 +24,36 @@
 #ifndef _SIGNALS_H
 #define _SIGNALS_H
 
+#include "config.h"
+
+#include <signal.h>
+#include <stdbool.h>
+
+static inline int
+sigmask_func(int how, const sigset_t *set, sigset_t *oldset)
+{
+#ifdef _WITH_PTHREADS_
+    return pthread_sigmask(how, set, oldset);
+#else
+    return sigprocmask(how, set, oldset);
+#endif
+}
+
 /* Prototypes */
 extern int get_signum(const char *);
-extern void *signal_set(int signo, void (*func) (void *, int), void *);
-extern void *signal_ignore(int signo);
+extern void signal_set(int, void (*) (void *, int), void *);
+extern void signal_ignore(int);
 extern void signal_handler_init(void);
-extern void signal_handler_child_clear(void);
+extern void signal_handler_child_init(void);
 extern void signal_handler_destroy(void);
 extern void signal_handler_script(void);
-extern void signal_run_callback(void);
+extern void add_signal_read_thread(void);
+extern void cancel_signal_read_thread(void);
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+extern void set_sigxcpu_handler(void);
+#endif
 
 extern int signal_rfd(void);
-extern void signal_pipe_close(int);
+extern void signal_fd_close(int);
 
 #endif

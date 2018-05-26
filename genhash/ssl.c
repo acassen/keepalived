@@ -27,13 +27,10 @@
 
 /* keepalived includes */
 #include "utils.h"
-#include "html.h"
 
 /* genhash includes */
-#include "include/main.h"
-#include "include/sock.h"
-#include "include/http.h"
 #include "include/ssl.h"
+#include "include/main.h"
 
 /* extern variables */
 extern REQ *req;
@@ -55,7 +52,7 @@ init_ssl(void)
 #endif
 
 	/* Initialize SSL context for SSL v2/3 */
-	req->meth = (SSL_METHOD *) SSLv23_method();
+	req->meth = SSLv23_method();
 	req->ctx = SSL_CTX_new(req->meth);
 
 #if HAVE_SSL_CTX_SET_VERIFY_DEPTH
@@ -67,9 +64,6 @@ init_ssl(void)
 int
 ssl_printerr(int err)
 {
-	unsigned long extended_error = 0;
-	char *ssl_strerr;
-
 	switch (err) {
 	case SSL_ERROR_ZERO_RETURN:
 		fprintf(stderr, "  SSL error: (zero return)\n");
@@ -89,15 +83,9 @@ ssl_printerr(int err)
 	case SSL_ERROR_SYSCALL:
 		fprintf(stderr, "  SSL error: (syscall error)\n");
 		break;
-	case SSL_ERROR_SSL:{
-			ssl_strerr = (char *) MALLOC(500);
-
-			extended_error = ERR_get_error();
-			ERR_error_string(extended_error, ssl_strerr);
-			fprintf(stderr, "  SSL error: (%s)\n", ssl_strerr);
-			FREE(ssl_strerr);
-			break;
-		}
+	case SSL_ERROR_SSL:
+		fprintf(stderr, "  SSL error: (%s)\n", ERR_error_string(ERR_get_error(), NULL));
+		break;
 	}
 	return 0;
 }

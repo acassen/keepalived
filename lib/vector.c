@@ -17,7 +17,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2016 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #include "config.h"
@@ -290,6 +290,7 @@ vector_free_r(vector_t *v)
 	FREE(v);
 }
 
+#ifdef _INCLUDE_UNUSED_CODE_
 /* dump vector slots */
 void
 vector_dump(FILE *fp, vector_t *v)
@@ -304,6 +305,7 @@ vector_dump(FILE *fp, vector_t *v)
 		}
 	}
 }
+#endif
 
 /* String vector related */
 void

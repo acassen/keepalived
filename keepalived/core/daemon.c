@@ -22,7 +22,10 @@
 
 #include "config.h"
 
-#include <syslog.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdbool.h>
+
 #include "daemon.h"
 #include "logger.h"
 #include "utils.h"

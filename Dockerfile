@@ -34,15 +34,15 @@ RUN apk --no-cache add \
 
     && rm -rf /tmp/keepalived-sources \
     && apk --no-cache del \
-        gcc \
-        ipset-dev \
-        iptables-dev \
-        libnfnetlink-dev \
-        libnl3-dev \
-        make \
-        musl-dev \
-        openssl-dev \
-        autoconf
+	gcc \
+	ipset-dev \
+	iptables-dev \
+	libnfnetlink-dev \
+	libnl3-dev \
+	make \
+	musl-dev \
+	openssl-dev \
+	autoconf
 
 ADD docker/keepalived.conf /usr/local/etc/keepalived/keepalived.conf
 

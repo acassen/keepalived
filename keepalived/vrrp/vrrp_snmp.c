@@ -32,6 +32,16 @@
      rwcommunity private
      master agentx
 
+     # agentaddress is what clients such as snmpwalk talk over to make SNMP requests and receive responses.
+     #   This can be specified as the "LISTENING ADDRESS" option to snmpd, and is the AGENT parameter to most
+     #   SNMP client commands. Processes using udp or tcp addresses will need to be in the same network
+     #    namespace.
+     # agentaddress udp:localhost:161		# default
+
+     # agentxsocket is what sub-agents (such as keepalived) communicate via with snmp. This is what keepalived
+     #   needs to match with its snmp_socket parameter, and can be specified to snmpd with the -x option.
+     # agentxsocket unix:/var/agentx/master	# default
+
      trapcommunity public
      trap2sink localhost:162
 
@@ -44,7 +54,9 @@
      cp doc/[VK]*-MIB.txt ~/.snmp/mibs
 
  * Run snmpd (in background)
-     snmpd -LS0-6d
+     snmpd -LS0-6d [-x agentxsocket] [AGENT]
+    If running in a network namespace, run snmpd, snmptrapd etc in that network namespace. To specify
+    a different port/socket to listen on, see above in sample snmpd.conf
 
  * Run snmptrapd (in foreground)
      MIBS="+KEEPALIVED-MIB:VRRP-MIB:VRRPV3-MIB" snmptrapd -f -Lo
@@ -52,8 +64,8 @@
      MIBS="+KEEPALIVED-MIB:VRRP-MIB:VRRPV3-MIB" snmptrapd -f -M "+$HOME/.snmp/mibs" -Lo
 
  * Enable SNMP in config file, by adding some or all of the following, depending on which configure options were chosen
-     enable_snmp	(enables enable_snmp_keepalived and enable_snmp_checker)
-     enable_snmp_keepalived
+     enable_snmp	(enables enable_snmp_vrrp and enable_snmp_checker)
+     enable_snmp_vrrp
      enable_snmp_checker
      enable_snmp_rfc	(enables enable_snmp_rfcv2 enable_snmp_rfcv3)
      enable_snmp_rfcv2
@@ -62,7 +74,7 @@
 
  * Run keepalived. Some traps/notifications should be generated which will be displayed on the terminal running snmptrapd
 
- * To see the MIB trees, run
+ * To see the MIB trees, where localhost can be replaced by an appropriate AGENT, run (in the same namespace as snmpd)
      MIBS="+KEEPALIVED-MIB" snmpwalk -v2c -c public localhost KEEPALIVED-MIB::keepalived
     or
      MIBS="+VRRP-MIB" snmpwalk -v2c -c public localhost VRRP-MIB::vrrpMIB
@@ -71,6 +83,18 @@
 
  * To check the validity of a MIB file:
      smilint doc/KEEPALIVED-MIB.txt
+
+ * Multiple instances of keepalived cannot register the same MIB
+     with the same instance of snmpd. In order for snmpd to work
+     with multiple instances of keepalived, there would need to be
+     one instance of snmpd per keepalived instance. Using unix domain
+     sockets will not work for this, unless each instance of snmpd
+     is configured to use a different socket, so use network domain
+     sockets e.g. to udp:localhost:705 which will enable keepalived to communicate
+     with its own instance of snmpd running in the same network namespace,
+     and then set snmp_socket in the keepalived global configuration.
+     To run snmpd use snmpd -Ls0-6d -x udp:localhost:705, which it appears
+     should work but it doesn't seem to.
 
  */
 
@@ -82,11 +106,14 @@
 #if HAVE_DECL_RTA_ENCAP
 #include <linux/lwtunnel.h>
 #endif
+#ifdef NETLINK_H_NEEDS_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#include <linux/fib_rules.h>
 #include <stdint.h>
 
 #include "vrrp.h"
 #include "vrrp_snmp.h"
-#include "vrrp_data.h"
 #include "vrrp_track.h"
 #include "vrrp_ipaddress.h"
 #ifdef _HAVE_FIB_ROUTING_
@@ -94,11 +121,7 @@
 #include "vrrp_iprule.h"
 #endif
 #include "vrrp_scheduler.h"
-#ifdef _HAVE_VRRP_VMAC_
-#include "vrrp_vmac.h"
-#endif
 #include "config.h"
-#include "vector.h"
 #include "list.h"
 #include "logger.h"
 #include "global_data.h"
@@ -120,6 +143,10 @@ enum snmp_vrrp_magic {
 	VRRP_SNMP_SCRIPT_RESULT,
 	VRRP_SNMP_SCRIPT_RISE,
 	VRRP_SNMP_SCRIPT_FALL,
+	VRRP_SNMP_FILE_NAME,
+	VRRP_SNMP_FILE_PATH,
+	VRRP_SNMP_FILE_RESULT,
+	VRRP_SNMP_FILE_WEIGHT,
 	VRRP_SNMP_ADDRESS_ADDRESSTYPE,
 	VRRP_SNMP_ADDRESS_VALUE,
 	VRRP_SNMP_ADDRESS_BROADCAST,
@@ -130,13 +157,16 @@ enum snmp_vrrp_magic {
 	VRRP_SNMP_ADDRESS_IFALIAS,
 	VRRP_SNMP_ADDRESS_ISSET,
 	VRRP_SNMP_ADDRESS_ISADVERTISED,
+	VRRP_SNMP_ADDRESS_PEER,
 	VRRP_SNMP_SYNCGROUP_NAME,
 	VRRP_SNMP_SYNCGROUP_STATE,
+	VRRP_SNMP_SYNCGROUP_TRACKINGWEIGHT,
 	VRRP_SNMP_SYNCGROUP_SMTPALERT,
 	VRRP_SNMP_SYNCGROUP_NOTIFYEXEC,
 	VRRP_SNMP_SYNCGROUP_SCRIPTMASTER,
 	VRRP_SNMP_SYNCGROUP_SCRIPTBACKUP,
 	VRRP_SNMP_SYNCGROUP_SCRIPTFAULT,
+	VRRP_SNMP_SYNCGROUP_SCRIPTSTOP,
 	VRRP_SNMP_SYNCGROUP_SCRIPT,
 	VRRP_SNMP_SYNCGROUPMEMBER_INSTANCE,
 	VRRP_SNMP_SYNCGROUPMEMBER_NAME,
@@ -167,10 +197,20 @@ enum snmp_vrrp_magic {
 	VRRP_SNMP_INSTANCE_SCRIPT,
 	VRRP_SNMP_INSTANCE_ACCEPT,
 	VRRP_SNMP_INSTANCE_PROMOTE_SECONDARIES,
+	VRRP_SNMP_INSTANCE_USE_LINKBEAT,
+	VRRP_SNMP_INSTANCE_VRRP_VERSION,
 	VRRP_SNMP_TRACKEDINTERFACE_NAME,
 	VRRP_SNMP_TRACKEDINTERFACE_WEIGHT,
 	VRRP_SNMP_TRACKEDSCRIPT_NAME,
 	VRRP_SNMP_TRACKEDSCRIPT_WEIGHT,
+	VRRP_SNMP_TRACKEDFILE_NAME,
+	VRRP_SNMP_TRACKEDFILE_WEIGHT,
+	VRRP_SNMP_SGROUPTRACKEDINTERFACE_NAME,
+	VRRP_SNMP_SGROUPTRACKEDINTERFACE_WEIGHT,
+	VRRP_SNMP_SGROUPTRACKEDSCRIPT_NAME,
+	VRRP_SNMP_SGROUPTRACKEDSCRIPT_WEIGHT,
+	VRRP_SNMP_SGROUPTRACKEDFILE_NAME,
+	VRRP_SNMP_SGROUPTRACKEDFILE_WEIGHT,
 };
 
 #ifdef _HAVE_FIB_ROUTING_
@@ -464,7 +504,7 @@ sprint_oid(char *str, oid* oid, int len)
 static int
 vrrp_snmp_state(int state)
 {
-	return state < VRRP_STATE_GOTO_MASTER ? state : 4;
+	return state <= VRRP_STATE_FAULT ? state : 4;
 }
 
 static u_char*
@@ -483,8 +523,8 @@ vrrp_snmp_script(struct variable *vp, oid *name, size_t *length,
 		*var_len = strlen(scr->sname);
 		return (u_char *)scr->sname;
 	case VRRP_SNMP_SCRIPT_COMMAND:
-		*var_len = strlen(scr->script);
-		return (u_char *)scr->script;
+		*var_len = strlen(scr->script.cmd_str);
+		return (u_char *)scr->script.cmd_str;
 	case VRRP_SNMP_SCRIPT_INTERVAL:
 		long_ret.u = scr->interval / TIMER_HZ;
 		return (u_char *)&long_ret;
@@ -495,12 +535,8 @@ vrrp_snmp_script(struct variable *vp, oid *name, size_t *length,
 		switch (scr->init_state) {
 		case SCRIPT_INIT_STATE_INIT:
 			long_ret.u = 1; break;
-		case SCRIPT_INIT_STATE_GOOD:
-			long_ret.u = 4; break;
 		case SCRIPT_INIT_STATE_FAILED:
 			long_ret.u = 5; break;
-		case SCRIPT_INIT_STATE_DISABLED:
-			long_ret.u = 0; break;
 		default:
 			long_ret.u = (scr->result >= scr->rise) ? 3 : 2;
 		}
@@ -510,6 +546,36 @@ vrrp_snmp_script(struct variable *vp, oid *name, size_t *length,
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_SCRIPT_FALL:
 		long_ret.s = scr->fall;
+		return (u_char *)&long_ret;
+	default:
+		break;
+	}
+	return NULL;
+}
+
+static u_char*
+vrrp_snmp_file(struct variable *vp, oid *name, size_t *length,
+		 int exact, size_t *var_len, WriteMethod **write_method)
+{
+	vrrp_tracked_file_t *file;
+
+	if ((file = (vrrp_tracked_file_t *)snmp_header_list_table(vp, name, length, exact,
+							   var_len, write_method,
+							   vrrp_data->vrrp_track_files)) == NULL)
+		return NULL;
+
+	switch (vp->magic) {
+	case VRRP_SNMP_FILE_NAME:
+		*var_len = strlen(file->fname);
+		return (u_char *)file->fname;
+	case VRRP_SNMP_FILE_PATH:
+		*var_len = strlen(file->file_path);
+		return (u_char *)file->file_path;
+	case VRRP_SNMP_FILE_RESULT:
+		long_ret.s = file->last_status;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_FILE_WEIGHT:
+		long_ret.s = file->weight;
 		return (u_char *)&long_ret;
 	default:
 		break;
@@ -776,7 +842,7 @@ vrrp_snmp_address(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = snmp_scope(addr->ifa.ifa_scope);
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_ADDRESS_IFINDEX:
-		long_ret.u = addr->ifa.ifa_index;
+		long_ret.u = addr->ifp->ifindex;
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_ADDRESS_IFNAME:
 		*var_len = strlen(addr->ifp->ifname);
@@ -793,6 +859,17 @@ vrrp_snmp_address(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_ADDRESS_ISADVERTISED:
 		long_ret.u = (state == HEADER_STATE_VIRTUAL_ADDRESS)?1:2;
 		return (u_char *)&long_ret;
+	case VRRP_SNMP_ADDRESS_PEER:
+		if (!addr->have_peer)
+			break;
+		if (addr->ifa.ifa_family == AF_INET6) {
+			*var_len = sizeof addr->peer.sin6_addr;
+			return (u_char *)&addr->peer.sin6_addr;
+		} else {
+			*var_len = sizeof addr->peer.sin_addr;
+			return (u_char *)&addr->peer.sin_addr;
+		}
+		break;
 	default:
 		return NULL;
 	}
@@ -1079,7 +1156,7 @@ vrrp_snmp_route(struct variable *vp, oid *name, size_t *length,
 #else
 		if (!(route->mask & IPROUTE_BIT_PREF))
 			break;
-		long_ret.u = 
+		long_ret.u =
 			route->pref == ICMPV6_ROUTER_PREF_LOW ? 1 :
 			route->pref == ICMPV6_ROUTER_PREF_MEDIUM ? 2 :
 			route->pref == ICMPV6_ROUTER_PREF_HIGH ? 3 : 0;
@@ -1417,11 +1494,13 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 			break;
 		*var_len = strlen(rule->iif->ifname);
 		return (u_char *)rule->iif->ifname;
+#if HAVE_DECL_FRA_OIFNAME
 	case VRRP_SNMP_RULE_OUTINTERFACE:
 		if (!rule->oif)
 			break;
 		*var_len = strlen(rule->oif->ifname);
 		return (u_char *)rule->oif->ifname;
+#endif
 	case VRRP_SNMP_RULE_TARGET:
 		if (!(rule->action == FR_ACT_GOTO))
 			break;
@@ -1445,9 +1524,9 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 		if (rule->mask & IPRULE_BIT_SUP_PREFIXLEN)
 			long_ret.u = rule->suppress_prefix_len;
 		else
-#endif
 			break;
 		return (u_char *)&long_ret;
+#endif
 #if HAVE_DECL_FRA_SUPPRESS_IFGROUP
 	case VRRP_SNMP_RULE_SUPPRESSGROUP:
 		if (rule->mask & IPRULE_BIT_SUP_GROUP) {
@@ -1455,49 +1534,49 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 			*var_len = strlen(str);
 		}
 		else
-#endif
 			break;
 		return (u_char *)str;
+#endif
 #if HAVE_DECL_FRA_TUN_ID
 	case VRRP_SNMP_RULE_TUNNELID_HIGH:
 		if (rule->tunnel_id)
 			long_ret.u = rule->tunnel_id >> 32;
 		else
-#endif
 			break;
 		return (u_char *)&long_ret;
+#endif
 #if HAVE_DECL_FRA_TUN_ID
 	case VRRP_SNMP_RULE_TUNNELID_LOW:
 		if (rule->tunnel_id)
 			long_ret.u = rule->tunnel_id & 0xffffffff;
 		else
-#endif
 			break;
 		return (u_char *)&long_ret;
+#endif
 #if HAVE_DECL_FRA_UID_RANGE
 	case VRRP_SNMP_RULE_UID_RANGE_START:
 		if (rule->mask & IPRULE_BIT_UID_RANGE)
 			long_ret.u = rule->uid_range.start;
 		else
-#endif
 			break;
 		return (u_char *)&long_ret;
+#endif
 #if HAVE_DECL_FRA_UID_RANGE
 	case VRRP_SNMP_RULE_UID_RANGE_END:
 		if (rule->mask & IPRULE_BIT_UID_RANGE)
 			long_ret.u = rule->uid_range.end;
 		else
-#endif
 			break;
 		return (u_char *)&long_ret;
+#endif
 #if HAVE_DECL_FRA_L3MDEV
 	case VRRP_SNMP_RULE_L3MDEV:
 		if (rule->l3mdev)
 			long_ret.u = 1;
 		else
-#endif
 			break;
 		return (u_char *)&long_ret;
+#endif
 	default:
 		return NULL;
 	}
@@ -1529,6 +1608,9 @@ vrrp_snmp_syncgroup(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_SYNCGROUP_STATE:
 		long_ret.s = vrrp_snmp_state(group->state);
 		return (u_char *)&long_ret;
+	case VRRP_SNMP_SYNCGROUP_TRACKINGWEIGHT:
+		long_ret.u = group->sgroup_tracking_weight?1:2;
+		return (u_char *)&long_ret;
 	case VRRP_SNMP_SYNCGROUP_SMTPALERT:
 		long_ret.u = group->smtp_alert?1:2;
 		return (u_char *)&long_ret;
@@ -1537,26 +1619,32 @@ vrrp_snmp_syncgroup(struct variable *vp, oid *name, size_t *length,
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_SYNCGROUP_SCRIPTMASTER:
 		if (group->script_master) {
-			*var_len = strlen(group->script_master->name);
-			return (u_char *)group->script_master->name;
+			*var_len = strlen(group->script_master->cmd_str);
+			return (u_char *)group->script_master->cmd_str;
 		}
 		break;
 	case VRRP_SNMP_SYNCGROUP_SCRIPTBACKUP:
 		if (group->script_backup) {
-			*var_len = strlen(group->script_backup->name);
-			return (u_char *)group->script_backup->name;
+			*var_len = strlen(group->script_backup->cmd_str);
+			return (u_char *)group->script_backup->cmd_str;
 		}
 		break;
 	case VRRP_SNMP_SYNCGROUP_SCRIPTFAULT:
 		if (group->script_fault) {
-			*var_len = strlen(group->script_fault->name);
-			return (u_char *)group->script_fault->name;
+			*var_len = strlen(group->script_fault->cmd_str);
+			return (u_char *)group->script_fault->cmd_str;
+		}
+		break;
+	case VRRP_SNMP_SYNCGROUP_SCRIPTSTOP:
+		if (group->script_stop) {
+			*var_len = strlen(group->script_stop->cmd_str);
+			return (u_char *)group->script_stop->cmd_str;
 		}
 		break;
 	case VRRP_SNMP_SYNCGROUP_SCRIPT:
 		if (group->script) {
-			*var_len = strlen(group->script->name);
-			return (u_char *)group->script->name;
+			*var_len = strlen(group->script->cmd_str);
+			return (u_char *)group->script->cmd_str;
 		}
 		break;
 	default:
@@ -1578,9 +1666,10 @@ vrrp_snmp_syncgroupmember(struct variable *vp, oid *name, size_t *length,
 	int result;
 	size_t target_len;
 	unsigned curgroup, curinstance;
-	char *instance, *binstance = NULL;
-	element e;
+	char *binstance = NULL;
+	element e, e1;
 	vrrp_sgroup_t *group;
+	vrrp_t *vrrp;
 
 	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
 		memcpy(name, vp->name, sizeof(oid) * vp->namelen);
@@ -1608,7 +1697,7 @@ vrrp_snmp_syncgroupmember(struct variable *vp, oid *name, size_t *length,
 		if (binstance)
 			break; /* Optimization: cannot be the lower
 				  anymore, see break below */
-		vector_foreach_slot(group->iname, instance, curinstance) {
+		for (e1 = LIST_HEAD(group->vrrp_instances), curinstance = 0; e1; ELEMENT_NEXT(e1), curinstance++) {
 			/* We build our current match */
 			current[0] = curgroup;
 			current[1] = curinstance + 1;
@@ -1618,15 +1707,16 @@ vrrp_snmp_syncgroupmember(struct variable *vp, oid *name, size_t *length,
 				continue;
 			if ((result == 0) && !exact)
 				continue;
+			vrrp = ELEMENT_DATA(e1);
 			if (result == 0) {
 				/* Got an exact match and asked for it */
-				*var_len = strlen(instance);
-				return (u_char *)instance;
+				*var_len = strlen(vrrp->iname);
+				return (u_char *)vrrp->iname;
 			}
 			if (snmp_oid_compare(current, 2, best, 2) < 0) {
 				/* This is our best match */
 				memcpy(best, current, sizeof(oid) * 2);
-				binstance = instance;
+				binstance = vrrp->iname;
 				/* (current[0],current[1]) are
 				   strictly increasing, this is our
 				   lower element of our set */
@@ -1700,17 +1790,17 @@ vrrp_snmp_instance_accept(int action,
 		switch ((long)(*var_val)) {
 		case 1:
 			log_message(LOG_INFO,
-				    "VRRP_Instance(%s) accept mode enabled with SNMP",
+				    "(%s) accept mode enabled with SNMP",
 				     vrrp->iname);
 // TODO - What do we do about adding/removing iptables blocks?
 // RFC6527 requires the instance to be down to change this - can't find now where it says that
-			vrrp->accept = 1;
+			vrrp->accept = true;
 			break;
 		case 2:
 			log_message(LOG_INFO,
-				    "VRRP_Instance(%s) accept mode disabled with SNMP",
+				    "(%s) accept mode disabled with SNMP",
 				    vrrp->iname);
-			vrrp->accept = 0;
+			vrrp->accept = false;
 			break;
 			}
 		break;
@@ -1724,6 +1814,7 @@ vrrp_snmp_instance_priority(int action,
 			    __attribute__((unused)) u_char *statP, oid *name, size_t name_len)
 {
 	vrrp_t *vrrp = NULL;
+
 	switch (action) {
 	case RESERVE1:
 		/* Check that the proposed priority is acceptable */
@@ -1744,16 +1835,12 @@ vrrp_snmp_instance_priority(int action,
 			break;
 		/* Commit: change values. There is no way to fail. */
 		log_message(LOG_INFO,
-			    "VRRP_Instance(%s) base priority changed from"
+			    "(%s) base priority changed from"
 			    " %u to %u via SNMP.",
 			    vrrp->iname, vrrp->base_priority, *var_val);
+		vrrp->total_priority += *var_val - vrrp->base_priority;
 		vrrp->base_priority = *var_val;
-		/* If we the instance is not part of a sync group, the
-		   effective priority will be recomputed by some
-		   thread. Otherwise, we should set it equal to the
-		   base priority. */
-		if (vrrp->sync)
-			vrrp_set_effective_priority(vrrp, vrrp->base_priority);
+		vrrp_set_effective_priority(vrrp);
 //TODO - could affect accept
 		break;
 	}
@@ -1792,13 +1879,13 @@ vrrp_snmp_instance_preempt(int action,
 		switch ((long)(*var_val)) {
 		case 1:
 			log_message(LOG_INFO,
-				    "VRRP_Instance(%s) preemption enabled with SNMP",
+				    "(%s) preemption enabled with SNMP",
 				    vrrp->iname);
 			vrrp->nopreempt = 0;
 			break;
 		case 2:
 			log_message(LOG_INFO,
-				    "VRRP_Instance(%s) preemption disabled with SNMP",
+				    "(%s) preemption disabled with SNMP",
 				    vrrp->iname);
 			vrrp->nopreempt = 1;
 			break;
@@ -1830,7 +1917,7 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 		long_ret.s = vrrp_snmp_state(rt->state);
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_INSTANCE_INITIALSTATE:
-		long_ret.s = vrrp_snmp_state(rt->init_state);
+		long_ret.s = vrrp_snmp_state(rt->configured_state);
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_INSTANCE_WANTEDSTATE:
 		long_ret.s = vrrp_snmp_state(rt->wantstate);
@@ -1899,32 +1986,32 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_INSTANCE_SCRIPTMASTER:
 		if (rt->script_master) {
-			*var_len = strlen(rt->script_master->name);
-			return (u_char *)rt->script_master->name;
+			*var_len = strlen(rt->script_master->cmd_str);
+			return (u_char *)rt->script_master->cmd_str;
 		}
 		break;
 	case VRRP_SNMP_INSTANCE_SCRIPTBACKUP:
 		if (rt->script_backup) {
-			*var_len = strlen(rt->script_backup->name);
-			return (u_char *)rt->script_backup->name;
+			*var_len = strlen(rt->script_backup->cmd_str);
+			return (u_char *)rt->script_backup->cmd_str;
 		}
 		break;
 	case VRRP_SNMP_INSTANCE_SCRIPTFAULT:
 		if (rt->script_fault) {
-			*var_len = strlen(rt->script_fault->name);
-			return (u_char *)rt->script_fault->name;
+			*var_len = strlen(rt->script_fault->cmd_str);
+			return (u_char *)rt->script_fault->cmd_str;
 		}
 		break;
 	case VRRP_SNMP_INSTANCE_SCRIPTSTOP:
 		if (rt->script_stop) {
-			*var_len = strlen(rt->script_stop->name);
-			return (u_char *)rt->script_stop->name;
+			*var_len = strlen(rt->script_stop->cmd_str);
+			return (u_char *)rt->script_stop->cmd_str;
 		}
 		break;
 	case VRRP_SNMP_INSTANCE_SCRIPT:
 		if (rt->script) {
-			*var_len = strlen(rt->script->name);
-			return (u_char *)rt->script->name;
+			*var_len = strlen(rt->script->cmd_str);
+			return (u_char *)rt->script->cmd_str;
 		}
 		break;
 	case VRRP_SNMP_INSTANCE_ACCEPT:
@@ -1936,6 +2023,12 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_INSTANCE_PROMOTE_SECONDARIES:
 		long_ret.u = rt->promote_secondaries ? 1:2;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_INSTANCE_USE_LINKBEAT:
+		long_ret.u = rt->linkbeat_use_polling ? 1:2;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_INSTANCE_VRRP_VERSION:
+		long_ret.u = rt->version;
 		return (u_char *)&long_ret;
 	default:
 		return NULL;
@@ -1955,7 +2048,7 @@ vrrp_snmp_trackedinterface(struct variable *vp, oid *name, size_t *length,
 	oid *target, current[2], best[2];
 	int result;
 	size_t target_len;
-	unsigned curinstance;
+	unsigned curinstance, curif;
 	element e1, e2;
 	vrrp_t *instance;
 	tracked_if_t *ifp, *bifp = NULL;
@@ -1987,11 +2080,13 @@ vrrp_snmp_trackedinterface(struct variable *vp, oid *name, size_t *length,
 			break; /* Optimization: cannot be the lower anymore */
 		if (LIST_ISEMPTY(instance->track_ifp))
 			continue;
+		curif = 0;
 		for (e2 = LIST_HEAD(instance->track_ifp); e2; ELEMENT_NEXT(e2)) {
 			ifp = ELEMENT_DATA(e2);
+			curif++;
 			/* We build our current match */
 			current[0] = curinstance;
-			current[1] = ifp->ifp->ifindex;
+			current[1] = curif;
 			/* And compare it to our target match */
 			if ((result = snmp_oid_compare(current, 2, target,
 						       target_len)) < 0)
@@ -2120,6 +2215,361 @@ vrrp_snmp_trackedscript(struct variable *vp, oid *name, size_t *length,
 	return NULL;
 }
 
+static u_char*
+vrrp_snmp_trackedfile(struct variable *vp, oid *name, size_t *length,
+			int exact, size_t *var_len, WriteMethod **write_method)
+{
+	oid *target, current[2], best[2];
+	int result;
+	size_t target_len;
+	unsigned curinstance, curfile;
+	element e1, e2;
+	vrrp_t *instance;
+	tracked_file_t *file, *bfile = NULL;
+
+	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
+		memcpy(name, vp->name, sizeof(oid) * vp->namelen);
+		*length = vp->namelen;
+	}
+
+	*write_method = 0;
+	*var_len = sizeof(long);
+
+	if (LIST_ISEMPTY(vrrp_data->vrrp))
+		return NULL;
+
+	/* We search the best match: equal if exact, the lower OID in
+	   the set of the OID strictly superior to the target
+	   otherwise. */
+	best[0] = best[1] = MAX_SUBID; /* Our best match */
+	target = &name[vp->namelen];   /* Our target match */
+	target_len = *length - vp->namelen;
+	curinstance = 0;
+	for (e1 = LIST_HEAD(vrrp_data->vrrp); e1; ELEMENT_NEXT(e1)) {
+		instance = ELEMENT_DATA(e1);
+		curinstance++;
+		if (target_len && (curinstance < target[0]))
+			continue; /* Optimization: cannot be part of our set */
+		if (bfile)
+			break; /* Optimization, see below */
+		if (LIST_ISEMPTY(instance->track_file))
+			continue;
+		curfile = 0;
+		for (e2 = LIST_HEAD(instance->track_file); e2; ELEMENT_NEXT(e2)) {
+			file = ELEMENT_DATA(e2);
+			curfile++;
+			/* We build our current match */
+			current[0] = curinstance;
+			current[1] = curfile;
+			/* And compare it to our target match */
+			if ((result = snmp_oid_compare(current, 2, target,
+						       target_len)) < 0)
+				continue;
+			if ((result == 0) && !exact)
+				continue;
+			if (result == 0) {
+				/* Got an exact match and asked for it */
+				bfile = file;
+				goto trackedfile_found;
+			}
+			if (snmp_oid_compare(current, 2, best, 2) < 0) {
+				/* This is our best match */
+				memcpy(best, current, sizeof(oid) * 2);
+				bfile = file;
+				/* (current[0],current[1]) are
+				   strictly increasing, this is our
+				   lower element of our set */
+				break;
+			}
+		}
+	}
+	if (bfile == NULL)
+		/* No best match */
+		return NULL;
+	if (exact)
+		/* No exact match */
+		return NULL;
+	/* Let's use our best match */
+	memcpy(target, best, sizeof(oid) * 2);
+	*length = (unsigned)vp->namelen + 2;
+ trackedfile_found:
+	switch(vp->magic) {
+	case VRRP_SNMP_TRACKEDFILE_NAME:
+		*var_len = strlen(bfile->file->fname);
+		return (u_char *)bfile->file->fname;
+	case VRRP_SNMP_TRACKEDFILE_WEIGHT:
+		long_ret.s = bfile->file->weight;
+		return (u_char *)&long_ret;
+	}
+
+	return NULL;
+}
+
+static u_char*
+vrrp_snmp_group_trackedinterface(struct variable *vp, oid *name, size_t *length,
+			   int exact, size_t *var_len, WriteMethod **write_method)
+{
+	oid *target, current[2], best[2];
+	int result;
+	size_t target_len;
+	unsigned curinstance, curif;
+	element e1, e2;
+	vrrp_sgroup_t *sgroup;
+	tracked_if_t *ifp, *bifp = NULL;
+
+	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
+		memcpy(name, vp->name, sizeof(oid) * vp->namelen);
+		*length = vp->namelen;
+	}
+
+	*write_method = 0;
+	*var_len = sizeof(long);
+
+	if (LIST_ISEMPTY(vrrp_data->vrrp_sync_group))
+		return NULL;
+
+	/* We search the best match: equal if exact, the lower OID in
+	   the set of the OID strictly superior to the target
+	   otherwise. */
+	best[0] = best[1] = MAX_SUBID; /* Our best match */
+	target = &name[vp->namelen];   /* Our target match */
+	target_len = *length - vp->namelen;
+	curinstance = 0;
+	for (e1 = LIST_HEAD(vrrp_data->vrrp_sync_group); e1; ELEMENT_NEXT(e1)) {
+		sgroup = ELEMENT_DATA(e1);
+		curinstance++;
+		if (target_len && (curinstance < target[0]))
+			continue; /* Optimization: cannot be part of our set */
+		if (target_len && bifp && (curinstance > target[0] + 1))
+			break; /* Optimization: cannot be the lower anymore */
+		if (LIST_ISEMPTY(sgroup->track_ifp))
+			continue;
+		curif = 0;
+		for (e2 = LIST_HEAD(sgroup->track_ifp); e2; ELEMENT_NEXT(e2)) {
+			ifp = ELEMENT_DATA(e2);
+			curif++;
+
+			/* We build our current match */
+			current[0] = curinstance;
+			current[1] = curif;
+			/* And compare it to our target match */
+			if ((result = snmp_oid_compare(current, 2, target,
+						       target_len)) < 0)
+				continue;
+			if ((result == 0) && !exact)
+				continue;
+			if (result == 0) {
+				/* Got an exact match and asked for it */
+				bifp = ifp;
+				goto group_trackedinterface_found;
+			}
+			if (snmp_oid_compare(current, 2, best, 2) < 0) {
+				/* This is our best match */
+				memcpy(best, current, sizeof(oid) * 2);
+				bifp = ifp;
+			}
+		}
+	}
+	if (bifp == NULL)
+		/* No best match */
+		return NULL;
+	if (exact)
+		/* No exact match */
+		return NULL;
+	/* Let's use our best match */
+	memcpy(target, best, sizeof(oid) * 2);
+	*length = (unsigned)vp->namelen + 2;
+ group_trackedinterface_found:
+	switch (vp->magic) {
+	case VRRP_SNMP_SGROUPTRACKEDINTERFACE_NAME:
+		*var_len = strlen(bifp->ifp->ifname);
+		return (u_char *)bifp->ifp->ifname;
+	case VRRP_SNMP_SGROUPTRACKEDINTERFACE_WEIGHT:
+		long_ret.s = bifp->weight;
+		return (u_char *)&long_ret;
+	}
+	return NULL;
+}
+
+static u_char*
+vrrp_snmp_group_trackedscript(struct variable *vp, oid *name, size_t *length,
+			int exact, size_t *var_len, WriteMethod **write_method)
+{
+	oid *target, current[2], best[2];
+	int result;
+	size_t target_len;
+	unsigned curinstance, curscr;
+	element e1, e2;
+	vrrp_sgroup_t *sgroup;
+	tracked_sc_t *scr, *bscr = NULL;
+
+	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
+		memcpy(name, vp->name, sizeof(oid) * vp->namelen);
+		*length = vp->namelen;
+	}
+
+	*write_method = 0;
+	*var_len = sizeof(long);
+
+	if (LIST_ISEMPTY(vrrp_data->vrrp_sync_group))
+		return NULL;
+
+	/* We search the best match: equal if exact, the lower OID in
+	   the set of the OID strictly superior to the target
+	   otherwise. */
+	best[0] = best[1] = MAX_SUBID; /* Our best match */
+	target = &name[vp->namelen];   /* Our target match */
+	target_len = *length - vp->namelen;
+	curinstance = 0;
+	for (e1 = LIST_HEAD(vrrp_data->vrrp_sync_group); e1; ELEMENT_NEXT(e1)) {
+		sgroup = ELEMENT_DATA(e1);
+		curinstance++;
+		if (target_len && (curinstance < target[0]))
+			continue; /* Optimization: cannot be part of our set */
+		if (bscr)
+			break; /* Optimization, see below */
+		if (LIST_ISEMPTY(sgroup->track_script))
+			continue;
+		curscr = 0;
+		for (e2 = LIST_HEAD(sgroup->track_script); e2; ELEMENT_NEXT(e2)) {
+			scr = ELEMENT_DATA(e2);
+			curscr++;
+			/* We build our current match */
+			current[0] = curinstance;
+			current[1] = curscr;
+			/* And compare it to our target match */
+			if ((result = snmp_oid_compare(current, 2, target,
+						       target_len)) < 0)
+				continue;
+			if ((result == 0) && !exact)
+				continue;
+			if (result == 0) {
+				/* Got an exact match and asked for it */
+				bscr = scr;
+				goto group_trackedscript_found;
+			}
+			if (snmp_oid_compare(current, 2, best, 2) < 0) {
+				/* This is our best match */
+				memcpy(best, current, sizeof(oid) * 2);
+				bscr = scr;
+				/* (current[0],current[1]) are
+				   strictly increasing, this is our
+				   lower element of our set */
+				break;
+			}
+		}
+	}
+	if (bscr == NULL)
+		/* No best match */
+		return NULL;
+	if (exact)
+		/* No exact match */
+		return NULL;
+	/* Let's use our best match */
+	memcpy(target, best, sizeof(oid) * 2);
+	*length = (unsigned)vp->namelen + 2;
+ group_trackedscript_found:
+	switch (vp->magic) {
+	case VRRP_SNMP_SGROUPTRACKEDSCRIPT_NAME:
+		*var_len = strlen(bscr->scr->sname);
+		return (u_char *)bscr->scr->sname;
+	case VRRP_SNMP_SGROUPTRACKEDSCRIPT_WEIGHT:
+		long_ret.s = bscr->weight;
+		return (u_char *)&long_ret;
+	}
+	return NULL;
+}
+
+static u_char*
+vrrp_snmp_group_trackedfile(struct variable *vp, oid *name, size_t *length,
+			int exact, size_t *var_len, WriteMethod **write_method)
+{
+	oid *target, current[2], best[2];
+	int result;
+	size_t target_len;
+	unsigned curinstance, curfile;
+	element e1, e2;
+	vrrp_sgroup_t *sgroup;
+	tracked_file_t *file, *bfile = NULL;
+
+	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
+		memcpy(name, vp->name, sizeof(oid) * vp->namelen);
+		*length = vp->namelen;
+	}
+
+	*write_method = 0;
+	*var_len = sizeof(long);
+
+	if (LIST_ISEMPTY(vrrp_data->vrrp_sync_group))
+		return NULL;
+
+	/* We search the best match: equal if exact, the lower OID in
+	   the set of the OID strictly superior to the target
+	   otherwise. */
+	best[0] = best[1] = MAX_SUBID; /* Our best match */
+	target = &name[vp->namelen];   /* Our target match */
+	target_len = *length - vp->namelen;
+	curinstance = 0;
+	for (e1 = LIST_HEAD(vrrp_data->vrrp_sync_group); e1; ELEMENT_NEXT(e1)) {
+		sgroup = ELEMENT_DATA(e1);
+		curinstance++;
+		if (target_len && (curinstance < target[0]))
+			continue; /* Optimization: cannot be part of our set */
+		if (bfile)
+			break; /* Optimization, see below */
+		if (LIST_ISEMPTY(sgroup->track_file))
+			continue;
+		curfile = 0;
+		for (e2 = LIST_HEAD(sgroup->track_file); e2; ELEMENT_NEXT(e2)) {
+			file = ELEMENT_DATA(e2);
+			curfile++;
+			/* We build our current match */
+			current[0] = curinstance;
+			current[1] = curfile;
+			/* And compare it to our target match */
+			if ((result = snmp_oid_compare(current, 2, target,
+						       target_len)) < 0)
+				continue;
+			if ((result == 0) && !exact)
+				continue;
+			if (result == 0) {
+				/* Got an exact match and asked for it */
+				bfile = file;
+				goto group_trackedfile_found;
+			}
+			if (snmp_oid_compare(current, 2, best, 2) < 0) {
+				/* This is our best match */
+				memcpy(best, current, sizeof(oid) * 2);
+				bfile = file;
+				/* (current[0],current[1]) are
+				   strictly increasing, this is our
+				   lower element of our set */
+				break;
+			}
+		}
+	}
+	if (bfile == NULL)
+		/* No best match */
+		return NULL;
+	if (exact)
+		/* No exact match */
+		return NULL;
+	/* Let's use our best match */
+	memcpy(target, best, sizeof(oid) * 2);
+	*length = (unsigned)vp->namelen + 2;
+ group_trackedfile_found:
+	switch(vp->magic) {
+	case VRRP_SNMP_SGROUPTRACKEDFILE_NAME:
+		*var_len = strlen(bfile->file->fname);
+		return (u_char *)bfile->file->fname;
+	case VRRP_SNMP_SGROUPTRACKEDFILE_WEIGHT:
+		long_ret.s = bfile->file->weight;
+		return (u_char *)&long_ret;
+	}
+
+	return NULL;
+}
+
 static oid vrrp_oid[] = {VRRP_OID};
 static struct variable8 vrrp_vars[] = {
 	/* vrrpSyncGroupTable */
@@ -2139,9 +2589,15 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_syncgroup, 3, {1, 1, 8}},
 	{VRRP_SNMP_SYNCGROUP_SCRIPT, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_syncgroup, 3, {1, 1, 9}},
+	{VRRP_SNMP_SYNCGROUP_TRACKINGWEIGHT, ASN_INTEGER, RONLY,
+	 vrrp_snmp_syncgroup, 3, {1, 1, 10}},
+	{VRRP_SNMP_SYNCGROUP_SCRIPTSTOP, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_syncgroup, 3, {1, 1, 11}},
+
 	/* vrrpSyncGroupMemberTable */
 	{VRRP_SNMP_SYNCGROUPMEMBER_NAME, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_syncgroupmember, 3, {2, 1, 2}},
+
 	/* vrrpInstanceTable */
 	{VRRP_SNMP_INSTANCE_NAME, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_instance, 3, {3, 1, 2}},
@@ -2197,16 +2653,23 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_instance, 3, {3, 1, 27} },
 	{VRRP_SNMP_INSTANCE_PROMOTE_SECONDARIES, ASN_INTEGER, RWRITE,
 	 vrrp_snmp_instance, 3, {3, 1, 28} },
+	{VRRP_SNMP_INSTANCE_USE_LINKBEAT, ASN_INTEGER, RWRITE,
+	 vrrp_snmp_instance, 3, {3, 1, 29} },
+	{VRRP_SNMP_INSTANCE_VRRP_VERSION, ASN_INTEGER, RONLY,
+	 vrrp_snmp_instance, 3, {3, 1, 30} },
+
 	/* vrrpTrackedInterfaceTable */
 	{VRRP_SNMP_TRACKEDINTERFACE_NAME, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_trackedinterface, 3, {4, 1, 1}},
 	{VRRP_SNMP_TRACKEDINTERFACE_WEIGHT, ASN_INTEGER, RONLY,
 	 vrrp_snmp_trackedinterface, 3, {4, 1, 2}},
+
 	/* vrrpTrackedScriptTable */
 	{VRRP_SNMP_TRACKEDSCRIPT_NAME, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_trackedscript, 3, {5, 1, 2}},
 	{VRRP_SNMP_TRACKEDSCRIPT_WEIGHT, ASN_INTEGER, RONLY,
 	 vrrp_snmp_trackedscript, 3, {5, 1, 3}},
+
 	/* vrrpAddressTable */
 	{VRRP_SNMP_ADDRESS_ADDRESSTYPE, ASN_INTEGER, RONLY,
 	 vrrp_snmp_address, 3, {6, 1, 2}},
@@ -2228,6 +2691,8 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_address, 3, {6, 1, 10}},
 	{VRRP_SNMP_ADDRESS_ISADVERTISED, ASN_INTEGER, RONLY,
 	 vrrp_snmp_address, 3, {6, 1, 11}},
+	{VRRP_SNMP_ADDRESS_PEER, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_address, 3, {6, 1, 12}},
 
 #ifdef _HAVE_FIB_ROUTING_
 	/* vrrpRouteTable */
@@ -2469,6 +2934,37 @@ static struct variable8 vrrp_vars[] = {
 #endif
 #endif
 #endif
+
+	/* vrrpTrackedFileTable */
+	{VRRP_SNMP_TRACKEDFILE_NAME, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_trackedfile, 3, {12, 1, 2}},
+	{VRRP_SNMP_TRACKEDFILE_WEIGHT, ASN_INTEGER, RONLY,
+	 vrrp_snmp_trackedfile, 3, {12, 1, 3}},
+
+	/* vrrpFileTable */
+	{VRRP_SNMP_FILE_NAME, ASN_OCTET_STR, RONLY, vrrp_snmp_file, 3, {13, 1, 2}},
+	{VRRP_SNMP_FILE_PATH, ASN_OCTET_STR, RONLY, vrrp_snmp_file, 3, {13, 1, 3}},
+	{VRRP_SNMP_FILE_RESULT, ASN_INTEGER, RONLY, vrrp_snmp_file, 3, {13, 1, 4}},
+	{VRRP_SNMP_FILE_WEIGHT, ASN_INTEGER, RONLY, vrrp_snmp_file, 3, {13, 1, 5}},
+
+	/* syncGroupTrackedInterfaceTable */
+	{VRRP_SNMP_SGROUPTRACKEDINTERFACE_NAME, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_group_trackedinterface, 3, {14, 1, 1}},
+	{VRRP_SNMP_SGROUPTRACKEDINTERFACE_WEIGHT, ASN_INTEGER, RONLY,
+	 vrrp_snmp_group_trackedinterface, 3, {14, 1, 2}},
+
+	/* syncGroupTrackedScriptTable */
+	{VRRP_SNMP_SGROUPTRACKEDSCRIPT_NAME, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_group_trackedscript, 3, {15, 1, 2}},
+	{VRRP_SNMP_SGROUPTRACKEDSCRIPT_WEIGHT, ASN_INTEGER, RONLY,
+	 vrrp_snmp_group_trackedscript, 3, {15, 1, 3}},
+
+	/* syncGroupTrackedFileTable */
+	{VRRP_SNMP_SGROUPTRACKEDFILE_NAME, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_group_trackedfile, 3, {16, 1, 2}},
+	{VRRP_SNMP_SGROUPTRACKEDFILE_WEIGHT, ASN_INTEGER, RONLY,
+	 vrrp_snmp_group_trackedfile, 3, {16, 1, 3}},
+
 };
 
 void
@@ -2492,9 +2988,18 @@ vrrp_snmp_instance_trap(vrrp_t *vrrp)
 	size_t routerId_oid_len = OID_LENGTH(routerId_oid);
 
 	netsnmp_variable_list *notification_vars = NULL;
+	int state = 4;		/* unknown */
 
-	if (!global_data->enable_traps || !global_data->enable_snmp_keepalived)
+	if (!global_data->enable_traps || !global_data->enable_snmp_vrrp)
 		return;
+
+	if (vrrp->state == VRRP_STATE_INIT ||
+	    vrrp->state == VRRP_STATE_BACK ||
+	    vrrp->state == VRRP_STATE_MAST ||
+	    vrrp->state == VRRP_STATE_FAULT)
+		state = vrrp->state;
+	else if (vrrp->state == VRRP_STATE_STOP)
+		state = 5;
 
 	/* snmpTrapOID */
 	snmp_varlist_add_variable(&notification_vars,
@@ -2512,14 +3017,14 @@ vrrp_snmp_instance_trap(vrrp_t *vrrp)
 	snmp_varlist_add_variable(&notification_vars,
 				  state_oid, state_oid_len,
 				  ASN_INTEGER,
-				  (u_char *)&vrrp->state,
-				  sizeof(vrrp->state));
+				  (u_char *)&state,
+				  sizeof(state));
 	/* vrrpInstanceInitialState */
 	snmp_varlist_add_variable(&notification_vars,
 				  initialstate_oid, initialstate_oid_len,
 				  ASN_INTEGER,
-				  (u_char *)&vrrp->init_state,
-				  sizeof(vrrp->init_state));
+				  (u_char *)&vrrp->configured_state,
+				  sizeof(vrrp->configured_state));
 
 	/* routerId */
 	snmp_varlist_add_variable(&notification_vars,
@@ -2529,7 +3034,7 @@ vrrp_snmp_instance_trap(vrrp_t *vrrp)
 				  strlen(global_data->router_id));
 
 	log_message(LOG_INFO,
-		    "VRRP_Instance(%s): Sending SNMP notification",
+		    "(%s) Sending SNMP notification",
 		    vrrp->iname);
 	send_v2trap(notification_vars);
 	snmp_free_varbind(notification_vars);
@@ -2554,9 +3059,18 @@ vrrp_snmp_group_trap(vrrp_sgroup_t *group)
 	size_t routerId_oid_len = OID_LENGTH(routerId_oid);
 
 	netsnmp_variable_list *notification_vars = NULL;
+	int state = 4;		/* unknown */
 
-	if (!global_data->enable_traps || !global_data->enable_snmp_keepalived)
+	if (!global_data->enable_traps || !global_data->enable_snmp_vrrp)
 		return;
+
+	if (group->state == VRRP_STATE_INIT ||
+	    group->state == VRRP_STATE_BACK ||
+	    group->state == VRRP_STATE_MAST ||
+	    group->state == VRRP_STATE_FAULT)
+		state = group->state;
+	else if (group->state == VRRP_STATE_STOP)
+		state = 5;
 
 	/* snmpTrapOID */
 	snmp_varlist_add_variable(&notification_vars,
@@ -2575,8 +3089,8 @@ vrrp_snmp_group_trap(vrrp_sgroup_t *group)
 	snmp_varlist_add_variable(&notification_vars,
 				  state_oid, state_oid_len,
 				  ASN_INTEGER,
-				  (u_char *)&group->state,
-				  sizeof(group->state));
+				  (u_char *)&state,
+				  sizeof(state));
 
 	/* routerId */
 	snmp_varlist_add_variable(&notification_vars,
@@ -2601,11 +3115,6 @@ vrrp_snmp_rfc_state(int state)
 {
 	if (state <= VRRP_STATE_MAST)
 		return state + 1;
-	if (state == VRRP_STATE_FAULT ||
-	    state == VRRP_STATE_GOTO_FAULT)
-		return VRRP_STATE_INIT + 1;
-	if (state == VRRP_STATE_GOTO_MASTER)
-		return VRRP_STATE_BACK + 1;
 	return VRRP_STATE_INIT + 1;
 }
 #endif
@@ -2614,9 +3123,11 @@ vrrp_snmp_rfc_state(int state)
 static bool
 suitable_for_rfc2787(vrrp_t* vrrp)
 {
+#ifdef _WITH_SNMP_RFCV3_
 	/* We mustn't return any VRRP instances that aren't version 2 */
 	if (vrrp->version != VRRP_VERSION_2)
 		return false;
+#endif
 
 	/* We have to skip VRRPv2 with IPv6 since it won't be understood */
 	if (vrrp->family == AF_INET6)
@@ -2884,7 +3395,7 @@ vrrp_rfcv2_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 	case VRRP_RFC_SNMP_OPER_PIP:
 #ifdef _HAVE_VRRP_VMAC_
 		if (rt->ifp->vmac)
-			ifp = if_get_by_ifindex(rt->ifp->base_ifindex);
+			ifp = rt->ifp->base_ifp;
 		else
 #endif
 			ifp = rt->ifp;
@@ -2909,7 +3420,7 @@ vrrp_rfcv2_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 	case VRRP_RFC_SNMP_OPER_VR_UPTIME:
 		if (rt->state == VRRP_STATE_BACK ||
 		    rt->state == VRRP_STATE_MAST) {
-			uptime = timer_sub(rt->stats->uptime, vrrp_start_time);
+			timersub(&rt->stats->uptime, &vrrp_start_time, &uptime);
 			long_ret.s = uptime.tv_sec * 100 + uptime.tv_usec / 10000;	// unit is centi-seconds
 		}
 		else
@@ -3184,7 +3695,7 @@ vrrp_rfcv2_snmp_new_master_trap(vrrp_t *vrrp)
 				  ASN_IPADDRESS,
 				  (u_char *)&((struct sockaddr_in *)&vrrp->saddr)->sin_addr.s_addr,
 				  sizeof(((struct sockaddr_in *)&vrrp->saddr)->sin_addr.s_addr));
-	log_message(LOG_INFO, "VRRP_Instance(%s): Sending SNMP notification"
+	log_message(LOG_INFO, "(%s) Sending SNMP notification"
 			      " vrrpTrapNewMaster"
 			    , vrrp->iname);
 	send_v2trap(notification_vars);
@@ -3233,7 +3744,7 @@ vrrp_rfcv2_snmp_auth_err_trap(vrrp_t *vrrp, struct in_addr src, enum rfcv2_trap_
 				  ASN_INTEGER,
 				  (u_char *)&auth_err,
 				  sizeof(auth_err));
-	log_message(LOG_INFO, "VRRP_Instance(%s): Sending SNMP notification"
+	log_message(LOG_INFO, "(%s) Sending SNMP notification"
 			      " vrrpTrapAuthFailure"
 			    , vrrp->iname);
 	send_v2trap(notification_vars);
@@ -3551,7 +4062,7 @@ vrrp_rfcv3_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 	case VRRP_RFCv3_SNMP_OPER_PIP:
 #ifdef _HAVE_VRRP_VMAC_
 		if (rt->ifp->vmac)
-			ifp = if_get_by_ifindex(rt->ifp->base_ifindex);
+			ifp = rt->ifp->base_ifp;
 		else
 #endif
 			ifp = rt->ifp;
@@ -3589,7 +4100,7 @@ vrrp_rfcv3_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 		if (rt->state == VRRP_STATE_BACK ||
 		    rt->state == VRRP_STATE_MAST) {
 			time_now = timer_now();
-			uptime = timer_sub(time_now, rt->stats->uptime);
+			timersub(&time_now, &rt->stats->uptime, &uptime);
 			long_ret.s = uptime.tv_sec * 100 + uptime.tv_usec / 10000;	// unit is centi-seconds
 		}
 		else
@@ -3727,10 +4238,7 @@ vrrp_rfcv3_snmp_statstable(struct variable *vp, oid *name, size_t *length,
 		ret = rt->stats->become_master;
 		return (u_char *)&ret;
 	case VRRP_RFCv3_SNMP_STATS_MASTER_REASON:
-		if (!rt->stats->become_master)
-			ret = VRRPV3_MASTER_REASON_NOT_MASTER;
-		else
-			ret = rt->stats->master_reason;
+		ret = rt->stats->master_reason;
 		*var_len = sizeof(ret);
 		return (u_char*)&ret;
 	case VRRP_RFCv3_SNMP_STATS_ADV_RCVD:
@@ -3902,7 +4410,7 @@ vrrp_rfcv3_snmp_new_master_notify(vrrp_t *vrrp)
 				  ASN_INTEGER,
 				  (u_char *)&reason,
 				  sizeof(reason));
-	log_message(LOG_INFO, "VRRP_Instance(%s): Sending SNMP notification"
+	log_message(LOG_INFO, "(%s) Sending SNMP notification"
 			      " vrrpv3NotifyNewMaster, reason %d"
 			    , vrrp->iname, reason);
 	send_v2trap(notification_vars);
@@ -3942,7 +4450,7 @@ vrrp_rfcv3_snmp_proto_err_notify(vrrp_t *vrrp)
 				  ASN_INTEGER,
 				  (u_char *)&vrrp->stats->proto_err_reason,
 				  sizeof(vrrp->stats->proto_err_reason));
-	log_message(LOG_INFO, "VRRP_Instance(%s): Sending SNMP notification"
+	log_message(LOG_INFO, "(%s) Sending SNMP notification"
 			      " vrrpTrapProtoError"
 			    , vrrp->iname);
 	send_v2trap(notification_vars);
@@ -3953,14 +4461,20 @@ vrrp_rfcv3_snmp_proto_err_notify(vrrp_t *vrrp)
 static bool
 vrrp_handles_global_oid(void)
 {
-	if (global_data->enable_snmp_keepalived) {
+#ifdef _WITH_SNMP_VRRP_
+	if (global_data->enable_snmp_vrrp) {
 #ifdef _WITH_LVS_
-		if (!__test_bit(DAEMON_CHECKERS, &daemon_mode) || !global_data->enable_snmp_checker)
+		if (!running_checker())
 			return true;
+#ifdef _WITH_SNMP_CHECKER_
+		if (!global_data->enable_snmp_checker)
+			return true;
+#endif
 #else
 		return true;
 #endif
 	}
+#endif
 
 	return false;
 }
@@ -3972,7 +4486,7 @@ vrrp_snmp_agent_init(const char *snmp_socket)
 	snmp_agent_init(snmp_socket, vrrp_handles_global_oid());
 
 #ifdef _WITH_SNMP_VRRP_
-	if (global_data->enable_snmp_keepalived)
+	if (global_data->enable_snmp_vrrp)
 		snmp_register_mib(vrrp_oid, OID_LENGTH(vrrp_oid), "KEEPALIVED-VRRP",
 				  (struct variable *)vrrp_vars,
 				  sizeof(struct variable8),
@@ -3998,7 +4512,7 @@ void
 vrrp_snmp_agent_close(void)
 {
 #ifdef _WITH_SNMP_VRRP_
-	if (global_data->enable_snmp_keepalived)
+	if (global_data->enable_snmp_vrrp)
 		snmp_unregister_mib(vrrp_oid, OID_LENGTH(vrrp_oid));
 #endif
 #ifdef _WITH_SNMP_RFCV2_

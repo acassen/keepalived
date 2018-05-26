@@ -22,6 +22,11 @@
 
 #include "config.h"
 
+/* Global include */
+#include <errno.h>
+#include <arpa/inet.h>
+#include <stdio.h>
+
 /* local include */
 #include "vrrp_ipaddress.h"
 #ifdef _HAVE_LIBIPTC_
@@ -31,17 +36,18 @@
 #include "keepalived_netlink.h"
 #include "vrrp_data.h"
 #include "logger.h"
-#include "memory.h"
 #include "utils.h"
 #include "bitops.h"
 #include "global_data.h"
 #include "rttables.h"
+#include "memory.h"
 #if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
 #include "utils.h"
 #endif
-#ifdef _LIBIPTC_DYNAMIC_
+#ifdef _WITH_LIBIPTC_
 #include "vrrp_iptables.h"
 #endif
+
 
 #define INFINITY_LIFE_TIME      0xFFFFFFFF
 
@@ -83,6 +89,21 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 #else
 	uint8_t ifa_flags = 0;
 #endif
+
+	if (cmd == IPADDRESS_ADD) {
+		/* We can't add the address if the interface doesn't exist */
+		if (!ipaddress->ifp->ifindex) {
+			log_message(LOG_INFO, "Not adding address %s to %s since interface doesn't exist", ipaddresstos(NULL, ipaddress), ipaddress->ifp->ifname);
+			return -1;
+		}
+
+		/* Make sure the ifindex for the address is current */
+		ipaddress->ifa.ifa_index = ipaddress->ifp->ifindex;
+	}
+	else if (!ipaddress->ifp->ifindex) {
+		/* The interface has been deleted, so there is no point deleting the address */
+		return 0;
+	}
 
 	memset(&req, 0, sizeof (req));
 
@@ -127,8 +148,6 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 
 		addattr_l(&req.n, sizeof(req), IFA_LOCAL,
 			  &ipaddress->u.sin6_addr, sizeof(ipaddress->u.sin6_addr));
-
-
 	} else {
 		addattr_l(&req.n, sizeof(req), IFA_LOCAL,
 			  &ipaddress->u.sin.sin_addr, sizeof(ipaddress->u.sin.sin_addr));
@@ -155,10 +174,20 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 		if (ipaddress->label)
 			addattr_l(&req.n, sizeof (req), IFA_LABEL,
 				  ipaddress->label, strlen(ipaddress->label) + 1);
+
+		if (ipaddress->have_peer)
+                        addattr_l(&req.n, sizeof(req), IFA_ADDRESS, &ipaddress->peer, req.ifa.ifa_family == AF_INET6 ? 16 : 4);
 	}
 
+	/* If the state of the interface or its parent is down, it might be because the interface
+	 * has been deleted, but we get the link status change message before the RTM_DELLINK message */
+	if (cmd == IPADDRESS_DEL &&
+	    (((ipaddress->ifp->ifi_flags & (IFF_UP | IFF_RUNNING)) != (IFF_UP | IFF_RUNNING)) ||
+	     ((IF_BASE_IFP(ipaddress->ifp)->ifi_flags & (IFF_UP | IFF_RUNNING)) != (IFF_UP | IFF_RUNNING))))
+		netlink_error_ignore = ENODEV;
 	if (netlink_talk(&nl_cmd, &req.n) < 0)
 		status = -1;
+	netlink_error_ignore = 0;
 
 	return status;
 }
@@ -393,25 +422,55 @@ free_ipaddress(void *if_data)
 }
 
 void
-dump_ipaddress(void *if_data)
+dump_ipaddress(FILE *fp, void *if_data)
 {
 	ip_address_t *ipaddr = if_data;
-	char broadcast[INET_ADDRSTRLEN + 5] = "";
+	char peer[INET6_ADDRSTRLEN];
+	char buf[256];
+	char *buf_p = buf;
 
+	buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, "     %s", ipaddresstos(NULL, ipaddr));
+	if (!ipaddr->have_peer)
+		buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, "/%d", ipaddr->ifa.ifa_prefixlen);
 	if (!IP_IS6(ipaddr) && ipaddr->u.sin.sin_brd.s_addr) {
-		snprintf(broadcast, 21, " brd %s",
+		buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, " brd %s",
 			 inet_ntop2(ipaddr->u.sin.sin_brd.s_addr));
 	}
+	buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, " dev %s scope %s",
+			    IF_NAME(ipaddr->ifp),
+			    get_rttables_scope(ipaddr->ifa.ifa_scope));
+	if (ipaddr->label)
+		buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, " label %s", ipaddr->label);
+	if (ipaddr->have_peer) {
+		inet_ntop(ipaddr->ifa.ifa_family, &ipaddr->peer, peer, sizeof(peer));
+		buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, " peer %s/%d" , peer , ipaddr->ifa.ifa_prefixlen);
+	}
+#ifdef IFA_F_HOMEADDRESS		/* Linux 2.6.19 */
+	if (ipaddr->flags & IFA_F_HOMEADDRESS)
+		buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, " home");
+#endif
+#ifdef IFA_F_NODAD			/* Linux 2.6.19 */
+	if (ipaddr->flagmask & IFA_F_NODAD)
+		buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, " -nodad");
+#endif
+#ifdef IFA_F_MANAGETEMPADDR		/* Linux 3.14 */
+	if (ipaddr->flags & IFA_F_MANAGETEMPADDR)
+		buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, " mngtmpaddr");
+#endif
+#ifdef IFA_F_NOPREFIXROUTE		/* Linux 3.14 */
+	if (ipaddr->flags & IFA_F_NOPREFIXROUTE)
+		buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, " noprefixroute");
+#endif
+#ifdef IFA_F_MCAUTOJOIN			/* Linux 4.1 */
+	if (ipaddr->flags & IFA_F_MCAUTOJOIN)
+		buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, " autojoin");
+#endif
+	if (ipaddr->dont_track)
+		buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, "%s", " no-track");
 
-	log_message(LOG_INFO, "     %s/%d%s dev %s scope %s%s%s"
-			    , ipaddresstos(NULL, ipaddr)
-			    , ipaddr->ifa.ifa_prefixlen
-			    , broadcast
-			    , IF_NAME(ipaddr->ifp)
-			    , get_rttables_scope(ipaddr->ifa.ifa_scope)
-			    , ipaddr->label ? " label " : ""
-			    , ipaddr->label ? ipaddr->label : "");
+	conf_write(fp, "%s", buf);
 }
+
 ip_address_t *
 parse_ipaddress(ip_address_t *ip_address, char *str, int allow_default)
 {
@@ -478,11 +537,14 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 	interface_t *ifp_local;
 	char *str;
 	unsigned int i = 0, addr_idx = 0;
-	unsigned int j;
 	uint8_t scope;
 	bool param_avail;
 	bool param_missing = false;
 	char *param;
+	ip_address_t peer = { .ifa.ifa_family = AF_UNSPEC };
+	int brd_len = 0;
+	uint32_t mask;
+	bool have_broadcast = false;
 
 	new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
 
@@ -512,16 +574,12 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 				FREE(new);
 				return;
 			}
-			ifp_local = if_get_by_ifname(strvec_slot(strvec, ++i));
-			if (!ifp_local) {
-				log_message(LOG_INFO, "VRRP is trying to assign ip address %s to unknown %s"
-				       " interface !!! go out and fix your conf !!!",
-				       FMT_STR_VSLOT(strvec, addr_idx),
-				       FMT_STR_VSLOT(strvec, i));
+			if (!(ifp_local = if_get_by_ifname(strvec_slot(strvec, ++i), IF_CREATE_IF_DYNAMIC))) {
+				log_message(LOG_INFO, "WARNING - interface %s for ip address %s doesn't exist",
+						FMT_STR_VSLOT(strvec, i), FMT_STR_VSLOT(strvec, addr_idx));
 				FREE(new);
 				return;
 			}
-			new->ifa.ifa_index = IF_INDEX(ifp_local);
 			new->ifp = ifp_local;
 		} else if (!strcmp(str, "scope")) {
 			if (!param_avail) {
@@ -547,18 +605,13 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 				return;
 			}
 
+			have_broadcast = true;
+
 			param = strvec_slot(strvec, ++i);
-			if (!strcmp(param, "-") || !strcmp(param, "+")) {
-				if (new->ifa.ifa_prefixlen <= 30) {
-					new->u.sin.sin_brd = new->u.sin.sin_addr;
-					for (j = 31; j >= new->ifa.ifa_prefixlen; j--) {
-						if (param[0] == '+')
-							new->u.sin.sin_brd.s_addr |= htonl(1U<<(31-j));
-						else
-							new->u.sin.sin_brd.s_addr &= ~htonl(1U<<(31-j));
-					}
-				}
-			}
+			if (!strcmp(param, "-"))
+				brd_len = -2;
+			else if (!strcmp(param, "+"))
+				brd_len = -1;
 			else if (!inet_pton(AF_INET, param, &new->u.sin.sin_brd)) {
 				log_message(LOG_INFO, "VRRP is trying to assign invalid broadcast %s. "
 						      "skipping VIP...", FMT_STR_VSLOT(strvec, i));
@@ -573,6 +626,33 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 
 			new->label = MALLOC(IFNAMSIZ);
 			strncpy(new->label, strvec_slot(strvec, ++i), IFNAMSIZ);
+		} else if (!strcmp(str, "peer")) {
+			if (!param_avail) {
+				param_missing = true;
+				break;
+			}
+
+			i++;
+			if (new->have_peer) {
+				log_message(LOG_INFO, "Peer %s - another peer has already been specified", FMT_STR_VSLOT(strvec, i));
+				continue;
+			}
+
+			if (!parse_ipaddress(&peer, strvec_slot(strvec,i), false))
+				log_message(LOG_INFO, "Invalid peer address %s", FMT_STR_VSLOT(strvec, i));
+			else if (peer.ifa.ifa_family != new->ifa.ifa_family)
+				log_message(LOG_INFO, "Peer address %s does not match address family", FMT_STR_VSLOT(strvec, i));
+			else {
+				if ((new->ifa.ifa_family == AF_INET6 && new->ifa.ifa_prefixlen != 128) ||
+				    (new->ifa.ifa_family == AF_INET && new->ifa.ifa_prefixlen != 32))
+					log_message(LOG_INFO, "Cannot specify address prefix when specifying peer address - ignoring");
+				new->have_peer = true;
+				new->ifa.ifa_prefixlen = peer.ifa.ifa_prefixlen;
+				if (new->ifa.ifa_family == AF_INET6)
+					new->peer.sin6_addr = peer.u.sin6_addr;
+				else
+					new->peer.sin_addr = peer.u.sin.sin_addr;
+			}
 #ifdef IFA_F_HOMEADDRESS		/* Linux 2.6.19 */
 		} else if (!strcmp(str, "home")) {
 			new->flags |= IFA_F_HOMEADDRESS;
@@ -597,6 +677,8 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 			new->flags |= IFA_F_MCAUTOJOIN;
 			new->flagmask |= IFA_F_MCAUTOJOIN;
 #endif
+		} else if (!strcmp(str, "no-track")) {
+			new->dont_track = true;
 		} else
 			log_message(LOG_INFO, "Unknown configuration entry '%s' for ip address - ignoring", str);
 		i++;
@@ -609,18 +691,33 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 		return;
 	}
 
+	/* Set the broadcast address if necessary */
+	if (have_broadcast && new->have_peer) {
+		log_message(LOG_INFO, "Cannot specify broadcast and peer addresses - ignoring broadcast address");
+		new->u.sin.sin_brd.s_addr = 0;
+	}
+	else if (brd_len < 0 && new->ifa.ifa_prefixlen <= 30) {
+		new->u.sin.sin_brd = (new->have_peer) ? new->peer.sin_addr : new->u.sin.sin_addr;
+		mask = 0xffffffffU >> new->ifa.ifa_prefixlen;
+		mask = htonl(mask);
+		if (brd_len == -1)	/* '+' */
+			new->u.sin.sin_brd.s_addr |= mask;
+		else
+			new->u.sin.sin_brd.s_addr &= ~mask;
+	}
+	else if (brd_len < 0)
+		log_message(LOG_INFO, "Address prefix length %d too long for broadcast", new->ifa.ifa_prefixlen);
+
 	if (!ifp && !new->ifp) {
 		if (!global_data->default_ifp) {
-			global_data->default_ifp = if_get_by_ifname(DFLT_INT);
+			global_data->default_ifp = if_get_by_ifname(DFLT_INT, IF_CREATE_IF_DYNAMIC);
 			if (!global_data->default_ifp) {
-				log_message(LOG_INFO, "Default interface " DFLT_INT
-					    " does not exist and no interface specified. "
-					    "Skipping static address %s.", FMT_STR_VSLOT(strvec, addr_idx));
+				log_message(LOG_INFO, "Default interface %s doesn't exist for static address %s.",
+							DFLT_INT, FMT_STR_VSLOT(strvec, addr_idx));
 				FREE(new);
 				return;
 			}
 		}
-		new->ifa.ifa_index = IF_INDEX(global_data->default_ifp);
 		new->ifp = global_data->default_ifp;
 	}
 
@@ -640,27 +737,27 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 }
 
 /* Find an address in a list */
-static int
+static bool
 address_exist(list l, ip_address_t *ipaddress)
 {
 	ip_address_t *ipaddr;
 	element e;
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		ipaddr = ELEMENT_DATA(e);
+	LIST_FOREACH(l, ipaddr, e) {
 		if (IP_ISEQ(ipaddr, ipaddress)) {
 			ipaddr->set = ipaddress->set;
 			ipaddr->iptable_rule_set = ipaddress->iptable_rule_set;
-			return 1;
+			ipaddr->ifa.ifa_index = ipaddress->ifa.ifa_index;
+			return true;
 		}
 	}
 
-	return 0;
+	return false;
 }
 
 /* Clear diff addresses */
 void
-clear_diff_address(struct ipt_handle *h, list l, list n)
+clear_diff_address(struct ipt_handle *h, list old, list new)
 {
 	ip_address_t *ipaddr;
 	element e;
@@ -668,23 +765,19 @@ clear_diff_address(struct ipt_handle *h, list l, list n)
 	void *addr;
 
 	/* No addresses in previous conf */
-	if (LIST_ISEMPTY(l))
+	if (LIST_ISEMPTY(old))
 		return;
 
-	ipaddr = ELEMENT_DATA(LIST_HEAD(l));
-
 	/* All addresses removed */
-	if (LIST_ISEMPTY(n)) {
+	if (LIST_ISEMPTY(new)) {
 		log_message(LOG_INFO, "Removing a complete VIP or e-VIP block");
-		netlink_iplist(l, IPADDRESS_DEL, false);
-		handle_iptable_rule_to_iplist(h, l, IPADDRESS_DEL, false);
+		netlink_iplist(old, IPADDRESS_DEL, false);
+		handle_iptable_rule_to_iplist(h, old, IPADDRESS_DEL, false);
 		return;
 	}
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		ipaddr = ELEMENT_DATA(e);
-
-		if (!address_exist(n, ipaddr) && ipaddr->set) {
+	LIST_FOREACH(old, ipaddr, e) {
+		if (!address_exist(new, ipaddr) && ipaddr->set) {
 			addr = (IP_IS6(ipaddr)) ? (void *) &ipaddr->u.sin6_addr :
 						  (void *) &ipaddr->u.sin.sin_addr;
 			inet_ntop(IP_FAMILY(ipaddr), addr, addr_str, INET6_ADDRSTRLEN);
@@ -692,7 +785,7 @@ clear_diff_address(struct ipt_handle *h, list l, list n)
 			log_message(LOG_INFO, "ip address %s/%d dev %s, no longer exist"
 					    , addr_str
 					    , ipaddr->ifa.ifa_prefixlen
-					    , IF_NAME(if_get_by_ifindex(ipaddr->ifa.ifa_index)));
+					    , ipaddr->ifp->ifname);
 			netlink_ipaddress(ipaddr, IPADDRESS_DEL);
 			if (ipaddr->iptable_rule_set)
 				handle_iptable_rule_to_vip(ipaddr, IPADDRESS_DEL, h, false);

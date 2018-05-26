@@ -24,15 +24,16 @@
 
 #include "config.h"
 
-#include <netdb.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
-#include <sys/types.h>
 #include <pwd.h>
 #include <grp.h>
-#include <net/if.h>
+#include <ctype.h>
+#ifdef _HAVE_SCHED_RT_
+#include <sched.h>
+#endif
 
 #ifdef _WITH_SNMP_
 #include "snmp.h"
@@ -42,7 +43,6 @@
 #include "global_data.h"
 #include "main.h"
 #include "parser.h"
-#include "memory.h"
 #include "smtp.h"
 #include "utils.h"
 #include "logger.h"
@@ -56,8 +56,11 @@
 /* data handlers */
 /* Global def handlers */
 static void
-use_polling_handler(__attribute__((unused)) vector_t *strvec)
+use_polling_handler(vector_t *strvec)
 {
+	if (!strvec)
+		return;
+
 	global_data->linkbeat_use_polling = true;
 }
 static void
@@ -77,6 +80,18 @@ smtpto_handler(vector_t *strvec)
 {
 	global_data->smtp_connection_to = strtoul(strvec_slot(strvec, 1), NULL, 10) * TIMER_HZ;
 }
+#ifdef _WITH_VRRP_
+static void
+dynamic_interfaces_handler(__attribute__((unused))vector_t *strvec)
+{
+	global_data->dynamic_interfaces = true;
+}
+static void
+no_email_faults_handler(__attribute__((unused))vector_t *strvec)
+{
+	global_data->no_email_faults = true;
+}
+#endif
 static void
 smtpserver_handler(vector_t *strvec)
 {
@@ -87,7 +102,7 @@ smtpserver_handler(vector_t *strvec)
 	if (vector_size(strvec) >= 3)
 		port_str = strvec_slot(strvec,2);
 
-	/* It can't be an IP address if it contains '-' or '/', and 
+	/* It can't be an IP address if it contains '-' or '/', and
 	   inet_stosockaddr() modifies the string if it contains either of them */
 	if (!strpbrk(strvec_slot(strvec, 1), "-/"))
 		ret = inet_stosockaddr(strvec_slot(strvec, 1), port_str, &global_data->smtp_server);
@@ -129,6 +144,55 @@ email_handler(vector_t *strvec)
 
 	free_strvec(email_vec);
 }
+static void
+smtp_alert_handler(vector_t *strvec)
+{
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			log_message(LOG_INFO, "Invalid value '%s' for global smtp_alert specified", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+
+	global_data->smtp_alert = res;
+}
+#ifdef _WITH_VRRP_
+static void
+smtp_alert_vrrp_handler(vector_t *strvec)
+{
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			log_message(LOG_INFO, "Invalid value '%s' for global smtp_alert_vrrp specified", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+
+	global_data->smtp_alert_vrrp = res;
+}
+#endif
+#ifdef _WITH_LVS_
+static void
+smtp_alert_checker_handler(vector_t *strvec)
+{
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			log_message(LOG_INFO, "Invalid value '%s' for global smtp_alert_checker specified", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+
+	global_data->smtp_alert_checker = res;
+}
+#endif
 #ifdef _WITH_VRRP_
 static void
 default_interface_handler(vector_t *strvec)
@@ -139,11 +203,11 @@ default_interface_handler(vector_t *strvec)
 		log_message(LOG_INFO, "default_interface requires interface name");
 		return;
 	}
-	ifp = if_get_by_ifname(strvec_slot(strvec, 1));
+	ifp = if_get_by_ifname(strvec_slot(strvec, 1), IF_CREATE_IF_DYNAMIC);
 	if (!ifp)
-		log_message(LOG_INFO, "Cannot find default interface %s", FMT_STR_VSLOT(strvec, 1));
-	else
-		global_data->default_ifp = ifp;
+		log_message(LOG_INFO, "WARNING - default interface %s doesn't exist", ifp->ifname);
+
+	global_data->default_ifp = ifp;
 }
 #endif
 #ifdef _WITH_LVS_
@@ -333,14 +397,79 @@ lvs_flush_handler(__attribute__((unused)) vector_t *strvec)
 	global_data->lvs_flush = true;
 }
 #endif
+#ifdef _HAVE_SCHED_RT_
+static int
+get_realtime_priority(vector_t *strvec, const char *process)
+{
+	int min_priority;
+	int max_priority;
+	int priority;
+
+	if (vector_size(strvec) < 2) {
+		log_message(LOG_INFO, "No %s process real-time priority specified", process);
+		return -1;
+	}
+
+	min_priority = sched_get_priority_min(SCHED_RR);
+	max_priority = sched_get_priority_max(SCHED_RR);
+
+	priority = atoi(strvec_slot(strvec, 1));
+
+	if (priority < min_priority) {
+		log_message(LOG_INFO, "%s process real-time priority %d less than minimum %d - setting to minimum", process, priority, min_priority);
+		priority = min_priority;
+	}
+	if (priority > max_priority) {
+		log_message(LOG_INFO, "%s process real-time priority %d greater than maximum %d - setting to maximum", process, priority, max_priority);
+		priority = max_priority;
+	}
+
+	return priority;
+}
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+static rlim_t
+get_rt_rlimit(vector_t *strvec, const char *process)
+{
+	char *endptr;
+	unsigned long limit = strtoul(strvec_slot(strvec,1), &endptr, 10);
+	rlim_t rlim = limit;	/* check for overflow */
+
+	if (*endptr || rlim != limit) {
+		log_message(LOG_INFO, "Invalid %s real-time limit - %s", process, FMT_STR_VSLOT(strvec, 1));
+		return 0;
+	}
+
+	return rlim;
+}
+#endif
+#endif
+static int8_t
+get_priority(vector_t *strvec, const char *process)
+{
+	int priority;
+
+	if (vector_size(strvec) < 2) {
+		log_message(LOG_INFO, "No %s process priority specified", process);
+		return 0;
+	}
+
+	priority = atoi(strvec_slot(strvec, 1));
+	if (priority < -20 || priority > 19) {
+		log_message(LOG_INFO, "Invalid %s process priority specified", process);
+		return 0;
+	}
+
+	return (int8_t)priority;
+}
+
 #ifdef _WITH_VRRP_
 static void
 vrrp_mcast_group4_handler(vector_t *strvec)
 {
-	struct sockaddr_storage *mcast = &global_data->vrrp_mcast_group4;
+	struct sockaddr_in *mcast = &global_data->vrrp_mcast_group4;
 	int ret;
 
-	ret = inet_stosockaddr(strvec_slot(strvec, 1), 0, mcast);
+	ret = inet_stosockaddr(strvec_slot(strvec, 1), 0, (struct sockaddr_storage *)mcast);
 	if (ret < 0) {
 		log_message(LOG_ERR, "Configuration error: Cant parse vrrp_mcast_group4 [%s]. Skipping"
 				   , FMT_STR_VSLOT(strvec, 1));
@@ -349,10 +478,10 @@ vrrp_mcast_group4_handler(vector_t *strvec)
 static void
 vrrp_mcast_group6_handler(vector_t *strvec)
 {
-	struct sockaddr_storage *mcast = &global_data->vrrp_mcast_group6;
+	struct sockaddr_in6 *mcast = &global_data->vrrp_mcast_group6;
 	int ret;
 
-	ret = inet_stosockaddr(strvec_slot(strvec, 1), 0, mcast);
+	ret = inet_stosockaddr(strvec_slot(strvec, 1), 0, (struct sockaddr_storage *)mcast);
 	if (ret < 0) {
 		log_message(LOG_ERR, "Configuration error: Cant parse vrrp_mcast_group6 [%s]. Skipping"
 				   , FMT_STR_VSLOT(strvec, 1));
@@ -534,26 +663,30 @@ vrrp_strict_handler(__attribute__((unused)) vector_t *strvec)
 static void
 vrrp_prio_handler(vector_t *strvec)
 {
-	int priority;
-
-	if (vector_size(strvec) < 2) {
-		log_message(LOG_INFO, "No vrrp process priority specified");
-		return;
-	}
-
-	priority = atoi(strvec_slot(strvec, 1));
-	if (priority < -20 || priority > 19) {
-		log_message(LOG_INFO, "Invalid vrrp process priority specified");
-		return;
-	}
-
-	global_data->vrrp_process_priority = (int8_t)priority;
+	global_data->vrrp_process_priority = get_priority(strvec, "vrrp");
 }
 static void
 vrrp_no_swap_handler(__attribute__((unused)) vector_t *strvec)
 {
 	global_data->vrrp_no_swap = true;
 }
+#ifdef _HAVE_SCHED_RT_
+static void
+vrrp_rt_priority_handler(vector_t *strvec)
+{
+	int priority = get_realtime_priority(strvec, "vrrp");
+
+	if (priority >= 0)
+		global_data->vrrp_realtime_priority = priority;
+}
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+static void
+vrrp_rt_rlimit_handler(vector_t *strvec)
+{
+	global_data->vrrp_rlimit_rt = get_rt_rlimit(strvec, "vrrp");
+}
+#endif
+#endif
 #endif
 static void
 notify_fifo(vector_t *strvec, const char *type, notify_fifo_t *fifo)
@@ -589,7 +722,7 @@ notify_fifo_script(vector_t *strvec, const char *type, notify_fifo_t *fifo)
 	id_str = MALLOC(strlen(type) + strlen("notify_fifo") + 1);
 	strcpy(id_str, type);
 	strcat(id_str, "notify_fifo");
-	fifo->script = notify_script_init(strvec, id_str, global_data->script_security);
+	fifo->script = notify_script_init(strvec, true, id_str);
 
 	FREE(id_str);
 }
@@ -631,26 +764,59 @@ lvs_notify_fifo_script(vector_t *strvec)
 static void
 checker_prio_handler(vector_t *strvec)
 {
-	int priority;
-
-	if (vector_size(strvec) < 2) {
-		log_message(LOG_INFO, "No checker process priority specified");
-		return;
-	}
-
-	priority = atoi(strvec_slot(strvec, 1));
-	if (priority < -20 || priority > 19) {
-		log_message(LOG_INFO, "Invalid checker process priority specified");
-		return;
-	}
-
-	global_data->checker_process_priority = (int8_t)priority;
+	global_data->checker_process_priority = get_priority(strvec, "checker");
 }
 static void
 checker_no_swap_handler(__attribute__((unused)) vector_t *strvec)
 {
 	global_data->checker_no_swap = true;
 }
+#ifdef _HAVE_SCHED_RT_
+static void
+checker_rt_priority_handler(vector_t *strvec)
+{
+	int priority = get_realtime_priority(strvec, "checker");
+
+	if (priority >= 0)
+		global_data->checker_realtime_priority = priority;
+}
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+static void
+checker_rt_rlimit_handler(vector_t *strvec)
+{
+	global_data->checker_rlimit_rt = get_rt_rlimit(strvec, "checker");
+}
+#endif
+#endif
+#endif
+#ifdef _WITH_BFD_
+static void
+bfd_prio_handler(vector_t *strvec)
+{
+	global_data->bfd_process_priority = get_priority(strvec, "bfd");
+}
+static void
+bfd_no_swap_handler(__attribute__((unused)) vector_t *strvec)
+{
+	global_data->bfd_no_swap = true;
+}
+#ifdef _HAVE_SCHED_RT_
+static void
+bfd_rt_priority_handler(vector_t *strvec)
+{
+	int priority = get_realtime_priority(strvec, "BFD");
+
+	if (priority >= 0)
+		global_data->bfd_realtime_priority = priority;
+}
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+static void
+bfd_rt_rlimit_handler(vector_t *strvec)
+{
+	global_data->bfd_rlimit_rt = get_rt_rlimit(strvec, "bfd");
+}
+#endif
+#endif
 #endif
 #ifdef _WITH_SNMP_
 static void
@@ -686,17 +852,21 @@ trap_handler(__attribute__((unused)) vector_t *strvec)
 }
 #ifdef _WITH_SNMP_VRRP_
 static void
-snmp_keepalived_handler(__attribute__((unused)) vector_t *strvec)
+snmp_vrrp_handler(__attribute__((unused)) vector_t *strvec)
 {
-	global_data->enable_snmp_keepalived = true;
+	global_data->enable_snmp_vrrp = true;
 }
 #endif
 #ifdef _WITH_SNMP_RFC_
 static void
 snmp_rfc_handler(__attribute__((unused)) vector_t *strvec)
 {
+#ifdef _WITH_SNMP_RFCV2_
 	global_data->enable_snmp_rfcv2 = true;
+#endif
+#ifdef _WITH_SNMP_RFCV3_
 	global_data->enable_snmp_rfcv3 = true;
+#endif
 }
 #endif
 #ifdef _WITH_SNMP_RFCV2_
@@ -725,40 +895,28 @@ snmp_checker_handler(__attribute__((unused)) vector_t *strvec)
 static void
 net_namespace_handler(vector_t *strvec)
 {
+	if (!strvec)
+		return;
+
 	/* If we are reloading, there has already been a check that the
-	 * namespace hasn't changed */ 
+	 * namespace hasn't changed */
 	if (!reload) {
-		if (!network_namespace) {
-			network_namespace = set_value(strvec);
+		if (!global_data->network_namespace) {
+			global_data->network_namespace = set_value(strvec);
 			use_pid_dir = true;
 		}
 		else
 			log_message(LOG_INFO, "Duplicate net_namespace definition %s - ignoring", FMT_STR_VSLOT(strvec, 1));
 	}
-
-#ifdef _WITH_SNMP_
-	/* Multiple instances of keepalived cannot register the same MIB
-	 * with the same instance of snmpd. In order for snmpd to work
-	 * with multiple instances of keepalived, there would need to be
-	 * one instance of snmpd per keepalived instance. Using unix domain
-	 * sockets will not work for this, so set the default snmp_socket
-	 * to udp:localhost:705 which will enable keepalived to communicate
-	 * with its own instance of snmpd running in the same network namespace. */
-	if (global_data && !global_data->snmp_socket) {
-		global_data->snmp_socket = MALLOC(strlen(SNMP_DEFAULT_NETWORK_SOCKET) + 1);
-		if (!global_data->snmp_socket) {
-			log_message(LOG_INFO, "Unable to set default SNMP socket for network namespace");
-			return;
-		}
-		strcpy(global_data->snmp_socket, SNMP_DEFAULT_NETWORK_SOCKET);
-	}
-#endif
 }
 
 static void
-namespace_ipsets_handler(__attribute__((unused)) vector_t *strvec)
+namespace_ipsets_handler(vector_t *strvec)
 {
-	namespace_with_ipsets = true;
+	if (!strvec)
+		return;
+
+	global_data->namespace_with_ipsets = true;
 }
 #endif
 
@@ -780,9 +938,12 @@ dbus_service_name_handler(vector_t *strvec)
 static void
 instance_handler(vector_t *strvec)
 {
+	if (!strvec)
+		return;
+
 	if (!reload) {
-		if (!instance_name) {
-			instance_name = set_value(strvec);
+		if (!global_data->instance_name) {
+			global_data->instance_name = set_value(strvec);
 			use_pid_dir = true;
 		}
 		else
@@ -791,8 +952,11 @@ instance_handler(vector_t *strvec)
 }
 
 static void
-use_pid_dir_handler(__attribute__((unused)) vector_t *strvec)
+use_pid_dir_handler(vector_t *strvec)
 {
+	if (!strvec)
+		return;
+
 	use_pid_dir = true;
 }
 
@@ -804,15 +968,231 @@ script_user_handler(vector_t *strvec)
 		return;
 	}
 
-	if (set_default_script_user(strvec_slot(strvec, 1), vector_size(strvec) > 2 ? strvec_slot(strvec, 2) : NULL, true))
+	if (set_default_script_user(strvec_slot(strvec, 1), vector_size(strvec) > 2 ? strvec_slot(strvec, 2) : NULL))
 		log_message(LOG_INFO, "Error setting global script uid/gid");
 }
 
 static void
 script_security_handler(__attribute__((unused)) vector_t *strvec)
 {
-	global_data->script_security = true;
+	script_security = true;
 }
+
+static void
+child_wait_handler(vector_t *strvec)
+{
+	char *endptr;
+	unsigned long secs;
+
+	if (!strvec)
+		return;
+
+	secs = strtoul(strvec_slot(strvec,1), &endptr, 10);
+	if (*endptr) {
+		log_message(LOG_INFO, "Invalid child_wait_time %s", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+
+	child_wait_time = secs;
+}
+
+#if defined _WITH_VRRP_ || defined _WITH_LVS_
+static unsigned
+get_netlink_rcv_bufs_size(vector_t *strvec, const char *type)
+{
+	char *end;
+	unsigned long val;
+
+	if (!strvec)
+		return 0;
+
+	if (vector_size(strvec) < 2) {
+		log_message(LOG_INFO, "%s_rcv_bufs size missing", type);
+		return 0;
+	}
+	val = strtoul(strvec_slot(strvec, 1), &end, 10);
+
+	if (*end) {
+		log_message(LOG_INFO, "%s_rcv_bufs size (%s) invalid", type, FMT_STR_VSLOT(strvec, 1));
+		return 0;
+	}
+
+	if (val > UINT_MAX) {
+		log_message(LOG_INFO, "%s_rcv_bufs size (%lu) too large", type, val);
+		return 0;
+	}
+
+	return (unsigned)val;
+}
+#endif
+
+#ifdef _WITH_VRRP_
+static void
+vrrp_netlink_monitor_rcv_bufs_handler(vector_t *strvec)
+{
+	unsigned val;
+
+	if (!strvec)
+		return;
+
+	val = get_netlink_rcv_bufs_size(strvec, "vrrp_netlink_monitor");
+
+	if (val)
+		global_data->vrrp_netlink_monitor_rcv_bufs = val;
+}
+
+static void
+vrrp_netlink_monitor_rcv_bufs_force_handler(vector_t *strvec)
+{
+	int res = true;
+
+	if (!strvec)
+		return;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			log_message(LOG_INFO, "Invalid value '%s' for global vrrp_netlink_monitor_rcv_bufs_force specified", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+
+	global_data->vrrp_netlink_monitor_rcv_bufs_force = res;
+}
+
+static void
+vrrp_netlink_cmd_rcv_bufs_handler(vector_t *strvec)
+{
+	unsigned val;
+
+	if (!strvec)
+		return;
+
+	val = get_netlink_rcv_bufs_size(strvec, "vrrp_netlink_cmd");
+
+	if (val)
+		global_data->vrrp_netlink_cmd_rcv_bufs = val;
+}
+
+static void
+vrrp_netlink_cmd_rcv_bufs_force_handler(vector_t *strvec)
+{
+	int res = true;
+
+	if (!strvec)
+		return;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			log_message(LOG_INFO, "Invalid value '%s' for global vrrp_netlink_cmd_rcv_bufs_force specified", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+
+	global_data->vrrp_netlink_cmd_rcv_bufs_force = res;
+}
+#endif
+
+#ifdef _WITH_LVS_
+static void
+lvs_netlink_monitor_rcv_bufs_handler(vector_t *strvec)
+{
+	unsigned val;
+
+	if (!strvec)
+		return;
+
+	val = get_netlink_rcv_bufs_size(strvec, "lvs_netlink_monitor");
+
+	if (val)
+		global_data->lvs_netlink_monitor_rcv_bufs = val;
+}
+
+static void
+lvs_netlink_monitor_rcv_bufs_force_handler(vector_t *strvec)
+{
+	int res = true;
+
+	if (!strvec)
+		return;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			log_message(LOG_INFO, "Invalid value '%s' for global lvs_netlink_monitor_rcv_bufs_force specified", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+
+	global_data->lvs_netlink_monitor_rcv_bufs_force = res;
+}
+
+static void
+lvs_netlink_cmd_rcv_bufs_handler(vector_t *strvec)
+{
+	unsigned val;
+
+	if (!strvec)
+		return;
+
+	val = get_netlink_rcv_bufs_size(strvec, "lvs_netlink_cmd");
+
+	if (val)
+		global_data->lvs_netlink_cmd_rcv_bufs = val;
+}
+
+static void
+lvs_netlink_cmd_rcv_bufs_force_handler(vector_t *strvec)
+{
+	int res = true;
+
+	if (!strvec)
+		return;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			log_message(LOG_INFO, "Invalid value '%s' for global lvs_netlink_cmd_rcv_bufs_force specified", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+
+	global_data->lvs_netlink_cmd_rcv_bufs_force = res;
+}
+
+static void
+rs_init_notifies_handler(vector_t *strvec)
+{
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			log_message(LOG_INFO, "Invalid value '%s' for global rs_init_notifies specified", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+
+	global_data->rs_init_notifies = res;
+}
+
+static void
+no_checker_emails_handler(vector_t *strvec)
+{
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			log_message(LOG_INFO, "Invalid value '%s' for global no_checker_emails specified", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+
+	global_data->no_checker_emails = res;
+}
+#endif
 
 void
 init_global_keywords(bool global_active)
@@ -820,11 +1200,12 @@ init_global_keywords(bool global_active)
 	/* global definitions mapping */
 	install_keyword_root("linkbeat_use_polling", use_polling_handler, global_active);
 #if HAVE_DECL_CLONE_NEWNET
-	install_keyword_root("net_namespace", &net_namespace_handler, !global_active);
-	install_keyword_root("namespace_with_ipsets", &namespace_ipsets_handler, !global_active);
+	install_keyword_root("net_namespace", &net_namespace_handler, global_active);
+	install_keyword_root("namespace_with_ipsets", &namespace_ipsets_handler, global_active);
 #endif
-	install_keyword_root("use_pid_dir", &use_pid_dir_handler, !global_active);
-	install_keyword_root("instance", &instance_handler, !global_active);
+	install_keyword_root("use_pid_dir", &use_pid_dir_handler, global_active);
+	install_keyword_root("instance", &instance_handler, global_active);
+	install_keyword_root("child_wait_time", &child_wait_handler, global_active);
 	install_keyword_root("global_defs", NULL, global_active);
 	install_keyword("router_id", &routerid_handler);
 	install_keyword("notification_email_from", &emailfrom_handler);
@@ -832,7 +1213,16 @@ init_global_keywords(bool global_active)
 	install_keyword("smtp_helo_name", &smtphelo_handler);
 	install_keyword("smtp_connect_timeout", &smtpto_handler);
 	install_keyword("notification_email", &email_handler);
+	install_keyword("smtp_alert", &smtp_alert_handler);
 #ifdef _WITH_VRRP_
+	install_keyword("smtp_alert_vrrp", &smtp_alert_vrrp_handler);
+#endif
+#ifdef _WITH_LVS_
+	install_keyword("smtp_alert_checker", &smtp_alert_checker_handler);
+#endif
+#ifdef _WITH_VRRP_
+	install_keyword("dynamic_interfaces", &dynamic_interfaces_handler);
+	install_keyword("no_email_faults", &no_email_faults_handler);
 	install_keyword("default_interface", &default_interface_handler);
 #endif
 #ifdef _WITH_LVS_
@@ -865,6 +1255,12 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_strict", &vrrp_strict_handler);
 	install_keyword("vrrp_priority", &vrrp_prio_handler);
 	install_keyword("vrrp_no_swap", &vrrp_no_swap_handler);
+#ifdef _HAVE_SCHED_RT_
+	install_keyword("vrrp_rt_priority", &vrrp_rt_priority_handler);
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+	install_keyword("vrrp_rlimit_rtime", &vrrp_rt_rlimit_handler);
+#endif
+#endif
 #endif
 	install_keyword("notify_fifo", &global_notify_fifo);
 	install_keyword("notify_fifo_script", &global_notify_fifo_script);
@@ -875,16 +1271,31 @@ init_global_keywords(bool global_active)
 #ifdef _WITH_LVS_
 	install_keyword("lvs_notify_fifo", &lvs_notify_fifo);
 	install_keyword("lvs_notify_fifo_script", &lvs_notify_fifo_script);
-#endif
-#ifdef _WITH_LVS_
 	install_keyword("checker_priority", &checker_prio_handler);
 	install_keyword("checker_no_swap", &checker_no_swap_handler);
+#ifdef _HAVE_SCHED_RT_
+	install_keyword("checker_rt_priority", &checker_rt_priority_handler);
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+	install_keyword("checker_rlimit_rtime", &checker_rt_rlimit_handler);
+#endif
+#endif
+#endif
+#ifdef _WITH_BFD_
+	install_keyword("bfd_priority", &bfd_prio_handler);
+	install_keyword("bfd_no_swap", &bfd_no_swap_handler);
+#ifdef _HAVE_SCHED_RT_
+	install_keyword("bfd_rt_priority", &bfd_rt_priority_handler);
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+	install_keyword("bfd_rlimit_rtime", &bfd_rt_rlimit_handler);
+#endif
+#endif
 #endif
 #ifdef _WITH_SNMP_
 	install_keyword("snmp_socket", &snmp_socket_handler);
 	install_keyword("enable_traps", &trap_handler);
 #ifdef _WITH_SNMP_VRRP_
-	install_keyword("enable_snmp_keepalived", &snmp_keepalived_handler);
+	install_keyword("enable_snmp_vrrp", &snmp_vrrp_handler);
+	install_keyword("enable_snmp_keepalived", &snmp_vrrp_handler);	/* Deprecated v2.0.0 */
 #endif
 #ifdef _WITH_SNMP_RFC_
 	install_keyword("enable_snmp_rfc", &snmp_rfc_handler);
@@ -905,4 +1316,20 @@ init_global_keywords(bool global_active)
 #endif
 	install_keyword("script_user", &script_user_handler);
 	install_keyword("enable_script_security", &script_security_handler);
+#ifdef _WITH_VRRP_
+	install_keyword("vrrp_netlink_cmd_rcv_bufs", &vrrp_netlink_cmd_rcv_bufs_handler);
+	install_keyword("vrrp_netlink_cmd_rcv_bufs_force", &vrrp_netlink_cmd_rcv_bufs_force_handler);
+	install_keyword("vrrp_netlink_monitor_rcv_bufs", &vrrp_netlink_monitor_rcv_bufs_handler);
+	install_keyword("vrrp_netlink_monitor_rcv_bufs_force", &vrrp_netlink_monitor_rcv_bufs_force_handler);
+#endif
+#ifdef _WITH_LVS_
+	install_keyword("lvs_netlink_cmd_rcv_bufs", &lvs_netlink_cmd_rcv_bufs_handler);
+	install_keyword("lvs_netlink_cmd_rcv_bufs_force", &lvs_netlink_cmd_rcv_bufs_force_handler);
+	install_keyword("lvs_netlink_monitor_rcv_bufs", &lvs_netlink_monitor_rcv_bufs_handler);
+	install_keyword("lvs_netlink_monitor_rcv_bufs_force", &lvs_netlink_monitor_rcv_bufs_force_handler);
+#endif
+#ifdef _WITH_LVS_
+	install_keyword("rs_init_notifies", &rs_init_notifies_handler);
+	install_keyword("no_checker_emails", &no_checker_emails_handler);
+#endif
 }

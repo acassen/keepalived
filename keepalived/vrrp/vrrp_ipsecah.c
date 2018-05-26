@@ -19,10 +19,13 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2016 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #include "config.h"
+
+#include <openssl/md5.h>
+#include <string.h>
 
 #include "vrrp_ipsecah.h"
 

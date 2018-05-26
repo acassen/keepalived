@@ -23,7 +23,10 @@
 #ifndef _BITOPS_H
 #define _BITOPS_H
 
+#include "config.h"
+
 #include <limits.h>
+#include <stdbool.h>
 
 /* Defines */
 #define BIT_PER_LONG	(CHAR_BIT * sizeof(unsigned long))
@@ -60,6 +63,7 @@ enum global_bits {
 	DONT_RELEASE_IPVS_BIT,
 #endif
 	LOG_DETAIL_BIT,
+	LOG_EXTRA_DETAIL_BIT,
 	DONT_RESPAWN_BIT,
 #ifdef _MEM_CHECK_
 	MEM_ERR_DETECT_BIT,

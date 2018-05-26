@@ -23,7 +23,10 @@
 
 #include "config.h"
 
+#include <errno.h>
 #include <fcntl.h>
+#include <unistd.h>
+#include <sys/wait.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -32,10 +35,11 @@
 #endif
 
 #include "ipvswrapper.h"
+#include "global_data.h"
 #include "list.h"
 #include "utils.h"
-#include "memory.h"
 #include "logger.h"
+#include "libipvs.h"
 
 static bool no_ipvs = false;
 

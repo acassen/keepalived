@@ -33,10 +33,10 @@ similar output on a CentOS 6 machine::
     ------------------------
     Keepalived version       : 1.2.15
     Compiler                 : gcc
-    Compiler flags           : -g -O2 -I/usr/include/libnl3  
+    Compiler flags           : -g -O2 -I/usr/include/libnl3
     Extra Lib                : -Wl,-z,relro -Wl,-z,now -L/usr/lib64
     -lnetsnmpagent -lnetsnmphelpers -lnetsnmpmibs -lnetsnmp -Wl,-E
-    -Wl,-rpath,/usr/lib64/perl5/CORE -lssl -lcrypto -lcrypt  -lnl-genl-3 -lnl-3  
+    -Wl,-rpath,/usr/lib64/perl5/CORE -lssl -lcrypto -lcrypt  -lnl-genl-3 -lnl-3
     Use IPVS Framework       : Yes
     IPVS sync daemon support : Yes
     IPVS use libnl           : Yes
@@ -69,7 +69,7 @@ Adding the MIB
 
 You can query keepalived SNMP managed objects by using the OID.  For example::
 
-    snmpwalk -v2c -c public localhost .1.3.6.1.4.1.9586.100.5.1.1.0 
+    snmpwalk -v2c -c public localhost .1.3.6.1.4.1.9586.100.5.1.1.0
     SNMPv2-SMI::enterprises.9586.100.5.1.1.0 = STRING: "Keepalived v1.2.15 (01/10,2015)"
 
 Alternatively, with the keepalived MIB, you can query using the MIB available
@@ -111,7 +111,7 @@ VRRP
 
 The VRRP section includes objects that contain information about each
 configured VRRP instance.  Within each instance, there are objects that include
-instance name, current state, and virtual IP addresses. 
+instance name, current state, and virtual IP addresses.
 
 Check
 =====

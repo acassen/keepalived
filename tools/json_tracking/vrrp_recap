@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+
+#####
+#
+# This script triggers Keepalived's dump-to-json function
+# and prints most of the interesting info into a table.
+#
+# Author: Damien Clabaut <damien.clabaut@corp.ovh.com>
+#
+#####
+
+import datetime
+import json
+import os
+import sys
+import time
+from prettytable import PrettyTable
+
+# Configuration
+# Path to the keepalived json dump
+keepalived_json_file = "/tmp/keepalived.json"
+
+# Path to the keepalived PID file
+keepalived_pid_file = "/var/run/keepalived.pid"
+
+
+with open(keepalived_pid_file, "r") as f:
+    keepalived_pid = int(f.read())
+
+os.kill(keepalived_pid, 36)
+
+try:
+    time.sleep(0.5)
+    keepalived_data = json.load(open(keepalived_json_file))
+except:
+    sys.exit("Could not load json from file, please check that keepalived is running at a compatible version")
+
+data_table = PrettyTable([
+                          "Instance", "Interface", "Addresses", "Version",
+                          "Priority", "Master prio", "State", "Last Transition"
+                        ])
+for instance in keepalived_data:
+    if instance["data"]["state"] == 0:
+        instance["data"]["state_cleartext"] = "Init"
+    elif instance["data"]["state"] == 1:
+        instance["data"]["state_cleartext"] = "Slave"
+    elif instance["data"]["state"] == 2:
+        instance["data"]["state_cleartext"] = "Master"
+    else:
+        instance["data"]["state_cleartext"] = "Fault"
+
+    unicast_vips = []
+    for vip in instance["data"]["vips"]:
+        # We do not display link-local addresses as they are usually not relevant
+        if not vip.startswith("fe80"):
+            unicast_vips.append(vip)
+
+    data_table.add_row([
+                        int(instance["data"]["iname"]), instance["data"]["vmac_ifname"],
+                        "\n".join(unicast_vips), instance["data"]["version"],
+                        instance["data"]["effective_priority"], instance["data"]["master_priority"],
+                        instance["data"]["state_cleartext"],
+                        datetime.datetime.fromtimestamp(instance["data"]["last_transition"])
+                      ])
+
+print(data_table.get_string(sortby="Instance"))

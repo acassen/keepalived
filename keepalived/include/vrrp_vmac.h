@@ -17,27 +17,24 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2016 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #ifndef _VRRP_VMAC_H
 #define _VRRP_VMAC_H
 
 /* global includes */
-#include <stdio.h>
-#include <stdlib.h>
-#include <arpa/inet.h>
-#include <string.h>
-#include <syslog.h>
-#ifdef _HAVE_NETINET_LINUX_IF_ETHER_H_COLLISION_
+#include <sys/types.h>
+#if defined _HAVE_NETINET_LINUX_IF_ETHER_H_COLLISION_ && \
+    defined _LINUX_IF_ETHER_H && \
+    !defined _NETINET_IF_ETHER_H
 #define _NETINET_IF_ETHER_H
-#include <linux/if_ether.h>
 #endif
 #include <net/ethernet.h>
+#include <stdbool.h>
 
 /* local includes */
 #include "vrrp.h"
-#include "vrrp_if.h"
 
 /* Defines */
 enum vrrp_vmac_bits {
@@ -50,7 +47,12 @@ extern const char * const macvlan_ll_kind;
 extern u_char ll_addr[ETH_ALEN];
 
 /* prototypes */
-extern int netlink_link_add_vmac(vrrp_t *);
-extern int netlink_link_del_vmac(vrrp_t *);
+extern bool add_link_local_address(interface_t *, struct in6_addr*);
+extern bool replace_link_local_address(interface_t *);
+#if !HAVE_DECL_IFLA_INET6_ADDR_GEN_MODE
+extern void remove_vmac_auto_gen_addr(interface_t *, struct in6_addr *);
+#endif
+extern bool netlink_link_add_vmac(vrrp_t *);
+extern bool netlink_link_del_vmac(vrrp_t *);
 
 #endif

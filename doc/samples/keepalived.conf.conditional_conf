@@ -1,0 +1,34 @@
+# Run keepalived with either '-i high' or '-i low'
+
+@high net_namespace high
+@low net_namespace low
+
+vrrp_script check_VI_0 {
+@high	script /etc/keepalived/scripts/check_high_VI_0.sh
+@low	script /etc/keepalived/scripts/check_low_VI_0.sh
+	interval 1
+	timeout 10
+	rise 3
+	fall 3
+}
+
+vrrp_instance VI_0 {
+	state BACKUP
+	interface eth0
+	virtual_router_id 1
+@high	priority 170
+@low	priority 85
+	advert_int 12
+	version 3
+	use_vmac
+	track_script {
+		check_VI_0
+	}
+	track_interface {
+		eth3
+		eth2 weight 20
+	}
+	virtual_ipaddress {
+		10.1.0.254/32
+	}
+}

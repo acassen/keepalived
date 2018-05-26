@@ -69,7 +69,7 @@ The ``genhash`` binary is used to generate digest strings. The genhash command
 line arguments are:
 
 .. glossary::
-    
+
     --use-ssl, -S
           Use SSL to connect to the server.
 

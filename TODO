@@ -1,1 +1,168 @@
 Whatever you want !
+
+The following are still outstanding from the ideas for what was the beta
+development:
+
+	* Tracking static addresses (See pull request 478)
+	* Routes/rules being removed (static and dynamic)
+	* Route can be removed if i/f goes down
+	* Tracking static rules/routes
+	* For static/dynamic rules/routes/addresses, add a no-track option
+	* Allow specification for interfaces not existing at startup - but report them.
+	    When interface later created, bring up any vrrp instances and routes that should be using it.
+	* May need to restore static routes/addresses when interfaces are restored
+	    May need to restore routes when addresses are restored
+	* Add track_if/track_route for static routes
+	* Add option for whether vrrp instance to go down if static/dynamic rule/route/address disappears
+	* Add static addresses and routes on vmacs
+	* Ensure all relevant notifications sent
+	    May want to stop VS down at start for alpha mode RSs (except SNMP)
+	* Rate limit respawning if a child process dies
+	* Have a socket to connect to for receiving notifications. A process
+	    can register for what notifications it wants to receive.
+	* Allow variable parameters to be passed to scripts - see issue #837
+	* Make tarball include git version if not a tag
+	* In open_vrrp_receive_socket, set buffer size to a "reasonable" size
+	    - config option, default size 212992 / 2 (is this bigger than
+	    necessary?) - ? 2 * (size of adverts for all instances)
+	* If an address owner recovers from fault, transition directly to
+	  master
+	* If configuration_state=MASTER && !OWNER, transition to master after
+	  1 * advert_int + skew. Sort out all initialisation around states
+	* Split vrrp_snmp.c into vrrp_snmp_keepalived.c vrrp_snmp_rfcv2.c and
+	  vrrp_snmp_rfcv3.c
+	* Only send correct type of trap, and respond to correct SNMP version,
+	  controlled by config, defaults to type of instance. Flags snmp_v2 and
+	  snmp_v3 to force other, or both.
+	* Ensure unicast peers groups check source address of received advert
+	  so that the same VRID can be used between different peer groups on the
+	  same interface.
+	* Add process checking:
+	    Add track_process for vrrp instances
+	    Add PROCESS_CHECK for checkers
+	    - Find PID and remember it. If PID has gone, try and find new pid
+	    Look at how pidof/killall find processes
+
+
+Other issues awaiting resolution:
+
+ipvs_group_range_cmd() appears nonsense, and inet_stor returning a uint8_t
+doesn't work for IPv6. The virtual_service_entry_t thing needs range to be
+uint32_t. Why would mask be 0xffffffff for IPv6?
+
+ip_vs_daemon_kern vs /usr/include/linux/ip_vs.h ip_vs_daemon_user
+
+vrrp_timer_fd should return 0 if an fd's timer is in the past?
+
+Make vrrp->send_buffer a single buffer for all
+
+Check timers passto to thread_... functions are reasonable, and stacktrace if not.
+
+In function socket_state, should thread_add_write use timer_long() or -timer_long()
+
+vrrp_timer_fd() - see comment
+
+In thread functions with a timer, ensure not > LONG_MAX (or even some lower value);
+
+Change tcp_socket_state etc to socket_state etc
+
+Add noreturn function attribute on stop_vrrp/check
+
+bin/genhash -s 2001:470:69dd:35::188 --port 80 -u /Harriet/     # works, but
+bin/genhash -s 2001:470:69dd:35::188 --port 80 -u /Harriet/     # -S doesn't
+								# but -S is OK with IPv4 address
+
+in ipvswrapper.c, get rid of static srule etc and make them procedure local and pass as parameters
+
+Stop passing base_ifp to netlink3_set_interface_parameters() etc
+
+ipsecah issues
+==============
+1. sync and vmac ignore counter
+
+2. Start up just after master dies, but have lowest priority so become master with counter == 1
+
+3. cycle won't happen
+
+4. In vrrp_backup, don't check auth type matches
+
+5. ? if cycle becomes set, we must become backup. How do we get out of state?
+
+Interfaces going down
+======================
+
+1. Interface goes down
+	VMACs removed
+	IP addresses removed
+	IP routes using dev removed
+
+2. Address removed
+	IP routes using address removed
+
+3. VMAC removed
+
+4. IP Route removed
+
+When interface comes back up:
+1. Recreate VMACs
+2. Add back static routes and addresses
+
+Add "required" against against routes/addresses
+
+Add id for static routes:
+static_routes FRED {
+...
+}
+and in vrrp instance
+track_static_routes {
+    FRED
+}
+
+and similarly for static_ipaddress
+
+Add global keyword
+  track_added
+to make vrrp instances go to backup or fault state if anything they added goes away
+(backup if can re-add, fault it not).
+
+Add option `track` to virtual route to do same as global track_added, but for
+that route for that vrrp instance. If route has a dev, then
+
+Add option track for virtual ip address, which will add specified dev to tracked interfaces.
+
+Add options at static config level and vrrp instance to track system ip addresses and track system routes
+(although this is crudely available via scripts).
+
+Solution
+========
+
+    Add keywords track_vip_ifs and track_vroute_ifs  - would make the vrrp instance track the interfaces that vips are configured on (we probably ought to have a track_vroute_ifs too)
+    Add keyword track against vips and vroutes so that if a vip or vroute is deleted, the instance will transition to backup state
+    Add keywords track_vips and track_vroutes to track all a vrrp instances vips or vroutes (same effect as configuring track against all vips or vroutes). We could also add these as global keywords too to make it the default for all vrrp instances.
+    Modify keywords static_ipaddress and static_routes to add an optional track name, for example:
+    static_ipaddress track_group1 {. Then add keywords track_sip and track_sroute for vrrp instances, so that the static ip addresses and static routes for the vrrp instance to track can be specified. Again, track_sips and track_sroutes could be global keywords to make all instances track all static ips and static routes.
+    If a static ip address or static route is deleted due to an interface going down, then when the interface returns, re-add the static ip address/routes.
+    Add global keyword track_ip_route which is the same as specifing track_vips, track_vroutes, track_sips and track_sroutes at the global level.
+    Add keyword restore for static ip addresses and static routes so that if they are deleted, we automatically add them back.
+    Add notify_vip_deleted and notify_vroute_deleted notify scripts. Can we also add notify_sip_deleted and notify_sroute_deleted scritps?
+    If a vmac interface is removed, transition to backup state (or fault state if the underlying interface is down) and re-add the vmac interface immediately if possible, or when the underlying interface comes up again (the vmac interfaces are ours, so no-one else should delete them).
+
+
+epoll
+=====
+Use timerfd (see timerfd_create(2)) for microsecond timing with epoll, and do not bother with its timeout.
+If not available, then simply use the epoll timer.
+
+Optimise calls to timer_now() and see set_time_now()
+====================================================
+After select completes, get time. Before calculating next
+select expire time, get time again.
+To test time processing, save time after select and log time taken
+before next select. Also initialise timer at startup.
+
+Add api
+=======
+
+Add pipe for updates
+====================
+track_script like for absolute or relative priority

@@ -11,9 +11,9 @@ produce a safe and secure code, ensuring production robustness and stability.
 
 To ensure robustness and stability, daemon is split into 3 distinct processes:
 
-* A minimalistic parent process in charge with forked children process monitoring. 
-* Two children processes, one responsible for VRRP framework and the other for healthchecking. 
-    
+* A minimalistic parent process in charge with forked children process monitoring.
+* Two children processes, one responsible for VRRP framework and the other for healthchecking.
+
 Each children process has its own scheduling I/O multiplexer, that way VRRP
 scheduling jitter is optimized since VRRP scheduling is more sensible/critical
 than healthcheckers. This split design minimalizes for healthchecking the usage
@@ -30,10 +30,10 @@ This watchdog design offers 2 benefits, first of all hello packets sent from
 parent process to remote connected children is done throught I/O multiplexer
 scheduler that way it can detect deadloop in the children scheduling framework.
 The second benefit is brought by the uses of sysV signal to detect dead
-children. When running you will see in process list:: 
+children. When running you will see in process list::
 
-    PID         111     Keepalived  <-- Parent process monitoring children 
-                112     \_ Keepalived   <-- VRRP child 
+    PID         111     Keepalived  <-- Parent process monitoring children
+                112     \_ Keepalived   <-- VRRP child
                 113     \_ Keepalived   <-- Healthchecking child
 
 Kernel Components
@@ -44,7 +44,7 @@ Keepalived uses four Linux kernel components:
 1. LVS Framework: Uses the getsockopt and setsockopt calls to get and set options on sockets.
 #. Netfilter Framework: IPVS code that supports NAT and Masquerading.
 #. Netlink Interface: Sets and removes VRRP virtual IPs on network interfaces.
-#. Multicast:  VRRP advertisements are sent to the reserved VRRP MULTICAST group (224.0.0.18). 
+#. Multicast:  VRRP advertisements are sent to the reserved VRRP MULTICAST group (224.0.0.18).
 
 
 Atomic Elements
@@ -220,21 +220,21 @@ demultiplexing specific I/O for each VRRP instance.
 
 From RFC2338, VRRP is defined as::
 
-    “VRRP specifies an election protocol that dynamically assigns 
-    responsibility for a virtual router to one of the VRRP routers on a LAN. 
-    The VRRP router controlling the IP address(es) associated with a virtual 
-    router is called the Master, and forwards packets sent to these IP 
-    addresses. The election process provides dynamic fail over in the 
-    forwarding responsibility should the Master become unavailable. This allows 
-    any of the virtual router IP addresses on the LAN to be used as the default 
-    first hop router by end-hosts. The advantage gained from using VRRP is a 
-    higher availability default path without requiring configuration of dynamic 
-    routing or router discovery protocols on every end-host.” [rfc2338] 
+    “VRRP specifies an election protocol that dynamically assigns
+    responsibility for a virtual router to one of the VRRP routers on a LAN.
+    The VRRP router controlling the IP address(es) associated with a virtual
+    router is called the Master, and forwards packets sent to these IP
+    addresses. The election process provides dynamic fail over in the
+    forwarding responsibility should the Master become unavailable. This allows
+    any of the virtual router IP addresses on the LAN to be used as the default
+    first hop router by end-hosts. The advantage gained from using VRRP is a
+    higher availability default path without requiring configuration of dynamic
+    routing or router discovery protocols on every end-host.” [rfc2338]
 
-.. note::  
-    This framework is LVS independent, so you can use it for LVS director 
-    failover, even for other Linux routers needing a Hot-Standby protocol. 
-    This framework has been completely integrated in the Keepalived daemon for 
+.. note::
+    This framework is LVS independent, so you can use it for LVS director
+    failover, even for other Linux routers needing a Hot-Standby protocol.
+    This framework has been completely integrated in the Keepalived daemon for
     design & robustness reasons.
 
 The main functionalities provided by this framework are:
@@ -243,7 +243,7 @@ The main functionalities provided by this framework are:
 * VRRP Instance synchronization: We can specify a state monitoring between 2 VRRP Instances, also known as a *VRRP sync group*. It guarantees that 2 VRRP Instances remain in the same state. The synchronized instances monitor each other.
 * Nice Fallback
 * Advert Packet integrity: Using IPSEC-AH ICV.
-* System call: During a VRRP state transition, an external script/program may be called. 
+* System call: During a VRRP state transition, an external script/program may be called.
 
 
 Note on Using VRRP with Virtual MAC Address

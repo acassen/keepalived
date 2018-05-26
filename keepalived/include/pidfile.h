@@ -24,11 +24,6 @@
 #define _PIDFILE_H
 
 /* system include */
-#include <unistd.h>
-#include <stdio.h>
-#include <signal.h>
-#include <sys/types.h>
-#include <syslog.h>
 #include <stdbool.h>
 #include <paths.h>
 
@@ -40,8 +35,15 @@
 #endif
 #define KEEPALIVED_PID_DIR	PID_DIR PACKAGE "/"
 #define KEEPALIVED_PID_FILE	PACKAGE
+#ifdef _WITH_VRRP_
 #define VRRP_PID_FILE		"vrrp"
+#endif
+#ifdef _WITH_LVS_
 #define CHECKERS_PID_FILE	"checkers"
+#endif
+#ifdef _WITH_BFD_
+#define BFD_PID_FILE		"bfd"
+#endif
 #define	PID_EXTENSION		".pid"
 
 extern const char *pid_directory;

@@ -24,13 +24,13 @@
 
 #include "config.h"
 
+#include <errno.h>
+#include <unistd.h>
 #include <time.h>
 
 #include "smtp.h"
-#include "global_data.h"
-#include "scheduler.h"
 #include "memory.h"
-#include "list.h"
+#include "layer4.h"
 #include "logger.h"
 #include "utils.h"
 #if !HAVE_DECL_SOCK_CLOEXEC
@@ -39,6 +39,8 @@
 #ifdef _WITH_LVS_
 #include "check_api.h"
 #endif
+//#include "main.h"
+//#include "parser.h"
 
 /* SMTP FSM definition */
 static int connection_error(thread_t *);
@@ -587,11 +589,16 @@ smtp_connect(smtp_t * smtp)
 {
 	enum connect_result status;
 
-	if ((smtp->fd = socket(global_data->smtp_server.ss_family, SOCK_STREAM | SOCK_CLOEXEC, IPPROTO_TCP)) == -1) {
+	if ((smtp->fd = socket(global_data->smtp_server.ss_family, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, IPPROTO_TCP)) == -1) {
 		DBG("SMTP connect fail to create socket.");
 		free_smtp_all(smtp);
 		return;
 	}
+
+#if !HAVE_DECL_SOCK_NONBLOCK
+	if (set_sock_flags(smtp->fd, F_SETFL, O_NONBLOCK))
+		log_message(LOG_INFO, "Unable to set NONBLOCK on smtp_connect socket - %s (%d)", strerror(errno), errno);
+#endif
 
 #if !HAVE_DECL_SOCK_CLOEXEC
 	if (set_sock_flags(smtp->fd, F_SETFD, FD_CLOEXEC))
@@ -606,87 +613,125 @@ smtp_connect(smtp_t * smtp)
 
 /* Main entry point */
 void
-smtp_alert(
-#ifndef _WITH_LVS_
-	   __attribute__((unused)) void *dummy1,
-#else
-	   checker_t* checker,
-#endif
-#ifndef _WITH_VRRP_
-	   __attribute__((unused)) void *dummy2, __attribute__((unused)) void *dummy3,
-#else
-	   vrrp_t * vrrp, vrrp_sgroup_t * vgroup,
-#endif
-	   const char *subject, const char *body)
+smtp_alert(smtp_msg_t msg_type, void* data, const char *subject, const char *body)
 {
 	smtp_t *smtp;
+#ifdef _WITH_VRRP_
+	vrrp_t *vrrp;
+	vrrp_sgroup_t *vgroup;
+#endif
+#ifdef _WITH_LVS_
+	checker_t *checker;
+	virtual_server_t *vs;
+	smtp_rs *rs_info;
+#endif
 
 	/* Only send mail if email specified */
-	if (!LIST_ISEMPTY(global_data->email) && global_data->smtp_server.ss_family != 0) {
-		/* allocate & initialize smtp argument data structure */
-		smtp = (smtp_t *) MALLOC(sizeof(smtp_t));
-		smtp->subject = (char *) MALLOC(MAX_HEADERS_LENGTH);
-		smtp->body = (char *) MALLOC(MAX_BODY_LENGTH);
-		smtp->buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
-		smtp->email_to = (char *) MALLOC(SMTP_BUFFER_MAX);
+	if (LIST_ISEMPTY(global_data->email) || !global_data->smtp_server.ss_family)
+		return;
 
-		/* format subject if rserver is specified */
+	/* allocate & initialize smtp argument data structure */
+	smtp = (smtp_t *) MALLOC(sizeof(smtp_t));
+	smtp->subject = (char *) MALLOC(MAX_HEADERS_LENGTH);
+	smtp->body = (char *) MALLOC(MAX_BODY_LENGTH);
+	smtp->buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
+	smtp->email_to = (char *) MALLOC(SMTP_BUFFER_MAX);
+
+	/* format subject if rserver is specified */
 #ifdef _WITH_LVS_
-		if (checker) {
-			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Realserver %s - %s",
-						global_data->router_id,
-						FMT_RS(checker->rs, checker->vs),
-						subject);
-		}
-		else
+	if (msg_type == SMTP_MSG_RS) {
+		checker = (checker_t *)data;
+		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Realserver %s of virtual server %s - %s",
+					global_data->router_id,
+					FMT_RS(checker->rs, checker->vs),
+					FMT_VS(checker->vs),
+					checker->rs->alive ? "UP" : "DOWN");
+	}
+	else if (msg_type == SMTP_MSG_VS) {
+		vs = (virtual_server_t *)data;
+		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Virtualserver %s - %s",
+					global_data->router_id,
+					FMT_VS(vs),
+					subject);
+	}
+	else if (msg_type == SMTP_MSG_RS_SHUT) {
+		rs_info = (smtp_rs *)data;
+		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Realserver %s of virtual server %s - %s",
+					global_data->router_id,
+					FMT_RS(rs_info->rs, rs_info->vs),
+					FMT_VS(rs_info->vs),
+					subject);
+	}
+	else
 #endif
 #ifdef _WITH_VRRP_
-		if (vrrp)
-			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] VRRP Instance %s - %s"
-					      , global_data->router_id
-					      , vrrp->iname
-					      , subject);
-		else if (vgroup)
-			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] VRRP Group %s - %s"
-					      , global_data->router_id
-					      , vgroup->gname
-					      , subject);
-		else
+	if (msg_type == SMTP_MSG_VRRP) {
+		vrrp = (vrrp_t *)data;
+		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] VRRP Instance %s - %s",
+					global_data->router_id,
+					vrrp->iname,
+					subject);
+	} else if (msg_type == SMTP_MSG_VGROUP) {
+		vgroup = (vrrp_sgroup_t *)data;
+		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] VRRP Group %s - %s",
+					global_data->router_id,
+					vgroup->gname,
+					subject);
+	}
+	else
 #endif
-		if (global_data->router_id)
-			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] %s"
-					      , global_data->router_id
-					      , subject);
-		else
-			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "%s", subject);
+	if (global_data->router_id)
+		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] %s"
+				      , global_data->router_id
+				      , subject);
+	else
+		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "%s", subject);
 
-		strncpy(smtp->body, body, MAX_BODY_LENGTH - 1);
-		smtp->body[MAX_BODY_LENGTH - 1]= '\0';
+	strncpy(smtp->body, body, MAX_BODY_LENGTH - 1);
+	smtp->body[MAX_BODY_LENGTH - 1]= '\0';
 
-		build_to_header_rcpt_addrs(smtp);
+	build_to_header_rcpt_addrs(smtp);
 
 #ifdef _SMTP_ALERT_DEBUG_
-		FILE *fp = fopen("/tmp/smtp-alert.log", "a");
-		struct tm tm;
-		char time_buf[25];
-		int time_buf_len;
+	FILE *fp = fopen("/tmp/smtp-alert.log", "a");
+	struct tm tm;
+	char time_buf[25];
+	int time_buf_len;
 
-		localtime_r(&time_now.tv_sec, &tm);
-		time_buf_len = strftime(time_buf, sizeof time_buf, "%a %b %e %X %Y", &tm);
+	localtime_r(&time_now.tv_sec, &tm);
+	time_buf_len = strftime(time_buf, sizeof time_buf, "%a %b %e %X %Y", &tm);
 
-		fprintf(fp, "%s: %s -> %s\n"
-			    "%*sSubject: %s\n"
-			    "%*sBody:    %s\n\n",
-			    time_buf, global_data->email_from, smtp->email_to,
-			    time_buf_len - 7, "", smtp->subject,
-			    time_buf_len - 7, "", smtp->body);
+	fprintf(fp, "%s: %s -> %s\n"
+		    "%*sSubject: %s\n"
+		    "%*sBody:    %s\n\n",
+		    time_buf, global_data->email_from, smtp->email_to,
+		    time_buf_len - 7, "", smtp->subject,
+		    time_buf_len - 7, "", smtp->body);
 
-		fclose(fp);
+	fclose(fp);
 
-		free_smtp_all(smtp);
-		return;
+	free_smtp_all(smtp);
+	return;
 #endif
 
-		smtp_connect(smtp);
-	}
+	smtp_connect(smtp);
 }
+
+#ifdef _TIMER_DEBUG_
+void
+print_smtp_addresses(void)
+{
+	log_message(LOG_INFO, "Address of body_cmd() is 0x%p", body_cmd);
+	log_message(LOG_INFO, "Address of connection_error() is 0x%p", connection_error);
+	log_message(LOG_INFO, "Address of connection_in_progress() is 0x%p", connection_in_progress);
+	log_message(LOG_INFO, "Address of connection_success() is 0x%p", connection_success);
+	log_message(LOG_INFO, "Address of connection_timeout() is 0x%p", connection_timeout);
+	log_message(LOG_INFO, "Address of data_cmd() is 0x%p", data_cmd);
+	log_message(LOG_INFO, "Address of helo_cmd() is 0x%p", helo_cmd);
+	log_message(LOG_INFO, "Address of mail_cmd() is 0x%p", mail_cmd);
+	log_message(LOG_INFO, "Address of quit_cmd() is 0x%p", quit_cmd);
+	log_message(LOG_INFO, "Address of rcpt_cmd() is 0x%p", rcpt_cmd);
+	log_message(LOG_INFO, "Address of smtp_read_thread() is 0x%p", smtp_read_thread);
+	log_message(LOG_INFO, "Address of smtp_send_thread() is 0x%p", smtp_send_thread);
+}
+#endif

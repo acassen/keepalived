@@ -17,11 +17,13 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2016 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #ifndef _HTML_H
 #define _HTML_H
+
+#include <sys/types.h>
 
 /* Prototypes */
 extern size_t extract_content_length(char *buffer, size_t size);

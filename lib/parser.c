@@ -31,6 +31,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <fcntl.h>
+#include <stdlib.h>
+#include <ctype.h>
 #include <stdbool.h>
 #include <linux/version.h>
 #include <pwd.h>
@@ -41,6 +43,7 @@
 #include "logger.h"
 #include "rttables.h"
 #include "scheduler.h"
+#include "notify.h"
 #include "list.h"
 
 #define DUMP_KEYWORDS	0
@@ -65,7 +68,6 @@ typedef struct _defs {
 
 /* global vars */
 vector_t *keywords;
-bool reload = 0;
 char *config_id;
 
 /* local vars */
@@ -73,6 +75,7 @@ static vector_t *current_keywords;
 static FILE *current_stream;
 static int sublevel = 0;
 static int skip_sublevel = 0;
+static list multiline_stack;
 
 /* Parameter definitions */
 static list defs;
@@ -102,7 +105,7 @@ keyword_alloc(vector_t *keywords_vec, const char *string, void (*handler) (vecto
 
 	keyword = (keyword_t *) MALLOC(sizeof(keyword_t));
 	keyword->string = string;
-	keyword->handler = (active) ? handler : NULL;
+	keyword->handler = handler;
 	keyword->active = active;
 
 	vector_set_slot(keywords_vec, keyword);
@@ -149,6 +152,8 @@ install_sublevel_end(void)
 void
 install_keyword_root(const char *string, void (*handler) (vector_t *), bool active)
 {
+	/* If the root keyword is inactive, the handler will still be called,
+	 * but with a NULL strvec */
 	keyword_alloc(keywords, string, handler, active);
 }
 
@@ -382,6 +387,14 @@ process_stream(vector_t *keywords_vec, int need_bob)
 						skip_sublevel = 1;
 					else
 						skip_sublevel = -1;
+
+					/* Sometimes a process wants to know if another process
+					 * has any of a type of configuration. For example, there
+					 * is no point starting the VRRP process of there are no
+					 * vrrp instances, and so the parent process would be
+					 * interested in that. */
+					if (keyword_vec->handler)
+						(*keyword_vec->handler)(NULL);
 				}
 
 				/* There is an inconsistency here. 'static_ipaddress' for example
@@ -398,7 +411,7 @@ process_stream(vector_t *keywords_vec, int need_bob)
 						bob_needed = 1;
 				}
 
-				if (keyword_vec->handler)
+				if (keyword_vec->active && keyword_vec->handler)
 					(*keyword_vec->handler) (strvec);
 
 				if (keyword_vec->sub) {
@@ -658,7 +671,7 @@ find_definition(const char *name, size_t len, bool definition)
 }
 
 static char *
-replace_param(char *buf, size_t max_len, bool in_multiline)
+replace_param(char *buf, size_t max_len, char *multiline_ptr)
 {
 	char *cur_pos = buf;
 	size_t len_used = strlen(buf);
@@ -672,12 +685,14 @@ replace_param(char *buf, size_t max_len, bool in_multiline)
 	while ((cur_pos = strchr(cur_pos, '$')) && cur_pos[1] != '\0') {
 		if ((def = find_definition(cur_pos + 1, 0, false))) {
 			extra_braces = cur_pos[1] == BOB[0] ? 2 : 0;
+			next_ptr = multiline_ptr;
 
-			/* We can't handle nest multiline definitions */
-			if (def->multiline && in_multiline) {
-				log_message(LOG_INFO, "Expansion of multiline definition within multiline definitions not supported");
-				cur_pos += def->name_len + 1 + extra_braces;
-				continue;
+			/* We are in a multiline expansion, and now have another
+			 * one, so save the previous state on the multiline stack */
+			if (def->multiline && multiline_ptr) {
+				if (!LIST_EXISTS(multiline_stack))
+					multiline_stack = alloc_list(NULL, NULL);
+				list_add(multiline_stack, multiline_ptr);
 			}
 
 			if (def->fn) {
@@ -691,8 +706,8 @@ replace_param(char *buf, size_t max_len, bool in_multiline)
 			/* Ensure there is enough room to replace $PARAM or ${PARAM} with value */
 			if (def->multiline) {
 				replacing_len = strcspn(def->value, DEF_LINE_END);
-				in_multiline = true;
 				next_ptr = def->value + replacing_len + 1;
+				multiline_ptr = next_ptr;
 			}
 			else
 				replacing_len = def->value_len;
@@ -848,12 +863,13 @@ set_std_definitions(void)
 }
 
 static void
-free_definitions(void)
+free_parser_data(void)
 {
-	if (LIST_EXISTS(defs)) {
+	if (LIST_EXISTS(defs))
 		free_list(&defs);
-		defs = NULL;
-	}
+
+	if (LIST_EXISTS(multiline_stack))
+		free_list(&multiline_stack);
 }
 
 static bool
@@ -872,7 +888,6 @@ read_line(char *buf, size_t size)
 	bool multiline_param_def = false;
 	char *new_str;
 	char *end;
-	char *next_ptr1;
 	static char *line_residue = NULL;
 	size_t skip;
 	char *p;
@@ -891,7 +906,12 @@ read_line(char *buf, size_t size)
 			end = strchr(next_ptr, DEF_LINE_END[0]);
 			if (!end) {
 				strcpy(buf, next_ptr);
-				next_ptr = NULL;
+				if (!LIST_ISEMPTY(multiline_stack)) {
+					next_ptr = LIST_TAIL_DATA(multiline_stack);
+					list_remove(multiline_stack, multiline_stack->tail);
+				}
+				else
+					next_ptr = NULL;
 			} else {
 				strncpy(buf, next_ptr, (size_t)(end - next_ptr));
 				buf[end - next_ptr] = '\0';
@@ -997,9 +1017,7 @@ read_line(char *buf, size_t size)
 			}
 
 			if (!LIST_ISEMPTY(defs) && strchr(text_start, '$')) {
-				next_ptr1 = replace_param(buf, size, !!next_ptr);
-				if (!next_ptr)
-					next_ptr = next_ptr1;
+				next_ptr = replace_param(buf, size, next_ptr);
 				text_start += strspn(text_start, " \t");
 				if (text_start[0] == '@')
 					recheck = true;
@@ -1091,7 +1109,7 @@ read_value_block_line(vector_t *strvec)
 
 	vector_foreach_slot(strvec, str, word) {
 		dup = (char *) MALLOC(strlen(str) + 1);
-		memcpy(dup, str, strlen(str));
+		strcpy(dup, str);
 		vector_alloc_slot(read_value_block_vec);
 		vector_set_slot(read_value_block_vec, dup);
 	}
@@ -1193,6 +1211,7 @@ init_data(const char *conf_file, vector_t * (*init_keywords) (void))
 	endpwent();
 
 	free_keywords(keywords);
-	free_definitions();
+	free_parser_data();
 	clear_rt_names();
+	notify_resource_release();
 }

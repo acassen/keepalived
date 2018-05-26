@@ -17,41 +17,19 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2016 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #ifndef _VRRP_DATA_H
 #define _VRRP_DATA_H
 
 /* system includes */
-#include <stdlib.h>
-#include <string.h>
-#include <stdint.h>
-#include <syslog.h>
-#include <arpa/inet.h>
+#include <sys/types.h>
+#include <stdio.h>
 
 /* local includes */
 #include "list.h"
 #include "vector.h"
-#include "scheduler.h"
-#include "vrrp.h"
-#include "vrrp_if.h"
-
-/*
- * Our instance dispatcher use a socket pool.
- * That way we handle VRRP protocol type per
- * physical interface.
- */
-typedef struct _sock {
-	sa_family_t		family;
-	struct sockaddr_storage	saddr;
-	int			proto;
-	ifindex_t		ifindex;
-	bool			unicast;
-	int			fd_in;
-	int			fd_out;
-	thread_t		*thread;
-} sock_t;
 
 /* Configuration data root */
 typedef struct _vrrp_data {
@@ -59,12 +37,15 @@ typedef struct _vrrp_data {
 	list			static_routes;
 	list			static_rules;
 	list			vrrp_sync_group;
-	list			vrrp;
+	list			vrrp;			/* vrrp_t */
 	list			vrrp_index;
 	list			vrrp_index_fd;
 	list			vrrp_socket_pool;
-	list			vrrp_script;
-	list			vrrp_switch;
+	list			vrrp_script;		/* vrrp_script_t */
+	list			vrrp_track_files;	/* vrrp_tracked_file_t */
+#ifdef _WITH_BFD_
+	list			vrrp_track_bfds;	/* vrrp_tracked_bfd_t */
+#endif
 } vrrp_data_t;
 
 /* Global Vars exported */
@@ -80,9 +61,20 @@ extern void alloc_srule(vector_t *);
 extern void alloc_vrrp_sync_group(char *);
 extern void alloc_vrrp(char *);
 extern void alloc_vrrp_unicast_peer(vector_t *);
-extern void alloc_vrrp_track(vector_t *);
+extern void alloc_vrrp_track_if(vector_t *);
 extern void alloc_vrrp_script(char *);
 extern void alloc_vrrp_track_script(vector_t *);
+extern void alloc_vrrp_file(char *);
+extern void alloc_vrrp_track_file(vector_t *);
+#ifdef _WITH_BFD_
+extern void alloc_vrrp_track_bfd(vector_t *);
+#endif
+extern void alloc_vrrp_group_track_if(vector_t *);
+extern void alloc_vrrp_group_track_script(vector_t *);
+extern void alloc_vrrp_group_track_file(vector_t *);
+#ifdef _WITH_BFD_
+extern void alloc_vrrp_group_track_bfd(vector_t *);
+#endif
 extern void alloc_vrrp_vip(vector_t *);
 extern void alloc_vrrp_evip(vector_t *);
 extern void alloc_vrrp_vroute(vector_t *);
@@ -91,6 +83,7 @@ extern void alloc_vrrp_buffer(size_t);
 extern void free_vrrp_buffer(void);
 extern vrrp_data_t *alloc_vrrp_data(void);
 extern void free_vrrp_data(vrrp_data_t *);
-extern void dump_vrrp_data(vrrp_data_t *);
+extern void dump_tracking_vrrp(FILE *, void *);
+extern void dump_data_vrrp(FILE *);
 
 #endif

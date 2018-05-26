@@ -24,7 +24,10 @@
 #ifndef _VRRP_IPTABLES_CALLS_H
 #define	_VRRP_IPTABLES_CALLS_H
 
+#include "config.h"
+
 #include <limits.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -33,7 +36,7 @@
 #define	APPEND_RULE	UINT_MAX
 
 #ifdef _HAVE_LIBIPTC_
-#ifdef _LIBXTABLES_DYNAMIC_ 
+#ifdef _LIBXTABLES_DYNAMIC_
 extern void xtables_unload(void);
 #endif
 extern bool load_xtables_module(const char *, const char *);
@@ -49,7 +52,6 @@ extern int ip6tables_is_chain(struct ip6tc_handle* handle, const char* chain_nam
 extern int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name, unsigned int rulenum, const char* target_name, const ip_address_t* src_ip_address, const ip_address_t* dst_ip_address, const char* in_iface, const char* out_iface, uint16_t protocol, uint8_t type, int cmd, bool force);
 extern int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, unsigned int rulenum, uint8_t dim, uint8_t src_dst, const char* target_name, const char* set_name, uint16_t protocol, uint8_t param, int cmd, bool ignore_errors);
 extern int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, unsigned int rulenum, uint8_t dim, uint8_t src_dst, const char* target_name, const char* set_name, uint16_t protocol, uint8_t param, int cmd, bool ignore_errors);
-extern void check_chains_exist_lib(void);
 #ifdef _LIBIPTC_DYNAMIC_
 extern bool iptables_lib_init(void);
 #endif

@@ -24,11 +24,10 @@
 #define _SMTP_H
 
 /* globales includes */
-#include <netdb.h>
+#include <sys/types.h>
 
 /* local includes */
-#include "scheduler.h"
-#include "layer4.h"
+#include "global_data.h"
 #ifdef _WITH_LVS_
 #include "check_data.h"
 #include "check_api.h"
@@ -52,6 +51,19 @@
 #define QUIT	9
 #define END	10
 #define ERROR	11
+
+/* SMTP mesage type format */
+typedef enum {
+#ifdef _WITH_LVS_
+	SMTP_MSG_RS,
+	SMTP_MSG_VS,
+	SMTP_MSG_RS_SHUT,
+#endif
+#ifdef _WITH_VRRP_
+	SMTP_MSG_VGROUP,
+	SMTP_MSG_VRRP,
+#endif
+} smtp_msg_t;
 
 /* SMTP thread argument structure */
 #define MAX_HEADERS_LENGTH 256
@@ -95,7 +107,12 @@ typedef struct _smtp {
 
 #define FMT_SMTP_HOST()	inet_sockaddrtopair(&global_data->smtp_server)
 
-#ifndef _WITH_LVS_
+#ifdef _WITH_LVS_
+typedef struct _smtp_rs {
+	real_server_t *rs;
+	virtual_server_t *vs;
+} smtp_rs;
+#else
 typedef void real_server_t;
 #endif
 #ifndef _WITH_VRRP_
@@ -104,17 +121,6 @@ typedef void vrrp_sgroup_t;
 #endif
 
 /* Prototypes defs */
-extern void smtp_alert(
-#ifdef _WITH_LVS_
-			checker_t *,
-#else
-			__attribute__((unused)) void *,
-#endif
-#ifdef _WITH_VRRP_
-			vrrp_t *, vrrp_sgroup_t *,
-#else
-			void *, void *,
-#endif
-			const char *, const char *);
+extern void smtp_alert(smtp_msg_t, void *data, const char *, const char *);
 
 #endif

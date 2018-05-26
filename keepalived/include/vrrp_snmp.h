@@ -24,9 +24,12 @@
 #ifndef _VRRP_SNMP_H
 #define _VRRP_SNMP_H
 
+#include "config.h"
+
 #ifdef _WITH_SNMP_RFC_
 #include "timer.h"
 #endif
+#include "vrrp.h"
 
 #ifdef _WITH_SNMP_RFCV2_
 enum rfcv2_trap_auth_error_type {
@@ -47,6 +50,15 @@ enum rfcv3_notify_proto_error_type {
 	vrIdError
 };
 
+/* RFC6527 isn't clear about the meaning of the following. However,
+ * the only meaning I can see is that PRIORITY means became master
+ * after receiving a priority 0 advert, preempted means that we were
+ * receiving lower priority adverts or we are the address owner, and
+ * so transitioned to master, and MASTER_NO_RESPONSE means that we
+ * didn't receive any adverts for 3 * master advert interval + skew time.
+ * However, it is possible the PRIORITY is meant to mean priority 255
+ * (i.e. the address owner), in which case we don't have a specific
+ * reason for transition following receiving a priority 0 advert. */
 enum rfcv3_master_reason_type {
 	VRRPV3_MASTER_REASON_NOT_MASTER = 0,
 	VRRPV3_MASTER_REASON_PRIORITY,

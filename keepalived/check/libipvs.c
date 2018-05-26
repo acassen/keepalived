@@ -18,15 +18,13 @@
 
 #include "config.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <string.h>
 #include <errno.h>
-#include <netinet/in.h>
 #include <sys/socket.h>
-#include <arpa/inet.h>
+#include <string.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 #ifdef LIBIPVS_USE_NL
 #include <netlink/netlink.h>
@@ -151,10 +149,10 @@ static struct nla_policy ipvs_stats_policy[IPVS_STATS_ATTR_MAX + 1] = {
 	[IPVS_STATS_ATTR_INBPS]		= { .type = NLA_U32 },
 	[IPVS_STATS_ATTR_OUTBPS]	= { .type = NLA_U32 },
 };
-#endif	/* _WITH_SNMP_CHECKER */
+#endif	/* _WITH_SNMP_CHECKER_ */
 
 static struct nla_policy ipvs_info_policy[IPVS_INFO_ATTR_MAX + 1] = {
-	[IPVS_INFO_ATTR_VERSION]        = { .type = NLA_U32 },
+	[IPVS_INFO_ATTR_VERSION]	= { .type = NLA_U32 },
 	[IPVS_INFO_ATTR_CONN_TAB_SIZE]  = { .type = NLA_U32 },
 };
 #endif

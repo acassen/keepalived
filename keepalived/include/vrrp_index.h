@@ -23,24 +23,23 @@
 #ifndef _VRRP_INDEX_H
 #define _VRRP_INDEX_H
 
-/* global includes */
-#include <stdio.h>
-#include <stdlib.h>
-#include <arpa/inet.h>
-#include <string.h>
-#include <syslog.h>
-
 /* local includes */
 #include "vrrp.h"
 
 /* Macro definition */
+#define	FD_INDEX_SIZE		1024
+#define	FD_INDEX_HASH(fd)	(fd % FD_INDEX_SIZE)
+
+#define VRRP_INDEX_FD_SIZE	1151	/* See get_vrrp_hash() for explanation of value */
 
 /* prototypes */
 extern int get_vrrp_hash(const int, const int);
 extern void alloc_vrrp_bucket(vrrp_t *);
 extern void alloc_vrrp_fd_bucket(vrrp_t *);
-extern void remove_vrrp_fd_bucket(vrrp_t *);
-extern void set_vrrp_fd_bucket(int, vrrp_t *);
 extern vrrp_t *vrrp_index_lookup(const int, const int);
+extern void remove_vrrp_fd_bucket(int);
+#ifdef _INCLUDE_UNUSED_CODE_
+extern void set_vrrp_fd_bucket(int, vrrp_t *);
+#endif
 
 #endif

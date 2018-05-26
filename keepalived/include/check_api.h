@@ -23,18 +23,23 @@
 #ifndef _CHECK_API_H
 #define _CHECK_API_H
 
+#include "config.h"
+
 /* global includes */
 #include <stdbool.h>
+#include <stdio.h>
+#include <sys/socket.h>
 
 /* local includes */
+#include "list.h"
 #include "check_data.h"
-#include "scheduler.h"
+#include "vector.h"
 #include "layer4.h"
 
 /* Checkers structure definition */
 typedef struct _checker {
 	void				(*free_func) (void *);
-	void				(*dump_func) (void *);
+	void				(*dump_func) (FILE *, void *);
 	int				(*launch) (struct _thread *);
 	bool				(*compare) (void *, void *);
 	virtual_server_t		*vs;			/* pointer to the checker thread virtualserver */
@@ -42,6 +47,7 @@ typedef struct _checker {
 	void				*data;
 	bool				enabled;		/* Activation flag */
 	bool				is_up;			/* Set if checker is up */
+	bool				has_run;		/* Set if the checker has completed at least once */
 	conn_opts_t			*co;			/* connection options */
 	int				alpha;			/* Alpha mode enabled */
 	unsigned long			delay_loop;		/* Interval between running checker */
@@ -51,11 +57,7 @@ typedef struct _checker {
 	unsigned			retry_it;		/* number of successive failures */
 	unsigned			default_retry;		/* number of retries before failing */
 	unsigned long			default_delay_before_retry; /* interval between retries */
-
 } checker_t;
-
-/* Typedefs */
-typedef checker_t * checker_id_t;
 
 /* Checkers queue */
 extern list checkers_queue;
@@ -77,9 +79,9 @@ extern list checkers_queue;
 /* Prototypes definition */
 extern void init_checkers_queue(void);
 extern void free_vs_checkers(virtual_server_t *);
-extern void dump_connection_opts(void *);
-extern void dump_checker_opts(void *);
-extern checker_t *queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
+extern void dump_connection_opts(FILE *, void *);
+extern void dump_checker_opts(FILE *, void *);
+extern checker_t *queue_checker(void (*free_func) (void *), void (*dump_func) (FILE *, void *)
 			  , int (*launch) (thread_t *)
 			  , bool (*compare) (void *, void *)
 			  , void *
@@ -87,7 +89,7 @@ extern checker_t *queue_checker(void (*free_func) (void *), void (*dump_func) (v
 extern void dequeue_new_checker(void);
 extern bool check_conn_opts(conn_opts_t *);
 extern bool compare_conn_opts(conn_opts_t *, conn_opts_t *);
-extern void dump_checkers_queue(void);
+extern void dump_checkers_queue(FILE *);
 extern void free_checkers_queue(void);
 extern void register_checkers_thread(void);
 extern void install_checkers_keyword(void);

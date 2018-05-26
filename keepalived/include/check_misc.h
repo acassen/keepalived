@@ -25,30 +25,25 @@
 #define _CHECK_MISC_H
 
 /* system includes */
-#include <stdlib.h>
 #include <stdbool.h>
 #include <sys/types.h>
 
-/* local includes */
-#include "scheduler.h"
+/* user includes */
 #include "notify.h"
+#include "keepalived_magic.h"
 
 /* Checker argument structure  */
 typedef struct _misc_checker {
-	char			*path;
+	notify_script_t		script;		/* The script details */
 	unsigned long		timeout;
 	bool			dynamic;	/* false: old-style, true: exit code from checker affects weight */
 	script_state_t		state;		/* current state of script */
-	uid_t			uid;		/* uid for script execution */
-	gid_t			gid;		/* gid for script execution */
-	bool			insecure;	/* script is insecure */
-	bool			initial_state_reported;
 	timeval_t		last_ran;	/* Time script last ran */
 } misc_checker_t;
 
 /* Prototypes defs */
 extern void clear_dynamic_misc_check_flag(void);
 extern void install_misc_check_keyword(void);
-extern int check_misc_script_security(void);
+extern int check_misc_script_security(magic_t);
 
 #endif
