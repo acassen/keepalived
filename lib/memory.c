@@ -172,7 +172,7 @@ keepalived_malloc(size_t size, char *file, char *function, int line)
 	       i, number_alloc_list, buf, size, file, line, function);
 #ifdef _MEM_CHECK_LOG_
 	if (__test_bit(MEM_CHECK_LOG_BIT, &debug))
-		log_message(LOG_INFO, "zalloc[%3d:%3d], %p, %4zu at %s, %3d, %s\n",
+		log_message(LOG_INFO, "zalloc[%3d:%3d], %p, %4zu at %s, %3d, %s",
 		       i, number_alloc_list, buf, size, file, line, function);
 #endif
 
@@ -253,7 +253,7 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 	       alloc_list[i].size, file, line, function);
 #ifdef _MEM_CHECK_LOG_
 	if (__test_bit(MEM_CHECK_LOG_BIT, &debug))
-		log_message(LOG_INFO, "free  [%3d:%3d], %p, %4zu at %s, %3d, %s\n",
+		log_message(LOG_INFO, "free  [%3d:%3d], %p, %4zu at %s, %3d, %s",
 		       i, number_alloc_list, buf,
 		       alloc_list[i].size, file, line, function);
 #endif

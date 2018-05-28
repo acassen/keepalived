@@ -848,7 +848,7 @@ vrrp_dispatcher_read_timeout(int fd)
 		/* handle instance synchronization */
 #ifdef _TSM_DEBUG_
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
-			log_message(LOG_INFO, "Send [%s] TSM transition : [%d,%d] Wantstate = [%d]\n",
+			log_message(LOG_INFO, "Send [%s] TSM transition : [%d,%d] Wantstate = [%d]",
 				vrrp->iname, prev_state, vrrp->state, vrrp->wantstate);
 #endif
 		VRRP_TSM_HANDLE(prev_state, vrrp);
@@ -907,7 +907,7 @@ vrrp_dispatcher_read(sock_t * sock)
 	/* handle instance synchronization */
 #ifdef _TSM_DEBUG_
 	if (__test_bit(LOG_DETAIL_BIT, &debug))
-		log_message(LOG_INFO, "Read [%s] TSM transition : [%d,%d] Wantstate = [%d]\n",
+		log_message(LOG_INFO, "Read [%s] TSM transition : [%d,%d] Wantstate = [%d]",
 			vrrp->iname, prev_state, vrrp->state, vrrp->wantstate);
 #endif
 	VRRP_TSM_HANDLE(prev_state, vrrp);

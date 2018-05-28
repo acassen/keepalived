@@ -293,7 +293,7 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 									   "", ""
 #endif
 				   );
-			log_message(LOG_INFO, "  Built with kernel headers for Linux %d.%d.%d\n",
+			log_message(LOG_INFO, "  Built with kernel headers for Linux %d.%d.%d",
 						(LINUX_VERSION_CODE >> 16) & 0xff,
 						(LINUX_VERSION_CODE >>  8) & 0xff,
 						(LINUX_VERSION_CODE      ) & 0xff);

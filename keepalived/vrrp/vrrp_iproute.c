@@ -492,7 +492,7 @@ netlink_route(ip_route_t *iproute, int cmd)
 	op += (size_t)snprintf(op, sizeof(lbuf) - (op - lbuf), "nlmsghdr %p(%u):", &req.n, req.n.nlmsg_len);
 	for (i = 0, p = (uint8_t*)&req.n; i < sizeof(struct nlmsghdr); i++)
 		op += (size_t)snprintf(op, sizeof(lbuf) - (op - lbuf), " %2.2hhx", *(p++));
-	log_message(LOG_INFO, "%s\n", lbuf);
+	log_message(LOG_INFO, "%s", lbuf);
 
 	op = lbuf;
 	op += (size_t)snprintf(op, sizeof(lbuf) - (op - lbuf), "rtmsg %p(%lu):", &req.r, req.n.nlmsg_len - sizeof(struct nlmsghdr));
@@ -500,7 +500,7 @@ netlink_route(ip_route_t *iproute, int cmd)
 		op += (size_t)snprintf(op, sizeof(lbuf) - (op - lbuf), " %2.2hhx", *(p++));
 
 	for (j = 0; lbuf + j < op; j+= MAX_LOG_MSG)
-		log_message(LOG_INFO, "%.*\n", MAX_LOG_MSG, lbuf+j);
+		log_message(LOG_INFO, "%.*", MAX_LOG_MSG, lbuf+j);
 #endif
 
 	/* This returns ESRCH if the address of via address doesn't exist */

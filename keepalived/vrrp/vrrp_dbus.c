@@ -523,7 +523,7 @@ on_bus_acquired(GDBusConnection *connection,
 	element e;
 	GError *local_error = NULL;
 
-	log_message(LOG_INFO, "Acquired DBus bus %s\n", name);
+	log_message(LOG_INFO, "Acquired DBus bus %s", name);
 
 	/* register VRRP object */
 	path = dbus_object_create_path_vrrp();
@@ -565,7 +565,7 @@ on_name_acquired(__attribute__((unused)) GDBusConnection *connection,
 		 const gchar     *name,
 		 __attribute__((unused)) gpointer user_data)
 {
-	log_message(LOG_INFO, "Acquired the name %s on the session bus\n", name);
+	log_message(LOG_INFO, "Acquired the name %s on the session bus", name);
 }
 
 /* run if bus name or connection are lost */
@@ -574,7 +574,7 @@ on_name_lost(GDBusConnection *connection,
 	     const gchar     *name,
 	     __attribute__((unused)) gpointer user_data)
 {
-	log_message(LOG_INFO, "Lost the name %s on the session bus\n", name);
+	log_message(LOG_INFO, "Lost the name %s on the session bus", name);
 	global_connection = connection;
 	g_hash_table_foreach_remove(objects, unregister_object, NULL);
 	objects = NULL;
