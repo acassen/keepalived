@@ -54,6 +54,7 @@ enum iprule_param_mask {
 typedef struct _ip_rule {
 	uint32_t	mask;
 	bool		invert;
+	int		family;
 	ip_address_t	*from_addr;
 	ip_address_t	*to_addr;
 	uint32_t	priority;
