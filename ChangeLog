@@ -1,5 +1,6 @@
-Beta branch 2018-05-26 Quentin Armitage <quentin@armitage.org.uk>
-
+2018-05-26 Quentin Armitage <quentin@armitage.org.uk>
+	* keepalived-2.0.0
+	* Beta branch merge into master branch ! 2years of dev here !
 	* Transition to master as soon as decision is made to do so
 	    Previously keepalived waited one further advert interval before
 	    transitioning.
