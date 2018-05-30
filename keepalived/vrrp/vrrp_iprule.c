@@ -114,12 +114,7 @@ netlink_rule(ip_rule_t *iprule, int cmd)
 	req.frh.table = RT_TABLE_UNSPEC;
 	req.frh.flags = 0;
 
-	if (iprule->from_addr)
-		req.frh.family = IP_FAMILY(iprule->from_addr);
-	else if (iprule->to_addr)
-		req.frh.family = IP_FAMILY(iprule->to_addr);
-	else
-		req.frh.family = AF_INET;
+	req.frh.family = iprule->family;
 
 	if (iprule->action == FR_ACT_TO_TBL
 #if HAVE_DECL_FRA_L3MDEV
@@ -256,8 +251,11 @@ format_iprule(ip_rule_t *rule, char *buf, size_t buf_len)
 	char *op = buf;
 	char *buf_end = buf + buf_len;
 
+	if (!rule->to_addr && !rule->from_addr && rule->family == AF_INET6)
+		op += snprintf(op, (size_t)(buf_end - op), "inet6 ");
+
 	if (rule->invert)
-		op += snprintf(op, (size_t)(buf_end - op), " not");
+		op += snprintf(op, (size_t)(buf_end - op), "not ");
 
 	if (rule->from_addr) {
 		op += snprintf(op, (size_t)(buf_end - op), "from %s", ipaddresstos(NULL, rule->from_addr));
@@ -372,6 +370,17 @@ alloc_rule(list rule_list, vector_t *strvec)
 	}
 
 	new->action = FR_ACT_UNSPEC;
+
+	/* Check if inet4/6 specified */
+	str = strvec_slot(strvec, i);
+	if (!strcmp(str, "inet6")) {
+		family = AF_INET6;
+		i++;
+	}
+	else if (!strcmp(str, "inet")) {
+		family = AF_INET;
+		i++;
+	}
 
 	/* FMT parse */
 	while (i < vector_size(strvec)) {
@@ -645,6 +654,8 @@ fwmark_err:
 		goto err;
 	}
 #endif
+
+	new->family = (family == AF_UNSPEC) ? AF_INET : family;
 
 	list_add(rule_list, new);
 	return;
