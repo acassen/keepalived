@@ -351,8 +351,7 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, "------< Global definitions >------");
 
 #if HAVE_DECL_CLONE_NEWNET
-	if (data->network_namespace)
-		conf_write(fp, " Net namespace = %s", data->network_namespace);
+	conf_write(fp, " Network namespace = %s", data->network_namespace ? data->network_namespace : "(default)");
 #endif
 	if (data->instance_name)
 		conf_write(fp, " Instance name = %s", data->instance_name);
@@ -507,9 +506,6 @@ dump_global_data(FILE *fp, data_t * data)
 #ifdef _WITH_SNMP_
 	conf_write(fp, " SNMP traps %s", data->enable_traps ? "enabled" : "disabled");
 	conf_write(fp, " SNMP socket = %s", data->snmp_socket ? data->snmp_socket : "default (unix:/var/agentx/master)");
-#endif
-#if HAVE_DECL_CLONE_NEWNET
-	conf_write(fp, " Network namespace = %s", data->network_namespace ? data->network_namespace : "(default)");
 #endif
 #ifdef _WITH_DBUS_
 	conf_write(fp, " DBus %s", data->enable_dbus ? "enabled" : "disabled");
