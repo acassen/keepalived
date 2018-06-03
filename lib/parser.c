@@ -1066,7 +1066,6 @@ read_line(char *buf, size_t size)
 		}
 	}
 
-log_message(LOG_INFO, "EOF: %d. %s", eof, buf);
 	return !eof;
 }
 

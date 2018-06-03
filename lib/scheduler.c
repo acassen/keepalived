@@ -778,11 +778,25 @@ thread_cancel(thread_t * thread)
 	case THREAD_READ:
 		assert(FD_ISSET(thread->u.fd, &thread->master->readfd));
 		FD_CLR(thread->u.fd, &thread->master->readfd);
+		if (thread->master->max_fd == thread->u.fd) {
+			/* Recalculate max_fd */
+			while (thread->master->max_fd &&
+			       !FD_ISSET(thread->master->max_fd, &thread->master->readfd) &&
+			       !FD_ISSET(thread->master->max_fd, &thread->master->writefd))
+				thread->master->max_fd--;
+		}
 		thread_list_delete(&thread->master->read, thread);
 		break;
 	case THREAD_WRITE:
 		assert(FD_ISSET(thread->u.fd, &thread->master->writefd));
 		FD_CLR(thread->u.fd, &thread->master->writefd);
+		if (thread->master->max_fd == thread->u.fd) {
+			/* Recalculate max_fd */
+			while (thread->master->max_fd &&
+			       !FD_ISSET(thread->master->max_fd, &thread->master->readfd) &&
+			       !FD_ISSET(thread->master->max_fd, &thread->master->writefd))
+				thread->master->max_fd--;
+		}
 		thread_list_delete(&thread->master->write, thread);
 		break;
 	case THREAD_TIMER:
