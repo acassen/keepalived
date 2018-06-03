@@ -76,14 +76,11 @@ alloc_track_if(vrrp_t *vrrp, vector_t *strvec)
 		return;
 	}
 
-	if (!LIST_ISEMPTY(vrrp->track_ifp)) {
-		/* Check this vrrp isn't already tracking the i/f */
-		for (e = LIST_HEAD(vrrp->track_ifp); e; ELEMENT_NEXT(e)) {
-			tip = ELEMENT_DATA(e);
-			if (tip->ifp == ifp) {
-				log_message(LOG_INFO, "(%s) duplicate track_interface %s - ignoring", vrrp->iname, tracked);
-				return;
-			}
+	/* Check this vrrp isn't already tracking the i/f */
+	LIST_FOREACH(vrrp->track_ifp, tip, e) {
+		if (tip->ifp == ifp) {
+			log_message(LOG_INFO, "(%s) duplicate track_interface %s - ignoring", vrrp->iname, tracked);
+			return;
 		}
 	}
 
@@ -124,14 +121,12 @@ alloc_group_track_if(vrrp_sgroup_t *sgroup, vector_t *strvec)
 		log_message(LOG_INFO, "(%s) tracked interface %s doesn't exist", sgroup->gname, tracked);
 		return;
 	}
-	else if (!LIST_ISEMPTY(sgroup->track_ifp)) {
-		/* Check this sgroup isn't already tracking the i/f */
-		for (e = LIST_HEAD(sgroup->track_ifp); e; ELEMENT_NEXT(e)) {
-			tip = ELEMENT_DATA(e);
-			if (tip->ifp == ifp) {
-				log_message(LOG_INFO, "(%s) duplicate track_interface %s - ignoring", sgroup->gname, tracked);
-				return;
-			}
+
+	/* Check this sgroup isn't already tracking the i/f */
+	LIST_FOREACH(sgroup->track_ifp, tip, e) {
+		if (tip->ifp == ifp) {
+			log_message(LOG_INFO, "(%s) duplicate track_interface %s - ignoring", sgroup->gname, tracked);
+			return;
 		}
 	}
 
@@ -742,10 +737,39 @@ initialise_track_bfd_state(tracked_bfd_t *tbfd, vrrp_t *vrrp)
 #endif
 
 void
+initialise_interface_tracking_priorities(void)
+{
+	tracking_vrrp_t *tvp;
+	interface_t *ifp;
+	element e, e1;
+
+	LIST_FOREACH(get_if_list(), ifp, e) {
+		LIST_FOREACH(ifp->tracking_vrrp, tvp, e1) {
+			if (!tvp->weight) {
+				if (!IF_ISUP(ifp)) {
+					/* The instance is down */
+					tvp->vrrp->state = VRRP_STATE_FAULT;
+					tvp->vrrp->num_script_if_fault++;
+				}
+				continue;
+			}
+
+			if (IF_ISUP(ifp)) {
+				if (tvp->weight > 0)
+					tvp->vrrp->total_priority += tvp->weight;
+			}
+			else {
+				if (tvp->weight < 0)
+					tvp->vrrp->total_priority += tvp->weight;
+			}
+		}
+	}
+}
+
+void
 initialise_tracking_priorities(vrrp_t *vrrp)
 {
 	element e;
-	tracked_if_t *tip;
 	tracked_sc_t *tsc;
 #ifdef _WITH_BFD_
 	tracked_bfd_t *tbfd;
@@ -756,29 +780,6 @@ initialise_tracking_priorities(vrrp_t *vrrp)
 	if (vrrp->saddr.ss_family == AF_UNSPEC) {
 		vrrp->num_script_if_fault++;
 		vrrp->state = VRRP_STATE_FAULT;
-	}
-
-	LIST_FOREACH(vrrp->track_ifp, tip, e) {
-		if (tip->weight == VRRP_NOT_TRACK_IF)
-			continue;
-
-		if (!tip->weight) {
-			if (!IF_ISUP(tip->ifp)) {
-				/* The instance is down */
-				vrrp->state = VRRP_STATE_FAULT;
-				vrrp->num_script_if_fault++;
-			}
-			continue;
-		}
-
-		if (IF_ISUP(tip->ifp)) {
-			if (tip->weight > 0)
-				vrrp->total_priority += tip->weight;
-		}
-		else {
-			if (tip->weight < 0)
-				vrrp->total_priority += tip->weight;
-		}
 	}
 
 	/* Initialise the vrrp instance's tracked scripts */

@@ -1346,10 +1346,6 @@ process_if_status_change(interface_t *ifp)
 	LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {
 		vrrp = tvp->vrrp;
 
-		/* If this interface isn't relevant to the vrrp instance, skip the instance */
-		if (LIST_ISEMPTY(vrrp->track_ifp))
-			continue;
-
 		if (tvp->weight == VRRP_NOT_TRACK_IF) {
 			/* We might want to restore things to the interface if it is coming up */
 			continue;

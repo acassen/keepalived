@@ -2027,19 +2027,6 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool log_addr,
 	 * done in initialise_tracking_priorities() */
 }
 
-static void
-add_interface_to_vrrp(vrrp_t *vrrp, interface_t *ifp)
-{
-	tracked_if_t *tip = MALLOC(sizeof *tip);
-
-	tip->ifp = ifp;
-	tip->weight = 0;
-
-	if (!LIST_EXISTS(vrrp->track_ifp))
-		vrrp->track_ifp = alloc_list(free_track_if, dump_track_if);
-	list_add(vrrp->track_ifp, tip);
-}
-
 /* check for minimum configuration requirements */
 static bool
 chk_min_cfg(vrrp_t * vrrp)
@@ -2823,9 +2810,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			inet_ip6tosockaddr(&IF_BASE_IFP(vrrp->ifp)->sin6_addr, &vrrp->saddr);
 	}
 
-	/* Add us to the interfaces we are tracking. This must be
-	 * done before the vrrp's own interface(s) is added, since
-	 * the interface is then added to the track_ifp list */
+	/* Add us to the interfaces we are tracking */
 	LIST_FOREACH_NEXT(vrrp->track_ifp, tip, e, next) {
 		/* Check the configuration doesn't explicitly state to track our own interface */
 		if (tip->ifp == IF_BASE_IFP(vrrp->ifp)) {
@@ -2838,8 +2823,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	/* Add this instance to the physical interface and vice versa */
 	add_vrrp_to_interface(vrrp, IF_BASE_IFP(vrrp->ifp), vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, true, TRACK_VRRP);
-	if (!vrrp->dont_track_primary)
-		add_interface_to_vrrp(vrrp, IF_BASE_IFP(vrrp->ifp));
 
 #ifdef _HAVE_VRRP_VMAC_
 	if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&
@@ -2869,8 +2852,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 		/* Add this instance to the vmac interface */
 		add_vrrp_to_interface(vrrp, vrrp->ifp, vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, true, TRACK_VRRP);
-		if (!vrrp->dont_track_primary)
-			add_interface_to_vrrp(vrrp, vrrp->ifp);
 	}
 #endif
 
@@ -3275,7 +3256,10 @@ vrrp_complete_init(void)
 	/* We need to know the state of interfaces for the next loop */
 	init_interface_linkbeat();
 
-	/* Check for instance down due to an interface or script */
+	/* Check for instance down due to an interface */
+	initialise_interface_tracking_priorities();
+
+	/* Now check for tracking scripts, files, bfd etc */
 	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
 		/* Set effective priority and fault state */
 		initialise_tracking_priorities(vrrp);
