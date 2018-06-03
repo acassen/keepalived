@@ -27,6 +27,7 @@
 
 /* global includes */
 #include <stdint.h>
+#include <stdbool.h>
 #include <sys/types.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
@@ -95,6 +96,9 @@ extern void kernel_netlink_poll(void);
 extern void process_if_status_change(interface_t *);
 #endif
 extern void kernel_netlink_set_recv_bufs(void);
+#ifdef _WITH_VRRP_
+extern void set_extra_netlink_monitoring(bool, bool, bool, bool);
+#endif
 extern void kernel_netlink_init(void);
 extern void kernel_netlink_close(void);
 extern void kernel_netlink_close_monitor(void);

@@ -48,6 +48,9 @@ enum iprule_param_mask {
 	IPRULE_BIT_SUP_PREFIXLEN = 0x10,
 	IPRULE_BIT_SUP_GROUP = 0x20,
 	IPRULE_BIT_UID_RANGE = 0x40,
+#if HAVE_DECL_FRA_PROTOCOL
+	IPRULE_BIT_PROTOCOL = 0x80,
+#endif
 } ;
 
  /* types definition */
@@ -84,6 +87,10 @@ typedef struct _ip_rule {
 #if HAVE_DECL_FRA_L3MDEV
 	bool		l3mdev;
 #endif
+#if HAVE_DECL_FRA_PROTOCOL
+	uint8_t		protocol;
+#endif
+	bool		dont_track;     /* used for virtual rules */
 	bool		set;
 } ip_rule_t;
 

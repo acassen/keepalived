@@ -42,6 +42,8 @@ development:
 	    Add PROCESS_CHECK for checkers
 	    - Find PID and remember it. If PID has gone, try and find new pid
 	    Look at how pidof/killall find processes
+	* Don't add RTNMGRP_IPV4_ADDR/IPV6_ADDR if not monitoring one of those
+	    families
 	* Allow dynamic definitions, e.g. $_VI_NAME
 	    Also $*_INSTANCE net_namspace $_INSTANCE
 	    so $* means only do if $_INSTANCE not blank. */

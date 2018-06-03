@@ -687,6 +687,7 @@ format_iproute(ip_route_t *route, char *buf, size_t buf_len)
 	char *op = buf;
 	const char *buf_end = buf + buf_len;
 	nexthop_t *nh;
+	interface_t *ifp;
 	element e;
 
 	if (route->type != RTN_UNICAST)
@@ -884,6 +885,17 @@ format_iproute(ip_route_t *route, char *buf, size_t buf_len)
 				op += print_encap(op, (size_t)(buf_end - op), &nh->encap);
 #endif
 		}
+	}
+	if (route->dont_track)
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " no-track");
+
+	if (route->set &&
+	    !route->dont_track &&
+	    (!route->oif || route->oif->ifindex != route->configured_ifindex)) {
+		if ((ifp = if_get_by_ifindex(route->configured_ifindex)))
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), " [dev %s]", ifp->ifname);
+		else
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), " [installed ifindex %d]", route->configured_ifindex);
 	}
 }
 
@@ -1284,6 +1296,7 @@ alloc_route(list rt_list, vector_t *strvec)
 	bool raw;
 	ip_address_t *dst;
 	uint8_t family;
+	char *dest = NULL;
 
 	new = (ip_route_t *) MALLOC(sizeof(ip_route_t));
 
@@ -1675,6 +1688,8 @@ alloc_route(list rt_list, vector_t *strvec)
 				do_nexthop = true;
 			break;
 		}
+		else if (!strcmp(str, "no-track"))
+			new->dont_track = true;
 		else {
 			if (!strcmp(str, "to"))
 				i++;
@@ -1686,15 +1701,16 @@ alloc_route(list rt_list, vector_t *strvec)
 			}
 			if (new->dst)
 				FREE(new->dst);
-			dst = parse_ipaddress(NULL, strvec_slot(strvec, i), true);
+			dest = strvec_slot(strvec, i);
+			dst = parse_ipaddress(NULL, dest, true);
 			if (!dst) {
-				log_message(LOG_INFO, "unknown route keyword %s", FMT_STR_VSLOT(strvec, i));
+				log_message(LOG_INFO, "unknown route keyword %s", dest);
 				goto err;
 			}
 			if (new->family == AF_UNSPEC)
 				new->family = dst->ifa.ifa_family;
 			else if (new->family != dst->ifa.ifa_family) {
-				log_message(LOG_INFO, "Cannot mix IPv4 and IPv6 addresses for route");
+				log_message(LOG_INFO, "Cannot mix IPv4 and IPv6 addresses for route (%s)", dest);
 				goto err;
 			}
 			new->dst = dst;
@@ -1707,6 +1723,28 @@ alloc_route(list rt_list, vector_t *strvec)
 	else if (i < vector_size(strvec)) {
 		log_message(LOG_INFO, "Route has trailing nonsense - %s", FMT_STR_VSLOT(strvec, i));
 		goto err;
+	}
+
+	if (!new->dst) {
+		log_message(LOG_INFO, "Route must have a destination");
+		goto err;
+	}
+
+	if (!new->dont_track) {
+		if ((new->mask & IPROUTE_BIT_PROTOCOL) && new->protocol != RTPROT_KEEPALIVED)
+			log_message(LOG_INFO, "Route cannot be tracked if protocol is not RTPROT_KEEPALIVED(%d), resetting protocol", RTPROT_KEEPALIVED);
+		new->protocol = RTPROT_KEEPALIVED;
+		new->mask |= IPROUTE_BIT_PROTOCOL;
+
+		if (!new->oif) {
+			/* Alternative is to track oif from when route last added.
+			 * The interface will need to be added temporarily. tracking_vrrp_t will need
+			 * a flag to specify permanent track, and a counter for number of temporary
+			 * trackers. If the termporary tracker count becomes 0 and there is no permanent
+			 * track, then the tracking_vrrp_t will need to be removed. */
+			log_message(LOG_INFO, "Warning - cannot track route %s with no interface specified, not tracking", dest);
+			new->dont_track = true;
+		}
 	}
 
 	list_add(rt_list, new);

@@ -121,6 +121,8 @@ typedef enum {
 	TRACK_IF = 0x02,
 	TRACK_SG = 0x04,
 	TRACK_ADDR = 0x04,
+	TRACK_ROUTE = 0x08,
+	TRACK_RULE = 0x10,
 } track_t;
 
 /* List structure from scripts, files and interfaces to tracking vrrp */

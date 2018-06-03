@@ -840,8 +840,9 @@ vrrp_instance <STRING> {                      # VRRP instance declaration
         auth_pass <STRING>                    # Password string (up to 8 characters)
     }
     # For virutal_ipaddress and virtual_ipaddress_excluded most of the options match the options
-    #   of the command ip address add. no-track is specific to keepalived and means that the
-    #   vrrp_instance will not transition out of master state if the address is deleted.
+    #   of the command ip address add, likewise for virtual_routes and virtual_rules and the
+    #   respective ip route/rule add commands. no-track is specific to keepalived and means that the
+    #   vrrp_instance will not transition out of master state if the address/route/rule is deleted.
     virtual_ipaddress {                       # VRRP IP addres block
         <IP ADDRESS>[/<MASK>] [brd <IP ADDRESS>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IP ADDRESS>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin] [no-track]
         <IP ADDRESS>[/<MASK>] ...
@@ -855,10 +856,10 @@ vrrp_instance <STRING> {                      # VRRP instance declaration
     promote_secondaries                       # Set the promote_secondaries flag on the interface to stop other
                                               # addresses in the same CIDR being removed when 1 of them is removed
     virtual_routes {                          # VRRP virtual routes
-                                              # The syntax is the same as static_routes
+                                              # The syntax is the same as static_routes with the additional option [no-track]
     }
     virtual_rules {                           # VRRP virtual rules
-                                              # The syntax is the same as static_rules
+                                              # The syntax is the same as static_rules with the additional option [no-track]
     }
 
     nopreempt                                 # Override VRRP RFC preemption default

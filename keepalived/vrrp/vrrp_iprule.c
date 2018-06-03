@@ -190,6 +190,11 @@ netlink_rule(ip_rule_t *iprule, int cmd)
 		addattr8(&req.n, sizeof(req), FRA_L3MDEV, 1);
 #endif
 
+#if HAVE_DECL_FRA_PROTOCOL
+	if (iprule->mask & IPRULE_BIT_PROTOCOL)
+		addattr8(&req.n, sizeof(req), FRA_PROTOCOL, new->protocol);
+#endif
+
 	if (iprule->action == FR_ACT_GOTO) {	// "goto"
 		addattr32(&req.n, sizeof(req), FRA_GOTO, iprule->goto_target);
 		req.frh.action = FR_ACT_GOTO;
@@ -323,6 +328,11 @@ format_iprule(ip_rule_t *rule, char *buf, size_t buf_len)
 		op += snprintf(op, (size_t)(buf_end - op), " l3mdev");
 #endif
 
+#if HAVE_DECL_FRA_PROTOCOL
+	if (rule->mask & IPRULE_BIT_PROTOCOL)
+		op += snprintf(op, (size_t)(buf_end - op), " protocol %u", rule->protocol);
+#endif
+
 	if (rule->realms)
 		op += snprintf(op, (size_t)(buf_end - op), " realms %d/%d", rule->realms >> 16, rule->realms & 0xffff);
 
@@ -334,6 +344,8 @@ format_iprule(ip_rule_t *rule, char *buf, size_t buf_len)
 		op += snprintf(op, (size_t)(buf_end - op), " nop");
 	else
 		op += snprintf(op, (size_t)(buf_end - op), " type %s", get_rttables_rtntype(rule->action));
+	if (rule->dont_track)
+		op += snprintf(op, (size_t)(buf_end - op), " no-track");
 }
 
 void
@@ -587,6 +599,8 @@ fwmark_err:
 			new->action = FR_ACT_TO_TBL;
 		}
 #endif
+		else if (!strcmp(str, "no-track"))
+			new->dont_track = true;
 		else {
 			uint8_t action = FR_ACT_UNSPEC;
 
@@ -652,6 +666,15 @@ fwmark_err:
 	if (new->table && new->l3mdev) {
 		log_message(LOG_INFO, "table cannot be specified for l3mdev rules");
 		goto err;
+	}
+#endif
+
+#if HAVE_DECL_FRA_PROTOCOL
+	if (!new->dont_track) {
+		if ((new->mask & IPRULE_BIT_PROTOCOL) && new->protocol != KEEPALIVED_PROTO)
+			log_message(LOG_INFO, "Rule cannot be tracked if protocol is not RTPROT_KEEPALIVED(%d), resetting protocol", RTPROT_KEEPALIVED);
+		new->protocol = RTPROT_KEEPALIVED;
+		new->mask |= IPRULE_BIT_PROTOCOL;
 	}
 #endif
 

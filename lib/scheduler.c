@@ -982,7 +982,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 #endif
 
 #ifdef _SELECT_DEBUG_
-	if (prog_type == PROG_TYPE_VRRP && shutting_down)
+	if (prog_type == PROG_TYPE_VRRP)
 		log_message(LOG_INFO, "select with timer %lu.%6.6ld, fdsetsize %d, readfds 0x%lx", timer_wait.tv_sec, timer_wait.tv_usec, fdsetsize, readfd.fds_bits[0]);
 #endif
 
@@ -997,7 +997,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	old_errno = errno;
 
 #ifdef _SELECT_DEBUG_
-	if (prog_type == PROG_TYPE_VRRP && shutting_down)
+	if (prog_type == PROG_TYPE_VRRP)
 		log_message(LOG_INFO, "Select returned %d, errno %d, readfd 0x%lx, writefd 0x%lx, timer %lu.%6.6ld", num_fds, old_errno, readfd.fds_bits[0], writefd.fds_bits[0], timer_wait.tv_sec, timer_wait.tv_usec);
 #endif
 
