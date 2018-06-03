@@ -248,6 +248,8 @@ The above will create 2 virtual servers, each with 3 real servers
 The following pre-defined definitions are defined:
 ${_PWD}		The directory of the current configuration file
 		(this can be changed if using the include directive).
+${_INSTANCE}	The instance name (as defined by the -i option, defaults
+                  to hostname).
 
 Additional pre-defiend definitions will be added as their need is identified.
 It will normally be quite straightforward to add additional pre-defiend

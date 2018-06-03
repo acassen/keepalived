@@ -42,6 +42,9 @@ development:
 	    Add PROCESS_CHECK for checkers
 	    - Find PID and remember it. If PID has gone, try and find new pid
 	    Look at how pidof/killall find processes
+	* Allow dynamic definitions, e.g. $_VI_NAME
+	    Also $*_INSTANCE net_namspace $_INSTANCE
+	    so $* means only do if $_INSTANCE not blank. */
 
 
 Other issues awaiting resolution:
