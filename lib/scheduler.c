@@ -956,6 +956,13 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	/* Call select function. */
 	readfd = m->readfd;
 	writefd = m->writefd;
+
+	/* Recalculate max_fd if necessary */
+	while (!FD_ISSET(m->max_fd, &m->readfd) &&
+	       !FD_ISSET(m->max_fd, &m->writefd) &&
+	       m->max_fd)
+		m->max_fd--;
+
 	fdsetsize = m->max_fd + 1;
 
 #ifdef _WITH_SNMP_
