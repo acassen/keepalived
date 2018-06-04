@@ -123,5 +123,6 @@ extern void dump_iprule(FILE *, void *);
 extern void alloc_rule(list, vector_t *);
 extern void clear_diff_rules(list, list);
 extern void clear_diff_srules(void);
+extern void reset_next_rule_priority(void);
 
 #endif
