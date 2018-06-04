@@ -2397,8 +2397,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #ifdef _WITH_BFD_
 	tracked_bfd_t *tbfd;
 #endif
+#ifdef _HAVE_FIB_ROUTING_
 	ip_route_t *vroute;
 	ip_rule_t *vrule;
+#endif
 
 	if (vrrp->strict_mode == PARAMETER_UNSET)
 		vrrp->strict_mode = global_data->vrrp_strict;
@@ -3001,6 +3003,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			set_promote_secondaries(vrrp->ifp);
 	}
 
+#ifdef _HAVE_FIB_ROUTING_
 	/* Check if there are any route/rules we need to monitor */
 	LIST_FOREACH(vrrp->vroutes, vroute, e) {
 		if (!vroute->dont_track) {
@@ -3030,6 +3033,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #endif
 		}
 	}
+#endif
 
 	return true;
 }
