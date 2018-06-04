@@ -1597,7 +1597,7 @@ netlink_address_lookup(void)
 #ifdef _WITH_VRRP_
 /* Netlink flag Link update */
 static int
-netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlmsghdr *h)
+netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlmsghdr *h)
 {
 	struct ifinfomsg *ifi;
 	struct rtattr *tb[IFLA_MAX + 1];
@@ -1828,7 +1828,7 @@ netlink_broadcast_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 #ifndef _DEBUG_
 		if (prog_type == PROG_TYPE_VRRP)
 #endif
-			return netlink_reflect_filter(snl, h);
+			return netlink_link_filter(snl, h);
 #endif
 		break;
 	case RTM_NEWADDR:
