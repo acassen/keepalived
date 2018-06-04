@@ -1083,7 +1083,7 @@ setup_interface(vrrp_t *vrrp)
 		alloc_vrrp_fd_bucket(vrrp);
 
 		if (vrrp_initialised) {
-			vrrp->state = VRRP_STATE_FAULT;
+			vrrp->state = vrrp->num_script_if_fault ? VRRP_STATE_FAULT : VRRP_STATE_BACK;
 			vrrp_init_instance_sands(vrrp);
 			vrrp_thread_add_read(vrrp);
 		}
@@ -1094,18 +1094,18 @@ setup_interface(vrrp_t *vrrp)
 	return true;
 }
 
-void
-recreate_vmac(interface_t *ifp)
+int
+recreate_vmac_thread(thread_t *thread)
 {
 	vrrp_t *vrrp;
 	tracking_vrrp_t *tvp;
 	element e;
+	interface_t *ifp = THREAD_ARG(thread);
 
 	if (LIST_ISEMPTY(ifp->tracking_vrrp) || !ifp->vmac)
-		return;
+		return 0;
 
-	for (e = LIST_HEAD(ifp->tracking_vrrp); e; ELEMENT_NEXT(e)) {
-		tvp = ELEMENT_DATA(e);
+	LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {
 		vrrp = tvp->vrrp;
 
 		/* If this isn't the vrrp's interface, skip */
@@ -1117,6 +1117,8 @@ recreate_vmac(interface_t *ifp)
 		netlink_error_ignore = 0;
 		break;
 	}
+
+	return 0;
 }
 
 void

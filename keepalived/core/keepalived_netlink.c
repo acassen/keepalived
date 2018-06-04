@@ -1650,7 +1650,7 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 #ifdef _HAVE_VRRP_VMAC_
 			/* If this was a vmac we created, create it again, so long as the underlying i/f exists */
 			if (!LIST_ISEMPTY(ifp->tracking_vrrp) && ifp->vmac && ifp->base_ifp->ifindex)
-				recreate_vmac(ifp);
+				thread_add_event(master, recreate_vmac_thread, ifp, 0);
 #endif
 		} else if (strcmp(ifp->ifname, name)) {
 			/* The name can change, so handle that here */
@@ -1675,7 +1675,7 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 
 				/* Now create our VMAC again */
 				if (ifp->base_ifp->ifindex)
-					recreate_vmac(ifp);
+					thread_add_event(master, recreate_vmac_thread, ifp, 0);
 			}
 			else
 #endif
