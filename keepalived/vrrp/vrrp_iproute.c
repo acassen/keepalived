@@ -43,15 +43,9 @@
 #include <linux/ila.h>
 #endif
 #endif
-#include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
-
 #include <linux/rtnetlink.h>
-
-#ifndef RTPROT_KEEPALIVED
-#define RTPROT_KEEPALIVED	112	/* Keepalived daemon */
-#endif
 
 /* Buffer sizes for netlink messages. Increase if needed. */
 #define	RTM_SIZE		1024
