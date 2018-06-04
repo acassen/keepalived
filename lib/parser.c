@@ -1223,6 +1223,8 @@ init_data(const char *conf_file, vector_t * (*init_keywords) (void))
 
 	free_keywords(keywords);
 	free_parser_data();
+#ifdef _WITH_VRRP_
 	clear_rt_names();
+#endif
 	notify_resource_release();
 }

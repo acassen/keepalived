@@ -16,14 +16,18 @@ BUILT_SOURCES		= $(GIT_COMMIT_FILE)
 noinst_LIBRARIES	= liblib.a
 
 liblib_a_SOURCES	= memory.c utils.c notify.c timer.c scheduler.c \
-	vector.c list.c html.c parser.c signals.c logger.c rttables.c \
-	assert.c \
-	bitops.h timer.h scheduler.h rttables.h vector.h parser.h \
+	vector.c list.c html.c parser.c signals.c logger.c assert.c \
+	bitops.h timer.h scheduler.h vector.h parser.h \
 	signals.h notify.h logger.h list.h memory.h html.h utils.h \
 	keepalived_magic.h
 
 liblib_a_LIBADD		=
 EXTRA_liblib_a_SOURCES	=
+
+if WITH_VRRP
+  liblib_a_LIBADD	+= rttables.o
+  EXTRA_liblib_a_SOURCES += rttables.c rttables.h
+endif
 
 if ! SOCK_NONBLOCK
   liblib_a_LIBADD	+= old_socket.o
