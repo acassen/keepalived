@@ -613,6 +613,9 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 	old_global_data = global_data;
 	global_data = NULL;
 	reset_interface_queue();
+#ifdef _HAVE_FIB_ROUTING_
+	reset_next_rule_priority();
+#endif
 
 	/* Reload the conf */
 	start_vrrp();

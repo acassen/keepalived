@@ -492,7 +492,11 @@ SCOPE can take the following values :
 static_rules {                                # block identification
                                               # The syntax is that same as for ip rule add, without "ip rule add"
                                               # with the addition of tunnel-id option (except shortened option names
-                                              #    aren't supported due to ambiguities), e.g.
+                                              #   aren't supported due to ambiguities).
+                                              # NOTE: since rules without preferences can be added in different orders
+                                              #   due to vrrp instances transitioning from master to backup etc, rules need
+                                              #   to have a preference. If a preference is not specified, keepalived will
+                                              #   assign one, but it will probably not be what you want.
     from 192.168.28.0/24 to 192.168.29.0/26 table small iif p33p1 oif wlan0 tos 22 fwmark 24/12 preference 39 realms 30/20
     to 1:2:3:4:5:6:7:0/112 from 7:6:5:4:3:2::/96 table 6908 uidrange 10000-19999
     to 1:2:3:4:6:6:7:0/112 from 8:6:5:4:3:2::/96 l3mdev protocol 12 ip_proto UDP sport 10-20 dport 20-30

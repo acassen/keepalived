@@ -49,6 +49,15 @@
 #include "rttables.h"
 #include "vrrp_ip_rule_route_parser.h"
 
+/* Since we will be adding and deleting rules in potentially random
+ * orders due to master/backup transitions, we therefore need to
+ * pre-allocate priorities to ensure the rules are added in a consistent
+ * sequence. Really the configuration should specify a priority for each
+ * rule to ensure they are configured in the order the user wants. */
+#define RULE_START_PRIORITY 16384
+static unsigned next_rule_priority_ipv4 = RULE_START_PRIORITY;
+static unsigned next_rule_priority_ipv6 = RULE_START_PRIORITY;
+
 /* Utility functions */
 static inline bool
 rule_is_equal(const ip_rule_t *x, const ip_rule_t *y)
@@ -811,6 +820,12 @@ fwmark_err:
 
 	new->family = (family == AF_UNSPEC) ? AF_INET : family;
 
+	if (!(new->mask & IPRULE_BIT_PRIORITY)) {
+		new->priority = new->family == AF_INET ? next_rule_priority_ipv4-- : next_rule_priority_ipv6--;
+		new->mask |= IPRULE_BIT_PRIORITY;
+		log_message(LOG_INFO, "Rule has no preference specifed - setting to %u. This is probably not what you want.", new->priority);
+	}
+
 	list_add(rule_list, new);
 	return;
 
@@ -870,4 +885,11 @@ void
 clear_diff_srules(void)
 {
 	clear_diff_rules(old_vrrp_data->static_rules, vrrp_data->static_rules);
+}
+
+void
+reset_next_rule_priority(void)
+{
+	next_rule_priority_ipv4 = RULE_START_PRIORITY;
+	next_rule_priority_ipv6 = RULE_START_PRIORITY;
 }
