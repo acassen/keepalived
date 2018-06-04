@@ -532,7 +532,7 @@ bits of the address.
  to 192.168.2.0/24 table 1
  from 192.168.28.0/24 to 192.168.29.0/26 table small iif p33p1 oif wlan0 tos 22 fwmark 24/12 preference 39 realms 30/20 goto 40
  to 1:2:3:4:5:6:7:0/112 from 7:6:5:4:3:2::/96 table 6908 uidrange 10000-19999
- to 1:2:3:4:6:6:7:0/112 from 8:6:5:4:3:2::/96 l3mdev
+ to 1:2:3:4:6:6:7:0/112 from 8:6:5:4:3:2::/96 l3mdev protocol 12 ip_proto UDP sport 10-20 dport 20-30
  ...
  }
 .PP

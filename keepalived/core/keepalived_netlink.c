@@ -1799,7 +1799,8 @@ netlink_rule_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 	parse_rtattr(tb, FRA_MAX, RTM_RTA(frh), len);
 
 #if HAVE_DECL_FRA_PROTOCOL
-	if (tb[FRA_PROTOCOL] != RTPROT_KEEPALIVED) {
+	if (tb[FRA_PROTOCOL] &&
+	    *(uint8_t *)RTA_DATA(tb[FRA_PROTOCOL])!= RTPROT_KEEPALIVED) {
 		/* It is not a rule we are monitoring - ignore it */
 		return 0;
 	}
