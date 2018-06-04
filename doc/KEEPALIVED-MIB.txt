@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201805170000Z"
+     LAST-UPDATED "201806040000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201806040000Z"
+     DESCRIPTION "add ip rule protocol, ip_proto, src and dst port ranges"
      REVISION "201805170000Z"
      DESCRIPTION "add virtual server shutdown status"
      REVISION "201804290000Z"
@@ -1430,7 +1432,7 @@ vrrpRouteTos OBJECT-TYPE
 
 vrrpRouteProtocol OBJECT-TYPE
     SYNTAX INTEGER { unspec(1), redirect(2), kernel(3), boot(4), static(5), gated(9), ra(10), mrt(11),
-		      zebra(12), bird(13), dnrouted(14), xorp(15), ntk(16), dhcp(17) }
+		      zebra(12), bird(13), dnrouted(14), xorp(15), ntk(16), dhcp(17), keepalived(112) }
     MAX-ACCESS read-only
     STATUS current
     DESCRIPTION
@@ -1973,7 +1975,13 @@ VrrpRuleEntry ::= SEQUENCE {
     vrrpRuleTunnelIdLow Unsigned32,
     vrrpRuleUidRangeStart Unsigned32,
     vrrpRuleUidRangeEnd Unsigned32,
-    vrrpRuleL3mdev TruthValue
+    vrrpRuleL3mdev TruthValue,
+    vrrpRuleProtocol INTEGER,
+    vrrpRuleIPProto Unsigned32,
+    vrrpRuleSrcPortStart Unsigned32,
+    vrrpRuleSrcPortEnd Unsigned32,
+    vrrpRuleDstPortStart Unsigned32,
+    vrrpRuleDstPortEnd Unsigned32
 }
 
 vrrpRuleIndex OBJECT-TYPE
@@ -2231,6 +2239,56 @@ vrrpRuleL3mdev OBJECT-TYPE
     DESCRIPTION
         "Use routing device specified for layer 3 VRF device."
     ::= { vrrpRuleEntry 32 }
+
+vrrpRuleProtocol OBJECT-TYPE
+    SYNTAX INTEGER { unspec(1), redirect(2), kernel(3), boot(4), static(5), gated(9), ra(10), mrt(11),
+		      zebra(12), bird(13), dnrouted(14), xorp(15), ntk(16), dhcp(17), keepalived(112) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule protocol identifier."
+    ::= { vrrpRuleEntry 33 }
+
+vrrpRuleIPProto OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule IP protocol."
+    ::= { vrrpRuleEntry 34 }
+
+vrrpRuleSrcPortStart OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule source port range start."
+    ::= { vrrpRuleEntry 35 }
+
+vrrpRuleSrcPortEnd OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule source port range end."
+    ::= { vrrpRuleEntry 36 }
+
+vrrpRuleDstPortStart OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule destination port range start."
+    ::= { vrrpRuleEntry 37 }
+
+vrrpRuleDstPortEnd OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule destination port range end."
+    ::= { vrrpRuleEntry 38 }
+
 
 -- VRRP scripts
 -- see vrrp_track.h
@@ -4163,7 +4221,13 @@ vrrpInstanceGroup OBJECT-GROUP
     vrrpRuleTunnelIdLow,
     vrrpRuleUidRangeStart,
     vrrpRuleUidRangeEnd,
-    vrrpRuleL3mdev
+    vrrpRuleL3mdev,
+    vrrpRuleProtocol,
+    vrrpRuleIPProto,
+    vrrpRuleSrcPortStart,
+    vrrpRuleSrcPortEnd,
+    vrrpRuleDstPortStart,
+    vrrpRuleDstPortEnd
     }
     STATUS current
     DESCRIPTION

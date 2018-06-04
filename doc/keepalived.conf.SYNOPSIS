@@ -248,6 +248,8 @@ The above will create 2 virtual servers, each with 3 real servers
 The following pre-defined definitions are defined:
 ${_PWD}		The directory of the current configuration file
 		(this can be changed if using the include directive).
+${_INSTANCE}	The instance name (as defined by the -i option, defaults
+                  to hostname).
 
 Additional pre-defiend definitions will be added as their need is identified.
 It will normally be quite straightforward to add additional pre-defiend
@@ -493,7 +495,7 @@ static_rules {                                # block identification
                                               #    aren't supported due to ambiguities), e.g.
     from 192.168.28.0/24 to 192.168.29.0/26 table small iif p33p1 oif wlan0 tos 22 fwmark 24/12 preference 39 realms 30/20
     to 1:2:3:4:5:6:7:0/112 from 7:6:5:4:3:2::/96 table 6908 uidrange 10000-19999
-    to 1:2:3:4:6:6:7:0/112 from 8:6:5:4:3:2::/96 l3mdev
+    to 1:2:3:4:6:6:7:0/112 from 8:6:5:4:3:2::/96 l3mdev protocol 12 ip_proto UDP sport 10-20 dport 20-30
 }
 
     1.4. Static routes
@@ -838,8 +840,9 @@ vrrp_instance <STRING> {                      # VRRP instance declaration
         auth_pass <STRING>                    # Password string (up to 8 characters)
     }
     # For virutal_ipaddress and virtual_ipaddress_excluded most of the options match the options
-    #   of the command ip address add. no-track is specific to keepalived and means that the
-    #   vrrp_instance will not transition out of master state if the address is deleted.
+    #   of the command ip address add, likewise for virtual_routes and virtual_rules and the
+    #   respective ip route/rule add commands. no-track is specific to keepalived and means that the
+    #   vrrp_instance will not transition out of master state if the address/route/rule is deleted.
     virtual_ipaddress {                       # VRRP IP addres block
         <IP ADDRESS>[/<MASK>] [brd <IP ADDRESS>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IP ADDRESS>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin] [no-track]
         <IP ADDRESS>[/<MASK>] ...
@@ -853,10 +856,10 @@ vrrp_instance <STRING> {                      # VRRP instance declaration
     promote_secondaries                       # Set the promote_secondaries flag on the interface to stop other
                                               # addresses in the same CIDR being removed when 1 of them is removed
     virtual_routes {                          # VRRP virtual routes
-                                              # The syntax is the same as static_routes
+                                              # The syntax is the same as static_routes with the additional option [no-track]
     }
     virtual_rules {                           # VRRP virtual rules
-                                              # The syntax is the same as static_rules
+                                              # The syntax is the same as static_rules with the additional option [no-track]
     }
 
     nopreempt                                 # Override VRRP RFC preemption default

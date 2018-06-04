@@ -33,6 +33,10 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
+#if HAVE_DECL_FRA_IP_PROTO
+#include <netdb.h>
+#include <inttypes.h>
+#endif
 
 /* local include */
 #include "vrrp_iproute.h"
@@ -78,6 +82,20 @@ rule_is_equal(const ip_rule_t *x, const ip_rule_t *y)
 #if HAVE_DECL_FRA_OIFNAME
 	    x->oif != y->oif ||
 #endif
+#if HAVE_DECL_FRA_PROTOCOL
+	    x->protocol != y->protocol ||
+#endif
+#if HAVE_DECL_FRA_IP_PROTO
+	    x->ip_proto != y->ip_proto ||
+#endif
+#if HAVE_DECL_FRA_SPORT_RANGE
+	    x->src_port.start != y->src_port.start ||
+	    x->src_port.end != y->src_port.end ||
+#endif
+#if HAVE_DECL_FRA_DPORT_RANGE
+	    x->dst_port.start != y->dst_port.start ||
+	    x->dst_port.end != y->dst_port.end ||
+#endif
 	    x->goto_target != y->goto_target ||
 	    x->table != y->table ||
 	    x->action != y->action)
@@ -85,6 +103,33 @@ rule_is_equal(const ip_rule_t *x, const ip_rule_t *y)
 
 	return true;
 }
+
+#if HAVE_DECL_FRA_IP_PROTO
+static int
+inet_proto_a2n(const char *buf)
+{
+	struct protoent *pe;
+	unsigned long proto_num;
+	char *endptr;
+
+	if (!*buf)
+		return -1;
+
+	proto_num = strtoul(buf, &endptr, 10);
+	if (endptr != buf && !*endptr)
+		return -1;
+	if (proto_num >INT_MAX)
+		return -1;
+
+	pe = getprotobyname(buf);
+	endprotoent();
+
+	if (pe)
+		return pe->p_proto;
+
+	return -1;
+}
+#endif
 
 /* Add/Delete IP rule to/from a specific IP/network */
 static int
@@ -188,6 +233,26 @@ netlink_rule(ip_rule_t *iprule, int cmd)
 #if HAVE_DECL_FRA_L3MDEV
 	if (iprule->l3mdev)
 		addattr8(&req.n, sizeof(req), FRA_L3MDEV, 1);
+#endif
+
+#if HAVE_DECL_FRA_PROTOCOL
+	if (iprule->mask & IPRULE_BIT_PROTOCOL)
+		addattr8(&req.n, sizeof(req), FRA_PROTOCOL, iprule->protocol);
+#endif
+
+#if HAVE_DECL_FRA_IP_PROTO
+	if (iprule->mask & IPRULE_BIT_IP_PROTO)
+		addattr8(&req.n, sizeof(req), FRA_IP_PROTO, iprule->ip_proto);
+#endif
+
+#if HAVE_DECL_FRA_SPORT_RANGE
+	if (iprule->mask & IPRULE_BIT_SPORT_RANGE)
+		addattr_l(&req.n, sizeof(req), FRA_SPORT_RANGE, &iprule->src_port, sizeof(iprule->src_port));
+#endif
+
+#if HAVE_DECL_FRA_DPORT_RANGE
+	if (iprule->mask & IPRULE_BIT_DPORT_RANGE)
+		addattr_l(&req.n, sizeof(req), FRA_DPORT_RANGE, &iprule->dst_port, sizeof(iprule->dst_port));
 #endif
 
 	if (iprule->action == FR_ACT_GOTO) {	// "goto"
@@ -323,6 +388,26 @@ format_iprule(ip_rule_t *rule, char *buf, size_t buf_len)
 		op += snprintf(op, (size_t)(buf_end - op), " l3mdev");
 #endif
 
+#if HAVE_DECL_FRA_PROTOCOL
+	if (rule->mask & IPRULE_BIT_PROTOCOL)
+		op += snprintf(op, (size_t)(buf_end - op), " protocol %u", rule->protocol);
+#endif
+
+#if HAVE_DECL_FRA_IP_PROTO
+	if (rule->mask & IPRULE_BIT_IP_PROTO)
+		op += snprintf(op, (size_t)(buf_end - op), " ipproto %u", rule->ip_proto);
+#endif
+
+#if HAVE_DECL_FRA_SPORT_RANGE
+	if (rule->mask & IPRULE_BIT_SPORT_RANGE)
+		op += snprintf(op, (size_t)(buf_end - op), " sport %hu-%hu", rule->src_port.start, rule->src_port.end);
+#endif
+
+#if HAVE_DECL_FRA_DPORT_RANGE
+	if (rule->mask & IPRULE_BIT_DPORT_RANGE)
+		op += snprintf(op, (size_t)(buf_end - op), " dport %hu-%hu", rule->dst_port.start, rule->dst_port.end);
+#endif
+
 	if (rule->realms)
 		op += snprintf(op, (size_t)(buf_end - op), " realms %d/%d", rule->realms >> 16, rule->realms & 0xffff);
 
@@ -334,6 +419,8 @@ format_iprule(ip_rule_t *rule, char *buf, size_t buf_len)
 		op += snprintf(op, (size_t)(buf_end - op), " nop");
 	else
 		op += snprintf(op, (size_t)(buf_end - op), " type %s", get_rttables_rtntype(rule->action));
+	if (rule->dont_track)
+		op += snprintf(op, (size_t)(buf_end - op), " no-track");
 }
 
 void
@@ -587,6 +674,64 @@ fwmark_err:
 			new->action = FR_ACT_TO_TBL;
 		}
 #endif
+#if HAVE_DECL_FRA_PROTOCOL
+		else if (!strcmp(str, "protocol")) {
+			char *endptr;
+			unsigned long protocol = strtoul(strvec_slot(strvec, ++i), &endptr, 10);
+			if (protocol > UINT8_MAX || *endptr)
+				log_message(LOG_INFO, "Invalid protocol %s", FMT_STR_VSLOT(strvec, i));
+			else {
+				new->protocol = protocol;
+				new->mask |= IPRULE_BIT_PROTOCOL;
+			}
+		}
+#endif
+#if HAVE_DECL_FRA_IP_PROTO
+		else if (!strcmp(str, "ipproto")) {
+			int ip_proto = inet_proto_a2n(strvec_slot(strvec, ++i));
+			if (ip_proto < 0 || ip_proto > UINT8_MAX)
+				log_message(LOG_INFO, "Invalid ipproto %s", FMT_STR_VSLOT(strvec, i));
+			else {
+				new->ip_proto = ip_proto;
+				new->mask |= IPRULE_BIT_IP_PROTO;
+			}
+		}
+#endif
+#if HAVE_DECL_FRA_SPORT_RANGE
+		else if (!strcmp(str, "sport")) {
+			struct fib_rule_port_range sport;
+			int ret;
+
+			ret = sscanf(strvec_slot(strvec, ++i), "%hu-%hu", &sport.start, &sport.end);
+			if (ret == 1)
+				sport.end = sport.start;
+			if (ret != 2)
+				log_message(LOG_INFO, "invalid sport range %s", FMT_STR_VSLOT(strvec, i));
+			else {
+				new->src_port = sport;
+				new->mask |= IPRULE_BIT_SPORT_RANGE;
+			}
+		}
+#endif
+#if HAVE_DECL_FRA_DPORT_RANGE
+		else if (!strcmp(str, "dport")) {
+			struct fib_rule_port_range dport;
+			int ret;
+
+			ret = sscanf(strvec_slot(strvec, ++i), "%hu-%hu", &dport.start, &dport.end);
+			if (ret == 1)
+				dport.end = dport.start;
+			if (ret != 2)
+				log_message(LOG_INFO, "invalid dport range %s", FMT_STR_VSLOT(strvec, i));
+			else {
+				new->dst_port = dport;
+				new->mask |= IPRULE_BIT_DPORT_RANGE;
+			}
+		}
+#endif
+
+		else if (!strcmp(str, "no-track"))
+			new->dont_track = true;
 		else {
 			uint8_t action = FR_ACT_UNSPEC;
 
@@ -652,6 +797,15 @@ fwmark_err:
 	if (new->table && new->l3mdev) {
 		log_message(LOG_INFO, "table cannot be specified for l3mdev rules");
 		goto err;
+	}
+#endif
+
+#if HAVE_DECL_FRA_PROTOCOL
+	if (!new->dont_track) {
+		if ((new->mask & IPRULE_BIT_PROTOCOL) && new->protocol != RTPROT_KEEPALIVED)
+			log_message(LOG_INFO, "Rule cannot be tracked if protocol is not RTPROT_KEEPALIVED(%d), resetting protocol", RTPROT_KEEPALIVED);
+		new->protocol = RTPROT_KEEPALIVED;
+		new->mask |= IPRULE_BIT_PROTOCOL;
 	}
 #endif
 

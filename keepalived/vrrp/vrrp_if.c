@@ -62,6 +62,8 @@
 #include "vrrp_index.h"
 #include "vrrp_track.h"
 #include "vrrp_scheduler.h"
+#include "vrrp_iproute.h"
+
 
 /* Local vars */
 static list if_queue;
@@ -964,24 +966,61 @@ print_vrrp_if_addresses(void)
 #endif
 
 void
+interface_down(interface_t *ifp)
+{
+	element e, e1;
+	vrrp_t *vrrp;
+	ip_route_t *route;
+	bool route_found;
+
+	/* Unfortunately the kernel doesn't send RTM_DELROUTE for userspace added
+	 * routes that are deleted when the link goes down (?kernel bug). */
+
+	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+		if (vrrp->state != VRRP_STATE_MAST)
+			continue;
+
+		route_found = false;
+
+		LIST_FOREACH(vrrp->vroutes, route, e1) {
+			if (!route->set)
+				continue;
+
+			/* Any route that has an oif will be tracking the interface,
+			 * so we only need to check for routes that dont specify an
+			 * oif */
+			if (!route->oif && route->configured_ifindex != ifp->ifindex)
+				continue;
+
+			route->set = false;
+
+			if (route->dont_track)
+				continue;
+
+			route_found = true;
+		}
+
+		if (route_found) {
+			/* Bring down vrrp instance/sync group */
+			down_instance(vrrp);
+		}
+	}
+
+	/* Now check the static routes */
+}
+
+void
 cleanup_lost_interface(interface_t *ifp)
 {
 	vrrp_t *vrrp;
 	tracking_vrrp_t *tvp;
 	element e;
 
-	ifp->ifindex = 0;
-	ifp->ifi_flags = 0;
-
-	if (LIST_ISEMPTY(ifp->tracking_vrrp))
-		return;
-
-	for (e = LIST_HEAD(ifp->tracking_vrrp); e; ELEMENT_NEXT(e)) {
-		tvp = ELEMENT_DATA(e);
+	LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {
 		vrrp = tvp->vrrp;
 
 		/* If this is just a tracking interface, we don't need to do anything */
-		if (vrrp->ifp != ifp && IF_BASE_IFP(ifp) != ifp)
+		if (vrrp->ifp != ifp && IF_BASE_IFP(vrrp->ifp) != ifp)
 			continue;
 
 #ifdef _HAVE_VRRP_VMAC_
@@ -1005,6 +1044,11 @@ cleanup_lost_interface(interface_t *ifp)
 		}
 		vrrp->sockets->ifindex = 0;
 	}
+
+	interface_down(ifp);
+
+	ifp->ifindex = 0;
+	ifp->ifi_flags = 0;
 }
 
 static bool
@@ -1039,7 +1083,7 @@ setup_interface(vrrp_t *vrrp)
 		alloc_vrrp_fd_bucket(vrrp);
 
 		if (vrrp_initialised) {
-			vrrp->state = VRRP_STATE_FAULT;
+			vrrp->state = vrrp->num_script_if_fault ? VRRP_STATE_FAULT : VRRP_STATE_BACK;
 			vrrp_init_instance_sands(vrrp);
 			vrrp_thread_add_read(vrrp);
 		}
@@ -1050,18 +1094,18 @@ setup_interface(vrrp_t *vrrp)
 	return true;
 }
 
-void
-recreate_vmac(interface_t *ifp)
+int
+recreate_vmac_thread(thread_t *thread)
 {
 	vrrp_t *vrrp;
 	tracking_vrrp_t *tvp;
 	element e;
+	interface_t *ifp = THREAD_ARG(thread);
 
 	if (LIST_ISEMPTY(ifp->tracking_vrrp) || !ifp->vmac)
-		return;
+		return 0;
 
-	for (e = LIST_HEAD(ifp->tracking_vrrp); e; ELEMENT_NEXT(e)) {
-		tvp = ELEMENT_DATA(e);
+	LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {
 		vrrp = tvp->vrrp;
 
 		/* If this isn't the vrrp's interface, skip */
@@ -1073,6 +1117,8 @@ recreate_vmac(interface_t *ifp)
 		netlink_error_ignore = 0;
 		break;
 	}
+
+	return 0;
 }
 
 void

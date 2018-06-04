@@ -90,6 +90,10 @@ bool block_ipv6;
  */
 bool have_ipv4_instance;
 bool have_ipv6_instance;
+static bool monitor_ipv4_routes;
+static bool monitor_ipv6_routes;
+static bool monitor_ipv4_rules;
+static bool monitor_ipv6_rules;
 
 static int
 vrrp_notify_fifo_script_exit(__attribute__((unused)) thread_t *thread)
@@ -104,6 +108,10 @@ clear_summary_flags(void)
 {
 	have_ipv4_instance = false;
 	have_ipv6_instance = false;
+	monitor_ipv4_routes = false;
+	monitor_ipv6_routes = false;
+	monitor_ipv4_rules = false;
+	monitor_ipv6_rules = false;
 }
 
 /* add/remove Virtual IP addresses */
@@ -111,7 +119,7 @@ static bool
 vrrp_handle_ipaddress(vrrp_t * vrrp, int cmd, int type, bool force)
 {
 	if (__test_bit(LOG_DETAIL_BIT, &debug))
-		log_message(LOG_INFO, "(%s) %s protocol %s", vrrp->iname,
+		log_message(LOG_INFO, "(%s) %s %s", vrrp->iname,
 		       (cmd == IPADDRESS_ADD) ? "setting" : "removing",
 		       (type == VRRP_VIP_TYPE) ? "VIPs." : "E-VIPs.");
 	return netlink_iplist((type == VRRP_VIP_TYPE) ? vrrp->vip : vrrp->evip, cmd, force);
@@ -123,7 +131,7 @@ static void
 vrrp_handle_iproutes(vrrp_t * vrrp, int cmd)
 {
 	if (__test_bit(LOG_DETAIL_BIT, &debug))
-		log_message(LOG_INFO, "(%s) %s protocol Virtual Routes",
+		log_message(LOG_INFO, "(%s) %s Virtual Routes",
 		       vrrp->iname,
 		       (cmd == IPROUTE_ADD) ? "setting" : "removing");
 	netlink_rtlist(vrrp->vroutes, cmd);
@@ -134,7 +142,7 @@ static void
 vrrp_handle_iprules(vrrp_t * vrrp, int cmd, bool force)
 {
 	if (__test_bit(LOG_DETAIL_BIT, &debug))
-		log_message(LOG_INFO, "(%s) %s protocol Virtual Rules",
+		log_message(LOG_INFO, "(%s) %s Virtual Rules",
 		       vrrp->iname,
 		       (cmd == IPRULE_ADD) ? "setting" : "removing");
 	netlink_rulelist(vrrp->vrules, cmd, force);
@@ -153,7 +161,7 @@ vrrp_handle_accept_mode(vrrp_t *vrrp, int cmd, bool force)
 
 	if (vrrp->base_priority != VRRP_PRIO_OWNER && !vrrp->accept) {
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
-			log_message(LOG_INFO, "(%s) %s protocol %s", vrrp->iname,
+			log_message(LOG_INFO, "(%s) %s %s", vrrp->iname,
 				(cmd == IPADDRESS_ADD) ? "setting" : "removing", "iptable drop rule");
 
 #ifdef _HAVE_LIBIPTC_
@@ -1990,7 +1998,8 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool log_addr,
 		/* Check if this is already in the list, and adjust the weight appropriately */
 		LIST_FOREACH(ifp->tracking_vrrp, etvp, e) {
 			if (etvp->vrrp == vrrp) {
-				if (etvp->type != TRACK_ADDR && type != TRACK_ADDR)
+				if (etvp->type & ~(TRACK_ADDR | TRACK_ROUTE | TRACK_RULE) &&
+				    type != TRACK_ADDR && type != TRACK_ROUTE && type != TRACK_RULE)
 					log_message(LOG_INFO, "(%s) track_interface %s is configured on VRRP instance and sync group. Remove vrrp instance or sync group config",
 							vrrp->iname, ifp->ifname);
 
@@ -2016,19 +2025,6 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool log_addr,
 
 	/* if vrrp->num_if_script_fault needs incrementing, it will be
 	 * done in initialise_tracking_priorities() */
-}
-
-static void
-add_interface_to_vrrp(vrrp_t *vrrp, interface_t *ifp)
-{
-	tracked_if_t *tip = MALLOC(sizeof *tip);
-
-	tip->ifp = ifp;
-	tip->weight = 0;
-
-	if (!LIST_EXISTS(vrrp->track_ifp))
-		vrrp->track_ifp = alloc_list(free_track_if, dump_track_if);
-	list_add(vrrp->track_ifp, tip);
 }
 
 /* check for minimum configuration requirements */
@@ -2400,6 +2396,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	tracked_file_t *tfl;
 #ifdef _WITH_BFD_
 	tracked_bfd_t *tbfd;
+#endif
+#ifdef _HAVE_FIB_ROUTING_
+	ip_route_t *vroute;
+	ip_rule_t *vrule;
 #endif
 
 	if (vrrp->strict_mode == PARAMETER_UNSET)
@@ -2812,9 +2812,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			inet_ip6tosockaddr(&IF_BASE_IFP(vrrp->ifp)->sin6_addr, &vrrp->saddr);
 	}
 
-	/* Add us to the interfaces we are tracking. This must be
-	 * done before the vrrp's own interface(s) is added, since
-	 * the interface is then added to the track_ifp list */
+	/* Add us to the interfaces we are tracking */
 	LIST_FOREACH_NEXT(vrrp->track_ifp, tip, e, next) {
 		/* Check the configuration doesn't explicitly state to track our own interface */
 		if (tip->ifp == IF_BASE_IFP(vrrp->ifp)) {
@@ -2827,8 +2825,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	/* Add this instance to the physical interface and vice versa */
 	add_vrrp_to_interface(vrrp, IF_BASE_IFP(vrrp->ifp), vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, true, TRACK_VRRP);
-	if (!vrrp->dont_track_primary)
-		add_interface_to_vrrp(vrrp, IF_BASE_IFP(vrrp->ifp));
 
 #ifdef _HAVE_VRRP_VMAC_
 	if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&
@@ -2858,8 +2854,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 		/* Add this instance to the vmac interface */
 		add_vrrp_to_interface(vrrp, vrrp->ifp, vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, true, TRACK_VRRP);
-		if (!vrrp->dont_track_primary)
-			add_interface_to_vrrp(vrrp, vrrp->ifp);
 	}
 #endif
 
@@ -2998,17 +2992,48 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 #endif
 
-	if (!vrrp->ifp->ifindex)
-		return true;
+	if (vrrp->ifp->ifindex) {
+		if (!reload && interface_already_existed) {
+			vrrp->vipset = true;	/* Set to force address removal */
+		}
 
-	if (!reload && interface_already_existed) {
-		vrrp->vipset = true;	/* Set to force address removal */
+		/* See if we need to set promote_secondaries */
+		if (vrrp->promote_secondaries &&
+		    !vrrp->ifp->promote_secondaries_already_set)
+			set_promote_secondaries(vrrp->ifp);
 	}
 
-	/* See if we need to set promote_secondaries */
-	if (vrrp->promote_secondaries &&
-	    !vrrp->ifp->promote_secondaries_already_set)
-		set_promote_secondaries(vrrp->ifp);
+#ifdef _HAVE_FIB_ROUTING_
+	/* Check if there are any route/rules we need to monitor */
+	LIST_FOREACH(vrrp->vroutes, vroute, e) {
+		if (!vroute->dont_track) {
+			if (vroute->family == AF_INET)
+				monitor_ipv4_routes = true;
+			else
+				monitor_ipv6_routes = true;
+
+			/* If the route specifies an interface, this vrrp instance should track the interface */
+			if (vroute->oif)
+				add_vrrp_to_interface(vrrp, vroute->oif, 0, false, TRACK_ROUTE);
+		}
+	}
+	LIST_FOREACH(vrrp->vrules, vrule, e) {
+		if (!vrule->dont_track) {
+			if (vrule->family == AF_INET)
+				monitor_ipv4_rules = true;
+			else
+				monitor_ipv6_rules = true;
+
+			/* If the rule specifies an interface, this vrrp instance should track the interface */
+			if (vrule->iif)
+				add_vrrp_to_interface(vrrp, vrule->iif, 0, false, TRACK_RULE);
+#if HAVE_DECL_FRA_OIFNAME
+			if (vrule->oif)
+				add_vrrp_to_interface(vrrp, vrule->oif, 0, false, TRACK_RULE);
+#endif
+		}
+	}
+#endif
 
 	return true;
 }
@@ -3151,8 +3176,7 @@ vrrp_complete_init(void)
 	notify_fifo_open(&global_data->notify_fifo, &global_data->vrrp_notify_fifo, vrrp_notify_fifo_script_exit, "vrrp_");
 
 	/* Make sure don't have same vrid on same interface with same address family */
-	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
+	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
 		l_o = &vrrp_data->vrrp_index[vrrp->vrid];
 #ifdef _HAVE_VRRP_VMAC_
 		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
@@ -3163,9 +3187,8 @@ vrrp_complete_init(void)
 
 		/* Check if any other entries with same vrid conflict */
 		if (!LIST_ISEMPTY(l_o) && LIST_SIZE(l_o) > 1) {
-			/* Can't have same vrid with same family an interface */
-			for (e_o = LIST_HEAD(l_o); e_o; ELEMENT_NEXT(e_o)) {
-				vrrp_o = ELEMENT_DATA(e_o);
+			/* Can't have same vrid with same family on same interface */
+			LIST_FOREACH(l_o, vrrp_o, e_o) {
 				if (vrrp_o != vrrp &&
 				    vrrp_o->family == vrrp->family) {
 #ifdef _HAVE_VRRP_VMAC_
@@ -3204,8 +3227,7 @@ vrrp_complete_init(void)
 	}
 
 	/* Complete VRRP instance initialization */
-	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
+	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
 		if (!vrrp_complete_instance(vrrp))
 			return false;
 
@@ -3226,6 +3248,9 @@ vrrp_complete_init(void)
 	if (global_data->vrrp_garp_interval || global_data->vrrp_gna_interval)
 		set_default_garp_delay();
 
+	/* If we are tracking any routes/rules, ask netlink to monitor them */
+	set_extra_netlink_monitoring(monitor_ipv4_routes, monitor_ipv6_routes, monitor_ipv4_rules, monitor_ipv6_rules);
+
 #ifdef _HAVE_LIBIPTC_
 	/* Make sure we don't have any old iptables/ipsets settings left around */
 	if (!reload)
@@ -3235,7 +3260,10 @@ vrrp_complete_init(void)
 	/* We need to know the state of interfaces for the next loop */
 	init_interface_linkbeat();
 
-	/* Check for instance down due to an interface or script */
+	/* Check for instance down due to an interface */
+	initialise_interface_tracking_priorities();
+
+	/* Now check for tracking scripts, files, bfd etc */
 	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
 		/* Set effective priority and fault state */
 		initialise_tracking_priorities(vrrp);

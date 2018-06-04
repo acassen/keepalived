@@ -210,6 +210,8 @@ The following pre-defined definitions are defined:
 .PP
 ${_PWD}         The directory of the current configuration file
                 (this can be changed if using the include directive).
+${_INSTANCE}    The instance name (as defined by the -i option, defaults
+                  to hostname).
 
 Additional pre-defined definitions will be added as their need is identified.
 It will normally be quite straightforward to add additional pre-defined
@@ -530,7 +532,7 @@ bits of the address.
  to 192.168.2.0/24 table 1
  from 192.168.28.0/24 to 192.168.29.0/26 table small iif p33p1 oif wlan0 tos 22 fwmark 24/12 preference 39 realms 30/20 goto 40
  to 1:2:3:4:5:6:7:0/112 from 7:6:5:4:3:2::/96 table 6908 uidrange 10000-19999
- to 1:2:3:4:6:6:7:0/112 from 8:6:5:4:3:2::/96 l3mdev
+ to 1:2:3:4:6:6:7:0/112 from 8:6:5:4:3:2::/96 l3mdev protocol 12 ip_proto UDP sport 10-20 dport 20-30
  ...
  }
 .PP
@@ -884,28 +886,28 @@ bfd_instance <STRING> {
                auth_pass 1234
            }
 
-           #addresses add|del on change to MASTER, to BACKUP.
-           #With the same entries on other machines,
-           #the opposite transition will be occurring.
-           # For virutal_ipaddress and virtual_ipaddress_excluded
-           #   most of the options match the options
-           #   of the command ip address add.
+           # addresses add|del on change to MASTER, to BACKUP.
+           # With the same entries on other machines,
+           # the opposite transition will be occurring.
+           # For virutal_ipaddress, virtual_ipaddress_excluded,
+           #   virtual_routes and virtual_rules most of the options
+           #   match the options of the command ip address/route/rule add.
            #   no-track is specific to keepalived and means that the
            #   vrrp_instance will not transition out of master state
-           #   if the address is deleted.
+           #   if the address/route/rule is deleted.
            virtual_ipaddress {
                <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IPADDR>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin] [no-track]
                192.168.200.17/24 dev eth1
                192.168.200.18/24 dev eth2 label eth2:1
            }
 
-           #VRRP IP excluded from VRRP
-           #optional.
-           #For cases with large numbers (eg 200) of IPs
-           #on the same interface. To decrease the number
-           #of packets sent in adverts, you can exclude
-           #most IPs from adverts.
-           #The IPs are add|del as for virtual_ipaddress.
+           # VRRP IP excluded from VRRP
+           # optional.
+           # For cases with large numbers (eg 200) of IPs
+           # on the same interface. To decrease the number
+           # of addresses sent in adverts, you can exclude
+           # most IPs from adverts.
+           # The IPs are add|del as for virtual_ipaddress.
            # Can also be used if you want to be able to add
            # a mixture of IPv4 and IPv6 addresses, since all
            # addresses in virtual_ipaddress must be of the
@@ -929,7 +931,7 @@ bfd_instance <STRING> {
                # src <IPADDR> [to] <IPADDR>/<MASK> via|gw <IPADDR> [or <IPADDR>] dev <STRING> scope <SCOPE> table <TABLE>
                src 192.168.100.1 to 192.168.109.0/24 via 192.168.200.254 dev eth1
                192.168.110.0/24 via 192.168.200.254 dev eth1
-               192.168.111.0/24 dev eth2
+               192.168.111.0/24 dev eth2 no-track
                192.168.112.0/24 via 192.168.100.254
                192.168.113.0/24 via 192.168.200.254 or 192.168.100.254 dev eth1
                blackhole 192.168.114.0/24
@@ -940,7 +942,7 @@ bfd_instance <STRING> {
            # See static_rules for more details
            virtual_rules {
                from 192.168.2.0/24 table 1
-               to 192.168.2.0/24 table 1
+               to 192.168.2.0/24 table 1 no-track
            }
 
            # VRRPv3 has an Accept Mode to allow the virtual router when not the address owner to

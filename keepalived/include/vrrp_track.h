@@ -121,6 +121,8 @@ typedef enum {
 	TRACK_IF = 0x02,
 	TRACK_SG = 0x04,
 	TRACK_ADDR = 0x04,
+	TRACK_ROUTE = 0x08,
+	TRACK_RULE = 0x10,
 } track_t;
 
 /* List structure from scripts, files and interfaces to tracking vrrp */
@@ -154,6 +156,7 @@ extern vrrp_script_t *find_script_by_name(char *);
 extern void update_script_priorities(vrrp_script_t *, bool);
 extern void down_instance(struct _vrrp_t *);
 extern void vrrp_set_effective_priority(struct _vrrp_t *);
+extern void initialise_interface_tracking_priorities(void);
 extern void initialise_tracking_priorities(struct _vrrp_t *);
 extern void init_track_files(list);
 extern void stop_track_files(void);

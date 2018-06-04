@@ -57,7 +57,7 @@ typedef struct _ip_address {
 	uint8_t			flags;			/* Address flags */
 	uint8_t			flagmask;		/* Bitmaps of flags set */
 #endif
-	bool                    have_peer;
+	bool			have_peer;
 	union {
 		struct in_addr sin_addr;
 		struct in6_addr sin6_addr;

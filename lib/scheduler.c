@@ -778,11 +778,25 @@ thread_cancel(thread_t * thread)
 	case THREAD_READ:
 		assert(FD_ISSET(thread->u.fd, &thread->master->readfd));
 		FD_CLR(thread->u.fd, &thread->master->readfd);
+		if (thread->master->max_fd == thread->u.fd) {
+			/* Recalculate max_fd */
+			while (thread->master->max_fd &&
+			       !FD_ISSET(thread->master->max_fd, &thread->master->readfd) &&
+			       !FD_ISSET(thread->master->max_fd, &thread->master->writefd))
+				thread->master->max_fd--;
+		}
 		thread_list_delete(&thread->master->read, thread);
 		break;
 	case THREAD_WRITE:
 		assert(FD_ISSET(thread->u.fd, &thread->master->writefd));
 		FD_CLR(thread->u.fd, &thread->master->writefd);
+		if (thread->master->max_fd == thread->u.fd) {
+			/* Recalculate max_fd */
+			while (thread->master->max_fd &&
+			       !FD_ISSET(thread->master->max_fd, &thread->master->readfd) &&
+			       !FD_ISSET(thread->master->max_fd, &thread->master->writefd))
+				thread->master->max_fd--;
+		}
 		thread_list_delete(&thread->master->write, thread);
 		break;
 	case THREAD_TIMER:
@@ -942,6 +956,13 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	/* Call select function. */
 	readfd = m->readfd;
 	writefd = m->writefd;
+
+	/* Recalculate max_fd if necessary */
+	while (!FD_ISSET(m->max_fd, &m->readfd) &&
+	       !FD_ISSET(m->max_fd, &m->writefd) &&
+	       m->max_fd)
+		m->max_fd--;
+
 	fdsetsize = m->max_fd + 1;
 
 #ifdef _WITH_SNMP_
@@ -961,7 +982,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 #endif
 
 #ifdef _SELECT_DEBUG_
-	if (prog_type == PROG_TYPE_VRRP && shutting_down)
+	if (prog_type == PROG_TYPE_VRRP)
 		log_message(LOG_INFO, "select with timer %lu.%6.6ld, fdsetsize %d, readfds 0x%lx", timer_wait.tv_sec, timer_wait.tv_usec, fdsetsize, readfd.fds_bits[0]);
 #endif
 
@@ -976,7 +997,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	old_errno = errno;
 
 #ifdef _SELECT_DEBUG_
-	if (prog_type == PROG_TYPE_VRRP && shutting_down)
+	if (prog_type == PROG_TYPE_VRRP)
 		log_message(LOG_INFO, "Select returned %d, errno %d, readfd 0x%lx, writefd 0x%lx, timer %lu.%6.6ld", num_fds, old_errno, readfd.fds_bits[0], writefd.fds_bits[0], timer_wait.tv_sec, timer_wait.tv_usec);
 #endif
 

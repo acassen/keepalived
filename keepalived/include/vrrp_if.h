@@ -168,8 +168,9 @@ extern int if_setsockopt_mcast_hops(sa_family_t, int *);
 extern int if_setsockopt_mcast_if(sa_family_t, int *, interface_t *);
 extern int if_setsockopt_priority(int *, int);
 extern int if_setsockopt_rcvbuf(int *, int);
+extern void interface_down(interface_t *);
 extern void cleanup_lost_interface(interface_t *);
-extern void recreate_vmac(interface_t *);
+extern int recreate_vmac_thread(thread_t *);
 extern void update_added_interface(interface_t *);
 
 #endif

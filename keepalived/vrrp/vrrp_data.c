@@ -23,6 +23,7 @@
 #include "config.h"
 
 #include <unistd.h>
+#include <time.h>
 
 #include "utils.h"
 #include "logger.h"

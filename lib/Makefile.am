@@ -34,7 +34,7 @@ EXTRA_DIST		= $(GIT_COMMIT_FILE)
 
 MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@
 
-.PHONY: $(GIT_COMMIT_FILE)
+FORCE:
 
 # The git commit file will contain the git version and date of last commit,
 # unless this is a tagged version, in which case the git commit is omitted.
@@ -45,7 +45,7 @@ MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@
 # The other file that needs to be ignored is deletion of snap/snapcraft.yaml,
 # since in a snapcraft build that file is deleted
 # (see https://bugs.launchpad.net/snapcraft/+bug/1662388).
-$(GIT_COMMIT_FILE):
+$(GIT_COMMIT_FILE): FORCE
 	@if [ ! -f $(srcdir)/$@ -a ! -f $@ ]; then \
 		echo '#define GIT_DATE	"unknown"' >$@; \
 		echo "#define GIT_YEAR	\"`date +%Y`\"" >>$@; \

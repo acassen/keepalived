@@ -48,6 +48,18 @@ enum iprule_param_mask {
 	IPRULE_BIT_SUP_PREFIXLEN = 0x10,
 	IPRULE_BIT_SUP_GROUP = 0x20,
 	IPRULE_BIT_UID_RANGE = 0x40,
+#if HAVE_DECL_FRA_PROTOCOL
+	IPRULE_BIT_PROTOCOL = 0x80,
+#endif
+#if HAVE_DECL_FRA_IP_PROTO
+	IPRULE_BIT_IP_PROTO = 0x100,
+#endif
+#if HAVE_DECL_FRA_SPORT_RANGE
+	IPRULE_BIT_SPORT_RANGE = 0x200,
+#endif
+#if HAVE_DECL_FRA_DPORT_RANGE
+	IPRULE_BIT_DPORT_RANGE = 0x400,
+#endif
 } ;
 
  /* types definition */
@@ -84,6 +96,19 @@ typedef struct _ip_rule {
 #if HAVE_DECL_FRA_L3MDEV
 	bool		l3mdev;
 #endif
+#if HAVE_DECL_FRA_PROTOCOL
+	uint8_t		protocol;
+#endif
+#if HAVE_DECL_FRA_IP_PROTO
+	uint8_t		ip_proto;
+#endif
+#if HAVE_DECL_FRA_SPORT_RANGE
+	struct fib_rule_port_range src_port;
+#endif
+#if HAVE_DECL_FRA_DPORT_RANGE
+	struct fib_rule_port_range dst_port;
+#endif
+	bool		dont_track;     /* used for virtual rules */
 	bool		set;
 } ip_rule_t;
 

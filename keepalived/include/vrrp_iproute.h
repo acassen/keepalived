@@ -31,12 +31,18 @@
 #if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
 #include <linux/mpls.h>
 #endif
+#include <linux/rtnetlink.h>
 
 /* local includes */
 #include "list.h"
 #include "vector.h"
 #include "vrrp_ipaddress.h"
 #include "vrrp_if.h"
+
+/* We hope to get an official definion for this, but until then make a private one */
+#ifndef RTPROT_KEEPALIVED
+#define RTPROT_KEEPALIVED       112     /* Keepalived daemon */
+#endif
 
 /* Buffer sizes for printing */
 #define	ROUTE_BUF_SIZE		1024
@@ -222,7 +228,9 @@ typedef struct _ip_route {
 #endif
 	list			nhs;
 	uint32_t		mask;
+	bool			dont_track;	/* used for virtual routes */
 	bool			set;
+	uint32_t		configured_ifindex;	/* Index of interface route is configured on */
 } ip_route_t;
 
 #define IPROUTE_DEL	0

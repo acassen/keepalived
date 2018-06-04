@@ -78,6 +78,7 @@ extern void (*rtnl_link_put_addr)(struct rtnl_link *);
 #endif
 extern int (*nl_connect_addr)(struct nl_sock *, int);
 extern int (*nl_socket_add_membership_addr)(struct nl_sock *, int);
+extern int (*nl_socket_drop_membership_addr)(struct nl_sock *, int);
 extern int (*nl_socket_get_fd_addr)(const struct nl_sock *);
 extern uint32_t (*nl_socket_get_local_port_addr)(const struct nl_sock *);
 extern int (*nl_socket_set_buffer_size_addr)(struct nl_sock *, int, int);
@@ -126,6 +127,7 @@ extern int (*nl_socket_set_nonblocking_addr)(const struct nl_sock *);
 #endif
 #define nl_connect (*nl_connect_addr)
 #define nl_socket_add_membership (*nl_socket_add_membership_addr)
+#define nl_socket_drop_membership (*nl_socket_drop_membership_addr)
 #define nl_socket_get_fd (*nl_socket_get_fd_addr)
 #define nl_socket_get_local_port (*nl_socket_get_local_port_addr)
 #define nl_socket_set_buffer_size (*nl_socket_set_buffer_size_addr)

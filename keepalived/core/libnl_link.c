@@ -82,6 +82,7 @@ void (*rtnl_link_put_addr)(struct rtnl_link *);
 #endif
 int (*nl_connect_addr)(struct nl_sock *, int);
 int (*nl_socket_add_membership_addr)(struct nl_sock *, int);
+int (*nl_socket_drop_membership_addr)(struct nl_sock *, int);
 int (*nl_socket_get_fd_addr)(const struct nl_sock *);
 uint32_t (*nl_socket_get_local_port_addr)(const struct nl_sock *);
 int (*nl_socket_set_buffer_size_addr)(struct nl_sock *, int, int);
@@ -183,6 +184,7 @@ libnl_init(void)
 #endif
 	    !(nl_connect_addr = dlsym(libnl_route_handle, "nl_connect")) ||
 	    !(nl_socket_add_membership_addr = dlsym(libnl_route_handle, "nl_socket_add_membership")) ||
+	    !(nl_socket_drop_membership_addr = dlsym(libnl_route_handle, "nl_socket_drop_membership")) ||
 	    !(nl_socket_get_fd_addr = dlsym(libnl_route_handle, "nl_socket_get_fd")) ||
 	    !(nl_socket_get_local_port_addr = dlsym(libnl_route_handle, "nl_socket_get_local_port")) ||
 	    !(nl_socket_set_buffer_size_addr = dlsym(libnl_route_handle, "nl_socket_set_buffer_size")) ||
