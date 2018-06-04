@@ -784,12 +784,16 @@ fwmark_err:
 		i++;
 	}
 
-	if (new->action == FR_ACT_GOTO &&
-	    new->mask & IPRULE_BIT_PRIORITY &&
-	    new->priority >= new->goto_target)
-	{
-		log_message(LOG_INFO, "Invalid rule - preference %u >= goto target %u", new->priority, new->goto_target);
-		goto err;
+	if (new->action == FR_ACT_GOTO) {
+		if (new->mask & IPRULE_BIT_PRIORITY) {
+			if (new->priority >= new->goto_target) {
+				log_message(LOG_INFO, "Invalid rule - preference %u >= goto target %u", new->priority, new->goto_target);
+				goto err;
+			}
+		} else {
+			log_message(LOG_INFO, "Invalid rule - goto target %u specified without preference", new->goto_target);
+			goto err;
+		}
 	}
 
 	if (new->action == FR_ACT_UNSPEC) {
