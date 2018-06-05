@@ -62,7 +62,10 @@ clean-local-snap:
 tarball: dist
 
 rpm:
-	rpmbuild -ba --build-in-place keepalived.spec
+@RPM_BIP_TRUE@	rpmbuild -ba --build-in-place keepalived.spec
+@RPM_BIP_FALSE@	@$(MAKE) dist
+@RPM_BIP_FALSE@	@cp -p keepalived-$(VERSION).tar.gz `rpm --eval "%{_sourcedir}"`
+@RPM_BIP_FALSE@	rpmbuild -ba keepalived.spec
 
 debug:
 	@$(MAKE) DEBUG_LDFLAGS=-ggdb
