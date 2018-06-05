@@ -1,3 +1,38 @@
+2018-06-04 Quentin Armitage <quentin@armitage.org.uk>
+	* keepalived-2.0.1
+	* Remove '\n' characters from log_message() text.
+	* Allow IPv6 ip rules to be specified using fwmarks.
+	* Fix configure generation of keepalived.spec file.
+	* Stop rebuilding scheduler.o every make.
+	* Remove ' characters from configure args in keepalived -v output.
+	* Remove duplicate reporting of network namespace in config dumps
+	* Add ${_INSTANCE} config parameter.
+	* Remove debugging log message.
+	* Recalculate max_fd used for select if it should reduce.
+	* Add tracking of virtual routes.
+	  If a virtual route is deleted, by default to vrrp instance will
+	  now transition to backup mode, and if it transitions to master
+	  again the route will be re-added. If an interface on which a
+	  route is configured is down, then the instance will go to fault
+	  state, since the route cannot be added.
+	  This commit also adds a no-track option for routes, which means
+	  that deletion of the route will not cause the vrrp instance to
+	  transition to backup.
+	* Handle interface down at startup with tracked route configured on it
+	  If a virtual route which is tracked is configured on an interface that
+	  is down at startup, then the vrrp instance needs to start in fault
+	  state.
+	* Rename netlink_reflect_filter() to netlink_link_filter()
+	  The function only handles RTM_NEWLINK/RTM_DELLINK messages and there
+	  are other functions to handle other message types.
+	* Fix compilation warning.
+	* Make recreating deleted VMACs work.
+	* Fix Travis-CI compilation failure and warning.
+	* Stop duplicate definition and duplicate include in vrrp_iproute.c.
+	* Add new ip rule options for Linux 4.17
+	  FRA_PROTOCOL, FRA_IP_PROTO, FRA_SPORT_RANGE and FRA_DPORT_RANGE have
+	  been added in Linux 4.17.
+
 2018-05-26 Quentin Armitage <quentin@armitage.org.uk>
 	* keepalived-2.0.0
 	* Beta branch merge into master branch ! 2years of dev here !
