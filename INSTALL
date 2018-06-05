@@ -98,7 +98,7 @@ To install from a git repo, execute:
 Installation
 ============
 
-  1. uncompress the tarball
+  1. tar -xf TARFILE
   2. cd into the directory
   3. './configure'
   4. 'make'
@@ -116,6 +116,22 @@ Installation
   change this value to your own by passing it the --prefix value.
 
   eg: './configure --prefix=/usr/'
+
+Building RPM files
+==================
+
+ If building from tarball:
+  1a. tar -xf TARFILE
+  1b. cd into the directory
+
+ If building from git clone:
+  1. ./build_setup 
+
+ For tarball and git
+  2. ./configure
+  3. make tarball
+
+ The .rpm files will be created in directory `rpm --eval "%{_rpmdir}"`/ARCH
 
 Modifying source code
 =====================
