@@ -258,8 +258,6 @@ route_is_ours(struct rtmsg* rt, struct rtattr *tb[RTA_MAX + 1], vrrp_t** ret_vrr
 static bool
 compare_rule(struct fib_rule_hdr *frh, struct rtattr *tb[FRA_MAX + 1], ip_rule_t *rule)
 {
-	/* Always have: FRA_PRIORITY, FRA_SUPPRESS_PREFIXLEN, FRA_TABLE */
-
 	if (rule->dont_track)
 		return false;
 
@@ -277,11 +275,6 @@ compare_rule(struct fib_rule_hdr *frh, struct rtattr *tb[FRA_MAX + 1], ip_rule_t
 	if (frh->action == FR_ACT_GOTO &&
 	    (!tb[FRA_GOTO] ||
 	     *(uint32_t *)RTA_DATA(tb[FRA_GOTO]) != rule->goto_target))
-		return false;
-
-	if ((rule->l3mdev &&
-	     (!tb[FRA_L3MDEV] || rule->l3mdev != *(uint8_t *)RTA_DATA(tb[FRA_L3MDEV]))) ||
-	    (!rule->l3mdev && tb[FRA_L3MDEV]))
 		return false;
 
 	if (tb[FRA_TABLE] && rule->table != *(uint32_t *)RTA_DATA(tb[FRA_TABLE]))
