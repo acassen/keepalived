@@ -167,7 +167,7 @@ netlink_rule(ip_rule_t *iprule, int cmd)
 	}
 	req.frh.table = RT_TABLE_UNSPEC;
 	req.frh.flags = 0;
-
+	req.frh.tos = iprule->tos;	// Hex value - 0xnn <= 255, or name from rt_dsfield
 	req.frh.family = iprule->family;
 
 	if (iprule->action == FR_ACT_TO_TBL
@@ -199,9 +199,6 @@ netlink_rule(ip_rule_t *iprule, int cmd)
 	if (iprule->mask & IPRULE_BIT_PRIORITY)	// "priority/order/preference"
 		addattr32(&req.n, sizeof(req), FRA_PRIORITY, iprule->priority);
 
-	if (iprule->mask & IPRULE_BIT_DSFIELD)	// "tos/dsfield"
-		req.frh.tos = iprule->tos;	// Hex value - 0xnn <= 255, or name from rt_dsfield
-
 	if (iprule->mask & IPRULE_BIT_FWMARK)	// "fwmark"
 		addattr32(&req.n, sizeof(req), FRA_FWMARK, iprule->fwmark);
 
@@ -212,7 +209,7 @@ netlink_rule(ip_rule_t *iprule, int cmd)
 		addattr32(&req.n, sizeof(req), FRA_FLOW, iprule->realms);
 
 #if HAVE_DECL_FRA_SUPPRESS_PREFIXLEN
-	if (iprule->mask & IPRULE_BIT_SUP_PREFIXLEN)	// "suppress_prefixlength" - only valid if table !=0
+	if (iprule->suppress_prefix_len != -1)	// "suppress_prefixlength" - only valid if table != 0
 		addattr32(&req.n, sizeof(req), FRA_SUPPRESS_PREFIXLEN, iprule->suppress_prefix_len);
 #endif
 
@@ -350,8 +347,7 @@ format_iprule(ip_rule_t *rule, char *buf, size_t buf_len)
 	if (rule->mask & IPRULE_BIT_PRIORITY)
 		op += snprintf(op, (size_t)(buf_end - op), " priority %u", rule->priority);
 
-	if (rule->mask & IPRULE_BIT_DSFIELD)
-		op += snprintf(op, (size_t)(buf_end - op), " tos 0x%x", rule->tos);
+	op += snprintf(op, (size_t)(buf_end - op), " tos 0x%x", rule->tos);
 
 	if (rule->mask & (IPRULE_BIT_FWMARK | IPRULE_BIT_FWMASK)) {
 		op += snprintf(op, (size_t)(buf_end - op), " fwmark 0x%x", rule->fwmark);
@@ -373,7 +369,7 @@ format_iprule(ip_rule_t *rule, char *buf, size_t buf_len)
 #endif
 
 #if HAVE_DECL_FRA_SUPPRESS_PREFIXLEN
-	if (rule->mask & IPRULE_BIT_SUP_PREFIXLEN)
+	if (rule->suppress_prefix_len != -1)
 		op += snprintf(op, (size_t)(buf_end - op), " suppress_prefixlen %u", rule->suppress_prefix_len);
 #endif
 
@@ -466,6 +462,9 @@ alloc_rule(list rule_list, vector_t *strvec)
 	}
 
 	new->action = FR_ACT_UNSPEC;
+#if HAVE_DECL_FRA_SUPPRESS_PREFIXLEN
+	new->suppress_prefix_len = -1;
+#endif
 
 	/* Check if inet4/6 specified */
 	str = strvec_slot(strvec, i);
@@ -553,7 +552,6 @@ alloc_rule(list rule_list, vector_t *strvec)
 			}
 
 			new->tos = uval8;
-			new->mask |= IPRULE_BIT_DSFIELD;
 		}
 		else if (!strcmp(str, "fwmark")) {
 			str = strvec_slot(strvec, ++i);
@@ -614,8 +612,7 @@ fwmark_err:
 				log_message(LOG_INFO, "Invalid suppress_prefixlength %s specified", str);
 				goto err;
 			}
-			new->suppress_prefix_len = (uint32_t)val;
-			new->mask |= IPRULE_BIT_SUP_PREFIXLEN;
+			new->suppress_prefix_len = (int32_t)val;
 			table_option = true;
 		}
 #endif
