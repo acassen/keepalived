@@ -43,7 +43,9 @@
 #endif
 #include <time.h>
 #ifdef _WITH_VRRP_
+#ifdef _HAVE_FIB_ROUTING_
 #include <linux/fib_rules.h>
+#endif
 #endif
 
 /* local include */
@@ -61,6 +63,10 @@
 #ifdef _HAVE_VRRP_VMAC_
 #include "vrrp_vmac.h"
 #endif
+#ifdef _HAVE_FIB_ROUTING_
+#include "vrrp_iproute.h"
+#include "vrrp_iprule.h"
+#endif
 #endif
 #include "logger.h"
 #include "scheduler.h"
@@ -71,7 +77,6 @@
 #endif
 #include "vrrp_ipaddress.h"
 #include "global_data.h"
-#include "vrrp_iproute.h"	/* Needed for private definition of RTPROT_KEEPALIVED */
 
 /* This seems a nasty hack, but it's what iproute2 does */
 #ifndef SOL_NETLINK
@@ -171,6 +176,24 @@ address_is_ours(struct ifaddrmsg* ifa, struct in_addr* addr, interface_t* ifp)
 	return NULL;
 }
 
+#ifdef _HAVE_FIB_ROUTING_
+static bool
+compare_addr(int family, void *addr1, ip_address_t *addr2)
+{
+	union {
+		struct in_addr *in;
+		struct in6_addr *in6;
+	} addr1_p = { .in = addr1 };
+
+	if (family == AF_INET)
+		return addr1_p.in->s_addr != addr2->u.sin.sin_addr.s_addr;
+
+	return addr1_p.in6->s6_addr32[0] != addr2->u.sin6_addr.s6_addr32[0] ||
+	       addr1_p.in6->s6_addr32[1] != addr2->u.sin6_addr.s6_addr32[1] ||
+	       addr1_p.in6->s6_addr32[2] != addr2->u.sin6_addr.s6_addr32[2] ||
+	       addr1_p.in6->s6_addr32[3] != addr2->u.sin6_addr.s6_addr32[3];
+}
+
 static ip_route_t *
 route_is_ours(struct rtmsg* rt, struct rtattr *tb[RTA_MAX + 1], vrrp_t** ret_vrrp)
 {
@@ -179,10 +202,6 @@ route_is_ours(struct rtmsg* rt, struct rtattr *tb[RTA_MAX + 1], vrrp_t** ret_vrr
 	int mask_len = rt->rtm_dst_len;
 	uint32_t priority = 0;
 	uint8_t tos = rt->rtm_tos;
-	union {
-		struct in_addr *in;
-		struct in6_addr *in6;
-	} dst;
 	element e, e1;
 	vrrp_t *vrrp;
 	ip_route_t *route;
@@ -191,7 +210,6 @@ route_is_ours(struct rtmsg* rt, struct rtattr *tb[RTA_MAX + 1], vrrp_t** ret_vrr
 
 	table = tb[RTA_TABLE] ? *(uint32_t *)RTA_DATA(tb[RTA_TABLE]) : rt->rtm_table;
 	family = rt->rtm_family;
-	dst.in = RTA_DATA(tb[RTA_DST]);
 	if (tb[RTA_PRIORITY])
 		priority = *(uint32_t *)RTA_DATA(tb[RTA_PRIORITY]);
 
@@ -212,16 +230,8 @@ route_is_ours(struct rtmsg* rt, struct rtattr *tb[RTA_MAX + 1], vrrp_t** ret_vrr
 					continue;
 			}
 
-			if (family == AF_INET) {
-				if (dst.in->s_addr != route->dst->u.sin.sin_addr.s_addr)
-					continue;
-			} else {
-				if (dst.in6->s6_addr32[0] != route->dst->u.sin6_addr.s6_addr32[0] ||
-				    dst.in6->s6_addr32[1] != route->dst->u.sin6_addr.s6_addr32[1] ||
-				    dst.in6->s6_addr32[2] != route->dst->u.sin6_addr.s6_addr32[2] ||
-				    dst.in6->s6_addr32[3] != route->dst->u.sin6_addr.s6_addr32[3])
-					continue;
-			}
+			if (compare_addr(family, RTA_DATA(tb[RTA_DST]), route->dst))
+				continue;
 
 			*ret_vrrp = vrrp;
 			return route;
@@ -235,16 +245,9 @@ route_is_ours(struct rtmsg* rt, struct rtattr *tb[RTA_MAX + 1], vrrp_t** ret_vrr
 		    mask_len != route->dst->ifa.ifa_prefixlen ||
 		    tos != route->tos)
 			continue;
-		if (family == AF_INET) {
-			if (dst.in->s_addr != route->dst->u.sin.sin_addr.s_addr)
-				continue;
-		} else {
-			if (dst.in6->s6_addr32[0] != route->dst->u.sin6_addr.s6_addr32[0] ||
-			    dst.in6->s6_addr32[1] != route->dst->u.sin6_addr.s6_addr32[1] ||
-			    dst.in6->s6_addr32[2] != route->dst->u.sin6_addr.s6_addr32[2] ||
-			    dst.in6->s6_addr32[3] != route->dst->u.sin6_addr.s6_addr32[3])
-				continue;
-		}
+
+		if (compare_addr(family, RTA_DATA(tb[RTA_DST]), route->dst))
+			continue;
 
 		return route;
 	}
@@ -252,11 +255,190 @@ route_is_ours(struct rtmsg* rt, struct rtattr *tb[RTA_MAX + 1], vrrp_t** ret_vrr
 	return NULL;
 }
 
-static vrrp_t *
-rule_is_ours(__attribute__((unused)) struct fib_rule_hdr* frh, __attribute__((unused)) struct rtattr *tb[FRA_MAX + 1])
+static bool
+compare_rule(struct fib_rule_hdr *frh, struct rtattr *tb[FRA_MAX + 1], ip_rule_t *rule)
 {
+	if (rule->dont_track)
+		return false;
+
+	if (rule->family != frh->family)
+		return false;
+
+	/* This is a very good descriminator, since our rules will always have a priority */
+	if (!tb[FRA_PRIORITY] ||
+	    rule->priority != *(uint32_t*)RTA_DATA(tb[FRA_PRIORITY]))
+		return false;
+
+	if (frh->action != rule->action)
+		return false;
+
+	if (frh->action == FR_ACT_GOTO &&
+	    (!tb[FRA_GOTO] ||
+	     *(uint32_t *)RTA_DATA(tb[FRA_GOTO]) != rule->goto_target))
+		return false;
+
+	if (tb[FRA_TABLE] && rule->table != *(uint32_t *)RTA_DATA(tb[FRA_TABLE]))
+		return false;
+	if (!tb[FRA_TABLE] && rule->table != frh->table)
+		return false;
+
+	if (!rule->invert != !((frh->flags & FIB_RULE_INVERT)))
+		return false;
+
+	if (!rule->from_addr != !tb[FRA_SRC])
+		return false;
+	if (rule->from_addr) {
+		if (frh->src_len != rule->from_addr->ifa.ifa_prefixlen)
+			return false;
+		if (compare_addr(rule->family, RTA_DATA(tb[FRA_SRC]), rule->from_addr))
+			return false;
+	}
+
+	if (!rule->to_addr != !tb[FRA_DST])
+		return false;
+	if (rule->to_addr) {
+		if (frh->dst_len != rule->to_addr->ifa.ifa_prefixlen)
+			return false;
+		if (compare_addr(rule->family, RTA_DATA(tb[FRA_DST]), rule->to_addr))
+			return false;
+	}
+
+	if (rule->tos != frh->tos)
+		return false;
+
+	if (!tb[FRA_FWMARK] != !(rule->mask & IPRULE_BIT_FWMARK))
+		return false;
+	if (rule->mask & IPRULE_BIT_FWMARK &&
+	    *(uint32_t*)RTA_DATA(tb[FRA_FWMARK]) != rule->fwmark)
+		return false;
+
+	if (!tb[FRA_FWMASK] && (rule->mask & IPRULE_BIT_FWMASK))
+		return false;
+	if (rule->mask & IPRULE_BIT_FWMASK) {
+		if (*(uint32_t*)RTA_DATA(tb[FRA_FWMASK]) != rule->fwmask)
+			return false;
+	}
+	else if (tb[FRA_FWMASK]) {
+		if (*(uint32_t *)RTA_DATA(tb[FRA_FWMASK]) != 0xffffffff)
+			return false;
+	}
+
+	if (!tb[FRA_FLOW] != !rule->realms)
+		return false;
+	if (rule->realms &&
+	    *(uint32_t*)RTA_DATA(tb[FRA_FLOW]) != rule->realms)
+		return false;
+
+#if HAVE_DECL_FRA_SUPPRESS_PREFIXLEN
+	if (!tb[FRA_SUPPRESS_PREFIXLEN]) {
+		if (rule->suppress_prefix_len != -1)
+			return false;
+	} else if (*(int32_t*)RTA_DATA(tb[FRA_SUPPRESS_PREFIXLEN]) != rule->suppress_prefix_len)
+		return false;
+#endif
+
+#if HAVE_DECL_FRA_SUPPRESS_IFGROUP
+	if (!tb[FRA_SUPPRESS_IFGROUP] != !(rule->mask & IPRULE_BIT_SUP_GROUP))
+		return false;
+	if (rule->mask & IPRULE_BIT_SUP_GROUP &&
+	    *(uint32_t*)RTA_DATA(tb[FRA_SUPPRESS_IFGROUP]) != rule->suppress_group)
+		return false;
+#endif
+
+	if (!tb[FRA_IFNAME] != !(rule->iif))
+		return false;
+	if (rule->iif &&
+	    strcmp(RTA_DATA(tb[FRA_IFNAME]), rule->iif->ifname))
+		return false;
+
+#if HAVE_DECL_FRA_OIFNAME
+	if (!tb[FRA_OIFNAME] != !(rule->oif))
+		return false;
+	if (rule->oif &&
+	    strcmp(RTA_DATA(tb[FRA_OIFNAME]), rule->oif->ifname))
+		return false;
+#endif
+
+#if HAVE_DECL_FRA_TUN_ID
+	uint64_t tunnel_id;
+	if (!tb[FRA_TUN_ID] != !(rule->tunnel_id))
+		return false;
+	if (rule->tunnel_id) {
+		tunnel_id = be64toh(*(uint64_t *)RTA_DATA(tb[FRA_TUN_ID]));
+		if (tunnel_id != rule->tunnel_id)
+			return false;
+	}
+#endif
+
+#if HAVE_DECL_FRA_UID_RANGE
+	if (!tb[FRA_UID_RANGE] != !(rule->mask & IPRULE_BIT_UID_RANGE))
+		return false;
+	if ((rule->mask & IPRULE_BIT_UID_RANGE) &&
+	    memcmp(RTA_DATA(tb[FRA_UID_RANGE]), &rule->uid_range, sizeof rule->uid_range))
+		return false;
+#endif
+
+#if HAVE_DECL_FRA_L3MDEV
+	if (!tb[FRA_L3MDEV] && rule->l3mdev)
+		return false;
+	if (tb[FRA_L3MDEV] &&
+	    *(uint8_t *)RTA_DATA(tb[FRA_L3MDEV]) != rule->l3mdev)
+		return false;
+#endif
+
+#if HAVE_DECL_FRA_IP_PROTO
+	if (!tb[FRA_IP_PROTO] != !(rule->mask & IPRULE_BIT_IP_PROTO))
+		return false;
+	if (rule->mask & IPRULE_BIT_IP_PROTO &&
+	    *(uint8_t *)RTA_DATA(tb[FRA_IP_PROTO]) != rule->ip_proto)
+		return false;
+#endif
+
+#if HAVE_DECL_FRA_SPORT_RANGE
+	if (!tb[FRA_SPORT_RANGE] != !(rule->mask & IPRULE_BIT_SPORT_RANGE))
+		return false;
+	if (rule->mask & IPRULE_BIT_SPORT_RANGE &&
+	    memcmp(RTA_DATA(tb[FRA_SPORT_RANGE]), &rule->src_port, sizeof rule->src_port))
+		return false;
+#endif
+
+#if HAVE_DECL_FRA_DPORT_RANGE
+	if (!tb[FRA_DPORT_RANGE] != !(rule->mask & IPRULE_BIT_DPORT_RANGE))
+		return false;
+	if (rule->mask & IPRULE_BIT_DPORT_RANGE &&
+	    memcmp(RTA_DATA(tb[FRA_DPORT_RANGE]), &rule->dst_port, sizeof rule->dst_port))
+		return false;
+#endif
+
+	return true;
+}
+
+static ip_rule_t *
+rule_is_ours(struct fib_rule_hdr* frh, struct rtattr *tb[FRA_MAX + 1], vrrp_t **ret_vrrp)
+{
+	element e, e1;
+	vrrp_t *vrrp;
+	ip_rule_t *rule;
+
+	*ret_vrrp = NULL;
+
+	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+		LIST_FOREACH(vrrp->vrules, rule, e1) {
+			if (compare_rule(frh, tb, rule)) {
+				*ret_vrrp = vrrp;
+				return rule;
+			}
+		}
+	}
+
+	LIST_FOREACH(vrrp_data->static_rules, rule, e) {
+		if (compare_rule(frh, tb, rule))
+			return rule;
+	}
+
 	return NULL;
 }
+#endif
 #endif
 
 void
@@ -312,7 +494,7 @@ netlink_set_rx_buf_size(nl_handle_t *nl, unsigned rcvbuf_size, bool force)
 	return ret;
 }
 
-#ifdef _WITH_VRRP_
+#ifdef _HAVE_FIB_ROUTING_
 static void
 kernel_netlink_set_membership(int group, bool add)
 {
@@ -1721,6 +1903,7 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 	return 0;
 }
 
+#ifdef _HAVE_FIB_ROUTING_
 static int
 netlink_route_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlmsghdr *h)
 {
@@ -1759,6 +1942,8 @@ netlink_route_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlm
 
 	/* Matching route */
 	if (h->nlmsg_type == RTM_NEWROUTE) {
+		/* If we haven't specified a dev for the route, save the link the route
+		 * has been added to. */
 		if (tb[RTA_OIF]) {
 			route->configured_ifindex = *(uint32_t*)RTA_DATA(tb[RTA_OIF]);
 			if (route->oif && route->oif->ifindex != route->configured_ifindex)
@@ -1766,9 +1951,19 @@ netlink_route_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlm
 		}
 		else
 			log_message(LOG_INFO, "New route doesn't have i/f index");
+
+		return 0;
 	}
-	else if (!route->dont_track && vrrp)
+
+	/* We are only interested in route deletions now */
+
+	if (route->dont_track)
+		return 0;
+
+	if (vrrp)
 		set_vrrp_backup(vrrp);
+//	else
+//		process_static_routes(route);
 
 	return 0;
 }
@@ -1780,6 +1975,7 @@ netlink_rule_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 	struct rtattr *tb[FRA_MAX + 1];
 	size_t len;
 	vrrp_t *vrrp;
+	ip_rule_t *ip_rule;
 
 	if (h->nlmsg_type != RTM_NEWRULE && h->nlmsg_type != RTM_DELRULE)
 		return 0;
@@ -1800,17 +1996,32 @@ netlink_rule_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 
 #if HAVE_DECL_FRA_PROTOCOL
 	if (tb[FRA_PROTOCOL] &&
-	    *(uint8_t *)RTA_DATA(tb[FRA_PROTOCOL])!= RTPROT_KEEPALIVED) {
+	    *(uint8_t *)RTA_DATA(tb[FRA_PROTOCOL]) != RTPROT_KEEPALIVED) {
 		/* It is not a rule we are monitoring - ignore it */
 		return 0;
 	}
 #endif
 
-	if (!(vrrp = rule_is_ours(frh, tb)))
+	/* We are only interested in rule deletions now */
+	if (h->nlmsg_type != RTM_DELRULE)
 		return 0;
+
+	if (!(ip_rule = rule_is_ours(frh, tb, &vrrp)))
+		return 0;
+
+	ip_rule->set = false;
+
+	if (ip_rule->dont_track)
+		return 0;
+
+	if (vrrp)
+		set_vrrp_backup(vrrp);
+//	else
+//		process_static_rules(route);
 
 	return 0;
 }
+#endif
 #endif
 
 /* Netlink kernel message reflection */
@@ -1836,7 +2047,7 @@ netlink_broadcast_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	case RTM_DELADDR:
 		return netlink_if_address_filter(snl, h);
 		break;
-#ifdef _WITH_VRRP_
+#ifdef _HAVE_FIB_ROUTING_
 	case RTM_NEWROUTE:
 	case RTM_DELROUTE:
 		return netlink_route_filter(snl, h);
@@ -1963,7 +2174,7 @@ kernel_netlink_init(void)
 #ifdef _WITH_VRRP_
 	if (prog_type == PROG_TYPE_VRRP)
 		netlink_socket(&nl_kernel, global_data->vrrp_netlink_monitor_rcv_bufs, global_data->vrrp_netlink_monitor_rcv_bufs_force,
-				SOCK_NONBLOCK, RTNLGRP_LINK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, RTNLGRP_IPV4_ROUTE, RTNLGRP_IPV6_ROUTE, 0);
+				SOCK_NONBLOCK, RTNLGRP_LINK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, 0);
 #endif
 #ifdef _WITH_LVS_
 	if (prog_type == PROG_TYPE_CHECKER)

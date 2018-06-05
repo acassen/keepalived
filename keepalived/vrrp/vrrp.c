@@ -90,10 +90,12 @@ bool block_ipv6;
  */
 bool have_ipv4_instance;
 bool have_ipv6_instance;
+#ifdef _HAVE_FIB_ROUTING_
 static bool monitor_ipv4_routes;
 static bool monitor_ipv6_routes;
 static bool monitor_ipv4_rules;
 static bool monitor_ipv6_rules;
+#endif
 
 static int
 vrrp_notify_fifo_script_exit(__attribute__((unused)) thread_t *thread)
@@ -108,10 +110,12 @@ clear_summary_flags(void)
 {
 	have_ipv4_instance = false;
 	have_ipv6_instance = false;
+#ifdef _HAVE_FIB_ROUTING_
 	monitor_ipv4_routes = false;
 	monitor_ipv6_routes = false;
 	monitor_ipv4_rules = false;
 	monitor_ipv6_rules = false;
+#endif
 }
 
 /* add/remove Virtual IP addresses */
@@ -3248,8 +3252,10 @@ vrrp_complete_init(void)
 	if (global_data->vrrp_garp_interval || global_data->vrrp_gna_interval)
 		set_default_garp_delay();
 
+#ifdef _HAVE_FIB_ROUTING_
 	/* If we are tracking any routes/rules, ask netlink to monitor them */
 	set_extra_netlink_monitoring(monitor_ipv4_routes, monitor_ipv6_routes, monitor_ipv4_rules, monitor_ipv6_rules);
+#endif
 
 #ifdef _HAVE_LIBIPTC_
 	/* Make sure we don't have any old iptables/ipsets settings left around */

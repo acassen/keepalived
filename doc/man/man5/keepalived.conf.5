@@ -503,6 +503,11 @@ If you already have IPs and routes on your machines and
 your machines can ping each other, you don't need this section.
 The syntax for rules and routes is that same as for ip rule add/ip route add
 (except shorted option names aren't supported due to ambiguities).
+
+NOTE: since rules without preferences can be added in different orders
+due to vrrp instances transitioning from master to backup etc, rules need
+to have a preference. If a preference is not specified, keepalived will
+assign one, but it will probably not be what you want.
 .PP
 The syntax is the same for virtual addresses and virtual routes. If no dev element
 is specified, it defaults to default_interface (default eth0).

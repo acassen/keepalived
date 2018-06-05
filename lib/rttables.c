@@ -36,14 +36,16 @@
 
 #define IPROUTE2_DIR	"/etc/iproute2/"
 
+#ifdef _HAVE_FIB_ROUTING_
 #define RT_TABLES_FILE	IPROUTE2_DIR "rt_tables"
 #define	RT_DSFIELD_FILE IPROUTE2_DIR "rt_dsfield"
 #define	RT_REALMS_FILE	IPROUTE2_DIR "rt_realms"
-#define	RT_SCOPES_FILE	IPROUTE2_DIR "rt_scopes"
 #define	RT_PROTOS_FILE	IPROUTE2_DIR "rt_protos"
 #if HAVE_DECL_FRA_SUPPRESS_IFGROUP
 #define	RT_GROUPS_FILE	IPROUTE2_DIR "group"
 #endif
+#endif
+#define	RT_SCOPES_FILE	IPROUTE2_DIR "rt_scopes"
 
 struct rt_entry {
 	unsigned int id;
@@ -51,6 +53,7 @@ struct rt_entry {
 } ;
 typedef struct rt_entry rt_entry_t;
 
+#ifdef _HAVE_FIB_ROUTING_
 static rt_entry_t rtntypes[] = {
 	{ RTN_LOCAL, "local"},
 	{ RTN_NAT, "nat"},
@@ -89,6 +92,14 @@ static rt_entry_t rtprot_default[] = {
 	{ 0, NULL},
 };
 
+static rt_entry_t rttable_default[] = {
+	{ RT_TABLE_DEFAULT, "default"},
+	{ RT_TABLE_MAIN, "main"},
+	{ RT_TABLE_LOCAL, "local"},
+	{ 0, NULL},
+};
+#endif
+
 static rt_entry_t rtscope_default[] = {
 	{ RT_SCOPE_UNIVERSE, "global"},
 	{ RT_SCOPE_NOWHERE, "nowhere"},
@@ -98,15 +109,9 @@ static rt_entry_t rtscope_default[] = {
 	{ 0, NULL},
 };
 
-static rt_entry_t rttable_default[] = {
-	{ RT_TABLE_DEFAULT, "default"},
-	{ RT_TABLE_MAIN, "main"},
-	{ RT_TABLE_LOCAL, "local"},
-	{ 0, NULL},
-};
-
 #define	MAX_RT_BUF	128
 
+#ifdef _HAVE_FIB_ROUTING_
 static list rt_tables;
 static list rt_dsfields;
 #if HAVE_DECL_FRA_SUPPRESS_IFGROUP
@@ -114,27 +119,10 @@ static list rt_groups;
 #endif
 static list rt_realms;
 static list rt_protos;
+#endif
 static list rt_scopes;
 
 static char ret_buf[11];	/* uint32_t in decimal */
-
-static void
-free_rt_entry(void *e)
-{
-	rt_entry_t *rte = (rt_entry_t*)e;
-
-	if (rte->name)
-		FREE(rte->name);
-	FREE(rte);
-}
-
-static void
-dump_rt_entry(FILE *fp, void *e)
-{
-	rt_entry_t *rte = (rt_entry_t *)e;
-
-	conf_write(fp, "rt_table %u, name %s", rte->id, rte->name);
-}
 
 static void
 read_file(const char* file_name, list *l, uint32_t max)
@@ -205,6 +193,7 @@ err:
 void
 clear_rt_names(void)
 {
+#ifdef _HAVE_FIB_ROUTING_
 	free_list(&rt_tables);
 	free_list(&rt_dsfields);
 #if HAVE_DECL_FRA_SUPPRESS_IFGROUP
@@ -212,7 +201,26 @@ clear_rt_names(void)
 #endif
 	free_list(&rt_realms);
 	free_list(&rt_protos);
+#endif
 	free_list(&rt_scopes);
+}
+
+static void
+free_rt_entry(void *e)
+{
+	rt_entry_t *rte = (rt_entry_t*)e;
+
+	if (rte->name)
+		FREE(rte->name);
+	FREE(rte);
+}
+
+static void
+dump_rt_entry(FILE *fp, void *e)
+{
+	rt_entry_t *rte = (rt_entry_t *)e;
+
+	conf_write(fp, "rt_table %u, name %s", rte->id, rte->name);
 }
 
 static void
@@ -295,6 +303,7 @@ find_entry(const char *name, unsigned int *id, list *l, const char* file_name, c
 	return false;
 }
 
+#ifdef _HAVE_FIB_ROUTING_
 bool
 find_rttables_table(const char *name, uint32_t *id)
 {
@@ -340,18 +349,6 @@ find_rttables_proto(const char *name, uint8_t *id)
 }
 
 bool
-find_rttables_scope(const char *name, uint8_t *id)
-{
-	uint32_t val;
-	bool ret;
-
-	ret = find_entry(name, &val, &rt_scopes, RT_SCOPES_FILE, rtscope_default, 255);
-	*id = val & 0xff;
-
-	return ret;
-}
-
-bool
 find_rttables_rtntype(const char *str, uint8_t *id)
 {
 	char *end;
@@ -372,6 +369,7 @@ find_rttables_rtntype(const char *str, uint8_t *id)
 	*id = (uint8_t)res;
 	return true;
 }
+#endif
 
 static const char *
 get_entry(unsigned int id, list* l, const char* file_name, const struct rt_entry* default_list, uint32_t max)
@@ -394,12 +392,7 @@ get_entry(unsigned int id, list* l, const char* file_name, const struct rt_entry
 	return ret_buf;
 }
 
-const char *
-get_rttables_scope(uint32_t id)
-{
-	return get_entry(id, &rt_scopes, RT_SCOPES_FILE, rtscope_default, 255);
-}
-
+#ifdef _HAVE_FIB_ROUTING_
 #if HAVE_DECL_FRA_SUPPRESS_IFGROUP
 const char *
 get_rttables_group(uint32_t id)
@@ -420,4 +413,23 @@ get_rttables_rtntype(uint8_t val)
 
 	snprintf(ret_buf, sizeof(ret_buf), "%u", val);
 	return ret_buf;
+}
+#endif
+
+bool
+find_rttables_scope(const char *name, uint8_t *id)
+{
+	uint32_t val;
+	bool ret;
+
+	ret = find_entry(name, &val, &rt_scopes, RT_SCOPES_FILE, rtscope_default, 255);
+	*id = val & 0xff;
+
+	return ret;
+}
+
+const char *
+get_rttables_scope(uint32_t id)
+{
+	return get_entry(id, &rt_scopes, RT_SCOPES_FILE, rtscope_default, 255);
 }

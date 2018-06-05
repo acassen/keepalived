@@ -1468,10 +1468,7 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = rule->from_addr->ifa.ifa_prefixlen;
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_RULE_TOS:
-		if (rule->mask & IPRULE_BIT_DSFIELD)
-			long_ret.u = rule->tos;
-		else
-			break;
+		long_ret.u = rule->tos;
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_RULE_FWMARK:
 		if (rule->mask & IPRULE_BIT_FWMARK)
@@ -1527,7 +1524,7 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 		return (u_char *)&long_ret;
 #if HAVE_DECL_FRA_SUPPRESS_PREFIXLEN
 	case VRRP_SNMP_RULE_SUPPRESSPREFIXLEN:
-		if (rule->mask & IPRULE_BIT_SUP_PREFIXLEN)
+		if (rule->suppress_prefix_len != -1)
 			long_ret.u = rule->suppress_prefix_len;
 		else
 			break;
