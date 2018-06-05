@@ -1488,7 +1488,16 @@ dnl ----[ SHA1 or not ? ]----
 SHA1_SUPPORT=No
 if test "${enable_sha1}" = yes; then
   AC_CHECK_HEADERS(openssl/sha.h,,AC_MSG_ERROR([unable to find openssl/sha.h]))
-  AC_CHECK_LIB(crypto, SHA1_Init,,AC_MSG_ERROR([SHA1 in OpenSSL required]))
+  AC_CHECK_LIB(crypto, SHA1_Init,,
+    [
+      dnl libcrypto can require -fpic
+      AS_UNSET([ac_cv_lib_crypto_SHA1_Init])
+      SAV_CFLAGS=$CFLAGS
+      CFLAGS=-fpic
+      AC_CHECK_LIB(crypto, SHA1_Init,,AC_MSG_ERROR([SHA1 in OpenSSL required]))
+      CFLAGS=$SAV_CFLAGS
+      add_to_var([KA_CFLAGS],[-fpic])
+    ])
   SHA1_SUPPORT=Yes
   AC_DEFINE([_WITH_SHA1_], [ 1 ], [Define to 1 to have SHA1 support])
 fi
@@ -1664,6 +1673,19 @@ echo " $KA_LIBS" | grep -qE -- " -l?pthread "
 if test $? -eq 0 ;then
   AC_DEFINE([_WITH_PTHREADS_], [ 1 ], [Define to 1 if using pthreads])
 fi
+
+dnl ----[ Check if rpmbuild supports --build-in-place ]----
+RPM_NO_BIP=1
+AC_CHECK_PROG([HAVE_RPMBUILD], [rpmbuild], [Yes], [No])
+RPM_SRC_DIR=`rpm --eval "%{_sourcedir}"`
+if ! test -d $RPM_SRC_DIR; then
+  HAVE_RPMBUILD=No
+fi
+if test $HAVE_RPMBUILD = Yes; then
+  rpmbuild --help | grep -q -- --build-in-place
+  RPM_NO_BIP=$?
+fi
+AM_CONDITIONAL([RPM_BIP], [test $RPM_NO_BIP -eq 0])
 
 dnl ----[ Determine system init type]----
 INIT_TYPE=
