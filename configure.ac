@@ -1236,7 +1236,7 @@ fi
 
 dnl ----[ Checks for FIB routing support ]----
 FIB_ROUTING_SUPPORT=No
-if test .$enable_routes != .no; then
+if test .$enable_vrrp != .no -a .$enable_routes != .no; then
   # Introduced in Linux 2.6.19
   SAV_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$CPPFLAGS $kernelinc"
