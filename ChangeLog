@@ -1,3 +1,27 @@
+2018-06-06 Quentin Armitage <quentin@armitage.org.uk>
+	* keepalived-2.0.2
+	* Only compile code in rttables.c that is needed by the
+	  configuration.
+	* Set default preferences for ip rules if not specified.
+	  Since different vrrp instances can become master in different
+	  orders, if preferences (priorities) are not specified for
+	  ip rules, the order in which they are specified will be
+	  indeterminate. In order to give some consistency, keepalived
+	  will not allocate a default preference to each rule, and will
+	  also warn that this is probably not going to work as intended.
+	  The solution is to specify a preference for each rule.
+	* Require preference if an ip rule specifies goto.
+	  Since preferences are now auto-generated if not specified, a
+	  rule with a goto must now specify a preference.
+	* Add tracking of virtual rules.
+	  If a virtual rule is deleted, the vrrp instance will transition
+	  to backup. When it becomes master again the rule will be re-added.
+	* Fix compilation failure found by Travis-CI.
+	* In configure.ac check if SHA1_Init() needs -fpic.
+	* Fix make rpm when rpmbuild doesn't support --build-in-place.
+	* Update INSTALL file to describe how to build rpm files.
+	* Fix instructions for building rpm packages.
+
 2018-06-04 Quentin Armitage <quentin@armitage.org.uk>
 	* keepalived-2.0.1
 	* Remove '\n' characters from log_message() text.
