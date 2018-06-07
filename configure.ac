@@ -29,13 +29,13 @@ AC_DEFUN([add_pkg_config],
     fi
     add_to_var_ind_unique([${KA_PKG_PFX}_CPPFLAGS], [`$PKG_CONFIG --cflags-only-I $1`])
     add_to_var_ind_unique([${KA_PKG_PFX}_CFLAGS], [`$PKG_CONFIG --cflags-only-other $1`])
-    add_to_var_ind_unique([${KA_PKG_PFX}_LIBS], [`$PKG_CONFIG --libs $1`])
+    add_to_var_ind_unique([${KA_PKG_PFX}_LIBS], [`$PKG_CONFIG --libs-only-l $1`])
 
     if test .$3 = .remove-requires; then
       REQUIRES=`$PKG_CONFIG --print-requires $1`
       eval var=\$${KA_PKG_PFX}_LIBS
       for r in $REQUIRES; do
-	REQ_LIBS=`$PKG_CONFIG --libs $r`
+	REQ_LIBS=`$PKG_CONFIG --libs-only-l $r`
 	for l in $REQ_LIBS; do
 	  var=`echo " $var " | sed -e "s/ $l / /g"`
 	done
