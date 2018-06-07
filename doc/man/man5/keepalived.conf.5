@@ -261,6 +261,8 @@ checker that may be of use. It can be downloaded from https://github.com/yuuki/g
 .SH GLOBAL CONFIGURATION
 contains subblocks of
 .B Global definitions,
+.B Static track groups
+.B Static addresses,
 .B Static routes,
 and
 .B Static rules
@@ -494,6 +496,23 @@ and
  child_wait_time SECS         # Time for main process to allow for child processes to exit on termination
                               #   in seconds (default 5). This can be needed for very large configurations.
 
+.SH Static track groups
+.PP
+Static track groups are used to allow vrrp instances to track static addresses
+routes and rules. If an static address/route/rule specifies a track group, then
+if the address/route/rule is deleted, the vrrp instance will transition to vackup
+or to fault state if the address/route/rule cannot be re-added.
+.PP
+The syntax for a track group is:
+
+.PP
+    track_group GROUP1 {
+        group {
+            VI_1
+            VI_2
+        }
+    }
+
 .SH Static routes/addresses/rules
 .PP
 Keepalived can configure static addresses, routes, and rules. These addresses are
@@ -503,6 +522,9 @@ If you already have IPs and routes on your machines and
 your machines can ping each other, you don't need this section.
 The syntax for rules and routes is that same as for ip rule add/ip route add
 (except shorted option names aren't supported due to ambiguities).
+The track_group specification refers to a named track_group which lists
+the vrrp instances which will track the address, i.e. if the address is
+deleted the vrrp instances will transition to backup.
 
 NOTE: since rules without preferences can be added in different orders
 due to vrrp instances transitioning from master to backup etc, rules need
@@ -517,14 +539,14 @@ bits of the address.
 .PP
  static_ipaddress
  {
- <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IPADDR>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
+ <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IPADDR>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin] [track_group GROUP]
  192.168.1.1/24 dev eth0 scope global
  ...
  }
 .PP
  static_routes
  {
- 192.168.2.0/24 via 192.168.1.100 dev eth0
+ 192.168.2.0/24 via 192.168.1.100 dev eth0 track_group GROUP1
  192.168.100.0/24 table 6909 nexthop via 192.168.101.1 dev wlan0 onlink weight 1 nexthop via 192.168.101.2 dev wlan0 onlink weight 2
  192.168.200.0/24 dev p33p1.2 table 6909 tos 0x04 protocol bird scope link priority 12 mtu 1000 hoplimit 100 advmss 101 rtt 102 rttvar 103 reordering 104 window 105 cwnd 106 ssthresh lock 107 realms PQA/0x14 rto_min 108 initcwnd 109 initrwnd 110 features ecn
  2001:470:69e9:1:2::4 dev p33p1.2 table 6909 tos 0x04 protocol bird scope link priority 12 mtu 1000 hoplimit 100 advmss 101 rtt 102 rttvar 103 reordering 104 window 105 cwnd 106 ssthresh lock 107 rto_min 108 initcwnd 109 initrwnd 110 features ecn fastopen_no_cookie 1
@@ -533,7 +555,7 @@ bits of the address.
 .PP
  static_rules
  {
- from 192.168.2.0/24 table 1
+ from 192.168.2.0/24 table 1 track_group GROUP1
  to 192.168.2.0/24 table 1
  from 192.168.28.0/24 to 192.168.29.0/26 table small iif p33p1 oif wlan0 tos 22 fwmark 24/12 preference 39 realms 30/20 goto 40
  to 1:2:3:4:5:6:7:0/112 from 7:6:5:4:3:2::/96 table 6908 uidrange 10000-19999
@@ -897,11 +919,12 @@ bfd_instance <STRING> {
            # For virutal_ipaddress, virtual_ipaddress_excluded,
            #   virtual_routes and virtual_rules most of the options
            #   match the options of the command ip address/route/rule add.
-           #   no-track is specific to keepalived and means that the
+           #   The track_group option only applies to static addresses/routes/rules.
+           #   no_track is specific to keepalived and means that the
            #   vrrp_instance will not transition out of master state
            #   if the address/route/rule is deleted.
            virtual_ipaddress {
-               <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IPADDR>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin] [no-track]
+               <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IPADDR>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin] [no_track]
                192.168.200.17/24 dev eth1
                192.168.200.18/24 dev eth2 label eth2:1
            }
@@ -918,7 +941,7 @@ bfd_instance <STRING> {
            # addresses in virtual_ipaddress must be of the
            # same family.
            virtual_ipaddress_excluded {
-               <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IPADDR>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin] [no-track]
+               <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IPADDR>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin] [no_track]
                <IPADDR>[/<MASK>] ...
                ...
            }
@@ -936,7 +959,7 @@ bfd_instance <STRING> {
                # src <IPADDR> [to] <IPADDR>/<MASK> via|gw <IPADDR> [or <IPADDR>] dev <STRING> scope <SCOPE> table <TABLE>
                src 192.168.100.1 to 192.168.109.0/24 via 192.168.200.254 dev eth1
                192.168.110.0/24 via 192.168.200.254 dev eth1
-               192.168.111.0/24 dev eth2 no-track
+               192.168.111.0/24 dev eth2 no_track
                192.168.112.0/24 via 192.168.100.254
                192.168.113.0/24 via 192.168.200.254 or 192.168.100.254 dev eth1
                blackhole 192.168.114.0/24
@@ -947,7 +970,7 @@ bfd_instance <STRING> {
            # See static_rules for more details
            virtual_rules {
                from 192.168.2.0/24 table 1
-               to 192.168.2.0/24 table 1 no-track
+               to 192.168.2.0/24 table 1 no_track
            }
 
            # VRRPv3 has an Accept Mode to allow the virtual router when not the address owner to

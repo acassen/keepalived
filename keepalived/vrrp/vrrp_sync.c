@@ -32,7 +32,7 @@
 #include "vrrp_scheduler.h"
 
 /* Instance name lookup */
-static vrrp_t *
+vrrp_t *
 vrrp_get_instance(char *iname)
 {
 	vrrp_t *vrrp;

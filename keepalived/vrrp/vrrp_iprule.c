@@ -275,6 +275,12 @@ netlink_rule(ip_rule_t *iprule, int cmd)
 }
 
 void
+reinstate_static_rule(ip_rule_t *rule)
+{
+	rule->set = (netlink_rule(rule, IPRULE_ADD) > 0);
+}
+
+void
 netlink_rulelist(list rule_list, int cmd, bool force)
 {
 	ip_rule_t *iprule;
@@ -425,7 +431,9 @@ format_iprule(ip_rule_t *rule, char *buf, size_t buf_len)
 	else
 		op += snprintf(op, (size_t)(buf_end - op), " type %s", get_rttables_rtntype(rule->action));
 	if (rule->dont_track)
-		op += snprintf(op, (size_t)(buf_end - op), " no-track");
+		op += snprintf(op, (size_t)(buf_end - op), " no_track");
+	if (rule->track_group)
+		op += snprintf(op, (size_t)(buf_end - op), " track_group %s", rule->track_group->gname);
 }
 
 void
@@ -736,8 +744,17 @@ fwmark_err:
 		}
 #endif
 
-		else if (!strcmp(str, "no-track"))
+		else if (!strcmp(str, "no_track"))
 			new->dont_track = true;
+		else if (!strcmp(str, "track_group")) {
+			i++;
+			if (new->track_group) {
+				log_message(LOG_INFO, "track-group %s is a duplicate", FMT_STR_VSLOT(strvec, i));
+				break;
+			}
+			if (!(new->track_group = find_track_group(strvec_slot(strvec, i))))
+                                log_message(LOG_INFO, "track_group %s not found", FMT_STR_VSLOT(strvec, i));
+		}
 		else {
 			uint8_t action = FR_ACT_UNSPEC;
 

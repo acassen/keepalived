@@ -79,6 +79,7 @@
 #include "global_data.h"
 #endif
 #include "keepalived_magic.h"
+#include "vrrp_static_track.h"
 
 /* Set if need to block ip addresses and are able to do so */
 bool block_ipv4;
@@ -3135,6 +3136,52 @@ sync_group_tracking_init(void)
 	}
 }
 
+static void
+process_static_entries(void)
+{
+	element e, e1;
+	ip_address_t *saddr;
+	ip_route_t *sroute;
+	ip_rule_t *srule;
+	vrrp_t *vrrp;
+
+	LIST_FOREACH(vrrp_data->static_addresses, saddr, e) {
+		if (!saddr->track_group)
+			continue;
+
+		/* Add the vrrps of the track group to track the address's interface */
+		LIST_FOREACH(saddr->track_group->vrrp_instances, vrrp, e1)
+			add_vrrp_to_interface(vrrp, saddr->ifp, 0, false, TRACK_ADDR);
+	}
+	LIST_FOREACH(vrrp_data->static_routes, sroute, e) {
+		if (!sroute->track_group)
+			continue;
+
+		if (sroute->family == AF_INET)
+			monitor_ipv4_routes = true;
+		else
+			monitor_ipv6_routes = true;
+
+		/* If the route specifies an interface, the vrrp instances of
+		 * the track_group should track the interface */
+		if (sroute->oif) {
+			LIST_FOREACH(sroute->track_group->vrrp_instances, vrrp, e1)
+				add_vrrp_to_interface(vrrp, sroute->oif, 0, false, TRACK_ROUTE);
+		}
+	}
+	LIST_FOREACH(vrrp_data->static_rules, srule, e) {
+		if (!srule->track_group)
+			continue;
+
+		if (srule->family == AF_INET)
+			monitor_ipv4_rules = true;
+		else
+			monitor_ipv6_rules = true;
+
+		LIST_FOREACH(srule->track_group->vrrp_instances, vrrp, e1)
+			add_vrrp_to_interface(vrrp, srule->oif, 0, false, TRACK_RULE);
+	}
+}
 bool
 vrrp_complete_init(void)
 {
@@ -3145,6 +3192,7 @@ vrrp_complete_init(void)
 	element e, e1;
 	vrrp_t *vrrp, *old_vrrp;
 	vrrp_sgroup_t *sgroup;
+	static_track_group_t *tgroup;
 	list l_o;
 	element e_o;
 	element next;
@@ -3213,9 +3261,8 @@ vrrp_complete_init(void)
 	}
 
 	/* Build synchronization group index, and remove any
-	 * empty groups, or groups with only one member */
+	 * empty groups */
 	LIST_FOREACH_NEXT(vrrp_data->vrrp_sync_group, sgroup, e, next) {
-		/* A group needs at least two members */
 		if (!sgroup->iname) {
 			log_message(LOG_INFO, "Sync group %s has no virtual router(s) - removing", sgroup->gname);
 			free_list_element(vrrp_data->vrrp_sync_group, e);
@@ -3226,6 +3273,22 @@ vrrp_complete_init(void)
 
 		if (!sgroup->vrrp_instances) {
 			free_list_element(vrrp_data->vrrp_sync_group, e);
+			continue;
+		}
+	}
+
+	/* Build static track groups and remove empty groups */
+	LIST_FOREACH_NEXT(vrrp_data->static_track_groups, tgroup, e, next) {
+		if (!tgroup->iname) {
+			log_message(LOG_INFO, "Static track group %s has no virtual router(s) - removing", tgroup->gname);
+			free_list_element(vrrp_data->static_track_groups, e);
+			continue;
+		}
+
+		static_track_set_group(tgroup);
+
+		if (!tgroup->vrrp_instances) {
+			free_list_element(vrrp_data->static_track_groups, e);
 			continue;
 		}
 	}
@@ -3253,6 +3316,9 @@ vrrp_complete_init(void)
 		set_default_garp_delay();
 
 #ifdef _HAVE_FIB_ROUTING_
+	/* See if any static addresses, routes or rules need monitoring */
+	process_static_entries();
+
 	/* If we are tracking any routes/rules, ask netlink to monitor them */
 	set_extra_netlink_monitoring(monitor_ipv4_routes, monitor_ipv6_routes, monitor_ipv4_rules, monitor_ipv6_rules);
 #endif

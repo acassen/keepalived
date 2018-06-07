@@ -510,6 +510,12 @@ netlink_route(ip_route_t *iproute, int cmd)
 	return status;
 }
 
+void
+reinstate_static_route(ip_route_t *route)
+{
+	route->set = (netlink_route(route, IPROUTE_ADD) > 0);
+}
+
 /* Add/Delete a list of IP routes */
 void
 netlink_rtlist(list rt_list, int cmd)
@@ -880,8 +886,12 @@ format_iproute(ip_route_t *route, char *buf, size_t buf_len)
 #endif
 		}
 	}
+
 	if (route->dont_track)
-		op += (size_t)snprintf(op, (size_t)(buf_end - op), " no-track");
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " no_track");
+
+	if (route->track_group)
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " track_group %s", route->track_group->gname);
 
 	if (route->set &&
 	    !route->dont_track &&
@@ -1682,8 +1692,17 @@ alloc_route(list rt_list, vector_t *strvec)
 				do_nexthop = true;
 			break;
 		}
-		else if (!strcmp(str, "no-track"))
+		else if (!strcmp(str, "no_track"))
 			new->dont_track = true;
+		else if (!strcmp(str, "track_group")) {
+			i++;
+			if (new->track_group) {
+				log_message(LOG_INFO, "track_group %s is a duplicate", FMT_STR_VSLOT(strvec, i));
+				break;
+			}
+			if (!(new->track_group = find_track_group(strvec_slot(strvec, i))))
+				log_message(LOG_INFO, "track_group %s not found", FMT_STR_VSLOT(strvec, i));
+		}
 		else {
 			if (!strcmp(str, "to"))
 				i++;

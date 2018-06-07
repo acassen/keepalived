@@ -997,6 +997,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 	struct rtattr *tb[IFA_MAX + 1];
 #ifdef _WITH_VRRP_
 	interface_t *ifp;
+	ip_address_t *ipaddr;
 #endif
 	size_t len;
 	union {
@@ -1230,6 +1231,16 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 			/* If one of our VIPs/eVIPs has been deleted, transition to backup */
 			if (address_vrrp && address_vrrp->state == VRRP_STATE_MAST) {
 				set_vrrp_backup(address_vrrp);
+			}
+		}
+
+		if (h->nlmsg_type == RTM_DELADDR) {
+			/* Check if a static address has been deleted */
+			LIST_FOREACH(vrrp_data->static_addresses, ipaddr, e) {
+				if (!ipaddr->dont_track && addr_is_equal(ifa, addr.addr, ipaddr, ifp)) {
+					reinstate_static_address(ipaddr);
+					break;
+				}
 			}
 		}
 	}
@@ -1579,6 +1590,8 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 
 	if (!now_up)
 		interface_down(ifp);
+	else
+		interface_up(ifp);
 }
 
 static char *get_mac_string(int type)
@@ -1962,8 +1975,8 @@ netlink_route_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlm
 
 	if (vrrp)
 		set_vrrp_backup(vrrp);
-//	else
-//		process_static_routes(route);
+	else
+		reinstate_static_route(route);
 
 	return 0;
 }
@@ -2016,8 +2029,8 @@ netlink_rule_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 
 	if (vrrp)
 		set_vrrp_backup(vrrp);
-//	else
-//		process_static_rules(route);
+	else
+		reinstate_static_rule(ip_rule);
 
 	return 0;
 }
