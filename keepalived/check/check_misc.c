@@ -323,7 +323,7 @@ misc_check_child_thread(thread_t * thread)
 	char *script_exit_type = NULL;
 	bool script_success;
 	char *reason = NULL;
-	int reason_code;
+	int reason_code = 0;	/* Avoid uninitialised warning by older versions of gcc */
 	bool rs_was_alive;
 
 	checker = THREAD_ARG(thread);

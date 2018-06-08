@@ -378,13 +378,17 @@ vrrp_get_header(sa_family_t family, char *buf, unsigned *proto)
 static void
 vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage* addr)
 {
-	bool final_update;
 	char *bufptr = vrrp->send_buffer;
 	vrrphdr_t *hd;
+#ifdef _WITH_VRRP_AUTH_
+	bool final_update;
 	uint32_t new_saddr = 0;
+#endif
 
+#ifdef _WITH_VRRP_AUTH_
 	/* We will need to be called again if there is more than one unicast peer, so don't calculate checksums */
 	final_update = (LIST_ISEMPTY(vrrp->unicast_peer) || !LIST_HEAD(vrrp->unicast_peer)->next || addr);
+#endif
 
 	if (vrrp->family == AF_INET) {
 		bufptr += vrrp_iphdr_len();
@@ -467,7 +471,9 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage* addr)
 
 				hd->chksum = ~acc & 0xffff;
 
+#ifdef _WITH_VRRP_AUTH_
 				new_saddr = ip->saddr;
+#endif
 			}
 		}
 

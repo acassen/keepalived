@@ -46,6 +46,7 @@
 #include <linux/sockios.h>	/* needed to get correct values for SIOC* */
 #include <linux/ethtool.h>
 #include <net/if_arp.h>
+#include <time.h>
 
 /* local include */
 #include "global_data.h"
