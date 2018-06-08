@@ -25,12 +25,12 @@ script:
 
 env:
   matrix:
-    - KEEPALIVED_CONFIG_ARGS=""
-    - KEEPALIVED_CONFIG_ARGS="--enable-snmp --enable-snmp-rfc --enable-json --enable-dbus --disable-checksum-compat --enable-bfd"
-    - KEEPALIVED_CONFIG_ARGS="--enable-sha1 --enable-dbus --enable-dbus-create-instance --disable-dynamic-linking --disable-fwmark --disable-lvs-syncd --enable-snmp-vrrp"
-    - KEEPALIVED_CONFIG_ARGS="--enable-dynamic-linking --disable-vrrp-auth --enable-snmp-rfc --disable-snmp-reply-v3-for-v2"
-    - KEEPALIVED_CONFIG_ARGS="--disable-libiptc --disable-libipset --disable-libnl --enable-snmp-checker"
-    - KEEPALIVED_CONFIG_ARGS="--enable-conversion-checks --enable-stacktrace --enable-mem-check --enable-mem-check-log --disable-lvs-64bit-stats --enable-snmp-rfcv2"
-    - KEEPALIVED_CONFIG_ARGS="--disable-lvs --enable-snmp-vrrp --enable-snmp-rfc --enable-json --enable-sha1 --enable-dbus --disable-routes --enable-bfd"
-    - KEEPALIVED_CONFIG_ARGS="--disable-vrrp --enable-snmp-checker --enable-json --enable-sha1 --enable-dbus"
-    - KEEPALIVED_CONFIG_ARGS="--disable-hardening --enable-dump-threads --enable-select-debug --enable-timer-debug --enable-snmp-rfcv3"
+    - KEEPALIVED_CONFIG_ARGS="--enable Werror"
+    - KEEPALIVED_CONFIG_ARGS="--enable Werror --enable-snmp --enable-snmp-rfc --enable-json --enable-dbus --disable-checksum-compat --enable-bfd"
+    - KEEPALIVED_CONFIG_ARGS="--enable Werror --enable-sha1 --enable-dbus --enable-dbus-create-instance --disable-dynamic-linking --disable-fwmark --disable-lvs-syncd --enable-snmp-vrrp"
+    - KEEPALIVED_CONFIG_ARGS="--enable Werror --enable-dynamic-linking --disable-vrrp-auth --enable-snmp-rfc --disable-snmp-reply-v3-for-v2"
+    - KEEPALIVED_CONFIG_ARGS="--enable Werror --disable-libiptc --disable-libipset --disable-libnl --enable-snmp-checker"
+    - KEEPALIVED_CONFIG_ARGS="--enable Werror --enable-conversion-checks --enable-stacktrace --enable-mem-check --enable-mem-check-log --disable-lvs-64bit-stats --enable-snmp-rfcv2"
+    - KEEPALIVED_CONFIG_ARGS="--enable Werror --disable-lvs --enable-snmp-vrrp --enable-snmp-rfc --enable-json --enable-sha1 --enable-dbus --disable-routes --enable-bfd"
+    - KEEPALIVED_CONFIG_ARGS="--enable Werror --disable-vrrp --enable-snmp-checker --enable-json --enable-sha1 --enable-dbus"
+    - KEEPALIVED_CONFIG_ARGS="--enable Werror --disable-hardening --enable-dump-threads --enable-select-debug --enable-timer-debug --enable-snmp-rfcv3"
