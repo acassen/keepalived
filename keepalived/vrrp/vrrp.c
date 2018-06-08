@@ -3141,8 +3141,10 @@ process_static_entries(void)
 {
 	element e, e1;
 	ip_address_t *saddr;
+#if _HAVE_FIB_ROUTING_
 	ip_route_t *sroute;
 	ip_rule_t *srule;
+#endif
 	vrrp_t *vrrp;
 
 	LIST_FOREACH(vrrp_data->static_addresses, saddr, e) {
@@ -3153,6 +3155,8 @@ process_static_entries(void)
 		LIST_FOREACH(saddr->track_group->vrrp_instances, vrrp, e1)
 			add_vrrp_to_interface(vrrp, saddr->ifp, 0, false, TRACK_ADDR);
 	}
+
+#if _HAVE_FIB_ROUTING_
 	LIST_FOREACH(vrrp_data->static_routes, sroute, e) {
 		if (!sroute->track_group)
 			continue;
@@ -3181,7 +3185,9 @@ process_static_entries(void)
 		LIST_FOREACH(srule->track_group->vrrp_instances, vrrp, e1)
 			add_vrrp_to_interface(vrrp, srule->oif, 0, false, TRACK_RULE);
 	}
+#endif
 }
+
 bool
 vrrp_complete_init(void)
 {
@@ -3315,10 +3321,10 @@ vrrp_complete_init(void)
 	if (global_data->vrrp_garp_interval || global_data->vrrp_gna_interval)
 		set_default_garp_delay();
 
-#ifdef _HAVE_FIB_ROUTING_
 	/* See if any static addresses, routes or rules need monitoring */
 	process_static_entries();
 
+#ifdef _HAVE_FIB_ROUTING_
 	/* If we are tracking any routes/rules, ask netlink to monitor them */
 	set_extra_netlink_monitoring(monitor_ipv4_routes, monitor_ipv6_routes, monitor_ipv4_rules, monitor_ipv6_rules);
 #endif

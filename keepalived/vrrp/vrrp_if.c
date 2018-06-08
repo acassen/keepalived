@@ -966,7 +966,7 @@ print_vrrp_if_addresses(void)
 #endif
 
 void
-interface_up(interface_t *ifp)
+interface_up(__attribute__((unused)) interface_t *ifp)
 {
 	/* We need to re-add static addresses and static routes */
 }
