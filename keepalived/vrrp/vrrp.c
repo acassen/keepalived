@@ -3558,8 +3558,12 @@ restore_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 	vrrp->state = old_vrrp->state;
 	vrrp->reload_master = old_vrrp->state == VRRP_STATE_MAST;
 	vrrp->wantstate = old_vrrp->wantstate;
-	if (!old_vrrp->sync)
-		vrrp->effective_priority = old_vrrp->effective_priority + vrrp->base_priority - old_vrrp->base_priority;
+	if (!old_vrrp->sync && vrrp->base_priority != VRRP_PRIO_OWNER) {
+		vrrp->total_priority = old_vrrp->total_priority + vrrp->base_priority - old_vrrp->base_priority;
+		vrrp->effective_priority = (vrrp->total_priority < 0) ? 0 :
+					   (vrrp->total_priority >= VRRP_PRIO_OWNER) ? VRRP_PRIO_OWNER - 1 :
+					   (uint8_t)vrrp->total_priority;
+	}
 
 	/* Save old stats */
 	memcpy(vrrp->stats, old_vrrp->stats, sizeof(vrrp_stats));
