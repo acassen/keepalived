@@ -36,6 +36,7 @@
 /* local includes */
 #include "vrrp_if.h"
 #include "vrrp_ipaddress.h"
+#include "vrrp_static_track.h"
 
 /* print buffer sizes */
 #define	RULE_BUF_SIZE	256
@@ -107,6 +108,7 @@ typedef struct _ip_rule {
 	struct fib_rule_port_range dst_port;
 #endif
 	bool		dont_track;     /* used for virtual rules */
+	static_track_group_t *track_group;   /* used for static rules */
 	bool		set;
 } ip_rule_t;
 
@@ -114,6 +116,7 @@ typedef struct _ip_rule {
 #define IPRULE_ADD 1
 
 /* prototypes */
+extern void reinstate_static_rule(ip_rule_t *);
 extern void netlink_rulelist(list, int, bool);
 extern void free_iprule(void *);
 extern void format_iprule(ip_rule_t *, char *, size_t);

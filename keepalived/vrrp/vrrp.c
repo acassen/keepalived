@@ -79,6 +79,7 @@
 #include "global_data.h"
 #endif
 #include "keepalived_magic.h"
+#include "vrrp_static_track.h"
 
 /* Set if need to block ip addresses and are able to do so */
 bool block_ipv4;
@@ -377,13 +378,17 @@ vrrp_get_header(sa_family_t family, char *buf, unsigned *proto)
 static void
 vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage* addr)
 {
-	bool final_update;
 	char *bufptr = vrrp->send_buffer;
 	vrrphdr_t *hd;
+#ifdef _WITH_VRRP_AUTH_
+	bool final_update;
 	uint32_t new_saddr = 0;
+#endif
 
+#ifdef _WITH_VRRP_AUTH_
 	/* We will need to be called again if there is more than one unicast peer, so don't calculate checksums */
 	final_update = (LIST_ISEMPTY(vrrp->unicast_peer) || !LIST_HEAD(vrrp->unicast_peer)->next || addr);
+#endif
 
 	if (vrrp->family == AF_INET) {
 		bufptr += vrrp_iphdr_len();
@@ -466,7 +471,9 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage* addr)
 
 				hd->chksum = ~acc & 0xffff;
 
+#ifdef _WITH_VRRP_AUTH_
 				new_saddr = ip->saddr;
+#endif
 			}
 		}
 
@@ -3135,6 +3142,58 @@ sync_group_tracking_init(void)
 	}
 }
 
+static void
+process_static_entries(void)
+{
+	element e, e1;
+	ip_address_t *saddr;
+#if _HAVE_FIB_ROUTING_
+	ip_route_t *sroute;
+	ip_rule_t *srule;
+#endif
+	vrrp_t *vrrp;
+
+	LIST_FOREACH(vrrp_data->static_addresses, saddr, e) {
+		if (!saddr->track_group)
+			continue;
+
+		/* Add the vrrps of the track group to track the address's interface */
+		LIST_FOREACH(saddr->track_group->vrrp_instances, vrrp, e1)
+			add_vrrp_to_interface(vrrp, saddr->ifp, 0, false, TRACK_ADDR);
+	}
+
+#if _HAVE_FIB_ROUTING_
+	LIST_FOREACH(vrrp_data->static_routes, sroute, e) {
+		if (!sroute->track_group)
+			continue;
+
+		if (sroute->family == AF_INET)
+			monitor_ipv4_routes = true;
+		else
+			monitor_ipv6_routes = true;
+
+		/* If the route specifies an interface, the vrrp instances of
+		 * the track_group should track the interface */
+		if (sroute->oif) {
+			LIST_FOREACH(sroute->track_group->vrrp_instances, vrrp, e1)
+				add_vrrp_to_interface(vrrp, sroute->oif, 0, false, TRACK_ROUTE);
+		}
+	}
+	LIST_FOREACH(vrrp_data->static_rules, srule, e) {
+		if (!srule->track_group)
+			continue;
+
+		if (srule->family == AF_INET)
+			monitor_ipv4_rules = true;
+		else
+			monitor_ipv6_rules = true;
+
+		LIST_FOREACH(srule->track_group->vrrp_instances, vrrp, e1)
+			add_vrrp_to_interface(vrrp, srule->oif, 0, false, TRACK_RULE);
+	}
+#endif
+}
+
 bool
 vrrp_complete_init(void)
 {
@@ -3145,6 +3204,7 @@ vrrp_complete_init(void)
 	element e, e1;
 	vrrp_t *vrrp, *old_vrrp;
 	vrrp_sgroup_t *sgroup;
+	static_track_group_t *tgroup;
 	list l_o;
 	element e_o;
 	element next;
@@ -3213,9 +3273,8 @@ vrrp_complete_init(void)
 	}
 
 	/* Build synchronization group index, and remove any
-	 * empty groups, or groups with only one member */
+	 * empty groups */
 	LIST_FOREACH_NEXT(vrrp_data->vrrp_sync_group, sgroup, e, next) {
-		/* A group needs at least two members */
 		if (!sgroup->iname) {
 			log_message(LOG_INFO, "Sync group %s has no virtual router(s) - removing", sgroup->gname);
 			free_list_element(vrrp_data->vrrp_sync_group, e);
@@ -3226,6 +3285,22 @@ vrrp_complete_init(void)
 
 		if (!sgroup->vrrp_instances) {
 			free_list_element(vrrp_data->vrrp_sync_group, e);
+			continue;
+		}
+	}
+
+	/* Build static track groups and remove empty groups */
+	LIST_FOREACH_NEXT(vrrp_data->static_track_groups, tgroup, e, next) {
+		if (!tgroup->iname) {
+			log_message(LOG_INFO, "Static track group %s has no virtual router(s) - removing", tgroup->gname);
+			free_list_element(vrrp_data->static_track_groups, e);
+			continue;
+		}
+
+		static_track_set_group(tgroup);
+
+		if (!tgroup->vrrp_instances) {
+			free_list_element(vrrp_data->static_track_groups, e);
 			continue;
 		}
 	}
@@ -3251,6 +3326,9 @@ vrrp_complete_init(void)
 	/* If we have a global garp_delay add it to any interfaces without a garp_delay */
 	if (global_data->vrrp_garp_interval || global_data->vrrp_gna_interval)
 		set_default_garp_delay();
+
+	/* See if any static addresses, routes or rules need monitoring */
+	process_static_entries();
 
 #ifdef _HAVE_FIB_ROUTING_
 	/* If we are tracking any routes/rules, ask netlink to monitor them */
@@ -3480,8 +3558,12 @@ restore_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 	vrrp->state = old_vrrp->state;
 	vrrp->reload_master = old_vrrp->state == VRRP_STATE_MAST;
 	vrrp->wantstate = old_vrrp->wantstate;
-	if (!old_vrrp->sync)
-		vrrp->effective_priority = old_vrrp->effective_priority + vrrp->base_priority - old_vrrp->base_priority;
+	if (!old_vrrp->sync && vrrp->base_priority != VRRP_PRIO_OWNER) {
+		vrrp->total_priority = old_vrrp->total_priority + vrrp->base_priority - old_vrrp->base_priority;
+		vrrp->effective_priority = (vrrp->total_priority < 0) ? 0 :
+					   (vrrp->total_priority >= VRRP_PRIO_OWNER) ? VRRP_PRIO_OWNER - 1 :
+					   (uint8_t)vrrp->total_priority;
+	}
 
 	/* Save old stats */
 	memcpy(vrrp->stats, old_vrrp->stats, sizeof(vrrp_stats));

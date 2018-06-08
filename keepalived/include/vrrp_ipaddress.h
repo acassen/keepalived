@@ -35,6 +35,7 @@
 #include "vrrp_if.h"
 #include "list.h"
 #include "vector.h"
+#include "vrrp_static_track.h"
 
 /* types definition */
 typedef struct _ip_address {
@@ -63,6 +64,8 @@ typedef struct _ip_address {
 		struct in6_addr sin6_addr;
 	} peer;
 	bool			dont_track;		/* Don't leave master state if address is deleted */
+	static_track_group_t	*track_group;		/* used for static addresses */
+
 	bool			set;			/* TRUE if addr is set */
 	bool			iptable_rule_set;	/* TRUE if iptable drop rule
 							 * set to addr */
@@ -103,6 +106,7 @@ struct ipt_handle;
 /* prototypes */
 extern char *ipaddresstos(char *, ip_address_t *);
 extern int netlink_ipaddress(ip_address_t *, int);
+extern void reinstate_static_address(ip_address_t *);
 extern bool netlink_iplist(list, int, bool);
 extern void handle_iptable_rule_to_iplist(struct ipt_handle *, list, int, bool force);
 extern void free_ipaddress(void *);

@@ -47,6 +47,7 @@
 #ifdef _WITH_SNMP_RFCV3_
 #include "vrrp_snmp.h"
 #endif
+#include "vrrp_static_track.h"
 
 /* global vars */
 vrrp_data_t *vrrp_data = NULL;
@@ -501,6 +502,23 @@ dump_vrrp(FILE *fp, void *data)
 }
 
 void
+alloc_static_track_group(char *gname)
+{
+	size_t size = strlen(gname);
+	static_track_group_t *new;
+
+	if (!LIST_EXISTS(vrrp_data->static_track_groups))
+		vrrp_data->static_track_groups = alloc_list(free_tgroup, dump_tgroup);
+
+	/* Allocate new VRRP group structure */
+	new = (static_track_group_t *) MALLOC(sizeof(*new));
+	new->gname = (char *) MALLOC(size + 1);
+	memcpy(new->gname, gname, size);
+
+	list_add(vrrp_data->static_track_groups, new);
+}
+
+void
 alloc_vrrp_sync_group(char *gname)
 {
 	size_t size = strlen(gname);
@@ -847,6 +865,7 @@ free_vrrp_data(vrrp_data_t * data)
 	free_list(&data->static_addresses);
 	free_list(&data->static_routes);
 	free_list(&data->static_rules);
+	free_list(&data->static_track_groups);
 	free_mlist(data->vrrp_index, VRRP_INDEX_FD_SIZE);
 	free_mlist(data->vrrp_index_fd, FD_INDEX_SIZE);
 	free_list(&data->vrrp);
@@ -873,6 +892,10 @@ dump_vrrp_data(FILE *fp, vrrp_data_t * data)
 	if (!LIST_ISEMPTY(data->static_rules)) {
 		conf_write(fp, "------< Static Rules >------");
 		dump_list(fp, data->static_rules);
+	}
+	if (!LIST_ISEMPTY(data->static_track_groups)) {
+		conf_write(fp, "------< Static Track groups >------");
+		dump_list(fp, data->static_track_groups);
 	}
 	if (!LIST_ISEMPTY(data->vrrp)) {
 		conf_write(fp, "------< VRRP Topology >------");

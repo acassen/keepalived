@@ -33,6 +33,7 @@
 
 /* Configuration data root */
 typedef struct _vrrp_data {
+	list			static_track_groups;
 	list			static_addresses;
 	list			static_routes;
 	list			static_rules;
@@ -55,6 +56,7 @@ extern char *vrrp_buffer;
 extern size_t vrrp_buffer_len;
 
 /* prototypes */
+extern void alloc_static_track_group(char *);
 extern void alloc_saddress(vector_t *);
 extern void alloc_sroute(vector_t *);
 extern void alloc_srule(vector_t *);

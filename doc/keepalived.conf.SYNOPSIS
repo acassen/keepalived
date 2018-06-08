@@ -264,9 +264,10 @@ checker that may be of use. It can be downloaded from https://github.com/yuuki/g
 
 1. Globals configurations
 
-This block is divided in 4 sub-blocks :
+This block is divided in 5 sub-blocks :
 
     * Global definitions
+    * Static track groups
     * Static addresses
     * Static rules
     * Static routes
@@ -467,15 +468,35 @@ linkbeat_use_polling                          # Use media link failure detection
 child_wait_time SECS                          # Time for main process to allow for child processes to exit on termination
                                               #   in seconds (default 5). This can be needed for very large configurations.
 
-    1.2. Static addresses
+    1.2. Static track groups
+
+    Static track groups are used to allow vrrp instances to track static addresses
+    routes and rules. If an static address/route/rule specifies a track group, then
+    if the address/route/rule is deleted, the vrrp instance will transition to vackup
+    or to fault state if the address/route/rule cannot be re-added.
+
+    The syntax for a track group is:
+
+    track_group GROUP1 {
+        group {
+            VI_1
+            VI_2
+        }
+    }
+
+    1.3. Static addresses
 
     The configuration block looks like :
 
 static_ipaddress {                            # block identification
                                               # If no dev element is specified, it defaults to the default_interface (default eth0)
+					      # The track_group specification refers to a named track_group which lists the vrrp instances which
+                                              #   will track the address, i.e. if the address is deleted the vrrp instances will transition to backup
+                                              #   state (or fault state if the address cannot be re-added).
+                                              # no_track means that the address will not be reinstated if it is deleted
                                               # Note: the broadcast address may be specified as '-' or '+' to clear or set the host
                                               #       bits of the address.
-    <IP ADDRESS>[/<MASK>] [brd <IP ADDRESS>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IP ADDRESS>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
+    <IP ADDRESS>[/<MASK>] [brd <IP ADDRESS>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IP ADDRESS>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin] [track_group GROUP|no_track]
     <IP ADDRESS>[/<MASK>] ...
     ...
 }
@@ -487,31 +508,33 @@ SCOPE can take the following values :
     * nowhere
     * global
 
-    1.3 Static rules
+    1.4. Static rules
 
 static_rules {                                # block identification
                                               # The syntax is that same as for ip rule add, without "ip rule add"
                                               # with the addition of tunnel-id option (except shortened option names
                                               #   aren't supported due to ambiguities).
+                                              # For a description of track_group and no_track, see static_addresses
                                               # NOTE: since rules without preferences can be added in different orders
                                               #   due to vrrp instances transitioning from master to backup etc, rules need
                                               #   to have a preference. If a preference is not specified, keepalived will
                                               #   assign one, but it will probably not be what you want.
-    from 192.168.28.0/24 to 192.168.29.0/26 table small iif p33p1 oif wlan0 tos 22 fwmark 24/12 preference 39 realms 30/20
-    to 1:2:3:4:5:6:7:0/112 from 7:6:5:4:3:2::/96 table 6908 uidrange 10000-19999
+    from 192.168.28.0/24 to 192.168.29.0/26 table small iif p33p1 oif wlan0 tos 22 fwmark 24/12 preference 39 realms 30/20 track_group GROUP1
+    to 1:2:3:4:5:6:7:0/112 from 7:6:5:4:3:2::/96 table 6908 uidrange 10000-19999 no_track
     to 1:2:3:4:6:6:7:0/112 from 8:6:5:4:3:2::/96 l3mdev protocol 12 ip_proto UDP sport 10-20 dport 20-30
 }
 
-    1.4. Static routes
+    1.5. Static routes
 
     The configuration block looks like :
 
 static_routes {                               # block identification
                                               # The syntax is the same as ip route add, without "ip route add"
-                                              #   (except shorted option names aren't supported due to ambiguities) e.g.
+                                              #   (except shorted option names aren't supported due to ambiguities)
+                                              # For a description of track_group and no_track, see static_addresses
     192.168.100.0/24 table 6909 nexthop via 192.168.101.1 dev wlan0 onlink weight 1 nexthop via 192.168.101.2 dev wlan0 onlink weight 2
-    192.168.200.0/24 dev p33p1.2 table 6909 tos 0x04 protocol bird scope link priority 12 mtu 1000 hoplimit 100 advmss 101 rtt 102 rttvar 103 reordering 104 window 105 cwnd 106 ssthresh lock 107 realms PQA/0x14 rto_min 108 initcwnd 109 initrwnd 110 features ecn
-    2001:470:69e9:1:2::4 dev p33p1.2 table 6909 tos 0x04 protocol bird scope link priority 12 mtu 1000 hoplimit 100 advmss 101 rtt 102 rttvar 103 reordering 104 window 105 cwnd 106 ssthresh lock 107 rto_min 108 initcwnd 109 initrwnd 110 features ecn fastopen_no_cookie 1
+    192.168.200.0/24 dev p33p1.2 table 6909 tos 0x04 protocol bird scope link priority 12 mtu 1000 hoplimit 100 advmss 101 rtt 102 rttvar 103 reordering 104 window 105 cwnd 106 ssthresh lock 107 realms PQA/0x14 rto_min 108 initcwnd 109 initrwnd 110 features ecn track_group GROUP1
+    2001:470:69e9:1:2::4 dev p33p1.2 table 6909 tos 0x04 protocol bird scope link priority 12 mtu 1000 hoplimit 100 advmss 101 rtt 102 rttvar 103 reordering 104 window 105 cwnd 106 ssthresh lock 107 rto_min 108 initcwnd 109 initrwnd 110 features ecn fastopen_no_cookie 1 no_track
 }
 
 2. VRRP configuration
@@ -845,25 +868,29 @@ vrrp_instance <STRING> {                      # VRRP instance declaration
     }
     # For virutal_ipaddress and virtual_ipaddress_excluded most of the options match the options
     #   of the command ip address add, likewise for virtual_routes and virtual_rules and the
-    #   respective ip route/rule add commands. no-track is specific to keepalived and means that the
+    #   respective ip route/rule add commands. no_track is specific to keepalived and means that the
     #   vrrp_instance will not transition out of master state if the address/route/rule is deleted.
+    # The track_group option only applies to static addresses/routes/rules.
+
     virtual_ipaddress {                       # VRRP IP addres block
-        <IP ADDRESS>[/<MASK>] [brd <IP ADDRESS>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IP ADDRESS>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin] [no-track]
+        <IP ADDRESS>[/<MASK>] [brd <IP ADDRESS>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IP ADDRESS>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin] [no_track]
         <IP ADDRESS>[/<MASK>] ...
         ...
     }
     virtual_ipaddress_excluded {              # VRRP IP excluded from VRRP packets
-        <IP ADDRESS>[/<MASK>] [brd <IP ADDRESS>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IP ADDRESS>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin] [no-track]
+        <IP ADDRESS>[/<MASK>] [brd <IP ADDRESS>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IP ADDRESS>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin] [no_track]
         <IP ADDRESS>[/<MASK>] ...
         ...
     }
     promote_secondaries                       # Set the promote_secondaries flag on the interface to stop other
                                               # addresses in the same CIDR being removed when 1 of them is removed
     virtual_routes {                          # VRRP virtual routes
-                                              # The syntax is the same as static_routes with the additional option [no-track]
+                                              # The syntax is the same as static_routes with the additional option [no_track]
+                                              #   and excluding track_group.
     }
     virtual_rules {                           # VRRP virtual rules
-                                              # The syntax is the same as static_rules with the additional option [no-track]
+                                              # The syntax is the same as static_rules with the additional option [no_track]
+                                              #   and excluding track_group.
     }
 
     nopreempt                                 # Override VRRP RFC preemption default

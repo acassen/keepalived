@@ -46,6 +46,7 @@
 #include <linux/sockios.h>	/* needed to get correct values for SIOC* */
 #include <linux/ethtool.h>
 #include <net/if_arp.h>
+#include <time.h>
 
 /* local include */
 #include "global_data.h"
@@ -966,6 +967,12 @@ print_vrrp_if_addresses(void)
 #endif
 
 void
+interface_up(__attribute__((unused)) interface_t *ifp)
+{
+	/* We need to re-add static addresses and static routes */
+}
+
+void
 interface_down(interface_t *ifp)
 {
 	element e, e1;
@@ -1007,6 +1014,12 @@ interface_down(interface_t *ifp)
 	}
 
 	/* Now check the static routes */
+	LIST_FOREACH(vrrp_data->static_routes, route, e) {
+		if (route->set && route->oif == ifp) {
+			/* This route will have been deleted */
+			route->set = false;
+		}
+	}
 }
 
 void

@@ -192,6 +192,11 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 	return status;
 }
 
+void reinstate_static_address(ip_address_t *ipaddr)
+{
+	ipaddr->set = (netlink_ipaddress(ipaddr, IPADDRESS_ADD) > 0);
+}
+
 /* Add/Delete a list of IP addresses */
 bool
 netlink_iplist(list ip_list, int cmd, bool force)
@@ -466,7 +471,10 @@ dump_ipaddress(FILE *fp, void *if_data)
 		buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, " autojoin");
 #endif
 	if (ipaddr->dont_track)
-		buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, "%s", " no-track");
+		buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, "%s", " no_track");
+
+	if (ipaddr->track_group)
+		buf_p += snprintf(buf_p, buf + sizeof(buf) - buf_p, " track_group %s", ipaddr->track_group->gname);
 
 	conf_write(fp, "%s", buf);
 }
@@ -677,8 +685,20 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 			new->flags |= IFA_F_MCAUTOJOIN;
 			new->flagmask |= IFA_F_MCAUTOJOIN;
 #endif
-		} else if (!strcmp(str, "no-track")) {
+		} else if (!strcmp(str, "no_track")) {
 			new->dont_track = true;
+		} else if (!strcmp(str, "track_group")) {
+			if (!param_avail) {
+				param_missing = true;
+				break;
+			}
+			i++;
+			if (new->track_group) {
+				log_message(LOG_INFO, "track_group %s is a duplicate", FMT_STR_VSLOT(strvec, i));
+				break;
+			}
+			if (!(new->track_group = find_track_group(strvec_slot(strvec, i))))
+                                log_message(LOG_INFO, "track_group %s not found", FMT_STR_VSLOT(strvec, i));
 		} else
 			log_message(LOG_INFO, "Unknown configuration entry '%s' for ip address - ignoring", str);
 		i++;
