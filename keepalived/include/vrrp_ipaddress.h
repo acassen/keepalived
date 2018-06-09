@@ -106,7 +106,6 @@ struct ipt_handle;
 /* prototypes */
 extern char *ipaddresstos(char *, ip_address_t *);
 extern int netlink_ipaddress(ip_address_t *, int);
-extern void reinstate_static_address(ip_address_t *);
 extern bool netlink_iplist(list, int, bool);
 extern void handle_iptable_rule_to_iplist(struct ipt_handle *, list, int, bool force);
 extern void free_ipaddress(void *);
@@ -116,5 +115,6 @@ extern void alloc_ipaddress(list, vector_t *, interface_t *, bool);
 extern void clear_diff_address(struct ipt_handle *, list, list);
 extern void clear_diff_saddresses(void);
 extern void iptables_init(void);
+extern void reinstate_static_address(ip_address_t *);
 
 #endif
