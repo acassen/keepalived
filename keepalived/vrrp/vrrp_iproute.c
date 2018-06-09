@@ -911,7 +911,7 @@ dump_iproute(FILE *fp, void *rt_data)
 		conf_write(fp, "%*s%s", 5, "", buf);
 	else {
 		for (i = 0, len = strlen(buf); i < len; i += i ? MAX_LOG_MSG - 7 : MAX_LOG_MSG - 5)
-			conf_write(fp, "%*s%s", i ? 6 : 4, "", buf + i);
+			conf_write(fp, "%*s%s", i ? 6 : 5, "", buf + i);
 	}
 
 	FREE(buf);
