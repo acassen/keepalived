@@ -499,9 +499,9 @@ and
 .SH Static track groups
 .PP
 Static track groups are used to allow vrrp instances to track static addresses
-routes and rules. If an static address/route/rule specifies a track group, then
-if the address/route/rule is deleted, the vrrp instance will transition to vackup
-or to fault state if the address/route/rule cannot be re-added.
+routes and rules. If a static address/route/rule specifies a track group, then
+if the address/route/rule is deleted and cannot be restored, the vrrp instance
+will transition to fault state.
 .PP
 The syntax for a track group is:
 
@@ -922,7 +922,9 @@ bfd_instance <STRING> {
            #   The track_group option only applies to static addresses/routes/rules.
            #   no_track is specific to keepalived and means that the
            #   vrrp_instance will not transition out of master state
-           #   if the address/route/rule is deleted.
+           #   if the address/route/rule is deleted and the address/route/rule
+           #   will not be reinstated until the vrrp instance next transitions
+           #   to master.
            virtual_ipaddress {
                <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IPADDR>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin] [no_track]
                192.168.200.17/24 dev eth1

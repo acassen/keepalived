@@ -528,7 +528,7 @@ parse_ipaddress(ip_address_t *ip_address, char *str, int allow_default)
 	return new;
 }
 void
-alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
+alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp, bool allow_track_group)
 {
 /* The way this works is slightly strange.
  *
@@ -687,7 +687,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 #endif
 		} else if (!strcmp(str, "no_track")) {
 			new->dont_track = true;
-		} else if (!strcmp(str, "track_group")) {
+		} else if (allow_track_group && !strcmp(str, "track_group")) {
 			if (!param_avail) {
 				param_missing = true;
 				break;
@@ -751,6 +751,11 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 			FREE(new->label);
 			new->label = NULL;
 		}
+	}
+
+	if (new->track_group && !new->ifp) {
+		log_message(LOG_INFO, "Static route have track_group if interface not specified");
+		new->track_group = NULL;
 	}
 
 	list_add(ip_list, new);

@@ -47,6 +47,7 @@
 #endif
 #include "vrrp_if.h"
 #include "vrrp_sock.h"
+#include "vrrp_track.h"
 
 /* Special value for parameters when we want to know they haven't been set */
 #define	PARAMETER_UNSET		UINT_MAX
@@ -359,6 +360,7 @@ extern int open_vrrp_read_socket(sa_family_t, int, interface_t *, bool);
 extern int new_vrrp_socket(vrrp_t *);
 extern void vrrp_send_adv(vrrp_t *, uint8_t);
 extern void vrrp_send_link_update(vrrp_t *, unsigned);
+extern void add_vrrp_to_interface(vrrp_t *, interface_t *, int, bool, track_t);
 extern bool vrrp_state_fault_rx(vrrp_t *, char *, ssize_t);
 extern bool vrrp_state_master_rx(vrrp_t *, char *, ssize_t);
 extern void vrrp_state_master_tx(vrrp_t *);

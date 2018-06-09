@@ -34,9 +34,9 @@
 #include <stdio.h>
 
 /* local include */
-#include "vrrp_track.h"
 #include "vrrp_data.h"
 #include "vrrp.h"
+#include "vrrp_track.h"
 #include "vrrp_sync.h"
 #include "logger.h"
 #include "memory.h"

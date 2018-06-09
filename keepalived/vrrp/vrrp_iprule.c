@@ -450,7 +450,7 @@ dump_iprule(FILE *fp, void *rule_data)
 }
 
 void
-alloc_rule(list rule_list, vector_t *strvec)
+alloc_rule(list rule_list, vector_t *strvec, __attribute__((unused)) bool allow_track_group)
 {
 	ip_rule_t *new;
 	char *str;
@@ -746,15 +746,17 @@ fwmark_err:
 
 		else if (!strcmp(str, "no_track"))
 			new->dont_track = true;
-		else if (!strcmp(str, "track_group")) {
+#if HAVE_DECL_FRA_OIFNAME
+		else if (allow_track_group && !strcmp(str, "track_group")) {
 			i++;
 			if (new->track_group) {
-				log_message(LOG_INFO, "track-group %s is a duplicate", FMT_STR_VSLOT(strvec, i));
+				log_message(LOG_INFO, "track_group %s is a duplicate", FMT_STR_VSLOT(strvec, i));
 				break;
 			}
 			if (!(new->track_group = find_track_group(strvec_slot(strvec, i))))
                                 log_message(LOG_INFO, "track_group %s not found", FMT_STR_VSLOT(strvec, i));
 		}
+#endif
 		else {
 			uint8_t action = FR_ACT_UNSPEC;
 
@@ -835,6 +837,11 @@ fwmark_err:
 		new->mask |= IPRULE_BIT_PROTOCOL;
 	}
 #endif
+
+	if (new->track_group && !new->iif) {
+		log_message(LOG_INFO, "Static rule cannot have track_group if dev/iif not specified");
+		new->track_group = NULL;
+	}
 
 	new->family = (family == AF_UNSPEC) ? AF_INET : family;
 

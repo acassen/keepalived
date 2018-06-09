@@ -72,7 +72,7 @@ alloc_saddress(vector_t *strvec)
 {
 	if (!LIST_EXISTS(vrrp_data->static_addresses))
 		vrrp_data->static_addresses = alloc_list(free_ipaddress, dump_ipaddress);
-	alloc_ipaddress(vrrp_data->static_addresses, strvec, NULL);
+	alloc_ipaddress(vrrp_data->static_addresses, strvec, NULL, true);
 }
 
 #ifdef _HAVE_FIB_ROUTING_
@@ -82,7 +82,7 @@ alloc_sroute(vector_t *strvec)
 {
 	if (!LIST_EXISTS(vrrp_data->static_routes))
 		vrrp_data->static_routes = alloc_list(free_iproute, dump_iproute);
-	alloc_route(vrrp_data->static_routes, strvec);
+	alloc_route(vrrp_data->static_routes, strvec, true);
 }
 
 /* Static rules facility function */
@@ -91,7 +91,7 @@ alloc_srule(vector_t *strvec)
 {
 	if (!LIST_EXISTS(vrrp_data->static_rules))
 		vrrp_data->static_rules = alloc_list(free_iprule, dump_iprule);
-	alloc_rule(vrrp_data->static_rules, strvec);
+	alloc_rule(vrrp_data->static_rules, strvec, true);
 }
 #endif
 
@@ -734,7 +734,7 @@ alloc_vrrp_vip(vector_t *strvec)
 	else if (!LIST_ISEMPTY(vrrp->vip))
 		list_end = LIST_TAIL_DATA(vrrp->vip);
 
-	alloc_ipaddress(vrrp->vip, strvec, vrrp->ifp);
+	alloc_ipaddress(vrrp->vip, strvec, vrrp->ifp, false);
 
 	if (!LIST_ISEMPTY(vrrp->vip) && LIST_TAIL_DATA(vrrp->vip) != list_end) {
 		address_family = IP_FAMILY((ip_address_t*)LIST_TAIL_DATA(vrrp->vip));
@@ -755,7 +755,7 @@ alloc_vrrp_evip(vector_t *strvec)
 
 	if (!LIST_EXISTS(vrrp->evip))
 		vrrp->evip = alloc_list(free_ipaddress, dump_ipaddress);
-	alloc_ipaddress(vrrp->evip, strvec, vrrp->ifp);
+	alloc_ipaddress(vrrp->evip, strvec, vrrp->ifp, false);
 }
 
 #ifdef _HAVE_FIB_ROUTING_
@@ -766,7 +766,7 @@ alloc_vrrp_vroute(vector_t *strvec)
 
 	if (!LIST_EXISTS(vrrp->vroutes))
 		vrrp->vroutes = alloc_list(free_iproute, dump_iproute);
-	alloc_route(vrrp->vroutes, strvec);
+	alloc_route(vrrp->vroutes, strvec, false);
 }
 
 void
@@ -776,7 +776,7 @@ alloc_vrrp_vrule(vector_t *strvec)
 
 	if (!LIST_EXISTS(vrrp->vrules))
 		vrrp->vrules = alloc_list(free_iprule, dump_iprule);
-	alloc_rule(vrrp->vrules, strvec);
+	alloc_rule(vrrp->vrules, strvec, false);
 }
 #endif
 
@@ -863,8 +863,10 @@ void
 free_vrrp_data(vrrp_data_t * data)
 {
 	free_list(&data->static_addresses);
+#ifdef _HAVE_FIB_ROUTING_
 	free_list(&data->static_routes);
 	free_list(&data->static_rules);
+#endif
 	free_list(&data->static_track_groups);
 	free_mlist(data->vrrp_index, VRRP_INDEX_FD_SIZE);
 	free_mlist(data->vrrp_index_fd, FD_INDEX_SIZE);
@@ -885,6 +887,7 @@ dump_vrrp_data(FILE *fp, vrrp_data_t * data)
 		conf_write(fp, "------< Static Addresses >------");
 		dump_list(fp, data->static_addresses);
 	}
+#ifdef _HAVE_FIB_ROUTING_
 	if (!LIST_ISEMPTY(data->static_routes)) {
 		conf_write(fp, "------< Static Routes >------");
 		dump_list(fp, data->static_routes);
@@ -893,6 +896,7 @@ dump_vrrp_data(FILE *fp, vrrp_data_t * data)
 		conf_write(fp, "------< Static Rules >------");
 		dump_list(fp, data->static_rules);
 	}
+#endif
 	if (!LIST_ISEMPTY(data->static_track_groups)) {
 		conf_write(fp, "------< Static Track groups >------");
 		dump_list(fp, data->static_track_groups);

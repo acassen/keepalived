@@ -29,7 +29,7 @@
 /* local includes */
 #include "vector.h"
 #include "list.h"
-
+#include "vrrp_if.h"
 
 /* Parameters for static track groups */
 typedef struct _static_track_group {
@@ -41,6 +41,7 @@ typedef struct _static_track_group {
 extern void free_tgroup(void *);
 extern void dump_tgroup(FILE *, void *);
 extern static_track_group_t *find_track_group(const char *);
-extern void static_track_set_group(static_track_group_t *);
+extern void static_track_group_init(void);
+extern void static_track_reinstate_config(interface_t *);
 
 #endif

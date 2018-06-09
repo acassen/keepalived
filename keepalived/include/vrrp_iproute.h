@@ -246,7 +246,7 @@ extern void netlink_rtlist(list, int);
 extern void free_iproute(void *);
 extern void format_iproute(ip_route_t *, char *, size_t);
 extern void dump_iproute(FILE *, void *);
-extern void alloc_route(list, vector_t *);
+extern void alloc_route(list, vector_t *, bool);
 extern void clear_diff_routes(list, list);
 extern void clear_diff_sroutes(void);
 

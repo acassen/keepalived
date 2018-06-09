@@ -1288,7 +1288,7 @@ err:
 }
 
 void
-alloc_route(list rt_list, vector_t *strvec)
+alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 {
 	ip_route_t *new;
 	interface_t *ifp;
@@ -1694,7 +1694,7 @@ alloc_route(list rt_list, vector_t *strvec)
 		}
 		else if (!strcmp(str, "no_track"))
 			new->dont_track = true;
-		else if (!strcmp(str, "track_group")) {
+		else if (allow_track_group && !strcmp(str, "track_group")) {
 			i++;
 			if (new->track_group) {
 				log_message(LOG_INFO, "track_group %s is a duplicate", FMT_STR_VSLOT(strvec, i));
@@ -1758,6 +1758,11 @@ alloc_route(list rt_list, vector_t *strvec)
 			log_message(LOG_INFO, "Warning - cannot track route %s with no interface specified, not tracking", dest);
 			new->dont_track = true;
 		}
+	}
+
+	if (new->track_group && !new->oif) {
+		log_message(LOG_INFO, "Static route cannot have track group if no oif specified");
+		new->track_group = NULL;
 	}
 
 	list_add(rt_list, new);
