@@ -3,17 +3,14 @@ Whatever you want !
 The following are still outstanding from the ideas for what was the beta
 development:
 
-	* Only monitor IPv4/6 addresses as needed
-	* Tracking static addresses (See pull request 478)
-	* Routes/rules being removed (static and dynamic)
-	* Tracking static rules/routes
-	* For static/dynamic rules/routes/addresses, add a no-track option
+	* Log when static routes/rules/addresses are restored
+	* A route with multiple nexthops will only be deleted if all interfaces
+	    are down. Each nexthop needs to record the interface, and only remove
+	    once all down
+	* Don't add RTNMGRP_IPV4_ADDR/IPV6_ADDR if not monitoring one of those
+	    families
 	* Allow specification for interfaces not existing at startup - but report them.
 	    When interface later created, bring up any vrrp instances and routes that should be using it.
-	* May need to restore static routes/addresses when interfaces are restored
-	    May need to restore routes when addresses are restored
-	* Add track_if/track_route for static routes
-	* Add option for whether vrrp instance to go down if static/dynamic rule/route/address disappears
 	* Add static addresses and routes on vmacs
 	* May want to stop VS down at start for alpha mode RSs (except SNMP)
 	* Rate limit respawning if a child process dies
@@ -41,8 +38,6 @@ development:
 	    Add PROCESS_CHECK for checkers
 	    - Find PID and remember it. If PID has gone, try and find new pid
 	    Look at how pidof/killall find processes
-	* Don't add RTNMGRP_IPV4_ADDR/IPV6_ADDR if not monitoring one of those
-	    families
 	* Allow dynamic definitions, e.g. $_VI_NAME
 	    Also $*_INSTANCE net_namspace $_INSTANCE
 	    so $* means only do if $_INSTANCE not blank. */

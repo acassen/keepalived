@@ -1982,7 +1982,7 @@ free_tracking_vrrp(void *data)
 	FREE(data);
 }
 
-static void
+void
 add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool log_addr, track_t type)
 {
 	tracking_vrrp_t *etvp = NULL;
@@ -2009,8 +2009,8 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool log_addr,
 		/* Check if this is already in the list, and adjust the weight appropriately */
 		LIST_FOREACH(ifp->tracking_vrrp, etvp, e) {
 			if (etvp->vrrp == vrrp) {
-				if (etvp->type & ~(TRACK_ADDR | TRACK_ROUTE | TRACK_RULE) &&
-				    type != TRACK_ADDR && type != TRACK_ROUTE && type != TRACK_RULE)
+				if (etvp->type & (TRACK_VRRP | TRACK_IF | TRACK_SG) &&
+				    type == TRACK_VRRP && type == TRACK_IF && type == TRACK_SG)
 					log_message(LOG_INFO, "(%s) track_interface %s is configured on VRRP instance and sync group. Remove vrrp instance or sync group config",
 							vrrp->iname, ifp->ifname);
 
@@ -3142,27 +3142,14 @@ sync_group_tracking_init(void)
 	}
 }
 
+#if _HAVE_FIB_ROUTING_
 static void
 process_static_entries(void)
 {
-	element e, e1;
-	ip_address_t *saddr;
-#if _HAVE_FIB_ROUTING_
+	element e;
 	ip_route_t *sroute;
 	ip_rule_t *srule;
-#endif
-	vrrp_t *vrrp;
 
-	LIST_FOREACH(vrrp_data->static_addresses, saddr, e) {
-		if (!saddr->track_group)
-			continue;
-
-		/* Add the vrrps of the track group to track the address's interface */
-		LIST_FOREACH(saddr->track_group->vrrp_instances, vrrp, e1)
-			add_vrrp_to_interface(vrrp, saddr->ifp, 0, false, TRACK_ADDR);
-	}
-
-#if _HAVE_FIB_ROUTING_
 	LIST_FOREACH(vrrp_data->static_routes, sroute, e) {
 		if (!sroute->track_group)
 			continue;
@@ -3171,13 +3158,6 @@ process_static_entries(void)
 			monitor_ipv4_routes = true;
 		else
 			monitor_ipv6_routes = true;
-
-		/* If the route specifies an interface, the vrrp instances of
-		 * the track_group should track the interface */
-		if (sroute->oif) {
-			LIST_FOREACH(sroute->track_group->vrrp_instances, vrrp, e1)
-				add_vrrp_to_interface(vrrp, sroute->oif, 0, false, TRACK_ROUTE);
-		}
 	}
 	LIST_FOREACH(vrrp_data->static_rules, srule, e) {
 		if (!srule->track_group)
@@ -3187,12 +3167,9 @@ process_static_entries(void)
 			monitor_ipv4_rules = true;
 		else
 			monitor_ipv6_rules = true;
-
-		LIST_FOREACH(srule->track_group->vrrp_instances, vrrp, e1)
-			add_vrrp_to_interface(vrrp, srule->oif, 0, false, TRACK_RULE);
 	}
-#endif
 }
+#endif
 
 bool
 vrrp_complete_init(void)
@@ -3204,7 +3181,6 @@ vrrp_complete_init(void)
 	element e, e1;
 	vrrp_t *vrrp, *old_vrrp;
 	vrrp_sgroup_t *sgroup;
-	static_track_group_t *tgroup;
 	list l_o;
 	element e_o;
 	element next;
@@ -3289,22 +3265,6 @@ vrrp_complete_init(void)
 		}
 	}
 
-	/* Build static track groups and remove empty groups */
-	LIST_FOREACH_NEXT(vrrp_data->static_track_groups, tgroup, e, next) {
-		if (!tgroup->iname) {
-			log_message(LOG_INFO, "Static track group %s has no virtual router(s) - removing", tgroup->gname);
-			free_list_element(vrrp_data->static_track_groups, e);
-			continue;
-		}
-
-		static_track_set_group(tgroup);
-
-		if (!tgroup->vrrp_instances) {
-			free_list_element(vrrp_data->static_track_groups, e);
-			continue;
-		}
-	}
-
 	/* Complete VRRP instance initialization */
 	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
 		if (!vrrp_complete_instance(vrrp))
@@ -3313,6 +3273,9 @@ vrrp_complete_init(void)
 		if (vrrp->ifp->mtu > max_mtu_len)
 			max_mtu_len = vrrp->ifp->mtu;
 	}
+
+	/* Build static track groups and remove empty groups */
+	static_track_group_init();
 
 	/* Add pointers from sync group tracked scripts, file and interfaces
 	 * to members of the sync groups.
@@ -3327,10 +3290,10 @@ vrrp_complete_init(void)
 	if (global_data->vrrp_garp_interval || global_data->vrrp_gna_interval)
 		set_default_garp_delay();
 
-	/* See if any static addresses, routes or rules need monitoring */
+#ifdef _HAVE_FIB_ROUTING_
+	/* See if any static routes or rules need monitoring */
 	process_static_entries();
 
-#ifdef _HAVE_FIB_ROUTING_
 	/* If we are tracking any routes/rules, ask netlink to monitor them */
 	set_extra_netlink_monitoring(monitor_ipv4_routes, monitor_ipv6_routes, monitor_ipv4_rules, monitor_ipv6_rules);
 #endif

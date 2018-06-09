@@ -491,8 +491,8 @@ child_wait_time SECS                          # Time for main process to allow f
 static_ipaddress {                            # block identification
                                               # If no dev element is specified, it defaults to the default_interface (default eth0)
 					      # The track_group specification refers to a named track_group which lists the vrrp instances which
-                                              #   will track the address, i.e. if the address is deleted the vrrp instances will transition to backup
-                                              #   state (or fault state if the address cannot be re-added).
+                                              #   will track the address, i.e. if the address is deleted and cannot be restored the vrrp instances
+                                              #    will transition to fault state.
                                               # no_track means that the address will not be reinstated if it is deleted
                                               # Note: the broadcast address may be specified as '-' or '+' to clear or set the host
                                               #       bits of the address.
@@ -869,7 +869,9 @@ vrrp_instance <STRING> {                      # VRRP instance declaration
     # For virutal_ipaddress and virtual_ipaddress_excluded most of the options match the options
     #   of the command ip address add, likewise for virtual_routes and virtual_rules and the
     #   respective ip route/rule add commands. no_track is specific to keepalived and means that the
-    #   vrrp_instance will not transition out of master state if the address/route/rule is deleted.
+    #   vrrp_instance will not transition out of master state if the address/route/rule is deleted
+    #   and the address/route/rule will not be reinstated until the vrrp instance next transitions
+    #   to master.
     # The track_group option only applies to static addresses/routes/rules.
 
     virtual_ipaddress {                       # VRRP IP addres block

@@ -967,9 +967,10 @@ print_vrrp_if_addresses(void)
 #endif
 
 void
-interface_up(__attribute__((unused)) interface_t *ifp)
+interface_up(interface_t *ifp)
 {
 	/* We need to re-add static addresses and static routes */
+	static_track_reinstate_config(ifp);
 }
 
 void
@@ -1013,6 +1014,7 @@ interface_down(interface_t *ifp)
 		}
 	}
 
+#ifdef _HAVE_FIB_ROUTING_
 	/* Now check the static routes */
 	LIST_FOREACH(vrrp_data->static_routes, route, e) {
 		if (route->set && route->oif == ifp) {
@@ -1020,6 +1022,7 @@ interface_down(interface_t *ifp)
 			route->set = false;
 		}
 	}
+#endif
 }
 
 void

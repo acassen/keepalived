@@ -22,27 +22,18 @@
 
 #include "config.h"
 
-//#include <net/if.h>
-//#include <stdlib.h>
-//#include <sys/stat.h>
-//#include <limits.h>
-//#include <stdlib.h>
-//#include <sys/inotify.h>
-//#include <errno.h>
-//#include <sys/types.h>
-//#include <fcntl.h>
-//#include <stdio.h>
-
 /* local include */
-//#include "vrrp_track.h"
 #include "vrrp_data.h"
 #include "vrrp.h"
 #include "vrrp_sync.h"
 #include "logger.h"
-//#include "memory.h"
-//#include "vrrp_scheduler.h"
-//#include "scheduler.h"
 #include "vrrp_static_track.h"
+#include "vrrp_ipaddress.h"
+#include "vrrp_track.h"
+#if _HAVE_FIB_ROUTING_
+#include "vrrp_iproute.h"
+#include "vrrp_iprule.h"
+#endif
 
 void
 free_tgroup(void *data)
@@ -86,7 +77,7 @@ find_track_group(const char *gname)
 	return NULL;
 }
 
-void
+static void
 static_track_set_group(static_track_group_t *tgroup)
 {
 	vrrp_t *vrrp;
@@ -103,7 +94,7 @@ static_track_set_group(static_track_group_t *tgroup)
 		str = vector_slot(tgroup->iname, i);
 		vrrp = vrrp_get_instance(str);
 		if (!vrrp) {
-			log_message(LOG_INFO, "Virtual router %s specified in track group %s doesn't exist - ignoring", str, tgroup->gname);
+			log_message(LOG_INFO, "vrrp instance %s specified in track group %s doesn't exist - ignoring", str, tgroup->gname);
 			continue;
 		}
 
@@ -113,4 +104,116 @@ static_track_set_group(static_track_group_t *tgroup)
 	/* The iname vector is only used for us to set up the sync groups, so delete it */
 	free_strvec(tgroup->iname);
 	tgroup->iname = NULL;
+}
+
+void
+static_track_group_init(void)
+{
+	static_track_group_t *tg;
+	vrrp_t *vrrp;
+	ip_address_t *addr;
+#if _HAVE_FIB_ROUTING_
+	ip_route_t *route;
+	ip_rule_t *rule;
+#endif
+	element e, e1, next;
+
+	LIST_FOREACH_NEXT(vrrp_data->static_track_groups, tg, e, next) {
+		if (!tg->iname) {
+                        log_message(LOG_INFO, "Static track group %s has no virtual router(s) - removing", tg->gname);
+                        free_list_element(vrrp_data->static_track_groups, e);
+                        continue;
+                }
+
+		static_track_set_group(tg);
+
+		if (!tg->vrrp_instances) {
+                        free_list_element(vrrp_data->static_track_groups, e);
+                        continue;
+                }
+	}
+
+	/* Add the tracking vrrps to track the interface of each tracked address */
+	LIST_FOREACH(vrrp_data->static_addresses, addr, e) {
+		if (!addr->track_group)
+			continue;
+		if (addr->dont_track) {
+			log_message(LOG_INFO, "Static address has both track_group and no_track set - not tracking");
+			continue;
+		}
+
+		LIST_FOREACH(addr->track_group->vrrp_instances, vrrp, e1)
+			add_vrrp_to_interface(vrrp, addr->ifp, 0, false, TRACK_SADDR);
+	}
+
+#if _HAVE_FIB_ROUTING_
+	/* Add the tracking vrrps to track the interface of each tracked address */
+	LIST_FOREACH(vrrp_data->static_routes, route, e) {
+		if (!route->track_group)
+			continue;
+		if (route->dont_track) {
+			log_message(LOG_INFO, "Static route has both track_group and no_track set - not tracking");
+			continue;
+		}
+
+		LIST_FOREACH(route->track_group->vrrp_instances, vrrp, e1) {
+			if (route->oif)
+				add_vrrp_to_interface(vrrp, route->oif, 0, false, TRACK_SROUTE);
+		}
+	}
+
+	LIST_FOREACH(vrrp_data->static_rules, rule, e) {
+		if (!rule->track_group)
+			continue;
+		if (rule->dont_track) {
+			log_message(LOG_INFO, "Static rule has both track_group and no_track set - not tracking");
+			continue;
+		}
+
+		LIST_FOREACH(rule->track_group->vrrp_instances, vrrp, e1) {
+			if (rule->iif)
+				add_vrrp_to_interface(vrrp, rule->iif, 0, false, TRACK_SRULE);
+		}
+	}
+#endif
+}
+
+void
+static_track_reinstate_config(interface_t *ifp)
+{
+	ip_address_t *addr;
+#if _HAVE_FIB_ROUTING_
+	ip_route_t *route;
+/*	ip_rule_t *rule; */
+#endif
+	element e;
+
+	LIST_FOREACH(vrrp_data->static_addresses, addr, e) {
+		if (addr->dont_track)
+			continue;
+		if (addr->ifp != ifp)
+			continue;
+		reinstate_static_address(addr);
+	}
+
+#if _HAVE_FIB_ROUTING_
+	/* Add the tracking vrrps to track the interface of each tracked address */
+	LIST_FOREACH(vrrp_data->static_routes, route, e) {
+		if (route->dont_track)
+			continue;
+		if (route->oif != ifp)
+			continue;
+		reinstate_static_route(route);
+	}
+
+	/* Rules don't get deleted on interface deletion, so we don't need to do anything for them
+	LIST_FOREACH(vrrp_data->static_rules, rule, e) {
+		if (rule->dont_track)
+			continue;
+		if (rule->iif != ifp)
+			continue;
+		reinstate_static_route(route);
+	}
+	*/
+#endif
 }
