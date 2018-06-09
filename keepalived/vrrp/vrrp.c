@@ -2748,8 +2748,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 			while (true) {
 				/* If there is no VMAC with the name and no existing
-				 * interface with the name, we can use it */
-				if (!e && !if_get_by_ifname(ifname, IF_NO_CREATE))
+				 * interface with the name, we can use it.
+				 * It we are using dynamic interfaces, the interface entry
+				 * may have been created by the configuration, but in that
+				 * case the ifindex will be 0. */
+				if (!e && (!(ifp = if_get_by_ifname(ifname, IF_NO_CREATE)) || !ifp->ifindex))
 					break;
 
 				/* For IPv6 try vrrp6 as second attempt */

@@ -510,12 +510,6 @@ netlink_route(ip_route_t *iproute, int cmd)
 	return status;
 }
 
-void
-reinstate_static_route(ip_route_t *route)
-{
-	route->set = (netlink_route(route, IPROUTE_ADD) > 0);
-}
-
 /* Add/Delete a list of IP routes */
 void
 netlink_rtlist(list rt_list, int cmd)
@@ -691,15 +685,15 @@ format_iproute(ip_route_t *route, char *buf, size_t buf_len)
 	element e;
 
 	if (route->type != RTN_UNICAST)
-		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s", get_rttables_rtntype(route->type));
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), "%s ", get_rttables_rtntype(route->type));
 	if (route->dst) {
-		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s", ipaddresstos(NULL, route->dst));
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), "%s", ipaddresstos(NULL, route->dst));
 		if ((route->dst->ifa.ifa_family == AF_INET && route->dst->ifa.ifa_prefixlen != 32 ) ||
 		    (route->dst->ifa.ifa_family == AF_INET6 && route->dst->ifa.ifa_prefixlen != 128 ))
 			op += (size_t)snprintf(op, (size_t)(buf_end - op), "/%u", route->dst->ifa.ifa_prefixlen);
 	}
 	else
-		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s", "default");
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), "%s", "default");
 
 	if (route->src) {
 		op += (size_t)snprintf(op, (size_t)(buf_end - op), " from %s", ipaddresstos(NULL, route->src));
@@ -914,10 +908,10 @@ dump_iproute(FILE *fp, void *rt_data)
 	format_iproute(route, buf, ROUTE_BUF_SIZE);
 
 	if (fp)
-		conf_write(fp, "%*s%s", 4, "", buf);
+		conf_write(fp, "%*s%s", 5, "", buf);
 	else {
 		for (i = 0, len = strlen(buf); i < len; i += i ? MAX_LOG_MSG - 7 : MAX_LOG_MSG - 5)
-			conf_write(fp, "%*s%s", i ? 6 : 4, "", buf + i);
+			conf_write(fp, "%*s%s", i ? 6 : 5, "", buf + i);
 	}
 
 	FREE(buf);
@@ -1838,4 +1832,15 @@ void
 clear_diff_sroutes(void)
 {
 	clear_diff_routes(old_vrrp_data->static_routes, vrrp_data->static_routes);
+}
+
+void
+reinstate_static_route(ip_route_t *route)
+{
+	char buf[256];
+
+	route->set = (netlink_route(route, IPROUTE_ADD) > 0);
+
+	format_iproute(route, buf, sizeof(buf));
+	log_message(LOG_INFO, "Restoring deleted static route %s", buf);
 }

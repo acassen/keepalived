@@ -277,7 +277,12 @@ netlink_rule(ip_rule_t *iprule, int cmd)
 void
 reinstate_static_rule(ip_rule_t *rule)
 {
+	char buf[256];
+
 	rule->set = (netlink_rule(rule, IPRULE_ADD) > 0);
+
+	format_iprule(rule, buf, sizeof(buf));
+	log_message(LOG_INFO, "Restoring deleted static rule %s", buf);
 }
 
 void

@@ -241,7 +241,6 @@ typedef struct _ip_route {
 
 /* prototypes */
 extern unsigned short add_addr2req(struct nlmsghdr *, size_t, unsigned short, ip_address_t *);
-extern void reinstate_static_route(ip_route_t *);
 extern void netlink_rtlist(list, int);
 extern void free_iproute(void *);
 extern void format_iproute(ip_route_t *, char *, size_t);
@@ -249,5 +248,6 @@ extern void dump_iproute(FILE *, void *);
 extern void alloc_route(list, vector_t *, bool);
 extern void clear_diff_routes(list, list);
 extern void clear_diff_sroutes(void);
+extern void reinstate_static_route(ip_route_t *);
 
 #endif
