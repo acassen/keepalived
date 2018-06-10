@@ -840,8 +840,11 @@ vrrp_dispatcher_read_timeout(int fd)
 
 		prev_state = vrrp->state;
 
-		if (vrrp->state == VRRP_STATE_BACK)
+		if (vrrp->state == VRRP_STATE_BACK) {
+			if (__test_bit(LOG_DETAIL_BIT, &debug))
+				log_message(LOG_INFO, "(%s) Receive advertisement timeout", vrrp->iname);
 			vrrp_goto_master(vrrp);
+		}
 		else if (vrrp->state == VRRP_STATE_MAST)
 			vrrp_master(vrrp);
 
