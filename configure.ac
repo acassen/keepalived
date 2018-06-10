@@ -29,19 +29,23 @@ AC_DEFUN([add_pkg_config],
     fi
     add_to_var_ind_unique([${KA_PKG_PFX}_CPPFLAGS], [`$PKG_CONFIG --cflags-only-I $1`])
     add_to_var_ind_unique([${KA_PKG_PFX}_CFLAGS], [`$PKG_CONFIG --cflags-only-other $1`])
-    add_to_var_ind_unique([${KA_PKG_PFX}_LIBS], [`$PKG_CONFIG --libs $1`])
 
     if test .$3 = .remove-requires; then
       REQUIRES=`$PKG_CONFIG --print-requires $1`
-      eval var=\$${KA_PKG_PFX}_LIBS
+      var=`$PKG_CONFIG --libs-only-l $1`
       for r in $REQUIRES; do
-	REQ_LIBS=`$PKG_CONFIG --libs $r`
+	REQ_LIBS=`$PKG_CONFIG --libs-only-l $r`
 	for l in $REQ_LIBS; do
-	  var=`echo " $var " | sed -e "s/ $l / /g"`
+	  var=`echo " $var " | sed -e "s: $l : :g"`
 	done
       done
-      var=`echo $var | sed -e "s/^ *//" -e "s/  *$//"`
+      var=`echo $var | sed -e "s:^ *::" -e "s:  *$::"`
       eval ${KA_PKG_PFX}_LIBS="\"$var\""
+
+      var=`echo $var | sed -e "s/-l//g"`
+      eval ${KA_PKG_PFX}_LIB_NAMES="\"$var\""
+    else
+      add_to_var_ind_unique([${KA_PKG_PFX}_LIBS], [`$PKG_CONFIG --libs $1`])
     fi
   ])
 
@@ -615,26 +619,22 @@ if test .${enable_libnl} != .no; then
   $PKG_CONFIG --exists libnl-3.0
   if test $? -eq 0; then
     add_pkg_config([libnl-3.0], [NL3], [remove-requires])
-    NL3_LIB=`echo $NL3_LIBS | sed -e "s/-l//g"`
-
-    AC_CHECK_LIB($NL3_LIB, nl_socket_alloc,
+    AC_CHECK_LIB($NL3_LIB_NAMES, nl_socket_alloc,
       [
         NETLINK_VER=3
         NEED_NL3=No
-        add_pkg_config([libnl-3.0], [NL3])
 
         if test .$enable_lvs != .no; then
 	  add_pkg_config([libnl-genl-3.0], [GENL], [remove-requires])
-	  GENL_LIB=`echo $GENL_LIBS | sed -e "s/-l//g"`
-	  AC_CHECK_LIB($GENL_LIB, genl_connect, [],
+	  AC_CHECK_LIB($GENL_LIB_NAMES, genl_connect, [],
 	    [AC_MSG_ERROR([libnl-3 is installed but not libnl-gen-3. Please, install libnl-gen-3/libnl-genl-3.])])
 	  IPVS_USE_NL=Yes
 	  if test .$enable_libnl_dynamic = .yes; then
 	    add_pkg_config_without_libs([libnl-genl-3.0])
-	    get_lib_name([$GENL_LIB], [genl_connect])
+	    get_lib_name([$GENL_LIB_NAMES], [genl_connect])
 	    AC_DEFINE_UNQUOTED([NL3_GENL_LIB_NAME], [ "$LIB_NAME" ], [Define the nl-genl-3.0 library name])
 	  else
-	    add_pkg_config([libnl-genl-3.0], [], [remove-requires])
+	    add_pkg_config([libnl-genl-3.0])
 	  fi
 	  NEED_NL3=Yes
         fi
@@ -682,15 +682,14 @@ if test .${enable_libnl} != .no; then
 
         if test $IPV4_DEVCONF = Yes; then
 	  add_pkg_config([libnl-route-3.0], [ROUTE], [remove-requires])
-	  ROUTE_LIB=`echo $ROUTE_LIBS | sed -e "s/-l//g"`
-	  AC_CHECK_LIB($ROUTE_LIB, nl_rtgen_request, [],
+	  AC_CHECK_LIB($ROUTE_LIB_NAMES, nl_rtgen_request, [],
 	    [AC_MSG_ERROR([libnl-3 is installed but not libnl-route-3. Please, install libnl-route-3.])])
 	  if test .$enable_libnl_dynamic = .yes; then
 	    add_pkg_config_without_libs([libnl-route-3.0])
-	    get_lib_name([$ROUTE_LIB], [rtgen_request])
+	    get_lib_name([$ROUTE_LIB_NAMES], [rtgen_request])
 	    AC_DEFINE_UNQUOTED([NL3_ROUTE_LIB_NAME], [ "$LIB_NAME" ], [Define the nl-route-3.0 library name])
 	  else
-	    add_pkg_config([libnl-route-3.0], [], [remove-requires])
+	    add_pkg_config([libnl-route-3.0])
 	  fi
         fi
 
@@ -702,7 +701,7 @@ if test .${enable_libnl} != .no; then
 	    add_pkg_config_without_libs([libnl-3.0])
 	    AC_DEFINE([_LIBNL_DYNAMIC_], [ 1 ], [Define to 1 if building with libnl dynamic linking])
 	    NEED_LIBDL=Yes
-	    get_lib_name([$NL3_LIB], [nl_socket_alloc])
+	    get_lib_name([$NL3_LIB_NAMES], [nl_socket_alloc])
 	    AC_DEFINE_UNQUOTED([NL3_LIB_NAME], [ "$LIB_NAME" ], [Define the nl-3 library name])
 	  else
 	    add_pkg_config([libnl-3.0])
