@@ -811,8 +811,8 @@ static void
 vrrp_higher_prio_send_advert_handler(vector_t *strvec)
 {
 	int res;
-
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec, 1));
 		if (res >= 0)
@@ -825,6 +825,24 @@ vrrp_higher_prio_send_advert_handler(vector_t *strvec)
 	}
 }
 
+
+static void
+kernel_rx_buf_size_handler(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	unsigned long rx_buf_size;
+	char *endptr;
+
+	if (vector_size(strvec) == 2) {
+		rx_buf_size = strtoul(strvec_slot(strvec, 1), &endptr, 0);
+		if (!*endptr) {
+			vrrp->kernel_rx_buf_size = rx_buf_size;
+			return;
+		}
+	}
+
+	log_message(LOG_INFO, "(%s) invalid kernel_rx_buf_size specified", vrrp->iname);
+}
 
 #if defined _WITH_VRRP_AUTH_
 static void
@@ -1354,6 +1372,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("garp_lower_prio_repeat", &vrrp_garp_lower_prio_rep_handler);
 	install_keyword("lower_prio_no_advert", &vrrp_lower_prio_no_advert_handler);
 	install_keyword("higher_prio_send_advert", &vrrp_higher_prio_send_advert_handler);
+	install_keyword("kernel_rx_buf_size", &kernel_rx_buf_size_handler);
 #if defined _WITH_VRRP_AUTH_
 	install_keyword("authentication", NULL);
 	install_sublevel();

@@ -14,9 +14,6 @@ development:
 	    can register for what notifications it wants to receive.
 	* Allow variable parameters to be passed to scripts - see issue #837
 	* Make tarball include git version if not a tag
-	* In open_vrrp_receive_socket, set buffer size to a "reasonable" size
-	    - config option, default size 212992 / 2 (is this bigger than
-	    necessary?) - ? 2 * (size of adverts for all instances)
 	* If an address owner recovers from fault, transition directly to
 	  master
 	* If configuration_state=MASTER && !OWNER, transition to master after
@@ -83,66 +80,6 @@ ipsecah issues
 
 5. ? if cycle becomes set, we must become backup. How do we get out of state?
 
-Interfaces going down
-======================
-
-1. Interface goes down
-	VMACs removed
-	IP addresses removed
-	IP routes using dev removed
-
-2. Address removed
-	IP routes using address removed
-
-3. VMAC removed
-
-4. IP Route removed
-
-When interface comes back up:
-1. Recreate VMACs
-2. Add back static routes and addresses
-
-Add "required" against against routes/addresses
-
-Add id for static routes:
-static_routes FRED {
-...
-}
-and in vrrp instance
-track_static_routes {
-    FRED
-}
-
-and similarly for static_ipaddress
-
-Add global keyword
-  track_added
-to make vrrp instances go to backup or fault state if anything they added goes away
-(backup if can re-add, fault it not).
-
-Add option `track` to virtual route to do same as global track_added, but for
-that route for that vrrp instance. If route has a dev, then
-
-Add option track for virtual ip address, which will add specified dev to tracked interfaces.
-
-Add options at static config level and vrrp instance to track system ip addresses and track system routes
-(although this is crudely available via scripts).
-
-Solution
-========
-
-    Add keywords track_vip_ifs and track_vroute_ifs  - would make the vrrp instance track the interfaces that vips are configured on (we probably ought to have a track_vroute_ifs too)
-    Add keyword track against vips and vroutes so that if a vip or vroute is deleted, the instance will transition to backup state
-    Add keywords track_vips and track_vroutes to track all a vrrp instances vips or vroutes (same effect as configuring track against all vips or vroutes). We could also add these as global keywords too to make it the default for all vrrp instances.
-    Modify keywords static_ipaddress and static_routes to add an optional track name, for example:
-    static_ipaddress track_group1 {. Then add keywords track_sip and track_sroute for vrrp instances, so that the static ip addresses and static routes for the vrrp instance to track can be specified. Again, track_sips and track_sroutes could be global keywords to make all instances track all static ips and static routes.
-    If a static ip address or static route is deleted due to an interface going down, then when the interface returns, re-add the static ip address/routes.
-    Add global keyword track_ip_route which is the same as specifing track_vips, track_vroutes, track_sips and track_sroutes at the global level.
-    Add keyword restore for static ip addresses and static routes so that if they are deleted, we automatically add them back.
-    Add notify_vip_deleted and notify_vroute_deleted notify scripts. Can we also add notify_sip_deleted and notify_sroute_deleted scritps?
-    If a vmac interface is removed, transition to backup state (or fault state if the underlying interface is down) and re-add the vmac interface immediately if possible, or when the underlying interface comes up again (the vmac interfaces are ours, so no-one else should delete them).
-
-
 epoll
 =====
 Use timerfd (see timerfd_create(2)) for microsecond timing with epoll, and do not bother with its timeout.
@@ -161,3 +98,33 @@ Add api
 Add pipe for updates
 ====================
 track_script like for absolute or relative priority
+
+Upstream issues
+===============
+
+1. Kernel. Socket receive buffers growing to fill memory
+   See issue #839. If the following setting are in place:
+net.core.rmem_default = 37748736
+net.core.rmem_max = 37748736
+   and vrrp_tx_bufs_policy NO_SEND_RX is configured, then
+   all system memory can be consumed. Why is it not limited
+   to 37748736 bytes?
+
+2. Kernel. Corruption when netlink sends status of large number
+   of links - see issues #392/#803.
+   When using default socket receive buffer size, and have 500
+   vmac interfaces configured on a physical interface and the
+   physical interface is downed, lots of netlink messages are
+   received, and we get an ENOBUFS. However, after that we then
+   see a repeat of some of the earlier messages, so it looks like
+   a circular buffer corruption. Running ip -ts monitor link addr route	
+   we see precisely the same problem at exactly the same message,
+   although which message it is varies each time.
+
+3. net-snmp. Display-hint only works on indices.
+   See issue #866. 
+   # snmpwalk -v2c -c public localhost KEEPALIVED-MIB::virtualServerAddress
+   KEEPALIVED-MIB::virtualServerAddress.1 = STRING: "
+0,"
+   The address is attempted to be output as text, rather than using
+   the display hint

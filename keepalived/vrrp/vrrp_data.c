@@ -435,6 +435,8 @@ dump_vrrp(FILE *fp, void *data)
 	else if (vrrp->version == VRRP_VERSION_2)
 		conf_write(fp, "   Authentication type = none");
 #endif
+	if (vrrp->kernel_rx_buf_size)
+		conf_write(fp, "   Kernel rx buffer size = %lu", vrrp->kernel_rx_buf_size);
 
 	if (!LIST_ISEMPTY(vrrp->vip)) {
 		conf_write(fp, "   Virtual IP = %d", LIST_SIZE(vrrp->vip));

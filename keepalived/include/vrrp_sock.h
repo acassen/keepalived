@@ -45,6 +45,7 @@ typedef struct _sock {
 	bool			unicast;
 	int			fd_in;
 	int			fd_out;
+	int			rx_buf_size;
 	thread_t		*thread;
 } sock_t;
 

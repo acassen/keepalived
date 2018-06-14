@@ -169,6 +169,7 @@ alloc_global_data(void)
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 	new->vrrp_rlimit_rt = RT_RLIMIT_DEFAULT;
 #endif
+	new->vrrp_rx_bufs_multiples = 3;
 #endif
 #ifdef _WITH_LVS_
 	new->lvs_notify_fifo.fd = -1;
@@ -345,6 +346,8 @@ free_global_data(data_t * data)
 void
 dump_global_data(FILE *fp, data_t * data)
 {
+	char buf[64];
+
 	if (!data)
 		return;
 
@@ -526,5 +529,24 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " lvs_netlink_monitor_rcv_bufs_force = %u", global_data->lvs_netlink_monitor_rcv_bufs_force);
 	conf_write(fp, " rs_init_notifies = %u", global_data->rs_init_notifies);
 	conf_write(fp, " no_checker_emails = %u", global_data->no_checker_emails);
+#endif
+#ifdef _WITH_VRRP_
+	buf[0] = '\0';
+	if (global_data->vrrp_rx_bufs_policy & RX_BUFS_POLICY_MTU)
+		strcpy(buf, " rx_bufs_policy = MTU");
+	else if (global_data->vrrp_rx_bufs_policy & RX_BUFS_POLICY_ADVERT)
+		strcpy(buf, " rx_bufs_policy = ADVERT");
+	else if (global_data->vrrp_rx_bufs_policy & RX_BUFS_SIZE)
+		sprintf(buf, " rx_bufs_size = %lu", global_data->vrrp_rx_bufs_size);
+	if (global_data->vrrp_rx_bufs_policy & RX_BUFS_NO_SEND_RX) {
+		if (buf[0])
+			strcat(buf, ", ");
+		else
+			strcpy(buf, " rx_bufs_policy = ");
+		strcat(buf, "NO_SEND_RX");
+	}
+	if (buf[0])
+		conf_write(fp, "%s", buf);
+	conf_write(fp, " rx_bufs_multiples = %u", global_data->vrrp_rx_bufs_multiples);
 #endif
 }
