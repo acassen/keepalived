@@ -344,6 +344,22 @@ vrrp_pkt_len(vrrp_t * vrrp)
 	return len;
 }
 
+size_t
+vrrp_adv_len(vrrp_t *vrrp)
+{
+	size_t len = vrrp_pkt_len(vrrp);
+
+	if (vrrp->family == AF_INET) {
+		len += vrrp_iphdr_len();
+#ifdef _WITH_VRRP_AUTH_
+		if (vrrp->auth_type == VRRP_AUTH_AH)
+			len += vrrp_ipsecah_len();
+#endif
+	}
+
+	return len;
+}
+
 /* VRRP header pointer from buffer */
 vrrphdr_t *
 vrrp_get_header(sa_family_t family, char *buf, unsigned *proto)
@@ -1336,15 +1352,7 @@ vrrp_send_pkt(vrrp_t * vrrp, struct sockaddr_storage *addr)
 static void
 vrrp_alloc_send_buffer(vrrp_t * vrrp)
 {
-	vrrp->send_buffer_size = vrrp_pkt_len(vrrp);
-
-	if (vrrp->family == AF_INET) {
-		vrrp->send_buffer_size += vrrp_iphdr_len();
-#ifdef _WITH_VRRP_AUTH_
-		if (vrrp->auth_type == VRRP_AUTH_AH)
-			vrrp->send_buffer_size += vrrp_ipsecah_len();
-#endif
-	}
+	vrrp->send_buffer_size = vrrp_adv_len(vrrp);
 
 	vrrp->send_buffer = MALLOC(vrrp->send_buffer_size);
 }
@@ -2056,9 +2064,11 @@ chk_min_cfg(vrrp_t * vrrp)
 
 /* open a VRRP sending socket */
 int
-open_vrrp_send_socket(sa_family_t family, int proto, interface_t *ifp, bool unicast)
+open_vrrp_send_socket(sa_family_t family, int proto, interface_t *ifp, bool unicast, int rx_buf_size)
 {
 	int fd = -1;
+	int val = rx_buf_size;
+	socklen_t len = sizeof(val);
 
 	if (family != AF_INET && family != AF_INET6) {
 		log_message(LOG_INFO, "cant open raw socket. unknown family=%d"
@@ -2075,6 +2085,16 @@ open_vrrp_send_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 #if !HAVE_DECL_SOCK_CLOEXEC
 	set_sock_flags(fd, F_SETFD, FD_CLOEXEC);
 #endif
+
+	if (rx_buf_size || (global_data->vrrp_rx_bufs_policy & RX_BUFS_NO_SEND_RX))
+	{
+		/* If we are not receiving on the send socket, there is no
+		 * point allocating any buffers to it */
+		if (global_data->vrrp_rx_bufs_policy & RX_BUFS_NO_SEND_RX)
+			val = 0;
+		if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &val, len))
+			log_message(LOG_INFO, "vrrp set send socket buffer size error %d", errno);
+	}
 
 	if (family == AF_INET) {
 		/* Set v4 related */
@@ -2104,9 +2124,11 @@ open_vrrp_send_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 
 /* open a VRRP socket and join the multicast group. */
 int
-open_vrrp_read_socket(sa_family_t family, int proto, interface_t *ifp, bool unicast)
+open_vrrp_read_socket(sa_family_t family, int proto, interface_t *ifp, bool unicast, int rx_buf_size)
 {
 	int fd = -1;
+	int val = rx_buf_size;
+	socklen_t len = sizeof(val);
 
 	/* open the socket */
 	fd = socket(family, SOCK_RAW | SOCK_CLOEXEC, proto);
@@ -2118,6 +2140,11 @@ open_vrrp_read_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 #if !HAVE_DECL_SOCK_CLOEXEC
 	set_sock_flags(fd, F_SETFD, FD_CLOEXEC);
 #endif
+
+	if (rx_buf_size) {
+		if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &val, len))
+			log_message(LOG_INFO, "vrrp set receive socket buffer size error %d", errno);
+	}
 
 	/* Ensure no unwanted multicast packets are queued to this interface */
 	if (family == AF_INET)
@@ -2182,8 +2209,8 @@ new_vrrp_socket(vrrp_t * vrrp)
 	ifp = vrrp->ifp;
 #endif
 	unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
-	vrrp->fd_in = open_vrrp_read_socket(vrrp->family, proto, ifp, unicast);
-	vrrp->fd_out = open_vrrp_send_socket(vrrp->family, proto, ifp, unicast);
+	vrrp->fd_in = open_vrrp_read_socket(vrrp->family, proto, ifp, unicast, vrrp->sockets->rx_buf_size);
+	vrrp->fd_out = open_vrrp_send_socket(vrrp->family, proto, ifp, unicast, vrrp->sockets->rx_buf_size);
 	alloc_vrrp_fd_bucket(vrrp);
 
 	/* Sync the other desc */

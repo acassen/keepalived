@@ -61,6 +61,13 @@
 /* constants */
 #define DEFAULT_SMTP_CONNECTION_TIMEOUT (30 * TIMER_HZ)
 
+#ifdef _WITH_VRRP_
+#define RX_BUFS_POLICY_MTU		0x01
+#define RX_BUFS_POLICY_ADVERT		0x02
+#define RX_BUFS_NO_SEND_RX		0x04
+#define RX_BUFS_SIZE			0x08
+#endif
+
 /* email link list */
 typedef struct _email {
 	char				*addr;
@@ -198,6 +205,11 @@ typedef struct _data {
 #ifdef _WITH_LVS_
 	bool				rs_init_notifies;
 	bool				no_checker_emails;
+#endif
+#ifdef _WITH_VRRP_
+	int				vrrp_rx_bufs_policy;
+	size_t				vrrp_rx_bufs_size;
+	int				vrrp_rx_bufs_multiples;
 #endif
 } data_t;
 

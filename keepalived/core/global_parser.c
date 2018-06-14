@@ -34,6 +34,7 @@
 #ifdef _HAVE_SCHED_RT_
 #include <sched.h>
 #endif
+#include <strings.h>
 
 #ifdef _WITH_SNMP_
 #include "snmp.h"
@@ -996,6 +997,74 @@ child_wait_handler(vector_t *strvec)
 	child_wait_time = secs;
 }
 
+#ifdef _WITH_VRRP_
+static void
+vrrp_rx_bufs_policy_handler(vector_t *strvec)
+{
+	unsigned long rx_buf_size;
+	char *endptr;
+	unsigned i;
+
+	if (!strvec)
+		return;
+
+	if (vector_size(strvec) < 2) {
+		log_message(LOG_INFO, "vrrp_rx_bufs_policy missing");
+		return;
+	}
+
+	for (i = 1; i < vector_size(strvec); i++) {
+		if (!strcasecmp(strvec_slot(strvec, i), "MTU"))
+			global_data->vrrp_rx_bufs_policy |= RX_BUFS_POLICY_MTU;
+		else if (!strcasecmp(strvec_slot(strvec, i), "ADVERT"))
+			global_data->vrrp_rx_bufs_policy |= RX_BUFS_POLICY_ADVERT;
+		else if (!strcasecmp(strvec_slot(strvec, i), "NO_SEND_RX"))
+			global_data->vrrp_rx_bufs_policy |= RX_BUFS_NO_SEND_RX;
+		else {
+			rx_buf_size = strtoul(strvec_slot(strvec, i), &endptr, 10);
+			if (!*endptr) {
+				global_data->vrrp_rx_bufs_size = rx_buf_size;
+				global_data->vrrp_rx_bufs_policy |= RX_BUFS_SIZE;
+			}
+			else
+				log_message(LOG_INFO, "Invalid vrrp_rx_bufs_policy %s", FMT_STR_VSLOT(strvec, i));
+		}
+	}
+
+	if ((global_data->vrrp_rx_bufs_policy & RX_BUFS_SIZE) &&
+	    (global_data->vrrp_rx_bufs_policy & (RX_BUFS_POLICY_MTU | RX_BUFS_POLICY_ADVERT))) {
+		log_message(LOG_INFO, "Cannot set vrrp_rx_bufs_policy size and policy, ignoring policy");
+		global_data->vrrp_rx_bufs_policy &= ~(RX_BUFS_POLICY_MTU | RX_BUFS_POLICY_ADVERT);
+	}
+	else if ((global_data->vrrp_rx_bufs_policy & RX_BUFS_POLICY_MTU) &&
+		 (global_data->vrrp_rx_bufs_policy & RX_BUFS_POLICY_ADVERT)) {
+		log_message(LOG_INFO, "Cannot set both vrrp_rx_bufs_policy MTU and ADVERT, ignoring ADVERT");
+		global_data->vrrp_rx_bufs_policy &= ~RX_BUFS_POLICY_ADVERT;
+	}
+}
+
+static void
+vrrp_rx_bufs_multiplier_handler(vector_t *strvec)
+{
+	unsigned long rx_buf_mult;
+	char *endptr;
+
+	if (!strvec)
+		return;
+
+	if (vector_size(strvec) != 2) {
+		log_message(LOG_INFO, "Invalid vrrp_rx_bufs_multiplier");
+		return;
+	}
+
+	rx_buf_mult = strtoul(strvec_slot(strvec, 1), &endptr, 10);
+	if (!*endptr && rx_buf_mult >= 1)
+		global_data->vrrp_rx_bufs_multiples = rx_buf_mult;
+	else
+		log_message(LOG_INFO, "Invalid vrrp_rx_bufs_multiplier %s", FMT_STR_VSLOT(strvec, 1));
+}
+#endif
+
 #if defined _WITH_VRRP_ || defined _WITH_LVS_
 static unsigned
 get_netlink_rcv_bufs_size(vector_t *strvec, const char *type)
@@ -1331,5 +1400,9 @@ init_global_keywords(bool global_active)
 #ifdef _WITH_LVS_
 	install_keyword("rs_init_notifies", &rs_init_notifies_handler);
 	install_keyword("no_checker_emails", &no_checker_emails_handler);
+#endif
+#ifdef _WITH_VRRP_
+	install_keyword("vrrp_rx_bufs_policy", &vrrp_rx_bufs_policy_handler);
+	install_keyword("vrrp_rx_bufs_multiplier", &vrrp_rx_bufs_multiplier_handler);
 #endif
 }
