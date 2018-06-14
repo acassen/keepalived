@@ -251,7 +251,7 @@ dump_vs(FILE *fp, void *data)
 		conf_write(fp, "   VirtualHost = %s", vs->virtualhost);
 	if (vs->af != AF_UNSPEC)
 		conf_write(fp, "   Address family = inet%s", vs->af == AF_INET ? "" : "6");
-	conf_write(fp, "   delay_loop = %lu, lb_algo = %s", vs->delay_loop / TIMER_HZ, vs->sched);
+	conf_write(fp, "   delay_loop = %lu, lvs_sched = %s", vs->delay_loop / TIMER_HZ, vs->sched);
 	conf_write(fp, "   Hashed = %sabled", vs->flags & IP_VS_SVC_F_HASHED ? "en" : "dis");
 #ifdef IP_VS_SVC_F_SCHED1
 	if (!strcmp(vs->sched, "sh"))
@@ -438,13 +438,13 @@ dump_rs(FILE *fp, void *data)
 			    , rs->weight);
 	switch (rs->forwarding_method) {
 	case IP_VS_CONN_F_MASQ:
-		conf_write(fp, "    forwarding method = NAT");
+		conf_write(fp, "   Forwarding method = NAT");
 		break;
 	case IP_VS_CONN_F_DROUTE:
-		conf_write(fp, "    forwarding method = DR");
+		conf_write(fp, "   Forwarding method = DR");
 		break;
 	case IP_VS_CONN_F_TUNNEL:
-		conf_write(fp, "    forwarding method = TUN");
+		conf_write(fp, "   Forwarding method = TUN");
 		break;
 	}
 
