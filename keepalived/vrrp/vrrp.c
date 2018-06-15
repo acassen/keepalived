@@ -1328,7 +1328,7 @@ vrrp_send_pkt(vrrp_t * vrrp, struct sockaddr_storage *addr)
 	iov.iov_len = vrrp->send_buffer_size;
 
 	/* Unicast sending path */
-	if (addr && addr->ss_family) {
+	if (addr && addr->ss_family == AF_INET) {
 		msg.msg_name = addr;
 		msg.msg_namelen = sizeof(struct sockaddr_in);
 	} else if (addr && addr->ss_family == AF_INET6) {
@@ -1362,7 +1362,6 @@ void
 vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 {
 	struct sockaddr_storage *addr;
-	list l = vrrp->unicast_peer;
 	element e;
 
 	/* alloc send buffer */
@@ -1374,17 +1373,17 @@ vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 	/* build the packet */
 	vrrp_update_pkt(vrrp, prio, NULL);
 
-	if (!LIST_ISEMPTY(l)) {
-		for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-			addr = ELEMENT_DATA(e);
+	if (LIST_ISEMPTY(vrrp->unicast_peer))
+		vrrp_send_pkt(vrrp, NULL);
+	else {
+		LIST_FOREACH(vrrp->unicast_peer, addr, e) {
 			if (vrrp->family == AF_INET)
 				vrrp_update_pkt(vrrp, prio, addr);
 			if (vrrp_send_pkt(vrrp, addr) < 0)
 				log_message(LOG_INFO, "(%s) Cant send advert to %s (%m)"
 						    , vrrp->iname, inet_sockaddrtos(addr));
 		}
-	} else
-		vrrp_send_pkt(vrrp, NULL);
+	}
 
 	++vrrp->stats->advert_sent;
 }
