@@ -2925,6 +2925,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			vip->ifp = vrrp->ifp;
 		if (!vip->dont_track)
 			add_vrrp_to_interface(vrrp, vip->ifp, 0, false, TRACK_ADDR);
+
+		if (vip->ifa.ifa_family == AF_INET)
+			have_ipv4_instance = true;
+		else
+			have_ipv6_instance = true;
 	}
 
 	/* In case of VRRP SYNC, we have to carefully check that we are
