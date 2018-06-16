@@ -1307,7 +1307,12 @@ vrrp_build_ancillary_data(struct msghdr *msg, char *cbuf, struct sockaddr_storag
 	pkt = (struct in6_pktinfo *) CMSG_DATA(cmsg);
 	memset(pkt, 0, sizeof(struct in6_pktinfo));
 	pkt->ipi6_addr = ((struct sockaddr_in6 *) src)->sin6_addr;
-	pkt->ipi6_ifindex = vrrp->ifp->ifindex;
+#ifdef _HAVE_VRRP_VMAC_
+	if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags))
+		pkt->ipi6_ifindex = vrrp->ifp->base_ifp->ifindex;
+	else
+#endif
+		pkt->ipi6_ifindex = vrrp->ifp->ifindex;
 
 	return 0;
 }
