@@ -1070,6 +1070,8 @@ cleanup_lost_interface(interface_t *ifp)
 static bool
 setup_interface(vrrp_t *vrrp)
 {
+	interface_t *ifp;
+
 #ifdef _HAVE_VRRP_VMAC_
 	/* If the vrrp instance uses a vmac, and that vmac i/f doesn't
 	 * exist, then create it */
@@ -1080,15 +1082,22 @@ setup_interface(vrrp_t *vrrp)
 	}
 #endif
 
+#ifdef _HAVE_VRRP_VMAC_
+	if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags))
+		ifp = vrrp->ifp->base_ifp;
+	else
+#endif
+		ifp = vrrp->ifp;
+
 	/* Find the sockpool entry. If none, then we open the socket */
 	if (vrrp->sockets->fd_in == -1) {
 		vrrp->sockets->fd_in = open_vrrp_read_socket(vrrp->sockets->family, vrrp->sockets->proto,
-							vrrp->ifp, vrrp->sockets->unicast, vrrp->sockets->rx_buf_size);
+							ifp, vrrp->sockets->unicast, vrrp->sockets->rx_buf_size);
 		if (vrrp->sockets->fd_in == -1)
 			vrrp->sockets->fd_out = -1;
 		else
 			vrrp->sockets->fd_out = open_vrrp_send_socket(vrrp->sockets->family, vrrp->sockets->proto,
-							vrrp->ifp, vrrp->sockets->unicast, vrrp->sockets->rx_buf_size);
+							ifp, vrrp->sockets->unicast, vrrp->sockets->rx_buf_size);
 
 		if (vrrp->sockets->fd_out > master->max_fd)
 			master->max_fd = vrrp->sockets->fd_out;
