@@ -74,6 +74,7 @@ enum global_bits {
 #ifdef _WITH_LVS_
 	LOG_ADDRESS_CHANGES,
 #endif
+	CONFIG_TEST_BIT,
 };
 
 #endif

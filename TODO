@@ -34,6 +34,9 @@ development:
 	* Allow dynamic definitions, e.g. $_VI_NAME
 	    Also $*_INSTANCE net_namspace $_INSTANCE
 	    so $* means only do if $_INSTANCE not blank. */
+	* ng-scheduler - would libev help, or use select with epoll to get
+	    micro-second timer
+
 
 
 Other issues awaiting resolution:
