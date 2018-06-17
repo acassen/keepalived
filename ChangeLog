@@ -1,3 +1,18 @@
+2018-06-17 Quentin Armitage <quentin@armitage.org.uk>
+	* keepalived-2.0.4
+	* Make vmac_xmit_base work for IPv6 instances.
+	  Issue #917 identified that for IPv6 even when vmac_xmit_base was
+	  configured, the adverts were being sent from the vmac interface.
+	  This commit makes the packets be sent from the underlying interface
+	  when vmac_xmit_base is configured.
+	* Handle vmac_xmit_base when interfaces are recreated.
+	* Add -t config-test option.
+	  Issue #389 has received increasing support to add a configuration
+	  validation option. This commit adds the -t/--commit-test option
+	  to report any detected configururation errors and exit.
+	  Errors are logged to the system log by default, but use of the -g
+	  and -G options can make the errors be logged to files.
+
 2018-06-15 Quentin Armitage <quentin@armitage.org.uk>
 	* keepalived-2.0.3
 	* Fix building with --disables-routes configure option.
