@@ -48,9 +48,7 @@
 #include "utils.h"
 #include "signals.h"
 #include "logger.h"
-#ifdef _DEBUG_
 #include "bitops.h"
-#endif
 #include "git-commit.h"
 #include <sys/utsname.h>
 #include <linux/version.h>
@@ -195,7 +193,13 @@ set_child_finder(void (*adder_func)(thread_t *),
 	}
 }
 
-static void
+void
+set_child_remover(void (*remover_func)(thread_t *))
+{
+	child_remover = remover_func;
+}
+
+void
 destroy_child_finder(void)
 {
 	set_child_finder(NULL, NULL, NULL, NULL, NULL, 0);
@@ -1201,13 +1205,15 @@ process_child_termination(pid_t pid, int status)
 	if (child_remover)
 		child_remover(thread);
 
-	if (permanent_vrrp_checker_error)
+	if (permanent_vrrp_checker_error || __test_bit(CONFIG_TEST_BIT, &debug))
 	{
-		/* The child had a permanant error, so no point in respawning */
+		/* The child had a permanant error, or we were just testing the config,
+		 * so no point in respawning */
 		thread->type = THREAD_UNUSED;
 		thread_list_add(&m->unuse, thread);
 
-		raise(SIGTERM);
+		if (!__test_bit(CONFIG_TEST_BIT, &debug))
+			raise(SIGTERM);
 	}
 	else
 	{

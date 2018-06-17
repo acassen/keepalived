@@ -121,8 +121,9 @@ typedef enum {
 #define THREAD_CHILD_STATUS(X) ((X)->u.c.status)
 
 /* Exit codes */
-#define KEEPALIVED_EXIT_FATAL	(EXIT_FAILURE+1)
-#define KEEPALIVED_EXIT_CONFIG	(EXIT_FAILURE+2)
+#define KEEPALIVED_EXIT_FATAL		(EXIT_FAILURE+1)
+#define KEEPALIVED_EXIT_CONFIG		(EXIT_FAILURE+2)
+#define KEEPALIVED_EXIT_CONFIG_TEST	(EXIT_FAILURE+3)
 
 #define DEFAULT_CHILD_FINDER ((void *)1)
 
@@ -138,6 +139,8 @@ extern bool snmp_running;
 /* Prototypes. */
 extern void set_child_finder_name(char const * (*)(pid_t));
 extern void set_child_finder(void (*)(thread_t *), thread_t *(*)(pid_t), void (*)(thread_t *), bool (*)(size_t), void(*)(void), size_t);
+extern void destroy_child_finder(void);
+extern void set_child_remover(void (*)(thread_t *));
 #ifndef _DEBUG_
 extern bool report_child_status(int, pid_t, const char *);
 #endif

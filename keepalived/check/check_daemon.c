@@ -153,7 +153,8 @@ checker_terminate_phase1(bool schedule_next_thread)
 		script_killall(master, SIGTERM, true);
 
 	/* Send shutdown messages */
-	if (!__test_bit(DONT_RELEASE_IPVS_BIT, &debug))
+	if (!__test_bit(DONT_RELEASE_IPVS_BIT, &debug) &&
+	    !__test_bit(CONFIG_TEST_BIT, &debug))
 		clear_services();
 
 	if (schedule_next_thread) {
@@ -226,6 +227,12 @@ start_check(list old_checkers_queue)
 #ifdef _MEM_CHECK_
 	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);
 #endif
+
+	/* If we are just testing the configuration, then we terminate now */
+	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
+		stop_check(KEEPALIVED_EXIT_CONFIG_TEST);
+		return;
+	}
 
 	/* Initialize sub-system if any virtual servers are configured */
 	if ((!LIST_ISEMPTY(check_data->vs) || (reload && !LIST_ISEMPTY(old_check_data->vs))) &&
@@ -384,7 +391,9 @@ check_respawn_thread(thread_t * thread)
 	}
 
 	/* We catch a SIGCHLD, handle it */
-	if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
+	if (!__test_bit(CONFIG_TEST_BIT, &debug))
+		raise(SIGTERM);
+	else if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
 		log_message(LOG_ALERT, "Healthcheck child process(%d) died: Respawning", pid);
 		start_check_child();
 	} else {
@@ -429,7 +438,7 @@ start_check_child(void)
 
 	/* Clear any child finder functions set in parent */
 	set_child_finder_name(NULL);
-	set_child_finder(NULL, NULL, NULL, NULL, NULL, 0);	/* Currently these won't be set */
+	destroy_child_finder();
 
 	prog_type = PROG_TYPE_CHECKER;
 

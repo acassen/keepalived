@@ -305,6 +305,41 @@ make_pidfile_name(const char* start, const char* instance, const char* extn)
 	return name;
 }
 
+#ifndef _DEBUG_
+static void
+parent_child_remover(thread_t *thread)
+{
+
+        if (prog_type == PROG_TYPE_PARENT) {
+#ifdef _WITH_VRRP_
+                if (thread->u.c.pid == vrrp_child)
+                        vrrp_child = 0;
+#endif
+#ifdef _WITH_LVS_
+                if (thread->u.c.pid == checkers_child)
+                        checkers_child = 0;
+#endif
+#ifdef _WITH_BFD_
+                if (thread->u.c.pid == bfd_child)
+                        bfd_child = 0;
+#endif
+
+		if (__test_bit(CONFIG_TEST_BIT, &debug)) {
+#ifdef _WITH_VRRP_
+			if (vrrp_child == 0)
+#endif
+#ifdef _WITH_LVS_
+			if (checkers_child == 0)
+#endif
+#ifdef _WITH_BFD_
+			if (bfd_child == 0)
+#endif
+				raise(SIGTERM);
+		}
+	}
+}
+#endif
+
 #ifdef _WITH_VRRP_
 bool
 running_vrrp(void)
@@ -559,7 +594,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 
 #ifdef _WITH_VRRP_
 	if (vrrp_child > 0) {
-		if (kill(vrrp_child, SIGTERM)) {
+		if (!__test_bit(CONFIG_TEST_BIT, &debug) && kill(vrrp_child, SIGTERM)) {
 			/* ESRCH means no such process */
 			if (errno == ESRCH)
 				vrrp_child = 0;
@@ -570,7 +605,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 #endif
 #ifdef _WITH_LVS_
 	if (checkers_child > 0) {
-		if (kill(checkers_child, SIGTERM)) {
+		if (!__test_bit(CONFIG_TEST_BIT, &debug) && kill(checkers_child, SIGTERM)) {
 			if (errno == ESRCH)
 				checkers_child = 0;
 		}
@@ -580,7 +615,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 #endif
 #ifdef _WITH_BFD_
 	if (bfd_child > 0) {
-		if (kill(bfd_child, SIGTERM)) {
+		if (!__test_bit(CONFIG_TEST_BIT, &debug) && kill(bfd_child, SIGTERM)) {
 			if (errno == ESRCH)
 				bfd_child = 0;
 		}
@@ -868,6 +903,7 @@ usage(const char *prog)
 								", JSON"
 #endif
 								"\n");
+	fprintf(stderr, "  -t, --config-test            Check the configuration for obvious errors\n");
 	fprintf(stderr, "  -v, --version                Display the version number\n");
 	fprintf(stderr, "  -h, --help                   Display this help message\n");
 }
@@ -935,6 +971,7 @@ parse_cmdline(int argc, char **argv)
 #endif
 		{"config-id",		required_argument,	NULL, 'i'},
 		{"signum",		required_argument,	NULL,  4 },
+		{"config-test",		no_argument,		NULL, 't'},
 		{"version",		no_argument,		NULL, 'v'},
 		{"help",		no_argument,		NULL, 'h'},
 
@@ -945,7 +982,7 @@ parse_cmdline(int argc, char **argv)
 	 * of longindex, so we need to ensure that before calling getopt_long(), longindex
 	 * is set to a know invalid value */
 	curind = optind;
-	while (longindex = -1, (c = getopt_long(argc, argv, ":vhlndDRS:f:p:i:mM::g::G"
+	while (longindex = -1, (c = getopt_long(argc, argv, ":vhlndDRS:f:p:i:mM::g::Gt"
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 					    "PC"
 #endif
@@ -1046,6 +1083,9 @@ parse_cmdline(int argc, char **argv)
 		case 'G':
 			__set_bit(NO_SYSLOG_BIT, &debug);
 			reopen_log = true;
+			break;
+		case 't':
+			__set_bit(CONFIG_TEST_BIT, &debug);
 			break;
 		case 'f':
 			conf_file = optarg;
@@ -1193,6 +1233,9 @@ keepalived_main(int argc, char **argv)
 
 	/* Initialise pointer to child finding function */
 	set_child_finder_name(find_keepalived_child_name);
+
+	/* If one of our children terminates, we want to clear it out */
+	set_child_remover(parent_child_remover);
 
 	/* Initialise daemon_mode */
 #ifdef _WITH_VRRP_

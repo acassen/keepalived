@@ -322,6 +322,12 @@ start_vrrp(void)
 	if (reload)
 		init_global_data(global_data);
 
+	/* If we are just testing the configuration, then we terminate now */
+	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
+		stop_vrrp(KEEPALIVED_EXIT_CONFIG_TEST);
+		return;
+	}
+
 	/* Set the process priority and non swappable if configured */
 	set_process_priorities(
 #ifdef _HAVE_SCHED_RT_
@@ -681,7 +687,9 @@ vrrp_respawn_thread(thread_t * thread)
 	}
 
 	/* We catch a SIGCHLD, handle it */
-	if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
+	if (__test_bit(CONFIG_TEST_BIT, &debug))
+		raise(SIGTERM);
+	else if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
 		log_message(LOG_ALERT, "VRRP child process(%d) died: Respawning", pid);
 		start_vrrp_child();
 	} else {
@@ -771,7 +779,7 @@ start_vrrp_child(void)
 
 	/* Clear any child finder functions set in parent */
 	set_child_finder_name(NULL);
-	set_child_finder(NULL, NULL, NULL, NULL, NULL, 0);	/* Currently these won't be set */
+	destroy_child_finder();
 
 	/* Child process part, write pidfile */
 	if (!pidfile_write(vrrp_pidfile, getpid())) {

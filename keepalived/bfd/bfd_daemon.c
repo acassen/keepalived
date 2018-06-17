@@ -74,7 +74,6 @@ stop_bfd(int status)
 	thread_destroy_master(master);
 	free_parent_mallocs_exit();
 
-
 	/*
 	 * Reached when terminate signal catched.
 	 * finally return to parent process.
@@ -141,6 +140,12 @@ start_bfd(void)
 	if (reload)
 		init_global_data();
 	*/
+
+	/* If we are just testing the configuration, then we terminate now */
+	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
+		stop_bfd(KEEPALIVED_EXIT_CONFIG_TEST);
+		return;
+	}
 
 	/* Set the process priority and non swappable if configured */
 // TODO - measure max stack usage
@@ -247,7 +252,9 @@ bfd_respawn_thread(thread_t * thread)
 	}
 
 	/* We catch a SIGCHLD, handle it */
-	if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
+	if (__test_bit(CONFIG_TEST_BIT, &debug))
+		raise(SIGTERM);
+	else if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
 		log_message(LOG_ALERT, "BFD child process(%d) died: Respawning",
 			    pid);
 		start_bfd_child();
@@ -291,7 +298,7 @@ start_bfd_child(void)
 
 	/* Clear any child finder functions set in parent */
 	set_child_finder_name(NULL);
-	set_child_finder(NULL, NULL, NULL, NULL, NULL, 0);	/* Currently these won't be set */
+	destroy_child_finder();
 
 	prog_type = PROG_TYPE_BFD;
 
