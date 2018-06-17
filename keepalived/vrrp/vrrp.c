@@ -2894,7 +2894,8 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		/* Create the interface if it doesn't already exist and
 		 * the underlying interface does exist */
 		if (vrrp->ifp->base_ifp->ifindex &&
-		    !__test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags))
+		    !__test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags) &&
+		    !__test_bit(CONFIG_TEST_BIT, &debug))
 			netlink_link_add_vmac(vrrp);
 
 		/* Add this instance to the vmac interface */
@@ -3027,19 +3028,13 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 	/* Add our track files to the tracking file tracking_vrrp list */
-	LIST_FOREACH(vrrp->track_file, tfl, e) {
-		tfl = ELEMENT_DATA(e);
-
+	LIST_FOREACH(vrrp->track_file, tfl, e)
 		add_vrrp_to_track_file(vrrp, tfl);
-	}
 
 #ifdef _WITH_BFD_
 	/* Add our track bfd to the tracking bfd tracking_vrrp list */
-	LIST_FOREACH(vrrp->track_bfd, tbfd, e) {
-		tfl = ELEMENT_DATA(e);
-
+	LIST_FOREACH(vrrp->track_bfd, tbfd, e)
 		add_vrrp_to_track_bfd(vrrp, tbfd);
-	}
 #endif
 
 	if (vrrp->ifp->ifindex) {
@@ -3049,7 +3044,8 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 		/* See if we need to set promote_secondaries */
 		if (vrrp->promote_secondaries &&
-		    !vrrp->ifp->promote_secondaries_already_set)
+		    !vrrp->ifp->promote_secondaries_already_set &&
+		    !__test_bit(CONFIG_TEST_BIT, &debug))
 			set_promote_secondaries(vrrp->ifp);
 	}
 
@@ -3324,6 +3320,11 @@ vrrp_complete_init(void)
 	 * in a sync group must have the tracking objects removed unless
 	 * sgroup_tracking_weight is set */
 	sync_group_tracking_init();
+
+	/* All the checks that can be done without actually loading the config
+	 * have been done now */
+	if (!__test_bit(CONFIG_TEST_BIT, &debug))
+		return true;
 
 	/* If we have a global garp_delay add it to any interfaces without a garp_delay */
 	if (global_data->vrrp_garp_interval || global_data->vrrp_gna_interval)

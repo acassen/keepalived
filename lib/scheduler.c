@@ -1202,6 +1202,7 @@ process_child_termination(pid_t pid, int status)
 		return;
 
 	thread_list_delete(&m->child, thread);
+	thread->u.c.status = status;
 	if (child_remover)
 		child_remover(thread);
 
@@ -1216,10 +1217,7 @@ process_child_termination(pid_t pid, int status)
 			raise(SIGTERM);
 	}
 	else
-	{
-		thread->u.c.status = status;
 		thread_list_add(&m->ready, thread);
-	}
 }
 
 /* Synchronous signal handler to reap child processes */

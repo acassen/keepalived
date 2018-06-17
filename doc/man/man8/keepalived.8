@@ -34,6 +34,7 @@ keepalived \- load\-balancing and high\-availability service
 [\fB\-m\fP|\fB\-\-core\-dump\fP]
 [\fB\-M\fP|\fB\-\-core\-dump\-pattern\fP[=PATTERN]]
 [\fB\-\-signum\fP=SIGFUNC]
+[\fB\-t\fP|\fB\-\-config\-test\fP[=FILE]]
 [\fB\-v\fP|\fB\-\-version\fP]
 [\fB\-h\fP|\fB\-\-help\fP]
 
@@ -165,6 +166,14 @@ For example, to stop keepalived running, execute:
 .nf
 kill -s $(keepalived --signum=STOP) $(cat /var/run/keepalived.pid)
 .fi
+.TP
+\fB -t, --config-test\fP[=FILE]
+Keepalived file check the configuration file and exit with exit status 1
+if it would not run with the config, otherwise it exits with exit status 0.
+Rather that writing to syslog, it will write to the files specified by
+FILE (default /tmp/keepalived.config-check) (_bfd, _check and _vrrp will 
+be inserted into the filename before the final ., or at the end if no .,
+for the output ofthe child processes).
 .TP
 \fB -v, --version\fP
 Display the version and exit.

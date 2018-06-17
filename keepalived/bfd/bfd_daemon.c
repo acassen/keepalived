@@ -143,7 +143,7 @@ start_bfd(void)
 
 	/* If we are just testing the configuration, then we terminate now */
 	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
-		stop_bfd(KEEPALIVED_EXIT_CONFIG_TEST);
+		stop_bfd(KEEPALIVED_EXIT_OK);
 		return;
 	}
 

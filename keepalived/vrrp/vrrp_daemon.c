@@ -99,7 +99,7 @@ vrrp_ipvs_needed(void)
 #endif
 
 static int
-vrrp_terminate_phase2(__attribute__((unused)) thread_t *thread)
+vrrp_terminate_phase2(int exit_status)
 {
 #ifdef _NETLINK_TIMERS_
 	report_and_clear_netlink_timers("Starting shutdown instances");
@@ -178,11 +178,11 @@ vrrp_terminate_phase2(__attribute__((unused)) thread_t *thread)
 	/* Stop daemon */
 	pidfile_rm(vrrp_pidfile);
 
-	exit(EXIT_SUCCESS);
+	exit(exit_status);
 }
 
 static int
-vrrp_shutdown_timer_thread( thread_t *thread)
+vrrp_shutdown_timer_thread(thread_t *thread)
 {
 	thread->master->shutdown_timer_running = false;
 	thread_add_terminate_event(thread->master);
@@ -285,7 +285,7 @@ stop_vrrp(int status)
 	/* This runs in the main process, not in the context of a thread */
 	vrrp_terminate_phase1(false);
 
-	vrrp_terminate_phase2(NULL);
+	vrrp_terminate_phase2(status);
 
 	/* unreachable */
 	exit(status);
@@ -322,99 +322,101 @@ start_vrrp(void)
 	if (reload)
 		init_global_data(global_data);
 
-	/* If we are just testing the configuration, then we terminate now */
-	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
-		stop_vrrp(KEEPALIVED_EXIT_CONFIG_TEST);
-		return;
-	}
-
-	/* Set the process priority and non swappable if configured */
-	set_process_priorities(
-#ifdef _HAVE_SCHED_RT_
-			       global_data->vrrp_realtime_priority,
-#if HAVE_DECL_RLIMIT_RTTIME == 1
-                               global_data->vrrp_rlimit_rt,
-#endif
-#endif
-			       global_data->vrrp_process_priority, global_data->vrrp_no_swap ? 4096 : 0);
-
 	/* Set our copy of time */
 	set_time_now();
 
+	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
+		/* Set the process priority and non swappable if configured */
+		set_process_priorities(
+#ifdef _HAVE_SCHED_RT_
+				       global_data->vrrp_realtime_priority,
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+				       global_data->vrrp_rlimit_rt,
+#endif
+#endif
+				       global_data->vrrp_process_priority, global_data->vrrp_no_swap ? 4096 : 0);
+
 #if defined _WITH_SNMP_RFC || defined _WITH_SNMP_VRRP_
-	if (!reload && (
+		if (!reload && (
 #ifdef _WITH_SNMP_VRRP_
-	     global_data->enable_snmp_vrrp ||
+		     global_data->enable_snmp_vrrp ||
 #endif
 #ifdef _WITH_SNMP_RFCV2_
-	     global_data->enable_snmp_rfcv2 ||
+		     global_data->enable_snmp_rfcv2 ||
 #endif
 #ifdef _WITH_SNMP_RFCV3_
-	     global_data->enable_snmp_rfcv3 ||
+		     global_data->enable_snmp_rfcv3 ||
 #endif
-	     false)) {
-		vrrp_snmp_agent_init(global_data->snmp_socket);
+		     false)) {
+			vrrp_snmp_agent_init(global_data->snmp_socket);
 #ifdef _WITH_SNMP_RFC_
-		vrrp_start_time = time_now;
+			vrrp_start_time = time_now;
 #endif
-	}
+		}
 #endif
 
 #ifdef _WITH_LVS_
-	if (vrrp_ipvs_needed()) {
-		/* Initialize ipvs related */
-		if (ipvs_start() != IPVS_SUCCESS) {
-			stop_vrrp(KEEPALIVED_EXIT_FATAL);
-			return;
+		if (vrrp_ipvs_needed()) {
+			/* Initialize ipvs related */
+			if (ipvs_start() != IPVS_SUCCESS) {
+				stop_vrrp(KEEPALIVED_EXIT_FATAL);
+				return;
+			}
+
+			/* Set LVS timeouts */
+			if (global_data->lvs_tcp_timeout ||
+			    global_data->lvs_tcpfin_timeout ||
+			    global_data->lvs_udp_timeout)
+				ipvs_set_timeouts(global_data->lvs_tcp_timeout, global_data->lvs_tcpfin_timeout, global_data->lvs_udp_timeout);
+
+			/* If we are managing the sync daemon, then stop any
+			 * instances of it that may have been running if
+			 * we terminated abnormally */
+			ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_MASTER, true, true);
+			ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_BACKUP, true, true);
+		}
+#endif
+
+		if (reload) {
+			kernel_netlink_set_recv_bufs();
+
+			clear_diff_saddresses();
+#ifdef _HAVE_FIB_ROUTING_
+			clear_diff_srules();
+			clear_diff_sroutes();
+#endif
+			clear_diff_script();
+#ifdef _WITH_BFD_
+			clear_diff_bfd();
+#endif
+		}
+		else {
+			/* Clear leftover static entries */
+			netlink_iplist(vrrp_data->static_addresses, IPADDRESS_DEL, false);
+#ifdef _HAVE_FIB_ROUTING_
+			netlink_rtlist(vrrp_data->static_routes, IPROUTE_DEL);
+			netlink_error_ignore = ENOENT;
+			netlink_rulelist(vrrp_data->static_rules, IPRULE_DEL, true);
+			netlink_error_ignore = 0;
+#endif
 		}
 
-		/* Set LVS timeouts */
-		if (global_data->lvs_tcp_timeout ||
-		    global_data->lvs_tcpfin_timeout ||
-		    global_data->lvs_udp_timeout)
-			ipvs_set_timeouts(global_data->lvs_tcp_timeout, global_data->lvs_tcpfin_timeout, global_data->lvs_udp_timeout);
-
-		/* If we are managing the sync daemon, then stop any
-		 * instances of it that may have been running if
-		 * we terminated abnormally */
-		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_MASTER, true, true);
-		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_BACKUP, true, true);
-	}
-#endif
-
-	if (reload) {
-		kernel_netlink_set_recv_bufs();
-
-		clear_diff_saddresses();
-#ifdef _HAVE_FIB_ROUTING_
-		clear_diff_srules();
-		clear_diff_sroutes();
-#endif
-		clear_diff_script();
-#ifdef _WITH_BFD_
-		clear_diff_bfd();
-#endif
-	}
-	else {
-		/* Clear leftover static entries */
-		netlink_iplist(vrrp_data->static_addresses, IPADDRESS_DEL, false);
-#ifdef _HAVE_FIB_ROUTING_
-		netlink_rtlist(vrrp_data->static_routes, IPROUTE_DEL);
-		netlink_error_ignore = ENOENT;
-		netlink_rulelist(vrrp_data->static_rules, IPRULE_DEL, true);
-		netlink_error_ignore = 0;
-#endif
-	}
-
 #ifdef _WITH_DBUS_
-	if (!reload && global_data->enable_dbus)
-		if (!dbus_start())
-			global_data->enable_dbus = false;
+		if (!reload && global_data->enable_dbus)
+			if (!dbus_start())
+				global_data->enable_dbus = false;
 #endif
+	}
 
 	/* Complete VRRP initialization */
 	if (!vrrp_complete_init()) {
 		stop_vrrp(KEEPALIVED_EXIT_CONFIG);
+		return;
+	}
+
+	/* If we are just testing the configuration, then we terminate now */
+	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
+		stop_vrrp(KEEPALIVED_EXIT_OK);
 		return;
 	}
 
@@ -818,7 +820,7 @@ start_vrrp_child(void)
 	launch_scheduler();
 
 	/* Finish VRRP daemon process */
-	vrrp_terminate_phase2(NULL);
+	vrrp_terminate_phase2(EXIT_SUCCESS);
 
 	/* unreachable */
 	exit(EXIT_SUCCESS);
