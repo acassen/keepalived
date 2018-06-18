@@ -424,7 +424,9 @@ global_defs {                                 # Block identification
                                               # script to be run by keepalived to process healthchecher notify events
                                               # The FIFO name will be passed to the script as the last parameter
     dynamic_interfaces                        # Allow configuration to include interfaces that don't exist at startup.
-                                              #   This allows keepalived to work with interfaces that may be deleted and restored.
+                                              #   This allows keepalived to work with interfaces that may be deleted
+                                              #   and restored and also allows virtual and static routes and rules on 
+                                              #   VMAC interfaces.
 
                                               # The following options are only needed for large configurations, where either
                                               # keepalived creates a large number of interface, or the system has a large
