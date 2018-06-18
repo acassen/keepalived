@@ -3323,7 +3323,7 @@ vrrp_complete_init(void)
 
 	/* All the checks that can be done without actually loading the config
 	 * have been done now */
-	if (!__test_bit(CONFIG_TEST_BIT, &debug))
+	if (__test_bit(CONFIG_TEST_BIT, &debug))
 		return true;
 
 	/* If we have a global garp_delay add it to any interfaces without a garp_delay */
