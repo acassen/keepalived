@@ -1675,15 +1675,19 @@ fi
 
 dnl ----[ Check if rpmbuild supports --build-in-place ]----
 RPM_NO_BIP=1
-AC_CHECK_PROG([HAVE_RPMBUILD], [rpmbuild], [Yes], [No])
-RPM_SRC_DIR=`rpm --eval "%{_sourcedir}"`
-if ! test -d $RPM_SRC_DIR; then
-  HAVE_RPMBUILD=No
+AC_CHECK_PROG([HAVE_RPM], [rpm], [Yes], [No])
+if test $HAVE_RPM = Yes; then
+  AC_CHECK_PROG([HAVE_RPMBUILD], [rpmbuild], [Yes], [No])
+  RPM_SRC_DIR=`rpm --eval "%{_sourcedir}"`
+  if ! test -d $RPM_SRC_DIR; then
+    HAVE_RPMBUILD=No
+  fi
+  if test $HAVE_RPMBUILD = Yes; then
+    rpmbuild --help | grep -q -- --build-in-place
+    RPM_NO_BIP=$?
+  fi
 fi
-if test $HAVE_RPMBUILD = Yes; then
-  rpmbuild --help | grep -q -- --build-in-place
-  RPM_NO_BIP=$?
-fi
+AM_CONDITIONAL([RPM], [test $RPM -eq Yes])
 AM_CONDITIONAL([RPM_BIP], [test $RPM_NO_BIP -eq 0])
 
 dnl ----[ Determine system init type]----
