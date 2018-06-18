@@ -115,30 +115,33 @@ free_vsg_entry(void *data)
 	FREE(data);
 }
 static void
-dump_vsg_entry(FILE *fp, void *data)
+dump_vsg_entry_fwmark(FILE *fp, void *data)
+{
+	virtual_server_group_entry_t *vsg_entry = data;
+
+	conf_write(fp, "   FWMARK = %u", vsg_entry->vfwmark);
+}
+static void
+dump_vsg_entry_addr(FILE *fp, void *data)
 {
 	virtual_server_group_entry_t *vsg_entry = data;
 	uint16_t start;
 
-	if (vsg_entry->vfwmark)
-		conf_write(fp, "   FWMARK = %u", vsg_entry->vfwmark);
-	else {
-		if (vsg_entry->range) {
-			start = vsg_entry->addr.ss_family == AF_INET ?
-				  ntohl(((struct sockaddr_in*)&vsg_entry->addr)->sin_addr.s_addr) & 0xFF :
-				  ntohs(((struct sockaddr_in6*)&vsg_entry->addr)->sin6_addr.s6_addr16[7]);
-			conf_write(fp,
-				    vsg_entry->addr.ss_family == AF_INET ?
-					"   VIP Range = %s-%d, VPORT = %d" :
-					"   VIP Range = %s-%x, VPORT = %d",
-				    inet_sockaddrtos(&vsg_entry->addr),
-				    start + vsg_entry->range,
-				    ntohs(inet_sockaddrport(&vsg_entry->addr)));
-		} else
-			conf_write(fp, "   VIP = %s, VPORT = %d"
-					    , inet_sockaddrtos(&vsg_entry->addr)
-					    , ntohs(inet_sockaddrport(&vsg_entry->addr)));
-	}
+	if (vsg_entry->range) {
+		start = vsg_entry->addr.ss_family == AF_INET ?
+			  ntohl(((struct sockaddr_in*)&vsg_entry->addr)->sin_addr.s_addr) & 0xFF :
+			  ntohs(((struct sockaddr_in6*)&vsg_entry->addr)->sin6_addr.s6_addr16[7]);
+		conf_write(fp,
+			    vsg_entry->addr.ss_family == AF_INET ?
+				"   VIP Range = %s-%d, VPORT = %d" :
+				"   VIP Range = %s-%x, VPORT = %d",
+			    inet_sockaddrtos(&vsg_entry->addr),
+			    start + vsg_entry->range,
+			    ntohs(inet_sockaddrport(&vsg_entry->addr)));
+	} else
+		conf_write(fp, "   VIP = %s, VPORT = %d"
+				    , inet_sockaddrtos(&vsg_entry->addr)
+				    , ntohs(inet_sockaddrport(&vsg_entry->addr)));
 }
 void
 alloc_vsg(char *gname)
@@ -149,8 +152,8 @@ alloc_vsg(char *gname)
 	new = (virtual_server_group_t *) MALLOC(sizeof(virtual_server_group_t));
 	new->gname = (char *) MALLOC(size + 1);
 	memcpy(new->gname, gname, size);
-	new->addr_range = alloc_list(free_vsg_entry, dump_vsg_entry);
-	new->vfwmark = alloc_list(free_vsg_entry, dump_vsg_entry);
+	new->addr_range = alloc_list(free_vsg_entry, dump_vsg_entry_addr);
+	new->vfwmark = alloc_list(free_vsg_entry, dump_vsg_entry_fwmark);
 
 	list_add(check_data->vs_group, new);
 }
@@ -730,7 +733,7 @@ bool validate_check_config(void)
 
 		/* A virtual server using fwmarks will ignore any protocol setting, so warn if one is set */
 		if (vs->service_type &&
-		    ((vs->vsg && LIST_ISEMPTY(vs->vsg->addr_range)) ||
+		    ((vs->vsg && LIST_ISEMPTY(vs->vsg->addr_range) && LIST_ISEMPTY(vs->vsg->addr_range)) ||
 		     (!vs->vsg && vs->vfwmark)))
 			log_message(LOG_INFO, "Warning: Virtual server %s: protocol specified for fwmark - protocol will be ignored", FMT_VS(vs));
 

@@ -81,7 +81,7 @@ checker_dispatcher_release(void)
 
 /* Daemon stop sequence */
 static int
-checker_terminate_phase2(__attribute__((unused)) thread_t *thread)
+checker_terminate_phase2(void)
 {
 	/* Remove the notify fifo */
 	notify_fifo_close(&global_data->notify_fifo, &global_data->lvs_notify_fifo);
@@ -137,7 +137,7 @@ checker_shutdown_backstop_thread(thread_t *thread)
         log_message(LOG_ERR, "backstop thread invoked: shutdown timer %srunning, child count %d",
 			thread->master->shutdown_timer_running ? "" : "not ", thread->master->child.count);
 
-        checker_terminate_phase2(thread);
+        checker_terminate_phase2();
 
         return 0;
 }
@@ -187,7 +187,7 @@ stop_check(int status)
 	/* This runs in the main process, not in the context of a thread */
 	checker_terminate_phase1(false);
 
-	checker_terminate_phase2(NULL);
+	checker_terminate_phase2();
 
 	/* unreachable */
 	exit(status);
@@ -230,7 +230,7 @@ start_check(list old_checkers_queue)
 
 	/* If we are just testing the configuration, then we terminate now */
 	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
-		stop_check(KEEPALIVED_EXIT_CONFIG_TEST);
+		stop_check(KEEPALIVED_EXIT_OK);
 		return;
 	}
 
@@ -517,12 +517,12 @@ start_check_child(void)
 
 	/* Finish healthchecker daemon process */
 	if (two_phase_terminate)
-		checker_terminate_phase2(NULL);
+		checker_terminate_phase2();
 	else
-		stop_check(EXIT_SUCCESS);
+		stop_check(KEEPALIVED_EXIT_OK);
 
 	/* unreachable */
-	exit(EXIT_SUCCESS);
+	exit(KEEPALIVED_EXIT_OK);
 }
 
 #ifdef _TIMER_DEBUG_

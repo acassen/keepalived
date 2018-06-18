@@ -133,6 +133,8 @@ static char *override_namespace;			/* If namespace specified on command line */
 
 unsigned child_wait_time = CHILD_WAIT_SECS;		/* Time to wait for children to exit */
 
+int test_exit_status = EXIT_SUCCESS;			/* Set to EXIT_FAILURE if the configuration has a problem */
+
 /* Log facility table */
 static struct {
 	int facility;
@@ -309,6 +311,14 @@ make_pidfile_name(const char* start, const char* instance, const char* extn)
 static void
 parent_child_remover(thread_t *thread)
 {
+	int exit_status;
+
+	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
+		exit_status = WIFEXITED(thread->u.c.status) ? WEXITSTATUS(thread->u.c.status) : 0;
+
+		if (exit_status && exit_status != KEEPALIVED_EXIT_OK)
+		       test_exit_status = EXIT_FAILURE;
+	}
 
         if (prog_type == PROG_TYPE_PARENT) {
 #ifdef _WITH_VRRP_
@@ -903,7 +913,8 @@ usage(const char *prog)
 								", JSON"
 #endif
 								"\n");
-	fprintf(stderr, "  -t, --config-test            Check the configuration for obvious errors\n");
+	fprintf(stderr, "  -t, --config-test [LOG_FILE] Check the configuration for obvious errors, default log file\n"
+			"                                /tmp/keepalived.config-check\n");
 	fprintf(stderr, "  -v, --version                Display the version number\n");
 	fprintf(stderr, "  -h, --help                   Display this help message\n");
 }
@@ -971,7 +982,7 @@ parse_cmdline(int argc, char **argv)
 #endif
 		{"config-id",		required_argument,	NULL, 'i'},
 		{"signum",		required_argument,	NULL,  4 },
-		{"config-test",		no_argument,		NULL, 't'},
+		{"config-test",		optional_argument,	NULL, 't'},
 		{"version",		no_argument,		NULL, 'v'},
 		{"help",		no_argument,		NULL, 'h'},
 
@@ -982,7 +993,7 @@ parse_cmdline(int argc, char **argv)
 	 * of longindex, so we need to ensure that before calling getopt_long(), longindex
 	 * is set to a know invalid value */
 	curind = optind;
-	while (longindex = -1, (c = getopt_long(argc, argv, ":vhlndDRS:f:p:i:mM::g::Gt"
+	while (longindex = -1, (c = getopt_long(argc, argv, ":vhlndDRS:f:p:i:mM::g::Gt::"
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 					    "PC"
 #endif
@@ -1086,6 +1097,15 @@ parse_cmdline(int argc, char **argv)
 			break;
 		case 't':
 			__set_bit(CONFIG_TEST_BIT, &debug);
+			__set_bit(DONT_RESPAWN_BIT, &debug);
+			__set_bit(DONT_FORK_BIT, &debug);
+			__set_bit(NO_SYSLOG_BIT, &debug);
+			if (optarg && optarg[0])
+				log_file_name = optarg;
+			else
+				log_file_name = "/tmp/keepalived.config-check";
+			open_log_file(log_file_name, NULL, NULL, NULL);
+			reopen_log = true;
 			break;
 		case 'f':
 			conf_file = optarg;
@@ -1533,5 +1553,5 @@ end:
 #endif
 	close_std_fd();
 
-	exit(0);
+	exit(test_exit_status);
 }

@@ -843,6 +843,10 @@ thread_cancel_read(thread_master_t *m, int fd)
 		thread = t->next;
 
 		if (t->u.fd == fd) {
+			if (!FD_ISSET(fd, &m->readfd))
+				log_message(LOG_WARNING, "Read fd not set [%d]", fd);
+			else
+				FD_CLR(fd, &m->readfd);
 			thread_cancel(t);
 			return;
 		}
@@ -1202,6 +1206,7 @@ process_child_termination(pid_t pid, int status)
 		return;
 
 	thread_list_delete(&m->child, thread);
+	thread->u.c.status = status;
 	if (child_remover)
 		child_remover(thread);
 
@@ -1216,10 +1221,7 @@ process_child_termination(pid_t pid, int status)
 			raise(SIGTERM);
 	}
 	else
-	{
-		thread->u.c.status = status;
 		thread_list_add(&m->ready, thread);
-	}
 }
 
 /* Synchronous signal handler to reap child processes */

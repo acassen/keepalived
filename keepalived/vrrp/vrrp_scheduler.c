@@ -495,10 +495,10 @@ vrrp_register_workers(list l)
 
 		/* Register a timer thread if interface exists */
 		if (sock->fd_in != -1)
-			sock->thread = thread_add_read(master, vrrp_read_dispatcher_thread,
+			sock->thread_in = thread_add_read(master, vrrp_read_dispatcher_thread,
 						       sock, sock->fd_in, vrrp_timer);
 		if (sock->fd_out != -1 && !(global_data->vrrp_rx_bufs_policy & RX_BUFS_NO_SEND_RX))
-			thread_add_read(master, vrrp_write_fd_read_thread,
+			sock->thread_out = thread_add_read(master, vrrp_write_fd_read_thread,
 						       sock, sock->fd_out, TIMER_NEVER);
 	}
 }
@@ -506,7 +506,7 @@ vrrp_register_workers(list l)
 void
 vrrp_thread_add_read(vrrp_t *vrrp)
 {
-	vrrp->sockets->thread = thread_add_read(master, vrrp_read_dispatcher_thread,
+	vrrp->sockets->thread_in = thread_add_read(master, vrrp_read_dispatcher_thread,
 						vrrp->sockets, vrrp->sockets->fd_in, vrrp_timer_fd(vrrp->sockets->fd_in));
 }
 
@@ -998,7 +998,7 @@ vrrp_read_dispatcher_thread(thread_t * thread)
 	/* register next dispatcher thread */
 	vrrp_timer = vrrp_timer_fd(fd);
 	if (fd != -1)
-		sock->thread = thread_add_read(thread->master, vrrp_read_dispatcher_thread,
+		sock->thread_in = thread_add_read(thread->master, vrrp_read_dispatcher_thread,
 					       sock, fd, vrrp_timer);
 
 	return 0;
