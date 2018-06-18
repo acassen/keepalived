@@ -843,6 +843,10 @@ thread_cancel_read(thread_master_t *m, int fd)
 		thread = t->next;
 
 		if (t->u.fd == fd) {
+			if (!FD_ISSET(fd, &m->readfd))
+				log_message(LOG_WARNING, "Read fd not set [%d]", fd);
+			else
+				FD_CLR(fd, &m->readfd);
 			thread_cancel(t);
 			return;
 		}

@@ -1050,11 +1050,16 @@ cleanup_lost_interface(interface_t *ifp)
 		/* Find the sockpool entry. If none, then we have closed the socket */
 		if (vrrp->sockets->fd_in != -1) {
 			remove_vrrp_fd_bucket(vrrp->sockets->fd_in);
-			thread_cancel_read(master, vrrp->sockets->fd_in);
+			thread_cancel(vrrp->sockets->thread_in);
+			vrrp->sockets->thread_in = NULL;
 			close(vrrp->sockets->fd_in);
 			vrrp->sockets->fd_in = -1;
 		}
 		if (vrrp->sockets->fd_out != -1) {
+			if (vrrp->sockets->thread_out) {
+				thread_cancel(vrrp->sockets->thread_out);
+				vrrp->sockets->thread_out = NULL;
+			}
 			close(vrrp->sockets->fd_out);
 			vrrp->sockets->fd_out = -1;
 		}

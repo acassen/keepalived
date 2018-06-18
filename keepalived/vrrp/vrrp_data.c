@@ -270,13 +270,16 @@ free_sock(void *sock_data)
 	sock_t *sock = sock_data;
 
 	/* First of all cancel pending thread */
-	thread_cancel(sock->thread);
+	thread_cancel(sock->thread_in);
 
 	/* Close related socket */
 	if (sock->fd_in > 0)
 		close(sock->fd_in);
-	if (sock->fd_out > 0)
+	if (sock->fd_out > 0) {
+		if (sock->thread_out)
+			thread_cancel(sock->thread_out);
 		close(sock->fd_out);
+	}
 	FREE(sock_data);
 }
 
