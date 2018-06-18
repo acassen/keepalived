@@ -789,6 +789,21 @@ done
 
 dnl - Introduced in Linux 3.14
 AC_CHECK_DECLS([IFA_FLAGS], [], [], [[#include <linux/if_addr.h>]])
+for flag in IFA_FLAGS; do
+  AS_VAR_COPY([decl_var], [ac_cv_have_decl_$flag])
+  if test ${decl_var} = yes; then
+    add_system_opt[${flag}]
+  fi
+done
+
+dnl - Introduced in Linux 2.6.31
+AC_CHECK_DECLS([IP_MULTICAST_ALL], [], [], [[#include <linux/in.h>]])
+for flag in IP_MULTICAST_ALL; do
+  AS_VAR_COPY([decl_var], [ac_cv_have_decl_$flag])
+  if test ${decl_var} = yes; then
+    add_system_opt[${flag}]
+  fi
+done
 
 dnl -- RedHat backported ENCAP_IP and ENCAP_IP6 without MPLS and ILA
 AC_CHECK_DECLS([LWTUNNEL_ENCAP_MPLS, LWTUNNEL_ENCAP_ILA], [], [],
