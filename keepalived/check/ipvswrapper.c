@@ -318,9 +318,9 @@ ipvs_group_range_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual
 
 /* set IPVS group rules */
 static bool
-is_vsge_alive(virtual_server_group_entry_t *vsge, virtual_server_t *vs)
+is_vsge_alive(virtual_server_group_entry_t *vsge, virtual_server_t *vs, bool is_fwmark)
 {
-	if (vsge->vfwmark) {
+	if (is_fwmark) {
 		if (vs->af == AF_INET)
 			return !!vsge->fwm4_alive;
 		else
@@ -335,11 +335,11 @@ is_vsge_alive(virtual_server_group_entry_t *vsge, virtual_server_t *vs)
 }
 
 static void
-update_vsge_alive_count(virtual_server_group_entry_t *vsge, virtual_server_t *vs, bool up)
+update_vsge_alive_count(virtual_server_group_entry_t *vsge, virtual_server_t *vs, bool is_fwmark, bool up)
 {
 	unsigned *alive_p;
 
-	if (vsge->vfwmark) {
+	if (is_fwmark) {
 		if (vs->af == AF_INET)
 			alive_p = &vsge->fwm4_alive;
 		else
@@ -359,24 +359,24 @@ update_vsge_alive_count(virtual_server_group_entry_t *vsge, virtual_server_t *vs
 }
 
 static void
-set_vsge_alive(virtual_server_group_entry_t *vsge, virtual_server_t *vs)
+set_vsge_alive(virtual_server_group_entry_t *vsge, virtual_server_t *vs, bool is_fwmark)
 {
-	update_vsge_alive_count(vsge, vs, true);
+	update_vsge_alive_count(vsge, vs, is_fwmark, true);
 }
 
 static void
-unset_vsge_alive(virtual_server_group_entry_t *vsge, virtual_server_t *vs)
+unset_vsge_alive(virtual_server_group_entry_t *vsge, virtual_server_t *vs, bool is_fwmark)
 {
-	update_vsge_alive_count(vsge, vs, false);
+	update_vsge_alive_count(vsge, vs, is_fwmark, false);
 }
 
 static bool
-ipvs_change_needed(int cmd, virtual_server_group_entry_t *vsge, virtual_server_t *vs, real_server_t *rs)
+ipvs_change_needed(int cmd, virtual_server_group_entry_t *vsge, virtual_server_t *vs, real_server_t *rs, bool is_fwmark)
 {
 	unsigned count;
 
 	if (cmd == IP_VS_SO_SET_ADD)
-		return !is_vsge_alive(vsge, vs);
+		return !is_vsge_alive(vsge, vs, is_fwmark);
 	else if (cmd == IP_VS_SO_SET_DEL) {
 		count = vsge->vfwmark ? (vs->af == AF_INET ? vsge->fwm4_alive : vsge->fwm6_alive) :
 			vs->service_type == IPPROTO_TCP ? vsge->tcp_alive :
@@ -393,12 +393,12 @@ ipvs_change_needed(int cmd, virtual_server_group_entry_t *vsge, virtual_server_t
 }
 
 static void
-ipvs_set_vsge_alive_state(int cmd, virtual_server_group_entry_t *vsge, virtual_server_t *vs)
+ipvs_set_vsge_alive_state(int cmd, virtual_server_group_entry_t *vsge, virtual_server_t *vs, bool is_fwmark)
 {
 	if (cmd == IP_VS_SO_SET_ADD)
-		set_vsge_alive(vsge, vs);
+		set_vsge_alive(vsge, vs, is_fwmark);
 	else if (cmd == IP_VS_SO_SET_DEL)
-		unset_vsge_alive(vsge, vs);
+		unset_vsge_alive(vsge, vs, is_fwmark);
 }
 
 static int
@@ -413,10 +413,8 @@ ipvs_group_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_serve
 		return 0;
 
 	/* visit addr_ip list */
-	for (e = LIST_HEAD(vsg->addr_range); e; ELEMENT_NEXT(e)) {
-		vsg_entry = ELEMENT_DATA(e);
-
-		if (ipvs_change_needed(cmd, vsg_entry, vs, rs)) {
+	LIST_FOREACH(vsg->addr_range, vsg_entry, e) {
+		if (ipvs_change_needed(cmd, vsg_entry, vs, rs, false)) {
 			srule->user.port = inet_sockaddrport(&vsg_entry->addr);
 
 			if (vsg_entry->range) {
@@ -432,22 +430,21 @@ ipvs_group_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_serve
 				if (ipvs_talk(cmd, srule, drule, NULL, false))
 					return -1;
 			}
-			ipvs_set_vsge_alive_state(cmd, vsg_entry, vs);
+			ipvs_set_vsge_alive_state(cmd, vsg_entry, vs, false);
 		}
 	}
 
 	/* visit vfwmark list */
 	memset(&srule->nf_addr, 0, sizeof(srule->nf_addr));
 	srule->user.port = 0;
-	for (e = LIST_HEAD(vsg->vfwmark); e; ELEMENT_NEXT(e)) {
-		vsg_entry = ELEMENT_DATA(e);
+	LIST_FOREACH(vsg->vfwmark, vsg_entry, e) {
 		srule->user.fwmark = vsg_entry->vfwmark;
 
 		/* Talk to the IPVS channel */
-		if (ipvs_change_needed(cmd, vsg_entry, vs, rs)) {
+		if (ipvs_change_needed(cmd, vsg_entry, vs, rs, true)) {
 			if (ipvs_talk(cmd, srule, drule, NULL, false))
 				return -1;
-			ipvs_set_vsge_alive_state(cmd, vsg_entry, vs);
+			ipvs_set_vsge_alive_state(cmd, vsg_entry, vs, true);
 		}
 	}
 
@@ -536,7 +533,7 @@ ipvs_cmd(int cmd, virtual_server_t *vs, real_server_t *rs)
 	}
 
 	/* Set vs rule and send to kernel */
-	if (vs->vsgname)
+	if (vs->vsg)
 		return ipvs_group_cmd(cmd, &srule, &drule, vs, rs);
 
 	if (vs->vfwmark) {
@@ -567,9 +564,7 @@ ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge)
 		srule.user.port = inet_sockaddrport(&vsge->addr);
 
 	/* Process realserver queue */
-	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
-		rs = ELEMENT_DATA(e);
-
+	LIST_FOREACH(vs->rs, rs, e) {
 // ??? What if !quorum_state_up?
 		if (rs->reloaded && (rs->alive || (rs->inhibit && rs->set))) {
 			/* Prepare the IPVS drule */
@@ -611,9 +606,7 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 		srule.user.port = inet_sockaddrport(&vsge->addr);
 
 	/* Process realserver queue */
-	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
-		rs = ELEMENT_DATA(e);
-
+	LIST_FOREACH(vs->rs, rs, e) {
 		if (rs->alive) {
 			/* Setting IPVS drule */
 			ipvs_set_drule(IP_VS_SO_SET_DELDEST, &drule, rs);
@@ -642,7 +635,7 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 		ipvs_group_range_cmd(IP_VS_SO_SET_DEL, &srule, NULL, vsge);
 	else
 		ipvs_talk(IP_VS_SO_SET_DEL, &srule, NULL, NULL, false);
-	unset_vsge_alive(vsge,vs);
+	unset_vsge_alive(vsge,vs, true);
 }
 
 #ifdef _WITH_SNMP_CHECKER_
