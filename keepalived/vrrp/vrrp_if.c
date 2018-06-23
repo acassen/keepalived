@@ -797,13 +797,7 @@ if_setsockopt_ipv6_checksum(int *sd)
 }
 
 int
-#ifndef IP_MULTICAST_ALL	/* Since Linux 2.6.31 */
-if_setsockopt_mcast_all(__attribute__((unused)) sa_family_t family, __attribute__((unused)) int *sd)
-{
-	/* It seems reasonable to just skip the calls to if_setsockopt_mcast_all
-	 * if there is no support for that feature in header files */
-	return -1;
-#else
+#if HAVE_DECL_IP_MULTICAST_ALL	/* Since Linux 2.6.31 */
 if_setsockopt_mcast_all(sa_family_t family, int *sd)
 {
 	int ret;
@@ -826,6 +820,12 @@ if_setsockopt_mcast_all(sa_family_t family, int *sd)
 	}
 
 	return *sd;
+#else
+if_setsockopt_mcast_all(__attribute__((unused)) sa_family_t family, __attribute__((unused)) int *sd)
+{
+	/* It seems reasonable to just skip the calls to if_setsockopt_mcast_all
+	 * if there is no support for that feature in header files */
+	return -1;
 #endif
 }
 

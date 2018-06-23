@@ -3,6 +3,8 @@ Whatever you want !
 The following are still outstanding from the ideas for what was the beta
 development:
 
+	* Problem with virtual server groups, and interference between members if
+	    vsg used more that once. See vsg.conf for example
 	* A route with multiple nexthops will only be deleted if all interfaces
 	    are down. Each nexthop needs to record the interface, and only remove
 	    once all down
@@ -34,9 +36,7 @@ development:
 	* Allow dynamic definitions, e.g. $_VI_NAME
 	    Also $*_INSTANCE net_namspace $_INSTANCE
 	    so $* means only do if $_INSTANCE not blank. */
-	* ng-scheduler - would libev help, or use select with epoll to get
-	    micro-second timer
-
+	* ng-scheduler
 
 
 Other issues awaiting resolution:

@@ -1369,12 +1369,6 @@ vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 	struct sockaddr_storage *addr;
 	element e;
 
-	/* alloc send buffer */
-	if (!vrrp->send_buffer) {
-		vrrp_alloc_send_buffer(vrrp);
-		vrrp_build_pkt(vrrp);
-	}
-
 	/* build the packet */
 	vrrp_update_pkt(vrrp, prio, NULL);
 
@@ -3080,6 +3074,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		}
 	}
 #endif
+
+	/* alloc send buffer */
+	vrrp_alloc_send_buffer(vrrp);
+	vrrp_build_pkt(vrrp);
 
 	return true;
 }

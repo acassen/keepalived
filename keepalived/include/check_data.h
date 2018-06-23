@@ -103,18 +103,21 @@ typedef struct _real_server {
 
 /* Virtual Server group definition */
 typedef struct _virtual_server_group_entry {
+	bool 				is_fwmark;
 	union {
 		struct {
 			struct sockaddr_storage	addr;
 			uint32_t	range;
+			unsigned	tcp_alive;
+			unsigned	udp_alive;
+			unsigned	sctp_alive;
 		};
-		uint32_t		vfwmark;
+		struct {
+			uint32_t	vfwmark;
+			unsigned	fwm4_alive;
+			unsigned	fwm6_alive;
+		};
 	};
-	unsigned			tcp_alive;
-	unsigned			udp_alive;
-	unsigned			sctp_alive;
-	unsigned			fwm4_alive;
-	unsigned			fwm6_alive;
 	bool				reloaded;
 } virtual_server_group_entry_t;
 

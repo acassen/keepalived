@@ -372,8 +372,7 @@ perform_quorum_state(virtual_server_t *vs, bool add)
 	log_message(LOG_INFO, "%s the pool for VS %s"
 			    , add?"Adding alive servers to":"Removing alive servers from"
 			    , FMT_VS(vs));
-	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
-		rs = ELEMENT_DATA(e);
+	LIST_FOREACH(vs->rs, rs, e) {
 		if (!ISALIVE(rs)) /* We only handle alive servers */
 			continue;
 // ??? The following seems unnecessary
@@ -516,7 +515,7 @@ static bool
 init_service_vs(virtual_server_t * vs)
 {
 	/* Init the VS root */
-	if (!ISALIVE(vs) || vs->vsgname) {
+	if (!ISALIVE(vs) || vs->vsg) {
 		ipvs_cmd(LVS_CMD_ADD, vs, NULL);
 		SET_ALIVE(vs);
 	}

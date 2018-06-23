@@ -115,19 +115,14 @@ free_vsg_entry(void *data)
 	FREE(data);
 }
 static void
-dump_vsg_entry_fwmark(FILE *fp, void *data)
-{
-	virtual_server_group_entry_t *vsg_entry = data;
-
-	conf_write(fp, "   FWMARK = %u", vsg_entry->vfwmark);
-}
-static void
-dump_vsg_entry_addr(FILE *fp, void *data)
+dump_vsg_entry(FILE *fp, void *data)
 {
 	virtual_server_group_entry_t *vsg_entry = data;
 	uint16_t start;
 
-	if (vsg_entry->range) {
+	if (vsg_entry->is_fwmark)
+		conf_write(fp, "   FWMARK = %u", vsg_entry->vfwmark);
+	else if (vsg_entry->range) {
 		start = vsg_entry->addr.ss_family == AF_INET ?
 			  ntohl(((struct sockaddr_in*)&vsg_entry->addr)->sin_addr.s_addr) & 0xFF :
 			  ntohs(((struct sockaddr_in6*)&vsg_entry->addr)->sin6_addr.s6_addr16[7]);
@@ -152,8 +147,8 @@ alloc_vsg(char *gname)
 	new = (virtual_server_group_t *) MALLOC(sizeof(virtual_server_group_t));
 	new->gname = (char *) MALLOC(size + 1);
 	memcpy(new->gname, gname, size);
-	new->addr_range = alloc_list(free_vsg_entry, dump_vsg_entry_addr);
-	new->vfwmark = alloc_list(free_vsg_entry, dump_vsg_entry_fwmark);
+	new->addr_range = alloc_list(free_vsg_entry, dump_vsg_entry);
+	new->vfwmark = alloc_list(free_vsg_entry, dump_vsg_entry);
 
 	list_add(check_data->vs_group, new);
 }
@@ -170,6 +165,7 @@ alloc_vsg_entry(vector_t *strvec)
 
 	if (!strcmp(strvec_slot(strvec, 0), "fwmark")) {
 		new->vfwmark = (uint32_t)strtoul(strvec_slot(strvec, 1), NULL, 10);
+		new->is_fwmark = true;
 		list_add(vsg->vfwmark, new);
 	} else {
 		new->range = inet_stor(strvec_slot(strvec, 0));
@@ -220,6 +216,7 @@ alloc_vsg_entry(vector_t *strvec)
 			new->range -= start;
 		}
 
+		new->is_fwmark = false;
 		list_add(vsg->addr_range, new);
 	}
 }
