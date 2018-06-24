@@ -398,8 +398,9 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage* addr)
 	vrrphdr_t *hd;
 #ifdef _WITH_VRRP_AUTH_
 	bool final_update;
-	uint32_t new_saddr = 0;
 #endif
+	uint32_t new_saddr = 0;
+	uint32_t new_daddr;
 
 #ifdef _WITH_VRRP_AUTH_
 	/* We will need to be called again if there is more than one unicast peer, so don't calculate checksums */
@@ -420,16 +421,10 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage* addr)
 		if (vrrp->family == AF_INET) {
 			/* HC' = ~(~HC + ~m + m') */
 			uint16_t *prio_addr = (uint16_t *)((char *)&hd->priority - (((char *)hd -(char *)&hd->priority) & 1));
-			uint32_t acc = (uint32_t)((~hd->chksum & 0xffff) + (~(*prio_addr) & 0xffff));
+			uint16_t old_val = *prio_addr;
 
 			hd->priority = prio;
-
-			/* finally compute vrrp checksum */
-			acc += *prio_addr;
-			acc = (acc & 0xffff) + (acc >> 16);
-			acc += acc >> 16;
-
-			hd->chksum = ~acc & 0xffff;
+			hd->chksum = csum_incremental_update16(hd->chksum, old_val, *prio_addr);
 		}
 		else
 			hd->priority = prio;
@@ -444,28 +439,19 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage* addr)
 			ip->id = htons(vrrp->ip_id);
 		}
 		else {
-			// If unicast address
+			/* If unicast address */
 			if (vrrp->version == VRRP_VERSION_2)
 				ip->daddr = inet_sockaddrip4(addr);
-#ifdef _WITH_UNICAST_CHKSUM_COMPAT_
-			else if (vrrp->unicast_chksum_compat >= CHKSUM_COMPATIBILITY_MIN_COMPAT) {
-				/* The checksum is calculated using the standard unicast address */
-				ip->daddr = inet_sockaddrip4(addr);
-			}
-#endif
 			else {
-				/* Update the destination address, and the checksum */
-				uint32_t acc = (~hd->chksum & 0xffff) + (~(ip->daddr >> 16 ) & 0xffff) + (~ip->daddr & 0xffff);
+				new_daddr = inet_sockaddrip4(addr);
 
-				ip->daddr = inet_sockaddrip4(addr);
-
-				acc += (ip->daddr >> 16) + (ip->daddr & 0xffff);
-
-				/* finally compute vrrp checksum */
-				acc = (acc & 0xffff) + (acc >> 16);
-				acc += acc >> 16;
-
-				hd->chksum = ~acc & 0xffff;
+				if (ip->daddr != new_daddr) {
+#ifdef _WITH_UNICAST_CHKSUM_COMPAT_
+					if (vrrp->unicast_chksum_compat < CHKSUM_COMPATIBILITY_MIN_COMPAT)
+#endif
+						hd->chksum = csum_incremental_update32(hd->chksum, ip->daddr, new_daddr);
+					ip->daddr = new_daddr;
+				}
 			}
 		}
 
@@ -475,21 +461,9 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage* addr)
 			if (vrrp->version == VRRP_VERSION_2)
 				ip->saddr = ((struct sockaddr_in*)&vrrp->saddr)->sin_addr.s_addr;
 			else {
-				uint32_t acc = (~hd->chksum & 0xffff) + (~(ip->saddr >> 16 ) & 0xffff) + (~ip->saddr & 0xffff);
-
-				ip->saddr = ((struct sockaddr_in*)&vrrp->saddr)->sin_addr.s_addr;
-
-				acc += (ip->saddr >> 16) + (ip->saddr & 0xffff);
-
-				/* finally compute vrrp checksum */
-				acc = (acc & 0xffff) + (acc >> 16);
-				acc += acc >> 16;
-
-				hd->chksum = ~acc & 0xffff;
-
-#ifdef _WITH_VRRP_AUTH_
-				new_saddr = ip->saddr;
-#endif
+				new_saddr = ((struct sockaddr_in*)&vrrp->saddr)->sin_addr.s_addr;
+				hd->chksum = csum_incremental_update32(hd->chksum, ip->saddr, new_saddr);
+				ip->saddr = new_saddr;
 			}
 		}
 
@@ -552,6 +526,31 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage* addr)
 #endif
 	}
 }
+
+#ifdef _WITH_UNICAST_CHKSUM_COMPAT_
+static void
+vrrp_csum_mcast(vrrp_t *vrrp)
+{
+	char *bufptr = vrrp->send_buffer;
+	vrrphdr_t *hd;
+
+	bufptr += vrrp_iphdr_len();
+
+#ifdef _WITH_VRRP_AUTH_
+	if (vrrp->auth_type == VRRP_AUTH_AH)
+		bufptr += vrrp_ipsecah_len();
+#endif
+
+	hd = (vrrphdr_t *)bufptr;
+
+	struct iphdr *ip = (struct iphdr *) (vrrp->send_buffer);
+	if (vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_AUTO &&
+	    ip->daddr != global_data->vrrp_mcast_group4.sin_addr.s_addr) {
+		/* The checksum is calculated using the standard multicast address */
+		hd->chksum = csum_incremental_update32(hd->chksum, ip->daddr, global_data->vrrp_mcast_group4.sin_addr.s_addr);
+	}
+}
+#endif
 
 #ifdef _WITH_VRRP_AUTH_
 /*
@@ -905,12 +904,14 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 			if (in_csum((uint16_t *) hd, vrrppkt_len, acc_csum, NULL)) {
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 				chksum_error = true;
-				if (vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_NONE) {
+				if (!LIST_ISEMPTY(vrrp->unicast_peer) &&
+				    vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_NONE &&
+				    ipv4_phdr.dst != global_data->vrrp_mcast_group4.sin_addr.s_addr) {
 					ipv4_phdr.dst = global_data->vrrp_mcast_group4.sin_addr.s_addr;
 					in_csum((uint16_t *) &ipv4_phdr, sizeof(ipv4_phdr), 0, &acc_csum);
 					if (!in_csum((uint16_t *)hd, vrrppkt_len, acc_csum, NULL)) {
 						/* Update the checksum for the pseudo header IP address */
-						vrrp_update_pkt(vrrp, vrrp->effective_priority, (struct sockaddr_storage *)&global_data->vrrp_mcast_group4);
+						vrrp_csum_mcast(vrrp);
 
 						/* Now we can specify that we are going to use the compatibility mode */
 						vrrp->unicast_chksum_compat = CHKSUM_COMPATIBILITY_AUTO;
@@ -976,7 +977,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 				}
 			}
 
-			// check a unicast source address is in the unicast_peer list
+			/* check a unicast source address is in the unicast_peer list */
 			if (global_data->vrrp_check_unicast_src && !LIST_ISEMPTY(vrrp->unicast_peer)) {
 				for (e = LIST_HEAD(vrrp->unicast_peer); e; ELEMENT_NEXT(e)) {
 					up_addr = ELEMENT_DATA(e);
@@ -1075,12 +1076,10 @@ vrrp_build_ip4(vrrp_t *vrrp, char *buffer)
 
 	ip->saddr = VRRP_PKT_SADDR(vrrp);
 
-	/* If there is only 1 unicast peer, set the address */
+	/* If using unicast peers, pick the first one */
 	if (!LIST_ISEMPTY(vrrp->unicast_peer)) {
-		if (!LIST_HEAD(vrrp->unicast_peer)->next) {
-			struct sockaddr_storage* addr = ELEMENT_DATA(LIST_HEAD(vrrp->unicast_peer));
-			ip->daddr = inet_sockaddrip4(addr);
-		}
+		struct sockaddr_storage* addr = ELEMENT_DATA(LIST_HEAD(vrrp->unicast_peer));
+		ip->daddr = inet_sockaddrip4(addr);
 	}
 	else
 		ip->daddr = global_data->vrrp_mcast_group4.sin_addr.s_addr;
@@ -1191,7 +1190,7 @@ vrrp_build_vrrp_v2(vrrp_t *vrrp, char *buffer)
 
 /* build VRRPv3 header */
 static void
-vrrp_build_vrrp_v3(vrrp_t *vrrp, char *buffer)
+vrrp_build_vrrp_v3(vrrp_t *vrrp, char *buffer, struct iphdr *ip)
 {
 	int i = 0;
 	vrrphdr_t *hd = (vrrphdr_t *) buffer;
@@ -1216,16 +1215,17 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, char *buffer)
 	if (vrrp->family == AF_INET) {
 		/* copy the ip addresses */
 		iparr = (struct in_addr *) ((char *) hd + sizeof(*hd));
-		if (!LIST_ISEMPTY(vrrp->vip)) {
-			for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
-				ip_addr = ELEMENT_DATA(e);
-				iparr[i++] = ip_addr->u.sin.sin_addr;
-			}
-		}
+		LIST_FOREACH(vrrp->vip, ip_addr, e)
+			iparr[i++] = ip_addr->u.sin.sin_addr;
 
 		/* Create IPv4 pseudo-header */
 		ipv4_phdr.src   = VRRP_PKT_SADDR(vrrp);
-		ipv4_phdr.dst   = global_data->vrrp_mcast_group4.sin_addr.s_addr;
+#ifdef _WITH_UNICAST_CHKSUM_COMPAT_
+		if (vrrp->unicast_chksum_compat >= CHKSUM_COMPATIBILITY_MIN_COMPAT)
+			ipv4_phdr.dst = global_data->vrrp_mcast_group4.sin_addr.s_addr;
+		else
+#endif
+			ipv4_phdr.dst = ip->daddr;
 		ipv4_phdr.zero  = 0;
 		ipv4_phdr.proto = IPPROTO_VRRP;
 		ipv4_phdr.len   = htons(vrrp_pkt_len(vrrp));
@@ -1246,10 +1246,10 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, char *buffer)
 
 /* build VRRP header */
 static void
-vrrp_build_vrrp(vrrp_t *vrrp, char *buffer)
+vrrp_build_vrrp(vrrp_t *vrrp, char *buffer, struct iphdr *ip_hdr)
 {
 	if (vrrp->version == VRRP_VERSION_3)
-		vrrp_build_vrrp_v3(vrrp, buffer);
+		vrrp_build_vrrp_v3(vrrp, buffer, ip_hdr);
 	else
 		vrrp_build_vrrp_v2(vrrp, buffer);
 }
@@ -1274,7 +1274,7 @@ vrrp_build_pkt(vrrp_t * vrrp)
 		if (vrrp->auth_type == VRRP_AUTH_AH)
 			bufptr += vrrp_ipsecah_len();
 #endif
-		vrrp_build_vrrp(vrrp, bufptr);
+		vrrp_build_vrrp(vrrp, bufptr, (struct iphdr *)vrrp->send_buffer);
 
 #ifdef _WITH_VRRP_AUTH_
 		/* build the IPSEC AH header */
@@ -1283,7 +1283,7 @@ vrrp_build_pkt(vrrp_t * vrrp)
 #endif
 	}
 	else if (vrrp->family == AF_INET6)
-		vrrp_build_vrrp(vrrp, vrrp->send_buffer);
+		vrrp_build_vrrp(vrrp, vrrp->send_buffer, NULL);
 }
 
 /* send VRRP packet */
@@ -2526,14 +2526,14 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) && vrrp->ifp->ifindex && vrrp->ifp->hw_type != ARPHRD_ETHER) {
 		__clear_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags);
 		log_message(LOG_INFO, "(%s): vmacs are only supported on Ethernet type interfaces", vrrp->iname);
-		vrrp->num_script_if_fault++;	// Stop the vrrp instance running
+		vrrp->num_script_if_fault++;	/* Stop the vrrp instance running */
 	}
 #endif
 
 	/* If the interface doesn't support multicast, then we need to use unicast */
 	if (vrrp->ifp->ifindex && !(vrrp->ifp->ifi_flags & IFF_MULTICAST) && LIST_ISEMPTY(vrrp->unicast_peer)) {
 		log_message(LOG_INFO, "(%s) interface %s does not support multicast, specify unicast peers - disabling", vrrp->iname, vrrp->ifp->ifname);
-		vrrp->num_script_if_fault++;	// Stop the vrrp instance running
+		vrrp->num_script_if_fault++;	/* Stop the vrrp instance running */
 	}
 
 	/* Warn if ARP not supported on interface */
