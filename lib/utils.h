@@ -109,6 +109,8 @@ extern void dump_buffer(char *, size_t, FILE *);
 #ifdef _WITH_STACKTRACE_
 extern void write_stacktrace(const char *, const char *);
 #endif
+extern uint16_t csum_incremental_update32(const uint16_t, const uint32_t, const uint32_t);
+extern uint16_t csum_incremental_update16(const uint16_t, const uint16_t, const uint16_t);
 extern uint16_t in_csum(const uint16_t *, size_t, uint32_t, uint32_t *);
 extern char *inet_ntop2(uint32_t);
 extern uint32_t inet_stor(const char *);

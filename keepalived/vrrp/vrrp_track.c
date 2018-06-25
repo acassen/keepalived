@@ -745,6 +745,9 @@ initialise_interface_tracking_priorities(void)
 
 	LIST_FOREACH(get_if_list(), ifp, e) {
 		LIST_FOREACH(ifp->tracking_vrrp, tvp, e1) {
+			if (tvp->weight == VRRP_NOT_TRACK_IF)
+				continue;
+
 			if (!tvp->weight) {
 				if (!IF_ISUP(ifp)) {
 					/* The instance is down */
