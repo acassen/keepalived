@@ -3,8 +3,6 @@ Whatever you want !
 The following are still outstanding from the ideas for what was the beta
 development:
 
-	* Problem with virtual server groups, and interference between members if
-	    vsg used more that once. See vsg.conf for example
 	* A route with multiple nexthops will only be deleted if all interfaces
 	    are down. Each nexthop needs to record the interface, and only remove
 	    once all down
