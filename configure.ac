@@ -197,6 +197,8 @@ AC_ARG_ENABLE(libnl,
   [AS_HELP_STRING([--disable-libnl], [compile without libnl])])
 AC_ARG_ENABLE(hardening,
   [AS_HELP_STRING([--disable-hardening], [do not build with security hardening])])
+AC_ARG_ENABLE(optimise,
+  [AS_HELP_STRING([--optimise], [compiler optimisation level])], [], [enable_optimise=not-specified])
 AC_ARG_ENABLE(mem-check,
   [AS_HELP_STRING([--enable-mem-check], [compile with memory alloc checking])])
 AC_ARG_ENABLE(mem-check-log,
@@ -264,7 +266,7 @@ args=`echo $ac_configure_args | $SED -e "s/'//g"`
 AC_DEFINE_UNQUOTED(KEEPALIVED_CONFIGURE_OPTIONS,"$args", [configure options specified])
 
 KA_CPPFLAGS="$kernelinc"
-KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -Winit-self -g -O2 -D_GNU_SOURCE"
+KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -Winit-self -g -D_GNU_SOURCE"
 KA_LDFLAGS=
 KA_LIBS=
 NEED_LIBDL=No
@@ -417,6 +419,29 @@ if test "$enable_hardening" != no; then
     add_to_var([KA_LDFLAGS], [-Wl$WL_FLAGS])
   fi
 fi
+
+# enable-optimise
+AS_IF([test $enable_optimise = yes -o $enable_optimise = not-specified], [optimise_level=2], [optimise_level=$enable_optimise])
+AS_IF([test $enable_optimise = no], [optimise_level=0])
+echo optimise_level=$optimise_level
+AS_IF([test $optimise_level -eq 0],
+  [
+    echo $KA_CFLAGS | $GREP -q -- "-D_FORTIFY_SOURCE=[[^0]]"
+    AS_IF([test $ret -eq 0], [AC_MSG_WARN([--disable-optimise requires --disable-hardening])])
+  ])
+FLAG="-O$optimise_level"
+AC_MSG_CHECKING([for $FLAG support])
+SAV_CFLAGS=$CFLAGS
+CFLAGS="$CFLAGS $FLAG"
+AC_COMPILE_IFELSE(
+  [AC_LANG_SOURCE([[ ]])],
+  [AC_MSG_RESULT([yes])]
+    add_to_var([KA_CFLAGS], [$FLAG]),
+  [
+    AC_MSG_RESULT([no])
+    AS_IF([test $enable_optimise != not-specified], [AC_MSG_ERROR([Invalid optimisation level specified])])
+  ])
+CFLAGS=$SAV_CFLAGS
 
 AC_SUBST(KA_CPPFLAGS)
 AC_SUBST(KA_CFLAGS)
@@ -1702,7 +1727,7 @@ if test $HAVE_RPM = Yes; then
     RPM_NO_BIP=$?
   fi
 fi
-AM_CONDITIONAL([RPM], [test $RPM -eq Yes])
+AM_CONDITIONAL([RPM], [test $HAVE_RPM = Yes])
 AM_CONDITIONAL([RPM_BIP], [test $RPM_NO_BIP -eq 0])
 
 dnl ----[ Determine system init type]----
