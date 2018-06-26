@@ -423,7 +423,6 @@ fi
 # enable-optimise
 AS_IF([test $enable_optimise = yes -o $enable_optimise = not-specified], [optimise_level=2], [optimise_level=$enable_optimise])
 AS_IF([test $enable_optimise = no], [optimise_level=0])
-echo optimise_level=$optimise_level
 AS_IF([test $optimise_level -eq 0],
   [
     echo $KA_CFLAGS | $GREP -q -- "-D_FORTIFY_SOURCE=[[^0]]"
