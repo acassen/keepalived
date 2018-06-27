@@ -991,7 +991,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 
 #ifdef _SELECT_DEBUG_
 	if (prog_type == PROG_TYPE_VRRP)
-		log_message(LOG_INFO, "select with timer %lu.%6.6ld, fdsetsize %d, readfds 0x%lx", timer_wait.tv_sec, timer_wait.tv_usec, fdsetsize, readfd.fds_bits[0]);
+		log_message(LOG_INFO, "select with timer %lu.%6.6ld, fdsetsize %d, readfds 0x%lx, writefds 0x%lx", timer_wait.tv_sec, timer_wait.tv_usec, fdsetsize, readfd.fds_bits[0], writefd.fds_bits[0]);
 #endif
 
 	/* Don't call select() if timer_wait is 0 */
