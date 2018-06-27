@@ -449,7 +449,7 @@ vrrp_write_fd_read_thread(thread_t *thread)
 	}
 
 	if (sock->fd_out != -1)
-		thread_add_read(thread->master, vrrp_write_fd_read_thread, sock, sock->fd_out, TIMER_NEVER);
+		sock->thread_out = thread_add_read(thread->master, vrrp_write_fd_read_thread, sock, sock->fd_out, TIMER_NEVER);
 
 	return 0;
 }
