@@ -101,6 +101,43 @@ static inline bool inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 	return false;
 }
 
+static inline uint16_t csum_incremental_update32(const uint16_t old_csum, const uint32_t old_val, const uint32_t new_val)
+{
+	/* This technique for incremental IP checksum update is described in RFC1624,
+	 * along with accompanying errata */
+
+	if (old_val == new_val)
+		return old_csum;
+
+	uint32_t acc = (~old_csum & 0xffff) + (~(old_val >> 16 ) & 0xffff) + (~old_val & 0xffff);
+
+	acc += (new_val >> 16) + (new_val & 0xffff);
+
+	/* finally compute vrrp checksum */
+	acc = (acc & 0xffff) + (acc >> 16);
+	acc += acc >> 16;
+
+	return ~acc & 0xffff;
+}
+
+static inline uint16_t csum_incremental_update16(const uint16_t old_csum, const uint16_t old_val, const uint16_t new_val)
+{
+	/* This technique for incremental IP checksum update is described in RFC1624,
+	 * along with accompanying errata */
+
+	if (old_val == new_val)
+		return old_csum;
+
+	uint32_t acc = (~old_csum & 0xffff) + (~old_val & 0xffff);
+
+	acc += new_val;
+
+	/* finally compute vrrp checksum */
+	acc = (acc & 0xffff) + (acc >> 16);
+	acc += acc >> 16;
+
+	return ~acc & 0xffff;
+}
 /* global vars exported */
 extern unsigned long debug;
 
@@ -109,8 +146,6 @@ extern void dump_buffer(char *, size_t, FILE *);
 #ifdef _WITH_STACKTRACE_
 extern void write_stacktrace(const char *, const char *);
 #endif
-extern uint16_t csum_incremental_update32(const uint16_t, const uint32_t, const uint32_t);
-extern uint16_t csum_incremental_update16(const uint16_t, const uint16_t, const uint16_t);
 extern uint16_t in_csum(const uint16_t *, size_t, uint32_t, uint32_t *);
 extern char *inet_ntop2(uint32_t);
 extern uint32_t inet_stor(const char *);

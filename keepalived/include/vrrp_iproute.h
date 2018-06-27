@@ -31,6 +31,9 @@
 #if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
 #include <linux/mpls.h>
 #endif
+#ifdef RTNETLINK_H_NEEDS_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
 #include <linux/rtnetlink.h>
 
 /* local includes */
