@@ -11,6 +11,8 @@ keepalived \- load\-balancing and high\-availability service
 [\fB\-f\fP|\fB\-\-use\-file\fP=FILE]
 [\fB\-P\fP|\fB\-\-vrrp\fP]
 [\fB\-C\fP|\fB\-\-check\fP]
+[\fB\-B\fP|\fB\-\-no_bfd\fP]
+[\fB\-\-all\fP]
 [\fB\-l\fP|\fB\-\-log\-console\fP]
 [\fB\-D\fP|\fB\-\-log\-detail\fP]
 [\fB\-S\fP|\fB\-\-log\-facility\fP={0-7}]
@@ -27,6 +29,7 @@ keepalived \- load\-balancing and high\-availability service
 [\fB\-r\fP|\fB\-\-vrrp_pid\fP=FILE]
 [\fB\-c\fP|\fB\-\-checkers_pid\fP=FILE]
 [\fB\-a\fP|\fB\-\-address-monitoring\fP]
+[\fB\-b\fP|\fB\-\-bfd_pid\fP=FILE]
 [\fB\-s\fP|\fB\-\-namespace\fP=NAME]
 [\fB\-i\fP|\fB\-\-config-id\fP id]
 [\fB\-x\fP|\fB\-\-snmp\fP]
@@ -61,6 +64,11 @@ not use the IPVS load balancer.
 \fB -C, --check\fP
 Only run the healthcheck subsystem. This is useful for configurations
 that use the IPVS load balancer with a single director with no failover.
+.TP
+\fB -B, --no_bfd\fP
+Don't run the BFD subsystem.
+\fB --all\fP
+Run all subsystems, even if they have no configuration.
 .TP
 \fB -l, --log-console\fP
 Log messages to the local console. The default behavior is to log
@@ -126,6 +134,11 @@ a network namespace is being used.
 .TP
 \fB -a, --address-monitoring\fP
 Log all address additions/deletions reported by netlink.
+.TP
+\fB -b, --bfd_pid\fP=FILE
+Use the specified pidfile for the BFD child process. The default pidfile
+for the BFD child process is "/var/run/keepalived_bfd.pid" unless
+a network namespace is being used.
 .TP
 \fB -s, --namespace\fP=NAME
 Run keepalived in network namespace NAME. See
