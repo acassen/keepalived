@@ -136,9 +136,11 @@ vs_end_handler(void)
 
 	/* If the real (sorry) server uses tunnel forwarding, the address family
 	 * does not have to match the address family of the virtaul server */
+	if (vs->s_svr
 #if HAVE_DECL_IPVS_DEST_ATTR_ADDR_FAMILY
-	if (vs->s_svr && vs->s_svr->forwarding_method != IP_VS_CONN_F_TUNNEL)
+		      && vs->s_svr->forwarding_method != IP_VS_CONN_F_TUNNEL
 #endif
+									    )
 	{
 		if (vs->af == AF_UNSPEC)
 			vs->af = vs->s_svr->addr.ss_family;
