@@ -1124,6 +1124,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 						else if (vrrp->family == AF_INET6 &&
 							 ifp == vrrp->ifp->base_ifp &&
 							 vrrp->ifp->vmac &&
+							 !__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&
 							 vrrp->num_script_if_fault &&
 							 vrrp->family == ifa->ifa_family &&
 							 vrrp->saddr.ss_family == AF_UNSPEC &&
@@ -1175,6 +1176,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 						    __test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
 						    ifp == vrrp->ifp->base_ifp &&
 						    ifa->ifa_scope == RT_SCOPE_LINK &&
+						    !__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&
 						    !vrrp->saddr_from_config &&
 						    vrrp->ifp->base_ifp->sin6_addr.s6_addr32[0] == addr.in6->s6_addr32[0] &&
 						    vrrp->ifp->base_ifp->sin6_addr.s6_addr32[1] == addr.in6->s6_addr32[1] &&
