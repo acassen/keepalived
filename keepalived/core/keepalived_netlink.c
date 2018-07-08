@@ -43,6 +43,7 @@
 #endif
 #include <time.h>
 #ifdef _WITH_VRRP_
+#include <linux/version.h>
 #ifdef _HAVE_FIB_ROUTING_
 #include <linux/fib_rules.h>
 #endif
@@ -1764,6 +1765,13 @@ int
 netlink_interface_lookup(char *name)
 {
 	/* Interface lookup */
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,33)
+	/* RTM_NETLINK didn't support selecting by
+	 * interface name until Linux v2.6.33 */
+	name = NULL;
+#endif
+
 	if (netlink_request(&nl_cmd, AF_PACKET, RTM_GETLINK, name) < 0)
 		return -1;
 

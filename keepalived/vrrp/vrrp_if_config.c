@@ -185,8 +185,68 @@ exit:
 }
 
 #ifdef _HAVE_VRRP_VMAC_
+#define NLMSG_TAIL(nlh)	((void *)(nlh) + (nlh)->nlmsg_len)
+
+struct nlattr *
+nest_start(struct nlmsghdr *nlh, unsigned short type)
+{
+	struct nlattr *nest = NLMSG_TAIL(nlh);
+
+	nest->nla_type = type;
+	nlh->nlmsg_len += sizeof(struct nlattr);
+
+	return nest;
+}
+
+size_t
+nest_end(struct nlattr *nla, struct nlattr *nest)
+{
+	nest->nla_len = (unsigned short)((void *)nla - (void *)nest);
+
+	return nest->nla_len;
+}
+
 static inline int
-netlink3_set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
+netlink_set_interface_flags(int ifindex, int flags, int change)
+{
+	int status = 0;
+	struct {
+		struct nlmsghdr n;
+		struct ifinfomsg ifi;
+		char buf[64];
+	} req;
+	struct nlattr *start;
+	struct nlattr *inet_start;
+	struct nlattr *conf_start;
+
+	memset(&req, 0, sizeof (req));
+
+	req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
+	req.n.nlmsg_flags = NLM_F_REQUEST;
+	req.n.nlmsg_type = RTM_NEWLINK;
+	req.ifi.ifi_family = AF_UNSPEC;
+	req.ifi.ifi_index = ifindex;
+
+	start = nest_start(&req.n, IFLA_AF_SPEC);
+	inet_start = nest_start(&req.n, AF_INET);
+	conf_start = nest_start(&req.n, IFLA_INET_CONF);
+
+	if (change & (1 << IPV4_DEVCONF_ARPFILTER))
+		addattr32(&req.n, sizeof req, IPV4_DEVCONF_ARPFILTER, (flags >> IPV4_DEVCONF_ARPFILTER ) & 1);
+	if (change & (1 << IPV4_DEVCONF_ARP_IGNORE))
+		addattr32(&req.n, sizeof req, IPV4_DEVCONF_ARP_IGNORE, (flags >> IPV4_DEVCONF_ARP_IGNORE ) & 1);
+	nest_end(NLMSG_TAIL(&req.n), conf_start);
+	nest_end(NLMSG_TAIL(&req.n), inet_start);
+	nest_end(NLMSG_TAIL(&req.n), start);
+
+	if (netlink_talk(&nl_cmd, &req.n) < 0)
+		status = 1;
+
+	return status;
+}
+
+static inline int
+netlink_set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
 {
 	struct nl_sock *sk;
 	struct nl_cache *cache;
@@ -225,7 +285,7 @@ netlink3_set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
 
 	/* Set arp_ignore and arp_filter on base interface if needed */
 	if (base_ifp->reset_arp_config)
-		(base_ifp->reset_arp_config)++;
+		base_ifp->reset_arp_config++;
 	else {
 		if (!(link = rtnl_link_get(cache, (int)base_ifp->ifindex)))
 			goto err;
@@ -235,23 +295,17 @@ netlink3_set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
 			goto err;
 
 		if (base_ifp->reset_arp_ignore_value != 1 ||
-		    base_ifp->reset_arp_filter_value != 1 ) {
-			/* The underlying interface mustn't reply for our address(es) */
-			if (!(new_state = rtnl_link_alloc()))
-				goto err;
-
-			if (rtnl_link_inet_set_conf(new_state, IPV4_DEVCONF_ARP_IGNORE, 1) ||
-			    rtnl_link_inet_set_conf(new_state, IPV4_DEVCONF_ARPFILTER, 1) ||
-			    rtnl_link_change(sk, link, new_state, 0))
-				goto err;
-
-			rtnl_link_put(new_state);
-			new_state = NULL;
-
-			rtnl_link_put(link);
-			link = NULL;
-
-			base_ifp->reset_arp_config = 1;
+		    base_ifp->reset_arp_filter_value != 1) {
+			/* We can't use libnl3 since if the base interface type is a bridge, libnl3 sets ifi_family
+			 * to AF_BRIDGE, whereas it should be set to AF_UNSPEC. The kernel function that handles
+			 * RTM_SETLINK messages for AF_BRIDGE doesn't know how to process the IFLA_AF_SPEC attribute. */
+			if (netlink_set_interface_flags(
+						base_ifp->ifindex,
+						(1 << IPV4_DEVCONF_ARP_IGNORE) | (1 <<IPV4_DEVCONF_ARPFILTER),
+						(1 << IPV4_DEVCONF_ARP_IGNORE) | (1 << IPV4_DEVCONF_ARPFILTER)))
+				log_message(LOG_INFO, "Set base flags on %s failed for VMAC %s", base_ifp->ifname, ifp->ifname);
+			else
+				base_ifp->reset_arp_config = 1;
 		}
 	}
 
@@ -271,49 +325,19 @@ exit:
 }
 
 static inline int
-netlink3_reset_interface_parameters(const interface_t* ifp)
+netlink_reset_interface_parameters(const interface_t* ifp)
 {
-	struct nl_sock *sk;
-	struct nl_cache *cache;
-	struct rtnl_link *link = NULL;
-	struct rtnl_link *new_state = NULL;
 	int res = 0;
+	int val = 0;
 
-	if (!(sk = nl_socket_alloc())) {
-		log_message(LOG_INFO, "Unable to open netlink socket");
-		return -1;
+	/* See netlink3_set_interface_parameters for why libnl3 can't be used */
+	if (ifp->reset_arp_ignore_value)
+		val |= 1 << IPV4_DEVCONF_ARP_IGNORE;
+	if (ifp->reset_arp_filter_value)
+		val |= 1 << IPV4_DEVCONF_ARPFILTER;
+	if ((res = netlink_set_interface_flags(ifp->ifindex, val, (1 << IPV4_DEVCONF_ARP_IGNORE) | (1 << IPV4_DEVCONF_ARPFILTER)))) {
+		log_message(LOG_INFO, "reset interface flags on %s failed", ifp->ifname);
 	}
-
-	if (nl_connect(sk, NETLINK_ROUTE) < 0)
-		goto err;
-	if (rtnl_link_alloc_cache(sk, AF_UNSPEC, &cache))
-		goto err;
-	if (!(link = rtnl_link_get(cache, (int)ifp->ifindex)))
-		goto err;
-	if (!(new_state = rtnl_link_alloc()))
-		goto err;
-	if (rtnl_link_inet_set_conf(new_state, IPV4_DEVCONF_ARP_IGNORE, ifp->reset_arp_ignore_value) ||
-	    rtnl_link_inet_set_conf(new_state, IPV4_DEVCONF_ARPFILTER, ifp->reset_arp_filter_value) ||
-	    rtnl_link_change(sk, link, new_state, 0))
-		goto err;
-
-	rtnl_link_put(link);
-	link = NULL;
-
-	rtnl_link_put(new_state);
-	new_state = NULL;
-
-	goto exit;
-err:
-	res = -1;
-
-	if (link)
-		rtnl_link_put(link);
-	if (new_state)
-		rtnl_link_put(new_state);
-
-exit:
-	nl_socket_free(sk);
 
 	return res;
 }
@@ -321,7 +345,7 @@ exit:
 static inline void
 set_interface_parameters_devconf(const interface_t *ifp, interface_t *base_ifp)
 {
-	if (netlink3_set_interface_parameters(ifp, base_ifp))
+	if (netlink_set_interface_parameters(ifp, base_ifp))
 		log_message(LOG_INFO, "Unable to set parameters for %s", ifp->ifname);
 }
 
@@ -329,7 +353,7 @@ static inline void
 reset_interface_parameters_devconf(interface_t *base_ifp)
 {
 	if (base_ifp->reset_arp_config && --base_ifp->reset_arp_config == 0) {
-		if (netlink3_reset_interface_parameters(base_ifp))
+		if (netlink_reset_interface_parameters(base_ifp))
 			log_message(LOG_INFO, "Unable to reset parameters for %s", base_ifp->ifname);
 	}
 }

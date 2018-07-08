@@ -162,7 +162,6 @@ netlink_link_up(vrrp_t *vrrp)
 	struct {
 		struct nlmsghdr n;
 		struct ifinfomsg ifi;
-		char buf[256];
 	} req;
 
 	memset(&req, 0, sizeof (req));
