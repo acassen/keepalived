@@ -223,7 +223,7 @@ netlink_set_interface_flags(int ifindex, int flags, int change)
 
 	req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
 	req.n.nlmsg_flags = NLM_F_REQUEST;
-	req.n.nlmsg_type = RTM_SETLINK;
+	req.n.nlmsg_type = RTM_NEWLINK;
 	req.ifi.ifi_family = AF_UNSPEC;
 	req.ifi.ifi_index = ifindex;
 
