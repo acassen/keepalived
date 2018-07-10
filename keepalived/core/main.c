@@ -478,6 +478,7 @@ start_keepalived(void)
 #endif
 }
 
+#ifndef _DEBUG_
 static bool reload_config(void)
 {
 	bool unsupported_change = false;
@@ -523,7 +524,6 @@ static bool reload_config(void)
 }
 
 /* SIGHUP/USR1/USR2 handler */
-#ifndef _DEBUG_
 static void
 propogate_signal(__attribute__((unused)) void *v, int sig)
 {
@@ -1254,8 +1254,10 @@ keepalived_main(int argc, char **argv)
 	/* Initialise pointer to child finding function */
 	set_child_finder_name(find_keepalived_child_name);
 
+#ifndef _DEBUG_
 	/* If one of our children terminates, we want to clear it out */
 	set_child_remover(parent_child_remover);
+#endif
 
 	/* Initialise daemon_mode */
 #ifdef _WITH_VRRP_
