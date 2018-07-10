@@ -478,10 +478,9 @@ http_handle_response(thread_t * thread, unsigned char digest[16]
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
 	request_t *req = http_get_check->req;
-	url_t *url;
 	int r, di = 0;
 	char *digest_tmp;
-	url_t *fetched_url = fetch_next_url(http_get_check);
+	url_t *url = fetch_next_url(http_get_check);
 	enum {
 		NONE,
 		ON_SUCCESS,
@@ -494,8 +493,8 @@ http_handle_response(thread_t * thread, unsigned char digest[16]
 		return timeout_epilog(thread, "Read, no data received from ");
 
 	/* Next check the HTTP status code */
-	if (fetched_url->status_code) {
-		if (req->status_code != fetched_url->status_code)
+	if (url->status_code) {
+		if (req->status_code != url->status_code)
 			return timeout_epilog(thread, "HTTP status code error to");
 
 		last_success = ON_STATUS;
@@ -504,7 +503,6 @@ http_handle_response(thread_t * thread, unsigned char digest[16]
 		last_success = ON_SUCCESS;
 
 	/* Report a length mismatch the first time we get the specific difference */
-	url = list_element(http_get_check->url, http_get_check->url_it);
 	if (req->content_len != SIZE_MAX && req->content_len != req->rx_bytes) {
 		if (url->len_mismatch != (ssize_t)req->content_len - (ssize_t)req->rx_bytes) {
 			log_message(LOG_INFO, "http_check for RS %s VS %s url %s%s: content_length (%lu) does not match received bytes (%lu)",
@@ -517,13 +515,13 @@ http_handle_response(thread_t * thread, unsigned char digest[16]
 		url->len_mismatch = 0;
 
 	/* Continue with MD5SUM */
-	if (fetched_url->digest) {
+	if (url->digest) {
 		/* Compute MD5SUM */
 		digest_tmp = (char *) MALLOC(MD5_BUFFER_LENGTH + 1);
 		for (di = 0; di < 16; di++)
 			sprintf(digest_tmp + 2 * di, "%02x", digest[di]);
 
-		r = strcmp(fetched_url->digest, digest_tmp);
+		r = strcmp(url->digest, digest_tmp);
 		FREE(digest_tmp);
 
 		if (r)
