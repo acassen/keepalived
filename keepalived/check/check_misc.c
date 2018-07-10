@@ -61,7 +61,6 @@ free_misc_check(void *data)
 {
 	misc_checker_t *misck_checker = CHECKER_DATA(data);
 
-	FREE(misck_checker->script.cmd_str);
 	FREE(misck_checker->script.args);
 	FREE(misck_checker);
 	FREE(data);
@@ -74,7 +73,7 @@ dump_misc_check(FILE *fp, void *data)
 	misc_checker_t *misck_checker = checker->data;
 
 	conf_write(fp, "   Keepalive method = MISC_CHECK");
-	conf_write(fp, "   script = %s", misck_checker->script.cmd_str);
+	conf_write(fp, "   script = %s", cmd_str(&misck_checker->script));
 	conf_write(fp, "   timeout = %lu", misck_checker->timeout/TIMER_HZ);
 	conf_write(fp, "   dynamic = %s", misck_checker->dynamic ? "YES" : "NO");
 	conf_write(fp, "   uid:gid = %d:%d", misck_checker->script.uid, misck_checker->script.gid);
@@ -87,10 +86,7 @@ misc_check_compare(void *a, void *b)
 	misc_checker_t *old = CHECKER_DATA(a);
 	misc_checker_t *new = CHECKER_DATA(b);
 
-	if (strcmp(old->script.cmd_str, new->script.cmd_str) != 0)
-		return false;
-
-	return true;
+	return !notify_script_compare(&old->script, &new->script);
 }
 
 static void
@@ -111,13 +107,19 @@ misc_check_handler(__attribute__((unused)) vector_t *strvec)
 }
 
 static void
-misc_path_handler(vector_t *strvec)
+misc_path_handler(__attribute__((unused)) vector_t *strvec)
 {
+	vector_t *strvec_qe;
+
 	if (!new_misck_checker)
 		return;
 
-	new_misck_checker->script.cmd_str = CHECKER_VALUE_STRING(strvec);
-	new_misck_checker->script.args = set_script_params_array(strvec, true);
+	/* We need to allow quoted and escaped strings for the script and parameters */
+	strvec_qe = alloc_strvec_quoted_escaped(NULL);
+
+	set_script_params_array(strvec_qe, &new_misck_checker->script, 0);
+
+	free_strvec(strvec_qe);
 }
 
 static void
@@ -150,12 +152,12 @@ misc_user_handler(vector_t *strvec)
 		return;
 
 	if (vector_size(strvec) < 2) {
-		log_message(LOG_INFO, "No user specified for misc checker script %s", new_misck_checker->script.cmd_str);
+		log_message(LOG_INFO, "No user specified for misc checker script %s", cmd_str(&new_misck_checker->script));
 		return;
 	}
 
 	if (set_script_uid_gid(strvec, 1, &new_misck_checker->script.uid, &new_misck_checker->script.gid)) {
-		log_message(LOG_INFO, "Failed to set uid/gid for misc checker script %s - removing", new_misck_checker->script.cmd_str);
+		log_message(LOG_INFO, "Failed to set uid/gid for misc checker script %s - removing", cmd_str(&new_misck_checker->script));
 		FREE(new_misck_checker);
 		new_misck_checker = NULL;
 	}
@@ -169,7 +171,7 @@ misc_end_handler(void)
 	if (!new_misck_checker)
 		return;
 
-	if (!new_misck_checker->script.cmd_str) {
+	if (!new_misck_checker->script.args) {
 		log_message(LOG_INFO, "No script path has been specified for MISC_CHECKER - skipping");
 		dequeue_new_checker();
 		new_misck_checker = NULL;
@@ -178,8 +180,8 @@ misc_end_handler(void)
 
 	if (!script_user_set)
 	{
-		if ( set_default_script_user(NULL, NULL)) {
-			log_message(LOG_INFO, "Unable to set default user for misc script %s - removing", new_misck_checker->script.args[0]);
+		if (set_default_script_user(NULL, NULL)) {
+			log_message(LOG_INFO, "Unable to set default user for misc script %s - removing", cmd_str(&new_misck_checker->script));
 			FREE(new_misck_checker);
 			new_misck_checker = NULL;
 			return;
@@ -234,11 +236,11 @@ check_misc_script_security(magic_t magic)
 		/* Mark not to run if needs inhibiting */
 		insecure = false;
 		if (flags & SC_INHIBIT) {
-			log_message(LOG_INFO, "Disabling misc script %s due to insecure", misc_script->script.cmd_str);
+			log_message(LOG_INFO, "Disabling misc script %s due to insecure", cmd_str(&misc_script->script));
 			insecure = true;
 		}
 		else if (flags & SC_NOTFOUND) {
-			log_message(LOG_INFO, "Disabling misc script %s since not found/accessible", misc_script->script.cmd_str);
+			log_message(LOG_INFO, "Disabling misc script %s since not found/accessible", cmd_str(&misc_script->script));
 			insecure = true;
 		}
 		else if (!(flags & (SC_EXECUTABLE | SC_SYSTEM)))

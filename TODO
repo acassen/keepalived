@@ -1,8 +1,15 @@
 Whatever you want !
 
+IPVS
+1. Can we have an IPv4 fwmark and specify tunnel to IPv6, and vice versa etc.
+   What does ipvsadm do?
+2. Sort out IP_VS_SO vs LVS_CMD...
+
 The following are still outstanding from the ideas for what was the beta
 development:
 
+	* Sort out termination in vrrp and checker - stop_vrrp/check, and phase2
+	    are inconsistent between vrrp and checker. What about bfd?
 	* A route with multiple nexthops will only be deleted if all interfaces
 	    are down. Each nexthop needs to record the interface, and only remove
 	    once all down

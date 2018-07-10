@@ -137,8 +137,6 @@ notify_group_fifo(const vrrp_sgroup_t *vgroup)
 static void
 notify_script_exec(notify_script_t* script, char *type, int state_num, char* name, int prio)
 {
-	notify_script_t new_script;
-	char *args[6];
 	char prio_buf[4];
 
 	/*
@@ -147,30 +145,23 @@ notify_script_exec(notify_script_t* script, char *type, int state_num, char* nam
 	 * Note that the prio will be indicated as zero for a group.
 	 *
 	 */
-	args[0] = script->args[0];
-	args[1] = type;
-	args[2] = name;
+	script->args[script->num_args] = type;
+	script->args[script->num_args+1] = name;
 	switch (state_num) {
-		case VRRP_STATE_MAST  : args[3] = "MASTER" ; break;
-		case VRRP_STATE_BACK  : args[3] = "BACKUP" ; break;
-		case VRRP_STATE_FAULT : args[3] = "FAULT" ; break;
-		case VRRP_STATE_STOP  : args[3] = "STOP" ; break;
-		default:		args[3] = "{UNKNOWN}"; break;
+		case VRRP_STATE_MAST  : script->args[script->num_args+2] = "MASTER" ; break;
+		case VRRP_STATE_BACK  : script->args[script->num_args+2] = "BACKUP" ; break;
+		case VRRP_STATE_FAULT : script->args[script->num_args+2] = "FAULT" ; break;
+		case VRRP_STATE_STOP  : script->args[script->num_args+2] = "STOP" ; break;
+		default:		script->args[script->num_args+2] = "{UNKNOWN}"; break;
 	}
 	snprintf(prio_buf, sizeof(prio_buf), "%d", prio);
-	args[4] = prio_buf;
-	args[5] = NULL;
-	new_script.args = args;
+	script->args[script->num_args+3] = prio_buf;
 
 	/* Launch the script */
-	new_script.cmd_str = NULL;
-	new_script.uid = script->uid;
-	new_script.gid = script->gid;
-
 	if (state_num == VRRP_STATE_STOP)
-		system_call_script(master, child_killed_thread, NULL, TIMER_HZ, &new_script);
+		system_call_script(master, child_killed_thread, NULL, TIMER_HZ, script);
 	else
-		notify_exec(&new_script);
+		notify_exec(script);
 }
 
 /* SMTP alert notifier */

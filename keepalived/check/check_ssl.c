@@ -256,7 +256,7 @@ ssl_read_thread(thread_t * thread)
 	request_t *req = http_get_check->req;
 	url_t *url = list_element(http_get_check->url, http_get_check->url_it);
 	unsigned timeout = checker->co->connection_to;
-	unsigned char digest[16];
+	unsigned char digest[MD5_DIGEST_LENGTH];
 	int r = 0;
 
 	/* Handle read timeout */

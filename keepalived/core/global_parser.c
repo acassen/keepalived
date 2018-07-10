@@ -723,7 +723,7 @@ notify_fifo_script(vector_t *strvec, const char *type, notify_fifo_t *fifo)
 	id_str = MALLOC(strlen(type) + strlen("notify_fifo") + 1);
 	strcpy(id_str, type);
 	strcat(id_str, "notify_fifo");
-	fifo->script = notify_script_init(strvec, true, id_str);
+	fifo->script = notify_script_init(1, id_str);
 
 	FREE(id_str);
 }

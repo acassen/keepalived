@@ -51,7 +51,7 @@ typedef struct _request {
 
 typedef struct _url {
 	char				*path;
-	char				*digest;
+	uint8_t				*digest;
 	int				status_code;
 	char				*virtualhost;
 	ssize_t				len_mismatch;
@@ -69,7 +69,6 @@ typedef struct _http_checker {
 } http_checker_t;
 
 /* global defs */
-#define MD5_BUFFER_LENGTH 32U
 #define GET_BUFFER_LENGTH 2048U
 #define MAX_BUFFER_LENGTH 4096U
 #define PROTO_HTTP	0x01

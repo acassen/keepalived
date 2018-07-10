@@ -239,9 +239,9 @@ vrrp_group_track_bfd_handler(vector_t *strvec)
 #endif
 
 static inline notify_script_t*
-set_vrrp_notify_script(vector_t *strvec, bool with_params)
+set_vrrp_notify_script(__attribute__((unused)) vector_t *strvec, int extra_params)
 {
-	return notify_script_init(strvec, with_params, "notify");
+	return notify_script_init(extra_params, "notify");
 }
 
 static void
@@ -252,7 +252,7 @@ vrrp_gnotify_backup_handler(vector_t *strvec)
 		log_message(LOG_INFO, "vrrp group %s: notify_backup script already specified - ignoring %s", vgroup->gname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
-	vgroup->script_backup = set_vrrp_notify_script(strvec, true);
+	vgroup->script_backup = set_vrrp_notify_script(strvec, 0);
 	vgroup->notify_exec = true;
 }
 static void
@@ -263,7 +263,7 @@ vrrp_gnotify_master_handler(vector_t *strvec)
 		log_message(LOG_INFO, "vrrp group %s: notify_master script already specified - ignoring %s", vgroup->gname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
-	vgroup->script_master = set_vrrp_notify_script(strvec, true);
+	vgroup->script_master = set_vrrp_notify_script(strvec, 0);
 	vgroup->notify_exec = true;
 }
 static void
@@ -274,7 +274,7 @@ vrrp_gnotify_fault_handler(vector_t *strvec)
 		log_message(LOG_INFO, "vrrp group %s: notify_fault script already specified - ignoring %s", vgroup->gname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
-	vgroup->script_fault = set_vrrp_notify_script(strvec, true);
+	vgroup->script_fault = set_vrrp_notify_script(strvec, 0);
 	vgroup->notify_exec = true;
 }
 static void
@@ -285,7 +285,7 @@ vrrp_gnotify_stop_handler(vector_t *strvec)
 		log_message(LOG_INFO, "vrrp group %s: notify_stop script already specified - ignoring %s", vgroup->gname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
-	vgroup->script_stop = set_vrrp_notify_script(strvec, true);
+	vgroup->script_stop = set_vrrp_notify_script(strvec, 0);
 	vgroup->notify_exec = true;
 }
 static void
@@ -296,7 +296,7 @@ vrrp_gnotify_handler(vector_t *strvec)
 		log_message(LOG_INFO, "vrrp group %s: notify script already specified - ignoring %s", vgroup->gname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
-	vgroup->script = set_vrrp_notify_script(strvec, false);
+	vgroup->script = set_vrrp_notify_script(strvec, 4);
 	vgroup->notify_exec = true;
 }
 static void
@@ -659,7 +659,7 @@ vrrp_notify_backup_handler(vector_t *strvec)
 		log_message(LOG_INFO, "(%s) notify_backup script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
-	vrrp->script_backup = set_vrrp_notify_script(strvec, true);
+	vrrp->script_backup = set_vrrp_notify_script(strvec, 0);
 	vrrp->notify_exec = true;
 }
 static void
@@ -670,7 +670,7 @@ vrrp_notify_master_handler(vector_t *strvec)
 		log_message(LOG_INFO, "(%s) notify_master script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
-	vrrp->script_master = set_vrrp_notify_script(strvec, true);
+	vrrp->script_master = set_vrrp_notify_script(strvec, 0);
 	vrrp->notify_exec = true;
 }
 static void
@@ -681,7 +681,7 @@ vrrp_notify_fault_handler(vector_t *strvec)
 		log_message(LOG_INFO, "(%s) notify_fault script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
-	vrrp->script_fault = set_vrrp_notify_script(strvec, true);
+	vrrp->script_fault = set_vrrp_notify_script(strvec, 0);
 	vrrp->notify_exec = true;
 }
 static void
@@ -692,7 +692,7 @@ vrrp_notify_stop_handler(vector_t *strvec)
 		log_message(LOG_INFO, "(%s) notify_stop script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
-	vrrp->script_stop = set_vrrp_notify_script(strvec, true);
+	vrrp->script_stop = set_vrrp_notify_script(strvec, 0);
 	vrrp->notify_exec = true;
 }
 static void
@@ -703,7 +703,7 @@ vrrp_notify_handler(vector_t *strvec)
 		log_message(LOG_INFO, "(%s) notify script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
-	vrrp->script = set_vrrp_notify_script(strvec, false);
+	vrrp->script = set_vrrp_notify_script(strvec, 4);
 	vrrp->notify_exec = true;
 }
 static void
@@ -916,11 +916,16 @@ vrrp_script_handler(vector_t *strvec)
 	remove_script = false;
 }
 static void
-vrrp_vscript_script_handler(vector_t *strvec)
+vrrp_vscript_script_handler(__attribute__((unused)) vector_t *strvec)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
-	vscript->script.args = set_script_params_array(strvec, true);
-	vscript->script.cmd_str = set_value(strvec);
+	vector_t *strvec_qe;
+
+	/* We need to allow quoted and escaped strings for the script and parameters */
+	strvec_qe = alloc_strvec_quoted_escaped(NULL);
+
+	set_script_params_array(strvec_qe, &vscript->script, 0);
+	free_strvec(strvec_qe);
 }
 static void
 vrrp_vscript_interval_handler(vector_t *strvec)
@@ -964,8 +969,9 @@ static void
 vrrp_vscript_user_handler(vector_t *strvec)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
+
 	if (set_script_uid_gid(strvec, 1, &vscript->script.uid, &vscript->script.gid)) {
-		log_message(LOG_INFO, "Unable to set uid/gid for script %s", vscript->script.cmd_str);
+		log_message(LOG_INFO, "Unable to set uid/gid for script %s", cmd_str(&vscript->script));
 		remove_script = true;
 	}
 	else {
