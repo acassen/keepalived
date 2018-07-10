@@ -578,7 +578,8 @@ http_process_response(request_t *req, size_t r, bool do_md5)
 			req->len = 0;
 		}
 	} else if (req->len) {
-		if (req->content_len == SIZE_MAX || req->content_len > req->rx_bytes) {
+		if (do_md5 &&
+		    (req->content_len == SIZE_MAX || req->content_len > req->rx_bytes)) {
 			MD5_Update(&req->context, req->buffer,
 				   req->content_len == SIZE_MAX || req->content_len >= req->rx_bytes + req->len ? req->len : req->content_len - req->rx_bytes);
 		}
