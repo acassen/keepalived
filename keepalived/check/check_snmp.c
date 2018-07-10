@@ -29,6 +29,7 @@
 #include "global_data.h"
 #include "snmp.h"
 #include "utils.h"
+#include "parser.h"
 
 /* CHECK SNMP defines */
 #define CHECK_OID KEEPALIVED_OID, 3
@@ -208,9 +209,9 @@ do {									\
   }									\
 } while(0)
 
-
 /* Static return value */
 static longret_t long_ret;
+static char buf[MAXBUF];
 
 static u_char*
 check_snmp_vsgroup(struct variable *vp, oid *name, size_t *length,
@@ -523,12 +524,14 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSQUORUMUP:
 		if (!v->notify_quorum_up) break;
-		*var_len = strlen(v->notify_quorum_up->cmd_str);
-		return (u_char*)v->notify_quorum_up->cmd_str;
+		cmd_str_r(v->notify_quorum_up, buf, sizeof(buf));
+		*var_len = strlen(buf);
+		return (u_char*)buf;
 	case CHECK_SNMP_VSQUORUMDOWN:
 		if (!v->notify_quorum_down) break;
-		*var_len = strlen(v->notify_quorum_down->cmd_str);
-		return (u_char*)v->notify_quorum_down->cmd_str;
+		cmd_str_r(v->notify_quorum_down, buf, sizeof(buf));
+		*var_len = strlen(buf);
+		return (u_char*)buf;
 	case CHECK_SNMP_VSHYSTERESIS:
 		long_ret.u = v->hysteresis;
 		return (u_char*)&long_ret;
@@ -905,13 +908,15 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	case CHECK_SNMP_RSNOTIFYUP:
 		if (btype == STATE_RS_SORRY) break;
 		if (!be->notify_up) break;
-		*var_len = strlen(be->notify_up->cmd_str);
-		return (u_char*)be->notify_up->cmd_str;
+		cmd_str_r(be->notify_up, buf, sizeof(buf));
+		*var_len = strlen(buf);
+		return (u_char*)buf;
 	case CHECK_SNMP_RSNOTIFYDOWN:
 		if (btype == STATE_RS_SORRY) break;
 		if (!be->notify_down) break;
-		*var_len = strlen(be->notify_down->cmd_str);
-		return (u_char*)be->notify_down->cmd_str;
+		cmd_str_r(be->notify_down, buf, sizeof(buf));
+		*var_len = strlen(buf);
+		return (u_char*)buf;
 	case CHECK_SNMP_RSVIRTUALHOST:
 		if (!be->virtualhost) break;
 		*var_len = strlen(be->virtualhost);

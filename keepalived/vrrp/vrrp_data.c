@@ -122,7 +122,7 @@ dump_notify_script(FILE *fp, notify_script_t *script, char *type)
 		return;
 
 	conf_write(fp, "   %s state transition script = %s, uid:gid %d:%d", type,
-	       script->cmd_str, script->uid, script->gid);
+	       cmd_str(script), script->uid, script->gid);
 }
 
 static void
@@ -177,7 +177,6 @@ free_vscript(void *data)
 
 	free_list(&vscript->tracking_vrrp);
 	FREE(vscript->sname);
-	FREE_PTR(vscript->script.cmd_str);
 	FREE_PTR(vscript->script.args);
 	FREE(vscript);
 }
@@ -188,7 +187,7 @@ dump_vscript(FILE *fp, void *data)
 	const char *str;
 
 	conf_write(fp, " VRRP Script = %s", vscript->sname);
-	conf_write(fp, "   Command = %s", vscript->script.cmd_str);
+	conf_write(fp, "   Command = %s", cmd_str(&vscript->script));
 	conf_write(fp, "   Interval = %lu sec", vscript->interval / TIMER_HZ);
 	conf_write(fp, "   Timeout = %lu sec", vscript->timeout / TIMER_HZ);
 	conf_write(fp, "   Weight = %d", vscript->weight);

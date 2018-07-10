@@ -33,6 +33,9 @@
 /* Global definitions */
 #define KEEPALIVED_CONFIG_FILE "/etc/keepalived/keepalived.conf"
 
+/* Maximum config line length */
+#define MAXBUF	1024
+
 /* keyword definition */
 typedef struct _keyword {
 	const char *string;

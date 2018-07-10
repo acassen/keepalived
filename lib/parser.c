@@ -48,8 +48,6 @@
 
 #define DUMP_KEYWORDS	0
 
-#define MAXBUF  1024
-
 #define DEF_LINE_END	"\n"
 
 #define COMMENT_START_CHRS "!#"

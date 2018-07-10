@@ -546,9 +546,9 @@ vs_inhibit_handler(__attribute__((unused)) vector_t *strvec)
 	vs->inhibit = true;
 }
 static inline notify_script_t*
-set_check_notify_script(vector_t *strvec, const char *type)
+set_check_notify_script(__attribute__((unused)) vector_t *strvec, const char *type)
 {
-	return notify_script_init(strvec, true, type);
+	return notify_script_init(0, type);
 }
 static void
 notify_up_handler(vector_t *strvec)
