@@ -27,6 +27,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "check_http.h"
 #include "check_api.h"
@@ -59,13 +60,26 @@ free_url(void *data)
 	FREE(url);
 }
 
+static char *
+format_digest(uint8_t *digest, char *buf)
+{
+	int i;
+
+	for (i = 0; i < MD5_DIGEST_LENGTH; i++)
+		snprintf(buf + 2 * i, 2 + 1, "%2.2x", digest[i]);
+
+	return buf;
+}
+
 static void
 dump_url(FILE *fp, void *data)
 {
 	url_t *url = data;
+	char digest_buf[2 * MD5_DIGEST_LENGTH + 1];
+
 	conf_write(fp, "   Checked url = %s", url->path);
 	if (url->digest)
-		conf_write(fp, "     digest = %s", url->digest);
+		conf_write(fp, "     digest = %s", format_digest(url->digest, digest_buf));
 	if (url->status_code)
 		conf_write(fp, "     HTTP Status Code = %d", url->status_code);
 	if (url->virtualhost)
@@ -151,7 +165,7 @@ http_get_check_compare(void *a, void *b)
 			return false;
 		if (!u1->digest != !u2->digest)
 			return false;
-		if (u1->digest && strcmp(u1->digest, u2->digest))
+		if (u1->digest && memcmp(u1->digest, u2->digest, MD5_DIGEST_LENGTH))
 			return false;
 		if (u1->status_code != u2->status_code)
 			return false;
@@ -235,8 +249,35 @@ digest_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
+	char *digest;
+	char *endptr;
+	int i;
 
-	url->digest = CHECKER_VALUE_STRING(strvec);
+	digest = CHECKER_VALUE_STRING(strvec);
+
+	if (url->digest) {
+		log_message(LOG_INFO, "Digest '%s' is a duplicate", digest);
+		return;
+	}
+
+	if (strlen(digest) != 2 * MD5_DIGEST_LENGTH) {
+		log_message(LOG_INFO, "digest '%s' character length should be %d rather than %zd", digest, 2 * MD5_DIGEST_LENGTH, strlen(digest));
+		return;
+	}
+
+	url->digest = MALLOC(MD5_DIGEST_LENGTH);
+
+	for (i = MD5_DIGEST_LENGTH - 1; i >= 0; i--) {
+		digest[2 * i + 2] = '\0';
+		url->digest[i] = strtoul(digest + 2 * i, &endptr, 16);
+		if (endptr != digest + 2 * i + 2) {
+			log_message(LOG_INFO, "Unable to interpret hex digit in '%s' at offset %d/%d", digest, 2 * i, 2 * i + 1);
+			FREE(url->digest);
+			url->digest = NULL;
+			return;
+		}
+	}
+
 }
 
 static void
@@ -472,14 +513,13 @@ fetch_next_url(http_checker_t * http_get_check)
 
 /* Handle response */
 int
-http_handle_response(thread_t * thread, unsigned char digest[16]
+http_handle_response(thread_t * thread, unsigned char digest[MD5_DIGEST_LENGTH]
 		     , bool empty_buffer)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
 	request_t *req = http_get_check->req;
-	int r, di = 0;
-	char *digest_tmp;
+	int r;
 	url_t *url = fetch_next_url(http_get_check);
 	enum {
 		NONE,
@@ -517,12 +557,7 @@ http_handle_response(thread_t * thread, unsigned char digest[16]
 	/* Continue with MD5SUM */
 	if (url->digest) {
 		/* Compute MD5SUM */
-		digest_tmp = (char *) MALLOC(MD5_BUFFER_LENGTH + 1);
-		for (di = 0; di < 16; di++)
-			sprintf(digest_tmp + 2 * di, "%02x", digest[di]);
-
-		r = strcmp(url->digest, digest_tmp);
-		FREE(digest_tmp);
+		r = memcmp(url->digest, digest, MD5_DIGEST_LENGTH);
 
 		if (r)
 			return timeout_epilog(thread, "MD5 digest error to");
@@ -595,7 +630,7 @@ http_read_thread(thread_t * thread)
 	request_t *req = http_get_check->req;
 	url_t *url = list_element(http_get_check->url, http_get_check->url_it);
 	unsigned timeout = checker->co->connection_to;
-	unsigned char digest[16];
+	unsigned char digest[MD5_DIGEST_LENGTH];
 	ssize_t r = 0;
 
 	/* Handle read timeout */
