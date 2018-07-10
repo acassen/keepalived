@@ -60,6 +60,7 @@ extern void install_sublevel(void);
 extern void install_sublevel_end(void);
 extern void install_sublevel_end_handler(void (*handler) (void));
 extern void install_keyword(const char *, void (*handler) (vector_t *));
+extern vector_t *alloc_strvec_quoted_escaped(char *);
 extern vector_t *alloc_strvec_r(char *);
 extern bool check_conf_file(const char*);
 extern vector_t *read_value_block(vector_t *);

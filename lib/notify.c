@@ -1058,24 +1058,25 @@ set_script_params_array(vector_t *strvec, bool with_params)
 {
 	unsigned num_words = 0;
 	size_t len = 0;
-	char *w, *save_p;
 	char **word_ptrs, **params;
 	char *words;
-	char *str_cpy;
+	vector_t *strvec_qe = NULL;
+	unsigned i;
 
 	/* Count the number of words, and total string length */
 	if (!with_params) {
 		num_words = 1;
 		len = strlen(strvec_slot(strvec, 1)) + 1;
 	} else {
-		str_cpy = MALLOC(strlen(strvec_slot(strvec, 1)) + 1);
-		strcpy(str_cpy, strvec_slot(strvec, 1));
-		w = strtok_r(str_cpy, " \t", &save_p);
-		while (w) {
-			num_words++;
-			len += strlen(w) + 1;
-			w = strtok_r(NULL, " \t", &save_p);
-		}
+		if (vector_size(strvec) >= 2)
+			strvec_qe = alloc_strvec_quoted_escaped(strvec_slot(strvec, 1));
+
+		if (!strvec_qe)
+			return NULL;
+
+		num_words = vector_size(strvec_qe);
+		for (i = 0; i < num_words; i++)
+			len += strlen(strvec_slot(strvec_qe, i)) + 1;
 	}
 
 	/* Allocate memory for pointers to words and words themselves */
@@ -1087,15 +1088,12 @@ set_script_params_array(vector_t *strvec, bool with_params)
 		strcpy(words, strvec_slot(strvec, 1));
 		*(word_ptrs++) = words;
 	} else {
-		strcpy(str_cpy, strvec_slot(strvec, 1));
-		w = strtok_r(str_cpy, " \t", &save_p);
-		while (w) {
-			strcpy(words, w);
+		for (i = 0; i < num_words; i++) {
+			strcpy(words, strvec_slot(strvec_qe, i));
 			*(word_ptrs++) = words;
-			words += strlen(w) + 1;
-			w = strtok_r(NULL, " \t", &save_p);
+			words += strlen(words) + 1;
 		}
-		FREE(str_cpy);
+		free_strvec(strvec_qe);
 	}
 	*word_ptrs = NULL;
 
@@ -1107,7 +1105,16 @@ notify_script_init(vector_t *strvec, bool with_params, const char *type)
 {
 	notify_script_t *script = MALLOC(sizeof(notify_script_t));
 
+	/* We need to reparse the command line, allowing for quoted and escaped strings */
+	strvec = alloc_strvec_quoted_escaped(NULL);
+
 	script->args = set_script_params_array(strvec, with_params);
+	if (!script->args) {
+		log_message(LOG_INFO, "Unable to parse script '%s' - ignoring", FMT_STR_VSLOT(strvec, 1));
+		FREE(script);
+		return NULL;
+	}
+
 	script->cmd_str = set_value(strvec);
 	script->flags = 0;
 

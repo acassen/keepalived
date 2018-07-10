@@ -116,6 +116,9 @@ misc_path_handler(vector_t *strvec)
 	if (!new_misck_checker)
 		return;
 
+	/* We need to allow quoted and escaped strings for the script and parameters */
+	strvec = alloc_strvec_quoted_escaped(NULL);
+
 	new_misck_checker->script.cmd_str = CHECKER_VALUE_STRING(strvec);
 	new_misck_checker->script.args = set_script_params_array(strvec, true);
 }
@@ -169,7 +172,7 @@ misc_end_handler(void)
 	if (!new_misck_checker)
 		return;
 
-	if (!new_misck_checker->script.cmd_str) {
+	if (!new_misck_checker->script.cmd_str || !new_misck_checker->script.args) {
 		log_message(LOG_INFO, "No script path has been specified for MISC_CHECKER - skipping");
 		dequeue_new_checker();
 		new_misck_checker = NULL;

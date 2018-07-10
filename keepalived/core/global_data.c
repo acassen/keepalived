@@ -423,7 +423,7 @@ dump_global_data(FILE *fp, data_t * data)
 	if (data->notify_fifo.name) {
 		conf_write(fp, " Global notify fifo = %s", data->notify_fifo.name);
 		if (data->notify_fifo.script)
-			conf_write(fp, " Global notify fifo script = %s uid:gid %d:%d",
+			conf_write(fp, " Global notify fifo script = %s, uid:gid %d:%d",
 				    data->notify_fifo.script->args[0],
 				    data->notify_fifo.script->uid,
 				    data->notify_fifo.script->gid);
@@ -432,7 +432,7 @@ dump_global_data(FILE *fp, data_t * data)
 	if (data->vrrp_notify_fifo.name) {
 		conf_write(fp, " VRRP notify fifo = %s", data->vrrp_notify_fifo.name);
 		if (data->vrrp_notify_fifo.script)
-			conf_write(fp, " VRRP notify fifo script = %s uid:gid %d:%d",
+			conf_write(fp, " VRRP notify fifo script = %s, uid:gid %d:%d",
 				    data->vrrp_notify_fifo.script->args[0],
 				    data->vrrp_notify_fifo.script->uid,
 				    data->vrrp_notify_fifo.script->gid);
@@ -442,7 +442,7 @@ dump_global_data(FILE *fp, data_t * data)
 	if (data->lvs_notify_fifo.name) {
 		conf_write(fp, " LVS notify fifo = %s", data->lvs_notify_fifo.name);
 		if (data->lvs_notify_fifo.script)
-			conf_write(fp, " LVS notify fifo script = %s uid:gid %d:%d",
+			conf_write(fp, " LVS notify fifo script = %s, uid:gid %d:%d",
 				    data->lvs_notify_fifo.script->args[0],
 				    data->lvs_notify_fifo.script->uid,
 				    data->lvs_notify_fifo.script->gid);

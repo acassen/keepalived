@@ -244,6 +244,29 @@ All scripts should be written so that they will terminate on receipt of a SIGTER
 signal. Scripts will be sent SIGTERM if their parent terminates, or it is a script
 the keepalived is awaiting its exit status and it has run for too long.
 .PP
+.SH Quoted strings
+Quoted strings are specified between " characters; more specifically a string
+will only end after a quoted string if there is whitespace afterwards. For
+example,
+.nf
+.RS
+"abcd" efg h jkl "mnop"
+.RE
+.fi
+will be the single string "abcd efg h jkl mnop", i.e. the embedded " characters
+are removed.
+.PP
+Quoted strings can also have escaped characters, like the shell. \\a, \\b, \\E, \\f,
+\\n, \\r, \\t, \\v, \\nnn and \\xXX (where nnn is up to 3 octal digits, and XX is any
+sequence of hex digits) and \\cC (which produces the control version of
+character C) are all supported. \\C for any other character C is just
+treated as an escaped version of character C, so \\\\ is a \\ character and
+\\" will be a " character, but it won't start or terminate a quoted string.
+.PP
+For specifying scripts with parameters, unquoted spaces will separate the parameters.
+If it is required for a parameter to contain a space, it should be enclosed in single
+quotes (').
+.PP
 .SH CONFIGURATION PARSER
 Traditionally the configuration file parser has not been one of the strengths of
 keepalived. yukki maintains a project on github that is a keepalived syntax
@@ -743,16 +766,14 @@ bfd_instance <STRING> {
             notify_stop <STRING>|<QUOTED-STRING> [username [groupname]]
 
             # for ANY state transition.
-            # "notify" script is called AFTER the
-            # notify_* script(s) and is executed
-            # with 4 arguments provided by Keepalived
-            # (so don't include parameters in the notify line).
-            # arguments
-            # $1 = "GROUP"|"INSTANCE"
-            # $2 = name of the group or instance
-            # $3 = target state of transition (stop only applies to instances)
+            # "notify" script is called AFTER the notify_* script(s) and
+            # is executed # with 4 additional arguments after the configured
+            # arguments provided by Keepalived:
+            # $(n-3) = "GROUP"|"INSTANCE"
+            # $(n-2) = name of the group or instance
+            # $(n-1) = target state of transition (stop only applies to instances)
             #     ("MASTER"|"BACKUP"|"FAULT"|"STOP")
-            # $4 = priority value
+            # $(n)   = priority value
             notify /path/notify.sh [username [groupname]]
 
             # Send email notification during state transition,

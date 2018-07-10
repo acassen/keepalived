@@ -919,6 +919,10 @@ static void
 vrrp_vscript_script_handler(vector_t *strvec)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
+
+	/* We need to allow quoted and escaped strings for the script and parameters */
+	strvec = alloc_strvec_quoted_escaped(NULL);
+
 	vscript->script.args = set_script_params_array(strvec, true);
 	vscript->script.cmd_str = set_value(strvec);
 }

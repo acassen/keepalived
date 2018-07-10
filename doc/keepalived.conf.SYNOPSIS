@@ -256,7 +256,27 @@ It will normally be quite straightforward to add additional pre-defiend
 definitions, so if you need one, or have a good idea for one, then raise
 an issue at https://github.com/acasson/keepalived/issues requesting it.
 
-0.6 Configuration file syntax parser
+0.6 Quoted strings
+
+Quoted strings are specified between " characters; more specifically a string
+will only end after a quoted string if there is whitespace afterwards. For
+example,
+"abcd" efg h jkl "mnop"
+will be the single string "abcd efg h jkl mnop", i.e. the embedded " characters
+are removed.
+
+Quoted strings can also have escaped characters, like the shell. \a, \b, \E, \f,
+\n, \r, \t, \v, \nnn and \xXX (where nnn is up to 3 octal digits, and XX is any
+sequence of hex digits) and \cC (which produces the control version of
+character C) are all supported. \C for any other character C is just
+treated as an escaped version of character C, so \\ is a \ character, and
+\" will be a " character, but it won't start or terminate a quoted string.
+
+For specifying scripts with parameters, unquoted spaces will separate the
+parameters.  If it is required for a parameter to contain a space, it should
+be enclosed in single quotes (').
+
+0.7 Configuration file syntax parser
 
 Traditionally the configuration file parser has not been one of the strengths of
 keepalived. yukki maintains a project on github that is a keepalived syntax
@@ -740,13 +760,13 @@ vrrp_sync_group <STRING> {      # VRRP sync group declaration
     the sync group.
 
 (1) The "notify" script is called AFTER the corresponding notify_* script has
-    been called, and is given exactly 4 arguments (the whole string is interpreted
-    as a literal filename so don't add parameters!):
+    been called, and is given 4 additional arguments following the configured
+    arguments:
 
-    $1 = A string indicating whether it's a "GROUP" or an "INSTANCE"
-    $2 = The name of said group or instance
-    $3 = The state it's transitioning to ("MASTER", "BACKUP", "FAULT" or "STOP")
-    $4 = The priority value
+    $(n-3) = A string indicating whether it's a "GROUP" or an "INSTANCE"
+    $(n-2) = The name of said group or instance
+    $(n-1) = The state it's transitioning to ("MASTER", "BACKUP", "FAULT" or "STOP")
+    $(n)   = The priority value
 
     $1 and $3 are ALWAYS sent in uppercase, and the possible strings sent are the
     same ones listed above ("GROUP"/"INSTANCE", "MASTER"/"BACKUP"/"FAULT"/"STOP")
