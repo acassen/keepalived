@@ -290,13 +290,6 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		kernel_netlink_poll();
 	}
 
-//	if (ifp->base_ifp == ifp) {
-//		ifp->base_ifp = vrrp->ifp;
-//		vrrp->ifp = ifp;
-//log_message(LOG_INFO, "Setting base_ifp for %s to %s", ifp->ifname, ifp->base_ifp->ifname);
-//	}
-//else
-//log_message(LOG_INFO, "Already set base_ifp for %s to %s", ifp->ifname, ifp->base_ifp->ifname);
 	ifp->vmac = true;
 
 	if (!ifp->ifindex)
