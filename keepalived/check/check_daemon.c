@@ -169,6 +169,7 @@ checker_terminate_phase1(bool schedule_next_thread)
 	}
 }
 
+#ifndef _DEBUG_
 static int
 start_checker_termination_thread(__attribute__((unused)) thread_t * thread)
 {
@@ -179,6 +180,7 @@ start_checker_termination_thread(__attribute__((unused)) thread_t * thread)
 
 	return 0;
 }
+#endif
 
 /* Daemon stop sequence */
 static void

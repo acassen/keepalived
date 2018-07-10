@@ -77,18 +77,20 @@
 bool non_existent_interface_specified;
 
 /* Forward declarations */
+#ifndef _DEBUG_
 static int print_vrrp_data(thread_t * thread);
 static int print_vrrp_stats(thread_t * thread);
+static int reload_vrrp_thread(thread_t * thread);
 #ifdef _WITH_JSON_
 static int print_vrrp_json(thread_t * thread);
 #endif
-#ifndef _DEBUG_
-static int reload_vrrp_thread(thread_t * thread);
 #endif
 
 /* local variables */
 static char *vrrp_syslog_ident;
+#ifndef _DEBUG_
 static bool two_phase_terminate;
+#endif
 
 #ifdef _WITH_LVS_
 static bool
@@ -267,6 +269,7 @@ vrrp_terminate_phase1(bool schedule_next_thread)
 	}
 }
 
+#ifndef _DEBUG_
 static int
 start_vrrp_termination_thread(__attribute__((unused)) thread_t * thread)
 {
@@ -277,6 +280,7 @@ start_vrrp_termination_thread(__attribute__((unused)) thread_t * thread)
 
 	return 0;
 }
+#endif
 
 /* Daemon stop sequence */
 static void
@@ -646,7 +650,6 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 
 	return 0;
 }
-#endif
 
 static int
 print_vrrp_data(__attribute__((unused)) thread_t * thread)
@@ -672,7 +675,6 @@ print_vrrp_json(__attribute__((unused)) thread_t * thread)
 #endif
 
 /* VRRP Child respawning thread */
-#ifndef _DEBUG_
 static int
 vrrp_respawn_thread(thread_t * thread)
 {
