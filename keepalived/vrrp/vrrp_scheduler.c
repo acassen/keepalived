@@ -1066,8 +1066,10 @@ vrrp_script_child_thread(thread_t * thread)
 		if (timeout) {
 			/* If kill returns an error, we can't kill the process since either the process has terminated,
 			 * or we don't have permission. If we can't kill it, there is no point trying again. */
-			if (!kill(-pid, sig_num))
+			if (!kill(-pid, sig_num)) {
+				log_message(LOG_INFO, "kill -%d of process %s(%d) with new state %d failed with errno %d", sig_num, vscript->script.args[0], pid, vscript->state, errno);
 				timeout = 1000;
+			}
 		} else if (vscript->state != SCRIPT_STATE_IDLE) {
 			log_message(LOG_INFO, "Child thread pid %d timeout with unknown script state %d", pid, vscript->state);
 			timeout = 10;	/* We need some timeout */
