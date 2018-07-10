@@ -757,8 +757,8 @@ check_script_secure(notify_script_t *script,
 								     magic_t magic)
 {
 	int flags;
-	int ret;
-	struct stat file_buf;
+	int ret, ret_real, ret_new;
+	struct stat file_buf, real_buf;
 	bool need_script_protection = false;
 	uid_t old_uid = 0;
 	gid_t old_gid = 0;
@@ -766,7 +766,6 @@ check_script_secure(notify_script_t *script,
 	int sav_errno;
 	char *real_file_path;
 	char *orig_file_part, *new_file_part;
-	char *dir_path;
 
 	if (!script)
 		return 0;
@@ -822,10 +821,13 @@ check_script_secure(notify_script_t *script,
 	}
 
 	real_file_path = NULL;
+
+	orig_file_part = strrchr(script->args[0], '/');
+	new_file_part = strrchr(new_path, '/');
 	if (strcmp(script->args[0], new_path)) {
 		/* The path name is different */
 		size_t len;
-		size_t num_words = 1;
+		size_t num_words;
 		char **wp = &script->args[1];
 		char **params;
 		char **word_ptrs;
@@ -834,46 +836,54 @@ check_script_secure(notify_script_t *script,
 		/* If the file name parts don't match, we need to be careful to
 		 * ensure that we preserve the file name part since some executables
 		 * alter their behaviour based on what they are called */
-		orig_file_part = strrchr(script->args[0], '/');
-		new_file_part = strrchr(new_path, '/');
 		if (strcmp(orig_file_part + 1, new_file_part + 1)) {
-			*orig_file_part = '\0';
-			dir_path = realpath(script->args[0], NULL);
-			*orig_file_part = '/';
 			real_file_path = new_path;
-			new_path = MALLOC(strlen(dir_path) + 1 + strlen(orig_file_part + 1) + 1);
-			strcpy(new_path, dir_path);
-			strcat(new_path, "/");
-			strcat(new_path, orig_file_part + 1);
+			new_path = MALLOC(new_file_part - real_file_path + 1 + strlen(orig_file_part + 1) + 1);
+			strncpy(new_path, real_file_path, new_file_part + 1 - real_file_path);
+			strcpy(new_path + (new_file_part + 1 - real_file_path), orig_file_part + 1);
+
+			/* Now check this is the same file */
+			ret_real = stat(real_file_path, &real_buf);
+			ret_new = stat(new_path, &file_buf);
+			if (!ret_real &&
+			    (ret_new ||
+			     real_buf.st_dev != file_buf.st_dev ||
+			     real_buf.st_ino != file_buf.st_ino)) {
+				/* It doesn't resolve to the same file */
+				FREE(new_path);
+				new_path = real_file_path;
+				real_file_path = NULL;
+			}
 		}
 
-		/* We need to set up all the args again */
-		len = strlen(new_path) + 1;
-		while (*wp) {
-			len += strlen(*wp) + 1;
-			num_words++;
-			wp++;
-		}
-		params = word_ptrs = MALLOC((num_words + 1) * sizeof(char *) + len);
-		words = (char *)params + (num_words + 1) * sizeof(char *);
-		strcpy(words, new_path);
-		*(word_ptrs++) = words;
-		words += strlen(words) + 1;
-		wp = &script->args[1];
-		while (*wp) {
-			strcpy(words, *wp);
+		if (strcmp(script->args[0], new_path)) {
+			/* We need to set up all the args again */
+			len = strlen(new_path) + 1;
+			while (*wp)
+				len += strlen(*wp++) + 1;
+			num_words = ((char **)script->args[0] - &script->args[0]) - 1;
+			params = word_ptrs = MALLOC((num_words + 1) * sizeof(char *) + len);
+			words = (char *)params + (num_words + 1) * sizeof(char *);
+			strcpy(words, new_path);
 			*(word_ptrs++) = words;
-			words += strlen(*wp) + 1;
-			wp++;
-		}
-		*word_ptrs = NULL;
-		FREE(script->args);
-		script->args = params;
+			words += strlen(words) + 1;
+			wp = &script->args[1];
+			while (*wp) {
+				strcpy(words, *wp);
+				*(word_ptrs++) = words;
+				words += strlen(*wp) + 1;
+				wp++;
+			}
+			*word_ptrs = NULL;
+			FREE(script->args);
+			script->args = params;
 
-		FREE(script->cmd_str);
-		script->cmd_str = MALLOC(strlen(new_path) + 1);
-		strcpy(script->cmd_str, new_path);
+			FREE(script->cmd_str);
+			script->cmd_str = MALLOC(strlen(new_path) + 1);
+			strcpy(script->cmd_str, new_path);
+		}
 	}
+
 	if (!real_file_path)
 		free(new_path);
 	else
