@@ -30,6 +30,8 @@ For DBUS support:
 	glib2-devel
 For JSON support:
 	json-c-devel
+For PCRE support
+	pcre2-devel
 
 For building the documentation, the following packages need to be installed:
 	Fedora: python-sphinx (will pull in: python2-sphinx_rtd_theme)
@@ -52,6 +54,8 @@ For DBUS support:
 	libglib2.0-dev
 For JSON support:
 	libjson-c-dev
+For PCRE support:
+	libpcre2-dev
 
 For building the documentation, the following packages need to be installed:
 	python-sphinx python-sphinx-rtd-theme
@@ -81,6 +85,9 @@ For magic file identification support:
 	TBD
 For SNMP support:
 	pacman -S net-snmp
+for PCRE support:
+	pcre-2 (may be installed by default)
+
 For building the documentation, the following packages need to be installed:
 	python-sphinx python-sphinx_rtd_theme
    For latex or pdf files, the following are also needed:

@@ -29,6 +29,10 @@
 #include <stdbool.h>
 #include <openssl/md5.h>
 #include <openssl/ssl.h>
+#ifdef _WITH_REGEX_CHECK_
+#define PCRE2_CODE_UNIT_WIDTH 8
+#include <pcre2.h>
+#endif
 
 /* local includes */
 #include "scheduler.h"
@@ -47,6 +51,10 @@ typedef struct _request {
 	MD5_CTX				context;
 	size_t				content_len;
 	size_t				rx_bytes;
+#ifdef _WITH_REGEX_CHECK_
+	bool				regex_matched;
+	size_t				start_offset;
+#endif
 } request_t;
 
 typedef struct _url {
@@ -55,6 +63,18 @@ typedef struct _url {
 	int				status_code;
 	char				*virtualhost;
 	ssize_t				len_mismatch;
+#ifdef _WITH_REGEX_CHECK_
+	unsigned char			*regex;
+	bool				regex_no_match;
+	int				pcre2_options;
+	pcre2_code			*pcre2_reCompiled;
+#ifndef PCRE2_DONT_USE_JIT
+	pcre2_match_context		*pcre2_mcontext;
+	pcre2_jit_stack			*pcre2_jit_stack;
+#endif
+	pcre2_match_data		*pcre2_match_data;
+	uint32_t			pcre2_max_lookbehind;
+#endif
 } url_t;
 
 typedef struct _http_checker {
@@ -89,6 +109,6 @@ typedef struct _http_checker {
 /* Define prototypes */
 extern void install_http_check_keyword(void);
 extern int timeout_epilog(thread_t *, const char *);
-extern void http_process_response(request_t *, size_t, bool);
+extern void http_process_response(request_t *, size_t, url_t *);
 extern int http_handle_response(thread_t *, unsigned char digest[16], bool);
 #endif

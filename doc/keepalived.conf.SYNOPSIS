@@ -1177,6 +1177,21 @@ virtual_server group <STRING>      {          # VS group declaration
               digest <STRING>
               status_code <INTEGER>
               virtualhost <STRING>
+              regex <STRING>                  # Regular expression to search returned
+                                              #  data against. A failure to match causes
+                                              #  the check to fail.
+              regex_no_match                  # Reverse the sense of the match, so a
+                                              #  match of the returned text causes the
+                                              #  check to fail.
+              regex_options <OPTIONS>         # Space separated list of options for regex.
+                                              #  See man pcre2api for a description of the options.
+                                              #  The following option are supported:
+                                              #   allow_empty_class alt_bsux auto_callout caseless
+                                              #   dollar_endonly dotall dupnames extended firstline
+                                              #   match_unset_backref multiline never_ucp never_utf
+                                              #   no_auto_capture no_auto_possess no_dotstar_anchor
+                                              #   no_start_optimize ucp ungreedy utf never_backslash_c
+                                              #   alt_circumflex alt_verbnames use_offset_limit
             }
             ...
 

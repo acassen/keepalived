@@ -274,7 +274,7 @@ ssl_read_thread(thread_t * thread)
 				thread->u.fd, timeout);
 	} else if (r > 0 && req->error == 0) {
 		/* Handle response stream */
-		http_process_response(req, (size_t)r, (url->digest != NULL));
+		http_process_response(req, (size_t)r, url);
 
 		/*
 		 * Register next ssl stream reader.
