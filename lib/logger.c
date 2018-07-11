@@ -124,11 +124,22 @@ flush_log_file(void)
 void
 vlog_message(const int facility, const char* format, va_list args)
 {
+#if !HAVE_VSYSLOG
 	char buf[MAX_LOG_MSG+1];
 
 	vsnprintf(buf, sizeof(buf), format, args);
+#endif
 
 	if (log_file || (__test_bit(DONT_FORK_BIT, &debug) && log_console)) {
+#if HAVE_VSYSLOG
+		va_list args1;
+		char buf[2 * MAX_LOG_MSG + 1];
+
+		va_copy(args1, args);
+		vsnprintf(buf, sizeof(buf), format, args1);
+		va_end(args1);
+#endif
+
 		/* timestamp setup */
 		time_t t = time(NULL);
 		struct tm tm;
@@ -146,7 +157,11 @@ vlog_message(const int facility, const char* format, va_list args)
 	}
 
 	if (!__test_bit(NO_SYSLOG_BIT, &debug))
+#if HAVE_VSYSLOG
+		vsyslog(facility, format, args);
+#else
 		syslog(facility, "%s", buf);
+#endif
 }
 
 void

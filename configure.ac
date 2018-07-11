@@ -521,6 +521,8 @@ dnl - signalfd() since Linux 2.6.22 and glibc 2.8
 AC_CHECK_FUNCS([signalfd], [add_system_opt([SIGNALFD])])
 dnl - inotify_init1() since Linux 2.6.27
 AC_CHECK_FUNCS([inotify_init1], [add_system_opt([INOTIFY_INIT1])])
+dnl - vsyslog() Not defined by Posix, but available in glibc and musl
+AC_CHECK_FUNCS([vsyslog], [add_system_opt([VSYSLOG])])
 
 # glibc uses unsigned int as 3rd parameter to __assert_fail(), musl uses int.
 AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
