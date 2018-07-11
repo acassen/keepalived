@@ -52,6 +52,41 @@
 #define	REGISTER_CHECKER_NEW	1
 #define	REGISTER_CHECKER_RETRY	2
 
+#ifdef _WITH_REGEX_CHECK_
+typedef struct {
+	const char *option;
+	unsigned option_bit ;
+} regex_option_t;
+
+regex_option_t regex_options[] = {
+	{"allow_empty_class", PCRE2_ALLOW_EMPTY_CLASS},
+	{"alt_bsux", PCRE2_ALT_BSUX},
+	{"auto_callout", PCRE2_AUTO_CALLOUT},
+	{"caseless", PCRE2_CASELESS},
+	{"dollar_endonly", PCRE2_DOLLAR_ENDONLY},
+	{"dotall", PCRE2_DOTALL},
+	{"dupnames", PCRE2_DUPNAMES},
+	{"extended", PCRE2_EXTENDED},
+	{"firstline", PCRE2_FIRSTLINE},
+	{"match_unset_backref", PCRE2_MATCH_UNSET_BACKREF},
+	{"multiline", PCRE2_MULTILINE},
+	{"never_ucp", PCRE2_NEVER_UCP},
+	{"never_utf", PCRE2_NEVER_UTF},
+	{"no_auto_capture", PCRE2_NO_AUTO_CAPTURE},
+	{"no_auto_possess", PCRE2_NO_AUTO_POSSESS},
+	{"no_dotstar_anchor", PCRE2_NO_DOTSTAR_ANCHOR},
+	{"no_start_optimize", PCRE2_NO_START_OPTIMIZE},
+	{"ucp", PCRE2_UCP},
+	{"ungreedy", PCRE2_UNGREEDY},
+	{"utf", PCRE2_UTF},
+	{"never_backslash_c", PCRE2_NEVER_BACKSLASH_C},
+	{"alt_circumflex", PCRE2_ALT_CIRCUMFLEX},
+	{"alt_verbnames", PCRE2_ALT_VERBNAMES},
+	{"use_offset_limit", PCRE2_USE_OFFSET_LIMIT},
+	{NULL, 0}
+};
+#endif
+
 static int http_connect_thread(thread_t *);
 
 /* Configuration stream handling */
@@ -106,10 +141,26 @@ dump_url(FILE *fp, void *data)
 		conf_write(fp, "     Virtual host = %s", url->virtualhost);
 #ifdef _WITH_REGEX_CHECK_
 	if (url->regex) {
+		char options_buf[512];
+		char *op;
+		int i;
+
 		conf_write(fp, "     Regex = \"%s\"", url->regex);
 		if (url->regex_no_match)
 			conf_write(fp, "     Regex no match");
-		conf_write(fp, "     Regex options 0x%x", url->pcre2_options);
+		if (url->pcre2_options) {
+			op = options_buf;
+			for (i = 0; regex_options[i].option; i++) {
+				if (url->pcre2_options & regex_options[i].option_bit) {
+					*op++ = ' ';
+					strcpy(op, regex_options[i].option);
+					op += strlen(op);
+				}
+			}
+		}
+		else
+			options_buf[0] = '\0';
+		conf_write(fp, "     Regex options:%s", options_buf);
 	}
 #endif
 }
@@ -367,60 +418,18 @@ regex_options_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
-	unsigned i;
+	unsigned i, j;
 	char *str;
 
 	for (i = 1; i < vector_size(strvec); i++) {
 		str = strvec_slot(strvec, i);
 
-		if (!strcmp(str, "allow_empty_class"))
-			url->pcre2_options |= PCRE2_ALLOW_EMPTY_CLASS;
-		else if (!strcmp(str, "alt_bsux"))
-			url->pcre2_options |= PCRE2_ALT_BSUX;
-		else if (!strcmp(str, "auto_callout"))
-			url->pcre2_options |= PCRE2_AUTO_CALLOUT;
-		else if (!strcmp(str, "caseless"))
-			url->pcre2_options |= PCRE2_CASELESS;
-		else if (!strcmp(str, "dollar_endonly"))
-			url->pcre2_options |= PCRE2_DOLLAR_ENDONLY;
-		else if (!strcmp(str, "dotall"))
-			url->pcre2_options |= PCRE2_DOTALL;
-		else if (!strcmp(str, "dupnames"))
-			url->pcre2_options |= PCRE2_DUPNAMES;
-		else if (!strcmp(str, "extended"))
-			url->pcre2_options |= PCRE2_EXTENDED;
-		else if (!strcmp(str, "firstline"))
-			url->pcre2_options |= PCRE2_FIRSTLINE;
-		else if (!strcmp(str, "match_unset_backref"))
-			url->pcre2_options |= PCRE2_MATCH_UNSET_BACKREF;
-		else if (!strcmp(str, "multiline"))
-			url->pcre2_options |= PCRE2_MULTILINE;
-		else if (!strcmp(str, "never_ucp"))
-			url->pcre2_options |= PCRE2_NEVER_UCP;
-		else if (!strcmp(str, "never_utf"))
-			url->pcre2_options |= PCRE2_NEVER_UTF;
-		else if (!strcmp(str, "no_auto_capture"))
-			url->pcre2_options |= PCRE2_NO_AUTO_CAPTURE;
-		else if (!strcmp(str, "no_auto_possess"))
-			url->pcre2_options |= PCRE2_NO_AUTO_POSSESS;
-		else if (!strcmp(str, "no_dotstar_anchor"))
-			url->pcre2_options |= PCRE2_NO_DOTSTAR_ANCHOR;
-		else if (!strcmp(str, "no_start_optimize"))
-			url->pcre2_options |= PCRE2_NO_START_OPTIMIZE;
-		else if (!strcmp(str, "ucp"))
-			url->pcre2_options |= PCRE2_UCP;
-		else if (!strcmp(str, "ungreedy"))
-			url->pcre2_options |= PCRE2_UNGREEDY;
-		else if (!strcmp(str, "utf"))
-			url->pcre2_options |= PCRE2_UTF;
-		else if (!strcmp(str, "never_backslash_c"))
-			url->pcre2_options |= PCRE2_NEVER_BACKSLASH_C;
-		else if (!strcmp(str, "alt_circumflex"))
-			url->pcre2_options |= PCRE2_ALT_CIRCUMFLEX;
-		else if (!strcmp(str, "alt_verbnames"))
-			url->pcre2_options |= PCRE2_ALT_VERBNAMES;
-		else if (!strcmp(str, "use_offset_limit"))
-			url->pcre2_options |= PCRE2_USE_OFFSET_LIMIT;
+		for (j = 0; regex_options[j].option; j++) {
+			if (!strcmp(str, regex_options[j].option)) {
+				url->pcre2_options |= regex_options[j].option_bit;
+				break;
+			}
+		}
 	}
 }
 
