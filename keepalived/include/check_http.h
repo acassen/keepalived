@@ -53,8 +53,8 @@ typedef struct _request {
 	size_t				rx_bytes;
 #ifdef _WITH_REGEX_CHECK_
 	bool				regex_matched;
-	size_t				start_offset;
-	size_t				regex_subject_offset;
+	size_t				start_offset;	/* Offset into buffer to match from */
+	size_t				regex_subject_offset;	/* Offset into web page of start of buffer */
 #endif
 } request_t;
 
@@ -78,6 +78,8 @@ typedef struct _url {
 #ifdef _WITH_REGEX_CHECK_
 	bool				regex_no_match;
 	regex_t				*regex;
+	size_t				regex_min_offset;
+	size_t				regex_max_offset;	/* One beyond max offset */
 #ifndef PCRE2_DONT_USE_JIT
 	bool				regex_use_stack;
 #endif

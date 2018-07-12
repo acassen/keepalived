@@ -29,8 +29,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define PCRE2_DONT_USE_JIT
-
 #ifdef _WITH_REGEX_CHECK_
 #define PCRE2_CODE_UNIT_WIDTH 8
 #include <pcre2.h>
@@ -54,7 +52,8 @@
 #define	REGISTER_CHECKER_NEW	1
 #define	REGISTER_CHECKER_RETRY	2
 
-#define _REGEX_DEBUG_
+/* Define the following to enable debugging output for regex matching */
+/* #define _REGEX_DEBUG_ */
 
 #ifdef _WITH_REGEX_CHECK_
 typedef struct {
@@ -171,6 +170,12 @@ dump_url(FILE *fp, void *data)
 		conf_write(fp, "     Regex = \"%s\"", url->regex->pattern);
 		if (url->regex_no_match)
 			conf_write(fp, "     Regex no match");
+		if (url->regex_min_offset || url->regex_max_offset) {
+			if (url->regex_max_offset)
+				conf_write(fp, "     Regex min offset = %zu, max_offset = %zu", url->regex_min_offset, url->regex_max_offset - 1);
+			else
+				conf_write(fp, "     Regex min offset = %zu", url->regex_min_offset);
+		}
 		if (url->regex->pcre2_options) {
 			op = options_buf;
 			for (i = 0; regex_options[i].option; i++) {
@@ -471,6 +476,45 @@ regex_options_handler(vector_t *strvec)
 	}
 }
 
+static size_t
+regex_offset_handler(vector_t *strvec, const char *type)
+{
+	char *endptr;
+	unsigned long val;
+
+	if (vector_size(strvec) != 2) {
+		log_message(LOG_INFO, "Missing or too may options for regex_%s_offset", type);
+		return 0;
+	}
+
+	val = strtoul(vector_slot(strvec, 1), &endptr, 10);
+	if (*endptr) {
+		log_message(LOG_INFO, "Invalid regex_%s_offset %s specified", type, FMT_STR_VSLOT(strvec, 1));
+		return 0;
+	}
+
+	return (size_t)val;
+}
+
+static void
+regex_min_offset_handler(vector_t *strvec)
+{
+	http_checker_t *http_get_chk = CHECKER_GET();
+	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
+
+	url->regex_min_offset = regex_offset_handler(strvec, "min");
+}
+
+static void
+regex_max_offset_handler(vector_t *strvec)
+{
+	http_checker_t *http_get_chk = CHECKER_GET();
+	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
+
+	/* regex_max_offset is one beyond last acceptable position */
+	url->regex_max_offset = regex_offset_handler(strvec, "max") + 1;
+}
+
 #ifndef PCRE2_DONT_USE_JIT
 static void
 regex_stack_handler(vector_t *strvec)
@@ -606,6 +650,8 @@ url_check(void)
 		prepare_regex(url);
 	else if (conf_regex_options
 		 || url->regex_no_match
+		 || url->regex_min_offset
+		 || url->regex_max_offset
 #ifndef PCRE2_DONT_USE_JIT
 		 || url->regex_use_stack
 #endif
@@ -613,9 +659,16 @@ url_check(void)
 		log_message(LOG_INFO, "regex parameters specified without regex");
 		conf_regex_options = 0;
 		url->regex_no_match = false;
+		url->regex_min_offset = 0;
+		url->regex_max_offset = 0;
 #ifndef PCRE2_DONT_USE_JIT
 		url->regex_use_stack = false;
 #endif
+	}
+
+	if (url->regex_max_offset && url->regex_min_offset >= url->regex_max_offset) {
+		log_message(LOG_INFO, "regex min offset %lu > regex_max_offset %lu - ignoring", url->regex_min_offset, url->regex_max_offset - 1);
+		url->regex_min_offset = url->regex_max_offset = 0;
 	}
 #endif
 }
@@ -641,6 +694,8 @@ install_http_ssl_check_keyword(const char *keyword)
 	install_keyword("regex", &regex_handler);
 	install_keyword("regex_no_match", &regex_no_match_handler);
 	install_keyword("regex_options", &regex_options_handler);
+	install_keyword("regex_min_offset", &regex_min_offset_handler);
+	install_keyword("regex_max_offset", &regex_max_offset_handler);
 #ifndef PCRE2_DONT_USE_JIT
 	install_keyword("regex_stack", &regex_stack_handler);
 #endif
@@ -820,9 +875,37 @@ check_regex(url_t *url, request_t *req)
 	PCRE2_SIZE *ovector;
 	int pcreExecRet;
 	size_t keep;
+	size_t start_offset = 0;
 
+#ifdef _REGEX_DEBUG_
+	log_message(LOG_INFO, "matched %d, min_offset %lu max_offset %lu, subject_offset %lu req->len %lu lookbehind %u start_offset %lu",
+			req->regex_matched, url->regex_min_offset, url->regex_max_offset, req->regex_subject_offset,
+			req->len, url->regex->pcre2_max_lookbehind, req->start_offset);
+#endif
+
+	/* If we have already matched the regex, there is no point in checking
+	 * any further */
 	if (req->regex_matched)
 		return false;
+
+	/* If the end of the current buffer doesn't reach the start offset specified,
+	 * then skip the check */
+	if (url->regex_min_offset) {
+		if (req->regex_subject_offset + req->len < url->regex_min_offset - url->regex->pcre2_max_lookbehind) {
+			req->regex_subject_offset += req->len;
+			return false;
+		}
+
+		if (req->regex_subject_offset < url->regex_min_offset)
+			start_offset = url->regex_min_offset - req->regex_subject_offset;
+	}
+
+	/* If we are beyond the end of where we want to check, then don't try matching */
+	if (url->regex_max_offset &&
+	    req->regex_subject_offset + req->start_offset >= url->regex_max_offset) {
+		req->regex_subject_offset += req->len;
+		return false;
+	}
 
 #ifndef PCRE2_DONT_USE_JIT
 	if (url->regex_use_stack && !mcontext) {
@@ -832,6 +915,9 @@ check_regex(url_t *url, request_t *req)
 	}
 #endif
 
+	if (req->start_offset > start_offset)
+		start_offset = req->start_offset;
+
 #ifndef PCRE2_DONT_USE_JIT
 	pcreExecRet = pcre2_jit_match
 #else
@@ -839,9 +925,9 @@ check_regex(url_t *url, request_t *req)
 #endif
 				(url->regex->pcre2_reCompiled,
 				 (unsigned char *)req->buffer,
-				 req->len,		// length of string
-				 req->start_offset,	// Start looking at this point
-				 PCRE2_PARTIAL_HARD,	// OPTIONS
+				 req->len,
+				 start_offset,
+				 PCRE2_PARTIAL_HARD,
 				 url->regex->pcre2_match_data,
 #ifndef PCRE2_DONT_USE_JIT
 				 url->regex_use_stack ? mcontext : NULL
@@ -906,16 +992,24 @@ check_regex(url_t *url, request_t *req)
 		return false;
 	}
 
-	req->regex_matched = true;
-
-#ifdef _REGEX_DEBUG_
-	ovector = pcre2_get_ovector_pointer(url->regex->pcre2_match_data);
-
 	if(pcreExecRet == 0)
 		log_message(LOG_INFO, "Too many substrings found");
-	else
+
+	ovector = pcre2_get_ovector_pointer(url->regex->pcre2_match_data);
+
+	/* Check if there was a match at or before regex_max_offset */
+	if (!url->regex_max_offset ||
+	    (req->regex_subject_offset + ovector[0] < url->regex_max_offset)) {
+		req->regex_matched = true;
+#ifdef _REGEX_DEBUG_
 		log_message(LOG_INFO, "Result: We have a match at offset %zu - \"%.*s\"", req->regex_subject_offset + ovector[0], (int)(ovector[1] - ovector[0]), req->buffer + ovector[0]);
+	}
+	else {
+		log_message(LOG_INFO, "Match found but %lu bytes beyond regex_max_offset(%lu)", req->regex_subject_offset + ovector[0] - (url->regex_max_offset - 1), url->regex_max_offset - 1);
 #endif
+	}
+
+	req->regex_subject_offset += req->len;
 
 	return false;
 }
