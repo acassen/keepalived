@@ -29,6 +29,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define PCRE2_DONT_USE_JIT
+
 #ifdef _WITH_REGEX_CHECK_
 #define PCRE2_CODE_UNIT_WIDTH 8
 #include <pcre2.h>
@@ -51,6 +53,8 @@
 
 #define	REGISTER_CHECKER_NEW	1
 #define	REGISTER_CHECKER_RETRY	2
+
+#define _REGEX_DEBUG_
 
 #ifdef _WITH_REGEX_CHECK_
 typedef struct {
@@ -85,31 +89,50 @@ regex_option_t regex_options[] = {
 	{"use_offset_limit", PCRE2_USE_OFFSET_LIMIT},
 	{NULL, 0}
 };
+
+/* Used for holding regex details during configuration */
+static unsigned char *conf_regex_pattern;
+static int conf_regex_options;
+
+#ifndef PCRE2_DONT_USE_JIT
+static PCRE2_SIZE jit_stack_start;
+static PCRE2_SIZE jit_stack_max;
+
+static pcre2_match_context *mcontext;
+static pcre2_jit_stack *jit_stack;
+#endif
+
+static list regexs;	/* list of regex_t */
 #endif
 
 static int http_connect_thread(thread_t *);
 
-/* Configuration stream handling */
+#ifdef _WITH_REGEX_CHECK_
+static void
+free_regex(void *data)
+{
+	regex_t *regex = data;
+
+	// Free up the regular expression.
+	FREE_PTR(regex->pattern);
+	pcre2_code_free(regex->pcre2_reCompiled);
+	pcre2_match_data_free(regex->pcre2_match_data);
+	FREE(regex);
+}
+#endif
+
 static void
 free_url(void *data)
 {
 	url_t *url = data;
+
 	FREE_PTR(url->path);
 	FREE_PTR(url->digest);
 	FREE_PTR(url->virtualhost);
 #ifdef _WITH_REGEX_CHECK_
 	if (url->regex) {
-		// Free up the regular expression.
-		FREE_PTR(url->regex);
-		pcre2_code_free(url->pcre2_reCompiled);
-		pcre2_match_data_free(url->pcre2_match_data);
-#ifndef PCRE2_DONT_USE_JIT
-		if (url->pcre2_mcontext)
-			pcre2_match_context_free(url->pcre2_mcontext);
-		if (url->pcre2_jit_stack)
-			pcre2_jit_stack_free(url->pcre2_jit_stack);
-#endif
-
+		if (!--url->regex->use_count)
+			free_list_data(regexs, url->regex);
 	}
 #endif
 	FREE(url);
@@ -145,13 +168,13 @@ dump_url(FILE *fp, void *data)
 		char *op;
 		int i;
 
-		conf_write(fp, "     Regex = \"%s\"", url->regex);
+		conf_write(fp, "     Regex = \"%s\"", url->regex->pattern);
 		if (url->regex_no_match)
 			conf_write(fp, "     Regex no match");
-		if (url->pcre2_options) {
+		if (url->regex->pcre2_options) {
 			op = options_buf;
 			for (i = 0; regex_options[i].option; i++) {
-				if (url->pcre2_options & regex_options[i].option_bit) {
+				if (url->regex->pcre2_options & regex_options[i].option_bit) {
 					*op++ = ' ';
 					strcpy(op, regex_options[i].option);
 					op += strlen(op);
@@ -161,6 +184,11 @@ dump_url(FILE *fp, void *data)
 		else
 			options_buf[0] = '\0';
 		conf_write(fp, "     Regex options:%s", options_buf);
+		conf_write(fp, "     Regex use count = %u", url->regex->use_count);
+#ifndef PCRE2_DONT_USE_JIT
+		if (url->regex_use_stack)
+			conf_write(fp, "     Regex stack start %lu, max %lu", jit_stack_start, jit_stack_max);
+#endif
 	}
 #endif
 }
@@ -184,6 +212,15 @@ free_http_get_check(void *data)
 	request_t *req = http_get_chk->req;
 
 	free_list(&http_get_chk->url);
+#ifdef _WITH_REGEX_CHECK_
+	free_list(&regexs);
+#ifndef PCRE2_DONT_USE_JIT
+	if (mcontext)
+		pcre2_match_context_free(mcontext);
+	if (jit_stack)
+		pcre2_jit_stack_free(jit_stack);
+#endif
+#endif
 	free_http_request(req);
 	FREE_PTR(http_get_chk->virtualhost);
 	FREE_PTR(http_get_chk);
@@ -254,9 +291,9 @@ http_get_check_compare(void *a, void *b)
 			return false;
 #ifdef _WITH_REGEX_CHECK_
 		if (!u1->regex != !u2->regex ||
-		    (u1->regex && strcmp((char *)u1->regex, (char *)u2->regex)))
+		    (u1->regex && strcmp((char *)u1->regex->pattern, (char *)u2->regex->pattern)))
 			return false;
-		if (u1->pcre2_options != u2->pcre2_options)
+		if (u1->regex->pcre2_options != u2->regex->pcre2_options)
 			return false;
 		if (u1->regex_no_match != u2->regex_no_match)
 			return false;
@@ -266,6 +303,7 @@ http_get_check_compare(void *a, void *b)
 	return true;
 }
 
+/* Configuration stream handling */
 static void
 http_get_handler(vector_t *strvec)
 {
@@ -321,6 +359,10 @@ url_handler(__attribute__((unused)) vector_t *strvec)
 	new = (url_t *) MALLOC(sizeof (url_t));
 
 	list_add(http_get_chk->url, new);
+
+#ifdef _WITH_REGEX_CHECK_
+	conf_regex_options = 0;
+#endif
 }
 
 static void
@@ -390,8 +432,6 @@ url_virtualhost_handler(vector_t *strvec)
 static void
 regex_handler(__attribute__((unused)) vector_t *strvec)
 {
-	http_checker_t *http_get_chk = CHECKER_GET();
-	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
 	vector_t* strvec_qe = alloc_strvec_quoted_escaped(NULL);
 
 	if (vector_size(strvec_qe) != 2) {
@@ -400,7 +440,7 @@ regex_handler(__attribute__((unused)) vector_t *strvec)
 		return;
 	}
 
-	url->regex = CHECKER_VALUE_STRING(strvec_qe);
+	conf_regex_pattern = CHECKER_VALUE_STRING(strvec_qe);
 	free_strvec(strvec_qe);
 }
 
@@ -416,8 +456,6 @@ regex_no_match_handler(__attribute__((unused)) vector_t *strvec)
 static void
 regex_options_handler(vector_t *strvec)
 {
-	http_checker_t *http_get_chk = CHECKER_GET();
-	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
 	unsigned i, j;
 	char *str;
 
@@ -426,12 +464,51 @@ regex_options_handler(vector_t *strvec)
 
 		for (j = 0; regex_options[j].option; j++) {
 			if (!strcmp(str, regex_options[j].option)) {
-				url->pcre2_options |= regex_options[j].option_bit;
+				conf_regex_options |= regex_options[j].option_bit;
 				break;
 			}
 		}
 	}
 }
+
+#ifndef PCRE2_DONT_USE_JIT
+static void
+regex_stack_handler(vector_t *strvec)
+{
+	http_checker_t *http_get_chk = CHECKER_GET();
+	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
+	unsigned long stack_start, stack_max;
+	char *endptr;
+
+	if (vector_size(strvec) != 3) {
+		log_message(LOG_INFO, "regex_stack requires start and max values");
+		return;
+	}
+
+	stack_start = strtoul(vector_slot(strvec, 1), &endptr, 10);
+	if (*endptr) {
+		log_message(LOG_INFO, "regex_stack invalid start value");
+		return;
+	}
+
+	stack_max = strtoul(vector_slot(strvec, 2), &endptr, 10);
+	if (*endptr) {
+		log_message(LOG_INFO, "regex_stack invalid max value");
+		return;
+	}
+
+	if (stack_start > stack_max) {
+		log_message(LOG_INFO, "regex stack start cannot exceed max value");
+		return;
+	}
+
+	if (stack_start > jit_stack_start)
+		jit_stack_start = stack_start;
+	if (stack_max > jit_stack_max)
+		jit_stack_max = stack_max;
+	url->regex_use_stack = true;
+}
+#endif
 
 static void
 prepare_regex(url_t *url)
@@ -439,34 +516,58 @@ prepare_regex(url_t *url)
 	int pcreErrorNumber;
 	PCRE2_SIZE pcreErrorOffset;
 	PCRE2_UCHAR buffer[256];
+	regex_t *r;
+	element e;
 
-	url->pcre2_reCompiled = pcre2_compile(url->regex, PCRE2_ZERO_TERMINATED, url->pcre2_options, &pcreErrorNumber, &pcreErrorOffset, NULL);
+	if (!LIST_EXISTS(regexs))
+		regexs = alloc_list(free_regex, NULL);
 
-	// pcre_compile returns NULL on error, and sets pcreErrorOffset & pcreErrorStr
-	if(url->pcre2_reCompiled == NULL) {
+	/* See if this regex has already been specified */
+	LIST_FOREACH(regexs, r, e) {
+		if (r->pcre2_options == conf_regex_options &&
+		    !strcmp((char *)r->pattern, (char *)conf_regex_pattern)) {
+			url->regex = r;
+			FREE_PTR(conf_regex_pattern);
+
+			url->regex->use_count++;
+
+			return;
+		}
+	}
+
+	/* This is a new regex */
+	url->regex = MALLOC(sizeof *r);
+	url->regex->pattern = conf_regex_pattern;
+	url->regex->pcre2_options = conf_regex_options;
+	conf_regex_pattern = NULL;
+	url->regex->use_count = 1;
+
+	url->regex->pcre2_reCompiled = pcre2_compile(url->regex->pattern, PCRE2_ZERO_TERMINATED, url->regex->pcre2_options, &pcreErrorNumber, &pcreErrorOffset, NULL);
+
+	/* pcre_compile returns NULL on error, and sets pcreErrorOffset & pcreErrorStr */
+	if(url->regex->pcre2_reCompiled == NULL) {
 		pcre2_get_error_message(pcreErrorNumber, buffer, sizeof buffer);
-		log_message(LOG_INFO, "Invalid regex: '%s' at offset %zu: %s\n", url->regex, pcreErrorOffset, (char *)buffer);
+		log_message(LOG_INFO, "Invalid regex: '%s' at offset %zu: %s\n", url->regex->pattern, pcreErrorOffset, (char *)buffer);
 
+		FREE_PTR(url->regex->pattern);
 		FREE_PTR(url->regex);
 
 		return;
 	}
 
-	url->pcre2_match_data = pcre2_match_data_create_from_pattern(url->pcre2_reCompiled, NULL);
-	pcre2_pattern_info(url->pcre2_reCompiled, PCRE2_INFO_MAXLOOKBEHIND, &url->pcre2_max_lookbehind);
+	url->regex->pcre2_match_data = pcre2_match_data_create_from_pattern(url->regex->pcre2_reCompiled, NULL);
+	pcre2_pattern_info(url->regex->pcre2_reCompiled, PCRE2_INFO_MAXLOOKBEHIND, &url->regex->pcre2_max_lookbehind);
 
 #ifndef PCRE2_DONT_USE_JIT
-	if ((pcreErrorNumber = pcre2_jit_compile(url->pcre2_reCompiled, PCRE2_JIT_PARTIAL_HARD /* | PCRE2_JIT_COMPLETE */))) {
+	if ((pcreErrorNumber = pcre2_jit_compile(url->regex->pcre2_reCompiled, PCRE2_JIT_PARTIAL_HARD /* | PCRE2_JIT_COMPLETE */))) {
 		pcre2_get_error_message(pcreErrorNumber, buffer, sizeof buffer);
-		log_message(LOG_INFO, "Regex JIT compilation failed: '%s': %s\n", url->regex, (char *)buffer);
+		log_message(LOG_INFO, "Regex JIT compilation failed: '%s': %s\n", url->regex->pattern, (char *)buffer);
 
 		return;
 	}
-
-	url->pcre2_mcontext = pcre2_match_context_create(NULL);
-	url->pcre2_jit_stack = pcre2_jit_stack_create(32 * 1024, 512 * 1024, NULL);
-	pcre2_jit_stack_assign(url->pcre2_mcontext, NULL, url->pcre2_jit_stack);
 #endif
+
+	list_add(regexs, url->regex);
 }
 #endif
 
@@ -499,11 +600,26 @@ url_check(void)
 		free_list_element(http_get_chk->url, http_get_chk->url->tail);
 		return;
 	}
+
 #ifdef _WITH_REGEX_CHECK_
-	if (url->regex)
+	if (conf_regex_pattern)
 		prepare_regex(url);
+	else if (conf_regex_options
+		 || url->regex_no_match
+#ifndef PCRE2_DONT_USE_JIT
+		 || url->regex_use_stack
+#endif
+					 ) {
+		log_message(LOG_INFO, "regex parameters specified without regex");
+		conf_regex_options = 0;
+		url->regex_no_match = false;
+#ifndef PCRE2_DONT_USE_JIT
+		url->regex_use_stack = false;
+#endif
+	}
 #endif
 }
+
 static void
 install_http_ssl_check_keyword(const char *keyword)
 {
@@ -525,6 +641,9 @@ install_http_ssl_check_keyword(const char *keyword)
 	install_keyword("regex", &regex_handler);
 	install_keyword("regex_no_match", &regex_no_match_handler);
 	install_keyword("regex_options", &regex_options_handler);
+#ifndef PCRE2_DONT_USE_JIT
+	install_keyword("regex_stack", &regex_stack_handler);
+#endif
 #endif
 	install_sublevel_end_handler(url_check);
 	install_sublevel_end();
@@ -706,33 +825,39 @@ check_regex(url_t *url, request_t *req)
 		return false;
 
 #ifndef PCRE2_DONT_USE_JIT
+	if (url->regex_use_stack && !mcontext) {
+		mcontext = pcre2_match_context_create(NULL);
+		jit_stack = pcre2_jit_stack_create(jit_stack_start, jit_stack_max, NULL);
+		pcre2_jit_stack_assign(mcontext, NULL, jit_stack);
+	}
+
 	pcreExecRet = pcre2_jit_match
 #else
 	pcreExecRet = pcre2_match
 #endif
-				(url->pcre2_reCompiled,
+				(url->regex->pcre2_reCompiled,
 				 (unsigned char *)req->buffer,
 				 req->len,		// length of string
 				 req->start_offset,	// Start looking at this point
 				 PCRE2_PARTIAL_HARD,	// OPTIONS
-				 url->pcre2_match_data,
+				 url->regex->pcre2_match_data,
 #ifndef PCRE2_DONT_USE_JIT
-				 url->pcre2_mcontext
+				 url->regex_use_stack ? mcontext : NULL
 #else
 				 NULL
 #endif
 				);			// context
 
 	if (pcreExecRet == PCRE2_ERROR_PARTIAL) {
-		ovector = pcre2_get_ovector_pointer(url->pcre2_match_data);
+		ovector = pcre2_get_ovector_pointer(url->regex->pcre2_match_data);
 #ifdef _REGEX_DEBUG_
-		log_message(LOG_INFO, "Partial returned, ovector %ld, max_lookbehind %u", ovector[0], url->pcre2_max_lookbehind);
+		log_message(LOG_INFO, "Partial returned, ovector %ld, max_lookbehind %u", ovector[0], url->regex->pcre2_max_lookbehind);
 #endif
-		if ((keep = ovector[0] - url->pcre2_max_lookbehind) <= 0)
+		if ((keep = ovector[0] - url->regex->pcre2_max_lookbehind) <= 0)
 			keep = 0;
 
 		if (keep) {
-			req->start_offset = url->pcre2_max_lookbehind;
+			req->start_offset = url->regex->pcre2_max_lookbehind;
 			req->len -= keep;
 			memmove(req->buffer, req->buffer + keep, req->len);
 		} else if (req->len == MAX_BUFFER_LENGTH) {
@@ -779,7 +904,8 @@ check_regex(url_t *url, request_t *req)
 
 #ifdef _REGEX_DEBUG_
 	log_message(LOG_INFO, "Result: We have a match!");
-	ovector = pcre2_get_ovector_pointer(url->pcre2_match_data);
+	ovector = pcre2_get_ovector_pointer(url->regex->pcre2_match_data);
+log_message(LOG_INFO, "Offset isn't correct - needs to be counted from before first partial" );
 	log_message(LOG_INFO, "Match succeeded at offset %zu", ovector[0]);
 
 	if(pcreExecRet == 0)

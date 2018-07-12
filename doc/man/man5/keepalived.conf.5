@@ -1355,6 +1355,11 @@ A virtual_server can be a declaration of one of
                  #   no_start_optimize ucp ungreedy utf never_backslash_c
                  #   alt_circumflex alt_verbnames use_offset_limit
                  regex_options OPTIONS
+                 # For complicated regular expressions a larger stack
+                 #   may be needed, and this allows the start and maximum
+                 #   sizes in bytes to be specified. For more details see
+                 #   the documentation for pcre2_jit_stack_create()
+                 regex_stack START MAX
                }
            }
 

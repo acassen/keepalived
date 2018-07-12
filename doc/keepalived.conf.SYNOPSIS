@@ -1192,6 +1192,10 @@ virtual_server group <STRING>      {          # VS group declaration
                                               #   no_auto_capture no_auto_possess no_dotstar_anchor
                                               #   no_start_optimize ucp ungreedy utf never_backslash_c
                                               #   alt_circumflex alt_verbnames use_offset_limit
+              regex_stack START MAX           # For complicated regular expressions a larger stack
+                                              #   may be needed, and this allows the start and maximum
+                                              #   sizes in bytes to be specified. For more details see
+                                              #   the documentation for pcre2_jit_stack_create()
             }
             ...
 

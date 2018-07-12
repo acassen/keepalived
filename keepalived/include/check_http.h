@@ -57,6 +57,17 @@ typedef struct _request {
 #endif
 } request_t;
 
+#ifdef _WITH_REGEX_CHECK_
+typedef struct _regex {
+	unsigned char			*pattern;
+	int				pcre2_options;
+	pcre2_code			*pcre2_reCompiled;
+	pcre2_match_data		*pcre2_match_data;
+	uint32_t			pcre2_max_lookbehind;
+	unsigned			use_count;
+} regex_t;
+#endif
+
 typedef struct _url {
 	char				*path;
 	uint8_t				*digest;
@@ -64,16 +75,11 @@ typedef struct _url {
 	char				*virtualhost;
 	ssize_t				len_mismatch;
 #ifdef _WITH_REGEX_CHECK_
-	unsigned char			*regex;
 	bool				regex_no_match;
-	int				pcre2_options;
-	pcre2_code			*pcre2_reCompiled;
 #ifndef PCRE2_DONT_USE_JIT
-	pcre2_match_context		*pcre2_mcontext;
-	pcre2_jit_stack			*pcre2_jit_stack;
+	bool				regex_use_stack;
 #endif
-	pcre2_match_data		*pcre2_match_data;
-	uint32_t			pcre2_max_lookbehind;
+	regex_t				*regex;
 #endif
 } url_t;
 
