@@ -830,7 +830,9 @@ check_regex(url_t *url, request_t *req)
 		jit_stack = pcre2_jit_stack_create(jit_stack_start, jit_stack_max, NULL);
 		pcre2_jit_stack_assign(mcontext, NULL, jit_stack);
 	}
+#endif
 
+#ifndef PCRE2_DONT_USE_JIT
 	pcreExecRet = pcre2_jit_match
 #else
 	pcreExecRet = pcre2_match
@@ -848,6 +850,8 @@ check_regex(url_t *url, request_t *req)
 #endif
 				);			// context
 
+	req->start_offset = 0;
+
 	if (pcreExecRet == PCRE2_ERROR_PARTIAL) {
 		ovector = pcre2_get_ovector_pointer(url->regex->pcre2_match_data);
 #ifdef _REGEX_DEBUG_
@@ -860,7 +864,9 @@ check_regex(url_t *url, request_t *req)
 			req->start_offset = url->regex->pcre2_max_lookbehind;
 			req->len -= keep;
 			memmove(req->buffer, req->buffer + keep, req->len);
+			req->regex_subject_offset += keep;
 		} else if (req->len == MAX_BUFFER_LENGTH) {
+			req->regex_subject_offset += req->len;
 			log_message(LOG_INFO, "Regex partial match preserve too large - discarding");
 			return false;
 		}
@@ -868,10 +874,10 @@ check_regex(url_t *url, request_t *req)
 		return true;
 	}
 
-	req->start_offset = 0;
-
 	/* Report what happened in the pcre2_match call. */
 	if(pcreExecRet < 0) {
+		req->regex_subject_offset += req->len;
+
 		switch(pcreExecRet)
 		{
 		case PCRE2_ERROR_NOMATCH:
@@ -903,13 +909,12 @@ check_regex(url_t *url, request_t *req)
 	req->regex_matched = true;
 
 #ifdef _REGEX_DEBUG_
-	log_message(LOG_INFO, "Result: We have a match!");
 	ovector = pcre2_get_ovector_pointer(url->regex->pcre2_match_data);
-log_message(LOG_INFO, "Offset isn't correct - needs to be counted from before first partial" );
-	log_message(LOG_INFO, "Match succeeded at offset %zu", ovector[0]);
 
 	if(pcreExecRet == 0)
 		log_message(LOG_INFO, "Too many substrings found");
+	else
+		log_message(LOG_INFO, "Result: We have a match at offset %zu - \"%.*s\"", req->regex_subject_offset + ovector[0], (int)(ovector[1] - ovector[0]), req->buffer + ovector[0]);
 #endif
 
 	return false;
@@ -1138,6 +1143,7 @@ http_response_thread(thread_t * thread)
 	req->error = 0;
 #ifdef _WITH_REGEX_CHECK_
 	req->regex_matched = false;
+	req->regex_subject_offset = 0;
 #endif
 	if (url->digest)
 		MD5_Init(&req->context);

@@ -54,6 +54,7 @@ typedef struct _request {
 #ifdef _WITH_REGEX_CHECK_
 	bool				regex_matched;
 	size_t				start_offset;
+	size_t				regex_subject_offset;
 #endif
 } request_t;
 
@@ -76,10 +77,10 @@ typedef struct _url {
 	ssize_t				len_mismatch;
 #ifdef _WITH_REGEX_CHECK_
 	bool				regex_no_match;
+	regex_t				*regex;
 #ifndef PCRE2_DONT_USE_JIT
 	bool				regex_use_stack;
 #endif
-	regex_t				*regex;
 #endif
 } url_t;
 
