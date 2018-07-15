@@ -302,6 +302,9 @@ http_get_check_compare(void *a, void *b)
 			return false;
 		if (u1->regex_no_match != u2->regex_no_match)
 			return false;
+		if (u1->regex_min_offset != u2->regex_min_offset ||
+		    u1->regex_max_offset != u2->regex_max_offset)
+			return false;
 #endif
 	}
 
