@@ -890,9 +890,9 @@ check_regex(url_t *url, request_t *req)
 	size_t start_offset = 0;
 
 #ifdef _REGEX_DEBUG_
-	log_message(LOG_INFO, "matched %d, min_offset %lu max_offset %lu, subject_offset %lu req->len %lu lookbehind %u start_offset %lu",
+	log_message(LOG_INFO, "matched %d, min_offset %lu max_offset %lu, subject_offset %lu req->len %lu lookbehind %u start_offset %lu, num_match_calls %u",
 			req->regex_matched, url->regex_min_offset, url->regex_max_offset, req->regex_subject_offset,
-			req->len, url->regex->pcre2_max_lookbehind, req->start_offset);
+			req->len, url->regex->pcre2_max_lookbehind, req->start_offset, req->num_match_calls);
 #endif
 
 	/* If we have already matched the regex, there is no point in checking
