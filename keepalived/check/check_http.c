@@ -130,8 +130,26 @@ free_url(void *data)
 	FREE_PTR(url->virtualhost);
 #ifdef _WITH_REGEX_CHECK_
 	if (url->regex) {
-		if (!--url->regex->use_count)
+		if (!--url->regex->use_count) {
 			free_list_data(regexs, url->regex);
+
+			if (LIST_ISEMPTY(regexs)) {
+				/* This is the last regex to be freed, so free up one-off resources */
+				free_list(&regexs);
+
+#ifndef PCRE2_DONT_USE_JIT
+				if (mcontext) {
+					pcre2_match_context_free(mcontext);
+					mcontext = NULL;
+				}
+				if (jit_stack) {
+					pcre2_jit_stack_free(jit_stack);
+					jit_stack = NULL;
+				}
+#endif
+
+			}
+		}
 	}
 #endif
 	FREE(url);
@@ -217,15 +235,6 @@ free_http_get_check(void *data)
 	request_t *req = http_get_chk->req;
 
 	free_list(&http_get_chk->url);
-#ifdef _WITH_REGEX_CHECK_
-	free_list(&regexs);
-#ifndef PCRE2_DONT_USE_JIT
-	if (mcontext)
-		pcre2_match_context_free(mcontext);
-	if (jit_stack)
-		pcre2_jit_stack_free(jit_stack);
-#endif
-#endif
 	free_http_request(req);
 	FREE_PTR(http_get_chk->virtualhost);
 	FREE_PTR(http_get_chk);
