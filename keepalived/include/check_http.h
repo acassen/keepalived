@@ -32,6 +32,9 @@
 #ifdef _WITH_REGEX_CHECK_
 #define PCRE2_CODE_UNIT_WIDTH 8
 #include <pcre2.h>
+#ifdef _WITH_REGEX_TIMERS_
+#include <time.h>
+#endif
 #endif
 
 /* local includes */
@@ -55,6 +58,10 @@ typedef struct _request {
 	bool				regex_matched;
 	size_t				start_offset;	/* Offset into buffer to match from */
 	size_t				regex_subject_offset;	/* Offset into web page of start of buffer */
+#ifdef _WITH_REGEX_TIMERS_
+	struct timespec			req_time;
+	unsigned			num_match_calls;
+#endif
 #endif
 } request_t;
 
@@ -66,6 +73,11 @@ typedef struct _regex {
 	pcre2_match_data		*pcre2_match_data;
 	uint32_t			pcre2_max_lookbehind;
 	unsigned			use_count;
+#ifdef _WITH_REGEX_TIMERS_
+	struct timespec			regex_time;
+	unsigned			num_match_calls;
+	unsigned			num_regex_urls;
+#endif
 } regex_t;
 #endif
 

@@ -102,6 +102,12 @@ static pcre2_jit_stack *jit_stack;
 #endif
 
 static list regexs;	/* list of regex_t */
+
+#ifdef _WITH_REGEX_TIMERS_
+struct timespec total_regex_times;
+unsigned total_num_matches;
+unsigned total_regex_urls;
+#endif
 #endif
 
 static int http_connect_thread(thread_t *);
@@ -116,6 +122,18 @@ free_regex(void *data)
 	FREE_PTR(regex->pattern);
 	pcre2_code_free(regex->pcre2_reCompiled);
 	pcre2_match_data_free(regex->pcre2_match_data);
+
+#ifdef _WITH_REGEX_TIMERS_
+	total_regex_times.tv_sec += regex->regex_time.tv_sec;
+	total_regex_times.tv_nsec += regex->regex_time.tv_nsec;
+	if (total_regex_times.tv_nsec >= 1000000000L) {
+		total_regex_times.tv_sec += total_regex_times.tv_nsec / 1000000000L;
+		total_regex_times.tv_nsec %= 1000000000L;
+	}
+	total_num_matches += regex->num_match_calls;
+	total_regex_urls += regex->num_regex_urls;
+#endif
+
 	FREE(regex);
 }
 #endif
@@ -148,6 +166,9 @@ free_url(void *data)
 				}
 #endif
 
+#ifdef _WITH_REGEX_TIMERS_
+				log_message(LOG_INFO, "Total regex time %ld.%9.9ld, num match calls %u, num url checks %u", total_regex_times.tv_sec, total_regex_times.tv_nsec, total_num_matches, total_regex_urls);
+#endif
 			}
 		}
 	}
@@ -930,6 +951,11 @@ check_regex(url_t *url, request_t *req)
 	if (req->start_offset > start_offset)
 		start_offset = req->start_offset;
 
+#ifdef _WITH_REGEX_TIMERS_
+	struct timespec time_before, time_after;
+	clock_gettime(CLOCK_MONOTONIC_RAW, &time_before);
+#endif
+
 #ifndef PCRE2_DONT_USE_JIT
 	pcreExecRet = pcre2_jit_match
 #else
@@ -948,6 +974,16 @@ check_regex(url_t *url, request_t *req)
 #endif
 				);			// context
 
+#ifdef _WITH_REGEX_TIMERS_
+	clock_gettime(CLOCK_MONOTONIC_RAW, &time_after);
+	req->req_time.tv_sec += time_after.tv_sec - time_before.tv_sec;
+	req->req_time.tv_nsec += time_after.tv_nsec - time_before.tv_nsec;
+	if (req->req_time.tv_nsec >= 1000000000L) {
+		req->req_time.tv_sec += req->req_time.tv_nsec / 1000000000L;
+		req->req_time.tv_nsec %= 1000000000L;
+	}
+	req->num_match_calls++;
+#endif
 	req->start_offset = 0;
 
 	if (pcreExecRet == PCRE2_ERROR_PARTIAL) {
@@ -1086,6 +1122,17 @@ http_handle_response(thread_t * thread, unsigned char digest[MD5_DIGEST_LENGTH]
 #ifdef _WITH_REGEX_CHECK_
 	/* Did a regex match? */
 	if (url->regex) {
+#ifdef _WITH_REGEX_TIMERS_
+		url->regex->regex_time.tv_sec += req->req_time.tv_sec;
+		url->regex->regex_time.tv_nsec += req->req_time.tv_nsec;
+		if (url->regex->regex_time.tv_nsec >= 1000000000L) {
+			url->regex->regex_time.tv_sec += url->regex->regex_time.tv_nsec / 1000000000L;
+			url->regex->regex_time.tv_nsec %= 1000000000L;
+		}
+		url->regex->num_match_calls += req->num_match_calls;
+		url->regex->num_regex_urls++;
+#endif
+
 		if (req->regex_matched == url->regex_no_match)
 			return timeout_epilog(thread, "Regex match failed");
 		last_success = ON_REGEX;
@@ -1250,6 +1297,9 @@ http_response_thread(thread_t * thread)
 #ifdef _WITH_REGEX_CHECK_
 	req->regex_matched = false;
 	req->regex_subject_offset = 0;
+#ifdef _WITH_REGEX_TIMERS_
+	req->num_match_calls = 0;
+#endif
 #endif
 	if (url->digest)
 		MD5_Init(&req->context);

@@ -168,6 +168,8 @@ AC_ARG_ENABLE(sha1,
   [AS_HELP_STRING([--enable-sha1], [compile with SHA1 support])])
 AC_ARG_ENABLE(regex,
   [AS_HELP_STRING([--enable-regex], [build with HTTP_GET regex checking])])
+AC_ARG_ENABLE(regex-timers,
+  [AS_HELP_STRING([--enable-regex-timers], [build with HTTP_GET regex timers])])
 AC_ARG_ENABLE(json,
   [AS_HELP_STRING([--enable-json], [compile with signal to dump configuration and stats as json])])
 AC_ARG_WITH(init,
@@ -1204,6 +1206,12 @@ if test "$enable_lvs" != no; then
           AC_MSG_RESULT([no])
 	  AC_MSG_ERROR([pcre2.h is missing])
         ])
+      if test $enable_regex_timers = yes; then
+	if test $WITH_REGEX != Yes; then
+	  AC_MSG_ERROR([Cannot have regex timers support without regex support])
+	fi
+	AC_DEFINE([_WITH_REGEX_TIMERS_], [ 1 ], [Define to 1 to include regex timers])
+      fi
     ])
 else
   IPVS_SUPPORT=No
