@@ -412,7 +412,7 @@ vrrp_timer_timeout(const int fd)
 }
 #endif
 
-/* We shouldn't receive anything on the send socket since IP_MULTICAST_ALL is cleared,
+/* We shouldn't receive anything on an IPv4 send socket since IP_MULTICAST_ALL is cleared,
  * and no multicast groups are subscribed to on the socket. However, Debian Jessie
  * with a 3.16.0 kernel, CentOS 7 with a 3.10.0 kernel, and Fedora 16 with a
  * 3.6.11 kernel all exhibit the problem of multicast packets being queued on the
@@ -421,6 +421,9 @@ vrrp_timer_timeout(const int fd)
  *
  * The workaround to the problem is to read on the send sockets, and to discard any
  * received data.
+ *
+ * For IPv6 sockets, we haven't found a way to stop packets being received on the send
+ * socket.
  *
  * If anyone can provide more information about this issue it would be very helpful.
  */
@@ -442,10 +445,8 @@ vrrp_write_fd_read_thread(thread_t *thread)
 		len = recvfrom(sock->fd_out, vrrp_buffer, vrrp_buffer_len, MSG_DONTWAIT, (struct sockaddr *)&src_addr, &src_addr_len);
 		if (len == -1)
 			log_message(LOG_INFO, "Read on vrrp send socket %d failed - errno %d (%m)", sock->fd_out, errno);
-		else if (!problem_reported) {
-			log_message(LOG_INFO, "Kernel/system configuration issue causing multicast packets to be received but IP_MULTICAST_ALL unset");
-			problem_reported = true;
-		}
+		else if (!problem_reported && sock->family == AF_INET)
+			log_message(LOG_INFO, "Kernel/system configuration issue causing multicast IPv4 packets to be received on send socket but IP_MULTICAST_ALL unset");
 	}
 
 	if (sock->fd_out != -1)

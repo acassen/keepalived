@@ -1,9 +1,34 @@
 Whatever you want !
 
+Parser
+1.
+$RSs= #\
+$SN=0 \
+$RS \
+$SN=1 \
+$RS
+caused main process to loop 100%
+
+$RSs= \
+$SN=0 \
+$RS \
+$SN=1 \
+$RS
+means $SN=0 reported as unknown keyword
+
+$RSs= \
+ # does this help \
+$SN=0 \
+$RS \
+$SN=1 \
+$RS
+works OK
+
 IPVS
 1. Can we have an IPv4 fwmark and specify tunnel to IPv6, and vice versa etc.
    What does ipvsadm do?
 2. Sort out IP_VS_SO vs LVS_CMD...
+3. Make sure log/email messages contain relevant info re VS -> RS. See FMT_CHK
 
 The following are still outstanding from the ideas for what was the beta
 development:

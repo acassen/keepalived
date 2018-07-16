@@ -65,7 +65,16 @@ static void
 dump_checker(FILE *fp, void *data)
 {
 	checker_t *checker = data;
-	conf_write(fp, " %s", FMT_CHK(checker));
+	char *vs_ret;
+	char *vs_sav;
+
+	vs_ret = FMT_VS(checker->vs);
+	vs_sav = MALLOC(strlen(vs_ret) + 1);
+	strcpy(vs_sav, vs_ret);
+
+	conf_write(fp, " %s -> %s", vs_sav, FMT_CHK(checker));
+	FREE(vs_sav);
+
 	(*checker->dump_func) (fp, checker);
 }
 
