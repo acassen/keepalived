@@ -150,12 +150,12 @@ net.core.rmem_max = 37748736
    physical interface is downed, lots of netlink messages are
    received, and we get an ENOBUFS. However, after that we then
    see a repeat of some of the earlier messages, so it looks like
-   a circular buffer corruption. Running ip -ts monitor link addr route	
+   a circular buffer corruption. Running ip -ts monitor link addr route
    we see precisely the same problem at exactly the same message,
    although which message it is varies each time.
 
 3. net-snmp. Display-hint only works on indices.
-   See issue #866. 
+   See issue #866.
    # snmpwalk -v2c -c public localhost KEEPALIVED-MIB::virtualServerAddress
    KEEPALIVED-MIB::virtualServerAddress.1 = STRING: "
 0,"
