@@ -1018,13 +1018,7 @@ vrrp_rx_bufs_policy_handler(vector_t *strvec)
 			global_data->vrrp_rx_bufs_policy |= RX_BUFS_POLICY_MTU;
 		else if (!strcasecmp(strvec_slot(strvec, i), "ADVERT"))
 			global_data->vrrp_rx_bufs_policy |= RX_BUFS_POLICY_ADVERT;
-		else if (!strcasecmp(strvec_slot(strvec, i), "NO_SEND_RX")) {
-#if HAVE_DECL_IP_MULTICAST_ALL
-			global_data->vrrp_rx_bufs_policy |= RX_BUFS_NO_SEND_RX;
-#else
-			log_message(LOG_INFO, "Kernel doesn't support multicast filtering - cannot use NO_SEND_RX");
-#endif
-		} else {
+		else {
 			rx_buf_size = strtoul(strvec_slot(strvec, i), &endptr, 10);
 			if (!*endptr) {
 				global_data->vrrp_rx_bufs_size = rx_buf_size;
