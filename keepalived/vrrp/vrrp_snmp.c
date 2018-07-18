@@ -1207,16 +1207,16 @@ static u_char*
 vrrp_snmp_encap(struct variable *vp, oid *name, size_t *length,
 		 int exact, size_t *var_len, WriteMethod **write_method)
 {
-#if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
-	static char labels[11*MAX_MPLS_LABELS];
-#endif
-	char *op;
 	ip_route_t *route;
 	nexthop_t *nh;
 	encap_t *encap;
 	int state = HEADER_STATE_STATIC_ROUTE;
-	unsigned i;
 	static struct counter64 c64;
+#if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
+	static char labels[11*MAX_MPLS_LABELS];
+	char *op;
+	unsigned i;
+#endif
 
 	if (vp->name[vp->namelen - 3] == 7) {
 		if ((route = (ip_route_t *)vrrp_header_ar_table(vp, name, length, exact,
