@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201806040000Z"
+     LAST-UPDATED "201807180000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201807180000Z"
+     DESCRIPTION "add script master rx lower priority"
      REVISION "201806040000Z"
      DESCRIPTION "add ip rule protocol, ip_proto, src and dst port ranges"
      REVISION "201805170000Z"
@@ -735,7 +737,8 @@ VrrpInstanceEntry ::= SEQUENCE {
     vrrpInstanceAccept INTEGER,
     vrrpInstancePromoteSecondaries INTEGER,
     vrrpInstanceUseLinkbeat INTEGER,
-    vrrpInstanceVrrpVersion INTEGER
+    vrrpInstanceVrrpVersion INTEGER,
+    vrrpInstanceScriptMstrRxLowerPri DisplayString
 }
 
 vrrpInstanceIndex OBJECT-TYPE
@@ -994,6 +997,14 @@ vrrpInstanceVrrpVersion OBJECT-TYPE
     DESCRIPTION
         "VRRP protocol version."
     ::= { vrrpInstanceEntry 30 }
+
+vrrpInstanceScriptMstrRxLowerPri OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Script to execute when master instance receives lower priority advert."
+    ::= { vrrpInstanceEntry 31 }
 
 vrrpTrackedInterfaceTable OBJECT-TYPE
     SYNTAX SEQUENCE OF VrrpTrackedInterfaceEntry
@@ -4108,6 +4119,7 @@ vrrpInstanceGroup OBJECT-GROUP
     vrrpInstancePromoteSecondaries,
     vrrpInstanceUseLinkbeat,
     vrrpInstanceVrrpVersion,
+    vrrpInstanceScriptMstrRxLowerPri,
     vrrpTrackedInterfaceName,
     vrrpTrackedInterfaceWeight,
     vrrpTrackedScriptName,

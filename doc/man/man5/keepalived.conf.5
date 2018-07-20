@@ -757,14 +757,22 @@ bfd_instance <STRING> {
 
             # for ANY state transition.
             # "notify" script is called AFTER the notify_* script(s) and
-            # is executed # with 4 additional arguments after the configured
+            # is executed with 4 additional arguments after the configured
             # arguments provided by Keepalived:
             # $(n-3) = "GROUP"|"INSTANCE"
             # $(n-2) = name of the group or instance
             # $(n-1) = target state of transition (stop only applies to instances)
             #     ("MASTER"|"BACKUP"|"FAULT"|"STOP")
             # $(n)   = priority value
-            notify /path/notify.sh [username [groupname]]
+            notify <STRING>|<QUOTED-STRING> [username [groupname]]
+
+            # The notify fifo output is the same as the last 4 parameters for the "notify"
+            # script, with the addition of "MASTER_RX_LOWER_PRI" instead of state for an
+            # instance. This is used if a master needs to set some external state, such as
+            # setting a secondary IP address when using Amazon AWS; if another keepalived
+            # has transitioned to master due to a communications break, the lower priority
+            # instance will have taken over the secondary IP address, and the proper master
+            # needs to be able to restore it.
 
             # Send email notification during state transition,
             # using addresses in global_defs above (default no,
@@ -1053,6 +1061,9 @@ bfd_instance <STRING> {
            notify_fault <STRING>|<QUOTED-STRING> [username [groupname]]
            notify_stop <STRING>|<QUOTED-STRING> [username [groupname]]      # executed when stopping vrrp
            notify <STRING>|<QUOTED-STRING> [username [groupname]]
+           # The notify_master_rx_lower_pri script is executed if a master
+           #  receives an advert with priority lower than the master's advert.
+           notify_master_rx_lower_pri <STRING>|<QUOTED-STRING> [username [groupname]]
            smtp_alert <BOOL>
            kernel_rx_buf_size                 # Set socket receive buffer size (see global_defs
                                               #   vrrp_rx_bufs_policy for explanation)

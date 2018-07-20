@@ -236,6 +236,9 @@ vrrp_print_json(void)
 		if (vrrp->script)
 			json_object_object_add(json_data, "script",
 				json_object_new_string(cmd_str(vrrp->script)));
+		if (vrrp->script_master_rx_lower_pri)
+			json_object_object_add(json_data, "script_master_rx_lower_pri",
+				json_object_new_string(cmd_str(vrrp->script_master_rx_lower_pri)));
 		json_object_object_add(json_data, "smtp_alert",
 			json_object_new_boolean(vrrp->smtp_alert));
 #ifdef _WITH_VRRP_AUTH_

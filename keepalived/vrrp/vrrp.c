@@ -251,6 +251,7 @@ check_vrrp_script_security(void)
 		script_flags |= check_notify_script_secure(&vrrp->script_fault, magic);
 		script_flags |= check_notify_script_secure(&vrrp->script_stop, magic);
 		script_flags |= check_notify_script_secure(&vrrp->script, magic);
+		script_flags |= check_notify_script_secure(&vrrp->script_master_rx_lower_pri, magic);
 
 		if (LIST_ISEMPTY(vrrp->track_script))
 			continue;
@@ -1917,6 +1918,17 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 				thread_add_timer(master, vrrp_lower_prio_gratuitous_arp_thread,
 						 vrrp, vrrp->garp_lower_prio_delay);
 		}
+
+		/* If a lower priority router has transitioned to master, there has presumably
+		 * been an intermittent communications break between the master and backup. It
+		 * appears that servers in an Amazon AWS environment can experience this.
+		 * The problem then occurs if a notify_master script is executed on the backup
+		 * that has just transitioned to master and the script executes something like
+		 * a `aws ec2 assign-private-ip-addresses` command, thereby removing the address
+		 * from the 'proper' master. Executing notify_master_rx_lower_pri notification
+		 * allows the 'proper' master to recover the secondary addresses. */
+		send_event_notify(vrrp, VRRP_EVENT_MASTER_RX_LOWER_PRI);
+
 		return false;
 	}
 
