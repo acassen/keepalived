@@ -759,7 +759,7 @@ vrrp_sync_group <STRING> {      # VRRP sync group declaration
     $(n-1) = The state it's transitioning to ("MASTER", "BACKUP", "FAULT" or "STOP")
     $(n)   = The priority value
 
-    $1 and $3 are ALWAYS sent in uppercase, and the possible strings sent are the
+    $(n-3) and $(n-1) are ALWAYS sent in uppercase, and the possible strings sent are the
     same ones listed above ("GROUP"/"INSTANCE", "MASTER"/"BACKUP"/"FAULT"/"STOP")
     (note: STOP is only applicable to instances)
 
@@ -771,6 +771,14 @@ Important: for a SYNC group to run reliably, it is vital that all instances in
            track scripts/files configured against member VRRP instances will have
            their tracking weights automatically set to zero, in order to avoid
            inconsistent priorities across instances.
+
+(2) The notify fifo output is the same as the last 4 parameters for the "notify"
+    script, with the addition of "MASTER_RX_LOWER_PRI" instead of state for an
+    instance. This is used if a master needs to set some external state, such as
+    setting a secondary IP address when using Amazon AWS; if another keepalived
+    has transitioned to master due to a communications break, the lower priority
+    instance will have taken over the secondary IP address, and the proper master
+    needs to be able to restore it.
 
     2.5. VRRP gratuitous ARP/NA intervals
 
@@ -950,6 +958,8 @@ vrrp_instance <STRING> {                      # VRRP instance declaration
                                               # Script to launch when stopping vrrp
     notify <STRING>|<QUOTED-STRING> [username [groupname]]
                                               # Same as vrrp_sync_group
+    notify_master_rx_lower_pri <STRING>|<QUOTED-STRING> [username [groupname]]
+                                              # Script to run if a master receives a lower priority advert
     smtp_alert <BOOL>                         # Same as vrrp_sync_group
                                               #   (default no, unless global smtp_alert/smtp_alert_vrrp set)
     kernel_rx_buf_size                        # Set socket receive buffer size (see global_defs

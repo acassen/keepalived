@@ -317,6 +317,7 @@ free_vrrp(void *data)
 	free_notify_script(&vrrp->script_fault);
 	free_notify_script(&vrrp->script_stop);
 	free_notify_script(&vrrp->script);
+	free_notify_script(&vrrp->script_master_rx_lower_pri);
 	FREE_PTR(vrrp->stats);
 
 	free_list(&vrrp->track_ifp);
@@ -500,6 +501,8 @@ dump_vrrp(FILE *fp, void *data)
 		dump_notify_script(fp, vrrp->script_stop, "Stop");
 	if (vrrp->script)
 		dump_notify_script(fp, vrrp->script, "Generic");
+	if (vrrp->script_master_rx_lower_pri)
+		dump_notify_script(fp, vrrp->script_master_rx_lower_pri, "Master rx lower pri");
 }
 
 void
