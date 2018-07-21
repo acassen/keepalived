@@ -269,16 +269,13 @@ free_sock(void *sock_data)
 	sock_t *sock = sock_data;
 
 	/* First of all cancel pending thread */
-	thread_cancel(sock->thread_in);
+	thread_cancel(sock->thread);
 
 	/* Close related socket */
 	if (sock->fd_in > 0)
 		close(sock->fd_in);
-	if (sock->fd_out > 0) {
-		if (sock->thread_out)
-			thread_cancel(sock->thread_out);
+	if (sock->fd_out > 0)
 		close(sock->fd_out);
-	}
 	FREE(sock_data);
 }
 
@@ -320,6 +317,7 @@ free_vrrp(void *data)
 	free_notify_script(&vrrp->script_fault);
 	free_notify_script(&vrrp->script_stop);
 	free_notify_script(&vrrp->script);
+	free_notify_script(&vrrp->script_master_rx_lower_pri);
 	FREE_PTR(vrrp->stats);
 
 	free_list(&vrrp->track_ifp);
@@ -503,6 +501,8 @@ dump_vrrp(FILE *fp, void *data)
 		dump_notify_script(fp, vrrp->script_stop, "Stop");
 	if (vrrp->script)
 		dump_notify_script(fp, vrrp->script, "Generic");
+	if (vrrp->script_master_rx_lower_pri)
+		dump_notify_script(fp, vrrp->script_master_rx_lower_pri, "Master rx lower pri");
 }
 
 void

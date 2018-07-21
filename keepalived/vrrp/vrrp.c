@@ -251,6 +251,7 @@ check_vrrp_script_security(void)
 		script_flags |= check_notify_script_secure(&vrrp->script_fault, magic);
 		script_flags |= check_notify_script_secure(&vrrp->script_stop, magic);
 		script_flags |= check_notify_script_secure(&vrrp->script, magic);
+		script_flags |= check_notify_script_secure(&vrrp->script_master_rx_lower_pri, magic);
 
 		if (LIST_ISEMPTY(vrrp->track_script))
 			continue;
@@ -1917,6 +1918,17 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 				thread_add_timer(master, vrrp_lower_prio_gratuitous_arp_thread,
 						 vrrp, vrrp->garp_lower_prio_delay);
 		}
+
+		/* If a lower priority router has transitioned to master, there has presumably
+		 * been an intermittent communications break between the master and backup. It
+		 * appears that servers in an Amazon AWS environment can experience this.
+		 * The problem then occurs if a notify_master script is executed on the backup
+		 * that has just transitioned to master and the script executes something like
+		 * a `aws ec2 assign-private-ip-addresses` command, thereby removing the address
+		 * from the 'proper' master. Executing notify_master_rx_lower_pri notification
+		 * allows the 'proper' master to recover the secondary addresses. */
+		send_event_notify(vrrp, VRRP_EVENT_MASTER_RX_LOWER_PRI);
+
 		return false;
 	}
 
@@ -2062,10 +2074,10 @@ chk_min_cfg(vrrp_t * vrrp)
 
 /* open a VRRP sending socket */
 int
-open_vrrp_send_socket(sa_family_t family, int proto, interface_t *ifp, bool unicast, int rx_buf_size)
+open_vrrp_send_socket(sa_family_t family, int proto, interface_t *ifp, bool unicast)
 {
 	int fd = -1;
-	int val = rx_buf_size;
+	int val = 0;
 	socklen_t len = sizeof(val);
 
 	if (family != AF_INET && family != AF_INET6) {
@@ -2084,19 +2096,20 @@ open_vrrp_send_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 	set_sock_flags(fd, F_SETFD, FD_CLOEXEC);
 #endif
 
-	if (rx_buf_size || (global_data->vrrp_rx_bufs_policy & RX_BUFS_NO_SEND_RX))
-	{
-		/* If we are not receiving on the send socket, there is no
-		 * point allocating any buffers to it */
-		if (global_data->vrrp_rx_bufs_policy & RX_BUFS_NO_SEND_RX)
-			val = 0;
-		if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &val, len))
-			log_message(LOG_INFO, "vrrp set send socket buffer size error %d", errno);
-	}
+	/* We are not receiving on the send socket, there is no
+	 * point allocating any buffers to it */
+	if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &val, len))
+		log_message(LOG_INFO, "vrrp set send socket buffer size error %d", errno);
 
 	if (family == AF_INET) {
 		/* Set v4 related */
+
+		/* It doesn't really matter if IP_MULTICAST_ALL is not supported
+		 * since we set a BPF filter to stop any packet being received
+		 * on the send socket */
+#if HAVE_DECL_IP_MULTICAST_ALL  /* Since Linux 2.6.31 */
 		if_setsockopt_mcast_all(family, &fd);
+#endif
 		if_setsockopt_hdrincl(&fd);
 		if (unicast)
 			if_setsockopt_bindtodevice(&fd, ifp);
@@ -2113,6 +2126,8 @@ open_vrrp_send_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 	}
 
 	if_setsockopt_priority(&fd, family);
+
+	if_setsockopt_no_receive(&fd);
 
 	if (fd < 0)
 		return -1;
@@ -2144,9 +2159,11 @@ open_vrrp_read_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 			log_message(LOG_INFO, "vrrp set receive socket buffer size error %d", errno);
 	}
 
+#if HAVE_DECL_IP_MULTICAST_ALL  /* Since Linux 2.6.31 */
 	/* Ensure no unwanted multicast packets are queued to this interface */
 	if (family == AF_INET)
 		if_setsockopt_mcast_all(family, &fd);
+#endif
 
 	if (!unicast) {
 		/* Join the VRRP multicast group */
@@ -2208,7 +2225,7 @@ new_vrrp_socket(vrrp_t * vrrp)
 #endif
 	unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
 	vrrp->fd_in = open_vrrp_read_socket(vrrp->family, proto, ifp, unicast, vrrp->sockets->rx_buf_size);
-	vrrp->fd_out = open_vrrp_send_socket(vrrp->family, proto, ifp, unicast, vrrp->sockets->rx_buf_size);
+	vrrp->fd_out = open_vrrp_send_socket(vrrp->family, proto, ifp, unicast);
 	alloc_vrrp_fd_bucket(vrrp);
 
 	/* Sync the other desc */

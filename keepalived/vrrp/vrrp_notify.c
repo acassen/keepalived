@@ -97,10 +97,21 @@ notify_fifo(const char *name, int state_num, bool group, uint8_t priority)
 		return;
 
 	switch (state_num) {
-		case VRRP_STATE_MAST  : state = "MASTER" ; break;
-		case VRRP_STATE_BACK  : state = "BACKUP" ; break;
-		case VRRP_STATE_FAULT : state = "FAULT" ; break;
-		case VRRP_STATE_STOP  : state = "STOP" ; break;
+	case VRRP_STATE_MAST:
+		state = "MASTER";
+		break;
+	case VRRP_STATE_BACK:
+		state = "BACKUP";
+		break;
+	case VRRP_STATE_FAULT:
+		state = "FAULT";
+		break;
+	case VRRP_STATE_STOP:
+		state = "STOP";
+		break;
+	case VRRP_EVENT_MASTER_RX_LOWER_PRI:
+		state = "MASTER_RX_LOWER_PRI";
+		break;
 	}
 
 	type = group ? "GROUP" : "INSTANCE";
@@ -222,6 +233,18 @@ vrrp_sync_smtp_notifier(vrrp_sgroup_t *vgroup)
 
 		vgroup->last_email_state = vgroup->state;
 	}
+}
+
+void
+send_event_notify(vrrp_t *vrrp, int event)
+{
+	notify_script_t *script = vrrp->script_master_rx_lower_pri;
+
+	/* Launch the notify_* script */
+	if (script)
+		notify_exec(script);
+
+	notify_fifo(vrrp->iname, event, false, vrrp->effective_priority);
 }
 
 void

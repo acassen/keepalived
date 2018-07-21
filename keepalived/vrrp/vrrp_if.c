@@ -47,6 +47,7 @@
 #include <linux/ethtool.h>
 #include <net/if_arp.h>
 #include <time.h>
+#include <linux/filter.h>
 
 /* local include */
 #include "global_data.h"
@@ -796,8 +797,8 @@ if_setsockopt_ipv6_checksum(int *sd)
 	return *sd;
 }
 
-int
 #if HAVE_DECL_IP_MULTICAST_ALL	/* Since Linux 2.6.31 */
+int
 if_setsockopt_mcast_all(sa_family_t family, int *sd)
 {
 	int ret;
@@ -820,14 +821,8 @@ if_setsockopt_mcast_all(sa_family_t family, int *sd)
 	}
 
 	return *sd;
-#else
-if_setsockopt_mcast_all(__attribute__((unused)) sa_family_t family, __attribute__((unused)) int *sd)
-{
-	/* It seems reasonable to just skip the calls to if_setsockopt_mcast_all
-	 * if there is no support for that feature in header files */
-	return -1;
-#endif
 }
+#endif
 
 int
 if_setsockopt_mcast_loop(sa_family_t family, int *sd)
@@ -958,6 +953,28 @@ if_setsockopt_rcvbuf(int *sd, int val)
 	return *sd;
 }
 
+int
+if_setsockopt_no_receive(int *sd)
+{
+	int ret;
+	struct sock_filter bpfcode[1] = {
+		{0x06, 0, 0, 0},	/* ret #0 - means that all packets will be filtered out */
+	};
+	struct sock_fprog bpf = {1, bpfcode};
+
+	if (*sd < 0)
+		return -1;
+
+	ret = setsockopt(*sd, SOL_SOCKET, SO_ATTACH_FILTER, &bpf, sizeof(bpf));
+	if (ret < 0) {
+		log_message(LOG_INFO, "Can't set SO_ATTACH_FILTER option. errno=%d (%m)", errno);
+		close(*sd);
+		*sd = -1;
+	}
+
+	return *sd;
+}
+
 #ifdef _TIMER_DEBUG_
 void
 print_vrrp_if_addresses(void)
@@ -1050,16 +1067,11 @@ cleanup_lost_interface(interface_t *ifp)
 		/* Find the sockpool entry. If none, then we have closed the socket */
 		if (vrrp->sockets->fd_in != -1) {
 			remove_vrrp_fd_bucket(vrrp->sockets->fd_in);
-			thread_cancel(vrrp->sockets->thread_in);
-			vrrp->sockets->thread_in = NULL;
+			thread_cancel_read(master, vrrp->sockets->fd_in);
 			close(vrrp->sockets->fd_in);
 			vrrp->sockets->fd_in = -1;
 		}
 		if (vrrp->sockets->fd_out != -1) {
-			if (vrrp->sockets->thread_out) {
-				thread_cancel(vrrp->sockets->thread_out);
-				vrrp->sockets->thread_out = NULL;
-			}
 			close(vrrp->sockets->fd_out);
 			vrrp->sockets->fd_out = -1;
 		}
@@ -1102,7 +1114,7 @@ setup_interface(vrrp_t *vrrp)
 			vrrp->sockets->fd_out = -1;
 		else
 			vrrp->sockets->fd_out = open_vrrp_send_socket(vrrp->sockets->family, vrrp->sockets->proto,
-							ifp, vrrp->sockets->unicast, vrrp->sockets->rx_buf_size);
+							ifp, vrrp->sockets->unicast);
 
 		if (vrrp->sockets->fd_out > master->max_fd)
 			master->max_fd = vrrp->sockets->fd_out;

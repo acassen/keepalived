@@ -493,28 +493,18 @@ and
  lvs_netlink_monitor_rcv_bufs BYTES         #  The force flag means to use SO_RCVBUFFORCE, so that the buffer size can
  lvs_netlink_monitor_rcv_bufs_force <BOOL>  #  exceed /proc/sys/net/core/rmem_max.
 
-                              # When a socket is opened, the kernel confugures the max rx buffer size for
+                              # When a socket is opened, the kernel configures the max rx buffer size for
                               # the socket to /proc/sys/net/core/rmem_default. On some systems this can be
                               # very large, and even generally this can be much larger than necessary.
                               # This isn't a problem so long as keepalived is reading all queued data from
-                              # it's sockets, but, for example, keepalived shouldin't need to read from the
-                              # vrrp send sockets, since they are configured not to receive any multicasts.
-                              # This feature, at least for kernels from 3.6.11 to 3.16 doesn't work, and
-                              # multicast messages are queued. When keepalived wasn't reading from those
-                              # sockets, the receive queue was growing, and if rmem_default was set
-                              # sufficiently large, it could consume all system memory.
+                              # it's sockets, but if rmem_default was set sufficiently large, and if for
+                              # some reason keepalived stopped reading, it could consume all system memory.
                               # The vrrp_rx_bufs_policy allows configuring of the rx bufs size when the
                               # sockets are opened. If the policy is MTU, the rx buf size is configured
                               # to the total of interface's MTU * vrrp_rx_bufs_multiplier for each vrrp
                               # instance using the socket. Likewise, if the policy is ADVERT, then it is
                               # the total of each vrrp instances advert packet size * multiplier.
-                              # If policy is set to a number, the rx buf size is configured to that number.
-                              # NO_SEND_RX means that keepalived will not listen on the send sockets,
-                              # which is safe to do from 4.x kernels (x not yet known but <= 16). If you
-                              # can run keepalived using multicasting and a backup vrrp instance does not
-                              # show a increasing receive queue for the keepalived process when viewed
-                              # with `netstat -anp`, then this is safe to use.
- vrrp_rx_bufs_policy [MTU|ADVERT|NUMBER] [NO_SEND_RX] # default is to use system default
+ vrrp_rx_bufs_policy [MTU|ADVERT|NUMBER] # default is to use system default
  vrrp_rx_bufs_multiplier NUMBER # default 3
 
  rs_init_notifies             # Send notifies at startup for real servers that are starting up
@@ -767,14 +757,22 @@ bfd_instance <STRING> {
 
             # for ANY state transition.
             # "notify" script is called AFTER the notify_* script(s) and
-            # is executed # with 4 additional arguments after the configured
+            # is executed with 4 additional arguments after the configured
             # arguments provided by Keepalived:
             # $(n-3) = "GROUP"|"INSTANCE"
             # $(n-2) = name of the group or instance
             # $(n-1) = target state of transition (stop only applies to instances)
             #     ("MASTER"|"BACKUP"|"FAULT"|"STOP")
             # $(n)   = priority value
-            notify /path/notify.sh [username [groupname]]
+            notify <STRING>|<QUOTED-STRING> [username [groupname]]
+
+            # The notify fifo output is the same as the last 4 parameters for the "notify"
+            # script, with the addition of "MASTER_RX_LOWER_PRI" instead of state for an
+            # instance. This is used if a master needs to set some external state, such as
+            # setting a secondary IP address when using Amazon AWS; if another keepalived
+            # has transitioned to master due to a communications break, the lower priority
+            # instance will have taken over the secondary IP address, and the proper master
+            # needs to be able to restore it.
 
             # Send email notification during state transition,
             # using addresses in global_defs above (default no,
@@ -1063,6 +1061,9 @@ bfd_instance <STRING> {
            notify_fault <STRING>|<QUOTED-STRING> [username [groupname]]
            notify_stop <STRING>|<QUOTED-STRING> [username [groupname]]      # executed when stopping vrrp
            notify <STRING>|<QUOTED-STRING> [username [groupname]]
+           # The notify_master_rx_lower_pri script is executed if a master
+           #  receives an advert with priority lower than the master's advert.
+           notify_master_rx_lower_pri <STRING>|<QUOTED-STRING> [username [groupname]]
            smtp_alert <BOOL>
            kernel_rx_buf_size                 # Set socket receive buffer size (see global_defs
                                               #   vrrp_rx_bufs_policy for explanation)

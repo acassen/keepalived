@@ -64,8 +64,7 @@
 #ifdef _WITH_VRRP_
 #define RX_BUFS_POLICY_MTU		0x01
 #define RX_BUFS_POLICY_ADVERT		0x02
-#define RX_BUFS_NO_SEND_RX		0x04
-#define RX_BUFS_SIZE			0x08
+#define RX_BUFS_SIZE			0x04
 #endif
 
 /* email link list */

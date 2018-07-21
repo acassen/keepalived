@@ -200,6 +200,7 @@ enum snmp_vrrp_magic {
 	VRRP_SNMP_INSTANCE_PROMOTE_SECONDARIES,
 	VRRP_SNMP_INSTANCE_USE_LINKBEAT,
 	VRRP_SNMP_INSTANCE_VRRP_VERSION,
+	VRRP_SNMP_INSTANCE_SCRIPTMASTER_RX_LOWER_PRI,
 	VRRP_SNMP_TRACKEDINTERFACE_NAME,
 	VRRP_SNMP_TRACKEDINTERFACE_WEIGHT,
 	VRRP_SNMP_TRACKEDSCRIPT_NAME,
@@ -1207,16 +1208,16 @@ static u_char*
 vrrp_snmp_encap(struct variable *vp, oid *name, size_t *length,
 		 int exact, size_t *var_len, WriteMethod **write_method)
 {
-#if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
-	static char labels[11*MAX_MPLS_LABELS];
-#endif
-	char *op;
 	ip_route_t *route;
 	nexthop_t *nh;
 	encap_t *encap;
 	int state = HEADER_STATE_STATIC_ROUTE;
-	unsigned i;
 	static struct counter64 c64;
+#if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
+	static char labels[11*MAX_MPLS_LABELS];
+	char *op;
+	unsigned i;
+#endif
 
 	if (vp->name[vp->namelen - 3] == 7) {
 		if ((route = (ip_route_t *)vrrp_header_ar_table(vp, name, length, exact,
@@ -2067,6 +2068,13 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 			return (u_char *)buf;
 		}
 		break;
+	case VRRP_SNMP_INSTANCE_SCRIPTMASTER_RX_LOWER_PRI:
+		if (rt->script_master_rx_lower_pri) {
+			cmd_str_r(rt->script_master_rx_lower_pri, buf, sizeof(buf));
+			*var_len = strlen(buf);
+			return (u_char *)buf;
+		}
+		break;
 	case VRRP_SNMP_INSTANCE_SCRIPT:
 		if (rt->script) {
 			cmd_str_r(rt->script, buf, sizeof(buf));
@@ -2717,6 +2725,8 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_instance, 3, {3, 1, 29} },
 	{VRRP_SNMP_INSTANCE_VRRP_VERSION, ASN_INTEGER, RONLY,
 	 vrrp_snmp_instance, 3, {3, 1, 30} },
+	{VRRP_SNMP_INSTANCE_SCRIPTMASTER_RX_LOWER_PRI, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_instance, 3, {3, 1, 31}},
 
 	/* vrrpTrackedInterfaceTable */
 	{VRRP_SNMP_TRACKEDINTERFACE_NAME, ASN_OCTET_STR, RONLY,
