@@ -1186,10 +1186,11 @@ if test "$enable_lvs" != no; then
   CPPFLAGS="$SAV_CPPFLAGS"
 
   dnl ----[ Is HTTP_GET regex checking wanted? ]----
-  $PKG_CONFIG --exists libpcre2-8
-  HAVE_PCRE2=$?
-  AS_IF([test $HAVE_PCRE2 -eq 0 -a $enable_regex = yes],
+  AS_IF([test $enable_regex = yes],
     [
+      $PKG_CONFIG --exists libpcre2-8
+      HAVE_PCRE2=$?
+      AS_IF([test $HAVE_PCRE2 -ne 0], [AC_MSG_ERROR([cannot find pcre library])])
       AC_MSG_CHECKING([for pcre.h])
       AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
         #define PCRE2_CODE_UNIT_WIDTH 8
