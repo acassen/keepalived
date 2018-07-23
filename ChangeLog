@@ -1,3 +1,119 @@
+2018-07-23 Quentin Armitage <quentin@armitage.org.uk>
+	* keepalived-2.0.6
+	* Fix genhash digest calculation. The bracketting in HASH_UPDATE was wrong.
+	* Bring keepalived(8) man page up to date.
+	* Fix segfault when IPVS_DEST_ATTR_ADDR_FAMILY not defined.
+	  Issue #938 identified a segfault on the checker process when using
+	  CentOS/RHEL 6. It turned out that conditional compilation check
+	  for IPVS_DEST_ATTR_ADDR_FAMILY was not being handled correctly.
+	* Don't create a link-local address for vmac when vmac_xmit_base is set
+	  Since commit 18ec95add483 ("Make vmac_xmit_base work for IPv6
+	  instances") VRRP advertisements are sent from the base interface and not
+	  from the vmac interface when vmac_xmit_base is set.
+	  Therefore, there is no need to configure a link-local address on the
+	  vmac interface. This also means that we don't need to regenerate a
+	  link-local address for the vmac if the link-local address was removed
+	  from the base interface, or inherit a link-local address in case one was
+	  configured on the base interface.
+	* Fix setting i/f params on a bridge underlying i/f of a VMAC
+	  Issue #944 identified that when the underlying interface of a VMAC
+	  interface was a bridge, keepalived was failing to set arp_ignore and
+	  arp_filter in the underlying bridge interface. The problem appears to
+	  lie in the libnl3 library. The description of the problem given in the
+	  issue report was:
+	    Problem is that ifi_family is set to AF_BRIDGE, whereas it should be set
+	    to AF_UNSPEC. The kernel function that handles RTM_SETLINK messages for
+	  AF_BRIDGE doesn't know how to process the IFLA_AF_SPEC attribute.
+	  This commit stops using libnl3 for setting/clearing arp_ignore and
+	  arp_filter, and directly constructs the netlink messages in keepalived.
+	* Use RTM_NEWLINK rather than RTM_SETLINK for setting i/f options
+	  libnl3 uses RTM_NEWLINK rather than RTM_SETLINK for setting
+	  interface options when ifi_family is AF_UNSPEC, so update commit
+	  9b2b2c9 - "Fix setting i/f params on a bridge underlying i/f of
+	  a VMAC" to do likewise.
+	* Fix creating VMACs on 2.6.32 and earlier kernels
+	  RTM_NEWLINK didn't support specifying interface by name until
+	  Linux 2.6.33, and if using an earlier kernel, the netlink call
+	  failed. This meant that the VMAC was not enabled.
+	* Fix setting arp_ignore and arp_filter on bridge interfaces.
+	* Add diagnostic message if vrrp script time out and kill fails.
+	* Fix compile errors and warnings when building with --enable-debug.
+	* Don't do md5 check unless configured.
+	* In http_handle_response() combine fetched_url and url
+	  fetched_url and url always pointed to the same url, so only use
+	  one variable.
+	* Store and handle HTTP_GET digest in binary form
+	  Configured digests were being stored in character string form, and
+	  the calculated digests were converted to strings. This commit now
+	  handles digests as fixed length binary data, and validates the
+	  configured digests to make sure they are valid hex strings with
+	  the correct length.
+	* Add support for quote and escape handling of notify and other scripts.
+	  Notify and other scripts need to be able to be configured with embedded
+	  spaces, quotes and special characters for the command and the parameters.
+	  This commit adds that ability.
+	* When checking script file path, only replace name part if same file.
+	  Some executables are in the filesystem as symbolic links, and alter
+	  their functionality based on the file part of the name. This was being
+	  incorrectly handled by keepalived, which now checks whether a file exists
+	  using the original name, and it it does whether it is the same file.
+	* Remove cmd_str from notify_script_t
+	  The cmd_str string (sort of) duplicated what was in the args array
+	  of a notify_script_t, but was not always accurate. With the removal
+	  of cmd_str, whenever it needs to be output, the string is now
+	  generated from the args array, so accurately reflects what is
+	  actually executed.
+	* Add quoting and escaping for script configuration, and other minor changes.
+	* Use vsyslog() if available instead of syslog().
+	* Report virtual server as well as real server when config dump checker.
+	* Only report IP_MULTICAST_ALL unset for IPv4 sockets
+	  Commit 6fb5980 - "Stop receive message queues not being read on send
+	  sockets" added a warning if data was received on vrrp send sockets, since
+	  setting IP_MULTICAST_ALL should stop packets being received, but older
+	  kernels still queued packets.
+	  It has now been discovered the IP_MULTICAST_ALL (of course) only applies
+	  to IPv4 and so the warning only makes sense for IPv4 sockets.
+	  I haven't been able to find a way to stop IPv6 multicast packets being
+	  received on the send socket. It appears that if any socket adds an IPv6
+	  multicast group on an interface, then any raw socket using that interface
+	  will recieve all enabled multicast packets, and the receive socket has to
+	  add the multicast group.
+	* Properly stop packets being queued on vrrp send sockets
+	  Commit 6fb5980 - "Stop receive message queues not being read on
+	  send sockets" did stop messages building up on the receive queue
+	  of vrrp send sockets, but it wasn't an ideal solution, and it also
+	  made the assumption that the problem was only occurring due to
+	  multicast packets not being filtered when IP_MULTICAST_ALL was set,
+	  which appears not to work properly between at least Linux 3.6.11 and
+	  3.16. In fact the problem also occurred when using IPv4 unicast and
+	  IPv6 in any form, and so has been a long term issue in keepalived.
+	  The original solution was to listen on the send socket and discard any
+	  packets that were received. This commit takes a completely different
+	  solution (many thanks to Simon Kirby for the suggestion) and sets a
+	  BPF filter on send sockets that filter out all received packets on the
+	  sockets.
+	  This commit effectively reverts commit 6fb5980, and the subsequent
+	  commits 88c698d8 - "Cancel read thread on send sockets when closing",
+	  f981b55d - "Only allow vrrp_rx_bufs_policy NO_SEND_RX if have
+	  IP_MULTICAST_ALL", 7ff7ea1f - "Another fix to listening on send socket",
+	  and 77d947f7 - "Only report IP_MULTICAST_ALL unset for IPv4 sockets"
+	  and partially reverts 4297f0a - "Add options to set vrrp socket receive
+	  buffer sizes".
+	  This commit removes the configuration option NO_SEND_RX from
+	  vrrp_tx_bufs_policy introduced in commit 4297f0a since it is now
+	  no longer relevant, because no packets are queued to the send socket.
+	* Add newlines to the keepalived.stats output for better readability.
+	* Add notify_master_rx_lower_pri script option and FIFO output.
+	  If a lower priority router has transitioned to master, there has presumably
+	  been an intermittent communications break between the master and backup. It
+	  appears that servers in an Amazon AWS environment can experience this.
+	  The problem then occurs if a notify_master script is executed on the backup
+	  that has just transitioned to master and the script executes something like
+	  a `aws ec2 assign-private-ip-addresses` command, thereby removing the address
+	  from the 'proper' master. Executing notify_master_rx_lower_pri notification
+	  allows the 'proper' master to recover the secondary addresses.
+	* Fix malloc'd memory length in open_log_file().
+
 2018-06-29 Quentin Armitage <quentin@armitage.org.uk>
 	* keepalived-2.0.5
 	* Update config-test option so keepalived exits with status 1 on failure.
