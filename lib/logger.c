@@ -85,7 +85,7 @@ open_log_file(const char *name, const char *prog, const char *namespace, const c
 	if (namespace)
 		len += strlen(namespace) + 1;
 	if (instance)
-		len += strlen(instance);
+		len += strlen(instance) + 1;
 
 	file_name = MALLOC(len + 1);
 	dir_end = strrchr(name, '/');
