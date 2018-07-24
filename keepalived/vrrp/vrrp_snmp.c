@@ -93,7 +93,7 @@
      sockets e.g. to udp:localhost:705 which will enable keepalived to communicate
      with its own instance of snmpd running in the same network namespace,
      and then set snmp_socket in the keepalived global configuration.
-     To run snmpd use snmpd -Ls0-6d -x udp:localhost:705, which it appears
+     To run snmpd use snmpd -LS0-6d -x udp:localhost:705, which it appears
      should work but it doesn't seem to.
 
  */
