@@ -651,7 +651,7 @@ check_check_script_security(void)
 		script_flags |= check_notify_script_secure(&global_data->lvs_notify_fifo.script, magic);
 
 	if (!script_security && script_flags & SC_ISSCRIPT) {
-		log_message(LOG_INFO, "SECURITY VIOLATION - check scripts are being executed but script_security not enabled.%s",
+		ka_config_error(CONFIG_SECURITY_ERROR, "SECURITY VIOLATION - check scripts are being executed but script_security not enabled.%s",
 				script_flags & SC_INSECURE ? " There are insecure scripts." : "");
 	}
 

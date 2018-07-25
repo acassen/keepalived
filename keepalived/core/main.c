@@ -491,6 +491,10 @@ start_keepalived(void)
 static void
 validate_config(void)
 {
+#if defined _WITH_VRRP_ || defined _WITH_LVS_
+	kernel_netlink_read_interfaces();
+#endif
+
 #ifdef _WITH_LVS_
 	/* validate healthchecker config */
 	check_validate_config();
@@ -512,13 +516,15 @@ config_test_exit(void)
 
 	switch (config_err) {
 	case CONFIG_OK:
-		exit(0);
+		exit(KEEPALIVED_EXIT_OK);
 	case CONFIG_FILE_NOT_FOUND:
 	case CONFIG_BAD_IF:
 	case CONFIG_FATAL:
-		exit(1);
+		exit(KEEPALIVED_EXIT_CONFIG);
+	case CONFIG_SECURITY_ERROR:
+		exit(KEEPALIVED_EXIT_CONFIG_TEST_SECURITY);
 	default:
-		exit(2);
+		exit(KEEPALIVED_EXIT_CONFIG_TEST);
 	}
 }
 
@@ -957,7 +963,8 @@ usage(const char *prog)
 								", JSON"
 #endif
 								"\n");
-	fprintf(stderr, "  -t, --config-test            Check the configuration for obvious errors. Output will be written to stderr.\n");
+	fprintf(stderr, "  -t, --config-test[=LOG_FILE] Check the configuration for obvious errors, output to\n"
+			"                                stderr by default\n");
 	fprintf(stderr, "  -v, --version                Display the version number\n");
 	fprintf(stderr, "  -h, --help                   Display this help message\n");
 }
@@ -1025,7 +1032,7 @@ parse_cmdline(int argc, char **argv)
 #endif
 		{"config-id",		required_argument,	NULL, 'i'},
 		{"signum",		required_argument,	NULL,  4 },
-		{"config-test",		no_argument,		NULL, 't'},
+		{"config-test",		optional_argument,	NULL, 't'},
 		{"version",		no_argument,		NULL, 'v'},
 		{"help",		no_argument,		NULL, 'h'},
 
@@ -1143,6 +1150,15 @@ parse_cmdline(int argc, char **argv)
 			__set_bit(DONT_RESPAWN_BIT, &debug);
 			__set_bit(DONT_FORK_BIT, &debug);
 			__set_bit(NO_SYSLOG_BIT, &debug);
+			if (optarg && optarg[0]) {
+				int fd = open(optarg, O_WRONLY | O_APPEND | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+				if (fd == -1) {
+					fprintf(stderr, "Unable to open config-test log file %s\n", optarg);
+					exit(EXIT_FAILURE);
+				}
+				dup2(fd, STDERR_FILENO);
+				close(fd);
+			}
 			break;
 		case 'f':
 			conf_file = optarg;

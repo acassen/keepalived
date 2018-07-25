@@ -306,7 +306,8 @@ start_vrrp(void)
 	clear_summary_flags();
 
 	/* Initialize sub-system */
-	kernel_netlink_init();
+	if (!__test_bit(CONFIG_TEST_BIT, &debug))
+		kernel_netlink_init();
 
 	if (reload)
 		global_data = alloc_global_data();

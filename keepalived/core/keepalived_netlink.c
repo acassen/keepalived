@@ -2166,17 +2166,6 @@ kernel_netlink_init(void)
 	 * the checker process does not need the
 	 * route or link messages.
 	 */
-	/* TODO
-	 * If an interface goes down, or an address is removed, any routes that specify the interface or address are deleted.
-	 * If an interface goes down, any address on that interface is deleted. In this case, the vrrp instance should go to fault state.
-	 * If an interface goes down, any VMACs are deleted. We need to recreate them when the interface returns.
-	 * If a static route/ip_address goes down, some vrrp instances maybe should go down - add a tracking_instance option
-	 * We need to reinstate routes/addresses/VMACs when we can.
-	 * We need an option on routes to put the instance in fault state if the route disappears.
-	 * When i/f deleted (? or down), close any sockets
-	 * No ipaddr on i/f <=> link down, for us
-	 * Do LVS services get lost on addr/link deletion?
-	 */
 
 	/* If the netlink kernel fd is already open, just register a read thread.
 	 * This will happen at reload. */
@@ -2245,11 +2234,30 @@ kernel_netlink_init(void)
 
 	netlink_address_lookup();
 
-#if !defined _DEBUG_ && defined _WITH_CHECKER_
+#if !defined _DEBUG_ && defined _WITH_LVS_
 	if (prog_type == PROG_TYPE_CHECKER)
 		kernel_netlink_close_cmd();
 #endif
 }
+
+#if defined _WITH_VRRP_ || defined _WITH_LVS_
+void
+kernel_netlink_read_interfaces(void)
+{
+#ifdef _WITH_VRRP_
+	netlink_socket(&nl_cmd, global_data->vrrp_netlink_cmd_rcv_bufs, global_data->vrrp_netlink_cmd_rcv_bufs_force, 0, 0);
+#else
+	netlink_socket(&nl_cmd, global_data->lvs_netlink_cmd_rcv_bufs, global_data->lvs_netlink_cmd_rcv_bufs_force, 0, 0);
+#endif
+
+	if (nl_cmd.fd > 0)
+		log_message(LOG_INFO, "Registering Kernel netlink command channel");
+	else
+		log_message(LOG_INFO, "Error while registering Kernel netlink cmd channel");
+	init_interface_queue();
+	kernel_netlink_close_cmd();
+}
+#endif
 
 #ifdef _TIMER_DEBUG_
 void

@@ -294,7 +294,7 @@ check_vrrp_script_security(void)
 		script_flags |= check_notify_script_secure(&global_data->vrrp_notify_fifo.script, magic);
 
 	if (!script_security && script_flags & SC_ISSCRIPT) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "SECURITY VIOLATION - scripts are being executed but script_security not enabled.%s",
+		ka_config_error(CONFIG_SECURITY_ERROR, "SECURITY VIOLATION - scripts are being executed but script_security not enabled.%s",
 				script_flags & SC_INSECURE ? " There are insecure scripts." : "");
 	}
 

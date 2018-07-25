@@ -306,6 +306,9 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 			log_options("configure options", KEEPALIVED_CONFIGURE_OPTIONS);
 			log_options("Config options", CONFIGURATION_OPTIONS);
 			log_options("System options", SYSTEM_OPTIONS);
+
+//			if (__test_bit(DONT_RESPAWN_BIT, &debug))
+//				segv_termination = true;
 		}
 		else
 			log_message(LOG_INFO, "%s exited due to signal %d", prog_id, WTERMSIG(status));

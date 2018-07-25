@@ -36,18 +36,26 @@
 /* Maximum config line length */
 #define MAXBUF	1024
 
+/* Configuration test errors. These should be in decreasing order of severity */
 typedef enum {
 	CONFIG_OK,
+
+	/* The following mean keepalived cannot run the config */
 	CONFIG_FILE_NOT_FOUND,
 	CONFIG_BAD_IF,
 	CONFIG_FATAL,
+
+	/* The following are configuration errors, but keepalived will still run */
 	CONFIG_MULTIPLE_FILES,
 	CONFIG_UNKNOWN_KEYWORD,
 	CONFIG_UNEXPECTED_BOB,	/* '{' */
 	CONFIG_MISSING_BOB,	/* '{' */
 	CONFIG_UNMATCHED_QUOTE,
 	CONFIG_MISSING_PARAMETER,
-	CONFIG_GENERAL_ERROR
+	CONFIG_GENERAL_ERROR,
+
+	/* The following is for script security not enabled when needed */
+	CONFIG_SECURITY_ERROR,
 } config_err_t;
 
 /* keyword definition */

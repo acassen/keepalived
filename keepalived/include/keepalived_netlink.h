@@ -100,6 +100,9 @@ extern void kernel_netlink_set_recv_bufs(void);
 extern void set_extra_netlink_monitoring(bool, bool, bool, bool);
 #endif
 extern void kernel_netlink_init(void);
+#if defined _WITH_VRRP_ || defined _WITH_LVS_
+extern void kernel_netlink_read_interfaces(void);
+#endif
 extern void kernel_netlink_close(void);
 extern void kernel_netlink_close_monitor(void);
 extern void kernel_netlink_close_cmd(void);
