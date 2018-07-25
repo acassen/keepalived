@@ -153,8 +153,7 @@ checker_terminate_phase1(bool schedule_next_thread)
 		script_killall(master, SIGTERM, true);
 
 	/* Send shutdown messages */
-	if (!__test_bit(DONT_RELEASE_IPVS_BIT, &debug) &&
-	    !__test_bit(CONFIG_TEST_BIT, &debug))
+	if (!__test_bit(DONT_RELEASE_IPVS_BIT, &debug))
 		clear_services();
 
 	if (schedule_next_thread) {
@@ -402,9 +401,7 @@ check_respawn_thread(thread_t * thread)
 	}
 
 	/* We catch a SIGCHLD, handle it */
-	if (!__test_bit(CONFIG_TEST_BIT, &debug))
-		raise(SIGTERM);
-	else if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
+	if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
 		log_message(LOG_ALERT, "Healthcheck child process(%d) died: Respawning", pid);
 		start_check_child();
 	} else {

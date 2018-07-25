@@ -259,9 +259,7 @@ bfd_respawn_thread(thread_t * thread)
 	}
 
 	/* We catch a SIGCHLD, handle it */
-	if (__test_bit(CONFIG_TEST_BIT, &debug))
-		raise(SIGTERM);
-	else if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
+	if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
 		log_message(LOG_ALERT, "BFD child process(%d) died: Respawning",
 			    pid);
 		start_bfd_child();

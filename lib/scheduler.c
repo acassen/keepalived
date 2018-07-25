@@ -1209,15 +1209,11 @@ process_child_termination(pid_t pid, int status)
 	if (child_remover)
 		child_remover(thread);
 
-	if (permanent_vrrp_checker_error || __test_bit(CONFIG_TEST_BIT, &debug))
+	if (permanent_vrrp_checker_error)
 	{
-		/* The child had a permanant error, or we were just testing the config,
-		 * so no point in respawning */
+		/* The child had a permanant error, so no point in respawning */
 		thread->type = THREAD_UNUSED;
 		thread_list_add(&m->unuse, thread);
-
-		if (!__test_bit(CONFIG_TEST_BIT, &debug))
-			raise(SIGTERM);
 	}
 	else
 		thread_list_add(&m->ready, thread);

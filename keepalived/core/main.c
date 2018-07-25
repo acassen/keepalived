@@ -133,8 +133,6 @@ static char *override_namespace;			/* If namespace specified on command line */
 
 unsigned child_wait_time = CHILD_WAIT_SECS;		/* Time to wait for children to exit */
 
-int test_exit_status = EXIT_SUCCESS;			/* Set to EXIT_FAILURE if the configuration has a problem */
-
 /* Log facility table */
 static struct {
 	int facility;
@@ -311,15 +309,6 @@ make_pidfile_name(const char* start, const char* instance, const char* extn)
 static void
 parent_child_remover(thread_t *thread)
 {
-	int exit_status;
-
-	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
-		exit_status = WIFEXITED(thread->u.c.status) ? WEXITSTATUS(thread->u.c.status) : 0;
-
-		if (exit_status && exit_status != KEEPALIVED_EXIT_OK)
-		       test_exit_status = EXIT_FAILURE;
-	}
-
         if (prog_type == PROG_TYPE_PARENT) {
 #ifdef _WITH_VRRP_
                 if (thread->u.c.pid == vrrp_child)
@@ -333,19 +322,6 @@ parent_child_remover(thread_t *thread)
                 if (thread->u.c.pid == bfd_child)
                         bfd_child = 0;
 #endif
-
-		if (__test_bit(CONFIG_TEST_BIT, &debug)) {
-#ifdef _WITH_VRRP_
-			if (vrrp_child == 0)
-#endif
-#ifdef _WITH_LVS_
-			if (checkers_child == 0)
-#endif
-#ifdef _WITH_BFD_
-			if (bfd_child == 0)
-#endif
-				raise(SIGTERM);
-		}
 	}
 }
 #endif
@@ -654,7 +630,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 
 #ifdef _WITH_VRRP_
 	if (vrrp_child > 0) {
-		if (!__test_bit(CONFIG_TEST_BIT, &debug) && kill(vrrp_child, SIGTERM)) {
+		if (kill(vrrp_child, SIGTERM)) {
 			/* ESRCH means no such process */
 			if (errno == ESRCH)
 				vrrp_child = 0;
@@ -665,7 +641,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 #endif
 #ifdef _WITH_LVS_
 	if (checkers_child > 0) {
-		if (!__test_bit(CONFIG_TEST_BIT, &debug) && kill(checkers_child, SIGTERM)) {
+		if (kill(checkers_child, SIGTERM)) {
 			if (errno == ESRCH)
 				checkers_child = 0;
 		}
@@ -675,7 +651,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 #endif
 #ifdef _WITH_BFD_
 	if (bfd_child > 0) {
-		if (!__test_bit(CONFIG_TEST_BIT, &debug) && kill(bfd_child, SIGTERM)) {
+		if (kill(bfd_child, SIGTERM)) {
 			if (errno == ESRCH)
 				bfd_child = 0;
 		}
@@ -1619,5 +1595,5 @@ end:
 #endif
 	close_std_fd();
 
-	exit(test_exit_status);
+	exit(KEEPALIVED_EXIT_OK);
 }
