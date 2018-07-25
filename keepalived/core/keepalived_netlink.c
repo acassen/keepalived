@@ -1046,7 +1046,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 
 #ifdef _WITH_VRRP_
 #ifndef _DEBUG_
-	if (prog_type == PROG_TYPE_VRRP)
+	if (prog_type == PROG_TYPE_VRRP || __test_bit(CONFIG_TEST_BIT, &debug))
 #endif
 	{
 		/* Fetch interface_t */
@@ -2244,17 +2244,22 @@ kernel_netlink_init(void)
 void
 kernel_netlink_read_interfaces(void)
 {
+	int ret;
+
 #ifdef _WITH_VRRP_
 	netlink_socket(&nl_cmd, global_data->vrrp_netlink_cmd_rcv_bufs, global_data->vrrp_netlink_cmd_rcv_bufs_force, 0, 0);
 #else
 	netlink_socket(&nl_cmd, global_data->lvs_netlink_cmd_rcv_bufs, global_data->lvs_netlink_cmd_rcv_bufs_force, 0, 0);
 #endif
 
-	if (nl_cmd.fd > 0)
-		log_message(LOG_INFO, "Registering Kernel netlink command channel");
-	else
-		log_message(LOG_INFO, "Error while registering Kernel netlink cmd channel");
+	if (nl_cmd.fd <= 0)
+		fprintf(stderr, "Error while registering Kernel netlink cmd channel\n");
+
 	init_interface_queue();
+
+	if ((ret = netlink_address_lookup()))
+		fprintf(stderr, "netlink_address_lookup() returned %d\n", ret);
+
 	kernel_netlink_close_cmd();
 }
 #endif
