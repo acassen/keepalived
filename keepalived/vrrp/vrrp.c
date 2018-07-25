@@ -206,11 +206,11 @@ check_track_script_secure(vrrp_script_t *script, magic_t magic)
 
 	/* Mark not to run if needs inhibiting */
 	if (flags & SC_INHIBIT) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "Disabling track script %s due to insecure", script->sname);
+		report_config_error(CONFIG_GENERAL_ERROR, "Disabling track script %s due to insecure", script->sname);
 		script->insecure = true;
 	}
 	else if (flags & SC_NOTFOUND) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "Disabling track script %s since not found/accessible", script->sname);
+		report_config_error(CONFIG_GENERAL_ERROR, "Disabling track script %s since not found/accessible", script->sname);
 		script->insecure = true;
 	}
 	else if (!(flags & (SC_EXECUTABLE | SC_SYSTEM)))
@@ -294,7 +294,7 @@ check_vrrp_script_security(void)
 		script_flags |= check_notify_script_secure(&global_data->vrrp_notify_fifo.script, magic);
 
 	if (!script_security && script_flags & SC_ISSCRIPT) {
-		ka_config_error(CONFIG_SECURITY_ERROR, "SECURITY VIOLATION - scripts are being executed but script_security not enabled.%s",
+		report_config_error(CONFIG_SECURITY_ERROR, "SECURITY VIOLATION - scripts are being executed but script_security not enabled.%s",
 				script_flags & SC_INSECURE ? " There are insecure scripts." : "");
 	}
 
@@ -2460,7 +2460,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	if (vrrp->family == AF_INET6) {
 		if (vrrp->version == VRRP_VERSION_2 && vrrp->strict_mode) {
-			ka_config_error(CONFIG_GENERAL_ERROR,"(%s) cannot use IPv6 with VRRP version 2; setting version 3", vrrp->iname);
+			report_config_error(CONFIG_GENERAL_ERROR,"(%s) cannot use IPv6 with VRRP version 2; setting version 3", vrrp->iname);
 			vrrp->version = VRRP_VERSION_3;
 		}
 		else if (!vrrp->version)
@@ -2484,7 +2484,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 	if (LIST_ISEMPTY(vrrp->vip) && (vrrp->version == VRRP_VERSION_3 || vrrp->family == AF_INET6 || vrrp->strict_mode)) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) No VIP specified; at least one is required", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) No VIP specified; at least one is required", vrrp->iname);
 		return false;
 	}
 
@@ -2501,30 +2501,30 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		vrrp->wantstate = (vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST : VRRP_STATE_BACK);
 	else if (vrrp->strict_mode &&
 		 ((vrrp->wantstate == VRRP_STATE_MAST) != (vrrp->base_priority == VRRP_PRIO_OWNER))) {
-			ka_config_error(CONFIG_GENERAL_ERROR,"(%s) State MASTER must match being address owner", vrrp->iname);
+			report_config_error(CONFIG_GENERAL_ERROR,"(%s) State MASTER must match being address owner", vrrp->iname);
 			vrrp->wantstate = (vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST : VRRP_STATE_BACK);
 	}
 
 #ifdef _WITH_VRRP_AUTH_
 	if (vrrp->strict_mode && vrrp->auth_type != VRRP_AUTH_NONE) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) Strict mode does not support authentication. Ignoring.", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Strict mode does not support authentication. Ignoring.", vrrp->iname);
 		vrrp->auth_type = VRRP_AUTH_NONE;
 	}
 	else if (vrrp->version == VRRP_VERSION_3 && vrrp->auth_type != VRRP_AUTH_NONE) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRP version 3 does not support authentication. Ignoring.", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRP version 3 does not support authentication. Ignoring.", vrrp->iname);
 		vrrp->auth_type = VRRP_AUTH_NONE;
 	}
 	else if (vrrp->auth_type != VRRP_AUTH_NONE && !vrrp->auth_data[0]) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) Authentication specified but no password given. Ignoring", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Authentication specified but no password given. Ignoring", vrrp->iname);
 		vrrp->auth_type = VRRP_AUTH_NONE;
 	}
 	else if (vrrp->family == AF_INET6 && vrrp->auth_type == VRRP_AUTH_AH) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot use AH authentication with IPv6 - ignoring", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot use AH authentication with IPv6 - ignoring", vrrp->iname);
 		vrrp->auth_type = VRRP_AUTH_NONE;
 	}
 	else if (vrrp->auth_type == VRRP_AUTH_AH && vrrp->wantstate == VRRP_STATE_MAST && vrrp->base_priority != VRRP_PRIO_OWNER) {
 		/* We need to have received an advert to get the AH sequence no before taking over, if possible */
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) Initial state master is incompatible with AH authentication - clearing", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Initial state master is incompatible with AH authentication - clearing", vrrp->iname);
 		vrrp->wantstate = VRRP_STATE_BACK;
 	}
 #endif
@@ -2534,7 +2534,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	/* unicast peers aren't allowed in strict mode if the interface supports multicast */
 	if (vrrp->strict_mode && vrrp->ifp->ifindex && (vrrp->ifp->ifi_flags & IFF_MULTICAST) && !LIST_ISEMPTY(vrrp->unicast_peer)) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) Unicast peers are not supported in strict mode", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Unicast peers are not supported in strict mode", vrrp->iname);
 		return false;
 	}
 
@@ -2542,14 +2542,14 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	/* Check that the underlying interface type is Ethernet if using a VMAC */
 	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) && vrrp->ifp->ifindex && vrrp->ifp->hw_type != ARPHRD_ETHER) {
 		__clear_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags);
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s): vmacs are only supported on Ethernet type interfaces", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s): vmacs are only supported on Ethernet type interfaces", vrrp->iname);
 		vrrp->num_script_if_fault++;	/* Stop the vrrp instance running */
 	}
 #endif
 
 	/* If the interface doesn't support multicast, then we need to use unicast */
 	if (vrrp->ifp->ifindex && !(vrrp->ifp->ifi_flags & IFF_MULTICAST) && LIST_ISEMPTY(vrrp->unicast_peer)) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) interface %s does not support multicast, specify unicast peers - disabling", vrrp->iname, vrrp->ifp->ifname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) interface %s does not support multicast, specify unicast peers - disabling", vrrp->iname, vrrp->ifp->ifname);
 		vrrp->num_script_if_fault++;	/* Stop the vrrp instance running */
 	}
 
@@ -2558,12 +2558,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	    vrrp->ifp->ifindex &&
 	    (vrrp->ifp->ifi_flags & IFF_NOARP) &&
 	    !(vrrp->ifp->ifi_flags & IFF_POINTOPOINT))
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) disabling ARP since interface does not support it", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) disabling ARP since interface does not support it", vrrp->iname);
 
 	/* If the addresses are IPv6, then the first one must be link local */
 	if (vrrp->family == AF_INET6 && LIST_ISEMPTY(vrrp->unicast_peer) &&
 		  !IN6_IS_ADDR_LINKLOCAL(&((ip_address_t *)LIST_HEAD(vrrp->vip)->data)->u.sin6_addr)) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) the first IPv6 VIP address must be link local", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) the first IPv6 VIP address must be link local", vrrp->iname);
 	}
 
 	/* Check we can fit the VIPs into a packet */
@@ -2591,7 +2591,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	/* Move any extra addresses to be evips. We won't advertise them, but at least we can respond to them */
 	if (!LIST_ISEMPTY(vrrp->vip) && LIST_SIZE(vrrp->vip) > max_addr) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) Number of VIPs (%d) exceeds maximum/space available in packet (max %zu addresses) - excess moved to eVIPs",
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Number of VIPs (%d) exceeds maximum/space available in packet (max %zu addresses) - excess moved to eVIPs",
 				vrrp->iname, LIST_SIZE(vrrp->vip), max_addr);
 		for (i = 0, e = LIST_HEAD(vrrp->vip); e; i++, e = next) {
 			next = e->next;
@@ -2606,7 +2606,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 	if (vrrp->base_priority == VRRP_PRIO_OWNER && vrrp->nopreempt) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) nopreempt is incompatible with priority %d - resetting nopreempt", vrrp->iname, VRRP_PRIO_OWNER);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) nopreempt is incompatible with priority %d - resetting nopreempt", vrrp->iname, VRRP_PRIO_OWNER);
 		vrrp->nopreempt = false;
 	}
 
@@ -2615,21 +2615,21 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	if (vrrp->wantstate == VRRP_STATE_MAST) {
 		if (vrrp->nopreempt) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "(%s) Warning - nopreempt will not work with initial state MASTER - clearing", vrrp->iname);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Warning - nopreempt will not work with initial state MASTER - clearing", vrrp->iname);
 			vrrp->nopreempt = false;
 		}
 		if (vrrp->preempt_delay) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "(%s) Warning - preempt delay will not work with initial state MASTER - clearing", vrrp->iname);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Warning - preempt delay will not work with initial state MASTER - clearing", vrrp->iname);
 			vrrp->preempt_delay = false;
 		}
 	}
 	if (vrrp->preempt_delay) {
 		if (vrrp->strict_mode) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "(%s) preempt_delay is incompatible with strict mode - resetting", vrrp->iname);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) preempt_delay is incompatible with strict mode - resetting", vrrp->iname);
 			vrrp->preempt_delay = 0;
 		}
 		if (vrrp->nopreempt) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "(%s) preempt_delay is incompatible with nopreempt mode - resetting", vrrp->iname);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) preempt_delay is incompatible with nopreempt mode - resetting", vrrp->iname);
 			vrrp->preempt_delay = 0;
 		}
 	}
@@ -2650,32 +2650,32 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	    vrrp->base_priority != VRRP_PRIO_OWNER &&
 	    vrrp->strict_mode &&
 	    vrrp->version == VRRP_VERSION_2) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) warning - accept mode for VRRP version 2 does not comply with RFC3768 - resetting", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) warning - accept mode for VRRP version 2 does not comply with RFC3768 - resetting", vrrp->iname);
 		vrrp->accept = 0;
 	}
 
 	if (vrrp->garp_lower_prio_rep == PARAMETER_UNSET)
 		vrrp->garp_lower_prio_rep = vrrp->strict_mode ? 0 : global_data->vrrp_garp_lower_prio_rep;
 	else if (vrrp->strict_mode && vrrp->garp_lower_prio_rep) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) Strict mode requires no repeat garps - resetting", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Strict mode requires no repeat garps - resetting", vrrp->iname);
 		vrrp->garp_lower_prio_rep = 0;
 	}
 	if (vrrp->garp_lower_prio_delay == PARAMETER_UNSET)
 		vrrp->garp_lower_prio_delay = vrrp->strict_mode ? 0 : global_data->vrrp_garp_lower_prio_delay;
 	else if (vrrp->strict_mode && vrrp->garp_lower_prio_delay) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) Strict mode requires no repeat garp delay - resetting", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Strict mode requires no repeat garp delay - resetting", vrrp->iname);
 		vrrp->garp_lower_prio_delay = 0;
 	}
 	if (vrrp->lower_prio_no_advert == PARAMETER_UNSET)
 		vrrp->lower_prio_no_advert = vrrp->strict_mode ? true : global_data->vrrp_lower_prio_no_advert;
 	else if (vrrp->strict_mode && !vrrp->lower_prio_no_advert) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) Strict mode requires no lower priority advert - resetting", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Strict mode requires no lower priority advert - resetting", vrrp->iname);
 		vrrp->lower_prio_no_advert = true;
 	}
 	if (vrrp->higher_prio_send_advert == PARAMETER_UNSET)
 		vrrp->higher_prio_send_advert = vrrp->strict_mode ? false : global_data->vrrp_higher_prio_send_advert;
 	else if (vrrp->strict_mode && vrrp->higher_prio_send_advert) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) strict mode requires higher_prio_send_advert to be clear - resetting", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) strict mode requires higher_prio_send_advert to be clear - resetting", vrrp->iname);
 		vrrp->higher_prio_send_advert = false;
 	}
 
@@ -2693,12 +2693,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		vrrp->adver_int = VRRP_ADVER_DFL * TIMER_HZ;
 	if (vrrp->version == VRRP_VERSION_2) {
 		if (vrrp->adver_int >= (1<<8) * TIMER_HZ) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRPv2 advertisement interval %.2fs is out of range. Must be less than %ds. Setting to %ds",
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRPv2 advertisement interval %.2fs is out of range. Must be less than %ds. Setting to %ds",
 					vrrp->iname, (float)vrrp->adver_int / TIMER_HZ, 1<<8, (1<<8) - 1);
 			vrrp->adver_int = ((1<<8) - 1) * TIMER_HZ;
 		}
 		else if (vrrp->adver_int % TIMER_HZ) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRPv2 advertisement interval %fs must be an integer - rounding",
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRPv2 advertisement interval %fs must be an integer - rounding",
 					vrrp->iname, (float)vrrp->adver_int / TIMER_HZ);
 			vrrp->adver_int = vrrp->adver_int + (TIMER_HZ / 2);
 			vrrp->adver_int -= vrrp->adver_int % TIMER_HZ;
@@ -2709,12 +2709,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	else
 	{
 		if (vrrp->adver_int >= (1<<12) * TIMER_CENTI_HZ) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRPv3 advertisement interval %.2fs is out of range. Must be less than %.2fs. Setting to %.2fs",
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRPv3 advertisement interval %.2fs is out of range. Must be less than %.2fs. Setting to %.2fs",
 					vrrp->iname, (float)vrrp->adver_int / TIMER_HZ, (float)(1<<12) / 100, (float)((1<<12) - 1) / 100);
 			vrrp->adver_int = ((1<<12) - 1) * TIMER_CENTI_HZ;
 		}
 		else if (vrrp->adver_int % TIMER_CENTI_HZ) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRPv3 advertisement interval %fs must be in units of 10ms - rounding",
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRPv3 advertisement interval %fs must be in units of 10ms - rounding",
 					vrrp->iname, (float)vrrp->adver_int / TIMER_HZ);
 			vrrp->adver_int = vrrp->adver_int + (TIMER_CENTI_HZ / 2);
 			vrrp->adver_int -= vrrp->adver_int % TIMER_CENTI_HZ;
@@ -2776,7 +2776,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				if (ifp->vmac)
 					log_message(LOG_INFO, "(%s) VMAC %s already exists but is incompatible. It will be deleted", vrrp->iname, vrrp->vmac_ifname);
 				else {
-					ka_config_error(CONFIG_GENERAL_ERROR, "(%s) VMAC interface name %s already exists as a non VMAC interface - ignoring configured name",
+					report_config_error(CONFIG_GENERAL_ERROR, "(%s) VMAC interface name %s already exists as a non VMAC interface - ignoring configured name",
 						    vrrp->iname, vrrp->vmac_ifname);
 					vrrp->vmac_ifname[0] = 0;
 				}
@@ -2823,12 +2823,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		}
 
 		if (vrrp->strict_mode && __test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "(%s) xmit_base is incompatible with strict mode - resetting", vrrp->iname);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) xmit_base is incompatible with strict mode - resetting", vrrp->iname);
 			__clear_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags);
 		}
 
 		if (vrrp->promote_secondaries) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "(%s) promote_secondaries is automatically set for vmacs - ignoring", vrrp->iname);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) promote_secondaries is automatically set for vmacs - ignoring", vrrp->iname);
 			vrrp->promote_secondaries = false;
 		}
 	}
@@ -2860,7 +2860,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		}
 
 		if (addr_missing) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot find an IP address to use for interface %s", vrrp->iname, IF_BASE_IFP(vrrp->ifp)->ifname);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot find an IP address to use for interface %s", vrrp->iname, IF_BASE_IFP(vrrp->ifp)->ifname);
 		}
 		else if (vrrp->family == AF_INET)
 			inet_ip4tosockaddr(&IF_BASE_IFP(vrrp->ifp)->sin_addr, &vrrp->saddr);
@@ -2872,7 +2872,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	LIST_FOREACH_NEXT(vrrp->track_ifp, tip, e, next) {
 		/* Check the configuration doesn't explicitly state to track our own interface */
 		if (tip->ifp == IF_BASE_IFP(vrrp->ifp)) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "(%s) Ignoring track_interface %s since own interface", vrrp->iname, IF_BASE_IFP(vrrp->ifp)->ifname);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Ignoring track_interface %s since own interface", vrrp->iname, IF_BASE_IFP(vrrp->ifp)->ifname);
 			free_list_element(vrrp->track_ifp, e);
 		}
 		else
@@ -2885,7 +2885,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #ifdef _HAVE_VRRP_VMAC_
 	if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&
 	    !__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) vmac_xmit_base is only valid with a vmac", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) vmac_xmit_base is only valid with a vmac", vrrp->iname);
 		__clear_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags);
 	}
 
@@ -2920,7 +2920,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 //TODO = we have a problem since SNMP may change accept mode
 //it can also change priority
 		if (!global_data->vrrp_iptables_inchain[0])
-			ka_config_error(CONFIG_GENERAL_ERROR, "(%s) Unable to set no_accept mode since iptables chain name unset", vrrp->iname);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Unable to set no_accept mode since iptables chain name unset", vrrp->iname);
 		else if (vrrp->family == AF_INET)
 			block_ipv4 = true;
 		else
@@ -2961,7 +2961,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		 * unless we are the address owner, in which case stop tracking it */
 		LIST_FOREACH_NEXT(vrrp->track_ifp, tip, e, next) {
 			if (tip->weight && tip->weight != VRRP_NOT_TRACK_IF) {
-				ka_config_error(CONFIG_GENERAL_ERROR, "(%s) ignoring %s"
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) ignoring %s"
 						 "tracked interface %s due to %s",
 						 vrrp->iname, tip->ifp->ifname,
 						 sync_no_tracking_weight ? "weight of " : "",
@@ -2978,7 +2978,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		/* Ignore any weighted script */
 		LIST_FOREACH_NEXT(vrrp->track_script, sc, e, next) {
 			if (sc->weight) {
-				ka_config_error(CONFIG_GENERAL_ERROR, "(%s) ignoring "
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) ignoring "
 						 "tracked script %s with weights due to %s",
 						 vrrp->iname, sc->scr->sname,
 						 sync_no_tracking_weight ? "SYNC group" : "address_owner");
@@ -2991,14 +2991,14 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		/* Set tracking files to unweighted if weight not explicitly set, otherwise ignore */
 		LIST_FOREACH_NEXT(vrrp->track_file, tfl, e, next) {
 			if (tfl->weight == 1) {		/* weight == 1 is the default */
-				ka_config_error(CONFIG_GENERAL_ERROR, "(%s) ignoring weight from "
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) ignoring weight from "
 						 "tracked file %s due to %s - specify weight 0",
 						 vrrp->iname, tfl->file->fname,
 						 sync_no_tracking_weight ? "SYNC group" : "address_owner");
 				tfl->weight = 0;
 			}
 			else if (tfl->weight) {
-				ka_config_error(CONFIG_GENERAL_ERROR, "(%s) ignoring "
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) ignoring "
 						 "tracked file %s with weight %d due to %s",
 						 vrrp->iname, tfl->file->fname, tfl->weight,
 						 sync_no_tracking_weight ? "SYNC group" : "address_owner");
@@ -3012,7 +3012,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		/* Ignore any weighted tracked bfd */
 		LIST_FOREACH_NEXT(vrrp->track_bfd, tbfd, e, next) {
 			if (tbfd->weight) {
-				ka_config_error(CONFIG_GENERAL_ERROR, "(%s) ignoring "
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) ignoring "
 						 "tracked bfd %s with weight %d due to %s",
 						 vrrp->iname, tbfd->bfd->bname, tbfd->weight,
 						 sync_no_tracking_weight ? "SYNC group" : "address_owner");
@@ -3030,7 +3030,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		vrrp_script_t *vsc = sc->scr;
 
 		if (vrrp->base_priority == VRRP_PRIO_OWNER && sc->weight) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot have weighted track script '%s' with priority %d", vrrp->iname, vsc->sname, VRRP_PRIO_OWNER);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot have weighted track script '%s' with priority %d", vrrp->iname, vsc->sname, VRRP_PRIO_OWNER);
 			list_del(vrrp->track_script, sc);
 			continue;
 		}
@@ -3137,7 +3137,7 @@ sync_group_tracking_init(void)
 			vsc = sc->scr;
 
 			if (sgroup_has_prio_owner && sc->weight) {
-				ka_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot have weighted track script '%s' with member having priority %d - clearing weight", sgroup->gname, vsc->sname, VRRP_PRIO_OWNER);
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot have weighted track script '%s' with member having priority %d - clearing weight", sgroup->gname, vsc->sname, VRRP_PRIO_OWNER);
 				sc->weight = 0;
 			}
 
@@ -3148,7 +3148,7 @@ sync_group_tracking_init(void)
 		/* tracked files */
 		LIST_FOREACH(sgroup->track_file, tfl, e1) {
 			if (sgroup_has_prio_owner && tfl->weight) {
-				ka_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot have weighted track file '%s' with member having priority %d - setting weight 0", sgroup->gname, tfl->file->fname, VRRP_PRIO_OWNER);
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot have weighted track file '%s' with member having priority %d - setting weight 0", sgroup->gname, tfl->file->fname, VRRP_PRIO_OWNER);
 				tfl->weight = 0;
 			}
 
@@ -3160,7 +3160,7 @@ sync_group_tracking_init(void)
 		/* tracked files */
 		LIST_FOREACH(sgroup->track_bfd, tbfd, e1) {
 			if (sgroup_has_prio_owner && tbfd->weight) {
-				ka_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot have weighted track bfd '%s' with member having priority %d - setting weight 0", sgroup->gname, tbfd->bfd->bname, VRRP_PRIO_OWNER);
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot have weighted track bfd '%s' with member having priority %d - setting weight 0", sgroup->gname, tbfd->bfd->bname, VRRP_PRIO_OWNER);
 				tbfd->weight = 0;
 			}
 
@@ -3172,7 +3172,7 @@ sync_group_tracking_init(void)
 		/* tracked interfaces */
 		LIST_FOREACH(sgroup->track_ifp, tif, e1) {
 			if (sgroup_has_prio_owner && tif->weight) {
-				ka_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot have weighted track interface '%s' with member having priority %d - clearing weight", sgroup->gname, tif->ifp->ifname, VRRP_PRIO_OWNER);
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot have weighted track interface '%s' with member having priority %d - clearing weight", sgroup->gname, tif->ifp->ifname, VRRP_PRIO_OWNER);
 				tif->weight = 0;
 			}
 
@@ -3290,7 +3290,7 @@ vrrp_complete_init(void)
 
 					if (ifp->ifindex == ifindex_o)
 					{
-						ka_config_error(CONFIG_GENERAL_ERROR, "VRID %d is duplicated on interface %s", vrrp->vrid, ifp->ifname);
+						report_config_error(CONFIG_GENERAL_ERROR, "VRID %d is duplicated on interface %s", vrrp->vrid, ifp->ifname);
 						return false;
 					}
 				}
@@ -3302,7 +3302,7 @@ vrrp_complete_init(void)
 	 * empty groups */
 	LIST_FOREACH_NEXT(vrrp_data->vrrp_sync_group, sgroup, e, next) {
 		if (!sgroup->iname) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "Sync group %s has no virtual router(s) - removing", sgroup->gname);
+			report_config_error(CONFIG_GENERAL_ERROR, "Sync group %s has no virtual router(s) - removing", sgroup->gname);
 			free_list_element(vrrp_data->vrrp_sync_group, e);
 			continue;
 		}
@@ -3457,7 +3457,7 @@ vrrp_complete_init(void)
 		}
 
 		if (!global_data->lvs_syncd.vrrp) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "Unable to find vrrp instance %s for lvs_syncd - clearing lvs_syncd config", global_data->lvs_syncd.vrrp_name);
+			report_config_error(CONFIG_GENERAL_ERROR, "Unable to find vrrp instance %s for lvs_syncd - clearing lvs_syncd config", global_data->lvs_syncd.vrrp_name);
 			FREE_PTR(global_data->lvs_syncd.ifname);
 			global_data->lvs_syncd.ifname = NULL;
 			global_data->lvs_syncd.syncid = PARAMETER_UNSET;
@@ -3479,7 +3479,7 @@ vrrp_complete_init(void)
 			next = e->next;
 			vrrp_script_t *scr = ELEMENT_DATA(e);
 			if (LIST_ISEMPTY(scr->tracking_vrrp)) {
-				ka_config_error(CONFIG_GENERAL_ERROR, "Warning - script %s is not used", scr->sname);
+				report_config_error(CONFIG_GENERAL_ERROR, "Warning - script %s is not used", scr->sname);
 				free_list_element(vrrp_data->vrrp_script, e);
 			}
 		}

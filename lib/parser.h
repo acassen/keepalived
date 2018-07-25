@@ -79,7 +79,7 @@ extern char *config_id;
 #endif
 
 /* Prototypes */
-extern void ka_config_error(config_err_t, const char *format, ...)
+extern void report_config_error(config_err_t, const char *format, ...)
 	__attribute__((format (printf, 2, 3)));
 extern config_err_t get_config_status(void);
 extern void install_keyword_root(const char *, void (*handler) (vector_t *), bool);

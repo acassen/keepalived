@@ -85,7 +85,7 @@ static_track_group_handler(vector_t *strvec)
 		return;
 
 	if (vector_count(strvec) != 2) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "track_group must have a name - skipping");
+		report_config_error(CONFIG_GENERAL_ERROR, "track_group must have a name - skipping");
 		skip_block(true);
 		return;
 	}
@@ -95,7 +95,7 @@ static_track_group_handler(vector_t *strvec)
 	/* check group doesn't already exist */
 	LIST_FOREACH(vrrp_data->static_track_groups, tg, e) {
 		if (!strcmp(gname,tg->gname)) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "track_group %s already defined", gname);
+			report_config_error(CONFIG_GENERAL_ERROR, "track_group %s already defined", gname);
 			skip_block(true);
 			return;
 		}
@@ -110,7 +110,7 @@ static_track_group_group_handler(vector_t *strvec)
 	static_track_group_t *tgroup = LIST_TAIL_DATA(vrrp_data->static_track_groups);
 
 	if (tgroup->iname) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "Group list already specified for sync group %s", tgroup->gname);
+		report_config_error(CONFIG_GENERAL_ERROR, "Group list already specified for sync group %s", tgroup->gname);
 		skip_block(true);
 		return;
 	}
@@ -118,7 +118,7 @@ static_track_group_group_handler(vector_t *strvec)
 	tgroup->iname = read_value_block(strvec);
 
 	if (!tgroup->iname)
-		ka_config_error(CONFIG_GENERAL_ERROR, "Warning - track group %s has empty group block", tgroup->gname);
+		report_config_error(CONFIG_GENERAL_ERROR, "Warning - track group %s has empty group block", tgroup->gname);
 }
 
 /* Static addresses handler */
@@ -172,7 +172,7 @@ vrrp_sync_group_handler(vector_t *strvec)
 		return;
 
 	if (vector_count(strvec) != 2) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "vrrp_sync_group must have a name - skipping");
+		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_sync_group must have a name - skipping");
 		skip_block(true);
 		return;
 	}
@@ -185,7 +185,7 @@ vrrp_sync_group_handler(vector_t *strvec)
 		for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 			sg = ELEMENT_DATA(e);
 			if (!strcmp(gname,sg->gname)) {
-				ka_config_error(CONFIG_GENERAL_ERROR, "vrrp sync group %s already defined", gname);
+				report_config_error(CONFIG_GENERAL_ERROR, "vrrp sync group %s already defined", gname);
 				skip_block(true);
 				return;
 			}
@@ -201,7 +201,7 @@ vrrp_group_handler(vector_t *strvec)
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 
 	if (vgroup->iname) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "Group list already specified for sync group %s", vgroup->gname);
+		report_config_error(CONFIG_GENERAL_ERROR, "Group list already specified for sync group %s", vgroup->gname);
 		skip_block(true);
 		return;
 	}
@@ -209,7 +209,7 @@ vrrp_group_handler(vector_t *strvec)
 	vgroup->iname = read_value_block(strvec);
 
 	if (!vgroup->iname)
-		ka_config_error(CONFIG_GENERAL_ERROR, "Warning - sync group %s has empty group block", vgroup->gname);
+		report_config_error(CONFIG_GENERAL_ERROR, "Warning - sync group %s has empty group block", vgroup->gname);
 }
 
 static void
@@ -249,7 +249,7 @@ vrrp_gnotify_backup_handler(vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 	if (vgroup->script_backup) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "vrrp group %s: notify_backup script already specified - ignoring %s", vgroup->gname, FMT_STR_VSLOT(strvec,1));
+		report_config_error(CONFIG_GENERAL_ERROR, "vrrp group %s: notify_backup script already specified - ignoring %s", vgroup->gname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	vgroup->script_backup = set_vrrp_notify_script(strvec, 0);
@@ -260,7 +260,7 @@ vrrp_gnotify_master_handler(vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 	if (vgroup->script_master) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "vrrp group %s: notify_master script already specified - ignoring %s", vgroup->gname, FMT_STR_VSLOT(strvec,1));
+		report_config_error(CONFIG_GENERAL_ERROR, "vrrp group %s: notify_master script already specified - ignoring %s", vgroup->gname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	vgroup->script_master = set_vrrp_notify_script(strvec, 0);
@@ -271,7 +271,7 @@ vrrp_gnotify_fault_handler(vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 	if (vgroup->script_fault) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "vrrp group %s: notify_fault script already specified - ignoring %s", vgroup->gname, FMT_STR_VSLOT(strvec,1));
+		report_config_error(CONFIG_GENERAL_ERROR, "vrrp group %s: notify_fault script already specified - ignoring %s", vgroup->gname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	vgroup->script_fault = set_vrrp_notify_script(strvec, 0);
@@ -282,7 +282,7 @@ vrrp_gnotify_stop_handler(vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 	if (vgroup->script_stop) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "vrrp group %s: notify_stop script already specified - ignoring %s", vgroup->gname, FMT_STR_VSLOT(strvec,1));
+		report_config_error(CONFIG_GENERAL_ERROR, "vrrp group %s: notify_stop script already specified - ignoring %s", vgroup->gname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	vgroup->script_stop = set_vrrp_notify_script(strvec, 0);
@@ -293,7 +293,7 @@ vrrp_gnotify_handler(vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 	if (vgroup->script) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "vrrp group %s: notify script already specified - ignoring %s", vgroup->gname, FMT_STR_VSLOT(strvec,1));
+		report_config_error(CONFIG_GENERAL_ERROR, "vrrp group %s: notify script already specified - ignoring %s", vgroup->gname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	vgroup->script = set_vrrp_notify_script(strvec, 4);
@@ -308,7 +308,7 @@ vrrp_gsmtp_handler(__attribute__((unused)) vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec, 1));
 		if (res == -1) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "Invalid vrrp_group smtp_alert parameter %s", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid vrrp_group smtp_alert parameter %s", FMT_STR_VSLOT(strvec, 1));
 			return;
 		}
 	}
@@ -319,7 +319,7 @@ vrrp_gglobal_tracking_handler(__attribute__((unused)) vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 
-	ka_config_error(CONFIG_GENERAL_ERROR, "(%s) global_tracking is deprecated. Use track_interface/script/file on the sync group", vgroup->gname);
+	report_config_error(CONFIG_GENERAL_ERROR, "(%s) global_tracking is deprecated. Use track_interface/script/file on the sync group", vgroup->gname);
 	vgroup->sgroup_tracking_weight = true;
 }
 static void
@@ -342,7 +342,7 @@ vrrp_handler(vector_t *strvec)
 		return;
 
 	if (vector_count(strvec) != 2) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "vrrp_instance must have a name");
+		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_instance must have a name");
 		skip_block(true);
 		return;
 	}
@@ -355,7 +355,7 @@ vrrp_handler(vector_t *strvec)
 		for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 			vrrp = ELEMENT_DATA(e);
 			if (!strcmp(iname,vrrp->iname)) {
-				ka_config_error(CONFIG_GENERAL_ERROR, "vrrp instance %s already defined", iname );
+				report_config_error(CONFIG_GENERAL_ERROR, "vrrp instance %s already defined", iname );
 				skip_block(true);
 				return;
 			}
@@ -375,7 +375,7 @@ vrrp_vmac_handler(vector_t *strvec)
 
 	if (vector_size(strvec) >= 2) {
 		if (strlen(strvec_slot(strvec, 1)) >= IFNAMSIZ) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "VMAC interface name '%s' too long - ignoring", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "VMAC interface name '%s' too long - ignoring", FMT_STR_VSLOT(strvec, 1));
 			return;
 		}
 
@@ -384,7 +384,7 @@ vrrp_vmac_handler(vector_t *strvec)
 		/* Check if the interface exists and is a macvlan we can use */
 		if ((ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_NO_CREATE)) &&
 		    !ifp->vmac) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "(%s) interface %s already exists and is not a private macvlan; ignoring vmac if_name", vrrp->iname, vrrp->vmac_ifname);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) interface %s already exists and is not a private macvlan; ignoring vmac if_name", vrrp->iname, vrrp->vmac_ifname);
 			vrrp->vmac_ifname[0] = '\0';
 		}
 	}
@@ -412,7 +412,7 @@ vrrp_unicast_chksum_handler(vector_t *strvec)
 		if (!strcmp(strvec_slot(strvec, 1), "never"))
 			vrrp->unicast_chksum_compat = CHKSUM_COMPATIBILITY_NEVER;
 		else
-			ka_config_error(CONFIG_GENERAL_ERROR, "(%s) Unknown old_unicast_chksum mode %s - ignoring", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Unknown old_unicast_chksum mode %s - ignoring", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
 	}
 	else
 		vrrp->unicast_chksum_compat = CHKSUM_COMPATIBILITY_CONFIG;
@@ -424,7 +424,7 @@ vrrp_native_ipv6_handler(__attribute__((unused)) vector_t *strvec)
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
 	if (vrrp->family == AF_INET) {
-		ka_config_error(CONFIG_GENERAL_ERROR,"(%s) Cannot specify native_ipv6 with IPv4 addresses", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR,"(%s) Cannot specify native_ipv6 with IPv4 addresses", vrrp->iname);
 		return;
 	}
 
@@ -442,12 +442,12 @@ vrrp_state_handler(vector_t *strvec)
 	else if (!strcmp(str, "BACKUP"))
 	{
 		if (vrrp->wantstate == VRRP_STATE_MAST)
-			ka_config_error(CONFIG_GENERAL_ERROR, "(%s) state previously set as MASTER - ignoring BACKUP", vrrp->iname);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) state previously set as MASTER - ignoring BACKUP", vrrp->iname);
 		else
 			vrrp->wantstate = VRRP_STATE_BACK;
 	}
 	else {
-		ka_config_error(CONFIG_GENERAL_ERROR,"(%s) unknown state '%s', defaulting to BACKUP", vrrp->iname, str);
+		report_config_error(CONFIG_GENERAL_ERROR,"(%s) unknown state '%s', defaulting to BACKUP", vrrp->iname, str);
 		vrrp->wantstate = VRRP_STATE_BACK;
 	}
 }
@@ -458,15 +458,15 @@ vrrp_int_handler(vector_t *strvec)
 	char *name = strvec_slot(strvec, 1);
 
 	if (strlen(name) >= IFNAMSIZ) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "Interface name '%s' too long - ignoring", name);
+		report_config_error(CONFIG_GENERAL_ERROR, "Interface name '%s' too long - ignoring", name);
 		return;
 	}
 
 	vrrp->ifp = if_get_by_ifname(name, IF_CREATE_IF_DYNAMIC);
 	if (!vrrp->ifp)
-		ka_config_error(CONFIG_GENERAL_ERROR, "WARNING - interface %s for vrrp_instance %s doesn't exist", name, vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "WARNING - interface %s for vrrp_instance %s doesn't exist", name, vrrp->iname);
 	else if (vrrp->ifp->hw_type == ARPHRD_LOOPBACK) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) cannot use a loopback interface (%s) for vrrp - ignoring", vrrp->iname, vrrp->ifp->ifname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) cannot use a loopback interface (%s) for vrrp - ignoring", vrrp->iname, vrrp->ifp->ifname);
 		vrrp->ifp = NULL;
 	}
 }
@@ -514,7 +514,7 @@ vrrp_srcip_handler(vector_t *strvec)
 
 	ret = inet_stosockaddr(strvec_slot(strvec, 1), 0, saddr);
 	if (ret < 0) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "Configuration error: VRRP instance[%s] malformed"
+		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: VRRP instance[%s] malformed"
 				     " src address[%s]. Skipping..."
 				   , vrrp->iname, FMT_STR_VSLOT(strvec, 1));
 		return;
@@ -525,7 +525,7 @@ vrrp_srcip_handler(vector_t *strvec)
 	if (vrrp->family == AF_UNSPEC)
 		vrrp->family = saddr->ss_family;
 	else if (saddr->ss_family != vrrp->family) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "Configuration error: VRRP instance[%s] and src address"
+		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: VRRP instance[%s] and src address"
 				     "[%s] MUST be of the same family !!! Skipping..."
 				   , vrrp->iname, FMT_STR_VSLOT(strvec, 1));
 		saddr->ss_family = AF_UNSPEC;
@@ -547,7 +547,7 @@ vrrp_vrid_handler(vector_t *strvec)
 	unsigned long vrid = strtoul(strvec_slot(strvec, 1),&end_ptr, 10);
 
 	if (*end_ptr || VRRP_IS_BAD_VID(vrid)) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : VRID not valid - must be between 1 & 255. reconfigure !");
+		report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : VRID not valid - must be between 1 & 255. reconfigure !");
 		return;
 	}
 
@@ -561,8 +561,8 @@ vrrp_prio_handler(vector_t *strvec)
 	unsigned long base_priority = strtoul(strvec_slot(strvec, 1), &endptr, 10);
 
 	if (*endptr || VRRP_IS_BAD_PRIORITY(base_priority)) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) Priority not valid! must be between 1 & 255. Reconfigure !", vrrp->iname);
-		ka_config_error(CONFIG_GENERAL_ERROR, "%*sUsing default value : %d", (int)strlen(vrrp->iname) + 4, "", VRRP_PRIO_DFL);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Priority not valid! must be between 1 & 255. Reconfigure !", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "%*sUsing default value : %d", (int)strlen(vrrp->iname) + 4, "", VRRP_PRIO_DFL);
 
 		vrrp->base_priority = VRRP_PRIO_DFL;
 	}
@@ -577,7 +577,7 @@ vrrp_adv_handler(vector_t *strvec)
 
 	/* Simple check - just positive */
 	if (adver_int <= 0)
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) Advert interval (%s) not valid! Must be > 0 - ignoring", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Advert interval (%s) not valid! Must be > 0 - ignoring", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
 	else
 		vrrp->adver_int = (unsigned)adver_int;
 }
@@ -588,7 +588,7 @@ vrrp_debug_handler(vector_t *strvec)
 	vrrp->debug = atoi(strvec_slot(strvec, 1));
 
 	if (VRRP_IS_BAD_DEBUG_INT(vrrp->debug)) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) Debug value not valid! must be between 0-4", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Debug value not valid! must be between 0-4", vrrp->iname);
 		vrrp->debug = 0;
 	}
 }
@@ -603,7 +603,7 @@ vrrp_skip_check_adv_addr_handler(vector_t *strvec)
 		if (res >= 0)
 			vrrp->skip_check_adv_addr = (bool)res;
 		else
-			ka_config_error(CONFIG_GENERAL_ERROR, "(%s) invalid skip_check_adv_addr %s specified", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) invalid skip_check_adv_addr %s specified", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
 	} else {
 		/* Defaults to true */
 		vrrp->skip_check_adv_addr = true;
@@ -620,7 +620,7 @@ vrrp_strict_mode_handler(vector_t *strvec)
 		if (res >= 0)
 			vrrp->strict_mode = (bool)res;
 		else
-			ka_config_error(CONFIG_GENERAL_ERROR, "(%s) invalid strict_mode %s specified", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) invalid strict_mode %s specified", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
 	} else {
 		/* Defaults to true */
 		vrrp->strict_mode = true;
@@ -645,7 +645,7 @@ vrrp_preempt_delay_handler(vector_t *strvec)
 	unsigned long preempt_delay = (unsigned long)(atof(vector_slot(strvec, 1)) * TIMER_HZ);
 
 	if (preempt_delay > TIMER_MAX_SEC * TIMER_HZ) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) Preempt_delay not valid! must be between 0-%d", vrrp->iname, TIMER_MAX_SEC);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Preempt_delay not valid! must be between 0-%d", vrrp->iname, TIMER_MAX_SEC);
 		vrrp->preempt_delay = 0;
 	}
 	else
@@ -656,7 +656,7 @@ vrrp_notify_backup_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	if (vrrp->script_backup) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) notify_backup script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) notify_backup script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	vrrp->script_backup = set_vrrp_notify_script(strvec, 0);
@@ -667,7 +667,7 @@ vrrp_notify_master_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	if (vrrp->script_master) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) notify_master script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) notify_master script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	vrrp->script_master = set_vrrp_notify_script(strvec, 0);
@@ -678,7 +678,7 @@ vrrp_notify_fault_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	if (vrrp->script_fault) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) notify_fault script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) notify_fault script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	vrrp->script_fault = set_vrrp_notify_script(strvec, 0);
@@ -689,7 +689,7 @@ vrrp_notify_stop_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	if (vrrp->script_stop) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) notify_stop script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) notify_stop script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	vrrp->script_stop = set_vrrp_notify_script(strvec, 0);
@@ -700,7 +700,7 @@ vrrp_notify_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	if (vrrp->script) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) notify script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) notify script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	vrrp->script = set_vrrp_notify_script(strvec, 4);
@@ -711,7 +711,7 @@ vrrp_notify_master_rx_lower_pri(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	if (vrrp->script_master_rx_lower_pri) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) notify_master_rx_lower_pri script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) notify_master_rx_lower_pri script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	vrrp->script_master_rx_lower_pri = set_vrrp_notify_script(strvec, 0);
@@ -726,7 +726,7 @@ vrrp_smtp_handler(__attribute__((unused)) vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec, 1));
 		if (res == -1) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "Invalid vrrp_instance smtp_alert parameter %s", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid vrrp_instance smtp_alert parameter %s", FMT_STR_VSLOT(strvec, 1));
 			return;
 		}
 	}
@@ -738,11 +738,11 @@ vrrp_lvs_syncd_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
-	ka_config_error(CONFIG_GENERAL_ERROR, "(%s) Specifying lvs_sync_daemon_interface against a vrrp is deprecated.", vrrp->iname);  /* Deprecated after v1.2.19 */
-	ka_config_error(CONFIG_GENERAL_ERROR, "      %*sPlease use global lvs_sync_daemon", (int)strlen(vrrp->iname) - 2, "");
+	report_config_error(CONFIG_GENERAL_ERROR, "(%s) Specifying lvs_sync_daemon_interface against a vrrp is deprecated.", vrrp->iname);  /* Deprecated after v1.2.19 */
+	report_config_error(CONFIG_GENERAL_ERROR, "      %*sPlease use global lvs_sync_daemon", (int)strlen(vrrp->iname) - 2, "");
 
 	if (global_data->lvs_syncd.ifname) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) lvs_sync_daemon_interface has already been specified as %s - ignoring", vrrp->iname, global_data->lvs_syncd.ifname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) lvs_sync_daemon_interface has already been specified as %s - ignoring", vrrp->iname, global_data->lvs_syncd.ifname);
 		return;
 	}
 
@@ -811,7 +811,7 @@ vrrp_lower_prio_no_advert_handler(vector_t *strvec)
 		if (res >= 0)
 			vrrp->lower_prio_no_advert = (unsigned)res;
 		else
-			ka_config_error(CONFIG_GENERAL_ERROR, "(%s) invalid lower_prio_no_advert %s specified", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) invalid lower_prio_no_advert %s specified", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
 	} else {
 		/* Defaults to true */
 		vrrp->lower_prio_no_advert = true;
@@ -829,7 +829,7 @@ vrrp_higher_prio_send_advert_handler(vector_t *strvec)
 		if (res >= 0)
 			vrrp->higher_prio_send_advert = (unsigned)res;
 		else
-			ka_config_error(CONFIG_GENERAL_ERROR, "(%s) invalid higher_prio_send_advert %s specified", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) invalid higher_prio_send_advert %s specified", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
 	} else {
 		/* Defaults to true */
 		vrrp->higher_prio_send_advert = true;
@@ -852,7 +852,7 @@ kernel_rx_buf_size_handler(vector_t *strvec)
 		}
 	}
 
-	ka_config_error(CONFIG_GENERAL_ERROR, "(%s) invalid kernel_rx_buf_size specified", vrrp->iname);
+	report_config_error(CONFIG_GENERAL_ERROR, "(%s) invalid kernel_rx_buf_size specified", vrrp->iname);
 }
 
 #if defined _WITH_VRRP_AUTH_
@@ -867,7 +867,7 @@ vrrp_auth_type_handler(vector_t *strvec)
 	else if (!strcmp(str, "PASS"))
 		vrrp->auth_type = VRRP_AUTH_PASS;
 	else
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown authentication type '%s'", vrrp->iname, str);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown authentication type '%s'", vrrp->iname, str);
 }
 static void
 vrrp_auth_pass_handler(vector_t *strvec)
@@ -879,7 +879,7 @@ vrrp_auth_pass_handler(vector_t *strvec)
 
 	if (str_len > max_size) {
 		str_len = max_size;
-		ka_config_error(CONFIG_GENERAL_ERROR,
+		report_config_error(CONFIG_GENERAL_ERROR,
 			    "Truncating auth_pass to %zu characters", max_size);
 	}
 
@@ -982,7 +982,7 @@ vrrp_vscript_user_handler(vector_t *strvec)
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
 
 	if (set_script_uid_gid(strvec, 1, &vscript->script.uid, &vscript->script.gid)) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "Unable to set uid/gid for script %s", cmd_str(&vscript->script));
+		report_config_error(CONFIG_GENERAL_ERROR, "Unable to set uid/gid for script %s", cmd_str(&vscript->script));
 		remove_script = true;
 	}
 	else {
@@ -996,7 +996,7 @@ vrrp_vscript_end_handler(void)
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
 
 	if (!vscript->script.args || !vscript->script.args[0]) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "No script set for vrrp_script %s - removing", vscript->sname);
+		report_config_error(CONFIG_GENERAL_ERROR, "No script set for vrrp_script %s - removing", vscript->sname);
 		remove_script = true;
 	}
 	else if (!remove_script) {
@@ -1004,7 +1004,7 @@ vrrp_vscript_end_handler(void)
 			return;
 
 		if (set_default_script_user(NULL, NULL)) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "Unable to set default user for vrrp script %s - removing", vscript->sname);
+			report_config_error(CONFIG_GENERAL_ERROR, "Unable to set default user for vrrp script %s - removing", vscript->sname);
 			remove_script = true;
 		}
 	}
@@ -1032,7 +1032,7 @@ vrrp_tfile_file_handler(vector_t *strvec)
 {
 	vrrp_tracked_file_t *tfile = LIST_TAIL_DATA(vrrp_data->vrrp_track_files);
 	if (tfile->file_path) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "File already set for track file %s - ignoring %s", tfile->fname, FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "File already set for track file %s - ignoring %s", tfile->fname, FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
 	tfile->file_path = set_value(strvec);
@@ -1044,17 +1044,17 @@ vrrp_tfile_weight_handler(vector_t *strvec)
 	vrrp_tracked_file_t *tfile = LIST_TAIL_DATA(vrrp_data->vrrp_track_files);
 
 	if (vector_size(strvec) < 2) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "No weight specified for track file %s - ignoring", tfile->fname);
+		report_config_error(CONFIG_GENERAL_ERROR, "No weight specified for track file %s - ignoring", tfile->fname);
 		return;
 	}
 	if (tfile->weight != 1) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "Weight already set for track file %s - ignoring %s", tfile->fname, FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Weight already set for track file %s - ignoring %s", tfile->fname, FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
 
 	weight = atoi(strvec_slot(strvec, 1));
 	if (weight < -254 || weight > 254) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "Weight for %s must be between "
+		report_config_error(CONFIG_GENERAL_ERROR, "Weight for %s must be between "
 				 "[-254..254] inclusive. Ignoring...", tfile->fname);
 		weight = 1;
 	}
@@ -1078,14 +1078,14 @@ vrrp_tfile_init_handler(vector_t *strvec)
 			track_file_init_weight = strtol(word, &endptr, 0);
 			if (*endptr) {
 				/* It is not a valid integer */
-				ka_config_error(CONFIG_GENERAL_ERROR, "Track file %s init weight %s is invalid", tfile->fname, word);
+				report_config_error(CONFIG_GENERAL_ERROR, "Track file %s init weight %s is invalid", tfile->fname, word);
 				track_file_init_weight = 0;
 			}
 		}
 		else if (!strcmp(word, "overwrite"))
 			track_file_init = TRACK_FILE_INIT;
 		else
-			ka_config_error(CONFIG_GENERAL_ERROR, "Unknown track file init option %s", word);
+			report_config_error(CONFIG_GENERAL_ERROR, "Unknown track file init option %s", word);
 	}
 }
 static void
@@ -1097,7 +1097,7 @@ vrrp_tfile_end_handler(void)
 	int ret;
 
 	if (!tfile->file_path) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "No file set for track_file %s - removing", tfile->fname);
+		report_config_error(CONFIG_GENERAL_ERROR, "No file set for track_file %s - removing", tfile->fname);
 		free_list_element(vrrp_data->vrrp_track_files, vrrp_data->vrrp_track_files->tail);
 	}
 
@@ -1112,7 +1112,7 @@ vrrp_tfile_end_handler(void)
 		}
 		if ((statb.st_mode & S_IFMT) != S_IFREG) {
 			/* It is not a regular file */
-			ka_config_error(CONFIG_GENERAL_ERROR, "Cannot initialise track file %s - it is not a regular file", tfile->fname);
+			report_config_error(CONFIG_GENERAL_ERROR, "Cannot initialise track file %s - it is not a regular file", tfile->fname);
 			return;
 		}
 	}
@@ -1123,7 +1123,7 @@ vrrp_tfile_end_handler(void)
 		fclose(tf);
 	}
 	else
-		ka_config_error(CONFIG_GENERAL_ERROR, "Unable to initialise track file %s", tfile->fname);
+		report_config_error(CONFIG_GENERAL_ERROR, "Unable to initialise track file %s", tfile->fname);
 }
 static void
 vrrp_vscript_init_fail_handler(__attribute__((unused)) vector_t *strvec)
@@ -1138,13 +1138,13 @@ vrrp_version_handler(vector_t *strvec)
 	uint8_t version = (uint8_t)strtoul(strvec_slot(strvec, 1), NULL, 10);
 
 	if (VRRP_IS_BAD_VERSION(version)) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : Version must be between either 2 or 3. reconfigure !");
+		report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : Version must be between either 2 or 3. reconfigure !");
 		return;
 	}
 
 	if ((vrrp->version && vrrp->version != version) ||
 	    (version == VRRP_VERSION_2 && vrrp->family == AF_INET6)) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "(%s) vrrp_version conflicts with configured or deduced version; ignoring.", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) vrrp_version conflicts with configured or deduced version; ignoring.", vrrp->iname);
 		return;
 	}
 
@@ -1206,19 +1206,19 @@ garp_group_interface_handler(vector_t *strvec)
 {
 	interface_t *ifp = if_get_by_ifname(strvec_slot(strvec, 1), IF_CREATE_IF_DYNAMIC);
 	if (!ifp) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "WARNING - interface %s specified for garp_group doesn't exist", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "WARNING - interface %s specified for garp_group doesn't exist", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
 
 	if (ifp->garp_delay) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "garp_group already specified for %s - ignoring", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "garp_group already specified for %s - ignoring", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
 
 #ifdef _HAVE_VRRP_VMAC_
 	/* We cannot have a group on a vmac interface */
 	if (ifp->vmac) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "Cannot specify garp_delay on a vmac (%s) - ignoring", ifp->ifname);
+		report_config_error(CONFIG_GENERAL_ERROR, "Cannot specify garp_delay on a vmac (%s) - ignoring", ifp->ifname);
 		return;
 	}
 #endif
@@ -1236,7 +1236,7 @@ garp_group_interfaces_handler(vector_t *strvec)
 
 	/* Handle the interfaces block being empty */
 	if (!interface_vec) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "Warning - empty garp_group interfaces block");
+		report_config_error(CONFIG_GENERAL_ERROR, "Warning - empty garp_group interfaces block");
 		return;
 	}
 
@@ -1254,18 +1254,18 @@ garp_group_interfaces_handler(vector_t *strvec)
 			if (global_data->dynamic_interfaces)
 				log_message(LOG_INFO, "WARNING - interface %s specified for garp_group doesn't exist", FMT_STR_VSLOT(strvec, i));
 			else
-				ka_config_error(CONFIG_GENERAL_ERROR, "WARNING - interface %s specified for garp_group doesn't exist", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "WARNING - interface %s specified for garp_group doesn't exist", FMT_STR_VSLOT(strvec, i));
 			continue;
 		}
 
 		if (ifp->garp_delay) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "garp_group already specified for %s - ignoring", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "garp_group already specified for %s - ignoring", FMT_STR_VSLOT(strvec, 1));
 			continue;
 		}
 
 #ifdef _HAVE_VRRP_VMAC_
 		if (ifp->vmac) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "Cannot specify garp_delay on a vmac (%s) - ignoring", ifp->ifname);
+			report_config_error(CONFIG_GENERAL_ERROR, "Cannot specify garp_delay on a vmac (%s) - ignoring", ifp->ifname);
 			continue;
 		}
 #endif
@@ -1282,7 +1282,7 @@ garp_group_end_handler(void)
 	interface_t *ifp;
 
 	if (!delay->have_garp_interval && !delay->have_gna_interval) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "garp group %d does not have any delay set - removing", delay->aggregation_group);
+		report_config_error(CONFIG_GENERAL_ERROR, "garp group %d does not have any delay set - removing", delay->aggregation_group);
 
 		/* Remove the garp_delay from any interfaces that are using it */
 		LIST_FOREACH_NEXT(get_if_list(), ifp, e, next) {

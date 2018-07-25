@@ -322,7 +322,7 @@ start_vrrp(void)
 	init_data(conf_file, vrrp_init_keywords);
 
 	if (non_existent_interface_specified) {
-		ka_config_error(CONFIG_BAD_IF, "Non-existent interface specified in configuration");
+		report_config_error(CONFIG_BAD_IF, "Non-existent interface specified in configuration");
 		stop_vrrp(KEEPALIVED_EXIT_CONFIG);
 		return;
 	}

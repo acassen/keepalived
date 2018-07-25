@@ -170,13 +170,13 @@ alloc_vsg_entry(vector_t *strvec)
 	} else {
 		new->range = inet_stor(strvec_slot(strvec, 0));
 		if (inet_stosockaddr(strvec_slot(strvec, 0), strvec_slot(strvec, 1), &new->addr)) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "Invalid virtual server group IP address %s - skipping", FMT_STR_VSLOT(strvec, 0));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid virtual server group IP address %s - skipping", FMT_STR_VSLOT(strvec, 0));
 			FREE(new);
 			return;
 		}
 #ifndef LIBIPVS_USE_NL
 		if (new->addr.ss_family != AF_INET) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "IPVS does not support IPv6 in this build - skipping %s", FMT_STR_VSLOT(strvec, 0));
+			report_config_error(CONFIG_GENERAL_ERROR, "IPVS does not support IPv6 in this build - skipping %s", FMT_STR_VSLOT(strvec, 0));
 			FREE(new);
 			return;
 		}
@@ -187,7 +187,7 @@ alloc_vsg_entry(vector_t *strvec)
 			e = LIST_HEAD(vsg->addr_range);
 			old = ELEMENT_DATA(e);
 			if (old->addr.ss_family != new->addr.ss_family) {
-				ka_config_error(CONFIG_GENERAL_ERROR, "Cannot mix IPv4 and IPv6 in virtual server group - %s", vsg->gname);
+				report_config_error(CONFIG_GENERAL_ERROR, "Cannot mix IPv4 and IPv6 in virtual server group - %s", vsg->gname);
 				FREE(new);
 				return;
 			}
@@ -197,7 +197,7 @@ alloc_vsg_entry(vector_t *strvec)
 		if (new->range &&
 		    ((new->addr.ss_family == AF_INET && new->range > 255) ||
 		     (new->addr.ss_family == AF_INET6 && new->range > 0xffff))) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "End address of range exceeds limit for address family - %s - skipping", FMT_STR_VSLOT(strvec, 0));
+			report_config_error(CONFIG_GENERAL_ERROR, "End address of range exceeds limit for address family - %s - skipping", FMT_STR_VSLOT(strvec, 0));
 			FREE(new);
 			return;
 		}
@@ -209,7 +209,7 @@ alloc_vsg_entry(vector_t *strvec)
 
 		if (new->range) {
 			if (start >= new->range) {
-				ka_config_error(CONFIG_GENERAL_ERROR, "Address range end is not greater than address range start - %s - skipping", FMT_STR_VSLOT(strvec, 0));
+				report_config_error(CONFIG_GENERAL_ERROR, "Address range end is not greater than address range start - %s - skipping", FMT_STR_VSLOT(strvec, 0));
 				FREE(new);
 				return;
 			}
@@ -360,7 +360,7 @@ alloc_vs(char *param1, char *param2)
 		new->vfwmark = (uint32_t)strtoul(param2, NULL, 10);
 	} else {
 		if (inet_stosockaddr(param1, param2, &new->addr)) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "Invalid virtual server IP address %s - skipping", param1);
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid virtual server IP address %s - skipping", param1);
 			skip_block(true);
 			FREE(new);
 			return;
@@ -369,7 +369,7 @@ alloc_vs(char *param1, char *param2)
 		new->af = new->addr.ss_family;
 #ifndef LIBIPVS_USE_NL
 		if (new->af != AF_INET) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "IPVS with IPv6 is not supported by this build");
+			report_config_error(CONFIG_GENERAL_ERROR, "IPVS with IPv6 is not supported by this build");
 			FREE(new);
 			skip_block(true);
 			return;
@@ -408,7 +408,7 @@ alloc_ssvr(char *ip, char *port)
 	vs->s_svr->iweight = 1;
 	vs->s_svr->forwarding_method = vs->forwarding_method;
 	if (inet_stosockaddr(ip, port, &vs->s_svr->addr)) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "Invalid sorry server IP address %s - skipping", ip);
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid sorry server IP address %s - skipping", ip);
 		FREE(vs->s_svr);
 		vs->s_svr = NULL;
 		return;
@@ -477,7 +477,7 @@ alloc_rs(char *ip, char *port)
 
 	new = (real_server_t *) MALLOC(sizeof(real_server_t));
 	if (inet_stosockaddr(ip, port, &new->addr)) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "Invalid real server ip address %s - skipping", ip);
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid real server ip address %s - skipping", ip);
 		skip_block(true);
 		FREE(new);
 		return;
@@ -485,7 +485,7 @@ alloc_rs(char *ip, char *port)
 
 #ifndef LIBIPVS_USE_NL
 	if (new->addr.ss_family != AF_INET) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "IPVS does not support IPv6 in this build - skipping %s", ip);
+		report_config_error(CONFIG_GENERAL_ERROR, "IPVS does not support IPv6 in this build - skipping %s", ip);
 		skip_block(true);
 		FREE(new);
 		return;
@@ -493,7 +493,7 @@ alloc_rs(char *ip, char *port)
 #else
 #if !HAVE_DECL_IPVS_DEST_ATTR_ADDR_FAMILY
 	if (vs->af != AF_UNSPEC && new->addr.ss_family != vs->af) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "Your kernel doesn't support mixed IPv4/IPv6 for virtual/real servers");
+		report_config_error(CONFIG_GENERAL_ERROR, "Your kernel doesn't support mixed IPv4/IPv6 for virtual/real servers");
 		skip_block(true);
 		FREE(new);
 		return;
@@ -651,7 +651,7 @@ check_check_script_security(void)
 		script_flags |= check_notify_script_secure(&global_data->lvs_notify_fifo.script, magic);
 
 	if (!script_security && script_flags & SC_ISSCRIPT) {
-		ka_config_error(CONFIG_SECURITY_ERROR, "SECURITY VIOLATION - check scripts are being executed but script_security not enabled.%s",
+		report_config_error(CONFIG_SECURITY_ERROR, "SECURITY VIOLATION - check scripts are being executed but script_security not enabled.%s",
 				script_flags & SC_INSECURE ? " There are insecure scripts." : "");
 	}
 
@@ -670,7 +670,7 @@ bool validate_check_config(void)
 	using_ha_suspend = false;
 	LIST_FOREACH_NEXT(check_data->vs, vs, e, next) {
 		if (!vs->rs || LIST_ISEMPTY(vs->rs)) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s has no real servers - ignoring", FMT_VS(vs));
+			report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s has no real servers - ignoring", FMT_VS(vs));
 			free_list_element(check_data->vs, e);
 			continue;
 		}
@@ -678,13 +678,13 @@ bool validate_check_config(void)
 		/* Check that the quorum isn't higher than the number of real servers,
 		 * otherwise we will never be able to come up. */
 		if (vs->quorum > LIST_SIZE(vs->rs)) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "Warning - quorum %1$d for %2$s exceeds number of real servers %3$d, reducing quorum to %3$d", vs->quorum, FMT_VS(vs), LIST_SIZE(vs->rs));
+			report_config_error(CONFIG_GENERAL_ERROR, "Warning - quorum %1$d for %2$s exceeds number of real servers %3$d, reducing quorum to %3$d", vs->quorum, FMT_VS(vs), LIST_SIZE(vs->rs));
 			vs->quorum = LIST_SIZE(vs->rs);
 		}
 
 		/* Ensure that no virtual server hysteresis >= quorum */
 		if (vs->hysteresis >= vs->quorum) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: hysteresis %u >= quorum %u; setting hysteresis to %u",
+			report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: hysteresis %u >= quorum %u; setting hysteresis to %u",
 					FMT_VS(vs), vs->hysteresis, vs->quorum, vs->quorum -1);
 			vs->hysteresis = vs->quorum - 1;
 		}
@@ -692,7 +692,7 @@ bool validate_check_config(void)
 		/* Ensure that ha_suspend is not set for any virtual server using fwmarks */
 		if (vs->ha_suspend &&
 		    (vs->vfwmark || (vs->vsg && !LIST_ISEMPTY(vs->vsg->vfwmark)))) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: cannot use ha_suspend with fwmarks - clearing ha_suspend", FMT_VS(vs));
+			report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: cannot use ha_suspend with fwmarks - clearing ha_suspend", FMT_VS(vs));
 			vs->ha_suspend = false;
 		}
 
@@ -714,7 +714,7 @@ bool validate_check_config(void)
 			if (vs->flags & IP_VS_SVC_F_ONEPACKET &&
 			    vs->service_type != IPPROTO_UDP) {
 				/* OPS is only valid for UDP, or with a firewall mark */
-				ka_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: one packet scheduling requires UDP - resetting", FMT_VS(vs));
+				report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: one packet scheduling requires UDP - resetting", FMT_VS(vs));
 				vs->flags &= ~(unsigned)IP_VS_SVC_F_ONEPACKET;
 			}
 #endif
@@ -723,7 +723,7 @@ bool validate_check_config(void)
 			if (!vs->persistence_timeout &&
 			    ((vs->addr.ss_family == AF_INET6 && !((struct sockaddr_in6 *)&vs->addr)->sin6_port) ||
 			     (vs->addr.ss_family == AF_INET && !((struct sockaddr_in *)&vs->addr)->sin_port))) {
-				ka_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: zero port only valid for persistent sevices - setting", FMT_VS(vs));
+				report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: zero port only valid for persistent services - setting", FMT_VS(vs));
 				vs->persistence_timeout = IPVS_SVC_PERSISTENT_TIMEOUT;
 			}
 		}
@@ -732,7 +732,7 @@ bool validate_check_config(void)
 		if (vs->service_type &&
 		    ((vs->vsg && LIST_ISEMPTY(vs->vsg->addr_range) && LIST_ISEMPTY(vs->vsg->addr_range)) ||
 		     (!vs->vsg && vs->vfwmark)))
-			ka_config_error(CONFIG_GENERAL_ERROR, "Warning: Virtual server %s: protocol specified for fwmark - protocol will be ignored", FMT_VS(vs));
+			report_config_error(CONFIG_GENERAL_ERROR, "Warning: Virtual server %s: protocol specified for fwmark - protocol will be ignored", FMT_VS(vs));
 
 		/* Check scheduler set */
 		if (!vs->sched[0]) {

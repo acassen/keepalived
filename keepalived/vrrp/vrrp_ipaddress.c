@@ -518,7 +518,7 @@ parse_ipaddress(ip_address_t *ip_address, char *str, int allow_default)
 	addr = (IP_IS6(new)) ? (void *) &new->u.sin6_addr :
 			       (void *) &new->u.sin.sin_addr;
 	if (!inet_pton(IP_FAMILY(new), str, addr)) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "VRRP parsed invalid IP %s. skipping IP...", str);
+		report_config_error(CONFIG_GENERAL_ERROR, "VRRP parsed invalid IP %s. skipping IP...", str);
 		if (!ip_address)
 			FREE(new);
 		new = NULL;
@@ -582,12 +582,12 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp, bool allow_tra
 			}
 
 			if (new->ifp) {
-				ka_config_error(CONFIG_GENERAL_ERROR, "Cannot specify static ipaddress device more than once for %s", FMT_STR_VSLOT(strvec, addr_idx));
+				report_config_error(CONFIG_GENERAL_ERROR, "Cannot specify static ipaddress device more than once for %s", FMT_STR_VSLOT(strvec, addr_idx));
 				FREE(new);
 				return;
 			}
 			if (!(ifp_local = if_get_by_ifname(strvec_slot(strvec, ++i), IF_CREATE_IF_DYNAMIC))) {
-				ka_config_error(CONFIG_GENERAL_ERROR, "WARNING - interface %s for ip address %s doesn't exist",
+				report_config_error(CONFIG_GENERAL_ERROR, "WARNING - interface %s for ip address %s doesn't exist",
 						FMT_STR_VSLOT(strvec, i), FMT_STR_VSLOT(strvec, addr_idx));
 				FREE(new);
 				return;
@@ -600,7 +600,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp, bool allow_tra
 			}
 
 			if (!find_rttables_scope(strvec_slot(strvec, ++i), &scope))
-				ka_config_error(CONFIG_GENERAL_ERROR, "Invalid scope '%s' specified for %s - ignoring", FMT_STR_VSLOT(strvec,i), FMT_STR_VSLOT(strvec, addr_idx));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid scope '%s' specified for %s - ignoring", FMT_STR_VSLOT(strvec,i), FMT_STR_VSLOT(strvec, addr_idx));
 			else
 				new->ifa.ifa_scope = scope;
 		} else if (!strcmp(str, "broadcast") || !strcmp(str, "brd")) {
@@ -610,7 +610,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp, bool allow_tra
 			}
 
 			if (IP_IS6(new)) {
-				ka_config_error(CONFIG_GENERAL_ERROR, "VRRP is trying to assign a broadcast %s to the IPv6 address %s !!?? "
+				report_config_error(CONFIG_GENERAL_ERROR, "VRRP is trying to assign a broadcast %s to the IPv6 address %s !!?? "
 						      "WTF... skipping VIP..."
 						    , FMT_STR_VSLOT(strvec, i), FMT_STR_VSLOT(strvec, addr_idx));
 				FREE(new);
@@ -625,7 +625,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp, bool allow_tra
 			else if (!strcmp(param, "+"))
 				brd_len = -1;
 			else if (!inet_pton(AF_INET, param, &new->u.sin.sin_brd)) {
-				ka_config_error(CONFIG_GENERAL_ERROR, "VRRP is trying to assign invalid broadcast %s. "
+				report_config_error(CONFIG_GENERAL_ERROR, "VRRP is trying to assign invalid broadcast %s. "
 						      "skipping VIP...", FMT_STR_VSLOT(strvec, i));
 				FREE(new);
 				return;
@@ -646,18 +646,18 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp, bool allow_tra
 
 			i++;
 			if (new->have_peer) {
-				ka_config_error(CONFIG_GENERAL_ERROR, "Peer %s - another peer has already been specified", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "Peer %s - another peer has already been specified", FMT_STR_VSLOT(strvec, i));
 				continue;
 			}
 
 			if (!parse_ipaddress(&peer, strvec_slot(strvec,i), false))
-				ka_config_error(CONFIG_GENERAL_ERROR, "Invalid peer address %s", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid peer address %s", FMT_STR_VSLOT(strvec, i));
 			else if (peer.ifa.ifa_family != new->ifa.ifa_family)
-				ka_config_error(CONFIG_GENERAL_ERROR, "Peer address %s does not match address family", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "Peer address %s does not match address family", FMT_STR_VSLOT(strvec, i));
 			else {
 				if ((new->ifa.ifa_family == AF_INET6 && new->ifa.ifa_prefixlen != 128) ||
 				    (new->ifa.ifa_family == AF_INET && new->ifa.ifa_prefixlen != 32))
-					ka_config_error(CONFIG_GENERAL_ERROR, "Cannot specify address prefix when specifying peer address - ignoring");
+					report_config_error(CONFIG_GENERAL_ERROR, "Cannot specify address prefix when specifying peer address - ignoring");
 				new->have_peer = true;
 				new->ifa.ifa_prefixlen = peer.ifa.ifa_prefixlen;
 				if (new->ifa.ifa_family == AF_INET6)
@@ -698,26 +698,26 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp, bool allow_tra
 			}
 			i++;
 			if (new->track_group) {
-				ka_config_error(CONFIG_GENERAL_ERROR, "track_group %s is a duplicate", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "track_group %s is a duplicate", FMT_STR_VSLOT(strvec, i));
 				break;
 			}
 			if (!(new->track_group = find_track_group(strvec_slot(strvec, i))))
-                                ka_config_error(CONFIG_GENERAL_ERROR, "track_group %s not found", FMT_STR_VSLOT(strvec, i));
+                                report_config_error(CONFIG_GENERAL_ERROR, "track_group %s not found", FMT_STR_VSLOT(strvec, i));
 		} else
-			ka_config_error(CONFIG_GENERAL_ERROR, "Unknown configuration entry '%s' for ip address - ignoring", str);
+			report_config_error(CONFIG_GENERAL_ERROR, "Unknown configuration entry '%s' for ip address - ignoring", str);
 		i++;
 	}
 
 	/* Check if there was a missing parameter for a keyword */
 	if (param_missing) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "No %s parameter specified for %s", str, FMT_STR_VSLOT(strvec, addr_idx));
+		report_config_error(CONFIG_GENERAL_ERROR, "No %s parameter specified for %s", str, FMT_STR_VSLOT(strvec, addr_idx));
 		free(new);
 		return;
 	}
 
 	/* Set the broadcast address if necessary */
 	if (have_broadcast && new->have_peer) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "Cannot specify broadcast and peer addresses - ignoring broadcast address");
+		report_config_error(CONFIG_GENERAL_ERROR, "Cannot specify broadcast and peer addresses - ignoring broadcast address");
 		new->u.sin.sin_brd.s_addr = 0;
 	}
 	else if (brd_len < 0 && new->ifa.ifa_prefixlen <= 30) {
@@ -730,13 +730,13 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp, bool allow_tra
 			new->u.sin.sin_brd.s_addr &= ~mask;
 	}
 	else if (brd_len < 0)
-		ka_config_error(CONFIG_GENERAL_ERROR, "Address prefix length %d too long for broadcast", new->ifa.ifa_prefixlen);
+		report_config_error(CONFIG_GENERAL_ERROR, "Address prefix length %d too long for broadcast", new->ifa.ifa_prefixlen);
 
 	if (!ifp && !new->ifp) {
 		if (!global_data->default_ifp) {
 			global_data->default_ifp = if_get_by_ifname(DFLT_INT, IF_CREATE_IF_DYNAMIC);
 			if (!global_data->default_ifp) {
-				ka_config_error(CONFIG_GENERAL_ERROR, "Default interface %s doesn't exist for static address %s.",
+				report_config_error(CONFIG_GENERAL_ERROR, "Default interface %s doesn't exist for static address %s.",
 							DFLT_INT, FMT_STR_VSLOT(strvec, addr_idx));
 				FREE(new);
 				return;
@@ -747,18 +747,18 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp, bool allow_tra
 
 	if (new->ifa.ifa_family == AF_INET6) {
 		if (new->ifa.ifa_scope) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "Cannot specify scope for IPv6 addresses (%s) - ignoring scope", FMT_STR_VSLOT(strvec, addr_idx));
+			report_config_error(CONFIG_GENERAL_ERROR, "Cannot specify scope for IPv6 addresses (%s) - ignoring scope", FMT_STR_VSLOT(strvec, addr_idx));
 			new->ifa.ifa_scope = 0;
 		}
 		if (new->label) {
-			ka_config_error(CONFIG_GENERAL_ERROR, "Cannot specify label for IPv6 addresses (%s) - ignoring label", FMT_STR_VSLOT(strvec, addr_idx));
+			report_config_error(CONFIG_GENERAL_ERROR, "Cannot specify label for IPv6 addresses (%s) - ignoring label", FMT_STR_VSLOT(strvec, addr_idx));
 			FREE(new->label);
 			new->label = NULL;
 		}
 	}
 
 	if (new->track_group && !new->ifp) {
-		ka_config_error(CONFIG_GENERAL_ERROR, "Static route have track_group if interface not specified");
+		report_config_error(CONFIG_GENERAL_ERROR, "Static route have track_group if interface not specified");
 		new->track_group = NULL;
 	}
 

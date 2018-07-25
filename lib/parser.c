@@ -87,9 +87,8 @@ static list defs;
 /* Forward declarations for recursion */
 static bool read_line(char *, size_t);
 
-/* net-snmp defines config_error, so we need to make a local name */
 void
-ka_config_error(config_err_t err, const char *format, ...)
+report_config_error(config_err_t err, const char *format, ...)
 {
 	va_list args;
 
@@ -118,9 +117,9 @@ static char *
 null_strvec(const vector_t *strvec, size_t index)
 {
 	if (index - 1 < vector_size(strvec) && index > 0 && vector_slot(strvec, index - 1))
-		ka_config_error(CONFIG_MISSING_PARAMETER, "*** Configuration line starting `%s` is missing a parameter after keyword `%s` at word position %zu", vector_slot(strvec, 0) ? (char *)vector_slot(strvec, 0) : "***MISSING ***", (char *)vector_slot(strvec, index - 1), index + 1);
+		report_config_error(CONFIG_MISSING_PARAMETER, "*** Configuration line starting `%s` is missing a parameter after keyword `%s` at word position %zu", vector_slot(strvec, 0) ? (char *)vector_slot(strvec, 0) : "***MISSING ***", (char *)vector_slot(strvec, index - 1), index + 1);
 	else
-		ka_config_error(CONFIG_MISSING_PARAMETER, "*** Configuration line starting `%s` is missing a parameter at word position %zu", vector_slot(strvec, 0) ? (char *)vector_slot(strvec, 0) : "***MISSING ***", index + 1);
+		report_config_error(CONFIG_MISSING_PARAMETER, "*** Configuration line starting `%s` is missing a parameter at word position %zu", vector_slot(strvec, 0) ? (char *)vector_slot(strvec, 0) : "***MISSING ***", index + 1);
 
 	exit(KEEPALIVED_EXIT_CONFIG);
 
@@ -325,7 +324,7 @@ alloc_strvec_quoted_escaped(char *src)
 			if (!ofs1) {
 				size_t len;
 				if (cur_quote) {
-					ka_config_error(CONFIG_UNMATCHED_QUOTE, "String '%s': missing terminating %c", src, cur_quote);
+					report_config_error(CONFIG_UNMATCHED_QUOTE, "String '%s': missing terminating %c", src, cur_quote);
 					goto err_exit;
 				}
 				strcpy(ofs_op, ofs);
@@ -474,7 +473,7 @@ alloc_strvec_r(char *string)
 		if (*start == '"') {
 			start++;
 			if (!(cp = strchr(start, '"'))) {
-				ka_config_error(CONFIG_UNMATCHED_QUOTE, "Unmatched quote: '%s'", string);
+				report_config_error(CONFIG_UNMATCHED_QUOTE, "Unmatched quote: '%s'", string);
 				break;
 			}
 			str_len = (size_t)(cp - start);
@@ -566,10 +565,10 @@ process_stream(vector_t *keywords_vec, int need_bob)
 				continue;
 			}
 			else
-				ka_config_error(CONFIG_MISSING_BOB, "Missing '%s' at beginning of configuration block", BOB);
+				report_config_error(CONFIG_MISSING_BOB, "Missing '%s' at beginning of configuration block", BOB);
 		}
 		else if (!strcmp(str, BOB)) {
-			ka_config_error(CONFIG_UNEXPECTED_BOB, "Unexpected '%s' - ignoring", BOB);
+			report_config_error(CONFIG_UNEXPECTED_BOB, "Unexpected '%s' - ignoring", BOB);
 			free_strvec(strvec);
 			continue;
 		}
@@ -629,7 +628,7 @@ process_stream(vector_t *keywords_vec, int need_bob)
 		}
 
 		if (i >= vector_size(keywords_vec))
-			ka_config_error(CONFIG_UNKNOWN_KEYWORD, "Unknown keyword '%s'", str);
+			report_config_error(CONFIG_UNKNOWN_KEYWORD, "Unknown keyword '%s'", str);
 
 		free_strvec(strvec);
 	}
@@ -752,7 +751,7 @@ bool check_conf_file(const char *conf_file)
 #endif
 						    , NULL, &globbuf);
 	if (res) {
-		ka_config_error(CONFIG_FILE_NOT_FOUND, "Unable to find configuration file %s (glob returned %d)", conf_file, res);
+		report_config_error(CONFIG_FILE_NOT_FOUND, "Unable to find configuration file %s (glob returned %d)", conf_file, res);
 		return false;
 	}
 
@@ -782,9 +781,9 @@ bool check_conf_file(const char *conf_file)
 
 	if (ret) {
 		if (num_matches > 1)
-			ka_config_error(CONFIG_MULTIPLE_FILES, "WARNING, more than one file matches configuration file %s, using %s", conf_file, globbuf.gl_pathv[0]);
+			report_config_error(CONFIG_MULTIPLE_FILES, "WARNING, more than one file matches configuration file %s, using %s", conf_file, globbuf.gl_pathv[0]);
 		else if (num_matches == 0) {
-			ka_config_error(CONFIG_FILE_NOT_FOUND, "Unable to find configuration file %s", conf_file);
+			report_config_error(CONFIG_FILE_NOT_FOUND, "Unable to find configuration file %s", conf_file);
 			ret = false;
 		}
 	}
