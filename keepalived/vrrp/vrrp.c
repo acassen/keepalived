@@ -3263,7 +3263,8 @@ vrrp_complete_init(void)
 #endif
 
 	/* Create a notify FIFO if needed, and open it */
-	notify_fifo_open(&global_data->notify_fifo, &global_data->vrrp_notify_fifo, vrrp_notify_fifo_script_exit, "vrrp_");
+	if (!__test_bit(CONFIG_TEST_BIT, &debug))
+		notify_fifo_open(&global_data->notify_fifo, &global_data->vrrp_notify_fifo, vrrp_notify_fifo_script_exit, "vrrp_");
 
 	/* Make sure don't have same vrid on same interface with same address family */
 	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
