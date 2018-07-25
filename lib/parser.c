@@ -37,6 +37,8 @@
 #include <linux/version.h>
 #include <pwd.h>
 #include <string.h>
+#include <stdio.h>
+#include <stdarg.h>
 
 #include "parser.h"
 #include "memory.h"
@@ -45,6 +47,8 @@
 #include "scheduler.h"
 #include "notify.h"
 #include "list.h"
+#include "bitops.h"
+#include "utils.h"
 
 #define DUMP_KEYWORDS	0
 
@@ -75,6 +79,7 @@ static int sublevel = 0;
 static int skip_sublevel = 0;
 static list multiline_stack;
 static char *buf_extern;
+static config_err_t config_err = CONFIG_OK; /* Highest level of config error for --config-test */
 
 /* Parameter definitions */
 static list defs;
@@ -82,13 +87,40 @@ static list defs;
 /* Forward declarations for recursion */
 static bool read_line(char *, size_t);
 
+/* net-snmp defines config_error, so we need to make a local name */
+void
+ka_config_error(config_err_t err, const char *format, ...)
+{
+	va_list args;
+
+	va_start(args, format);
+
+	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
+		vfprintf(stderr, format, args);
+		fputc('\n', stderr);
+
+		if (config_err == CONFIG_OK || config_err < err)
+			config_err = err;
+	}
+	else
+		vlog_message(LOG_INFO, format, args);
+
+	va_end(args);
+}
+
+config_err_t
+get_config_status(void)
+{
+	return config_err;
+}
+
 static char *
 null_strvec(const vector_t *strvec, size_t index)
 {
 	if (index - 1 < vector_size(strvec) && index > 0 && vector_slot(strvec, index - 1))
-		log_message(LOG_INFO, "*** Configuration line starting `%s` is missing a parameter after keyword `%s` at word position %zu", vector_slot(strvec, 0) ? (char *)vector_slot(strvec, 0) : "***MISSING ***", (char *)vector_slot(strvec, index - 1), index + 1);
+		ka_config_error(CONFIG_MISSING_PARAMETER, "*** Configuration line starting `%s` is missing a parameter after keyword `%s` at word position %zu", vector_slot(strvec, 0) ? (char *)vector_slot(strvec, 0) : "***MISSING ***", (char *)vector_slot(strvec, index - 1), index + 1);
 	else
-		log_message(LOG_INFO, "*** Configuration line starting `%s` is missing a parameter at word position %zu", vector_slot(strvec, 0) ? (char *)vector_slot(strvec, 0) : "***MISSING ***", index + 1);
+		ka_config_error(CONFIG_MISSING_PARAMETER, "*** Configuration line starting `%s` is missing a parameter at word position %zu", vector_slot(strvec, 0) ? (char *)vector_slot(strvec, 0) : "***MISSING ***", index + 1);
 
 	exit(KEEPALIVED_EXIT_CONFIG);
 
@@ -293,7 +325,7 @@ alloc_strvec_quoted_escaped(char *src)
 			if (!ofs1) {
 				size_t len;
 				if (cur_quote) {
-					log_message(LOG_INFO, "String '%s': missing terminating %c", src, cur_quote);
+					ka_config_error(CONFIG_UNMATCHED_QUOTE, "String '%s': missing terminating %c", src, cur_quote);
 					goto err_exit;
 				}
 				strcpy(ofs_op, ofs);
@@ -442,7 +474,7 @@ alloc_strvec_r(char *string)
 		if (*start == '"') {
 			start++;
 			if (!(cp = strchr(start, '"'))) {
-				log_message(LOG_INFO, "Unmatched quote: '%s'", string);
+				ka_config_error(CONFIG_UNMATCHED_QUOTE, "Unmatched quote: '%s'", string);
 				break;
 			}
 			str_len = (size_t)(cp - start);
@@ -534,10 +566,10 @@ process_stream(vector_t *keywords_vec, int need_bob)
 				continue;
 			}
 			else
-				log_message(LOG_INFO, "Missing '%s' at beginning of configuration block", BOB);
+				ka_config_error(CONFIG_MISSING_BOB, "Missing '%s' at beginning of configuration block", BOB);
 		}
 		else if (!strcmp(str, BOB)) {
-			log_message(LOG_INFO, "Unexpected '%s' - ignoring", BOB);
+			ka_config_error(CONFIG_UNEXPECTED_BOB, "Unexpected '%s' - ignoring", BOB);
 			free_strvec(strvec);
 			continue;
 		}
@@ -597,7 +629,7 @@ process_stream(vector_t *keywords_vec, int need_bob)
 		}
 
 		if (i >= vector_size(keywords_vec))
-			log_message(LOG_INFO, "Unknown keyword '%s'", str );
+			ka_config_error(CONFIG_UNKNOWN_KEYWORD, "Unknown keyword '%s'", str);
 
 		free_strvec(strvec);
 	}
@@ -720,7 +752,7 @@ bool check_conf_file(const char *conf_file)
 #endif
 						    , NULL, &globbuf);
 	if (res) {
-		log_message(LOG_INFO, "Unable to find configuration file %s (glob returned %d)", conf_file, res);
+		ka_config_error(CONFIG_FILE_NOT_FOUND, "Unable to find configuration file %s (glob returned %d)", conf_file, res);
 		return false;
 	}
 
@@ -750,9 +782,9 @@ bool check_conf_file(const char *conf_file)
 
 	if (ret) {
 		if (num_matches > 1)
-			log_message(LOG_INFO, "WARNING, more than one file matches configuration file %s, using %s", conf_file, globbuf.gl_pathv[0]);
+			ka_config_error(CONFIG_MULTIPLE_FILES, "WARNING, more than one file matches configuration file %s, using %s", conf_file, globbuf.gl_pathv[0]);
 		else if (num_matches == 0) {
-			log_message(LOG_INFO, "Unable to find configuration file %s", conf_file);
+			ka_config_error(CONFIG_FILE_NOT_FOUND, "Unable to find configuration file %s", conf_file);
 			ret = false;
 		}
 	}

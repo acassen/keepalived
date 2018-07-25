@@ -32,5 +32,6 @@ extern bool non_existent_interface_specified;
 
 /* Prototypes */
 extern int start_vrrp_child(void);
+extern void vrrp_validate_config(void);
 
 #endif

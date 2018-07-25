@@ -453,9 +453,11 @@ stop_keepalived(void)
 }
 
 /* Daemon init sequence */
-static void
+static int
 start_keepalived(void)
 {
+	bool have_child = false;
+
 #ifdef _WITH_BFD_
 	/* must be opened before vrrp and bfd start */
 	open_bfd_pipes();
@@ -463,19 +465,61 @@ start_keepalived(void)
 
 #ifdef _WITH_LVS_
 	/* start healthchecker child */
-	if (running_checker())
+	if (running_checker()) {
 		start_check_child();
+		have_child = true;
+	}
 #endif
 #ifdef _WITH_VRRP_
 	/* start vrrp child */
-	if (running_vrrp())
+	if (running_vrrp()) {
 		start_vrrp_child();
+		have_child = true;
+	}
 #endif
 #ifdef _WITH_BFD_
 	/* start bfd child */
-	if (running_bfd())
+	if (running_bfd()) {
 		start_bfd_child();
+		have_child = true;
+	}
 #endif
+
+	return have_child;
+}
+
+static void
+validate_config(void)
+{
+#ifdef _WITH_LVS_
+	/* validate healthchecker config */
+	check_validate_config();
+#endif
+#ifdef _WITH_VRRP_
+	/* validate vrrp config */
+	vrrp_validate_config();
+#endif
+#ifdef _WITH_BFD_
+	/* validate bfd config */
+	bfd_validate_config();
+#endif
+}
+
+static void
+config_test_exit(void)
+{
+	config_err_t config_err = get_config_status();
+
+	switch (config_err) {
+	case CONFIG_OK:
+		exit(0);
+	case CONFIG_FILE_NOT_FOUND:
+	case CONFIG_BAD_IF:
+	case CONFIG_FATAL:
+		exit(1);
+	default:
+		exit(2);
+	}
 }
 
 #ifndef _DEBUG_
@@ -913,8 +957,7 @@ usage(const char *prog)
 								", JSON"
 #endif
 								"\n");
-	fprintf(stderr, "  -t, --config-test [LOG_FILE] Check the configuration for obvious errors, default log file\n"
-			"                                /tmp/keepalived.config-check\n");
+	fprintf(stderr, "  -t, --config-test            Check the configuration for obvious errors. Output will be written to stderr.\n");
 	fprintf(stderr, "  -v, --version                Display the version number\n");
 	fprintf(stderr, "  -h, --help                   Display this help message\n");
 }
@@ -982,7 +1025,7 @@ parse_cmdline(int argc, char **argv)
 #endif
 		{"config-id",		required_argument,	NULL, 'i'},
 		{"signum",		required_argument,	NULL,  4 },
-		{"config-test",		optional_argument,	NULL, 't'},
+		{"config-test",		no_argument,		NULL, 't'},
 		{"version",		no_argument,		NULL, 'v'},
 		{"help",		no_argument,		NULL, 'h'},
 
@@ -1100,12 +1143,6 @@ parse_cmdline(int argc, char **argv)
 			__set_bit(DONT_RESPAWN_BIT, &debug);
 			__set_bit(DONT_FORK_BIT, &debug);
 			__set_bit(NO_SYSLOG_BIT, &debug);
-			if (optarg && optarg[0])
-				log_file_name = optarg;
-			else
-				log_file_name = "/tmp/keepalived.config-check";
-			open_log_file(log_file_name, NULL, NULL, NULL);
-			reopen_log = true;
 			break;
 		case 'f':
 			conf_file = optarg;
@@ -1356,8 +1393,12 @@ keepalived_main(int argc, char **argv)
 	   This means that if any config file names are not
 	   absolute file names, the behaviour will be different
 	   depending on whether we forked or not. */
-	if (!check_conf_file(conf_file))
+	if (!check_conf_file(conf_file)) {
+		if (__test_bit(CONFIG_TEST_BIT, &debug))
+			config_test_exit();
+
 		goto end;
+	}
 
 	global_data = alloc_global_data();
 
@@ -1494,6 +1535,12 @@ keepalived_main(int argc, char **argv)
 	enable_mem_log_termination();
 #endif
 
+	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
+		validate_config();
+
+		config_test_exit();
+	}
+
 	/* write the father's pidfile */
 	if (!pidfile_write(main_pidfile, getpid()))
 		goto end;
@@ -1508,7 +1555,8 @@ keepalived_main(int argc, char **argv)
 
 	/* Init daemon */
 	signal_set(SIGCHLD, thread_child_handler, master);	/* Set this before creating children */
-	start_keepalived();
+	if (!start_keepalived())
+		log_message(LOG_INFO, "Warning - keepalived has no configuration to run");
 
 	/* Launch the scheduling I/O multiplexer */
 	launch_scheduler();

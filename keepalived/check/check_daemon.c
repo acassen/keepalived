@@ -186,6 +186,9 @@ start_checker_termination_thread(__attribute__((unused)) thread_t * thread)
 static void
 stop_check(int status)
 {
+	if (__test_bit(CONFIG_TEST_BIT, &debug))
+		return;
+
 	/* This runs in the main process, not in the context of a thread */
 	checker_terminate_phase1(false);
 
@@ -205,8 +208,10 @@ start_check(list old_checkers_queue)
 	if (reload)
 		global_data = alloc_global_data();
 	check_data = alloc_check_data();
-	if (!check_data)
+	if (!check_data) {
 		stop_check(KEEPALIVED_EXIT_FATAL);
+		return;
+	}
 
 	init_data(conf_file, check_init_keywords);
 
@@ -231,10 +236,8 @@ start_check(list old_checkers_queue)
 #endif
 
 	/* If we are just testing the configuration, then we terminate now */
-	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
-		stop_check(KEEPALIVED_EXIT_OK);
+	if (__test_bit(CONFIG_TEST_BIT, &debug))
 		return;
-	}
 
 	/* Initialize sub-system if any virtual servers are configured */
 	if ((!LIST_ISEMPTY(check_data->vs) || (reload && !LIST_ISEMPTY(old_check_data->vs))) &&
@@ -300,6 +303,12 @@ start_check(list old_checkers_queue)
 	register_checkers_thread();
 
 	add_signal_read_thread();
+}
+
+void
+check_validate_config(void)
+{
+	start_check(NULL);
 }
 
 #ifndef _DEBUG_

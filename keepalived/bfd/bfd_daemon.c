@@ -61,6 +61,9 @@ static int reload_bfd_thread(thread_t *);
 static void
 stop_bfd(int status)
 {
+	if (__test_bit(CONFIG_TEST_BIT, &debug))
+		return;
+
 	signal_handler_destroy();
 
 	/* Stop daemon */
@@ -142,10 +145,8 @@ start_bfd(void)
 	*/
 
 	/* If we are just testing the configuration, then we terminate now */
-	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
-		stop_bfd(KEEPALIVED_EXIT_OK);
+	if (__test_bit(CONFIG_TEST_BIT, &debug))
 		return;
-	}
 
 	/* Set the process priority and non swappable if configured */
 // TODO - measure max stack usage
@@ -164,6 +165,12 @@ start_bfd(void)
 		dump_bfd_data(NULL, bfd_data);
 
 	thread_add_event(master, bfd_dispatcher_init, bfd_data, 0);
+}
+
+void
+bfd_validate_config(void)
+{
+	start_bfd();
 }
 
 /* Reload handler */

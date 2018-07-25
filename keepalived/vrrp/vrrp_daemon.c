@@ -286,6 +286,9 @@ start_vrrp_termination_thread(__attribute__((unused)) thread_t * thread)
 static void
 stop_vrrp(int status)
 {
+	if (__test_bit(CONFIG_TEST_BIT, &debug))
+		return;
+
 	/* This runs in the main process, not in the context of a thread */
 	vrrp_terminate_phase1(false);
 
@@ -318,7 +321,7 @@ start_vrrp(void)
 	init_data(conf_file, vrrp_init_keywords);
 
 	if (non_existent_interface_specified) {
-		log_message(LOG_INFO, "Non-existent interface specified in configuration");
+		ka_config_error(CONFIG_BAD_IF, "Non-existent interface specified in configuration");
 		stop_vrrp(KEEPALIVED_EXIT_CONFIG);
 		return;
 	}
@@ -419,10 +422,8 @@ start_vrrp(void)
 	}
 
 	/* If we are just testing the configuration, then we terminate now */
-	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
-		stop_vrrp(KEEPALIVED_EXIT_OK);
+	if (__test_bit(CONFIG_TEST_BIT, &debug))
 		return;
-	}
 
 	/* Start or stop gratuitous arp/ndisc as appropriate */
 	if (have_ipv4_instance)
@@ -826,6 +827,12 @@ start_vrrp_child(void)
 
 	/* unreachable */
 	exit(EXIT_SUCCESS);
+}
+
+void
+vrrp_validate_config(void)
+{
+	start_vrrp();
 }
 
 #ifdef _TIMER_DEBUG_

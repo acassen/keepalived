@@ -36,6 +36,20 @@
 /* Maximum config line length */
 #define MAXBUF	1024
 
+typedef enum {
+	CONFIG_OK,
+	CONFIG_FILE_NOT_FOUND,
+	CONFIG_BAD_IF,
+	CONFIG_FATAL,
+	CONFIG_MULTIPLE_FILES,
+	CONFIG_UNKNOWN_KEYWORD,
+	CONFIG_UNEXPECTED_BOB,	/* '{' */
+	CONFIG_MISSING_BOB,	/* '{' */
+	CONFIG_UNMATCHED_QUOTE,
+	CONFIG_MISSING_PARAMETER,
+	CONFIG_GENERAL_ERROR
+} config_err_t;
+
 /* keyword definition */
 typedef struct _keyword {
 	const char *string;
@@ -57,6 +71,9 @@ extern char *config_id;
 #endif
 
 /* Prototypes */
+extern void ka_config_error(config_err_t, const char *format, ...)
+	__attribute__((format (printf, 2, 3)));
+extern config_err_t get_config_status(void);
 extern void install_keyword_root(const char *, void (*handler) (vector_t *), bool);
 extern void install_root_end_handler(void (*handler) (void));
 extern void install_sublevel(void);

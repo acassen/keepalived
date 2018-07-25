@@ -130,6 +130,10 @@ vlog_message(const int facility, const char* format, va_list args)
 	vsnprintf(buf, sizeof(buf), format, args);
 #endif
 
+	/* Don't write syslog if testing configuration */
+	if (__test_bit(CONFIG_TEST_BIT, &debug))
+		return;
+
 	if (log_file || (__test_bit(DONT_FORK_BIT, &debug) && log_console)) {
 #if HAVE_VSYSLOG
 		va_list args1;

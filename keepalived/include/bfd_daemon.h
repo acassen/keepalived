@@ -34,5 +34,6 @@ extern int bfd_checker_event_pipe[2];
 
 extern void open_bfd_pipes(void);
 extern int start_bfd_child(void);
+extern void bfd_validate_config(void);
 
 #endif				/* _BFD_DAEMON_H_ */
