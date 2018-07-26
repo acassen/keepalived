@@ -1748,7 +1748,12 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 			 * The interface will need to be added temporarily. tracking_vrrp_t will need
 			 * a flag to specify permanent track, and a counter for number of temporary
 			 * trackers. If the termporary tracker count becomes 0 and there is no permanent
-			 * track, then the tracking_vrrp_t will need to be removed. */
+			 * track, then the tracking_vrrp_t will need to be removed.
+			 *
+			 * We also have a problem if using nexthop, since the route will only be deleted
+			 * when the interfaces for all of the hops have gone down. We would need to track
+			 * all of the interfaces being used, and only mark the route as down if all the
+			 * interfaces are down. */
 			log_message(LOG_INFO, "Warning - cannot track route %s with no interface specified, not tracking", dest);
 			new->dont_track = true;
 		}

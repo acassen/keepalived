@@ -198,17 +198,22 @@ smtp_alert_checker_handler(vector_t *strvec)
 static void
 default_interface_handler(vector_t *strvec)
 {
-	interface_t *ifp;
-
 	if (vector_size(strvec) < 2) {
 		log_message(LOG_INFO, "default_interface requires interface name");
 		return;
 	}
-	ifp = if_get_by_ifname(strvec_slot(strvec, 1), IF_CREATE_IF_DYNAMIC);
-	if (!ifp)
-		log_message(LOG_INFO, "WARNING - default interface %s doesn't exist", ifp->ifname);
+	FREE_PTR(global_data->default_ifname);
+	global_data->default_ifname = set_value(strvec);
 
-	global_data->default_ifp = ifp;
+	/* On a reload, the VRRP process needs the default_ifp */
+#ifndef _DEBUG_
+	if (prog_type == PROG_TYPE_VRRP)
+#endif
+	{
+		global_data->default_ifp = if_get_by_ifname(global_data->default_ifname, IF_CREATE_IF_DYNAMIC);
+		if (!global_data->default_ifp)
+			log_message(LOG_INFO, "WARNING - default interface %s doesn't exist", global_data->default_ifname);
+	}
 }
 #endif
 #ifdef _WITH_LVS_

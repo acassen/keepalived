@@ -882,8 +882,8 @@ vrrp_instance <STRING> {                      # VRRP instance declaration
     # See their descriptions for the meaning of the parameters.
     garp_master_delay <INTEGER>
     garp_master_repeat <INTEGER>
-    garp_lower_priority_delay <INTEGER>
-    garp_lower_priority_repeat <INTEGER>
+    garp_lower_prio_delay <INTEGER>
+    garp_lower_prio_repeat <INTEGER>
     garp_master_refresh <INTEGER>
     garp_master_refresh_repeat <INTEGER>
 
@@ -900,7 +900,7 @@ vrrp_instance <STRING> {                      # VRRP instance declaration
                                               # advert, send an advert (which will be lower priority
                                               # than the other master), before we transition to
                                               # backup. This means that if the other master has
-                                              # garp_lower_priority_repeat set, it will resend garp
+                                              # garp_lower_prio_repeat set, it will resend garp
                                               # messages. This is to get around the problem of their
                                               # having been two simultaneous masters, and the last GARP
                                               # messages seen were from us.
