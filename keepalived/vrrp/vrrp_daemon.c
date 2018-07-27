@@ -311,6 +311,13 @@ start_vrrp(void)
 
 	if (reload)
 		global_data = alloc_global_data();
+	else if (global_data->default_ifname) {
+		/* We need to set the default_ifp here on startup, since
+		 * the parent process doesn't know about the interfaces */
+		global_data->default_ifp = if_get_by_ifname(global_data->default_ifname, IF_CREATE_IF_DYNAMIC);
+		if (!global_data->default_ifp)
+			log_message(LOG_INFO, "WARNING - default interface %s doesn't exist", global_data->default_ifname);
+	}
 
 	/* Parse configuration file */
 	vrrp_data = alloc_vrrp_data();
