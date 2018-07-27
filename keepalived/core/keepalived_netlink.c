@@ -2129,10 +2129,8 @@ kernel_netlink_set_recv_bufs(void)
 	}
 #endif
 #ifdef _WITH_LVS_
-	if (prog_type == PROG_TYPE_CHECKER) {
+	if (prog_type == PROG_TYPE_CHECKER)
 		netlink_set_rx_buf_size(&nl_kernel, global_data->lvs_netlink_monitor_rcv_bufs, global_data->lvs_netlink_monitor_rcv_bufs_force);
-		netlink_set_rx_buf_size(&nl_cmd, global_data->lvs_netlink_cmd_rcv_bufs, global_data->lvs_netlink_cmd_rcv_bufs_force);
-	}
 #endif
 #endif
 }
