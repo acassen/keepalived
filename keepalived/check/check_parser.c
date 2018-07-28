@@ -135,7 +135,7 @@ vs_end_handler(void)
 	element e;
 
 	/* If the real (sorry) server uses tunnel forwarding, the address family
-	 * does not have to match the address family of the virtaul server */
+	 * does not have to match the address family of the virtual server */
 	if (vs->s_svr
 #if HAVE_DECL_IPVS_DEST_ATTR_ADDR_FAMILY
 		      && vs->s_svr->forwarding_method != IP_VS_CONN_F_TUNNEL
