@@ -214,7 +214,7 @@ http_get_check(void)
 	http_checker_t *http_get_chk = CHECKER_GET();
 
 	if (LIST_ISEMPTY(http_get_chk->url)) {
-		log_message(LOG_INFO, "HTTP/SSL_GET checker has no urls specified - ignoring");
+		report_config_error(CONFIG_GENERAL_ERROR, "HTTP/SSL_GET checker has no urls specified - ignoring");
 		dequeue_new_checker();
 	}
 
@@ -256,12 +256,12 @@ digest_handler(vector_t *strvec)
 	digest = CHECKER_VALUE_STRING(strvec);
 
 	if (url->digest) {
-		log_message(LOG_INFO, "Digest '%s' is a duplicate", digest);
+		report_config_error(CONFIG_GENERAL_ERROR, "Digest '%s' is a duplicate", digest);
 		return;
 	}
 
 	if (strlen(digest) != 2 * MD5_DIGEST_LENGTH) {
-		log_message(LOG_INFO, "digest '%s' character length should be %d rather than %zd", digest, 2 * MD5_DIGEST_LENGTH, strlen(digest));
+		report_config_error(CONFIG_GENERAL_ERROR, "digest '%s' character length should be %d rather than %zd", digest, 2 * MD5_DIGEST_LENGTH, strlen(digest));
 		return;
 	}
 
@@ -271,7 +271,7 @@ digest_handler(vector_t *strvec)
 		digest[2 * i + 2] = '\0';
 		url->digest[i] = strtoul(digest + 2 * i, &endptr, 16);
 		if (endptr != digest + 2 * i + 2) {
-			log_message(LOG_INFO, "Unable to interpret hex digit in '%s' at offset %d/%d", digest, 2 * i, 2 * i + 1);
+			report_config_error(CONFIG_GENERAL_ERROR, "Unable to interpret hex digit in '%s' at offset %d/%d", digest, 2 * i, 2 * i + 1);
 			FREE(url->digest);
 			url->digest = NULL;
 			return;
@@ -308,7 +308,7 @@ enable_sni_handler(vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec, 1));
 		if (res == -1) {
-			log_message(LOG_INFO, "Invalid enable_sni parameter %s", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid enable_sni parameter %s", FMT_STR_VSLOT(strvec, 1));
 			return;
 		}
 	}
@@ -323,7 +323,7 @@ url_check(void)
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
 
 	if (!url->path) {
-		log_message(LOG_INFO, "HTTP/SSL_GET checker url has no path - ignoring");
+		report_config_error(CONFIG_GENERAL_ERROR, "HTTP/SSL_GET checker url has no path - ignoring");
 		free_list_element(http_get_chk->url, http_get_chk->url->tail);
 	}
 }

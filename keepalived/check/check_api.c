@@ -175,7 +175,7 @@ check_conn_opts(conn_opts_t *co)
 	if (co->dst.ss_family == AF_INET6 &&
 	    IN6_IS_ADDR_LINKLOCAL(&((struct sockaddr_in6*)&co->dst)->sin6_addr) &&
 	    !co->bind_if[0]) {
-		log_message(LOG_INFO, "Checker link local address %s requires a bind_if", inet_sockaddrtos(&co->dst));
+		report_config_error(CONFIG_GENERAL_ERROR, "Checker link local address %s requires a bind_if", inet_sockaddrtos(&co->dst));
 		return false;
 	}
 
@@ -227,10 +227,10 @@ co_ip_handler(vector_t *strvec)
 	conn_opts_t *co = CHECKER_GET_CO();
 
 	if (inet_stosockaddr(strvec_slot(strvec, 1), NULL, &co->dst))
-		log_message(LOG_INFO, "Invalid connect_ip address %s - ignoring", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid connect_ip address %s - ignoring", FMT_STR_VSLOT(strvec, 1));
 	else if (co->bindto.ss_family != AF_UNSPEC &&
 		 co->bindto.ss_family != co->dst.ss_family) {
-		log_message(LOG_INFO, "connect_ip address %s does not match address family of bindto - skipping", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "connect_ip address %s does not match address family of bindto - skipping", FMT_STR_VSLOT(strvec, 1));
 		co->dst.ss_family = AF_UNSPEC;
 	}
 }
@@ -249,10 +249,10 @@ co_srcip_handler(vector_t *strvec)
 {
 	conn_opts_t *co = CHECKER_GET_CO();
 	if (inet_stosockaddr(strvec_slot(strvec, 1), NULL, &co->bindto))
-		log_message(LOG_INFO, "Invalid bindto address %s - ignoring", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid bindto address %s - ignoring", FMT_STR_VSLOT(strvec, 1));
 	else if (co->dst.ss_family != AF_UNSPEC &&
 		 co->dst.ss_family != co->bindto.ss_family) {
-		log_message(LOG_INFO, "bindto address %s does not match address family of connect_ip - skipping", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "bindto address %s does not match address family of connect_ip - skipping", FMT_STR_VSLOT(strvec, 1));
 		co->bindto.ss_family = AF_UNSPEC;
 	}
 }
@@ -273,7 +273,7 @@ co_srcif_handler(vector_t *strvec)
 	conn_opts_t *co = CHECKER_GET_CO();
 
 	if (strlen(strvec_slot(strvec, 1)) > sizeof(co->bind_if) - 1) {
-		log_message(LOG_INFO, "Interface name %s is too long - ignoring", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Interface name %s is too long - ignoring", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
 	strcpy(co->bind_if, strvec_slot(strvec, 1));
@@ -344,7 +344,7 @@ alpha_handler(vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec, 1));
 		if (res == -1) {
-			log_message(LOG_INFO, "Invalid alpha parameter %s", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid alpha parameter %s", FMT_STR_VSLOT(strvec, 1));
 			return;
 		}
 	}

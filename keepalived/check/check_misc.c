@@ -140,7 +140,7 @@ misc_dynamic_handler(__attribute__((unused)) vector_t *strvec)
 	new_misck_checker->dynamic = true;
 
 	if (have_dynamic_misc_checker)
-		log_message(LOG_INFO, "Warning - more than one dynamic misc checker per real srver will cause problems");
+		report_config_error(CONFIG_GENERAL_ERROR, "Warning - more than one dynamic misc checker per real server will cause problems");
 	else
 		have_dynamic_misc_checker = true;
 }
@@ -152,12 +152,12 @@ misc_user_handler(vector_t *strvec)
 		return;
 
 	if (vector_size(strvec) < 2) {
-		log_message(LOG_INFO, "No user specified for misc checker script %s", cmd_str(&new_misck_checker->script));
+		report_config_error(CONFIG_GENERAL_ERROR, "No user specified for misc checker script %s", cmd_str(&new_misck_checker->script));
 		return;
 	}
 
 	if (set_script_uid_gid(strvec, 1, &new_misck_checker->script.uid, &new_misck_checker->script.gid)) {
-		log_message(LOG_INFO, "Failed to set uid/gid for misc checker script %s - removing", cmd_str(&new_misck_checker->script));
+		report_config_error(CONFIG_GENERAL_ERROR, "Failed to set uid/gid for misc checker script %s - removing", cmd_str(&new_misck_checker->script));
 		FREE(new_misck_checker);
 		new_misck_checker = NULL;
 	}
@@ -172,7 +172,7 @@ misc_end_handler(void)
 		return;
 
 	if (!new_misck_checker->script.args) {
-		log_message(LOG_INFO, "No script path has been specified for MISC_CHECKER - skipping");
+		report_config_error(CONFIG_GENERAL_ERROR, "No script path has been specified for MISC_CHECKER - skipping");
 		dequeue_new_checker();
 		new_misck_checker = NULL;
 		return;
@@ -181,7 +181,7 @@ misc_end_handler(void)
 	if (!script_user_set)
 	{
 		if (set_default_script_user(NULL, NULL)) {
-			log_message(LOG_INFO, "Unable to set default user for misc script %s - removing", cmd_str(&new_misck_checker->script));
+			report_config_error(CONFIG_GENERAL_ERROR, "Unable to set default user for misc script %s - removing", cmd_str(&new_misck_checker->script));
 			FREE(new_misck_checker);
 			new_misck_checker = NULL;
 			return;
