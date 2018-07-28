@@ -2061,11 +2061,11 @@ static bool
 chk_min_cfg(vrrp_t * vrrp)
 {
 	if (vrrp->vrid == 0) {
-		log_message(LOG_INFO, "(%s) the virtual id must be set!", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) the virtual id must be set!", vrrp->iname);
 		return false;
 	}
 	if (!vrrp->ifp) {
-		log_message(LOG_INFO, "(%s) Unknown interface!", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Unknown interface!", vrrp->iname);
 		return false;
 	}
 
