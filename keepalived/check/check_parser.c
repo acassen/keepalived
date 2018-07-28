@@ -55,7 +55,7 @@ ssl_handler(vector_t *strvec)
 
 	if (check_data->ssl) {
 		free_ssl();
-		log_message(LOG_INFO, "SSL context already specified - replacing");
+		report_config_error(CONFIG_GENERAL_ERROR, "SSL context already specified - replacing");
 	}
 	check_data->ssl = alloc_ssl();
 }
@@ -63,7 +63,7 @@ static void
 sslpass_handler(vector_t *strvec)
 {
 	if (check_data->ssl->password) {
-		log_message(LOG_INFO, "SSL password already specified - replacing");
+		report_config_error(CONFIG_GENERAL_ERROR, "SSL password already specified - replacing");
 		FREE(check_data->ssl->password);
 	}
 	check_data->ssl->password = set_value(strvec);
@@ -72,7 +72,7 @@ static void
 sslca_handler(vector_t *strvec)
 {
 	if (check_data->ssl->cafile) {
-		log_message(LOG_INFO, "SSL cafile already specified - replacing");
+		report_config_error(CONFIG_GENERAL_ERROR, "SSL cafile already specified - replacing");
 		FREE(check_data->ssl->cafile);
 	}
 	check_data->ssl->cafile = set_value(strvec);
@@ -81,7 +81,7 @@ static void
 sslcert_handler(vector_t *strvec)
 {
 	if (check_data->ssl->certfile) {
-		log_message(LOG_INFO, "SSL certfile already specified - replacing");
+		report_config_error(CONFIG_GENERAL_ERROR, "SSL certfile already specified - replacing");
 		FREE(check_data->ssl->certfile);
 	}
 	check_data->ssl->certfile = set_value(strvec);
@@ -90,7 +90,7 @@ static void
 sslkey_handler(vector_t *strvec)
 {
 	if (check_data->ssl->keyfile) {
-		log_message(LOG_INFO, "SSL keyfile already specified - replacing");
+		report_config_error(CONFIG_GENERAL_ERROR, "SSL keyfile already specified - replacing");
 		FREE(check_data->ssl->keyfile);
 	}
 	check_data->ssl->keyfile = set_value(strvec);
@@ -112,7 +112,7 @@ vsg_handler(vector_t *strvec)
 	/* Ensure the virtual server group has some configuration */
 	vsg = LIST_TAIL_DATA(check_data->vs_group);
 	if (LIST_ISEMPTY(vsg->vfwmark) && LIST_ISEMPTY(vsg->addr_range)) {
-		log_message(LOG_INFO, "virtual server group %s has no entries - removing", vsg->gname);
+		report_config_error(CONFIG_GENERAL_ERROR, "virtual server group %s has no entries - removing", vsg->gname);
 		free_list_element(check_data->vs_group, check_data->vs_group->tail);
 	}
 }
@@ -145,7 +145,7 @@ vs_end_handler(void)
 		if (vs->af == AF_UNSPEC)
 			vs->af = vs->s_svr->addr.ss_family;
 		else if (vs->af != vs->s_svr->addr.ss_family) {
-			log_message(LOG_INFO, "Address family of virtual server and sorry server %s don't match - skipping sorry server.", inet_sockaddrtos(&vs->s_svr->addr));
+			report_config_error(CONFIG_GENERAL_ERROR, "Address family of virtual server and sorry server %s don't match - skipping sorry server.", inet_sockaddrtos(&vs->s_svr->addr));
 			FREE(vs->s_svr);
 			vs->s_svr = NULL;
 		}
@@ -193,20 +193,20 @@ ip_family_handler(vector_t *strvec)
 		af = AF_INET;
 	else if (!strcmp(strvec_slot(strvec, 1), "inet6")) {
 #ifndef LIBIPVS_USE_NL
-		log_message(LOG_INFO, "IPVS with IPv6 is not supported by this build");
+		report_config_error(CONFIG_GENERAL_ERROR, "IPVS with IPv6 is not supported by this build");
 		skip_block(false);
 		return;
 #endif
 		af = AF_INET6;
 	}
 	else {
-		log_message(LOG_INFO, "unknown address family %s", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "unknown address family %s", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
 
 	if (vs->af != AF_UNSPEC &&
 	    af != vs->af) {
-		log_message(LOG_INFO, "Virtual server specified family %s conflicts with server family", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Virtual server specified family %s conflicts with server family", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
 
@@ -234,7 +234,7 @@ vs_retry_handler(vector_t *strvec)
 	errno = 0;
 	retry = strtoul(strvec_slot(strvec, 1), &endptr, 10);
 	if (errno || *endptr || retry > UINT32_MAX || retry == 0) {
-		log_message(LOG_INFO, "retry value invalid - %s", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "retry value invalid - %s", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
 	vs->retry = (unsigned)retry;
@@ -287,7 +287,7 @@ lbflags_handler(vector_t *strvec)
 			vs->flags |= IP_VS_SVC_F_SCHED_SH_FALLBACK;
 	}
 	else
-		log_message(LOG_INFO, "%s only applies to sh scheduler - ignoring", str);
+		report_config_error(CONFIG_GENERAL_ERROR, "%s only applies to sh scheduler - ignoring", str);
 #endif
 }
 
@@ -304,7 +304,7 @@ forwarding_handler(vector_t *strvec)
 	else if (!strcmp(str, "TUN"))
 		vs->forwarding_method = IP_VS_CONN_F_TUNNEL;
 	else
-		log_message(LOG_INFO, "PARSER : unknown [%s] routing method.", str);
+		report_config_error(CONFIG_GENERAL_ERROR, "PARSER : unknown [%s] routing method.", str);
 }
 static void
 pto_handler(vector_t *strvec)
@@ -321,7 +321,7 @@ pto_handler(vector_t *strvec)
 	errno = 0;
 	timeout = strtoul(strvec_slot(strvec, 1), &endptr, 10);
 	if (errno || *endptr || timeout > UINT32_MAX || timeout == 0) {
-		log_message(LOG_INFO, "persistence_timeout invalid");
+		report_config_error(CONFIG_GENERAL_ERROR, "persistence_timeout invalid");
 		return;
 	}
 
@@ -353,13 +353,13 @@ pgr_handler(vector_t *strvec)
 	if (af == AF_INET6) {
 		vs->persistence_granularity = (uint32_t)strtoul(strvec_slot(strvec, 1), &endptr, 10);
 		if (*endptr || vs->persistence_granularity < 1 || vs->persistence_granularity > 128) {
-			log_message(LOG_INFO, "Invalid IPv6 persistence_granularity specified - %s", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid IPv6 persistence_granularity specified - %s", FMT_STR_VSLOT(strvec, 1));
 			vs->persistence_granularity = 0;
 			return;
 		}
 	} else {
 		if (!inet_aton(strvec_slot(strvec, 1), &addr)) {
-			log_message(LOG_INFO, "Invalid IPv4 persistence_granularity specified - %s", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid IPv4 persistence_granularity specified - %s", FMT_STR_VSLOT(strvec, 1));
 			return;
 		}
 
@@ -368,7 +368,7 @@ pgr_handler(vector_t *strvec)
 		while (!(haddr & 1))
 			haddr = (haddr >> 1) | 0x80000000;
 		if (haddr != 0xffffffff) {
-			log_message(LOG_INFO, "IPv4 persistence_granularity netmask is not solid - %s", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "IPv4 persistence_granularity netmask is not solid - %s", FMT_STR_VSLOT(strvec, 1));
 			return;
 		}
 
@@ -394,7 +394,7 @@ proto_handler(vector_t *strvec)
 	else if (!strcasecmp(str, "UDP"))
 		vs->service_type = IPPROTO_UDP;
 	else
-		log_message(LOG_INFO, "Unknown protocol %s - ignoring", str);
+		report_config_error(CONFIG_GENERAL_ERROR, "Unknown protocol %s - ignoring", str);
 }
 static void
 hasuspend_handler(__attribute__((unused)) vector_t *strvec)
@@ -412,7 +412,7 @@ vs_smtp_alert_handler(vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec, 1));
 		if (res == -1) {
-			log_message(LOG_INFO, "Invalid virtual_server smtp_alert parameter %s", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid virtual_server smtp_alert parameter %s", FMT_STR_VSLOT(strvec, 1));
 			return;
 		}
 	}
@@ -438,7 +438,7 @@ svr_forwarding_handler(real_server_t *rs, vector_t *strvec)
 	else if (!strcmp(str, "TUN"))
 		rs->forwarding_method = IP_VS_CONN_F_TUNNEL;
 	else
-		log_message(LOG_INFO, "PARSER : unknown [%s] routing method for real server.", str);
+		report_config_error(CONFIG_GENERAL_ERROR, "PARSER : unknown [%s] routing method for real server.", str);
 }
 /* Sorry Servers handlers */
 static void
@@ -453,7 +453,7 @@ ssvri_handler(__attribute__((unused)) vector_t *strvec)
 	if (vs->s_svr)
 		vs->s_svr->inhibit = true;
 	else
-		log_message(LOG_ERR, "Ignoring sorry_server inhibit used before or without sorry_server");
+		report_config_error(CONFIG_GENERAL_ERROR, "Ignoring sorry_server inhibit used before or without sorry_server");
 }
 static void
 ss_forwarding_handler(vector_t *strvec)
@@ -463,7 +463,7 @@ ss_forwarding_handler(vector_t *strvec)
 	if (vs->s_svr)
 		svr_forwarding_handler(vs->s_svr, strvec);
 	else
-		log_message(LOG_ERR, "sorry_server forwarding used without sorry_server");
+		report_config_error(CONFIG_GENERAL_ERROR, "sorry_server forwarding used without sorry_server");
 }
 
 /* Real Servers handlers */
@@ -497,7 +497,7 @@ rs_end_handler(void)
 		if (vs->af == AF_UNSPEC)
 			vs->af = rs->addr.ss_family;
 		else if (vs->af != rs->addr.ss_family) {
-			log_message(LOG_INFO, "Address family of virtual server and real server %s don't match - skipping real server.", inet_sockaddrtos(&rs->addr));
+			report_config_error(CONFIG_GENERAL_ERROR, "Address family of virtual server and real server %s don't match - skipping real server.", inet_sockaddrtos(&rs->addr));
 			free_list_element(vs->rs, vs->rs->tail);
 		}
 	}
@@ -511,7 +511,7 @@ rs_weight_handler(vector_t *strvec)
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	weight = atoi(strvec_slot(strvec, 1));
 	if (weight <= 0 || weight > 65535) {
-		log_message(LOG_INFO, "Real server weight %d is outside range 1-65535", weight);
+		report_config_error(CONFIG_GENERAL_ERROR, "Real server weight %d is outside range 1-65535", weight);
 		return;
 	}
 	rs->weight = weight;
@@ -556,7 +556,7 @@ notify_up_handler(vector_t *strvec)
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	if (rs->notify_up) {
-		log_message(LOG_INFO, "(%s) notify_up script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) notify_up script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	rs->notify_up = set_check_notify_script(strvec, "notify");
@@ -567,7 +567,7 @@ notify_down_handler(vector_t *strvec)
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	if (rs->notify_down) {
-		log_message(LOG_INFO, "(%s) notify_down script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) notify_down script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	rs->notify_down = set_check_notify_script(strvec, "notify");
@@ -597,7 +597,7 @@ rs_retry_handler(vector_t *strvec)
 	errno = 0;
 	retry = strtoul(strvec_slot(strvec, 1), &endptr, 10);
 	if (errno || *endptr || retry > UINT32_MAX || retry == 0) {
-		log_message(LOG_INFO, "retry value invalid - %s", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "retry value invalid - %s", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
 	rs->retry = (unsigned)retry;
@@ -619,7 +619,7 @@ rs_inhibit_handler(vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec, 1));
 		if (res == -1) {
-			log_message(LOG_INFO, "Invalid inhibit_on_failure parameter %s", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid inhibit_on_failure parameter %s", FMT_STR_VSLOT(strvec, 1));
 			return;
 		}
 	}
@@ -635,7 +635,7 @@ rs_alpha_handler(vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec, 1));
 		if (res == -1) {
-			log_message(LOG_INFO, "Invalid alpha parameter %s", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid alpha parameter %s", FMT_STR_VSLOT(strvec, 1));
 			return;
 		}
 	}
@@ -651,7 +651,7 @@ rs_smtp_alert_handler(vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec, 1));
 		if (res == -1) {
-			log_message(LOG_INFO, "Invalid real_server smtp_alert parameter %s", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid real_server smtp_alert parameter %s", FMT_STR_VSLOT(strvec, 1));
 			return;
 		}
 	}
@@ -681,7 +681,7 @@ quorum_up_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	if (vs->notify_quorum_up) {
-		log_message(LOG_INFO, "(%s) quorum_up script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) quorum_up script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	vs->notify_quorum_up = set_check_notify_script(strvec, "quorum");
@@ -691,7 +691,7 @@ quorum_down_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	if (vs->notify_quorum_down) {
-		log_message(LOG_INFO, "(%s) quorum_down script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) quorum_down script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	vs->notify_quorum_down = set_check_notify_script(strvec, "quorum");
@@ -702,9 +702,7 @@ quorum_handler(vector_t *strvec)
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->quorum = (unsigned)strtoul(strvec_slot(strvec, 1), NULL, 10);
 	if (vs->quorum < 1) {
-		log_message(LOG_ERR, "Condition not met: Quorum >= 1");
-		log_message(LOG_ERR, "Ignoring requested value %s, using 1 instead",
-		  FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Quorum %s must be >= 1. Setting to 1.", FMT_STR_VSLOT(strvec, 1));
 		vs->quorum = 1;
 	}
 }
@@ -723,7 +721,7 @@ vs_weight_handler(vector_t *strvec)
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	weight = atoi(strvec_slot(strvec, 1));
 	if (weight <= 0 || weight > 65535) {
-		log_message(LOG_INFO, "Virtual server weight %d is outside range 1-65535", weight);
+		report_config_error(CONFIG_GENERAL_ERROR, "Virtual server weight %d is outside range 1-65535", weight);
 		return;
 	}
 	vs->weight = weight;
