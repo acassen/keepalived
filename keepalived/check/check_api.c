@@ -326,8 +326,13 @@ warmup_handler(vector_t *strvec)
 static void
 delay_handler(vector_t *strvec)
 {
+	unsigned long delay_loop;
 	checker_t *checker = CHECKER_GET_CURRENT();
-	checker->delay_loop = read_timer(strvec);
+
+	if (read_timer(strvec, 1, &delay_loop, 1, 0))
+		checker->delay_loop = delay_loop;
+	else
+		report_config_error(CONFIG_GENERAL_ERROR, "delay_loop '%s' is invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
 }
 
 static void

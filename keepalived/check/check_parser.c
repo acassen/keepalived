@@ -216,13 +216,23 @@ static void
 vs_delay_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	vs->delay_loop = read_timer(strvec);
+	unsigned long delay;
+
+	if (read_timer(strvec, 1, &delay, 1, 0))
+		vs->delay_loop = delay;
+	else
+		report_config_error(CONFIG_GENERAL_ERROR, "virtual server delay loop '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
 }
 static void
 vs_delay_before_retry_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	vs->delay_before_retry = read_timer(strvec);
+	unsigned long delay;
+
+	if (read_timer(strvec, 1, &delay, 0, 0))
+		vs->delay_before_retry = delay;
+	else
+		report_config_error(CONFIG_GENERAL_ERROR, "virtual server delay before retry '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
 }
 static void
 vs_retry_handler(vector_t *strvec)
@@ -243,7 +253,12 @@ static void
 vs_warmup_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	vs->warmup = read_timer(strvec);
+	unsigned long delay;
+
+	if (read_timer(strvec, 1, &delay, 0, 0))
+		vs->warmup = delay;
+	else
+		report_config_error(CONFIG_GENERAL_ERROR, "virtual server warmup '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
 }
 static void
 lbalgo_handler(vector_t *strvec)
@@ -577,14 +592,24 @@ rs_delay_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
-	rs->delay_loop = read_timer(strvec);
+	unsigned long delay;
+
+	if (read_timer(strvec, 1, &delay, 1, 0))
+		rs->delay_loop = delay;
+	else
+		report_config_error(CONFIG_GENERAL_ERROR, "real server delay_loop '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
 }
 static void
 rs_delay_before_retry_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
-	rs->delay_before_retry = read_timer(strvec);
+	unsigned long delay;
+
+	if (read_timer(strvec, 1, &delay, 0, 0))
+		rs->delay_before_retry = delay;
+	else
+		report_config_error(CONFIG_GENERAL_ERROR, "real server delay_before_retry '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
 }
 static void
 rs_retry_handler(vector_t *strvec)
@@ -607,7 +632,12 @@ rs_warmup_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
-	rs->warmup = read_timer(strvec);
+	unsigned long delay;
+
+	if (read_timer(strvec, 1, &delay, 0, 0))
+		rs->warmup = delay;
+	else
+		report_config_error(CONFIG_GENERAL_ERROR, "real server warmup '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
 }
 static void
 rs_inhibit_handler(vector_t *strvec)

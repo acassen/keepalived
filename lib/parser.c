@@ -1358,16 +1358,30 @@ set_value(vector_t *strvec)
 	return alloc;
 }
 
-unsigned long
-read_timer(vector_t *strvec)
+bool
+read_timer(vector_t *strvec, size_t index, unsigned long *res, unsigned long min_time, unsigned long max_time)
 {
 	unsigned long timer;
+	char *endptr;
 
-	timer = strtoul(strvec_slot(strvec, 1), NULL, 10);
-	if (timer >= ULONG_MAX / TIMER_HZ)
-		return ULONG_MAX;
+	if (!max_time)
+		max_time = TIMER_MAX;
 
-	return timer * TIMER_HZ;
+	errno = 0;
+	timer = strtoul(vector_slot(strvec, index), &endptr, 10);
+	*res = (timer > TIMER_MAX ? TIMER_MAX : timer) * TIMER_HZ;
+
+	if (FMT_STR_VSLOT(strvec, index)[0] == '-')
+		report_config_error(CONFIG_INVALID_NUMBER, "Line starting '%s' has negative number '%s'", FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
+	else if (*endptr)
+		report_config_error(CONFIG_INVALID_NUMBER, "Line starting '%s' has invalid number '%s'", FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
+	else if (errno == ERANGE || timer > TIMER_MAX)
+		report_config_error(CONFIG_INVALID_NUMBER, "Line starting '%s' has number '%s' outside timer range", FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
+	else if (timer < min_time || timer > max_time)
+		report_config_error(CONFIG_INVALID_NUMBER, "Line starting '%s' has number '%s' outside range [%ld, %ld]", FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index), min_time, max_time ? max_time : TIMER_MAX);
+	else
+		return true;
+	return false;
 }
 
 /* Checks for on/true/yes or off/false/no */

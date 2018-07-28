@@ -36,6 +36,9 @@
 /* Maximum config line length */
 #define MAXBUF	1024
 
+/* Maximum time read_timer can return */
+#define TIMER_MAX (ULONG_MAX / TIMER_HZ)
+
 /* Configuration test errors. These should be in decreasing order of severity */
 typedef enum {
 	CONFIG_OK,
@@ -52,6 +55,7 @@ typedef enum {
 	CONFIG_MISSING_BOB,	/* '{' */
 	CONFIG_UNMATCHED_QUOTE,
 	CONFIG_MISSING_PARAMETER,
+	CONFIG_INVALID_NUMBER,
 	CONFIG_GENERAL_ERROR,
 
 	/* The following is for script security not enabled when needed */
@@ -94,7 +98,7 @@ extern bool check_conf_file(const char*);
 extern vector_t *read_value_block(vector_t *);
 extern void alloc_value_block(void (*alloc_func) (vector_t *), const char *);
 extern void *set_value(vector_t *);
-extern unsigned long read_timer(vector_t *);
+extern bool read_timer(vector_t *, size_t, unsigned long *, unsigned long, unsigned long);
 extern int check_true_false(char *);
 extern void skip_block(bool);
 extern void init_data(const char *, vector_t * (*init_keywords) (void));
