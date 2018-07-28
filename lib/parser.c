@@ -501,7 +501,7 @@ alloc_strvec_r(char *string)
 
 /* recursive configuration stream handler */
 static int kw_level = 0;
-static void
+static bool
 process_stream(vector_t *keywords_vec, int need_bob)
 {
 	unsigned int i;
@@ -512,6 +512,8 @@ process_stream(vector_t *keywords_vec, int need_bob)
 	vector_t *prev_keywords = current_keywords;
 	current_keywords = keywords_vec;
 	int bob_needed = 0;
+	bool ret_err = false;
+	bool ret;
 
 	buf = MALLOC(MAXBUF);
 	while (read_line(buf, MAXBUF)) {
@@ -550,6 +552,7 @@ process_stream(vector_t *keywords_vec, int need_bob)
 			 * nested keyword level, then we need to return to restore the
 			 * next level up of keywords. */
 			if (!strcmp(str, EOB) && skip_sublevel == 0 && kw_level > 0) {
+				ret_err = true;
 				free_strvec(strvec);
 				break;
 			}
@@ -618,9 +621,11 @@ process_stream(vector_t *keywords_vec, int need_bob)
 
 				if (keyword_vec->sub) {
 					kw_level++;
-					process_stream(keyword_vec->sub, bob_needed);
+					ret = process_stream(keyword_vec->sub, bob_needed);
 					kw_level--;
-					if (keyword_vec->active && keyword_vec->sub_close_handler)
+
+					/* We mustn't run any close handler if the block was skipped */
+					if (!ret && keyword_vec->active && keyword_vec->sub_close_handler)
 						(*keyword_vec->sub_close_handler) ();
 				}
 				break;
@@ -635,7 +640,7 @@ process_stream(vector_t *keywords_vec, int need_bob)
 
 	current_keywords = prev_keywords;
 	FREE(buf);
-	return;
+	return ret_err;
 }
 
 static bool
