@@ -222,7 +222,7 @@ vs_delay_handler(vector_t *strvec)
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	unsigned long delay;
 
-	if (read_timer(strvec, 1, &delay, 1, 0))
+	if (read_timer(strvec, 1, &delay, 1, 0, true))
 		vs->delay_loop = delay;
 	else
 		report_config_error(CONFIG_GENERAL_ERROR, "virtual server delay loop '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
@@ -233,7 +233,7 @@ vs_delay_before_retry_handler(vector_t *strvec)
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	unsigned long delay;
 
-	if (read_timer(strvec, 1, &delay, 0, 0))
+	if (read_timer(strvec, 1, &delay, 0, 0, true))
 		vs->delay_before_retry = delay;
 	else
 		report_config_error(CONFIG_GENERAL_ERROR, "virtual server delay before retry '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
@@ -259,7 +259,7 @@ vs_warmup_handler(vector_t *strvec)
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	unsigned long delay;
 
-	if (read_timer(strvec, 1, &delay, 0, 0))
+	if (read_timer(strvec, 1, &delay, 0, 0, true))
 		vs->warmup = delay;
 	else
 		report_config_error(CONFIG_GENERAL_ERROR, "virtual server warmup '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
@@ -528,13 +528,12 @@ rs_end_handler(void)
 static void
 rs_weight_handler(vector_t *strvec)
 {
-	int weight;
-
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
-	weight = atoi(strvec_slot(strvec, 1));
-	if (weight <= 0 || weight > 65535) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Real server weight %d is outside range 1-65535", weight);
+	unsigned weight;
+
+	if (!read_unsigned(strvec, 1, &weight, 1, 65535, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Real server weight %s is outside range 1-65535", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
 	rs->weight = weight;
@@ -602,7 +601,7 @@ rs_delay_handler(vector_t *strvec)
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	unsigned long delay;
 
-	if (read_timer(strvec, 1, &delay, 1, 0))
+	if (read_timer(strvec, 1, &delay, 1, 0, true))
 		rs->delay_loop = delay;
 	else
 		report_config_error(CONFIG_GENERAL_ERROR, "real server delay_loop '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
@@ -614,7 +613,7 @@ rs_delay_before_retry_handler(vector_t *strvec)
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	unsigned long delay;
 
-	if (read_timer(strvec, 1, &delay, 0, 0))
+	if (read_timer(strvec, 1, &delay, 0, 0, true))
 		rs->delay_before_retry = delay;
 	else
 		report_config_error(CONFIG_GENERAL_ERROR, "real server delay_before_retry '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
@@ -642,7 +641,7 @@ rs_warmup_handler(vector_t *strvec)
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	unsigned long delay;
 
-	if (read_timer(strvec, 1, &delay, 0, 0))
+	if (read_timer(strvec, 1, &delay, 0, 0, true))
 		rs->warmup = delay;
 	else
 		report_config_error(CONFIG_GENERAL_ERROR, "real server warmup '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
@@ -754,12 +753,11 @@ hysteresis_handler(vector_t *strvec)
 static void
 vs_weight_handler(vector_t *strvec)
 {
-	int weight;
-
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	weight = atoi(strvec_slot(strvec, 1));
-	if (weight <= 0 || weight > 65535) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Virtual server weight %d is outside range 1-65535", weight);
+	unsigned weight;
+
+	if (!read_unsigned(strvec, 1, &weight, 1, 65535, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Virtual server weight %s is outside range 1-65535", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
 	vs->weight = weight;

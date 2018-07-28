@@ -86,6 +86,9 @@ extern char *config_id;
 extern void report_config_error(config_err_t, const char *format, ...)
 	__attribute__((format (printf, 2, 3)));
 extern config_err_t get_config_status(void);
+extern bool read_int(const vector_t *, size_t, int *, int, int, bool);
+extern bool read_unsigned(const vector_t *, size_t, unsigned *, unsigned, unsigned, bool);
+extern bool read_double(const vector_t *, size_t, double *, double, double, bool);
 extern void install_keyword_root(const char *, void (*handler) (vector_t *), bool);
 extern void install_root_end_handler(void (*handler) (void));
 extern void install_sublevel(void);
@@ -98,7 +101,7 @@ extern bool check_conf_file(const char*);
 extern vector_t *read_value_block(vector_t *);
 extern void alloc_value_block(void (*alloc_func) (vector_t *), const char *);
 extern void *set_value(vector_t *);
-extern bool read_timer(vector_t *, size_t, unsigned long *, unsigned long, unsigned long);
+extern bool read_timer(vector_t *, size_t, unsigned long *, unsigned long, unsigned long, bool);
 extern int check_true_false(char *);
 extern void skip_block(bool);
 extern void init_data(const char *, vector_t * (*init_keywords) (void));

@@ -571,13 +571,16 @@ static void
 vrrp_adv_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	int adver_int = (int)(atof(strvec_slot(strvec, 1)) * TIMER_HZ);
+	double adver_int;
+	bool res;
+
+	res = read_double(strvec, 1, &adver_int, 0.01, 255.0, true);
 
 	/* Simple check - just positive */
-	if (adver_int <= 0)
+	if (!res || adver_int <= 0)
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Advert interval (%s) not valid! Must be > 0 - ignoring", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
 	else
-		vrrp->adver_int = (unsigned)adver_int;
+		vrrp->adver_int = (unsigned)(adver_int * TIMER_HZ);
 }
 static void
 vrrp_debug_handler(vector_t *strvec)
