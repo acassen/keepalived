@@ -258,6 +258,8 @@ inet_stosockaddr(char *ip, const char *port, struct sockaddr_storage *addr)
 {
 	void *addr_ip;
 	char *cp = ip;
+	unsigned long port_num;
+	char *endptr;
 
 	addr->ss_family = (strchr(ip, ':')) ? AF_INET6 : AF_INET;
 
@@ -267,15 +269,23 @@ inet_stosockaddr(char *ip, const char *port, struct sockaddr_storage *addr)
 	else if ((cp = strchr(ip, '/')))
 		*cp = 0;
 
+	if (port) {
+		port_num = strtoul(port, &endptr, 10);
+		if (*endptr || port_num < 1 || port_num > 65535) {
+			addr->ss_family = AF_UNSPEC;
+			return -1;
+		}
+	}
+
 	if (addr->ss_family == AF_INET6) {
 		struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) addr;
 		if (port)
-			addr6->sin6_port = htons(atoi(port));
+			addr6->sin6_port = htons(port_num);
 		addr_ip = &addr6->sin6_addr;
 	} else {
 		struct sockaddr_in *addr4 = (struct sockaddr_in *) addr;
 		if (port)
-			addr4->sin_port = htons(atoi(port));
+			addr4->sin_port = htons(port_num);
 		addr_ip = &addr4->sin_addr;
 	}
 

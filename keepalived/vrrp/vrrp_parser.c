@@ -510,10 +510,8 @@ vrrp_srcip_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	struct sockaddr_storage *saddr = &vrrp->saddr;
-	int ret;
 
-	ret = inet_stosockaddr(strvec_slot(strvec, 1), 0, saddr);
-	if (ret < 0) {
+	if (inet_stosockaddr(strvec_slot(strvec, 1), NULL, saddr)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: VRRP instance[%s] malformed"
 				     " src address[%s]. Skipping..."
 				   , vrrp->iname, FMT_STR_VSLOT(strvec, 1));

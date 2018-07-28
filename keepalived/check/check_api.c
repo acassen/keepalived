@@ -226,7 +226,7 @@ co_ip_handler(vector_t *strvec)
 {
 	conn_opts_t *co = CHECKER_GET_CO();
 
-	if (inet_stosockaddr(strvec_slot(strvec, 1), 0, &co->dst))
+	if (inet_stosockaddr(strvec_slot(strvec, 1), NULL, &co->dst))
 		log_message(LOG_INFO, "Invalid connect_ip address %s - ignoring", FMT_STR_VSLOT(strvec, 1));
 	else if (co->bindto.ss_family != AF_UNSPEC &&
 		 co->bindto.ss_family != co->dst.ss_family) {
@@ -248,7 +248,7 @@ static void
 co_srcip_handler(vector_t *strvec)
 {
 	conn_opts_t *co = CHECKER_GET_CO();
-	if (inet_stosockaddr(strvec_slot(strvec, 1), 0, &co->bindto))
+	if (inet_stosockaddr(strvec_slot(strvec, 1), NULL, &co->bindto))
 		log_message(LOG_INFO, "Invalid bindto address %s - ignoring", FMT_STR_VSLOT(strvec, 1));
 	else if (co->dst.ss_family != AF_UNSPEC &&
 		 co->dst.ss_family != co->bindto.ss_family) {

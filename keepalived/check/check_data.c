@@ -359,8 +359,9 @@ alloc_vs(char *param1, char *param2)
 	} else if (!strcmp(param1, "fwmark")) {
 		new->vfwmark = (uint32_t)strtoul(param2, NULL, 10);
 	} else {
-		if (inet_stosockaddr(param1, param2, &new->addr)) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid virtual server IP address %s - skipping", param1);
+		/* Don't pass a zero for port number to inet_stosockaddr */
+		if (inet_stosockaddr(param1, (param2 && param2[strspn(param2, "0")]) ? param2 : NULL, &new->addr)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid virtual server IP address/port %s/%s - skipping", param1, param2);
 			skip_block(true);
 			FREE(new);
 			return;
@@ -477,7 +478,7 @@ alloc_rs(char *ip, char *port)
 
 	new = (real_server_t *) MALLOC(sizeof(real_server_t));
 	if (inet_stosockaddr(ip, port, &new->addr)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Invalid real server ip address %s - skipping", ip);
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid real server ip address/port %s/%s - skipping", ip, port);
 		skip_block(true);
 		FREE(new);
 		return;
@@ -485,7 +486,7 @@ alloc_rs(char *ip, char *port)
 
 #ifndef LIBIPVS_USE_NL
 	if (new->addr.ss_family != AF_INET) {
-		report_config_error(CONFIG_GENERAL_ERROR, "IPVS does not support IPv6 in this build - skipping %s", ip);
+		report_config_error(CONFIG_GENERAL_ERROR, "IPVS does not support IPv6 in this build - skipping %s/%s", ip, port);
 		skip_block(true);
 		FREE(new);
 		return;

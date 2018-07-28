@@ -97,7 +97,6 @@ static void
 bfd_nbrip_handler(vector_t *strvec)
 {
 	bfd_t *bfd;
-	int ret;
 	struct sockaddr_storage nbr_addr;
 
 	assert(strvec);
@@ -109,8 +108,7 @@ bfd_nbrip_handler(vector_t *strvec)
 	if (!strcmp(vector_slot(strvec, 1), "neighbour_ip"))
 		neighbor_str = "neighbour";
 
-	ret = inet_stosockaddr(vector_slot(strvec, 1), BFD_CONTROL_PORT, &nbr_addr);
-	if (ret < 0) {
+	if (inet_stosockaddr(strvec_slot(strvec, 1), BFD_CONTROL_PORT, &nbr_addr)) {
 		report_config_error(CONFIG_GENERAL_ERROR,
 			    "Configuration error: BFD instance %s has"
 			    " malformed %s address %s, ignoring instance",
@@ -134,7 +132,6 @@ static void
 bfd_srcip_handler(vector_t *strvec)
 {
 	bfd_t *bfd;
-	int ret;
 	struct sockaddr_storage src_addr;
 
 	assert(strvec);
@@ -143,8 +140,7 @@ bfd_srcip_handler(vector_t *strvec)
 	bfd = LIST_TAIL_DATA(bfd_data->bfd);
 	assert(bfd);
 
-	ret = inet_stosockaddr(vector_slot(strvec, 1), 0, &src_addr);
-	if (ret < 0) {
+	if (inet_stosockaddr(strvec_slot(strvec, 1), NULL, &src_addr)) {
 		report_config_error(CONFIG_GENERAL_ERROR,
 			    "Configuration error: BFD instance %s has"
 			    " malformed source address %s, ignoring",
