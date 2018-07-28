@@ -46,6 +46,10 @@
 #endif
 #include "libipvs.h"
 
+/* List of valid schedulers */
+char *lvs_schedulers[] =
+	{"rr", "wrr", "lc", "wlc", "lblc", "sh", "dh", "fo", "ovf", "lblcr", "sed", "nq", NULL};
+
 /* SSL handlers */
 static void
 ssl_handler(vector_t *strvec)
@@ -265,13 +269,17 @@ lbalgo_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	char *str = strvec_slot(strvec, 1);
-	size_t size = sizeof (vs->sched);
-	size_t str_len = strlen(str);
+	int i;
 
-	if (size > str_len)
-		size = str_len;
+	/* Check valid scheduler name */
+	for (i = 0; lvs_schedulers[i] && strcmp(str, lvs_schedulers[i]); i++);
 
-	memcpy(vs->sched, str, size);
+	if (!lvs_schedulers[i] || strlen(str) >= sizeof(vs->sched)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_scheduler '%s' - ignoring", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+
+	strcpy(vs->sched, str);
 }
 
 static void
