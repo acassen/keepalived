@@ -134,7 +134,7 @@ email_handler(vector_t *strvec)
 	char *str;
 
 	if (!email_vec) {
-		log_message(LOG_INFO, "Warning - empty notification_email block");
+		report_config_error(CONFIG_GENERAL_ERROR, "Warning - empty notification_email block");
 		return;
 	}
 
@@ -153,7 +153,7 @@ smtp_alert_handler(vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec,1));
 		if (res < 0) {
-			log_message(LOG_INFO, "Invalid value '%s' for global smtp_alert specified", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global smtp_alert specified", FMT_STR_VSLOT(strvec, 1));
 			return;
 		}
 	}
@@ -169,7 +169,7 @@ smtp_alert_vrrp_handler(vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec,1));
 		if (res < 0) {
-			log_message(LOG_INFO, "Invalid value '%s' for global smtp_alert_vrrp specified", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global smtp_alert_vrrp specified", FMT_STR_VSLOT(strvec, 1));
 			return;
 		}
 	}
@@ -186,7 +186,7 @@ smtp_alert_checker_handler(vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec,1));
 		if (res < 0) {
-			log_message(LOG_INFO, "Invalid value '%s' for global smtp_alert_checker specified", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global smtp_alert_checker specified", FMT_STR_VSLOT(strvec, 1));
 			return;
 		}
 	}
@@ -199,7 +199,7 @@ static void
 default_interface_handler(vector_t *strvec)
 {
 	if (vector_size(strvec) < 2) {
-		log_message(LOG_INFO, "default_interface requires interface name");
+		report_config_error(CONFIG_GENERAL_ERROR, "default_interface requires interface name");
 		return;
 	}
 	FREE_PTR(global_data->default_ifname);
@@ -212,7 +212,7 @@ default_interface_handler(vector_t *strvec)
 	{
 		global_data->default_ifp = if_get_by_ifname(global_data->default_ifname, IF_CREATE_IF_DYNAMIC);
 		if (!global_data->default_ifp)
-			log_message(LOG_INFO, "WARNING - default interface %s doesn't exist", global_data->default_ifname);
+			report_config_error(CONFIG_GENERAL_ERROR, "WARNING - default interface %s doesn't exist", global_data->default_ifname);
 	}
 }
 #endif
@@ -225,19 +225,19 @@ lvs_timeouts(vector_t *strvec)
 	char *endptr;
 
 	if (vector_size(strvec) < 3) {
-		log_message(LOG_INFO, "lvs_timeouts requires at least one option");
+		report_config_error(CONFIG_GENERAL_ERROR, "lvs_timeouts requires at least one option");
 		return;
 	}
 
 	for (i = 1; i < vector_size(strvec); i++) {
 		if (!strcmp(strvec_slot(strvec, i), "tcp")) {
 			if (i == vector_size(strvec) - 1) {
-				log_message(LOG_INFO, "No value specified for lvs_timout tcp - ignoring");
+				report_config_error(CONFIG_GENERAL_ERROR, "No value specified for lvs_timout tcp - ignoring");
 				continue;
 			}
 			val = strtol(strvec_slot(strvec, i+1), &endptr, 10);
 			if (*endptr != '\0' || val < 0 || val > LVS_MAX_TIMEOUT)
-				log_message(LOG_INFO, "Invalid lvs_timeout tcp (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_timeout tcp (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
 			else
 				global_data->lvs_tcp_timeout = (int)val;
 			i++;	/* skip over value */
@@ -245,12 +245,12 @@ lvs_timeouts(vector_t *strvec)
 		}
 		if (!strcmp(strvec_slot(strvec, i), "tcpfin")) {
 			if (i == vector_size(strvec) - 1) {
-				log_message(LOG_INFO, "No value specified for lvs_timeout tcpfin - ignoring");
+				report_config_error(CONFIG_GENERAL_ERROR, "No value specified for lvs_timeout tcpfin - ignoring");
 				continue;
 			}
 			val = strtol(strvec_slot(strvec, i+1), &endptr, 10);
 			if (*endptr != '\0' || val < 1 || val > LVS_MAX_TIMEOUT)
-				log_message(LOG_INFO, "Invalid lvs_timeout tcpfin (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_timeout tcpfin (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
 			else
 				global_data->lvs_tcpfin_timeout = (int)val;
 			i++;	/* skip over value */
@@ -258,18 +258,18 @@ lvs_timeouts(vector_t *strvec)
 		}
 		if (!strcmp(strvec_slot(strvec, i), "udp")) {
 			if (i == vector_size(strvec) - 1) {
-				log_message(LOG_INFO, "No value specified for lvs_timeout udp - ignoring");
+				report_config_error(CONFIG_GENERAL_ERROR, "No value specified for lvs_timeout udp - ignoring");
 				continue;
 			}
 			val = strtol(strvec_slot(strvec, i+1), &endptr, 10);
 			if (*endptr != '\0' || val < 1 || val > LVS_MAX_TIMEOUT)
-				log_message(LOG_INFO, "Invalid lvs_timeout udp (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_timeout udp (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
 			else
 				global_data->lvs_udp_timeout = (int)val;
 			i++;	/* skip over value */
 			continue;
 		}
-		log_message(LOG_INFO, "Unknown option %s specified for lvs_timeouts", FMT_STR_VSLOT(strvec, i));
+		report_config_error(CONFIG_GENERAL_ERROR, "Unknown option %s specified for lvs_timeouts", FMT_STR_VSLOT(strvec, i));
 	}
 }
 #if defined _WITH_LVS_ && defined _WITH_VRRP_
@@ -281,22 +281,22 @@ lvs_syncd_handler(vector_t *strvec)
 	char *endptr;
 
 	if (global_data->lvs_syncd.ifname) {
-		log_message(LOG_INFO, "lvs_sync_daemon has already been specified as %s %s - ignoring", global_data->lvs_syncd.ifname, global_data->lvs_syncd.vrrp_name);
+		report_config_error(CONFIG_GENERAL_ERROR, "lvs_sync_daemon has already been specified as %s %s - ignoring", global_data->lvs_syncd.ifname, global_data->lvs_syncd.vrrp_name);
 		return;
 	}
 
 	if (vector_size(strvec) < 3) {
-		log_message(LOG_INFO, "lvs_sync_daemon requires interface, VRRP instance");
+		report_config_error(CONFIG_GENERAL_ERROR, "lvs_sync_daemon requires interface, VRRP instance");
 		return;
 	}
 
 	if (strlen(strvec_slot(strvec, 1)) >= IP_VS_IFNAME_MAXLEN) {
-		log_message(LOG_INFO, "lvs_sync_daemon interface name '%s' too long - ignoring", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "lvs_sync_daemon interface name '%s' too long - ignoring", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
 
 	if (strlen(strvec_slot(strvec, 2)) >= IP_VS_IFNAME_MAXLEN) {
-		log_message(LOG_INFO, "lvs_sync_daemon vrrp interface name '%s' too long - ignoring", FMT_STR_VSLOT(strvec, 2));
+		report_config_error(CONFIG_GENERAL_ERROR, "lvs_sync_daemon vrrp interface name '%s' too long - ignoring", FMT_STR_VSLOT(strvec, 2));
 		return;
 	}
 
@@ -309,10 +309,10 @@ lvs_syncd_handler(vector_t *strvec)
 
 	/* This is maintained for backwards compatibility, prior to adding "id" option */
 	if (vector_size(strvec) >= 4 && isdigit(FMT_STR_VSLOT(strvec, 3)[0])) {
-		log_message(LOG_INFO, "Please use keyword \"id\" before lvs_sync_daemon syncid value");
+		report_config_error(CONFIG_GENERAL_ERROR, "Please use keyword \"id\" before lvs_sync_daemon syncid value");
 		val = strtoul(strvec_slot(strvec,3), &endptr, 10);
 		if (*endptr || val > 255)
-			log_message(LOG_INFO, "Invalid syncid (%s) - defaulting to vrid", FMT_STR_VSLOT(strvec, 3));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid syncid (%s) - defaulting to vrid", FMT_STR_VSLOT(strvec, 3));
 		else
 			global_data->lvs_syncd.syncid = (unsigned)val;
 		i = 4;
@@ -323,12 +323,12 @@ lvs_syncd_handler(vector_t *strvec)
 	for ( ; i < vector_size(strvec); i++) {
 		if (!strcmp(strvec_slot(strvec, i), "id")) {
 			if (i == vector_size(strvec) - 1) {
-				log_message(LOG_INFO, "No value specified for lvs_sync_daemon id, defaulting to vrid");
+				report_config_error(CONFIG_GENERAL_ERROR, "No value specified for lvs_sync_daemon id, defaulting to vrid");
 				continue;
 			}
 			val = strtoul(strvec_slot(strvec, i+1), &endptr, 10);
 			if (*endptr != '\0' || val > 255)
-				log_message(LOG_INFO, "Invalid syncid (%s) - defaulting to vrid", FMT_STR_VSLOT(strvec, i+1));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid syncid (%s) - defaulting to vrid", FMT_STR_VSLOT(strvec, i+1));
 			else
 				global_data->lvs_syncd.syncid = (unsigned)val;
 			i++;	/* skip over value */
@@ -337,12 +337,12 @@ lvs_syncd_handler(vector_t *strvec)
 #ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
 		if (!strcmp(strvec_slot(strvec, i), "maxlen")) {
 			if (i == vector_size(strvec) - 1) {
-				log_message(LOG_INFO, "No value specified for lvs_sync_daemon maxlen - ignoring");
+				report_config_error(CONFIG_GENERAL_ERROR, "No value specified for lvs_sync_daemon maxlen - ignoring");
 				continue;
 			}
 			val = strtoul(strvec_slot(strvec, i+1), &endptr, 10);
 			if (*endptr != '\0' || !val || val > 65535 - 20 - 8)
-				log_message(LOG_INFO, "Invalid lvs_sync_daemon maxlen (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_sync_daemon maxlen (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
 			else
 				global_data->lvs_syncd.sync_maxlen = (uint16_t)val;
 			i++;	/* skip over value */
@@ -350,12 +350,12 @@ lvs_syncd_handler(vector_t *strvec)
 		}
 		if (!strcmp(strvec_slot(strvec, i), "port")) {
 			if (i == vector_size(strvec) - 1) {
-				log_message(LOG_INFO, "No value specified for lvs_sync_daemon port - ignoring");
+				report_config_error(CONFIG_GENERAL_ERROR, "No value specified for lvs_sync_daemon port - ignoring");
 				continue;
 			}
 			val = strtoul(strvec_slot(strvec, i+1), &endptr, 10);
 			if (*endptr != '\0' || !val || val > 65535)
-				log_message(LOG_INFO, "Invalid lvs_sync_daemon port (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_sync_daemon port (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
 			else
 				global_data->lvs_syncd.mcast_port = (uint16_t)val;
 			i++;	/* skip over value */
@@ -363,12 +363,12 @@ lvs_syncd_handler(vector_t *strvec)
 		}
 		if (!strcmp(strvec_slot(strvec, i), "ttl")) {
 			if (i == vector_size(strvec) - 1) {
-				log_message(LOG_INFO, "No value specified for lvs_sync_daemon ttl - ignoring");
+				report_config_error(CONFIG_GENERAL_ERROR, "No value specified for lvs_sync_daemon ttl - ignoring");
 				continue;
 			}
 			val = strtoul(strvec_slot(strvec, i+1), &endptr, 10);
 			if (*endptr != '\0' || !val || val > 255)
-				log_message(LOG_INFO, "Invalid lvs_sync_daemon ttl (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_sync_daemon ttl (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
 			else
 				global_data->lvs_syncd.mcast_ttl = (uint8_t)val;
 			i++;	/* skip over value */
@@ -376,16 +376,16 @@ lvs_syncd_handler(vector_t *strvec)
 		}
 		if (!strcmp(strvec_slot(strvec, i), "group")) {
 			if (i == vector_size(strvec) - 1) {
-				log_message(LOG_INFO, "No value specified for lvs_sync_daemon group - ignoring");
+				report_config_error(CONFIG_GENERAL_ERROR, "No value specified for lvs_sync_daemon group - ignoring");
 				continue;
 			}
 
 			if (inet_stosockaddr(strvec_slot(strvec, i+1), NULL, &global_data->lvs_syncd.mcast_group) < 0)
-				log_message(LOG_INFO, "Invalid lvs_sync_daemon group (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_sync_daemon group (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
 
 			if ((global_data->lvs_syncd.mcast_group.ss_family == AF_INET  && !IN_MULTICAST(htonl(((struct sockaddr_in *)&global_data->lvs_syncd.mcast_group)->sin_addr.s_addr))) ||
 			    (global_data->lvs_syncd.mcast_group.ss_family == AF_INET6 && !IN6_IS_ADDR_MULTICAST(&((struct sockaddr_in6 *)&global_data->lvs_syncd.mcast_group)->sin6_addr))) {
-				log_message(LOG_INFO, "lvs_sync_daemon group address %s is not multicast - ignoring", FMT_STR_VSLOT(strvec, i+1));
+				report_config_error(CONFIG_GENERAL_ERROR, "lvs_sync_daemon group address %s is not multicast - ignoring", FMT_STR_VSLOT(strvec, i+1));
 				global_data->lvs_syncd.mcast_group.ss_family = AF_UNSPEC;
 			}
 
@@ -393,7 +393,7 @@ lvs_syncd_handler(vector_t *strvec)
 			continue;
 		}
 #endif
-		log_message(LOG_INFO, "Unknown option %s specified for lvs_sync_daemon", FMT_STR_VSLOT(strvec, i));
+		report_config_error(CONFIG_GENERAL_ERROR, "Unknown option %s specified for lvs_sync_daemon", FMT_STR_VSLOT(strvec, i));
 	}
 }
 #endif
@@ -412,7 +412,7 @@ get_realtime_priority(vector_t *strvec, const char *process)
 	int priority;
 
 	if (vector_size(strvec) < 2) {
-		log_message(LOG_INFO, "No %s process real-time priority specified", process);
+		report_config_error(CONFIG_GENERAL_ERROR, "No %s process real-time priority specified", process);
 		return -1;
 	}
 
@@ -422,11 +422,11 @@ get_realtime_priority(vector_t *strvec, const char *process)
 	priority = atoi(strvec_slot(strvec, 1));
 
 	if (priority < min_priority) {
-		log_message(LOG_INFO, "%s process real-time priority %d less than minimum %d - setting to minimum", process, priority, min_priority);
+		report_config_error(CONFIG_GENERAL_ERROR, "%s process real-time priority %d less than minimum %d - setting to minimum", process, priority, min_priority);
 		priority = min_priority;
 	}
 	if (priority > max_priority) {
-		log_message(LOG_INFO, "%s process real-time priority %d greater than maximum %d - setting to maximum", process, priority, max_priority);
+		report_config_error(CONFIG_GENERAL_ERROR, "%s process real-time priority %d greater than maximum %d - setting to maximum", process, priority, max_priority);
 		priority = max_priority;
 	}
 
@@ -441,7 +441,7 @@ get_rt_rlimit(vector_t *strvec, const char *process)
 	rlim_t rlim = limit;	/* check for overflow */
 
 	if (*endptr || rlim != limit) {
-		log_message(LOG_INFO, "Invalid %s real-time limit - %s", process, FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid %s real-time limit - %s", process, FMT_STR_VSLOT(strvec, 1));
 		return 0;
 	}
 
@@ -455,13 +455,13 @@ get_priority(vector_t *strvec, const char *process)
 	int priority;
 
 	if (vector_size(strvec) < 2) {
-		log_message(LOG_INFO, "No %s process priority specified", process);
+		report_config_error(CONFIG_GENERAL_ERROR, "No %s process priority specified", process);
 		return 0;
 	}
 
 	priority = atoi(strvec_slot(strvec, 1));
 	if (priority < -20 || priority > 19) {
-		log_message(LOG_INFO, "Invalid %s process priority specified", process);
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid %s process priority specified", process);
 		return 0;
 	}
 
@@ -477,7 +477,7 @@ vrrp_mcast_group4_handler(vector_t *strvec)
 
 	ret = inet_stosockaddr(strvec_slot(strvec, 1), 0, (struct sockaddr_storage *)mcast);
 	if (ret < 0) {
-		log_message(LOG_ERR, "Configuration error: Cant parse vrrp_mcast_group4 [%s]. Skipping"
+		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: Cant parse vrrp_mcast_group4 [%s]. Skipping"
 				   , FMT_STR_VSLOT(strvec, 1));
 	}
 }
@@ -489,7 +489,7 @@ vrrp_mcast_group6_handler(vector_t *strvec)
 
 	ret = inet_stosockaddr(strvec_slot(strvec, 1), 0, (struct sockaddr_storage *)mcast);
 	if (ret < 0) {
-		log_message(LOG_ERR, "Configuration error: Cant parse vrrp_mcast_group6 [%s]. Skipping"
+		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: Cant parse vrrp_mcast_group6 [%s]. Skipping"
 				   , FMT_STR_VSLOT(strvec, 1));
 	}
 }
@@ -549,7 +549,7 @@ vrrp_lower_prio_no_advert_handler(vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec,1));
 		if (res < 0)
-			log_message(LOG_INFO, "Invalid value for vrrp_lower_prio_no_advert specified");
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value for vrrp_lower_prio_no_advert specified");
 		else
 			global_data->vrrp_lower_prio_no_advert = res;
 	}
@@ -564,7 +564,7 @@ vrrp_higher_prio_send_advert_handler(vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec,1));
 		if (res < 0)
-			log_message(LOG_INFO, "Invalid value for vrrp_higher_prio_send_advert specified");
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value for vrrp_higher_prio_send_advert specified");
 		else
 			global_data->vrrp_higher_prio_send_advert = res;
 	}
@@ -578,14 +578,14 @@ vrrp_iptables_handler(vector_t *strvec)
 	global_data->vrrp_iptables_outchain[0] = '\0';
 	if (vector_size(strvec) >= 2) {
 		if (strlen(strvec_slot(strvec,1)) >= sizeof(global_data->vrrp_iptables_inchain)-1) {
-			log_message(LOG_INFO, "VRRP Error : iptables in chain name too long - ignored");
+			report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : iptables in chain name too long - ignored");
 			return;
 		}
 		strcpy(global_data->vrrp_iptables_inchain, strvec_slot(strvec,1));
 	}
 	if (vector_size(strvec) >= 3) {
 		if (strlen(strvec_slot(strvec,2)) >= sizeof(global_data->vrrp_iptables_outchain)-1) {
-			log_message(LOG_INFO, "VRRP Error : iptables out chain name too long - ignored");
+			report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : iptables out chain name too long - ignored");
 			return;
 		}
 		strcpy(global_data->vrrp_iptables_outchain, strvec_slot(strvec,2));
@@ -599,7 +599,7 @@ vrrp_ipsets_handler(vector_t *strvec)
 
 	if (vector_size(strvec) >= 2) {
 		if (strlen(strvec_slot(strvec,1)) >= sizeof(global_data->vrrp_ipset_address)-1) {
-			log_message(LOG_INFO, "VRRP Error : ipset address name too long - ignored");
+			report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : ipset address name too long - ignored");
 			return;
 		}
 		strcpy(global_data->vrrp_ipset_address, strvec_slot(strvec,1));
@@ -611,7 +611,7 @@ vrrp_ipsets_handler(vector_t *strvec)
 
 	if (vector_size(strvec) >= 3) {
 		if (strlen(strvec_slot(strvec,2)) >= sizeof(global_data->vrrp_ipset_address6)-1) {
-			log_message(LOG_INFO, "VRRP Error : ipset IPv6 address name too long - ignored");
+			report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : ipset IPv6 address name too long - ignored");
 			return;
 		}
 		strcpy(global_data->vrrp_ipset_address6, strvec_slot(strvec,2));
@@ -624,7 +624,7 @@ vrrp_ipsets_handler(vector_t *strvec)
 	}
 	if (vector_size(strvec) >= 4) {
 		if (strlen(strvec_slot(strvec,3)) >= sizeof(global_data->vrrp_ipset_address_iface6)-1) {
-			log_message(LOG_INFO, "VRRP Error : ipset IPv6 address_iface name too long - ignored");
+			report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : ipset IPv6 address_iface name too long - ignored");
 			return;
 		}
 		strcpy(global_data->vrrp_ipset_address_iface6, strvec_slot(strvec,3));
@@ -645,8 +645,7 @@ vrrp_version_handler(vector_t *strvec)
 {
 	uint8_t version = (uint8_t)strtoul(strvec_slot(strvec, 1), NULL, 10);
 	if (VRRP_IS_BAD_VERSION(version)) {
-		log_message(LOG_INFO, "VRRP Error : Version not valid !");
-		log_message(LOG_INFO, "             must be between either 2 or 3. reconfigure !");
+		report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error: Version must be either 2 or 3");
 		return;
 	}
 	global_data->vrrp_version = version;
@@ -698,12 +697,12 @@ static void
 notify_fifo(vector_t *strvec, const char *type, notify_fifo_t *fifo)
 {
 	if (vector_size(strvec) < 2) {
-		log_message(LOG_INFO, "No %snotify_fifo name specified", type);
+		report_config_error(CONFIG_GENERAL_ERROR, "No %snotify_fifo name specified", type);
 		return;
 	}
 
 	if (fifo->name) {
-		log_message(LOG_INFO, "%snotify_fifo already specified - ignoring %s", type, FMT_STR_VSLOT(strvec,1));
+		report_config_error(CONFIG_GENERAL_ERROR, "%snotify_fifo already specified - ignoring %s", type, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 
@@ -716,12 +715,12 @@ notify_fifo_script(vector_t *strvec, const char *type, notify_fifo_t *fifo)
 	char *id_str;
 
 	if (vector_size(strvec) < 2) {
-		log_message(LOG_INFO, "No %snotify_fifo_script specified", type);
+		report_config_error(CONFIG_GENERAL_ERROR, "No %snotify_fifo_script specified", type);
 		return;
 	}
 
 	if (fifo->script) {
-		log_message(LOG_INFO, "%snotify_fifo_script already specified - ignoring %s", type, FMT_STR_VSLOT(strvec,1));
+		report_config_error(CONFIG_GENERAL_ERROR, "%snotify_fifo_script already specified - ignoring %s", type, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 
@@ -829,22 +828,22 @@ static void
 snmp_socket_handler(vector_t *strvec)
 {
 	if (vector_size(strvec) > 2) {
-		log_message(LOG_INFO, "Too many parameters specified for snmp_socket - ignoring");
+		report_config_error(CONFIG_GENERAL_ERROR, "Too many parameters specified for snmp_socket - ignoring");
 		return;
 	}
 
 	if (vector_size(strvec) < 2) {
-		log_message(LOG_INFO, "SNMP error : snmp socket name missing");
+		report_config_error(CONFIG_GENERAL_ERROR, "SNMP error : snmp socket name missing");
 		return;
 	}
 
 	if (strlen(strvec_slot(strvec,1)) > PATH_MAX - 1) {
-		log_message(LOG_INFO, "SNMP error : snmp socket name too long - ignored");
+		report_config_error(CONFIG_GENERAL_ERROR, "SNMP error : snmp socket name too long - ignored");
 		return;
 	}
 
 	if (global_data->snmp_socket) {
-		log_message(LOG_INFO, "SNMP socket already set to %s - ignoring", global_data->snmp_socket);
+		report_config_error(CONFIG_GENERAL_ERROR, "SNMP socket already set to %s - ignoring", global_data->snmp_socket);
 		return;
 	}
 
@@ -912,7 +911,7 @@ net_namespace_handler(vector_t *strvec)
 			use_pid_dir = true;
 		}
 		else
-			log_message(LOG_INFO, "Duplicate net_namespace definition %s - ignoring", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Duplicate net_namespace definition %s - ignoring", FMT_STR_VSLOT(strvec, 1));
 	}
 }
 
@@ -953,7 +952,7 @@ instance_handler(vector_t *strvec)
 			use_pid_dir = true;
 		}
 		else
-			log_message(LOG_INFO, "Duplicate instance definition %s - ignoring", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Duplicate instance definition %s - ignoring", FMT_STR_VSLOT(strvec, 1));
 	}
 }
 
@@ -970,12 +969,12 @@ static void
 script_user_handler(vector_t *strvec)
 {
 	if (vector_size(strvec) < 2) {
-		log_message(LOG_INFO, "No script username specified");
+		report_config_error(CONFIG_GENERAL_ERROR, "No script username specified");
 		return;
 	}
 
 	if (set_default_script_user(strvec_slot(strvec, 1), vector_size(strvec) > 2 ? strvec_slot(strvec, 2) : NULL))
-		log_message(LOG_INFO, "Error setting global script uid/gid");
+		report_config_error(CONFIG_GENERAL_ERROR, "Error setting global script uid/gid");
 }
 
 static void
@@ -995,7 +994,7 @@ child_wait_handler(vector_t *strvec)
 
 	secs = strtoul(strvec_slot(strvec,1), &endptr, 10);
 	if (*endptr) {
-		log_message(LOG_INFO, "Invalid child_wait_time %s", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid child_wait_time %s", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
 
@@ -1014,7 +1013,7 @@ vrrp_rx_bufs_policy_handler(vector_t *strvec)
 		return;
 
 	if (vector_size(strvec) < 2) {
-		log_message(LOG_INFO, "vrrp_rx_bufs_policy missing");
+		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_rx_bufs_policy missing");
 		return;
 	}
 
@@ -1030,18 +1029,18 @@ vrrp_rx_bufs_policy_handler(vector_t *strvec)
 				global_data->vrrp_rx_bufs_policy |= RX_BUFS_SIZE;
 			}
 			else
-				log_message(LOG_INFO, "Invalid vrrp_rx_bufs_policy %s", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid vrrp_rx_bufs_policy %s", FMT_STR_VSLOT(strvec, i));
 		}
 	}
 
 	if ((global_data->vrrp_rx_bufs_policy & RX_BUFS_SIZE) &&
 	    (global_data->vrrp_rx_bufs_policy & (RX_BUFS_POLICY_MTU | RX_BUFS_POLICY_ADVERT))) {
-		log_message(LOG_INFO, "Cannot set vrrp_rx_bufs_policy size and policy, ignoring policy");
+		report_config_error(CONFIG_GENERAL_ERROR, "Cannot set vrrp_rx_bufs_policy size and policy, ignoring policy");
 		global_data->vrrp_rx_bufs_policy &= ~(RX_BUFS_POLICY_MTU | RX_BUFS_POLICY_ADVERT);
 	}
 	else if ((global_data->vrrp_rx_bufs_policy & RX_BUFS_POLICY_MTU) &&
 		 (global_data->vrrp_rx_bufs_policy & RX_BUFS_POLICY_ADVERT)) {
-		log_message(LOG_INFO, "Cannot set both vrrp_rx_bufs_policy MTU and ADVERT, ignoring ADVERT");
+		report_config_error(CONFIG_GENERAL_ERROR, "Cannot set both vrrp_rx_bufs_policy MTU and ADVERT, ignoring ADVERT");
 		global_data->vrrp_rx_bufs_policy &= ~RX_BUFS_POLICY_ADVERT;
 	}
 }
@@ -1056,7 +1055,7 @@ vrrp_rx_bufs_multiplier_handler(vector_t *strvec)
 		return;
 
 	if (vector_size(strvec) != 2) {
-		log_message(LOG_INFO, "Invalid vrrp_rx_bufs_multiplier");
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid vrrp_rx_bufs_multiplier");
 		return;
 	}
 
@@ -1064,7 +1063,7 @@ vrrp_rx_bufs_multiplier_handler(vector_t *strvec)
 	if (!*endptr && rx_buf_mult >= 1)
 		global_data->vrrp_rx_bufs_multiples = rx_buf_mult;
 	else
-		log_message(LOG_INFO, "Invalid vrrp_rx_bufs_multiplier %s", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid vrrp_rx_bufs_multiplier %s", FMT_STR_VSLOT(strvec, 1));
 }
 #endif
 
@@ -1079,18 +1078,18 @@ get_netlink_rcv_bufs_size(vector_t *strvec, const char *type)
 		return 0;
 
 	if (vector_size(strvec) < 2) {
-		log_message(LOG_INFO, "%s_rcv_bufs size missing", type);
+		report_config_error(CONFIG_GENERAL_ERROR, "%s_rcv_bufs size missing", type);
 		return 0;
 	}
 	val = strtoul(strvec_slot(strvec, 1), &end, 10);
 
 	if (*end) {
-		log_message(LOG_INFO, "%s_rcv_bufs size (%s) invalid", type, FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "%s_rcv_bufs size (%s) invalid", type, FMT_STR_VSLOT(strvec, 1));
 		return 0;
 	}
 
 	if (val > UINT_MAX) {
-		log_message(LOG_INFO, "%s_rcv_bufs size (%lu) too large", type, val);
+		report_config_error(CONFIG_GENERAL_ERROR, "%s_rcv_bufs size (%lu) too large", type, val);
 		return 0;
 	}
 
@@ -1124,7 +1123,7 @@ vrrp_netlink_monitor_rcv_bufs_force_handler(vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec,1));
 		if (res < 0) {
-			log_message(LOG_INFO, "Invalid value '%s' for global vrrp_netlink_monitor_rcv_bufs_force specified", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global vrrp_netlink_monitor_rcv_bufs_force specified", FMT_STR_VSLOT(strvec, 1));
 			return;
 		}
 	}
@@ -1157,7 +1156,7 @@ vrrp_netlink_cmd_rcv_bufs_force_handler(vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec,1));
 		if (res < 0) {
-			log_message(LOG_INFO, "Invalid value '%s' for global vrrp_netlink_cmd_rcv_bufs_force specified", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global vrrp_netlink_cmd_rcv_bufs_force specified", FMT_STR_VSLOT(strvec, 1));
 			return;
 		}
 	}
@@ -1192,7 +1191,7 @@ lvs_netlink_monitor_rcv_bufs_force_handler(vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec,1));
 		if (res < 0) {
-			log_message(LOG_INFO, "Invalid value '%s' for global lvs_netlink_monitor_rcv_bufs_force specified", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global lvs_netlink_monitor_rcv_bufs_force specified", FMT_STR_VSLOT(strvec, 1));
 			return;
 		}
 	}
@@ -1225,7 +1224,7 @@ lvs_netlink_cmd_rcv_bufs_force_handler(vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec,1));
 		if (res < 0) {
-			log_message(LOG_INFO, "Invalid value '%s' for global lvs_netlink_cmd_rcv_bufs_force specified", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global lvs_netlink_cmd_rcv_bufs_force specified", FMT_STR_VSLOT(strvec, 1));
 			return;
 		}
 	}
@@ -1241,7 +1240,7 @@ rs_init_notifies_handler(vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec,1));
 		if (res < 0) {
-			log_message(LOG_INFO, "Invalid value '%s' for global rs_init_notifies specified", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global rs_init_notifies specified", FMT_STR_VSLOT(strvec, 1));
 			return;
 		}
 	}
@@ -1257,7 +1256,7 @@ no_checker_emails_handler(vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec,1));
 		if (res < 0) {
-			log_message(LOG_INFO, "Invalid value '%s' for global no_checker_emails specified", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global no_checker_emails specified", FMT_STR_VSLOT(strvec, 1));
 			return;
 		}
 	}
