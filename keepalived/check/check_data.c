@@ -160,6 +160,7 @@ alloc_vsg_entry(vector_t *strvec)
 	virtual_server_group_entry_t *old;
 	uint32_t start;
 	element e;
+	char *port_str;
 
 	new = (virtual_server_group_entry_t *) MALLOC(sizeof(virtual_server_group_entry_t));
 
@@ -169,8 +170,18 @@ alloc_vsg_entry(vector_t *strvec)
 		list_add(vsg->vfwmark, new);
 	} else {
 		new->range = inet_stor(strvec_slot(strvec, 0));
-		if (inet_stosockaddr(strvec_slot(strvec, 0), strvec_slot(strvec, 1), &new->addr)) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid virtual server group IP address %s - skipping", FMT_STR_VSLOT(strvec, 0));
+		if (vector_size(strvec) >= 2) {
+			/* Don't pass a port number of 0. This was added v2.0.7 to support legacy
+			 * configuration since previously having no port wasn't allowed. */
+			port_str = strvec_slot(strvec, 1);
+			if (!port_str[strspn(port_str, "0")])
+				port_str = NULL;
+		}
+		else
+			port_str = NULL;
+		if (inet_stosockaddr(strvec_slot(strvec, 0), port_str, &new->addr)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid virtual server group IP address%s %s%s%s - skipping", FMT_STR_VSLOT(strvec, 0),
+						port_str ? "/port" : "", port_str ? "/" : "", port_str ? port_str : "");
 			FREE(new);
 			return;
 		}
@@ -347,6 +358,7 @@ alloc_vs(char *param1, char *param2)
 {
 	size_t size;
 	virtual_server_t *new;
+	char *port_str;
 
 	new = (virtual_server_t *) MALLOC(sizeof(virtual_server_t));
 
@@ -359,9 +371,12 @@ alloc_vs(char *param1, char *param2)
 	} else if (!strcmp(param1, "fwmark")) {
 		new->vfwmark = (uint32_t)strtoul(param2, NULL, 10);
 	} else {
-		/* Don't pass a zero for port number to inet_stosockaddr */
-		if (inet_stosockaddr(param1, (param2 && param2[strspn(param2, "0")]) ? param2 : NULL, &new->addr)) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid virtual server IP address/port %s/%s - skipping", param1, param2);
+		/* Don't pass a zero for port number to inet_stosockaddr. This was added in v2.0.7
+		 * to support legacy configuration since previously having no port wasn't allowed. */
+		port_str = (param2 && param2[strspn(param2, "0")]) ? param2 : NULL;
+		if (inet_stosockaddr(param1, port_str, &new->addr)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid virtual server IP address%s %s%s%s - skipping",
+						port_str ? "/port" : "", param1, port_str ? "/" : "", port_str ? port_str : "");
 			skip_block(true);
 			FREE(new);
 			return;
@@ -664,6 +679,7 @@ bool validate_check_config(void)
 {
 	element e, e1;
 	virtual_server_t *vs;
+	virtual_server_group_entry_t *vsge;
 	real_server_t *rs;
 	checker_t *checker;
 	element next;
@@ -722,10 +738,25 @@ bool validate_check_config(void)
 
 			/* Check port specified for udp/tcp/sctp unless persistent */
 			if (!vs->persistence_timeout &&
+			    !vs->vsg &&
 			    ((vs->addr.ss_family == AF_INET6 && !((struct sockaddr_in6 *)&vs->addr)->sin6_port) ||
 			     (vs->addr.ss_family == AF_INET && !((struct sockaddr_in *)&vs->addr)->sin_port))) {
 				report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: zero port only valid for persistent services - setting", FMT_VS(vs));
 				vs->persistence_timeout = IPVS_SVC_PERSISTENT_TIMEOUT;
+			}
+		}
+
+		/* If a virtual server group with addresses has persistence not set,
+		 * make sure all the address blocks have a port, otherwise set
+		 * persistence. */
+		if (!vs->persistence_timeout && vs->vsg) {
+			LIST_FOREACH(vs->vsg->addr_range, vsge, e1) {
+				if ((vsge->addr.ss_family == AF_INET6 && !((struct sockaddr_in6 *)&vsge->addr)->sin6_port) ||
+				    (vsge->addr.ss_family == AF_INET && !((struct sockaddr_in *)&vsge->addr)->sin_port)) {
+					report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: zero port only valid for persistent services - setting", FMT_VS(vs));
+					vs->persistence_timeout = IPVS_SVC_PERSISTENT_TIMEOUT;
+					break;
+				}
 			}
 		}
 

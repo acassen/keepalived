@@ -1009,11 +1009,11 @@ This block is divided in 2 sub-block :
     The configuration block looks like :
 
 virtual_server_group <STRING> {
-    <IP ADDRESS> <PORT>         # VIP VPORT
-    <IP ADDRESS> <PORT>
+    <IP ADDRESS> [<PORT>]       # VIP [VPORT]
+    <IP ADDRESS> [<PORT>]
     ...
-    <IP ADDRESS RANGE> <PORT>   # VIP range VPORT
-    <IP ADDRESS RANGE> <PORT>
+    <IP ADDRESS RANGE> [<PORT>] # VIP range [VPORT]
+    <IP ADDRESS RANGE> [<PORT>]
     ...
     fwmark <INTEGER>            # fwmark
     fwmark <INTEGER>
@@ -1044,9 +1044,12 @@ Note:   <IP ADDRESS RANGE> has the form of : XXX.YYY.ZZZ.WWW-VVV, define
     address family of the real/sorry servers if they are all the same, otherwise
     it will default to IPv4 (use ip_family inet6 to override this).
 
-virtual_server <IP ADDRESS> <PORT> {          # VS IP/PORT declaration
-virtual_server fwmark <INTEGER>    {          # VS fwmark declaration
-virtual_server group <STRING>      {          # VS group declaration
+    Note 3: The port for the virtual server can only be omitted if the virtual service
+    is persistent.
+
+virtual_server <IP ADDRESS> [<PORT>] {        # VS IP/PORT declaration
+virtual_server fwmark <INTEGER>      {        # VS fwmark declaration
+virtual_server group <STRING>        {        # VS group declaration
     ip_family inet|inet6                      # Address family
     delay_loop <INTEGER>                      # delay timer for service polling
     lvs_sched rr|wrr|lc|wlc|lblc|sh|dh|fo|ovf|lblcr|sed|nq

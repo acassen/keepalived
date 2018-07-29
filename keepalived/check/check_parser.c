@@ -129,7 +129,7 @@ vs_handler(vector_t *strvec)
 	if (!strvec)
 		return;
 
-	alloc_vs(strvec_slot(strvec, 1), strvec_slot(strvec, 2));
+	alloc_vs(strvec_slot(strvec, 1), vector_size(strvec) >= 3 ? strvec_slot(strvec, 2) : NULL);
 }
 static void
 vs_end_handler(void)

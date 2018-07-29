@@ -1093,6 +1093,10 @@ tunnelled, the address family of the virtual server will be the same as the
 address family of the real/sorry servers if they are all the same, otherwise
 it will default to IPv4 (use ip_family inet6 to override this).
 .PP
+.B Note:
+The port for the virtual server can only be omitted if the virtual service
+is persistent.
+.PP
 .SH Virtual server group(s)
 .PP
  # optional
@@ -1102,15 +1106,15 @@ it will default to IPv4 (use ip_family inet6 to override this).
  # Only for very large LVSs.
  virtual_server_group <STRING> {
         #VIP port
-        <IPADDR> <PORT>
-        <IPADDR> <PORT>
+        <IPADDR> [<PORT>]
+        <IPADDR> [<PORT>]
         ...
         #
         # <IPADDR RANGE> has the form
         # XXX.YYY.ZZZ.WWW-VVV eg 192.168.200.1-10
         # range includes both .1 and .10 address
-        <IPADDR RANGE> <PORT># VIP range VPORT
-        <IPADDR RANGE> <PORT>
+        <IPADDR RANGE> [<PORT>]# VIP range VPORT
+        <IPADDR RANGE> [<PORT>]
         ...
         fwmark <INT>  # fwmark
         fwmark <INT>
@@ -1121,7 +1125,9 @@ it will default to IPv4 (use ip_family inet6 to override this).
 .PP
 A virtual_server can be a declaration of one of
 .TP
-.B vip vport (IPADDR PORT pair)
+.B vip vport IPADDR PORT pair
+.TP
+.B vip IPADDR
 .TP
 .B fwmark <INT>
 .TP
@@ -1129,6 +1135,7 @@ A virtual_server can be a declaration of one of
 
     #setup service
     virtual_server IP port |
+    virtual_server IP |
     virtual_server fwmark int |
     virtual_server group string
     {
