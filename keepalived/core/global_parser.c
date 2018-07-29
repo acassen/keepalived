@@ -103,13 +103,15 @@ smtpserver_handler(vector_t *strvec)
 	if (vector_size(strvec) >= 3)
 		port_str = strvec_slot(strvec,2);
 
-	/* It can't be an IP address if it contains '-' or '/', and
-	   inet_stosockaddr() modifies the string if it contains either of them */
+	/* It can't be an IP address if it contains '-' or '/' */
 	if (!strpbrk(strvec_slot(strvec, 1), "-/"))
 		ret = inet_stosockaddr(strvec_slot(strvec, 1), port_str, &global_data->smtp_server);
 
 	if (ret < 0)
 		domain_stosockaddr(strvec_slot(strvec, 1), port_str, &global_data->smtp_server);
+
+	if (global_data->smtp_server.ss_family == AF_UNSPEC)
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid smtp server %s %s", FMT_STR_VSLOT(strvec, 1), port_str);
 }
 static void
 smtphelo_handler(vector_t *strvec)
