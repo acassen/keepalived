@@ -201,19 +201,6 @@ inet_ntoa2(uint32_t ip, char *buf)
 	return buf;
 }
 
-/* IP string to network mask representation. CIDR notation. */
-uint8_t
-inet_stom(const char *addr)
-{
-	uint8_t mask = 32;
-	const char *cp = addr;
-
-	if (!(cp = strchr(addr, '/')))
-		return mask;
-	return atoi(cp+1);
-}
-#endif
-
 /* IP string to network range representation. */
 bool
 inet_stor(const char *addr, uint32_t *range_end)
