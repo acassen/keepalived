@@ -332,7 +332,6 @@ typedef struct _vrrp_t {
 
 /* VRRP macro */
 #define VRRP_IS_BAD_VERSION(id)		((id) < 2 || (id) > 3)
-#define VRRP_IS_BAD_VID(id)		((id) < 1 || (id) > 255)	/* rfc2338.6.1.vrid */
 #define VRRP_IS_BAD_PRIORITY(p)		((p) < 1 || (p) > VRRP_PRIO_OWNER)	/* rfc2338.6.1.prio */
 #define VRRP_IS_BAD_DEBUG_INT(d)	((d) < 0 || (d) > 4)
 

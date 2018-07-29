@@ -541,11 +541,10 @@ static void
 vrrp_vrid_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	char *end_ptr;
-	unsigned long vrid = strtoul(strvec_slot(strvec, 1),&end_ptr, 10);
+	unsigned vrid;
 
-	if (*end_ptr || VRRP_IS_BAD_VID(vrid)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : VRID not valid - must be between 1 & 255. reconfigure !");
+	if (!read_unsigned(strvec, 1, &vrid, 1, 255, false)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s): VRID '%s' not valid - must be between 1 & 255", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
 

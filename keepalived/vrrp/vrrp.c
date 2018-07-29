@@ -2061,7 +2061,7 @@ static bool
 chk_min_cfg(vrrp_t * vrrp)
 {
 	if (vrrp->vrid == 0) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) the virtual id must be set!", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) the virtual router id must be set", vrrp->iname);
 		return false;
 	}
 	if (!vrrp->ifp) {
