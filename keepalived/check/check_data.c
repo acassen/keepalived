@@ -105,6 +105,7 @@ dump_vsg(FILE *fp, void *data)
 {
 	virtual_server_group_t *vsg = data;
 
+	conf_write(fp, " ------< Virtual server group >------");
 	conf_write(fp, " Virtual Server Group = %s", vsg->gname);
 	dump_list(fp, vsg->addr_range);
 	dump_list(fp, vsg->vfwmark);
@@ -161,6 +162,7 @@ alloc_vsg_entry(vector_t *strvec)
 	uint32_t start;
 	element e;
 	char *port_str;
+	uint32_t range;
 
 	new = (virtual_server_group_entry_t *) MALLOC(sizeof(virtual_server_group_entry_t));
 
@@ -169,7 +171,12 @@ alloc_vsg_entry(vector_t *strvec)
 		new->is_fwmark = true;
 		list_add(vsg->vfwmark, new);
 	} else {
-		new->range = inet_stor(strvec_slot(strvec, 0));
+		if (!inet_stor(strvec_slot(strvec, 0), &range)) {
+			FREE(new);
+			return;
+		}
+		new->range = (uint32_t)range;
+
 		if (vector_size(strvec) >= 2) {
 			/* Don't pass a port number of 0. This was added v2.0.7 to support legacy
 			 * configuration since previously having no port wasn't allowed. */
@@ -179,6 +186,7 @@ alloc_vsg_entry(vector_t *strvec)
 		}
 		else
 			port_str = NULL;
+
 		if (inet_stosockaddr(strvec_slot(strvec, 0), port_str, &new->addr)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Invalid virtual server group IP address%s %s%s%s - skipping", FMT_STR_VSLOT(strvec, 0),
 						port_str ? "/port" : "", port_str ? "/" : "", port_str ? port_str : "");
@@ -204,21 +212,15 @@ alloc_vsg_entry(vector_t *strvec)
 			}
 		}
 
-		/* If no range specified, new->range == 0 */
-		if (new->range &&
-		    ((new->addr.ss_family == AF_INET && new->range > 255) ||
-		     (new->addr.ss_family == AF_INET6 && new->range > 0xffff))) {
-			report_config_error(CONFIG_GENERAL_ERROR, "End address of range exceeds limit for address family - %s - skipping", FMT_STR_VSLOT(strvec, 0));
-			FREE(new);
-			return;
-		}
+		/* If no range specified, new->range == UINT32_MAX */
+		if (new->range == UINT32_MAX)
+			new->range = 0;
+		else {
+			if (new->addr.ss_family == AF_INET)
+				start = ntohl(((struct sockaddr_in *)&new->addr)->sin_addr.s_addr) & 0xFF;
+			else
+				start = ntohs(((struct sockaddr_in6 *)&new->addr)->sin6_addr.s6_addr16[7]);
 
-		if (new->addr.ss_family == AF_INET)
-			start = ntohl(((struct sockaddr_in *)&new->addr)->sin_addr.s_addr) & 0xFF;
-		else
-			start = ntohs(((struct sockaddr_in6 *)&new->addr)->sin6_addr.s6_addr16[7]);
-
-		if (new->range) {
 			if (start >= new->range) {
 				report_config_error(CONFIG_GENERAL_ERROR, "Address range end is not greater than address range start - %s - skipping", FMT_STR_VSLOT(strvec, 0));
 				FREE(new);

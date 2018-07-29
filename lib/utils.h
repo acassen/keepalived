@@ -36,6 +36,8 @@
 #include <sys/syslog.h>
 #endif
 
+#include "vector.h"
+
 /* Global debugging logging facilities */
 #ifdef _DEBUG_
 #define DBG(fmt, msg...) syslog(LOG_DEBUG, fmt, ## msg)
@@ -148,7 +150,7 @@ extern void write_stacktrace(const char *, const char *);
 #endif
 extern uint16_t in_csum(const uint16_t *, size_t, uint32_t, uint32_t *);
 extern char *inet_ntop2(uint32_t);
-extern uint32_t inet_stor(const char *);
+extern bool inet_stor(const char *, uint32_t *);
 extern int domain_stosockaddr(const char *, const char *, struct sockaddr_storage *);
 extern int inet_stosockaddr(char *, const char *, struct sockaddr_storage *);
 extern void inet_ip4tosockaddr(struct in_addr *, struct sockaddr_storage *);
