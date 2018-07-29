@@ -127,7 +127,7 @@ null_strvec(const vector_t *strvec, size_t index)
 	return NULL;
 }
 
-bool read_int(const vector_t *strvec, size_t index, int *res, int min_val, int max_val, __attribute__((unused)) bool ignore_error)
+bool read_int_strvec(const vector_t *strvec, size_t index, int *res, int min_val, int max_val, __attribute__((unused)) bool ignore_error)
 {
 	long val;
 	char *endptr;
@@ -158,7 +158,7 @@ bool read_int(const vector_t *strvec, size_t index, int *res, int min_val, int m
 #endif
 }
 
-bool read_unsigned(const vector_t *strvec, size_t index, unsigned *res, unsigned min_val, unsigned max_val, __attribute__((unused)) bool ignore_error)
+bool read_unsigned_strvec(const vector_t *strvec, size_t index, unsigned *res, unsigned min_val, unsigned max_val, __attribute__((unused)) bool ignore_error)
 {
 	unsigned long val;
 	char *endptr;
@@ -190,7 +190,7 @@ bool read_unsigned(const vector_t *strvec, size_t index, unsigned *res, unsigned
 #endif
 }
 
-bool read_double(const vector_t *strvec, size_t index, double *res, double min_val, double max_val, __attribute__((unused)) bool ignore_error)
+bool read_double_strvec(const vector_t *strvec, size_t index, double *res, double min_val, double max_val, __attribute__((unused)) bool ignore_error)
 {
 	double val;
 	char *endptr;

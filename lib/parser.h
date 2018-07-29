@@ -86,9 +86,9 @@ extern char *config_id;
 extern void report_config_error(config_err_t, const char *format, ...)
 	__attribute__((format (printf, 2, 3)));
 extern config_err_t get_config_status(void);
-extern bool read_int(const vector_t *, size_t, int *, int, int, bool);
-extern bool read_unsigned(const vector_t *, size_t, unsigned *, unsigned, unsigned, bool);
-extern bool read_double(const vector_t *, size_t, double *, double, double, bool);
+extern bool read_int_strvec(const vector_t *, size_t, int *, int, int, bool);
+extern bool read_unsigned_strvec(const vector_t *, size_t, unsigned *, unsigned, unsigned, bool);
+extern bool read_double_strvec(const vector_t *, size_t, double *, double, double, bool);
 extern void install_keyword_root(const char *, void (*handler) (vector_t *), bool);
 extern void install_root_end_handler(void (*handler) (void));
 extern void install_sublevel(void);

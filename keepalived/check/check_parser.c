@@ -532,7 +532,7 @@ rs_weight_handler(vector_t *strvec)
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	unsigned weight;
 
-	if (!read_unsigned(strvec, 1, &weight, 1, 65535, true)) {
+	if (!read_unsigned_strvec(strvec, 1, &weight, 1, 65535, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Real server weight %s is outside range 1-65535", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
@@ -756,7 +756,7 @@ vs_weight_handler(vector_t *strvec)
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	unsigned weight;
 
-	if (!read_unsigned(strvec, 1, &weight, 1, 65535, true)) {
+	if (!read_unsigned_strvec(strvec, 1, &weight, 1, 65535, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Virtual server weight %s is outside range 1-65535", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
