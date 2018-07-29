@@ -292,17 +292,13 @@ int
 inet_stosockaddr(char *ip, const char *port, struct sockaddr_storage *addr)
 {
 	void *addr_ip;
-	char *cp = ip;
+	char *cp;
+	char sav_cp;
 	unsigned long port_num;
 	char *endptr;
+	int res;
 
 	addr->ss_family = (strchr(ip, ':')) ? AF_INET6 : AF_INET;
-
-	/* remove range and mask stuff */
-	if ((cp = strchr(ip, '-')))
-		*cp = 0;
-	else if ((cp = strchr(ip, '/')))
-		*cp = 0;
 
 	if (port) {
 		port_num = strtoul(port, &endptr, 10);
@@ -324,7 +320,20 @@ inet_stosockaddr(char *ip, const char *port, struct sockaddr_storage *addr)
 		addr_ip = &addr4->sin_addr;
 	}
 
-	if (!inet_pton(addr->ss_family, ip, addr_ip)) {
+	/* remove range and mask stuff */
+	if ((cp = strchr(ip, '-')) ||
+	    (cp = strchr(ip, '/'))) {
+		sav_cp = *cp;
+		*cp = 0;
+	}
+
+	res = inet_pton(addr->ss_family, ip, addr_ip);
+
+	/* restore range and mask stuff */
+	if (cp)
+		*cp = sav_cp;
+
+	if (!res) {
 		addr->ss_family = AF_UNSPEC;
 		return -1;
 	}
