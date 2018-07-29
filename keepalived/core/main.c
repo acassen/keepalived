@@ -1409,11 +1409,12 @@ keepalived_main(int argc, char **argv)
 	}
 #endif
 
-	if (global_data->instance_name
+	if (!__test_bit(CONFIG_TEST_BIT, &debug) &&
+	    (global_data->instance_name
 #if HAVE_DECL_CLONE_NEWNET
-			  || global_data->network_namespace
+	     || global_data->network_namespace
 #endif
-					      ) {
+					      )) {
 		if ((syslog_ident = make_syslog_ident(PACKAGE_NAME))) {
 			log_message(LOG_INFO, "Changing syslog ident to %s", syslog_ident);
 			closelog();
@@ -1438,9 +1439,11 @@ keepalived_main(int argc, char **argv)
 	global_print();
 #endif
 
-	if (use_pid_dir) {
-		/* Create the directory for pid files */
-		create_pid_dir();
+	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
+		if (use_pid_dir) {
+			/* Create the directory for pid files */
+			create_pid_dir();
+		}
 	}
 
 #if HAVE_DECL_CLONE_NEWNET
@@ -1452,62 +1455,64 @@ keepalived_main(int argc, char **argv)
 	}
 #endif
 
-	if (global_data->instance_name) {
-		if (!main_pidfile && (main_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE, global_data->instance_name, PID_EXTENSION)))
-			free_main_pidfile = true;
+	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
+		if (global_data->instance_name) {
+			if (!main_pidfile && (main_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE, global_data->instance_name, PID_EXTENSION)))
+				free_main_pidfile = true;
 #ifdef _WITH_LVS_
-		if (!checkers_pidfile && (checkers_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR CHECKERS_PID_FILE, global_data->instance_name, PID_EXTENSION)))
-			free_checkers_pidfile = true;
+			if (!checkers_pidfile && (checkers_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR CHECKERS_PID_FILE, global_data->instance_name, PID_EXTENSION)))
+				free_checkers_pidfile = true;
 #endif
 #ifdef _WITH_VRRP_
-		if (!vrrp_pidfile && (vrrp_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, global_data->instance_name, PID_EXTENSION)))
-			free_vrrp_pidfile = true;
+			if (!vrrp_pidfile && (vrrp_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, global_data->instance_name, PID_EXTENSION)))
+				free_vrrp_pidfile = true;
 #endif
 #ifdef _WITH_BFD_
-		if (!bfd_pidfile && (bfd_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, global_data->instance_name, PID_EXTENSION)))
-			free_bfd_pidfile = true;
+			if (!bfd_pidfile && (bfd_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, global_data->instance_name, PID_EXTENSION)))
+				free_bfd_pidfile = true;
 #endif
-	}
+		}
 
-	if (use_pid_dir) {
-		if (!main_pidfile)
-			main_pidfile = KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE PID_EXTENSION;
+		if (use_pid_dir) {
+			if (!main_pidfile)
+				main_pidfile = KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE PID_EXTENSION;
 #ifdef _WITH_LVS_
-		if (!checkers_pidfile)
-			checkers_pidfile = KEEPALIVED_PID_DIR CHECKERS_PID_FILE PID_EXTENSION;
+			if (!checkers_pidfile)
+				checkers_pidfile = KEEPALIVED_PID_DIR CHECKERS_PID_FILE PID_EXTENSION;
 #endif
 #ifdef _WITH_VRRP_
-		if (!vrrp_pidfile)
-			vrrp_pidfile = KEEPALIVED_PID_DIR VRRP_PID_FILE PID_EXTENSION;
+			if (!vrrp_pidfile)
+				vrrp_pidfile = KEEPALIVED_PID_DIR VRRP_PID_FILE PID_EXTENSION;
 #endif
 #ifdef _WITH_BFD_
-		if (!bfd_pidfile)
-			bfd_pidfile = KEEPALIVED_PID_DIR BFD_PID_FILE PID_EXTENSION;
+			if (!bfd_pidfile)
+				bfd_pidfile = KEEPALIVED_PID_DIR BFD_PID_FILE PID_EXTENSION;
 #endif
-	}
-	else
-	{
-		if (!main_pidfile)
-			main_pidfile = PID_DIR KEEPALIVED_PID_FILE PID_EXTENSION;
+		}
+		else
+		{
+			if (!main_pidfile)
+				main_pidfile = PID_DIR KEEPALIVED_PID_FILE PID_EXTENSION;
 #ifdef _WITH_LVS_
-		if (!checkers_pidfile)
-			checkers_pidfile = PID_DIR CHECKERS_PID_FILE PID_EXTENSION;
+			if (!checkers_pidfile)
+				checkers_pidfile = PID_DIR CHECKERS_PID_FILE PID_EXTENSION;
 #endif
 #ifdef _WITH_VRRP_
-		if (!vrrp_pidfile)
-			vrrp_pidfile = PID_DIR VRRP_PID_FILE PID_EXTENSION;
+			if (!vrrp_pidfile)
+				vrrp_pidfile = PID_DIR VRRP_PID_FILE PID_EXTENSION;
 #endif
 #ifdef _WITH_BFD_
-		if (!bfd_pidfile)
-			bfd_pidfile = PID_DIR BFD_PID_FILE PID_EXTENSION;
+			if (!bfd_pidfile)
+				bfd_pidfile = PID_DIR BFD_PID_FILE PID_EXTENSION;
 #endif
-	}
+		}
 
-	/* Check if keepalived is already running */
-	if (keepalived_running(daemon_mode)) {
-		log_message(LOG_INFO, "daemon is already running");
-		report_stopped = false;
-		goto end;
+		/* Check if keepalived is already running */
+		if (keepalived_running(daemon_mode)) {
+			log_message(LOG_INFO, "daemon is already running");
+			report_stopped = false;
+			goto end;
+		}
 	}
 
 	/* daemonize process */
