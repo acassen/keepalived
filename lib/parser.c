@@ -131,15 +131,21 @@ bool read_int(const vector_t *strvec, size_t index, int *res, int min_val, int m
 {
 	long val;
 	char *endptr;
+	char *warn = "";
+
+#ifndef _STRICT_CONFIG_
+	if (ignore_error && !__test_bit(CONFIG_TEST_BIT, &debug))
+		warn = "WARNING - ";
+#endif
 
 	errno = 0;
 	val = strtol(vector_slot(strvec, index), &endptr, 10);
 	*res = (int)val;
 
 	if (*endptr)
-		report_config_error(CONFIG_INVALID_NUMBER, "Line starting '%s' has invalid number '%s'", FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
+		report_config_error(CONFIG_INVALID_NUMBER, "%sLine starting '%s' has invalid number '%s'", warn, FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
 	else if (errno == ERANGE || val < INT_MIN || val > INT_MAX)
-		report_config_error(CONFIG_INVALID_NUMBER, "Line starting '%s' has number '%s' outside integer range", FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
+		report_config_error(CONFIG_INVALID_NUMBER, "%sLine starting '%s' has number '%s' outside integer range", warn, FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
 	else if (val < min_val || val > max_val)
 		report_config_error(CONFIG_INVALID_NUMBER, "Line starting '%s' has number '%s' outside range [%d, %d]", FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index), min_val, max_val);
 	else
@@ -156,17 +162,23 @@ bool read_unsigned(const vector_t *strvec, size_t index, unsigned *res, unsigned
 {
 	unsigned long val;
 	char *endptr;
+	char *warn = "";
+
+#ifndef _STRICT_CONFIG_
+	if (ignore_error && !__test_bit(CONFIG_TEST_BIT, &debug))
+		warn = "WARNING - ";
+#endif
 
 	errno = 0;
 	val = strtoul(vector_slot(strvec, index), &endptr, 10);
 	*res = (unsigned)val;
 
 	if (FMT_STR_VSLOT(strvec, index)[0] == '-')
-		report_config_error(CONFIG_INVALID_NUMBER, "Line starting '%s' has negative number '%s'", FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
+		report_config_error(CONFIG_INVALID_NUMBER, "%sLine starting '%s' has negative number '%s'", warn, FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
 	else if (*endptr)
-		report_config_error(CONFIG_INVALID_NUMBER, "Line starting '%s' has invalid number '%s'", FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
+		report_config_error(CONFIG_INVALID_NUMBER, "%sLine starting '%s' has invalid number '%s'", warn, FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
 	else if (errno == ERANGE || val > UINT_MAX)
-		report_config_error(CONFIG_INVALID_NUMBER, "Line starting '%s' has number '%s' outside unsigned integer range", FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
+		report_config_error(CONFIG_INVALID_NUMBER, "%sLine starting '%s' has number '%s' outside unsigned integer range", warn, FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
 	else if (val < min_val || val > max_val)
 		report_config_error(CONFIG_INVALID_NUMBER, "Line starting '%s' has number '%s' outside range [%d, %d]", FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index), min_val, max_val);
 	else
@@ -182,15 +194,21 @@ bool read_double(const vector_t *strvec, size_t index, double *res, double min_v
 {
 	double val;
 	char *endptr;
+	char *warn = "";
+
+#ifndef _STRICT_CONFIG_
+	if (ignore_error && !__test_bit(CONFIG_TEST_BIT, &debug))
+		warn = "WARNING - ";
+#endif
 
 	errno = 0;
 	val = strtod(vector_slot(strvec, index), &endptr);
 	*res = val;
 
 	if (*endptr)
-		report_config_error(CONFIG_INVALID_NUMBER, "Line starting '%s' has invalid number '%s'", FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
+		report_config_error(CONFIG_INVALID_NUMBER, "%sLine starting '%s' has invalid number '%s'", warn, FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
 	else if (errno == ERANGE)
-		report_config_error(CONFIG_INVALID_NUMBER, "Line starting '%s' has number '%s' out of range", FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
+		report_config_error(CONFIG_INVALID_NUMBER, "%sLine starting '%s' has number '%s' out of range", warn, FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
 	else if (val == -HUGE_VAL || val == HUGE_VAL)	/* +/- Inf */
 		report_config_error(CONFIG_INVALID_NUMBER, "Line starting '%s' has infinite number '%s'", FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
 	else if (!(val <= 0 || val >= 0))	/* NaN */
