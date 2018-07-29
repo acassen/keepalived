@@ -200,6 +200,7 @@ inet_ntoa2(uint32_t ip, char *buf)
 	sprintf(buf, "%d.%d.%d.%d", bytep[0], bytep[1], bytep[2], bytep[3]);
 	return buf;
 }
+#endif
 
 /* IP string to network range representation. */
 bool
