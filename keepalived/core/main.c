@@ -86,7 +86,6 @@
 #define	WCOREFLAG		((int32_t)WCOREDUMP(0xffffffff))
 #endif
 
-#define	LOG_FACILITY_MAX	7
 #define	VERSION_STRING		PACKAGE_NAME " v" PACKAGE_VERSION " (" GIT_DATE ")"
 #define COPYRIGHT_STRING	"Copyright(C) 2001-" GIT_YEAR " Alexandre Cassen, <acassen@gmail.com>"
 
@@ -136,10 +135,11 @@ unsigned child_wait_time = CHILD_WAIT_SECS;		/* Time to wait for children to exi
 /* Log facility table */
 static struct {
 	int facility;
-} LOG_FACILITY[LOG_FACILITY_MAX + 1] = {
+} LOG_FACILITY[] = {
 	{LOG_LOCAL0}, {LOG_LOCAL1}, {LOG_LOCAL2}, {LOG_LOCAL3},
 	{LOG_LOCAL4}, {LOG_LOCAL5}, {LOG_LOCAL6}, {LOG_LOCAL7}
 };
+#define	LOG_FACILITY_MAX	((sizeof(LOG_FACILITY) / sizeof(LOG_FACILITY[0])) - 1)
 
 /* Control producing core dumps */
 static bool set_core_dump_pattern = false;
@@ -956,6 +956,8 @@ parse_cmdline(int argc, char **argv)
 	int longindex;
 	int curind;
 	bool bad_option = false;
+	char *endptr;
+	long val;
 
 	struct option long_options[] = {
 		{"use-file",		required_argument,	NULL, 'f'},
@@ -1107,8 +1109,13 @@ parse_cmdline(int argc, char **argv)
 			break;
 #endif
 		case 'S':
-			log_facility = LOG_FACILITY[atoi(optarg)].facility;
-			reopen_log = true;
+			val = strtol(optarg, &endptr, 10);
+			if (*endptr || val < 0 || val > (int)LOG_FACILITY_MAX)
+				fprintf(stderr, "Invalid log facility '%s'\n", optarg);
+			else {
+				log_facility = LOG_FACILITY[val].facility;
+				reopen_log = true;
+			}
 			break;
 		case 'g':
 			if (optarg && optarg[0])
