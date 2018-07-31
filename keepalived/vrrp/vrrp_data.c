@@ -418,8 +418,8 @@ dump_vrrp(FILE *fp, void *data)
 	conf_write(fp, "   Accept = %s", vrrp->accept ? "enabled" : "disabled");
 	conf_write(fp, "   Preempt = %s", vrrp->nopreempt ? "disabled" : "enabled");
 	if (vrrp->preempt_delay)
-		conf_write(fp, "   Preempt delay = %ld secs",
-		       vrrp->preempt_delay / TIMER_HZ);
+		conf_write(fp, "   Preempt delay = %g secs",
+		       (float)vrrp->preempt_delay / TIMER_HZ);
 	conf_write(fp, "   Promote_secondaries = %s", vrrp->promote_secondaries ? "enabled" : "disabled");
 #if defined _WITH_VRRP_AUTH_
 	if (vrrp->auth_type) {
