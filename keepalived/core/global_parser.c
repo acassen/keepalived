@@ -464,8 +464,7 @@ get_priority(vector_t *strvec, const char *process)
 		return 0;
 	}
 
-	priority = atoi(strvec_slot(strvec, 1));
-	if (priority < -20 || priority > 19) {
+	if (!read_int_strvec(strvec, 1, &priority, -20, 19, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid %s process priority specified", process);
 		return 0;
 	}
