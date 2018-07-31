@@ -127,7 +127,8 @@ null_strvec(const vector_t *strvec, size_t index)
 	return NULL;
 }
 
-bool read_int_strvec(const vector_t *strvec, size_t index, int *res, int min_val, int max_val, __attribute__((unused)) bool ignore_error)
+static bool
+read_int_base(const char *number, const char *msg, const char *info, int *res, int min_val, int max_val, __attribute__((unused)) bool ignore_error)
 {
 	long val;
 	char *endptr;
@@ -139,15 +140,15 @@ bool read_int_strvec(const vector_t *strvec, size_t index, int *res, int min_val
 #endif
 
 	errno = 0;
-	val = strtol(vector_slot(strvec, index), &endptr, 10);
+	val = strtol(number, &endptr, 10);
 	*res = (int)val;
 
 	if (*endptr)
-		report_config_error(CONFIG_INVALID_NUMBER, "%sLine starting '%s' has invalid number '%s'", warn, FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
+		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has invalid number '%s'", warn, msg, info, number);
 	else if (errno == ERANGE || val < INT_MIN || val > INT_MAX)
-		report_config_error(CONFIG_INVALID_NUMBER, "%sLine starting '%s' has number '%s' outside integer range", warn, FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
+		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has number '%s' outside integer range", warn, msg, info, number);
 	else if (val < min_val || val > max_val)
-		report_config_error(CONFIG_INVALID_NUMBER, "Line starting '%s' has number '%s' outside range [%d, %d]", FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index), min_val, max_val);
+		report_config_error(CONFIG_INVALID_NUMBER, "%s '%s' has number '%s' outside range [%d, %d]", msg, info, number, min_val, max_val);
 	else
 		return true;
 
@@ -158,7 +159,8 @@ bool read_int_strvec(const vector_t *strvec, size_t index, int *res, int min_val
 #endif
 }
 
-bool read_unsigned_strvec(const vector_t *strvec, size_t index, unsigned *res, unsigned min_val, unsigned max_val, __attribute__((unused)) bool ignore_error)
+static bool
+read_unsigned_base(const char *number, const char *msg, const char *info, unsigned *res, unsigned min_val, unsigned max_val, __attribute__((unused)) bool ignore_error)
 {
 	unsigned long val;
 	char *endptr;
@@ -170,19 +172,20 @@ bool read_unsigned_strvec(const vector_t *strvec, size_t index, unsigned *res, u
 #endif
 
 	errno = 0;
-	val = strtoul(vector_slot(strvec, index), &endptr, 10);
+	val = strtoul(number, &endptr, 10);
 	*res = (unsigned)val;
 
-	if (FMT_STR_VSLOT(strvec, index)[0] == '-')
-		report_config_error(CONFIG_INVALID_NUMBER, "%sLine starting '%s' has negative number '%s'", warn, FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
+	if (number[0] == '-')
+		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has negative number '%s'", warn, msg, info, number);
 	else if (*endptr)
-		report_config_error(CONFIG_INVALID_NUMBER, "%sLine starting '%s' has invalid number '%s'", warn, FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
+		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has invalid number '%s'", warn, msg, info, number);
 	else if (errno == ERANGE || val > UINT_MAX)
-		report_config_error(CONFIG_INVALID_NUMBER, "%sLine starting '%s' has number '%s' outside unsigned integer range", warn, FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
+		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has number '%s' outside unsigned integer range", warn, msg, info, number);
 	else if (val < min_val || val > max_val)
-		report_config_error(CONFIG_INVALID_NUMBER, "Line starting '%s' has number '%s' outside range [%d, %d]", FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index), min_val, max_val);
+		report_config_error(CONFIG_INVALID_NUMBER, "%s '%s' has number '%s' outside range [%d, %d]", msg, info, number, min_val, max_val);
 	else
 		return true;
+
 #ifdef _STRICT_CONFIG_
 	return false;
 #else
@@ -190,7 +193,8 @@ bool read_unsigned_strvec(const vector_t *strvec, size_t index, unsigned *res, u
 #endif
 }
 
-bool read_double_strvec(const vector_t *strvec, size_t index, double *res, double min_val, double max_val, __attribute__((unused)) bool ignore_error)
+static bool
+read_double_base(const char *number, const char *msg, const char *info, double *res, double min_val, double max_val, __attribute__((unused)) bool ignore_error)
 {
 	double val;
 	char *endptr;
@@ -202,26 +206,63 @@ bool read_double_strvec(const vector_t *strvec, size_t index, double *res, doubl
 #endif
 
 	errno = 0;
-	val = strtod(vector_slot(strvec, index), &endptr);
+	val = strtod(number, &endptr);
 	*res = val;
 
 	if (*endptr)
-		report_config_error(CONFIG_INVALID_NUMBER, "%sLine starting '%s' has invalid number '%s'", warn, FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
+		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has invalid number '%s'", warn, msg, info, number);
 	else if (errno == ERANGE)
-		report_config_error(CONFIG_INVALID_NUMBER, "%sLine starting '%s' has number '%s' out of range", warn, FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
+		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has number '%s' out of range", warn, msg, info, number);
 	else if (val == -HUGE_VAL || val == HUGE_VAL)	/* +/- Inf */
-		report_config_error(CONFIG_INVALID_NUMBER, "Line starting '%s' has infinite number '%s'", FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
+		report_config_error(CONFIG_INVALID_NUMBER, "%s '%s' has infinite number '%s'", msg, info, number);
 	else if (!(val <= 0 || val >= 0))	/* NaN */
-		report_config_error(CONFIG_INVALID_NUMBER, "Line starting '%s' has not a number '%s'", FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
+		report_config_error(CONFIG_INVALID_NUMBER, "%s '%s' has not a number '%s'", msg, info, number);
 	else if (val < min_val || val > max_val)
-		report_config_error(CONFIG_INVALID_NUMBER, "Line starting '%s' has number '%s' outside range [%g, %g]", FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index), min_val, max_val);
+		report_config_error(CONFIG_INVALID_NUMBER, "%s '%s' has number '%s' outside range [%g, %g]", msg, info, number, min_val, max_val);
 	else
 		return true;
+
 #ifdef _STRICT_CONFIG_
 	return false;
 #else
 	return ignore_error && val >= min_val && val <= max_val && !__test_bit(CONFIG_TEST_BIT, &debug);
 #endif
+}
+
+bool
+read_int(const char *str, int *res, int min_val, int max_val, bool ignore_error)
+{
+	return read_int_base(str, "Number", str, res, min_val, max_val, ignore_error);
+}
+
+bool
+read_unsigned(const char *str, unsigned *res, unsigned min_val, unsigned max_val, bool ignore_error)
+{
+	return read_unsigned_base(str, "Number", str, res, min_val, max_val, ignore_error);
+}
+
+bool
+read_double(const char *str, double *res, double min_val, double max_val, bool ignore_error)
+{
+	return read_double_base(str, "Number", str, res, min_val, max_val, ignore_error);
+}
+
+bool
+read_int_strvec(const vector_t *strvec, size_t index, int *res, int min_val, int max_val, bool ignore_error)
+{
+	return read_int_base(strvec_slot(strvec, index), "Line starting", strvec_slot(strvec, 0), res, min_val, max_val, ignore_error);
+}
+
+bool
+read_unsigned_strvec(const vector_t *strvec, size_t index, unsigned *res, unsigned min_val, unsigned max_val, bool ignore_error)
+{
+	return read_unsigned_base(strvec_slot(strvec, index), "Line starting", strvec_slot(strvec, 0), res, min_val, max_val, ignore_error);
+}
+
+bool
+read_double_strvec(const vector_t *strvec, size_t index, double *res, double min_val, double max_val, bool ignore_error)
+{
+	return read_double_base(strvec_slot(strvec, index), "Line starting", strvec_slot(strvec, 0), res, min_val, max_val, ignore_error);
 }
 
 static void
