@@ -799,13 +799,14 @@ static void
 vrrp_garp_lower_prio_rep_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	int garp_lower_prio_rep = atoi(strvec_slot(strvec, 1));
+	unsigned garp_lower_prio_rep;
 
-	/* Allow 0 GARP messages to be sent */
-	if (garp_lower_prio_rep < 0)
+	if (!read_unsigned_strvec(strvec, 1, &garp_lower_prio_rep, 0, INT_MAX, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s): Invalid garp_lower_prio_repeat '%s'", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
 		vrrp->garp_lower_prio_rep = 0;
+	}
 	else
-		vrrp->garp_lower_prio_rep = (unsigned)garp_lower_prio_rep;
+		vrrp->garp_lower_prio_rep = garp_lower_prio_rep;
 }
 static void
 vrrp_lower_prio_no_advert_handler(vector_t *strvec)
