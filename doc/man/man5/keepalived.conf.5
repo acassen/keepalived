@@ -692,7 +692,7 @@ bfd_instance <STRING> {
     max_hops <INTEGER>                 # maximum reduction of ttl/hoplimit
                                        #  in received packet (default 0)
                                        #  (255 disables hop count checking)
-    weight                             # Default tracking weight
+    weight <INTEGER -253..253>         # Default tracking weight
  }
 .SH VRRP synchronization group(s)
 .PP

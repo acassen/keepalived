@@ -683,7 +683,7 @@ bfd_instance <STRING> {
     hoplimit <INTEGER 0..255>          # outgoing IPv6 hoplimit to use (default 64)
     max_hops <INTEGER 0..255>          # maximum reduction of ttl/hoplimit in received packet (default 0)
                                        #   (255 disables hop count checking)
-    weight                             # Default tracking weight
+    weight <INTEGER -253..253>         # Default tracking weight
     vrrp|checker                       # Only notify vrrp or checker process. Default is notify both.
 }
 
