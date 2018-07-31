@@ -439,6 +439,9 @@ dump_vrrp(FILE *fp, void *data)
 	if (vrrp->kernel_rx_buf_size)
 		conf_write(fp, "   Kernel rx buffer size = %lu", vrrp->kernel_rx_buf_size);
 
+	if (vrrp->debug)
+		conf_write(fp, "   Debug level = %d", vrrp->debug);
+
 	if (!LIST_ISEMPTY(vrrp->vip)) {
 		conf_write(fp, "   Virtual IP = %d", LIST_SIZE(vrrp->vip));
 		dump_list(fp, vrrp->vip);
