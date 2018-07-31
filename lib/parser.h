@@ -74,6 +74,7 @@ typedef struct _keyword {
 /* global vars exported */
 extern vector_t *keywords;
 extern char *config_id;
+extern const char *WHITE_SPACE;
 
 #ifdef _MEM_CHECK_
 #define alloc_strvec(str)	(memcheck_log("alloc_strvec", str, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \

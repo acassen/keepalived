@@ -123,7 +123,7 @@ get_u64(uint64_t *val, const char *str, uint64_t max, const char* errmsg)
 	size_t offset;
 
 	/* Skip whitespace */
-	offset = strspn(str, " \t\r\n\v\f");
+	offset = strspn(str, WHITE_SPACE);
 
 	/* strtoull can do "nasty" things with -ve unsigneds */
 	if (str[offset] == '-')
@@ -166,7 +166,7 @@ get_time_rtt(uint32_t *val, const char *str, bool *raw)
 			return true;
 	} else {
 		/* Skip whitespace */
-		offset = strspn(str, " \t\r\n\v\f");
+		offset = strspn(str, WHITE_SPACE);
 
 		/* strtoul does "nasty" things with negative numbers */
 		if (str[offset] == '-')
@@ -223,7 +223,7 @@ get_addr64(uint64_t *ap, const char *cp)
 	} val;
 
 	/* Skip leading whitespace */
-	cp += strspn(cp, " \t\r\n\v\f");
+	cp += strspn(cp, WHITE_SPACE);
 
 	val.v64 = 0;
 	for (i = 0; i < 4; i++) {
@@ -268,8 +268,14 @@ parse_mpls_address(const char *str, encap_mpls_t *mpls)
 
 	mpls->num_labels = 0;
 
+	/* Skip leading whitespace */
+	str += strspn(str, WHITE_SPACE);
+
 	for (count = 0; count < MAX_MPLS_LABELS; count++) {
 		if (str[0] == '-')
+			return true;
+
+		if (strspn(str, WHITE_SPACE))	/* No embedded whitespace */
 			return true;
 
 		label = strtoul(str, &endp, 0);
@@ -296,6 +302,7 @@ parse_mpls_address(const char *str, encap_mpls_t *mpls)
 
 		str = endp + 1;
 	}
+
 	/* The address was too long */
 	return true;
 }

@@ -58,7 +58,7 @@
 #define COMMENT_START_CHRS "!#"
 #define BOB "{"
 #define EOB "}"
-#define WHITE_SPACE " \t\f\n\r\v"
+#define WHITE_SPACE_STR " \t\f\n\r\v"
 
 typedef struct _defs {
 	char *name;
@@ -72,6 +72,7 @@ typedef struct _defs {
 /* global vars */
 vector_t *keywords;
 char *config_id;
+const char *WHITE_SPACE = WHITE_SPACE_STR;
 
 /* local vars */
 static vector_t *current_keywords;
@@ -464,7 +465,7 @@ alloc_strvec_quoted_escaped(char *src)
 		ofs_op = op_buf;
 
 		while (*ofs) {
-			ofs1 = strpbrk(ofs, cur_quote == '"' ? "\"\\" : cur_quote == '\'' ? "'\\" : WHITE_SPACE COMMENT_START_CHRS "'\"\\");
+			ofs1 = strpbrk(ofs, cur_quote == '"' ? "\"\\" : cur_quote == '\'' ? "'\\" : WHITE_SPACE_STR COMMENT_START_CHRS "'\"\\");
 
 			if (!ofs1) {
 				size_t len;
@@ -624,7 +625,7 @@ alloc_strvec_r(char *string)
 			str_len = (size_t)(cp - start);
 			cp++;
 		} else {
-			cp += strcspn(start, WHITE_SPACE COMMENT_START_CHRS "\"");
+			cp += strcspn(start, WHITE_SPACE_STR COMMENT_START_CHRS "\"");
 			str_len = (size_t)(cp - start);
 		}
 		token = MALLOC(str_len + 1);
