@@ -467,7 +467,7 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " Gratuitous ARP refresh timer = %lu",
 		       data->vrrp_garp_refresh.tv_sec);
 	conf_write(fp, " Gratuitous ARP refresh repeat = %d", data->vrrp_garp_refresh_rep);
-	conf_write(fp, " Gratuitous ARP lower priority delay = %d", data->vrrp_garp_lower_prio_delay / TIMER_HZ);
+	conf_write(fp, " Gratuitous ARP lower priority delay = %d", data->vrrp_garp_lower_prio_delay == PARAMETER_UNSET ? PARAMETER_UNSET : data->vrrp_garp_lower_prio_delay / TIMER_HZ);
 	conf_write(fp, " Gratuitous ARP lower priority repeat = %d", data->vrrp_garp_lower_prio_rep);
 	conf_write(fp, " Send advert after receive lower priority advert = %s", data->vrrp_lower_prio_no_advert ? "false" : "true");
 	conf_write(fp, " Send advert after receive higher priority advert = %s", data->vrrp_higher_prio_send_advert ? "true" : "false");
