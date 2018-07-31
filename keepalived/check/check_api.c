@@ -240,7 +240,14 @@ static void
 co_port_handler(vector_t *strvec)
 {
 	conn_opts_t *co = CHECKER_GET_CO();
-	checker_set_dst_port(&co->dst, htons(CHECKER_VALUE_INT(strvec)));
+	unsigned port;
+
+	if (!read_unsigned_strvec(strvec, 1, &port, 1, 65535, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid checker connect_port '%s'", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+
+	checker_set_dst_port(&co->dst, htons(port));
 }
 
 /* "bindto" keyword */
@@ -262,7 +269,14 @@ static void
 co_srcport_handler(vector_t *strvec)
 {
 	conn_opts_t *co = CHECKER_GET_CO();
-	checker_set_dst_port(&co->bindto, htons(CHECKER_VALUE_INT(strvec)));
+	unsigned port;
+
+	if (!read_unsigned_strvec(strvec, 1, &port, 1, 65535, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid checker bind_port '%s'", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+
+	checker_set_dst_port(&co->bindto, htons(port));
 }
 
 /* "bind_if" keyword */
