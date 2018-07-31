@@ -172,7 +172,7 @@ get_time_rtt(uint32_t *val, const char *str, bool *raw)
 		if (res == ULONG_MAX && errno == ERANGE)
 			return true;
 
-		if (res >= UINT32_MAX)
+		if (res > UINT32_MAX)
 			return true;
 
 		t = (double)res;
