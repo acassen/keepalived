@@ -493,10 +493,32 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " VRRP strict mode = %s", data->vrrp_strict ? "true" : "false");
 	conf_write(fp, " VRRP process priority = %d", data->vrrp_process_priority);
 	conf_write(fp, " VRRP don't swap = %s", data->vrrp_no_swap ? "true" : "false");
+#ifdef _HAVE_SCHED_RT_
+	conf_write(fp, " VRRP realtime priority = %u", data->vrrp_realtime_priority);
+#if HAVE_DECL_RLIMIT_RTTIME
+	conf_write(fp, " VRRP realtime limit = %lu", data->vrrp_rlimit_rt);
+#endif
+#endif
 #endif
 #ifdef _WITH_LVS_
 	conf_write(fp, " Checker process priority = %d", data->checker_process_priority);
 	conf_write(fp, " Checker don't swap = %s", data->checker_no_swap ? "true" : "false");
+#ifdef _HAVE_SCHED_RT_
+	conf_write(fp, " Checker realtime priority = %u", data->checker_realtime_priority);
+#if HAVE_DECL_RLIMIT_RTTIME
+	conf_write(fp, " Checker realtime limit = %lu", data->checker_rlimit_rt);
+#endif
+#endif
+#endif
+#ifdef _WITH_BFD_
+	conf_write(fp, " BFD process priority = %d", data->bfd_process_priority);
+	conf_write(fp, " BFD don't swap = %s", data->bfd_no_swap ? "true" : "false");
+#ifdef _HAVE_SCHED_RT_
+	conf_write(fp, " BFD realtime priority = %u", data->bfd_realtime_priority);
+#if HAVE_DECL_RLIMIT_RTTIME
+	conf_write(fp, " BFD realtime limit = %lu", data->bfd_rlimit_rt);
+#endif
+#endif
 #endif
 #ifdef _WITH_SNMP_VRRP_
 	conf_write(fp, " SNMP vrrp %s", data->enable_snmp_vrrp ? "enabled" : "disabled");
