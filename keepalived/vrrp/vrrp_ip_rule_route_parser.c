@@ -30,6 +30,7 @@
 #include <math.h>
 #include <arpa/inet.h>
 #include <stdint.h>
+#include <ctype.h>
 
 #include "logger.h"
 #include "vrrp_ip_rule_route_parser.h"
@@ -221,10 +222,16 @@ get_addr64(uint64_t *ap, const char *cp)
 		uint64_t v64;
 	} val;
 
+	/* Skip leading whitespace */
+	cp += strspn(cp, " \t\r\n\v\f");
+
 	val.v64 = 0;
 	for (i = 0; i < 4; i++) {
 		unsigned long n;
 		char *endp;
+
+		if (!isxdigit(*cp))
+			return true;	/* Not a hex digit */
 
 		n = strtoul(cp, &endp, 16);
 		if (n > 0xffff)
