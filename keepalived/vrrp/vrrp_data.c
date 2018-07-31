@@ -397,7 +397,7 @@ dump_vrrp(FILE *fp, void *data)
 		       vrrp->garp_delay/TIMER_HZ);
 	conf_write(fp, "   Gratuitous ARP repeat = %d", vrrp->garp_rep);
 	conf_write(fp, "   Gratuitous ARP refresh = %lu",
-		       vrrp->garp_refresh.tv_sec/TIMER_HZ);
+		       vrrp->garp_refresh.tv_sec);
 	conf_write(fp, "   Gratuitous ARP refresh repeat = %d", vrrp->garp_refresh_rep);
 	conf_write(fp, "   Gratuitous ARP lower priority delay = %u", vrrp->garp_lower_prio_delay / TIMER_HZ);
 	conf_write(fp, "   Gratuitous ARP lower priority repeat = %u", vrrp->garp_lower_prio_rep);
