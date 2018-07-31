@@ -271,16 +271,6 @@ start_check(list old_checkers_queue)
 	if (check_data->ssl_required && !init_ssl_ctx())
 		stop_check(KEEPALIVED_EXIT_FATAL);
 
-	/* Set the process priority and non swappable if configured */
-	set_process_priorities(
-#ifdef _HAVE_SCHED_RT_
-                               global_data->checker_realtime_priority,
-#if HAVE_DECL_RLIMIT_RTTIME == 1
-                               global_data->checker_rlimit_rt,
-#endif
-#endif
-			       global_data->checker_process_priority, global_data->checker_no_swap ? 4096 : 0);
-
 	/* Processing differential configuration parsing */
 	if (reload)
 		clear_diff_services(old_checkers_queue);
@@ -302,6 +292,17 @@ start_check(list old_checkers_queue)
 	register_checkers_thread();
 
 	add_signal_read_thread();
+
+	/* Set the process priority and non swappable if configured */
+	set_process_priorities(
+#ifdef _HAVE_SCHED_RT_
+			       global_data->checker_realtime_priority,
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+			       global_data->checker_rlimit_rt,
+#endif
+#endif
+			       global_data->checker_process_priority, global_data->checker_no_swap ? 4096 : 0);
+
 }
 
 void
@@ -318,6 +319,9 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 	list old_checkers_queue;
 
 	log_message(LOG_INFO, "Reloading");
+
+	/* Use standard scheduling while reloading */
+	reset_process_priorities();
 
 	/* set the reloading flag */
 	SET_RELOAD;

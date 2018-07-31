@@ -37,6 +37,6 @@ extern void set_process_priorities(
 #endif
 #endif
 				   int, int);
-
+extern void reset_process_priorities(void);
 
 #endif

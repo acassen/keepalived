@@ -341,16 +341,6 @@ start_vrrp(void)
 	set_time_now();
 
 	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
-		/* Set the process priority and non swappable if configured */
-		set_process_priorities(
-#ifdef _HAVE_SCHED_RT_
-				       global_data->vrrp_realtime_priority,
-#if HAVE_DECL_RLIMIT_RTTIME == 1
-				       global_data->vrrp_rlimit_rt,
-#endif
-#endif
-				       global_data->vrrp_process_priority, global_data->vrrp_no_swap ? 4096 : 0);
-
 #if defined _WITH_SNMP_RFC || defined _WITH_SNMP_VRRP_
 		if (!reload && (
 #ifdef _WITH_SNMP_VRRP_
@@ -491,6 +481,17 @@ start_vrrp(void)
 	/* Init & start the VRRP packet dispatcher */
 	thread_add_event(master, vrrp_dispatcher_init, NULL,
 			 VRRP_DISPATCHER);
+
+	/* Set the process priority and non swappable if configured */
+	set_process_priorities(
+#ifdef _HAVE_SCHED_RT_
+			       global_data->vrrp_realtime_priority,
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+			       global_data->vrrp_rlimit_rt,
+#endif
+#endif
+			       global_data->vrrp_process_priority, global_data->vrrp_no_swap ? 4096 : 0);
+
 }
 
 #ifndef _DEBUG_
@@ -595,6 +596,9 @@ static int
 reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 {
 	log_message(LOG_INFO, "Reloading");
+
+	/* Use standard scheduling while reloading */
+	reset_process_priorities();
 
 	/* set the reloading flag */
 	SET_RELOAD;
