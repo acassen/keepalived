@@ -37,7 +37,7 @@
 #include "signals.h"
 #endif
 
-void
+static void
 set_process_dont_swap(size_t stack_reserve)
 {
 	/* Ensure stack pages allocated */
@@ -55,7 +55,7 @@ set_process_dont_swap(size_t stack_reserve)
 		log_message(LOG_INFO, "Unable to lock process in memory - %s", strerror(errno));
 }
 
-void
+static void
 set_process_priority(int priority)
 {
 	if (priority) {

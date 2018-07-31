@@ -29,8 +29,6 @@
 #define	RT_RLIMIT_DEFAULT	1000
 #endif
 
-extern void set_process_dont_swap(size_t);
-extern void set_process_priority(int);
 extern void set_process_priorities(
 #ifdef _HAVE_SCHED_RT_
 			           int,
