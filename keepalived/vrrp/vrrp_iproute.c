@@ -927,13 +927,13 @@ static int parse_encap_mpls(vector_t *strvec, unsigned int *i_ptr, encap_t *enca
 	encap->type = LWTUNNEL_ENCAP_MPLS;
 
 	if (*i_ptr >= vector_size(strvec)) {
-		log_message(LOG_INFO, "missing address for MPLS encapsulation");
+		report_config_error(CONFIG_GENERAL_ERROR, "missing address for MPLS encapsulation");
 		return true;
 	}
 
 	str = strvec_slot(strvec, (*i_ptr)++);
 	if (parse_mpls_address(str, &encap->mpls)) {
-		log_message(LOG_INFO, "invalid mpls address %s for encapsulation", str);
+		report_config_error(CONFIG_GENERAL_ERROR, "invalid mpls address %s for encapsulation", str);
 		return true;
 	}
 
@@ -961,11 +961,11 @@ static int parse_encap_ip(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 				FREE_PTR(encap->ip.dst);
 			encap->ip.dst = parse_ipaddress(NULL, str1, false);
 			if (!encap->ip.dst) {
-				log_message(LOG_INFO, "Invalid encap ip dst %s", str1);
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid encap ip dst %s", str1);
 				goto err;
 			}
 			if (encap->ip.dst->ifa.ifa_family != AF_INET) {
-				log_message(LOG_INFO, "IPv6 address %s not valid for ip encapsulation", str1);
+				report_config_error(CONFIG_GENERAL_ERROR, "IPv6 address %s not valid for ip encapsulation", str1);
 				goto err;
 			}
 		} else if (!strcmp(str, "src")) {
@@ -973,16 +973,16 @@ static int parse_encap_ip(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 				FREE_PTR(encap->ip.src);
 			encap->ip.src = parse_ipaddress(NULL, str1, false);
 			if (!encap->ip.src) {
-				log_message(LOG_INFO, "Invalid encap ip src %s", str1);
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid encap ip src %s", str1);
 				goto err;
 			}
 			if (encap->ip.src->ifa.ifa_family != AF_INET) {
-				log_message(LOG_INFO, "IPv6 address %s not valid for ip encapsulation", str1);
+				report_config_error(CONFIG_GENERAL_ERROR, "IPv6 address %s not valid for ip encapsulation", str1);
 				goto err;
 			}
 		} else if (!strcmp(str, "tos")) {
 			if (!find_rttables_dsfield(str1, &encap->ip.tos)) {
-				log_message(LOG_INFO, "dsfield %s not valid for ip encapsulation", str1);
+				report_config_error(CONFIG_GENERAL_ERROR, "dsfield %s not valid for ip encapsulation", str1);
 				goto err;
 			}
 			encap->flags |= IPROUTE_BIT_ENCAP_DSFIELD;
@@ -1001,7 +1001,7 @@ static int parse_encap_ip(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 	}
 
 	if (!encap->ip.dst && !(encap->flags | IPROUTE_BIT_ENCAP_ID)) {
-		log_message(LOG_INFO, "address or id missing for ip encapsulation");
+		report_config_error(CONFIG_GENERAL_ERROR, "address or id missing for ip encapsulation");
 		goto err;
 	}
 
@@ -1033,14 +1033,14 @@ int parse_encap_ila(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 	encap->type = LWTUNNEL_ENCAP_ILA;
 
 	if (*i_ptr >= vector_size(strvec)) {
-		log_message(LOG_INFO, "missing locator for ILA encapsulation");
+		report_config_error(CONFIG_GENERAL_ERROR, "missing locator for ILA encapsulation");
 		return true;
 	}
 
 	str = strvec_slot(strvec, (*i_ptr)++);
 
 	if (get_addr64(&encap->ila.locator, str)) {
-		log_message(LOG_INFO, "invalid locator %s for ila encapsulation", str);
+		report_config_error(CONFIG_GENERAL_ERROR, "invalid locator %s for ila encapsulation", str);
 		return true;
 	}
 
@@ -1069,11 +1069,11 @@ int parse_encap_ip6(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 				FREE_PTR(encap->ip6.dst);
 			encap->ip6.dst = parse_ipaddress(NULL, str1, false);
 			if (!encap->ip6.dst) {
-				log_message(LOG_INFO, "Invalid encap ip6 dst %s", str1);
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid encap ip6 dst %s", str1);
 				goto err;
 			}
 			if (encap->ip6.dst->ifa.ifa_family != AF_INET6) {
-				log_message(LOG_INFO, "IPv4 address %s not valid for ip6 encapsulation", str1);
+				report_config_error(CONFIG_GENERAL_ERROR, "IPv4 address %s not valid for ip6 encapsulation", str1);
 				goto err;
 			}
 		} else if (!strcmp(str, "src")) {
@@ -1081,16 +1081,16 @@ int parse_encap_ip6(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 				FREE_PTR(encap->ip6.src);
 			encap->ip6.src = parse_ipaddress(NULL, str1, false);
 			if (!encap->ip6.src) {
-				log_message(LOG_INFO, "Invalid encap ip6 src %s", str1);
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid encap ip6 src %s", str1);
 				goto err;
 			}
 			if (encap->ip6.src->ifa.ifa_family != AF_INET6) {
-				log_message(LOG_INFO, "IPv4 address %s not valid for ip6 encapsulation", str1);
+				report_config_error(CONFIG_GENERAL_ERROR, "IPv4 address %s not valid for ip6 encapsulation", str1);
 				goto err;
 			}
 		} else if (!strcmp(str, "tc")) {
 			if (!find_rttables_dsfield(str1, &encap->ip6.tc)) {
-				log_message(LOG_INFO, "tc value %s is invalid for ip6 encapsulation", str);
+				report_config_error(CONFIG_GENERAL_ERROR, "tc value %s is invalid for ip6 encapsulation", str);
 				goto err;
 			}
 			encap->flags |= IPROUTE_BIT_ENCAP_DSFIELD;
@@ -1109,7 +1109,7 @@ int parse_encap_ip6(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 	}
 
 	if (!encap->ip.dst && !(encap->flags | IPROUTE_BIT_ENCAP_ID)) {
-		log_message(LOG_INFO, "address or id missing for ip6 encapsulation");
+		report_config_error(CONFIG_GENERAL_ERROR, "address or id missing for ip6 encapsulation");
 		goto err;
 	}
 
@@ -1136,7 +1136,7 @@ parse_encap(vector_t *strvec, unsigned int *i, encap_t *encap)
 	char *str;
 
 	if (vector_size(strvec) <= ++*i) {
-		log_message(LOG_INFO, "Missing encap type");
+		report_config_error(CONFIG_GENERAL_ERROR, "Missing encap type");
 		return false;
 	}
 
@@ -1155,7 +1155,7 @@ parse_encap(vector_t *strvec, unsigned int *i, encap_t *encap)
 		parse_encap_ila(strvec, i, encap);
 #endif
 	else {
-		log_message(LOG_INFO, "Unknown encap type - %s", str);
+		report_config_error(CONFIG_GENERAL_ERROR, "Unknown encap type - %s", str);
 		return false;
 	}
 
@@ -1197,18 +1197,18 @@ parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 					if (route->family == AF_UNSPEC)
 						route->family = family;
 					else if (route->family != family) {
-						log_message(LOG_INFO, "IPv4/6 mismatch for nexthop");
+						report_config_error(CONFIG_GENERAL_ERROR, "IPv4/6 mismatch for nexthop");
 						goto err;
 					}
 				}
 
 				new->addr = parse_ipaddress(NULL, str, false);
 				if (!new->addr) {
-					log_message(LOG_INFO, "invalid nexthop address %s", str);
+					report_config_error(CONFIG_GENERAL_ERROR, "invalid nexthop address %s", str);
 					goto err;
 				}
 				if (route->family != AF_UNSPEC && new->addr->ifa.ifa_family != route->family) {
-					log_message(LOG_INFO, "Address family mismatch for next hop");
+					report_config_error(CONFIG_GENERAL_ERROR, "Address family mismatch for next hop");
 					goto err;
 				}
 				if (route->family == AF_UNSPEC)
@@ -1218,7 +1218,7 @@ parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 				str = strvec_slot(strvec, ++i);
 				new->ifp = if_get_by_ifname(str, IF_CREATE_IF_DYNAMIC);
 				if (!new->ifp) {
-					log_message(LOG_INFO, "WARNING - interface %s for VROUTE nexthop doesn't exist", str);
+					report_config_error(CONFIG_GENERAL_ERROR, "WARNING - interface %s for VROUTE nexthop doesn't exist", str);
 					goto err;
 				}
 			}
@@ -1226,7 +1226,7 @@ parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 				if (get_u32(&val, strvec_slot(strvec, ++i), 256, "Invalid weight %s specified for route"))
 					goto err;
 				if (!val) {
-					log_message(LOG_INFO, "Invalid weight 0 specified for route");
+					report_config_error(CONFIG_GENERAL_ERROR, "Invalid weight 0 specified for route");
 					goto err;
 				}
 				new->weight = (uint8_t)(--val & 0xff);
@@ -1240,26 +1240,26 @@ parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 #if HAVE_DECL_RTA_ENCAP
 				parse_encap(strvec, &i, &new->encap);
 #else
-				log_message(LOG_INFO, "%s not supported by kernel", "encap");
+				report_config_error(CONFIG_GENERAL_ERROR, "%s not supported by kernel", "encap");
 #endif
 			}
 			else if (!strcmp(str, "realms")) {
 				/* Note: IPv4 only */
 				if (get_realms(&new->realms, strvec_slot(strvec, ++i))) {
-					log_message(LOG_INFO, "Invalid realms %s for route", FMT_STR_VSLOT(strvec,i));
+					report_config_error(CONFIG_GENERAL_ERROR, "Invalid realms %s for route", FMT_STR_VSLOT(strvec,i));
 					goto err;
 				}
 				if (route->family == AF_UNSPEC)
 					route->family = AF_INET;
 				else if (route->family != AF_INET) {
-					log_message(LOG_INFO, "realms are only supported for IPv4");
+					report_config_error(CONFIG_GENERAL_ERROR, "realms are only supported for IPv4");
 					goto err;
 				}
 			}
 			else if (!strcmp(str, "as")) {
 				if (!strcmp("to", strvec_slot(strvec, ++i)))
 					i++;
-				log_message(LOG_INFO, "'as [to]' (nat) not supported");
+				report_config_error(CONFIG_GENERAL_ERROR, "'as [to]' (nat) not supported");
 				goto err;
 			}
 			else
@@ -1272,7 +1272,7 @@ parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 	}
 
 	if (i < vector_size(strvec)) {
-		log_message(LOG_INFO, "Route has trailing nonsense after nexthops - %s", FMT_STR_VSLOT(strvec, i));
+		report_config_error(CONFIG_GENERAL_ERROR, "Route has trailing nonsense after nexthops - %s", FMT_STR_VSLOT(strvec, i));
 		goto err;
 	}
 
