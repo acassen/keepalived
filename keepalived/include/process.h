@@ -26,7 +26,7 @@
 #include <sys/types.h>
 
 #if HAVE_DECL_RLIMIT_RTTIME == 1
-#define	RT_RLIMIT_DEFAULT	1000
+#define	RT_RLIMIT_DEFAULT	10000
 #endif
 
 extern void set_process_priorities(

@@ -422,7 +422,7 @@ and
  vrrp_rt_priority <1..99>     # Set the vrrp child process to use real-time scheduling at the specified priority
  checker_rt_priority <1..99>  # Set the checker child process to use real-time scheduling at the specified priority
  bfd_rt_priority <1..99>      # Set the BFD child process to use real-time scheduling at the specified  priority
- vrrp_rlimit_rtime >=1        # Set the limit on CPU time between blocking system calls, in microseconds (default 1000)
+ vrrp_rlimit_rtime >=1        # Set the limit on CPU time between blocking system calls, in microseconds (default 10000)
  checker_rlimit_rtime >=1     #   as above
  bfd_rlimit_rtime >=1         #   as above
 
