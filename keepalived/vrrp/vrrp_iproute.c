@@ -1061,7 +1061,7 @@ int parse_encap_ip6(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 		str1 = strvec_slot(strvec, i + 1);
 
 		if (!strcmp(str, "id")) {
-			if (get_u64(&encap->ip6.id, str1, UINT64_MAX, "id %s value invalid for IPv6 encapsulation\n"))
+			if (get_u64(&encap->ip6.id, str1, UINT64_MAX, "id %s value invalid for IPv6 encapsulation"))
 				goto err;
 			encap->flags |= IPROUTE_BIT_ENCAP_ID;
 		} else if (!strcmp(str, "dst")) {
