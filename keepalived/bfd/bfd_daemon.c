@@ -27,6 +27,8 @@
 #include <sys/stat.h>
 #include <sys/prctl.h>
 #include <fcntl.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 #include "bfd.h"
 #include "bfd_daemon.h"
@@ -61,6 +63,8 @@ static int reload_bfd_thread(thread_t *);
 static void
 stop_bfd(int status)
 {
+	struct rusage usage;
+
 	if (__test_bit(CONFIG_TEST_BIT, &debug))
 		return;
 
@@ -81,7 +85,12 @@ stop_bfd(int status)
 	 * Reached when terminate signal catched.
 	 * finally return to parent process.
 	 */
-	log_message(LOG_INFO, "Stopped");
+	if (__test_bit(LOG_DETAIL_BIT, &debug)) {
+		getrusage(RUSAGE_SELF, &usage);
+		log_message(LOG_INFO, "Stopped - used %ld.%6.6ld user time, %ld.%6.6ld system time", usage.ru_utime.tv_sec, usage.ru_utime.tv_usec, usage.ru_stime.tv_sec, usage.ru_stime.tv_usec);
+	}
+	else
+		log_message(LOG_INFO, "Stopped");
 
 	if (log_file_name)
 		close_log_file();

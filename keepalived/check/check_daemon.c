@@ -29,6 +29,8 @@
 #include <signal.h>
 #include <unistd.h>
 #include <sys/prctl.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 #include "check_daemon.h"
 #include "check_parser.h"
@@ -83,6 +85,8 @@ checker_dispatcher_release(void)
 static int
 checker_terminate_phase2(void)
 {
+	struct rusage usage;
+
 	/* Remove the notify fifo */
 	notify_fifo_close(&global_data->notify_fifo, &global_data->lvs_notify_fifo);
 
@@ -114,7 +118,12 @@ checker_terminate_phase2(void)
 	 * Reached when terminate signal catched.
 	 * finally return to parent process.
 	 */
-	log_message(LOG_INFO, "Stopped");
+	if (__test_bit(LOG_DETAIL_BIT, &debug)) {
+		getrusage(RUSAGE_SELF, &usage);
+		log_message(LOG_INFO, "Stopped - used %ld.%6.6ld user time, %ld.%6.6ld system time", usage.ru_utime.tv_sec, usage.ru_utime.tv_usec, usage.ru_stime.tv_sec, usage.ru_stime.tv_usec);
+	}
+	else
+		log_message(LOG_INFO, "Stopped");
 
 	if (log_file_name)
 		close_log_file();
