@@ -1200,10 +1200,15 @@ static void
 garp_group_garp_interval_handler(vector_t *strvec)
 {
 	garp_delay_t *delay = LIST_TAIL_DATA(garp_delay);
+	double val;
 
-	delay->garp_interval.tv_usec = (suseconds_t)(atof(strvec_slot(strvec, 1)) * 1000000);
-	delay->garp_interval.tv_sec = delay->garp_interval.tv_usec / 1000000;
-	delay->garp_interval.tv_usec %= 1000000;
+	if (!read_double_strvec(strvec, 1, &val, 0, INT_MAX / 1000000, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "garp_group garp_interval '%s' invalid", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+
+	delay->garp_interval.tv_sec = (time_t)val;
+	delay->garp_interval.tv_usec = (suseconds_t)((val - delay->garp_interval.tv_sec) * 1000000);
 	delay->have_garp_interval = true;
 
 	if (delay->garp_interval.tv_sec >= 1)
@@ -1213,10 +1218,15 @@ static void
 garp_group_gna_interval_handler(vector_t *strvec)
 {
 	garp_delay_t *delay = LIST_TAIL_DATA(garp_delay);
+	double val;
 
-	delay->gna_interval.tv_usec = (suseconds_t)(atof(strvec_slot(strvec, 1)) * 1000000);
-	delay->gna_interval.tv_sec = delay->gna_interval.tv_usec / 1000000;
-	delay->gna_interval.tv_usec %= 1000000;
+	if (!read_double_strvec(strvec, 1, &val, 0, INT_MAX / 1000000, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "garp_group gna_interval '%s' invalid", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+
+	delay->gna_interval.tv_sec = (time_t)val;
+	delay->gna_interval.tv_usec = (suseconds_t)((val - delay->gna_interval.tv_sec) * 1000000);
 	delay->have_gna_interval = true;
 
 	if (delay->gna_interval.tv_sec >= 1)
