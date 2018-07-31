@@ -144,6 +144,7 @@ get_time_rtt(uint32_t *val, const char *str, bool *raw)
 	double t;
 	unsigned long res;
 	char *end;
+	size_t offset;
 
 	errno = 0;
 	if (strchr(str, '.') ||
@@ -160,11 +161,14 @@ get_time_rtt(uint32_t *val, const char *str, bool *raw)
 		if (t == HUGE_VAL && errno == ERANGE)
 			return true;
 
-		if (t >=UINT32_MAX)
+		if (t >= UINT32_MAX)
 			return true;
 	} else {
+		/* Skip whitespace */
+		offset = strspn(str, " \t\r\n\v\f");
+
 		/* strtoul does "nasty" things with negative numbers */
-		if (str[0] == '-')
+		if (str[offset] == '-')
 			return true;
 
 		res = strtoul(str, &end, 0);
