@@ -119,9 +119,13 @@ get_u64(uint64_t *val, const char *str, uint64_t max, const char* errmsg)
 {
 	char *end;
 	unsigned long long t_val;
+	size_t offset;
+
+	/* Skip whitespace */
+	offset = strspn(str, " \t\r\n\v\f");
 
 	/* strtoull can do "nasty" things with -ve unsigneds */
-	if (str[0] == '-')
+	if (str[offset] == '-')
 		return true;
 
 	t_val = strtoull(str, &end, 0);
