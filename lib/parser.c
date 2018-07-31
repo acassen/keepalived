@@ -190,7 +190,7 @@ read_unsigned_base(const char *number, const char *msg, const char *info, unsign
 	else if (errno == ERANGE || val > UINT_MAX)
 		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has number '%s' outside unsigned integer range", warn, msg, info, number);
 	else if (val < min_val || val > max_val)
-		report_config_error(CONFIG_INVALID_NUMBER, "%s '%s' has number '%s' outside range [%d, %d]", msg, info, number, min_val, max_val);
+		report_config_error(CONFIG_INVALID_NUMBER, "%s '%s' has number '%s' outside range [%u, %u]", msg, info, number, min_val, max_val);
 	else
 		return true;
 
