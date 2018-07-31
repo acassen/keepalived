@@ -285,8 +285,12 @@ status_code_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
+	unsigned val;
 
-	url->status_code = CHECKER_VALUE_INT(strvec);
+	if (!read_unsigned_strvec(strvec, 1, &val, 100, 999, true))
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid HTTP_GET status code '%s'", FMT_STR_VSLOT(strvec, 1));
+	else
+		url->status_code = val;
 }
 
 static void
