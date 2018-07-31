@@ -165,17 +165,23 @@ read_unsigned_base(const char *number, const char *msg, const char *info, unsign
 	unsigned long val;
 	char *endptr;
 	char *warn = "";
+	size_t offset;
 
 #ifndef _STRICT_CONFIG_
 	if (ignore_error && !__test_bit(CONFIG_TEST_BIT, &debug))
 		warn = "WARNING - ";
 #endif
 
+	/* In case the string starts with spaces (even in the configuration this
+	 * can be achieved by enclosing the number in quotes - e.g. weight "  -100")
+	 * skip any leading whitespace */
+	offset = strspn(number, WHITE_SPACE);
+
 	errno = 0;
-	val = strtoul(number, &endptr, 10);
+	val = strtoul(number + offset, &endptr, 10);
 	*res = (unsigned)val;
 
-	if (number[0] == '-')
+	if (number[offset] == '-')
 		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has negative number '%s'", warn, msg, info, number);
 	else if (*endptr)
 		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has invalid number '%s'", warn, msg, info, number);
@@ -238,7 +244,7 @@ read_int(const char *str, int *res, int min_val, int max_val, bool ignore_error)
 bool
 read_unsigned(const char *str, unsigned *res, unsigned min_val, unsigned max_val, bool ignore_error)
 {
-	return read_unsigned_base(str + strspn(str, " \t"), "Number", str, res, min_val, max_val, ignore_error);
+	return read_unsigned_base(str, "Number", str, res, min_val, max_val, ignore_error);
 }
 
 bool
