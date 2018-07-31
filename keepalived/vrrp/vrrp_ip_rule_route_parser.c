@@ -118,20 +118,10 @@ get_u32(uint32_t *val, const char *str, uint32_t max, const char* errmsg)
 bool
 get_u64(uint64_t *val, const char *str, uint64_t max, const char* errmsg)
 {
-	char *end;
-	unsigned long long t_val;
-	size_t offset;
+	uint64_t t_val;
 
-	/* Skip whitespace */
-	offset = strspn(str, WHITE_SPACE);
-
-	/* strtoull can do "nasty" things with -ve unsigneds */
-	if (str[offset] == '-')
-		return true;
-
-	t_val = strtoull(str, &end, 0);
-	if (*end == '\0' && t_val <= max) {
-		*val = t_val;
+	if (read_unsigned64(str, &t_val, 0, max, false)) {
+		*val = (uint64_t)t_val;
 		return false;
 	}
 

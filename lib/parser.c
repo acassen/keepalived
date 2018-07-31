@@ -40,6 +40,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <math.h>
+#include <inttypes.h>
 
 #include "parser.h"
 #include "memory.h"
@@ -201,6 +202,46 @@ read_unsigned_base(const char *number, const char *msg, const char *info, unsign
 }
 
 static bool
+read_unsigned64_base(const char *number, const char *msg, const char *info, uint64_t *res, uint64_t min_val, uint64_t max_val, __attribute__((unused)) bool ignore_error)
+{
+	unsigned long long val;
+	char *endptr;
+	char *warn = "";
+	size_t offset;
+
+#ifndef _STRICT_CONFIG_
+	if (ignore_error && !__test_bit(CONFIG_TEST_BIT, &debug))
+		warn = "WARNING - ";
+#endif
+
+	/* In case the string starts with spaces (even in the configuration this
+	 * can be achieved by enclosing the number in quotes - e.g. weight "  -100")
+	 * skip any leading whitespace */
+	offset = strspn(number, WHITE_SPACE);
+
+	errno = 0;
+	val = strtoull(number + offset, &endptr, 10);
+	*res = (unsigned)val;
+
+	if (number[offset] == '-')
+		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has negative number '%s'", warn, msg, info, number);
+	else if (*endptr)
+		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has invalid number '%s'", warn, msg, info, number);
+	else if (errno == ERANGE)
+		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has number '%s' outside unsigned 64 bit range", warn, msg, info, number);
+	else if (val < min_val || val > max_val)
+		report_config_error(CONFIG_INVALID_NUMBER, "%s '%s' has number '%s' outside range [%" PRIu64 ", %" PRIu64 "]", msg, info, number, min_val, max_val);
+	else
+		return true;
+
+#ifdef _STRICT_CONFIG_
+	return false;
+#else
+	return ignore_error && val >= min_val && val <= max_val && !__test_bit(CONFIG_TEST_BIT, &debug);
+#endif
+}
+
+static bool
 read_double_base(const char *number, const char *msg, const char *info, double *res, double min_val, double max_val, __attribute__((unused)) bool ignore_error)
 {
 	double val;
@@ -249,6 +290,12 @@ read_unsigned(const char *str, unsigned *res, unsigned min_val, unsigned max_val
 }
 
 bool
+read_unsigned64(const char *str, uint64_t *res, uint64_t min_val, uint64_t max_val, bool ignore_error)
+{
+	return read_unsigned64_base(str, "Number", str, res, min_val, max_val, ignore_error);
+}
+
+bool
 read_double(const char *str, double *res, double min_val, double max_val, bool ignore_error)
 {
 	return read_double_base(str, "Number", str, res, min_val, max_val, ignore_error);
@@ -264,6 +311,12 @@ bool
 read_unsigned_strvec(const vector_t *strvec, size_t index, unsigned *res, unsigned min_val, unsigned max_val, bool ignore_error)
 {
 	return read_unsigned_base(strvec_slot(strvec, index), "Line starting", strvec_slot(strvec, 0), res, min_val, max_val, ignore_error);
+}
+
+bool
+read_unsigned64_strvec(const vector_t *strvec, size_t index, uint64_t *res, uint64_t min_val, uint64_t max_val, bool ignore_error)
+{
+	return read_unsigned64_base(strvec_slot(strvec, index), "Line starting", strvec_slot(strvec, 0), res, min_val, max_val, ignore_error);
 }
 
 bool
