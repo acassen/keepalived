@@ -957,8 +957,12 @@ vrrp_vscript_timeout_handler(vector_t *strvec)
 static void
 vrrp_vscript_weight_handler(vector_t *strvec)
 {
+	int weight;
+
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
-	vscript->weight = atoi(strvec_slot(strvec, 1));
+	if (!read_int_strvec(strvec, 1, &weight, -253, 253, true))
+		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_script %s weight %s must be in [-253, 253]", vscript->sname, FMT_STR_VSLOT(strvec, 1));
+	vscript->weight = weight;
 }
 static void
 vrrp_vscript_rise_handler(vector_t *strvec)
@@ -1052,10 +1056,9 @@ vrrp_tfile_weight_handler(vector_t *strvec)
 		return;
 	}
 
-	weight = atoi(strvec_slot(strvec, 1));
-	if (weight < -254 || weight > 254) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Weight for %s must be between "
-				 "[-254..254] inclusive. Ignoring...", tfile->fname);
+	if (!read_int_strvec(strvec, 1, &weight, -254, 254, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Weight (%d) %s for %s must be between "
+				 "[-254..254] inclusive. Ignoring...", weight, FMT_STR_VSLOT(strvec, 1), tfile->fname);
 		weight = 1;
 	}
 

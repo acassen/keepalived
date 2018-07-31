@@ -427,8 +427,7 @@ static void
 bfd_vrrp_weight_handler(vector_t *strvec)
 {
 	vrrp_tracked_bfd_t *tbfd;
-	char *endptr;
-	long value;
+	int value;
 
 	assert(strvec);
 	assert(vrrp_data);
@@ -436,12 +435,10 @@ bfd_vrrp_weight_handler(vector_t *strvec)
 	tbfd = LIST_TAIL_DATA(vrrp_data->vrrp_track_bfds);
 	assert(tbfd);
 
-	value = strtol(vector_slot(strvec, 1), &endptr, 10);
-
-	if (*endptr || value < -253 || value > 253) {
+	if (read_int_strvec(strvec, 1, &value, -253, 253, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
 			    " weight value %s not valid (must be in range"
-			    " [%u-%u]), ignoring", tbfd->bname, FMT_STR_VSLOT(strvec, 1),
+			    " [%d-%d]), ignoring", tbfd->bname, FMT_STR_VSLOT(strvec, 1),
 			    -253, 253);
 	} else
 		tbfd->weight = value;
@@ -547,7 +544,13 @@ init_bfd_keywords(bool active)
 	install_keyword_conditional("hoplimit", &bfd_ttl_handler, bfd_handlers);
 	install_keyword_conditional("max_hops", &bfd_maxhops_handler, bfd_handlers);
 #ifdef _WITH_VRRP_
-	install_keyword_conditional("weight", &bfd_vrrp_weight_handler, !bfd_handlers);
+	install_keyword_conditional("weight", &bfd_vrrp_weight_handler,
+#ifdef _DEBUG_
+									true
+#else
+									prog_type == PROG_TYPE_VRRP
+#endif
+												   );
 	install_keyword("vrrp", &bfd_event_vrrp_handler);
 #endif
 #ifdef _WITH_LVS_

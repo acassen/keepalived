@@ -87,16 +87,15 @@ alloc_track_if(vrrp_t *vrrp, vector_t *strvec)
 
 	if (vector_size(strvec) >= 3 &&
 	    !strcmp(strvec_slot(strvec, 1), "weight")) {
-		weight = atoi(strvec_slot(strvec, 2));
-		if (weight == -254 || weight == 254) {
+		if (!read_int_strvec(strvec, 2, &weight, -254, 254, true)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight %s for %s must be between "
+					 "[-253..253] inclusive. Ignoring...", vrrp->iname, FMT_STR_VSLOT(strvec, 2), tracked);
+			weight = 0;
+		}
+		else if (weight == -254 || weight == 254) {
 			/* This check can be removed once users have migrated away from +/-254 */
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for %s cannot be +/-254. Setting to +/-253", vrrp->iname, tracked);
 			weight = weight == -254 ? -253 : 253;
-		}
-		else if (weight < -253 || weight > 253) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for %s must be between "
-					 "[-253..253] inclusive. Ignoring...", vrrp->iname, tracked);
-			weight = 0;
 		}
 	}
 
@@ -133,16 +132,15 @@ alloc_group_track_if(vrrp_sgroup_t *sgroup, vector_t *strvec)
 
 	if (vector_size(strvec) >= 3 &&
 	    !strcmp(strvec_slot(strvec, 1), "weight")) {
-		weight = atoi(strvec_slot(strvec, 2));
-		if (weight == -254 || weight == 254) {
-			/* This check can be removed once users have migrated away from +/-254 */
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for %s cannot be +/-254. Setting to +/-253", sgroup->gname, tracked);
-			weight = weight == -254 ? -253 : 253;
-		}
-		else if (weight < -253 || weight > 253) {
+		if (!read_int_strvec(strvec, 2, &weight, -254, 254, true)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for %s must be between "
 					 "[-253..253] inclusive. Ignoring...", sgroup->gname, tracked);
 			weight = 0;
+		}
+		else if (weight == -254 || weight == 254) {
+			/* This check can be removed once users have migrated away from +/-254 */
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for %s cannot be +/-254. Setting to +/-253", sgroup->gname, tracked);
+			weight = weight == -254 ? -253 : 253;
 		}
 	}
 
@@ -218,17 +216,16 @@ alloc_track_script(vrrp_t *vrrp, vector_t *strvec)
 
 	if (vector_size(strvec) >= 3 &&
 	    !strcmp(strvec_slot(strvec, 1), "weight")) {
-		weight = atoi(strvec_slot(strvec, 2));
-		if (weight == -254 || weight == 254) {
-			/* This check can be removed once users have migrated away from +/-254 */
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for %s cannot be +/-254. Setting to +/-253", vrrp->iname, tracked);
-			weight = weight == -254 ? -253 : 253;
-		}
-		else if (weight < -253 || weight > 253) {
+		if (!read_int_strvec(strvec, 2, &weight, -254, 254, true)) {
 			weight = vsc->weight;
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) track script %s: weight must be between [-253..253]"
 					 " inclusive, ignoring...",
 			       vrrp->iname, tracked);
+		}
+		else if (weight == -254 || weight == 254) {
+			/* This check can be removed once users have migrated away from +/-254 */
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for %s cannot be +/-254. Setting to +/-253", vrrp->iname, tracked);
+			weight = weight == -254 ? -253 : 253;
 		}
 	}
 
@@ -273,17 +270,16 @@ alloc_group_track_script(vrrp_sgroup_t *sgroup, vector_t *strvec)
 
 	if (vector_size(strvec) >= 3 &&
 	    !strcmp(strvec_slot(strvec, 1), "weight")) {
-		weight = atoi(strvec_slot(strvec, 2));
-		if (weight == -254 || weight == 254) {
-			/* This check can be removed once users have migrated away from +/-254 */
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for %s cannot be +/-254. Setting to +/-253", sgroup->gname, tracked);
-			weight = weight == -254 ? -253 : 253;
-		}
-		else if (weight < -253 || weight > 253) {
+		if (!read_int_strvec(strvec, 2, &weight, -254, 254, true)) {
 			weight = vsc->weight;
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) track script %s: weight must be between [-253..253]"
 					 " inclusive, ignoring...",
 			       sgroup->gname, tracked);
+		}
+		else if (weight == -254 || weight == 254) {
+			/* This check can be removed once users have migrated away from +/-254 */
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for %s cannot be +/-254. Setting to +/-253", sgroup->gname, tracked);
+			weight = weight == -254 ? -253 : 253;
 		}
 	}
 
@@ -362,8 +358,7 @@ alloc_track_file(vrrp_t *vrrp, vector_t *strvec)
 			return;
 		}
 		if (vector_size(strvec) >= 3) {
-			weight = atoi(strvec_slot(strvec, 2));
-			if (weight < -254 || weight > 254) {
+			if (!read_int_strvec(strvec, 2, &weight, -254, 254, true)) {
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for track file %s must be in "
 						 "[-254..254] inclusive. Ignoring...", vrrp->iname, tracked);
 				weight = vsf->weight;
@@ -418,8 +413,7 @@ alloc_group_track_file(vrrp_sgroup_t *sgroup, vector_t *strvec)
 			return;
 		}
 		if (vector_size(strvec) >= 3) {
-			weight = atoi(strvec_slot(strvec, 2));
-			if (weight < -254 || weight > 254) {
+			if (!read_int_strvec(strvec, 2, &weight, -254, 254, true)) {
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for track file %s must be in "
 						 "[-254..254] inclusive. Ignoring...", sgroup->gname, tracked);
 				weight = vsf->weight;
@@ -499,8 +493,7 @@ alloc_track_bfd(vrrp_t *vrrp, vector_t *strvec)
 			return;
 		}
 		if (vector_size(strvec) >= 3) {
-			weight = atoi(strvec_slot(strvec, 2));
-			if (weight < -253 || weight > 253) {
+			if (!read_int_strvec(strvec, 2, &weight, -253, 253, true)) {
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for track bfd %s must be in "
 						 "[-253..253] inclusive. Ignoring...", vrrp->iname, tracked);
 				weight = vtb->weight;
@@ -552,8 +545,7 @@ alloc_group_track_bfd(vrrp_sgroup_t *sgroup, vector_t *strvec)
 			return;
 		}
 		if (vector_size(strvec) >= 3) {
-			weight = atoi(strvec_slot(strvec, 2));
-			if (weight < -253 || weight > 253) {
+			if (!read_int_strvec(strvec, 2, &weight, -253, 253, true)) {
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for track bfd %s must be in "
 						 "[-253..253] inclusive. Ignoring...", sgroup->gname, tracked);
 				weight = vtb->weight;
