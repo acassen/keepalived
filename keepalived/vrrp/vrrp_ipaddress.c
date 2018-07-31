@@ -489,6 +489,7 @@ parse_ipaddress(ip_address_t *ip_address, char *str, int allow_default)
 	ip_address_t *new = ip_address;
 	void *addr;
 	char *p;
+	unsigned prefixlen;
 
 	/* No ip address, allocate a brand new one */
 	if (!new) {
@@ -511,8 +512,11 @@ parse_ipaddress(ip_address_t *ip_address, char *str, int allow_default)
 	new->ifa.ifa_prefixlen = (IP_IS6(new)) ? 128 : 32;
 	p = strchr(str, '/');
 	if (p) {
-		new->ifa.ifa_prefixlen = (uint8_t)atoi(p + 1);
 		*p = 0;
+		if (!read_unsigned(p + 1, &prefixlen, 1, new->ifa.ifa_prefixlen, true))
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid address prefix len %s for address %s - using %d", p + 1, str, new->ifa.ifa_prefixlen);
+		else
+			new->ifa.ifa_prefixlen = prefixlen;
 	}
 
 	addr = (IP_IS6(new)) ? (void *) &new->u.sin6_addr :
