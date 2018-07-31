@@ -238,7 +238,7 @@ read_int(const char *str, int *res, int min_val, int max_val, bool ignore_error)
 bool
 read_unsigned(const char *str, unsigned *res, unsigned min_val, unsigned max_val, bool ignore_error)
 {
-	return read_unsigned_base(str, "Number", str, res, min_val, max_val, ignore_error);
+	return read_unsigned_base(str + strspn(str, " \t"), "Number", str, res, min_val, max_val, ignore_error);
 }
 
 bool
