@@ -252,12 +252,10 @@ int
 domain_stosockaddr(const char *domain, const char *port, struct sockaddr_storage *addr)
 {
 	struct addrinfo *res = NULL;
-	unsigned long port_num;
-	char *endptr;
+	unsigned port_num;
 
 	if (port) {
-		port_num = strtoul(port, &endptr, 10);
-		if (*endptr || port_num < 1 || port_num > 65535) {
+		if (!read_unsigned(port, &port_num, 1, 65535, true)) {
 			addr->ss_family = AF_UNSPEC;
 			return -1;
 		}
@@ -294,15 +292,13 @@ inet_stosockaddr(char *ip, const char *port, struct sockaddr_storage *addr)
 	void *addr_ip;
 	char *cp;
 	char sav_cp;
-	unsigned long port_num;
-	char *endptr;
+	unsigned port_num;
 	int res;
 
 	addr->ss_family = (strchr(ip, ':')) ? AF_INET6 : AF_INET;
 
 	if (port) {
-		port_num = strtoul(port, &endptr, 10);
-		if (*endptr || port_num < 1 || port_num > 65535) {
+		if (!read_unsigned(port, &port_num, 1, 65535, true)) {
 			addr->ss_family = AF_UNSPEC;
 			return -1;
 		}
