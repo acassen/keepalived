@@ -78,8 +78,10 @@ set_process_priorities(
 #ifdef _HAVE_SCHED_RT_
 	if (realtime_priority) {
 		/* Set realtime priority */
-		struct sched_param sp;
-		sp.sched_priority = realtime_priority;
+		struct sched_param sp = {
+			.sched_priority = realtime_priority
+		};
+
 		if (sched_setscheduler(getpid(), SCHED_RR | SCHED_RESET_ON_FORK, &sp))
 			log_message(LOG_WARNING, "child process: cannot raise priority");
 #if HAVE_DECL_RLIMIT_RTTIME == 1
