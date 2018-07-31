@@ -37,6 +37,7 @@
 #if HAVE_DECL_RTA_ENCAP
 #include "vrrp_iproute.h"
 #endif
+#include "parser.h"
 
 bool
 get_realms(uint32_t *realms, char *str)
@@ -74,56 +75,42 @@ err:
 bool
 get_u8(uint8_t *val, const char *str, uint8_t max, const char* errmsg)
 {
-	char *end;
-	unsigned long t_val;
+	unsigned t_val;
 
-	t_val = strtoul(str, &end, 0);
-	if (*end == '\0' && t_val <= max) {
+	if (read_unsigned(str, &t_val, 0, max, false)) {
 		*val = (uint8_t)t_val;
 		return false;
 	}
 
-	log_message(LOG_INFO, errmsg, str);
+	report_config_error(CONFIG_GENERAL_ERROR, errmsg, str);
 	return true;
 }
 
 bool
 get_u16(uint16_t *val, const char *str, uint16_t max, const char* errmsg)
 {
-	char *end;
-	unsigned long t_val;
+	unsigned t_val;
 
-	/* strtoul can do "nasty" things with -ve unsigneds */
-	if (str[0] == '-')
-		return true;
-
-	t_val = strtoul(str, &end, 0);
-	if (*end == '\0' && t_val <= max) {
+	if (read_unsigned(str, &t_val, 0, max, false)) {
 		*val = (uint16_t)t_val;
 		return false;
 	}
 
-	log_message(LOG_INFO, errmsg, str);
+	report_config_error(CONFIG_GENERAL_ERROR, errmsg, str);
 	return true;
 }
 
 bool
 get_u32(uint32_t *val, const char *str, uint32_t max, const char* errmsg)
 {
-	char *end;
-	unsigned long t_val;
+	unsigned t_val;
 
-	/* strtoul can do "nasty" things with -ve unsigneds */
-	if (str[0] == '-')
-		return true;
-
-	t_val = strtoul(str, &end, 0);
-	if (*end == '\0' && t_val <= max) {
+	if (read_unsigned(str, &t_val, 0, max, false)) {
 		*val = (uint32_t)t_val;
 		return false;
 	}
 
-	log_message(LOG_INFO, errmsg, str);
+	report_config_error(CONFIG_GENERAL_ERROR, errmsg, str);
 	return true;
 }
 
@@ -143,7 +130,7 @@ get_u64(uint64_t *val, const char *str, uint64_t max, const char* errmsg)
 		return false;
 	}
 
-	log_message(LOG_INFO, errmsg, str);
+	report_config_error(CONFIG_GENERAL_ERROR, errmsg, str);
 	return true;
 }
 
