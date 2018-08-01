@@ -122,14 +122,17 @@ inet_proto_a2n(const char *buf)
 	unsigned long proto_num;
 	char *endptr;
 
-	if (!*buf)
+	/* Skip white space */
+	buf += strspn(buf, WHITE_SPACE);
+
+	if (!*buf || *buf == '-')
 		return -1;
 
 	proto_num = strtoul(buf, &endptr, 10);
-	if (endptr != buf && !*endptr)
+	if (proto_num > INT8_MAX)
 		return -1;
-	if (proto_num >INT_MAX)
-		return -1;
+	if (!*endptr)
+		return proto_num;
 
 	pe = getprotobyname(buf);
 	endprotoent();
