@@ -669,7 +669,7 @@ Likewise, if the vrrp instance is the address owner, weight 0 must also be set.
 bfd_instance <STRING> {
     neighbor_ip <IP ADDRESS>           # BFD Neighbor IP (synonym neighbour_ip)
     source_ip <IP ADDRESS>             # Source IP to use (optional)
-    mix_rx <INTEGER>                   # Required min RX interval, in ms
+    min_rx <INTEGER>                   # Required min RX interval, in ms
                                        # (default is 10 ms)
     min_tx <INTEGER>                   # Desired min TX interval, in ms
                                        # (default is 10 ms)
