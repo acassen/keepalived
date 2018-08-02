@@ -753,17 +753,11 @@ vrrp_garp_delay_handler(vector_t *strvec)
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	unsigned delay;
 
-	/* The min value should be 1, but allow 0 to maintain backward compatibility
-	 * with pre v2.0.7 */
 	if (!read_unsigned_strvec(strvec, 1, &delay, 0, UINT_MAX / TIMER_HZ, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s): garp_master_delay '%s' invalid - ignoring", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
 
-	if (delay == 0) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s): garp_master_delay must be greater than 0, setting to 1", vrrp->iname);
-		delay = 1;
-	}
 	vrrp->garp_delay = delay * TIMER_HZ;
 }
 static void
