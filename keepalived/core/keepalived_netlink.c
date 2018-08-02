@@ -2238,7 +2238,7 @@ kernel_netlink_init(void)
 #endif
 }
 
-#if defined _WITH_VRRP_ || defined _WITH_LVS_
+#ifdef _WITH_VRRP_
 void
 kernel_netlink_read_interfaces(void)
 {

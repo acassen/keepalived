@@ -467,7 +467,7 @@ start_keepalived(void)
 static void
 validate_config(void)
 {
-#if defined _WITH_VRRP_ || defined _WITH_LVS_
+#ifdef _WITH_VRRP_
 	kernel_netlink_read_interfaces();
 #endif
 
