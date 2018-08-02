@@ -328,6 +328,7 @@ and
                               #  ttl (1..255)
                               #  group - multicast group address (IPv4 or IPv6)
                               # NOTE: maxlen, port, ttl and group are only available on Linux 4.3 or later.
+ lvs_timeouts [tcp TO] [tcpfin TO] [udp [TO] # LVS session timeouts
  lvs_flush                    # flush any existing LVS configuration at startup
 
  # delay for second set of gratuitous ARPs after transition to MASTER

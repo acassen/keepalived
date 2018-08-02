@@ -335,6 +335,7 @@ global_defs {                                 # Block identification
                                               #  ttl (1..255)
                                               #  group - multicast group address (IPv4 or IPv6)
                                               # NOTE: maxlen, port, ttl and group are only available on Linux 4.3 or later.
+    lvs_timeouts [tcp TO] [tcpfin TO] [udp [TO] # LVS session timeouts
     lvs_flush                                 # flush any existing LVS configuration at startup
     vrrp_garp_master_delay <INTEGER>          # delay in seconds for second set of gratuitous ARP
                                               #  messages after MASTER state transition, default 5.
