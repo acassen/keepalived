@@ -37,6 +37,7 @@
 #include <netdb.h>
 #include <inttypes.h>
 #endif
+#include <ctype.h>
 
 /* local include */
 #include "vrrp_iproute.h"
@@ -465,6 +466,7 @@ alloc_rule(list rule_list, vector_t *strvec, __attribute__((unused)) bool allow_
 	char *str;
 	unsigned int i = 0;
 	unsigned long val, val1;
+	unsigned val_unsigned;
 	uint32_t uval32;
 	uint8_t uval8;
 	int family = AF_UNSPEC;
@@ -552,14 +554,12 @@ alloc_rule(list rule_list, vector_t *strvec, __attribute__((unused)) bool allow_
 		else if (!strcmp(str, "preference") ||
 			 !strcmp(str, "order") ||
 			 !strcmp(str, "priority")) {
-			str = strvec_slot(strvec, ++i);
-			val = strtoul(str, &end, 0);
-			if (*end || val > UINT32_MAX) {
+			if (!read_unsigned_base_strvec(strvec, ++i, 0, &val_unsigned, 0, UINT32_MAX, false)) {
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid rule preference %s specified", str);
 				goto err;
 			}
 
-			new->priority = (uint32_t)val;
+			new->priority = (uint32_t)val_unsigned;
 			new->mask |= IPRULE_BIT_PRIORITY;
 		}
 		else if (!strcmp(str, "tos") || !strcmp(str, "dsfield")) {
@@ -572,6 +572,7 @@ alloc_rule(list rule_list, vector_t *strvec, __attribute__((unused)) bool allow_
 		}
 		else if (!strcmp(str, "fwmark")) {
 			str = strvec_slot(strvec, ++i);
+			str += strspn(str, WHITE_SPACE);
 			if (str[0] == '-')
 				goto fwmark_err;
 			val = strtoul(str, &end, 0);
@@ -579,10 +580,10 @@ alloc_rule(list rule_list, vector_t *strvec, __attribute__((unused)) bool allow_
 				goto fwmark_err;
 
 			if (*end == '/') {
-				if (end[1] == '-')
+				if (isspace(end[1]) || end[1] == '-')
 					goto fwmark_err;
 
-				val1 = strtoul(end+1, &end, 0);
+				val1 = strtoul(end + 1, &end, 0);
 				if (val1 > UINT32_MAX)
 					goto fwmark_err;
 				new->mask |= IPRULE_BIT_FWMASK;
@@ -623,13 +624,11 @@ fwmark_err:
 		}
 #if HAVE_DECL_FRA_SUPPRESS_PREFIXLEN
 		else if (!strcmp(str, "suppress_prefixlength") || !strcmp(str, "sup_pl")) {
-			str = strvec_slot(strvec, ++i);
-			val = strtoul(str, &end, 0);
-			if (*end || val > INT32_MAX) {
+			if (!read_unsigned_strvec(strvec, ++i, &val_unsigned, 0, INT32_MAX, false)) {
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid suppress_prefixlength %s specified", str);
 				goto err;
 			}
-			new->suppress_prefix_len = (int32_t)val;
+			new->suppress_prefix_len = (int32_t)val_unsigned;
 			table_option = true;
 		}
 #endif
@@ -667,8 +666,7 @@ fwmark_err:
 #if HAVE_DECL_FRA_TUN_ID
 		else if (!strcmp(str, "tunnel-id")) {
 			uint64_t val64;
-			val64 = strtoull(strvec_slot(strvec, ++i), &end, 0);
-			if (*end) {
+			if (!read_unsigned64_strvec(strvec, ++i, &val64, 0, UINT64_MAX, false)) {
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid tunnel-id %s specified", str);
 				goto err;
 			}
@@ -699,12 +697,10 @@ fwmark_err:
 #endif
 #if HAVE_DECL_FRA_PROTOCOL
 		else if (!strcmp(str, "protocol")) {
-			char *endptr;
-			unsigned long protocol = strtoul(strvec_slot(strvec, ++i), &endptr, 10);
-			if (protocol > UINT8_MAX || *endptr)
+			if (!read_unsigned_strvec(strvec, ++i, &val_unsigned, 0, UINT8_MAX, false))
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid protocol %s", FMT_STR_VSLOT(strvec, i));
 			else {
-				new->protocol = protocol;
+				new->protocol = val_unsigned;
 				new->mask |= IPRULE_BIT_PROTOCOL;
 			}
 		}
@@ -773,12 +769,11 @@ fwmark_err:
 				str = strvec_slot(strvec, ++i);
 
 			if (!strcmp(str, "goto")) {
-				val = strtoul(strvec_slot(strvec, ++i), &end, 0);
-				if (*end || val > UINT32_MAX) {
+				if (!read_unsigned_strvec(strvec, ++i, &val_unsigned, 0, UINT32_MAX, false)) {
 					report_config_error(CONFIG_GENERAL_ERROR, "Invalid target %s specified", str);
 					goto err;
 				}
-				new->goto_target = (uint32_t)val;
+				new->goto_target = (uint32_t)val_unsigned;
 				action = FR_ACT_GOTO;
 			}
 			else if (!strcmp(str, "nop")) {
