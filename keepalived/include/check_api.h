@@ -69,8 +69,6 @@ extern list checkers_queue;
 #define CHECKER_GET_CURRENT() (LIST_TAIL_DATA(checkers_queue))
 #define CHECKER_GET() (CHECKER_DATA(CHECKER_GET_CURRENT()))
 #define CHECKER_GET_CO() (((checker_t *)CHECKER_GET_CURRENT())->co)
-#define CHECKER_VALUE_INT(X) (atoi(strvec_slot(X,1)))
-#define CHECKER_VALUE_UINT(X) ((unsigned)strtoul(strvec_slot(X,1), NULL, 10))
 #define CHECKER_VALUE_STRING(X) (set_value(X))
 #define CHECKER_HA_SUSPEND(C) ((C)->vs->ha_suspend)
 #define CHECKER_NEW_CO() ((conn_opts_t *) MALLOC(sizeof (conn_opts_t)))

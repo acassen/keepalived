@@ -132,6 +132,8 @@ read_file(const char* file_name, list *l, uint32_t max)
 	vector_t *strvec = NULL;
 	char buf[MAX_RT_BUF];
 	unsigned long id;
+	char *number;
+	char *endptr;
 
 	fp = fopen(file_name, "r");
 	if (!fp)
@@ -154,8 +156,10 @@ read_file(const char* file_name, list *l, uint32_t max)
 			goto err;
 		}
 
-		id = strtoul(FMT_STR_VSLOT(strvec, 0), NULL, 0);
-		if (id > max) {
+		number = strvec_slot(strvec, 0);
+		number += strspn(number, " \t");
+		id = strtoul(number, &endptr, 0);
+		if (*number == '-' || number == endptr || *endptr || id > max) {
 			FREE(rte);
 			free_strvec(strvec);
 			continue;
@@ -363,7 +367,7 @@ find_rttables_rtntype(const char *str, uint8_t *id)
 	}
 
 	res = strtoul(str, &end, 0);
-	if (*end || res > 255)
+	if (*end || res > 255 || str[0] == '-')
 		return false;
 
 	*id = (uint8_t)res;

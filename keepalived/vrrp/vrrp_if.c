@@ -373,14 +373,14 @@ dump_garp_delay(FILE *fp, void *data)
 	conf_write(fp, "------< GARP delay group %d >------", gd->aggregation_group);
 
 	if (gd->have_garp_interval) {
-		conf_write(fp, " GARP interval = %ld.%6.6ld", gd->garp_interval.tv_sec, gd->garp_interval.tv_usec);
+		conf_write(fp, " GARP interval = %g", gd->garp_interval.tv_sec + ((double)gd->garp_interval.tv_usec) / 1000000);
 		if (!ctime_r(&gd->garp_next_time.tv_sec, time_str))
                         strcpy(time_str, "invalid time ");
 		conf_write(fp, " GARP next time %ld.%6.6ld (%.19s.%6.6ld)", gd->garp_next_time.tv_sec, gd->garp_next_time.tv_usec, time_str, gd->garp_next_time.tv_usec);
 	}
 
 	if (gd->have_gna_interval) {
-		conf_write(fp, " GNA interval = %ld.%6.6ld", gd->gna_interval.tv_sec, gd->gna_interval.tv_usec);
+		conf_write(fp, " GNA interval = %g", gd->gna_interval.tv_sec + ((double)gd->gna_interval.tv_usec) / 1000000);
 		if (!ctime_r(&gd->gna_next_time.tv_sec, time_str))
                         strcpy(time_str, "invalid time ");
 		conf_write(fp, " GNA next time %ld.%6.6ld (%.19s.%6.6ld)", gd->gna_next_time.tv_sec, gd->gna_next_time.tv_usec, time_str, gd->gna_next_time.tv_usec);

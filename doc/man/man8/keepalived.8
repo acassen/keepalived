@@ -1,4 +1,4 @@
-.TH KEEPALIVED "8" "April 2016"
+.TH KEEPALIVED "8" "July 2018"
 
 .na
 .nh
@@ -67,6 +67,7 @@ that use the IPVS load balancer with a single director with no failover.
 .TP
 \fB -B, --no_bfd\fP
 Don't run the BFD subsystem.
+.TP
 \fB --all\fP
 Run all subsystems, even if they have no configuration.
 .TP
@@ -181,19 +182,39 @@ kill -s $(keepalived --signum=STOP) $(cat /var/run/keepalived.pid)
 .fi
 .TP
 \fB -t, --config-test\fP[=FILE]
-Keepalived file check the configuration file and exit with exit status 1
-if it would not run with the config, otherwise it exits with exit status 0.
-Rather that writing to syslog, it will write to the files specified by
-FILE (default /tmp/keepalived.config-check) (_bfd, _check and _vrrp will 
-be inserted into the filename before the final ., or at the end if no .,
-for the output ofthe child processes).
+Keepalived will check the configuration file and exit with non-zero exit
+status if there are errors in the configuration, otherwise it exits with
+exit status 0 (see \fBExit status\fP below for details).
+
+Rather that writing to syslog, it will write diagnostic messages to stderr
+unless file is specified, in which case it will write to the file.
 .TP
 \fB -v, --version\fP
 Display the version and exit.
 .TP
 \fB -h, --help\fP
 Display this help message and exit.
-
+.SS "Exit status:"
+.TP
+0
+if OK
+.TP
+1
+if unable to malloc memory
+.TP
+2
+if cannot initialise subsystems
+.TP
+3
+if running with --config-test and configuration cannot be run
+.TP
+4
+if running with --config-test and there are configuration errors but keepalived
+will run after modifying the configuration
+.TP
+5
+if running with --config-test and script security hasn't been enabled but scripts
+are configured.
 .SH NAMESPACES
 .B keepalived
 can be run in a network namespace (see
@@ -257,7 +278,7 @@ Write statistics info to
 .LP
 .TP
 .B SIGFUNC=JSON
-Write configuration data is JSON format to
+Write configuration data in JSON format to
 .B /tmp/keepalived.json
 .LP
 

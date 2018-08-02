@@ -1,5 +1,14 @@
 Whatever you want !
 
+Add command line options to log and coredump report
+
+Parser:
+Report last read line number from config file and file name
+
+Real servers
+Add quorum_weight, defaults to weight. May want to set different between quorum and IPVS weight
+
+
 Parser
 1.
 $RSs= #\

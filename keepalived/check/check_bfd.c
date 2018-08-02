@@ -133,13 +133,13 @@ bfd_name_handler(vector_t *strvec)
 		name = vector_slot(strvec, 1);
 
 	if (vector_size(strvec) != 2)
-		log_message(LOG_INFO, "(%s) BFD_CHECK - No or too many names specified - skipping checker", FMT_RS(new_checker->rs, new_checker->vs));
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) BFD_CHECK - No or too many names specified - skipping checker", FMT_RS(new_checker->rs, new_checker->vs));
 	else if (!(tbfd = find_checker_tracked_bfd_by_name(name)))
-		log_message(LOG_INFO, "(%s) BFD_CHECK - BFD %s not configured", FMT_RS(new_checker->rs, new_checker->vs), name);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) BFD_CHECK - BFD %s not configured", FMT_RS(new_checker->rs, new_checker->vs), name);
 	else if (cbfd->bfd)
-		log_message(LOG_INFO, "(%s) BFD_CHECK - BFD %s already specified as %s", FMT_RS(new_checker->rs, new_checker->vs), name, cbfd->bfd->bname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) BFD_CHECK - BFD %s already specified as %s", FMT_RS(new_checker->rs, new_checker->vs), name, cbfd->bfd->bname);
 	else if (strlen(name) >= BFD_INAME_MAX)
-		log_message(LOG_INFO, "(%s) BFD_CHECK - BFD name %s too long", FMT_RS(new_checker->rs, new_checker->vs), name);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) BFD_CHECK - BFD name %s too long", FMT_RS(new_checker->rs, new_checker->vs), name);
 	else
 		config_error = false;
 
@@ -147,7 +147,7 @@ bfd_name_handler(vector_t *strvec)
 	if (!config_error) {
 		LIST_FOREACH(new_checker->rs->tracked_bfds, bfd_c, e) {
 			if (tbfd == bfd_c->bfd) {
-				log_message(LOG_INFO, "(%s) BFD_CHECK - RS already monitoring %s", FMT_RS(new_checker->rs, new_checker->vs), FMT_STR_VSLOT(strvec, 1));
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) BFD_CHECK - RS already monitoring %s", FMT_RS(new_checker->rs, new_checker->vs), FMT_STR_VSLOT(strvec, 1));
 				config_error = true;
 				break;
 			}
@@ -174,7 +174,7 @@ bfd_alpha_handler(vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec, 1));
 		if (res == -1) {
-			log_message(LOG_INFO, "Invalid alpha parameter %s", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid alpha parameter %s", FMT_STR_VSLOT(strvec, 1));
 			return;
 		}
 	}
@@ -195,7 +195,7 @@ bfd_end_handler(void)
 	cbfd = CHECKER_DATA(new_checker);
 
 	if (!cbfd->bfd) {
-		log_message(LOG_INFO, "(%s) No name has been specified for BFD_CHECKER - skipping", FMT_RS(new_checker->rs, new_checker->vs));
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) No name has been specified for BFD_CHECKER - skipping", FMT_RS(new_checker->rs, new_checker->vs));
 		dequeue_new_checker();
 		new_checker = NULL;
 		return;

@@ -31,6 +31,7 @@
 #include <arpa/inet.h>
 #include <sys/utsname.h>
 #include <stdint.h>
+#include <errno.h>
 
 #if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
 #include <signal.h>
@@ -49,6 +50,7 @@
 #include "utils.h"
 #include "signals.h"
 #include "bitops.h"
+#include "parser.h"
 #if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_ || defined _WITH_STACKTRACE_
 #include "logger.h"
 #endif
@@ -198,30 +200,51 @@ inet_ntoa2(uint32_t ip, char *buf)
 	sprintf(buf, "%d.%d.%d.%d", bytep[0], bytep[1], bytep[2], bytep[3]);
 	return buf;
 }
-
-/* IP string to network mask representation. CIDR notation. */
-uint8_t
-inet_stom(const char *addr)
-{
-	uint8_t mask = 32;
-	const char *cp = addr;
-
-	if (!(cp = strchr(addr, '/')))
-		return mask;
-	return atoi(cp+1);
-}
 #endif
 
 /* IP string to network range representation. */
-uint32_t
-inet_stor(const char *addr)
+bool
+inet_stor(const char *addr, uint32_t *range_end)
 {
-	const char *cp = addr;
+	const char *cp;
+	char *endptr;
+	unsigned long range;
+	int family = strchr(addr, ':') ? AF_INET6 : AF_INET;
+	char *warn = "";
 
-	if (!(cp = strchr(addr, '-')))
-		return 0;
+#ifndef _STRICT_CONFIG_
+	if (!__test_bit(CONFIG_TEST_BIT, &debug))
+		warn = "WARNING - ";
+#endif
 
-	return (uint32_t)strtoul(cp + 1, NULL, (strchr(addr, ':')) ? 16 : 10);
+	/* Return UINT32_MAX to indicate no range */
+	if (!(cp = strchr(addr, '-'))) {
+		*range_end = UINT32_MAX;
+		return true;
+	}
+
+	errno = 0;
+	range = strtoul(cp + 1, &endptr, family == AF_INET6 ? 16 : 10);
+	*range_end = range;
+
+	if (*endptr)
+		report_config_error(CONFIG_INVALID_NUMBER, "%sVirtual server group range '%s' has extra characters at end '%s'", warn, addr, endptr);
+	else if (errno == ERANGE ||
+		 (family == AF_INET6 && range > 0xffff) ||
+		 (family == AF_INET && range > 255)) {
+		report_config_error(CONFIG_INVALID_NUMBER, "Virtual server group range '%s' end '%s' too large", addr, cp + 1);
+
+		/* Indicate error */
+		return false;
+	}
+	else
+		return true;
+
+#ifdef _STRICT_CONFIG_
+        return false;
+#else
+        return !__test_bit(CONFIG_TEST_BIT, &debug);
+#endif
 }
 
 /* Domain to sockaddr_storage */
@@ -229,22 +252,32 @@ int
 domain_stosockaddr(const char *domain, const char *port, struct sockaddr_storage *addr)
 {
 	struct addrinfo *res = NULL;
+	unsigned port_num;
 
-	if (getaddrinfo(domain, NULL, NULL, &res) != 0 || !res)
+	if (port) {
+		if (!read_unsigned(port, &port_num, 1, 65535, true)) {
+			addr->ss_family = AF_UNSPEC;
+			return -1;
+		}
+	}
+
+	if (getaddrinfo(domain, NULL, NULL, &res) != 0 || !res) {
+		addr->ss_family = AF_UNSPEC;
 		return -1;
+	}
 
 	addr->ss_family = (sa_family_t)res->ai_family;
 
 	if (addr->ss_family == AF_INET6) {
-		struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) addr;
-		*addr6 = *(struct sockaddr_in6 *) res->ai_addr;
+		struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)addr;
+		*addr6 = *(struct sockaddr_in6 *)res->ai_addr;
 		if (port)
-			addr6->sin6_port = htons(atoi(port));
+			addr6->sin6_port = htons(port_num);
 	} else {
-		struct sockaddr_in *addr4 = (struct sockaddr_in *) addr;
-		*addr4 = *(struct sockaddr_in *) res->ai_addr;
+		struct sockaddr_in *addr4 = (struct sockaddr_in *)addr;
+		*addr4 = *(struct sockaddr_in *)res->ai_addr;
 		if (port)
-			addr4->sin_port = htons(atoi(port));
+			addr4->sin_port = htons(port_num);
 	}
 
 	freeaddrinfo(res);
@@ -257,29 +290,46 @@ int
 inet_stosockaddr(char *ip, const char *port, struct sockaddr_storage *addr)
 {
 	void *addr_ip;
-	char *cp = ip;
+	char *cp;
+	char sav_cp;
+	unsigned port_num;
+	int res;
 
 	addr->ss_family = (strchr(ip, ':')) ? AF_INET6 : AF_INET;
 
-	/* remove range and mask stuff */
-	if ((cp = strchr(ip, '-')))
-		*cp = 0;
-	else if ((cp = strchr(ip, '/')))
-		*cp = 0;
+	if (port) {
+		if (!read_unsigned(port, &port_num, 1, 65535, true)) {
+			addr->ss_family = AF_UNSPEC;
+			return -1;
+		}
+	}
 
 	if (addr->ss_family == AF_INET6) {
 		struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) addr;
 		if (port)
-			addr6->sin6_port = htons(atoi(port));
+			addr6->sin6_port = htons(port_num);
 		addr_ip = &addr6->sin6_addr;
 	} else {
 		struct sockaddr_in *addr4 = (struct sockaddr_in *) addr;
 		if (port)
-			addr4->sin_port = htons(atoi(port));
+			addr4->sin_port = htons(port_num);
 		addr_ip = &addr4->sin_addr;
 	}
 
-	if (!inet_pton(addr->ss_family, ip, addr_ip)) {
+	/* remove range and mask stuff */
+	if ((cp = strchr(ip, '-')) ||
+	    (cp = strchr(ip, '/'))) {
+		sav_cp = *cp;
+		*cp = 0;
+	}
+
+	res = inet_pton(addr->ss_family, ip, addr_ip);
+
+	/* restore range and mask stuff */
+	if (cp)
+		*cp = sav_cp;
+
+	if (!res) {
 		addr->ss_family = AF_UNSPEC;
 		return -1;
 	}

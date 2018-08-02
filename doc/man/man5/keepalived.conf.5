@@ -328,6 +328,7 @@ and
                               #  ttl (1..255)
                               #  group - multicast group address (IPv4 or IPv6)
                               # NOTE: maxlen, port, ttl and group are only available on Linux 4.3 or later.
+ lvs_timeouts [tcp TO] [tcpfin TO] [udp [TO] # LVS session timeouts
  lvs_flush                    # flush any existing LVS configuration at startup
 
  # delay for second set of gratuitous ARPs after transition to MASTER
@@ -422,7 +423,7 @@ and
  vrrp_rt_priority <1..99>     # Set the vrrp child process to use real-time scheduling at the specified priority
  checker_rt_priority <1..99>  # Set the checker child process to use real-time scheduling at the specified priority
  bfd_rt_priority <1..99>      # Set the BFD child process to use real-time scheduling at the specified  priority
- vrrp_rlimit_rtime >=1        # Set the limit on CPU time between blocking system calls, in microseconds (default 1000)
+ vrrp_rlimit_rtime >=1        # Set the limit on CPU time between blocking system calls, in microseconds (default 10000)
  checker_rlimit_rtime >=1     #   as above
  bfd_rlimit_rtime >=1         #   as above
 
@@ -677,7 +678,7 @@ The configuration block looks like:
 bfd_instance <STRING> {
     neighbor_ip <IP ADDRESS>           # BFD Neighbor IP (synonym neighbour_ip)
     source_ip <IP ADDRESS>             # Source IP to use (optional)
-    mix_rx <INTEGER>                   # Required min RX interval, in ms
+    min_rx <INTEGER>                   # Required min RX interval, in ms
                                        # (default is 10 ms)
     min_tx <INTEGER>                   # Desired min TX interval, in ms
                                        # (default is 10 ms)
@@ -692,7 +693,7 @@ bfd_instance <STRING> {
     max_hops <INTEGER>                 # maximum reduction of ttl/hoplimit
                                        #  in received packet (default 0)
                                        #  (255 disables hop count checking)
-    weight                             # Default tracking weight
+    weight <INTEGER -253..253>         # Default tracking weight
  }
 .SH VRRP synchronization group(s)
 .PP
@@ -1093,6 +1094,10 @@ tunnelled, the address family of the virtual server will be the same as the
 address family of the real/sorry servers if they are all the same, otherwise
 it will default to IPv4 (use ip_family inet6 to override this).
 .PP
+.B Note:
+The port for the virtual server can only be omitted if the virtual service
+is persistent.
+.PP
 .SH Virtual server group(s)
 .PP
  # optional
@@ -1102,15 +1107,15 @@ it will default to IPv4 (use ip_family inet6 to override this).
  # Only for very large LVSs.
  virtual_server_group <STRING> {
         #VIP port
-        <IPADDR> <PORT>
-        <IPADDR> <PORT>
+        <IPADDR> [<PORT>]
+        <IPADDR> [<PORT>]
         ...
         #
         # <IPADDR RANGE> has the form
         # XXX.YYY.ZZZ.WWW-VVV eg 192.168.200.1-10
         # range includes both .1 and .10 address
-        <IPADDR RANGE> <PORT># VIP range VPORT
-        <IPADDR RANGE> <PORT>
+        <IPADDR RANGE> [<PORT>]# VIP range VPORT
+        <IPADDR RANGE> [<PORT>]
         ...
         fwmark <INT>  # fwmark
         fwmark <INT>
@@ -1121,7 +1126,9 @@ it will default to IPv4 (use ip_family inet6 to override this).
 .PP
 A virtual_server can be a declaration of one of
 .TP
-.B vip vport (IPADDR PORT pair)
+.B vip vport IPADDR PORT pair
+.TP
+.B vip IPADDR
 .TP
 .B fwmark <INT>
 .TP
@@ -1129,6 +1136,7 @@ A virtual_server can be a declaration of one of
 
     #setup service
     virtual_server IP port |
+    virtual_server IP |
     virtual_server fwmark int |
     virtual_server group string
     {

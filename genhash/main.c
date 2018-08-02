@@ -104,6 +104,8 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 	struct addrinfo hint, *res = NULL;
 	int ret;
 	void *ptr;
+	char *endptr;
+	long port_num;
 
 	memset(&hint, '\0', sizeof hint);
 
@@ -185,14 +187,23 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 			req_obj->vhost = optarg;
 			break;
 		case 'p':
-			req_obj->addr_port = htons(atoi(optarg));
+			port_num = strtol(optarg, &endptr, 10);
+			if (*endptr || port_num <= 0 || port_num > 65535) {
+				fprintf(stderr, "invalid port number '%s'\n", optarg);
+				return CMD_LINE_ERROR;
+			}
+			req_obj->addr_port = htons(port_num);
 			break;
 		case 'u':
 			req_obj->url = optarg;
 			break;
 		case 'm':
 #ifdef _WITH_SO_MARK_
-			req_obj->mark = (unsigned)strtoul(optarg, NULL, 10);
+			req_obj->mark = (unsigned)strtoul(optarg + strspn(optarg, " \t"), &endptr, 10);
+			if (*endptr || optarg[strspn(optarg, " \t")] == '-') {
+				fprintf(stderr, "invalid fwmark '%s'\n", optarg);
+				return CMD_LINE_ERROR;
+			}
 #else
 			fprintf(stderr, "genhash built without fwmark support\n");
 			return CMD_LINE_ERROR;

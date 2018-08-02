@@ -43,6 +43,8 @@ int main(int argc, char **argv)
 	char *addr_str = NULL;
 	char addr_buf[sizeof (struct in6_addr)];
 	bool echo_data = false;
+	char *endptr;
+	long port_num;
 
 	while ((opt = getopt(argc, argv, "46a:p:sue")) != -1) {
 		switch (opt) {
@@ -56,7 +58,12 @@ int main(int argc, char **argv)
 			addr_str = optarg;
 			break;
 		case 'p':
-			port = atoi(optarg);
+			port_num = strtol(optarg, &endptr, 10);
+			if (*endptr || port_num <= 0 || port_num > 65535) {
+				fprintf(stderr, "Port number '%s' invalid\n", optarg);
+				exit(EXIT_FAILURE);
+			}
+			port = port_num;
 			break;
 		case 's':
 			silent = true;

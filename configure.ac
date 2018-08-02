@@ -195,6 +195,8 @@ AC_ARG_ENABLE(libipset,
   [AS_HELP_STRING([--disable-libipset], [compile without libipset])])
 AC_ARG_ENABLE(libnl,
   [AS_HELP_STRING([--disable-libnl], [compile without libnl])])
+AC_ARG_ENABLE(strict-config-checks,
+  [AS_HELP_STRING([--enable-strict-config-checks], [build with strict configuration checking])])
 AC_ARG_ENABLE(hardening,
   [AS_HELP_STRING([--disable-hardening], [do not build with security hardening])])
 AC_ARG_ENABLE(optimise,
@@ -354,6 +356,14 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
     AC_MSG_RESULT([no])
   ])
 CFLAGS="$SAV_CFLAGS"
+
+dnl ---- [ Do we want stricter configuration checking? ] ----
+STRICT_CONFIG=No
+if test "$enable_strict_config_checks" = yes; then
+  AC_DEFINE([_STRICT_CONFIG_], [ 1 ], [Define to 1 if want stricter configuration checking])
+  STRICT_CONFIG=Yes
+  add_config_opt([STRICT_CONFIG])
+fi
 
 if test "$enable_hardening" != no; then
   AC_MSG_CHECKING([for PIE support])
@@ -1850,6 +1860,7 @@ echo "Use IPv4 devconf         : ${IPV4_DEVCONF}"
 echo "Use libiptc              : ${USE_LIBIPTC}"
 echo "Use libipset             : ${USE_LIBIPSET}"
 echo "init type                : ${INIT_TYPE}"
+echo "Strict config checks     : ${STRICT_CONFIG}"
 echo "Build genhash            : ${BUILD_GENHASH}"
 echo "Build documentation      : ${HAVE_SPHINX_BUILD}"
 if test ${ENABLE_STACKTRACE} = Yes; then

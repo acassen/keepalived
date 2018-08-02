@@ -30,6 +30,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/prctl.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 #include "vrrp_daemon.h"
 #include "vrrp_scheduler.h"
@@ -103,6 +105,8 @@ vrrp_ipvs_needed(void)
 static int
 vrrp_terminate_phase2(int exit_status)
 {
+	struct rusage usage;
+
 #ifdef _NETLINK_TIMERS_
 	report_and_clear_netlink_timers("Starting shutdown instances");
 #endif
@@ -163,7 +167,12 @@ vrrp_terminate_phase2(int exit_status)
 	 * Reached when terminate signal catched.
 	 * finally return to parent process.
 	 */
-	log_message(LOG_INFO, "Stopped");
+	if (__test_bit(LOG_DETAIL_BIT, &debug)) {
+		getrusage(RUSAGE_SELF, &usage);
+		log_message(LOG_INFO, "Stopped - used %ld.%6.6ld user time, %ld.%6.6ld system time", usage.ru_utime.tv_sec, usage.ru_utime.tv_usec, usage.ru_stime.tv_sec, usage.ru_stime.tv_usec);
+	}
+	else
+		log_message(LOG_INFO, "Stopped");
 
 	if (log_file_name)
 		close_log_file();
@@ -286,6 +295,9 @@ start_vrrp_termination_thread(__attribute__((unused)) thread_t * thread)
 static void
 stop_vrrp(int status)
 {
+	if (__test_bit(CONFIG_TEST_BIT, &debug))
+		return;
+
 	/* This runs in the main process, not in the context of a thread */
 	vrrp_terminate_phase1(false);
 
@@ -303,7 +315,8 @@ start_vrrp(void)
 	clear_summary_flags();
 
 	/* Initialize sub-system */
-	kernel_netlink_init();
+	if (!__test_bit(CONFIG_TEST_BIT, &debug))
+		kernel_netlink_init();
 
 	if (reload)
 		global_data = alloc_global_data();
@@ -325,7 +338,7 @@ start_vrrp(void)
 	init_data(conf_file, vrrp_init_keywords);
 
 	if (non_existent_interface_specified) {
-		log_message(LOG_INFO, "Non-existent interface specified in configuration");
+		report_config_error(CONFIG_BAD_IF, "Non-existent interface specified in configuration");
 		stop_vrrp(KEEPALIVED_EXIT_CONFIG);
 		return;
 	}
@@ -337,16 +350,6 @@ start_vrrp(void)
 	set_time_now();
 
 	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
-		/* Set the process priority and non swappable if configured */
-		set_process_priorities(
-#ifdef _HAVE_SCHED_RT_
-				       global_data->vrrp_realtime_priority,
-#if HAVE_DECL_RLIMIT_RTTIME == 1
-				       global_data->vrrp_rlimit_rt,
-#endif
-#endif
-				       global_data->vrrp_process_priority, global_data->vrrp_no_swap ? 4096 : 0);
-
 #if defined _WITH_SNMP_RFC || defined _WITH_SNMP_VRRP_
 		if (!reload && (
 #ifdef _WITH_SNMP_VRRP_
@@ -426,10 +429,8 @@ start_vrrp(void)
 	}
 
 	/* If we are just testing the configuration, then we terminate now */
-	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
-		stop_vrrp(KEEPALIVED_EXIT_OK);
+	if (__test_bit(CONFIG_TEST_BIT, &debug))
 		return;
-	}
 
 	/* Start or stop gratuitous arp/ndisc as appropriate */
 	if (have_ipv4_instance)
@@ -489,6 +490,17 @@ start_vrrp(void)
 	/* Init & start the VRRP packet dispatcher */
 	thread_add_event(master, vrrp_dispatcher_init, NULL,
 			 VRRP_DISPATCHER);
+
+	/* Set the process priority and non swappable if configured */
+	set_process_priorities(
+#ifdef _HAVE_SCHED_RT_
+			       global_data->vrrp_realtime_priority,
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+			       global_data->vrrp_rlimit_rt,
+#endif
+#endif
+			       global_data->vrrp_process_priority, global_data->vrrp_no_swap ? 4096 : 0);
+
 }
 
 #ifndef _DEBUG_
@@ -594,6 +606,9 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 {
 	log_message(LOG_INFO, "Reloading");
 
+	/* Use standard scheduling while reloading */
+	reset_process_priorities();
+
 	/* set the reloading flag */
 	SET_RELOAD;
 
@@ -698,9 +713,7 @@ vrrp_respawn_thread(thread_t * thread)
 	}
 
 	/* We catch a SIGCHLD, handle it */
-	if (__test_bit(CONFIG_TEST_BIT, &debug))
-		raise(SIGTERM);
-	else if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
+	if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
 		log_message(LOG_ALERT, "VRRP child process(%d) died: Respawning", pid);
 		start_vrrp_child();
 	} else {
@@ -833,6 +846,12 @@ start_vrrp_child(void)
 
 	/* unreachable */
 	exit(EXIT_SUCCESS);
+}
+
+void
+vrrp_validate_config(void)
+{
+	start_vrrp();
 }
 
 #ifdef _TIMER_DEBUG_

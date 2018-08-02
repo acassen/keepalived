@@ -37,32 +37,58 @@
 #include "signals.h"
 #endif
 
-void
+#ifdef _HAVE_SCHED_RT_
+static bool realtime_priority_set;
+
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+static bool rlimit_rt_set;
+static struct rlimit orig_rlimit_rt;
+#endif
+#endif
+
+static bool priority_set;
+static int orig_priority;
+
+static void
 set_process_dont_swap(size_t stack_reserve)
 {
 	/* Ensure stack pages allocated */
-	if (stack_reserve) {
-		size_t pagesize = (size_t)sysconf(_SC_PAGESIZE);
-		char stack[stack_reserve];
-		size_t i;
+	size_t pagesize = (size_t)sysconf(_SC_PAGESIZE);
+	char stack[stack_reserve];
+	size_t i;
 
-		stack[0] = 23;		/* A random number */
-		for (i = 0; i < stack_reserve; i += pagesize)
-			stack[i] = stack[0];
-	}
+	stack[0] = 23;		/* A random number */
+	for (i = 0; i < stack_reserve; i += pagesize)
+		stack[i] = stack[0];
 
 	if (mlockall(MCL_FUTURE) == -1)
 		log_message(LOG_INFO, "Unable to lock process in memory - %s", strerror(errno));
 }
 
-void
+static void
 set_process_priority(int priority)
 {
-	if (priority) {
-		errno = 0;
-		if (setpriority(PRIO_PROCESS, 0, priority) == -1 && errno)
-			log_message(LOG_INFO, "Unable to set process priority to %d - %s", priority, strerror(errno));
+	orig_priority = getpriority(PRIO_PROCESS, 0);
+
+	errno = 0;
+	if (setpriority(PRIO_PROCESS, 0, priority) == -1 && errno) {
+		log_message(LOG_INFO, "Unable to set process priority to %d - %s", priority, strerror(errno));
+		return;
 	}
+
+	priority_set = true;
+}
+
+static void
+reset_process_priority(void)
+{
+	errno = 0;
+	if (setpriority(PRIO_PROCESS, 0, orig_priority) == -1 && errno) {
+		log_message(LOG_INFO, "Unable to reset process priority - %m");
+		return;
+	}
+
+	priority_set = false;
 }
 
 void
@@ -78,8 +104,10 @@ set_process_priorities(
 #ifdef _HAVE_SCHED_RT_
 	if (realtime_priority) {
 		/* Set realtime priority */
-		struct sched_param sp;
-		sp.sched_priority = realtime_priority;
+		struct sched_param sp = {
+			.sched_priority = realtime_priority
+		};
+
 		if (sched_setscheduler(getpid(), SCHED_RR | SCHED_RESET_ON_FORK, &sp))
 			log_message(LOG_WARNING, "child process: cannot raise priority");
 #if HAVE_DECL_RLIMIT_RTTIME == 1
@@ -104,4 +132,35 @@ set_process_priorities(
 // TODO - measure max stack usage
 	if (no_swap_stack_size)
 		set_process_dont_swap(no_swap_stack_size);
+}
+
+void
+reset_process_priorities(void)
+{
+#ifdef _HAVE_SCHED_RT_
+	if (realtime_priority_set) {
+		/* Set realtime priority */
+		struct sched_param sp = {
+			.sched_priority = 0
+		};
+
+		if (sched_setscheduler(getpid(), SCHED_OTHER, &sp))
+			log_message(LOG_WARNING, "child process: cannot reset realtime scheduling");
+		else {
+			realtime_priority_set = false;
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+			if (rlimit_rt_set)
+			{
+				if (setrlimit(RLIMIT_RTTIME, &orig_rlimit_rt))
+					log_message(LOG_WARNING, "child process cannot reset realtime rlimit");
+				else
+					rlimit_rt_set = false;
+
+			}
+#endif
+		}
+	}
+#endif
+	if (priority_set)
+		reset_process_priority();
 }

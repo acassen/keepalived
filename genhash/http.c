@@ -172,7 +172,7 @@ find_content_len(char *buffer, size_t size)
 		content_len = strtoul(p, &end, 10);
 
 		/* Make sure we have read to the end of the line */
-		if (!*end || *end == '\r' || *end != '\n')
+		if (!*end || *end == '\r' || *end == '\n')
 			valid_len = true;
 	}
 	buffer[size] = sav_char;

@@ -29,6 +29,8 @@
 #include <signal.h>
 #include <unistd.h>
 #include <sys/prctl.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 #include "check_daemon.h"
 #include "check_parser.h"
@@ -83,6 +85,8 @@ checker_dispatcher_release(void)
 static int
 checker_terminate_phase2(void)
 {
+	struct rusage usage;
+
 	/* Remove the notify fifo */
 	notify_fifo_close(&global_data->notify_fifo, &global_data->lvs_notify_fifo);
 
@@ -114,7 +118,12 @@ checker_terminate_phase2(void)
 	 * Reached when terminate signal catched.
 	 * finally return to parent process.
 	 */
-	log_message(LOG_INFO, "Stopped");
+	if (__test_bit(LOG_DETAIL_BIT, &debug)) {
+		getrusage(RUSAGE_SELF, &usage);
+		log_message(LOG_INFO, "Stopped - used %ld.%6.6ld user time, %ld.%6.6ld system time", usage.ru_utime.tv_sec, usage.ru_utime.tv_usec, usage.ru_stime.tv_sec, usage.ru_stime.tv_usec);
+	}
+	else
+		log_message(LOG_INFO, "Stopped");
 
 	if (log_file_name)
 		close_log_file();
@@ -153,8 +162,7 @@ checker_terminate_phase1(bool schedule_next_thread)
 		script_killall(master, SIGTERM, true);
 
 	/* Send shutdown messages */
-	if (!__test_bit(DONT_RELEASE_IPVS_BIT, &debug) &&
-	    !__test_bit(CONFIG_TEST_BIT, &debug))
+	if (!__test_bit(DONT_RELEASE_IPVS_BIT, &debug))
 		clear_services();
 
 	if (schedule_next_thread) {
@@ -186,6 +194,9 @@ start_checker_termination_thread(__attribute__((unused)) thread_t * thread)
 static void
 stop_check(int status)
 {
+	if (__test_bit(CONFIG_TEST_BIT, &debug))
+		return;
+
 	/* This runs in the main process, not in the context of a thread */
 	checker_terminate_phase1(false);
 
@@ -205,8 +216,10 @@ start_check(list old_checkers_queue)
 	if (reload)
 		global_data = alloc_global_data();
 	check_data = alloc_check_data();
-	if (!check_data)
+	if (!check_data) {
 		stop_check(KEEPALIVED_EXIT_FATAL);
+		return;
+	}
 
 	init_data(conf_file, check_init_keywords);
 
@@ -231,10 +244,8 @@ start_check(list old_checkers_queue)
 #endif
 
 	/* If we are just testing the configuration, then we terminate now */
-	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
-		stop_check(KEEPALIVED_EXIT_OK);
+	if (__test_bit(CONFIG_TEST_BIT, &debug))
 		return;
-	}
 
 	/* Initialize sub-system if any virtual servers are configured */
 	if ((!LIST_ISEMPTY(check_data->vs) || (reload && !LIST_ISEMPTY(old_check_data->vs))) &&
@@ -269,16 +280,6 @@ start_check(list old_checkers_queue)
 	if (check_data->ssl_required && !init_ssl_ctx())
 		stop_check(KEEPALIVED_EXIT_FATAL);
 
-	/* Set the process priority and non swappable if configured */
-	set_process_priorities(
-#ifdef _HAVE_SCHED_RT_
-                               global_data->checker_realtime_priority,
-#if HAVE_DECL_RLIMIT_RTTIME == 1
-                               global_data->checker_rlimit_rt,
-#endif
-#endif
-			       global_data->checker_process_priority, global_data->checker_no_swap ? 4096 : 0);
-
 	/* Processing differential configuration parsing */
 	if (reload)
 		clear_diff_services(old_checkers_queue);
@@ -300,6 +301,23 @@ start_check(list old_checkers_queue)
 	register_checkers_thread();
 
 	add_signal_read_thread();
+
+	/* Set the process priority and non swappable if configured */
+	set_process_priorities(
+#ifdef _HAVE_SCHED_RT_
+			       global_data->checker_realtime_priority,
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+			       global_data->checker_rlimit_rt,
+#endif
+#endif
+			       global_data->checker_process_priority, global_data->checker_no_swap ? 4096 : 0);
+
+}
+
+void
+check_validate_config(void)
+{
+	start_check(NULL);
 }
 
 #ifndef _DEBUG_
@@ -310,6 +328,9 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 	list old_checkers_queue;
 
 	log_message(LOG_INFO, "Reloading");
+
+	/* Use standard scheduling while reloading */
+	reset_process_priorities();
 
 	/* set the reloading flag */
 	SET_RELOAD;
@@ -393,9 +414,7 @@ check_respawn_thread(thread_t * thread)
 	}
 
 	/* We catch a SIGCHLD, handle it */
-	if (!__test_bit(CONFIG_TEST_BIT, &debug))
-		raise(SIGTERM);
-	else if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
+	if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
 		log_message(LOG_ALERT, "Healthcheck child process(%d) died: Respawning", pid);
 		start_check_child();
 	} else {
