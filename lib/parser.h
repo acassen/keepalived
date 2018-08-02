@@ -95,6 +95,7 @@ extern bool read_double(const char *, double *, double, double, bool);
 extern bool read_int_strvec(const vector_t *, size_t, int *, int, int, bool);
 extern bool read_unsigned_strvec(const vector_t *, size_t, unsigned *, unsigned, unsigned, bool);
 extern bool read_unsigned64_strvec(const vector_t *, size_t, uint64_t *, uint64_t, uint64_t, bool);
+extern bool read_unsigned_base_strvec(const vector_t *, size_t, int, unsigned *, unsigned, unsigned, bool);
 extern bool read_double_strvec(const vector_t *, size_t, double *, double, double, bool);
 extern void install_keyword_root(const char *, void (*handler) (vector_t *), bool);
 extern void install_root_end_handler(void (*handler) (void));

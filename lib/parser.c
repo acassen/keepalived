@@ -130,7 +130,7 @@ null_strvec(const vector_t *strvec, size_t index)
 }
 
 static bool
-read_int_base(const char *number, const char *msg, const char *info, int *res, int min_val, int max_val, __attribute__((unused)) bool ignore_error)
+read_int_func(const char *number, int base, const char *msg, const char *info, int *res, int min_val, int max_val, __attribute__((unused)) bool ignore_error)
 {
 	long val;
 	char *endptr;
@@ -142,7 +142,7 @@ read_int_base(const char *number, const char *msg, const char *info, int *res, i
 #endif
 
 	errno = 0;
-	val = strtol(number, &endptr, 10);
+	val = strtol(number, &endptr, base);
 	*res = (int)val;
 
 	if (*endptr)
@@ -162,7 +162,7 @@ read_int_base(const char *number, const char *msg, const char *info, int *res, i
 }
 
 static bool
-read_unsigned_base(const char *number, const char *msg, const char *info, unsigned *res, unsigned min_val, unsigned max_val, __attribute__((unused)) bool ignore_error)
+read_unsigned_func(const char *number, int base, const char *msg, const char *info, unsigned *res, unsigned min_val, unsigned max_val, __attribute__((unused)) bool ignore_error)
 {
 	unsigned long val;
 	char *endptr;
@@ -180,7 +180,7 @@ read_unsigned_base(const char *number, const char *msg, const char *info, unsign
 	offset = strspn(number, WHITE_SPACE);
 
 	errno = 0;
-	val = strtoul(number + offset, &endptr, 10);
+	val = strtoul(number + offset, &endptr, base);
 	*res = (unsigned)val;
 
 	if (number[offset] == '-')
@@ -202,7 +202,7 @@ read_unsigned_base(const char *number, const char *msg, const char *info, unsign
 }
 
 static bool
-read_unsigned64_base(const char *number, const char *msg, const char *info, uint64_t *res, uint64_t min_val, uint64_t max_val, __attribute__((unused)) bool ignore_error)
+read_unsigned64_func(const char *number, int base, const char *msg, const char *info, uint64_t *res, uint64_t min_val, uint64_t max_val, __attribute__((unused)) bool ignore_error)
 {
 	unsigned long long val;
 	char *endptr;
@@ -220,7 +220,7 @@ read_unsigned64_base(const char *number, const char *msg, const char *info, uint
 	offset = strspn(number, WHITE_SPACE);
 
 	errno = 0;
-	val = strtoull(number + offset, &endptr, 10);
+	val = strtoull(number + offset, &endptr, base);
 	*res = (unsigned)val;
 
 	if (number[offset] == '-')
@@ -242,7 +242,7 @@ read_unsigned64_base(const char *number, const char *msg, const char *info, uint
 }
 
 static bool
-read_double_base(const char *number, const char *msg, const char *info, double *res, double min_val, double max_val, __attribute__((unused)) bool ignore_error)
+read_double_func(const char *number, const char *msg, const char *info, double *res, double min_val, double max_val, __attribute__((unused)) bool ignore_error)
 {
 	double val;
 	char *endptr;
@@ -280,49 +280,55 @@ read_double_base(const char *number, const char *msg, const char *info, double *
 bool
 read_int(const char *str, int *res, int min_val, int max_val, bool ignore_error)
 {
-	return read_int_base(str, "Number", str, res, min_val, max_val, ignore_error);
+	return read_int_func(str, 10, "Number", str, res, min_val, max_val, ignore_error);
 }
 
 bool
 read_unsigned(const char *str, unsigned *res, unsigned min_val, unsigned max_val, bool ignore_error)
 {
-	return read_unsigned_base(str, "Number", str, res, min_val, max_val, ignore_error);
+	return read_unsigned_func(str, 10, "Number", str, res, min_val, max_val, ignore_error);
 }
 
 bool
 read_unsigned64(const char *str, uint64_t *res, uint64_t min_val, uint64_t max_val, bool ignore_error)
 {
-	return read_unsigned64_base(str, "Number", str, res, min_val, max_val, ignore_error);
+	return read_unsigned64_func(str, 10, "Number", str, res, min_val, max_val, ignore_error);
 }
 
 bool
 read_double(const char *str, double *res, double min_val, double max_val, bool ignore_error)
 {
-	return read_double_base(str, "Number", str, res, min_val, max_val, ignore_error);
+	return read_double_func(str, "Number", str, res, min_val, max_val, ignore_error);
 }
 
 bool
 read_int_strvec(const vector_t *strvec, size_t index, int *res, int min_val, int max_val, bool ignore_error)
 {
-	return read_int_base(strvec_slot(strvec, index), "Line starting", strvec_slot(strvec, 0), res, min_val, max_val, ignore_error);
+	return read_int_func(strvec_slot(strvec, index), 10, "Line starting", strvec_slot(strvec, 0), res, min_val, max_val, ignore_error);
 }
 
 bool
 read_unsigned_strvec(const vector_t *strvec, size_t index, unsigned *res, unsigned min_val, unsigned max_val, bool ignore_error)
 {
-	return read_unsigned_base(strvec_slot(strvec, index), "Line starting", strvec_slot(strvec, 0), res, min_val, max_val, ignore_error);
+	return read_unsigned_func(strvec_slot(strvec, index), 10, "Line starting", strvec_slot(strvec, 0), res, min_val, max_val, ignore_error);
 }
 
 bool
 read_unsigned64_strvec(const vector_t *strvec, size_t index, uint64_t *res, uint64_t min_val, uint64_t max_val, bool ignore_error)
 {
-	return read_unsigned64_base(strvec_slot(strvec, index), "Line starting", strvec_slot(strvec, 0), res, min_val, max_val, ignore_error);
+	return read_unsigned64_func(strvec_slot(strvec, index), 10, "Line starting", strvec_slot(strvec, 0), res, min_val, max_val, ignore_error);
 }
 
 bool
 read_double_strvec(const vector_t *strvec, size_t index, double *res, double min_val, double max_val, bool ignore_error)
 {
-	return read_double_base(strvec_slot(strvec, index), "Line starting", strvec_slot(strvec, 0), res, min_val, max_val, ignore_error);
+	return read_double_func(strvec_slot(strvec, index), "Line starting", strvec_slot(strvec, 0), res, min_val, max_val, ignore_error);
+}
+
+bool
+read_unsigned_base_strvec(const vector_t *strvec, size_t index, int base, unsigned *res, unsigned min_val, unsigned max_val, bool ignore_error)
+{
+	return read_unsigned_func(strvec_slot(strvec, index), base, "Line starting", strvec_slot(strvec, 0), res, min_val, max_val, ignore_error);
 }
 
 static void
