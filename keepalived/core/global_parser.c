@@ -79,7 +79,21 @@ emailfrom_handler(vector_t *strvec)
 static void
 smtpto_handler(vector_t *strvec)
 {
-	global_data->smtp_connection_to = strtoul(strvec_slot(strvec, 1), NULL, 10) * TIMER_HZ;
+	unsigned timeout;
+
+	/* The min value should be 1, but allow 0 to maintain backward compatibility
+	 * with pre v2.0.7 */
+	if (!read_unsigned_strvec(strvec, 1, &timeout, 0, UINT_MAX / TIMER_HZ, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "smtp_connect_timeout '%s' must be in [0, %d] - ignoring", FMT_STR_VSLOT(strvec, 1), UINT_MAX / TIMER_HZ);
+		return;
+	}
+
+	if (timeout == 0) {
+		report_config_error(CONFIG_GENERAL_ERROR, "smtp_conect_timeout must be greater than 0, setting to 1");
+		timeout = 1;
+	}
+
+	global_data->smtp_connection_to = timeout * TIMER_HZ;
 }
 #ifdef _WITH_VRRP_
 static void
@@ -222,9 +236,8 @@ default_interface_handler(vector_t *strvec)
 static void
 lvs_timeouts(vector_t *strvec)
 {
-	long val;
+	unsigned val;
 	size_t i;
-	char *endptr;
 
 	if (vector_size(strvec) < 3) {
 		report_config_error(CONFIG_GENERAL_ERROR, "lvs_timeouts requires at least one option");
@@ -234,14 +247,13 @@ lvs_timeouts(vector_t *strvec)
 	for (i = 1; i < vector_size(strvec); i++) {
 		if (!strcmp(strvec_slot(strvec, i), "tcp")) {
 			if (i == vector_size(strvec) - 1) {
-				report_config_error(CONFIG_GENERAL_ERROR, "No value specified for lvs_timout tcp - ignoring");
+				report_config_error(CONFIG_GENERAL_ERROR, "No value specified for lvs_timeout tcp - ignoring");
 				continue;
 			}
-			val = strtol(strvec_slot(strvec, i+1), &endptr, 10);
-			if (*endptr != '\0' || val < 0 || val > LVS_MAX_TIMEOUT)
+			if (!read_unsigned_strvec(strvec, i + 1, &val, 0, LVS_MAX_TIMEOUT, false))
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_timeout tcp (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
 			else
-				global_data->lvs_tcp_timeout = (int)val;
+				global_data->lvs_tcp_timeout = val;
 			i++;	/* skip over value */
 			continue;
 		}
@@ -250,11 +262,10 @@ lvs_timeouts(vector_t *strvec)
 				report_config_error(CONFIG_GENERAL_ERROR, "No value specified for lvs_timeout tcpfin - ignoring");
 				continue;
 			}
-			val = strtol(strvec_slot(strvec, i+1), &endptr, 10);
-			if (*endptr != '\0' || val < 1 || val > LVS_MAX_TIMEOUT)
+			if (!read_unsigned_strvec(strvec, i + 1, &val, 0, LVS_MAX_TIMEOUT, false))
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_timeout tcpfin (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
 			else
-				global_data->lvs_tcpfin_timeout = (int)val;
+				global_data->lvs_tcpfin_timeout = val;
 			i++;	/* skip over value */
 			continue;
 		}
@@ -263,11 +274,10 @@ lvs_timeouts(vector_t *strvec)
 				report_config_error(CONFIG_GENERAL_ERROR, "No value specified for lvs_timeout udp - ignoring");
 				continue;
 			}
-			val = strtol(strvec_slot(strvec, i+1), &endptr, 10);
-			if (*endptr != '\0' || val < 1 || val > LVS_MAX_TIMEOUT)
+			if (!read_unsigned_strvec(strvec, i + 1, &val, 0, LVS_MAX_TIMEOUT, false))
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_timeout udp (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
 			else
-				global_data->lvs_udp_timeout = (int)val;
+				global_data->lvs_udp_timeout = val;
 			i++;	/* skip over value */
 			continue;
 		}
@@ -278,9 +288,8 @@ lvs_timeouts(vector_t *strvec)
 static void
 lvs_syncd_handler(vector_t *strvec)
 {
-	unsigned long val;
+	unsigned val;
 	size_t i;
-	char *endptr;
 
 	if (global_data->lvs_syncd.ifname) {
 		report_config_error(CONFIG_GENERAL_ERROR, "lvs_sync_daemon has already been specified as %s %s - ignoring", global_data->lvs_syncd.ifname, global_data->lvs_syncd.vrrp_name);
@@ -312,11 +321,10 @@ lvs_syncd_handler(vector_t *strvec)
 	/* This is maintained for backwards compatibility, prior to adding "id" option */
 	if (vector_size(strvec) >= 4 && isdigit(FMT_STR_VSLOT(strvec, 3)[0])) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Please use keyword \"id\" before lvs_sync_daemon syncid value");
-		val = strtoul(strvec_slot(strvec,3), &endptr, 10);
-		if (*endptr || val > 255)
+		if (!read_unsigned_strvec(strvec, 3, &val, 0, 255, false))
 			report_config_error(CONFIG_GENERAL_ERROR, "Invalid syncid (%s) - defaulting to vrid", FMT_STR_VSLOT(strvec, 3));
 		else
-			global_data->lvs_syncd.syncid = (unsigned)val;
+			global_data->lvs_syncd.syncid = val;
 		i = 4;
 	}
 	else
@@ -328,11 +336,10 @@ lvs_syncd_handler(vector_t *strvec)
 				report_config_error(CONFIG_GENERAL_ERROR, "No value specified for lvs_sync_daemon id, defaulting to vrid");
 				continue;
 			}
-			val = strtoul(strvec_slot(strvec, i+1), &endptr, 10);
-			if (*endptr != '\0' || val > 255)
+			if (!read_unsigned_strvec(strvec, i + 1, &val, 0, 255, false))
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid syncid (%s) - defaulting to vrid", FMT_STR_VSLOT(strvec, i+1));
 			else
-				global_data->lvs_syncd.syncid = (unsigned)val;
+				global_data->lvs_syncd.syncid = val;
 			i++;	/* skip over value */
 			continue;
 		}
@@ -342,8 +349,7 @@ lvs_syncd_handler(vector_t *strvec)
 				report_config_error(CONFIG_GENERAL_ERROR, "No value specified for lvs_sync_daemon maxlen - ignoring");
 				continue;
 			}
-			val = strtoul(strvec_slot(strvec, i+1), &endptr, 10);
-			if (*endptr != '\0' || !val || val > 65535 - 20 - 8)
+			if (!read_unsigned_strvec(strvec, i + 1, &val, 0, 65535 - 20 - 8, false))
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_sync_daemon maxlen (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
 			else
 				global_data->lvs_syncd.sync_maxlen = (uint16_t)val;
@@ -355,8 +361,7 @@ lvs_syncd_handler(vector_t *strvec)
 				report_config_error(CONFIG_GENERAL_ERROR, "No value specified for lvs_sync_daemon port - ignoring");
 				continue;
 			}
-			val = strtoul(strvec_slot(strvec, i+1), &endptr, 10);
-			if (*endptr != '\0' || !val || val > 65535)
+			if (!read_unsigned_strvec(strvec, i + 1, &val, 0, 65535, false))
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_sync_daemon port (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
 			else
 				global_data->lvs_syncd.mcast_port = (uint16_t)val;
@@ -368,8 +373,7 @@ lvs_syncd_handler(vector_t *strvec)
 				report_config_error(CONFIG_GENERAL_ERROR, "No value specified for lvs_sync_daemon ttl - ignoring");
 				continue;
 			}
-			val = strtoul(strvec_slot(strvec, i+1), &endptr, 10);
-			if (*endptr != '\0' || !val || val > 255)
+			if (!read_unsigned_strvec(strvec, i + 1, &val, 0, 255, false))
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_sync_daemon ttl (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
 			else
 				global_data->lvs_syncd.mcast_ttl = (uint8_t)val;
@@ -441,15 +445,15 @@ get_realtime_priority(vector_t *strvec, const char *process)
 static rlim_t
 get_rt_rlimit(vector_t *strvec, const char *process)
 {
-	char *endptr;
-	unsigned long limit = strtoul(strvec_slot(strvec,1), &endptr, 10);
-	rlim_t rlim = limit;	/* check for overflow */
+	unsigned limit;
+	rlim_t rlim;
 
-	if (*endptr || rlim != limit) {
+	if (!read_unsigned_strvec(strvec, 1, &limit, 1, UINT32_MAX, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid %s real-time limit - %s", process, FMT_STR_VSLOT(strvec, 1));
 		return 0;
 	}
 
+	rlim = limit;
 	return rlim;
 }
 #endif
@@ -500,36 +504,92 @@ vrrp_mcast_group6_handler(vector_t *strvec)
 static void
 vrrp_garp_delay_handler(vector_t *strvec)
 {
-	global_data->vrrp_garp_delay = (unsigned)strtoul(strvec_slot(strvec, 1), NULL, 10) * TIMER_HZ;
+	unsigned timeout;
+
+        if (!read_unsigned_strvec(strvec, 1, &timeout, 0, UINT_MAX / TIMER_HZ, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_garp_master_delay '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
+                return;
+        }
+
+	global_data->vrrp_garp_delay = timeout * TIMER_HZ;
 }
 static void
 vrrp_garp_rep_handler(vector_t *strvec)
 {
-	global_data->vrrp_garp_rep = (unsigned)strtoul(strvec_slot(strvec, 1), NULL, 10);
-	if (global_data->vrrp_garp_rep < 1)
-		global_data->vrrp_garp_rep = 1;
+	unsigned repeats;
+
+	/* The min value should be 1, but allow 0 to maintain backward compatibility
+	 * with pre v2.0.7 */
+	if (!read_unsigned_strvec(strvec, 1, &repeats, 0, UINT_MAX, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_garp_master_repeat '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+
+	if (repeats == 0) {
+		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_garp_master_repeat must be greater than 0, setting to 1");
+		repeats = 1;
+	}
+
+	global_data->vrrp_garp_rep = repeats;
+
 }
 static void
 vrrp_garp_refresh_handler(vector_t *strvec)
 {
-	global_data->vrrp_garp_refresh.tv_sec = (unsigned)strtoul(strvec_slot(strvec, 1), NULL, 10);
+        unsigned refresh;
+
+        if (!read_unsigned_strvec(strvec, 1, &refresh, 0, UINT_MAX, true)) {
+                report_config_error(CONFIG_GENERAL_ERROR, "Invalid vrrp_garp_master_refresh '%s' - ignoring", FMT_STR_VSLOT(strvec, 1));
+                global_data->vrrp_garp_refresh.tv_sec = 0;
+        }
+        else
+		global_data->vrrp_garp_refresh.tv_sec = refresh;
+
+        global_data->vrrp_garp_refresh.tv_usec = 0;
 }
 static void
 vrrp_garp_refresh_rep_handler(vector_t *strvec)
 {
-	global_data->vrrp_garp_refresh_rep = (unsigned)strtoul(strvec_slot(strvec, 1), NULL, 10);
-	if (global_data->vrrp_garp_refresh_rep < 1)
-		global_data->vrrp_garp_refresh_rep = 1;
+        unsigned repeats;
+
+        /* The min value should be 1, but allow 0 to maintain backward compatibility
+         * with pre v2.0.7 */
+        if (!read_unsigned_strvec(strvec, 1, &repeats, 0, UINT_MAX, true)) {
+                report_config_error(CONFIG_GENERAL_ERROR, "vrrp_garp_master_refresh_repeat '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
+                return;
+        }
+
+        if (repeats == 0) {
+                report_config_error(CONFIG_GENERAL_ERROR, "vrrp_garp_master_refresh_repeat must be greater than 0, setting to 1");
+                repeats = 1;
+        }
+
+	global_data->vrrp_garp_refresh_rep = repeats;
+
 }
 static void
 vrrp_garp_lower_prio_delay_handler(vector_t *strvec)
 {
-	global_data->vrrp_garp_lower_prio_delay = (unsigned)strtoul(strvec_slot(strvec, 1), NULL, 10) * TIMER_HZ;
+        unsigned delay;
+
+        if (!read_unsigned_strvec(strvec, 1, &delay, 0, UINT_MAX / TIMER_HZ, true)) {
+                report_config_error(CONFIG_GENERAL_ERROR, "vrrp_garp_lower_prio_delay '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
+                return;
+        }
+
+	global_data->vrrp_garp_lower_prio_delay = delay * TIMER_HZ;
 }
 static void
 vrrp_garp_lower_prio_rep_handler(vector_t *strvec)
 {
-	global_data->vrrp_garp_lower_prio_rep = (unsigned)strtoul(strvec_slot(strvec, 1), NULL, 10);
+	unsigned garp_lower_prio_rep;
+
+        if (!read_unsigned_strvec(strvec, 1, &garp_lower_prio_rep, 0, INT_MAX, true)) {
+                report_config_error(CONFIG_GENERAL_ERROR, "Invalid vrrp_garp_lower_prio_repeat '%s'", FMT_STR_VSLOT(strvec, 1));
+                return;
+        }
+
+	global_data->vrrp_garp_lower_prio_rep = garp_lower_prio_rep;
 }
 static void
 vrrp_garp_interval_handler(vector_t *strvec)
@@ -1004,14 +1064,12 @@ script_security_handler(__attribute__((unused)) vector_t *strvec)
 static void
 child_wait_handler(vector_t *strvec)
 {
-	char *endptr;
-	unsigned long secs;
+	unsigned secs;
 
 	if (!strvec)
 		return;
 
-	secs = strtoul(strvec_slot(strvec,1), &endptr, 10);
-	if (*endptr) {
+	if (!read_unsigned_strvec(strvec, 1, &secs, 0, UINT_MAX, false)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid child_wait_time %s", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
@@ -1023,8 +1081,7 @@ child_wait_handler(vector_t *strvec)
 static void
 vrrp_rx_bufs_policy_handler(vector_t *strvec)
 {
-	unsigned long rx_buf_size;
-	char *endptr;
+	unsigned rx_buf_size;
 	unsigned i;
 
 	if (!strvec)
@@ -1041,13 +1098,12 @@ vrrp_rx_bufs_policy_handler(vector_t *strvec)
 		else if (!strcasecmp(strvec_slot(strvec, i), "ADVERT"))
 			global_data->vrrp_rx_bufs_policy |= RX_BUFS_POLICY_ADVERT;
 		else {
-			rx_buf_size = strtoul(strvec_slot(strvec, i), &endptr, 10);
-			if (!*endptr) {
+			if (!read_unsigned_strvec(strvec, 1, &rx_buf_size, 0, UINT_MAX, false))
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid vrrp_rx_bufs_policy %s", FMT_STR_VSLOT(strvec, i));
+			else {
 				global_data->vrrp_rx_bufs_size = rx_buf_size;
 				global_data->vrrp_rx_bufs_policy |= RX_BUFS_SIZE;
 			}
-			else
-				report_config_error(CONFIG_GENERAL_ERROR, "Invalid vrrp_rx_bufs_policy %s", FMT_STR_VSLOT(strvec, i));
 		}
 	}
 
@@ -1066,8 +1122,7 @@ vrrp_rx_bufs_policy_handler(vector_t *strvec)
 static void
 vrrp_rx_bufs_multiplier_handler(vector_t *strvec)
 {
-	unsigned long rx_buf_mult;
-	char *endptr;
+	unsigned rx_buf_mult;
 
 	if (!strvec)
 		return;
@@ -1077,11 +1132,10 @@ vrrp_rx_bufs_multiplier_handler(vector_t *strvec)
 		return;
 	}
 
-	rx_buf_mult = strtoul(strvec_slot(strvec, 1), &endptr, 10);
-	if (!*endptr && rx_buf_mult >= 1)
-		global_data->vrrp_rx_bufs_multiples = rx_buf_mult;
-	else
+	if (!read_unsigned_strvec(strvec, 1, &rx_buf_mult, 1, UINT_MAX, false))
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid vrrp_rx_bufs_multiplier %s", FMT_STR_VSLOT(strvec, 1));
+	else
+		global_data->vrrp_rx_bufs_multiples = rx_buf_mult;
 }
 #endif
 
@@ -1089,8 +1143,7 @@ vrrp_rx_bufs_multiplier_handler(vector_t *strvec)
 static unsigned
 get_netlink_rcv_bufs_size(vector_t *strvec, const char *type)
 {
-	char *end;
-	unsigned long val;
+	unsigned val;
 
 	if (!strvec)
 		return 0;
@@ -1099,19 +1152,13 @@ get_netlink_rcv_bufs_size(vector_t *strvec, const char *type)
 		report_config_error(CONFIG_GENERAL_ERROR, "%s_rcv_bufs size missing", type);
 		return 0;
 	}
-	val = strtoul(strvec_slot(strvec, 1), &end, 10);
 
-	if (*end) {
+	if (!read_unsigned_strvec(strvec, 1, &val, 0, UINT_MAX, false)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "%s_rcv_bufs size (%s) invalid", type, FMT_STR_VSLOT(strvec, 1));
 		return 0;
 	}
 
-	if (val > UINT_MAX) {
-		report_config_error(CONFIG_GENERAL_ERROR, "%s_rcv_bufs size (%lu) too large", type, val);
-		return 0;
-	}
-
-	return (unsigned)val;
+	return val;
 }
 #endif
 
