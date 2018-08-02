@@ -199,7 +199,11 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 			break;
 		case 'm':
 #ifdef _WITH_SO_MARK_
-			req_obj->mark = (unsigned)strtoul(optarg, NULL, 10);
+			req_obj->mark = (unsigned)strtoul(optarg + strspn(optarg, " \t"), &endptr, 10);
+			if (*endptr || optarg[strspn(optarg, " \t")] == '-') {
+				fprintf(stderr, "invalid fwmark '%s'\n", optarg);
+				return CMD_LINE_ERROR;
+			}
 #else
 			fprintf(stderr, "genhash built without fwmark support\n");
 			return CMD_LINE_ERROR;
