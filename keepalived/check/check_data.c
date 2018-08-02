@@ -163,11 +163,17 @@ alloc_vsg_entry(vector_t *strvec)
 	element e;
 	char *port_str;
 	uint32_t range;
+	unsigned fwmark;
 
 	new = (virtual_server_group_entry_t *) MALLOC(sizeof(virtual_server_group_entry_t));
 
 	if (!strcmp(strvec_slot(strvec, 0), "fwmark")) {
-		new->vfwmark = (uint32_t)strtoul(strvec_slot(strvec, 1), NULL, 10);
+		if (!read_unsigned_strvec(strvec, 1, &fwmark, 0, UINT32_MAX, true)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s): fwmark '%s' must be in [0, %u] - ignoring", vsg->gname, FMT_STR_VSLOT(strvec, 1), UINT32_MAX);
+			FREE(new);
+			return;
+		}
+		new->vfwmark = fwmark;
 		new->is_fwmark = true;
 		list_add(vsg->vfwmark, new);
 	} else {
@@ -361,6 +367,7 @@ alloc_vs(char *param1, char *param2)
 	size_t size;
 	virtual_server_t *new;
 	char *port_str;
+	unsigned fwmark;
 
 	new = (virtual_server_t *) MALLOC(sizeof(virtual_server_t));
 
@@ -371,7 +378,13 @@ alloc_vs(char *param1, char *param2)
 		new->vsgname = (char *) MALLOC(size + 1);
 		memcpy(new->vsgname, param2, size);
 	} else if (!strcmp(param1, "fwmark")) {
-		new->vfwmark = (uint32_t)strtoul(param2, NULL, 10);
+		if (!read_unsigned(param2, &fwmark, 0, UINT32_MAX, true)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "virtual server fwmark '%s' must be in [0, %u] - ignoring", param2, UINT32_MAX);
+			skip_block(true);
+			FREE(new);
+			return;
+		}
+		new->vfwmark = fwmark;
 	} else {
 		/* Don't pass a zero for port number to inet_stosockaddr. This was added in v2.0.7
 		 * to support legacy configuration since previously having no port wasn't allowed. */
