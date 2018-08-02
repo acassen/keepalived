@@ -330,11 +330,6 @@ typedef struct _vrrp_t {
 #define VRRP_VIP_TYPE		(1 << 0)
 #define VRRP_EVIP_TYPE		(1 << 1)
 
-/* VRRP macro */
-#define VRRP_IS_BAD_VERSION(id)		((id) < 2 || (id) > 3)
-#define VRRP_IS_BAD_PRIORITY(p)		((p) < 1 || (p) > VRRP_PRIO_OWNER)	/* rfc2338.6.1.prio */
-#define VRRP_IS_BAD_DEBUG_INT(d)	((d) < 0 || (d) > 4)
-
 /* We have to do some reduction of the calculation for VRRPv3 in order not to overflow a uint32; 625 / 16 == TIMER_CENTI_HZ / 256 */
 #define VRRP_TIMER_SKEW(svr)	((svr)->version == VRRP_VERSION_3 ? (((256U-(svr)->effective_priority) * ((svr)->master_adver_int / TIMER_CENTI_HZ) * 625U) / 16U) : ((256U-(svr)->effective_priority) * TIMER_HZ/256U))
 #define VRRP_TIMER_SKEW_MIN(svr)	((svr)->version == VRRP_VERSION_3 ? ((((svr)->master_adver_int / TIMER_CENTI_HZ) * 625U) / 16U) : (TIMER_HZ/256U))

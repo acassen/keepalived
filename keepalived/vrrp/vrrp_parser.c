@@ -68,7 +68,7 @@ static enum {
 	TRACK_FILE_CREATE,
 	TRACK_FILE_INIT,
 } track_file_init;
-static long track_file_init_weight;
+static int track_file_init_value;
 
 static bool script_user_set;
 static bool remove_script;
@@ -554,13 +554,10 @@ static void
 vrrp_prio_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	char *endptr;
-	unsigned long base_priority = strtoul(strvec_slot(strvec, 1), &endptr, 10);
+	unsigned base_priority;
 
-	if (*endptr || VRRP_IS_BAD_PRIORITY(base_priority)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Priority not valid! must be between 1 & 255. Reconfigure !", vrrp->iname);
-		report_config_error(CONFIG_GENERAL_ERROR, "%*sUsing default value : %d", (int)strlen(vrrp->iname) + 4, "", VRRP_PRIO_DFL);
-
+	if (!read_unsigned_strvec(strvec, 1, &base_priority, 1, VRRP_PRIO_OWNER, false)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Priority not valid! must be between 1 & %d. Using default %d", vrrp->iname, VRRP_PRIO_OWNER, VRRP_PRIO_DFL);
 		vrrp->base_priority = VRRP_PRIO_DFL;
 	}
 	else
@@ -754,9 +751,20 @@ static void
 vrrp_garp_delay_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->garp_delay = (unsigned)strtoul(strvec_slot(strvec, 1), NULL, 10) * TIMER_HZ;
-	if (vrrp->garp_delay < TIMER_HZ)
-		vrrp->garp_delay = TIMER_HZ;
+	unsigned delay;
+
+	/* The min value should be 1, but allow 0 to maintain backward compatibility
+	 * with pre v2.0.7 */
+	if (!read_unsigned_strvec(strvec, 1, &delay, 0, UINT_MAX / TIMER_HZ, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s): garp_master_delay '%s' invalid - ignoring", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+
+	if (delay == 0) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s): garp_master_delay must be greater than 0, setting to 1", vrrp->iname);
+		delay = 1;
+	}
+	vrrp->garp_delay = delay * TIMER_HZ;
 }
 static void
 vrrp_garp_refresh_handler(vector_t *strvec)
@@ -776,24 +784,55 @@ static void
 vrrp_garp_rep_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->garp_rep = (unsigned)strtoul(strvec_slot(strvec, 1), NULL, 10);
-	if (vrrp->garp_rep < 1)
-		vrrp->garp_rep = 1;
+	unsigned repeats;
+
+	/* The min value should be 1, but allow 0 to maintain backward compatibility
+	 * with pre v2.0.7 */
+	if (!read_unsigned_strvec(strvec, 1, &repeats, 0, UINT_MAX, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s): garp_master_repeat '%s' invalid - ignoring", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+
+	if (repeats == 0) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s): garp_master_repeat must be greater than 0, setting to 1", vrrp->iname);
+		repeats = 1;
+	}
+
+	vrrp->garp_rep = repeats;
 }
 static void
 vrrp_garp_refresh_rep_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->garp_refresh_rep = (unsigned)strtoul(strvec_slot(strvec, 1), NULL, 10);
-	if (vrrp->garp_refresh_rep < 1)
-		vrrp->garp_refresh_rep = 1;
+	unsigned repeats;
+
+	/* The min value should be 1, but allow 0 to maintain backward compatibility
+	 * with pre v2.0.7 */
+	if (!read_unsigned_strvec(strvec, 1, &repeats, 0, UINT_MAX, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s): garp_master_refresh_repeat '%s' invalid - ignoring", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+
+	if (repeats == 0) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s): garp_master_refresh_repeat must be greater than 0, setting to 1", vrrp->iname);
+		repeats = 1;
+	}
+
+	vrrp->garp_refresh_rep = repeats;
 }
 
 static void
 vrrp_garp_lower_prio_delay_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->garp_lower_prio_delay = (unsigned)strtoul(strvec_slot(strvec, 1), NULL, 10) * TIMER_HZ;
+	unsigned delay;
+
+	if (!read_unsigned_strvec(strvec, 1, &delay, 0, UINT_MAX / TIMER_HZ, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s): garp_lower_prio_delay '%s' invalid - ignoring", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+
+	vrrp->garp_lower_prio_delay = delay * TIMER_HZ;
 }
 static void
 vrrp_garp_lower_prio_rep_handler(vector_t *strvec)
@@ -803,17 +842,17 @@ vrrp_garp_lower_prio_rep_handler(vector_t *strvec)
 
 	if (!read_unsigned_strvec(strvec, 1, &garp_lower_prio_rep, 0, INT_MAX, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s): Invalid garp_lower_prio_repeat '%s'", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
-		vrrp->garp_lower_prio_rep = 0;
+		return;
 	}
-	else
-		vrrp->garp_lower_prio_rep = garp_lower_prio_rep;
+
+	vrrp->garp_lower_prio_rep = garp_lower_prio_rep;
 }
 static void
 vrrp_lower_prio_no_advert_handler(vector_t *strvec)
 {
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	int res;
 
-	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec, 1));
 		if (res >= 0)
@@ -849,15 +888,12 @@ static void
 kernel_rx_buf_size_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	unsigned long rx_buf_size;
-	char *endptr;
+	unsigned rx_buf_size;
 
-	if (vector_size(strvec) == 2) {
-		rx_buf_size = strtoul(strvec_slot(strvec, 1), &endptr, 0);
-		if (!*endptr) {
-			vrrp->kernel_rx_buf_size = rx_buf_size;
-			return;
-		}
+	if (vector_size(strvec) == 2 &&
+	    read_unsigned_strvec(strvec, 1, &rx_buf_size, 0, UINT_MAX, false)) {
+		vrrp->kernel_rx_buf_size = rx_buf_size;
+		return;
 	}
 
 	report_config_error(CONFIG_GENERAL_ERROR, "(%s) invalid kernel_rx_buf_size specified", vrrp->iname);
@@ -950,24 +986,48 @@ static void
 vrrp_vscript_interval_handler(vector_t *strvec)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
-	vscript->interval = (unsigned)(strtoul(strvec_slot(strvec, 1), NULL, 10) * TIMER_HZ);
-	if (vscript->interval < TIMER_HZ)
-		vscript->interval = TIMER_HZ;
+	unsigned interval;
+
+	/* The min value should be 1, but allow 0 to maintain backward compatibility
+	 * with pre v2.0.7 */
+	if (!read_unsigned_strvec(strvec, 1, &interval, 0, UINT_MAX / TIMER_HZ, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s): vrrp script interval '%s' must be between 1 and %u - ignoring", vscript->sname, FMT_STR_VSLOT(strvec, 1), UINT_MAX / TIMER_HZ);
+		return;
+	}
+
+	if (interval == 0) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s): vrrp script interval must be greater than 0, setting to 1", vscript->sname);
+		interval = 1;
+	}
+
+	vscript->interval = interval * TIMER_HZ;
 }
 static void
 vrrp_vscript_timeout_handler(vector_t *strvec)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
-	vscript->timeout = strtoul(strvec_slot(strvec, 1), NULL, 10) * TIMER_HZ;
-	if (vscript->timeout < TIMER_HZ)
-		vscript->timeout = TIMER_HZ;
+	unsigned timeout;
+
+	/* The min value should be 1, but allow 0 to maintain backward compatibility
+	 * with pre v2.0.7 */
+	if (!read_unsigned_strvec(strvec, 1, &timeout, 0, UINT_MAX / TIMER_HZ, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s): vrrp script timeout '%s' invalid - ignoring", vscript->sname, FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+
+	if (timeout == 0) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s): vrrp script timeout must be greater than 0, setting to 1", vscript->sname);
+		timeout = 1;
+	}
+
+	vscript->timeout = timeout * TIMER_HZ;
 }
 static void
 vrrp_vscript_weight_handler(vector_t *strvec)
 {
+	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
 	int weight;
 
-	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
 	if (!read_int_strvec(strvec, 1, &weight, -253, 253, true))
 		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_script %s weight %s must be in [-253, 253]", vscript->sname, FMT_STR_VSLOT(strvec, 1));
 	vscript->weight = weight;
@@ -1075,8 +1135,8 @@ vrrp_tfile_weight_handler(vector_t *strvec)
 	}
 
 	if (!read_int_strvec(strvec, 1, &weight, -254, 254, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Weight (%d) %s for %s must be between "
-				 "[-254..254] inclusive. Ignoring...", weight, FMT_STR_VSLOT(strvec, 1), tfile->fname);
+		report_config_error(CONFIG_GENERAL_ERROR, "Weight (%s) for vrrp_track_file %s must be between "
+				 "[-254..254] inclusive. Ignoring...", FMT_STR_VSLOT(strvec, 1), tfile->fname);
 		weight = 1;
 	}
 
@@ -1087,21 +1147,24 @@ vrrp_tfile_init_handler(vector_t *strvec)
 {
 	unsigned i;
 	char *word;
-	char *endptr;
 	vrrp_tracked_file_t *tfile = LIST_TAIL_DATA(vrrp_data->vrrp_track_files);
+	int value;
 
 	track_file_init = TRACK_FILE_CREATE;
-	track_file_init_weight = 0;
+	track_file_init_value = 0;
 
 	for (i = 1; i < vector_size(strvec); i++) {
 		word = strvec_slot(strvec, i);
-		if (isdigit(word[0])) {
-			track_file_init_weight = strtol(word, &endptr, 0);
-			if (*endptr) {
+		word += strspn(word, WHITE_SPACE);
+		if (isdigit(word[0]) || word[0] == '-') {
+			if (!read_int_strvec(strvec, i, &value, INT_MIN, INT_MAX, false)) {
 				/* It is not a valid integer */
-				report_config_error(CONFIG_GENERAL_ERROR, "Track file %s init weight %s is invalid", tfile->fname, word);
-				track_file_init_weight = 0;
+				report_config_error(CONFIG_GENERAL_ERROR, "Track file %s init value %s is invalid", tfile->fname, word);
+				value = 0;
 			}
+			else if (value < -254 || value > 254)
+				report_config_error(CONFIG_GENERAL_ERROR, "Track file %s init value %d is outside sensible range [%d, %d]", tfile->fname, value, -254, 254);
+			track_file_init_value = value;
 		}
 		else if (!strcmp(word, "overwrite"))
 			track_file_init = TRACK_FILE_INIT;
@@ -1138,13 +1201,15 @@ vrrp_tfile_end_handler(void)
 		}
 	}
 
-	/* Write the value to the file */
-	if ((tf = fopen(tfile->file_path, "w"))) {
-		fprintf(tf, "%ld\n", track_file_init_weight);
-		fclose(tf);
+	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
+		/* Write the value to the file */
+		if ((tf = fopen(tfile->file_path, "w"))) {
+			fprintf(tf, "%d\n", track_file_init_value);
+			fclose(tf);
+		}
+		else
+			report_config_error(CONFIG_GENERAL_ERROR, "Unable to initialise track file %s", tfile->fname);
 	}
-	else
-		report_config_error(CONFIG_GENERAL_ERROR, "Unable to initialise track file %s", tfile->fname);
 }
 static void
 vrrp_vscript_init_fail_handler(__attribute__((unused)) vector_t *strvec)
@@ -1156,16 +1221,16 @@ static void
 vrrp_version_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	uint8_t version = (uint8_t)strtoul(strvec_slot(strvec, 1), NULL, 10);
+	int version;
 
-	if (VRRP_IS_BAD_VERSION(version)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : Version must be between either 2 or 3. reconfigure !");
+	if (!read_int_strvec(strvec, 1, &version, 2, 3, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s): Version must be either 2 or 3", vrrp->iname);
 		return;
 	}
 
 	if ((vrrp->version && vrrp->version != version) ||
 	    (version == VRRP_VERSION_2 && vrrp->family == AF_INET6)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) vrrp_version conflicts with configured or deduced version; ignoring.", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) vrrp_version %d conflicts with configured or deduced version %d; ignoring.", vrrp->iname, version, vrrp->version);
 		return;
 	}
 
