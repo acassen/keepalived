@@ -197,7 +197,14 @@ static void
 http_get_retry_handler(vector_t *strvec)
 {
 	checker_t *checker = LIST_TAIL_DATA(checkers_queue);
-	checker->retry = CHECKER_VALUE_UINT(strvec);
+	unsigned retry;
+
+	if (!read_unsigned_strvec(strvec, 1, &retry, 0, UINT_MAX, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid nb_get_retry value '%s'", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+
+	checker->retry = retry;
 }
 
 static void

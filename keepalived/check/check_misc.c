@@ -125,10 +125,17 @@ misc_path_handler(__attribute__((unused)) vector_t *strvec)
 static void
 misc_timeout_handler(vector_t *strvec)
 {
+	unsigned timeout;
+
 	if (!new_misck_checker)
 		return;
 
-	new_misck_checker->timeout = CHECKER_VALUE_UINT(strvec) * TIMER_HZ;
+	if (!read_unsigned_strvec(strvec, 1, &timeout, 0, UINT_MAX / TIMER_HZ, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid misc_timeout value '%s'", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+
+	new_misck_checker->timeout = timeout * TIMER_HZ;
 }
 
 static void

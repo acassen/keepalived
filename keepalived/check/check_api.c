@@ -313,7 +313,13 @@ static void
 co_fwmark_handler(vector_t *strvec)
 {
 	conn_opts_t *co = CHECKER_GET_CO();
-	co->fwmark = CHECKER_VALUE_UINT(strvec);
+	unsigned fwmark;
+
+	if (!read_unsigned_strvec(strvec, 1, &fwmark, 0, UINT_MAX, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid fwmark connection value '%s'", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+	co->fwmark = fwmark;
 }
 #endif
 
@@ -321,14 +327,28 @@ static void
 retry_handler(vector_t *strvec)
 {
 	checker_t *checker = CHECKER_GET_CURRENT();
-	checker->retry = CHECKER_VALUE_UINT(strvec);
+	unsigned retry;
+
+	if (!read_unsigned_strvec(strvec, 1, &retry, 0, UINT_MAX, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid retry connection value '%s'", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+
+	checker->retry = retry;
 }
 
 static void
 delay_before_retry_handler(vector_t *strvec)
 {
 	checker_t *checker = CHECKER_GET_CURRENT();
-	checker->delay_before_retry = CHECKER_VALUE_UINT(strvec) * TIMER_HZ;
+	unsigned delay;
+
+	if (!read_unsigned_strvec(strvec, 1, &delay, 0, UINT_MAX / TIMER_HZ, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid delay_before_retry connection value '%s'", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+
+	checker->delay_before_retry = delay * TIMER_HZ;
 }
 
 /* "warmup" keyword */
@@ -336,7 +356,14 @@ static void
 warmup_handler(vector_t *strvec)
 {
 	checker_t *checker = CHECKER_GET_CURRENT();
-	checker->warmup = CHECKER_VALUE_UINT(strvec) * TIMER_HZ;
+	unsigned warmup;
+
+	if (!read_unsigned_strvec(strvec, 1, &warmup, 0, UINT_MAX / TIMER_HZ, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid warmup connection value '%s'", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+
+	checker->warmup = warmup * TIMER_HZ;
 }
 
 static void
