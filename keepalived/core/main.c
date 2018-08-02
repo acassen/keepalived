@@ -956,8 +956,7 @@ parse_cmdline(int argc, char **argv)
 	int longindex;
 	int curind;
 	bool bad_option = false;
-	char *endptr;
-	long val;
+	unsigned facility;
 
 	struct option long_options[] = {
 		{"use-file",		required_argument,	NULL, 'f'},
@@ -1109,11 +1108,10 @@ parse_cmdline(int argc, char **argv)
 			break;
 #endif
 		case 'S':
-			val = strtol(optarg, &endptr, 10);
-			if (*endptr || val < 0 || val > (int)LOG_FACILITY_MAX)
+			if (!read_unsigned(optarg, &facility, 0, LOG_FACILITY_MAX, false))
 				fprintf(stderr, "Invalid log facility '%s'\n", optarg);
 			else {
-				log_facility = LOG_FACILITY[val].facility;
+				log_facility = LOG_FACILITY[facility].facility;
 				reopen_log = true;
 			}
 			break;
