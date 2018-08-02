@@ -347,7 +347,9 @@ free_global_data(data_t * data)
 void
 dump_global_data(FILE *fp, data_t * data)
 {
+#ifdef _WITH_VRRP_
 	char buf[64];
+#endif
 
 	if (!data)
 		return;
