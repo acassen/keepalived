@@ -241,17 +241,14 @@ vs_delay_before_retry_handler(vector_t *strvec)
 static void
 vs_retry_handler(vector_t *strvec)
 {
-	unsigned long retry;
-	char *endptr;
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	unsigned retry;
 
-	errno = 0;
-	retry = strtoul(strvec_slot(strvec, 1), &endptr, 10);
-	if (errno || *endptr || retry > UINT32_MAX || retry == 0) {
+	if (!read_unsigned_strvec(strvec, 1, &retry, 1, UINT32_MAX, false)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "retry value invalid - %s", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
-	vs->retry = (unsigned)retry;
+	vs->retry = retry;
 }
 static void
 vs_warmup_handler(vector_t *strvec)
@@ -333,17 +330,14 @@ static void
 pto_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	char *endptr;
-	unsigned long timeout;
+	unsigned timeout;
 
 	if (vector_size(strvec) < 2) {
 		vs->persistence_timeout = IPVS_SVC_PERSISTENT_TIMEOUT;
 		return;
 	}
 
-	errno = 0;
-	timeout = strtoul(strvec_slot(strvec, 1), &endptr, 10);
-	if (errno || *endptr || timeout > UINT32_MAX || timeout == 0) {
+	if (!read_unsigned_strvec(strvec, 1, &timeout, 1, UINT32_MAX, false)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "persistence_timeout invalid");
 		return;
 	}
@@ -367,19 +361,18 @@ pgr_handler(vector_t *strvec)
 {
 	struct in_addr addr;
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	char *endptr;
 	uint16_t af = vs->af;
+	unsigned granularity;
 
 	if (af == AF_UNSPEC)
 		af = strchr(strvec_slot(strvec, 1), '.') ? AF_INET : AF_INET6;
 
 	if (af == AF_INET6) {
-		vs->persistence_granularity = (uint32_t)strtoul(strvec_slot(strvec, 1), &endptr, 10);
-		if (*endptr || vs->persistence_granularity < 1 || vs->persistence_granularity > 128) {
+		if (!read_unsigned_strvec(strvec, 1, &granularity, 1, 128, false)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Invalid IPv6 persistence_granularity specified - %s", FMT_STR_VSLOT(strvec, 1));
-			vs->persistence_granularity = 0;
 			return;
 		}
+		vs->persistence_granularity = granularity;
 	} else {
 		if (!inet_aton(strvec_slot(strvec, 1), &addr)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Invalid IPv4 persistence_granularity specified - %s", FMT_STR_VSLOT(strvec, 1));
@@ -552,14 +545,26 @@ uthreshold_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
-	rs->u_threshold = (uint32_t)strtoul(strvec_slot(strvec, 1), NULL, 10);
+	unsigned threshold;
+
+	if (!read_unsigned_strvec(strvec, 1, &threshold, 0, UINT_MAX, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid real_server uthreshold '%s' - ignoring", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+	rs->u_threshold = threshold;
 }
 static void
 lthreshold_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
-	rs->l_threshold = (uint32_t)strtoul(strvec_slot(strvec, 1), NULL, 10);
+	unsigned threshold;
+
+	if (!read_unsigned_strvec(strvec, 1, &threshold, 0, UINT_MAX, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid real_server lthreshold '%s' - ignoring", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+	rs->l_threshold = threshold;
 }
 static void
 vs_inhibit_handler(__attribute__((unused)) vector_t *strvec)
@@ -621,14 +626,11 @@ rs_delay_before_retry_handler(vector_t *strvec)
 static void
 rs_retry_handler(vector_t *strvec)
 {
-	unsigned long retry;
-	char *endptr;
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	unsigned retry;
 
-	errno = 0;
-	retry = strtoul(strvec_slot(strvec, 1), &endptr, 10);
-	if (errno || *endptr || retry > UINT32_MAX || retry == 0) {
+	if (!read_unsigned_strvec(strvec, 1, &retry, 1, UINT32_MAX, false)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "retry value invalid - %s", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
@@ -737,18 +739,27 @@ static void
 quorum_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	vs->quorum = (unsigned)strtoul(strvec_slot(strvec, 1), NULL, 10);
-	if (vs->quorum < 1) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Quorum %s must be >= 1. Setting to 1.", FMT_STR_VSLOT(strvec, 1));
-		vs->quorum = 1;
+	unsigned quorum;
+
+	if (!read_unsigned_strvec(strvec, 1, &quorum, 1, UINT_MAX, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Quorum %s must be in [1, %u]. Setting to 1.", FMT_STR_VSLOT(strvec, 1), UINT_MAX);
+		quorum = 1;
 	}
+
+	vs->quorum = quorum;
 }
 static void
 hysteresis_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	unsigned hysteresis;
 
-	vs->hysteresis = (unsigned)strtoul(strvec_slot(strvec, 1), NULL, 10);
+	if (!read_unsigned_strvec(strvec, 1, &hysteresis, 0, UINT_MAX, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Hysteresis %s must be in [0, %u] - ignoring", FMT_STR_VSLOT(strvec, 1), UINT_MAX);
+		return;
+	}
+
+	vs->hysteresis = hysteresis;
 }
 static void
 vs_weight_handler(vector_t *strvec)
