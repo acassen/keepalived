@@ -659,11 +659,13 @@ vrrp_ipsets_handler(vector_t *strvec)
 static void
 vrrp_version_handler(vector_t *strvec)
 {
-	uint8_t version = (uint8_t)strtoul(strvec_slot(strvec, 1), NULL, 10);
-	if (VRRP_IS_BAD_VERSION(version)) {
+	int version;
+
+	if (!read_int_strvec(strvec, 1, &version, 2, 3, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error: Version must be either 2 or 3");
 		return;
 	}
+
 	global_data->vrrp_version = version;
 }
 static void
