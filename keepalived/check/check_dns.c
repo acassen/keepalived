@@ -462,7 +462,7 @@ dns_type_handler(vector_t * strvec)
 
 	dns_type = dns_type_lookup(CHECKER_VALUE_STRING(strvec));
 	if (!dns_type)
-		log_message(LOG_INFO, "Unknown DNS check type %s - defaulting to SOA", vector_size(strvec) < 2 ? "[blank]" : FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Unknown DNS check type %s - defaulting to SOA", vector_size(strvec) < 2 ? "[blank]" : FMT_STR_VSLOT(strvec, 1));
 	else
 		dns_check->type = dns_type;
 }

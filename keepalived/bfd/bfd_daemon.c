@@ -27,6 +27,8 @@
 #include <sys/stat.h>
 #include <sys/prctl.h>
 #include <fcntl.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 #include "bfd.h"
 #include "bfd_daemon.h"
@@ -61,6 +63,11 @@ static int reload_bfd_thread(thread_t *);
 static void
 stop_bfd(int status)
 {
+	struct rusage usage;
+
+	if (__test_bit(CONFIG_TEST_BIT, &debug))
+		return;
+
 	signal_handler_destroy();
 
 	/* Stop daemon */
@@ -78,7 +85,12 @@ stop_bfd(int status)
 	 * Reached when terminate signal catched.
 	 * finally return to parent process.
 	 */
-	log_message(LOG_INFO, "Stopped");
+	if (__test_bit(LOG_DETAIL_BIT, &debug)) {
+		getrusage(RUSAGE_SELF, &usage);
+		log_message(LOG_INFO, "Stopped - used %ld.%6.6ld user time, %ld.%6.6ld system time", usage.ru_utime.tv_sec, usage.ru_utime.tv_usec, usage.ru_stime.tv_sec, usage.ru_stime.tv_usec);
+	}
+	else
+		log_message(LOG_INFO, "Stopped");
 
 	if (log_file_name)
 		close_log_file();
@@ -142,10 +154,14 @@ start_bfd(void)
 	*/
 
 	/* If we are just testing the configuration, then we terminate now */
-	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
-		stop_bfd(KEEPALIVED_EXIT_OK);
+	if (__test_bit(CONFIG_TEST_BIT, &debug))
 		return;
-	}
+	bfd_complete_init();
+
+	if (__test_bit(DUMP_CONF_BIT, &debug))
+		dump_bfd_data(NULL, bfd_data);
+
+	thread_add_event(master, bfd_dispatcher_init, bfd_data, 0);
 
 	/* Set the process priority and non swappable if configured */
 // TODO - measure max stack usage
@@ -157,13 +173,12 @@ start_bfd(void)
 #endif
 #endif
 			global_data->bfd_process_priority, global_data->bfd_no_swap ? 4096 : 0);
+}
 
-	bfd_complete_init();
-
-	if (__test_bit(DUMP_CONF_BIT, &debug))
-		dump_bfd_data(NULL, bfd_data);
-
-	thread_add_event(master, bfd_dispatcher_init, bfd_data, 0);
+void
+bfd_validate_config(void)
+{
+	start_bfd();
 }
 
 /* Reload handler */
@@ -202,6 +217,9 @@ reload_bfd_thread(__attribute__((unused)) thread_t * thread)
 	timer = timer_now();
 
 	log_message(LOG_INFO, "Reloading");
+
+	/* Use standard scheduling while reloading */
+	reset_process_priorities();
 
 	/* set the reloading flag */
 	SET_RELOAD;
@@ -252,9 +270,7 @@ bfd_respawn_thread(thread_t * thread)
 	}
 
 	/* We catch a SIGCHLD, handle it */
-	if (__test_bit(CONFIG_TEST_BIT, &debug))
-		raise(SIGTERM);
-	else if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
+	if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
 		log_message(LOG_ALERT, "BFD child process(%d) died: Respawning",
 			    pid);
 		start_bfd_child();

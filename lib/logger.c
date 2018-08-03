@@ -85,7 +85,7 @@ open_log_file(const char *name, const char *prog, const char *namespace, const c
 	if (namespace)
 		len += strlen(namespace) + 1;
 	if (instance)
-		len += strlen(instance);
+		len += strlen(instance) + 1;
 
 	file_name = MALLOC(len + 1);
 	dir_end = strrchr(name, '/');
@@ -129,6 +129,10 @@ vlog_message(const int facility, const char* format, va_list args)
 
 	vsnprintf(buf, sizeof(buf), format, args);
 #endif
+
+	/* Don't write syslog if testing configuration */
+	if (__test_bit(CONFIG_TEST_BIT, &debug))
+		return;
 
 	if (log_file || (__test_bit(DONT_FORK_BIT, &debug) && log_console)) {
 #if HAVE_VSYSLOG

@@ -105,6 +105,7 @@ dump_vsg(FILE *fp, void *data)
 {
 	virtual_server_group_t *vsg = data;
 
+	conf_write(fp, " ------< Virtual server group >------");
 	conf_write(fp, " Virtual Server Group = %s", vsg->gname);
 	dump_list(fp, vsg->addr_range);
 	dump_list(fp, vsg->vfwmark);
@@ -160,23 +161,47 @@ alloc_vsg_entry(vector_t *strvec)
 	virtual_server_group_entry_t *old;
 	uint32_t start;
 	element e;
+	char *port_str;
+	uint32_t range;
+	unsigned fwmark;
 
 	new = (virtual_server_group_entry_t *) MALLOC(sizeof(virtual_server_group_entry_t));
 
 	if (!strcmp(strvec_slot(strvec, 0), "fwmark")) {
-		new->vfwmark = (uint32_t)strtoul(strvec_slot(strvec, 1), NULL, 10);
+		if (!read_unsigned_strvec(strvec, 1, &fwmark, 0, UINT32_MAX, true)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s): fwmark '%s' must be in [0, %u] - ignoring", vsg->gname, FMT_STR_VSLOT(strvec, 1), UINT32_MAX);
+			FREE(new);
+			return;
+		}
+		new->vfwmark = fwmark;
 		new->is_fwmark = true;
 		list_add(vsg->vfwmark, new);
 	} else {
-		new->range = inet_stor(strvec_slot(strvec, 0));
-		if (inet_stosockaddr(strvec_slot(strvec, 0), strvec_slot(strvec, 1), &new->addr)) {
-			log_message(LOG_INFO, "Invalid virtual server group IP address %s - skipping", FMT_STR_VSLOT(strvec, 0));
+		if (!inet_stor(strvec_slot(strvec, 0), &range)) {
+			FREE(new);
+			return;
+		}
+		new->range = (uint32_t)range;
+
+		if (vector_size(strvec) >= 2) {
+			/* Don't pass a port number of 0. This was added v2.0.7 to support legacy
+			 * configuration since previously having no port wasn't allowed. */
+			port_str = strvec_slot(strvec, 1);
+			if (!port_str[strspn(port_str, "0")])
+				port_str = NULL;
+		}
+		else
+			port_str = NULL;
+
+		if (inet_stosockaddr(strvec_slot(strvec, 0), port_str, &new->addr)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid virtual server group IP address%s %s%s%s - skipping", FMT_STR_VSLOT(strvec, 0),
+						port_str ? "/port" : "", port_str ? "/" : "", port_str ? port_str : "");
 			FREE(new);
 			return;
 		}
 #ifndef LIBIPVS_USE_NL
 		if (new->addr.ss_family != AF_INET) {
-			log_message(LOG_INFO, "IPVS does not support IPv6 in this build - skipping %s", FMT_STR_VSLOT(strvec, 0));
+			report_config_error(CONFIG_GENERAL_ERROR, "IPVS does not support IPv6 in this build - skipping %s", FMT_STR_VSLOT(strvec, 0));
 			FREE(new);
 			return;
 		}
@@ -187,29 +212,23 @@ alloc_vsg_entry(vector_t *strvec)
 			e = LIST_HEAD(vsg->addr_range);
 			old = ELEMENT_DATA(e);
 			if (old->addr.ss_family != new->addr.ss_family) {
-				log_message(LOG_INFO, "Cannot mix IPv4 and IPv6 in virtual server group - %s", vsg->gname);
+				report_config_error(CONFIG_GENERAL_ERROR, "Cannot mix IPv4 and IPv6 in virtual server group - %s", vsg->gname);
 				FREE(new);
 				return;
 			}
 		}
 
-		/* If no range specified, new->range == 0 */
-		if (new->range &&
-		    ((new->addr.ss_family == AF_INET && new->range > 255) ||
-		     (new->addr.ss_family == AF_INET6 && new->range > 0xffff))) {
-			log_message(LOG_INFO, "End address of range exceeds limit for address family - %s - skipping", FMT_STR_VSLOT(strvec, 0));
-			FREE(new);
-			return;
-		}
+		/* If no range specified, new->range == UINT32_MAX */
+		if (new->range == UINT32_MAX)
+			new->range = 0;
+		else {
+			if (new->addr.ss_family == AF_INET)
+				start = ntohl(((struct sockaddr_in *)&new->addr)->sin_addr.s_addr) & 0xFF;
+			else
+				start = ntohs(((struct sockaddr_in6 *)&new->addr)->sin6_addr.s6_addr16[7]);
 
-		if (new->addr.ss_family == AF_INET)
-			start = ntohl(((struct sockaddr_in *)&new->addr)->sin_addr.s_addr) & 0xFF;
-		else
-			start = ntohs(((struct sockaddr_in6 *)&new->addr)->sin6_addr.s6_addr16[7]);
-
-		if (new->range) {
 			if (start >= new->range) {
-				log_message(LOG_INFO, "Address range end is not greater than address range start - %s - skipping", FMT_STR_VSLOT(strvec, 0));
+				report_config_error(CONFIG_GENERAL_ERROR, "Address range end is not greater than address range start - %s - skipping", FMT_STR_VSLOT(strvec, 0));
 				FREE(new);
 				return;
 			}
@@ -347,6 +366,8 @@ alloc_vs(char *param1, char *param2)
 {
 	size_t size;
 	virtual_server_t *new;
+	char *port_str;
+	unsigned fwmark;
 
 	new = (virtual_server_t *) MALLOC(sizeof(virtual_server_t));
 
@@ -357,10 +378,20 @@ alloc_vs(char *param1, char *param2)
 		new->vsgname = (char *) MALLOC(size + 1);
 		memcpy(new->vsgname, param2, size);
 	} else if (!strcmp(param1, "fwmark")) {
-		new->vfwmark = (uint32_t)strtoul(param2, NULL, 10);
+		if (!read_unsigned(param2, &fwmark, 0, UINT32_MAX, true)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "virtual server fwmark '%s' must be in [0, %u] - ignoring", param2, UINT32_MAX);
+			skip_block(true);
+			FREE(new);
+			return;
+		}
+		new->vfwmark = fwmark;
 	} else {
-		if (inet_stosockaddr(param1, param2, &new->addr)) {
-			log_message(LOG_INFO, "Invalid virtual server IP address %s - skipping", param1);
+		/* Don't pass a zero for port number to inet_stosockaddr. This was added in v2.0.7
+		 * to support legacy configuration since previously having no port wasn't allowed. */
+		port_str = (param2 && param2[strspn(param2, "0")]) ? param2 : NULL;
+		if (inet_stosockaddr(param1, port_str, &new->addr)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid virtual server IP address%s %s%s%s - skipping",
+						port_str ? "/port" : "", param1, port_str ? "/" : "", port_str ? port_str : "");
 			skip_block(true);
 			FREE(new);
 			return;
@@ -369,7 +400,7 @@ alloc_vs(char *param1, char *param2)
 		new->af = new->addr.ss_family;
 #ifndef LIBIPVS_USE_NL
 		if (new->af != AF_INET) {
-			log_message(LOG_INFO, "IPVS with IPv6 is not supported by this build");
+			report_config_error(CONFIG_GENERAL_ERROR, "IPVS with IPv6 is not supported by this build");
 			FREE(new);
 			skip_block(true);
 			return;
@@ -408,7 +439,7 @@ alloc_ssvr(char *ip, char *port)
 	vs->s_svr->iweight = 1;
 	vs->s_svr->forwarding_method = vs->forwarding_method;
 	if (inet_stosockaddr(ip, port, &vs->s_svr->addr)) {
-		log_message(LOG_INFO, "Invalid sorry server IP address %s - skipping", ip);
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid sorry server IP address %s - skipping", ip);
 		FREE(vs->s_svr);
 		vs->s_svr = NULL;
 		return;
@@ -477,7 +508,7 @@ alloc_rs(char *ip, char *port)
 
 	new = (real_server_t *) MALLOC(sizeof(real_server_t));
 	if (inet_stosockaddr(ip, port, &new->addr)) {
-		log_message(LOG_INFO, "Invalid real server ip address %s - skipping", ip);
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid real server ip address/port %s/%s - skipping", ip, port);
 		skip_block(true);
 		FREE(new);
 		return;
@@ -485,7 +516,7 @@ alloc_rs(char *ip, char *port)
 
 #ifndef LIBIPVS_USE_NL
 	if (new->addr.ss_family != AF_INET) {
-		log_message(LOG_INFO, "IPVS does not support IPv6 in this build - skipping %s", ip);
+		report_config_error(CONFIG_GENERAL_ERROR, "IPVS does not support IPv6 in this build - skipping %s/%s", ip, port);
 		skip_block(true);
 		FREE(new);
 		return;
@@ -493,7 +524,7 @@ alloc_rs(char *ip, char *port)
 #else
 #if !HAVE_DECL_IPVS_DEST_ATTR_ADDR_FAMILY
 	if (vs->af != AF_UNSPEC && new->addr.ss_family != vs->af) {
-		log_message(LOG_INFO, "Your kernel doesn't support mixed IPv4/IPv6 for virtual/real servers");
+		report_config_error(CONFIG_GENERAL_ERROR, "Your kernel doesn't support mixed IPv4/IPv6 for virtual/real servers");
 		skip_block(true);
 		FREE(new);
 		return;
@@ -651,7 +682,7 @@ check_check_script_security(void)
 		script_flags |= check_notify_script_secure(&global_data->lvs_notify_fifo.script, magic);
 
 	if (!script_security && script_flags & SC_ISSCRIPT) {
-		log_message(LOG_INFO, "SECURITY VIOLATION - check scripts are being executed but script_security not enabled.%s",
+		report_config_error(CONFIG_SECURITY_ERROR, "SECURITY VIOLATION - check scripts are being executed but script_security not enabled.%s",
 				script_flags & SC_INSECURE ? " There are insecure scripts." : "");
 	}
 
@@ -663,6 +694,7 @@ bool validate_check_config(void)
 {
 	element e, e1;
 	virtual_server_t *vs;
+	virtual_server_group_entry_t *vsge;
 	real_server_t *rs;
 	checker_t *checker;
 	element next;
@@ -670,7 +702,7 @@ bool validate_check_config(void)
 	using_ha_suspend = false;
 	LIST_FOREACH_NEXT(check_data->vs, vs, e, next) {
 		if (!vs->rs || LIST_ISEMPTY(vs->rs)) {
-			log_message(LOG_INFO, "Virtual server %s has no real servers - ignoring", FMT_VS(vs));
+			report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s has no real servers - ignoring", FMT_VS(vs));
 			free_list_element(check_data->vs, e);
 			continue;
 		}
@@ -678,13 +710,13 @@ bool validate_check_config(void)
 		/* Check that the quorum isn't higher than the number of real servers,
 		 * otherwise we will never be able to come up. */
 		if (vs->quorum > LIST_SIZE(vs->rs)) {
-			log_message(LOG_INFO, "Warning - quorum %1$d for %2$s exceeds number of real servers %3$d, reducing quorum to %3$d", vs->quorum, FMT_VS(vs), LIST_SIZE(vs->rs));
+			report_config_error(CONFIG_GENERAL_ERROR, "Warning - quorum %1$d for %2$s exceeds number of real servers %3$d, reducing quorum to %3$d", vs->quorum, FMT_VS(vs), LIST_SIZE(vs->rs));
 			vs->quorum = LIST_SIZE(vs->rs);
 		}
 
 		/* Ensure that no virtual server hysteresis >= quorum */
 		if (vs->hysteresis >= vs->quorum) {
-			log_message(LOG_INFO, "Virtual server %s: hysteresis %u >= quorum %u; setting hysteresis to %u",
+			report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: hysteresis %u >= quorum %u; setting hysteresis to %u",
 					FMT_VS(vs), vs->hysteresis, vs->quorum, vs->quorum -1);
 			vs->hysteresis = vs->quorum - 1;
 		}
@@ -692,7 +724,7 @@ bool validate_check_config(void)
 		/* Ensure that ha_suspend is not set for any virtual server using fwmarks */
 		if (vs->ha_suspend &&
 		    (vs->vfwmark || (vs->vsg && !LIST_ISEMPTY(vs->vsg->vfwmark)))) {
-			log_message(LOG_INFO, "Virtual server %s: cannot use ha_suspend with fwmarks - clearing ha_suspend", FMT_VS(vs));
+			report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: cannot use ha_suspend with fwmarks - clearing ha_suspend", FMT_VS(vs));
 			vs->ha_suspend = false;
 		}
 
@@ -714,17 +746,32 @@ bool validate_check_config(void)
 			if (vs->flags & IP_VS_SVC_F_ONEPACKET &&
 			    vs->service_type != IPPROTO_UDP) {
 				/* OPS is only valid for UDP, or with a firewall mark */
-				log_message(LOG_INFO, "Virtual server %s: one packet scheduling requires UDP - resetting", FMT_VS(vs));
+				report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: one packet scheduling requires UDP - resetting", FMT_VS(vs));
 				vs->flags &= ~(unsigned)IP_VS_SVC_F_ONEPACKET;
 			}
 #endif
 
 			/* Check port specified for udp/tcp/sctp unless persistent */
 			if (!vs->persistence_timeout &&
+			    !vs->vsg &&
 			    ((vs->addr.ss_family == AF_INET6 && !((struct sockaddr_in6 *)&vs->addr)->sin6_port) ||
 			     (vs->addr.ss_family == AF_INET && !((struct sockaddr_in *)&vs->addr)->sin_port))) {
-				log_message(LOG_INFO, "Virtual server %s: zero port only valid for persistent sevices - setting", FMT_VS(vs));
+				report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: zero port only valid for persistent services - setting", FMT_VS(vs));
 				vs->persistence_timeout = IPVS_SVC_PERSISTENT_TIMEOUT;
+			}
+		}
+
+		/* If a virtual server group with addresses has persistence not set,
+		 * make sure all the address blocks have a port, otherwise set
+		 * persistence. */
+		if (!vs->persistence_timeout && vs->vsg) {
+			LIST_FOREACH(vs->vsg->addr_range, vsge, e1) {
+				if ((vsge->addr.ss_family == AF_INET6 && !((struct sockaddr_in6 *)&vsge->addr)->sin6_port) ||
+				    (vsge->addr.ss_family == AF_INET && !((struct sockaddr_in *)&vsge->addr)->sin_port)) {
+					report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: zero port only valid for persistent services - setting", FMT_VS(vs));
+					vs->persistence_timeout = IPVS_SVC_PERSISTENT_TIMEOUT;
+					break;
+				}
 			}
 		}
 
@@ -732,7 +779,7 @@ bool validate_check_config(void)
 		if (vs->service_type &&
 		    ((vs->vsg && LIST_ISEMPTY(vs->vsg->addr_range) && LIST_ISEMPTY(vs->vsg->addr_range)) ||
 		     (!vs->vsg && vs->vfwmark)))
-			log_message(LOG_INFO, "Warning: Virtual server %s: protocol specified for fwmark - protocol will be ignored", FMT_VS(vs));
+			report_config_error(CONFIG_GENERAL_ERROR, "Warning: Virtual server %s: protocol specified for fwmark - protocol will be ignored", FMT_VS(vs));
 
 		/* Check scheduler set */
 		if (!vs->sched[0]) {

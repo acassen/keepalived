@@ -37,6 +37,10 @@
 #include <linux/version.h>
 #include <pwd.h>
 #include <string.h>
+#include <stdio.h>
+#include <stdarg.h>
+#include <math.h>
+#include <inttypes.h>
 
 #include "parser.h"
 #include "memory.h"
@@ -45,6 +49,8 @@
 #include "scheduler.h"
 #include "notify.h"
 #include "list.h"
+#include "bitops.h"
+#include "utils.h"
 
 #define DUMP_KEYWORDS	0
 
@@ -53,7 +59,7 @@
 #define COMMENT_START_CHRS "!#"
 #define BOB "{"
 #define EOB "}"
-#define WHITE_SPACE " \t\f\n\r\v"
+#define WHITE_SPACE_STR " \t\f\n\r\v"
 
 typedef struct _defs {
 	char *name;
@@ -67,6 +73,7 @@ typedef struct _defs {
 /* global vars */
 vector_t *keywords;
 char *config_id;
+const char *WHITE_SPACE = WHITE_SPACE_STR;
 
 /* local vars */
 static vector_t *current_keywords;
@@ -75,6 +82,7 @@ static int sublevel = 0;
 static int skip_sublevel = 0;
 static list multiline_stack;
 static char *buf_extern;
+static config_err_t config_err = CONFIG_OK; /* Highest level of config error for --config-test */
 
 /* Parameter definitions */
 static list defs;
@@ -82,17 +90,245 @@ static list defs;
 /* Forward declarations for recursion */
 static bool read_line(char *, size_t);
 
+void
+report_config_error(config_err_t err, const char *format, ...)
+{
+	va_list args;
+
+	va_start(args, format);
+
+	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
+		vfprintf(stderr, format, args);
+		fputc('\n', stderr);
+
+		if (config_err == CONFIG_OK || config_err < err)
+			config_err = err;
+	}
+	else
+		vlog_message(LOG_INFO, format, args);
+
+	va_end(args);
+}
+
+config_err_t
+get_config_status(void)
+{
+	return config_err;
+}
+
 static char *
 null_strvec(const vector_t *strvec, size_t index)
 {
 	if (index - 1 < vector_size(strvec) && index > 0 && vector_slot(strvec, index - 1))
-		log_message(LOG_INFO, "*** Configuration line starting `%s` is missing a parameter after keyword `%s` at word position %zu", vector_slot(strvec, 0) ? (char *)vector_slot(strvec, 0) : "***MISSING ***", (char *)vector_slot(strvec, index - 1), index + 1);
+		report_config_error(CONFIG_MISSING_PARAMETER, "*** Configuration line starting `%s` is missing a parameter after keyword `%s` at word position %zu", vector_slot(strvec, 0) ? (char *)vector_slot(strvec, 0) : "***MISSING ***", (char *)vector_slot(strvec, index - 1), index + 1);
 	else
-		log_message(LOG_INFO, "*** Configuration line starting `%s` is missing a parameter at word position %zu", vector_slot(strvec, 0) ? (char *)vector_slot(strvec, 0) : "***MISSING ***", index + 1);
+		report_config_error(CONFIG_MISSING_PARAMETER, "*** Configuration line starting `%s` is missing a parameter at word position %zu", vector_slot(strvec, 0) ? (char *)vector_slot(strvec, 0) : "***MISSING ***", index + 1);
 
 	exit(KEEPALIVED_EXIT_CONFIG);
 
 	return NULL;
+}
+
+static bool
+read_int_func(const char *number, int base, const char *msg, const char *info, int *res, int min_val, int max_val, __attribute__((unused)) bool ignore_error)
+{
+	long val;
+	char *endptr;
+	char *warn = "";
+
+#ifndef _STRICT_CONFIG_
+	if (ignore_error && !__test_bit(CONFIG_TEST_BIT, &debug))
+		warn = "WARNING - ";
+#endif
+
+	errno = 0;
+	val = strtol(number, &endptr, base);
+	*res = (int)val;
+
+	if (*endptr)
+		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has invalid number '%s'", warn, msg, info, number);
+	else if (errno == ERANGE || val < INT_MIN || val > INT_MAX)
+		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has number '%s' outside integer range", warn, msg, info, number);
+	else if (val < min_val || val > max_val)
+		report_config_error(CONFIG_INVALID_NUMBER, "%s '%s' has number '%s' outside range [%d, %d]", msg, info, number, min_val, max_val);
+	else
+		return true;
+
+#ifdef _STRICT_CONFIG_
+	return false;
+#else
+	return ignore_error && val >= min_val && val <= max_val && !__test_bit(CONFIG_TEST_BIT, &debug);
+#endif
+}
+
+static bool
+read_unsigned_func(const char *number, int base, const char *msg, const char *info, unsigned *res, unsigned min_val, unsigned max_val, __attribute__((unused)) bool ignore_error)
+{
+	unsigned long val;
+	char *endptr;
+	char *warn = "";
+	size_t offset;
+
+#ifndef _STRICT_CONFIG_
+	if (ignore_error && !__test_bit(CONFIG_TEST_BIT, &debug))
+		warn = "WARNING - ";
+#endif
+
+	/* In case the string starts with spaces (even in the configuration this
+	 * can be achieved by enclosing the number in quotes - e.g. weight "  -100")
+	 * skip any leading whitespace */
+	offset = strspn(number, WHITE_SPACE);
+
+	errno = 0;
+	val = strtoul(number + offset, &endptr, base);
+	*res = (unsigned)val;
+
+	if (number[offset] == '-')
+		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has negative number '%s'", warn, msg, info, number);
+	else if (*endptr)
+		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has invalid number '%s'", warn, msg, info, number);
+	else if (errno == ERANGE || val > UINT_MAX)
+		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has number '%s' outside unsigned integer range", warn, msg, info, number);
+	else if (val < min_val || val > max_val)
+		report_config_error(CONFIG_INVALID_NUMBER, "%s '%s' has number '%s' outside range [%u, %u]", msg, info, number, min_val, max_val);
+	else
+		return true;
+
+#ifdef _STRICT_CONFIG_
+	return false;
+#else
+	return ignore_error && val >= min_val && val <= max_val && !__test_bit(CONFIG_TEST_BIT, &debug);
+#endif
+}
+
+static bool
+read_unsigned64_func(const char *number, int base, const char *msg, const char *info, uint64_t *res, uint64_t min_val, uint64_t max_val, __attribute__((unused)) bool ignore_error)
+{
+	unsigned long long val;
+	char *endptr;
+	char *warn = "";
+	size_t offset;
+
+#ifndef _STRICT_CONFIG_
+	if (ignore_error && !__test_bit(CONFIG_TEST_BIT, &debug))
+		warn = "WARNING - ";
+#endif
+
+	/* In case the string starts with spaces (even in the configuration this
+	 * can be achieved by enclosing the number in quotes - e.g. weight "  -100")
+	 * skip any leading whitespace */
+	offset = strspn(number, WHITE_SPACE);
+
+	errno = 0;
+	val = strtoull(number + offset, &endptr, base);
+	*res = (unsigned)val;
+
+	if (number[offset] == '-')
+		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has negative number '%s'", warn, msg, info, number);
+	else if (*endptr)
+		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has invalid number '%s'", warn, msg, info, number);
+	else if (errno == ERANGE)
+		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has number '%s' outside unsigned 64 bit range", warn, msg, info, number);
+	else if (val < min_val || val > max_val)
+		report_config_error(CONFIG_INVALID_NUMBER, "%s '%s' has number '%s' outside range [%" PRIu64 ", %" PRIu64 "]", msg, info, number, min_val, max_val);
+	else
+		return true;
+
+#ifdef _STRICT_CONFIG_
+	return false;
+#else
+	return ignore_error && val >= min_val && val <= max_val && !__test_bit(CONFIG_TEST_BIT, &debug);
+#endif
+}
+
+static bool
+read_double_func(const char *number, const char *msg, const char *info, double *res, double min_val, double max_val, __attribute__((unused)) bool ignore_error)
+{
+	double val;
+	char *endptr;
+	char *warn = "";
+
+#ifndef _STRICT_CONFIG_
+	if (ignore_error && !__test_bit(CONFIG_TEST_BIT, &debug))
+		warn = "WARNING - ";
+#endif
+
+	errno = 0;
+	val = strtod(number, &endptr);
+	*res = val;
+
+	if (*endptr)
+		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has invalid number '%s'", warn, msg, info, number);
+	else if (errno == ERANGE)
+		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has number '%s' out of range", warn, msg, info, number);
+	else if (val == -HUGE_VAL || val == HUGE_VAL)	/* +/- Inf */
+		report_config_error(CONFIG_INVALID_NUMBER, "%s '%s' has infinite number '%s'", msg, info, number);
+	else if (!(val <= 0 || val >= 0))	/* NaN */
+		report_config_error(CONFIG_INVALID_NUMBER, "%s '%s' has not a number '%s'", msg, info, number);
+	else if (val < min_val || val > max_val)
+		report_config_error(CONFIG_INVALID_NUMBER, "%s '%s' has number '%s' outside range [%g, %g]", msg, info, number, min_val, max_val);
+	else
+		return true;
+
+#ifdef _STRICT_CONFIG_
+	return false;
+#else
+	return ignore_error && val >= min_val && val <= max_val && !__test_bit(CONFIG_TEST_BIT, &debug);
+#endif
+}
+
+bool
+read_int(const char *str, int *res, int min_val, int max_val, bool ignore_error)
+{
+	return read_int_func(str, 10, "Number", str, res, min_val, max_val, ignore_error);
+}
+
+bool
+read_unsigned(const char *str, unsigned *res, unsigned min_val, unsigned max_val, bool ignore_error)
+{
+	return read_unsigned_func(str, 10, "Number", str, res, min_val, max_val, ignore_error);
+}
+
+bool
+read_unsigned64(const char *str, uint64_t *res, uint64_t min_val, uint64_t max_val, bool ignore_error)
+{
+	return read_unsigned64_func(str, 10, "Number", str, res, min_val, max_val, ignore_error);
+}
+
+bool
+read_double(const char *str, double *res, double min_val, double max_val, bool ignore_error)
+{
+	return read_double_func(str, "Number", str, res, min_val, max_val, ignore_error);
+}
+
+bool
+read_int_strvec(const vector_t *strvec, size_t index, int *res, int min_val, int max_val, bool ignore_error)
+{
+	return read_int_func(strvec_slot(strvec, index), 10, "Line starting", strvec_slot(strvec, 0), res, min_val, max_val, ignore_error);
+}
+
+bool
+read_unsigned_strvec(const vector_t *strvec, size_t index, unsigned *res, unsigned min_val, unsigned max_val, bool ignore_error)
+{
+	return read_unsigned_func(strvec_slot(strvec, index), 10, "Line starting", strvec_slot(strvec, 0), res, min_val, max_val, ignore_error);
+}
+
+bool
+read_unsigned64_strvec(const vector_t *strvec, size_t index, uint64_t *res, uint64_t min_val, uint64_t max_val, bool ignore_error)
+{
+	return read_unsigned64_func(strvec_slot(strvec, index), 10, "Line starting", strvec_slot(strvec, 0), res, min_val, max_val, ignore_error);
+}
+
+bool
+read_double_strvec(const vector_t *strvec, size_t index, double *res, double min_val, double max_val, bool ignore_error)
+{
+	return read_double_func(strvec_slot(strvec, index), "Line starting", strvec_slot(strvec, 0), res, min_val, max_val, ignore_error);
+}
+
+bool
+read_unsigned_base_strvec(const vector_t *strvec, size_t index, int base, unsigned *res, unsigned min_val, unsigned max_val, bool ignore_error)
+{
+	return read_unsigned_func(strvec_slot(strvec, index), base, "Line starting", strvec_slot(strvec, 0), res, min_val, max_val, ignore_error);
 }
 
 static void
@@ -288,12 +524,12 @@ alloc_strvec_quoted_escaped(char *src)
 		ofs_op = op_buf;
 
 		while (*ofs) {
-			ofs1 = strpbrk(ofs, cur_quote == '"' ? "\"\\" : cur_quote == '\'' ? "'\\" : WHITE_SPACE COMMENT_START_CHRS "'\"\\");
+			ofs1 = strpbrk(ofs, cur_quote == '"' ? "\"\\" : cur_quote == '\'' ? "'\\" : WHITE_SPACE_STR COMMENT_START_CHRS "'\"\\");
 
 			if (!ofs1) {
 				size_t len;
 				if (cur_quote) {
-					log_message(LOG_INFO, "String '%s': missing terminating %c", src, cur_quote);
+					report_config_error(CONFIG_UNMATCHED_QUOTE, "String '%s': missing terminating %c", src, cur_quote);
 					goto err_exit;
 				}
 				strcpy(ofs_op, ofs);
@@ -442,13 +678,13 @@ alloc_strvec_r(char *string)
 		if (*start == '"') {
 			start++;
 			if (!(cp = strchr(start, '"'))) {
-				log_message(LOG_INFO, "Unmatched quote: '%s'", string);
+				report_config_error(CONFIG_UNMATCHED_QUOTE, "Unmatched quote: '%s'", string);
 				break;
 			}
 			str_len = (size_t)(cp - start);
 			cp++;
 		} else {
-			cp += strcspn(start, WHITE_SPACE COMMENT_START_CHRS "\"");
+			cp += strcspn(start, WHITE_SPACE_STR COMMENT_START_CHRS "\"");
 			str_len = (size_t)(cp - start);
 		}
 		token = MALLOC(str_len + 1);
@@ -470,7 +706,7 @@ alloc_strvec_r(char *string)
 
 /* recursive configuration stream handler */
 static int kw_level = 0;
-static void
+static bool
 process_stream(vector_t *keywords_vec, int need_bob)
 {
 	unsigned int i;
@@ -481,6 +717,8 @@ process_stream(vector_t *keywords_vec, int need_bob)
 	vector_t *prev_keywords = current_keywords;
 	current_keywords = keywords_vec;
 	int bob_needed = 0;
+	bool ret_err = false;
+	bool ret;
 
 	buf = MALLOC(MAXBUF);
 	while (read_line(buf, MAXBUF)) {
@@ -519,6 +757,7 @@ process_stream(vector_t *keywords_vec, int need_bob)
 			 * nested keyword level, then we need to return to restore the
 			 * next level up of keywords. */
 			if (!strcmp(str, EOB) && skip_sublevel == 0 && kw_level > 0) {
+				ret_err = true;
 				free_strvec(strvec);
 				break;
 			}
@@ -534,10 +773,10 @@ process_stream(vector_t *keywords_vec, int need_bob)
 				continue;
 			}
 			else
-				log_message(LOG_INFO, "Missing '%s' at beginning of configuration block", BOB);
+				report_config_error(CONFIG_MISSING_BOB, "Missing '%s' at beginning of configuration block", BOB);
 		}
 		else if (!strcmp(str, BOB)) {
-			log_message(LOG_INFO, "Unexpected '%s' - ignoring", BOB);
+			report_config_error(CONFIG_UNEXPECTED_BOB, "Unexpected '%s' - ignoring", BOB);
 			free_strvec(strvec);
 			continue;
 		}
@@ -587,9 +826,11 @@ process_stream(vector_t *keywords_vec, int need_bob)
 
 				if (keyword_vec->sub) {
 					kw_level++;
-					process_stream(keyword_vec->sub, bob_needed);
+					ret = process_stream(keyword_vec->sub, bob_needed);
 					kw_level--;
-					if (keyword_vec->active && keyword_vec->sub_close_handler)
+
+					/* We mustn't run any close handler if the block was skipped */
+					if (!ret && keyword_vec->active && keyword_vec->sub_close_handler)
 						(*keyword_vec->sub_close_handler) ();
 				}
 				break;
@@ -597,14 +838,14 @@ process_stream(vector_t *keywords_vec, int need_bob)
 		}
 
 		if (i >= vector_size(keywords_vec))
-			log_message(LOG_INFO, "Unknown keyword '%s'", str );
+			report_config_error(CONFIG_UNKNOWN_KEYWORD, "Unknown keyword '%s'", str);
 
 		free_strvec(strvec);
 	}
 
 	current_keywords = prev_keywords;
 	FREE(buf);
-	return;
+	return ret_err;
 }
 
 static bool
@@ -720,7 +961,7 @@ bool check_conf_file(const char *conf_file)
 #endif
 						    , NULL, &globbuf);
 	if (res) {
-		log_message(LOG_INFO, "Unable to find configuration file %s (glob returned %d)", conf_file, res);
+		report_config_error(CONFIG_FILE_NOT_FOUND, "Unable to find configuration file %s (glob returned %d)", conf_file, res);
 		return false;
 	}
 
@@ -750,9 +991,9 @@ bool check_conf_file(const char *conf_file)
 
 	if (ret) {
 		if (num_matches > 1)
-			log_message(LOG_INFO, "WARNING, more than one file matches configuration file %s, using %s", conf_file, globbuf.gl_pathv[0]);
+			report_config_error(CONFIG_MULTIPLE_FILES, "WARNING, more than one file matches configuration file %s, using %s", conf_file, globbuf.gl_pathv[0]);
 		else if (num_matches == 0) {
-			log_message(LOG_INFO, "Unable to find configuration file %s", conf_file);
+			report_config_error(CONFIG_FILE_NOT_FOUND, "Unable to find configuration file %s", conf_file);
 			ret = false;
 		}
 	}
@@ -1322,16 +1563,35 @@ set_value(vector_t *strvec)
 	return alloc;
 }
 
-unsigned long
-read_timer(vector_t *strvec)
+bool
+read_timer(vector_t *strvec, size_t index, unsigned long *res, unsigned long min_time, unsigned long max_time, __attribute__((unused)) bool ignore_error)
 {
 	unsigned long timer;
+	char *endptr;
 
-	timer = strtoul(strvec_slot(strvec, 1), NULL, 10);
-	if (timer >= ULONG_MAX / TIMER_HZ)
-		return ULONG_MAX;
+	if (!max_time)
+		max_time = TIMER_MAX;
 
-	return timer * TIMER_HZ;
+	errno = 0;
+	timer = strtoul(vector_slot(strvec, index), &endptr, 10);
+	*res = (timer > TIMER_MAX ? TIMER_MAX : timer) * TIMER_HZ;
+
+	if (FMT_STR_VSLOT(strvec, index)[0] == '-')
+		report_config_error(CONFIG_INVALID_NUMBER, "Line starting '%s' has negative number '%s'", FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
+	else if (*endptr)
+		report_config_error(CONFIG_INVALID_NUMBER, "Line starting '%s' has invalid number '%s'", FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
+	else if (errno == ERANGE || timer > TIMER_MAX)
+		report_config_error(CONFIG_INVALID_NUMBER, "Line starting '%s' has number '%s' outside timer range", FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
+	else if (timer < min_time || timer > max_time)
+		report_config_error(CONFIG_INVALID_NUMBER, "Line starting '%s' has number '%s' outside range [%ld, %ld]", FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index), min_time, max_time ? max_time : TIMER_MAX);
+	else
+		return true;
+
+#ifdef _STRICT_CONFIG_
+	return false;
+#else
+	return ignore_error && timer >= min_time && timer <= max_time && !__test_bit(CONFIG_TEST_BIT, &debug);
+#endif
 }
 
 /* Checks for on/true/yes or off/false/no */

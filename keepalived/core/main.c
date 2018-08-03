@@ -86,7 +86,6 @@
 #define	WCOREFLAG		((int32_t)WCOREDUMP(0xffffffff))
 #endif
 
-#define	LOG_FACILITY_MAX	7
 #define	VERSION_STRING		PACKAGE_NAME " v" PACKAGE_VERSION " (" GIT_DATE ")"
 #define COPYRIGHT_STRING	"Copyright(C) 2001-" GIT_YEAR " Alexandre Cassen, <acassen@gmail.com>"
 
@@ -133,15 +132,14 @@ static char *override_namespace;			/* If namespace specified on command line */
 
 unsigned child_wait_time = CHILD_WAIT_SECS;		/* Time to wait for children to exit */
 
-int test_exit_status = EXIT_SUCCESS;			/* Set to EXIT_FAILURE if the configuration has a problem */
-
 /* Log facility table */
 static struct {
 	int facility;
-} LOG_FACILITY[LOG_FACILITY_MAX + 1] = {
+} LOG_FACILITY[] = {
 	{LOG_LOCAL0}, {LOG_LOCAL1}, {LOG_LOCAL2}, {LOG_LOCAL3},
 	{LOG_LOCAL4}, {LOG_LOCAL5}, {LOG_LOCAL6}, {LOG_LOCAL7}
 };
+#define	LOG_FACILITY_MAX	((sizeof(LOG_FACILITY) / sizeof(LOG_FACILITY[0])) - 1)
 
 /* Control producing core dumps */
 static bool set_core_dump_pattern = false;
@@ -311,15 +309,6 @@ make_pidfile_name(const char* start, const char* instance, const char* extn)
 static void
 parent_child_remover(thread_t *thread)
 {
-	int exit_status;
-
-	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
-		exit_status = WIFEXITED(thread->u.c.status) ? WEXITSTATUS(thread->u.c.status) : 0;
-
-		if (exit_status && exit_status != KEEPALIVED_EXIT_OK)
-		       test_exit_status = EXIT_FAILURE;
-	}
-
         if (prog_type == PROG_TYPE_PARENT) {
 #ifdef _WITH_VRRP_
                 if (thread->u.c.pid == vrrp_child)
@@ -333,19 +322,6 @@ parent_child_remover(thread_t *thread)
                 if (thread->u.c.pid == bfd_child)
                         bfd_child = 0;
 #endif
-
-		if (__test_bit(CONFIG_TEST_BIT, &debug)) {
-#ifdef _WITH_VRRP_
-			if (vrrp_child == 0)
-#endif
-#ifdef _WITH_LVS_
-			if (checkers_child == 0)
-#endif
-#ifdef _WITH_BFD_
-			if (bfd_child == 0)
-#endif
-				raise(SIGTERM);
-		}
 	}
 }
 #endif
@@ -453,9 +429,11 @@ stop_keepalived(void)
 }
 
 /* Daemon init sequence */
-static void
+static int
 start_keepalived(void)
 {
+	bool have_child = false;
+
 #ifdef _WITH_BFD_
 	/* must be opened before vrrp and bfd start */
 	open_bfd_pipes();
@@ -463,19 +441,76 @@ start_keepalived(void)
 
 #ifdef _WITH_LVS_
 	/* start healthchecker child */
-	if (running_checker())
+	if (running_checker()) {
 		start_check_child();
+		have_child = true;
+	}
 #endif
 #ifdef _WITH_VRRP_
 	/* start vrrp child */
-	if (running_vrrp())
+	if (running_vrrp()) {
 		start_vrrp_child();
+		have_child = true;
+	}
 #endif
 #ifdef _WITH_BFD_
 	/* start bfd child */
-	if (running_bfd())
+	if (running_bfd()) {
 		start_bfd_child();
+		have_child = true;
+	}
 #endif
+
+	return have_child;
+}
+
+static void
+validate_config(void)
+{
+#ifdef _WITH_VRRP_
+	kernel_netlink_read_interfaces();
+#endif
+
+#ifdef _WITH_LVS_
+	/* validate healthchecker config */
+#ifndef _DEBUG_
+	prog_type = PROG_TYPE_CHECKER;
+#endif
+	check_validate_config();
+#endif
+#ifdef _WITH_VRRP_
+	/* validate vrrp config */
+#ifndef _DEBUG_
+	prog_type = PROG_TYPE_VRRP;
+#endif
+	vrrp_validate_config();
+#endif
+#ifdef _WITH_BFD_
+	/* validate bfd config */
+#ifndef _DEBUG_
+	prog_type = PROG_TYPE_BFD;
+#endif
+	bfd_validate_config();
+#endif
+}
+
+static void
+config_test_exit(void)
+{
+	config_err_t config_err = get_config_status();
+
+	switch (config_err) {
+	case CONFIG_OK:
+		exit(KEEPALIVED_EXIT_OK);
+	case CONFIG_FILE_NOT_FOUND:
+	case CONFIG_BAD_IF:
+	case CONFIG_FATAL:
+		exit(KEEPALIVED_EXIT_CONFIG);
+	case CONFIG_SECURITY_ERROR:
+		exit(KEEPALIVED_EXIT_CONFIG_TEST_SECURITY);
+	default:
+		exit(KEEPALIVED_EXIT_CONFIG_TEST);
+	}
 }
 
 #ifndef _DEBUG_
@@ -604,7 +639,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 
 #ifdef _WITH_VRRP_
 	if (vrrp_child > 0) {
-		if (!__test_bit(CONFIG_TEST_BIT, &debug) && kill(vrrp_child, SIGTERM)) {
+		if (kill(vrrp_child, SIGTERM)) {
 			/* ESRCH means no such process */
 			if (errno == ESRCH)
 				vrrp_child = 0;
@@ -615,7 +650,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 #endif
 #ifdef _WITH_LVS_
 	if (checkers_child > 0) {
-		if (!__test_bit(CONFIG_TEST_BIT, &debug) && kill(checkers_child, SIGTERM)) {
+		if (kill(checkers_child, SIGTERM)) {
 			if (errno == ESRCH)
 				checkers_child = 0;
 		}
@@ -625,7 +660,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 #endif
 #ifdef _WITH_BFD_
 	if (bfd_child > 0) {
-		if (!__test_bit(CONFIG_TEST_BIT, &debug) && kill(bfd_child, SIGTERM)) {
+		if (kill(bfd_child, SIGTERM)) {
 			if (errno == ESRCH)
 				bfd_child = 0;
 		}
@@ -913,8 +948,8 @@ usage(const char *prog)
 								", JSON"
 #endif
 								"\n");
-	fprintf(stderr, "  -t, --config-test [LOG_FILE] Check the configuration for obvious errors, default log file\n"
-			"                                /tmp/keepalived.config-check\n");
+	fprintf(stderr, "  -t, --config-test[=LOG_FILE] Check the configuration for obvious errors, output to\n"
+			"                                stderr by default\n");
 	fprintf(stderr, "  -v, --version                Display the version number\n");
 	fprintf(stderr, "  -h, --help                   Display this help message\n");
 }
@@ -930,6 +965,7 @@ parse_cmdline(int argc, char **argv)
 	int longindex;
 	int curind;
 	bool bad_option = false;
+	unsigned facility;
 
 	struct option long_options[] = {
 		{"use-file",		required_argument,	NULL, 'f'},
@@ -1081,8 +1117,12 @@ parse_cmdline(int argc, char **argv)
 			break;
 #endif
 		case 'S':
-			log_facility = LOG_FACILITY[atoi(optarg)].facility;
-			reopen_log = true;
+			if (!read_unsigned(optarg, &facility, 0, LOG_FACILITY_MAX, false))
+				fprintf(stderr, "Invalid log facility '%s'\n", optarg);
+			else {
+				log_facility = LOG_FACILITY[facility].facility;
+				reopen_log = true;
+			}
 			break;
 		case 'g':
 			if (optarg && optarg[0])
@@ -1100,12 +1140,15 @@ parse_cmdline(int argc, char **argv)
 			__set_bit(DONT_RESPAWN_BIT, &debug);
 			__set_bit(DONT_FORK_BIT, &debug);
 			__set_bit(NO_SYSLOG_BIT, &debug);
-			if (optarg && optarg[0])
-				log_file_name = optarg;
-			else
-				log_file_name = "/tmp/keepalived.config-check";
-			open_log_file(log_file_name, NULL, NULL, NULL);
-			reopen_log = true;
+			if (optarg && optarg[0]) {
+				int fd = open(optarg, O_WRONLY | O_APPEND | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+				if (fd == -1) {
+					fprintf(stderr, "Unable to open config-test log file %s\n", optarg);
+					exit(EXIT_FAILURE);
+				}
+				dup2(fd, STDERR_FILENO);
+				close(fd);
+			}
 			break;
 		case 'f':
 			conf_file = optarg;
@@ -1356,8 +1399,12 @@ keepalived_main(int argc, char **argv)
 	   This means that if any config file names are not
 	   absolute file names, the behaviour will be different
 	   depending on whether we forked or not. */
-	if (!check_conf_file(conf_file))
+	if (!check_conf_file(conf_file)) {
+		if (__test_bit(CONFIG_TEST_BIT, &debug))
+			config_test_exit();
+
 		goto end;
+	}
 
 	global_data = alloc_global_data();
 
@@ -1376,11 +1423,12 @@ keepalived_main(int argc, char **argv)
 	}
 #endif
 
-	if (global_data->instance_name
+	if (!__test_bit(CONFIG_TEST_BIT, &debug) &&
+	    (global_data->instance_name
 #if HAVE_DECL_CLONE_NEWNET
-			  || global_data->network_namespace
+	     || global_data->network_namespace
 #endif
-					      ) {
+					      )) {
 		if ((syslog_ident = make_syslog_ident(PACKAGE_NAME))) {
 			log_message(LOG_INFO, "Changing syslog ident to %s", syslog_ident);
 			closelog();
@@ -1405,9 +1453,11 @@ keepalived_main(int argc, char **argv)
 	global_print();
 #endif
 
-	if (use_pid_dir) {
-		/* Create the directory for pid files */
-		create_pid_dir();
+	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
+		if (use_pid_dir) {
+			/* Create the directory for pid files */
+			create_pid_dir();
+		}
 	}
 
 #if HAVE_DECL_CLONE_NEWNET
@@ -1419,62 +1469,64 @@ keepalived_main(int argc, char **argv)
 	}
 #endif
 
-	if (global_data->instance_name) {
-		if (!main_pidfile && (main_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE, global_data->instance_name, PID_EXTENSION)))
-			free_main_pidfile = true;
+	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
+		if (global_data->instance_name) {
+			if (!main_pidfile && (main_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE, global_data->instance_name, PID_EXTENSION)))
+				free_main_pidfile = true;
 #ifdef _WITH_LVS_
-		if (!checkers_pidfile && (checkers_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR CHECKERS_PID_FILE, global_data->instance_name, PID_EXTENSION)))
-			free_checkers_pidfile = true;
+			if (!checkers_pidfile && (checkers_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR CHECKERS_PID_FILE, global_data->instance_name, PID_EXTENSION)))
+				free_checkers_pidfile = true;
 #endif
 #ifdef _WITH_VRRP_
-		if (!vrrp_pidfile && (vrrp_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, global_data->instance_name, PID_EXTENSION)))
-			free_vrrp_pidfile = true;
+			if (!vrrp_pidfile && (vrrp_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, global_data->instance_name, PID_EXTENSION)))
+				free_vrrp_pidfile = true;
 #endif
 #ifdef _WITH_BFD_
-		if (!bfd_pidfile && (bfd_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, global_data->instance_name, PID_EXTENSION)))
-			free_bfd_pidfile = true;
+			if (!bfd_pidfile && (bfd_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, global_data->instance_name, PID_EXTENSION)))
+				free_bfd_pidfile = true;
 #endif
-	}
+		}
 
-	if (use_pid_dir) {
-		if (!main_pidfile)
-			main_pidfile = KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE PID_EXTENSION;
+		if (use_pid_dir) {
+			if (!main_pidfile)
+				main_pidfile = KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE PID_EXTENSION;
 #ifdef _WITH_LVS_
-		if (!checkers_pidfile)
-			checkers_pidfile = KEEPALIVED_PID_DIR CHECKERS_PID_FILE PID_EXTENSION;
+			if (!checkers_pidfile)
+				checkers_pidfile = KEEPALIVED_PID_DIR CHECKERS_PID_FILE PID_EXTENSION;
 #endif
 #ifdef _WITH_VRRP_
-		if (!vrrp_pidfile)
-			vrrp_pidfile = KEEPALIVED_PID_DIR VRRP_PID_FILE PID_EXTENSION;
+			if (!vrrp_pidfile)
+				vrrp_pidfile = KEEPALIVED_PID_DIR VRRP_PID_FILE PID_EXTENSION;
 #endif
 #ifdef _WITH_BFD_
-		if (!bfd_pidfile)
-			bfd_pidfile = KEEPALIVED_PID_DIR BFD_PID_FILE PID_EXTENSION;
+			if (!bfd_pidfile)
+				bfd_pidfile = KEEPALIVED_PID_DIR BFD_PID_FILE PID_EXTENSION;
 #endif
-	}
-	else
-	{
-		if (!main_pidfile)
-			main_pidfile = PID_DIR KEEPALIVED_PID_FILE PID_EXTENSION;
+		}
+		else
+		{
+			if (!main_pidfile)
+				main_pidfile = PID_DIR KEEPALIVED_PID_FILE PID_EXTENSION;
 #ifdef _WITH_LVS_
-		if (!checkers_pidfile)
-			checkers_pidfile = PID_DIR CHECKERS_PID_FILE PID_EXTENSION;
+			if (!checkers_pidfile)
+				checkers_pidfile = PID_DIR CHECKERS_PID_FILE PID_EXTENSION;
 #endif
 #ifdef _WITH_VRRP_
-		if (!vrrp_pidfile)
-			vrrp_pidfile = PID_DIR VRRP_PID_FILE PID_EXTENSION;
+			if (!vrrp_pidfile)
+				vrrp_pidfile = PID_DIR VRRP_PID_FILE PID_EXTENSION;
 #endif
 #ifdef _WITH_BFD_
-		if (!bfd_pidfile)
-			bfd_pidfile = PID_DIR BFD_PID_FILE PID_EXTENSION;
+			if (!bfd_pidfile)
+				bfd_pidfile = PID_DIR BFD_PID_FILE PID_EXTENSION;
 #endif
-	}
+		}
 
-	/* Check if keepalived is already running */
-	if (keepalived_running(daemon_mode)) {
-		log_message(LOG_INFO, "daemon is already running");
-		report_stopped = false;
-		goto end;
+		/* Check if keepalived is already running */
+		if (keepalived_running(daemon_mode)) {
+			log_message(LOG_INFO, "daemon is already running");
+			report_stopped = false;
+			goto end;
+		}
 	}
 
 	/* daemonize process */
@@ -1494,6 +1546,12 @@ keepalived_main(int argc, char **argv)
 	enable_mem_log_termination();
 #endif
 
+	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
+		validate_config();
+
+		config_test_exit();
+	}
+
 	/* write the father's pidfile */
 	if (!pidfile_write(main_pidfile, getpid()))
 		goto end;
@@ -1508,7 +1566,8 @@ keepalived_main(int argc, char **argv)
 
 	/* Init daemon */
 	signal_set(SIGCHLD, thread_child_handler, master);	/* Set this before creating children */
-	start_keepalived();
+	if (!start_keepalived())
+		log_message(LOG_INFO, "Warning - keepalived has no configuration to run");
 
 	/* Launch the scheduling I/O multiplexer */
 	launch_scheduler();
@@ -1555,5 +1614,5 @@ end:
 #endif
 	close_std_fd();
 
-	exit(test_exit_status);
+	exit(KEEPALIVED_EXIT_OK);
 }

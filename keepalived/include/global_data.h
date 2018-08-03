@@ -91,6 +91,7 @@ typedef struct _data {
 	bool				dynamic_interfaces;
 	bool				no_email_faults;
 	int				smtp_alert_vrrp;
+	char				*default_ifname;	/* Name of default interface */
 	interface_t			*default_ifp;		/* Default interface for static addresses */
 #endif
 #ifdef _WITH_LVS_

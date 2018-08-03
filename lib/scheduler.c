@@ -306,6 +306,9 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 			log_options("configure options", KEEPALIVED_CONFIGURE_OPTIONS);
 			log_options("Config options", CONFIGURATION_OPTIONS);
 			log_options("System options", SYSTEM_OPTIONS);
+
+//			if (__test_bit(DONT_RESPAWN_BIT, &debug))
+//				segv_termination = true;
 		}
 		else
 			log_message(LOG_INFO, "%s exited due to signal %d", prog_id, WTERMSIG(status));
@@ -1206,15 +1209,11 @@ process_child_termination(pid_t pid, int status)
 	if (child_remover)
 		child_remover(thread);
 
-	if (permanent_vrrp_checker_error || __test_bit(CONFIG_TEST_BIT, &debug))
+	if (permanent_vrrp_checker_error)
 	{
-		/* The child had a permanant error, or we were just testing the config,
-		 * so no point in respawning */
+		/* The child had a permanant error, so no point in respawning */
 		thread->type = THREAD_UNUSED;
 		thread_list_add(&m->unuse, thread);
-
-		if (!__test_bit(CONFIG_TEST_BIT, &debug))
-			raise(SIGTERM);
 	}
 	else
 		thread_list_add(&m->ready, thread);

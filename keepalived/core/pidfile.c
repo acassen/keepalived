@@ -60,12 +60,8 @@ int
 pidfile_write(const char *pid_file, int pid)
 {
 	FILE *pidfile = NULL;
-	int pidfd;
+	int pidfd = creat(pid_file, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
-	if (__test_bit(CONFIG_TEST_BIT, &debug))
-		return 1;
-
-	pidfd = creat(pid_file, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 	if (pidfd != -1) pidfile = fdopen(pidfd, "w");
 
 	if (!pidfile) {
@@ -82,9 +78,6 @@ pidfile_write(const char *pid_file, int pid)
 void
 pidfile_rm(const char *pid_file)
 {
-	if (__test_bit(CONFIG_TEST_BIT, &debug))
-		return;
-
 	unlink(pid_file);
 }
 
@@ -126,9 +119,6 @@ process_running(const char *pid_file)
 bool
 keepalived_running(unsigned long mode)
 {
-	if (__test_bit(CONFIG_TEST_BIT, &debug))
-		return false;
-
 	if (process_running(main_pidfile))
 		return true;
 #ifdef _WITH_VRRP_

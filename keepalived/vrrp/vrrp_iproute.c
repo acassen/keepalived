@@ -22,16 +22,6 @@
 
 #include "config.h"
 
-/* local include */
-#include "vrrp_iproute.h"
-#include "keepalived_netlink.h"
-#include "vrrp_data.h"
-#include "logger.h"
-#include "memory.h"
-#include "utils.h"
-#include "rttables.h"
-#include "vrrp_ip_rule_route_parser.h"
-
 #include <linux/icmpv6.h>
 #include <inttypes.h>
 #if HAVE_DECL_RTA_ENCAP
@@ -46,6 +36,17 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <linux/rtnetlink.h>
+
+/* local include */
+#include "vrrp_iproute.h"
+#include "keepalived_netlink.h"
+#include "vrrp_data.h"
+#include "logger.h"
+#include "memory.h"
+#include "utils.h"
+#include "rttables.h"
+#include "vrrp_ip_rule_route_parser.h"
+#include "parser.h"
 
 /* Buffer sizes for netlink messages. Increase if needed. */
 #define	RTM_SIZE		1024
@@ -926,13 +927,13 @@ static int parse_encap_mpls(vector_t *strvec, unsigned int *i_ptr, encap_t *enca
 	encap->type = LWTUNNEL_ENCAP_MPLS;
 
 	if (*i_ptr >= vector_size(strvec)) {
-		log_message(LOG_INFO, "missing address for MPLS encapsulation");
+		report_config_error(CONFIG_GENERAL_ERROR, "missing address for MPLS encapsulation");
 		return true;
 	}
 
 	str = strvec_slot(strvec, (*i_ptr)++);
 	if (parse_mpls_address(str, &encap->mpls)) {
-		log_message(LOG_INFO, "invalid mpls address %s for encapsulation", str);
+		report_config_error(CONFIG_GENERAL_ERROR, "invalid mpls address %s for encapsulation", str);
 		return true;
 	}
 
@@ -960,11 +961,11 @@ static int parse_encap_ip(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 				FREE_PTR(encap->ip.dst);
 			encap->ip.dst = parse_ipaddress(NULL, str1, false);
 			if (!encap->ip.dst) {
-				log_message(LOG_INFO, "Invalid encap ip dst %s", str1);
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid encap ip dst %s", str1);
 				goto err;
 			}
 			if (encap->ip.dst->ifa.ifa_family != AF_INET) {
-				log_message(LOG_INFO, "IPv6 address %s not valid for ip encapsulation", str1);
+				report_config_error(CONFIG_GENERAL_ERROR, "IPv6 address %s not valid for ip encapsulation", str1);
 				goto err;
 			}
 		} else if (!strcmp(str, "src")) {
@@ -972,16 +973,16 @@ static int parse_encap_ip(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 				FREE_PTR(encap->ip.src);
 			encap->ip.src = parse_ipaddress(NULL, str1, false);
 			if (!encap->ip.src) {
-				log_message(LOG_INFO, "Invalid encap ip src %s", str1);
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid encap ip src %s", str1);
 				goto err;
 			}
 			if (encap->ip.src->ifa.ifa_family != AF_INET) {
-				log_message(LOG_INFO, "IPv6 address %s not valid for ip encapsulation", str1);
+				report_config_error(CONFIG_GENERAL_ERROR, "IPv6 address %s not valid for ip encapsulation", str1);
 				goto err;
 			}
 		} else if (!strcmp(str, "tos")) {
 			if (!find_rttables_dsfield(str1, &encap->ip.tos)) {
-				log_message(LOG_INFO, "dsfield %s not valid for ip encapsulation", str1);
+				report_config_error(CONFIG_GENERAL_ERROR, "dsfield %s not valid for ip encapsulation", str1);
 				goto err;
 			}
 			encap->flags |= IPROUTE_BIT_ENCAP_DSFIELD;
@@ -1000,7 +1001,7 @@ static int parse_encap_ip(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 	}
 
 	if (!encap->ip.dst && !(encap->flags | IPROUTE_BIT_ENCAP_ID)) {
-		log_message(LOG_INFO, "address or id missing for ip encapsulation");
+		report_config_error(CONFIG_GENERAL_ERROR, "address or id missing for ip encapsulation");
 		goto err;
 	}
 
@@ -1032,14 +1033,14 @@ int parse_encap_ila(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 	encap->type = LWTUNNEL_ENCAP_ILA;
 
 	if (*i_ptr >= vector_size(strvec)) {
-		log_message(LOG_INFO, "missing locator for ILA encapsulation");
+		report_config_error(CONFIG_GENERAL_ERROR, "missing locator for ILA encapsulation");
 		return true;
 	}
 
 	str = strvec_slot(strvec, (*i_ptr)++);
 
 	if (get_addr64(&encap->ila.locator, str)) {
-		log_message(LOG_INFO, "invalid locator %s for ila encapsulation", str);
+		report_config_error(CONFIG_GENERAL_ERROR, "invalid locator %s for ila encapsulation", str);
 		return true;
 	}
 
@@ -1060,7 +1061,7 @@ int parse_encap_ip6(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 		str1 = strvec_slot(strvec, i + 1);
 
 		if (!strcmp(str, "id")) {
-			if (get_u64(&encap->ip6.id, str1, UINT64_MAX, "id %s value invalid for IPv6 encapsulation\n"))
+			if (get_u64(&encap->ip6.id, str1, UINT64_MAX, "id %s value invalid for IPv6 encapsulation"))
 				goto err;
 			encap->flags |= IPROUTE_BIT_ENCAP_ID;
 		} else if (!strcmp(str, "dst")) {
@@ -1068,11 +1069,11 @@ int parse_encap_ip6(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 				FREE_PTR(encap->ip6.dst);
 			encap->ip6.dst = parse_ipaddress(NULL, str1, false);
 			if (!encap->ip6.dst) {
-				log_message(LOG_INFO, "Invalid encap ip6 dst %s", str1);
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid encap ip6 dst %s", str1);
 				goto err;
 			}
 			if (encap->ip6.dst->ifa.ifa_family != AF_INET6) {
-				log_message(LOG_INFO, "IPv4 address %s not valid for ip6 encapsulation", str1);
+				report_config_error(CONFIG_GENERAL_ERROR, "IPv4 address %s not valid for ip6 encapsulation", str1);
 				goto err;
 			}
 		} else if (!strcmp(str, "src")) {
@@ -1080,16 +1081,16 @@ int parse_encap_ip6(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 				FREE_PTR(encap->ip6.src);
 			encap->ip6.src = parse_ipaddress(NULL, str1, false);
 			if (!encap->ip6.src) {
-				log_message(LOG_INFO, "Invalid encap ip6 src %s", str1);
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid encap ip6 src %s", str1);
 				goto err;
 			}
 			if (encap->ip6.src->ifa.ifa_family != AF_INET6) {
-				log_message(LOG_INFO, "IPv4 address %s not valid for ip6 encapsulation", str1);
+				report_config_error(CONFIG_GENERAL_ERROR, "IPv4 address %s not valid for ip6 encapsulation", str1);
 				goto err;
 			}
 		} else if (!strcmp(str, "tc")) {
 			if (!find_rttables_dsfield(str1, &encap->ip6.tc)) {
-				log_message(LOG_INFO, "tc value %s is invalid for ip6 encapsulation", str);
+				report_config_error(CONFIG_GENERAL_ERROR, "tc value %s is invalid for ip6 encapsulation", str);
 				goto err;
 			}
 			encap->flags |= IPROUTE_BIT_ENCAP_DSFIELD;
@@ -1108,7 +1109,7 @@ int parse_encap_ip6(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 	}
 
 	if (!encap->ip.dst && !(encap->flags | IPROUTE_BIT_ENCAP_ID)) {
-		log_message(LOG_INFO, "address or id missing for ip6 encapsulation");
+		report_config_error(CONFIG_GENERAL_ERROR, "address or id missing for ip6 encapsulation");
 		goto err;
 	}
 
@@ -1135,7 +1136,7 @@ parse_encap(vector_t *strvec, unsigned int *i, encap_t *encap)
 	char *str;
 
 	if (vector_size(strvec) <= ++*i) {
-		log_message(LOG_INFO, "Missing encap type");
+		report_config_error(CONFIG_GENERAL_ERROR, "Missing encap type");
 		return false;
 	}
 
@@ -1154,7 +1155,7 @@ parse_encap(vector_t *strvec, unsigned int *i, encap_t *encap)
 		parse_encap_ila(strvec, i, encap);
 #endif
 	else {
-		log_message(LOG_INFO, "Unknown encap type - %s", str);
+		report_config_error(CONFIG_GENERAL_ERROR, "Unknown encap type - %s", str);
 		return false;
 	}
 
@@ -1196,18 +1197,18 @@ parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 					if (route->family == AF_UNSPEC)
 						route->family = family;
 					else if (route->family != family) {
-						log_message(LOG_INFO, "IPv4/6 mismatch for nexthop");
+						report_config_error(CONFIG_GENERAL_ERROR, "IPv4/6 mismatch for nexthop");
 						goto err;
 					}
 				}
 
 				new->addr = parse_ipaddress(NULL, str, false);
 				if (!new->addr) {
-					log_message(LOG_INFO, "invalid nexthop address %s", str);
+					report_config_error(CONFIG_GENERAL_ERROR, "invalid nexthop address %s", str);
 					goto err;
 				}
 				if (route->family != AF_UNSPEC && new->addr->ifa.ifa_family != route->family) {
-					log_message(LOG_INFO, "Address family mismatch for next hop");
+					report_config_error(CONFIG_GENERAL_ERROR, "Address family mismatch for next hop");
 					goto err;
 				}
 				if (route->family == AF_UNSPEC)
@@ -1217,7 +1218,7 @@ parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 				str = strvec_slot(strvec, ++i);
 				new->ifp = if_get_by_ifname(str, IF_CREATE_IF_DYNAMIC);
 				if (!new->ifp) {
-					log_message(LOG_INFO, "WARNING - interface %s for VROUTE nexthop doesn't exist", str);
+					report_config_error(CONFIG_GENERAL_ERROR, "WARNING - interface %s for VROUTE nexthop doesn't exist", str);
 					goto err;
 				}
 			}
@@ -1225,7 +1226,7 @@ parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 				if (get_u32(&val, strvec_slot(strvec, ++i), 256, "Invalid weight %s specified for route"))
 					goto err;
 				if (!val) {
-					log_message(LOG_INFO, "Invalid weight 0 specified for route");
+					report_config_error(CONFIG_GENERAL_ERROR, "Invalid weight 0 specified for route");
 					goto err;
 				}
 				new->weight = (uint8_t)(--val & 0xff);
@@ -1239,26 +1240,26 @@ parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 #if HAVE_DECL_RTA_ENCAP
 				parse_encap(strvec, &i, &new->encap);
 #else
-				log_message(LOG_INFO, "%s not supported by kernel", "encap");
+				report_config_error(CONFIG_GENERAL_ERROR, "%s not supported by kernel", "encap");
 #endif
 			}
 			else if (!strcmp(str, "realms")) {
 				/* Note: IPv4 only */
 				if (get_realms(&new->realms, strvec_slot(strvec, ++i))) {
-					log_message(LOG_INFO, "Invalid realms %s for route", FMT_STR_VSLOT(strvec,i));
+					report_config_error(CONFIG_GENERAL_ERROR, "Invalid realms %s for route", FMT_STR_VSLOT(strvec,i));
 					goto err;
 				}
 				if (route->family == AF_UNSPEC)
 					route->family = AF_INET;
 				else if (route->family != AF_INET) {
-					log_message(LOG_INFO, "realms are only supported for IPv4");
+					report_config_error(CONFIG_GENERAL_ERROR, "realms are only supported for IPv4");
 					goto err;
 				}
 			}
 			else if (!strcmp(str, "as")) {
 				if (!strcmp("to", strvec_slot(strvec, ++i)))
 					i++;
-				log_message(LOG_INFO, "'as [to]' (nat) not supported");
+				report_config_error(CONFIG_GENERAL_ERROR, "'as [to]' (nat) not supported");
 				goto err;
 			}
 			else
@@ -1271,7 +1272,7 @@ parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 	}
 
 	if (i < vector_size(strvec)) {
-		log_message(LOG_INFO, "Route has trailing nonsense after nexthops - %s", FMT_STR_VSLOT(strvec, i));
+		report_config_error(CONFIG_GENERAL_ERROR, "Route has trailing nonsense after nexthops - %s", FMT_STR_VSLOT(strvec, i));
 		goto err;
 	}
 
@@ -1313,13 +1314,13 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 				FREE(new->pref_src);
 			new->pref_src = parse_ipaddress(NULL, strvec_slot(strvec, ++i), false);
 			if (!new->pref_src) {
-				log_message(LOG_INFO, "invalid route src address %s", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "invalid route src address %s", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
 			if (new->family == AF_UNSPEC)
 				new->family = new->pref_src->ifa.ifa_family;
 			else if (new->family != new->pref_src->ifa.ifa_family) {
-				log_message(LOG_INFO, "Cannot mix IPv4 and IPv6 addresses for route");
+				report_config_error(CONFIG_GENERAL_ERROR, "Cannot mix IPv4 and IPv6 addresses for route");
 				goto err;
 			}
 		}
@@ -1327,16 +1328,16 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 			if (!strcmp("to", strvec_slot(strvec, ++i)))
 				i++;
 #if HAVE_DECL_RTA_NEWDST
-			log_message(LOG_INFO, "\"as to\" for MPLS only - ignoring");
+			report_config_error(CONFIG_GENERAL_ERROR, "\"as to\" for MPLS only - ignoring");
 #else
-			log_message(LOG_INFO, "%s not supported by kernel", "'as [to]'");
+			report_config_error(CONFIG_GENERAL_ERROR, "%s not supported by kernel", "'as [to]'");
 #endif
 		}
 		else if (!strcmp(str, "via") || !strcmp(str, "gw")) {
 
 			/* "gw" maintained for backward keepalived compatibility */
 			if (str[0] == 'g')	/* "gw" */
-				log_message(LOG_INFO, "\"gw\" for routes is deprecated. Please use \"via\"");
+				report_config_error(CONFIG_GENERAL_ERROR, "\"gw\" for routes is deprecated. Please use \"via\"");
 
 			str = strvec_slot(strvec, ++i);
 			if (!strcmp(str, "inet")) {
@@ -1353,7 +1354,7 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 			if (new->family == AF_UNSPEC)
 				new->family = family;
 			else if (new->family != family) {
-				log_message(LOG_INFO, "Cannot mix IPv4 and IPv6 addresses for route");
+				report_config_error(CONFIG_GENERAL_ERROR, "Cannot mix IPv4 and IPv6 addresses for route");
 				goto err;
 			}
 
@@ -1361,13 +1362,13 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 				FREE(new->via);
 			new->via = parse_ipaddress(NULL, str, false);
 			if (!new->via) {
-				log_message(LOG_INFO, "invalid route via address %s", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "invalid route via address %s", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
 			if (new->family == AF_UNSPEC)
 				new->family = new->via->ifa.ifa_family;
 			else if (new->family != new->via->ifa.ifa_family) {
-				log_message(LOG_INFO, "Cannot mix IPv4 and IPv6 addresses for route");
+				report_config_error(CONFIG_GENERAL_ERROR, "Cannot mix IPv4 and IPv6 addresses for route");
 				goto err;
 			}
 		}
@@ -1376,24 +1377,24 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 				FREE(new->src);
 			new->src = parse_ipaddress(NULL, strvec_slot(strvec, ++i), false);
 			if (!new->src) {
-				log_message(LOG_INFO, "invalid route from address %s", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "invalid route from address %s", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
 			if (new->src->ifa.ifa_family != AF_INET6) {
-				log_message(LOG_INFO, "route from address only supported with IPv6 (%s)", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "route from address only supported with IPv6 (%s)", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
 			if (new->family == AF_UNSPEC)
 				new->family = new->src->ifa.ifa_family;
 			else if (new->family != new->src->ifa.ifa_family) {
-				log_message(LOG_INFO, "Cannot mix IPv4 and IPv6 addresses for route");
+				report_config_error(CONFIG_GENERAL_ERROR, "Cannot mix IPv4 and IPv6 addresses for route");
 				goto err;
 			}
 		}
 		else if (!strcmp(str, "tos") || !strcmp(str,"dsfield")) {
 			/* Note: IPv4 only */
 			if (!find_rttables_dsfield(strvec_slot(strvec, ++i), &val8)) {
-				log_message(LOG_INFO, "TOS value %s is invalid", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "TOS value %s is invalid", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
 
@@ -1402,14 +1403,14 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 		}
 		else if (!strcmp(str, "table")) {
 			if (!find_rttables_table(strvec_slot(strvec, ++i), &val)) {
-				log_message(LOG_INFO, "Routing table %s not found for route", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "Routing table %s not found for route", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
 			new->table = val;
 		}
 		else if (!strcmp(str, "protocol")) {
 			if (!find_rttables_proto(strvec_slot(strvec, ++i), &val8)) {
-				log_message(LOG_INFO, "Protocol %s not found or invalid for route", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "Protocol %s not found or invalid for route", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
 			new->protocol = val8;
@@ -1418,7 +1419,7 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 		else if (!strcmp(str, "scope")) {
 			/* Note: IPv4 only */
 			if (!find_rttables_scope(strvec_slot(strvec, ++i), &val8)) {
-				log_message(LOG_INFO, "Scope %s not found or invalid for route", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "Scope %s not found or invalid for route", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
 			new->scope = val8;
@@ -1435,7 +1436,7 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 			str = strvec_slot(strvec, ++i);
 			ifp = if_get_by_ifname(str, IF_CREATE_IF_DYNAMIC);
 			if (!ifp) {
-				log_message(LOG_INFO, "WARNING - interface %s for VROUTE nexthop doesn't exist", str);
+				report_config_error(CONFIG_GENERAL_ERROR, "WARNING - interface %s for VROUTE nexthop doesn't exist", str);
 				goto err;
 			}
 			new->oif = ifp;
@@ -1448,14 +1449,14 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 #if HAVE_DECL_RTA_ENCAP
 			parse_encap(strvec, &i, &new->encap);
 #else
-			log_message(LOG_INFO, "%s not supported by kernel", "encap");
+			report_config_error(CONFIG_GENERAL_ERROR, "%s not supported by kernel", "encap");
 #endif
 		}
 		else if (!strcmp(str, "expires")) {	// New in 4.4
 			i++;
 #if HAVE_DECL_RTA_EXPIRES
 			if (new->family == AF_INET) {
-				log_message(LOG_INFO, "expires is only valid for IPv6");
+				report_config_error(CONFIG_GENERAL_ERROR, "expires is only valid for IPv6");
 				goto err;
 			}
 			new->family = AF_INET6;
@@ -1463,7 +1464,7 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 				goto err;
 			new->mask |= IPROUTE_BIT_EXPIRES;
 #else
-			log_message(LOG_INFO, "%s not supported by kernel", "expires");
+			report_config_error(CONFIG_GENERAL_ERROR, "%s not supported by kernel", "expires");
 #endif
 		}
 		else if (!strcmp(str, "mtu")) {
@@ -1497,7 +1498,7 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 			}
 			if (get_time_rtt(&new->rtt, strvec_slot(strvec, i), &raw) ||
 			    (!raw && new->rtt >= UINT32_MAX / 8)) {
-				log_message(LOG_INFO, "Invalid rtt %s for route", FMT_STR_VSLOT(strvec,i));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid rtt %s for route", FMT_STR_VSLOT(strvec,i));
 				goto err;
 			}
 			if (raw)
@@ -1511,7 +1512,7 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 			}
 			if (get_time_rtt(&new->rttvar, strvec_slot(strvec, i), &raw) ||
 			    (!raw && new->rtt >= UINT32_MAX / 4)) {
-				log_message(LOG_INFO, "Invalid rttvar %s for route", FMT_STR_VSLOT(strvec,i));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid rttvar %s for route", FMT_STR_VSLOT(strvec,i));
 				goto err;
 			}
 			if (raw)
@@ -1552,11 +1553,11 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 		}
 		else if (!strcmp(str, "realms")) {
 			if (get_realms(&new->realms, strvec_slot(strvec, ++i))) {
-				log_message(LOG_INFO, "Invalid realms %s for route", FMT_STR_VSLOT(strvec,i));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid realms %s for route", FMT_STR_VSLOT(strvec,i));
 				goto err;
 			}
 			if (new->family == AF_INET6) {
-				log_message(LOG_INFO, "realms are only valid for IPv4");
+				report_config_error(CONFIG_GENERAL_ERROR, "realms are only valid for IPv4");
 				goto err;
 			}
 			new->family = AF_INET;
@@ -1567,7 +1568,7 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 				i++;
 			}
 			if (get_time_rtt(&new->rto_min, strvec_slot(strvec, i), &raw)) {
-				log_message(LOG_INFO, "Invalid rto_min value %s specified for route", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid rto_min value %s specified for route", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
 			new->mask |= IPROUTE_BIT_RTO_MIN;
@@ -1588,7 +1589,7 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 			if (!strcmp("ecn", strvec_slot(strvec, i)))
 				new->features |= RTAX_FEATURE_ECN;
 			else
-				log_message(LOG_INFO, "feature %s not supported", FMT_STR_VSLOT(strvec,i));
+				report_config_error(CONFIG_GENERAL_ERROR, "feature %s not supported", FMT_STR_VSLOT(strvec,i));
 		}
 		else if (!strcmp(str, "quickack")) {
 			i++;
@@ -1598,7 +1599,7 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 			new->quickack = val;
 			new->mask |= IPROUTE_BIT_QUICKACK;
 #else
-			log_message(LOG_INFO, "%s not supported by kernel", "quickack for route");
+			report_config_error(CONFIG_GENERAL_ERROR, "%s not supported by kernel", "quickack for route");
 #endif
 		}
 		else if (!strcmp(str, "congctl")) {
@@ -1612,14 +1613,14 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 			new->congctl = malloc(strlen(str) + 1);
 			strcpy(new->congctl, str);
 #else
-			log_message(LOG_INFO, "%s not supported by kernel", "congctl for route");
+			report_config_error(CONFIG_GENERAL_ERROR, "%s not supported by kernel", "congctl for route");
 #endif
 		}
 		else if (!strcmp(str, "pref")) {
 			i++;
 #if HAVE_DECL_RTA_PREF
 			if (new->family == AF_INET) {
-				log_message(LOG_INFO, "pref is only valid for IPv6");
+				report_config_error(CONFIG_GENERAL_ERROR, "pref is only valid for IPv6");
 				goto err;
 			}
 			new->family = AF_INET6;
@@ -1636,7 +1637,7 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 				goto err;
 			new->mask |= IPROUTE_BIT_PREF;
 #else
-			log_message(LOG_INFO, "%s not supported by kernel", "pref");
+			report_config_error(CONFIG_GENERAL_ERROR, "%s not supported by kernel", "pref");
 #endif
 		}
 		else if (!strcmp(str, "fastopen_no_cookie")) {
@@ -1648,15 +1649,15 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 			new->fastopen_no_cookie = !!val;
 			new->mask |= IPROUTE_BIT_FASTOPEN_NO_COOKIE;
 #else
-			log_message(LOG_INFO, "%s not supported by kernel", "fastopen_no_cookie");
+			report_config_error(CONFIG_GENERAL_ERROR, "%s not supported by kernel", "fastopen_no_cookie");
 #endif
 		}
 		/* Maintained for backward compatibility */
 		else if (!strcmp(str, "or")) {
-			log_message(LOG_INFO, "\"or\" for routes is deprecated. Please use \"nexthop\"");
+			report_config_error(CONFIG_GENERAL_ERROR, "\"or\" for routes is deprecated. Please use \"nexthop\"");
 
 			if (new->nhs) {
-				log_message(LOG_INFO, "\"or\" route already specified - ignoring subsequent");
+				report_config_error(CONFIG_GENERAL_ERROR, "\"or\" route already specified - ignoring subsequent");
 				i += 2;
 				continue;
 			}
@@ -1673,7 +1674,7 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 			nh = MALLOC(sizeof(nexthop_t));
 			nh->addr = parse_ipaddress(NULL, strvec_slot(strvec, ++i), false);
 			if (!nh->addr) {
-				log_message(LOG_INFO, "Invalid \"or\" address %s", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid \"or\" address %s", FMT_STR_VSLOT(strvec, i));
 				FREE(nh);
 				goto err;
 			}
@@ -1681,7 +1682,7 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 		}
 		else if (!strcmp(str, "nexthop")) {
 			if (new->nhs)
-				log_message(LOG_INFO, "Cannot specify nexthops with \"or\" route");
+				report_config_error(CONFIG_GENERAL_ERROR, "Cannot specify nexthops with \"or\" route");
 			else
 				do_nexthop = true;
 			break;
@@ -1691,11 +1692,11 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 		else if (allow_track_group && !strcmp(str, "track_group")) {
 			i++;
 			if (new->track_group) {
-				log_message(LOG_INFO, "track_group %s is a duplicate", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "track_group %s is a duplicate", FMT_STR_VSLOT(strvec, i));
 				break;
 			}
 			if (!(new->track_group = find_track_group(strvec_slot(strvec, i))))
-				log_message(LOG_INFO, "track_group %s not found", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "track_group %s not found", FMT_STR_VSLOT(strvec, i));
 		}
 		else {
 			if (!strcmp(str, "to"))
@@ -1711,13 +1712,13 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 			dest = strvec_slot(strvec, i);
 			dst = parse_ipaddress(NULL, dest, true);
 			if (!dst) {
-				log_message(LOG_INFO, "unknown route keyword %s", dest);
+				report_config_error(CONFIG_GENERAL_ERROR, "unknown route keyword %s", dest);
 				goto err;
 			}
 			if (new->family == AF_UNSPEC)
 				new->family = dst->ifa.ifa_family;
 			else if (new->family != dst->ifa.ifa_family) {
-				log_message(LOG_INFO, "Cannot mix IPv4 and IPv6 addresses for route (%s)", dest);
+				report_config_error(CONFIG_GENERAL_ERROR, "Cannot mix IPv4 and IPv6 addresses for route (%s)", dest);
 				goto err;
 			}
 			new->dst = dst;
@@ -1728,18 +1729,18 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 	if (do_nexthop)
 		parse_nexthops(strvec, i, new);
 	else if (i < vector_size(strvec)) {
-		log_message(LOG_INFO, "Route has trailing nonsense - %s", FMT_STR_VSLOT(strvec, i));
+		report_config_error(CONFIG_GENERAL_ERROR, "Route has trailing nonsense - %s", FMT_STR_VSLOT(strvec, i));
 		goto err;
 	}
 
 	if (!new->dst) {
-		log_message(LOG_INFO, "Route must have a destination");
+		report_config_error(CONFIG_GENERAL_ERROR, "Route must have a destination");
 		goto err;
 	}
 
 	if (!new->dont_track) {
 		if ((new->mask & IPROUTE_BIT_PROTOCOL) && new->protocol != RTPROT_KEEPALIVED)
-			log_message(LOG_INFO, "Route cannot be tracked if protocol is not RTPROT_KEEPALIVED(%d), resetting protocol", RTPROT_KEEPALIVED);
+			report_config_error(CONFIG_GENERAL_ERROR, "Route cannot be tracked if protocol is not RTPROT_KEEPALIVED(%d), resetting protocol", RTPROT_KEEPALIVED);
 		new->protocol = RTPROT_KEEPALIVED;
 		new->mask |= IPROUTE_BIT_PROTOCOL;
 
@@ -1748,14 +1749,19 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 			 * The interface will need to be added temporarily. tracking_vrrp_t will need
 			 * a flag to specify permanent track, and a counter for number of temporary
 			 * trackers. If the termporary tracker count becomes 0 and there is no permanent
-			 * track, then the tracking_vrrp_t will need to be removed. */
-			log_message(LOG_INFO, "Warning - cannot track route %s with no interface specified, not tracking", dest);
+			 * track, then the tracking_vrrp_t will need to be removed.
+			 *
+			 * We also have a problem if using nexthop, since the route will only be deleted
+			 * when the interfaces for all of the hops have gone down. We would need to track
+			 * all of the interfaces being used, and only mark the route as down if all the
+			 * interfaces are down. */
+			report_config_error(CONFIG_GENERAL_ERROR, "Warning - cannot track route %s with no interface specified, not tracking", dest);
 			new->dont_track = true;
 		}
 	}
 
 	if (new->track_group && !new->oif) {
-		log_message(LOG_INFO, "Static route cannot have track group if no oif specified");
+		report_config_error(CONFIG_GENERAL_ERROR, "Static route cannot have track group if no oif specified");
 		new->track_group = NULL;
 	}
 

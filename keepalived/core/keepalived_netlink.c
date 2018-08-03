@@ -1046,7 +1046,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 
 #ifdef _WITH_VRRP_
 #ifndef _DEBUG_
-	if (prog_type == PROG_TYPE_VRRP)
+	if (prog_type == PROG_TYPE_VRRP || __test_bit(CONFIG_TEST_BIT, &debug))
 #endif
 	{
 		/* Fetch interface_t */
@@ -2129,10 +2129,8 @@ kernel_netlink_set_recv_bufs(void)
 	}
 #endif
 #ifdef _WITH_LVS_
-	if (prog_type == PROG_TYPE_CHECKER) {
+	if (prog_type == PROG_TYPE_CHECKER)
 		netlink_set_rx_buf_size(&nl_kernel, global_data->lvs_netlink_monitor_rcv_bufs, global_data->lvs_netlink_monitor_rcv_bufs_force);
-		netlink_set_rx_buf_size(&nl_cmd, global_data->lvs_netlink_cmd_rcv_bufs, global_data->lvs_netlink_cmd_rcv_bufs_force);
-	}
 #endif
 #endif
 }
@@ -2165,17 +2163,6 @@ kernel_netlink_init(void)
 	 * and ROUTE netlink broadcast messages, but
 	 * the checker process does not need the
 	 * route or link messages.
-	 */
-	/* TODO
-	 * If an interface goes down, or an address is removed, any routes that specify the interface or address are deleted.
-	 * If an interface goes down, any address on that interface is deleted. In this case, the vrrp instance should go to fault state.
-	 * If an interface goes down, any VMACs are deleted. We need to recreate them when the interface returns.
-	 * If a static route/ip_address goes down, some vrrp instances maybe should go down - add a tracking_instance option
-	 * We need to reinstate routes/addresses/VMACs when we can.
-	 * We need an option on routes to put the instance in fault state if the route disappears.
-	 * When i/f deleted (? or down), close any sockets
-	 * No ipaddr on i/f <=> link down, for us
-	 * Do LVS services get lost on addr/link deletion?
 	 */
 
 	/* If the netlink kernel fd is already open, just register a read thread.
@@ -2245,11 +2232,35 @@ kernel_netlink_init(void)
 
 	netlink_address_lookup();
 
-#if !defined _DEBUG_ && defined _WITH_CHECKER_
+#if !defined _DEBUG_ && defined _WITH_LVS_
 	if (prog_type == PROG_TYPE_CHECKER)
 		kernel_netlink_close_cmd();
 #endif
 }
+
+#ifdef _WITH_VRRP_
+void
+kernel_netlink_read_interfaces(void)
+{
+	int ret;
+
+#ifdef _WITH_VRRP_
+	netlink_socket(&nl_cmd, global_data->vrrp_netlink_cmd_rcv_bufs, global_data->vrrp_netlink_cmd_rcv_bufs_force, 0, 0);
+#else
+	netlink_socket(&nl_cmd, global_data->lvs_netlink_cmd_rcv_bufs, global_data->lvs_netlink_cmd_rcv_bufs_force, 0, 0);
+#endif
+
+	if (nl_cmd.fd <= 0)
+		fprintf(stderr, "Error while registering Kernel netlink cmd channel\n");
+
+	init_interface_queue();
+
+	if ((ret = netlink_address_lookup()))
+		fprintf(stderr, "netlink_address_lookup() returned %d\n", ret);
+
+	kernel_netlink_close_cmd();
+}
+#endif
 
 #ifdef _TIMER_DEBUG_
 void

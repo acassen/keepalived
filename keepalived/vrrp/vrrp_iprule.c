@@ -37,6 +37,7 @@
 #include <netdb.h>
 #include <inttypes.h>
 #endif
+#include <ctype.h>
 
 /* local include */
 #include "vrrp_iproute.h"
@@ -48,6 +49,7 @@
 #include "utils.h"
 #include "rttables.h"
 #include "vrrp_ip_rule_route_parser.h"
+#include "parser.h"
 
 /* Since we will be adding and deleting rules in potentially random
  * orders due to master/backup transitions, we therefore need to
@@ -121,14 +123,17 @@ inet_proto_a2n(const char *buf)
 	unsigned long proto_num;
 	char *endptr;
 
-	if (!*buf)
+	/* Skip white space */
+	buf += strspn(buf, WHITE_SPACE);
+
+	if (!*buf || *buf == '-')
 		return -1;
 
 	proto_num = strtoul(buf, &endptr, 10);
-	if (endptr != buf && !*endptr)
+	if (proto_num > INT8_MAX)
 		return -1;
-	if (proto_num >INT_MAX)
-		return -1;
+	if (!*endptr)
+		return proto_num;
 
 	pe = getprotobyname(buf);
 	endprotoent();
@@ -461,6 +466,7 @@ alloc_rule(list rule_list, vector_t *strvec, __attribute__((unused)) bool allow_
 	char *str;
 	unsigned int i = 0;
 	unsigned long val, val1;
+	unsigned val_unsigned;
 	uint32_t uval32;
 	uint8_t uval8;
 	int family = AF_UNSPEC;
@@ -499,14 +505,14 @@ alloc_rule(list rule_list, vector_t *strvec, __attribute__((unused)) bool allow_
 				FREE(new->from_addr);
 			new->from_addr = parse_ipaddress(NULL, strvec_slot(strvec, ++i), false);
 			if (!new->from_addr) {
-				log_message(LOG_INFO, "Invalid rule from address %s", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid rule from address %s", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
 			if (family == AF_UNSPEC)
 				family = new->from_addr->ifa.ifa_family;
 			else if (new->from_addr->ifa.ifa_family != family)
 			{
-				log_message(LOG_INFO, "rule specification has mixed IPv4 and IPv6");
+				report_config_error(CONFIG_GENERAL_ERROR, "rule specification has mixed IPv4 and IPv6");
 				goto err;
 			}
 		}
@@ -515,30 +521,30 @@ alloc_rule(list rule_list, vector_t *strvec, __attribute__((unused)) bool allow_
 				FREE(new->to_addr);
 			new->to_addr = parse_ipaddress(NULL, strvec_slot(strvec, ++i), false);
 			if (!new->to_addr) {
-				log_message(LOG_INFO, "Invalid rule to address %s", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid rule to address %s", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
 			if (family == AF_UNSPEC)
 				family = new->to_addr->ifa.ifa_family;
 			else if (new->to_addr->ifa.ifa_family != family)
 			{
-				log_message(LOG_INFO, "rule specification has mixed IPv4 and IPv6");
+				report_config_error(CONFIG_GENERAL_ERROR, "rule specification has mixed IPv4 and IPv6");
 				goto err;
 			}
 		}
 		else if (!strcmp(str, "table") ||
 			 !strcmp(str, "lookup")) {
 			if (!find_rttables_table(strvec_slot(strvec, ++i), &uval32)) {
-				log_message(LOG_INFO, "Routing table %s not found for rule", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "Routing table %s not found for rule", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
 			if (uval32 == 0) {
-				log_message(LOG_INFO, "Table 0 is not valid");
+				report_config_error(CONFIG_GENERAL_ERROR, "Table 0 is not valid");
 				goto err;
 			}
 			new->table = uval32;
 			if (new->action != FR_ACT_UNSPEC) {
-				log_message(LOG_INFO, "Cannot specify more than one of table/nop/goto/blackhole/prohibit/unreachable for rule");
+				report_config_error(CONFIG_GENERAL_ERROR, "Cannot specify more than one of table/nop/goto/blackhole/prohibit/unreachable for rule");
 				goto err;
 			}
 			new->action = FR_ACT_TO_TBL;
@@ -548,19 +554,17 @@ alloc_rule(list rule_list, vector_t *strvec, __attribute__((unused)) bool allow_
 		else if (!strcmp(str, "preference") ||
 			 !strcmp(str, "order") ||
 			 !strcmp(str, "priority")) {
-			str = strvec_slot(strvec, ++i);
-			val = strtoul(str, &end, 0);
-			if (*end || val > UINT32_MAX) {
-				log_message(LOG_INFO, "Invalid rule preference %s specified", str);
+			if (!read_unsigned_base_strvec(strvec, ++i, 0, &val_unsigned, 0, UINT32_MAX, false)) {
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid rule preference %s specified", str);
 				goto err;
 			}
 
-			new->priority = (uint32_t)val;
+			new->priority = (uint32_t)val_unsigned;
 			new->mask |= IPRULE_BIT_PRIORITY;
 		}
 		else if (!strcmp(str, "tos") || !strcmp(str, "dsfield")) {
 			if (!find_rttables_dsfield(strvec_slot(strvec, ++i), &uval8)) {
-				log_message(LOG_INFO, "TOS value %s is invalid", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "TOS value %s is invalid", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
 
@@ -568,6 +572,7 @@ alloc_rule(list rule_list, vector_t *strvec, __attribute__((unused)) bool allow_
 		}
 		else if (!strcmp(str, "fwmark")) {
 			str = strvec_slot(strvec, ++i);
+			str += strspn(str, WHITE_SPACE);
 			if (str[0] == '-')
 				goto fwmark_err;
 			val = strtoul(str, &end, 0);
@@ -575,10 +580,10 @@ alloc_rule(list rule_list, vector_t *strvec, __attribute__((unused)) bool allow_
 				goto fwmark_err;
 
 			if (*end == '/') {
-				if (end[1] == '-')
+				if (isspace(end[1]) || end[1] == '-')
 					goto fwmark_err;
 
-				val1 = strtoul(end+1, &end, 0);
+				val1 = strtoul(end + 1, &end, 0);
 				if (val1 > UINT32_MAX)
 					goto fwmark_err;
 				new->mask |= IPRULE_BIT_FWMASK;
@@ -596,7 +601,7 @@ alloc_rule(list rule_list, vector_t *strvec, __attribute__((unused)) bool allow_
 			if (true) {
 			} else {
 fwmark_err:
-				log_message(LOG_INFO, "Invalid rule fwmark %s specified", str);
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid rule fwmark %s specified", str);
 				new->mask &= (uint32_t)~IPRULE_BIT_FWMASK;
 				goto err;
 			}
@@ -604,7 +609,7 @@ fwmark_err:
 		else if (!strcmp(str, "realms")) {
 			str = strvec_slot(strvec, ++i);
 			if (get_realms(&uval32, str)) {
-				log_message(LOG_INFO, "invalid realms %s for rule", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "invalid realms %s for rule", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
 
@@ -613,26 +618,24 @@ fwmark_err:
 			if (family == AF_UNSPEC)
 				family = AF_INET;
 			else if (family != AF_INET) {
-				log_message(LOG_INFO, "realms is only valid for IPv4");
+				report_config_error(CONFIG_GENERAL_ERROR, "realms is only valid for IPv4");
 				goto err;
 			}
 		}
 #if HAVE_DECL_FRA_SUPPRESS_PREFIXLEN
 		else if (!strcmp(str, "suppress_prefixlength") || !strcmp(str, "sup_pl")) {
-			str = strvec_slot(strvec, ++i);
-			val = strtoul(str, &end, 0);
-			if (*end || val > INT32_MAX) {
-				log_message(LOG_INFO, "Invalid suppress_prefixlength %s specified", str);
+			if (!read_unsigned_strvec(strvec, ++i, &val_unsigned, 0, INT32_MAX, false)) {
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid suppress_prefixlength %s specified", str);
 				goto err;
 			}
-			new->suppress_prefix_len = (int32_t)val;
+			new->suppress_prefix_len = (int32_t)val_unsigned;
 			table_option = true;
 		}
 #endif
 #if HAVE_DECL_FRA_SUPPRESS_IFGROUP
 		else if (!strcmp(str, "suppress_ifgroup") || !strcmp(str, "sup_group")) {
 			if (!find_rttables_group(strvec_slot(strvec, ++i), &uval32)) {
-				log_message(LOG_INFO, "suppress_group %s is invalid", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "suppress_group %s is invalid", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
 			new->suppress_group = uval32;
@@ -644,7 +647,7 @@ fwmark_err:
 			str = strvec_slot(strvec, ++i);
 			ifp = if_get_by_ifname(str, IF_CREATE_IF_DYNAMIC);
 			if (!ifp) {
-				log_message(LOG_INFO, "WARNING - interface %s for rule doesn't exist",  str);
+				report_config_error(CONFIG_GENERAL_ERROR, "WARNING - interface %s for rule doesn't exist",  str);
 				goto err;
 			}
 			new->iif = ifp;
@@ -654,7 +657,7 @@ fwmark_err:
 			str = strvec_slot(strvec, ++i);
 			ifp = if_get_by_ifname(str, IF_CREATE_IF_DYNAMIC);
 			if (!ifp) {
-				log_message(LOG_INFO, "WARNING - interface %s for rule doesn't exist",  str);
+				report_config_error(CONFIG_GENERAL_ERROR, "WARNING - interface %s for rule doesn't exist",  str);
 				goto err;
 			}
 			new->oif = ifp;
@@ -663,9 +666,8 @@ fwmark_err:
 #if HAVE_DECL_FRA_TUN_ID
 		else if (!strcmp(str, "tunnel-id")) {
 			uint64_t val64;
-			val64 = strtoull(strvec_slot(strvec, ++i), &end, 0);
-			if (*end) {
-				log_message(LOG_INFO, "Invalid tunnel-id %s specified", str);
+			if (!read_unsigned64_strvec(strvec, ++i, &val64, 0, UINT64_MAX, false)) {
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid tunnel-id %s specified", str);
 				goto err;
 			}
 			new->tunnel_id = val64;
@@ -675,7 +677,7 @@ fwmark_err:
 		else if (!strcmp(str, "uidrange")) {
 			uint32_t start, end;
 			if (sscanf(strvec_slot(strvec, ++i), "%" PRIu32 "-%" PRIu32, &start, &end) != 2) {
-				log_message(LOG_INFO, "Invalid uidrange %s specified", str);
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid uidrange %s specified", str);
 				goto err;
 			}
 			new->mask |= IPRULE_BIT_UID_RANGE;
@@ -687,7 +689,7 @@ fwmark_err:
 		else if (!strcmp(str, "l3mdev")) {
 			new->l3mdev = true;
 			if (new->action != FR_ACT_UNSPEC) {
-				log_message(LOG_INFO, "Cannot specify l3mdev with other action");
+				report_config_error(CONFIG_GENERAL_ERROR, "Cannot specify l3mdev with other action");
 				goto err;
 			}
 			new->action = FR_ACT_TO_TBL;
@@ -695,12 +697,10 @@ fwmark_err:
 #endif
 #if HAVE_DECL_FRA_PROTOCOL
 		else if (!strcmp(str, "protocol")) {
-			char *endptr;
-			unsigned long protocol = strtoul(strvec_slot(strvec, ++i), &endptr, 10);
-			if (protocol > UINT8_MAX || *endptr)
-				log_message(LOG_INFO, "Invalid protocol %s", FMT_STR_VSLOT(strvec, i));
+			if (!read_unsigned_strvec(strvec, ++i, &val_unsigned, 0, UINT8_MAX, false))
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid protocol %s", FMT_STR_VSLOT(strvec, i));
 			else {
-				new->protocol = protocol;
+				new->protocol = val_unsigned;
 				new->mask |= IPRULE_BIT_PROTOCOL;
 			}
 		}
@@ -709,7 +709,7 @@ fwmark_err:
 		else if (!strcmp(str, "ipproto")) {
 			int ip_proto = inet_proto_a2n(strvec_slot(strvec, ++i));
 			if (ip_proto < 0 || ip_proto > UINT8_MAX)
-				log_message(LOG_INFO, "Invalid ipproto %s", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid ipproto %s", FMT_STR_VSLOT(strvec, i));
 			else {
 				new->ip_proto = ip_proto;
 				new->mask |= IPRULE_BIT_IP_PROTO;
@@ -725,7 +725,7 @@ fwmark_err:
 			if (ret == 1)
 				sport.end = sport.start;
 			if (ret != 2)
-				log_message(LOG_INFO, "invalid sport range %s", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "invalid sport range %s", FMT_STR_VSLOT(strvec, i));
 			else {
 				new->src_port = sport;
 				new->mask |= IPRULE_BIT_SPORT_RANGE;
@@ -741,7 +741,7 @@ fwmark_err:
 			if (ret == 1)
 				dport.end = dport.start;
 			if (ret != 2)
-				log_message(LOG_INFO, "invalid dport range %s", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "invalid dport range %s", FMT_STR_VSLOT(strvec, i));
 			else {
 				new->dst_port = dport;
 				new->mask |= IPRULE_BIT_DPORT_RANGE;
@@ -755,11 +755,11 @@ fwmark_err:
 		else if (allow_track_group && !strcmp(str, "track_group")) {
 			i++;
 			if (new->track_group) {
-				log_message(LOG_INFO, "track_group %s is a duplicate", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "track_group %s is a duplicate", FMT_STR_VSLOT(strvec, i));
 				break;
 			}
 			if (!(new->track_group = find_track_group(strvec_slot(strvec, i))))
-                                log_message(LOG_INFO, "track_group %s not found", FMT_STR_VSLOT(strvec, i));
+                                report_config_error(CONFIG_GENERAL_ERROR, "track_group %s not found", FMT_STR_VSLOT(strvec, i));
 		}
 #endif
 		else {
@@ -769,12 +769,11 @@ fwmark_err:
 				str = strvec_slot(strvec, ++i);
 
 			if (!strcmp(str, "goto")) {
-				val = strtoul(strvec_slot(strvec, ++i), &end, 0);
-				if (*end || val > UINT32_MAX) {
-					log_message(LOG_INFO, "Invalid target %s specified", str);
+				if (!read_unsigned_strvec(strvec, ++i, &val_unsigned, 0, UINT32_MAX, false)) {
+					report_config_error(CONFIG_GENERAL_ERROR, "Invalid target %s specified", str);
 					goto err;
 				}
-				new->goto_target = (uint32_t)val;
+				new->goto_target = (uint32_t)val_unsigned;
 				action = FR_ACT_GOTO;
 			}
 			else if (!strcmp(str, "nop")) {
@@ -788,16 +787,16 @@ fwmark_err:
 				else if (action == RTN_PROHIBIT)
 					action = FR_ACT_PROHIBIT;
 				else {
-					log_message(LOG_INFO, "Invalid rule action %s", str);
+					report_config_error(CONFIG_GENERAL_ERROR, "Invalid rule action %s", str);
 					goto err;
 				}
 			}
 			else {
-				log_message(LOG_INFO, "Unknown rule option %s", str);
+				report_config_error(CONFIG_GENERAL_ERROR, "Unknown rule option %s", str);
 				goto err;
 			}
 			if (new->action != FR_ACT_UNSPEC) {
-				log_message(LOG_INFO, "Cannot specify more than one of table/nop/goto/blackhole/prohibit/unreachable/l3mdev for rule");
+				report_config_error(CONFIG_GENERAL_ERROR, "Cannot specify more than one of table/nop/goto/blackhole/prohibit/unreachable/l3mdev for rule");
 				goto err;
 			}
 			new->action = action;
@@ -808,28 +807,28 @@ fwmark_err:
 	if (new->action == FR_ACT_GOTO) {
 		if (new->mask & IPRULE_BIT_PRIORITY) {
 			if (new->priority >= new->goto_target) {
-				log_message(LOG_INFO, "Invalid rule - preference %u >= goto target %u", new->priority, new->goto_target);
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid rule - preference %u >= goto target %u", new->priority, new->goto_target);
 				goto err;
 			}
 		} else {
-			log_message(LOG_INFO, "Invalid rule - goto target %u specified without preference", new->goto_target);
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid rule - goto target %u specified without preference", new->goto_target);
 			goto err;
 		}
 	}
 
 	if (new->action == FR_ACT_UNSPEC) {
-		log_message(LOG_INFO, "No action specified for rule - ignoring");
+		report_config_error(CONFIG_GENERAL_ERROR, "No action specified for rule - ignoring");
 		goto err;
 	}
 
 	if (new->action != FR_ACT_TO_TBL && table_option) {
-		log_message(LOG_INFO, "suppressor/realm specified for non table action - skipping");
+		report_config_error(CONFIG_GENERAL_ERROR, "suppressor/realm specified for non table action - skipping");
 		goto err;
 	}
 
 #if HAVE_DECL_FRA_L3MDEV
 	if (new->table && new->l3mdev) {
-		log_message(LOG_INFO, "table cannot be specified for l3mdev rules");
+		report_config_error(CONFIG_GENERAL_ERROR, "table cannot be specified for l3mdev rules");
 		goto err;
 	}
 #endif
@@ -837,14 +836,14 @@ fwmark_err:
 #if HAVE_DECL_FRA_PROTOCOL
 	if (!new->dont_track) {
 		if ((new->mask & IPRULE_BIT_PROTOCOL) && new->protocol != RTPROT_KEEPALIVED)
-			log_message(LOG_INFO, "Rule cannot be tracked if protocol is not RTPROT_KEEPALIVED(%d), resetting protocol", RTPROT_KEEPALIVED);
+			report_config_error(CONFIG_GENERAL_ERROR, "Rule cannot be tracked if protocol is not RTPROT_KEEPALIVED(%d), resetting protocol", RTPROT_KEEPALIVED);
 		new->protocol = RTPROT_KEEPALIVED;
 		new->mask |= IPRULE_BIT_PROTOCOL;
 	}
 #endif
 
 	if (new->track_group && !new->iif) {
-		log_message(LOG_INFO, "Static rule cannot have track_group if dev/iif not specified");
+		report_config_error(CONFIG_GENERAL_ERROR, "Static rule cannot have track_group if dev/iif not specified");
 		new->track_group = NULL;
 	}
 
@@ -853,7 +852,7 @@ fwmark_err:
 	if (!(new->mask & IPRULE_BIT_PRIORITY)) {
 		new->priority = new->family == AF_INET ? next_rule_priority_ipv4-- : next_rule_priority_ipv6--;
 		new->mask |= IPRULE_BIT_PRIORITY;
-		log_message(LOG_INFO, "Rule has no preference specifed - setting to %u. This is probably not what you want.", new->priority);
+		report_config_error(CONFIG_GENERAL_ERROR, "Rule has no preference specifed - setting to %u. This is probably not what you want.", new->priority);
 	}
 
 	list_add(rule_list, new);

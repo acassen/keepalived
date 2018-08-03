@@ -54,7 +54,7 @@ static bool
 check_new_bfd(const char *name)
 {
 	if (strlen(name) >= BFD_INAME_MAX) {
-		log_message(LOG_ERR, "Configuration error: BFD instance %s"
+		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
 			    " name too long (maximum length is %i"
 			    " characters) - ignoring", name,
 			    BFD_INAME_MAX - 1);
@@ -62,7 +62,7 @@ check_new_bfd(const char *name)
 	}
 
 	if (find_bfd_by_name(name)) {
-		log_message(LOG_ERR,
+		report_config_error(CONFIG_GENERAL_ERROR,
 			    "Configuration error: BFD instance %s"
 			    " already configured - ignoring", name);
 		return false;
@@ -97,7 +97,6 @@ static void
 bfd_nbrip_handler(vector_t *strvec)
 {
 	bfd_t *bfd;
-	int ret;
 	struct sockaddr_storage nbr_addr;
 
 	assert(strvec);
@@ -109,9 +108,8 @@ bfd_nbrip_handler(vector_t *strvec)
 	if (!strcmp(vector_slot(strvec, 1), "neighbour_ip"))
 		neighbor_str = "neighbour";
 
-	ret = inet_stosockaddr(vector_slot(strvec, 1), BFD_CONTROL_PORT, &nbr_addr);
-	if (ret < 0) {
-		log_message(LOG_ERR,
+	if (inet_stosockaddr(strvec_slot(strvec, 1), BFD_CONTROL_PORT, &nbr_addr)) {
+		report_config_error(CONFIG_GENERAL_ERROR,
 			    "Configuration error: BFD instance %s has"
 			    " malformed %s address %s, ignoring instance",
 			    bfd->iname, neighbor_str, FMT_STR_VSLOT(strvec, 1));
@@ -119,7 +117,7 @@ bfd_nbrip_handler(vector_t *strvec)
 		skip_block(false);
 		return;
 	} else if (find_bfd_by_addr(&nbr_addr)) {
-		log_message(LOG_ERR,
+		report_config_error(CONFIG_GENERAL_ERROR,
 			    "Configuration error: BFD instance %s has"
 			    " duplicate %s address %s, ignoring instance",
 			    bfd->iname, neighbor_str, FMT_STR_VSLOT(strvec, 1));
@@ -134,7 +132,6 @@ static void
 bfd_srcip_handler(vector_t *strvec)
 {
 	bfd_t *bfd;
-	int ret;
 	struct sockaddr_storage src_addr;
 
 	assert(strvec);
@@ -143,9 +140,8 @@ bfd_srcip_handler(vector_t *strvec)
 	bfd = LIST_TAIL_DATA(bfd_data->bfd);
 	assert(bfd);
 
-	ret = inet_stosockaddr(vector_slot(strvec, 1), 0, &src_addr);
-	if (ret < 0) {
-		log_message(LOG_ERR,
+	if (inet_stosockaddr(strvec_slot(strvec, 1), NULL, &src_addr)) {
+		report_config_error(CONFIG_GENERAL_ERROR,
 			    "Configuration error: BFD instance %s has"
 			    " malformed source address %s, ignoring",
 			    bfd->iname, FMT_STR_VSLOT(strvec, 1));
@@ -157,8 +153,7 @@ static void
 bfd_minrx_handler(vector_t *strvec)
 {
 	bfd_t *bfd;
-	char *endptr;
-	unsigned long value;
+	unsigned value;
 
 	assert(strvec);
 	assert(bfd_data);
@@ -166,10 +161,8 @@ bfd_minrx_handler(vector_t *strvec)
 	bfd = LIST_TAIL_DATA(bfd_data->bfd);
 	assert(bfd);
 
-	value = strtoul(vector_slot(strvec, 1), &endptr, 10);
-
-	if (*endptr || value < BFD_MINRX_MIN || value > BFD_MINRX_MAX)
-		log_message(LOG_ERR, "Configuration error: BFD instance %s"
+	if (!read_unsigned_strvec(strvec, 1, &value, BFD_MINRX_MIN, BFD_MINRX_MAX, false))
+		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
 			    " min_rx value %s is not valid (must be in range"
 			    " [%u-%u]), ignoring", bfd->iname, FMT_STR_VSLOT(strvec, 1),
 			    BFD_MINRX_MIN, BFD_MINRX_MAX);
@@ -178,7 +171,7 @@ bfd_minrx_handler(vector_t *strvec)
 
 	if (value > BFD_MINRX_MAX_SENSIBLE)
 		log_message(LOG_INFO, "Configuration warning: BFD instance %s"
-			    " min_rx value %lu is larger than max sensible (%u)",
+			    " min_rx value %u is larger than max sensible (%u)",
 			    bfd->iname, value, BFD_MINRX_MAX_SENSIBLE);
 }
 
@@ -186,8 +179,7 @@ static void
 bfd_mintx_handler(vector_t *strvec)
 {
 	bfd_t *bfd;
-	char *endptr;
-	unsigned long value;
+	unsigned value;
 
 	assert(strvec);
 	assert(bfd_data);
@@ -195,10 +187,8 @@ bfd_mintx_handler(vector_t *strvec)
 	bfd = LIST_TAIL_DATA(bfd_data->bfd);
 	assert(bfd);
 
-	value = strtoul(vector_slot(strvec, 1), &endptr, 10);
-
-	if (*endptr || value < BFD_MINTX_MIN || value > BFD_MINTX_MAX)
-		log_message(LOG_ERR, "Configuration error: BFD instance %s"
+	if (!read_unsigned_strvec(strvec, 1, &value, BFD_MINTX_MIN, BFD_MINTX_MAX, false))
+		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
 			    " min_tx value %s is not valid (must be in range"
 			    " [%u-%u]), ignoring", bfd->iname, FMT_STR_VSLOT(strvec, 1),
 			    BFD_MINTX_MIN, BFD_MINTX_MAX);
@@ -207,7 +197,7 @@ bfd_mintx_handler(vector_t *strvec)
 
 	if (value > BFD_MINTX_MAX_SENSIBLE)
 		log_message(LOG_INFO, "Configuration warning: BFD instance %s"
-			    " min_tx value %lu is larger than max sensible (%u)",
+			    " min_tx value %u is larger than max sensible (%u)",
 			    bfd->iname, value, BFD_MINTX_MAX_SENSIBLE);
 }
 
@@ -215,8 +205,7 @@ static void
 bfd_idletx_handler(vector_t *strvec)
 {
 	bfd_t *bfd;
-	char *endptr;
-	unsigned long value;
+	unsigned value;
 
 	assert(strvec);
 	assert(bfd_data);
@@ -224,10 +213,8 @@ bfd_idletx_handler(vector_t *strvec)
 	bfd = LIST_TAIL_DATA(bfd_data->bfd);
 	assert(bfd);
 
-	value = strtoul(vector_slot(strvec, 1), &endptr, 10);
-
-	if (*endptr || value < BFD_IDLETX_MIN || value > BFD_IDLETX_MAX)
-		log_message(LOG_ERR, "Configuration error: BFD instance %s"
+	if (!read_unsigned_strvec(strvec, 1, &value,BFD_IDLETX_MIN, BFD_IDLETX_MAX, false))
+		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
 			    " idle_tx value %s is not valid (must be in range"
 			    " [%u-%u]), ignoring", bfd->iname, FMT_STR_VSLOT(strvec, 1),
 			    BFD_IDLETX_MIN, BFD_IDLETX_MAX);
@@ -236,7 +223,7 @@ bfd_idletx_handler(vector_t *strvec)
 
 	if (value > BFD_IDLETX_MAX_SENSIBLE)
 		log_message(LOG_INFO, "Configuration warning: BFD instance %s"
-			    " idle_tx value %lu is larger than max sensible (%u)",
+			    " idle_tx value %u is larger than max sensible (%u)",
 			    bfd->iname, value, BFD_IDLETX_MAX_SENSIBLE);
 }
 
@@ -244,8 +231,7 @@ static void
 bfd_multiplier_handler(vector_t *strvec)
 {
 	bfd_t *bfd;
-	char *endptr;
-	unsigned long value;
+	unsigned value;
 
 	assert(strvec);
 	assert(bfd_data);
@@ -253,10 +239,8 @@ bfd_multiplier_handler(vector_t *strvec)
 	bfd = LIST_TAIL_DATA(bfd_data->bfd);
 	assert(bfd);
 
-	value = strtoul(vector_slot(strvec, 1), &endptr, 10);
-
-	if (*endptr || value < BFD_MULTIPLIER_MIN || value > BFD_MULTIPLIER_MAX)
-		log_message(LOG_ERR, "Configuration error: BFD instance %s"
+	if (!read_unsigned_strvec(strvec, 1, &value, BFD_MULTIPLIER_MIN, BFD_MULTIPLIER_MAX, false))
+		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
 			    " multiplier value %s not valid (must be in range"
 			    " [%u-%u]), ignoring", bfd->iname, FMT_STR_VSLOT(strvec, 1),
 			    BFD_MULTIPLIER_MIN, BFD_MULTIPLIER_MAX);
@@ -281,8 +265,7 @@ static void
 bfd_ttl_handler(vector_t *strvec)
 {
 	bfd_t *bfd;
-	char *endptr;
-	unsigned long value;
+	unsigned value;
 
 	assert(strvec);
 	assert(bfd_data);
@@ -290,14 +273,12 @@ bfd_ttl_handler(vector_t *strvec)
 	bfd = LIST_TAIL_DATA(bfd_data->bfd);
 	assert(bfd);
 
-	value = strtoul(vector_slot(strvec, 1), &endptr, 10);
-
-	if (*endptr || value == 0 || value > BFD_TTL_MAX) {
-		log_message(LOG_ERR, "Configuration error: BFD instance %s"
+	if (!read_unsigned_strvec(strvec, 1, &value, 1, BFD_TTL_MAX, false))
+		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
 			    " ttl/hoplimit value %s not valid (must be in range"
 			    " [1-%u]), ignoring", bfd->iname,
 			    FMT_STR_VSLOT(strvec, 1), BFD_TTL_MAX);
-	} else
+	else
 		bfd->ttl = value;
 }
 
@@ -305,8 +286,7 @@ static void
 bfd_maxhops_handler(vector_t *strvec)
 {
 	bfd_t *bfd;
-	char *endptr;
-	long value;
+	int value;
 
 	assert(strvec);
 	assert(bfd_data);
@@ -314,14 +294,12 @@ bfd_maxhops_handler(vector_t *strvec)
 	bfd = LIST_TAIL_DATA(bfd_data->bfd);
 	assert(bfd);
 
-	value = strtol(vector_slot(strvec, 1), &endptr, 10);
-
-	if (*endptr || value < -1 || value > BFD_TTL_MAX) {
-		log_message(LOG_ERR, "Configuration error: BFD instance %s"
+	if (!read_int_strvec(strvec, 1, &value, -1, BFD_TTL_MAX, false))
+		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
 			    " max_hops value %s not valid (must be in range"
 			    " [-1-%u]), ignoring", bfd->iname,
 			    FMT_STR_VSLOT(strvec, 1), BFD_TTL_MAX);
-	} else
+	else
 		bfd->max_hops = value;
 }
 
@@ -352,7 +330,7 @@ bfd_end_handler(void)
 	assert(bfd);
 
 	if (!bfd->nbr_addr.ss_family) {
-		log_message(LOG_ERR,
+		report_config_error(CONFIG_GENERAL_ERROR,
 			    "Configuration error: BFD instance %s has"
 			    " no %s address set, disabling instance",
 			    bfd->iname, neighbor_str);
@@ -362,7 +340,7 @@ bfd_end_handler(void)
 
 	if (bfd->src_addr.ss_family
 	    && bfd->nbr_addr.ss_family != bfd->src_addr.ss_family) {
-		log_message(LOG_ERR,
+		report_config_error(CONFIG_GENERAL_ERROR,
 			    "Configuration error: BFD instance %s source"
 			    " address %s and %s address %s"
 			    " are not of the same family, disabling instance",
@@ -375,7 +353,7 @@ bfd_end_handler(void)
 	if (!bfd->ttl)
 		bfd->ttl = bfd->nbr_addr.ss_family == AF_INET ? BFD_CONTROL_TTL : BFD_CONTROL_HOPLIMIT;
 	if (bfd->max_hops > bfd->ttl) {
-		log_message(LOG_INFO, "BFD instance %s: max_hops exceeds ttl/hoplimit - setting to ttl/hoplimit", bfd->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "BFD instance %s: max_hops exceeds ttl/hoplimit - setting to ttl/hoplimit", bfd->iname);
 		bfd->max_hops = bfd->ttl;
 	}
 
@@ -413,7 +391,7 @@ bfd_vrrp_handler(vector_t *strvec)
 
 	LIST_FOREACH(vrrp_data->vrrp_track_bfds, tbfd, e) {
 		if (!strcmp(name, tbfd->bname)) {
-			log_message(LOG_INFO, "BFD %s already specified", name);
+			report_config_error(CONFIG_GENERAL_ERROR, "BFD %s already specified", name);
 			skip_block(true);
 			return;
 		}
@@ -431,8 +409,7 @@ static void
 bfd_vrrp_weight_handler(vector_t *strvec)
 {
 	vrrp_tracked_bfd_t *tbfd;
-	char *endptr;
-	long value;
+	int value;
 
 	assert(strvec);
 	assert(vrrp_data);
@@ -440,12 +417,10 @@ bfd_vrrp_weight_handler(vector_t *strvec)
 	tbfd = LIST_TAIL_DATA(vrrp_data->vrrp_track_bfds);
 	assert(tbfd);
 
-	value = strtol(vector_slot(strvec, 1), &endptr, 10);
-
-	if (*endptr || value < -253 || value > 253) {
-		log_message(LOG_ERR, "Configuration error: BFD instance %s"
+	if (!read_int_strvec(strvec, 1, &value, -253, 253, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
 			    " weight value %s not valid (must be in range"
-			    " [%u-%u]), ignoring", tbfd->bname, FMT_STR_VSLOT(strvec, 1),
+			    " [%d-%d]), ignoring", tbfd->bname, FMT_STR_VSLOT(strvec, 1),
 			    -253, 253);
 	} else
 		tbfd->weight = value;
@@ -474,7 +449,7 @@ bfd_checker_handler(vector_t *strvec)
 
 	LIST_FOREACH(check_data->track_bfds, tbfd, e) {
 		if (!strcmp(name, tbfd->bname)) {
-			log_message(LOG_INFO, "BFD %s already specified", name);
+			report_config_error(CONFIG_GENERAL_ERROR, "BFD %s already specified", name);
 			skip_block(true);
 			return;
 		}
@@ -551,7 +526,13 @@ init_bfd_keywords(bool active)
 	install_keyword_conditional("hoplimit", &bfd_ttl_handler, bfd_handlers);
 	install_keyword_conditional("max_hops", &bfd_maxhops_handler, bfd_handlers);
 #ifdef _WITH_VRRP_
-	install_keyword_conditional("weight", &bfd_vrrp_weight_handler, !bfd_handlers);
+	install_keyword_conditional("weight", &bfd_vrrp_weight_handler,
+#ifdef _DEBUG_
+									true
+#else
+									prog_type == PROG_TYPE_VRRP
+#endif
+												   );
 	install_keyword("vrrp", &bfd_event_vrrp_handler);
 #endif
 #ifdef _WITH_LVS_

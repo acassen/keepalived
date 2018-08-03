@@ -1,5 +1,14 @@
 Whatever you want !
 
+Add command line options to log and coredump report
+
+Parser:
+Report last read line number from config file and file name
+
+Real servers
+Add quorum_weight, defaults to weight. May want to set different between quorum and IPVS weight
+
+
 Parser
 1.
 $RSs= #\
@@ -23,6 +32,18 @@ $RS \
 $SN=1 \
 $RS
 works OK
+
+virtual route:
+1. How do we handle
+     virtual_routes {
+            192.168.210.0/24 via 10.1.0.1
+     }
+     if there is no route to 10.1.0.1? If we go to fault state if it cannot
+     be installed when attempt to transition to master, how do we know to transiton
+     out of fault state.
+
+Add command line options to keepalived log output
+
 
 IPVS
 1. Can we have an IPv4 fwmark and specify tunnel to IPv6, and vice versa etc.

@@ -564,16 +564,15 @@ smtp_get_status(thread_t *thread)
 	checker_t *checker = THREAD_ARG(thread);
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
 	char *buff = smtp_checker->buff;
+	int status;
+	char *endptr;
 
-	/* First make sure they're all digits */
-	if (isdigit(buff[0]) && isdigit(buff[1]) &&
-	    isdigit(buff[2])) {
-		/* Truncate the string and convert */
-		buff[3] = '\0';
-		return atoi(buff);
-	}
+	status = strtoul(buff, &endptr, 10);
+	if (endptr - buff != 3 ||
+	    (*endptr && *endptr != ' '))
+		return -1;
 
-	return -1;
+	return status;
 }
 
 /*

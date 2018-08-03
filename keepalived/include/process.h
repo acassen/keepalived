@@ -26,11 +26,9 @@
 #include <sys/types.h>
 
 #if HAVE_DECL_RLIMIT_RTTIME == 1
-#define	RT_RLIMIT_DEFAULT	1000
+#define	RT_RLIMIT_DEFAULT	10000
 #endif
 
-extern void set_process_dont_swap(size_t);
-extern void set_process_priority(int);
 extern void set_process_priorities(
 #ifdef _HAVE_SCHED_RT_
 			           int,
@@ -39,6 +37,6 @@ extern void set_process_priorities(
 #endif
 #endif
 				   int, int);
-
+extern void reset_process_priorities(void);
 
 #endif
