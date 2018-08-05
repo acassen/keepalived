@@ -45,7 +45,6 @@ static void
 free_tcp_check(void *data)
 {
 	FREE(CHECKER_CO(data));
-	FREE(CHECKER_DATA(data));
 	FREE(data);
 }
 

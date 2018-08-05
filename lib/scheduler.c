@@ -64,6 +64,8 @@ bool snmp_running;		/* True if this process is running SNMP */
 
 /* local variables */
 static bool shutting_down;
+static int sav_argc;
+static char **sav_argv;
 
 #ifdef _WITH_LVS_
 #include "../keepalived/include/check_daemon.h"
@@ -205,6 +207,13 @@ destroy_child_finder(void)
 	set_child_finder(NULL, NULL, NULL, NULL, NULL, 0);
 }
 
+void
+save_cmd_line_options(int argc, char **argv)
+{
+	sav_argc = argc;
+	sav_argv = argv;
+}
+
 #ifndef _DEBUG_
 static const char *
 get_end(const char *str, size_t max_len)
@@ -235,17 +244,43 @@ log_options(const char *option, const char *option_str)
 	bool first_line = true;
 
 	while (*p) {
+		/* Skip leading spaces */
+		while (*p == ' ')
+			p++;
+
 		end = get_end(p, 100 - opt_len);
 		if (first_line) {
 			log_message(LOG_INFO, "  %s: %.*s", option, (int)(end - p), p);
 			first_line = false;
 		}
 		else
-			log_message(LOG_INFO, "%*s%.*s", (int)(3 + strlen(option) + 2), "", (int)(end - p), p);
+			log_message(LOG_INFO, "%*s%.*s", (int)(2 + opt_len + 2), "", (int)(end - p), p);
 		p = end;
-		while (*p == ' ')
-			p++;
 	}
+}
+
+static void
+log_command_line(void)
+{
+	size_t len = 0;
+	char *log_str;
+	char *p;
+	int i;
+
+	if (!sav_argv)
+		return;
+
+	for (i = 0; i < sav_argc; i++)
+		len += strlen(sav_argv[i]) + 3;	/* Add opening and closing 's, and following space or '\0' */
+
+	log_str = MALLOC(len);
+
+	for (i = 0, p = log_str; i < sav_argc; i++)
+		p += sprintf(p, "%s'%s'", i ? " " : "", sav_argv[i]);
+
+	log_options("Command line", log_str);
+
+	FREE(log_str);
 }
 
 /* report_child_status returns true if the exit is a hard error, so unable to continue */
@@ -303,6 +338,7 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 						(LINUX_VERSION_CODE      ) & 0xff);
 			uname(&uname_buf);
 			log_message(LOG_INFO, "  Running on %s %s %s", uname_buf.sysname, uname_buf.release, uname_buf.version);
+			log_command_line();
 			log_options("configure options", KEEPALIVED_CONFIGURE_OPTIONS);
 			log_options("Config options", CONFIGURATION_OPTIONS);
 			log_options("System options", SYSTEM_OPTIONS);
