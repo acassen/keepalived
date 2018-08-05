@@ -1286,6 +1286,9 @@ keepalived_main(int argc, char **argv)
 	struct utsname uname_buf;
 	char *end;
 
+	/* Save command line options in case need to log them later */
+	save_cmd_line_options(argc, argv);
+
 	/* Init debugging level */
 	debug = 0;
 
