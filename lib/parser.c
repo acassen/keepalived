@@ -148,7 +148,7 @@ null_strvec(const vector_t *strvec, size_t index)
 }
 
 static bool
-read_int_func(const char *number, int base, const char *msg, const char *info, int *res, int min_val, int max_val, __attribute__((unused)) bool ignore_error)
+read_int_func(const char *number, int base, int *res, int min_val, int max_val, __attribute__((unused)) bool ignore_error)
 {
 	long val;
 	char *endptr;
@@ -164,11 +164,11 @@ read_int_func(const char *number, int base, const char *msg, const char *info, i
 	*res = (int)val;
 
 	if (*endptr)
-		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has invalid number '%s'", warn, msg, info, number);
+		report_config_error(CONFIG_INVALID_NUMBER, "%sinvalid number '%s'", warn, number);
 	else if (errno == ERANGE || val < INT_MIN || val > INT_MAX)
-		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has number '%s' outside integer range", warn, msg, info, number);
+		report_config_error(CONFIG_INVALID_NUMBER, "%snumber '%s' outside integer range", warn, number);
 	else if (val < min_val || val > max_val)
-		report_config_error(CONFIG_INVALID_NUMBER, "%s '%s' has number '%s' outside range [%d, %d]", msg, info, number, min_val, max_val);
+		report_config_error(CONFIG_INVALID_NUMBER, "number '%s' outside range [%d, %d]", number, min_val, max_val);
 	else
 		return true;
 
@@ -180,7 +180,7 @@ read_int_func(const char *number, int base, const char *msg, const char *info, i
 }
 
 static bool
-read_unsigned_func(const char *number, int base, const char *msg, const char *info, unsigned *res, unsigned min_val, unsigned max_val, __attribute__((unused)) bool ignore_error)
+read_unsigned_func(const char *number, int base, unsigned *res, unsigned min_val, unsigned max_val, __attribute__((unused)) bool ignore_error)
 {
 	unsigned long val;
 	char *endptr;
@@ -202,13 +202,13 @@ read_unsigned_func(const char *number, int base, const char *msg, const char *in
 	*res = (unsigned)val;
 
 	if (number[offset] == '-')
-		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has negative number '%s'", warn, msg, info, number);
+		report_config_error(CONFIG_INVALID_NUMBER, "%snegative number '%s'", warn, number);
 	else if (*endptr)
-		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has invalid number '%s'", warn, msg, info, number);
+		report_config_error(CONFIG_INVALID_NUMBER, "%sinvalid number '%s'", warn, number);
 	else if (errno == ERANGE || val > UINT_MAX)
-		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has number '%s' outside unsigned integer range", warn, msg, info, number);
+		report_config_error(CONFIG_INVALID_NUMBER, "%snumber '%s' outside unsigned integer range", warn, number);
 	else if (val < min_val || val > max_val)
-		report_config_error(CONFIG_INVALID_NUMBER, "%s '%s' has number '%s' outside range [%u, %u]", msg, info, number, min_val, max_val);
+		report_config_error(CONFIG_INVALID_NUMBER, "number '%s' outside range [%u, %u]", number, min_val, max_val);
 	else
 		return true;
 
@@ -220,7 +220,7 @@ read_unsigned_func(const char *number, int base, const char *msg, const char *in
 }
 
 static bool
-read_unsigned64_func(const char *number, int base, const char *msg, const char *info, uint64_t *res, uint64_t min_val, uint64_t max_val, __attribute__((unused)) bool ignore_error)
+read_unsigned64_func(const char *number, int base, uint64_t *res, uint64_t min_val, uint64_t max_val, __attribute__((unused)) bool ignore_error)
 {
 	unsigned long long val;
 	char *endptr;
@@ -242,13 +242,13 @@ read_unsigned64_func(const char *number, int base, const char *msg, const char *
 	*res = (unsigned)val;
 
 	if (number[offset] == '-')
-		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has negative number '%s'", warn, msg, info, number);
+		report_config_error(CONFIG_INVALID_NUMBER, "%snegative number '%s'", warn, number);
 	else if (*endptr)
-		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has invalid number '%s'", warn, msg, info, number);
+		report_config_error(CONFIG_INVALID_NUMBER, "%sinvalid number '%s'", warn, number);
 	else if (errno == ERANGE)
-		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has number '%s' outside unsigned 64 bit range", warn, msg, info, number);
+		report_config_error(CONFIG_INVALID_NUMBER, "%snumber '%s' outside unsigned 64 bit range", warn, number);
 	else if (val < min_val || val > max_val)
-		report_config_error(CONFIG_INVALID_NUMBER, "%s '%s' has number '%s' outside range [%" PRIu64 ", %" PRIu64 "]", msg, info, number, min_val, max_val);
+		report_config_error(CONFIG_INVALID_NUMBER, "number '%s' outside range [%" PRIu64 ", %" PRIu64 "]", number, min_val, max_val);
 	else
 		return true;
 
@@ -260,7 +260,7 @@ read_unsigned64_func(const char *number, int base, const char *msg, const char *
 }
 
 static bool
-read_double_func(const char *number, const char *msg, const char *info, double *res, double min_val, double max_val, __attribute__((unused)) bool ignore_error)
+read_double_func(const char *number, double *res, double min_val, double max_val, __attribute__((unused)) bool ignore_error)
 {
 	double val;
 	char *endptr;
@@ -276,15 +276,15 @@ read_double_func(const char *number, const char *msg, const char *info, double *
 	*res = val;
 
 	if (*endptr)
-		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has invalid number '%s'", warn, msg, info, number);
+		report_config_error(CONFIG_INVALID_NUMBER, "%sinvalid number '%s'", warn, number);
 	else if (errno == ERANGE)
-		report_config_error(CONFIG_INVALID_NUMBER, "%s%s '%s' has number '%s' out of range", warn, msg, info, number);
+		report_config_error(CONFIG_INVALID_NUMBER, "%snumber '%s' out of range", warn, number);
 	else if (val == -HUGE_VAL || val == HUGE_VAL)	/* +/- Inf */
-		report_config_error(CONFIG_INVALID_NUMBER, "%s '%s' has infinite number '%s'", msg, info, number);
+		report_config_error(CONFIG_INVALID_NUMBER, "infinite number '%s'", number);
 	else if (!(val <= 0 || val >= 0))	/* NaN */
-		report_config_error(CONFIG_INVALID_NUMBER, "%s '%s' has not a number '%s'", msg, info, number);
+		report_config_error(CONFIG_INVALID_NUMBER, "not a number '%s'", number);
 	else if (val < min_val || val > max_val)
-		report_config_error(CONFIG_INVALID_NUMBER, "%s '%s' has number '%s' outside range [%g, %g]", msg, info, number, min_val, max_val);
+		report_config_error(CONFIG_INVALID_NUMBER, "number '%s' outside range [%g, %g]", number, min_val, max_val);
 	else
 		return true;
 
@@ -298,55 +298,55 @@ read_double_func(const char *number, const char *msg, const char *info, double *
 bool
 read_int(const char *str, int *res, int min_val, int max_val, bool ignore_error)
 {
-	return read_int_func(str, 10, "Number", str, res, min_val, max_val, ignore_error);
+	return read_int_func(str, 10, res, min_val, max_val, ignore_error);
 }
 
 bool
 read_unsigned(const char *str, unsigned *res, unsigned min_val, unsigned max_val, bool ignore_error)
 {
-	return read_unsigned_func(str, 10, "Number", str, res, min_val, max_val, ignore_error);
+	return read_unsigned_func(str, 10, res, min_val, max_val, ignore_error);
 }
 
 bool
 read_unsigned64(const char *str, uint64_t *res, uint64_t min_val, uint64_t max_val, bool ignore_error)
 {
-	return read_unsigned64_func(str, 10, "Number", str, res, min_val, max_val, ignore_error);
+	return read_unsigned64_func(str, 10, res, min_val, max_val, ignore_error);
 }
 
 bool
 read_double(const char *str, double *res, double min_val, double max_val, bool ignore_error)
 {
-	return read_double_func(str, "Number", str, res, min_val, max_val, ignore_error);
+	return read_double_func(str, res, min_val, max_val, ignore_error);
 }
 
 bool
 read_int_strvec(const vector_t *strvec, size_t index, int *res, int min_val, int max_val, bool ignore_error)
 {
-	return read_int_func(strvec_slot(strvec, index), 10, "Line starting", strvec_slot(strvec, 0), res, min_val, max_val, ignore_error);
+	return read_int_func(strvec_slot(strvec, index), 10, res, min_val, max_val, ignore_error);
 }
 
 bool
 read_unsigned_strvec(const vector_t *strvec, size_t index, unsigned *res, unsigned min_val, unsigned max_val, bool ignore_error)
 {
-	return read_unsigned_func(strvec_slot(strvec, index), 10, "Line starting", strvec_slot(strvec, 0), res, min_val, max_val, ignore_error);
+	return read_unsigned_func(strvec_slot(strvec, index), 10, res, min_val, max_val, ignore_error);
 }
 
 bool
 read_unsigned64_strvec(const vector_t *strvec, size_t index, uint64_t *res, uint64_t min_val, uint64_t max_val, bool ignore_error)
 {
-	return read_unsigned64_func(strvec_slot(strvec, index), 10, "Line starting", strvec_slot(strvec, 0), res, min_val, max_val, ignore_error);
+	return read_unsigned64_func(strvec_slot(strvec, index), 10, res, min_val, max_val, ignore_error);
 }
 
 bool
 read_double_strvec(const vector_t *strvec, size_t index, double *res, double min_val, double max_val, bool ignore_error)
 {
-	return read_double_func(strvec_slot(strvec, index), "Line starting", strvec_slot(strvec, 0), res, min_val, max_val, ignore_error);
+	return read_double_func(strvec_slot(strvec, index), res, min_val, max_val, ignore_error);
 }
 
 bool
 read_unsigned_base_strvec(const vector_t *strvec, size_t index, int base, unsigned *res, unsigned min_val, unsigned max_val, bool ignore_error)
 {
-	return read_unsigned_func(strvec_slot(strvec, index), base, "Line starting", strvec_slot(strvec, 0), res, min_val, max_val, ignore_error);
+	return read_unsigned_func(strvec_slot(strvec, index), base, res, min_val, max_val, ignore_error);
 }
 
 static void
@@ -1604,6 +1604,12 @@ read_timer(vector_t *strvec, size_t index, unsigned long *res, unsigned long min
 {
 	unsigned long timer;
 	char *endptr;
+	char *warn = "";
+
+#ifndef _STRICT_CONFIG_
+	if (ignore_error && !__test_bit(CONFIG_TEST_BIT, &debug))
+		warn = "WARNING - ";
+#endif
 
 	if (!max_time)
 		max_time = TIMER_MAX;
@@ -1613,13 +1619,13 @@ read_timer(vector_t *strvec, size_t index, unsigned long *res, unsigned long min
 	*res = (timer > TIMER_MAX ? TIMER_MAX : timer) * TIMER_HZ;
 
 	if (FMT_STR_VSLOT(strvec, index)[0] == '-')
-		report_config_error(CONFIG_INVALID_NUMBER, "Line starting '%s' has negative number '%s'", FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
+		report_config_error(CONFIG_INVALID_NUMBER, "%snegative number '%s'", warn, FMT_STR_VSLOT(strvec, index));
 	else if (*endptr)
-		report_config_error(CONFIG_INVALID_NUMBER, "Line starting '%s' has invalid number '%s'", FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
+		report_config_error(CONFIG_INVALID_NUMBER, "%sinvalid number '%s'", warn, FMT_STR_VSLOT(strvec, index));
 	else if (errno == ERANGE || timer > TIMER_MAX)
-		report_config_error(CONFIG_INVALID_NUMBER, "Line starting '%s' has number '%s' outside timer range", FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index));
+		report_config_error(CONFIG_INVALID_NUMBER, "%snumber '%s' outside timer range", warn, FMT_STR_VSLOT(strvec, index));
 	else if (timer < min_time || timer > max_time)
-		report_config_error(CONFIG_INVALID_NUMBER, "Line starting '%s' has number '%s' outside range [%ld, %ld]", FMT_STR_VSLOT(strvec, 0), FMT_STR_VSLOT(strvec, index), min_time, max_time ? max_time : TIMER_MAX);
+		report_config_error(CONFIG_INVALID_NUMBER, "number '%s' outside range [%ld, %ld]", FMT_STR_VSLOT(strvec, index), min_time, max_time ? max_time : TIMER_MAX);
 	else
 		return true;
 
