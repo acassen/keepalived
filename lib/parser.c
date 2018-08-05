@@ -78,6 +78,8 @@ const char *WHITE_SPACE = WHITE_SPACE_STR;
 /* local vars */
 static vector_t *current_keywords;
 static FILE *current_stream;
+static const char *current_file_name;
+static size_t current_file_line_no;
 static int sublevel = 0;
 static int skip_sublevel = 0;
 static list multiline_stack;
@@ -94,20 +96,36 @@ void
 report_config_error(config_err_t err, const char *format, ...)
 {
 	va_list args;
+	char *format_buf = NULL;
+
+	/* current_file_name will be set if there is more than one config file, in which
+	 * case we need to specify the file name. */
+	if (current_file_name) {
+		/* "(file_name:line_no) format" + '\0' */
+		format_buf = MALLOC(1 + strlen(current_file_name) + 1 + 10 + 1 + 1 + strlen(format) + 1);
+		sprintf(format_buf, "(%s:%zd) %s", current_file_name, current_file_line_no, format);
+	} else if (current_file_line_no) {	/* Set while reading from config files */
+		/* "(Line line_no) format" + '\0' */
+		format_buf = MALLOC(1 + 5 + 10 + 1 + 1 + strlen(format) + 1);
+		sprintf(format_buf, "(%s %zd) %s", "Line", current_file_line_no, format);
+	}
 
 	va_start(args, format);
 
 	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
-		vfprintf(stderr, format, args);
+		vfprintf(stderr, format_buf ? format_buf : format, args);
 		fputc('\n', stderr);
 
 		if (config_err == CONFIG_OK || config_err < err)
 			config_err = err;
 	}
 	else
-		vlog_message(LOG_INFO, format, args);
+		vlog_message(LOG_INFO, format_buf ? format_buf : format, args);
 
 	va_end(args);
+
+	if (format_buf)
+		FREE(format_buf);
 }
 
 config_err_t
@@ -900,6 +918,11 @@ read_conf_file(const char *conf_file)
 
 		current_stream = stream;
 
+		/* We only want to report the file name if there is more than one file used */
+		if (current_file_name || globbuf.gl_pathc > 1)
+			current_file_name = globbuf.gl_pathv[i];
+		current_file_line_no = 0;
+
 		int curdir_fd = -1;
 		if (strchr(globbuf.gl_pathv[i], '/')) {
 			/* If the filename contains a directory element, change to that directory.
@@ -1009,6 +1032,8 @@ check_include(char *buf)
 	vector_t *strvec;
 	bool ret = false;
 	FILE *prev_stream;
+	const char *prev_file_name;
+	size_t prev_file_line_no;
 
 	/* Simple check first for include */
 	if (!strstr(buf, "include"))
@@ -1021,10 +1046,15 @@ check_include(char *buf)
 
 	if(!strcmp("include", vector_slot(strvec, 0)) && vector_size(strvec) == 2) {
 		prev_stream = current_stream;
+		prev_file_name = current_file_name;
+		prev_file_line_no = current_file_line_no;
 
 		read_conf_file(vector_slot(strvec, 1));
 
 		current_stream = prev_stream;
+		current_file_name = prev_file_name;
+		current_file_line_no = prev_file_line_no;
+
 		ret = true;
 	}
 
@@ -1331,11 +1361,17 @@ read_line(char *buf, size_t size)
 				next_ptr = end + 1;
 			}
 		}
-		else if (!fgets(buf, (int)size, current_stream))
-		{
-			eof = true;
-			buf[0] = '\0';
-			break;
+		else {
+			if (!fgets(buf, (int)size, current_stream))
+			{
+				eof = true;
+				buf[0] = '\0';
+				break;
+			}
+
+			/* Check if we have read the end of a line */
+			if (buf[0] && buf[strlen(buf)-1] == '\n')
+				current_file_line_no++;
 		}
 
 		/* Remove trailing <CR>/<LF> */
@@ -1635,9 +1671,16 @@ init_data(const char *conf_file, vector_t * (*init_keywords) (void))
 	/* Stream handling */
 	current_keywords = keywords;
 
+	current_file_name = NULL;
+	current_file_line_no = 0;
+
 	register_null_strvec_handler(null_strvec);
 	read_conf_file(conf_file);
 	unregister_null_strvec_handler();
+
+	/* We have finished reading the configuration files, so any configuration
+	 * errors report from now mustn't include a reference to the config file name */
+	current_file_line_no = 0;
 
 	/* Close the password database if it was opened */
 	endpwent();
