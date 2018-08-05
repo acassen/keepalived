@@ -369,6 +369,8 @@ dump_garp_delay(FILE *fp, void *data)
 {
 	garp_delay_t *gd = data;
 	char time_str[26];
+	interface_t *ifp;
+	element e;
 
 	conf_write(fp, "------< GARP delay group %d >------", gd->aggregation_group);
 
@@ -387,6 +389,12 @@ dump_garp_delay(FILE *fp, void *data)
 	}
 	else if (!gd->have_garp_interval)
 		conf_write(fp, " No configuration");
+
+	conf_write(fp, " Interfaces");
+	LIST_FOREACH(if_queue, ifp, e) {
+		if (ifp->garp_delay == gd)
+			conf_write(fp, "  %s", ifp->ifname);
+	}
 }
 
 void
@@ -405,6 +413,7 @@ set_default_garp_delay(void)
 	element e;
 	interface_t *ifp;
 	garp_delay_t *delay;
+	vrrp_t *vrrp;
 
 	if (global_data->vrrp_garp_interval) {
 		default_delay.garp_interval.tv_sec = global_data->vrrp_garp_interval / 1000000;
@@ -417,15 +426,11 @@ set_default_garp_delay(void)
 		default_delay.have_gna_interval = true;
 	}
 
-	/* Allocate a delay structure to each physical interface that doesn't have one */
-	for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
-		ifp = ELEMENT_DATA(e);
-		if (!ifp->garp_delay
-#ifdef _HAVE_VRRP_VMAC_
-				     && !ifp->vmac
-#endif
-						  )
-		{
+	/* Allocate a delay structure to each physical interface that doesn't have one and
+	 * is being used by a VRRP instance */
+	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+		ifp = IF_BASE_IFP(vrrp->ifp);
+		if (!ifp->garp_delay) {
 			alloc_garp_delay();
 			delay = LIST_TAIL_DATA(garp_delay);
 			*delay = default_delay;
