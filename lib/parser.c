@@ -1473,6 +1473,8 @@ read_line(char *buf, size_t size)
 				text_start += strspn(text_start, " \t");
 				if (text_start[0] == '@')
 					recheck = true;
+				if (strchr(text_start, '$'))
+					recheck = true;
 			}
 		} while (recheck);
 	} while (buf[0] == '\0' || check_include(buf));
