@@ -1393,6 +1393,8 @@ keepalived_main(int argc, char **argv)
 		}
 	}
 
+	log_command_line(0);
+
 	netlink_set_recv_buf_size();
 
 	/* Check we can read the configuration file(s).

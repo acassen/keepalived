@@ -4,30 +4,6 @@ Real servers
 Add quorum_weight, defaults to weight. May want to set different between quorum and IPVS weight
 
 
-Parser
-1.
-$RSs= #\
-$SN=0 \
-$RS \
-$SN=1 \
-$RS
-caused main process to loop 100%
-
-$RSs= \
-$SN=0 \
-$RS \
-$SN=1 \
-$RS
-means $SN=0 reported as unknown keyword
-
-$RSs= \
- # does this help \
-$SN=0 \
-$RS \
-$SN=1 \
-$RS
-works OK
-
 virtual route:
 1. How do we handle
      virtual_routes {
@@ -37,8 +13,6 @@ virtual route:
      be installed when attempt to transition to master, how do we know to transiton
      out of fault state.
 
-Add command line options to keepalived log output
-
 
 IPVS
 1. Can we have an IPv4 fwmark and specify tunnel to IPv6, and vice versa etc.
@@ -46,8 +20,7 @@ IPVS
 2. Sort out IP_VS_SO vs LVS_CMD...
 3. Make sure log/email messages contain relevant info re VS -> RS. See FMT_CHK
 
-The following are still outstanding from the ideas for what was the beta
-development:
+The following are still outstanding from the ideas for what became v2.0.0:
 
 	* Sort out termination in vrrp and checker - stop_vrrp/check, and phase2
 	    are inconsistent between vrrp and checker. What about bfd?

@@ -144,6 +144,7 @@ extern void set_child_finder(void (*)(thread_t *), thread_t *(*)(pid_t), void (*
 extern void destroy_child_finder(void);
 extern void save_cmd_line_options(int, char **);
 extern void set_child_remover(void (*)(thread_t *));
+extern void log_command_line(unsigned);
 #ifndef _DEBUG_
 extern bool report_child_status(int, pid_t, const char *);
 #endif

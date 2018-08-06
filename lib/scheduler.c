@@ -236,7 +236,7 @@ get_end(const char *str, size_t max_len)
 }
 
 static void
-log_options(const char *option, const char *option_str)
+log_options(const char *option, const char *option_str, unsigned indent)
 {
 	const char *p = option_str;
 	size_t opt_len = strlen(option);
@@ -250,17 +250,17 @@ log_options(const char *option, const char *option_str)
 
 		end = get_end(p, 100 - opt_len);
 		if (first_line) {
-			log_message(LOG_INFO, "  %s: %.*s", option, (int)(end - p), p);
+			log_message(LOG_INFO, "%*s%s: %.*s", indent, "", option, (int)(end - p), p);
 			first_line = false;
 		}
 		else
-			log_message(LOG_INFO, "%*s%.*s", (int)(2 + opt_len + 2), "", (int)(end - p), p);
+			log_message(LOG_INFO, "%*s%.*s", (int)(indent + opt_len + 2), "", (int)(end - p), p);
 		p = end;
 	}
 }
 
-static void
-log_command_line(void)
+void
+log_command_line(unsigned indent)
 {
 	size_t len = 0;
 	char *log_str;
@@ -278,7 +278,7 @@ log_command_line(void)
 	for (i = 0, p = log_str; i < sav_argc; i++)
 		p += sprintf(p, "%s'%s'", i ? " " : "", sav_argv[i]);
 
-	log_options("Command line", log_str);
+	log_options("Command line", log_str, indent);
 
 	FREE(log_str);
 }
@@ -338,10 +338,10 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 						(LINUX_VERSION_CODE      ) & 0xff);
 			uname(&uname_buf);
 			log_message(LOG_INFO, "  Running on %s %s %s", uname_buf.sysname, uname_buf.release, uname_buf.version);
-			log_command_line();
-			log_options("configure options", KEEPALIVED_CONFIGURE_OPTIONS);
-			log_options("Config options", CONFIGURATION_OPTIONS);
-			log_options("System options", SYSTEM_OPTIONS);
+			log_command_line(2);
+			log_options("configure options", KEEPALIVED_CONFIGURE_OPTIONS, 2);
+			log_options("Config options", CONFIGURATION_OPTIONS, 2);
+			log_options("System options", SYSTEM_OPTIONS, 2);
 
 //			if (__test_bit(DONT_RESPAWN_BIT, &debug))
 //				segv_termination = true;
