@@ -1257,22 +1257,25 @@ check_definition(const char *buf)
 		/* Remove leading and trailing whitespace */
 		while (isblank(*p))
 			p++, def->value_len--;
-		while (def->value_len >= 2) {
-			if (isblank(p[def->value_len - 2]))
-				def->value_len--;
-		}
-		if (def->value_len >= 2)
-			def->value[def->value_len - 1] = DEF_LINE_END[0];
-		else {
+		while (def->value_len >= 2 &&
+		       isblank(p[def->value_len - 2]))
+			def->value_len--;
+
+		if (def->value_len < 2) {
 			p += def->value_len;
 			def->value_len = 0;
 		}
 		def->multiline = true;
 	} else
 		def->multiline = false;
+
 	str = MALLOC(def->value_len + 1);
 	strcpy(str, p);
 	def->value = str;
+
+	/* If it a multiline definition, we need to mark the end of the first line */
+	if (def->value_len >= 2 && def->multiline)
+		def->value[def->value_len - 1] = DEF_LINE_END[0];
 
 	return def;
 }
