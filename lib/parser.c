@@ -1257,11 +1257,13 @@ check_definition(const char *buf)
 		/* Remove leading and trailing whitespace */
 		while (isblank(*p))
 			p++, def->value_len--;
-		while (def->value_len >= 2 &&
-		       isblank(p[def->value_len - 2]))
-			def->value_len--;
-
-		if (def->value_len < 2) {
+		while (def->value_len >= 2) {
+			if (isblank(p[def->value_len - 2]))
+				def->value_len--;
+		}
+		if (def->value_len >= 2)
+			def->value[def->value_len - 1] = DEF_LINE_END[0];
+		else {
 			p += def->value_len;
 			def->value_len = 0;
 		}
