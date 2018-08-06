@@ -1219,7 +1219,7 @@ check_definition(const char *buf)
 		return false;
 
 	if (!isalpha(buf[1]) && buf[1] != '_')
-		return false;
+		return NULL;
 
 	for (p = &buf[2]; *p; p++) {
 		if (*p == '=')
@@ -1227,11 +1227,11 @@ check_definition(const char *buf)
 		if (!isalnum(*p) &&
 		    !isdigit(*p) &&
 		    *p != '_')
-			return false;
+			return NULL;
 	}
 
 	if (*p != '=')
-		return false;
+		return NULL;
 
 	def_name_len = (size_t)(p - &buf[1]);
 	if ((def = find_definition(&buf[1], def_name_len, true))) {
