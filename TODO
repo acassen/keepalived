@@ -3,6 +3,8 @@ Whatever you want !
 Real servers
 Add quorum_weight, defaults to weight. May want to set different between quorum and IPVS weight
 
+Rationalise use of timer_now()/gettimeofday()/set_time_now()
+
 
 virtual route:
 1. How do we handle
