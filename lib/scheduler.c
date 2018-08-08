@@ -1051,7 +1051,6 @@ retry:	/* When thread can't fetch try to find next thread again. */
 			goto retry;
 
 		/* Real error. */
-		DBG("select error: %s", strerror(sav_errno));
 		if (sav_errno != last_select_errno) {
 			/* Log the error first time only */
 			log_message(LOG_INFO, "select error: %s", strerror(sav_errno));
