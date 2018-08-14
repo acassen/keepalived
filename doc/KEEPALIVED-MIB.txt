@@ -2784,7 +2784,9 @@ VirtualServerEntry ::= SEQUENCE {
     virtualServerDelayBeforeRetry Unsigned32,
     virtualServerWarmup Unsigned32,
     virtualServerWeight INTEGER,
-    virtualServerSmtpAlert INTEGER
+    virtualServerSmtpAlert INTEGER,
+    virtualServerMHFallback TruthValue,
+    virtualServerMHPort TruthValue
 }
 
 virtualServerIndex OBJECT-TYPE
@@ -2875,6 +2877,7 @@ virtualServerLoadBalancingAlgo OBJECT-TYPE
     nq(10),
     fo(11),
     ovf(12),
+    mh(13),
     unknown(99)
     }
     MAX-ACCESS read-only
@@ -3339,6 +3342,23 @@ virtualServerSmtpAlert OBJECT-TYPE
     DESCRIPTION
         "Will SMTP alert be sent for this virtual server?"
     ::= { virtualServerEntry 61 }
+
+virtualServerMHFallback OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "If set to true(1), MH scheduler fallback."
+    ::= { virtualServerEntry 62 }
+
+virtualServerMHPort OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "If set to true(1), MH scheduler use port."
+    ::= { virtualServerEntry 63 }
+
 
 -- real servers
 
@@ -4385,6 +4405,8 @@ virtualServerGroup OBJECT-GROUP
     virtualServerWarmup,
     virtualServerWeight,
     virtualServerSmtpAlert
+    virtualServerMHFallback,
+    virtualServerMHPort,
     }
     STATUS current
     DESCRIPTION
