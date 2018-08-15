@@ -4,13 +4,13 @@ Case Study: Healthcheck
 
 As an example we can introduce the following LVS topology:
 
-First of all you need a well-configured LVS topology. In the rest of this document, we will assume that all system configurations have been done. This kind of topology is generally implemented in a DMZ architecture. For more information on LVS NAT topology and system configuration please read the nice Joseph Mack LVS HOWTO.
+First of all, you need a well-configured LVS topology. In the rest of this document, we will assume that all system configurations have been done. This kind of topology is generally implemented in a DMZ architecture. For more information on LVS NAT topology and system configuration please read the nice Joseph Mack LVS HOWTO.
 
 Main architecture components
 ****************************
 
 * LVS Router: Owning the load balanced IP Class routed (192.168.100.0/24).
-* Network Router : The default router for the entire internal network. All the LAN workstations are handled through this IP address.
+* Network Router: The default router for the entire internal network. All the LAN workstations are handled through this IP address.
 * Network DNS Server: Referencing the internal network IP topology.
 * SMTP Server: SMTP server receiving the mail alerts.
 * SERVER POOL: Set of servers hosting load balanced services.
@@ -116,7 +116,7 @@ You are now ready to configure the Keepalived daemon according to your LVS topol
         }
     }
 
-According to this configuration example, the Keepalived daemon will drive the kernel using following information:
+According to this configuration example, the Keepalived daemon will drive the kernel using the following information:
 
 * The LVS server will own the name: LVS_MAIN
 * Notification:
@@ -137,14 +137,14 @@ According to this configuration example, the Keepalived daemon will drive the ke
     * SSL: VIP 192.168.200.15 port 443
 
         * Load balancing: Using Round Robin scheduler with NAT forwarding.  Connection persistence is set to 360 seconds on each TCP service.  The delay loop is set to 20 seconds
-        * Real server 192.168.100.2 port 443 will be weighted to 2. Failure detection will be based on TCP_CHECK. The real server will be considered down after a 3 second connection timeout.
-        * Real server 192.168.100.3 port 443 will be weighted to 2. Failure detection will be based on TCP_CHECK. The real server will be considered down after a 3 second connection timeout.
+        * Real server 192.168.100.2 port 443 will be weighted to 2. Failure detection will be based on TCP_CHECK. The real server will be considered down after a 3-second connection timeout.
+        * Real server 192.168.100.3 port 443 will be weighted to 2. Failure detection will be based on TCP_CHECK. The real server will be considered down after a 3-second connection timeout.
 
     * SMTP: VIP 192.168.200.15 port 25
 
         * Load balancing: Using Weighted Least Connection scheduling algorithm in a NAT topology with connection persistence set to 50 seconds. The delay loop is set to 15 seconds
-        * Real server 192.168.100.4 port 25 will be weighted to 1. Failure detection will be based on TCP_CHECK. The real server will be considered down after a 3 second connection timeout.
-        * Real server 192.168.100.5 port 25 will be weighted to 2. Failure detection will be based on TCP_CHECK. The real server will be considered down after a 3 second connection timeout.
+        * Real server 192.168.100.4 port 25 will be weighted to 1. Failure detection will be based on TCP_CHECK. The real server will be considered down after a 3-second connection timeout.
+        * Real server 192.168.100.5 port 25 will be weighted to 2. Failure detection will be based on TCP_CHECK. The real server will be considered down after a 3-second connection timeout.
 
 For SSL server health check, we can use SSL_GET checkers. The configuration block for a corresponding real server will look like::
 
