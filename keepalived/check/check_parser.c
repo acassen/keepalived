@@ -48,7 +48,7 @@
 
 /* List of valid schedulers */
 char *lvs_schedulers[] =
-	{"rr", "wrr", "lc", "wlc", "lblc", "sh", "dh", "fo", "ovf", "lblcr", "sed", "nq", NULL};
+	{"rr", "wrr", "lc", "wlc", "lblc", "sh", "mh", "dh", "fo", "ovf", "lblcr", "sed", "nq", NULL};
 
 /* SSL handlers */
 static void
@@ -305,6 +305,14 @@ lbflags_handler(vector_t *strvec)
 			vs->flags |= IP_VS_SVC_F_SCHED_SH_PORT;
 		if (!strcmp(str, "sh-fallback"))
 			vs->flags |= IP_VS_SVC_F_SCHED_SH_FALLBACK;
+	}
+	else if (!strcmp(vs->sched , "mh") )
+	{
+		/* mh-port and mh-fallback flags are relevant for mh scheduler only */
+		if (!strcmp(str, "mh-port")  )
+			vs->flags |= IP_VS_SVC_F_SCHED_MH_PORT;
+		if (!strcmp(str, "mh-fallback"))
+			vs->flags |= IP_VS_SVC_F_SCHED_MH_FALLBACK;
 	}
 	else
 		report_config_error(CONFIG_GENERAL_ERROR, "%s only applies to sh scheduler - ignoring", str);

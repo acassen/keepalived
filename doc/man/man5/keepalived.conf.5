@@ -1144,7 +1144,7 @@ A virtual_server can be a declaration of one of
     delay_loop <INT>
 
     # LVS scheduler
-    lvs_sched rr|wrr|lc|wlc|lblc|sh|dh|fo|ovf|lblcr|sed|nq
+    lvs_sched rr|wrr|lc|wlc|lblc|sh|mh|dh|fo|ovf|lblcr|sed|nq
 
     # Enable hashed entry
     hashed
@@ -1158,6 +1158,10 @@ A virtual_server can be a declaration of one of
     sh-port
     # Enable sh-fallback for sh scheduler  (-b sh-fallback in ipvsadm)
     sh-fallback
+    # Enable mh-port for mh scheduler (-b mh-port in ipvsadm)
+    mh-port
+    # Enable mh-fallback for mh scheduler  (-b mh-fallback in ipvsadm)
+    mh-fallback
     # Enable One-Packet-Scheduling for UDP (-O in ipvsadm)
     ops
     # Default LVS forwarding method
