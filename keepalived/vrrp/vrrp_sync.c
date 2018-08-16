@@ -30,6 +30,7 @@
 #include "vrrp_data.h"
 #include "logger.h"
 #include "vrrp_scheduler.h"
+#include "parser.h"
 
 /* Instance name lookup */
 vrrp_t *
@@ -66,12 +67,12 @@ vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
 		str = vector_slot(vgroup->iname, i);
 		vrrp = vrrp_get_instance(str);
 		if (!vrrp) {
-			log_message(LOG_INFO, "Virtual router %s specified in sync group %s doesn't exist - ignoring", str, vgroup->gname);
+			report_config_error(CONFIG_GENERAL_ERROR, "Virtual router %s specified in sync group %s doesn't exist - ignoring", str, vgroup->gname);
 			continue;
 		}
 
 		if (vrrp->sync) {
-			log_message(LOG_INFO, "Virtual router %s cannot exist in more than one sync group; ignoring %s", str, vgroup->gname);
+			report_config_error(CONFIG_GENERAL_ERROR, "Virtual router %s cannot exist in more than one sync group; ignoring %s", str, vgroup->gname);
 			continue;
 		}
 
@@ -81,7 +82,7 @@ vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
 		/* set eventual sync group state. Unless all members are master and address owner,
 		 * then we must be backup */
 		if (vgroup->state == VRRP_STATE_MAST && vrrp->wantstate == VRRP_STATE_BACK)
-			log_message(LOG_INFO, "Sync group %s has some member(s) as address owner and some not as address owner. This won't work", vgroup->gname);
+			report_config_error(CONFIG_GENERAL_ERROR, "Sync group %s has some member(s) as address owner and some not as address owner. This won't work.", vgroup->gname);
 		if (vgroup->state != VRRP_STATE_BACK)
 			vgroup->state = (vrrp->wantstate == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER) ? VRRP_STATE_MAST : VRRP_STATE_BACK;
 
@@ -95,7 +96,7 @@ vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
 
 	if (LIST_SIZE(vgroup->vrrp_instances) <= 1) {
 		/* The sync group will be removed by the calling function if it has no members */
-		log_message(LOG_INFO, "Sync group %s has only %d virtual router(s) - %s", vgroup->gname, LIST_SIZE(vgroup->vrrp_instances),
+		report_config_error(CONFIG_GENERAL_ERROR, "Sync group %s has only %d virtual router(s) - %s", vgroup->gname, LIST_SIZE(vgroup->vrrp_instances),
 				LIST_SIZE(vgroup->vrrp_instances) ? "this probably isn't what you want" : "removing");
 
 		if (!LIST_SIZE(vgroup->vrrp_instances))
