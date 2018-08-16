@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201807180000Z"
+     LAST-UPDATED "201808140000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201808140000Z"
+     DESCRIPTION "add MH LVS scheduler"
      REVISION "201807180000Z"
      DESCRIPTION "add script master rx lower priority"
      REVISION "201806040000Z"
@@ -4404,9 +4406,9 @@ virtualServerGroup OBJECT-GROUP
     virtualServerDelayBeforeRetry,
     virtualServerWarmup,
     virtualServerWeight,
-    virtualServerSmtpAlert
+    virtualServerSmtpAlert,
     virtualServerMHFallback,
-    virtualServerMHPort,
+    virtualServerMHPort
     }
     STATUS current
     DESCRIPTION
