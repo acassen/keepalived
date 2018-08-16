@@ -4,7 +4,7 @@ Introduction
 
 Load balancing is a method of distributing IP traffic across a cluster of real
 servers, providing one or more highly available virtual services.  When
-designing load balanced topologies, it is important to account for the
+designing load-balanced topologies, it is important to account for the
 availability of the load balancer itself as well as the real servers behind
 it.
 

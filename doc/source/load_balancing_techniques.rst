@@ -19,23 +19,23 @@ is IP address preservation, as the private network can use private address
 ranges.
 
 The main disadvantage is that the Load-Balancer becomes a bottleneck.  It has
-to service not only requests but also replies to and from the public users,
+to serve not only requests but also replies to and from the public users,
 while also forwarding to and from the private real servers.
 
 Virtual Server via Tunneling
 ****************************
 
-In Tunneling mode Load-Balancer sends requests to real servers through IP tunnel
+In Tunneling mode, the Load-Balancer sends requests to real servers through IP tunnel
 in the former, and the Load-Balancer sends request to real servers via network
 address translation in the latter.
 
-The main advantage with this metho is scalability, Load-Balancer will forward
+The main advantage of this method is scalability, Load-Balancer will forward
 incoming request to farm nodes, latter nodes will then respond directly to the
 client requests without having to proxy through Load-Balancer. It offers you
-a way to locate nodes in differents networking segments.
+a way to locate nodes in different networking segments.
 
 The main disadvantage is the cost you will put into it to finally get a working
-env since it is deeply dependent uppon your network architecture.
+env since it is deeply dependent upon your network architecture.
 
 Virtual Server via Direct Routing
 *********************************

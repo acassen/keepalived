@@ -278,6 +278,11 @@ dump_vs(FILE *fp, void *data)
 		conf_write(fp, "   sh-port = %sabled", vs->flags & IP_VS_SVC_F_SCHED_SH_PORT ? "en" : "dis");
 		conf_write(fp, "   sh-fallback = %sabled", vs->flags & IP_VS_SVC_F_SCHED_SH_FALLBACK ? "en" : "dis");
 	}
+	else if (!strcmp(vs->sched, "mh"))
+	{
+		conf_write(fp, "   mh-port = %sabled", vs->flags & IP_VS_SVC_F_SCHED_MH_PORT ? "en" : "dis");
+		conf_write(fp, "   mh-fallback = %sabled", vs->flags & IP_VS_SVC_F_SCHED_MH_FALLBACK ? "en" : "dis");
+	}
 	else
 	{
 		conf_write(fp, "   flag-1 = %sabled", vs->flags & IP_VS_SVC_F_SCHED1 ? "en" : "dis");

@@ -104,6 +104,8 @@ enum check_snmp_virtualserver_magic {
 	CHECK_SNMP_VSHASHED,
 	CHECK_SNMP_VSSHFALLBACK,
 	CHECK_SNMP_VSSHPORT,
+	CHECK_SNMP_VSMHFALLBACK,
+	CHECK_SNMP_VSMHPORT,
 	CHECK_SNMP_VSSCHED3,
 	CHECK_SNMP_VSACTIONWHENDOWN,
 	CHECK_SNMP_VSRETRY,
@@ -459,6 +461,8 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 			long_ret.u = 11;
 		else if (!strcmp(v->sched, "ovf"))
 			long_ret.u = 12;
+		else if (!strcmp(v->sched, "mh"))
+			long_ret.u = 13;
 		else
 			long_ret.u = 99;
 		return (u_char*)&long_ret;
@@ -661,6 +665,12 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSSHPORT:
 		long_ret.u = v->flags & IP_VS_SVC_F_SCHED_SH_PORT ? 1 : 2;
+		return (u_char*)&long_ret;
+	case CHECK_SNMP_VSMHFALLBACK:
+		long_ret.u = v->flags & IP_VS_SVC_F_SCHED_MH_FALLBACK ? 1 : 2;
+		return (u_char*)&long_ret;
+	case CHECK_SNMP_VSMHPORT:
+		long_ret.u = v->flags & IP_VS_SVC_F_SCHED_MH_PORT ? 1 : 2;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSSCHED3:
 		long_ret.u = v->flags & IP_VS_SVC_F_SCHED3 ? 1 : 2;
@@ -1306,6 +1316,10 @@ static struct variable8 check_vars[] = {
 	 check_snmp_virtualserver, 3, {3, 1, 60}},
 	{CHECK_SNMP_VSSMTPALERT, ASN_INTEGER, RONLY,
 	 check_snmp_virtualserver, 3, {3, 1, 61}},
+	{CHECK_SNMP_VSMHFALLBACK, ASN_INTEGER, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 62}},
+	{CHECK_SNMP_VSMHPORT, ASN_INTEGER, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 63}},
 
 	/* realServerTable */
 	{CHECK_SNMP_RSTYPE, ASN_INTEGER, RONLY,

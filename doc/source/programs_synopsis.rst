@@ -33,7 +33,7 @@ The keepalived command line arguments are:
         Don’t remove VRRP VIPs and VROUTEs on daemon stop. The default behavior is to remove all VIPs and VROUTEs when keepalived exits
 
     -I, --dont-release-ipvs
-        Don’t remove IPVS topology on daemon stop. The default behavior it to remove all entries from the IPVS virtual server table on when keepalived exits.
+        Don’t remove IPVS topology on daemon stop. The default behavior is to remove all entries from the IPVS virtual server table on when keepalived exits.
 
     -R, --dont-respawn
         Don’t respawn child processes. The default behavior is to restart the VRRP and checker processes if either process exits.
@@ -86,7 +86,7 @@ line arguments are:
           Specify the virtual host to send along with the HTTP headers.
 
     --hash <alg>, -H
-          Specify the hash algorithm to make a digest of the target  page.   Consult  the
+          Specify the hash algorithm to make a digest of the target page.   Consult  the
           help screen for list of available ones with a mark of the default one.
 
     --verbose, -v

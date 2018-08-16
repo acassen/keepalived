@@ -17,17 +17,17 @@ To ensure robustness and stability, daemon is split into 3 distinct processes:
 Each children process has its own scheduling I/O multiplexer, that way VRRP
 scheduling jitter is optimized since VRRP scheduling is more sensible/critical
 than healthcheckers. This split design minimalizes for healthchecking the usage
-of foreign libraries and minimalizes its own action down to and idle mainloop in
+of foreign libraries and minimalizes its own action down to an idle mainloop in
 order to avoid malfunctions caused by itself. 
 
 The parent process monitoring framework is called watchdog, the design is each
 children process opens an accept unix domain socket, then while daemon
-bootstrap, parent process connect to those unix domain socket and send periodic
-(5s) hello packets to children. If parent cannot send hello packet to remote
+bootstrap, parent process connect to those unix domain sockets and send periodic
+(5s) hello packets to children. If parent cannot send hello packet to remotely
 connected unix domain socket it simply restarts children process. 
 
-This watchdog design offers 2 benefits, first of all hello packets sent from
-parent process to remote connected children is done throught I/O multiplexer
+This watchdog design offers 2 benefits, first of all, hello packets sent from
+parent process to remotely connected children is done through I/O multiplexer
 scheduler that way it can detect deadloop in the children scheduling framework.
 The second benefit is brought by the uses of sysV signal to detect dead
 children. When running you will see in process list::
@@ -77,10 +77,10 @@ thread abstraction optimized for networking purpose.
 Memory Management
 =================
 
-This framework provides access to some generic memory managements functions like
-allocation, reallocation, release,... This framework can be used in two mode :
-normal_mode & debug_mode. When using debug_mode it provide a strong way to
-eradicate and track memory leaks. This low level env provides buffer under-run
+This framework provides access to some generic memory management functions like
+allocation, reallocation, release,... This framework can be used in two modes:
+normal_mode & debug_mode. When using debug_mode it provides a strong way to
+eradicate and track memory leaks. This low-level env provides buffer under-run
 protection by tracking allocation and release of memory. All the buffer used are
 length fixed to prevent against eventual buffer-overflow.
 
@@ -88,9 +88,9 @@ Core Components
 ===============
 
 This framework defines some common and global libraries that are used in all the
-code. Those libraries are : html parsing, link-list, timer, vector, string
-formating, buffer dump, networking utils, daemon management, pid handling, low
-level TCP layer4. The goal here is to factorize code to the max to limit as
+code. Those libraries are html parsing, link-list, timer, vector, string
+formating, buffer dump, networking utils, daemon management, pid handling, 
+low-level TCP layer4. The goal here is to factorize code to the max to limit as
 possible code duplication to increase modularity.
 
 WatchDog
@@ -98,33 +98,33 @@ WatchDog
 
 This framework provides children processes monitoring (VRRP & Healthchecking).
 Each child accepts connection to its own watchdog unix domain socket. Parent
-process send "hello" messages to this child unix domain socket. Hello messages
+process sends "hello" messages to this child unix domain socket. Hello messages
 are sent using I/O multiplexer on the parent side and accepted/processed using
-I/O multiplexer on children side. If parent detects broken pipe it tests using
-sysV signal if child is still alive and restarts it.
+I/O multiplexer on children side. If the parent detects broken pipe it tests 
+using sysV signal if child is still alive and restarts it.
 
 Checkers
 ========
 
 This is one of the main Keepalived functionality. Checkers are in charge of
 realserver healthchecking. A checker tests if realserver is alive, this test ends
-on a binary decision : remove or add realserver from/into the LVS topology. The
+on a binary decision: remove or add realserver from/into the LVS topology. The
 internal checker design is realtime networking software, it uses a fully
 multi-threaded FSM design (Finite State Machine). This checker stack provides
-LVS topology manipulation accoring to layer4 to layer5/7 test results. It's run
-in an independent process monitored by parent process.
+LVS topology manipulation according to layer4 to layer5/7 test results. It's run
+in an independent process monitored by the parent process.
 
 VRRP Stack
 ==========
 
 The other most important Keepalived functionality. VRRP (Virtual Router
-Redundancy Protocol : RFC2338) is focused on director takeover, it provides
+Redundancy Protocol: RFC2338) is focused on director takeover, it provides
 low-level design for router backup. It implements full IETF RFC2338 standard
 with some provisions and extensions for LVS and Firewall design. It implements
 the vrrp_sync_group extension that guarantees persistence routing path after
 protocol takeover. It implements IPSEC-AH using MD5-96bit crypto provision for
-securing protocol adverts exchange. For more informations on VRRP please read
-the RFC. Important things : VRRP code can be used without the LVS support, it
+securing protocol adverts exchange. For more information on VRRP please read
+the RFC. Important things: VRRP code can be used without the LVS support, it
 has been designed for independent use. It's run in an independent process
 monitored by parent process.
 
@@ -145,7 +145,7 @@ kernel Netlink channel. The Netlink messaging sub-system is used for setting
 VRRP VIPs. On the other hand, the Netlink kernel messaging broadcast capability
 is used to reflect into our userspace Keepalived internal data representation
 any events related to interfaces. So any other userspace (others program)
-netlink manipulation is reflected to our Keepalived data representation via
+netlink manipulation is reflected our Keepalived data representation via
 Netlink Kernel broadcast (RTMGRP_LINK & RTMGRP_IPV4_IFADDR).
 
 SMTP
@@ -178,7 +178,7 @@ NETLINK
 The Linux Kernel code provided by Alexey Kuznetov with its very nice advanced
 routing framework and sub-system capabilities. Netlink is used to transfer
 information between kernel and user-space processes.  It consists of a standard
-sockets-based interface for user space processes and an internal kernel API for
+sockets-based interface for userspace processes and an internal kernel API for
 kernel modules.
 
 Syslog
@@ -205,9 +205,9 @@ health check worker threads implement the following types of health checks:
         Same as HTTP_GET but uses a SSL connection to the remote webservers.
 
     MISC_CHECK
-        This check allows a user defined script to be run as the health checker. The result must be 0 or 1. The script is run on the director box and this is an ideal way to test in- house applications. Scripts that can be run without arguments can be called using the full path (i.e. /path_to_script/script.sh). Those requiring arguments need to be enclosed in double quotes (i.e. “/path_to_script/script.sh arg 1 ... arg n ”)
+        This check allows a user-defined script to be run as the health checker. The result must be 0 or 1. The script is run on the director box and this is an ideal way to test in-house applications. Scripts that can be run without arguments can be called using the full path (i.e. /path_to_script/script.sh). Those requiring arguments need to be enclosed in double quotes (i.e. “/path_to_script/script.sh arg 1 ... arg n ”)
 
-The goal for Keepalived is to define a generic framework easily extensible for adding new checkers modules. If you are interested the development of existing or new checkers, have a look at the *keepalived/check* directory in the source:
+The goal for Keepalived is to define a generic framework easily extensible for adding new checkers modules. If you are interested in the development of existing or new checkers, have a look at the *keepalived/check* directory in the source:
 
 https://github.com/acassen/keepalived/tree/master/keepalived/check
 
@@ -255,10 +255,10 @@ VMAC support by the invocation of 'use_vmac' keyword in configuration file.
 
 Internally, Keepalived code will bring up virtual interfaces, each interface
 dedicated to a specific virtual_router. Keepalived uses Linux kernel macvlan
-driver to defines thoses interfaces. It is then mandatory to use kernel
+driver to defines these interfaces. It is then mandatory to use kernel
 compiled with macvlan support.
 
-In addition we can mention that VRRP VMAC will work only with kernel including
+In addition, we can mention that VRRP VMAC will work only with kernel including
 the following patch:
 
 http://git.kernel.org/?p=linux/kernel/git/torvalds/linux.git;a=commitdiff;h=729e72a10930ef765c11a5a35031ba47f18221c4
@@ -269,7 +269,7 @@ MACVLAN interface in private mode will not filter based on source MAC address.
 
 Alternatively, you can specify 'vmac_xmit_base' which will cause the VRRP
 messages to be transmitted and received on the underlying interface whilst ARP
-will happen from the the VMAC interface.
+will happen from the VMAC interface.
 
 You may also need to tweak your physical interfaces to play around with well
 known ARP issues. If you have issues, try the following configurations:
