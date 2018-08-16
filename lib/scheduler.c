@@ -959,7 +959,9 @@ thread_compute_timer(thread_master_t * m, timeval_t * timer_wait)
 static thread_list_t *
 thread_fetch_next_queue(thread_master_t *m)
 {
-	int num_fds, old_errno;
+	int num_fds;
+	int sav_errno;
+	int last_select_errno = 0;
 	thread_t *thread;
 	thread_t *t;
 	fd_set readfd;
@@ -1037,19 +1039,30 @@ retry:	/* When thread can't fetch try to find next thread again. */
 		num_fds = select(fdsetsize, &readfd, &writefd, NULL, &timer_wait);
 
 	/* we have to save errno here because the next syscalls will set it */
-	old_errno = errno;
+	sav_errno = errno;
 
 #ifdef _SELECT_DEBUG_
 	if (prog_type == PROG_TYPE_VRRP)
-		log_message(LOG_INFO, "Select returned %d, errno %d, readfd 0x%lx, writefd 0x%lx, timer %lu.%6.6ld", num_fds, old_errno, readfd.fds_bits[0], writefd.fds_bits[0], timer_wait.tv_sec, timer_wait.tv_usec);
+		log_message(LOG_INFO, "Select returned %d, errno %d, readfd 0x%lx, writefd 0x%lx, timer %lu.%6.6ld", num_fds, sav_errno, readfd.fds_bits[0], writefd.fds_bits[0], timer_wait.tv_sec, timer_wait.tv_usec);
 #endif
 
 	if (num_fds < 0) {
-		if (old_errno == EINTR)
+		if (sav_errno == EINTR)
 			goto retry;
+
 		/* Real error. */
-		DBG("select error: %s", strerror(old_errno));
+		if (sav_errno != last_select_errno) {
+			/* Log the error first time only */
+			log_message(LOG_INFO, "select error: %s", strerror(sav_errno));
+			last_select_errno = sav_errno;
+		}
 		assert(0);
+
+		/* Make sure we don't sit it a tight loop */
+		if (sav_errno == EINVAL || sav_errno == ENOMEM)
+			sleep(1);
+
+		goto retry;
 	}
 
 	timer_expired = (num_fds == 0 || !timerisset(&timer_wait));
@@ -1063,7 +1076,10 @@ retry:	/* When thread can't fetch try to find next thread again. */
 		if (num_fds > 0)
 			snmp_read(&readfd);
 		else if (timer_expired && is_snmp_timer)
+		{
 			snmp_timeout();
+			run_alarms();
+		}
 	}
 #endif
 
@@ -1151,8 +1167,8 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	}
 
 #ifdef _WITH_SNMP_
-	run_alarms();
-	netsnmp_check_outstanding_agent_requests();
+	if (snmp_running)
+		netsnmp_check_outstanding_agent_requests();
 #endif
 
 	/* There is no ready thread. */

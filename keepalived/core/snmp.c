@@ -35,7 +35,11 @@ static int
 snmp_keepalived_log(__attribute__((unused)) int major, __attribute__((unused)) int minor, void *serverarg, __attribute__((unused)) void *clientarg)
 {
 	struct snmp_log_message *slm = (struct snmp_log_message*)serverarg;
-	log_message(slm->priority, "%s", slm->msg);
+	int slm_len = strlen(slm->msg);
+
+	if (slm_len && slm->msg[slm_len-1] == '\n')
+		slm_len--;
+	log_message(slm->priority, "%.*s", slm_len, slm->msg);
 	return 0;
 }
 
@@ -354,6 +358,9 @@ snmp_agent_init(const char *snmp_socket, bool base_mib)
 	 */
 	netsnmp_ds_set_int(NETSNMP_DS_APPLICATION_ID,
 			   NETSNMP_DS_AGENT_AGENTX_PING_INTERVAL, 120);
+
+	/* Tell library not to raise SIGALRM */
+	netsnmp_ds_set_boolean(NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_ALARM_DONT_USE_SIG, 1);
 
 	init_agent(global_name);
 	if (base_mib)
