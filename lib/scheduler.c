@@ -1076,7 +1076,10 @@ retry:	/* When thread can't fetch try to find next thread again. */
 		if (num_fds > 0)
 			snmp_read(&readfd);
 		else if (timer_expired && is_snmp_timer)
+		{
 			snmp_timeout();
+			run_alarms();
+		}
 	}
 #endif
 
@@ -1164,8 +1167,8 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	}
 
 #ifdef _WITH_SNMP_
-	run_alarms();
-	netsnmp_check_outstanding_agent_requests();
+	if (snmp_running)
+		netsnmp_check_outstanding_agent_requests();
 #endif
 
 	/* There is no ready thread. */
