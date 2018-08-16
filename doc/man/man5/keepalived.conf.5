@@ -3,10 +3,9 @@
 keepalived.conf - configuration file for Keepalived
 .br
 .SH DESCRIPTION
-.B keepalived.conf
-is the configuration file which describes all the Keepalived keywords.
-Keywords are placed in hierarchies of blocks and subblocks,
-each layer being delimited by '{' and '}' pairs.
+\fBkeepalived.conf\fR is the configuration file which describes all the
+Keepalived keywords. Keywords are placed in hierarchies of blocks and
+subblocks, each layer being delimited by '{' and '}' pairs.
 .PP
 Comments start with '#' or '!' to the end of the line and can start
 anywhere in a line.
@@ -16,8 +15,7 @@ the main configuration file, or from subsequently included files.
 .PP
 The format of the include directive is:
 
-.B include
-FILENAME
+\fBinclude\fR FILENAME
 .PP
 FILENAME can be a fully qualified or relative pathname, and can include wildcards,
 including csh style brace expressions such as "{foo/{,cat,dog},bar}" if glob()
@@ -27,26 +25,26 @@ After opening an included file, the current directory is set to the directory of
 the file itself, so any relative paths included from a file are relative to the
 directory of the including file itself.
 .PP
-.B Note:
+\fBNote:\fR
 This documentation MUST be considered as THE exhaustive source of information in
 order to configure Keepalived. This documenation is supported and maintained by
 Keepalived Core-Team.
 .PP
 .SH PARAMETER SYNTAX
-.B <BOOL>
+\fB<BOOL>\fR
 is one of on|off|true|false|yes|no
 .SH SCRIPTS
 There are three classes of scripts can be configured to be executed.
 
-a. Notify scripts that are run when a vrrp instance or vrrp group changes state,
-   or a virtual server quorum changes between up and down.
+(a) Notify scripts that are run when a vrrp instance or vrrp group
+changes state, or a virtual server quorum changes between up and down.
 
-b. vrrp tracking scripts that will cause vrrp instances to go down it they exit
-   a non-zero exist status, or if a weight is specified will add or subtract the
-   weight to/from the priority of that vrrp instance.
+(b) vrrp tracking scripts that will cause vrrp instances to go down it they exit
+a non-zero exist status, or if a weight is specified will add or subtract the
+weight to/from the priority of that vrrp instance.
 
-c. LVS checker misc scripts that will cause a real server to be configured down
-   if they exit with a non-zero status.
+(c) LVS checker misc scripts that will cause a real server to be configured down
+if they exit with a non-zero status.
 
 By default the scripts will be executed by user keepalived_script if that user
 exists, or if not by root, but for each script the user/group under which it is
@@ -96,21 +94,21 @@ Keepalived configuration file is articulated around a set of configuration block
 Each block is focusing and targetting a specific daemon family feature. These features
 are:
 .PP
-.B GLOBAL CONFIGURATION
+\fBGLOBAL CONFIGURATION\fR
 .PP
-.B BFD CONFIGURATION
+\fBBFD CONFIGURATION\fR
 .PP
-.B VRRPD CONFIGURATION
+\fBVRRPD CONFIGURATION\fR
 .PP
-.B LVS CONFIGURATION
+\fBLVS CONFIGURATION\fR
 .SH GLOBAL CONFIGURATION
 contains subblocks of
-.B Global definitions,
-.B Static track groups
-.B Static addresses,
-.B Static routes,
+\fBGlobal definitions,
+Static track groups,
+Static addresses,
+Static routes,\fR
 and
-.B Static rules
+\fBStatic rules\fR
 .PP
 .SH Global definitions
 .PP
@@ -212,7 +210,8 @@ and
     #  ttl (1..255)
     #  group - multicast group address (IPv4 or IPv6)
     # NOTE: maxlen, port, ttl and group are only available on Linux 4.3 or later.
-    \fBlvs_sync_daemon \fR<INTERFACE> <VRRP_INSTANCE> [id <SYNC_ID>] [maxlen <LEN>] [port <PORT>] [ttl <TTL>] [group <IP ADDR>]
+    \fBlvs_sync_daemon \fR<INTERFACE> <VRRP_INSTANCE> [id <SYNC_ID>] [maxlen <LEN>] \e
+                    [port <PORT>] [ttl <TTL>] [group <IP ADDR>]
 
     # flush any existing LVS configuration at startup
     \fBlvs_flush\fR
@@ -517,7 +516,7 @@ The syntax for a track group is:
 .SH Static routes/addresses/rules
 .PP
 Keepalived can configure static addresses, routes, and rules. These addresses are
-.B NOT
+\fBNOT\fR
 moved by vrrpd, they stay on the machine.
 If you already have IPs and routes on your machines and
 your machines can ping each other, you don't need this section.
@@ -541,7 +540,10 @@ For routes, use "default" or "default6" to specify the default IPv4 or IPv6 rout
 .PP
 .nf
     \fBstatic_ipaddress \fR{
-        <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IPADDR>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin] [track_group GROUP]
+        <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>]
+                          [label <LABEL>] [peer <IPADDR>] [home]
+                          [-nodad] [mngtmpaddr] [noprefixroute]
+                          [autojoin] [track_group GROUP]
         192.168.1.1/24 dev eth0 scope global
         ...
     }
@@ -551,11 +553,23 @@ For routes, use "default" or "default6" to specify the default IPv4 or IPv6 rout
     \fBstatic_routes \fR{
         192.168.2.0/24 via 192.168.1.100 dev eth0 track_group GROUP1
 
-        192.168.100.0/24 table 6909 nexthop via 192.168.101.1 dev wlan0 onlink weight 1 nexthop via 192.168.101.2 dev wlan0 onlink weight 2
+        192.168.100.0/24 table 6909 nexthop via 192.168.101.1 dev wlan0
+                         onlink weight 1 nexthop via 192.168.101.2
+                         dev wlan0 onlink weight 2
 
-        192.168.200.0/24 dev p33p1.2 table 6909 tos 0x04 protocol bird scope link priority 12 mtu 1000 hoplimit 100 advmss 101 rtt 102 rttvar 103 reordering 104 window 105 cwnd 106 ssthresh lock 107 realms PQA/0x14 rto_min 108 initcwnd 109 initrwnd 110 features ecn
+        192.168.200.0/24 dev p33p1.2 table 6909 tos 0x04 protocol bird
+                         scope link priority 12 mtu 1000 hoplimit 100
+                         advmss 101 rtt 102 rttvar 103 reordering 104
+                         window 105 cwnd 106 ssthresh lock 107 realms
+                         PQA/0x14 rto_min 108 initcwnd 109 initrwnd 110
+                         features ecn
 
-        2001:470:69e9:1:2::4 dev p33p1.2 table 6909 tos 0x04 protocol bird scope link priority 12 mtu 1000 hoplimit 100 advmss 101 rtt 102 rttvar 103 reordering 104 window 105 cwnd 106 ssthresh lock 107 rto_min 108 initcwnd 109 initrwnd 110 features ecn fastopen_no_cookie 1
+        2001:470:69e9:1:2::4 dev p33p1.2 table 6909 tos 0x04 protocol
+                             bird scope link priority 12 mtu 1000
+                             hoplimit 100 advmss 101 rtt 102 rttvar 103
+                             reordering 104 window 105 cwnd 106 ssthresh
+                             lock 107 rto_min 108 initcwnd 109
+                             initrwnd 110 features ecn fastopen_no_cookie 1
         ...
     }
 .fi
@@ -566,11 +580,15 @@ For routes, use "default" or "default6" to specify the default IPv4 or IPv6 rout
 
         to 192.168.2.0/24 table 1
 
-        from 192.168.28.0/24 to 192.168.29.0/26 table small iif p33p1 oif wlan0 tos 22 fwmark 24/12 preference 39 realms 30/20 goto 40
+        from 192.168.28.0/24 to 192.168.29.0/26 table small iif p33p1
+                             oif wlan0 tos 22 fwmark 24/12
+                             preference 39 realms 30/20 goto 40
 
-        to 1:2:3:4:5:6:7:0/112 from 7:6:5:4:3:2::/96 table 6908 uidrange 10000-19999
+        to 1:2:3:4:5:6:7:0/112 from 7:6:5:4:3:2::/96 table 6908
+                               uidrange 10000-19999
 
-        to 1:2:3:4:6:6:7:0/112 from 8:6:5:4:3:2::/96 l3mdev protocol 12 ip_proto UDP sport 10-20 dport 20-30
+        to 1:2:3:4:6:6:7:0/112 from 8:6:5:4:3:2::/96 l3mdev protocol 12
+                               ip_proto UDP sport 10-20 dport 20-30
         ...
     }
 .fi
@@ -634,11 +652,11 @@ The syntax for bfd instance is :
 .PP
 .SH VRRPD CONFIGURATION
 contains subblocks of
-.B VRRP script(s),
-.B VRRP synchronization group(s),
-.B VRRP gratuitous ARP and unsolicited neighbour advert delay group(s)
+\fBVRRP script(s),
+VRRP synchronization group(s),
+VRRP gratuitous ARP and unsolicited neighbour advert delay group(s)\fR
 and
-.B VRRP instance(s)
+\fBVRRP instance(s)\fR
 .PP
 .SH VRRP script(s)
 .PP
@@ -1095,7 +1113,10 @@ The syntax for garp_group is :
                eth0:1 for an alias on eth0.
     # <SCOPE>: ("site"|"link"|"host"|"nowhere"|"global")
     \fBvirtual_ipaddress \fR{
-        <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IPADDR>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin] [no_track]
+        <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>]
+                          [label <LABEL>] [peer <IPADDR>] [home]
+                          [-nodad] [mngtmpaddr] [noprefixroute]
+                          [autojoin] [no_track]
         192.168.200.17/24 dev eth1
         192.168.200.18/24 dev eth2 label eth2:1
     }
@@ -1111,7 +1132,10 @@ The syntax for garp_group is :
     # addresses in virtual_ipaddress must be of the
     # same family.
     \fBvirtual_ipaddress_excluded \fR{
-        <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [peer <IPADDR>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin] [no_track]
+        <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>]
+                          [label <LABEL>] [peer <IPADDR>] [home]
+                          [-nodad] [mngtmpaddr] [noprefixroute]
+                          [autojoin] [no_track]
         <IPADDR>[/<MASK>] ...
         ...
     }
@@ -1126,7 +1150,8 @@ The syntax for garp_group is :
     # routes add|del when changing to MASTER, to BACKUP.
     # See static_routes for more details
     \fBvirtual_routes \fR{
-        # src <IPADDR> [to] <IPADDR>/<MASK> via|gw <IPADDR> [or <IPADDR>] dev <STRING> scope <SCOPE> table <TABLE>
+        # src <IPADDR> [to] <IPADDR>/<MASK> via|gw <IPADDR>
+        #   [or <IPADDR>] dev <STRING> scope <SCOPE> table <TABLE>
         src 192.168.100.1 to 192.168.109.0/24 via 192.168.200.254 dev eth1
         192.168.110.0/24 via 192.168.200.254 dev eth1
         192.168.111.0/24 dev eth2 no_track
@@ -1190,7 +1215,8 @@ The syntax for garp_group is :
     \fBnotify_master \fR<STRING>|<QUOTED-STRING> [username [groupname]]
     \fBnotify_backup \fR<STRING>|<QUOTED-STRING> [username [groupname]]
     \fBnotify_fault \fR<STRING>|<QUOTED-STRING> [username [groupname]]
-    \fBnotify_stop \fR<STRING>|<QUOTED-STRING> [username [groupname]]      # executed when stopping vrrp
+    # executed when stopping vrrp
+    \fBnotify_stop \fR<STRING>|<QUOTED-STRING> [username [groupname]]
     \fBnotify \fR<STRING>|<QUOTED-STRING> [username [groupname]]
 
     # The notify_master_rx_lower_pri script is executed if a master
@@ -1207,9 +1233,9 @@ The syntax for garp_group is :
 .fi
 .SH LVS CONFIGURATION
 contains subblocks of
-.B Virtual server group(s)
+\fBVirtual server group(s)\fR
 and
-.B Virtual server(s)
+\fBVirtual server(s)\fR
 .PP
 The subblocks contain arguments for configuring Linux IPVS (LVS) feature.
 Knowledge of
@@ -1219,12 +1245,12 @@ virtual server and optionally SSL configuration. Every virtual server define a s
 of real server, you can attach healthcheckers to each real server. Keepalived will
 then lead LVS operation by dynamically maintaining topology.
 .PP
-.B Note:
+\fBNote:\fR
 Where an option can be configured for a virtual server, real server,
 and possibly checker, the virtual server setting is the default for real servers,
 and the real server setting is the default for checkers.
 .PP
-.B Note:
+\fBNote:\fR
 Tunnelled real/sorry servers can differ from the address family of
 the virtual server and non tunnelled real/sorry servers, which all have to be the
 same. If a virtual server uses a fwmark, and all the real/sorry servers are
@@ -1259,19 +1285,19 @@ The syntax for virtual_server_group is :
     <IPADDR RANGE> <PORT>
     ...
     # Firewall Mark (fwmark)
-    \fBfwmark \fR<INT>
-    \fBfwmark \fR<INT>
+    \fBfwmark \fR<INTEGER>
+    \fBfwmark \fR<INTEGER>
     ...
 }
 .fi
 .SH Virtual server(s)
 .PP
 A virtual_server can be a declaration of one of
-.B <IPADDR> <PORT>
+\fB<IPADDR> <PORT>\fR
 ,
-.B fwmark <INT>
+\fBfwmark <INTEGER>\fR
 or
-.B group <STRING>
+\fBgroup <STRING>\fR
 .PP
 .nf
 The syntax for virtual_server is :
@@ -1392,7 +1418,7 @@ The syntax for virtual_server is :
     # one entry for each realserver
     \fBreal_server \fR<IPADDR> <PORT> {
         # relative weight to use, default: 1
-        \fBweight <INTEGER>
+        \fBweight \fR<INTEGER>
         # LVS forwarding method
         \fBlvs_method \fRNAT|DR|TUN
 
@@ -1485,7 +1511,7 @@ The syntax for virtual_server is :
               \fBdigest \fR<STRING>
               # status code returned in the HTTP header
               # eg status_code 200. Default is any 2xx value
-              \fBstatus_code \fR<INT>
+              \fBstatus_code \fR<INTEGER>
               # VirtualHost string. eg virtualhost www.firewall.loc
               # If not set, uses virtualhost from real or virtual server
               \fBvirtualhost \fR<STRING>
@@ -1732,8 +1758,8 @@ Example:
     $RS= \e
     \fBreal_server \fR192.168.${VS_NUM}.${RS_NUM} 80 { \e
         \fBweight \fR1 \e
-        \fBinhibit_on_failure \e
-        \fBsmtp_alert \e
+        \fBinhibit_on_failure\fR \e
+        \fBsmtp_alert\fR \e
         \fBMISC_CHECK \fR{ \e
             \fBmisc_path \fR"${_PWD}/scripts/vs.sh RS_misc.${INST}.${VS_NUM}.${RS_NUM}.0 10.0.${VS_NUM}.4:80->192.168.${VS_NUM}.${RS_NUM}:80" \e
         } \e
@@ -1774,10 +1800,10 @@ The above will create 2 virtual servers, each with 3 real servers
 .SH Pre-defined definitions
 .PP
 The following pre-defined definitions are defined:
+.sp
+\fB${_PWD} : \fRThe directory of the current configuration file (this can be changed if using the include directive).
 .br
-\fB${_PWD}       \fRThe directory of the current configuration file (this can be changed if using the include directive).
-.br
-\fB${_INSTANCE}  \fRThe instance name (as defined by the -i option, defaults to hostname).
+\fB${_INSTANCE} : \fRThe instance name (as defined by the -i option, defaults to hostname).
 .PP
 Additional pre-defined definitions will be added as their need is identified.
 It will normally be quite straightforward to add additional pre-defined
@@ -1788,6 +1814,3 @@ an issue at https://github.com/acassen/keepalived/issues requesting it.
 Initial by Joseph Mack. Extensive updates by Alexandre Cassen & Quentin Armitage.
 .SH "SEE ALSO"
 ipvsadm(8), ip --help.
-.\" Local Variables:
-.\"  mode: nroff
-.\" End:
