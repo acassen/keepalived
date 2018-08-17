@@ -182,13 +182,13 @@ libnl_init(void)
 	    !(rtnl_link_inet_set_conf_addr = dlsym(libnl_route_handle, "rtnl_link_inet_set_conf")) ||
 	    !(rtnl_link_put_addr = dlsym(libnl_route_handle, "rtnl_link_put")) ||
 #endif
-	    !(nl_connect_addr = dlsym(libnl_route_handle, "nl_connect")) ||
-	    !(nl_socket_add_membership_addr = dlsym(libnl_route_handle, "nl_socket_add_membership")) ||
-	    !(nl_socket_drop_membership_addr = dlsym(libnl_route_handle, "nl_socket_drop_membership")) ||
-	    !(nl_socket_get_fd_addr = dlsym(libnl_route_handle, "nl_socket_get_fd")) ||
-	    !(nl_socket_get_local_port_addr = dlsym(libnl_route_handle, "nl_socket_get_local_port")) ||
-	    !(nl_socket_set_buffer_size_addr = dlsym(libnl_route_handle, "nl_socket_set_buffer_size")) ||
-	    !(nl_socket_set_nonblocking_addr = dlsym(libnl_route_handle, "nl_socket_set_nonblocking")) ||
+	    !(nl_connect_addr = dlsym(libnl_handle, "nl_connect")) ||
+	    !(nl_socket_add_membership_addr = dlsym(libnl_handle, "nl_socket_add_membership")) ||
+	    !(nl_socket_drop_membership_addr = dlsym(libnl_handle, "nl_socket_drop_membership")) ||
+	    !(nl_socket_get_fd_addr = dlsym(libnl_handle, "nl_socket_get_fd")) ||
+	    !(nl_socket_get_local_port_addr = dlsym(libnl_handle, "nl_socket_get_local_port")) ||
+	    !(nl_socket_set_buffer_size_addr = dlsym(libnl_handle, "nl_socket_set_buffer_size")) ||
+	    !(nl_socket_set_nonblocking_addr = dlsym(libnl_handle, "nl_socket_set_nonblocking")) ||
 #endif
 	    false) {
 		log_message(LOG_INFO, "Failed to dynamic link a libnli/libnl-3 function");
