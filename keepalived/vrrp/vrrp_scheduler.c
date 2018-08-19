@@ -441,7 +441,7 @@ vrrp_register_workers(list l)
 	if (!LIST_ISEMPTY(vrrp_data->vrrp)) {
 		/* Init BFD tracking thread */
 		bfd_thread = thread_add_read(master, vrrp_bfd_thread, NULL,
-					     bfd_vrrp_event_pipe[0], TIMER_HZ);
+					     bfd_vrrp_event_pipe[0], TIMER_NEVER);
 	}
 #endif
 
@@ -817,7 +817,7 @@ vrrp_bfd_thread(thread_t * thread)
 	bfd_event_t evt;
 
 	bfd_thread = thread_add_read(master, vrrp_bfd_thread, NULL,
-				     thread->u.fd, TIMER_HZ * 60);
+				     thread->u.fd, TIMER_NEVER);
 
 	if (thread->type != THREAD_READY_FD)
 		return 0;

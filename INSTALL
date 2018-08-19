@@ -129,7 +129,7 @@ Building RPM files
 
  For tarball and git
   2. ./configure
-  3. make tar
+  3. make rpm
 
  The .rpm files will be created in directory `rpm --eval "%{_rpmdir}"`/ARCH
 
