@@ -108,8 +108,11 @@ open_log_file(const char *name, const char *prog, const char *namespace, const c
 		strcat(file_name, extn_start);
 
 	log_file = fopen(file_name, "a");
-	fcntl(fileno(log_file), F_SETFD, FD_CLOEXEC | fcntl(fileno(log_file), F_GETFD));
-	fcntl(fileno(log_file), F_SETFL, O_NONBLOCK | fcntl(fileno(log_file), F_GETFL));
+	if (log_file) {
+		int n = fileno(log_file);
+		fcntl(n, F_SETFD, FD_CLOEXEC | fcntl(n, F_GETFD));
+		fcntl(n, F_SETFL, O_NONBLOCK | fcntl(n, F_GETFL));
+	}
 
 	FREE(file_name);
 }
