@@ -1515,6 +1515,34 @@ The syntax for virtual_server is :
               # VirtualHost string. eg virtualhost www.firewall.loc
               # If not set, uses virtualhost from real or virtual server
               \fBvirtualhost \fR<STRING>
+              # Regular expression to search returned data against.
+              # A failure to match causes the check to fail.
+              \fBregex \fR<STRING>
+              # Reverse the sense of the match, so a match of the
+              # returned text causes the check to fail.
+              \fBregex_no_match\fR
+              # Space separated list of options for regex.
+              #  See man pcre2api for a description of the options.
+              #  The following option are supported:
+              #   allow_empty_class alt_bsux auto_callout caseless
+              #   dollar_endonly dotall dupnames extended firstline
+              #   match_unset_backref multiline never_ucp never_utf
+              #   no_auto_capture no_auto_possess no_dotstar_anchor
+              #   no_start_optimize ucp ungreedy utf never_backslash_c
+              #   alt_circumflex alt_verbnames use_offset_limit
+              \fBregex_options \fR<OPTIONS>
+              # For complicated regular expressions a larger stack
+              #   may be needed, and this allows the start and maximum
+              #   sizes in bytes to be specified. For more details see
+              #   the documentation for pcre2_jit_stack_create()
+              \fBregex_stack \fR<START> <MAX>
+              # The minimum offset into the returned data to start
+              #   checking for the regex pattern match. This can save
+              #   processing time if the returned data is large.
+              \fBregex_min_offset \fR<OFFSET>
+              # The maximum offset into the returned data for the
+              #   start of the subject match.
+              \fBregex_max_offset \fR<OFFSET>
             }
         }
 

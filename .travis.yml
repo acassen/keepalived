@@ -12,7 +12,7 @@ addons:
     update: true
 
 before_install:
-  - sudo apt-get -y install libsnmp-dev iptables-dev libipset-dev libnfnetlink-dev libnl-3-dev libnl-genl-3-dev libnl-route-3-dev libssl-dev libmagic-dev libglib2.0-dev libjson-c-dev
+  - sudo apt-get -y install libsnmp-dev iptables-dev libipset-dev libnfnetlink-dev libnl-3-dev libnl-genl-3-dev libnl-route-3-dev libssl-dev libmagic-dev libglib2.0-dev libjson-c-dev libpcre2-dev
 
 install:
   - autoreconf -W portability -visf
@@ -26,7 +26,7 @@ script:
 env:
   matrix:
     - KEEPALIVED_CONFIG_ARGS=""
-    - KEEPALIVED_CONFIG_ARGS="--enable-snmp --enable-snmp-rfc --enable-json --enable-dbus --disable-checksum-compat --enable-bfd"
+    - KEEPALIVED_CONFIG_ARGS="--enable-snmp --enable-snmp-rfc --enable-json --enable-dbus --disable-checksum-compat --enable-bfd --enable-regex"
     - KEEPALIVED_CONFIG_ARGS="--enable-sha1 --enable-dbus --enable-dbus-create-instance --disable-dynamic-linking --disable-fwmark --disable-lvs-syncd --enable-snmp-vrrp"
     - KEEPALIVED_CONFIG_ARGS="--enable-dynamic-linking --disable-vrrp-auth --enable-snmp-rfc --disable-snmp-reply-v3-for-v2"
     - KEEPALIVED_CONFIG_ARGS="--disable-libiptc --disable-libipset --disable-libnl --enable-snmp-checker"
