@@ -29,6 +29,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef _WITH_REGEX_CHECK_
+#define PCRE2_CODE_UNIT_WIDTH 8
+#include <pcre2.h>
+#endif
+
 #include "check_http.h"
 #include "check_api.h"
 #include "check_ssl.h"
@@ -47,16 +52,127 @@
 #define	REGISTER_CHECKER_NEW	1
 #define	REGISTER_CHECKER_RETRY	2
 
+/* Define the following to enable debugging output for regex matching */
+/* #define _REGEX_DEBUG_ */
+
+#ifdef _WITH_REGEX_CHECK_
+typedef struct {
+	const char *option;
+	unsigned option_bit ;
+} regex_option_t;
+
+regex_option_t regex_options[] = {
+	{"allow_empty_class", PCRE2_ALLOW_EMPTY_CLASS},
+	{"alt_bsux", PCRE2_ALT_BSUX},
+	{"auto_callout", PCRE2_AUTO_CALLOUT},
+	{"caseless", PCRE2_CASELESS},
+	{"dollar_endonly", PCRE2_DOLLAR_ENDONLY},
+	{"dotall", PCRE2_DOTALL},
+	{"dupnames", PCRE2_DUPNAMES},
+	{"extended", PCRE2_EXTENDED},
+	{"firstline", PCRE2_FIRSTLINE},
+	{"match_unset_backref", PCRE2_MATCH_UNSET_BACKREF},
+	{"multiline", PCRE2_MULTILINE},
+	{"never_ucp", PCRE2_NEVER_UCP},
+	{"never_utf", PCRE2_NEVER_UTF},
+	{"no_auto_capture", PCRE2_NO_AUTO_CAPTURE},
+	{"no_auto_possess", PCRE2_NO_AUTO_POSSESS},
+	{"no_dotstar_anchor", PCRE2_NO_DOTSTAR_ANCHOR},
+	{"no_start_optimize", PCRE2_NO_START_OPTIMIZE},
+	{"ucp", PCRE2_UCP},
+	{"ungreedy", PCRE2_UNGREEDY},
+	{"utf", PCRE2_UTF},
+	{"never_backslash_c", PCRE2_NEVER_BACKSLASH_C},
+	{"alt_circumflex", PCRE2_ALT_CIRCUMFLEX},
+	{"alt_verbnames", PCRE2_ALT_VERBNAMES},
+	{"use_offset_limit", PCRE2_USE_OFFSET_LIMIT},
+	{NULL, 0}
+};
+
+/* Used for holding regex details during configuration */
+static unsigned char *conf_regex_pattern;
+static int conf_regex_options;
+
+#ifndef PCRE2_DONT_USE_JIT
+static PCRE2_SIZE jit_stack_start;
+static PCRE2_SIZE jit_stack_max;
+
+static pcre2_match_context *mcontext;
+static pcre2_jit_stack *jit_stack;
+#endif
+
+static list regexs;	/* list of regex_t */
+
+#ifdef _WITH_REGEX_TIMERS_
+struct timespec total_regex_times;
+unsigned total_num_matches;
+unsigned total_regex_urls;
+#endif
+#endif
+
 static int http_connect_thread(thread_t *);
 
-/* Configuration stream handling */
+#ifdef _WITH_REGEX_CHECK_
+static void
+free_regex(void *data)
+{
+	regex_t *regex = data;
+
+	// Free up the regular expression.
+	FREE_PTR(regex->pattern);
+	pcre2_code_free(regex->pcre2_reCompiled);
+	pcre2_match_data_free(regex->pcre2_match_data);
+
+#ifdef _WITH_REGEX_TIMERS_
+	total_regex_times.tv_sec += regex->regex_time.tv_sec;
+	total_regex_times.tv_nsec += regex->regex_time.tv_nsec;
+	if (total_regex_times.tv_nsec >= 1000000000L) {
+		total_regex_times.tv_sec += total_regex_times.tv_nsec / 1000000000L;
+		total_regex_times.tv_nsec %= 1000000000L;
+	}
+	total_num_matches += regex->num_match_calls;
+	total_regex_urls += regex->num_regex_urls;
+#endif
+
+	FREE(regex);
+}
+#endif
+
 static void
 free_url(void *data)
 {
 	url_t *url = data;
+
 	FREE_PTR(url->path);
 	FREE_PTR(url->digest);
 	FREE_PTR(url->virtualhost);
+#ifdef _WITH_REGEX_CHECK_
+	if (url->regex) {
+		if (!--url->regex->use_count) {
+			free_list_data(regexs, url->regex);
+
+			if (LIST_ISEMPTY(regexs)) {
+				/* This is the last regex to be freed, so free up one-off resources */
+				free_list(&regexs);
+
+#ifndef PCRE2_DONT_USE_JIT
+				if (mcontext) {
+					pcre2_match_context_free(mcontext);
+					mcontext = NULL;
+				}
+				if (jit_stack) {
+					pcre2_jit_stack_free(jit_stack);
+					jit_stack = NULL;
+				}
+#endif
+
+#ifdef _WITH_REGEX_TIMERS_
+				log_message(LOG_INFO, "Total regex time %ld.%9.9ld, num match calls %u, num url checks %u", total_regex_times.tv_sec, total_regex_times.tv_nsec, total_num_matches, total_regex_urls);
+#endif
+			}
+		}
+	}
+#endif
 	FREE(url);
 }
 
@@ -84,6 +200,41 @@ dump_url(FILE *fp, void *data)
 		conf_write(fp, "     HTTP Status Code = %d", url->status_code);
 	if (url->virtualhost)
 		conf_write(fp, "     Virtual host = %s", url->virtualhost);
+#ifdef _WITH_REGEX_CHECK_
+	if (url->regex) {
+		char options_buf[512];
+		char *op;
+		int i;
+
+		conf_write(fp, "     Regex = \"%s\"", url->regex->pattern);
+		if (url->regex_no_match)
+			conf_write(fp, "     Regex no match");
+		if (url->regex_min_offset || url->regex_max_offset) {
+			if (url->regex_max_offset)
+				conf_write(fp, "     Regex min offset = %zu, max_offset = %zu", url->regex_min_offset, url->regex_max_offset - 1);
+			else
+				conf_write(fp, "     Regex min offset = %zu", url->regex_min_offset);
+		}
+		if (url->regex->pcre2_options) {
+			op = options_buf;
+			for (i = 0; regex_options[i].option; i++) {
+				if (url->regex->pcre2_options & regex_options[i].option_bit) {
+					*op++ = ' ';
+					strcpy(op, regex_options[i].option);
+					op += strlen(op);
+				}
+			}
+		}
+		else
+			options_buf[0] = '\0';
+		conf_write(fp, "     Regex options:%s", options_buf);
+		conf_write(fp, "     Regex use count = %u", url->regex->use_count);
+#ifndef PCRE2_DONT_USE_JIT
+		if (url->regex_use_stack)
+			conf_write(fp, "     Regex stack start %lu, max %lu", jit_stack_start, jit_stack_max);
+#endif
+	}
+#endif
 }
 
 static void
@@ -173,11 +324,24 @@ http_get_check_compare(void *a, void *b)
 			return false;
 		if (u1->virtualhost && strcmp(u1->virtualhost, u2->virtualhost))
 			return false;
+#ifdef _WITH_REGEX_CHECK_
+		if (!u1->regex != !u2->regex ||
+		    (u1->regex && strcmp((char *)u1->regex->pattern, (char *)u2->regex->pattern)))
+			return false;
+		if (u1->regex->pcre2_options != u2->regex->pcre2_options)
+			return false;
+		if (u1->regex_no_match != u2->regex_no_match)
+			return false;
+		if (u1->regex_min_offset != u2->regex_min_offset ||
+		    u1->regex_max_offset != u2->regex_max_offset)
+			return false;
+#endif
 	}
 
 	return true;
 }
 
+/* Configuration stream handling */
 static void
 http_get_handler(vector_t *strvec)
 {
@@ -240,6 +404,10 @@ url_handler(__attribute__((unused)) vector_t *strvec)
 	new = (url_t *) MALLOC(sizeof (url_t));
 
 	list_add(http_get_chk->url, new);
+
+#ifdef _WITH_REGEX_CHECK_
+	conf_regex_options = 0;
+#endif
 }
 
 static void
@@ -309,6 +477,188 @@ url_virtualhost_handler(vector_t *strvec)
 	url->virtualhost = CHECKER_VALUE_STRING(strvec);
 }
 
+#ifdef _WITH_REGEX_CHECK_
+static void
+regex_handler(__attribute__((unused)) vector_t *strvec)
+{
+	vector_t* strvec_qe = alloc_strvec_quoted_escaped(NULL);
+
+	if (vector_size(strvec_qe) != 2) {
+		log_message(LOG_INFO, "regex missing or too many fields");
+		free_strvec(strvec_qe);
+		return;
+	}
+
+	conf_regex_pattern = CHECKER_VALUE_STRING(strvec_qe);
+	free_strvec(strvec_qe);
+}
+
+static void
+regex_no_match_handler(__attribute__((unused)) vector_t *strvec)
+{
+	http_checker_t *http_get_chk = CHECKER_GET();
+	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
+
+	url->regex_no_match = true;
+}
+
+static void
+regex_options_handler(vector_t *strvec)
+{
+	unsigned i, j;
+	char *str;
+
+	for (i = 1; i < vector_size(strvec); i++) {
+		str = strvec_slot(strvec, i);
+
+		for (j = 0; regex_options[j].option; j++) {
+			if (!strcmp(str, regex_options[j].option)) {
+				conf_regex_options |= regex_options[j].option_bit;
+				break;
+			}
+		}
+	}
+}
+
+static size_t
+regex_offset_handler(vector_t *strvec, const char *type)
+{
+	char *endptr;
+	unsigned long val;
+
+	if (vector_size(strvec) != 2) {
+		log_message(LOG_INFO, "Missing or too may options for regex_%s_offset", type);
+		return 0;
+	}
+
+	val = strtoul(vector_slot(strvec, 1), &endptr, 10);
+	if (*endptr) {
+		log_message(LOG_INFO, "Invalid regex_%s_offset %s specified", type, FMT_STR_VSLOT(strvec, 1));
+		return 0;
+	}
+
+	return (size_t)val;
+}
+
+static void
+regex_min_offset_handler(vector_t *strvec)
+{
+	http_checker_t *http_get_chk = CHECKER_GET();
+	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
+
+	url->regex_min_offset = regex_offset_handler(strvec, "min");
+}
+
+static void
+regex_max_offset_handler(vector_t *strvec)
+{
+	http_checker_t *http_get_chk = CHECKER_GET();
+	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
+
+	/* regex_max_offset is one beyond last acceptable position */
+	url->regex_max_offset = regex_offset_handler(strvec, "max") + 1;
+}
+
+#ifndef PCRE2_DONT_USE_JIT
+static void
+regex_stack_handler(vector_t *strvec)
+{
+	http_checker_t *http_get_chk = CHECKER_GET();
+	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
+	unsigned long stack_start, stack_max;
+	char *endptr;
+
+	if (vector_size(strvec) != 3) {
+		log_message(LOG_INFO, "regex_stack requires start and max values");
+		return;
+	}
+
+	stack_start = strtoul(vector_slot(strvec, 1), &endptr, 10);
+	if (*endptr) {
+		log_message(LOG_INFO, "regex_stack invalid start value");
+		return;
+	}
+
+	stack_max = strtoul(vector_slot(strvec, 2), &endptr, 10);
+	if (*endptr) {
+		log_message(LOG_INFO, "regex_stack invalid max value");
+		return;
+	}
+
+	if (stack_start > stack_max) {
+		log_message(LOG_INFO, "regex stack start cannot exceed max value");
+		return;
+	}
+
+	if (stack_start > jit_stack_start)
+		jit_stack_start = stack_start;
+	if (stack_max > jit_stack_max)
+		jit_stack_max = stack_max;
+	url->regex_use_stack = true;
+}
+#endif
+
+static void
+prepare_regex(url_t *url)
+{
+	int pcreErrorNumber;
+	PCRE2_SIZE pcreErrorOffset;
+	PCRE2_UCHAR buffer[256];
+	regex_t *r;
+	element e;
+
+	if (!LIST_EXISTS(regexs))
+		regexs = alloc_list(free_regex, NULL);
+
+	/* See if this regex has already been specified */
+	LIST_FOREACH(regexs, r, e) {
+		if (r->pcre2_options == conf_regex_options &&
+		    !strcmp((char *)r->pattern, (char *)conf_regex_pattern)) {
+			url->regex = r;
+			FREE_PTR(conf_regex_pattern);
+
+			url->regex->use_count++;
+
+			return;
+		}
+	}
+
+	/* This is a new regex */
+	url->regex = MALLOC(sizeof *r);
+	url->regex->pattern = conf_regex_pattern;
+	url->regex->pcre2_options = conf_regex_options;
+	conf_regex_pattern = NULL;
+	url->regex->use_count = 1;
+
+	url->regex->pcre2_reCompiled = pcre2_compile(url->regex->pattern, PCRE2_ZERO_TERMINATED, url->regex->pcre2_options, &pcreErrorNumber, &pcreErrorOffset, NULL);
+
+	/* pcre_compile returns NULL on error, and sets pcreErrorOffset & pcreErrorStr */
+	if(url->regex->pcre2_reCompiled == NULL) {
+		pcre2_get_error_message(pcreErrorNumber, buffer, sizeof buffer);
+		log_message(LOG_INFO, "Invalid regex: '%s' at offset %zu: %s\n", url->regex->pattern, pcreErrorOffset, (char *)buffer);
+
+		FREE_PTR(url->regex->pattern);
+		FREE_PTR(url->regex);
+
+		return;
+	}
+
+	url->regex->pcre2_match_data = pcre2_match_data_create_from_pattern(url->regex->pcre2_reCompiled, NULL);
+	pcre2_pattern_info(url->regex->pcre2_reCompiled, PCRE2_INFO_MAXLOOKBEHIND, &url->regex->pcre2_max_lookbehind);
+
+#ifndef PCRE2_DONT_USE_JIT
+	if ((pcreErrorNumber = pcre2_jit_compile(url->regex->pcre2_reCompiled, PCRE2_JIT_PARTIAL_HARD /* | PCRE2_JIT_COMPLETE */))) {
+		pcre2_get_error_message(pcreErrorNumber, buffer, sizeof buffer);
+		log_message(LOG_INFO, "Regex JIT compilation failed: '%s': %s\n", url->regex->pattern, (char *)buffer);
+
+		return;
+	}
+#endif
+
+	list_add(regexs, url->regex);
+}
+#endif
+
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 static void
 enable_sni_handler(vector_t *strvec)
@@ -336,8 +686,37 @@ url_check(void)
 	if (!url->path) {
 		report_config_error(CONFIG_GENERAL_ERROR, "HTTP/SSL_GET checker url has no path - ignoring");
 		free_list_element(http_get_chk->url, http_get_chk->url->tail);
+		return;
 	}
+
+#ifdef _WITH_REGEX_CHECK_
+	if (conf_regex_pattern)
+		prepare_regex(url);
+	else if (conf_regex_options
+		 || url->regex_no_match
+		 || url->regex_min_offset
+		 || url->regex_max_offset
+#ifndef PCRE2_DONT_USE_JIT
+		 || url->regex_use_stack
+#endif
+					 ) {
+		log_message(LOG_INFO, "regex parameters specified without regex");
+		conf_regex_options = 0;
+		url->regex_no_match = false;
+		url->regex_min_offset = 0;
+		url->regex_max_offset = 0;
+#ifndef PCRE2_DONT_USE_JIT
+		url->regex_use_stack = false;
+#endif
+	}
+
+	if (url->regex_max_offset && url->regex_min_offset >= url->regex_max_offset) {
+		log_message(LOG_INFO, "regex min offset %lu > regex_max_offset %lu - ignoring", url->regex_min_offset, url->regex_max_offset - 1);
+		url->regex_min_offset = url->regex_max_offset = 0;
+	}
+#endif
 }
+
 static void
 install_http_ssl_check_keyword(const char *keyword)
 {
@@ -355,6 +734,16 @@ install_http_ssl_check_keyword(const char *keyword)
 	install_keyword("digest", &digest_handler);
 	install_keyword("status_code", &status_code_handler);
 	install_keyword("virtualhost", &url_virtualhost_handler);
+#ifdef _WITH_REGEX_CHECK_
+	install_keyword("regex", &regex_handler);
+	install_keyword("regex_no_match", &regex_no_match_handler);
+	install_keyword("regex_options", &regex_options_handler);
+	install_keyword("regex_min_offset", &regex_min_offset_handler);
+	install_keyword("regex_max_offset", &regex_max_offset_handler);
+#ifndef PCRE2_DONT_USE_JIT
+	install_keyword("regex_stack", &regex_stack_handler);
+#endif
+#endif
 	install_sublevel_end_handler(url_check);
 	install_sublevel_end();
 	install_sublevel_end_handler(http_get_check);
@@ -522,6 +911,169 @@ fetch_next_url(http_checker_t * http_get_check)
 	return list_element(http_get_check->url, http_get_check->url_it);
 }
 
+#ifdef _WITH_REGEX_CHECK_
+/* Returns true to indicate buffer must be preserved */
+static bool
+check_regex(url_t *url, request_t *req)
+{
+	PCRE2_SIZE *ovector;
+	int pcreExecRet;
+	size_t keep;
+	size_t start_offset = 0;
+
+#ifdef _REGEX_DEBUG_
+	log_message(LOG_INFO, "matched %d, min_offset %lu max_offset %lu, subject_offset %lu req->len %lu lookbehind %u start_offset %lu, num_match_calls %u",
+			req->regex_matched, url->regex_min_offset, url->regex_max_offset, req->regex_subject_offset,
+			req->len, url->regex->pcre2_max_lookbehind, req->start_offset, req->num_match_calls);
+#endif
+
+	/* If we have already matched the regex, there is no point in checking
+	 * any further */
+	if (req->regex_matched)
+		return false;
+
+	/* If the end of the current buffer doesn't reach the start offset specified,
+	 * then skip the check */
+	if (url->regex_min_offset) {
+		if (req->regex_subject_offset + req->len < url->regex_min_offset - url->regex->pcre2_max_lookbehind) {
+			req->regex_subject_offset += req->len;
+			return false;
+		}
+
+		if (req->regex_subject_offset < url->regex_min_offset)
+			start_offset = url->regex_min_offset - req->regex_subject_offset;
+	}
+
+	/* If we are beyond the end of where we want to check, then don't try matching */
+	if (url->regex_max_offset &&
+	    req->regex_subject_offset + req->start_offset >= url->regex_max_offset) {
+		req->regex_subject_offset += req->len;
+		return false;
+	}
+
+#ifndef PCRE2_DONT_USE_JIT
+	if (url->regex_use_stack && !mcontext) {
+		mcontext = pcre2_match_context_create(NULL);
+		jit_stack = pcre2_jit_stack_create(jit_stack_start, jit_stack_max, NULL);
+		pcre2_jit_stack_assign(mcontext, NULL, jit_stack);
+	}
+#endif
+
+	if (req->start_offset > start_offset)
+		start_offset = req->start_offset;
+
+#ifdef _WITH_REGEX_TIMERS_
+	struct timespec time_before, time_after;
+	clock_gettime(CLOCK_MONOTONIC_RAW, &time_before);
+#endif
+
+#ifndef PCRE2_DONT_USE_JIT
+	pcreExecRet = pcre2_jit_match
+#else
+	pcreExecRet = pcre2_match
+#endif
+				(url->regex->pcre2_reCompiled,
+				 (unsigned char *)req->buffer,
+				 req->len,
+				 start_offset,
+				 PCRE2_PARTIAL_HARD,
+				 url->regex->pcre2_match_data,
+#ifndef PCRE2_DONT_USE_JIT
+				 url->regex_use_stack ? mcontext : NULL
+#else
+				 NULL
+#endif
+				);			// context
+
+#ifdef _WITH_REGEX_TIMERS_
+	clock_gettime(CLOCK_MONOTONIC_RAW, &time_after);
+	req->req_time.tv_sec += time_after.tv_sec - time_before.tv_sec;
+	req->req_time.tv_nsec += time_after.tv_nsec - time_before.tv_nsec;
+	if (req->req_time.tv_nsec >= 1000000000L) {
+		req->req_time.tv_sec += req->req_time.tv_nsec / 1000000000L;
+		req->req_time.tv_nsec %= 1000000000L;
+	}
+	req->num_match_calls++;
+#endif
+	req->start_offset = 0;
+
+	if (pcreExecRet == PCRE2_ERROR_PARTIAL) {
+		ovector = pcre2_get_ovector_pointer(url->regex->pcre2_match_data);
+#ifdef _REGEX_DEBUG_
+		log_message(LOG_INFO, "Partial returned, ovector %ld, max_lookbehind %u", ovector[0], url->regex->pcre2_max_lookbehind);
+#endif
+		if ((keep = ovector[0] - url->regex->pcre2_max_lookbehind) <= 0)
+			keep = 0;
+
+		if (keep) {
+			req->start_offset = url->regex->pcre2_max_lookbehind;
+			req->len -= keep;
+			memmove(req->buffer, req->buffer + keep, req->len);
+			req->regex_subject_offset += keep;
+		} else if (req->len == MAX_BUFFER_LENGTH) {
+			req->regex_subject_offset += req->len;
+			log_message(LOG_INFO, "Regex partial match preserve too large - discarding");
+			return false;
+		}
+
+		return true;
+	}
+
+	/* Report what happened in the pcre2_match call. */
+	if(pcreExecRet < 0) {
+		req->regex_subject_offset += req->len;
+
+		switch(pcreExecRet)
+		{
+		case PCRE2_ERROR_NOMATCH:
+			/* This is not an error while doing partial matches */
+#ifdef _REGEX_DEBUG_
+			log_message(LOG_INFO, "String did not match the regex pattern");
+#endif
+			break;
+		case PCRE2_ERROR_NULL:
+			log_message(LOG_INFO, "Something was null in regex match");
+			break;
+		case PCRE2_ERROR_BADOPTION:
+			log_message(LOG_INFO, "A bad option was passed to regex");
+			break;
+		case PCRE2_ERROR_BADMAGIC:
+			log_message(LOG_INFO, "Magic number bad (compiled regex corrupt?)");
+			break;
+		case PCRE2_ERROR_NOMEMORY:
+			log_message(LOG_INFO, "Regex an out of memory");
+			break;
+		default:
+			log_message(LOG_INFO, "Unknown regex error %d", pcreExecRet);
+			break;
+		}
+
+		return false;
+	}
+
+	if(pcreExecRet == 0)
+		log_message(LOG_INFO, "Too many substrings found");
+
+	ovector = pcre2_get_ovector_pointer(url->regex->pcre2_match_data);
+
+	/* Check if there was a match at or before regex_max_offset */
+	if (!url->regex_max_offset ||
+	    (req->regex_subject_offset + ovector[0] < url->regex_max_offset)) {
+		req->regex_matched = true;
+#ifdef _REGEX_DEBUG_
+		log_message(LOG_INFO, "Result: We have a match at offset %zu - \"%.*s\"", req->regex_subject_offset + ovector[0], (int)(ovector[1] - ovector[0]), req->buffer + ovector[0]);
+	}
+	else {
+		log_message(LOG_INFO, "Match found but %lu bytes beyond regex_max_offset(%lu)", req->regex_subject_offset + ovector[0] - (url->regex_max_offset - 1), url->regex_max_offset - 1);
+#endif
+	}
+
+	req->regex_subject_offset += req->len;
+
+	return false;
+}
+#endif
+
 /* Handle response */
 int
 http_handle_response(thread_t * thread, unsigned char digest[MD5_DIGEST_LENGTH]
@@ -536,7 +1088,10 @@ http_handle_response(thread_t * thread, unsigned char digest[MD5_DIGEST_LENGTH]
 		NONE,
 		ON_SUCCESS,
 		ON_STATUS,
-		ON_DIGEST
+		ON_DIGEST,
+#ifdef _WITH_REGEX_CHECK_
+		ON_REGEX,
+#endif
 	} last_success = NONE; /* the source of last considered success */
 
 	/* First check if remote webserver returned data */
@@ -575,6 +1130,26 @@ http_handle_response(thread_t * thread, unsigned char digest[MD5_DIGEST_LENGTH]
 		last_success = ON_DIGEST;
 	}
 
+#ifdef _WITH_REGEX_CHECK_
+	/* Did a regex match? */
+	if (url->regex) {
+#ifdef _WITH_REGEX_TIMERS_
+		url->regex->regex_time.tv_sec += req->req_time.tv_sec;
+		url->regex->regex_time.tv_nsec += req->req_time.tv_nsec;
+		if (url->regex->regex_time.tv_nsec >= 1000000000L) {
+			url->regex->regex_time.tv_sec += url->regex->regex_time.tv_nsec / 1000000000L;
+			url->regex->regex_time.tv_nsec %= 1000000000L;
+		}
+		url->regex->num_match_calls += req->num_match_calls;
+		url->regex->num_regex_urls++;
+#endif
+
+		if (req->regex_matched == url->regex_no_match)
+			return timeout_epilog(thread, "Regex match failed");
+		last_success = ON_REGEX;
+	}
+#endif
+
 	if (!checker->is_up) {
 		switch (last_success) {
 			case NONE:
@@ -597,6 +1172,14 @@ http_handle_response(thread_t * thread, unsigned char digest[MD5_DIGEST_LENGTH]
 					, FMT_HTTP_RS(checker)
 					, http_get_check->url_it + 1);
 				return epilog(thread, REGISTER_CHECKER_NEW, 1, 0) + 1;
+#ifdef _WITH_REGEX_CHECK_
+			case ON_REGEX:
+				log_message(LOG_INFO,
+					"Regex match success to %s url(%u)."
+					, FMT_HTTP_RS(checker)
+					, http_get_check->url_it + 1);
+				return epilog(thread, REGISTER_CHECKER_NEW, 1, 0) + 1;
+#endif
 		}
 	}
 
@@ -605,30 +1188,41 @@ http_handle_response(thread_t * thread, unsigned char digest[MD5_DIGEST_LENGTH]
 
 /* Handle response stream performing MD5 updates */
 void
-http_process_response(request_t *req, size_t r, bool do_md5)
+http_process_response(request_t *req, size_t r, url_t *url)
 {
+	size_t old_req_len = req->len;
+
 	req->len += r;
+
 	if (!req->extracted) {
 		if ((req->extracted = extract_html(req->buffer, req->len))) {
 			req->status_code = extract_status_code(req->buffer, req->len);
 			req->content_len = extract_content_length(req->buffer, req->len);
 			r = req->len - (size_t)(req->extracted - req->buffer);
-			if (r && do_md5) {
+			if (r && url->digest) {
 				if (req->content_len == SIZE_MAX || req->content_len > req->rx_bytes)
 					MD5_Update(&req->context, req->extracted,
 						   req->content_len == SIZE_MAX || req->content_len >= req->rx_bytes + r ? r : req->content_len - req->rx_bytes);
 			}
+
 			req->rx_bytes = r;
-			req->len = 0;
+#ifdef _WITH_REGEX_CHECK_
+			if (!r || !url->regex || !check_regex(url, req))
+#endif
+				req->len = 0;
 		}
 	} else if (req->len) {
-		if (do_md5 &&
+		if (url->digest &&
 		    (req->content_len == SIZE_MAX || req->content_len > req->rx_bytes)) {
-			MD5_Update(&req->context, req->buffer,
-				   req->content_len == SIZE_MAX || req->content_len >= req->rx_bytes + req->len ? req->len : req->content_len - req->rx_bytes);
+			MD5_Update(&req->context, req->buffer + old_req_len,
+				   req->content_len == SIZE_MAX || req->content_len >= req->rx_bytes + r ? r : req->content_len - req->rx_bytes);
 		}
+
 		req->rx_bytes += req->len;
-		req->len = 0;
+#ifdef _WITH_REGEX_CHECK_
+		if (!url->regex || !check_regex(url, req))
+#endif
+			req->len = 0;
 	}
 }
 
@@ -639,7 +1233,7 @@ http_read_thread(thread_t * thread)
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
 	request_t *req = http_get_check->req;
-	url_t *url = list_element(http_get_check->url, http_get_check->url_it);
+	url_t *url = fetch_next_url(http_get_check);
 	unsigned timeout = checker->co->connection_to;
 	unsigned char digest[MD5_DIGEST_LENGTH];
 	ssize_t r = 0;
@@ -663,7 +1257,6 @@ http_read_thread(thread_t * thread)
 	}
 
 	if (r == -1 || r == 0) {	/* -1:error , 0:EOF */
-
 		/* All the HTTP stream has been parsed */
 		if (url->digest)
 			MD5_Final(digest, &req->context);
@@ -675,11 +1268,9 @@ http_read_thread(thread_t * thread)
 
 		/* Handle response stream */
 		http_handle_response(thread, digest, !req->extracted);
-
 	} else {
-
 		/* Handle response stream */
-		http_process_response(req, (size_t)r, (url->digest != NULL));
+		http_process_response(req, (size_t)r, url);
 
 		/*
 		 * Register next http stream reader.
@@ -702,7 +1293,7 @@ http_response_thread(thread_t * thread)
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
 	request_t *req = http_get_check->req;
-	url_t *url = list_element(http_get_check->url, http_get_check->url_it);
+	url_t *url = fetch_next_url(http_get_check);
 	unsigned timeout = checker->co->connection_to;
 
 	/* Handle read timeout */
@@ -714,6 +1305,13 @@ http_response_thread(thread_t * thread)
 	req->extracted = NULL;
 	req->len = 0;
 	req->error = 0;
+#ifdef _WITH_REGEX_CHECK_
+	req->regex_matched = false;
+	req->regex_subject_offset = 0;
+#ifdef _WITH_REGEX_TIMERS_
+	req->num_match_calls = 0;
+#endif
+#endif
 	if (url->digest)
 		MD5_Init(&req->context);
 

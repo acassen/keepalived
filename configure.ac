@@ -166,6 +166,10 @@ AC_ARG_ENABLE(dbus-create-instance,
   [AS_HELP_STRING([--enable-dbus-create-instance], [compile with dbus support for creating instances])])
 AC_ARG_ENABLE(sha1,
   [AS_HELP_STRING([--enable-sha1], [compile with SHA1 support])])
+AC_ARG_ENABLE(regex,
+  [AS_HELP_STRING([--enable-regex], [build with HTTP_GET regex checking])])
+AC_ARG_ENABLE(regex-timers,
+  [AS_HELP_STRING([--enable-regex-timers], [build with HTTP_GET regex timers])])
 AC_ARG_ENABLE(json,
   [AS_HELP_STRING([--enable-json], [compile with signal to dump configuration and stats as json])])
 AC_ARG_WITH(init,
@@ -217,6 +221,8 @@ AC_ARG_ENABLE(dump-threads,
   [  --enable-dump-threads   compile with thread dumping support])
 AC_ARG_ENABLE(select-debug,
   [  --enable-select-debug   compile with select debugging support])
+AC_ARG_ENABLE(regex-debug,
+  [  --enable-regex-debug    compile with regex debugging support])
 AC_ARG_ENABLE(tsm-debug,
   [  --enable-tsm-debug      compile with TSM debugging support])
 AC_ARG_ENABLE(timer-debug-threads,
@@ -1125,6 +1131,7 @@ CPPFLAGS="$SAV_CPPFLAGS"
 dnl ----[ Checks for LVS, VRRP and BFD support ]----
 IPVS_SYNCD_ATTRIBUTES=No
 IPVS_64BIT_STATS=No
+WITH_REGEX=No
 if test "$enable_lvs" != no; then
   IPVS_SUPPORT=Yes
   add_config_opt([LVS])
@@ -1187,10 +1194,41 @@ if test "$enable_lvs" != no; then
     fi
   fi
   CPPFLAGS="$SAV_CPPFLAGS"
+
+  dnl ----[ Is HTTP_GET regex checking wanted? ]----
+  AS_IF([test $enable_regex = yes],
+    [
+      $PKG_CONFIG --exists libpcre2-8
+      HAVE_PCRE2=$?
+      AS_IF([test $HAVE_PCRE2 -ne 0], [AC_MSG_ERROR([cannot find pcre library])])
+      AC_MSG_CHECKING([for pcre.h])
+      AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+        #define PCRE2_CODE_UNIT_WIDTH 8
+        #include <pcre2.h>
+        ]])],
+        [
+	  AC_MSG_RESULT([yes])
+          WITH_REGEX=Yes
+	  add_pkg_config([libpcre2-8])
+          AC_DEFINE([_WITH_REGEX_CHECK_], [ 1 ], [Define to 1 to build with HTTP_GET regex checking])
+	  add_config_opt([REGEX])
+        ],
+        [
+          AC_MSG_RESULT([no])
+	  AC_MSG_ERROR([pcre2.h is missing])
+        ])
+      if test $enable_regex_timers = yes; then
+	if test $WITH_REGEX != Yes; then
+	  AC_MSG_ERROR([Cannot have regex timers support without regex support])
+	fi
+	AC_DEFINE([_WITH_REGEX_TIMERS_], [ 1 ], [Define to 1 to include regex timers])
+      fi
+    ])
 else
   IPVS_SUPPORT=No
 fi
 AM_CONDITIONAL([WITH_IPVS], [test $IPVS_SUPPORT = Yes])
+AM_CONDITIONAL([WITH_REGEX], [test $WITH_REGEX = Yes])
 
 dnl ----[ Checks for kernel netlink support ]----
 VRRP_SUPPORT=No
@@ -1703,6 +1741,15 @@ else
   ENABLE_SELECT_DEBUG=No
 fi
 
+dnl ----[ regex debugging support or not ? ]----
+if test "${enable_regex_debug}" = yes; then
+  AC_DEFINE([_REGEX_DEBUG_], [ 1 ], [Define to 1 to build with regex debugging support])
+  ENABLE_REGEX_DEBUG=Yes
+  add_config_opt([REGEX_DEBUG])
+else
+  ENABLE_REGEX_DEBUG=No
+fi
+
 dnl ----[ TSM debugging support or not ? ]----
 if test "${enable_tsm_debug}" = yes; then
   AC_DEFINE([_TSM_DEBUG_], [ 1 ], [Define to 1 to build with TSM debugging support])
@@ -1833,6 +1880,7 @@ if test ${IPVS_SUPPORT} = Yes; then
   echo "IPVS use libnl           : ${IPVS_USE_NL}"
   echo "IPVS syncd attributes    : ${IPVS_SYNCD_ATTRIBUTES}"
   echo "IPVS 64 bit stats        : ${IPVS_64BIT_STATS}"
+  echo "HTTP_GET regex support   : ${WITH_REGEX}"
 fi
 echo "fwmark socket support    : ${SO_MARK_SUPPORT}"
 echo "Use VRRP Framework       : ${VRRP_SUPPORT}"
@@ -1875,6 +1923,9 @@ if test ${ENABLE_DUMP_THREADS} = Yes; then
 fi
 if test ${ENABLE_SELECT_DEBUG} = Yes; then
   echo "Select() debugging       : ${ENABLE_SELECT_DEBUG}"
+fi
+if test ${ENABLE_REGEX_DEBUG} = Yes; then
+  echo "regex debugging          : ${ENABLE_REGEX_DEBUG}"
 fi
 if test ${ENABLE_TSM_DEBUG} = Yes; then
   echo "TSM debugging            : ${ENABLE_TSM_DEBUG}"

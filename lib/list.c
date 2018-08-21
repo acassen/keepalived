@@ -182,6 +182,19 @@ free_list_element(list l, element e)
 	FREE(e);
 }
 
+void
+free_list_data(list l, void *data)
+{
+	element e;
+
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		if (ELEMENT_DATA(e) == data) {
+			free_list_element(l, e);
+			return;
+		}
+	}
+}
+
 /* Multiple list helpers functions */
 list
 alloc_mlist(void (*free_func) (void *), void (*dump_func) (FILE *, void *), size_t size)
