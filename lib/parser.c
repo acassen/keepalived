@@ -1112,8 +1112,8 @@ find_definition(const char *name, size_t len, bool definition)
 	return NULL;
 }
 
-static char *
-replace_param(char *buf, size_t max_len, char *multiline_ptr)
+static bool
+replace_param(char *buf, size_t max_len, char **multiline_ptr_ptr)
 {
 	char *cur_pos = buf;
 	size_t len_used = strlen(buf);
@@ -1123,9 +1123,12 @@ replace_param(char *buf, size_t max_len, char *multiline_ptr)
 	size_t extra_braces;
 	size_t replacing_len;
 	char *next_ptr = NULL;
+	bool found_defn = false;
+	char *multiline_ptr = *multiline_ptr_ptr;
 
 	while ((cur_pos = strchr(cur_pos, '$')) && cur_pos[1] != '\0') {
 		if ((def = find_definition(cur_pos + 1, 0, false))) {
+			found_defn = true;
 			extra_braces = cur_pos[1] == BOB[0] ? 2 : 0;
 			next_ptr = multiline_ptr;
 
@@ -1193,7 +1196,11 @@ replace_param(char *buf, size_t max_len, char *multiline_ptr)
 			cur_pos++;
 	}
 
-	return next_ptr;
+	/* If we did a replacement, update the multiline_ptr */
+	if (found_defn)
+		*multiline_ptr_ptr = next_ptr;
+
+	return found_defn;
 }
 
 static void
@@ -1469,7 +1476,11 @@ read_line(char *buf, size_t size)
 			}
 
 			if (!LIST_ISEMPTY(defs) && strchr(text_start, '$')) {
-				next_ptr = replace_param(buf, size, next_ptr);
+				if (!replace_param(buf, size, &next_ptr)) {
+					/* If nothing has changed, we don't need to do any more processing */
+					break;
+				}
+
 				text_start += strspn(text_start, " \t");
 				if (text_start[0] == '@')
 					recheck = true;
