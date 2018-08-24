@@ -1662,9 +1662,13 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 #ifdef _HAVE_VRRP_VMAC_
 	struct rtattr* linkinfo[IFLA_INFO_MAX+1];
 	struct rtattr* linkattr[IFLA_MACVLAN_MAX+1];
+#ifdef _HAVE_VRF_
+	struct rtattr *vrf_attr[IFLA_VRF_MAX + 1];
+#endif
 #endif
 
 	name = (char *)RTA_DATA(tb[IFLA_IFNAME]);
+
 	/* Fill the interface structure */
 	memcpy(ifp->ifname, name, strlen(name));
 	ifp->ifindex = (ifindex_t)ifi->ifi_index;
@@ -1680,34 +1684,47 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 		return -1;
 
 #ifdef _HAVE_VRRP_VMAC_
-	/* See if this interface is a MACVLAN of ours */
-	if (tb[IFLA_LINKINFO] && tb[IFLA_LINK]){
-		/* If appears that the value of *(int*)RTA_DATA(tb[IFLA_LINKINFO]) is 0x1000c
-		 *   for macvlan.  0x10000 for nested data, or'ed with 0x0c for macvlan;
-		 *   other values are 0x09 for vlan, 0x0b for bridge, 0x08 for tun, -1 for no
-		 *   underlying interface.
-		 *
-		 * I can't find where in the kernel these values are set or defined, so use
-		 * the string as below.
-		 */
+	if (tb[IFLA_LINKINFO]) {
 		parse_rtattr_nested(linkinfo, IFLA_INFO_MAX, tb[IFLA_LINKINFO]);
 
-		if (linkinfo[IFLA_INFO_KIND] &&
-		    RTA_PAYLOAD(linkinfo[IFLA_INFO_KIND]) >= strlen(macvlan_ll_kind) &&
-		    !strncmp(macvlan_ll_kind, RTA_DATA(linkinfo[IFLA_INFO_KIND]), strlen(macvlan_ll_kind)) &&
-		    linkinfo[IFLA_INFO_DATA]) {
-			parse_rtattr_nested(linkattr, IFLA_MACVLAN_MAX, linkinfo[IFLA_INFO_DATA]);
+		if (linkinfo[IFLA_INFO_KIND]) {
+			/* See if this interface is a MACVLAN of ours */
+			if (!strcmp((char *)RTA_DATA(linkinfo[IFLA_INFO_KIND]), "macvlan")) {
+				parse_rtattr_nested(linkattr, IFLA_MACVLAN_MAX, linkinfo[IFLA_INFO_DATA]);
 
-			if (linkattr[IFLA_MACVLAN_MODE] &&
-			    *(uint32_t*)RTA_DATA(linkattr[IFLA_MACVLAN_MODE]) == MACVLAN_MODE_PRIVATE) {
-				ifp->base_ifindex = *(uint32_t *)RTA_DATA(tb[IFLA_LINK]);
-				ifp->base_ifp = if_get_by_ifindex(ifp->base_ifindex);
-				if (ifp->base_ifp)
-					ifp->base_ifindex = 0;	/* Make sure this isn't used at runtime */
-				ifp->vmac = true;
+				if (linkattr[IFLA_MACVLAN_MODE] &&
+				    tb[IFLA_LINK] &&
+				    *(uint32_t*)RTA_DATA(linkattr[IFLA_MACVLAN_MODE]) == MACVLAN_MODE_PRIVATE) {
+					ifp->base_ifindex = *(uint32_t *)RTA_DATA(tb[IFLA_LINK]);
+					ifp->base_ifp = if_get_by_ifindex(ifp->base_ifindex);
+					if (ifp->base_ifp)
+						ifp->base_ifindex = 0;	/* Make sure this isn't used at runtime */
+					ifp->vmac = true;
+				}
 			}
+#ifdef _HAVE_VRF_
+			else if (!strcmp((char *)RTA_DATA(linkinfo[IFLA_INFO_KIND]), "vrf") ) {
+				parse_rtattr_nested(vrf_attr, IFLA_VRF_MAX, linkinfo[IFLA_INFO_DATA]);
+				if (vrf_attr[IFLA_VRF_TABLE])
+					ifp->vrf_master = true;
+			}
+#endif
 		}
 	}
+
+#ifdef _HAVE_VRF_
+	/* If we don't have the master interface details yet, we won't know
+	 * if the master is a VRF master, but we sort that out later */
+	if (tb[IFLA_MASTER]) {
+		ifp->vrf_master_ifindex = *(uint32_t*)RTA_DATA(tb[IFLA_MASTER]);
+		ifp->vrf_master_ifp = if_get_by_ifindex(ifp->vrf_master_ifindex);
+		if (ifp->vrf_master_ifp) {
+			if (!ifp->vrf_master_ifp->vrf_master)
+				ifp->vrf_master_ifp = NULL;
+			ifp->vrf_master_ifindex = 0;	/* Make sure this isn't used at runtime */
+		}
+	}
+#endif
 
 	ifp->rp_filter = UINT_MAX;	/* We have not read it yet */
 #endif

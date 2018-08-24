@@ -91,6 +91,11 @@ typedef struct _interface {
 	ifindex_t		base_ifindex;		/* Only used at startup if we find vmac i/f before base i/f */
 	struct _interface	*base_ifp;		/* Base interface (if interface is a VMAC interface),
 							   otherwise the physical interface */
+	ifindex_t		vrf_master_ifindex;	/* Only used at startup if we find i/f before master i/f */
+#ifdef _HAVE_VRF_
+	struct _interface	*vrf_master_ifp;	/* VRF master interface */
+	bool			vrf_master;		/* Set if interface is a VRF master */
+#endif
 #endif
 	garp_delay_t		*garp_delay;		/* Delays for sending gratuitous ARP/NA */
 	bool			gna_router;		/* Router flag for NA messages */
