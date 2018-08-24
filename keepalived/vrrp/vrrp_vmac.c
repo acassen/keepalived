@@ -268,6 +268,11 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		addattr_l(&req.n, sizeof(req), IFLA_IFNAME, vrrp->vmac_ifname, strlen(vrrp->vmac_ifname));
 		addattr_l(&req.n, sizeof(req), IFLA_ADDRESS, ll_addr, ETH_ALEN);
 
+		/* If the underlying interface is enslaved to a VRF master, then this
+		 * interface should be as well. */
+		if (vrrp->ifp->base_ifp->vrf_master_ifp)
+			addattr32(&req.n, sizeof(req), IFLA_MASTER, vrrp->ifp->base_ifp->vrf_master_ifp->ifindex);
+
 		if (netlink_talk(&nl_cmd, &req.n) < 0) {
 			log_message(LOG_INFO, "(%s): Unable to create VMAC interface %s"
 					    , vrrp->iname, vrrp->vmac_ifname);

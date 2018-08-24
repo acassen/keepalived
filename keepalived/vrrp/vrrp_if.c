@@ -148,17 +148,25 @@ void
 set_base_ifp(void)
 {
 	interface_t *ifp;
+	interface_t *master_ifp;
 	element e;
 
 	if (LIST_ISEMPTY(if_queue))
 		return;
 
-	for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
-		ifp = ELEMENT_DATA(e);
+	LIST_FOREACH(if_queue, ifp, e) {
 		if (!ifp->base_ifp &&
 		    ifp->base_ifindex) {
 			ifp->base_ifp = if_get_by_ifindex(ifp->base_ifindex);
 			ifp->base_ifindex = 0;	/* This is only used at startup, so ensure not used later */
+		}
+
+		/* Now see if the interface is enslaved to a VRF */
+		if (ifp->vrf_master_ifindex) {
+			master_ifp = if_get_by_ifindex(ifp->vrf_master_ifindex);
+			if (master_ifp && master_ifp->vrf_master)
+				ifp->vrf_master_ifp = master_ifp;
+			ifp->vrf_master_ifindex = 0;
 		}
 	}
 }
@@ -512,6 +520,12 @@ dump_if(FILE *fp, void *data)
 		conf_write(fp, "   NIC support ETHTOOL GLINK interface");
 	else
 		conf_write(fp, "   NIC ioctl refresh polling");
+#ifdef _HAVE_VRRP_VMAC_
+	if (ifp->vrf_master)
+		conf_write(fp, "   VRF master");
+	if (ifp->vrf_master_ifp)
+		conf_write(fp, "   VRF slave of %s", ifp->vrf_master_ifp->ifname);
+#endif
 
 	if (ifp->garp_delay) {
 		if (ifp->garp_delay->have_garp_interval)
