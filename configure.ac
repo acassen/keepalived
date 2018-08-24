@@ -225,7 +225,7 @@ AC_ARG_ENABLE(regex-debug,
   [  --enable-regex-debug    compile with regex debugging support])
 AC_ARG_ENABLE(tsm-debug,
   [  --enable-tsm-debug      compile with TSM debugging support])
-AC_ARG_ENABLE(timer-debug-threads,
+AC_ARG_ENABLE(timer-debug,
   [  --enable-timer-debug    compile with timer debugging support])
 AC_ARG_ENABLE(profile,
   [AS_HELP_STRING([--enable-profile], [compile with profiling flags])])
