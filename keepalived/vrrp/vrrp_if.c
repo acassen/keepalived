@@ -148,7 +148,9 @@ void
 set_base_ifp(void)
 {
 	interface_t *ifp;
+#ifdef _HAVE_VRF_
 	interface_t *master_ifp;
+#endif
 	element e;
 
 	if (LIST_ISEMPTY(if_queue))
@@ -161,6 +163,7 @@ set_base_ifp(void)
 			ifp->base_ifindex = 0;	/* This is only used at startup, so ensure not used later */
 		}
 
+#ifdef _HAVE_VRF_
 		/* Now see if the interface is enslaved to a VRF */
 		if (ifp->vrf_master_ifindex) {
 			master_ifp = if_get_by_ifindex(ifp->vrf_master_ifindex);
@@ -168,6 +171,7 @@ set_base_ifp(void)
 				ifp->vrf_master_ifp = master_ifp;
 			ifp->vrf_master_ifindex = 0;
 		}
+#endif
 	}
 }
 #endif
@@ -520,7 +524,7 @@ dump_if(FILE *fp, void *data)
 		conf_write(fp, "   NIC support ETHTOOL GLINK interface");
 	else
 		conf_write(fp, "   NIC ioctl refresh polling");
-#ifdef _HAVE_VRRP_VMAC_
+#ifdef _HAVE_VRF_
 	if (ifp->vrf_master)
 		conf_write(fp, "   VRF master");
 	if (ifp->vrf_master_ifp)

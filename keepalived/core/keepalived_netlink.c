@@ -1662,7 +1662,9 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 #ifdef _HAVE_VRRP_VMAC_
 	struct rtattr* linkinfo[IFLA_INFO_MAX+1];
 	struct rtattr* linkattr[IFLA_MACVLAN_MAX+1];
+#ifdef _HAVE_VRF_
 	struct rtattr *vrf_attr[IFLA_VRF_MAX + 1];
+#endif
 #endif
 
 	name = (char *)RTA_DATA(tb[IFLA_IFNAME]);
@@ -1700,14 +1702,17 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 					ifp->vmac = true;
 				}
 			}
+#ifdef _HAVE_VRF_
 			else if (!strcmp((char *)RTA_DATA(linkinfo[IFLA_INFO_KIND]), "vrf") ) {
 				parse_rtattr_nested(vrf_attr, IFLA_VRF_MAX, linkinfo[IFLA_INFO_DATA]);
 				if (vrf_attr[IFLA_VRF_TABLE])
 					ifp->vrf_master = true;
 			}
+#endif
 		}
 	}
 
+#ifdef _HAVE_VRF_
 	/* If we don't have the master interface details yet, we won't know
 	 * if the master is a VRF master, but we sort that out later */
 	if (tb[IFLA_MASTER]) {
@@ -1719,6 +1724,7 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 			ifp->vrf_master_ifindex = 0;	/* Make sure this isn't used at runtime */
 		}
 	}
+#endif
 
 	ifp->rp_filter = UINT_MAX;	/* We have not read it yet */
 #endif

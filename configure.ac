@@ -1369,6 +1369,21 @@ if test ${MACVLAN_SUPPORT} = Yes; then
 fi
 CPPFLAGS="$SAV_CPPFLAGS"
 
+dnl ----[ Checks for kernel IFLA_VRF_... support ]----
+SAV_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $kernelinc"
+if test ${MACVLAN_SUPPORT} = Yes; then
+  # Introduced in Linux 4.3
+  AC_CHECK_DECLS([IFLA_VRF_MAX],
+    [
+      add_system_opt([VRF])
+      AC_DEFINE([_HAVE_VRF_], [ 1 ], [Define to 1 if have kernel VRF support])
+    ], [], [[
+      #include <linux/if_link.h>
+    ]])
+fi
+CPPFLAGS="$SAV_CPPFLAGS"
+
 dnl ----[ Checks for SNMP support ]----
 SNMP_SUPPORT=No
 SNMP_KEEPALIVED_SUPPORT=No
