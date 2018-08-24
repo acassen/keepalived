@@ -1665,6 +1665,7 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 #endif
 
 	name = (char *)RTA_DATA(tb[IFLA_IFNAME]);
+
 	/* Fill the interface structure */
 	memcpy(ifp->ifname, name, strlen(name));
 	ifp->ifindex = (ifindex_t)ifi->ifi_index;
@@ -1682,20 +1683,10 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 #ifdef _HAVE_VRRP_VMAC_
 	/* See if this interface is a MACVLAN of ours */
 	if (tb[IFLA_LINKINFO] && tb[IFLA_LINK]){
-		/* If appears that the value of *(int*)RTA_DATA(tb[IFLA_LINKINFO]) is 0x1000c
-		 *   for macvlan.  0x10000 for nested data, or'ed with 0x0c for macvlan;
-		 *   other values are 0x09 for vlan, 0x0b for bridge, 0x08 for tun, -1 for no
-		 *   underlying interface.
-		 *
-		 * I can't find where in the kernel these values are set or defined, so use
-		 * the string as below.
-		 */
 		parse_rtattr_nested(linkinfo, IFLA_INFO_MAX, tb[IFLA_LINKINFO]);
 
 		if (linkinfo[IFLA_INFO_KIND] &&
-		    RTA_PAYLOAD(linkinfo[IFLA_INFO_KIND]) >= strlen(macvlan_ll_kind) &&
-		    !strncmp(macvlan_ll_kind, RTA_DATA(linkinfo[IFLA_INFO_KIND]), strlen(macvlan_ll_kind)) &&
-		    linkinfo[IFLA_INFO_DATA]) {
+		    !strcmp((char *)RTA_DATA(linkinfo[IFLA_INFO_KIND]), "macvlan")) {
 			parse_rtattr_nested(linkattr, IFLA_MACVLAN_MAX, linkinfo[IFLA_INFO_DATA]);
 
 			if (linkattr[IFLA_MACVLAN_MODE] &&
