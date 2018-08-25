@@ -2962,9 +2962,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		LIST_FOREACH_NEXT(vrrp->track_ifp, tip, e, next) {
 			if (tip->weight && tip->weight != VRRP_NOT_TRACK_IF) {
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) ignoring %s"
-						 "tracked interface %s due to %s",
+						 " tracked interface %sdue to %s",
 						 vrrp->iname, tip->ifp->ifname,
-						 sync_no_tracking_weight ? "weight of " : "",
+						 sync_no_tracking_weight ? "weight " : "",
 						 sync_no_tracking_weight ? "SYNC group" : "address owner");
 				if (sync_no_tracking_weight)
 					tip->weight = 0;
