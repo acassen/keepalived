@@ -225,7 +225,7 @@ AC_ARG_ENABLE(regex-debug,
   [  --enable-regex-debug    compile with regex debugging support])
 AC_ARG_ENABLE(tsm-debug,
   [  --enable-tsm-debug      compile with TSM debugging support])
-AC_ARG_ENABLE(timer-debug-threads,
+AC_ARG_ENABLE(timer-debug,
   [  --enable-timer-debug    compile with timer debugging support])
 AC_ARG_ENABLE(profile,
   [AS_HELP_STRING([--enable-profile], [compile with profiling flags])])
@@ -438,9 +438,9 @@ if test "$enable_hardening" != no; then
 fi
 
 # enable-optimise
-AS_IF([test $enable_optimise = yes -o $enable_optimise = not-specified], [optimise_level=2], [optimise_level=$enable_optimise])
-AS_IF([test $enable_optimise = no], [optimise_level=0])
-AS_IF([test $optimise_level -eq 0],
+AS_IF([test "$enable_optimise" = yes -o "$enable_optimise" = not-specified], [optimise_level=2], [optimise_level=$enable_optimise])
+AS_IF([test "$enable_optimise" = no], [optimise_level=0])
+AS_IF([test "$optimise_level" -eq 0],
   [
     echo $KA_CFLAGS | $GREP -q -- "-D_FORTIFY_SOURCE=[[^0]]"
     AS_IF([test $ret -eq 0], [AC_MSG_WARN([--disable-optimise requires --disable-hardening])])
@@ -455,7 +455,7 @@ AC_COMPILE_IFELSE(
     add_to_var([KA_CFLAGS], [$FLAG]),
   [
     AC_MSG_RESULT([no])
-    AS_IF([test $enable_optimise != not-specified], [AC_MSG_ERROR([Invalid optimisation level specified])])
+    AS_IF([test "$enable_optimise" != not-specified], [AC_MSG_ERROR([Invalid optimisation level specified])])
   ])
 CFLAGS=$SAV_CFLAGS
 
@@ -1196,7 +1196,7 @@ if test "$enable_lvs" != no; then
   CPPFLAGS="$SAV_CPPFLAGS"
 
   dnl ----[ Is HTTP_GET regex checking wanted? ]----
-  AS_IF([test $enable_regex = yes],
+  AS_IF([test "$enable_regex" = yes],
     [
       $PKG_CONFIG --exists libpcre2-8
       HAVE_PCRE2=$?
@@ -1217,7 +1217,7 @@ if test "$enable_lvs" != no; then
           AC_MSG_RESULT([no])
 	  AC_MSG_ERROR([pcre2.h is missing])
         ])
-      if test $enable_regex_timers = yes; then
+      if test "$enable_regex_timers" = yes; then
 	if test $WITH_REGEX != Yes; then
 	  AC_MSG_ERROR([Cannot have regex timers support without regex support])
 	fi
