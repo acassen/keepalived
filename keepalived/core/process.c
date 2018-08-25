@@ -30,6 +30,7 @@
 #ifdef _HAVE_SCHED_RT_
 #include <sched.h>
 #endif
+#include <stdbool.h>
 
 #include "process.h"
 #include "logger.h"
