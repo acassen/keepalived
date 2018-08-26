@@ -432,11 +432,13 @@ digest_handler(vector_t *strvec)
 
 	if (url->digest) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Digest '%s' is a duplicate", digest);
+		FREE(digest);
 		return;
 	}
 
 	if (strlen(digest) != 2 * MD5_DIGEST_LENGTH) {
 		report_config_error(CONFIG_GENERAL_ERROR, "digest '%s' character length should be %d rather than %zd", digest, 2 * MD5_DIGEST_LENGTH, strlen(digest));
+		FREE(digest);
 		return;
 	}
 
@@ -448,11 +450,13 @@ digest_handler(vector_t *strvec)
 		if (endptr != digest + 2 * i + 2) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Unable to interpret hex digit in '%s' at offset %d/%d", digest, 2 * i, 2 * i + 1);
 			FREE(url->digest);
+			FREE(digest);
 			url->digest = NULL;
 			return;
 		}
 	}
 
+	FREE(digest);
 }
 
 static void
