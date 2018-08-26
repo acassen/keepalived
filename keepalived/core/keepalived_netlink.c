@@ -680,7 +680,7 @@ netlink_socket(nl_handle_t *nl, unsigned rcvbuf_size, bool force, int flags, int
 	}
 #endif
 
-#ifdef _UNUSED_CODE_
+#ifdef _INCLUDE_UNUSED_CODE_
 	/* There appears to be a kernel bug that manifests itself when we have a large number
 	 * of VMAC interfaces to add (i.e. 200 or more). After approx 200 interfaces have been
 	 * added the kernel will return ENOBUFS on the nl_kernel socket, and then repeat the
