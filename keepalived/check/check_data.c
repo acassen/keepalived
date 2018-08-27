@@ -456,8 +456,10 @@ static void
 free_rs(void *data)
 {
 	real_server_t *rs = data;
+
 	free_notify_script(&rs->notify_up);
 	free_notify_script(&rs->notify_down);
+	free_list(&rs->tracked_bfds);
 	FREE_PTR(rs->virtualhost);
 	FREE(rs);
 }
