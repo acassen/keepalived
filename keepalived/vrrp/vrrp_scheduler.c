@@ -801,6 +801,17 @@ vrrp_handle_bfd_event(bfd_event_t * evt)
 
 			log_message(LOG_INFO, "VRRP_Instance(%s) Tracked BFD"
 				    " instance %s is %s", vrrp->iname, evt->iname, vbfd->bfd_up ? "UP" : "DOWN");
+
+			if (tbfd->weight) {
+				if (vbfd->bfd_up)
+					vrrp->total_priority += abs(tbfd->weight);
+				else
+					vrrp->total_priority -= abs(tbfd->weight);
+				vrrp_set_effective_priority(vrrp);
+
+				continue;
+			}
+
 			if (vbfd->bfd_up)
 				try_up_instance(vrrp, false);
 			else

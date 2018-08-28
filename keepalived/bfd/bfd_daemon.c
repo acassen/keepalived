@@ -150,7 +150,7 @@ start_bfd(void)
 	 * leave the call here but commented out so we know where we want it
 	 * it if is needed.
 	if (reload)
-		init_global_data();
+		init_global_data(global_data);
 	*/
 
 	/* If we are just testing the configuration, then we terminate now */

@@ -298,10 +298,6 @@ init_global_data(data_t * data)
 			log_message(LOG_INFO, "LVS notify FIFO and vrrp FIFO are the same both with scripts - ignoring LVS FIFO script");
 			free_notify_script(&data->lvs_notify_fifo.script);
 		}
-
-		/* If there is a script for global notify FIFO, it must only be run once, so let VRRP run it */
-		if (data->notify_fifo.script)
-			free_notify_script(&data->notify_fifo.script);
 #endif
 	}
 #endif

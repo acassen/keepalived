@@ -262,12 +262,6 @@ bfd_check_handle_event(bfd_event_t * evt)
 			    checker->has_run)
 				continue;
 
-			if (evt->state == BFD_STATE_DOWN &&
-			    checker->retry_it < checker->retry) {
-				checker->retry_it++;
-				continue;
-			}
-
 			log_message(LOG_INFO, "BFD check of [%s] RS(%s) is %s",
 				    evt->iname, FMT_RS(checker->rs, checker->vs), evt->state == BFD_STATE_UP ? "UP" : "DOWN");
 
