@@ -459,7 +459,9 @@ free_rs(void *data)
 
 	free_notify_script(&rs->notify_up);
 	free_notify_script(&rs->notify_down);
+#ifdef _WITH_BFD_
 	free_list(&rs->tracked_bfds);
+#endif
 	FREE_PTR(rs->virtualhost);
 	FREE(rs);
 }
