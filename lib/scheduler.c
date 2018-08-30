@@ -199,6 +199,38 @@ deregister_thread_addresses(void)
 }
 #endif
 
+/* Move ready thread into ready queue */
+static int
+thread_move_ready(thread_master_t *m, rb_root_t *root, thread_t *thread, int type)
+{
+	rb_erase(&thread->n, root);
+	INIT_LIST_HEAD(&thread->next);
+	list_add_tail(&thread->next, &m->ready);
+	if (thread->type != THREAD_TIMER_SHUTDOWN)
+		thread->type = type;
+	return 0;
+}
+
+/* Move ready thread into ready queue */
+static int
+thread_rb_move_ready(thread_master_t *m, rb_root_t *root, int type)
+{
+	thread_t *thread, *thread_tmp;
+
+	rb_for_each_entry_safe(thread, thread_tmp, root, n) {
+		if (thread->sands.tv_sec == TIMER_DISABLED || timercmp(&time_now, &thread->sands, <))
+			break;
+
+		if (type == THREAD_READ_TIMEOUT)
+			thread->event->read = NULL;
+		else if (type == THREAD_WRITE_TIMEOUT)
+			thread->event->write = NULL;
+		thread_move_ready(m, root, thread, type);
+	}
+
+	return 0;
+}
+
 /* Update timer value */
 static void
 thread_update_timer(rb_root_t *root, timeval_t *timer_min)
@@ -282,6 +314,12 @@ thread_timerfd_handler(thread_t *thread)
 	len = read(m->timer_fd, &expired, sizeof(expired));
 	if (len < 0)
 		log_message(LOG_ERR, "scheduler: Error reading on timerfd fd:%d (%m)", m->timer_fd);
+
+	/* Read, Write, Timer thead. */
+	thread_rb_move_ready(m, &m->read, THREAD_READ_TIMEOUT);
+	thread_rb_move_ready(m, &m->write, THREAD_WRITE_TIMEOUT);
+	thread_rb_move_ready(m, &m->timer, THREAD_READY);
+	thread_rb_move_ready(m, &m->child, THREAD_CHILD_TIMEOUT);
 
 	/* Register next timerfd thread */
 	m->timer_thread = thread_add_read(m, thread_timerfd_handler, NULL, m->timer_fd, TIMER_NEVER);
@@ -1539,37 +1577,6 @@ thread_cancel_event(thread_master_t *m, void *arg)
 }
 #endif
 
-/* Move ready thread into ready queue */
-static int
-thread_move_ready(thread_master_t *m, rb_root_t *root, thread_t *thread, int type)
-{
-	rb_erase(&thread->n, root);
-	INIT_LIST_HEAD(&thread->next);
-	list_add_tail(&thread->next, &m->ready);
-	if (thread->type != THREAD_TIMER_SHUTDOWN)
-		thread->type = type;
-	return 0;
-}
-
-/* Move ready thread into ready queue */
-static int
-thread_rb_move_ready(thread_master_t *m, rb_root_t *root, int type)
-{
-	thread_t *thread, *thread_tmp;
-
-	rb_for_each_entry_safe(thread, thread_tmp, root, n) {
-		if (thread->sands.tv_sec != TIMER_DISABLED && timercmp(&time_now, &thread->sands, >=)) {
-			if (type == THREAD_READ_TIMEOUT)
-				thread->event->read = NULL;
-			else if (type == THREAD_WRITE_TIMEOUT)
-				thread->event->write = NULL;
-			thread_move_ready(m, root, thread, type);
-		}
-	}
-
-	return 0;
-}
-
 #ifdef _WITH_SNMP_
 static int
 snmp_read_thread(thread_t *thread)
@@ -1813,12 +1820,6 @@ retry:
 
 	/* Update current time */
 	set_time_now();
-
-	/* Read, Write, Timer thead. */
-	thread_rb_move_ready(m, &m->read, THREAD_READ_TIMEOUT);
-	thread_rb_move_ready(m, &m->write, THREAD_WRITE_TIMEOUT);
-	thread_rb_move_ready(m, &m->timer, THREAD_READY);
-	thread_rb_move_ready(m, &m->child, THREAD_CHILD_TIMEOUT);
 
 	/* There is no ready thread. */
 	if (m->ready.next == &m->ready)
