@@ -1524,8 +1524,13 @@ thread_rb_move_ready(thread_master_t *m, rb_root_t *root, int type)
 	thread_t *thread, *thread_tmp;
 
 	rb_for_each_entry_safe(thread, thread_tmp, root, n) {
-		if (thread->sands.tv_sec != TIMER_DISABLED && timercmp(&time_now, &thread->sands, >=))
+		if (thread->sands.tv_sec != TIMER_DISABLED && timercmp(&time_now, &thread->sands, >=)) {
+			if (type == THREAD_READ_TIMEOUT)
+				thread->event->read = NULL;
+			else if (type == THREAD_WRITE_TIMEOUT)
+				thread->event->write = NULL;
 			thread_move_ready(m, root, thread, type);
+		}
 	}
 
 	return 0;
