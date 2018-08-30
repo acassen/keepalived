@@ -144,7 +144,7 @@ static inline uint16_t csum_incremental_update16(const uint16_t old_csum, const 
 extern unsigned long debug;
 
 /* Prototypes defs */
-extern void dump_buffer(char *, size_t, FILE *);
+extern void dump_buffer(char *, size_t, FILE *, int);
 #ifdef _WITH_STACKTRACE_
 extern void write_stacktrace(const char *, const char *);
 #endif

@@ -60,7 +60,7 @@ unsigned long debug = 0;
 
 /* Display a buffer into a HEXA formated output */
 void
-dump_buffer(char *buff, size_t count, FILE* fp)
+dump_buffer(char *buff, size_t count, FILE* fp, int indent)
 {
 	size_t i, j, c;
 	bool printnext = true;
@@ -73,7 +73,7 @@ dump_buffer(char *buff, size_t count, FILE* fp)
 	for (i = 0; i < c; i++) {
 		if (printnext) {
 			printnext = false;
-			fprintf(fp, "%.4zu ", i & 0xffff);
+			fprintf(fp, "%*s%.4zu ", indent, "", i & 0xffff);
 		}
 		if (i < count)
 			fprintf(fp, "%3.2x", buff[i] & 0xff);
