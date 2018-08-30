@@ -99,13 +99,10 @@ bfd_sender_thread(thread_t *thread)
 }
 
 /* Schedules bfd_sender_thread to run in local_tx_intv minus applied jitter */
-static void
-bfd_sender_schedule(bfd_t * bfd)
+static uint32_t
+get_jitter(bfd_t * bfd)
 {
-	uint32_t min_jitter, jitter;
-
-	assert(bfd);
-	assert(!bfd->thread_out);
+	uint32_t min_jitter;
 
 	/*
 	 * RFC5880:
@@ -123,10 +120,19 @@ bfd_sender_schedule(bfd_t * bfd)
 	else
 		min_jitter = 0;
 
-	jitter = rand_intv(min_jitter, bfd->local_tx_intv * 0.25);
+	return rand_intv(min_jitter, bfd->local_tx_intv * 0.25);
+}
+
+/* Schedules bfd_sender_thread to run in local_tx_intv minus applied jitter */
+static void
+bfd_sender_schedule(bfd_t *bfd)
+{
+	assert(bfd);
+	assert(!bfd->thread_out);
+
 	bfd->thread_out =
 	    thread_add_timer(master, bfd_sender_thread, bfd,
-			     bfd->local_tx_intv - jitter);
+			     bfd->local_tx_intv - get_jitter(bfd));
 }
 
 /* Cancels bfd_sender_thread run */
@@ -145,9 +151,9 @@ static void
 bfd_sender_reschedule(bfd_t *bfd)
 {
 	assert(bfd);
+	assert(bfd->thread_out);
 
-	bfd_sender_cancel(bfd);
-	bfd_sender_schedule(bfd);
+	timer_thread_update_timeout(bfd->thread_out, bfd->local_tx_intv - get_jitter(bfd));
 }
 
 /* Returns 1 if bfd_sender_thread is scheduled to run, 0 otherwise */
@@ -281,9 +287,9 @@ static void
 bfd_expire_reschedule(bfd_t *bfd)
 {
 	assert(bfd);
+	assert(bfd->thread_exp);
 
-	bfd_expire_cancel(bfd);
-	bfd_expire_schedule(bfd);
+	timer_thread_update_timeout(bfd->thread_exp, bfd->local_detect_time);
 }
 
 /* Returns 1 if bfd_expire_thread is scheduled to run, 0 otherwise */
@@ -615,7 +621,6 @@ bfd_send_packet(int fd, bfdpkt_t *pkt)
 		log_message(LOG_ERR, "sendto() error (%m)");
 
 	return ret;
-
 }
 
 /* Handles incoming control packet (called from bfd_receiver_thread) and
@@ -870,7 +875,6 @@ bfd_receiver_thread(thread_t *thread)
 {
 	bfd_data_t *data;
 	bfdpkt_t pkt;
-	int ret;
 	int fd;
 
 	assert(thread);
@@ -885,8 +889,7 @@ bfd_receiver_thread(thread_t *thread)
 
 	/* Ignore THREAD_READ_TIMEOUT */
 	if (thread->type == THREAD_READY_FD) {
-		ret = bfd_receive_packet(&pkt, fd, bfd_buffer, BFD_BUFFER_SIZE);
-		if (!ret)
+		if (!bfd_receive_packet(&pkt, fd, bfd_buffer, BFD_BUFFER_SIZE))
 			bfd_handle_packet(&pkt);
 	}
 
@@ -1141,6 +1144,5 @@ register_bfd_scheduler_addresses(void)
 	register_thread_address("bfd_expire_thread", bfd_expire_thread);
 	register_thread_address("bfd_reset_thread", bfd_reset_thread);
 	register_thread_address("bfd_receiver_thread", bfd_receiver_thread);
-	register_thread_address("bfd_sender_thread", bfd_sender_thread);
 }
 #endif

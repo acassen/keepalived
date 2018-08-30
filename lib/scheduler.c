@@ -1319,7 +1319,7 @@ thread_add_timer(thread_master_t *m, int (*func) (thread_t *), void *arg, unsign
 	return thread;
 }
 
-static void
+void
 timer_thread_update_timeout(thread_t *thread, unsigned long timer)
 {
 	timeval_t sands;

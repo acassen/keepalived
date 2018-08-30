@@ -210,6 +210,7 @@ extern thread_t *thread_add_write(thread_master_t *, int (*) (thread_t *), void 
 extern int thread_del_write(thread_t *);
 extern void thread_close_fd(thread_t *);
 extern thread_t *thread_add_timer(thread_master_t *, int (*) (thread_t *), void *, unsigned long);
+extern void timer_thread_update_timeout(thread_t *, unsigned long);
 extern thread_t *thread_add_timer_shutdown(thread_master_t *, int (*) (thread_t *), void *, unsigned long);
 extern thread_t *thread_add_child(thread_master_t *, int (*) (thread_t *), void *, pid_t, unsigned long);
 extern void thread_children_reschedule(thread_master_t *, int (*) (thread_t *), unsigned long);
