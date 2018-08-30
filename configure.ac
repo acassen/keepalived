@@ -219,8 +219,8 @@ AC_ARG_ENABLE(stacktrace,
   [AS_HELP_STRING([--enable-stacktrace], [compile with stacktrace support])])
 AC_ARG_ENABLE(dump-threads,
   [  --enable-dump-threads   compile with thread dumping support])
-AC_ARG_ENABLE(select-debug,
-  [  --enable-select-debug   compile with select debugging support])
+AC_ARG_ENABLE(epoll-debug,
+  [  --enable-epoll-debug    compile with epoll_wait() debugging support])
 AC_ARG_ENABLE(regex-debug,
   [  --enable-regex-debug    compile with regex debugging support])
 AC_ARG_ENABLE(tsm-debug,
@@ -535,6 +535,8 @@ dnl - inotify_init1() since Linux 2.6.27
 AC_CHECK_FUNCS([inotify_init1], [add_system_opt([INOTIFY_INIT1])])
 dnl - vsyslog() Not defined by Posix, but available in glibc and musl
 AC_CHECK_FUNCS([vsyslog], [add_system_opt([VSYSLOG])])
+dnl - epoll_create1() since Linux  2.6.27 and glibc 2.9
+AC_CHECK_FUNCS([epoll_create1], [add_system_opt([EPOLL_CREATE1])])
 
 # glibc uses unsigned int as 3rd parameter to __assert_fail(), musl uses int.
 AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
@@ -1748,12 +1750,12 @@ else
 fi
 
 dnl ----[ select() debugging support or not ? ]----
-if test "${enable_select_debug}" = yes; then
-  AC_DEFINE([_SELECT_DEBUG_], [ 1 ], [Define to 1 to build with select debugging support])
-  ENABLE_SELECT_DEBUG=Yes
-  add_config_opt([SELECT_DEBUG])
+if test "${enable_epoll_debug}" = yes; then
+  AC_DEFINE([_EPOLL_DEBUG_], [ 1 ], [Define to 1 to build with epoll_wait() debugging support])
+  ENABLE_EPOLL_DEBUG=Yes
+  add_config_opt([EPOLL_DEBUG])
 else
-  ENABLE_SELECT_DEBUG=No
+  ENABLE_EPOLL_DEBUG=No
 fi
 
 dnl ----[ regex debugging support or not ? ]----
@@ -1936,8 +1938,8 @@ fi
 if test ${ENABLE_DUMP_THREADS} = Yes; then
   echo "Thread debugging         : ${ENABLE_DUMP_THREADS}"
 fi
-if test ${ENABLE_SELECT_DEBUG} = Yes; then
-  echo "Select() debugging       : ${ENABLE_SELECT_DEBUG}"
+if test ${ENABLE_EPOLL_DEBUG} = Yes; then
+  echo "epoll_wait() debugging   : ${ENABLE_EPOLL_DEBUG}"
 fi
 if test ${ENABLE_REGEX_DEBUG} = Yes; then
   echo "regex debugging          : ${ENABLE_REGEX_DEBUG}"

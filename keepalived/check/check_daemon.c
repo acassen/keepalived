@@ -91,7 +91,6 @@ checker_terminate_phase2(void)
 	notify_fifo_close(&global_data->notify_fifo, &global_data->lvs_notify_fifo);
 
 	/* Destroy master thread */
-	signal_handler_destroy();
 	checker_dispatcher_release();
 	thread_destroy_master(master);
 	master = NULL;
@@ -143,12 +142,25 @@ checker_terminate_phase2(void)
 static int
 checker_shutdown_backstop_thread(thread_t *thread)
 {
-        log_message(LOG_ERR, "backstop thread invoked: shutdown timer %srunning, child count %d",
-			thread->master->shutdown_timer_running ? "" : "not ", thread->master->child.count);
+	int count = 0;
+	thread_t *t;
 
-        checker_terminate_phase2();
+	/* Force terminate all script processes */
+	if (thread->master->child.rb_node)
+		script_killall(thread->master, SIGKILL, true);
 
-        return 0;
+	rb_for_each_entry(t, &thread->master->child, n)
+		count++;
+
+	log_message(LOG_ERR, "backstop thread invoked: shutdown timer %srunning, child count %d",
+			thread->master->shutdown_timer_running ? "" : "not ", count);
+
+	if (thread->master->shutdown_timer_running)
+		thread_add_timer_shutdown(thread->master, checker_shutdown_backstop_thread, NULL, TIMER_HZ / 10);
+	else
+		thread_add_terminate_event(thread->master);
+
+	return 0;
 }
 
 static void
@@ -158,7 +170,7 @@ checker_terminate_phase1(bool schedule_next_thread)
 		kernel_netlink_close();
 
 	/* Terminate all script processes */
-	if (master->child.count)
+	if (master->child.rb_node)
 		script_killall(master, SIGTERM, true);
 
 	/* Send shutdown messages */
@@ -168,9 +180,9 @@ checker_terminate_phase1(bool schedule_next_thread)
 	if (schedule_next_thread) {
 		/* If there are no child processes, we can terminate immediately,
 		 * otherwise add a thread to allow reasonable time for children to terminate */
-		if (master->child.count) {
+		if (master->child.rb_node) {
 			/* Add a backstop timer for the shutdown */
-			thread_add_timer(master, checker_shutdown_backstop_thread, NULL, TIMER_HZ);
+			thread_add_timer_shutdown(master, checker_shutdown_backstop_thread, NULL, TIMER_HZ);
 		}
 		else
 			thread_add_terminate_event(master);
@@ -300,8 +312,6 @@ start_check(list old_checkers_queue)
 	/* Register checkers thread */
 	register_checkers_thread();
 
-	add_signal_read_thread();
-
 	/* Set the process priority and non swappable if configured */
 	set_process_priorities(
 #ifdef _HAVE_SCHED_RT_
@@ -311,7 +321,6 @@ start_check(list old_checkers_queue)
 #endif
 #endif
 			       global_data->checker_process_priority, global_data->checker_no_swap ? 4096 : 0);
-
 }
 
 void
@@ -346,6 +355,7 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 	/* Destroy master thread */
 	checker_dispatcher_release();
 	thread_cleanup_master(master);
+	thread_add_base_threads(master);
 
 	/* Save previous checker data */
 	old_checkers_queue = checkers_queue;
@@ -390,7 +400,6 @@ sigend_check(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 static void
 check_signal_init(void)
 {
-	signal_handler_child_init();
 	signal_set(SIGHUP, sigreload_check, NULL);
 	signal_set(SIGINT, sigend_check, NULL);
 	signal_set(SIGTERM, sigend_check, NULL);
@@ -511,7 +520,6 @@ start_check_child(void)
 	}
 
 	/* Create the new master thread */
-	signal_handler_destroy();
 	thread_destroy_master(master);	/* This destroys any residual settings from the parent */
 	master = thread_make_master();
 #endif
@@ -534,7 +542,7 @@ start_check_child(void)
 #endif
 
 	/* Launch the scheduling I/O multiplexer */
-	launch_scheduler();
+	launch_thread_scheduler(master);
 
 	/* Finish healthchecker daemon process */
 	if (two_phase_terminate)

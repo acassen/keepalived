@@ -41,6 +41,7 @@
 #include "old_socket.h"
 #endif
 #include "layer4.h"
+#include "scheduler.h"
 
 #ifdef _DEBUG_
 #define DNS_DBG(args...) dns_log_message(thread, LOG_DEBUG, ## args)
@@ -118,7 +119,9 @@ dns_final(thread_t * thread, int error, const char *fmt, ...)
 	DNS_DBG("final error=%d attempts=%d retry=%d", error,
 		checker->retry_it, checker->retry);
 
+	thread_event_cancel(thread);
 	close(thread->u.fd);
+	thread->u.fd = -1;
 
 	if (error) {
 		if (checker->is_up || !checker->has_run) {
@@ -316,6 +319,7 @@ dns_send_thread(thread_t * thread)
 
 	thread_add_read(thread->master, dns_recv_thread, checker, thread->u.fd,
 			timeout);
+	thread_del_write(thread);
 
 	return 0;
 }
@@ -327,6 +331,11 @@ dns_check_thread(thread_t * thread)
 	unsigned long timeout;
 
 	checker_t *checker = THREAD_ARG(thread);
+
+	if (thread->type == THREAD_WRITE_TIMEOUT) {
+		dns_final(thread, 1, "write timeout to socket.");
+		return 0;
+	}
 
 	status = socket_state(thread, dns_check_thread);
 
@@ -344,6 +353,7 @@ dns_check_thread(thread_t * thread)
 	case connect_success:
 		dns_make_query(thread);
 		timeout = timer_long(thread->sands) - timer_long(time_now);
+// This is silly - we know it is writeable
 		thread_add_write(thread->master, dns_send_thread, checker,
 				 thread->u.fd, timeout);
 		break;

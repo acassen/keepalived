@@ -406,7 +406,6 @@ stop_keepalived(void)
 {
 #ifndef _DEBUG_
 	/* Just cleanup memory & exit */
-	signal_handler_destroy();
 	thread_destroy_master(master);
 
 #ifdef _WITH_VRRP_
@@ -807,7 +806,6 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 static void
 signal_init(void)
 {
-	signal_handler_init();
 #ifndef _DEBUG_
 	signal_set(SIGHUP, propogate_signal, NULL);
 	signal_set(SIGUSR1, propogate_signal, NULL);
@@ -1561,21 +1559,18 @@ keepalived_main(int argc, char **argv)
 	if (!pidfile_write(main_pidfile, getpid()))
 		goto end;
 
-	/* Signal handling initialization  */
-	signal_init();
-
 	/* Create the master thread */
 	master = thread_make_master();
 
-	add_signal_read_thread();
+	/* Signal handling initialization  */
+	signal_init();
 
 	/* Init daemon */
-	signal_set(SIGCHLD, thread_child_handler, master);	/* Set this before creating children */
 	if (!start_keepalived())
 		log_message(LOG_INFO, "Warning - keepalived has no configuration to run");
 
 	/* Launch the scheduling I/O multiplexer */
-	launch_scheduler();
+	launch_thread_scheduler(master);
 
 	/* Finish daemon process */
 	stop_keepalived();

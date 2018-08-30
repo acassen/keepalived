@@ -39,9 +39,8 @@
 #ifdef _WITH_LVS_
 #include "check_api.h"
 #endif
-//#include "main.h"
-//#include "parser.h"
 
+#ifndef _SMTP_ALERT_DEBUG_
 /* SMTP FSM definition */
 static int connection_error(thread_t *);
 static int connection_in_progress(thread_t *);
@@ -82,6 +81,7 @@ struct {
 	{body_cmd,			body_code},		/* BODY */
 	{quit_cmd,			quit_code}		/* QUIT */
 };
+#endif
 
 static void
 free_smtp_all(smtp_t * smtp)
@@ -99,6 +99,7 @@ fetch_next_email(smtp_t * smtp)
 	return list_element(global_data->email, smtp->email_it);
 }
 
+#ifndef _SMTP_ALERT_DEBUG_
 /* layer4 connection handlers */
 static int
 connection_error(thread_t * thread)
@@ -284,6 +285,7 @@ smtp_send_thread(thread_t * thread)
 	if (smtp->stage != ERROR) {
 		thread_add_read(thread->master, smtp_read_thread, smtp,
 				thread->u.fd, global_data->smtp_connection_to);
+		thread_del_write(thread);
 	} else {
 		log_message(LOG_INFO, "Can not send data to remote SMTP server %s."
 				    , FMT_SMTP_HOST());
@@ -450,56 +452,6 @@ data_code(thread_t * thread, int status)
 	return 0;
 }
 
-/*
- * Build a comma separated string of smtp recipient email addresses
- * for the email message To-header.
- */
-static void
-build_to_header_rcpt_addrs(smtp_t *smtp)
-{
-	char *fetched_email;
-	char *email_to_addrs;
-	size_t bytes_available = SMTP_BUFFER_MAX - 1;
-	size_t bytes_to_write;
-
-	if (smtp == NULL)
-		return;
-
-	email_to_addrs = smtp->email_to;
-	smtp->email_it = 0;
-
-	while (1) {
-		fetched_email = fetch_next_email(smtp);
-		if (fetched_email == NULL)
-			break;
-
-		bytes_to_write = strlen(fetched_email);
-		if (!smtp->email_it) {
-			if (bytes_available < bytes_to_write)
-				break;
-		} else {
-			if (bytes_available < 2 + bytes_to_write)
-				break;
-
-			/* Prepend with a comma and space to all non-first email addresses */
-			*email_to_addrs++ = ',';
-			*email_to_addrs++ = ' ';
-			bytes_available -= 2;
-		}
-
-		if (snprintf(email_to_addrs, bytes_to_write + 1, "%s", fetched_email) != (int)bytes_to_write) {
-			/* Inconsistent state, no choice but to break here and do nothing */
-			break;
-		}
-
-		email_to_addrs += bytes_to_write;
-		bytes_available -= bytes_to_write;
-		smtp->email_it++;
-	}
-
-	smtp->email_it = 0;
-}
-
 /* BODY command processing.
  * Do we need to use mutli-thread for multi-part body
  * handling ? Don t really think :)
@@ -611,6 +563,82 @@ smtp_connect(smtp_t * smtp)
 	thread_add_event(master, SMTP_FSM[status].send, smtp, smtp->fd);
 }
 
+#else
+
+static void
+smtp_log_to_file(smtp_t *smtp)
+{
+	FILE *fp = fopen("/tmp/smtp-alert.log", "a");
+	struct tm tm;
+	char time_buf[25];
+	int time_buf_len;
+
+	localtime_r(&time_now.tv_sec, &tm);
+	time_buf_len = strftime(time_buf, sizeof time_buf, "%a %b %e %X %Y", &tm);
+
+	fprintf(fp, "%s: %s -> %s\n"
+		    "%*sSubject: %s\n"
+		    "%*sBody:    %s\n\n",
+		    time_buf, global_data->email_from, smtp->email_to,
+		    time_buf_len - 7, "", smtp->subject,
+		    time_buf_len - 7, "", smtp->body);
+
+	fclose(fp);
+
+	free_smtp_all(smtp);
+}
+#endif
+
+/*
+ * Build a comma separated string of smtp recipient email addresses
+ * for the email message To-header.
+ */
+static void
+build_to_header_rcpt_addrs(smtp_t *smtp)
+{
+	char *fetched_email;
+	char *email_to_addrs;
+	size_t bytes_available = SMTP_BUFFER_MAX - 1;
+	size_t bytes_to_write;
+
+	if (smtp == NULL)
+		return;
+
+	email_to_addrs = smtp->email_to;
+	smtp->email_it = 0;
+
+	while (1) {
+		fetched_email = fetch_next_email(smtp);
+		if (fetched_email == NULL)
+			break;
+
+		bytes_to_write = strlen(fetched_email);
+		if (!smtp->email_it) {
+			if (bytes_available < bytes_to_write)
+				break;
+		} else {
+			if (bytes_available < 2 + bytes_to_write)
+				break;
+
+			/* Prepend with a comma and space to all non-first email addresses */
+			*email_to_addrs++ = ',';
+			*email_to_addrs++ = ' ';
+			bytes_available -= 2;
+		}
+
+		if (snprintf(email_to_addrs, bytes_to_write + 1, "%s", fetched_email) != (int)bytes_to_write) {
+			/* Inconsistent state, no choice but to break here and do nothing */
+			break;
+		}
+
+		email_to_addrs += bytes_to_write;
+		bytes_available -= bytes_to_write;
+		smtp->email_it++;
+	}
+
+	smtp->email_it = 0;
+}
+
 /* Main entry point */
 void
 smtp_alert(smtp_msg_t msg_type, void* data, const char *subject, const char *body)
@@ -693,34 +721,17 @@ smtp_alert(smtp_msg_t msg_type, void* data, const char *subject, const char *bod
 	build_to_header_rcpt_addrs(smtp);
 
 #ifdef _SMTP_ALERT_DEBUG_
-	FILE *fp = fopen("/tmp/smtp-alert.log", "a");
-	struct tm tm;
-	char time_buf[25];
-	int time_buf_len;
-
-	localtime_r(&time_now.tv_sec, &tm);
-	time_buf_len = strftime(time_buf, sizeof time_buf, "%a %b %e %X %Y", &tm);
-
-	fprintf(fp, "%s: %s -> %s\n"
-		    "%*sSubject: %s\n"
-		    "%*sBody:    %s\n\n",
-		    time_buf, global_data->email_from, smtp->email_to,
-		    time_buf_len - 7, "", smtp->subject,
-		    time_buf_len - 7, "", smtp->body);
-
-	fclose(fp);
-
-	free_smtp_all(smtp);
-	return;
-#endif
-
+	smtp_log_to_file(smtp);
+#else
 	smtp_connect(smtp);
+#endif
 }
 
 #ifdef _TIMER_DEBUG_
 void
 print_smtp_addresses(void)
 {
+#ifndef _SMTP_ALERT_DEBUG_
 	log_message(LOG_INFO, "Address of body_cmd() is 0x%p", body_cmd);
 	log_message(LOG_INFO, "Address of connection_error() is 0x%p", connection_error);
 	log_message(LOG_INFO, "Address of connection_in_progress() is 0x%p", connection_in_progress);
@@ -733,5 +744,6 @@ print_smtp_addresses(void)
 	log_message(LOG_INFO, "Address of rcpt_cmd() is 0x%p", rcpt_cmd);
 	log_message(LOG_INFO, "Address of smtp_read_thread() is 0x%p", smtp_read_thread);
 	log_message(LOG_INFO, "Address of smtp_send_thread() is 0x%p", smtp_send_thread);
+#endif
 }
 #endif

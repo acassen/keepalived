@@ -203,6 +203,7 @@ tcp_check_thread(thread_t * thread)
 				sock_obj->lock = 0;
 				thread_add_event(thread->master,
 						 http_request_thread, sock_obj, 0);
+				thread_del_write(thread);
 			} else {
 				DBG("Connection trouble to: [%s]:%d.\n",
 				    req->ipaddress,

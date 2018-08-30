@@ -1401,6 +1401,7 @@ http_request_thread(thread_t * thread)
 	/* Register read timeouted thread */
 	thread_add_read(thread->master, http_response_thread, checker,
 			thread->u.fd, timeout);
+	thread_del_write(thread);
 	return 1;
 }
 
@@ -1452,12 +1453,14 @@ http_check_thread(thread_t * thread)
 							http_check_thread,
 							THREAD_ARG(thread),
 							thread->u.fd, timeout);
+					thread_del_write(thread);
 					break;
 				case SSL_ERROR_WANT_WRITE:
 					thread_add_write(thread->master,
 							 http_check_thread,
 							 THREAD_ARG(thread),
 							 thread->u.fd, timeout);
+					thread_del_read(thread);
 					break;
 				default:
 					ret = 0;
@@ -1478,6 +1481,7 @@ http_check_thread(thread_t * thread)
 					 http_request_thread, checker,
 					 thread->u.fd,
 					 checker->co->connection_to);
+			thread_del_read(thread);
 		} else {
 			DBG("Connection trouble to: %s."
 					 , FMT_HTTP_RS(checker));

@@ -29,6 +29,8 @@
 #include <signal.h>
 #include <stdbool.h>
 
+#include "scheduler.h"
+
 static inline int
 sigmask_func(int how, const sigset_t *set, sigset_t *oldset)
 {
@@ -44,10 +46,9 @@ extern int get_signum(const char *);
 extern void signal_set(int, void (*) (void *, int), void *);
 extern void signal_ignore(int);
 extern void signal_handler_init(void);
-extern void signal_handler_child_init(void);
 extern void signal_handler_destroy(void);
 extern void signal_handler_script(void);
-extern void add_signal_read_thread(void);
+extern void add_signal_read_thread(thread_master_t *);
 extern void cancel_signal_read_thread(void);
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 extern void set_sigxcpu_handler(void);

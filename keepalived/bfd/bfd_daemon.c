@@ -68,8 +68,6 @@ stop_bfd(int status)
 	if (__test_bit(CONFIG_TEST_BIT, &debug))
 		return;
 
-	signal_handler_destroy();
-
 	/* Stop daemon */
 	pidfile_rm(bfd_pidfile);
 
@@ -202,7 +200,6 @@ sigend_bfd(__attribute__ ((unused)) void *v,
 static void
 bfd_signal_init(void)
 {
-	signal_handler_child_init();
 	signal_set(SIGHUP, sigreload_bfd, NULL);
 	signal_set(SIGINT, sigend_bfd, NULL);
 	signal_set(SIGTERM, sigend_bfd, NULL);
@@ -223,9 +220,6 @@ reload_bfd_thread(__attribute__((unused)) thread_t * thread)
 
 	/* set the reloading flag */
 	SET_RELOAD;
-
-	/* Signal handling */
-//	signal_handler_destroy();
 
 	/* Destroy master thread */
 	bfd_dispatcher_release(bfd_data);
@@ -351,8 +345,6 @@ start_bfd_child(void)
 #endif
 				global_data->instance_name);
 
-	signal_handler_destroy();
-
 #ifdef _MEM_CHECK_
 	mem_log_init(PROG_BFD, "BFD child process");
 #endif
@@ -399,7 +391,7 @@ start_bfd_child(void)
 #else
 
 	/* Launch the scheduling I/O multiplexer */
-	launch_scheduler();
+	launch_thread_scheduler(master);
 
 	/* Finish BFD daemon process */
 	stop_bfd(EXIT_SUCCESS);

@@ -140,9 +140,6 @@ vrrp_terminate_phase2(int exit_status)
 	}
 #endif
 
-	/* We mustn't receive a SIGCHLD after master is destroyed */
-	signal_handler_destroy();
-
 	kernel_netlink_close_cmd();
 	thread_destroy_master(master);
 	master = NULL;
@@ -193,21 +190,35 @@ vrrp_terminate_phase2(int exit_status)
 }
 
 static int
-vrrp_shutdown_timer_thread(thread_t *thread)
+vrrp_shutdown_backstop_thread(thread_t *thread)
 {
-	thread->master->shutdown_timer_running = false;
+	int count = 0;
+	thread_t *t;
+
+	/* Force terminate all script processes */
+	if (thread->master->child.rb_node)
+		script_killall(thread->master, SIGKILL, true);
+
+	rb_for_each_entry(t, &thread->master->child, n)
+		count++;
+
+	log_message(LOG_ERR, "Backstop thread invoked: shutdown timer %srunning, child count %d",
+			thread->master->shutdown_timer_running ? "" : "not ", count);
+
 	thread_add_terminate_event(thread->master);
 
 	return 0;
 }
 
 static int
-vrrp_shutdown_backstop_thread(thread_t *thread)
+vrrp_shutdown_timer_thread(thread_t *thread)
 {
-	log_message(LOG_ERR, "Backstop thread invoked: shutdown timer %srunning, child count %d",
-			thread->master->shutdown_timer_running ? "" : "not ", thread->master->child.count);
+	thread->master->shutdown_timer_running = false;
 
-	thread_add_terminate_event(thread->master);
+	if (thread->master->child.rb_node)
+		thread_add_timer_shutdown(thread->master, vrrp_shutdown_backstop_thread, NULL, TIMER_HZ / 10);
+	else
+		thread_add_terminate_event(thread->master);
 
 	return 0;
 }
@@ -217,7 +228,7 @@ static void
 vrrp_terminate_phase1(bool schedule_next_thread)
 {
 	/* Terminate all script processes */
-	if (master->child.count)
+	if (master->child.rb_node)
 		script_killall(master, SIGTERM, true);
 
 	kernel_netlink_close_monitor();
@@ -269,7 +280,7 @@ vrrp_terminate_phase1(bool schedule_next_thread)
 			thread_add_timer_shutdown(master, vrrp_shutdown_timer_thread, NULL, TIMER_HZ);
 			master->shutdown_timer_running = true;
 		}
-		else if (master->child.count) {
+		else if (master->child.rb_node) {
 			/* Add a backstop timer for the shutdown */
 			thread_add_timer_shutdown(master, vrrp_shutdown_backstop_thread, NULL, TIMER_HZ);
 		}
@@ -588,7 +599,6 @@ sigend_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 static void
 vrrp_signal_init(void)
 {
-	signal_handler_child_init();
 	signal_set(SIGHUP, sigreload_vrrp, NULL);
 	signal_set(SIGINT, sigend_vrrp, NULL);
 	signal_set(SIGTERM, sigend_vrrp, NULL);
@@ -623,6 +633,8 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 	/* Destroy master thread */
 	vrrp_dispatcher_release(vrrp_data);
 	thread_cleanup_master(master);
+	thread_add_base_threads(master);
+
 #ifdef _WITH_LVS_
 	if (global_data->lvs_syncd.ifname)
 		ipvs_syncd_cmd(IPVS_STOPDAEMON, &global_data->lvs_syncd,
@@ -793,8 +805,6 @@ start_vrrp_child(void)
 #endif
 				global_data->instance_name);
 
-	signal_handler_destroy();
-
 #ifdef _MEM_CHECK_
 	mem_log_init(PROG_VRRP, "VRRP Child process");
 #endif
@@ -839,7 +849,7 @@ start_vrrp_child(void)
 #endif
 
 	/* Launch the scheduling I/O multiplexer */
-	launch_scheduler();
+	launch_thread_scheduler(master);
 
 	/* Finish VRRP daemon process */
 	vrrp_terminate_phase2(EXIT_SUCCESS);

@@ -370,6 +370,8 @@ snmp_agent_init(const char *snmp_socket, bool base_mib)
 				  sizeof(global_vars)/sizeof(struct variable8));
 	init_snmp(global_name);
 
+	master->snmp_timer_thread = thread_add_timer(master, snmp_timeout_thread, 0, TIMER_NEVER);
+
 	snmp_running = true;
 }
 

@@ -28,9 +28,14 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <sys/timerfd.h>
+#ifdef _WITH_SNMP_
+#include <sys/select.h>
+#endif
 
 #include "timer.h"
 #include "list.h"
+#include "list_head.h"
+#include "rbtree.h"
 
 /* Thread types. */
 typedef enum {
@@ -48,16 +53,28 @@ typedef enum {
 	THREAD_TERMINATE_START,
 	THREAD_TERMINATE,
 	THREAD_READY_FD,
+	THREAD_READ_ERROR,
+	THREAD_WRITE_ERROR,
 	THREAD_IF_UP,
 	THREAD_IF_DOWN
 } thread_type_t;
+
+/* Thread Event flags */
+enum thread_flags {
+        THREAD_FL_READ_BIT,
+        THREAD_FL_WRITE_BIT,
+        THREAD_FL_EPOLL_BIT,
+        THREAD_FL_EPOLL_READ_BIT,
+        THREAD_FL_EPOLL_WRITE_BIT,
+};
+
+/* epoll def */
+#define THREAD_EPOLL_REALLOC_THRESH     1024
 
 /* Thread itself. */
 typedef struct _thread {
 	unsigned long id;
 	thread_type_t type;		/* thread type */
-	struct _thread *next;		/* next pointer of the thread */
-	struct _thread *prev;		/* previous pointer of the thread */
 	struct _thread_master *master;	/* pointer to the struct thread_master. */
 	int (*func) (struct _thread *);	/* event function */
 	void *arg;			/* event argument */
@@ -70,37 +87,59 @@ typedef struct _thread {
 			int status;	/* return status of the process */
 		} c;
 	} u;
+	struct _thread_event    *event;                         /* Thread Event back-pointer */
+
+	rb_node_t               n;
+	list_head_t             next;
 } thread_t;
 
-/* Linked list of thread. */
-typedef struct _thread_list {
-	thread_t *head;
-	thread_t *tail;
-	int count;
-} thread_list_t;
+/* Thread Event */
+typedef struct _thread_event {
+	thread_t                *read;
+	thread_t                *write;
+	unsigned long           flags;
+	int                     fd;
+
+	rb_node_t               n;
+} thread_event_t;
 
 /* Master of the threads. */
 typedef struct _thread_master {
-	thread_list_t read;
-	thread_list_t write;
-	thread_list_t timer;
-	thread_list_t child;
-	thread_list_t event;
-	thread_list_t ready;
-	thread_list_t unuse;
+	rb_root_t		read;
+	rb_root_t		write;
+	rb_root_t		timer;
+	rb_root_t		child;
+	list_head_t		event;
+// TODO
+	list_head_t signal;
+	list_head_t		ready;
+	list_head_t		unuse;
+// Can we stop using this?
 	list child_pid_index;
 
-	/* select related */
-	fd_set readfd;
-	fd_set writefd;
-	int max_fd;
+	/* epoll related */
+	rb_root_t               io_events;
+	struct epoll_event      *epoll_events;
+	thread_event_t          *current_event;
+	unsigned int            epoll_size;
+	unsigned int            epoll_count;
+	int                     epoll_fd;
 
 	/* timer related */
-	int timer_fd;
+	int			timer_fd;
+	thread_t		*timer_thread;
 
-	/* local data */
-	unsigned long alloc;
-	bool shutdown_timer_running;
+#ifdef _WITH_SNMP_
+	/* snmp related */
+	thread_t		*snmp_timer_thread;
+	int			snmp_fdsetsize;
+	fd_set			snmp_fdset;
+#endif
+
+	/* Local data */
+	unsigned long		alloc;
+	unsigned long		id;
+	bool			shutdown_timer_running;
 } thread_master_t;
 
 #ifndef _DEBUG_
@@ -156,23 +195,27 @@ extern void log_command_line(unsigned);
 #ifndef _DEBUG_
 extern bool report_child_status(int, pid_t, const char *);
 #endif
+extern int thread_event_cancel(thread_t *);
 extern thread_master_t *thread_make_master(void);
 extern thread_t *thread_add_terminate_event(thread_master_t *);
 extern thread_t *thread_add_start_terminate_event(thread_master_t *, int (*)(thread_t *));
 extern void thread_cleanup_master(thread_master_t *);
 extern void thread_destroy_master(thread_master_t *);
 extern thread_t *thread_add_read(thread_master_t *, int (*) (thread_t *), void *, int, unsigned long);
+extern int thread_del_read(thread_t *);
 extern void thread_requeue_read(thread_master_t *, int, unsigned long);
 extern thread_t *thread_add_write(thread_master_t *, int (*) (thread_t *), void *, int, unsigned long);
+extern int thread_del_write(thread_t *thread);
 extern thread_t *thread_add_timer(thread_master_t *, int (*) (thread_t *), void *, unsigned long);
 extern thread_t *thread_add_timer_shutdown(thread_master_t *, int (*) (thread_t *), void *, unsigned long);
 extern thread_t *thread_add_child(thread_master_t *, int (*) (thread_t *), void *, pid_t, unsigned long);
 extern void thread_children_reschedule(thread_master_t *, int (*) (thread_t *), unsigned long);
 extern thread_t *thread_add_event(thread_master_t *, int (*) (thread_t *), void *, int);
-extern int thread_cancel(thread_t *);
+extern void thread_cancel(thread_t *);
 extern void thread_cancel_read(thread_master_t *, int);
+extern int snmp_timeout_thread(thread_t *);
 extern void process_threads(thread_master_t *);
-extern void thread_call(thread_t *);
 extern void thread_child_handler(void *, int);
-extern void launch_scheduler(void);
+extern void thread_add_base_threads(thread_master_t *);
+extern void launch_thread_scheduler(thread_master_t *);
 #endif

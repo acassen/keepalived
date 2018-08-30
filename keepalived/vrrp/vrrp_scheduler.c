@@ -435,10 +435,9 @@ vrrp_register_workers(list l)
 		vrrp_init_script(vrrp_data->vrrp_script);
 	}
 
-	add_signal_read_thread();
-
 #ifdef _WITH_BFD_
 	if (!LIST_ISEMPTY(vrrp_data->vrrp)) {
+// TODO - should we only do this if we have track_bfd? Probably not
 		/* Init BFD tracking thread */
 		bfd_thread = thread_add_read(master, vrrp_bfd_thread, NULL,
 					     bfd_vrrp_event_pipe[0], TIMER_NEVER);

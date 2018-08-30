@@ -1139,10 +1139,6 @@ setup_interface(vrrp_t *vrrp)
 			vrrp->sockets->fd_out = open_vrrp_send_socket(vrrp->sockets->family, vrrp->sockets->proto,
 							ifp, vrrp->sockets->unicast);
 
-		if (vrrp->sockets->fd_out > master->max_fd)
-			master->max_fd = vrrp->sockets->fd_out;
-		if (vrrp->sockets->fd_in > master->max_fd)
-			master->max_fd = vrrp->sockets->fd_in;
 		vrrp->sockets->ifindex = vrrp->ifp->ifindex;
 
 		alloc_vrrp_fd_bucket(vrrp);

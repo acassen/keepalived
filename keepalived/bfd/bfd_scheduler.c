@@ -1065,8 +1065,6 @@ bfd_register_workers(bfd_data_t *data)
 		if (!reload && !bfd->passive)
 			thread_add_event(master, bfd_sender_thread, bfd, 0);
 	}
-
-	add_signal_read_thread();
 }
 
 /* Suspends threads, closes sockets */
