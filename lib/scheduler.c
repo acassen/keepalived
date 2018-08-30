@@ -87,13 +87,6 @@ static rb_root_t funcs = RB_ROOT;
 #endif
 
 
-#ifdef _WITH_LVS_
-#include "../keepalived/include/check_daemon.h"
-#endif
-#ifdef _WITH_VRRP_
-#include "../keepalived/include/vrrp_daemon.h"
-#endif
-
 /* Function that returns prog_name if pid is a known child */
 static char const * (*child_finder_name)(pid_t);
 
