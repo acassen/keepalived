@@ -475,6 +475,8 @@ static bool reload_config(void)
 {
 	bool unsupported_change = false;
 
+	log_message(LOG_INFO, "Reloading ...");
+
 	/* Make sure there isn't an attempt to change the network namespace or instance name */
 	old_global_data = global_data;
 	global_data = NULL;
