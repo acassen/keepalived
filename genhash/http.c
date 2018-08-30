@@ -101,7 +101,7 @@ free_all(thread_t * thread)
 	 * Decrement the current global get number.
 	 * => free the reserved thread
 	 */
-	req->response_time = timer_tol(timer_now());
+	req->response_time = timer_long(timer_now());
 	thread_add_terminate_event(thread->master);
 }
 

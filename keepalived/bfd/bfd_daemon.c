@@ -241,7 +241,7 @@ reload_bfd_thread(__attribute__((unused)) thread_t * thread)
 	UNSET_RELOAD;
 
 	set_time_now();
-	log_message(LOG_INFO, "Reload finished in %li usec", -timer_tol(timer_sub_now(timer)));
+	log_message(LOG_INFO, "Reload finished in %li usec", -timer_long(timer_sub_now(timer)));
 
 	return 0;
 }

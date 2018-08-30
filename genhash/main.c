@@ -259,7 +259,7 @@ main(int argc, char **argv)
 		req->url = url_default;
 
 	/* Init the reference timer */
-	req->ref_time = timer_tol(timer_now());
+	req->ref_time = timer_long(timer_now());
 	DBG("Reference timer = %lu\n", req->ref_time);
 
 	/* Init SSL context */

@@ -247,7 +247,7 @@ bfd_check_handle_event(bfd_event_t * evt)
 	if (__test_bit(LOG_DETAIL_BIT, &debug)) {
 		time_now = timer_now();
 		timersub(&time_now, &evt->sent_time, &timer_tmp);
-		delivery_time = timer_tol(timer_tmp);
+		delivery_time = timer_long(timer_tmp);
 		log_message(LOG_INFO, "Received BFD event: instance %s is in"
 			    " state %s (delivered in %i usec)",
 			    evt->iname, BFD_STATE_STR(evt->state), delivery_time);

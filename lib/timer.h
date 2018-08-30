@@ -42,12 +42,43 @@ extern timeval_t time_now;
 
 #define	NSEC_PER_SEC		1000000000U	/* nanoseconds per second. Avoids typos by having a definition */
 
-/* Some useful macros */
-#define timer_long(T) (unsigned long)(((T).tv_sec * TIMER_HZ + (T).tv_usec))
-
 #ifdef _TIMER_CHECK_
 #define timer_now()	timer_now_r((__FILE__), (char *)(__FUNCTION__), (__LINE__))
 #define set_time_now()	set_time_now_r((__FILE__), (char *)(__FUNCTION__), (__LINE__))
+#endif
+
+/* timer sub from current time */
+static inline timeval_t
+timer_sub_now(timeval_t a)
+{
+	timersub(&a, &time_now, &a);
+
+	return a;
+}
+
+/* timer add to current time */
+static inline timeval_t
+timer_add_now(timeval_t a)
+{
+	timeradd(&time_now, &a, &a);
+
+	return a;
+}
+
+/* Return time as unsigned long */
+static inline unsigned long
+timer_long(timeval_t a)
+{
+	return (unsigned long)a.tv_sec * TIMER_HZ + (unsigned long)a.tv_usec;
+}
+
+#ifdef _INCLUDE_UNUSED_CODE_
+/* print timer value */
+static inline void
+timer_dump(timeval_t a)
+{
+	printf("=> %lu (usecs)\n", timer_tol(a));
+}
 #endif
 
 /* prototypes */
@@ -60,11 +91,5 @@ extern timeval_t set_time_now(void);
 #endif
 extern timeval_t timer_add_long(timeval_t, unsigned long);
 extern timeval_t timer_sub_long(timeval_t, unsigned long);
-extern timeval_t timer_sub_now(timeval_t);
-extern timeval_t timer_add_now(timeval_t);
-extern unsigned long timer_tol(timeval_t);
-#ifdef _INCLUDE_UNUSED_CODE_
-extern void timer_dump(timeval_t);
-#endif
 
 #endif

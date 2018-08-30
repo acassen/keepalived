@@ -63,7 +63,7 @@ thread_time_to_wakeup(thread_t *thread)
 
 	timersub(&thread->sands, &time_now, &tmp_time);
 
-	return timer_tol(tmp_time);
+	return timer_long(tmp_time);
 }
 
 /* Sends one BFD control packet and reschedules itself if needed */
@@ -230,7 +230,7 @@ bfd_expire_thread(thread_t *thread)
 
 	/* Time since last received control packet */
 	timersub(&time_now, &bfd->last_seen, &dead_time_tv);
-	dead_time = timer_tol(dead_time_tv);
+	dead_time = timer_long(dead_time_tv);
 
 	/* Difference between expected and actual failure detection time */
 	overdue_time = dead_time - bfd->local_detect_time;

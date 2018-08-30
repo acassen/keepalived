@@ -74,7 +74,8 @@ timer_sub_long(timeval_t a, unsigned long b)
 	return a;
 }
 
-static void set_mono_offset(struct timespec *ts)
+static void
+set_mono_offset(struct timespec *ts)
 {
 	struct timespec realtime, realtime_1, mono_offset;
 
@@ -138,8 +139,8 @@ monotonic_gettimeofday(timeval_t *now)
 		cur_time.tv_nsec -= NSEC_PER_SEC;
 		cur_time.tv_sec++;
 	}
-	now->tv_sec = cur_time.tv_sec;
-	now->tv_usec = cur_time.tv_nsec / 1000;
+
+	TIMESPEC_TO_TIMEVAL(now, &cur_time);
 
 	return 0;
 }
@@ -186,41 +187,3 @@ set_time_now(void)
 
 	return time_now;
 }
-
-/* timer sub from current time */
-timeval_t
-timer_sub_now(timeval_t a)
-{
-	timersub(&a, &time_now, &a);
-
-	return a;
-}
-
-/* timer add to current time */
-timeval_t
-timer_add_now(timeval_t a)
-{
-	/* Init current time if needed */
-	if (!timerisset(&time_now))
-		set_time_now();
-
-	timeradd(&time_now, &a, &a);
-
-	return a;
-}
-
-/* Return time as unsigned long */
-unsigned long
-timer_tol(timeval_t a)
-{
-	return (unsigned long)a.tv_sec * TIMER_HZ + (unsigned long)a.tv_usec;
-}
-
-#ifdef _INCLUDE_UNUSED_CODE_
-/* print timer value */
-void
-timer_dump(timeval_t a)
-{
-	printf("=> %lu (usecs)\n", timer_tol(a));
-}
-#endif

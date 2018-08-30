@@ -1265,6 +1265,10 @@ keepalived_main(int argc, char **argv)
 	struct utsname uname_buf;
 	char *end;
 
+	/* Ensure time_now is set. We then don't have to check anywhere
+	 * else if it is set. */
+	set_time_now();
+
 	/* Save command line options in case need to log them later */
 	save_cmd_line_options(argc, argv);
 

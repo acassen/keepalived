@@ -477,7 +477,7 @@ misc_check_child_thread(thread_t * thread)
 	    (next_time.tv_sec == 0 && next_time.tv_usec == 0))
 		next_time.tv_sec = 0, next_time.tv_usec = 1;
 
-	thread_add_timer(thread->master, misc_check_thread, checker, timer_tol(next_time));
+	thread_add_timer(thread->master, misc_check_thread, checker, timer_long(next_time));
 
 	misck_checker->state = SCRIPT_STATE_IDLE;
 
