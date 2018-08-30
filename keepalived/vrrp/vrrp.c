@@ -3739,3 +3739,11 @@ clear_diff_bfd(void)
 	}
 }
 #endif
+
+#ifdef _EPOLL_DEBUG_
+void
+register_vrrp_fifo_addresses(void)
+{
+	register_thread_address("vrrp_notify_fifo_script_exit", vrrp_notify_fifo_script_exit);
+}
+#endif

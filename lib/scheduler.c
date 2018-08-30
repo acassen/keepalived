@@ -58,6 +58,16 @@
 #include "old_socket.h"
 #endif
 
+
+#ifdef _EPOLL_DEBUG_
+typedef struct _func_det {
+	const char *name;
+	int (*func)(thread_t *);
+	rb_node_t n;
+} func_det_t;
+#endif
+
+
 /* global vars */
 thread_master_t *master = NULL;
 #ifndef _DEBUG_
@@ -71,6 +81,11 @@ bool snmp_running;		/* True if this process is running SNMP */
 static bool shutting_down;
 static int sav_argc;
 static char **sav_argv;
+#ifdef _EPOLL_DEBUG_
+bool epoll_debug = true;
+static rb_root_t funcs = RB_ROOT;
+#endif
+
 
 #ifdef _WITH_LVS_
 #include "../keepalived/include/check_daemon.h"
@@ -89,13 +104,14 @@ static void (*child_remover)(thread_t *);
 static void (*child_finder_destroy)(void);
 static size_t child_finder_list_size;
 
-#ifdef _TIMER_DEBUG_
+#ifdef _EPOLL_DEBUG_
 static const char *
 get_thread_type_str(thread_type_t id)
 {
 	if (id == THREAD_READ) return "READ";
 	if (id == THREAD_WRITE) return "WRITE";
 	if (id == THREAD_TIMER) return "TIMER";
+	if (id == THREAD_TIMER_SHUTDOWN) return "TIMER_SHUTDOWN";
 	if (id == THREAD_EVENT) return "EVENT";
 	if (id == THREAD_CHILD) return "CHILD";
 	if (id == THREAD_READY) return "READY";
@@ -103,10 +119,83 @@ get_thread_type_str(thread_type_t id)
 	if (id == THREAD_WRITE_TIMEOUT) return "WRITE_TIMEOUT";
 	if (id == THREAD_READ_TIMEOUT) return "READ_TIMEOUT";
 	if (id == THREAD_CHILD_TIMEOUT) return "CHILD_TIMEOUT";
+	if (id == THREAD_TERMINATE_START) return "TERMINATE_START";
 	if (id == THREAD_TERMINATE) return "TERMINATE";
 	if (id == THREAD_READY_FD) return "READY_FD";
+	if (id == THREAD_READ_ERROR) return "READ_ERROR";
+	if (id == THREAD_WRITE_ERROR) return "WRITE_ERROR";
+	if (id == THREAD_IF_UP) return "IF_UP";
+	if (id == THREAD_IF_DOWN) return "IF_DOWN";
 
 	return "unknown";
+}
+
+static inline int
+function_cmp(const func_det_t *func1, const func_det_t *func2)
+{
+	if (func1->func < func2->func)
+		return -1;
+	if (func1->func > func2->func)
+		return 1;
+	return 0;
+}
+
+static const char *
+get_function_name(int (*func)(thread_t *))
+{
+	func_det_t func_det = { .func = func };
+	func_det_t *match;
+	static char address[19];
+
+	if (!RB_EMPTY_ROOT(&funcs)) {
+		match = rb_search(&funcs, &func_det, n, function_cmp);
+		if (match)
+			return match->name;
+	}
+
+	snprintf(address, sizeof address, "%p", func);
+	return address;
+}
+
+const char *
+get_signal_function_name(void (*func)(void *, int))
+{
+	return get_function_name((int (*)(thread_t *))func);
+}
+
+void
+register_thread_address(const char *func_name, int (*func)(thread_t *))
+{
+	func_det_t *func_det;
+
+	func_det = (func_det_t *) MALLOC(sizeof(func_det_t));
+	if (!func_det)
+		return;
+
+	func_det->name = func_name;
+	func_det->func = func;
+
+	rb_insert_sort(&funcs, func_det, n, function_cmp);
+}
+
+void
+register_signal_handler_address(const char *func_name, void (*func)(void *, int))
+{
+	register_thread_address(func_name, (int (*)(thread_t *))func);
+}
+
+void
+deregister_thread_addresses(void)
+{
+	func_det_t *func_det, *func_det_tmp;
+
+	if (RB_EMPTY_ROOT(&funcs))
+		return;
+
+	rb_for_each_entry_safe(func_det, func_det_tmp, &funcs, n) {
+		rb_erase(&func_det->n, &funcs);
+		FREE(func_det);
+	}
 }
 #endif
 
@@ -178,7 +267,7 @@ thread_set_timer(thread_master_t *m)
 	timerfd_settime(m->timer_fd, 0, &its, NULL);
 
 #ifdef _EPOLL_DEBUG_
-	if (prog_type == PROG_TYPE_VRRP)
+	if (epoll_debug)
 		log_message(LOG_INFO, "setting timer_fd %lu.%9.9ld", its.it_value.tv_sec, its.it_value.tv_nsec);
 #endif
 }
@@ -683,6 +772,23 @@ thread_make_master(void)
 	return new;
 }
 
+#ifdef _EPOLL_DEBUG_
+static char *
+timer_delay(timeval_t sands)
+{
+	static char str[42];
+
+	if (sands.tv_sec == TIMER_DISABLED)
+		return "NEVER";
+	if (sands.tv_sec == 0 && sands.tv_usec == 0)
+		return "UNSET";
+
+	sands = timer_sub_now(sands);
+	snprintf(str, sizeof str, "%lu.%6.6ld", sands.tv_sec, sands.tv_usec);
+
+	return str;
+}
+
 /* Dump rbtree */
 int
 thread_rb_dump(rb_root_t *root, const char *tree)
@@ -691,8 +797,10 @@ thread_rb_dump(rb_root_t *root, const char *tree)
 	int i = 1;
 
 	log_message(LOG_INFO, "----[ Begin rb_dump %s ]----", tree);
+
 	rb_for_each_entry(thread, root, n)
-		log_message(LOG_INFO, "#%.2d Thread timer: %lu.%6.6ld", i++, thread->sands.tv_sec, thread->sands.tv_usec);
+		log_message(LOG_INFO, "#%.2d Thread type %s, event_fd %d, val/fd/pid %d, timer: %s, func %s(), id %ld", i++, get_thread_type_str(thread->type), thread->event ? thread->event->fd: -2, thread->u.val, timer_delay(thread->sands), get_function_name(thread->func), thread->id);
+
 	log_message(LOG_INFO, "----[ End rb_dump ]----");
 
 	return 0;
@@ -705,15 +813,30 @@ thread_list_dump(list_head_t *l, const char *list)
 	int i = 1;
 
 	log_message(LOG_INFO, "----[ Begin list_dump %s ]----", list);
-	list_for_each_entry(thread, l, next) {
-		log_message(LOG_INFO, "#%.2d Thread:%p id:%ld sands: %lu.%6.6ld",
-		       i++, thread, thread->id, thread->sands.tv_sec, thread->sands.tv_usec);
-//		if (i > 10) break;
-	}
+
+	list_for_each_entry(thread, l, next)
+		log_message(LOG_INFO, "#%.2d Thread:%p type %s func %s() id %ld",
+		       i++, thread, get_thread_type_str(thread->type), get_function_name(thread->func), thread->id);
+
 	log_message(LOG_INFO, "----[ End list_dump ]----");
 
 	return 0;
 }
+
+int
+event_rb_dump(rb_root_t *root, const char *tree)
+{
+	thread_event_t *event;
+	int i = 1;
+
+	log_message(LOG_INFO, "----[ Begin rb_dump %s ]----", tree);
+	rb_for_each_entry(event, root, n)
+		log_message(LOG_INFO, "#%.2d event %p fd %d, flags: 0x%lx, read %p, write %p", i++, event, event->fd, event->flags, event->read, event->write);
+	log_message(LOG_INFO, "----[ End rb_dump ]----");
+
+	return 0;
+}
+#endif
 
 /* Timer cmp helper */
 static int
@@ -842,6 +965,13 @@ thread_trim_head(list_head_t *l)
 	return thread;
 }
 
+/* Make unique thread id for non pthread version of thread manager. */
+static inline unsigned long
+thread_get_id(thread_master_t *m)
+{
+	return m->id++;
+}
+
 /* Make new thread. */
 static thread_t *
 thread_new(thread_master_t *m)
@@ -850,15 +980,13 @@ thread_new(thread_master_t *m)
 
 	/* If one thread is already allocated return it */
 	new = thread_trim_head(&m->unuse);
-	if (new) {
-	//	memset(new, 0, sizeof(thread_t));
-		INIT_LIST_HEAD(&new->next);
-		return new;
+	if (!new) {
+		new = (thread_t *)MALLOC(sizeof(thread_t));
+		m->alloc++;
 	}
 
-	new = (thread_t *) MALLOC(sizeof(thread_t));
 	INIT_LIST_HEAD(&new->next);
-	m->alloc++;
+	new->id = thread_get_id(m);
 	return new;
 }
 
@@ -1551,16 +1679,18 @@ retry:
 	thread_set_timer(m);
 
 #ifdef _EPOLL_DEBUG_
-	if (prog_type == PROG_TYPE_VRRP)
+	if (epoll_debug) {
 		log_message(LOG_INFO, "calling epoll_wait");
-	thread_rb_dump(&m->read, "read");
-	thread_rb_dump(&m->write, "write");
-	thread_rb_dump(&m->child, "child");
-	thread_rb_dump(&m->timer, "timer");
-	thread_list_dump(&m->event, "event");
-	thread_list_dump(&m->ready, "ready");
-	thread_list_dump(&m->signal, "signal");
-	thread_list_dump(&m->unuse, "unuse");
+		thread_rb_dump(&m->read, "read");
+		thread_rb_dump(&m->write, "write");
+		thread_rb_dump(&m->child, "child");
+		thread_rb_dump(&m->timer, "timer");
+		thread_list_dump(&m->event, "event");
+		thread_list_dump(&m->ready, "ready");
+		thread_list_dump(&m->signal, "signal");
+		thread_list_dump(&m->unuse, "unuse");
+		event_rb_dump(&m->io_events, "io_events");
+	}
 #endif
 
 	/* Call epoll function. */
@@ -1568,8 +1698,12 @@ retry:
 	sav_errno = errno;
 
 #ifdef _EPOLL_DEBUG_
-	if (prog_type == PROG_TYPE_VRRP)
-		log_message(LOG_INFO, "epoll_wait returned %d, errno %d", ret, sav_errno);
+	if (epoll_debug) {
+		if (ret == -1)
+			log_message(LOG_INFO, "epoll_wait returned %d, errno %d", ret, sav_errno);
+		else
+			log_message(LOG_INFO, "epoll_wait returned %d fds", ret);
+	}
 #endif
 
 	if (ret < 0) {
@@ -1654,25 +1788,15 @@ retry:
 	return &m->ready;
 }
 
-/* Make unique thread id for non pthread version of thread manager. */
-static inline unsigned long
-thread_get_id(thread_master_t *m)
-{
-	return m->id++;
-}
-
 /* Call thread ! */
 static inline void
 thread_call(thread_t * thread)
 {
-#ifdef _TIMER_DEBUG_
-#ifndef _DEBUG_
-	if (prog_type == PROG_TYPE_VRRP)
-#endif
-		log_message(LOG_INFO, "Calling thread function, type %s, addr 0x%p, val/fd/pid %d, status %d", get_thread_type_str(thread->type), thread->func, thread->u.val, thread->u.c.status);
+#ifdef _EPOLL_DEBUG_
+	if (epoll_debug)
+		log_message(LOG_INFO, "Calling thread function %s(), type %s, val/fd/pid %d, status %d id %lu", get_function_name(thread->func), get_thread_type_str(thread->type), thread->u.val, thread->u.c.status, thread->id);
 #endif
 
-	thread->id = thread_get_id(thread->master);
 	(*thread->func) (thread);
 }
 
@@ -1756,6 +1880,11 @@ process_child_termination(pid_t pid, int status)
 		}
 	}
 
+#ifdef _EPOLL_DEBUG_
+	if (epoll_debug)
+		log_message(LOG_INFO, "Child %d terminated with status 0x%x, thread_id %lu", pid, status, thread ? thread->id : 0);
+#endif
+
 	if (!thread)
 		return;
 
@@ -1811,3 +1940,15 @@ launch_thread_scheduler(thread_master_t *m)
 
 	process_threads(m);
 }
+
+#ifdef _EPOLL_DEBUG_
+void
+register_scheduler_addresses(void)
+{
+	register_thread_address("snmp_timeout_thread", snmp_timeout_thread);
+	register_thread_address("snmp_read_thread", snmp_read_thread);
+	register_thread_address("thread_timerfd_handler", thread_timerfd_handler);
+
+	register_signal_handler_address("thread_child_handler", thread_child_handler);
+}
+#endif

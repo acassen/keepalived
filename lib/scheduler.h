@@ -184,6 +184,9 @@ extern prog_type_t prog_type;		/* Parent/VRRP/Checker process */
 #ifdef _WITH_SNMP_
 extern bool snmp_running;
 #endif
+#ifdef _EPOLL_DEBUG_
+extern bool epoll_debug;
+#endif
 
 /* Prototypes. */
 extern void set_child_finder_name(char const * (*)(pid_t));
@@ -218,4 +221,12 @@ extern void process_threads(thread_master_t *);
 extern void thread_child_handler(void *, int);
 extern void thread_add_base_threads(thread_master_t *);
 extern void launch_thread_scheduler(thread_master_t *);
+#ifdef _EPOLL_DEBUG_
+extern const char *get_signal_function_name(void (*)(void *, int));
+extern void register_signal_handler_address(const char *, void (*)(void *, int));
+extern void register_thread_address(const char *, int (*)(thread_t *));
+extern void deregister_thread_addresses(void);
+extern void register_scheduler_addresses(void);
+#endif
+
 #endif

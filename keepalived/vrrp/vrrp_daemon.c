@@ -33,6 +33,12 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
+#ifdef _EPOLL_DEBUG_
+#include "snmp.h"
+#include "scheduler.h"
+#include "smtp.h"
+#include "vrrp_track.h"
+#endif
 #include "vrrp_daemon.h"
 #include "vrrp_scheduler.h"
 #include "vrrp_arp.h"
@@ -51,6 +57,7 @@
 #include "logger.h"
 #include "signals.h"
 #include "process.h"
+#include "memory.h"
 #include "bitops.h"
 #include "rttables.h"
 #if defined _WITH_SNMP_RFC || defined _WITH_SNMP_VRRP_
@@ -737,6 +744,43 @@ vrrp_respawn_thread(thread_t * thread)
 }
 #endif
 
+#ifdef _EPOLL_DEBUG_
+static void
+register_vrrp_thread_addresses(void)
+{
+	register_scheduler_addresses();
+	register_signal_thread_addresses();
+	register_notify_addresses();
+
+	register_smtp_addresses();
+	register_keepalived_netlink_addresses();
+#ifdef _WITH_SNMP_
+	register_snmp_addresses();
+#endif
+
+	register_vrrp_if_addresses();
+	register_vrrp_scheduler_addresses();
+#ifdef _WITH_DBUS_
+	register_vrrp_dbus_addresses();
+#endif
+	register_vrrp_fifo_addresses();
+	register_vrrp_inotify_addresses();
+
+	register_thread_address("print_vrrp_data", print_vrrp_data);
+	register_thread_address("print_vrrp_stats", print_vrrp_stats);
+	register_thread_address("reload_vrrp_thread", reload_vrrp_thread);
+	register_thread_address("start_vrrp_termination_thread", start_vrrp_termination_thread);
+	register_thread_address("vrrp_shutdown_backstop_thread", vrrp_shutdown_backstop_thread);
+	register_thread_address("vrrp_shutdown_timer_thread", vrrp_shutdown_timer_thread);
+
+	register_signal_handler_address("sigreload_vrrp", sigreload_vrrp);
+	register_signal_handler_address("sigend_vrrp", sigend_vrrp);
+	register_signal_handler_address("sigusr1_vrrp", sigusr1_vrrp);
+	register_signal_handler_address("sigusr2_vrrp", sigusr2_vrrp);
+	register_signal_handler_address("sigjson_vrrp", sigjson_vrrp);
+}
+#endif
+
 /* Register VRRP thread */
 int
 start_vrrp_child(void)
@@ -848,8 +892,16 @@ start_vrrp_child(void)
 	return 0;
 #endif
 
+#ifdef _EPOLL_DEBUG_
+	register_vrrp_thread_addresses();
+#endif
+
 	/* Launch the scheduling I/O multiplexer */
 	launch_thread_scheduler(master);
+
+#ifdef _EPOLL_DEBUG_
+	deregister_thread_addresses();
+#endif
 
 	/* Finish VRRP daemon process */
 	vrrp_terminate_phase2(EXIT_SUCCESS);
@@ -864,13 +916,10 @@ vrrp_validate_config(void)
 	start_vrrp();
 }
 
-#ifdef _TIMER_DEBUG_
+#ifdef _EPOLL_DEBUG_
 void
-print_vrrp_daemon_addresses(void)
+register_vrrp_parent_addresses(void)
 {
-	log_message(LOG_INFO, "Address of print_vrrp_data() is 0x%p", print_vrrp_data);
-	log_message(LOG_INFO, "Address of print_vrrp_stats() is 0x%p", print_vrrp_stats);
-	log_message(LOG_INFO, "Address of reload_vrrp_thread() is 0x%p", reload_vrrp_thread);
-	log_message(LOG_INFO, "Address of vrrp_respawn_thread() is 0x%p", vrrp_respawn_thread);
+	register_thread_address("vrrp_respawn_thread", vrrp_respawn_thread);
 }
 #endif

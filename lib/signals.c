@@ -318,6 +318,12 @@ signal_run_callback(__attribute__((unused)) thread_t *thread)
 #else
 	while (read(signal_pipe[0], &sig, sizeof(int)) == sizeof(int)) {
 #endif
+
+#ifdef _EPOLL_DEBUG_
+		if (epoll_debug)
+			log_message(LOG_INFO, "Signal %d, func %s()", sig, get_signal_function_name(signal_handler_func[sig-1]));
+#endif
+
 		if (sig >= 1 && sig <= SIG_MAX && signal_handler_func[sig-1])
 			signal_handler_func[sig-1](signal_v[sig-1], sig);
 	}
@@ -536,6 +542,9 @@ void
 set_sigxcpu_handler(void)
 {
 	signal_set(SIGXCPU, log_sigxcpu, NULL);
+#ifdef _EPOLL_DEBUG_
+	register_signal_handler_address("log_sigxcpu", log_sigxcpu);
+#endif
 }
 #endif
 
@@ -557,3 +566,11 @@ void signal_fd_close(int min_fd)
 	}
 #endif
 }
+
+#ifdef _EPOLL_DEBUG_
+void
+register_signal_thread_addresses(void)
+{
+        register_thread_address("signal_run_callback", signal_run_callback);
+}
+#endif

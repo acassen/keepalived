@@ -61,5 +61,8 @@ extern void try_up_instance(vrrp_t *, bool);
 #ifdef _WITH_DUMP_THREADS_
 extern void dump_threads(void);
 #endif
+#ifdef _EPOLL_DEBUG_
+extern void register_vrrp_scheduler_addresses(void);
+#endif
 
 #endif

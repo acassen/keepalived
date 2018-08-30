@@ -93,5 +93,8 @@ typedef struct _dns_check {
 } dns_check_t;
 
 extern void install_dns_check_keyword(void);
+#ifdef _EPOLL_DEBUG_
+extern void register_check_dns_addresses(void);
+#endif
 
 #endif

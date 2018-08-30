@@ -375,5 +375,8 @@ extern void clear_diff_vrrp(void);
 extern void clear_diff_script(void);
 extern void clear_diff_bfd(void);
 extern void vrrp_restore_interface(vrrp_t *, bool, bool);
+#ifdef _EPOLL_DEBUG_
+extern void register_vrrp_fifo_addresses(void);
+#endif
 
 #endif

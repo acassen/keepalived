@@ -70,6 +70,9 @@
 #include "main.h"
 #include "logger.h"
 #include "utils.h"
+#ifdef _EPOLL_DEBUG_
+#include "scheduler.h"
+#endif
 
 typedef enum dbus_action {
 	DBUS_ACTION_NONE,
@@ -946,10 +949,10 @@ dbus_stop(void)
 	}
 }
 
-#ifdef _TIMER_DEBUG_
+#ifdef _EPOLL_DEBUG_
 void
-print_vrrp_dbus_addresses(void)
+register_vrrp_dbus_addresses(void)
 {
-	log_message(LOG_INFO, "Address of handle_dbus_msg() is 0x%p", handle_dbus_msg);
+	register_thread_address("handle_dbus_msg", handle_dbus_msg);
 }
 #endif

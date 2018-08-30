@@ -32,6 +32,16 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
+#ifdef _EPOLL_DEBUG_
+#include "snmp.h"
+#include "scheduler.h"
+#include "smtp.h"
+#include "check_dns.h"
+#include "check_http.h"
+#include "check_misc.h"
+#include "check_smtp.h"
+#include "check_tcp.h"
+#endif
 #include "check_daemon.h"
 #include "check_parser.h"
 #include "ipwrapper.h"
@@ -41,6 +51,7 @@
 #include "pidfile.h"
 #include "signals.h"
 #include "process.h"
+#include "memory.h"
 #include "logger.h"
 #include "main.h"
 #include "parser.h"
@@ -435,6 +446,40 @@ check_respawn_thread(thread_t * thread)
 }
 #endif
 
+#ifdef _EPOLL_DEBUG_
+static void
+register_check_thread_addresses(void)
+{
+	register_scheduler_addresses();
+	register_signal_thread_addresses();
+	register_notify_addresses();
+
+	register_smtp_addresses();
+	register_keepalived_netlink_addresses();
+#ifdef _WITH_SNMP_
+	register_snmp_addresses();
+#endif
+
+	register_check_dns_addresses();
+	register_check_http_addresses();
+	register_check_misc_addresses();
+	register_check_smtp_addresses();
+	register_check_ssl_addresses();
+	register_check_tcp_addresses();
+#ifdef _WITH_BFD_
+	register_check_bfd_addresses();
+#endif
+
+	register_thread_address("reload_check_thread", reload_check_thread);
+	register_thread_address("lvs_notify_fifo_script_exit", lvs_notify_fifo_script_exit);
+	register_thread_address("start_checker_termination_thread", start_checker_termination_thread);
+	register_thread_address("checker_shutdown_backstop_thread", checker_shutdown_backstop_thread);
+
+	register_signal_handler_address("sigreload_check", sigreload_check);
+	register_signal_handler_address("sigend_check", sigend_check);
+}
+#endif
+
 /* Register CHECK thread */
 int
 start_check_child(void)
@@ -541,6 +586,10 @@ start_check_child(void)
 	return 0;
 #endif
 
+#ifdef _EPOLL_DEBUG_
+	register_check_thread_addresses();
+#endif
+
 	/* Launch the scheduling I/O multiplexer */
 	launch_thread_scheduler(master);
 
@@ -550,15 +599,18 @@ start_check_child(void)
 	else
 		stop_check(KEEPALIVED_EXIT_OK);
 
+#ifdef _EPOLL_DEBUG_
+	deregister_thread_addresses();
+#endif
+
 	/* unreachable */
 	exit(KEEPALIVED_EXIT_OK);
 }
 
-#ifdef _TIMER_DEBUG_
+#ifdef _EPOLL_DEBUG_
 void
-print_check_daemon_addresses(void)
+register_check_parent_addresses(void)
 {
-	log_message(LOG_INFO, "Address of check_respawn_thread() is 0x%p", check_respawn_thread);
-	log_message(LOG_INFO, "Address of reload_check_thread() is 0x%p", reload_check_thread);
+	register_thread_address("check_respawn_thread", check_respawn_thread);
 }
 #endif

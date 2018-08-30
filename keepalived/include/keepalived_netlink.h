@@ -106,5 +106,8 @@ extern void kernel_netlink_read_interfaces(void);
 extern void kernel_netlink_close(void);
 extern void kernel_netlink_close_monitor(void);
 extern void kernel_netlink_close_cmd(void);
+#ifdef _EPOLL_DEBUG_
+extern void register_keepalived_netlink_addresses(void);
+#endif
 
 #endif

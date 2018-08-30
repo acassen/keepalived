@@ -35,5 +35,8 @@ extern bool using_ha_suspend;
 /* Prototypes */
 extern int start_check_child(void);
 extern void check_validate_config(void);
+#ifdef _EPOLL_DEBUG_
+extern void register_check_parent_addresses(void);
+#endif
 
 #endif

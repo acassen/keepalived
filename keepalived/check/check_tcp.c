@@ -37,6 +37,9 @@
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif
+#ifdef _EPOLL_DEBUG_
+#include "scheduler.h"
+#endif
 
 static int tcp_connect_thread(thread_t *);
 
@@ -227,12 +230,11 @@ tcp_connect_thread(thread_t * thread)
 	return 0;
 }
 
-#ifdef _TIMER_DEBUG_
+#ifdef _EPOLL_DEBUG_
 void
-print_check_tcp_addresses(void)
+register_check_tcp_addresses(void)
 {
-	log_message(LOG_INFO, "Address of dump_tcp_check() is 0x%p", dump_tcp_check);
-	log_message(LOG_INFO, "Address of tcp_check_thread() is 0x%p", tcp_check_thread);
-	log_message(LOG_INFO, "Address of tcp_connect_thread() is 0x%p", tcp_connect_thread);
+	register_thread_address("tcp_check_thread", tcp_check_thread);
+	register_thread_address("tcp_connect_thread", tcp_connect_thread);
 }
 #endif

@@ -32,6 +32,9 @@
 #include "check_api.h"
 #include "check_http.h"
 #include "logger.h"
+#ifdef _EPOLL_DEBUG_
+#include "scheduler.h"
+#endif
 
 /* SSL primitives */
 /* Free an SSL context */
@@ -303,10 +306,10 @@ ssl_read_thread(thread_t * thread)
 	return 0;
 }
 
-#ifdef _TIMER_DEBUG_
+#ifdef _EPOLL_DEBUG_
 void
-print_check_ssl_addresses(void)
+register_check_ssl_addresses(void)
 {
-	log_message(LOG_INFO, "Address of ssl_read_thread() is 0x%p", ssl_read_thread);
+	register_thread_address("ssl_read_thread", ssl_read_thread);
 }
 #endif

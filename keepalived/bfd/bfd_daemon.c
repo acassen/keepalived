@@ -277,6 +277,24 @@ bfd_respawn_thread(thread_t * thread)
 }
 #endif
 
+#ifdef _EPOLL_DEBUG_
+static void
+register_bfd_thread_addresses(void)
+{
+	register_scheduler_addresses();
+	register_signal_thread_addresses();
+
+	register_bfd_scheduler_addresses();
+
+	register_thread_address("bfd_dispatcher_init", bfd_dispatcher_init);
+	register_thread_address("reload_bfd_thread", reload_bfd_thread);
+
+	register_signal_handler_address("sigreload_bfd", sigreload_bfd);
+	register_signal_handler_address("sigend_bfd", sigend_bfd);
+	register_signal_handler_address("thread_child_handler", thread_child_handler);
+}
+#endif
+
 int
 start_bfd_child(void)
 {
@@ -390,8 +408,16 @@ start_bfd_child(void)
 	return 0;
 #else
 
+#ifdef _EPOLL_DEBUG_
+	register_bfd_thread_addresses();
+#endif
+
 	/* Launch the scheduling I/O multiplexer */
 	launch_thread_scheduler(master);
+
+#ifdef _EPOLL_DEBUG_
+	deregister_thread_addresses();
+#endif
 
 	/* Finish BFD daemon process */
 	stop_bfd(EXIT_SUCCESS);
@@ -400,3 +426,11 @@ start_bfd_child(void)
 	exit(EXIT_SUCCESS);
 #endif
 }
+
+#ifdef _EPOLL_DEBUG_
+void
+register_bfd_parent_addresses(void)
+{
+	register_thread_address("bfd_respawn_thread", bfd_respawn_thread);
+}
+#endif

@@ -227,8 +227,6 @@ AC_ARG_ENABLE(regex-debug,
   [  --enable-regex-debug    compile with regex debugging support])
 AC_ARG_ENABLE(tsm-debug,
   [  --enable-tsm-debug      compile with TSM debugging support])
-AC_ARG_ENABLE(timer-debug,
-  [  --enable-timer-debug    compile with timer debugging support])
 AC_ARG_ENABLE(profile,
   [AS_HELP_STRING([--enable-profile], [compile with profiling flags])])
 AC_ARG_ENABLE(conversion-checks,
@@ -1759,7 +1757,7 @@ else
   ENABLE_DUMP_THREADS=No
 fi
 
-dnl ----[ select() debugging support or not ? ]----
+dnl ----[ epoll() debugging support or not ? ]----
 if test "${enable_epoll_debug}" = yes; then
   AC_DEFINE([_EPOLL_DEBUG_], [ 1 ], [Define to 1 to build with epoll_wait() debugging support])
   ENABLE_EPOLL_DEBUG=Yes
@@ -1784,15 +1782,6 @@ if test "${enable_tsm_debug}" = yes; then
   add_config_opt([TSM_DEBUG])
 else
   ENABLE_TSM_DEBUG=No
-fi
-
-dnl ----[ Timer debugging support or not ? ]----
-if test "${enable_timer_debug}" = yes; then
-  AC_DEFINE([_TIMER_DEBUG_], [ 1 ], [Define to 1 to build with timer debugging support])
-  ENABLE_TIMER_DEBUG=Yes
-  add_config_opt([TIMER_DEBUG])
-else
-  ENABLE_TIMER_DEBUG=No
 fi
 
 dnl ----[ Profiling or not ? ]----
@@ -1959,9 +1948,6 @@ if test ${ENABLE_REGEX_DEBUG} = Yes; then
 fi
 if test ${ENABLE_TSM_DEBUG} = Yes; then
   echo "TSM debugging            : ${ENABLE_TSM_DEBUG}"
-fi
-if test ${ENABLE_TIMER_DEBUG} = Yes; then
-  echo "Timer debugging          : ${ENABLE_TIMER_DEBUG}"
 fi
 if test ${ENABLE_DEBUG} = Yes; then
   echo "Use Debug flags          : ${ENABLE_DEBUG}"

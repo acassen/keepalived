@@ -39,6 +39,9 @@
 #ifdef _WITH_LVS_
 #include "check_api.h"
 #endif
+#ifdef _EPOLL_DEBUG_
+#include "scheduler.h"
+#endif
 
 #ifndef _SMTP_ALERT_DEBUG_
 /* SMTP FSM definition */
@@ -727,23 +730,23 @@ smtp_alert(smtp_msg_t msg_type, void* data, const char *subject, const char *bod
 #endif
 }
 
-#ifdef _TIMER_DEBUG_
+#ifdef _EPOLL_DEBUG_
 void
-print_smtp_addresses(void)
+register_smtp_addresses(void)
 {
 #ifndef _SMTP_ALERT_DEBUG_
-	log_message(LOG_INFO, "Address of body_cmd() is 0x%p", body_cmd);
-	log_message(LOG_INFO, "Address of connection_error() is 0x%p", connection_error);
-	log_message(LOG_INFO, "Address of connection_in_progress() is 0x%p", connection_in_progress);
-	log_message(LOG_INFO, "Address of connection_success() is 0x%p", connection_success);
-	log_message(LOG_INFO, "Address of connection_timeout() is 0x%p", connection_timeout);
-	log_message(LOG_INFO, "Address of data_cmd() is 0x%p", data_cmd);
-	log_message(LOG_INFO, "Address of helo_cmd() is 0x%p", helo_cmd);
-	log_message(LOG_INFO, "Address of mail_cmd() is 0x%p", mail_cmd);
-	log_message(LOG_INFO, "Address of quit_cmd() is 0x%p", quit_cmd);
-	log_message(LOG_INFO, "Address of rcpt_cmd() is 0x%p", rcpt_cmd);
-	log_message(LOG_INFO, "Address of smtp_read_thread() is 0x%p", smtp_read_thread);
-	log_message(LOG_INFO, "Address of smtp_send_thread() is 0x%p", smtp_send_thread);
+	register_thread_address("body_cmd", body_cmd);
+	register_thread_address("connection_error", connection_error);
+	register_thread_address("connection_in_progress", connection_in_progress);
+	register_thread_address("connection_success", connection_success);
+	register_thread_address("connection_timeout", connection_timeout);
+	register_thread_address("data_cmd", data_cmd);
+	register_thread_address("helo_cmd", helo_cmd);
+	register_thread_address("mail_cmd", mail_cmd);
+	register_thread_address("quit_cmd", quit_cmd);
+	register_thread_address("rcpt_cmd", rcpt_cmd);
+	register_thread_address("smtp_read_thread", smtp_read_thread);
+	register_thread_address("smtp_send_thread", smtp_send_thread);
 #endif
 }
 #endif

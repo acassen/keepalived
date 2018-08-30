@@ -156,7 +156,8 @@ set_time_now(void)
 
 #ifdef _TIMER_CHECK_
 	unsigned long timediff = (time_now.tv_sec - last_time.tv_sec) * 1000000 + time_now.tv_usec - last_time.tv_usec;
-	log_message(LOG_INFO, "set_time_now called from %s %s:%d, difference %lu usec", file, function, line_no, timediff);
+//	log_message(LOG_INFO, "set_time_now called from %s %s:%d, difference %lu usec", file, function, line_no, timediff);
+	log_message(LOG_INFO, "set_time_now called from %s %s:%d, time %ld.%6.6lu difference %lu usec", file, function, line_no, time_now.tv_sec, time_now.tv_usec, timediff);
 	last_time = time_now;
 #endif
 

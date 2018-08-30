@@ -59,6 +59,9 @@
 #include "bfd_event.h"
 #include "bfd_daemon.h"
 #endif
+#ifdef _EPOLL_DEBUG_
+#include "scheduler.h"
+#endif
 
 /* global vars */
 timeval_t garp_next_time;
@@ -1330,16 +1333,19 @@ dump_threads(void)
 }
 #endif
 
-#ifdef _TIMER_DEBUG_
+#ifdef _EPOLL_DEBUG_
 void
-print_vrrp_scheduler_addresses(void)
+register_vrrp_scheduler_addresses(void)
 {
-	log_message(LOG_INFO, "Address of vrrp_arp_thread() is 0x%p", vrrp_arp_thread);
-	log_message(LOG_INFO, "Address of vrrp_dispatcher_init() is 0x%p", vrrp_dispatcher_init);
-	log_message(LOG_INFO, "Address of vrrp_gratuitous_arp_thread() is 0x%p", vrrp_gratuitous_arp_thread);
-	log_message(LOG_INFO, "Address of vrrp_lower_prio_gratuitous_arp_thread() is 0x%p", vrrp_lower_prio_gratuitous_arp_thread);
-	log_message(LOG_INFO, "Address of vrrp_script_child_thread() is 0x%p", vrrp_script_child_thread);
-	log_message(LOG_INFO, "Address of vrrp_script_thread() is 0x%p", vrrp_script_thread);
-	log_message(LOG_INFO, "Address of vrrp_read_dispatcher_thread() is 0x%p", vrrp_read_dispatcher_thread);
+	register_thread_address("vrrp_arp_thread", vrrp_arp_thread);
+	register_thread_address("vrrp_dispatcher_init", vrrp_dispatcher_init);
+	register_thread_address("vrrp_gratuitous_arp_thread", vrrp_gratuitous_arp_thread);
+	register_thread_address("vrrp_lower_prio_gratuitous_arp_thread", vrrp_lower_prio_gratuitous_arp_thread);
+	register_thread_address("vrrp_script_child_thread", vrrp_script_child_thread);
+	register_thread_address("vrrp_script_thread", vrrp_script_thread);
+	register_thread_address("vrrp_read_dispatcher_thread", vrrp_read_dispatcher_thread);
+#ifdef _WITH_BFD_
+	register_thread_address("vrrp_bfd_thread", vrrp_bfd_thread);
+#endif
 }
 #endif

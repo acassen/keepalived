@@ -27,5 +27,8 @@
 
 extern int bfd_dispatcher_init(thread_t *);
 extern void bfd_dispatcher_release(bfd_data_t *);
+#ifdef _EPOLL_DEBUG_
+extern void register_bfd_scheduler_addresses(void);
+#endif
 
 #endif				/* _BFD_SCHEDULER_H_ */

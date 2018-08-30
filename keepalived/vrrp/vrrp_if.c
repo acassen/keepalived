@@ -65,6 +65,9 @@
 #include "vrrp_track.h"
 #include "vrrp_scheduler.h"
 #include "vrrp_iproute.h"
+#ifdef _EPOLL_DEBUG_
+#include "scheduler.h"
+#endif
 
 
 /* Local vars */
@@ -998,14 +1001,6 @@ if_setsockopt_no_receive(int *sd)
 	return *sd;
 }
 
-#ifdef _TIMER_DEBUG_
-void
-print_vrrp_if_addresses(void)
-{
-	log_message(LOG_INFO, "Address of if_linkbeat_refresh_thread() is 0x%p", if_linkbeat_refresh_thread);
-}
-#endif
-
 void
 interface_up(interface_t *ifp)
 {
@@ -1203,3 +1198,11 @@ update_added_interface(interface_t *ifp)
 		setup_interface(vrrp);
 	}
 }
+
+#ifdef _EPOLL_DEBUG_
+void
+register_vrrp_if_addresses(void)
+{
+	register_thread_address("if_linkbeat_refresh_thread", if_linkbeat_refresh_thread);
+}
+#endif

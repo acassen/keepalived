@@ -48,6 +48,9 @@
 #include "layer4.h"
 #include "ipwrapper.h"
 #include "smtp.h"
+#ifdef _EPOLL_DEBUG_
+#include "scheduler.h"
+#endif
 
 #define	REGISTER_CHECKER_NEW	1
 #define	REGISTER_CHECKER_RETRY	2
@@ -1557,15 +1560,14 @@ http_connect_thread(thread_t * thread)
 	return 0;
 }
 
-#ifdef _TIMER_DEBUG_
+#ifdef _EPOLL_DEBUG_
 void
-print_check_http_addresses(void)
+register_check_http_addresses(void)
 {
-	log_message(LOG_INFO, "Address of dump_http_get_check() is 0x%p", dump_http_get_check);
-	log_message(LOG_INFO, "Address of http_check_thread() is 0x%p", http_check_thread);
-	log_message(LOG_INFO, "Address of http_connect_thread() is 0x%p", http_connect_thread);
-	log_message(LOG_INFO, "Address of http_read_thread() is 0x%p", http_read_thread);
-	log_message(LOG_INFO, "Address of http_request_thread() is 0x%p", http_request_thread);
-	log_message(LOG_INFO, "Address of http_response_thread() is 0x%p", http_response_thread);
+	register_thread_address("http_check_thread", http_check_thread);
+	register_thread_address("http_connect_thread", http_connect_thread);
+	register_thread_address("http_read_thread", http_read_thread);
+	register_thread_address("http_request_thread", http_request_thread);
+	register_thread_address("http_response_thread", http_response_thread);
 }
 #endif

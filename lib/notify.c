@@ -1176,3 +1176,11 @@ notify_script_compare(notify_script_t *a, notify_script_t *b)
 
 	return true;
 }
+
+#ifdef _EPOLL_DEBUG_
+void
+register_notify_addresses(void)
+{
+	register_thread_address("child_killed_thread", child_killed_thread);
+}
+#endif

@@ -1131,3 +1131,16 @@ bfd_dispatcher_init(thread_t *thread)
 
 	return 0;
 }
+
+
+#ifdef _EPOLL_DEBUG_
+void
+register_bfd_scheduler_addresses(void)
+{
+	register_thread_address("bfd_sender_thread", bfd_sender_thread);
+	register_thread_address("bfd_expire_thread", bfd_expire_thread);
+	register_thread_address("bfd_reset_thread", bfd_reset_thread);
+	register_thread_address("bfd_receiver_thread", bfd_receiver_thread);
+	register_thread_address("bfd_sender_thread", bfd_sender_thread);
+}
+#endif

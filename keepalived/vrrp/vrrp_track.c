@@ -1085,3 +1085,11 @@ stop_track_files(void)
 		inotify_fd = -1;
 	}
 }
+
+#ifdef _EPOLL_DEBUG_
+void
+register_vrrp_inotify_addresses(void)
+{
+	register_thread_address("process_inotify", process_inotify);
+}
+#endif

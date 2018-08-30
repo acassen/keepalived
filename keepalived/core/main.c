@@ -22,8 +22,6 @@
 
 #include "config.h"
 
-#include "git-commit.h"
-
 #include <stdlib.h>
 #include <sys/utsname.h>
 #include <sys/resource.h>
@@ -77,6 +75,9 @@
 #include "scheduler.h"
 #include "keepalived_netlink.h"
 #include "git-commit.h"
+#ifdef _EPOLL_DEBUG_
+#include "scheduler.h"
+#endif
 
 /* musl libc doesn't define the following */
 #ifndef	W_EXITCODE
@@ -147,49 +148,6 @@ static bool create_core_dump = false;
 static const char *core_dump_pattern = "core";
 static char *orig_core_dump_pattern = NULL;
 
-#ifdef _TIMER_DEBUG_
-extern void print_smtp_addresses(void);
-extern void print_check_daemon_addresses(void);
-extern void print_check_dns_addresses(void);
-extern void print_check_http_addresses(void);
-extern void print_check_misc_addresses(void);
-extern void print_check_smtp_addresses(void);
-extern void print_check_tcp_addresses(void);
-#ifdef _WITH_DBUS_
-extern void print_vrrp_dbus_addresses(void);
-#endif
-extern void print_vrrp_if_addresses(void);
-extern void print_vrrp_netlink_addresses(void);
-extern void print_vrrp_daemon_addresses(void);
-extern void print_check_ssl_addresses(void);
-extern void print_vrrp_scheduler_addresses(void);
-
-void global_print(void)
-{
-	print_smtp_addresses();
-#ifdef _WITH_LVS_
-	print_check_daemon_addresses();
-	print_check_dns_addresses();
-	print_check_http_addresses();
-	print_check_misc_addresses();
-	print_check_smtp_addresses();
-	print_check_ssl_addresses();
-	print_check_tcp_addresses();
-#ifdef _WITH_BFD_
-	print_check_bfd_addresses();
-#endif
-#endif
-#ifdef _WITH_VRRP_
-#ifdef _WITH_DBUS_
-	print_vrrp_dbus_addresses();
-#endif
-	print_vrrp_if_addresses();
-	print_vrrp_netlink_addresses();
-	print_vrrp_daemon_addresses();
-	print_vrrp_scheduler_addresses();
-#endif
-}
-#endif
 
 void
 free_parent_mallocs_startup(bool am_child)
@@ -1276,6 +1234,29 @@ parse_cmdline(int argc, char **argv)
 	return reopen_log;
 }
 
+#ifdef _EPOLL_DEBUG_
+static void
+register_parent_thread_addresses(void)
+{
+	register_scheduler_addresses();
+	register_signal_thread_addresses();
+
+#ifdef _WITH_LVS_
+	register_check_parent_addresses();
+#endif
+#ifdef _WITH_VRRP_
+	register_vrrp_parent_addresses();
+#endif
+#ifdef _WITH_BFD_
+	register_bfd_parent_addresses();
+#endif
+
+	register_signal_handler_address("propogate_signal", propogate_signal);
+	register_signal_handler_address("sigend", sigend);
+	register_signal_handler_address("thread_child_handler", thread_child_handler);
+}
+#endif
+
 /* Entry point */
 int
 keepalived_main(int argc, char **argv)
@@ -1452,10 +1433,6 @@ keepalived_main(int argc, char **argv)
 				global_data->instance_name);
 	}
 
-#ifdef _TIMER_DEBUG_
-	global_print();
-#endif
-
 	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
 		if (use_pid_dir) {
 			/* Create the directory for pid files */
@@ -1569,11 +1546,19 @@ keepalived_main(int argc, char **argv)
 	if (!start_keepalived())
 		log_message(LOG_INFO, "Warning - keepalived has no configuration to run");
 
+#ifdef _EPOLL_DEBUG_
+	register_parent_thread_addresses();
+#endif
+
 	/* Launch the scheduling I/O multiplexer */
 	launch_thread_scheduler(master);
 
 	/* Finish daemon process */
 	stop_keepalived();
+
+#ifdef _EPOLL_DEBUG_
+	deregister_thread_addresses();
+#endif
 
 	/*
 	 * Reached when terminate signal catched.

@@ -39,6 +39,9 @@
 #include "bfd_event.h"
 #include "bfd_daemon.h"
 #include "bitops.h"
+#ifdef _EPOLL_DEBUG_
+#include "scheduler.h"
+#endif
 
 /* local data */
 static thread_t *bfd_thread;
@@ -308,11 +311,10 @@ checker_bfd_dispatcher_release(void)
 	thread_cancel(bfd_thread);
 }
 
-#ifdef _TIMER_DEBUG_
+#ifdef _EPOLL_DEBUG_
 void
-print_check_bfd_addresses(void)
+register_check_bfd_addresses(void)
 {
-	log_message(LOG_INFO, "Address of dump_bfd_check() is 0x%p", dump_bfd_check);
-	log_message(LOG_INFO, "Address of bfd_check_thread() is 0x%p", bfd_check_thread);
+	register_thread_address("bfd_check_thread", bfd_check_thread);
 }
 #endif
