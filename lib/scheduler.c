@@ -650,7 +650,7 @@ thread_event_set(thread_t *thread)
 	return 0;
 }
 
-int
+static int
 thread_event_cancel(thread_t *thread)
 {
 	thread_event_t *event = thread->event;
@@ -1238,6 +1238,19 @@ thread_del_write(thread_t *thread)
 		return -1;
 
 	return 0;
+}
+
+void
+thread_close_fd(thread_t *thread)
+{
+	if (thread->u.fd == -1)
+		return;
+
+	if (thread->event)
+		thread_event_cancel(thread);
+
+	close(thread->u.fd);
+	thread->u.fd = -1;
 }
 
 /* Add timer event thread. */

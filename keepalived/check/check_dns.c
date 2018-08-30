@@ -119,9 +119,7 @@ dns_final(thread_t * thread, int error, const char *fmt, ...)
 	DNS_DBG("final error=%d attempts=%d retry=%d", error,
 		checker->retry_it, checker->retry);
 
-	thread_event_cancel(thread);
-	close(thread->u.fd);
-	thread->u.fd = -1;
+	thread_close_fd(thread);
 
 	if (error) {
 		if (checker->is_up || !checker->has_run) {

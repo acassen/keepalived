@@ -28,6 +28,7 @@
 
 #include "layer4.h"
 #include "logger.h"
+#include "scheduler.h"
 
 #ifndef _WITH_LVS_
 static
@@ -116,7 +117,7 @@ socket_state(thread_t * thread, int (*func) (thread_t *))
 
 	/* Handle connection timeout */
 	if (thread->type == THREAD_WRITE_TIMEOUT) {
-		close(thread->u.fd);
+		thread_close_fd(thread);
 		return connect_timeout;
 	}
 
@@ -127,7 +128,7 @@ socket_state(thread_t * thread, int (*func) (thread_t *))
 
 	/* Connection failed !!! */
 	if (ret) {
-		close(thread->u.fd);
+		thread_close_fd(thread);
 		return connect_error;
 	}
 
@@ -146,7 +147,7 @@ socket_state(thread_t * thread, int (*func) (thread_t *))
 		return connect_in_progress;
 	}
 
-	close(thread->u.fd);
+	thread_close_fd(thread);
 	return connect_error;
 }
 

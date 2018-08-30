@@ -534,7 +534,7 @@ quit_code(thread_t * thread, __attribute__((unused)) int status)
 
 	/* final state, we are disconnected from the remote host */
 	free_smtp_all(smtp);
-	close(thread->u.fd);
+	thread_close_fd(thread);
 	return 0;
 }
 

@@ -198,7 +198,6 @@ extern void log_command_line(unsigned);
 #ifndef _DEBUG_
 extern bool report_child_status(int, pid_t, const char *);
 #endif
-extern int thread_event_cancel(thread_t *);
 extern thread_master_t *thread_make_master(void);
 extern thread_t *thread_add_terminate_event(thread_master_t *);
 extern thread_t *thread_add_start_terminate_event(thread_master_t *, int (*)(thread_t *));
@@ -208,7 +207,8 @@ extern thread_t *thread_add_read(thread_master_t *, int (*) (thread_t *), void *
 extern int thread_del_read(thread_t *);
 extern void thread_requeue_read(thread_master_t *, int, unsigned long);
 extern thread_t *thread_add_write(thread_master_t *, int (*) (thread_t *), void *, int, unsigned long);
-extern int thread_del_write(thread_t *thread);
+extern int thread_del_write(thread_t *);
+extern void thread_close_fd(thread_t *);
 extern thread_t *thread_add_timer(thread_master_t *, int (*) (thread_t *), void *, unsigned long);
 extern thread_t *thread_add_timer_shutdown(thread_master_t *, int (*) (thread_t *), void *, unsigned long);
 extern thread_t *thread_add_child(thread_master_t *, int (*) (thread_t *), void *, pid_t, unsigned long);

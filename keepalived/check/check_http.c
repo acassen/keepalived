@@ -886,7 +886,7 @@ epilog(thread_t * thread, int method, unsigned t, unsigned c)
 	if (req) {
 		free_http_request(req);
 		http_get_check->req = NULL;
-		close(thread->u.fd);
+		thread_close_fd(thread);
 	}
 
 	/* Register next checker thread */

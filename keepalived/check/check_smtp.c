@@ -287,7 +287,7 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 	bool rs_was_alive;
 
 	/* Error or no error we should always have to close the socket */
-	close(thread->u.fd);
+	thread_close_fd(thread);
 
 	/* If we're here, an attempt HAS been made already for the current host */
 	checker->retry_it++;
