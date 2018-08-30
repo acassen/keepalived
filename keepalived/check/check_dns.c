@@ -63,6 +63,7 @@ const dns_type_t DNS_TYPE[] = {
 };
 
 static int dns_connect_thread(thread_t *);
+static int dns_send_thread(thread_t *);
 
 static uint16_t
 dns_type_lookup(const char *label)
@@ -283,19 +284,13 @@ dns_make_query(thread_t * thread)
 	return 0;
 }
 
-static int
-dns_send_thread(thread_t * thread)
+static void
+dns_send(thread_t *thread)
 {
-	unsigned long timeout;
-	ssize_t ret;
-
 	checker_t *checker = THREAD_ARG(thread);
 	dns_check_t *dns_check = CHECKER_ARG(checker);
-
-	if (thread->type == THREAD_WRITE_TIMEOUT) {
-		dns_final(thread, 1, "write timeout to socket.");
-		return 0;
-	}
+	unsigned long timeout;
+	ssize_t ret;
 
 	timeout = timer_long(thread->sands) - timer_long(time_now);
 
@@ -304,20 +299,31 @@ dns_send_thread(thread_t * thread)
 		if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
 			thread_add_write(thread->master, dns_send_thread,
 					 checker, thread->u.fd, timeout);
-			return 0;
+			return;
 		}
 		dns_final(thread, 1, "failed to write socket.");
-		return 0;
+		return;
 	}
 
 	if (ret != (ssize_t) dns_check->slen) {
 		dns_final(thread, 1, "failed to write all of the datagram.");
+		return;
+	}
+
+	thread_add_read(thread->master, dns_recv_thread, checker, thread->u.fd, timeout);
+
+	return;
+}
+
+static int
+dns_send_thread(thread_t * thread)
+{
+	if (thread->type == THREAD_WRITE_TIMEOUT) {
+		dns_final(thread, 1, "write timeout to socket.");
 		return 0;
 	}
 
-	thread_add_read(thread->master, dns_recv_thread, checker, thread->u.fd,
-			timeout);
-	thread_del_write(thread);
+	dns_send(thread);
 
 	return 0;
 }
@@ -326,9 +332,6 @@ static int
 dns_check_thread(thread_t * thread)
 {
 	int status;
-	unsigned long timeout;
-
-	checker_t *checker = THREAD_ARG(thread);
 
 	if (thread->type == THREAD_WRITE_TIMEOUT) {
 		dns_final(thread, 1, "write timeout to socket.");
@@ -350,10 +353,11 @@ dns_check_thread(thread_t * thread)
 		break;
 	case connect_success:
 		dns_make_query(thread);
-		timeout = timer_long(thread->sands) - timer_long(time_now);
-// This is silly - we know it is writeable
-		thread_add_write(thread->master, dns_send_thread, checker,
-				 thread->u.fd, timeout);
+		dns_send(thread);
+
+		/* Cancel the write after the read is added to avoid the
+		 * file descriptor being removed */
+		thread_del_write(thread);
 		break;
 	}
 
@@ -397,6 +401,14 @@ dns_connect_thread(thread_t * thread)
 #endif
 
 	status = socket_bind_connect(fd, co);
+
+	if (status == connect_success) {
+		thread->u.fd = fd;
+		dns_make_query(thread);
+		dns_send(thread);
+
+		return 0;
+	}
 
 	/* handle connection status & register check worker thread */
 	if (socket_connection_state(fd, status, thread, dns_check_thread, co->connection_to)) {
