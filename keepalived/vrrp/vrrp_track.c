@@ -1010,7 +1010,7 @@ init_track_files(list track_files)
 		if (resolved_path) {
 			if (strcmp(tfile->file_path, resolved_path)) {
 				FREE(tfile->file_path);
-				tfile->file_path = MALLOC(strlen(resolved_path + 1));
+				tfile->file_path = MALLOC(strlen(resolved_path) + 1);
 				strcpy(tfile->file_path, resolved_path);
 			}
 
