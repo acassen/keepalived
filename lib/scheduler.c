@@ -571,7 +571,9 @@ thread_events_resize(thread_master_t *m, int delta)
 	new_size = ((m->epoll_count / THREAD_EPOLL_REALLOC_THRESH) + 1);
 	new_size *= THREAD_EPOLL_REALLOC_THRESH;
 
-	m->epoll_events = REALLOC(m->epoll_events, new_size * sizeof(struct epoll_event));
+	if (m->epoll_events)
+		FREE(m->epoll_events);
+	m->epoll_events = MALLOC(new_size * sizeof(struct epoll_event));
 	if (!m->epoll_events) {
 		m->epoll_size = 0;
 		return -1;
@@ -929,6 +931,10 @@ thread_cleanup_master(thread_master_t * m)
 
 	/* Clean garbage */
 	thread_clean_unuse(m);
+
+	FREE(m->epoll_events);
+	m->epoll_size = 0;
+	m->epoll_count = 0;
 }
 
 /* Stop thread scheduler. */
