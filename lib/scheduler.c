@@ -908,6 +908,13 @@ thread_destroy_rb(thread_master_t *m, rb_root_t *root)
 
 	rb_for_each_entry_safe(thread, thread_tmp, root, n) {
 		rb_erase(&thread->n, root);
+
+		/* Do we have a thread_event, and does it need deleting? */
+		if (thread->type == THREAD_READ)
+			thread_del_read(thread);
+		else if (thread->type == THREAD_WRITE)
+			thread_del_write(thread);
+
 		thread->type = THREAD_UNUSED;
 		INIT_LIST_HEAD(&thread->next);
 		list_add_tail(&thread->next, &m->unuse);
@@ -935,6 +942,14 @@ thread_cleanup_master(thread_master_t * m)
 	FREE(m->epoll_events);
 	m->epoll_size = 0;
 	m->epoll_count = 0;
+
+	m->timer_thread = NULL;
+
+#ifdef _WITH_SNMP_
+	m->snmp_timer_thread = NULL;
+	FD_ZERO(&m->snmp_fdset);
+	m->snmp_fdsetsize = 0;
+#endif
 }
 
 /* Stop thread scheduler. */
