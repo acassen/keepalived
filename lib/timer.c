@@ -27,9 +27,15 @@
 #include <sys/time.h>
 
 #include "timer.h"
+#ifdef _TIMER_CHECK_
+#include "logger.h"
+#endif
 
 /* time_now holds current time */
 timeval_t time_now;
+#ifdef _TIMER_CHECK_
+timeval_t last_time;
+#endif
 
 timeval_t
 timer_add_long(timeval_t a, unsigned long b)
@@ -117,22 +123,42 @@ monotonic_gettimeofday(timeval_t *now)
 
 /* current time */
 timeval_t
+#ifdef _TIMER_CHECK_
+timer_now_r(const char *file, const char *function, int line_no)
+#else
 timer_now(void)
+#endif
 {
 	timeval_t curr_time;
 
 	/* init timer */
 	monotonic_gettimeofday(&curr_time);
 
+#ifdef _TIMER_CHECK_
+	unsigned long timediff = (curr_time.tv_sec - last_time.tv_sec) * 1000000 + curr_time.tv_usec - last_time.tv_usec;
+	log_message(LOG_INFO, "timer_now called from %s %s:%d - difference %lu usec", file, function, line_no, timediff);
+	last_time = curr_time;
+#endif
+
 	return curr_time;
 }
 
 /* sets and returns current time from system time */
 timeval_t
+#ifdef _TIMER_CHECK_
+set_time_now_r(const char *file, const char *function, int line_no)
+#else
 set_time_now(void)
+#endif
 {
 	/* init timer */
 	monotonic_gettimeofday(&time_now);
+
+#ifdef _TIMER_CHECK_
+	unsigned long timediff = (time_now.tv_sec - last_time.tv_sec) * 1000000 + time_now.tv_usec - last_time.tv_usec;
+	log_message(LOG_INFO, "set_time_now called from %s %s:%d, difference %lu usec", file, function, line_no, timediff);
+	last_time = time_now;
+#endif
 
 	return time_now;
 }

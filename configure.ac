@@ -209,6 +209,8 @@ AC_ARG_ENABLE(mem-check,
   [AS_HELP_STRING([--enable-mem-check], [compile with memory alloc checking])])
 AC_ARG_ENABLE(mem-check-log,
   [AS_HELP_STRING([--enable-mem-check-log], [compile with memory alloc checking writing to syslog])])
+AC_ARG_ENABLE(timer-check,
+  [AS_HELP_STRING([--enable-timer-check], [compile with set time logging])])
 AC_ARG_ENABLE(debug,
   [AS_HELP_STRING([--enable-debug], [compile with debugging flags])])
 AC_ARG_ENABLE(netlink-timers,
@@ -1702,6 +1704,14 @@ if test "${enable_mem_check}" = "yes"; then
   fi
 fi
 
+dnl ----[ Memory alloc check or not ? ]----
+TIMER_CHECK=No
+if test "${enable_timer_check}" = "yes"; then
+  TIMER_CHECK=Yes
+  AC_DEFINE([_TIMER_CHECK_], [ 1 ], [Define to 1 to build with set time logging])
+  add_config_opt([TIMER_CHECK])
+fi
+
 dnl ----[ Debug or not ? ]----
 if test "${enable_debug}" = yes; then
   AC_DEFINE([_DEBUG_], [ 1 ], [Define to 1 to build with debugging support])
@@ -1934,6 +1944,9 @@ fi
 if test ${MEM_CHECK} = Yes; then
   echo "Memory alloc check       : ${MEM_CHECK}"
   echo "Memory alloc check log   : ${MEM_CHECK_LOG}"
+fi
+if test ${TIMER_CHECK} = Yes; then
+  echo "Set time logging         : ${TIMER_CHECK}"
 fi
 if test ${ENABLE_DUMP_THREADS} = Yes; then
   echo "Thread debugging         : ${ENABLE_DUMP_THREADS}"

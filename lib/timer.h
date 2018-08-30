@@ -43,9 +43,19 @@ extern timeval_t time_now;
 /* Some useful macros */
 #define timer_long(T) (unsigned long)(((T).tv_sec * TIMER_HZ + (T).tv_usec))
 
+#ifdef _TIMER_CHECK_
+#define timer_now()	timer_now_r((__FILE__), (char *)(__FUNCTION__), (__LINE__))
+#define set_time_now()	set_time_now_r((__FILE__), (char *)(__FUNCTION__), (__LINE__))
+#endif
+
 /* prototypes */
+#ifdef _TIMER_CHECK_
+extern timeval_t timer_now_r(const char *, const char *, int);
+extern timeval_t set_time_now_r(const char *, const char *, int);
+#else
 extern timeval_t timer_now(void);
 extern timeval_t set_time_now(void);
+#endif
 extern timeval_t timer_add_long(timeval_t, unsigned long);
 extern timeval_t timer_sub_long(timeval_t, unsigned long);
 extern timeval_t timer_sub_now(timeval_t);
