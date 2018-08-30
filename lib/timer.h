@@ -40,6 +40,8 @@ extern timeval_t time_now;
 #define TIMER_NEVER		ULONG_MAX	/* Used with time intervals in TIMER_HZ units */
 #define TIMER_DISABLED		LONG_MIN	/* Value in timeval_t tv_sec */
 
+#define	NSEC_PER_SEC		1000000000U	/* nanoseconds per second. Avoids typos by having a definition */
+
 /* Some useful macros */
 #define timer_long(T) (unsigned long)(((T).tv_sec * TIMER_HZ + (T).tv_usec))
 

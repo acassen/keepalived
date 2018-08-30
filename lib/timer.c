@@ -25,6 +25,8 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/time.h>
+#include <time.h>
+#include <stdbool.h>
 
 #include "timer.h"
 #ifdef _TIMER_CHECK_
@@ -72,52 +74,73 @@ timer_sub_long(timeval_t a, unsigned long b)
 	return a;
 }
 
-/* This function is a wrapper for gettimeofday(). It uses local storage to
- * guarantee that the returned time will always be monotonic. If the time goes
- * backwards, it returns the same as previous one and readjust its internal
- * drift. It is designed * to be used as a drop-in replacement of
- * gettimeofday(&now, NULL). It will normally return 0, unless <now> is NULL,
- * in which case it will return -1 and set errno to EFAULT.
+static void set_mono_offset(struct timespec *ts)
+{
+	struct timespec realtime, realtime_1, mono_offset;
+
+	/* Calculate the offset of the realtime clock from the monotonic
+	 * clock. We read the realtime clock twice and take the mean,
+	 * which should then make it very close to the time the monotonic
+	 * clock was read. */
+	clock_gettime(CLOCK_REALTIME, &realtime);
+	clock_gettime(CLOCK_MONOTONIC, &mono_offset);
+	clock_gettime(CLOCK_REALTIME, &realtime_1);
+
+	/* Calculate the mean realtime */
+	realtime.tv_nsec = (realtime.tv_nsec + realtime_1.tv_nsec) / 2;
+	if ((realtime.tv_sec + realtime_1.tv_sec) & 1)
+		realtime.tv_nsec += NSEC_PER_SEC / 2;
+	realtime.tv_sec = (realtime.tv_sec + realtime_1.tv_sec) / 2;
+
+	if (realtime.tv_nsec < mono_offset.tv_nsec) {
+		realtime.tv_nsec += NSEC_PER_SEC;
+		realtime.tv_sec--;
+	}
+	realtime.tv_sec -= mono_offset.tv_sec;
+	realtime.tv_nsec -= mono_offset.tv_nsec;
+
+	*ts = realtime;
+}
+
+/* This function is a wrapper for gettimeofday(). It uses the monotonic clock to
+ * guarantee that the returned time will always be monotonicly increasing.
+ * When called for the first time it calculates the difference between the
+ * monotonic clock and the realtime clock, and this difference is then subsequently
+ * added to the monotonic clock to return a monotonic approximation to realtime.
+ *
+ * It is designed to be used as a drop-in replacement of gettimeofday(&now, NULL).
+ * It will normally return 0, unless <now> is NULL, in which case it will
+ * return -1 and set errno to EFAULT.
  */
 static int
 monotonic_gettimeofday(timeval_t *now)
 {
-	static timeval_t mono_date;
-	static timeval_t drift; /* warning: signed seconds! */
-	timeval_t sys_date, adjusted;
+	static struct timespec mono_offset;
+	static bool initialised = false;
+	struct timespec cur_time;
 
 	if (!now) {
 		errno = EFAULT;
 		return -1;
 	}
 
-	gettimeofday(&sys_date, NULL);
-
-	/* on first call, we set mono_date to system date */
-	if (mono_date.tv_sec == 0) {
-		mono_date = sys_date;
-		timerclear(&drift);
-		*now = mono_date;
-		return 0;
+	if (!initialised) {
+		set_mono_offset(&mono_offset);
+		initialised = true;
 	}
 
-	/* compute new adjusted time by adding the drift offset */
-	timeradd(&sys_date, &drift, &adjusted);
-
-	/* check for jumps in the past, and bound to last date */
-	if (timercmp(&adjusted, &mono_date, >=)) {
-		/* adjusted date is correct */
-		mono_date = adjusted;
-	} else {
-		/* Now we have to recompute the drift between sys_date and
-		 * mono_date. Since it can be negative and we don't want to
-		 * play with negative carries in all computations, we take
-		 * care of always having the microseconds positive.
-		 */
-		timersub(&mono_date, &sys_date, &drift);
+	/* Read the monotonic clock and add the offset we initially
+	 * calculated of the realtime clock */
+	clock_gettime(CLOCK_MONOTONIC, &cur_time);
+	cur_time.tv_sec += mono_offset.tv_sec;
+	cur_time.tv_nsec += mono_offset.tv_nsec;
+	if (cur_time.tv_nsec > NSEC_PER_SEC) {
+		cur_time.tv_nsec -= NSEC_PER_SEC;
+		cur_time.tv_sec++;
 	}
+	now->tv_sec = cur_time.tv_sec;
+	now->tv_usec = cur_time.tv_nsec / 1000;
 
-	*now = mono_date;
 	return 0;
 }
 

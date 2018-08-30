@@ -465,13 +465,13 @@ body_cmd(thread_t * thread)
 	smtp_t *smtp = THREAD_ARG(thread);
 	char *buffer;
 	char rfc822[80];
-	time_t tm;
+	time_t now;
 	struct tm *t;
 
 	buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
 
-	time(&tm);
-	t = localtime(&tm);
+	time(&now);
+	t = localtime(&now);
 	strftime(rfc822, sizeof(rfc822), "%a, %d %b %Y %H:%M:%S %z", t);
 
 	snprintf(buffer, SMTP_BUFFER_MAX, SMTP_HEADERS_CMD,
@@ -572,11 +572,13 @@ static void
 smtp_log_to_file(smtp_t *smtp)
 {
 	FILE *fp = fopen("/tmp/smtp-alert.log", "a");
+	time_t now;
 	struct tm tm;
 	char time_buf[25];
 	int time_buf_len;
 
-	localtime_r(&time_now.tv_sec, &tm);
+	time(&now);
+	localtime_r(&now, &tm);
 	time_buf_len = strftime(time_buf, sizeof time_buf, "%a %b %e %X %Y", &tm);
 
 	fprintf(fp, "%s: %s -> %s\n"
