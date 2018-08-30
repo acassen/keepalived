@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <sys/timerfd.h>
 
 #include "timer.h"
 #include "list.h"
@@ -88,9 +89,16 @@ typedef struct _thread_master {
 	thread_list_t ready;
 	thread_list_t unuse;
 	list child_pid_index;
+
+	/* select related */
 	fd_set readfd;
 	fd_set writefd;
 	int max_fd;
+
+	/* timer related */
+	int timer_fd;
+
+	/* local data */
 	unsigned long alloc;
 	bool shutdown_timer_running;
 } thread_master_t;

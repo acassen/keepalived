@@ -32,50 +32,38 @@
 timeval_t time_now;
 
 timeval_t
-timer_add_secs(timeval_t a, time_t secs)
+timer_add_long(timeval_t a, unsigned long b)
 {
-	a.tv_sec += secs;
+	if (b == TIMER_NEVER)
+	{
+		a.tv_usec = TIMER_HZ - 1;
+		a.tv_sec = LONG_MAX;
+
+		return a;
+	}
+
+	a.tv_usec += b % TIMER_HZ;
+	a.tv_sec += b / TIMER_HZ;
+
+	if (a.tv_usec >= TIMER_HZ) {
+		a.tv_sec++;
+		a.tv_usec -= TIMER_HZ;
+	}
 
 	return a;
 }
 
 timeval_t
-timer_add_long(timeval_t a, unsigned long b)
-{
-	timeval_t ret;
-
-	if (b == TIMER_NEVER)
-	{
-		ret.tv_usec = TIMER_HZ - 1;
-		ret.tv_sec = LONG_MAX;
-
-		return ret;
-	}
-
-	ret.tv_usec = a.tv_usec + (int)(b % TIMER_HZ);
-	ret.tv_sec = a.tv_sec + (int)(b / TIMER_HZ);
-
-	if (ret.tv_usec >= (int)TIMER_HZ) {
-		ret.tv_sec++;
-		ret.tv_usec -= TIMER_HZ;
-	}
-
-	return ret;
-}
-
-timeval_t
 timer_sub_long(timeval_t a, unsigned long b)
 {
-	timeval_t ret;
-
-	if (a.tv_usec < (int)(b % TIMER_HZ)) {
+	if (a.tv_usec < (suseconds_t)(b % TIMER_HZ)) {
 		a.tv_usec += TIMER_HZ;
 		a.tv_sec--;
 	}
-	ret.tv_usec = a.tv_usec - (int)(b % TIMER_HZ);
-	ret.tv_sec = a.tv_sec - (int)(b / TIMER_HZ);
+	a.tv_usec -= b % TIMER_HZ;
+	a.tv_sec -= b / TIMER_HZ;
 
-	return ret;
+	return a;
 }
 
 /* This function is a wrapper for gettimeofday(). It uses local storage to
@@ -97,8 +85,6 @@ monotonic_gettimeofday(timeval_t *now)
 		return -1;
 	}
 
-	timerclear(now);
-
 	gettimeofday(&sys_date, NULL);
 
 	/* on first call, we set mono_date to system date */
@@ -113,21 +99,18 @@ monotonic_gettimeofday(timeval_t *now)
 	timeradd(&sys_date, &drift, &adjusted);
 
 	/* check for jumps in the past, and bound to last date */
-	if (timercmp(&adjusted, &mono_date, <))
-		goto fixup;
+	if (timercmp(&adjusted, &mono_date, >=)) {
+		/* adjusted date is correct */
+		mono_date = adjusted;
+	} else {
+		/* Now we have to recompute the drift between sys_date and
+		 * mono_date. Since it can be negative and we don't want to
+		 * play with negative carries in all computations, we take
+		 * care of always having the microseconds positive.
+		 */
+		timersub(&mono_date, &sys_date, &drift);
+	}
 
-	/* adjusted date is correct */
-	mono_date = adjusted;
-	*now = mono_date;
-	return 0;
-
- fixup:
-	/* Now we have to recompute the drift between sys_date and
-	 * mono_date. Since it can be negative and we don't want to
-	 * play with negative carries in all computations, we take
-	 * care of always having the microseconds positive.
-	 */
-	timersub(&mono_date, &sys_date, &drift);
 	*now = mono_date;
 	return 0;
 }
@@ -180,9 +163,7 @@ timer_add_now(timeval_t a)
 unsigned long
 timer_tol(timeval_t a)
 {
-	unsigned long timer;
-	timer = (unsigned long)a.tv_sec * TIMER_HZ + (unsigned long)a.tv_usec;
-	return timer;
+	return (unsigned long)a.tv_sec * TIMER_HZ + (unsigned long)a.tv_usec;
 }
 
 #ifdef _INCLUDE_UNUSED_CODE_

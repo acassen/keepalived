@@ -46,7 +46,6 @@ extern timeval_t time_now;
 /* prototypes */
 extern timeval_t timer_now(void);
 extern timeval_t set_time_now(void);
-extern timeval_t timer_add_secs(timeval_t, time_t);
 extern timeval_t timer_add_long(timeval_t, unsigned long);
 extern timeval_t timer_sub_long(timeval_t, unsigned long);
 extern timeval_t timer_sub_now(timeval_t);

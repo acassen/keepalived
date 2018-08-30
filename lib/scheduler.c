@@ -38,6 +38,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <sys/wait.h>
+#include <sys/timerfd.h>
 #include <unistd.h>
 #ifdef HAVE_SIGNALFD
 #include <sys/signalfd.h>
@@ -83,6 +84,8 @@ static thread_t *(*child_finder)(pid_t);
 static void (*child_remover)(thread_t *);
 static void (*child_finder_destroy)(void);
 static size_t child_finder_list_size;
+
+static int thread_timerfd_handler(thread_t *);
 
 static size_t
 get_pid_hash(pid_t pid)
@@ -361,6 +364,31 @@ thread_make_master(void)
 	thread_master_t *new;
 
 	new = (thread_master_t *) MALLOC(sizeof (thread_master_t));
+
+	/* Register timerfd thread */
+	new->timer_fd = timerfd_create(CLOCK_MONOTONIC,
+#ifdef TFD_NONBLOCK				/* Since Linux 2.6.27 */
+						        TFD_NONBLOCK | TFD_CLOEXEC
+#else
+							0
+#endif
+										  );
+	if (new->timer_fd < 0) {
+		log_message(LOG_ERR, "scheduler: Cant create timerfd (%m)");
+		FREE(new);
+		return NULL;
+	}
+
+#ifndef TFD_NONBLOCK
+	if (set_sock_flags(new->timer_fd, F_SETFL, O_NONBLOCK))
+		log_message(LOG_INFO, "Unable to set NONBLOCK on timer_fd - %s (%d)", strerror(errno), errno);
+
+	if (set_sock_flags(new->timer_fd, F_SETFD, FD_CLOEXEC))
+		log_message(LOG_INFO, "Unable to set CLOEXEC on timer_fd - %s (%d)", strerror(errno), errno);
+#endif
+
+	thread_add_read(new, thread_timerfd_handler, NULL, new->timer_fd, TIMER_NEVER);
+
 	return new;
 }
 
@@ -519,6 +547,9 @@ thread_cleanup_master(thread_master_t * m)
 void
 thread_destroy_master(thread_master_t * m)
 {
+	if (m->timer_fd)
+		close(m->timer_fd);
+
 	thread_cleanup_master(m);
 	FREE(m);
 }
@@ -928,31 +959,71 @@ thread_update_timer(thread_list_t *list, timeval_t *timer_min)
 
 /* Compute the wait timer. Take care of timeouted fd */
 static void
-thread_compute_timer(thread_master_t * m, timeval_t * timer_wait)
+thread_set_timer(thread_master_t *m)
 {
-	timeval_t timer_min;
+	timeval_t timer_wait;
+	struct itimerspec its;
 
 	/* Prepare timer */
-	timerclear(&timer_min);
-	thread_update_timer(&m->timer, &timer_min);
-	thread_update_timer(&m->write, &timer_min);
-	thread_update_timer(&m->read, &timer_min);
-	thread_update_timer(&m->child, &timer_min);
+	timerclear(&timer_wait);
+	thread_update_timer(&m->timer, &timer_wait);
+	thread_update_timer(&m->write, &timer_wait);
+	thread_update_timer(&m->read, &timer_wait);
+	thread_update_timer(&m->child, &timer_wait);
 
-	if (timerisset(&timer_min)) {
+	if (timerisset(&timer_wait)) {
+		/* Re-read the current time to get the maximum accuracy */
+		set_time_now();
+
 		/* Take care about monotonic clock */
-		timersub(&timer_min, &time_now, &timer_min);
-		if (timer_min.tv_sec < 0) {
-			timer_min.tv_sec = timer_min.tv_usec = 0;
-		}
+		timersub(&timer_wait, &time_now, &timer_wait);
 
-		timer_wait->tv_sec = timer_min.tv_sec;
-		timer_wait->tv_usec = timer_min.tv_usec;
+		if (timer_wait.tv_sec < 0) {
+			/* This will disable the timerfd */
+			timerclear(&timer_wait);
+		}
 	} else {
 		/* set timer to a VERY long time */
-		timer_wait->tv_sec = LONG_MAX;
-		timer_wait->tv_usec = 0;
+		timer_wait.tv_sec = LONG_MAX;
+		timer_wait.tv_usec = 0;
 	}
+
+	its.it_value.tv_sec = timer_wait.tv_sec;
+	if (!timerisset(&timer_wait)) {
+		/* We really want to avoid doing the select since
+		 * testing shows it takes about 13 microseconds
+		 * for the timer to expire. */
+		its.it_value.tv_nsec = 1;
+	}
+	else
+		its.it_value.tv_nsec = timer_wait.tv_usec * 1000;
+
+	/* We don't want periodic timer expiry */
+	its.it_interval.tv_sec = its.it_interval.tv_nsec = 0;
+
+	timerfd_settime(m->timer_fd, 0, &its, NULL);
+
+#ifdef _SELECT_DEBUG_
+	if (prog_type == PROG_TYPE_VRRP)
+		log_message(LOG_INFO, "setting timer_fd %lu.%9.9ld", its.it_value.tv_sec, its.it_value.tv_nsec);
+#endif
+}
+
+static int
+thread_timerfd_handler(thread_t *thread)
+{
+	thread_master_t *m = thread->master;
+	uint64_t expired;
+	ssize_t len;
+
+	len = read(m->timer_fd, &expired, sizeof(expired));
+	if (len < 0)
+		log_message(LOG_ERR, "scheduler: Error reading on timerfd fd:%d (%m)", m->timer_fd);
+
+	/* Register next timerfd thread */
+	thread_add_read(m, thread_timerfd_handler, NULL, m->timer_fd, TIMER_NEVER);
+
+	return 0;
 }
 
 /* Fetch next ready thread. */
@@ -966,22 +1037,16 @@ thread_fetch_next_queue(thread_master_t *m)
 	thread_t *t;
 	fd_set readfd;
 	fd_set writefd;
-	timeval_t timer_wait;
 	int fdsetsize;
 #ifdef _WITH_SNMP_
 	int snmpblock;
 	timeval_t snmp_timer_wait;
-	bool is_snmp_timer;
 #endif
 	bool timer_expired;
 	bool timers_done;
 
 	assert(m != NULL);
 
-	/* Timer initialization */
-	memset(&timer_wait, 0, sizeof (timeval_t));
-
-retry:	/* When thread can't fetch try to find next thread again. */
 
 	/* If there is event process it first. */
 	if (m->event.head)
@@ -991,12 +1056,9 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	if (m->ready.head)
 		return &m->ready;
 
-	/*
-	 * Re-read the current time to get the maximum accuracy.
-	 * Calculate select wait timer. Take care of timeouted fd.
-	 */
-	set_time_now();
-	thread_compute_timer(m, &timer_wait);
+retry:
+	/* Calculate and set select wait timer. Take care of timeouted fd.  */
+	thread_set_timer(m);
 
 	/* Call select function. */
 	readfd = m->readfd;
@@ -1015,35 +1077,46 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	 * FD. snmp_select_info() will add them to `readfd'. The trick
 	 * with this function is its last argument. We need to set it
 	 * true to set its own timer that we then compare against ours. */
-	is_snmp_timer = false;
 	if (snmp_running) {
 		snmpblock = true;
 		snmp_select_info(&fdsetsize, &readfd, &snmp_timer_wait, &snmpblock);
-		if (!snmpblock && timercmp(&snmp_timer_wait, &timer_wait, <=)) {
-			timer_wait = snmp_timer_wait;
-			is_snmp_timer = true;
-		}
+		if (snmpblock)
+			snmp_timer_wait.tv_sec = LONG_MAX;
+	}
+	else {
+		snmp_timer_wait.tv_sec = LONG_MAX;
+		snmp_timer_wait.tv_usec = 0;
 	}
 #endif
 
 #ifdef _SELECT_DEBUG_
 	if (prog_type == PROG_TYPE_VRRP)
-		log_message(LOG_INFO, "select with timer %lu.%6.6ld, fdsetsize %d, readfds 0x%lx", timer_wait.tv_sec, timer_wait.tv_usec, fdsetsize, readfd.fds_bits[0]);
+#ifdef _WITH_SNMP_
+		log_message(LOG_INFO, "select with snmp timer %lu.%6.6ld, fdsetsize %d, readfds 0x%lx", snmp_timer_wait.tv_sec, snmp_timer_wait.tv_usec, fdsetsize, readfd.fds_bits[0]);
+#else
+		log_message(LOG_INFO, "select with fdsetsize %d, readfds 0x%lx", fdsetsize, readfd.fds_bits[0]);
+#endif
 #endif
 
-	/* Don't call select() if timer_wait is 0 */
 	errno = 0;
-	if (!timerisset(&timer_wait))
-		num_fds = 0;
-	else
-		num_fds = select(fdsetsize, &readfd, &writefd, NULL, &timer_wait);
+	num_fds = select(fdsetsize, &readfd, &writefd, NULL,
+#ifdef _WITH_SNMP_
+							     &snmp_timer_wait
+#else
+							     NULL
+#endif
+									     );
 
 	/* we have to save errno here because the next syscalls will set it */
 	sav_errno = errno;
 
 #ifdef _SELECT_DEBUG_
 	if (prog_type == PROG_TYPE_VRRP)
-		log_message(LOG_INFO, "Select returned %d, errno %d, readfd 0x%lx, writefd 0x%lx, timer %lu.%6.6ld", num_fds, sav_errno, readfd.fds_bits[0], writefd.fds_bits[0], timer_wait.tv_sec, timer_wait.tv_usec);
+#ifdef _WITH_SNMP_
+		log_message(LOG_INFO, "Select returned %d, errno %d, readfd 0x%lx, writefd 0x%lx, timer expired %d, snmp timer %lu.%6.6ld", num_fds, sav_errno, readfd.fds_bits[0], writefd.fds_bits[0], FD_ISSET(m->timer_fd, &readfd), snmp_timer_wait.tv_sec, snmp_timer_wait.tv_usec);
+#else
+		log_message(LOG_INFO, "Select returned %d, errno %d, readfd 0x%lx, writefd 0x%lx, timer expired %d", num_fds, sav_errno, readfd.fds_bits[0], writefd.fds_bits[0], FD_ISSET(m->timer_fd, &readfd));
+#endif
 #endif
 
 	if (num_fds < 0) {
@@ -1065,8 +1138,6 @@ retry:	/* When thread can't fetch try to find next thread again. */
 		goto retry;
 	}
 
-	timer_expired = (num_fds == 0 || !timerisset(&timer_wait));
-
 	/* Handle SNMP stuff */
 #ifdef _WITH_SNMP_
 	if (snmp_running) {
@@ -1075,13 +1146,14 @@ retry:	/* When thread can't fetch try to find next thread again. */
 		 * We would then know if any of snmp's fds were set */
 		if (num_fds > 0)
 			snmp_read(&readfd);
-		else if (timer_expired && is_snmp_timer)
-		{
+		else if (!timerisset(&snmp_timer_wait)) {
 			snmp_timeout();
 			run_alarms();
 		}
 	}
 #endif
+
+	timer_expired = FD_ISSET(m->timer_fd, &readfd);
 
 	/* Update current time */
 	set_time_now();
