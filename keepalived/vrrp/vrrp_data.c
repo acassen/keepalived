@@ -284,8 +284,9 @@ static void
 dump_sock(FILE *fp, void *sock_data)
 {
 	sock_t *sock = sock_data;
-	conf_write(fp, "VRRP sockpool: [ifindex(%u), proto(%u), unicast(%d), fd(%d,%d)]"
+	conf_write(fp, "VRRP sockpool: [ifindex(%u), family(%s), proto(%u), unicast(%d), fd(%d,%d)]"
 			    , sock->ifindex
+			    , sock->family == AF_INET ? "IPv4" : sock->family == AF_INET6 ? "IPv6" : "unknown"
 			    , sock->proto
 			    , sock->unicast
 			    , sock->fd_in
