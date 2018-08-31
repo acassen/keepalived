@@ -1,21 +1,21 @@
 /*
- * Soft:        Keepalived is a failover program for the LVS project
- *              <www.linuxvirtualserver.org>. It monitor & manipulate
- *              a loadbalanced server pool using multi-layer checks.
+ * Soft:	Keepalived is a failover program for the LVS project
+ *		<www.linuxvirtualserver.org>. It monitor & manipulate
+ *		a loadbalanced server pool using multi-layer checks.
  *
- * Part:        scheduler.c include file.
+ * Part:	scheduler.c include file.
  *
- * Author:      Alexandre Cassen, <acassen@linux-vs.org>
+ * Author:	Alexandre Cassen, <acassen@linux-vs.org>
  *
- *              This program is distributed in the hope that it will be useful,
- *              but WITHOUT ANY WARRANTY; without even the implied warranty of
- *              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *              See the GNU General Public License for more details.
+ *		This program is distributed in the hope that it will be useful,
+ *		but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *		MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ *		See the GNU General Public License for more details.
  *
- *              This program is free software; you can redistribute it and/or
- *              modify it under the terms of the GNU General Public License
- *              as published by the Free Software Foundation; either version
- *              2 of the License, or (at your option) any later version.
+ *		This program is free software; you can redistribute it and/or
+ *		modify it under the terms of the GNU General Public License
+ *		as published by the Free Software Foundation; either version
+ *		2 of the License, or (at your option) any later version.
  *
  * Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
  */
@@ -61,22 +61,22 @@ typedef enum {
 
 /* Thread Event flags */
 enum thread_flags {
-        THREAD_FL_READ_BIT,
-        THREAD_FL_WRITE_BIT,
-        THREAD_FL_EPOLL_BIT,
-        THREAD_FL_EPOLL_READ_BIT,
-        THREAD_FL_EPOLL_WRITE_BIT,
+	THREAD_FL_READ_BIT,
+	THREAD_FL_WRITE_BIT,
+	THREAD_FL_EPOLL_BIT,
+	THREAD_FL_EPOLL_READ_BIT,
+	THREAD_FL_EPOLL_WRITE_BIT,
 };
 
 /* epoll def */
-#define THREAD_EPOLL_REALLOC_THRESH     1024
+#define THREAD_EPOLL_REALLOC_THRESH	1024
 
 /* Thread itself. */
 typedef struct _thread {
 	unsigned long id;
 	thread_type_t type;		/* thread type */
 	struct _thread_master *master;	/* pointer to the struct thread_master. */
-	int (*func) (struct _thread *);	/* event function */
+	int (*func)(struct _thread *);	/* event function */
 	void *arg;			/* event argument */
 	timeval_t sands;		/* rest of time sands value. */
 	union {
@@ -87,20 +87,20 @@ typedef struct _thread {
 			int status;	/* return status of the process */
 		} c;
 	} u;
-	struct _thread_event    *event;                         /* Thread Event back-pointer */
+	struct _thread_event *event;	/* Thread Event back-pointer */
 
-	rb_node_t               n;
-	list_head_t             next;
+	rb_node_t n;
+	list_head_t next;
 } thread_t;
 
 /* Thread Event */
 typedef struct _thread_event {
-	thread_t                *read;
-	thread_t                *write;
-	unsigned long           flags;
-	int                     fd;
+	thread_t		*read;
+	thread_t		*write;
+	unsigned long		flags;
+	int			fd;
 
-	rb_node_t               n;
+	rb_node_t		n;
 } thread_event_t;
 
 /* Master of the threads. */
@@ -118,12 +118,12 @@ typedef struct _thread_master {
 	list child_pid_index;
 
 	/* epoll related */
-	rb_root_t               io_events;
-	struct epoll_event      *epoll_events;
-	thread_event_t          *current_event;
-	unsigned int            epoll_size;
-	unsigned int            epoll_count;
-	int                     epoll_fd;
+	rb_root_t		io_events;
+	struct epoll_event	*epoll_events;
+	thread_event_t		*current_event;
+	unsigned int		epoll_size;
+	unsigned int		epoll_count;
+	int			epoll_fd;
 
 	/* timer related */
 	int			timer_fd;
