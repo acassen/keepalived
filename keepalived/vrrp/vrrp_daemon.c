@@ -101,6 +101,58 @@ static char *vrrp_syslog_ident;
 static bool two_phase_terminate;
 #endif
 
+static void
+set_vrrp_max_fds(void)
+{
+	struct rlimit orig_rlim, rlim;
+
+	if (!vrrp_data->vrrp)
+		return;
+
+	if (getrlimit(RLIMIT_NOFILE, &orig_rlim) == -1) {
+		log_message(LOG_INFO, "Failed to get RLIMIT_NOFILE - errno %d (%m)", errno);
+		return;
+	}
+
+	/* Allow:
+	 * 2 per vrrp instance - always needed for VMAC instances
+	 *
+	 * plus:
+	 *
+	 * stdin/stdout/stderr
+	 * logger
+	 * logger file
+	 * timer fd
+	 * inotify fd
+	 * signal fd
+	 * epoll fd
+	 * 3 for SNMP
+	 * 2 for netlink
+	 * bfd pipe
+	 * 2 * notify fifo pipes
+	 * track_file (only one open at a time)
+	 * mem_check file
+	 * USR1/USR2/JSON data
+	 * smtp-alert file
+	 *
+	 * plus:
+	 *
+	 * 20 spare (in case we have forgotten anything)
+	 */
+	rlim.rlim_cur = LIST_SIZE(vrrp_data->vrrp) * 2 + 21 + 20;
+	if (rlim.rlim_cur <= orig_rlim.rlim_cur)
+		return;
+
+	rlim.rlim_max = rlim.rlim_cur;
+
+	if (setrlimit(RLIMIT_NOFILE, &rlim) == -1) {
+		log_message(LOG_INFO, "Failed to set file number limit to %ld - errno %d (%m)", rlim.rlim_cur, errno);
+		return;
+	}
+
+	log_message(LOG_INFO, "Set maximum open files to %ld", rlim.rlim_cur);
+}
+
 #ifdef _WITH_LVS_
 static bool
 vrrp_ipvs_needed(void)
@@ -519,6 +571,8 @@ start_vrrp(void)
 #endif
 			       global_data->vrrp_process_priority, global_data->vrrp_no_swap ? 4096 : 0);
 
+	/* Ensure we can open sufficient file descriptors */
+	set_vrrp_max_fds();
 }
 
 #ifndef _DEBUG_
