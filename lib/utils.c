@@ -54,6 +54,9 @@
 #if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_ || defined _WITH_STACKTRACE_
 #include "logger.h"
 #endif
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
+#include "process.h"
+#endif
 
 /* global vars */
 unsigned long debug = 0;
@@ -651,7 +654,7 @@ fork_exec(char **argv)
 	if (log_file_name)
 		flush_log_file();
 
-	pid = fork();
+	pid = local_fork();
 	if (pid < 0)
 		res = -1;
 	else if (pid == 0) {

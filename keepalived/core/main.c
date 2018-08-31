@@ -78,6 +78,7 @@
 #ifdef _EPOLL_DEBUG_
 #include "scheduler.h"
 #endif
+#include "process.h"
 
 /* musl libc doesn't define the following */
 #ifndef	W_EXITCODE
@@ -827,7 +828,7 @@ update_core_dump_pattern(const char *pattern_str)
 static void
 core_dump_init(void)
 {
-	struct rlimit rlim;
+	struct rlimit orig_rlim, rlim;
 
 	if (set_core_dump_pattern) {
 		/* If we set the core_pattern here, we will attempt to restore it when we
@@ -840,8 +841,12 @@ core_dump_init(void)
 		rlim.rlim_cur = RLIM_INFINITY;
 		rlim.rlim_max = RLIM_INFINITY;
 
-		if (setrlimit(RLIMIT_CORE, &rlim) == -1)
+		if (getrlimit(RLIMIT_CORE, &orig_rlim) == -1)
+			log_message(LOG_INFO, "Failed to get core file size");
+		else if (setrlimit(RLIMIT_CORE, &rlim) == -1)
 			log_message(LOG_INFO, "Failed to set core file size");
+		else
+			set_child_rlimit(RLIMIT_CORE, &orig_rlim);
 	}
 }
 

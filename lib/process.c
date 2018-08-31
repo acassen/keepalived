@@ -49,6 +49,13 @@ static struct rlimit orig_rlimit_rt;
 
 static bool priority_set;
 static int orig_priority;
+static bool process_locked_in_memory;
+
+/* rlimit values to set for child processes */
+static struct rlimit nofile;
+bool rlimit_nofile_set;
+static struct rlimit core;
+bool rlimit_core_set;
 
 static void
 set_process_dont_swap(size_t stack_reserve)
@@ -64,6 +71,8 @@ set_process_dont_swap(size_t stack_reserve)
 
 	if (mlockall(MCL_FUTURE) == -1)
 		log_message(LOG_INFO, "Unable to lock process in memory - %s", strerror(errno));
+	else
+		process_locked_in_memory = true;
 }
 
 static void
@@ -164,4 +173,47 @@ reset_process_priorities(void)
 #endif
 	if (priority_set)
 		reset_process_priority();
+
+	if (process_locked_in_memory) {
+		munlockall();
+		process_locked_in_memory = false;
+	}
+
+	if (rlimit_nofile_set) {
+		setrlimit(RLIMIT_NOFILE, &nofile);
+		rlimit_nofile_set = false;
+	}
+	if (rlimit_core_set) {
+		setrlimit(RLIMIT_CORE, &core);
+		rlimit_core_set = false;
+	}
+}
+
+void
+set_child_rlimit(int resource, struct rlimit *rlim)
+{
+	if (resource == RLIMIT_NOFILE) {
+		nofile = *rlim;
+		rlimit_nofile_set = true;
+	}
+	else if (resource == RLIMIT_CORE) {
+		core = *rlim;
+		rlimit_core_set = true;
+	}
+	else
+		log_message(LOG_INFO, "Unknown rlimit resource %d", resource);
+}
+
+pid_t
+local_fork()
+{
+	pid_t pid;
+
+	pid = fork();
+
+	/* If we are the child process, reset all elevated priorities */
+	if (pid > 0)
+		reset_process_priorities();
+
+	return pid;
 }

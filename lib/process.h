@@ -24,6 +24,7 @@
 #define _PROCESS_H
 
 #include <sys/types.h>
+#include <sys/resource.h>
 
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 #define	RT_RLIMIT_DEFAULT	10000
@@ -38,5 +39,7 @@ extern void set_process_priorities(
 #endif
 				   int, int);
 extern void reset_process_priorities(void);
+extern void set_child_rlimit(int, struct rlimit *);
+extern pid_t local_fork(void);
 
 #endif

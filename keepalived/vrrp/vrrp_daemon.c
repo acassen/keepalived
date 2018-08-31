@@ -151,6 +151,9 @@ set_vrrp_max_fds(void)
 	}
 
 	log_message(LOG_INFO, "Set maximum open files to %ld", rlim.rlim_cur);
+
+	/* We don't want child processes to get excessive limits */
+	set_child_rlimit(RLIMIT_NOFILE, &orig_rlim);
 }
 
 #ifdef _WITH_LVS_

@@ -39,6 +39,7 @@
 #include "signals.h"
 #include "logger.h"
 #include "utils.h"
+#include "process.h"
 #include "parser.h"
 #include "keepalived_magic.h"
 #include "scheduler.h"
@@ -162,7 +163,7 @@ notify_fifo_exec(thread_master_t *m, int (*func) (thread_t *), void *arg, notify
 	int retval;
 	char *scr;
 
-	pid = fork();
+	pid = local_fork();
 
 	/* In case of fork is error. */
 	if (pid < 0) {
@@ -350,7 +351,7 @@ notify_exec(const notify_script_t *script)
 	if (log_file_name)
 		flush_log_file();
 
-	pid = fork();
+	pid = local_fork();
 
 	if (pid < 0) {
 		/* fork error */
@@ -382,7 +383,7 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, uns
 	if (log_file_name)
 		flush_log_file();
 
-	pid = fork();
+	pid = local_fork();
 
 	if (pid < 0) {
 		/* fork error */
