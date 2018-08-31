@@ -1520,11 +1520,16 @@ thread_cancel(thread_t *thread)
 		 */
 		rb_erase(&thread->n, &m->child);
 		break;
-	case THREAD_EVENT:
-	case THREAD_READY:
 	case THREAD_READY_FD:
 	case THREAD_READ_TIMEOUT:
 	case THREAD_WRITE_TIMEOUT:
+		if (thread->event) {
+			rb_erase(&thread->event->n, &m->io_events);
+			FREE(thread->event);
+		}
+		/* ... falls through ... */
+	case THREAD_EVENT:
+	case THREAD_READY:
 	case THREAD_CHILD_TIMEOUT:
 		list_head_del(&thread->next);
 		break;
