@@ -78,7 +78,8 @@ bfd_sender_thread(thread_t *thread)
 	assert(bfd);
 	assert(!BFD_ISADMINDOWN(bfd));
 
-	bfd->thread_out = NULL;
+	if (thread->type != THREAD_EVENT)
+		bfd->thread_out = NULL;
 
 	bfd_build_packet(&pkt, bfd, bfd_buffer, BFD_BUFFER_SIZE);
 	if (bfd_send_packet(bfd->fd_out, &pkt) == -1) {

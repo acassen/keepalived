@@ -1405,21 +1405,32 @@ read_line(char *buf, size_t size)
 				multiline_param_def = false;
 			}
 
-			/* Skip blank lines */
-			if (!len ||
-			    (len == 1 && multiline_param_def)) {
-				buf[0] = '\0';
-				continue;
+			/* Don't add blank lines */
+			if (len >= 2 ||
+			    (len && !multiline_param_def)) {
+				/* Add the line to the definition */
+				new_str = MALLOC(def->value_len + len + 1);
+				strcpy(new_str, def->value);
+				strncpy(new_str + def->value_len, text_start, len);
+				new_str[def->value_len + len] = '\0';
+				FREE(def->value);
+				def->value = new_str;
+				def->value_len += len;
 			}
 
-			/* Add the line to the definition */
-			new_str = MALLOC(def->value_len + len + 1);
-			strcpy(new_str, def->value);
-			strncpy(new_str + def->value_len, text_start, len);
-			new_str[def->value_len + len] = '\0';
-			FREE(def->value);
-			def->value = new_str;
-			def->value_len += len;
+			/* The config:
+			 *   $VIs= \
+			 *   $VI4
+			 *
+			 *   where $VI4 is a multiline definition didn't work. Specifically it
+			 *   is a multiline definition with only one line.
+			 *   When expanded it reads an extra "line" of random characters. Where
+			 *   the definition is expanded should really be fixed, but I can't work
+			 *   out where or how to fix it. As an alternative, the following "hack"
+			 *   stops the problem occuring.
+			 */
+			if (!multiline_param_def && !strchr(def->value, DEF_LINE_END[0]))
+				def->multiline = false;
 
 			buf[0] = '\0';
 			continue;
