@@ -135,6 +135,7 @@ exit_ok:
 		rtnl_link_put(new_state);
 
 exit:
+	nl_cache_free(cache);
 	nl_socket_free(sk);
 
 	return;
@@ -179,6 +180,7 @@ err:
 		rtnl_link_put(new_state);
 
 exit:
+	nl_cache_free(cache);
 	nl_socket_free(sk);
 
 	return;
@@ -319,6 +321,7 @@ err:
 		rtnl_link_put(new_state);
 
 exit:
+	nl_cache_free(cache);
 	nl_socket_free(sk);
 
 	return res;
