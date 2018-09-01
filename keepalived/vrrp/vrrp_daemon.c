@@ -834,7 +834,9 @@ register_vrrp_thread_addresses(void)
 	register_signal_handler_address("sigend_vrrp", sigend_vrrp);
 	register_signal_handler_address("sigusr1_vrrp", sigusr1_vrrp);
 	register_signal_handler_address("sigusr2_vrrp", sigusr2_vrrp);
+#ifdef _WITH_JSON_
 	register_signal_handler_address("sigjson_vrrp", sigjson_vrrp);
+#endif
 }
 #endif
 
