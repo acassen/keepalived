@@ -75,7 +75,7 @@ int (*nla_parse_nested_addr)(struct nlattr **, int, struct nlattr *, struct nla_
 struct rtnl_link *(*rtnl_link_alloc_addr)(void);
 int (*rtnl_link_alloc_cache_addr)(struct nl_sock *, int, struct nl_cache **);
 int (*rtnl_link_change_addr)(struct nl_sock *, struct rtnl_link *, struct rtnl_link *, int);
-struct rtnl_link *(*rtnl_link_get_addr_l)(struct nl_cache *, int);
+int (*rtnl_link_get_kernel_addr_l)(struct nl_sock *, int, char *, struct rtnl_link**);
 int (*rtnl_link_inet_get_conf_addr)(struct rtnl_link *, const unsigned int, uint32_t *);
 int (*rtnl_link_inet_set_conf_addr)(struct rtnl_link *, const unsigned int, uint32_t);
 void (*rtnl_link_put_addr)(struct rtnl_link *);
@@ -177,7 +177,7 @@ libnl_init(void)
 	    !(rtnl_link_alloc_addr = dlsym(libnl_route_handle, "rtnl_link_alloc")) ||
 	    !(rtnl_link_alloc_cache_addr = dlsym(libnl_route_handle, "rtnl_link_alloc_cache")) ||
 	    !(rtnl_link_change_addr = dlsym(libnl_route_handle, "rtnl_link_change")) ||
-	    !(rtnl_link_get_addr_l = dlsym(libnl_route_handle, "rtnl_link_get")) ||
+	    !(rtnl_link_get_kernel_addr_l = dlsym(libnl_route_handle, "rtnl_link_get_kernel")) ||
 	    !(rtnl_link_inet_get_conf_addr = dlsym(libnl_route_handle, "rtnl_link_inet_get_conf")) ||
 	    !(rtnl_link_inet_set_conf_addr = dlsym(libnl_route_handle, "rtnl_link_inet_set_conf")) ||
 	    !(rtnl_link_put_addr = dlsym(libnl_route_handle, "rtnl_link_put")) ||

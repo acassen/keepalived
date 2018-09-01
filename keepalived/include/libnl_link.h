@@ -71,7 +71,7 @@ extern int (*nla_parse_nested_addr)(struct nlattr **, int, struct nlattr *, stru
 extern struct rtnl_link *(*rtnl_link_alloc_addr)(void);
 extern int (*rtnl_link_alloc_cache_addr)(struct nl_sock *, int, struct nl_cache **);
 extern int (*rtnl_link_change_addr)(struct nl_sock *, struct rtnl_link *, struct rtnl_link *, int);
-extern struct rtnl_link *(*rtnl_link_get_addr_l)(struct nl_cache *, int);
+extern int (*rtnl_link_get_kernel_addr_l)(struct nl_sock *, int, char *, struct rtnl_link **);
 extern int (*rtnl_link_inet_get_conf_addr)(struct rtnl_link *, const unsigned int, uint32_t *);
 extern int (*rtnl_link_inet_set_conf_addr)(struct rtnl_link *, const unsigned int, uint32_t);
 extern void (*rtnl_link_put_addr)(struct rtnl_link *);
@@ -120,7 +120,7 @@ extern int (*nl_socket_set_nonblocking_addr)(const struct nl_sock *);
 #define rtnl_link_alloc (*rtnl_link_alloc_addr)
 #define rtnl_link_alloc_cache (*rtnl_link_alloc_cache_addr)
 #define rtnl_link_change (*rtnl_link_change_addr)
-#define rtnl_link_get (*rtnl_link_get_addr_l)
+#define rtnl_link_get_kernel (*rtnl_link_get_kernel_addr_l)
 #define rtnl_link_inet_get_conf (*rtnl_link_inet_get_conf_addr)
 #define rtnl_link_inet_set_conf (*rtnl_link_inet_set_conf_addr)
 #define rtnl_link_put (*rtnl_link_put_addr)
