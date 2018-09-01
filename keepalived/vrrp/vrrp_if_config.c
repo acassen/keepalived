@@ -88,7 +88,6 @@ static inline void
 set_promote_secondaries_devconf(interface_t *ifp)
 {
 	struct nl_sock *sk;
-	struct nl_cache *cache;
 	struct rtnl_link *link = NULL;
 	struct rtnl_link *new_state = NULL;
 	uint32_t prom_secs;
@@ -100,11 +99,8 @@ set_promote_secondaries_devconf(interface_t *ifp)
 
 	if (nl_connect(sk, NETLINK_ROUTE) < 0)
 		goto err;
-	if (rtnl_link_alloc_cache(sk, AF_UNSPEC, &cache))
+	if (rtnl_link_get_kernel(sk, (int)ifp->ifindex, NULL, &link))
 		goto err;
-	if (!(link = rtnl_link_get(cache, (int)ifp->ifindex)))
-		goto err;
-
 	if (rtnl_link_inet_get_conf(link, IPV4_DEVCONF_PROMOTE_SECONDARIES, &prom_secs) < 0)
 		goto err;
 	if (prom_secs) {
@@ -135,7 +131,6 @@ exit_ok:
 		rtnl_link_put(new_state);
 
 exit:
-	nl_cache_free(cache);
 	nl_socket_free(sk);
 
 	return;
@@ -145,7 +140,6 @@ static inline void
 reset_promote_secondaries_devconf(interface_t *ifp)
 {
 	struct nl_sock *sk;
-	struct nl_cache *cache;
 	struct rtnl_link *link = NULL;
 	struct rtnl_link *new_state = NULL;
 
@@ -156,9 +150,7 @@ reset_promote_secondaries_devconf(interface_t *ifp)
 
 	if (nl_connect(sk, NETLINK_ROUTE) < 0)
 		goto err;
-	if (rtnl_link_alloc_cache(sk, AF_UNSPEC, &cache))
-		goto err;
-	if (!(link = rtnl_link_get(cache, (int)ifp->ifindex)))
+	if (rtnl_link_get_kernel(sk, (int)ifp->ifindex, NULL, &link))
 		goto err;
 	if (!(new_state = rtnl_link_alloc()))
 		goto err;
@@ -180,7 +172,6 @@ err:
 		rtnl_link_put(new_state);
 
 exit:
-	nl_cache_free(cache);
 	nl_socket_free(sk);
 
 	return;
@@ -251,7 +242,6 @@ static inline int
 netlink_set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
 {
 	struct nl_sock *sk;
-	struct nl_cache *cache;
 	struct rtnl_link *link = NULL;
 	struct rtnl_link *new_state = NULL;
 	int res = 0;
@@ -263,9 +253,8 @@ netlink_set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
 
 	if (nl_connect(sk, NETLINK_ROUTE) < 0)
 		goto err;
-	if (rtnl_link_alloc_cache(sk, AF_UNSPEC, &cache))
-		goto err;
-	if (!(link = rtnl_link_get(cache, (int)ifp->ifindex)))
+
+	if (rtnl_link_get_kernel(sk, (int)ifp->ifindex, NULL, &link))
 		goto err;
 
 	// Allocate a new link
@@ -289,7 +278,7 @@ netlink_set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
 	if (base_ifp->reset_arp_config)
 		base_ifp->reset_arp_config++;
 	else {
-		if (!(link = rtnl_link_get(cache, (int)base_ifp->ifindex)))
+		if (rtnl_link_get_kernel(sk, (int)base_ifp->ifindex, NULL, &link))
 			goto err;
 		if (rtnl_link_inet_get_conf(link, IPV4_DEVCONF_ARP_IGNORE, &base_ifp->reset_arp_ignore_value) < 0)
 			goto err;
@@ -321,7 +310,6 @@ err:
 		rtnl_link_put(new_state);
 
 exit:
-	nl_cache_free(cache);
 	nl_socket_free(sk);
 
 	return res;
