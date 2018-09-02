@@ -94,6 +94,9 @@ static int reload_vrrp_thread(thread_t * thread);
 static int print_vrrp_json(thread_t * thread);
 #endif
 #endif
+#ifdef _WITH_PERF_
+perf_t perf_run = PERF_NONE;
+#endif
 
 /* local variables */
 static char *vrrp_syslog_ident;
@@ -289,6 +292,11 @@ vrrp_shutdown_timer_thread(thread_t *thread)
 static void
 vrrp_terminate_phase1(bool schedule_next_thread)
 {
+#if _WITH_PERF_
+	if (perf_run == PERF_END)
+		run_perf("vrrp", global_data->network_namespace, global_data->instance_name);
+#endif
+
 	/* Terminate all script processes */
 	if (master->child.rb_node)
 		script_killall(master, SIGTERM, true);
@@ -869,7 +877,13 @@ start_vrrp_child(void)
 
 		return 0;
 	}
+
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
+
+#if _WITH_PERF_
+	if (perf_run == PERF_ALL)
+		run_perf("vrrp", global_data->network_namespace, global_data->instance_name);
+#endif
 
 	prog_type = PROG_TYPE_VRRP;
 
@@ -955,6 +969,10 @@ start_vrrp_child(void)
 	register_vrrp_thread_addresses();
 #endif
 
+#if _WITH_PERF_
+	if (perf_run == PERF_RUN)
+		run_perf("vrrp", global_data->network_namespace, global_data->instance_name);
+#endif
 	/* Launch the scheduling I/O multiplexer */
 	launch_thread_scheduler(master);
 

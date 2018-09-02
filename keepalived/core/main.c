@@ -913,6 +913,9 @@ usage(const char *prog)
 								"\n");
 	fprintf(stderr, "  -t, --config-test[=LOG_FILE] Check the configuration for obvious errors, output to\n"
 			"                                stderr by default\n");
+#ifdef _WITH_PERF_
+	fprintf(stderr, "      --perf[=PERF_TYPE]       Collect perf data, PERF_TYPE=all, run(default) or end\n");
+#endif
 	fprintf(stderr, "  -v, --version                Display the version number\n");
 	fprintf(stderr, "  -h, --help                   Display this help message\n");
 }
@@ -982,6 +985,9 @@ parse_cmdline(int argc, char **argv)
 		{"config-id",		required_argument,	NULL, 'i'},
 		{"signum",		required_argument,	NULL,  4 },
 		{"config-test",		optional_argument,	NULL, 't'},
+#ifdef _WITH_PERF_
+		{"perf",		optional_argument,	NULL,  5 },
+#endif
 		{"version",		no_argument,		NULL, 'v'},
 		{"help",		no_argument,		NULL, 'h'},
 
@@ -990,7 +996,7 @@ parse_cmdline(int argc, char **argv)
 
 	/* Unfortunately, if a short option is used, getopt_long() doesn't change the value
 	 * of longindex, so we need to ensure that before calling getopt_long(), longindex
-	 * is set to a know invalid value */
+	 * is set to a known invalid value */
 	curind = optind;
 	while (longindex = -1, (c = getopt_long(argc, argv, ":vhlndDRS:f:p:i:mM::g::Gt::"
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
@@ -1207,6 +1213,23 @@ parse_cmdline(int argc, char **argv)
 			__set_bit(DAEMON_BFD, &daemon_mode);
 #endif
 			break;
+#ifdef _WITH_PERF_
+		case 5:
+			if (optarg && optarg[0]) {
+				if (!strcmp(optarg, "run"))
+					perf_run = PERF_RUN;
+				else if (!strcmp(optarg, "all"))
+					perf_run = PERF_ALL;
+				else if (!strcmp(optarg, "end"))
+					perf_run = PERF_END;
+				else
+					log_message(LOG_INFO, "Unknown perf start point %s", optarg);
+			}
+			else
+				perf_run = PERF_RUN;
+
+			break;
+#endif
 		case '?':
 			if (optopt && argv[curind][1] != '-')
 				fprintf(stderr, "Unknown option -%c\n", optopt);

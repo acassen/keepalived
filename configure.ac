@@ -219,6 +219,8 @@ AC_ARG_ENABLE(smtp-alert-debug,
   [AS_HELP_STRING([--enable-smtp-alert-debug], [compile with smtp-alert debugging])])
 AC_ARG_ENABLE(stacktrace,
   [AS_HELP_STRING([--enable-stacktrace], [compile with stacktrace support])])
+AC_ARG_ENABLE(perf,
+  [AS_HELP_STRING([--enable-perf], [compile with perf performance data recording support for vrrp process])])
 AC_ARG_ENABLE(dump-threads,
   [  --enable-dump-threads   compile with thread dumping support])
 AC_ARG_ENABLE(epoll-debug,
@@ -1748,6 +1750,16 @@ else
   ENABLE_STACKTRACE=No
 fi
 
+dnl ----[ perf support or not ? ]----
+if test "${enable_perf}" = yes; then
+  AC_DEFINE([_WITH_PERF_], [ 1 ], [Define to 1 to build with perf support])
+  ENABLE_PERF=Yes
+  add_config_opt([PERF])
+  add_to_var([KA_CFLAGS], [-pg])
+else
+  ENABLE_PERF=No
+fi
+
 dnl ----[ Thread dumping support or not ? ]----
 if test "${enable_dump_threads}" = yes; then
   AC_DEFINE([_WITH_DUMP_THREADS_], [ 1 ], [Define to 1 to build with thread dumping support])
@@ -1929,6 +1941,9 @@ echo "Build genhash            : ${BUILD_GENHASH}"
 echo "Build documentation      : ${HAVE_SPHINX_BUILD}"
 if test ${ENABLE_STACKTRACE} = Yes; then
   echo "Stacktrace support       : ${ENABLE_STACKTRACE}"
+fi
+if test ${ENABLE_PERF} = Yes; then
+  echo "Perf support             : ${ENABLE_PERF}"
 fi
 if test ${MEM_CHECK} = Yes; then
   echo "Memory alloc check       : ${MEM_CHECK}"

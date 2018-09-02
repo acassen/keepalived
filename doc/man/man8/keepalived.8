@@ -38,6 +38,7 @@ keepalived \- load\-balancing and high\-availability service
 [\fB\-M\fP|\fB\-\-core\-dump\-pattern\fP[=PATTERN]]
 [\fB\-\-signum\fP=SIGFUNC]
 [\fB\-t\fP|\fB\-\-config\-test\fP[=FILE]]
+[\fB\-\-perf\fP[={all|run|end}]]
 [\fB\-v\fP|\fB\-\-version\fP]
 [\fB\-h\fP|\fB\-\-help\fP]
 
@@ -188,6 +189,10 @@ exit status 0 (see \fBExit status\fP below for details).
 
 Rather that writing to syslog, it will write diagnostic messages to stderr
 unless file is specified, in which case it will write to the file.
+.TP
+\fB --perf\fP[={all|run|end}]
+Record perf data for vrrp process. Data will be written to /perf_vrrp.data.
+The data recorded is for use with the perf tool.
 .TP
 \fB -v, --version\fP
 Display the version and exit.
