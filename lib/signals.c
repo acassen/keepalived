@@ -75,8 +75,10 @@
 #endif
 
 /* Local Vars */
+#ifndef USE_SIGNAL_THREADS
 static void (*signal_handler_func[SIG_MAX]) (void *, int sig);
 static void *signal_v[SIG_MAX];
+#endif
 
 #ifdef HAVE_SIGNALFD
 static int signal_fd = -1;
@@ -324,8 +326,22 @@ signal_run_callback(__attribute__((unused)) thread_t *thread)
 			log_message(LOG_INFO, "Signal %d, func %s()", sig, get_signal_function_name(signal_handler_func[sig-1]));
 #endif
 
+#ifdef USE_SIGNAL_THREADS
+		/* This is instead of signal_handler_func[] array if signals are
+		 * handled by threads. The thread handling function would have to
+		 * do a thread_add_signal() to reinstate itself. */
+		list_for_each_entry_safe(t, t_tmp, &m->signal, next) {
+			if (t->u.val == sig) {
+				list_head_del(&t->next);
+				INIT_LIST_HEAD(&t->next);
+				list_add_tail(&t->next, &m->ready);
+				t->type = THREAD_READY;
+			}
+		}
+#else
 		if (sig >= 1 && sig <= SIG_MAX && signal_handler_func[sig-1])
 			signal_handler_func[sig-1](signal_v[sig-1], sig);
+#endif
 	}
 
 	signal_thread = thread_add_read(master, signal_run_callback, NULL, signal_rfd(), TIMER_NEVER);
@@ -379,8 +395,10 @@ open_signal_fd(void)
 #else
 	signal_fd = signalfd(signal_fd, &signal_fd_set, 0);
 
-	fcntl(signal_fd, F_SETFL, O_NONBLOCK | fcntl(signal_fd, F_GETFL));
-	fcntl(signal_fd, F_SETFD, FD_CLOEXEC | fcntl(signal_fd, F_GETFD));
+	if (signal_fd != -1) {
+		fcntl(signal_fd, F_SETFL, O_NONBLOCK | fcntl(signal_fd, F_GETFL));
+		fcntl(signal_fd, F_SETFD, FD_CLOEXEC | fcntl(signal_fd, F_GETFD));
+	}
 #endif
 	if (signal_fd == -1)
 		log_message(LOG_INFO, "BUG - signal_fd init failed - %d (%s), please report", errno, strerror(errno));

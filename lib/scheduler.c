@@ -82,7 +82,7 @@ static bool shutting_down;
 static int sav_argc;
 static char **sav_argv;
 #ifdef _EPOLL_DEBUG_
-bool epoll_debug = true;
+bool epoll_debug = false;
 static rb_root_t funcs = RB_ROOT;
 #endif
 
@@ -278,8 +278,8 @@ thread_set_timer(thread_master_t *m)
 
 	its.it_value.tv_sec = timer_wait.tv_sec;
 	if (!timerisset(&timer_wait)) {
-		/* We really want to avoid doing the select since
-		 * testing shows it takes about 13 microseconds
+		/* We could try to avoid doing the epoll_wait since
+		 * testing shows it takes about 4 microseconds
 		 * for the timer to expire. */
 		its.it_value.tv_nsec = 1;
 	}
@@ -659,18 +659,20 @@ thread_event_set(thread_t *thread)
 	thread_event_t *event = thread->event;
 	thread_master_t *m = thread->master;
 	struct epoll_event ev;
-	int op = EPOLL_CTL_ADD;
+	int op;
 
 	memset(&ev, 0, sizeof(struct epoll_event));
 	ev.data.ptr = event;
 	if (__test_bit(THREAD_FL_READ_BIT, &event->flags))
-		ev.events |= EPOLLIN | EPOLLHUP | EPOLLERR;
+		ev.events |= EPOLLIN;
 
 	if (__test_bit(THREAD_FL_WRITE_BIT, &event->flags))
 		ev.events |= EPOLLOUT;
 
 	if (__test_bit(THREAD_FL_EPOLL_BIT, &event->flags))
 		op = EPOLL_CTL_MOD;
+	else
+		op = EPOLL_CTL_ADD;
 
 	if (epoll_ctl(m->epoll_fd, op, event->fd, &ev) < 0) {
 		log_message(LOG_INFO, "scheduler: Error performing control on EPOLL instance (%m)");
@@ -698,9 +700,9 @@ thread_event_cancel(thread_t *thread)
 	}
 
 	rb_erase(&event->n, &m->io_events);
-	m->current_event = NULL;
-	thread->event = NULL;
-	FREE(event);
+	if (event == m->current_event)
+		m->current_event = NULL;
+	FREE(thread->event);
 	return 0;
 }
 
@@ -708,35 +710,29 @@ static int
 thread_event_del(thread_t *thread, unsigned flag)
 {
 	thread_event_t *event = thread->event;
-	int ret;
 
-	if (flag == THREAD_FL_EPOLL_READ_BIT &&
-	    __test_bit(THREAD_FL_EPOLL_READ_BIT, &event->flags)) {
+	if (!__test_bit(flag, &event->flags))
+		return 0;
+
+	if (flag == THREAD_FL_EPOLL_READ_BIT) {
 		__clear_bit(THREAD_FL_READ_BIT, &event->flags);
 		if (!__test_bit(THREAD_FL_EPOLL_WRITE_BIT, &event->flags))
 			return thread_event_cancel(thread);
 
-		ret = thread_event_set(thread);
-		if (ret < 0)
-			return -1;
 		event->read = NULL;
-		__clear_bit(THREAD_FL_EPOLL_READ_BIT, &event->flags);
-		return 0;
 	}
-
-	if (flag == THREAD_FL_EPOLL_WRITE_BIT &&
-		   __test_bit(THREAD_FL_EPOLL_WRITE_BIT, &event->flags)) {
+	else if (flag == THREAD_FL_EPOLL_WRITE_BIT) {
 		__clear_bit(THREAD_FL_WRITE_BIT, &event->flags);
 		if (!__test_bit(THREAD_FL_EPOLL_READ_BIT, &event->flags))
 			return thread_event_cancel(thread);
 
-		ret = thread_event_set(thread);
-		if (ret < 0)
-			return -1;
 		event->write = NULL;
-		__clear_bit(THREAD_FL_EPOLL_WRITE_BIT, &event->flags);
 	}
 
+	if (thread_event_set(thread) < 0)
+		return -1;
+
+	__clear_bit(flag, &event->flags);
 	return 0;
 }
 
@@ -751,7 +747,7 @@ thread_make_master(void)
 #if HAVE_EPOLL_CREATE1
 	new->epoll_fd = epoll_create1(EPOLL_CLOEXEC);
 #else
-	new->epoll_fd = epoll_create(0);
+	new->epoll_fd = epoll_create(1);
 #endif
 	if (new->epoll_fd < 0) {
 		log_message(LOG_INFO, "scheduler: Error creating EPOLL instance (%m)");
@@ -770,7 +766,9 @@ thread_make_master(void)
 	new->child = RB_ROOT;
 	new->io_events = RB_ROOT;
 	INIT_LIST_HEAD(&new->event);
+#ifdef USE_SIGNAL_THREADS
 	INIT_LIST_HEAD(&new->signal);
+#endif
 	INIT_LIST_HEAD(&new->ready);
 	INIT_LIST_HEAD(&new->unuse);
 
@@ -876,8 +874,11 @@ static int
 thread_timer_cmp(thread_t *t1, thread_t *t2)
 {
 	if (t1->sands.tv_sec != t2->sands.tv_sec) {
-		if (t1->sands.tv_sec == TIMER_DISABLED)
+		if (t1->sands.tv_sec == TIMER_DISABLED) {
+			if (t2->sands.tv_sec == TIMER_DISABLED)
+				return 0;
 			return 1;
+		}
 		if (t2->sands.tv_sec == TIMER_DISABLED)
 			return -1;
 		return t1->sands.tv_sec - t2->sands.tv_sec;
@@ -962,7 +963,9 @@ thread_cleanup_master(thread_master_t * m)
 	thread_destroy_rb(m, &m->timer);
 	thread_destroy_rb(m, &m->child);
 	thread_destroy_list(m, &m->event);
+#ifdef USE_SIGNAL_THREADS
 	thread_destroy_list(m, &m->signal);
+#endif
 	thread_destroy_list(m, &m->ready);
 
 	destroy_child_finder();
@@ -1048,31 +1051,26 @@ thread_add_read(thread_master_t *m, int (*func) (thread_t *), void *arg, int fd,
 {
 	thread_event_t *event;
 	thread_t *thread;
-	int ret;
 
 	assert(m != NULL);
 
 	/* I feel lucky ! :D */
-	if (m->current_event && m->current_event->fd == fd) {
+	if (m->current_event && m->current_event->fd == fd)
 		event = m->current_event;
-		goto update;
-	}
-
-	event = thread_event_get(m, fd);
-	if (event && __test_bit(THREAD_FL_READ_BIT, &event->flags) && event->read) {
-		log_message(LOG_INFO, "scheduler: There is already read event %p (read %p) registered on fd [%d]", event, event->read, fd);
-		return NULL;
-	}
+	else
+		event = thread_event_get(m, fd);
 
 	if (!event) {
-		event = thread_event_new(m, fd);
-		if (!event) {
+		if (!(event = thread_event_new(m, fd))) {
 			log_message(LOG_INFO, "scheduler: Cant allocate read event for fd [%d](%m)", fd);
 			return NULL;
 		}
 	}
+	else if (__test_bit(THREAD_FL_READ_BIT, &event->flags) && event->read) {
+		log_message(LOG_INFO, "scheduler: There is already read event %p (read %p) registered on fd [%d]", event, event->read, fd);
+		return NULL;
+	}
 
-  update:
 	thread = thread_new(m);
 	thread->type = THREAD_READ;
 	thread->master = m;
@@ -1085,8 +1083,7 @@ thread_add_read(thread_master_t *m, int (*func) (thread_t *), void *arg, int fd,
 	__set_bit(THREAD_FL_READ_BIT, &event->flags);
 	event->read = thread;
 	if (!__test_bit(THREAD_FL_EPOLL_READ_BIT, &event->flags)) {
-		ret = thread_event_set(thread);
-		if (ret < 0) {
+		if (thread_event_set(thread) < 0) {
 			log_message(LOG_INFO, "scheduler: Cant register read event for fd [%d](%m)", fd);
 			thread->type = THREAD_UNUSED;
 			thread_add_unuse(m, thread);
@@ -1112,18 +1109,10 @@ thread_add_read(thread_master_t *m, int (*func) (thread_t *), void *arg, int fd,
 int
 thread_del_read(thread_t *thread)
 {
-	thread_event_t *event;
-	int ret;
-
-	if (!thread)
+	if (!thread || !thread->event)
 		return -1;
 
-	event = thread->event;
-	if (!event)
-		return -1;
-
-	ret = thread_event_del(thread, THREAD_FL_EPOLL_READ_BIT);
-	if (ret < 0)
+	if (thread_event_del(thread, THREAD_FL_EPOLL_READ_BIT) < 0 )
 		return -1;
 
 	return 0;
@@ -1190,31 +1179,26 @@ thread_add_write(thread_master_t *m, int (*func) (thread_t *), void *arg, int fd
 {
 	thread_event_t *event;
 	thread_t *thread;
-	int ret;
 
 	assert(m != NULL);
 
 	/* I feel lucky ! :D */
-	if (m->current_event && m->current_event->fd == fd) {
+	if (m->current_event && m->current_event->fd == fd)
 		event = m->current_event;
-		goto update;
-	}
-
-	event = thread_event_get(m, fd);
-	if (event && __test_bit(THREAD_FL_WRITE_BIT, &event->flags) && event->write) {
-		log_message(LOG_INFO, "scheduler: There is already write event registered on fd [%d]", fd);
-		return NULL;
-	}
+	else
+		event = thread_event_get(m, fd);
 
 	if (!event) {
-		event = thread_event_new(m, fd);
-		if (!event) {
+		if (!(event = thread_event_new(m, fd))) {
 			log_message(LOG_INFO, "scheduler: Cant allocate write event for fd [%d](%m)", fd);
 			return NULL;
 		}
 	}
+	else if (__test_bit(THREAD_FL_WRITE_BIT, &event->flags) && event->write) {
+		log_message(LOG_INFO, "scheduler: There is already write event registered on fd [%d]", fd);
+		return NULL;
+	}
 
-  update:
 	thread = thread_new(m);
 	thread->type = THREAD_WRITE;
 	thread->master = m;
@@ -1227,8 +1211,7 @@ thread_add_write(thread_master_t *m, int (*func) (thread_t *), void *arg, int fd
 	__set_bit(THREAD_FL_WRITE_BIT, &event->flags);
 	event->write = thread;
 	if (!__test_bit(THREAD_FL_EPOLL_WRITE_BIT, &event->flags)) {
-		ret = thread_event_set(thread);
-		if (ret < 0) {
+		if (thread_event_set(thread) < 0) {
 			log_message(LOG_INFO, "scheduler: Cant register write event for fd [%d](%m)" , fd);
 			thread->type = THREAD_UNUSED;
 			thread_add_unuse(m, thread);
@@ -1254,18 +1237,10 @@ thread_add_write(thread_master_t *m, int (*func) (thread_t *), void *arg, int fd
 int
 thread_del_write(thread_t *thread)
 {
-	thread_event_t *event;
-	int ret;
-
-	if (!thread)
+	if (!thread || !thread->event)
 		return -1;
 
-	event = thread->event;
-	if (!event)
-		return -1;
-
-	ret = thread_event_del(thread, THREAD_FL_EPOLL_WRITE_BIT);
-	if (ret < 0)
+	if (thread_event_del(thread, THREAD_FL_EPOLL_WRITE_BIT) < 0)
 		return -1;
 
 	return 0;
@@ -1456,14 +1431,12 @@ thread_add_start_terminate_event(thread_master_t *m, int(*func)(thread_t *))
 	return thread_add_generic_terminate_event(m, THREAD_TERMINATE_START, func);
 }
 
-// TODO
-#if 0
+#ifdef USE_SIGNAL_THREADS
 /* Add signal thread. */
 thread_t *
-thread_add_signal(thread_master_t *m, int (*func) (thread_t *), void *arg, int val)
+thread_add_signal(thread_master_t *m, int (*func) (thread_t *), void *arg, int signum)
 {
 	thread_t *thread;
-	sigset_t mask;
 
 	assert(m != NULL);
 
@@ -1472,19 +1445,15 @@ thread_add_signal(thread_master_t *m, int (*func) (thread_t *), void *arg, int v
 	thread->master = m;
 	thread->func = func;
 	thread->arg = arg;
-	thread->u.val = val;
+	thread->u.val = signum;
 	INIT_LIST_HEAD(&thread->next);
 	list_add_tail(&thread->next, &m->signal);
 
 	/* Update signalfd accordingly */
-	sigemptyset(&mask);
-	sigaddset(&mask, val);
-	sigorset(&mask, &mask, &m->signal_mask);
-	if (!memcmp(&m->signal_mask, &mask, sizeof(mask)))
+	if (sigismember(&m->signal_mask, signum))
 		return thread;
-	m->signal_mask = mask;
-	sigprocmask(SIG_BLOCK, &mask, NULL);
-	signalfd(m->signal_fd, &mask, SFD_NONBLOCK);
+	sigaddset(&m->signal_mask, signum);
+	signalfd(m->signal_fd, &m->signal_mask, 0);
 
 	return thread;
 }
@@ -1530,6 +1499,9 @@ thread_cancel(thread_t *thread)
 		/* ... falls through ... */
 	case THREAD_EVENT:
 	case THREAD_READY:
+#ifdef USE_SIGNAL_THREADS
+	case THREAD_SIGNAL:
+#endif
 	case THREAD_CHILD_TIMEOUT:
 		list_head_del(&thread->next);
 		break;
@@ -1686,144 +1658,125 @@ thread_fetch_next_queue(thread_master_t *m)
 	if (m->ready.next != &m->ready)
 		return &m->ready;
 
-#if 0	// NEW
-	/* If there is event process it first. */
-	while ((thread = thread_trim_head(&m->event))) {
-		*fetch = *thread;
-		m->current_event = thread->event;
-
-		/* If daemon hanging event is received return NULL pointer */
-		if (thread->type == THREAD_TERMINATE) {
-			thread->type = THREAD_UNUSED;
-			thread_add_unuse(m, thread);
-			return NULL;
-		}
-		thread->type = THREAD_UNUSED;
-		thread_add_unuse(m, thread);
-		return fetch;
-	}
-
-	/* If there is ready threads process them */
-	while ((thread = thread_trim_head(&m->ready))) {
-		*fetch = *thread;
-		m->current_event = thread->event;
-		thread->type = THREAD_UNUSED;
-		thread_add_unuse(m, thread);
-		return fetch;
-	}
-#endif
-
-retry:
+	do {
 #ifdef _WITH_SNMP_
-	if (snmp_running)
-		snmp_epoll_info(m);
+		if (snmp_running)
+			snmp_epoll_info(m);
 #endif
 
-	/* Calculate and set select wait timer. Take care of timeouted fd.  */
-	thread_set_timer(m);
+		/* Calculate and set select wait timer. Take care of timeouted fd.  */
+		thread_set_timer(m);
 
 #ifdef _EPOLL_DEBUG_
-	if (epoll_debug) {
-		log_message(LOG_INFO, "calling epoll_wait");
-		thread_rb_dump(&m->read, "read");
-		thread_rb_dump(&m->write, "write");
-		thread_rb_dump(&m->child, "child");
-		thread_rb_dump(&m->timer, "timer");
-		thread_list_dump(&m->event, "event");
-		thread_list_dump(&m->ready, "ready");
-		thread_list_dump(&m->signal, "signal");
-		thread_list_dump(&m->unuse, "unuse");
-		event_rb_dump(&m->io_events, "io_events");
-	}
+		if (epoll_debug) {
+			log_message(LOG_INFO, "calling epoll_wait");
+			thread_rb_dump(&m->read, "read");
+			thread_rb_dump(&m->write, "write");
+			thread_rb_dump(&m->child, "child");
+			thread_rb_dump(&m->timer, "timer");
+			thread_list_dump(&m->event, "event");
+			thread_list_dump(&m->ready, "ready");
+#ifdef USE_SIGNAL_THREADS
+			thread_list_dump(&m->signal, "signal");
 #endif
-
-	/* Call epoll function. */
-	ret = epoll_wait(m->epoll_fd, m->epoll_events, m->epoll_count, -1);
-	sav_errno = errno;
-
-#ifdef _EPOLL_DEBUG_
-	if (epoll_debug) {
-		if (ret == -1)
-			log_message(LOG_INFO, "epoll_wait returned %d, errno %d", ret, sav_errno);
-		else
-			log_message(LOG_INFO, "epoll_wait returned %d fds", ret);
-	}
-#endif
-
-	if (ret < 0) {
-		if (sav_errno == EINTR)
-			goto retry;
-
-		/* Real error. */
-		if (sav_errno != last_epoll_errno) {
-			/* Log the error first time only */
-			log_message(LOG_INFO, "scheduler: epoll_wait error: %s", strerror(sav_errno));
-			last_epoll_errno = sav_errno;
+			thread_list_dump(&m->unuse, "unuse");
+			event_rb_dump(&m->io_events, "io_events");
 		}
-		assert(0);
+#endif
 
-		/* Make sure we don't sit it a tight loop */
-		if (sav_errno == EBADF || sav_errno == EFAULT || sav_errno == EINVAL)
-			sleep(1);
+		/* Call epoll function. */
+		ret = epoll_wait(m->epoll_fd, m->epoll_events, m->epoll_count, -1);
+		sav_errno = errno;
 
-		goto retry;
-	}
+#ifdef _EPOLL_DEBUG_
+		if (epoll_debug) {
+			if (ret == -1)
+				log_message(LOG_INFO, "epoll_wait returned %d, errno %d", ret, sav_errno);
+			else
+				log_message(LOG_INFO, "epoll_wait returned %d fds", ret);
+		}
+#endif
 
-	/* Handle epoll events */
-	for (i = 0; i < ret; i++) {
-		struct epoll_event *ep_ev;
-		thread_event_t *ev;
+		if (ret < 0) {
+			if (sav_errno == EINTR)
+				continue;
 
-		ep_ev = &m->epoll_events[i];
-		ev = ep_ev->data.ptr;
-
-		/* Error */
-// TODO - no thread processing function handles THREAD_READ_ERROR/THREAD_WRITE_ERROR yet
-		if (ep_ev->events & (EPOLLHUP | EPOLLERR | EPOLLRDHUP)) {
-			if (ev->read) {
-				thread_move_ready(m, &m->read, ev->read, THREAD_READ_ERROR);
-				ev->read = NULL;
+			/* Real error. */
+			if (sav_errno != last_epoll_errno) {
+				/* Log the error first time only */
+				log_message(LOG_INFO, "scheduler: epoll_wait error: %s", strerror(sav_errno));
+				last_epoll_errno = sav_errno;
 			}
 
-			if (ev->write) {
-				thread_move_ready(m, &m->write, ev->write, THREAD_WRITE_ERROR);
-				ev->write = NULL;
-			}
+			/* Make sure we don't sit it a tight loop */
+			if (sav_errno == EBADF || sav_errno == EFAULT || sav_errno == EINVAL)
+				sleep(1);
 
 			continue;
 		}
 
-		/* READ */
-		if (ep_ev->events & EPOLLIN) {
-			if (!ev->read) {
-				log_message(LOG_INFO, "scheduler: No read thread bound on fd:%d (fl:0x%.4X)"
-					      , ev->fd, ep_ev->events);
-				assert(0);
+		/* Handle epoll events */
+		for (i = 0; i < ret; i++) {
+			struct epoll_event *ep_ev;
+			thread_event_t *ev;
+
+			ep_ev = &m->epoll_events[i];
+			ev = ep_ev->data.ptr;
+
+			/* Error */
+// TODO - no thread processing function handles THREAD_READ_ERROR/THREAD_WRITE_ERROR yet
+			if (ep_ev->events & (EPOLLHUP | EPOLLERR | EPOLLRDHUP)) {
+				if (ev->read) {
+					thread_move_ready(m, &m->read, ev->read, THREAD_READ_ERROR);
+					ev->read = NULL;
+				}
+
+				if (ev->write) {
+					thread_move_ready(m, &m->write, ev->write, THREAD_WRITE_ERROR);
+					ev->write = NULL;
+				}
+
+				continue;
 			}
-			thread_move_ready(m, &m->read, ev->read, THREAD_READY_FD);
-			ev->read = NULL;
+
+			/* READ */
+			if (ep_ev->events & EPOLLIN) {
+				if (!ev->read) {
+					log_message(LOG_INFO, "scheduler: No read thread bound on fd:%d (fl:0x%.4X)"
+						      , ev->fd, ep_ev->events);
+					assert(0);
+				}
+				thread_move_ready(m, &m->read, ev->read, THREAD_READY_FD);
+				ev->read = NULL;
+			}
+
+			/* WRITE */
+			if (ep_ev->events & EPOLLOUT) {
+				if (!ev->write) {
+					log_message(LOG_INFO, "scheduler: No write thread bound on fd:%d (fl:0x%.4X)"
+						      , ev->fd, ep_ev->events);
+					assert(0);
+				}
+				thread_move_ready(m, &m->write, ev->write, THREAD_READY_FD);
+				ev->write = NULL;
+			}
+
+			if (ep_ev->events & EPOLLHUP) {
+				log_message(LOG_INFO, "Received EPOLLHUP for fd %d", ev->fd);
+			}
+
+			if (ep_ev->events & EPOLLERR) {
+				log_message(LOG_INFO, "Received EPOLLERR for fd %d", ev->fd);
+			}
 		}
 
-		/* WRITE */
-		if (ep_ev->events & EPOLLOUT) {
-			if (!ev->write) {
-				log_message(LOG_INFO, "scheduler: No write thread bound on fd:%d (fl:0x%.4X)"
-					      , ev->fd, ep_ev->events);
-				assert(0);
-			}
-			thread_move_ready(m, &m->write, ev->write, THREAD_READY_FD);
-			ev->write = NULL;
-		}
-	}
+		/* Update current time */
+		set_time_now();
 
-	/* Update current time */
-	set_time_now();
-
-	/* There is no ready thread. */
-	if (m->ready.next == &m->ready)
-		goto retry;
-
-	return &m->ready;
+		/* If there is a ready thread, return it. */
+		if (m->ready.next != &m->ready)
+			return &m->ready;
+	} while (true);
 }
 
 /* Call thread ! */

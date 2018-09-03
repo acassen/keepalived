@@ -56,7 +56,10 @@ typedef enum {
 	THREAD_READ_ERROR,
 	THREAD_WRITE_ERROR,
 	THREAD_IF_UP,
-	THREAD_IF_DOWN
+	THREAD_IF_DOWN,
+#ifdef USE_SIGNAL_THREADS
+	THREAD_SIGNAL,
+#endif
 } thread_type_t;
 
 /* Thread Event flags */
@@ -69,7 +72,7 @@ enum thread_flags {
 };
 
 /* epoll def */
-#define THREAD_EPOLL_REALLOC_THRESH	1024
+#define THREAD_EPOLL_REALLOC_THRESH	64
 
 /* Thread itself. */
 typedef struct _thread {
@@ -89,8 +92,10 @@ typedef struct _thread {
 	} u;
 	struct _thread_event *event;	/* Thread Event back-pointer */
 
-	rb_node_t n;
-	list_head_t next;
+	union {
+		rb_node_t n;
+		list_head_t next;
+	};
 } thread_t;
 
 /* Thread Event */
@@ -110,8 +115,9 @@ typedef struct _thread_master {
 	rb_root_t		timer;
 	rb_root_t		child;
 	list_head_t		event;
-// TODO
-	list_head_t signal;
+#ifdef USE_SIGNAL_THREADS
+	list_head_t 		signal;
+#endif
 	list_head_t		ready;
 	list_head_t		unuse;
 // Can we stop using this?
