@@ -75,7 +75,7 @@
 #include "scheduler.h"
 #include "keepalived_netlink.h"
 #include "git-commit.h"
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 #include "scheduler.h"
 #endif
 #include "process.h"
@@ -1264,7 +1264,7 @@ parse_cmdline(int argc, char **argv)
 	return reopen_log;
 }
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 static void
 register_parent_thread_addresses(void)
 {
@@ -1580,7 +1580,7 @@ keepalived_main(int argc, char **argv)
 	if (!start_keepalived())
 		log_message(LOG_INFO, "Warning - keepalived has no configuration to run");
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 	register_parent_thread_addresses();
 #endif
 
@@ -1590,7 +1590,7 @@ keepalived_main(int argc, char **argv)
 	/* Finish daemon process */
 	stop_keepalived();
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 	deregister_thread_addresses();
 #endif
 

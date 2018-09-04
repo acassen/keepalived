@@ -33,7 +33,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 #include "snmp.h"
 #include "scheduler.h"
 #include "smtp.h"
@@ -809,7 +809,7 @@ vrrp_respawn_thread(thread_t * thread)
 }
 #endif
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 static void
 register_vrrp_thread_addresses(void)
 {
@@ -965,7 +965,7 @@ start_vrrp_child(void)
 	return 0;
 #endif
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 	register_vrrp_thread_addresses();
 #endif
 
@@ -976,7 +976,7 @@ start_vrrp_child(void)
 	/* Launch the scheduling I/O multiplexer */
 	launch_thread_scheduler(master);
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 	deregister_thread_addresses();
 #endif
 
@@ -993,7 +993,7 @@ vrrp_validate_config(void)
 	start_vrrp();
 }
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 void
 register_vrrp_parent_addresses(void)
 {

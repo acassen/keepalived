@@ -122,7 +122,7 @@ typedef void vrrp_sgroup_t;
 
 /* Prototypes defs */
 extern void smtp_alert(smtp_msg_t, void *data, const char *, const char *);
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 extern void register_smtp_addresses(void);
 #endif
 

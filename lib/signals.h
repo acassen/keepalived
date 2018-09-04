@@ -57,7 +57,7 @@ extern void set_sigxcpu_handler(void);
 extern int signal_rfd(void);
 extern void signal_fd_close(int);
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 extern void register_signal_thread_addresses(void);
 #endif
 

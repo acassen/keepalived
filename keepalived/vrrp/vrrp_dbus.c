@@ -70,7 +70,7 @@
 #include "main.h"
 #include "logger.h"
 #include "utils.h"
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 #include "scheduler.h"
 #endif
 
@@ -949,7 +949,7 @@ dbus_stop(void)
 	}
 }
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 void
 register_vrrp_dbus_addresses(void)
 {

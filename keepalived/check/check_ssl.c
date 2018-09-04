@@ -32,7 +32,7 @@
 #include "check_api.h"
 #include "check_http.h"
 #include "logger.h"
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 #include "scheduler.h"
 #endif
 
@@ -306,7 +306,7 @@ ssl_read_thread(thread_t * thread)
 	return 0;
 }
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 void
 register_check_ssl_addresses(void)
 {

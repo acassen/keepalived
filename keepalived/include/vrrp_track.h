@@ -163,7 +163,7 @@ extern void initialise_interface_tracking_priorities(void);
 extern void initialise_tracking_priorities(struct _vrrp_t *);
 extern void init_track_files(list);
 extern void stop_track_files(void);
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 extern void register_vrrp_inotify_addresses(void);
 #endif
 

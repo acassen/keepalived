@@ -41,7 +41,7 @@
 #include "global_data.h"
 #include "global_parser.h"
 #include "keepalived_magic.h"
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 #include "scheduler.h"
 #endif
 
@@ -484,7 +484,7 @@ misc_check_child_thread(thread_t * thread)
 	return 0;
 }
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 void
 register_check_misc_addresses(void)
 {

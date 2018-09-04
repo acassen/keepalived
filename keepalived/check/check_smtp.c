@@ -38,7 +38,7 @@
 #endif
 #include "layer4.h"
 #include "smtp.h"
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 #include "scheduler.h"
 #endif
 
@@ -828,7 +828,7 @@ smtp_connect_thread(thread_t *thread)
 }
 
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 void
 register_check_smtp_addresses(void)
 {

@@ -277,7 +277,7 @@ bfd_respawn_thread(thread_t * thread)
 }
 #endif
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 static void
 register_bfd_thread_addresses(void)
 {
@@ -408,14 +408,14 @@ start_bfd_child(void)
 	return 0;
 #else
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 	register_bfd_thread_addresses();
 #endif
 
 	/* Launch the scheduling I/O multiplexer */
 	launch_thread_scheduler(master);
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 	deregister_thread_addresses();
 #endif
 
@@ -427,7 +427,7 @@ start_bfd_child(void)
 #endif
 }
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 void
 register_bfd_parent_addresses(void)
 {

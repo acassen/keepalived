@@ -39,7 +39,7 @@
 #ifdef _WITH_LVS_
 #include "check_api.h"
 #endif
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 #include "scheduler.h"
 #endif
 
@@ -732,7 +732,7 @@ smtp_alert(smtp_msg_t msg_type, void* data, const char *subject, const char *bod
 #endif
 }
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 void
 register_smtp_addresses(void)
 {

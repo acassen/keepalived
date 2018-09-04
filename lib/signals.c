@@ -560,7 +560,7 @@ void
 set_sigxcpu_handler(void)
 {
 	signal_set(SIGXCPU, log_sigxcpu, NULL);
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 	register_signal_handler_address("log_sigxcpu", log_sigxcpu);
 #endif
 }
@@ -585,7 +585,7 @@ void signal_fd_close(int min_fd)
 #endif
 }
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 void
 register_signal_thread_addresses(void)
 {

@@ -59,7 +59,7 @@
 #endif
 
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 typedef struct _func_det {
 	const char *name;
 	int (*func)(thread_t *);
@@ -83,6 +83,8 @@ static int sav_argc;
 static char **sav_argv;
 #ifdef _EPOLL_DEBUG_
 bool epoll_debug = false;
+#endif
+#ifdef THREAD_DUMP
 static rb_root_t funcs = RB_ROOT;
 #endif
 
@@ -97,7 +99,7 @@ static void (*child_remover)(thread_t *);
 static void (*child_finder_destroy)(void);
 static size_t child_finder_list_size;
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 static const char *
 get_thread_type_str(thread_type_t id)
 {
@@ -806,7 +808,7 @@ thread_make_master(void)
 	return new;
 }
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 static char *
 timer_delay(timeval_t sands)
 {
@@ -824,51 +826,61 @@ timer_delay(timeval_t sands)
 }
 
 /* Dump rbtree */
-int
-thread_rb_dump(rb_root_t *root, const char *tree)
+static void
+thread_rb_dump(rb_root_t *root, const char *tree, FILE *fp)
 {
 	thread_t *thread;
 	int i = 1;
 
-	log_message(LOG_INFO, "----[ Begin rb_dump %s ]----", tree);
+	conf_write(fp, "----[ Begin rb_dump %s ]----", tree);
 
 	rb_for_each_entry(thread, root, n)
-		log_message(LOG_INFO, "#%.2d Thread type %s, event_fd %d, val/fd/pid %d, timer: %s, func %s(), id %ld", i++, get_thread_type_str(thread->type), thread->event ? thread->event->fd: -2, thread->u.val, timer_delay(thread->sands), get_function_name(thread->func), thread->id);
+		conf_write(fp, "#%.2d Thread type %s, event_fd %d, val/fd/pid %d, timer: %s, func %s(), id %ld", i++, get_thread_type_str(thread->type), thread->event ? thread->event->fd: -2, thread->u.val, timer_delay(thread->sands), get_function_name(thread->func), thread->id);
 
-	log_message(LOG_INFO, "----[ End rb_dump ]----");
-
-	return 0;
+	conf_write(fp, "----[ End rb_dump ]----");
 }
 
-int
-thread_list_dump(list_head_t *l, const char *list)
+static void
+thread_list_dump(list_head_t *l, const char *list, FILE *fp)
 {
 	thread_t *thread;
 	int i = 1;
 
-	log_message(LOG_INFO, "----[ Begin list_dump %s ]----", list);
+	conf_write(fp, "----[ Begin list_dump %s ]----", list);
 
 	list_for_each_entry(thread, l, next)
-		log_message(LOG_INFO, "#%.2d Thread:%p type %s func %s() id %ld",
-		       i++, thread, get_thread_type_str(thread->type), get_function_name(thread->func), thread->id);
+		conf_write(fp, "#%.2d Thread:%p type %s func %s() id %ld",
+				i++, thread, get_thread_type_str(thread->type), get_function_name(thread->func), thread->id);
 
-	log_message(LOG_INFO, "----[ End list_dump ]----");
-
-	return 0;
+	conf_write(fp, "----[ End list_dump ]----");
 }
 
-int
-event_rb_dump(rb_root_t *root, const char *tree)
+static void
+event_rb_dump(rb_root_t *root, const char *tree, FILE *fp)
 {
 	thread_event_t *event;
 	int i = 1;
 
-	log_message(LOG_INFO, "----[ Begin rb_dump %s ]----", tree);
+	conf_write(fp, "----[ Begin rb_dump %s ]----", tree);
 	rb_for_each_entry(event, root, n)
-		log_message(LOG_INFO, "#%.2d event %p fd %d, flags: 0x%lx, read %p, write %p", i++, event, event->fd, event->flags, event->read, event->write);
-	log_message(LOG_INFO, "----[ End rb_dump ]----");
+		conf_write(fp, "#%.2d event %p fd %d, flags: 0x%lx, read %p, write %p", i++, event, event->fd, event->flags, event->read, event->write);
+	conf_write(fp, "----[ End rb_dump ]----");
+}
 
-	return 0;
+void
+dump_thread_data(thread_master_t *m, FILE *fp)
+{
+	thread_rb_dump(&m->read, "read", fp);
+	thread_rb_dump(&m->write, "write", fp);
+	thread_rb_dump(&m->child, "child", fp);
+	thread_rb_dump(&m->timer, "timer", fp);
+	thread_list_dump(&m->event, "event", fp);
+	thread_list_dump(&m->ready, "ready", fp);
+#ifdef USE_SIGNAL_THREADS
+	thread_list_dump(&m->signal, "signal", fp);
+#endif
+	thread_list_dump(&m->unuse, "unuse", fp);
+	event_rb_dump(&m->io_events, "io_events", fp);
 }
 #endif
 
@@ -1672,18 +1684,9 @@ thread_fetch_next_queue(thread_master_t *m)
 
 #ifdef _EPOLL_DEBUG_
 		if (epoll_debug) {
+			dump_thread_data(m, NULL);
+
 			log_message(LOG_INFO, "calling epoll_wait");
-			thread_rb_dump(&m->read, "read");
-			thread_rb_dump(&m->write, "write");
-			thread_rb_dump(&m->child, "child");
-			thread_rb_dump(&m->timer, "timer");
-			thread_list_dump(&m->event, "event");
-			thread_list_dump(&m->ready, "ready");
-#ifdef USE_SIGNAL_THREADS
-			thread_list_dump(&m->signal, "signal");
-#endif
-			thread_list_dump(&m->unuse, "unuse");
-			event_rb_dump(&m->io_events, "io_events");
 		}
 #endif
 
@@ -1935,7 +1938,7 @@ launch_thread_scheduler(thread_master_t *m)
 	process_threads(m);
 }
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 void
 register_scheduler_addresses(void)
 {

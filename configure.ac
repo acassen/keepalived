@@ -1778,6 +1778,10 @@ else
   ENABLE_EPOLL_DEBUG=No
 fi
 
+if test $ENABLE_EPOLL_DEBUG = Yes -o $ENABLE_DUMP_THREADS = Yes; then
+  AC_DEFINE([THREAD_DUMP], [ 1 ], [Define to 1 to build with thread dumping support])
+fi
+
 dnl ----[ regex debugging support or not ? ]----
 if test "${enable_regex_debug}" = yes; then
   AC_DEFINE([_REGEX_DEBUG_], [ 1 ], [Define to 1 to build with regex debugging support])

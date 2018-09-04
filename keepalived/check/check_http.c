@@ -48,7 +48,7 @@
 #include "layer4.h"
 #include "ipwrapper.h"
 #include "smtp.h"
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 #include "scheduler.h"
 #endif
 
@@ -1560,7 +1560,7 @@ http_connect_thread(thread_t * thread)
 	return 0;
 }
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 void
 register_check_http_addresses(void)
 {

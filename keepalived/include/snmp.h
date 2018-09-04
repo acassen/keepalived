@@ -69,7 +69,7 @@ extern void snmp_register_mib(oid *myoid, size_t len,
 			      size_t varsize, size_t varlen);
 extern void snmp_unregister_mib(oid *myoid, size_t len);
 extern void snmp_agent_close(bool base_mib);
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 extern void register_snmp_addresses(void);
 #endif
 

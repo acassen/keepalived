@@ -66,7 +66,7 @@ typedef struct _smtp_checker {
 
 /* Prototypes defs */
 extern void install_smtp_check_keyword(void);
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 extern void register_check_smtp_addresses(void);
 #endif
 

@@ -44,7 +44,7 @@ void dbus_remove_object(vrrp_t *);
 void dbus_reload(list, list);
 bool dbus_start(void);
 void dbus_stop(void);
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 extern void register_vrrp_dbus_addresses(void);
 #endif
 

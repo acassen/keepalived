@@ -39,7 +39,7 @@
 #include "bfd_event.h"
 #include "bfd_daemon.h"
 #include "bitops.h"
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 #include "scheduler.h"
 #endif
 
@@ -311,7 +311,7 @@ checker_bfd_dispatcher_release(void)
 	thread_cancel(bfd_thread);
 }
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 void
 register_check_bfd_addresses(void)
 {

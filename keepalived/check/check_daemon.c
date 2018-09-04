@@ -32,7 +32,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 #include "snmp.h"
 #include "scheduler.h"
 #include "smtp.h"
@@ -446,7 +446,7 @@ check_respawn_thread(thread_t * thread)
 }
 #endif
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 static void
 register_check_thread_addresses(void)
 {
@@ -586,7 +586,7 @@ start_check_child(void)
 	return 0;
 #endif
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 	register_check_thread_addresses();
 #endif
 
@@ -599,7 +599,7 @@ start_check_child(void)
 	else
 		stop_check(KEEPALIVED_EXIT_OK);
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 	deregister_thread_addresses();
 #endif
 
@@ -607,7 +607,7 @@ start_check_child(void)
 	exit(KEEPALIVED_EXIT_OK);
 }
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 void
 register_check_parent_addresses(void)
 {

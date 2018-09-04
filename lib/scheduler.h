@@ -190,7 +190,7 @@ extern prog_type_t prog_type;		/* Parent/VRRP/Checker process */
 #ifdef _WITH_SNMP_
 extern bool snmp_running;
 #endif
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 extern bool epoll_debug;
 #endif
 
@@ -207,6 +207,9 @@ extern bool report_child_status(int, pid_t, const char *);
 extern thread_master_t *thread_make_master(void);
 extern thread_t *thread_add_terminate_event(thread_master_t *);
 extern thread_t *thread_add_start_terminate_event(thread_master_t *, int (*)(thread_t *));
+#ifdef THREAD_DUMP
+extern void dump_thread_data(thread_master_t *, FILE *);
+#endif
 extern void thread_cleanup_master(thread_master_t *);
 extern void thread_destroy_master(thread_master_t *);
 extern thread_t *thread_add_read(thread_master_t *, int (*) (thread_t *), void *, int, unsigned long);
@@ -228,7 +231,7 @@ extern void process_threads(thread_master_t *);
 extern void thread_child_handler(void *, int);
 extern void thread_add_base_threads(thread_master_t *);
 extern void launch_thread_scheduler(thread_master_t *);
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 extern const char *get_signal_function_name(void (*)(void *, int));
 extern void register_signal_handler_address(const char *, void (*)(void *, int));
 extern void register_thread_address(const char *, int (*)(thread_t *));

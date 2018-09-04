@@ -1136,7 +1136,7 @@ bfd_dispatcher_init(thread_t *thread)
 }
 
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 void
 register_bfd_scheduler_addresses(void)
 {

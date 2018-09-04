@@ -35,7 +35,7 @@ extern int bfd_checker_event_pipe[2];
 extern void open_bfd_pipes(void);
 extern int start_bfd_child(void);
 extern void bfd_validate_config(void);
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 extern void register_bfd_parent_addresses(void);
 #endif
 

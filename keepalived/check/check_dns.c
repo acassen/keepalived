@@ -521,7 +521,7 @@ install_dns_check_keyword(void)
 	install_sublevel_end();
 }
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 void
 register_check_dns_addresses(void)
 {

@@ -48,7 +48,7 @@
 #include <linux/fib_rules.h>
 #endif
 #endif
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 #include "scheduler.h"
 #endif
 
@@ -2282,7 +2282,7 @@ kernel_netlink_read_interfaces(void)
 }
 #endif
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 void
 register_keepalived_netlink_addresses(void)
 {

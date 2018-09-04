@@ -45,7 +45,7 @@ typedef struct _misc_checker {
 extern void clear_dynamic_misc_check_flag(void);
 extern void install_misc_check_keyword(void);
 extern int check_misc_script_security(magic_t);
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 extern void register_check_misc_addresses(void);
 #endif
 

@@ -3740,7 +3740,7 @@ clear_diff_bfd(void)
 }
 #endif
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 void
 register_vrrp_fifo_addresses(void)
 {

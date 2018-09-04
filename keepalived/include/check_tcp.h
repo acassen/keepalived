@@ -28,7 +28,7 @@
 
 /* Prototypes defs */
 extern void install_tcp_check_keyword(void);
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 extern void register_check_tcp_addresses(void);
 #endif
 

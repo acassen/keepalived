@@ -1086,7 +1086,7 @@ stop_track_files(void)
 	}
 }
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 void
 register_vrrp_inotify_addresses(void)
 {

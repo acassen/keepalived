@@ -385,7 +385,7 @@ snmp_agent_close(bool base_mib)
 	snmp_running = false;
 }
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 void
 register_snmp_addresses(void)
 {

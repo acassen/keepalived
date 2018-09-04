@@ -65,7 +65,7 @@
 #include "vrrp_track.h"
 #include "vrrp_scheduler.h"
 #include "vrrp_iproute.h"
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 #include "scheduler.h"
 #endif
 
@@ -1199,7 +1199,7 @@ update_added_interface(interface_t *ifp)
 	}
 }
 
-#ifdef _EPOLL_DEBUG_
+#ifdef THREAD_DUMP
 void
 register_vrrp_if_addresses(void)
 {
