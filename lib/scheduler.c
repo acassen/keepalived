@@ -924,7 +924,7 @@ static void
 thread_add_unuse(thread_master_t *m, thread_t *thread)
 {
 	assert(m != NULL);
-	assert(thread->type == THREAD_UNUSED);
+	thread->type = THREAD_UNUSED;
 	thread->event = NULL;
 	INIT_LIST_HEAD(&thread->next);
 	list_add_tail(&thread->next, &m->unuse);
@@ -942,9 +942,7 @@ thread_destroy_list(thread_master_t *m, list_head_t *l)
 			thread_del_write(thread);
 		}
 		list_head_del(&thread->next);
-		thread->type = THREAD_UNUSED;
-		INIT_LIST_HEAD(&thread->next);
-		list_add_tail(&thread->next, &m->unuse);
+		thread_add_unuse(m, thread);
 	}
 }
 
@@ -962,9 +960,7 @@ thread_destroy_rb(thread_master_t *m, rb_root_t *root)
 		else if (thread->type == THREAD_WRITE)
 			thread_del_write(thread);
 
-		thread->type = THREAD_UNUSED;
-		INIT_LIST_HEAD(&thread->next);
-		list_add_tail(&thread->next, &m->unuse);
+		thread_add_unuse(m, thread);
 	}
 }
 
@@ -1100,7 +1096,6 @@ thread_add_read(thread_master_t *m, int (*func) (thread_t *), void *arg, int fd,
 	if (!__test_bit(THREAD_FL_EPOLL_READ_BIT, &event->flags)) {
 		if (thread_event_set(thread) < 0) {
 			log_message(LOG_INFO, "scheduler: Cant register read event for fd [%d](%m)", fd);
-			thread->type = THREAD_UNUSED;
 			thread_add_unuse(m, thread);
 			return NULL;
 		}
@@ -1228,7 +1223,6 @@ thread_add_write(thread_master_t *m, int (*func) (thread_t *), void *arg, int fd
 	if (!__test_bit(THREAD_FL_EPOLL_WRITE_BIT, &event->flags)) {
 		if (thread_event_set(thread) < 0) {
 			log_message(LOG_INFO, "scheduler: Cant register write event for fd [%d](%m)" , fd);
-			thread->type = THREAD_UNUSED;
 			thread_add_unuse(m, thread);
 			return NULL;
 		}
@@ -1524,7 +1518,6 @@ thread_cancel(thread_t *thread)
 		break;
 	}
 
-	thread->type = THREAD_UNUSED;
 	thread_add_unuse(m, thread);
 }
 
@@ -1555,7 +1548,6 @@ thread_cancel_event(thread_master_t *m, void *arg)
 	list_for_each_entry_safe(thread, thread_tmp, l, next) {
 		if (thread->arg == arg) {
 			list_head_del(&thread->next);
-			thread->type = THREAD_UNUSED;
 			thread_add_unuse(m, thread);
 		}
 	}
@@ -1842,7 +1834,6 @@ process_threads(thread_master_t *m)
 
 		m->current_event = (thread->type == THREAD_READY_FD) ? thread->event : NULL;
 		thread_type = thread->type;
-		thread->type = THREAD_UNUSED;
 		thread_add_unuse(master, thread);
 
 		/* If we are shutting down, and the shutdown timer is not running and
@@ -1893,7 +1884,6 @@ process_child_termination(pid_t pid, int status)
 	{
 		/* The child had a permanant error, so no point in respawning */
 		rb_erase(&thread->n, &m->child);
-		thread->type = THREAD_UNUSED;
 		thread_add_unuse(m, thread);
 	}
 	else
