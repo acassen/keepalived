@@ -67,7 +67,6 @@ typedef struct _func_det {
 } func_det_t;
 #endif
 
-
 /* global vars */
 thread_master_t *master = NULL;
 #ifndef _DEBUG_
@@ -313,7 +312,7 @@ thread_timerfd_handler(thread_t *thread)
 	if (len < 0)
 		log_message(LOG_ERR, "scheduler: Error reading on timerfd fd:%d (%m)", m->timer_fd);
 
-	/* Read, Write, Timer thead. */
+	/* Read, Write, Timer, Child thread. */
 	thread_rb_move_ready(m, &m->read, THREAD_READ_TIMEOUT);
 	thread_rb_move_ready(m, &m->write, THREAD_WRITE_TIMEOUT);
 	thread_rb_move_ready(m, &m->timer, THREAD_READY);
@@ -1839,11 +1838,11 @@ process_threads(thread_master_t *m)
 		/* If we are shutting down, and the shutdown timer is not running and
 		 * all children have terminated, then we can terminate */
 		if (shutting_down && !m->shutdown_timer_running && !m->child.rb_node)
-			return;
+			break;
 
 		/* If daemon hanging event is received stop processing */
 		if (thread_type == THREAD_TERMINATE)
-			return;
+			break;
 	}
 }
 
