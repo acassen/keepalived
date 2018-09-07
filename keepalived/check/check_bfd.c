@@ -39,6 +39,9 @@
 #include "bfd_event.h"
 #include "bfd_daemon.h"
 #include "bitops.h"
+#ifdef THREAD_DUMP
+#include "scheduler.h"
+#endif
 
 /* local data */
 static thread_t *bfd_thread;
@@ -244,7 +247,7 @@ bfd_check_handle_event(bfd_event_t * evt)
 	if (__test_bit(LOG_DETAIL_BIT, &debug)) {
 		time_now = timer_now();
 		timersub(&time_now, &evt->sent_time, &timer_tmp);
-		delivery_time = timer_tol(timer_tmp);
+		delivery_time = timer_long(timer_tmp);
 		log_message(LOG_INFO, "Received BFD event: instance %s is in"
 			    " state %s (delivered in %i usec)",
 			    evt->iname, BFD_STATE_STR(evt->state), delivery_time);
@@ -308,11 +311,10 @@ checker_bfd_dispatcher_release(void)
 	thread_cancel(bfd_thread);
 }
 
-#ifdef _TIMER_DEBUG_
+#ifdef THREAD_DUMP
 void
-print_check_bfd_addresses(void)
+register_check_bfd_addresses(void)
 {
-	log_message(LOG_INFO, "Address of dump_bfd_check() is 0x%p", dump_bfd_check);
-	log_message(LOG_INFO, "Address of bfd_check_thread() is 0x%p", bfd_check_thread);
+	register_thread_address("bfd_check_thread", bfd_check_thread);
 }
 #endif

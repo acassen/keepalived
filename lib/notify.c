@@ -39,6 +39,7 @@
 #include "signals.h"
 #include "logger.h"
 #include "utils.h"
+#include "process.h"
 #include "parser.h"
 #include "keepalived_magic.h"
 #include "scheduler.h"
@@ -162,7 +163,7 @@ notify_fifo_exec(thread_master_t *m, int (*func) (thread_t *), void *arg, notify
 	int retval;
 	char *scr;
 
-	pid = fork();
+	pid = local_fork();
 
 	/* In case of fork is error. */
 	if (pid < 0) {
@@ -350,7 +351,7 @@ notify_exec(const notify_script_t *script)
 	if (log_file_name)
 		flush_log_file();
 
-	pid = fork();
+	pid = local_fork();
 
 	if (pid < 0) {
 		/* fork error */
@@ -382,7 +383,7 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, uns
 	if (log_file_name)
 		flush_log_file();
 
-	pid = fork();
+	pid = local_fork();
 
 	if (pid < 0) {
 		/* fork error */
@@ -417,7 +418,7 @@ child_killed_thread(thread_t *thread)
 
 	/* If all children have died, we can now complete the
 	 * termination process */
-	if (!m->child.count && !m->shutdown_timer_running)
+	if (!&m->child.rb_node && !m->shutdown_timer_running)
 		thread_add_terminate_event(m);
 
 	return 0;
@@ -441,7 +442,7 @@ script_killall(thread_master_t *m, int signo, bool requeue)
 
 	p_pgid = getpgid(0);
 
-	for (thread = m->child.head; thread; thread = thread->next) {
+	rb_for_each_entry(thread, &m->child, n) {
 		c_pgid = getpgid(thread->u.c.pid);
 		if (c_pgid != p_pgid)
 			kill(-c_pgid, signo);
@@ -1176,3 +1177,11 @@ notify_script_compare(notify_script_t *a, notify_script_t *b)
 
 	return true;
 }
+
+#ifdef THREAD_DUMP
+void
+register_notify_addresses(void)
+{
+	register_thread_address("child_killed_thread", child_killed_thread);
+}
+#endif

@@ -33,5 +33,8 @@ extern bool non_existent_interface_specified;
 /* Prototypes */
 extern int start_vrrp_child(void);
 extern void vrrp_validate_config(void);
+#ifdef THREAD_DUMP
+extern void register_vrrp_parent_addresses(void);
+#endif
 
 #endif

@@ -65,6 +65,9 @@
 #include "vrrp_track.h"
 #include "vrrp_scheduler.h"
 #include "vrrp_iproute.h"
+#ifdef THREAD_DUMP
+#include "scheduler.h"
+#endif
 
 
 /* Local vars */
@@ -998,14 +1001,6 @@ if_setsockopt_no_receive(int *sd)
 	return *sd;
 }
 
-#ifdef _TIMER_DEBUG_
-void
-print_vrrp_if_addresses(void)
-{
-	log_message(LOG_INFO, "Address of if_linkbeat_refresh_thread() is 0x%p", if_linkbeat_refresh_thread);
-}
-#endif
-
 void
 interface_up(interface_t *ifp)
 {
@@ -1139,10 +1134,6 @@ setup_interface(vrrp_t *vrrp)
 			vrrp->sockets->fd_out = open_vrrp_send_socket(vrrp->sockets->family, vrrp->sockets->proto,
 							ifp, vrrp->sockets->unicast);
 
-		if (vrrp->sockets->fd_out > master->max_fd)
-			master->max_fd = vrrp->sockets->fd_out;
-		if (vrrp->sockets->fd_in > master->max_fd)
-			master->max_fd = vrrp->sockets->fd_in;
 		vrrp->sockets->ifindex = vrrp->ifp->ifindex;
 
 		alloc_vrrp_fd_bucket(vrrp);
@@ -1207,3 +1198,11 @@ update_added_interface(interface_t *ifp)
 		setup_interface(vrrp);
 	}
 }
+
+#ifdef THREAD_DUMP
+void
+register_vrrp_if_addresses(void)
+{
+	register_thread_address("if_linkbeat_refresh_thread", if_linkbeat_refresh_thread);
+}
+#endif

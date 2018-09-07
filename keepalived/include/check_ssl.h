@@ -39,5 +39,8 @@ extern int ssl_connect(thread_t *, int);
 extern int ssl_printerr(int);
 extern bool ssl_send_request(SSL *, char *, int);
 extern int ssl_read_thread(thread_t *);
+#ifdef THREAD_DUMP
+extern void register_check_ssl_addresses(void);
+#endif
 
 #endif

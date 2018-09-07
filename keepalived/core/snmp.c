@@ -370,6 +370,8 @@ snmp_agent_init(const char *snmp_socket, bool base_mib)
 				  sizeof(global_vars)/sizeof(struct variable8));
 	init_snmp(global_name);
 
+	master->snmp_timer_thread = thread_add_timer(master, snmp_timeout_thread, 0, TIMER_NEVER);
+
 	snmp_running = true;
 }
 
@@ -382,3 +384,12 @@ snmp_agent_close(bool base_mib)
 
 	snmp_running = false;
 }
+
+#ifdef THREAD_DUMP
+void
+register_snmp_addresses(void)
+{
+//        register_thread_address("snmp_timeout_thread", snmp_timeout_thread);
+//        register_thread_address("snmp_read_thread", snmp_read_thread);
+}
+#endif

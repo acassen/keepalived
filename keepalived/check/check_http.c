@@ -48,6 +48,9 @@
 #include "layer4.h"
 #include "ipwrapper.h"
 #include "smtp.h"
+#ifdef THREAD_DUMP
+#include "scheduler.h"
+#endif
 
 #define	REGISTER_CHECKER_NEW	1
 #define	REGISTER_CHECKER_RETRY	2
@@ -325,16 +328,19 @@ http_get_check_compare(void *a, void *b)
 		if (u1->virtualhost && strcmp(u1->virtualhost, u2->virtualhost))
 			return false;
 #ifdef _WITH_REGEX_CHECK_
-		if (!u1->regex != !u2->regex ||
-		    (u1->regex && strcmp((char *)u1->regex->pattern, (char *)u2->regex->pattern)))
+		if (!u1->regex != !u2->regex)
 			return false;
-		if (u1->regex->pcre2_options != u2->regex->pcre2_options)
-			return false;
-		if (u1->regex_no_match != u2->regex_no_match)
-			return false;
-		if (u1->regex_min_offset != u2->regex_min_offset ||
-		    u1->regex_max_offset != u2->regex_max_offset)
-			return false;
+		if (u1->regex) {
+			if (strcmp((char *)u1->regex->pattern, (char *)u2->regex->pattern))
+				return false;
+			if (u1->regex->pcre2_options != u2->regex->pcre2_options)
+				return false;
+			if (u1->regex_no_match != u2->regex_no_match)
+				return false;
+			if (u1->regex_min_offset != u2->regex_min_offset ||
+			    u1->regex_max_offset != u2->regex_max_offset)
+				return false;
+		}
 #endif
 	}
 
@@ -883,7 +889,7 @@ epilog(thread_t * thread, int method, unsigned t, unsigned c)
 	if (req) {
 		free_http_request(req);
 		http_get_check->req = NULL;
-		close(thread->u.fd);
+		thread_close_fd(thread);
 	}
 
 	/* Register next checker thread */
@@ -1401,6 +1407,7 @@ http_request_thread(thread_t * thread)
 	/* Register read timeouted thread */
 	thread_add_read(thread->master, http_response_thread, checker,
 			thread->u.fd, timeout);
+	thread_del_write(thread);
 	return 1;
 }
 
@@ -1452,12 +1459,14 @@ http_check_thread(thread_t * thread)
 							http_check_thread,
 							THREAD_ARG(thread),
 							thread->u.fd, timeout);
+					thread_del_write(thread);
 					break;
 				case SSL_ERROR_WANT_WRITE:
 					thread_add_write(thread->master,
 							 http_check_thread,
 							 THREAD_ARG(thread),
 							 thread->u.fd, timeout);
+					thread_del_read(thread);
 					break;
 				default:
 					ret = 0;
@@ -1478,6 +1487,7 @@ http_check_thread(thread_t * thread)
 					 http_request_thread, checker,
 					 thread->u.fd,
 					 checker->co->connection_to);
+			thread_del_read(thread);
 		} else {
 			DBG("Connection trouble to: %s."
 					 , FMT_HTTP_RS(checker));
@@ -1553,15 +1563,14 @@ http_connect_thread(thread_t * thread)
 	return 0;
 }
 
-#ifdef _TIMER_DEBUG_
+#ifdef THREAD_DUMP
 void
-print_check_http_addresses(void)
+register_check_http_addresses(void)
 {
-	log_message(LOG_INFO, "Address of dump_http_get_check() is 0x%p", dump_http_get_check);
-	log_message(LOG_INFO, "Address of http_check_thread() is 0x%p", http_check_thread);
-	log_message(LOG_INFO, "Address of http_connect_thread() is 0x%p", http_connect_thread);
-	log_message(LOG_INFO, "Address of http_read_thread() is 0x%p", http_read_thread);
-	log_message(LOG_INFO, "Address of http_request_thread() is 0x%p", http_request_thread);
-	log_message(LOG_INFO, "Address of http_response_thread() is 0x%p", http_response_thread);
+	register_thread_address("http_check_thread", http_check_thread);
+	register_thread_address("http_connect_thread", http_connect_thread);
+	register_thread_address("http_read_thread", http_read_thread);
+	register_thread_address("http_request_thread", http_request_thread);
+	register_thread_address("http_response_thread", http_response_thread);
 }
 #endif

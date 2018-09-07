@@ -53,7 +53,6 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 static void
 signal_init(void)
 {
-	signal_handler_init();
 	signal_set(SIGHUP, sigend, NULL);
 	signal_set(SIGINT, sigend, NULL);
 	signal_set(SIGTERM, sigend, NULL);
@@ -260,19 +259,17 @@ main(int argc, char **argv)
 		req->url = url_default;
 
 	/* Init the reference timer */
-	req->ref_time = timer_tol(timer_now());
+	req->ref_time = timer_long(timer_now());
 	DBG("Reference timer = %lu\n", req->ref_time);
 
 	/* Init SSL context */
 	init_ssl();
 
-	/* Signal handling initialization  */
-	signal_init();
-
 	/* Create the master thread */
 	master = thread_make_master();
 
-	add_signal_read_thread();
+	/* Signal handling initialization  */
+	signal_init();
 
 	/* Register the GET request */
 	init_sock();
@@ -281,9 +278,9 @@ main(int argc, char **argv)
 	 * Processing the master thread queues,
 	 * return and execute one ready thread.
 	 * Run until error, used for debuging only.
-	 * Note that not calling launch_scheduler() does
-	 * not activate SIGCHLD handling, however, this
-	 * is no issue here.
+	 * Note that not calling launch_thread_scheduler()
+	 * does not activate SIGCHLD handling, however,
+	 * this is no issue here.
 	 */
 	process_threads(master);
 

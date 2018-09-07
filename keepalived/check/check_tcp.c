@@ -37,6 +37,9 @@
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif
+#ifdef THREAD_DUMP
+#include "scheduler.h"
+#endif
 
 static int tcp_connect_thread(thread_t *);
 
@@ -144,10 +147,9 @@ tcp_epilog(thread_t * thread, bool is_success)
 static int
 tcp_check_thread(thread_t * thread)
 {
-	checker_t *checker;
+	checker_t *checker = THREAD_ARG(thread);
 	int status;
 
-	checker = THREAD_ARG(thread);
 	status = tcp_socket_state(thread, tcp_check_thread);
 
 	/* If status = connect_in_progress, next thread is already registered.
@@ -158,7 +160,7 @@ tcp_check_thread(thread_t * thread)
 	case connect_in_progress:
 		break;
 	case connect_success:
-		close(thread->u.fd);
+		thread_close_fd(thread);
 		tcp_epilog(thread, true);
 		break;
 	case connect_timeout:
@@ -227,12 +229,11 @@ tcp_connect_thread(thread_t * thread)
 	return 0;
 }
 
-#ifdef _TIMER_DEBUG_
+#ifdef THREAD_DUMP
 void
-print_check_tcp_addresses(void)
+register_check_tcp_addresses(void)
 {
-	log_message(LOG_INFO, "Address of dump_tcp_check() is 0x%p", dump_tcp_check);
-	log_message(LOG_INFO, "Address of tcp_check_thread() is 0x%p", tcp_check_thread);
-	log_message(LOG_INFO, "Address of tcp_connect_thread() is 0x%p", tcp_connect_thread);
+	register_thread_address("tcp_check_thread", tcp_check_thread);
+	register_thread_address("tcp_connect_thread", tcp_connect_thread);
 }
 #endif

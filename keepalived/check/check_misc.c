@@ -41,6 +41,9 @@
 #include "global_data.h"
 #include "global_parser.h"
 #include "keepalived_magic.h"
+#ifdef THREAD_DUMP
+#include "scheduler.h"
+#endif
 
 static int misc_check_thread(thread_t *);
 static int misc_check_child_thread(thread_t *);
@@ -474,19 +477,18 @@ misc_check_child_thread(thread_t * thread)
 	    (next_time.tv_sec == 0 && next_time.tv_usec == 0))
 		next_time.tv_sec = 0, next_time.tv_usec = 1;
 
-	thread_add_timer(thread->master, misc_check_thread, checker, timer_tol(next_time));
+	thread_add_timer(thread->master, misc_check_thread, checker, timer_long(next_time));
 
 	misck_checker->state = SCRIPT_STATE_IDLE;
 
 	return 0;
 }
 
-#ifdef _TIMER_DEBUG_
+#ifdef THREAD_DUMP
 void
-print_check_misc_addresses(void)
+register_check_misc_addresses(void)
 {
-	log_message(LOG_INFO, "Address of dump_misc_check() is 0x%p", dump_misc_check);
-	log_message(LOG_INFO, "Address of misc_check_child_thread() is 0x%p", misc_check_child_thread);
-	log_message(LOG_INFO, "Address of misc_check_thread() is 0x%p", misc_check_thread);
+	register_thread_address("misc_check_child_thread", misc_check_child_thread);
+	register_thread_address("misc_check_thread", misc_check_thread);
 }
 #endif

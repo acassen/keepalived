@@ -35,5 +35,8 @@ extern bool using_ha_suspend;
 /* Prototypes */
 extern int start_check_child(void);
 extern void check_validate_config(void);
+#ifdef THREAD_DUMP
+extern void register_check_parent_addresses(void);
+#endif
 
 #endif

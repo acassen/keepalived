@@ -33,6 +33,12 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
+#ifdef THREAD_DUMP
+#include "snmp.h"
+#include "scheduler.h"
+#include "smtp.h"
+#include "vrrp_track.h"
+#endif
 #include "vrrp_daemon.h"
 #include "vrrp_scheduler.h"
 #include "vrrp_arp.h"
@@ -51,6 +57,7 @@
 #include "logger.h"
 #include "signals.h"
 #include "process.h"
+#include "memory.h"
 #include "bitops.h"
 #include "rttables.h"
 #if defined _WITH_SNMP_RFC || defined _WITH_SNMP_VRRP_
@@ -87,12 +94,70 @@ static int reload_vrrp_thread(thread_t * thread);
 static int print_vrrp_json(thread_t * thread);
 #endif
 #endif
+#ifdef _WITH_PERF_
+perf_t perf_run = PERF_NONE;
+#endif
 
 /* local variables */
 static char *vrrp_syslog_ident;
 #ifndef _DEBUG_
 static bool two_phase_terminate;
 #endif
+
+static void
+set_vrrp_max_fds(void)
+{
+	struct rlimit orig_rlim, rlim;
+
+	if (!vrrp_data->vrrp)
+		return;
+
+	if (getrlimit(RLIMIT_NOFILE, &orig_rlim) == -1) {
+		log_message(LOG_INFO, "Failed to get RLIMIT_NOFILE - errno %d (%m)", errno);
+		return;
+	}
+
+	/* Allow:
+	 * 2 per vrrp instance - always needed for VMAC instances
+	 *
+	 * plus:
+	 *
+	 * stdin/stdout/stderr
+	 * logger
+	 * logger file
+	 * timer fd
+	 * inotify fd
+	 * signal fd
+	 * epoll fd
+	 * 3 for SNMP
+	 * 2 for netlink
+	 * bfd pipe
+	 * 2 * notify fifo pipes
+	 * track_file (only one open at a time)
+	 * mem_check file
+	 * USR1/USR2/JSON data
+	 * smtp-alert file
+	 *
+	 * plus:
+	 *
+	 * 20 spare (in case we have forgotten anything)
+	 */
+	rlim.rlim_cur = LIST_SIZE(vrrp_data->vrrp) * 2 + 21 + 20;
+	if (rlim.rlim_cur <= orig_rlim.rlim_cur)
+		return;
+
+	rlim.rlim_max = rlim.rlim_cur;
+
+	if (setrlimit(RLIMIT_NOFILE, &rlim) == -1) {
+		log_message(LOG_INFO, "Failed to set file number limit to %ld - errno %d (%m)", rlim.rlim_cur, errno);
+		return;
+	}
+
+	log_message(LOG_INFO, "Set maximum open files to %ld", rlim.rlim_cur);
+
+	/* We don't want child processes to get excessive limits */
+	set_child_rlimit(RLIMIT_NOFILE, &orig_rlim);
+}
 
 #ifdef _WITH_LVS_
 static bool
@@ -139,9 +204,6 @@ vrrp_terminate_phase2(int exit_status)
 		ipvs_stop();
 	}
 #endif
-
-	/* We mustn't receive a SIGCHLD after master is destroyed */
-	signal_handler_destroy();
 
 	kernel_netlink_close_cmd();
 	thread_destroy_master(master);
@@ -193,21 +255,35 @@ vrrp_terminate_phase2(int exit_status)
 }
 
 static int
-vrrp_shutdown_timer_thread(thread_t *thread)
+vrrp_shutdown_backstop_thread(thread_t *thread)
 {
-	thread->master->shutdown_timer_running = false;
+	int count = 0;
+	thread_t *t;
+
+	/* Force terminate all script processes */
+	if (thread->master->child.rb_node)
+		script_killall(thread->master, SIGKILL, true);
+
+	rb_for_each_entry(t, &thread->master->child, n)
+		count++;
+
+	log_message(LOG_ERR, "Backstop thread invoked: shutdown timer %srunning, child count %d",
+			thread->master->shutdown_timer_running ? "" : "not ", count);
+
 	thread_add_terminate_event(thread->master);
 
 	return 0;
 }
 
 static int
-vrrp_shutdown_backstop_thread(thread_t *thread)
+vrrp_shutdown_timer_thread(thread_t *thread)
 {
-	log_message(LOG_ERR, "Backstop thread invoked: shutdown timer %srunning, child count %d",
-			thread->master->shutdown_timer_running ? "" : "not ", thread->master->child.count);
+	thread->master->shutdown_timer_running = false;
 
-	thread_add_terminate_event(thread->master);
+	if (thread->master->child.rb_node)
+		thread_add_timer_shutdown(thread->master, vrrp_shutdown_backstop_thread, NULL, TIMER_HZ / 10);
+	else
+		thread_add_terminate_event(thread->master);
 
 	return 0;
 }
@@ -216,8 +292,13 @@ vrrp_shutdown_backstop_thread(thread_t *thread)
 static void
 vrrp_terminate_phase1(bool schedule_next_thread)
 {
+#if _WITH_PERF_
+	if (perf_run == PERF_END)
+		run_perf("vrrp", global_data->network_namespace, global_data->instance_name);
+#endif
+
 	/* Terminate all script processes */
-	if (master->child.count)
+	if (master->child.rb_node)
 		script_killall(master, SIGTERM, true);
 
 	kernel_netlink_close_monitor();
@@ -269,7 +350,7 @@ vrrp_terminate_phase1(bool schedule_next_thread)
 			thread_add_timer_shutdown(master, vrrp_shutdown_timer_thread, NULL, TIMER_HZ);
 			master->shutdown_timer_running = true;
 		}
-		else if (master->child.count) {
+		else if (master->child.rb_node) {
 			/* Add a backstop timer for the shutdown */
 			thread_add_timer_shutdown(master, vrrp_shutdown_backstop_thread, NULL, TIMER_HZ);
 		}
@@ -501,6 +582,8 @@ start_vrrp(void)
 #endif
 			       global_data->vrrp_process_priority, global_data->vrrp_no_swap ? 4096 : 0);
 
+	/* Ensure we can open sufficient file descriptors */
+	set_vrrp_max_fds();
 }
 
 #ifndef _DEBUG_
@@ -588,7 +671,6 @@ sigend_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 static void
 vrrp_signal_init(void)
 {
-	signal_handler_child_init();
 	signal_set(SIGHUP, sigreload_vrrp, NULL);
 	signal_set(SIGINT, sigend_vrrp, NULL);
 	signal_set(SIGTERM, sigend_vrrp, NULL);
@@ -623,6 +705,8 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 	/* Destroy master thread */
 	vrrp_dispatcher_release(vrrp_data);
 	thread_cleanup_master(master);
+	thread_add_base_threads(master);
+
 #ifdef _WITH_LVS_
 	if (global_data->lvs_syncd.ifname)
 		ipvs_syncd_cmd(IPVS_STOPDAEMON, &global_data->lvs_syncd,
@@ -725,6 +809,45 @@ vrrp_respawn_thread(thread_t * thread)
 }
 #endif
 
+#ifdef THREAD_DUMP
+static void
+register_vrrp_thread_addresses(void)
+{
+	register_scheduler_addresses();
+	register_signal_thread_addresses();
+	register_notify_addresses();
+
+	register_smtp_addresses();
+	register_keepalived_netlink_addresses();
+#ifdef _WITH_SNMP_
+	register_snmp_addresses();
+#endif
+
+	register_vrrp_if_addresses();
+	register_vrrp_scheduler_addresses();
+#ifdef _WITH_DBUS_
+	register_vrrp_dbus_addresses();
+#endif
+	register_vrrp_fifo_addresses();
+	register_vrrp_inotify_addresses();
+
+	register_thread_address("print_vrrp_data", print_vrrp_data);
+	register_thread_address("print_vrrp_stats", print_vrrp_stats);
+	register_thread_address("reload_vrrp_thread", reload_vrrp_thread);
+	register_thread_address("start_vrrp_termination_thread", start_vrrp_termination_thread);
+	register_thread_address("vrrp_shutdown_backstop_thread", vrrp_shutdown_backstop_thread);
+	register_thread_address("vrrp_shutdown_timer_thread", vrrp_shutdown_timer_thread);
+
+	register_signal_handler_address("sigreload_vrrp", sigreload_vrrp);
+	register_signal_handler_address("sigend_vrrp", sigend_vrrp);
+	register_signal_handler_address("sigusr1_vrrp", sigusr1_vrrp);
+	register_signal_handler_address("sigusr2_vrrp", sigusr2_vrrp);
+#ifdef _WITH_JSON_
+	register_signal_handler_address("sigjson_vrrp", sigjson_vrrp);
+#endif
+}
+#endif
+
 /* Register VRRP thread */
 int
 start_vrrp_child(void)
@@ -754,7 +877,13 @@ start_vrrp_child(void)
 
 		return 0;
 	}
+
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
+
+#if _WITH_PERF_
+	if (perf_run == PERF_ALL)
+		run_perf("vrrp", global_data->network_namespace, global_data->instance_name);
+#endif
 
 	prog_type = PROG_TYPE_VRRP;
 
@@ -792,8 +921,6 @@ start_vrrp_child(void)
 				NULL,
 #endif
 				global_data->instance_name);
-
-	signal_handler_destroy();
 
 #ifdef _MEM_CHECK_
 	mem_log_init(PROG_VRRP, "VRRP Child process");
@@ -838,8 +965,20 @@ start_vrrp_child(void)
 	return 0;
 #endif
 
+#ifdef THREAD_DUMP
+	register_vrrp_thread_addresses();
+#endif
+
+#if _WITH_PERF_
+	if (perf_run == PERF_RUN)
+		run_perf("vrrp", global_data->network_namespace, global_data->instance_name);
+#endif
 	/* Launch the scheduling I/O multiplexer */
-	launch_scheduler();
+	launch_thread_scheduler(master);
+
+#ifdef THREAD_DUMP
+	deregister_thread_addresses();
+#endif
 
 	/* Finish VRRP daemon process */
 	vrrp_terminate_phase2(EXIT_SUCCESS);
@@ -854,13 +993,10 @@ vrrp_validate_config(void)
 	start_vrrp();
 }
 
-#ifdef _TIMER_DEBUG_
+#ifdef THREAD_DUMP
 void
-print_vrrp_daemon_addresses(void)
+register_vrrp_parent_addresses(void)
 {
-	log_message(LOG_INFO, "Address of print_vrrp_data() is 0x%p", print_vrrp_data);
-	log_message(LOG_INFO, "Address of print_vrrp_stats() is 0x%p", print_vrrp_stats);
-	log_message(LOG_INFO, "Address of reload_vrrp_thread() is 0x%p", reload_vrrp_thread);
-	log_message(LOG_INFO, "Address of vrrp_respawn_thread() is 0x%p", vrrp_respawn_thread);
+	register_thread_address("vrrp_respawn_thread", vrrp_respawn_thread);
 }
 #endif

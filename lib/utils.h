@@ -47,6 +47,15 @@
 
 #define STR(x)  #x
 
+#ifdef _WITH_PERF_
+typedef enum {
+	PERF_NONE,
+	PERF_RUN,
+	PERF_ALL,
+	PERF_END,
+} perf_t;
+#endif
+
 /* inline stuff */
 static inline int __ip6_addr_equal(const struct in6_addr *a1,
 				   const struct in6_addr *a2)
@@ -140,13 +149,21 @@ static inline uint16_t csum_incremental_update16(const uint16_t old_csum, const 
 
 	return ~acc & 0xffff;
 }
+
 /* global vars exported */
 extern unsigned long debug;
+#ifdef _WITH_PERF_
+extern perf_t perf_run;
+#endif
 
 /* Prototypes defs */
-extern void dump_buffer(char *, size_t, FILE *);
+extern void dump_buffer(char *, size_t, FILE *, int);
 #ifdef _WITH_STACKTRACE_
 extern void write_stacktrace(const char *, const char *);
+#endif
+extern char *make_file_name(const char *, const char *, const char *, const char *);
+#ifdef _WITH_PERF_
+extern void run_perf(const char *, const char *, const char *);
 #endif
 extern uint16_t in_csum(const uint16_t *, size_t, uint32_t, uint32_t *);
 extern char *inet_ntop2(uint32_t);

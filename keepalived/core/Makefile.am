@@ -13,8 +13,7 @@ AM_LDFLAGS		= $(KA_LDFLAGS) $(DEBUG_LDFLAGS)
 noinst_LIBRARIES	= libcore.a
 
 libcore_a_SOURCES	= main.c daemon.c pidfile.c layer4.c smtp.c \
-			  global_data.c global_parser.c process.c \
-			  keepalived_netlink.c
+			  global_data.c global_parser.c keepalived_netlink.c
 
 AM_CPPFLAGS		+= -I$(srcdir)/../include -I$(srcdir)/../../lib
 

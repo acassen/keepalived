@@ -22,8 +22,6 @@
 
 #include "config.h"
 
-#include "git-commit.h"
-
 #include <stdlib.h>
 #include <sys/utsname.h>
 #include <sys/resource.h>
@@ -77,6 +75,10 @@
 #include "scheduler.h"
 #include "keepalived_netlink.h"
 #include "git-commit.h"
+#ifdef THREAD_DUMP
+#include "scheduler.h"
+#endif
+#include "process.h"
 
 /* musl libc doesn't define the following */
 #ifndef	W_EXITCODE
@@ -147,49 +149,6 @@ static bool create_core_dump = false;
 static const char *core_dump_pattern = "core";
 static char *orig_core_dump_pattern = NULL;
 
-#ifdef _TIMER_DEBUG_
-extern void print_smtp_addresses(void);
-extern void print_check_daemon_addresses(void);
-extern void print_check_dns_addresses(void);
-extern void print_check_http_addresses(void);
-extern void print_check_misc_addresses(void);
-extern void print_check_smtp_addresses(void);
-extern void print_check_tcp_addresses(void);
-#ifdef _WITH_DBUS_
-extern void print_vrrp_dbus_addresses(void);
-#endif
-extern void print_vrrp_if_addresses(void);
-extern void print_vrrp_netlink_addresses(void);
-extern void print_vrrp_daemon_addresses(void);
-extern void print_check_ssl_addresses(void);
-extern void print_vrrp_scheduler_addresses(void);
-
-void global_print(void)
-{
-	print_smtp_addresses();
-#ifdef _WITH_LVS_
-	print_check_daemon_addresses();
-	print_check_dns_addresses();
-	print_check_http_addresses();
-	print_check_misc_addresses();
-	print_check_smtp_addresses();
-	print_check_ssl_addresses();
-	print_check_tcp_addresses();
-#ifdef _WITH_BFD_
-	print_check_bfd_addresses();
-#endif
-#endif
-#ifdef _WITH_VRRP_
-#ifdef _WITH_DBUS_
-	print_vrrp_dbus_addresses();
-#endif
-	print_vrrp_if_addresses();
-	print_vrrp_netlink_addresses();
-	print_vrrp_daemon_addresses();
-	print_vrrp_scheduler_addresses();
-#endif
-}
-#endif
 
 void
 free_parent_mallocs_startup(bool am_child)
@@ -406,7 +365,6 @@ stop_keepalived(void)
 {
 #ifndef _DEBUG_
 	/* Just cleanup memory & exit */
-	signal_handler_destroy();
 	thread_destroy_master(master);
 
 #ifdef _WITH_VRRP_
@@ -517,6 +475,8 @@ config_test_exit(void)
 static bool reload_config(void)
 {
 	bool unsupported_change = false;
+
+	log_message(LOG_INFO, "Reloading ...");
 
 	/* Make sure there isn't an attempt to change the network namespace or instance name */
 	old_global_data = global_data;
@@ -807,7 +767,6 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 static void
 signal_init(void)
 {
-	signal_handler_init();
 #ifndef _DEBUG_
 	signal_set(SIGHUP, propogate_signal, NULL);
 	signal_set(SIGUSR1, propogate_signal, NULL);
@@ -869,7 +828,7 @@ update_core_dump_pattern(const char *pattern_str)
 static void
 core_dump_init(void)
 {
-	struct rlimit rlim;
+	struct rlimit orig_rlim, rlim;
 
 	if (set_core_dump_pattern) {
 		/* If we set the core_pattern here, we will attempt to restore it when we
@@ -882,8 +841,12 @@ core_dump_init(void)
 		rlim.rlim_cur = RLIM_INFINITY;
 		rlim.rlim_max = RLIM_INFINITY;
 
-		if (setrlimit(RLIMIT_CORE, &rlim) == -1)
+		if (getrlimit(RLIMIT_CORE, &orig_rlim) == -1)
+			log_message(LOG_INFO, "Failed to get core file size");
+		else if (setrlimit(RLIMIT_CORE, &rlim) == -1)
 			log_message(LOG_INFO, "Failed to set core file size");
+		else
+			set_child_rlimit(RLIMIT_CORE, &orig_rlim);
 	}
 }
 
@@ -950,6 +913,9 @@ usage(const char *prog)
 								"\n");
 	fprintf(stderr, "  -t, --config-test[=LOG_FILE] Check the configuration for obvious errors, output to\n"
 			"                                stderr by default\n");
+#ifdef _WITH_PERF_
+	fprintf(stderr, "      --perf[=PERF_TYPE]       Collect perf data, PERF_TYPE=all, run(default) or end\n");
+#endif
 	fprintf(stderr, "  -v, --version                Display the version number\n");
 	fprintf(stderr, "  -h, --help                   Display this help message\n");
 }
@@ -1019,6 +985,9 @@ parse_cmdline(int argc, char **argv)
 		{"config-id",		required_argument,	NULL, 'i'},
 		{"signum",		required_argument,	NULL,  4 },
 		{"config-test",		optional_argument,	NULL, 't'},
+#ifdef _WITH_PERF_
+		{"perf",		optional_argument,	NULL,  5 },
+#endif
 		{"version",		no_argument,		NULL, 'v'},
 		{"help",		no_argument,		NULL, 'h'},
 
@@ -1027,7 +996,7 @@ parse_cmdline(int argc, char **argv)
 
 	/* Unfortunately, if a short option is used, getopt_long() doesn't change the value
 	 * of longindex, so we need to ensure that before calling getopt_long(), longindex
-	 * is set to a know invalid value */
+	 * is set to a known invalid value */
 	curind = optind;
 	while (longindex = -1, (c = getopt_long(argc, argv, ":vhlndDRS:f:p:i:mM::g::Gt::"
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
@@ -1244,6 +1213,23 @@ parse_cmdline(int argc, char **argv)
 			__set_bit(DAEMON_BFD, &daemon_mode);
 #endif
 			break;
+#ifdef _WITH_PERF_
+		case 5:
+			if (optarg && optarg[0]) {
+				if (!strcmp(optarg, "run"))
+					perf_run = PERF_RUN;
+				else if (!strcmp(optarg, "all"))
+					perf_run = PERF_ALL;
+				else if (!strcmp(optarg, "end"))
+					perf_run = PERF_END;
+				else
+					log_message(LOG_INFO, "Unknown perf start point %s", optarg);
+			}
+			else
+				perf_run = PERF_RUN;
+
+			break;
+#endif
 		case '?':
 			if (optopt && argv[curind][1] != '-')
 				fprintf(stderr, "Unknown option -%c\n", optopt);
@@ -1278,6 +1264,29 @@ parse_cmdline(int argc, char **argv)
 	return reopen_log;
 }
 
+#ifdef THREAD_DUMP
+static void
+register_parent_thread_addresses(void)
+{
+	register_scheduler_addresses();
+	register_signal_thread_addresses();
+
+#ifdef _WITH_LVS_
+	register_check_parent_addresses();
+#endif
+#ifdef _WITH_VRRP_
+	register_vrrp_parent_addresses();
+#endif
+#ifdef _WITH_BFD_
+	register_bfd_parent_addresses();
+#endif
+
+	register_signal_handler_address("propogate_signal", propogate_signal);
+	register_signal_handler_address("sigend", sigend);
+	register_signal_handler_address("thread_child_handler", thread_child_handler);
+}
+#endif
+
 /* Entry point */
 int
 keepalived_main(int argc, char **argv)
@@ -1285,6 +1294,10 @@ keepalived_main(int argc, char **argv)
 	bool report_stopped = true;
 	struct utsname uname_buf;
 	char *end;
+
+	/* Ensure time_now is set. We then don't have to check anywhere
+	 * else if it is set. */
+	set_time_now();
 
 	/* Save command line options in case need to log them later */
 	save_cmd_line_options(argc, argv);
@@ -1454,10 +1467,6 @@ keepalived_main(int argc, char **argv)
 				global_data->instance_name);
 	}
 
-#ifdef _TIMER_DEBUG_
-	global_print();
-#endif
-
 	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
 		if (use_pid_dir) {
 			/* Create the directory for pid files */
@@ -1561,24 +1570,29 @@ keepalived_main(int argc, char **argv)
 	if (!pidfile_write(main_pidfile, getpid()))
 		goto end;
 
-	/* Signal handling initialization  */
-	signal_init();
-
 	/* Create the master thread */
 	master = thread_make_master();
 
-	add_signal_read_thread();
+	/* Signal handling initialization  */
+	signal_init();
 
 	/* Init daemon */
-	signal_set(SIGCHLD, thread_child_handler, master);	/* Set this before creating children */
 	if (!start_keepalived())
 		log_message(LOG_INFO, "Warning - keepalived has no configuration to run");
 
+#ifdef THREAD_DUMP
+	register_parent_thread_addresses();
+#endif
+
 	/* Launch the scheduling I/O multiplexer */
-	launch_scheduler();
+	launch_thread_scheduler(master);
 
 	/* Finish daemon process */
 	stop_keepalived();
+
+#ifdef THREAD_DUMP
+	deregister_thread_addresses();
+#endif
 
 	/*
 	 * Reached when terminate signal catched.

@@ -68,8 +68,6 @@ stop_bfd(int status)
 	if (__test_bit(CONFIG_TEST_BIT, &debug))
 		return;
 
-	signal_handler_destroy();
-
 	/* Stop daemon */
 	pidfile_rm(bfd_pidfile);
 
@@ -202,7 +200,6 @@ sigend_bfd(__attribute__ ((unused)) void *v,
 static void
 bfd_signal_init(void)
 {
-	signal_handler_child_init();
 	signal_set(SIGHUP, sigreload_bfd, NULL);
 	signal_set(SIGINT, sigend_bfd, NULL);
 	signal_set(SIGTERM, sigend_bfd, NULL);
@@ -224,9 +221,6 @@ reload_bfd_thread(__attribute__((unused)) thread_t * thread)
 	/* set the reloading flag */
 	SET_RELOAD;
 
-	/* Signal handling */
-//	signal_handler_destroy();
-
 	/* Destroy master thread */
 	bfd_dispatcher_release(bfd_data);
 	thread_destroy_master(master);
@@ -247,7 +241,7 @@ reload_bfd_thread(__attribute__((unused)) thread_t * thread)
 	UNSET_RELOAD;
 
 	set_time_now();
-	log_message(LOG_INFO, "Reload finished in %li usec", -timer_tol(timer_sub_now(timer)));
+	log_message(LOG_INFO, "Reload finished in %li usec", -timer_long(timer_sub_now(timer)));
 
 	return 0;
 }
@@ -280,6 +274,24 @@ bfd_respawn_thread(thread_t * thread)
 		raise(SIGTERM);
 	}
 	return 0;
+}
+#endif
+
+#ifdef THREAD_DUMP
+static void
+register_bfd_thread_addresses(void)
+{
+	register_scheduler_addresses();
+	register_signal_thread_addresses();
+
+	register_bfd_scheduler_addresses();
+
+	register_thread_address("bfd_dispatcher_init", bfd_dispatcher_init);
+	register_thread_address("reload_bfd_thread", reload_bfd_thread);
+
+	register_signal_handler_address("sigreload_bfd", sigreload_bfd);
+	register_signal_handler_address("sigend_bfd", sigend_bfd);
+	register_signal_handler_address("thread_child_handler", thread_child_handler);
 }
 #endif
 
@@ -351,8 +363,6 @@ start_bfd_child(void)
 #endif
 				global_data->instance_name);
 
-	signal_handler_destroy();
-
 #ifdef _MEM_CHECK_
 	mem_log_init(PROG_BFD, "BFD child process");
 #endif
@@ -398,8 +408,16 @@ start_bfd_child(void)
 	return 0;
 #else
 
+#ifdef THREAD_DUMP
+	register_bfd_thread_addresses();
+#endif
+
 	/* Launch the scheduling I/O multiplexer */
-	launch_scheduler();
+	launch_thread_scheduler(master);
+
+#ifdef THREAD_DUMP
+	deregister_thread_addresses();
+#endif
 
 	/* Finish BFD daemon process */
 	stop_bfd(EXIT_SUCCESS);
@@ -408,3 +426,11 @@ start_bfd_child(void)
 	exit(EXIT_SUCCESS);
 #endif
 }
+
+#ifdef THREAD_DUMP
+void
+register_bfd_parent_addresses(void)
+{
+	register_thread_address("bfd_respawn_thread", bfd_respawn_thread);
+}
+#endif

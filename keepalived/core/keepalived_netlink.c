@@ -48,6 +48,9 @@
 #include <linux/fib_rules.h>
 #endif
 #endif
+#ifdef THREAD_DUMP
+#include "scheduler.h"
+#endif
 
 /* local include */
 #ifdef _LIBNL_DYNAMIC_
@@ -2279,10 +2282,10 @@ kernel_netlink_read_interfaces(void)
 }
 #endif
 
-#ifdef _TIMER_DEBUG_
+#ifdef THREAD_DUMP
 void
-print_vrrp_netlink_addresses(void)
+register_keepalived_netlink_addresses(void)
 {
-	log_message(LOG_INFO, "Address of kernel_netlink() is 0x%p", kernel_netlink);
+	register_thread_address("kernel_netlink", kernel_netlink);
 }
 #endif

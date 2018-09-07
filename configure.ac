@@ -209,6 +209,8 @@ AC_ARG_ENABLE(mem-check,
   [AS_HELP_STRING([--enable-mem-check], [compile with memory alloc checking])])
 AC_ARG_ENABLE(mem-check-log,
   [AS_HELP_STRING([--enable-mem-check-log], [compile with memory alloc checking writing to syslog])])
+AC_ARG_ENABLE(timer-check,
+  [AS_HELP_STRING([--enable-timer-check], [compile with set time logging])])
 AC_ARG_ENABLE(debug,
   [AS_HELP_STRING([--enable-debug], [compile with debugging flags])])
 AC_ARG_ENABLE(netlink-timers,
@@ -217,16 +219,16 @@ AC_ARG_ENABLE(smtp-alert-debug,
   [AS_HELP_STRING([--enable-smtp-alert-debug], [compile with smtp-alert debugging])])
 AC_ARG_ENABLE(stacktrace,
   [AS_HELP_STRING([--enable-stacktrace], [compile with stacktrace support])])
+AC_ARG_ENABLE(perf,
+  [AS_HELP_STRING([--enable-perf], [compile with perf performance data recording support for vrrp process])])
 AC_ARG_ENABLE(dump-threads,
   [  --enable-dump-threads   compile with thread dumping support])
-AC_ARG_ENABLE(select-debug,
-  [  --enable-select-debug   compile with select debugging support])
+AC_ARG_ENABLE(epoll-debug,
+  [  --enable-epoll-debug    compile with epoll_wait() debugging support])
 AC_ARG_ENABLE(regex-debug,
   [  --enable-regex-debug    compile with regex debugging support])
 AC_ARG_ENABLE(tsm-debug,
   [  --enable-tsm-debug      compile with TSM debugging support])
-AC_ARG_ENABLE(timer-debug,
-  [  --enable-timer-debug    compile with timer debugging support])
 AC_ARG_ENABLE(profile,
   [AS_HELP_STRING([--enable-profile], [compile with profiling flags])])
 AC_ARG_ENABLE(conversion-checks,
@@ -535,6 +537,8 @@ dnl - inotify_init1() since Linux 2.6.27
 AC_CHECK_FUNCS([inotify_init1], [add_system_opt([INOTIFY_INIT1])])
 dnl - vsyslog() Not defined by Posix, but available in glibc and musl
 AC_CHECK_FUNCS([vsyslog], [add_system_opt([VSYSLOG])])
+dnl - epoll_create1() since Linux  2.6.27 and glibc 2.9
+AC_CHECK_FUNCS([epoll_create1], [add_system_opt([EPOLL_CREATE1])])
 
 # glibc uses unsigned int as 3rd parameter to __assert_fail(), musl uses int.
 AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
@@ -1700,6 +1704,14 @@ if test "${enable_mem_check}" = "yes"; then
   fi
 fi
 
+dnl ----[ Memory alloc check or not ? ]----
+TIMER_CHECK=No
+if test "${enable_timer_check}" = "yes"; then
+  TIMER_CHECK=Yes
+  AC_DEFINE([_TIMER_CHECK_], [ 1 ], [Define to 1 to build with set time logging])
+  add_config_opt([TIMER_CHECK])
+fi
+
 dnl ----[ Debug or not ? ]----
 if test "${enable_debug}" = yes; then
   AC_DEFINE([_DEBUG_], [ 1 ], [Define to 1 to build with debugging support])
@@ -1738,6 +1750,16 @@ else
   ENABLE_STACKTRACE=No
 fi
 
+dnl ----[ perf support or not ? ]----
+if test "${enable_perf}" = yes; then
+  AC_DEFINE([_WITH_PERF_], [ 1 ], [Define to 1 to build with perf support])
+  ENABLE_PERF=Yes
+  add_config_opt([PERF])
+  add_to_var([KA_CFLAGS], [-pg])
+else
+  ENABLE_PERF=No
+fi
+
 dnl ----[ Thread dumping support or not ? ]----
 if test "${enable_dump_threads}" = yes; then
   AC_DEFINE([_WITH_DUMP_THREADS_], [ 1 ], [Define to 1 to build with thread dumping support])
@@ -1747,13 +1769,17 @@ else
   ENABLE_DUMP_THREADS=No
 fi
 
-dnl ----[ select() debugging support or not ? ]----
-if test "${enable_select_debug}" = yes; then
-  AC_DEFINE([_SELECT_DEBUG_], [ 1 ], [Define to 1 to build with select debugging support])
-  ENABLE_SELECT_DEBUG=Yes
-  add_config_opt([SELECT_DEBUG])
+dnl ----[ epoll() debugging support or not ? ]----
+if test "${enable_epoll_debug}" = yes; then
+  AC_DEFINE([_EPOLL_DEBUG_], [ 1 ], [Define to 1 to build with epoll_wait() debugging support])
+  ENABLE_EPOLL_DEBUG=Yes
+  add_config_opt([EPOLL_DEBUG])
 else
-  ENABLE_SELECT_DEBUG=No
+  ENABLE_EPOLL_DEBUG=No
+fi
+
+if test $ENABLE_EPOLL_DEBUG = Yes -o $ENABLE_DUMP_THREADS = Yes; then
+  AC_DEFINE([THREAD_DUMP], [ 1 ], [Define to 1 to build with thread dumping support])
 fi
 
 dnl ----[ regex debugging support or not ? ]----
@@ -1772,15 +1798,6 @@ if test "${enable_tsm_debug}" = yes; then
   add_config_opt([TSM_DEBUG])
 else
   ENABLE_TSM_DEBUG=No
-fi
-
-dnl ----[ Timer debugging support or not ? ]----
-if test "${enable_timer_debug}" = yes; then
-  AC_DEFINE([_TIMER_DEBUG_], [ 1 ], [Define to 1 to build with timer debugging support])
-  ENABLE_TIMER_DEBUG=Yes
-  add_config_opt([TIMER_DEBUG])
-else
-  ENABLE_TIMER_DEBUG=No
 fi
 
 dnl ----[ Profiling or not ? ]----
@@ -1929,24 +1946,27 @@ echo "Build documentation      : ${HAVE_SPHINX_BUILD}"
 if test ${ENABLE_STACKTRACE} = Yes; then
   echo "Stacktrace support       : ${ENABLE_STACKTRACE}"
 fi
+if test ${ENABLE_PERF} = Yes; then
+  echo "Perf support             : ${ENABLE_PERF}"
+fi
 if test ${MEM_CHECK} = Yes; then
   echo "Memory alloc check       : ${MEM_CHECK}"
   echo "Memory alloc check log   : ${MEM_CHECK_LOG}"
 fi
+if test ${TIMER_CHECK} = Yes; then
+  echo "Set time logging         : ${TIMER_CHECK}"
+fi
 if test ${ENABLE_DUMP_THREADS} = Yes; then
   echo "Thread debugging         : ${ENABLE_DUMP_THREADS}"
 fi
-if test ${ENABLE_SELECT_DEBUG} = Yes; then
-  echo "Select() debugging       : ${ENABLE_SELECT_DEBUG}"
+if test ${ENABLE_EPOLL_DEBUG} = Yes; then
+  echo "epoll_wait() debugging   : ${ENABLE_EPOLL_DEBUG}"
 fi
 if test ${ENABLE_REGEX_DEBUG} = Yes; then
   echo "regex debugging          : ${ENABLE_REGEX_DEBUG}"
 fi
 if test ${ENABLE_TSM_DEBUG} = Yes; then
   echo "TSM debugging            : ${ENABLE_TSM_DEBUG}"
-fi
-if test ${ENABLE_TIMER_DEBUG} = Yes; then
-  echo "Timer debugging          : ${ENABLE_TIMER_DEBUG}"
 fi
 if test ${ENABLE_DEBUG} = Yes; then
   echo "Use Debug flags          : ${ENABLE_DEBUG}"
