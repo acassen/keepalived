@@ -328,16 +328,19 @@ http_get_check_compare(void *a, void *b)
 		if (u1->virtualhost && strcmp(u1->virtualhost, u2->virtualhost))
 			return false;
 #ifdef _WITH_REGEX_CHECK_
-		if (!u1->regex != !u2->regex ||
-		    (u1->regex && strcmp((char *)u1->regex->pattern, (char *)u2->regex->pattern)))
+		if (!u1->regex != !u2->regex)
 			return false;
-		if (u1->regex->pcre2_options != u2->regex->pcre2_options)
-			return false;
-		if (u1->regex_no_match != u2->regex_no_match)
-			return false;
-		if (u1->regex_min_offset != u2->regex_min_offset ||
-		    u1->regex_max_offset != u2->regex_max_offset)
-			return false;
+		if (u1->regex) {
+			if (strcmp((char *)u1->regex->pattern, (char *)u2->regex->pattern))
+				return false;
+			if (u1->regex->pcre2_options != u2->regex->pcre2_options)
+				return false;
+			if (u1->regex_no_match != u2->regex_no_match)
+				return false;
+			if (u1->regex_min_offset != u2->regex_min_offset ||
+			    u1->regex_max_offset != u2->regex_max_offset)
+				return false;
+		}
 #endif
 	}
 
