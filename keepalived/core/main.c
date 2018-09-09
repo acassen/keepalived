@@ -936,9 +936,6 @@ initialise_debug_options(void)
 #ifdef _NETLINK_TIMERS_
 	do_netlink_timers = !!(netlink_timer_debug & mask);
 #endif
-log_message(LOG_INFO, "initialise_debug_options called for %d, mask 0x%x, tsedrxsn: %x %x %x %x %x %x %x %x: %d %d %d %d %d %d %d %d  ", prog_type, mask,
-timer_debug, smtp_debug, epoll_debug, epoll_thread_debug, regex_debug, regex_timers, tsm_debug, netlink_timer_debug,
-do_timer_check, do_smtp_alert_debug, do_epoll_debug, do_epoll_thread_dump, do_regex_debug, do_regex_timers, do_tsm_debug, do_netlink_timers);
 #endif
 }
 
