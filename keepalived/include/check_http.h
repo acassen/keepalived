@@ -36,6 +36,7 @@
 #include <time.h>
 #endif
 #endif
+#include <stdbool.h>
 
 /* local includes */
 #include "scheduler.h"
@@ -126,6 +127,13 @@ typedef struct _http_checker {
 
 /* macro utility */
 #define FMT_HTTP_RS(C) FMT_CHK(C)
+
+#ifdef _REGEX_DEBUG_
+extern bool do_regex_debug;
+#endif
+#ifdef _WITH_REGEX_TIMERS_
+extern bool do_regex_timers;
+#endif
 
 /* Define prototypes */
 extern void install_http_check_keyword(void);

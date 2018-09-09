@@ -26,11 +26,16 @@
 #include <sys/time.h>
 #include <limits.h>
 #include <string.h>
+#include <stdbool.h>
 
 typedef struct timeval timeval_t;
 
 /* Global vars */
 extern timeval_t time_now;
+
+#ifdef _TIMER_CHECK_
+bool do_timer_check;
+#endif
 
 /* Some defines */
 #define TIMER_HZ		1000000U

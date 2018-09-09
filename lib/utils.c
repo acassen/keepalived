@@ -190,7 +190,7 @@ make_file_name(const char *name, const char *prog, const char *namespace, const 
 	return file_name;
 }
 
-#if _WITH_PERF_
+#ifdef _WITH_PERF_
 void
 run_perf(const char *process, const char *network_namespace, const char *instance_name)
 {

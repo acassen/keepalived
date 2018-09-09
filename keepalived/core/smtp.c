@@ -42,8 +42,10 @@
 #ifdef THREAD_DUMP
 #include "scheduler.h"
 #endif
+#ifdef _SMTP_ALERT_DEBUG_
+bool do_smtp_alert_debug;
+#endif
 
-#ifndef _SMTP_ALERT_DEBUG_
 /* SMTP FSM definition */
 static int connection_error(thread_t *);
 static int connection_in_progress(thread_t *);
@@ -84,7 +86,6 @@ struct {
 	{body_cmd,			body_code},		/* BODY */
 	{quit_cmd,			quit_code}		/* QUIT */
 };
-#endif
 
 static void
 free_smtp_all(smtp_t * smtp)
@@ -102,7 +103,6 @@ fetch_next_email(smtp_t * smtp)
 	return list_element(global_data->email, smtp->email_it);
 }
 
-#ifndef _SMTP_ALERT_DEBUG_
 /* layer4 connection handlers */
 static int
 connection_error(thread_t * thread)
@@ -566,8 +566,7 @@ smtp_connect(smtp_t * smtp)
 	thread_add_event(master, SMTP_FSM[status].send, smtp, smtp->fd);
 }
 
-#else
-
+#ifdef _SMTP_ALERT_DEBUG_
 static void
 smtp_log_to_file(smtp_t *smtp)
 {
@@ -726,17 +725,17 @@ smtp_alert(smtp_msg_t msg_type, void* data, const char *subject, const char *bod
 	build_to_header_rcpt_addrs(smtp);
 
 #ifdef _SMTP_ALERT_DEBUG_
-	smtp_log_to_file(smtp);
-#else
-	smtp_connect(smtp);
+	if (do_smtp_alert_debug)
+		smtp_log_to_file(smtp);
+	else
 #endif
+	smtp_connect(smtp);
 }
 
 #ifdef THREAD_DUMP
 void
 register_smtp_addresses(void)
 {
-#ifndef _SMTP_ALERT_DEBUG_
 	register_thread_address("body_cmd", body_cmd);
 	register_thread_address("connection_error", connection_error);
 	register_thread_address("connection_in_progress", connection_in_progress);
@@ -749,6 +748,5 @@ register_smtp_addresses(void)
 	register_thread_address("rcpt_cmd", rcpt_cmd);
 	register_thread_address("smtp_read_thread", smtp_read_thread);
 	register_thread_address("smtp_send_thread", smtp_send_thread);
-#endif
 }
 #endif

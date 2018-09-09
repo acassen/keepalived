@@ -225,6 +225,8 @@ AC_ARG_ENABLE(dump-threads,
   [  --enable-dump-threads   compile with thread dumping support])
 AC_ARG_ENABLE(epoll-debug,
   [  --enable-epoll-debug    compile with epoll_wait() debugging support])
+AC_ARG_ENABLE(epoll-thread-dump,
+  [  --enable-epoll-thread-dump compile with epoll thread dumping support])
 AC_ARG_ENABLE(regex-debug,
   [  --enable-regex-debug    compile with regex debugging support])
 AC_ARG_ENABLE(tsm-debug,
@@ -1750,16 +1752,6 @@ else
   ENABLE_STACKTRACE=No
 fi
 
-dnl ----[ perf support or not ? ]----
-if test "${enable_perf}" = yes; then
-  AC_DEFINE([_WITH_PERF_], [ 1 ], [Define to 1 to build with perf support])
-  ENABLE_PERF=Yes
-  add_config_opt([PERF])
-  add_to_var([KA_CFLAGS], [-pg])
-else
-  ENABLE_PERF=No
-fi
-
 dnl ----[ Thread dumping support or not ? ]----
 if test "${enable_dump_threads}" = yes; then
   AC_DEFINE([_WITH_DUMP_THREADS_], [ 1 ], [Define to 1 to build with thread dumping support])
@@ -1778,7 +1770,16 @@ else
   ENABLE_EPOLL_DEBUG=No
 fi
 
-if test $ENABLE_EPOLL_DEBUG = Yes -o $ENABLE_DUMP_THREADS = Yes; then
+dnl ----[ epoll() thread dumping support or not ? ]----
+if test "${enable_epoll_thread_dump}" = yes; then
+  AC_DEFINE([_EPOLL_THREAD_DUMP_], [ 1 ], [Define to 1 to build with epoll thread dumping support])
+  ENABLE_EPOLL_THREAD_DUMP=Yes
+  add_config_opt([EPOLL_THREAD_DUMP])
+else
+  ENABLE_EPOLL_THREAD_DUMP=No
+fi
+
+if test $ENABLE_EPOLL_THREAD_DUMP = Yes -o $ENABLE_DUMP_THREADS = Yes -o $ENABLE_EPOLL_DEBUG = Yes; then
   AC_DEFINE([THREAD_DUMP], [ 1 ], [Define to 1 to build with thread dumping support])
 fi
 
@@ -1804,9 +1805,20 @@ dnl ----[ Profiling or not ? ]----
 WITH_PROFILING=No
 if test "${enable_profile}" = yes; then
   WITH_PROFILING=Yes
+  add_config_opt([PROFILING])
   add_to_var([KA_CFLAGS], [-pg])
 fi
 AM_CONDITIONAL([PROFILE], [test $WITH_PROFILING = Yes])
+
+dnl ----[ perf support or not? keepalived provides runtime options ]----
+if test "${enable_perf}" = yes; then
+  AC_DEFINE([_WITH_PERF_], [ 1 ], [Define to 1 to build with perf support])
+  ENABLE_PERF=Yes
+  add_config_opt([PERF])
+  add_to_var([KA_CFLAGS], [-pg])
+else
+  ENABLE_PERF=No
+fi
 
 if test ${NEED_LIBDL} = Yes; then
   add_to_var([KA_LIBS], [-ldl])
@@ -1961,6 +1973,9 @@ if test ${ENABLE_DUMP_THREADS} = Yes; then
 fi
 if test ${ENABLE_EPOLL_DEBUG} = Yes; then
   echo "epoll_wait() debugging   : ${ENABLE_EPOLL_DEBUG}"
+fi
+if test ${ENABLE_EPOLL_THREAD_DUMP} = Yes; then
+  echo "epoll thread dumping     : ${ENABLE_EPOLL_THREAD_DUMP}"
 fi
 if test ${ENABLE_REGEX_DEBUG} = Yes; then
   echo "regex debugging          : ${ENABLE_REGEX_DEBUG}"

@@ -173,14 +173,16 @@ vrrp_terminate_phase2(int exit_status)
 	struct rusage usage;
 
 #ifdef _NETLINK_TIMERS_
-	report_and_clear_netlink_timers("Starting shutdown instances");
+	if (do_netlink_timers)
+		report_and_clear_netlink_timers("Starting shutdown instances");
 #endif
 
 	if (!__test_bit(DONT_RELEASE_VRRP_BIT, &debug))
 		shutdown_vrrp_instances();
 
 #ifdef _NETLINK_TIMERS_
-	report_and_clear_netlink_timers("Completed shutdown instances");
+	if (do_netlink_timers)
+		report_and_clear_netlink_timers("Completed shutdown instances");
 #endif
 
 #if defined _WITH_SNMP_RFC || defined _WITH_SNMP_VRRP_
@@ -292,7 +294,7 @@ vrrp_shutdown_timer_thread(thread_t *thread)
 static void
 vrrp_terminate_phase1(bool schedule_next_thread)
 {
-#if _WITH_PERF_
+#ifdef _WITH_PERF_
 	if (perf_run == PERF_END)
 		run_perf("vrrp", global_data->network_namespace, global_data->instance_name);
 #endif
@@ -304,7 +306,8 @@ vrrp_terminate_phase1(bool schedule_next_thread)
 	kernel_netlink_close_monitor();
 
 #ifdef _NETLINK_TIMERS_
-	report_and_clear_netlink_timers("Start shutdown");
+	if (do_netlink_timers)
+		report_and_clear_netlink_timers("Start shutdown");
 #endif
 
 	/* Ensure any interfaces are in backup mode,
@@ -314,7 +317,8 @@ vrrp_terminate_phase1(bool schedule_next_thread)
 		restore_vrrp_interfaces();
 
 #ifdef _NETLINK_TIMERS_
-	report_and_clear_netlink_timers("Restored interfaces");
+	if (do_netlink_timers)
+		report_and_clear_netlink_timers("Restored interfaces");
 #endif
 
 	if (vrrp_data->vrrp_track_files)
@@ -332,7 +336,8 @@ vrrp_terminate_phase1(bool schedule_next_thread)
 	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_DEL, false);
 
 #ifdef _NETLINK_TIMERS_
-	report_and_clear_netlink_timers("Static addresses/routes/rules cleared");
+	if (do_netlink_timers)
+		report_and_clear_netlink_timers("Static addresses/routes/rules cleared");
 #endif
 
 	/* Clean data */
@@ -880,12 +885,14 @@ start_vrrp_child(void)
 
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
-#if _WITH_PERF_
+#ifdef _WITH_PERF_
 	if (perf_run == PERF_ALL)
 		run_perf("vrrp", global_data->network_namespace, global_data->instance_name);
 #endif
 
 	prog_type = PROG_TYPE_VRRP;
+
+	initialise_debug_options();
 
 #ifdef _WITH_BFD_
 	/* Close the write end of the BFD vrrp event notification pipe */
@@ -969,7 +976,7 @@ start_vrrp_child(void)
 	register_vrrp_thread_addresses();
 #endif
 
-#if _WITH_PERF_
+#ifdef _WITH_PERF_
 	if (perf_run == PERF_RUN)
 		run_perf("vrrp", global_data->network_namespace, global_data->instance_name);
 #endif

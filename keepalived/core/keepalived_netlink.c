@@ -108,6 +108,8 @@ static int nlmsg_buf_size;	/* Size of netlink message buffer */
 static struct timeval netlink_times[MAX_NETLINK_TIMER+1];
 static unsigned netlink_count[MAX_NETLINK_TIMER+1];
 static struct timeval start_time, end_time;
+
+bool do_netlink_timers;
 #endif
 
 #ifdef _NETLINK_TIMERS_

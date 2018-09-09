@@ -70,6 +70,10 @@ extern nl_handle_t nl_cmd;	/* Command channel */
 extern int netlink_error_ignore; /* If we get this error, ignore it */
 #endif
 
+#ifdef _NETLINK_TIMERS_
+extern bool do_netlink_timers;
+#endif
+
 /* prototypes */
 #ifdef _NETLINK_TIMERS_
 extern void report_and_clear_netlink_timers(const char *);
