@@ -842,6 +842,7 @@ register_vrrp_thread_addresses(void)
 	register_thread_address("start_vrrp_termination_thread", start_vrrp_termination_thread);
 	register_thread_address("vrrp_shutdown_backstop_thread", vrrp_shutdown_backstop_thread);
 	register_thread_address("vrrp_shutdown_timer_thread", vrrp_shutdown_timer_thread);
+	register_thread_address("send_reload_advert_thread", send_reload_advert_thread);
 
 	register_signal_handler_address("sigreload_vrrp", sigreload_vrrp);
 	register_signal_handler_address("sigend_vrrp", sigend_vrrp);

@@ -1204,5 +1204,6 @@ void
 register_vrrp_if_addresses(void)
 {
 	register_thread_address("if_linkbeat_refresh_thread", if_linkbeat_refresh_thread);
+	register_thread_address("recreate_vmac_thread", recreate_vmac_thread);
 }
 #endif
