@@ -338,6 +338,8 @@ start_bfd_child(void)
 	close(bfd_checker_event_pipe[0]);
 #endif
 
+	initialise_debug_options();
+
 	if ((global_data->instance_name
 #if HAVE_DECL_CLONE_NEWNET
 			   || global_data->network_namespace

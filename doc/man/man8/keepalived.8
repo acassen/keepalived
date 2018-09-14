@@ -39,6 +39,7 @@ keepalived \- load\-balancing and high\-availability service
 [\fB\-\-signum\fP=SIGFUNC]
 [\fB\-t\fP|\fB\-\-config\-test\fP[=FILE]]
 [\fB\-\-perf\fP[={all|run|end}]]
+[\fB\-\-debug\fP[=debug-options]]
 [\fB\-v\fP|\fB\-\-version\fP]
 [\fB\-h\fP|\fB\-\-help\fP]
 
@@ -193,6 +194,49 @@ unless file is specified, in which case it will write to the file.
 \fB --perf\fP[={all|run|end}]
 Record perf data for vrrp process. Data will be written to /perf_vrrp.data.
 The data recorded is for use with the perf tool.
+.TP
+\fB --debug\fP[=debug-options]]
+Enables debug options if the have been compiled into keepalived.
+\fIdebug-options\fP is made up of a sequence of strings of the form Ulll.
+.br
+The upper case letter specifies the debug option, and the lower case letters
+specify for which processes the option is to be enabled.
+.br
+If a debug option is not followed by any lower case letters, the debug option
+is enabled for all processes.
+.PP
+.RS
+The characters to identify the processes are:
+.TS
+tab(@);
+c l
+c l.
+Chr@Process
+_
+p@Parent process
+b@BFD process
+c@Checker process
+v@VRRP process
+.TE
+.PP
+The characters used to identify the debug options are:
+.TS
+tab(@);
+c l.
+Chr@Debug option
+_
+D@Epoll thread dump
+E@Epoll debug
+N@Netlink timers
+X@Regex timers
+M@Email alert debug
+T@Timer debug
+S@TSM debug
+R@Regex debug
+.TE
+.PP
+\fBExample:\fP --debug=DvEcvNR
+.RE
 .TP
 \fB -v, --version\fP
 Display the version and exit.

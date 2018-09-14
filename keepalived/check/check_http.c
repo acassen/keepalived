@@ -28,6 +28,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #ifdef _WITH_REGEX_CHECK_
 #define PCRE2_CODE_UNIT_WIDTH 8
@@ -54,9 +55,6 @@
 
 #define	REGISTER_CHECKER_NEW	1
 #define	REGISTER_CHECKER_RETRY	2
-
-/* Define the following to enable debugging output for regex matching */
-/* #define _REGEX_DEBUG_ */
 
 #ifdef _WITH_REGEX_CHECK_
 typedef struct {
@@ -110,7 +108,12 @@ static list regexs;	/* list of regex_t */
 struct timespec total_regex_times;
 unsigned total_num_matches;
 unsigned total_regex_urls;
+bool do_regex_timers;
 #endif
+#endif
+
+#ifdef _REGEX_DEBUG_
+bool do_regex_debug;
 #endif
 
 static int http_connect_thread(thread_t *);
@@ -170,7 +173,8 @@ free_url(void *data)
 #endif
 
 #ifdef _WITH_REGEX_TIMERS_
-				log_message(LOG_INFO, "Total regex time %ld.%9.9ld, num match calls %u, num url checks %u", total_regex_times.tv_sec, total_regex_times.tv_nsec, total_num_matches, total_regex_urls);
+				if (do_regex_timers)
+					log_message(LOG_INFO, "Total regex time %ld.%9.9ld, num match calls %u, num url checks %u", total_regex_times.tv_sec, total_regex_times.tv_nsec, total_num_matches, total_regex_urls);
 #endif
 			}
 		}
@@ -932,9 +936,18 @@ check_regex(url_t *url, request_t *req)
 	size_t start_offset = 0;
 
 #ifdef _REGEX_DEBUG_
-	log_message(LOG_INFO, "matched %d, min_offset %lu max_offset %lu, subject_offset %lu req->len %lu lookbehind %u start_offset %lu, num_match_calls %u",
-			req->regex_matched, url->regex_min_offset, url->regex_max_offset, req->regex_subject_offset,
-			req->len, url->regex->pcre2_max_lookbehind, req->start_offset, req->num_match_calls);
+	if (do_regex_debug)
+		log_message(LOG_INFO, "matched %d, min_offset %lu max_offset %lu, subject_offset %lu req->len %lu lookbehind %u start_offset %lu"
+#ifdef _WITH_REGEX_TIMERS_
+				", num_match_calls %u"
+#endif
+							,
+				req->regex_matched, url->regex_min_offset, url->regex_max_offset, req->regex_subject_offset,
+				req->len, url->regex->pcre2_max_lookbehind, req->start_offset
+#ifdef _WITH_REGEX_TIMERS_
+				, req->num_match_calls
+#endif
+			);
 #endif
 
 	/* If we have already matched the regex, there is no point in checking
@@ -1010,7 +1023,8 @@ check_regex(url_t *url, request_t *req)
 	if (pcreExecRet == PCRE2_ERROR_PARTIAL) {
 		ovector = pcre2_get_ovector_pointer(url->regex->pcre2_match_data);
 #ifdef _REGEX_DEBUG_
-		log_message(LOG_INFO, "Partial returned, ovector %ld, max_lookbehind %u", ovector[0], url->regex->pcre2_max_lookbehind);
+		if (do_regex_debug)
+			log_message(LOG_INFO, "Partial returned, ovector %ld, max_lookbehind %u", ovector[0], url->regex->pcre2_max_lookbehind);
 #endif
 		if ((keep = ovector[0] - url->regex->pcre2_max_lookbehind) <= 0)
 			keep = 0;
@@ -1038,7 +1052,8 @@ check_regex(url_t *url, request_t *req)
 		case PCRE2_ERROR_NOMATCH:
 			/* This is not an error while doing partial matches */
 #ifdef _REGEX_DEBUG_
-			log_message(LOG_INFO, "String did not match the regex pattern");
+			if (do_regex_debug)
+				log_message(LOG_INFO, "String did not match the regex pattern");
 #endif
 			break;
 		case PCRE2_ERROR_NULL:
@@ -1071,7 +1086,8 @@ check_regex(url_t *url, request_t *req)
 	    (req->regex_subject_offset + ovector[0] < url->regex_max_offset)) {
 		req->regex_matched = true;
 #ifdef _REGEX_DEBUG_
-		log_message(LOG_INFO, "Result: We have a match at offset %zu - \"%.*s\"", req->regex_subject_offset + ovector[0], (int)(ovector[1] - ovector[0]), req->buffer + ovector[0]);
+		if (do_regex_debug)
+			log_message(LOG_INFO, "Result: We have a match at offset %zu - \"%.*s\"", req->regex_subject_offset + ovector[0], (int)(ovector[1] - ovector[0]), req->buffer + ovector[0]);
 	}
 	else {
 		log_message(LOG_INFO, "Match found but %lu bytes beyond regex_max_offset(%lu)", req->regex_subject_offset + ovector[0] - (url->regex_max_offset - 1), url->regex_max_offset - 1);

@@ -47,6 +47,10 @@ do {						\
       (*(VRRP_TSM[S][(V)->state].handler)) (V);	\
 } while (0)
 
+#ifdef _TSM_DEBUG_
+extern bool do_tsm_debug;
+#endif
+
 /* extern prototypes */
 extern void vrrp_init_instance_sands(vrrp_t *);
 extern void vrrp_thread_requeue_read(vrrp_t *);

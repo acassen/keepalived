@@ -75,10 +75,22 @@
 #include "scheduler.h"
 #include "keepalived_netlink.h"
 #include "git-commit.h"
-#ifdef THREAD_DUMP
+#if defined THREAD_DUMP || defined _EPOLL_DEBUG_ || defined _EPOLL_THREAD_DUMP_
 #include "scheduler.h"
 #endif
 #include "process.h"
+#ifdef _TIMER_CHECK_
+#include "timer.h"
+#endif
+#ifdef _SMTP_ALERT_DEBUG_
+#include "smtp.h"
+#endif
+#if defined _REGEX_DEBUG_ || defined _WITH_REGEX_TIMERS_
+#include "check_http.h"
+#endif
+#ifdef _TSM_DEBUG_
+#include "vrrp_scheduler.h"
+#endif
 
 /* musl libc doesn't define the following */
 #ifndef	W_EXITCODE
@@ -149,6 +161,35 @@ static bool create_core_dump = false;
 static const char *core_dump_pattern = "core";
 static char *orig_core_dump_pattern = NULL;
 
+/* debug flags */
+#if defined _TIMER_CHECK_ || defined _SMTP_ALERT_DEBUG_ || defined _EPOLL_DEBUG_ || defined _EPOLL_THREAD_DUMP_ || defined _REGEX_DEBUG_ || defined _WITH_REGEX_TIMERS_ || defined _TSM_DEBUG_ || defined _NETLINK_TIMERS_
+#define WITH_DEBUG_OPTIONS 1
+#endif
+
+#ifdef _TIMER_CHECK_
+static char timer_debug;
+#endif
+#ifdef _SMTP_ALERT_DEBUG_
+static char smtp_debug;
+#endif
+#ifdef _EPOLL_DEBUG_
+static char epoll_debug;
+#endif
+#ifdef _EPOLL_THREAD_DUMP_
+static char epoll_thread_debug;
+#endif
+#ifdef _REGEX_DEBUG_
+static char regex_debug;
+#endif
+#ifdef _WITH_REGEX_TIMERS_
+static char regex_timers;
+#endif
+#ifdef _TSM_DEBUG_
+static char tsm_debug;
+#endif
+#ifdef _NETLINK_TIMERS_
+static char netlink_timer_debug;
+#endif
 
 void
 free_parent_mallocs_startup(bool am_child)
@@ -850,6 +891,195 @@ core_dump_init(void)
 	}
 }
 
+void
+initialise_debug_options(void)
+{
+#if defined WITH_DEBUG_OPTIONS && !defined _DEBUG_
+	char mask = 0;
+
+	if (prog_type == PROG_TYPE_PARENT)
+		mask = 1 << PROG_TYPE_PARENT;
+#if _WITH_BFD_
+	else if (prog_type == PROG_TYPE_BFD)
+		mask = 1 << PROG_TYPE_BFD;
+#endif
+#if _WITH_LVS_
+	else if (prog_type == PROG_TYPE_CHECKER)
+		mask = 1 << PROG_TYPE_CHECKER;
+#endif
+#if _WITH_VRRP_
+	else if (prog_type == PROG_TYPE_VRRP)
+		mask = 1 << PROG_TYPE_VRRP;
+#endif
+
+#ifdef _TIMER_CHECK_
+	do_timer_check = !!(timer_debug & mask);
+#endif
+#ifdef _SMTP_ALERT_DEBUG_
+	do_smtp_alert_debug = !!(smtp_debug & mask);
+#endif
+#ifdef _EPOLL_DEBUG_
+	do_epoll_debug = !!(epoll_debug & mask);
+#endif
+#ifdef _EPOLL_THREAD_DUMP_
+	do_epoll_thread_dump = !!(epoll_thread_debug & mask);
+#endif
+#ifdef _REGEX_DEBUG_
+	do_regex_debug = !!(regex_debug & mask);
+#endif
+#ifdef _WITH_REGEX_TIMERS_
+	do_regex_timers = !!(regex_timers & mask);
+#endif
+#ifdef _TSM_DEBUG_
+	do_tsm_debug = !!(tsm_debug & mask);
+#endif
+#ifdef _NETLINK_TIMERS_
+	do_netlink_timers = !!(netlink_timer_debug & mask);
+#endif
+#endif
+}
+
+#ifdef  WITH_DEBUG_OPTIONS
+static void
+set_debug_options(const char *options)
+{
+	char all_processes, processes;
+	char opt;
+	const char *opt_p = options;
+
+#ifdef _DEBUG_
+	all_processes = 1;
+#else
+	all_processes = (1 << PROG_TYPE_PARENT);
+#if _WITH_BFD_
+	all_processes |= (1 << PROG_TYPE_BFD);
+#endif
+#if _WITH_LVS_
+	all_processes |= (1 << PROG_TYPE_CHECKER);
+#endif
+#if _WITH_VRRP_
+	all_processes |= (1 << PROG_TYPE_VRRP);
+#endif
+#endif
+
+	if (!options) {
+#ifdef _TIMER_CHECK_
+		timer_debug = all_processes;
+#endif
+#ifdef _SMTP_ALERT_DEBUG_
+		smtp_debug = all_processes;
+#endif
+#ifdef _EPOLL_DEBUG_
+		epoll_debug = all_processes;
+#endif
+#ifdef _EPOLL_THREAD_DUMP_
+		epoll_thread_debug = all_processes;
+#endif
+#ifdef _REGEX_DEBUG_
+		regex_debug = all_processes;
+#endif
+#ifdef _WITH_REGEX_TIMERS_
+		regex_timers = all_processes;
+#endif
+#ifdef _TSM_DEBUG_
+		tsm_debug = all_processes;
+#endif
+#ifdef _NETLINK_TIMERS_
+		netlink_timer_debug = all_processes;
+#endif
+
+		return;
+	}
+
+	opt_p = options;
+	do {
+		if (!isupper(*opt_p)) {
+			fprintf(stderr, "Unknown debug option'%c' in '%s'\n", *opt_p, options);
+			return;
+		}
+		opt = *opt_p++;
+
+		if (!*opt_p || isupper(*opt_p))
+			processes = all_processes;
+		else {
+			processes = 0;
+			while (*opt_p && !isupper(*opt_p)) {
+				switch (*opt_p) {
+				case 'p':
+					processes |= (1 << PROG_TYPE_PARENT);
+					break;
+#if _WITH_BFD_
+				case 'b':
+					processes |= (1 << PROG_TYPE_BFD);
+					break;
+#endif
+#if _WITH_LVS_
+				case 'c':
+					processes |= (1 << PROG_TYPE_CHECKER);
+					break;
+#endif
+#if _WITH_VRRP_
+				case 'v':
+					processes |= (1 << PROG_TYPE_VRRP);
+					break;
+#endif
+				default:
+					fprintf(stderr, "Unknown debug process '%c' in '%s'\n", *opt_p, options);
+					return;
+				}
+				opt_p++;
+			}
+		}
+
+		switch (opt) {
+#ifdef _TIMER_CHECK_
+		case 'T':
+			timer_debug = processes;
+			break;
+#endif
+#ifdef _SMTP_ALERT_DEBUG_
+		case 'M':
+			smtp_debug = processes;
+			break;
+#endif
+#ifdef _EPOLL_DEBUG_
+		case 'E':
+			epoll_debug = processes;
+			break;
+#endif
+#ifdef _EPOLL_THREAD_DUMP_
+		case 'D':
+			epoll_thread_debug = processes;
+			break;
+#endif
+#ifdef _REGEX_DEBUG_
+		case 'R':
+			regex_debug = processes;
+			break;
+#endif
+#ifdef _WITH_REGEX_TIMERS_
+		case 'X':
+			regex_timers = processes;
+			break;
+#endif
+#ifdef _TSM_DEBUG_
+		case 'S':
+			tsm_debug = processes;
+			break;
+#endif
+#ifdef _NETLINK_TIMERS_
+		case 'N':
+			netlink_timer_debug = processes;
+			break;
+#endif
+		default:
+			fprintf(stderr, "Unknown debug type '%c' in '%s'\n", opt, options);
+			return;
+		}
+	} while (opt_p && *opt_p);
+}
+#endif
+
 /* Usage function */
 static void
 usage(const char *prog)
@@ -915,6 +1145,34 @@ usage(const char *prog)
 			"                                stderr by default\n");
 #ifdef _WITH_PERF_
 	fprintf(stderr, "      --perf[=PERF_TYPE]       Collect perf data, PERF_TYPE=all, run(default) or end\n");
+#endif
+#ifdef WITH_DEBUG_OPTIONS
+	fprintf(stderr, "      --debug[=...]            Enable debug options. p, b, c, v specify parent, bfd, checker and vrrp processes\n");
+#ifdef _TIMER_CHECK_
+	fprintf(stderr, "                                   T - timer debug\n");
+#endif
+#ifdef _SMTP_ALERT_DEBUG_
+	fprintf(stderr, "                                   M - email alert debug\n");
+#endif
+#ifdef _EPOLL_DEBUG_
+	fprintf(stderr, "                                   E - epoll debug\n");
+#endif
+#ifdef _EPOLL_THREAD_DUMP_
+	fprintf(stderr, "                                   D - epoll thread dump debug\n");
+#endif
+#ifdef _REGEX_DEBUG_
+	fprintf(stderr, "                                   R - regex debug\n");
+#endif
+#ifdef _WITH_REGEX_TIMERS_
+	fprintf(stderr, "                                   X - regex timers\n");
+#endif
+#ifdef _TSM_DEBUG_
+	fprintf(stderr, "                                   S - TSM debug\n");
+#endif
+#ifdef _NETLINK_TIMERS_
+	fprintf(stderr, "                                   N - netlink timer debug\n");
+#endif
+	fprintf(stderr, "                                 Example --debug=TpMEvcp\n");
 #endif
 	fprintf(stderr, "  -v, --version                Display the version number\n");
 	fprintf(stderr, "  -h, --help                   Display this help message\n");
@@ -987,6 +1245,9 @@ parse_cmdline(int argc, char **argv)
 		{"config-test",		optional_argument,	NULL, 't'},
 #ifdef _WITH_PERF_
 		{"perf",		optional_argument,	NULL,  5 },
+#endif
+#ifdef WITH_DEBUG_OPTIONS
+		{"debug",		optional_argument,	NULL,  6 },
 #endif
 		{"version",		no_argument,		NULL, 'v'},
 		{"help",		no_argument,		NULL, 'h'},
@@ -1230,11 +1491,16 @@ parse_cmdline(int argc, char **argv)
 
 			break;
 #endif
+#ifdef WITH_DEBUG_OPTIONS
+		case 6:
+			set_debug_options(optarg && optarg[0] ? optarg : NULL);
+			break;
+#endif
 		case '?':
 			if (optopt && argv[curind][1] != '-')
 				fprintf(stderr, "Unknown option -%c\n", optopt);
 			else
-				fprintf(stderr, "Unknown option --%s\n", argv[curind]);
+				fprintf(stderr, "Unknown option %s\n", argv[curind]);
 			bad_option = true;
 			break;
 		case ':':
@@ -1579,6 +1845,8 @@ keepalived_main(int argc, char **argv)
 	/* Init daemon */
 	if (!start_keepalived())
 		log_message(LOG_INFO, "Warning - keepalived has no configuration to run");
+
+	initialise_debug_options();
 
 #ifdef THREAD_DUMP
 	register_parent_thread_addresses();

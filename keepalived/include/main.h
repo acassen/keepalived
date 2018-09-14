@@ -92,6 +92,7 @@ extern bool running_bfd(void);
 #endif
 
 extern void stop_keepalived(void);
+extern void initialise_debug_options(void);
 extern int keepalived_main(int, char**); /* The "real" main function */
 
 extern unsigned child_wait_time;

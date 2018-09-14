@@ -53,6 +53,6 @@ extern bool replace_link_local_address(interface_t *);
 extern void remove_vmac_auto_gen_addr(interface_t *, struct in6_addr *);
 #endif
 extern bool netlink_link_add_vmac(vrrp_t *);
-extern bool netlink_link_del_vmac(vrrp_t *);
+extern void netlink_link_del_vmac(vrrp_t *);
 
 #endif

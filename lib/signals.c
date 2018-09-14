@@ -322,7 +322,7 @@ signal_run_callback(__attribute__((unused)) thread_t *thread)
 #endif
 
 #ifdef _EPOLL_DEBUG_
-		if (epoll_debug)
+		if (do_epoll_debug)
 			log_message(LOG_INFO, "Signal %d, func %s()", sig, get_signal_function_name(signal_handler_func[sig-1]));
 #endif
 

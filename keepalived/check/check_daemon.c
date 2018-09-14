@@ -517,6 +517,8 @@ start_check_child(void)
 
 	prog_type = PROG_TYPE_CHECKER;
 
+	initialise_debug_options();
+
 #ifdef _WITH_BFD_
 	/* Close the write end of the BFD checker event notification pipe */
 	close(bfd_checker_event_pipe[1]);

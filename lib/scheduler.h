@@ -190,8 +190,11 @@ extern prog_type_t prog_type;		/* Parent/VRRP/Checker process */
 #ifdef _WITH_SNMP_
 extern bool snmp_running;
 #endif
-#ifdef THREAD_DUMP
-extern bool epoll_debug;
+#ifdef _EPOLL_DEBUG_
+extern bool do_epoll_debug;
+#endif
+#ifdef _EPOLL_DEBUG_
+extern bool do_epoll_thread_dump;
 #endif
 
 /* Prototypes. */

@@ -68,6 +68,10 @@ timeval_t garp_next_time;
 thread_t *garp_thread;
 bool vrrp_initialised;
 
+#ifdef _TSM_DEBUG_
+bool do_tsm_debug;
+#endif
+
 /* local variables */
 #ifdef _WITH_BFD_
 static thread_t *bfd_thread;		 /* BFD control pipe read thread */
@@ -874,7 +878,7 @@ vrrp_dispatcher_read_timeout(int fd)
 
 		/* handle instance synchronization */
 #ifdef _TSM_DEBUG_
-		if (__test_bit(LOG_DETAIL_BIT, &debug))
+		if (do_tsm_debug)
 			log_message(LOG_INFO, "Send [%s] TSM transition : [%d,%d] Wantstate = [%d]",
 				vrrp->iname, prev_state, vrrp->state, vrrp->wantstate);
 #endif
@@ -933,7 +937,7 @@ vrrp_dispatcher_read(sock_t * sock)
 
 	/* handle instance synchronization */
 #ifdef _TSM_DEBUG_
-	if (__test_bit(LOG_DETAIL_BIT, &debug))
+	if (do_tsm_debug)
 		log_message(LOG_INFO, "Read [%s] TSM transition : [%d,%d] Wantstate = [%d]",
 			vrrp->iname, prev_state, vrrp->state, vrrp->wantstate);
 #endif

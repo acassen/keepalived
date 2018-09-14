@@ -81,7 +81,10 @@ static bool shutting_down;
 static int sav_argc;
 static char **sav_argv;
 #ifdef _EPOLL_DEBUG_
-bool epoll_debug = false;
+bool do_epoll_debug;
+#endif
+#ifdef _EPOLL_THREAD_DUMP_
+bool do_epoll_thread_dump;
 #endif
 #ifdef THREAD_DUMP
 static rb_root_t funcs = RB_ROOT;
@@ -296,7 +299,7 @@ thread_set_timer(thread_master_t *m)
 	timerfd_settime(m->timer_fd, 0, &its, NULL);
 
 #ifdef _EPOLL_DEBUG_
-	if (epoll_debug)
+	if (do_epoll_debug)
 		log_message(LOG_INFO, "setting timer_fd %lu.%9.9ld", its.it_value.tv_sec, its.it_value.tv_nsec);
 #endif
 }
@@ -887,7 +890,8 @@ dump_thread_data(thread_master_t *m, FILE *fp)
 static int
 thread_timer_cmp(thread_t *t1, thread_t *t2)
 {
-	if (t1->sands.tv_sec != t2->sands.tv_sec) {
+	if (t1->sands.tv_sec != t2->sands.tv_sec ||
+	    t1->sands.tv_sec == TIMER_DISABLED) {
 		if (t1->sands.tv_sec == TIMER_DISABLED) {
 			if (t2->sands.tv_sec == TIMER_DISABLED)
 				return 0;
@@ -1673,12 +1677,14 @@ thread_fetch_next_queue(thread_master_t *m)
 		/* Calculate and set select wait timer. Take care of timeouted fd.  */
 		thread_set_timer(m);
 
-#ifdef _EPOLL_DEBUG_
-		if (epoll_debug) {
+#ifdef _EPOLL_THREAD_DUMP_
+		if (do_epoll_thread_dump)
 			dump_thread_data(m, NULL);
+#endif
 
+#ifdef _EPOLL_DEBUG_
+		if (do_epoll_debug)
 			log_message(LOG_INFO, "calling epoll_wait");
-		}
 #endif
 
 		/* Call epoll function. */
@@ -1686,7 +1692,7 @@ thread_fetch_next_queue(thread_master_t *m)
 		sav_errno = errno;
 
 #ifdef _EPOLL_DEBUG_
-		if (epoll_debug) {
+		if (do_epoll_debug) {
 			if (ret == -1)
 				log_message(LOG_INFO, "epoll_wait returned %d, errno %d", ret, sav_errno);
 			else
@@ -1781,7 +1787,7 @@ static inline void
 thread_call(thread_t * thread)
 {
 #ifdef _EPOLL_DEBUG_
-	if (epoll_debug)
+	if (do_epoll_debug)
 		log_message(LOG_INFO, "Calling thread function %s(), type %s, val/fd/pid %d, status %d id %lu", get_function_name(thread->func), get_thread_type_str(thread->type), thread->u.val, thread->u.c.status, thread->id);
 #endif
 
@@ -1868,7 +1874,7 @@ process_child_termination(pid_t pid, int status)
 	}
 
 #ifdef _EPOLL_DEBUG_
-	if (epoll_debug)
+	if (do_epoll_debug)
 		log_message(LOG_INFO, "Child %d terminated with status 0x%x, thread_id %lu", pid, status, thread ? thread->id : 0);
 #endif
 
@@ -1884,6 +1890,8 @@ process_child_termination(pid_t pid, int status)
 		/* The child had a permanant error, so no point in respawning */
 		rb_erase(&thread->n, &m->child);
 		thread_add_unuse(m, thread);
+
+		thread_add_terminate_event(m);
 	}
 	else
 		thread_move_ready(m, &m->child, thread, THREAD_CHILD);

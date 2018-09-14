@@ -378,6 +378,10 @@ dump_vrrp(FILE *fp, void *data)
 		conf_write(fp, "   Master down timer = %u usecs", vrrp->ms_down_timer);
 	}
 #ifdef _HAVE_VRRP_VMAC_
+	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
+		conf_write(fp, "   Use VMAC, is_up = %s,  xmit_base = %s",
+				__test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags) ? "true" : "false",
+				__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) ? "true" : "false");
 	if (vrrp->ifp != vrrp->ifp->base_ifp)
 		conf_write(fp, "   Interface = %s, vmac on %s, xmit %s i/f", IF_NAME(vrrp->ifp),
 				vrrp->ifp->base_ifp->ifname, __test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) ? "base" : "vmac");
