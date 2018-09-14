@@ -1890,6 +1890,8 @@ process_child_termination(pid_t pid, int status)
 		/* The child had a permanant error, so no point in respawning */
 		rb_erase(&thread->n, &m->child);
 		thread_add_unuse(m, thread);
+
+		thread_add_terminate_event(m);
 	}
 	else
 		thread_move_ready(m, &m->child, thread, THREAD_CHILD);
