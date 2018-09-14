@@ -890,7 +890,8 @@ dump_thread_data(thread_master_t *m, FILE *fp)
 static int
 thread_timer_cmp(thread_t *t1, thread_t *t2)
 {
-	if (t1->sands.tv_sec != t2->sands.tv_sec) {
+	if (t1->sands.tv_sec != t2->sands.tv_sec ||
+	    t1->sands.tv_sec == TIMER_DISABLED) {
 		if (t1->sands.tv_sec == TIMER_DISABLED) {
 			if (t2->sands.tv_sec == TIMER_DISABLED)
 				return 0;
