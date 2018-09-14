@@ -951,7 +951,6 @@ set_debug_options(const char *options)
 	all_processes = 1;
 #else
 	all_processes = (1 << PROG_TYPE_PARENT);
-#endif
 #if _WITH_BFD_
 	all_processes |= (1 << PROG_TYPE_BFD);
 #endif
@@ -960,6 +959,7 @@ set_debug_options(const char *options)
 #endif
 #if _WITH_VRRP_
 	all_processes |= (1 << PROG_TYPE_VRRP);
+#endif
 #endif
 
 	if (!options) {
@@ -1003,7 +1003,7 @@ set_debug_options(const char *options)
 			processes = all_processes;
 		else {
 			processes = 0;
-			while (!isupper(*opt_p)) {
+			while (*opt_p && !isupper(*opt_p)) {
 				switch (*opt_p) {
 				case 'p':
 					processes |= (1 << PROG_TYPE_PARENT);
@@ -1500,7 +1500,7 @@ parse_cmdline(int argc, char **argv)
 			if (optopt && argv[curind][1] != '-')
 				fprintf(stderr, "Unknown option -%c\n", optopt);
 			else
-				fprintf(stderr, "Unknown option --%s\n", argv[curind]);
+				fprintf(stderr, "Unknown option %s\n", argv[curind]);
 			bad_option = true;
 			break;
 		case ':':
