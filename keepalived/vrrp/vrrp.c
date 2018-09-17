@@ -1843,6 +1843,8 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 #endif
 	unsigned master_adver_int;
 	int addr_cmp;
+	vrrp_t *gvrrp;
+	element e;
 
 // TODO - could we get here with wantstate == FAULT and STATE != FAULT?
 	/* return on link failure */
@@ -1869,7 +1871,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	    (vrrp->higher_prio_send_advert &&
 	     (hd->priority > vrrp->effective_priority ||
 	      (hd->priority == vrrp->effective_priority && addr_cmp > 0)))) {
-		log_message(LOG_INFO, "(%s) Master received priority 0 message", vrrp->iname);
+		log_message(LOG_INFO, "(%s) Master received priority 0 or lower priority advert", vrrp->iname);
 		vrrp_send_adv(vrrp, vrrp->effective_priority);
 
 		if (hd->priority == 0)
@@ -1917,6 +1919,23 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 			if (vrrp->garp_lower_prio_delay)
 				thread_add_timer(master, vrrp_lower_prio_gratuitous_arp_thread,
 						 vrrp, vrrp->garp_lower_prio_delay);
+
+			/* If we are a member of a sync group, send GARP messages
+			 * for any other member of the group that has
+			 * garp_lower_prio_rep set */
+			if (vrrp->sync) {
+				LIST_FOREACH(vrrp->sync->vrrp_instances, gvrrp, e) {
+					if (gvrrp == vrrp)
+						continue;
+					if (!gvrrp->garp_lower_prio_rep)
+						continue;
+
+					vrrp_send_link_update(gvrrp, gvrrp->garp_lower_prio_rep);
+					if (gvrrp->garp_lower_prio_delay)
+						thread_add_timer(master, vrrp_lower_prio_gratuitous_arp_thread,
+								 gvrrp, gvrrp->garp_lower_prio_delay);
+				}
+			}
 		}
 
 		/* If a lower priority router has transitioned to master, there has presumably
