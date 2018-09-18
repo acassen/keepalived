@@ -484,7 +484,7 @@ dump_ipaddress(FILE *fp, void *if_data)
 }
 
 ip_address_t *
-parse_ipaddress(ip_address_t *ip_address, char *str, int allow_default)
+parse_ipaddress(ip_address_t *ip_address, char *str, bool allow_default)
 {
 	ip_address_t *new = ip_address;
 	void *addr;
@@ -492,9 +492,8 @@ parse_ipaddress(ip_address_t *ip_address, char *str, int allow_default)
 	unsigned prefixlen;
 
 	/* No ip address, allocate a brand new one */
-	if (!new) {
+	if (!new)
 		new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
-	}
 
 	/* Handle the specials */
 	if (allow_default) {
@@ -513,7 +512,7 @@ parse_ipaddress(ip_address_t *ip_address, char *str, int allow_default)
 	p = strchr(str, '/');
 	if (p) {
 		*p = 0;
-		if (!read_unsigned(p + 1, &prefixlen, 1, new->ifa.ifa_prefixlen, true))
+		if (!read_unsigned(p + 1, &prefixlen, allow_default ? 0 : 1, new->ifa.ifa_prefixlen, true))
 			report_config_error(CONFIG_GENERAL_ERROR, "Invalid address prefix len %s for address %s - using %d", p + 1, str, new->ifa.ifa_prefixlen);
 		else
 			new->ifa.ifa_prefixlen = prefixlen;
@@ -529,12 +528,18 @@ parse_ipaddress(ip_address_t *ip_address, char *str, int allow_default)
 	}
 
 	/* Restore slash */
-	if (p) {
+	if (p)
 		*p = '/';
-	}
 
 	return new;
 }
+
+ip_address_t *
+parse_route(ip_address_t *ip_address, char *str)
+{
+	return parse_ipaddress(ip_address, str, true);
+}
+
 void
 alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp, bool allow_track_group)
 {

@@ -503,7 +503,7 @@ alloc_rule(list rule_list, vector_t *strvec, __attribute__((unused)) bool allow_
 		if (!strcmp(str, "from")) {
 			if (new->from_addr)
 				FREE(new->from_addr);
-			new->from_addr = parse_ipaddress(NULL, strvec_slot(strvec, ++i), false);
+			new->from_addr = parse_route(NULL, strvec_slot(strvec, ++i));
 			if (!new->from_addr) {
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid rule from address %s", FMT_STR_VSLOT(strvec, i));
 				goto err;
@@ -519,7 +519,7 @@ alloc_rule(list rule_list, vector_t *strvec, __attribute__((unused)) bool allow_
 		else if (!strcmp(str, "to")) {
 			if (new->to_addr)
 				FREE(new->to_addr);
-			new->to_addr = parse_ipaddress(NULL, strvec_slot(strvec, ++i), false);
+			new->to_addr = parse_route(NULL, strvec_slot(strvec, ++i));
 			if (!new->to_addr) {
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid rule to address %s", FMT_STR_VSLOT(strvec, i));
 				goto err;
