@@ -1344,7 +1344,7 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 				family = AF_INET;
 				str = strvec_slot(strvec, ++i);
 			}
-			if (!strcmp(str, "inet6")) {
+			else if (!strcmp(str, "inet6")) {
 				family = AF_INET6;
 				str = strvec_slot(strvec, ++i);
 			}
@@ -1375,7 +1375,7 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 		else if (!strcmp(str, "from")) {
 			if (new->src)
 				FREE(new->src);
-			new->src = parse_ipaddress(NULL, strvec_slot(strvec, ++i), false);
+			new->src = parse_route(NULL, strvec_slot(strvec, ++i));
 			if (!new->src) {
 				report_config_error(CONFIG_GENERAL_ERROR, "invalid route from address %s", FMT_STR_VSLOT(strvec, i));
 				goto err;
@@ -1710,7 +1710,7 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 			if (new->dst)
 				FREE(new->dst);
 			dest = strvec_slot(strvec, i);
-			dst = parse_ipaddress(NULL, dest, true);
+			dst = parse_route(NULL, dest);
 			if (!dst) {
 				report_config_error(CONFIG_GENERAL_ERROR, "unknown route keyword %s", dest);
 				goto err;
