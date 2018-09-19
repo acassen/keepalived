@@ -81,9 +81,12 @@ build_ssl_ctx(void)
 	else
 		ssl = check_data->ssl;
 
-	/* Initialize SSL context for SSL v2/3 */
+	/* Initialize SSL context */
 	ssl->meth = SSLv23_method();
-	ssl->ctx = SSL_CTX_new(ssl->meth);
+	if (!(ssl->ctx = SSL_CTX_new(ssl->meth))) {
+		log_message(LOG_INFO, "SSL error: cannot create new SSL context");
+		return false;
+	}
 
 	/* return for autogen context */
 	if (!check_data->ssl) {

@@ -51,9 +51,12 @@ init_ssl(void)
 	SSL_load_error_strings();
 #endif
 
-	/* Initialize SSL context for SSL v2/3 */
+	/* Initialize SSL context */
 	req->meth = SSLv23_method();
-	req->ctx = SSL_CTX_new(req->meth);
+	if (!(req->ctx = SSL_CTX_new(req->meth))) {
+		fprintf(stderr, "SSL_CTX_new() failed\n");
+		exit(1);
+	}
 
 #if HAVE_SSL_CTX_SET_VERIFY_DEPTH
 	SSL_CTX_set_verify_depth(req->ctx, 1);
