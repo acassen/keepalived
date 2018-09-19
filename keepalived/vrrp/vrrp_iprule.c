@@ -485,22 +485,30 @@ alloc_rule(list rule_list, vector_t *strvec, __attribute__((unused)) bool allow_
 	new->suppress_prefix_len = -1;
 #endif
 
-	/* Check if inet4/6 specified */
-	str = strvec_slot(strvec, i);
-	if (!strcmp(str, "inet6")) {
-		family = AF_INET6;
-		i++;
-	}
-	else if (!strcmp(str, "inet")) {
-		family = AF_INET;
-		i++;
-	}
-
 	/* FMT parse */
 	while (i < vector_size(strvec)) {
 		str = strvec_slot(strvec, i);
 
-		if (!strcmp(str, "from")) {
+		/* Check if inet4/6 specified */
+		if (!strcmp(str, "inet6")) {
+			if (family == AF_UNSPEC)
+				family = AF_INET6;
+			else if (family != AF_INET6) {
+				report_config_error(CONFIG_GENERAL_ERROR, "inet6 specified for IPv4 rule");
+				goto err;
+			}
+			i++;
+		}
+		else if (!strcmp(str, "inet")) {
+			if (family == AF_UNSPEC)
+				family = AF_INET;
+			else if (family != AF_INET) {
+				report_config_error(CONFIG_GENERAL_ERROR, "inet specified for IPv6 rule");
+				goto err;
+			}
+			i++;
+		}
+		else if (!strcmp(str, "from")) {
 			if (new->from_addr)
 				FREE(new->from_addr);
 			new->from_addr = parse_route(NULL, strvec_slot(strvec, ++i));
@@ -848,6 +856,10 @@ fwmark_err:
 	}
 
 	new->family = (family == AF_UNSPEC) ? AF_INET : family;
+	if (new->to_addr && new->to_addr->ifa.ifa_family == AF_UNSPEC)
+		new->to_addr->ifa.ifa_family = new->family;
+	if (new->from_addr && new->from_addr->ifa.ifa_family == AF_UNSPEC)
+		new->from_addr->ifa.ifa_family = new->family;
 
 	if (!(new->mask & IPRULE_BIT_PRIORITY)) {
 		new->priority = new->family == AF_INET ? next_rule_priority_ipv4-- : next_rule_priority_ipv6--;

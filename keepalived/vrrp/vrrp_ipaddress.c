@@ -535,11 +535,13 @@ parse_route(ip_address_t *ip_address, char *str)
 
 	/* Handle the specials */
 	if (!strcmp(str, "default")) {
-		new->ifa.ifa_family = AF_INET;
+		new->ifa.ifa_family = AF_UNSPEC;
 		return new;
 	}
 
+	/* Maintained for backward compatibility v2.0.7 and earlier */
 	if (!strcmp(str, "default6")) {
+		log_message(LOG_INFO, "'default6' is deprecated - please replace with 'inet6 default'");
 		new->ifa.ifa_family = AF_INET6;
 		return new;
 	}

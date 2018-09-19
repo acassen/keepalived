@@ -1309,7 +1309,25 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 		str = strvec_slot(strvec, i);
 
 		/* cmd parsing */
-		if (!strcmp(str, "src")) {
+		if (!strcmp(str, "inet6")) {
+			if (new->family == AF_UNSPEC)
+				new->family = AF_INET6;
+			else if (new->family != AF_INET6) {
+				report_config_error(CONFIG_GENERAL_ERROR, "inet6 specified for IPv4 route");
+				goto err;
+			}
+			i++;
+		}
+		else if (!strcmp(str, "inet")) {
+			if (new->family == AF_UNSPEC)
+				new->family = AF_INET;
+			else if (new->family != AF_INET) {
+				report_config_error(CONFIG_GENERAL_ERROR, "inet specified for IPv6 route");
+				goto err;
+			}
+			i++;
+		}
+		else if (!strcmp(str, "src")) {
 			if (new->pref_src)
 				FREE(new->pref_src);
 			new->pref_src = parse_ipaddress(NULL, strvec_slot(strvec, ++i), false);
@@ -1764,6 +1782,14 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 		report_config_error(CONFIG_GENERAL_ERROR, "Static route cannot have track group if no oif specified");
 		new->track_group = NULL;
 	}
+
+	/* Check that family is set */
+	if (new->family == AF_UNSPEC)
+		new->family = AF_INET;
+	if (new->dst->ifa.ifa_family == AF_UNSPEC)
+		new->dst->ifa.ifa_family = new->family;
+	if (new->src && new->src->ifa.ifa_family == AF_UNSPEC)
+		new->src->ifa.ifa_family = new->family;
 
 	list_add(rt_list, new);
 
