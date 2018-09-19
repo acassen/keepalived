@@ -529,9 +529,9 @@ parse_ipaddress(ip_address_t *ip_address, char *str, bool allow_subnet_mask)
 }
 
 ip_address_t *
-parse_route(ip_address_t *ip_address, char *str)
+parse_route(char *str)
 {
-	ip_address_t *new = ip_address ? ip_address : (ip_address_t *)MALLOC(sizeof(ip_address_t));
+	ip_address_t *new = (ip_address_t *)MALLOC(sizeof(ip_address_t));
 
 	/* Handle the specials */
 	if (!strcmp(str, "default")) {

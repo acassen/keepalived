@@ -111,7 +111,7 @@ extern void handle_iptable_rule_to_iplist(struct ipt_handle *, list, int, bool f
 extern void free_ipaddress(void *);
 extern void dump_ipaddress(FILE *, void *);
 extern ip_address_t *parse_ipaddress(ip_address_t *, char *, bool);
-extern ip_address_t *parse_route(ip_address_t *, char *);
+extern ip_address_t *parse_route(char *);
 extern void alloc_ipaddress(list, vector_t *, interface_t *, bool);
 extern void clear_diff_address(struct ipt_handle *, list, list);
 extern void clear_diff_saddresses(void);
