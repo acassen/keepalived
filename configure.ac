@@ -664,6 +664,9 @@ AC_CHECK_FUNCS([SSL_CTX_set_verify_depth])
 # SSL_set0_rbio(), SSL_set0_wbio() and OPENSSL_init_crypto() introduced OpenSSL v1.1.0
 AC_CHECK_FUNCS([SSL_set0_rbio OPENSSL_init_crypto])
 
+# TLS_method() introduced OpenSSL v1.1.0
+AC_CHECK_FUNCS([TLS_method])
+
 unset LIBS
 
 if test $BUILD_GENHASH = No; then
