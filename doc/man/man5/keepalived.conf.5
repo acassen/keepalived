@@ -536,7 +536,8 @@ is specified, it defaults to default_interface (default eth0).
 Note: the broadcast address may be specified as '-' or '+' to clear or set the host
 bits of the address.
 .PP
-For routes, use "default" or "default6" to specify the default IPv4 or IPv6 route.
+If a route or rule could apply to either IPv4 or IPv6 it will default to IPv4.
+To force a route/rule to be IPv6, add the keyword "inet6".
 .PP
 .nf
     \fBstatic_ipaddress \fR{

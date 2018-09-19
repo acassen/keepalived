@@ -467,6 +467,11 @@ netlink_route(ip_route_t *iproute, int cmd)
 		rta_addattr32(rta, sizeof(buf), RTAX_FASTOPEN_NO_COOKIE, iproute->fastopen_no_cookie);
 #endif
 
+#if HAVE_DECL_RTA_TTL_PROPAGATE
+	if (iproute->mask & IPROUTE_BIT_TTL_PROPAGATE)
+		addattr8(&req.n, sizeof(req), RTA_TTL_PROPAGATE, iproute->ttl_propagate);
+#endif
+
 	if (rta->rta_len > RTA_LENGTH(0)) {
 		if (iproute->lock)
 			rta_addattr32(rta, sizeof(buf), RTAX_LOCK, iproute->lock);
@@ -847,6 +852,11 @@ format_iproute(ip_route_t *route, char *buf, size_t buf_len)
 #if HAVE_DECL_RTAX_FASTOPEN_NO_COOKIE
 	if (route->mask & IPROUTE_BIT_FASTOPEN_NO_COOKIE)
 		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s %u", "fastopen_no_cookie", route->fastopen_no_cookie);
+#endif
+
+#if HAVE_DECL_RTA_TTL_PROPAGATE
+	if (route->mask & IPROUTE_BIT_TTL_PROPAGATE)
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s %sabled", "ttl-propagate", route->ttl_propagate ? "en" : "dis");
 #endif
 
 	if (!LIST_ISEMPTY(route->nhs)) {
@@ -1293,7 +1303,6 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 	unsigned int i = 0;
 	bool do_nexthop = false;
 	bool raw;
-	ip_address_t *dst;
 	uint8_t family;
 	char *dest = NULL;
 
@@ -1309,7 +1318,25 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 		str = strvec_slot(strvec, i);
 
 		/* cmd parsing */
-		if (!strcmp(str, "src")) {
+		if (!strcmp(str, "inet6")) {
+			if (new->family == AF_UNSPEC)
+				new->family = AF_INET6;
+			else if (new->family != AF_INET6) {
+				report_config_error(CONFIG_GENERAL_ERROR, "inet6 specified for IPv4 route");
+				goto err;
+			}
+			i++;
+		}
+		else if (!strcmp(str, "inet")) {
+			if (new->family == AF_UNSPEC)
+				new->family = AF_INET;
+			else if (new->family != AF_INET) {
+				report_config_error(CONFIG_GENERAL_ERROR, "inet specified for IPv6 route");
+				goto err;
+			}
+			i++;
+		}
+		else if (!strcmp(str, "src")) {
 			if (new->pref_src)
 				FREE(new->pref_src);
 			new->pref_src = parse_ipaddress(NULL, strvec_slot(strvec, ++i), false);
@@ -1375,7 +1402,7 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 		else if (!strcmp(str, "from")) {
 			if (new->src)
 				FREE(new->src);
-			new->src = parse_route(NULL, strvec_slot(strvec, ++i));
+			new->src = parse_route(strvec_slot(strvec, ++i));
 			if (!new->src) {
 				report_config_error(CONFIG_GENERAL_ERROR, "invalid route from address %s", FMT_STR_VSLOT(strvec, i));
 				goto err;
@@ -1640,6 +1667,21 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 			report_config_error(CONFIG_GENERAL_ERROR, "%s not supported by kernel", "pref");
 #endif
 		}
+		else if (!strcmp(str, "ttl-propagate")) {
+			i++;
+#if HAVE_DECL_RTA_TTL_PROPAGATE
+			str = strvec_slot(strvec, i);
+			if (!strcmp(str, "enabled"))
+				new->ttl_propagate = 1;
+			else if (!strcmp(str, "disabled"))
+				new->ttl_propagate = 0;
+			else
+				report_config_error(CONFIG_GENERAL_ERROR, "%s value %s not recognised", "ttl-propagate", str);
+			new->mask |= IPROUTE_BIT_TTL_PROPAGATE;
+#else
+			report_config_error(CONFIG_GENERAL_ERROR, "%s not supported by kernel", "ttl-propagate");
+#endif
+		}
 		else if (!strcmp(str, "fastopen_no_cookie")) {
 			i++;
 #if HAVE_DECL_RTAX_FASTOPEN_NO_COOKIE
@@ -1710,18 +1752,17 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 			if (new->dst)
 				FREE(new->dst);
 			dest = strvec_slot(strvec, i);
-			dst = parse_route(NULL, dest);
-			if (!dst) {
+			new->dst = parse_route(dest);
+			if (!new->dst) {
 				report_config_error(CONFIG_GENERAL_ERROR, "unknown route keyword %s", dest);
 				goto err;
 			}
 			if (new->family == AF_UNSPEC)
-				new->family = dst->ifa.ifa_family;
-			else if (new->family != dst->ifa.ifa_family) {
+				new->family = new->dst->ifa.ifa_family;
+			else if (new->family != new->dst->ifa.ifa_family) {
 				report_config_error(CONFIG_GENERAL_ERROR, "Cannot mix IPv4 and IPv6 addresses for route (%s)", dest);
 				goto err;
 			}
-			new->dst = dst;
 		}
 		i++;
 	}
@@ -1764,6 +1805,14 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 		report_config_error(CONFIG_GENERAL_ERROR, "Static route cannot have track group if no oif specified");
 		new->track_group = NULL;
 	}
+
+	/* Check that family is set */
+	if (new->family == AF_UNSPEC)
+		new->family = AF_INET;
+	if (new->dst->ifa.ifa_family == AF_UNSPEC)
+		new->dst->ifa.ifa_family = new->family;
+	if (new->src && new->src->ifa.ifa_family == AF_UNSPEC)
+		new->src->ifa.ifa_family = new->family;
 
 	list_add(rt_list, new);
 

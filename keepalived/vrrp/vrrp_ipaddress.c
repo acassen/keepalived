@@ -484,7 +484,7 @@ dump_ipaddress(FILE *fp, void *if_data)
 }
 
 ip_address_t *
-parse_ipaddress(ip_address_t *ip_address, char *str, bool allow_default)
+parse_ipaddress(ip_address_t *ip_address, char *str, bool allow_subnet_mask)
 {
 	ip_address_t *new = ip_address;
 	void *addr;
@@ -495,24 +495,18 @@ parse_ipaddress(ip_address_t *ip_address, char *str, bool allow_default)
 	if (!new)
 		new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
 
-	/* Handle the specials */
-	if (allow_default) {
-		if (!strcmp(str, "default")) {
-			new->ifa.ifa_family = AF_INET;
-			return new;
-		} else if (!strcmp(str, "default6")) {
-			new->ifa.ifa_family = AF_INET6;
-			return new;
-		}
-	}
-
 	/* Parse ip address */
 	new->ifa.ifa_family = (strchr(str, ':')) ? AF_INET6 : AF_INET;
 	new->ifa.ifa_prefixlen = (IP_IS6(new)) ? 128 : 32;
-	p = strchr(str, '/');
+
+	if (allow_subnet_mask)
+		p = strchr(str, '/');
+	else
+		p = NULL;
+
 	if (p) {
 		*p = 0;
-		if (!read_unsigned(p + 1, &prefixlen, allow_default ? 0 : 1, new->ifa.ifa_prefixlen, true))
+		if (!read_unsigned(p + 1, &prefixlen, 0, new->ifa.ifa_prefixlen, true))
 			report_config_error(CONFIG_GENERAL_ERROR, "Invalid address prefix len %s for address %s - using %d", p + 1, str, new->ifa.ifa_prefixlen);
 		else
 			new->ifa.ifa_prefixlen = prefixlen;
@@ -535,9 +529,24 @@ parse_ipaddress(ip_address_t *ip_address, char *str, bool allow_default)
 }
 
 ip_address_t *
-parse_route(ip_address_t *ip_address, char *str)
+parse_route(char *str)
 {
-	return parse_ipaddress(ip_address, str, true);
+	ip_address_t *new = (ip_address_t *)MALLOC(sizeof(ip_address_t));
+
+	/* Handle the specials */
+	if (!strcmp(str, "default") || !strcmp(str, "any") || !strcmp(str, "all")) {
+		new->ifa.ifa_family = AF_UNSPEC;
+		return new;
+	}
+
+	/* Maintained for backward compatibility v2.0.7 and earlier */
+	if (!strcmp(str, "default6")) {
+		log_message(LOG_INFO, "'default6' is deprecated - please replace with 'inet6 default'");
+		new->ifa.ifa_family = AF_INET6;
+		return new;
+	}
+
+	return parse_ipaddress(new, str, true);
 }
 
 void
@@ -570,7 +579,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp, bool allow_tra
 	new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
 
 	/* We expect the address first */
-	if (!parse_ipaddress(new, strvec_slot(strvec,0), false)) {
+	if (!parse_ipaddress(new, strvec_slot(strvec,0), true)) {
 		FREE(new);
 		return;
 	}
