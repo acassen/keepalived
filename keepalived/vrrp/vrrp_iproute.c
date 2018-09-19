@@ -467,6 +467,11 @@ netlink_route(ip_route_t *iproute, int cmd)
 		rta_addattr32(rta, sizeof(buf), RTAX_FASTOPEN_NO_COOKIE, iproute->fastopen_no_cookie);
 #endif
 
+#if HAVE_DECL_RTA_TTL_PROPAGATE
+	if (iproute->mask & IPROUTE_BIT_TTL_PROPAGATE)
+		addattr8(&req.n, sizeof(req), RTA_TTL_PROPAGATE, iproute->ttl_propagate);
+#endif
+
 	if (rta->rta_len > RTA_LENGTH(0)) {
 		if (iproute->lock)
 			rta_addattr32(rta, sizeof(buf), RTAX_LOCK, iproute->lock);
@@ -847,6 +852,11 @@ format_iproute(ip_route_t *route, char *buf, size_t buf_len)
 #if HAVE_DECL_RTAX_FASTOPEN_NO_COOKIE
 	if (route->mask & IPROUTE_BIT_FASTOPEN_NO_COOKIE)
 		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s %u", "fastopen_no_cookie", route->fastopen_no_cookie);
+#endif
+
+#if HAVE_DECL_RTA_TTL_PROPAGATE
+	if (route->mask & IPROUTE_BIT_TTL_PROPAGATE)
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s %sabled", "ttl-propagate", route->ttl_propagate ? "en" : "dis");
 #endif
 
 	if (!LIST_ISEMPTY(route->nhs)) {
@@ -1655,6 +1665,21 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 			new->mask |= IPROUTE_BIT_PREF;
 #else
 			report_config_error(CONFIG_GENERAL_ERROR, "%s not supported by kernel", "pref");
+#endif
+		}
+		else if (!strcmp(str, "ttl-propagate")) {
+			i++;
+#if HAVE_DECL_RTA_TTL_PROPAGATE
+			str = strvec_slot(strvec, i);
+			if (!strcmp(str, "enabled"))
+				new->ttl_propagate = 1;
+			else if (!strcmp(str, "disabled"))
+				new->ttl_propagate = 0;
+			else
+				report_config_error(CONFIG_GENERAL_ERROR, "%s value %s not recognised", "ttl-propagate", str);
+			new->mask |= IPROUTE_BIT_TTL_PROPAGATE;
+#else
+			report_config_error(CONFIG_GENERAL_ERROR, "%s not supported by kernel", "ttl-propagate");
 #endif
 		}
 		else if (!strcmp(str, "fastopen_no_cookie")) {
