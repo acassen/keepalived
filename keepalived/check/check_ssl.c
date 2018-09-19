@@ -82,7 +82,11 @@ build_ssl_ctx(void)
 		ssl = check_data->ssl;
 
 	/* Initialize SSL context */
+#if HAVE_TLS_METHOD
+	ssl->meth = TLS_method();
+#else
 	ssl->meth = SSLv23_method();
+#endif
 	if (!(ssl->ctx = SSL_CTX_new(ssl->meth))) {
 		log_message(LOG_INFO, "SSL error: cannot create new SSL context");
 		return false;

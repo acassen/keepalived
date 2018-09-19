@@ -52,7 +52,11 @@ init_ssl(void)
 #endif
 
 	/* Initialize SSL context */
+#if HAVE_TLS_METHOD
+	req->meth = TLS_method();
+#else
 	req->meth = SSLv23_method();
+#endif
 	if (!(req->ctx = SSL_CTX_new(req->meth))) {
 		fprintf(stderr, "SSL_CTX_new() failed\n");
 		exit(1);
