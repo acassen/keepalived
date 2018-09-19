@@ -1293,7 +1293,6 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 	unsigned int i = 0;
 	bool do_nexthop = false;
 	bool raw;
-	ip_address_t *dst;
 	uint8_t family;
 	char *dest = NULL;
 
@@ -1728,18 +1727,17 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 			if (new->dst)
 				FREE(new->dst);
 			dest = strvec_slot(strvec, i);
-			dst = parse_route(dest);
-			if (!dst) {
+			new->dst = parse_route(dest);
+			if (!new->dst) {
 				report_config_error(CONFIG_GENERAL_ERROR, "unknown route keyword %s", dest);
 				goto err;
 			}
 			if (new->family == AF_UNSPEC)
-				new->family = dst->ifa.ifa_family;
-			else if (new->family != dst->ifa.ifa_family) {
+				new->family = new->dst->ifa.ifa_family;
+			else if (new->family != new->dst->ifa.ifa_family) {
 				report_config_error(CONFIG_GENERAL_ERROR, "Cannot mix IPv4 and IPv6 addresses for route (%s)", dest);
 				goto err;
 			}
-			new->dst = dst;
 		}
 		i++;
 	}
