@@ -25,12 +25,13 @@
 
 /* global includes */
 #include <openssl/ssl.h>
+#include <stdbool.h>
 
 #include "scheduler.h"
 
 /* Prototypes */
 extern void init_ssl(void);
-extern int ssl_connect(thread_t *);
+extern bool ssl_connect(thread_t *);
 extern int ssl_printerr(int);
 extern int ssl_send_request(SSL *, char *, int);
 extern int ssl_read_thread(thread_t *);
