@@ -207,8 +207,17 @@ ssl_connect(thread_t * thread, int new_req)
 	/* First round, create SSL context */
 	if (new_req) {
 		int bio_fd;
-		req->ssl = SSL_new(check_data->ssl->ctx);
-		req->bio = BIO_new_socket(thread->u.fd, BIO_NOCLOSE);
+
+		if (!(req->ssl = SSL_new(check_data->ssl->ctx))) {
+			log_message(LOG_INFO, "Unable to establish ssl connection - SSL_new() failed");
+			return 0;
+		}
+
+		if (!(req->bio = BIO_new_socket(thread->u.fd, BIO_NOCLOSE))) {
+			log_message(LOG_INFO, "Unable to establish ssl connection - BIO_new_socket() failed");
+			return 0;
+		}
+
 		BIO_get_fd(req->bio, &bio_fd);
 		fcntl(bio_fd, F_SETFD, fcntl(bio_fd, F_GETFD) | FD_CLOEXEC);
 #if HAVE_SSL_SET0_RBIO

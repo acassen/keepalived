@@ -24,6 +24,7 @@
 
 /* system includes */
 #include <openssl/err.h>
+#include <stdbool.h>
 
 /* keepalived includes */
 #include "utils.h"
@@ -97,14 +98,24 @@ ssl_printerr(int err)
 	return 0;
 }
 
-int
+bool
 ssl_connect(thread_t * thread)
 {
 	SOCK *sock_obj = THREAD_ARG(thread);
 	int ret;
 
 	sock_obj->ssl = SSL_new(req->ctx);
+	if (!sock_obj->ssl) {
+		fprintf(stderr, "SSL_new() failed\n");
+		return false;
+	}
+
 	sock_obj->bio = BIO_new_socket(sock_obj->fd, BIO_NOCLOSE);
+	if (!sock_obj->bio) {
+		fprintf(stderr, "BIO_new_socket failed\n");
+		return false;
+	}
+
 	BIO_set_nbio(sock_obj->bio, 1);	/* Set the Non-Blocking flag */
 #if HAVE_SSL_SET0_RBIO
 	BIO_up_ref(sock_obj->bio);
@@ -124,7 +135,7 @@ ssl_connect(thread_t * thread)
 	DBG("  SSL_connect return code = %d on fd:%d\n", ret, thread->u.fd);
 	ssl_printerr(SSL_get_error(sock_obj->ssl, ret));
 
-	return (ret > 0) ? 1 : 0;
+	return (ret > 0);
 }
 
 int
