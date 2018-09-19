@@ -534,7 +534,7 @@ parse_route(char *str)
 	ip_address_t *new = (ip_address_t *)MALLOC(sizeof(ip_address_t));
 
 	/* Handle the specials */
-	if (!strcmp(str, "default")) {
+	if (!strcmp(str, "default") || !strcmp(str, "any") || !strcmp(str, "all")) {
 		new->ifa.ifa_family = AF_UNSPEC;
 		return new;
 	}
