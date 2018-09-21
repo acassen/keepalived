@@ -1193,6 +1193,10 @@ vrrp_tfile_end_handler(void)
 			report_config_error(CONFIG_GENERAL_ERROR, "Cannot initialise track file %s - it is not a regular file", tfile->fname);
 			return;
 		}
+
+		/* Don't overwrite a file on reload */
+		if (reload)
+			return;
 	}
 
 	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
