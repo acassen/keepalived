@@ -241,5 +241,8 @@ extern void register_thread_address(const char *, int (*)(thread_t *));
 extern void deregister_thread_addresses(void);
 extern void register_scheduler_addresses(void);
 #endif
+#ifdef _VRRP_FD_DEBUG_
+extern void set_extra_threads_debug(void (*)(void));
+#endif
 
 #endif

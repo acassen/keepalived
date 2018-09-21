@@ -104,6 +104,20 @@ static char *vrrp_syslog_ident;
 static bool two_phase_terminate;
 #endif
 
+#ifdef _VRRP_FD_DEBUG_
+bool do_vrrp_fd_debug;
+#endif
+
+#ifdef _VRRP_FD_DEBUG_
+static void
+dump_vrrp_fd(void)
+{
+	log_message(LOG_INFO, "----[ Begin VRRP fd dump ]----");
+	dump_mlist(NULL, vrrp_data->vrrp_index_fd);
+	log_message(LOG_INFO, "----[ End VRRP fd dump ]----");
+}
+#endif
+
 static void
 set_vrrp_max_fds(void)
 {
@@ -946,6 +960,9 @@ start_vrrp_child(void)
 		log_message(LOG_INFO, "VRRP child process: cannot write pidfile");
 		exit(0);
 	}
+
+	if (do_vrrp_fd_debug)
+		set_extra_threads_debug(dump_vrrp_fd);
 
 	/* Create the new master thread */
 	thread_destroy_master(master);	/* This destroys any residual settings from the parent */

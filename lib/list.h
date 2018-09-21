@@ -67,6 +67,9 @@ extern void list_remove(list l, element);
 extern void list_del(list l, void *data);
 extern void free_list_data(list l, void *data);
 extern list alloc_mlist(void (*free_func) (void *), void (*dump_func) (FILE *, void *), size_t size);
+#ifdef _VRRP_FD_DEBUG_
+extern void dump_mlist(FILE *, list);
+#endif
 extern void free_mlist(list l, size_t size);
 
 #endif

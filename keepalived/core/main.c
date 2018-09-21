@@ -162,7 +162,7 @@ static const char *core_dump_pattern = "core";
 static char *orig_core_dump_pattern = NULL;
 
 /* debug flags */
-#if defined _TIMER_CHECK_ || defined _SMTP_ALERT_DEBUG_ || defined _EPOLL_DEBUG_ || defined _EPOLL_THREAD_DUMP_ || defined _REGEX_DEBUG_ || defined _WITH_REGEX_TIMERS_ || defined _TSM_DEBUG_ || defined _NETLINK_TIMERS_
+#if defined _TIMER_CHECK_ || defined _SMTP_ALERT_DEBUG_ || defined _EPOLL_DEBUG_ || defined _EPOLL_THREAD_DUMP_ || defined _REGEX_DEBUG_ || defined _WITH_REGEX_TIMERS_ || defined _TSM_DEBUG_ || defined _VRRP_FD_DEBUG_ || defined _NETLINK_TIMERS_
 #define WITH_DEBUG_OPTIONS 1
 #endif
 
@@ -186,6 +186,9 @@ static char regex_timers;
 #endif
 #ifdef _TSM_DEBUG_
 static char tsm_debug;
+#endif
+#ifdef _VRRP_FD_DEBUG_
+static char vrrp_fd_debug;
 #endif
 #ifdef _NETLINK_TIMERS_
 static char netlink_timer_debug;
@@ -933,6 +936,9 @@ initialise_debug_options(void)
 #ifdef _TSM_DEBUG_
 	do_tsm_debug = !!(tsm_debug & mask);
 #endif
+#ifdef _VRRP_FD_DEBUG_
+	do_vrrp_fd_debug = !!(vrrp_fd_debug & mask);
+#endif
 #ifdef _NETLINK_TIMERS_
 	do_netlink_timers = !!(netlink_timer_debug & mask);
 #endif
@@ -983,6 +989,9 @@ set_debug_options(const char *options)
 #endif
 #ifdef _TSM_DEBUG_
 		tsm_debug = all_processes;
+#endif
+#ifdef _VRRP_FD_DEBUG_
+		vrrp_fd_debug = all_processes;
 #endif
 #ifdef _NETLINK_TIMERS_
 		netlink_timer_debug = all_processes;
@@ -1065,6 +1074,11 @@ set_debug_options(const char *options)
 #ifdef _TSM_DEBUG_
 		case 'S':
 			tsm_debug = processes;
+			break;
+#endif
+#ifdef _VRRP_FD_DEBUG_
+		case 'F':
+			vrrp_fd_debug = processes;
 			break;
 #endif
 #ifdef _NETLINK_TIMERS_
@@ -1159,6 +1173,9 @@ usage(const char *prog)
 #endif
 #ifdef _EPOLL_THREAD_DUMP_
 	fprintf(stderr, "                                   D - epoll thread dump debug\n");
+#endif
+#ifdef _VRRP_FD_DEBUG
+	fprintf(stderr, "                                   F - vrrp fd dump debug\n");
 #endif
 #ifdef _REGEX_DEBUG_
 	fprintf(stderr, "                                   R - regex debug\n");
