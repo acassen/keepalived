@@ -1672,7 +1672,9 @@ keepalived_main(int argc, char **argv)
 		}
 	}
 
+#ifndef _DEBUG_
 	log_command_line(0);
+#endif
 
 	netlink_set_recv_buf_size();
 
