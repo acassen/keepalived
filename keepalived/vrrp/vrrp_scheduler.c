@@ -350,8 +350,9 @@ vrrp_compute_timer(const int fd)
 		vrrp = ELEMENT_DATA(e);
 		if (vrrp->sockets->fd_in != fd)
 			continue;
-		if (!timerisset(&timer) ||
-		    timercmp(&vrrp->sands, &timer, <))
+		if (vrrp->sands.tv_sec != TIMER_DISABLED &&
+		    (!timerisset(&timer) ||
+		     timercmp(&vrrp->sands, &timer, <)))
 			timer = vrrp->sands;
 	}
 
