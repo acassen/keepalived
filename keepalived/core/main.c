@@ -526,7 +526,7 @@ static bool reload_config(void)
 
 	read_config_file();
 
-	init_global_data(global_data);
+	init_global_data(global_data, old_global_data);
 
 #if HAVE_DECL_CLONE_NEWNET
 	if (!!old_global_data->network_namespace != !!global_data->network_namespace ||
@@ -561,7 +561,7 @@ static bool reload_config(void)
 
 /* SIGHUP/USR1/USR2 handler */
 static void
-propogate_signal(__attribute__((unused)) void *v, int sig)
+propagate_signal(__attribute__((unused)) void *v, int sig)
 {
 	if (sig == SIGHUP) {
 		if (!reload_config())
@@ -809,11 +809,11 @@ static void
 signal_init(void)
 {
 #ifndef _DEBUG_
-	signal_set(SIGHUP, propogate_signal, NULL);
-	signal_set(SIGUSR1, propogate_signal, NULL);
-	signal_set(SIGUSR2, propogate_signal, NULL);
+	signal_set(SIGHUP, propagate_signal, NULL);
+	signal_set(SIGUSR1, propagate_signal, NULL);
+	signal_set(SIGUSR2, propagate_signal, NULL);
 #ifdef _WITH_JSON_
-	signal_set(SIGJSON, propogate_signal, NULL);
+	signal_set(SIGJSON, propagate_signal, NULL);
 #endif
 	signal_set(SIGINT, sigend, NULL);
 	signal_set(SIGTERM, sigend, NULL);
@@ -1547,7 +1547,7 @@ register_parent_thread_addresses(void)
 	register_bfd_parent_addresses();
 #endif
 
-	register_signal_handler_address("propogate_signal", propogate_signal);
+	register_signal_handler_address("propagate_signal", propagate_signal);
 	register_signal_handler_address("sigend", sigend);
 	register_signal_handler_address("thread_child_handler", thread_child_handler);
 }
@@ -1696,7 +1696,7 @@ keepalived_main(int argc, char **argv)
 
 	read_config_file();
 
-	init_global_data(global_data);
+	init_global_data(global_data, NULL);
 
 #if HAVE_DECL_CLONE_NEWNET
 	if (override_namespace) {

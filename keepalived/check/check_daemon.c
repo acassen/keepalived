@@ -231,7 +231,7 @@ stop_check(int status)
 
 /* Daemon init sequence */
 static void
-start_check(list old_checkers_queue)
+start_check(list old_checkers_queue, data_t *old_global_data)
 {
 	init_checkers_queue();
 
@@ -247,7 +247,7 @@ start_check(list old_checkers_queue)
 	init_data(conf_file, check_init_keywords);
 
 	if (reload)
-		init_global_data(global_data);
+		init_global_data(global_data, old_global_data);
 
 	/* fill 'vsg' members of the virtual_server_t structure.
 	 * We must do that after parsing config, because
@@ -337,7 +337,7 @@ start_check(list old_checkers_queue)
 void
 check_validate_config(void)
 {
-	start_check(NULL);
+	start_check(NULL, NULL);
 }
 
 #ifndef _DEBUG_
@@ -382,7 +382,7 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 	global_data = NULL;
 
 	/* Reload the conf */
-	start_check(old_checkers_queue);
+	start_check(old_checkers_queue, old_global_data);
 
 	/* free backup data */
 	free_check_data(old_check_data);
@@ -582,7 +582,7 @@ start_check_child(void)
 #endif
 
 	/* Start Healthcheck daemon */
-	start_check(NULL);
+	start_check(NULL, NULL);
 
 #ifdef _DEBUG_
 	return 0;

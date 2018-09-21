@@ -130,7 +130,7 @@ open_bfd_pipes(void)
 
 /* Daemon init sequence */
 static void
-start_bfd(void)
+start_bfd(__attribute__((unused)) data_t *old_global_data)
 {
 	srand(time(NULL));
 
@@ -148,7 +148,7 @@ start_bfd(void)
 	 * leave the call here but commented out so we know where we want it
 	 * it if is needed.
 	if (reload)
-		init_global_data(global_data);
+		init_global_data(global_data, old_global_data);
 	*/
 
 	/* If we are just testing the configuration, then we terminate now */
@@ -176,7 +176,7 @@ start_bfd(void)
 void
 bfd_validate_config(void)
 {
-	start_bfd();
+	start_bfd(NULL);
 }
 
 /* Reload handler */
@@ -233,7 +233,7 @@ reload_bfd_thread(__attribute__((unused)) thread_t * thread)
 
 	/* Reload the conf */
 	signal_set(SIGCHLD, thread_child_handler, master);
-	start_bfd();
+	start_bfd(old_global_data);
 
 	free_bfd_data(old_bfd_data);
 	free_global_data(old_global_data);
@@ -404,7 +404,7 @@ start_bfd_child(void)
 #endif
 
 	/* Start BFD daemon */
-	start_bfd();
+	start_bfd(NULL);
 
 #ifdef _DEBUG_
 	return 0;

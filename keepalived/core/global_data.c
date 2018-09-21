@@ -218,42 +218,47 @@ alloc_global_data(void)
 }
 
 void
-init_global_data(data_t * data)
+init_global_data(data_t * data, data_t *old_global_data)
 {
-	char* local_name = NULL;
+	/* If this is a reload and we are running in a network namespace,
+	 * we may not be able to get local_name, so preserve it */
 	char unknown_name[] = "[unknown]";
-	bool using_unknown_name = false;
 
-	if (!data->router_id ||
-	    (data->smtp_server.ss_family &&
-	     (!data->smtp_helo_name ||
-	      !data->email_from))) {
-		local_name = get_local_name();
+	/* If we are running in a network namespace, we may not be
+	 * able to get our local name now, so re-use original */
+	if (old_global_data) {
+		data->local_name = old_global_data->local_name;
+		old_global_data->local_name = NULL;
+	}
+
+	if (!data->local_name &&
+	    (!data->router_id ||
+	     (data->smtp_server.ss_family &&
+	      (!data->smtp_helo_name ||
+	       !data->email_from)))) {
+		data->local_name = get_local_name();
 
 		/* If for some reason get_local_name() fails, we need to have
 		 * some string in local_name, otherwise keepalived can segfault */
-		if (!local_name) {
-			local_name = MALLOC(sizeof(unknown_name));
-			strcpy(local_name, unknown_name);
-			using_unknown_name = true;
+		if (!data->local_name) {
+			data->local_name = MALLOC(sizeof(unknown_name));
+			strcpy(data->local_name, unknown_name);
 		}
 	}
 
 	if (!data->router_id)
-		set_default_router_id(data, local_name);
+		set_default_router_id(data, data->local_name);
 
 	if (data->smtp_server.ss_family) {
 		if (!data->smtp_connection_to)
 			set_default_smtp_connection_timeout(data);
 
-		if (!using_unknown_name) {
+		if (strcmp(data->local_name, unknown_name)) {
 			if (!data->email_from)
-				set_default_email_from(data, local_name);
+				set_default_email_from(data, data->local_name);
 
-			if (!data->smtp_helo_name) {
-				data->smtp_helo_name = local_name;
-				local_name = NULL;	/* We have taken over the pointer */
-			}
+			if (!data->smtp_helo_name)
+				data->smtp_helo_name = data->local_name;
 		}
 	}
 
@@ -301,8 +306,6 @@ init_global_data(data_t * data)
 #endif
 	}
 #endif
-
-	FREE_PTR(local_name);
 }
 
 void
@@ -319,6 +322,7 @@ free_global_data(data_t * data)
 	FREE_PTR(data->router_id);
 	FREE_PTR(data->email_from);
 	FREE_PTR(data->smtp_helo_name);
+	FREE_PTR(data->local_name);
 #ifdef _WITH_SNMP_
 	FREE_PTR(data->snmp_socket);
 #endif
