@@ -508,9 +508,9 @@ child_wait_time SECS                          # Time for main process to allow f
 
     1.2. Static track groups
 
-    Static track groups are used to allow vrrp instances to track static addresses
-    routes and rules. If an static address/route/rule specifies a track group, then
-    if the address/route/rule is deleted, the vrrp instance will transition to vackup
+    Static track groups are used to allow vrrp instances to track static addresses,
+    routes and rules. If a static address/route/rule specifies a track group, then
+    if the address/route/rule is deleted, the vrrp instance will transition to backup,
     or to fault state if the address/route/rule cannot be re-added.
 
     The syntax for a track group is:

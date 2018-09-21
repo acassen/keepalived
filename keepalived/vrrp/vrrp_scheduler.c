@@ -336,7 +336,7 @@ vrrp_compute_timer(const int fd)
 	timeval_t timer;
 
 	/*
-	 * If list size's is 1 then no collisions. So
+	 * If list size is 1 then no collisions. So
 	 * Test and return the singleton.
 	 */
 	if (LIST_SIZE(l) == 1) {

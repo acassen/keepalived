@@ -1676,7 +1676,7 @@ thread_fetch_next_queue(thread_master_t *m)
 			snmp_epoll_info(m);
 #endif
 
-		/* Calculate and set select wait timer. Take care of timeouted fd.  */
+		/* Calculate and set wait timer. Take care of timeouted fd.  */
 		thread_set_timer(m);
 
 #ifdef _EPOLL_THREAD_DUMP_
