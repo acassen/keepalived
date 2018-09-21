@@ -1131,6 +1131,7 @@ thread_del_read(thread_t *thread)
 	return 0;
 }
 
+#ifdef _WITH_SNMP_
 static void
 thread_del_read_fd(thread_master_t *m, int fd)
 {
@@ -1142,6 +1143,7 @@ thread_del_read_fd(thread_master_t *m, int fd)
 
 	thread_del_read(event->read);
 }
+#endif
 
 static void
 thread_read_requeue(thread_master_t *m, int fd, timeval_t new_sands)
