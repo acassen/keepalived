@@ -961,8 +961,10 @@ start_vrrp_child(void)
 		exit(0);
 	}
 
+#ifdef _VRRP_FD_DEBUG_
 	if (do_vrrp_fd_debug)
 		set_extra_threads_debug(dump_vrrp_fd);
+#endif
 
 	/* Create the new master thread */
 	thread_destroy_master(master);	/* This destroys any residual settings from the parent */
