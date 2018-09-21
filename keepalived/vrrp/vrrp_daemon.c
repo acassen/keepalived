@@ -81,6 +81,9 @@
 #ifdef _WITH_BFD_
 #include "bfd_daemon.h"
 #endif
+#ifdef _VRRP_FD_DEBUG_
+#include "vrrp_index.h"
+#endif
 
 /* Global variables */
 bool non_existent_interface_specified;
