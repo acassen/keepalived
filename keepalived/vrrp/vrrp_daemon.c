@@ -395,7 +395,7 @@ stop_vrrp(int status)
 
 /* Daemon init sequence */
 static void
-start_vrrp(void)
+start_vrrp(data_t *old_global_data)
 {
 	/* Clear the flags used for optimising performance */
 	clear_summary_flags();
@@ -430,7 +430,7 @@ start_vrrp(void)
 	}
 
 	if (reload)
-		init_global_data(global_data);
+		init_global_data(global_data, old_global_data);
 
 	/* Set our copy of time */
 	set_time_now();
@@ -741,7 +741,7 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 #endif
 
 	/* Reload the conf */
-	start_vrrp();
+	start_vrrp(old_global_data);
 
 #ifdef _WITH_LVS_
 	if (global_data->lvs_syncd.ifname)
@@ -967,7 +967,7 @@ start_vrrp_child(void)
 #endif
 
 	/* Start VRRP daemon */
-	start_vrrp();
+	start_vrrp(NULL);
 
 #ifdef _DEBUG_
 	return 0;
@@ -998,7 +998,7 @@ start_vrrp_child(void)
 void
 vrrp_validate_config(void)
 {
-	start_vrrp();
+	start_vrrp(NULL);
 }
 
 #ifdef THREAD_DUMP

@@ -526,7 +526,7 @@ static bool reload_config(void)
 
 	read_config_file();
 
-	init_global_data(global_data);
+	init_global_data(global_data, old_global_data);
 
 #if HAVE_DECL_CLONE_NEWNET
 	if (!!old_global_data->network_namespace != !!global_data->network_namespace ||
@@ -1696,7 +1696,7 @@ keepalived_main(int argc, char **argv)
 
 	read_config_file();
 
-	init_global_data(global_data);
+	init_global_data(global_data, NULL);
 
 #if HAVE_DECL_CLONE_NEWNET
 	if (override_namespace) {
