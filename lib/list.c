@@ -202,18 +202,17 @@ alloc_mlist(void (*free_func) (void *), void (*dump_func) (FILE *, void *), size
 	list new = (list) MALLOC(size * sizeof (struct _list));
 	new->free = free_func;
 	new->dump = dump_func;
-	new->count = size;
 	return new;
 }
 
 #ifdef _VRRP_FD_DEBUG_
 void
-dump_mlist(FILE *fp, list l)
+dump_mlist(FILE *fp, list l, size_t size)
 {
 	element e;
 	unsigned i;
 
-	for (i = 0; i < l->count; i++) {
+	for (i = 0; i < size; i++) {
 		for (e = LIST_HEAD(&l[i]); e; ELEMENT_NEXT(e))
 			if (l->dump)
 				(*l->dump) (fp, e->data);
