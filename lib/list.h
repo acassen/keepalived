@@ -56,20 +56,20 @@ struct _list {
 #define LIST_FOREACH_NEXT(L,V,E,N) for ((E) = ((L) ? LIST_HEAD(L) : NULL); (E) && ((N) = (E)->next, (V) = ELEMENT_DATA(E), 1); (E) = (N))
 
 /* Prototypes */
-extern list alloc_list(void (*free_func) (void *), void (*dump_func) (FILE *, void *));
+extern list alloc_list(void (*) (void *), void (*) (FILE *, void *));
 extern void free_list(list *);
-extern void free_list_elements(list l);
-extern void free_list_element(list l, element e);
-extern void *list_element(list l, size_t num);
-extern void dump_list(FILE *, list l);
-extern void list_add(list l, void *data);
-extern void list_remove(list l, element);
-extern void list_del(list l, void *data);
-extern void free_list_data(list l, void *data);
-extern list alloc_mlist(void (*free_func) (void *), void (*dump_func) (FILE *, void *), size_t size);
+extern void free_list_elements(list);
+extern void free_list_element(list, element);
+extern void *list_element(list, size_t);
+extern void dump_list(FILE *, list);
+extern void list_add(list, void *);
+extern void list_remove(list, element);
+extern void list_del(list, void *);
+extern void free_list_data(list, void *);
+extern list alloc_mlist(void (*) (void *), void (*) (FILE *, void *), size_t);
 #ifdef _VRRP_FD_DEBUG_
-extern void dump_mlist(FILE *, list, size);
+extern void dump_mlist(FILE *, list, size_t);
 #endif
-extern void free_mlist(list l, size_t size);
+extern void free_mlist(list, size_t);
 
 #endif
