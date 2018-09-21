@@ -763,7 +763,7 @@ initialise_interface_tracking_priorities(void)
 }
 
 void
-initialise_tracking_priorities(vrrp_t *vrrp)
+initialise_vrrp_tracking_priorities(vrrp_t *vrrp)
 {
 	element e;
 	tracked_sc_t *tsc;
@@ -795,6 +795,39 @@ initialise_tracking_priorities(vrrp_t *vrrp)
 	}
 
 	vrrp_set_effective_priority(vrrp);
+}
+
+void
+initialise_tracking_priorities(void)
+{
+	vrrp_t *vrrp;
+	element e;
+
+	/* Check for instance down due to an interface */
+	initialise_interface_tracking_priorities();
+
+	/* Now check for tracking scripts, files, bfd etc */
+	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+		/* Set effective priority and fault state */
+		initialise_vrrp_tracking_priorities(vrrp);
+
+		if (vrrp->sync) {
+			if (vrrp->state == VRRP_STATE_FAULT) {
+				if (vrrp->sync->state != VRRP_STATE_FAULT) {
+					vrrp->sync->state = VRRP_STATE_FAULT;
+					log_message(LOG_INFO, "VRRP_Group(%s): Syncing instances to FAULT state", vrrp->sync->gname);
+				}
+
+				vrrp->sync->num_member_fault++;
+			}
+			if (vrrp->num_script_init) {
+				/* Update init count on sync group if needed */
+				vrrp->sync->num_member_init++;
+				if (vrrp->sync->state != VRRP_STATE_FAULT)
+					vrrp->sync->state = VRRP_STATE_INIT;
+			}
+		}
+	}
 }
 
 static void

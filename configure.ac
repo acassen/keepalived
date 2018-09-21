@@ -231,6 +231,8 @@ AC_ARG_ENABLE(regex-debug,
   [  --enable-regex-debug    compile with regex debugging support])
 AC_ARG_ENABLE(tsm-debug,
   [  --enable-tsm-debug      compile with TSM debugging support])
+AC_ARG_ENABLE(vrrp-fd-debug,
+  [  --enable-vrrp-fd-debug  compile with vrrp fd debugging support])
 AC_ARG_ENABLE(profile,
   [AS_HELP_STRING([--enable-profile], [compile with profiling flags])])
 AC_ARG_ENABLE(conversion-checks,
@@ -1805,6 +1807,15 @@ else
   ENABLE_TSM_DEBUG=No
 fi
 
+dnl ----[ VRRP FD debugging support or not ? ]----
+if test "${enable_vrrp_fd_debug}" = yes; then
+  AC_DEFINE([_VRRP_FD_DEBUG_], [ 1 ], [Define to 1 to build with vrrp fd debugging support])
+  ENABLE_VRRP_FD_DEBUG=Yes
+  add_config_opt([VRRP_FD_DEBUG])
+else
+  ENABLE_VRRP_FD_DEBUG=No
+fi
+
 dnl ----[ Profiling or not ? ]----
 WITH_PROFILING=No
 if test "${enable_profile}" = yes; then
@@ -1986,6 +1997,9 @@ if test ${ENABLE_REGEX_DEBUG} = Yes; then
 fi
 if test ${ENABLE_TSM_DEBUG} = Yes; then
   echo "TSM debugging            : ${ENABLE_TSM_DEBUG}"
+fi
+if test ${ENABLE_VRRP_FD_DEBUG} = Yes; then
+  echo "VRRP_FD debugging        : ${ENABLE_VRRP_FD_DEBUG}"
 fi
 if test ${ENABLE_DEBUG} = Yes; then
   echo "Use Debug flags          : ${ENABLE_DEBUG}"

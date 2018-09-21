@@ -159,8 +159,7 @@ extern vrrp_script_t *find_script_by_name(char *);
 extern void update_script_priorities(vrrp_script_t *, bool);
 extern void down_instance(struct _vrrp_t *);
 extern void vrrp_set_effective_priority(struct _vrrp_t *);
-extern void initialise_interface_tracking_priorities(void);
-extern void initialise_tracking_priorities(struct _vrrp_t *);
+extern void initialise_tracking_priorities(void);
 extern void init_track_files(list);
 extern void stop_track_files(void);
 #ifdef THREAD_DUMP

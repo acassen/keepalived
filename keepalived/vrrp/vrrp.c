@@ -3392,30 +3392,7 @@ vrrp_complete_init(void)
 	init_interface_linkbeat();
 
 	/* Check for instance down due to an interface */
-	initialise_interface_tracking_priorities();
-
-	/* Now check for tracking scripts, files, bfd etc */
-	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
-		/* Set effective priority and fault state */
-		initialise_tracking_priorities(vrrp);
-
-		if (vrrp->sync) {
-			if (vrrp->state == VRRP_STATE_FAULT) {
-				if (vrrp->sync->state != VRRP_STATE_FAULT) {
-					vrrp->sync->state = VRRP_STATE_FAULT;
-					log_message(LOG_INFO, "VRRP_Group(%s): Syncing instances to FAULT state", vrrp->sync->gname);
-				}
-
-				vrrp->sync->num_member_fault++;
-			}
-			if (vrrp->num_script_init) {
-				/* Update init count on sync group if needed */
-				vrrp->sync->num_member_init++;
-				if (vrrp->sync->state != VRRP_STATE_FAULT)
-					vrrp->sync->state = VRRP_STATE_INIT;
-			}
-		}
-	}
+	initialise_tracking_priorities();
 
 	/* Make sure that if any sync group has member wanting to start in
 	 * master state, then all can start in master state. */

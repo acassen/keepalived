@@ -89,6 +89,9 @@ bool do_epoll_thread_dump;
 #ifdef THREAD_DUMP
 static rb_root_t funcs = RB_ROOT;
 #endif
+#ifdef _VRRP_FD_DEBUG_
+static void (*extra_threads_debug)(void);
+#endif
 
 
 /* Function that returns prog_name if pid is a known child */
@@ -196,6 +199,14 @@ deregister_thread_addresses(void)
 		rb_erase(&func_det->n, &funcs);
 		FREE(func_det);
 	}
+}
+#endif
+
+#ifdef _VRRP_FD_DEBUG_
+void
+set_extra_threads_debug(void (*func)(void))
+{
+	extra_threads_debug = func;
 }
 #endif
 
@@ -1676,8 +1687,13 @@ thread_fetch_next_queue(thread_master_t *m)
 			snmp_epoll_info(m);
 #endif
 
-		/* Calculate and set select wait timer. Take care of timeouted fd.  */
+		/* Calculate and set wait timer. Take care of timeouted fd.  */
 		thread_set_timer(m);
+
+#ifdef _VRRP_FD_DEBUG_
+		if (extra_threads_debug)
+			extra_threads_debug();
+#endif
 
 #ifdef _EPOLL_THREAD_DUMP_
 		if (do_epoll_thread_dump)

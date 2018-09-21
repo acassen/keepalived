@@ -1177,6 +1177,7 @@ vrrp_tfile_end_handler(void)
 	if (!tfile->file_path) {
 		report_config_error(CONFIG_GENERAL_ERROR, "No file set for track_file %s - removing", tfile->fname);
 		free_list_element(vrrp_data->vrrp_track_files, vrrp_data->vrrp_track_files->tail);
+		return;
 	}
 
 	if (track_file_init == TRACK_FILE_NO_INIT)
@@ -1193,6 +1194,10 @@ vrrp_tfile_end_handler(void)
 			report_config_error(CONFIG_GENERAL_ERROR, "Cannot initialise track file %s - it is not a regular file", tfile->fname);
 			return;
 		}
+
+		/* Don't overwrite a file on reload */
+		if (reload)
+			return;
 	}
 
 	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
