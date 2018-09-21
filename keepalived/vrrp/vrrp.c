@@ -3266,6 +3266,7 @@ vrrp_complete_init(void)
 	ifindex_t ifindex_o;
 	size_t max_mtu_len = 0;
 	bool have_master, have_backup;
+	vrrp_script_t *scr;
 
 	/* Set defaults of not specified, depending on strict mode */
 	if (global_data->vrrp_garp_lower_prio_rep == PARAMETER_UNSET)
@@ -3443,9 +3444,7 @@ vrrp_complete_init(void)
 //   and then go through and set up sync groups in fault or init with counts
 // TODO-PQA
 	/* Set all sync group members to fault state if sync group is in fault state */
-	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
-
+	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
 		if (vrrp->state == VRRP_STATE_FAULT ||
 		    (vrrp->sync && vrrp->sync->state == VRRP_STATE_FAULT)) {
 			vrrp->state = VRRP_STATE_FAULT;
@@ -3458,8 +3457,7 @@ vrrp_complete_init(void)
 
 	if (reload) {
 		/* Now step through the old vrrp to set the status on matching new instances */
-		for (e = LIST_HEAD(old_vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-			old_vrrp = ELEMENT_DATA(e);
+		LIST_FOREACH(old_vrrp_data->vrrp, old_vrrp, e) {
 			vrrp = vrrp_exist(old_vrrp);
 			if (vrrp) {
 				/* If we have detected a fault, don't override it */
@@ -3475,8 +3473,7 @@ vrrp_complete_init(void)
 #ifdef _WITH_LVS_
 	/* Set up the lvs_syncd vrrp */
 	if (global_data->lvs_syncd.vrrp_name) {
-		for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-			vrrp = ELEMENT_DATA(e);
+		LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
 			if (!strcmp(global_data->lvs_syncd.vrrp_name, vrrp->iname)) {
 				global_data->lvs_syncd.vrrp = vrrp;
 
@@ -3502,14 +3499,10 @@ vrrp_complete_init(void)
 #endif
 
 	/* Identify and remove any unused tracking scripts */
-	if (!LIST_ISEMPTY(vrrp_data->vrrp_script)) {
-		for (e = LIST_HEAD(vrrp_data->vrrp_script); e; e = next) {
-			next = e->next;
-			vrrp_script_t *scr = ELEMENT_DATA(e);
-			if (LIST_ISEMPTY(scr->tracking_vrrp)) {
-				report_config_error(CONFIG_GENERAL_ERROR, "Warning - script %s is not used", scr->sname);
-				free_list_element(vrrp_data->vrrp_script, e);
-			}
+	LIST_FOREACH_NEXT(vrrp_data->vrrp_script, scr, e, next) {
+		if (LIST_ISEMPTY(scr->tracking_vrrp)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Warning - script %s is not used", scr->sname);
+			free_list_element(vrrp_data->vrrp_script, e);
 		}
 	}
 
@@ -3604,12 +3597,6 @@ restore_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 	vrrp->state = old_vrrp->state;
 	vrrp->reload_master = old_vrrp->state == VRRP_STATE_MAST;
 	vrrp->wantstate = old_vrrp->wantstate;
-	if (!old_vrrp->sync && vrrp->base_priority != VRRP_PRIO_OWNER) {
-		vrrp->total_priority = old_vrrp->total_priority + vrrp->base_priority - old_vrrp->base_priority;
-		vrrp->effective_priority = (vrrp->total_priority < 0) ? 0 :
-					   (vrrp->total_priority >= VRRP_PRIO_OWNER) ? VRRP_PRIO_OWNER - 1 :
-					   (uint8_t)vrrp->total_priority;
-	}
 
 	/* Save old stats */
 	memcpy(vrrp->stats, old_vrrp->stats, sizeof(vrrp_stats));
