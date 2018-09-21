@@ -441,6 +441,7 @@ signal_handler_parent_init(void)
 #endif
 }
 
+#ifndef _DEBUG_
 static void
 signal_handler_child_init(void)
 {
@@ -456,6 +457,7 @@ signal_handler_child_init(void)
 			sigaction(sig, &act, NULL);
 	}
 }
+#endif
 
 void
 signal_handler_init(void)
