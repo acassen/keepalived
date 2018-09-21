@@ -113,7 +113,7 @@ static void
 dump_vrrp_fd(void)
 {
 	log_message(LOG_INFO, "----[ Begin VRRP fd dump ]----");
-	dump_mlist(NULL, vrrp_data->vrrp_index_fd);
+	dump_mlist(NULL, vrrp_data->vrrp_index_fd, FD_INDEX_SIZE);
 	log_message(LOG_INFO, "----[ End VRRP fd dump ]----");
 }
 #endif
