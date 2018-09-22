@@ -729,7 +729,7 @@ initialise_track_bfd_state(tracked_bfd_t *tbfd, vrrp_t *vrrp)
 }
 #endif
 
-void
+static void
 initialise_interface_tracking_priorities(void)
 {
 	tracking_vrrp_t *tvp;
@@ -747,10 +747,8 @@ initialise_interface_tracking_priorities(void)
 					tvp->vrrp->state = VRRP_STATE_FAULT;
 					tvp->vrrp->num_script_if_fault++;
 				}
-				continue;
 			}
-
-			if (IF_ISUP(ifp)) {
+			else if (IF_ISUP(ifp)) {
 				if (tvp->weight > 0)
 					tvp->vrrp->total_priority += tvp->weight;
 			}
@@ -762,7 +760,30 @@ initialise_interface_tracking_priorities(void)
 	}
 }
 
-void
+static void
+initialise_file_tracking_priorities(void)
+{
+	vrrp_tracked_file_t *tfile;
+	tracking_vrrp_t *tvp;
+	int status;
+	element e, e1;
+
+	LIST_FOREACH(vrrp_data->vrrp_track_files, tfile, e) {
+		LIST_FOREACH(tfile->tracking_vrrp, tvp, e1) {
+			status = !tvp->weight ? (tfile->last_status ? -254 : 0 ) : tfile->last_status * tvp->weight;
+
+			if (status <= -254) {
+				/* The instance is down */
+				tvp->vrrp->state = VRRP_STATE_FAULT;
+				tvp->vrrp->num_script_if_fault++;
+			}
+			else
+				tvp->vrrp->total_priority += (status > 253 ? 253 : status);
+		}
+	}
+}
+
+static void
 initialise_vrrp_tracking_priorities(vrrp_t *vrrp)
 {
 	element e;
@@ -806,7 +827,9 @@ initialise_tracking_priorities(void)
 	/* Check for instance down due to an interface */
 	initialise_interface_tracking_priorities();
 
-	/* Now check for tracking scripts, files, bfd etc */
+	initialise_file_tracking_priorities();
+
+	/* Now check for tracking scripts, files, bfd etc. */
 	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
 		/* Set effective priority and fault state */
 		initialise_vrrp_tracking_priorities(vrrp);
@@ -867,7 +890,8 @@ process_update_track_file_status(vrrp_tracked_file_t *tfile, int new_status, tra
 
 	if (new_status == -254) {
 		down_instance(tvp->vrrp);
-		tvp->vrrp->total_priority += new_status - previous_status;
+		if (tvp->vrrp->base_priority != VRRP_PRIO_OWNER)
+			tvp->vrrp->total_priority += new_status - previous_status;
 	} else {
 		if (previous_status == -254)
 			try_up_instance(tvp->vrrp, false);
@@ -905,12 +929,10 @@ update_track_file_status(vrrp_tracked_file_t* tfile, int new_status)
 
 		process_update_track_file_status(tfile, status, tvp);
 	}
-
-	tfile->last_status = new_status;
 }
 
 static void
-process_track_file(vrrp_tracked_file_t *tfile)
+process_track_file(vrrp_tracked_file_t *tfile, bool init)
 {
 	long new_status = 0;
 	char buf[128];
@@ -932,7 +954,10 @@ process_track_file(vrrp_tracked_file_t *tfile)
 	else if (new_status < -254)
 		new_status = -254;
 
-	update_track_file_status(tfile, (int)new_status);
+	if (!init)
+		update_track_file_status(tfile, (int)new_status);
+
+	tfile->last_status = new_status;
 }
 
 static int
@@ -977,9 +1002,7 @@ process_inotify(thread_t *thread)
 				continue;
 			}
 
-			for (e = LIST_HEAD(vrrp_data->vrrp_track_files); e; ELEMENT_NEXT(e)) {
-				tfile = ELEMENT_DATA(e);
-
+			LIST_FOREACH(vrrp_data->vrrp_track_files, tfile, e) {
 				/* Is this event for our file */
 				if (tfile->wd != event->wd ||
 				    strcmp(tfile->file_part, event->name))
@@ -991,7 +1014,7 @@ process_inotify(thread_t *thread)
 				}
 				else {	/* event->mask & (IN_MOVED_TO | IN_CLOSE_WRITE) */
 					/* The file has been writted/moved in */
-					process_track_file(tfile);
+					process_track_file(tfile, false);
 				}
 			}
 		}
@@ -1048,7 +1071,7 @@ init_track_files(list track_files)
 			}
 
 			/* The file exists, so read it now */
-			process_track_file(tfile);
+			process_track_file(tfile, true);
 		}
 		else if (errno == ENOENT) {
 			/* Resolve the directory */

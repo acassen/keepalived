@@ -3391,7 +3391,11 @@ vrrp_complete_init(void)
 	/* We need to know the state of interfaces for the next loop */
 	init_interface_linkbeat();
 
-	/* Check for instance down due to an interface */
+	/* Initialise any tracking files */
+	if (vrrp_data->vrrp_track_files)
+		init_track_files(vrrp_data->vrrp_track_files);
+
+	/* Check for instance down or changed priority due to an interface, script, file or bfd */
 	initialise_tracking_priorities();
 
 	/* Make sure that if any sync group has member wanting to start in
@@ -3399,6 +3403,7 @@ vrrp_complete_init(void)
 	LIST_FOREACH(vrrp_data->vrrp_sync_group, sgroup, e1) {
 		have_backup = false;
 		have_master = false;
+
 		LIST_FOREACH(sgroup->vrrp_instances, vrrp, e) {
 			if (vrrp->wantstate == VRRP_STATE_BACK || vrrp->base_priority != VRRP_PRIO_OWNER)
 				have_backup = true;
