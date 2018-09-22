@@ -155,6 +155,10 @@ dump_vgroup(FILE *fp, void *data)
 		conf_write(fp, "   Tracked files = %d", LIST_SIZE(vgroup->track_file));
 		dump_list(fp, vgroup->track_file);
 	}
+	if (!LIST_ISEMPTY(vgroup->track_bfd)) {
+		conf_write(fp, "   Tracked BFDs = %d", LIST_SIZE(vgroup->track_bfd));
+		dump_list(fp, vgroup->track_bfd);
+	}
 	dump_notify_script(fp, vgroup->script_backup, "Backup");
 	dump_notify_script(fp, vgroup->script_master, "Master");
 	dump_notify_script(fp, vgroup->script_fault, "Fault");
@@ -233,6 +237,7 @@ dump_vfile(FILE *fp, void *data)
 
 	conf_write(fp, " VRRP Track file = %s", vfile->fname);
 	conf_write(fp, "   File = %s", vfile->file_path);
+	conf_write(fp, "   Status = %d", vfile->last_status);
 	conf_write(fp, "   Weight = %d", vfile->weight);
 	conf_write(fp, "   Tracking VRRP instances = %d", vfile->tracking_vrrp ? LIST_SIZE(vfile->tracking_vrrp) : 0);
 	if (vfile->tracking_vrrp)
