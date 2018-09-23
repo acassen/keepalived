@@ -3443,6 +3443,12 @@ vrrp_complete_init(void)
 	if (reload) {
 		/* Now step through the old vrrp to set the status on matching new instances */
 		LIST_FOREACH(old_vrrp_data->vrrp, old_vrrp, e) {
+			/* We work out for ourselves if the vrrp instance
+			 * should be in fault state, so it doesn't matter
+			 * if it was before */
+			if (old_vrrp->state == VRRP_STATE_FAULT)
+				continue;
+
 			vrrp = vrrp_exist(old_vrrp, &vrrp_data->vrrp);
 			if (vrrp) {
 				/* If we have detected a fault, don't override it */
@@ -3452,6 +3458,22 @@ vrrp_complete_init(void)
 				vrrp->state = old_vrrp->state;
 				vrrp->wantstate = old_vrrp->state;
 			}
+		}
+
+		/* Now see if any sync groups should be master */
+		LIST_FOREACH(vrrp_data->vrrp_sync_group, sgroup, e) {
+			if (sgroup->num_member_fault || sgroup->num_member_init)
+				continue;
+
+			have_master = true;
+			LIST_FOREACH(sgroup->vrrp_instances, vrrp, e1) {
+				if (vrrp->state != VRRP_STATE_MAST) {
+					have_master = false;
+					break;
+				}
+			}
+			if (have_master)
+				sgroup->state = VRRP_STATE_MAST;
 		}
 	}
 
@@ -3578,15 +3600,14 @@ restore_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 {
 	bool added_ip_addr = false;
 
-	/* Keep VRRP state, ipsec AH seq_number */
-	vrrp->state = old_vrrp->state;
-	vrrp->reload_master = old_vrrp->state == VRRP_STATE_MAST;
-	vrrp->wantstate = old_vrrp->wantstate;
+	/* If the new state is master, we must be reloading from master */
+	vrrp->reload_master = vrrp->state == VRRP_STATE_MAST;
 
 	/* Save old stats */
 	memcpy(vrrp->stats, old_vrrp->stats, sizeof(vrrp_stats));
 
 #ifdef _WITH_VRRP_AUTH_
+	/* Keep ipsec AH seq_number */
 	memcpy(&vrrp->ipsecah_counter, &old_vrrp->ipsecah_counter, sizeof(seq_counter_t));
 #endif
 
