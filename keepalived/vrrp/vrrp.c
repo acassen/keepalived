@@ -2256,16 +2256,12 @@ new_vrrp_socket(vrrp_t * vrrp)
 
 /* Try to find a VRRP instance */
 static vrrp_t *
-vrrp_exist(vrrp_t *old_vrrp)
+vrrp_exist(vrrp_t *old_vrrp, list *vrrp_list)
 {
 	element e;
 	vrrp_t *vrrp;
 
-	if (LIST_ISEMPTY(vrrp_data->vrrp))
-		return NULL;
-
-	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
+	LIST_FOREACH(*vrrp_list, vrrp, e) {
 		if (vrrp->vrid != old_vrrp->vrid ||
 		    vrrp->family != old_vrrp->family)
 			continue;
@@ -3391,7 +3387,11 @@ vrrp_complete_init(void)
 	/* We need to know the state of interfaces for the next loop */
 	init_interface_linkbeat();
 
-	/* Check for instance down due to an interface */
+	/* Initialise any tracking files */
+	if (vrrp_data->vrrp_track_files)
+		init_track_files(vrrp_data->vrrp_track_files);
+
+	/* Check for instance down or changed priority due to an interface, script, file or bfd */
 	initialise_tracking_priorities();
 
 	/* Make sure that if any sync group has member wanting to start in
@@ -3426,6 +3426,14 @@ vrrp_complete_init(void)
 		    (vrrp->sync && vrrp->sync->state == VRRP_STATE_FAULT)) {
 			vrrp->state = VRRP_STATE_FAULT;
 
+			/* If we are reloading and the vrrp instance was already
+			 * in fault state, we don't need to notify again */
+			if (reload) {
+				old_vrrp = vrrp_exist(vrrp, &old_vrrp_data->vrrp);
+				if (old_vrrp && old_vrrp->state == VRRP_STATE_FAULT)
+					continue;
+			}
+
 			log_message(LOG_INFO, "(%s) entering FAULT state", vrrp->iname);
 
 			send_instance_notifies(vrrp);
@@ -3435,7 +3443,13 @@ vrrp_complete_init(void)
 	if (reload) {
 		/* Now step through the old vrrp to set the status on matching new instances */
 		LIST_FOREACH(old_vrrp_data->vrrp, old_vrrp, e) {
-			vrrp = vrrp_exist(old_vrrp);
+			/* We work out for ourselves if the vrrp instance
+			 * should be in fault state, so it doesn't matter
+			 * if it was before */
+			if (old_vrrp->state == VRRP_STATE_FAULT)
+				continue;
+
+			vrrp = vrrp_exist(old_vrrp, &vrrp_data->vrrp);
 			if (vrrp) {
 				/* If we have detected a fault, don't override it */
 				if (vrrp->state == VRRP_STATE_FAULT || vrrp->num_script_init)
@@ -3444,6 +3458,22 @@ vrrp_complete_init(void)
 				vrrp->state = old_vrrp->state;
 				vrrp->wantstate = old_vrrp->state;
 			}
+		}
+
+		/* Now see if any sync groups should be master */
+		LIST_FOREACH(vrrp_data->vrrp_sync_group, sgroup, e) {
+			if (sgroup->num_member_fault || sgroup->num_member_init)
+				continue;
+
+			have_master = true;
+			LIST_FOREACH(sgroup->vrrp_instances, vrrp, e1) {
+				if (vrrp->state != VRRP_STATE_MAST) {
+					have_master = false;
+					break;
+				}
+			}
+			if (have_master)
+				sgroup->state = VRRP_STATE_MAST;
 		}
 	}
 
@@ -3570,15 +3600,14 @@ restore_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 {
 	bool added_ip_addr = false;
 
-	/* Keep VRRP state, ipsec AH seq_number */
-	vrrp->state = old_vrrp->state;
-	vrrp->reload_master = old_vrrp->state == VRRP_STATE_MAST;
-	vrrp->wantstate = old_vrrp->wantstate;
+	/* If the new state is master, we must be reloading from master */
+	vrrp->reload_master = vrrp->state == VRRP_STATE_MAST;
 
 	/* Save old stats */
 	memcpy(vrrp->stats, old_vrrp->stats, sizeof(vrrp_stats));
 
 #ifdef _WITH_VRRP_AUTH_
+	/* Keep ipsec AH seq_number */
 	memcpy(&vrrp->ipsecah_counter, &old_vrrp->ipsecah_counter, sizeof(seq_counter_t));
 #endif
 
@@ -3608,21 +3637,16 @@ void
 clear_diff_vrrp(void)
 {
 	element e;
-	list l = old_vrrp_data->vrrp;
 	vrrp_t *vrrp;
 
-	if (LIST_ISEMPTY(l))
-		return;
-
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
+	LIST_FOREACH(old_vrrp_data->vrrp, vrrp, e) {
 		vrrp_t *new_vrrp;
 
 		/*
 		 * Try to find this vrrp in the new conf data
 		 * reloaded.
 		 */
-		new_vrrp = vrrp_exist(vrrp);
+		new_vrrp = vrrp_exist(vrrp, &vrrp_data->vrrp);
 		if (!new_vrrp) {
 			vrrp_restore_interface(vrrp, true, false);
 

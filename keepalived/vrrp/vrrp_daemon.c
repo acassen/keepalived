@@ -549,10 +549,6 @@ start_vrrp(data_t *old_global_data)
 	 * has been called so we know whether we want IPv4 and/or IPv6 */
 	iptables_init();
 
-	/* Initialise any tracking files */
-	if (vrrp_data->vrrp_track_files)
-		init_track_files(vrrp_data->vrrp_track_files);
-
 	/* Make sure we don't have any old iptables/ipsets settings left around */
 #ifdef _HAVE_LIBIPTC_
 	if (!reload)

@@ -333,7 +333,7 @@ vrrp_compute_timer(const int fd)
 	vrrp_t *vrrp;
 	element e;
 	list l = &vrrp_data->vrrp_index_fd[FD_INDEX_HASH(fd)];
-	timeval_t timer;
+	timeval_t timer = { .tv_sec = TIMER_DISABLED };
 
 	/*
 	 * If list size is 1 then no collisions. So
@@ -341,17 +341,19 @@ vrrp_compute_timer(const int fd)
 	 */
 	if (LIST_SIZE(l) == 1) {
 		vrrp = ELEMENT_DATA(LIST_HEAD(l));
+
+		if (vrrp->sockets->fd_in != fd)
+			return timer;
+
 		return vrrp->sands;
 	}
 
 	/* Multiple instances on the same interface */
-	timerclear(&timer);
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
+	LIST_FOREACH(l, vrrp, e) {
 		if (vrrp->sockets->fd_in != fd)
 			continue;
 		if (vrrp->sands.tv_sec != TIMER_DISABLED &&
-		    (!timerisset(&timer) ||
+		    (timer.tv_sec == TIMER_DISABLED ||
 		     timercmp(&vrrp->sands, &timer, <)))
 			timer = vrrp->sands;
 	}
