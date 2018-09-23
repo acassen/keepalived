@@ -888,15 +888,12 @@ process_update_track_file_status(vrrp_tracked_file_t *tfile, int new_status, tra
 	if (previous_status == new_status)
 		return;
 
-	if (new_status == -254) {
+	if (new_status == -254)
 		down_instance(tvp->vrrp);
-		if (tvp->vrrp->base_priority != VRRP_PRIO_OWNER)
-			tvp->vrrp->total_priority += new_status - previous_status;
-	} else {
+	else {
 		if (previous_status == -254)
 			try_up_instance(tvp->vrrp, false);
-
-		if (tvp->vrrp->base_priority != VRRP_PRIO_OWNER) {
+		else if (tvp->vrrp->base_priority != VRRP_PRIO_OWNER) {
 			tvp->vrrp->total_priority += new_status - previous_status;
 			vrrp_set_effective_priority(tvp->vrrp);
 		}
