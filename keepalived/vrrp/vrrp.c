@@ -2256,16 +2256,12 @@ new_vrrp_socket(vrrp_t * vrrp)
 
 /* Try to find a VRRP instance */
 static vrrp_t *
-vrrp_exist(vrrp_t *old_vrrp)
+vrrp_exist(vrrp_t *old_vrrp, list *vrrp_list)
 {
 	element e;
 	vrrp_t *vrrp;
 
-	if (LIST_ISEMPTY(vrrp_data->vrrp))
-		return NULL;
-
-	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
+	LIST_FOREACH(*vrrp_list, vrrp, e) {
 		if (vrrp->vrid != old_vrrp->vrid ||
 		    vrrp->family != old_vrrp->family)
 			continue;
@@ -3403,7 +3399,6 @@ vrrp_complete_init(void)
 	LIST_FOREACH(vrrp_data->vrrp_sync_group, sgroup, e1) {
 		have_backup = false;
 		have_master = false;
-
 		LIST_FOREACH(sgroup->vrrp_instances, vrrp, e) {
 			if (vrrp->wantstate == VRRP_STATE_BACK || vrrp->base_priority != VRRP_PRIO_OWNER)
 				have_backup = true;
@@ -3431,6 +3426,14 @@ vrrp_complete_init(void)
 		    (vrrp->sync && vrrp->sync->state == VRRP_STATE_FAULT)) {
 			vrrp->state = VRRP_STATE_FAULT;
 
+			/* If we are reloading and the vrrp instance was already
+			 * in fault state, we don't need to notify again */
+			if (reload) {
+				old_vrrp = vrrp_exist(vrrp, &old_vrrp_data->vrrp);
+				if (old_vrrp && old_vrrp->state == VRRP_STATE_FAULT)
+					continue;
+			}
+
 			log_message(LOG_INFO, "(%s) entering FAULT state", vrrp->iname);
 
 			send_instance_notifies(vrrp);
@@ -3440,7 +3443,7 @@ vrrp_complete_init(void)
 	if (reload) {
 		/* Now step through the old vrrp to set the status on matching new instances */
 		LIST_FOREACH(old_vrrp_data->vrrp, old_vrrp, e) {
-			vrrp = vrrp_exist(old_vrrp);
+			vrrp = vrrp_exist(old_vrrp, &vrrp_data->vrrp);
 			if (vrrp) {
 				/* If we have detected a fault, don't override it */
 				if (vrrp->state == VRRP_STATE_FAULT || vrrp->num_script_init)
@@ -3613,21 +3616,16 @@ void
 clear_diff_vrrp(void)
 {
 	element e;
-	list l = old_vrrp_data->vrrp;
 	vrrp_t *vrrp;
 
-	if (LIST_ISEMPTY(l))
-		return;
-
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
+	LIST_FOREACH(old_vrrp_data->vrrp, vrrp, e) {
 		vrrp_t *new_vrrp;
 
 		/*
 		 * Try to find this vrrp in the new conf data
 		 * reloaded.
 		 */
-		new_vrrp = vrrp_exist(vrrp);
+		new_vrrp = vrrp_exist(vrrp, &vrrp_data->vrrp);
 		if (!new_vrrp) {
 			vrrp_restore_interface(vrrp, true, false);
 
