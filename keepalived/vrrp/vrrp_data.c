@@ -155,10 +155,12 @@ dump_vgroup(FILE *fp, void *data)
 		conf_write(fp, "   Tracked files = %d", LIST_SIZE(vgroup->track_file));
 		dump_list(fp, vgroup->track_file);
 	}
+#ifdef _WITH_BFD_
 	if (!LIST_ISEMPTY(vgroup->track_bfd)) {
 		conf_write(fp, "   Tracked BFDs = %d", LIST_SIZE(vgroup->track_bfd));
 		dump_list(fp, vgroup->track_bfd);
 	}
+#endif
 	dump_notify_script(fp, vgroup->script_backup, "Backup");
 	dump_notify_script(fp, vgroup->script_master, "Master");
 	dump_notify_script(fp, vgroup->script_fault, "Fault");
