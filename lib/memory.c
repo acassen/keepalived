@@ -452,10 +452,8 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 	}
 
 	for (i = 0; i < number_alloc_list; i++) {
-		if (alloc_list[i].ptr == buf) {
-			buf = alloc_list[i].ptr;
+		if (alloc_list[i].type == ALLOCATED && alloc_list[i].ptr == buf)
 			break;
-		}
 	}
 
 	/* not found */
