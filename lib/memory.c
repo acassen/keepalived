@@ -177,18 +177,13 @@ memcheck_log(const char *called_func, const char *param, const char *file, const
 	       format_time(), len, "", called_func, param ? param : "", file, line, function);
 }
 
-void *
-keepalived_malloc(size_t size, char *file, char *function, int line)
+static int
+get_free_alloc_entry(int avoid)
 {
-	void *buf;
 	int i;
 
-	buf = zalloc(size + sizeof (unsigned long));
-
-	*(unsigned long *) ((char *) buf + size) = size + CHECK_VAL;
-
 	for (i = 0; i < number_alloc_list; i++) {
-		if (alloc_list[i].type == FREE_SLOT)
+		if (alloc_list[i].type == FREE_SLOT && i != avoid)
 			break;
 	}
 
@@ -199,6 +194,21 @@ keepalived_malloc(size_t size, char *file, char *function, int line)
 		log_message(LOG_INFO, "number_alloc_list = %d exceeds MAX_ALLOC_LIST(%u). Please increase value in lib/memory.c", number_alloc_list, MAX_ALLOC_LIST);
 		assert(number_alloc_list < MAX_ALLOC_LIST);
 	}
+
+	return i;
+}
+
+void *
+keepalived_malloc(size_t size, char *file, char *function, int line)
+{
+	void *buf;
+	int i;
+
+	buf = zalloc(size + sizeof (unsigned long));
+
+	*(unsigned long *) ((char *) buf + size) = size + CHECK_VAL;
+
+	i = get_free_alloc_entry(-1);
 
 	alloc_list[i].ptr = buf;
 	alloc_list[i].size = size;
@@ -228,9 +238,7 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 
 	/* If nullpointer remember */
 	if (buffer == NULL) {
-		i = number_alloc_list++;
-
-		assert(number_alloc_list < MAX_ALLOC_LIST);
+		i = get_free_alloc_entry(-1);
 
 		alloc_list[i].ptr = buffer;
 		alloc_list[i].size = 0;
@@ -273,9 +281,8 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 	/*  Not found */
 	if (i == number_alloc_list) {
 		fprintf(log_op, "%sFree ERROR %p not found at %s, %3d, %s\n", format_time(), buffer, file, line, function);
-		number_alloc_list++;
 
-		assert(number_alloc_list < MAX_ALLOC_LIST);
+		i = get_free_alloc_entry(-1);
 
 		alloc_list[i].ptr = buffer;
 		alloc_list[i].size = 0;
@@ -291,10 +298,8 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 			    free_list[j].type == LAST_FREE) {
 				fprintf
 				    (log_op, "  -> pointer last released at [%3d:%3d], at %s, %3d, %s\n",
-				     (int) free_list[j].size,
-				     number_alloc_list,
-				     free_list[j].file,
-				     free_list[j].line,
+				     (int) free_list[j].size, number_alloc_list,
+				     free_list[j].file, free_list[j].line,
 				     free_list[j].func);
 				break;
 			}
@@ -444,9 +449,7 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 
 	if (buffer == NULL) {
 		fprintf(log_op, "%srealloc %p %s, %3d %s\n", format_time(), buffer, file, line, function);
-		i = number_alloc_list++;
-
-		assert(number_alloc_list < MAX_ALLOC_LIST);
+		i = get_free_alloc_entry(-1);
 
 		alloc_list[i].ptr = NULL;
 		alloc_list[i].size = 0;
@@ -465,9 +468,7 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 	/* not found */
 	if (i == number_alloc_list) {
 		fprintf(log_op, "%srealloc ERROR no matching zalloc %p at %s, %3d, %s\n", format_time(), buffer, file, line, function);
-		number_alloc_list++;
-
-		assert(number_alloc_list < MAX_ALLOC_LIST);
+		i = get_free_alloc_entry(-1);
 
 		alloc_list[i].ptr = buffer;
 		alloc_list[i].size = size;
@@ -482,9 +483,7 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 	mem_allocated -= alloc_list[i].size;
 
 	if (*(unsigned long *) (((char *) buffer) + alloc_list[i].size) != alloc_list[i].size + CHECK_VAL) {
-		j = number_alloc_list++;
-
-		assert(number_alloc_list < MAX_ALLOC_LIST);
+		j = get_free_alloc_entry(i);
 
 		alloc_list[j] = alloc_list[i];
 		alloc_list[j].type = OVERRUN;
