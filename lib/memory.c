@@ -249,7 +249,7 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 			check = alloc_list[i].size + CHECK_VAL;
 			if (*((unsigned long *) ((char *) alloc_list[i].ptr + alloc_list[i].size)) == check) {
 				alloc_list[i].type = FREE_SLOT;
-				mem_allocated -= alloc_list[i].size - sizeof(check);
+				mem_allocated -= alloc_list[i].size;
 			} else {
 				alloc_list[i].type = OVERRUN;
 				fprintf(log_op, "%sfree corrupt, buffer overrun [%3d:%3d], %p, %4zu at %s, %3d, %s\n",
@@ -406,6 +406,8 @@ keepalived_alloc_log(bool final)
 	fprintf(log_op, "Maximum memory allocated..........: %zu\n", max_mem_allocated);
 	fprintf(log_op, "Number of bad entries.............: %d\n", badptr);
 	fprintf(log_op, "Number of buffer overrun..........: %d\n\n", overrun);
+	if (sum != mem_allocated)
+		fprintf(log_op, "ERROR - sum of allocated %zu != mem_allocated %zu\n", sum, mem_allocated);
 
 	if (final) {
 		if (sum || n || badptr || overrun)
@@ -473,12 +475,18 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 		return NULL;
 	}
 
+	mem_allocated -= alloc_list[i].size;
+
 	if (*(unsigned long *) (((char *) buf) + alloc_list[i].size) != alloc_list[i].size + CHECK_VAL) {
 		alloc_list[i].type = OVERRUN;
 		__set_bit(MEM_ERR_DETECT_BIT, &debug);	/* Memory Error detect */
 	}
 
 	buf = realloc(buffer, size + sizeof (unsigned long));
+
+	mem_allocated += size;
+	if (mem_allocated > max_mem_allocated)
+		max_mem_allocated = mem_allocated;
 
 	*(unsigned long *) ((char *) buf + size) = size + CHECK_VAL;
 
