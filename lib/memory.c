@@ -220,7 +220,7 @@ keepalived_malloc(size_t size, char *file, char *function, int line)
 int
 keepalived_free(void *buffer, char *file, char *function, int line)
 {
-	int i = 0;
+	int i;
 	void *buf = buffer;
 	unsigned long check;
 
@@ -244,7 +244,7 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 		return n;
 	}
 
-	while (i < number_alloc_list) {
+	for (i = 0; i < number_alloc_list; i++) {
 		if (alloc_list[i].type == ALLOCATED && alloc_list[i].ptr == buf) {
 			check = alloc_list[i].size + CHECK_VAL;
 			if (*((unsigned long *) ((char *) alloc_list[i].ptr + alloc_list[i].size)) == check) {
@@ -266,7 +266,6 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 			}
 			break;
 		}
-		i++;
 	}
 
 	/*  Not found */
@@ -320,7 +319,6 @@ keepalived_alloc_log(bool final)
 	unsigned int overrun = 0, badptr = 0;
 	size_t sum = 0;
 	int i, j;
-	i = 0;
 
 	if (final) {
 		/* If this is a forked child, we don't want the dump */
@@ -332,7 +330,7 @@ keepalived_alloc_log(bool final)
 	else
 		fprintf(log_op, "\n---[ Keepalived memory dump for (%s) at %s ]---\n\n", terminate_banner, format_time());
 
-	while (i < number_alloc_list) {
+	for (i = 0; i < number_alloc_list; i++) {
 		switch (alloc_list[i].type) {
 		case REALLOC_NULL:
 			badptr++;
@@ -396,7 +394,6 @@ keepalived_alloc_log(bool final)
 		case LAST_FREE:
 			break;
 		}
-		i++;
 	}
 
 	fprintf(log_op, "\n\n---[ Keepalived memory dump summary for (%s) ]---\n", terminate_banner);
