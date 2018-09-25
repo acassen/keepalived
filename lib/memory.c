@@ -224,7 +224,6 @@ int
 keepalived_free(void *buffer, char *file, char *function, int line)
 {
 	int i, j;
-	void *buf = buffer;
 	unsigned long check;
 
 	/* If nullpointer remember */
@@ -248,7 +247,7 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 	}
 
 	for (i = 0; i < number_alloc_list; i++) {
-		if (alloc_list[i].type == ALLOCATED && alloc_list[i].ptr == buf) {
+		if (alloc_list[i].type == ALLOCATED && alloc_list[i].ptr == buffer) {
 			check = alloc_list[i].size + CHECK_VAL;
 			if (*((unsigned long *) ((char *) alloc_list[i].ptr + alloc_list[i].size)) == check) {
 				alloc_list[i].type = FREE_SLOT;
@@ -257,7 +256,7 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 				alloc_list[i].type = OVERRUN;
 				fprintf(log_op, "%sfree corrupt, buffer overrun [%3d:%3d], %p, %4zu at %s, %3d, %s\n",
 				       format_time(), i, number_alloc_list,
-				       buf, alloc_list[i].size, file,
+				       buffer, alloc_list[i].size, file,
 				       line, function);
 				dump_buffer(alloc_list[i].ptr,
 					    alloc_list[i].size + sizeof (check), log_op, TIME_STR_LEN);
@@ -278,7 +277,7 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 
 		assert(number_alloc_list < MAX_ALLOC_LIST);
 
-		alloc_list[i].ptr = buf;
+		alloc_list[i].ptr = buffer;
 		alloc_list[i].size = 0;
 		alloc_list[i].file = file;
 		alloc_list[i].func = function;
@@ -288,7 +287,7 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 
 		j = (f ? f : FREE_LIST_SIZE) - 1;
 		do {
-			if (free_list[j].ptr == buf &&
+			if (free_list[j].ptr == buffer &&
 			    free_list[j].type == LAST_FREE) {
 				fprintf
 				    (log_op, "  -> pointer last released at [%3d:%3d], at %s, %3d, %s\n",
@@ -306,12 +305,12 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 	}
 
 	fprintf(log_op, "%sfree   [%3d:%3d], %p, %4zu at %s, %3d, %s\n",
-	       format_time(), i, number_alloc_list, buf,
+	       format_time(), i, number_alloc_list, buffer,
 	       alloc_list[i].size, file, line, function);
 #ifdef _MEM_CHECK_LOG_
 	if (__test_bit(MEM_CHECK_LOG_BIT, &debug))
 		log_message(LOG_INFO, "free  [%3d:%3d], %p, %4zu at %s, %3d, %s",
-		       i, number_alloc_list, buf,
+		       i, number_alloc_list, buffer,
 		       alloc_list[i].size, file, line, function);
 #endif
 
@@ -442,7 +441,6 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 		   int line)
 {
 	int i, j;
-	void *buf = buffer;
 
 	if (buffer == NULL) {
 		fprintf(log_op, "%srealloc %p %s, %3d %s\n", format_time(), buffer, file, line, function);
@@ -460,7 +458,7 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 	}
 
 	for (i = 0; i < number_alloc_list; i++) {
-		if (alloc_list[i].type == ALLOCATED && alloc_list[i].ptr == buf)
+		if (alloc_list[i].type == ALLOCATED && alloc_list[i].ptr == buffer)
 			break;
 	}
 
@@ -471,7 +469,7 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 
 		assert(number_alloc_list < MAX_ALLOC_LIST);
 
-		alloc_list[i].ptr = buf;
+		alloc_list[i].ptr = buffer;
 		alloc_list[i].size = size;
 		alloc_list[i].file = file;
 		alloc_list[i].func = function;
@@ -483,7 +481,7 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 
 	mem_allocated -= alloc_list[i].size;
 
-	if (*(unsigned long *) (((char *) buf) + alloc_list[i].size) != alloc_list[i].size + CHECK_VAL) {
+	if (*(unsigned long *) (((char *) buffer) + alloc_list[i].size) != alloc_list[i].size + CHECK_VAL) {
 		j = number_alloc_list++;
 
 		assert(number_alloc_list < MAX_ALLOC_LIST);
@@ -493,21 +491,21 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 		__set_bit(MEM_ERR_DETECT_BIT, &debug);	/* Memory Error detect */
 	}
 
-	buf = realloc(buffer, size + sizeof (unsigned long));
+	buffer = realloc(buffer, size + sizeof (unsigned long));
 
 	mem_allocated += size;
 	if (mem_allocated > max_mem_allocated)
 		max_mem_allocated = mem_allocated;
 
-	*(unsigned long *) ((char *) buf + size) = size + CHECK_VAL;
+	*(unsigned long *) ((char *) buffer + size) = size + CHECK_VAL;
 
 	fprintf(log_op, "%srealloc[%3d:%3d], %p, %4zu at %s, %3d, %s -> %p, %4zu at %s, %3d, %s\n",
 	       format_time(), i, number_alloc_list, alloc_list[i].ptr,
 	       alloc_list[i].size, alloc_list[i].file,
 	       alloc_list[i].line, alloc_list[i].func,
-	       buf, size, file, line, function);
+	       buffer, size, file, line, function);
 
-	alloc_list[i].ptr = buf;
+	alloc_list[i].ptr = buffer;
 	alloc_list[i].size = size;
 	alloc_list[i].file = file;
 	alloc_list[i].line = line;
@@ -515,7 +513,7 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 
 	num_reallocs++;
 
-	return buf;
+	return buffer;
 }
 
 void
