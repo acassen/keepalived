@@ -168,12 +168,10 @@ keepalived_malloc(size_t size, char *file, char *function, int line)
 {
 	void *buf;
 	int i;
-	long check;
 
-	buf = zalloc(size + sizeof (long));
+	buf = zalloc(size + sizeof (unsigned long));
 
-	check = (long)size + CHECK_VAL;
-	*(long *) ((char *) buf + size) = check;
+	*(unsigned long *) ((char *) buf + size) = size + CHECK_VAL;
 
 	for (i = 0; i < number_alloc_list; i++) {
 		if (alloc_list[i].type == 0)
@@ -212,7 +210,7 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 {
 	int i = 0;
 	void *buf = buffer;
-	long check;
+	unsigned long check;
 
 	/* If nullpointer remember */
 	if (buffer == NULL) {
@@ -237,9 +235,9 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 	while (i < number_alloc_list) {
 		if (alloc_list[i].type == 9 && alloc_list[i].ptr == buf) {
 			check = alloc_list[i].size + CHECK_VAL;
-			if (*((long *) ((char *) alloc_list[i].ptr + alloc_list[i].size)) == check) {
+			if (*((unsigned long *) ((char *) alloc_list[i].ptr + alloc_list[i].size)) == check) {
 				alloc_list[i].type = 0;	/* Release */
-				mem_allocated -= alloc_list[i].size - sizeof(long);
+				mem_allocated -= alloc_list[i].size - sizeof(check);
 			} else {
 				alloc_list[i].type = 1;	/* Overrun */
 				fprintf(log_op, "%sfree corrupt, buffer overrun [%3d:%3d], %p, %4zu at %s, %3d, %s\n",
@@ -247,7 +245,7 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 				       buf, alloc_list[i].size, file,
 				       line, function);
 				dump_buffer(alloc_list[i].ptr,
-					    alloc_list[i].size + sizeof (long), log_op, TIME_STR_LEN);
+					    alloc_list[i].size + sizeof (check), log_op, TIME_STR_LEN);
 				fprintf(log_op, "%*sCheck_sum\n", TIME_STR_LEN, "");
 				dump_buffer((char *) &check,
 					    sizeof(check), log_op, TIME_STR_LEN);
@@ -393,7 +391,6 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 {
 	int i;
 	void *buf = buffer;
-	long check;
 
 	if (buffer == NULL) {
 		fprintf(log_op, "%srealloc %p %s, %3d %s\n", format_time(), buffer, file, line, function);
@@ -434,14 +431,14 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 		return NULL;
 	}
 
-	if (*(long *) (((char *) buf) + alloc_list[i].size) != alloc_list[i].size + CHECK_VAL) {
+	if (*(unsigned long *) (((char *) buf) + alloc_list[i].size) != alloc_list[i].size + CHECK_VAL) {
 		alloc_list[i].type = 1;
 		__set_bit(MEM_ERR_DETECT_BIT, &debug);	/* Memory Error detect */
 	}
-	buf = realloc(buffer, size + sizeof (long));
 
-	check = (long)size + CHECK_VAL;
-	*(long *) ((char *) buf + size) = check;
+	buf = realloc(buffer, size + sizeof (unsigned long));
+
+	*(unsigned long *) ((char *) buf + size) = size + CHECK_VAL;
 
 	fprintf(log_op, "%srealloc[%3d:%3d], %p, %4zu at %s, %3d, %s -> %p, %4zu at %s, %3d, %s\n",
 	       format_time(), i, number_alloc_list, alloc_list[i].ptr,
