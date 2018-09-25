@@ -360,7 +360,7 @@ keepalived_alloc_log(bool final)
 				if (free_list[j].ptr == alloc_list[i].ptr)
 					if (free_list[j].type == LAST_FREE)
 						fprintf
-						    (log_op, "  -> pointer already released at [%3d:%3d], at %s, %3d, %s\n",
+						    (log_op, "  -> pointer last released at [%3d:%3d], at %s, %3d, %s\n",
 						     (int) free_list[j].size,
 						     number_alloc_list,
 						     free_list[j].file,
@@ -388,7 +388,7 @@ keepalived_alloc_log(bool final)
 			       alloc_list[i].ptr, i, number_alloc_list,
 			       alloc_list[i].size,
 			       final ? "not released!" : "currently_allocated");
-			fprintf(log_op, " --> source of malloc: %s, %3d, %s\n",
+			fprintf(log_op, " --> source of malloc/realloc: %s, %3d, %s\n",
 			       alloc_list[i].file, alloc_list[i].line,
 			       alloc_list[i].func);
 			break;
