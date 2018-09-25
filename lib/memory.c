@@ -129,7 +129,6 @@ typedef struct {
 	char *file;
 	void *ptr;
 	size_t size;
-	long csum;
 } MEMCHECK;
 
 /* Last free pointers */
@@ -194,7 +193,6 @@ keepalived_malloc(size_t size, char *file, char *function, int line)
 	alloc_list[i].file = file;
 	alloc_list[i].func = function;
 	alloc_list[i].line = line;
-	alloc_list[i].csum = check;
 	alloc_list[i].type = 9;
 
 	fprintf(log_op, "%szalloc [%3d:%3d], %p, %4zu at %s, %3d, %s\n",
@@ -214,6 +212,7 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 {
 	int i = 0;
 	void *buf = buffer;
+	long check;
 
 	/* If nullpointer remember */
 	if (buffer == NULL) {
@@ -237,7 +236,8 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 
 	while (i < number_alloc_list) {
 		if (alloc_list[i].type == 9 && alloc_list[i].ptr == buf) {
-			if (*((long *) ((char *) alloc_list[i].ptr + alloc_list[i].size)) == alloc_list[i].csum) {
+			check = alloc_list[i].size + CHECK_VAL;
+			if (*((long *) ((char *) alloc_list[i].ptr + alloc_list[i].size)) == check) {
 				alloc_list[i].type = 0;	/* Release */
 				mem_allocated -= alloc_list[i].size - sizeof(long);
 			} else {
@@ -249,8 +249,8 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 				dump_buffer(alloc_list[i].ptr,
 					    alloc_list[i].size + sizeof (long), log_op, TIME_STR_LEN);
 				fprintf(log_op, "%*sCheck_sum\n", TIME_STR_LEN, "");
-				dump_buffer((char *) &alloc_list[i].csum,
-					    sizeof(long), log_op, TIME_STR_LEN);
+				dump_buffer((char *) &check,
+					    sizeof(check), log_op, TIME_STR_LEN);
 
 				__set_bit(MEM_ERR_DETECT_BIT, &debug);
 			}
@@ -295,7 +295,7 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 	free_list[f].func = function;
 	free_list[f].ptr = buffer;
 	free_list[f].type = 8;
-	free_list[f].csum = i;	/* Using this field for row id */
+	free_list[f].size = i;	/* Using this field for row id */
 
 	f++;
 	f %= FREE_LIST_SIZE;
@@ -339,7 +339,7 @@ keepalived_free_final(void)
 					if (free_list[j].type == 8)
 						fprintf
 						    (log_op, "  -> pointer already released at [%3d:%3d], at %s, %3d, %s\n",
-						     (int) free_list[j].csum,
+						     (int) free_list[j].size,
 						     number_alloc_list,
 						     free_list[j].file,
 						     free_list[j].line,
@@ -392,7 +392,7 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 		   int line)
 {
 	int i;
-	void *buf = buffer, *buf2;
+	void *buf = buffer;
 	long check;
 
 	if (buffer == NULL) {
@@ -434,9 +434,7 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 		return NULL;
 	}
 
-	buf2 = ((char *) buf) + alloc_list[i].size;
-
-	if (*(long *) (buf2) != alloc_list[i].csum) {
+	if (*(long *) (((char *) buf) + alloc_list[i].size) != alloc_list[i].size + CHECK_VAL) {
 		alloc_list[i].type = 1;
 		__set_bit(MEM_ERR_DETECT_BIT, &debug);	/* Memory Error detect */
 	}
@@ -444,7 +442,6 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 
 	check = (long)size + CHECK_VAL;
 	*(long *) ((char *) buf + size) = check;
-	alloc_list[i].csum = check;
 
 	fprintf(log_op, "%srealloc[%3d:%3d], %p, %4zu at %s, %3d, %s -> %p, %4zu at %s, %3d, %s\n",
 	       format_time(), i, number_alloc_list, alloc_list[i].ptr,
