@@ -206,7 +206,7 @@ AC_ARG_ENABLE(hardening,
 AC_ARG_ENABLE(optimise,
   [AS_HELP_STRING([--optimise], [compiler optimisation level])], [], [enable_optimise=not-specified])
 AC_ARG_ENABLE(mem-check,
-  [AS_HELP_STRING([--enable-mem-check], [compile with memory alloc checking])])
+  [AS_HELP_STRING([--enable-mem-check[[=NUM_ENTRIES]]], [compile with memory alloc checking])])
 AC_ARG_ENABLE(mem-check-log,
   [AS_HELP_STRING([--enable-mem-check-log], [compile with memory alloc checking writing to syslog])])
 AC_ARG_ENABLE(timer-check,
@@ -1701,9 +1701,15 @@ AM_CONDITIONAL([BUILD_DOCS], [test $HAVE_SPHINX_BUILD = Yes])
 dnl ----[ Memory alloc check or not ? ]----
 MEM_CHECK=No
 MEM_CHECK_LOG=No
-if test "${enable_mem_check}" = "yes"; then
+if test "${enable_mem_check}" != "no"; then
   MEM_CHECK=Yes
   AC_DEFINE([_MEM_CHECK_], [ 1 ], [Define to 1 to build with malloc/free checks])
+  if test "${enable_mem_check}" = "yes"; then
+    ALLOC_ENTRIES=2048
+  else
+    ALLOC_ENTRIES="${enable_mem_check}"
+  fi
+  AC_DEFINE_UNQUOTED([MAX_ALLOC_LIST], [ $ALLOC_ENTRIES ], [Set number of alloc_list entries])
   add_config_opt([MEM_CHECK])
   if test "${enable_mem_check_log}" = "yes"; then
     MEM_CHECK_LOG=Yes

@@ -109,7 +109,7 @@ zalloc(unsigned long size)
 #ifdef _MEM_CHECK_
 
 enum slot_type {
-	FREE_SLOT,
+	FREE_SLOT = 0,
 	OVERRUN,
 	FREE_NULL,
 	REALLOC_NULL,
@@ -129,9 +129,7 @@ enum slot_type {
 #define CHECK_VAL	0xa5a5
 #endif
 
-/* Max used for 1000 VRRP instance each with VMAC interfaces is 33589 */
-#define MAX_ALLOC_LIST 2048*4*4 *2
-
+/* MAX_ALLOC_LIST is defined via configure.ac */
 #define FREE_LIST_SIZE	256
 
 typedef struct {
@@ -146,9 +144,10 @@ typedef struct {
 /* Last free pointers */
 static MEMCHECK free_list[FREE_LIST_SIZE];
 
+/* alloc_list entries used for 1000 VRRP instance each with VMAC interfaces is 33589 */
 static MEMCHECK alloc_list[MAX_ALLOC_LIST];
 static int number_alloc_list = 0;
-static int n = 0;		/* Alloc list pointer */
+static int n = 0;		/* number of alloc_list allocation entries used */
 static int f = 0;		/* Free list pointer */
 static unsigned num_mallocs;
 static unsigned num_reallocs;
@@ -191,7 +190,7 @@ get_free_alloc_entry(int avoid)
 		number_alloc_list++;
 
 	if (number_alloc_list >= MAX_ALLOC_LIST) {
-		log_message(LOG_INFO, "number_alloc_list = %d exceeds MAX_ALLOC_LIST(%u). Please increase value in lib/memory.c", number_alloc_list, MAX_ALLOC_LIST);
+		log_message(LOG_INFO, "number_alloc_list = %d exceeds MAX_ALLOC_LIST(%u). Please increase via configure --enable-mem-check=NUM_ENTRIES", number_alloc_list, MAX_ALLOC_LIST);
 		assert(number_alloc_list < MAX_ALLOC_LIST);
 	}
 
