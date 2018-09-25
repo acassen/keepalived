@@ -90,12 +90,13 @@ zalloc(unsigned long size)
  * help finding eventual memory leak.
  * Allocation memory types manipulated are :
  *
- * +type-------------------+-meaning------------------+
+ * +-type------------------+-meaning------------------+
  * ! FREE_SLOT             ! Free slot                !
  * ! OVERRUN               ! Overrun                  !
  * ! FREE_NULL             ! free null                !
  * ! REALLOC_NULL          ! realloc null             !
  * ! FREE_NOT_ALLOC        ! Not previously allocated !
+ * ! REALLOC_NOT_ALLOC     ! Not previously allocated !
  * ! LAST_FREE             ! Last free list           !
  * ! ALLOCATED             ! Allocated                !
  * +-----------------------+--------------------------+
@@ -113,6 +114,7 @@ enum slot_type {
 	FREE_NULL,
 	REALLOC_NULL,
 	FREE_NOT_ALLOC,
+	REALLOC_NOT_ALLOC,
 	LAST_FREE,
 	ALLOCATED,
 } ;
@@ -336,12 +338,20 @@ keepalived_free_final(void)
 			     alloc_list[i].line, alloc_list[i].func);
 			break;
 		case FREE_NOT_ALLOC:
+		case REALLOC_NOT_ALLOC:
 			badptr++;
-			fprintf
-			    (log_op, "pointer not found in table to free(%p) [%3d:%3d], at %s, %3d, %s\n",
-			     alloc_list[i].ptr, i, number_alloc_list,
-			     alloc_list[i].file, alloc_list[i].line,
-			     alloc_list[i].func);
+			if (alloc_list[i].type == FREE_NOT_ALLOC)
+				fprintf
+				    (log_op, "pointer not found in table to free(%p) [%3d:%3d], at %s, %3d, %s\n",
+				     alloc_list[i].ptr, i, number_alloc_list,
+				     alloc_list[i].file, alloc_list[i].line,
+				     alloc_list[i].func);
+			else
+				fprintf
+				    (log_op, "pointer not found in table to realloc(%p) [%3d:%3d] %4zu, at %s, %3d, %s\n",
+				     alloc_list[i].ptr, i, number_alloc_list,
+				     alloc_list[i].size, alloc_list[i].file,
+				     alloc_list[i].line, alloc_list[i].func);
 			for (j = 0; j < FREE_LIST_SIZE; j++)
 				if (free_list[j].ptr == alloc_list[i].ptr)
 					if (free_list[j].type == LAST_FREE)
@@ -435,11 +445,11 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 		assert(number_alloc_list < MAX_ALLOC_LIST);
 
 		alloc_list[i].ptr = buf;
-		alloc_list[i].size = 0;
+		alloc_list[i].size = size;
 		alloc_list[i].file = file;
 		alloc_list[i].func = function;
 		alloc_list[i].line = line;
-		alloc_list[i].type = ALLOCATED;
+		alloc_list[i].type = REALLOC_NOT_ALLOC;
 		__set_bit(MEM_ERR_DETECT_BIT, &debug);	/* Memory Error detect */
 		return NULL;
 	}
