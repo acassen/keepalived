@@ -315,18 +315,22 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 }
 
 static void
-keepalived_free_final(void)
+keepalived_alloc_log(bool final)
 {
 	unsigned int overrun = 0, badptr = 0;
 	size_t sum = 0;
 	int i, j;
 	i = 0;
 
-	/* If this is a forked child, we don't want the dump */
-	if (skip_mem_check_final)
-		return;
+	if (final) {
+		/* If this is a forked child, we don't want the dump */
+		if (skip_mem_check_final)
+			return;
 
-	fprintf(log_op, "\n---[ Keepalived memory dump for (%s)]---\n\n", terminate_banner);
+		fprintf(log_op, "\n---[ Keepalived memory dump for (%s) ]---\n\n", terminate_banner);
+	}
+	else
+		fprintf(log_op, "\n---[ Keepalived memory dump for (%s) at %s ]---\n\n", terminate_banner, format_time());
 
 	while (i < number_alloc_list) {
 		switch (alloc_list[i].type) {
@@ -380,9 +384,10 @@ keepalived_free_final(void)
 			break;
 		case ALLOCATED:
 			sum += alloc_list[i].size;
-			fprintf(log_op, "%p [%3d:%3d], %4zu not released!:\n",
+			fprintf(log_op, "%p [%3d:%3d], %4zu %s:\n",
 			       alloc_list[i].ptr, i, number_alloc_list,
-			       alloc_list[i].size);
+			       alloc_list[i].size,
+			       final ? "not released!" : "currently_allocated");
 			fprintf(log_op, " --> source of malloc: %s, %3d, %s\n",
 			       alloc_list[i].file, alloc_list[i].line,
 			       alloc_list[i].func);
@@ -395,17 +400,31 @@ keepalived_free_final(void)
 	}
 
 	fprintf(log_op, "\n\n---[ Keepalived memory dump summary for (%s) ]---\n", terminate_banner);
-	fprintf(log_op, "Total number of bytes not freed...: %zu\n", sum);
-	fprintf(log_op, "Number of entries not freed.......: %d\n", n);
+	fprintf(log_op, "Total number of bytes %s...: %zu\n", final ? "not freed" : "allocated", sum);
+	fprintf(log_op, "Number of entries %s.......: %d\n", final ? "not freed" : "allocated", n);
 	fprintf(log_op, "Maximum allocated entries.........: %d\n", number_alloc_list);
 	fprintf(log_op, "Maximum memory allocated..........: %zu\n", max_mem_allocated);
 	fprintf(log_op, "Number of bad entries.............: %d\n", badptr);
 	fprintf(log_op, "Number of buffer overrun..........: %d\n\n", overrun);
 
-	if (sum || n || badptr || overrun)
-		fprintf(log_op, "=> Program seems to have some memory problem !!!\n\n");
-	else
-		fprintf(log_op, "=> Program seems to be memory allocation safe...\n\n");
+	if (final) {
+		if (sum || n || badptr || overrun)
+			fprintf(log_op, "=> Program seems to have some memory problem !!!\n\n");
+		else
+			fprintf(log_op, "=> Program seems to be memory allocation safe...\n\n");
+	}
+}
+
+static void
+keepalived_free_final(void)
+{
+	keepalived_alloc_log(true);
+}
+
+void
+keepalived_alloc_dump(void)
+{
+	keepalived_alloc_log(false);
 }
 
 void *
