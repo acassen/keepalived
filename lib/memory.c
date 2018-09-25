@@ -108,6 +108,11 @@ zalloc(unsigned long size)
 
 #define TIME_STR_LEN	9
 
+/* Max used for 1000 VRRP instance each with VMAC interfaces is 33589 */
+#define MAX_ALLOC_LIST 2048*4*4 *2
+
+#define FREE_LIST_SIZE	256
+
 typedef struct {
 	int type;
 	int line;
@@ -119,7 +124,7 @@ typedef struct {
 } MEMCHECK;
 
 /* Last free pointers */
-static MEMCHECK free_list[256];
+static MEMCHECK free_list[FREE_LIST_SIZE];
 
 static MEMCHECK alloc_list[MAX_ALLOC_LIST];
 static int number_alloc_list = 0;
@@ -171,7 +176,7 @@ keepalived_malloc(size_t size, char *file, char *function, int line)
 		number_alloc_list++;
 
 	if (number_alloc_list >= MAX_ALLOC_LIST) {
-		log_message(LOG_INFO, "number_alloc_list = %d exceeds MAX_ALLOC_LIST. Please increase value in lib/memory.h", number_alloc_list);
+		log_message(LOG_INFO, "number_alloc_list = %d exceeds MAX_ALLOC_LIST(%u). Please increase value in lib/memory.c", number_alloc_list, MAX_ALLOC_LIST);
 		assert(number_alloc_list < MAX_ALLOC_LIST);
 	}
 
@@ -284,7 +289,7 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 	free_list[f].csum = i;	/* Using this field for row id */
 
 	f++;
-	f &= 255;
+	f %= FREE_LIST_SIZE;
 	n--;
 
 	return n;
@@ -320,7 +325,7 @@ keepalived_free_final(void)
 			     alloc_list[i].ptr, i, number_alloc_list,
 			     alloc_list[i].file, alloc_list[i].line,
 			     alloc_list[i].func);
-			for (j = 0; j < 256; j++)
+			for (j = 0; j < FREE_LIST_SIZE; j++)
 				if (free_list[j].ptr == alloc_list[i].ptr)
 					if (free_list[j].type == 8)
 						fprintf

@@ -37,9 +37,6 @@
 /* Local defines */
 #ifdef _MEM_CHECK_
 
-/* Max used for 1000 VRRP instance each with VMAC interfaces is 33589 */
-#define MAX_ALLOC_LIST 2048*4*4 *2
-
 #define MALLOC(n)    ( keepalived_malloc((n), \
 		      (__FILE__), (char *)(__FUNCTION__), (__LINE__)) )
 #define FREE(b)      ( keepalived_free((b), \
