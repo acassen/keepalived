@@ -223,7 +223,7 @@ keepalived_malloc(size_t size, char *file, char *function, int line)
 int
 keepalived_free(void *buffer, char *file, char *function, int line)
 {
-	int i;
+	int i, j;
 	void *buf = buffer;
 	unsigned long check;
 
@@ -273,7 +273,7 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 
 	/*  Not found */
 	if (i == number_alloc_list) {
-		fprintf(log_op, "%sFree ERROR %p not found\n", format_time(), buffer);
+		fprintf(log_op, "%sFree ERROR %p not found at %s, %3d, %s\n", format_time(), buffer, file, line, function);
 		number_alloc_list++;
 
 		assert(number_alloc_list < MAX_ALLOC_LIST);
@@ -285,6 +285,22 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 		alloc_list[i].line = line;
 		alloc_list[i].type = FREE_NOT_ALLOC;
 		__set_bit(MEM_ERR_DETECT_BIT, &debug);
+
+		j = (f ? f : FREE_LIST_SIZE) - 1;
+		do {
+			if (free_list[j].ptr == buf &&
+			    free_list[j].type == LAST_FREE) {
+				fprintf
+				    (log_op, "  -> pointer last released at [%3d:%3d], at %s, %3d, %s\n",
+				     (int) free_list[j].size,
+				     number_alloc_list,
+				     free_list[j].file,
+				     free_list[j].line,
+				     free_list[j].func);
+				break;
+			}
+			j = (j ? j : FREE_LIST_SIZE) - 1;
+		} while (j != (f ? f : FREE_LIST_SIZE) - 1);
 
 		return n;
 	}
@@ -321,7 +337,7 @@ keepalived_alloc_log(bool final)
 {
 	unsigned int overrun = 0, badptr = 0;
 	size_t sum = 0;
-	int i, j;
+	int i;
 
 	if (final) {
 		/* If this is a forked child, we don't want the dump */
@@ -357,16 +373,6 @@ keepalived_alloc_log(bool final)
 				     alloc_list[i].ptr, i, number_alloc_list,
 				     alloc_list[i].size, alloc_list[i].file,
 				     alloc_list[i].line, alloc_list[i].func);
-			for (j = 0; j < FREE_LIST_SIZE; j++)
-				if (free_list[j].ptr == alloc_list[i].ptr)
-					if (free_list[j].type == LAST_FREE)
-						fprintf
-						    (log_op, "  -> pointer last released at [%3d:%3d], at %s, %3d, %s\n",
-						     (int) free_list[j].size,
-						     number_alloc_list,
-						     free_list[j].file,
-						     free_list[j].line,
-						     free_list[j].func);
 			break;
 		case FREE_NULL:
 			badptr++;
@@ -460,7 +466,7 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 
 	/* not found */
 	if (i == number_alloc_list) {
-		fprintf(log_op, "%srealloc ERROR no matching zalloc %p \n", format_time(), buffer);
+		fprintf(log_op, "%srealloc ERROR no matching zalloc %p at %s, %3d, %s\n", format_time(), buffer, file, line, function);
 		number_alloc_list++;
 
 		assert(number_alloc_list < MAX_ALLOC_LIST);
