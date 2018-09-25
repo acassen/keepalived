@@ -433,7 +433,7 @@ void *
 keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 		   int line)
 {
-	int i;
+	int i, j;
 	void *buf = buffer;
 
 	if (buffer == NULL) {
@@ -476,7 +476,12 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 	mem_allocated -= alloc_list[i].size;
 
 	if (*(unsigned long *) (((char *) buf) + alloc_list[i].size) != alloc_list[i].size + CHECK_VAL) {
-		alloc_list[i].type = OVERRUN;
+		j = number_alloc_list++;
+
+		assert(number_alloc_list < MAX_ALLOC_LIST);
+
+		alloc_list[j] = alloc_list[i];
+		alloc_list[j].type = OVERRUN;
 		__set_bit(MEM_ERR_DETECT_BIT, &debug);	/* Memory Error detect */
 	}
 
