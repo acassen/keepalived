@@ -30,6 +30,7 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <time.h>
+#include <limits.h>
 #endif
 
 #include <errno.h>
@@ -108,6 +109,14 @@ zalloc(unsigned long size)
 
 #define TIME_STR_LEN	9
 
+#if ULONG_MAX == 0xffffffffffffffffUL
+#define CHECK_VAL	0xa5a55a5aa5a55a5aUL
+#elif ULONG_MAX == 0xffffffffUL
+#define CHECK_VAL	0xa5a55a5aUL
+#else
+#define CHECK_VAL	0xa5a5
+#endif
+
 /* Max used for 1000 VRRP instance each with VMAC interfaces is 33589 */
 #define MAX_ALLOC_LIST 2048*4*4 *2
 
@@ -164,7 +173,7 @@ keepalived_malloc(size_t size, char *file, char *function, int line)
 
 	buf = zalloc(size + sizeof (long));
 
-	check = (long)size + 0xa5a5;
+	check = (long)size + CHECK_VAL;
 	*(long *) ((char *) buf + size) = check;
 
 	for (i = 0; i < number_alloc_list; i++) {
@@ -433,7 +442,7 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 	}
 	buf = realloc(buffer, size + sizeof (long));
 
-	check = (long)size + 0xa5a5;
+	check = (long)size + CHECK_VAL;
 	*(long *) ((char *) buf + size) = check;
 	alloc_list[i].csum = check;
 
