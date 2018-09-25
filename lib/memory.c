@@ -150,6 +150,8 @@ static MEMCHECK alloc_list[MAX_ALLOC_LIST];
 static int number_alloc_list = 0;
 static int n = 0;		/* Alloc list pointer */
 static int f = 0;		/* Free list pointer */
+static unsigned num_mallocs;
+static unsigned num_reallocs;
 
 static FILE *log_op = NULL;
 
@@ -214,6 +216,7 @@ keepalived_malloc(size_t size, char *file, char *function, int line)
 #endif
 
 	n++;
+	num_mallocs++;
 	return buf;
 }
 
@@ -401,6 +404,8 @@ keepalived_alloc_log(bool final)
 	fprintf(log_op, "Number of entries %s.......: %d\n", final ? "not freed" : "allocated", n);
 	fprintf(log_op, "Maximum allocated entries.........: %d\n", number_alloc_list);
 	fprintf(log_op, "Maximum memory allocated..........: %zu\n", max_mem_allocated);
+	fprintf(log_op, "Number of mallocs.................: %d\n", num_mallocs);
+	fprintf(log_op, "Number of reallocs................: %d\n", num_reallocs);
 	fprintf(log_op, "Number of bad entries.............: %d\n", badptr);
 	fprintf(log_op, "Number of buffer overrun..........: %d\n\n", overrun);
 	if (sum != mem_allocated)
@@ -501,6 +506,8 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 	alloc_list[i].file = file;
 	alloc_list[i].line = line;
 	alloc_list[i].func = function;
+
+	num_reallocs++;
 
 	return buf;
 }
