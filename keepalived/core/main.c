@@ -605,7 +605,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 		.tv_sec = child_wait_time,
 		.tv_usec = 0
 	};
-	int signal_fd = signal_rfd();
+	int signal_fd = master->signal_fd;
 	fd_set read_set;
 	struct signalfd_siginfo siginfo;
 	sigset_t sigmask;

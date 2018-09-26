@@ -135,6 +135,9 @@ typedef struct _thread_master {
 	int			timer_fd;
 	thread_t		*timer_thread;
 
+	/* signal related */
+	int			signal_fd;
+
 #ifdef _WITH_SNMP_
 	/* snmp related */
 	thread_t		*snmp_timer_thread;

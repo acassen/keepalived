@@ -812,7 +812,7 @@ thread_make_master(void)
 		log_message(LOG_INFO, "Unable to set CLOEXEC on timer_fd - %s (%d)", strerror(errno), errno);
 #endif
 
-	signal_handler_init();
+	new->signal_fd = signal_handler_init();
 
 	new->timer_thread = thread_add_read(new, thread_timerfd_handler, NULL, new->timer_fd, TIMER_NEVER);
 
@@ -1023,7 +1023,7 @@ thread_destroy_master(thread_master_t * m)
 	if (m->timer_fd != -1)
 		close(m->timer_fd);
 
-	if (signal_rfd() != -1)
+	if (m->signal_fd != -1)
 		signal_handler_destroy();
 
 	thread_cleanup_master(m);
@@ -1839,11 +1839,13 @@ process_threads(thread_master_t *m)
 		}
 #endif
 
+		/* If we are shutting down, only process relevant thread types.
+		 * We only want timer and signal fd, and don't want inotify, vrrp socket,
+		 * snmp_read, bfd_receiver, bfd pipe in vrrp/check, dbus pipe or netlink fds. */
 		thread = thread_trim_head(thread_list);
-		/* If we are shutting down, only process relevant thread types */
 		if (!shutting_down ||
-// TODO - the next test will no longer work since timer will now match as well as signal and interfaces in fault state
-(thread->type == THREAD_READY_FD && thread->sands.tv_sec == TIMER_DISABLED) ||
+		    (thread->type == THREAD_READY_FD &&
+		     (thread->u.fd == m->timer_fd || thread->u.fd == m->signal_fd)) ||
 		    thread->type == THREAD_CHILD ||
 		    thread->type == THREAD_CHILD_TIMEOUT ||
 		    thread->type == THREAD_TIMER_SHUTDOWN ||
