@@ -135,8 +135,8 @@ enum slot_type {
 typedef struct {
 	enum slot_type type;
 	int line;
-	char *func;
-	char *file;
+	const char *func;
+	const char *file;
 	void *ptr;
 	size_t size;
 } MEMCHECK;
@@ -198,7 +198,7 @@ get_free_alloc_entry(int avoid)
 }
 
 void *
-keepalived_malloc(size_t size, char *file, char *function, int line)
+keepalived_malloc(size_t size, const char *file, const char *function, int line)
 {
 	void *buf;
 	int i;
@@ -230,7 +230,7 @@ keepalived_malloc(size_t size, char *file, char *function, int line)
 }
 
 void
-keepalived_free(void *buffer, char *file, char *function, int line)
+keepalived_free(void *buffer, const char *file, const char *function, int line)
 {
 	int i, j;
 	unsigned long check;
@@ -442,8 +442,8 @@ keepalived_alloc_dump(void)
 }
 
 void *
-keepalived_realloc(void *buffer, size_t size, char *file, char *function,
-		   int line)
+keepalived_realloc(void *buffer, size_t size, const char *file,
+		   const char *function, int line)
 {
 	int i, j;
 	unsigned long check;
