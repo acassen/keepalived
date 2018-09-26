@@ -1701,7 +1701,7 @@ AM_CONDITIONAL([BUILD_DOCS], [test $HAVE_SPHINX_BUILD = Yes])
 dnl ----[ Memory alloc check or not ? ]----
 MEM_CHECK=No
 MEM_CHECK_LOG=No
-if test "${enable_mem_check}" != "no"; then
+if test -n ${enable_mem_check} -a "${enable_mem_check}" != "no"; then
   MEM_CHECK=Yes
   AC_DEFINE([_MEM_CHECK_], [ 1 ], [Define to 1 to build with malloc/free checks])
   if test "${enable_mem_check}" = "yes"; then
