@@ -208,15 +208,11 @@ free_parent_mallocs_startup(bool am_child)
 #endif
 		syslog_ident = NULL;
 
-		if (orig_core_dump_pattern) {
-			FREE_PTR(orig_core_dump_pattern);
-			orig_core_dump_pattern = NULL;
-		}
+		FREE_PTR(orig_core_dump_pattern);
 	}
 
 	if (free_main_pidfile) {
 		FREE_PTR(main_pidfile);
-		main_pidfile = NULL;
 		free_main_pidfile = false;
 	}
 }
@@ -268,8 +264,8 @@ make_syslog_ident(const char* name)
 #if HAVE_DECL_CLONE_NEWNET
 	if (global_data->network_namespace) {
 		strcat(ident, "_");
-			strcat(ident, global_data->network_namespace);
-		}
+		strcat(ident, global_data->network_namespace);
+	}
 #endif
 	if (global_data->instance_name) {
 		strcat(ident, "_");
@@ -609,7 +605,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 		.tv_sec = child_wait_time,
 		.tv_usec = 0
 	};
-	int signal_fd = signal_rfd();
+	int signal_fd = master->signal_fd;
 	fd_set read_set;
 	struct signalfd_siginfo siginfo;
 	sigset_t sigmask;
@@ -848,7 +844,7 @@ update_core_dump_pattern(const char *pattern_str)
 	fd = open ("/proc/sys/kernel/core_pattern", O_RDWR);
 
 	if (fd == -1 ||
-	    ( initialising && read(fd, orig_core_dump_pattern, CORENAME_MAX_SIZE - 1) == -1) ||
+	    (initialising && read(fd, orig_core_dump_pattern, CORENAME_MAX_SIZE - 1) == -1) ||
 	    write(fd, pattern_str, strlen(pattern_str)) == -1) {
 		log_message(LOG_INFO, "Unable to read/write core_pattern");
 
@@ -856,17 +852,14 @@ update_core_dump_pattern(const char *pattern_str)
 			close(fd);
 
 		FREE(orig_core_dump_pattern);
-		orig_core_dump_pattern = NULL;
 
 		return;
 	}
 
 	close(fd);
 
-	if (!initialising) {
-		FREE(orig_core_dump_pattern);
-		orig_core_dump_pattern = NULL;
-	}
+	if (!initialising)
+		FREE_PTR(orig_core_dump_pattern);
 }
 
 static void
@@ -1832,8 +1825,8 @@ keepalived_main(int argc, char **argv)
 	if (!__test_bit(DONT_FORK_BIT, &debug) &&
 	    xdaemon(false, false, true) > 0) {
 		closelog();
-		FREE(config_id);
-		FREE(orig_core_dump_pattern);
+		FREE_PTR(config_id);
+		FREE_PTR(orig_core_dump_pattern);
 		close_std_fd();
 		exit(0);
 	}

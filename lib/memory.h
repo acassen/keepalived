@@ -37,9 +37,6 @@
 /* Local defines */
 #ifdef _MEM_CHECK_
 
-/* Max used for 1000 VRRP instance each with VMAC interfaces is 33589 */
-#define MAX_ALLOC_LIST 2048*4*4 *2
-
 #define MALLOC(n)    ( keepalived_malloc((n), \
 		      (__FILE__), (char *)(__FUNCTION__), (__LINE__)) )
 #define FREE(b)      ( keepalived_free((b), \
@@ -52,12 +49,13 @@ extern size_t mem_allocated;
 
 /* Memory debug prototypes defs */
 extern void memcheck_log(const char *, const char *, const char *, const char *, int);
-extern void *keepalived_malloc(size_t, char *, char *, int)
+extern void *keepalived_malloc(size_t, const char *, const char *, int)
 		__attribute__((alloc_size(1))) __attribute__((malloc));
-extern int keepalived_free(void *, char *, char *, int);
-extern void *keepalived_realloc(void *, size_t, char *, char *, int)
+extern void keepalived_free(void *, const char *, const char *, int);
+extern void *keepalived_realloc(void *, size_t, const char *, const char *, int)
 		__attribute__((alloc_size(2)));
 
+extern void keepalived_alloc_dump(void);
 extern void mem_log_init(const char *, const char *);
 extern void skip_mem_dump(void);
 extern void enable_mem_log_termination(void);

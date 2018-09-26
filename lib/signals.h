@@ -45,7 +45,7 @@ sigmask_func(int how, const sigset_t *set, sigset_t *oldset)
 extern int get_signum(const char *);
 extern void signal_set(int, void (*) (void *, int), void *);
 extern void signal_ignore(int);
-extern void signal_handler_init(void);
+extern int signal_handler_init(void);
 extern void signal_handler_destroy(void);
 extern void signal_handler_script(void);
 extern void add_signal_read_thread(thread_master_t *);
@@ -54,7 +54,6 @@ extern void cancel_signal_read_thread(void);
 extern void set_sigxcpu_handler(void);
 #endif
 
-extern int signal_rfd(void);
 extern void signal_fd_close(int);
 
 #ifdef THREAD_DUMP

@@ -309,7 +309,7 @@ signal_ignore(int signo)
 
 /* Handlers callback  */
 static int
-signal_run_callback(__attribute__((unused)) thread_t *thread)
+signal_run_callback(thread_t *thread)
 {
 	int sig;
 #ifdef HAVE_SIGNALFD
@@ -344,7 +344,7 @@ signal_run_callback(__attribute__((unused)) thread_t *thread)
 #endif
 	}
 
-	signal_thread = thread_add_read(master, signal_run_callback, NULL, signal_rfd(), TIMER_NEVER);
+	signal_thread = thread_add_read(master, signal_run_callback, NULL, thread->u.fd, TIMER_NEVER);
 
 	return 0;
 }
@@ -358,21 +358,11 @@ clear_signal_handler_addresses(void)
 		signal_handler_func[i] = NULL;
 }
 
-int
-signal_rfd(void)
-{
-#ifdef HAVE_SIGNALFD
-	return signal_fd;
-#else
-	return signal_pipe[0];
-#endif
-}
-
 /* Handlers intialization */
 void
 add_signal_read_thread(thread_master_t *master)
 {
-	signal_thread = thread_add_read(master, signal_run_callback, NULL, signal_rfd(), TIMER_NEVER);
+	signal_thread = thread_add_read(master, signal_run_callback, NULL, master->signal_fd, TIMER_NEVER);
 }
 
 void
@@ -384,7 +374,7 @@ cancel_signal_read_thread(void)
 	}
 }
 
-static void
+static int
 open_signal_fd(void)
 {
 #ifdef HAVE_SIGNALFD
@@ -402,9 +392,13 @@ open_signal_fd(void)
 #endif
 	if (signal_fd == -1)
 		log_message(LOG_INFO, "BUG - signal_fd init failed - %d (%s), please report", errno, strerror(errno));
+
+	return signal_fd;
 #else
 	if (open_pipe(signal_pipe))
 		log_message(LOG_INFO, "BUG - pipe in open_signal_fd() failed - %d (%s), please report", errno, strerror(errno));
+
+	return signal_pipe[0];
 #endif
 }
 
@@ -459,9 +453,11 @@ signal_handler_child_init(void)
 }
 #endif
 
-void
+int
 signal_handler_init(void)
 {
+	int fd;
+
 #ifdef _DEBUG_
 	signal_handler_parent_init();
 #else
@@ -473,9 +469,11 @@ signal_handler_init(void)
 
 	sigemptyset(&parent_sig);
 
-	open_signal_fd();
+	fd = open_signal_fd();
 
 	clear_signal_handler_addresses();
+
+	return fd;
 }
 
 static void

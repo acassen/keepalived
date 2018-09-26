@@ -108,6 +108,12 @@ free_vgroup(void *data)
 	}
 	FREE(vgroup->gname);
 	free_list(&vgroup->vrrp_instances);
+	free_list(&vgroup->track_ifp);
+	free_list(&vgroup->track_script);
+	free_list(&vgroup->track_file);
+#ifdef _WITH_BFD_
+	free_list(&vgroup->track_bfd);
+#endif
 	free_notify_script(&vgroup->script_backup);
 	free_notify_script(&vgroup->script_master);
 	free_notify_script(&vgroup->script_fault);
@@ -155,10 +161,12 @@ dump_vgroup(FILE *fp, void *data)
 		conf_write(fp, "   Tracked files = %d", LIST_SIZE(vgroup->track_file));
 		dump_list(fp, vgroup->track_file);
 	}
+#ifdef _WITH_BFD_
 	if (!LIST_ISEMPTY(vgroup->track_bfd)) {
 		conf_write(fp, "   Tracked BFDs = %d", LIST_SIZE(vgroup->track_bfd));
 		dump_list(fp, vgroup->track_bfd);
 	}
+#endif
 	dump_notify_script(fp, vgroup->script_backup, "Backup");
 	dump_notify_script(fp, vgroup->script_master, "Master");
 	dump_notify_script(fp, vgroup->script_fault, "Fault");

@@ -30,6 +30,7 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <time.h>
+#include <limits.h>
 #endif
 
 #include <errno.h>
@@ -89,42 +90,67 @@ zalloc(unsigned long size)
  * help finding eventual memory leak.
  * Allocation memory types manipulated are :
  *
- * +type+--------meaning--------+
- * ! 0  ! Free slot             !
- * ! 1  ! Overrun               !
- * ! 2  ! free null             !
- * ! 3  ! realloc null          !
- * ! 4  ! Not previus allocated !
- * ! 8  ! Last free list        !
- * ! 9  ! Allocated             !
- * +----+-----------------------+
+ * +-type------------------+-meaning------------------+
+ * ! FREE_SLOT             ! Free slot                !
+ * ! OVERRUN               ! Overrun                  !
+ * ! FREE_NULL             ! free null                !
+ * ! REALLOC_NULL          ! realloc null             !
+ * ! FREE_NOT_ALLOC        ! Not previously allocated !
+ * ! REALLOC_NOT_ALLOC     ! Not previously allocated !
+ * ! LAST_FREE             ! Last free list           !
+ * ! ALLOCATED             ! Allocated                !
+ * +-----------------------+--------------------------+
  *
- * global variable debug bit 9 ( 512 ) used to
+ * global variable debug bit MEM_ERR_DETECT_BIT used to
  * flag some memory error.
  *
  */
 
 #ifdef _MEM_CHECK_
 
+enum slot_type {
+	FREE_SLOT = 0,
+	OVERRUN,
+	FREE_NULL,
+	REALLOC_NULL,
+	FREE_NOT_ALLOC,
+	REALLOC_NOT_ALLOC,
+	LAST_FREE,
+	ALLOCATED,
+} ;
+
 #define TIME_STR_LEN	9
 
+#if ULONG_MAX == 0xffffffffffffffffUL
+#define CHECK_VAL	0xa5a55a5aa5a55a5aUL
+#elif ULONG_MAX == 0xffffffffUL
+#define CHECK_VAL	0xa5a55a5aUL
+#else
+#define CHECK_VAL	0xa5a5
+#endif
+
+/* MAX_ALLOC_LIST is defined via configure.ac */
+#define FREE_LIST_SIZE	256
+
 typedef struct {
-	int type;
+	enum slot_type type;
 	int line;
-	char *func;
-	char *file;
+	const char *func;
+	const char *file;
 	void *ptr;
 	size_t size;
-	long csum;
 } MEMCHECK;
 
 /* Last free pointers */
-static MEMCHECK free_list[256];
+static MEMCHECK free_list[FREE_LIST_SIZE];
 
+/* alloc_list entries used for 1000 VRRP instance each with VMAC interfaces is 33589 */
 static MEMCHECK alloc_list[MAX_ALLOC_LIST];
 static int number_alloc_list = 0;
-static int n = 0;		/* Alloc list pointer */
+static int n = 0;		/* number of alloc_list allocation entries used */
 static int f = 0;		/* Free list pointer */
+static unsigned num_mallocs;
+static unsigned num_reallocs;
 
 static FILE *log_op = NULL;
 
@@ -150,20 +176,13 @@ memcheck_log(const char *called_func, const char *param, const char *file, const
 	       format_time(), len, "", called_func, param ? param : "", file, line, function);
 }
 
-void *
-keepalived_malloc(size_t size, char *file, char *function, int line)
+static int
+get_free_alloc_entry(int avoid)
 {
-	void *buf;
 	int i;
-	long check;
-
-	buf = zalloc(size + sizeof (long));
-
-	check = (long)size + 0xa5a5;
-	*(long *) ((char *) buf + size) = check;
 
 	for (i = 0; i < number_alloc_list; i++) {
-		if (alloc_list[i].type == 0)
+		if (alloc_list[i].type == FREE_SLOT && i != avoid)
 			break;
 	}
 
@@ -171,17 +190,31 @@ keepalived_malloc(size_t size, char *file, char *function, int line)
 		number_alloc_list++;
 
 	if (number_alloc_list >= MAX_ALLOC_LIST) {
-		log_message(LOG_INFO, "number_alloc_list = %d exceeds MAX_ALLOC_LIST. Please increase value in lib/memory.h", number_alloc_list);
+		log_message(LOG_INFO, "number_alloc_list = %d exceeds MAX_ALLOC_LIST(%u). Please increase via configure --enable-mem-check=NUM_ENTRIES", number_alloc_list, MAX_ALLOC_LIST);
 		assert(number_alloc_list < MAX_ALLOC_LIST);
 	}
+
+	return i;
+}
+
+void *
+keepalived_malloc(size_t size, const char *file, const char *function, int line)
+{
+	void *buf;
+	int i;
+
+	buf = zalloc(size + sizeof (unsigned long));
+
+	*(unsigned long *) ((char *) buf + size) = size + CHECK_VAL;
+
+	i = get_free_alloc_entry(-1);
 
 	alloc_list[i].ptr = buf;
 	alloc_list[i].size = size;
 	alloc_list[i].file = file;
 	alloc_list[i].func = function;
 	alloc_list[i].line = line;
-	alloc_list[i].csum = check;
-	alloc_list[i].type = 9;
+	alloc_list[i].type = ALLOCATED;
 
 	fprintf(log_op, "%szalloc [%3d:%3d], %p, %4zu at %s, %3d, %s\n",
 	       format_time(), i, number_alloc_list, buf, size, file, line, function);
@@ -192,152 +225,238 @@ keepalived_malloc(size_t size, char *file, char *function, int line)
 #endif
 
 	n++;
+	num_mallocs++;
 	return buf;
 }
 
-int
-keepalived_free(void *buffer, char *file, char *function, int line)
+static void *
+keepalived_free_realloc_common(void *buffer, size_t size, const char *file, const char *function, int line)
 {
-	int i = 0;
-	void *buf = buffer;
+	int i, j;
+	unsigned long check;
 
 	/* If nullpointer remember */
 	if (buffer == NULL) {
-		i = number_alloc_list++;
+		i = get_free_alloc_entry(-1);
 
-		assert(number_alloc_list < MAX_ALLOC_LIST);
-
-		alloc_list[i].ptr = buffer;
+		alloc_list[i].ptr = NULL;
 		alloc_list[i].size = 0;
 		alloc_list[i].file = file;
 		alloc_list[i].func = function;
 		alloc_list[i].line = line;
-		alloc_list[i].type = 2;
-		fprintf(log_op, "%sfree NULL in %s, %3d, %s\n", format_time(), file,
-		       line, function);
+		alloc_list[i].type = !size ? FREE_NULL : REALLOC_NULL;
 
-		__set_bit(MEM_ERR_DETECT_BIT, &debug);	/* Memory Error detect */
+		if (!size)
+			fprintf(log_op, "%sfree NULL in %s, %3d, %s\n", format_time(),
+				file, line, function);
+		else
+			fprintf(log_op, "%srealloc NULL, %4zu in %s, %3d, %s\n", format_time(),
+				size, file, line, function);
 
-		return n;
-	}
-
-	while (i < number_alloc_list) {
-		if (alloc_list[i].type == 9 && alloc_list[i].ptr == buf) {
-			if (*((long *) ((char *) alloc_list[i].ptr + alloc_list[i].size)) == alloc_list[i].csum) {
-				alloc_list[i].type = 0;	/* Release */
-				mem_allocated -= alloc_list[i].size - sizeof(long);
-			} else {
-				alloc_list[i].type = 1;	/* Overrun */
-				fprintf(log_op, "%sfree corrupt, buffer overrun [%3d:%3d], %p, %4zu at %s, %3d, %s\n",
-				       format_time(), i, number_alloc_list,
-				       buf, alloc_list[i].size, file,
-				       line, function);
-				dump_buffer(alloc_list[i].ptr,
-					    alloc_list[i].size + sizeof (long), log_op, TIME_STR_LEN);
-				fprintf(log_op, "%*sCheck_sum\n", TIME_STR_LEN, "");
-				dump_buffer((char *) &alloc_list[i].csum,
-					    sizeof(long), log_op, TIME_STR_LEN);
-
-				__set_bit(MEM_ERR_DETECT_BIT, &debug);
-			}
-			break;
-		}
-		i++;
-	}
-
-	/*  Not found */
-	if (i == number_alloc_list) {
-		fprintf(log_op, "%sFree ERROR %p not found\n", format_time(), buffer);
-		number_alloc_list++;
-
-		assert(number_alloc_list < MAX_ALLOC_LIST);
-
-		alloc_list[i].ptr = buf;
-		alloc_list[i].size = 0;
-		alloc_list[i].file = file;
-		alloc_list[i].func = function;
-		alloc_list[i].line = line;
-		alloc_list[i].type = 4;
 		__set_bit(MEM_ERR_DETECT_BIT, &debug);
 
-		return n;
+		return !size ? NULL : keepalived_malloc(size, file, function, line);
 	}
 
-	fprintf(log_op, "%sfree   [%3d:%3d], %p, %4zu at %s, %3d, %s\n",
-	       format_time(), i, number_alloc_list, buf,
-	       alloc_list[i].size, file, line, function);
-#ifdef _MEM_CHECK_LOG_
-	if (__test_bit(MEM_CHECK_LOG_BIT, &debug))
-		log_message(LOG_INFO, "free  [%3d:%3d], %p, %4zu at %s, %3d, %s",
-		       i, number_alloc_list, buf,
-		       alloc_list[i].size, file, line, function);
-#endif
+	for (i = 0; i < number_alloc_list; i++) {
+		if (alloc_list[i].type == ALLOCATED && alloc_list[i].ptr == buffer)
+			break;
+	}
 
-	if (buffer != NULL)
+	/* Not found */
+	if (i == number_alloc_list) {
+		i = get_free_alloc_entry(-1);
+
+		alloc_list[i].ptr = buffer;
+		alloc_list[i].size = size;
+		alloc_list[i].file = file;
+		alloc_list[i].func = function;
+		alloc_list[i].line = line;
+		alloc_list[i].type = !size ? FREE_NOT_ALLOC : REALLOC_NOT_ALLOC;
+
+		if (!size)
+			fprintf(log_op, "%sfree ERROR %p not found at %s, %3d, %s\n", format_time(),
+				buffer, file, line, function);
+		else
+			fprintf(log_op, "%srealloc ERROR %p, %4zu not found at %s, %3d, %s\n", format_time(),
+				buffer, size, file, line, function);
+
+		__set_bit(MEM_ERR_DETECT_BIT, &debug);
+
+		j = (f ? f : FREE_LIST_SIZE) - 1;
+		do {
+			if (free_list[j].ptr == buffer &&
+			    free_list[j].type == LAST_FREE) {
+				fprintf
+				    (log_op, "  -> pointer last released at [%3d:%3d], at %s, %3d, %s\n",
+				     (int) free_list[j].size, number_alloc_list,
+				     free_list[j].file, free_list[j].line,
+				     free_list[j].func);
+				break;
+			}
+			j = (j ? j : FREE_LIST_SIZE) - 1;
+		} while (j != (f ? f : FREE_LIST_SIZE) - 1);
+
+		return NULL;
+	}
+
+	check = alloc_list[i].size + CHECK_VAL;
+	if (*(unsigned long *)((char *)buffer + alloc_list[i].size) != check) {
+		if (!size)
+			alloc_list[i].type = OVERRUN;
+		else {
+			j = get_free_alloc_entry(-1);
+
+			alloc_list[j] = alloc_list[i];
+			alloc_list[j].type = OVERRUN;
+		}
+		fprintf(log_op, "%s%s corrupt, buffer overrun [%3d:%3d], %p, %4zu at %s, %3d, %s\n",
+		       format_time(), !size ? "free" : "realloc",
+		       i, number_alloc_list, buffer,
+		       alloc_list[i].size, file,
+		       line, function);
+		dump_buffer(alloc_list[i].ptr,
+			    alloc_list[i].size + sizeof (check), log_op, TIME_STR_LEN);
+		fprintf(log_op, "%*sCheck_sum\n", TIME_STR_LEN, "");
+		dump_buffer((char *) &check,
+			    sizeof(check), log_op, TIME_STR_LEN);
+
+		__set_bit(MEM_ERR_DETECT_BIT, &debug);
+	} else if (!size)
+		alloc_list[i].type = FREE_SLOT;
+
+	mem_allocated -= alloc_list[i].size;
+
+
+	if (!size) {
 		free(buffer);
 
-	free_list[f].file = file;
-	free_list[f].line = line;
-	free_list[f].func = function;
-	free_list[f].ptr = buffer;
-	free_list[f].type = 8;
-	free_list[f].csum = i;	/* Using this field for row id */
+		fprintf(log_op, "%sfree   [%3d:%3d], %p, %4zu at %s, %3d, %s\n",
+		       format_time(), i, number_alloc_list, buffer,
+		       alloc_list[i].size, file, line, function);
+#ifdef _MEM_CHECK_LOG_
+		if (__test_bit(MEM_CHECK_LOG_BIT, &debug))
+			log_message(LOG_INFO, "free   [%3d:%3d], %p, %4zu at %s, %3d, %s",
+			       i, number_alloc_list, buffer,
+			       alloc_list[i].size, file, line, function);
+#endif
 
-	f++;
-	f &= 255;
-	n--;
+		free_list[f].file = file;
+		free_list[f].line = line;
+		free_list[f].func = function;
+		free_list[f].ptr = buffer;
+		free_list[f].type = LAST_FREE;
+		free_list[f].size = i;	/* Using this field for row id */
 
-	return n;
+		f++;
+		f %= FREE_LIST_SIZE;
+		n--;
+
+		return NULL;
+	} else {
+		buffer = realloc(buffer, size + sizeof (unsigned long));
+		mem_allocated += size;
+
+		if (mem_allocated > max_mem_allocated)
+			max_mem_allocated = mem_allocated;
+
+		fprintf(log_op, "%srealloc[%3d:%3d], %p, %4zu at %s, %3d, %s -> %p, %4zu at %s, %3d, %s\n",
+		       format_time(), i,
+		       number_alloc_list, alloc_list[i].ptr,
+		       alloc_list[i].size, alloc_list[i].file,
+		       alloc_list[i].line, alloc_list[i].func,
+		       buffer, size, file, line, function);
+#ifdef _MEM_CHECK_LOG_
+		if (__test_bit(MEM_CHECK_LOG_BIT, &debug))
+			log_message(LOG_INFO, "realloc[%3d:%3d], %p, %4zu at %s, %3d, %s -> %p, %4zu at %s, %3d, %s",
+			       i, number_alloc_list, alloc_list[i].ptr,
+			       alloc_list[i].size, alloc_list[i].file,
+			       alloc_list[i].line, alloc_list[i].func,
+			       buffer, size, file, line, function);
+#endif
+
+		*(unsigned long *) ((char *) buffer + size) = size + CHECK_VAL;
+
+		alloc_list[i].ptr = buffer;
+		alloc_list[i].size = size;
+		alloc_list[i].file = file;
+		alloc_list[i].line = line;
+		alloc_list[i].func = function;
+
+		num_reallocs++;
+
+		return buffer;
+	}
+}
+
+void
+keepalived_free(void *buffer, const char *file, const char *function, int line)
+{
+	keepalived_free_realloc_common(buffer, 0, file, function, line);
+}
+
+void *
+keepalived_realloc(void *buffer, size_t size, const char *file,
+		   const char *function, int line)
+{
+	if (size == 0) {
+		fprintf(log_op, "%s realloc %p,    0 converted to free\n", format_time(), buffer);
+		keepalived_free(buffer, file, function, line);
+		return NULL;
+	}
+
+	return keepalived_free_realloc_common(buffer, size, file, function, line);
 }
 
 static void
-keepalived_free_final(void)
+keepalived_alloc_log(bool final)
 {
 	unsigned int overrun = 0, badptr = 0;
 	size_t sum = 0;
-	int i, j;
-	i = 0;
+	int i;
 
-	/* If this is a forked child, we don't want the dump */
-	if (skip_mem_check_final)
-		return;
+	if (final) {
+		/* If this is a forked child, we don't want the dump */
+		if (skip_mem_check_final)
+			return;
 
-	fprintf(log_op, "\n---[ Keepalived memory dump for (%s)]---\n\n", terminate_banner);
+		fprintf(log_op, "\n---[ Keepalived memory dump for (%s) ]---\n\n", terminate_banner);
+	}
+	else
+		fprintf(log_op, "\n---[ Keepalived memory dump for (%s) at %s ]---\n\n", terminate_banner, format_time());
 
-	while (i < number_alloc_list) {
+	for (i = 0; i < number_alloc_list; i++) {
 		switch (alloc_list[i].type) {
-		case 3:
+		case REALLOC_NULL:
 			badptr++;
 			fprintf
 			    (log_op, "null pointer to realloc(nil,%zu)! at %s, %3d, %s\n",
 			     alloc_list[i].size, alloc_list[i].file,
 			     alloc_list[i].line, alloc_list[i].func);
 			break;
-		case 4:
+		case FREE_NOT_ALLOC:
+		case REALLOC_NOT_ALLOC:
 			badptr++;
-			fprintf
-			    (log_op, "pointer not found in table to free(%p) [%3d:%3d], at %s, %3d, %s\n",
-			     alloc_list[i].ptr, i, number_alloc_list,
-			     alloc_list[i].file, alloc_list[i].line,
-			     alloc_list[i].func);
-			for (j = 0; j < 256; j++)
-				if (free_list[j].ptr == alloc_list[i].ptr)
-					if (free_list[j].type == 8)
-						fprintf
-						    (log_op, "  -> pointer already released at [%3d:%3d], at %s, %3d, %s\n",
-						     (int) free_list[j].csum,
-						     number_alloc_list,
-						     free_list[j].file,
-						     free_list[j].line,
-						     free_list[j].func);
+			if (alloc_list[i].type == FREE_NOT_ALLOC)
+				fprintf
+				    (log_op, "pointer not found in table to free(%p) [%3d:%3d], at %s, %3d, %s\n",
+				     alloc_list[i].ptr, i, number_alloc_list,
+				     alloc_list[i].file, alloc_list[i].line,
+				     alloc_list[i].func);
+			else
+				fprintf
+				    (log_op, "pointer not found in table to realloc(%p) [%3d:%3d] %4zu, at %s, %3d, %s\n",
+				     alloc_list[i].ptr, i, number_alloc_list,
+				     alloc_list[i].size, alloc_list[i].file,
+				     alloc_list[i].line, alloc_list[i].func);
 			break;
-		case 2:
+		case FREE_NULL:
 			badptr++;
 			fprintf(log_op, "null pointer to free(nil)! at %s, %3d, %s\n",
 			       alloc_list[i].file, alloc_list[i].line,
 			       alloc_list[i].func);
 			break;
-		case 1:
+		case OVERRUN:
 			overrun++;
 			fprintf(log_op, "%p [%3d:%3d], %4zu buffer overrun!:\n",
 			       alloc_list[i].ptr, i, number_alloc_list,
@@ -346,105 +465,52 @@ keepalived_free_final(void)
 			       alloc_list[i].file, alloc_list[i].line,
 			       alloc_list[i].func);
 			break;
-		case 9:
+		case ALLOCATED:
 			sum += alloc_list[i].size;
-			fprintf(log_op, "%p [%3d:%3d], %4zu not released!:\n",
+			fprintf(log_op, "%p [%3d:%3d], %4zu %s:\n",
 			       alloc_list[i].ptr, i, number_alloc_list,
-			       alloc_list[i].size);
-			fprintf(log_op, " --> source of malloc: %s, %3d, %s\n",
+			       alloc_list[i].size,
+			       final ? "not released!" : "currently_allocated");
+			fprintf(log_op, " --> source of malloc/realloc: %s, %3d, %s\n",
 			       alloc_list[i].file, alloc_list[i].line,
 			       alloc_list[i].func);
 			break;
-		}
-		i++;
-	}
-
-	fprintf(log_op, "\n\n---[ Keepalived memory dump summary for (%s) ]---\n", terminate_banner);
-	fprintf(log_op, "Total number of bytes not freed...: %zu\n", sum);
-	fprintf(log_op, "Number of entries not freed.......: %d\n", n);
-	fprintf(log_op, "Maximum allocated entries.........: %d\n", number_alloc_list);
-	fprintf(log_op, "Maximum memory allocated..........: %zu\n", max_mem_allocated);
-	fprintf(log_op, "Number of bad entries.............: %d\n", badptr);
-	fprintf(log_op, "Number of buffer overrun..........: %d\n\n", overrun);
-
-	if (sum || n || badptr || overrun)
-		fprintf(log_op, "=> Program seems to have some memory problem !!!\n\n");
-	else
-		fprintf(log_op, "=> Program seems to be memory allocation safe...\n\n");
-}
-
-void *
-keepalived_realloc(void *buffer, size_t size, char *file, char *function,
-		   int line)
-{
-	int i;
-	void *buf = buffer, *buf2;
-	long check;
-
-	if (buffer == NULL) {
-		fprintf(log_op, "%srealloc %p %s, %3d %s\n", format_time(), buffer, file, line, function);
-		i = number_alloc_list++;
-
-		assert(number_alloc_list < MAX_ALLOC_LIST);
-
-		alloc_list[i].ptr = NULL;
-		alloc_list[i].size = 0;
-		alloc_list[i].file = file;
-		alloc_list[i].func = function;
-		alloc_list[i].line = line;
-		alloc_list[i].type = 3;
-		return keepalived_malloc(size, file, function, line);
-	}
-
-	for (i = 0; i < number_alloc_list; i++) {
-		if (alloc_list[i].ptr == buf) {
-			buf = alloc_list[i].ptr;
+		case FREE_SLOT:	/* not used - avoid compiler warning */
+		case LAST_FREE:
 			break;
 		}
 	}
 
-	/* not found */
-	if (i == number_alloc_list) {
-		fprintf(log_op, "%srealloc ERROR no matching zalloc %p \n", format_time(), buffer);
-		number_alloc_list++;
+	fprintf(log_op, "\n\n---[ Keepalived memory dump summary for (%s) ]---\n", terminate_banner);
+	fprintf(log_op, "Total number of bytes %s...: %zu\n", final ? "not freed" : "allocated", sum);
+	fprintf(log_op, "Number of entries %s.......: %d\n", final ? "not freed" : "allocated", n);
+	fprintf(log_op, "Maximum allocated entries.........: %d\n", number_alloc_list);
+	fprintf(log_op, "Maximum memory allocated..........: %zu\n", max_mem_allocated);
+	fprintf(log_op, "Number of mallocs.................: %d\n", num_mallocs);
+	fprintf(log_op, "Number of reallocs................: %d\n", num_reallocs);
+	fprintf(log_op, "Number of bad entries.............: %d\n", badptr);
+	fprintf(log_op, "Number of buffer overrun..........: %d\n\n", overrun);
+	if (sum != mem_allocated)
+		fprintf(log_op, "ERROR - sum of allocated %zu != mem_allocated %zu\n", sum, mem_allocated);
 
-		assert(number_alloc_list < MAX_ALLOC_LIST);
-
-		alloc_list[i].ptr = buf;
-		alloc_list[i].size = 0;
-		alloc_list[i].file = file;
-		alloc_list[i].func = function;
-		alloc_list[i].line = line;
-		alloc_list[i].type = 9;
-		__set_bit(MEM_ERR_DETECT_BIT, &debug);	/* Memory Error detect */
-		return NULL;
+	if (final) {
+		if (sum || n || badptr || overrun)
+			fprintf(log_op, "=> Program seems to have some memory problem !!!\n\n");
+		else
+			fprintf(log_op, "=> Program seems to be memory allocation safe...\n\n");
 	}
+}
 
-	buf2 = ((char *) buf) + alloc_list[i].size;
+static void
+keepalived_free_final(void)
+{
+	keepalived_alloc_log(true);
+}
 
-	if (*(long *) (buf2) != alloc_list[i].csum) {
-		alloc_list[i].type = 1;
-		__set_bit(MEM_ERR_DETECT_BIT, &debug);	/* Memory Error detect */
-	}
-	buf = realloc(buffer, size + sizeof (long));
-
-	check = (long)size + 0xa5a5;
-	*(long *) ((char *) buf + size) = check;
-	alloc_list[i].csum = check;
-
-	fprintf(log_op, "%srealloc[%3d:%3d], %p, %4zu at %s, %3d, %s -> %p, %4zu at %s, %3d, %s\n",
-	       format_time(), i, number_alloc_list, alloc_list[i].ptr,
-	       alloc_list[i].size, file, line, function, buf, size,
-	       alloc_list[i].file, alloc_list[i].line,
-	       alloc_list[i].func);
-
-	alloc_list[i].ptr = buf;
-	alloc_list[i].size = size;
-	alloc_list[i].file = file;
-	alloc_list[i].line = line;
-	alloc_list[i].func = function;
-
-	return buf;
+void
+keepalived_alloc_dump(void)
+{
+	keepalived_alloc_log(false);
 }
 
 void
@@ -461,7 +527,7 @@ mem_log_init(const char* prog_name, const char *banner)
 	if (log_op)
 		fclose(log_op);
 
-	log_name_len = 5 + strlen(prog_name) + 5 + 5 + 4 + 1;	/* "/tmp/" + prog_name + "_mem." + PID + ".log" + '\0" */
+	log_name_len = 5 + strlen(prog_name) + 5 + 7 + 4 + 1;	/* "/tmp/" + prog_name + "_mem." + PID + ".log" + '\0" */
 	log_name = malloc(log_name_len);
 	if (!log_name) {
 		log_message(LOG_INFO, "Unable to malloc log file name");
