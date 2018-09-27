@@ -1586,14 +1586,6 @@ keepalived_main(int argc, char **argv)
 	prog_type = PROG_TYPE_PARENT;
 #endif
 
-	/* Initialise pointer to child finding function */
-	set_child_finder_name(find_keepalived_child_name);
-
-#ifndef _DEBUG_
-	/* If one of our children terminates, we want to clear it out */
-	set_child_remover(parent_child_remover);
-#endif
-
 	/* Initialise daemon_mode */
 #ifdef _WITH_VRRP_
 	__set_bit(DAEMON_VRRP, &daemon_mode);
@@ -1744,6 +1736,14 @@ keepalived_main(int argc, char **argv)
 #endif
 				global_data->instance_name);
 	}
+
+	/* Initialise pointer to child finding function */
+	set_child_finder_name(find_keepalived_child_name);
+
+#ifndef _DEBUG_
+	/* If one of our children terminates, we want to clear it out */
+	set_child_remover(parent_child_remover);
+#endif
 
 	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
 		if (use_pid_dir) {
