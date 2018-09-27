@@ -793,20 +793,21 @@ dump_thread_data(thread_master_t *m, FILE *fp)
 #endif
 
 /* Timer cmp helper */
-static int
+static inline int
 thread_timer_cmp(thread_t *t1, thread_t *t2)
 {
-	if (t1->sands.tv_sec != t2->sands.tv_sec ||
-	    t1->sands.tv_sec == TIMER_DISABLED) {
-		if (t1->sands.tv_sec == TIMER_DISABLED) {
-			if (t2->sands.tv_sec == TIMER_DISABLED)
-				return 0;
-			return 1;
-		}
+	if (t1->sands.tv_sec == TIMER_DISABLED) {
 		if (t2->sands.tv_sec == TIMER_DISABLED)
-			return -1;
-		return t1->sands.tv_sec - t2->sands.tv_sec;
+			return 0;
+		return 1;
 	}
+
+	if (t2->sands.tv_sec == TIMER_DISABLED)
+		return -1;
+
+	if (t1->sands.tv_sec != t2->sands.tv_sec)
+		return t1->sands.tv_sec - t2->sands.tv_sec;
+
 	return t1->sands.tv_usec - t2->sands.tv_usec;
 }
 
