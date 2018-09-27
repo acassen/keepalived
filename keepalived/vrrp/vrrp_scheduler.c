@@ -311,8 +311,7 @@ vrrp_init_script(list l)
 	vrrp_script_t *vscript;
 	element e;
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vscript = ELEMENT_DATA(e);
+	LIST_FOREACH(l, vscript, e) {
 		if (vscript->init_state == SCRIPT_INIT_STATE_INIT)
 			vscript->result = vscript->rise - 1; /* one success is enough */
 		else if (vscript->init_state == SCRIPT_INIT_STATE_FAILED)
@@ -320,10 +319,6 @@ vrrp_init_script(list l)
 
 		thread_add_event(master, vrrp_script_thread, vscript, (int)vscript->interval);
 	}
-
-	if (LIST_SIZE(l))
-		set_child_finder(DEFAULT_CHILD_FINDER, NULL, NULL, NULL, NULL, LIST_SIZE(l));
-
 }
 
 /* Timer functions */
@@ -441,9 +436,8 @@ vrrp_register_workers(list l)
 	vrrp_init_sands(vrrp_data->vrrp);
 
 	/* Init VRRP tracking scripts */
-	if (!LIST_ISEMPTY(vrrp_data->vrrp_script)) {
+	if (!LIST_ISEMPTY(vrrp_data->vrrp_script))
 		vrrp_init_script(vrrp_data->vrrp_script);
-	}
 
 #ifdef _WITH_BFD_
 	if (!LIST_ISEMPTY(vrrp_data->vrrp)) {

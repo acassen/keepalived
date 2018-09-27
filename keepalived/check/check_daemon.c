@@ -513,7 +513,6 @@ start_check_child(void)
 
 	/* Clear any child finder functions set in parent */
 	set_child_finder_name(NULL);
-	destroy_child_finder();
 
 	prog_type = PROG_TYPE_CHECKER;
 
