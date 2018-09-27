@@ -3254,12 +3254,8 @@ vrrp_complete_init(void)
 	element e, e1;
 	vrrp_t *vrrp, *old_vrrp;
 	vrrp_sgroup_t *sgroup;
-	list l_o;
-	element e_o;
 	element next;
-	vrrp_t *vrrp_o;
-	interface_t *ifp;
-	ifindex_t ifindex_o;
+	vrrp_t *vrrp1;
 	size_t max_mtu_len = 0;
 	bool have_master, have_backup;
 	vrrp_script_t *scr;
@@ -3290,35 +3286,17 @@ vrrp_complete_init(void)
 	if (!__test_bit(CONFIG_TEST_BIT, &debug))
 		notify_fifo_open(&global_data->notify_fifo, &global_data->vrrp_notify_fifo, vrrp_notify_fifo_script_exit, "vrrp_");
 
-	/* Make sure don't have same vrid on same interface with same address family */
+	/* Make sure don't have same vrid on same interface with the same address family */
 	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
-		l_o = &vrrp_data->vrrp_index[vrrp->vrid];
-#ifdef _HAVE_VRRP_VMAC_
-		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
-			ifp = vrrp->ifp->base_ifp;
-		else
-#endif
-			ifp = vrrp->ifp;
-
 		/* Check if any other entries with same vrid conflict */
-		if (!LIST_ISEMPTY(l_o) && LIST_SIZE(l_o) > 1) {
-			/* Can't have same vrid with same family on same interface */
-			LIST_FOREACH(l_o, vrrp_o, e_o) {
-				if (vrrp_o != vrrp &&
-				    vrrp_o->family == vrrp->family) {
-#ifdef _HAVE_VRRP_VMAC_
-					if (__test_bit(VRRP_VMAC_BIT, &vrrp_o->vmac_flags))
-						ifindex_o = vrrp_o->ifp->base_ifp->ifindex;
-					else
-#endif
-						ifindex_o = vrrp_o->ifp->ifindex;
-
-					if (ifp->ifindex == ifindex_o)
-					{
-						report_config_error(CONFIG_GENERAL_ERROR, "VRID %d is duplicated on interface %s", vrrp->vrid, ifp->ifname);
-						return false;
-					}
-				}
+		for (e1 = e->next; e1; ELEMENT_NEXT(e1)) {
+			vrrp1 = ELEMENT_DATA(e1);
+			if (vrrp->family == vrrp1->family &&
+			    vrrp->vrid == vrrp1->vrid &&
+			    vrrp->ifp == vrrp1->ifp) {
+				report_config_error(CONFIG_GENERAL_ERROR, "%s and %s both use VRID %d with IPv%d on interface %s",
+							vrrp->iname, vrrp1->iname, vrrp->vrid, vrrp->family == AF_INET ? 4 : 6, vrrp->ifp->ifname);
+				return false;
 			}
 		}
 	}
