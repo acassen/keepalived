@@ -3284,9 +3284,8 @@ vrrp_complete_init(void)
 
 	/* Make sure don't have same vrid on same interface with the same address family */
 	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
-		/* Check if any other entries with same vrid conflict */
-		for (e1 = e->next; e1; ELEMENT_NEXT(e1)) {
-			vrrp1 = ELEMENT_DATA(e1);
+		/* Check none of the rest of the entries conflict */
+		LIST_FOREACH_FROM(e->next, vrrp1, e1) {
 			if (vrrp->family == vrrp1->family &&
 			    vrrp->vrid == vrrp1->vrid &&
 			    vrrp->ifp == vrrp1->ifp) {

@@ -53,6 +53,7 @@ struct _list {
 #define LIST_EXISTS(L)		((L) != NULL)
 #define LIST_SIZE(L)		((L)->count)
 #define LIST_FOREACH(L,V,E)	for ((E) = ((L) ? LIST_HEAD(L) : NULL); (E) && ((V) = ELEMENT_DATA(E), 1); ELEMENT_NEXT(E))
+#define LIST_FOREACH_FROM(F,V,E) for ((E) = (F); (E) && ((V) = ELEMENT_DATA(E), 1); ELEMENT_NEXT(E))
 #define LIST_FOREACH_NEXT(L,V,E,N) for ((E) = ((L) ? LIST_HEAD(L) : NULL); (E) && ((N) = (E)->next, (V) = ELEMENT_DATA(E), 1); (E) = (N))
 
 /* Prototypes */

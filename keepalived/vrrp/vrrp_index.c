@@ -27,61 +27,6 @@
 #include "vrrp_data.h"
 #include "vrrp.h"
 
-/* VRID hash table */
-int
-get_vrrp_hash(const int vrid, const int fd)
-{
-	/* The values 31 and 37 are somewhat arbitrary, but need to be prime and
-	 * coprime to VRRP_INDEX_FD_SIZE. They are chosen as being reasonably close
-	 * to the square root of VRRP_INDEX_FD_SIZE. VRRP_INDEX_FD_SIZE should
-	 * ideally be prime too.
-	 * The reason that fd is divided by 2 is that each vrrp instance uses two
-	 * sockets, and so the difference between the fds of consecutive vrrp
-	 * instances is likely to be 2. */
-	return (vrid * 31 + (fd/2) * 37) % VRRP_INDEX_FD_SIZE;
-}
-
-void
-alloc_vrrp_bucket(vrrp_t *vrrp)
-{
-	list_add(&vrrp_data->vrrp_index[get_vrrp_hash(vrrp->vrid, vrrp->sockets->fd_in)], vrrp);
-}
-
-vrrp_t *
-vrrp_index_lookup(const int vrid, const int fd)
-{
-	vrrp_t *vrrp;
-	element e;
-	list l = &vrrp_data->vrrp_index[get_vrrp_hash(vrid, fd)];
-
-	/* return if list is empty */
-	if (LIST_ISEMPTY(l))
-		return NULL;
-
-	/*
-	 * If list size's is 1 then no collisions. So
-	 * Test and return the singleton.
-	 */
-	if (LIST_SIZE(l) == 1) {
-		vrrp = ELEMENT_DATA(LIST_HEAD(l));
-		return (vrrp->sockets->fd_in == fd && vrrp->vrid == vrid) ? vrrp : NULL;
-	}
-
-	/*
-	 * List collision on the vrid bucket. The same
-	 * vrid is used on a different interface or different
-	 * address family. We perform a fd lookup as collision solver.
-	 */
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vrrp =  ELEMENT_DATA(e);
-		if (vrrp->sockets->fd_in == fd && vrrp->vrid == vrid)
-			return vrrp;
-	}
-
-	/* No match */
-	return NULL;
-}
-
 /* FD hash table */
 void
 alloc_vrrp_fd_bucket(vrrp_t *vrrp)

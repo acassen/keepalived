@@ -46,7 +46,6 @@
 #include "global_parser.h"
 
 #include "vrrp_data.h"
-#include "vrrp_index.h"
 #include "vrrp_ipaddress.h"
 #include "vrrp_sync.h"
 #include "vrrp_track.h"

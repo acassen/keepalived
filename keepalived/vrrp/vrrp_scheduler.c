@@ -423,11 +423,11 @@ vrrp_register_workers(list l)
 {
 	sock_t *sock;
 	timeval_t timer;
-	unsigned long vrrp_timer = 0;
+	unsigned long vrrp_timer;
 	element e;
 
 	/* Init compute timer */
-	memset(&timer, 0, sizeof (struct timeval));
+	memset(&timer, 0, sizeof(timer));
 
 	/* Init the VRRP instances state */
 	vrrp_init_state(vrrp_data->vrrp);
@@ -449,8 +449,7 @@ vrrp_register_workers(list l)
 #endif
 
 	/* Register VRRP workers threads */
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		sock = ELEMENT_DATA(e);
+	LIST_FOREACH(l, sock, e) {
 		/* jump to asynchronous handling */
 		vrrp_timer = vrrp_timer_fd(sock->fd_in);
 
@@ -496,10 +495,17 @@ alloc_sock(sa_family_t family, list l, int proto, ifindex_t ifindex, bool unicas
 	new->proto = proto;
 	new->ifindex = ifindex;
 	new->unicast = unicast;
+	new->rb_vrid = RB_ROOT;
 
 	list_add(l, new);
 
 	return new;
+}
+
+static inline int
+vrrp_vrid_cmp(const vrrp_t *v1, const vrrp_t *v2)
+{
+	return v1->vrid - v2->vrid;
 }
 
 static void
@@ -529,6 +535,9 @@ vrrp_create_sockpool(list l)
 		/* add the vrrp element if not exist */
 		if (!(sock = already_exist_sock(l, vrrp->family, proto, ifindex, unicast)))
 			sock = alloc_sock(vrrp->family, l, proto, ifindex, unicast);
+
+		/* Add the vrrp_t indexed by vrid to the socket */
+		rb_insert_sort(&sock->rb_vrid, vrrp, rb_vrid, vrrp_vrid_cmp);
 
 		if (vrrp->kernel_rx_buf_size)
 			sock->rx_buf_size += vrrp->kernel_rx_buf_size;
@@ -569,40 +578,14 @@ vrrp_set_fds(list l)
 {
 	sock_t *sock;
 	vrrp_t *vrrp;
-	list p = vrrp_data->vrrp;
-	element e_sock;
-	element e_vrrp;
-	int proto;
-	ifindex_t ifindex;
-	bool unicast;
+	element e;
 
-	for (e_sock = LIST_HEAD(l); e_sock; ELEMENT_NEXT(e_sock)) {
-		sock = ELEMENT_DATA(e_sock);
-		for (e_vrrp = LIST_HEAD(p); e_vrrp; ELEMENT_NEXT(e_vrrp)) {
-			vrrp = ELEMENT_DATA(e_vrrp);
-			ifindex =
-#ifdef _HAVE_VRRP_VMAC_
-				  (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? IF_BASE_INDEX(vrrp->ifp) :
-#endif
-											    IF_INDEX(vrrp->ifp);
-			unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
-#if defined _WITH_VRRP_AUTH_
-			if (vrrp->auth_type == VRRP_AUTH_AH)
-				proto = IPPROTO_AH;
-			else
-#endif
-				proto = IPPROTO_VRRP;
+	LIST_FOREACH(l, sock, e) {
+		rb_for_each_entry(vrrp, &sock->rb_vrid, rb_vrid) {
+			vrrp->sockets = sock;
 
-			if ((sock->ifindex == ifindex)	&&
-			    (sock->family == vrrp->family) &&
-			    (sock->proto == proto)	&&
-			    (sock->unicast == unicast)) {
-				vrrp->sockets = sock;
-
-				/* append to hash index */
-				alloc_vrrp_fd_bucket(vrrp);
-				alloc_vrrp_bucket(vrrp);
-			}
+			/* append to hash index */
+			alloc_vrrp_fd_bucket(vrrp);
 		}
 	}
 }
@@ -898,6 +881,7 @@ vrrp_dispatcher_read(sock_t * sock)
 	unsigned proto = 0;
 	struct sockaddr_storage src_addr;
 	socklen_t src_addr_len = sizeof(src_addr);
+	vrrp_t vrrp_lookup;
 
 	/* Clean the read buffer */
 	memset(vrrp_buffer, 0, vrrp_buffer_len);
@@ -907,8 +891,8 @@ vrrp_dispatcher_read(sock_t * sock)
 		       (struct sockaddr *) &src_addr, &src_addr_len);
 	hd = vrrp_get_header(sock->family, vrrp_buffer, &proto);
 
-	/* Searching for matching instance */
-	vrrp = vrrp_index_lookup(hd->vrid, sock->fd_in);
+	vrrp_lookup.vrid = hd->vrid;
+	vrrp = rb_search(&sock->rb_vrid, &vrrp_lookup, rb_vrid, vrrp_vrid_cmp);
 
 	/* If no instance found => ignore the advert */
 	if (!vrrp)

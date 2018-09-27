@@ -297,6 +297,7 @@ static void
 dump_sock(FILE *fp, void *sock_data)
 {
 	sock_t *sock = sock_data;
+
 	conf_write(fp, "VRRP sockpool: [ifindex(%u), family(%s), proto(%u), unicast(%d), fd(%d,%d)]"
 			    , sock->ifindex
 			    , sock->family == AF_INET ? "IPv4" : sock->family == AF_INET6 ? "IPv6" : "unknown"
@@ -888,7 +889,6 @@ alloc_vrrp_data(void)
 
 	new = (vrrp_data_t *) MALLOC(sizeof(vrrp_data_t));
 	new->vrrp = alloc_list(free_vrrp, dump_vrrp);
-	new->vrrp_index = alloc_mlist(NULL, NULL, VRRP_INDEX_FD_SIZE);
 	new->vrrp_index_fd = alloc_mlist(NULL,
 #ifdef _VRRP_FD_DEBUG_
 					       dump_one_vrrp_fd,
@@ -916,7 +916,6 @@ free_vrrp_data(vrrp_data_t * data)
 	free_list(&data->static_rules);
 #endif
 	free_list(&data->static_track_groups);
-	free_mlist(data->vrrp_index, VRRP_INDEX_FD_SIZE);
 	free_mlist(data->vrrp_index_fd, FD_INDEX_SIZE);
 	free_list(&data->vrrp);
 	free_list(&data->vrrp_sync_group);

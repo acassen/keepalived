@@ -309,6 +309,9 @@ typedef struct _vrrp_t {
 	 * to warn the user only if the outoing mtu is too small
 	 */
 	int			ip_id;
+
+	/* RB tree for receiving data */
+	rb_node_t		rb_vrid;
 } vrrp_t;
 
 /* VRRP state machine -- rfc2338.6.4 */
