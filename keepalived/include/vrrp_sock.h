@@ -39,7 +39,7 @@
  */
 typedef struct _sock {
 	sa_family_t		family;
-	struct sockaddr_storage	saddr;
+//	struct sockaddr_storage	saddr;
 	int			proto;
 	ifindex_t		ifindex;
 	bool			unicast;
