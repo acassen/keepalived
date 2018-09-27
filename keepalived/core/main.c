@@ -304,27 +304,6 @@ make_pidfile_name(const char* start, const char* instance, const char* extn)
 	return name;
 }
 
-#ifndef _DEBUG_
-static void
-parent_child_remover(thread_t *thread)
-{
-        if (prog_type == PROG_TYPE_PARENT) {
-#ifdef _WITH_VRRP_
-                if (thread->u.c.pid == vrrp_child)
-                        vrrp_child = 0;
-#endif
-#ifdef _WITH_LVS_
-                if (thread->u.c.pid == checkers_child)
-                        checkers_child = 0;
-#endif
-#ifdef _WITH_BFD_
-                if (thread->u.c.pid == bfd_child)
-                        bfd_child = 0;
-#endif
-	}
-}
-#endif
-
 #ifdef _WITH_VRRP_
 bool
 running_vrrp(void)
@@ -1739,11 +1718,6 @@ keepalived_main(int argc, char **argv)
 
 	/* Initialise pointer to child finding function */
 	set_child_finder_name(find_keepalived_child_name);
-
-#ifndef _DEBUG_
-	/* If one of our children terminates, we want to clear it out */
-	set_child_remover(parent_child_remover);
-#endif
 
 	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
 		if (use_pid_dir) {

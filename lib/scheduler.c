@@ -97,9 +97,6 @@ static void (*extra_threads_debug)(void);
 /* Function that returns prog_name if pid is a known child */
 static char const * (*child_finder_name)(pid_t);
 
-/* Functions for handling an optimised list of child threads if there can be many */
-static void (*child_remover)(thread_t *);
-
 #ifdef THREAD_DUMP
 static const char *
 get_thread_type_str(thread_type_t id)
@@ -345,12 +342,6 @@ void
 set_child_finder_name(char const * (*func)(pid_t))
 {
 	child_finder_name = func;
-}
-
-void
-set_child_remover(void (*remover_func)(thread_t *))
-{
-	child_remover = remover_func;
 }
 
 void
@@ -1792,8 +1783,6 @@ process_child_termination(pid_t pid, int status)
 	rb_erase(&thread->rb_data, &master->child_pid);
 
 	thread->u.c.status = status;
-	if (child_remover)
-		child_remover(thread);
 
 	if (permanent_vrrp_checker_error)
 	{

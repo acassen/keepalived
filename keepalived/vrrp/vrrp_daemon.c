@@ -802,25 +802,14 @@ print_vrrp_json(__attribute__((unused)) thread_t * thread)
 static int
 vrrp_respawn_thread(thread_t * thread)
 {
-	pid_t pid;
-
-	/* Fetch thread args */
-	pid = THREAD_CHILD_PID(thread);
-
-	/* Restart respawning thread */
-	if (thread->type == THREAD_CHILD_TIMEOUT) {
-		thread_add_child(master, vrrp_respawn_thread, NULL,
-				 pid, RESPAWN_TIMER);
-		return 0;
-	}
-
 	/* We catch a SIGCHLD, handle it */
+	vrrp_child = 0;
+
 	if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
-		log_message(LOG_ALERT, "VRRP child process(%d) died: Respawning", pid);
+		log_message(LOG_ALERT, "VRRP child process(%d) died: Respawning", thread->u.c.pid);
 		start_vrrp_child();
 	} else {
-		log_message(LOG_ALERT, "VRRP child process(%d) died: Exiting", pid);
-		vrrp_child = 0;
+		log_message(LOG_ALERT, "VRRP child process(%d) died: Exiting", thread->u.c.pid);
 		raise(SIGTERM);
 	}
 	return 0;
@@ -892,7 +881,7 @@ start_vrrp_child(void)
 
 		/* Start respawning thread */
 		thread_add_child(master, vrrp_respawn_thread, NULL,
-				 pid, RESPAWN_TIMER);
+				 pid, TIMER_NEVER);
 
 		return 0;
 	}
@@ -951,7 +940,6 @@ start_vrrp_child(void)
 
 	/* Clear any child finder functions set in parent */
 	set_child_finder_name(NULL);
-	set_child_remover(NULL);
 
 	/* Child process part, write pidfile */
 	if (!pidfile_write(vrrp_pidfile, getpid())) {

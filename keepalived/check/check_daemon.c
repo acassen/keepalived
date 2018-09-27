@@ -421,25 +421,14 @@ check_signal_init(void)
 static int
 check_respawn_thread(thread_t * thread)
 {
-	pid_t pid;
-
-	/* Fetch thread args */
-	pid = THREAD_CHILD_PID(thread);
-
-	/* Restart respawning thread */
-	if (thread->type == THREAD_CHILD_TIMEOUT) {
-		thread_add_child(master, check_respawn_thread, NULL,
-				 pid, RESPAWN_TIMER);
-		return 0;
-	}
-
 	/* We catch a SIGCHLD, handle it */
+	checkers_child = 0;
+
 	if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
-		log_message(LOG_ALERT, "Healthcheck child process(%d) died: Respawning", pid);
+		log_message(LOG_ALERT, "Healthcheck child process(%d) died: Respawning", thread->u.c.pid);
 		start_check_child();
 	} else {
-		log_message(LOG_ALERT, "Healthcheck child process(%d) died: Exiting", pid);
-		checkers_child = 0;
+		log_message(LOG_ALERT, "Healthcheck child process(%d) died: Exiting", thread->u.c.pid);
 		raise(SIGTERM);
 	}
 	return 0;
@@ -505,15 +494,11 @@ start_check_child(void)
 
 		/* Start respawning thread */
 		thread_add_child(master, check_respawn_thread, NULL,
-				 pid, RESPAWN_TIMER);
+				 pid, TIMER_NEVER);
 
 		return 0;
 	}
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
-
-	/* Clear any child finder functions set in parent */
-	set_child_finder_name(NULL);
-	set_child_remover(NULL);
 
 	prog_type = PROG_TYPE_CHECKER;
 
@@ -559,6 +544,9 @@ start_check_child(void)
 #endif
 
 	free_parent_mallocs_startup(true);
+
+	/* Clear any child finder functions set in parent */
+	set_child_finder_name(NULL);
 
 	/* Child process part, write pidfile */
 	if (!pidfile_write(checkers_pidfile, getpid())) {

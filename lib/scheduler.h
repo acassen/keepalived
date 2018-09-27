@@ -171,7 +171,6 @@ typedef enum {
 
 /* MICRO SEC def */
 #define BOOTSTRAP_DELAY TIMER_HZ
-#define RESPAWN_TIMER	TIMER_NEVER
 
 /* Macros. */
 #define THREAD_ARG(X) ((X)->arg)
@@ -206,7 +205,6 @@ extern bool do_epoll_thread_dump;
 /* Prototypes. */
 extern void set_child_finder_name(char const * (*)(pid_t));
 extern void save_cmd_line_options(int, char **);
-extern void set_child_remover(void (*)(thread_t *));
 extern void log_command_line(unsigned);
 #ifndef _DEBUG_
 extern bool report_child_status(int, pid_t, const char *);
