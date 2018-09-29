@@ -336,10 +336,8 @@ static inline void rb_link_node(struct rb_node * node, struct rb_node * parent,
 	next_node = rb_next(&node->member);					\
 										\
 	if (prev_node || next_node) {						\
-		if (prev_node)							\
-			prev = rb_entry(prev_node, typeof(*node), member);	\
-		if (next_node)							\
-			next = rb_entry(next_node, typeof(*node), member);	\
+		prev = rb_entry(prev_node, typeof(*node), member);		\
+		next = rb_entry(next_node, typeof(*node), member);		\
 										\
 		/* If node is between our predecessor and sucessor,		\
 		 * it can stay where it is */					\
