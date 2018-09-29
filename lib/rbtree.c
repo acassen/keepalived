@@ -21,11 +21,7 @@
 */
 
 /* This is based on linux commit 55a63998b8967
- *   with the following change at the beginning of rb_next():
- *   <        if (rb_parent(node) == node)
- *   ---
- *   >        if (!node || rb_parent(node) == node)
- *   and the addition of the defined helper "functions" in rbtree.h
+ *   with the addition of the defined helper "functions" in rbtree.h
  */
 
 #include <stdlib.h>
@@ -320,7 +316,7 @@ struct rb_node *rb_next(const struct rb_node *node)
 {
 	struct rb_node *parent;
 
-	if (!node || rb_parent(node) == node)
+	if (rb_parent(node) == node)
 		return NULL;
 
 	/* If we have a right-hand child, go down and then left as far
