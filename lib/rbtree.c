@@ -20,6 +20,14 @@
   linux/lib/rbtree.c
 */
 
+/* This is based on linux commit 55a63998b8967
+ *   with the following change at the beginning of rb_next():
+ *   <        if (rb_parent(node) == node)
+ *   ---
+ *   >        if (!node || rb_parent(node) == node)
+ *   and the addition of the defined helper "functions" in rbtree.h
+ */
+
 #include <stdlib.h>
 #include "rbtree.h"
 

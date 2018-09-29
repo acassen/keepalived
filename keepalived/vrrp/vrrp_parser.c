@@ -46,7 +46,6 @@
 #include "global_parser.h"
 
 #include "vrrp_data.h"
-#include "vrrp_index.h"
 #include "vrrp_ipaddress.h"
 #include "vrrp_sync.h"
 #include "vrrp_track.h"
@@ -641,7 +640,7 @@ vrrp_preempt_delay_handler(vector_t *strvec)
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	double preempt_delay;
 
-	if (!read_double_strvec(strvec, 1, &preempt_delay, 0, 1000, true)) {
+	if (!read_double_strvec(strvec, 1, &preempt_delay, 0, TIMER_MAX_SEC, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Preempt_delay not valid! must be between 0-%d", vrrp->iname, TIMER_MAX_SEC);
 		vrrp->preempt_delay = 0;
 	}

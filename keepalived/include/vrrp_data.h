@@ -41,8 +41,6 @@ typedef struct _vrrp_data {
 #endif
 	list			vrrp_sync_group;
 	list			vrrp;			/* vrrp_t */
-	list			vrrp_index;
-	list			vrrp_index_fd;
 	list			vrrp_socket_pool;
 	list			vrrp_script;		/* vrrp_script_t */
 	list			vrrp_track_files;	/* vrrp_tracked_file_t */

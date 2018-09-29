@@ -265,31 +265,6 @@ check_misc_script_security(magic_t magic)
 	return script_flags;
 }
 
-void
-check_misc_set_child_finder(void)
-{
-	element e;
-	checker_t *checker;
-	size_t num_misc_checkers = 0;
-
-	if (LIST_ISEMPTY(checkers_queue))
-		return;
-
-	for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
-		checker = ELEMENT_DATA(e);
-
-		if (checker->launch != misc_check_thread)
-			continue;
-
-		num_misc_checkers++;
-	}
-
-	if (!num_misc_checkers)
-		return
-
-	set_child_finder(DEFAULT_CHILD_FINDER, NULL, NULL, NULL, NULL, num_misc_checkers);
-}
-
 static int
 misc_check_thread(thread_t * thread)
 {

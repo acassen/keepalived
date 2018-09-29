@@ -61,7 +61,6 @@
 #include "vrrp_vmac.h"
 #include "bitops.h"
 #endif
-#include "vrrp_index.h"
 #include "vrrp_track.h"
 #include "vrrp_scheduler.h"
 #include "vrrp_iproute.h"
@@ -1084,7 +1083,6 @@ cleanup_lost_interface(interface_t *ifp)
 
 		/* Find the sockpool entry. If none, then we have closed the socket */
 		if (vrrp->sockets->fd_in != -1) {
-			remove_vrrp_fd_bucket(vrrp->sockets->fd_in);
 			thread_cancel_read(master, vrrp->sockets->fd_in);
 			close(vrrp->sockets->fd_in);
 			vrrp->sockets->fd_in = -1;
@@ -1136,16 +1134,12 @@ setup_interface(vrrp_t *vrrp)
 
 		vrrp->sockets->ifindex = vrrp->ifp->ifindex;
 
-		alloc_vrrp_fd_bucket(vrrp);
-
 		if (vrrp_initialised) {
 			vrrp->state = vrrp->num_script_if_fault ? VRRP_STATE_FAULT : VRRP_STATE_BACK;
 			vrrp_init_instance_sands(vrrp);
 			vrrp_thread_add_read(vrrp);
 		}
 	}
-	else
-		alloc_vrrp_fd_bucket(vrrp);
 
 	return true;
 }

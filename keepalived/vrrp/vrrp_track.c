@@ -584,7 +584,6 @@ void
 vrrp_set_effective_priority(vrrp_t *vrrp)
 {
 	uint8_t new_prio;
-	bool increasing_priority;
 	uint32_t old_down_timer;
 
 	/* Don't change priority if address owner */
@@ -604,14 +603,17 @@ vrrp_set_effective_priority(vrrp_t *vrrp)
 	log_message(LOG_INFO, "(%s) Changing effective priority from %d to %d",
 		    vrrp->iname, vrrp->effective_priority, new_prio);
 
-	increasing_priority = (new_prio > vrrp->effective_priority);
-
 	vrrp->effective_priority = new_prio;
 	old_down_timer = vrrp->ms_down_timer;
 	vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 
-	if (vrrp->state == VRRP_STATE_BACK && increasing_priority)
-		vrrp_thread_requeue_read_relative(vrrp, old_down_timer - vrrp->ms_down_timer);
+	if (vrrp->state == VRRP_STATE_BACK) {
+		if (old_down_timer < vrrp->ms_down_timer)
+			vrrp->sands = timer_add_long(vrrp->sands, vrrp->ms_down_timer - old_down_timer);
+		else
+			vrrp->sands = timer_sub_long(vrrp->sands, old_down_timer - vrrp->ms_down_timer);
+		vrrp_thread_requeue_read(vrrp);
+	}
 }
 
 static void

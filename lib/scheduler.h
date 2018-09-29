@@ -96,6 +96,8 @@ typedef struct _thread {
 		rb_node_t n;
 		list_head_t next;
 	};
+
+	rb_node_t rb_data;		/* PID or fd/vrid */
 } thread_t;
 
 /* Thread Event */
@@ -120,8 +122,9 @@ typedef struct _thread_master {
 #endif
 	list_head_t		ready;
 	list_head_t		unuse;
-// Can we stop using this?
-	list child_pid_index;
+
+	/* child process related */
+	rb_root_t		child_pid;
 
 	/* epoll related */
 	rb_root_t		io_events;
@@ -168,7 +171,6 @@ typedef enum {
 
 /* MICRO SEC def */
 #define BOOTSTRAP_DELAY TIMER_HZ
-#define RESPAWN_TIMER	TIMER_NEVER
 
 /* Macros. */
 #define THREAD_ARG(X) ((X)->arg)
@@ -202,10 +204,7 @@ extern bool do_epoll_thread_dump;
 
 /* Prototypes. */
 extern void set_child_finder_name(char const * (*)(pid_t));
-extern void set_child_finder(void (*)(thread_t *), thread_t *(*)(pid_t), void (*)(thread_t *), bool (*)(size_t), void(*)(void), size_t);
-extern void destroy_child_finder(void);
 extern void save_cmd_line_options(int, char **);
-extern void set_child_remover(void (*)(thread_t *));
 extern void log_command_line(unsigned);
 #ifndef _DEBUG_
 extern bool report_child_status(int, pid_t, const char *);

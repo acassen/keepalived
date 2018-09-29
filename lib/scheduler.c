@@ -54,6 +54,7 @@
 #include "logger.h"
 #include "bitops.h"
 #include "git-commit.h"
+#include "timer.h"
 #if !HAVE_EPOLL_CREATE1 || !defined TFD_NONBLOCK
 #include "old_socket.h"
 #endif
@@ -96,13 +97,6 @@ static void (*extra_threads_debug)(void);
 
 /* Function that returns prog_name if pid is a known child */
 static char const * (*child_finder_name)(pid_t);
-
-/* Functions for handling an optimised list of child threads if there can be many */
-static void (*child_adder)(thread_t *);
-static thread_t *(*child_finder)(pid_t);
-static void (*child_remover)(thread_t *);
-static void (*child_finder_destroy)(void);
-static size_t child_finder_list_size;
 
 #ifdef THREAD_DUMP
 static const char *
@@ -338,126 +332,17 @@ thread_timerfd_handler(thread_t *thread)
 	return 0;
 }
 
-static size_t
-get_pid_hash(pid_t pid)
+/* Child PID cmp helper */
+static inline int
+thread_child_pid_cmp(thread_t *t1, thread_t *t2)
 {
-	return (unsigned)pid % child_finder_list_size;
-}
-
-static void
-default_child_adder(thread_t *thread)
-{
-	list_add(&thread->master->child_pid_index[get_pid_hash(thread->u.c.pid)], thread);
-}
-
-static thread_t *
-default_child_finder(pid_t pid)
-{
-	thread_t *thread;
-	element e;
-	list l = &master->child_pid_index[get_pid_hash(pid)];
-
-	if (LIST_ISEMPTY(l))
-		return NULL;
-
-	LIST_FOREACH(l, thread, e) {
-		if (thread->u.c.pid == pid)
-			return thread;
-	}
-
-	return NULL;
-}
-
-static void
-default_child_remover(thread_t *thread)
-{
-	list_del(&thread->master->child_pid_index[get_pid_hash(thread->u.c.pid)], thread);
-}
-
-static bool
-default_child_finder_init(size_t num_entries)
-{
-	child_finder_list_size = 1;
-
-	if (num_entries < 32)
-		return false;
-
-	/* We make the default list size largest power of 2 < num_entries / 2,
-	 * subject to a limit of 256 */
-	while ((num_entries /= 2) > 1 && child_finder_list_size < 256)
-		child_finder_list_size <<= 1;
-
-	master->child_pid_index = alloc_mlist(NULL, NULL, child_finder_list_size);
-
-	return true;
-}
-
-static void
-default_child_finder_destroy(void)
-{
-	if (master->child_pid_index) {
-		free_mlist(master->child_pid_index, child_finder_list_size);
-		master->child_pid_index = NULL;
-	}
+	return t1->u.c.pid - t2->u.c.pid;
 }
 
 void
 set_child_finder_name(char const * (*func)(pid_t))
 {
 	child_finder_name = func;
-}
-
-void
-set_child_finder(void (*adder_func)(thread_t *),
-		 thread_t *(*finder_func)(pid_t),
-		 void (*remover_func)(thread_t *),
-		 bool (*init_func)(size_t),	/* returns true if child_finder to be used */
-		 void (*destroy_func)(void),
-		 size_t num_entries)
-{
-	bool using_child_finder = false;
-
-	if (child_finder_destroy)
-		child_finder_destroy();
-
-	if (adder_func == DEFAULT_CHILD_FINDER) {
-		if (default_child_finder_init(num_entries)) {
-			child_adder = default_child_adder;
-			child_finder = default_child_finder;
-			child_remover = default_child_remover;
-			child_finder_destroy = default_child_finder_destroy;
-
-			using_child_finder = true;
-		}
-	} else if (child_adder && init_func && init_func(num_entries)) {
-		child_adder = adder_func;
-		child_finder = finder_func;
-		child_remover = remover_func;
-		child_finder_destroy = destroy_func;
-
-		using_child_finder = true;
-	}
-
-	if (using_child_finder)
-		log_message(LOG_INFO, "Using optimised child finder");
-	else {
-		child_adder = NULL;
-		child_finder = NULL;
-		child_remover = NULL;
-		child_finder_destroy = NULL;
-	}
-}
-
-void
-set_child_remover(void (*remover_func)(thread_t *))
-{
-	child_remover = remover_func;
-}
-
-void
-destroy_child_finder(void)
-{
-	set_child_finder(NULL, NULL, NULL, NULL, NULL, 0);
 }
 
 void
@@ -783,12 +668,14 @@ thread_make_master(void)
 	new->timer = RB_ROOT;
 	new->child = RB_ROOT;
 	new->io_events = RB_ROOT;
+	new->child_pid = RB_ROOT;
 	INIT_LIST_HEAD(&new->event);
 #ifdef USE_SIGNAL_THREADS
 	INIT_LIST_HEAD(&new->signal);
 #endif
 	INIT_LIST_HEAD(&new->ready);
 	INIT_LIST_HEAD(&new->unuse);
+
 
 	/* Register timerfd thread */
 	new->timer_fd = timerfd_create(CLOCK_MONOTONIC,
@@ -897,23 +784,8 @@ dump_thread_data(thread_master_t *m, FILE *fp)
 }
 #endif
 
-/* Timer cmp helper */
-static int
-thread_timer_cmp(thread_t *t1, thread_t *t2)
-{
-	if (t1->sands.tv_sec != t2->sands.tv_sec ||
-	    t1->sands.tv_sec == TIMER_DISABLED) {
-		if (t1->sands.tv_sec == TIMER_DISABLED) {
-			if (t2->sands.tv_sec == TIMER_DISABLED)
-				return 0;
-			return 1;
-		}
-		if (t2->sands.tv_sec == TIMER_DISABLED)
-			return -1;
-		return t1->sands.tv_sec - t2->sands.tv_sec;
-	}
-	return t1->sands.tv_usec - t2->sands.tv_usec;
-}
+/* declare thread_timer_cmp() for rbtree compares */
+RB_TIMER_CMP(thread);
 
 /* Free all unused thread. */
 static void
@@ -992,8 +864,7 @@ thread_cleanup_master(thread_master_t * m)
 	thread_destroy_list(m, &m->signal);
 #endif
 	thread_destroy_list(m, &m->ready);
-
-	destroy_child_finder();
+	m->child_pid = RB_ROOT;
 
 	/* Clean garbage */
 	thread_clean_unuse(m);
@@ -1160,8 +1031,6 @@ static void
 thread_read_requeue(thread_master_t *m, int fd, timeval_t new_sands)
 {
 	thread_t *thread;
-	thread_t *prev, *next;
-	rb_node_t *prev_node, *next_node;
 	thread_event_t *event;
 
 	event = thread_event_get(m, fd);
@@ -1172,23 +1041,7 @@ thread_read_requeue(thread_master_t *m, int fd, timeval_t new_sands)
 
 	thread->sands = new_sands;
 
-	prev_node = rb_prev(&thread->n);
-	next_node = rb_next(&thread->n);
-
-	if (!prev_node && !next_node)
-		return;
-
-	prev = rb_entry(prev_node, thread_t, n);
-	next = rb_entry(next_node, thread_t, n);
-
-	/* If new timer is between our predecessor and sucessor, it can stay where it is */
-	if ((!prev || timercmp(&prev->sands, &new_sands, <=)) &&
-	    (!next || timercmp(&next->sands, &new_sands, >=)))
-		return;
-
-	/* Can this be optimised? */
-	rb_erase(&thread->n, &thread->master->read);
-	rb_insert_sort(&thread->master->read, thread, n, thread_timer_cmp);
+	rb_move(&thread->master->read, thread, n, thread_timer_cmp);
 }
 
 void
@@ -1316,8 +1169,6 @@ void
 timer_thread_update_timeout(thread_t *thread, unsigned long timer)
 {
 	timeval_t sands;
-	thread_t *prev, *next;
-	rb_node_t *prev_node, *next_node;
 
 	set_time_now();
 	sands = timer_add_long(time_now, timer);
@@ -1327,23 +1178,7 @@ timer_thread_update_timeout(thread_t *thread, unsigned long timer)
 
 	thread->sands = sands;
 
-	prev_node = rb_prev(&thread->n);
-	next_node = rb_next(&thread->n);
-
-	if (!prev_node && !next_node)
-		return;
-
-	prev = rb_entry(prev_node, thread_t, n);
-	next = rb_entry(next_node, thread_t, n);
-
-	/* If new timer is between our predecessor and sucessor, it can stay where it is */
-	if ((!prev || timercmp(&prev->sands, &sands, <=)) &&
-	    (!next || timercmp(&next->sands, &sands, >=)))
-		return;
-
-	/* Can this be optimised? */
-	rb_erase(&thread->n, &thread->master->timer);
-	rb_insert_sort(&thread->master->timer, thread, n, thread_timer_cmp);
+	rb_move(&thread->master->timer, thread, n, thread_timer_cmp);
 }
 
 thread_t *
@@ -1381,12 +1216,10 @@ thread_add_child(thread_master_t * m, int (*func) (thread_t *), void * arg, pid_
 	}
 
 	/* Sort by timeval. */
-// We may want an rbtree for pid
 	rb_insert_sort(&m->child, thread, n, thread_timer_cmp);
 
-// Do we need this?
-	if (child_adder)
-		child_adder(thread);
+	/* Sort by PID */
+	rb_insert_sort(&m->child_pid, thread, rb_data, thread_child_pid_cmp);
 
 	return thread;
 }
@@ -1513,6 +1346,7 @@ thread_cancel(thread_t *thread)
 		 * This function is currently unused, so leave it for now.
 		 */
 		rb_erase(&thread->n, &m->child);
+		rb_erase(&thread->rb_data, &m->child_pid);
 		break;
 	case THREAD_READY_FD:
 	case THREAD_READ_TIMEOUT:
@@ -1876,6 +1710,7 @@ static void
 process_child_termination(pid_t pid, int status)
 {
 	thread_master_t * m = master;
+	thread_t th = { .u.c.pid = pid };
 	thread_t *thread;
 	bool permanent_vrrp_checker_error = false;
 
@@ -1884,14 +1719,7 @@ process_child_termination(pid_t pid, int status)
 		permanent_vrrp_checker_error = report_child_status(status, pid, NULL);
 #endif
 
-	if (child_finder)
-		thread = child_finder(pid);
-	else {
-		rb_for_each_entry(thread, &m->child, n) {
-			if (pid == thread->u.c.pid)
-				break;
-		}
-	}
+	thread = rb_search(&master->child_pid, &th, rb_data, thread_child_pid_cmp);
 
 #ifdef _EPOLL_DEBUG_
 	if (do_epoll_debug)
@@ -1901,9 +1729,9 @@ process_child_termination(pid_t pid, int status)
 	if (!thread)
 		return;
 
+	rb_erase(&thread->rb_data, &master->child_pid);
+
 	thread->u.c.status = status;
-	if (child_remover)
-		child_remover(thread);
 
 	if (permanent_vrrp_checker_error)
 	{
