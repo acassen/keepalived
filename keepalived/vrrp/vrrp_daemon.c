@@ -81,9 +81,6 @@
 #ifdef _WITH_BFD_
 #include "bfd_daemon.h"
 #endif
-#ifdef _VRRP_FD_DEBUG_
-#include "vrrp_index.h"
-#endif
 
 /* Global variables */
 bool non_existent_interface_specified;
@@ -115,8 +112,29 @@ bool do_vrrp_fd_debug;
 static void
 dump_vrrp_fd(void)
 {
+	element e;
+	sock_t *sock;
+	vrrp_t *vrrp;
+	timeval_t time_diff;
+
 	log_message(LOG_INFO, "----[ Begin VRRP fd dump ]----");
-	dump_mlist(NULL, vrrp_data->vrrp_index_fd, FD_INDEX_SIZE);
+
+	LIST_FOREACH(vrrp_data->vrrp_socket_pool, sock, e) {
+		log_message(LOG_INFO, "  Sockets %d, %d", sock->fd_in, sock->fd_out);
+
+		rb_for_each_entry(vrrp, &sock->rb_sands, rb_sands) {
+			if (vrrp->sands.tv_sec == TIMER_DISABLED)
+				log_message(LOG_INFO, "    %s: sands DISABLED", vrrp->iname);
+			else {
+				timersub(&vrrp->sands, &time_now, &time_diff);
+				log_message(LOG_INFO, "    %s: sands %ld.%6.6ld", vrrp->iname, time_diff.tv_sec, time_diff.tv_usec);
+			}
+		}
+
+		rb_for_each_entry(vrrp, &sock->rb_vrid, rb_vrid)
+			log_message(LOG_INFO, "    %s: vrid %d", vrrp->iname, vrrp->vrid);
+	}
+
 	log_message(LOG_INFO, "----[ End VRRP fd dump ]----");
 }
 #endif

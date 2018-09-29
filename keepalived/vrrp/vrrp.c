@@ -49,7 +49,6 @@
 #include "global_data.h"
 #include "vrrp_data.h"
 #include "vrrp_sync.h"
-#include "vrrp_index.h"
 #include "vrrp_track.h"
 #ifdef _HAVE_VRRP_VMAC_
 #include "vrrp_vmac.h"
@@ -2229,7 +2228,6 @@ new_vrrp_socket(vrrp_t * vrrp)
 
 	/* close the desc & open a new one */
 	close_vrrp_socket(vrrp);
-	remove_vrrp_fd_bucket(vrrp);
 #ifdef _WITH_VRRP_AUTH_
 	if (vrrp->version == VRRP_VERSION_2)
 		proto =(vrrp->auth_type == VRRP_AUTH_AH) ? IPPROTO_AH :
@@ -2245,10 +2243,6 @@ new_vrrp_socket(vrrp_t * vrrp)
 	unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
 	vrrp->fd_in = open_vrrp_read_socket(vrrp->family, proto, ifp, unicast, vrrp->sockets->rx_buf_size);
 	vrrp->fd_out = open_vrrp_send_socket(vrrp->family, proto, ifp, unicast);
-	alloc_vrrp_fd_bucket(vrrp);
-
-	/* Sync the other desc */
-	set_vrrp_fd_bucket(old_fd, vrrp);
 
 	return vrrp->fd_in;
 }

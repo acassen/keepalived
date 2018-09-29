@@ -39,7 +39,6 @@
 #include "vrrp_sync.h"
 #include "vrrp_notify.h"
 #include "vrrp_data.h"
-#include "vrrp_index.h"
 #include "vrrp_arp.h"
 #include "vrrp_ndisc.h"
 #include "vrrp_if.h"
@@ -267,6 +266,9 @@ vrrp_init_state(list l)
 	}
 }
 
+/* Declare vrrp_timer_cmp() rbtree compare function */
+RB_TIMER_CMP(vrrp);
+
 /* Compute the new instance sands */
 void
 vrrp_init_instance_sands(vrrp_t * vrrp)
@@ -289,6 +291,8 @@ vrrp_init_instance_sands(vrrp_t * vrrp)
 	}
 	else if (vrrp->state == VRRP_STATE_FAULT || vrrp->state == VRRP_STATE_INIT)
 		vrrp->sands.tv_sec = TIMER_DISABLED;
+
+	rb_move(&vrrp->sockets->rb_sands, vrrp, rb_sands, vrrp_timer_cmp);
 }
 
 static void
@@ -297,9 +301,9 @@ vrrp_init_sands(list l)
 	vrrp_t *vrrp;
 	element e;
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
-
+	LIST_FOREACH(l, vrrp, e) {
+		vrrp->sands.tv_sec = TIMER_DISABLED;
+		rb_insert_sort(&vrrp->sockets->rb_sands, vrrp, rb_sands, vrrp_timer_cmp);
 		vrrp_init_instance_sands(vrrp);
 		vrrp->reload_master = false;
 	}
@@ -323,99 +327,41 @@ vrrp_init_script(list l)
 
 /* Timer functions */
 static timeval_t
-vrrp_compute_timer(const int fd)
+vrrp_compute_timer(const sock_t *sock)
 {
 	vrrp_t *vrrp;
-	element e;
-	list l = &vrrp_data->vrrp_index_fd[FD_INDEX_HASH(fd)];
 	timeval_t timer = { .tv_sec = TIMER_DISABLED };
 
-	/*
-	 * If list size is 1 then no collisions. So
-	 * Test and return the singleton.
-	 */
-	if (LIST_SIZE(l) == 1) {
-		vrrp = ELEMENT_DATA(LIST_HEAD(l));
-
-		if (vrrp->sockets->fd_in != fd)
-			return timer;
-
+	/* The sock won't exist if there isn't a vrrp instance on it,
+	 * so rb_first will always exist. */
+	vrrp = rb_entry(rb_first(&sock->rb_sands), vrrp_t, rb_sands);
+	if (vrrp)
 		return vrrp->sands;
-	}
-
-	/* Multiple instances on the same interface */
-	LIST_FOREACH(l, vrrp, e) {
-		if (vrrp->sockets->fd_in != fd)
-			continue;
-		if (vrrp->sands.tv_sec != TIMER_DISABLED &&
-		    (timer.tv_sec == TIMER_DISABLED ||
-		     timercmp(&vrrp->sands, &timer, <)))
-			timer = vrrp->sands;
-	}
 
 	return timer;
 }
 
 static unsigned long
-vrrp_timer_fd(const int fd)
+vrrp_timer_fd(const sock_t *sock)
 {
 	timeval_t timer;
 
-	timer = vrrp_compute_timer(fd);
-// TODO - if the result of the following test is -ve, then a thread has already expired
-// and so shouldn't we run straight away? Or else ignore timers in past and take the next
-// one in the future?
+	timer = vrrp_compute_timer(sock);
 	if (timer.tv_sec == TIMER_DISABLED)
-		return ULONG_MAX;
+		return TIMER_NEVER;
 	if (timercmp(&timer, &time_now, <))
-		return TIMER_MAX_SEC;
+		return 0;
 
 	timersub(&timer, &time_now, &timer);
+
 	return timer_long(timer);
 }
 
 void
 vrrp_thread_requeue_read(vrrp_t *vrrp)
 {
-	thread_requeue_read(master, vrrp->sockets->fd_in, vrrp_timer_fd(vrrp->sockets->fd_in));
+	thread_requeue_read(master, vrrp->sockets->fd_in, vrrp_timer_fd(vrrp->sockets));
 }
-
-void
-vrrp_thread_requeue_read_relative(vrrp_t *vrrp, uint32_t timer)
-{
-	vrrp->sands = timer_sub_long(vrrp->sands, timer);
-	if (timercmp(&vrrp->sands, &time_now, <))
-		vrrp->sands = time_now;
-
-	vrrp_thread_requeue_read(vrrp);
-}
-
-#ifdef _INCLUDE_UNUSED_CODE_
-// TODO //static int
-static vrrp_t *
-vrrp_timer_timeout(const int fd)
-{
-	vrrp_t *vrrp;
-	element e;
-	list l = &vrrp_data->vrrp_index_fd[FD_INDEX_HASH(fd)];
-	timeval_t timer;
-	vrrp_t *best_vrrp = NULL;
-
-	/* Multiple instances on the same interface */
-	timerclear(&timer);
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
-		if (vrrp->fd_in == fd &&
-		    (!timerisset(&timer) ||
-		     timercmp(&vrrp->sands, &timer, <))) {
-			timer = vrrp->sands;
-			best_vrrp = vrrp;
-		}
-	}
-
-	return best_vrrp;
-}
-#endif
 
 /* Thread functions */
 static void
@@ -451,7 +397,7 @@ vrrp_register_workers(list l)
 	/* Register VRRP workers threads */
 	LIST_FOREACH(l, sock, e) {
 		/* jump to asynchronous handling */
-		vrrp_timer = vrrp_timer_fd(sock->fd_in);
+		vrrp_timer = vrrp_timer_fd(sock);
 
 		/* Register a timer thread if interface exists */
 		if (sock->fd_in != -1)
@@ -464,7 +410,7 @@ void
 vrrp_thread_add_read(vrrp_t *vrrp)
 {
 	vrrp->sockets->thread = thread_add_read(master, vrrp_read_dispatcher_thread,
-						vrrp->sockets, vrrp->sockets->fd_in, vrrp_timer_fd(vrrp->sockets->fd_in));
+						vrrp->sockets, vrrp->sockets->fd_in, vrrp_timer_fd(vrrp->sockets));
 }
 
 /* VRRP dispatcher functions */
@@ -496,6 +442,7 @@ alloc_sock(sa_family_t family, list l, int proto, ifindex_t ifindex, bool unicas
 	new->ifindex = ifindex;
 	new->unicast = unicast;
 	new->rb_vrid = RB_ROOT;
+	new->rb_sands = RB_ROOT;
 
 	list_add(l, new);
 
@@ -581,12 +528,8 @@ vrrp_set_fds(list l)
 	element e;
 
 	LIST_FOREACH(l, sock, e) {
-		rb_for_each_entry(vrrp, &sock->rb_vrid, rb_vrid) {
+		rb_for_each_entry(vrrp, &sock->rb_vrid, rb_vrid)
 			vrrp->sockets = sock;
-
-			/* append to hash index */
-			alloc_vrrp_fd_bucket(vrrp);
-		}
 	}
 }
 
@@ -636,20 +579,6 @@ vrrp_dispatcher_release(vrrp_data_t *data)
 #ifdef _WITH_BFD_
 	thread_cancel(bfd_thread);
 #endif
-}
-
-static void
-vrrp_backup(vrrp_t * vrrp, char *buffer, ssize_t len)
-{
-	vrrp_state_backup(vrrp, buffer, len);
-}
-
-/* This is called if receive a packet when master */
-static void
-vrrp_leave_master(vrrp_t * vrrp, char *buffer, ssize_t len)
-{
-	if (vrrp_state_master_rx(vrrp, buffer, len))
-		vrrp_state_leave_master(vrrp, false);
 }
 
 static void
@@ -828,23 +757,17 @@ vrrp_bfd_thread(thread_t * thread)
 
 /* Handle dispatcher read timeout */
 static int
-vrrp_dispatcher_read_timeout(int fd)
+vrrp_dispatcher_read_timeout(sock_t *sock)
 {
 	vrrp_t *vrrp;
 	int prev_state;
-	element e;
-	list l = &vrrp_data->vrrp_index_fd[FD_INDEX_HASH(fd)];
 
 	set_time_now();
 
-	/* Multiple instances on the same interface */
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
-		if (vrrp->sockets->fd_in != fd)
-			continue;
-
-		if (timercmp(&vrrp->sands, &time_now, >))
-			continue;
+	rb_for_each_entry(vrrp, &sock->rb_sands, rb_sands) {
+		if (vrrp->sands.tv_sec == TIMER_DISABLED ||
+		    timercmp(&vrrp->sands, &time_now, >))
+			break;
 
 		prev_state = vrrp->state;
 
@@ -867,7 +790,7 @@ vrrp_dispatcher_read_timeout(int fd)
 		vrrp_init_instance_sands(vrrp);
 	}
 
-	return fd;
+	return sock->fd_in;
 }
 
 /* Handle dispatcher read packet */
@@ -910,10 +833,11 @@ vrrp_dispatcher_read(sock_t * sock)
 	prev_state = vrrp->state;
 
 	if (vrrp->state == VRRP_STATE_BACK)
-		vrrp_backup(vrrp, vrrp_buffer, len);
-	else if (vrrp->state == VRRP_STATE_MAST)
-		vrrp_leave_master(vrrp, vrrp_buffer, len);
-	else
+		vrrp_state_backup(vrrp, vrrp_buffer, len);
+	else if (vrrp->state == VRRP_STATE_MAST) {
+		if (vrrp_state_master_rx(vrrp, vrrp_buffer, len))
+			vrrp_state_leave_master(vrrp, false);
+	} else
 		log_message(LOG_INFO, "(%s) In dispatcher_read with state %d", vrrp->iname, vrrp->state);
 
 	/* handle instance synchronization */
@@ -935,7 +859,6 @@ vrrp_dispatcher_read(sock_t * sock)
 static int
 vrrp_read_dispatcher_thread(thread_t * thread)
 {
-	unsigned long vrrp_timer;
 	sock_t *sock;
 	int fd;
 
@@ -944,15 +867,14 @@ vrrp_read_dispatcher_thread(thread_t * thread)
 
 	/* Dispatcher state handler */
 	if (thread->type == THREAD_READ_TIMEOUT || sock->fd_in == -1)
-		fd = vrrp_dispatcher_read_timeout(sock->fd_in);
+		fd = vrrp_dispatcher_read_timeout(sock);
 	else
 		fd = vrrp_dispatcher_read(sock);
 
 	/* register next dispatcher thread */
-	vrrp_timer = vrrp_timer_fd(fd);
 	if (fd != -1)
 		sock->thread = thread_add_read(thread->master, vrrp_read_dispatcher_thread,
-					       sock, fd, vrrp_timer);
+					       sock, fd, vrrp_timer_fd(sock));
 
 	return 0;
 }

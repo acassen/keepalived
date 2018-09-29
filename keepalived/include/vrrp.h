@@ -310,8 +310,11 @@ typedef struct _vrrp_t {
 	 */
 	int			ip_id;
 
-	/* RB tree for receiving data */
+	/* RB tree on a sock_t for receiving data */
 	rb_node_t		rb_vrid;
+
+	/* RB tree on a sock_t for vrrp sands */
+	rb_node_t		rb_sands;
 } vrrp_t;
 
 /* VRRP state machine -- rfc2338.6.4 */

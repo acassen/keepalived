@@ -54,6 +54,7 @@
 #include "logger.h"
 #include "bitops.h"
 #include "git-commit.h"
+#include "timer.h"
 #if !HAVE_EPOLL_CREATE1 || !defined TFD_NONBLOCK
 #include "old_socket.h"
 #endif
@@ -783,24 +784,8 @@ dump_thread_data(thread_master_t *m, FILE *fp)
 }
 #endif
 
-/* Timer cmp helper */
-static inline int
-thread_timer_cmp(thread_t *t1, thread_t *t2)
-{
-	if (t1->sands.tv_sec == TIMER_DISABLED) {
-		if (t2->sands.tv_sec == TIMER_DISABLED)
-			return 0;
-		return 1;
-	}
-
-	if (t2->sands.tv_sec == TIMER_DISABLED)
-		return -1;
-
-	if (t1->sands.tv_sec != t2->sands.tv_sec)
-		return t1->sands.tv_sec - t2->sands.tv_sec;
-
-	return t1->sands.tv_usec - t2->sands.tv_usec;
-}
+/* declare thread_timer_cmp() for rbtree compares */
+RB_TIMER_CMP(thread);
 
 /* Free all unused thread. */
 static void
@@ -1046,8 +1031,6 @@ static void
 thread_read_requeue(thread_master_t *m, int fd, timeval_t new_sands)
 {
 	thread_t *thread;
-	thread_t *prev, *next;
-	rb_node_t *prev_node, *next_node;
 	thread_event_t *event;
 
 	event = thread_event_get(m, fd);
@@ -1058,23 +1041,7 @@ thread_read_requeue(thread_master_t *m, int fd, timeval_t new_sands)
 
 	thread->sands = new_sands;
 
-	prev_node = rb_prev(&thread->n);
-	next_node = rb_next(&thread->n);
-
-	if (!prev_node && !next_node)
-		return;
-
-	prev = rb_entry(prev_node, thread_t, n);
-	next = rb_entry(next_node, thread_t, n);
-
-	/* If new timer is between our predecessor and sucessor, it can stay where it is */
-	if ((!prev || timercmp(&prev->sands, &new_sands, <=)) &&
-	    (!next || timercmp(&next->sands, &new_sands, >=)))
-		return;
-
-	/* Can this be optimised? */
-	rb_erase(&thread->n, &thread->master->read);
-	rb_insert_sort(&thread->master->read, thread, n, thread_timer_cmp);
+	rb_move(&thread->master->read, thread, n, thread_timer_cmp);
 }
 
 void
@@ -1202,8 +1169,6 @@ void
 timer_thread_update_timeout(thread_t *thread, unsigned long timer)
 {
 	timeval_t sands;
-	thread_t *prev, *next;
-	rb_node_t *prev_node, *next_node;
 
 	set_time_now();
 	sands = timer_add_long(time_now, timer);
@@ -1213,23 +1178,7 @@ timer_thread_update_timeout(thread_t *thread, unsigned long timer)
 
 	thread->sands = sands;
 
-	prev_node = rb_prev(&thread->n);
-	next_node = rb_next(&thread->n);
-
-	if (!prev_node && !next_node)
-		return;
-
-	prev = rb_entry(prev_node, thread_t, n);
-	next = rb_entry(next_node, thread_t, n);
-
-	/* If new timer is between our predecessor and sucessor, it can stay where it is */
-	if ((!prev || timercmp(&prev->sands, &sands, <=)) &&
-	    (!next || timercmp(&next->sands, &sands, >=)))
-		return;
-
-	/* Can this be optimised? */
-	rb_erase(&thread->n, &thread->master->timer);
-	rb_insert_sort(&thread->master->timer, thread, n, thread_timer_cmp);
+	rb_move(&thread->master->timer, thread, n, thread_timer_cmp);
 }
 
 thread_t *
