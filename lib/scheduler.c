@@ -245,7 +245,7 @@ thread_update_timer(rb_root_t *root, timeval_t *timer_min)
 	if (!root->rb_node)
 		return;
 
-	first = rb_entry(rb_first(root), thread_t, n);
+	first = rb_entry_safe(rb_first(root), thread_t, n);
 	if (!first)
 		return;
 
