@@ -719,8 +719,13 @@ timer_delay(timeval_t sands)
 	if (sands.tv_sec == 0 && sands.tv_usec == 0)
 		return "UNSET";
 
-	sands = timer_sub_now(sands);
-	snprintf(str, sizeof str, "%lu.%6.6ld", sands.tv_sec, sands.tv_usec);
+	if (timercmp(&sands, &time_now, >=)) {
+		sands = timer_sub_now(sands);
+		snprintf(str, sizeof str, "%lu.%6.6ld", sands.tv_sec, sands.tv_usec);
+	} else {
+		timersub(&time_now, &sands, &sands);
+		snprintf(str, sizeof str, "-%lu.%6.6ld", sands.tv_sec, sands.tv_usec);
+	}
 
 	return str;
 }

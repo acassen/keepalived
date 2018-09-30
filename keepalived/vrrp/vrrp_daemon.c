@@ -127,7 +127,10 @@ dump_vrrp_fd(void)
 				log_message(LOG_INFO, "    %s: sands DISABLED", vrrp->iname);
 			else {
 				timersub(&vrrp->sands, &time_now, &time_diff);
-				log_message(LOG_INFO, "    %s: sands %ld.%6.6ld", vrrp->iname, time_diff.tv_sec, time_diff.tv_usec);
+				if (time_diff.tv_sec >= 0)
+					log_message(LOG_INFO, "    %s: sands %ld.%6.6ld", vrrp->iname, time_diff.tv_sec, time_diff.tv_usec);
+				else
+					log_message(LOG_INFO, "    %s: sands -%ld.%6.6ld", vrrp->iname, -time_diff.tv_sec - (time_diff.tv_usec ? 1 : 0), time_diff.tv_usec ? 1000000 - time_diff.tv_usec : 0);
 			}
 		}
 
