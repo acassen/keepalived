@@ -162,122 +162,122 @@ static inline void rb_link_node_rcu(struct rb_node *node, struct rb_node *parent
 /* The following are keepalived specific code */
 
 /**
- * rb_search -  Search for a specific value in rbtree
- * @root:       the rbtree root.
- * @key:        the key to seach for in your rbtree.
- * @member:     the name of the rb_node within the struct.
- * @compar:     the name of the comparison function to use.
+ * rb_search -	Search for a specific value in rbtree
+ * @root:	the rbtree root.
+ * @key:	the key to seach for in your rbtree.
+ * @member:	the name of the rb_node within the struct.
+ * @compar:	the name of the comparison function to use.
  */
-#define rb_search(root, key, member, compar)                            \
-({                                                                      \
-        rb_node_t *__n = (root)->rb_node;                               \
-        typeof(key) __ret = NULL, __data;                               \
-                                                                        \
-        while (__n) {                                                   \
-                __data = rb_entry(__n, typeof(*key), member);           \
-                int __cmp = compar(key, __data);                        \
-                                                                        \
-                if (__cmp < 0)                                          \
-                        __n = __n->rb_left;                             \
-                else if (__cmp > 0)                                     \
-                        __n = __n->rb_right;                            \
-                else {                                                  \
-                        __ret = __data;                                 \
-                        break;                                          \
-                }                                                       \
-        }                                                               \
-        __ret;                                                          \
-})
-
-/**
- * rb_search_first -  Search for the first greater value in rbtree
- * @root:             the rbtree root.
- * @key:              the key to seach for in your rbtree.
- * @member:           the name of the rb_node within the struct.
- * @compar:           the name of the comparison function to use.
- */
-#define rb_search_first(root, key, member, compar)		\
-({                                                                      \
-        rb_node_t *__n = (root)->rb_node;				\
-        typeof(key) __ret = NULL, __data;                               \
-                                                                        \
-        while (__n) {                                                   \
-                __data = rb_entry(__n, typeof(*key), member);           \
-                int __cmp = compar(key, __data);                        \
-                                                                        \
-                if (__cmp < 0) {                                        \
-                        __ret = __data;                                 \
-                        __n = __n->rb_left;                             \
-                } else if (__cmp > 0)                                   \
-                        __n = __n->rb_right;                            \
-                else {                                                  \
-                        __ret = __data;                                 \
-                        break;                                          \
-                }                                                       \
-        }                                                               \
-        if (!__ret && !RB_EMPTY_ROOT(root))                             \
-                __ret = rb_entry(rb_first(root), typeof(*key), member); \
-        __ret;                                                          \
-})
-
-/**
- * rb_insert -  Insert a new node into your rbtree
- * @root:       the rbtree root.
- * @new:        the node to insert.
- * @member:     the name of the rb_node within the struct.
- * @compar:     the name of the comparison function to use.
- */
-#define rb_insert(root, new, member, compar)                            \
-({                                                                      \
-        rb_node_t **__n = &(root)->rb_node, *__parent = NULL;           \
-        typeof(new) __old = NULL, __data;                               \
-                                                                        \
-        while (*__n) {                                                  \
-                __data = rb_entry(*__n, typeof(*new), member);          \
-                int __cmp = compar(new, __data);                        \
-                                                                        \
-                __parent = *__n;                                        \
-                if (__cmp < 0)                                          \
-                        __n = &((*__n)->rb_left);                       \
-                else if (__cmp > 0)                                     \
-                        __n = &((*__n)->rb_right);                      \
-                else {                                                  \
-                        __old = __data;                                 \
-                        break;                                          \
-                }                                                       \
-        }                                                               \
-                                                                        \
-        if (__old == NULL) {                                            \
-                /* Add new node and rebalance tree. */                  \
-                rb_link_node(&((new)->member), __parent, __n);          \
-                rb_insert_color(&((new)->member), root);                \
-        }                                                               \
-                                                                        \
-        __old;                                                          \
-})
-
-/**
- * rb_insert -  Insert & Sort a new node into your rbtree
- * @root:       the rbtree root.
- * @new:        the node to insert.
- * @member:     the name of the rb_node within the struct.
- * @compar:     the name of the comparison function to use.
- */
-#define rb_insert_sort(root, new, member, compar)				\
+#define rb_search(root, key, member, compar)				\
 ({									\
-        rb_node_t **__n = &(root)->rb_node, *__parent = NULL;		\
-        typeof(new) __data;						\
+	rb_node_t *__n = (root)->rb_node;				\
+	typeof(key) __ret = NULL, __data;				\
 									\
-        while (*__n) {							\
-                __data = rb_entry(*__n, typeof(*new), member);		\
-                int __cmp = compar(new, __data);			\
+	while (__n) {							\
+		__data = rb_entry(__n, typeof(*key), member);		\
+		int __cmp = compar(key, __data);			\
 									\
-                __parent = *__n;					\
-                if (__cmp <= 0)						\
-                        __n = &((*__n)->rb_left);			\
-                else if (__cmp > 0)					\
-                        __n = &((*__n)->rb_right);			\
-        }								\
+		if (__cmp < 0)						\
+			__n = __n->rb_left;				\
+		else if (__cmp > 0)					\
+			__n = __n->rb_right;				\
+		else {							\
+			__ret = __data;					\
+			break;						\
+		}							\
+	}								\
+	__ret;								\
+})
+
+/**
+ * rb_search_first -	Search for the first greater value in rbtree
+ * @root:		the rbtree root.
+ * @key:		the key to seach for in your rbtree.
+ * @member:		the name of the rb_node within the struct.
+ * @compar:		the name of the comparison function to use.
+ */
+#define rb_search_first(root, key, member, compar)			\
+({									\
+	rb_node_t *__n = (root)->rb_node;				\
+	typeof(key) __ret = NULL, __data;				\
+									\
+	while (__n) {							\
+		__data = rb_entry(__n, typeof(*key), member);		\
+		int __cmp = compar(key, __data);			\
+									\
+		if (__cmp < 0) {					\
+			__ret = __data;					\
+			__n = __n->rb_left;				\
+		} else if (__cmp > 0)					\
+			__n = __n->rb_right;				\
+		else {							\
+			__ret = __data;					\
+			break;						\
+		}							\
+	}								\
+	if (!__ret && !RB_EMPTY_ROOT(root))				\
+		__ret = rb_entry(rb_first(root), typeof(*key), member); \
+	__ret;								\
+})
+
+/**
+ * rb_insert -	Insert a new node into your rbtree
+ * @root:	the rbtree root.
+ * @new:	the node to insert.
+ * @member:	the name of the rb_node within the struct.
+ * @compar:	the name of the comparison function to use.
+ */
+#define rb_insert(root, new, member, compar)				\
+({									\
+	rb_node_t **__n = &(root)->rb_node, *__parent = NULL;		\
+	typeof(new) __old = NULL, __data;				\
+									\
+	while (*__n) {							\
+		__data = rb_entry(*__n, typeof(*new), member);		\
+		int __cmp = compar(new, __data);			\
+									\
+		__parent = *__n;					\
+		if (__cmp < 0)						\
+			__n = &((*__n)->rb_left);			\
+		else if (__cmp > 0)					\
+			__n = &((*__n)->rb_right);			\
+		else {							\
+			__old = __data;					\
+			break;						\
+		}							\
+	}								\
+									\
+	if (__old == NULL) {						\
+		/* Add new node and rebalance tree. */			\
+		rb_link_node(&((new)->member), __parent, __n);		\
+		rb_insert_color(&((new)->member), root);		\
+	}								\
+									\
+	__old;								\
+})
+
+/**
+ * rb_insert -	Insert & Sort a new node into your rbtree
+ * @root:	the rbtree root.
+ * @new:	the node to insert.
+ * @member:	the name of the rb_node within the struct.
+ * @compar:	the name of the comparison function to use.
+ */
+#define rb_insert_sort(root, new, member, compar)			\
+({									\
+	rb_node_t **__n = &(root)->rb_node, *__parent = NULL;		\
+	typeof(new) __data;						\
+									\
+	while (*__n) {							\
+		__data = rb_entry(*__n, typeof(*new), member);		\
+		int __cmp = compar(new, __data);			\
+									\
+		__parent = *__n;					\
+		if (__cmp <= 0)						\
+			__n = &((*__n)->rb_left);			\
+		else if (__cmp > 0)					\
+			__n = &((*__n)->rb_right);			\
+	}								\
 									\
 	/* Add new node and rebalance tree. */				\
 	rb_link_node(&((new)->member), __parent, __n);			\
@@ -286,30 +286,30 @@ static inline void rb_link_node_rcu(struct rb_node *node, struct rb_node *parent
 
 /**
  * rb_for_each_entry -  Iterate over rbtree of given type
- * @pos:                the type * to use as a loop cursor.
- * @root:               the rbtree root.
- * @member:             the name of the rb_node within the struct.
+ * @pos:		the type * to use as a loop cursor.
+ * @root:		the rbtree root.
+ * @member:		the name of the rb_node within the struct.
  */
 #define rb_for_each_entry(pos, root, member)				\
-	for (pos = rb_entry(rb_first(root), typeof(*pos), member);	\
-	     pos; pos = rb_entry(rb_next(&pos->member), typeof(*pos), member))
+	for (pos = rb_entry_safe(rb_first(root), typeof(*pos), member);	\
+	     pos; pos = rb_entry_safe(rb_next(&pos->member), typeof(*pos), member))
 
 /**
- * rb_for_each_entry_safe -  Iterate over rbtree of given type safe against removal
- * @pos:                     the type * to use as a loop cursor.
- * @root:                    the rbtree root.
- * @member:                  the name of the rb_node within the struct.
+ * rb_for_each_entry_safe - 	Iterate over rbtree of given type safe against removal
+ * @pos:			the type * to use as a loop cursor.
+ * @root:			the rbtree root.
+ * @member:			the name of the rb_node within the struct.
  */
-#define rb_for_each_entry_safe(pos, n, root, member)				\
-	for (pos = rb_entry(rb_first(root), typeof(*pos), member);		\
-	     pos && (n = rb_entry(rb_next(&pos->member), typeof(*n), member), 1);	\
+#define rb_for_each_entry_safe(pos, n, root, member)					\
+	for (pos = rb_entry_safe(rb_first(root), typeof(*pos), member);			\
+	     pos && (n = rb_entry_safe(rb_next(&pos->member), typeof(*n), member), 1);	\
 	     pos = n)
 
 /**
- * rb_for_each_entry_from -  Iterate over rbtree of given type from the given point
- * @pos:                     the type * to use as a loop cursor.
- * @root:                    the rbtree root.
- * @member:                  the name of the rb_node within the struct.
+ * rb_for_each_entry_from -	Iterate over rbtree of given type from the given point
+ * @pos:			the type * to use as a loop cursor.
+ * @root:			the rbtree root.
+ * @member:			the name of the rb_node within the struct.
  */
 #define rb_for_each_entry_from(pos, root, member)			\
 	for (rb_node_t *n = &pos->member;				\
@@ -318,22 +318,22 @@ static inline void rb_link_node_rcu(struct rb_node *node, struct rb_node *parent
 
 /**
  * rb_move -    Move node to new position in tree
- * @root:       the rbtree root.
- * @node:       the node to move.
- * @member:     the name of the rb_node within the struct.
- * @compar:     the name of the comparison function to use.
+ * @root:	the rbtree root.
+ * @node:	the node to move.
+ * @member:	the name of the rb_node within the struct.
+ * @compar:	the name of the comparison function to use.
  */
 #define rb_move(root, node, member, compar)					\
 ({										\
 	rb_node_t *prev_node, *next_node;					\
-	typeof(node) prev = NULL, next = NULL;					\
+	typeof(node) prev, next;						\
 										\
 	prev_node = rb_prev(&node->member);					\
 	next_node = rb_next(&node->member);					\
 										\
 	if (prev_node || next_node) {						\
-		prev = rb_entry(prev_node, typeof(*node), member);		\
-		next = rb_entry(next_node, typeof(*node), member);		\
+		prev = rb_entry_safe(prev_node, typeof(*node), member);		\
+		next = rb_entry_safe(next_node, typeof(*node), member);		\
 										\
 		/* If node is between our predecessor and sucessor,		\
 		 * it can stay where it is */					\
