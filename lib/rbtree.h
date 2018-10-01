@@ -366,6 +366,36 @@ static inline void rb_link_node_rcu(struct rb_node *node, struct rb_node *parent
 	     n = rb_next(n))
 
 /**
+ * rb_move -	Move node to new position in tree
+ * @root:	the rbtree root.
+ * @node:	the node to move.
+ * @member:	the name of the rb_node within the struct.
+ * @compar:	the name of the comparison function to use.
+ */
+#define rb_move(root, node, member, compar)					\
+({										\
+	rb_node_t *prev_node, *next_node;					\
+	typeof(node) prev, next;						\
+										\
+	prev_node = rb_prev(&node->member);					\
+	next_node = rb_next(&node->member);					\
+										\
+	if (prev_node || next_node) {						\
+		prev = rb_entry_safe(prev_node, typeof(*node), member);		\
+		next = rb_entry_safe(next_node, typeof(*node), member);		\
+										\
+		/* If node is between our predecessor and sucessor,		\
+		 * it can stay where it is */					\
+		if ((prev && compar(prev, node) > 0) ||				\
+		    (next && compar(next, node) < 0)) {				\
+			/* Can this be optimised? */				\
+			rb_erase(&node->member, root);				\
+			rb_insert_sort(root, node, member, compar);		\
+		}								\
+	}									\
+})
+
+/**
  * rb_move_cached -	Move node to new position in tree
  * @root:		the rbtree root.
  * @node:		the node to move.
