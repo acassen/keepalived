@@ -51,10 +51,10 @@ typedef struct rb_root {
  * Furthermore, users that want to cache both pointers may
  * find it a bit asymmetric, but that's ok.
  */
-struct rb_root_cached {
+typedef struct rb_root_cached {
 	struct rb_root rb_root;
 	struct rb_node *rb_leftmost;
-};
+} rb_root_cached_t;
 
 /* Copy from linux kernel 2.6 source (kernel.h, stddef.h) */
 #ifndef container_of
@@ -285,6 +285,34 @@ static inline void rb_link_node_rcu(struct rb_node *node, struct rb_node *parent
 })
 
 /**
+ * rb_insert_cached - Insert & Sort a new node into your cached rbtree
+ * @root:       the rbtree root.
+ * @new:        the node to insert.
+ * @member:     the name of the rb_node within the struct.
+ * @compar:     the name of the comparison function to use.
+ */
+#define rb_insert_sort_cached(root, new, member, compar)		\
+({									\
+        rb_node_t **__n = &(root)->rb_root.rb_node, *__parent = NULL;	\
+        typeof(new) __data;						\
+									\
+        while (*__n) {							\
+                __data = rb_entry(*__n, typeof(*new), member);		\
+                int __cmp = compar(new, __data);			\
+									\
+                __parent = *__n;					\
+                if (__cmp <= 0)						\
+                        __n = &((*__n)->rb_left);			\
+                else if (__cmp > 0)					\
+                        __n = &((*__n)->rb_right);			\
+        }								\
+	/* Add new node and rebalance tree. */				\
+	rb_link_node(&((new)->member), __parent, __n);			\
+	rb_insert_color_cached(&((new)->member), root,			\
+				!(root)->rb_leftmost || __n == &(root)->rb_leftmost->rb_left);	\
+})
+
+/**
  * rb_for_each_entry -  Iterate over rbtree of given type
  * @pos:		the type * to use as a loop cursor.
  * @root:		the rbtree root.
@@ -306,6 +334,27 @@ static inline void rb_link_node_rcu(struct rb_node *node, struct rb_node *parent
 	     pos = n)
 
 /**
+ * rb_for_each_entry_cached -  Iterate over cached rbtree of given type
+ * @pos:                the type * to use as a loop cursor.
+ * @root:               the rbtree root.
+ * @member:             the name of the rb_node within the struct.
+ */
+#define rb_for_each_entry_cached(pos, root, member)				\
+	for (pos = rb_entry_safe(rb_first_cached(root), typeof(*pos), member);	\
+	     pos; pos = rb_entry_safe(rb_next(&pos->member), typeof(*pos), member))
+
+/**
+ * rb_for_each_entry_safe_cached - Iterate over cached rbtree of given type
+ * @pos:                the type * to use as a loop cursor.
+ * @root:               the rbtree root.
+ * @member:             the name of the rb_node within the struct.
+ */
+#define rb_for_each_entry_safe_cached(pos, n, root, member)				\
+	for (pos = rb_entry_safe(rb_first_cached(root), typeof(*pos), member);		\
+	     pos && (n = rb_entry_safe(rb_next(&pos->member), typeof(*n), member), 1);	\
+	     pos = n)
+
+/**
  * rb_for_each_entry_from -	Iterate over rbtree of given type from the given point
  * @pos:			the type * to use as a loop cursor.
  * @root:			the rbtree root.
@@ -317,13 +366,13 @@ static inline void rb_link_node_rcu(struct rb_node *node, struct rb_node *parent
 	     n = rb_next(n))
 
 /**
- * rb_move -    Move node to new position in tree
- * @root:	the rbtree root.
- * @node:	the node to move.
- * @member:	the name of the rb_node within the struct.
- * @compar:	the name of the comparison function to use.
+ * rb_move_cached -	Move node to new position in tree
+ * @root:		the rbtree root.
+ * @node:		the node to move.
+ * @member:		the name of the rb_node within the struct.
+ * @compar:		the name of the comparison function to use.
  */
-#define rb_move(root, node, member, compar)					\
+#define rb_move_cached(root, node, member, compar)				\
 ({										\
 	rb_node_t *prev_node, *next_node;					\
 	typeof(node) prev, next;						\
@@ -340,8 +389,8 @@ static inline void rb_link_node_rcu(struct rb_node *node, struct rb_node *parent
 		if ((prev && compar(prev, node) > 0) ||				\
 		    (next && compar(next, node) < 0)) {				\
 			/* Can this be optimised? */				\
-			rb_erase(&node->member, root);				\
-			rb_insert_sort(root, node, member, compar);		\
+			rb_erase_cached(&node->member, root);			\
+			rb_insert_sort_cached(root, node, member, compar);	\
 		}								\
 	}									\
 })
