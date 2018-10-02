@@ -326,41 +326,25 @@ vrrp_init_script(list l)
 }
 
 /* Timer functions */
-static timeval_t
+static timeval_t *
 vrrp_compute_timer(const sock_t *sock)
 {
 	vrrp_t *vrrp;
-	timeval_t timer = { .tv_sec = TIMER_DISABLED };
+	static timeval_t timer = { .tv_sec = TIMER_DISABLED };
 
 	/* The sock won't exist if there isn't a vrrp instance on it,
 	 * so rb_first will always exist. */
 	vrrp = rb_entry(rb_first_cached(&sock->rb_sands), vrrp_t, rb_sands);
 	if (vrrp)
-		return vrrp->sands;
+		return &vrrp->sands;
 
-	return timer;
-}
-
-static unsigned long
-vrrp_timer_fd(const sock_t *sock)
-{
-	timeval_t timer;
-
-	timer = vrrp_compute_timer(sock);
-	if (timer.tv_sec == TIMER_DISABLED)
-		return TIMER_NEVER;
-	if (timercmp(&timer, &time_now, <))
-		return 0;
-
-	timersub(&timer, &time_now, &timer);
-
-	return timer_long(timer);
+	return &timer;
 }
 
 void
 vrrp_thread_requeue_read(vrrp_t *vrrp)
 {
-	thread_requeue_read(master, vrrp->sockets->fd_in, vrrp_timer_fd(vrrp->sockets));
+	thread_requeue_read(master, vrrp->sockets->fd_in, vrrp_compute_timer(vrrp->sockets));
 }
 
 /* Thread functions */
@@ -369,7 +353,6 @@ vrrp_register_workers(list l)
 {
 	sock_t *sock;
 	timeval_t timer;
-	unsigned long vrrp_timer;
 	element e;
 
 	/* Init compute timer */
@@ -396,21 +379,18 @@ vrrp_register_workers(list l)
 
 	/* Register VRRP workers threads */
 	LIST_FOREACH(l, sock, e) {
-		/* jump to asynchronous handling */
-		vrrp_timer = vrrp_timer_fd(sock);
-
 		/* Register a timer thread if interface exists */
 		if (sock->fd_in != -1)
-			sock->thread = thread_add_read(master, vrrp_read_dispatcher_thread,
-						       sock, sock->fd_in, vrrp_timer);
+			sock->thread = thread_add_read_sands(master, vrrp_read_dispatcher_thread,
+						       sock, sock->fd_in, vrrp_compute_timer(sock));
 	}
 }
 
 void
 vrrp_thread_add_read(vrrp_t *vrrp)
 {
-	vrrp->sockets->thread = thread_add_read(master, vrrp_read_dispatcher_thread,
-						vrrp->sockets, vrrp->sockets->fd_in, vrrp_timer_fd(vrrp->sockets));
+	vrrp->sockets->thread = thread_add_read_sands(master, vrrp_read_dispatcher_thread,
+						vrrp->sockets, vrrp->sockets->fd_in, vrrp_compute_timer(vrrp->sockets));
 }
 
 /* VRRP dispatcher functions */
@@ -873,8 +853,8 @@ vrrp_read_dispatcher_thread(thread_t * thread)
 
 	/* register next dispatcher thread */
 	if (fd != -1)
-		sock->thread = thread_add_read(thread->master, vrrp_read_dispatcher_thread,
-					       sock, fd, vrrp_timer_fd(sock));
+		sock->thread = thread_add_read_sands(thread->master, vrrp_read_dispatcher_thread,
+					       sock, fd, vrrp_compute_timer(sock));
 
 	return 0;
 }

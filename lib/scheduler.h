@@ -217,9 +217,10 @@ extern void dump_thread_data(thread_master_t *, FILE *);
 #endif
 extern void thread_cleanup_master(thread_master_t *);
 extern void thread_destroy_master(thread_master_t *);
+extern thread_t *thread_add_read_sands(thread_master_t *, int (*) (thread_t *), void *, int, timeval_t *);
 extern thread_t *thread_add_read(thread_master_t *, int (*) (thread_t *), void *, int, unsigned long);
 extern int thread_del_read(thread_t *);
-extern void thread_requeue_read(thread_master_t *, int, unsigned long);
+extern void thread_requeue_read(thread_master_t *, int, const timeval_t *);
 extern thread_t *thread_add_write(thread_master_t *, int (*) (thread_t *), void *, int, unsigned long);
 extern int thread_del_write(thread_t *);
 extern void thread_close_fd(thread_t *);

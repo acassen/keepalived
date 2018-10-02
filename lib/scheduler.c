@@ -947,7 +947,7 @@ thread_new(thread_master_t *m)
 
 /* Add new read thread. */
 thread_t *
-thread_add_read(thread_master_t *m, int (*func) (thread_t *), void *arg, int fd, unsigned long timer)
+thread_add_read_sands(thread_master_t *m, int (*func) (thread_t *), void *arg, int fd, timeval_t *sands)
 {
 	thread_event_t *event;
 	thread_t *thread;
@@ -991,18 +991,28 @@ thread_add_read(thread_master_t *m, int (*func) (thread_t *), void *arg, int fd,
 		__set_bit(THREAD_FL_EPOLL_READ_BIT, &event->flags);
 	}
 
-	/* Compute read timeout value */
-	if (timer == TIMER_NEVER)
-		thread->sands.tv_sec = TIMER_DISABLED;
-	else {
-		set_time_now();
-		thread->sands = timer_add_long(time_now, timer);
-	}
+	thread->sands = *sands;
 
 	/* Sort the thread. */
 	rb_insert_sort_cached(&m->read, thread, n, thread_timer_cmp);
 
 	return thread;
+}
+
+thread_t *
+thread_add_read(thread_master_t *m, int (*func) (thread_t *), void *arg, int fd, unsigned long timer)
+{
+	timeval_t sands;
+
+	/* Compute read timeout value */
+	if (timer == TIMER_NEVER)
+		sands.tv_sec = TIMER_DISABLED;
+	else {
+		set_time_now();
+		sands = timer_add_long(time_now, timer);
+	}
+
+	return thread_add_read_sands(m, func, arg, fd, &sands);
 }
 
 int
@@ -1032,7 +1042,7 @@ thread_del_read_fd(thread_master_t *m, int fd)
 #endif
 
 static void
-thread_read_requeue(thread_master_t *m, int fd, timeval_t new_sands)
+thread_read_requeue(thread_master_t *m, int fd, const timeval_t *new_sands)
 {
 	thread_t *thread;
 	thread_event_t *event;
@@ -1043,17 +1053,15 @@ thread_read_requeue(thread_master_t *m, int fd, timeval_t new_sands)
 
 	thread = event->read;
 
-	thread->sands = new_sands;
+	thread->sands = *new_sands;
 
 	rb_move_cached(&thread->master->read, thread, n, thread_timer_cmp);
 }
 
 void
-thread_requeue_read(thread_master_t *m, int fd, unsigned long timer)
+thread_requeue_read(thread_master_t *m, int fd, const timeval_t *sands)
 {
-	set_time_now();
-
-	thread_read_requeue(m, fd, timer_add_long(time_now, timer));
+	thread_read_requeue(m, fd, sands);
 }
 
 /* Add new write thread. */
