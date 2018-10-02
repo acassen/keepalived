@@ -122,7 +122,7 @@ dump_vrrp_fd(void)
 	LIST_FOREACH(vrrp_data->vrrp_socket_pool, sock, e) {
 		log_message(LOG_INFO, "  Sockets %d, %d", sock->fd_in, sock->fd_out);
 
-		rb_for_each_entry(vrrp, &sock->rb_sands, rb_sands) {
+		rb_for_each_entry_cached(vrrp, &sock->rb_sands, rb_sands) {
 			if (vrrp->sands.tv_sec == TIMER_DISABLED)
 				log_message(LOG_INFO, "    %s: sands DISABLED", vrrp->iname);
 			else {
@@ -301,10 +301,10 @@ vrrp_shutdown_backstop_thread(thread_t *thread)
 	thread_t *t;
 
 	/* Force terminate all script processes */
-	if (thread->master->child.rb_node)
+	if (thread->master->child.rb_root.rb_node)
 		script_killall(thread->master, SIGKILL, true);
 
-	rb_for_each_entry(t, &thread->master->child, n)
+	rb_for_each_entry_cached(t, &thread->master->child, n)
 		count++;
 
 	log_message(LOG_ERR, "Backstop thread invoked: shutdown timer %srunning, child count %d",
@@ -320,7 +320,7 @@ vrrp_shutdown_timer_thread(thread_t *thread)
 {
 	thread->master->shutdown_timer_running = false;
 
-	if (thread->master->child.rb_node)
+	if (thread->master->child.rb_root.rb_node)
 		thread_add_timer_shutdown(thread->master, vrrp_shutdown_backstop_thread, NULL, TIMER_HZ / 10);
 	else
 		thread_add_terminate_event(thread->master);
@@ -338,7 +338,7 @@ vrrp_terminate_phase1(bool schedule_next_thread)
 #endif
 
 	/* Terminate all script processes */
-	if (master->child.rb_node)
+	if (master->child.rb_root.rb_node)
 		script_killall(master, SIGTERM, true);
 
 	kernel_netlink_close_monitor();
@@ -393,7 +393,7 @@ vrrp_terminate_phase1(bool schedule_next_thread)
 			thread_add_timer_shutdown(master, vrrp_shutdown_timer_thread, NULL, TIMER_HZ);
 			master->shutdown_timer_running = true;
 		}
-		else if (master->child.rb_node) {
+		else if (master->child.rb_root.rb_node) {
 			/* Add a backstop timer for the shutdown */
 			thread_add_timer_shutdown(master, vrrp_shutdown_backstop_thread, NULL, TIMER_HZ);
 		}

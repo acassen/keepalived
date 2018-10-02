@@ -49,6 +49,7 @@
 
 #include "scheduler.h"
 #include "memory.h"
+#include "rbtree.h"
 #include "utils.h"
 #include "signals.h"
 #include "logger.h"
@@ -206,9 +207,9 @@ set_extra_threads_debug(void (*func)(void))
 
 /* Move ready thread into ready queue */
 static int
-thread_move_ready(thread_master_t *m, rb_root_t *root, thread_t *thread, int type)
+thread_move_ready(thread_master_t *m, rb_root_cached_t *root, thread_t *thread, int type)
 {
-	rb_erase(&thread->n, root);
+	rb_erase_cached(&thread->n, root);
 	INIT_LIST_HEAD(&thread->next);
 	list_add_tail(&thread->next, &m->ready);
 	if (thread->type != THREAD_TIMER_SHUTDOWN)
@@ -217,12 +218,12 @@ thread_move_ready(thread_master_t *m, rb_root_t *root, thread_t *thread, int typ
 }
 
 /* Move ready thread into ready queue */
-static int
-thread_rb_move_ready(thread_master_t *m, rb_root_t *root, int type)
+static void
+thread_rb_move_ready(thread_master_t *m, rb_root_cached_t *root, int type)
 {
 	thread_t *thread, *thread_tmp;
 
-	rb_for_each_entry_safe(thread, thread_tmp, root, n) {
+	rb_for_each_entry_safe_cached(thread, thread_tmp, root, n) {
 		if (thread->sands.tv_sec == TIMER_DISABLED || timercmp(&time_now, &thread->sands, <))
 			break;
 
@@ -232,20 +233,18 @@ thread_rb_move_ready(thread_master_t *m, rb_root_t *root, int type)
 			thread->event->write = NULL;
 		thread_move_ready(m, root, thread, type);
 	}
-
-	return 0;
 }
 
 /* Update timer value */
 static void
-thread_update_timer(rb_root_t *root, timeval_t *timer_min)
+thread_update_timer(rb_root_cached_t *root, timeval_t *timer_min)
 {
 	thread_t *first;
 
-	if (!root->rb_node)
+	if (!root->rb_root.rb_node)
 		return;
 
-	first = rb_entry_safe(rb_first(root), thread_t, n);
+	first = rb_entry(rb_first_cached(root), thread_t, n);
 	if (!first)
 		return;
 
@@ -663,10 +662,10 @@ thread_make_master(void)
 		log_message(LOG_INFO, "Unable to set CLOEXEC on epoll_fd - %s (%d)", strerror(errno), errno);
 #endif
 
-	new->read = RB_ROOT;
-	new->write = RB_ROOT;
-	new->timer = RB_ROOT;
-	new->child = RB_ROOT;
+	new->read = RB_ROOT_CACHED;
+	new->write = RB_ROOT_CACHED;
+	new->timer = RB_ROOT_CACHED;
+	new->child = RB_ROOT_CACHED;
 	new->io_events = RB_ROOT;
 	new->child_pid = RB_ROOT;
 	INIT_LIST_HEAD(&new->event);
@@ -732,14 +731,14 @@ timer_delay(timeval_t sands)
 
 /* Dump rbtree */
 static void
-thread_rb_dump(rb_root_t *root, const char *tree, FILE *fp)
+thread_rb_dump(rb_root_cached_t *root, const char *tree, FILE *fp)
 {
 	thread_t *thread;
 	int i = 1;
 
 	conf_write(fp, "----[ Begin rb_dump %s ]----", tree);
 
-	rb_for_each_entry(thread, root, n)
+	rb_for_each_entry_cached(thread, root, n)
 		conf_write(fp, "#%.2d Thread type %s, event_fd %d, val/fd/pid %d, timer: %s, func %s(), id %ld", i++, get_thread_type_str(thread->type), thread->event ? thread->event->fd: -2, thread->u.val, timer_delay(thread->sands), get_function_name(thread->func), thread->id);
 
 	conf_write(fp, "----[ End rb_dump ]----");
@@ -838,12 +837,12 @@ thread_destroy_list(thread_master_t *m, list_head_t *l)
 }
 
 static void
-thread_destroy_rb(thread_master_t *m, rb_root_t *root)
+thread_destroy_rb(thread_master_t *m, rb_root_cached_t *root)
 {
 	thread_t *thread, *thread_tmp;
 
-	rb_for_each_entry_safe(thread, thread_tmp, root, n) {
-		rb_erase(&thread->n, root);
+	rb_for_each_entry_safe_cached(thread, thread_tmp, root, n) {
+		rb_erase_cached(&thread->n, root);
 
 		/* Do we have a thread_event, and does it need deleting? */
 		if (thread->type == THREAD_READ)
@@ -1001,7 +1000,7 @@ thread_add_read(thread_master_t *m, int (*func) (thread_t *), void *arg, int fd,
 	}
 
 	/* Sort the thread. */
-	rb_insert_sort(&m->read, thread, n, thread_timer_cmp);
+	rb_insert_sort_cached(&m->read, thread, n, thread_timer_cmp);
 
 	return thread;
 }
@@ -1046,7 +1045,7 @@ thread_read_requeue(thread_master_t *m, int fd, timeval_t new_sands)
 
 	thread->sands = new_sands;
 
-	rb_move(&thread->master->read, thread, n, thread_timer_cmp);
+	rb_move_cached(&thread->master->read, thread, n, thread_timer_cmp);
 }
 
 void
@@ -1112,7 +1111,7 @@ thread_add_write(thread_master_t *m, int (*func) (thread_t *), void *arg, int fd
 	}
 
 	/* Sort the thread. */
-	rb_insert_sort(&m->write, thread, n, thread_timer_cmp);
+	rb_insert_sort_cached(&m->write, thread, n, thread_timer_cmp);
 
 	return thread;
 }
@@ -1165,7 +1164,7 @@ thread_add_timer(thread_master_t *m, int (*func) (thread_t *), void *arg, unsign
 	}
 
 	/* Sort by timeval. */
-	rb_insert_sort(&m->timer, thread, n, thread_timer_cmp);
+	rb_insert_sort_cached(&m->timer, thread, n, thread_timer_cmp);
 
 	return thread;
 }
@@ -1183,7 +1182,7 @@ timer_thread_update_timeout(thread_t *thread, unsigned long timer)
 
 	thread->sands = sands;
 
-	rb_move(&thread->master->timer, thread, n, thread_timer_cmp);
+	rb_move_cached(&thread->master->timer, thread, n, thread_timer_cmp);
 }
 
 thread_t *
@@ -1221,7 +1220,7 @@ thread_add_child(thread_master_t * m, int (*func) (thread_t *), void * arg, pid_
 	}
 
 	/* Sort by timeval. */
-	rb_insert_sort(&m->child, thread, n, thread_timer_cmp);
+	rb_insert_sort_cached(&m->child, thread, n, thread_timer_cmp);
 
 	/* Sort by PID */
 	rb_insert_sort(&m->child_pid, thread, rb_data, thread_child_pid_cmp);
@@ -1236,7 +1235,7 @@ thread_children_reschedule(thread_master_t *m, int (*func)(thread_t *), unsigned
 
 // What is this used for ??
 	set_time_now();
-	rb_for_each_entry(thread, &m->child, n) {
+	rb_for_each_entry_cached(thread, &m->child, n) {
 		thread->func = func;
 		thread->sands = timer_add_long(time_now, timer);
 	}
@@ -1336,21 +1335,21 @@ thread_cancel(thread_t *thread)
 	switch (thread->type) {
 	case THREAD_READ:
 		thread_event_del(thread, THREAD_FL_EPOLL_READ_BIT);
-		rb_erase(&thread->n, &m->read);
+		rb_erase_cached(&thread->n, &m->read);
 		break;
 	case THREAD_WRITE:
 		thread_event_del(thread, THREAD_FL_EPOLL_WRITE_BIT);
-		rb_erase(&thread->n, &m->write);
+		rb_erase_cached(&thread->n, &m->write);
 		break;
 	case THREAD_TIMER:
-		rb_erase(&thread->n, &m->timer);
+		rb_erase_cached(&thread->n, &m->timer);
 		break;
 	case THREAD_CHILD:
 		/* Does this need to kill the child, or is that the
 		 * caller's job?
 		 * This function is currently unused, so leave it for now.
 		 */
-		rb_erase(&thread->n, &m->child);
+		rb_erase_cached(&thread->n, &m->child);
 		rb_erase(&thread->rb_data, &m->child_pid);
 		break;
 	case THREAD_READY_FD:
@@ -1381,7 +1380,7 @@ thread_cancel_read(thread_master_t *m, int fd)
 {
 	thread_t *thread, *thread_tmp;
 
-	rb_for_each_entry_safe(thread, thread_tmp, &m->read, n) {
+	rb_for_each_entry_safe_cached(thread, thread_tmp, &m->read, n) {
 		if (thread->u.fd == fd) {
 			if (thread->event->write)
 				thread_cancel(thread->event->write);
@@ -1702,7 +1701,7 @@ process_threads(thread_master_t *m)
 
 		/* If we are shutting down, and the shutdown timer is not running and
 		 * all children have terminated, then we can terminate */
-		if (shutting_down && !m->shutdown_timer_running && !m->child.rb_node)
+		if (shutting_down && !m->shutdown_timer_running && !m->child.rb_root.rb_node)
 			break;
 
 		/* If daemon hanging event is received stop processing */
@@ -1741,7 +1740,7 @@ process_child_termination(pid_t pid, int status)
 	if (permanent_vrrp_checker_error)
 	{
 		/* The child had a permanant error, so no point in respawning */
-		rb_erase(&thread->n, &m->child);
+		rb_erase_cached(&thread->n, &m->child);
 		thread_add_unuse(m, thread);
 
 		thread_add_terminate_event(m);

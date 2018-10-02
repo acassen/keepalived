@@ -157,10 +157,10 @@ checker_shutdown_backstop_thread(thread_t *thread)
 	thread_t *t;
 
 	/* Force terminate all script processes */
-	if (thread->master->child.rb_node)
+	if (thread->master->child.rb_root.rb_node)
 		script_killall(thread->master, SIGKILL, true);
 
-	rb_for_each_entry(t, &thread->master->child, n)
+	rb_for_each_entry_cached(t, &thread->master->child, n)
 		count++;
 
 	log_message(LOG_ERR, "backstop thread invoked: shutdown timer %srunning, child count %d",
@@ -181,7 +181,7 @@ checker_terminate_phase1(bool schedule_next_thread)
 		kernel_netlink_close();
 
 	/* Terminate all script processes */
-	if (master->child.rb_node)
+	if (master->child.rb_root.rb_node)
 		script_killall(master, SIGTERM, true);
 
 	/* Send shutdown messages */
@@ -191,7 +191,7 @@ checker_terminate_phase1(bool schedule_next_thread)
 	if (schedule_next_thread) {
 		/* If there are no child processes, we can terminate immediately,
 		 * otherwise add a thread to allow reasonable time for children to terminate */
-		if (master->child.rb_node) {
+		if (master->child.rb_root.rb_node) {
 			/* Add a backstop timer for the shutdown */
 			thread_add_timer_shutdown(master, checker_shutdown_backstop_thread, NULL, TIMER_HZ);
 		}

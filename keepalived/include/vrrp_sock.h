@@ -47,7 +47,7 @@ typedef struct _sock {
 	int			rx_buf_size;
 	thread_t		*thread;
 	rb_root_t		rb_vrid;
-	rb_root_t		rb_sands;
+	rb_root_cached_t	rb_sands;
 } sock_t;
 
 #endif

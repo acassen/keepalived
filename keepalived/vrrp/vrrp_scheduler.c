@@ -292,7 +292,7 @@ vrrp_init_instance_sands(vrrp_t * vrrp)
 	else if (vrrp->state == VRRP_STATE_FAULT || vrrp->state == VRRP_STATE_INIT)
 		vrrp->sands.tv_sec = TIMER_DISABLED;
 
-	rb_move(&vrrp->sockets->rb_sands, vrrp, rb_sands, vrrp_timer_cmp);
+	rb_move_cached(&vrrp->sockets->rb_sands, vrrp, rb_sands, vrrp_timer_cmp);
 }
 
 static void
@@ -303,7 +303,7 @@ vrrp_init_sands(list l)
 
 	LIST_FOREACH(l, vrrp, e) {
 		vrrp->sands.tv_sec = TIMER_DISABLED;
-		rb_insert_sort(&vrrp->sockets->rb_sands, vrrp, rb_sands, vrrp_timer_cmp);
+		rb_insert_sort_cached(&vrrp->sockets->rb_sands, vrrp, rb_sands, vrrp_timer_cmp);
 		vrrp_init_instance_sands(vrrp);
 		vrrp->reload_master = false;
 	}
@@ -334,7 +334,7 @@ vrrp_compute_timer(const sock_t *sock)
 
 	/* The sock won't exist if there isn't a vrrp instance on it,
 	 * so rb_first will always exist. */
-	vrrp = rb_entry(rb_first(&sock->rb_sands), vrrp_t, rb_sands);
+	vrrp = rb_entry(rb_first_cached(&sock->rb_sands), vrrp_t, rb_sands);
 	if (vrrp)
 		return vrrp->sands;
 
@@ -442,7 +442,7 @@ alloc_sock(sa_family_t family, list l, int proto, ifindex_t ifindex, bool unicas
 	new->ifindex = ifindex;
 	new->unicast = unicast;
 	new->rb_vrid = RB_ROOT;
-	new->rb_sands = RB_ROOT;
+	new->rb_sands = RB_ROOT_CACHED;
 
 	list_add(l, new);
 
@@ -764,7 +764,7 @@ vrrp_dispatcher_read_timeout(sock_t *sock)
 
 	set_time_now();
 
-	rb_for_each_entry(vrrp, &sock->rb_sands, rb_sands) {
+	rb_for_each_entry_cached(vrrp, &sock->rb_sands, rb_sands) {
 		if (vrrp->sands.tv_sec == TIMER_DISABLED ||
 		    timercmp(&vrrp->sands, &time_now, >))
 			break;

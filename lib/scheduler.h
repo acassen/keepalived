@@ -112,10 +112,10 @@ typedef struct _thread_event {
 
 /* Master of the threads. */
 typedef struct _thread_master {
-	rb_root_t		read;
-	rb_root_t		write;
-	rb_root_t		timer;
-	rb_root_t		child;
+	rb_root_cached_t	read;
+	rb_root_cached_t	write;
+	rb_root_cached_t	timer;
+	rb_root_cached_t	child;
 	list_head_t		event;
 #ifdef USE_SIGNAL_THREADS
 	list_head_t 		signal;
