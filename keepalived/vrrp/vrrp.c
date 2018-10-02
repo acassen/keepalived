@@ -3257,7 +3257,6 @@ vrrp_complete_init(void)
 	size_t max_mtu_len = 0;
 	bool have_master, have_backup;
 	vrrp_script_t *scr;
-	bool have_preempt, have_nopreempt, can_nopreempt;
 
 	/* Set defaults of not specified, depending on strict mode */
 	if (global_data->vrrp_garp_lower_prio_rep == PARAMETER_UNSET)
@@ -3384,32 +3383,6 @@ vrrp_complete_init(void)
 						vrrp->wantstate = VRRP_STATE_BACK;
 				}
 				break;
-			}
-		}
-	}
-
-	/* Ensure that all members of sync groups have the same preempt setting */
-	LIST_FOREACH_NEXT(vrrp_data->vrrp_sync_group, sgroup, e, next) {
-		have_nopreempt = false;
-		have_preempt = false;
-		can_nopreempt = true;
-		LIST_FOREACH(sgroup->vrrp_instances, vrrp, e) {
-			if (vrrp->nopreempt)
-				have_nopreempt = true;
-			else
-				have_preempt = true;
-			if (vrrp->base_priority == VRRP_PRIO_OWNER ||
-			    vrrp->wantstate == VRRP_STATE_MAST)
-				can_nopreempt = false;
-		}
-		if (have_nopreempt && have_preempt) {
-			report_config_error(CONFIG_GENERAL_ERROR, "WARNING - Sync group %s has both preempt and nopreempt members - setting all to %spreempt", sgroup->gname, can_nopreempt ? "no" : "");
-			LIST_FOREACH(sgroup->vrrp_instances, vrrp, e) {
-				vrrp->nopreempt = can_nopreempt;
-				if (can_nopreempt) {
-					vrrp->preempt_delay = 0;
-					vrrp->wantstate = VRRP_STATE_BACK;
-				}
 			}
 		}
 	}
