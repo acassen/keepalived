@@ -1719,7 +1719,6 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		   (vrrp->preempt_delay &&
 		    (!vrrp->preempt_time.tv_sec ||
 		     timercmp(&vrrp->preempt_time, &time_now, >)))) {
-// TODO - why all the above checks - in particular what would preempt_time == 0 && preempt_delay mean?
 		if (vrrp->version == VRRP_VERSION_3) {
 			master_adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_CENTI_HZ;
 			/* As per RFC5798, set Master_Adver_Interval to Adver Interval contained
@@ -1741,19 +1740,24 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		if (vrrp->preempt_delay) {
 			if (hd->priority >= vrrp->effective_priority) {
 				if (vrrp->preempt_time.tv_sec) {
-					log_message(LOG_INFO,
-						"%s(%s) stop preempt delay",
-						"VRRP_Instance", vrrp->iname);
+					if (__test_bit(LOG_DETAIL_BIT, &debug))
+						log_message(LOG_INFO,
+							"(%s) stop preempt delay", vrrp->iname);
 					vrrp->preempt_time.tv_sec = 0;
 				}
 			} else if (!vrrp->preempt_time.tv_sec) {
-				log_message(LOG_INFO,
-					"%s(%s) start preempt delay(%ld)",
-					"VRRP_Instance", vrrp->iname,
-					vrrp->preempt_delay / TIMER_HZ);
+				if (__test_bit(LOG_DETAIL_BIT, &debug))
+					log_message(LOG_INFO,
+						"(%s) start preempt delay (%ld.%6.6ld)", vrrp->iname,
+						vrrp->preempt_delay / TIMER_HZ, vrrp->preempt_delay % TIMER_HZ);
 				vrrp->preempt_time = timer_add_long(timer_now(), vrrp->preempt_delay);
 			}
 		}
+
+		/* We might have been held in backup by a sync group, but if
+		 * ms_down_timer had expired, we would have wanted MASTER state.
+		 * Now we have received a backup, we want to be in BACKUP state. */
+		vrrp->wantstate = VRRP_STATE_BACK;
 	} else {
 		/* !nopreempt and lower priority advert and any preempt delay timer has expired */
 		log_message(LOG_INFO, "(%s) received lower priority (%d) advert from %s - discarding", vrrp->iname, hd->priority, inet_sockaddrtos(&vrrp->pkt_saddr));

@@ -304,7 +304,7 @@ thread_set_timer(thread_master_t *m)
 
 #ifdef _EPOLL_DEBUG_
 	if (do_epoll_debug)
-		log_message(LOG_INFO, "setting timer_fd %lu.%9.9ld", its.it_value.tv_sec, its.it_value.tv_nsec);
+		log_message(LOG_INFO, "Setting timer_fd %lu.%9.9ld", its.it_value.tv_sec, its.it_value.tv_nsec);
 #endif
 }
 
