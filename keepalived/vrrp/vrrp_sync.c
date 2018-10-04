@@ -114,7 +114,6 @@ vrrp_sync_can_goto_master(vrrp_t * vrrp)
 {
 	vrrp_t *isync;
 	vrrp_sgroup_t *vgroup = vrrp->sync;
-	list l = vgroup->vrrp_instances;
 	element e;
 
 	if (GROUP_STATE(vgroup) == VRRP_STATE_MAST)
@@ -122,9 +121,14 @@ vrrp_sync_can_goto_master(vrrp_t * vrrp)
 
 	/* Only sync to master if everyone wants to
 	 * i.e. prefer backup state to avoid thrashing */
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		isync = ELEMENT_DATA(e);
+	LIST_FOREACH(vgroup->vrrp_instances, isync, e) {
 		if (isync != vrrp && isync->wantstate != VRRP_STATE_MAST) {
+			/* Make sure we give time for other instances to be
+			 * ready to become master. The timer here doesn't
+			 * really matter, since we are waiting for other
+			 * instances to be ready. */
+			vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+			vrrp_init_instance_sands(vrrp);
 			return false;
 		}
 	}
@@ -136,7 +140,6 @@ vrrp_sync_backup(vrrp_t * vrrp)
 {
 	vrrp_t *isync;
 	vrrp_sgroup_t *vgroup = vrrp->sync;
-	list l = vgroup->vrrp_instances;
 	element e;
 
 	if (GROUP_STATE(vgroup) == VRRP_STATE_BACK)
@@ -146,8 +149,7 @@ vrrp_sync_backup(vrrp_t * vrrp)
 	       GROUP_NAME(vgroup));
 
 	/* Perform sync index */
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		isync = ELEMENT_DATA(e);
+	LIST_FOREACH(vgroup->vrrp_instances, isync, e) {
 		if (isync == vrrp || isync->state == VRRP_STATE_BACK)
 			continue;
 

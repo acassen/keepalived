@@ -157,10 +157,10 @@ checker_shutdown_backstop_thread(thread_t *thread)
 	thread_t *t;
 
 	/* Force terminate all script processes */
-	if (thread->master->child.rb_node)
+	if (thread->master->child.rb_root.rb_node)
 		script_killall(thread->master, SIGKILL, true);
 
-	rb_for_each_entry(t, &thread->master->child, n)
+	rb_for_each_entry_cached(t, &thread->master->child, n)
 		count++;
 
 	log_message(LOG_ERR, "backstop thread invoked: shutdown timer %srunning, child count %d",
@@ -181,7 +181,7 @@ checker_terminate_phase1(bool schedule_next_thread)
 		kernel_netlink_close();
 
 	/* Terminate all script processes */
-	if (master->child.rb_node)
+	if (master->child.rb_root.rb_node)
 		script_killall(master, SIGTERM, true);
 
 	/* Send shutdown messages */
@@ -191,7 +191,7 @@ checker_terminate_phase1(bool schedule_next_thread)
 	if (schedule_next_thread) {
 		/* If there are no child processes, we can terminate immediately,
 		 * otherwise add a thread to allow reasonable time for children to terminate */
-		if (master->child.rb_node) {
+		if (master->child.rb_root.rb_node) {
 			/* Add a backstop timer for the shutdown */
 			thread_add_timer_shutdown(master, checker_shutdown_backstop_thread, NULL, TIMER_HZ);
 		}
@@ -421,25 +421,14 @@ check_signal_init(void)
 static int
 check_respawn_thread(thread_t * thread)
 {
-	pid_t pid;
-
-	/* Fetch thread args */
-	pid = THREAD_CHILD_PID(thread);
-
-	/* Restart respawning thread */
-	if (thread->type == THREAD_CHILD_TIMEOUT) {
-		thread_add_child(master, check_respawn_thread, NULL,
-				 pid, RESPAWN_TIMER);
-		return 0;
-	}
-
 	/* We catch a SIGCHLD, handle it */
+	checkers_child = 0;
+
 	if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
-		log_message(LOG_ALERT, "Healthcheck child process(%d) died: Respawning", pid);
+		log_message(LOG_ALERT, "Healthcheck child process(%d) died: Respawning", thread->u.c.pid);
 		start_check_child();
 	} else {
-		log_message(LOG_ALERT, "Healthcheck child process(%d) died: Exiting", pid);
-		checkers_child = 0;
+		log_message(LOG_ALERT, "Healthcheck child process(%d) died: Exiting", thread->u.c.pid);
 		raise(SIGTERM);
 	}
 	return 0;
@@ -505,15 +494,11 @@ start_check_child(void)
 
 		/* Start respawning thread */
 		thread_add_child(master, check_respawn_thread, NULL,
-				 pid, RESPAWN_TIMER);
+				 pid, TIMER_NEVER);
 
 		return 0;
 	}
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
-
-	/* Clear any child finder functions set in parent */
-	set_child_finder_name(NULL);
-	destroy_child_finder();
 
 	prog_type = PROG_TYPE_CHECKER;
 
@@ -559,6 +544,9 @@ start_check_child(void)
 #endif
 
 	free_parent_mallocs_startup(true);
+
+	/* Clear any child finder functions set in parent */
+	set_child_finder_name(NULL);
 
 	/* Child process part, write pidfile */
 	if (!pidfile_write(checkers_pidfile, getpid())) {

@@ -43,7 +43,6 @@
 #endif
 #include "vrrp_track.h"
 #include "vrrp_sock.h"
-#include "vrrp_index.h"
 #ifdef _WITH_SNMP_RFCV3_
 #include "vrrp_snmp.h"
 #endif
@@ -297,6 +296,7 @@ static void
 dump_sock(FILE *fp, void *sock_data)
 {
 	sock_t *sock = sock_data;
+
 	conf_write(fp, "VRRP sockpool: [ifindex(%u), family(%s), proto(%u), unicast(%d), fd(%d,%d)]"
 			    , sock->ifindex
 			    , sock->family == AF_INET ? "IPv4" : sock->family == AF_INET6 ? "IPv6" : "unknown"
@@ -863,24 +863,6 @@ free_vrrp_buffer(void)
 	vrrp_buffer_len = 0;
 }
 
-#ifdef _VRRP_FD_DEBUG_
-static void
-dump_one_vrrp_fd(FILE *fd, void *data)
-{
-	vrrp_t *vrrp = data;
-	timeval_t time_diff;
-
-	if (!fd) {
-		if (vrrp->sands.tv_sec == TIMER_DISABLED)
-			log_message(LOG_INFO, "    %s: fd %d, sands DISABLED", vrrp->iname, vrrp->sockets->fd_in);
-		else {
-			timersub(&vrrp->sands, &time_now, &time_diff);
-			log_message(LOG_INFO, "    %s: fd %d, sands %ld.%6.6ld", vrrp->iname, vrrp->sockets->fd_in, time_diff.tv_sec, time_diff.tv_usec);
-		}
-	}
-}
-#endif
-
 vrrp_data_t *
 alloc_vrrp_data(void)
 {
@@ -888,14 +870,6 @@ alloc_vrrp_data(void)
 
 	new = (vrrp_data_t *) MALLOC(sizeof(vrrp_data_t));
 	new->vrrp = alloc_list(free_vrrp, dump_vrrp);
-	new->vrrp_index = alloc_mlist(NULL, NULL, VRRP_INDEX_FD_SIZE);
-	new->vrrp_index_fd = alloc_mlist(NULL,
-#ifdef _VRRP_FD_DEBUG_
-					       dump_one_vrrp_fd,
-#else
-					       NULL,
-#endif
-								FD_INDEX_SIZE);
 	new->vrrp_sync_group = alloc_list(free_vgroup, dump_vgroup);
 	new->vrrp_script = alloc_list(free_vscript, dump_vscript);
 	new->vrrp_track_files = alloc_list(free_vfile, dump_vfile);
@@ -916,8 +890,6 @@ free_vrrp_data(vrrp_data_t * data)
 	free_list(&data->static_rules);
 #endif
 	free_list(&data->static_track_groups);
-	free_mlist(data->vrrp_index, VRRP_INDEX_FD_SIZE);
-	free_mlist(data->vrrp_index_fd, FD_INDEX_SIZE);
 	free_list(&data->vrrp);
 	free_list(&data->vrrp_sync_group);
 	free_list(&data->vrrp_script);

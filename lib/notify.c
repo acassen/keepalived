@@ -418,7 +418,7 @@ child_killed_thread(thread_t *thread)
 
 	/* If all children have died, we can now complete the
 	 * termination process */
-	if (!&m->child.rb_node && !m->shutdown_timer_running)
+	if (!&m->child.rb_root.rb_node && !m->shutdown_timer_running)
 		thread_add_terminate_event(m);
 
 	return 0;
@@ -442,7 +442,7 @@ script_killall(thread_master_t *m, int signo, bool requeue)
 
 	p_pgid = getpgid(0);
 
-	rb_for_each_entry(thread, &m->child, n) {
+	rb_for_each_entry_cached(thread, &m->child, n) {
 		c_pgid = getpgid(thread->u.c.pid);
 		if (c_pgid != p_pgid)
 			kill(-c_pgid, signo);

@@ -50,7 +50,6 @@ typedef struct _nl_handle {
 } nl_handle_t;
 
 /* Define types */
-#define NETLINK_TIMER	TIMER_NEVER
 #ifndef _HAVE_LIBNL3_
 #ifndef _HAVE_LIBNL1_
 #ifndef NLMSG_TAIL

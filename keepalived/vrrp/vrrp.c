@@ -49,7 +49,6 @@
 #include "global_data.h"
 #include "vrrp_data.h"
 #include "vrrp_sync.h"
-#include "vrrp_index.h"
 #include "vrrp_track.h"
 #ifdef _HAVE_VRRP_VMAC_
 #include "vrrp_vmac.h"
@@ -1720,7 +1719,6 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		   (vrrp->preempt_delay &&
 		    (!vrrp->preempt_time.tv_sec ||
 		     timercmp(&vrrp->preempt_time, &time_now, >)))) {
-// TODO - why all the above checks - in particular what would preempt_time == 0 && preempt_delay mean?
 		if (vrrp->version == VRRP_VERSION_3) {
 			master_adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_CENTI_HZ;
 			/* As per RFC5798, set Master_Adver_Interval to Adver Interval contained
@@ -1742,19 +1740,24 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		if (vrrp->preempt_delay) {
 			if (hd->priority >= vrrp->effective_priority) {
 				if (vrrp->preempt_time.tv_sec) {
-					log_message(LOG_INFO,
-						"%s(%s) stop preempt delay",
-						"VRRP_Instance", vrrp->iname);
+					if (__test_bit(LOG_DETAIL_BIT, &debug))
+						log_message(LOG_INFO,
+							"(%s) stop preempt delay", vrrp->iname);
 					vrrp->preempt_time.tv_sec = 0;
 				}
 			} else if (!vrrp->preempt_time.tv_sec) {
-				log_message(LOG_INFO,
-					"%s(%s) start preempt delay(%ld)",
-					"VRRP_Instance", vrrp->iname,
-					vrrp->preempt_delay / TIMER_HZ);
+				if (__test_bit(LOG_DETAIL_BIT, &debug))
+					log_message(LOG_INFO,
+						"(%s) start preempt delay (%ld.%6.6ld)", vrrp->iname,
+						vrrp->preempt_delay / TIMER_HZ, vrrp->preempt_delay % TIMER_HZ);
 				vrrp->preempt_time = timer_add_long(timer_now(), vrrp->preempt_delay);
 			}
 		}
+
+		/* We might have been held in backup by a sync group, but if
+		 * ms_down_timer had expired, we would have wanted MASTER state.
+		 * Now we have received a backup, we want to be in BACKUP state. */
+		vrrp->wantstate = VRRP_STATE_BACK;
 	} else {
 		/* !nopreempt and lower priority advert and any preempt delay timer has expired */
 		log_message(LOG_INFO, "(%s) received lower priority (%d) advert from %s - discarding", vrrp->iname, hd->priority, inet_sockaddrtos(&vrrp->pkt_saddr));
@@ -2229,7 +2232,6 @@ new_vrrp_socket(vrrp_t * vrrp)
 
 	/* close the desc & open a new one */
 	close_vrrp_socket(vrrp);
-	remove_vrrp_fd_bucket(vrrp);
 #ifdef _WITH_VRRP_AUTH_
 	if (vrrp->version == VRRP_VERSION_2)
 		proto =(vrrp->auth_type == VRRP_AUTH_AH) ? IPPROTO_AH :
@@ -2245,10 +2247,6 @@ new_vrrp_socket(vrrp_t * vrrp)
 	unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
 	vrrp->fd_in = open_vrrp_read_socket(vrrp->family, proto, ifp, unicast, vrrp->sockets->rx_buf_size);
 	vrrp->fd_out = open_vrrp_send_socket(vrrp->family, proto, ifp, unicast);
-	alloc_vrrp_fd_bucket(vrrp);
-
-	/* Sync the other desc */
-	set_vrrp_fd_bucket(old_fd, vrrp);
 
 	return vrrp->fd_in;
 }
@@ -3254,12 +3252,8 @@ vrrp_complete_init(void)
 	element e, e1;
 	vrrp_t *vrrp, *old_vrrp;
 	vrrp_sgroup_t *sgroup;
-	list l_o;
-	element e_o;
 	element next;
-	vrrp_t *vrrp_o;
-	interface_t *ifp;
-	ifindex_t ifindex_o;
+	vrrp_t *vrrp1;
 	size_t max_mtu_len = 0;
 	bool have_master, have_backup;
 	vrrp_script_t *scr;
@@ -3286,39 +3280,16 @@ vrrp_complete_init(void)
 		free_notify_script(&global_data->notify_fifo.script);
 #endif
 
-	/* Create a notify FIFO if needed, and open it */
-	if (!__test_bit(CONFIG_TEST_BIT, &debug))
-		notify_fifo_open(&global_data->notify_fifo, &global_data->vrrp_notify_fifo, vrrp_notify_fifo_script_exit, "vrrp_");
-
-	/* Make sure don't have same vrid on same interface with same address family */
+	/* Make sure don't have same vrid on same interface with the same address family */
 	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
-		l_o = &vrrp_data->vrrp_index[vrrp->vrid];
-#ifdef _HAVE_VRRP_VMAC_
-		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
-			ifp = vrrp->ifp->base_ifp;
-		else
-#endif
-			ifp = vrrp->ifp;
-
-		/* Check if any other entries with same vrid conflict */
-		if (!LIST_ISEMPTY(l_o) && LIST_SIZE(l_o) > 1) {
-			/* Can't have same vrid with same family on same interface */
-			LIST_FOREACH(l_o, vrrp_o, e_o) {
-				if (vrrp_o != vrrp &&
-				    vrrp_o->family == vrrp->family) {
-#ifdef _HAVE_VRRP_VMAC_
-					if (__test_bit(VRRP_VMAC_BIT, &vrrp_o->vmac_flags))
-						ifindex_o = vrrp_o->ifp->base_ifp->ifindex;
-					else
-#endif
-						ifindex_o = vrrp_o->ifp->ifindex;
-
-					if (ifp->ifindex == ifindex_o)
-					{
-						report_config_error(CONFIG_GENERAL_ERROR, "VRID %d is duplicated on interface %s", vrrp->vrid, ifp->ifname);
-						return false;
-					}
-				}
+		/* Check none of the rest of the entries conflict */
+		LIST_FOREACH_FROM(e->next, vrrp1, e1) {
+			if (vrrp->family == vrrp1->family &&
+			    vrrp->vrid == vrrp1->vrid &&
+			    vrrp->ifp == vrrp1->ifp) {
+				report_config_error(CONFIG_GENERAL_ERROR, "%s and %s both use VRID %d with IPv%d on interface %s",
+							vrrp->iname, vrrp1->iname, vrrp->vrid, vrrp->family == AF_INET ? 4 : 6, vrrp->ifp->ifname);
+				return false;
 			}
 		}
 	}
@@ -3514,6 +3485,9 @@ vrrp_complete_init(void)
 	}
 
 	alloc_vrrp_buffer(max_mtu_len);
+
+	/* Create a notify FIFO if needed, and open it */
+	notify_fifo_open(&global_data->notify_fifo, &global_data->vrrp_notify_fifo, vrrp_notify_fifo_script_exit, "vrrp_");
 
 	return true;
 }

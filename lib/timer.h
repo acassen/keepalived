@@ -52,6 +52,25 @@ bool do_timer_check;
 #define set_time_now()	set_time_now_r((__FILE__), (char *)(__FUNCTION__), (__LINE__))
 #endif
 
+#define RB_TIMER_CMP(obj)					\
+static inline int						\
+obj##_timer_cmp(obj##_t *r1, obj##_t *r2)			\
+{								\
+	if (r1->sands.tv_sec == TIMER_DISABLED) {		\
+		if (r2->sands.tv_sec == TIMER_DISABLED)		\
+			return 0;				\
+		return 1;					\
+	}							\
+								\
+	if (r2->sands.tv_sec == TIMER_DISABLED)			\
+		return -1;					\
+								\
+	if (r1->sands.tv_sec != r2->sands.tv_sec)		\
+		return r1->sands.tv_sec - r2->sands.tv_sec;	\
+								\
+	return r1->sands.tv_usec - r2->sands.tv_usec;		\
+}
+
 /* timer sub from current time */
 static inline timeval_t
 timer_sub_now(timeval_t a)

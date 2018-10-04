@@ -96,6 +96,8 @@ typedef struct _thread {
 		rb_node_t n;
 		list_head_t next;
 	};
+
+	rb_node_t rb_data;		/* PID or fd/vrid */
 } thread_t;
 
 /* Thread Event */
@@ -110,18 +112,19 @@ typedef struct _thread_event {
 
 /* Master of the threads. */
 typedef struct _thread_master {
-	rb_root_t		read;
-	rb_root_t		write;
-	rb_root_t		timer;
-	rb_root_t		child;
+	rb_root_cached_t	read;
+	rb_root_cached_t	write;
+	rb_root_cached_t	timer;
+	rb_root_cached_t	child;
 	list_head_t		event;
 #ifdef USE_SIGNAL_THREADS
 	list_head_t 		signal;
 #endif
 	list_head_t		ready;
 	list_head_t		unuse;
-// Can we stop using this?
-	list child_pid_index;
+
+	/* child process related */
+	rb_root_t		child_pid;
 
 	/* epoll related */
 	rb_root_t		io_events;
@@ -168,7 +171,6 @@ typedef enum {
 
 /* MICRO SEC def */
 #define BOOTSTRAP_DELAY TIMER_HZ
-#define RESPAWN_TIMER	TIMER_NEVER
 
 /* Macros. */
 #define THREAD_ARG(X) ((X)->arg)
@@ -202,10 +204,7 @@ extern bool do_epoll_thread_dump;
 
 /* Prototypes. */
 extern void set_child_finder_name(char const * (*)(pid_t));
-extern void set_child_finder(void (*)(thread_t *), thread_t *(*)(pid_t), void (*)(thread_t *), bool (*)(size_t), void(*)(void), size_t);
-extern void destroy_child_finder(void);
 extern void save_cmd_line_options(int, char **);
-extern void set_child_remover(void (*)(thread_t *));
 extern void log_command_line(unsigned);
 #ifndef _DEBUG_
 extern bool report_child_status(int, pid_t, const char *);
@@ -218,9 +217,10 @@ extern void dump_thread_data(thread_master_t *, FILE *);
 #endif
 extern void thread_cleanup_master(thread_master_t *);
 extern void thread_destroy_master(thread_master_t *);
+extern thread_t *thread_add_read_sands(thread_master_t *, int (*) (thread_t *), void *, int, timeval_t *);
 extern thread_t *thread_add_read(thread_master_t *, int (*) (thread_t *), void *, int, unsigned long);
 extern int thread_del_read(thread_t *);
-extern void thread_requeue_read(thread_master_t *, int, unsigned long);
+extern void thread_requeue_read(thread_master_t *, int, const timeval_t *);
 extern thread_t *thread_add_write(thread_master_t *, int (*) (thread_t *), void *, int, unsigned long);
 extern int thread_del_write(thread_t *);
 extern void thread_close_fd(thread_t *);
