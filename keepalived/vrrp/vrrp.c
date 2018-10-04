@@ -2553,18 +2553,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 #ifdef _HAVE_VRRP_VMAC_
 	/* Check that the underlying interface type is Ethernet if using a VMAC */
-	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) && vrrp->ifp->ifindex) {
-		if (vrrp->ifp->vmac) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s): vmacs are not supported on macvlan interfaces. Specify %s instead.", vrrp->iname, vrrp->ifp->base_ifp->ifname);
-
-			return false;
-		}
-
-		if (vrrp->ifp->hw_type != ARPHRD_ETHER) {
-			__clear_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags);
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s): vmacs are only supported on Ethernet type interfaces", vrrp->iname);
-			vrrp->num_script_if_fault++;	/* Stop the vrrp instance running */
-		}
+	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) && vrrp->ifp->ifindex && vrrp->ifp->hw_type != ARPHRD_ETHER) {
+		__clear_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s): vmacs are only supported on Ethernet type interfaces", vrrp->iname);
+		vrrp->num_script_if_fault++;	/* Stop the vrrp instance running */
 	}
 #endif
 

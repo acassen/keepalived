@@ -1181,17 +1181,13 @@ update_added_interface(interface_t *ifp)
 	if (LIST_ISEMPTY(ifp->tracking_vrrp))
 		return;
 
-	LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {
+	for (e = LIST_HEAD(ifp->tracking_vrrp); e; ELEMENT_NEXT(e)) {
+		tvp = ELEMENT_DATA(e);
 		vrrp = tvp->vrrp;
 
 		/* If this is just a tracking interface, we don't need to do anything */
 		if (vrrp->ifp != ifp && IF_BASE_IFP(vrrp->ifp) != ifp)
 			continue;
-
-		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) && ifp->vmac) {
-			log_message(LOG_INFO, "(%s): cannot configure a VMAC (%s) on a macvlan interface (%s), use %s instead", vrrp->iname, vrrp->ifp->ifname, ifp->ifname, ifp->base_ifp->ifname);
-			continue;
-		}
 
 		setup_interface(vrrp);
 	}
