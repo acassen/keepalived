@@ -211,6 +211,10 @@ route_is_ours(struct rtmsg* rt, struct rtattr *tb[RTA_MAX + 1], vrrp_t** ret_vrr
 	element e, e1;
 	vrrp_t *vrrp;
 	ip_route_t *route;
+	union {
+		struct in_addr in;
+		struct in6_addr in6;
+	} default_addr;
 
 	*ret_vrrp = NULL;
 
@@ -229,14 +233,18 @@ route_is_ours(struct rtmsg* rt, struct rtattr *tb[RTA_MAX + 1], vrrp_t** ret_vrr
 				continue;
 
 			if (route->oif) {
-				if (route->oif->ifindex != *(uint32_t *)RTA_DATA(tb[RTA_OIF]))
+				if (!tb[RTA_OIF] || route->oif->ifindex != *(uint32_t *)RTA_DATA(tb[RTA_OIF]))
 					continue;
 			} else {
-				if (route->set && route->configured_ifindex && route->configured_ifindex != *(uint32_t *)RTA_DATA(tb[RTA_OIF]))
+				if (route->set && route->configured_ifindex &&
+				    (!tb[RTA_OIF] || route->configured_ifindex != *(uint32_t *)RTA_DATA(tb[RTA_OIF])))
 					continue;
 			}
 
-			if (compare_addr(family, RTA_DATA(tb[RTA_DST]), route->dst))
+			if (!tb[RTA_DST])
+				memset(&default_addr, 0, sizeof(default_addr));
+
+			if (compare_addr(family, tb[RTA_DST] ? RTA_DATA(tb[RTA_DST]) : &default_addr, route->dst))
 				continue;
 
 			*ret_vrrp = vrrp;
