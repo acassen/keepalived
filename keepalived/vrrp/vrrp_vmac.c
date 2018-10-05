@@ -217,7 +217,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		     ifp->vmac_type != MACVLAN_MODE_PRIVATE) {
 			/* Be safe here - we don't want to remove a physical interface */
 			if (ifp->vmac_type) {
-				/* We have found a VIF but the vmac do not match */
+				/* We have found a VIF but the vmac or type do not match */
 				log_message(LOG_INFO, "vmac: Removing old VMAC interface %s due to conflicting "
 						      "interface or MAC for vrrp_instance %s!!!"
 						    , vrrp->vmac_ifname, vrrp->iname);
@@ -236,6 +236,9 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 							    , vrrp->vmac_ifname, vrrp->iname);
 					return false;
 				}
+			} else {
+				log_message(LOG_INFO, "VMAC %s conflicts with existing interface", vrrp->vmac_ifname);
+				return false;
 			}
 		}
 		else
