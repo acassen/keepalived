@@ -212,11 +212,11 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	if ((ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_CREATE_ALWAYS)) &&
 	     ifp->ifindex) {
 		/* Check to see whether this interface has wrong mac ? */
-		if ((memcmp((const void *) ifp->hw_addr, (const void *) ll_addr, ETH_ALEN) != 0 ||
-		     ifp->base_ifindex != vrrp->ifp->ifindex)) {
-
+		if (memcmp((const void *) ifp->hw_addr, (const void *) ll_addr, ETH_ALEN) != 0 ||
+		     ifp->base_ifindex != vrrp->ifp->ifindex ||
+		     ifp->vmac_type != MACVLAN_MODE_PRIVATE) {
 			/* Be safe here - we don't want to remove a physical interface */
-			if (ifp->vmac) {
+			if (ifp->vmac_type) {
 				/* We have found a VIF but the vmac do not match */
 				log_message(LOG_INFO, "vmac: Removing old VMAC interface %s due to conflicting "
 						      "interface or MAC for vrrp_instance %s!!!"
@@ -297,7 +297,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		kernel_netlink_poll();
 	}
 
-	ifp->vmac = true;
+	ifp->vmac_type = MACVLAN_MODE_PRIVATE;
 
 	if (!ifp->ifindex)
 		return false;
@@ -427,7 +427,7 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 		return;
 
 	/* Make sure we don't remove a real interface */
-	if (!vrrp->ifp->vmac) {
+	if (!vrrp->ifp->vmac_type) {
 		log_message(LOG_INFO, "BUG - Attempting to remove non VMAC i/f %s", vrrp->ifp->ifname);
 		return;
 	}

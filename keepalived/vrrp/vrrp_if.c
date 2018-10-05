@@ -97,17 +97,6 @@ if_get_by_ifindex(ifindex_t ifindex)
 	return NULL;
 }
 
-/* Return base interface from interface index incase of VMAC */
-interface_t *
-base_if_get_by_ifp(interface_t *ifp)
-{
-#ifdef _HAVE_VRRP_VMAC_
-	return (ifp && ifp->vmac) ? ifp->base_ifp : ifp;
-#else
-	return ifp;
-#endif
-}
-
 interface_t *
 if_get_by_ifname(const char *ifname, if_lookup_t create)
 {
@@ -145,8 +134,8 @@ if_get_by_ifname(const char *ifname, if_lookup_t create)
 }
 
 #ifdef _HAVE_VRRP_VMAC_
-/* Set the base_ifp for vmacs - only used at startup */
-void
+/* Set the base_ifp for VMACs and vrf_master_ifp for VRFs - only used at startup */
+static void
 set_base_ifp(void)
 {
 	interface_t *ifp;
@@ -497,8 +486,19 @@ dump_if(FILE *fp, void *data)
 			!(ifp->ifi_flags & IFF_MULTICAST) ? ", no multicast" : "");
 
 #ifdef _HAVE_VRRP_VMAC_
-	if (ifp->vmac && ifp->base_ifp)
-		conf_write(fp, "   VMAC underlying interface = %s, state = %sUP, %sRUNNING", ifp->base_ifp->ifname,
+	if (ifp->vmac_type && ifp->base_ifp)
+		conf_write(fp, "   VMAC type %s, underlying interface = %s, state = %sUP, %sRUNNING",
+				ifp->vmac_type == MACVLAN_MODE_PRIVATE ? "private" :
+				ifp->vmac_type == MACVLAN_MODE_VEPA ? "vepa" :
+				ifp->vmac_type == MACVLAN_MODE_BRIDGE ? "bridge" :
+#ifdef MACVLAN_MODE_PASSTHRU
+				ifp->vmac_type == MACVLAN_MODE_PASSTHRU ? "passthru" :
+#endif
+#ifdef MACVLAN_MODE_SOURCE
+				ifp->vmac_type == MACVLAN_MODE_SOURCE ? "source" :
+#endif
+				"unknown",
+				ifp->base_ifp->ifname,
 				ifp->base_ifp->ifi_flags & IFF_UP ? "" : "not ", ifp->base_ifp->ifi_flags & IFF_RUNNING ? "" : "not ");
 #endif
 	conf_write(fp, "   MTU = %d", ifp->mtu);
@@ -617,7 +617,7 @@ init_interface_linkbeat(void)
 
 #ifdef _HAVE_VRRP_VMAC_
 		/* netlink messages work for vmacs */
-		if (ifp->vmac)
+		if (ifp->vmac_type)
 			continue;
 #endif
 
@@ -669,7 +669,7 @@ init_interface_queue(void)
 	netlink_interface_lookup(NULL);
 #ifdef _HAVE_VRRP_VMAC_
 	/* Since we are reading all the interfaces, we might have received details of
-	 * a vmac before the underlying interface, so now we need to ensure the
+	 * a vmac/vrf before the underlying interface, so now we need to ensure the
 	 * interface pointers are all set */
 	set_base_ifp();
 #endif
@@ -1075,7 +1075,7 @@ cleanup_lost_interface(interface_t *ifp)
 
 #ifdef _HAVE_VRRP_VMAC_
 		/* If vmac going, clear VMAC_UP_BIT on vrrp instance */
-		if (vrrp->ifp->vmac) {
+		if (vrrp->ifp->vmac_type) {
 			__clear_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
 //			vrrp->ifp = vrrp->ifp->base_ifp;
 		}
@@ -1152,7 +1152,7 @@ recreate_vmac_thread(thread_t *thread)
 	element e;
 	interface_t *ifp = THREAD_ARG(thread);
 
-	if (LIST_ISEMPTY(ifp->tracking_vrrp) || !ifp->vmac)
+	if (LIST_ISEMPTY(ifp->tracking_vrrp) || !ifp->vmac_type)
 		return 0;
 
 	LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {

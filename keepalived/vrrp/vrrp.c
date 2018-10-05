@@ -2319,7 +2319,7 @@ shutdown_vrrp_instances(void)
 			/* Remove VMAC. If we are shutting down due to a configuration
 			 * error, the VMACs may not be set up yet, and vrrp->ifp may
 			 * still point to the physical interface. */
-			if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) && vrrp->ifp->vmac)
+			if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) && vrrp->ifp->vmac_type)
 				netlink_link_del_vmac(vrrp);
 #endif
 
@@ -2755,10 +2755,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		/* Look to see if an existing interface matches. If so, use that name */
 		list if_list = get_if_list();
 		if (!LIST_ISEMPTY(if_list)) {		/* If the list were empty we would have a real problem! */
-			for (e = LIST_HEAD(if_list); e; ELEMENT_NEXT(e)) {
-				ifp = ELEMENT_DATA(e);
+			LIST_FOREACH(if_list, ifp, e) {
 				/* Check if this interface could be the macvlan for this vrrp */
-				if (ifp->vmac &&
+				if (ifp->vmac_type == MACVLAN_MODE_PRIVATE &&
 				    !memcmp(ifp->hw_addr, ll_addr, sizeof(ll_addr) - 2) &&
 				    ((vrrp->family == AF_INET && ifp->hw_addr[sizeof(ll_addr) - 2] == 0x01) ||
 				     (vrrp->family == AF_INET6 && ifp->hw_addr[sizeof(ll_addr) - 2] == 0x02)) &&
@@ -2786,7 +2785,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			    (ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_NO_CREATE)) &&
 			     ifp->ifindex) {
 				/* An interface with the same name exists, but it doesn't match */
-				if (ifp->vmac)
+				if (ifp->vmac_type)
 					log_message(LOG_INFO, "(%s) VMAC %s already exists but is incompatible. It will be deleted", vrrp->iname, vrrp->vmac_ifname);
 				else {
 					report_config_error(CONFIG_GENERAL_ERROR, "(%s) VMAC interface name %s already exists as a non VMAC interface - ignoring configured name",
