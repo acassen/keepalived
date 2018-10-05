@@ -1718,7 +1718,7 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 			else if (!strcmp((char *)RTA_DATA(linkinfo[IFLA_INFO_KIND]), "vrf") ) {
 				parse_rtattr_nested(vrf_attr, IFLA_VRF_MAX, linkinfo[IFLA_INFO_DATA]);
 				if (vrf_attr[IFLA_VRF_TABLE])
-					ifp->vrf_master = true;
+					ifp->vrf_master_ifp = ifp;
 			}
 #endif
 		}
@@ -1731,7 +1731,7 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 		ifp->vrf_master_ifindex = *(uint32_t*)RTA_DATA(tb[IFLA_MASTER]);
 		ifp->vrf_master_ifp = if_get_by_ifindex(ifp->vrf_master_ifindex);
 		if (ifp->vrf_master_ifp) {
-			if (!ifp->vrf_master_ifp->vrf_master)
+			if (ifp->vrf_master_ifp->vrf_master_ifp != ifp->vrf_master_ifp)
 				ifp->vrf_master_ifp = NULL;
 			ifp->vrf_master_ifindex = 0;	/* Make sure this isn't used at runtime */
 		}

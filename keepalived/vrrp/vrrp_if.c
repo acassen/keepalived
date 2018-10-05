@@ -158,7 +158,7 @@ set_base_ifp(void)
 		/* Now see if the interface is enslaved to a VRF */
 		if (ifp->vrf_master_ifindex) {
 			master_ifp = if_get_by_ifindex(ifp->vrf_master_ifindex);
-			if (master_ifp && master_ifp->vrf_master)
+			if (master_ifp && master_ifp->vrf_master_ifp == master_ifp)
 				ifp->vrf_master_ifp = master_ifp;
 			ifp->vrf_master_ifindex = 0;
 		}
@@ -527,9 +527,9 @@ dump_if(FILE *fp, void *data)
 	else
 		conf_write(fp, "   NIC ioctl refresh polling");
 #ifdef _HAVE_VRF_
-	if (ifp->vrf_master)
+	if (ifp->vrf_master_ifp == ifp)
 		conf_write(fp, "   VRF master");
-	if (ifp->vrf_master_ifp)
+	else if (ifp->vrf_master_ifp)
 		conf_write(fp, "   VRF slave of %s", ifp->vrf_master_ifp->ifname);
 #endif
 

@@ -97,7 +97,6 @@ typedef struct _interface {
 #ifdef _HAVE_VRF_
 	ifindex_t		vrf_master_ifindex;	/* Only used at startup if we find i/f before master i/f */
 	struct _interface	*vrf_master_ifp;	/* VRF master interface */
-	bool			vrf_master;		/* Set if interface is a VRF master */
 #endif
 #endif
 	garp_delay_t		*garp_delay;		/* Delays for sending gratuitous ARP/NA */
