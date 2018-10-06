@@ -2762,7 +2762,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				    ((vrrp->family == AF_INET && ifp->hw_addr[sizeof(ll_addr) - 2] == 0x01) ||
 				     (vrrp->family == AF_INET6 && ifp->hw_addr[sizeof(ll_addr) - 2] == 0x02)) &&
 				    ifp->hw_addr[sizeof(ll_addr) - 1] == vrrp->vrid &&
-				    ifp->base_ifp == vrrp->ifp)
+				    ifp->base_ifp == vrrp->configured_ifp->base_ifp)
 				{
 					log_message(LOG_INFO, "(%s) Found matching interface %s", vrrp->iname, ifp->ifname);
 					if (vrrp->vmac_ifname[0] &&
@@ -2772,6 +2772,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 					strcpy(vrrp->vmac_ifname, ifp->ifname);
 					vrrp->ifp = ifp;
 					__set_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
+					ifp->is_ours = true;
 
 					/* The interface existed, so it may have config set on it */
 					interface_already_existed = true;
@@ -2853,31 +2854,32 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 	/* Make sure we have an IP address as needed */
-	if (vrrp->ifp->base_ifp->ifindex && vrrp->saddr.ss_family == AF_UNSPEC) {
+	if (VRRP_CONFIGURED_IFP(vrrp)->ifindex && vrrp->saddr.ss_family == AF_UNSPEC) {
 		/* Check the physical interface has a suitable address we can use.
 		 * We don't need an IPv6 address on the underlying interface if it is
 		 * a VMAC since we can create our own. */
 		bool addr_missing = false;
 
 		if (vrrp->family == AF_INET) {
-			if (!IF_BASE_IFP(vrrp->ifp)->sin_addr.s_addr)
+			if (!(VRRP_CONFIGURED_IFP(vrrp))->sin_addr.s_addr)
 				addr_missing = true;
 		}
 		else {
 #ifdef _HAVE_VRRP_VMAC_
 			if (!__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
 #endif
-				if (!IF_BASE_IFP(vrrp->ifp)->sin6_addr.s6_addr32[0])
+				if (!VRRP_CONFIGURED_IFP(vrrp)->sin6_addr.s6_addr32[0])
 					addr_missing = true;
 		}
 
 		if (addr_missing) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot find an IP address to use for interface %s", vrrp->iname, IF_BASE_IFP(vrrp->ifp)->ifname);
+			if (!global_data->dynamic_interfaces)
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot find an IP address to use for interface %s", vrrp->iname, VRRP_CONFIGURED_IFP(vrrp)->ifname);
 		}
 		else if (vrrp->family == AF_INET)
-			inet_ip4tosockaddr(&IF_BASE_IFP(vrrp->ifp)->sin_addr, &vrrp->saddr);
+			inet_ip4tosockaddr(&VRRP_CONFIGURED_IFP(vrrp)->sin_addr, &vrrp->saddr);
 		else if (vrrp->family == AF_INET6)
-			inet_ip6tosockaddr(&IF_BASE_IFP(vrrp->ifp)->sin6_addr, &vrrp->saddr);
+			inet_ip6tosockaddr(&VRRP_CONFIGURED_IFP(vrrp)->sin6_addr, &vrrp->saddr);
 	}
 
 	/* Add us to the interfaces we are tracking */
@@ -2892,9 +2894,15 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 	/* Add this instance to the physical interface and vice versa */
+// @@ We have a problem if configured interface doesn't exist yet
 	add_vrrp_to_interface(vrrp, IF_BASE_IFP(vrrp->ifp), vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, true, TRACK_VRRP);
 
 #ifdef _HAVE_VRRP_VMAC_
+	/* If the interface is configured onto a VMAC interface, we want to track
+	 * the underlying interface too */
+/* @@ If the VMAC interface is deleted, we need to stop the VRRP instance tracking the underlying interface */
+	if (vrrp->configured_ifp != vrrp->ifp->base_ifp)
+		add_vrrp_to_interface(vrrp, vrrp->configured_ifp, vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, true, TRACK_VRRP);
 	if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&
 	    !__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) vmac_xmit_base is only valid with a vmac", vrrp->iname);

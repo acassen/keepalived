@@ -197,6 +197,7 @@ typedef struct _vrrp_t {
 	unsigned long		vmac_flags;		/* VRRP VMAC flags */
 	char			vmac_ifname[IFNAMSIZ];	/* Name of VRRP VMAC interface */
 #endif
+	interface_t		*configured_ifp;	/* Interface the configuration says we are on */
 	list			track_ifp;		/* Interface state we monitor */
 	list			track_script;		/* Script state we monitor */
 	list			track_file;		/* list of tracked_file_t - Files whose value we monitor */
@@ -346,7 +347,12 @@ typedef struct _vrrp_t {
 #define VRRP_MIN(a, b)	((a) < (b)?(a):(b))
 #define VRRP_MAX(a, b)	((a) > (b)?(a):(b))
 
-#define VRRP_PKT_SADDR(V) (((V)->saddr.ss_family) ? ((struct sockaddr_in *) &(V)->saddr)->sin_addr.s_addr : IF_ADDR((V)->ifp))
+#ifdef _HAVE_VRRP_VMAC_
+#define VRRP_CONFIGURED_IFP(V)	((V)->configured_ifp)
+#else
+#define VRRP_CONFIGURED_IFP(V)	((V)->ifp)
+#endif
+#define VRRP_PKT_SADDR(V) (((V)->saddr.ss_family) ? ((struct sockaddr_in *) &(V)->saddr)->sin_addr.s_addr : IF_ADDR(VRRP_CONFIGURED_IFP(V)))
 
 #define VRRP_ISUP(V)		(!(V)->num_script_if_fault)
 

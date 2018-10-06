@@ -468,6 +468,9 @@ vrrp_int_handler(vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) cannot use a loopback interface (%s) for vrrp - ignoring", vrrp->iname, vrrp->ifp->ifname);
 		vrrp->ifp = NULL;
 	}
+	vrrp->configured_ifp = vrrp->ifp;
+	if (vrrp->ifp->vmac_type)
+		vrrp->ifp = vrrp->ifp->base_ifp;
 }
 static void
 vrrp_linkbeat_handler(__attribute__((unused)) vector_t *strvec)

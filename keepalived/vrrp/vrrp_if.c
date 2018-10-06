@@ -103,12 +103,9 @@ if_get_by_ifname(const char *ifname, if_lookup_t create)
 	interface_t *ifp;
 	element e;
 
-	if (!LIST_ISEMPTY(if_queue)) {
-		for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
-			ifp = ELEMENT_DATA(e);
-			if (!strcmp(ifp->ifname, ifname))
-				return ifp;
-		}
+	LIST_FOREACH(if_queue, ifp, e) {
+		if (!strcmp(ifp->ifname, ifname))
+			return ifp;
 	}
 
 	if (create == IF_NO_CREATE ||
@@ -500,6 +497,8 @@ dump_if(FILE *fp, void *data)
 				"unknown",
 				ifp->base_ifp->ifname,
 				ifp->base_ifp->ifi_flags & IFF_UP ? "" : "not ", ifp->base_ifp->ifi_flags & IFF_RUNNING ? "" : "not ");
+	if (ifp->is_ours)
+		conf_write(fp, "   I/f created by keepalived");
 #endif
 	conf_write(fp, "   MTU = %d", ifp->mtu);
 
@@ -546,6 +545,17 @@ dump_if(FILE *fp, void *data)
 		if (ifp->garp_delay->aggregation_group)
 			conf_write(fp, "   Gratuitous ARP aggregation group %d", ifp->garp_delay->aggregation_group);
 	}
+	if (ifp->reset_arp_config) {
+		conf_write(fp, "   Reset ARP config counter %d", ifp->reset_arp_config);
+		conf_write(fp, "   Original arp_ignore %d", ifp->reset_arp_ignore_value);
+		conf_write(fp, "   Original arp_filter %d", ifp->reset_arp_filter_value);
+	}
+	conf_write(fp, "   Reset promote_secondaries counter %d", ifp->reset_promote_secondaries);
+#ifdef _HAVE_VRRP_VMAC_
+	if (ifp->rp_filter < UINT_MAX)
+		conf_write(fp, "   rp_filter %d", ifp->rp_filter);
+#endif
+
 	conf_write(fp, "   Tracking VRRP instances = %d", !LIST_ISEMPTY(ifp->tracking_vrrp) ? LIST_SIZE(ifp->tracking_vrrp) : 0);
 	if (!LIST_ISEMPTY(ifp->tracking_vrrp))
 		dump_list(fp, ifp->tracking_vrrp);
@@ -1070,14 +1080,21 @@ cleanup_lost_interface(interface_t *ifp)
 		vrrp = tvp->vrrp;
 
 		/* If this is just a tracking interface, we don't need to do anything */
-		if (vrrp->ifp != ifp && IF_BASE_IFP(vrrp->ifp) != ifp)
+		if (vrrp->ifp != ifp && IF_BASE_IFP(vrrp->ifp) != ifp && VRRP_CONFIGURED_IFP(vrrp) != ifp)
 			continue;
 
 #ifdef _HAVE_VRRP_VMAC_
 		/* If vmac going, clear VMAC_UP_BIT on vrrp instance */
-		if (vrrp->ifp->vmac_type) {
+		if (vrrp->ifp->vmac_type == MACVLAN_MODE_PRIVATE && vrrp->ifp->is_ours)
 			__clear_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
-//			vrrp->ifp = vrrp->ifp->base_ifp;
+
+		if (vrrp->configured_ifp == ifp &&
+		    vrrp->configured_ifp->vmac_type &&
+		    vrrp->configured_ifp->base_ifp == vrrp->ifp->base_ifp &&
+		    vrrp->ifp->is_ours) {
+			/* This is a macvlan interface that the vrrp instance
+			 * was configured on. Delete the macvlan we created */
+			netlink_link_del_vmac(vrrp);
 		}
 #endif
 
@@ -1098,9 +1115,15 @@ cleanup_lost_interface(interface_t *ifp)
 
 	ifp->ifindex = 0;
 	ifp->ifi_flags = 0;
+	ifp->base_ifp = ifp;
+	ifp->vmac_type = 0;
+#ifdef _HAVE_VRF_
+	ifp->vrf_master_ifp = NULL;
+	ifp->vrf_master_ifindex = 0;
+#endif
 }
 
-static bool
+static void
 setup_interface(vrrp_t *vrrp)
 {
 	interface_t *ifp;
@@ -1111,7 +1134,7 @@ setup_interface(vrrp_t *vrrp)
 	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
 	    !vrrp->ifp->ifindex) {
 		if (!netlink_link_add_vmac(vrrp))
-			return false;
+			return;
 	}
 #endif
 
@@ -1141,7 +1164,7 @@ setup_interface(vrrp_t *vrrp)
 		}
 	}
 
-	return true;
+	return;
 }
 
 int
@@ -1152,7 +1175,7 @@ recreate_vmac_thread(thread_t *thread)
 	element e;
 	interface_t *ifp = THREAD_ARG(thread);
 
-	if (LIST_ISEMPTY(ifp->tracking_vrrp) || !ifp->vmac_type)
+	if (LIST_ISEMPTY(ifp->tracking_vrrp))
 		return 0;
 
 	LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {
@@ -1160,6 +1183,9 @@ recreate_vmac_thread(thread_t *thread)
 
 		/* If this isn't the vrrp's interface, skip */
 		if (vrrp->ifp != ifp)
+			continue;
+
+		if (!__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
 			continue;
 
 		netlink_error_ignore = ENODEV;
@@ -1181,9 +1207,15 @@ update_added_interface(interface_t *ifp)
 	if (LIST_ISEMPTY(ifp->tracking_vrrp))
 		return;
 
-	for (e = LIST_HEAD(ifp->tracking_vrrp); e; ELEMENT_NEXT(e)) {
-		tvp = ELEMENT_DATA(e);
+	LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {
 		vrrp = tvp->vrrp;
+
+		/* We might be the configured interface for a vrrp instance that itself uses
+		 * a macvlan. If so, we can create the macvlans */
+		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
+		    vrrp->configured_ifp == ifp &&
+		    !vrrp->ifp->ifindex)
+			thread_add_event(master, recreate_vmac_thread, vrrp->ifp, 0);
 
 		/* If this is just a tracking interface, we don't need to do anything */
 		if (vrrp->ifp != ifp && IF_BASE_IFP(vrrp->ifp) != ifp)
