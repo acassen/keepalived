@@ -466,3 +466,73 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 
 	return;
 }
+
+#ifdef _HAVE_VRF_
+static void
+netlink_update_vrf(vrrp_t *vrrp)
+{
+	int ifindex = 0;
+	struct {
+		struct nlmsghdr n;
+		struct ifinfomsg ifi;
+		char buf[256];
+	} req;
+
+	if (!vrrp->ifp)
+		return;
+
+	/* Don't update the VMAC if it isn't an interface we created */
+	if (!vrrp->ifp->is_ours) {
+		log_message(LOG_INFO, "BUG - Attempt to update VRF on VMAC interface %s which we didn't create", vrrp->ifp->ifname);
+		return;
+	}
+
+	memset(&req, 0, sizeof (req));
+
+	req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
+	req.n.nlmsg_flags = NLM_F_REQUEST;
+	req.n.nlmsg_type = RTM_NEWLINK;
+	req.ifi.ifi_family = AF_INET;
+	req.ifi.ifi_index = (int)vrrp->ifp->ifindex;
+
+	if (vrrp->ifp->vrf_master_ifp)
+		ifindex = vrrp->ifp->vrf_master_ifp->ifindex;
+
+	addattr32(&req.n, sizeof(req), IFLA_MASTER, ifindex);
+
+	if (netlink_talk(&nl_cmd, &req.n) < 0) {
+		log_message(LOG_INFO, "vmac: Error changing VRF of VMAC interface %s for vrrp_instance %s!!!", vrrp->ifp->ifname, vrrp->iname);
+		return;
+	}
+
+	log_message(LOG_INFO, "vmac: Success changing VRF of VMAC interface %s for vrrp_instance %s", vrrp->ifp->ifname, vrrp->iname);
+
+	kernel_netlink_poll();
+
+	return;
+}
+
+void
+update_vmac_vrfs(interface_t *ifp)
+{
+	vrrp_t *vrrp;
+        tracking_vrrp_t *tvp;
+        element e;
+
+        LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {
+                vrrp = tvp->vrrp;
+
+                /* We only need to look for vmacs we created that
+		 * are configured on the interface which has changed
+		 * VRF */
+                if (vrrp->configured_ifp != ifp ||
+                    !vrrp->ifp->is_ours)
+			continue;
+
+		vrrp->ifp->vrf_master_ifp = ifp->vrf_master_ifp;
+
+		if (vrrp->ifp->ifindex)
+			netlink_update_vrf(vrrp);
+	}
+}
+#endif

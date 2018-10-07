@@ -1673,6 +1673,8 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	struct rtattr* linkattr[IFLA_MACVLAN_MAX+1];
 #ifdef _HAVE_VRF_
 	struct rtattr *vrf_attr[IFLA_VRF_MAX + 1];
+	uint32_t new_vrf_master_index;
+	bool is_vrf_master = false;
 #endif
 #endif
 
@@ -1714,7 +1716,10 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 			else if (!strcmp((char *)RTA_DATA(linkinfo[IFLA_INFO_KIND]), "vrf") ) {
 				parse_rtattr_nested(vrf_attr, IFLA_VRF_MAX, linkinfo[IFLA_INFO_DATA]);
 				if (vrf_attr[IFLA_VRF_TABLE])
+				{
 					ifp->vrf_master_ifp = ifp;
+					is_vrf_master = true;
+				}
 			}
 #endif
 		}
@@ -1723,17 +1728,29 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 #ifdef _HAVE_VRF_
 	/* If we don't have the master interface details yet, we won't know
 	 * if the master is a VRF master, but we sort that out later */
-	if (tb[IFLA_MASTER]) {
-		ifp->vrf_master_ifindex = *(uint32_t*)RTA_DATA(tb[IFLA_MASTER]);
-		ifp->vrf_master_ifp = if_get_by_ifindex(ifp->vrf_master_ifindex);
-		if (ifp->vrf_master_ifp) {
-			if (ifp->vrf_master_ifp->vrf_master_ifp != ifp->vrf_master_ifp)
+	if (!is_vrf_master) {
+		if (tb[IFLA_MASTER]) {
+			new_vrf_master_index = *(uint32_t*)RTA_DATA(tb[IFLA_MASTER]);
+			if (!ifp->vrf_master_ifp ||
+			    new_vrf_master_index != ifp->vrf_master_ifp->ifindex) {
+				ifp->vrf_master_ifindex = new_vrf_master_index;
+				ifp->vrf_master_ifp = if_get_by_ifindex(ifp->vrf_master_ifindex);
+				if (ifp->vrf_master_ifp) {
+					if (ifp->vrf_master_ifp->vrf_master_ifp != ifp->vrf_master_ifp)
+						ifp->vrf_master_ifp = NULL;
+					ifp->vrf_master_ifindex = 0;	/* Make sure this isn't used at runtime */
+
+					update_vmac_vrfs(ifp);
+				}
+			}
+		} else {
+			ifp->vrf_master_ifindex = 0;
+			if (ifp->vrf_master_ifp) {
 				ifp->vrf_master_ifp = NULL;
-			ifp->vrf_master_ifindex = 0;	/* Make sure this isn't used at runtime */
+
+				update_vmac_vrfs(ifp);
+			}
 		}
-	} else {
-		ifp->vrf_master_ifindex = 0;
-		ifp->vrf_master_ifp = NULL;
 	}
 #endif
 
@@ -1834,6 +1851,10 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 	interface_t *ifp;
 	size_t len;
 	char *name;
+#ifdef _HAVE_VRF_
+	uint32_t new_master_index;
+	interface_t *new_master_ifp;
+#endif
 
 	if (!(h->nlmsg_type == RTM_NEWLINK || h->nlmsg_type == RTM_DELLINK))
 		return 0;
@@ -1887,41 +1908,56 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 			    ifp->base_ifp->ifindex)
 				thread_add_event(master, recreate_vmac_thread, ifp, 0);
 #endif
-		} else if (strcmp(ifp->ifname, name)) {
-			/* The name can change, so handle that here */
-			log_message(LOG_INFO, "Interface name has changed from %s to %s", ifp->ifname, name);
+		} else {
+			if (strcmp(ifp->ifname, name)) {
+				/* The name can change, so handle that here */
+				log_message(LOG_INFO, "Interface name has changed from %s to %s", ifp->ifname, name);
 
 #ifndef _DEBUG_
-			if (prog_type == PROG_TYPE_VRRP)
-				cleanup_lost_interface(ifp);
-			else {
-				ifp->ifi_flags = 0;
-				ifp->ifindex = 0;
-			}
-#else
-			cleanup_lost_interface(ifp);
+				if (prog_type != PROG_TYPE_VRRP) {
+					ifp->ifi_flags = 0;
+					ifp->ifindex = 0;
+				} else
 #endif
+					cleanup_lost_interface(ifp);
 // What if this is an interface we want ? */
 
 #ifdef _HAVE_VRRP_VMAC_
-			/* If this was one of our vmacs, create it again */
-			if (ifp->is_ours &&
+				/* If this was one of our vmacs, create it again */
+				if (ifp->is_ours &&
 #ifndef _DEBUG_
-			    prog_type == PROG_TYPE_VRRP
+				    prog_type == PROG_TYPE_VRRP
 #endif
-							) {
-				/* Change the mac address on the interface, so we can create a new vmac */
+								) {
+					/* Change the mac address on the interface, so we can create a new vmac */
 
-				/* Now create our VMAC again */
-				if (ifp->base_ifp->ifindex)
-					thread_add_event(master, recreate_vmac_thread, ifp, 0);
-			}
-			else
+					/* Now create our VMAC again */
+					if (ifp->base_ifp->ifindex)
+						thread_add_event(master, recreate_vmac_thread, ifp, 0);
+// @@ We are trying to create a new VMAC - test if it works. Is the ifp correct?
+				}
+				else
 #endif
-				ifp = NULL;	/* Set ifp to null, to force creating a new interface_t */
-		} else if (ifp->linkbeat_use_polling) {
-			/* Ignore interface if we are using linkbeat on it */
-			return 0;
+					ifp = NULL;	/* Set ifp to null, to force creating a new interface_t */
+			} else if (ifp->ifindex) {
+#ifdef _HAVE_VRF_
+				/* Now check if the VRF info is changed */
+				if (tb[IFLA_MASTER]) {
+					new_master_index = *(uint32_t *)RTA_DATA(tb[IFLA_MASTER]);
+					new_master_ifp = if_get_by_ifindex(new_master_index);
+				} else
+					new_master_ifp = NULL;
+				if (new_master_ifp != ifp->vrf_master_ifp) {
+					ifp->vrf_master_ifp = new_master_ifp;
+					update_vmac_vrfs(ifp);
+				}
+#endif
+
+				/* Ignore interface if we are using linkbeat on it */
+				if (ifp->linkbeat_use_polling)
+					return 0;
+			} else
+				ifp = NULL;
 		}
 	}
 
