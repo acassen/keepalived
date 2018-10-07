@@ -1210,12 +1210,14 @@ update_added_interface(interface_t *ifp)
 	LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {
 		vrrp = tvp->vrrp;
 
+#ifdef _HAVE_VRRP_VMAC_
 		/* We might be the configured interface for a vrrp instance that itself uses
 		 * a macvlan. If so, we can create the macvlans */
 		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
 		    vrrp->configured_ifp == ifp &&
 		    !vrrp->ifp->ifindex)
 			thread_add_event(master, recreate_vmac_thread, vrrp->ifp, 0);
+#endif
 
 		/* If this is just a tracking interface, we don't need to do anything */
 		if (vrrp->ifp != ifp && IF_BASE_IFP(vrrp->ifp) != ifp)
