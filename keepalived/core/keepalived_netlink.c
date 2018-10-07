@@ -1119,7 +1119,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 							is_tracking_saddr = inaddr_equal(ifa->ifa_family, &vrrp->saddr, addr.addr);
 					}
 
-					if (ifp == (vrrp->family == AF_INET ? vrrp->ifp->base_ifp : vrrp->ifp) &&
+					if (ifp == (vrrp->family == AF_INET ? VRRP_CONFIGURED_IFP(vrrp) : vrrp->ifp) &&
 					    vrrp->num_script_if_fault &&
 					    vrrp->family == ifa->ifa_family &&
 					    vrrp->saddr.ss_family == AF_UNSPEC &&
@@ -1203,7 +1203,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 					}
 					else
 #endif
-					     if (ifp == (vrrp->family == AF_INET ? vrrp->ifp->base_ifp : vrrp->ifp) &&
+					     if (ifp == (vrrp->family == AF_INET ? VRRP_CONFIGURED_IFP(vrrp) : vrrp->ifp) &&
 						 vrrp->family == ifa->ifa_family &&
 						 vrrp->saddr.ss_family != AF_UNSPEC &&
 						 (!vrrp->saddr_from_config || is_tracking_saddr)) {
