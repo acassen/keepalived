@@ -1901,11 +1901,11 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 #ifdef _HAVE_VRRP_VMAC_
 			/* If this was a vmac we created, create it again, so long as the underlying i/f exists */
 // @@
-			if (ifp->is_ours &&
+			if (ifp->is_ours
 #ifndef _DEBUG_
-			    prog_type == PROG_TYPE_VRRP &&
+			    && prog_type == PROG_TYPE_VRRP
 #endif
-			    ifp->base_ifp->ifindex)
+							  )
 				thread_add_event(master, recreate_vmac_thread, ifp, 0);
 #endif
 		} else {
