@@ -3285,9 +3285,10 @@ vrrp_complete_init(void)
 		LIST_FOREACH_FROM(e->next, vrrp1, e1) {
 			if (vrrp->family == vrrp1->family &&
 			    vrrp->vrid == vrrp1->vrid &&
-			    vrrp->ifp == vrrp1->ifp) {
+			    (VRRP_CONFIGURED_IFP(vrrp) == VRRP_CONFIGURED_IFP(vrrp1) ||
+			     IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp)) == IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp1)))) {
 				report_config_error(CONFIG_GENERAL_ERROR, "%s and %s both use VRID %d with IPv%d on interface %s",
-							vrrp->iname, vrrp1->iname, vrrp->vrid, vrrp->family == AF_INET ? 4 : 6, vrrp->ifp->ifname);
+							vrrp->iname, vrrp1->iname, vrrp->vrid, vrrp->family == AF_INET ? 4 : 6, IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp))->ifname);
 				return false;
 			}
 		}
