@@ -395,14 +395,16 @@ dump_vrrp(FILE *fp, void *data)
 		conf_write(fp, "   Use VMAC, is_up = %s,  xmit_base = %s",
 				__test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags) ? "true" : "false",
 				__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) ? "true" : "false");
-	if (vrrp->ifp != vrrp->ifp->base_ifp) {
+	if (vrrp->ifp->is_ours) {
 		conf_write(fp, "   Interface = %s, vmac on %s, xmit %s i/f", IF_NAME(vrrp->ifp),
 				vrrp->ifp->base_ifp->ifname, __test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) ? "base" : "vmac");
-		if (vrrp->configured_ifp != vrrp->ifp->base_ifp)
-			conf_write(fp, "   Configured interface = %s", vrrp->configured_ifp->ifname);
 	} else
 #endif
 		conf_write(fp, "   Interface = %s", IF_NAME(vrrp->ifp));
+#ifdef _HAVE_VRRP_VMAC_
+	if (vrrp->configured_ifp != vrrp->ifp->base_ifp && vrrp->ifp->is_ours)
+		conf_write(fp, "   Configured interface = %s", vrrp->configured_ifp->ifname);
+#endif
 	if (vrrp->dont_track_primary)
 		conf_write(fp, "   VRRP interface tracking disabled");
 	if (vrrp->skip_check_adv_addr)

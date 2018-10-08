@@ -471,8 +471,6 @@ vrrp_int_handler(vector_t *strvec)
 
 #ifdef _HAVE_VRRP_VMAC_
 	vrrp->configured_ifp = vrrp->ifp;
-	if (vrrp->ifp->vmac_type)
-		vrrp->ifp = vrrp->ifp->base_ifp;
 #endif
 }
 static void
