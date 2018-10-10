@@ -445,7 +445,11 @@ and
     # Allow configuration to include interfaces that don't exist at startup.
     # This allows keepalived to work with interfaces that may be deleted and restored
     #   and also allows virtual and static routes and rules on VMAC interfaces.
-    \fBdynamic_interfaces\fR
+    #   allow_if_changes allows an interface to be deleted and recreated with a
+    #   different type or underlying interface, eg changing from vlan to macvlan
+    #   or changing a macvlan from eth1 to eth2. This is predominantly used for
+    #   reporting duplicate VRID errors at startup if allow_if_changes is not set.
+    \fBdynamic_interfaces [allow_if_changes]\fR
 
     # The following options are only needed for large configurations, where either
     # keepalived creates a large number of interface, or the system has a large
@@ -485,10 +489,10 @@ and
     # the total of each vrrp instances advert packet size * multiplier.
     # (default: use system default)
     \fBvrrp_rx_bufs_policy \fR[MTU|ADVERT|NUMBER]
-    
+
     # (default: 3)
     \fBvrrp_rx_bufs_multiplier \fRNUMBER
- 
+
     # Send notifies at startup for real servers that are starting up
     \fBrs_init_notifies\fR
 

@@ -196,6 +196,7 @@ typedef struct _vrrp_t {
 #ifdef _HAVE_VRRP_VMAC_
 	unsigned long		vmac_flags;		/* VRRP VMAC flags */
 	char			vmac_ifname[IFNAMSIZ];	/* Name of VRRP VMAC interface */
+	bool			duplicate_vrid_fault;	/* Set if we have a fault due to duplicate VRID */
 #endif
 	interface_t		*configured_ifp;	/* Interface the configuration says we are on */
 	list			track_ifp;		/* Interface state we monitor */

@@ -3281,16 +3281,45 @@ vrrp_complete_init(void)
 
 	/* Make sure don't have same vrid on same interface with the same address family */
 	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+		/* If we don't know about the interface this is on, skip */
+		if (!IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp))->ifindex)
+			continue;
 		/* Check none of the rest of the entries conflict */
 		LIST_FOREACH_FROM(e->next, vrrp1, e1) {
+			/* If we don't know about the interface this is on, skip */
+			if (!IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp1))->ifindex)
+				continue;
+
 			if (vrrp->family == vrrp1->family &&
 			    vrrp->vrid == vrrp1->vrid &&
-			    (VRRP_CONFIGURED_IFP(vrrp) == VRRP_CONFIGURED_IFP(vrrp1) ||
-			     IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp)) == IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp1)))) {
-				report_config_error(CONFIG_GENERAL_ERROR, "%s and %s both use VRID %d with IPv%d on interface %s",
-							vrrp->iname, vrrp1->iname, vrrp->vrid, vrrp->family == AF_INET ? 4 : 6, IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp))->ifname);
-				return false;
+			    IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp)) == IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp1))) {
+#ifdef _HAVE_VRRP_VMAC_
+				if (global_data->allow_if_changes &&
+				    (VRRP_CONFIGURED_IFP(vrrp)->changeable_type ||
+				     VRRP_CONFIGURED_IFP(vrrp1)->changeable_type)) {
+					if (VRRP_CONFIGURED_IFP(vrrp)->changeable_type) {
+						vrrp->num_script_if_fault++;
+						vrrp->duplicate_vrid_fault = true;
+					} else {
+						vrrp1->num_script_if_fault++;
+						vrrp1->duplicate_vrid_fault = true;
+					}
+					log_message(LOG_INFO, "(%s) - warning, VRID %d for IPv%d is currently duplicated on %s",
+							vrrp->iname, vrrp->vrid, vrrp->family == AF_INET ? 4 : 6, vrrp1->iname);
+				}
+				else
+#endif
+				     if (VRRP_CONFIGURED_IFP(vrrp)->ifindex) {
+					report_config_error(CONFIG_GENERAL_ERROR, "%s and %s both use VRID %d with IPv%d on interface %s",
+								vrrp->iname, vrrp1->iname, vrrp->vrid, vrrp->family == AF_INET ? 4 : 6, IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp))->ifname);
+					return false;
+				}
 			}
+
+#ifdef _HAVE_VRRP_VMAC_
+			VRRP_CONFIGURED_IFP(vrrp)->seen_interface = true;
+			IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp))->seen_interface = true;
+#endif
 		}
 	}
 

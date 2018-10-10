@@ -379,6 +379,10 @@ dump_vrrp(FILE *fp, void *data)
 	conf_write(fp, "   Wantstate = %s", get_state_str(vrrp->wantstate));
 	if (fp) {
 		conf_write(fp, "   Number of interface and track script faults = %u", vrrp->num_script_if_fault);
+#ifdef _HAVE_VRRP_VMAC_
+		if (vrrp->duplicate_vrid_fault)
+			conf_write(fp, "   Duplicate VRID");
+#endif
 		conf_write(fp, "   Number of track scripts init = %d", vrrp->num_script_init);
 		ctime_r(&vrrp->last_transition.tv_sec, time_str);
 		conf_write(fp, "   Last transition = %ld (%.24s)", vrrp->last_transition.tv_sec, time_str);

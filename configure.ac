@@ -233,6 +233,8 @@ AC_ARG_ENABLE(tsm-debug,
   [  --enable-tsm-debug      compile with TSM debugging support])
 AC_ARG_ENABLE(vrrp-fd-debug,
   [  --enable-vrrp-fd-debug  compile with vrrp fd debugging support])
+AC_ARG_ENABLE(fixed-if-type,
+  [  --enable-fixed-if-type=TYPE  treat interface type TYPE as unchangeable])
 AC_ARG_ENABLE(profile,
   [AS_HELP_STRING([--enable-profile], [compile with profiling flags])])
 AC_ARG_ENABLE(conversion-checks,
@@ -1701,7 +1703,7 @@ AM_CONDITIONAL([BUILD_DOCS], [test $HAVE_SPHINX_BUILD = Yes])
 dnl ----[ Memory alloc check or not ? ]----
 MEM_CHECK=No
 MEM_CHECK_LOG=No
-if test -n ${enable_mem_check} -a "${enable_mem_check}" != "no"; then
+if test -n "${enable_mem_check}" -a "${enable_mem_check}" != "no"; then
   MEM_CHECK=Yes
   AC_DEFINE([_MEM_CHECK_], [ 1 ], [Define to 1 to build with malloc/free checks])
   if test "${enable_mem_check}" = "yes"; then
@@ -1820,6 +1822,18 @@ if test "${enable_vrrp_fd_debug}" = yes; then
   add_config_opt([VRRP_FD_DEBUG])
 else
   ENABLE_VRRP_FD_DEBUG=No
+fi
+
+dnl ----[ Specify interface type to be unchangeable ]----
+if test "${enable_fixed_if_type}" != no; then
+  if test "${enable_fixed_if_type}" = yes; then
+    AC_MSG_ERROR([An interface type must be specified with --enable-fixed-if-type])
+  fi
+  AC_DEFINE_UNQUOTED([_FIXED_IF_TYPE_], [ "${enable_fixed_if_type}" ], [Consider ${enable_fixed_if_type} interfaces to be unchangeable])
+  ENABLE_FIXED_IF_TYPE=${enable_fixed_if_type}
+  add_config_opt([FIXED_IF_TYPE=${enable_fixed_if_type}])
+else
+  ENABLE_FIXED_IF_TYPE=
 fi
 
 dnl ----[ Profiling or not ? ]----
@@ -2015,6 +2029,9 @@ if test ${ENABLE_NETLINK_TIMERS} = Yes; then
 fi
 if test ${ENABLE_SMTP_ALERT_DEBUG} = Yes; then
   echo "smtp-alert debugging     : ${ENABLE_SMTP_ALERT_DEBUG}"
+fi
+if test -n "${ENABLE_FIXED_IF_TYPE}"; then
+  echo "Fixed interface type     : ${ENABLE_FIXED_IF_TYPE}"
 fi
 
 dnl ----[ end configure ]---

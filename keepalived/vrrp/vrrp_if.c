@@ -499,6 +499,10 @@ dump_if(FILE *fp, void *data)
 				ifp->base_ifp->ifi_flags & IFF_UP ? "" : "not ", ifp->base_ifp->ifi_flags & IFF_RUNNING ? "" : "not ");
 	if (ifp->is_ours)
 		conf_write(fp, "   I/f created by keepalived");
+	else if (global_data->allow_if_changes && ifp->changeable_type)
+		conf_write(fp, "   Interface type/base can be changed");
+	if (ifp->seen_interface)
+		conf_write(fp, "   Done VRID check");
 #endif
 	conf_write(fp, "   MTU = %d", ifp->mtu);
 
@@ -1089,12 +1093,23 @@ cleanup_lost_interface(interface_t *ifp)
 			__clear_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
 
 		if (vrrp->configured_ifp == ifp &&
-		    vrrp->configured_ifp->vmac_type &&
 		    vrrp->configured_ifp->base_ifp == vrrp->ifp->base_ifp &&
 		    vrrp->ifp->is_ours) {
-			/* This is a macvlan interface that the vrrp instance
+			/* This is a changeable interface that the vrrp instance
 			 * was configured on. Delete the macvlan we created */
 			netlink_link_del_vmac(vrrp);
+		}
+
+		/* If the interface type can be changed, and the vrrp had a
+		 * duplicate VRID, clear the error since when the underlying
+		 * interface is created again, it may be on another underlying
+		 * interface, and there may not be a duplicate VRID. */
+		if (global_data->allow_if_changes &&
+		    ifp->changeable_type &&
+		    vrrp->configured_ifp == ifp &&
+		    vrrp->duplicate_vrid_fault) {
+			vrrp->duplicate_vrid_fault = false;
+			vrrp->num_script_if_fault--;
 		}
 #endif
 
@@ -1115,8 +1130,6 @@ cleanup_lost_interface(interface_t *ifp)
 
 	ifp->ifindex = 0;
 	ifp->ifi_flags = 0;
-	ifp->base_ifp = ifp;
-	ifp->vmac_type = 0;
 #ifdef _HAVE_VRF_
 	ifp->vrf_master_ifp = NULL;
 	ifp->vrf_master_ifindex = 0;
@@ -1188,6 +1201,11 @@ recreate_vmac_thread(thread_t *thread)
 		if (!__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
 			continue;
 
+		/* Don't attempt to create the VMAC if the configured
+		 * interface doesn't exist */
+		if (!VRRP_CONFIGURED_IFP(vrrp)->ifindex)
+			continue;
+
 		netlink_error_ignore = ENODEV;
 		setup_interface(vrrp);
 		netlink_error_ignore = 0;
@@ -1200,9 +1218,9 @@ recreate_vmac_thread(thread_t *thread)
 void
 update_added_interface(interface_t *ifp)
 {
-	vrrp_t *vrrp;
-	tracking_vrrp_t *tvp;
-	element e;
+	vrrp_t *vrrp, *vrrp1;
+	tracking_vrrp_t *tvp, *tvp1;
+	element e, e1;
 
 	if (LIST_ISEMPTY(ifp->tracking_vrrp))
 		return;
@@ -1211,6 +1229,32 @@ update_added_interface(interface_t *ifp)
 		vrrp = tvp->vrrp;
 
 #ifdef _HAVE_VRRP_VMAC_
+		/* If this interface is a macvlan that we haven't created,
+		 * and the interface type can be changed or we haven't checked
+		 * this interface before, make sure that there is not VRID
+		 * conflict. */
+		if (!ifp->is_ours &&
+		    (global_data->allow_if_changes || !ifp->seen_interface)) {
+			LIST_FOREACH(ifp->base_ifp->tracking_vrrp, tvp1, e1) {
+				vrrp1 = tvp1->vrrp;
+				if (vrrp == vrrp1)
+					continue;
+
+				if (!VRRP_CONFIGURED_IFP(vrrp1)->ifindex)
+					continue;
+
+				if (IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp)) == IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp1)) &&
+				    vrrp->family == vrrp1->family &&
+				    vrrp->vrid == vrrp1->vrid) {
+					vrrp->num_script_if_fault++;
+					vrrp->duplicate_vrid_fault = true;
+					log_message(LOG_INFO, "VRID conflict between %s and %s IPv%d vrid %d",
+							vrrp->iname, vrrp1->iname, vrrp->family == AF_INET ? 4 : 6, vrrp->vrid);
+					break;
+				}
+			}
+		}
+
 		/* We might be the configured interface for a vrrp instance that itself uses
 		 * a macvlan. If so, we can create the macvlans */
 		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
@@ -1225,6 +1269,10 @@ update_added_interface(interface_t *ifp)
 
 		setup_interface(vrrp);
 	}
+
+#ifdef _HAVE_VRRP_VMAC_
+	ifp->seen_interface = true;
+#endif
 }
 
 #ifdef THREAD_DUMP

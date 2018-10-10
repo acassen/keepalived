@@ -95,6 +95,8 @@ typedef struct _interface {
 	struct _interface	*base_ifp;		/* Base interface (if interface is a VMAC interface),
 							   otherwise the physical interface */
 	bool			is_ours;		/* keepalived created the interface */
+	bool			seen_interface;		/* The interface has existed at some point since we started */
+	bool			changeable_type;	/* The interface type or underlying interface can be changed */
 #ifdef _HAVE_VRF_
 	ifindex_t		vrf_master_ifindex;	/* Only used at startup if we find i/f before master i/f */
 	struct _interface	*vrf_master_ifp;	/* VRF master interface - pointer to self if VRF master */

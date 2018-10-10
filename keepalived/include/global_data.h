@@ -90,6 +90,7 @@ typedef struct _data {
 	int				smtp_alert;
 #ifdef _WITH_VRRP_
 	bool				dynamic_interfaces;
+	bool				allow_if_changes;
 	bool				no_email_faults;
 	int				smtp_alert_vrrp;
 	char				*default_ifname;	/* Name of default interface */

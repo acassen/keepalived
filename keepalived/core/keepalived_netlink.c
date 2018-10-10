@@ -1671,8 +1671,10 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 #ifdef _HAVE_VRRP_VMAC_
 	struct rtattr* linkinfo[IFLA_INFO_MAX+1];
 	struct rtattr* linkattr[IFLA_MACVLAN_MAX+1];
+	bool is_macvlan = false;
 #ifdef _HAVE_VRF_
 	struct rtattr *vrf_attr[IFLA_VRF_MAX + 1];
+	bool is_vrf = false;
 	uint32_t new_vrf_master_index;
 	bool is_vrf_master = false;
 #endif
@@ -1683,6 +1685,39 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	/* Fill the interface structure */
 	memcpy(ifp->ifname, name, strlen(name));
 	ifp->ifindex = (ifindex_t)ifi->ifi_index;
+
+#ifdef _HAVE_VRRP_VMAC_
+	if (tb[IFLA_LINKINFO]) {
+		parse_rtattr_nested(linkinfo, IFLA_INFO_MAX, tb[IFLA_LINKINFO]);
+
+		if (linkinfo[IFLA_INFO_KIND]) {
+			if (!strcmp((char *)RTA_DATA(linkinfo[IFLA_INFO_KIND]), "macvlan")) {
+				is_macvlan = true;
+				parse_rtattr_nested(linkattr, IFLA_MACVLAN_MAX, linkinfo[IFLA_INFO_DATA]);
+			}
+#ifdef _HAVE_VRF_
+			else if (!strcmp((char *)RTA_DATA(linkinfo[IFLA_INFO_KIND]), "vrf") ) {
+				is_vrf = true;
+				parse_rtattr_nested(vrf_attr, IFLA_VRF_MAX, linkinfo[IFLA_INFO_DATA]);
+			}
+#endif
+		}
+	}
+
+	/* Check there hasn't been an unsupported interface type change */
+	if (!global_data->allow_if_changes && ifp->seen_interface) {
+		/* If it was a macvlan and now isn't, or vice versa,
+		 * then the interface type has changed */
+		if (is_macvlan == !ifp->vmac_type)
+			return false;
+
+		/* If a macvlan, check the underlying interface hasn't changed */
+		if (is_macvlan &&
+		    (!tb[IFLA_LINK] || ifp->base_ifp->ifindex != *(uint32_t *)RTA_DATA(tb[IFLA_LINK])))
+			return false;
+	}
+#endif
+
 	ifp->mtu = *(uint32_t *)RTA_DATA(tb[IFLA_MTU]);
 	ifp->hw_type = ifi->ifi_type;
 
@@ -1696,13 +1731,9 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	ifp->base_ifindex = 0;
 
 	if (tb[IFLA_LINKINFO]) {
-		parse_rtattr_nested(linkinfo, IFLA_INFO_MAX, tb[IFLA_LINKINFO]);
-
 		if (linkinfo[IFLA_INFO_KIND]) {
 			/* See if this interface is a MACVLAN */
-			if (!strcmp((char *)RTA_DATA(linkinfo[IFLA_INFO_KIND]), "macvlan")) {
-				parse_rtattr_nested(linkattr, IFLA_MACVLAN_MAX, linkinfo[IFLA_INFO_DATA]);
-
+			if (is_macvlan) {
 				if (linkattr[IFLA_MACVLAN_MODE] &&
 				    tb[IFLA_LINK]) {
 					ifp->vmac_type = *(uint32_t*)RTA_DATA(linkattr[IFLA_MACVLAN_MODE]);
@@ -1713,8 +1744,7 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 				}
 			}
 #ifdef _HAVE_VRF_
-			else if (!strcmp((char *)RTA_DATA(linkinfo[IFLA_INFO_KIND]), "vrf") ) {
-				parse_rtattr_nested(vrf_attr, IFLA_VRF_MAX, linkinfo[IFLA_INFO_DATA]);
+			else if (is_vrf) {
 				if (vrf_attr[IFLA_VRF_TABLE])
 				{
 					ifp->vrf_master_ifp = ifp;
@@ -1722,6 +1752,11 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 				}
 			}
 #endif
+
+#ifdef _FIXED_IF_TYPE_
+			if (strcmp(_FIXED_IF_TYPE_, (char *)RTA_DATA(linkinfo[IFLA_INFO_KIND])))
+#endif
+				ifp->changeable_type = true;
 		}
 	}
 
@@ -1888,15 +1923,12 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 			if (!LIST_ISEMPTY(ifp->tracking_vrrp) || __test_bit(LOG_DETAIL_BIT, &debug))
 				log_message(LOG_INFO, "Interface %s deleted", ifp->ifname);
 #ifndef _DEBUG_
-			if (prog_type == PROG_TYPE_VRRP)
-				cleanup_lost_interface(ifp);
-			else {
+			if (prog_type != PROG_TYPE_VRRP) {
 				ifp->ifi_flags = 0;
 				ifp->ifindex = 0;
-			}
-#else
-			cleanup_lost_interface(ifp);
+			} else
 #endif
+				cleanup_lost_interface(ifp);
 
 #ifdef _HAVE_VRRP_VMAC_
 			/* If this was a vmac we created, create it again, so long as the underlying i/f exists */
