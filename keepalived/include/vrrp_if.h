@@ -37,6 +37,9 @@
 #define _LINUX_IF_H
 #endif
 #include <linux/netdevice.h>
+#ifdef _HAVE_VRRP_VMAC_
+#include <linux/if_link.h>
+#endif
 
 /* local includes */
 #include "scheduler.h"
@@ -87,14 +90,16 @@ typedef struct _interface {
 	size_t			hw_addr_len;		/* MAC addresss length */
 	int			lb_type;		/* Interface regs selection */
 #ifdef _HAVE_VRRP_VMAC_
-	bool			vmac;			/* Set if interface is a VMAC interface */
+	int			vmac_type;		/* Set if interface is a VMAC interface */
 	ifindex_t		base_ifindex;		/* Only used at startup if we find vmac i/f before base i/f */
 	struct _interface	*base_ifp;		/* Base interface (if interface is a VMAC interface),
 							   otherwise the physical interface */
-	ifindex_t		vrf_master_ifindex;	/* Only used at startup if we find i/f before master i/f */
+	bool			is_ours;		/* keepalived created the interface */
+	bool			seen_interface;		/* The interface has existed at some point since we started */
+	bool			changeable_type;	/* The interface type or underlying interface can be changed */
 #ifdef _HAVE_VRF_
-	struct _interface	*vrf_master_ifp;	/* VRF master interface */
-	bool			vrf_master;		/* Set if interface is a VRF master */
+	ifindex_t		vrf_master_ifindex;	/* Only used at startup if we find i/f before master i/f */
+	struct _interface	*vrf_master_ifp;	/* VRF master interface - pointer to self if VRF master */
 #endif
 #endif
 	garp_delay_t		*garp_delay;		/* Delays for sending gratuitous ARP/NA */
@@ -134,7 +139,7 @@ typedef struct _tracked_if {
 #define FLAGS_UP(X) (((X) & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING))
 #define IF_FLAGS_UP(X) (FLAGS_UP((X)->ifi_flags))
 #ifdef _HAVE_VRRP_VMAC_
-#define IF_ISUP(X) (IF_FLAGS_UP(X) && (!(X)->vmac || IF_FLAGS_UP((X)->base_ifp)))
+#define IF_ISUP(X) (IF_FLAGS_UP(X) && (!(X)->vmac_type || IF_FLAGS_UP((X)->base_ifp)))
 #else
 #define IF_ISUP(X) (IF_FLAGS_UP(X))
 #endif
@@ -151,7 +156,6 @@ list garp_delay;
 
 /* prototypes */
 extern interface_t *if_get_by_ifindex(ifindex_t);
-extern interface_t *base_if_get_by_ifp(interface_t *);
 extern interface_t *if_get_by_ifname(const char *, if_lookup_t);
 extern list get_if_list(void);
 extern void reset_interface_queue(void);

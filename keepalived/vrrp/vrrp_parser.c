@@ -382,7 +382,7 @@ vrrp_vmac_handler(vector_t *strvec)
 
 		/* Check if the interface exists and is a macvlan we can use */
 		if ((ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_NO_CREATE)) &&
-		    !ifp->vmac) {
+		    ifp->vmac_type != MACVLAN_MODE_PRIVATE) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) interface %s already exists and is not a private macvlan; ignoring vmac if_name", vrrp->iname, vrrp->vmac_ifname);
 			vrrp->vmac_ifname[0] = '\0';
 		}
@@ -468,6 +468,10 @@ vrrp_int_handler(vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) cannot use a loopback interface (%s) for vrrp - ignoring", vrrp->iname, vrrp->ifp->ifname);
 		vrrp->ifp = NULL;
 	}
+
+#ifdef _HAVE_VRRP_VMAC_
+	vrrp->configured_ifp = vrrp->ifp;
+#endif
 }
 static void
 vrrp_linkbeat_handler(__attribute__((unused)) vector_t *strvec)
@@ -1311,7 +1315,7 @@ garp_group_interface_handler(vector_t *strvec)
 
 #ifdef _HAVE_VRRP_VMAC_
 	/* We cannot have a group on a vmac interface */
-	if (ifp->vmac) {
+	if (ifp->vmac_type) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Cannot specify garp_delay on a vmac (%s) - ignoring", ifp->ifname);
 		return;
 	}
@@ -1358,7 +1362,7 @@ garp_group_interfaces_handler(vector_t *strvec)
 		}
 
 #ifdef _HAVE_VRRP_VMAC_
-		if (ifp->vmac) {
+		if (ifp->vmac_type) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Cannot specify garp_delay on a vmac (%s) - ignoring", ifp->ifname);
 			continue;
 		}

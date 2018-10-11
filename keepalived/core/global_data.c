@@ -389,6 +389,8 @@ dump_global_data(FILE *fp, data_t * data)
 #endif
 #ifdef _WITH_VRRP_
 	conf_write(fp, " Dynamic interfaces = %s", data->dynamic_interfaces ? "true" : "false");
+	if (data->dynamic_interfaces)
+		conf_write(fp, " Allow interface changes = %s", data->allow_if_changes ? "true" : "false");
 	if (data->no_email_faults)
 		conf_write(fp, " Send emails for fault transitions = off");
 #endif

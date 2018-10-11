@@ -379,6 +379,10 @@ dump_vrrp(FILE *fp, void *data)
 	conf_write(fp, "   Wantstate = %s", get_state_str(vrrp->wantstate));
 	if (fp) {
 		conf_write(fp, "   Number of interface and track script faults = %u", vrrp->num_script_if_fault);
+#ifdef _HAVE_VRRP_VMAC_
+		if (vrrp->duplicate_vrid_fault)
+			conf_write(fp, "   Duplicate VRID");
+#endif
 		conf_write(fp, "   Number of track scripts init = %d", vrrp->num_script_init);
 		ctime_r(&vrrp->last_transition.tv_sec, time_str);
 		conf_write(fp, "   Last transition = %ld (%.24s)", vrrp->last_transition.tv_sec, time_str);
@@ -395,12 +399,16 @@ dump_vrrp(FILE *fp, void *data)
 		conf_write(fp, "   Use VMAC, is_up = %s,  xmit_base = %s",
 				__test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags) ? "true" : "false",
 				__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) ? "true" : "false");
-	if (vrrp->ifp != vrrp->ifp->base_ifp)
+	if (vrrp->ifp->is_ours) {
 		conf_write(fp, "   Interface = %s, vmac on %s, xmit %s i/f", IF_NAME(vrrp->ifp),
 				vrrp->ifp->base_ifp->ifname, __test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) ? "base" : "vmac");
-	else
+	} else
 #endif
 		conf_write(fp, "   Interface = %s", IF_NAME(vrrp->ifp));
+#ifdef _HAVE_VRRP_VMAC_
+	if (vrrp->configured_ifp != vrrp->ifp->base_ifp && vrrp->ifp->is_ours)
+		conf_write(fp, "   Configured interface = %s", vrrp->configured_ifp->ifname);
+#endif
 	if (vrrp->dont_track_primary)
 		conf_write(fp, "   VRRP interface tracking disabled");
 	if (vrrp->skip_check_adv_addr)

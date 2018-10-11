@@ -209,15 +209,16 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	 * Check to see if this vmac interface was created
 	 * by a previous instance.
 	 */
-	if ((ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_CREATE_ALWAYS)) &&
-	     ifp->ifindex) {
-		/* Check to see whether this interface has wrong mac ? */
-		if ((memcmp((const void *) ifp->hw_addr, (const void *) ll_addr, ETH_ALEN) != 0 ||
-		     ifp->base_ifindex != vrrp->ifp->ifindex)) {
+	ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_CREATE_ALWAYS);
 
+	if (ifp && ifp->ifindex) {
+		/* Check to see whether this interface has wrong mac ? */
+		if (memcmp((const void *) ifp->hw_addr, (const void *) ll_addr, ETH_ALEN) != 0 ||
+		     ifp->base_ifindex != vrrp->ifp->ifindex ||
+		     ifp->vmac_type != MACVLAN_MODE_PRIVATE) {
 			/* Be safe here - we don't want to remove a physical interface */
-			if (ifp->vmac) {
-				/* We have found a VIF but the vmac do not match */
+			if (ifp->vmac_type) {
+				/* We have found a VIF but the vmac or type do not match */
 				log_message(LOG_INFO, "vmac: Removing old VMAC interface %s due to conflicting "
 						      "interface or MAC for vrrp_instance %s!!!"
 						    , vrrp->vmac_ifname, vrrp->iname);
@@ -236,13 +237,19 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 							    , vrrp->vmac_ifname, vrrp->iname);
 					return false;
 				}
+
+				kernel_netlink_poll();	/* Update our local info */
+			} else {
+				log_message(LOG_INFO, "VMAC %s conflicts with existing interface", vrrp->vmac_ifname);
+				return false;
 			}
 		}
 		else
 			create_interface = false;
 	}
 
-	if (create_interface && vrrp->ifp->base_ifp->ifindex) {
+	ifp->is_ours = true;
+	if (create_interface && vrrp->configured_ifp->base_ifp->ifindex) {
 		/* Request that NETLINK create the VIF interface */
 		req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
 		req.n.nlmsg_flags = NLM_F_REQUEST | NLM_F_CREATE | NLM_F_EXCL;
@@ -264,15 +271,15 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 			  MACVLAN_MODE_PRIVATE);
 		data->rta_len = (unsigned short)((void *)NLMSG_TAIL(&req.n) - (void *)data);
 		linkinfo->rta_len = (unsigned short)((void *)NLMSG_TAIL(&req.n) - (void *)linkinfo);
-		addattr32(&req.n, sizeof(req), IFLA_LINK, vrrp->ifp->base_ifp->ifindex);
+		addattr32(&req.n, sizeof(req), IFLA_LINK, vrrp->configured_ifp->base_ifp->ifindex);
 		addattr_l(&req.n, sizeof(req), IFLA_IFNAME, vrrp->vmac_ifname, strlen(vrrp->vmac_ifname));
 		addattr_l(&req.n, sizeof(req), IFLA_ADDRESS, ll_addr, ETH_ALEN);
 
 #ifdef _HAVE_VRF_
 		/* If the underlying interface is enslaved to a VRF master, then this
 		 * interface should be as well. */
-		if (vrrp->ifp->base_ifp->vrf_master_ifp)
-			addattr32(&req.n, sizeof(req), IFLA_MASTER, vrrp->ifp->base_ifp->vrf_master_ifp->ifindex);
+		if (vrrp->configured_ifp->vrf_master_ifp)
+			addattr32(&req.n, sizeof(req), IFLA_MASTER, vrrp->configured_ifp->vrf_master_ifp->ifindex);
 #endif
 
 		if (netlink_talk(&nl_cmd, &req.n) < 0) {
@@ -297,7 +304,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		kernel_netlink_poll();
 	}
 
-	ifp->vmac = true;
+	ifp->vmac_type = MACVLAN_MODE_PRIVATE;
 
 	if (!ifp->ifindex)
 		return false;
@@ -426,15 +433,11 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 	if (!vrrp->ifp)
 		return;
 
-	/* Make sure we don't remove a real interface */
-	if (!vrrp->ifp->vmac) {
-		log_message(LOG_INFO, "BUG - Attempting to remove non VMAC i/f %s", vrrp->ifp->ifname);
+	/* Don't delete the VMAC if it isn't an interface we created */
+	if (!vrrp->ifp->is_ours) {
+		log_message(LOG_INFO, "BUG - Attempt to remove VMAC interface %s which we didn't create", vrrp->ifp->ifname);
 		return;
 	}
-
-	/* Don't delete the VMAC if it isn't one we created */
-	if (!__test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags))
-		return;
 
 	/* Reset arp_ignore and arp_filter on the base interface if necessary */
 	if (vrrp->family == AF_INET) {
@@ -463,3 +466,73 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 
 	return;
 }
+
+#ifdef _HAVE_VRF_
+static void
+netlink_update_vrf(vrrp_t *vrrp)
+{
+	int ifindex = 0;
+	struct {
+		struct nlmsghdr n;
+		struct ifinfomsg ifi;
+		char buf[256];
+	} req;
+
+	if (!vrrp->ifp)
+		return;
+
+	/* Don't update the VMAC if it isn't an interface we created */
+	if (!vrrp->ifp->is_ours) {
+		log_message(LOG_INFO, "BUG - Attempt to update VRF on VMAC interface %s which we didn't create", vrrp->ifp->ifname);
+		return;
+	}
+
+	memset(&req, 0, sizeof (req));
+
+	req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
+	req.n.nlmsg_flags = NLM_F_REQUEST;
+	req.n.nlmsg_type = RTM_NEWLINK;
+	req.ifi.ifi_family = AF_INET;
+	req.ifi.ifi_index = (int)vrrp->ifp->ifindex;
+
+	if (vrrp->ifp->vrf_master_ifp)
+		ifindex = vrrp->ifp->vrf_master_ifp->ifindex;
+
+	addattr32(&req.n, sizeof(req), IFLA_MASTER, ifindex);
+
+	if (netlink_talk(&nl_cmd, &req.n) < 0) {
+		log_message(LOG_INFO, "vmac: Error changing VRF of VMAC interface %s for vrrp_instance %s!!!", vrrp->ifp->ifname, vrrp->iname);
+		return;
+	}
+
+	log_message(LOG_INFO, "vmac: Success changing VRF of VMAC interface %s for vrrp_instance %s", vrrp->ifp->ifname, vrrp->iname);
+
+	kernel_netlink_poll();
+
+	return;
+}
+
+void
+update_vmac_vrfs(interface_t *ifp)
+{
+	vrrp_t *vrrp;
+        tracking_vrrp_t *tvp;
+        element e;
+
+        LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {
+                vrrp = tvp->vrrp;
+
+                /* We only need to look for vmacs we created that
+		 * are configured on the interface which has changed
+		 * VRF */
+                if (vrrp->configured_ifp != ifp ||
+                    !vrrp->ifp->is_ours)
+			continue;
+
+		vrrp->ifp->vrf_master_ifp = ifp->vrf_master_ifp;
+
+		if (vrrp->ifp->ifindex)
+			netlink_update_vrf(vrrp);
+	}
+}
+#endif
