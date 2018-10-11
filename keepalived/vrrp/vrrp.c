@@ -2894,13 +2894,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 	/* Add this instance to the physical interface and vice versa */
-// @@ We have a problem if configured interface doesn't exist yet
 	add_vrrp_to_interface(vrrp, IF_BASE_IFP(vrrp->ifp), vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, true, TRACK_VRRP);
 
 #ifdef _HAVE_VRRP_VMAC_
 	/* If the interface is configured onto a VMAC interface, we want to track
 	 * the underlying interface too */
-/* @@ If the VMAC interface is deleted, we need to stop the VRRP instance tracking the underlying interface */
 	if (vrrp->configured_ifp != vrrp->ifp->base_ifp)
 		add_vrrp_to_interface(vrrp, vrrp->configured_ifp, vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, true, TRACK_VRRP);
 	if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&
