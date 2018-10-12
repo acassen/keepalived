@@ -1955,9 +1955,9 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 
 #ifdef _HAVE_VRRP_VMAC_
 				/* If this was one of our vmacs, create it again */
-				if (ifp->is_ours &&
+				if (ifp->is_ours
 #ifndef _DEBUG_
-				    prog_type == PROG_TYPE_VRRP
+				    && prog_type == PROG_TYPE_VRRP
 #endif
 								) {
 					/* Change the mac address on the interface, so we can create a new vmac */
