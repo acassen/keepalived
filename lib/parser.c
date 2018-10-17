@@ -1521,19 +1521,31 @@ read_line(char *buf, size_t size)
 				skip = 0;
 
 			if (p[skip] && p[skip] != '#' && p[skip] != '!') {
-				line_residue = MALLOC(strlen(p + skip) + 1);
+				/* Skip trailing whitespace */
+				len = strlen(p + skip);
+				while (len && (p[skip+len-1] == ' ' || p[skip+len-1] == '\t'))
+					len--;
+				line_residue = MALLOC(len + 1);
+				p[skip+len] = '\0';
 				strcpy(line_residue, p + skip);
 				p[skip] = '\0';
 			}
 		}
-	}
 
-	/* Check that we haven't got too many '}'s */
-	if (!strcmp(buf, BOB))
-		block_depth++;
-	else if (!strcmp(buf, EOB)) {
-		if (--block_depth < 0)
-			report_config_error(CONFIG_UNEXPECTED_EOB, "There are %d more '%s's than '%s's", -block_depth, EOB, BOB);
+		/* Skip trailing whitespace */
+		len = strlen(text_start);
+		while (len && (text_start[len-1] == ' ' || text_start[len-1] == '\t'))
+			len--;
+		text_start[len] = '\0';
+		memmove(buf, text_start, len + 1);
+
+		/* Check that we haven't got too many '}'s */
+		if (!strcmp(buf, BOB))
+			block_depth++;
+		else if (!strcmp(buf, EOB)) {
+			if (--block_depth < 0)
+				report_config_error(CONFIG_UNEXPECTED_EOB, "There are %d more '%s's than '%s's", -block_depth, EOB, BOB);
+		}
 	}
 
 	return !eof;
