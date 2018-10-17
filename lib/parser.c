@@ -1543,8 +1543,10 @@ read_line(char *buf, size_t size)
 		if (!strcmp(buf, BOB))
 			block_depth++;
 		else if (!strcmp(buf, EOB)) {
-			if (--block_depth < 0)
-				report_config_error(CONFIG_UNEXPECTED_EOB, "There are %d more '%s's than '%s's", -block_depth, EOB, BOB);
+			if (--block_depth < 0) {
+				report_config_error(CONFIG_UNEXPECTED_EOB, "Extra '}' found");
+				block_depth = 0;
+			}
 		}
 	}
 
