@@ -723,7 +723,9 @@ alloc_strvec_r(char *string)
 }
 
 /* recursive configuration stream handler */
-static int kw_level = 0;
+static int kw_level;
+static int block_depth;
+
 static bool
 process_stream(vector_t *keywords_vec, int need_bob)
 {
@@ -956,11 +958,6 @@ read_conf_file(const char *conf_file)
 	}
 
 	globfree(&globbuf);
-
-	if (skip_sublevel) {
-		log_message(LOG_INFO, "WARNING - %d missing '}'(s) in the config file(s)", skip_sublevel);
-		skip_sublevel = 0;
-	}
 
 	if (!num_matches)
 		log_message(LOG_INFO, "No config files matched '%s'.", conf_file);
@@ -1531,6 +1528,14 @@ read_line(char *buf, size_t size)
 		}
 	}
 
+	/* Check that we haven't got too many '}'s */
+	if (!strcmp(buf, BOB))
+		block_depth++;
+	else if (!strcmp(buf, EOB)) {
+		if (--block_depth < 0)
+			report_config_error(CONFIG_UNEXPECTED_EOB, "There are %d more '%s's than '%s's", -block_depth, EOB, BOB);
+	}
+
 	return !eof;
 }
 
@@ -1707,9 +1712,17 @@ init_data(const char *conf_file, vector_t * (*init_keywords) (void))
 	current_file_name = NULL;
 	current_file_line_no = 0;
 
+	/* A parent process may have left these set */
+	block_depth = 0;
+	kw_level = 0;
+
 	register_null_strvec_handler(null_strvec);
 	read_conf_file(conf_file);
 	unregister_null_strvec_handler();
+
+	/* Report if there are missing '}'s. If there are missing '{'s it will already have been reported */
+	if (block_depth > 0)
+		report_config_error(CONFIG_MISSING_EOB, "There are %d missing '%s's or extra '%s's", block_depth, EOB, BOB);
 
 	/* We have finished reading the configuration files, so any configuration
 	 * errors report from now mustn't include a reference to the config file name */
