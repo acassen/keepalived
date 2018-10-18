@@ -39,17 +39,20 @@
 
 /* Thread types. */
 typedef enum {
-	THREAD_READ,
-	THREAD_WRITE,
-	THREAD_TIMER,
-	THREAD_TIMER_SHUTDOWN,
-	THREAD_EVENT,
-	THREAD_CHILD,
+	THREAD_READ,		/* thread_master.read rb tree */
+	THREAD_WRITE,		/* thread_master.write rb tree */
+	THREAD_TIMER,		/* thread_master.timer rb tree */
+	THREAD_TIMER_SHUTDOWN,	/* thread_master.timer rb tree */
+	THREAD_CHILD,		/* thread_master.child rb tree */
+	THREAD_UNUSED,		/* thread_master.unuse list_head */
+
+	/* The following are all on the thread_master.next list_head */
 	THREAD_READY,
-	THREAD_UNUSED,
+	THREAD_EVENT,
 	THREAD_WRITE_TIMEOUT,
 	THREAD_READ_TIMEOUT,
 	THREAD_CHILD_TIMEOUT,
+	THREAD_CHILD_TERMINATED,
 	THREAD_TERMINATE_START,
 	THREAD_TERMINATE,
 	THREAD_READY_FD,

@@ -309,6 +309,7 @@ void
 checker_bfd_dispatcher_release(void)
 {
 	thread_cancel(bfd_thread);
+	bfd_thread = NULL;
 }
 
 #ifdef THREAD_DUMP

@@ -114,6 +114,7 @@ get_thread_type_str(thread_type_t id)
 	if (id == THREAD_WRITE_TIMEOUT) return "WRITE_TIMEOUT";
 	if (id == THREAD_READ_TIMEOUT) return "READ_TIMEOUT";
 	if (id == THREAD_CHILD_TIMEOUT) return "CHILD_TIMEOUT";
+	if (id == THREAD_CHILD_TERMINATED) return "CHILD_TERMINATED";
 	if (id == THREAD_TERMINATE_START) return "TERMINATE_START";
 	if (id == THREAD_TERMINATE) return "TERMINATE";
 	if (id == THREAD_READY_FD) return "READY_FD";
@@ -1335,7 +1336,7 @@ thread_cancel(thread_t *thread)
 {
 	thread_master_t *m;
 
-	if (!thread)
+	if (!thread || thread->type == THREAD_UNUSED)
 		return;
 
 	m = thread->master;
@@ -1374,6 +1375,7 @@ thread_cancel(thread_t *thread)
 	case THREAD_SIGNAL:
 #endif
 	case THREAD_CHILD_TIMEOUT:
+	case THREAD_CHILD_TERMINATED:
 		list_head_del(&thread->next);
 		break;
 	default:
@@ -1390,8 +1392,10 @@ thread_cancel_read(thread_master_t *m, int fd)
 
 	rb_for_each_entry_safe_cached(thread, thread_tmp, &m->read, n) {
 		if (thread->u.fd == fd) {
-			if (thread->event->write)
+			if (thread->event->write) {
 				thread_cancel(thread->event->write);
+				thread->event->write = NULL;
+			}
 			thread_cancel(thread);
 			break;
 		}
@@ -1694,6 +1698,7 @@ process_threads(thread_master_t *m)
 		     (thread->u.fd == m->timer_fd || thread->u.fd == m->signal_fd)) ||
 		    thread->type == THREAD_CHILD ||
 		    thread->type == THREAD_CHILD_TIMEOUT ||
+		    thread->type == THREAD_CHILD_TERMINATED ||
 		    thread->type == THREAD_TIMER_SHUTDOWN ||
 		    thread->type == THREAD_TERMINATE) {
 			if (thread->func)
@@ -1754,7 +1759,7 @@ process_child_termination(pid_t pid, int status)
 		thread_add_terminate_event(m);
 	}
 	else
-		thread_move_ready(m, &m->child, thread, THREAD_CHILD);
+		thread_move_ready(m, &m->child, thread, THREAD_CHILD_TERMINATED);
 }
 
 /* Synchronous signal handler to reap child processes */
