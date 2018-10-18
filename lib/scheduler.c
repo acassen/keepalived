@@ -120,8 +120,6 @@ get_thread_type_str(thread_type_t id)
 	if (id == THREAD_READY_FD) return "READY_FD";
 	if (id == THREAD_READ_ERROR) return "READ_ERROR";
 	if (id == THREAD_WRITE_ERROR) return "WRITE_ERROR";
-	if (id == THREAD_IF_UP) return "IF_UP";
-	if (id == THREAD_IF_DOWN) return "IF_DOWN";
 #ifdef USE_SIGNAL_THREADS
 	if (id == THREAD_SIGNAL) return "SIGNAL";
 #endif
