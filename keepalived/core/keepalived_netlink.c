@@ -25,7 +25,6 @@
 #include <netinet/ip.h>
 /* global include */
 #include <stdlib.h>
-#include <unistd.h>
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <string.h>
@@ -465,10 +464,13 @@ netlink_set_recv_buf_size(void)
 	 * But we should limit to 8K so that userspace does not have to
 	 * use enormous buffer sizes on recvmsg() calls just to avoid
 	 * MSG_TRUNC when PAGE_SIZE is very large.
+	 *
+	 * HOWEVER, net/netlink/af_netlink.c states for dumps:
+	 * Trim skb to allocated size. User is expected to provide buffer as
+         * large as max(min_dump_alloc, 16KiB (mac_recvmsg_len capped at
+         * netlink_recvmsg())).
 	 */
-	nlmsg_buf_size = sysconf(_SC_PAGESIZE);
-	if (nlmsg_buf_size > 8192)
-		nlmsg_buf_size = 8192;
+	nlmsg_buf_size = 16384;
 }
 
 /* Update the netlink socket receive buffer sizes */
