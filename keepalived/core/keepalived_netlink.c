@@ -466,7 +466,7 @@ netlink_set_recv_buf_size(void)
 	 * use enormous buffer sizes on recvmsg() calls just to avoid
 	 * MSG_TRUNC when PAGE_SIZE is very large.
 	 */
-	nlmsg_buf_size = getpagesize();
+	nlmsg_buf_size = sysconf(_SC_PAGESIZE);
 	if (nlmsg_buf_size > 8192)
 		nlmsg_buf_size = 8192;
 }
