@@ -77,7 +77,6 @@ extern bool do_netlink_timers;
 #ifdef _NETLINK_TIMERS_
 extern void report_and_clear_netlink_timers(const char *);
 #endif
-extern void netlink_set_recv_buf_size(void);
 #ifdef _WITH_VRRP_
 extern int addattr_l(struct nlmsghdr *, size_t, unsigned short, void *, size_t);
 extern int addattr8(struct nlmsghdr *, size_t, unsigned short, uint8_t);

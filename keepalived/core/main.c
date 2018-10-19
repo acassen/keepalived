@@ -1657,8 +1657,6 @@ keepalived_main(int argc, char **argv)
 	log_command_line(0);
 #endif
 
-	netlink_set_recv_buf_size();
-
 	/* Check we can read the configuration file(s).
 	   NOTE: the working directory will be / if we
 	   forked, but will be the current working directory
