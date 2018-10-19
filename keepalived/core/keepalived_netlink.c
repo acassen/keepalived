@@ -25,7 +25,6 @@
 #include <netinet/ip.h>
 /* global include */
 #include <stdlib.h>
-#include <unistd.h>
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <string.h>
@@ -98,6 +97,7 @@ int netlink_error_ignore;	/* If we get this error, ignore it */
 
 /* Static vars */
 static nl_handle_t nl_kernel = { .fd = -1 };	/* Kernel reflection channel */
+static char *nlmsg_buf;		/* The allocated netlink receive buffer */
 static int nlmsg_buf_size;	/* Size of netlink message buffer */
 
 #ifdef _NETLINK_TIMERS_
@@ -456,19 +456,13 @@ rule_is_ours(struct fib_rule_hdr* frh, struct rtattr *tb[FRA_MAX + 1], vrrp_t **
 #endif
 
 void
-netlink_set_recv_buf_size(void)
+free_netlink_recv_buf(void)
 {
-	/* The size of the read buffer for the NL socket is based on page
-	 * size however, it should not exceed 8192. See the comment in:
-	 * linux/include/linux/netlink.h (copied below):
-	 * skb should fit one page. This choice is good for headerless malloc.
-	 * But we should limit to 8K so that userspace does not have to
-	 * use enormous buffer sizes on recvmsg() calls just to avoid
-	 * MSG_TRUNC when PAGE_SIZE is very large.
-	 */
-	nlmsg_buf_size = getpagesize();
-	if (nlmsg_buf_size > 8192)
-		nlmsg_buf_size = 8192;
+	if (nlmsg_buf) {
+		FREE(nlmsg_buf);
+		nlmsg_buf = NULL;
+		nlmsg_buf_size = 0;
+	}
 }
 
 /* Update the netlink socket receive buffer sizes */
@@ -771,6 +765,9 @@ netlink_close(nl_handle_t *nl)
 	}
 #endif
 	nl->fd = -1;
+
+	if (nl_cmd.fd == -1 && nl_kernel.fd == -1)
+		free_netlink_recv_buf();
 }
 
 /* iproute2 utility function */
@@ -1277,15 +1274,13 @@ static int
 netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 		   nl_handle_t *nl, struct nlmsghdr *n, bool read_all)
 {
-	ssize_t status;
+	ssize_t len;
 	int ret = 0;
 	int error;
 
 	while (true) {
-		char buf[nlmsg_buf_size];
 		struct iovec iov = {
-			.iov_base = buf,
-			.iov_len = sizeof buf
+			.iov_len = 0
 		};
 		struct sockaddr_nl snl;
 		struct msghdr msg = {
@@ -1299,11 +1294,28 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 		};
 		struct nlmsghdr *h;
 
-		status = recvmsg(nl->fd, &msg, 0);
+		/* Find out how big our receive buffer needs to be */
+		do {
+			len = recvmsg(nl->fd, &msg, MSG_PEEK | MSG_TRUNC);
+		} while (len < 0 && errno == EINTR);
 
-		if (status < 0) {
-			if (errno == EINTR)
-				continue;
+		if (len < 0)
+			return -1;
+
+		if (len > nlmsg_buf_size) {
+			FREE_PTR(nlmsg_buf);
+			nlmsg_buf = MALLOC(len);
+			nlmsg_buf_size = len;
+		}
+
+		iov.iov_base = nlmsg_buf;
+		iov.iov_len = nlmsg_buf_size;
+
+		do {
+			len = recvmsg(nl->fd, &msg, 0);
+		} while (len < 0 && errno == EINTR);
+
+		if (len < 0) {
 			if (errno == EWOULDBLOCK || errno == EAGAIN)
 				break;
 			if (errno == ENOBUFS) {
@@ -1315,7 +1327,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 			continue;
 		}
 
-		if (status == 0) {
+		if (len == 0) {
 			log_message(LOG_INFO, "Netlink: EOF");
 			return -1;
 		}
@@ -1327,7 +1339,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 			return -1;
 		}
 
-		for (h = (struct nlmsghdr *) buf; NLMSG_OK(h, (size_t)status); h = NLMSG_NEXT(h, status)) {
+		for (h = (struct nlmsghdr *) nlmsg_buf; NLMSG_OK(h, (size_t)len); h = NLMSG_NEXT(h, len)) {
 			/* Finish off reading. */
 			if (h->nlmsg_type == NLMSG_DONE)
 				return ret;
@@ -1405,9 +1417,9 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 			log_message(LOG_INFO, "Netlink: error: message truncated");
 			continue;
 		}
-		if (status) {
+		if (len) {
 			log_message(LOG_INFO, "Netlink: error: data remnant size %zd",
-			       status);
+			       len);
 			return -1;
 		}
 	}
