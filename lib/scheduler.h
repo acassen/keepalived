@@ -44,6 +44,7 @@ typedef enum {
 	THREAD_TIMER,		/* thread_master.timer rb tree */
 	THREAD_TIMER_SHUTDOWN,	/* thread_master.timer rb tree */
 	THREAD_CHILD,		/* thread_master.child rb tree */
+#define THREAD_MAX_WAITING THREAD_CHILD
 	THREAD_UNUSED,		/* thread_master.unuse list_head */
 
 	/* The following are all on the thread_master.next list_head */
