@@ -98,6 +98,7 @@ typedef struct _bfd {
 	long sands_exp;		/* Expire thread sands, used for suspend/resume */
 	thread_t *thread_rst;	/* Reset thread */
 	long sands_rst;		/* Reset thread sands, used for suspend/resume */
+	bool send_error;	/* Set if last send had an error */
 
 	/* State variables */
 	u_char local_state:2;	/* Local state */

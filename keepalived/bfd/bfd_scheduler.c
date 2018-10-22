@@ -41,7 +41,7 @@
 #include "utils.h"
 #include "signals.h"
 
-static int bfd_send_packet(int, bfdpkt_t *);
+static int bfd_send_packet(int, bfdpkt_t *, bool);
 static void bfd_sender_schedule(bfd_t *);
 
 static void bfd_state_down(bfd_t *, char diag);
@@ -82,17 +82,19 @@ bfd_sender_thread(thread_t *thread)
 		bfd->thread_out = NULL;
 
 	bfd_build_packet(&pkt, bfd, bfd_buffer, BFD_BUFFER_SIZE);
-	if (bfd_send_packet(bfd->fd_out, &pkt) == -1) {
-		log_message(LOG_ERR, "BFD_Instance(%s) Error sending packet,"
-			    " disabling instance", bfd->iname);
-		bfd_state_admindown(bfd);
-	}
+	if (bfd_send_packet(bfd->fd_out, &pkt, !bfd->send_error) == -1) {
+		if (!bfd->send_error) {
+			log_message(LOG_ERR, "BFD_Instance(%s) Error sending packet", bfd->iname);
+			bfd->send_error = true;
+		}
+	} else
+		bfd->send_error = false;
 
 	/* Reset final flag if set */
 	bfd->final = 0;
 
 	/* Schedule next run if not called as an event thread */
-	if (thread->type != THREAD_EVENT && !BFD_ISADMINDOWN(bfd))
+	if (thread->type != THREAD_EVENT)
 		bfd_sender_schedule(bfd);
 
 	return 0;
@@ -601,7 +603,7 @@ bfd_dump_timers(FILE *fp, bfd_t *bfd)
 /* Sends a control packet to the neighbor (called from bfd_sender_thread)
    returns -1 on error */
 static int
-bfd_send_packet(int fd, bfdpkt_t *pkt)
+bfd_send_packet(int fd, bfdpkt_t *pkt, bool log_error)
 {
 	int ret;
 	socklen_t dstlen;
@@ -617,7 +619,7 @@ bfd_send_packet(int fd, bfdpkt_t *pkt)
 	ret =
 	    sendto(fd, pkt->buf, pkt->len, 0,
 		   (struct sockaddr *) &pkt->dst_addr, dstlen);
-	if (ret == -1)
+	if (ret == -1 && log_error)
 		log_message(LOG_ERR, "sendto() error (%m)");
 
 	return ret;
