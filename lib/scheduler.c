@@ -1052,6 +1052,11 @@ thread_read_requeue(thread_master_t *m, int fd, const timeval_t *new_sands)
 
 	thread = event->read;
 
+	if (thread->type != THREAD_READ) {
+		/* If the thread is not on the read list, don't touch it */
+		return;
+	}
+
 	thread->sands = *new_sands;
 
 	rb_move_cached(&thread->master->read, thread, n, thread_timer_cmp);
