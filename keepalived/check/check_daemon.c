@@ -459,13 +459,17 @@ register_check_thread_addresses(void)
 	register_check_bfd_addresses();
 #endif
 
+#ifndef _DEBUG_
 	register_thread_address("reload_check_thread", reload_check_thread);
-	register_thread_address("lvs_notify_fifo_script_exit", lvs_notify_fifo_script_exit);
 	register_thread_address("start_checker_termination_thread", start_checker_termination_thread);
+#endif
+	register_thread_address("lvs_notify_fifo_script_exit", lvs_notify_fifo_script_exit);
 	register_thread_address("checker_shutdown_backstop_thread", checker_shutdown_backstop_thread);
 
+#ifndef _DEBUG_
 	register_signal_handler_address("sigreload_check", sigreload_check);
 	register_signal_handler_address("sigend_check", sigend_check);
+#endif
 }
 #endif
 
@@ -601,6 +605,8 @@ start_check_child(void)
 void
 register_check_parent_addresses(void)
 {
+#ifndef _DEBUG_
 	register_thread_address("check_respawn_thread", check_respawn_thread);
+#endif
 }
 #endif

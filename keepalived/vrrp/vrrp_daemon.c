@@ -108,6 +108,7 @@ static bool two_phase_terminate;
 bool do_vrrp_fd_debug;
 #endif
 
+#ifndef _DEBUG_
 #ifdef _VRRP_FD_DEBUG_
 static void
 dump_vrrp_fd(void)
@@ -140,6 +141,7 @@ dump_vrrp_fd(void)
 
 	log_message(LOG_INFO, "----[ End VRRP fd dump ]----");
 }
+#endif
 #endif
 
 static void
@@ -859,20 +861,24 @@ register_vrrp_thread_addresses(void)
 	register_vrrp_fifo_addresses();
 	register_vrrp_inotify_addresses();
 
+#ifndef _DEBUG_
 	register_thread_address("print_vrrp_data", print_vrrp_data);
 	register_thread_address("print_vrrp_stats", print_vrrp_stats);
 	register_thread_address("reload_vrrp_thread", reload_vrrp_thread);
 	register_thread_address("start_vrrp_termination_thread", start_vrrp_termination_thread);
+	register_thread_address("send_reload_advert_thread", send_reload_advert_thread);
+#endif
 	register_thread_address("vrrp_shutdown_backstop_thread", vrrp_shutdown_backstop_thread);
 	register_thread_address("vrrp_shutdown_timer_thread", vrrp_shutdown_timer_thread);
-	register_thread_address("send_reload_advert_thread", send_reload_advert_thread);
 
+#ifndef _DEBUG_
 	register_signal_handler_address("sigreload_vrrp", sigreload_vrrp);
 	register_signal_handler_address("sigend_vrrp", sigend_vrrp);
 	register_signal_handler_address("sigusr1_vrrp", sigusr1_vrrp);
 	register_signal_handler_address("sigusr2_vrrp", sigusr2_vrrp);
 #ifdef _WITH_JSON_
 	register_signal_handler_address("sigjson_vrrp", sigjson_vrrp);
+#endif
 #endif
 }
 #endif
@@ -1032,6 +1038,8 @@ vrrp_validate_config(void)
 void
 register_vrrp_parent_addresses(void)
 {
+#ifndef _DEBUG_
 	register_thread_address("vrrp_respawn_thread", vrrp_respawn_thread);
+#endif
 }
 #endif

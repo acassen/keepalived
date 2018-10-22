@@ -57,7 +57,9 @@ int bfd_checker_event_pipe[2] = { -1, -1};
 /* Local variables */
 static char *bfd_syslog_ident;
 
+#ifndef _DEBUG_
 static int reload_bfd_thread(thread_t *);
+#endif
 
 /* Daemon stop sequence */
 static void
@@ -179,6 +181,7 @@ bfd_validate_config(void)
 	start_bfd(NULL);
 }
 
+#ifndef _DEBUG_
 /* Reload handler */
 static void
 sigreload_bfd(__attribute__ ((unused)) void *v,
@@ -246,7 +249,6 @@ reload_bfd_thread(__attribute__((unused)) thread_t * thread)
 	return 0;
 }
 
-#ifndef _DEBUG_
 /* BFD Child respawning thread */
 static int
 bfd_respawn_thread(thread_t * thread)
@@ -265,6 +267,7 @@ bfd_respawn_thread(thread_t * thread)
 }
 #endif
 
+#ifndef _DEBUG_
 #ifdef THREAD_DUMP
 static void
 register_bfd_thread_addresses(void)
@@ -281,6 +284,7 @@ register_bfd_thread_addresses(void)
 	register_signal_handler_address("sigend_bfd", sigend_bfd);
 	register_signal_handler_address("thread_child_handler", thread_child_handler);
 }
+#endif
 #endif
 
 int
@@ -420,6 +424,8 @@ start_bfd_child(void)
 void
 register_bfd_parent_addresses(void)
 {
+#ifndef _DEBUG_
 	register_thread_address("bfd_respawn_thread", bfd_respawn_thread);
+#endif
 }
 #endif
