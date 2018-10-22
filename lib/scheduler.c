@@ -1181,6 +1181,11 @@ timer_thread_update_timeout(thread_t *thread, unsigned long timer)
 {
 	timeval_t sands;
 
+	if (thread->type > THREAD_MAX_WAITING) {
+		/* It is probably on the ready list, so we'd better just let it run */
+		return;
+	}
+
 	set_time_now();
 	sands = timer_add_long(time_now, timer);
 
