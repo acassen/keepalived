@@ -1052,6 +1052,11 @@ thread_read_requeue(thread_master_t *m, int fd, const timeval_t *new_sands)
 
 	thread = event->read;
 
+	if (thread->type != THREAD_READ) {
+		/* If the thread is not on the read list, don't touch it */
+		return;
+	}
+
 	thread->sands = *new_sands;
 
 	rb_move_cached(&thread->master->read, thread, n, thread_timer_cmp);
@@ -1180,6 +1185,11 @@ void
 timer_thread_update_timeout(thread_t *thread, unsigned long timer)
 {
 	timeval_t sands;
+
+	if (thread->type > THREAD_MAX_WAITING) {
+		/* It is probably on the ready list, so we'd better just let it run */
+		return;
+	}
 
 	set_time_now();
 	sands = timer_add_long(time_now, timer);
