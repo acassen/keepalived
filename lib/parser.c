@@ -52,6 +52,8 @@
 #include "bitops.h"
 #include "utils.h"
 
+#define PARSER_DEBUG
+
 #define DUMP_KEYWORDS	0
 
 #define DEF_LINE_END	"\n"
@@ -721,6 +723,148 @@ alloc_strvec_r(char *string)
 	return strvec;
 }
 
+typedef struct _seq {
+	char *var;
+	int next;
+	int last;
+	int step;
+	char *text;
+} seq_t;
+
+static list seq_list;	/* List of seq_t */
+
+#ifdef PARSER_DEBUG
+static void
+dump_seqs(void)
+{
+	seq_t *seq;
+	element e;
+
+	LIST_FOREACH(seq_list, seq, e)
+		log_message(LOG_INFO, "SEQ: %s => %d -> %d step %d: '%s'", seq->var, seq->next, seq->last, seq->step, seq->text);
+	log_message(LOG_INFO, "%s", "");
+}
+#endif
+
+static void
+free_seq(void *s)
+{
+	seq_t *seq = s;
+
+	FREE(seq->var);
+	FREE(seq->text);
+	FREE(seq);
+}
+
+static bool
+add_seq(char *buf)
+{
+	char *p = buf + 4;		/* Skip ~SEQ */
+	long one, two, three;
+	long start, step, end;
+	seq_t *seq_ent;
+	char *var;
+	char *var_end;
+
+	p += strspn(p, " \t");
+	if (*p++ != '(')
+		return false;
+	p += strspn(p, " \t");
+
+	var = p;
+
+	p += strcspn(p, " \t,)");
+	var_end = p;
+	p += strspn(p, " \t");
+	if (!*p || *p == ')' || p == var) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid ~SEQ definition '%s'", buf);
+		return false;
+	}
+
+	p++;
+	do {
+		// Handle missing number
+		one = strtol(p, &p, 0);
+		p += strspn(p, " \t");
+		if (*p == ')') {
+			end = one;
+			step = (end < 1) ? -1 : 1;
+			start = (end < 0) ? -1 : 1;
+
+			break;
+		}
+
+		if (*p != ',') {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid ~SEQ definition '%s'", buf);
+			return false;
+		}
+
+		two = strtol(p + 1, &p, 0);
+		p += strspn(p, " \t");
+		if (*p == ')') {
+			start = one;
+			end = two;
+			step = start <= end ? 1 : -1;
+
+			break;
+		}
+
+		if (*p != ',') {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid ~SEQ definition '%s'", buf);
+			return false;
+		}
+
+		three = strtol(p + 1, &p, 0);
+		p += strspn(p, " \t");
+		if (*p != ')') {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid ~SEQ definition '%s'", buf);
+			return false;
+		}
+
+		start = one;
+		step = two;
+		end = three;
+
+		if (!step ||
+		    (start < end && step < 0) ||
+		    (start > end && step > 0))
+		{
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid ~SEQ values '%s'", buf);
+			return false;
+		}
+	} while (false);
+
+	p += strspn(p + 1, " \t") + 1;
+
+	PMALLOC(seq_ent);
+	seq_ent->var = MALLOC(var_end - var + 1);
+	strncpy(seq_ent->var, var, var_end - var);
+	seq_ent->next = start;
+	seq_ent->step = step;
+	seq_ent->last = end;
+	seq_ent->text = MALLOC(strlen(p) + 1);
+	strcpy(seq_ent->text, p);
+
+	if (!seq_list)
+		seq_list = alloc_list(free_seq, NULL);
+	list_add(seq_list, seq_ent);
+
+	return true;
+}
+
+#ifdef PARSER_DEBUG
+static void
+dump_definitions(void)
+{
+	def_t *def;
+	element e;
+
+	LIST_FOREACH(defs, def, e)
+		log_message(LOG_INFO, "Defn %s = '%s'", def->name, def->value);
+	log_message(LOG_INFO, "%s", "");
+}
+#endif
+
 /* recursive configuration stream handler */
 static int kw_level;
 static int block_depth;
@@ -803,6 +947,17 @@ process_stream(vector_t *keywords_vec, int need_bob)
 		if (!strcmp(str, EOB) && kw_level > 0) {
 			free_strvec(strvec);
 			break;
+		}
+
+		if (!strncmp(str, "~SEQ", 4)) {
+			if (!add_seq(buf))
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid ~SEQ specification '%s'", buf);
+			free_strvec(strvec);
+#ifdef PARSER_DEBUG
+			dump_definitions();
+			dump_seqs();
+#endif
+			continue;
 		}
 
 		for (i = 0; i < vector_size(keywords_vec); i++) {
@@ -945,6 +1100,8 @@ read_conf_file(const char *conf_file)
 
 		process_stream(current_keywords, 0);
 		fclose(stream);
+
+		free_list(&seq_list);
 
 		/* If we changed directory, restore the previous directory */
 		if (curdir_fd != -1) {
@@ -1187,6 +1344,9 @@ replace_param(char *buf, size_t max_len, char **multiline_ptr_ptr)
 
 			/* Now copy the replacement text */
 			strncpy(cur_pos, def->value, replacing_len);
+
+			if (def->value[strspn(def->value, " \t")] == '~')
+				break;
 		}
 		else
 			cur_pos++;
@@ -1207,6 +1367,37 @@ free_definition(void *d)
 	FREE(def->name);
 	FREE_PTR(def->value);
 	FREE(def);
+}
+
+static def_t*
+set_definition(const char *name, const char *value)
+{
+	def_t *def;
+	size_t name_len = strlen(name);
+
+	if ((def = find_definition(name, name_len, false))) {
+		FREE(def->value);
+		def->fn = NULL;		/* Allow a standard definition to be overridden */
+	}
+	else {
+		def = MALLOC(sizeof(*def));
+		def->name_len = name_len;
+		def->name = MALLOC(name_len + 1);
+		strcpy(def->name, name);
+
+		if (!LIST_EXISTS(defs))
+			defs = alloc_list(free_definition, NULL);
+		list_add(defs, def);
+	}
+	def->value_len = strlen(value);
+	def->value = MALLOC(def->value_len + 1);
+	strcpy(def->value, value);
+
+#ifdef PARSER_DEBUG
+	log_message(LOG_INFO, "Definition %s now '%s'", def->name, def->value);
+#endif
+
+	return def;
 }
 
 /* A definition is of the form $NAME=TEXT */
@@ -1424,6 +1615,24 @@ read_line(char *buf, size_t size)
 				strncpy(buf, next_ptr, (size_t)(end - next_ptr));
 				buf[end - next_ptr] = '\0';
 				next_ptr = end + 1;
+			}
+		}
+		else if (!LIST_ISEMPTY(seq_list)) {
+			seq_t *seq = LIST_TAIL_DATA(seq_list);
+			char val[12];
+			snprintf(val, sizeof(val), "%d", seq->next);
+#ifdef PARSER_DEBUG
+			log_message(LOG_INFO, "Processing seq %d of %s for '%s'",  seq->next, seq->var, seq->text);
+#endif
+			set_definition(seq->var, val);
+			strcpy(buf, seq->text);
+			seq->next += seq->step;
+			if ((seq->step > 0 && seq->next > seq->last) ||
+			    (seq->step < 0 && seq->next < seq->last)) {
+#ifdef PARSER_DEBUG
+				log_message(LOG_INFO, "Removing seq %s for '%s'", seq->var, seq->text);
+#endif
+				list_remove(seq_list, seq_list->tail);
 			}
 		}
 		else {
