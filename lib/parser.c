@@ -1587,7 +1587,6 @@ read_line(char *buf, size_t size)
 	static def_t *def = NULL;
 	static char *next_ptr = NULL;
 	bool multiline_param_def = false;
-	char *new_str;
 	char *end;
 	static char *line_residue = NULL;
 	size_t skip;
@@ -1682,21 +1681,10 @@ retry:
 			if (len >= 2 ||
 			    (len && !multiline_param_def)) {
 				/* Add the line to the definition */
-// ? use REALLOC
-#if 0
 				def->value = REALLOC(def->value, def->value_len + len + 1);
 				strncpy(def->value + def->value_len, buf, len);
 				def->value_len += len;
 				def->value[def->value_len] = '\0';
-#else
-				new_str = MALLOC(def->value_len + len + 1);
-				strcpy(new_str, def->value);
-				strncpy(new_str + def->value_len, buf, len);
-				new_str[def->value_len + len] = '\0';
-				FREE(def->value);
-				def->value = new_str;
-				def->value_len += len;
-#endif
 			}
 
 			buf[0] = '\0';
