@@ -56,7 +56,6 @@
 
 #define DEF_LINE_END	"\n"
 
-#define COMMENT_START_CHRS "!#"
 #define BOB "{"
 #define EOB "}"
 #define WHITE_SPACE_STR " \t\f\n\r\v"
@@ -536,13 +535,13 @@ alloc_strvec_quoted_escaped(char *src)
 	while (*ofs) {
 		/* Find the next 'word' */
 		ofs += strspn(ofs, WHITE_SPACE);
-		if (!*ofs || strchr(COMMENT_START_CHRS, *ofs))
+		if (!*ofs)
 			break;
 
 		ofs_op = op_buf;
 
 		while (*ofs) {
-			ofs1 = strpbrk(ofs, cur_quote == '"' ? "\"\\" : cur_quote == '\'' ? "'\\" : WHITE_SPACE_STR COMMENT_START_CHRS "'\"\\");
+			ofs1 = strpbrk(ofs, cur_quote == '"' ? "\"\\" : cur_quote == '\'' ? "'\\" : WHITE_SPACE_STR "'\"\\");
 
 			if (!ofs1) {
 				size_t len;
@@ -687,7 +686,7 @@ alloc_strvec_r(char *string)
 	cp = string;
 	while (true) {
 		cp += strspn(cp, WHITE_SPACE);
-		if (!*cp || strchr(COMMENT_START_CHRS, *cp))
+		if (!*cp)
 			break;
 
 		start = cp;
@@ -702,7 +701,7 @@ alloc_strvec_r(char *string)
 			str_len = (size_t)(cp - start);
 			cp++;
 		} else {
-			cp += strcspn(start, WHITE_SPACE_STR COMMENT_START_CHRS "\"");
+			cp += strcspn(start, WHITE_SPACE_STR "\"");
 			str_len = (size_t)(cp - start);
 		}
 		token = MALLOC(str_len + 1);
@@ -1225,7 +1224,7 @@ check_definition(const char *buf)
 	if (!isalpha(buf[1]) && buf[1] != '_')
 		return NULL;
 
-	for (p = &buf[2]; *p; p++) {
+	for (p = buf + 2; *p; p++) {
 		if (*p == '=')
 			break;
 		if (!isalnum(*p) &&
@@ -1234,10 +1233,12 @@ check_definition(const char *buf)
 			return NULL;
 	}
 
+	def_name_len = (size_t)(p - &buf[1]);
+
+	p += strspn(p, " \t");
 	if (*p != '=')
 		return NULL;
 
-	def_name_len = (size_t)(p - &buf[1]);
 	if ((def = find_definition(&buf[1], def_name_len, true))) {
 		FREE(def->value);
 		def->fn = NULL;		/* Allow a standard definition to be overridden */
@@ -1255,17 +1256,18 @@ check_definition(const char *buf)
 		list_add(defs, def);
 	}
 
-	p++;
+	/* Skip leading whitespace */
+	p += strspn(p + 1, " \t") + 1;
 	def->value_len = strlen(p);
 	if (p[def->value_len - 1] == '\\') {
-		/* Remove leading and trailing whitespace */
-		while (isblank(*p))
-			p++, def->value_len--;
+		/* Remove trailing whitespace */
 		while (def->value_len >= 2 &&
 		       isblank(p[def->value_len - 2]))
 			def->value_len--;
 
 		if (def->value_len < 2) {
+			/* If the string has nothing except spaces and terminating '\'
+			 * point to the string terminator. */
 			p += def->value_len;
 			def->value_len = 0;
 		}
@@ -1277,7 +1279,8 @@ check_definition(const char *buf)
 	strcpy(str, p);
 	def->value = str;
 
-	/* If it a multiline definition, we need to mark the end of the first line */
+	/* If it a multiline definition, we need to mark the end of the first line
+	 * by overwriting the '\' with the line end marker. */
 	if (def->value_len >= 2 && def->multiline)
 		def->value[def->value_len - 1] = DEF_LINE_END[0];
 
@@ -1322,6 +1325,64 @@ free_parser_data(void)
 		free_list(&multiline_stack);
 }
 
+/* decomment() removes comments, the escaping of comment start characters,
+ * and leading and trailing whitespace, including whitespace before a
+ * terminating \ character */
+static void
+decomment(char *str)
+{
+	bool quote = false;
+	bool cont = false;
+	char *skip = NULL;
+	char *p = str + strspn(str, " \t");
+
+	/* Remove leading whitespace */
+	if (p != str)
+		memmove(str, p, strlen(p) + 1);
+
+	p = str;
+	while ((p = strpbrk(p, "!#\"\\"))) {
+		if (*p == '"') {
+			if (!skip)
+				quote = !quote;
+			p++;
+			continue;
+		}
+		if (*p == '\\') {
+			if (p[1]) {
+				/* Don't modify quoted strings */
+				if (!quote && (p[1] == '#' || p[1] == '!')) {
+					memmove(p, p + 1, strlen(p + 1) + 1);
+					p++;
+				} else
+					p += 2;
+				continue;
+			}
+			*p = '\0';
+			cont = true;
+			break;
+		}
+		if (!quote && !skip && (*p == '!' || *p == '#'))
+			skip = p;
+		p++;
+	}
+
+	if (quote)
+		report_config_error(CONFIG_GENERAL_ERROR, "Unterminated quote '%s'", str);
+
+	if (skip)
+		*skip = '\0';
+
+	/* Remove trailing whitespace */
+	p = str + strlen(str) - 1;
+	while (p >= str && isblank(*p))
+		*p-- = '\0';
+	if (cont) {
+		*++p = '\\';
+		*++p = '\0';
+	}
+}
+
 static bool
 read_line(char *buf, size_t size)
 {
@@ -1331,7 +1392,6 @@ read_line(char *buf, size_t size)
 	char *buf_start;
 	bool rev_cmp;
 	size_t ofs;
-	char *text_start;
 	bool recheck;
 	static def_t *def = NULL;
 	static char *next_ptr = NULL;
@@ -1344,8 +1404,6 @@ read_line(char *buf, size_t size)
 
 	config_id_len = config_id ? strlen(config_id) : 0;
 	do {
-		text_start = NULL;
-
 		if (line_residue) {
 			strcpy(buf, line_residue);
 			FREE(line_residue);
@@ -1369,6 +1427,7 @@ read_line(char *buf, size_t size)
 			}
 		}
 		else {
+retry:
 			if (!fgets(buf, (int)size, current_stream))
 			{
 				eof = true;
@@ -1377,57 +1436,59 @@ read_line(char *buf, size_t size)
 			}
 
 			/* Check if we have read the end of a line */
-			if (buf[0] && buf[strlen(buf)-1] == '\n')
+			len = strlen(buf);
+			if (buf[0] && buf[len-1] == '\n')
 				current_file_line_no++;
+
+			/* Remove end of line chars */
+			while (len && (buf[len-1] == '\n' || buf[len-1] == '\r'))
+				len--;
+
+			/* Skip blank lines */
+			if (!len)
+				goto retry;
+
+			buf[len] = '\0';
+
+			decomment(buf);
 		}
 
-		/* Remove trailing <CR>/<LF> */
 		len = strlen(buf);
-		while (len && (buf[len-1] == '\n' || buf[len-1] == '\r'))
-			buf[--len] = '\0';
 
 		/* Handle multi-line definitions */
 		if (multiline_param_def) {
-			/* Remove leading and trailing spaces and tabs */
-			skip = strspn(buf, " \t");
-			len -= skip;
-			text_start = buf + skip;
-			if (len && text_start[len-1] == '\\') {
-				while (len >= 2 && isblank(text_start[len - 2]))
+			/* Remove trailing whitespace */
+			if (len && buf[len-1] == '\\') {
+				len--;
+				while (len >= 1 && isblank(buf[len - 1]))
 					len--;
-				text_start[len-1] = DEF_LINE_END[0];
+				buf[len++] = DEF_LINE_END[0];
 			} else {
-				while (len >= 1 && isblank(text_start[len - 1]))
-					len--;
 				multiline_param_def = false;
+				if (!def->value_len)
+					def->multiline = false;
 			}
 
 			/* Don't add blank lines */
 			if (len >= 2 ||
 			    (len && !multiline_param_def)) {
 				/* Add the line to the definition */
+// ? use REALLOC
+#if 0
+				def->value = REALLOC(def->value, def->value_len + len + 1);
+				strncpy(def->value + def->value_len, buf, len);
+				def->value_len += len;
+				def->value[def->value_len] = '\0';
+#else
 				new_str = MALLOC(def->value_len + len + 1);
 				strcpy(new_str, def->value);
-				strncpy(new_str + def->value_len, text_start, len);
+				strncpy(new_str + def->value_len, buf, len);
 				new_str[def->value_len + len] = '\0';
 				FREE(def->value);
 				def->value = new_str;
 				def->value_len += len;
+#endif
 			}
-
-			/* The config:
-			 *   $VIs= \
-			 *   $VI4
-			 *
-			 *   where $VI4 is a multiline definition didn't work. Specifically it
-			 *   is a multiline definition with only one line.
-			 *   When expanded it reads an extra "line" of random characters. Where
-			 *   the definition is expanded should really be fixed, but I can't work
-			 *   out where or how to fix it. As an alternative, the following "hack"
-			 *   stops the problem occuring.
-			 */
-			if (!multiline_param_def && !strchr(def->value, DEF_LINE_END[0]))
-				def->multiline = false;
 
 			buf[0] = '\0';
 			continue;
@@ -1436,18 +1497,12 @@ read_line(char *buf, size_t size)
 		if (len == 0)
 			continue;
 
-		text_start = buf + strspn(buf, " \t");
-		if (text_start[0] == '\0') {
-			buf[0] = '\0';
-			continue;
-		}
-
 		recheck = false;
 		do {
-			if (text_start[0] == '@') {
+			if (buf[0] == '@') {
 				/* If the line starts '@', check the following word matches the system id.
 				   @^ reverses the sense of the match */
-				if (text_start[1] == '^') {
+				if (buf[1] == '^') {
 					rev_cmp = true;
 					ofs = 2;
 				} else {
@@ -1456,26 +1511,26 @@ read_line(char *buf, size_t size)
 				}
 
 				/* We need something after the system_id */
-				if (!(buf_start = strpbrk(text_start + ofs, " \t"))) {
+				if (!(buf_start = strpbrk(buf + ofs, " \t"))) {
 					buf[0] = '\0';
 					break;
 				}
 
 				/* Check if config_id matches/doesn't match as appropriate */
 				if ((!config_id ||
-				     (size_t)(buf_start - (text_start + ofs)) != config_id_len ||
-				     strncmp(text_start + ofs, config_id, config_id_len)) != rev_cmp) {
+				     (size_t)(buf_start - (buf + ofs)) != config_id_len ||
+				     strncmp(buf + ofs, config_id, config_id_len)) != rev_cmp) {
 					buf[0] = '\0';
 					break;
 				}
 
 				/* Remove the @config_id from start of line */
-				memset(text_start, ' ', (size_t)(buf_start - text_start));
-
-				text_start += strspn(text_start, " \t");
+				buf_start += strspn(buf_start, " \t");
+				len -= (buf_start - buf);
+				memmove(buf, buf_start, len + 1);
 			}
 
-			if (text_start[0] == '$' && (def = check_definition(text_start))) {
+			if (buf[0] == '$' && (def = check_definition(buf))) {
 				/* check_definition() saves the definition */
 				if (def->multiline)
 					multiline_param_def = true;
@@ -1483,26 +1538,28 @@ read_line(char *buf, size_t size)
 				break;
 			}
 
-			if (!LIST_ISEMPTY(defs) && strchr(text_start, '$')) {
+			if (buf[0] == '~')
+				break;
+
+			if (!LIST_ISEMPTY(defs) && (p = strchr(buf, '$'))) {
 				if (!replace_param(buf, size, &next_ptr)) {
 					/* If nothing has changed, we don't need to do any more processing */
 					break;
 				}
 
-				text_start += strspn(text_start, " \t");
-				if (text_start[0] == '@')
+				if (buf[0] == '@')
 					recheck = true;
-				if (strchr(text_start, '$'))
+				if (strchr(buf, '$'))
 					recheck = true;
 			}
 		} while (recheck);
 	} while (buf[0] == '\0' || check_include(buf));
 
-	/* Search for BOB[0] or EOB[0] not in "" and before ! or # */
-	if (buf[0] && text_start) {
-		p = text_start;
+	/* Search for BOB[0] or EOB[0] not in "" */
+	if (buf[0]) {
+		p = buf;
 		if (p[0] != BOB[0] && p[0] != EOB[0]) {
-			while ((p = strpbrk(p, BOB EOB "!#\""))) {
+			while ((p = strpbrk(p, BOB EOB "\""))) {
 				if (*p != '"')
 					break;
 
@@ -1515,12 +1572,12 @@ read_line(char *buf, size_t size)
 		}
 
 		if (p && (p[0] == BOB[0] || p[0] == EOB[0])) {
-			if (p == text_start)
+			if (p == buf)
 				skip = strspn(p + 1, " \t") + 1;
 			else
 				skip = 0;
 
-			if (p[skip] && p[skip] != '#' && p[skip] != '!') {
+			if (p[skip]) {
 				/* Skip trailing whitespace */
 				len = strlen(p + skip);
 				while (len && (p[skip+len-1] == ' ' || p[skip+len-1] == '\t'))
@@ -1533,11 +1590,10 @@ read_line(char *buf, size_t size)
 		}
 
 		/* Skip trailing whitespace */
-		len = strlen(text_start);
-		while (len && (text_start[len-1] == ' ' || text_start[len-1] == '\t'))
+		len = strlen(buf);
+		while (len && (buf[len-1] == ' ' || buf[len-1] == '\t'))
 			len--;
-		text_start[len] = '\0';
-		memmove(buf, text_start, len + 1);
+		buf[len] = '\0';
 
 		/* Check that we haven't got too many '}'s */
 		if (!strcmp(buf, BOB))
@@ -1549,6 +1605,10 @@ read_line(char *buf, size_t size)
 			}
 		}
 	}
+
+#ifdef PARSER_DEBUG
+	log_message(LOG_INFO, "read_line(%d): '%s'", block_depth, buf);
+#endif
 
 	return !eof;
 }
