@@ -41,14 +41,11 @@ alloc_element(void)
 	return new;
 }
 
-void
-list_add(list l, void *data)
+static inline void
+__list_add(list l, element e)
 {
-	element e = alloc_element();
-
 	e->prev = l->tail;
-	/* e->next = NULL;	// MALLOC sets this NULL */
-	e->data = data;
+	e->next = NULL;
 
 	if (l->head == NULL)
 		l->head = e;
@@ -59,7 +56,17 @@ list_add(list l, void *data)
 }
 
 void
-list_remove(list l, element e)
+list_add(list l, void *data)
+{
+	element e = alloc_element();
+
+	e->data = data;
+
+	__list_add(l, e);
+}
+
+static inline void
+__list_remove(list l, element e)
 {
 	if (e->prev)
 		e->prev->next = e->next;
@@ -72,6 +79,15 @@ list_remove(list l, element e)
 		l->tail = e->prev;
 
 	l->count--;
+}
+
+void
+list_remove(list l, element e)
+{
+	if (l->free)
+		(*l->free) (e->data);
+
+	__list_remove(l, e);
 	FREE(e);
 }
 
@@ -86,6 +102,13 @@ list_del(list l, void *data)
 			return;
 		}
 	}
+}
+
+void
+list_transfer(element e, list l_from, list l_to)
+{
+	__list_remove(l_from, e);
+	__list_add(l_to, e);
 }
 
 void *

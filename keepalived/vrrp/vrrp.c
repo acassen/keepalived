@@ -2610,11 +2610,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			next = e->next;
 			if (i < max_addr)
 				continue;
-			vip = ELEMENT_DATA(e);
-			list_del(vrrp->vip, vip);
 			if (!LIST_EXISTS(vrrp->evip))
 				vrrp->evip = alloc_list(free_ipaddress, dump_ipaddress);
-			list_add(vrrp->evip, vip);
+			list_transfer(e, vrrp->vip, vrrp->evip);
 		}
 	}
 
@@ -3048,6 +3046,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		vrrp_script_t *vsc = sc->scr;
 
 		if (vrrp->base_priority == VRRP_PRIO_OWNER && sc->weight) {
+			/* Is this duplicating the code with comment "Ignore any weighted script"? */
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot have weighted track script '%s' with priority %d", vrrp->iname, vsc->sname, VRRP_PRIO_OWNER);
 			list_del(vrrp->track_script, sc);
 			continue;

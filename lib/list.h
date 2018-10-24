@@ -61,6 +61,7 @@ extern list alloc_list(void (*) (void *), void (*) (FILE *, void *));
 extern void free_list(list *);
 extern void free_list_elements(list);
 extern void free_list_element(list, element);
+extern void list_transfer(element, list, list);
 extern void *list_element(list, size_t);
 extern void dump_list(FILE *, list);
 extern void list_add(list, void *);
