@@ -56,22 +56,57 @@ struct _list {
 #define LIST_FOREACH_FROM(F,V,E) for ((E) = (F); (E) && ((V) = ELEMENT_DATA(E), 1); ELEMENT_NEXT(E))
 #define LIST_FOREACH_NEXT(L,V,E,N) for ((E) = ((L) ? LIST_HEAD(L) : NULL); (E) && ((N) = (E)->next, (V) = ELEMENT_DATA(E), 1); (E) = (N))
 
+#ifdef _MEM_CHECK_
+#define alloc_mlist(f,d,s)	(memcheck_log("alloc_mlist", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+				 alloc_mlist_r((f), (d), (s)))
+#define free_mlist(f,s)		(memcheck_log("free_mlist", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+				 free_mlist_r((f), (s)))
+#define alloc_list(f,d)		(memcheck_log("alloc_list", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+				 alloc_list_r((f), (d)))
+#define free_list(l)		(memcheck_log("free_list", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+				 free_list_r((l)))
+#define free_list_elements(l)	(memcheck_log("free_list_elements", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+				 free_list_elements_r((l)))
+#define free_list_element(l,e)	(memcheck_log("free_list_element", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+				 free_list_element_r((l), (e)))
+#define list_add(l,e)		(memcheck_log("list_add", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+				 list_add_r((l), (e)))
+#define list_remove(l,e)	(memcheck_log("list_remove", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+				 list_remove_r((l), (e)))
+#define list_del(l,d)		(memcheck_log("list_del", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+				 list_del_r((l), (d)))
+#define free_list_data(l,d)	(memcheck_log("free_list_data", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+				 free_list_data_r((l), (d)))
+#else
+#define alloc_mlist(f,d,s)	(alloc_mlist_r((f), (d), (s)))
+#define free_mlist(f,s)		(free_mlist_r((f), (s)))
+#define alloc_list(f,d)		(alloc_list_r((f), (d)))
+#define free_list(l)		(free_list_r((l)))
+#define free_list_elements(l)	(free_list_elements_r((l)))
+#define free_list_element(l,e)	(free_list_element_r((l), (e)))
+#define list_add(l,e)		(list_add_r((l), (e)))
+#define list_remove(l,e)	(list_remove_r((l), (e)))
+#define list_del(l,d)		(list_del_r((l), (d)))
+#define free_list_data(l,d)	(free_list_data_r((l), (d)))
+#endif
+
+
 /* Prototypes */
-extern list alloc_list(void (*) (void *), void (*) (FILE *, void *));
-extern void free_list(list *);
-extern void free_list_elements(list);
-extern void free_list_element(list, element);
-extern void list_transfer(element, list, list);
-extern void *list_element(list, size_t);
-extern void dump_list(FILE *, list);
-extern void list_add(list, void *);
-extern void list_remove(list, element);
-extern void list_del(list, void *);
-extern void free_list_data(list, void *);
-extern list alloc_mlist(void (*) (void *), void (*) (FILE *, void *), size_t);
+extern list alloc_mlist_r(void (*) (void *), void (*) (FILE *, void *), size_t);
 #ifdef _VRRP_FD_DEBUG_
 extern void dump_mlist(FILE *, list, size_t);
 #endif
-extern void free_mlist(list, size_t);
+extern void free_mlist_r(list, size_t);
+extern list alloc_list_r(void (*) (void *), void (*) (FILE *, void *));
+extern void free_list_r(list *);
+extern void free_list_elements_r(list);
+extern void free_list_element_r(list, element);
+extern void list_transfer(element, list, list);
+extern void *list_element(list, size_t);
+extern void dump_list(FILE *, list);
+extern void list_add_r(list, void *);
+extern void list_remove_r(list, element);
+extern void list_del_r(list, void *);
+extern void free_list_data_r(list, void *);
 
 #endif
