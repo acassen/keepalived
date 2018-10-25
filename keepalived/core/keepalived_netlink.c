@@ -1555,7 +1555,8 @@ process_if_status_change(interface_t *ifp)
 	vrrp_t *vrrp;
 	element e;
 	tracking_vrrp_t *tvp;
-	bool now_up = FLAGS_UP(ifp->ifi_flags);
+	bool now_up = FLAGS_UP(ifp->ifi_flags) && FLAGS_UP(IF_BASE_IFP(ifp)->ifi_flags);
+	bool vrrp_if_up;
 
 	/* The state of the interface has changed from up to down or vice versa.
 	 * Find which vrrp instances are affected */
@@ -1567,8 +1568,9 @@ process_if_status_change(interface_t *ifp)
 			continue;
 		}
 
+		vrrp_if_up = now_up && FLAGS_UP(VRRP_CONFIGURED_IFP(vrrp)->ifi_flags);
 		if (tvp->weight) {
-			if (now_up)
+			if (vrrp_if_up)
 				vrrp->total_priority += abs(tvp->weight);
 			else
 				vrrp->total_priority -= abs(tvp->weight);
@@ -1578,7 +1580,7 @@ process_if_status_change(interface_t *ifp)
 		}
 
 		/* This vrrp's interface or underlying interface has changed */
-		if (now_up)
+		if (vrrp_if_up)
 			try_up_instance(vrrp, false);
 		else
 			down_instance(vrrp);
@@ -1597,8 +1599,10 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 		return;
 
 	/* We get called after a VMAC is created, but before tracking_vrrp is set */
-	was_up = IF_FLAGS_UP(ifp);
-	now_up = FLAGS_UP(ifi_flags);
+
+	/* For an interface to be really up, any underlying interface must also be up */
+	was_up = IF_FLAGS_UP(ifp) && (ifp == IF_BASE_IFP(ifp) || IF_FLAGS_UP(IF_BASE_IFP(ifp)));
+	now_up = FLAGS_UP(ifi_flags) && (ifp == IF_BASE_IFP(ifp) || IF_FLAGS_UP(IF_BASE_IFP(ifp)));
 
 	ifp->ifi_flags = ifi_flags;
 
