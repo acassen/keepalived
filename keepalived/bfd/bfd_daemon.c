@@ -158,6 +158,11 @@ start_bfd(__attribute__((unused)) data_t *old_global_data)
 		return;
 	bfd_complete_init();
 
+	/* Post initializations */
+#ifdef _MEM_CHECK_
+	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);
+#endif
+
 	if (__test_bit(DUMP_CONF_BIT, &debug))
 		dump_bfd_data(NULL, bfd_data);
 
