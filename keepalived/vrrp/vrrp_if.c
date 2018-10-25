@@ -1087,6 +1087,10 @@ cleanup_lost_interface(interface_t *ifp)
 		if (vrrp->ifp != ifp && IF_BASE_IFP(vrrp->ifp) != ifp && VRRP_CONFIGURED_IFP(vrrp) != ifp)
 			continue;
 
+		/* If the vrrp instance's interface doesn't exist, skip it */
+		if (!vrrp->ifp->ifindex)
+			continue;
+
 #ifdef _HAVE_VRRP_VMAC_
 		/* If vmac going, clear VMAC_UP_BIT on vrrp instance */
 		if (vrrp->ifp->vmac_type == MACVLAN_MODE_PRIVATE && vrrp->ifp->is_ours)

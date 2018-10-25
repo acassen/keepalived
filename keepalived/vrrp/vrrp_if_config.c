@@ -318,7 +318,7 @@ exit:
 static inline int
 netlink_reset_interface_parameters(const interface_t* ifp)
 {
-	int res = 0;
+	int res;
 	int val = 0;
 
 	/* See netlink3_set_interface_parameters for why libnl3 can't be used */
