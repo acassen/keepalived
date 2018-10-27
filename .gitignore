@@ -30,6 +30,7 @@ Makefile.in
 /depcomp
 /install-sh
 /missing
+/out
 stamp-h?
 
 .deps/

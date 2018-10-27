@@ -195,6 +195,7 @@ typedef struct _vrrp_t {
 	unsigned long		vmac_flags;		/* VRRP VMAC flags */
 	char			vmac_ifname[IFNAMSIZ];	/* Name of VRRP VMAC interface */
 #endif
+	char			vrf_name[IFNAMSIZ];	/* Name of VRF `ifp' must belong to */
 	list			track_ifp;		/* Interface state we monitor */
 	list			track_script;		/* Script state we monitor */
 	list			track_file;		/* list of tracked_file_t - Files whose value we monitor */

@@ -92,6 +92,7 @@ typedef struct _interface {
 	struct _interface	*base_ifp;		/* Base interface (if interface is a VMAC interface),
 							   otherwise the physical interface */
 #endif
+	struct _interface	*vrf_ifp;		/* VRF interface pointer if this interface belongs to it */
 	garp_delay_t		*garp_delay;		/* Delays for sending gratuitous ARP/NA */
 	bool			gna_router;		/* Router flag for NA messages */
 	int			reset_arp_config;	/* Count of how many vrrps have changed arp parameters on interface */
@@ -176,5 +177,6 @@ extern void interface_down(interface_t *);
 extern void cleanup_lost_interface(interface_t *);
 extern int recreate_vmac_thread(thread_t *);
 extern void update_added_interface(interface_t *);
+extern int get_master_ifindex(interface_t *);
 
 #endif

@@ -2614,10 +2614,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	vrrp->total_priority = vrrp->base_priority;
 
 	if (vrrp->wantstate == VRRP_STATE_MAST) {
-		if (vrrp->nopreempt) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Warning - nopreempt will not work with initial state MASTER - clearing", vrrp->iname);
-			vrrp->nopreempt = false;
-		}
 		if (vrrp->preempt_delay) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Warning - preempt delay will not work with initial state MASTER - clearing", vrrp->iname);
 			vrrp->preempt_delay = false;
@@ -3095,6 +3091,27 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	/* alloc send buffer */
 	vrrp_alloc_send_buffer(vrrp);
 	vrrp_build_pkt(vrrp);
+
+    /* check if vrrp->ifp must belong to a VRF */
+	if (vrrp->vrf_name[0] != '\0') {
+		int master_ifindex;
+
+		log_message(LOG_INFO, "interfae %s must belong to VRF %s", IF_NAME(vrrp->ifp), vrrp->vrf_name);
+
+		master_ifindex = get_master_ifindex(vrrp->ifp);
+		if (master_ifindex > 0) {
+			vrrp->ifp->vrf_ifp = if_get_by_ifindex(master_ifindex);
+			if (vrrp->ifp->vrf_ifp) {
+				log_message(LOG_INFO, "%s master %s", IF_NAME(vrrp->ifp), vrrp->vrf_name);
+			} else {
+				log_message(LOG_ERR, "ERROR: Failed to find interface pointer for %s(%d)", vrrp->vrf_name, master_ifindex);
+				exit(1);
+			}
+		} else {
+			log_message(LOG_ERR, "ERROR: Failed to find ifindex for %s", vrrp->vrf_name);
+			exit(1);
+		}
+	}
 
 	return true;
 }

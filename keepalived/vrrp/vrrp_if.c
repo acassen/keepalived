@@ -743,6 +743,14 @@ if_setsockopt_bindtodevice(int *sd, interface_t *ifp)
 	if (*sd < 0)
 		return -1;
 
+    /* If *ifp belongs to a VRF, *sd must be bound to the VRF
+     * instead of *ifp. Otherwise no packets will be received.
+     */
+	if (ifp->vrf_ifp) {
+		log_message(LOG_INFO, "%s master %s", IF_NAME(ifp), IF_NAME(ifp->vrf_ifp));
+		ifp = ifp->vrf_ifp;
+	}
+
 	/* -> inbound processing option
 	 * Specify the bound_dev_if.
 	 * why IP_ADD_MEMBERSHIP & IP_MULTICAST_IF doesnt set
@@ -1188,4 +1196,110 @@ update_added_interface(interface_t *ifp)
 
 		setup_interface(vrrp);
 	}
+}
+
+void
+parse_rtattr (struct rtattr *tb[], int max, struct rtattr *rta, int len)
+{
+	memset(tb, 0, sizeof(struct rtattr*) * (max + 1));
+
+	while (RTA_OK(rta, len)) {
+		if ((rta->rta_type <= max) && (!tb[rta->rta_type])) {
+			tb[rta->rta_type] = rta;
+        }
+		rta = RTA_NEXT(rta,len);
+	}
+}
+
+int
+get_master_ifindex(interface_t *ifp)
+{
+    struct sockaddr_nl them;
+    struct {
+        struct nlmsghdr nlh;
+        struct rtgenmsg g;
+    } req;
+	struct iovec iov;
+	struct msghdr msg;
+    struct rtattr* tb[IFLA_MAX+1];
+    char buf[4096/*16384*/];
+    struct nlmsghdr *h;
+    int msglen;
+    int s;
+    int end = 0;
+    int ifindex = -1;
+
+    if (!ifp) {
+        return -1;
+    }
+    s = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
+    if (s < 0) {
+        log_message(LOG_ERR, "socket()");
+        return -1;
+    }
+
+    memset(&req, 0, sizeof(req));
+    req.nlh.nlmsg_len = NLMSG_LENGTH(sizeof(req.g));
+    req.nlh.nlmsg_type = RTM_GETLINK;
+    req.nlh.nlmsg_flags =  NLM_F_ROOT|NLM_F_REQUEST|NLM_F_DUMP;
+    req.nlh.nlmsg_seq = 1;
+    req.nlh.nlmsg_pid = getpid();
+    req.g.rtgen_family = AF_PACKET;
+    memset(&them, 0, sizeof(them));
+    memset(&msg, 0, sizeof(msg));
+    them.nl_family = AF_NETLINK;
+    msg.msg_name = &them;
+    msg.msg_namelen = sizeof(them);
+    iov.iov_base = &req.nlh;
+    iov.iov_len = req.nlh.nlmsg_len;
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
+    msglen = sendmsg(s, &msg, 0);
+    if (msglen < 0) {
+        log_message(LOG_ERR, "send()");
+        goto exit;
+    }
+    iov.iov_base = buf;
+    iov.iov_len = sizeof(buf);
+    while (!end) {
+        msglen = recvmsg(s, &msg, 0);
+        if (msglen < 0) {
+            log_message(LOG_ERR, "recvmsg(): ");
+            goto exit;
+        }
+        if (msglen == 0) {
+            log_message(LOG_ERR, "EOF on netlink");
+            goto exit;
+        }
+        for (h = (struct nlmsghdr*)buf;
+             NLMSG_OK(h, msglen); h = NLMSG_NEXT(h, msglen)) {
+
+            if (h->nlmsg_type == NLMSG_DONE) {
+                end = 1;
+                break;
+            }
+            if (h->nlmsg_type == NLMSG_ERROR) {
+                log_message(LOG_ERR, "nlmsgerr");
+                goto exit;
+            }
+            if (h->nlmsg_type == RTM_NEWLINK) {
+                struct ifinfomsg *ifi = NLMSG_DATA(h);
+
+                if ((ifindex_t)ifi->ifi_index == ifp->ifindex) {
+                    log_message(LOG_INFO, "check master: %2d: %s", ifi->ifi_index, ifp->ifname);
+
+                    parse_rtattr(tb, IFLA_MAX, IFLA_RTA(ifi), h->nlmsg_len);
+                    if (tb[IFLA_MASTER]) {
+                        ifindex = *(int*)RTA_DATA(tb[IFLA_MASTER]);
+                        log_message(LOG_INFO, "  found master: %d", ifindex);
+                        goto exit;
+                    }
+                }
+            }
+        }
+    }
+
+exit:
+    close(s);
+    return ifindex;
 }

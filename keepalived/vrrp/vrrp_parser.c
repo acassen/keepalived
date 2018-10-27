@@ -471,6 +471,14 @@ vrrp_int_handler(vector_t *strvec)
 	}
 }
 static void
+vrrp_vrf_handler(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+
+	strcpy(vrrp->vrf_name, strvec_slot(strvec, 1));
+	log_message(LOG_INFO, "vrrp_vrf_handler(): VRF %s", vrrp->vrf_name);
+}
+static void
 vrrp_linkbeat_handler(__attribute__((unused)) vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
@@ -1434,6 +1442,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("native_ipv6", &vrrp_native_ipv6_handler);
 	install_keyword("state", &vrrp_state_handler);
 	install_keyword("interface", &vrrp_int_handler);
+        install_keyword("vrf", &vrrp_vrf_handler);
 	install_keyword("dont_track_primary", &vrrp_dont_track_handler);
 	install_keyword("track_interface", &vrrp_track_if_handler);
 	install_keyword("track_script", &vrrp_track_scr_handler);
