@@ -447,6 +447,10 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 			log_message(LOG_INFO, "Unable to find base interface for vrrp instance %s", vrrp->iname);
 	}
 
+	/* If the interface doesn't exist, don't try to delete it */
+	if (!vrrp->ifp->ifindex)
+		return;
+
 	memset(&req, 0, sizeof (req));
 
 	req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));

@@ -475,7 +475,7 @@ dump_if(FILE *fp, void *data)
 		FREE(mac_buf);
 	}
 
-	conf_write(fp, "   State = %sUP, %sRUNNING%s%s%s%s%s%s", ifp->ifi_flags & IFF_UP ? "" : "not ", ifp->ifi_flags & IFF_RUNNING ? "" : "not ", 
+	conf_write(fp, "   State = %sUP, %sRUNNING%s%s%s%s%s%s", ifp->ifi_flags & IFF_UP ? "" : "not ", ifp->ifi_flags & IFF_RUNNING ? "" : "not ",
 			!(ifp->ifi_flags & IFF_BROADCAST) ? ", no broadcast" : "",
 			ifp->ifi_flags & IFF_LOOPBACK ? ", loopback" : "",
 			ifp->ifi_flags & IFF_POINTOPOINT ? ", point to point" : "",
@@ -1129,6 +1129,8 @@ cleanup_lost_interface(interface_t *ifp)
 			vrrp->sockets->fd_out = -1;
 		}
 		vrrp->sockets->ifindex = 0;
+
+		down_instance(vrrp);
 	}
 
 	interface_down(ifp);
@@ -1271,8 +1273,6 @@ update_added_interface(interface_t *ifp)
 		/* If this is just a tracking interface, we don't need to do anything */
 		if (vrrp->ifp != ifp && IF_BASE_IFP(vrrp->ifp) != ifp)
 			continue;
-
-		setup_interface(vrrp);
 	}
 
 #ifdef _HAVE_VRRP_VMAC_

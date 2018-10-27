@@ -321,6 +321,10 @@ netlink_reset_interface_parameters(const interface_t* ifp)
 	int res;
 	int val = 0;
 
+	/* If the interface doesn't exist, there is nothing we can change */
+	if (!ifp->ifindex)
+		return 0;
+
 	/* See netlink3_set_interface_parameters for why libnl3 can't be used */
 	if (ifp->reset_arp_ignore_value)
 		val |= 1 << IPV4_DEVCONF_ARP_IGNORE;
