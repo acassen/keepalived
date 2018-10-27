@@ -1591,6 +1591,9 @@ static void
 update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 {
 	bool was_up, now_up;
+	tracking_vrrp_t *tvp;
+	vrrp_t *vrrp;
+	element e;
 
 	if (ifi_flags == ifp->ifi_flags)
 		return;
@@ -1619,6 +1622,21 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 		interface_down(ifp);
 	else
 		interface_up(ifp);
+
+#ifdef _HAVE_VRRP_VMAC_
+	/* If there are any macvlans on this interface, we may now be able to change their state too */
+	LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {
+		vrrp = tvp->vrrp;
+		if (vrrp->ifp->is_ours && vrrp->ifp->base_ifp == ifp) {
+			if (IF_ISUP(vrrp->ifp->base_ifp)) {
+				if (now_up)
+					try_up_instance(vrrp, false);
+				else
+					down_instance(vrrp);
+			}
+		}
+	}
+#endif
 }
 
 static char *get_mac_string(int type)
