@@ -14,6 +14,14 @@ if [[ $CMD = add ]]; then
 		unshare -n ip netns add $n
 		ip netns exec $n ip link set up lo
 	done
+
+	for n in high medium low; do
+		for v in "" 6; do
+			for d in IN OUT; do
+				ip netns exec $n ip${v}tables -N TEST%d
+			done
+		done
+	done
 fi
 
 for n in $(seq $LOW $HIGH); do
