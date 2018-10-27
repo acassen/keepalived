@@ -52,7 +52,7 @@
 #include "bitops.h"
 #include "utils.h"
 
-#define PARSER_DEBUG
+/* #define PARSER_DEBUG */
 
 #define DUMP_KEYWORDS	0
 
