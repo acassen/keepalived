@@ -1725,7 +1725,8 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 		parse_rtattr_nested(linkinfo, IFLA_INFO_MAX, tb[IFLA_LINKINFO]);
 
 		if (linkinfo[IFLA_INFO_KIND]) {
-			if (!strcmp((char *)RTA_DATA(linkinfo[IFLA_INFO_KIND]), "macvlan")) {
+			if (!strcmp((char *)RTA_DATA(linkinfo[IFLA_INFO_KIND]), "macvlan") ||
+			    !strcmp((char *)RTA_DATA(linkinfo[IFLA_INFO_KIND]), "macvtap")) {
 				is_macvlan = true;
 				parse_rtattr_nested(linkattr, IFLA_MACVLAN_MAX, linkinfo[IFLA_INFO_DATA]);
 			}
