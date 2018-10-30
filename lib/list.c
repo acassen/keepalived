@@ -117,6 +117,24 @@ list_add_r(list l, void *data)
 	__list_add(l, e);
 }
 
+void
+list_add_head_r(list l, void *data)
+{
+	element e = alloc_element();
+
+	e->data = data;
+
+	e->next = l->head;
+	e->prev = NULL;
+
+	if (l->tail == NULL)
+		l->tail = e;
+	else
+		l->head->prev = e;
+	l->head = e;
+	l->count++;
+}
+
 static inline void
 __list_remove(list l, element e)
 {

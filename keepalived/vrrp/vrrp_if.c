@@ -1103,6 +1103,8 @@ cleanup_lost_interface(interface_t *ifp)
 			/* This is a changeable interface that the vrrp instance
 			 * was configured on. Delete the macvlan we created */
 			netlink_link_del_vmac(vrrp);
+
+			del_vrrp_from_interface(vrrp, vrrp->configured_ifp->base_ifp);
 		}
 
 		/* If the interface type can be changed, and the vrrp had a
@@ -1130,7 +1132,8 @@ cleanup_lost_interface(interface_t *ifp)
 		}
 		vrrp->sockets->ifindex = 0;
 
-		down_instance(vrrp);
+		if (IF_ISUP(ifp))
+			down_instance(vrrp);
 	}
 
 	interface_down(ifp);
@@ -1216,6 +1219,7 @@ recreate_vmac_thread(thread_t *thread)
 		netlink_error_ignore = ENODEV;
 		setup_interface(vrrp);
 		netlink_error_ignore = 0;
+
 		break;
 	}
 
@@ -1260,6 +1264,12 @@ update_added_interface(interface_t *ifp)
 					break;
 				}
 			}
+		}
+
+		if (ifp->vmac_type && tvp->type & TRACK_VRRP) {
+			add_vrrp_to_interface(vrrp, ifp->base_ifp, tvp->weight, false, TRACK_VRRP_DYNAMIC);
+			if (!IF_ISUP(vrrp->configured_ifp->base_ifp) && !vrrp->dont_track_primary)
+				vrrp->num_script_if_fault++;
 		}
 
 		/* We might be the configured interface for a vrrp instance that itself uses

@@ -1397,6 +1397,8 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 #ifndef _DEBUG_
 			    prog_type == PROG_TYPE_VRRP &&
 #endif
+			    h->nlmsg_type != RTM_NEWLINK &&
+			    h->nlmsg_type != RTM_DELLINK &&
 			    h->nlmsg_type != RTM_NEWROUTE &&
 			    nl != &nl_cmd && h->nlmsg_pid == nl_cmd.nl_pid)
 				continue;
@@ -1555,8 +1557,7 @@ process_if_status_change(interface_t *ifp)
 	vrrp_t *vrrp;
 	element e;
 	tracking_vrrp_t *tvp;
-	bool now_up = FLAGS_UP(ifp->ifi_flags) && FLAGS_UP(IF_BASE_IFP(ifp)->ifi_flags);
-	bool vrrp_if_up;
+	bool now_up = FLAGS_UP(ifp->ifi_flags);
 
 	/* The state of the interface has changed from up to down or vice versa.
 	 * Find which vrrp instances are affected */
@@ -1568,9 +1569,8 @@ process_if_status_change(interface_t *ifp)
 			continue;
 		}
 
-		vrrp_if_up = now_up && FLAGS_UP(VRRP_CONFIGURED_IFP(vrrp)->ifi_flags);
 		if (tvp->weight) {
-			if (vrrp_if_up)
+			if (now_up)
 				vrrp->total_priority += abs(tvp->weight);
 			else
 				vrrp->total_priority -= abs(tvp->weight);
@@ -1580,7 +1580,7 @@ process_if_status_change(interface_t *ifp)
 		}
 
 		/* This vrrp's interface or underlying interface has changed */
-		if (vrrp_if_up)
+		if (now_up)
 			try_up_instance(vrrp, false);
 		else
 			down_instance(vrrp);
@@ -1591,9 +1591,6 @@ static void
 update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 {
 	bool was_up, now_up;
-	tracking_vrrp_t *tvp;
-	vrrp_t *vrrp;
-	element e;
 
 	if (ifi_flags == ifp->ifi_flags)
 		return;
@@ -1606,7 +1603,8 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 	/* For an interface to be really up, any underlying interface must also be up */
 	was_up = IF_FLAGS_UP(ifp) && (ifp == IF_BASE_IFP(ifp) || IF_FLAGS_UP(IF_BASE_IFP(ifp)));
 	now_up = FLAGS_UP(ifi_flags) && (ifp == IF_BASE_IFP(ifp) || IF_FLAGS_UP(IF_BASE_IFP(ifp)));
-
+	was_up = IF_FLAGS_UP(ifp);
+	now_up = FLAGS_UP(ifi_flags);
 	ifp->ifi_flags = ifi_flags;
 
 	if (was_up == now_up)
@@ -1622,21 +1620,6 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 		interface_down(ifp);
 	else
 		interface_up(ifp);
-
-#ifdef _HAVE_VRRP_VMAC_
-	/* If there are any macvlans on this interface, we may now be able to change their state too */
-	LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {
-		vrrp = tvp->vrrp;
-		if (vrrp->ifp->is_ours && vrrp->ifp->base_ifp == ifp) {
-			if (IF_ISUP(vrrp->ifp->base_ifp)) {
-				if (now_up)
-					try_up_instance(vrrp, false);
-				else
-					down_instance(vrrp);
-			}
-		}
-	}
-#endif
 }
 
 static char *get_mac_string(int type)

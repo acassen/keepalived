@@ -179,7 +179,7 @@ dump_tracking_vrrp(FILE *fp, void *data)
 	tracking_vrrp_t *tvp = (tracking_vrrp_t *)data;
 	vrrp_t *vrrp = tvp->vrrp;
 
-	conf_write(fp, "     %s, weight %d", vrrp->iname, tvp->weight);
+	conf_write(fp, "     %s, weight %d%s", vrrp->iname, tvp->weight, tvp->type == TRACK_VRRP_DYNAMIC ? " (dynamic)" : "");
 }
 
 static void

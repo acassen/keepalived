@@ -71,6 +71,8 @@ struct _list {
 				 free_list_element_r((l), (e)))
 #define list_add(l,e)		(memcheck_log("list_add", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
 				 list_add_r((l), (e)))
+#define list_add_head(l,e)	(memcheck_log("list_add_head", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+				 list_add_head_r((l), (e)))
 #define list_remove(l,e)	(memcheck_log("list_remove", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
 				 list_remove_r((l), (e)))
 #define list_del(l,d)		(memcheck_log("list_del", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
@@ -85,6 +87,7 @@ struct _list {
 #define free_list_elements(l)	(free_list_elements_r((l)))
 #define free_list_element(l,e)	(free_list_element_r((l), (e)))
 #define list_add(l,e)		(list_add_r((l), (e)))
+#define list_add_head(l,e)	(list_add_head_r((l), (e)))
 #define list_remove(l,e)	(list_remove_r((l), (e)))
 #define list_del(l,d)		(list_del_r((l), (d)))
 #define free_list_data(l,d)	(free_list_data_r((l), (d)))
@@ -105,6 +108,7 @@ extern void list_transfer(element, list, list);
 extern void *list_element(list, size_t);
 extern void dump_list(FILE *, list);
 extern void list_add_r(list, void *);
+extern void list_add_head_r(list, void *);
 extern void list_remove_r(list, element);
 extern void list_del_r(list, void *);
 extern void free_list_data_r(list, void *);

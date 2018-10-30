@@ -126,6 +126,7 @@ typedef enum {
 	TRACK_SADDR = 0x40,
 	TRACK_SROUTE = 0x80,
 	TRACK_SRULE = 0x100,
+	TRACK_VRRP_DYNAMIC = 0x200,
 } track_t;
 
 /* List structure from scripts, files and interfaces to tracking vrrp */
