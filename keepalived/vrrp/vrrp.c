@@ -2050,7 +2050,7 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool log_addr,
 		LIST_FOREACH(ifp->tracking_vrrp, etvp, e) {
 			if (etvp->vrrp == vrrp) {
 				if (etvp->type & (TRACK_VRRP | TRACK_IF | TRACK_SG) &&
-				    type == TRACK_VRRP && type == TRACK_IF && type == TRACK_SG)
+				    type & (TRACK_VRRP | TRACK_IF | TRACK_SG))
 					log_message(LOG_INFO, "(%s) track_interface %s is configured on VRRP instance and sync group. Remove vrrp instance or sync group config",
 							vrrp->iname, ifp->ifname);
 
