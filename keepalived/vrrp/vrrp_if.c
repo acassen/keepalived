@@ -1094,7 +1094,7 @@ cleanup_lost_interface(interface_t *ifp)
 
 #ifdef _HAVE_VRRP_VMAC_
 		/* If vmac going, clear VMAC_UP_BIT on vrrp instance */
-		if (vrrp->ifp->vmac_type == MACVLAN_MODE_PRIVATE && vrrp->ifp->is_ours)
+		if (vrrp->ifp->is_ours)
 			__clear_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
 
 		if (vrrp->configured_ifp == ifp &&
@@ -1103,9 +1103,11 @@ cleanup_lost_interface(interface_t *ifp)
 			/* This is a changeable interface that the vrrp instance
 			 * was configured on. Delete the macvlan we created */
 			netlink_link_del_vmac(vrrp);
-
-			del_vrrp_from_interface(vrrp, vrrp->configured_ifp->base_ifp);
 		}
+
+		if (vrrp->configured_ifp == ifp &&
+		    vrrp->configured_ifp->base_ifp != vrrp->configured_ifp)
+			del_vrrp_from_interface(vrrp, vrrp->configured_ifp->base_ifp);
 
 		/* If the interface type can be changed, and the vrrp had a
 		 * duplicate VRID, clear the error since when the underlying
@@ -1140,6 +1142,8 @@ cleanup_lost_interface(interface_t *ifp)
 
 	ifp->ifindex = 0;
 	ifp->ifi_flags = 0;
+	if (!ifp->is_ours)
+		ifp->base_ifp = ifp;
 #ifdef _HAVE_VRF_
 	ifp->vrf_master_ifp = NULL;
 	ifp->vrf_master_ifindex = 0;

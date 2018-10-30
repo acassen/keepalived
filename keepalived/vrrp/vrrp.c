@@ -2917,13 +2917,14 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 	/* Add this instance to the physical interface and vice versa */
-	add_vrrp_to_interface(vrrp, IF_BASE_IFP(vrrp->ifp), vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, true, TRACK_VRRP);
+	add_vrrp_to_interface(vrrp, VRRP_CONFIGURED_IFP(vrrp), vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, true, TRACK_VRRP);
 
 #ifdef _HAVE_VRRP_VMAC_
 	/* If the interface is configured onto a VMAC interface, we want to track
 	 * the underlying interface too */
-	if (vrrp->configured_ifp != vrrp->ifp->base_ifp)
-		add_vrrp_to_interface(vrrp, vrrp->configured_ifp, vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, true, TRACK_VRRP);
+	if (vrrp->configured_ifp != vrrp->configured_ifp->base_ifp && vrrp->configured_ifp->base_ifp)
+		add_vrrp_to_interface(vrrp, vrrp->configured_ifp->base_ifp, vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, true, TRACK_VRRP_DYNAMIC);
+
 	if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&
 	    !__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) vmac_xmit_base is only valid with a vmac", vrrp->iname);
@@ -2952,8 +2953,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 		/* Add this instance to the vmac interface */
 		add_vrrp_to_interface(vrrp, vrrp->ifp, vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, true, TRACK_VRRP);
-		if (vrrp->ifp->base_ifp != vrrp->configured_ifp)
-			add_vrrp_to_interface(vrrp, vrrp->configured_ifp->base_ifp, vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, true, TRACK_VRRP_DYNAMIC);
 	}
 #endif
 
