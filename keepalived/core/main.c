@@ -882,7 +882,7 @@ set_umask(const char *optarg)
 
 	if (*endptr || umask_long < 0 || umask_long & ~0777L) {
 		fprintf(stderr, "Invalid --umask option %s", optarg);
-		return;
+		return 0;
 	}
 
 	umask_val = umask_long & 0777;
