@@ -1601,8 +1601,6 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 	/* We get called after a VMAC is created, but before tracking_vrrp is set */
 
 	/* For an interface to be really up, any underlying interface must also be up */
-	was_up = IF_FLAGS_UP(ifp) && (ifp == IF_BASE_IFP(ifp) || IF_FLAGS_UP(IF_BASE_IFP(ifp)));
-	now_up = FLAGS_UP(ifi_flags) && (ifp == IF_BASE_IFP(ifp) || IF_FLAGS_UP(IF_BASE_IFP(ifp)));
 	was_up = IF_FLAGS_UP(ifp);
 	now_up = FLAGS_UP(ifi_flags);
 	ifp->ifi_flags = ifi_flags;
@@ -1969,7 +1967,6 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 				} else
 #endif
 					cleanup_lost_interface(ifp);
-// What if this is an interface we want ? */
 
 #ifdef _HAVE_VRRP_VMAC_
 				/* If this was one of our vmacs, create it again */
@@ -2031,6 +2028,9 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 				log_message(LOG_INFO, "Interface %s added", ifp->ifname);
 
 			update_added_interface(ifp);
+
+			/* We need to see a transition to up, so mark it down for now */
+			ifp->ifi_flags &= ~(IFF_UP | IFF_RUNNING);
 		} else {
 			if (__test_bit(LOG_DETAIL_BIT, &debug))
 				log_message(LOG_INFO, "Unknown interface %s deleted", (char *)tb[IFLA_IFNAME]);
