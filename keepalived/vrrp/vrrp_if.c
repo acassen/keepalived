@@ -1287,6 +1287,10 @@ update_added_interface(interface_t *ifp)
 		/* If this is just a tracking interface, we don't need to do anything */
 		if (vrrp->ifp != ifp && IF_BASE_IFP(vrrp->ifp) != ifp)
 			continue;
+
+		/* Reopen any socket on this interface if necessary */
+		if (!__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) && vrrp->sockets->fd_in == -1)
+			setup_interface(vrrp);
 	}
 
 #ifdef _HAVE_VRRP_VMAC_

@@ -489,6 +489,10 @@ dump_vrrp(FILE *fp, void *data)
 				vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_AUTO ? "auto" : "unknown");
 #endif
 	}
+	if (vrrp->sockets)
+		conf_write(fp, "   fd_in %d, fd_out %d", vrrp->sockets->fd_in, vrrp->sockets->fd_out);
+	else
+		conf_write(fp, "   No sockets allocated");
 #ifdef _HAVE_FIB_ROUTING_
 	if (!LIST_ISEMPTY(vrrp->vroutes)) {
 		conf_write(fp, "   Virtual Routes = %d", LIST_SIZE(vrrp->vroutes));
