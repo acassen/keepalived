@@ -594,7 +594,7 @@ read_file(gchar* filepath)
 	size_t length;
 	gchar *ret = NULL;
 
-	f = fopen(filepath, "rb");
+	f = fopen(filepath, "r");
 	if (f) {
 		fseek(f, 0, SEEK_END);
 		length = (size_t)ftell(f);

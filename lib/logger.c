@@ -78,7 +78,7 @@ open_log_file(const char *name, const char *prog, const char *namespace, const c
 
 	file_name = make_file_name(name, prog, namespace, instance);
 
-	log_file = fopen(file_name, "a");
+	log_file = fopen_safe(file_name, "a");
 	if (log_file) {
 		int n = fileno(log_file);
 		fcntl(n, F_SETFD, FD_CLOEXEC | fcntl(n, F_GETFD));

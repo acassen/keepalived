@@ -37,6 +37,7 @@
 #include "vrrp_iprule.h"
 #include "logger.h"
 #include "timer.h"
+#include "utils.h"
 
 static inline double
 timeval_to_double(const timeval_t *t)
@@ -55,7 +56,7 @@ vrrp_print_json(void)
 	if (LIST_ISEMPTY(vrrp_data->vrrp))
 		return;
 
-	file = fopen ("/tmp/keepalived.json","w");
+	file = fopen_safe("/tmp/keepalived.json", "w");
 	if (!file) {
 		log_message(LOG_INFO, "Can't open /tmp/keepalived.json (%d: %s)",
 			errno, strerror(errno));

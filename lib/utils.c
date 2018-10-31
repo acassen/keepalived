@@ -123,7 +123,7 @@ write_stacktrace(const char *file_name, const char *str)
 
 	nptrs = backtrace(buffer, 100);
 	if (file_name) {
-		fd = open(file_name, O_WRONLY | O_APPEND | O_CREAT, 0644);
+		fd = open(file_name, O_WRONLY | O_APPEND | O_CREAT | O_NOFOLLOW, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
 		if (str)
 			dprintf(fd, "%s\n", str);
 		backtrace_symbols_fd(buffer, nptrs, fd);
@@ -786,6 +786,47 @@ string_equal(const char *str1, const char *str2)
 		return false;
 
 	return !strcmp(str1, str2);
+}
+
+/* We need to use O_NOFOLLOW if opening a file for write, so that a non privileged user can't
+ * create a symbolic link from the path to a system file and cause a system file to be overwritten. */
+FILE *fopen_safe(const char *path, const char *mode)
+{
+	int fd;
+	FILE *file;
+	int flags = O_NOFOLLOW | O_CREAT;
+
+	if (mode[0] == 'r')
+		return fopen(path, mode);
+
+	if (mode[0] != 'a' && mode[0] != 'w')
+		return NULL;
+
+	if (mode[1] &&
+	    (mode[1] != '+' || mode[2]))
+		return NULL;
+
+	if (mode[0] == 'w')
+		flags |= O_TRUNC;
+	else
+		flags |= O_APPEND;
+
+	if (mode[1])
+		flags |= O_RDWR;
+	else
+		flags |= O_WRONLY;
+
+	fd = open(path, flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+	if (fd == -1)
+		return NULL;
+
+	file = fdopen (fd, "w");
+	if (!file) {
+		close(fd);
+		return NULL;
+	}
+
+	return file;
 }
 
 void

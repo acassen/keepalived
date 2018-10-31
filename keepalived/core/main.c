@@ -1399,7 +1399,7 @@ parse_cmdline(int argc, char **argv)
 			__set_bit(DONT_FORK_BIT, &debug);
 			__set_bit(NO_SYSLOG_BIT, &debug);
 			if (optarg && optarg[0]) {
-				int fd = open(optarg, O_WRONLY | O_APPEND | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+				int fd = open(optarg, O_WRONLY | O_APPEND | O_CREAT | O_NOFOLLOW, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 				if (fd == -1) {
 					fprintf(stderr, "Unable to open config-test log file %s\n", optarg);
 					exit(EXIT_FAILURE);

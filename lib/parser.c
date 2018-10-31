@@ -455,11 +455,11 @@ dump_keywords(vector_t *keydump, int level, FILE *fp)
 {
 	unsigned int i;
 	keyword_t *keyword_vec;
-	char file_name[21];
+	char file_name[22];
 
 	if (!level) {
 		snprintf(file_name, sizeof(file_name), "/tmp/keywords.%d", getpid());
-		fp = fopen(file_name, "w");
+		fp = fopen_safe(file_name, "w");
 		if (!fp)
 			return;
 	}

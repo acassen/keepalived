@@ -570,7 +570,7 @@ smtp_connect(smtp_t * smtp)
 static void
 smtp_log_to_file(smtp_t *smtp)
 {
-	FILE *fp = fopen("/tmp/smtp-alert.log", "a");
+	FILE *fp = fopen_safe("/tmp/smtp-alert.log", "a");
 	time_t now;
 	struct tm tm;
 	char time_buf[25];
