@@ -499,6 +499,12 @@ and
     # Don't send an email every time a real server checker changes state;
     # only send email when a real server is added or removed
     \fBno_checker_emails\fR
+
+    # The umask to use for creating files. The number can be specified in hex, octal
+    #   or decimal. BITS are I{R|W|X}{USR|GRP|OTH}, e.g. IRGRP, separated by '|'s.
+    #   The default umask is IWGRP | IWOTH. This option cannot override the
+    #   command-line option.
+    \fBumask \fR[NUMBER|BITS]
 }
 .fi
 .SH Static track groups

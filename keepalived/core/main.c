@@ -33,6 +33,7 @@
 #include <signal.h>
 #include <fcntl.h>
 #include <sys/wait.h>
+#include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <getopt.h>
@@ -154,6 +155,10 @@ static struct {
 	{LOG_LOCAL4}, {LOG_LOCAL5}, {LOG_LOCAL6}, {LOG_LOCAL7}
 };
 #define	LOG_FACILITY_MAX	((sizeof(LOG_FACILITY) / sizeof(LOG_FACILITY[0])) - 1)
+
+/* umask settings */
+bool umask_cmdline;
+static mode_t umask_val = S_IXUSR | S_IWGRP | S_IXGRP | S_IWOTH | S_IXOTH;
 
 /* Control producing core dumps */
 static bool set_core_dump_pattern = false;
@@ -866,6 +871,28 @@ core_dump_init(void)
 	}
 }
 
+static mode_t
+set_umask(const char *optarg)
+{
+	long umask_long;
+	mode_t umask_val;
+	char *endptr;
+
+	umask_long = strtoll(optarg, &endptr, 0);
+
+	if (*endptr || umask_long < 0 || umask_long & ~0777L) {
+		fprintf(stderr, "Invalid --umask option %s", optarg);
+		return;
+	}
+
+	umask_val = umask_long & 0777;
+	umask(umask_val);
+
+	umask_cmdline = true;
+
+	return umask_val;
+}
+
 void
 initialise_debug_options(void)
 {
@@ -1090,6 +1117,7 @@ usage(const char *prog)
 	fprintf(stderr, "  -g, --log-file=FILE          Also log to FILE (default /tmp/keepalived.log)\n");
 	fprintf(stderr, "      --flush-log-file         Flush log file on write\n");
 	fprintf(stderr, "  -G, --no-syslog              Don't log via syslog\n");
+	fprintf(stderr, "  -u, --umask=MASK             umask for file creation (in numeric form)\n");
 #ifdef _WITH_VRRP_
 	fprintf(stderr, "  -X, --release-vips           Drop VIP on transition from signal.\n");
 	fprintf(stderr, "  -V, --dont-release-vrrp      Don't remove VRRP VIPs and VROUTEs on daemon stop\n");
@@ -1183,6 +1211,7 @@ parse_cmdline(int argc, char **argv)
 	int curind;
 	bool bad_option = false;
 	unsigned facility;
+	mode_t new_umask_val;
 
 	struct option long_options[] = {
 		{"use-file",		required_argument,	NULL, 'f'},
@@ -1200,6 +1229,7 @@ parse_cmdline(int argc, char **argv)
 		{"log-file",		optional_argument,	NULL, 'g'},
 		{"flush-log-file",	no_argument,		NULL,  2 },
 		{"no-syslog",		no_argument,		NULL, 'G'},
+		{"umask",		required_argument,	NULL, 'u'},
 #ifdef _WITH_VRRP_
 		{"release-vips",	no_argument,		NULL, 'X'},
 		{"dont-release-vrrp",	no_argument,		NULL, 'V'},
@@ -1252,7 +1282,7 @@ parse_cmdline(int argc, char **argv)
 	 * of longindex, so we need to ensure that before calling getopt_long(), longindex
 	 * is set to a known invalid value */
 	curind = optind;
-	while (longindex = -1, (c = getopt_long(argc, argv, ":vhlndDRS:f:p:i:mM::g::Gt::"
+	while (longindex = -1, (c = getopt_long(argc, argv, ":vhlndu:DRS:f:p:i:mM::g::Gt::"
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 					    "PC"
 #endif
@@ -1357,6 +1387,11 @@ parse_cmdline(int argc, char **argv)
 		case 'G':
 			__set_bit(NO_SYSLOG_BIT, &debug);
 			reopen_log = true;
+			break;
+		case 'u':
+			new_umask_val = set_umask(optarg);
+			if (umask_cmdline)
+				umask_val = new_umask_val;
 			break;
 		case 't':
 			__set_bit(CONFIG_TEST_BIT, &debug);
@@ -1582,6 +1617,9 @@ keepalived_main(int argc, char **argv)
 	__set_bit(DAEMON_BFD, &daemon_mode);
 #endif
 
+	/* Set default file creation mask */
+	umask(022);
+
 	/* Open log with default settings so we can log initially */
 	openlog(PACKAGE_NAME, LOG_PID, log_facility);
 
@@ -1678,6 +1716,7 @@ keepalived_main(int argc, char **argv)
 	}
 
 	global_data = alloc_global_data();
+	global_data->umask = umask_val;
 
 	read_config_file();
 
@@ -1808,9 +1847,6 @@ keepalived_main(int argc, char **argv)
 		close_std_fd();
 		exit(0);
 	}
-
-	/* Set file creation mask */
-	umask(0);
 
 #ifdef _MEM_CHECK_
 	enable_mem_log_termination();

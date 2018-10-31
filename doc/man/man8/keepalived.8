@@ -34,6 +34,7 @@ keepalived \- load\-balancing and high\-availability service
 [\fB\-i\fP|\fB\-\-config-id\fP id]
 [\fB\-x\fP|\fB\-\-snmp\fP]
 [\fB\-A\fP|\fB\-\-snmp-agent-socket\fP=FILE]
+[\fB\-u\fP|\fB\-\-umask\fP=NUMBER]
 [\fB\-m\fP|\fB\-\-core\-dump\fP]
 [\fB\-M\fP|\fB\-\-core\-dump\-pattern\fP[=PATTERN]]
 [\fB\-\-signum\fP=SIGFUNC]
@@ -157,6 +158,9 @@ Enable the SNMP subsystem.
 .TP
 \fB -A, --snmp-agent-socket\fP=FILE
 Use the specified socket for connection to SNMP master agent.
+.TP
+\fB -u, --umask\fP=NUMBER
+The umask specified in the usual numeric way - see man umask(2)
 .TP
 \fB -m, --core-dump\fP
 Override the RLIMIT_CORE hard and soft limits to enable keepalived to
