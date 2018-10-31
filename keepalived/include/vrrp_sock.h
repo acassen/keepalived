@@ -40,6 +40,7 @@
 typedef struct _sock {
 	sa_family_t		family;
 	int			proto;
+	char			ifname[IFNAMSIZ];
 	ifindex_t		ifindex;
 	bool			unicast;
 	int			fd_in;

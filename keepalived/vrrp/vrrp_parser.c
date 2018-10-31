@@ -461,6 +461,7 @@ vrrp_int_handler(vector_t *strvec)
 		return;
 	}
 
+	strcpy(vrrp->ifname, name);
 	vrrp->ifp = if_get_by_ifname(name, IF_CREATE_IF_DYNAMIC);
 	if (!vrrp->ifp)
 		report_config_error(CONFIG_GENERAL_ERROR, "WARNING - interface %s for vrrp_instance %s doesn't exist", name, vrrp->iname);

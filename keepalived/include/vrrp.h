@@ -187,6 +187,7 @@ typedef struct _vrrp_t {
 	char			*iname;			/* Instance Name */
 	vrrp_sgroup_t		*sync;			/* Sync group we belong to */
 	vrrp_stats		*stats;			/* Statistics */
+	char			ifname[IFNAMSIZ];	/* Name of the bound interface */
 	interface_t		*ifp;			/* Interface we belong to */
 	bool			dont_track_primary;	/* If set ignores ifp faults */
 	bool			linkbeat_use_polling;	/* Don't use netlink for interface status */

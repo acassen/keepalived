@@ -395,7 +395,8 @@ vrrp_thread_add_read(vrrp_t *vrrp)
 
 /* VRRP dispatcher functions */
 static sock_t *
-already_exist_sock(list l, sa_family_t family, int proto, ifindex_t ifindex, bool unicast)
+already_exist_sock(list l, sa_family_t family, int proto,
+		const char *ifname, bool unicast)
 {
 	sock_t *sock;
 	element e;
@@ -403,8 +404,8 @@ already_exist_sock(list l, sa_family_t family, int proto, ifindex_t ifindex, boo
 	LIST_FOREACH(l, sock, e) {
 		if ((sock->family == family)	&&
 		    (sock->proto == proto)	&&
-		    (sock->ifindex == ifindex)	&&
-		    (sock->unicast == unicast))
+		    (sock->unicast == unicast)	&&
+		    (!strcmp(sock->ifname, ifname)))
 			return sock;
 	}
 
@@ -412,7 +413,8 @@ already_exist_sock(list l, sa_family_t family, int proto, ifindex_t ifindex, boo
 }
 
 static sock_t *
-alloc_sock(sa_family_t family, list l, int proto, ifindex_t ifindex, bool unicast)
+alloc_sock(sa_family_t family, list l, int proto, const char *ifname,
+	ifindex_t ifindex, bool unicast)
 {
 	sock_t *new;
 
@@ -420,6 +422,7 @@ alloc_sock(sa_family_t family, list l, int proto, ifindex_t ifindex, bool unicas
 	new->family = family;
 	new->proto = proto;
 	new->ifindex = ifindex;
+	snprintf(new->ifname, sizeof(new->ifname), "%s", ifname);
 	new->unicast = unicast;
 	new->rb_vrid = RB_ROOT;
 	new->rb_sands = RB_ROOT_CACHED;
@@ -438,6 +441,7 @@ vrrp_vrid_cmp(const vrrp_t *v1, const vrrp_t *v2)
 static void
 vrrp_create_sockpool(list l)
 {
+	const char *ifname;
 	vrrp_t *vrrp;
 	element e;
 	ifindex_t ifindex;
@@ -446,6 +450,11 @@ vrrp_create_sockpool(list l)
 	sock_t *sock;
 
 	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+		ifname =
+#ifdef _HAVE_VRRP_VMAC_
+			  (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? vrrp->vmac_ifname :
+#endif
+										    vrrp->ifname;
 		ifindex =
 #ifdef _HAVE_VRRP_VMAC_
 			  (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? IF_BASE_INDEX(vrrp->ifp) :
@@ -460,8 +469,8 @@ vrrp_create_sockpool(list l)
 			proto = IPPROTO_VRRP;
 
 		/* add the vrrp element if not exist */
-		if (!(sock = already_exist_sock(l, vrrp->family, proto, ifindex, unicast)))
-			sock = alloc_sock(vrrp->family, l, proto, ifindex, unicast);
+		if (!(sock = already_exist_sock(l, vrrp->family, proto, ifname, unicast)))
+			sock = alloc_sock(vrrp->family, l, proto, ifname, ifindex, unicast);
 
 		/* Add the vrrp_t indexed by vrid to the socket */
 		rb_insert_sort(&sock->rb_vrid, vrrp, rb_vrid, vrrp_vrid_cmp);
