@@ -1710,6 +1710,8 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	ifp->ifindex = (ifindex_t)ifi->ifi_index;
 
 #ifdef _HAVE_VRRP_VMAC_
+	memset(linkinfo, 0, sizeof(linkinfo));
+	memset(linkattr, 0, sizeof(linkattr));
 	if (tb[IFLA_LINKINFO]) {
 		parse_rtattr_nested(linkinfo, IFLA_INFO_MAX, tb[IFLA_LINKINFO]);
 
