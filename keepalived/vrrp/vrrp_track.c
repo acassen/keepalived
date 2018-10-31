@@ -700,7 +700,6 @@ initialise_track_script_state(tracked_sc_t *tsc, vrrp_t *vrrp)
 	if (vrrp->base_priority == VRRP_PRIO_OWNER)
 		return;
 
-//	if (tsc->scr->last_status != VRRP_SCRIPT_STATUS_NOT_SET)
 	if (tsc->scr->init_state != SCRIPT_INIT_STATE_INIT)
 	{
 		if (tsc->scr->result >= tsc->scr->rise) {

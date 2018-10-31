@@ -32,15 +32,15 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdio.h>
-#ifdef _DEBUG_
-#include <sys/syslog.h>
-#endif
 
 #include "vector.h"
+#ifdef _DEBUG_
+#include "logger.h"
+#endif
 
 /* Global debugging logging facilities */
 #ifdef _DEBUG_
-#define DBG(fmt, msg...) syslog(LOG_DEBUG, fmt, ## msg)
+#define DBG(fmt, msg...) log_message(LOG_DEBUG, fmt, ## msg)
 #else
 #define DBG(fmt, msg...)
 #endif

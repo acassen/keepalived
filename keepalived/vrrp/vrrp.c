@@ -2045,12 +2045,12 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool log_addr,
 			}
 		}
 	}
-	else {
+	else if (type != TRACK_VRRP_DYNAMIC) {
 		/* Check if this is already in the list, and adjust the weight appropriately */
 		LIST_FOREACH(ifp->tracking_vrrp, etvp, e) {
 			if (etvp->vrrp == vrrp) {
 				if (etvp->type & (TRACK_VRRP | TRACK_IF | TRACK_SG) &&
-				    type == TRACK_VRRP && type == TRACK_IF && type == TRACK_SG)
+				    type & (TRACK_VRRP | TRACK_IF | TRACK_SG))
 					log_message(LOG_INFO, "(%s) track_interface %s is configured on VRRP instance and sync group. Remove vrrp instance or sync group config",
 							vrrp->iname, ifp->ifname);
 
@@ -2072,10 +2072,35 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool log_addr,
 	etvp->weight = weight;
 	etvp->type = type;
 
-	list_add(ifp->tracking_vrrp, etvp);
+	/* We want the dynamic entries at the start of the list, so that it
+	 * will be processed before a weighted track */
+	if (type == TRACK_VRRP_DYNAMIC)
+		list_add_head(ifp->tracking_vrrp, etvp);
+	else
+		list_add(ifp->tracking_vrrp, etvp);
 
 	/* if vrrp->num_if_script_fault needs incrementing, it will be
 	 * done in initialise_tracking_priorities() */
+}
+
+void
+del_vrrp_from_interface(vrrp_t *vrrp, interface_t *ifp)
+{
+	tracking_vrrp_t *tvp;
+	element e, next;
+
+	LIST_FOREACH_NEXT(ifp->tracking_vrrp, tvp, e, next) {
+		if (tvp->vrrp == vrrp && tvp->type == TRACK_VRRP_DYNAMIC) {
+			if (!IF_ISUP(ifp) && !vrrp->dont_track_primary)
+				vrrp->num_script_if_fault--;
+			list_remove(ifp->tracking_vrrp, e);
+			break;
+		}
+
+		/* The dynamic entries are at the start of the list */
+		if (tvp->type != TRACK_VRRP_DYNAMIC)
+			break;
+	}
 }
 
 /* check for minimum configuration requirements */
@@ -2610,11 +2635,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			next = e->next;
 			if (i < max_addr)
 				continue;
-			vip = ELEMENT_DATA(e);
-			list_del(vrrp->vip, vip);
 			if (!LIST_EXISTS(vrrp->evip))
 				vrrp->evip = alloc_list(free_ipaddress, dump_ipaddress);
-			list_add(vrrp->evip, vip);
+			list_transfer(e, vrrp->vip, vrrp->evip);
 		}
 	}
 
@@ -2894,13 +2917,14 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 	/* Add this instance to the physical interface and vice versa */
-	add_vrrp_to_interface(vrrp, IF_BASE_IFP(vrrp->ifp), vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, true, TRACK_VRRP);
+	add_vrrp_to_interface(vrrp, VRRP_CONFIGURED_IFP(vrrp), vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, true, TRACK_VRRP);
 
 #ifdef _HAVE_VRRP_VMAC_
 	/* If the interface is configured onto a VMAC interface, we want to track
 	 * the underlying interface too */
-	if (vrrp->configured_ifp != vrrp->ifp->base_ifp)
-		add_vrrp_to_interface(vrrp, vrrp->configured_ifp, vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, true, TRACK_VRRP);
+	if (vrrp->configured_ifp != vrrp->configured_ifp->base_ifp && vrrp->configured_ifp->base_ifp)
+		add_vrrp_to_interface(vrrp, vrrp->configured_ifp->base_ifp, vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, true, TRACK_VRRP_DYNAMIC);
+
 	if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&
 	    !__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) vmac_xmit_base is only valid with a vmac", vrrp->iname);
@@ -3048,6 +3072,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		vrrp_script_t *vsc = sc->scr;
 
 		if (vrrp->base_priority == VRRP_PRIO_OWNER && sc->weight) {
+			/* Is this duplicating the code with comment "Ignore any weighted script"? */
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot have weighted track script '%s' with priority %d", vrrp->iname, vsc->sname, VRRP_PRIO_OWNER);
 			list_del(vrrp->track_script, sc);
 			continue;

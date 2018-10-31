@@ -980,6 +980,9 @@ set_debug_options(const char *options)
 		}
 		opt = *opt_p++;
 
+#ifdef _DEBUG_
+		processes = all_processes;
+#else
 		if (!*opt_p || isupper(*opt_p))
 			processes = all_processes;
 		else {
@@ -1011,6 +1014,7 @@ set_debug_options(const char *options)
 				opt_p++;
 			}
 		}
+#endif
 
 		switch (opt) {
 #ifdef _TIMER_CHECK_
@@ -1536,8 +1540,10 @@ register_parent_thread_addresses(void)
 	register_bfd_parent_addresses();
 #endif
 
+#ifndef _DEBUG_
 	register_signal_handler_address("propagate_signal", propagate_signal);
 	register_signal_handler_address("sigend", sigend);
+#endif
 	register_signal_handler_address("thread_child_handler", thread_child_handler);
 }
 #endif

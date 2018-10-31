@@ -97,8 +97,6 @@ int netlink_error_ignore;	/* If we get this error, ignore it */
 
 /* Static vars */
 static nl_handle_t nl_kernel = { .fd = -1 };	/* Kernel reflection channel */
-static char *nlmsg_buf;		/* The allocated netlink receive buffer */
-static int nlmsg_buf_size;	/* Size of netlink message buffer */
 
 #ifdef _NETLINK_TIMERS_
 /* The maximum netlink command we use is RTM_DELRULE.
@@ -455,16 +453,6 @@ rule_is_ours(struct fib_rule_hdr* frh, struct rtattr *tb[FRA_MAX + 1], vrrp_t **
 #endif
 #endif
 
-void
-free_netlink_recv_buf(void)
-{
-	if (nlmsg_buf) {
-		FREE(nlmsg_buf);
-		nlmsg_buf = NULL;
-		nlmsg_buf_size = 0;
-	}
-}
-
 /* Update the netlink socket receive buffer sizes */
 static int
 netlink_set_rx_buf_size(nl_handle_t *nl, unsigned rcvbuf_size, bool force)
@@ -765,9 +753,6 @@ netlink_close(nl_handle_t *nl)
 	}
 #endif
 	nl->fd = -1;
-
-	if (nl_cmd.fd == -1 && nl_kernel.fd == -1)
-		free_netlink_recv_buf();
 }
 
 /* iproute2 utility function */
@@ -1277,6 +1262,8 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 	ssize_t len;
 	int ret = 0;
 	int error;
+	char *nlmsg_buf = NULL;
+	int nlmsg_buf_size = 0;
 
 	while (true) {
 		struct iovec iov = {
@@ -1299,8 +1286,10 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 			len = recvmsg(nl->fd, &msg, MSG_PEEK | MSG_TRUNC);
 		} while (len < 0 && errno == EINTR);
 
-		if (len < 0)
-			return -1;
+		if (len < 0) {
+			ret = -1;
+			break;
+		}
 
 		if (len > nlmsg_buf_size) {
 			FREE_PTR(nlmsg_buf);
@@ -1329,20 +1318,24 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 
 		if (len == 0) {
 			log_message(LOG_INFO, "Netlink: EOF");
-			return -1;
+			ret = -1;
+			break;
 		}
 
 		if (msg.msg_namelen != sizeof snl) {
 			log_message(LOG_INFO,
 			       "Netlink: Sender address length error: length %d",
 			       msg.msg_namelen);
-			return -1;
+			ret = -1;
+			break;
 		}
 
 		for (h = (struct nlmsghdr *) nlmsg_buf; NLMSG_OK(h, (size_t)len); h = NLMSG_NEXT(h, len)) {
 			/* Finish off reading. */
-			if (h->nlmsg_type == NLMSG_DONE)
+			if (h->nlmsg_type == NLMSG_DONE) {
+				FREE(nlmsg_buf);
 				return ret;
+			}
 
 			/* Error handling. */
 			if (h->nlmsg_type == NLMSG_ERROR) {
@@ -1353,21 +1346,26 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 				 * return if not related to multipart message.
 				 */
 				if (err->error == 0) {
-					if (!(h->nlmsg_flags & NLM_F_MULTI) && !read_all)
+					if (!(h->nlmsg_flags & NLM_F_MULTI) && !read_all) {
+						FREE(nlmsg_buf);
 						return 0;
+					}
 					continue;
 				}
 
 				if (h->nlmsg_len < NLMSG_LENGTH(sizeof (struct nlmsgerr))) {
 					log_message(LOG_INFO,
 					       "Netlink: error: message truncated");
+					FREE(nlmsg_buf);
 					return -1;
 				}
 
 				if (n && (err->error == -EEXIST) &&
 				    ((n->nlmsg_type == RTM_NEWROUTE) ||
-				     (n->nlmsg_type == RTM_NEWADDR)))
+				     (n->nlmsg_type == RTM_NEWADDR))) {
+					FREE(nlmsg_buf);
 					return 0;
+				}
 
 				/* If have more than one IPv4 address in the same CIDR
 				 * and the "primary" address is removed, unless promote_secondaries
@@ -1375,8 +1373,10 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 				 * in the same CIDR are deleted */
 				if (n && err->error == -EADDRNOTAVAIL &&
 				    n->nlmsg_type == RTM_DELADDR) {
-					if (!(h->nlmsg_flags & NLM_F_MULTI))
+					if (!(h->nlmsg_flags & NLM_F_MULTI)) {
+						FREE(nlmsg_buf);
 						return 0;
+					}
 					continue;
 				}
 #ifdef _WITH_VRRP_
@@ -1388,6 +1388,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 					       err->msg.nlmsg_type,
 					       err->msg.nlmsg_seq, err->msg.nlmsg_pid);
 
+				FREE(nlmsg_buf);
 				return -1;
 			}
 
@@ -1397,6 +1398,8 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 #ifndef _DEBUG_
 			    prog_type == PROG_TYPE_VRRP &&
 #endif
+			    h->nlmsg_type != RTM_NEWLINK &&
+			    h->nlmsg_type != RTM_DELLINK &&
 			    h->nlmsg_type != RTM_NEWROUTE &&
 			    nl != &nl_cmd && h->nlmsg_pid == nl_cmd.nl_pid)
 				continue;
@@ -1408,8 +1411,10 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 				ret = error;
 			}
 
-			if (!(h->nlmsg_flags & NLM_F_MULTI) && !read_all)
+			if (!(h->nlmsg_flags & NLM_F_MULTI) && !read_all) {
+				FREE(nlmsg_buf);
 				return ret;
+			}
 		}
 
 		/* After error care. */
@@ -1420,9 +1425,14 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 		if (len) {
 			log_message(LOG_INFO, "Netlink: error: data remnant size %zd",
 			       len);
-			return -1;
+
+			ret = -1;
+			break;
 		}
 	}
+
+	if (nlmsg_buf)
+		FREE(nlmsg_buf);
 
 	return ret;
 }
@@ -1597,9 +1607,10 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 		return;
 
 	/* We get called after a VMAC is created, but before tracking_vrrp is set */
+
+	/* For an interface to be really up, any underlying interface must also be up */
 	was_up = IF_FLAGS_UP(ifp);
 	now_up = FLAGS_UP(ifi_flags);
-
 	ifp->ifi_flags = ifi_flags;
 
 	if (was_up == now_up)
@@ -1703,7 +1714,8 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 		parse_rtattr_nested(linkinfo, IFLA_INFO_MAX, tb[IFLA_LINKINFO]);
 
 		if (linkinfo[IFLA_INFO_KIND]) {
-			if (!strcmp((char *)RTA_DATA(linkinfo[IFLA_INFO_KIND]), "macvlan")) {
+			if (!strcmp((char *)RTA_DATA(linkinfo[IFLA_INFO_KIND]), "macvlan") ||
+			    !strcmp((char *)RTA_DATA(linkinfo[IFLA_INFO_KIND]), "macvtap")) {
 				is_macvlan = true;
 				parse_rtattr_nested(linkattr, IFLA_MACVLAN_MAX, linkinfo[IFLA_INFO_DATA]);
 			}
@@ -1963,7 +1975,6 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 				} else
 #endif
 					cleanup_lost_interface(ifp);
-// What if this is an interface we want ? */
 
 #ifdef _HAVE_VRRP_VMAC_
 				/* If this was one of our vmacs, create it again */
@@ -2025,6 +2036,9 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 				log_message(LOG_INFO, "Interface %s added", ifp->ifname);
 
 			update_added_interface(ifp);
+
+			/* We need to see a transition to up, so mark it down for now */
+			ifp->ifi_flags &= ~(IFF_UP | IFF_RUNNING);
 		} else {
 			if (__test_bit(LOG_DETAIL_BIT, &debug))
 				log_message(LOG_INFO, "Unknown interface %s deleted", (char *)tb[IFLA_IFNAME]);

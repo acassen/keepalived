@@ -57,7 +57,9 @@ int bfd_checker_event_pipe[2] = { -1, -1};
 /* Local variables */
 static char *bfd_syslog_ident;
 
+#ifndef _DEBUG_
 static int reload_bfd_thread(thread_t *);
+#endif
 
 /* Daemon stop sequence */
 static void
@@ -156,6 +158,11 @@ start_bfd(__attribute__((unused)) data_t *old_global_data)
 		return;
 	bfd_complete_init();
 
+	/* Post initializations */
+#ifdef _MEM_CHECK_
+	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);
+#endif
+
 	if (__test_bit(DUMP_CONF_BIT, &debug))
 		dump_bfd_data(NULL, bfd_data);
 
@@ -179,6 +186,7 @@ bfd_validate_config(void)
 	start_bfd(NULL);
 }
 
+#ifndef _DEBUG_
 /* Reload handler */
 static void
 sigreload_bfd(__attribute__ ((unused)) void *v,
@@ -246,7 +254,6 @@ reload_bfd_thread(__attribute__((unused)) thread_t * thread)
 	return 0;
 }
 
-#ifndef _DEBUG_
 /* BFD Child respawning thread */
 static int
 bfd_respawn_thread(thread_t * thread)
@@ -265,6 +272,7 @@ bfd_respawn_thread(thread_t * thread)
 }
 #endif
 
+#ifndef _DEBUG_
 #ifdef THREAD_DUMP
 static void
 register_bfd_thread_addresses(void)
@@ -281,6 +289,7 @@ register_bfd_thread_addresses(void)
 	register_signal_handler_address("sigend_bfd", sigend_bfd);
 	register_signal_handler_address("thread_child_handler", thread_child_handler);
 }
+#endif
 #endif
 
 int
@@ -420,6 +429,8 @@ start_bfd_child(void)
 void
 register_bfd_parent_addresses(void)
 {
+#ifndef _DEBUG_
 	register_thread_address("bfd_respawn_thread", bfd_respawn_thread);
+#endif
 }
 #endif
