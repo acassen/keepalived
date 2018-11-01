@@ -182,6 +182,7 @@ extern int inet_inaddrcmp(int, const void *, const void *);
 extern int inet_sockaddrcmp(const struct sockaddr_storage *, const struct sockaddr_storage *);
 extern char *get_local_name(void);
 extern bool string_equal(const char *, const char *);
+extern FILE *fopen_safe(const char *, const char *);
 extern void set_std_fd(bool);
 extern void close_std_fd(void);
 #if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_

@@ -1205,7 +1205,7 @@ vrrp_tfile_end_handler(void)
 
 	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
 		/* Write the value to the file */
-		if ((tf = fopen(tfile->file_path, "w"))) {
+		if ((tf = fopen_safe(tfile->file_path, "w"))) {
 			fprintf(tf, "%d\n", track_file_init_value);
 			fclose(tf);
 		}

@@ -60,7 +60,7 @@ int
 pidfile_write(const char *pid_file, int pid)
 {
 	FILE *pidfile = NULL;
-	int pidfd = creat(pid_file, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+	int pidfd = open(pid_file, O_NOFOLLOW | O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
 	if (pidfd != -1) pidfile = fdopen(pidfd, "w");
 

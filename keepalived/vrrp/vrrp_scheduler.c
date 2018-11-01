@@ -1134,7 +1134,7 @@ dump_threads(void)
 					NULL,
 #endif
 					global_data->instance_name);
-	fp = fopen(file_name, "a");
+	fp = fopen_safe(file_name, "a");
 	FREE(file_name);
 
 	set_time_now();

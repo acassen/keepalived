@@ -529,6 +529,10 @@ global_defs {                                 # Block identification
     rs_init_notifies			      # Send notifies at startup for real servers that are starting up
     no_checker_emails                         # Don't send an email every time a real server checker changes state;
                                               #   only send email when a real server is added or removed
+    umask [NUMBER|BITS]                       # The umask to use for creating files. The number can be specified in hex, octal
+                                              #   or decimal. BITS are I{R|W|X}{USR|GRP|OTH}, e.g. IRGRP, separated by '|'s.
+                                              #   The default umask is IWGRP | IWOTH. This option cannot override the
+                                              #   command-line option.
 }
 
 net_namespace NAME                            # Set the network namespace to run in
