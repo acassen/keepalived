@@ -126,6 +126,44 @@ report_and_clear_netlink_timers(const char * str)
 }
 #endif
 
+static char *
+get_nl_msg_type(unsigned type)
+{
+	switch (type) {
+	case RTM_NEWLINK:
+		return "RTM_NEWLINK";
+		break;
+	case RTM_DELLINK:
+		return "RTM_DELLINK";
+		break;
+	case RTM_NEWADDR:
+		return "RTM_NEWADDR";
+		break;
+	case RTM_DELADDR:
+		return "RTM_DELADDR";
+		break;
+	case RTM_NEWROUTE:
+		return "RTM_NEWROUTE";
+		break;
+	case RTM_DELROUTE:
+		return "RTM_DELROUTE";
+		break;
+	case RTM_NEWRULE:
+		return "RTM_NEWRULE";
+		break;
+	case RTM_DELRULE:
+		return "RTM_DELRULE";
+		break;
+	case RTM_GETLINK:
+		return "RTM_GETLINK";
+		break;
+	case RTM_GETADDR:
+		return "RTM_GETADDR";
+		break;
+	}
+
+	return "";
+}
 static inline bool
 addr_is_equal(struct ifaddrmsg* ifa, void* addr, ip_address_t* vip_addr, interface_t *ifp)
 {
@@ -1383,9 +1421,9 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 				if (netlink_error_ignore != -err->error)
 #endif
 					log_message(LOG_INFO,
-					       "Netlink: error: %s, type=(%u), seq=%u, pid=%d",
+					       "Netlink: error: %s, type=%s(%u), seq=%u, pid=%d",
 					       strerror(-err->error),
-					       err->msg.nlmsg_type,
+					       get_nl_msg_type(err->msg.nlmsg_type), err->msg.nlmsg_type,
 					       err->msg.nlmsg_seq, err->msg.nlmsg_pid);
 
 				FREE(nlmsg_buf);
