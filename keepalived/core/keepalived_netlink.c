@@ -971,6 +971,8 @@ static inline __u8 rta_getattr_u8(const struct rtattr *rta)
 static void
 parse_rtattr(struct rtattr **tb, int max, struct rtattr *rta, size_t len)
 {
+	memset(tb, 0, sizeof(struct rtattr *) * (max + 1));
+
 	while (RTA_OK(rta, len)) {
 		if (rta->rta_type <= max)
 			tb[rta->rta_type] = rta;
@@ -1063,7 +1065,6 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 
 	len = h->nlmsg_len - NLMSG_LENGTH(sizeof (struct ifaddrmsg));
 
-	memset(tb, 0, sizeof (tb));
 	parse_rtattr(tb, IFA_MAX, IFA_RTA(ifa), len);
 
 	if (tb[IFA_LOCAL] == NULL)
@@ -1879,7 +1880,6 @@ netlink_if_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 	len = h->nlmsg_len - NLMSG_LENGTH(sizeof (struct ifinfomsg));
 
 	/* Interface name lookup */
-	memset(tb, 0, sizeof (tb));
 	parse_rtattr(tb, IFLA_MAX, IFLA_RTA(ifi), len);
 
 	if (tb[IFLA_IFNAME] == NULL)
@@ -1961,7 +1961,6 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 	len = h->nlmsg_len - NLMSG_LENGTH(sizeof (struct ifinfomsg));
 
 	/* Interface name lookup */
-	memset(tb, 0, sizeof (tb));
 	ifi = NLMSG_DATA(h);
 	parse_rtattr(tb, IFLA_MAX, IFLA_RTA(ifi), len);
 	if (tb[IFLA_IFNAME] == NULL)
@@ -2119,7 +2118,6 @@ netlink_route_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlm
 
 	len = h->nlmsg_len - NLMSG_LENGTH(sizeof (struct rtmsg));
 
-	memset(tb, 0, sizeof (tb));
 	parse_rtattr(tb, RTA_MAX, RTM_RTA(rt), len);
 
 	if (!(route = route_is_ours(rt, tb, &vrrp)))
@@ -2178,7 +2176,6 @@ netlink_rule_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 
 	len = h->nlmsg_len - NLMSG_LENGTH(sizeof (struct rtmsg));
 
-	memset(tb, 0, sizeof (tb));
 	parse_rtattr(tb, FRA_MAX, RTM_RTA(frh), len);
 
 #if HAVE_DECL_FRA_PROTOCOL
