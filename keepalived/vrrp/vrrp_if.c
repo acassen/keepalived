@@ -1137,7 +1137,7 @@ cleanup_lost_interface(interface_t *ifp)
 			close(vrrp->sockets->fd_out);
 			vrrp->sockets->fd_out = -1;
 		}
-		vrrp->sockets->ifindex = 0;
+		vrrp->sockets->ifp->ifindex = 0;
 
 		if (IF_ISUP(ifp))
 			down_instance(vrrp);
@@ -1189,7 +1189,7 @@ setup_interface(vrrp_t *vrrp)
 			vrrp->sockets->fd_out = open_vrrp_send_socket(vrrp->sockets->family, vrrp->sockets->proto,
 							ifp, vrrp->sockets->unicast);
 
-		vrrp->sockets->ifindex = vrrp->ifp->ifindex;
+		vrrp->sockets->ifp = vrrp->ifp;
 
 		if (vrrp_initialised) {
 			vrrp->state = vrrp->num_script_if_fault ? VRRP_STATE_FAULT : VRRP_STATE_BACK;

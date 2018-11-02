@@ -395,7 +395,7 @@ vrrp_thread_add_read(vrrp_t *vrrp)
 
 /* VRRP dispatcher functions */
 static sock_t *
-already_exist_sock(list l, sa_family_t family, int proto, ifindex_t ifindex, bool unicast)
+already_exist_sock(list l, sa_family_t family, int proto, interface_t *ifp, bool unicast)
 {
 	sock_t *sock;
 	element e;
@@ -403,7 +403,7 @@ already_exist_sock(list l, sa_family_t family, int proto, ifindex_t ifindex, boo
 	LIST_FOREACH(l, sock, e) {
 		if ((sock->family == family)	&&
 		    (sock->proto == proto)	&&
-		    (sock->ifindex == ifindex)	&&
+		    (sock->ifp == ifp)		&&
 		    (sock->unicast == unicast))
 			return sock;
 	}
@@ -412,14 +412,14 @@ already_exist_sock(list l, sa_family_t family, int proto, ifindex_t ifindex, boo
 }
 
 static sock_t *
-alloc_sock(sa_family_t family, list l, int proto, ifindex_t ifindex, bool unicast)
+alloc_sock(sa_family_t family, list l, int proto, interface_t *ifp, bool unicast)
 {
 	sock_t *new;
 
 	new = (sock_t *)MALLOC(sizeof (sock_t));
 	new->family = family;
 	new->proto = proto;
-	new->ifindex = ifindex;
+	new->ifp = ifp;
 	new->unicast = unicast;
 	new->rb_vrid = RB_ROOT;
 	new->rb_sands = RB_ROOT_CACHED;
@@ -440,17 +440,17 @@ vrrp_create_sockpool(list l)
 {
 	vrrp_t *vrrp;
 	element e;
-	ifindex_t ifindex;
+	interface_t *ifp;
 	int proto;
 	bool unicast;
 	sock_t *sock;
 
 	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
-		ifindex =
+		ifp =
 #ifdef _HAVE_VRRP_VMAC_
-			  (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? IF_BASE_INDEX(vrrp->ifp) :
+			  (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? vrrp->ifp->base_ifp :
 #endif
-										    IF_INDEX(vrrp->ifp);
+										    vrrp->ifp;
 		unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
 #if defined _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH)
@@ -460,8 +460,8 @@ vrrp_create_sockpool(list l)
 			proto = IPPROTO_VRRP;
 
 		/* add the vrrp element if not exist */
-		if (!(sock = already_exist_sock(l, vrrp->family, proto, ifindex, unicast)))
-			sock = alloc_sock(vrrp->family, l, proto, ifindex, unicast);
+		if (!(sock = already_exist_sock(l, vrrp->family, proto, ifp, unicast)))
+			sock = alloc_sock(vrrp->family, l, proto, ifp, unicast);
 
 		/* Add the vrrp_t indexed by vrid to the socket */
 		rb_insert_sort(&sock->rb_vrid, vrrp, rb_vrid, vrrp_vrid_cmp);
@@ -482,21 +482,19 @@ vrrp_open_sockpool(list l)
 {
 	sock_t *sock;
 	element e;
-	interface_t *ifp;
 
 	LIST_FOREACH(l, sock, e) {
-		if (!sock->ifindex) {
+		if (!sock->ifp->ifindex) {
 			sock->fd_in = sock->fd_out = -1;
 			continue;
 		}
-		ifp = if_get_by_ifindex(sock->ifindex);
 		sock->fd_in = open_vrrp_read_socket(sock->family, sock->proto,
-					       ifp, sock->unicast, sock->rx_buf_size);
+					       sock->ifp, sock->unicast, sock->rx_buf_size);
 		if (sock->fd_in == -1)
 			sock->fd_out = -1;
 		else
 			sock->fd_out = open_vrrp_send_socket(sock->family, sock->proto,
-							     ifp, sock->unicast);
+							     sock->ifp, sock->unicast);
 	}
 }
 
