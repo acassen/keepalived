@@ -37,6 +37,7 @@
 #include <netinet/ip6.h>
 #include <stdint.h>
 #include <net/if_arp.h>
+#include <net/ethernet.h>
 
 /* local include */
 #include "parser.h"

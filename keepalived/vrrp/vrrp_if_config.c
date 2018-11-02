@@ -367,6 +367,7 @@ make_sysctl_filename(char *dest, const char* prefix, const char* iface, const ch
 	strcat(dest, parameter);
 }
 
+#ifdef _HAVE_VRRP_VMAC_
 static int
 set_sysctl(const char* prefix, const char* iface, const char* parameter, unsigned value)
 {
@@ -395,6 +396,7 @@ set_sysctl(const char* prefix, const char* iface, const char* parameter, unsigne
 	/* Success */
 	return 0;
 }
+#endif
 
 static unsigned
 get_sysctl(const char* prefix, const char* iface, const char* parameter)
