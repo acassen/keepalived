@@ -254,7 +254,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
 		req.n.nlmsg_flags = NLM_F_REQUEST | NLM_F_CREATE | NLM_F_EXCL;
 		req.n.nlmsg_type = RTM_NEWLINK;
-		req.ifi.ifi_family = AF_INET;
+		req.ifi.ifi_family = AF_UNSPEC;
 
 		/* macvlan settings */
 		linkinfo = NLMSG_TAIL(&req.n);

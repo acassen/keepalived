@@ -40,7 +40,7 @@
 typedef struct _sock {
 	sa_family_t		family;
 	int			proto;
-	ifindex_t		ifindex;
+	interface_t		*ifp;
 	bool			unicast;
 	int			fd_in;
 	int			fd_out;

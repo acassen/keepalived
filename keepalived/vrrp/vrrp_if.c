@@ -481,7 +481,12 @@ dump_if(FILE *fp, void *data)
 			ifp->ifi_flags & IFF_POINTOPOINT ? ", point to point" : "",
 			ifp->ifi_flags & IFF_NOARP ? ", no arp" : "",
 			!(ifp->ifi_flags & IFF_MULTICAST) ? ", no multicast" : "",
-			ifp != IF_BASE_IFP(ifp) && !(IF_BASE_IFP(ifp)->ifi_flags & IFF_UP) ? ", master down" : "");
+#ifdef _HAVE_VRRP_VMAC_
+			ifp != ifp->base_ifp && !(ifp->base_ifp->ifi_flags & IFF_UP) ? ", master down" : ""
+#else
+			""
+#endif
+		  );
 
 #ifdef _HAVE_VRRP_VMAC_
 	if (ifp->vmac_type && ifp->base_ifp)
@@ -550,16 +555,16 @@ dump_if(FILE *fp, void *data)
 		if (ifp->garp_delay->aggregation_group)
 			conf_write(fp, "   Gratuitous ARP aggregation group %d", ifp->garp_delay->aggregation_group);
 	}
-	if (ifp->reset_arp_config) {
-		conf_write(fp, "   Reset ARP config counter %d", ifp->reset_arp_config);
-		conf_write(fp, "   Original arp_ignore %d", ifp->reset_arp_ignore_value);
-		conf_write(fp, "   Original arp_filter %d", ifp->reset_arp_filter_value);
-	}
-	conf_write(fp, "   Reset promote_secondaries counter %d", ifp->reset_promote_secondaries);
+
 #ifdef _HAVE_VRRP_VMAC_
+	conf_write(fp, "   Reset ARP config counter %d", ifp->reset_arp_config);
+	conf_write(fp, "   Original arp_ignore %d", ifp->arp_ignore);
+	conf_write(fp, "   Original arp_filter %d", ifp->arp_filter);
 	if (ifp->rp_filter < UINT_MAX)
 		conf_write(fp, "   rp_filter %d", ifp->rp_filter);
 #endif
+	conf_write(fp, "   Original promote_secondaries %d", ifp->promote_secondaries);
+	conf_write(fp, "   Reset promote_secondaries counter %d", ifp->reset_promote_secondaries);
 
 	conf_write(fp, "   Tracking VRRP instances = %d", !LIST_ISEMPTY(ifp->tracking_vrrp) ? LIST_SIZE(ifp->tracking_vrrp) : 0);
 	if (!LIST_ISEMPTY(ifp->tracking_vrrp))
@@ -1132,7 +1137,7 @@ cleanup_lost_interface(interface_t *ifp)
 			close(vrrp->sockets->fd_out);
 			vrrp->sockets->fd_out = -1;
 		}
-		vrrp->sockets->ifindex = 0;
+		vrrp->sockets->ifp->ifindex = 0;
 
 		if (IF_ISUP(ifp))
 			down_instance(vrrp);
@@ -1142,8 +1147,10 @@ cleanup_lost_interface(interface_t *ifp)
 
 	ifp->ifindex = 0;
 	ifp->ifi_flags = 0;
+#ifdef _HAVE_VRRP_VMAC_
 	if (!ifp->is_ours)
 		ifp->base_ifp = ifp;
+#endif
 #ifdef _HAVE_VRF_
 	ifp->vrf_master_ifp = NULL;
 	ifp->vrf_master_ifindex = 0;
@@ -1182,7 +1189,7 @@ setup_interface(vrrp_t *vrrp)
 			vrrp->sockets->fd_out = open_vrrp_send_socket(vrrp->sockets->family, vrrp->sockets->proto,
 							ifp, vrrp->sockets->unicast);
 
-		vrrp->sockets->ifindex = vrrp->ifp->ifindex;
+		vrrp->sockets->ifp = vrrp->ifp;
 
 		if (vrrp_initialised) {
 			vrrp->state = vrrp->num_script_if_fault ? VRRP_STATE_FAULT : VRRP_STATE_BACK;
@@ -1194,6 +1201,7 @@ setup_interface(vrrp_t *vrrp)
 	return;
 }
 
+#ifdef _HAVE_VRRP_VMAC_
 int
 recreate_vmac_thread(thread_t *thread)
 {
@@ -1229,13 +1237,19 @@ recreate_vmac_thread(thread_t *thread)
 
 	return 0;
 }
+#endif
 
 void
 update_added_interface(interface_t *ifp)
 {
-	vrrp_t *vrrp, *vrrp1;
-	tracking_vrrp_t *tvp, *tvp1;
-	element e, e1;
+	vrrp_t *vrrp;
+	tracking_vrrp_t *tvp;
+	element e;
+#ifdef _HAVE_VRRP_VMAC_
+	vrrp_t *vrrp1;
+	tracking_vrrp_t *tvp1;
+	element e1;
+#endif
 
 	if (LIST_ISEMPTY(ifp->tracking_vrrp))
 		return;
@@ -1289,7 +1303,11 @@ update_added_interface(interface_t *ifp)
 			continue;
 
 		/* Reopen any socket on this interface if necessary */
-		if (!__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) && vrrp->sockets->fd_in == -1)
+		if (
+#ifdef _HAVE_VRRP_VMAC_
+		    !__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
+#endif
+		    vrrp->sockets->fd_in == -1)
 			setup_interface(vrrp);
 	}
 
@@ -1303,6 +1321,8 @@ void
 register_vrrp_if_addresses(void)
 {
 	register_thread_address("if_linkbeat_refresh_thread", if_linkbeat_refresh_thread);
+#ifdef _HAVE_VRRP_VMAC_
 	register_thread_address("recreate_vmac_thread", recreate_vmac_thread);
+#endif
 }
 #endif

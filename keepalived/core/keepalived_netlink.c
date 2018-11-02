@@ -22,7 +22,6 @@
 
 #include "config.h"
 
-#include <netinet/ip.h>
 /* global include */
 #include <stdlib.h>
 #include <fcntl.h>
@@ -47,6 +46,8 @@
 #include <linux/fib_rules.h>
 #endif
 #endif
+#include <linux/ip.h>
+
 #ifdef THREAD_DUMP
 #include "scheduler.h"
 #endif
@@ -126,6 +127,44 @@ report_and_clear_netlink_timers(const char * str)
 }
 #endif
 
+static char *
+get_nl_msg_type(unsigned type)
+{
+	switch (type) {
+	case RTM_NEWLINK:
+		return "RTM_NEWLINK";
+		break;
+	case RTM_DELLINK:
+		return "RTM_DELLINK";
+		break;
+	case RTM_NEWADDR:
+		return "RTM_NEWADDR";
+		break;
+	case RTM_DELADDR:
+		return "RTM_DELADDR";
+		break;
+	case RTM_NEWROUTE:
+		return "RTM_NEWROUTE";
+		break;
+	case RTM_DELROUTE:
+		return "RTM_DELROUTE";
+		break;
+	case RTM_NEWRULE:
+		return "RTM_NEWRULE";
+		break;
+	case RTM_DELRULE:
+		return "RTM_DELRULE";
+		break;
+	case RTM_GETLINK:
+		return "RTM_GETLINK";
+		break;
+	case RTM_GETADDR:
+		return "RTM_GETADDR";
+		break;
+	}
+
+	return "";
+}
 static inline bool
 addr_is_equal(struct ifaddrmsg* ifa, void* addr, ip_address_t* vip_addr, interface_t *ifp)
 {
@@ -933,6 +972,8 @@ static inline __u8 rta_getattr_u8(const struct rtattr *rta)
 static void
 parse_rtattr(struct rtattr **tb, int max, struct rtattr *rta, size_t len)
 {
+	memset(tb, 0, sizeof(struct rtattr *) * (max + 1));
+
 	while (RTA_OK(rta, len)) {
 		if (rta->rta_type <= max)
 			tb[rta->rta_type] = rta;
@@ -941,13 +982,11 @@ parse_rtattr(struct rtattr **tb, int max, struct rtattr *rta, size_t len)
 }
 
 #ifdef _WITH_VRRP_
-#ifdef _HAVE_VRRP_VMAC_
 static void
 parse_rtattr_nested(struct rtattr **tb, int max, struct rtattr *rta)
 {
 	parse_rtattr(tb, max, RTA_DATA(rta), RTA_PAYLOAD(rta));
 }
-#endif
 
 static void
 set_vrrp_backup(vrrp_t *vrrp)
@@ -1025,7 +1064,6 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 
 	len = h->nlmsg_len - NLMSG_LENGTH(sizeof (struct ifaddrmsg));
 
-	memset(tb, 0, sizeof (tb));
 	parse_rtattr(tb, IFA_MAX, IFA_RTA(ifa), len);
 
 	if (tb[IFA_LOCAL] == NULL)
@@ -1383,9 +1421,9 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 				if (netlink_error_ignore != -err->error)
 #endif
 					log_message(LOG_INFO,
-					       "Netlink: error: %s, type=(%u), seq=%u, pid=%d",
+					       "Netlink: error: %s, type=%s(%u), seq=%u, pid=%d",
 					       strerror(-err->error),
-					       err->msg.nlmsg_type,
+					       get_nl_msg_type(err->msg.nlmsg_type), err->msg.nlmsg_type,
 					       err->msg.nlmsg_seq, err->msg.nlmsg_pid);
 
 				FREE(nlmsg_buf);
@@ -1687,6 +1725,30 @@ netlink_if_get_ll_addr(interface_t *ifp, struct rtattr *tb[],
 	return true;
 }
 
+static void
+parse_af_spec(struct rtattr* attr, interface_t *ifp)
+{
+	struct rtattr* afspec[AF_INET6 + 1];
+	struct rtattr* inet[IFLA_INET_MAX + 1];
+	uint32_t* inet_devconf;
+
+	if (!attr)
+		return;
+
+	parse_rtattr_nested(afspec, AF_INET6, attr);
+	if (afspec[AF_INET]) {
+		parse_rtattr_nested(inet, IFLA_INET_MAX, afspec[AF_INET]);
+		if (inet[IFLA_INET_CONF]) {
+			inet_devconf = RTA_DATA(inet[IFLA_INET_CONF]);
+#ifdef _HAVE_VRRP_VMAC_
+			ifp->arp_ignore = inet_devconf[IPV4_DEVCONF_ARP_IGNORE - 1];
+			ifp->arp_filter = inet_devconf[IPV4_DEVCONF_ARPFILTER - 1];
+#endif
+			ifp->promote_secondaries = inet_devconf[IPV4_DEVCONF_PROMOTE_SECONDARIES - 1];
+		}
+	}
+}
+
 static bool
 netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg *ifi)
 {
@@ -1727,6 +1789,9 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 #endif
 		}
 	}
+
+	if (tb[IFLA_AF_SPEC])
+		parse_af_spec(tb[IFLA_AF_SPEC], ifp);
 
 	/* Check there hasn't been an unsupported interface type change */
 	if (!global_data->allow_if_changes && ifp->seen_interface) {
@@ -1841,7 +1906,6 @@ netlink_if_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 	len = h->nlmsg_len - NLMSG_LENGTH(sizeof (struct ifinfomsg));
 
 	/* Interface name lookup */
-	memset(tb, 0, sizeof (tb));
 	parse_rtattr(tb, IFLA_MAX, IFLA_RTA(ifi), len);
 
 	if (tb[IFLA_IFNAME] == NULL)
@@ -1923,7 +1987,6 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 	len = h->nlmsg_len - NLMSG_LENGTH(sizeof (struct ifinfomsg));
 
 	/* Interface name lookup */
-	memset(tb, 0, sizeof (tb));
 	ifi = NLMSG_DATA(h);
 	parse_rtattr(tb, IFLA_MAX, IFLA_RTA(ifi), len);
 	if (tb[IFLA_IFNAME] == NULL)
@@ -2005,6 +2068,8 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 					update_vmac_vrfs(ifp);
 				}
 #endif
+				if (tb[IFLA_AF_SPEC])
+					parse_af_spec(tb[IFLA_AF_SPEC], ifp);
 
 				/* Ignore interface if we are using linkbeat on it */
 				if (ifp->linkbeat_use_polling)
@@ -2081,7 +2146,6 @@ netlink_route_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlm
 
 	len = h->nlmsg_len - NLMSG_LENGTH(sizeof (struct rtmsg));
 
-	memset(tb, 0, sizeof (tb));
 	parse_rtattr(tb, RTA_MAX, RTM_RTA(rt), len);
 
 	if (!(route = route_is_ours(rt, tb, &vrrp)))
@@ -2140,7 +2204,6 @@ netlink_rule_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 
 	len = h->nlmsg_len - NLMSG_LENGTH(sizeof (struct rtmsg));
 
-	memset(tb, 0, sizeof (tb));
 	parse_rtattr(tb, FRA_MAX, RTM_RTA(frh), len);
 
 #if HAVE_DECL_FRA_PROTOCOL
