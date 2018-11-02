@@ -50,15 +50,11 @@ typedef struct _nl_handle {
 } nl_handle_t;
 
 /* Define types */
-#ifndef _HAVE_LIBNL3_
-#ifndef _HAVE_LIBNL1_
 #ifndef NLMSG_TAIL
-#define NLMSG_TAIL(nmsg) ((struct rtattr *) (((void *) (nmsg)) + NLMSG_ALIGN((nmsg)->nlmsg_len)))
+#define NLMSG_TAIL(nmsg) (((void *) (nmsg)) + NLMSG_ALIGN((nmsg)->nlmsg_len))
 #endif
-#ifndef SOL_NETLINK
+#if !defined _HAVE_LIBNL3_ && !defined _HAVE_LIBNL1 && !defined SOL_NETLINK
 #define SOL_NETLINK 270
-#endif
-#endif
 #endif
 
 #define RTA_TAIL(rta)	((struct rtattr *) (((void *) (rta)) + RTA_ALIGN((rta)->rta_len)))

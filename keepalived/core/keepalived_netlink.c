@@ -22,7 +22,6 @@
 
 #include "config.h"
 
-#include <netinet/ip.h>
 /* global include */
 #include <stdlib.h>
 #include <fcntl.h>
@@ -47,6 +46,8 @@
 #include <linux/fib_rules.h>
 #endif
 #endif
+#include <linux/ip.h>
+
 #ifdef THREAD_DUMP
 #include "scheduler.h"
 #endif
@@ -981,13 +982,11 @@ parse_rtattr(struct rtattr **tb, int max, struct rtattr *rta, size_t len)
 }
 
 #ifdef _WITH_VRRP_
-#ifdef _HAVE_VRRP_VMAC_
 static void
 parse_rtattr_nested(struct rtattr **tb, int max, struct rtattr *rta)
 {
 	parse_rtattr(tb, max, RTA_DATA(rta), RTA_PAYLOAD(rta));
 }
-#endif
 
 static void
 set_vrrp_backup(vrrp_t *vrrp)
@@ -1726,6 +1725,30 @@ netlink_if_get_ll_addr(interface_t *ifp, struct rtattr *tb[],
 	return true;
 }
 
+static void
+parse_af_spec(struct rtattr* attr, interface_t *ifp)
+{
+	struct rtattr* afspec[AF_INET6 + 1];
+	struct rtattr* inet[IFLA_INET_MAX + 1];
+	uint32_t* inet_devconf;
+
+	if (!attr)
+		return;
+
+	parse_rtattr_nested(afspec, AF_INET6, attr);
+	if (afspec[AF_INET]) {
+		parse_rtattr_nested(inet, IFLA_INET_MAX, afspec[AF_INET]);
+		if (inet[IFLA_INET_CONF]) {
+			inet_devconf = RTA_DATA(inet[IFLA_INET_CONF]);
+#ifdef _HAVE_VRRP_VMAC_
+			ifp->arp_ignore = inet_devconf[IPV4_DEVCONF_ARP_IGNORE - 1];
+			ifp->arp_filter = inet_devconf[IPV4_DEVCONF_ARPFILTER - 1];
+#endif
+			ifp->promote_secondaries = inet_devconf[IPV4_DEVCONF_PROMOTE_SECONDARIES - 1];
+		}
+	}
+}
+
 static bool
 netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg *ifi)
 {
@@ -1766,6 +1789,9 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 #endif
 		}
 	}
+
+	if (tb[IFLA_AF_SPEC])
+		parse_af_spec(tb[IFLA_AF_SPEC], ifp);
 
 	/* Check there hasn't been an unsupported interface type change */
 	if (!global_data->allow_if_changes && ifp->seen_interface) {
@@ -2042,6 +2068,8 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 					update_vmac_vrfs(ifp);
 				}
 #endif
+				if (tb[IFLA_AF_SPEC])
+					parse_af_spec(tb[IFLA_AF_SPEC], ifp);
 
 				/* Ignore interface if we are using linkbeat on it */
 				if (ifp->linkbeat_use_polling)

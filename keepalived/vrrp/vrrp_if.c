@@ -555,16 +555,16 @@ dump_if(FILE *fp, void *data)
 		if (ifp->garp_delay->aggregation_group)
 			conf_write(fp, "   Gratuitous ARP aggregation group %d", ifp->garp_delay->aggregation_group);
 	}
-	if (ifp->reset_arp_config) {
-		conf_write(fp, "   Reset ARP config counter %d", ifp->reset_arp_config);
-		conf_write(fp, "   Original arp_ignore %d", ifp->reset_arp_ignore_value);
-		conf_write(fp, "   Original arp_filter %d", ifp->reset_arp_filter_value);
-	}
-	conf_write(fp, "   Reset promote_secondaries counter %d", ifp->reset_promote_secondaries);
+
 #ifdef _HAVE_VRRP_VMAC_
+	conf_write(fp, "   Reset ARP config counter %d", ifp->reset_arp_config);
+	conf_write(fp, "   Original arp_ignore %d", ifp->arp_ignore);
+	conf_write(fp, "   Original arp_filter %d", ifp->arp_filter);
 	if (ifp->rp_filter < UINT_MAX)
 		conf_write(fp, "   rp_filter %d", ifp->rp_filter);
 #endif
+	conf_write(fp, "   Original promote_secondaries %d", ifp->promote_secondaries);
+	conf_write(fp, "   Reset promote_secondaries counter %d", ifp->reset_promote_secondaries);
 
 	conf_write(fp, "   Tracking VRRP instances = %d", !LIST_ISEMPTY(ifp->tracking_vrrp) ? LIST_SIZE(ifp->tracking_vrrp) : 0);
 	if (!LIST_ISEMPTY(ifp->tracking_vrrp))

@@ -80,278 +80,26 @@ static unsigned default_rp_filter = UINT_MAX;
 
 #ifdef _HAVE_IPV4_DEVCONF_
 
-#ifdef _LIBNL_DYNAMIC_
-#include "libnl_link.h"
-#endif
-
-static inline void
-set_promote_secondaries_devconf(interface_t *ifp)
-{
-	struct nl_sock *sk;
-	struct rtnl_link *link = NULL;
-	struct rtnl_link *new_state = NULL;
-	uint32_t prom_secs;
-
-	if (!(sk = nl_socket_alloc())) {
-		log_message(LOG_INFO, "Unable to open netlink socket");
-		return;
-	}
-
-	if (nl_connect(sk, NETLINK_ROUTE) < 0)
-		goto err;
-	if (rtnl_link_get_kernel(sk, (int)ifp->ifindex, NULL, &link))
-		goto err;
-	if (rtnl_link_inet_get_conf(link, IPV4_DEVCONF_PROMOTE_SECONDARIES, &prom_secs) < 0)
-		goto err;
-	if (prom_secs) {
-		ifp->promote_secondaries_already_set = true;
-		goto exit_ok;
-	}
-
-	// Allocate a new link
-	if (!(new_state = rtnl_link_alloc()))
-		goto err;
-
-	if (rtnl_link_inet_set_conf(new_state, IPV4_DEVCONF_PROMOTE_SECONDARIES, 1) ||
-	    rtnl_link_change (sk, link, new_state, 0))
-		goto err;
-
-	rtnl_link_put(new_state);
-	new_state = NULL;
-
-	rtnl_link_put(link);
-	link = NULL;
-
-	goto exit;
-err:
-exit_ok:
-	if (link)
-		rtnl_link_put(link);
-	if (new_state)
-		rtnl_link_put(new_state);
-
-exit:
-	nl_socket_free(sk);
-
-	return;
-}
-
-static inline void
-reset_promote_secondaries_devconf(interface_t *ifp)
-{
-	struct nl_sock *sk;
-	struct rtnl_link *link = NULL;
-	struct rtnl_link *new_state = NULL;
-
-	if (!(sk = nl_socket_alloc())) {
-		log_message(LOG_INFO, "Unable to open netlink socket");
-		return;
-	}
-
-	if (nl_connect(sk, NETLINK_ROUTE) < 0)
-		goto err;
-	if (rtnl_link_get_kernel(sk, (int)ifp->ifindex, NULL, &link))
-		goto err;
-	if (!(new_state = rtnl_link_alloc()))
-		goto err;
-	if (rtnl_link_inet_set_conf(new_state, IPV4_DEVCONF_PROMOTE_SECONDARIES, 0) ||
-	    rtnl_link_change (sk, link, new_state, 0))
-		goto err;
-
-	rtnl_link_put(new_state);
-	new_state = NULL;
-
-	rtnl_link_put(link);
-	link = NULL;
-
-	goto exit;
-err:
-	if (link)
-		rtnl_link_put(link);
-	if (new_state)
-		rtnl_link_put(new_state);
-
-exit:
-	nl_socket_free(sk);
-
-	return;
-}
+typedef struct sysctl_opts {
+	uint32_t	param;
+	uint32_t	value;
+} sysctl_opts_t;
 
 #ifdef _HAVE_VRRP_VMAC_
-#define NLMSG_TAIL(nlh)	((void *)(nlh) + (nlh)->nlmsg_len)
+static sysctl_opts_t parent_sysctl[] = {
+	{ IPV4_DEVCONF_ARP_IGNORE, 1 },
+	{ IPV4_DEVCONF_ARPFILTER, 1 },
+	{ 0, 0 }
+};
 
-struct nlattr *
-nest_start(struct nlmsghdr *nlh, unsigned short type)
-{
-	struct nlattr *nest = NLMSG_TAIL(nlh);
+static sysctl_opts_t vmac_sysctl[] = {
+	{ IPV4_DEVCONF_ARP_IGNORE, 1 },
+	{ IPV4_DEVCONF_ACCEPT_LOCAL, 1 },
+	{ IPV4_DEVCONF_RP_FILTER, 0 },
+	{ IPV4_DEVCONF_PROMOTE_SECONDARIES, 1 },
+	{ 0, 0}
+};
 
-	nest->nla_type = type;
-	nlh->nlmsg_len += sizeof(struct nlattr);
-
-	return nest;
-}
-
-size_t
-nest_end(struct nlattr *nla, struct nlattr *nest)
-{
-	nest->nla_len = (unsigned short)((void *)nla - (void *)nest);
-
-	return nest->nla_len;
-}
-
-static inline int
-netlink_set_interface_flags(int ifindex, int flags, int change)
-{
-	int status = 0;
-	struct {
-		struct nlmsghdr n;
-		struct ifinfomsg ifi;
-		char buf[64];
-	} req;
-	struct nlattr *start;
-	struct nlattr *inet_start;
-	struct nlattr *conf_start;
-
-	memset(&req, 0, sizeof (req));
-
-	req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
-	req.n.nlmsg_flags = NLM_F_REQUEST;
-	req.n.nlmsg_type = RTM_NEWLINK;
-	req.ifi.ifi_family = AF_UNSPEC;
-	req.ifi.ifi_index = ifindex;
-
-	start = nest_start(&req.n, IFLA_AF_SPEC);
-	inet_start = nest_start(&req.n, AF_INET);
-	conf_start = nest_start(&req.n, IFLA_INET_CONF);
-
-	if (change & (1 << IPV4_DEVCONF_ARPFILTER))
-		addattr32(&req.n, sizeof req, IPV4_DEVCONF_ARPFILTER, (flags >> IPV4_DEVCONF_ARPFILTER ) & 1);
-	if (change & (1 << IPV4_DEVCONF_ARP_IGNORE))
-		addattr32(&req.n, sizeof req, IPV4_DEVCONF_ARP_IGNORE, (flags >> IPV4_DEVCONF_ARP_IGNORE ) & 1);
-	nest_end(NLMSG_TAIL(&req.n), conf_start);
-	nest_end(NLMSG_TAIL(&req.n), inet_start);
-	nest_end(NLMSG_TAIL(&req.n), start);
-
-	if (netlink_talk(&nl_cmd, &req.n) < 0)
-		status = 1;
-
-	return status;
-}
-
-static inline int
-netlink_set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
-{
-	struct nl_sock *sk;
-	struct rtnl_link *link = NULL;
-	struct rtnl_link *new_state = NULL;
-	int res = 0;
-
-	if (!(sk = nl_socket_alloc())) {
-		log_message(LOG_INFO, "Unable to open netlink socket");
-		return -1;
-	}
-
-	if (nl_connect(sk, NETLINK_ROUTE) < 0)
-		goto err;
-
-	if (rtnl_link_get_kernel(sk, (int)ifp->ifindex, NULL, &link))
-		goto err;
-
-	// Allocate a new link
-	if (!(new_state = rtnl_link_alloc()))
-		goto err;
-
-	if (rtnl_link_inet_set_conf(new_state, IPV4_DEVCONF_ARP_IGNORE, 1) ||
-	    rtnl_link_inet_set_conf(new_state, IPV4_DEVCONF_ACCEPT_LOCAL, 1) ||
-	    rtnl_link_inet_set_conf(new_state, IPV4_DEVCONF_RP_FILTER, 0) ||
-	    rtnl_link_inet_set_conf(new_state, IPV4_DEVCONF_PROMOTE_SECONDARIES, 1) ||
-	    rtnl_link_change (sk, link, new_state, 0))
-		goto err;
-
-	rtnl_link_put(new_state);
-	new_state = NULL;
-
-	rtnl_link_put(link);
-	link = NULL;
-
-	/* Set arp_ignore and arp_filter on base interface if needed */
-	if (base_ifp->reset_arp_config)
-		base_ifp->reset_arp_config++;
-	else {
-		if (rtnl_link_get_kernel(sk, (int)base_ifp->ifindex, NULL, &link))
-			goto err;
-		if (rtnl_link_inet_get_conf(link, IPV4_DEVCONF_ARP_IGNORE, &base_ifp->reset_arp_ignore_value) < 0)
-			goto err;
-		if (rtnl_link_inet_get_conf(link, IPV4_DEVCONF_ARPFILTER, &base_ifp->reset_arp_filter_value) < 0)
-			goto err;
-
-		if (base_ifp->reset_arp_ignore_value != 1 ||
-		    base_ifp->reset_arp_filter_value != 1) {
-			/* We can't use libnl3 since if the base interface type is a bridge, libnl3 sets ifi_family
-			 * to AF_BRIDGE, whereas it should be set to AF_UNSPEC. The kernel function that handles
-			 * RTM_SETLINK messages for AF_BRIDGE doesn't know how to process the IFLA_AF_SPEC attribute. */
-			if (netlink_set_interface_flags(
-						base_ifp->ifindex,
-						(1 << IPV4_DEVCONF_ARP_IGNORE) | (1 <<IPV4_DEVCONF_ARPFILTER),
-						(1 << IPV4_DEVCONF_ARP_IGNORE) | (1 << IPV4_DEVCONF_ARPFILTER)))
-				log_message(LOG_INFO, "Set base flags on %s failed for VMAC %s", base_ifp->ifname, ifp->ifname);
-			else
-				base_ifp->reset_arp_config = 1;
-		}
-	}
-
-	goto exit;
-err:
-	res = -1;
-
-	if (link)
-		rtnl_link_put(link);
-	if (new_state)
-		rtnl_link_put(new_state);
-
-exit:
-	nl_socket_free(sk);
-
-	return res;
-}
-
-static inline int
-netlink_reset_interface_parameters(const interface_t* ifp)
-{
-	int res;
-	int val = 0;
-
-	/* If the interface doesn't exist, there is nothing we can change */
-	if (!ifp->ifindex)
-		return 0;
-
-	/* See netlink3_set_interface_parameters for why libnl3 can't be used */
-	if (ifp->reset_arp_ignore_value)
-		val |= 1 << IPV4_DEVCONF_ARP_IGNORE;
-	if (ifp->reset_arp_filter_value)
-		val |= 1 << IPV4_DEVCONF_ARPFILTER;
-	if ((res = netlink_set_interface_flags(ifp->ifindex, val, (1 << IPV4_DEVCONF_ARP_IGNORE) | (1 << IPV4_DEVCONF_ARPFILTER)))) {
-		log_message(LOG_INFO, "reset interface flags on %s failed", ifp->ifname);
-	}
-
-	return res;
-}
-
-static inline void
-set_interface_parameters_devconf(const interface_t *ifp, interface_t *base_ifp)
-{
-	if (netlink_set_interface_parameters(ifp, base_ifp))
-		log_message(LOG_INFO, "Unable to set parameters for %s", ifp->ifname);
-}
-
-static inline void
-reset_interface_parameters_devconf(interface_t *base_ifp)
-{
-	if (base_ifp->reset_arp_config && --base_ifp->reset_arp_config == 0) {
-		if (netlink_reset_interface_parameters(base_ifp))
-			log_message(LOG_INFO, "Unable to reset parameters for %s", base_ifp->ifname);
-	}
-}
 #endif
 #endif
 
@@ -367,7 +115,7 @@ make_sysctl_filename(char *dest, const char* prefix, const char* iface, const ch
 	strcat(dest, parameter);
 }
 
-#ifdef _HAVE_VRRP_VMAC_
+#if !defined _HAVE_IPV4_DEVCONF_ || defined _HAVE_VRRP_VMAC_
 static int
 set_sysctl(const char* prefix, const char* iface, const char* parameter, unsigned value)
 {
@@ -426,22 +174,152 @@ get_sysctl(const char* prefix, const char* iface, const char* parameter)
 	return (unsigned)buf[0] - '0';
 }
 
-#if !defined _HAVE_IPV4_DEVCONF_ || defined _LIBNL_DYNAMIC_
-static inline void
-set_promote_secondaries_sysctl(interface_t *ifp)
+#ifdef _HAVE_IPV4_DEVCONF_
+struct nlattr *
+nest_start(struct nlmsghdr *nlh, unsigned short type)
 {
-	if (get_sysctl("net/ipv4/conf", ifp->ifname, "promote_secondaries") == 1) {
-		ifp->promote_secondaries_already_set = true;
-		return;
+	struct nlattr *nest = NLMSG_TAIL(nlh);
+
+	nest->nla_type = type;
+	nlh->nlmsg_len += sizeof(struct nlattr);
+
+	return nest;
+}
+
+size_t
+nest_end(struct nlattr *nla, struct nlattr *nest)
+{
+	nest->nla_len = (unsigned short)((void *)nla - (void *)nest);
+
+	return nest->nla_len;
+}
+
+static inline int
+netlink_set_interface_flags(int ifindex, const sysctl_opts_t *sys_opts)
+{
+	int status = 0;
+	struct {
+		struct nlmsghdr n;
+		struct ifinfomsg ifi;
+		char buf[64];
+	} req;
+	struct nlattr *start;
+	struct nlattr *inet_start;
+	struct nlattr *conf_start;
+	const sysctl_opts_t *so;
+
+	memset(&req, 0, sizeof (req));
+
+	req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
+	req.n.nlmsg_flags = NLM_F_REQUEST;
+	req.n.nlmsg_type = RTM_NEWLINK;
+	req.ifi.ifi_family = AF_UNSPEC;
+	req.ifi.ifi_index = ifindex;
+
+	start = nest_start(&req.n, IFLA_AF_SPEC);
+	inet_start = nest_start(&req.n, AF_INET);
+	conf_start = nest_start(&req.n, IFLA_INET_CONF);
+
+	for (so = sys_opts; so->param; so++)
+		addattr32(&req.n, sizeof req, so->param, so->value);
+
+	nest_end(NLMSG_TAIL(&req.n), conf_start);
+	nest_end(NLMSG_TAIL(&req.n), inet_start);
+	nest_end(NLMSG_TAIL(&req.n), start);
+
+	if (netlink_talk(&nl_cmd, &req.n) < 0)
+		status = 1;
+
+	return status;
+}
+
+#ifdef _HAVE_VRRP_VMAC_
+static inline int
+netlink_set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
+{
+	if (netlink_set_interface_flags(ifp->ifindex, vmac_sysctl))
+		return -1;
+
+	/* Set arp_ignore and arp_filter on base interface if needed */
+	if (base_ifp->reset_arp_config)
+		base_ifp->reset_arp_config++;
+	else {
+		if (base_ifp->arp_ignore != 1 ||
+		    base_ifp->arp_filter != 1) {
+			/* We can't use libnl3 since if the base interface type is a bridge, libnl3 sets ifi_family
+			 * to AF_BRIDGE, whereas it should be set to AF_UNSPEC. The kernel function that handles
+			 * RTM_SETLINK messages for AF_BRIDGE doesn't know how to process the IFLA_AF_SPEC attribute. */
+			if (netlink_set_interface_flags(base_ifp->ifindex, parent_sysctl)) {
+				log_message(LOG_INFO, "Set base flags on %s failed for VMAC %s", base_ifp->ifname, ifp->ifname);
+				return -1;
+			}
+			base_ifp->reset_arp_config = 1;
+		}
 	}
-	set_sysctl("net/ipv4/conf", ifp->ifname, "promote_secondaries", 1);
+
+	return 0;
+}
+
+static inline int
+netlink_reset_interface_parameters(const interface_t* ifp)
+{
+	int res;
+	sysctl_opts_t reset_parent_sysctl[3];
+
+	/* If the interface doesn't exist, there is nothing we can change */
+	if (!ifp->ifindex)
+		return 0;
+
+	/* See netlink3_set_interface_parameters for why libnl3 can't be used */
+	reset_parent_sysctl[0].param = IPV4_DEVCONF_ARP_IGNORE;
+	reset_parent_sysctl[0].value = ifp->arp_ignore;
+	reset_parent_sysctl[1].param = IPV4_DEVCONF_ARPFILTER;
+	reset_parent_sysctl[1].value = ifp->arp_filter;
+	reset_parent_sysctl[2].param = 0;
+
+	if ((res = netlink_set_interface_flags(ifp->ifindex, reset_parent_sysctl)))
+		log_message(LOG_INFO, "reset interface flags on %s failed", ifp->ifname);
+
+	return res;
 }
 
 static inline void
-reset_promote_secondaries_sysctl(interface_t *ifp)
+set_interface_parameters_devconf(const interface_t *ifp, interface_t *base_ifp)
 {
-	set_sysctl("net/ipv4/conf", ifp->ifname, "promote_secondaries", 0);
+	if (netlink_set_interface_parameters(ifp, base_ifp))
+		log_message(LOG_INFO, "Unable to set parameters for %s", ifp->ifname);
 }
+
+static inline void
+reset_interface_parameters_devconf(interface_t *base_ifp)
+{
+	if (base_ifp->reset_arp_config && --base_ifp->reset_arp_config == 0) {
+		if (netlink_reset_interface_parameters(base_ifp))
+			log_message(LOG_INFO, "Unable to reset parameters for %s", base_ifp->ifname);
+	}
+}
+#endif
+
+static inline void
+set_promote_secondaries_devconf(interface_t *ifp)
+{
+	sysctl_opts_t promote_secondaries_sysctl[] = { { IPV4_DEVCONF_PROMOTE_SECONDARIES, 1 }, { 0, 0} };
+
+	if (ifp->promote_secondaries)
+		return;
+
+	netlink_set_interface_flags(ifp->ifindex, promote_secondaries_sysctl);
+}
+
+static inline void
+reset_promote_secondaries_devconf(interface_t *ifp)
+{
+	sysctl_opts_t promote_secondaries_sysctl[] = { { IPV4_DEVCONF_PROMOTE_SECONDARIES, 0 }, { 0, 0} };
+
+	netlink_set_interface_flags(ifp->ifindex, promote_secondaries_sysctl);
+}
+
+#else
 
 #ifdef _HAVE_VRRP_VMAC_
 static inline void
@@ -459,14 +337,14 @@ set_interface_parameters_sysctl(const interface_t *ifp, interface_t *base_ifp)
 		base_ifp->reset_arp_config++;
 	else {
 		if ((val = get_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_ignore")) != UINT_MAX &&
-		    (base_ifp->reset_arp_ignore_value = (uint32_t)val) != 1)
+		    (base_ifp->arp_ignore = (uint32_t)val) != 1)
 			set_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_ignore", 1);
 
 		if ((val = get_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_filter")) != UINT_MAX &&
-		    (base_ifp->reset_arp_filter_value = (uint32_t)val) != 1)
+		    (base_ifp->arp_filter = (uint32_t)val) != 1)
 			set_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_filter", 1);
 
-		base_ifp->reset_arp_config = true;
+		base_ifp->reset_arp_config = 1;
 	}
 }
 
@@ -474,33 +352,41 @@ static inline void
 reset_interface_parameters_sysctl(interface_t *base_ifp)
 {
 	if (base_ifp->reset_arp_config && --base_ifp->reset_arp_config == 0) {
-		set_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_ignore", (int)base_ifp->reset_arp_ignore_value);
-		set_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_filter", (int)base_ifp->reset_arp_filter_value);
+		set_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_ignore", (int)base_ifp->arp_ignore);
+		set_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_filter", (int)base_ifp->arp_filter);
 	}
 }
 #endif
+
+static inline void
+set_promote_secondaries_sysctl(interface_t *ifp)
+{
+	if (get_sysctl("net/ipv4/conf", ifp->ifname, "promote_secondaries") == 1) {
+		ifp->promote_secondaries = true;
+		return;
+	}
+	set_sysctl("net/ipv4/conf", ifp->ifname, "promote_secondaries", 1);
+}
+
+static inline void
+reset_promote_secondaries_sysctl(interface_t *ifp)
+{
+	set_sysctl("net/ipv4/conf", ifp->ifname, "promote_secondaries", 0);
+}
 #endif
 
 void
 set_promote_secondaries(interface_t *ifp)
 {
-	if (ifp->promote_secondaries_already_set)
+	if (ifp->promote_secondaries)
 		return;
 
 	if (ifp->reset_promote_secondaries++)
 		return;
 
 #ifdef _HAVE_IPV4_DEVCONF_
-#ifdef _LIBNL_DYNAMIC_
-	if (use_nl)
-#endif
-	{
-		set_promote_secondaries_devconf(ifp);
-		return;
-	}
-#endif
-
-#if !defined _HAVE_IPV4_DEVCONF_ || defined _LIBNL_DYNAMIC_
+	set_promote_secondaries_devconf(ifp);
+#else
 	set_promote_secondaries_sysctl(ifp);
 #endif
 }
@@ -513,16 +399,8 @@ reset_promote_secondaries(interface_t *ifp)
 		return;
 
 #ifdef _HAVE_IPV4_DEVCONF_
-#ifdef _LIBNL_DYNAMIC_
-	if (use_nl)
-#endif
-	{
-		reset_promote_secondaries_devconf(ifp);
-		return;
-	}
-#endif
-
-#if !defined _HAVE_IPV4_DEVCONF_ || defined _LIBNL_DYNAMIC_
+	reset_promote_secondaries_devconf(ifp);
+#else
 	reset_promote_secondaries_sysctl(ifp);
 #endif
 }
@@ -620,16 +498,12 @@ restore_rp_filter(void)
 	}
 
 	ifs = get_if_list();
-	if (!LIST_ISEMPTY(ifs)) {
-		for (e = LIST_HEAD(ifs); e; ELEMENT_NEXT(e)) {
-			ifp = ELEMENT_DATA(e);
-
-			if (ifp->rp_filter != UINT_MAX) {
-				rp_filter = get_sysctl("net/ipv4/conf", ifp->ifname, "rp_filter");
-				if (rp_filter == all_rp_filter) {
-					set_sysctl("net/ipv4/conf", ifp->ifname, "rp_filter", ifp->rp_filter);
-					ifp->rp_filter = UINT_MAX;
-				}
+	LIST_FOREACH(ifs, ifp, e) {
+		if (ifp->rp_filter != UINT_MAX) {
+			rp_filter = get_sysctl("net/ipv4/conf", ifp->ifname, "rp_filter");
+			if (rp_filter == all_rp_filter) {
+				set_sysctl("net/ipv4/conf", ifp->ifname, "rp_filter", ifp->rp_filter);
+				ifp->rp_filter = UINT_MAX;
 			}
 		}
 	}
@@ -644,16 +518,8 @@ set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
 		clear_rp_filter();
 
 #ifdef _HAVE_IPV4_DEVCONF_
-#ifdef _LIBNL_DYNAMIC_
-	if (use_nl)
-#endif
-	{
-		set_interface_parameters_devconf(ifp, base_ifp);
-		return;
-	}
-#endif
-
-#if !defined _HAVE_IPV4_DEVCONF_ || defined _LIBNL_DYNAMIC_
+	set_interface_parameters_devconf(ifp, base_ifp);
+#else
 	set_interface_parameters_sysctl(ifp, base_ifp);
 #endif
 }
@@ -661,25 +527,15 @@ set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
 void reset_interface_parameters(interface_t *base_ifp)
 {
 #ifdef _HAVE_IPV4_DEVCONF_
-#ifdef _LIBNL_DYNAMIC_
-	if (use_nl)
-#endif
-	{
-		reset_interface_parameters_devconf(base_ifp);
-		return;
-	}
-#endif
-
-#if !defined _HAVE_IPV4_DEVCONF_ || defined _LIBNL_DYNAMIC_
+	reset_interface_parameters_devconf(base_ifp);
+#else
 	reset_interface_parameters_sysctl(base_ifp);
 #endif
 }
-#endif
 
-#ifdef _HAVE_VRRP_VMAC_
 void link_set_ipv6(const interface_t* ifp, bool enable)
 {
-	/* libnl3, nor the kernel, support setting IPv6 options */
+	/* There is no direct way to set IPv6 options */
 	set_sysctl("net/ipv6/conf", ifp->ifname, "disable_ipv6", enable ? 0 : 1);
 }
 #endif

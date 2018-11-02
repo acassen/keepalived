@@ -2349,7 +2349,7 @@ shutdown_vrrp_instances(void)
 				netlink_link_del_vmac(vrrp);
 #endif
 
-			if (vrrp->ifp->reset_promote_secondaries)
+			if (vrrp->ifp->promote_secondaries)
 				reset_promote_secondaries(vrrp->ifp);
 		}
 
@@ -3099,7 +3099,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 		/* See if we need to set promote_secondaries */
 		if (vrrp->promote_secondaries &&
-		    !vrrp->ifp->promote_secondaries_already_set &&
+		    !vrrp->ifp->promote_secondaries &&
 		    !__test_bit(CONFIG_TEST_BIT, &debug))
 			set_promote_secondaries(vrrp->ifp);
 	}

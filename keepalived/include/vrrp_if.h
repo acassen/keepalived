@@ -101,17 +101,15 @@ typedef struct _interface {
 	ifindex_t		vrf_master_ifindex;	/* Only used at startup if we find i/f before master i/f */
 	struct _interface	*vrf_master_ifp;	/* VRF master interface - pointer to self if VRF master */
 #endif
+	int			reset_arp_config;	/* Count of how many vrrps have changed arp parameters on interface */
+	bool			arp_ignore;		/* Original value of arp_ignore to be restored */
+	bool			arp_filter;		/* Original value of arp_filter to be restored */
+	unsigned		rp_filter;		/* < UINT_MAX if we have changed the value */
 #endif
 	garp_delay_t		*garp_delay;		/* Delays for sending gratuitous ARP/NA */
 	bool			gna_router;		/* Router flag for NA messages */
-	int			reset_arp_config;	/* Count of how many vrrps have changed arp parameters on interface */
-	uint32_t		reset_arp_ignore_value;	/* Original value of arp_ignore to be restored */
-	uint32_t		reset_arp_filter_value;	/* Original value of arp_filter to be restored */
+	bool			promote_secondaries;	/* Original value of promote_secondaries to be restored */
 	uint32_t		reset_promote_secondaries; /* Count of how many vrrps have changed promote_secondaries on interface */
-#ifdef _HAVE_VRRP_VMAC_
-	unsigned		rp_filter;		/* < UINT_MAX if we have changed the value */
-#endif
-	bool			promote_secondaries_already_set; /* Set if promote_secondaries already set on interface */
 	list			tracking_vrrp;		/* List of tracking_vrrp_t for vrrp instances tracking this interface */
 } interface_t;
 
