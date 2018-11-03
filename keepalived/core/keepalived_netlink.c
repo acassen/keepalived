@@ -1616,6 +1616,8 @@ parse_af_spec(struct rtattr* attr, interface_t *ifp)
 #ifdef _HAVE_VRRP_VMAC_
 			ifp->arp_ignore = inet_devconf[IPV4_DEVCONF_ARP_IGNORE - 1];
 			ifp->arp_filter = inet_devconf[IPV4_DEVCONF_ARPFILTER - 1];
+			if (ifp->rp_filter == UINT_MAX)
+				ifp->rp_filter = inet_devconf[IPV4_DEVCONF_RP_FILTER - 1];
 #endif
 			ifp->promote_secondaries = inet_devconf[IPV4_DEVCONF_PROMOTE_SECONDARIES - 1];
 		}

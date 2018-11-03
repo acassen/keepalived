@@ -408,6 +408,9 @@ clear_rp_filter(void)
 	element e;
 	interface_t *ifp;
 	unsigned rp_filter;
+#ifdef _HAVE_IPV4_DEVCONF_
+	sysctl_opts_t rpfilter_sysctl[] = { { IPV4_DEVCONF_RP_FILTER, 1 }, { 0, 0} };
+#endif
 
 	rp_filter = get_sysctl("net/ipv4/conf", "all", "rp_filter");
 	if (rp_filter == UINT_MAX) {
@@ -430,18 +433,29 @@ clear_rp_filter(void)
 	}
 
 	/* Now ensure rp_filter for all interfaces is at least all/rp_filter. */
+#ifdef _HAVE_IPV4_DEVCONF_
+	rpfilter_sysctl[0].value = all_rp_filter;
+#endif
 	kernel_netlink_poll();		/* Update our view of interfaces first */
 	ifs = get_if_list();
-	if (!LIST_ISEMPTY(ifs)) {
-		for (e = LIST_HEAD(ifs); e; ELEMENT_NEXT(e)) {
-			ifp = ELEMENT_DATA(e);
-
-			if ((rp_filter = get_sysctl("net/ipv4/conf", ifp->ifname, "rp_filter")) == UINT_MAX)
-				log_message(LOG_INFO, "Unable to read rp_filter for %s", ifp->ifname);
-			else if (rp_filter < all_rp_filter) {
-				set_sysctl("net/ipv4/conf", ifp->ifname, "rp_filter", all_rp_filter);
-				ifp->rp_filter = rp_filter;
-			}
+	LIST_FOREACH(ifs, ifp, e) {
+		if (!ifp->ifindex)
+			continue;
+#ifndef _HAVE_IPV4_DEVCONF_
+		if ((ifp->rp_filter = get_sysctl("net/ipv4/conf", ifp->ifname, "rp_filter")) == UINT_MAX)
+			log_message(LOG_INFO, "Unable to read rp_filter for %s", ifp->ifname);
+		else
+#endif
+		if (ifp->rp_filter < all_rp_filter) {
+#ifdef _HAVE_IPV4_DEVCONF_
+			netlink_set_interface_flags(ifp->ifindex, rpfilter_sysctl);
+#else
+			set_sysctl("net/ipv4/conf", ifp->ifname, "rp_filter", all_rp_filter);
+#endif
+		}
+		else {
+			/* Indicate we are not setting it */
+			ifp->rp_filter = UINT_MAX;
 		}
 	}
 
@@ -457,6 +471,9 @@ restore_rp_filter(void)
 	element e;
 	interface_t *ifp;
 	unsigned rp_filter;
+#ifdef _HAVE_IPV4_DEVCONF_
+	sysctl_opts_t rpfilter_sysctl[] = { { IPV4_DEVCONF_RP_FILTER, 1 }, { 0, 0} };
+#endif
 
 	/* Restore the original settings of rp_filter, but only if they
 	 * are the same as what we set them to */
@@ -464,6 +481,7 @@ restore_rp_filter(void)
 		return;
 
 	rp_filter = get_sysctl("net/ipv4/conf", "all", "rp_filter");
+log_message(LOG_INFO, "restore_rp_filter - all/rp_filter = %d", rp_filter);
 	if (rp_filter == 0) {
 		log_message(LOG_INFO, "NOTICE: resetting sysctl net.ipv4.conf.all.rp_filter to %d", all_rp_filter);
 		set_sysctl("net/ipv4/conf", "all", "rp_filter", all_rp_filter);
@@ -483,8 +501,12 @@ restore_rp_filter(void)
 		if (ifp->rp_filter != UINT_MAX) {
 			rp_filter = get_sysctl("net/ipv4/conf", ifp->ifname, "rp_filter");
 			if (rp_filter == all_rp_filter) {
+#ifdef _HAVE_IPV4_DEVCONF_
+				rpfilter_sysctl[0].value = ifp->rp_filter;
+				netlink_set_interface_flags(ifp->ifindex, rpfilter_sysctl);
+#else
 				set_sysctl("net/ipv4/conf", ifp->ifname, "rp_filter", ifp->rp_filter);
-				ifp->rp_filter = UINT_MAX;
+#endif
 			}
 		}
 	}
