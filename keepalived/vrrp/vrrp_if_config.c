@@ -43,25 +43,6 @@
 
 #ifdef _HAVE_IPV4_DEVCONF_
 
-#ifdef _HAVE_IF_H_LINK_H_COLLISION_
-/* There was a longstanding problem with symbol collision including both
- * net/if.h and netlink/route/link.h, due to the latter including linux/if.h unnecessarily.
- *
- * See: https://github.com/thom311/libnl/commit/50a76998ac36ace3716d3c979b352fac73cfc80a
- *
- */
-
-#ifdef _HAVE_NET_LINUX_IF_H_COLLISION_
-/* Defining _LINUX_IF_H stops linux/if.h being included */
-#define _LINUX_IF_H
-#else
-/* Including net/if.h first resolves the problem */
-#include <net/if.h>
-#endif
-#endif
-
-#include <netlink/route/link.h>
-#include <netlink/route/link/inet.h>
 #include <linux/ip.h>
 #include <stdint.h>
 
