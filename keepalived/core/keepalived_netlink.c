@@ -1725,6 +1725,7 @@ netlink_if_get_ll_addr(interface_t *ifp, struct rtattr *tb[],
 	return true;
 }
 
+#ifdef _HAVE_IPV4_DEVCONF_
 static void
 parse_af_spec(struct rtattr* attr, interface_t *ifp)
 {
@@ -1748,6 +1749,7 @@ parse_af_spec(struct rtattr* attr, interface_t *ifp)
 		}
 	}
 }
+#endif
 
 static bool
 netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg *ifi)
@@ -1790,8 +1792,10 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 		}
 	}
 
+#ifdef _HAVE_IPV4_DEVCONF_
 	if (tb[IFLA_AF_SPEC])
 		parse_af_spec(tb[IFLA_AF_SPEC], ifp);
+#endif
 
 	/* Check there hasn't been an unsupported interface type change */
 	if (!global_data->allow_if_changes && ifp->seen_interface) {
@@ -2068,8 +2072,11 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 					update_vmac_vrfs(ifp);
 				}
 #endif
+
+#ifdef _HAVE_IPV4_DEVCONF_
 				if (tb[IFLA_AF_SPEC])
 					parse_af_spec(tb[IFLA_AF_SPEC], ifp);
+#endif
 
 				/* Ignore interface if we are using linkbeat on it */
 				if (ifp->linkbeat_use_polling)

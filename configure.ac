@@ -474,6 +474,37 @@ AC_SUBST(KA_LIBS)
 # AC_SUBST(KA_LIBTOOLFLAGS)
 
 # Checks for libraries.
+dnl clock_gettime() required -lt before glibc 2.17
+AC_MSG_CHECKING([for clock_gettime() requires -lrt])
+AC_LINK_IFELSE([AC_LANG_SOURCE([[
+  #include <time.h>
+  int main(int argc, char **argv)
+  {
+    int i;
+    struct timespec ts;
+
+    i = clock_gettime(CLOCK_MONOTONIC, &ts);
+  }
+  ]])],
+  [AC_MSG_RESULT([no])],
+  [
+    SAV_LDFLAGS="$LDFLAGS"
+    LDFLAGS="$LDFLAGS -lrt"
+    AC_LINK_IFELSE([AC_LANG_SOURCE([[
+      #include <time.h>
+      int main(int argc, char **argv)
+      {
+        int i;
+        struct timespec ts;
+
+        i = clock_gettime(CLOCK_MONOTONIC, &ts);
+      }
+      ]])],
+      [AC_MSG_RESULT([yes])]
+        add_to_var([KA_LIBS], [-lrt]),
+      [AC_MSG_ERROR([clock_gettime() not supported])])
+    LDFLAGS=$SAV_LDFLAGS
+  ])
 
 # Checks for header files.
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdint.h stdlib.h string.h sys/ioctl.h sys/param.h sys/prctl.h sys/socket.h sys/time.h syslog.h unistd.h],
