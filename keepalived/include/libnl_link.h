@@ -55,15 +55,6 @@ extern int (*nla_memcpy_addr)(void *, const struct nlattr *, int);
 extern int (*nla_parse_nested_addr)(struct nlattr **, int, struct nlattr *, struct nla_policy *);
 #endif
 #endif
-#ifdef _HAVE_LIBNL3_
-extern int (*nl_connect_addr)(struct nl_sock *, int);
-extern int (*nl_socket_add_membership_addr)(struct nl_sock *, int);
-extern int (*nl_socket_drop_membership_addr)(struct nl_sock *, int);
-extern int (*nl_socket_get_fd_addr)(const struct nl_sock *);
-extern uint32_t (*nl_socket_get_local_port_addr)(const struct nl_sock *);
-extern int (*nl_socket_set_buffer_size_addr)(struct nl_sock *, int, int);
-extern int (*nl_socket_set_nonblocking_addr)(const struct nl_sock *);
-#endif
 
 /* We can make it look as though normal linking is being used */
 #define nl_socket_alloc (*nl_socket_alloc_addr)
@@ -95,17 +86,6 @@ extern int (*nl_socket_set_nonblocking_addr)(const struct nl_sock *);
 #define nla_parse_nested (*nla_parse_nested_addr)
 #endif
 #endif
-#ifdef _HAVE_LIBNL3_
-#define nl_connect (*nl_connect_addr)
-#define nl_socket_add_membership (*nl_socket_add_membership_addr)
-#define nl_socket_drop_membership (*nl_socket_drop_membership_addr)
-#define nl_socket_get_fd (*nl_socket_get_fd_addr)
-#define nl_socket_get_local_port (*nl_socket_get_local_port_addr)
-#define nl_socket_set_buffer_size (*nl_socket_set_buffer_size_addr)
-#define nl_socket_set_nonblocking (*nl_socket_set_nonblocking_addr)
-#endif
-
-extern bool use_nl;
 
 extern bool libnl_init(void);
 

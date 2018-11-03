@@ -33,9 +33,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
-#ifdef HAVE_LIBNFNETLINK_LIBNFNETLINK_H
-#include <libnfnetlink/libnfnetlink.h>
-#endif
 
 /* local include */
 #include "vector.h"
