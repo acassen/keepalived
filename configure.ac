@@ -312,7 +312,7 @@ AS_IF([test .$enable_vrrp = .no],
     AS_IF([test .$enable_vrrp_auth = .no], [AC_MSG_ERROR([disable-vrrp-auth requires vrrp])])
     AS_IF([test .$enable_checksum_compat = .no], [AC_MSG_ERROR([disable-checksum-compat requires vrrp])])
     AS_IF([test .$enable_routes = .no], [AC_MSG_ERROR([disable-routes requires vrrp])])
-    AS_IF([test .$enable_bfd != .no], [AC_MSG_ERROR([enable-bfd requires vrrp])])
+    AS_IF([test .$enable_bfd = yes], [AC_MSG_ERROR([enable-bfd requires vrrp])])
   ])
 AS_IF([test .$enable_snmp_rfc != .yes -a .$enable_snmp_rfcv3 != yes],
   [
