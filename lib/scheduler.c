@@ -1812,8 +1812,10 @@ launch_thread_scheduler(thread_master_t *m)
 void
 register_scheduler_addresses(void)
 {
+#ifdef _WITH_SNMP_
 	register_thread_address("snmp_timeout_thread", snmp_timeout_thread);
 	register_thread_address("snmp_read_thread", snmp_read_thread);
+#endif
 	register_thread_address("thread_timerfd_handler", thread_timerfd_handler);
 
 	register_signal_handler_address("thread_child_handler", thread_child_handler);

@@ -47,6 +47,7 @@
 #endif
 #endif
 #include <linux/ip.h>
+#include <unistd.h>
 
 #ifdef THREAD_DUMP
 #include "scheduler.h"
@@ -106,7 +107,9 @@ static nl_handle_t nl_kernel = { .fd = -1 };	/* Kernel reflection channel */
 
 static struct timeval netlink_times[MAX_NETLINK_TIMER+1];
 static unsigned netlink_count[MAX_NETLINK_TIMER+1];
+#ifdef _WITH_VRRP_
 static struct timeval start_time, end_time;
+#endif
 
 bool do_netlink_timers;
 #endif
