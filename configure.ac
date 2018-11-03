@@ -291,6 +291,50 @@ NEED_LIBDL=No
 # We want _GNU_SOURCE defined always
 add_to_var([CFLAGS], [-D_GNU_SOURCE])
 
+# Some sanity checks on configure options
+AS_IF([test .$enable_vrrp = .no],
+  [
+    AS_IF([test .$enable_perf = .yes], [AC_MSG_ERROR([enable-perf requires vrrp])])
+    AS_IF([test .$enable_libiptc_dynamic = .yes], [AC_MSG_ERROR([enable-libiptc-dynamic requires vrrp])])
+    AS_IF([test .$enable_libxtables_dynamic = .yes], [AC_MSG_ERROR([enable-libxtables-dynamic requires vrrp])])
+    AS_IF([test .$enable_libiptc = .no], [AC_MSG_ERROR([disable-libiptc requires vrrp])])
+    AS_IF([test .$enable_libipset = .no], [AC_MSG_ERROR([disable-libipset requires vrrp])])
+    AS_IF([test $enable_fixed_if_type], [AC_MSG_ERROR([enable-fixed-if-type requires vrrp])])
+    AS_IF([test .$enable_vrrp_fd_debug = .yes], [AC_MSG_ERROR([enable-vrrp-fd-debug requires vrrp])])
+    AS_IF([test .$enable_tsm_debug = .yes], [AC_MSG_ERROR([enable-tsm-debug requires vrrp])])
+    AS_IF([test .$enable_json = .yes], [AC_MSG_ERROR([enable-json requires vrrp])])
+    AS_IF([test .$enable_snmp_vrrp = .yes], [AC_MSG_ERROR([enable-snmp-vrrp requires vrrp])])
+    AS_IF([test .$enable_snmp_keepalived = .yes], [AC_MSG_ERROR([enable-snmp-keepalived requires vrrp])])
+    AS_IF([test .$enable_snmp_rfc = .yes], [AC_MSG_ERROR([enable-snmp-rfc requires vrrp])])
+    AS_IF([test .$enable_snmp_rfcv2 = .yes], [AC_MSG_ERROR([enable-snmp-rfcv2 requires vrrp])])
+    AS_IF([test .$enable_snmp_rfcv3 = .yes], [AC_MSG_ERROR([enable-snmp-rfcv3 requires vrrp])])
+    AS_IF([test .$enable_dbus = .yes], [AC_MSG_ERROR([enable-dbus requires vrrp])])
+    AS_IF([test .$enable_vrrp_auth = .no], [AC_MSG_ERROR([disable-vrrp-auth requires vrrp])])
+    AS_IF([test .$enable_checksum_compat = .no], [AC_MSG_ERROR([disable-checksum-compat requires vrrp])])
+    AS_IF([test .$enable_routes = .no], [AC_MSG_ERROR([disable-routes requires vrrp])])
+    AS_IF([test .$enable_bfd != .no], [AC_MSG_ERROR([enable-bfd requires vrrp])])
+  ])
+AS_IF([test .$enable_snmp_rfc != .yes -a .$enable_snmp_rfcv3 != yes],
+  [
+    AS_IF([test .$enable_snmp_reply_v3_for_v2 = .yes], [AC_MSG_ERROR([enable-snmp-reply-v3-for-v2 requires enable-snmp-rfcv3 or enable-snmp-rfc])])
+  ])
+AS_IF([test .$enable_dbus != .yes],
+  [
+    AS_IF([test .$enable_dbus_create_instance = .yes], [AC_MSG_ERROR([enable-dbus-create-instance requires enable-dbus])])
+  ])
+AS_IF([test .$enable_lvs = .no],
+    AS_IF([test .$enable_regex = .yes], [AC_MSG_ERROR([enable-regex requires lvs])])
+    AS_IF([test .$enable_libnl_dynamic = .yes], [AC_MSG_ERROR([enable-libnl-dynamic requires lvs])])
+    AS_IF([test .$enable_libnl = .no], [AC_MSG_ERROR([disable-libnl requires lvs])])
+    AS_IF([test .$enable_lvs_syncd = .no], [AC_MSG_ERROR([disable-lvs-syncd requires lvs])])
+    AS_IF([test .$enable_lvs_64bit_stats = .no], [AC_MSG_ERROR([disable-lvs-64bit-stats requires lvs])])
+    AS_IF([test .$enable_fwmark = .yes], [AC_MSG_ERROR([enable-fwmark requires lvs])])
+  ])
+AS_IF([test .$enable_regex != .yes],
+    AS_IF([test .$enable_regex_timers = .yes], [AC_MSG_ERROR([enable-regex-timers requires enable-regex])])
+    AS_IF([test .$enable_regex_debug = .yes], [AC_MSG_ERROR([enable-regex-debug requires enable-regex])])
+  ])
+
 if test "$enable_conversion_checks" = yes; then
   # Check if we can sensibly enable -Wconversion
   AC_MSG_CHECKING([for usable -Wconversion])
@@ -591,12 +635,19 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
 AC_DEFINE_UNQUOTED([LINE_type], [ $LINE_type ], [The type of parameter __line passed to __assert_fail()])
 
 dnl - Do we want to override dynamic/static linking?
-if test -n "$enable_dynamic_linking"; then
-  enable_libiptc_dynamic=$enable_dynamic_linking
-  enable_libipset_dynamic=$enable_dynamic_linking
-  enable_libxtables_dynamic=$enable_dynamic_linking
-  enable_libnl_dynamic=$enable_dynamic_linking
-fi
+AS_IF([test "$enable_dynamic_linking"],
+  [
+    AS_IF([test .$enable_vrrp != .no],
+      [
+        enable_libiptc_dynamic=$enable_dynamic_linking
+        enable_libipset_dynamic=$enable_dynamic_linking
+        enable_libxtables_dynamic=$enable_dynamic_linking
+      ])
+    AS_IF([test .$enable_vrrp != .no],
+      [
+        enable_libnl_dynamic=$enable_dynamic_linking
+      ])
+  ])
 
 # check for missing definition - added in glibc 2.8
 AC_CHECK_DECLS([ETHERTYPE_IPV6], [],
@@ -1141,6 +1192,7 @@ dnl ----[ Checks for LVS, VRRP and BFD support ]----
 IPVS_SYNCD_ATTRIBUTES=No
 IPVS_64BIT_STATS=No
 WITH_REGEX=No
+ENABLE_REGEX_DEBUG=No
 if test "$enable_lvs" != no; then
   IPVS_SUPPORT=Yes
   add_config_opt([LVS])
@@ -1227,10 +1279,13 @@ if test "$enable_lvs" != no; then
 	  AC_MSG_ERROR([pcre2.h is missing])
         ])
       if test "$enable_regex_timers" = yes; then
-	if test $WITH_REGEX != Yes; then
-	  AC_MSG_ERROR([Cannot have regex timers support without regex support])
-	fi
 	AC_DEFINE([_WITH_REGEX_TIMERS_], [ 1 ], [Define to 1 to include regex timers])
+      fi
+
+      if test "${enable_regex_debug}" = yes; then
+        AC_DEFINE([_REGEX_DEBUG_], [ 1 ], [Define to 1 to build with regex debugging support])
+        ENABLE_REGEX_DEBUG=Yes
+        add_config_opt([REGEX_DEBUG])
       fi
     ])
 else
@@ -1784,15 +1839,6 @@ fi
 
 if test $ENABLE_EPOLL_THREAD_DUMP = Yes -o $ENABLE_DUMP_THREADS = Yes -o $ENABLE_EPOLL_DEBUG = Yes; then
   AC_DEFINE([THREAD_DUMP], [ 1 ], [Define to 1 to build with thread dumping support])
-fi
-
-dnl ----[ regex debugging support or not ? ]----
-if test "${enable_regex_debug}" = yes; then
-  AC_DEFINE([_REGEX_DEBUG_], [ 1 ], [Define to 1 to build with regex debugging support])
-  ENABLE_REGEX_DEBUG=Yes
-  add_config_opt([REGEX_DEBUG])
-else
-  ENABLE_REGEX_DEBUG=No
 fi
 
 dnl ----[ TSM debugging support or not ? ]----
