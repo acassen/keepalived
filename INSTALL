@@ -20,6 +20,9 @@ Linux flavours
 
 RedHat based systems (RedHat Enterprise/CentOS/Fedora)
 ------------------------------------------------------
+The following build packages are needed:
+	make
+	autoconf automake (to build from git source tree rather than tarball)
 The following libraries need to be installed:
 	openssl-devel libnl3-devel ipset-devel iptables-devel libnfnetlink-devel
 For magic file identification support:
@@ -44,8 +47,10 @@ Debian/Ubuntu
 -------------
 On Debian, install:
 	pkg-config
+On Ubuntu, install:
+	build-essential pkg-config, and to build from git repo automake autoconf
 The following libraries need to be installed:
-	iptables-dev libipset-dev libnfnetlink-dev libnl-3-dev libnl-genl-3-dev libnl-route-3-dev libssl-dev
+	iptables-dev libipset-dev libnfnetlink-dev libnl-3-dev libnl-genl-3-dev libssl-dev
 For magic file identification support:
 	libmagic-dev
 For SNMP support:
