@@ -40,9 +40,6 @@
 
 /* types definitions */
 typedef struct _nl_handle {
-#ifdef _HAVE_LIBNL3_
-	struct nl_sock*		sk;
-#endif
 	int			fd;
 	uint32_t		nl_pid;
 	__u32			seq;
@@ -53,7 +50,7 @@ typedef struct _nl_handle {
 #ifndef NLMSG_TAIL
 #define NLMSG_TAIL(nmsg) (((void *) (nmsg)) + NLMSG_ALIGN((nmsg)->nlmsg_len))
 #endif
-#if !defined _HAVE_LIBNL3_ && !defined _HAVE_LIBNL1 && !defined SOL_NETLINK
+#if !defined SOL_NETLINK
 #define SOL_NETLINK 270
 #endif
 

@@ -58,23 +58,12 @@ int (*nla_memcpy_addr)(void *, const struct nlattr *, int);
 int (*nla_parse_nested_addr)(struct nlattr **, int, struct nlattr *, struct nla_policy *);
 #endif
 #endif
-#ifdef _HAVE_LIBNL3_
-int (*nl_connect_addr)(struct nl_sock *, int);
-int (*nl_socket_add_membership_addr)(struct nl_sock *, int);
-int (*nl_socket_drop_membership_addr)(struct nl_sock *, int);
-int (*nl_socket_get_fd_addr)(const struct nl_sock *);
-uint32_t (*nl_socket_get_local_port_addr)(const struct nl_sock *);
-int (*nl_socket_set_buffer_size_addr)(struct nl_sock *, int, int);
-int (*nl_socket_set_nonblocking_addr)(const struct nl_sock *);
-#endif
 
 
 static void* libnl_handle;
 #ifdef LIBIPVS_USE_NL
 static void* libnl_genl_handle;
 #endif
-
-bool use_nl = true;
 
 bool
 libnl_init(void)
@@ -140,22 +129,8 @@ libnl_init(void)
 	    !(nla_parse_nested_addr = dlsym(libnl_handle, "nla_parse_nested")) ||
 #endif
 #endif
-
-#ifdef _HAVE_LIBNL3_
-	    !(nl_connect_addr = dlsym(libnl_handle, "nl_connect")) ||
-	    !(nl_socket_add_membership_addr = dlsym(libnl_handle, "nl_socket_add_membership")) ||
-	    !(nl_socket_drop_membership_addr = dlsym(libnl_handle, "nl_socket_drop_membership")) ||
-	    !(nl_socket_get_fd_addr = dlsym(libnl_handle, "nl_socket_get_fd")) ||
-	    !(nl_socket_get_local_port_addr = dlsym(libnl_handle, "nl_socket_get_local_port")) ||
-	    !(nl_socket_set_buffer_size_addr = dlsym(libnl_handle, "nl_socket_set_buffer_size")) ||
-	    !(nl_socket_set_nonblocking_addr = dlsym(libnl_handle, "nl_socket_set_nonblocking")) ||
-#endif
-	    false) {
+	    false)
 		log_message(LOG_INFO, "Failed to dynamic link a libnli/libnl-3 function");
-		use_nl = false;
-	}
-
-	use_nl = true;
 
 	return true;
 }

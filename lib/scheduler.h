@@ -200,7 +200,7 @@ extern bool snmp_running;
 #ifdef _EPOLL_DEBUG_
 extern bool do_epoll_debug;
 #endif
-#ifdef _EPOLL_DEBUG_
+#ifdef _EPOLL_THREAD_DUMP_
 extern bool do_epoll_thread_dump;
 #endif
 

@@ -291,6 +291,50 @@ NEED_LIBDL=No
 # We want _GNU_SOURCE defined always
 add_to_var([CFLAGS], [-D_GNU_SOURCE])
 
+# Some sanity checks on configure options
+AS_IF([test .$enable_vrrp = .no],
+  [
+    AS_IF([test .$enable_perf = .yes], [AC_MSG_ERROR([enable-perf requires vrrp])])
+    AS_IF([test .$enable_libiptc_dynamic = .yes], [AC_MSG_ERROR([enable-libiptc-dynamic requires vrrp])])
+    AS_IF([test .$enable_libxtables_dynamic = .yes], [AC_MSG_ERROR([enable-libxtables-dynamic requires vrrp])])
+    AS_IF([test .$enable_libiptc = .no], [AC_MSG_ERROR([disable-libiptc requires vrrp])])
+    AS_IF([test .$enable_libipset = .no], [AC_MSG_ERROR([disable-libipset requires vrrp])])
+    AS_IF([test $enable_fixed_if_type], [AC_MSG_ERROR([enable-fixed-if-type requires vrrp])])
+    AS_IF([test .$enable_vrrp_fd_debug = .yes], [AC_MSG_ERROR([enable-vrrp-fd-debug requires vrrp])])
+    AS_IF([test .$enable_tsm_debug = .yes], [AC_MSG_ERROR([enable-tsm-debug requires vrrp])])
+    AS_IF([test .$enable_json = .yes], [AC_MSG_ERROR([enable-json requires vrrp])])
+    AS_IF([test .$enable_snmp_vrrp = .yes], [AC_MSG_ERROR([enable-snmp-vrrp requires vrrp])])
+    AS_IF([test .$enable_snmp_keepalived = .yes], [AC_MSG_ERROR([enable-snmp-keepalived requires vrrp])])
+    AS_IF([test .$enable_snmp_rfc = .yes], [AC_MSG_ERROR([enable-snmp-rfc requires vrrp])])
+    AS_IF([test .$enable_snmp_rfcv2 = .yes], [AC_MSG_ERROR([enable-snmp-rfcv2 requires vrrp])])
+    AS_IF([test .$enable_snmp_rfcv3 = .yes], [AC_MSG_ERROR([enable-snmp-rfcv3 requires vrrp])])
+    AS_IF([test .$enable_dbus = .yes], [AC_MSG_ERROR([enable-dbus requires vrrp])])
+    AS_IF([test .$enable_vrrp_auth = .no], [AC_MSG_ERROR([disable-vrrp-auth requires vrrp])])
+    AS_IF([test .$enable_checksum_compat = .no], [AC_MSG_ERROR([disable-checksum-compat requires vrrp])])
+    AS_IF([test .$enable_routes = .no], [AC_MSG_ERROR([disable-routes requires vrrp])])
+    AS_IF([test .$enable_bfd = yes], [AC_MSG_ERROR([enable-bfd requires vrrp])])
+  ])
+AS_IF([test .$enable_snmp_rfc != .yes -a .$enable_snmp_rfcv3 != yes],
+  [
+    AS_IF([test .$enable_snmp_reply_v3_for_v2 = .yes], [AC_MSG_ERROR([enable-snmp-reply-v3-for-v2 requires enable-snmp-rfcv3 or enable-snmp-rfc])])
+  ])
+AS_IF([test .$enable_dbus != .yes],
+  [
+    AS_IF([test .$enable_dbus_create_instance = .yes], [AC_MSG_ERROR([enable-dbus-create-instance requires enable-dbus])])
+  ])
+AS_IF([test .$enable_lvs = .no],
+    AS_IF([test .$enable_regex = .yes], [AC_MSG_ERROR([enable-regex requires lvs])])
+    AS_IF([test .$enable_libnl_dynamic = .yes], [AC_MSG_ERROR([enable-libnl-dynamic requires lvs])])
+    AS_IF([test .$enable_libnl = .no], [AC_MSG_ERROR([disable-libnl requires lvs])])
+    AS_IF([test .$enable_lvs_syncd = .no], [AC_MSG_ERROR([disable-lvs-syncd requires lvs])])
+    AS_IF([test .$enable_lvs_64bit_stats = .no], [AC_MSG_ERROR([disable-lvs-64bit-stats requires lvs])])
+    AS_IF([test .$enable_fwmark = .yes], [AC_MSG_ERROR([enable-fwmark requires lvs])])
+  ])
+AS_IF([test .$enable_regex != .yes],
+    AS_IF([test .$enable_regex_timers = .yes], [AC_MSG_ERROR([enable-regex-timers requires enable-regex])])
+    AS_IF([test .$enable_regex_debug = .yes], [AC_MSG_ERROR([enable-regex-debug requires enable-regex])])
+  ])
+
 if test "$enable_conversion_checks" = yes; then
   # Check if we can sensibly enable -Wconversion
   AC_MSG_CHECKING([for usable -Wconversion])
@@ -474,6 +518,37 @@ AC_SUBST(KA_LIBS)
 # AC_SUBST(KA_LIBTOOLFLAGS)
 
 # Checks for libraries.
+dnl clock_gettime() required -lt before glibc 2.17
+AC_MSG_CHECKING([for clock_gettime() requires -lrt])
+AC_LINK_IFELSE([AC_LANG_SOURCE([[
+  #include <time.h>
+  int main(int argc, char **argv)
+  {
+    int i;
+    struct timespec ts;
+
+    i = clock_gettime(CLOCK_MONOTONIC, &ts);
+  }
+  ]])],
+  [AC_MSG_RESULT([no])],
+  [
+    SAV_LDFLAGS="$LDFLAGS"
+    LDFLAGS="$LDFLAGS -lrt"
+    AC_LINK_IFELSE([AC_LANG_SOURCE([[
+      #include <time.h>
+      int main(int argc, char **argv)
+      {
+        int i;
+        struct timespec ts;
+
+        i = clock_gettime(CLOCK_MONOTONIC, &ts);
+      }
+      ]])],
+      [AC_MSG_RESULT([yes])]
+        add_to_var([KA_LIBS], [-lrt]),
+      [AC_MSG_ERROR([clock_gettime() not supported])])
+    LDFLAGS=$SAV_LDFLAGS
+  ])
 
 # Checks for header files.
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdint.h stdlib.h string.h sys/ioctl.h sys/param.h sys/prctl.h sys/socket.h sys/time.h syslog.h unistd.h],
@@ -560,12 +635,19 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
 AC_DEFINE_UNQUOTED([LINE_type], [ $LINE_type ], [The type of parameter __line passed to __assert_fail()])
 
 dnl - Do we want to override dynamic/static linking?
-if test -n "$enable_dynamic_linking"; then
-  enable_libiptc_dynamic=$enable_dynamic_linking
-  enable_libipset_dynamic=$enable_dynamic_linking
-  enable_libxtables_dynamic=$enable_dynamic_linking
-  enable_libnl_dynamic=$enable_dynamic_linking
-fi
+AS_IF([test "$enable_dynamic_linking"],
+  [
+    AS_IF([test .$enable_vrrp != .no],
+      [
+        enable_libiptc_dynamic=$enable_dynamic_linking
+        enable_libipset_dynamic=$enable_dynamic_linking
+        enable_libxtables_dynamic=$enable_dynamic_linking
+      ])
+    AS_IF([test .$enable_vrrp != .no],
+      [
+        enable_libnl_dynamic=$enable_dynamic_linking
+      ])
+  ])
 
 # check for missing definition - added in glibc 2.8
 AC_CHECK_DECLS([ETHERTYPE_IPV6], [],
@@ -680,11 +762,36 @@ fi
 AC_SUBST([GENHASH_LIBS])
 AM_CONDITIONAL([BUILD_GENHASH], [test $BUILD_GENHASH = Yes])
 
+dnl ----[ Check for IPv4 devconf netlink support ]----
+IPV4_DEVCONF=No
+if test .$enable_vrrp != .no; then
+  dnl ----[Check have IPV4_DEVCONF defines - since Linux 3.11]----
+  SAV_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPP_FLAGS $kernelinc"
+  IPV4_DEVCONF=Yes
+  AC_CHECK_DECLS([
+    IPV4_DEVCONF_ARP_IGNORE,
+    IPV4_DEVCONF_ACCEPT_LOCAL,
+    IPV4_DEVCONF_RP_FILTER,
+    IPV4_DEVCONF_ARPFILTER],
+    [],
+    [
+      IPV4_DEVCONF=No
+      break
+    ],
+    [[#include <linux/ip.h>]])
+  if test $IPV4_DEVCONF = Yes; then
+    AC_DEFINE([_HAVE_IPV4_DEVCONF_], [ 1 ], [Define to 1 if have IPv4 netlink device configuration])
+    add_system_opt([IPV4_DEVCONF])
+  fi
+  AC_CHECK_HEADERS([linux/rtnetlink.h], [], [AC_MSG_ERROR([Unusable linux/rtnetlink.h])], [$RTNETLINK_EXTRA_INCLUDE])
+  CPPFLAGS="$SAV_CPPFLAGS"
+fi
+
 dnl ----[ Checks for libraries ]----
 NETLINK_VER=0
 IPVS_USE_NL=No
-IPV4_DEVCONF=No
-if test .${enable_libnl} != .no; then
+if test .$enable_lvs != .no -a .${enable_libnl} != .no; then
   $PKG_CONFIG --exists libnl-3.0
   if test $? -eq 0; then
     add_pkg_config([libnl-3.0], [NL3], [remove-requires])
@@ -693,74 +800,18 @@ if test .${enable_libnl} != .no; then
         NETLINK_VER=3
         NEED_NL3=No
 
-        if test .$enable_lvs != .no; then
-	  add_pkg_config([libnl-genl-3.0], [GENL], [remove-requires])
-	  AC_CHECK_LIB($GENL_LIB_NAMES, genl_connect, [],
-	    [AC_MSG_ERROR([libnl-3 is installed but not libnl-gen-3. Please, install libnl-gen-3/libnl-genl-3.])])
-	  IPVS_USE_NL=Yes
-	  if test .$enable_libnl_dynamic = .yes; then
-	    add_pkg_config_without_libs([libnl-genl-3.0])
-	    get_lib_name([$GENL_LIB_NAMES], [genl_connect])
-	    AC_DEFINE_UNQUOTED([NL3_GENL_LIB_NAME], [ "$LIB_NAME" ], [Define the nl-genl-3.0 library name])
-	  else
-	    add_pkg_config([libnl-genl-3.0])
-	  fi
-	  NEED_NL3=Yes
-        fi
-
-        if test $NETLINK_VER -eq 3 -a .$enable_vrrp != .no; then
-	  NEED_NL3=Yes
-
-	  dnl ----[Check have IPV4_DEVCONF defines - since Linux 3.11]----
-	  SAV_CPPFLAGS="$CPPFLAGS"
-	  CPPFLAGS="$CPP_FLAGS $kernelinc"
-	  IPV4_DEVCONF=Yes
-	  AC_CHECK_DECLS([
-	    IPV4_DEVCONF_ARP_IGNORE,
-	    IPV4_DEVCONF_ACCEPT_LOCAL,
-	    IPV4_DEVCONF_RP_FILTER,
-	    IPV4_DEVCONF_ARPFILTER],
-	    [],
-	    [
-	      IPV4_DEVCONF=No
-	      break
-	    ],
-	    [[#include <linux/ip.h>]])
-	  if test $IPV4_DEVCONF = Yes; then
-	    CPPFLAGS="$SAV_CPPFLAGS $NL3_CPPFLAGS"
-	    AC_CHECK_HEADERS([netlink/route/link.h netlink/route/link/inet.h], [], [AC_MSG_ERROR([libnl-3 route link headers missing])])
-	    AC_DEFINE([_HAVE_IPV4_DEVCONF_], [ 1 ], [Define to 1 if have IPv4 netlink device configuration])
-	    add_system_opt([IPV4_DEVCONF])
-
-	    dnl ----[Check if have net/if.h and netlink/route/link.h namespace collision]----
-	    dnl -- Resolved in libnl3-3.2.26 (release 30/3/2015)
-	    AC_MSG_CHECKING([for net/if.h and libnl3/netlink/route/link.h namespace collision])
-	    AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-	        #include <netlink/route/link.h>
-	        #include <net/if.h>
-	      ]])], [
-	        AC_MSG_RESULT([no])
-	      ], [
-	        AC_MSG_RESULT([yes])
-	        AC_DEFINE([_HAVE_IF_H_LINK_H_COLLISION_], [ 1 ], [Define to 1 if <net/if.h> and <netlink/route/link.h> namespace collision])
-	        add_system_opt([IF_H_LINK_H_COLLISION])
-	      ])
-	  fi
-	  CPPFLAGS="$SAV_CPPFLAGS"
-        fi
-
-        if test $IPV4_DEVCONF = Yes; then
-	  add_pkg_config([libnl-route-3.0], [ROUTE], [remove-requires])
-	  AC_CHECK_LIB($ROUTE_LIB_NAMES, nl_rtgen_request, [],
-	    [AC_MSG_ERROR([libnl-3 is installed but not libnl-route-3. Please, install libnl-route-3.])])
-	  if test .$enable_libnl_dynamic = .yes; then
-	    add_pkg_config_without_libs([libnl-route-3.0])
-	    get_lib_name([$ROUTE_LIB_NAMES], [rtgen_request])
-	    AC_DEFINE_UNQUOTED([NL3_ROUTE_LIB_NAME], [ "$LIB_NAME" ], [Define the nl-route-3.0 library name])
-	  else
-	    add_pkg_config([libnl-route-3.0])
-	  fi
-        fi
+	add_pkg_config([libnl-genl-3.0], [GENL], [remove-requires])
+	AC_CHECK_LIB($GENL_LIB_NAMES, genl_connect, [],
+	  [AC_MSG_ERROR([libnl-3 is installed but not libnl-gen-3. Please, install libnl-gen-3/libnl-genl-3.])])
+	IPVS_USE_NL=Yes
+	if test .$enable_libnl_dynamic = .yes; then
+	  add_pkg_config_without_libs([libnl-genl-3.0])
+	  get_lib_name([$GENL_LIB_NAMES], [genl_connect])
+	  AC_DEFINE_UNQUOTED([NL3_GENL_LIB_NAME], [ "$LIB_NAME" ], [Define the nl-genl-3.0 library name])
+	else
+	  add_pkg_config([libnl-genl-3.0])
+	fi
+	NEED_NL3=Yes
 
         if test $NEED_NL3 = Yes; then
 	  AC_DEFINE([_HAVE_LIBNL3_], [ 1 ], [Define to 1 if using libnl-3])
@@ -779,7 +830,7 @@ if test .${enable_libnl} != .no; then
       ], [])
   fi
 
-  if test $NETLINK_VER -eq 0 -a .$enable_lvs != .no; then
+  if test $NETLINK_VER -eq 0; then
     AC_CHECK_LIB(nl, nl_socket_modify_cb,
       [
 	IPVS_USE_NL=Yes
@@ -797,26 +848,21 @@ if test .${enable_libnl} != .no; then
 	  add_pkg_config([libnl-1])
 	fi
       ],
-      [ AC_MSG_WARN([keepalived will be built without libnl support.])
+      [AC_MSG_WARN([keepalived will be built without libnl support.])
     ])
   fi
 
   if test $NETLINK_VER -ne 0; then
     SAV_CPPFLAGS="$CPPFLAGS"
-    CPPFLAGS="$CPPFLAGS $kernelinc"
-    AC_CHECK_HEADERS([linux/rtnetlink.h], [], [AC_MSG_ERROR([Unusable linux/rtnetlink.h])], [$RTNETLINK_EXTRA_INCLUDE])
     CPPFLAGS="$SAV_CPPFLAGS $NL3_CPPFLAGS"
-    AC_CHECK_HEADERS([libnfnetlink/libnfnetlink.h], [], [AC_MSG_ERROR([libnfnetlink headers missing])])
     AC_CHECK_HEADERS([netlink/netlink.h], [], [AC_MSG_ERROR([netlink headers missing])])
-    if test .$disable_lvs != .no; then
-      AC_CHECK_HEADERS([netlink/genl/ctrl.h netlink/genl/genl.h], [], [AC_MSG_ERROR([netlink genl headers missing])])
-    fi
+    AC_CHECK_HEADERS([netlink/genl/ctrl.h netlink/genl/genl.h], [], [AC_MSG_ERROR([netlink genl headers missing])])
     CPPFLAGS="$SAV_CPPFLAGS"
   fi
 fi
 AM_CONDITIONAL([LIBNL1], [test $NETLINK_VER -eq 1])
 AM_CONDITIONAL([LIBNL3], [test $NETLINK_VER -eq 3])
-AM_CONDITIONAL([LIBNL_DYNAMIC], [test .$enable_libnl_dynamic = .yes -a $NETLINK_VER -ne 0])
+AM_CONDITIONAL([LIBNL_DYNAMIC], [test .$enable_lvs != .no -a .$enable_libnl_dynamic = .yes -a $NETLINK_VER -ne 0])
 
 AC_CHECK_LIB(magic, magic_open,
   [
@@ -1146,6 +1192,7 @@ dnl ----[ Checks for LVS, VRRP and BFD support ]----
 IPVS_SYNCD_ATTRIBUTES=No
 IPVS_64BIT_STATS=No
 WITH_REGEX=No
+ENABLE_REGEX_DEBUG=No
 if test "$enable_lvs" != no; then
   IPVS_SUPPORT=Yes
   add_config_opt([LVS])
@@ -1232,10 +1279,13 @@ if test "$enable_lvs" != no; then
 	  AC_MSG_ERROR([pcre2.h is missing])
         ])
       if test "$enable_regex_timers" = yes; then
-	if test $WITH_REGEX != Yes; then
-	  AC_MSG_ERROR([Cannot have regex timers support without regex support])
-	fi
 	AC_DEFINE([_WITH_REGEX_TIMERS_], [ 1 ], [Define to 1 to include regex timers])
+      fi
+
+      if test "${enable_regex_debug}" = yes; then
+        AC_DEFINE([_REGEX_DEBUG_], [ 1 ], [Define to 1 to build with regex debugging support])
+        ENABLE_REGEX_DEBUG=Yes
+        add_config_opt([REGEX_DEBUG])
       fi
     ])
 else
@@ -1789,15 +1839,6 @@ fi
 
 if test $ENABLE_EPOLL_THREAD_DUMP = Yes -o $ENABLE_DUMP_THREADS = Yes -o $ENABLE_EPOLL_DEBUG = Yes; then
   AC_DEFINE([THREAD_DUMP], [ 1 ], [Define to 1 to build with thread dumping support])
-fi
-
-dnl ----[ regex debugging support or not ? ]----
-if test "${enable_regex_debug}" = yes; then
-  AC_DEFINE([_REGEX_DEBUG_], [ 1 ], [Define to 1 to build with regex debugging support])
-  ENABLE_REGEX_DEBUG=Yes
-  add_config_opt([REGEX_DEBUG])
-else
-  ENABLE_REGEX_DEBUG=No
 fi
 
 dnl ----[ TSM debugging support or not ? ]----

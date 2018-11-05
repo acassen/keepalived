@@ -157,7 +157,11 @@ get_function_name(int (*func)(thread_t *))
 const char *
 get_signal_function_name(void (*func)(void *, int))
 {
-	return get_function_name((int (*)(thread_t *))func);
+	/* The cast should really be (int (*)(thread_t *))func, but gcc 8.1 produces
+	 * a warning with -Wcast-function-type, that the cast is to an incompatible
+	 * function type. Since we don't actually call the function, but merely use
+	 * it to compare function addresses, what we cast it do doesn't really matter */
+	return get_function_name((void *)func);
 }
 
 void
@@ -178,7 +182,8 @@ register_thread_address(const char *func_name, int (*func)(thread_t *))
 void
 register_signal_handler_address(const char *func_name, void (*func)(void *, int))
 {
-	register_thread_address(func_name, (int (*)(thread_t *))func);
+	/* See comment in get_signal_function_name() above */
+	register_thread_address(func_name, (void *)func);
 }
 
 void
@@ -1812,8 +1817,10 @@ launch_thread_scheduler(thread_master_t *m)
 void
 register_scheduler_addresses(void)
 {
+#ifdef _WITH_SNMP_
 	register_thread_address("snmp_timeout_thread", snmp_timeout_thread);
 	register_thread_address("snmp_read_thread", snmp_read_thread);
+#endif
 	register_thread_address("thread_timerfd_handler", thread_timerfd_handler);
 
 	register_signal_handler_address("thread_child_handler", thread_child_handler);

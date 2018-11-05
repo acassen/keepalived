@@ -29,16 +29,8 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/uio.h>
-#ifdef _HAVE_LIBNL3_
-#include <netlink/netlink.h>
-#endif
 #include <net/if_arp.h>
 #include <arpa/inet.h>
-#if !defined _HAVE_LIBNL3_ || defined _LIBNL_DYNAMIC_
-#ifdef HAVE_LIBNFNETLINK_LIBNFNETLINK_H
-#include <libnfnetlink/libnfnetlink.h>
-#endif
-#endif
 #include <time.h>
 #ifdef _WITH_VRRP_
 #include <linux/version.h>
@@ -47,15 +39,13 @@
 #endif
 #endif
 #include <linux/ip.h>
+#include <unistd.h>
 
 #ifdef THREAD_DUMP
 #include "scheduler.h"
 #endif
 
 /* local include */
-#ifdef _LIBNL_DYNAMIC_
-#include "libnl_link.h"
-#endif
 #include "keepalived_netlink.h"
 #ifdef _WITH_LVS_
 #include "check_api.h"
@@ -106,7 +96,9 @@ static nl_handle_t nl_kernel = { .fd = -1 };	/* Kernel reflection channel */
 
 static struct timeval netlink_times[MAX_NETLINK_TIMER+1];
 static unsigned netlink_count[MAX_NETLINK_TIMER+1];
+#ifdef _WITH_VRRP_
 static struct timeval start_time, end_time;
+#endif
 
 bool do_netlink_timers;
 #endif
@@ -501,29 +493,13 @@ netlink_set_rx_buf_size(nl_handle_t *nl, unsigned rcvbuf_size, bool force)
 	if (!rcvbuf_size)
 		rcvbuf_size = IF_DEFAULT_BUFSIZE;
 
+	/* Set rcvbuf size */
 	if (force) {
 		if ((ret = setsockopt(nl->fd, SOL_SOCKET, SO_RCVBUFFORCE, &rcvbuf_size, sizeof(rcvbuf_size))) < 0)
 			log_message(LOG_INFO, "cant set SO_RCVBUFFORCE IP option. errno=%d (%m)", errno);
 	} else {
-#ifdef _HAVE_LIBNL3_
-#ifdef _LIBNL_DYNAMIC_
-		if (use_nl)
-#endif
-		{
-			if ((ret = nl_socket_set_buffer_size(nl->sk, rcvbuf_size, 0)))
-				log_message(LOG_INFO, "Netlink: Cannot set netlink buffer size : (%d)", ret);
-		}
-#endif
-#if !defined _HAVE_LIBNL3_ || defined _LIBNL_DYNAMIC_
-#if defined _HAVE_LIBNL3_ && defined _LIBNL_DYNAMIC_
-		else
-#endif
-		{
-			/* Set rcvbuf size */
-			if ((ret = setsockopt(nl->fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf_size, sizeof(rcvbuf_size))) < 0)
-				log_message(LOG_INFO, "Cannot set SO_RCVBUF IP option. errno=%d (%m)", errno);
-		}
-#endif
+		if ((ret = setsockopt(nl->fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf_size, sizeof(rcvbuf_size))) < 0)
+			log_message(LOG_INFO, "Cannot set SO_RCVBUF IP option. errno=%d (%m)", errno);
 	}
 
 	return ret;
@@ -533,35 +509,9 @@ netlink_set_rx_buf_size(nl_handle_t *nl, unsigned rcvbuf_size, bool force)
 static void
 kernel_netlink_set_membership(int group, bool add)
 {
-#ifdef _HAVE_LIBNL3_
-#ifdef _LIBNL_DYNAMIC_
-	if (use_nl)
-#endif
-	{
-		int ret;
-
-		if (add)
-			ret = nl_socket_add_membership(nl_kernel.sk, group);
-		else
-			ret = nl_socket_drop_membership(nl_kernel.sk, group);
-		if (ret) {
-			log_message(LOG_INFO, "Netlink: Cannot add socket membership 0x%x : (%d)", group, ret);
-			return;
-		}
-	}
-#endif
-#if !defined _HAVE_LIBNL3_ || defined _LIBNL_DYNAMIC_
-#if defined _HAVE_LIBNL3_ && defined _LIBNL_DYNAMIC_
-	else
-#endif
-	{
-		if (setsockopt(nl_kernel.fd, SOL_NETLINK, add ? NETLINK_ADD_MEMBERSHIP : NETLINK_DROP_MEMBERSHIP,
-				&group, sizeof(group)) < 0) {
-			log_message(LOG_INFO, "Netlink: Cannot add membership on netlink socket : (%s)", strerror(errno));
-			return;
-		}
-	}
-#endif
+	if (setsockopt(nl_kernel.fd, SOL_NETLINK, add ? NETLINK_ADD_MEMBERSHIP : NETLINK_DROP_MEMBERSHIP,
+			&group, sizeof(group)) < 0)
+		log_message(LOG_INFO, "Netlink: Cannot add membership on netlink socket : (%s)", strerror(errno));
 }
 
 void
@@ -583,136 +533,77 @@ netlink_socket(nl_handle_t *nl, unsigned rcvbuf_size, bool force, int flags, int
 
 	memset(nl, 0, sizeof (*nl));
 
-#ifdef _HAVE_LIBNL3_
-#ifdef _LIBNL_DYNAMIC_
-	if (use_nl)
+	socklen_t addr_len;
+	struct sockaddr_nl snl;
+	int sock_flags = flags;
+#if !HAVE_DECL_SOCK_NONBLOCK
+	sock_flags &= ~SOCK_NONBLOCK;
 #endif
-	{
-		/* We need to keep libnl3 in step with our netlink socket creation.  */
-		nl->sk = nl_socket_alloc();
-		if (nl->sk == NULL) {
-			log_message(LOG_INFO, "Netlink: Cannot allocate netlink socket" );
-			return -1;
-		}
 
-		ret = nl_connect(nl->sk, NETLINK_ROUTE);
-		if (ret != 0) {
-			log_message(LOG_INFO, "Netlink: Cannot open netlink socket : (%d)", ret);
-			return -1;
-		}
-
-		/* Unfortunately we can't call nl_socket_add_memberships() with variadic arguments
-		 * from a variadic argument list passed to us
-		 */
-		va_start(gp, group);
-		while (group != 0) {
-			if (group < 0) {
-				va_end(gp);
-				return -1;
-			}
-
-			if ((ret = nl_socket_add_membership(nl->sk, group))) {
-				log_message(LOG_INFO, "Netlink: Cannot add socket membership 0x%x : (%d)", group, ret);
-				va_end(gp);
-				return -1;
-			}
-
-			group = va_arg(gp,int);
-		}
-		va_end(gp);
-
-		if (flags & SOCK_NONBLOCK) {
-			if ((ret = nl_socket_set_nonblocking(nl->sk))) {
-				log_message(LOG_INFO, "Netlink: Cannot set netlink socket non-blocking : (%d)", ret);
-				return -1;
-			}
-		}
-
-		nl->nl_pid = nl_socket_get_local_port(nl->sk);
-
-		nl->fd = nl_socket_get_fd(nl->sk);
-
-		/* Set CLOEXEC */
-		fcntl(nl->fd, F_SETFD, fcntl(nl->fd, F_GETFD) | FD_CLOEXEC);
+	nl->fd = socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC | sock_flags, NETLINK_ROUTE);
+	if (nl->fd < 0) {
+		log_message(LOG_INFO, "Netlink: Cannot open netlink socket : (%s)",
+		       strerror(errno));
+		return -1;
 	}
-#endif
-#if !defined _HAVE_LIBNL3_ || defined _LIBNL_DYNAMIC_
-#if defined _HAVE_LIBNL3_ && defined _LIBNL_DYNAMIC_
-	else
-#endif
-	{
-		socklen_t addr_len;
-		struct sockaddr_nl snl;
-		int sock_flags = flags;
+
 #if !HAVE_DECL_SOCK_NONBLOCK
-		sock_flags &= ~SOCK_NONBLOCK;
+	if ((flags & SOCK_NONBLOCK) &&
+	    set_sock_flags(nl->fd, F_SETFL, O_NONBLOCK))
+		return -1;
 #endif
 
-		nl->fd = socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC | sock_flags, NETLINK_ROUTE);
-		if (nl->fd < 0) {
-			log_message(LOG_INFO, "Netlink: Cannot open netlink socket : (%s)",
-			       strerror(errno));
+	memset(&snl, 0, sizeof (snl));
+	snl.nl_family = AF_NETLINK;
+
+	ret = bind(nl->fd, (struct sockaddr *) &snl, sizeof (snl));
+	if (ret < 0) {
+		log_message(LOG_INFO, "Netlink: Cannot bind netlink socket : (%s)",
+		       strerror(errno));
+		close(nl->fd);
+		nl->fd = -1;
+		return -1;
+	}
+
+	/* Join the requested groups */
+	va_start(gp, group);
+	while (group != 0) {
+		if (group < 0) {
+			va_end(gp);
 			return -1;
 		}
 
-#if !HAVE_DECL_SOCK_NONBLOCK
-		if ((flags & SOCK_NONBLOCK) &&
-		    set_sock_flags(nl->fd, F_SETFL, O_NONBLOCK))
-			return -1;
-#endif
-
-		memset(&snl, 0, sizeof (snl));
-		snl.nl_family = AF_NETLINK;
-
-		ret = bind(nl->fd, (struct sockaddr *) &snl, sizeof (snl));
+		ret = setsockopt(nl->fd, SOL_NETLINK, NETLINK_ADD_MEMBERSHIP, &group, sizeof(group));
 		if (ret < 0) {
-			log_message(LOG_INFO, "Netlink: Cannot bind netlink socket : (%s)",
+			log_message(LOG_INFO, "Netlink: Cannot add membership on netlink socket : (%s)",
 			       strerror(errno));
-			close(nl->fd);
-			nl->fd = -1;
+			va_end(gp);
 			return -1;
 		}
 
-		/* Join the requested groups */
-		va_start(gp, group);
-		while (group != 0) {
-			if (group < 0) {
-				va_end(gp);
-				return -1;
-			}
-
-			ret = setsockopt(nl->fd, SOL_NETLINK, NETLINK_ADD_MEMBERSHIP, &group, sizeof(group));
-			if (ret < 0) {
-				log_message(LOG_INFO, "Netlink: Cannot add membership on netlink socket : (%s)",
-				       strerror(errno));
-				va_end(gp);
-				return -1;
-			}
-
-			group = va_arg(gp,int);
-		}
-		va_end(gp);
-
-		addr_len = sizeof (snl);
-		ret = getsockname(nl->fd, (struct sockaddr *) &snl, &addr_len);
-		if (ret < 0 || addr_len != sizeof (snl)) {
-			log_message(LOG_INFO, "Netlink: Cannot getsockname : (%s)",
-			       strerror(errno));
-			close(nl->fd);
-			return -1;
-		}
-
-		if (snl.nl_family != AF_NETLINK) {
-			log_message(LOG_INFO, "Netlink: Wrong address family %d",
-			       snl.nl_family);
-			close(nl->fd);
-			return -1;
-		}
-
-		/* Save the port id for checking message source later */
-		nl->nl_pid = snl.nl_pid;
+		group = va_arg(gp,int);
 	}
-#endif
+	va_end(gp);
+
+	addr_len = sizeof (snl);
+	ret = getsockname(nl->fd, (struct sockaddr *) &snl, &addr_len);
+	if (ret < 0 || addr_len != sizeof (snl)) {
+		log_message(LOG_INFO, "Netlink: Cannot getsockname : (%s)",
+		       strerror(errno));
+		close(nl->fd);
+		return -1;
+	}
+
+	if (snl.nl_family != AF_NETLINK) {
+		log_message(LOG_INFO, "Netlink: Wrong address family %d",
+		       snl.nl_family);
+		close(nl->fd);
+		return -1;
+	}
+
+	/* Save the port id for checking message source later */
+	nl->nl_pid = snl.nl_pid;
+
 
 #ifdef _INCLUDE_UNUSED_CODE_
 	/* There appears to be a kernel bug that manifests itself when we have a large number
@@ -752,9 +643,7 @@ netlink_socket(nl_handle_t *nl, unsigned rcvbuf_size, bool force, int flags, int
 	if (nl->fd < 0)
 		return -1;
 
-	ret = netlink_set_rx_buf_size(nl, rcvbuf_size, force);
-
-	return ret;
+	return netlink_set_rx_buf_size(nl, rcvbuf_size, force);
 }
 
 /* Close a netlink socket */
@@ -771,26 +660,9 @@ netlink_close(nl_handle_t *nl)
 		nl->thread = NULL;
 	}
 
-#ifdef _HAVE_LIBNL3_
-#ifdef _LIBNL_DYNAMIC_
-	if (use_nl)
-#endif
-	{
-		if (nl->sk) {
-			nl_socket_free(nl->sk);
-			nl->sk = NULL;
-		}
-	}
-#endif
-#if !defined _HAVE_LIBNL3_ || defined _LIBNL_DYNAMIC_
-#if defined _HAVE_LIBNL3_ && defined _LIBNL_DYNAMIC_
-	else
-#endif
-	{
-		if (nl->fd != -1)
-			close(nl->fd);
-	}
-#endif
+	if (nl->fd != -1)
+		close(nl->fd);
+
 	nl->fd = -1;
 }
 
@@ -1725,6 +1597,7 @@ netlink_if_get_ll_addr(interface_t *ifp, struct rtattr *tb[],
 	return true;
 }
 
+#ifdef _HAVE_IPV4_DEVCONF_
 static void
 parse_af_spec(struct rtattr* attr, interface_t *ifp)
 {
@@ -1743,11 +1616,14 @@ parse_af_spec(struct rtattr* attr, interface_t *ifp)
 #ifdef _HAVE_VRRP_VMAC_
 			ifp->arp_ignore = inet_devconf[IPV4_DEVCONF_ARP_IGNORE - 1];
 			ifp->arp_filter = inet_devconf[IPV4_DEVCONF_ARPFILTER - 1];
+			if (ifp->rp_filter == UINT_MAX)
+				ifp->rp_filter = inet_devconf[IPV4_DEVCONF_RP_FILTER - 1];
 #endif
 			ifp->promote_secondaries = inet_devconf[IPV4_DEVCONF_PROMOTE_SECONDARIES - 1];
 		}
 	}
 }
+#endif
 
 static bool
 netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg *ifi)
@@ -1790,8 +1666,10 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 		}
 	}
 
+#ifdef _HAVE_IPV4_DEVCONF_
 	if (tb[IFLA_AF_SPEC])
 		parse_af_spec(tb[IFLA_AF_SPEC], ifp);
+#endif
 
 	/* Check there hasn't been an unsupported interface type change */
 	if (!global_data->allow_if_changes && ifp->seen_interface) {
@@ -2068,8 +1946,11 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 					update_vmac_vrfs(ifp);
 				}
 #endif
+
+#ifdef _HAVE_IPV4_DEVCONF_
 				if (tb[IFLA_AF_SPEC])
 					parse_af_spec(tb[IFLA_AF_SPEC], ifp);
+#endif
 
 				/* Ignore interface if we are using linkbeat on it */
 				if (ifp->linkbeat_use_polling)

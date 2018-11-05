@@ -71,9 +71,6 @@
 #include "parser.h"
 #include "utils.h"
 #include "vrrp_notify.h"
-#ifdef _LIBNL_DYNAMIC_
-#include "libnl_link.h"
-#endif
 #include "vrrp_track.h"
 #ifdef _WITH_JSON_
 #include "vrrp_json.h"
@@ -993,10 +990,6 @@ start_vrrp_child(void)
 #ifndef _DEBUG_
 	/* Signal handling initialization */
 	vrrp_signal_init();
-#endif
-
-#ifdef _LIBNL_DYNAMIC_
-	libnl_init();
 #endif
 
 	/* Start VRRP daemon */
