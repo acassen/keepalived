@@ -45,6 +45,7 @@
 #include "timer.h"
 #include "rbtree.h"
 #include "list_head.h"
+#include "scheduler.h"
 
 /* Global var */
 size_t mem_allocated;			/* Total memory used in Bytes */
@@ -65,7 +66,7 @@ xalloc(unsigned long size)
 			perror("Keepalived");
 		else
 			log_message(LOG_INFO, "Keepalived xalloc() error - %s", strerror(errno));
-		exit(EXIT_FAILURE);
+		exit(KEEPALIVED_EXIT_NO_MEMORY);
 	}
 
 #ifdef _MEM_CHECK_
