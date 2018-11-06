@@ -116,7 +116,8 @@ AH_BOTTOM(
 AC_CONFIG_FILES([Makefile keepalived/Makefile lib/Makefile keepalived/core/Makefile keepalived.spec \
 		 genhash/Makefile keepalived/check/Makefile keepalived/vrrp/Makefile \
 		 keepalived/bfd/Makefile doc/Makefile bin_install/Makefile keepalived/dbus/Makefile \
-		 keepalived/etc/Makefile keepalived/etc/init/Makefile keepalived/etc/init.d/Makefile])
+		 keepalived/etc/Makefile keepalived/etc/init/Makefile keepalived/etc/init.d/Makefile \
+		 doc/man/man8/Makefile])
 
 
 MAINTAINERCLEANFILES="*~ *.orig *.rej core core.*"
@@ -236,7 +237,7 @@ AC_ARG_ENABLE(vrrp-fd-debug,
 AC_ARG_WITH(fixed-if-type,
   [  --with-fixed-if-type=TYPE  treat interface type TYPE as unchangeable])
 AC_ARG_WITH(default-config-file,
-  AS_HELP_STRING([--with-config-file=FILE], [Default configuration file]),
+  AS_HELP_STRING([--with-default-config-file=FILE], [Default configuration file]),
   [default_config_file="$withval"], [default_config_file=""])
 AC_ARG_ENABLE(profile,
   [AS_HELP_STRING([--enable-profile], [compile with profiling flags])])
@@ -1954,13 +1955,17 @@ else
 fi
 
 dnl ----[Default keepalived configuration file]----
-CONFIG_FILE=
 AS_IF([test $default_config_file],
   [
-    AC_DEFINE_UNQUOTED([DEFAULT_CONFIG_FILE], ["$default_config_file"], [The default configuration file])
+    AS_IF([test $default_config_file = yes -o $default_config_file = no],
+          AC_MSG_ERROR([A filename must be specified for default-config-file])
+      ])
     CONFIG_FILE=$default_config_file
     add_config_opt([DEFAULT_CONFIG_FILE=${default_config_file}])
-  ])
+  ],
+  [default_config_file="/etc/$PACKAGE/$PACKAGE.conf"])
+AC_DEFINE_UNQUOTED([DEFAULT_CONFIG_FILE], ["$default_config_file"], [The default configuration file])
+AC_SUBST([DEFAULT_CONFIG_FILE], [$default_config_file])
 
 if test -z $INIT_TYPE; then
   INIT_TYPE=undetected
