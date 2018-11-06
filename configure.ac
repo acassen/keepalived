@@ -235,6 +235,9 @@ AC_ARG_ENABLE(vrrp-fd-debug,
   [  --enable-vrrp-fd-debug  compile with vrrp fd debugging support])
 AC_ARG_ENABLE(fixed-if-type,
   [  --enable-fixed-if-type=TYPE  treat interface type TYPE as unchangeable])
+AC_ARG_WITH(default-config-file,
+  AS_HELP_STRING([--with-config-file=FILE], [Default configuration file]),
+  [default_config_file="$withval"], [default_config_file=""])
 AC_ARG_ENABLE(profile,
   [AS_HELP_STRING([--enable-profile], [compile with profiling flags])])
 AC_ARG_ENABLE(conversion-checks,
@@ -618,7 +621,7 @@ dnl - inotify_init1() since Linux 2.6.27
 AC_CHECK_FUNCS([inotify_init1], [add_system_opt([INOTIFY_INIT1])])
 dnl - vsyslog() Not defined by Posix, but available in glibc and musl
 AC_CHECK_FUNCS([vsyslog], [add_system_opt([VSYSLOG])])
-dnl - epoll_create1() since Linux  2.6.27 and glibc 2.9
+dnl - epoll_create1() since Linux 2.6.27 and glibc 2.9
 AC_CHECK_FUNCS([epoll_create1], [add_system_opt([EPOLL_CREATE1])])
 
 # glibc uses unsigned int as 3rd parameter to __assert_fail(), musl uses int.
@@ -1198,10 +1201,10 @@ if test "$enable_lvs" != no; then
   add_config_opt([LVS])
   AC_DEFINE([_WITH_LVS_], [ 1 ], [Define to 1 if have IPVS support])
 
-  dnl -- <linux/ip_vs.h> exists from 2.6.27; prior to that <net/ip_vs.h> is used
+  dnl -- <linux/ip_vs.h> exists from Linux 2.6.27; prior to that <net/ip_vs.h> is used
   AC_CHECK_HEADERS([linux/ip_vs.h],
     [
-      dnl -- From 2.6.35 (but CentOS has it in 2.6.32)
+      dnl -- From Linux 2.6.35 (but CentOS has it in 2.6.32)
       AC_CHECK_DECLS([IP_VS_SVC_F_ONEPACKET], [], [],
 	[[#include <linux/ip_vs.h>]])
     ])
@@ -1218,6 +1221,7 @@ if test "$enable_lvs" != no; then
   dnl -- Since Linux 3.18
   AC_CHECK_DECLS([IPVS_DEST_ATTR_ADDR_FAMILY], [add_system_opt([IPVS_DEST_ATTR_ADDR_FAMILY])], [], [#include <linux/ip_vs.h>])
 
+  dnl -- Since Linux ?.?.?
   IPVS_SYNCD_ATTRIBUTES=Yes
   AC_CHECK_DECLS([
     IPVS_DAEMON_ATTR_SYNC_MAXLEN,
@@ -1710,6 +1714,7 @@ AM_CONDITIONAL([WITH_NAMESPACES], [test $ac_cv_have_decl_CLONE_NEWNET = yes])
 dnl ----[ check for realtime scheduling support ]----
 SAV_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -D_GNU_SOURCE"
+dnl -- from Linux ?.?.?
 AC_CHECK_DECLS([SCHED_RR], 
   [
     SCHED_RT_SUPPORT=Yes
@@ -1948,6 +1953,15 @@ else
   INIT_TYPE=$init_type
 fi
 
+dnl ----[Default keepalived configuration file]----
+CONFIG_FILE=
+AS_IF([test $default_config_file],
+  [
+    AC_DEFINE_UNQUOTED([DEFAULT_CONFIG_FILE], ["$default_config_file"], [The default configuration file])
+    CONFIG_FILE=$default_config_file
+    add_config_opt([DEFAULT_CONFIG_FILE=${default_config_file}])
+  ])
+
 if test -z $INIT_TYPE; then
   INIT_TYPE=undetected
 elif test $INIT_TYPE = systemd; then
@@ -2067,6 +2081,9 @@ if test ${ENABLE_SMTP_ALERT_DEBUG} = Yes; then
 fi
 if test -n "${ENABLE_FIXED_IF_TYPE}"; then
   echo "Fixed interface type     : ${ENABLE_FIXED_IF_TYPE}"
+fi
+if test "${CONFIG_FILE}"; then
+  echo "Default config file      : ${CONFIG_FILE}"
 fi
 
 dnl ----[ end configure ]---
