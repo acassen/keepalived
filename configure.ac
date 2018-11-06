@@ -233,8 +233,8 @@ AC_ARG_ENABLE(tsm-debug,
   [  --enable-tsm-debug      compile with TSM debugging support])
 AC_ARG_ENABLE(vrrp-fd-debug,
   [  --enable-vrrp-fd-debug  compile with vrrp fd debugging support])
-AC_ARG_ENABLE(fixed-if-type,
-  [  --enable-fixed-if-type=TYPE  treat interface type TYPE as unchangeable])
+AC_ARG_WITH(fixed-if-type,
+  [  --with-fixed-if-type=TYPE  treat interface type TYPE as unchangeable])
 AC_ARG_WITH(default-config-file,
   AS_HELP_STRING([--with-config-file=FILE], [Default configuration file]),
   [default_config_file="$withval"], [default_config_file=""])
@@ -302,7 +302,7 @@ AS_IF([test .$enable_vrrp = .no],
     AS_IF([test .$enable_libxtables_dynamic = .yes], [AC_MSG_ERROR([enable-libxtables-dynamic requires vrrp])])
     AS_IF([test .$enable_libiptc = .no], [AC_MSG_ERROR([disable-libiptc requires vrrp])])
     AS_IF([test .$enable_libipset = .no], [AC_MSG_ERROR([disable-libipset requires vrrp])])
-    AS_IF([test $enable_fixed_if_type], [AC_MSG_ERROR([enable-fixed-if-type requires vrrp])])
+    AS_IF([test $with_fixed_if_type], [AC_MSG_ERROR([with-fixed-if-type requires vrrp])])
     AS_IF([test .$enable_vrrp_fd_debug = .yes], [AC_MSG_ERROR([enable-vrrp-fd-debug requires vrrp])])
     AS_IF([test .$enable_tsm_debug = .yes], [AC_MSG_ERROR([enable-tsm-debug requires vrrp])])
     AS_IF([test .$enable_json = .yes], [AC_MSG_ERROR([enable-json requires vrrp])])
@@ -1865,15 +1865,15 @@ else
 fi
 
 dnl ----[ Specify interface type to be unchangeable ]----
-if test "${enable_fixed_if_type}" != no; then
-  if test "${enable_fixed_if_type}" = yes; then
-    AC_MSG_ERROR([An interface type must be specified with --enable-fixed-if-type])
+if test "${with_fixed_if_type}"; then
+  if test "${with_fixed_if_type}" = yes -o ${with_fixed_if_type} = no; then
+    AC_MSG_ERROR([An interface type must be specified with --with-fixed-if-type])
   fi
-  AC_DEFINE_UNQUOTED([_FIXED_IF_TYPE_], [ "${enable_fixed_if_type}" ], [Consider ${enable_fixed_if_type} interfaces to be unchangeable])
-  ENABLE_FIXED_IF_TYPE=${enable_fixed_if_type}
-  add_config_opt([FIXED_IF_TYPE=${enable_fixed_if_type}])
+  AC_DEFINE_UNQUOTED([_FIXED_IF_TYPE_], [ "${with_fixed_if_type}" ], [Consider ${with_fixed_if_type} interfaces to be unchangeable])
+  FIXED_IF_TYPE=${with_fixed_if_type}
+  add_config_opt([FIXED_IF_TYPE=${with_fixed_if_type}])
 else
-  ENABLE_FIXED_IF_TYPE=
+  FIXED_IF_TYPE=
 fi
 
 dnl ----[ Profiling or not ? ]----
@@ -2079,8 +2079,8 @@ fi
 if test ${ENABLE_SMTP_ALERT_DEBUG} = Yes; then
   echo "smtp-alert debugging     : ${ENABLE_SMTP_ALERT_DEBUG}"
 fi
-if test -n "${ENABLE_FIXED_IF_TYPE}"; then
-  echo "Fixed interface type     : ${ENABLE_FIXED_IF_TYPE}"
+if test "${FIXED_IF_TYPE}"; then
+  echo "Fixed interface type     : ${FIXED_IF_TYPE}"
 fi
 if test "${CONFIG_FILE}"; then
   echo "Default config file      : ${CONFIG_FILE}"
