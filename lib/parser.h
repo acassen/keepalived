@@ -32,7 +32,11 @@
 #include "vector.h"
 
 /* Global definitions */
+#ifdef DEFAULT_CONFIG_FILE
 #define KEEPALIVED_CONFIG_FILE	DEFAULT_CONFIG_FILE
+#else
+#define KEEPALIVED_CONFIG_FILE	"/etc/keepalived/keepalived.conf"
+#endif
 
 /* Maximum config line length */
 #define MAXBUF	1024

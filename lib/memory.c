@@ -40,12 +40,12 @@
 #include "utils.h"
 #include "bitops.h"
 #include "logger.h"
+#include "scheduler.h"
 
 #ifdef _MEM_CHECK_
 #include "timer.h"
 #include "rbtree.h"
 #include "list_head.h"
-#include "scheduler.h"
 
 /* Global var */
 size_t mem_allocated;			/* Total memory used in Bytes */
