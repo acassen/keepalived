@@ -1590,6 +1590,7 @@ keepalived_main(int argc, char **argv)
 	bool report_stopped = true;
 	struct utsname uname_buf;
 	char *end;
+	int exit_code = KEEPALIVED_EXIT_OK;
 
 	/* Ensure time_now is set. We then don't have to check anywhere
 	 * else if it is set. */
@@ -1712,6 +1713,7 @@ keepalived_main(int argc, char **argv)
 		if (__test_bit(CONFIG_TEST_BIT, &debug))
 			config_test_exit();
 
+		exit_code = KEEPALIVED_EXIT_NO_CONFIG;
 		goto end;
 	}
 
@@ -1927,5 +1929,5 @@ end:
 #endif
 	close_std_fd();
 
-	exit(KEEPALIVED_EXIT_OK);
+	exit(exit_code);
 }
