@@ -1,28 +1,59 @@
 name: keepalived
-version: 'v2.0+git'
+adopt-info: keepalived
 summary: High availability VRRP and load-balancing for Linux
 description: |
   Keepalived provides simple and robust loadbalancing and high-availability
   to Linux based infrastructures using VRRP and the well-known Linux Virtual
   Server (IPVS) kernel module.
 
-grade: devel
+grade: stable
 confinement: classic
 
 apps:
-  daemon: # until I can get a daemon to show up in /snap/bin/
+  daemon:
     daemon: forking
     command: sbin/keepalived
   keepalived:
     command: sbin/keepalived
+  genhash:
+    command: bin/genhash
 
 parts:
   keepalived:
     plugin: autotools
     source: .
     source-type: git
-    build-packages: [ iptables-dev, libipset-dev, libnl-3-dev,
-      libnl-genl-3-dev, libnfnetlink-dev,
-      libsnmp-dev ]
-    configflags: [ '--enable-snmp', '--enable-snmp-rfc']
-    stage-packages: [ libsnmp30, libipset3 ]
+    configflags:
+      - --enable-bfd
+      - --enable-dbus
+      - --enable-json
+      - --enable-regex
+      - --enable-snmp
+      - --enable-snmp-rfc
+      - --disable-libipset-dynamic
+    override-build: |
+      snapcraftctl build
+      VER=$(grep GIT_COMMIT lib/git-commit.h | cut -d'"' -f2)
+      snapcraftctl set-version $VER
+    build-packages:
+      - iptables-dev
+      - libipset-dev
+      - libjson-c-dev
+      - libglib2.0-dev
+      - libmagic-dev
+      - libnl-3-dev
+      - libnl-genl-3-dev
+      - libnfnetlink-dev
+      - libpcre2-dev
+      - libsnmp-dev
+      - libssl-dev
+    stage-packages:
+      - libnfnetlink0
+      - libipset3
+      - libjson-c2
+      - libglib2.0-0
+      - libmagic1
+      - libnl-3-200
+      - libnl-genl-3-200
+      - libpcre2-8-0
+      - libsnmp30
