@@ -18,7 +18,7 @@ if [[ $CMD = add ]]; then
 	for n in high medium low; do
 		for v in "" 6; do
 			for d in IN OUT; do
-				ip netns exec $n ip${v}tables -N TEST%d
+				ip netns exec $n ip${v}tables -N TEST$d
 			done
 		done
 	done
