@@ -116,7 +116,8 @@ AH_BOTTOM(
 AC_CONFIG_FILES([Makefile keepalived/Makefile lib/Makefile keepalived/core/Makefile keepalived.spec \
 		 genhash/Makefile keepalived/check/Makefile keepalived/vrrp/Makefile \
 		 keepalived/bfd/Makefile doc/Makefile bin_install/Makefile keepalived/dbus/Makefile \
-		 keepalived/etc/Makefile keepalived/etc/init/Makefile keepalived/etc/init.d/Makefile])
+		 keepalived/etc/Makefile keepalived/etc/init/Makefile keepalived/etc/init.d/Makefile \
+		 doc/man/man8/Makefile])
 
 
 MAINTAINERCLEANFILES="*~ *.orig *.rej core core.*"
@@ -233,8 +234,11 @@ AC_ARG_ENABLE(tsm-debug,
   [  --enable-tsm-debug      compile with TSM debugging support])
 AC_ARG_ENABLE(vrrp-fd-debug,
   [  --enable-vrrp-fd-debug  compile with vrrp fd debugging support])
-AC_ARG_ENABLE(fixed-if-type,
-  [  --enable-fixed-if-type=TYPE  treat interface type TYPE as unchangeable])
+AC_ARG_WITH(fixed-if-type,
+  [  --with-fixed-if-type=TYPE  treat interface type TYPE as unchangeable])
+AC_ARG_WITH(default-config-file,
+  AS_HELP_STRING([--with-default-config-file=FILE], [Default configuration file]),
+  [default_config_file="$withval"], [default_config_file=""])
 AC_ARG_ENABLE(profile,
   [AS_HELP_STRING([--enable-profile], [compile with profiling flags])])
 AC_ARG_ENABLE(conversion-checks,
@@ -301,7 +305,7 @@ AS_IF([test .$enable_vrrp = .no],
     AS_IF([test .$enable_libxtables_dynamic = .yes], [AC_MSG_ERROR([enable-libxtables-dynamic requires vrrp])])
     AS_IF([test .$enable_libiptc = .no], [AC_MSG_ERROR([disable-libiptc requires vrrp])])
     AS_IF([test .$enable_libipset = .no], [AC_MSG_ERROR([disable-libipset requires vrrp])])
-    AS_IF([test $enable_fixed_if_type], [AC_MSG_ERROR([enable-fixed-if-type requires vrrp])])
+    AS_IF([test $with_fixed_if_type], [AC_MSG_ERROR([with-fixed-if-type requires vrrp])])
     AS_IF([test .$enable_vrrp_fd_debug = .yes], [AC_MSG_ERROR([enable-vrrp-fd-debug requires vrrp])])
     AS_IF([test .$enable_tsm_debug = .yes], [AC_MSG_ERROR([enable-tsm-debug requires vrrp])])
     AS_IF([test .$enable_json = .yes], [AC_MSG_ERROR([enable-json requires vrrp])])
@@ -620,7 +624,7 @@ dnl - inotify_init1() since Linux 2.6.27
 AC_CHECK_FUNCS([inotify_init1], [add_system_opt([INOTIFY_INIT1])])
 dnl - vsyslog() Not defined by Posix, but available in glibc and musl
 AC_CHECK_FUNCS([vsyslog], [add_system_opt([VSYSLOG])])
-dnl - epoll_create1() since Linux  2.6.27 and glibc 2.9
+dnl - epoll_create1() since Linux 2.6.27 and glibc 2.9
 AC_CHECK_FUNCS([epoll_create1], [add_system_opt([EPOLL_CREATE1])])
 
 # glibc uses unsigned int as 3rd parameter to __assert_fail(), musl uses int.
@@ -1239,10 +1243,10 @@ if test "$enable_lvs" != no; then
   add_config_opt([LVS])
   AC_DEFINE([_WITH_LVS_], [ 1 ], [Define to 1 if have IPVS support])
 
-  dnl -- <linux/ip_vs.h> exists from 2.6.27; prior to that <net/ip_vs.h> is used
+  dnl -- <linux/ip_vs.h> exists from Linux 2.6.27; prior to that <net/ip_vs.h> is used
   AC_CHECK_HEADERS([linux/ip_vs.h],
     [
-      dnl -- From 2.6.35 (but CentOS has it in 2.6.32)
+      dnl -- From Linux 2.6.35 (but CentOS has it in 2.6.32)
       AC_CHECK_DECLS([IP_VS_SVC_F_ONEPACKET], [], [],
 	[[#include <linux/ip_vs.h>]])
     ])
@@ -1259,6 +1263,7 @@ if test "$enable_lvs" != no; then
   dnl -- Since Linux 3.18
   AC_CHECK_DECLS([IPVS_DEST_ATTR_ADDR_FAMILY], [add_system_opt([IPVS_DEST_ATTR_ADDR_FAMILY])], [], [#include <linux/ip_vs.h>])
 
+  dnl -- Since Linux ?.?.?
   IPVS_SYNCD_ATTRIBUTES=Yes
   AC_CHECK_DECLS([
     IPVS_DAEMON_ATTR_SYNC_MAXLEN,
@@ -1751,6 +1756,7 @@ AM_CONDITIONAL([WITH_NAMESPACES], [test $ac_cv_have_decl_CLONE_NEWNET = yes])
 dnl ----[ check for realtime scheduling support ]----
 SAV_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -D_GNU_SOURCE"
+dnl -- from Linux ?.?.?
 AC_CHECK_DECLS([SCHED_RR], 
   [
     SCHED_RT_SUPPORT=Yes
@@ -1901,15 +1907,15 @@ else
 fi
 
 dnl ----[ Specify interface type to be unchangeable ]----
-if test "${enable_fixed_if_type}" != no; then
-  if test "${enable_fixed_if_type}" = yes; then
-    AC_MSG_ERROR([An interface type must be specified with --enable-fixed-if-type])
+if test "${with_fixed_if_type}"; then
+  if test "${with_fixed_if_type}" = yes -o ${with_fixed_if_type} = no; then
+    AC_MSG_ERROR([An interface type must be specified with --with-fixed-if-type])
   fi
-  AC_DEFINE_UNQUOTED([_FIXED_IF_TYPE_], [ "${enable_fixed_if_type}" ], [Consider ${enable_fixed_if_type} interfaces to be unchangeable])
-  ENABLE_FIXED_IF_TYPE=${enable_fixed_if_type}
-  add_config_opt([FIXED_IF_TYPE=${enable_fixed_if_type}])
+  AC_DEFINE_UNQUOTED([_FIXED_IF_TYPE_], [ "${with_fixed_if_type}" ], [Consider ${with_fixed_if_type} interfaces to be unchangeable])
+  FIXED_IF_TYPE=${with_fixed_if_type}
+  add_config_opt([FIXED_IF_TYPE=${with_fixed_if_type}])
 else
-  ENABLE_FIXED_IF_TYPE=
+  FIXED_IF_TYPE=
 fi
 
 dnl ----[ Profiling or not ? ]----
@@ -1988,6 +1994,19 @@ if test -z $init_type; then
 else
   INIT_TYPE=$init_type
 fi
+
+dnl ----[Default keepalived configuration file]----
+AS_IF([test $default_config_file],
+  [
+    AS_IF([test $default_config_file = yes -o $default_config_file = no],
+          AC_MSG_ERROR([A filename must be specified for default-config-file])
+      ])
+    CONFIG_FILE=$default_config_file
+    add_config_opt([DEFAULT_CONFIG_FILE=${default_config_file}])
+  ],
+  [default_config_file="/etc/$PACKAGE/$PACKAGE.conf"])
+AC_DEFINE_UNQUOTED([DEFAULT_CONFIG_FILE], ["$default_config_file"], [The default configuration file])
+AC_SUBST([DEFAULT_CONFIG_FILE], [$default_config_file])
 
 if test -z $INIT_TYPE; then
   INIT_TYPE=undetected
@@ -2106,8 +2125,11 @@ fi
 if test ${ENABLE_SMTP_ALERT_DEBUG} = Yes; then
   echo "smtp-alert debugging     : ${ENABLE_SMTP_ALERT_DEBUG}"
 fi
-if test -n "${ENABLE_FIXED_IF_TYPE}"; then
-  echo "Fixed interface type     : ${ENABLE_FIXED_IF_TYPE}"
+if test "${FIXED_IF_TYPE}"; then
+  echo "Fixed interface type     : ${FIXED_IF_TYPE}"
+fi
+if test "${CONFIG_FILE}"; then
+  echo "Default config file      : ${CONFIG_FILE}"
 fi
 
 dnl ----[ end configure ]---

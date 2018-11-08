@@ -40,6 +40,7 @@
 #include "utils.h"
 #include "bitops.h"
 #include "logger.h"
+#include "scheduler.h"
 
 #ifdef _MEM_CHECK_
 #include "timer.h"
@@ -65,7 +66,7 @@ xalloc(unsigned long size)
 			perror("Keepalived");
 		else
 			log_message(LOG_INFO, "Keepalived xalloc() error - %s", strerror(errno));
-		exit(EXIT_FAILURE);
+		exit(KEEPALIVED_EXIT_NO_MEMORY);
 	}
 
 #ifdef _MEM_CHECK_

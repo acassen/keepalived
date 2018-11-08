@@ -1,18 +1,27 @@
 git:
-  depth: 1
+  depth: 5
 
 language: c
 compiler: gcc
 os: linux
-dist: trusty
-sudo: require
+dist: xenial
 
 addons:
   apt:
+    packages:
+    - libsnmp-dev
+    - iptables-dev
+    - libipset-dev
+    - libnfnetlink-dev
+    - libnl-3-dev
+    - libnl-genl-3-dev
+    - libnl-route-3-dev
+    - libssl-dev
+    - libmagic-dev
+    - libglib2.0-dev
+    - libjson-c-dev
+    - libpcre2-dev
     update: true
-
-before_install:
-  - sudo apt-get -y install libsnmp-dev iptables-dev libipset-dev libnfnetlink-dev libnl-3-dev libnl-genl-3-dev libnl-route-3-dev libssl-dev libmagic-dev libglib2.0-dev libjson-c-dev
 
 install:
   - autoreconf -W portability -visf
@@ -32,5 +41,5 @@ env:
     - KEEPALIVED_CONFIG_ARGS="--disable-libiptc --disable-libipset --disable-libnl --enable-snmp-checker"
     - KEEPALIVED_CONFIG_ARGS="--enable-conversion-checks --enable-stacktrace --enable-mem-check --enable-mem-check-log --disable-lvs-64bit-stats --enable-snmp-rfcv2"
     - KEEPALIVED_CONFIG_ARGS="--disable-lvs --enable-snmp-vrrp --enable-snmp-rfc --enable-json --enable-sha1 --enable-dbus --disable-routes --enable-bfd"
-    - KEEPALIVED_CONFIG_ARGS="--disable-vrrp --enable-snmp-checker --enable-sha1"
+    - KEEPALIVED_CONFIG_ARGS="--disable-vrrp --enable-snmp-checker --enable-sha1 --enable-regex"
     - KEEPALIVED_CONFIG_ARGS="--disable-hardening --enable-dump-threads --enable-epoll-debug --enable-snmp-rfcv3"

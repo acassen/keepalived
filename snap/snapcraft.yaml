@@ -1,28 +1,235 @@
 name: keepalived
-version: 'v2.0+git'
+adopt-info: keepalived
 summary: High availability VRRP and load-balancing for Linux
 description: |
   Keepalived provides simple and robust loadbalancing and high-availability
   to Linux based infrastructures using VRRP and the well-known Linux Virtual
   Server (IPVS) kernel module.
 
-grade: devel
+grade: stable
 confinement: classic
 
 apps:
-  daemon: # until I can get a daemon to show up in /snap/bin/
+  daemon:
     daemon: forking
-    command: sbin/keepalived
+    command: bin/keepalived-wrapper
   keepalived:
-    command: sbin/keepalived
+    command: bin/keepalived-wrapper
+  "418":
+    command: usr/sbin/keepalived-418
+  "415":
+    command: usr/sbin/keepalived-415
+  "404":
+    command: usr/sbin/keepalived-404
+  "313":
+    command: usr/sbin/keepalived-313
+  "310":
+    command: usr/sbin/keepalived-310
+  genhash:
+    command: usr/bin/genhash
 
 parts:
   keepalived:
     plugin: autotools
     source: .
     source-type: git
-    build-packages: [ iptables-dev, libipset-dev, libnl-3-dev,
-      libnl-genl-3-dev, libnfnetlink-dev,
-      libsnmp-dev ]
-    configflags: [ '--enable-snmp', '--enable-snmp-rfc']
-    stage-packages: [ libsnmp30, libipset3 ]
+    configflags:
+      - --prefix=/usr
+      - --enable-bfd
+      - --enable-dbus
+      - --enable-json
+      - --enable-regex
+      - --enable-snmp
+      - --enable-snmp-rfc
+      - --disable-libipset-dynamic
+    override-build: |
+      snapcraftctl build
+      VER=$(grep GIT_COMMIT lib/git-commit.h | cut -d'"' -f2)
+      snapcraftctl set-version $VER
+    build-packages:
+      - iptables-dev
+      - libipset-dev
+      - libjson-c-dev
+      - libglib2.0-dev
+      - libmagic-dev
+      - libnl-3-dev
+      - libnl-genl-3-dev
+      - libnfnetlink-dev
+      - libpcre2-dev
+      - libsnmp-dev
+      - libssl-dev
+    stage-packages:
+      - libnfnetlink0
+      - libipset3
+      - libjson-c2
+      - libglib2.0-0
+      - libmagic1
+      - libnl-3-200
+      - libnl-genl-3-200
+      - libpcre2-8-0
+      - libsnmp30
+    organize:
+      'usr/sbin/keepalived': usr/sbin/keepalived-404
+
+  linux-headers-418:
+    plugin: dump
+    source: http://security.ubuntu.com/ubuntu/pool/main/l/linux/linux-libc-dev_4.18.0-10.11_amd64.deb
+    after:
+      - keepalived
+    override-build: |
+      snapcraftctl build
+      # Move the headers on the host out of the way
+      rm -rf /usr/include/linux || true
+      # Move header from the part to the host
+      mv usr/include/linux /usr/include/  || true
+    stage:
+      - -*
+    prime:
+      - -*
+
+  keepalived-418:
+    plugin: autotools
+    source: .
+    source-type: git
+    after:
+      - keepalived
+      - linux-headers-418
+    configflags:
+      - --prefix=/usr
+      - --enable-bfd
+      - --enable-dbus
+      - --enable-json
+      - --enable-regex
+      - --enable-snmp
+      - --enable-snmp-rfc
+      - --disable-libipset-dynamic
+    organize:
+      'usr/sbin/keepalived': usr/sbin/keepalived-418
+    stage:
+      - usr/sbin/keepalived-418
+    prime:
+      - usr/sbin/keepalived-418
+
+  linux-headers-415:
+    plugin: dump
+    source: http://launchpadlibrarian.net/394599433/linux-libc-dev_4.15.0-39.42_amd64.deb
+    after:
+      - keepalived-418
+    override-build: |
+      snapcraftctl build
+      # Move the headers on the host out of the way
+      rm -rf /usr/include/linux || true
+      # Move header from the part to the host
+      mv usr/include/linux /usr/include/  || true
+    stage:
+      - -*
+    prime:
+      - -*
+
+  keepalived-415:
+    plugin: autotools
+    source: .
+    source-type: git
+    after:
+      - keepalived-418
+      - linux-headers-415
+    configflags:
+      - --prefix=/usr
+      - --enable-bfd
+      - --enable-dbus
+      - --enable-json
+      - --enable-regex
+      - --enable-snmp
+      - --enable-snmp-rfc
+      - --disable-libipset-dynamic
+    organize:
+      'usr/sbin/keepalived': usr/sbin/keepalived-415
+    stage:
+      - usr/sbin/keepalived-415
+    prime:
+      - usr/sbin/keepalived-415
+
+
+  linux-headers-313:
+    plugin: dump
+    source: http://security.ubuntu.com/ubuntu/pool/main/l/linux/linux-libc-dev_3.13.0-161.211_amd64.deb
+    after:
+      - keepalived-415
+    override-build: |
+      snapcraftctl build
+      # Move the headers on the host out of the way
+      rm -rf /usr/include/linux || true
+      # Move header from the part to the host
+      mv usr/include/linux /usr/include/  || true
+    stage:
+      - -*
+    prime:
+      - -*
+
+  keepalived-313:
+    plugin: autotools
+    source: .
+    source-type: git
+    after:
+      - keepalived-415
+      - linux-headers-313
+    configflags:
+      - --prefix=/usr
+      - --enable-bfd
+      - --enable-dbus
+      - --enable-json
+      - --enable-regex
+      - --enable-snmp
+      - --enable-snmp-rfc
+      - --disable-libipset-dynamic
+    organize:
+      'usr/sbin/keepalived': usr/sbin/keepalived-313
+    stage:
+      - usr/sbin/keepalived-313
+    prime:
+      - usr/sbin/keepalived-313
+
+  linux-headers-310:
+    plugin: dump
+    source: http://launchpadlibrarian.net/144719237/linux-libc-dev_3.10.0-2.11_amd64.deb
+    after:
+      - keepalived-313
+    override-build: |
+      snapcraftctl build
+      # Move the headers on the host out of the way
+      rm -rf /usr/include/linux || true
+      # Move header from the part to the host
+      mv usr/include/linux /usr/include/  || true
+    stage:
+      - -*
+    prime:
+      - -*
+
+  keepalived-310:
+    plugin: autotools
+    source: .
+    source-type: git
+    after:
+      - keepalived-313
+      - linux-headers-310
+    configflags:
+      - --prefix=/usr
+      - --enable-bfd
+      - --enable-dbus
+      - --enable-json
+      - --enable-regex
+      - --enable-snmp
+      - --enable-snmp-rfc
+      - --disable-libipset-dynamic
+    organize:
+      'usr/sbin/keepalived': usr/sbin/keepalived-310
+    stage:
+      - usr/sbin/keepalived-310
+    prime:
+      - usr/sbin/keepalived-310
+
+  keepalived-wrapper:
+    plugin: dump
+    source: snap-tools
+    organize:
+      'keepalived-wrapper': bin/
