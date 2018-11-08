@@ -1,11 +1,10 @@
 git:
-  depth: 1
+  depth: 5
 
 language: c
 compiler: gcc
 os: linux
-dist: trusty
-sudo: require
+dist: xenial
 
 addons:
   apt:
