@@ -12,18 +12,35 @@ confinement: classic
 apps:
   daemon:
     daemon: forking
-    command: sbin/keepalived
+    command: usr/sbin/keepalived
   keepalived:
-    command: sbin/keepalived
+    command: usr/sbin/keepalived
   genhash:
-    command: bin/genhash
+    command: usr/bin/genhash
 
 parts:
+  linux-headers:
+    plugin: dump
+    source: http://security.ubuntu.com/ubuntu/pool/main/l/linux/linux-libc-dev_3.13.0-161.211_amd64.deb
+    override-build: |
+      snapcraftctl build
+      # Move the headers on the host out of the way
+      mv /usr/include/linux /opt/linux || true
+      # Move header from the part to the host
+      mv usr/include/linux /usr/include/  || true
+    stage:
+      - -*
+    prime:
+      - -*
+
   keepalived:
     plugin: autotools
     source: .
     source-type: git
+    after:
+      - linux-headers
     configflags:
+      - --prefix=/usr
       - --enable-bfd
       - --enable-dbus
       - --enable-json
