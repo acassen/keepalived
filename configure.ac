@@ -258,6 +258,8 @@ else
   kernelinc=
 fi
 
+CPPFLAGS="$kernelinc $CPPFLAGS"
+
 # Checks for programs.
 AC_PROG_CC
 AC_PROG_MAKE_SET
@@ -913,14 +915,53 @@ for flag in IFA_FLAGS; do
   fi
 done
 
-dnl - Introduced in Linux 2.6.31
-AC_CHECK_DECLS([IP_MULTICAST_ALL], [], [], [[#include <linux/in.h>]])
-for flag in IP_MULTICAST_ALL; do
-  AS_VAR_COPY([decl_var], [ac_cv_have_decl_$flag])
-  if test ${decl_var} = yes; then
-    add_system_opt[${flag}]
-  fi
-done
+dnl - Introduced in Linux 2.6.31, but not until glibc 2.17
+AC_CHECK_DECLS([IP_MULTICAST_ALL],
+  [
+    add_system_opt[IP_MULTICAST_ALL]
+    # Check if definition is in netinet/in.h, since we can't include linux/in.h
+    # due to conflicting definitions
+    AC_LINK_IFELSE(
+      [
+        AC_LANG_SOURCE(
+	[[
+	    #include <netinet/in.h>
+	    int main(int argc, char **argv)
+	    {
+	      int i = IP_MULTICAST_ALL;
+	    }
+	]])
+      ],
+      [],
+      [
+        # No - netinet/in.h doesn't have IP_MULTICAST_ALL
+	# Build a program that will output the value of the kernel's IP_MULTICAST_ALL
+        AC_LINK_IFELSE(
+	  [
+	    AC_LANG_SOURCE(
+	      [[
+	        #include <sys/socket.h>
+	        #include <linux/in.h>
+	        #include <stdio.h>
+	        int main(int argc, char **argv)
+	        {
+	          printf("%d\n", IP_MULTICAST_ALL);
+	        }
+	      ]])
+	  ],
+	  [
+	    # Create local definition of IP_MULTICAST_ALL
+	    IMA=$(./conftest$EXEEXT)
+	    AC_DEFINE_UNQUOTED([IP_MULTICAST_ALL], [ $IMA ], [Defined to value in <linux/in.h> if not in <netinet/in.h>])
+	  ])
+      ]
+    )
+  ],
+  [],
+  [[
+    #include <sys/socket.h>
+    #include <linux/in.h>
+  ]])
 
 dnl -- RedHat backported ENCAP_IP and ENCAP_IP6 without MPLS and ILA
 AC_CHECK_DECLS([LWTUNNEL_ENCAP_MPLS, LWTUNNEL_ENCAP_ILA], [], [],
