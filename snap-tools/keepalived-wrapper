@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+MAJ_VER=$(uname -r | cut -d'.' -f1)
+MIN_VER=$(uname -r | cut -d'.' -f2)
+RUNNING_KERNEL_VER=$(printf "%d%2.2d\n" $MAJ_VER $MIN_VER)
+if [ ${RUNNING_KERNEL_VER} -ge 418 ]; then
+  BINARY="keepalived-418"
+elif [ ${RUNNING_KERNEL_VER} -ge 415 ]; then
+  BINARY="keepalived-415"
+elif [ ${RUNNING_KERNEL_VER} -ge 404 ]; then
+  BINARY="keepalived-404"
+elif [ ${RUNNING_KERNEL_VER} -ge 313 ]; then
+  BINARY="keepalived-313"
+elif [ ${RUNNING_KERNEL_VER} -ge 305 ]; then
+  BINARY="keepalived-310"
+else
+  echo "ERROR! You are running kernel ${RUNNING_KERNEL_VER},"
+  echo "       which is not currently supported by the keepalived snap."
+  echo "If you need support for kernel ${RUNNING_KERNEL_VER} please file"
+  echo "an issue: https://github.com/acassen/keepalived/issues"
+exit 1
+fi
+
+exec ${SNAP}/usr/sbin/${BINARY} "$@"
