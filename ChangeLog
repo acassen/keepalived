@@ -1,3 +1,188 @@
+2018-11-08 Alexandre Cassen <acassen@gmail.com>
+	* keepalived-2.0.9
+	* Fix updating a timer thread's timeout.
+	  Issue #1042 identified that the BFD process could segfault. This
+	  was tracked down to a timer thread which had already expired having
+	  its timeout updated by timer_thread_update_timeout().
+	  The sands timer should only be updated if the thread is on a waiting
+	  queue, and not if it has already timed out or it is unused.
+	* Don't requeue read thread if it is not waiting.
+	  This update matches commit 09a2a37 - Fix updating a timer thread's
+	  timeout should.
+	* Allow BFD instance to recover after send error.
+	  If sendto failed in bfd_send_packet(), the bfd instance was put into
+	  admin down state, but there was no means for the bfd instance to
+	  transition out of admin down state.
+	  This commit makes keepalived log the first instance of a sequence of
+	  failures to send a bfd packet, but does not bring the bfd instance down
+	  in case the error is a transient error. If the error is longer lasting,
+	  the remote system will timeout, transition to down state, and send a message
+	  saying it is down.
+	  Once the bfd instance can start sending again the bfd instance can now
+	  transition again to up state.
+	* Make DGB definition use log_message() rather than syslog().
+	* Fix building with --enable-debug configure option.
+	* Start list of required kernel features in INSTALL file.
+	  Issue #1024 asked what kernel features are needed to support keepalived.
+	  The simple answer was that it isn't recorded anywhere, so this is a
+	  start of making a list of the features required.
+	* Make list_remove() call list free function and add list_transfer().
+	  If an element is being removed from a list, the free function should
+	  be called.
+	  list_transfer() allows a list element to be moved from one list to
+	  another without freeing and reallocating the list element control
+	  information.
+	* Add mem_check diagnostics re calling functions of list functions.
+	  When using mem_check, mallocs and frees were recorded against the
+	  list functions, and the originating functions weren't identified.
+	  This patch adds recording of the functions calling the list
+	  functions so that the originating function is identified.
+	* Simplify the processing of comments in configuration files.
+	  This commit moves the handling (and removal) of comments to a
+	  single function (called from read_line()) which simplifies the
+	  processing of config files.
+	* Add ~SEQ(start, step, end) config functionality
+	  Where a configuration has repeated blocks of configuration where
+	  the only thing that changes is a numeric value (e.g. for VRIDs
+	  from 1 to 255) this allows the block to be defined once, and a
+	  single line using ~SEQ can then generate all the blocks.
+	* Use REALLOC when building a multiline definition.
+	  The code used to use MALLOC, strcpy() and FREE, but REALLOC can do
+	  all this for us.
+	* Improve mem-check diagnostics.
+	  When using an allocation list of over 50,000 entries, it was quite slow
+	  searching thtough all the entries to find the matching memory allocation,
+	  and to find free entries. This commit changes to using malloc() to create
+	  entries, and a red-black tree to hold the entries. It also has a separate
+	  list of free entries.
+	  This commit also adds 4 more types of memory allocation error, and
+	  improves the consistency of the entries in the log files.
+	* Don't attempt to delete VMAC when underlying interface is deleted.
+	  If the underlying interface of one of our vmacs is deleted, and we
+	  know the vmac has been deleted, don't attempt to delete it again.
+	* Include master state in determining if vmacs are up or down
+	  Netlink doesn't send messages for a state change of a macvlan when
+	  the master device changes state, so we have to track that for
+	  ourselves.
+	* Turn off parser debugging.
+	* Make test/mk_if create iptables chains.
+	* Handle interfaces not existing when keepalived terminates.
+	  If the underlying interface of a vmac we created has been deleted,
+	  the vmac will not exist so don't attempt to delete it again. Also,
+	  don't attempt to reset the configuration of the underlying interface.
+	* Handle the underlying interface of a macvlan interface going up/down.
+	  The kernel doesn't send netlink messages for macvlans going up or
+	  down when the underlying interface transitions (it doesn't even
+	  update their status to say they are up/down), but the interfaces
+	  don't work. We need to track the state of the underlying interfaces
+	  and propagate that to the macvlan interfaces.
+	* Fix duplicate value in track_t enum.
+	* Fix check for matching track types.
+	* Treat macvtap interfaces in the same way as macvlan interfaces.
+	* Improve handling of interfaces not existing when keepalived starts.
+	* Fix handling interface deletion and creation of vmacs on macvlan i/fs.
+	* When interface created, open sockets on it if used by VRRP directly
+	  If an interface is created that has vrrp instances configured on it
+	  that don't use VMACs, or use vmac_xmit_base, then the raw sockets
+	  must be opened.
+	* Force seeing a transition to up state when an interface is created.
+	* Fix netlink remnant data error.
+	* Add command line and configuration option to set umask.
+	  Issue #1048 identified that files created by keepalived are created
+	  with mode 0666. This commit changes the default to 0644, and also
+	  allows the umask to be specified in the configuration or as a command
+	  line option.
+	* Fix compile warning introduced in commit c6247a9.
+	  Commit c6247a9 - "Add command line and configuration option to set umask"
+	  introduced a compile warning, although the code would have worked OK.
+	* When opening files for write, ensure they aren't symbolic links.
+	  Issue #1048 identified that if, for example, a non privileged user
+	  created a symbolic link from /etc/keepalvied.data to /etc/passwd,
+	  writing to /etc/keepalived.data (which could be invoked via DBus)
+	  would cause /etc/passwd to be overwritten.
+	  This commit stops keepalived writing to pathnames where the ultimate
+	  component is a symbolic link, by setting O_NOFOLLOW whenever opening
+	  a file for writing.
+	  This might break some setups, where, for example, /etc/keepalived.data
+	  was a symbolic link to /home/fred/keepalived.data. If this was the case,
+	  instead create a symbolic link from /home/fred/keepalived.data to
+	  /tmp/keepalived.data, so that the file is still accessible via
+	  /home/fred/keepalived.data.
+	  There doesn't appear to be a way around this backward incompatibility,
+	  since even checking if the pathname is a symbolic link prior to opening
+	  for writing would create a race condition.
+	* Make netlink error messages more meaningful.
+	* Fix compiling without support for macvlans.
+	* fix uninitialized structure.
+	  The linkinfo and linkattr structures were not initialized,
+	  so we should not expect that unexistant attributes are set
+	  to NULL. Add the missing memset().
+	* fix socket allocation with dynamic interfaces.
+	  When there are several vrrp instance binding different interfaces that
+	  don't exist at startup, their ifindex is set to 0 in the sock. The
+	  function already_exist_sock() that lookup for an existing socket will
+	  always return the first sock because the ifindex is the same.
+	  Later, when an interface appears, the fd will be created for one
+	  instance, and all instances will wrongly use this fd to send the
+	  advertisments.
+	  Fix this by using the interface structure pointer instead of the
+	  ifindex as the key for sock lookup.
+	  The problem was identified by Olivier Matz <olivier.matz@6wind.com>
+	  who also provided a patch fixing the problem. This patch is a slight
+	  rework of Olivier's patch, better using the existing data structures
+	  that keepalived already holds.
+	* When creating a macvlan interface, use AF_UNSPEC rather than AF_INET.
+	* Stop using libnl for configuring interfaces.
+	  Since there is code to configure the interfaces using netlink without
+	  using libnl, there is no point in having code to do it using libnl.
+	* Fix building on Centos 6.5.
+	* Stop including some files not needed after libnl removal for i/fs.
+	* Fix some compilation issues when building without vrrp support.
+	* Stop using linbl for mcast group membership and setting rx buf sizes.
+	  Since there is code to handle multicast group membership and
+	  setting kernel netlink receive buffer sizes without using libnl,
+	  there is no point in having code to do it using libnl.
+	  This now means that the vrrp functionality no longer uses libnl.
+	* Add some sanity checking of configure options.
+	  Certain invalid combinations of configure options could cause compile
+	  errors, e.g. --disable-vrrp --enable-vrrp-fd-debug. This commit ensures
+	  that invalid combinations aren't allowed, in order to stop the compile
+	  errors.
+	* Fix invalid configuration combination caught by previous commit.
+	* Use netlink to set/clear rp_filter on interfaces.
+	* Fix configure for building without vrrp.
+	* Actually update the .travis.yml file to fix the problem.
+	* Fix conditional compilation re epoll-thread-dump debugging.
+	* Update INSTALL file now no longer use libnl-route-3.
+	* Stop cast to incompatible function type warnings from gcc 8.1.
+	* Update snapcraft.yaml not to include libnl-route-3.
+	* keepalived exit with non-zero exit code if config file not readable.
+	* Allow specifying default config file at configure time.
+	* Use keepalived define for exit code when malloc failure.
+	* Fix configuring fixed interface type.
+	* Add configuring keepalived default configuration file.
+	* Fix return value in get_time_rtt() error path.
+	* Update generation of git-commit.h.
+	* snapcraft.yaml: Enable all sensible build options. Preserve build time
+	  version in the snap version. Expose genhash.
+	* snapcraft.yaml: Build keepalived with Linux 3.13 headers.
+	* snap: Add an install hook to make sure a keepalived configuration exists.
+	* snap: Move the hooks to the correct location.
+	* snap: Make sure /etc/keepalived exists.
+	* Fix building with IP_MULTICAST_ALL in linux/in.h but not netinet/in.h
+	  Issue #1054 identified that configure was checking the definition of
+	  IP_MULTICAST_ALL in linux/in.h but including netinet/in.h, which also
+	  has the definition, but only from glibc 2.17.
+	  This commit creates a local definition (in lib/config.h) of IP_MULTICAST_ALL
+	  if it is defined in linux/in.h but not in netinet/in.h. The reason for
+	  this is that compiles using linux/in.h fail due to conflicting definitions.
+	* Fix creating iptables tables in mk_if.
+	* Update .travis.yml to use xenial.
+	* Update .travis.yml to add --enable-regex option.
+	* Tidy up .travis.yml file.
+	* snap: Build multiple keepalived binaries.
+	* Updated snapcraft builds to support multiple kernel versions.
+
 2018-10-21 Alexandre Cassen <acassen@gmail.com>
 	* keepalived-2.0.8
 	* Improve identifing interface as macvlan when reading interface details
