@@ -1855,44 +1855,45 @@ line to be processed multiple times, with the variable \fB$var\fR set initially 
 \fBstart\fR, and then \fB$var\fR will be incremented by \fBstep\fR repeatedly, terminating when
 it is greater than \fBend\fR. \fBstep\fR may be omitted, in which case it defaults to 1 or
 -1, depending on whether \fBend\fR is greater or less than \fBstart\fR. \fBstart\fR may also be
-omitted, in which case it defaults to 1 if \fBend\fR > 0 or -1 if \fBend\fR < 0.
+omitted, in which case it defaults to 1 if \fBend\fR > 0 or -1 if \fBend\fR < 0. so, for example:
+.PP
 .nf
-For example:
-  ~SEQ(SUBNET, 0, 3) ip_address 10.0.$SUBNET.1
-would produce:
-  ip_address 10.0.0.1
-  ip_address 10.0.1.1
-  ip_address 10.0.2.1
-  ip_address 10.0.3.1
-.fi
+    ~SEQ(SUBNET, 0, 3) ip_address 10.0.$SUBNET.1
 
-There can be multiple ~SEQ elements on a line, so
+    would produce:
+        ip_address 10.0.0.1
+        ip_address 10.0.1.1
+        ip_address 10.0.2.1
+        ip_address 10.0.3.1
+.fi
+.PP
+There can be multiple ~SEQ elements on a line, so for example:
+.PP
 .nf
-  $VI4= \e
-  vrrp_track_file offset_instance_4.${IF}.${NUM}.${ID} { \e
-      file "${_PWD}/679/track_files/4.${IF}.${NUM}.${ID}" \e
-      weight -100 \e
-  } \e
-  \e
-  vrrp_instance vrrp4.${IF}.${NUM}.${ID} { \e
-      interface bond${IF}.${NUM} \e
-      use_vmac vrrp4.${IF}.${NUM}.${ID} \e
-      virtual_router_id ${ID} \e
-      priority 130 \e
-      virtual_ipaddress { \e
-          10.${IF}.${NUM}.${ID}/24 \e
-      } \e
-  \e
-      track_file { \e
-          offset_instance_4.${IF}.${NUM}.${ID} \e
-      } \e
-  }
+    $VI4= \e
+    \fBvrrp_track_file \fRoffset_instance_4.${IF}.${NUM}.${ID} { \e
+        \fBfile \fR"${_PWD}/679/track_files/4.${IF}.${NUM}.${ID}" \e
+        \fBweight \fR-100 \e
+    } \e
+    \fBvrrp_instance \fRvrrp4.${IF}.${NUM}.${ID} { \e
+        \fBinterface \fRbond${IF}.${NUM} \e
+        \fBuse_vmac \fRvrrp4.${IF}.${NUM}.${ID} \e
+        \fBvirtual_router_id \fR${ID} \e
+        \fBpriority \fR130 \e
+        \fBvirtual_ipaddress \fR{ \e
+            10.${IF}.${NUM}.${ID}/24 \e
+        } \e
+        \fBtrack_file \fR{ \e
+            offset_instance_4.${IF}.${NUM}.${ID} \e
+        } \e
+    }
 
-  ~SEQ(IF,0,7) ~SEQ(NUM,0,31) ~SEQ(ID,1,254) $VI4
+    \fB~SEQ\fR(IF,0,7) \fB~SEQ\fR(NUM,0,31) \fB~SEQ\fR(ID,1,254) $VI4
+
+    will produce 65024 vrrp instances with names from vrrp4.0.0.1 through to
+    vrrp4.7.31.254.
 .fi
-
-will produce 65024 vrrp instances with names from vrrp4.0.0.1 through to
-vrrp4.7.31.254.
+.PP
 .SH AUTHORS
 .br
 Initial by Joseph Mack. Extensive updates by Alexandre Cassen & Quentin Armitage.
