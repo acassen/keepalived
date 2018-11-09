@@ -186,11 +186,11 @@ set_vrrp_max_fds(void)
 	rlim.rlim_max = rlim.rlim_cur;
 
 	if (setrlimit(RLIMIT_NOFILE, &rlim) == -1) {
-		log_message(LOG_INFO, "Failed to set file number limit to %ld - errno %d (%m)", rlim.rlim_cur, errno);
+		log_message(LOG_INFO, "Failed to set file number limit to %" PRI_rlim_t " - errno %d (%m)", rlim.rlim_cur, errno);
 		return;
 	}
 
-	log_message(LOG_INFO, "Set maximum open files to %ld", rlim.rlim_cur);
+	log_message(LOG_INFO, "Set maximum open files to %" PRI_rlim_t, rlim.rlim_cur);
 
 	/* We don't want child processes to get excessive limits */
 	set_child_rlimit(RLIMIT_NOFILE, &orig_rlim);
