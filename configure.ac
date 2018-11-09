@@ -640,6 +640,43 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   [LINE_type="unsigned int"], [LINE_type="int"])
 AC_DEFINE_UNQUOTED([LINE_type], [ $LINE_type ], [The type of parameter __line passed to __assert_fail()])
 
+dnl Check if libc supports __always_inline
+dnl See glibc sys/cdefs.h definition of __always_inline and comment
+SAV_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -Wattributes -Werror"
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+  #include <stdlib.h>
+  static __always_inline int
+  test_func(int val)
+  {
+    return val;
+  }
+
+  int
+  main(int argc, char **argv)
+  {
+    int val = test_func(3);
+  }
+  ]])],
+  [],
+  [AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+    static __inline __attribute__ ((__always_inline__)) int
+    test_func(int val)
+    {
+      return val;
+    }
+
+    int
+    main(int argc, char **argv)
+    {
+      int val = test_func(3);
+    }
+    ]])],
+    [AC_DEFINE([__always_inline], [__inline __attribute__ ((__always_inline__))], [Define  __always_inline if libc does not define it])],
+    [AC_DEFINE([__always_inline], [inline], [Define __always_inline if libc does not define it])]
+  )])
+CFLAGS="$SAV_CFLAGS"
+
 dnl - Do we want to override dynamic/static linking?
 AS_IF([test "$enable_dynamic_linking"],
   [
