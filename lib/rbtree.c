@@ -25,6 +25,8 @@
  *   with the addition of the defined helper "functions" in rbtree.h
  */
 
+#include "config.h"
+
 #include <stdlib.h>
 #include "rbtree_augmented.h"
 
