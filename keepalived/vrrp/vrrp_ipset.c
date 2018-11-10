@@ -43,11 +43,13 @@
 #endif
 #include <libipset/session.h>
 #include <libipset/types.h>
+#ifndef LIBIPSET_PRE_V7_COMPAT
+#include <libipset/ipset.h>
+#endif
 #include <netinet/in.h>
 #include <linux/types.h>	/* For __beXX types in userland */
 #include <linux/netfilter.h>	/* For nf_inet_addr */
 #include <stdint.h>
-#include <stdio.h>
 
 #include "logger.h"
 #include "global_data.h"
@@ -60,11 +62,18 @@
 #include <dlfcn.h>
 
 /* The addresses of the functions we want */
+#ifdef LIBIPSET_PRE_V7_COMPAT
 struct ipset_session* (*ipset_session_init_addr)(ipset_outfn outfn);
+#else
+struct ipset_session* (*ipset_session_init_addr)(ipset_print_outfn outfn, void *p);
+#endif
 int (*ipset_session_fini_addr)(struct ipset_session *session);
 struct ipset_data* (*ipset_session_data_addr)(const struct ipset_session *session);
-const char* (*ipset_session_error_addr)(const struct ipset_session *session);
+#ifdef LIBIPSET_PRE_V7_COMPAT
 int (*ipset_envopt_parse_addr)(struct ipset_session *session, int env, const char *str);
+#else
+void (*ipset_envopt_set_addr)(struct ipset_session *session, int env);
+#endif
 const struct ipset_type* (*ipset_type_get_addr)(struct ipset_session *session, enum ipset_cmd cmd);
 int (*ipset_data_set_addr)(struct ipset_data *data, enum ipset_opt opt, const void *value);
 int (*ipset_cmd_addr)(struct ipset_session *session, enum ipset_cmd cmd, uint32_t lineno);
@@ -74,8 +83,11 @@ void (*ipset_load_types_addr)(void);
 #define ipset_session_init (*ipset_session_init_addr)
 #define ipset_session_fini (*ipset_session_fini_addr)
 #define ipset_session_data (*ipset_session_data_addr)
-#define ipset_session_error (*ipset_session_error_addr)
+#ifdef LIBIPSET_PRE_V7_COMPAT
 #define ipset_envopt_parse (*ipset_envopt_parse_addr)
+#else
+#define ipset_envopt_set (*ipset_envopt_set_addr)
+#endif
 #define ipset_type_get (*ipset_type_get_addr)
 #define ipset_data_set (*ipset_data_set_addr)
 /* Unfortunately ipset_cmd conflicts with struct ipset_cmd */
@@ -86,6 +98,26 @@ static void* libipset_handle;
 #else
 #define ipset_cmd1 ipset_cmd
 #endif
+
+static int
+#ifdef LIBIPSET_PRE_V7_COMPAT
+ipset_printf(const char *fmt, ...)
+#else
+ipset_printf(__attribute ((__unused__)) struct ipset_session *session, void *p, const char *fmt, ...)
+#endif
+{
+	va_list args;
+
+#ifndef LIBIPSET_PRE_V7_COMPAT
+	log_message(LOG_INFO, "libipset message from %s", (const char *)p);
+#endif
+
+	va_start(args, fmt);
+	vlog_message(LOG_INFO, fmt, args);
+	va_end(args);
+
+	return 0;
+}
 
 static bool
 do_ipset_cmd(struct ipset_session* session, enum ipset_cmd cmd, const char *setname,
@@ -162,7 +194,11 @@ static bool create_sets(const char* addr4, const char* addr6, const char* addr_i
 {
 	struct ipset_session *session;
 
-	session = ipset_session_init(printf);
+#ifdef LIBIPSET_PRE_V7_COMPAT
+	session = ipset_session_init(ipset_printf);
+#else
+	session = ipset_session_init(ipset_printf, "create_sets");
+#endif
 	if (!session) {
 		log_message(LOG_INFO, "Cannot initialize ipset session.");
 		return false;
@@ -171,7 +207,11 @@ static bool create_sets(const char* addr4, const char* addr6, const char* addr_i
 	/* If we aren't reloading, don't worry if sets already exists. With the
 	 * IPSET_ENV_EXIST option set, any existing entries in the set are removed. */
 	if (!reload)
+#ifdef LIBIPSET_PRE_V7_COMPAT
 		ipset_envopt_parse(session, IPSET_ENV_EXIST, NULL);
+#else
+		ipset_envopt_set(session, IPSET_ENV_EXIST);
+#endif
 
 	if (block_ipv4) {
 		if (!reload || !has_ipset_setname(session, addr4))
@@ -220,7 +260,7 @@ bool set_match_loaded(void)
 	return found;
 }
 
-bool ipset_init(void)
+bool ipset_initialise(void)
 {
 #ifdef _LIBIPSET_DYNAMIC_
 	if (libipset_handle)
@@ -252,8 +292,11 @@ bool ipset_init(void)
 	if (!(ipset_session_init_addr = dlsym(libipset_handle, "ipset_session_init")) ||
 	    !(ipset_session_fini_addr = dlsym(libipset_handle, "ipset_session_fini")) ||
 	    !(ipset_session_data_addr = dlsym(libipset_handle,"ipset_session_data")) ||
-	    !(ipset_session_error_addr = dlsym(libipset_handle,"ipset_session_error")) ||
+#ifdef LIBIPSET_PRE_V7_COMPAT
 	    !(ipset_envopt_parse_addr = dlsym(libipset_handle,"ipset_envopt_parse")) ||
+#else
+	    !(ipset_envopt_set_addr = dlsym(libipset_handle,"ipset_envopt_set")) ||
+#endif
 	    !(ipset_type_get_addr = dlsym(libipset_handle,"ipset_type_get")) ||
 	    !(ipset_data_set_addr = dlsym(libipset_handle,"ipset_data_set")) ||
 	    !(ipset_cmd_addr = dlsym(libipset_handle,"ipset_cmd")) ||
@@ -285,7 +328,11 @@ bool remove_ipsets(void)
 		return true;
 #endif
 
-	session = ipset_session_init(printf);
+#ifdef LIBIPSET_PRE_V7_COMPAT
+	session = ipset_session_init(ipset_printf);
+#else
+	session = ipset_session_init(ipset_printf, "remove_ipsets");
+#endif
 	if (!session) {
 		log_message(LOG_INFO, "Cannot initialize ipset session.");
 		return false;
@@ -311,7 +358,11 @@ bool add_ipsets(bool reload)
 
 void* ipset_session_start(void)
 {
-	return ipset_session_init(NULL);
+#ifdef LIBIPSET_PRE_V7_COMPAT
+	return ipset_session_init(ipset_printf);
+#else
+	return ipset_session_init(ipset_printf, "session_start");
+#endif
 }
 
 void ipset_session_end(void* vsession)

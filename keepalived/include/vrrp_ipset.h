@@ -29,7 +29,7 @@
 bool add_ipsets(bool);
 bool remove_ipsets(void);
 bool has_ipset_setname(void*, const char *);
-bool ipset_init(void);
+bool ipset_initialise(void);
 void* ipset_session_start(void);
 void ipset_session_end(void*);
 void ipset_entry(void*, int cmd, const ip_address_t*);

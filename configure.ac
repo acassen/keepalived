@@ -1212,6 +1212,27 @@ if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
 		 [AC_DEFINE([LIBIPSET_H_ADD_IP_SET_H_GUARD], [1], [Define to add guard _IP_SET_H before including <libipset/linux_ip_set.h>])])
 	      ])
 	  fi
+
+	  if test $USE_LIBIPSET = Yes; then
+	    AC_MSG_CHECKING([for libipset version 7 or later])
+	    AC_COMPILE_IFELSE([AC_LANG_SOURCE(
+	      [[
+	        #include <libipset/session.h>
+
+		void test_func(void)
+		{
+		  ipset_session_init(NULL, NULL);
+		}
+	      ]])],
+	      [
+	        AC_MSG_RESULT([yes])
+	      ],
+	      [
+	        AC_MSG_RESULT([no])
+	        AC_DEFINE([LIBIPSET_PRE_V7_COMPAT], [ 1 ], [Define to 1 if libipset library version prior to v7])
+	        add_system_opt[LIBIPSET_PRE_V7]
+	      ])
+	  fi
 	])
       LIBS="$SAV_LIBS"
     fi
