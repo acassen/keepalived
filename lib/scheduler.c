@@ -596,12 +596,14 @@ thread_event_cancel(thread_t *thread)
 	thread_master_t *m = thread->master;
 
 	if (!event) {
-		log_message(LOG_INFO, "scheduler: Error performing DEL op no event linked?!");
+		log_message(LOG_INFO, "scheduler: Error performing epoll_ctl DEL op no event linked?!");
 		return -1;
 	}
 
-	if (m->epoll_fd != -1 && epoll_ctl(m->epoll_fd, EPOLL_CTL_DEL, event->fd, NULL) < 0) {
-		log_message(LOG_INFO, "scheduler: Error performing DEL op for fd:%d (%m)", event->fd);
+	if (m->epoll_fd != -1 &&
+	    epoll_ctl(m->epoll_fd, EPOLL_CTL_DEL, event->fd, NULL) < 0 &&
+	    errno != EBADF) {
+		log_message(LOG_INFO, "scheduler: Error performing epoll_ctl DEL op for fd:%d (%m)", event->fd);
 		return -1;
 	}
 
@@ -1025,7 +1027,7 @@ thread_del_read(thread_t *thread)
 	if (!thread || !thread->event)
 		return -1;
 
-	if (thread_event_del(thread, THREAD_FL_EPOLL_READ_BIT) < 0 )
+	if (thread_event_del(thread, THREAD_FL_EPOLL_READ_BIT) < 0)
 		return -1;
 
 	return 0;
@@ -1041,7 +1043,7 @@ thread_del_read_fd(thread_master_t *m, int fd)
 	if (!event || !event->read)
 		return;
 
-	thread_del_read(event->read);
+	thread_cancel(event->read);
 }
 #endif
 
