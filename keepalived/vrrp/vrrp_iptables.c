@@ -468,7 +468,7 @@ iptables_init_lib(void)
 #endif
 
 #ifdef _HAVE_LIBIPSET_
-	if (global_data->using_ipsets && !ipset_init())
+	if (global_data->using_ipsets && !ipset_initialise())
 		global_data->using_ipsets = false;
 #endif
 
