@@ -50,7 +50,6 @@
 #include <linux/types.h>	/* For __beXX types in userland */
 #include <linux/netfilter.h>	/* For nf_inet_addr */
 #include <stdint.h>
-#include <stdio.h>
 
 #include "logger.h"
 #include "global_data.h"
@@ -100,13 +99,18 @@ static void* libipset_handle;
 #define ipset_cmd1 ipset_cmd
 #endif
 
-#ifndef LIBIPSET_PRE_V7_COMPAT
 static int
+#ifdef LIBIPSET_PRE_V7_COMPAT
+ipset_printf(const char *fmt, ...)
+#else
 ipset_printf(__attribute ((__unused__)) struct ipset_session *session, void *p, const char *fmt, ...)
+#endif
 {
 	va_list args;
 
+#ifndef LIBIPSET_PRE_V7_COMPAT
 	log_message(LOG_INFO, "libipset message from %s", (const char *)p);
+#endif
 
 	va_start(args, fmt);
 	vlog_message(LOG_INFO, fmt, args);
@@ -114,7 +118,6 @@ ipset_printf(__attribute ((__unused__)) struct ipset_session *session, void *p, 
 
 	return 0;
 }
-#endif
 
 static bool
 do_ipset_cmd(struct ipset_session* session, enum ipset_cmd cmd, const char *setname,
@@ -192,7 +195,7 @@ static bool create_sets(const char* addr4, const char* addr6, const char* addr_i
 	struct ipset_session *session;
 
 #ifdef LIBIPSET_PRE_V7_COMPAT
-	session = ipset_session_init(printf);
+	session = ipset_session_init(ipset_printf);
 #else
 	session = ipset_session_init(ipset_printf, "create_sets");
 #endif
@@ -326,7 +329,7 @@ bool remove_ipsets(void)
 #endif
 
 #ifdef LIBIPSET_PRE_V7_COMPAT
-	session = ipset_session_init(printf);
+	session = ipset_session_init(ipset_printf);
 #else
 	session = ipset_session_init(ipset_printf, "remove_ipsets");
 #endif
@@ -356,7 +359,7 @@ bool add_ipsets(bool reload)
 void* ipset_session_start(void)
 {
 #ifdef LIBIPSET_PRE_V7_COMPAT
-	return ipset_session_init(printf);
+	return ipset_session_init(ipset_printf);
 #else
 	return ipset_session_init(ipset_printf, "session_start");
 #endif
