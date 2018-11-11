@@ -100,8 +100,10 @@ modprobe_ipvs(void)
 
 	sigaction ( SIGCHLD, &act, &old_act);
 
+#ifdef ENABLE_LOG_TO_FILE
 	if (log_file_name)
 		flush_log_file();
+#endif
 
 	if (!(child = fork())) {
 		execv(argv[0], argv);

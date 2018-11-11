@@ -92,8 +92,10 @@ stop_bfd(int status)
 	else
 		log_message(LOG_INFO, "Stopped");
 
+#ifdef ENABLE_LOG_TO_FILE
 	if (log_file_name)
 		close_log_file();
+#endif
 	closelog();
 
 #ifndef _MEM_CHECK_LOG_
@@ -301,8 +303,10 @@ start_bfd_child(void)
 	char *syslog_ident;
 
 	/* Initialize child process */
+#ifdef ENABLE_LOG_TO_FILE
 	if (log_file_name)
 		flush_log_file();
+#endif
 
 	pid = fork();
 
@@ -348,6 +352,7 @@ start_bfd_child(void)
 		openlog(syslog_ident, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)
 				    , (log_facility==LOG_DAEMON) ? LOG_LOCAL2 : log_facility);
 
+#ifdef ENABLE_LOG_TO_FILE
 	if (log_file_name)
 		open_log_file(log_file_name,
 				"bfd",
@@ -357,6 +362,7 @@ start_bfd_child(void)
 				NULL,
 #endif
 				global_data->instance_name);
+#endif
 
 #ifdef _MEM_CHECK_
 	mem_log_init(PROG_BFD, "BFD child process");

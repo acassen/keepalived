@@ -348,8 +348,10 @@ notify_exec(const notify_script_t *script)
 {
 	pid_t pid;
 
+#ifdef ENABLE_LOG_TO_FILE
 	if (log_file_name)
 		flush_log_file();
+#endif
 
 	pid = local_fork();
 
@@ -380,8 +382,10 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, uns
 	pid_t pid;
 
 	/* Daemonization to not degrade our scheduling timer */
+#ifdef ENABLE_LOG_TO_FILE
 	if (log_file_name)
 		flush_log_file();
+#endif
 
 	pid = local_fork();
 

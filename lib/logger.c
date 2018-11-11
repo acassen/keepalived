@@ -37,10 +37,12 @@
 /* Boolean flag - send messages to console as well as syslog */
 static bool log_console = false;
 
+#ifdef ENABLE_LOG_TO_FILE
 /* File to write log messages to */
 char *log_file_name;
 static FILE *log_file;
 bool always_flush_log_file;
+#endif
 
 void
 enable_console_log(void)
@@ -48,6 +50,7 @@ enable_console_log(void)
 	log_console = true;
 }
 
+#ifdef ENABLE_LOG_TO_FILE
 void
 set_flush_log_file(void)
 {
@@ -94,6 +97,7 @@ flush_log_file(void)
 	if (log_file)
 		fflush(log_file);
 }
+#endif
 
 void
 vlog_message(const int facility, const char* format, va_list args)
@@ -108,7 +112,11 @@ vlog_message(const int facility, const char* format, va_list args)
 	if (__test_bit(CONFIG_TEST_BIT, &debug))
 		return;
 
-	if (log_file || (__test_bit(DONT_FORK_BIT, &debug) && log_console)) {
+	if (
+#ifdef ENABLE_LOG_TO_FILE
+	    log_file ||
+#endif
+			(__test_bit(DONT_FORK_BIT, &debug) && log_console)) {
 #if HAVE_VSYSLOG
 		va_list args1;
 		char buf[2 * MAX_LOG_MSG + 1];
@@ -127,11 +135,13 @@ vlog_message(const int facility, const char* format, va_list args)
 
 		if (log_console && __test_bit(DONT_FORK_BIT, &debug))
 			fprintf(stderr, "%s: %s\n", timestamp, buf);
+#ifdef ENABLE_LOG_TO_FILE
 		if (log_file) {
 			fprintf(log_file, "%s: %s\n", timestamp, buf);
 			if (always_flush_log_file)
 				fflush(log_file);
 		}
+#endif
 	}
 
 	if (!__test_bit(NO_SYSLOG_BIT, &debug))

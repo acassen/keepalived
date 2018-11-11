@@ -1114,8 +1114,10 @@ usage(const char *prog)
 	fprintf(stderr, "  -l, --log-console            Log messages to local console\n");
 	fprintf(stderr, "  -D, --log-detail             Detailed log messages\n");
 	fprintf(stderr, "  -S, --log-facility=[0-7]     Set syslog facility to LOG_LOCAL[0-7]\n");
+#ifdef ENABLE_LOG_TO_FILE
 	fprintf(stderr, "  -g, --log-file=FILE          Also log to FILE (default /tmp/keepalived.log)\n");
 	fprintf(stderr, "      --flush-log-file         Flush log file on write\n");
+#endif
 	fprintf(stderr, "  -G, --no-syslog              Don't log via syslog\n");
 	fprintf(stderr, "  -u, --umask=MASK             umask for file creation (in numeric form)\n");
 #ifdef _WITH_VRRP_
@@ -1227,7 +1229,9 @@ parse_cmdline(int argc, char **argv)
 		{"log-detail",		no_argument,		NULL, 'D'},
 		{"log-facility",	required_argument,	NULL, 'S'},
 		{"log-file",		optional_argument,	NULL, 'g'},
+#ifdef ENABLE_LOG_TO_FILE
 		{"flush-log-file",	no_argument,		NULL,  2 },
+#endif
 		{"no-syslog",		no_argument,		NULL, 'G'},
 		{"umask",		required_argument,	NULL, 'u'},
 #ifdef _WITH_VRRP_
@@ -1378,12 +1382,22 @@ parse_cmdline(int argc, char **argv)
 			}
 			break;
 		case 'g':
+#ifdef ENABLE_LOG_TO_FILE
 			if (optarg && optarg[0])
 				log_file_name = optarg;
 			else
 				log_file_name = "/tmp/keepalived.log";
 			open_log_file(log_file_name, NULL, NULL, NULL);
+#else
+			fprintf(stderr, "-g requires configure option --enable-log-file\n");
+			bad_option = true;
+#endif
 			break;
+#ifdef ENABLE_LOG_TO_FILE
+		case 2:		/* --flush-log-file */
+			set_flush_log_file();
+			break;
+#endif
 		case 'G':
 			__set_bit(NO_SYSLOG_BIT, &debug);
 			reopen_log = true;
@@ -1410,9 +1424,6 @@ parse_cmdline(int argc, char **argv)
 			break;
 		case 'f':
 			conf_file = optarg;
-			break;
-		case 2:		/* --flush-log-file */
-			set_flush_log_file();
 			break;
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 		case 'P':
@@ -1751,6 +1762,7 @@ keepalived_main(int argc, char **argv)
 
 		use_pid_dir = true;
 
+#ifdef ENABLE_LOG_TO_FILE
 		open_log_file(log_file_name,
 				NULL,
 #if HAVE_DECL_CLONE_NEWNET
@@ -1759,6 +1771,7 @@ keepalived_main(int argc, char **argv)
 				NULL,
 #endif
 				global_data->instance_name);
+#endif
 	}
 
 	/* Initialise pointer to child finding function */
