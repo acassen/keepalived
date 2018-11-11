@@ -588,7 +588,7 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 		 , vrrp->auth_data, sizeof (vrrp->auth_data)
 		 , digest);
 
-	if (memcmp(backup_auth_data, digest, HMAC_MD5_TRUNC) != 0) {
+	if (memcmp_constant_time(backup_auth_data, digest, HMAC_MD5_TRUNC) != 0) {
 		log_message(LOG_INFO, "(%s) IPSEC-AH : invalid"
 				      " IPSEC HMAC-MD5 value. Due to fields mutation"
 				      " or bad password !",
@@ -782,9 +782,8 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 
 		if (vrrp->auth_type == VRRP_AUTH_PASS) {
 			/* check the authentication if it is a passwd */
-			char *pw = (char *) ip + ntohs(ip->tot_len)
-			    - sizeof (vrrp->auth_data);
-			if (memcmp(pw, vrrp->auth_data, sizeof(vrrp->auth_data)) != 0) {
+			char *pw = (char *) ip + ntohs(ip->tot_len) - sizeof (vrrp->auth_data);
+			if (memcmp_constant_time(pw, vrrp->auth_data, sizeof(vrrp->auth_data)) != 0) {
 				log_message(LOG_INFO, "(%s) received an invalid passwd!", vrrp->iname);
 				++vrrp->stats->auth_failure;
 #ifdef _WITH_SNMP_RFCV2_
