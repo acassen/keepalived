@@ -30,6 +30,7 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <sys/utsname.h>
+#include <sys/stat.h>
 #include <stdint.h>
 #include <errno.h>
 #ifdef _WITH_PERF_
@@ -58,9 +59,7 @@
 #include "signals.h"
 #include "bitops.h"
 #include "parser.h"
-#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_ || defined _WITH_STACKTRACE_ || defined _WITH_PERF_
 #include "logger.h"
-#endif
 #if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
 #include "process.h"
 #endif
@@ -795,16 +794,17 @@ FILE *fopen_safe(const char *path, const char *mode)
 	int fd;
 	FILE *file;
 	int flags = O_NOFOLLOW | O_CREAT;
+	int sav_errno;
 
 	if (mode[0] == 'r')
 		return fopen(path, mode);
 
-	if (mode[0] != 'a' && mode[0] != 'w')
+	if ((mode[0] != 'a' && mode[0] != 'w') ||
+	    (mode[1] &&
+	     (mode[1] != '+' || mode[2]))) {
+		errno = EINVAL;
 		return NULL;
-
-	if (mode[1] &&
-	    (mode[1] != '+' || mode[2]))
-		return NULL;
+	}
 
 	if (mode[0] == 'w')
 		flags |= O_TRUNC;
@@ -820,9 +820,30 @@ FILE *fopen_safe(const char *path, const char *mode)
 	if (fd == -1)
 		return NULL;
 
+	/* Change file ownership to root */
+	if (fchown(fd, 0, 0)) {
+		sav_errno = errno;
+		log_message(LOG_INFO, "Unable to change file ownership of %s- errno %d (%m)", path, errno);
+		close(fd);
+		errno = sav_errno;
+		return NULL;
+	}
+
+	/* Set file mode to rw------- */
+	if (fchmod(fd, S_IRUSR | S_IWUSR)) {
+		sav_errno = errno;
+		log_message(LOG_INFO, "Unable to change file permission of %s - errno %d (%m)", path, errno);
+		close(fd);
+		errno = sav_errno;
+		return NULL;
+	}
+
 	file = fdopen (fd, "w");
 	if (!file) {
+		sav_errno = errno;
+		log_message(LOG_INFO, "fdopen(\"%s\") failed - errno %d (%m)", path, errno);
 		close(fd);
+		errno = sav_errno;
 		return NULL;
 	}
 
