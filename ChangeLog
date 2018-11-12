@@ -1,3 +1,38 @@
+2018-11-12 Alexandre Cassen <acassen@keepalived.org>
+	* keepalived-2.0.10
+	* Fix compiling on Alpine Linux.
+	* Stop printf compiler warning on Alpine Linux due to rlim_t.
+	* manpage cosmetic.
+	* Fix removing snmpd read threads when snmpd becomes unavailable.
+	* Update to support libipset version 7.
+	* Use ipset_printf for ipset messages so can go to log.
+	* When opening files for write, ensure files can only be read by root.
+	  Issue #1048 referred to CVE-2018-19046 regarding files used for
+	  debugging purposes could potentially be read by non root users.
+	  This commit ensures that such log files cannot be opened by non root
+	  users.
+	* Disable fopen_safe() append mode by default
+	  If a non privileged user creates /tmp/keepalived.log and has it open
+	  for read (e.g. tail -f), then even though keepalived will change the
+	  owner to root and remove all read/write permissions from non owners,
+	  the application which already has the file open will be able to read
+	  the added log entries.
+	  Accordingly, opening a file in append mode is disabled by default, and
+	  only enabled if --enable-smtp-alert-debug or --enable-log-file (which
+	  are debugging options and unset by default) are enabled.
+	  This should further alleviate security concerns related to CVE-2018-19046.
+	* vrrp: add support to constant time memcmp.
+	  Just an update to use best practise security design pattern. While
+	  comparing password or hmac you need to ensure comparison function
+	  is time constant in order to figth against any timing attacks. We
+	  turn off potential compiler optimizations for this particular
+	  function to avoid any short circuit.
+	* Make sure a non privileged user cannot read keepalived file output
+	  Ensure that when a file such as /tmp/keepalived.data is wriiten,
+	  no non privileged can have a previous version of that file already
+	  open, thereby allowing them to read the data.
+	  This should fully resolve CVE-2018-19046.
+
 2018-11-08 Alexandre Cassen <acassen@gmail.com>
 	* keepalived-2.0.9
 	* Fix updating a timer thread's timeout.
