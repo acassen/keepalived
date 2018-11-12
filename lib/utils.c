@@ -567,19 +567,15 @@ inet_sockaddrtos(struct sockaddr_storage *addr)
 uint16_t
 inet_sockaddrport(struct sockaddr_storage *addr)
 {
-	uint16_t port;
-
 	if (addr->ss_family == AF_INET6) {
 		struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) addr;
-		port = addr6->sin6_port;
-	} else {
-		/* Note: this might be AF_UNSPEC if it is the sequence number of
-		 * a virtual server in a virtual server group */
-		struct sockaddr_in *addr4 = (struct sockaddr_in *) addr;
-		port = addr4->sin_port;
+		return addr6->sin6_port;
 	}
 
-	return port;
+	/* Note: this might be AF_UNSPEC if it is the sequence number of
+	 * a virtual server in a virtual server group */
+	struct sockaddr_in *addr4 = (struct sockaddr_in *) addr;
+	return addr4->sin_port;
 }
 
 char *
@@ -987,3 +983,20 @@ open_pipe(int pipe_arr[2])
 	return 0;
 }
 #endif
+
+/*
+ * memcmp time constant variant.
+ * Need to ensure compiler doesnt get too smart by optimizing generated asm code.
+ */
+__attribute__((optimize("O0"))) int
+memcmp_constant_time(const void *s1, const void *s2, size_t n)
+{
+	const unsigned char *a, *b;
+	unsigned char ret = 0;
+	size_t i;
+
+	for (i = 0, a = s1, b = s2; i < n; i++)
+		ret |= (*a++ ^ *b++);
+
+	return ret;
+}
