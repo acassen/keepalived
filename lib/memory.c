@@ -622,7 +622,7 @@ mem_log_init(const char* prog_name, const char *banner)
 	}
 
 	snprintf(log_name, log_name_len, "/tmp/%s_mem.%d.log", prog_name, getpid());
-	log_op = fopen_safe(log_name, "a");
+	log_op = fopen_safe(log_name, "w");
 	if (log_op == NULL) {
 		log_message(LOG_INFO, "Unable to open %s for appending", log_name);
 		log_op = stderr;

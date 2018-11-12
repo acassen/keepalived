@@ -37,8 +37,10 @@ xdaemon(bool nochdir, bool noclose, bool exitflag)
 	pid_t pid;
 	int ret;
 
+#ifdef ENABLE_LOG_TO_FILE
 	if (log_file_name)
 		flush_log_file();
+#endif
 
 	/* In case of fork is error. */
 	pid = fork();

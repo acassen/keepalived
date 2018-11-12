@@ -222,6 +222,8 @@ AC_ARG_ENABLE(stacktrace,
   [AS_HELP_STRING([--enable-stacktrace], [compile with stacktrace support])])
 AC_ARG_ENABLE(perf,
   [AS_HELP_STRING([--enable-perf], [compile with perf performance data recording support for vrrp process])])
+AC_ARG_ENABLE(log-file,
+  [AS_HELP_STRING([--enable-log-file], [enable logging to file (-g)])])
 AC_ARG_ENABLE(dump-threads,
   [  --enable-dump-threads   compile with thread dumping support])
 AC_ARG_ENABLE(epoll-debug,
@@ -278,6 +280,9 @@ AC_CHECK_TOOL(LDD,ldd)
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 ARFLAGS=cr
 AC_SUBST(ARFLAGS)
+
+# Default settings
+ENABLE_LOG_FILE_APPEND=No
 
 # AC_PROG_LIBTOOL
 
@@ -1919,6 +1924,7 @@ if test "${enable_smtp_alert_debug}" = yes; then
   AC_DEFINE([_SMTP_ALERT_DEBUG_], [ 1 ], [Define to 1 to build with smtp-alert debugging support])
   ENABLE_SMTP_ALERT_DEBUG=Yes
   add_config_opt([SMTP_ALERT_DEBUG])
+  ENABLE_LOG_FILE_APPEND=Yes
 else
   ENABLE_SMTP_ALERT_DEBUG=No
 fi
@@ -2011,6 +2017,17 @@ if test "${enable_perf}" = yes; then
   add_to_var([KA_CFLAGS], [-pg])
 else
   ENABLE_PERF=No
+fi
+
+if test ${enable_log_file} = yes; then
+  AC_DEFINE([ENABLE_LOG_TO_FILE], [ 1 ], [Define if enabling logging to files])
+  ENABLE_LOG_FILE_APPEND=Yes
+  add_config_opt([FILE_LOGGING])
+fi
+
+if test ${ENABLE_LOG_FILE_APPEND} = Yes; then
+  AC_DEFINE([ENABLE_LOG_FILE_APPEND], [ 1 ], [Define if appending to log files is allowed])
+  add_config_opt([LOG_FILE_APPEND])
 fi
 
 if test ${NEED_LIBDL} = Yes; then
