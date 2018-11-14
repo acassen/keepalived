@@ -4552,6 +4552,9 @@ vrrp_handles_global_oid(void)
 void
 vrrp_snmp_agent_init(const char *snmp_socket)
 {
+	if (snmp_running)
+		return;
+
 	/* We let the check process handle the global OID if it is running and with snmp */
 	snmp_agent_init(snmp_socket, vrrp_handles_global_oid());
 
@@ -4581,6 +4584,9 @@ vrrp_snmp_agent_init(const char *snmp_socket)
 void
 vrrp_snmp_agent_close(void)
 {
+	if (!snmp_running)
+		return;
+
 #ifdef _WITH_SNMP_VRRP_
 	if (global_data->enable_snmp_vrrp)
 		snmp_unregister_mib(vrrp_oid, OID_LENGTH(vrrp_oid));
