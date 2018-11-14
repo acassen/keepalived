@@ -1710,7 +1710,12 @@ process_threads(thread_master_t *m)
 		thread = thread_trim_head(thread_list);
 		if (!shutting_down ||
 		    (thread->type == THREAD_READY_FD &&
-		     (thread->u.fd == m->timer_fd || thread->u.fd == m->signal_fd)) ||
+		     (thread->u.fd == m->timer_fd ||
+		      thread->u.fd == m->signal_fd
+#ifdef _WITH_SNMP_
+		      || FD_ISSET(thread->u.fd, &m->snmp_fdset))
+#endif
+							       ) ||
 		    thread->type == THREAD_CHILD ||
 		    thread->type == THREAD_CHILD_TIMEOUT ||
 		    thread->type == THREAD_CHILD_TERMINATED ||
