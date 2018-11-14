@@ -325,6 +325,9 @@ snmp_unregister_mib(oid *myoid, size_t len)
 void
 snmp_agent_init(const char *snmp_socket, bool base_mib)
 {
+	if (snmp_running)
+		return;
+
 	log_message(LOG_INFO, "Starting SNMP subagent");
 	netsnmp_enable_subagent();
 	snmp_disable_log();
@@ -378,6 +381,9 @@ snmp_agent_init(const char *snmp_socket, bool base_mib)
 void
 snmp_agent_close(bool base_mib)
 {
+	if (!snmp_running)
+		return;
+
 	if (base_mib)
 		snmp_unregister_mib(global_oid, OID_LENGTH(global_oid));
 	snmp_shutdown(global_name);

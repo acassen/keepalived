@@ -1630,7 +1630,7 @@ thread_fetch_next_queue(thread_master_t *m)
 				if (!ev->read) {
 					log_message(LOG_INFO, "scheduler: No read thread bound on fd:%d (fl:0x%.4X)"
 						      , ev->fd, ep_ev->events);
-					assert(0);
+					continue;
 				}
 				thread_move_ready(m, &m->read, ev->read, THREAD_READY_FD);
 				ev->read = NULL;
@@ -1641,7 +1641,7 @@ thread_fetch_next_queue(thread_master_t *m)
 				if (!ev->write) {
 					log_message(LOG_INFO, "scheduler: No write thread bound on fd:%d (fl:0x%.4X)"
 						      , ev->fd, ep_ev->events);
-					assert(0);
+					continue;
 				}
 				thread_move_ready(m, &m->write, ev->write, THREAD_READY_FD);
 				ev->write = NULL;
@@ -1710,7 +1710,12 @@ process_threads(thread_master_t *m)
 		thread = thread_trim_head(thread_list);
 		if (!shutting_down ||
 		    (thread->type == THREAD_READY_FD &&
-		     (thread->u.fd == m->timer_fd || thread->u.fd == m->signal_fd)) ||
+		     (thread->u.fd == m->timer_fd ||
+		      thread->u.fd == m->signal_fd
+#ifdef _WITH_SNMP_
+		      || FD_ISSET(thread->u.fd, &m->snmp_fdset)
+#endif
+							       )) ||
 		    thread->type == THREAD_CHILD ||
 		    thread->type == THREAD_CHILD_TIMEOUT ||
 		    thread->type == THREAD_CHILD_TERMINATED ||

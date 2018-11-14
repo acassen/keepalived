@@ -789,7 +789,9 @@ FILE *fopen_safe(const char *path, const char *mode)
 {
 	int fd;
 	FILE *file;
+#ifdef ENABLE_LOG_FILE_APPEND
 	int flags = O_NOFOLLOW | O_CREAT | O_CLOEXEC;
+#endif
 	int sav_errno;
 	char file_tmp_name[] = "/tmp/keepalivedXXXXXX";
 
