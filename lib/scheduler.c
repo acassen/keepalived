@@ -1630,7 +1630,7 @@ thread_fetch_next_queue(thread_master_t *m)
 				if (!ev->read) {
 					log_message(LOG_INFO, "scheduler: No read thread bound on fd:%d (fl:0x%.4X)"
 						      , ev->fd, ep_ev->events);
-					assert(0);
+					continue;
 				}
 				thread_move_ready(m, &m->read, ev->read, THREAD_READY_FD);
 				ev->read = NULL;
@@ -1641,7 +1641,7 @@ thread_fetch_next_queue(thread_master_t *m)
 				if (!ev->write) {
 					log_message(LOG_INFO, "scheduler: No write thread bound on fd:%d (fl:0x%.4X)"
 						      , ev->fd, ep_ev->events);
-					assert(0);
+					continue;
 				}
 				thread_move_ready(m, &m->write, ev->write, THREAD_READY_FD);
 				ev->write = NULL;
