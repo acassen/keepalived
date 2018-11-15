@@ -32,10 +32,6 @@
 #undef FREE
 #endif
 
-#ifndef _DEBUG_
-#define NDEBUG
-#endif
-#include <assert.h>
 #include <errno.h>
 #include <sys/wait.h>
 #include <sys/timerfd.h>
@@ -59,6 +55,7 @@
 #if !HAVE_EPOLL_CREATE1 || !defined TFD_NONBLOCK
 #include "old_socket.h"
 #endif
+#include "assert_debug.h"
 
 
 #ifdef THREAD_DUMP
@@ -820,6 +817,7 @@ static void
 thread_add_unuse(thread_master_t *m, thread_t *thread)
 {
 	assert(m != NULL);
+
 	thread->type = THREAD_UNUSED;
 	thread->event = NULL;
 	INIT_LIST_HEAD(&thread->next);
@@ -1793,8 +1791,10 @@ thread_child_handler(__attribute__((unused)) void *v, __attribute__((unused)) in
 		if (pid == -1) {
 			if (errno == ECHILD)
 				return;
-			DBG("waitpid error: %s", strerror(errno));
+			log_message(LOG_DEBUG, "waitpid error %d: %s", errno, strerror(errno));
 			assert(0);
+
+			return;
 		}
 		process_child_termination(pid, status);
 	}

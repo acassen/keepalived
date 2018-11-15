@@ -236,6 +236,8 @@ AC_ARG_ENABLE(tsm-debug,
   [  --enable-tsm-debug      compile with TSM debugging support])
 AC_ARG_ENABLE(vrrp-fd-debug,
   [  --enable-vrrp-fd-debug  compile with vrrp fd debugging support])
+AC_ARG_ENABLE(asserts,
+  [AS_HELP_STRING([--enable-asserts], [compile with assert() enabled])])
 AC_ARG_WITH(fixed-if-type,
   [  --with-fixed-if-type=TYPE  treat interface type TYPE as unchangeable])
 AC_ARG_WITH(default-config-file,
@@ -1988,6 +1990,16 @@ else
   ENABLE_VRRP_FD_DEBUG=No
 fi
 
+dnl ----[ asserts enabled or not ? ]----
+if test "${enable_asserts}" = yes; then
+  AC_DEFINE([_ENABLE_ASSERT_], [ 1 ], [Define to 1 to enable asserts])
+  ENABLE_ASSERT=Yes
+  add_config_opt([ASSERT])
+else
+  ENABLE_ASSERT=No
+fi
+AM_CONDITIONAL([ASSERTS], [test $ENABLE_ASSERT = Yes])
+
 dnl ----[ Specify interface type to be unchangeable ]----
 if test "${with_fixed_if_type}"; then
   if test "${with_fixed_if_type}" = yes -o ${with_fixed_if_type} = no; then
@@ -2208,6 +2220,9 @@ if test ${ENABLE_TSM_DEBUG} = Yes; then
 fi
 if test ${ENABLE_VRRP_FD_DEBUG} = Yes; then
   echo "VRRP_FD debugging        : ${ENABLE_VRRP_FD_DEBUG}"
+fi
+if test ${ENABLE_ASSERT} = Yes; then
+  echo "asserts enabled          : ${ENABLE_ASSERT}"
 fi
 if test ${ENABLE_DEBUG} = Yes; then
   echo "Use Debug flags          : ${ENABLE_DEBUG}"

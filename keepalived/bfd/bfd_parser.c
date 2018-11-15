@@ -22,8 +22,6 @@
 
 #include "config.h"
 
-#include <assert.h>
-
 #include "bfd.h"
 #include "bfd_data.h"
 #include "bfd_parser.h"
@@ -44,6 +42,8 @@
 #include "vrrp_data.h"
 #endif
 #include "main.h"
+#include "assert_debug.h"
+
 
 static unsigned long specified_event_processes;
 

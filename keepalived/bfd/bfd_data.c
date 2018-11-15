@@ -22,8 +22,6 @@
 
 #include "config.h"
 
-#include <assert.h>
-
 #include "bfd.h"
 #include "bfd_data.h"
 #include "logger.h"
@@ -31,6 +29,7 @@
 #include "memory.h"
 #include "utils.h"
 #include "main.h"
+#include "assert_debug.h"
 
 /* Global vars */
 bfd_data_t *bfd_data;

@@ -28,10 +28,6 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <errno.h>
-#ifndef _DEBUG_
-#define NDEBUG
-#endif
-#include <assert.h>
 #ifdef HAVE_SIGNALFD
 #include <sys/signalfd.h>
 #endif
@@ -40,6 +36,7 @@
 #include "utils.h"
 #include "logger.h"
 #include "scheduler.h"
+#include "assert_debug.h"
 
 #ifdef _WITH_JSON_
 #include "../keepalived/include/vrrp_json.h"

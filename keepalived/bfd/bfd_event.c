@@ -22,7 +22,6 @@
 
 #include "config.h"
 
-#include <assert.h>
 #include <unistd.h>
 
 #include "bfd.h"
@@ -34,6 +33,7 @@
 #include "bitops.h"
 #include "utils.h"
 #include "global_data.h"
+#include "assert_debug.h"
 
 void
 bfd_event_send(bfd_t *bfd)

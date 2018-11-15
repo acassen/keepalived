@@ -30,7 +30,6 @@
 
 #include "config.h"
 
-#include <assert.h>
 #include <string.h>
 #include <arpa/inet.h>
 #include <sys/time.h>
@@ -40,6 +39,7 @@
 #include "bfd_data.h"
 #include "logger.h"
 #include "utils.h"
+#include "assert_debug.h"
 
 /* Initial state */
 const bfd_t bfd0 = {
