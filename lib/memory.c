@@ -25,7 +25,6 @@
 #include "config.h"
 
 #ifdef _MEM_CHECK_
-#include <assert.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdlib.h>

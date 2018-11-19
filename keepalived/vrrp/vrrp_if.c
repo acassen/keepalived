@@ -1161,6 +1161,7 @@ static void
 setup_interface(vrrp_t *vrrp)
 {
 	interface_t *ifp;
+	vrrp_t *vrrp_l;
 
 #ifdef _HAVE_VRRP_VMAC_
 	/* If the vrrp instance uses a vmac, and that vmac i/f doesn't
@@ -1181,6 +1182,17 @@ setup_interface(vrrp_t *vrrp)
 
 	/* Find the sockpool entry. If none, then we open the socket */
 	if (vrrp->sockets->fd_in == -1) {
+		/* If the MTU has changed we may need to recalculate the socket receive buffer size */
+		if (global_data->vrrp_rx_bufs_policy & RX_BUFS_POLICY_MTU) {
+			vrrp->sockets->rx_buf_size = 0;
+			rb_for_each_entry(vrrp_l, &vrrp->sockets->rb_vrid, rb_vrid) {
+				if (vrrp_l->kernel_rx_buf_size)
+					vrrp->sockets->rx_buf_size += vrrp_l->kernel_rx_buf_size;
+				else
+					vrrp->sockets->rx_buf_size += global_data->vrrp_rx_bufs_multiples * vrrp_l->ifp->mtu;
+			}
+		}
+
 		vrrp->sockets->fd_in = open_vrrp_read_socket(vrrp->sockets->family, vrrp->sockets->proto,
 							ifp, vrrp->sockets->unicast, vrrp->sockets->rx_buf_size);
 		if (vrrp->sockets->fd_in == -1)

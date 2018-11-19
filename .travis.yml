@@ -35,7 +35,7 @@ script:
 env:
   matrix:
     - KEEPALIVED_CONFIG_ARGS=""
-    - KEEPALIVED_CONFIG_ARGS="--enable-snmp --enable-snmp-rfc --enable-json --enable-dbus --disable-checksum-compat --enable-bfd"
+    - KEEPALIVED_CONFIG_ARGS="--enable-snmp --enable-snmp-rfc --enable-json --enable-dbus --disable-checksum-compat --enable-bfd --enable-asserts"
     - KEEPALIVED_CONFIG_ARGS="--enable-sha1 --enable-dbus --enable-dbus-create-instance --disable-dynamic-linking --disable-fwmark --disable-lvs-syncd --enable-snmp-vrrp --enable-timer-check"
     - KEEPALIVED_CONFIG_ARGS="--enable-dynamic-linking --disable-vrrp-auth --enable-snmp-rfc --disable-snmp-reply-v3-for-v2"
     - KEEPALIVED_CONFIG_ARGS="--disable-libiptc --disable-libipset --disable-libnl --enable-snmp-checker"

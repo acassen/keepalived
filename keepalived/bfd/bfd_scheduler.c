@@ -24,7 +24,6 @@
 
 #include <sys/socket.h>
 #include <unistd.h>
-#include <assert.h>
 #include <netdb.h>
 #include <inttypes.h>
 #include <stdio.h>
@@ -40,6 +39,7 @@
 #include "bitops.h"
 #include "utils.h"
 #include "signals.h"
+#include "assert_debug.h"
 
 static int bfd_send_packet(int, bfdpkt_t *, bool);
 static void bfd_sender_schedule(bfd_t *);

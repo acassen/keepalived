@@ -307,6 +307,26 @@ dump_sock(FILE *fp, void *sock_data)
 }
 
 static void
+dump_sock_pool(FILE *fp, list sock_pool)
+{
+	sock_t *sock;
+	element e;
+	vrrp_t *vrrp;
+
+	LIST_FOREACH(sock_pool, sock, e) {
+		conf_write(fp, " fd_in %d fd_out = %d", sock->fd_in, sock->fd_out);
+		conf_write(fp, "   Interface = %s", sock->ifp->ifname);
+		conf_write(fp, "   Family = %s", sock->family == AF_INET ? "IPv4" : sock->family == AF_INET6 ? "IPv6" : "unknown");
+		conf_write(fp, "   Protocol = %s", sock->proto == IPPROTO_AH ? "AH" : sock->proto == IPPROTO_VRRP ? "VRRP" : "unknown");
+		conf_write(fp, "   Type = %scast", sock->unicast ? "Uni" : "Multi");
+		conf_write(fp, "   Rx buf size = %d", sock->rx_buf_size);
+		conf_write(fp, "   VRRP instances");
+		rb_for_each_entry(vrrp, &sock->rb_vrid, rb_vrid)
+			conf_write(fp, "     %s vrid %d", vrrp->iname, vrrp->vrid);
+	}
+}
+
+static void
 free_unicast_peer(void *data)
 {
 	FREE(data);
@@ -855,8 +875,11 @@ alloc_vrrp_file(char *fname)
 void
 alloc_vrrp_buffer(size_t len)
 {
-	if (vrrp_buffer)
+	if (len <= vrrp_buffer_len)
 		return;
+
+	if (vrrp_buffer)
+		FREE(vrrp_buffer);
 
 	vrrp_buffer = (char *) MALLOC(len);
 	vrrp_buffer_len = (vrrp_buffer) ? len : 0;
@@ -936,6 +959,10 @@ dump_vrrp_data(FILE *fp, vrrp_data_t * data)
 	if (!LIST_ISEMPTY(data->vrrp)) {
 		conf_write(fp, "------< VRRP Topology >------");
 		dump_list(fp, data->vrrp);
+	}
+	if (!LIST_ISEMPTY(data->vrrp_socket_pool)) {
+		conf_write(fp, "------< VRRP Sockpool >------");
+		dump_sock_pool(fp, data->vrrp_socket_pool);
 	}
 	if (!LIST_ISEMPTY(data->vrrp_sync_group)) {
 		conf_write(fp, "------< VRRP Sync groups >------");
