@@ -1856,6 +1856,7 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 	uint32_t new_master_index;
 	interface_t *new_master_ifp;
 #endif
+	uint32_t old_mtu;
 
 	if (!(h->nlmsg_type == RTM_NEWLINK || h->nlmsg_type == RTM_DELLINK))
 		return 0;
@@ -1970,6 +1971,8 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 			garp_delay_t *sav_garp_delay = ifp->garp_delay;
 			list sav_tracking_vrrp = ifp->tracking_vrrp;
 
+			old_mtu = ifp->mtu;
+
 			memset(ifp, 0, sizeof(interface_t));
 
 			ifp->garp_delay = sav_garp_delay;
@@ -1982,6 +1985,12 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 				log_message(LOG_INFO, "Interface %s added", ifp->ifname);
 
 			update_added_interface(ifp);
+
+#ifndef _DEBUG_
+			if (prog_type == PROG_TYPE_VRRP)
+#endif
+				if (ifp->mtu > old_mtu)
+					alloc_vrrp_buffer(ifp->mtu);
 
 			/* We need to see a transition to up, so mark it down for now */
 			ifp->ifi_flags &= ~(IFF_UP | IFF_RUNNING);
