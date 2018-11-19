@@ -481,7 +481,6 @@ restore_rp_filter(void)
 		return;
 
 	rp_filter = get_sysctl("net/ipv4/conf", "all", "rp_filter");
-log_message(LOG_INFO, "restore_rp_filter - all/rp_filter = %d", rp_filter);
 	if (rp_filter == 0) {
 		log_message(LOG_INFO, "NOTICE: resetting sysctl net.ipv4.conf.all.rp_filter to %d", all_rp_filter);
 		set_sysctl("net/ipv4/conf", "all", "rp_filter", all_rp_filter);
