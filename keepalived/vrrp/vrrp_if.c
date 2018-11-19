@@ -1251,6 +1251,39 @@ recreate_vmac_thread(thread_t *thread)
 }
 #endif
 
+void update_mtu(interface_t *ifp)
+{
+	sock_t *sock;
+	element e;
+	bool updated_vrrp_buffer = false;
+	vrrp_t *vrrp;
+
+	LIST_FOREACH(vrrp_data->vrrp_socket_pool, sock, e) {
+		if (sock->ifp != ifp ||
+		    sock->fd_in == -1)
+			continue;
+
+		if (!updated_vrrp_buffer) {
+			alloc_vrrp_buffer(ifp->mtu);
+			updated_vrrp_buffer = true;
+		}
+
+		/* If the MTU has changed we may need to recalculate the socket receive buffer size */
+		if (global_data->vrrp_rx_bufs_policy & RX_BUFS_POLICY_MTU) {
+			sock->rx_buf_size = 0;
+			rb_for_each_entry(vrrp, &sock->rb_vrid, rb_vrid) {
+				if (vrrp->kernel_rx_buf_size)
+					sock->rx_buf_size += vrrp->kernel_rx_buf_size;
+				else
+					sock->rx_buf_size += global_data->vrrp_rx_bufs_multiples * ifp->mtu;
+			}
+
+			if (setsockopt(sock->fd_in, SOL_SOCKET, SO_RCVBUF, &sock->rx_buf_size, sizeof(sock->rx_buf_size)))
+				log_message(LOG_INFO, "vrrp update receive socket buffer size error %d", errno);
+		}
+	}
+}
+
 void
 update_added_interface(interface_t *ifp)
 {

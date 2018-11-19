@@ -1948,6 +1948,18 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 				}
 #endif
 
+				/* Check if the MTU has increased */
+				if (
+#ifndef _DEBUG_
+				    prog_type == PROG_TYPE_VRRP &&
+#endif
+				    tb[IFLA_MTU]) {
+					old_mtu = ifp->mtu;
+					ifp->mtu = *(uint32_t *)RTA_DATA(tb[IFLA_MTU]);
+					if (!LIST_ISEMPTY(ifp->tracking_vrrp))
+						update_mtu(ifp);
+				}
+
 #ifdef _HAVE_IPV4_DEVCONF_
 				if (tb[IFLA_AF_SPEC])
 					parse_af_spec(tb[IFLA_AF_SPEC], ifp);
