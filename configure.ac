@@ -2031,7 +2031,7 @@ else
   ENABLE_PERF=No
 fi
 
-if test ${enable_log_file} = yes; then
+if test "${enable_log_file}" = yes; then
   AC_DEFINE([ENABLE_LOG_TO_FILE], [ 1 ], [Define if enabling logging to files])
   ENABLE_LOG_FILE_APPEND=Yes
   add_config_opt([FILE_LOGGING])
