@@ -257,8 +257,10 @@ init_global_data(data_t * data, data_t *old_global_data)
 			if (!data->email_from)
 				set_default_email_from(data, data->local_name);
 
-			if (!data->smtp_helo_name)
-				data->smtp_helo_name = data->local_name;
+			if (!data->smtp_helo_name) {
+				data->smtp_helo_name = MALLOC(strlen(data->local_name) + 1);
+				strcpy(data->smtp_helo_name, data->local_name);
+			}
 		}
 	}
 
