@@ -1915,20 +1915,20 @@ read_timer(vector_t *strvec, size_t index, unsigned long *res, unsigned long min
 #endif
 
 	if (!max_time)
-		max_time = TIMER_MAX;
+		max_time = TIMER_MAXIMUM;
 
 	errno = 0;
 	timer = strtoul(vector_slot(strvec, index), &endptr, 10);
-	*res = (timer > TIMER_MAX ? TIMER_MAX : timer) * TIMER_HZ;
+	*res = (timer > TIMER_MAXIMUM ? TIMER_MAXIMUM : timer) * TIMER_HZ;
 
 	if (FMT_STR_VSLOT(strvec, index)[0] == '-')
 		report_config_error(CONFIG_INVALID_NUMBER, "%snegative number '%s'", warn, FMT_STR_VSLOT(strvec, index));
 	else if (*endptr)
 		report_config_error(CONFIG_INVALID_NUMBER, "%sinvalid number '%s'", warn, FMT_STR_VSLOT(strvec, index));
-	else if (errno == ERANGE || timer > TIMER_MAX)
+	else if (errno == ERANGE || timer > TIMER_MAXIMUM)
 		report_config_error(CONFIG_INVALID_NUMBER, "%snumber '%s' outside timer range", warn, FMT_STR_VSLOT(strvec, index));
 	else if (timer < min_time || timer > max_time)
-		report_config_error(CONFIG_INVALID_NUMBER, "number '%s' outside range [%ld, %ld]", FMT_STR_VSLOT(strvec, index), min_time, max_time ? max_time : TIMER_MAX);
+		report_config_error(CONFIG_INVALID_NUMBER, "number '%s' outside range [%ld, %ld]", FMT_STR_VSLOT(strvec, index), min_time, max_time ? max_time : TIMER_MAXIMUM);
 	else
 		return true;
 

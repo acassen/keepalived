@@ -38,7 +38,7 @@
 #define MAXBUF	1024
 
 /* Maximum time read_timer can return */
-#define TIMER_MAX (ULONG_MAX / TIMER_HZ)
+#define TIMER_MAXIMUM (ULONG_MAX / TIMER_HZ)
 
 /* Configuration test errors. These should be in decreasing order of severity */
 typedef enum {
