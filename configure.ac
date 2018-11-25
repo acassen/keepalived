@@ -342,11 +342,11 @@ AS_IF([test .$enable_lvs = .no],
     AS_IF([test .$enable_lvs_syncd = .no], [AC_MSG_ERROR([disable-lvs-syncd requires lvs])])
     AS_IF([test .$enable_lvs_64bit_stats = .no], [AC_MSG_ERROR([disable-lvs-64bit-stats requires lvs])])
     AS_IF([test .$enable_fwmark = .yes], [AC_MSG_ERROR([enable-fwmark requires lvs])])
-  ])
+  )
 AS_IF([test .$enable_regex != .yes],
     AS_IF([test .$enable_regex_timers = .yes], [AC_MSG_ERROR([enable-regex-timers requires enable-regex])])
     AS_IF([test .$enable_regex_debug = .yes], [AC_MSG_ERROR([enable-regex-debug requires enable-regex])])
-  ])
+  )
 
 if test "$enable_conversion_checks" = yes; then
   # Check if we can sensibly enable -Wconversion
