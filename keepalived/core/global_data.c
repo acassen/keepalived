@@ -253,7 +253,7 @@ init_global_data(data_t * data, data_t *old_global_data)
 		if (!data->smtp_connection_to)
 			set_default_smtp_connection_timeout(data);
 
-		if (strcmp(data->local_name, unknown_name)) {
+		if (data->local_name && strcmp(data->local_name, unknown_name)) {
 			if (!data->email_from)
 				set_default_email_from(data, data->local_name);
 
