@@ -198,6 +198,9 @@ AC_ARG_ENABLE(libiptc,
   [AS_HELP_STRING([--disable-libiptc], [compile without libiptc])])
 AC_ARG_ENABLE(libipset,
   [AS_HELP_STRING([--disable-libipset], [compile without libipset])])
+AC_ARG_ENABLE(nftables,
+  [AS_HELP_STRING([--disable-nftables], [build without nftables support])],
+  [], [NFTABLES_SILENT=Yes])
 AC_ARG_ENABLE(libnl,
   [AS_HELP_STRING([--disable-libnl], [compile without libnl])])
 AC_ARG_ENABLE(strict-config-checks,
@@ -307,6 +310,8 @@ add_to_var([CFLAGS], [-D_GNU_SOURCE])
 # Some sanity checks on configure options
 AS_IF([test .$enable_vrrp = .no],
   [
+    AS_IF([test .$NFTABLES_SILENT == .Yes], [enable_nftables=no])
+
     AS_IF([test .$enable_perf = .yes], [AC_MSG_ERROR([enable-perf requires vrrp])])
     AS_IF([test .$enable_libiptc_dynamic = .yes], [AC_MSG_ERROR([enable-libiptc-dynamic requires vrrp])])
     AS_IF([test .$enable_libxtables_dynamic = .yes], [AC_MSG_ERROR([enable-libxtables-dynamic requires vrrp])])
@@ -326,6 +331,7 @@ AS_IF([test .$enable_vrrp = .no],
     AS_IF([test .$enable_checksum_compat = .no], [AC_MSG_ERROR([disable-checksum-compat requires vrrp])])
     AS_IF([test .$enable_routes = .no], [AC_MSG_ERROR([disable-routes requires vrrp])])
     AS_IF([test .$enable_bfd = yes], [AC_MSG_ERROR([enable-bfd requires vrrp])])
+    AS_IF([test .$enable_nftables != no], [AC_MSG_ERROR([enable-nftables requires vrrp])])
   ])
 AS_IF([test .$enable_snmp_rfc != .yes -a .$enable_snmp_rfcv3 != yes],
   [
@@ -1254,6 +1260,37 @@ if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
 fi
 AM_CONDITIONAL([LIBIPTC], [test $USE_LIBIPTC = Yes])
 AM_CONDITIONAL([LIBIPSET], [test $USE_LIBIPSET = Yes])
+unset LIBS
+
+dnl ----[Check for nftables libraries]----
+USE_NFTABLES=No
+if test .${enable_nftables} != .no; then
+  USE_NFTABLES=Yes
+  dnl -- linux/netfilter/nf_tables.h since Linux 3.13
+  SAV_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $kernelinc"
+  AC_CHECK_HEADERS([linux/netfilter/nf_tables.h], [],
+   [
+     USE_NFTABLES=No
+     AC_MSG_ERROR([nftables header files missing])
+   ])
+  CPPFLAGS="$SAV_CPPFLAGS"
+
+  $PKG_CONFIG --exists libnftnl
+  if test $? -ne 0; then
+    USE_NFTABLES=No
+    AC_MSG_ERROR([libnftnl missing])
+  fi
+  $PKG_CONFIG --exists libmnl
+  if test $? -ne 0; then
+    USE_NFTABLES=No
+    AC_MSG_ERROR([libmnl missing])
+  fi
+  add_pkg_config([libnftnl])
+  add_pkg_config([libmnl])
+  AC_DEFINE([_WITH_NFTABLES_], [ 1 ], [Define to 1 if want nftables support])
+fi
+AM_CONDITIONAL([NFTABLES], [test $USE_NFTABLES = Yes])
 unset LIBS
 
 dnl ----[Check if have linux/if.h and net/if.h namespace collision]----

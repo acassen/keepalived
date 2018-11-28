@@ -78,6 +78,9 @@
 #ifdef _WITH_BFD_
 #include "bfd_daemon.h"
 #endif
+#ifdef _WITH_NFTABLES_
+#include "vrrp_nftables.h"
+#endif
 
 /* Global variables */
 bool non_existent_interface_specified;
@@ -365,6 +368,11 @@ vrrp_terminate_phase1(bool schedule_next_thread)
 
 #ifdef _HAVE_LIBIPTC_
 	iptables_fini();
+#endif
+
+#ifdef _WITH_NFTABLES_
+	if (global_data->vrrp_nf_table_name)
+		nft_end();
 #endif
 
 	/* Clear static entries */

@@ -38,6 +38,10 @@
 #include <linux/netfilter/ipset/ip_set.h>
 #endif
 
+#ifdef _WITH_NFTABLES_
+#include <linux/netfilter/nf_tables.h>
+#endif
+
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 #include <sys/resource.h>
 #endif
@@ -127,6 +131,12 @@ typedef struct _data {
 	char				vrrp_ipset_address[IPSET_MAXNAMELEN];
 	char				vrrp_ipset_address6[IPSET_MAXNAMELEN];
 	char				vrrp_ipset_address_iface6[IPSET_MAXNAMELEN];
+#endif
+#ifdef _WITH_NFTABLES_
+	char*				vrrp_nf_table_name;
+	int				vrrp_nf_chain_priority;
+	bool				vrrp_nf_counters;
+	bool				vrrp_nf_ifindex;
 #endif
 	bool				vrrp_check_unicast_src;
 	bool				vrrp_skip_check_adv_addr;

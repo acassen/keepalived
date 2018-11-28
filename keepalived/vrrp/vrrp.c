@@ -80,6 +80,9 @@
 #endif
 #include "keepalived_magic.h"
 #include "vrrp_static_track.h"
+#ifdef _WITH_NFTABLES_
+#include <vrrp_nftables.h>
+#endif
 
 /* Set if need to block ip addresses and are able to do so */
 bool block_ipv4;
@@ -189,7 +192,16 @@ vrrp_handle_accept_mode(vrrp_t *vrrp, int cmd, bool force)
 				res = iptables_close(h);
 		} while (res == EAGAIN && ++tries < IPTABLES_MAX_TRIES);
 #endif
-		vrrp->iptable_rules_set = (cmd == IPADDRESS_ADD);
+
+#ifdef _WITH_NFTABLES_
+		if (global_data->vrrp_nf_table_name) {
+			if (cmd == IPADDRESS_ADD)
+				nft_add_addresses(vrrp);
+			else
+				nft_remove_addresses(vrrp);
+		}
+		vrrp->firewall_rules_set = (cmd == IPADDRESS_ADD);
+#endif
 	}
 }
 
@@ -1235,12 +1247,8 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, char *buffer, struct iphdr *ip)
 		hd->chksum = in_csum((uint16_t *) hd, vrrp_pkt_len(vrrp), vrrp->ipv4_csum, NULL);
 	} else if (vrrp->family == AF_INET6) {
 		ip6arr = (struct in6_addr *)((char *) hd + sizeof(*hd));
-		if (!LIST_ISEMPTY(vrrp->vip)) {
-			for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
-				ip_addr = ELEMENT_DATA(e);
-				ip6arr[i++] = ip_addr->u.sin6_addr;
-			}
-		}
+		LIST_FOREACH(vrrp->vip, ip_addr, e)
+			ip6arr[i++] = ip_addr->u.sin6_addr;
 	}
 }
 
@@ -3568,9 +3576,14 @@ clear_diff_vrrp_vip_list(vrrp_t *vrrp, struct ipt_handle* h, list l, list n)
 	/* Clear iptable rule to VIP if needed. */
 	if (vrrp->base_priority == VRRP_PRIO_OWNER || vrrp->accept) {
 		handle_iptable_rule_to_iplist(h, n, IPADDRESS_DEL, false);
-		vrrp->iptable_rules_set = false;
-	} else
-		vrrp->iptable_rules_set = true;
+		vrrp->firewall_rules_set = false;
+#ifdef _WITH_NFTABLES_
+		if (global_data->vrrp_nf_table_name)
+			nft_remove_addresses(vrrp);
+#endif
+	} else {
+		vrrp->firewall_rules_set = true;
+	}
 }
 
 static void
@@ -3602,6 +3615,14 @@ clear_diff_vrrp_vip(vrrp_t *old_vrrp, vrrp_t *vrrp)
 			res = iptables_close(h);
 	} while (res == EAGAIN && ++tries < IPTABLES_MAX_TRIES);
 #endif
+	if (vrrp->base_priority == VRRP_PRIO_OWNER || vrrp->accept) {
+#ifdef _WITH_NFTABLES_
+		if (global_data->vrrp_nf_table_name)
+			nft_remove_addresses(vrrp);
+#endif
+		vrrp->firewall_rules_set = false;
+	} else
+		vrrp->firewall_rules_set = true;
 }
 
 #ifdef _HAVE_FIB_ROUTING_

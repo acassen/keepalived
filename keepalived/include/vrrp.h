@@ -252,7 +252,7 @@ typedef struct _vrrp_t {
 							 */
 	size_t			kernel_rx_buf_size;	/* Socket receive buffer size */
 
-	bool			iptable_rules_set;	/* Iptable drop rules set to VIP list ? */
+	bool			firewall_rules_set;	/* Firewall drop rules set to VIP list ? */
 	bool			nopreempt;		/* true if higher prio does not preempt lower */
 	unsigned long		preempt_delay;		/* Seconds*TIMER_HZ after startup until
 							 * preemption based on higher prio over lower

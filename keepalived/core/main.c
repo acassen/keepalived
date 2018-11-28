@@ -531,6 +531,17 @@ static bool reload_config(void)
 	global_data->instance_name = old_global_data->instance_name;
 	old_global_data->instance_name = NULL;
 
+#ifdef _WITH_NFTABLES_
+	if (!!old_global_data->vrrp_nf_table_name != !!global_data->vrrp_nf_table_name ||
+	    (global_data->vrrp_nf_table_name && strcmp(old_global_data->vrrp_nf_table_name, global_data->vrrp_nf_table_name))) {
+		log_message(LOG_INFO, "Cannot change nftables table name at a reload - please restart %s", PACKAGE);
+		unsupported_change = true;
+	}
+	FREE_PTR(global_data->vrrp_nf_table_name);
+	global_data->vrrp_nf_table_name = old_global_data->vrrp_nf_table_name;
+	old_global_data->vrrp_nf_table_name = NULL;
+#endif
+
 	if (unsupported_change) {
 		/* We cannot reload the configuration, so continue with the old config */
 		free_global_data (global_data);
@@ -538,6 +549,7 @@ static bool reload_config(void)
 	}
 	else
 		free_global_data (old_global_data);
+
 
 	return !unsupported_change;
 }

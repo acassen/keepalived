@@ -415,6 +415,19 @@ global_defs {                                 # Block identification
                                               # If ipset6 is not specified, '6' as appended to the ipset4 name.
                                               #   If ipset_if6 is not specified, any trailing '6' from ipset6
                                               #   is removed and '_if6' appended
+    vrrp_nftables [TABLENAME] [priority] [counters] [ifindex]
+                                              # Use nftables to implement no_accept mode.
+                                              #   TABLENAME must not exist, and must be different for each
+                                              #   instance of keepalived running in the same network namespace.
+                                              #   Default tablename is keepalived, and priority is -1.
+                                              #   keepalived will create base chains in the table.
+                                              #   counters means counters are added to the rules (primarily for
+                                              #   debugging purposes.
+                                              #   ifindex means create IPv6 link local sets using ifindex rather
+                                              #   than ifnames. This is the default unless the vrrp_instance has
+                                              #   set dont_track_primary. The alternative is to use interface names
+                                              #   as part of the set key, but nftables prior to v0.8.3 will then no
+                                              #   longer work.
     vrrp_check_unicast_src                    # Check source address of a unicast packet is a
                                               # unicast peer
     vrrp_strict                               # Enforce strict VRRP protocol compliance. This will prohibit:

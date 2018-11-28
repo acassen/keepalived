@@ -729,6 +729,55 @@ vrrp_ipsets_handler(vector_t *strvec)
 	}
 }
 #endif
+#ifdef _WITH_NFTABLES_
+static void
+vrrp_nftables_handler(__attribute__((unused)) vector_t *strvec)
+{
+	char *name;
+	size_t len;
+
+	if (global_data->vrrp_nf_table_name) {
+		report_config_error(CONFIG_GENERAL_ERROR, "nftables already specified - ignoring");
+		return;
+	}
+
+	if (vector_size(strvec) >= 2) {
+	       	if ((len = strlen(strvec_slot(strvec, 1))) >= NFT_TABLE_MAXNAMELEN) {
+			report_config_error(CONFIG_GENERAL_ERROR, "nftables table name too long - ignoring");
+			return;
+		}
+	}
+	else {
+		/* Table named defaults to "keepalived" */
+		name = "keepalived";
+		len = 10;
+	}
+
+	global_data->vrrp_nf_table_name = MALLOC(len + 1);
+	strcpy(global_data->vrrp_nf_table_name, name);
+	global_data->vrrp_nf_chain_priority = -1;
+}
+static void
+vrrp_nftables_priority_handler(vector_t *strvec)
+{
+	int priority;
+
+	if (read_int_strvec(strvec, 1, &priority, INT32_MIN, INT32_MAX, false))
+		global_data->vrrp_nf_chain_priority = priority;
+	else
+		report_config_error(CONFIG_INVALID_NUMBER, "invalid nftables chain priority '%s'", FMT_STR_VSLOT(strvec, 1));
+}
+static void
+vrrp_nftables_counters_handler(__attribute__((unused)) vector_t *strvec)
+{
+	global_data->vrrp_nf_counters = true;
+}
+static void
+vrrp_nftables_ifindex_handler(__attribute__((unused)) vector_t *strvec)
+{
+	global_data->vrrp_nf_ifindex = true;
+}
+#endif
 static void
 vrrp_version_handler(vector_t *strvec)
 {
@@ -1468,6 +1517,12 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_iptables", &vrrp_iptables_handler);
 #ifdef _HAVE_LIBIPSET_
 	install_keyword("vrrp_ipsets", &vrrp_ipsets_handler);
+#endif
+#ifdef _WITH_NFTABLES_
+	install_keyword("nftables", &vrrp_nftables_handler);
+	install_keyword("nftables_priority", &vrrp_nftables_priority_handler);
+	install_keyword("nftables_counters", &vrrp_nftables_counters_handler);
+	install_keyword("nftables_ifindex", &vrrp_nftables_ifindex_handler);
 #endif
 	install_keyword("vrrp_check_unicast_src", &vrrp_check_unicast_src_handler);
 	install_keyword("vrrp_skip_check_adv_addr", &vrrp_check_adv_addr_handler);

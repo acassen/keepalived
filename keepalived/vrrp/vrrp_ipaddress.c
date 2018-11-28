@@ -48,6 +48,9 @@
 #include "vrrp_iptables.h"
 #endif
 #include "parser.h"
+#ifdef _WITH_NFTABLES_
+#include "vrrp_nftables.h"
+#endif
 
 
 #define INFINITY_LIFE_TIME      0xFFFFFFFF
@@ -820,6 +823,10 @@ clear_diff_address(struct ipt_handle *h, list old, list new)
 		log_message(LOG_INFO, "Removing a complete VIP or e-VIP block");
 		netlink_iplist(old, IPADDRESS_DEL, false);
 		handle_iptable_rule_to_iplist(h, old, IPADDRESS_DEL, false);
+#ifdef _WITH_NFTABLES_
+		if (global_data->vrrp_nf_table_name)
+			nft_remove_addresses_list(old);
+#endif
 		return;
 	}
 
@@ -834,8 +841,13 @@ clear_diff_address(struct ipt_handle *h, list old, list new)
 					    , ipaddr->ifa.ifa_prefixlen
 					    , ipaddr->ifp->ifname);
 			netlink_ipaddress(ipaddr, IPADDRESS_DEL);
-			if (ipaddr->iptable_rule_set)
+			if (ipaddr->iptable_rule_set) {
 				handle_iptable_rule_to_vip(ipaddr, IPADDRESS_DEL, h, false);
+#ifdef _WITH_NFTABLES_
+				if (global_data->vrrp_nf_table_name)
+					nft_remove_address(ipaddr);
+#endif
+			}
 		}
 	}
 }

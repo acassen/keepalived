@@ -69,6 +69,9 @@ typedef struct _ip_address {
 	bool			set;			/* TRUE if addr is set */
 	bool			iptable_rule_set;	/* TRUE if iptable drop rule
 							 * set to addr */
+#ifdef _WITH_NFTABLES_
+	bool			nftable_rule_set;	/* TRUE if in nftables set */
+#endif
 	bool			garp_gna_pending;	/* Is a gratuitous ARP/NA message still to be sent */
 } ip_address_t;
 

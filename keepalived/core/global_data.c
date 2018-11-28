@@ -338,6 +338,9 @@ free_global_data(data_t * data)
 	FREE_PTR(data->default_ifname);
 	FREE_PTR(data->vrrp_notify_fifo.name);
 	free_notify_script(&data->vrrp_notify_fifo.script);
+#ifdef _WITH_NFTABLES_
+	FREE_PTR(data->vrrp_nf_table_name);
+#endif
 #endif
 #ifdef _WITH_LVS_
 	FREE_PTR(data->lvs_notify_fifo.name);
@@ -492,6 +495,14 @@ dump_global_data(FILE *fp, data_t * data)
 		conf_write(fp," ipset IPv6 address set = %s", data->vrrp_ipset_address6);
 	if (data->vrrp_ipset_address_iface6[0])
 		conf_write(fp," ipset IPv6 address,iface set = %s", data->vrrp_ipset_address_iface6);
+#endif
+#ifdef _WITH_NFTABLES_
+	if (data->vrrp_nf_table_name) {
+		conf_write(fp," nftables table name= %s", data->vrrp_nf_table_name);
+		conf_write(fp," nftables base chain priority = %d", data->vrrp_nf_chain_priority);
+		conf_write(fp," nftables with%s counters", data->vrrp_nf_counters ? "" : "out");
+		conf_write(fp," nftables %suse ifindex", data->vrrp_nf_ifindex ? "" : "don't ");
+	}
 #endif
 
 	conf_write(fp, " VRRP check unicast_src = %s", data->vrrp_check_unicast_src ? "true" : "false");
