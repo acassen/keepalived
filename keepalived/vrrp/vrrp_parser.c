@@ -1242,11 +1242,14 @@ vrrp_version_handler(vector_t *strvec)
 static void
 vrrp_accept_handler(__attribute__((unused)) vector_t *strvec)
 {
+#ifdef _WITH_FIREWALL_
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
 	vrrp->accept = true;
+#endif
 }
 
+#ifdef _WITH_FIREWALL_
 static void
 vrrp_no_accept_handler(__attribute__((unused)) vector_t *strvec)
 {
@@ -1254,6 +1257,7 @@ vrrp_no_accept_handler(__attribute__((unused)) vector_t *strvec)
 
 	vrrp->accept = false;
 }
+#endif
 
 static void
 garp_group_handler(vector_t *strvec)
@@ -1465,7 +1469,9 @@ init_vrrp_keywords(bool active)
 	install_keyword("virtual_rules", &vrrp_vrules_handler);
 #endif
 	install_keyword("accept", &vrrp_accept_handler);
+#ifdef _WITH_FIREWALL_
 	install_keyword("no_accept", &vrrp_no_accept_handler);
+#endif
 	install_keyword("skip_check_adv_addr", &vrrp_skip_check_adv_addr_handler);
 	install_keyword("strict_mode", &vrrp_strict_mode_handler);
 	install_keyword("preempt", &vrrp_preempt_handler);

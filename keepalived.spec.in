@@ -16,18 +16,27 @@ BuildRequires: openssl-devel
 # We need both of these for proper LVS support
 BuildRequires: kernel, kernel-devel
 BuildRequires: libnfnetlink-devel
+BuildRequires: autoconf automake pkgconfig
 @SNMP_TRUE@BuildRequires: net-snmp-devel
 @WITH_DBUS_TRUE@BuildRequires: glib2-devel
 @LIBIPTC_TRUE@BuildRequires: iptables-devel
 @LIBIPSET_TRUE@BuildRequires: ipset-devel
 @LIBNL1_TRUE@BuildRequires: libnl-devel
 @LIBNL3_TRUE@BuildRequires: libnl3-devel
+@NFTABLES_TRUE@BuildRequires: libnftnl-devel libmnl-devel
 @INIT_SYSV_TRUE@Requires(post): /sbin/chkconfig
 @INIT_SYSV_TRUE@Requires(preun): /sbin/service, /sbin/chkconfig
 @INIT_SYSV_TRUE@Requires(postun): /sbin/service
-BuildRequires: autoconf automake pkgconfig
 @INIT_SYSTEMD_TRUE@BuildRequires: systemd-units
 @WITH_REGEX_TRUE@BuildRequires: pcre2-devel
+
+@SNMP_TRUE@Requires: net-snmp
+@WITH_DBUS_TRUE@Requires: glib2
+@LIBIPTC_TRUE@Requires: iptables-libs
+@LIBIPSET_TRUE@Requires: ipset-libs
+@LIBNL1_TRUE@Requires: libnl
+@LIBNL3_TRUE@Requires: libnl3
+@NFTABLES_TRUE@Requires: libnftnl libmnl
 @WITH_REGEX_TRUE@Requires: pcre2
 
 %description
@@ -53,6 +62,10 @@ CONFIG_OPTS=
 @PROFILE_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-profile"
 @WITH_VRRP_FALSE@CONFIG_OPTS="$CONFIG_OPTS --disable-vrrp"
 @WITH_IPVS_FALSE@CONFIG_OPTS="$CONFIG_OPTS --disable-lvs"
+@NFTABLES_FALSE@CONFIG_OPTS="$CONFIG_OPTS --disable-nftables"
+@IPTABLES_FALSE@CONFIG_OPTS="$CONFIG_OPTS --disable-iptables"
+@IPTABLES_TRUE@@LIBIPTC_FALSE@CONFIG_OPTS="$CONFIG_OPTS --disable-libiptc"
+@IPTABLES_TRUE@@LIBIPSET_FALSE@CONFIG_OPTS="$CONFIG_OPTS --disable-libipset"
 @SNMP_KEEPALIVED_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-snmp"
 @SNMP_KEEPALIVED_FALSE@@SNMP_VRRP_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-snmp-vrrp"
 @SNMP_KEEPALIVED_FALSE@@SNMP_CHECKER_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-snmp-checker"

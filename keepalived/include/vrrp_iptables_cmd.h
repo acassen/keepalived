@@ -3,9 +3,9 @@
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
  *
- * Part:        vrrp_nftables.c include file.
+ * Part:        vrrp_iptables_cmd.c include file.
  *
- * Author:      Quentin Armitage, <quentin@armitage.org.uk>
+ * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -20,19 +20,16 @@
  * Copyright (C) 2001-2018 Alexandre Cassen, <acassen@gmail.com>
  */
 
-#ifndef _VRRP_NFTABLES_H
-#define _VRRP_NFTABLES_H
+#ifndef _VRRP_IPTABLES_CMD_H
+#define _VRRP_IPTABLES_CMD_H
 
 #include "config.h"
 
-#include "list.h"
-#include "vrrp.h"
 #include "vrrp_ipaddress.h"
 
-extern void nft_add_addresses(vrrp_t *);
-extern void nft_remove_addresses(vrrp_t *);
-extern void nft_remove_addresses_iplist(list);
-extern void nft_cleanup(void);
-extern void nft_end(void);
+/* prototypes */
+extern void handle_iptable_rule_to_vip_cmd(ip_address_t *, int, bool);
+extern void check_chains_exist_cmd(void);
+extern void iptables_init_cmd(void);
 
 #endif

@@ -102,12 +102,15 @@ set_vrrp_defaults(data_t * data)
 	data->vrrp_lower_prio_no_advert = false;
 	data->vrrp_higher_prio_send_advert = false;
 	data->vrrp_version = VRRP_VERSION_2;
+#ifdef _WITH_IPTABLES_
 	strcpy(data->vrrp_iptables_inchain, "INPUT");
+	strcpy(data->vrrp_iptables_outchain, "OUTPUT");
 #ifdef _HAVE_LIBIPSET_
 	data->using_ipsets = true;
 	strcpy(data->vrrp_ipset_address, "keepalived");
 	strcpy(data->vrrp_ipset_address6, "keepalived6");
 	strcpy(data->vrrp_ipset_address_iface6, "keepalived_if6");
+#endif
 #endif
 	data->vrrp_check_unicast_src = false;
 	data->vrrp_skip_check_adv_addr = false;
@@ -483,6 +486,7 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " Gratuitous ARP interval = %d", data->vrrp_garp_interval);
 	conf_write(fp, " Gratuitous NA interval = %d", data->vrrp_gna_interval);
 	conf_write(fp, " VRRP default protocol version = %d", data->vrrp_version);
+#ifdef _WITH_IPTABLES_
 	if (data->vrrp_iptables_inchain[0])
 		conf_write(fp," Iptables input chain = %s", data->vrrp_iptables_inchain);
 	if (data->vrrp_iptables_outchain[0])
@@ -496,12 +500,13 @@ dump_global_data(FILE *fp, data_t * data)
 	if (data->vrrp_ipset_address_iface6[0])
 		conf_write(fp," ipset IPv6 address,iface set = %s", data->vrrp_ipset_address_iface6);
 #endif
+#endif
 #ifdef _WITH_NFTABLES_
 	if (data->vrrp_nf_table_name) {
-		conf_write(fp," nftables table name= %s", data->vrrp_nf_table_name);
+		conf_write(fp," nftables table name = %s", data->vrrp_nf_table_name);
 		conf_write(fp," nftables base chain priority = %d", data->vrrp_nf_chain_priority);
 		conf_write(fp," nftables with%s counters", data->vrrp_nf_counters ? "" : "out");
-		conf_write(fp," nftables %suse ifindex", data->vrrp_nf_ifindex ? "" : "don't ");
+		conf_write(fp," nftables %suse ifname for link local IPv6", data->vrrp_nf_ifindex ? "don't " : "");
 	}
 #endif
 

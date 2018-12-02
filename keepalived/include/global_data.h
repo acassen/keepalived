@@ -124,6 +124,7 @@ typedef struct _data {
 	bool				vrrp_lower_prio_no_advert;
 	bool				vrrp_higher_prio_send_advert;
 	int				vrrp_version;	/* VRRP version (2 or 3) */
+#ifdef _WITH_IPTABLES_
 	char				vrrp_iptables_inchain[XT_EXTENSION_MAXNAMELEN];
 	char				vrrp_iptables_outchain[XT_EXTENSION_MAXNAMELEN];
 #ifdef _HAVE_LIBIPSET_
@@ -131,6 +132,7 @@ typedef struct _data {
 	char				vrrp_ipset_address[IPSET_MAXNAMELEN];
 	char				vrrp_ipset_address6[IPSET_MAXNAMELEN];
 	char				vrrp_ipset_address_iface6[IPSET_MAXNAMELEN];
+#endif
 #endif
 #ifdef _WITH_NFTABLES_
 	char*				vrrp_nf_table_name;

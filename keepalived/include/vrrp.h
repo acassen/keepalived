@@ -247,12 +247,13 @@ typedef struct _vrrp_t {
 							 * value we were originally configured with.
 							 * In v2, this will always be the configured adver_int.
 							 */
-	unsigned		accept;			/* Allow the non-master owner to process
-							 * the packets destined to VIP.
-							 */
 	size_t			kernel_rx_buf_size;	/* Socket receive buffer size */
 
+#ifdef _WITH_FIREWALL_
+	unsigned		accept;			/* Allow the non-master owner to process
+							 * the packets destined to VIP. */
 	bool			firewall_rules_set;	/* Firewall drop rules set to VIP list ? */
+#endif
 	bool			nopreempt;		/* true if higher prio does not preempt lower */
 	unsigned long		preempt_delay;		/* Seconds*TIMER_HZ after startup until
 							 * preemption based on higher prio over lower
@@ -354,9 +355,6 @@ typedef struct _vrrp_t {
 
 #define VRRP_ISUP(V)		(!(V)->num_script_if_fault)
 
-/* Global variables */
-extern bool block_ipv4;
-extern bool block_ipv6;
 
 /* Configuration summary flags */
 extern bool have_ipv4_instance;

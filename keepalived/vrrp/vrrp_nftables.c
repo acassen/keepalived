@@ -118,7 +118,6 @@ cb_func(const struct nlmsghdr *nlh, void *data)
 }
 #endif
 
-#include <stdio.h>
 static void
 exchange_nl_msg(struct mnl_nlmsg_batch *batch)
 {
@@ -1298,7 +1297,6 @@ static void
 nft_update_ipv4_address(struct mnl_nlmsg_batch *batch, ip_address_t *addr, struct nftnl_set **s)
 {
 	struct nftnl_set_elem *e;
-	uint32_t data;
 
 	if (!ipv4_table_setup)
 		nft_setup_ipv4(batch);
@@ -1494,19 +1492,15 @@ if (!nl) return;	// Should delete tables
 }
 
 void
-nft_remove_addresses_list(list l)
+nft_remove_addresses_iplist(list l)
 {
-	// TODO
+	vrrp_t vrrp = { .vip = l };
+
+	nft_update_addresses(&vrrp, NFT_MSG_DELSETELEM);
 }
 
 void
-nft_remove_address(ip_address_t * ipaddr)
-{
-	// TODO
-}
-
-void
-nft_end(void)
+nft_cleanup(void)
 {
 /*
 ----------------	------------------
@@ -1572,15 +1566,19 @@ nft_end(void)
 
 	nft_end_batch(batch, false);
 
-	if (nl) {
-		mnl_socket_close(nl);
-		nl = NULL;
-	}
-
 	ipv4_table_setup = false;
 	ipv6_table_setup = false;
 	setup_ll_ifname = false;
 	setup_ll_ifindex = false;
+}
+
+void
+nft_end(void)
+{
+	nft_cleanup();
+
+	mnl_socket_close(nl);
+	nl = NULL;
 }
 
 /*

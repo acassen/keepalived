@@ -35,6 +35,8 @@ For JSON support:
 	json-c-devel
 For PCRE support
 	pcre2-devel
+For nftables support
+	libnftnl-devel libmnl-devel
 
 For building the documentation, the following packages need to be installed:
 	Fedora: python-sphinx (will pull in: python2-sphinx_rtd_theme)
@@ -61,6 +63,8 @@ For JSON support:
 	libjson-c-dev
 For PCRE support:
 	libpcre2-dev
+For nftables support
+	libnftnl-dev libmnl-dev
 
 For building the documentation, the following packages need to be installed:
 	python-sphinx python-sphinx-rtd-theme
@@ -116,6 +120,7 @@ IP_VS (unless --disable-lvs is specified)
   IP_VS suboptions to match the real_server/virtual_server configuration
 NETFILTER_XTABLES - if strict_mode or no_accept.
   NETFILTER_XT options and IP_SET
+NF_TABLES and associated components - to use nftables for strict_mode or no_accept
 IP_ADVANCED_ROUTER and various associated options if static/dynamic routes specified
 FIB_RULES if static or dynamic rules are specified
 

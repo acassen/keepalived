@@ -53,8 +53,8 @@
 
 #include "logger.h"
 #include "global_data.h"
-#include "vrrp_iptables.h"
 #include "vrrp_ipset.h"
+#include "vrrp_firewall.h"
 #include "vrrp_iptables_calls.h"
 #include "main.h"
 

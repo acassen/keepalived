@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_iptables.c include file.
  *
- * Author:      Quentin Armitage, <quentin@armitage.org.uk>
+ * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -17,7 +17,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2001-2018 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #ifndef _VRRP_IPTABLES_H
@@ -25,26 +25,20 @@
 
 #include "config.h"
 
+/* global includes */
 #include <stdbool.h>
 
-#include "vrrp_ipaddress.h"
+/* local includes */
+#include "list.h"
+#include "vrrp.h"
 
-struct ipt_handle;
 
-#define	IPTABLES_MAX_TRIES	3	/* How many times to try adding/deleting when get EAGAIN */
-
-#ifdef _LIBIPTC_DYNAMIC_
-extern bool using_libip4tc;		/* Set if using lib4iptc - for dynamic linking */
-extern bool using_libip6tc;		/* Set if using lib4iptc - for dynamic linking */
-#endif
-
-void iptables_init_lib(void);
-void iptables_fini(void);
-void iptables_startup(bool);
-void iptables_cleanup(void);
-struct ipt_handle *iptables_open(void);
-int iptables_close(struct ipt_handle *h);
-extern void check_chains_exist_lib(void);
-void handle_iptable_rule_to_vip_lib(ip_address_t *, int, struct ipt_handle *, bool);
+/* prototypes */
+extern void handle_iptable_rule_to_iplist(list, list, int, bool force);
+extern void handle_iptables_accept_mode(vrrp_t *, int, bool);
+extern void iptables_init(void);
+extern void iptables_startup(bool);
+extern void iptables_cleanup(void);
+extern void iptables_fini(void);
 
 #endif

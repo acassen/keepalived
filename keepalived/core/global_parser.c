@@ -660,24 +660,26 @@ vrrp_higher_prio_send_advert_handler(vector_t *strvec)
 	else
 		global_data->vrrp_higher_prio_send_advert = true;
 }
+#ifdef _WITH_IPTABLES_
 static void
 vrrp_iptables_handler(vector_t *strvec)
 {
-	global_data->vrrp_iptables_inchain[0] = '\0';
-	global_data->vrrp_iptables_outchain[0] = '\0';
 	if (vector_size(strvec) >= 2) {
 		if (strlen(strvec_slot(strvec,1)) >= sizeof(global_data->vrrp_iptables_inchain)-1) {
 			report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : iptables in chain name too long - ignored");
 			return;
 		}
 		strcpy(global_data->vrrp_iptables_inchain, strvec_slot(strvec,1));
-	}
-	if (vector_size(strvec) >= 3) {
-		if (strlen(strvec_slot(strvec,2)) >= sizeof(global_data->vrrp_iptables_outchain)-1) {
-			report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : iptables out chain name too long - ignored");
-			return;
+		if (vector_size(strvec) >= 3) {
+			if (strlen(strvec_slot(strvec,2)) >= sizeof(global_data->vrrp_iptables_outchain)-1) {
+				report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : iptables out chain name too long - ignored");
+				return;
+			}
+			strcpy(global_data->vrrp_iptables_outchain, strvec_slot(strvec,2));
 		}
-		strcpy(global_data->vrrp_iptables_outchain, strvec_slot(strvec,2));
+	} else {
+		strcpy(global_data->vrrp_iptables_inchain, "INPUT");
+		strcpy(global_data->vrrp_iptables_outchain, "OUTPUT");
 	}
 }
 #ifdef _HAVE_LIBIPSET_
@@ -728,6 +730,7 @@ vrrp_ipsets_handler(vector_t *strvec)
 		strcat(global_data->vrrp_ipset_address_iface6, "_if6");
 	}
 }
+#endif
 #endif
 #ifdef _WITH_NFTABLES_
 static void
@@ -1514,9 +1517,11 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_lower_prio_no_advert", &vrrp_lower_prio_no_advert_handler);
 	install_keyword("vrrp_higher_prio_send_advert", &vrrp_higher_prio_send_advert_handler);
 	install_keyword("vrrp_version", &vrrp_version_handler);
+#ifdef _WITH_IPTABLES_
 	install_keyword("vrrp_iptables", &vrrp_iptables_handler);
 #ifdef _HAVE_LIBIPSET_
 	install_keyword("vrrp_ipsets", &vrrp_ipsets_handler);
+#endif
 #endif
 #ifdef _WITH_NFTABLES_
 	install_keyword("nftables", &vrrp_nftables_handler);
