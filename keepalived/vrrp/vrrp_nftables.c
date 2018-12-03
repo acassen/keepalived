@@ -924,7 +924,6 @@ nft_setup_ipv4(struct mnl_nlmsg_batch *batch)
 	struct nftnl_rule *r;
 	char *table = global_data->vrrp_nf_table_name;
 
-
 	/* nft add table ip keepalived */
 	ta = table_add_parse(NFPROTO_IPV4, table);
 	nlh = nftnl_table_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),

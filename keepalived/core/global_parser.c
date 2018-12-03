@@ -749,6 +749,7 @@ vrrp_nftables_handler(__attribute__((unused)) vector_t *strvec)
 			report_config_error(CONFIG_GENERAL_ERROR, "nftables table name too long - ignoring");
 			return;
 		}
+		name = strvec_slot(strvec, 1);
 	}
 	else {
 		/* Table named defaults to "keepalived" */
