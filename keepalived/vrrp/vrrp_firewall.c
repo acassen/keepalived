@@ -48,9 +48,7 @@ firewall_handle_accept_mode(vrrp_t *vrrp, int cmd,
 {
 #ifdef _WITH_IPTABLES_
 	if (global_data->vrrp_iptables_inchain[0])
-{
 		handle_iptables_accept_mode(vrrp, cmd, force);
-}
 #endif
 
 #ifdef _WITH_NFTABLES_

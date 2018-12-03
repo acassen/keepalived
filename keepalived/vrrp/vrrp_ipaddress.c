@@ -281,6 +281,17 @@ format_ipaddress(ip_address_t *ipaddr, char *buf, size_t buf_len)
 
 	if (ipaddr->track_group)
 		buf_p += snprintf(buf_p, buf_end - buf_p, " track_group %s", ipaddr->track_group->gname);
+
+	if (ipaddr->set)
+		buf_p += snprintf(buf_p, buf_end - buf_p, " set");
+#ifdef _WITH_IPTABLES_
+	if (ipaddr->iptable_rule_set)
+		buf_p += snprintf(buf_p, buf_end - buf_p, " iptable_set");
+#endif
+#ifdef _WITH_IPTABLES_
+	if (ipaddr->nftable_rule_set)
+		buf_p += snprintf(buf_p, buf_end - buf_p, " nftable_set");
+#endif
 }
 
 void
@@ -607,7 +618,12 @@ address_exist(vrrp_t *vrrp, ip_address_t *ipaddress)
 	LIST_FOREACH(vrrp->vip, ipaddr, e) {
 		if (IP_ISEQ(ipaddr, ipaddress)) {
 			ipaddr->set = ipaddress->set;
+#ifdef _WITH_IPTABLES_
 			ipaddr->iptable_rule_set = ipaddress->iptable_rule_set;
+#endif
+#ifdef _WITH_NFTABLES_
+			ipaddr->nftable_rule_set = ipaddress->nftable_rule_set;
+#endif
 			ipaddr->ifa.ifa_index = ipaddress->ifa.ifa_index;
 			found = true;
 			break;
@@ -618,7 +634,12 @@ address_exist(vrrp_t *vrrp, ip_address_t *ipaddress)
 		LIST_FOREACH(vrrp->evip, ipaddr, e) {
 			if (IP_ISEQ(ipaddr, ipaddress)) {
 				ipaddr->set = ipaddress->set;
+#ifdef _WITH_IPTABLES_
 				ipaddr->iptable_rule_set = ipaddress->iptable_rule_set;
+#endif
+#ifdef _WITH_NFTABLES_
+				ipaddr->nftable_rule_set = ipaddress->nftable_rule_set;
+#endif
 				ipaddr->ifa.ifa_index = ipaddress->ifa.ifa_index;
 				found = true;
 				break;
@@ -681,7 +702,10 @@ clear_address_list(list delete_addr,
 	netlink_iplist(delete_addr, IPADDRESS_DEL, false);
 #ifdef _WITH_FIREWALL_
 	if (remove_from_firewall)
+{
+log_message(LOG_INFO, "In clear_address_list");
 		firewall_remove_rule_to_iplist(delete_addr, false);
+}
 #endif
 }
 

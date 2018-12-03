@@ -1419,23 +1419,34 @@ nft_update_addresses(vrrp_t *vrrp, int cmd)
 	struct nftnl_set *ipv6_set = NULL;
 	struct nftnl_set *ipv6_ll_index_set = NULL;
 	struct nftnl_set *ipv6_ll_name_set = NULL;
+	bool set_rule = (cmd == NFT_MSG_NEWSETELEM);
 
 	batch = nft_start_batch();
 
 	LIST_FOREACH(vrrp->vip, ip_addr, e) {
+		if (set_rule == ip_addr->nftable_rule_set)
+			continue;
+
 		if (ip_addr->ifa.ifa_family == AF_INET)
 			nft_update_ipv4_address(batch, ip_addr, &ipv4_set);
 		else
 			nft_update_ipv6_address(batch, ip_addr, vrrp->dont_track_primary, vrrp->ifp,
 					&ipv6_set, &ipv6_ll_index_set, &ipv6_ll_name_set);
+
+		ip_addr->nftable_rule_set = set_rule;
 	}
 
 	LIST_FOREACH(vrrp->evip, ip_addr, e) {
+		if (set_rule == ip_addr->nftable_rule_set)
+			continue;
+
 		if (ip_addr->ifa.ifa_family == AF_INET)
 			nft_update_ipv4_address(batch, ip_addr, &ipv4_set);
 		else
 			nft_update_ipv6_address(batch, ip_addr, vrrp->dont_track_primary, vrrp->ifp,
 					&ipv6_set, &ipv6_ll_index_set, &ipv6_ll_name_set);
+
+		ip_addr->nftable_rule_set = set_rule;
 	}
 
 	if (ipv4_set) {

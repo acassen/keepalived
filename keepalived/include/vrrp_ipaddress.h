@@ -68,8 +68,10 @@ typedef struct _ip_address {
 	static_track_group_t	*track_group;		/* used for static addresses */
 
 	bool			set;			/* TRUE if addr is set */
+#ifdef _WITH_IPTABLES_
 	bool			iptable_rule_set;	/* TRUE if iptable drop rule
 							 * set to addr */
+#endif
 #ifdef _WITH_NFTABLES_
 	bool			nftable_rule_set;	/* TRUE if in nftables set */
 #endif
