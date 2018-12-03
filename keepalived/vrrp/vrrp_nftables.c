@@ -1324,7 +1324,8 @@ nft_update_ipv4_address(struct mnl_nlmsg_batch *batch, ip_address_t *addr, struc
 }
 
 static void
-nft_update_ipv6_address(struct mnl_nlmsg_batch *batch, ip_address_t *addr, struct nftnl_set **set_global, struct nftnl_set **set_ll, struct nftnl_set **set_ll_ifname)
+nft_update_ipv6_address(struct mnl_nlmsg_batch *batch, ip_address_t *addr, bool dont_track_primary, interface_t *ifp,
+			struct nftnl_set **set_global, struct nftnl_set **set_ll, struct nftnl_set **set_ll_ifname)
 {
 	struct nftnl_set_elem *e;
 	uint32_t data_buf[sizeof(struct in6_addr) + IFNAMSIZ];
@@ -1341,7 +1342,9 @@ nft_update_ipv6_address(struct mnl_nlmsg_batch *batch, ip_address_t *addr, struc
 	if (!is_link_local) {
 		s = set_global;
 		set_name = "vips";
-	} else if (addr->dont_track && !global_data->vrrp_nf_ifindex) {
+	} else if (!global_data->vrrp_nf_ifindex &&
+		   dont_track_primary &&
+		   (addr->ifp == ifp || addr->dont_track)) {
 		s = set_ll_ifname;
 		set_name = "vips_link_local_name";
 		use_link_name = true;
@@ -1423,7 +1426,7 @@ nft_update_addresses(vrrp_t *vrrp, int cmd)
 		if (ip_addr->ifa.ifa_family == AF_INET)
 			nft_update_ipv4_address(batch, ip_addr, &ipv4_set);
 		else
-			nft_update_ipv6_address(batch, ip_addr,
+			nft_update_ipv6_address(batch, ip_addr, vrrp->dont_track_primary, vrrp->ifp,
 					&ipv6_set, &ipv6_ll_index_set, &ipv6_ll_name_set);
 	}
 
@@ -1431,7 +1434,7 @@ nft_update_addresses(vrrp_t *vrrp, int cmd)
 		if (ip_addr->ifa.ifa_family == AF_INET)
 			nft_update_ipv4_address(batch, ip_addr, &ipv4_set);
 		else
-			nft_update_ipv6_address(batch, ip_addr,
+			nft_update_ipv6_address(batch, ip_addr, vrrp->dont_track_primary, vrrp->ifp,
 					&ipv6_set, &ipv6_ll_index_set, &ipv6_ll_name_set);
 	}
 
