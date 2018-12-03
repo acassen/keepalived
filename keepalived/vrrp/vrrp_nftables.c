@@ -95,7 +95,7 @@ new_table(const struct nlmsghdr *nlh)
 		log_message(LOG_INFO, "table parse failed");
 		return;
 	}
-	
+
 	if (tb[NFTA_TABLE_NAME] && tb[NFTA_TABLE_HANDLE])
 		log_message(LOG_INFO, "Table %s: handle %lu", mnl_attr_get_str(tb[NFTA_TABLE_NAME]), be64toh(mnl_attr_get_u64(tb[NFTA_TABLE_HANDLE])));
 }
@@ -128,7 +128,7 @@ exchange_nl_msg(struct mnl_nlmsg_batch *batch)
 	if (mnl_nlmsg_batch_is_empty(batch))
 		return;
 
-// mnl_nlmsg_fprintf(fp, (char *)mnl_nlmsg_batch_head(batch), mnl_nlmsg_batch_size(batch), sizeof( struct nfgenmsg));
+	/* mnl_nlmsg_fprintf(fp, (char *)mnl_nlmsg_batch_head(batch), mnl_nlmsg_batch_size(batch), sizeof( struct nfgenmsg)); */
 	if (!nl) {
 		nl = mnl_socket_open(NETLINK_NETFILTER);
 		if (nl == NULL) {
@@ -151,7 +151,7 @@ exchange_nl_msg(struct mnl_nlmsg_batch *batch)
 
 	ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
 	while (ret > 0) {
-//		ret = mnl_cb_run(buf, ret, 0, portid, cb_func, NULL);
+		/* ret = mnl_cb_run(buf, ret, 0, portid, cb_func, NULL); */
 		ret = mnl_cb_run(buf, ret, 0, portid, NULL, NULL);
 		if (ret <= 0)
 			break;
@@ -329,6 +329,8 @@ nftnl_chain *chain_add_parse(char *table, char *name)
  * To add a rule referencing the set, setname is "__set%d", and set set_id:
 	if (set_id)
 		nftnl_expr_set_u32(e, NFTNL_EXPR_LOOKUP_SET_ID, set_id);
+
+ * It works similarly for maps
 */
 static struct
 nftnl_set *setup_set(uint8_t family, const char *table,
@@ -404,44 +406,27 @@ nftnl_rule *setup_rule(uint8_t family, const char *table,
 		nftnl_rule_set_u64(r, NFTNL_RULE_POSITION, handle_num);
 	}
 
-	// Use nft --debug mnl to see what is constructed.
-	// mnl_nlmsg_fprintf is the function that prints it
-	/*
-	 * ----------------	------------------
-|  0000000020  |	| message length |
-| 00016 | R--- |	|  type | flags  |	NFNL_MSG_BATCH_BEGIN | REQUEST
-|  0000000003  |	| sequence number|
-|  0000000000  |	|     port ID    |
-----------------	------------------
-| 00 00 0a 00  |	|  extra header  |	family = AF_UNSPEC, version = NFNETLINK_V0 , res_id = NFNL_SUBSYS_NFTABLES
-----------------	------------------
-----------------	------------------
-|  0000000208  |	| message length |
-| 02566 | R--- |	|  type | flags  |	NEWRULE | REQUEST
-|  0000000004  |	| sequence number|
-|  0000000000  |	|     port ID    |
+	/* Use nft --debug mnl to see the netlink message for an nft command.
+	 * mnl_nlmsg_fprintf is the function that prints it if
+	 * we want to view what we have constructed
+	 *
+	 * The indentation is added to show the nesting. To indent a nested block,
+	 * the number of lines to indent is (length / 4 - 1).
+	 *
 	----------------	------------------
-nftnl_rule_nlmsg_build_payload
-below using:	alloc_nftnl_rule(struct handle *h = {.family = , .table = , .chain =}), alloc_nftnl_set()
-	| 02 00 00 00  |	|  extra header  |	family = NFPROTO_IPV4
-
-The following is done by nftnl_rule_nlmsg_build_payload. This needs the creation of an nftnl_rule
-nftnl_rule_alloc()
-nftnl_rule_set_data(r, NFTNL_RULE_TABLE, "filter", 6);
-nftnl_rule_set_data(r, NFTNL_RULE_CHAIN, "keepalived_in", 13);
-nftnl_expr_alloc("payload");
- see netlink_gen_payload_stmt
-nftnl_expr_build_payload()
-..
-nftnl_rule_add_expr(r, nftnl_expr * expr = { .? = 
-nftnl_expr_free(expr);
-nftnl_expr_alloc("lookup");
- see netlink_gen_lookup
-...
-nftnl_expr_alloc("immediate");
- see netlink_gen_immediate
-...
-
+	|  0000000020  |	| message length |
+	| 00016 | R--- |	|  type | flags  |	NFNL_MSG_BATCH_BEGIN | REQUEST
+	|  0000000003  |	| sequence number|
+	|  0000000000  |	|     port ID    |
+	----------------	------------------
+	| 00 00 0a 00  |	|  extra header  |	family = AF_UNSPEC, version = NFNETLINK_V0 , res_id = NFNL_SUBSYS_NFTABLES
+	----------------	------------------
+	----------------	------------------
+	|  0000000208  |	| message length |
+	| 02566 | R--- |	|  type | flags  |	NEWRULE | REQUEST
+	|  0000000004  |	| sequence number|
+	|  0000000000  |	|     port ID    |
+	----------------	------------------
 	|00011|--|00001|	|len |flags| type|	NFTA_RULE_TABLE	nftnl_rule_set_str(r, NFTNL_RULE_TABLE, str);
 	| 66 69 6c 74  |	|      data      |	 f i l t
 	| 65 72 00 00  |	|      data      |	 e r
@@ -450,58 +435,55 @@ nftnl_expr_alloc("immediate");
 	| 61 6c 69 76  |	|      data      |	 a l i v
 	| 65 64 5f 69  |	|      data      |	 e d _ i
 	| 6e 00 00 00  |	|      data      |	 n
-
 	|00156|N-|00004|	|len |flags| type|	NFT_RULE_EXPRESSIONS	(see nftnl_rule_nlmsg_build_payload, netlink_gen_expr)
-		|00052|N-|00001|	|len |flags| type|		NFTA_LIST_ELEM | NEST (to add - nftnl_rule_add_expr)
-			|00012|--|00001|	|len |flags| type|	NFTA_EXPR_NAME	(see netlink_gen_payload)
-			| 70 61 79 6c  |	|      data      |	 p a y l
-			| 6f 61 64 00  |	|      data      |	 o a d
-
-			|00036|N-|00002|	|len |flags| type| 	NFTA_EXPR_DATA | NEST
-				|00008|--|00001|	|len |flags| type|	NFTNL_EXPR_PAYLOAD_DREG
-				| 00 00 00 01  |	|      data      |
-				|00008|--|00002|	|len |flags| type|	NFTNL_EXPR_PAYLOAD_BASE
-				| 00 00 00 01  |	|      data      |
-				|00008|--|00003|	|len |flags| type|	NFTNL_EXPR_PAYLOAD_OFFSET
-				| 00 00 00 10  |	|      data      |
-				|00008|--|00004|	|len |flags| type|	NFTNL_EXPR_PAYLOAD_LEN
-				| 00 00 00 04  |	|      data      |
-		|00052|N-|00001|	|len |flags| type| 		NFTA_LIST_ELEM | NEST (netlink_gen_set_stmt)
-			|00011|--|00001|	|len |flags| type|	NFTA_EXPR_NAME	(see netlink_gen_lookup)
-			| 6c 6f 6f 6b  |	|      data      |	 l o o k
-			| 75 70 00 00  |	|      data      |	 u p
-			|00036|N-|00002|	|len |flags| type|	NFTA_EXPR_DATA | NEST
-				|00008|--|00002|	|len |flags| type|	NFTNL_EXPR_LOOKUP_SREG
-				| 00 00 00 01  |	|      data      |
-				|00015|--|00001|	|len |flags| type|	NFTNL_EXPR_LOOKUP_SET
-				| 6b 65 65 70  |	|      data      |	 k e e p
-				| 61 6c 69 76  |	|      data      |	 a l i v
-				| 65 64 00 00  |	|      data      |	 e d
-				|00008|--|00004|	|len |flags| type|	NFTNL_EXPR_LOOKUP_SET_ID
-				| 00 00 00 01  |	|      data      |
-
-		|00048|N-|00001|	|len |flags| type|		NFTA_LIST_ELEM | NEST (netlink_get_verdict_stmt from netlink_gen_stmt)
-			|00014|--|00001|	|len |flags| type|	NFTA_EXPR_NAME (see netlink_gen_immediate)
-			| 69 6d 6d 65  |	|      data      |	 i m m e
-			| 64 69 61 74  |	|      data      |	 d i a t
-			| 65 00 00 00  |	|      data      |	 e
-			|00028|N-|00002|	|len |flags| type|	NFTA_EXPR_DATA | NEST
-				|00008|--|00001|	|len |flags| type| NFTNL_EXPR_IMM_DREG
-				| 00 00 00 00  |	|      data      |
-				|00016|N-|00002|	|len |flags| type| NFTNL_EXPR_IMM_VERDICT
-					|00012|N-|00002|	|len |flags| type|
-						|00008|--|00001|	|len |flags| type|
-						| 00 00 00 00  |	|      data      |
-				----------------	------------------
-----------------	------------------
-|  0000000020  |	| message length |
-| 00017 | R--- |	|  type | flags  |	NFNL_MSG_BATCH_END | REQUEST
-|  0000000005  |	| sequence number|
-|  0000000000  |	|     port ID    |
-----------------	------------------
-| 00 00 0a 00  |	|  extra header  |	family = AF_UNSPEC, version = NFNETLINK_V0 , res_id = NFNL_SUBSYS_NFTABLES
-----------------	------------------
-*/
+	  |00052|N-|00001|	|len |flags| type|		NFTA_LIST_ELEM | NEST (to add - nftnl_rule_add_expr)
+	    |00012|--|00001|	|len |flags| type|	NFTA_EXPR_NAME	(see netlink_gen_payload)
+	    | 70 61 79 6c  |	|      data      |	 p a y l
+	    | 6f 61 64 00  |	|      data      |	 o a d
+	    |00036|N-|00002|	|len |flags| type| 	NFTA_EXPR_DATA | NEST
+	      |00008|--|00001|	|len |flags| type|	NFTNL_EXPR_PAYLOAD_DREG
+	      | 00 00 00 01  |	|      data      |
+	      |00008|--|00002|	|len |flags| type|	NFTNL_EXPR_PAYLOAD_BASE
+	      | 00 00 00 01  |	|      data      |
+	      |00008|--|00003|	|len |flags| type|	NFTNL_EXPR_PAYLOAD_OFFSET
+	      | 00 00 00 10  |	|      data      |
+	      |00008|--|00004|	|len |flags| type|	NFTNL_EXPR_PAYLOAD_LEN
+	      | 00 00 00 04  |	|      data      |
+	  |00052|N-|00001|	|len |flags| type| 		NFTA_LIST_ELEM | NEST (netlink_gen_set_stmt)
+	    |00011|--|00001|	|len |flags| type|	NFTA_EXPR_NAME	(see netlink_gen_lookup)
+	    | 6c 6f 6f 6b  |	|      data      |	 l o o k
+	    | 75 70 00 00  |	|      data      |	 u p
+	    |00036|N-|00002|	|len |flags| type|	NFTA_EXPR_DATA | NEST
+	      |00008|--|00002|	|len |flags| type|	NFTNL_EXPR_LOOKUP_SREG
+	      | 00 00 00 01  |	|      data      |
+	      |00015|--|00001|	|len |flags| type|	NFTNL_EXPR_LOOKUP_SET
+	      | 6b 65 65 70  |	|      data      |	 k e e p
+	      | 61 6c 69 76  |	|      data      |	 a l i v
+	      | 65 64 00 00  |	|      data      |	 e d
+	      |00008|--|00004|	|len |flags| type|	NFTNL_EXPR_LOOKUP_SET_ID
+	      | 00 00 00 01  |	|      data      |
+	  |00048|N-|00001|	|len |flags| type|		NFTA_LIST_ELEM | NEST (netlink_get_verdict_stmt from netlink_gen_stmt)
+	    |00014|--|00001|	|len |flags| type|	NFTA_EXPR_NAME (see netlink_gen_immediate)
+	    | 69 6d 6d 65  |	|      data      |	 i m m e
+	    | 64 69 61 74  |	|      data      |	 d i a t
+	    | 65 00 00 00  |	|      data      |	 e
+	    |00028|N-|00002|	|len |flags| type|	NFTA_EXPR_DATA | NEST
+	      |00008|--|00001|	|len |flags| type| NFTNL_EXPR_IMM_DREG
+	      | 00 00 00 00  |	|      data      |
+	      |00016|N-|00002|	|len |flags| type| NFTNL_EXPR_IMM_VERDICT
+	        |00012|N-|00002|	|len |flags| type|
+	          |00008|--|00001|	|len |flags| type|
+	          | 00 00 00 00  |	|      data      |
+	----------------	------------------
+	----------------	------------------
+	|  0000000020  |	| message length |
+	| 00017 | R--- |	|  type | flags  |	NFNL_MSG_BATCH_END | REQUEST
+	|  0000000005  |	| sequence number|
+	|  0000000000  |	|     port ID    |
+	----------------	------------------
+	| 00 00 0a 00  |	|  extra header  |	family = AF_UNSPEC, version = NFNETLINK_V0 , res_id = NFNL_SUBSYS_NFTABLES
+	----------------	------------------
+	*/
 	if (family == NFPROTO_IPV4)
 		add_payload(r, NFT_PAYLOAD_NETWORK_HEADER, NFT_REG_1,
 			    saddr ? offsetof(struct iphdr, saddr) : offsetof(struct iphdr, daddr), sizeof(uint32_t));
@@ -511,7 +493,6 @@ nftnl_expr_alloc("immediate");
 
 	add_lookup(r, NFT_REG_1, set, 0, neg);
 
-	/* This is an extra */
 	add_counter(r);
 
 	add_immediate(r, verdict, NULL);
@@ -527,77 +508,77 @@ nftnl_rule *setup_rule_if(uint8_t family, const char *table,
 	struct nftnl_rule *r = NULL;
 	uint64_t handle_num;
 
-/*
- * ----------------	------------------
-|  0000000264  |	| message length |
-| 02566 | R--- |	|  type | flags  |
-|  0000000004  |	| sequence number|
-|  0000000000  |	|     port ID    |
-----------------	------------------
-| 0a 00 00 00  |	|  extra header  |
-|00015|--|00001|	|len |flags| type|
-| 6b 65 65 70  |	|      data      |	 k e e p
-| 61 6c 69 76  |	|      data      |	 a l i v
-| 65 64 00 00  |	|      data      |	 e d
-|00018|--|00002|	|len |flags| type|
-| 69 6e 5f 6c  |	|      data      |	 i n _ l
-| 69 6e 6b 5f  |	|      data      |	 i n k _
-| 6c 6f 63 61  |	|      data      |	 l o c a
-| 6c 00 00 00  |	|      data      |	 l
-|00208|N-|00004|	|len |flags| type| NFT_RULE_EXPRESSIONS
-	|00052|N-|00001|	|len |flags| type| NFTA_LIST_ELEM
-		|00012|--|00001|	|len |flags| type| NFTA_EXPR_NAME
-			| 70 61 79 6c  |	|      data      |	 p a y l
-			| 6f 61 64 00  |	|      data      |	 o a d
-		|00036|N-|00002|	|len |flags| type| NFTA_EXPR_DATA
-			|00008|--|00001|	|len |flags| type| DREG
-			| 00 00 00 01  |	|      data      |
-			|00008|--|00002|	|len |flags| type| BASE
-			| 00 00 00 01  |	|      data      |
-			|00008|--|00003|	|len |flags| type| OFFSET
-			| 00 00 00 18  |	|      data      |
-			|00008|--|00004|	|len |flags| type| LEN
-			| 00 00 00 10  |	|      data      |
-	|00036|N-|00001|	|len |flags| type| NFTA_LIST_ELEM
-		|00009|--|00001|	|len |flags| type| NFTA_EXPR_NAME
-		| 6d 65 74 61  |	|      data      |	 m e t a
-		| 00 00 00 00  |	|      data      |
-		|00020|N-|00002|	|len |flags| type| NFTA_EXPR_DATA
-			|00008|--|00002|	|len |flags| type| NFTA_META_KEY
-			| 00 00 00 06  |	|      data      | NFT_META_IIFNAME
-			|00008|--|00001|	|len |flags| type| NFTA_META_DREG
-			| 00 00 00 02  |	|      data      |NFT_REG_2
-	|00048|N-|00001|	|len |flags| type|
-		|00011|--|00001|	|len |flags| type|
-		| 6c 6f 6f 6b  |	|      data      |	 l o o k
-		| 75 70 00 00  |	|      data      |	 u p
-		|00032|N-|00002|	|len |flags| type|
-			|00008|--|00002|	|len |flags| type|
-			| 00 00 00 01  |	|      data      |
-			|00010|--|00001|	|len |flags| type|
-			| 69 66 5f 6c  |	|      data      |	 i f _ l
-			| 6c 00 00 00  |	|      data      |	 l
-			|00008|--|00004|	|len |flags| type|
-			| 00 00 00 06  |	|      data      |
-	|00020|N-|00001|	|len |flags| type|
-		|00012|--|00001|	|len |flags| type|
-		| 63 6f 75 6e  |	|      data      |	 c o u n
-		| 74 65 72 00  |	|      data      |	 t e r
-		|00004|N-|00002|	|len |flags| type|
-	|00048|N-|00001|	|len |flags| type|
-		|00014|--|00001|	|len |flags| type|
-		| 69 6d 6d 65  |	|      data      |	 i m m e
-		| 64 69 61 74  |	|      data      |	 d i a t
-		| 65 00 00 00  |	|      data      |	 e
-		|00028|N-|00002|	|len |flags| type|
-			|00008|--|00001|	|len |flags| type|
-			| 00 00 00 00  |	|      data      |
-			|00016|N-|00002|	|len |flags| type|
-				|00012|N-|00002|	|len |flags| type|
-					|00008|--|00001|	|len |flags| type|
-					| 00 00 00 00  |	|      data      |
-----------------	------------------
-*/
+	/*
+	----------------	------------------
+	|  0000000264  |	| message length |
+	| 02566 | R--- |	|  type | flags  |
+	|  0000000004  |	| sequence number|
+	|  0000000000  |	|     port ID    |
+	----------------	------------------
+	| 0a 00 00 00  |	|  extra header  |
+	|00015|--|00001|	|len |flags| type|
+	| 6b 65 65 70  |	|      data      |	 k e e p
+	| 61 6c 69 76  |	|      data      |	 a l i v
+	| 65 64 00 00  |	|      data      |	 e d
+	|00018|--|00002|	|len |flags| type|
+	| 69 6e 5f 6c  |	|      data      |	 i n _ l
+	| 69 6e 6b 5f  |	|      data      |	 i n k _
+	| 6c 6f 63 61  |	|      data      |	 l o c a
+	| 6c 00 00 00  |	|      data      |	 l
+	|00208|N-|00004|	|len |flags| type| NFT_RULE_EXPRESSIONS
+	  |00052|N-|00001|	|len |flags| type| NFTA_LIST_ELEM
+	    |00012|--|00001|	|len |flags| type| NFTA_EXPR_NAME
+	      | 70 61 79 6c  |	|      data      |	 p a y l
+	      | 6f 61 64 00  |	|      data      |	 o a d
+	    |00036|N-|00002|	|len |flags| type| NFTA_EXPR_DATA
+	      |00008|--|00001|	|len |flags| type| DREG
+	      | 00 00 00 01  |	|      data      |
+	      |00008|--|00002|	|len |flags| type| BASE
+	      | 00 00 00 01  |	|      data      |
+	      |00008|--|00003|	|len |flags| type| OFFSET
+	      | 00 00 00 18  |	|      data      |
+	      |00008|--|00004|	|len |flags| type| LEN
+	      | 00 00 00 10  |	|      data      |
+	  |00036|N-|00001|	|len |flags| type| NFTA_LIST_ELEM
+	    |00009|--|00001|	|len |flags| type| NFTA_EXPR_NAME
+	    | 6d 65 74 61  |	|      data      |	 m e t a
+	    | 00 00 00 00  |	|      data      |
+	    |00020|N-|00002|	|len |flags| type| NFTA_EXPR_DATA
+	      |00008|--|00002|	|len |flags| type| NFTA_META_KEY
+	      | 00 00 00 06  |	|      data      | NFT_META_IIFNAME
+	      |00008|--|00001|	|len |flags| type| NFTA_META_DREG
+	      | 00 00 00 02  |	|      data      |NFT_REG_2
+	  |00048|N-|00001|	|len |flags| type|
+	    |00011|--|00001|	|len |flags| type|
+	    | 6c 6f 6f 6b  |	|      data      |	 l o o k
+	    | 75 70 00 00  |	|      data      |	 u p
+	    |00032|N-|00002|	|len |flags| type|
+	      |00008|--|00002|	|len |flags| type|
+	      | 00 00 00 01  |	|      data      |
+	      |00010|--|00001|	|len |flags| type|
+	      | 69 66 5f 6c  |	|      data      |	 i f _ l
+	      | 6c 00 00 00  |	|      data      |	 l
+	      |00008|--|00004|	|len |flags| type|
+	      | 00 00 00 06  |	|      data      |
+	  |00020|N-|00001|	|len |flags| type|
+	    |00012|--|00001|	|len |flags| type|
+	    | 63 6f 75 6e  |	|      data      |	 c o u n
+	    | 74 65 72 00  |	|      data      |	 t e r
+	    |00004|N-|00002|	|len |flags| type|
+	  |00048|N-|00001|	|len |flags| type|
+	    |00014|--|00001|	|len |flags| type|
+	    | 69 6d 6d 65  |	|      data      |	 i m m e
+	    | 64 69 61 74  |	|      data      |	 d i a t
+	    | 65 00 00 00  |	|      data      |	 e
+	    |00028|N-|00002|	|len |flags| type|
+	      |00008|--|00001|	|len |flags| type|
+	      | 00 00 00 00  |	|      data      |
+	      |00016|N-|00002|	|len |flags| type|
+	        |00012|N-|00002|	|len |flags| type|
+	          |00008|--|00001|	|len |flags| type|
+	          | 00 00 00 00  |	|      data      |
+	----------------	------------------
+	*/
 	r = nftnl_rule_alloc();
 	if (r == NULL) {
 		log_message(LOG_INFO, "OOM error - %d", errno);
@@ -627,7 +608,6 @@ nftnl_rule *setup_rule_if(uint8_t family, const char *table,
 
 	add_lookup(r, NFT_REG_1, set, 0, neg);
 
-	/* This is an extra */
 	add_counter(r);
 
 	add_immediate(r, verdict, NULL);
@@ -654,111 +634,108 @@ static struct nftnl_rule
 	nftnl_rule_set(r, NFTNL_RULE_CHAIN, chain);
 	nftnl_rule_set_u32(r, NFTNL_RULE_FAMILY, family);
 
-/*
-----------------	------------------
-|  0000000020  |	| message length |
-| 00016 | R--- |	|  type | flags  |
-|  0000000003  |	| sequence number|
-|  0000000000  |	|     port ID    |
-----------------	------------------
-| 00 00 0a 00  |	|  extra header  |
-----------------	------------------
-----------------	------------------
-|  0000000292  |	| message length |
-| 02566 | R--- |	|  type | flags  |
-|  0000000004  |	| sequence number|
-|  0000000000  |	|     port ID    |
-----------------	------------------
-| 0a 00 00 00  |	|  extra header  |
-|00011|--|00001|	|len |flags| type|
-| 66 69 6c 74  |	|      data      |	 f i l t
-| 65 72 00 00  |	|      data      |	 e r
-|00018|--|00002|	|len |flags| type|
-| 6b 65 65 70  |	|      data      |	 k e e p
-| 61 6c 69 76  |	|      data      |	 a l i v
-| 65 64 5f 69  |	|      data      |	 e d _ i
-| 6e 00 00 00  |	|      data      |	 n
-|00240|N-|00004|	|len |flags| type|
-|00052|N-|00001|	|len |flags| type|
-|00012|--|00001|	|len |flags| type|
-| 70 61 79 6c  |	|      data      |	 p a y l
-| 6f 61 64 00  |	|      data      |	 o a d
-	|00036|N-|00002|	|len |flags| type| 		EXPR_DATA
-		|00008|--|00001|	|len |flags| type|	NFTNL_EXPR_PAYLOAD_DREG 1
-		| 00 00 00 01  |	|      data      |
-		|00008|--|00002|	|len |flags| type|	NFTNL_EXPR_PAYLOAD_BASE 1
-		| 00 00 00 01  |	|      data      |	NFT_PAYLOAD_NETWORK_HEADER
-		|00008|--|00003|	|len |flags| type| 	NFTNL_EXPR_PAYLOAD_PAYLOAD OFFSET 24
-		| 00 00 00 18  |	|      data      |
-		|00008|--|00004|	|len |flags| type|	NFTNL_EXPR_PAYLOAD_PAYLOAD_LEN 16
-		| 00 00 00 10  |	|      data      |
+	/*
+	----------------	------------------
+	|  0000000020  |	| message length |
+	| 00016 | R--- |	|  type | flags  |
+	|  0000000003  |	| sequence number|
+	|  0000000000  |	|     port ID    |
+	----------------	------------------
+	| 00 00 0a 00  |	|  extra header  |
+	----------------	------------------
+	----------------	------------------
+	|  0000000292  |	| message length |
+	| 02566 | R--- |	|  type | flags  |
+	|  0000000004  |	| sequence number|
+	|  0000000000  |	|     port ID    |
+	----------------	------------------
+	| 0a 00 00 00  |	|  extra header  |
+	|00011|--|00001|	|len |flags| type|
+	| 66 69 6c 74  |	|      data      |	 f i l t
+	| 65 72 00 00  |	|      data      |	 e r
+	|00018|--|00002|	|len |flags| type|
+	| 6b 65 65 70  |	|      data      |	 k e e p
+	| 61 6c 69 76  |	|      data      |	 a l i v
+	| 65 64 5f 69  |	|      data      |	 e d _ i
+	| 6e 00 00 00  |	|      data      |	 n
+	|00240|N-|00004|	|len |flags| type|
+	  |00052|N-|00001|	|len |flags| type|
+	  |00012|--|00001|	|len |flags| type|
+	  | 70 61 79 6c  |	|      data      |	 p a y l
+	  | 6f 61 64 00  |	|      data      |	 o a d
+	    |00036|N-|00002|	|len |flags| type|     EXPR_DATA
+	      |00008|--|00001|	|len |flags| type|	NFTNL_EXPR_PAYLOAD_DREG 1
+	      | 00 00 00 01  |	|      data      |
+	      |00008|--|00002|	|len |flags| type|	NFTNL_EXPR_PAYLOAD_BASE 1
+	      | 00 00 00 01  |	|      data      |	NFT_PAYLOAD_NETWORK_HEADER
+	      |00008|--|00003|	|len |flags| type|   NFTNL_EXPR_PAYLOAD_PAYLOAD OFFSET 24
+	      | 00 00 00 18  |	|      data      |
+	      |00008|--|00004|	|len |flags| type|	NFTNL_EXPR_PAYLOAD_PAYLOAD_LEN 16
+	      | 00 00 00 10  |	|      data      |
 
-	|00056|N-|00001|	|len |flags| type|		LIST_ELEM
-		|00008|--|00001|	|len |flags| type|	NFTNL_EXPR_NAME
-		| 63 6d 70 00  |	|      data      |	 c m p
-		|00044|N-|00002|	|len |flags| type|	EXPR_DATA
-			|00008|--|00001|	|len |flags| type|	NFTNL_EXPR_CMP_SREG = NFTA_CMP_SREG - look at nftnl_expr_***_build
-			| 00 00 00 01  |	|      data      |	NFT_REG_1
-			|00008|--|00002|	|len |flags| type|	NFTNL_EXPR_CMP_OP = NFTA_CMP_OP
-			| 00 00 00 05  |	|      data      |	NFT_CMP_GTE
-			|00024|N-|00003|	|len |flags| type|	NFTNL_EXPR_CMP_DATA = NFTA_CMP_DATA
-				|00020|--|00001|	|len |flags| type| NFTA_DATA_VALUE
-				| fe 80 00 00  |	|      data      |
-				| 00 00 00 00  |	|      data      |
-				| 00 00 00 00  |	|      data      |
-				| 00 00 00 00  |	|      data      |
-|00056|N-|00001|	|len |flags| type|
-	|00008|--|00001|	|len |flags| type|
-	| 63 6d 70 00  |	|      data      |	 c m p
-	|00044|N-|00002|	|len |flags| type|
-		|00008|--|00001|	|len |flags| type|
-		| 00 00 00 01  |	|      data      |
-		|00008|--|00002|	|len |flags| type|
-		| 00 00 00 03  |	|      data      |	NFT_CMP_LTE
-		|00024|N-|00003|	|len |flags| type|
-			|00020|--|00001|	|len |flags| type|
-			| fe bf 00 00  |	|      data      |
-			| 00 00 00 00  |	|      data      |
-			| 00 00 00 00  |	|      data      |
-		| 00 00 ff ff  |	|      data      |
-|00072|N-|00001|	|len |flags| type| NFTA_LIST_ELEM
-	|00014|--|00001|	|len |flags| type|	NFTA_EXPR_NAME
-	| 69 6d 6d 65  |	|      data      |	 i m m e
-	| 64 69 61 74  |	|      data      |	 d i a t
-	| 65 00 00 00  |	|      data      |	 e
+	    |00056|N-|00001|	|len |flags| type|		LIST_ELEM
+	      |00008|--|00001|	|len |flags| type|	NFTNL_EXPR_NAME
+	      | 63 6d 70 00  |	|      data      |	 c m p
+	      |00044|N-|00002|	|len |flags| type|	EXPR_DATA
+	        |00008|--|00001|	|len |flags| type|	NFTNL_EXPR_CMP_SREG = NFTA_CMP_SREG - look at nftnl_expr_***_build
+	        | 00 00 00 01  |	|      data      |	NFT_REG_1
+	        |00008|--|00002|	|len |flags| type|	NFTNL_EXPR_CMP_OP = NFTA_CMP_OP
+	        | 00 00 00 05  |	|      data      |	NFT_CMP_GTE
+	        |00024|N-|00003|	|len |flags| type|	NFTNL_EXPR_CMP_DATA = NFTA_CMP_DATA
+	          |00020|--|00001|	|len |flags| type| NFTA_DATA_VALUE
+	          | fe 80 00 00  |	|      data      |
+	          | 00 00 00 00  |	|      data      |
+	          | 00 00 00 00  |	|      data      |
+	          | 00 00 00 00  |	|      data      |
+	|00056|N-|00001|	|len |flags| type|
+	    |00008|--|00001|	|len |flags| type|
+	    | 63 6d 70 00  |	|      data      |	 c m p
+	    |00044|N-|00002|	|len |flags| type|
+	      |00008|--|00001|	|len |flags| type|
+	      | 00 00 00 01  |	|      data      |
+	      |00008|--|00002|	|len |flags| type|
+	      | 00 00 00 03  |	|      data      |	NFT_CMP_LTE
+	      |00024|N-|00003|	|len |flags| type|
+	        |00020|--|00001|	|len |flags| type|
+	        | fe bf 00 00  |	|      data      |
+	        | 00 00 00 00  |	|      data      |
+	        | 00 00 00 00  |	|      data      |
+	      | 00 00 ff ff  |	|      data      |
+	|00072|N-|00001|	|len |flags| type| NFTA_LIST_ELEM
+	    |00014|--|00001|	|len |flags| type|	NFTA_EXPR_NAME
+	    | 69 6d 6d 65  |	|      data      |	 i m m e
+	    | 64 69 61 74  |	|      data      |	 d i a t
+	    | 65 00 00 00  |	|      data      |	 e
 
-	|00052|N-|00002|	|len |flags| type| NFTA_EXPR_DATA
-		|00008|--|00001|	|len |flags| type| NFTA_IMMEDIATE_DREG
-		| 00 00 00 00  |	|      data      | NFT_REG_VERDICT
+	    |00052|N-|00002|	|len |flags| type| NFTA_EXPR_DATA
+	      |00008|--|00001|	|len |flags| type| NFTA_IMMEDIATE_DREG
+	      | 00 00 00 00  |	|      data      | NFT_REG_VERDICT
 
-		|00040|N-|00002|	|len |flags| type| NFTNL_EXPR_IMM_VERDICT
-			|00036|N-|00002|	|len |flags| type| NFTA_DATA_VERDICT
-				|00008|--|00001|	|len |flags| type| NFTA_VERDICT_CODE
-				| ff ff ff fc  |	|      data      | NFT_GOTO
-				|00021|--|00002|	|len |flags| type| NFTA_???
-				| 6b 65 65 70  |	|      data      |	 k e e p
-				| 61 6c 69 76  |	|      data      |	 a l i v
-				| 65 64 5f 69  |	|      data      |	 e d _ i
-				| 6e 5f 6c 6c  |	|      data      |	 n _ l l
-				| 00 00 00 00  |	|      data      |
-----------------	------------------
-----------------	------------------
-|  0000000020  |	| message length |
-| 00017 | R--- |	|  type | flags  |
-|  0000000005  |	| sequence number|
-|  0000000000  |	|     port ID    |
-----------------	------------------
-| 00 00 0a 00  |	|  extra header  |
-----------------	------------------
-*/
+	      |00040|N-|00002|	|len |flags| type| NFTNL_EXPR_IMM_VERDICT
+	        |00036|N-|00002|	|len |flags| type| NFTA_DATA_VERDICT
+	          |00008|--|00001|	|len |flags| type| NFTA_VERDICT_CODE
+	          | ff ff ff fc  |	|      data      | NFT_GOTO
+	          |00021|--|00002|	|len |flags| type| NFTA_???
+	          | 6b 65 65 70  |	|      data      |	 k e e p
+	          | 61 6c 69 76  |	|      data      |	 a l i v
+	          | 65 64 5f 69  |	|      data      |	 e d _ i
+	          | 6e 5f 6c 6c  |	|      data      |	 n _ l l
+	          | 00 00 00 00  |	|      data      |
+	----------------	------------------
+	----------------	------------------
+	|  0000000020  |	| message length |
+	| 00017 | R--- |	|  type | flags  |
+	|  0000000005  |	| sequence number|
+	|  0000000000  |	|     port ID    |
+	----------------	------------------
+	| 00 00 0a 00  |	|  extra header  |
+	----------------	------------------
+	*/
 
 	if (handle != NULL) {
 		handle_num = atoll(handle);
 		nftnl_rule_set_u64(r, NFTNL_RULE_POSITION, handle_num);
 	}
-
-	/* This is an extra */
-	add_counter(r);
 
 	add_payload(r, NFT_PAYLOAD_NETWORK_HEADER, NFT_REG_1,
 		    saddr ? offsetof(struct ip6_hdr, ip6_src) : offsetof(struct ip6_hdr, ip6_dst), sizeof(struct in6_addr));
@@ -772,7 +749,6 @@ static struct nftnl_rule
 	ip6.s6_addr32[1] = ip6.s6_addr32[2] = ip6.s6_addr32[3] = 0xffffffff;
 	add_cmp(r, NFT_REG_1, NFT_CMP_LTE, &ip6, sizeof(ip6));
 
-	/* This is an extra */
 	add_counter(r);
 
 	add_immediate(r, NFT_GOTO, chain_dest);
@@ -814,7 +790,6 @@ static struct nftnl_rule
 		    offsetof(struct icmp6_hdr, icmp6_type), sizeof(icmp6.icmp6_type));
 	add_lookup(r, NFT_REG_1, set, set_id, neg);
 
-	/* This is an extra */
 	add_counter(r);
 
 	add_immediate(r, verdict, NULL);
@@ -845,7 +820,6 @@ static struct nftnl_rule *setup_rule_simple(uint8_t family, const char *table,
 		nftnl_rule_set_u64(r, NFTNL_RULE_POSITION, handle_num);
 	}
 
-	/* This is an extra */
 	add_counter(r);
 
 	add_immediate(r, verdict, NULL);
@@ -871,9 +845,8 @@ setup_link_local_checks(struct mnl_nlmsg_batch *batch, bool concat_ifname)
 	nftnl_set_nlmsg_build_payload(nlh, s);
 	nftnl_set_free(s);
 	my_mnl_nlmsg_batch_next(batch);
-//=========================
-//		chain keepalived_in_ll
-//		ip6 daddr . iif @keepalived_ll drop
+
+	/* nft add rule ip6 keepalived in_link_local ip6 daddr . iifname @set_name drop */
 	r = setup_rule_if(NFPROTO_IPV6, global_data->vrrp_nf_table_name, "in_link_local", NULL, set_name,
 			false, concat_ifname, NF_DROP, false);
 	nlh = nftnl_rule_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
@@ -884,8 +857,8 @@ setup_link_local_checks(struct mnl_nlmsg_batch *batch, bool concat_ifname)
 	nftnl_rule_nlmsg_build_payload(nlh, r);
 	nftnl_rule_free(r);
 	my_mnl_nlmsg_batch_next(batch);
-//=========================
-	// ip6 saddr . oif @keepalived_ll drop
+
+	/* nft add rule ip6 keepalived out_link_local ip6 saddr . oifname @set_name drop */
 	r = setup_rule_if(NFPROTO_IPV6, global_data->vrrp_nf_table_name, "out_link_local", NULL, set_name,
 			true, concat_ifname, NF_DROP, false);
 	nlh = nftnl_rule_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
@@ -938,7 +911,6 @@ nft_end_batch(struct mnl_nlmsg_batch *batch, bool more)
 	}
 }
 
-//=========================
 /* To get the netlink message returned (with the handle), set NLM_F_ECHO in nftnl_..._nlmsg_build_hdr
  * For some reason, it isn't working for the second batch sent.
  */
@@ -953,7 +925,7 @@ nft_setup_ipv4(struct mnl_nlmsg_batch *batch)
 	char *table = global_data->vrrp_nf_table_name;
 
 
-//=========================
+	/* nft add table ip keepalived */
 	ta = table_add_parse(NFPROTO_IPV4, table);
 	nlh = nftnl_table_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 					NFT_MSG_NEWTABLE, nftnl_table_get_u32(ta, NFTNL_TABLE_FAMILY),
@@ -962,8 +934,7 @@ nft_setup_ipv4(struct mnl_nlmsg_batch *batch)
 	nftnl_table_free(ta);
 	my_mnl_nlmsg_batch_next(batch);
 
-//=========================
-	// Add option for type = filter, hook = INPUT priority = ?
+	/* nft add chain ip keepalived in { type filter hook input priority -1; policy accept; } */
 	t = chain_add_parse(table, "in");
 	if (t == NULL)
 		exit(EXIT_FAILURE);
@@ -978,7 +949,8 @@ nft_setup_ipv4(struct mnl_nlmsg_batch *batch)
 	nftnl_chain_nlmsg_build_payload(nlh, t);
 	nftnl_chain_free(t);
 	my_mnl_nlmsg_batch_next(batch);
-//=========================
+
+	/* nft add chain ip keepalived out { type filter hook output priority -1; policy accept } */
 	t = chain_add_parse(global_data->vrrp_nf_table_name, "out");
 	if (t == NULL)
 		exit(EXIT_FAILURE);
@@ -994,8 +966,7 @@ nft_setup_ipv4(struct mnl_nlmsg_batch *batch)
 	nftnl_chain_free(t);
 	my_mnl_nlmsg_batch_next(batch);
 
-//=========================
-
+	/* nft add set ip keepalived vips { type ipv4_addr; } */
 	s = setup_set(NFPROTO_IPV4, table, "vips", TYPE_IPADDR);
 
 	nlh = nftnl_set_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
@@ -1005,7 +976,8 @@ nft_setup_ipv4(struct mnl_nlmsg_batch *batch)
 	nftnl_set_nlmsg_build_payload(nlh, s);
 	nftnl_set_free(s);
 	my_mnl_nlmsg_batch_next(batch);
-//=========================
+
+	/* nft add rule ip keepalived in ip daddr @vips drop */
 	r = setup_rule(NFPROTO_IPV4, table, "in", NULL, "vips", false, NF_DROP, false);
 	nlh = nftnl_rule_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 			NFT_MSG_NEWRULE,
@@ -1015,7 +987,8 @@ nft_setup_ipv4(struct mnl_nlmsg_batch *batch)
 	nftnl_rule_nlmsg_build_payload(nlh, r);
 	nftnl_rule_free(r);
 	my_mnl_nlmsg_batch_next(batch);
-//=========================
+
+	/* nft add rule ip keepalived out ip saddr @vips drop */
 	r = setup_rule(NFPROTO_IPV4, table, "out", NULL, "vips", true, NF_DROP, false);
 	nlh = nftnl_rule_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 			NFT_MSG_NEWRULE,
@@ -1025,7 +998,6 @@ nft_setup_ipv4(struct mnl_nlmsg_batch *batch)
 	nftnl_rule_nlmsg_build_payload(nlh, r);
 	nftnl_rule_free(r);
 	my_mnl_nlmsg_batch_next(batch);
-//=========================
 
 	ipv4_table_setup = true;
 }
@@ -1042,16 +1014,7 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 	struct icmp6_hdr icmp6;
 	char *table = global_data->vrrp_nf_table_name;
 
-//=========================
-	ta = table_add_parse(NFPROTO_IPV4, table);
-	nlh = nftnl_table_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
-					NFT_MSG_NEWTABLE, nftnl_table_get_u32(ta, NFTNL_TABLE_FAMILY),
-					NLM_F_CREATE|NLM_F_ACK, seq++);
-	nftnl_table_nlmsg_build_payload(nlh, ta);
-	nftnl_table_free(ta);
-	my_mnl_nlmsg_batch_next(batch);
-
-//=========================
+	/* nft add table ip6 keepalived */
 	ta = table_add_parse(NFPROTO_IPV6, table);
 	nlh = nftnl_table_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 					NFT_MSG_NEWTABLE, nftnl_table_get_u32(ta, NFTNL_TABLE_FAMILY),
@@ -1060,14 +1023,13 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 	nftnl_table_free(ta);
 	my_mnl_nlmsg_batch_next(batch);
 
-//=========================
-	// Add option for type = filter, hook = INPUT priority = ?
+	/* nft add chain ip6 keepalived in { type filter hook input priority PRIORITY; policy accept; } */
 	t = chain_add_parse(table, "in");
 	if (t == NULL)
 		exit(EXIT_FAILURE);
 
 	nlh = nftnl_chain_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
-					NFT_MSG_NEWCHAIN, NFPROTO_IPV4,
+					NFT_MSG_NEWCHAIN, NFPROTO_IPV6,
 					NLM_F_CREATE|NLM_F_ACK, seq++);
 	nftnl_chain_set_u32(t, NFTNL_CHAIN_HOOKNUM, NF_INET_LOCAL_IN);	// input
 	nftnl_chain_set_str(t, NFTNL_CHAIN_TYPE, "filter");
@@ -1076,13 +1038,14 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 	nftnl_chain_nlmsg_build_payload(nlh, t);
 	nftnl_chain_free(t);
 	my_mnl_nlmsg_batch_next(batch);
-//=========================
+
+	/* nft add chain ip6 keepalived out { type filter hook putput priority PRIORITY; policy accept; } */
 	t = chain_add_parse(table, "out");
 	if (t == NULL)
 		exit(EXIT_FAILURE);
 
 	nlh = nftnl_chain_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
-					NFT_MSG_NEWCHAIN, NFPROTO_IPV4,
+					NFT_MSG_NEWCHAIN, NFPROTO_IPV6,
 					NLM_F_CREATE|NLM_F_ACK, seq++);
 	nftnl_chain_set_u32(t, NFTNL_CHAIN_HOOKNUM, NF_INET_LOCAL_OUT);
 	nftnl_chain_set_str(t, NFTNL_CHAIN_TYPE, "filter");
@@ -1092,7 +1055,7 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 	nftnl_chain_free(t);
 	my_mnl_nlmsg_batch_next(batch);
 
-//=========================
+	/* nft add chain ip6 keepalived in { type filter hook input priority PRIORITY; policy accept; } */
 	t = chain_add_parse(table, "in");
 	nlh = nftnl_chain_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 					NFT_MSG_NEWCHAIN, NFPROTO_IPV6,
@@ -1104,7 +1067,8 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 	nftnl_chain_nlmsg_build_payload(nlh, t);
 	nftnl_chain_free(t);
 	my_mnl_nlmsg_batch_next(batch);
-//=========================
+
+	/* nft add chain ip6 keepalived in_link_local */
 	t = chain_add_parse(table, "in_link_local");
 	nlh = nftnl_chain_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 					NFT_MSG_NEWCHAIN, NFPROTO_IPV6,
@@ -1112,7 +1076,8 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 	nftnl_chain_nlmsg_build_payload(nlh, t);
 	nftnl_chain_free(t);
 	my_mnl_nlmsg_batch_next(batch);
-//=========================
+
+	/* nft add chain ip6 keepalived out */
 	t = chain_add_parse(table, "out");
 	nlh = nftnl_chain_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 					NFT_MSG_NEWCHAIN, NFPROTO_IPV6,
@@ -1124,7 +1089,8 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 	nftnl_chain_nlmsg_build_payload(nlh, t);
 	nftnl_chain_free(t);
 	my_mnl_nlmsg_batch_next(batch);
-//=========================
+
+	/* nft add chain ip6 keepalived out_link_local */
 	t = chain_add_parse(table, "out_link_local");
 	nlh = nftnl_chain_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 					NFT_MSG_NEWCHAIN, NFPROTO_IPV6,
@@ -1132,19 +1098,8 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 	nftnl_chain_nlmsg_build_payload(nlh, t);
 	nftnl_chain_free(t);
 	my_mnl_nlmsg_batch_next(batch);
-//=========================
 
-	s = setup_set(NFPROTO_IPV4, table, "vips", TYPE_IPADDR);
-
-	nlh = nftnl_set_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
-				      NFT_MSG_NEWSET, NFPROTO_IPV4,
-				      NLM_F_CREATE|NLM_F_ACK, seq++);
-
-	nftnl_set_nlmsg_build_payload(nlh, s);
-	nftnl_set_free(s);
-	my_mnl_nlmsg_batch_next(batch);
-//=========================
-
+	/* nft add set ip6 keepalived vips {type ipv6_addr; } */
 	s = setup_set(NFPROTO_IPV6, table, "vips", TYPE_IP6ADDR);
 
 	nlh = nftnl_set_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
@@ -1154,13 +1109,14 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 	nftnl_set_nlmsg_build_payload(nlh, s);
 	nftnl_set_free(s);
 	my_mnl_nlmsg_batch_next(batch);
-//=========================
+
+	/* nft add set ip6 keepalived neighbor-discovery { type icmpv6_type; } */
 	s = setup_set(NFPROTO_IPV6, table, "neighbor-discovery", TYPE_ICMPV6_TYPE);
 
 	nlh = nftnl_set_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 				      NFT_MSG_NEWSET, NFPROTO_IPV6,
 				      NLM_F_CREATE|NLM_F_ACK, seq++);
-//	set_id = nftnl_set_get_u32(s, NFTNL_SET_ID);
+	/* set_id = nftnl_set_get_u32(s, NFTNL_SET_ID); */
 
 	nftnl_set_set_u32(s, NFTNL_SET_FLAGS, NFT_SET_CONSTANT);
 	nftnl_set_set_u32(s, NFTNL_SET_KEY_LEN, sizeof(icmp6.icmp6_type));
@@ -1168,6 +1124,7 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 	nftnl_set_nlmsg_build_payload(nlh, s);
 	my_mnl_nlmsg_batch_next(batch);
 
+	/* nft add element ip6 keepalived neighbor-discovery { nd-neighbor-solicit, nd-neighbor-advert } */
 	nlh = nftnl_set_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 				      NFT_MSG_NEWSETELEM, NFPROTO_IPV6,
 				      NLM_F_CREATE|NLM_F_ACK, seq++);
@@ -1185,27 +1142,7 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 	nftnl_set_free(s);
 	my_mnl_nlmsg_batch_next(batch);
 
-//=========================
-	r = setup_rule(NFPROTO_IPV4, table, "in", NULL, "vips", false, NF_DROP, false);
-	nlh = nftnl_rule_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
-			NFT_MSG_NEWRULE,
-			nftnl_rule_get_u32(r, NFTNL_RULE_FAMILY),
-			NLM_F_APPEND|NLM_F_CREATE|NLM_F_ACK, seq++);
-
-	nftnl_rule_nlmsg_build_payload(nlh, r);
-	nftnl_rule_free(r);
-	my_mnl_nlmsg_batch_next(batch);
-//=========================
-	r = setup_rule(NFPROTO_IPV4, table, "out", NULL, "vips", true, NF_DROP, false);
-	nlh = nftnl_rule_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
-			NFT_MSG_NEWRULE,
-			nftnl_rule_get_u32(r, NFTNL_RULE_FAMILY),
-			NLM_F_APPEND|NLM_F_CREATE|NLM_F_ACK, seq++);
-
-	nftnl_rule_nlmsg_build_payload(nlh, r);
-	nftnl_rule_free(r);
-	my_mnl_nlmsg_batch_next(batch);
-//=========================
+	/* nft add rule ip6 keepalived in icmpv6 @neighbor-discovery accept */
 	r = setup_rule_icmpv6(NFPROTO_IPV6, table, "in", NULL,
 			"neighbor-discovery", 0, NF_ACCEPT, false);
 	nlh = nftnl_rule_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
@@ -1216,7 +1153,8 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 	nftnl_rule_nlmsg_build_payload(nlh, r);
 	nftnl_rule_free(r);
 	my_mnl_nlmsg_batch_next(batch);
-//=========================
+
+	/* nft add rule ip6 keepalived in ip6 daddr fe80::-febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff goto in_link_local */
 	r = setup_rule_range_goto(NFPROTO_IPV6, table, "in", NULL, "in_link_local", false);
 	nlh = nftnl_rule_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 			NFT_MSG_NEWRULE,
@@ -1226,7 +1164,8 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 	nftnl_rule_nlmsg_build_payload(nlh, r);
 	nftnl_rule_free(r);
 	my_mnl_nlmsg_batch_next(batch);
-//=========================
+
+	/* nft add rule ip6 keepalived in icmpv6 @neighbor-discovery accept */
 	r = setup_rule_icmpv6(NFPROTO_IPV6, table, "out", NULL,
 			"neighbor-discovery", 0, NF_ACCEPT, false);
 	nlh = nftnl_rule_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
@@ -1237,7 +1176,8 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 	nftnl_rule_nlmsg_build_payload(nlh, r);
 	nftnl_rule_free(r);
 	my_mnl_nlmsg_batch_next(batch);
-//=========================
+
+	/* nft add rule ip6 keepalived out ip6 saddr fe80::-febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff goto out_link_local */
 	r = setup_rule_range_goto(NFPROTO_IPV6, table, "out", NULL, "out_link_local", true);
 	nlh = nftnl_rule_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 			NFT_MSG_NEWRULE,
@@ -1247,7 +1187,8 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 	nftnl_rule_nlmsg_build_payload(nlh, r);
 	nftnl_rule_free(r);
 	my_mnl_nlmsg_batch_next(batch);
-//=========================
+
+	/* nft add rule ip6 keepalived in ip6 daddr @vips drop */
 	r = setup_rule(NFPROTO_IPV6, table, "in", NULL, "vips", false, NF_DROP, false);
 	nlh = nftnl_rule_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 			NFT_MSG_NEWRULE,
@@ -1257,7 +1198,8 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 	nftnl_rule_nlmsg_build_payload(nlh, r);
 	nftnl_rule_free(r);
 	my_mnl_nlmsg_batch_next(batch);
-//=========================
+
+	/* nft add rule ip6 keepalived out ip6 saddr @vips drop */
 	r = setup_rule(NFPROTO_IPV6, table, "out", NULL, "vips", true, NF_DROP, false);
 	nlh = nftnl_rule_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 			NFT_MSG_NEWRULE,
@@ -1267,28 +1209,6 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 	nftnl_rule_nlmsg_build_payload(nlh, r);
 	nftnl_rule_free(r);
 	my_mnl_nlmsg_batch_next(batch);
-//=========================
-#if 0
-	s = setup_set(NFPROTO_IPV6,table, "if_dict", TYPE_IFNAME);
-	nftnl_set_set_u32(s, NFTNL_SET_FLAGS, NFT_SET_MAP);
-	nftnl_set_set_u32(s, NFTNL_SET_DATA_TYPE, NFT_DATA_VERDICT);
-	nftnl_set_set_u32(s, NFTNL_SET_DATA_LEN, 0);
-
-	nlh = nftnl_set_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
-				      NFT_MSG_NEWSET, NFPROTO_IPV6,
-				      NLM_F_CREATE|NLM_F_ACK, seq++);
-	nftnl_set_nlmsg_build_payload(nlh, s);
-	my_mnl_nlmsg_batch_next(batch);
-//=========================
-	s = setup_set(NFPROTO_IPV6,table, "if_ll", (TYPE_IP6ADDR << TYPE_BITS) | TYPE_IFNAME);
-
-	nlh = nftnl_set_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
-				      NFT_MSG_NEWSET, NFPROTO_IPV6,
-				      NLM_F_CREATE|NLM_F_ACK, seq++);
-	nftnl_set_nlmsg_build_payload(nlh, s);
-	my_mnl_nlmsg_batch_next(batch);
-#endif
-//=========================
 
 	ipv6_table_setup = true;
 }
@@ -1312,7 +1232,7 @@ nft_update_ipv4_address(struct mnl_nlmsg_batch *batch, ip_address_t *addr, struc
 		nftnl_set_set(*s, NFTNL_SET_NAME, "vips");
 	}
 
-	/* Add an element to set */
+	/* nft add element ip keepalived vips { ADDR } */
 	e = nftnl_set_elem_alloc();
 	if (e == NULL) {
 		log_message(LOG_INFO, "OOM error - %d", errno);
@@ -1380,7 +1300,10 @@ nft_update_ipv6_address(struct mnl_nlmsg_batch *batch, ip_address_t *addr, bool 
 		nftnl_set_set(*s, NFTNL_SET_NAME, set_name);
 	}
 
-	/* Add element to set */
+	/* Add element to set
+	 * nft add element ip6 keepalived vips ADDR or
+	 * nft add element ip6 keepalived vips_link_local ADDR . IF or
+	 * nft add element ip6 keepalived vips_link_local_ifname ADDR . IF */
 	e = nftnl_set_elem_alloc();
 	if (e == NULL) {
 		log_message(LOG_INFO, "OOM error - %d", errno);
@@ -1516,36 +1439,36 @@ nft_remove_addresses_iplist(list l)
 void
 nft_cleanup(void)
 {
-/*
-----------------	------------------
-|  0000000020  |	| message length |
-| 00016 | R--- |	|  type | flags  |
-|  0000000003  |	| sequence number|
-|  0000000000  |	|     port ID    |
-----------------	------------------
-| 00 00 0a 00  |	|  extra header  |
-----------------	------------------
-----------------	------------------
-|  0000000036  |	| message length |
-| 02562 | R-A- |	|  type | flags  |
-|  0000000004  |	| sequence number|
-|  0000000000  |	|     port ID    |
-----------------	------------------
-| 02 00 00 00  |	|  extra header  |
-|00015|--|00001|	|len |flags| type|
-| 6b 65 65 70  |	|      data      |	 k e e p
-| 61 6c 69 76  |	|      data      |	 a l i v
-| 65 64 00 00  |	|      data      |	 e d
-----------------	------------------
-----------------	------------------
-|  0000000020  |	| message length |
-| 00017 | R--- |	|  type | flags  |
-|  0000000005  |	| sequence number|
-|  0000000000  |	|     port ID    |
-----------------	------------------
-| 00 00 0a 00  |	|  extra header  |
-----------------	------------------
-*/
+	/*
+	----------------	------------------
+	|  0000000020  |	| message length |
+	| 00016 | R--- |	|  type | flags  |
+	|  0000000003  |	| sequence number|
+	|  0000000000  |	|     port ID    |
+	----------------	------------------
+	| 00 00 0a 00  |	|  extra header  |
+	----------------	------------------
+	----------------	------------------
+	|  0000000036  |	| message length |
+	| 02562 | R-A- |	|  type | flags  |
+	|  0000000004  |	| sequence number|
+	|  0000000000  |	|     port ID    |
+	----------------	------------------
+	| 02 00 00 00  |	|  extra header  |
+	|00015|--|00001|	|len |flags| type|
+	| 6b 65 65 70  |	|      data      |	 k e e p
+	| 61 6c 69 76  |	|      data      |	 a l i v
+	| 65 64 00 00  |	|      data      |	 e d
+	----------------	------------------
+	----------------	------------------
+	|  0000000020  |	| message length |
+	| 00017 | R--- |	|  type | flags  |
+	|  0000000005  |	| sequence number|
+	|  0000000000  |	|     port ID    |
+	----------------	------------------
+	| 00 00 0a 00  |	|  extra header  |
+	----------------	------------------
+	*/
 	struct nftnl_table *t;
 	struct nlmsghdr *nlh;
 	struct mnl_nlmsg_batch *batch;
@@ -1594,11 +1517,3 @@ nft_end(void)
 	mnl_socket_close(nl);
 	nl = NULL;
 }
-
-/*
-Extra commands:
-
-nft insert rule ip6 keepalived  in_link_local handle 14  ip6 daddr . iifname {fe80::4000 . eth0 } counter drop
-nft insert rule ip6 keepalived in_link_local ip6 daddr . iifname @if_ll  counter drop
-nft add element ip6 keepalived if_ll { fe80::4000 . eth0 }
-*/
