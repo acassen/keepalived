@@ -21,6 +21,8 @@ addons:
     - libglib2.0-dev
     - libjson-c-dev
     - libpcre2-dev
+    - libmnl-dev
+    - libnftnl-dev
     update: true
 
 install:
