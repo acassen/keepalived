@@ -988,7 +988,7 @@ nft_setup_ipv4(struct mnl_nlmsg_batch *batch)
 					NLM_F_CREATE|NLM_F_ACK, seq++);
 	nftnl_chain_set_u32(t, NFTNL_CHAIN_HOOKNUM, NF_INET_LOCAL_OUT);
 	nftnl_chain_set_str(t, NFTNL_CHAIN_TYPE, "filter");
-	nftnl_chain_set_s32(t, NFTNL_CHAIN_PRIO, global_data->vrrp_nf_priority);
+	nftnl_chain_set_s32(t, NFTNL_CHAIN_PRIO, global_data->vrrp_nf_chain_priority);
 	nftnl_chain_set_u32(t, NFTNL_CHAIN_POLICY, NF_ACCEPT);
 	nftnl_chain_nlmsg_build_payload(nlh, t);
 	nftnl_chain_free(t);
@@ -1071,7 +1071,7 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 					NLM_F_CREATE|NLM_F_ACK, seq++);
 	nftnl_chain_set_u32(t, NFTNL_CHAIN_HOOKNUM, NF_INET_LOCAL_IN);	// input
 	nftnl_chain_set_str(t, NFTNL_CHAIN_TYPE, "filter");
-	nftnl_chain_set_s32(t, NFTNL_CHAIN_PRIO, global_data->vrrp_nf_priority);
+	nftnl_chain_set_s32(t, NFTNL_CHAIN_PRIO, global_data->vrrp_nf_chain_priority);
 	nftnl_chain_set_u32(t, NFTNL_CHAIN_POLICY, NF_ACCEPT);
 	nftnl_chain_nlmsg_build_payload(nlh, t);
 	nftnl_chain_free(t);
@@ -1086,7 +1086,7 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 					NLM_F_CREATE|NLM_F_ACK, seq++);
 	nftnl_chain_set_u32(t, NFTNL_CHAIN_HOOKNUM, NF_INET_LOCAL_OUT);
 	nftnl_chain_set_str(t, NFTNL_CHAIN_TYPE, "filter");
-	nftnl_chain_set_s32(t, NFTNL_CHAIN_PRIO, global_data->vrrp_nf_priority);
+	nftnl_chain_set_s32(t, NFTNL_CHAIN_PRIO, global_data->vrrp_nf_chain_priority);
 	nftnl_chain_set_u32(t, NFTNL_CHAIN_POLICY, NF_ACCEPT);
 	nftnl_chain_nlmsg_build_payload(nlh, t);
 	nftnl_chain_free(t);
@@ -1099,7 +1099,7 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 					NLM_F_CREATE|NLM_F_ACK, seq++);
 	nftnl_chain_set_u32(t, NFTNL_CHAIN_HOOKNUM, NF_INET_LOCAL_IN);
 	nftnl_chain_set_str(t, NFTNL_CHAIN_TYPE, "filter");
-	nftnl_chain_set_s32(t, NFTNL_CHAIN_PRIO, global_data->vrrp_nf_priority);
+	nftnl_chain_set_s32(t, NFTNL_CHAIN_PRIO, global_data->vrrp_nf_chain_priority);
 	nftnl_chain_set_u32(t, NFTNL_CHAIN_POLICY, NF_ACCEPT);
 	nftnl_chain_nlmsg_build_payload(nlh, t);
 	nftnl_chain_free(t);
@@ -1119,7 +1119,7 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 					NLM_F_CREATE|NLM_F_ACK, seq++);
 	nftnl_chain_set_u32(t, NFTNL_CHAIN_HOOKNUM, NF_INET_LOCAL_OUT);
 	nftnl_chain_set_str(t, NFTNL_CHAIN_TYPE, "filter");
-	nftnl_chain_set_s32(t, NFTNL_CHAIN_PRIO, global_data->vrrp_nf_priority);
+	nftnl_chain_set_s32(t, NFTNL_CHAIN_PRIO, global_data->vrrp_nf_chain_priority);
 	nftnl_chain_set_u32(t, NFTNL_CHAIN_POLICY, NF_ACCEPT);
 	nftnl_chain_nlmsg_build_payload(nlh, t);
 	nftnl_chain_free(t);
