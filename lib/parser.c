@@ -54,7 +54,7 @@
 
 /* #define PARSER_DEBUG */
 
-#define DUMP_KEYWORDS	1
+#define DUMP_KEYWORDS	0
 
 #define DEF_LINE_END	"\n"
 
