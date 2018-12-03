@@ -49,6 +49,9 @@
 #include "smtp.h"
 #include "utils.h"
 #include "logger.h"
+#ifdef _WITH_FIREWALL_
+#include "vrrp_firewall.h"
+#endif
 
 #if HAVE_DECL_CLONE_NEWNET
 #include "namespaces.h"
@@ -678,8 +681,8 @@ vrrp_iptables_handler(vector_t *strvec)
 			strcpy(global_data->vrrp_iptables_outchain, strvec_slot(strvec,2));
 		}
 	} else {
-		strcpy(global_data->vrrp_iptables_inchain, "INPUT");
-		strcpy(global_data->vrrp_iptables_outchain, "OUTPUT");
+		strcpy(global_data->vrrp_iptables_inchain, DEFAULT_IPTABLES_CHAIN_IN);
+		strcpy(global_data->vrrp_iptables_outchain, DEFAULT_IPTABLES_CHAIN_OUT);
 	}
 }
 #ifdef _HAVE_LIBIPSET_
@@ -753,8 +756,8 @@ vrrp_nftables_handler(__attribute__((unused)) vector_t *strvec)
 	}
 	else {
 		/* Table named defaults to "keepalived" */
-		name = "keepalived";
-		len = 10;
+		name = DEFAULT_NFTABLES_TABLE;
+		len = strlen(name);
 	}
 
 	global_data->vrrp_nf_table_name = MALLOC(len + 1);

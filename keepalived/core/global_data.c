@@ -39,6 +39,9 @@
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 #include "process.h"
 #endif
+#ifdef _WITH_FIREWALL_
+#include "vrrp_firewall.h"
+#endif
 
 /* global vars */
 data_t *global_data = NULL;
@@ -102,19 +105,18 @@ set_vrrp_defaults(data_t * data)
 	data->vrrp_lower_prio_no_advert = false;
 	data->vrrp_higher_prio_send_advert = false;
 	data->vrrp_version = VRRP_VERSION_2;
-#ifdef _WITH_IPTABLES_
-	strcpy(data->vrrp_iptables_inchain, "INPUT");
-	strcpy(data->vrrp_iptables_outchain, "OUTPUT");
 #ifdef _HAVE_LIBIPSET_
 	data->using_ipsets = true;
-	strcpy(data->vrrp_ipset_address, "keepalived");
-	strcpy(data->vrrp_ipset_address6, "keepalived6");
-	strcpy(data->vrrp_ipset_address_iface6, "keepalived_if6");
-#endif
+	strcpy(data->vrrp_ipset_address, DEFAULT_IPSET_NAME);
+	strcpy(data->vrrp_ipset_address6, DEFAULT_IPSET_NAME "6");
+	strcpy(data->vrrp_ipset_address_iface6, DEFAULT_IPSET_NAME "if6");
 #endif
 	data->vrrp_check_unicast_src = false;
 	data->vrrp_skip_check_adv_addr = false;
 	data->vrrp_strict = false;
+#ifdef _WITH_NFTABLES_
+	data->vrrp_nf_chain_priority = -1;
+#endif
 }
 #endif
 
@@ -487,19 +489,22 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " Gratuitous NA interval = %d", data->vrrp_gna_interval);
 	conf_write(fp, " VRRP default protocol version = %d", data->vrrp_version);
 #ifdef _WITH_IPTABLES_
-	if (data->vrrp_iptables_inchain[0])
+	if (data->vrrp_iptables_inchain[0]) {
 		conf_write(fp," Iptables input chain = %s", data->vrrp_iptables_inchain);
-	if (data->vrrp_iptables_outchain[0])
-		conf_write(fp," Iptables output chain = %s", data->vrrp_iptables_outchain);
+		if (data->vrrp_iptables_outchain[0])
+			conf_write(fp," Iptables output chain = %s", data->vrrp_iptables_outchain);
 #ifdef _HAVE_LIBIPSET_
-	conf_write(fp, " Using ipsets = %s", data->using_ipsets ? "true" : "false");
-	if (data->vrrp_ipset_address[0])
-		conf_write(fp," ipset IPv4 address set = %s", data->vrrp_ipset_address);
-	if (data->vrrp_ipset_address6[0])
-		conf_write(fp," ipset IPv6 address set = %s", data->vrrp_ipset_address6);
-	if (data->vrrp_ipset_address_iface6[0])
-		conf_write(fp," ipset IPv6 address,iface set = %s", data->vrrp_ipset_address_iface6);
+		conf_write(fp, " Using ipsets = %s", data->using_ipsets ? "true" : "false");
+		if (data->using_ipsets) {
+			if (data->vrrp_ipset_address[0])
+				conf_write(fp," ipset IPv4 address set = %s", data->vrrp_ipset_address);
+			if (data->vrrp_ipset_address6[0])
+				conf_write(fp," ipset IPv6 address set = %s", data->vrrp_ipset_address6);
+			if (data->vrrp_ipset_address_iface6[0])
+				conf_write(fp," ipset IPv6 address,iface set = %s", data->vrrp_ipset_address_iface6);
+		}
 #endif
+	}
 #endif
 #ifdef _WITH_NFTABLES_
 	if (data->vrrp_nf_table_name) {

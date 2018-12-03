@@ -26,6 +26,8 @@
 #define LIBIPSET_NFPROTO_H
 #include "vrrp_ipaddress.h"
 
+#define DEFAULT_IPSET_NAME	"keepalived"
+
 bool add_ipsets(bool);
 bool remove_ipsets(void);
 bool has_ipset_setname(void*, const char *);

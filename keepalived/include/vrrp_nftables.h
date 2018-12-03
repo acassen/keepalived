@@ -29,6 +29,8 @@
 #include "vrrp.h"
 #include "vrrp_ipaddress.h"
 
+#define	DEFAULT_NFTABLES_TABLE	"keepalived"
+
 extern void nft_add_addresses(vrrp_t *);
 extern void nft_remove_addresses(vrrp_t *);
 extern void nft_remove_addresses_iplist(list);

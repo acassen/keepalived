@@ -32,6 +32,13 @@
 #include "vrrp.h"
 #include "list.h"
 
+#ifdef _WITH_IPTABLES_
+#include "vrrp_iptables.h"
+#endif
+#ifdef _WITH_NFTABLES_
+#include "vrrp_nftables.h"
+#endif
+
 /* Global variables */
 extern bool block_ipv4;
 extern bool block_ipv6;

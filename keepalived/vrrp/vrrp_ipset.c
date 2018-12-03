@@ -273,7 +273,7 @@ bool ipset_initialise(void)
 	 * than Linux 3.13, since ipsets didn't understand namespaces prior to that. */
 	if (global_data->network_namespace &&
 	    !global_data->namespace_with_ipsets &&
-	    !strcmp(global_data->vrrp_ipset_address, "keepalived") &&
+	    !strcmp(global_data->vrrp_ipset_address, DEFAULT_IPSET_NAME) &&
 	    (os_major <= 2 ||
 	     (os_major == 3 && os_minor < 13))) {
 		log_message(LOG_INFO, "Not using ipsets with network namespace since not supported with kernel version < 3.13");

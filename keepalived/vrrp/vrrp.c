@@ -2948,20 +2948,26 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			have_firewall = true;
 #endif
 
-		if (!have_firewall)
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Unable to set no_accept mode since no nftables/iptables chain name set", vrrp->iname);
-		else {
-		       	if (vrrp->family == AF_INET)
+		if (!have_firewall) {
+#ifdef _WITH_IPTABLES_
+			strcpy(global_data->vrrp_iptables_inchain, DEFAULT_IPTABLES_CHAIN_IN);
+			strcpy(global_data->vrrp_iptables_outchain, DEFAULT_IPTABLES_CHAIN_OUT);
+#else
+			global_data->vrrp_nf_table_name = MALLOC(strlen(DEFAULT_NFTABLES_TABLE) + 1);
+			strcpy(global_data->vrrp_nf_table_name, DEFAULT_NFTABLES_TABLE);
+#endif
+		}
+
+		if (vrrp->family == AF_INET)
+			block_ipv4 = true;
+		else
+			block_ipv6 = true;
+
+		LIST_FOREACH(vrrp->evip, vip, e) {
+			if (vip->ifa.ifa_family == AF_INET)
 				block_ipv4 = true;
 			else
 				block_ipv6 = true;
-
-			LIST_FOREACH(vrrp->evip, vip, e) {
-				if (vip->ifa.ifa_family == AF_INET)
-					block_ipv4 = true;
-				else
-					block_ipv6 = true;
-			}
 		}
 	}
 #endif

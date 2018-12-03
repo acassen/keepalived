@@ -31,7 +31,12 @@
 /* local includes */
 #include "list.h"
 #include "vrrp.h"
+#ifdef _HAVE_LIBIPSET_
+#include "vrrp_ipset.h"
+#endif
 
+#define DEFAULT_IPTABLES_CHAIN_IN	"INPUT"
+#define DEFAULT_IPTABLES_CHAIN_OUT	"OUTPUT"
 
 /* prototypes */
 extern void handle_iptable_rule_to_iplist(list, list, int, bool force);
