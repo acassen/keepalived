@@ -210,8 +210,10 @@ vrrp_print_json(void)
 			json_object_new_double(vrrp->adver_int / TIMER_HZ_FLOAT));
 		json_object_object_add(json_data, "master_adver_int",
 			json_object_new_double(vrrp->master_adver_int / TIMER_HZ_FLOAT));
+#ifdef _WITH_FIREWALL_
 		json_object_object_add(json_data, "accept",
 			json_object_new_int((int)vrrp->accept));
+#endif
 		json_object_object_add(json_data, "nopreempt",
 			json_object_new_boolean(vrrp->nopreempt));
 		json_object_object_add(json_data, "preempt_delay",

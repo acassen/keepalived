@@ -461,7 +461,9 @@ dump_vrrp(FILE *fp, void *data)
 		(vrrp->version == VRRP_VERSION_2) ? "sec" : "milli-sec");
 	if (vrrp->state == VRRP_STATE_BACK && vrrp->version == VRRP_VERSION_3)
 		conf_write(fp, "   Master advert interval = %d milli-sec", vrrp->master_adver_int / (TIMER_HZ / 1000));
+#ifdef _WITH_FIREWALL_
 	conf_write(fp, "   Accept = %s", vrrp->accept ? "enabled" : "disabled");
+#endif
 	conf_write(fp, "   Preempt = %s", vrrp->nopreempt ? "disabled" : "enabled");
 	if (vrrp->preempt_delay)
 		conf_write(fp, "   Preempt delay = %g secs",
@@ -642,7 +644,9 @@ alloc_vrrp(char *iname)
 	new->iname = (char *) MALLOC(size + 1);
 	memcpy(new->iname, iname, size);
 	new->stats = alloc_vrrp_stats();
+#ifdef _WITH_FIREWALL_
 	new->accept = PARAMETER_UNSET;
+#endif
 	new->garp_rep = global_data->vrrp_garp_rep;
 	new->garp_refresh = global_data->vrrp_garp_refresh;
 	new->garp_refresh_rep = global_data->vrrp_garp_refresh_rep;

@@ -44,14 +44,34 @@ if FIB_ROUTING
   EXTRA_libvrrp_a_SOURCES += vrrp_iproute.c vrrp_iprule.c vrrp_ip_rule_route_parser.c
 endif
 
+if FIREWALL
+  libvrrp_a_LIBADD	+= vrrp_firewall.o vrrp_firewall.o
+  EXTRA_libvrrp_a_SOURCES += vrrp_firewall.c vrrp_firewall.c
+endif
+
+if IPTABLES
+  libvrrp_a_LIBADD	+= vrrp_iptables.o
+  EXTRA_libvrrp_a_SOURCES += vrrp_iptables.c
+endif
+
 if LIBIPTC
-  libvrrp_a_LIBADD	+= vrrp_iptables.o vrrp_iptables_calls.o
-  EXTRA_libvrrp_a_SOURCES += vrrp_iptables.c vrrp_iptables_calls.c
+  libvrrp_a_LIBADD	+= vrrp_iptables_lib.o vrrp_iptables_calls.o
+  EXTRA_libvrrp_a_SOURCES += vrrp_iptables_lib.c vrrp_iptables_calls.c
+endif
+
+if IPTABLES_CMD
+  libvrrp_a_LIBADD	+= vrrp_iptables_cmd.o
+  EXTRA_libvrrp_a_SOURCES += vrrp_iptables_cmd.c
 endif
 
 if LIBIPSET
   libvrrp_a_LIBADD	+= vrrp_ipset.o
   EXTRA_libvrrp_a_SOURCES += vrrp_ipset.c
+endif
+
+if NFTABLES
+  libvrrp_a_LIBADD	+= vrrp_nftables.o
+  EXTRA_libvrrp_a_SOURCES += vrrp_nftables.c
 endif
 
 if SNMP_VRRP

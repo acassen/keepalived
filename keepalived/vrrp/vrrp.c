@@ -55,9 +55,6 @@
 #include "vrrp_vmac.h"
 #endif
 #include "vrrp_if_config.h"
-#ifdef _HAVE_LIBIPTC_
-#include "vrrp_iptables.h"
-#endif
 #if defined _WITH_SNMP_RFC_ || defined _WITH_SNMP_VRRP_
 #include "vrrp_snmp.h"
 #endif
@@ -80,10 +77,9 @@
 #endif
 #include "keepalived_magic.h"
 #include "vrrp_static_track.h"
-
-/* Set if need to block ip addresses and are able to do so */
-bool block_ipv4;
-bool block_ipv6;
+#ifdef _WITH_FIREWALL_
+#include <vrrp_firewall.h>
+#endif
 
 /* If we don't have certain configuration, then we can optimise the
  * resources that keepalived uses. These are cleared by start_vrrp()
@@ -91,6 +87,7 @@ bool block_ipv6;
  */
 bool have_ipv4_instance;
 bool have_ipv6_instance;
+
 #ifdef _HAVE_FIB_ROUTING_
 static bool monitor_ipv4_routes;
 static bool monitor_ipv6_routes;
@@ -154,44 +151,20 @@ vrrp_handle_iprules(vrrp_t * vrrp, int cmd, bool force)
 }
 #endif
 
-/* add/remove iptable drop rules based on accept mode */
+#ifdef _WITH_FIREWALL_
 static void
 vrrp_handle_accept_mode(vrrp_t *vrrp, int cmd, bool force)
 {
-#ifdef _HAVE_LIBIPTC_
-	int tries = 0;
-	int res = 0;
-#endif
-	struct ipt_handle *h = NULL;
+        if (vrrp->base_priority == VRRP_PRIO_OWNER || vrrp->accept)
+                return;
 
-	if (vrrp->base_priority != VRRP_PRIO_OWNER && !vrrp->accept) {
-		if (__test_bit(LOG_DETAIL_BIT, &debug))
-			log_message(LOG_INFO, "(%s) %s %s", vrrp->iname,
-				(cmd == IPADDRESS_ADD) ? "setting" : "removing", "iptable drop rule");
+        if (__test_bit(LOG_DETAIL_BIT, &debug))
+                log_message(LOG_INFO, "(%s) %s%s", vrrp->iname,
+                        (cmd == IPADDRESS_ADD) ? "sett" : "remov", "ing firewall drop rule");
 
-#ifdef _HAVE_LIBIPTC_
-		do {
-#ifdef _LIBIPTC_DYNAMIC_
-			if ((vrrp->family == AF_INET && using_libip4tc) ||
-			    (vrrp->family == AF_INET6 && using_libip6tc))
-#endif
-				h = iptables_open();
-#endif
-			/* As accept is false, add iptable rule to drop packets destinated to VIPs and eVIPs */
-			if (!LIST_ISEMPTY(vrrp->vip))
-				handle_iptable_rule_to_iplist(h, vrrp->vip, cmd, force);
-			if (!LIST_ISEMPTY(vrrp->evip))
-				handle_iptable_rule_to_iplist(h, vrrp->evip, cmd, force);
-#ifdef _HAVE_LIBIPTC_
-#ifdef _LIBIPTC_DYNAMIC_
-			if (h)
-#endif
-				res = iptables_close(h);
-		} while (res == EAGAIN && ++tries < IPTABLES_MAX_TRIES);
-#endif
-		vrrp->iptable_rules_set = (cmd == IPADDRESS_ADD);
-	}
+	firewall_handle_accept_mode(vrrp, cmd, force);
 }
+#endif
 
 /* Check that the scripts are secure */
 static int
@@ -1235,12 +1208,8 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, char *buffer, struct iphdr *ip)
 		hd->chksum = in_csum((uint16_t *) hd, vrrp_pkt_len(vrrp), vrrp->ipv4_csum, NULL);
 	} else if (vrrp->family == AF_INET6) {
 		ip6arr = (struct in6_addr *)((char *) hd + sizeof(*hd));
-		if (!LIST_ISEMPTY(vrrp->vip)) {
-			for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
-				ip_addr = ELEMENT_DATA(e);
-				ip6arr[i++] = ip_addr->u.sin6_addr;
-			}
-		}
+		LIST_FOREACH(vrrp->vip, ip_addr, e)
+			ip6arr[i++] = ip_addr->u.sin6_addr;
 	}
 }
 
@@ -1493,7 +1462,9 @@ vrrp_state_become_master(vrrp_t * vrrp)
 					vrrp->iname, vrrp->adver_int / (TIMER_HZ / 1000));
 
 	/* add the ip addresses */
+#ifdef _WITH_FIREWALL_
 	vrrp_handle_accept_mode(vrrp, IPADDRESS_ADD, false);
+#endif
 	if (!LIST_ISEMPTY(vrrp->vip))
 		vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_VIP_TYPE, false);
 	if (!LIST_ISEMPTY(vrrp->evip))
@@ -1606,7 +1577,9 @@ vrrp_restore_interface(vrrp_t * vrrp, bool advF, bool force)
 			vrrp_handle_ipaddress(vrrp, IPADDRESS_DEL, VRRP_VIP_TYPE, force);
 		if (!LIST_ISEMPTY(vrrp->evip))
 			vrrp_handle_ipaddress(vrrp, IPADDRESS_DEL, VRRP_EVIP_TYPE, force);
+#ifdef _WITH_FIREWALL_
 		vrrp_handle_accept_mode(vrrp, IPADDRESS_DEL, force);
+#endif
 		vrrp->vipset = 0;
 	}
 }
@@ -2675,6 +2648,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	vrrp->configured_state = vrrp->wantstate;
 #endif
 
+#ifdef _WITH_FIREWALL_
 	/* Set default for accept mode if not specified. If we are running in strict mode,
 	 * default is to disable accept mode, otherwise default is to enable it.
 	 * At some point we might want to change this to make non accept_mode the default,
@@ -2689,6 +2663,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) warning - accept mode for VRRP version 2 does not comply with RFC3768 - resetting", vrrp->iname);
 		vrrp->accept = 0;
 	}
+#endif
 
 	if (vrrp->garp_lower_prio_rep == PARAMETER_UNSET)
 		vrrp->garp_lower_prio_rep = vrrp->strict_mode ? 0 : global_data->vrrp_garp_lower_prio_rep;
@@ -2958,16 +2933,44 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	/* Spin through all our addresses, setting ifindex and ifp.
 	   We also need to know what addresses we might block */
-	if (vrrp->base_priority != VRRP_PRIO_OWNER && !vrrp->accept) {
 //TODO = we have a problem since SNMP may change accept mode
 //it can also change priority
-		if (!global_data->vrrp_iptables_inchain[0])
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Unable to set no_accept mode since iptables chain name unset", vrrp->iname);
-		else if (vrrp->family == AF_INET)
+#ifdef _WITH_FIREWALL_
+	if (vrrp->base_priority != VRRP_PRIO_OWNER && !vrrp->accept) {
+		bool have_firewall = false;
+
+#ifdef _WITH_IPTABLES_
+		if (global_data->vrrp_iptables_inchain[0])
+			have_firewall = true;
+#endif
+#ifdef _WITH_NFTABLES_
+		if (global_data->vrrp_nf_table_name)
+			have_firewall = true;
+#endif
+
+		if (!have_firewall) {
+#ifdef _WITH_IPTABLES_
+			strcpy(global_data->vrrp_iptables_inchain, DEFAULT_IPTABLES_CHAIN_IN);
+			strcpy(global_data->vrrp_iptables_outchain, DEFAULT_IPTABLES_CHAIN_OUT);
+#else
+			global_data->vrrp_nf_table_name = MALLOC(strlen(DEFAULT_NFTABLES_TABLE) + 1);
+			strcpy(global_data->vrrp_nf_table_name, DEFAULT_NFTABLES_TABLE);
+#endif
+		}
+
+		if (vrrp->family == AF_INET)
 			block_ipv4 = true;
 		else
 			block_ipv6 = true;
+
+		LIST_FOREACH(vrrp->evip, vip, e) {
+			if (vip->ifa.ifa_family == AF_INET)
+				block_ipv4 = true;
+			else
+				block_ipv6 = true;
+		}
 	}
+#endif
 
 	/* Add each VIP/eVIP's interface to the interface list, unless we aren't tracking it.
 	 * If the interface goes down, then we will not be able to re-add the address, and so
@@ -3401,12 +3404,6 @@ vrrp_complete_init(void)
 	set_extra_netlink_monitoring(monitor_ipv4_routes, monitor_ipv6_routes, monitor_ipv4_rules, monitor_ipv6_rules);
 #endif
 
-#ifdef _HAVE_LIBIPTC_
-	/* Make sure we don't have any old iptables/ipsets settings left around */
-	if (!reload)
-		iptables_cleanup();
-#endif
-
 	/* We need to know the state of interfaces for the next loop */
 	init_interface_linkbeat();
 
@@ -3549,59 +3546,41 @@ void vrrp_restore_interfaces_startup(void)
 	element e;
 	vrrp_t *vrrp;
 
-	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
+	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
 		if (vrrp->vipset)
 			vrrp_restore_interface(vrrp, false, true);
 	}
 }
 
-/* Clear VIP|EVIP not present into the new data */
-static void
-clear_diff_vrrp_vip_list(vrrp_t *vrrp, struct ipt_handle* h, list l, list n)
-{
-	clear_diff_address(h, l, n);
-
-	if (LIST_ISEMPTY(n))
-		return;
-
-	/* Clear iptable rule to VIP if needed. */
-	if (vrrp->base_priority == VRRP_PRIO_OWNER || vrrp->accept) {
-		handle_iptable_rule_to_iplist(h, n, IPADDRESS_DEL, false);
-		vrrp->iptable_rules_set = false;
-	} else
-		vrrp->iptable_rules_set = true;
-}
-
+/* Clear VIP|EVIP not present in the new data */
 static void
 clear_diff_vrrp_vip(vrrp_t *old_vrrp, vrrp_t *vrrp)
 {
-#ifdef _HAVE_LIBIPTC_
-	int tries = 0;
-	int res = 0;
+	list addr_list;
+#ifdef _WITH_FIREWALL_
+	bool fw_set;
 #endif
-	struct ipt_handle *h = NULL;
 
 	if (!old_vrrp->vipset)
 		return;
 
-#ifdef _HAVE_LIBIPTC_
-	do {
-#ifdef _LIBIPTC_DYNAMIC_
-		if ((vrrp->family == AF_INET && using_libip4tc) ||
-		    (vrrp->family == AF_INET6 && using_libip6tc))
+	addr_list = alloc_list(NULL, NULL);
+	get_diff_address(old_vrrp, vrrp, addr_list);
+
+#ifdef _WITH_FIREWALL_
+	fw_set = (old_vrrp->base_priority != VRRP_PRIO_OWNER && !old_vrrp->accept);
+	clear_address_list(addr_list, fw_set);
+
+	if (old_vrrp->base_priority != VRRP_PRIO_OWNER && !old_vrrp->accept) {
+		firewall_remove_rule_to_iplist(addr_list, false);
+		vrrp->firewall_rules_set = true;
+	} else
+		vrrp->firewall_rules_set = false;
+#else
+	clear_address_list(addr_list, false);
 #endif
-			h = iptables_open();
-#endif
-		clear_diff_vrrp_vip_list(vrrp, h, old_vrrp->vip, vrrp->vip);
-		clear_diff_vrrp_vip_list(vrrp, h, old_vrrp->evip, vrrp->evip);
-#ifdef _HAVE_LIBIPTC_
-#ifdef _LIBIPTC_DYNAMIC_
-		if (h)
-#endif
-			res = iptables_close(h);
-	} while (res == EAGAIN && ++tries < IPTABLES_MAX_TRIES);
-#endif
+
+	free_list(&addr_list);
 }
 
 #ifdef _HAVE_FIB_ROUTING_
@@ -3640,7 +3619,9 @@ restore_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 	/* Remember if we had vips up and add new ones if needed */
 	vrrp->vipset = old_vrrp->vipset;
 	if (vrrp->vipset) {
+#ifdef _WITH_FIREWALL_
 		vrrp_handle_accept_mode(vrrp, IPADDRESS_ADD, false);
+#endif
 		if (!LIST_ISEMPTY(vrrp->vip))
 			added_ip_addr = vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_VIP_TYPE, false);
 		if (!LIST_ISEMPTY(vrrp->evip)) {
@@ -3727,6 +3708,10 @@ clear_diff_vrrp(void)
 			}
 		}
 	}
+
+#ifdef _WITH_FIREWALL_
+//XXX	firewall_close();
+#endif
 }
 
 /* Set script status to a sensible value on reload */

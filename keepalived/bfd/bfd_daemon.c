@@ -390,9 +390,6 @@ start_bfd_child(void)
 	if (ret < 0) {
 		log_message(LOG_INFO, "BFD child process: error chdir");
 	}
-
-	/* Set mask */
-	umask(0);
 #endif
 
 	/* If last process died during a reload, we can get there and we

@@ -97,6 +97,13 @@ flush_log_file(void)
 	if (log_file)
 		fflush(log_file);
 }
+
+void
+update_log_file_perms(mode_t umask_bits)
+{
+        if (log_file)
+                fchmod(fileno(log_file), (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH) & ~umask_bits);
+}
 #endif
 
 void

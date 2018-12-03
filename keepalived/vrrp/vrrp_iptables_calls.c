@@ -59,7 +59,8 @@
 #ifdef _LIBIPTC_DYNAMIC_
 #include "global_data.h"
 #endif
-#include "vrrp_iptables.h"
+#include "vrrp_iptables_lib.h"
+#include "vrrp_firewall.h"
 
 /* We sometimes get a resource_busy on iptc_commit. This appears to happen
  * when someone else is also updating it.

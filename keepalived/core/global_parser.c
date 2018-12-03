@@ -49,6 +49,10 @@
 #include "smtp.h"
 #include "utils.h"
 #include "logger.h"
+#ifdef _WITH_FIREWALL_
+#include "vrrp_firewall.h"
+#endif
+#include "memory.h"
 
 #if HAVE_DECL_CLONE_NEWNET
 #include "namespaces.h"
@@ -660,24 +664,26 @@ vrrp_higher_prio_send_advert_handler(vector_t *strvec)
 	else
 		global_data->vrrp_higher_prio_send_advert = true;
 }
+#ifdef _WITH_IPTABLES_
 static void
 vrrp_iptables_handler(vector_t *strvec)
 {
-	global_data->vrrp_iptables_inchain[0] = '\0';
-	global_data->vrrp_iptables_outchain[0] = '\0';
 	if (vector_size(strvec) >= 2) {
 		if (strlen(strvec_slot(strvec,1)) >= sizeof(global_data->vrrp_iptables_inchain)-1) {
 			report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : iptables in chain name too long - ignored");
 			return;
 		}
 		strcpy(global_data->vrrp_iptables_inchain, strvec_slot(strvec,1));
-	}
-	if (vector_size(strvec) >= 3) {
-		if (strlen(strvec_slot(strvec,2)) >= sizeof(global_data->vrrp_iptables_outchain)-1) {
-			report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : iptables out chain name too long - ignored");
-			return;
+		if (vector_size(strvec) >= 3) {
+			if (strlen(strvec_slot(strvec,2)) >= sizeof(global_data->vrrp_iptables_outchain)-1) {
+				report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : iptables out chain name too long - ignored");
+				return;
+			}
+			strcpy(global_data->vrrp_iptables_outchain, strvec_slot(strvec,2));
 		}
-		strcpy(global_data->vrrp_iptables_outchain, strvec_slot(strvec,2));
+	} else {
+		strcpy(global_data->vrrp_iptables_inchain, DEFAULT_IPTABLES_CHAIN_IN);
+		strcpy(global_data->vrrp_iptables_outchain, DEFAULT_IPTABLES_CHAIN_OUT);
 	}
 }
 #ifdef _HAVE_LIBIPSET_
@@ -727,6 +733,57 @@ vrrp_ipsets_handler(vector_t *strvec)
 		global_data->vrrp_ipset_address_iface6[sizeof(global_data->vrrp_ipset_address_iface6) - 5] = '\0';
 		strcat(global_data->vrrp_ipset_address_iface6, "_if6");
 	}
+}
+#endif
+#endif
+#ifdef _WITH_NFTABLES_
+static void
+vrrp_nftables_handler(__attribute__((unused)) vector_t *strvec)
+{
+	char *name;
+	size_t len;
+
+	if (global_data->vrrp_nf_table_name) {
+		report_config_error(CONFIG_GENERAL_ERROR, "nftables already specified - ignoring");
+		return;
+	}
+
+	if (vector_size(strvec) >= 2) {
+	       	if ((len = strlen(strvec_slot(strvec, 1))) >= NFT_TABLE_MAXNAMELEN) {
+			report_config_error(CONFIG_GENERAL_ERROR, "nftables table name too long - ignoring");
+			return;
+		}
+		name = strvec_slot(strvec, 1);
+	}
+	else {
+		/* Table named defaults to "keepalived" */
+		name = DEFAULT_NFTABLES_TABLE;
+		len = strlen(name);
+	}
+
+	global_data->vrrp_nf_table_name = MALLOC(len + 1);
+	strcpy(global_data->vrrp_nf_table_name, name);
+	global_data->vrrp_nf_chain_priority = -1;
+}
+static void
+vrrp_nftables_priority_handler(vector_t *strvec)
+{
+	int priority;
+
+	if (read_int_strvec(strvec, 1, &priority, INT32_MIN, INT32_MAX, false))
+		global_data->vrrp_nf_chain_priority = priority;
+	else
+		report_config_error(CONFIG_INVALID_NUMBER, "invalid nftables chain priority '%s'", FMT_STR_VSLOT(strvec, 1));
+}
+static void
+vrrp_nftables_counters_handler(__attribute__((unused)) vector_t *strvec)
+{
+	global_data->vrrp_nf_counters = true;
+}
+static void
+vrrp_nftables_ifindex_handler(__attribute__((unused)) vector_t *strvec)
+{
+	global_data->vrrp_nf_ifindex = true;
 }
 #endif
 static void
@@ -1347,7 +1404,7 @@ static void
 umask_handler(vector_t *strvec)
 {
 	long umask_long;
-	mode_t umask_val = 0;
+	mode_t umask_bits = 0;
 	char *mask = strvec_slot(strvec, 1);
 	char *endptr;
 	unsigned i;
@@ -1364,11 +1421,11 @@ umask_handler(vector_t *strvec)
 			return;
 		}
 		umask_long = strtol(mask, &endptr, 0);
-		if (*endptr || umask_long < 0 || umask_long & ~0777L) {
+		if (*endptr || umask_long < 0 || umask_long & ~(S_IRWXU | S_IRWXG | S_IRWXO)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "invalid umask value %s", mask);
 			return;
 		}
-		umask_val = umask_long & 0777;
+		umask_bits = umask_long & (S_IRWXU | S_IRWXG | S_IRWXO);
 	}
 	else {
 		bool need_or = false;
@@ -1385,15 +1442,15 @@ umask_handler(vector_t *strvec)
 					return;
 				}
 
-				if      (!strncmp(p, "IRUSR", 5)) umask_val |= S_IRUSR;
-				else if (!strncmp(p, "IWUSR", 5)) umask_val |= S_IWUSR;
-				else if (!strncmp(p, "IXUSR", 5)) umask_val |= S_IXUSR;
-				else if (!strncmp(p, "IRGRP", 5)) umask_val |= S_IRGRP;
-				else if (!strncmp(p, "IWGRP", 5)) umask_val |= S_IWGRP;
-				else if (!strncmp(p, "IXGRP", 5)) umask_val |= S_IXGRP;
-				else if (!strncmp(p, "IROTH", 5)) umask_val |= S_IROTH;
-				else if (!strncmp(p, "IWOTH", 5)) umask_val |= S_IWOTH;
-				else if (!strncmp(p, "IXOTH", 5)) umask_val |= S_IXOTH;
+				if      (!strncmp(p, "IRUSR", 5)) umask_bits |= S_IRUSR;
+				else if (!strncmp(p, "IWUSR", 5)) umask_bits |= S_IWUSR;
+				else if (!strncmp(p, "IXUSR", 5)) umask_bits |= S_IXUSR;
+				else if (!strncmp(p, "IRGRP", 5)) umask_bits |= S_IRGRP;
+				else if (!strncmp(p, "IWGRP", 5)) umask_bits |= S_IWGRP;
+				else if (!strncmp(p, "IXGRP", 5)) umask_bits |= S_IXGRP;
+				else if (!strncmp(p, "IROTH", 5)) umask_bits |= S_IROTH;
+				else if (!strncmp(p, "IWOTH", 5)) umask_bits |= S_IWOTH;
+				else if (!strncmp(p, "IXOTH", 5)) umask_bits |= S_IXOTH;
 				else {
 					report_config_error(CONFIG_GENERAL_ERROR, "Unknown umask bit %s", p);
 					return;
@@ -1409,8 +1466,15 @@ umask_handler(vector_t *strvec)
 		}
 	}
 
-	global_data->umask = umask_val;
-	umask(umask_val);
+	umask_val = umask_bits;
+	umask(umask_bits);
+
+#ifdef _MEM_CHECK_
+	update_mem_check_log_perms(umask_bits);
+#endif
+#ifdef ENABLE_LOG_TO_FILE
+	update_log_file_perms(umask_bits);
+#endif
 }
 
 void
@@ -1465,9 +1529,17 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_lower_prio_no_advert", &vrrp_lower_prio_no_advert_handler);
 	install_keyword("vrrp_higher_prio_send_advert", &vrrp_higher_prio_send_advert_handler);
 	install_keyword("vrrp_version", &vrrp_version_handler);
+#ifdef _WITH_IPTABLES_
 	install_keyword("vrrp_iptables", &vrrp_iptables_handler);
 #ifdef _HAVE_LIBIPSET_
 	install_keyword("vrrp_ipsets", &vrrp_ipsets_handler);
+#endif
+#endif
+#ifdef _WITH_NFTABLES_
+	install_keyword("nftables", &vrrp_nftables_handler);
+	install_keyword("nftables_priority", &vrrp_nftables_priority_handler);
+	install_keyword("nftables_counters", &vrrp_nftables_counters_handler);
+	install_keyword("nftables_ifindex", &vrrp_nftables_ifindex_handler);
 #endif
 	install_keyword("vrrp_check_unicast_src", &vrrp_check_unicast_src_handler);
 	install_keyword("vrrp_skip_check_adv_addr", &vrrp_check_adv_addr_handler);

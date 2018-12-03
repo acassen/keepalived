@@ -3,9 +3,9 @@
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
  *
- * Part:        vrrp_iptables.c include file.
+ * Part:        vrrp_nftables.c include file.
  *
- * Author:      Alexandre Cassen, <acassen@linux-vs.org>
+ * Author:      Quentin Armitage, <quentin@armitage.org.uk>
  *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -20,30 +20,21 @@
  * Copyright (C) 2001-2018 Alexandre Cassen, <acassen@gmail.com>
  */
 
-#ifndef _VRRP_IPTABLES_H
-#define _VRRP_IPTABLES_H
+#ifndef _VRRP_NFTABLES_H
+#define _VRRP_NFTABLES_H
 
 #include "config.h"
 
-/* global includes */
-#include <stdbool.h>
-
-/* local includes */
 #include "list.h"
 #include "vrrp.h"
-#ifdef _HAVE_LIBIPSET_
-#include "vrrp_ipset.h"
-#endif
+#include "vrrp_ipaddress.h"
 
-#define DEFAULT_IPTABLES_CHAIN_IN	"INPUT"
-#define DEFAULT_IPTABLES_CHAIN_OUT	"OUTPUT"
+#define	DEFAULT_NFTABLES_TABLE	"keepalived"
 
-/* prototypes */
-extern void handle_iptable_rule_to_iplist(list, list, int, bool force);
-extern void handle_iptables_accept_mode(vrrp_t *, int, bool);
-extern void iptables_init(void);
-extern void iptables_startup(bool);
-extern void iptables_cleanup(void);
-extern void iptables_fini(void);
+extern void nft_add_addresses(vrrp_t *);
+extern void nft_remove_addresses(vrrp_t *);
+extern void nft_remove_addresses_iplist(list);
+extern void nft_cleanup(void);
+extern void nft_end(void);
 
 #endif

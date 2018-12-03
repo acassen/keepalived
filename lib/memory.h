@@ -30,6 +30,7 @@
 #include <stddef.h>
 #ifdef _MEM_CHECK_
 #include <sys/types.h>
+#include <sys/stat.h>
 #else
 #include <stdlib.h>
 #endif
@@ -60,6 +61,7 @@ extern void mem_log_init(const char *, const char *);
 extern void skip_mem_dump(void);
 extern void enable_mem_log_termination(void);
 
+extern void update_mem_check_log_perms(mode_t);
 #else
 
 extern void *zalloc(unsigned long size);

@@ -281,6 +281,23 @@ and
     # (default: INPUT)
     \fBvrrp_iptables \fRkeepalived
 
+    # Use nftables to implement no_accept mode.
+    #   TABLENAME must not exist, and must be different for each
+    #   instance of keepalived running in the same network namespace.
+    #   Default tablename is keepalived, and priority is -1.
+    #   keepalived will create base chains in the table.
+    #   counters means counters are added to the rules (primarily for
+    #   debugging purposes).
+    #   ifindex means create IPv6 link local sets using ifindex rather
+    #   than ifnames. This is the default unless the vrrp_instance has
+    #   set dont_track_primary. The alternative is to use interface names
+    #   as part of the set key, but nftables prior to v0.8.3 will then no
+    #   longer work.
+    \fBnftables \fR[TABLENAME]
+    \fBnftables_priority \fRPRIORITY
+    \fBnftables_counters\fR
+    \fBnftables_ifindex\fR
+
     # or for outbound filtering as well
     # Note, outbound filtering won't work with IPv4, since the VIP can be
     # selected as the source address for an outgoing connection. With IPv6

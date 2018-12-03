@@ -44,7 +44,6 @@
 #include "vrrp_arp.h"
 #include "vrrp_ndisc.h"
 #include "keepalived_netlink.h"
-#include "vrrp_iptables.h"
 #ifdef _HAVE_FIB_ROUTING_
 #include "vrrp_iprule.h"
 #include "vrrp_iproute.h"
@@ -77,6 +76,9 @@
 #endif
 #ifdef _WITH_BFD_
 #include "bfd_daemon.h"
+#endif
+#ifdef _WITH_FIREWALL_
+#include "vrrp_firewall.h"
 #endif
 
 /* Global variables */
@@ -363,8 +365,8 @@ vrrp_terminate_phase1(bool schedule_next_thread)
 	if (vrrp_data->vrrp_track_files)
 		stop_track_files();
 
-#ifdef _HAVE_LIBIPTC_
-	iptables_fini();
+#ifdef _WITH_FIREWALL_
+	firewall_fini();
 #endif
 
 	/* Clear static entries */
@@ -567,16 +569,16 @@ start_vrrp(data_t *old_global_data)
 	else
 		ndisc_close();
 
+#ifdef _WITH_FIREWALL_
 	/* We need to delay the init of iptables to after vrrp_complete_init()
 	 * has been called so we know whether we want IPv4 and/or IPv6 */
-	iptables_init();
+	firewall_init();
 
 	/* Make sure we don't have any old iptables/ipsets settings left around */
-#ifdef _HAVE_LIBIPTC_
 	if (!reload)
-		iptables_cleanup();
+		firewall_cleanup();
 
-	iptables_startup(reload);
+	firewall_startup(reload);
 #endif
 
 	if (!reload)

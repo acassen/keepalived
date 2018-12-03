@@ -3,7 +3,7 @@
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
  *
- * Part:        vrrp_iptables.c include file.
+ * Part:        vrrp_firewall.c include file.
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -20,8 +20,8 @@
  * Copyright (C) 2001-2018 Alexandre Cassen, <acassen@gmail.com>
  */
 
-#ifndef _VRRP_IPTABLES_H
-#define _VRRP_IPTABLES_H
+#ifndef _VRRP_FIREWALL_H
+#define _VRRP_FIREWALL_H
 
 #include "config.h"
 
@@ -29,21 +29,27 @@
 #include <stdbool.h>
 
 /* local includes */
-#include "list.h"
 #include "vrrp.h"
-#ifdef _HAVE_LIBIPSET_
-#include "vrrp_ipset.h"
+#include "list.h"
+
+#ifdef _WITH_IPTABLES_
+#include "vrrp_iptables.h"
+#endif
+#ifdef _WITH_NFTABLES_
+#include "vrrp_nftables.h"
 #endif
 
-#define DEFAULT_IPTABLES_CHAIN_IN	"INPUT"
-#define DEFAULT_IPTABLES_CHAIN_OUT	"OUTPUT"
+/* Global variables */
+extern bool block_ipv4;
+extern bool block_ipv6;
 
 /* prototypes */
-extern void handle_iptable_rule_to_iplist(list, list, int, bool force);
-extern void handle_iptables_accept_mode(vrrp_t *, int, bool);
-extern void iptables_init(void);
-extern void iptables_startup(bool);
-extern void iptables_cleanup(void);
-extern void iptables_fini(void);
+extern void firewall_handle_accept_mode(vrrp_t *, int, bool);
+extern void firewall_remove_rule_to_iplist(list, bool);
+
+extern void firewall_init(void);
+extern void firewall_startup(bool);
+extern void firewall_cleanup(void);
+extern void firewall_fini(void);
 
 #endif

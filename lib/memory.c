@@ -30,6 +30,8 @@
 #include <stdlib.h>
 #include <time.h>
 #include <limits.h>
+#include <sys/stat.h>
+#include <stdio.h>
 #endif
 
 #include <errno.h>
@@ -653,5 +655,12 @@ void skip_mem_dump(void)
 void enable_mem_log_termination(void)
 {
 	atexit(keepalived_free_final);
+}
+
+void
+update_mem_check_log_perms(mode_t umask_bits)
+{
+	if (log_op)
+		fchmod(fileno(log_op), (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH) & ~umask_bits);
 }
 #endif

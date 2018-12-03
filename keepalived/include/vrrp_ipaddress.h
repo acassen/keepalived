@@ -32,6 +32,7 @@
 #include <stdio.h>
 
 /* local includes */
+#include "vrrp.h"
 #include "vrrp_if.h"
 #include "list.h"
 #include "vector.h"
@@ -67,8 +68,13 @@ typedef struct _ip_address {
 	static_track_group_t	*track_group;		/* used for static addresses */
 
 	bool			set;			/* TRUE if addr is set */
+#ifdef _WITH_IPTABLES_
 	bool			iptable_rule_set;	/* TRUE if iptable drop rule
 							 * set to addr */
+#endif
+#ifdef _WITH_NFTABLES_
+	bool			nftable_rule_set;	/* TRUE if in nftables set */
+#endif
 	bool			garp_gna_pending;	/* Is a gratuitous ARP/NA message still to be sent */
 } ip_address_t;
 
@@ -107,15 +113,14 @@ struct ipt_handle;
 extern char *ipaddresstos(char *, ip_address_t *);
 extern int netlink_ipaddress(ip_address_t *, int);
 extern bool netlink_iplist(list, int, bool);
-extern void handle_iptable_rule_to_iplist(struct ipt_handle *, list, int, bool force);
 extern void free_ipaddress(void *);
 extern void dump_ipaddress(FILE *, void *);
 extern ip_address_t *parse_ipaddress(ip_address_t *, char *, bool);
 extern ip_address_t *parse_route(char *);
 extern void alloc_ipaddress(list, vector_t *, interface_t *, bool);
-extern void clear_diff_address(struct ipt_handle *, list, list);
+extern void get_diff_address(vrrp_t *, vrrp_t *, list);
+extern void clear_address_list(list, bool);
 extern void clear_diff_saddresses(void);
-extern void iptables_init(void);
 extern void reinstate_static_address(ip_address_t *);
 
 #endif

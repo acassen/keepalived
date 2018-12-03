@@ -38,6 +38,10 @@
 #include <linux/netfilter/ipset/ip_set.h>
 #endif
 
+#ifdef _WITH_NFTABLES_
+#include <linux/netfilter/nf_tables.h>
+#endif
+
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 #include <sys/resource.h>
 #endif
@@ -120,6 +124,7 @@ typedef struct _data {
 	bool				vrrp_lower_prio_no_advert;
 	bool				vrrp_higher_prio_send_advert;
 	int				vrrp_version;	/* VRRP version (2 or 3) */
+#ifdef _WITH_IPTABLES_
 	char				vrrp_iptables_inchain[XT_EXTENSION_MAXNAMELEN];
 	char				vrrp_iptables_outchain[XT_EXTENSION_MAXNAMELEN];
 #ifdef _HAVE_LIBIPSET_
@@ -127,6 +132,13 @@ typedef struct _data {
 	char				vrrp_ipset_address[IPSET_MAXNAMELEN];
 	char				vrrp_ipset_address6[IPSET_MAXNAMELEN];
 	char				vrrp_ipset_address_iface6[IPSET_MAXNAMELEN];
+#endif
+#endif
+#ifdef _WITH_NFTABLES_
+	char*				vrrp_nf_table_name;
+	int				vrrp_nf_chain_priority;
+	bool				vrrp_nf_counters;
+	bool				vrrp_nf_ifindex;
 #endif
 	bool				vrrp_check_unicast_src;
 	bool				vrrp_skip_check_adv_addr;
@@ -213,7 +225,6 @@ typedef struct _data {
 	size_t				vrrp_rx_bufs_size;
 	int				vrrp_rx_bufs_multiples;
 #endif
-	mode_t				umask;			/* mask for file creation */
 } data_t;
 
 /* Global vars exported */

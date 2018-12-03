@@ -1810,12 +1810,14 @@ _get_instance(oid *name, size_t name_len)
 	return vrrp;
 }
 
+#ifdef _WITH_FIREWALL_
 static int
 vrrp_snmp_instance_accept(int action,
 			  u_char *var_val, u_char var_val_type,
 			  size_t var_val_len, __attribute__((unused)) u_char *statP,
 			  oid *name, size_t name_len)
 {
+	return SNMP_ERR_NOACCESS;
 	vrrp_t *vrrp = NULL;
 
 	switch (action) {
@@ -1863,6 +1865,7 @@ vrrp_snmp_instance_accept(int action,
 		}
 	return SNMP_ERR_NOERROR;
 }
+#endif
 
 static int
 vrrp_snmp_instance_priority(int action,
@@ -2084,10 +2087,12 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 		break;
 	case VRRP_SNMP_INSTANCE_ACCEPT:
 		long_ret.u = 0;
+#ifdef _WITH_FIREWALL_
 		if (rt->version == VRRP_VERSION_3) {
 			long_ret.u = rt->accept ? 1:2;
 			*write_method = vrrp_snmp_instance_accept;
 		}
+#endif
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_INSTANCE_PROMOTE_SECONDARIES:
 		long_ret.u = rt->promote_secondaries ? 1:2;
@@ -4163,9 +4168,11 @@ vrrp_rfcv3_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 	case VRRP_RFCv3_SNMP_OPER_PREEMPT:
 		long_ret.s =  1 + rt->nopreempt;
 		return (u_char*)&long_ret;
+#ifdef _WITH_FIREWALL_
 	case VRRP_RFCv3_SNMP_OPER_ACCEPT:
 		long_ret.u =  1 + rt->accept;
 		return (u_char*)&long_ret;
+#endif
 	case VRRP_RFCv3_SNMP_OPER_VR_UPTIME:
 		if (rt->state == VRRP_STATE_BACK ||
 		    rt->state == VRRP_STATE_MAST) {
