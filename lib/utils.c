@@ -66,6 +66,7 @@
 
 /* global vars */
 unsigned long debug = 0;
+mode_t umask_val = S_IXUSR | S_IRWXG | S_IRWXO;
 
 /* Display a buffer into a HEXA formated output */
 void
@@ -858,8 +859,8 @@ FILE *fopen_safe(const char *path, const char *mode)
 	}
 #endif
 
-	/* Set file mode to rw------- */
-	if (fchmod(fd, S_IRUSR | S_IWUSR)) {
+	/* Set file mode, default rw------- */
+	if (fchmod(fd, (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH) & ~umask_val)) {
 		sav_errno = errno;
 		log_message(LOG_INFO, "Unable to change file permission of %s - errno %d (%m)", path, errno);
 		close(fd);

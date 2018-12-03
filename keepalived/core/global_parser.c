@@ -52,6 +52,7 @@
 #ifdef _WITH_FIREWALL_
 #include "vrrp_firewall.h"
 #endif
+#include "memory.h"
 
 #if HAVE_DECL_CLONE_NEWNET
 #include "namespaces.h"
@@ -1403,7 +1404,7 @@ static void
 umask_handler(vector_t *strvec)
 {
 	long umask_long;
-	mode_t umask_val = 0;
+	mode_t umask_bits = 0;
 	char *mask = strvec_slot(strvec, 1);
 	char *endptr;
 	unsigned i;
@@ -1420,11 +1421,11 @@ umask_handler(vector_t *strvec)
 			return;
 		}
 		umask_long = strtol(mask, &endptr, 0);
-		if (*endptr || umask_long < 0 || umask_long & ~0777L) {
+		if (*endptr || umask_long < 0 || umask_long & ~(S_IRWXU | S_IRWXG | S_IRWXO)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "invalid umask value %s", mask);
 			return;
 		}
-		umask_val = umask_long & 0777;
+		umask_bits = umask_long & (S_IRWXU | S_IRWXG | S_IRWXO);
 	}
 	else {
 		bool need_or = false;
@@ -1441,15 +1442,15 @@ umask_handler(vector_t *strvec)
 					return;
 				}
 
-				if      (!strncmp(p, "IRUSR", 5)) umask_val |= S_IRUSR;
-				else if (!strncmp(p, "IWUSR", 5)) umask_val |= S_IWUSR;
-				else if (!strncmp(p, "IXUSR", 5)) umask_val |= S_IXUSR;
-				else if (!strncmp(p, "IRGRP", 5)) umask_val |= S_IRGRP;
-				else if (!strncmp(p, "IWGRP", 5)) umask_val |= S_IWGRP;
-				else if (!strncmp(p, "IXGRP", 5)) umask_val |= S_IXGRP;
-				else if (!strncmp(p, "IROTH", 5)) umask_val |= S_IROTH;
-				else if (!strncmp(p, "IWOTH", 5)) umask_val |= S_IWOTH;
-				else if (!strncmp(p, "IXOTH", 5)) umask_val |= S_IXOTH;
+				if      (!strncmp(p, "IRUSR", 5)) umask_bits |= S_IRUSR;
+				else if (!strncmp(p, "IWUSR", 5)) umask_bits |= S_IWUSR;
+				else if (!strncmp(p, "IXUSR", 5)) umask_bits |= S_IXUSR;
+				else if (!strncmp(p, "IRGRP", 5)) umask_bits |= S_IRGRP;
+				else if (!strncmp(p, "IWGRP", 5)) umask_bits |= S_IWGRP;
+				else if (!strncmp(p, "IXGRP", 5)) umask_bits |= S_IXGRP;
+				else if (!strncmp(p, "IROTH", 5)) umask_bits |= S_IROTH;
+				else if (!strncmp(p, "IWOTH", 5)) umask_bits |= S_IWOTH;
+				else if (!strncmp(p, "IXOTH", 5)) umask_bits |= S_IXOTH;
 				else {
 					report_config_error(CONFIG_GENERAL_ERROR, "Unknown umask bit %s", p);
 					return;
@@ -1465,8 +1466,15 @@ umask_handler(vector_t *strvec)
 		}
 	}
 
-	global_data->umask = umask_val;
-	umask(umask_val);
+	umask_val = umask_bits;
+	umask(umask_bits);
+
+#ifdef _MEM_CHECK_
+	update_mem_check_log_perms(umask_bits);
+#endif
+#ifdef ENABLE_LOG_TO_FILE
+	update_log_file_perms(umask_bits);
+#endif
 }
 
 void

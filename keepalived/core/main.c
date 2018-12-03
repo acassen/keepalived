@@ -158,7 +158,6 @@ static struct {
 
 /* umask settings */
 bool umask_cmdline;
-static mode_t umask_val = S_IXUSR | S_IWGRP | S_IXGRP | S_IWOTH | S_IXOTH;
 
 /* Control producing core dumps */
 static bool set_core_dump_pattern = false;
@@ -887,22 +886,29 @@ static mode_t
 set_umask(const char *optarg)
 {
 	long umask_long;
-	mode_t umask_val;
+	mode_t umask_bits;
 	char *endptr;
 
 	umask_long = strtoll(optarg, &endptr, 0);
 
-	if (*endptr || umask_long < 0 || umask_long & ~0777L) {
+	if (*endptr || umask_long < 0 || umask_long & ~(S_IRWXU | S_IRWXG | S_IRWXO)) {
 		fprintf(stderr, "Invalid --umask option %s", optarg);
 		return 0;
 	}
 
-	umask_val = umask_long & 0777;
-	umask(umask_val);
+	umask_bits = umask_long & (S_IRWXU | S_IRWXG | S_IRWXO);
+	umask(umask_bits);
 
 	umask_cmdline = true;
 
-	return umask_val;
+#ifdef _MEM_CHECK_
+	update_mem_check_log_perms(umask_bits);
+#endif
+#ifdef ENABLE_LOG_TO_FILE
+	update_log_file_perms(umask_bits);
+#endif
+
+	return umask_bits;
 }
 
 void
@@ -1642,7 +1648,7 @@ keepalived_main(int argc, char **argv)
 #endif
 
 	/* Set default file creation mask */
-	umask(022);
+	umask(umask_val);
 
 	/* Open log with default settings so we can log initially */
 	openlog(PACKAGE_NAME, LOG_PID, log_facility);
@@ -1741,7 +1747,6 @@ keepalived_main(int argc, char **argv)
 	}
 
 	global_data = alloc_global_data();
-	global_data->umask = umask_val;
 
 	read_config_file();
 

@@ -152,6 +152,7 @@ static inline uint16_t csum_incremental_update16(const uint16_t old_csum, const 
 
 /* global vars exported */
 extern unsigned long debug;
+extern mode_t umask_val;
 #ifdef _WITH_PERF_
 extern perf_t perf_run;
 #endif

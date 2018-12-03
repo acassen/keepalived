@@ -225,7 +225,6 @@ typedef struct _data {
 	size_t				vrrp_rx_bufs_size;
 	int				vrrp_rx_bufs_multiples;
 #endif
-	mode_t				umask;			/* mask for file creation */
 } data_t;
 
 /* Global vars exported */
