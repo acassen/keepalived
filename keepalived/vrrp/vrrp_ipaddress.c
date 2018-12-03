@@ -288,7 +288,7 @@ format_ipaddress(ip_address_t *ipaddr, char *buf, size_t buf_len)
 	if (ipaddr->iptable_rule_set)
 		buf_p += snprintf(buf_p, buf_end - buf_p, " iptable_set");
 #endif
-#ifdef _WITH_IPTABLES_
+#ifdef _WITH_NFTABLES_
 	if (ipaddr->nftable_rule_set)
 		buf_p += snprintf(buf_p, buf_end - buf_p, " nftable_set");
 #endif
