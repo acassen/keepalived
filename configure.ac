@@ -1349,8 +1349,8 @@ AC_MSG_CHECKING([for linux/if.h and net/if.h namespace collision])
 SAV_CPPFLAGS="$CPPFLAGS"
 CPPFLAGS="$CPPFLAGS $kernelinc"
 AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-    #include <net/if.h>
     #include <linux/if.h>
+    #include <net/if.h>
   ]])],
   [
     AC_MSG_RESULT([no])
