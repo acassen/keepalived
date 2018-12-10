@@ -574,6 +574,10 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " vrrp_netlink_cmd_rcv_bufs_force = %u", global_data->vrrp_netlink_cmd_rcv_bufs_force);
 	conf_write(fp, " vrrp_netlink_monitor_rcv_bufs = %u", global_data->vrrp_netlink_monitor_rcv_bufs);
 	conf_write(fp, " vrrp_netlink_monitor_rcv_bufs_force = %u", global_data->vrrp_netlink_monitor_rcv_bufs_force);
+#ifdef _WITH_CN_PROC_
+	conf_write(fp, " process_monitor_rcv_bufs = %u", global_data->process_monitor_rcv_bufs);
+	conf_write(fp, " process_monitor_rcv_bufs_force = %u", global_data->process_monitor_rcv_bufs_force);
+#endif
 #endif
 #ifdef _WITH_LVS_
 	conf_write(fp, " lvs_netlink_cmd_rcv_bufs = %u", global_data->lvs_netlink_cmd_rcv_bufs);

@@ -110,6 +110,9 @@ free_vgroup(void *data)
 	free_list(&vgroup->track_ifp);
 	free_list(&vgroup->track_script);
 	free_list(&vgroup->track_file);
+#ifdef _WITH_CN_PROC_
+	free_list(&vgroup->track_process);
+#endif
 #ifdef _WITH_BFD_
 	free_list(&vgroup->track_bfd);
 #endif
@@ -160,6 +163,12 @@ dump_vgroup(FILE *fp, void *data)
 		conf_write(fp, "   Tracked files = %d", LIST_SIZE(vgroup->track_file));
 		dump_list(fp, vgroup->track_file);
 	}
+#ifdef _WITH_CN_PROC_
+	if (!LIST_ISEMPTY(vgroup->track_process)) {
+		conf_write(fp, "   Tracked process = %d", LIST_SIZE(vgroup->track_process));
+		dump_list(fp, vgroup->track_process);
+	}
+#endif
 #ifdef _WITH_BFD_
 	if (!LIST_ISEMPTY(vgroup->track_bfd)) {
 		conf_write(fp, "   Tracked BFDs = %d", LIST_SIZE(vgroup->track_bfd));
@@ -250,6 +259,35 @@ dump_vfile(FILE *fp, void *data)
 	if (vfile->tracking_vrrp)
 		dump_list(fp, vfile->tracking_vrrp);
 }
+
+#ifdef _WITH_CN_PROC_
+static void
+free_vprocess(void *data)
+{
+	vrrp_tracked_process_t *vprocess = data;
+
+	free_list(&vprocess->tracking_vrrp);
+	FREE(vprocess->pname);
+	FREE(vprocess->process_path);
+	FREE(vprocess);
+}
+static void
+dump_vprocess(FILE *fp, void *data)
+{
+	vrrp_tracked_process_t *vprocess = data;
+
+	conf_write(fp, " VRRP Track process = %s", vprocess->pname);
+	conf_write(fp, "   Process = %s", vprocess->process_path);
+	conf_write(fp, "   Min processes = %d", vprocess->quorum);
+	conf_write(fp, "   Current processes = %d", vprocess->num_cur_proc);
+	conf_write(fp, "   Weight = %d", vprocess->weight);
+	conf_write(fp, "   Delay = %fs", (double)vprocess->delay / TIMER_HZ);
+	conf_write(fp, "   Full command = %s", vprocess->full_command ? "true" : "false");
+	conf_write(fp, "   Tracking VRRP instances = %d", vprocess->tracking_vrrp ? LIST_SIZE(vprocess->tracking_vrrp) : 0);
+	if (vprocess->tracking_vrrp)
+		dump_list(fp, vprocess->tracking_vrrp);
+}
+#endif
 
 #ifdef _WITH_BFD_
 /* Track bfd dump */
@@ -358,6 +396,9 @@ free_vrrp(void *data)
 	free_list(&vrrp->track_ifp);
 	free_list(&vrrp->track_script);
 	free_list(&vrrp->track_file);
+#ifdef _WITH_CN_PROC_
+	free_list(&vrrp->track_process);
+#endif
 #ifdef _WITH_BFD_
 	free_list(&vrrp->track_bfd);
 #endif
@@ -368,6 +409,7 @@ free_vrrp(void *data)
 	free_list(&vrrp->vrules);
 	FREE(vrrp);
 }
+
 static void
 dump_vrrp(FILE *fp, void *data)
 {
@@ -538,6 +580,12 @@ dump_vrrp(FILE *fp, void *data)
 		conf_write(fp, "   Tracked files = %d", LIST_SIZE(vrrp->track_file));
 		dump_list(fp, vrrp->track_file);
 	}
+#ifdef _WITH_CN_PROC_
+	if (!LIST_ISEMPTY(vrrp->track_process)) {
+		conf_write(fp, "   Tracked processes = %d", LIST_SIZE(vrrp->track_process));
+		dump_list(fp, vrrp->track_process);
+	}
+#endif
 #ifdef _WITH_BFD_
 	if (!LIST_ISEMPTY(vrrp->track_bfd)) {
 		conf_write(fp, "   Tracked BFDs = %d", LIST_SIZE(vrrp->track_bfd));
@@ -728,6 +776,18 @@ alloc_vrrp_track_file(vector_t *strvec)
 	alloc_track_file(vrrp, strvec);
 }
 
+#ifdef _WITH_CN_PROC_
+void
+alloc_vrrp_track_process(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+
+	if (!LIST_EXISTS(vrrp->track_process))
+		vrrp->track_process = alloc_list(free_track_process, dump_track_process);
+	alloc_track_process(vrrp, strvec);
+}
+#endif
+
 #ifdef _WITH_BFD_
 void
 alloc_vrrp_track_bfd(vector_t *strvec)
@@ -769,6 +829,18 @@ alloc_vrrp_group_track_file(vector_t *strvec)
 		sgroup->track_file = alloc_list(free_track_file, dump_track_file);
 	alloc_group_track_file(sgroup, strvec);
 }
+
+#ifdef _WITH_CN_PROC_
+void
+alloc_vrrp_group_track_process(vector_t *strvec)
+{
+	vrrp_sgroup_t *sgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
+
+	if (!LIST_EXISTS(sgroup->track_process))
+		sgroup->track_process = alloc_list(free_track_process, dump_track_process);
+	alloc_group_track_process(sgroup, strvec);
+}
+#endif
 
 #ifdef _WITH_BFD_
 void
@@ -875,6 +947,22 @@ alloc_vrrp_file(char *fname)
 	list_add(vrrp_data->vrrp_track_files, new);
 }
 
+#ifdef _WITH_CN_PROC_
+void
+alloc_vrrp_process(char *pname)
+{
+	size_t size = strlen(pname);
+	vrrp_tracked_process_t *new;
+
+	/* Allocate new VRRP file structure */
+	new = (vrrp_tracked_process_t *) MALLOC(sizeof(vrrp_tracked_process_t));
+	new->pname = (char *) MALLOC(size + 1);
+	memcpy(new->pname, pname, size + 1);
+	new->quorum = 1;
+	list_add(vrrp_data->vrrp_track_processes, new);
+}
+#endif
+
 /* data facility functions */
 void
 alloc_vrrp_buffer(size_t len)
@@ -912,6 +1000,9 @@ alloc_vrrp_data(void)
 	new->vrrp_sync_group = alloc_list(free_vgroup, dump_vgroup);
 	new->vrrp_script = alloc_list(free_vscript, dump_vscript);
 	new->vrrp_track_files = alloc_list(free_vfile, dump_vfile);
+#ifdef _WITH_CN_PROC_
+	new->vrrp_track_processes = alloc_list(free_vprocess, dump_vprocess);
+#endif
 #ifdef _WITH_BFD_
 	new->vrrp_track_bfds = alloc_list(free_vrrp_bfd, dump_vrrp_bfd);
 #endif
@@ -933,6 +1024,9 @@ free_vrrp_data(vrrp_data_t * data)
 	free_list(&data->vrrp_sync_group);
 	free_list(&data->vrrp_script);
 	free_list(&data->vrrp_track_files);
+#ifdef _WITH_CN_PROC_
+	free_list(&data->vrrp_track_processes);
+#endif
 #ifdef _WITH_BFD_
 	free_list(&data->vrrp_track_bfds);
 #endif
@@ -980,6 +1074,12 @@ dump_vrrp_data(FILE *fp, vrrp_data_t * data)
 		conf_write(fp, "------< VRRP Track files >------");
 		dump_list(fp, data->vrrp_track_files);
 	}
+#ifdef _WITH_CN_PROC_
+	if (!LIST_ISEMPTY(data->vrrp_track_processes)) {
+		conf_write(fp, "------< VRRP Track processes >------");
+		dump_list(fp, data->vrrp_track_processes);
+	}
+#endif
 #ifdef _WITH_BFD_
 	if (!LIST_ISEMPTY(data->vrrp_track_bfds)) {
 		conf_write(fp, "------< VRRP Track BFDs >------");

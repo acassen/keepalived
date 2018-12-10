@@ -26,6 +26,7 @@
 /* system includes */
 #include <sys/types.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 /* local includes */
 #include "list.h"
@@ -44,6 +45,12 @@ typedef struct _vrrp_data {
 	list			vrrp_socket_pool;
 	list			vrrp_script;		/* vrrp_script_t */
 	list			vrrp_track_files;	/* vrrp_tracked_file_t */
+#ifdef _WITH_CN_PROC_
+	list			vrrp_track_processes;	/* vrrp_tracked_process_t */
+	size_t			vrrp_max_process_name_len;
+	bool			vrrp_use_process_cmdline;
+	bool			vrrp_use_process_comm;
+#endif
 #ifdef _WITH_BFD_
 	list			vrrp_track_bfds;	/* vrrp_tracked_bfd_t */
 #endif
@@ -68,12 +75,19 @@ extern void alloc_vrrp_script(char *);
 extern void alloc_vrrp_track_script(vector_t *);
 extern void alloc_vrrp_file(char *);
 extern void alloc_vrrp_track_file(vector_t *);
+#ifdef _WITH_CN_PROC_
+extern void alloc_vrrp_process(char *);
+extern void alloc_vrrp_track_process(vector_t *);
+#endif
 #ifdef _WITH_BFD_
 extern void alloc_vrrp_track_bfd(vector_t *);
 #endif
 extern void alloc_vrrp_group_track_if(vector_t *);
 extern void alloc_vrrp_group_track_script(vector_t *);
 extern void alloc_vrrp_group_track_file(vector_t *);
+#ifdef _WITH_CN_PROC_
+extern void alloc_vrrp_group_track_process(vector_t *);
+#endif
 #ifdef _WITH_BFD_
 extern void alloc_vrrp_group_track_bfd(vector_t *);
 #endif

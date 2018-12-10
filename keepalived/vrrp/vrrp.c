@@ -78,7 +78,10 @@
 #include "keepalived_magic.h"
 #include "vrrp_static_track.h"
 #ifdef _WITH_FIREWALL_
-#include <vrrp_firewall.h>
+#include "vrrp_firewall.h"
+#endif
+#ifdef _WITH_CN_PROC_
+#include "track_process.h"
 #endif
 
 /* If we don't have certain configuration, then we can optimise the
@@ -2406,6 +2409,40 @@ add_vrrp_to_track_file(vrrp_t *vrrp, tracked_file_t *tfl)
 	list_add(tfl->file->tracking_vrrp, tvp);
 }
 
+#ifdef _WITH_CN_PROC_
+static void
+add_vrrp_to_track_process(vrrp_t *vrrp, tracked_process_t *tpr)
+{
+	tracking_vrrp_t *tvp, *etvp;
+	element e;
+
+	if (!LIST_EXISTS(tpr->process->tracking_vrrp))
+		tpr->process->tracking_vrrp = alloc_list(free_tracking_vrrp, dump_tracking_vrrp);
+	else {
+		/* Is this process already tracking the vrrp instance directly?
+		 * For this to be the case, the file was added directly on the vrrp instance,
+		 * and now we are adding it for a sync group. */
+		LIST_FOREACH(tpr->process->tracking_vrrp, etvp, e) {
+			if (etvp->vrrp == vrrp) {
+				/* Update the weight appropriately. We will use the sync group's
+				 * weight unless the vrrp setting is unweighted. */
+				log_message(LOG_INFO, "(%s) track_process %s is configured on VRRP instance and sync group. Remove vrrp instance config",
+						vrrp->iname, tpr->process->pname);
+
+				if (etvp->weight)
+					etvp->weight = tpr->weight;
+				return;
+			}
+		}
+	}
+
+	tvp = MALLOC(sizeof(tracking_vrrp_t));
+	tvp->vrrp = vrrp;
+	tvp->weight = tpr->weight;
+	list_add(tpr->process->tracking_vrrp, tvp);
+}
+#endif
+
 #ifdef _WITH_BFD_
 static void
 add_vrrp_to_track_bfd(vrrp_t *vrrp, tracked_bfd_t *tbfd)
@@ -2458,6 +2495,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	tracked_sc_t *sc;
 	tracked_if_t *tip;
 	tracked_file_t *tfl;
+#ifdef _WITH_CN_PROC_
+	tracked_process_t *tpr;
+#endif
 #ifdef _WITH_BFD_
 	tracked_bfd_t *tbfd;
 #endif
@@ -3088,6 +3128,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	LIST_FOREACH(vrrp->track_file, tfl, e)
 		add_vrrp_to_track_file(vrrp, tfl);
 
+#ifdef _WITH_CN_PROC_
+	/* Add our track processes to the tracking process tracking_vrrp list */
+	LIST_FOREACH(vrrp->track_process, tpr, e)
+		add_vrrp_to_track_process(vrrp, tpr);
+#endif
+
 #ifdef _WITH_BFD_
 	/* Add our track bfd to the tracking bfd tracking_vrrp list */
 	LIST_FOREACH(vrrp->track_bfd, tbfd, e)
@@ -3408,8 +3454,14 @@ vrrp_complete_init(void)
 	init_interface_linkbeat();
 
 	/* Initialise any tracking files */
-	if (vrrp_data->vrrp_track_files)
+	if (!LIST_ISEMPTY(vrrp_data->vrrp_track_files))
 		init_track_files(vrrp_data->vrrp_track_files);
+
+#ifdef _WITH_CN_PROC_
+	/* Initialise any process tracking */
+	if (!LIST_ISEMPTY(vrrp_data->vrrp_track_processes))
+		init_track_processes(vrrp_data->vrrp_track_processes);
+#endif
 
 	/* Check for instance down or changed priority due to an interface, script, file or bfd */
 	initialise_tracking_priorities();

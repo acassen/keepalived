@@ -49,6 +49,9 @@
 #include "scheduler.h"
 #include "process.h"
 #include "utils.h"
+#ifdef _WITH_CN_PROC_
+#include "track_process.h"
+#endif
 
 /* Global variables */
 int bfd_vrrp_event_pipe[2] = { -1, -1};
@@ -327,9 +330,12 @@ start_bfd_child(void)
 
 	prog_type = PROG_TYPE_BFD;
 
-	/* Close the read end of the event notification pipes */
+	/* Close the read end of the event notification pipes, and the track_process fd */
 #ifdef _WITH_VRRP_
 	close(bfd_vrrp_event_pipe[0]);
+#ifdef _WITH_CN_PROC_
+	close_track_processes();
+#endif
 #endif
 #ifdef _WITH_LVS_
 	close(bfd_checker_event_pipe[0]);

@@ -1515,6 +1515,7 @@ VRRP_AUTH_SUPPORT=No
 MACVLAN_SUPPORT=No
 ENABLE_JSON=No
 BFD_SUPPORT=No
+HAVE_CN_PROC=No
 if test "$enable_vrrp" != no; then
   VRRP_SUPPORT=Yes
   AC_DEFINE([_WITH_VRRP_], [ 1 ], [Define to 1 if have VRRP support])
@@ -1567,12 +1568,21 @@ if test "$enable_vrrp" != no; then
     AC_DEFINE([_WITH_BFD_], [ 1 ], [Define to 1 if have BFD support])
     add_config_opt([BFD])
   fi
+
+  dnl -- Check for process events connector - Linux v2.6.15
+  AC_CHECK_HEADERS([linux/cn_proc.h],
+    [
+       add_system_opt([CN_PROC])
+       HAVE_CN_PROC=Yes
+       AC_DEFINE([_WITH_CN_PROC_], [ 1 ], [Define to 1 if have linux/cn_proc.h])
+    ])
 fi
 AM_CONDITIONAL([WITH_VRRP], [test $VRRP_SUPPORT = Yes])
 AM_CONDITIONAL([VRRP_AUTH], [test $VRRP_AUTH_SUPPORT = Yes])
 AM_CONDITIONAL([VMAC], [test $MACVLAN_SUPPORT = Yes])
 AM_CONDITIONAL([WITH_JSON], [test $ENABLE_JSON = Yes])
 AM_CONDITIONAL([WITH_BFD], [test $BFD_SUPPORT = Yes])
+AM_CONDITIONAL([CN_PROC], [test $HAVE_CN_PROC = Yes])
 
 if test ${IPVS_SUPPORT} = No -a ${VRRP_SUPPORT} = No; then
   AC_MSG_ERROR([keepalived MUST be compiled with at least one of LVS or VRRP framework])

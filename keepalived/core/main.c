@@ -61,6 +61,9 @@
 #include "vrrp_daemon.h"
 #include "vrrp_parser.h"
 #include "vrrp_if.h"
+#ifdef _WITH_CN_PROC_
+#include "track_process.h"
+#endif
 #ifdef _WITH_JSON_
 #include "vrrp_json.h"
 #endif
@@ -1800,6 +1803,12 @@ keepalived_main(int argc, char **argv)
 			create_pid_dir();
 		}
 	}
+
+	/* If we want to monitor processes, we have to do it before calling
+	 * setns() */
+#ifdef _WITH_CN_PROC_
+	open_track_processes();
+#endif
 
 #if HAVE_DECL_CLONE_NEWNET
 	if (global_data->network_namespace) {

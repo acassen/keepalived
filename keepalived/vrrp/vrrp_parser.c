@@ -229,6 +229,14 @@ vrrp_group_track_file_handler(vector_t *strvec)
 	alloc_value_block(alloc_vrrp_group_track_file, vector_slot(strvec, 0));
 }
 
+#ifdef _WITH_CN_PROC_
+static void
+vrrp_group_track_process_handler(vector_t *strvec)
+{
+	alloc_value_block(alloc_vrrp_group_track_process, vector_slot(strvec, 0));
+}
+#endif
+
 #if defined _WITH_BFD_
 static void
 vrrp_group_track_bfd_handler(vector_t *strvec)
@@ -495,6 +503,13 @@ vrrp_track_file_handler(vector_t *strvec)
 {
 	alloc_value_block(alloc_vrrp_track_file, vector_slot(strvec, 0));
 }
+#ifdef _WITH_CN_PROC_
+static void
+vrrp_track_process_handler(vector_t *strvec)
+{
+	alloc_value_block(alloc_vrrp_track_process, vector_slot(strvec, 0));
+}
+#endif
 static void
 vrrp_dont_track_handler(__attribute__((unused)) vector_t *strvec)
 {
@@ -1213,6 +1228,98 @@ vrrp_tfile_end_handler(void)
 			report_config_error(CONFIG_GENERAL_ERROR, "Unable to initialise track file %s", tfile->fname);
 	}
 }
+#ifdef _WITH_CN_PROC_
+static void
+vrrp_tprocess_handler(vector_t *strvec)
+{
+	if (!strvec)
+		return;
+
+	alloc_vrrp_process(strvec_slot(strvec, 1));
+}
+static void
+vrrp_tprocess_process_handler(vector_t *strvec)
+{
+	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
+	size_t len;
+
+	if (tprocess->process_path) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Process already set for track process %s - ignoring %s", tprocess->pname, FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+	tprocess->process_path = set_value(strvec);
+	len = strlen(tprocess->process_path);
+	if (len > vrrp_data->vrrp_max_process_name_len)
+		vrrp_data->vrrp_max_process_name_len = len;
+}
+static void
+vrrp_tprocess_weight_handler(vector_t *strvec)
+{
+	int weight;
+	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
+
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "No weight specified for track process %s - ignoring", tprocess->pname);
+		return;
+	}
+	if (tprocess->weight) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Weight already set for track process %s - ignoring %s", tprocess->pname, FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+
+	if (!read_int_strvec(strvec, 1, &weight, -254, 254, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Weight (%s) for vrrp_track_process %s must be between "
+				 "[-254..254] inclusive. Ignoring...", FMT_STR_VSLOT(strvec, 1), tprocess->pname);
+		weight = 1;
+	}
+
+	tprocess->weight = weight;
+}
+static void
+vrrp_tprocess_quorum_handler(vector_t *strvec)
+{
+	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
+	unsigned quorum;
+
+	if (!read_unsigned_strvec(strvec, 1, &quorum, 1, 65535, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Quorum (%s) for vrrp_track_process %s must be between "
+				 "[1..65535] inclusive. Ignoring...", FMT_STR_VSLOT(strvec, 1), tprocess->pname);
+		quorum = 1;
+	}
+
+	tprocess->quorum = quorum;
+}
+static void
+vrrp_tprocess_delay_handler(vector_t *strvec)
+{
+	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
+	double delay;
+
+	if (!read_double_strvec(strvec, 1, &delay, 0.000001, 3600, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Delay (%s) for vrrp_track_process %s must be between "
+				 "[0.000001..3600] inclusive. Ignoring...", FMT_STR_VSLOT(strvec, 1), tprocess->pname);
+		delay = 0;
+	}
+
+	tprocess->delay = (unsigned)(delay * TIMER_HZ);
+}
+static void
+vrrp_tprocess_full_handler(__attribute__((unused)) vector_t *strvec)
+{
+	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
+
+	tprocess->full_command = true;
+	vrrp_data->vrrp_use_process_cmdline = true;
+}
+static void
+vrrp_tprocess_end_handler(void)
+{
+	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
+
+	if (!tprocess->full_command)
+		vrrp_data->vrrp_use_process_comm = true;
+}
+#endif
 static void
 vrrp_vscript_init_fail_handler(__attribute__((unused)) vector_t *strvec)
 {
@@ -1414,6 +1521,9 @@ init_vrrp_keywords(bool active)
 	install_keyword("track_interface", &vrrp_group_track_if_handler);
 	install_keyword("track_script", &vrrp_group_track_scr_handler);
 	install_keyword("track_file", &vrrp_group_track_file_handler);
+#ifdef _WITH_CN_PROC_
+	install_keyword("track_process", &vrrp_group_track_process_handler);
+#endif
 #ifdef _WITH_BFD_
 	install_keyword("track_bfd", &vrrp_group_track_bfd_handler);
 #endif
@@ -1450,6 +1560,9 @@ init_vrrp_keywords(bool active)
 	install_keyword("track_interface", &vrrp_track_if_handler);
 	install_keyword("track_script", &vrrp_track_scr_handler);
 	install_keyword("track_file", &vrrp_track_file_handler);
+#ifdef _WITH_CN_PROC_
+	install_keyword("track_process", &vrrp_track_process_handler);
+#endif
 #ifdef _WITH_BFD_
 	install_keyword("track_bfd", &vrrp_track_bfd_handler);
 #endif
@@ -1521,6 +1634,17 @@ init_vrrp_keywords(bool active)
 	install_keyword("weight", &vrrp_tfile_weight_handler);
 	install_keyword("init_file", &vrrp_tfile_init_handler);
 	install_sublevel_end_handler(&vrrp_tfile_end_handler);
+
+#ifdef _WITH_CN_PROC_
+	/* Track process declarations */
+	install_keyword_root("vrrp_track_process", &vrrp_tprocess_handler, active);
+	install_keyword("process", &vrrp_tprocess_process_handler);
+	install_keyword("weight", &vrrp_tprocess_weight_handler);
+	install_keyword("quorum", &vrrp_tprocess_quorum_handler);
+	install_keyword("delay", &vrrp_tprocess_delay_handler);
+	install_keyword("full_command", &vrrp_tprocess_full_handler);
+	install_sublevel_end_handler(&vrrp_tprocess_end_handler);
+#endif
 }
 
 vector_t *

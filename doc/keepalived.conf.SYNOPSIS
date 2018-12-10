@@ -517,10 +517,12 @@ global_defs {                                 # Block identification
     vrrp_netlink_cmd_rcv_bufs_force <BOOL>    #  very large configurations where a large number of interfaces exist, and
     vrrp_netlink_monitor_rcv_bufs BYTES       #  the initial read of the interfaces on the system causes a netlink buffer
     vrrp_netlink_monitor_rcv_bufs_force <BOOL> # overrun.
-    lvs_netlink_cmd_rcv_bufs BYTES            #  The vrrp netlink command and monitor socket and the checker command
-    lvs_netlink_cmd_rcv_bufs_force <BOOL>     #  and monitor socket buffer sizes can be independently set. 
+    lvs_netlink_cmd_rcv_bufs BYTES            #  The vrrp netlink command and monitor socket, the checker command and
+    lvs_netlink_cmd_rcv_bufs_force <BOOL>     #  monitor socket and process monitor buffer sizes can be independently set.
     lvs_netlink_monitor_rcv_bufs BYTES        #  The force flag means to use SO_RCVBUFFORCE, so that the buffer size can
     lvs_netlink_monitor_rcv_bufs_force <BOOL> #  exceed /proc/sys/net/core/rmem_max.
+    process_monitor_rcv_bufs BYTES            # For 1400 processes terminating simultaneously, 212992 (the default on my
+    process_monitor_rcv_bufs_force <BOOL>     #  system) is insufficient, whereas 500000 is sufficient.
 
                                               # When a socket is opened, the kernel configures the max rx buffer size for
                                               # the socket to /proc/sys/net/core/rmem_default. On some systems this can be
@@ -647,6 +649,7 @@ This block is divided in 5 sub-blocks:
 
     * VRRP scripts
     * VRRP track files
+    * VRRP track processes
     * VRRP track BFDs
     * VRRP synchronization group
     * VRRP gratuitous ARP/NA intervals
@@ -719,7 +722,77 @@ If a vrrp instance using a track_file is a member of a sync group, unless
 sync_group_tracking_weight is set on the group weight 0 must be set.
 Likewise, if the vrrp instance is the address owner, weight 0 must also be set.
 
-    2.3. BFD Configuration
+    2.3. VRRP track processes
+
+    The configuration block looks like:
+
+vrrp_track_process <STRING> {   # VRRP track file declaration
+    process <QUOTED_STRING>     # process to monitor
+    weight <-254..254>          # default weight (default is 1)
+    quorum NUM                  # minimum number of processes for success
+    delay SECS                  # time to delay after process quorum lost before
+                                #   consider process failed (in fractions of second)
+    full_command                # Normally process string is matched against the process name,
+                                #   as shown on the Name: line in /proc/PID/status.
+                                #   This option matches the full command line
+}
+
+To avoid having to frequently run a track_script to monitor the existance
+of processes (often haproxy or nginx), vrrp_track_process can monitor whether
+other processes are running.
+
+One difference from pgrep is track_process doesn't do a regular expression match of the
+command string, but does an exact match. 'pgrep ssh' will match an sshd process, this
+track_process will not (it is equivalent to pgrep "^ssh$").
+
+If full_command is used (equivalent to pgrep -f), /proc/PID/cmdline is used, but
+any updates to cmdline will not be detected (a process shouldn't normally change it,
+although it is possible with great care, for example systemd).
+
+Quorum is the number of matching processes that must be run for an OK status.
+
+Delay might be useful if it anticipated that a process may be reloaded (stopped and
+restarted), and it isn't desired to down and up a vrrp instance.
+
+A positive weight means that an OK status will add <weight> to the priority of all
+VRRP instances which monitor it. On the opposite, a negative weight will be subtracted
+from the initial priority in case of insufficient processes.
+
+If the vrrp instance or sync group is not the address owner and the result is between
+-253 and 253, the result will be added to the initial priority of the VRRP instance
+(a negative value will reduce the priority), although the effective priority will
+be limited to the range [1,254].
+
+If a vrrp instance using a track_process is a member of a sync group, unless
+sync_group_tracking_weight is set on the group weight 0 must be set.
+Likewise, if the vrrp instance is the address owner, weight 0 must also be set.
+
+Rational for not using pgrep/pidof/killall and the likes:
+
+Every time pgrep or its equivalent is run, it iterates though the /proc/[1-9][0-9]*
+directories, and opens the status and cmdline pseudo files in each directory.
+The cmdline pseudo file is mapped to the process's address space, and so if that
+part of the process is swapped out, it will have to be fetched from the swap space.
+pgrep etc also include zombie processes whereas keepalived does not, since they aren't
+running.
+
+This implementation only iterates though /proc/[1-9][0-9]*/ directories at start up, and
+it won't even read the cmdline pseudo files if 'full_command' is not specified for any of
+the vrrp_track_process entries. After startup, it uses the process_events
+kernel <-> userspace connector to receive notification of process changes. If full_command
+is specified for any track_process instance, the cmdline pseudo file will have to be
+read upon notification of the creation of the new process, but at that time it is very
+unlikely that it will have already been swapped out.
+
+On a busy system with a high number of process creations/terminations, using a
+track_script with pgrep/pidof/killall may be more efficient, although those processes
+are inefficient compared to the minimum that keepalived needs.
+
+Using pgrep etc on a system that is swapping can have a significant detrimental impact
+on the performance of the system, due to having to fetch swapped memory from the swap
+space, thereby causing additional swapping.
+
+    2.4. BFD Configuration
 
     This is an implementation of RFC5880 (Bidirectional forwarding detection),
     and this can be configured to work between 2 keepalived instances, but using
@@ -753,7 +826,7 @@ bfd_instance <STRING> {
     vrrp|checker                       # Only notify vrrp or checker process. Default is notify both.
 }
 
-    2.4. VRRP synchronization group
+    2.5. VRRP synchronization group
 
     The configuration block looks like :
 
@@ -783,6 +856,11 @@ vrrp_sync_group <STRING> {      # VRRP sync group declaration
     }
     track_file {                # Files state we monitor
       <STRING>			# weight defaults to value configured in the vrrp_track_file
+      <STRING> weight <INTEGER: -254..254>
+      ...
+    }
+    track_process {             # Processes we monitor
+      <STRING>			# weight defaults to value configured in the vrrp_track_process
       <STRING> weight <INTEGER: -254..254>
       ...
     }
@@ -846,7 +924,7 @@ Important: for a SYNC group to run reliably, it is vital that all instances in
     instance will have taken over the secondary IP address, and the proper master
     needs to be able to restore it.
 
-    2.5. VRRP gratuitous ARP/NA intervals
+    2.6. VRRP gratuitous ARP/NA intervals
 
     This section allows the setting of delays between sending gratuitous ARPs
     and unsolicited neighbour advertisements. This is intended for when an
@@ -875,7 +953,7 @@ garp_group {
     interfaces that aren't specified in a garp_group will inherit the global
     settings.
 
-    2.6. VRRP instance
+    2.7. VRRP instance
 
     The configuration block looks like :
 
@@ -916,6 +994,11 @@ vrrp_instance <STRING> {                      # VRRP instance declaration
     }
     track_file {                              # Files state we monitor
       <STRING>
+      <STRING>
+      <STRING> weight <INTEGER: -254..254>
+      ...
+    }
+    track_process {                           # Processes we monitor
       <STRING>
       <STRING> weight <INTEGER: -254..254>
       ...
