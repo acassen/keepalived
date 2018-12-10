@@ -66,6 +66,9 @@
 #include "check_bfd.h"
 #endif
 #include "timer.h"
+#ifdef _WITH_CN_PROC_
+#include "track_process.h"
+#endif
 
 /* Global variables */
 bool using_ha_suspend;
@@ -513,13 +516,16 @@ start_check_child(void)
 	initialise_debug_options();
 
 #ifdef _WITH_BFD_
-	/* Close the write end of the BFD checker event notification pipe */
+	/* Close the write end of the BFD checker event notification pipe and the track_process fd */
 	close(bfd_checker_event_pipe[1]);
 
 #ifdef _WITH_VRRP_
 	close(bfd_vrrp_event_pipe[0]);
 	close(bfd_vrrp_event_pipe[1]);
 #endif
+#endif
+#ifdef _WITH_CN_PROC_
+	close_track_processes();
 #endif
 
 	if ((global_data->instance_name

@@ -484,14 +484,20 @@ and
     \fBvrrp_netlink_monitor_rcv_bufs \fRBYTES
     \fBvrrp_netlink_monitor_rcv_bufs_force \fR<BOOL>
 
-    # The vrrp netlink command and monitor socket and the checker command
-    # and monitor socket buffer sizes can be independently set.
+    # The vrrp netlink command and monitor socket the checker command and
+    # and monitor socket and process monitor buffer sizes can be independently set.
     # The force flag means to use SO_RCVBUFFORCE, so that the buffer size
     # can exceed /proc/sys/net/core/rmem_max.
     \fBlvs_netlink_cmd_rcv_bufs \fRBYTES
     \fBlvs_netlink_cmd_rcv_bufs_force \fR<BOOL>
     \fBlvs_netlink_monitor_rcv_bufs \fRBYTES
     \fBlvs_netlink_monitor_rcv_bufs_force \fR<BOOL>
+
+    # As a guide for process_monitor_rcv_bufs for 1400 processes terminating
+    # simultaneously, 212992 (the default on some systems) is insufficient, whereas
+    # 500000 is sufficient.
+    \fBprocess_monitor_rcv_bufs \fRBYTES
+    \fBprocess_monitor_rcv_bufs_force \fR<BOOL>
 
     # When a socket is opened, the kernel configures the max rx buffer size for
     # the socket to /proc/sys/net/core/rmem_default. On some systems this can be
@@ -620,6 +626,78 @@ To force a route/rule to be IPv6, add the keyword "inet6".
         ...
     }
 .fi
+.PP
+.SH VRRP track processes
+.PP
+.nf
+The configuration block looks like:
+
+\fBvrrp_track_process\fR <STRING> {   # VRRP track file declaration
+    \fBprocess\fR <QUOTED_STRING>     # process to monitor
+    \fBweight\fR <-254..254>          # default weight (default is 1)
+    \fBquorum\fR NUM                  # minimum number of processes for success
+    \fBdelay\fR SECS                  # time to delay after process quorum lost before
+                                #   consider process failed (in fractions of second)
+    \fBfull_command\fR                # Normally process string is matched against the process name,
+                                #   as shown on the Name: line in /proc/PID/status.
+                                #   This option matches the full command line
+}
+.fi
+.PP
+To avoid having to frequently run a track_script to monitor the existance
+of processes (often haproxy or nginx), vrrp_track_process can monitor whether
+other processes are running.
+.PP
+One difference from pgrep is track_process doesn't do a regular expression match of the
+command string, but does an exact match. 'pgrep ssh' will match an sshd process, this
+track_process will not (it is equivalent to pgrep "^ssh$").
+.PP
+If full_command is used (equivalent to pgrep -f), /proc/PID/cmdline is used, but
+any updates to cmdline will not be detected (a process shouldn't normally change it,
+although it is possible with great care, for example systemd).
+.PP
+Quorum is the number of matching processes that must be run for an OK status.
+.PP
+Delay might be useful if it anticipated that a process may be reloaded (stopped and
+restarted), and it isn't desired to down and up a vrrp instance.
+.PP
+A positive weight means that an OK status will add <weight> to the priority of all
+VRRP instances which monitor it. On the opposite, a negative weight will be subtracted
+from the initial priority in case of insufficient processes.
+.PP
+If the vrrp instance or sync group is not the address owner and the result is between
+-253 and 253, the result will be added to the initial priority of the VRRP instance
+(a negative value will reduce the priority), although the effective priority will
+be limited to the range [1,254].
+.PP
+If a vrrp instance using a track_process is a member of a sync group, unless
+sync_group_tracking_weight is set on the group weight 0 must be set.
+Likewise, if the vrrp instance is the address owner, weight 0 must also be set.
+.PP
+Rational for not using pgrep/pidof/killall and the likes:
+.PP
+Every time pgrep or its equivalent is run, it iterates though the /proc/[1-9][0-9]*
+directories, and opens the status and cmdline pseudo files in each directory.
+The cmdline pseudo file is mapped to the process's address space, and so if that
+part of the process is swapped out, it will have to be fetched from the swap space.
+pgrep etc also include zombie processes whereas keepalived does not, since they aren't
+running.
+.PP
+This implementation only iterates though /proc/[1-9][0-9]*/ directories at start up, and
+it won't even read the cmdline pseudo files if 'full_command' is not specified for any of
+the vrrp_track_process entries. After startup, it uses the process_events
+kernel <-> userspace connector to receive notification of process changes. If full_command
+is specified for any track_process instance, the cmdline pseudo file will have to be
+read upon notification of the creation of the new process, but at that time it is very
+unlikely that it will have already been swapped out.
+.PP
+On a busy system with a high number of process creations/terminations, using a
+track_script with pgrep/pidof/killall may be more efficient, although those processes
+are inefficient compared to the minimum that keepalived needs.
+.PP
+Using pgrep etc on a system that is swapping can have a significant detrimental impact
+on the performance of the system, due to having to fetch swapped memory from the swap
+space, thereby causing additional swapping.
 .PP
 .SH BFD CONFIGURATION
 .PP

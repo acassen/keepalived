@@ -1298,6 +1298,41 @@ vrrp_netlink_cmd_rcv_bufs_force_handler(vector_t *strvec)
 
 	global_data->vrrp_netlink_cmd_rcv_bufs_force = res;
 }
+
+#ifdef _WITH_CN_PROC_
+static void
+process_monitor_rcv_bufs_handler(vector_t *strvec)
+{
+	unsigned val;
+
+	if (!strvec)
+		return;
+
+	val = get_netlink_rcv_bufs_size(strvec, "process_monitor");
+
+	if (val)
+		global_data->process_monitor_rcv_bufs = val;
+}
+
+static void
+process_monitor_rcv_bufs_force_handler(vector_t *strvec)
+{
+	int res = true;
+
+	if (!strvec)
+		return;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global process_monitor_rcv_bufs_force specified", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+
+	global_data->process_monitor_rcv_bufs_force = res;
+}
+#endif
 #endif
 
 #ifdef _WITH_LVS_
@@ -1612,6 +1647,10 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_netlink_cmd_rcv_bufs_force", &vrrp_netlink_cmd_rcv_bufs_force_handler);
 	install_keyword("vrrp_netlink_monitor_rcv_bufs", &vrrp_netlink_monitor_rcv_bufs_handler);
 	install_keyword("vrrp_netlink_monitor_rcv_bufs_force", &vrrp_netlink_monitor_rcv_bufs_force_handler);
+#ifdef _WITH_CN_PROC_
+	install_keyword("process_monitor_rcv_bufs", &process_monitor_rcv_bufs_handler);
+	install_keyword("process_monitor_rcv_bufs_force", &process_monitor_rcv_bufs_force_handler);
+#endif
 #endif
 #ifdef _WITH_LVS_
 	install_keyword("lvs_netlink_cmd_rcv_bufs", &lvs_netlink_cmd_rcv_bufs_handler);

@@ -209,6 +209,10 @@ typedef struct _data {
 	bool				vrrp_netlink_cmd_rcv_bufs_force;
 	unsigned			vrrp_netlink_monitor_rcv_bufs;
 	bool				vrrp_netlink_monitor_rcv_bufs_force;
+#ifdef _WITH_CN_PROC_
+	unsigned			process_monitor_rcv_bufs;
+	bool				process_monitor_rcv_bufs_force;
+#endif
 #endif
 #ifdef _WITH_LVS_
 	unsigned			lvs_netlink_cmd_rcv_bufs;

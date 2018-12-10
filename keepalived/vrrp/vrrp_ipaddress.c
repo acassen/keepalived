@@ -702,10 +702,7 @@ clear_address_list(list delete_addr,
 	netlink_iplist(delete_addr, IPADDRESS_DEL, false);
 #ifdef _WITH_FIREWALL_
 	if (remove_from_firewall)
-{
-log_message(LOG_INFO, "In clear_address_list");
 		firewall_remove_rule_to_iplist(delete_addr, false);
-}
 #endif
 }
 

@@ -80,6 +80,9 @@
 #ifdef _WITH_FIREWALL_
 #include "vrrp_firewall.h"
 #endif
+#ifdef _WITH_CN_PROC_
+#include "track_process.h"
+#endif
 
 /* Global variables */
 bool non_existent_interface_specified;
@@ -338,6 +341,11 @@ vrrp_terminate_phase1(bool schedule_next_thread)
 #ifdef _WITH_PERF_
 	if (perf_run == PERF_END)
 		run_perf("vrrp", global_data->network_namespace, global_data->instance_name);
+#endif
+
+#ifdef _WITH_CN_PROC_
+	/* Stop monitoring process terminations */
+	end_process_monitor();
 #endif
 
 	/* Terminate all script processes */
@@ -861,6 +869,9 @@ register_vrrp_thread_addresses(void)
 #endif
 	register_vrrp_fifo_addresses();
 	register_vrrp_inotify_addresses();
+#ifdef _WITH_CN_PROC_
+	register_process_monitor_addresses();
+#endif
 
 #ifndef _DEBUG_
 	register_thread_address("print_vrrp_data", print_vrrp_data);

@@ -431,6 +431,142 @@ alloc_group_track_file(vrrp_sgroup_t *sgroup, vector_t *strvec)
 	list_add(sgroup->track_file, tfile);
 }
 
+#ifdef _WITH_CN_PROC_
+vrrp_tracked_process_t *
+find_tracked_process_by_name(const char *name)
+{
+	element e;
+	vrrp_tracked_process_t *process;
+
+	if (LIST_ISEMPTY(vrrp_data->vrrp_track_processes))
+		return NULL;
+
+	LIST_FOREACH(vrrp_data->vrrp_track_processes, process, e) {
+		if (!strcmp(process->pname, name))
+			return process;
+	}
+	return NULL;
+}
+
+/* Track process dump */
+void
+dump_track_process(FILE *fp, void *track_data)
+{
+	tracked_process_t *tprocess = track_data;
+	conf_write(fp, "     %s, weight %d", tprocess->process->pname, tprocess->weight);
+}
+
+void
+free_track_process(void *tsf)
+{
+	FREE(tsf);
+}
+
+void
+alloc_track_process(vrrp_t *vrrp, vector_t *strvec)
+{
+	vrrp_tracked_process_t *vsp;
+	tracked_process_t *tprocess;
+	char *tracked = strvec_slot(strvec, 0);
+	tracked_process_t *etprocess;
+	element e;
+	int weight;
+
+	vsp = find_tracked_process_by_name(tracked);
+
+	/* Ignoring if no process found */
+	if (!vsp) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) track process %s not found, ignoring...", vrrp->iname, tracked);
+		return;
+	}
+
+	/* Check this vrrp isn't already tracking the script */
+	LIST_FOREACH(vrrp->track_process, etprocess, e) {
+		if (etprocess->process == vsp) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) duplicate track_process %s - ignoring", vrrp->iname, tracked);
+			return;
+		}
+	}
+
+	weight = vsp->weight;
+	if (vector_size(strvec) >= 2) {
+		if (strcmp(strvec_slot(strvec, 1), "weight")) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track process option %s - ignoring",
+					 vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+		if (vector_size(strvec) >= 3) {
+			if (!read_int_strvec(strvec, 2, &weight, -254, 254, true)) {
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for track process %s must be in "
+						 "[-254..254] inclusive. Ignoring...", vrrp->iname, tracked);
+				weight = vsp->weight;
+			}
+		} else {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight without value specified for track process %s - ignoring",
+					vrrp->iname, tracked);
+			return;
+		}
+	}
+
+	tprocess = (tracked_process_t *) MALLOC(sizeof(tracked_process_t));
+	tprocess->process = vsp;
+	tprocess->weight = weight;
+	list_add(vrrp->track_process, tprocess);
+}
+
+void
+alloc_group_track_process(vrrp_sgroup_t *sgroup, vector_t *strvec)
+{
+	vrrp_tracked_process_t *vsp;
+	tracked_process_t *tprocess;
+	char *tracked = strvec_slot(strvec, 0);
+	tracked_process_t *etprocess;
+	element e;
+	int weight;
+
+	vsp = find_tracked_process_by_name(tracked);
+
+	/* Ignoring if no process found */
+	if (!vsp) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) track process %s not found, ignoring...", sgroup->gname, tracked);
+		return;
+	}
+
+	/* Check this vrrp isn't already tracking the process */
+	LIST_FOREACH(sgroup->track_process, etprocess, e) {
+		if (etprocess->process == vsp) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) duplicate track_process %s - ignoring", sgroup->gname, tracked);
+			return;
+		}
+	}
+
+	weight = vsp->weight;
+	if (vector_size(strvec) >= 2) {
+		if (strcmp(strvec_slot(strvec, 1), "weight")) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track process option %s - ignoring",
+					 sgroup->gname, FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+		if (vector_size(strvec) >= 3) {
+			if (!read_int_strvec(strvec, 2, &weight, -254, 254, true)) {
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for track process %s must be in "
+						 "[-254..254] inclusive. Ignoring...", sgroup->gname, tracked);
+				weight = vsp->weight;
+			}
+		} else {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight without value specified for track process %s - ignoring",
+					sgroup->gname, tracked);
+			return;
+		}
+	}
+
+	tprocess = (tracked_process_t *) MALLOC(sizeof(tracked_process_t));
+	tprocess->process = vsp;
+	tprocess->weight = weight;
+	list_add(sgroup->track_process, tprocess);
+}
+#endif
+
 #ifdef _WITH_BFD_
 vrrp_tracked_bfd_t *
 find_vrrp_tracked_bfd_by_name(const char *name)
@@ -784,6 +920,36 @@ initialise_file_tracking_priorities(void)
 	}
 }
 
+#ifdef _WITH_CN_PROC_
+static void
+initialise_process_tracking_priorities(void)
+{
+	vrrp_tracked_process_t *tprocess;
+	tracking_vrrp_t *tvp;
+	element e, e1;
+
+	LIST_FOREACH(vrrp_data->vrrp_track_processes, tprocess, e) {
+		LIST_FOREACH(tprocess->tracking_vrrp, tvp, e1) {
+			if (!tvp->weight) {
+				if (tprocess->num_cur_proc < tprocess->quorum) {
+					/* The instance is down */
+					tvp->vrrp->state = VRRP_STATE_FAULT;
+					tvp->vrrp->num_script_if_fault++;
+				}
+			}
+			else if (tprocess->num_cur_proc >= tprocess->quorum) {
+				if (tvp->weight > 0)
+					tvp->vrrp->total_priority += tvp->weight;
+			}
+			else {
+				if (tvp->weight < 0)
+					tvp->vrrp->total_priority += tvp->weight;
+			}
+		}
+	}
+}
+#endif
+
 static void
 initialise_vrrp_tracking_priorities(vrrp_t *vrrp)
 {
@@ -829,6 +995,10 @@ initialise_tracking_priorities(void)
 	initialise_interface_tracking_priorities();
 
 	initialise_file_tracking_priorities();
+
+#ifdef _WITH_CN_PROC_
+	initialise_process_tracking_priorities();
+#endif
 
 	/* Now check for tracking scripts, files, bfd etc. */
 	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
@@ -1139,6 +1309,33 @@ stop_track_files(void)
 		inotify_fd = -1;
 	}
 }
+
+#ifdef _WITH_CN_PROC_
+void
+process_update_track_process_status(vrrp_tracked_process_t *tprocess, bool now_up)
+{
+	tracking_vrrp_t *tvp;
+	element e;
+
+	log_message(LOG_INFO, "Quorum %s for tracked process %s", now_up ? "gained" : "lost", tprocess->pname);
+
+	LIST_FOREACH(tprocess->tracking_vrrp, tvp, e) {
+		if (!tvp->weight) {
+			if (now_up)
+				try_up_instance(tvp->vrrp, false);
+			else
+				down_instance(tvp->vrrp);
+		}
+		else if (tvp->vrrp->base_priority != VRRP_PRIO_OWNER) {
+			if ((tvp->weight > 0) == now_up)
+				tvp->vrrp->total_priority += tvp->weight;
+			else
+				tvp->vrrp->total_priority -= tvp->weight;
+			vrrp_set_effective_priority(tvp->vrrp);
+		}
+	}
+}
+#endif
 
 #ifdef THREAD_DUMP
 void

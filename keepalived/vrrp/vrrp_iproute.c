@@ -1458,7 +1458,7 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 		else if (!strcmp(str, "metric") ||
 			 !strcmp(str, "priority") ||
 			 !strcmp(str, "preference")) {
-			if (get_u32(&new->metric, strvec_slot(strvec, ++i), UINT32_MAX, "Invalid MTU %s specified for route"))
+			if (get_u32(&new->metric, strvec_slot(strvec, ++i), UINT32_MAX, "Invalid metric %s specified for route"))
 				goto err;
 			new->mask |= IPROUTE_BIT_METRIC;
 		}
