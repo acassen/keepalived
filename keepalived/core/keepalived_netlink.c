@@ -553,6 +553,11 @@ netlink_socket(nl_handle_t *nl, unsigned rcvbuf_size, bool force, int flags, int
 		return -1;
 #endif
 
+#if !HAVE_DECL_SOCK_CLOEXEC
+	if (set_sock_flags(nl->fd, F_SETFD, FD_CLOEXEC))
+		log_message(LOG_INFO, "Unable to set CLOEXEC on netlink socket - %s (%d)", strerror(errno), errno);
+#endif
+
 	memset(&snl, 0, sizeof (snl));
 	snl.nl_family = AF_NETLINK;
 
