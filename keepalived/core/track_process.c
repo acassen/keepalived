@@ -54,6 +54,7 @@
 #endif
 #include "rbtree.h"
 #include "vrrp_data.h"
+#include "utils.h"
 #include "bitops.h"
 
 static thread_t *read_thread;
