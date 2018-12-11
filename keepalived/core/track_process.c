@@ -540,7 +540,6 @@ process_lost_messages_timer_thread(__attribute__((unused)) thread_t *thread)
 /*
  * handle a single process event
  */
-static volatile bool need_exit = false;
 static int handle_proc_ev(int nl_sock)
 {
 	struct nlmsghdr *nlmsghdr;
@@ -549,8 +548,7 @@ static int handle_proc_ev(int nl_sock)
 	struct cn_msg *cn_msg;
 	struct proc_event *proc_ev;
 
-	while (!need_exit) {
-		len = recv(nl_sock, &buf, sizeof(buf), 0);
+	while ((len = recv(nl_sock, &buf, sizeof(buf), 0))) {
 		if (len == 0)
 			return 0;
 		else if (len == -1) {
