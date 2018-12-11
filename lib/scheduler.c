@@ -1469,6 +1469,7 @@ snmp_epoll_info(thread_master_t *m)
 	fd_set snmp_fdset;
 	int fdsetsize = 0;
 	int max_fdsetsize;
+	int set_words;
 	struct timeval snmp_timer_wait = { .tv_sec = TIMER_DISABLED };
 	int snmpblock = true;
 	unsigned long *old_set, *new_set;	// Must be unsigned for ffsl() to work for us
@@ -1499,8 +1500,9 @@ snmp_epoll_info(thread_master_t *m)
 	max_fdsetsize = m->snmp_fdsetsize > fdsetsize ? m->snmp_fdsetsize : fdsetsize;
 	if (!max_fdsetsize)
 		return;
+	set_words = (max_fdsetsize - 1) / (sizeof(*old_set) * CHAR_BIT) + 1;
 
-	for (i = 0, old_set = (unsigned long *)&m->snmp_fdset, new_set = (unsigned long *)&snmp_fdset; i <= max_fdsetsize / (int)sizeof(*new_set); i++, old_set++, new_set++) {
+	for (i = 0, old_set = (unsigned long *)&m->snmp_fdset, new_set = (unsigned long *)&snmp_fdset; i < set_words; i++, old_set++, new_set++) {
 		if (*old_set == *new_set)
 			continue;
 
