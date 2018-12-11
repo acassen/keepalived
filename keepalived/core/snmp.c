@@ -40,6 +40,12 @@ snmp_keepalived_log(__attribute__((unused)) int major, __attribute__((unused)) i
 	if (slm_len && slm->msg[slm_len-1] == '\n')
 		slm_len--;
 	log_message(slm->priority, "%.*s", slm_len, slm->msg);
+
+	/* If we get an AgentX subagent connected message when we think
+	 * we are connected, we need to re-register the fds for epoll */
+	if (master->snmp_fdsetsize && slm->priority == 6)
+		snmp_epoll_reset(master);
+
 	return 0;
 }
 
