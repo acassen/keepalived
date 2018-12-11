@@ -226,6 +226,21 @@ smtp_alert_checker_handler(vector_t *strvec)
 
 	global_data->smtp_alert_checker = res;
 }
+static void
+checker_log_all_failures_handler(vector_t *strvec)
+{
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value for vrrp_lower_prio_no_advert specified");
+			return;
+		}
+	}
+
+	global_data->checker_log_all_failures = res;
+}
 #endif
 #ifdef _WITH_VRRP_
 static void
@@ -1537,6 +1552,7 @@ init_global_keywords(bool global_active)
 #endif
 #ifdef _WITH_LVS_
 	install_keyword("smtp_alert_checker", &smtp_alert_checker_handler);
+	install_keyword("checker_log_all_failures", &checker_log_all_failures_handler);
 #endif
 #ifdef _WITH_VRRP_
 	install_keyword("dynamic_interfaces", &dynamic_interfaces_handler);

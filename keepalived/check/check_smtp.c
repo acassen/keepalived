@@ -294,7 +294,10 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 
 	if (error) {
 		/* Always syslog the error when the real server is up */
-		if (checker->is_up) {
+		if (checker->is_up &&
+		    (global_data->checker_log_all_failures ||
+		     checker->log_all_failures ||
+		     checker->retry_it > checker->retry)) {
 			if (format != NULL) {
 				/* prepend format with the "SMTP_CHECK " string */
 				strncpy(error_buff, "SMTP_CHECK ", sizeof(error_buff) - 1);
@@ -303,9 +306,8 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 				va_start(varg_list, format);
 				vlog_message(LOG_INFO, error_buff, varg_list);
 				va_end(varg_list);
-			} else {
+			} else
 				log_message(LOG_INFO, "SMTP_CHECK Unknown error");
-			}
 		}
 
 		/*

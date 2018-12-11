@@ -312,6 +312,7 @@ misc_check_child_thread(thread_t * thread)
 	char *reason = NULL;
 	int reason_code = 0;	/* Avoid uninitialised warning by older versions of gcc */
 	bool rs_was_alive;
+	bool message_only = false;
 
 	checker = THREAD_ARG(thread);
 	misck_checker = CHECKER_ARG(checker);
@@ -373,16 +374,19 @@ misc_check_child_thread(thread_t * thread)
 
 			checker->retry_it = 0;
 		} else if (checker->is_up || !checker->has_run) {
-			if (checker->retry_it < checker->retry)
-				checker->retry_it++;
-			else {
-				script_exit_type = "failed";
-				script_success = false;
-				reason = "exited with status";
-				reason_code = status;
+			script_exit_type = "failed";
+			script_success = false;
+			reason = "exited with status";
+			reason_code = status;
 
+			if (checker->retry_it < checker->retry) {
+				checker->retry_it++;
+				if (global_data->checker_log_all_failures || checker->log_all_failures)
+					message_only = true;
+				else
+					script_exit_type = NULL;
+			} else
 				checker->retry_it = 0;
-			}
 		}
 	}
 	else if (WIFSIGNALED(wait_status)) {
@@ -396,20 +400,24 @@ misc_check_child_thread(thread_t * thread)
 
 		/* We treat forced termination as a failure */
 		if (checker->is_up || !checker->has_run) {
-			if (checker->retry_it < checker->retry)
-				checker->retry_it++;
+			if ((misck_checker->state == SCRIPT_STATE_REQUESTING_TERMINATION &&
+			     WTERMSIG(wait_status) == SIGTERM) ||
+			    (misck_checker->state == SCRIPT_STATE_FORCING_TERMINATION &&
+			     (WTERMSIG(wait_status) == SIGTERM || WTERMSIG(wait_status) == SIGKILL)))
+				script_exit_type = "timed out";
 			else {
-				if ((misck_checker->state == SCRIPT_STATE_REQUESTING_TERMINATION &&
-				     WTERMSIG(wait_status) == SIGTERM) ||
-				    (misck_checker->state == SCRIPT_STATE_FORCING_TERMINATION &&
-				     (WTERMSIG(wait_status) == SIGTERM || WTERMSIG(wait_status) == SIGKILL)))
-					script_exit_type = "timed out";
-				else {
-					script_exit_type = "failed";
-					reason = "due to signal";
-					reason_code = WTERMSIG(wait_status);
-				}
+				script_exit_type = "failed";
+				reason = "due to signal";
+				reason_code = WTERMSIG(wait_status);
+			}
 
+			if (checker->retry_it < checker->retry) {
+				checker->retry_it++;
+				if (global_data->checker_log_all_failures || checker->log_all_failures)
+					message_only = true;
+				else
+					script_exit_type = NULL;
+			} else {
 				script_success = false;
 
 				checker->retry_it = 0;
@@ -435,13 +443,15 @@ misc_check_child_thread(thread_t * thread)
 					    , misck_checker->script.args[0]
 					    , script_exit_type);
 
-		rs_was_alive = checker->rs->alive;
-		update_svr_checker_state(script_success ? UP : DOWN, checker);
+		if (!message_only) {
+			rs_was_alive = checker->rs->alive;
+			update_svr_checker_state(script_success ? UP : DOWN, checker);
 
-		if (checker->rs->smtp_alert &&
-		    (rs_was_alive != checker->rs->alive || !global_data->no_checker_emails)) {
-			snprintf(message, sizeof(message), "=> MISC CHECK %s on service <=", script_exit_type);
-			smtp_alert(SMTP_MSG_RS, checker, NULL, message);
+			if (checker->rs->smtp_alert &&
+			    (rs_was_alive != checker->rs->alive || !global_data->no_checker_emails)) {
+				snprintf(message, sizeof(message), "=> MISC CHECK %s on service <=", script_exit_type);
+				smtp_alert(SMTP_MSG_RS, checker, NULL, message);
+			}
 		}
 	}
 

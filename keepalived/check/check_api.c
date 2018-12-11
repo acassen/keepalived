@@ -107,6 +107,7 @@ dump_checker_opts(FILE *fp, void *data)
 	}
 
 	conf_write(fp, "   Alpha is %s", checker->alpha ? "ON" : "OFF");
+	conf_write(fp, "   Log all failures %s", checker->log_all_failures ? "ON" : "OFF");
 	conf_write(fp, "   Delay loop = %lu" , checker->delay_loop / TIMER_HZ);
 	if (checker->retry) {
 		conf_write(fp, "   Retry count = %u" , checker->retry);
@@ -393,6 +394,21 @@ alpha_handler(vector_t *strvec)
 	}
 	checker->alpha = res;
 }
+static void
+log_all_failures_handler(vector_t *strvec)
+{
+	checker_t *checker = CHECKER_GET_CURRENT();
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec, 1));
+		if (res == -1) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid log_all_failures parameter %s", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+	checker->log_all_failures = res;
+}
 void
 install_checker_common_keywords(bool connection_keywords)
 {
@@ -412,6 +428,7 @@ install_checker_common_keywords(bool connection_keywords)
 	install_keyword("warmup", &warmup_handler);
 	install_keyword("delay_loop", &delay_handler);
 	install_keyword("alpha", &alpha_handler);
+	install_keyword("log_all_failures", &log_all_failures_handler);
 }
 
 /* dump the checkers_queue */
