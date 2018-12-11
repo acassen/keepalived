@@ -181,6 +181,9 @@ and
     # Sets default state for checker smtp_alerts
     \fBsmtp_alert_checker \fR<BOOL>
 
+    # Ssets logging all checker failes while checker up
+    \fBchecker_log_all_failures \fR<BOOL>
+
     # Don't send smtp alerts for fault conditions
     \fBno_email_faults\fR
 
@@ -1556,6 +1559,7 @@ The syntax for virtual_server is :
         \fBwarmup \fR<INTEGER>                # see above
         \fBdelay_loop \fR<INTEGER>            # see above
         \fBinhibit_on_failure \fR<BOOL>       # see above
+        \fBlog_all_failures \fR<BOOL>         # log all failures when checker up
 
         # healthcheckers. Can be multiple of each type
         # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|DNS_CHECK|MISC_CHECK|BFD_CHECK

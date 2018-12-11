@@ -124,20 +124,23 @@ dns_final(thread_t * thread, int error, const char *fmt, ...)
 
 	if (error) {
 		if (checker->is_up || !checker->has_run) {
+			if (fmt &&
+			    (global_data->checker_log_all_failures ||
+			     checker->log_all_failures ||
+			     checker->retry_it >= checker->retry)) {
+				va_start(args, fmt);
+				len = vsnprintf(buf, sizeof (buf), fmt, args);
+				va_end(args);
+				if (checker->has_run && checker->retry_it >= checker->retry)
+					snprintf(buf + len, sizeof(buf) - len, " after %d retries", checker->retry);
+				dns_log_message(thread, LOG_INFO, buf);
+			}
 			if (checker->retry_it < checker->retry) {
 				checker->retry_it++;
 				thread_add_timer(thread->master,
 						 dns_connect_thread, checker,
 						 checker->delay_before_retry);
 				return 0;
-			}
-			if (fmt) {
-				va_start(args, fmt);
-				len = vsnprintf(buf, sizeof (buf), fmt, args);
-				va_end(args);
-				if (checker->has_run && checker->retry)
-					snprintf(buf + len, sizeof(buf) - len, " after %d retries", checker->retry);
-				dns_log_message(thread, LOG_INFO, buf);
 			}
 			checker_was_up = checker->is_up;
 			rs_was_alive = checker->rs->alive;

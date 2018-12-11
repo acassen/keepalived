@@ -357,6 +357,7 @@ global_defs {                                 # Block identification
     smtp_alert <BOOL>                         # Sets default state for all smtp_alerts
     smtp_alert_vrrp <BOOL>                    # Sets default state for vrrp smtp_alerts
     smtp_alert_checker <BOOL>                 # Sets default state for checker smtp_alerts
+    checker_log_all_failures <BOOL>           # log all checker failures when checker up
     no_email_faults                           # Don't send smtp alerts for fault conditions
     router_id <STRING>                        # String identifying router
     vrrp_garp_interval <DECIMAL>              # Sets the default interval between Gratuitous ARP
@@ -1314,6 +1315,7 @@ virtual_server group <STRING>        {        # VS group declaration
             delay_before_retry <INTEGER>      # delay before retry (default 1 unless otherwise specified)
             warmup <INTEGER>                  # random delay for maximum N seconds
             delay_loop <INTEGER>              # delay timer for service polling
+            log_all_failures <BOOL>           # log all failures when checker up
         }
 
         # The following options are additional checker specific

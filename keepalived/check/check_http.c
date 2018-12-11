@@ -908,9 +908,10 @@ timeout_epilog(thread_t * thread, const char *debug_msg)
 
 	/* check if server is currently alive */
 	if (checker->is_up) {
-		log_message(LOG_INFO, "%s server %s."
-				    , debug_msg
-				    , FMT_HTTP_RS(checker));
+		if (global_data->checker_log_all_failures || checker->log_all_failures)
+			log_message(LOG_INFO, "%s server %s."
+					    , debug_msg
+					    , FMT_HTTP_RS(checker));
 		return epilog(thread, REGISTER_CHECKER_RETRY, 0, 1);
 	}
 
