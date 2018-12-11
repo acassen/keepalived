@@ -549,9 +549,7 @@ static int handle_proc_ev(int nl_sock)
 	struct proc_event *proc_ev;
 
 	while ((len = recv(nl_sock, &buf, sizeof(buf), 0))) {
-		if (len == 0)
-			return 0;
-		else if (len == -1) {
+		if (len == -1) {
 			if (errno == EINTR)
 				continue;
 			if (errno == EAGAIN)
