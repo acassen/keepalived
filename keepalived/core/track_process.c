@@ -456,8 +456,8 @@ static int set_proc_ev_listen(int nl_sock, bool enable)
 	return 0;
 }
 
-static int
-process_lost_messages_timer_thread(__attribute__((unused)) thread_t *thread)
+void
+reload_track_processes(void)
 {
 	reload_thread = NULL;
 	unsigned buf_size;
@@ -471,7 +471,7 @@ process_lost_messages_timer_thread(__attribute__((unused)) thread_t *thread)
 
 	if (getsockopt(nl_sock, SOL_SOCKET, SO_RCVBUF, &buf_size, &buf_size_len) < 0) {
 		log_message(LOG_INFO, "Cannot get process monitor SO_RCVBUF option. errno=%d (%m)", errno);
-		return 0;
+		return;
 	}
 
 	buf_size *= 2;
@@ -525,6 +525,14 @@ process_lost_messages_timer_thread(__attribute__((unused)) thread_t *thread)
 			}
 		}
 	}
+
+	return;
+}
+
+static int
+process_lost_messages_timer_thread(__attribute__((unused)) thread_t *thread)
+{
+	reload_track_processes();
 
 	return 0;
 }
