@@ -236,7 +236,10 @@ extern void thread_children_reschedule(thread_master_t *, int (*) (thread_t *), 
 extern thread_t *thread_add_event(thread_master_t *, int (*) (thread_t *), void *, int);
 extern void thread_cancel(thread_t *);
 extern void thread_cancel_read(thread_master_t *, int);
+#ifdef _WITH_SNMP_
 extern int snmp_timeout_thread(thread_t *);
+extern void snmp_epoll_reset(thread_master_t *);
+#endif
 extern void process_threads(thread_master_t *);
 extern void thread_child_handler(void *, int);
 extern void thread_add_base_threads(thread_master_t *);

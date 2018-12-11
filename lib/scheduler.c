@@ -604,9 +604,8 @@ thread_event_cancel(thread_t *thread)
 #ifdef _WITH_SNMP_
 	    !FD_ISSET(event->fd, &m->snmp_fdset) &&
 #endif
-	    errno != EBADF) {
+	    errno != EBADF)
 		log_message(LOG_INFO, "scheduler: Error performing epoll_ctl DEL op for fd:%d (%m)", event->fd);
-	}
 
 	rb_erase(&event->n, &m->io_events);
 	if (event == m->current_event)
@@ -1526,6 +1525,66 @@ snmp_epoll_info(thread_master_t *m)
 				FD_CLR(fd, &m->snmp_fdset);
 			}
 		} while (diff);
+	}
+	m->snmp_fdsetsize = fdsetsize;
+}
+
+/* If a file descriptor was registered with epoll, but it has been closed, the registration
+ * will have been lost, even though the new fd value is the same. We therefore need to
+ * unregister all the fds we had registered, and reregister them. */
+void
+snmp_epoll_reset(thread_master_t *m)
+{
+	fd_set snmp_fdset;
+	int fdsetsize = 0;
+	int set_words;
+	int max_fdsetsize;
+	struct timeval snmp_timer_wait = { .tv_sec = TIMER_DISABLED };
+	int snmpblock = true;
+	unsigned long *old_set, *new_set;	// Must be unsigned for ffsl() to work for us
+	unsigned long bits;
+	int i;
+	int fd;
+	int bit;
+
+	FD_ZERO(&snmp_fdset);
+
+	snmp_select_info(&fdsetsize, &snmp_fdset, &snmp_timer_wait, &snmpblock);
+
+	max_fdsetsize = m->snmp_fdsetsize > fdsetsize ? m->snmp_fdsetsize : fdsetsize;
+	if (!max_fdsetsize)
+		return;
+
+	set_words = (max_fdsetsize - 1) / (sizeof(*old_set) * CHAR_BIT) + 1;
+
+	/* Clear all the fds that were registered with epoll */
+	for (i = 0, old_set = (unsigned long *)&m->snmp_fdset; i < set_words; i++, old_set++) {
+		bits = *old_set;
+		fd = i * sizeof(*old_set) * CHAR_BIT - 1;
+		do {
+			bit = ffsl(bits);
+			bits >>= bit;
+			fd += bit;
+
+			/* Remove the fd */
+			thread_del_read_fd(m, fd);
+			FD_CLR(fd, &m->snmp_fdset);
+		} while (bits);
+	}
+
+	/* Add the file descriptors that are now in use */
+	for (i = 0, new_set = (unsigned long *)&snmp_fdset; i < set_words; i++, new_set++) {
+		bits = *new_set;
+		fd = i * sizeof(*new_set) * CHAR_BIT - 1;
+		do {
+			bit = ffsl(bits);
+			bits >>= bit;
+			fd += bit;
+
+			/* Add the fd */
+			thread_add_read(m, snmp_read_thread, 0, fd, TIMER_NEVER);
+			FD_SET(fd, &m->snmp_fdset);
+		} while (bits);
 	}
 	m->snmp_fdsetsize = fdsetsize;
 }
