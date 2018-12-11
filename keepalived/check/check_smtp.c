@@ -313,7 +313,7 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 		 * scheduling the main thread to check it again after the
 		 * configured backoff delay. Otherwise down the RS.
 		 */
-		if (checker->retry_it < checker->retry) {
+		if (checker->retry_it <= checker->retry) {
 			thread_add_timer(thread->master, smtp_connect_thread, checker,
 					 checker->delay_before_retry);
 			return 0;
