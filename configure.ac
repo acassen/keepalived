@@ -264,6 +264,15 @@ AC_ARG_WITH([systemdsystemunitdir],
 
 # Set the kernel headers path
 if test -n "$kernel_src_path"; then
+  if test ! -d $kernel_src_path/include; then
+    AC_MSG_ERROR([kernel source path $kernel_src_path/include does not exist])
+  fi
+  if test ! -d $kernel_src_path/include/linux; then
+    AC_MSG_ERROR([kernel source path $kernel_src_path/include does not appear to include linux header files])
+  fi
+  if test -d $kernel_src_path/include/uapi/linux; then
+    AC_MSG_ERROR([kernel source path $kernel_src_path appears to be an unprocessed kernel source tree])
+  fi
   kernelinc="-I$kernel_src_path/include"
 elif test ! -d /usr/include/linux -a \
 	    -d /usr/src/linux/include; then
