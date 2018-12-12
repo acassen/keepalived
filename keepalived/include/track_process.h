@@ -32,6 +32,7 @@
 
 
 /* prototypes */
+extern void reload_track_processes(void);
 extern bool open_track_processes(void);
 extern bool close_track_processes(void);
 extern bool init_track_processes(list);

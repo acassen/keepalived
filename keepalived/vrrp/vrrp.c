@@ -3459,8 +3459,12 @@ vrrp_complete_init(void)
 
 #ifdef _WITH_CN_PROC_
 	/* Initialise any process tracking */
-	if (!LIST_ISEMPTY(vrrp_data->vrrp_track_processes))
-		init_track_processes(vrrp_data->vrrp_track_processes);
+	if (!LIST_ISEMPTY(vrrp_data->vrrp_track_processes)) {
+		if (reload)
+			reload_track_processes();
+		else
+			init_track_processes(vrrp_data->vrrp_track_processes);
+	}
 #endif
 
 	/* Check for instance down or changed priority due to an interface, script, file or bfd */

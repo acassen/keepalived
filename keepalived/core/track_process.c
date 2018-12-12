@@ -456,8 +456,8 @@ static int set_proc_ev_listen(int nl_sock, bool enable)
 	return 0;
 }
 
-static int
-process_lost_messages_timer_thread(__attribute__((unused)) thread_t *thread)
+void
+reload_track_processes(void)
 {
 	reload_thread = NULL;
 	unsigned buf_size;
@@ -471,7 +471,7 @@ process_lost_messages_timer_thread(__attribute__((unused)) thread_t *thread)
 
 	if (getsockopt(nl_sock, SOL_SOCKET, SO_RCVBUF, &buf_size, &buf_size_len) < 0) {
 		log_message(LOG_INFO, "Cannot get process monitor SO_RCVBUF option. errno=%d (%m)", errno);
-		return 0;
+		return;
 	}
 
 	buf_size *= 2;
@@ -526,13 +526,20 @@ process_lost_messages_timer_thread(__attribute__((unused)) thread_t *thread)
 		}
 	}
 
+	return;
+}
+
+static int
+process_lost_messages_timer_thread(__attribute__((unused)) thread_t *thread)
+{
+	reload_track_processes();
+
 	return 0;
 }
 
 /*
  * handle a single process event
  */
-static volatile bool need_exit = false;
 static int handle_proc_ev(int nl_sock)
 {
 	struct nlmsghdr *nlmsghdr;
@@ -541,11 +548,8 @@ static int handle_proc_ev(int nl_sock)
 	struct cn_msg *cn_msg;
 	struct proc_event *proc_ev;
 
-	while (!need_exit) {
-		len = recv(nl_sock, &buf, sizeof(buf), 0);
-		if (len == 0)
-			return 0;
-		else if (len == -1) {
+	while ((len = recv(nl_sock, &buf, sizeof(buf), 0))) {
+		if (len == -1) {
 			if (errno == EINTR)
 				continue;
 			if (errno == EAGAIN)
