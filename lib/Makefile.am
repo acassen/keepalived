@@ -45,6 +45,8 @@ EXTRA_DIST		= $(GIT_COMMIT_FILE)
 
 MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@
 
+CLEANFILES		= $(GIT_COMMIT_FILE)
+
 FORCE:
 
 # The git commit file will contain the git version and date of last commit,
