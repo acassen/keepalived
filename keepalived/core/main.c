@@ -28,6 +28,7 @@
 #include <stdbool.h>
 #ifdef HAVE_SIGNALFD
 #include <sys/signalfd.h>
+#include <sys/epoll.h>
 #endif
 #include <errno.h>
 #include <signal.h>
@@ -599,14 +600,12 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 	int wait_count = 0;
 	struct timeval start_time, now;
 #ifdef HAVE_SIGNALFD
-	struct timeval timeout = {
-		.tv_sec = child_wait_time,
-		.tv_usec = 0
-	};
+	int timeout = child_wait_time * 1000;
 	int signal_fd = master->signal_fd;
-	fd_set read_set;
 	struct signalfd_siginfo siginfo;
 	sigset_t sigmask;
+	struct epoll_event ev = { .events = EPOLLIN, .data.fd = master->signal_fd };
+	int efd;
 #else
 	sigset_t old_set, child_wait;
 	struct timespec timeout = {
@@ -625,7 +624,6 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 	sigemptyset(&sigmask);
 	sigaddset(&sigmask, SIGCHLD);
 	signalfd(signal_fd, &sigmask, 0);
-	FD_ZERO(&read_set);
 #else
 	sigmask_func(0, NULL, &old_set);
 	if (!sigismember(&old_set, SIGCHLD)) {
@@ -667,23 +665,27 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 	}
 #endif
 
+#ifdef HAVE_SIGNALFD
+	efd = epoll_create(1);
+	epoll_ctl(efd, EPOLL_CTL_ADD, signal_fd, &ev);
+#endif
+
 	gettimeofday(&start_time, NULL);
 	while (wait_count) {
 #ifdef HAVE_SIGNALFD
-		FD_SET(signal_fd, &read_set);
-		ret = select(signal_fd + 1, &read_set, NULL, NULL, &timeout);
+		ret = epoll_wait(efd, &ev, 1, timeout);
 		if (ret == 0)
 			break;
 		if (ret == -1) {
 			if (errno == EINTR)
 				continue;
 
-			log_message(LOG_INFO, "Terminating select returned errno %d", errno);
+			log_message(LOG_INFO, "Terminating epoll_wait returned errno %d", errno);
 			break;
 		}
 
-		if (!FD_ISSET(signal_fd, &read_set)) {
-			log_message(LOG_INFO, "Terminating select did not return select_fd");
+		if (ev.data.fd != signal_fd) {
+			log_message(LOG_INFO, "Terminating epoll_wait did not return signal_fd");
 			continue;
 		}
 
@@ -750,29 +752,29 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 			wait_count--;
 		}
 #endif
-
 #endif
 
 		if (wait_count) {
 			gettimeofday(&now, NULL);
-			timeout.tv_sec = child_wait_time - (now.tv_sec - start_time.tv_sec);
 #ifdef HAVE_SIGNALFD
-			timeout.tv_usec = (start_time.tv_usec - now.tv_usec);
-			if (timeout.tv_usec < 0) {
-				timeout.tv_usec += 1000000L;
-				timeout.tv_sec--;
-			}
+			timeout = (child_wait_time - (now.tv_sec - start_time.tv_sec)) * 1000 + (start_time.tv_usec - now.tv_usec) / 1000;
+			if (timeout < 0)
+				break;
 #else
+			timeout.tv_sec = child_wait_time - (now.tv_sec - start_time.tv_sec);
 			timeout.tv_nsec = (start_time.tv_usec - now.tv_usec) * 1000;
 			if (timeout.tv_nsec < 0) {
 				timeout.tv_nsec += 1000000000L;
 				timeout.tv_sec--;
 			}
-#endif
 			if (timeout.tv_sec < 0)
 				break;
+#endif
 		}
 	}
+#ifdef HAVE_SIGNALFD
+	close(efd);
+#endif
 
 	/* A child may not have terminated, so force its termination */
 #ifdef _WITH_VRRP_

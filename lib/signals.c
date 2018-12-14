@@ -31,6 +31,9 @@
 #ifdef HAVE_SIGNALFD
 #include <sys/signalfd.h>
 #endif
+#ifdef _INCLUDE_UNUSED_CODE_
+#include <sys/epoll.h>
+#endif
 
 #include "signals.h"
 #include "utils.h"
@@ -152,28 +155,23 @@ log_sigxcpu(__attribute__((unused)) void * ptr, __attribute__((unused)) int sign
 
 #ifdef _INCLUDE_UNUSED_CODE_
 /* Local signal test */
-int
+bool
 signal_pending(void)
 {
-	fd_set readset;
 	int rc;
-	struct timeval timeout = {
-		.tv_sec = 0,
-		.tv_usec = 0
-	};
+	int efd;
+	struct epoll_event ev = { .events = EPOLLIN };
 
-	FD_ZERO(&readset);
+	efd = epoll_create(1);
 #ifdef HAVE_SIGNALFD
-	FD_SET(signal_fd, &readset);
-
-	rc = select(signal_fd + 1, &readset, NULL, NULL, &timeout);
+	epoll_ctl(efd, EPOLL_CTL_ADD, signal_fd,  &ev);
 #else
-	FD_SET(signal_pipe[0], &readset);
-
-	rc = select(signal_pipe[0] + 1, &readset, NULL, NULL, &timeout);
+	epoll_ctl(efd, EPOLL_CTL_ADD, signal_pipe[0],  &ev);
 #endif
+	rc = epoll_wait(efd, &ev, 1, 0);
+	close(efd);
 
-	return rc > 0 ? 1 : 0;
+	return rc > 0;
 }
 #endif
 
