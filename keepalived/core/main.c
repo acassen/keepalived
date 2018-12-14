@@ -606,6 +606,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 	sigset_t sigmask;
 	struct epoll_event ev = { .events = EPOLLIN, .data.fd = master->signal_fd };
 	int efd;
+	int wstatus;
 #else
 	sigset_t old_set, child_wait;
 	struct timespec timeout = {
@@ -701,6 +702,14 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 #ifdef _WITH_VRRP_
 		if (vrrp_child > 0 && vrrp_child == (pid_t)siginfo.ssi_pid) {
 			report_child_status(status, vrrp_child, PROG_VRRP);
+			ret = waitpid(vrrp_child, &wstatus, WNOHANG);
+			if (ret == 0 || (ret == -1 && errno == EINTR))
+				continue;
+			if (ret == -1)
+				log_message(LOG_INFO, "Wait for vrrp child return errno %d", errno);
+
+			/* We could check ret == vrrp_child, but it seems unneccessary */
+
 			vrrp_child = 0;
 			wait_count--;
 		}
@@ -709,6 +718,11 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 #ifdef _WITH_LVS_
 		if (checkers_child > 0 && checkers_child == (pid_t)siginfo.ssi_pid) {
 			report_child_status(status, checkers_child, PROG_CHECK);
+			ret = waitpid(checkers_child, &wstatus, WNOHANG);
+			if (ret == 0 || (ret == -1 && errno == EINTR))
+				continue;
+			if (ret == -1)
+				log_message(LOG_INFO, "Wait for checker child return errno %d", errno);
 			checkers_child = 0;
 			wait_count--;
 		}
@@ -716,6 +730,11 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 #ifdef _WITH_BFD_
 		if (bfd_child > 0 && bfd_child == (pid_t)siginfo.ssi_pid) {
 			report_child_status(status, bfd_child, PROG_BFD);
+			ret = waitpid(bfd_child, &wstatus, WNOHANG);
+			if (ret == 0 || (ret == -1 && errno == EINTR))
+				continue;
+			if (ret == -1)
+				log_message(LOG_INFO, "Wait for bfd child return errno %d", errno);
 			bfd_child = 0;
 			wait_count--;
 		}
