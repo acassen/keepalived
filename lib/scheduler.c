@@ -211,6 +211,8 @@ static int
 thread_move_ready(thread_master_t *m, rb_root_cached_t *root, thread_t *thread, int type)
 {
 	rb_erase_cached(&thread->n, root);
+	if (type == THREAD_CHILD_TIMEOUT)
+		rb_erase(&thread->rb_data, &master->child_pid);
 	INIT_LIST_HEAD(&thread->next);
 	list_add_tail(&thread->next, &m->ready);
 	if (thread->type != THREAD_TIMER_SHUTDOWN)
