@@ -771,7 +771,7 @@ end_process_monitor(void)
 	close(nl_sock);
 	nl_sock = -1;
 
-	FREE(cpu_seq);
+	FREE_PTR(cpu_seq);
 
 	/* Cancel any timer threads */
 	LIST_FOREACH(vrrp_data->vrrp_track_processes, tpr, e) {
