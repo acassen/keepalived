@@ -62,7 +62,7 @@ Source Hashing (sh)
 
 The source hashing scheduling algorithm assigns network connections to the servers through looking up a statically assigned hash table by their source IP addresses.
 
-Shortest Expected Delay (seq)
+Shortest Expected Delay (sed)
 *****************************
 
 The shortest expected delay scheduling algorithm assigns network connections to the server with the shortest expected delay. The expected delay that the job will experience is (Ci + 1) / Ui if sent to the ith server, in which Ci is the number of connections on the ith server and Ui is the fixed service rate (weight) of the ith server.
