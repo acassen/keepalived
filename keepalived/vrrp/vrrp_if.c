@@ -1051,7 +1051,9 @@ interface_down(interface_t *ifp)
 			/* Any route that has an oif will be tracking the interface,
 			 * so we only need to check for routes that dont specify an
 			 * oif */
-			if (!route->oif && route->configured_ifindex != ifp->ifindex)
+			/* Don't track route if it's not configured with this down
+			 * interface. */
+			if (!route->oif || route->configured_ifindex != ifp->ifindex)
 				continue;
 
 			route->set = false;
