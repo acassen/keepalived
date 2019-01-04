@@ -761,15 +761,20 @@ end_process_monitor(void)
 	element e;
 	tracked_process_instance_t *tpi, *next;
 
-	set_proc_ev_listen(nl_sock, false);
+	if (!cpu_seq)
+		return;
 
-	if (read_thread) {
-		thread_cancel(read_thread);
-		read_thread = NULL;
+	if (nl_sock != -1) {
+		set_proc_ev_listen(nl_sock, false);
+
+		if (read_thread) {
+			thread_cancel(read_thread);
+			read_thread = NULL;
+		}
+
+		close(nl_sock);
+		nl_sock = -1;
 	}
-
-	close(nl_sock);
-	nl_sock = -1;
 
 	FREE_PTR(cpu_seq);
 
