@@ -547,8 +547,14 @@ static int handle_proc_ev(int nl_sock)
 	char __attribute__ ((aligned(NLMSG_ALIGNTO)))buf[4096];
 	struct cn_msg *cn_msg;
 	struct proc_event *proc_ev;
+	struct sockaddr_nl addr;
+	socklen_t addrlen = sizeof(addr);
 
-	while ((len = recv(nl_sock, &buf, sizeof(buf), 0))) {
+	while ((len = recvfrom(nl_sock, &buf, sizeof(buf), 0, (struct sockaddr *)&addr, &addrlen))) {
+		/* Ensure the message has been sent by the kernel */
+		if (addrlen != sizeof(addr) || addr.nl_pid != 0)
+			return -1;
+
 		if (len == -1) {
 			if (errno == EINTR)
 				continue;
