@@ -56,6 +56,7 @@
 #include "vrrp_data.h"
 #include "utils.h"
 #include "bitops.h"
+#include "logger.h"
 
 static thread_t *read_thread;
 static thread_t *reload_thread;

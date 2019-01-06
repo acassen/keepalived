@@ -48,38 +48,6 @@ timeval_to_double(const timeval_t *t)
 }
 
 static int
-vrrp_json_stats_dump(json_writer_t *wr, vrrp_t *vrrp)
-{
-	vrrp_stats *stats = vrrp->stats;
-
-	if (!stats)
-		return -1;
-
-	/* data object */
-	jsonw_name(wr, "stats");
-	jsonw_start_object(wr);
-	jsonw_uint_field(wr, "advert_rcvd", stats->advert_rcvd);
-	jsonw_uint_field(wr, "advert_sent", stats->advert_sent);
-	jsonw_uint_field(wr, "become_master", stats->become_master);
-	jsonw_uint_field(wr, "release_master", stats->release_master);
-	jsonw_uint_field(wr, "packet_len_err", stats->packet_len_err);
-	jsonw_uint_field(wr, "advert_interval_err", stats->advert_interval_err);
-	jsonw_uint_field(wr, "ip_ttl_err", stats->ip_ttl_err);
-	jsonw_uint_field(wr, "invalid_type_rcvd", stats->invalid_type_rcvd);
-	jsonw_uint_field(wr, "addr_list_err", stats->addr_list_err);
-	jsonw_uint_field(wr, "invalid_authtype", stats->invalid_authtype);
-#ifdef _WITH_VRRP_AUTH_
-	jsonw_uint_field(wr, "authtype_mismatch", stats->authtype_mismatch);
-	jsonw_uint_field(wr, "auth_failure", stats->auth_failure);
-#endif
-	jsonw_uint_field(wr, "pri_zero_rcvd", stats->pri_zero_rcvd);
-	jsonw_uint_field(wr, "pri_zero_sent", stats->pri_zero_sent);
-	jsonw_end_object(wr);
-	return 0;
-}
-
-
-static int
 vrrp_json_script_dump(json_writer_t *wr, char *prop, notify_script_t *script)
 {
 	if (!script)
@@ -100,6 +68,7 @@ vrrp_json_ip_dump(json_writer_t *wr, void *data)
 	return 0;
 }
 
+#ifdef _HAVE_FIB_ROUTING_
 static int
 vrrp_json_vroute_dump(json_writer_t *wr, void *data)
 {
@@ -121,6 +90,7 @@ vrrp_json_vrule_dump(json_writer_t *wr, void *data)
 	jsonw_string(wr, buf);
 	return 0;
 }
+#endif
 
 static int
 vrrp_json_track_ifp_dump(json_writer_t *wr, void *data)
@@ -229,8 +199,10 @@ vrrp_json_data_dump(json_writer_t *wr, vrrp_t *vrrp)
 	/* Virtual related */
 	vrrp_json_array_dump(wr, "vips", vrrp->vip, vrrp_json_ip_dump);
 	vrrp_json_array_dump(wr, "evips", vrrp->evip, vrrp_json_ip_dump);
+#ifdef _HAVE_FIB_ROUTING_
 	vrrp_json_array_dump(wr, "vroutes", vrrp->vroutes, vrrp_json_vroute_dump);
 	vrrp_json_array_dump(wr, "vrules", vrrp->vrules, vrrp_json_vrule_dump);
+#endif
 
 	/* Tracking related */
 	vrrp_json_array_dump(wr, "track_ifp", vrrp->track_ifp, vrrp_json_track_ifp_dump);
@@ -241,6 +213,37 @@ vrrp_json_data_dump(json_writer_t *wr, vrrp_t *vrrp)
 	vrrp_json_auth_dump(wr, "auth_data", vrrp);
 #endif
 
+	jsonw_end_object(wr);
+	return 0;
+}
+
+static int
+vrrp_json_stats_dump(json_writer_t *wr, vrrp_t *vrrp)
+{
+	vrrp_stats *stats = vrrp->stats;
+
+	if (!stats)
+		return -1;
+
+	/* data object */
+	jsonw_name(wr, "stats");
+	jsonw_start_object(wr);
+	jsonw_uint_field(wr, "advert_rcvd", stats->advert_rcvd);
+	jsonw_uint_field(wr, "advert_sent", stats->advert_sent);
+	jsonw_uint_field(wr, "become_master", stats->become_master);
+	jsonw_uint_field(wr, "release_master", stats->release_master);
+	jsonw_uint_field(wr, "packet_len_err", stats->packet_len_err);
+	jsonw_uint_field(wr, "advert_interval_err", stats->advert_interval_err);
+	jsonw_uint_field(wr, "ip_ttl_err", stats->ip_ttl_err);
+	jsonw_uint_field(wr, "invalid_type_rcvd", stats->invalid_type_rcvd);
+	jsonw_uint_field(wr, "addr_list_err", stats->addr_list_err);
+	jsonw_uint_field(wr, "invalid_authtype", stats->invalid_authtype);
+#ifdef _WITH_VRRP_AUTH_
+	jsonw_uint_field(wr, "authtype_mismatch", stats->authtype_mismatch);
+	jsonw_uint_field(wr, "auth_failure", stats->auth_failure);
+#endif
+	jsonw_uint_field(wr, "pri_zero_rcvd", stats->pri_zero_rcvd);
+	jsonw_uint_field(wr, "pri_zero_sent", stats->pri_zero_sent);
 	jsonw_end_object(wr);
 	return 0;
 }
