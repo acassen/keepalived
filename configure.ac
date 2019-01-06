@@ -1558,16 +1558,10 @@ if test "$enable_vrrp" != no; then
   fi
   CPPFLAGS="$SAV_CPPFLAGS"
 
-  dnl ----[ Json output or not ? ]----
+  dnl ----[ JSON output or not ? ]----
   if test "${enable_json}" = yes; then
-    JSON_HEADERS=$($PKG_CONFIG --cflags-only-I json-c)
-    SAV_CPPFLAGS="$CPPFLAGS"
-    CPPFLAGS="$CPPFLAGS $JSON_HEADERS"
-    AC_CHECK_HEADERS(json.h,,AC_MSG_ERROR([unable to find json.h]))
-    CPPFLAGS="$SAV_CPPFLAGS"
-    AC_DEFINE([_WITH_JSON_], [ 1 ], [Define to 1 to build with json output support])
-    add_pkg_config([json-c])
     ENABLE_JSON=Yes
+    AC_DEFINE([_WITH_JSON_], [ 1 ], [Define to 1 to build with JSON output support])
     add_config_opt([JSON])
   fi
 
@@ -2286,7 +2280,7 @@ if test ${DBUS_SUPPORT} = Yes; then
   echo "DBUS create instance     : ${DBUS_CREATE_INSTANCE}"
 fi
 echo "SHA1 support             : ${SHA1_SUPPORT}"
-echo "Use Json output          : ${ENABLE_JSON}"
+echo "Use JSON output          : ${ENABLE_JSON}"
 echo "libnl version            : ${NETLINK_VER}"
 echo "Use IPv4 devconf         : ${IPV4_DEVCONF}"
 echo "Use iptables             : ${USE_IPTABLES}"

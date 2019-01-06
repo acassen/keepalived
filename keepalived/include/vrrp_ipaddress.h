@@ -114,6 +114,7 @@ extern char *ipaddresstos(char *, ip_address_t *);
 extern int netlink_ipaddress(ip_address_t *, int);
 extern bool netlink_iplist(list, int, bool);
 extern void free_ipaddress(void *);
+extern void format_ipaddress(ip_address_t *, char *, size_t);
 extern void dump_ipaddress(FILE *, void *);
 extern ip_address_t *parse_ipaddress(ip_address_t *, char *, bool);
 extern ip_address_t *parse_route(char *);

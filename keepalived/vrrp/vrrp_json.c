@@ -6,7 +6,8 @@
  *
  * Part:        Output running VRRP state information in JSON format
  *
- * Author:      Damien Clabaut, <Damien.Clabaut@corp.ovh.com>
+ * Author:	Alexandre Cassen, <acassen@gmail.com>
+ *		Damien Clabaut, <Damien.Clabaut@corp.ovh.com>
  *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,8 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2017 Damien Clabaut, <Damien.Clabaut@corp.ovh.com>
- * Copyright (C) 2017-2017 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2001-2019 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #include "config.h"
@@ -27,17 +27,18 @@
 
 #include <errno.h>
 #include <stdio.h>
-#include <json.h>
 
 #include "vrrp.h"
 #include "vrrp_track.h"
 #include "list.h"
 #include "vrrp_data.h"
+#include "vrrp_ipaddress.h"
 #include "vrrp_iproute.h"
 #include "vrrp_iprule.h"
 #include "logger.h"
 #include "timer.h"
 #include "utils.h"
+#include "json_writer.h"
 
 static inline double
 timeval_to_double(const timeval_t *t)
@@ -46,262 +47,245 @@ timeval_to_double(const timeval_t *t)
 	return (double)t->tv_sec + (double)t->tv_usec / TIMER_HZ_FLOAT;
 }
 
+static int
+vrrp_json_stats_dump(json_writer_t *wr, vrrp_t *vrrp)
+{
+	vrrp_stats *stats = vrrp->stats;
+
+	if (!stats)
+		return -1;
+
+	/* data object */
+	jsonw_name(wr, "stats");
+	jsonw_start_object(wr);
+	jsonw_uint_field(wr, "advert_rcvd", stats->advert_rcvd);
+	jsonw_uint_field(wr, "advert_sent", stats->advert_sent);
+	jsonw_uint_field(wr, "become_master", stats->become_master);
+	jsonw_uint_field(wr, "release_master", stats->release_master);
+	jsonw_uint_field(wr, "packet_len_err", stats->packet_len_err);
+	jsonw_uint_field(wr, "advert_interval_err", stats->advert_interval_err);
+	jsonw_uint_field(wr, "ip_ttl_err", stats->ip_ttl_err);
+	jsonw_uint_field(wr, "invalid_type_rcvd", stats->invalid_type_rcvd);
+	jsonw_uint_field(wr, "addr_list_err", stats->addr_list_err);
+	jsonw_uint_field(wr, "invalid_authtype", stats->invalid_authtype);
+#ifdef _WITH_VRRP_AUTH_
+	jsonw_uint_field(wr, "authtype_mismatch", stats->authtype_mismatch);
+	jsonw_uint_field(wr, "auth_failure", stats->auth_failure);
+#endif
+	jsonw_uint_field(wr, "pri_zero_rcvd", stats->pri_zero_rcvd);
+	jsonw_uint_field(wr, "pri_zero_sent", stats->pri_zero_sent);
+	jsonw_end_object(wr);
+	return 0;
+}
+
+
+static int
+vrrp_json_script_dump(json_writer_t *wr, char *prop, notify_script_t *script)
+{
+	if (!script)
+		return -1;
+
+	jsonw_string_field(wr, prop, cmd_str(script));
+	return 0;
+}
+
+static int
+vrrp_json_ip_dump(json_writer_t *wr, void *data)
+{
+	ip_address_t *ipaddr = data;
+	char buf[256];
+
+	format_ipaddress(ipaddr, buf, sizeof(buf));
+	jsonw_string(wr, buf);
+	return 0;
+}
+
+static int
+vrrp_json_vroute_dump(json_writer_t *wr, void *data)
+{
+	ip_route_t *iproute = data;
+	char buf[256];
+
+	format_iproute(iproute, buf, sizeof(buf));
+	jsonw_string(wr, buf);
+	return 0;
+}
+
+static int
+vrrp_json_vrule_dump(json_writer_t *wr, void *data)
+{
+	ip_rule_t *iprule = data;
+	char buf[256];
+
+	format_iprule(iprule, buf, sizeof(buf));
+	jsonw_string(wr, buf);
+	return 0;
+}
+
+static int
+vrrp_json_track_ifp_dump(json_writer_t *wr, void *data)
+{
+	interface_t *ifp = data;
+
+	jsonw_string(wr, ifp->ifname);
+	return 0;
+}
+
+static int
+vrrp_json_track_script_dump(json_writer_t *wr, void *data)
+{
+	tracked_sc_t *tsc = data;
+	vrrp_script_t *vscript = tsc->scr;
+
+	jsonw_string(wr, cmd_str(&vscript->script));
+	return 0;
+}
+
+static int
+vrrp_json_array_dump(json_writer_t *wr, char *prop, list l,
+		     int (*func) (json_writer_t *, void *))
+{
+	void *data;
+	element e;
+
+	if (LIST_ISEMPTY(l))
+		return -1;
+
+	jsonw_name(wr, prop);
+	jsonw_start_array(wr);
+	LIST_FOREACH(l, data, e) {
+		(*func) (wr, data);
+	}
+	jsonw_end_array(wr);
+	return 0;
+}
+
+static int
+vrrp_json_auth_dump(json_writer_t *wr, char *prop, vrrp_t *vrrp)
+{
+	char buf[256];
+
+	if (!vrrp->auth_type)
+		return -1;
+
+	memcpy(buf, vrrp->auth_data, sizeof(vrrp->auth_data));
+	buf[sizeof(vrrp->auth_data)] = 0;
+	jsonw_string_field(wr, prop, buf);
+	return 0;
+}
+
+static int
+vrrp_json_data_dump(json_writer_t *wr, vrrp_t *vrrp)
+{
+	/* data object */
+	jsonw_name(wr, "data");
+	jsonw_start_object(wr);
+
+	/* Global instance related */
+	jsonw_string_field(wr, "iname", vrrp->iname);
+	jsonw_uint_field(wr, "dont_track_primary", vrrp->dont_track_primary);
+	jsonw_uint_field(wr, "skip_check_adv_addr", vrrp->skip_check_adv_addr);
+	jsonw_uint_field(wr, "strict_mode", vrrp->strict_mode);
+#ifdef _HAVE_VRRP_VMAC_
+	jsonw_string_field(wr, "vmac_ifname", vrrp->vmac_ifname);
+#endif
+	jsonw_string_field(wr, "ifp_ifname", vrrp->ifp->ifname);
+	jsonw_uint_field(wr, "master_priority", vrrp->master_priority);
+	jsonw_float_field(wr, "last_transition", timeval_to_double(&vrrp->last_transition));
+	jsonw_float_field(wr, "garp_delay", vrrp->garp_delay / TIMER_HZ_FLOAT);
+	jsonw_uint_field(wr, "garp_refresh", vrrp->garp_refresh.tv_sec);
+	jsonw_uint_field(wr, "garp_rep", vrrp->garp_rep);
+	jsonw_uint_field(wr, "garp_refresh_rep", vrrp->garp_refresh_rep);
+	jsonw_uint_field(wr, "garp_lower_prio_delay", vrrp->garp_lower_prio_delay / TIMER_HZ);
+	jsonw_uint_field(wr, "garp_lower_prio_rep", vrrp->garp_lower_prio_rep);
+	jsonw_uint_field(wr, "lower_prio_no_advert", vrrp->lower_prio_no_advert);
+	jsonw_uint_field(wr, "higher_prio_send_advert", vrrp->higher_prio_send_advert);
+	jsonw_uint_field(wr, "vrid", vrrp->vrid);
+	jsonw_uint_field(wr, "base_priority", vrrp->base_priority);
+	jsonw_uint_field(wr, "effective_priority", vrrp->effective_priority);
+	jsonw_bool_field(wr, "vipset", vrrp->vipset);
+	jsonw_bool_field(wr, "promote_secondaries", vrrp->promote_secondaries);
+	jsonw_float_field(wr, "adver_int", vrrp->adver_int / TIMER_HZ_FLOAT);
+	jsonw_float_field(wr, "master_adver_int", vrrp->master_adver_int / TIMER_HZ_FLOAT);
+#ifdef _WITH_FIREWALL_
+	jsonw_uint_field(wr, "accept", vrrp->accept);
+#endif
+	jsonw_bool_field(wr, "nopreempt", vrrp->nopreempt);
+	jsonw_uint_field(wr, "preempt_delay", vrrp->preempt_delay / TIMER_HZ);
+	jsonw_uint_field(wr, "state", vrrp->state);
+	jsonw_uint_field(wr, "wantstate", vrrp->wantstate);
+	jsonw_uint_field(wr, "version", vrrp->version);
+	jsonw_bool_field(wr, "smtp_alert", vrrp->smtp_alert);
+
+	/* Script related */
+	vrrp_json_script_dump(wr, "script_backup", vrrp->script_backup);
+	vrrp_json_script_dump(wr, "script_master", vrrp->script_master);
+	vrrp_json_script_dump(wr, "script_fault", vrrp->script_fault);
+	vrrp_json_script_dump(wr, "script_stop", vrrp->script_stop);
+	vrrp_json_script_dump(wr, "script", vrrp->script);
+	vrrp_json_script_dump(wr, "script_master_rx_lower_pri"
+				, vrrp->script_master_rx_lower_pri);
+
+	/* Virtual related */
+	vrrp_json_array_dump(wr, "vips", vrrp->vip, vrrp_json_ip_dump);
+	vrrp_json_array_dump(wr, "evips", vrrp->evip, vrrp_json_ip_dump);
+	vrrp_json_array_dump(wr, "vroutes", vrrp->vroutes, vrrp_json_vroute_dump);
+	vrrp_json_array_dump(wr, "vrules", vrrp->vrules, vrrp_json_vrule_dump);
+
+	/* Tracking related */
+	vrrp_json_array_dump(wr, "track_ifp", vrrp->track_ifp, vrrp_json_track_ifp_dump);
+	vrrp_json_array_dump(wr, "track_script", vrrp->track_script, vrrp_json_track_script_dump);
+
+#ifdef _WITH_VRRP_AUTH_
+	jsonw_uint_field(wr, "auth_type", vrrp->auth_type);
+	vrrp_json_auth_dump(wr, "auth_data", vrrp);
+#endif
+
+	jsonw_end_object(wr);
+	return 0;
+}
+
+/*
+ *	Split dump function for future purpose
+ *	this offer generic integration for mapping
+ *	socket fd to a FILE stream.
+ */
+int
+vrrp_json_dump(FILE *fp)
+{
+	json_writer_t *wr;
+	vrrp_t *vrrp;
+	element e;
+
+	wr = jsonw_new(fp);
+	jsonw_start_array(wr);
+
+	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+		jsonw_start_object(wr);
+		vrrp_json_data_dump(wr, vrrp);
+		vrrp_json_stats_dump(wr, vrrp);
+		jsonw_end_object(wr);
+	}
+
+	jsonw_end_array(wr);
+	jsonw_destroy(&wr);
+	return 0;
+}
+
 void
 vrrp_print_json(void)
 {
-	FILE *file;
-	element e;
-	struct json_object *array;
+	FILE *fp;
 
 	if (LIST_ISEMPTY(vrrp_data->vrrp))
 		return;
 
-	file = fopen_safe("/tmp/keepalived.json", "w");
-	if (!file) {
-		log_message(LOG_INFO, "Can't open /tmp/keepalived.json (%d: %s)",
-			errno, strerror(errno));
+	fp = fopen_safe("/tmp/keepalived.json", "w");
+	if (!fp) {
+		log_message(LOG_INFO, "Can't open /tmp/keepalived.json (%d: %m)", errno);
 		return;
 	}
 
-	array = json_object_new_array();
-
-	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-		struct json_object *instance_json, *json_stats, *json_data,
-			*vips, *evips, *track_ifp, *track_script;
-#ifdef _HAVE_FIB_ROUTING_
-		struct json_object *vroutes, *vrules;
-#endif
-		element f;
-
-		vrrp_t *vrrp = ELEMENT_DATA(e);
-		instance_json = json_object_new_object();
-		json_stats = json_object_new_object();
-		json_data = json_object_new_object();
-		vips = json_object_new_array();
-		evips = json_object_new_array();
-		track_ifp = json_object_new_array();
-		track_script = json_object_new_array();
-#ifdef _HAVE_FIB_ROUTING_
-		vroutes = json_object_new_array();
-		vrules = json_object_new_array();
-#endif
-
-		// Dump data to json
-		json_object_object_add(json_data, "iname",
-			json_object_new_string(vrrp->iname));
-		json_object_object_add(json_data, "dont_track_primary",
-			json_object_new_int(vrrp->dont_track_primary));
-		json_object_object_add(json_data, "skip_check_adv_addr",
-			json_object_new_int(vrrp->skip_check_adv_addr));
-		json_object_object_add(json_data, "strict_mode",
-			json_object_new_int((int)vrrp->strict_mode));
-#ifdef _HAVE_VRRP_VMAC_
-		json_object_object_add(json_data, "vmac_ifname",
-			json_object_new_string(vrrp->vmac_ifname));
-#endif
-		// Tracked interfaces are stored in a list
-		if (!LIST_ISEMPTY(vrrp->track_ifp)) {
-			for (f = LIST_HEAD(vrrp->track_ifp); f; ELEMENT_NEXT(f)) {
-				interface_t *ifp = ELEMENT_DATA(f);
-				json_object_array_add(track_ifp,
-					json_object_new_string(ifp->ifname));
-			}
-		}
-		json_object_object_add(json_data, "track_ifp", track_ifp);
-
-		// Tracked scripts also
-		if (!LIST_ISEMPTY(vrrp->track_script)) {
-			for (f = LIST_HEAD(vrrp->track_script); f; ELEMENT_NEXT(f)) {
-				tracked_sc_t *tsc = ELEMENT_DATA(f);
-				vrrp_script_t *vscript = tsc->scr;
-				json_object_array_add(track_script,
-					json_object_new_string(cmd_str(&vscript->script)));
-			}
-		}
-		json_object_object_add(json_data, "track_script", track_script);
-
-		json_object_object_add(json_data, "ifp_ifname",
-			json_object_new_string(vrrp->ifp->ifname));
-		json_object_object_add(json_data, "master_priority",
-			json_object_new_int(vrrp->master_priority));
-		json_object_object_add(json_data, "last_transition",
-			json_object_new_double(timeval_to_double(&vrrp->last_transition)));
-		json_object_object_add(json_data, "garp_delay",
-			json_object_new_double(vrrp->garp_delay / TIMER_HZ_FLOAT));
-		json_object_object_add(json_data, "garp_refresh",
-			json_object_new_int((int)vrrp->garp_refresh.tv_sec));
-		json_object_object_add(json_data, "garp_rep",
-			json_object_new_int((int)vrrp->garp_rep));
-		json_object_object_add(json_data, "garp_refresh_rep",
-			json_object_new_int((int)vrrp->garp_refresh_rep));
-		json_object_object_add(json_data, "garp_lower_prio_delay",
-			json_object_new_int((int)(vrrp->garp_lower_prio_delay / TIMER_HZ)));
-		json_object_object_add(json_data, "garp_lower_prio_rep",
-			json_object_new_int((int)vrrp->garp_lower_prio_rep));
-		json_object_object_add(json_data, "lower_prio_no_advert",
-			json_object_new_int((int)vrrp->lower_prio_no_advert));
-		json_object_object_add(json_data, "higher_prio_send_advert",
-			json_object_new_int((int)vrrp->higher_prio_send_advert));
-		json_object_object_add(json_data, "vrid",
-			json_object_new_int(vrrp->vrid));
-		json_object_object_add(json_data, "base_priority",
-			json_object_new_int(vrrp->base_priority));
-		json_object_object_add(json_data, "effective_priority",
-			json_object_new_int(vrrp->effective_priority));
-		json_object_object_add(json_data, "vipset",
-			json_object_new_boolean(vrrp->vipset));
-
-		//Virtual IPs are stored in a list
-		if (!LIST_ISEMPTY(vrrp->vip)) {
-			for (f = LIST_HEAD(vrrp->vip); f; ELEMENT_NEXT(f)) {
-				ip_address_t *vip = ELEMENT_DATA(f);
-				char ipaddr[INET6_ADDRSTRLEN];
-				inet_ntop(vrrp->family, &(vip->u.sin.sin_addr.s_addr),
-					ipaddr, INET6_ADDRSTRLEN);
-				json_object_array_add(vips,
-					json_object_new_string(ipaddr));
-			}
-		}
-		json_object_object_add(json_data, "vips", vips);
-
-		//External VIPs are also stored in a list
-		if (!LIST_ISEMPTY(vrrp->evip)) {
-			for (f = LIST_HEAD(vrrp->evip); f; ELEMENT_NEXT(f)) {
-				ip_address_t *evip = ELEMENT_DATA(f);
-				char ipaddr[INET6_ADDRSTRLEN];
-				inet_ntop(vrrp->family, &(evip->u.sin.sin_addr.s_addr),
-					ipaddr, INET6_ADDRSTRLEN);
-				json_object_array_add(evips,
-					json_object_new_string(ipaddr));
-			}
-		}
-		json_object_object_add(json_data, "evips", evips);
-
-		json_object_object_add(json_data, "promote_secondaries",
-			json_object_new_boolean(vrrp->promote_secondaries));
-
-#ifdef _HAVE_FIB_ROUTING_
-		// Dump vroutes
-		if (!LIST_ISEMPTY(vrrp->vroutes)) {
-			for (f = LIST_HEAD(vrrp->vroutes); f; ELEMENT_NEXT(f)) {
-				ip_route_t *route = ELEMENT_DATA(f);
-				char *buf = MALLOC(ROUTE_BUF_SIZE);
-				format_iproute(route, buf, ROUTE_BUF_SIZE);
-				json_object_array_add(vroutes,
-					json_object_new_string(buf));
-			}
-		}
-		json_object_object_add(json_data, "vroutes", vroutes);
-
-		// Dump vrules
-		if (!LIST_ISEMPTY(vrrp->vrules)) {
-			for (f = LIST_HEAD(vrrp->vrules); f; ELEMENT_NEXT(f)) {
-				ip_rule_t *rule = ELEMENT_DATA(f);
-				char *buf = MALLOC(RULE_BUF_SIZE);
-				format_iprule(rule, buf, RULE_BUF_SIZE);
-				json_object_array_add(vrules,
-					json_object_new_string(buf));
-			}
-		}
-		json_object_object_add(json_data, "vrules", vrules);
-#endif
-
-		json_object_object_add(json_data, "adver_int",
-			json_object_new_double(vrrp->adver_int / TIMER_HZ_FLOAT));
-		json_object_object_add(json_data, "master_adver_int",
-			json_object_new_double(vrrp->master_adver_int / TIMER_HZ_FLOAT));
-#ifdef _WITH_FIREWALL_
-		json_object_object_add(json_data, "accept",
-			json_object_new_int((int)vrrp->accept));
-#endif
-		json_object_object_add(json_data, "nopreempt",
-			json_object_new_boolean(vrrp->nopreempt));
-		json_object_object_add(json_data, "preempt_delay",
-			json_object_new_int((int)(vrrp->preempt_delay / TIMER_HZ)));
-		json_object_object_add(json_data, "state",
-			json_object_new_int(vrrp->state));
-		json_object_object_add(json_data, "wantstate",
-			json_object_new_int(vrrp->wantstate));
-		json_object_object_add(json_data, "version",
-			json_object_new_int(vrrp->version));
-		if (vrrp->script_backup)
-			json_object_object_add(json_data, "script_backup",
-				json_object_new_string(cmd_str(vrrp->script_backup)));
-		if (vrrp->script_master)
-			json_object_object_add(json_data, "script_master",
-				json_object_new_string(cmd_str(vrrp->script_master)));
-		if (vrrp->script_fault)
-			json_object_object_add(json_data, "script_fault",
-				json_object_new_string(cmd_str(vrrp->script_fault)));
-		if (vrrp->script_stop)
-			json_object_object_add(json_data, "script_stop",
-				json_object_new_string(cmd_str(vrrp->script_stop)));
-		if (vrrp->script)
-			json_object_object_add(json_data, "script",
-				json_object_new_string(cmd_str(vrrp->script)));
-		if (vrrp->script_master_rx_lower_pri)
-			json_object_object_add(json_data, "script_master_rx_lower_pri",
-				json_object_new_string(cmd_str(vrrp->script_master_rx_lower_pri)));
-		json_object_object_add(json_data, "smtp_alert",
-			json_object_new_boolean(vrrp->smtp_alert));
-#ifdef _WITH_VRRP_AUTH_
-		if (vrrp->auth_type) {
-			json_object_object_add(json_data, "auth_type",
-				json_object_new_int(vrrp->auth_type));
-
-			if (vrrp->auth_type != VRRP_AUTH_AH) {
-				char auth_data[sizeof(vrrp->auth_data) + 1];
-				memcpy(auth_data, vrrp->auth_data, sizeof(vrrp->auth_data));
-				auth_data[sizeof(vrrp->auth_data)] = '\0';
-				json_object_object_add(json_data, "auth_data",
-					json_object_new_string(auth_data));
-			}
-		}
-		else
-			json_object_object_add(json_data, "auth_type",
-				json_object_new_int(0));
-#endif
-
-		// Dump stats to json
-		json_object_object_add(json_stats, "advert_rcvd",
-			json_object_new_int64((int64_t)vrrp->stats->advert_rcvd));
-		json_object_object_add(json_stats, "advert_sent",
-			json_object_new_int64(vrrp->stats->advert_sent));
-		json_object_object_add(json_stats, "become_master",
-			json_object_new_int64(vrrp->stats->become_master));
-		json_object_object_add(json_stats, "release_master",
-			json_object_new_int64(vrrp->stats->release_master));
-		json_object_object_add(json_stats, "packet_len_err",
-			json_object_new_int64((int64_t)vrrp->stats->packet_len_err));
-		json_object_object_add(json_stats, "advert_interval_err",
-			json_object_new_int64((int64_t)vrrp->stats->advert_interval_err));
-		json_object_object_add(json_stats, "ip_ttl_err",
-			json_object_new_int64((int64_t)vrrp->stats->ip_ttl_err));
-		json_object_object_add(json_stats, "invalid_type_rcvd",
-			json_object_new_int64((int64_t)vrrp->stats->invalid_type_rcvd));
-		json_object_object_add(json_stats, "addr_list_err",
-			json_object_new_int64((int64_t)vrrp->stats->addr_list_err));
-		json_object_object_add(json_stats, "invalid_authtype",
-			json_object_new_int64(vrrp->stats->invalid_authtype));
-#ifdef _WITH_VRRP_AUTH_
-		json_object_object_add(json_stats, "authtype_mismatch",
-			json_object_new_int64(vrrp->stats->authtype_mismatch));
-		json_object_object_add(json_stats, "auth_failure",
-			json_object_new_int64(vrrp->stats->auth_failure));
-#endif
-		json_object_object_add(json_stats, "pri_zero_rcvd",
-			json_object_new_int64((int64_t)vrrp->stats->pri_zero_rcvd));
-		json_object_object_add(json_stats, "pri_zero_sent",
-			json_object_new_int64((int64_t)vrrp->stats->pri_zero_sent));
-
-		// Add both json_data and json_stats to main instance_json
-		json_object_object_add(instance_json, "data", json_data);
-		json_object_object_add(instance_json, "stats", json_stats);
-
-		// Add instance_json to main array
-		json_object_array_add(array, instance_json);
-
-	}
-	fprintf(file, "%s", json_object_to_json_string(array));
-	fclose(file);
+	vrrp_json_dump(fp);
+	fclose(fp);
 }
