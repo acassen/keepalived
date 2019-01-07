@@ -395,7 +395,10 @@ nl_connect(void)
 
 	nl_sock = socket(PF_NETLINK, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, NETLINK_CONNECTOR);
 	if (nl_sock == -1) {
-		log_message(LOG_INFO, "Failed to open process monitoring socket - errno %d - %m", errno);
+		if (errno == EPROTONOSUPPORT)
+			log_message(LOG_INFO, "track_process not available - is CONFIG_PROC_EVENTS enabled in kernel config?");
+		else
+			log_message(LOG_INFO, "Failed to open process monitoring socket - errno %d - %m", errno);
 		return -1;
 	}
 
@@ -548,8 +551,14 @@ static int handle_proc_ev(int nl_sock)
 	char __attribute__ ((aligned(NLMSG_ALIGNTO)))buf[4096];
 	struct cn_msg *cn_msg;
 	struct proc_event *proc_ev;
+	struct sockaddr_nl addr;
+	socklen_t addrlen = sizeof(addr);
 
-	while ((len = recv(nl_sock, &buf, sizeof(buf), 0))) {
+	while ((len = recvfrom(nl_sock, &buf, sizeof(buf), 0, (struct sockaddr *)&addr, &addrlen))) {
+		/* Ensure the message has been sent by the kernel */
+		if (addrlen != sizeof(addr) || addr.nl_pid != 0)
+			return -1;
+
 		if (len == -1) {
 			if (errno == EINTR)
 				continue;
@@ -762,15 +771,20 @@ end_process_monitor(void)
 	element e;
 	tracked_process_instance_t *tpi, *next;
 
-	set_proc_ev_listen(nl_sock, false);
+	if (!cpu_seq)
+		return;
 
-	if (read_thread) {
-		thread_cancel(read_thread);
-		read_thread = NULL;
+	if (nl_sock != -1) {
+		set_proc_ev_listen(nl_sock, false);
+
+		if (read_thread) {
+			thread_cancel(read_thread);
+			read_thread = NULL;
+		}
+
+		close(nl_sock);
+		nl_sock = -1;
 	}
-
-	close(nl_sock);
-	nl_sock = -1;
 
 	FREE_PTR(cpu_seq);
 
