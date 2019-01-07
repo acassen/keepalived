@@ -348,7 +348,7 @@ AS_IF([test .$enable_vrrp = .no],
     AS_IF([test .$enable_bfd = .yes], [AC_MSG_ERROR([enable-bfd requires vrrp])])
     AS_IF([test .$enable_iptables != .no], [AC_MSG_ERROR([enable-iptables requires vrrp])])
     AS_IF([test .$enable_nftables != .no], [AC_MSG_ERROR([enable-nftables requires vrrp])])
-    AS_IF([test .$enable_nftables = .yes], [AC_MSG_ERROR([enable-track-process requires vrrp])])
+    AS_IF([test .$enable_track_process = .yes], [AC_MSG_ERROR([enable-track-process requires vrrp])])
   ])
 AS_IF([test .$enable_iptables = .no],
   [
