@@ -124,7 +124,7 @@ typedef struct _data {
 	unsigned			vrrp_gna_interval;
 	bool				vrrp_lower_prio_no_advert;
 	bool				vrrp_higher_prio_send_advert;
-	int				vrrp_version;	/* VRRP version (2 or 3) */
+	int				vrrp_version;		/* VRRP version (2 or 3) */
 #ifdef _WITH_IPTABLES_
 	char				vrrp_iptables_inchain[XT_EXTENSION_MAXNAMELEN];
 	char				vrrp_iptables_outchain[XT_EXTENSION_MAXNAMELEN];

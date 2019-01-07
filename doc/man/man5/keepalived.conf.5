@@ -181,7 +181,7 @@ and
     # Sets default state for checker smtp_alerts
     \fBsmtp_alert_checker \fR<BOOL>
 
-    # Ssets logging all checker failes while checker up
+    # Sets logging all checker failes while checker up
     \fBchecker_log_all_failures \fR<BOOL>
 
     # Don't send smtp alerts for fault conditions
@@ -635,16 +635,25 @@ To force a route/rule to be IPv6, add the keyword "inet6".
 .nf
 The configuration block looks like:
 
-\fBvrrp_track_process\fR <STRING> {   # VRRP track file declaration
-    \fBprocess\fR <QUOTED_STRING>     # process to monitor
-    \fBweight\fR <-254..254>          # default weight (default is 1)
-    \fBquorum\fR NUM                  # minimum number of processes for success
-    \fBdelay\fR SECS                  # time to delay after process quorum lost before
-                                #   consider process failed (in fractions of second)
-    \fBfull_command\fR                # Normally process string is matched against the process name,
-                                #   as shown on the Name: line in /proc/PID/status.
-                                #   This option matches the full command line
-}
+    \fBvrrp_track_process\fR <STRING> {
+        # process to monitor
+        \fBprocess\fR <QUOTED_STRING>
+
+        # default weight (default is 1)
+        \fBweight\fR <-254..254>
+
+        # minimum number of processes for success
+        \fBquorum\fR NUM
+
+        # time to delay after process quorum lost before
+        #   consider process failed (in fractions of second)
+        \fBdelay\fR SECS
+
+        # Normally process string is matched against the process name,
+        #   as shown on the Name: line in /proc/PID/status.
+        #   This option matches the full command line
+        \fBfull_command\fR
+   }
 .fi
 .PP
 To avoid having to frequently run a track_script to monitor the existance
@@ -845,7 +854,7 @@ Likewise, if the vrrp instance is the address owner, weight 0 must also be set.
 .nf
 The syntax for vrrp track file is :
 
-\fBvrrp_track_file \fR<STRING> {    # VRRP track file declaration
+\fBvrrp_track_file \fR<STRING> {
     # file to track (weight defaults to 1)
     \fBfile \fR<QUOTED_STRING>
 

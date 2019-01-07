@@ -233,7 +233,7 @@ free_ipaddress(void *if_data)
 	FREE(ipaddr);
 }
 
-static void
+void
 format_ipaddress(ip_address_t *ipaddr, char *buf, size_t buf_len)
 {
 	char peer[INET6_ADDRSTRLEN];

@@ -3,12 +3,19 @@ keepalived: Loadbalancing & High-Availability
 
 [![Build Status](https://travis-ci.org/acassen/keepalived.svg?branch=master)](https://travis-ci.org/acassen/keepalived)
 
-The main goal of the keepalived project is to add a strong & robust
-keepalive facility to the Linux Virtual Server project.
-It implements a multilayer TCP/IP stack checks. Keepalived implements
-a framework based on three family checks : Layer3, Layer4 & Layer5.
-This framework gives the daemon the ability of checking a LVS server
-pool states. Keepalived can be sumarize as a LVS driving daemon.
+The main goal of this project is to provide simple and robust facilities
+for loadbalancing and high-availability to Linux system and Linux based
+infrastructures. Loadbalancing framework relies on well-known and widely
+used Linux Virtual Server (IPVS) kernel module providing Layer4 loadbalancing.
+Keepalived implements a set of checkers to dynamically and adaptively maintain
+and manage loadbalanced server pool according their health. On the other hand
+high-availability is achieved by VRRP protocol. VRRP is a fundamental brick for
+router failover. In addition, Keepalived implements a set of hooks to the VRRP
+finite state machine providing low-level and high-speed protocol interactions.
+In order to offer fastest network failure detection, Keepalived implements BFD
+protocol. VRRP state transition can take into account BFD hint to drive fast
+state transition. Keepalived frameworks can be used independently or all
+together to provide resilient infrastructures.
 
 Keepalived implementation is based on an I/O multiplexer to handle a
 strong multi-threading framework. All the events process use this I/O

@@ -94,7 +94,7 @@ m4_ifndef([AS_VAR_COPY],
 
 dnl ----[ Process this file with autoconf to produce a configure script ]----
 AC_PREREQ([2.63])
-AC_INIT([Keepalived], [2.0.10], [keepalived-devel@lists.sourceforge.net], [], [http://www.keepalived.org/])
+AC_INIT([Keepalived], [2.0.11], [keepalived-devel@lists.sourceforge.net], [], [http://www.keepalived.org/])
 AM_INIT_AUTOMAKE([-Wall -Werror -Woverride foreign])
 
 AC_CONFIG_SRCDIR([keepalived/core/main.c])
@@ -1318,32 +1318,34 @@ if test .${enable_nftables} != .no; then
   $PKG_CONFIG --exists libnftnl
   if test $? -ne 0; then
     USE_NFTABLES=No
-    AC_MSG_ERROR([libnftnl missing])
+    AC_MSG_WARN([libnftnl missing])
   fi
   $PKG_CONFIG --exists libmnl
   if test $? -ne 0; then
     USE_NFTABLES=No
-    AC_MSG_ERROR([libmnl missing])
+    AC_MSG_WARN([libmnl missing])
   fi
-  add_pkg_config([libnftnl])
-  add_pkg_config([libmnl])
-  AC_DEFINE([_WITH_NFTABLES_], [ 1 ], [Define to 1 if want nftables support])
-  add_config_opt([NFTABLES])
-  AC_MSG_CHECKING([whether NFTNL_EXPR_LOOKUP_FLAGS is defined])
-  AC_LINK_IFELSE([AC_LANG_SOURCE([[
-      #include <libnftnl/expr.h>
 
-      int main(void)
-      {
+  if test $USE_NFTABLES != No; then
+    add_pkg_config([libnftnl])
+    add_pkg_config([libmnl])
+    AC_DEFINE([_WITH_NFTABLES_], [ 1 ], [Define to 1 if want nftables support])
+    add_config_opt([NFTABLES])
+    AC_MSG_CHECKING([whether NFTNL_EXPR_LOOKUP_FLAGS is defined])
+    AC_LINK_IFELSE([AC_LANG_SOURCE([[
+        #include <libnftnl/expr.h>
+        int main(void)
+        {
 	int i = NFTNL_EXPR_LOOKUP_FLAGS;
 	return 0;
-      }
-    ]])], [
-      AC_MSG_RESULT(yes)
-      AC_DEFINE([HAVE_NFTNL_EXPR_LOOKUP_FLAGS], [ 1 ], [Define to 1 if NFTNL_EXPR_LOOKUP_FLAGS defined])
-    ],[
-      AC_MSG_RESULT(no)
-    ])
+        }
+      ]])], [
+        AC_MSG_RESULT(yes)
+        AC_DEFINE([HAVE_NFTNL_EXPR_LOOKUP_FLAGS], [ 1 ], [Define to 1 if NFTNL_EXPR_LOOKUP_FLAGS defined])
+      ],[
+        AC_MSG_RESULT(no)
+      ])
+  fi
 fi
 AM_CONDITIONAL([NFTABLES], [test $USE_NFTABLES = Yes])
 unset LIBS
@@ -1558,16 +1560,10 @@ if test "$enable_vrrp" != no; then
   fi
   CPPFLAGS="$SAV_CPPFLAGS"
 
-  dnl ----[ Json output or not ? ]----
+  dnl ----[ JSON output or not ? ]----
   if test "${enable_json}" = yes; then
-    JSON_HEADERS=$($PKG_CONFIG --cflags-only-I json-c)
-    SAV_CPPFLAGS="$CPPFLAGS"
-    CPPFLAGS="$CPPFLAGS $JSON_HEADERS"
-    AC_CHECK_HEADERS(json.h,,AC_MSG_ERROR([unable to find json.h]))
-    CPPFLAGS="$SAV_CPPFLAGS"
-    AC_DEFINE([_WITH_JSON_], [ 1 ], [Define to 1 to build with json output support])
-    add_pkg_config([json-c])
     ENABLE_JSON=Yes
+    AC_DEFINE([_WITH_JSON_], [ 1 ], [Define to 1 to build with JSON output support])
     add_config_opt([JSON])
   fi
 
@@ -2286,7 +2282,7 @@ if test ${DBUS_SUPPORT} = Yes; then
   echo "DBUS create instance     : ${DBUS_CREATE_INSTANCE}"
 fi
 echo "SHA1 support             : ${SHA1_SUPPORT}"
-echo "Use Json output          : ${ENABLE_JSON}"
+echo "Use JSON output          : ${ENABLE_JSON}"
 echo "libnl version            : ${NETLINK_VER}"
 echo "Use IPv4 devconf         : ${IPV4_DEVCONF}"
 echo "Use iptables             : ${USE_IPTABLES}"
