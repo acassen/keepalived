@@ -206,6 +206,8 @@ AC_ARG_ENABLE(nftables,
   [], [NFTABLES_SILENT=Yes])
 AC_ARG_ENABLE(libnl,
   [AS_HELP_STRING([--disable-libnl], [compile without libnl])])
+AC_ARG_ENABLE(track-process,
+  [AS_HELP_STRING([--disable-track-process], [build without track-process functionality])])
 AC_ARG_ENABLE(strict-config-checks,
   [AS_HELP_STRING([--enable-strict-config-checks], [build with strict configuration checking])])
 AC_ARG_ENABLE(hardening,
@@ -346,6 +348,7 @@ AS_IF([test .$enable_vrrp = .no],
     AS_IF([test .$enable_bfd = .yes], [AC_MSG_ERROR([enable-bfd requires vrrp])])
     AS_IF([test .$enable_iptables != .no], [AC_MSG_ERROR([enable-iptables requires vrrp])])
     AS_IF([test .$enable_nftables != .no], [AC_MSG_ERROR([enable-nftables requires vrrp])])
+    AS_IF([test .$enable_nftables = .yes], [AC_MSG_ERROR([enable-track-process requires vrrp])])
   ])
 AS_IF([test .$enable_iptables = .no],
   [
@@ -1575,12 +1578,16 @@ if test "$enable_vrrp" != no; then
   fi
 
   dnl -- Check for process events connector - Linux v2.6.15
-  AC_CHECK_HEADERS([linux/cn_proc.h],
+  AS_IF([test .$enable_track_process != .no],
     [
-       add_system_opt([CN_PROC])
-       HAVE_CN_PROC=Yes
-       AC_DEFINE([_WITH_CN_PROC_], [ 1 ], [Define to 1 if have linux/cn_proc.h])
-    ])
+      AC_CHECK_HEADERS([linux/cn_proc.h],
+        [
+           add_system_opt([CN_PROC])
+           HAVE_CN_PROC=Yes
+           AC_DEFINE([_WITH_CN_PROC_], [ 1 ], [Define to 1 if have linux/cn_proc.h and track-process not disabled])
+        ])
+    ],
+    [add_config_opt([DISABLE_TRACK_PROCESS])])
 fi
 AM_CONDITIONAL([WITH_VRRP], [test $VRRP_SUPPORT = Yes])
 AM_CONDITIONAL([VRRP_AUTH], [test $VRRP_AUTH_SUPPORT = Yes])
