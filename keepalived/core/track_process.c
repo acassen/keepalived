@@ -395,7 +395,10 @@ nl_connect(void)
 
 	nl_sock = socket(PF_NETLINK, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, NETLINK_CONNECTOR);
 	if (nl_sock == -1) {
-		log_message(LOG_INFO, "Failed to open process monitoring socket - errno %d - %m", errno);
+		if (errno == EPROTONOSUPPORT)
+			log_message(LOG_INFO, "track_process not available - is CONFIG_PROC_EVENTS enabled in kernel config?");
+		else
+			log_message(LOG_INFO, "Failed to open process monitoring socket - errno %d - %m", errno);
 		return -1;
 	}
 
