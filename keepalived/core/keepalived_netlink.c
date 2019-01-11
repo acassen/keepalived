@@ -2080,8 +2080,12 @@ netlink_route_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlm
 	if (route->dont_track)
 		return 0;
 
-	if (vrrp)
+	if (vrrp) {
+		if (vrrp->state != VRRP_STATE_MAST)
+			return 0;
+
 		set_vrrp_backup(vrrp);
+	}
 	else
 		reinstate_static_route(route);
 

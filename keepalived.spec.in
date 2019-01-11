@@ -77,13 +77,8 @@ CONFIG_OPTS=
 @WITH_DBUS_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-dbus"
 @INIT_SYSTEMD_TRUE@CONFIG_OPTS="$CONFIG_OPTS --with-init=systemd"
 @WITH_REGEX_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-regex"
-%{?el3:export CPPFLAGS="-I/usr/kerberos/include"}
-%{?rh9:export CPPFLAGS="-I/usr/kerberos/include"}
 autoreconf -f -i
-%configure $CONFIG_OPTS \
-%{?el3:--includedir="/usr/kerberos/include"} \
-%{?rh9:--includedir="/usr/kerberos/include"} \
-    --with-kernel-dir="/lib/modules/%{kernel}/build"
+%configure $CONFIG_OPTS
 %{__make} %{?_smp_mflags} STRIP=/bin/true
 
 
