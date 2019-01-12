@@ -75,7 +75,7 @@ static bool ipv6_table_setup;
 static bool setup_ll_ifname;
 static bool setup_ll_ifindex;
 
-#ifdef INCLUDE_UNUSED_CODE
+#ifdef _INCLUDE_UNUSED_CODE_
 static int
 table_cb(const struct nlattr *attr, void *data)
 {
@@ -803,7 +803,7 @@ static struct nftnl_rule
 	return r;
 }
 
-#ifdef UNUSED_CODE
+#ifdef _INCLUDE_UNUSED_CODE_
 static struct nftnl_rule *setup_rule_simple(uint8_t family, const char *table,
 				   const char *chain, const char *handle,
 				   uint32_t verdict)

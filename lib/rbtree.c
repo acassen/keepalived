@@ -607,7 +607,7 @@ void rb_replace_node_cached(struct rb_node *victim, struct rb_node *new,
 		root->rb_leftmost = new;
 }
 
-#ifdef UNUSED_CODE
+#ifdef _INCLUDE_UNUSED_CODE_
 void rb_replace_node_rcu(struct rb_node *victim, struct rb_node *new,
 			 struct rb_root *root)
 {
