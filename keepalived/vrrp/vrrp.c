@@ -643,7 +643,21 @@ vrrp_in_chk(vrrp_t *vrrp, const vrrphdr_t * const hd, char *buffer, ssize_t bufl
 	if (vrrp->family == AF_INET) {
 		/* To begin with, we just concern ourselves with the protocol headers */
 		expected_len = sizeof(struct iphdr) + sizeof(vrrphdr_t);
+
 #ifdef _WITH_VRRP_AUTH_
+		/* Check we have an AH header if expect AH, and don't have it if not */
+		if ((ip->protocol == IPPROTO_AH) != (vrrp->auth_type == VRRP_AUTH_AH)) {
+			if (ip->protocol == IPPROTO_AH)
+				log_message(LOG_INFO, "(%s) Received AH header but auth type not AH", vrrp->iname);
+			else
+				log_message(LOG_INFO, "(%s) No AH header but auth type is AH", vrrp->iname);
+			++vrrp->stats->authtype_mismatch;
+#ifdef _WITH_SNMP_RFCV2_
+			vrrp_rfcv2_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, authTypeMismatch);
+#endif
+			return VRRP_PACKET_KO;
+		}
+
 		if (vrrp->auth_type == VRRP_AUTH_AH)
 			expected_len += sizeof(ipsec_ah_t);
 #endif
