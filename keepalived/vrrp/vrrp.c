@@ -611,7 +611,7 @@ vrrp_in_chk_vips(vrrp_t * vrrp, ip_address_t *ipaddress, unsigned char *buffer)
  * Note: If we return anything other that VRRP_PACKET_OK, we should log the reason why
  */
 static int
-vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr)
+vrrp_in_chk(vrrp_t *vrrp, const vrrphdr_t * const hd, char *buffer, ssize_t buflen_ret, bool check_vip_addr)
 {
 	struct iphdr *ip;
 	int ihl;
@@ -620,7 +620,6 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 #ifdef _WITH_VRRP_AUTH_
 	ipsec_ah_t *ah;
 #endif
-	vrrphdr_t *hd;
 	unsigned char *vips;
 	ip_address_t *ipaddress;
 	element e;
@@ -665,12 +664,9 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 		ihl = ip->ihl << 2;
 
 #ifdef _WITH_VRRP_AUTH_
-		if (vrrp->auth_type == VRRP_AUTH_AH) {
+		if (vrrp->auth_type == VRRP_AUTH_AH)
 			ah = (ipsec_ah_t *) (buffer + ihl);
-			hd = (vrrphdr_t *) ((char *) ah + sizeof(ipsec_ah_t));
-		} else
 #endif
-			hd = (vrrphdr_t *) (buffer + ihl);
 
 		/* Now calculate expected_len to include everything */
 		expected_len += vrrp_pkt_len(vrrp) - sizeof(vrrphdr_t);
@@ -698,8 +694,6 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 			++vrrp->stats->packet_len_err;
 			return VRRP_PACKET_KO;
 		}
-
-		hd = (vrrphdr_t *) buffer;
 
 		/* Set expected vrrp packet length */
 		expected_len = sizeof(vrrphdr_t) + (LIST_ISEMPTY(vrrp->vip) ? 0 : LIST_SIZE(vrrp->vip)) * sizeof(struct in6_addr);
@@ -1337,12 +1331,12 @@ vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 
 /* Received packet processing */
 static int
-vrrp_check_packet(vrrp_t * vrrp, char *buf, ssize_t buflen, bool check_vip_addr)
+vrrp_check_packet(vrrp_t *vrrp, vrrphdr_t *hd, char *buf, ssize_t buflen, bool check_vip_addr)
 {
 	if (!buflen)
 		return VRRP_PACKET_NULL;
 
-	return vrrp_in_chk(vrrp, buf, buflen, check_vip_addr);
+	return vrrp_in_chk(vrrp, hd, buf, buflen, check_vip_addr);
 }
 
 /* Gratuitous ARP on each VIP */
@@ -1632,17 +1626,15 @@ vrrp_state_leave_fault(vrrp_t * vrrp)
 
 /* BACKUP state processing */
 void
-vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
+vrrp_state_backup(vrrp_t *vrrp, vrrphdr_t *hd, char *buf, ssize_t buflen)
 {
-	vrrphdr_t *hd;
 	ssize_t ret = 0;
-	unsigned master_adver_int, proto;
+	unsigned master_adver_int;
 	bool check_addr = false;
 	timeval_t new_ms_down_timer;
 	bool ignore_advert = false;
 
 	/* Process the incoming packet */
-	hd = vrrp_get_header(vrrp->family, buf, &proto);
 	if (!vrrp->skip_check_adv_addr ||
 	    vrrp->master_saddr.ss_family != vrrp->pkt_saddr.ss_family)
 		check_addr = true;
@@ -1656,7 +1648,7 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 				check_addr = true;
 		}
 	}
-	ret = vrrp_check_packet(vrrp, buf, buflen, check_addr);
+	ret = vrrp_check_packet(vrrp, hd, buf, buflen, check_addr);
 
 	if (ret != VRRP_PACKET_OK)
 		ignore_advert = true;
@@ -1788,11 +1780,9 @@ vrrp_saddr_cmp(struct sockaddr_storage *addr, vrrp_t *vrrp)
 // TODO SKEW_TIME should use master_adver_int USUALLY!!!
 // TODO check all use of ipsecah_counter, including cycle, and when we set seq_number
 bool
-vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
+vrrp_state_master_rx(vrrp_t * vrrp, vrrphdr_t *hd, char *buf, ssize_t buflen)
 {
-	vrrphdr_t *hd;
 	ssize_t ret;
-	unsigned proto = 0;
 #ifdef _WITH_VRRP_AUTH_
 	ipsec_ah_t *ah;
 #endif
@@ -1814,8 +1804,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	}
 
 	/* Process the incoming packet */
-	hd = vrrp_get_header(vrrp->family, buf, &proto);
-	ret = vrrp_check_packet(vrrp, buf, buflen, true);
+	ret = vrrp_check_packet(vrrp, hd, buf, buflen, true);
 
 	if (ret != VRRP_PACKET_OK)
 		return false;
@@ -1857,7 +1846,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 					vrrp->effective_priority,
 					!vrrp->lower_prio_no_advert ? ", forcing new election" : "");
 #ifdef _WITH_VRRP_AUTH_
-		if (proto == IPPROTO_AH) {
+		if (vrrp->auth_type == VRRP_AUTH_AH) {
 			ah = (ipsec_ah_t *) (buf + sizeof(struct iphdr));
 			log_message(LOG_INFO, "(%s) IPSEC-AH : Syncing seq_num"
 					      " - Increment seq"
@@ -1920,10 +1909,8 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 						inet_sockaddrtos(&vrrp->pkt_saddr),
 						hd->priority);
 #ifdef _WITH_VRRP_AUTH_
-		if (proto == IPPROTO_AH) {
-			ah = (ipsec_ah_t *) (buf + sizeof(struct iphdr));
+		if (vrrp->auth_type == VRRP_AUTH_AH)
 			vrrp->ipsecah_counter.cycle = false;
-		}
 #endif
 
 		if (vrrp->version == VRRP_VERSION_3) {
@@ -1949,15 +1936,13 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 
 #ifdef _INCLUDE_UNUSED_CODE_
 bool
-vrrp_state_fault_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
+vrrp_state_fault_rx(vrrp_t * vrrp, vrrphdr_t *hd, char *buf, ssize_t buflen)
 {
-	vrrphdr_t *hd;
 	ssize_t ret = 0;
 	unsigned proto;
 
 	/* Process the incoming packet */
-	hd = vrrp_get_header(vrrp->family, buf, &proto);
-	ret = vrrp_check_packet(vrrp, buf, buflen, true);
+	ret = vrrp_check_packet(vrrp, hd, buf, buflen, true);
 
 	if (ret != VRRP_PACKET_OK)
 		return false;

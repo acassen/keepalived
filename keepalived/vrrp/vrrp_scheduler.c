@@ -812,9 +812,9 @@ vrrp_dispatcher_read(sock_t * sock)
 	prev_state = vrrp->state;
 
 	if (vrrp->state == VRRP_STATE_BACK)
-		vrrp_state_backup(vrrp, vrrp_buffer, len);
+		vrrp_state_backup(vrrp, hd, vrrp_buffer, len);
 	else if (vrrp->state == VRRP_STATE_MAST) {
-		if (vrrp_state_master_rx(vrrp, vrrp_buffer, len))
+		if (vrrp_state_master_rx(vrrp, hd, vrrp_buffer, len))
 			vrrp_state_leave_master(vrrp, false);
 	} else
 		log_message(LOG_INFO, "(%s) In dispatcher_read with state %d", vrrp->iname, vrrp->state);

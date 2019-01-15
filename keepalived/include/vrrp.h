@@ -378,11 +378,11 @@ extern void vrrp_send_link_update(vrrp_t *, unsigned);
 extern void add_vrrp_to_interface(vrrp_t *, interface_t *, int, bool, track_t);
 extern void del_vrrp_from_interface(vrrp_t *, interface_t *);
 #ifdef _INCLUDE_UNUSED_CODE_
-extern bool vrrp_state_fault_rx(vrrp_t *, char *, ssize_t);
+extern bool vrrp_state_fault_rx(vrrp_t *, vrrphdr_t *, char *, ssize_t);
 #endif
-extern bool vrrp_state_master_rx(vrrp_t *, char *, ssize_t);
+extern bool vrrp_state_master_rx(vrrp_t *, vrrphdr_t *, char *, ssize_t);
 extern void vrrp_state_master_tx(vrrp_t *);
-extern void vrrp_state_backup(vrrp_t *, char *, ssize_t);
+extern void vrrp_state_backup(vrrp_t *, vrrphdr_t *, char *, ssize_t);
 extern void vrrp_state_goto_master(vrrp_t *);
 extern void vrrp_state_leave_master(vrrp_t *, bool);
 extern void vrrp_state_leave_fault(vrrp_t *);
