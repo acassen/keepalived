@@ -791,9 +791,6 @@ vrrp_dispatcher_read(sock_t * sock)
 	bool expected_cmsg;
 
 	while (true) {
-		/* Clean the read buffer */
-		memset(vrrp_buffer, 0, vrrp_buffer_len);
-
 		/* read & affect received buffer */
 		while ((len = recvmsg(sock->fd_in, &msghdr, MSG_TRUNC | MSG_CTRUNC)) == -1 && errno == EINTR);
 
