@@ -144,7 +144,7 @@ __rb_change_child(struct rb_node *old, struct rb_node *new,
 		WRITE_ONCE(root->rb_node, new);
 }
 
-#ifdef UNUSED_CODE
+#ifdef _INCLUDE_UNUSED_CODE_
 static inline void
 __rb_change_child_rcu(struct rb_node *old, struct rb_node *new,
 		      struct rb_node *parent, struct rb_root *root)

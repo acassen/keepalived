@@ -287,29 +287,12 @@ check_vrrp_script_security(void)
 	}
 }
 
-/* IP header length */
-static inline size_t
-vrrp_iphdr_len(void)
-{
-	return sizeof(struct iphdr);
-}
-
-#ifdef _WITH_VRRP_AUTH_
-/* IPSEC AH header length */
-static inline size_t
-vrrp_ipsecah_len(void)
-{
-	return sizeof(ipsec_ah_t);
-}
-#endif
-
 /* VRRP header length */
 static size_t
 vrrp_pkt_len(vrrp_t * vrrp)
 {
 	size_t len = sizeof(vrrphdr_t);
 
-	/* Our implementation of IPv6 with VRRP version 2 doesn't include the 8 byte auth field */
 	if (vrrp->family == AF_INET) {
 		if (vrrp->version == VRRP_VERSION_2)
 			len += VRRP_AUTH_LEN;
@@ -327,10 +310,10 @@ vrrp_adv_len(vrrp_t *vrrp)
 	size_t len = vrrp_pkt_len(vrrp);
 
 	if (vrrp->family == AF_INET) {
-		len += vrrp_iphdr_len();
+		len += sizeof(struct iphdr);
 #ifdef _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH)
-			len += vrrp_ipsecah_len();
+			len += sizeof(ipsec_ah_t);
 #endif
 	}
 
@@ -339,33 +322,50 @@ vrrp_adv_len(vrrp_t *vrrp)
 
 /* VRRP header pointer from buffer */
 vrrphdr_t *
-vrrp_get_header(sa_family_t family, char *buf, unsigned *proto)
+vrrp_get_header(sa_family_t family, char *buf, size_t len)
 {
 	struct iphdr *iph;
-	vrrphdr_t *hd = NULL;
+
+	/* Since the raw sockets only specify IPPROTO_VRRP or (for IPv4)
+	 * IPPROTO_AH, it is safe to assume IPPROTO_VRRP if it is not
+	 * IPv4 and IPPROTO_AH. */
 
 	if (family == AF_INET) {
 		iph = (struct iphdr *) buf;
 
+		/* Ensure we have received the full vrrp header */
+		if (len < sizeof(struct iphdr) ||
+		    len < (iph->ihl << 2) + sizeof(vrrphdr_t)) {
+			log_message(LOG_INFO, "IPv4 VRRP packet too short - %zd bytes", len);
+			return NULL;
+		}
+
 		/* Fill the VRRP header */
 #ifdef _WITH_VRRP_AUTH_
 		if (iph->protocol == IPPROTO_AH) {
-			*proto = IPPROTO_AH;
-			hd = (vrrphdr_t *) ((char *) iph + (iph->ihl << 2) +
-					   vrrp_ipsecah_len());
+			/* Make sure we have received the full vrrp header */
+			if (len < (iph->ihl << 2) + sizeof(ipsec_ah_t) + sizeof(vrrphdr_t)) {
+				log_message(LOG_INFO, "IPv4 VRRP packet with AH too short - %zd bytes", len);
+				return NULL;
+			}
+
+			return (vrrphdr_t *) ((char *) iph + (iph->ihl << 2) + sizeof(ipsec_ah_t));
 		}
-		else
 #endif
-		{
-			*proto = IPPROTO_VRRP;
-			hd = (vrrphdr_t *) ((char *) iph + (iph->ihl << 2));
-		}
-	} else if (family == AF_INET6) {
-		*proto = IPPROTO_VRRP;
-		hd = (vrrphdr_t *) buf;
+		return (vrrphdr_t *) ((char *) iph + (iph->ihl << 2));
 	}
 
-	return hd;
+	if (family == AF_INET6) {
+		/* Make sure we have received the full vrrp header */
+		if (len < sizeof(vrrphdr_t)) {
+			log_message(LOG_INFO, "IPv6 VRRP packet too short - %zd bytes", len);
+			return NULL;
+		}
+
+		return (vrrphdr_t *) buf;
+	}
+
+	return NULL;
 }
 
 static void
@@ -385,11 +385,11 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage* addr)
 #endif
 
 	if (vrrp->family == AF_INET) {
-		bufptr += vrrp_iphdr_len();
+		bufptr += sizeof(struct iphdr);
 
 #ifdef _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH)
-			bufptr += vrrp_ipsecah_len();
+			bufptr += sizeof(ipsec_ah_t);
 #endif
 	}
 
@@ -511,11 +511,11 @@ vrrp_csum_mcast(vrrp_t *vrrp)
 	char *bufptr = vrrp->send_buffer;
 	vrrphdr_t *hd;
 
-	bufptr += vrrp_iphdr_len();
+	bufptr += sizeof(struct iphdr);
 
 #ifdef _WITH_VRRP_AUTH_
 	if (vrrp->auth_type == VRRP_AUTH_AH)
-		bufptr += vrrp_ipsecah_len();
+		bufptr += sizeof(ipsec_ah_t);
 #endif
 
 	hd = (vrrphdr_t *)bufptr;
@@ -560,7 +560,7 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 
 	/* Compute the ICV */
 	hmac_md5((unsigned char *) buffer,
-		 vrrp_iphdr_len() + vrrp_ipsecah_len() + vrrp_pkt_len(vrrp)
+		 sizeof(struct iphdr) + sizeof(ipsec_ah_t) + vrrp_pkt_len(vrrp)
 		 , vrrp->auth_data, sizeof (vrrp->auth_data)
 		 , digest);
 
@@ -626,76 +626,100 @@ vrrp_in_chk_vips(vrrp_t * vrrp, ip_address_t *ipaddress, unsigned char *buffer)
  *	  VRRP_PACKET_OTHER if packet has wrong vrid
  *
  * Note: If we return anything other that VRRP_PACKET_OK, we should log the reason why
+ *
+ * On entry, we have already checked that sufficient data has been received for the
+ * IP header (if IPv4), the ipsec_ah header (if IPv4 and the ip header protocol
+ * is IPPROTO_AH), and the VRRP protocol header. We haven't yet checked that there is
+ * suficient data received for all the VIPs.
  */
 static int
-vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr)
+vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t * const hd, char *buffer, ssize_t buflen_ret, bool check_vip_addr)
 {
-	struct iphdr *ip;
-	int ihl;
+	struct iphdr *ip = NULL;
+	int ihl = 0;	/* Stop compiler issuing possibly uninitialised warning */
 	size_t vrrppkt_len;
-	unsigned adver_int = 0;
+	unsigned adver_int;
 #ifdef _WITH_VRRP_AUTH_
 	ipsec_ah_t *ah;
 #endif
-	vrrphdr_t *hd;
 	unsigned char *vips;
 	ip_address_t *ipaddress;
 	element e;
 	char addr_str[INET6_ADDRSTRLEN];
 	ipv4_phdr_t ipv4_phdr;
 	uint32_t acc_csum = 0;
-	ip = NULL;
 	struct sockaddr_storage *up_addr;
 	size_t buflen, expected_len;
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 	bool chksum_error;
 #endif
 
-	if (buflen_ret < 0) {
-		log_message(LOG_INFO, "recvmsg returned %zd", buflen_ret);
-		return VRRP_PACKET_KO;
-	}
 	buflen = (size_t)buflen_ret;
 
 	/* IPv4 related */
 	if (vrrp->family == AF_INET) {
 		/* To begin with, we just concern ourselves with the protocol headers */
-		expected_len = vrrp_iphdr_len() + sizeof(vrrphdr_t);
-#ifdef _WITH_VRRP_AUTH_
-		if (vrrp->auth_type == VRRP_AUTH_AH)
-			expected_len += vrrp_ipsecah_len();
-#endif
-
-		/*
-		 * MUST verify that the received packet length is not shorter than
-		 * the VRRP header
-		 */
-		if (buflen < expected_len) {
-			log_message(LOG_INFO,
-			       "(%s) ip/vrrp header too short. %zu and expect at least %zu",
-			      vrrp->iname, buflen, expected_len);
-			++vrrp->stats->packet_len_err;
-			return VRRP_PACKET_KO;
-		}
-
 		ip = (struct iphdr *) (buffer);
 		ihl = ip->ihl << 2;
 
+		expected_len = ihl;
+
 #ifdef _WITH_VRRP_AUTH_
-		if (vrrp->auth_type == VRRP_AUTH_AH) {
-			ah = (ipsec_ah_t *) (buffer + ihl);
-			hd = (vrrphdr_t *) ((char *) ah + vrrp_ipsecah_len());
-		} else
+		/* Check we have an AH header if expect AH, and don't have it if not */
+		if ((ip->protocol == IPPROTO_AH) != (vrrp->auth_type == VRRP_AUTH_AH)) {
+			if (ip->protocol == IPPROTO_AH)
+				log_message(LOG_INFO, "(%s) Received AH header but auth type not AH", vrrp->iname);
+			else
+				log_message(LOG_INFO, "(%s) No AH header but auth type is AH", vrrp->iname);
+			++vrrp->stats->authtype_mismatch;
+#ifdef _WITH_SNMP_RFCV2_
+			vrrp_rfcv2_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, authTypeMismatch);
 #endif
-			hd = (vrrphdr_t *) (buffer + ihl);
+			return VRRP_PACKET_KO;
+		}
+
+		if (vrrp->auth_type == VRRP_AUTH_AH)
+			expected_len += sizeof(ipsec_ah_t);
+#endif
 
 		/* Now calculate expected_len to include everything */
-		expected_len += vrrp_pkt_len(vrrp) - sizeof(vrrphdr_t);
+		expected_len += vrrp_pkt_len(vrrp);
+	} else if (vrrp->family == AF_INET6) {
+		/* Set expected vrrp packet length */
+		expected_len = vrrp_pkt_len(vrrp);
+	} else {
+		log_message(LOG_INFO, "(%s) configured address family is %d, which is neither AF_INET or AF_INET6. This is probably a bug - please report", vrrp->iname, vrrp->family);
+		return VRRP_PACKET_KO;
+	}
 
-		/* MUST verify that the IP TTL is 255 */
-		if (LIST_ISEMPTY(vrrp->unicast_peer) && ip->ttl != VRRP_IP_TTL) {
-			log_message(LOG_INFO, "(%s) invalid ttl. %d and expect %d",
-				vrrp->iname, ip->ttl, VRRP_IP_TTL);
+	/*
+	 * MUST verify that the received packet contains the complete VRRP
+	 * packet (including fixed fields, and IPvX address(es)).
+	 */
+	if (buflen != expected_len) {
+		log_message(LOG_INFO, "(%s) vrrp packet too %s, length %zu and expect %zu",
+			      vrrp->iname,
+			      buflen > expected_len ? "long" : "short",
+			      buflen, expected_len);
+		++vrrp->stats->packet_len_err;
+		return VRRP_PACKET_KO;
+	}
+
+	/* MUST verify that the IPv4 TTL/IPv6 HL is 255 (but not if unicast) */
+	if (LIST_ISEMPTY(vrrp->unicast_peer)) {
+		if ((vrrp->family == AF_INET && ip->ttl != VRRP_IP_TTL)
+#ifdef IPV6_RECVHOPLIMIT
+		    || (vrrp->family == AF_INET6 && vrrp->hop_limit != -1 && vrrp->hop_limit != VRRP_IP_TTL)
+#endif
+													    ) {
+			log_message(LOG_INFO, "(%s) invalid TTL/HL. Received %d and expect %d",
+				vrrp->iname,
+#ifdef IPV6_RECVHOPLIMIT
+				vrrp->family == AF_INET ? ip->ttl : vrrp->hop_limit,
+#else
+				ip->ttl,
+#endif
+				VRRP_IP_TTL);
 			++vrrp->stats->ip_ttl_err;
 #ifdef _WITH_SNMP_RFCV3_
 			vrrp->stats->proto_err_reason = ipTtlError;
@@ -703,25 +727,19 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 #endif
 			return VRRP_PACKET_KO;
 		}
-	} else if (vrrp->family == AF_INET6) {
-		/*
-		 * MUST verify that the received packet length is greater than or
-		 * equal to the VRRP header
-		 */
-		if (buflen < sizeof(vrrphdr_t)) {
-			log_message(LOG_INFO,
-			       "(%s) vrrp header too short. %zu and expect at least %zu",
-			      vrrp->iname, buflen, sizeof(vrrphdr_t));
-			++vrrp->stats->packet_len_err;
-			return VRRP_PACKET_KO;
-		}
+	}
 
-		hd = (vrrphdr_t *) buffer;
-
-		/* Set expected vrrp packet length */
-		expected_len = sizeof(vrrphdr_t) + (LIST_ISEMPTY(vrrp->vip) ? 0 : LIST_SIZE(vrrp->vip)) * sizeof(struct in6_addr);
-	} else {
-		log_message(LOG_INFO, "(%s) configured address family is %d, which is neither AF_INET or AF_INET6. This is probably a bug - please report", vrrp->iname, vrrp->family);
+	/* MUST verify the VRRP version */
+	if ((hd->vers_type >> 4) != vrrp->version) {
+		log_message(LOG_INFO, "(%s) wrong version. Received %d and expect %d",
+		       vrrp->iname, (hd->vers_type >> 4), vrrp->version);
+#ifdef _WITH_SNMP_RFC_
+		vrrp->stats->vers_err++;
+#ifdef _WITH_SNMP_RFCV3_
+		vrrp->stats->proto_err_reason = versionError;
+		vrrp_rfcv3_snmp_proto_err_notify(vrrp);
+#endif
+#endif
 		return VRRP_PACKET_KO;
 	}
 
@@ -768,7 +786,15 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 				return VRRP_PACKET_KO;
 			}
 		}
-		else if (hd->v2.auth_type == VRRP_AUTH_AH) {
+		else if (vrrp->auth_type == VRRP_AUTH_AH) {
+			ah = (ipsec_ah_t *) (buffer + ihl);
+
+			/* Check that the next header is vrrphdr_t */
+			if (ah->next_header != IPPROTO_VRRP) {
+				/* This is an AH header for some other protocol - ignore packet */
+				return VRRP_PACKET_DROP;
+			}
+
 			/* check the authentication if it is ipsec ah */
 			if (vrrp_in_chk_ipsecah(vrrp, buffer)) {
 				++vrrp->stats->auth_failure;
@@ -778,8 +804,6 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 				return VRRP_PACKET_KO;
 			}
 
-			/* NOTE: ah below is initialised above. Older versions of gcc may
-			 * however warn that it may be used uninitialised. */
 			if (vrrp->state == VRRP_STATE_BACK &&
 			    ntohl(ah->seq_number) >= vrrp->ipsecah_counter.seq_number)
 				vrrp->ipsecah_counter.cycle = false;
@@ -791,26 +815,12 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 		 * the locally configured for this virtual router if VRRPv2
 		 */
 		if (vrrp->adver_int != hd->v2.adver_int * TIMER_HZ) {
-			log_message(LOG_INFO, "(%s) advertisement interval mismatch mine=%d sec rcved=%d sec",
-				vrrp->iname, vrrp->adver_int / TIMER_HZ, adver_int / TIMER_HZ);
+			log_message(LOG_INFO, "(%s) advertisement interval mismatch mine=%d sec rcv'd=%d sec",
+				vrrp->iname, vrrp->adver_int / TIMER_HZ, hd->v2.adver_int);
 			/* to prevent concurent VRID running => multiple master in 1 VRID */
 			return VRRP_PACKET_DROP;
 		}
 
-	}
-
-	/* MUST verify the VRRP version */
-	if ((hd->vers_type >> 4) != vrrp->version) {
-		log_message(LOG_INFO, "(%s) invalid version. %d and expect %d",
-		       vrrp->iname, (hd->vers_type >> 4), vrrp->version);
-#ifdef _WITH_SNMP_RFC_
-		vrrp->stats->vers_err++;
-#ifdef _WITH_SNMP_RFCV3_
-		vrrp->stats->proto_err_reason = versionError;
-		vrrp_rfcv3_snmp_proto_err_notify(vrrp);
-#endif
-#endif
-		return VRRP_PACKET_KO;
 	}
 
 	/* verify packet type */
@@ -821,7 +831,10 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 		return VRRP_PACKET_KO;
 	}
 
-	/* MUST verify that the VRID is valid on the receiving interface_t */
+#ifdef _INCLUDE_UNUSED_CODE_
+	/* MUST verify that the VRID is valid on the receiving interface_t.
+	 * vrrp is determined from the VRID, so there can't be a mismatch,
+	 * so there is no point in checking. */
 	if (vrrp->vrid != hd->vrid) {
 		log_message(LOG_INFO,
 		       "(%s) received VRID mismatch. Received %d, Expected %d",
@@ -835,27 +848,21 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 #endif
 		return VRRP_PACKET_OTHER;
 	}
+#endif
 
-	if ((LIST_ISEMPTY(vrrp->vip) && hd->naddr > 0) ||
-	    (!LIST_ISEMPTY(vrrp->vip) && LIST_SIZE(vrrp->vip) != hd->naddr)) {
-		log_message(LOG_INFO, "(%s) received an invalid ip number count %d, expected %d!",
+	/* Check the number of VIPs matches what we expect */
+	if (hd->naddr != LIST_ISEMPTY(vrrp->vip) ? 0 : LIST_SIZE(vrrp->vip)) {
+		log_message(LOG_INFO, "(%s) received an unexpected ip number count %d, expected %d!",
 			vrrp->iname, hd->naddr, LIST_ISEMPTY(vrrp->vip) ? 0 : LIST_SIZE(vrrp->vip));
 		++vrrp->stats->addr_list_err;
 		return VRRP_PACKET_KO;
 	}
 
+	/* Check the IP header total packet length matches what we received */
 	if (vrrp->family == AF_INET && ntohs(ip->tot_len) != buflen) {
 		log_message(LOG_INFO,
 		       "(%s) ip_tot_len mismatch against received length. %d and received %zu",
 		       vrrp->iname, ntohs(ip->tot_len), buflen);
-		++vrrp->stats->packet_len_err;
-		return VRRP_PACKET_KO;
-	}
-
-	if (expected_len != buflen) {
-		log_message(LOG_INFO,
-		       "(%s) Received packet length mismatch against expected. %zu and expect %zu",
-		      vrrp->iname, buflen, expected_len);
 		++vrrp->stats->packet_len_err;
 		return VRRP_PACKET_KO;
 	}
@@ -927,6 +934,21 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 		}
 	}
 
+	/* check that destination address is multicast if don't have any unicast peers
+	 * and vice versa */
+	if (((vrrp->family == AF_INET && IN_MULTICAST(ntohl(ip->daddr)))
+#ifdef IPV6_RECVHOPLIMIT
+	     || (vrrp->family == AF_INET6 && vrrp->multicast_pkt)
+#endif
+								 ) != LIST_ISEMPTY(vrrp->unicast_peer)) {
+		log_message(LOG_INFO, "(%s) Expected %sicast packet but received %sicast packet",
+				vrrp->iname,
+				LIST_ISEMPTY(vrrp->unicast_peer) ? "mult" : "un",
+				LIST_ISEMPTY(vrrp->unicast_peer) ? "un" : "mult");
+		++vrrp->stats->addr_list_err;
+		return VRRP_PACKET_KO;
+	}
+
 	/* Correct type, version, and length. Count as VRRP advertisement */
 	++vrrp->stats->advert_rcvd;
 
@@ -934,78 +956,48 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 	vips = (unsigned char *) ((char *) hd + sizeof(vrrphdr_t));
 
 	if (check_vip_addr) {
-		if (vrrp->family == AF_INET) {
-			if (!LIST_ISEMPTY(vrrp->vip)) {
-				/*
-				 * MAY verify that the IP address(es) associated with the
-				 * VRID are valid
-				 */
-				for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
-					ipaddress = ELEMENT_DATA(e);
-					if (!vrrp_in_chk_vips(vrrp, ipaddress, vips)) {
-						log_message(LOG_INFO, "(%s) ip address associated with VRID %d"
-						       " not present in MASTER advert : %s",
-						       vrrp->iname, vrrp->vrid,
-						       inet_ntop2(ipaddress->u.sin.sin_addr.s_addr));
-						++vrrp->stats->addr_list_err;
-						return VRRP_PACKET_KO;
-					}
-				}
+		/*
+		 * MAY verify that the IP address(es) associated with the
+		 * VRID are valid
+		 */
+		LIST_FOREACH(vrrp->vip, ipaddress, e) {
+			if (!vrrp_in_chk_vips(vrrp, ipaddress, vips)) {
+				log_message(LOG_INFO, "(%s) ip address associated with VRID %d"
+					    " not present in MASTER advert : %s",
+					    vrrp->iname, vrrp->vrid,
+					    inet_ntop(vrrp->family,
+						      vrrp->family == AF_INET6 ? &ipaddress->u.sin6_addr : (void *)&ipaddress->u.sin.sin_addr.s_addr,
+						      addr_str, sizeof(addr_str)));
+				++vrrp->stats->addr_list_err;
+				return VRRP_PACKET_KO;
 			}
+		}
 
-			/* check a unicast source address is in the unicast_peer list */
-			if (global_data->vrrp_check_unicast_src && !LIST_ISEMPTY(vrrp->unicast_peer)) {
-				for (e = LIST_HEAD(vrrp->unicast_peer); e; ELEMENT_NEXT(e)) {
-					up_addr = ELEMENT_DATA(e);
-					if (((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr.s_addr == ((struct sockaddr_in *)up_addr)->sin_addr.s_addr)
+		/* check a unicast source address is in the unicast_peer list */
+		if (global_data->vrrp_check_unicast_src && !LIST_ISEMPTY(vrrp->unicast_peer)) {
+			struct in_addr *saddr4;
+			struct in6_addr *saddr6;
+
+			if (vrrp->family == AF_INET6) {
+				saddr6 = &((struct sockaddr_in6 *)&vrrp->pkt_saddr)->sin6_addr;
+				LIST_FOREACH(vrrp->unicast_peer, up_addr, e) {
+					if (IN6_ARE_ADDR_EQUAL(saddr6, &((struct sockaddr_in6 *)up_addr)->sin6_addr))
 						break;
 				}
-				if (!e) {
-					log_message(LOG_INFO, "(%s) unicast source address %s not a unicast peer",
-						vrrp->iname, inet_ntop2(((struct sockaddr_in*)&vrrp->pkt_saddr)->sin_addr.s_addr));
-					return VRRP_PACKET_KO;
-				}
-			}
-		} else {	/* IPv6 */
-			if (!LIST_ISEMPTY(vrrp->vip)) {
-				/*
-				 * MAY verify that the IP address(es) associated with the
-				 * VRID are valid
-				 */
-				if (hd->naddr != LIST_SIZE(vrrp->vip)) {
-					log_message(LOG_INFO,
-						"(%s) receive an invalid ip number count associated with VRID!", vrrp->iname);
-					++vrrp->stats->addr_list_err;
-					return VRRP_PACKET_KO;
-				}
-
-				for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
-					ipaddress = ELEMENT_DATA(e);
-					if (!vrrp_in_chk_vips(vrrp, ipaddress, vips)) {
-						log_message(LOG_INFO, "(%s) ip address associated with VRID %d"
-							    " not present in MASTER advert : %s",
-							    vrrp->iname, vrrp->vrid,
-							    inet_ntop(AF_INET6, &ipaddress->u.sin6_addr,
-							    addr_str, sizeof(addr_str)));
-						++vrrp->stats->addr_list_err;
-						return VRRP_PACKET_KO;
-					}
-				}
-			}
-
-			/* check a unicast source address is in the unicast_peer list */
-			if (global_data->vrrp_check_unicast_src && !LIST_ISEMPTY(vrrp->unicast_peer)) {
-				for (e = LIST_HEAD(vrrp->unicast_peer); e; ELEMENT_NEXT(e)) {
-					up_addr = ELEMENT_DATA(e);
-					if (IN6_ARE_ADDR_EQUAL(&((struct sockaddr_in6 *)&vrrp->pkt_saddr)->sin6_addr, &((struct sockaddr_in6 *)up_addr)->sin6_addr))
+			} else {
+				saddr4 = &((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr;
+				LIST_FOREACH(vrrp->unicast_peer, up_addr, e) {
+					if (saddr4->s_addr == ((struct sockaddr_in *)up_addr)->sin_addr.s_addr)
 						break;
 				}
-				if (!e) {
-					log_message(LOG_INFO, "(%s) unicast source address %s not a unicast peer",
-						vrrp->iname, inet_ntop(AF_INET6, &((struct sockaddr_in6 *)&vrrp->pkt_saddr)->sin6_addr,
-							    addr_str, sizeof(addr_str)));
-					return VRRP_PACKET_KO;
-				}
+			}
+			if (!e) {
+				log_message(LOG_INFO, "(%s) unicast source address %s not a unicast peer",
+					vrrp->iname,
+					inet_ntop(vrrp->family,
+						  vrrp->family == AF_INET6 ? saddr6 : (void *)saddr4,
+						  addr_str, sizeof(addr_str)));
+				return VRRP_PACKET_KO;
 			}
 		}
 	}
@@ -1076,7 +1068,7 @@ vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, size_t buflen)
 	ah->next_header = IPPROTO_VRRP;
 
 	/* update IP header total length value */
-	ip->tot_len = htons(ntohs(ip->tot_len) + vrrp_ipsecah_len());
+	ip->tot_len = htons(ntohs(ip->tot_len) + sizeof(ipsec_ah_t));
 
 	/* fill in the Payload len field */
 	ah->payload_len = IPSEC_AH_PLEN;
@@ -1240,11 +1232,11 @@ vrrp_build_pkt(vrrp_t * vrrp)
 		vrrp_build_ip4(vrrp, vrrp->send_buffer);
 
 		/* build the vrrp header */
-		bufptr += vrrp_iphdr_len();
+		bufptr += sizeof(struct iphdr);
 
 #ifdef _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH)
-			bufptr += vrrp_ipsecah_len();
+			bufptr += sizeof(ipsec_ah_t);
 #endif
 		vrrp_build_vrrp(vrrp, bufptr, (struct iphdr *)vrrp->send_buffer);
 
@@ -1357,16 +1349,6 @@ vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 	}
 
 	++vrrp->stats->advert_sent;
-}
-
-/* Received packet processing */
-static int
-vrrp_check_packet(vrrp_t * vrrp, char *buf, ssize_t buflen, bool check_vip_addr)
-{
-	if (!buflen)
-		return VRRP_PACKET_NULL;
-
-	return vrrp_in_chk(vrrp, buf, buflen, check_vip_addr);
 }
 
 /* Gratuitous ARP on each VIP */
@@ -1656,17 +1638,15 @@ vrrp_state_leave_fault(vrrp_t * vrrp)
 
 /* BACKUP state processing */
 void
-vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
+vrrp_state_backup(vrrp_t *vrrp, vrrphdr_t *hd, char *buf, ssize_t buflen)
 {
-	vrrphdr_t *hd;
 	ssize_t ret = 0;
-	unsigned master_adver_int, proto;
+	unsigned master_adver_int;
 	bool check_addr = false;
 	timeval_t new_ms_down_timer;
 	bool ignore_advert = false;
 
 	/* Process the incoming packet */
-	hd = vrrp_get_header(vrrp->family, buf, &proto);
 	if (!vrrp->skip_check_adv_addr ||
 	    vrrp->master_saddr.ss_family != vrrp->pkt_saddr.ss_family)
 		check_addr = true;
@@ -1680,7 +1660,7 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 				check_addr = true;
 		}
 	}
-	ret = vrrp_check_packet(vrrp, buf, buflen, check_addr);
+	ret = vrrp_check_packet(vrrp, hd, buf, buflen, check_addr);
 
 	if (ret != VRRP_PACKET_OK)
 		ignore_advert = true;
@@ -1812,11 +1792,9 @@ vrrp_saddr_cmp(struct sockaddr_storage *addr, vrrp_t *vrrp)
 // TODO SKEW_TIME should use master_adver_int USUALLY!!!
 // TODO check all use of ipsecah_counter, including cycle, and when we set seq_number
 bool
-vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
+vrrp_state_master_rx(vrrp_t * vrrp, vrrphdr_t *hd, char *buf, ssize_t buflen)
 {
-	vrrphdr_t *hd;
 	ssize_t ret;
-	unsigned proto = 0;
 #ifdef _WITH_VRRP_AUTH_
 	ipsec_ah_t *ah;
 #endif
@@ -1838,8 +1816,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	}
 
 	/* Process the incoming packet */
-	hd = vrrp_get_header(vrrp->family, buf, &proto);
-	ret = vrrp_check_packet(vrrp, buf, buflen, true);
+	ret = vrrp_check_packet(vrrp, hd, buf, buflen, true);
 
 	if (ret != VRRP_PACKET_OK)
 		return false;
@@ -1881,7 +1858,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 					vrrp->effective_priority,
 					!vrrp->lower_prio_no_advert ? ", forcing new election" : "");
 #ifdef _WITH_VRRP_AUTH_
-		if (proto == IPPROTO_AH) {
+		if (vrrp->auth_type == VRRP_AUTH_AH) {
 			ah = (ipsec_ah_t *) (buf + sizeof(struct iphdr));
 			log_message(LOG_INFO, "(%s) IPSEC-AH : Syncing seq_num"
 					      " - Increment seq"
@@ -1944,10 +1921,8 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 						inet_sockaddrtos(&vrrp->pkt_saddr),
 						hd->priority);
 #ifdef _WITH_VRRP_AUTH_
-		if (proto == IPPROTO_AH) {
-			ah = (ipsec_ah_t *) (buf + sizeof(struct iphdr));
+		if (vrrp->auth_type == VRRP_AUTH_AH)
 			vrrp->ipsecah_counter.cycle = false;
-		}
 #endif
 
 		if (vrrp->version == VRRP_VERSION_3) {
@@ -1971,16 +1946,15 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	return false;
 }
 
+#ifdef _INCLUDE_UNUSED_CODE_
 bool
-vrrp_state_fault_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
+vrrp_state_fault_rx(vrrp_t * vrrp, vrrphdr_t *hd, char *buf, ssize_t buflen)
 {
-	vrrphdr_t *hd;
 	ssize_t ret = 0;
 	unsigned proto;
 
 	/* Process the incoming packet */
-	hd = vrrp_get_header(vrrp->family, buf, &proto);
-	ret = vrrp_check_packet(vrrp, buf, buflen, true);
+	ret = vrrp_check_packet(vrrp, hd, buf, buflen, true);
 
 	if (ret != VRRP_PACKET_OK)
 		return false;
@@ -1991,6 +1965,7 @@ vrrp_state_fault_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 
 	return false;
 }
+#endif
 
 static void
 free_tracking_vrrp(void *data)
@@ -2110,13 +2085,20 @@ open_vrrp_send_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 	}
 
 	/* Create and init socket descriptor */
-	fd = socket(family, SOCK_RAW | SOCK_CLOEXEC, proto);
+	fd = socket(family, SOCK_RAW | SOCK_CLOEXEC
+#if HAVE_DECL_SOCK_NONBLOCK
+						    | SOCK_NONBLOCK
+#endif
+								   , proto);
 	if (fd < 0) {
 		log_message(LOG_INFO, "cant open raw socket. errno=%d", errno);
 		return -1;
 	}
 #if !HAVE_DECL_SOCK_CLOEXEC
 	set_sock_flags(fd, F_SETFD, FD_CLOEXEC);
+#endif
+#if !HAVE_DECL_SOCK_NONBLOCK
+	set_sock_flags(fd, F_SETFL, O_NONBLOCK);
 #endif
 
 	/* We are not receiving on the send socket, there is no
@@ -2165,9 +2147,14 @@ open_vrrp_read_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 	int fd = -1;
 	int val = rx_buf_size;
 	socklen_t len = sizeof(val);
+	int on = 1;
 
 	/* open the socket */
-	fd = socket(family, SOCK_RAW | SOCK_CLOEXEC, proto);
+	fd = socket(family, SOCK_RAW | SOCK_CLOEXEC
+#if HAVE_DECL_SOCK_NONBLOCK
+						    | SOCK_NONBLOCK
+#endif
+								   , proto);
 	if (fd < 0) {
 		int err = errno;
 		log_message(LOG_INFO, "cant open raw socket. errno=%d", err);
@@ -2175,6 +2162,9 @@ open_vrrp_read_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 	}
 #if !HAVE_DECL_SOCK_CLOEXEC
 	set_sock_flags(fd, F_SETFD, FD_CLOEXEC);
+#endif
+#if !HAVE_DECL_SOCK_NONBLOCK
+	set_sock_flags(fd, F_SETFL, O_NONBLOCK);
 #endif
 
 	if (rx_buf_size) {
@@ -2191,7 +2181,23 @@ open_vrrp_read_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 	if (!unicast) {
 		/* Join the VRRP multicast group */
 		if_join_vrrp_group(family, &fd, ifp);
+
+#ifdef IPV6_RECVHOPLIMIT	/* Since Linux 2.6.14 */
+		/* IPv6 we need to receive the hop count as ancillary data */
+		if (family == AF_INET6) {
+			if (setsockopt(fd, IPPROTO_IPV6, IPV6_RECVHOPLIMIT, &on, sizeof on))
+				log_message(LOG_INFO, "fd %d - set IPV6_RECVHOPLIMIT error %d (%m)", fd, errno);
+		}
+#endif
 	}
+
+#ifdef IPV6_RECVPKTINFO		/* Since Linux 2.6.14 */
+	/* Receive the destination address as ancillary data to determine if packet multicast */
+	if (family == AF_INET6) {
+		if (setsockopt(fd, IPPROTO_IPV6, IPV6_RECVPKTINFO, &on, sizeof on))
+			log_message(LOG_INFO, "fd %d - set IPV6_RECVPKTINFO error %d (%m)", fd, errno);
+	}
+#endif
 
 	/* Need to bind read socket so only process packets for interface we're
 	 * interested in.
@@ -2626,7 +2632,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 #ifdef _WITH_VRRP_AUTH_
 			if (vrrp->auth_type == VRRP_AUTH_AH)
-				hdr_len += vrrp_ipsecah_len();
+				hdr_len += sizeof(ipsec_ah_t);
 #endif
 		}
 

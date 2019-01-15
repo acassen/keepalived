@@ -650,6 +650,33 @@ vrrp_gna_interval_handler(vector_t *strvec)
 		log_message(LOG_INFO, "The vrrp_gna_interval is very large - %s seconds", FMT_STR_VSLOT(strvec, 1));
 }
 static void
+vrrp_min_garp_handler(vector_t *strvec)
+{
+	int res = false;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value for vrrp_min_garp specified");
+			return;
+		}
+
+		if (!res)
+			return;
+	}
+
+	/* Set to only send 1 gratuitous ARP/NA message with no repeat, but don't
+	 * overwrite any parameters already set. */
+	if (global_data->vrrp_garp_rep == VRRP_GARP_REP)
+		global_data->vrrp_garp_rep = 1;
+	if (global_data->vrrp_garp_refresh.tv_sec == VRRP_GARP_REFRESH)
+		global_data->vrrp_garp_refresh.tv_sec = 0;
+	if (global_data->vrrp_garp_refresh_rep == VRRP_GARP_REFRESH_REP)
+		global_data->vrrp_garp_refresh_rep = 0;
+	if (global_data->vrrp_garp_delay == VRRP_GARP_DELAY)
+		global_data->vrrp_garp_delay = 0;
+}
+static void
 vrrp_lower_prio_no_advert_handler(vector_t *strvec)
 {
 	int res;
@@ -1577,6 +1604,7 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_garp_lower_prio_repeat", &vrrp_garp_lower_prio_rep_handler);
 	install_keyword("vrrp_garp_interval", &vrrp_garp_interval_handler);
 	install_keyword("vrrp_gna_interval", &vrrp_gna_interval_handler);
+	install_keyword("vrrp_min_garp", &vrrp_min_garp_handler);
 	install_keyword("vrrp_lower_prio_no_advert", &vrrp_lower_prio_no_advert_handler);
 	install_keyword("vrrp_higher_prio_send_advert", &vrrp_higher_prio_send_advert_handler);
 	install_keyword("vrrp_version", &vrrp_version_handler);

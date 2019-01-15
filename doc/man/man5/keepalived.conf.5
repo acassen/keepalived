@@ -256,6 +256,14 @@ and
     # (default: 0)
     \fBvrrp_gna_interval \fR0.000001
 
+    # By default keepalived sends 5 gratuitions ARP/NA messages at a
+    # time, and after transitioning to MASTER sends a second block of
+    # 5 messages 5 seconds later.
+    # With modern switches this is unnecessary, so setting vrrp_min_garp
+    # causes only one ARP/NA message to be sent, with no repeat 5 seconds
+    # later.
+    \fBvrrp_min_garp \fR[<BOOL>]
+
     # If a lower priority advert is received, don't send another advert.
     # This causes adherence to the RFCs. Defaults to false, unless
     # strict_mode is set.
@@ -1202,7 +1210,7 @@ The syntax for garp_group is :
     #   Use of this option is non-compliant and can cause problems; avoid
     #   using if possible, except when using unicast, where it can be helpful.
     \fBauthentication \fR{
-        # PASS||AH
+        # PASS|AH
         # PASS - Simple password (suggested)
         # AH - IPSEC (not recommended))
         \fBauth_type \fRPASS

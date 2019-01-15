@@ -97,7 +97,7 @@ add_process(pid_t pid, vrrp_tracked_process_t *tpr)
 	++tpr->num_cur_proc;
 }
 
-#ifdef UNUSED_CODE
+#ifdef _INCLUDE_UNUSED_CODE_
 static int scandir_filter(const struct dirent *dirent)
 {
 	if (dirent->d_type != DT_DIR)

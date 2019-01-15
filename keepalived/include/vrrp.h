@@ -33,6 +33,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <netinet/ip6.h>
 
 /* local include */
 #include "vector.h"
@@ -214,6 +215,12 @@ typedef struct _vrrp_t {
 	bool			saddr_from_config;	/* Set if the source address is from configuration */
 	bool			track_saddr;		/* Fault state if configured saddr is missing */
 	struct sockaddr_storage	pkt_saddr;		/* Src IP address received in VRRP IP header */
+#ifdef IPV6_RECVHOPLIMIT
+	int			hop_limit;		/* IPv6 hop limit returned via ancillary data */
+#endif
+#ifdef IPV6_RECVPKTINFO
+	bool			multicast_pkt;		/* Last IPv6 packet received was multicast */
+#endif
 	list			unicast_peer;		/* List of Unicast peer to send advert to */
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 	chksum_compatibility_t	unicast_chksum_compat;	/* Whether v1.3.6 and earlier chksum is used */
@@ -369,7 +376,7 @@ extern bool have_ipv6_instance;
 /* prototypes */
 extern void clear_summary_flags(void);
 extern size_t vrrp_adv_len(vrrp_t *);
-extern vrrphdr_t *vrrp_get_header(sa_family_t, char *, unsigned *);
+extern vrrphdr_t *vrrp_get_header(sa_family_t, char *, size_t);
 extern int open_vrrp_send_socket(sa_family_t, int, interface_t *, bool);
 extern int open_vrrp_read_socket(sa_family_t, int, interface_t *, bool, int);
 extern int new_vrrp_socket(vrrp_t *);
@@ -377,10 +384,12 @@ extern void vrrp_send_adv(vrrp_t *, uint8_t);
 extern void vrrp_send_link_update(vrrp_t *, unsigned);
 extern void add_vrrp_to_interface(vrrp_t *, interface_t *, int, bool, track_t);
 extern void del_vrrp_from_interface(vrrp_t *, interface_t *);
-extern bool vrrp_state_fault_rx(vrrp_t *, char *, ssize_t);
-extern bool vrrp_state_master_rx(vrrp_t *, char *, ssize_t);
+#ifdef _INCLUDE_UNUSED_CODE_
+extern bool vrrp_state_fault_rx(vrrp_t *, vrrphdr_t *, char *, ssize_t);
+#endif
+extern bool vrrp_state_master_rx(vrrp_t *, vrrphdr_t *, char *, ssize_t);
 extern void vrrp_state_master_tx(vrrp_t *);
-extern void vrrp_state_backup(vrrp_t *, char *, ssize_t);
+extern void vrrp_state_backup(vrrp_t *, vrrphdr_t *, char *, ssize_t);
 extern void vrrp_state_goto_master(vrrp_t *);
 extern void vrrp_state_leave_master(vrrp_t *, bool);
 extern void vrrp_state_leave_fault(vrrp_t *);

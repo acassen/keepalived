@@ -120,7 +120,7 @@ static inline void rb_link_node(struct rb_node *node, struct rb_node *parent,
 	*rb_link = node;
 }
 
-#ifdef UNUSED_CODE
+#ifdef _INCLUDE_UNUSED_CODE_
 static inline void rb_link_node_rcu(struct rb_node *node, struct rb_node *parent,
 				    struct rb_node **rb_link)
 {
