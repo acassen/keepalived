@@ -682,11 +682,21 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t * const hd, char *buffer, ssize_
 
 		/* Now calculate expected_len to include everything */
 		expected_len += vrrp_pkt_len(vrrp);
+	} else if (vrrp->family == AF_INET6) {
+		/* Set expected vrrp packet length */
+		expected_len = vrrp_pkt_len(vrrp);
+	} else {
+		log_message(LOG_INFO, "(%s) configured address family is %d, which is neither AF_INET or AF_INET6. This is probably a bug - please report", vrrp->iname, vrrp->family);
+		return VRRP_PACKET_KO;
+	}
 
-		/* MUST verify that the IP TTL is 255 */
-		if (LIST_ISEMPTY(vrrp->unicast_peer) && ip->ttl != VRRP_IP_TTL) {
-			log_message(LOG_INFO, "(%s) invalid ttl. %d and expect %d",
-				vrrp->iname, ip->ttl, VRRP_IP_TTL);
+
+	/* MUST verify that the IPv4 TTL/IPv6 HL is 255 */
+	if (LIST_ISEMPTY(vrrp->unicast_peer)) {
+		if ((vrrp->family == AF_INET && ip->ttl != VRRP_IP_TTL) ||
+		    (vrrp->family == AF_INET6 && vrrp->hop_limit != -1 && vrrp->hop_limit != VRRP_IP_TTL)) {
+			log_message(LOG_INFO, "(%s) invalid TTL/HL. Received %d and expect %d",
+				vrrp->iname, vrrp->family == AF_INET ? ip->ttl : vrrp->hop_limit, VRRP_IP_TTL);
 			++vrrp->stats->ip_ttl_err;
 #ifdef _WITH_SNMP_RFCV3_
 			vrrp->stats->proto_err_reason = ipTtlError;
@@ -694,12 +704,6 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t * const hd, char *buffer, ssize_
 #endif
 			return VRRP_PACKET_KO;
 		}
-	} else if (vrrp->family == AF_INET6) {
-		/* Set expected vrrp packet length */
-		expected_len = vrrp_pkt_len(vrrp);
-	} else {
-		log_message(LOG_INFO, "(%s) configured address family is %d, which is neither AF_INET or AF_INET6. This is probably a bug - please report", vrrp->iname, vrrp->family);
-		return VRRP_PACKET_KO;
 	}
 
 	/*
@@ -2155,6 +2159,13 @@ open_vrrp_read_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 	if (!unicast) {
 		/* Join the VRRP multicast group */
 		if_join_vrrp_group(family, &fd, ifp);
+
+		/* IPv6 we need to receive the hop count as ancillary data */
+		if (family == AF_INET6) {
+			int on = 1;
+			if (setsockopt(fd, IPPROTO_IPV6, IPV6_RECVHOPLIMIT, &on, sizeof on))
+				log_message(LOG_INFO, "fd %d - set IPV6_RECVHOPLIMIT error %d (%m)", fd, errno);
+		}
 	}
 
 	/* Need to bind read socket so only process packets for interface we're

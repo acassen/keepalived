@@ -780,16 +780,29 @@ vrrp_dispatcher_read(sock_t * sock)
 	vrrphdr_t *hd;
 	ssize_t len = 0;
 	int prev_state = 0;
-	struct sockaddr_storage src_addr;
-	socklen_t src_addr_len = sizeof(src_addr);
+	struct sockaddr_storage src_addr = { .ss_family = AF_UNSPEC };
 	vrrp_t vrrp_lookup;
+	char control_buf[512];
+	struct iovec iovec = { .iov_base = vrrp_buffer, .iov_len = vrrp_buffer_len };
+	struct msghdr msghdr = { .msg_name = &src_addr, .msg_namelen = sizeof(src_addr),
+				 .msg_iov = &iovec, .msg_iovlen = 1,
+				 .msg_control = control_buf, .msg_controllen = sizeof(control_buf) };
+	struct cmsghdr *cmsg;
 
 	/* Clean the read buffer */
 	memset(vrrp_buffer, 0, vrrp_buffer_len);
 
 	/* read & affect received buffer */
-	len = recvfrom(sock->fd_in, vrrp_buffer, vrrp_buffer_len, 0,
-		       (struct sockaddr *) &src_addr, &src_addr_len);
+	len = recvmsg(sock->fd_in, &msghdr, MSG_TRUNC | MSG_CTRUNC) ;
+
+	if (msghdr.msg_flags & MSG_TRUNC) {
+		log_message(LOG_INFO, "recvmsg on fd %d, message truncated from %zd to %zd bytes", sock->fd_in, len, vrrp_buffer_len);
+		return sock->fd_in;
+	}
+	if (msghdr.msg_flags & MSG_CTRUNC) {
+		log_message(LOG_INFO, "recvmsg on fd %d, control message truncated from %zd to %zd bytes", sock->fd_in, sizeof(control_buf), msghdr.msg_controllen);
+		msghdr.msg_controllen = 0;
+	}
 
 	/* Check the received data includes at least the IP, possibly the AH header and the VRRP header */
 	if (!(hd = vrrp_get_header(sock->family, vrrp_buffer, len)))
@@ -809,7 +822,17 @@ vrrp_dispatcher_read(sock_t * sock)
 		return sock->fd_in;
 	}
 
+	/* Save non packet data */
 	vrrp->pkt_saddr = src_addr;
+	vrrp->hop_limit = -1;		/* Default to not received */
+	for (cmsg = CMSG_FIRSTHDR(&msghdr); cmsg; cmsg = CMSG_NXTHDR(&msghdr, cmsg)) {
+		if (cmsg->cmsg_level == IPPROTO_IPV6 &&
+		    cmsg->cmsg_type == IPV6_HOPLIMIT &&
+		    cmsg->cmsg_len - sizeof(struct cmsghdr) == sizeof (unsigned int)) {
+			vrrp->hop_limit = *(unsigned int *)CMSG_DATA(cmsg);
+		} else
+			log_message(LOG_INFO, "fd %d, unexpected control msg len %zd, level %d, type %d", sock->fd_in, cmsg->cmsg_len, cmsg->cmsg_level, cmsg->cmsg_type);
+	}
 
 	prev_state = vrrp->state;
 
