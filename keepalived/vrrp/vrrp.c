@@ -805,6 +805,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 	}
 
 	/* MUST verify that the VRID is valid on the receiving interface_t */
+// This can't happen, since vrrp is derived from the VRID
 	if (vrrp->vrid != hd->vrid) {
 		log_message(LOG_INFO,
 		       "(%s) received VRID mismatch. Received %d, Expected %d",
@@ -918,28 +919,24 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 
 	if (check_vip_addr) {
 		if (vrrp->family == AF_INET) {
-			if (!LIST_ISEMPTY(vrrp->vip)) {
-				/*
-				 * MAY verify that the IP address(es) associated with the
-				 * VRID are valid
-				 */
-				for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
-					ipaddress = ELEMENT_DATA(e);
-					if (!vrrp_in_chk_vips(vrrp, ipaddress, vips)) {
-						log_message(LOG_INFO, "(%s) ip address associated with VRID %d"
-						       " not present in MASTER advert : %s",
-						       vrrp->iname, vrrp->vrid,
-						       inet_ntop2(ipaddress->u.sin.sin_addr.s_addr));
-						++vrrp->stats->addr_list_err;
-						return VRRP_PACKET_KO;
-					}
+			/*
+			 * MAY verify that the IP address(es) associated with the
+			 * VRID are valid
+			 */
+			LIST_FOREACH(vrrp->vip, ipaddress, e) {
+				if (!vrrp_in_chk_vips(vrrp, ipaddress, vips)) {
+					log_message(LOG_INFO, "(%s) ip address associated with VRID %d"
+					       " not present in MASTER advert : %s",
+					       vrrp->iname, vrrp->vrid,
+					       inet_ntop2(ipaddress->u.sin.sin_addr.s_addr));
+					++vrrp->stats->addr_list_err;
+					return VRRP_PACKET_KO;
 				}
 			}
 
 			/* check a unicast source address is in the unicast_peer list */
-			if (global_data->vrrp_check_unicast_src && !LIST_ISEMPTY(vrrp->unicast_peer)) {
-				for (e = LIST_HEAD(vrrp->unicast_peer); e; ELEMENT_NEXT(e)) {
-					up_addr = ELEMENT_DATA(e);
+			if (global_data->vrrp_check_unicast_src) {
+				LIST_FOREACH(vrrp->unicast_peer, up_addr, e) {
 					if (((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr.s_addr == ((struct sockaddr_in *)up_addr)->sin_addr.s_addr)
 						break;
 				}
@@ -950,36 +947,32 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 				}
 			}
 		} else {	/* IPv6 */
-			if (!LIST_ISEMPTY(vrrp->vip)) {
-				/*
-				 * MAY verify that the IP address(es) associated with the
-				 * VRID are valid
-				 */
-				if (hd->naddr != LIST_SIZE(vrrp->vip)) {
-					log_message(LOG_INFO,
-						"(%s) receive an invalid ip number count associated with VRID!", vrrp->iname);
+			/*
+			 * MAY verify that the IP address(es) associated with the
+			 * VRID are valid
+			 */
+			if (hd->naddr != LIST_ISEMPTY(vrrp->vip) ? 0 : LIST_SIZE(vrrp->vip)) {
+				log_message(LOG_INFO,
+					"(%s) received an incorrect ip number count associated with VRID!", vrrp->iname);
+				++vrrp->stats->addr_list_err;
+				return VRRP_PACKET_KO;
+			}
+
+			LIST_FOREACH(vrrp->vip, ipaddress, e) {
+				if (!vrrp_in_chk_vips(vrrp, ipaddress, vips)) {
+					log_message(LOG_INFO, "(%s) ip address associated with VRID %d"
+						    " not present in MASTER advert : %s",
+						    vrrp->iname, vrrp->vrid,
+						    inet_ntop(AF_INET6, &ipaddress->u.sin6_addr,
+						    addr_str, sizeof(addr_str)));
 					++vrrp->stats->addr_list_err;
 					return VRRP_PACKET_KO;
-				}
-
-				for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
-					ipaddress = ELEMENT_DATA(e);
-					if (!vrrp_in_chk_vips(vrrp, ipaddress, vips)) {
-						log_message(LOG_INFO, "(%s) ip address associated with VRID %d"
-							    " not present in MASTER advert : %s",
-							    vrrp->iname, vrrp->vrid,
-							    inet_ntop(AF_INET6, &ipaddress->u.sin6_addr,
-							    addr_str, sizeof(addr_str)));
-						++vrrp->stats->addr_list_err;
-						return VRRP_PACKET_KO;
-					}
 				}
 			}
 
 			/* check a unicast source address is in the unicast_peer list */
 			if (global_data->vrrp_check_unicast_src && !LIST_ISEMPTY(vrrp->unicast_peer)) {
-				for (e = LIST_HEAD(vrrp->unicast_peer); e; ELEMENT_NEXT(e)) {
-					up_addr = ELEMENT_DATA(e);
+				LIST_FOREACH(vrrp->unicast_peer, up_addr, e) {
 					if (IN6_ARE_ADDR_EQUAL(&((struct sockaddr_in6 *)&vrrp->pkt_saddr)->sin6_addr, &((struct sockaddr_in6 *)up_addr)->sin6_addr))
 						break;
 				}
