@@ -782,79 +782,92 @@ vrrp_dispatcher_read(sock_t * sock)
 	int prev_state = 0;
 	struct sockaddr_storage src_addr = { .ss_family = AF_UNSPEC };
 	vrrp_t vrrp_lookup;
-	char control_buf[512];
+	char control_buf[64];
 	struct iovec iovec = { .iov_base = vrrp_buffer, .iov_len = vrrp_buffer_len };
 	struct msghdr msghdr = { .msg_name = &src_addr, .msg_namelen = sizeof(src_addr),
 				 .msg_iov = &iovec, .msg_iovlen = 1,
 				 .msg_control = control_buf, .msg_controllen = sizeof(control_buf) };
 	struct cmsghdr *cmsg;
 
-	/* Clean the read buffer */
-	memset(vrrp_buffer, 0, vrrp_buffer_len);
+	while (true) {
+		/* Clean the read buffer */
+		memset(vrrp_buffer, 0, vrrp_buffer_len);
 
-	/* read & affect received buffer */
-	len = recvmsg(sock->fd_in, &msghdr, MSG_TRUNC | MSG_CTRUNC) ;
+		/* read & affect received buffer */
+		while ((len = recvmsg(sock->fd_in, &msghdr, MSG_TRUNC | MSG_CTRUNC)) == -1 && errno == EINTR);
 
-	if (msghdr.msg_flags & MSG_TRUNC) {
-		log_message(LOG_INFO, "recvmsg on fd %d, message truncated from %zd to %zd bytes", sock->fd_in, len, vrrp_buffer_len);
-		return sock->fd_in;
-	}
-	if (msghdr.msg_flags & MSG_CTRUNC) {
-		log_message(LOG_INFO, "recvmsg on fd %d, control message truncated from %zd to %zd bytes", sock->fd_in, sizeof(control_buf), msghdr.msg_controllen);
-		msghdr.msg_controllen = 0;
-	}
+		if (len == -1) {
+			if (errno != EAGAIN && errno != EWOULDBLOCK)
+				log_message(LOG_INFO, "recvfrom socket %d returned %d (%m)", sock->fd_in, errno);
 
-	/* Check the received data includes at least the IP, possibly the AH header and the VRRP header */
-	if (!(hd = vrrp_get_header(sock->family, vrrp_buffer, len)))
-		return sock->fd_in;
+			return sock->fd_in;
+		}
 
-	vrrp_lookup.vrid = hd->vrid;
-	vrrp = rb_search(&sock->rb_vrid, &vrrp_lookup, rb_vrid, vrrp_vrid_cmp);
+		if (msghdr.msg_flags & MSG_TRUNC) {
+			log_message(LOG_INFO, "recvmsg on fd %d, message truncated from %zd to %zd bytes", sock->fd_in, len, vrrp_buffer_len);
+			continue;
+		}
+		if (msghdr.msg_flags & MSG_CTRUNC) {
+			log_message(LOG_INFO, "recvmsg on fd %d, control message truncated from %zd to %zd bytes", sock->fd_in, sizeof(control_buf), msghdr.msg_controllen);
+			msghdr.msg_controllen = 0;
+		}
 
-	/* If no instance found => ignore the advert */
-	if (!vrrp)
-		return sock->fd_in;
+		/* Don't attempt to process data if no data received */
+		if (len == 0)
+			continue;
 
-	if (vrrp->state == VRRP_STATE_FAULT ||
-	    vrrp->state == VRRP_STATE_INIT) {
-		/* We just ignore a message received when we are in fault state or
-		 * not yet fully initialised */
-		return sock->fd_in;
-	}
+		/* Check the received data includes at least the IP, possibly the AH header and the VRRP header */
+		if (!(hd = vrrp_get_header(sock->family, vrrp_buffer, len)))
+			continue;
 
-	/* Save non packet data */
-	vrrp->pkt_saddr = src_addr;
-	vrrp->hop_limit = -1;		/* Default to not received */
-	for (cmsg = CMSG_FIRSTHDR(&msghdr); cmsg; cmsg = CMSG_NXTHDR(&msghdr, cmsg)) {
-		if (cmsg->cmsg_level == IPPROTO_IPV6 &&
-		    cmsg->cmsg_type == IPV6_HOPLIMIT &&
-		    cmsg->cmsg_len - sizeof(struct cmsghdr) == sizeof (unsigned int)) {
-			vrrp->hop_limit = *(unsigned int *)CMSG_DATA(cmsg);
+		vrrp_lookup.vrid = hd->vrid;
+		vrrp = rb_search(&sock->rb_vrid, &vrrp_lookup, rb_vrid, vrrp_vrid_cmp);
+
+		/* If no instance found => ignore the advert */
+		if (!vrrp)
+			continue;
+
+		if (vrrp->state == VRRP_STATE_FAULT ||
+		    vrrp->state == VRRP_STATE_INIT) {
+			/* We just ignore a message received when we are in fault state or
+			 * not yet fully initialised */
+			continue;
+		}
+
+		/* Save non packet data */
+		vrrp->pkt_saddr = src_addr;
+		vrrp->hop_limit = -1;           /* Default to not received */
+		for (cmsg = CMSG_FIRSTHDR(&msghdr); cmsg; cmsg = CMSG_NXTHDR(&msghdr, cmsg)) {
+			if (cmsg->cmsg_level == IPPROTO_IPV6 &&
+			    cmsg->cmsg_type == IPV6_HOPLIMIT &&
+			    cmsg->cmsg_len - sizeof(struct cmsghdr) == sizeof (unsigned int)) {
+				vrrp->hop_limit = *(unsigned int *)CMSG_DATA(cmsg);
+			} else
+				log_message(LOG_INFO, "fd %d, unexpected control msg len %zd, level %d, type %d", sock->fd_in, cmsg->cmsg_len, cmsg->cmsg_level, cmsg->cmsg_type);
+		}
+
+		prev_state = vrrp->state;
+
+		if (vrrp->state == VRRP_STATE_BACK)
+			vrrp_state_backup(vrrp, hd, vrrp_buffer, len);
+		else if (vrrp->state == VRRP_STATE_MAST) {
+			if (vrrp_state_master_rx(vrrp, hd, vrrp_buffer, len))
+				vrrp_state_leave_master(vrrp, false);
 		} else
-			log_message(LOG_INFO, "fd %d, unexpected control msg len %zd, level %d, type %d", sock->fd_in, cmsg->cmsg_len, cmsg->cmsg_level, cmsg->cmsg_type);
-	}
+			log_message(LOG_INFO, "(%s) In dispatcher_read with state %d", vrrp->iname, vrrp->state);
 
-	prev_state = vrrp->state;
-
-	if (vrrp->state == VRRP_STATE_BACK)
-		vrrp_state_backup(vrrp, hd, vrrp_buffer, len);
-	else if (vrrp->state == VRRP_STATE_MAST) {
-		if (vrrp_state_master_rx(vrrp, hd, vrrp_buffer, len))
-			vrrp_state_leave_master(vrrp, false);
-	} else
-		log_message(LOG_INFO, "(%s) In dispatcher_read with state %d", vrrp->iname, vrrp->state);
-
-	/* handle instance synchronization */
+		/* handle instance synchronization */
 #ifdef _TSM_DEBUG_
-	if (do_tsm_debug)
-		log_message(LOG_INFO, "Read [%s] TSM transition : [%d,%d] Wantstate = [%d]",
-			vrrp->iname, prev_state, vrrp->state, vrrp->wantstate);
+		if (do_tsm_debug)
+			log_message(LOG_INFO, "Read [%s] TSM transition : [%d,%d] Wantstate = [%d]",
+				vrrp->iname, prev_state, vrrp->state, vrrp->wantstate);
 #endif
-	VRRP_TSM_HANDLE(prev_state, vrrp);
+		VRRP_TSM_HANDLE(prev_state, vrrp);
 
-	/* If we have sent an advert, reset the timer */
-	if (vrrp->state != VRRP_STATE_MAST || !vrrp->lower_prio_no_advert)
-		vrrp_init_instance_sands(vrrp);
+		/* If we have sent an advert, reset the timer */
+		if (vrrp->state != VRRP_STATE_MAST || !vrrp->lower_prio_no_advert)
+			vrrp_init_instance_sands(vrrp);
+	}
 
 	return sock->fd_in;
 }

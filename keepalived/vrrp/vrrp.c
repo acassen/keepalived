@@ -2078,13 +2078,20 @@ open_vrrp_send_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 	}
 
 	/* Create and init socket descriptor */
-	fd = socket(family, SOCK_RAW | SOCK_CLOEXEC, proto);
+	fd = socket(family, SOCK_RAW | SOCK_CLOEXEC
+#if HAVE_DECL_SOCK_NONBLOCK
+						    | SOCK_NONBLOCK
+#endif
+								   , proto);
 	if (fd < 0) {
 		log_message(LOG_INFO, "cant open raw socket. errno=%d", errno);
 		return -1;
 	}
 #if !HAVE_DECL_SOCK_CLOEXEC
 	set_sock_flags(fd, F_SETFD, FD_CLOEXEC);
+#endif
+#if !HAVE_DECL_SOCK_NONBLOCK
+	set_sock_flags(fd, F_SETFL, O_NONBLOCK);
 #endif
 
 	/* We are not receiving on the send socket, there is no
@@ -2135,7 +2142,11 @@ open_vrrp_read_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 	socklen_t len = sizeof(val);
 
 	/* open the socket */
-	fd = socket(family, SOCK_RAW | SOCK_CLOEXEC, proto);
+	fd = socket(family, SOCK_RAW | SOCK_CLOEXEC
+#if HAVE_DECL_SOCK_NONBLOCK
+						    | SOCK_NONBLOCK
+#endif
+								   , proto);
 	if (fd < 0) {
 		int err = errno;
 		log_message(LOG_INFO, "cant open raw socket. errno=%d", err);
@@ -2143,6 +2154,9 @@ open_vrrp_read_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 	}
 #if !HAVE_DECL_SOCK_CLOEXEC
 	set_sock_flags(fd, F_SETFD, FD_CLOEXEC);
+#endif
+#if !HAVE_DECL_SOCK_NONBLOCK
+	set_sock_flags(fd, F_SETFL, O_NONBLOCK);
 #endif
 
 	if (rx_buf_size) {
