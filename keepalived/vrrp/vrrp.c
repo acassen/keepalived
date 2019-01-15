@@ -309,7 +309,6 @@ vrrp_pkt_len(vrrp_t * vrrp)
 {
 	size_t len = sizeof(vrrphdr_t);
 
-	/* Our implementation of IPv6 with VRRP version 2 doesn't include the 8 byte auth field */
 	if (vrrp->family == AF_INET) {
 		if (vrrp->version == VRRP_VERSION_2)
 			len += VRRP_AUTH_LEN;
