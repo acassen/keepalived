@@ -890,6 +890,16 @@ if test .$enable_vrrp != .no; then
   CPPFLAGS="$SAV_CPPFLAGS"
 fi
 
+dnl ----[ Check for IPv6 Advanced API (RFC3542) - since Linux 2.6.14 ]----
+IPV6_ADVANCED_API=No
+AC_CHECK_DECLS([
+  IPV6_RECVHOPLIMIT,
+  IPV6_RECVPKTINFO],
+  [IPV6_ADVANCED_API=Yes],
+  [],
+  [[#include <netinet/ip6.h>]])
+AS_IF([test $IPV6_ADVANCED_API = Yes], [add_system_opt([IPV6_ADVANCED_API])])
+
 dnl ----[ Checks for libraries ]----
 NETLINK_VER=0
 IPVS_USE_NL=No

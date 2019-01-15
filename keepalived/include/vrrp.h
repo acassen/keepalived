@@ -33,6 +33,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <netinet/ip6.h>
 
 /* local include */
 #include "vector.h"
@@ -214,8 +215,12 @@ typedef struct _vrrp_t {
 	bool			saddr_from_config;	/* Set if the source address is from configuration */
 	bool			track_saddr;		/* Fault state if configured saddr is missing */
 	struct sockaddr_storage	pkt_saddr;		/* Src IP address received in VRRP IP header */
+#ifdef IPV6_RECVHOPLIMIT
 	int			hop_limit;		/* IPv6 hop limit returned via ancillary data */
+#endif
+#ifdef IPV6_RECVPKTINFO
 	bool			multicast_pkt;		/* Last IPv6 packet received was multicast */
+#endif
 	list			unicast_peer;		/* List of Unicast peer to send advert to */
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 	chksum_compatibility_t	unicast_chksum_compat;	/* Whether v1.3.6 and earlier chksum is used */

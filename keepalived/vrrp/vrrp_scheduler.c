@@ -839,16 +839,22 @@ vrrp_dispatcher_read(sock_t * sock)
 		for (cmsg = CMSG_FIRSTHDR(&msghdr); cmsg; cmsg = CMSG_NXTHDR(&msghdr, cmsg)) {
 			if (cmsg->cmsg_level == IPPROTO_IPV6) {
 				expected_cmsg = true;
+#ifdef IPV6_RECVHOPLIMIT
 				if (cmsg->cmsg_type == IPV6_HOPLIMIT &&
 				    cmsg->cmsg_len - sizeof(struct cmsghdr) == sizeof(unsigned int))
 					vrrp->hop_limit = *(unsigned int *)CMSG_DATA(cmsg);
-				else if (cmsg->cmsg_type == IPV6_PKTINFO &&
+				else
+#endif
+#ifdef IPV6_RECVPKTINFO
+				if (cmsg->cmsg_type == IPV6_PKTINFO &&
 					 cmsg->cmsg_len - sizeof(struct cmsghdr) == sizeof(struct in6_pktinfo))
 					vrrp->multicast_pkt = IN6_IS_ADDR_MULTICAST(&((struct in6_pktinfo *)CMSG_DATA(cmsg))->ipi6_addr);
 				else
+#endif
 					expected_cmsg = false;
 			} else
 				expected_cmsg = false;
+
 			if (!expected_cmsg)
 				log_message(LOG_INFO, "fd %d, unexpected control msg len %zd, level %d, type %d", sock->fd_in, cmsg->cmsg_len, cmsg->cmsg_level, cmsg->cmsg_type);
 		}

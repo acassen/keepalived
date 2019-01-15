@@ -707,10 +707,19 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t * const hd, char *buffer, ssize_
 
 	/* MUST verify that the IPv4 TTL/IPv6 HL is 255 (but not if unicast) */
 	if (LIST_ISEMPTY(vrrp->unicast_peer)) {
-		if ((vrrp->family == AF_INET && ip->ttl != VRRP_IP_TTL) ||
-		    (vrrp->family == AF_INET6 && vrrp->hop_limit != -1 && vrrp->hop_limit != VRRP_IP_TTL)) {
+		if ((vrrp->family == AF_INET && ip->ttl != VRRP_IP_TTL)
+#ifdef IPV6_RECVHOPLIMIT
+		    || (vrrp->family == AF_INET6 && vrrp->hop_limit != -1 && vrrp->hop_limit != VRRP_IP_TTL)
+#endif
+													    ) {
 			log_message(LOG_INFO, "(%s) invalid TTL/HL. Received %d and expect %d",
-				vrrp->iname, vrrp->family == AF_INET ? ip->ttl : vrrp->hop_limit, VRRP_IP_TTL);
+				vrrp->iname,
+#ifdef IPV6_RECVHOPLIMIT
+				vrrp->family == AF_INET ? ip->ttl : vrrp->hop_limit,
+#else
+				ip->ttl,
+#endif
+				VRRP_IP_TTL);
 			++vrrp->stats->ip_ttl_err;
 #ifdef _WITH_SNMP_RFCV3_
 			vrrp->stats->proto_err_reason = ipTtlError;
@@ -927,8 +936,11 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t * const hd, char *buffer, ssize_
 
 	/* check that destination address is multicast if don't have any unicast peers
 	 * and vice versa */
-	if (((vrrp->family == AF_INET && IN_MULTICAST(ntohl(ip->daddr))) ||
-	     (vrrp->family == AF_INET6 && vrrp->multicast_pkt)) != LIST_ISEMPTY(vrrp->unicast_peer)) {
+	if (((vrrp->family == AF_INET && IN_MULTICAST(ntohl(ip->daddr)))
+#ifdef IPV6_RECVHOPLIMIT
+	     || (vrrp->family == AF_INET6 && vrrp->multicast_pkt)
+#endif
+								 ) != LIST_ISEMPTY(vrrp->unicast_peer)) {
 		log_message(LOG_INFO, "(%s) Expected %sicast packet but received %sicast packet",
 				vrrp->iname,
 				LIST_ISEMPTY(vrrp->unicast_peer) ? "mult" : "un",
@@ -2135,6 +2147,7 @@ open_vrrp_read_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 	int fd = -1;
 	int val = rx_buf_size;
 	socklen_t len = sizeof(val);
+	int on = 1;
 
 	/* open the socket */
 	fd = socket(family, SOCK_RAW | SOCK_CLOEXEC
@@ -2169,15 +2182,22 @@ open_vrrp_read_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 		/* Join the VRRP multicast group */
 		if_join_vrrp_group(family, &fd, ifp);
 
+#ifdef IPV6_RECVHOPLIMIT	/* Since Linux 2.6.14 */
 		/* IPv6 we need to receive the hop count as ancillary data */
 		if (family == AF_INET6) {
-			int on = 1;
 			if (setsockopt(fd, IPPROTO_IPV6, IPV6_RECVHOPLIMIT, &on, sizeof on))
 				log_message(LOG_INFO, "fd %d - set IPV6_RECVHOPLIMIT error %d (%m)", fd, errno);
-			if (setsockopt(fd, IPPROTO_IPV6, IPV6_RECVPKTINFO, &on, sizeof on))
-				log_message(LOG_INFO, "fd %d - set IPV6_RECVPKTINFO error %d (%m)", fd, errno);
 		}
+#endif
 	}
+
+#ifdef IPV6_RECVPKTINFO		/* Since Linux 2.6.14 */
+	/* Receive the destination address as ancillary data to determine if packet multicast */
+	if (family == AF_INET6) {
+		if (setsockopt(fd, IPPROTO_IPV6, IPV6_RECVPKTINFO, &on, sizeof on))
+			log_message(LOG_INFO, "fd %d - set IPV6_RECVPKTINFO error %d (%m)", fd, errno);
+	}
+#endif
 
 	/* Need to bind read socket so only process packets for interface we're
 	 * interested in.
