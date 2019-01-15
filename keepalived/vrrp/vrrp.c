@@ -287,22 +287,6 @@ check_vrrp_script_security(void)
 	}
 }
 
-/* IP header length */
-static inline size_t
-vrrp_iphdr_len(void)
-{
-	return sizeof(struct iphdr);
-}
-
-#ifdef _WITH_VRRP_AUTH_
-/* IPSEC AH header length */
-static inline size_t
-vrrp_ipsecah_len(void)
-{
-	return sizeof(ipsec_ah_t);
-}
-#endif
-
 /* VRRP header length */
 static size_t
 vrrp_pkt_len(vrrp_t * vrrp)
@@ -326,10 +310,10 @@ vrrp_adv_len(vrrp_t *vrrp)
 	size_t len = vrrp_pkt_len(vrrp);
 
 	if (vrrp->family == AF_INET) {
-		len += vrrp_iphdr_len();
+		len += sizeof(struct iphdr);
 #ifdef _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH)
-			len += vrrp_ipsecah_len();
+			len += sizeof(ipsec_ah_t);
 #endif
 	}
 
@@ -351,7 +335,7 @@ vrrp_get_header(sa_family_t family, char *buf, unsigned *proto)
 		if (iph->protocol == IPPROTO_AH) {
 			*proto = IPPROTO_AH;
 			hd = (vrrphdr_t *) ((char *) iph + (iph->ihl << 2) +
-					   vrrp_ipsecah_len());
+					   sizeof(ipsec_ah_t));
 		}
 		else
 #endif
@@ -384,11 +368,11 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage* addr)
 #endif
 
 	if (vrrp->family == AF_INET) {
-		bufptr += vrrp_iphdr_len();
+		bufptr += sizeof(struct iphdr);
 
 #ifdef _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH)
-			bufptr += vrrp_ipsecah_len();
+			bufptr += sizeof(ipsec_ah_t);
 #endif
 	}
 
@@ -510,11 +494,11 @@ vrrp_csum_mcast(vrrp_t *vrrp)
 	char *bufptr = vrrp->send_buffer;
 	vrrphdr_t *hd;
 
-	bufptr += vrrp_iphdr_len();
+	bufptr += sizeof(struct iphdr);
 
 #ifdef _WITH_VRRP_AUTH_
 	if (vrrp->auth_type == VRRP_AUTH_AH)
-		bufptr += vrrp_ipsecah_len();
+		bufptr += sizeof(ipsec_ah_t);
 #endif
 
 	hd = (vrrphdr_t *)bufptr;
@@ -559,7 +543,7 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 
 	/* Compute the ICV */
 	hmac_md5((unsigned char *) buffer,
-		 vrrp_iphdr_len() + vrrp_ipsecah_len() + vrrp_pkt_len(vrrp)
+		 sizeof(struct iphdr) + sizeof(ipsec_ah_t) + vrrp_pkt_len(vrrp)
 		 , vrrp->auth_data, sizeof (vrrp->auth_data)
 		 , digest);
 
@@ -659,10 +643,10 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 	/* IPv4 related */
 	if (vrrp->family == AF_INET) {
 		/* To begin with, we just concern ourselves with the protocol headers */
-		expected_len = vrrp_iphdr_len() + sizeof(vrrphdr_t);
+		expected_len = sizeof(struct iphdr) + sizeof(vrrphdr_t);
 #ifdef _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH)
-			expected_len += vrrp_ipsecah_len();
+			expected_len += sizeof(ipsec_ah_t);
 #endif
 
 		/*
@@ -683,7 +667,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 #ifdef _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH) {
 			ah = (ipsec_ah_t *) (buffer + ihl);
-			hd = (vrrphdr_t *) ((char *) ah + vrrp_ipsecah_len());
+			hd = (vrrphdr_t *) ((char *) ah + sizeof(ipsec_ah_t));
 		} else
 #endif
 			hd = (vrrphdr_t *) (buffer + ihl);
@@ -1075,7 +1059,7 @@ vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, size_t buflen)
 	ah->next_header = IPPROTO_VRRP;
 
 	/* update IP header total length value */
-	ip->tot_len = htons(ntohs(ip->tot_len) + vrrp_ipsecah_len());
+	ip->tot_len = htons(ntohs(ip->tot_len) + sizeof(ipsec_ah_t));
 
 	/* fill in the Payload len field */
 	ah->payload_len = IPSEC_AH_PLEN;
@@ -1239,11 +1223,11 @@ vrrp_build_pkt(vrrp_t * vrrp)
 		vrrp_build_ip4(vrrp, vrrp->send_buffer);
 
 		/* build the vrrp header */
-		bufptr += vrrp_iphdr_len();
+		bufptr += sizeof(struct iphdr);
 
 #ifdef _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH)
-			bufptr += vrrp_ipsecah_len();
+			bufptr += sizeof(ipsec_ah_t);
 #endif
 		vrrp_build_vrrp(vrrp, bufptr, (struct iphdr *)vrrp->send_buffer);
 
@@ -2625,7 +2609,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 #ifdef _WITH_VRRP_AUTH_
 			if (vrrp->auth_type == VRRP_AUTH_AH)
-				hdr_len += vrrp_ipsecah_len();
+				hdr_len += sizeof(ipsec_ah_t);
 #endif
 		}
 
