@@ -1954,6 +1954,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	return false;
 }
 
+#ifdef _INCLUDE_UNUSED_CODE_
 bool
 vrrp_state_fault_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 {
@@ -1974,6 +1975,7 @@ vrrp_state_fault_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 
 	return false;
 }
+#endif
 
 static void
 free_tracking_vrrp(void *data)
