@@ -369,7 +369,7 @@ extern bool have_ipv6_instance;
 /* prototypes */
 extern void clear_summary_flags(void);
 extern size_t vrrp_adv_len(vrrp_t *);
-extern vrrphdr_t *vrrp_get_header(sa_family_t, char *, unsigned *);
+extern vrrphdr_t *vrrp_get_header(sa_family_t, char *, size_t);
 extern int open_vrrp_send_socket(sa_family_t, int, interface_t *, bool);
 extern int open_vrrp_read_socket(sa_family_t, int, interface_t *, bool, int);
 extern int new_vrrp_socket(vrrp_t *);

@@ -322,33 +322,50 @@ vrrp_adv_len(vrrp_t *vrrp)
 
 /* VRRP header pointer from buffer */
 vrrphdr_t *
-vrrp_get_header(sa_family_t family, char *buf, unsigned *proto)
+vrrp_get_header(sa_family_t family, char *buf, size_t len)
 {
 	struct iphdr *iph;
-	vrrphdr_t *hd = NULL;
+
+	/* Since the raw sockets only specify IPPROTO_VRRP or (for IPv4)
+	 * IPPROTO_AH, it is safe to assume IPPROTO_VRRP if it is not
+	 * IPv4 and IPPROTO_AH. */
 
 	if (family == AF_INET) {
 		iph = (struct iphdr *) buf;
 
+		/* Ensure we have received the full vrrp header */
+		if (len < sizeof(struct iphdr) ||
+		    len < (iph->ihl << 2) + sizeof(vrrphdr_t)) {
+			log_message(LOG_INFO, "IPv4 VRRP packet too short - %zd bytes", len);
+			return NULL;
+		}
+
 		/* Fill the VRRP header */
 #ifdef _WITH_VRRP_AUTH_
 		if (iph->protocol == IPPROTO_AH) {
-			*proto = IPPROTO_AH;
-			hd = (vrrphdr_t *) ((char *) iph + (iph->ihl << 2) +
-					   sizeof(ipsec_ah_t));
+			/* Make sure we have received the full vrrp header */
+			if (len < (iph->ihl << 2) + sizeof(ipsec_ah_t) + sizeof(vrrphdr_t)) {
+				log_message(LOG_INFO, "IPv4 VRRP packet with AH too short - %zd bytes", len);
+				return NULL;
+			}
+
+			return (vrrphdr_t *) ((char *) iph + (iph->ihl << 2) + sizeof(ipsec_ah_t));
 		}
-		else
 #endif
-		{
-			*proto = IPPROTO_VRRP;
-			hd = (vrrphdr_t *) ((char *) iph + (iph->ihl << 2));
-		}
-	} else if (family == AF_INET6) {
-		*proto = IPPROTO_VRRP;
-		hd = (vrrphdr_t *) buf;
+		return (vrrphdr_t *) ((char *) iph + (iph->ihl << 2));
 	}
 
-	return hd;
+	if (family == AF_INET6) {
+		/* Make sure we have received the full vrrp header */
+		if (len < sizeof(vrrphdr_t)) {
+			log_message(LOG_INFO, "IPv6 VRRP packet too short - %zd bytes", len);
+			return NULL;
+		}
+
+		return (vrrphdr_t *) buf;
+	}
+
+	return NULL;
 }
 
 static void
@@ -611,7 +628,7 @@ vrrp_in_chk_vips(vrrp_t * vrrp, ip_address_t *ipaddress, unsigned char *buffer)
  * Note: If we return anything other that VRRP_PACKET_OK, we should log the reason why
  */
 static int
-vrrp_in_chk(vrrp_t *vrrp, const vrrphdr_t * const hd, char *buffer, ssize_t buflen_ret, bool check_vip_addr)
+vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t * const hd, char *buffer, ssize_t buflen_ret, bool check_vip_addr)
 {
 	struct iphdr *ip;
 	int ihl;
@@ -633,16 +650,15 @@ vrrp_in_chk(vrrp_t *vrrp, const vrrphdr_t * const hd, char *buffer, ssize_t bufl
 	bool chksum_error;
 #endif
 
-	if (buflen_ret < 0) {
-		log_message(LOG_INFO, "recvmsg returned %zd", buflen_ret);
-		return VRRP_PACKET_KO;
-	}
 	buflen = (size_t)buflen_ret;
 
 	/* IPv4 related */
 	if (vrrp->family == AF_INET) {
 		/* To begin with, we just concern ourselves with the protocol headers */
-		expected_len = sizeof(struct iphdr) + sizeof(vrrphdr_t);
+		ip = (struct iphdr *) (buffer);
+		ihl = ip->ihl << 2;
+
+		expected_len = ihl;
 
 #ifdef _WITH_VRRP_AUTH_
 		/* Check we have an AH header if expect AH, and don't have it if not */
@@ -658,32 +674,14 @@ vrrp_in_chk(vrrp_t *vrrp, const vrrphdr_t * const hd, char *buffer, ssize_t bufl
 			return VRRP_PACKET_KO;
 		}
 
-		if (vrrp->auth_type == VRRP_AUTH_AH)
+		if (vrrp->auth_type == VRRP_AUTH_AH) {
 			expected_len += sizeof(ipsec_ah_t);
-#endif
-
-		/*
-		 * MUST verify that the received packet length is not shorter than
-		 * the VRRP header
-		 */
-		if (buflen < expected_len) {
-			log_message(LOG_INFO,
-			       "(%s) ip/vrrp header too short. %zu and expect at least %zu",
-			      vrrp->iname, buflen, expected_len);
-			++vrrp->stats->packet_len_err;
-			return VRRP_PACKET_KO;
-		}
-
-		ip = (struct iphdr *) (buffer);
-		ihl = ip->ihl << 2;
-
-#ifdef _WITH_VRRP_AUTH_
-		if (vrrp->auth_type == VRRP_AUTH_AH)
 			ah = (ipsec_ah_t *) (buffer + ihl);
+		}
 #endif
 
 		/* Now calculate expected_len to include everything */
-		expected_len += vrrp_pkt_len(vrrp) - sizeof(vrrphdr_t);
+		expected_len += vrrp_pkt_len(vrrp);
 
 		/* MUST verify that the IP TTL is 255 */
 		if (LIST_ISEMPTY(vrrp->unicast_peer) && ip->ttl != VRRP_IP_TTL) {
@@ -697,22 +695,21 @@ vrrp_in_chk(vrrp_t *vrrp, const vrrphdr_t * const hd, char *buffer, ssize_t bufl
 			return VRRP_PACKET_KO;
 		}
 	} else if (vrrp->family == AF_INET6) {
-		/*
-		 * MUST verify that the received packet length is greater than or
-		 * equal to the VRRP header
-		 */
-		if (buflen < sizeof(vrrphdr_t)) {
-			log_message(LOG_INFO,
-			       "(%s) vrrp header too short. %zu and expect at least %zu",
-			      vrrp->iname, buflen, sizeof(vrrphdr_t));
-			++vrrp->stats->packet_len_err;
-			return VRRP_PACKET_KO;
-		}
-
 		/* Set expected vrrp packet length */
-		expected_len = sizeof(vrrphdr_t) + (LIST_ISEMPTY(vrrp->vip) ? 0 : LIST_SIZE(vrrp->vip)) * sizeof(struct in6_addr);
+		expected_len = vrrp_pkt_len(vrrp);
 	} else {
 		log_message(LOG_INFO, "(%s) configured address family is %d, which is neither AF_INET or AF_INET6. This is probably a bug - please report", vrrp->iname, vrrp->family);
+		return VRRP_PACKET_KO;
+	}
+
+	/*
+	 * MUST verify that the received packet contains the complete VRRP
+	 * packet (including fixed fields, and IPvX address(es)).
+	 */
+	if (buflen < expected_len) {
+		log_message(LOG_INFO, "(%s) ip/vrrp packet too short, length %zu and expect at least %zu",
+			      vrrp->iname, buflen, expected_len);
+		++vrrp->stats->packet_len_err;
 		return VRRP_PACKET_KO;
 	}
 
@@ -1341,16 +1338,6 @@ vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 	}
 
 	++vrrp->stats->advert_sent;
-}
-
-/* Received packet processing */
-static int
-vrrp_check_packet(vrrp_t *vrrp, vrrphdr_t *hd, char *buf, ssize_t buflen, bool check_vip_addr)
-{
-	if (!buflen)
-		return VRRP_PACKET_NULL;
-
-	return vrrp_in_chk(vrrp, hd, buf, buflen, check_vip_addr);
 }
 
 /* Gratuitous ARP on each VIP */

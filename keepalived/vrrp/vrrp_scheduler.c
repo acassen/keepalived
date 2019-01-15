@@ -780,7 +780,6 @@ vrrp_dispatcher_read(sock_t * sock)
 	vrrphdr_t *hd;
 	ssize_t len = 0;
 	int prev_state = 0;
-	unsigned proto = 0;
 	struct sockaddr_storage src_addr;
 	socklen_t src_addr_len = sizeof(src_addr);
 	vrrp_t vrrp_lookup;
@@ -791,7 +790,10 @@ vrrp_dispatcher_read(sock_t * sock)
 	/* read & affect received buffer */
 	len = recvfrom(sock->fd_in, vrrp_buffer, vrrp_buffer_len, 0,
 		       (struct sockaddr *) &src_addr, &src_addr_len);
-	hd = vrrp_get_header(sock->family, vrrp_buffer, &proto);
+
+	/* Check the received data includes at least the IP, possibly the AH header and the VRRP header */
+	if (!(hd = vrrp_get_header(sock->family, vrrp_buffer, len)))
+		return sock->fd_in;
 
 	vrrp_lookup.vrid = hd->vrid;
 	vrrp = rb_search(&sock->rb_vrid, &vrrp_lookup, rb_vrid, vrrp_vrid_cmp);
