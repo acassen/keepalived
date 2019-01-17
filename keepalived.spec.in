@@ -14,7 +14,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 
 BuildRequires: openssl-devel
 # We need both of these for proper LVS support
-BuildRequires: kernel, kernel-devel
+BuildRequires: kernel-headers
 BuildRequires: libnfnetlink-devel
 BuildRequires: autoconf automake pkgconfig
 @SNMP_TRUE@BuildRequires: net-snmp-devel
