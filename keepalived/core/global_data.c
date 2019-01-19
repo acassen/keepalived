@@ -524,7 +524,7 @@ dump_global_data(FILE *fp, data_t * data)
 #ifdef _HAVE_SCHED_RT_
 	conf_write(fp, " VRRP realtime priority = %u", data->vrrp_realtime_priority);
 #if HAVE_DECL_RLIMIT_RTTIME
-	conf_write(fp, " VRRP realtime limit = %lu", data->vrrp_rlimit_rt);
+	conf_write(fp, " VRRP realtime limit = %" PRI_rlim_t, data->vrrp_rlimit_rt);
 #endif
 #endif
 #endif
@@ -534,7 +534,7 @@ dump_global_data(FILE *fp, data_t * data)
 #ifdef _HAVE_SCHED_RT_
 	conf_write(fp, " Checker realtime priority = %u", data->checker_realtime_priority);
 #if HAVE_DECL_RLIMIT_RTTIME
-	conf_write(fp, " Checker realtime limit = %lu", data->checker_rlimit_rt);
+	conf_write(fp, " Checker realtime limit = %" PRI_rlim_t, data->checker_rlimit_rt);
 #endif
 #endif
 #endif
@@ -544,7 +544,7 @@ dump_global_data(FILE *fp, data_t * data)
 #ifdef _HAVE_SCHED_RT_
 	conf_write(fp, " BFD realtime priority = %u", data->bfd_realtime_priority);
 #if HAVE_DECL_RLIMIT_RTTIME
-	conf_write(fp, " BFD realtime limit = %lu", data->bfd_rlimit_rt);
+	conf_write(fp, " BFD realtime limit = %" PRI_rlim_t, data->bfd_rlimit_rt);
 #endif
 #endif
 #endif
