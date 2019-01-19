@@ -527,7 +527,7 @@ dump_vrrp(FILE *fp, void *data)
 		conf_write(fp, "   Authentication type = none");
 #endif
 	if (vrrp->kernel_rx_buf_size)
-		conf_write(fp, "   Kernel rx buffer size = %lu", vrrp->kernel_rx_buf_size);
+		conf_write(fp, "   Kernel rx buffer size = %zu", vrrp->kernel_rx_buf_size);
 
 	if (vrrp->debug)
 		conf_write(fp, "   Debug level = %d", vrrp->debug);

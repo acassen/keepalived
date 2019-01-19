@@ -137,7 +137,7 @@ finalize(thread_t * thread)
 	for (i = 0; i < digest_length; i++)
 		printf("%02x", digest[i]);
 	if (sock_obj->content_len != -1 && sock_obj->content_len != sock_obj->rx_bytes)
-		printf ("\nWARNING - Content-Length (%ld) does not match received bytes (%zd).", sock_obj->content_len, sock_obj->rx_bytes);
+		printf ("\nWARNING - Content-Length (%zd) does not match received bytes (%zd).", sock_obj->content_len, sock_obj->rx_bytes);
 	printf("\n\n");
 
 	DBG("Finalize : [%s]\n", req->url);

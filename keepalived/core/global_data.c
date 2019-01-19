@@ -595,7 +595,7 @@ dump_global_data(FILE *fp, data_t * data)
 	else if (global_data->vrrp_rx_bufs_policy & RX_BUFS_POLICY_ADVERT)
 		strcpy(buf, " rx_bufs_policy = ADVERT");
 	else if (global_data->vrrp_rx_bufs_policy & RX_BUFS_SIZE)
-		sprintf(buf, " rx_bufs_size = %lu", global_data->vrrp_rx_bufs_size);
+		sprintf(buf, " rx_bufs_size = %zu", global_data->vrrp_rx_bufs_size);
 	if (buf[0])
 		conf_write(fp, "%s", buf);
 	conf_write(fp, " rx_bufs_multiples = %u", global_data->vrrp_rx_bufs_multiples);

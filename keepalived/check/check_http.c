@@ -1138,7 +1138,7 @@ http_handle_response(thread_t * thread, unsigned char digest[MD5_DIGEST_LENGTH]
 	/* Report a length mismatch the first time we get the specific difference */
 	if (req->content_len != SIZE_MAX && req->content_len != req->rx_bytes) {
 		if (url->len_mismatch != (ssize_t)req->content_len - (ssize_t)req->rx_bytes) {
-			log_message(LOG_INFO, "http_check for RS %s VS %s url %s%s: content_length (%lu) does not match received bytes (%lu)",
+			log_message(LOG_INFO, "http_check for RS %s VS %s url %s%s: content_length (%zu) does not match received bytes (%zu)",
 				    FMT_RS(checker->rs, checker->vs), FMT_VS(checker->vs), url->virtualhost ? url->virtualhost : "",
 				    url->path, req->content_len, req->rx_bytes);
 			url->len_mismatch = (ssize_t)req->content_len - (ssize_t)req->rx_bytes;
