@@ -19,7 +19,7 @@ endif
 
 SUBDIRS			+= bin_install
 
-EXTRA_DIST		= AUTHOR CONTRIBUTORS snap README.md
+EXTRA_DIST		= AUTHOR CONTRIBUTORS snap README.md build_setup
 
 doc_DATA		= README
 
