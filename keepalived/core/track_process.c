@@ -202,6 +202,8 @@ read_procs(list processes)
 			if (p[2] == 'Z')
 				continue;
 		}
+		else
+			comm = NULL;	/* Avoid compiler warning */
 
 		LIST_FOREACH(processes, tpr, e) {
 			if (tpr->full_command)
