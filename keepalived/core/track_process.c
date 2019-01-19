@@ -596,7 +596,7 @@ static int handle_proc_ev(int nl_sock)
 			    cpu_seq[proc_ev->cpu] != -1 &&
 			    !(cpu_seq[proc_ev->cpu] + 1 == cn_msg->seq ||
 			      (cn_msg->seq == 0 && cpu_seq[proc_ev->cpu] == UINT32_MAX)))
-				log_message(LOG_INFO, "Missed %ld messages on CPU %d", cn_msg->seq - cpu_seq[proc_ev->cpu] - 1, proc_ev->cpu);
+				log_message(LOG_INFO, "Missed %" PRIi64 " messages on CPU %d", cn_msg->seq - cpu_seq[proc_ev->cpu] - 1, proc_ev->cpu);
 
 			cpu_seq[proc_ev->cpu] = cn_msg->seq;
 
