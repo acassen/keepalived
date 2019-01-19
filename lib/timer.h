@@ -38,14 +38,14 @@ bool do_timer_check;
 #endif
 
 /* Some defines */
-#define TIMER_HZ		1000000U
+#define TIMER_HZ		1000000
 #define TIMER_HZ_FLOAT		1000000.0
-#define TIMER_CENTI_HZ		10000U
+#define TIMER_CENTI_HZ		10000
 #define TIMER_MAX_SEC		1000U
 #define TIMER_NEVER		ULONG_MAX	/* Used with time intervals in TIMER_HZ units */
 #define TIMER_DISABLED		LONG_MIN	/* Value in timeval_t tv_sec */
 
-#define	NSEC_PER_SEC		1000000000U	/* nanoseconds per second. Avoids typos by having a definition */
+#define	NSEC_PER_SEC		1000000000	/* nanoseconds per second. Avoids typos by having a definition */
 
 #ifdef _TIMER_CHECK_
 #define timer_now()	timer_now_r((__FILE__), (char *)(__FUNCTION__), (__LINE__))
