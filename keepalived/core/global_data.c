@@ -524,7 +524,7 @@ dump_global_data(FILE *fp, data_t * data)
 #ifdef _HAVE_SCHED_RT_
 	conf_write(fp, " VRRP realtime priority = %u", data->vrrp_realtime_priority);
 #if HAVE_DECL_RLIMIT_RTTIME
-	conf_write(fp, " VRRP realtime limit = %lu", data->vrrp_rlimit_rt);
+	conf_write(fp, " VRRP realtime limit = %" PRI_rlim_t, data->vrrp_rlimit_rt);
 #endif
 #endif
 #endif
@@ -534,7 +534,7 @@ dump_global_data(FILE *fp, data_t * data)
 #ifdef _HAVE_SCHED_RT_
 	conf_write(fp, " Checker realtime priority = %u", data->checker_realtime_priority);
 #if HAVE_DECL_RLIMIT_RTTIME
-	conf_write(fp, " Checker realtime limit = %lu", data->checker_rlimit_rt);
+	conf_write(fp, " Checker realtime limit = %" PRI_rlim_t, data->checker_rlimit_rt);
 #endif
 #endif
 #endif
@@ -544,7 +544,7 @@ dump_global_data(FILE *fp, data_t * data)
 #ifdef _HAVE_SCHED_RT_
 	conf_write(fp, " BFD realtime priority = %u", data->bfd_realtime_priority);
 #if HAVE_DECL_RLIMIT_RTTIME
-	conf_write(fp, " BFD realtime limit = %lu", data->bfd_rlimit_rt);
+	conf_write(fp, " BFD realtime limit = %" PRI_rlim_t, data->bfd_rlimit_rt);
 #endif
 #endif
 #endif
@@ -595,7 +595,7 @@ dump_global_data(FILE *fp, data_t * data)
 	else if (global_data->vrrp_rx_bufs_policy & RX_BUFS_POLICY_ADVERT)
 		strcpy(buf, " rx_bufs_policy = ADVERT");
 	else if (global_data->vrrp_rx_bufs_policy & RX_BUFS_SIZE)
-		sprintf(buf, " rx_bufs_size = %lu", global_data->vrrp_rx_bufs_size);
+		sprintf(buf, " rx_bufs_size = %zu", global_data->vrrp_rx_bufs_size);
 	if (buf[0])
 		conf_write(fp, "%s", buf);
 	conf_write(fp, " rx_bufs_multiples = %u", global_data->vrrp_rx_bufs_multiples);

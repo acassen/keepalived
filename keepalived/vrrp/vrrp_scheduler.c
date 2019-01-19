@@ -834,7 +834,7 @@ vrrp_dispatcher_read(sock_t * sock)
 
 		/* Save non packet data */
 		vrrp->pkt_saddr = src_addr;
-		vrrp->hop_limit = -1;           /* Default to not received */
+		vrrp->hop_limit = -1;		/* Default to not received */
 		vrrp->multicast_pkt = false;
 		for (cmsg = CMSG_FIRSTHDR(&msghdr); cmsg; cmsg = CMSG_NXTHDR(&msghdr, cmsg)) {
 			if (cmsg->cmsg_level == IPPROTO_IPV6) {

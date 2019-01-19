@@ -81,7 +81,7 @@ const hash_t hashes[hash_guard] = {
 #define HASH_INIT(sock)		((sock)->hash->init(&(sock)->context))
 #define HASH_UPDATE(sock, buf, len) \
 	if ((sock)->content_len == -1 || (sock)->rx_bytes < (sock)->content_len) \
-		((sock)->hash->update(&(sock)->context, (buf), (sock)->content_len == -1 || (unsigned int)(sock)->content_len - (sock)->rx_bytes >= len ? len : (sock)->content_len - (sock)->rx_bytes))
+		((sock)->hash->update(&(sock)->context, (buf), (sock)->content_len == -1 || (sock)->content_len - (sock)->rx_bytes >= len ? len : (sock)->content_len - (sock)->rx_bytes))
 #define HASH_FINAL(sock, digest) \
 	((sock)->hash->final((digest), &(sock)->context))
 
@@ -137,7 +137,7 @@ finalize(thread_t * thread)
 	for (i = 0; i < digest_length; i++)
 		printf("%02x", digest[i]);
 	if (sock_obj->content_len != -1 && sock_obj->content_len != sock_obj->rx_bytes)
-		printf ("\nWARNING - Content-Length (%ld) does not match received bytes (%ld).", sock_obj->content_len, sock_obj->rx_bytes);
+		printf ("\nWARNING - Content-Length (%zd) does not match received bytes (%zd).", sock_obj->content_len, sock_obj->rx_bytes);
 	printf("\n\n");
 
 	DBG("Finalize : [%s]\n", req->url);
@@ -207,7 +207,7 @@ http_process_stream(SOCK * sock_obj, int r)
 					dump_buffer(sock_obj->extracted, (size_t)r, stdout, 0);
 				}
 				memmove(sock_obj->buffer, sock_obj->extracted, (size_t)r);
-				HASH_UPDATE(sock_obj, sock_obj->buffer, (ssize_t)r);
+				HASH_UPDATE(sock_obj, sock_obj->buffer, r);
 				sock_obj->rx_bytes += r;
 				r = 0;
 			}
@@ -227,7 +227,7 @@ http_process_stream(SOCK * sock_obj, int r)
 	} else if (sock_obj->size) {
 		if (req->verbose)
 			dump_buffer(sock_obj->buffer, (size_t)r, stdout, 0);
-		HASH_UPDATE(sock_obj, sock_obj->buffer, (ssize_t)sock_obj->size);
+		HASH_UPDATE(sock_obj, sock_obj->buffer, sock_obj->size);
 		sock_obj->rx_bytes += sock_obj->size;
 		sock_obj->size = 0;
 	}

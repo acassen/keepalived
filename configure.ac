@@ -718,24 +718,6 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   )])
 CFLAGS="$SAV_CFLAGS"
 
-dnl - Check type of rlim_t for printf()
-SAV_CFLAGS="$CFLAGS"
-CFLAGS="$CFLAGS -Wformat -Werror"
-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-  #include <stdio.h>
-  #include <sys/resource.h>
-  int
-  main(int argc, char **argv)
-  {
-    rlim_t val = 23U;
-    printf("%llu", val);
-  }
-  ]])],
-  [AC_DEFINE([PRI_rlim_t], ["llu"], [Define printf format specifier for rlim_t])],
-  [AC_DEFINE([PRI_rlim_t], ["lu"], [Define printf format specifier for rlim_t])],
-  )
-CFLAGS="$SAV_CFLAGS"
-
 dnl - Do we want to override dynamic/static linking?
 AS_IF([test "$enable_dynamic_linking"],
   [
@@ -1987,6 +1969,27 @@ else
   PID_DIR=/var
 fi
 AC_SUBST([PID_DIR])
+
+dnl - Check type of rlim_t for printf() - this check needs to be late on
+dnl - since _FILE_OFFSET_BITS (set when using netsnmp) alters sizeof(rlim_t)
+SAV_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS $KA_CFLAGS -Wformat -Werror"
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+  #include <stdio.h>
+  #include <sys/resource.h>
+  int
+  main(int argc, char **argv)
+  {
+    rlim_t val = 23U;
+    printf("%llu %d %p", val, argc, argv);
+
+    return 0;
+  }
+  ]])],
+  [AC_DEFINE([PRI_rlim_t], ["llu"], [Define printf format specifier for rlim_t])],
+  [AC_DEFINE([PRI_rlim_t], ["lu"], [Define printf format specifier for rlim_t])],
+  )
+CFLAGS="$SAV_CFLAGS"
 
 dnl ---[ check for sphinx-build executable ]----
 if test -z "$SPHINXBUILD"; then
