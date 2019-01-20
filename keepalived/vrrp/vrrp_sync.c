@@ -96,7 +96,7 @@ vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
 
 	if (LIST_SIZE(vgroup->vrrp_instances) <= 1) {
 		/* The sync group will be removed by the calling function if it has no members */
-		report_config_error(CONFIG_GENERAL_ERROR, "Sync group %s has only %d virtual router(s) - %s", vgroup->gname, LIST_SIZE(vgroup->vrrp_instances),
+		report_config_error(CONFIG_GENERAL_ERROR, "Sync group %s has %s virtual router(s) - %s", vgroup->gname, LIST_SIZE(vgroup->vrrp_instances) ? "only 1" : "no",
 				LIST_SIZE(vgroup->vrrp_instances) ? "this probably isn't what you want" : "removing");
 
 		if (!LIST_SIZE(vgroup->vrrp_instances))
