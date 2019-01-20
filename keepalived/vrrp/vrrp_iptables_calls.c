@@ -508,8 +508,10 @@ get_version(unsigned int* version)
 	socklen_t size = sizeof(req_version);
 	int res;
 
-	if (sockfd < 0)
+	if (sockfd < 0) {
 		log_message(LOG_INFO, "Can't open socket to ipset.");
+		return -1;
+	}
 
 #if !HAVE_DECL_SOCK_CLOEXEC
 	if (fcntl(sockfd, F_SETFD, FD_CLOEXEC) == -1) {
@@ -575,7 +577,11 @@ get_set_byname(const char *setname, struct xt_set_info *info, unsigned family, b
 
 	info->index = IPSET_INVALID_ID;
 
-	sockfd = get_version(&version);
+	if ((sockfd = get_version(&version)) == -1) {
+		info->index = IPSET_INVALID_ID;
+		return;
+	}
+
 #if defined IP_SET_OP_GET_FNAME		/* Since Linux 3.13 */
 	req.version = version;
 	req.op = IP_SET_OP_GET_FNAME;
