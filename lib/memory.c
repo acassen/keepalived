@@ -234,7 +234,13 @@ keepalived_malloc(size_t size, const char *file, const char *function, int line)
 
 	buf = zalloc(size + sizeof (unsigned long));
 
+#ifndef _NO_UNALIGNED_ACCESS_
 	*(unsigned long *) ((char *) buf + size) = size + CHECK_VAL;
+#else
+	unsigned long check_val = CHECK_VAL;
+
+	memcpy((unsigned char *)buf + size, (unsigned char *)&check_val, sizeof(check_val));
+#endif
 
 	entry = get_free_alloc_entry();
 
@@ -276,6 +282,9 @@ keepalived_free_realloc_common(void *buffer, size_t size, const char *file, cons
 	unsigned long check;
 	MEMCHECK *entry, *entry2, *le;
 	MEMCHECK search = {.ptr = buffer};
+#ifdef _NO_UNALIGNED_ACCESS_
+	unsigned long check_val = CHECK_VAL;
+#endif
 
 	/* If nullpointer remember */
 	if (buffer == NULL) {
@@ -349,7 +358,11 @@ keepalived_free_realloc_common(void *buffer, size_t size, const char *file, cons
 	}
 
 	check = entry->size + CHECK_VAL;
+#ifndef _NO_UNALIGNED_ACCESS_
 	if (*(unsigned long *)((char *)buffer + entry->size) != check) {
+#else
+	if (memcmp((unsigned char *)buffer + entry->size, (unsigned char *)&check_val, sizeof(check_val))) {
+#endif
 		entry2 = get_free_alloc_entry();
 
 		*entry2 = *entry;
@@ -442,7 +455,11 @@ keepalived_free_realloc_common(void *buffer, size_t size, const char *file, cons
 		       buffer, size, file, line, function);
 #endif
 
+#ifndef _NO_UNALIGNED_ACCESS_
 	*(unsigned long *) ((char *) buffer + size) = size + CHECK_VAL;
+#else
+	memcpy((unsigned char *)buffer + size, (unsigned char *)&check_val, sizeof(check_val));
+#endif
 
 	if (entry->ptr != buffer) {
 		rb_erase(&entry->t, &alloc_list);

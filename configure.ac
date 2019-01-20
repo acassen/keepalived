@@ -564,6 +564,57 @@ AC_SUBST(KA_LDFLAGS)
 AC_SUBST(KA_LIBS)
 # AC_SUBST(KA_LIBTOOLFLAGS)
 
+# Check if unaligned memory access is supported (for ARM not supported prior to ARMv6 processors)
+AC_MSG_CHECKING([for unaligned memory access])
+AC_RUN_IFELSE(
+  [
+    AC_LANG_PROGRAM(
+      [[
+        #include <limits.h>
+        #include <endian.h>
+
+        #if __BYTE_ORDER == __BIG_ENDIAN
+        #if ULONG_MAX == 0xffffffffffffffffUL
+        #define CHK_VAL       0x1234567890abcdefUL
+        #elif ULONG_MAX == 0xffffffffUL
+        #define CHK_VAL       0x12345678UL
+        #else
+        #define CHK_VAL       0x1234UL
+        #endif
+        #elif __BYTE_ORDER == __LITTLE_ENDIAN
+        #if ULONG_MAX == 0xffffffffffffffffUL
+        #define CHK_VAL       0xefcdab9078563412UL
+        #elif ULONG_MAX == 0xffffffffUL
+        #define CHK_VAL       0x78563412UL
+        #else
+        #define CHK_VAL       0x3412UL
+        #endif
+        #else
+        #error Neither big nor little endian - unsupported
+        #endif
+      ]],
+      [[
+        unsigned long arr[2] = { 0, 0 };
+        unsigned char *p = (unsigned char *)arr + 1;
+        unsigned i;
+
+        *(unsigned long *)p = CHK_VAL;
+
+        return !!(arr[0] == CHK_VAL || p[0] != 0x12 || p[1] != 0x34 || p[2] != 0x56);
+      ]]
+    )
+  ],
+  [AC_MSG_RESULT([yes])],
+  [
+    AC_MSG_RESULT([no])
+    AC_DEFINE([_NO_UNALIGNED_ACCESS_], [ 1 ], [Define to 1 if unaligned memory access not supported])
+  ],
+  [
+    AC_MSG_RESULT([unknown])
+    AC_MSG_WARN([Cannot determine if unaligned access supported. Assuming yes.])
+  ]
+ )
+
 # Checks for libraries.
 dnl clock_gettime() required -lt before glibc 2.17
 AC_MSG_CHECKING([for clock_gettime() requires -lrt])
@@ -1088,7 +1139,7 @@ AS_IF([test .$enable_iptables != .no],
           break
         ])
       CPPFLAGS="$SAV_CPPFLAGS"
-    
+
       if test $USE_LIBIPTC = Yes; then
         add_pkg_config([--static libiptc], [IPTC])
         LIBS="$IPTC_LIBS"
@@ -1135,7 +1186,7 @@ AS_IF([test .$enable_iptables != .no],
           get_lib_name([xtables], [xtables_insmod])
           AC_DEFINE_UNQUOTED([XTABLES_LIB_NAME], [ "$LIB_NAME" ], [Define the xtables library name])
         fi
-    
+
         dnl ----[Check for ipset libraries]----
         SAV_CPPFLAGS="$CPPFLAGS"
         CPPFLAGS="$CPPFLAGS $kernelinc"
@@ -1148,7 +1199,7 @@ AS_IF([test .$enable_iptables != .no],
           fi
           SAV_LIBS=$LIBS
           LIBS="$IPTC_LIBS $IPSET_LIBS"
-    
+
           AC_CHECK_LIB(ipset, ipset_session_init,
     	[
     	  USE_LIBIPSET=Yes
@@ -1157,11 +1208,11 @@ AS_IF([test .$enable_iptables != .no],
     	      USE_LIBIPSET=No
     	      break
     	    ])
-    
+
     	  if test $USE_LIBIPSET = Yes; then
     	    AC_CHECK_LIB(xtables, xtables_insmod, [], [USE_LIBIPSET=No])
     	  fi
-    
+
     	  if test $USE_LIBIPSET = Yes; then
     	    dnl -- Need to use <libipset/linux_ip_set.h> for <linux/netfilter/xt_set.h> prior to Linux 3.4
     	    EXTRA_INCLUDE=
@@ -1178,7 +1229,7 @@ AS_IF([test .$enable_iptables != .no],
     	      ]
     	    )
     	  fi
-    
+
     	  if test $USE_LIBIPSET = Yes; then
     	    AC_DEFINE([_HAVE_LIBIPSET_], [ 1 ], [Define to 1 if have ipset library])
     	    $PKG_CONFIG --exists libipset
@@ -1200,7 +1251,7 @@ AS_IF([test .$enable_iptables != .no],
     	    else
     	      add_config_opt([LIBIPSET])
     	    fi
-    
+
     	    dnl -- xt_set_info_match first introduced in Linux 2.6.39 (initial implementation of ipsets)
     	    dnl -- xt_set_info_match_v1 declared since Linux 3.1
     	    AC_CHECK_MEMBER([struct xt_set_info_match_v1.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V1], [ 1 ], [Define to 1 if have struct xt_set_info_match_v1])], [],
@@ -1220,14 +1271,14 @@ AS_IF([test .$enable_iptables != .no],
     		$EXTRA_INCLUDE
     		#include <linux/netfilter/xt_set.h>
     	      ])
-    
+
     	    dnl - ipset type iface introduced in Linux 3.1
     	    AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
     	      #include <linux/netfilter/ipset/ip_set.h>
     	      int main(void) { int var = IPSET_ATTR_IFACE; }
     	      ]])],
     	      [AC_DEFINE([HAVE_IPSET_ATTR_IFACE], [ 1 ], [Define to 1 if ipset supports iface type])])
-    
+
     	    dnl - The include guard for <linux/netfilter/ipset/ip_set.h> has the leading _UAPI remove when
     	    dnl - the source code is processed to produce the actual header files.
     	    dnl - Unfortunately libipset provides a copy of the kernel headers, as <libipset/linux_ip_set*.h>,
@@ -1254,13 +1305,13 @@ AS_IF([test .$enable_iptables != .no],
     		 [AC_DEFINE([LIBIPSET_H_ADD_IP_SET_H_GUARD], [1], [Define to add guard _IP_SET_H before including <libipset/linux_ip_set.h>])])
     	      ])
     	  fi
-    
+
     	  if test $USE_LIBIPSET = Yes; then
     	    AC_MSG_CHECKING([for libipset version 7 or later])
     	    AC_COMPILE_IFELSE([AC_LANG_SOURCE(
     	      [[
     	        #include <libipset/session.h>
-    
+
     		void test_func(void)
     		{
     		  ipset_session_init(NULL, NULL);
@@ -1278,12 +1329,12 @@ AS_IF([test .$enable_iptables != .no],
     	])
           LIBS="$SAV_LIBS"
         fi
-    
+
         dnl -- XT_EXTENSION_MAXNAMELEN not defined until Linux 2.6.35
         AC_CHECK_DECL([XT_EXTENSION_MAXNAMELEN], [],
           [AC_DEFINE([XT_EXTENSION_MAXNAMELEN], [ (XT_FUNCTION_MAXNAMELEN - 1) ], [Define if <linux/netfilter/x_tables.h> doesnt define it])],
           [#include <linux/netfilter/x_tables.h>])
-    
+
         CPPFLAGS="$SAV_CPPFLAGS"
       fi
     fi
@@ -1940,7 +1991,7 @@ dnl ----[ check for realtime scheduling support ]----
 SAV_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -D_GNU_SOURCE"
 dnl -- from Linux ?.?.?
-AC_CHECK_DECLS([SCHED_RR], 
+AC_CHECK_DECLS([SCHED_RR],
   [
     SCHED_RT_SUPPORT=Yes
     AC_DEFINE([_HAVE_SCHED_RT_], [ 1 ], [Define to 1 if have SCHED_RR])
