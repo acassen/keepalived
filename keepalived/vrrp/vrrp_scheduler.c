@@ -1078,95 +1078,94 @@ vrrp_script_child_thread(thread_t * thread)
 }
 
 /* Delayed ARP/NA thread */
+static int
+vrrp_arpna_send(vrrp_t *vrrp, list l, timeval_t *n)
+{
+	ip_address_t *ipaddress;
+	interface_t *ifp;
+	element e;
+
+	if (LIST_ISEMPTY(l))
+		return -1;
+
+	LIST_FOREACH(l, ipaddress, e) {
+		if (!ipaddress->garp_gna_pending)
+			continue;
+
+		if (!ipaddress->set) {
+			ipaddress->garp_gna_pending = false;
+			continue;
+		}
+
+		ifp = IF_BASE_IFP(ipaddress->ifp);
+
+		/* This should never happen */
+		if (!ifp->garp_delay) {
+			ipaddress->garp_gna_pending = false;
+			continue;
+		}
+
+		/* IPv4 handling */
+		if (!IP_IS6(ipaddress)) {
+			if (timercmp(&time_now, &ifp->garp_delay->garp_next_time, >=)) {
+				send_gratuitous_arp_immediate(ifp, ipaddress);
+				ipaddress->garp_gna_pending = false;
+			} else {
+				vrrp->garp_pending = true;
+				if (timercmp(&ifp->garp_delay->garp_next_time, n, <))
+					*n = ifp->garp_delay->garp_next_time;
+			}
+			continue;
+		}
+
+		/* IPv6 handling */
+		if (timercmp(&time_now, &ifp->garp_delay->gna_next_time, >=)) {
+			ndisc_send_unsolicited_na_immediate(ifp, ipaddress);
+			ipaddress->garp_gna_pending = false;
+		} else {
+			vrrp->gna_pending = true;
+			if (timercmp(&ifp->garp_delay->gna_next_time, n, <))
+				*n = ifp->garp_delay->gna_next_time;
+		}
+	}
+
+	return 0;
+}
+
 int
 vrrp_arp_thread(thread_t *thread)
 {
-	element e, a;
-	list l;
-	ip_address_t *ipaddress;
+	vrrp_t *vrrp;
+	element e;
 	timeval_t next_time = {
 		.tv_sec = INT_MAX	/* We're never going to delay this long - I hope! */
 	};
-	interface_t *ifp;
-	vrrp_t *vrrp;
-	enum {
-		VIP,
-		EVIP
-	} i;
 
 	set_time_now();
 
-	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
-
+	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
 		if (!vrrp->garp_pending && !vrrp->gna_pending)
 			continue;
 
 		vrrp->garp_pending = false;
 		vrrp->gna_pending = false;
 
-		if (vrrp->state != VRRP_STATE_MAST ||
-		    !vrrp->vipset)
+		if (vrrp->state != VRRP_STATE_MAST || !vrrp->vipset)
 			continue;
 
-		for (i = VIP; i <= EVIP; i++) {
-			l = (i == VIP) ? vrrp->vip : vrrp->evip;
-
-			if (!LIST_ISEMPTY(l)) {
-				for (a = LIST_HEAD(l); a; ELEMENT_NEXT(a)) {
-					ipaddress = ELEMENT_DATA(a);
-					if (!ipaddress->garp_gna_pending)
-						continue;
-					if (!ipaddress->set) {
-						ipaddress->garp_gna_pending = false;
-						continue;
-					}
-
-					ifp = IF_BASE_IFP(ipaddress->ifp);
-
-					/* This should never happen */
-					if (!ifp->garp_delay) {
-						ipaddress->garp_gna_pending = false;
-						continue;
-					}
-
-					if (!IP_IS6(ipaddress)) {
-						if (timercmp(&time_now, &ifp->garp_delay->garp_next_time, >=)) {
-							send_gratuitous_arp_immediate(ifp, ipaddress);
-							ipaddress->garp_gna_pending = false;
-						}
-						else {
-							vrrp->garp_pending = true;
-							if (timercmp(&ifp->garp_delay->garp_next_time, &next_time, <))
-								next_time = ifp->garp_delay->garp_next_time;
-						}
-					}
-					else {
-						if (timercmp(&time_now, &ifp->garp_delay->gna_next_time, >=)) {
-							ndisc_send_unsolicited_na_immediate(ifp, ipaddress);
-							ipaddress->garp_gna_pending = false;
-						}
-						else {
-							vrrp->gna_pending = true;
-							if (timercmp(&ifp->garp_delay->gna_next_time, &next_time, <))
-								next_time = ifp->garp_delay->gna_next_time;
-						}
-					}
-				}
-			}
-		}
+		vrrp_arpna_send(vrrp, vrrp->vip, &next_time);
+		vrrp_arpna_send(vrrp, vrrp->evip, &next_time);
 	}
 
 	if (next_time.tv_sec != INT_MAX) {
 		/* Register next timer tracker */
 		garp_next_time = next_time;
-
 		garp_thread = thread_add_timer(thread->master, vrrp_arp_thread, NULL,
-						 timer_long(timer_sub_now(next_time)));
+					       timer_long(timer_sub_now(next_time)));
+		return 0;
 	}
-	else
-		garp_thread = NULL;
 
+	garp_thread = NULL;
 	return 0;
 }
 
