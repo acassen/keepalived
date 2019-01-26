@@ -1,3 +1,116 @@
+2019-01-26 Alexandre Cassen <acassen@keepalived.org>
+	* keepalived-2.0.12
+	* Documentation related.
+	  Remove keepalived.conf.SYNOPSIS content to make a pointer to manpage.
+	  Update README manifest to reflect actual Keepalived goal and features.
+	* Improve error message if process events connector not enabled in
+	  kernel.
+	* Add option to disable track-process functionality
+	  Issue #1099 reported that their kernel did not support the proc events
+	  connector, and it would therefore be helpful to have an option to build
+	  keepalived without the track-process functionality.
+	  This commit adds the --disable-track-process configure option.
+	* Fix vrrp instances going to fault state when have virtual routes
+	  If an interface going down caused a vrrp instance to go to fault
+	  state, and the vrrp instance also had virtual routes, the state
+	  of the vrrp instance would be set to backup when the deletion of
+	  the virtual route was detected. This commit ensures that the vrrp
+	  instance stays in fault state until the interface is brought up
+	  again.
+	* Remove Red Hat Linux 9 and RH Enterprise Linux 3 from spec file.
+	  Red Hat Linux 9 and Red Hat Enterprise Linux 3 are both based on
+	  Linux 2.4, which is no longer supported by keepalived. The options
+	  in the spec file for Reh Hat Linux 9 have twice caused people to
+	  specify wrong options to configure when trying to build keepalived,
+	  so the options are removed to i) avoid confusion and ii) they are
+	  not longer relevant.
+	* Add global option vrrp_min_garp.
+	  By default keepalived sends 5 gratuitous ARP/NA messages after
+	  transitioning to master, and 5 more 5 seconds later. This isn't
+	  necessary with modern switches, and so if the vrrp_min_garp option
+	  is set, only one gratuitious ARP/NA message is sent after transition
+	  to master, and no repeat messages are sent 4 seconds later.
+	* Standardise definition of _INCLUDE_UNUSED_CODE_
+	* Remove out of date comment re VRRP over IPv6.
+	* Correct typo in keepalived.conf.5.
+	* Directly use structure sizes for packet header lengths.
+	* vrrp_state_fault_rx() is not used.
+	  Wrap the function in conditional compilation so it is not compiled
+	* Convert so list loops to use LIST_FOREACH.
+	* Don't recalculate vrrp packet header address.
+	  vrrp_get_header() calculates the address of the vrrp header in a
+	  received packet, but it was being recalculated in vrrp_in_chk().
+	  This commit passes the already calculated address to vrrp_in_chk().
+	* Ensure a received packet has an AH header if and only if AH auth.
+	  Ensure that a received packet has an AH header if we expect AH
+	  authentication, and doesn't have an AH header if we don't expect
+	  AH authentication.
+	* Ensure all protocol headers received before return pointer to vrrp header
+	  vrrp_get_header() returns a pointer to the vrrp header, but it now returns
+	  NULL if insufficient data has been received to include all the (IP,
+	  possibly AH, and VRRP) headers (this does not include the VIPs in the VRRP
+	  packet).
+	  This means that when a pointer to the VRRP header is returned, all fields in
+	  all protocol headers can safely be accessed.
+	* Add check of received IPv6 hop count in multicast adverts
+	  The VRRP RFC requires that IPv6 hop count MUST be checked to be 255,
+	  just as the TTL for IPv6 must be 255. Previously that wasn't being
+	  checked, since IPv6 raw sockets don't provide access to the IPv6
+	  header.
+	  Using recvmsg() rather than recvfrom(), and setting socket option
+	  IPV6_RECVHOPLIMIT allows keepalived to receive the hop count as
+	  ancillary data, and that can now be checked.
+	* Improve reading from vrrp receive sockets.
+	  Previously no check was made of the return value from recvfrom()/
+	  recvmsg(). This meant than an error could occur (e.g. EINTR), or no
+	  data might be returned, and keepalived would still attempt to process
+	  the receive buffer as though data had been received.
+	* Enhance and streamline checking of validity of received VRRP packet
+	  This includes checking that a packet is multicast, unless unicast is
+	  expected in which case it is checked for unicast, ensuring that if
+	  AH authentication is used, the next header protocol is VRRP.
+	  The sequence of some checks is revised to ensure that the fields being
+	  checked are valid to be accessed prior to accessing them, e.g. check
+	  that the packet is VRRP version 2 before checking the authentication.
+	* Stop clearing receive buffer before receiving VRRP packets.
+	  This is no longer necessary now that the appropriate checks are
+	  made of the return status of recvmsg(), and also that the checks
+	  of received packet length and packet headers now do all necessary
+	  checks.
+	* Add compile time checks for IPV6_RECVHOPLIMIT/IPV6_RECVPKTINFO
+	  support.
+	* Update keepalived.spec.in build-requires.
+	  The kernel package required for building keepalived is kernel-headers
+	  not kernel-devel. Also, it is superfluous to have package kernel in
+	  the build-requires!
+	* Add missing file (build.setup) to tarball.
+	* Fix calculating print format to rlim_t in configure.ac.
+	* Fix compiler warnings on 32 bit systems re HASH_UPDATE.
+	  Removing all the casts stopped the warnings.
+	* Use PRI_rlim_t when printing rlim_t types.
+	* Use %zd/%zu for ssize_t/size_t to avoid warnings on 32 bit systems.
+	* Fix some space/tab formatting.
+	* Stop declaring some timer definitions unsigned to stop compiler
+	  warnings.
+	  TIMER_HZ, TIMER_CENTI_HZ, NSEC_PER_SEC were causing some compiler warnings
+	  on some systems due to being defined with a 'U' unsigned suffix. Removing
+	  the unsigned specifier stopped the compiler warnings.
+	* Fix compiler warning due to incorrect format specifier.
+	  An int64_t should use % PRIi64 and not %ld
+	* Stop an uninitialized variable compiler warning.
+	* Fix MEM_CHECK debugging on processors without unaligned memory
+	  access.
+	* Don't attempt to use unopened socket for getting ipset version.
+	* Tidy up an error message.
+	* vrrp: make vrrp_dispatcher_read() async while catching error.
+	  During investigations we decided to update previous patch to resubmit
+	  into I/O MUX on read error. It will make read procedure I/O MUX freindly
+	  by removing potential sync operation potentially leading to a global
+	  I/O MUX desync. We aggreed, the situation is really and very exceptionnal
+	  but could happen.
+	* vrrp: vrrp_arp_thread split.
+	  Split the function for maintainability purpose.
+
 2019-01-06 Alexandre Cassen <acassen@keepalived.org>
 	* keepalived-2.0.11
 	* Fix segfault while shutting down when SNMP activity occurs.
