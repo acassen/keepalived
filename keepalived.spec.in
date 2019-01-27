@@ -77,6 +77,7 @@ CONFIG_OPTS=
 @WITH_DBUS_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-dbus"
 @INIT_SYSTEMD_TRUE@CONFIG_OPTS="$CONFIG_OPTS --with-init=systemd"
 @WITH_REGEX_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-regex"
+@WITH_BFD_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-bfd"
 autoreconf -f -i
 %configure $CONFIG_OPTS
 %{__make} %{?_smp_mflags} STRIP=/bin/true
