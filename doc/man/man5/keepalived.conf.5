@@ -139,8 +139,8 @@ and
 # Create pid files in /var/run/keepalived
 \fBuse_pid_dir\fR
 
-# Poll to detect media link failure otherwise attempt to use
-# ETHTOOL or MII interface
+# Poll to detect media link failure using ETHTOOL, MII or ioctl interface
+# otherwise uses netlink interface.
 \fBlinkbeat_use_polling\fR
 
 # Time for main process to allow for child processes to exit on termination
@@ -1355,6 +1355,9 @@ The syntax for garp_group is :
     # Set socket receive buffer size (see global_defs
     # vrrp_rx_bufs_policy for explanation)
     \fBkernel_rx_buf_size\fR
+
+    # Set use of linkbeat for the interface of this VRRP instance
+    \fBlinkbeat_use_polling\fR
 }
 .fi
 .SH LVS CONFIGURATION
