@@ -748,6 +748,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   main(int argc, char **argv)
   {
     int val = test_func(3);
+    return val;
   }
   ]])],
   [],
@@ -762,6 +763,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
     main(int argc, char **argv)
     {
       int val = test_func(3);
+      return val;
     }
     ]])],
     [AC_DEFINE([__always_inline], [__inline __attribute__ ((__always_inline__))], [Define  __always_inline if libc does not define it])],
