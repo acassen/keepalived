@@ -127,8 +127,8 @@ ssize_t send_gratuitous_arp_immediate(interface_t *ifp, ip_address_t *ipaddress)
 		struct ether_header *eth;
 
 		eth = (struct ether_header *) garp_buffer;
-		memset(eth->ether_dhost, 0xFF, ETH_ALEN);
-		memcpy(eth->ether_shost, hwaddr, ETH_ALEN);
+		memcpy(eth->ether_dhost, ifp->hw_addr_bcast, ETH_ALEN < ifp->hw_addr_len ? ETH_ALEN : ifp->hw_addr_len);
+		memcpy(eth->ether_shost, hwaddr, ETH_ALEN < ifp->hw_addr_len ? ETH_ALEN : ifp->hw_addr_len);
 		eth->ether_type = htons(ETHERTYPE_ARP);
 		arph = (struct arphdr *) (garp_buffer + ETHER_HDR_LEN);
 	}

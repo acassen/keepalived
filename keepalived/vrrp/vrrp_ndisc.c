@@ -148,6 +148,9 @@ ndisc_send_unsolicited_na_immediate(interface_t *ifp, ip_address_t *ipaddress)
 	char *nd_opt_lladdr = (char *) ((char *)nd_opt_h + sizeof(struct nd_opt_hdr));
 	char *lladdr = (char *) IF_HWADDR(ipaddress->ifp);
 
+	/* This needs updating to support IPv6 over Infiniband
+	 * (see vrrp_arp.c) */
+
 	/* Ethernet header:
 	 * Destination ethernet address MUST use specific address Mapping
 	 * as specified in rfc2464.7 Address Mapping for
