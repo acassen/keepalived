@@ -1862,6 +1862,9 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 	interface_t *new_master_ifp;
 #endif
 	uint32_t old_mtu;
+	size_t hw_addr_len;
+	char mac_buf[3 * sizeof(ifp->hw_addr)];
+	char old_mac_buf[3 * sizeof(ifp->hw_addr)];
 
 	if (!(h->nlmsg_type == RTM_NEWLINK || h->nlmsg_type == RTM_DELLINK))
 		return 0;
@@ -1911,6 +1914,50 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 				thread_add_event(master, recreate_vmac_thread, ifp, 0);
 #endif
 		} else {
+			if (tb[IFLA_ADDRESS]) {
+				hw_addr_len = RTA_PAYLOAD(tb[IFLA_ADDRESS]);
+
+				if (ifp->hw_addr_len != hw_addr_len || memcmp(ifp->hw_addr, RTA_DATA(tb[IFLA_ADDRESS]), hw_addr_len)) {
+					if (hw_addr_len > sizeof(ifp->hw_addr)) {
+						log_message(LOG_ERR,
+							    "MAC %s for %s is too large: %zu",
+							    get_mac_string(IFLA_ADDRESS), ifp->ifname, hw_addr_len);
+					} else {
+						if (__test_bit(LOG_DETAIL_BIT, &debug))
+							format_mac_buf(old_mac_buf, sizeof old_mac_buf, ifp->hw_addr, ifp->hw_addr_len);
+						ifp->hw_addr_len = hw_addr_len;
+						memcpy(ifp->hw_addr, RTA_DATA(tb[IFLA_ADDRESS]), hw_addr_len);
+						if (__test_bit(LOG_DETAIL_BIT, &debug)) {
+							format_mac_buf(mac_buf, sizeof mac_buf, ifp->hw_addr, ifp->hw_addr_len);
+							log_message(LOG_INFO, "(%s) MAC %s changed from %s to %s",
+								    ifp->ifname, get_mac_string(IFLA_ADDRESS), old_mac_buf, mac_buf);
+						}
+					}
+				}
+			}
+
+			if (tb[IFLA_BROADCAST]) {
+				hw_addr_len = RTA_PAYLOAD(tb[IFLA_BROADCAST]);
+
+				if (ifp->hw_addr_len && ifp->hw_addr_len != hw_addr_len)
+					log_message(LOG_ERR, "MAC broadcast address length %zu does not match MAC address length %zu", hw_addr_len, ifp->hw_addr_len);
+				else if(memcmp(ifp->hw_addr_bcast, RTA_DATA(tb[IFLA_BROADCAST]), hw_addr_len)) {
+					if (hw_addr_len > sizeof(ifp->hw_addr_bcast)) {
+						log_message(LOG_ERR, "MAC %s for %s is too large: %zu",
+							    get_mac_string(IFLA_BROADCAST), ifp->ifname, hw_addr_len);
+					} else {
+						if (__test_bit(LOG_DETAIL_BIT, &debug))
+							format_mac_buf(old_mac_buf, sizeof old_mac_buf, ifp->hw_addr_bcast, ifp->hw_addr_len);
+						ifp->hw_addr_len = hw_addr_len;
+						memcpy(ifp->hw_addr_bcast, RTA_DATA(tb[IFLA_BROADCAST]), hw_addr_len);
+						if (__test_bit(LOG_DETAIL_BIT, &debug)) {
+							format_mac_buf(mac_buf, sizeof mac_buf, ifp->hw_addr_bcast, ifp->hw_addr_len);
+							log_message(LOG_INFO, "(%s) MAC %s changed from %s to %s", ifp->ifname, get_mac_string(IFLA_BROADCAST), old_mac_buf, mac_buf);
+						}
+					}
+				}
+			}
+
 			if (strcmp(ifp->ifname, name)) {
 				/* The name can change, so handle that here */
 				log_message(LOG_INFO, "Interface name has changed from %s to %s", ifp->ifname, name);

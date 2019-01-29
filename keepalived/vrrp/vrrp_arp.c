@@ -27,6 +27,7 @@
 #include <net/ethernet.h>
 #include <net/if_arp.h>
 #include <linux/if_packet.h>
+#include <errno.h>
 
 /* local includes */
 #include "logger.h"
@@ -79,8 +80,10 @@ static ssize_t send_arp(ip_address_t *ipaddress, ssize_t pack_len)
 	memset(&sll, 0, sizeof(sll));
 	((struct sockaddr_large_ll *)&sll)->sll_family = AF_PACKET;
 	((struct sockaddr_large_ll *)&sll)->sll_hatype = ifp->hw_type;
-	((struct sockaddr_large_ll *)&sll)->sll_halen = ifp->hw_addr_len;
 	((struct sockaddr_large_ll *)&sll)->sll_ifindex = (int) ifp->ifindex;
+
+	/* The values in sll_addr and sll_halen appear to be ignored */
+	((struct sockaddr_large_ll *)&sll)->sll_halen = ifp->hw_addr_len;
 	memcpy(((struct sockaddr_large_ll *)&sll)->sll_addr,
 	       ifp->hw_addr_bcast, ifp->hw_addr_len);
 
@@ -93,7 +96,7 @@ static ssize_t send_arp(ip_address_t *ipaddress, ssize_t pack_len)
 	len = sendto(garp_fd, garp_buffer, pack_len, 0,
 		     (struct sockaddr *)&sll, sizeof(sll));
 	if (len < 0)
-		log_message(LOG_INFO, "Error sending gratuitous ARP on %s for %s",
+		log_message(LOG_INFO, "Error %d sending gratuitous ARP on %s for %s", errno,
 			    IF_NAME(ipaddress->ifp), inet_ntop2(ipaddress->u.sin.sin_addr.s_addr));
 	return len;
 }
@@ -210,16 +213,13 @@ void gratuitous_arp_init(void)
 	if (garp_buffer)
 		return;
 
-	/* Initalize shared buffer */
-	garp_buffer = (char *)MALLOC(GARP_BUFFER_SIZE);
-
 	/* Create the socket descriptor */
 	garp_fd = socket(PF_PACKET, SOCK_RAW | SOCK_CLOEXEC, htons(ETH_P_RARP));
 
-	if (garp_fd > 0)
+	if (garp_fd >= 0)
 		log_message(LOG_INFO, "Registering gratuitous ARP shared channel");
 	else {
-		log_message(LOG_INFO, "Error while registering gratuitous ARP shared channel");
+		log_message(LOG_INFO, "Error %d while registering gratuitous ARP shared channel", errno);
 		return;
 	}
 
@@ -227,14 +227,20 @@ void gratuitous_arp_init(void)
 	if (set_sock_flags(garp_fd, F_SETFD, FD_CLOEXEC))
 		log_message(LOG_INFO, "Unable to set CLOEXEC on gratuitous ARP socket");
 #endif
+
+	/* Initalize shared buffer */
+	garp_buffer = (char *)MALLOC(GARP_BUFFER_SIZE);
 }
+
 void gratuitous_arp_close(void)
 {
-	if (!garp_buffer)
-		return;
+	if (garp_buffer) {
+		FREE(garp_buffer);
+		garp_buffer = NULL;
+	}
 
-	FREE(garp_buffer);
-	garp_buffer = NULL;
-	close(garp_fd);
-	garp_fd = -1;
+	if (garp_fd != -1) {
+		close(garp_fd);
+		garp_fd = -1;
+	}
 }

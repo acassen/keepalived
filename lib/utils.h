@@ -181,6 +181,7 @@ extern uint32_t inet_sockaddrip4(struct sockaddr_storage *);
 extern int inet_sockaddrip6(struct sockaddr_storage *, struct in6_addr *);
 extern int inet_inaddrcmp(int, const void *, const void *);
 extern int inet_sockaddrcmp(const struct sockaddr_storage *, const struct sockaddr_storage *);
+extern void format_mac_buf(char *, size_t, unsigned char *, size_t);
 extern char *get_local_name(void);
 extern bool string_equal(const char *, const char *);
 extern FILE *fopen_safe(const char *, const char *);

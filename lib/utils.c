@@ -741,6 +741,17 @@ inet_cidrtomask(uint8_t cidr)
 }
 #endif
 
+void
+format_mac_buf(char *op, size_t op_len, unsigned char *addr, size_t addr_len)
+{
+	size_t i;
+	char *buf_end = op + op_len;
+
+	for (i = 0; i < addr_len; i++)
+		op += snprintf(op, buf_end - op, "%.2x%s",
+		      addr[i], i < addr_len -1 ? ":" : "");
+}
+
 /* Getting localhost official canonical name */
 char *
 get_local_name(void)
