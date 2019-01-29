@@ -2085,11 +2085,7 @@ open_vrrp_send_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 	}
 
 	/* Create and init socket descriptor */
-	fd = socket(family, SOCK_RAW | SOCK_CLOEXEC
-#if HAVE_DECL_SOCK_NONBLOCK
-						    | SOCK_NONBLOCK
-#endif
-								   , proto);
+	fd = socket(family, SOCK_RAW | SOCK_CLOEXEC | SOCK_NONBLOCK, proto);
 	if (fd < 0) {
 		log_message(LOG_INFO, "cant open raw socket. errno=%d", errno);
 		return -1;
@@ -2150,11 +2146,7 @@ open_vrrp_read_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 	int on = 1;
 
 	/* open the socket */
-	fd = socket(family, SOCK_RAW | SOCK_CLOEXEC
-#if HAVE_DECL_SOCK_NONBLOCK
-						    | SOCK_NONBLOCK
-#endif
-								   , proto);
+	fd = socket(family, SOCK_RAW | SOCK_CLOEXEC | SOCK_NONBLOCK, proto);
 	if (fd < 0) {
 		int err = errno;
 		log_message(LOG_INFO, "cant open raw socket. errno=%d", err);
