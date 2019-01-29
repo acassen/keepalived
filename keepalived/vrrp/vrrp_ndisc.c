@@ -54,25 +54,28 @@ ndisc_send_na(ip_address_t *ipaddress)
 	struct sockaddr_ll sll;
 	ssize_t len;
 	char addr_str[INET6_ADDRSTRLEN] = "";
+	interface_t *ifp = ipaddress->ifp;
 
 	/* Build the dst device */
 	memset(&sll, 0, sizeof (sll));
 	sll.sll_family = AF_PACKET;
-	memcpy(sll.sll_addr, IF_HWADDR(ipaddress->ifp), ETH_ALEN);
-	sll.sll_halen = ETH_ALEN;
-	sll.sll_ifindex = (int)IF_INDEX(ipaddress->ifp);
+	sll.sll_ifindex = (int)IF_INDEX(ifp);
+
+	/* The values in sll_ha_type, sll_addr and sll_halen appear to be ignored */
+	sll.sll_hatype = ifp->hw_type;
+	sll.sll_halen = ifp->hw_addr_len;
+	memcpy(sll.sll_addr, IF_HWADDR(ifp), ifp->hw_addr_len);
 
 	if (__test_bit(LOG_DETAIL_BIT, &debug)) {
 		inet_ntop(AF_INET6, &ipaddress->u.sin6_addr, addr_str, sizeof(addr_str));
 		log_message(LOG_INFO, "Sending unsolicited Neighbour Advert on %s for %s",
-			    IF_NAME(ipaddress->ifp), addr_str);
-
+			    IF_NAME(ifp), addr_str);
 	}
 
 	/* Send packet */
 	len = sendto(ndisc_fd, ndisc_buffer,
 		     ETHER_HDR_LEN + sizeof(struct ip6hdr) + sizeof(struct nd_neighbor_advert) +
-		     sizeof(struct nd_opt_hdr) + ETH_ALEN, 0,
+		     sizeof(struct nd_opt_hdr) + ifp->hw_addr_len, 0,
 		     (struct sockaddr *) &sll, sizeof (sll));
 	if (len < 0) {
 		if (!addr_str[0])
