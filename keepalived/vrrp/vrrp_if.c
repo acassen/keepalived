@@ -444,10 +444,7 @@ dump_if(FILE *fp, void *data)
 {
 	interface_t *ifp = data;
 	char addr_str[INET6_ADDRSTRLEN];
-	char *mac_buf;
-	size_t mac_buf_len;
-	char *p;
-	size_t i;
+	char mac_buf[3 * sizeof ifp->hw_addr];
 
 	conf_write(fp, " Name = %s", ifp->ifname);
 	conf_write(fp, "   index = %u", ifp->ifindex);
@@ -457,22 +454,11 @@ dump_if(FILE *fp, void *data)
 	conf_write(fp, "   IPv6 address = %s", ifp->sin6_addr.s6_addr32[0] ? addr_str : "(none)");
 
 	if (ifp->hw_addr_len) {
-		mac_buf_len = 3 * ifp->hw_addr_len;
-		mac_buf = MALLOC(mac_buf_len);
-
-		for (i = 0, p = mac_buf; i < ifp->hw_addr_len; i++)
-			p += snprintf(p, mac_buf_len - (p - mac_buf), "%.2x%s",
-				      ifp->hw_addr[i], i < ifp->hw_addr_len -1 ? ":" : "");
-
+		format_mac_buf(mac_buf, sizeof mac_buf, ifp->hw_addr, ifp->hw_addr_len);
 		conf_write(fp, "   MAC = %s", mac_buf);
 
-		for (i = 0, p = mac_buf; i < ifp->hw_addr_len; i++)
-			p += snprintf(p, mac_buf_len - (p - mac_buf), "%.2x%s",
-				      ifp->hw_addr_bcast[i], i < ifp->hw_addr_len - 1 ? ":" : "");
-
+		format_mac_buf(mac_buf, sizeof mac_buf, ifp->hw_addr_bcast, ifp->hw_addr_len);
 		conf_write(fp, "   MAC broadcast = %s", mac_buf);
-
-		FREE(mac_buf);
 	}
 
 	conf_write(fp, "   State = %sUP, %sRUNNING%s%s%s%s%s%s", ifp->ifi_flags & IFF_UP ? "" : "not ", ifp->ifi_flags & IFF_RUNNING ? "" : "not ",
