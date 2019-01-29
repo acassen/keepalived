@@ -214,7 +214,7 @@ void gratuitous_arp_init(void)
 		return;
 
 	/* Create the socket descriptor */
-	garp_fd = socket(PF_PACKET, SOCK_RAW | SOCK_CLOEXEC, htons(ETH_P_RARP));
+	garp_fd = socket(PF_PACKET, SOCK_RAW | SOCK_CLOEXEC | SOCK_NONBLOCK, htons(ETH_P_RARP));
 
 	if (garp_fd >= 0)
 		log_message(LOG_INFO, "Registering gratuitous ARP shared channel");
@@ -226,6 +226,10 @@ void gratuitous_arp_init(void)
 #if !HAVE_DECL_SOCK_CLOEXEC
 	if (set_sock_flags(garp_fd, F_SETFD, FD_CLOEXEC))
 		log_message(LOG_INFO, "Unable to set CLOEXEC on gratuitous ARP socket");
+#endif
+#if !HAVE_DECL_SOCK_NONBLOCK
+	if (set_sock_flags(garp_fd, F_SETFL, O_NONBLOCK))
+		log_message(LOG_INFO, "Unable to set NONBLOCK on gratuitous ARP socket");
 #endif
 
 	/* Initalize shared buffer */

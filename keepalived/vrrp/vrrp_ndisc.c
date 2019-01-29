@@ -254,7 +254,7 @@ ndisc_init(void)
 		return;
 
 	/* Create the socket descriptor */
-	ndisc_fd = socket(PF_PACKET, SOCK_RAW | SOCK_CLOEXEC, htons(ETH_P_IPV6));
+	ndisc_fd = socket(PF_PACKET, SOCK_RAW | SOCK_CLOEXEC | SOCK_NONBLOCK, htons(ETH_P_IPV6));
 
 	if (ndisc_fd >= 0)
 		log_message(LOG_INFO, "Registering gratuitous NDISC shared channel");
@@ -264,7 +264,12 @@ ndisc_init(void)
 	}
 
 #if !HAVE_DECL_SOCK_CLOEXEC
-	set_sock_flags(ndisc_fd, F_SETFD, FD_CLOEXEC);
+	if (set_sock_flags(ndisc_fd, F_SETFD, FD_CLOEXEC))
+		log_message(LOG_INFO, "Unable to set CLOEXEC on gratuitous NA socket");
+#endif
+#if !HAVE_DECL_SOCK_NONBLOCK
+	if (set_sock_flags(garp_fd, F_SETFL, O_NONBLOCK))
+		log_message(LOG_INFO, "Unable to set NONBLOCK on gratuitous NA socket");
 #endif
 
 	/* Initalize shared buffer */
