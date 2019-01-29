@@ -29,6 +29,7 @@
 #include <netinet/icmp6.h>
 #include <netinet/in.h>
 #include <stdint.h>
+#include <errno.h>
 
 /* local includes */
 #include "logger.h"
@@ -80,8 +81,8 @@ ndisc_send_na(ip_address_t *ipaddress)
 	if (len < 0) {
 		if (!addr_str[0])
 			inet_ntop(AF_INET6, &ipaddress->u.sin6_addr, addr_str, sizeof(addr_str));
-		log_message(LOG_INFO, "VRRP: Error sending ndisc unsolicited neighbour advert on %s for %s",
-			    IF_NAME(ipaddress->ifp), addr_str);
+		log_message(LOG_INFO, "Error %d sending ndisc unsolicited neighbour advert on %s for %s",
+			    errno, IF_NAME(ifp), addr_str);
 	}
 }
 
@@ -252,30 +253,35 @@ ndisc_init(void)
 	if (ndisc_buffer)
 		return;
 
-	/* Initalize shared buffer */
-	ndisc_buffer = (char *) MALLOC(ETHER_HDR_LEN + sizeof(struct ip6hdr) +
-				       sizeof(struct nd_neighbor_advert) + sizeof(struct nd_opt_hdr) + ETH_ALEN);
-
 	/* Create the socket descriptor */
 	ndisc_fd = socket(PF_PACKET, SOCK_RAW | SOCK_CLOEXEC, htons(ETH_P_IPV6));
+
+	if (ndisc_fd >= 0)
+		log_message(LOG_INFO, "Registering gratuitous NDISC shared channel");
+	else {
+		log_message(LOG_INFO, "Error %d while registering gratuitous NDISC shared channel", errno);
+		return;
+	}
+
 #if !HAVE_DECL_SOCK_CLOEXEC
 	set_sock_flags(ndisc_fd, F_SETFD, FD_CLOEXEC);
 #endif
 
-	if (ndisc_fd > 0)
-		log_message(LOG_INFO, "Registering gratuitous NDISC shared channel");
-	else
-		log_message(LOG_INFO, "Error while registering gratuitous NDISC shared channel");
+	/* Initalize shared buffer */
+	ndisc_buffer = (char *) MALLOC(ETHER_HDR_LEN + sizeof(struct ip6hdr) +
+				       sizeof(struct nd_neighbor_advert) + sizeof(struct nd_opt_hdr) + sizeof(((interface_t *)NULL)->hw_addr));
 }
 
 void
 ndisc_close(void)
 {
-	if (!ndisc_buffer)
-		return;
+	if (ndisc_buffer) {
+		FREE(ndisc_buffer);
+		ndisc_buffer = NULL;
+	}
 
-	FREE(ndisc_buffer);
-	ndisc_buffer = NULL;
-	close(ndisc_fd);
-	ndisc_fd = -1;
+	if (ndisc_fd != -1) {
+		close(ndisc_fd);
+		ndisc_fd = -1;
+	}
 }
