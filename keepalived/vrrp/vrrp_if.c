@@ -304,7 +304,7 @@ if_ioctl_flags(const int fd, interface_t *ifp)
 	memset(&ifr, 0, sizeof (struct ifreq));
 	strcpy(ifr.ifr_name, ifp->ifname);
 	if (ioctl(fd, SIOCGIFFLAGS, &ifr) < 0)
-		return LINK_UP;
+		return (errno != ENODEV) ? LINK_UP : LINK_DOWN;
 
 	return FLAGS_UP(ifr.ifr_flags) ? LINK_UP : LINK_DOWN;
 }
@@ -531,6 +531,29 @@ if_add_queue(interface_t * ifp)
 	list_add(if_queue, ifp);
 }
 
+static bool
+init_linkbeat_status(int fd, interface_t *ifp)
+{
+	int status;
+	bool if_up;
+
+	if ((status = if_mii_probe(fd, ifp->ifname)) >= 0) {
+		ifp->lb_type = LB_MII;
+		if_up = !!status;
+	} else if ((status = if_ethtool_probe(fd, ifp->ifname)) >= 0) {
+		ifp->lb_type = LB_ETHTOOL;
+		if_up = !!status;
+	} else {
+		ifp->lb_type = LB_IOCTL;
+		if_up = true;
+	}
+
+	if (if_up)
+		if_up = if_ioctl_flags(fd, ifp);
+
+	return if_up;
+}
+
 static int
 if_linkbeat_refresh_thread(thread_t * thread)
 {
@@ -539,17 +562,26 @@ if_linkbeat_refresh_thread(thread_t * thread)
 
 	was_up = IF_FLAGS_UP(ifp);
 
-	if (IF_MII_SUPPORTED(ifp))
-		if_up = if_mii_probe(linkbeat_fd, ifp->ifname);
-	else if (IF_ETHTOOL_SUPPORTED(ifp))
-		if_up = if_ethtool_probe(linkbeat_fd, ifp->ifname);
+	if (!ifp->ifindex) {
+		if_up = false;
+	} else {
+		if (!ifp->lb_type) {
+			/* If this is a new interface, we need to find linkbeat type */
+			if_up = init_linkbeat_status(linkbeat_fd, ifp);
+		} else {
+			if (IF_MII_SUPPORTED(ifp))
+				if_up = if_mii_probe(linkbeat_fd, ifp->ifname);
+			else if (IF_ETHTOOL_SUPPORTED(ifp))
+				if_up = if_ethtool_probe(linkbeat_fd, ifp->ifname);
 
-	/*
-	 * update ifp->flags to get the new IFF_RUNNING status.
-	 * Some buggy drivers need this...
-	 */
-	if (if_up)
-		if_up = if_ioctl_flags(linkbeat_fd, ifp);
+			/*
+			 * update ifp->flags to get the new IFF_RUNNING status.
+			 * Some buggy drivers need this...
+			 */
+			if (if_up)
+				if_up = if_ioctl_flags(linkbeat_fd, ifp);
+		}
+	}
 
 	ifp->ifi_flags = if_up ? IFF_UP | IFF_RUNNING : 0;
 
@@ -570,7 +602,6 @@ init_interface_linkbeat(void)
 {
 	interface_t *ifp;
 	element e;
-	int status;
 	bool linkbeat_in_use = false;
 	bool if_up;
 
@@ -579,13 +610,19 @@ init_interface_linkbeat(void)
 			continue;
 
 		/* Don't poll an interface that we aren't using */
-		if (!ifp->tracking_vrrp)
+		if (!ifp->tracking_vrrp) {
+			log_message(LOG_INFO, "Turning off linkbeat for %s since not used for tracking", ifp->ifname);
+			ifp->linkbeat_use_polling = false;
 			continue;
+		}
 
 #ifdef _HAVE_VRRP_VMAC_
 		/* netlink messages work for vmacs */
-		if (ifp->vmac_type)
+		if (ifp->vmac_type) {
+			log_message(LOG_INFO, "Turning off linkbeat for %s since netlink works for vmacs", ifp->ifname);
+			ifp->linkbeat_use_polling = false;
 			continue;
+		}
 #endif
 
 		if (linkbeat_fd == -1) {
@@ -599,24 +636,14 @@ init_interface_linkbeat(void)
 		}
 
 		linkbeat_in_use = true;
-		ifp->ifi_flags = IFF_UP | IFF_RUNNING;
+		if (!ifp->ifindex) {
+			/* Interface doesn't exist yet */
+			ifp->ifi_flags = 0;
+		} else {
+			if_up = init_linkbeat_status(linkbeat_fd, ifp);
 
-		if ((status = if_mii_probe(linkbeat_fd, ifp->ifname)) >= 0) {
-			ifp->lb_type = LB_MII;
-			if_up = !!status;
-		} else if ((status = if_ethtool_probe(linkbeat_fd, ifp->ifname)) >= 0) {
-			ifp->lb_type = LB_ETHTOOL;
-			if_up = !!status;
+			ifp->ifi_flags = if_up ? IFF_UP | IFF_RUNNING : 0;
 		}
-		else {
-			ifp->lb_type = LB_IOCTL;
-			if_up = true;
-		}
-
-		if (if_up)
-			if_up = if_ioctl_flags(linkbeat_fd, ifp);
-
-		ifp->ifi_flags = if_up ? IFF_UP | IFF_RUNNING : 0;
 
 		/* Register new monitor thread */
 		thread_add_timer(master, if_linkbeat_refresh_thread, ifp, POLLING_DELAY);
