@@ -29,6 +29,7 @@
 #include <netinet/icmp6.h>
 #include <netinet/in.h>
 #include <stdint.h>
+#include <errno.h>
 
 /* local includes */
 #include "logger.h"
@@ -54,31 +55,34 @@ ndisc_send_na(ip_address_t *ipaddress)
 	struct sockaddr_ll sll;
 	ssize_t len;
 	char addr_str[INET6_ADDRSTRLEN] = "";
+	interface_t *ifp = ipaddress->ifp;
 
 	/* Build the dst device */
 	memset(&sll, 0, sizeof (sll));
 	sll.sll_family = AF_PACKET;
-	memcpy(sll.sll_addr, IF_HWADDR(ipaddress->ifp), ETH_ALEN);
-	sll.sll_halen = ETH_ALEN;
-	sll.sll_ifindex = (int)IF_INDEX(ipaddress->ifp);
+	sll.sll_ifindex = (int)IF_INDEX(ifp);
+
+	/* The values in sll_ha_type, sll_addr and sll_halen appear to be ignored */
+	sll.sll_hatype = ifp->hw_type;
+	sll.sll_halen = ifp->hw_addr_len;
+	memcpy(sll.sll_addr, IF_HWADDR(ifp), ifp->hw_addr_len);
 
 	if (__test_bit(LOG_DETAIL_BIT, &debug)) {
 		inet_ntop(AF_INET6, &ipaddress->u.sin6_addr, addr_str, sizeof(addr_str));
 		log_message(LOG_INFO, "Sending unsolicited Neighbour Advert on %s for %s",
-			    IF_NAME(ipaddress->ifp), addr_str);
-
+			    IF_NAME(ifp), addr_str);
 	}
 
 	/* Send packet */
 	len = sendto(ndisc_fd, ndisc_buffer,
 		     ETHER_HDR_LEN + sizeof(struct ip6hdr) + sizeof(struct nd_neighbor_advert) +
-		     sizeof(struct nd_opt_hdr) + ETH_ALEN, 0,
+		     sizeof(struct nd_opt_hdr) + ifp->hw_addr_len, 0,
 		     (struct sockaddr *) &sll, sizeof (sll));
 	if (len < 0) {
 		if (!addr_str[0])
 			inet_ntop(AF_INET6, &ipaddress->u.sin6_addr, addr_str, sizeof(addr_str));
-		log_message(LOG_INFO, "VRRP: Error sending ndisc unsolicited neighbour advert on %s for %s",
-			    IF_NAME(ipaddress->ifp), addr_str);
+		log_message(LOG_INFO, "Error %d sending ndisc unsolicited neighbour advert on %s for %s",
+			    errno, IF_NAME(ifp), addr_str);
 	}
 }
 
@@ -143,6 +147,9 @@ ndisc_send_unsolicited_na_immediate(interface_t *ifp, ip_address_t *ipaddress)
 	struct nd_opt_hdr *nd_opt_h = (struct nd_opt_hdr *) ((char *)ndh + sizeof(struct nd_neighbor_advert));
 	char *nd_opt_lladdr = (char *) ((char *)nd_opt_h + sizeof(struct nd_opt_hdr));
 	char *lladdr = (char *) IF_HWADDR(ipaddress->ifp);
+
+	/* This needs updating to support IPv6 over Infiniband
+	 * (see vrrp_arp.c) */
 
 	/* Ethernet header:
 	 * Destination ethernet address MUST use specific address Mapping
@@ -249,30 +256,40 @@ ndisc_init(void)
 	if (ndisc_buffer)
 		return;
 
-	/* Initalize shared buffer */
-	ndisc_buffer = (char *) MALLOC(ETHER_HDR_LEN + sizeof(struct ip6hdr) +
-				       sizeof(struct nd_neighbor_advert) + sizeof(struct nd_opt_hdr) + ETH_ALEN);
-
 	/* Create the socket descriptor */
-	ndisc_fd = socket(PF_PACKET, SOCK_RAW | SOCK_CLOEXEC, htons(ETH_P_IPV6));
+	ndisc_fd = socket(PF_PACKET, SOCK_RAW | SOCK_CLOEXEC | SOCK_NONBLOCK, htons(ETH_P_IPV6));
+
+	if (ndisc_fd >= 0)
+		log_message(LOG_INFO, "Registering gratuitous NDISC shared channel");
+	else {
+		log_message(LOG_INFO, "Error %d while registering gratuitous NDISC shared channel", errno);
+		return;
+	}
+
 #if !HAVE_DECL_SOCK_CLOEXEC
-	set_sock_flags(ndisc_fd, F_SETFD, FD_CLOEXEC);
+	if (set_sock_flags(ndisc_fd, F_SETFD, FD_CLOEXEC))
+		log_message(LOG_INFO, "Unable to set CLOEXEC on gratuitous NA socket");
+#endif
+#if !HAVE_DECL_SOCK_NONBLOCK
+	if (set_sock_flags(garp_fd, F_SETFL, O_NONBLOCK))
+		log_message(LOG_INFO, "Unable to set NONBLOCK on gratuitous NA socket");
 #endif
 
-	if (ndisc_fd > 0)
-		log_message(LOG_INFO, "Registering gratuitous NDISC shared channel");
-	else
-		log_message(LOG_INFO, "Error while registering gratuitous NDISC shared channel");
+	/* Initalize shared buffer */
+	ndisc_buffer = (char *) MALLOC(ETHER_HDR_LEN + sizeof(struct ip6hdr) +
+				       sizeof(struct nd_neighbor_advert) + sizeof(struct nd_opt_hdr) + sizeof(((interface_t *)NULL)->hw_addr));
 }
 
 void
 ndisc_close(void)
 {
-	if (!ndisc_buffer)
-		return;
+	if (ndisc_buffer) {
+		FREE(ndisc_buffer);
+		ndisc_buffer = NULL;
+	}
 
-	FREE(ndisc_buffer);
-	ndisc_buffer = NULL;
-	close(ndisc_fd);
-	ndisc_fd = -1;
+	if (ndisc_fd != -1) {
+		close(ndisc_fd);
+		ndisc_fd = -1;
+	}
 }

@@ -1358,41 +1358,43 @@ if test .${enable_nftables} != .no; then
   CPPFLAGS="$CPPFLAGS $kernelinc"
   AC_CHECK_HEADERS([linux/netfilter/nf_tables.h], [],
    [
+     AS_IF([test .${enable_nftables} = .yes], [AC_MSG_ERROR([nftables header files missing])])
      USE_NFTABLES=No
-     AC_MSG_ERROR([nftables header files missing])
    ])
   CPPFLAGS="$SAV_CPPFLAGS"
 
-  $PKG_CONFIG --exists libnftnl
-  if test $? -ne 0; then
-    USE_NFTABLES=No
-    AC_MSG_WARN([libnftnl missing])
-  fi
-  $PKG_CONFIG --exists libmnl
-  if test $? -ne 0; then
-    USE_NFTABLES=No
-    AC_MSG_WARN([libmnl missing])
-  fi
+  if test $USE_NFTABLES = Yes; then
+    $PKG_CONFIG --exists libnftnl
+    if test $? -ne 0; then
+      USE_NFTABLES=No
+      AC_MSG_WARN([libnftnl missing])
+    fi
+    $PKG_CONFIG --exists libmnl
+    if test $? -ne 0; then
+      USE_NFTABLES=No
+      AC_MSG_WARN([libmnl missing])
+    fi
 
-  if test $USE_NFTABLES != No; then
-    add_pkg_config([libnftnl])
-    add_pkg_config([libmnl])
-    AC_DEFINE([_WITH_NFTABLES_], [ 1 ], [Define to 1 if want nftables support])
-    add_config_opt([NFTABLES])
-    AC_MSG_CHECKING([whether NFTNL_EXPR_LOOKUP_FLAGS is defined])
-    AC_LINK_IFELSE([AC_LANG_SOURCE([[
-        #include <libnftnl/expr.h>
-        int main(void)
-        {
+    if test $USE_NFTABLES = Yes; then
+      add_pkg_config([libnftnl])
+      add_pkg_config([libmnl])
+      AC_DEFINE([_WITH_NFTABLES_], [ 1 ], [Define to 1 if want nftables support])
+      add_config_opt([NFTABLES])
+      AC_MSG_CHECKING([whether NFTNL_EXPR_LOOKUP_FLAGS is defined])
+      AC_LINK_IFELSE([AC_LANG_SOURCE([[
+          #include <libnftnl/expr.h>
+          int main(void)
+          {
 	int i = NFTNL_EXPR_LOOKUP_FLAGS;
 	return 0;
-        }
-      ]])], [
-        AC_MSG_RESULT(yes)
-        AC_DEFINE([HAVE_NFTNL_EXPR_LOOKUP_FLAGS], [ 1 ], [Define to 1 if NFTNL_EXPR_LOOKUP_FLAGS defined])
-      ],[
-        AC_MSG_RESULT(no)
-      ])
+          }
+        ]])], [
+          AC_MSG_RESULT(yes)
+          AC_DEFINE([HAVE_NFTNL_EXPR_LOOKUP_FLAGS], [ 1 ], [Define to 1 if NFTNL_EXPR_LOOKUP_FLAGS defined])
+        ],[
+          AC_MSG_RESULT(no)
+        ])
+    fi
   fi
 fi
 AM_CONDITIONAL([NFTABLES], [test $USE_NFTABLES = Yes])
@@ -1625,12 +1627,14 @@ if test "$enable_vrrp" != no; then
   dnl -- Check for process events connector - Linux v2.6.15
   AS_IF([test .$enable_track_process != .no],
     [
-      AC_CHECK_HEADERS([linux/cn_proc.h],
-        [
-           add_system_opt([CN_PROC])
-           HAVE_CN_PROC=Yes
-           AC_DEFINE([_WITH_CN_PROC_], [ 1 ], [Define to 1 if have linux/cn_proc.h and track-process not disabled])
-        ])
+      add_system_opt([CN_PROC])
+      HAVE_CN_PROC=Yes
+      AC_DEFINE([_WITH_CN_PROC_], [ 1 ], [Define to 1 if have linux/cn_proc.h and track-process not disabled])
+      dnl -- PROC_EVENT_SID since Linux v2.6.32
+      dnl -- PROC_EVENT_PTRACE since Linux v3.1
+      dnl -- PROC_EVENT_COMM since Linux v3.2
+      dnl -- PROC_EVENT_COREDUMP since Linux v3.10
+      AC_CHECK_DECLS([PROC_EVENT_SID, PROC_EVENT_PTRACE, PROC_EVENT_COMM, PROC_EVENT_COREDUMP], [], [], [[#include <linux/cn_proc.h>]])
     ],
     [add_config_opt([DISABLE_TRACK_PROCESS])])
 fi
@@ -2341,6 +2345,7 @@ if test ${VRRP_SUPPORT} = Yes; then
   echo "Use VRRP VMAC            : ${MACVLAN_SUPPORT}"
   echo "Use VRRP authentication  : ${VRRP_AUTH_SUPPORT}"
   echo "With ip rules/routes     : ${FIB_ROUTING_SUPPORT}"
+  echo "With track_process       : ${HAVE_CN_PROC}"
 fi
 echo "Use BFD Framework        : ${BFD_SUPPORT}"
 echo "SNMP vrrp support        : ${SNMP_VRRP_SUPPORT}"

@@ -127,8 +127,8 @@ ssize_t send_gratuitous_arp_immediate(interface_t *ifp, ip_address_t *ipaddress)
 		struct ether_header *eth;
 
 		eth = (struct ether_header *) garp_buffer;
-		memset(eth->ether_dhost, 0xFF, ETH_ALEN);
-		memcpy(eth->ether_shost, hwaddr, ETH_ALEN);
+		memcpy(eth->ether_dhost, ifp->hw_addr_bcast, ETH_ALEN < ifp->hw_addr_len ? ETH_ALEN : ifp->hw_addr_len);
+		memcpy(eth->ether_shost, hwaddr, ETH_ALEN < ifp->hw_addr_len ? ETH_ALEN : ifp->hw_addr_len);
 		eth->ether_type = htons(ETHERTYPE_ARP);
 		arph = (struct arphdr *) (garp_buffer + ETHER_HDR_LEN);
 	}
@@ -214,7 +214,7 @@ void gratuitous_arp_init(void)
 		return;
 
 	/* Create the socket descriptor */
-	garp_fd = socket(PF_PACKET, SOCK_RAW | SOCK_CLOEXEC, htons(ETH_P_RARP));
+	garp_fd = socket(PF_PACKET, SOCK_RAW | SOCK_CLOEXEC | SOCK_NONBLOCK, htons(ETH_P_RARP));
 
 	if (garp_fd >= 0)
 		log_message(LOG_INFO, "Registering gratuitous ARP shared channel");
@@ -226,6 +226,10 @@ void gratuitous_arp_init(void)
 #if !HAVE_DECL_SOCK_CLOEXEC
 	if (set_sock_flags(garp_fd, F_SETFD, FD_CLOEXEC))
 		log_message(LOG_INFO, "Unable to set CLOEXEC on gratuitous ARP socket");
+#endif
+#if !HAVE_DECL_SOCK_NONBLOCK
+	if (set_sock_flags(garp_fd, F_SETFL, O_NONBLOCK))
+		log_message(LOG_INFO, "Unable to set NONBLOCK on gratuitous ARP socket");
 #endif
 
 	/* Initalize shared buffer */

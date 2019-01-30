@@ -676,6 +676,12 @@ If full_command is used (equivalent to pgrep -f), /proc/PID/cmdline is used, but
 any updates to cmdline will not be detected (a process shouldn't normally change it,
 although it is possible with great care, for example systemd).
 .PP
+Prior to Linux v3.2 track_process will not support detection of changes to a process
+name, since the kernel did not notify changes of process name prior to 3.2. Most
+processes do not change their process name, but, for example, firefox forks processes
+that change their process name to "Web Content". The process name referred to here is
+the contents of /proc/PID/comm.
+.PP
 Quorum is the number of matching processes that must be run for an OK status.
 .PP
 Delay might be useful if it anticipated that a process may be reloaded (stopped and
