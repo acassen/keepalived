@@ -59,7 +59,7 @@
 #include "logger.h"
 
 
-/* #define  LOG_ALL_PROCESS_EVENTS */
+/* #define LOG_ALL_PROCESS_EVENTS */
 
 static thread_t *read_thread;
 static thread_t *reload_thread;
@@ -352,6 +352,7 @@ check_process_termination(pid_t pid)
 	FREE(tpi);
 }
 
+#if HAVE_DECL_PROC_EVENT_COMM
 static void
 check_process_comm_change(pid_t pid, char *comm)
 {
@@ -386,6 +387,7 @@ check_process_comm_change(pid_t pid, char *comm)
 
 	check_process(pid, comm);
 }
+#endif
 
 /*
  * connect to netlink
@@ -693,8 +695,8 @@ static int handle_proc_ev(int nl_sock)
 				check_process(proc_ev->event_data.exec.process_pid, NULL);
 				break;
 #if HAVE_DECL_PROC_EVENT_COMM		/* Since Linux v3.2 */
-			/* NOTE: currently track_process will not be enabled of PROC_EVENT_COMM
-			 * is not supported. */
+			/* NOTE: not having PROC_EVENT_COMM means that changes to /proc/PID/comm
+			 * will not be detected */
 			case PROC_EVENT_COMM:
 				check_process_comm_change(proc_ev->event_data.comm.process_pid, proc_ev->event_data.comm.comm);
 				break;

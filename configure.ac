@@ -1625,17 +1625,14 @@ if test "$enable_vrrp" != no; then
   dnl -- Check for process events connector - Linux v2.6.15
   AS_IF([test .$enable_track_process != .no],
     [
-      dnl -- Since Linux v3.2
-      AC_CHECK_DECLS([PROC_EVENT_COMM],
-        [
-           add_system_opt([CN_PROC])
-           HAVE_CN_PROC=Yes
-           AC_DEFINE([_WITH_CN_PROC_], [ 1 ], [Define to 1 if have linux/cn_proc.h and track-process not disabled])
-	   dnl -- PROC_EVENT_SID since Linux v2.6.32, PROC_EVENT_PTRACE since Linux v3.1, PROC_EVENT_COREDUMP since v3.10
-	   AC_CHECK_DECLS([PROC_EVENT_SID, PROC_EVENT_PTRACE, PROC_EVENT_COREDUMP], [], [], [[#include <linux/cn_proc.h>]])
-        ],
-	[],
-	[[#include <linux/cn_proc.h>]])
+      add_system_opt([CN_PROC])
+      HAVE_CN_PROC=Yes
+      AC_DEFINE([_WITH_CN_PROC_], [ 1 ], [Define to 1 if have linux/cn_proc.h and track-process not disabled])
+      dnl -- PROC_EVENT_SID since Linux v2.6.32
+      dnl -- PROC_EVENT_PTRACE since Linux v3.1
+      dnl -- PROC_EVENT_COMM since Linux v3.2
+      dnl -- PROC_EVENT_COREDUMP since Linux v3.10
+      AC_CHECK_DECLS([PROC_EVENT_SID, PROC_EVENT_PTRACE, PROC_EVENT_COMM, PROC_EVENT_COREDUMP], [], [], [[#include <linux/cn_proc.h>]])
     ],
     [add_config_opt([DISABLE_TRACK_PROCESS])])
 fi
