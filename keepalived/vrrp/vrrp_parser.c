@@ -162,19 +162,35 @@ static void
 alloc_linkbeat_interface(vector_t *strvec)
 {
 	interface_t *ifp;
-
-	if (vector_size(strvec) > 1)
-		report_config_error(CONFIG_GENERAL_ERROR, "extra characters %s in linkbeat interface", FMT_STR_VSLOT(strvec, 1));
-
+	int lb_type = 0;
 
 	if (!(ifp = if_get_by_ifname(vector_slot(strvec, 0), global_data->dynamic_interfaces))) {
 		report_config_error(CONFIG_FATAL, "unknown interface %s specified for linkbeat interface", FMT_STR_VSLOT(strvec, 0));
 		return;
 	}
 
-	ifp->linkbeat_use_polling = true;
+#ifdef _HAVE_VRRP_VMAC_
+	/* netlink messages work for vmacs */
+	if (ifp->vmac_type) {
+		log_message(LOG_INFO, "(%s): linkbeat not supported for vmacs since netlink works", ifp->ifname);
+		return;
+	}
+#endif
 
-	log_message(LOG_INFO, "LB i/f %s", FMT_STR_VSLOT(strvec, 0));
+	if (vector_size(strvec) > 1) {
+		if (!strcmp(strvec_slot(strvec, 1), "MII"))
+			lb_type = LB_MII;
+		else if (!strcmp(strvec_slot(strvec, 1), "ETHTOOL"))
+			lb_type = LB_ETHTOOL;
+		else if (!strcmp(strvec_slot(strvec, 1), "IOCTL"))
+			lb_type = LB_IOCTL;
+
+		if (!lb_type || vector_size(strvec) > 2)
+			report_config_error(CONFIG_GENERAL_ERROR, "extra characters %s in linkbeat interface", FMT_STR_VSLOT(strvec, 1));
+	}
+
+	ifp->linkbeat_use_polling = true;
+	ifp->lb_type = lb_type;
 }
 
 static void

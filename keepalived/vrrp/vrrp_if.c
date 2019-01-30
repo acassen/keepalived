@@ -535,21 +535,47 @@ static bool
 init_linkbeat_status(int fd, interface_t *ifp)
 {
 	int status;
-	bool if_up;
+	bool if_up = false;
+	int configured_type = ifp->lb_type;
 
-	if ((status = if_mii_probe(fd, ifp->ifname)) >= 0) {
-		ifp->lb_type = LB_MII;
-		if_up = !!status;
-	} else if ((status = if_ethtool_probe(fd, ifp->ifname)) >= 0) {
-		ifp->lb_type = LB_ETHTOOL;
-		if_up = !!status;
-	} else {
+	if ((!ifp->lb_type || ifp->lb_type == LB_MII)) {
+		if ((status = if_mii_probe(fd, ifp->ifname)) >= 0) {
+			ifp->lb_type = LB_MII;
+			if_up = !!status;
+		}
+		else
+			ifp->lb_type = 0;
+	}
+
+	if ((!ifp->lb_type || ifp->lb_type == LB_ETHTOOL)) {
+		if ((status = if_ethtool_probe(fd, ifp->ifname)) >= 0) {
+			ifp->lb_type = LB_ETHTOOL;
+			if_up = !!status;
+		} else {
+			/* If ETHTOOL was configured on i/f but doesn't work, try MII */
+			if (ifp->lb_type &&
+			    (status = if_mii_probe(fd, ifp->ifname)) >= 0) {
+				ifp->lb_type = LB_MII;
+				if_up = !!status;
+			}
+			else
+				ifp->lb_type = 0;
+		}
+	}
+
+	if ((!ifp->lb_type || ifp->lb_type == LB_IOCTL)) {
 		ifp->lb_type = LB_IOCTL;
 		if_up = true;
 	}
 
 	if (if_up)
 		if_up = if_ioctl_flags(fd, ifp);
+
+	if (configured_type && configured_type != ifp->lb_type)
+		log_message(LOG_INFO, "(%s): Configured linkbeat type %s not supported, using %s",
+				      ifp->ifname,
+				      configured_type == LB_MII ? "MII" : configured_type == LB_ETHTOOL ? "ETHTOOL" : "IOCTL",
+				      ifp->lb_type == LB_MII ? "MII" : ifp->lb_type == LB_ETHTOOL ? "ETHTOOL" : "IOCTL");
 
 	return if_up;
 }

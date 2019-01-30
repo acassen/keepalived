@@ -554,11 +554,16 @@ of the vrrp_instance itself, whereas \fRtrack_interface\fR and virtual_ipaddress
 and virtual_iproutes may require monitoring other interfaces, which may need to use
 linkbeat polling.
 .PP
+The default polling type to use is MII, unless that isn't supported in which case
+ETHTOOL is used, and if that isn't supported then ioctl polling. The preferred type
+of polling to use can be specified with MII or ETHTOOL or IOCTL after the interface
+name, but if that type isn't supported, a supported type will be used.
+.PP
 The synfax for linkbeat_interfaces is:
 .nf
     \fBlinkbeat_interfaces\fR {
         eth2
-        enp2s0
+        enp2s0 ETHTOOL
     }
 .fi
 .SH Static track groups
