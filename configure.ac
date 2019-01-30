@@ -1358,41 +1358,43 @@ if test .${enable_nftables} != .no; then
   CPPFLAGS="$CPPFLAGS $kernelinc"
   AC_CHECK_HEADERS([linux/netfilter/nf_tables.h], [],
    [
+     AS_IF([test .${enable_nftables} = .yes], [AC_MSG_ERROR([nftables header files missing])])
      USE_NFTABLES=No
-     AC_MSG_ERROR([nftables header files missing])
    ])
   CPPFLAGS="$SAV_CPPFLAGS"
 
-  $PKG_CONFIG --exists libnftnl
-  if test $? -ne 0; then
-    USE_NFTABLES=No
-    AC_MSG_WARN([libnftnl missing])
-  fi
-  $PKG_CONFIG --exists libmnl
-  if test $? -ne 0; then
-    USE_NFTABLES=No
-    AC_MSG_WARN([libmnl missing])
-  fi
+  if test $USE_NFTABLES = Yes; then
+    $PKG_CONFIG --exists libnftnl
+    if test $? -ne 0; then
+      USE_NFTABLES=No
+      AC_MSG_WARN([libnftnl missing])
+    fi
+    $PKG_CONFIG --exists libmnl
+    if test $? -ne 0; then
+      USE_NFTABLES=No
+      AC_MSG_WARN([libmnl missing])
+    fi
 
-  if test $USE_NFTABLES != No; then
-    add_pkg_config([libnftnl])
-    add_pkg_config([libmnl])
-    AC_DEFINE([_WITH_NFTABLES_], [ 1 ], [Define to 1 if want nftables support])
-    add_config_opt([NFTABLES])
-    AC_MSG_CHECKING([whether NFTNL_EXPR_LOOKUP_FLAGS is defined])
-    AC_LINK_IFELSE([AC_LANG_SOURCE([[
-        #include <libnftnl/expr.h>
-        int main(void)
-        {
+    if test $USE_NFTABLES = Yes; then
+      add_pkg_config([libnftnl])
+      add_pkg_config([libmnl])
+      AC_DEFINE([_WITH_NFTABLES_], [ 1 ], [Define to 1 if want nftables support])
+      add_config_opt([NFTABLES])
+      AC_MSG_CHECKING([whether NFTNL_EXPR_LOOKUP_FLAGS is defined])
+      AC_LINK_IFELSE([AC_LANG_SOURCE([[
+          #include <libnftnl/expr.h>
+          int main(void)
+          {
 	int i = NFTNL_EXPR_LOOKUP_FLAGS;
 	return 0;
-        }
-      ]])], [
-        AC_MSG_RESULT(yes)
-        AC_DEFINE([HAVE_NFTNL_EXPR_LOOKUP_FLAGS], [ 1 ], [Define to 1 if NFTNL_EXPR_LOOKUP_FLAGS defined])
-      ],[
-        AC_MSG_RESULT(no)
-      ])
+          }
+        ]])], [
+          AC_MSG_RESULT(yes)
+          AC_DEFINE([HAVE_NFTNL_EXPR_LOOKUP_FLAGS], [ 1 ], [Define to 1 if NFTNL_EXPR_LOOKUP_FLAGS defined])
+        ],[
+          AC_MSG_RESULT(no)
+        ])
+    fi
   fi
 fi
 AM_CONDITIONAL([NFTABLES], [test $USE_NFTABLES = Yes])
