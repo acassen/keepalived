@@ -58,6 +58,9 @@
 #include "bitops.h"
 #include "logger.h"
 
+
+/* #define  LOG_ALL_PROCESS_EVENTS */
+
 static thread_t *read_thread;
 static thread_t *reload_thread;
 static rb_root_t process_tree = RB_ROOT;
@@ -602,97 +605,104 @@ static int handle_proc_ev(int nl_sock)
 
 			cpu_seq[proc_ev->cpu] = cn_msg->seq;
 
+#ifdef LOG_ALL_PROCESS_EVENTS
 			switch (proc_ev->what)
 			{
 			case PROC_EVENT_NONE:
-#ifdef LOG_ALL_PROCESS_EVENTS
 				log_message(LOG_INFO, "set mcast listen ok");
-#endif
 				break;
 			case PROC_EVENT_FORK:
-#ifdef LOG_ALL_PROCESS_EVENTS
 				/* See if we have parent pid, in which case this is a new process */
 				log_message(LOG_INFO, "fork: parent tid=%d pid=%d -> child tid=%d pid=%d",
 						proc_ev->event_data.fork.parent_pid,
 						proc_ev->event_data.fork.parent_tgid,
 						proc_ev->event_data.fork.child_pid,
 						proc_ev->event_data.fork.child_tgid);
-#endif
-				check_process_fork(proc_ev->event_data.fork.parent_pid, proc_ev->event_data.fork.child_pid);
 				break;
 			case PROC_EVENT_EXEC:
-#ifdef LOG_ALL_PROCESS_EVENTS
 				log_message(LOG_INFO, "exec: tid=%d pid=%d",
 						proc_ev->event_data.exec.process_pid,
 						proc_ev->event_data.exec.process_tgid);
-#endif
-				// We may be losing a process. Check if have pid, and check new cmdline */
-				check_process(proc_ev->event_data.exec.process_pid, NULL);
 				break;
 			case PROC_EVENT_UID:
-#ifdef LOG_ALL_PROCESS_EVENTS
 				log_message(LOG_INFO, "uid change: tid=%d pid=%d from %d to %d",
 						proc_ev->event_data.id.process_pid,
 						proc_ev->event_data.id.process_tgid,
 						proc_ev->event_data.id.r.ruid,
 						proc_ev->event_data.id.e.euid);
-#endif
 				break;
 			case PROC_EVENT_GID:
-#ifdef LOG_ALL_PROCESS_EVENTS
 				log_message(LOG_INFO, "gid change: tid=%d pid=%d from %d to %d",
 						proc_ev->event_data.id.process_pid,
 						proc_ev->event_data.id.process_tgid,
 						proc_ev->event_data.id.r.rgid,
 						proc_ev->event_data.id.e.egid);
-#endif
 				break;
+#if HAVE_DECL_PROC_EVENT_SID	/* Since Linux v2.6.32 */
 			case PROC_EVENT_SID:
-#ifdef LOG_ALL_PROCESS_EVENTS
 				log_message(LOG_INFO, "sid change: tid=%d pid=%d",
 						proc_ev->event_data.sid.process_pid,
 						proc_ev->event_data.sid.process_tgid);
-#endif
 				break;
+#endif
+#if HAVE_DECL_PROC_EVENT_PTRACE	/* Since Linux v3.1 */
 			case PROC_EVENT_PTRACE:
-#ifdef LOG_ALL_PROCESS_EVENTS
 				log_message(LOG_INFO, "ptrace change: tid=%d pid=%d tracer tid=%d, pid=%d",
 						proc_ev->event_data.ptrace.process_pid,
 						proc_ev->event_data.ptrace.process_tgid,
 						proc_ev->event_data.ptrace.tracer_tgid,
 						proc_ev->event_data.ptrace.tracer_pid);
-#endif
 				break;
+#endif
+#if HAVE_DECL_PROC_EVENT_COMM		/* Since Linux v3.2 */
 			case PROC_EVENT_COMM:
-#ifdef LOG_ALL_PROCESS_EVENTS
 				log_message(LOG_INFO, "comm: tid=%d pid=%d comm %s",
 						proc_ev->event_data.comm.process_pid,
 						proc_ev->event_data.comm.process_tgid,
 						proc_ev->event_data.comm.comm);
-#endif
-				check_process_comm_change(proc_ev->event_data.comm.process_pid, proc_ev->event_data.comm.comm);
 				break;
+#endif
+#if HAVE_DECL_PROC_EVENT_COREDUMP	/* Since Linux v3.10 */
 			case PROC_EVENT_COREDUMP:
-#ifdef LOG_ALL_PROCESS_EVENTS
 				log_message(LOG_INFO, "coredump: tid=%d pid=%d",
 						proc_ev->event_data.coredump.process_pid,
 						proc_ev->event_data.coredump.process_tgid);
-#endif
 				break;
+#endif
 			case PROC_EVENT_EXIT:
-#ifdef LOG_ALL_PROCESS_EVENTS
 				log_message(LOG_INFO, "exit: tid=%d pid=%d exit_code=%u, signal=%u,",
 						proc_ev->event_data.exit.process_pid,
 						proc_ev->event_data.exit.process_tgid,
 						proc_ev->event_data.exit.exit_code,
 						proc_ev->event_data.exit.exit_signal);
+				break;
+			default:
+				log_message(LOG_INFO, "unhandled proc event %d", proc_ev->what);
+				break;
+			}
 #endif
+
+			switch (proc_ev->what)
+			{
+			case PROC_EVENT_FORK:
+				/* See if we have parent pid, in which case this is a new process */
+				check_process_fork(proc_ev->event_data.fork.parent_pid, proc_ev->event_data.fork.child_pid);
+				break;
+			case PROC_EVENT_EXEC:
+				// We may be losing a process. Check if have pid, and check new cmdline */
+				check_process(proc_ev->event_data.exec.process_pid, NULL);
+				break;
+#if HAVE_DECL_PROC_EVENT_COMM		/* Since Linux v3.2 */
+			/* NOTE: currently track_process will not be enabled of PROC_EVENT_COMM
+			 * is not supported. */
+			case PROC_EVENT_COMM:
+				check_process_comm_change(proc_ev->event_data.comm.process_pid, proc_ev->event_data.comm.comm);
+				break;
+#endif
+			case PROC_EVENT_EXIT:
 				check_process_termination(proc_ev->event_data.exit.process_pid);
 				break;
 			default:
-#ifdef LOG_ALL_PROCESS_EVENTS
-				log_message(LOG_INFO, "unhandled proc event %d", proc_ev->what);
-#endif
 				break;
 			}
 		}
