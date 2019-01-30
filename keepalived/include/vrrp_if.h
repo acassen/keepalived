@@ -162,6 +162,7 @@ extern void set_default_garp_delay(void);
 extern void if_add_queue(interface_t *);
 extern void init_interface_queue(void);
 extern void init_interface_linkbeat(void);
+extern void close_interface_linkbeat(void);
 extern void free_interface_queue(void);
 extern void free_old_interface_queue(void);
 extern int if_join_vrrp_group(sa_family_t, int *, interface_t *);
