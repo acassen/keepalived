@@ -71,8 +71,10 @@
 
 /* Local vars */
 static list if_queue;
+#ifdef _WITH_LINKBEAT_
 static struct ifreq ifr;
 static int linkbeat_fd = -1;
+#endif
 
 static list old_garp_delay;
 
@@ -182,12 +184,15 @@ reset_interface_queue(void)
 	garp_delay = NULL;
 
 	LIST_FOREACH(if_queue, ifp, e) {
+#ifdef _WITH_LINKBEAT_
 		ifp->linkbeat_use_polling = false;
+#endif
 		ifp->garp_delay = NULL;
 		free_list(&ifp->tracking_vrrp);
 	}
 }
 
+#ifdef _WITH_LINKBEAT_
 /* MII Transceiver Registers poller functions */
 static uint16_t
 if_mii_read(int fd, uint16_t phy_id, uint16_t reg_num)
@@ -308,6 +313,7 @@ if_ioctl_flags(const int fd, interface_t *ifp)
 
 	return FLAGS_UP(ifr.ifr_flags) ? LINK_UP : LINK_DOWN;
 }
+#endif
 
 /* Interfaces lookup */
 static void
@@ -475,6 +481,7 @@ dump_if(FILE *fp, void *data)
 		break;
 	}
 
+#ifdef _WITH_LINKBEAT_
 	if (!ifp->linkbeat_use_polling)
 		conf_write(fp, "   NIC netlink status update");
 	else if (IF_MII_SUPPORTED(ifp))
@@ -483,6 +490,7 @@ dump_if(FILE *fp, void *data)
 		conf_write(fp, "   NIC support ETHTOOL GLINK interface");
 	else
 		conf_write(fp, "   NIC ioctl refresh polling");
+#endif
 #ifdef _HAVE_VRF_
 	if (ifp->vrf_master_ifp == ifp)
 		conf_write(fp, "   VRF master");
@@ -531,6 +539,7 @@ if_add_queue(interface_t * ifp)
 	list_add(if_queue, ifp);
 }
 
+#ifdef _WITH_LINKBEAT_
 static bool
 init_linkbeat_status(int fd, interface_t *ifp)
 {
@@ -688,6 +697,7 @@ close_interface_linkbeat(void)
 		linkbeat_fd = -1;
 	}
 }
+#endif
 
 /* Interface queue helpers*/
 void
@@ -1388,7 +1398,9 @@ update_added_interface(interface_t *ifp)
 void
 register_vrrp_if_addresses(void)
 {
+#ifdef _WITH_LINKBEAT_
 	register_thread_address("if_linkbeat_refresh_thread", if_linkbeat_refresh_thread);
+#endif
 #ifdef _HAVE_VRRP_VMAC_
 	register_thread_address("recreate_vmac_thread", recreate_vmac_thread);
 #endif

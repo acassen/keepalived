@@ -50,10 +50,12 @@
 #define LINK_DOWN 0
 #define POLLING_DELAY TIMER_HZ
 
+#ifdef _WITH_LINKBEAT_
 /* Interface Linkbeat code selection */
 #define LB_IOCTL   0x1
 #define LB_MII     0x2
 #define LB_ETHTOOL 0x4
+#endif
 
 /* I don't know what the correct type is.
  * The kernel has ifindex in the range [1, INT_MAX], but IFLA_LINK is defined
@@ -82,13 +84,15 @@ typedef struct _interface {
 	struct in_addr		sin_addr;		/* IPv4 primary IPv4 address */
 	struct in6_addr		sin6_addr;		/* IPv6 link address */
 	unsigned		ifi_flags;		/* Kernel flags */
-	bool			linkbeat_use_polling;	/* Poll the interface for status, rather than use netlink */
 	uint32_t		mtu;			/* MTU for this interface_t */
 	unsigned short		hw_type;		/* Type of hardware address */
 	u_char			hw_addr[MAX_ADDR_LEN];	/* MAC address */
 	u_char			hw_addr_bcast[MAX_ADDR_LEN]; /* broadcast address */
 	size_t			hw_addr_len;		/* MAC addresss length */
+#ifdef _WITH_LINKBEAT_
+	bool			linkbeat_use_polling;	/* Poll the interface for status, rather than use netlink */
 	int			lb_type;		/* Interface regs selection */
+#endif
 #ifdef _HAVE_VRRP_VMAC_
 	int			vmac_type;		/* Set if interface is a VMAC interface */
 	ifindex_t		base_ifindex;		/* Only used at startup if we find vmac i/f before base i/f */
@@ -132,8 +136,10 @@ typedef struct _tracked_if {
 #define IF_ADDR(X) ((X)->sin_addr.s_addr)
 #define IF_ADDR6(X)	((X)->sin6_addr)
 #define IF_HWADDR(X) ((X)->hw_addr)
+#ifdef _WITH_LINKBEAT_
 #define IF_MII_SUPPORTED(X) ((X)->lb_type & LB_MII)
 #define IF_ETHTOOL_SUPPORTED(X) ((X)->lb_type & LB_ETHTOOL)
+#endif
 #define FLAGS_UP(X) (((X) & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING))
 #define IF_FLAGS_UP(X) (FLAGS_UP((X)->ifi_flags))
 #ifdef _HAVE_VRRP_VMAC_
@@ -161,8 +167,10 @@ extern void alloc_garp_delay(void);
 extern void set_default_garp_delay(void);
 extern void if_add_queue(interface_t *);
 extern void init_interface_queue(void);
+#ifdef _WITH_LINKBEAT_
 extern void init_interface_linkbeat(void);
 extern void close_interface_linkbeat(void);
+#endif
 extern void free_interface_queue(void);
 extern void free_old_interface_queue(void);
 extern int if_join_vrrp_group(sa_family_t, int *, interface_t *);

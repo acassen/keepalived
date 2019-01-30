@@ -2017,9 +2017,11 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 					parse_af_spec(tb[IFLA_AF_SPEC], ifp);
 #endif
 
+#ifdef _WITH_LINKBEAT_
 				/* Ignore interface if we are using linkbeat on it */
 				if (ifp->linkbeat_use_polling)
 					return 0;
+#endif
 			} else
 				ifp = NULL;
 		}

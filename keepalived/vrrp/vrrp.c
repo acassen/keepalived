@@ -2774,9 +2774,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 	vrrp->master_adver_int = vrrp->adver_int;
 
+#ifdef _WITH_LINKBEAT_
 	/* Set linkbeat polling on interface if wanted */
 	if (vrrp->linkbeat_use_polling || global_data->linkbeat_use_polling)
 		vrrp->ifp->linkbeat_use_polling = true;
+#endif
 
 	/* Clear track_saddr if no saddr specified */
 	if (!vrrp->saddr_from_config)
@@ -3448,8 +3450,10 @@ vrrp_complete_init(void)
 	set_extra_netlink_monitoring(monitor_ipv4_routes, monitor_ipv6_routes, monitor_ipv4_rules, monitor_ipv6_rules);
 #endif
 
+#ifdef _WITH_LINKBEAT_
 	/* We need to know the state of interfaces for the next loop */
 	init_interface_linkbeat();
+#endif
 
 	/* Initialise any tracking files */
 	if (!LIST_ISEMPTY(vrrp_data->vrrp_track_files))

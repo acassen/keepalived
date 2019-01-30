@@ -158,6 +158,7 @@ static_rules_handler(vector_t *strvec)
 }
 #endif
 
+#ifdef _WITH_LINKBEAT_
 static void
 alloc_linkbeat_interface(vector_t *strvec)
 {
@@ -200,6 +201,7 @@ linkbeat_interfaces_handler(vector_t *strvec)
 		return;
 	alloc_value_block(alloc_linkbeat_interface, vector_slot(strvec, 0));
 }
+#endif
 
 /* VRRP handlers */
 static void
@@ -524,6 +526,7 @@ vrrp_int_handler(vector_t *strvec)
 	vrrp->configured_ifp = vrrp->ifp;
 #endif
 }
+#ifdef _WITH_LINKBEAT_
 static void
 vrrp_linkbeat_handler(__attribute__((unused)) vector_t *strvec)
 {
@@ -532,6 +535,7 @@ vrrp_linkbeat_handler(__attribute__((unused)) vector_t *strvec)
 	vrrp->linkbeat_use_polling = true;
 	report_config_error(CONFIG_GENERAL_ERROR, "(%s) 'linkbeat_use_polling' in vrrp instance deprecated - use linkbeat_interfaces block", vrrp->iname);
 }
+#endif
 static void
 vrrp_track_if_handler(vector_t *strvec)
 {
@@ -1587,8 +1591,10 @@ init_vrrp_keywords(bool active)
 	install_keyword("interfaces", &garp_group_interfaces_handler);
 	install_sublevel_end_handler(&garp_group_end_handler);
 
+#ifdef _WITH_LINKBEAT_
 	/* Linkbeat interfaces */
 	install_keyword_root("linkbeat_interfaces", &linkbeat_interfaces_handler, active);
+#endif
 
 	/* VRRP Instance mapping */
 	install_keyword_root("vrrp_instance", &vrrp_handler, active);
@@ -1623,7 +1629,9 @@ init_vrrp_keywords(bool active)
 	install_keyword("virtual_ipaddress", &vrrp_vip_handler);
 	install_keyword("virtual_ipaddress_excluded", &vrrp_evip_handler);
 	install_keyword("promote_secondaries", &vrrp_promote_secondaries_handler);
+#ifdef _WITH_LINKBEAT_
 	install_keyword("linkbeat_use_polling", &vrrp_linkbeat_handler);
+#endif
 #ifdef _HAVE_FIB_ROUTING_
 	install_keyword("virtual_routes", &vrrp_vroutes_handler);
 	install_keyword("virtual_rules", &vrrp_vrules_handler);
