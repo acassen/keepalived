@@ -104,6 +104,7 @@ are:
 .SH GLOBAL CONFIGURATION
 contains subblocks of
 \fBGlobal definitions,
+Linkbeat interfaces,
 Static track groups,
 Static addresses,
 Static routes,\fR
@@ -540,6 +541,25 @@ and
     #   command-line option.
     \fBumask \fR[NUMBER|BITS]
 }
+.fi
+.SH Linkbeat interfaces
+.PP
+The linkbeat_interfaces block allows specifying which interfaces should use polling
+via MII, Ethtool or ioctl status rather than rely on netlink status updates. This
+allows more granular control of global definition \fBlinkbeat_use_polling\fR.
+.PP
+This option is preferred over the deprecated use of \fBlinkbeat_use_polling\fR in
+a vrrp_instance block, since the latter only allows using linkbeat on the interface
+of the vrrp_instance itself, whereas \fRtrack_interface\fR and virtual_ipaddresses
+and virtual_iproutes may require monitoring other interfaces, which may need to use
+linkbeat polling.
+.PP
+The synfax for linkbeat_interfaces is:
+.nf
+    \fBlinkbeat_interfaces\fR {
+        eth2
+        enp2s0
+    }
 .fi
 .SH Static track groups
 .PP
@@ -1362,7 +1382,8 @@ The syntax for garp_group is :
     # vrrp_rx_bufs_policy for explanation)
     \fBkernel_rx_buf_size\fR
 
-    # Set use of linkbeat for the interface of this VRRP instance
+    # Set use of linkbeat for the interface of this VRRP instance. This option is
+    # deprecated - use linkbeat_interfaces block instead.
     \fBlinkbeat_use_polling\fR
 }
 .fi

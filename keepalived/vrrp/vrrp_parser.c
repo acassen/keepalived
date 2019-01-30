@@ -158,6 +158,33 @@ static_rules_handler(vector_t *strvec)
 }
 #endif
 
+static void
+alloc_linkbeat_interface(vector_t *strvec)
+{
+	interface_t *ifp;
+
+	if (vector_size(strvec) > 1)
+		report_config_error(CONFIG_GENERAL_ERROR, "extra characters %s in linkbeat interface", FMT_STR_VSLOT(strvec, 1));
+
+
+	if (!(ifp = if_get_by_ifname(vector_slot(strvec, 0), global_data->dynamic_interfaces))) {
+		report_config_error(CONFIG_FATAL, "unknown interface %s specified for linkbeat interface", FMT_STR_VSLOT(strvec, 0));
+		return;
+	}
+
+	ifp->linkbeat_use_polling = true;
+
+	log_message(LOG_INFO, "LB i/f %s", FMT_STR_VSLOT(strvec, 0));
+}
+
+static void
+linkbeat_interfaces_handler(vector_t *strvec)
+{
+	if (!strvec)
+		return;
+	alloc_value_block(alloc_linkbeat_interface, vector_slot(strvec, 0));
+}
+
 /* VRRP handlers */
 static void
 vrrp_sync_group_handler(vector_t *strvec)
@@ -487,6 +514,7 @@ vrrp_linkbeat_handler(__attribute__((unused)) vector_t *strvec)
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
 	vrrp->linkbeat_use_polling = true;
+	report_config_error(CONFIG_GENERAL_ERROR, "(%s) 'linkbeat_use_polling' in vrrp instance deprecated - use linkbeat_interfaces block", vrrp->iname);
 }
 static void
 vrrp_track_if_handler(vector_t *strvec)
@@ -1542,6 +1570,9 @@ init_vrrp_keywords(bool active)
 	install_keyword("interface", &garp_group_interface_handler);
 	install_keyword("interfaces", &garp_group_interfaces_handler);
 	install_sublevel_end_handler(&garp_group_end_handler);
+
+	/* Linkbeat interfaces */
+	install_keyword_root("linkbeat_interfaces", &linkbeat_interfaces_handler, active);
 
 	/* VRRP Instance mapping */
 	install_keyword_root("vrrp_instance", &vrrp_handler, active);

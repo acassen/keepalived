@@ -613,6 +613,7 @@ init_interface_linkbeat(void)
 		if (!ifp->tracking_vrrp) {
 			log_message(LOG_INFO, "Turning off linkbeat for %s since not used for tracking", ifp->ifname);
 			ifp->linkbeat_use_polling = false;
+			ifp->lb_type = 0;
 			continue;
 		}
 
