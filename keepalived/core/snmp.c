@@ -172,9 +172,11 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 	case SNMP_TRAPS:
 		long_ret = global_data->enable_traps?1:2;
 		return (u_char *)&long_ret;
+#ifdef _WITH_LINKBEAT_
 	case SNMP_LINKBEAT:
 		long_ret = global_data->linkbeat_use_polling?2:1;
 		return (u_char *)&long_ret;
+#endif
 #ifdef _WITH_LVS_
 	case SNMP_LVSFLUSH:
 		long_ret = global_data->lvs_flush?1:2;

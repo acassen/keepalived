@@ -182,6 +182,8 @@ AC_ARG_ENABLE(checksum_compat,
   [AS_HELP_STRING([--disable-checksum-compat], [compile without v1.3.6 and earlier VRRPv3 unicast checksum compatibility])])
 AC_ARG_ENABLE(routes,
   [AS_HELP_STRING([--disable-routes], [compile without ip rules/routes])])
+AC_ARG_ENABLE(linkbeat,
+  [AS_HELP_STRING([--disable-linkbeat], [build without linkbeat support])])
 AC_ARG_ENABLE(gnu-std-paths,
   [AS_HELP_STRING([--enable-gnu-std-paths], [use GNU standard paths for pid files etc])])
 AC_ARG_ENABLE(dynamic-linking,
@@ -345,6 +347,7 @@ AS_IF([test .$enable_vrrp = .no],
     AS_IF([test .$enable_vrrp_auth = .no], [AC_MSG_ERROR([disable-vrrp-auth requires vrrp])])
     AS_IF([test .$enable_checksum_compat = .no], [AC_MSG_ERROR([disable-checksum-compat requires vrrp])])
     AS_IF([test .$enable_routes = .no], [AC_MSG_ERROR([disable-routes requires vrrp])])
+    AS_IF([test .$enable_linkbeat = .no], [AC_MSG_ERROR([disable-linkbeat requires vrrp])])
     AS_IF([test .$enable_bfd = .yes], [AC_MSG_ERROR([enable-bfd requires vrrp])])
     AS_IF([test .$enable_iptables != .no], [AC_MSG_ERROR([enable-iptables requires vrrp])])
     AS_IF([test .$enable_nftables != .no], [AC_MSG_ERROR([enable-nftables requires vrrp])])
@@ -1705,6 +1708,17 @@ if test .$enable_vrrp != .no -a .$enable_routes != .no; then
 fi
 AM_CONDITIONAL([FIB_ROUTING], [test $FIB_ROUTING_SUPPORT = Yes])
 
+dnl ----[ Check if linkbeat wanted ]----
+AS_IF([test .$enable_linkbeat = .no],
+  [
+    LINKBEAT_SUPPORT=No
+    add_config_opt([NO_LINKBEAT])
+  ],
+  [
+    LINKBEAT_SUPPORT=Yes
+    AC_DEFINE([_WITH_LINKBEAT_], [ 1 ], [Define to 1 if have linkbeat support])
+  ])
+
 dnl ----[ Checks for kernel IFLA_INET6_ADDR_GEN_MODE support ]----
 SAV_CPPFLAGS="$CPPFLAGS"
 CPPFLAGS="$CPPFLAGS $kernelinc"
@@ -2346,6 +2360,7 @@ if test ${VRRP_SUPPORT} = Yes; then
   echo "Use VRRP authentication  : ${VRRP_AUTH_SUPPORT}"
   echo "With ip rules/routes     : ${FIB_ROUTING_SUPPORT}"
   echo "With track_process       : ${HAVE_CN_PROC}"
+  echo "With linkbeat            : ${LINKBEAT_SUPPORT}"
 fi
 echo "Use BFD Framework        : ${BFD_SUPPORT}"
 echo "SNMP vrrp support        : ${SNMP_VRRP_SUPPORT}"

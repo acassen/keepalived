@@ -254,6 +254,9 @@ vrrp_terminate_phase2(int exit_status)
 	master = NULL;
 	gratuitous_arp_close();
 	ndisc_close();
+#ifdef _WITH_LINKBEAT_
+	close_interface_linkbeat();
+#endif
 
 #ifdef _WITH_DBUS_
 	if (global_data->enable_dbus)

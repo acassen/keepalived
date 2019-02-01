@@ -84,7 +84,9 @@ typedef struct _data {
 #endif
 	char				*local_name;
 	char				*instance_name;		/* keepalived instance name */
+#ifdef _WITH_LINKBEAT_
 	bool				linkbeat_use_polling;
+#endif
 	char				*router_id;
 	char				*email_from;
 	struct sockaddr_storage		smtp_server;

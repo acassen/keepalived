@@ -158,6 +158,51 @@ static_rules_handler(vector_t *strvec)
 }
 #endif
 
+#ifdef _WITH_LINKBEAT_
+static void
+alloc_linkbeat_interface(vector_t *strvec)
+{
+	interface_t *ifp;
+	int lb_type = 0;
+
+	if (!(ifp = if_get_by_ifname(vector_slot(strvec, 0), global_data->dynamic_interfaces))) {
+		report_config_error(CONFIG_FATAL, "unknown interface %s specified for linkbeat interface", FMT_STR_VSLOT(strvec, 0));
+		return;
+	}
+
+#ifdef _HAVE_VRRP_VMAC_
+	/* netlink messages work for vmacs */
+	if (ifp->vmac_type) {
+		log_message(LOG_INFO, "(%s): linkbeat not supported for vmacs since netlink works", ifp->ifname);
+		return;
+	}
+#endif
+
+	if (vector_size(strvec) > 1) {
+		if (!strcmp(strvec_slot(strvec, 1), "MII"))
+			lb_type = LB_MII;
+		else if (!strcmp(strvec_slot(strvec, 1), "ETHTOOL"))
+			lb_type = LB_ETHTOOL;
+		else if (!strcmp(strvec_slot(strvec, 1), "IOCTL"))
+			lb_type = LB_IOCTL;
+
+		if (!lb_type || vector_size(strvec) > 2)
+			report_config_error(CONFIG_GENERAL_ERROR, "extra characters %s in linkbeat interface", FMT_STR_VSLOT(strvec, 1));
+	}
+
+	ifp->linkbeat_use_polling = true;
+	ifp->lb_type = lb_type;
+}
+
+static void
+linkbeat_interfaces_handler(vector_t *strvec)
+{
+	if (!strvec)
+		return;
+	alloc_value_block(alloc_linkbeat_interface, vector_slot(strvec, 0));
+}
+#endif
+
 /* VRRP handlers */
 static void
 vrrp_sync_group_handler(vector_t *strvec)
@@ -481,13 +526,16 @@ vrrp_int_handler(vector_t *strvec)
 	vrrp->configured_ifp = vrrp->ifp;
 #endif
 }
+#ifdef _WITH_LINKBEAT_
 static void
 vrrp_linkbeat_handler(__attribute__((unused)) vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
 	vrrp->linkbeat_use_polling = true;
+	report_config_error(CONFIG_GENERAL_ERROR, "(%s) 'linkbeat_use_polling' in vrrp instance deprecated - use linkbeat_interfaces block", vrrp->iname);
 }
+#endif
 static void
 vrrp_track_if_handler(vector_t *strvec)
 {
@@ -1543,6 +1591,11 @@ init_vrrp_keywords(bool active)
 	install_keyword("interfaces", &garp_group_interfaces_handler);
 	install_sublevel_end_handler(&garp_group_end_handler);
 
+#ifdef _WITH_LINKBEAT_
+	/* Linkbeat interfaces */
+	install_keyword_root("linkbeat_interfaces", &linkbeat_interfaces_handler, active);
+#endif
+
 	/* VRRP Instance mapping */
 	install_keyword_root("vrrp_instance", &vrrp_handler, active);
 #ifdef _HAVE_VRRP_VMAC_
@@ -1576,7 +1629,9 @@ init_vrrp_keywords(bool active)
 	install_keyword("virtual_ipaddress", &vrrp_vip_handler);
 	install_keyword("virtual_ipaddress_excluded", &vrrp_evip_handler);
 	install_keyword("promote_secondaries", &vrrp_promote_secondaries_handler);
+#ifdef _WITH_LINKBEAT_
 	install_keyword("linkbeat_use_polling", &vrrp_linkbeat_handler);
+#endif
 #ifdef _HAVE_FIB_ROUTING_
 	install_keyword("virtual_routes", &vrrp_vroutes_handler);
 	install_keyword("virtual_rules", &vrrp_vrules_handler);

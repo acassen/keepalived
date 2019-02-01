@@ -62,6 +62,7 @@
 
 /* data handlers */
 /* Global def handlers */
+#ifdef _WITH_LINKBEAT_
 static void
 use_polling_handler(vector_t *strvec)
 {
@@ -70,6 +71,7 @@ use_polling_handler(vector_t *strvec)
 
 	global_data->linkbeat_use_polling = true;
 }
+#endif
 static void
 routerid_handler(vector_t *strvec)
 {
@@ -1558,7 +1560,9 @@ void
 init_global_keywords(bool global_active)
 {
 	/* global definitions mapping */
+#ifdef _WITH_LINKBEAT_
 	install_keyword_root("linkbeat_use_polling", use_polling_handler, global_active);
+#endif
 #if HAVE_DECL_CLONE_NEWNET
 	install_keyword_root("net_namespace", &net_namespace_handler, global_active);
 	install_keyword_root("namespace_with_ipsets", &namespace_ipsets_handler, global_active);
