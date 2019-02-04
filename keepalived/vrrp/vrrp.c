@@ -2795,7 +2795,8 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		if (!LIST_ISEMPTY(if_list)) {		/* If the list were empty we would have a real problem! */
 			LIST_FOREACH(if_list, ifp, e) {
 				/* Check if this interface could be the macvlan for this vrrp */
-				if (ifp->vmac_type == MACVLAN_MODE_PRIVATE &&
+				if (ifp->ifindex &&
+				    ifp->vmac_type == MACVLAN_MODE_PRIVATE &&
 				    !memcmp(ifp->hw_addr, ll_addr, sizeof(ll_addr) - 2) &&
 				    ((vrrp->family == AF_INET && ifp->hw_addr[sizeof(ll_addr) - 2] == 0x01) ||
 				     (vrrp->family == AF_INET6 && ifp->hw_addr[sizeof(ll_addr) - 2] == 0x02)) &&
