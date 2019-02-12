@@ -1016,7 +1016,11 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 // We still need to consider non-vmac IPv6 if interface doesn't have a
 // link local address.
 		if (h->nlmsg_type == RTM_NEWADDR) {
-			if (!ignore_address_if_ours_or_link_local(ifa, addr.addr, ifp)) {
+			if (
+#ifdef _HAVE_VRRP_VMAC_
+			    !ifp->vmac_type &&
+#endif
+			    !ignore_address_if_ours_or_link_local(ifa, addr.addr, ifp)) {
 				/* If no address is set on interface then set the first time */
 // TODO if saddr from config && track saddr, addresses must match
 				if (ifa->ifa_family == AF_INET) {
@@ -1158,6 +1162,10 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 					log_message(LOG_INFO, "Deassigned address %s from interface %s"
 							    , addr_str, ifp->ifname);
 				}
+				if (ifa->ifa_family == AF_INET)
+					ifp->sin_addr.s_addr = 0;
+				else
+					ifp->sin6_addr.s6_addr32[0] = 0;
 
 				/* See if any vrrp instances need to be downed */
 				LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {

@@ -1454,7 +1454,7 @@ vrrp_state_become_master(vrrp_t * vrrp)
 		vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_VIP_TYPE, false);
 	if (!LIST_ISEMPTY(vrrp->evip))
 		vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE, false);
-	vrrp->vipset = 1;
+	vrrp->vipset = true;
 
 #ifdef _HAVE_FIB_ROUTING_
 	/* add virtual routes */
@@ -1565,7 +1565,7 @@ vrrp_restore_interface(vrrp_t * vrrp, bool advF, bool force)
 #ifdef _WITH_FIREWALL_
 		vrrp_handle_accept_mode(vrrp, IPADDRESS_DEL, force);
 #endif
-		vrrp->vipset = 0;
+		vrrp->vipset = false;
 	}
 }
 
@@ -2892,35 +2892,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		interface_already_existed = true;
 	}
 
-	/* Make sure we have an IP address as needed */
-	if (VRRP_CONFIGURED_IFP(vrrp)->ifindex && vrrp->saddr.ss_family == AF_UNSPEC) {
-		/* Check the physical interface has a suitable address we can use.
-		 * We don't need an IPv6 address on the underlying interface if it is
-		 * a VMAC since we can create our own. */
-		bool addr_missing = false;
-
-		if (vrrp->family == AF_INET) {
-			if (!(VRRP_CONFIGURED_IFP(vrrp))->sin_addr.s_addr)
-				addr_missing = true;
-		}
-		else {
-#ifdef _HAVE_VRRP_VMAC_
-			if (!__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
-#endif
-				if (!VRRP_CONFIGURED_IFP(vrrp)->sin6_addr.s6_addr32[0])
-					addr_missing = true;
-		}
-
-		if (addr_missing) {
-			if (!global_data->dynamic_interfaces)
-				report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot find an IP address to use for interface %s", vrrp->iname, VRRP_CONFIGURED_IFP(vrrp)->ifname);
-		}
-		else if (vrrp->family == AF_INET)
-			inet_ip4tosockaddr(&VRRP_CONFIGURED_IFP(vrrp)->sin_addr, &vrrp->saddr);
-		else if (vrrp->family == AF_INET6)
-			inet_ip6tosockaddr(&VRRP_CONFIGURED_IFP(vrrp)->sin6_addr, &vrrp->saddr);
-	}
-
 	/* Add us to the interfaces we are tracking */
 	LIST_FOREACH_NEXT(vrrp->track_ifp, tip, e, next) {
 		/* Check the configuration doesn't explicitly state to track our own interface */
@@ -3314,6 +3285,117 @@ process_static_entries(void)
 }
 #endif
 
+static void
+remove_residual_vips(void)
+{
+	element e, e1, e2, n2;
+	vrrp_t *vrrp;
+	ip_address_t *ip_addr;
+	struct in_addr *ip_addr4;
+	struct in6_addr *ip_addr6;
+	list *vip_list;
+	interface_t *ifp;
+
+	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+		if (vrrp->vipset) {
+			/* Remove any addresses configured on interfaces if they match any
+			 * VIP/eVIP addresses since we must not use them as source addresses
+			 * of adverts. They could exist if keepalived crashed the last time
+			 * it ran and it wasn't able to clean up. */
+			vip_list = &vrrp->vip;
+			do {
+				LIST_FOREACH(*vip_list, ip_addr, e1) {
+					/* Check primary address for family, then check list */
+					if (ip_addr->ifa.ifa_family == AF_INET) {
+						if (inaddr_equal(AF_INET, &ip_addr->ifp->sin_addr, &ip_addr->u.sin.sin_addr)) {
+							ip_addr->ifp->sin_addr.s_addr = 0;
+							continue;
+						}
+						LIST_FOREACH_NEXT(ip_addr->ifp->sin_addr_l, ip_addr4, e2, n2) {
+							if (inaddr_equal(AF_INET, &ip_addr->u.sin.sin_addr, ip_addr4)) {
+								list_remove(ip_addr->ifp->sin_addr_l, e2);
+								break;
+							}
+						}
+					} else {
+						if (!IN6_IS_ADDR_LINKLOCAL(&ip_addr->u.sin6_addr))
+							continue;
+
+						if (inaddr_equal(AF_INET6, &ip_addr->ifp->sin6_addr, &ip_addr->u.sin6_addr)) {
+							ip_addr->ifp->sin6_addr.s6_addr32[0] = 0;
+							continue;
+						}
+						LIST_FOREACH_NEXT(ip_addr->ifp->sin6_addr_l, ip_addr6, e2, n2) {
+							if (inaddr_equal(AF_INET6, &ip_addr->u.sin6_addr, ip_addr6)) {
+								list_remove(ip_addr->ifp->sin6_addr_l, e2);
+								break;
+							}
+						}
+					}
+				}
+				vip_list = vip_list == &vrrp->vip ? &vrrp->evip : NULL;
+			} while (vip_list);
+		}
+	}
+
+	/* Promote address from list to i/f if none on i/f */
+	LIST_FOREACH(get_if_list(), ifp, e) {
+		if (ifp->sin_addr.s_addr == 0 && !LIST_ISEMPTY(ifp->sin_addr_l)) {
+			ifp->sin_addr = *(struct in_addr *)ELEMENT_DATA(LIST_HEAD(ifp->sin_addr_l));
+			list_remove(ifp->sin_addr_l, LIST_HEAD(ifp->sin_addr_l));
+		}
+		if (ifp->sin6_addr.s6_addr32[0] == 0 && !LIST_ISEMPTY(ifp->sin6_addr_l)) {
+			ifp->sin6_addr = *(struct in6_addr *)ELEMENT_DATA(LIST_HEAD(ifp->sin6_addr_l));
+			list_remove(ifp->sin6_addr_l, LIST_HEAD(ifp->sin6_addr_l));
+		}
+	}
+}
+
+static void
+set_vrrp_src_addr(void)
+{
+	element e;
+	vrrp_t *vrrp;
+
+	LIST_FOREACH(vrrp_data->vrrp, vrrp, e)
+	{
+		if (vrrp->saddr_from_config)
+			continue;
+
+		/* Make sure we have an IP address as needed */
+		if (VRRP_CONFIGURED_IFP(vrrp)->ifindex /* && vrrp->saddr.ss_family == AF_UNSPEC */) {
+			/* Check the physical interface has a suitable address we can use.
+			 * We don't need an IPv6 address on the underlying interface if it is
+			 * a VMAC since we can create our own. */
+			bool addr_missing = false;
+
+			if (vrrp->family == AF_INET) {
+				if (!(VRRP_CONFIGURED_IFP(vrrp))->sin_addr.s_addr)
+					addr_missing = true;
+			}
+			else {
+#ifdef _HAVE_VRRP_VMAC_
+				if (!__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
+#endif
+					if (!VRRP_CONFIGURED_IFP(vrrp)->sin6_addr.s6_addr32[0])
+						addr_missing = true;
+			}
+
+			if (addr_missing) {
+				if (vrrp->saddr.ss_family != AF_UNSPEC) {
+					if (!global_data->dynamic_interfaces)
+						report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot find an IP address to use for interface %s", vrrp->iname, VRRP_CONFIGURED_IFP(vrrp)->ifname);
+					vrrp->saddr.ss_family = AF_UNSPEC;
+				}
+			}
+			else if (vrrp->family == AF_INET)
+				inet_ip4tosockaddr(&VRRP_CONFIGURED_IFP(vrrp)->sin_addr, &vrrp->saddr);
+			else if (vrrp->family == AF_INET6)
+				inet_ip6tosockaddr(&VRRP_CONFIGURED_IFP(vrrp)->sin6_addr, &vrrp->saddr);
+		}
+	}
+}
+
 bool
 vrrp_complete_init(void)
 {
@@ -3421,6 +3503,12 @@ vrrp_complete_init(void)
 		if (vrrp->ifp->mtu > max_mtu_len)
 			max_mtu_len = vrrp->ifp->mtu;
 	}
+
+	/* Remove any VIPs from the list of default addresses for interfaces */
+	if (!reload)
+		remove_residual_vips();
+
+	set_vrrp_src_addr();
 
 	/* Build static track groups and remove empty groups */
 	static_track_group_init();
@@ -3605,6 +3693,9 @@ void vrrp_restore_interfaces_startup(void)
 	element e;
 	vrrp_t *vrrp;
 
+/* We don't know which VMACs are ours at startup. Delete all irrelevant addresses from VMACs here. But,
+ * since if we configure a VMAC on a VMAC, it ends up on the underlying interface, we don't need to
+ * have addresses for VMACs, accept the link local address based on the MAC of the underlying i/f. */
 	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
 		if (vrrp->vipset)
 			vrrp_restore_interface(vrrp, false, true);

@@ -99,14 +99,14 @@ static inline bool inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 		struct in6_addr *a1 = (struct in6_addr *) addr1;
 		struct in6_addr *a2 = (struct in6_addr *) addr2;
 
-		if (__ip6_addr_equal(a1, a2))
-			return true;
-	} else if (family == AF_INET) {
+		return __ip6_addr_equal(a1, a2);
+	}
+
+	if (family == AF_INET) {
 		struct in_addr *a1 = (struct in_addr *) addr1;
 		struct in_addr *a2 = (struct in_addr *) addr2;
 
-		if (a1->s_addr == a2->s_addr)
-			return true;
+		return (a1->s_addr == a2->s_addr);
 	}
 
 	return false;
