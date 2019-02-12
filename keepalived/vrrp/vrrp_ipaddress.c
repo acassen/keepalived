@@ -97,6 +97,8 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 		/* The interface has been deleted, so there is no point deleting the address */
 		return 0;
 	}
+	else if (!ipaddress->ifa.ifa_index)
+		ipaddress->ifa.ifa_index = ipaddress->ifp->ifindex;
 
 	memset(&req, 0, sizeof (req));
 
