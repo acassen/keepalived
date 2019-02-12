@@ -102,6 +102,7 @@ extern void dump_mlist(FILE *, list, size_t);
 extern void free_mlist_r(list, size_t);
 extern list alloc_list_r(void (*) (void *), void (*) (FILE *, void *));
 extern void free_list_r(list *);
+extern void free_list_element_simple(void *);
 extern void free_list_elements_r(list);
 extern void free_list_element_r(list, element);
 extern void list_transfer(element, list, list);

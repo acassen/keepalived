@@ -213,6 +213,12 @@ dump_list(FILE *fp, list l)
 			(*l->dump) (fp, e->data);
 }
 
+void
+free_list_element_simple(void *data)
+{
+	FREE(data);
+}
+
 static void
 free_elements(list l)
 {

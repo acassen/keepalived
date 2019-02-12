@@ -125,6 +125,9 @@ if_get_by_ifname(const char *ifname, if_lookup_t create)
 #ifdef _HAVE_VRRP_VMAC_
 	ifp->base_ifp = ifp;
 #endif
+	ifp->sin_addr_l = alloc_list(free_list_element_simple, NULL);
+	ifp->sin6_addr_l = alloc_list(free_list_element_simple, NULL);
+
 	if_add_queue(ifp);
 
 	if (create == IF_CREATE_IF_DYNAMIC)
@@ -322,6 +325,9 @@ free_if(void *data)
 	interface_t *ifp = data;
 
 	free_list(&ifp->tracking_vrrp);
+	free_list(&ifp->sin_addr_l);
+	free_list(&ifp->sin6_addr_l);
+
 	FREE(data);
 }
 
@@ -413,13 +419,31 @@ dump_if(FILE *fp, void *data)
 	interface_t *ifp = data;
 	char addr_str[INET6_ADDRSTRLEN];
 	char mac_buf[3 * sizeof ifp->hw_addr];
+	element e;
+	struct in_addr *addr_p;
+	struct in6_addr *addr6_p;
 
 	conf_write(fp, " Name = %s", ifp->ifname);
 	conf_write(fp, "   index = %u", ifp->ifindex);
 	conf_write(fp, "   IPv4 address = %s",
 			ifp->sin_addr.s_addr ? inet_ntop2(ifp->sin_addr.s_addr) : "(none)");
-	inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, sizeof(addr_str));
-	conf_write(fp, "   IPv6 address = %s", ifp->sin6_addr.s6_addr32[0] ? addr_str : "(none)");
+	if (!LIST_ISEMPTY(ifp->sin_addr_l)) {
+		conf_write(fp, "   Additional IPv4 addresses = %d", LIST_SIZE(ifp->sin_addr_l));
+		LIST_FOREACH(ifp->sin_addr_l, addr_p, e)
+			conf_write(fp, "     %s", inet_ntop2(addr_p->s_addr));
+	}
+	if (ifp->sin6_addr.s6_addr32[0]) {
+		inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, sizeof(addr_str));
+		conf_write(fp, "   IPv6 address = %s", addr_str);
+	} else
+		conf_write(fp, "   IPv6 address = (none)");
+	if (!LIST_ISEMPTY(ifp->sin6_addr_l)) {
+		conf_write(fp, "   Additional IPv6 addresses = %d", LIST_SIZE(ifp->sin6_addr_l));
+		LIST_FOREACH(ifp->sin6_addr_l, addr6_p, e) {
+			inet_ntop(AF_INET6, addr6_p, addr_str, sizeof(addr_str));
+			conf_write(fp, "     %s", addr_str);
+		}
+	}
 
 	if (ifp->hw_addr_len) {
 		format_mac_buf(mac_buf, sizeof mac_buf, ifp->hw_addr, ifp->hw_addr_len);
@@ -763,7 +787,7 @@ if_join_vrrp_group(sa_family_t family, int *sd, interface_t *ifp)
 
 	if (ret < 0) {
 		log_message(LOG_INFO, "(%s) cant do IP%s_ADD_MEMBERSHIP errno=%s (%d)",
-			    ifp->ifname, (family == AF_INET) ? "" : "v6", strerror(errno), errno);
+			    ifp->ifname, (family == AF_INET) ? "" : "V6", strerror(errno), errno);
 		close(*sd);
 		*sd = -1;
 	}

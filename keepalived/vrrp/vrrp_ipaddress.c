@@ -97,6 +97,8 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 		/* The interface has been deleted, so there is no point deleting the address */
 		return 0;
 	}
+	else if (!ipaddress->ifa.ifa_index)
+		ipaddress->ifa.ifa_index = ipaddress->ifp->ifindex;
 
 	memset(&req, 0, sizeof (req));
 
@@ -201,8 +203,7 @@ netlink_iplist(list ip_list, int cmd, bool force)
 	 * If "--dont-release-vrrp" is set then try to release addresses
 	 * that may be there, even if we didn't set them.
 	 */
-	for (e = LIST_HEAD(ip_list); e; ELEMENT_NEXT(e)) {
-		ipaddr = ELEMENT_DATA(e);
+	LIST_FOREACH (ip_list, ipaddr, e) {
 		if ((cmd == IPADDRESS_ADD && !ipaddr->set) ||
 		    (cmd == IPADDRESS_DEL &&
 		     (force || ipaddr->set || __test_bit(DONT_RELEASE_VRRP_BIT, &debug)))) {
@@ -212,7 +213,7 @@ netlink_iplist(list ip_list, int cmd, bool force)
 				netlink_error_ignore = ENODEV;
 
 			if (netlink_ipaddress(ipaddr, cmd) > 0) {
-				ipaddr->set = !(cmd == IPADDRESS_DEL);
+				ipaddr->set = (cmd == IPADDRESS_ADD);
 				changed_entries = true;
 			}
 			else
