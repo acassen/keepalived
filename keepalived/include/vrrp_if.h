@@ -81,8 +81,12 @@ typedef struct _garp_delay {
 typedef struct _interface {
 	char			ifname[IFNAMSIZ];	/* Interface name */
 	ifindex_t		ifindex;		/* Interface index */
+#ifdef _WITH_VRRP_
 	struct in_addr		sin_addr;		/* IPv4 primary IPv4 address */
-	struct in6_addr		sin6_addr;		/* IPv6 link address */
+	struct in6_addr		sin6_addr;		/* IPv6 primary link local address */
+	list			sin_addr_l;		/* List of extra IPv4 interface addresses - struct in_addr */
+	list			sin6_addr_l;		/* List of extra IPv6 interface addresses - struct in6_addr */
+#endif
 	unsigned		ifi_flags;		/* Kernel flags */
 	uint32_t		mtu;			/* MTU for this interface_t */
 	unsigned short		hw_type;		/* Type of hardware address */

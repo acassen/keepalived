@@ -436,9 +436,9 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage* addr)
 		if (!vrrp->saddr_from_config &&
 		    ip->saddr != ((struct sockaddr_in *)&vrrp->saddr)->sin_addr.s_addr) {
 			if (vrrp->version == VRRP_VERSION_2)
-				ip->saddr = ((struct sockaddr_in*)&vrrp->saddr)->sin_addr.s_addr;
+				ip->saddr = ((struct sockaddr_in *)&vrrp->saddr)->sin_addr.s_addr;
 			else {
-				new_saddr = ((struct sockaddr_in*)&vrrp->saddr)->sin_addr.s_addr;
+				new_saddr = ((struct sockaddr_in *)&vrrp->saddr)->sin_addr.s_addr;
 				hd->chksum = csum_incremental_update32(hd->chksum, ip->saddr, new_saddr);
 				ip->saddr = new_saddr;
 			}
