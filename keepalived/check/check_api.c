@@ -299,13 +299,13 @@ static void
 co_timeout_handler(vector_t *strvec)
 {
 	conn_opts_t *co = CHECKER_GET_CO();
-	unsigned long timer;
+	double timer;
 
-	if (!read_timer(strvec, 1, &timer, 1, UINT_MAX / TIMER_HZ, true)) {
+	if (!read_double_strvec(strvec, 1, &timer, 1.0 / TIMER_HZ, UINT_MAX / TIMER_HZ, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "connect_timeout %s invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
-	co->connection_to = timer;
+	co->connection_to = timer * TIMER_HZ;
 }
 
 #ifdef _WITH_SO_MARK_
@@ -342,9 +342,9 @@ static void
 delay_before_retry_handler(vector_t *strvec)
 {
 	checker_t *checker = CHECKER_GET_CURRENT();
-	unsigned delay;
+	double delay;
 
-	if (!read_unsigned_strvec(strvec, 1, &delay, 0, UINT_MAX / TIMER_HZ, true)) {
+	if (!read_double_strvec(strvec, 1, &delay, 0 / TIMER_HZ, UINT_MAX / TIMER_HZ, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid delay_before_retry connection value '%s'", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
@@ -370,11 +370,11 @@ warmup_handler(vector_t *strvec)
 static void
 delay_handler(vector_t *strvec)
 {
-	unsigned long delay_loop;
+	double delay_loop;
 	checker_t *checker = CHECKER_GET_CURRENT();
 
-	if (read_timer(strvec, 1, &delay_loop, 1, 0, true))
-		checker->delay_loop = delay_loop;
+	if (read_double_strvec(strvec, 1, &delay_loop, 1.0 / TIMER_HZ, UINT_MAX / TIMER_HZ, true))
+		checker->delay_loop = delay_loop * TIMER_HZ;
 	else
 		report_config_error(CONFIG_GENERAL_ERROR, "delay_loop '%s' is invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
 }

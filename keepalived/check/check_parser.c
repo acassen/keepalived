@@ -220,10 +220,10 @@ static void
 vs_delay_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	unsigned long delay;
+	double delay;
 
-	if (read_timer(strvec, 1, &delay, 1, 0, true))
-		vs->delay_loop = delay;
+	if (read_double_strvec(strvec, 1, &delay, 1.0 / TIMER_HZ, UINT_MAX / TIMER_HZ, true))
+		vs->delay_loop = delay * TIMER_HZ;
 	else
 		report_config_error(CONFIG_GENERAL_ERROR, "virtual server delay loop '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
 }

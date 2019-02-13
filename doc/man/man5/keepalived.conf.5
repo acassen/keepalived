@@ -1467,7 +1467,7 @@ The syntax for virtual_server is :
 \fBvirtual_server fwmark \fR<INTEGER> |
 \fBvirtual_server group \fR<STRING> {
     # delay timer for checker polling
-    \fBdelay_loop \fR<INTEGER>
+    \fBdelay_loop \fR<DECIMAL>
 
     # LVS scheduler
     \fBlvs_sched \fRrr|wrr|lc|wlc|lblc|sh|mh|dh|fo|ovf|lblcr|sed|nq
@@ -1561,7 +1561,7 @@ The syntax for virtual_server is :
     \fBretry \fR<INTEGER>
 
     # delay before retry
-    \fBdelay_before_retry \fR<INTEGER>
+    \fBdelay_before_retry \fR<DECIMAL>
 
     # Optional random delay to start the initial check
     # for maximum N seconds.
@@ -1571,7 +1571,7 @@ The syntax for virtual_server is :
     \fBwarmup \fR<INTEGER>
 
     # delay timer for checker polling
-    \fBdelay_loop \fR<INTEGER>
+    \fBdelay_loop \fR<DECIMAL>
 
     # Set weight to 0 when healthchecker detects failure
     \fBinhibit_on_failure\fR
@@ -1607,9 +1607,9 @@ The syntax for virtual_server is :
 
         \fBalpha \fR<BOOL>                    # see above
         \fBretry \fR<INTEGER>                 # see above
-        \fBdelay_before_retry \fR<INTEGER>    # see above
+        \fBdelay_before_retry \fR<DECIMAL>    # see above
         \fBwarmup \fR<INTEGER>                # see above
-        \fBdelay_loop \fR<INTEGER>            # see above
+        \fBdelay_loop  \fR<DECIMAL>           # see above
         \fBinhibit_on_failure \fR<BOOL>       # see above
         \fBlog_all_failures \fR<BOOL>         # log all failures when checker up
 
@@ -1643,7 +1643,7 @@ The syntax for virtual_server is :
 
             # Optional connection timeout in seconds.
             # The default is 5 seconds
-            \fBconnect_timeout \fR<INTEGER>
+            \fBconnect_timeout \fR<DECIMAL>
 
             # Optional fwmark to mark all outgoing
             # checker packets with
@@ -1651,9 +1651,9 @@ The syntax for virtual_server is :
 
             \fBalpha \fR<BOOL>                    # see above
             \fBretry \fR<INTEGER>                 # see above
-            \fBdelay_before_retry \fR<INTEGER>    # see above
+            \fBdelay_before_retry \fR<DECIMAL>    # see above
             \fBwarmup \fR<INTEGER>                # see above
-            \fBdelay_loop \fR<INTEGER>            # see above
+            \fBdelay_loop \fR<DECIMAL>            # see above
             \fBinhibit_on_failure \fR<BOOL>       # see above
         }
 
