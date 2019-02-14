@@ -33,6 +33,10 @@ Keepalived Core-Team.
 .SH PARAMETER SYNTAX
 \fB<BOOL>\fR
 is one of on|off|true|false|yes|no
+.br
+\fB<TIMER>\fR
+is a time value in seconds, including fractional seconds, e.g. 2.71828 or 3;
+resolution of timer is micro-seconds.
 .SH SCRIPTS
 There are three classes of scripts can be configured to be executed.
 
@@ -1426,7 +1430,7 @@ definitions. If you need to define a bunch of virtual server with exactly the sa
 real server topology then this feature will make your configuration much more readable
 and will optimize healthchecking task by only spawning one healthchecking where
 multiple virtual server declaration will spawn a dedicated healthchecker for every
-real server which will waste system ressources.
+real server which will waste system resources.
 .PP
 .nf
 The syntax for virtual_server_group is :
@@ -1466,9 +1470,6 @@ The syntax for virtual_server is :
 \fBvirtual_server \fR<IPADDR> <PORT>  |
 \fBvirtual_server fwmark \fR<INTEGER> |
 \fBvirtual_server group \fR<STRING> {
-    # delay timer for checker polling
-    \fBdelay_loop \fR<INTEGER>
-
     # LVS scheduler
     \fBlvs_sched \fRrr|wrr|lc|wlc|lblc|sh|mh|dh|fo|ovf|lblcr|sed|nq
 
@@ -1556,22 +1557,26 @@ The syntax for virtual_server is :
     # Sorry server LVS forwarding method
     \fBsorry_server_lvs_method \fRNAT|DR|TUN
 
+    # Optional connection timeout in seconds.
+    # The default is 5 seconds
+    \fBconnect_timeout \fR<TIMER>
+
     # Retry count to make additional checks if check
     # of an alive server fails. Default: 1 unless specified below
     \fBretry \fR<INTEGER>
 
-    # delay before retry
-    \fBdelay_before_retry \fR<INTEGER>
+    # delay before retry after failure
+    \fBdelay_before_retry \fR<TIMER>
 
     # Optional random delay to start the initial check
     # for maximum N seconds.
     # Useful to scatter multiple simultaneous
     # checks to the same RS. Enabled by default, with
     # the maximum at delay_loop. Specify 0 to disable
-    \fBwarmup \fR<INTEGER>
+    \fBwarmup \fR<TIMER>
 
     # delay timer for checker polling
-    \fBdelay_loop \fR<INTEGER>
+    \fBdelay_loop \fR<TIMER>
 
     # Set weight to 0 when healthchecker detects failure
     \fBinhibit_on_failure\fR
@@ -1606,10 +1611,11 @@ The syntax for virtual_server is :
         \fBvirtualhost \fR<STRING>
 
         \fBalpha \fR<BOOL>                    # see above
+        \fBconnect_timeout \fR<TIMER>         # see above
         \fBretry \fR<INTEGER>                 # see above
-        \fBdelay_before_retry \fR<INTEGER>    # see above
-        \fBwarmup \fR<INTEGER>                # see above
-        \fBdelay_loop \fR<INTEGER>            # see above
+        \fBdelay_before_retry \fR<TIMER>      # see above
+        \fBwarmup \fR<TIMER>                  # see above
+        \fBdelay_loop \fR<TIMER>              # see above
         \fBinhibit_on_failure \fR<BOOL>       # see above
         \fBlog_all_failures \fR<BOOL>         # log all failures when checker up
 
@@ -1641,19 +1647,16 @@ The syntax for virtual_server is :
             # originate the connection from
             \fBbind_port \fR<PORT>
 
-            # Optional connection timeout in seconds.
-            # The default is 5 seconds
-            \fBconnect_timeout \fR<INTEGER>
-
             # Optional fwmark to mark all outgoing
             # checker packets with
             \fBfwmark \fR<INTEGER>
 
             \fBalpha \fR<BOOL>                    # see above
+            \fBconnect_timeout \fR<TIMER>         # see above
             \fBretry \fR<INTEGER>                 # see above
-            \fBdelay_before_retry \fR<INTEGER>    # see above
-            \fBwarmup \fR<INTEGER>                # see above
-            \fBdelay_loop \fR<INTEGER>            # see above
+            \fBdelay_before_retry \fR<TIMER>      # see above
+            \fBwarmup \fR<TIMER>                  # see above
+            \fBdelay_loop \fR<TIMER>              # see above
             \fBinhibit_on_failure \fR<BOOL>       # see above
         }
 

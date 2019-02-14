@@ -270,7 +270,9 @@ dump_vs(FILE *fp, void *data)
 		conf_write(fp, "   VirtualHost = %s", vs->virtualhost);
 	if (vs->af != AF_UNSPEC)
 		conf_write(fp, "   Address family = inet%s", vs->af == AF_INET ? "" : "6");
-	conf_write(fp, "   delay_loop = %lu, lvs_sched = %s", vs->delay_loop / TIMER_HZ, vs->sched);
+	conf_write(fp, "   connection timeout = %f", (double)vs->connection_to / TIMER_HZ);
+	conf_write(fp, "   delay_loop = %f", (double)vs->delay_loop / TIMER_HZ);
+	conf_write(fp, "   lvs_sched = %s", vs->sched);
 	conf_write(fp, "   Hashed = %sabled", vs->flags & IP_VS_SVC_F_HASHED ? "en" : "dis");
 #ifdef IP_VS_SVC_F_SCHED1
 	if (!strcmp(vs->sched, "sh"))
@@ -321,9 +323,9 @@ dump_vs(FILE *fp, void *data)
 	if (vs->retry != UINT_MAX)
 		conf_write(fp, "   Retry count = %u" , vs->retry);
 	if (vs->delay_before_retry != ULONG_MAX)
-		conf_write(fp, "   Retry delay = %lu" , vs->delay_before_retry / TIMER_HZ);
+		conf_write(fp, "   Retry delay = %f" , (double)vs->delay_before_retry / TIMER_HZ);
 	if (vs->warmup != ULONG_MAX)
-		conf_write(fp, "   Warmup = %lu", vs->warmup / TIMER_HZ);
+		conf_write(fp, "   Warmup = %f", (double)vs->warmup / TIMER_HZ);
 	conf_write(fp, "   Inhibit on failure is %s", vs->inhibit ? "ON" : "OFF");
 	conf_write(fp, "   quorum = %u, hysteresis = %u", vs->quorum, vs->hysteresis);
 	if (vs->notify_quorum_up)
@@ -423,6 +425,7 @@ alloc_vs(char *param1, char *param2)
 	new->quorum_state_up = true;
 	new->flags = 0;
 	new->forwarding_method = IP_VS_CONN_F_FWD_MASK;		/* So we can detect if it has been set */
+	new->connection_to = 5 * TIMER_HZ;
 	new->delay_loop = KEEPALIVED_DEFAULT_DELAY;
 	new->warmup = ULONG_MAX;
 	new->retry = UINT_MAX;
@@ -489,13 +492,14 @@ dump_rs(FILE *fp, void *data)
 	}
 
 	conf_write(fp, "   Alpha is %s", rs->alpha ? "ON" : "OFF");
-	conf_write(fp, "   Delay loop = %lu" , rs->delay_loop / TIMER_HZ);
+	conf_write(fp, "   connection timeout = %f", ((double)rs->connection_to) / TIMER_HZ);
+	conf_write(fp, "   Delay loop = %f" , (double)rs->delay_loop / TIMER_HZ);
 	if (rs->retry != UINT_MAX)
 		conf_write(fp, "   Retry count = %u" , rs->retry);
 	if (rs->delay_before_retry != ULONG_MAX)
-		conf_write(fp, "   Retry delay = %lu" , rs->delay_before_retry / TIMER_HZ);
+		conf_write(fp, "   Retry delay = %f" , (double)rs->delay_before_retry / TIMER_HZ);
 	if (rs->warmup != ULONG_MAX)
-		conf_write(fp, "   Warmup = %lu", rs->warmup / TIMER_HZ);
+		conf_write(fp, "   Warmup = %f", (double)rs->warmup / TIMER_HZ);
 	conf_write(fp, "   Inhibit on failure is %s", rs->inhibit ? "ON" : "OFF");
 
 	if (rs->notify_up)
@@ -544,6 +548,7 @@ alloc_rs(char *ip, char *port)
 	new->weight = INT_MAX;
 	new->forwarding_method = vs->forwarding_method;
 	new->alpha = -1;
+	new->connection_to = UINT_MAX;
 	new->delay_loop = ULONG_MAX;
 	new->warmup = ULONG_MAX;
 	new->retry = UINT_MAX;
@@ -824,6 +829,8 @@ bool validate_check_config(void)
 				rs->inhibit = vs->inhibit;
 			if (rs->retry == UINT_MAX)
 				rs->retry = vs->retry;
+			if (rs->connection_to == UINT_MAX)
+				rs->connection_to = vs->connection_to;
 			if (rs->delay_loop == ULONG_MAX)
 				rs->delay_loop = vs->delay_loop;
 			if (rs->warmup == ULONG_MAX)
@@ -861,6 +868,8 @@ bool validate_check_config(void)
 		if (checker->launch) {
 			if (checker->retry == UINT_MAX)
 				checker->retry = checker->rs->retry != UINT_MAX ? checker->rs->retry : checker->default_retry;
+			if (checker->co && checker->co->connection_to == UINT_MAX)
+				checker->co->connection_to = checker->rs->connection_to;
 			if (checker->delay_loop == ULONG_MAX)
 				checker->delay_loop = checker->rs->delay_loop;
 			if (checker->warmup == ULONG_MAX)

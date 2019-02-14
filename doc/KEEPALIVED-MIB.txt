@@ -22,12 +22,16 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201808140000Z"
+     LAST-UPDATED "201902140001Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201902140001Z"
+     DESCRIPTION "add checker connection timeout"
+     REVISION "201902140000Z"
+     DESCRIPTION "add checker warmup, delay loop and delay before retry in micro-seconds"
      REVISION "201808140000Z"
      DESCRIPTION "add MH LVS scheduler"
      REVISION "201807180000Z"
@@ -2788,7 +2792,11 @@ VirtualServerEntry ::= SEQUENCE {
     virtualServerWeight INTEGER,
     virtualServerSmtpAlert INTEGER,
     virtualServerMHFallback TruthValue,
-    virtualServerMHPort TruthValue
+    virtualServerMHPort TruthValue,
+    virtualServerDelayLoopUsec Unsigned32,
+    virtualServerDelayBeforeRetrUsec Unsigned32,
+    virtualServerWarmupUsec Unsigned32,
+    virtualServerConnTimeoutUsec Unsigned32
 }
 
 virtualServerIndex OBJECT-TYPE
@@ -3361,6 +3369,42 @@ virtualServerMHPort OBJECT-TYPE
         "If set to true(1), MH scheduler use port."
     ::= { virtualServerEntry 63 }
 
+virtualServerDelayLoopUsec OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "micro-seconds"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Delay in micro-seconds between two checks."
+    ::= { virtualServerEntry 64 }
+
+virtualServerDelayBeforeRetrUsec OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "micro-seconds"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Default number of micro-seconds between retrying a checker ofter it has failed."
+    ::= { virtualServerEntry 65 }
+
+virtualServerWarmupUsec OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "micro-seconds"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Maximum number of micro-seconds to delay before running checker."
+    ::= { virtualServerEntry 66 }
+
+virtualServerConnTimeoutUsec OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "micro-seconds"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Maximum number of micro-seconds for checker to establish connection."
+    ::= { virtualServerEntry 67 }
+
 
 -- real servers
 
@@ -3428,7 +3472,11 @@ RealServerEntry ::= SEQUENCE {
     realServerDelayBeforeRetry Unsigned32,
     realServerWarmup Unsigned32,
     realServerDelayLoop Unsigned32,
-    realServerSmtpAlert INTEGER
+    realServerSmtpAlert INTEGER,
+    realServerDelayBeforeRetryUsec Unsigned32,
+    realServerWarmupUsec Unsigned32,
+    realServerDelayLoopUsec Unsigned32,
+    realServerConnTimeoutUsec Unsigned32
 }
 
 realServerIndex OBJECT-TYPE
@@ -3820,7 +3868,7 @@ realServerDelayBeforeRetry OBJECT-TYPE
     MAX-ACCESS read-only
     STATUS current
     DESCRIPTION
-        "Default number of seconds between retrying a checker ofter it has failed."
+        "Default number of seconds between retrying a checker after it has failed."
     ::= { realServerEntry 44 }
 
 realServerWarmup OBJECT-TYPE
@@ -3848,6 +3896,42 @@ realServerSmtpAlert OBJECT-TYPE
     DESCRIPTION
         "Will SMTP alert be sent for this real server?"
     ::= {realServerEntry 47 }
+
+realServerDelayBeforeRetryUsec OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "micro-seconds"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Default number of micro-seconds between retrying a checker after it has failed."
+    ::= { realServerEntry 48 }
+
+realServerWarmupUsec OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "micro-seconds"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Maximum number of micro-seconds to delay before running checker."
+    ::= { realServerEntry 49 }
+
+realServerDelayLoopUsec OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "micro-seconds"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Delay in micro-seconds between two checks."
+    ::= { realServerEntry 50 }
+
+realServerConnTimeoutUsec OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "micro-seconds"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Maximum number of micro-seconds for checker to establish connection."
+    ::= { realServerEntry 51 }
 
 lvsSyncDaemon    OBJECT IDENTIFIER ::= { check 6 }
 
@@ -4408,7 +4492,11 @@ virtualServerGroup OBJECT-GROUP
     virtualServerWeight,
     virtualServerSmtpAlert,
     virtualServerMHFallback,
-    virtualServerMHPort
+    virtualServerMHPort,
+    virtualServerDelayLoopUsec,
+    virtualServerDelayBeforeRetrUsec,
+    virtualServerWarmupUsec,
+    virtualServerConnTimeoutUsec
     }
     STATUS current
     DESCRIPTION
@@ -4462,7 +4550,11 @@ realServerGroup OBJECT-GROUP
     realServerDelayBeforeRetry,
     realServerWarmup,
     realServerDelayLoop,
-    realServerSmtpAlert
+    realServerSmtpAlert,
+    realServerDelayBeforeRetryUsec,
+    realServerWarmupUsec,
+    realServerDelayLoopUsec,
+    realServerConnTimeoutUsec
     }
     STATUS current
     DESCRIPTION

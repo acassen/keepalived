@@ -92,7 +92,7 @@ dump_connection_opts(FILE *fp, void *data)
 	if (conn->fwmark != 0)
 		conf_write(fp, "     Mark = %u", conn->fwmark);
 #endif
-	conf_write(fp, "     Timeout = %d", conn->connection_to/TIMER_HZ);
+	conf_write(fp, "     Timeout = %f", (double)conn->connection_to / TIMER_HZ);
 }
 
 void
@@ -108,12 +108,12 @@ dump_checker_opts(FILE *fp, void *data)
 
 	conf_write(fp, "   Alpha is %s", checker->alpha ? "ON" : "OFF");
 	conf_write(fp, "   Log all failures %s", checker->log_all_failures ? "ON" : "OFF");
-	conf_write(fp, "   Delay loop = %lu" , checker->delay_loop / TIMER_HZ);
+	conf_write(fp, "   Delay loop = %f" , (double)checker->delay_loop / TIMER_HZ);
 	if (checker->retry) {
 		conf_write(fp, "   Retry count = %u" , checker->retry);
-		conf_write(fp, "   Retry delay = %lu" , checker->delay_before_retry / TIMER_HZ);
+		conf_write(fp, "   Retry delay = %f" , (double)checker->delay_before_retry / TIMER_HZ);
 	}
-	conf_write(fp, "   Warmup = %lu", checker->warmup / TIMER_HZ);
+	conf_write(fp, "   Warmup = %f", (double)checker->warmup / TIMER_HZ);
 }
 
 /* Queue a checker into the checkers_queue */
@@ -131,7 +131,7 @@ queue_checker(void (*free_func) (void *), void (*dump_func) (FILE *, void *)
 	/* Set default dst = RS, timeout = 5 */
 	if (co) {
 		co->dst = rs->addr;
-		co->connection_to = 5 * TIMER_HZ;
+		co->connection_to = UINT_MAX;
 	}
 
 	checker->free_func = free_func;
@@ -342,14 +342,14 @@ static void
 delay_before_retry_handler(vector_t *strvec)
 {
 	checker_t *checker = CHECKER_GET_CURRENT();
-	unsigned delay;
+	unsigned long delay;
 
-	if (!read_unsigned_strvec(strvec, 1, &delay, 0, UINT_MAX / TIMER_HZ, true)) {
+	if (!read_timer(strvec, 1, &delay, 0, 0, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid delay_before_retry connection value '%s'", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
 
-	checker->delay_before_retry = delay * TIMER_HZ;
+	checker->delay_before_retry = delay;
 }
 
 /* "warmup" keyword */
@@ -357,26 +357,28 @@ static void
 warmup_handler(vector_t *strvec)
 {
 	checker_t *checker = CHECKER_GET_CURRENT();
-	unsigned warmup;
+	unsigned long warmup;
 
-	if (!read_unsigned_strvec(strvec, 1, &warmup, 0, UINT_MAX / TIMER_HZ, true)) {
+	if (!read_timer(strvec, 1, &warmup, 0, 0, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid warmup connection value '%s'", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
 
-	checker->warmup = warmup * TIMER_HZ;
+	checker->warmup = warmup;
 }
 
 static void
 delay_handler(vector_t *strvec)
 {
-	unsigned long delay_loop;
 	checker_t *checker = CHECKER_GET_CURRENT();
+	unsigned long delay_loop;
 
-	if (read_timer(strvec, 1, &delay_loop, 1, 0, true))
-		checker->delay_loop = delay_loop;
-	else
+	if (!read_timer(strvec, 1, &delay_loop, 1, 0, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "delay_loop '%s' is invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+
+	checker->delay_loop = delay_loop;
 }
 
 static void
