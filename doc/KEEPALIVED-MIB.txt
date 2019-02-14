@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201902140000Z"
+     LAST-UPDATED "201902140001Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201902140001Z"
+     DESCRIPTION "add checker connection timeout"
      REVISION "201902140000Z"
      DESCRIPTION "add checker warmup, delay loop and delay before retry in micro-seconds"
      REVISION "201808140000Z"
@@ -2793,7 +2795,8 @@ VirtualServerEntry ::= SEQUENCE {
     virtualServerMHPort TruthValue,
     virtualServerDelayLoopUsec Unsigned32,
     virtualServerDelayBeforeRetrUsec Unsigned32,
-    virtualServerWarmupUsec Unsigned32
+    virtualServerWarmupUsec Unsigned32,
+    virtualServerConnTimeoutUsec Unsigned32
 }
 
 virtualServerIndex OBJECT-TYPE
@@ -3393,6 +3396,15 @@ virtualServerWarmupUsec OBJECT-TYPE
         "Maximum number of micro-seconds to delay before running checker."
     ::= { virtualServerEntry 66 }
 
+virtualServerConnTimeoutUsec OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "micro-seconds"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Maximum number of micro-seconds for checker to establish connection."
+    ::= { virtualServerEntry 67 }
+
 
 -- real servers
 
@@ -3463,7 +3475,8 @@ RealServerEntry ::= SEQUENCE {
     realServerSmtpAlert INTEGER,
     realServerDelayBeforeRetryUsec Unsigned32,
     realServerWarmupUsec Unsigned32,
-    realServerDelayLoopUsec Unsigned32
+    realServerDelayLoopUsec Unsigned32,
+    realServerConnTimeoutUsec Unsigned32
 }
 
 realServerIndex OBJECT-TYPE
@@ -3910,6 +3923,15 @@ realServerDelayLoopUsec OBJECT-TYPE
     DESCRIPTION
         "Delay in micro-seconds between two checks."
     ::= { realServerEntry 50 }
+
+realServerConnTimeoutUsec OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "micro-seconds"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Maximum number of micro-seconds for checker to establish connection."
+    ::= { realServerEntry 51 }
 
 lvsSyncDaemon    OBJECT IDENTIFIER ::= { check 6 }
 
@@ -4473,7 +4495,8 @@ virtualServerGroup OBJECT-GROUP
     virtualServerMHPort,
     virtualServerDelayLoopUsec,
     virtualServerDelayBeforeRetrUsec,
-    virtualServerWarmupUsec
+    virtualServerWarmupUsec,
+    virtualServerConnTimeoutUsec
     }
     STATUS current
     DESCRIPTION
@@ -4530,7 +4553,8 @@ realServerGroup OBJECT-GROUP
     realServerSmtpAlert,
     realServerDelayBeforeRetryUsec,
     realServerWarmupUsec,
-    realServerDelayLoopUsec
+    realServerDelayLoopUsec,
+    realServerConnTimeoutUsec
     }
     STATUS current
     DESCRIPTION

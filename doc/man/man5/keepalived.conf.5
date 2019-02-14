@@ -1470,9 +1470,6 @@ The syntax for virtual_server is :
 \fBvirtual_server \fR<IPADDR> <PORT>  |
 \fBvirtual_server fwmark \fR<INTEGER> |
 \fBvirtual_server group \fR<STRING> {
-    # delay timer for checker polling
-    \fBdelay_loop \fR<INTEGER>
-
     # LVS scheduler
     \fBlvs_sched \fRrr|wrr|lc|wlc|lblc|sh|mh|dh|fo|ovf|lblcr|sed|nq
 
@@ -1560,6 +1557,10 @@ The syntax for virtual_server is :
     # Sorry server LVS forwarding method
     \fBsorry_server_lvs_method \fRNAT|DR|TUN
 
+    # Optional connection timeout in seconds.
+    # The default is 5 seconds
+    \fBconnect_timeout \fR<TIMER>
+
     # Retry count to make additional checks if check
     # of an alive server fails. Default: 1 unless specified below
     \fBretry \fR<INTEGER>
@@ -1610,6 +1611,7 @@ The syntax for virtual_server is :
         \fBvirtualhost \fR<STRING>
 
         \fBalpha \fR<BOOL>                    # see above
+        \fBconnect_timeout \fR<TIMER>         # see above
         \fBretry \fR<INTEGER>                 # see above
         \fBdelay_before_retry \fR<TIMER>      # see above
         \fBwarmup \fR<TIMER>                  # see above
@@ -1645,15 +1647,12 @@ The syntax for virtual_server is :
             # originate the connection from
             \fBbind_port \fR<PORT>
 
-            # Optional connection timeout in seconds.
-            # The default is 5 seconds
-            \fBconnect_timeout \fR<TIMER>
-
             # Optional fwmark to mark all outgoing
             # checker packets with
             \fBfwmark \fR<INTEGER>
 
             \fBalpha \fR<BOOL>                    # see above
+            \fBconnect_timeout \fR<TIMER>         # see above
             \fBretry \fR<INTEGER>                 # see above
             \fBdelay_before_retry \fR<TIMER>      # see above
             \fBwarmup \fR<TIMER>                  # see above

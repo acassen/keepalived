@@ -131,7 +131,7 @@ queue_checker(void (*free_func) (void *), void (*dump_func) (FILE *, void *)
 	/* Set default dst = RS, timeout = 5 */
 	if (co) {
 		co->dst = rs->addr;
-		co->connection_to = 5 * TIMER_HZ;
+		co->connection_to = UINT_MAX;
 	}
 
 	checker->free_func = free_func;

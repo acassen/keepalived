@@ -217,6 +217,18 @@ ip_family_handler(vector_t *strvec)
 	vs->af = af;
 }
 static void
+vs_co_timeout_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	unsigned long timer;
+
+	if (!read_timer(strvec, 1, &timer, 1, UINT_MAX / TIMER_HZ, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "virtual server connect_timeout %s invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+	vs->connection_to = timer;
+}
+static void
 vs_delay_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
@@ -608,6 +620,19 @@ notify_down_handler(vector_t *strvec)
 	rs->notify_down = set_check_notify_script(strvec, "notify");
 }
 static void
+rs_co_timeout_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	unsigned long timer;
+
+	if (!read_timer(strvec, 1, &timer, 1, UINT_MAX / TIMER_HZ, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "real server connect_timeout %s invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+	rs->connection_to = timer;
+}
+static void
 rs_delay_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
@@ -800,6 +825,7 @@ init_check_keywords(bool active)
 	install_keyword("retry", &vs_retry_handler);
 	install_keyword("delay_before_retry", &vs_delay_before_retry_handler);
 	install_keyword("warmup", &vs_warmup_handler);
+	install_keyword("connect_timeout", &vs_co_timeout_handler);
 	install_keyword("delay_loop", &vs_delay_handler);
 	install_keyword("inhibit_on_failure", &vs_inhibit_handler);
 	install_keyword("lb_algo", &lbalgo_handler);
@@ -854,6 +880,7 @@ init_check_keywords(bool active)
 	install_keyword("retry", &rs_retry_handler);
 	install_keyword("delay_before_retry", &rs_delay_before_retry_handler);
 	install_keyword("warmup", &rs_warmup_handler);
+	install_keyword("connect_timeout", &rs_co_timeout_handler);
 	install_keyword("delay_loop", &rs_delay_handler);
 	install_keyword("smtp_alert", &rs_smtp_alert_handler);
 	install_keyword("virtualhost", &rs_virtualhost_handler);

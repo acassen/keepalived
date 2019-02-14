@@ -116,6 +116,7 @@ enum check_snmp_virtualserver_magic {
 	CHECK_SNMP_VSDELAYLOOPUSEC,
 	CHECK_SNMP_VSDELAYBEFORERETRYUSEC,
 	CHECK_SNMP_VSWARMUPUSEC,
+	CHECK_SNMP_VSCONNTIMEOUTUSEC,
 };
 
 enum check_snmp_realserver_magic {
@@ -170,6 +171,7 @@ enum check_snmp_realserver_magic {
 	CHECK_SNMP_RSDELAYBEFORERETRYUSEC,
 	CHECK_SNMP_RSWARMUPUSEC,
 	CHECK_SNMP_RSDELAYLOOPUSEC,
+	CHECK_SNMP_RSCONNTIMEOUTUSEC,
 };
 
 #define STATE_VSGM_FWMARK 1
@@ -709,6 +711,9 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 	case CHECK_SNMP_VSWARMUPUSEC:
 		long_ret.u = v->warmup == ULONG_MAX ? 0 : v->warmup;
 		return (u_char*)&long_ret;
+	case CHECK_SNMP_VSCONNTIMEOUTUSEC:
+		long_ret.u = v->connection_to;
+		return (u_char*)&long_ret;
 	default:
 		return NULL;
 	}
@@ -1093,6 +1098,9 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	case CHECK_SNMP_RSDELAYLOOPUSEC:
 		long_ret.u = be->delay_loop == ULONG_MAX ? 0 : be->delay_loop;
 		return (u_char*)&long_ret;
+	case CHECK_SNMP_RSCONNTIMEOUTUSEC:
+		long_ret.u = be->connection_to;
+		return (u_char*)&long_ret;
 	default:
 		return NULL;
 	}
@@ -1350,6 +1358,8 @@ static struct variable8 check_vars[] = {
 	 check_snmp_virtualserver, 3, {3, 1, 65}},
 	{CHECK_SNMP_VSWARMUPUSEC, ASN_UNSIGNED, RONLY,
 	 check_snmp_virtualserver, 3, {3, 1, 66}},
+	{CHECK_SNMP_VSCONNTIMEOUTUSEC, ASN_UNSIGNED, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 67}},
 
 	/* realServerTable */
 	{CHECK_SNMP_RSTYPE, ASN_INTEGER, RONLY,
@@ -1452,6 +1462,8 @@ static struct variable8 check_vars[] = {
 	 check_snmp_realserver, 3, {4, 1, 49}},
 	{CHECK_SNMP_RSDELAYLOOPUSEC, ASN_UNSIGNED, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 50}},
+	{CHECK_SNMP_RSCONNTIMEOUTUSEC, ASN_UNSIGNED, RONLY,
+	 check_snmp_realserver, 3, {4, 1, 51}},
 #ifdef _WITH_VRRP_
 	/* LVS sync daemon configuration */
 	{CHECK_SNMP_LVSSYNCDAEMONENABLED, ASN_INTEGER, RONLY,

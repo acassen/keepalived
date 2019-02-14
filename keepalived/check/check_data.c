@@ -270,6 +270,7 @@ dump_vs(FILE *fp, void *data)
 		conf_write(fp, "   VirtualHost = %s", vs->virtualhost);
 	if (vs->af != AF_UNSPEC)
 		conf_write(fp, "   Address family = inet%s", vs->af == AF_INET ? "" : "6");
+	conf_write(fp, "   connection timeout = %f", (double)vs->connection_to / TIMER_HZ);
 	conf_write(fp, "   delay_loop = %f", (double)vs->delay_loop / TIMER_HZ);
 	conf_write(fp, "   lvs_sched = %s", vs->sched);
 	conf_write(fp, "   Hashed = %sabled", vs->flags & IP_VS_SVC_F_HASHED ? "en" : "dis");
@@ -424,6 +425,7 @@ alloc_vs(char *param1, char *param2)
 	new->quorum_state_up = true;
 	new->flags = 0;
 	new->forwarding_method = IP_VS_CONN_F_FWD_MASK;		/* So we can detect if it has been set */
+	new->connection_to = 5 * TIMER_HZ;
 	new->delay_loop = KEEPALIVED_DEFAULT_DELAY;
 	new->warmup = ULONG_MAX;
 	new->retry = UINT_MAX;
@@ -490,6 +492,7 @@ dump_rs(FILE *fp, void *data)
 	}
 
 	conf_write(fp, "   Alpha is %s", rs->alpha ? "ON" : "OFF");
+	conf_write(fp, "   connection timeout = %f", ((double)rs->connection_to) / TIMER_HZ);
 	conf_write(fp, "   Delay loop = %f" , (double)rs->delay_loop / TIMER_HZ);
 	if (rs->retry != UINT_MAX)
 		conf_write(fp, "   Retry count = %u" , rs->retry);
@@ -545,6 +548,7 @@ alloc_rs(char *ip, char *port)
 	new->weight = INT_MAX;
 	new->forwarding_method = vs->forwarding_method;
 	new->alpha = -1;
+	new->connection_to = UINT_MAX;
 	new->delay_loop = ULONG_MAX;
 	new->warmup = ULONG_MAX;
 	new->retry = UINT_MAX;
@@ -825,6 +829,8 @@ bool validate_check_config(void)
 				rs->inhibit = vs->inhibit;
 			if (rs->retry == UINT_MAX)
 				rs->retry = vs->retry;
+			if (rs->connection_to == UINT_MAX)
+				rs->connection_to = vs->connection_to;
 			if (rs->delay_loop == ULONG_MAX)
 				rs->delay_loop = vs->delay_loop;
 			if (rs->warmup == ULONG_MAX)
@@ -862,6 +868,8 @@ bool validate_check_config(void)
 		if (checker->launch) {
 			if (checker->retry == UINT_MAX)
 				checker->retry = checker->rs->retry != UINT_MAX ? checker->rs->retry : checker->default_retry;
+			if (checker->co && checker->co->connection_to == UINT_MAX)
+				checker->co->connection_to = checker->rs->connection_to;
 			if (checker->delay_loop == ULONG_MAX)
 				checker->delay_loop = checker->rs->delay_loop;
 			if (checker->warmup == ULONG_MAX)
