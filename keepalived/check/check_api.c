@@ -342,14 +342,14 @@ static void
 delay_before_retry_handler(vector_t *strvec)
 {
 	checker_t *checker = CHECKER_GET_CURRENT();
-	unsigned delay;
+	unsigned long delay;
 
-	if (!read_unsigned_strvec(strvec, 1, &delay, 0, UINT_MAX / TIMER_HZ, true)) {
+	if (!read_timer(strvec, 1, &delay, 0, 0, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid delay_before_retry connection value '%s'", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
 
-	checker->delay_before_retry = delay * TIMER_HZ;
+	checker->delay_before_retry = delay;
 }
 
 /* "warmup" keyword */
@@ -357,26 +357,28 @@ static void
 warmup_handler(vector_t *strvec)
 {
 	checker_t *checker = CHECKER_GET_CURRENT();
-	unsigned warmup;
+	unsigned long warmup;
 
-	if (!read_unsigned_strvec(strvec, 1, &warmup, 0, UINT_MAX / TIMER_HZ, true)) {
+	if (!read_timer(strvec, 1, &warmup, 0, 0, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid warmup connection value '%s'", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
 
-	checker->warmup = warmup * TIMER_HZ;
+	checker->warmup = warmup;
 }
 
 static void
 delay_handler(vector_t *strvec)
 {
-	unsigned long delay_loop;
 	checker_t *checker = CHECKER_GET_CURRENT();
+	unsigned long delay_loop;
 
-	if (read_timer(strvec, 1, &delay_loop, 1, 0, true))
-		checker->delay_loop = delay_loop;
-	else
+	if (!read_timer(strvec, 1, &delay_loop, 1, 0, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "delay_loop '%s' is invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+
+	checker->delay_loop = delay_loop;
 }
 
 static void
