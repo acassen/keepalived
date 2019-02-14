@@ -1903,40 +1903,18 @@ set_value(vector_t *strvec)
 }
 
 bool
-read_timer(vector_t *strvec, size_t index, unsigned long *res, unsigned long min_time, unsigned long max_time, __attribute__((unused)) bool ignore_error)
+read_timer(vector_t *strvec, size_t index, unsigned long *res, unsigned long min_time, unsigned long max_time, bool ignore_error)
 {
-	unsigned long timer;
-	char *endptr;
-	char *warn = "";
-
-#ifndef _STRICT_CONFIG_
-	if (ignore_error && !__test_bit(CONFIG_TEST_BIT, &debug))
-		warn = "WARNING - ";
-#endif
+	double timer;
+	bool ret;
 
 	if (!max_time)
 		max_time = TIMER_MAXIMUM;
 
-	errno = 0;
-	timer = strtoul(vector_slot(strvec, index), &endptr, 10);
+	ret = read_double_strvec(strvec, index, &timer, min_time, max_time, ignore_error);
 	*res = (timer > TIMER_MAXIMUM ? TIMER_MAXIMUM : timer) * TIMER_HZ;
 
-	if (FMT_STR_VSLOT(strvec, index)[0] == '-')
-		report_config_error(CONFIG_INVALID_NUMBER, "%snegative number '%s'", warn, FMT_STR_VSLOT(strvec, index));
-	else if (*endptr)
-		report_config_error(CONFIG_INVALID_NUMBER, "%sinvalid number '%s'", warn, FMT_STR_VSLOT(strvec, index));
-	else if (errno == ERANGE || timer > TIMER_MAXIMUM)
-		report_config_error(CONFIG_INVALID_NUMBER, "%snumber '%s' outside timer range", warn, FMT_STR_VSLOT(strvec, index));
-	else if (timer < min_time || timer > max_time)
-		report_config_error(CONFIG_INVALID_NUMBER, "number '%s' outside range [%ld, %ld]", FMT_STR_VSLOT(strvec, index), min_time, max_time ? max_time : TIMER_MAXIMUM);
-	else
-		return true;
-
-#ifdef _STRICT_CONFIG_
-	return false;
-#else
-	return ignore_error && timer >= min_time && timer <= max_time && !__test_bit(CONFIG_TEST_BIT, &debug);
-#endif
+	return ret;
 }
 
 /* Checks for on/true/yes or off/false/no */

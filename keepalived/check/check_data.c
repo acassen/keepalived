@@ -270,7 +270,8 @@ dump_vs(FILE *fp, void *data)
 		conf_write(fp, "   VirtualHost = %s", vs->virtualhost);
 	if (vs->af != AF_UNSPEC)
 		conf_write(fp, "   Address family = inet%s", vs->af == AF_INET ? "" : "6");
-	conf_write(fp, "   delay_loop = %lu, lvs_sched = %s", vs->delay_loop / TIMER_HZ, vs->sched);
+	conf_write(fp, "   delay_loop = %f", (double)vs->delay_loop / TIMER_HZ);
+	conf_write(fp, "   lvs_sched = %s", vs->sched);
 	conf_write(fp, "   Hashed = %sabled", vs->flags & IP_VS_SVC_F_HASHED ? "en" : "dis");
 #ifdef IP_VS_SVC_F_SCHED1
 	if (!strcmp(vs->sched, "sh"))
@@ -321,9 +322,9 @@ dump_vs(FILE *fp, void *data)
 	if (vs->retry != UINT_MAX)
 		conf_write(fp, "   Retry count = %u" , vs->retry);
 	if (vs->delay_before_retry != ULONG_MAX)
-		conf_write(fp, "   Retry delay = %lu" , vs->delay_before_retry / TIMER_HZ);
+		conf_write(fp, "   Retry delay = %f" , (double)vs->delay_before_retry / TIMER_HZ);
 	if (vs->warmup != ULONG_MAX)
-		conf_write(fp, "   Warmup = %lu", vs->warmup / TIMER_HZ);
+		conf_write(fp, "   Warmup = %f", (double)vs->warmup / TIMER_HZ);
 	conf_write(fp, "   Inhibit on failure is %s", vs->inhibit ? "ON" : "OFF");
 	conf_write(fp, "   quorum = %u, hysteresis = %u", vs->quorum, vs->hysteresis);
 	if (vs->notify_quorum_up)
@@ -489,13 +490,13 @@ dump_rs(FILE *fp, void *data)
 	}
 
 	conf_write(fp, "   Alpha is %s", rs->alpha ? "ON" : "OFF");
-	conf_write(fp, "   Delay loop = %lu" , rs->delay_loop / TIMER_HZ);
+	conf_write(fp, "   Delay loop = %f" , (double)rs->delay_loop / TIMER_HZ);
 	if (rs->retry != UINT_MAX)
 		conf_write(fp, "   Retry count = %u" , rs->retry);
 	if (rs->delay_before_retry != ULONG_MAX)
-		conf_write(fp, "   Retry delay = %lu" , rs->delay_before_retry / TIMER_HZ);
+		conf_write(fp, "   Retry delay = %f" , (double)rs->delay_before_retry / TIMER_HZ);
 	if (rs->warmup != ULONG_MAX)
-		conf_write(fp, "   Warmup = %lu", rs->warmup / TIMER_HZ);
+		conf_write(fp, "   Warmup = %f", (double)rs->warmup / TIMER_HZ);
 	conf_write(fp, "   Inhibit on failure is %s", rs->inhibit ? "ON" : "OFF");
 
 	if (rs->notify_up)

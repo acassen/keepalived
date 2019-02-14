@@ -92,7 +92,7 @@ dump_connection_opts(FILE *fp, void *data)
 	if (conn->fwmark != 0)
 		conf_write(fp, "     Mark = %u", conn->fwmark);
 #endif
-	conf_write(fp, "     Timeout = %d", conn->connection_to/TIMER_HZ);
+	conf_write(fp, "     Timeout = %f", (double)conn->connection_to / TIMER_HZ);
 }
 
 void
@@ -108,12 +108,12 @@ dump_checker_opts(FILE *fp, void *data)
 
 	conf_write(fp, "   Alpha is %s", checker->alpha ? "ON" : "OFF");
 	conf_write(fp, "   Log all failures %s", checker->log_all_failures ? "ON" : "OFF");
-	conf_write(fp, "   Delay loop = %lu" , checker->delay_loop / TIMER_HZ);
+	conf_write(fp, "   Delay loop = %f" , (double)checker->delay_loop / TIMER_HZ);
 	if (checker->retry) {
 		conf_write(fp, "   Retry count = %u" , checker->retry);
-		conf_write(fp, "   Retry delay = %lu" , checker->delay_before_retry / TIMER_HZ);
+		conf_write(fp, "   Retry delay = %f" , (double)checker->delay_before_retry / TIMER_HZ);
 	}
-	conf_write(fp, "   Warmup = %lu", checker->warmup / TIMER_HZ);
+	conf_write(fp, "   Warmup = %f", (double)checker->warmup / TIMER_HZ);
 }
 
 /* Queue a checker into the checkers_queue */
