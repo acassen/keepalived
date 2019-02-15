@@ -265,16 +265,18 @@ run_perf(const char *process, const char *network_namespace, const char *instanc
 				break;
 			}
 			else if (ret == -1) {
-				if (errno == EINTR)
+				if (check_EINTR(errno))
 					continue;
+
 				log_message(LOG_INFO, "perf epoll returned errno %d - %m", errno);
 				break;
 			}
 
 			ret = read(in, buf, sizeof(buf));
 			if (ret == -1) {
-				if (errno == EINTR)
+				if (check_EINTR(errno))
 					continue;
+
 				log_message(LOG_INFO, "perf inotify read returned errno %d %m", errno);
 				break;
 			}

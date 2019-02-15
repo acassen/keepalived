@@ -255,9 +255,8 @@ process_method_call(dbus_queue_ent_t *ent)
 		log_message(LOG_INFO, "Write from DBus thread to main thread failed");
 
 	/* Wait for a response */
-	while ((ret = read(dbus_out_pipe[0], ent, 1)) == -1 && errno == EINTR) {
+	while ((ret = read(dbus_out_pipe[0], ent, 1)) == -1 && check_EINTR(errno))
 		log_message(LOG_INFO, "dbus_out_pipe read returned EINTR");
-	}
 	if (ret == -1)
 		log_message(LOG_INFO, "DBus response read error - errno = %d", errno);
 
@@ -935,7 +934,7 @@ dbus_stop(void)
 
 	clock_gettime(CLOCK_REALTIME, &thread_end_wait);
 	thread_end_wait.tv_sec += 1;
-	while ((ret = sem_timedwait(&thread_end, &thread_end_wait)) == -1 && errno == EINTR) ;
+	while ((ret = sem_timedwait(&thread_end, &thread_end_wait)) == -1 && check_EINTR(errno));
 
 	if (ret == -1 ) {
 		if (errno == ETIMEDOUT)

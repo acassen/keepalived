@@ -246,6 +246,8 @@ AC_ARG_ENABLE(tsm-debug,
   [  --enable-tsm-debug      compile with TSM debugging support])
 AC_ARG_ENABLE(vrrp-fd-debug,
   [  --enable-vrrp-fd-debug  compile with vrrp fd debugging support])
+AC_ARG_ENABLE(eintr-debug,
+  [AS_HELP_STRING([--enable-eintr-debug],[compile with EINTR debugging support, set to check/nocheck to check/not check for EINTR])])
 AC_ARG_ENABLE(asserts,
   [AS_HELP_STRING([--enable-asserts], [compile with assert() enabled])])
 AC_ARG_WITH(fixed-if-type,
@@ -2233,6 +2235,22 @@ if test ${ENABLE_LOG_FILE_APPEND} = Yes; then
   AC_DEFINE([ENABLE_LOG_FILE_APPEND], [ 1 ], [Define if appending to log files is allowed])
   add_config_opt([LOG_FILE_APPEND])
 fi
+
+dnl ----[ Do we need to check for EINTR, or enable EINTR debugging code]----
+AS_IF([test .$enable_eintr_debug = .yes],
+  [
+    AC_DEFINE([DEBUG_EINTR], [ 1 ], [Define to test for and log errno == EINTR when no asynchronous signal handlers])
+    add_config_opt([EINTR_DEBUG])
+  ],
+  [
+    dnl --- While testing that EINTR checking is not necessary, default to still test ---
+    dnl --- When finished testing, change following to .$enable_eintr_debug = .check ---
+    AS_IF([test .$ac_cv_func_signalfd = .no -o \( .$enable_eintr_debug != .nocheck -a .$enable_eintr_debug != .no \)],
+      [
+        AC_DEFINE([CHECK_EINTR], [ 1 ], [Define if need to check for EINTR errno])
+        AS_IF([test .$ac_cv_func_signalfd != .no], [add_config_opt([EINTR_CHECK])])
+      ])
+  ])
 
 if test ${NEED_LIBDL} = Yes; then
   add_to_var([KA_LIBS], [-ldl])
