@@ -1145,7 +1145,7 @@ process_inotify(thread_t *thread)
 	while (true) {
 		if ((len = read(fd, buf, sizeof(buf))) < (ssize_t)sizeof(struct inotify_event)) {
 			if (len == -1) {
-				if (errno == EAGAIN)
+				if (check_EAGAIN(errno))
 					return 0;
 
 				if (check_EINTR(errno))

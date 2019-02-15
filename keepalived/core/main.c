@@ -754,7 +754,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 		if (ret == -1) {
 			if (check_EINTR(errno))
 				continue;
-			if (errno == EAGAIN)
+			if (check_EAGAIN(errno))
 				break;
 		}
 

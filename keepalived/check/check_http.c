@@ -1274,7 +1274,7 @@ http_read_thread(thread_t * thread)
 		 MAX_BUFFER_LENGTH - req->len);
 
 	/* Test if data are ready */
-	if (r == -1 && (errno == EAGAIN || check_EINTR(errno))) {
+	if (r == -1 && (check_EAGAIN(errno) || check_EINTR(errno))) {
 		log_message(LOG_INFO, "Read error with server %s: %s"
 				    , FMT_HTTP_RS(checker)
 				    , strerror(errno));

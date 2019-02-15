@@ -794,7 +794,7 @@ vrrp_dispatcher_read(sock_t * sock)
 	 * local active loop */
 	len = recvmsg(sock->fd_in, &msghdr, MSG_TRUNC | MSG_CTRUNC);
 	if (len < 0) {
-		if (!check_EINTR(errno) && errno != EAGAIN && errno != EWOULDBLOCK)
+		if (!check_EINTR(errno) && !check_EAGAIN(errno))
 			log_message(LOG_INFO, "recvfrom socket %d returned %d (%m)"
 					    , sock->fd_in, errno);
 		goto end;

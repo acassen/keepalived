@@ -415,7 +415,7 @@ smtp_get_line_cb(thread_t *thread)
 	r = read(thread->u.fd, smtp_checker->buff + smtp_checker->buff_ctr,
 		 SMTP_BUFF_MAX - smtp_checker->buff_ctr);
 
-	if (r == -1 && (errno == EAGAIN || check_EINTR(errno))) {
+	if (r == -1 && (check_EAGAIN(errno) || check_EINTR(errno))) {
 		thread_add_read(thread->master, smtp_get_line_cb, checker,
 				thread->u.fd, smtp_host->connection_to);
 		return 0;
@@ -511,7 +511,7 @@ smtp_put_line_cb(thread_t *thread)
 	/* write the data */
 	w = write(thread->u.fd, smtp_checker->buff, smtp_checker->buff_ctr);
 
-	if (w == -1 && (errno == EAGAIN || check_EINTR(errno))) {
+	if (w == -1 && (check_EAGAIN(errno) || check_EINTR(errno))) {
 		thread_add_write(thread->master, smtp_put_line_cb, checker,
 				 thread->u.fd, smtp_host->connection_to);
 		return 0;

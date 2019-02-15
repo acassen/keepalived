@@ -80,6 +80,15 @@ check_EINTR(int xx)
 #define check_EINTR(xx)	(false)
 #endif
 
+/* Functions that can return EAGAIN also document that they can return
+ * EWOULDBLOCK, and that both should be checked. If they are the same
+ * value, that is unnecessary. */
+#if EAGAIN == EWOULDBLOCK
+#define check_EAGAIN(xx)	((xx) == EAGAIN)
+#else
+#define check_EAGAIN(xx)	((xx) == EAGAIN || (xx) == EWOULDBLOCK)
+#endif
+
 /* inline stuff */
 static inline int __ip6_addr_equal(const struct in6_addr *a1,
 				   const struct in6_addr *a2)

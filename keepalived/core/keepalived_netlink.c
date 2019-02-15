@@ -1322,7 +1322,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 		} while (len < 0 && check_EINTR(errno));
 
 		if (len < 0) {
-			if (errno == EWOULDBLOCK || errno == EAGAIN)
+			if (check_EAGAIN(errno))
 				break;
 			if (errno == ENOBUFS) {
 				log_message(LOG_INFO, "Netlink: Receive buffer overrun on %s socket - (%m)", nl == &nl_kernel ? "monitor" : "cmd");

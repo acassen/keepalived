@@ -569,7 +569,7 @@ static int handle_proc_ev(int nl_sock)
 		if (len == -1) {
 			if (check_EINTR(errno))
 				continue;
-			if (errno == EAGAIN)
+			if (check_EAGAIN(errno))
 				return 0;
 
 			if (errno == ENOBUFS) {
