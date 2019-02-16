@@ -196,23 +196,22 @@ smtp_check_end_handler(void)
 	/* If there was no host{} section, add a single host to the list */
 	if (LIST_ISEMPTY(smtp_checker->host)) {
 		list_add(smtp_checker->host, default_co);
-	} else {
-		/* Set the conection timeout if not set */
-		virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-		real_server_t *rs = LIST_TAIL_DATA(vs->rs);
-		unsigned conn_to = rs->connection_to;
-		if (conn_to == UINT_MAX)
-			conn_to = vs->connection_to;
-
-		LIST_FOREACH(smtp_checker->host, co, e) {
-			if (co->connection_to == UINT_MAX)
-				co->connection_to = conn_to;
-		}
-
+	} else
 		FREE(default_co);
-	}
 
 	default_co = NULL;
+
+	/* Set the conection timeout if not set */
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	unsigned conn_to = rs->connection_to;
+	if (conn_to == UINT_MAX)
+		conn_to = vs->connection_to;
+
+	LIST_FOREACH(smtp_checker->host, co, e) {
+		if (co->connection_to == UINT_MAX)
+			co->connection_to = conn_to;
+	}
 }
 
 /* Callback for "host" keyword */
