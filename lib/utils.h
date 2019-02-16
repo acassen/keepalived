@@ -32,9 +32,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdio.h>
+#include <errno.h>
 
 #include "vector.h"
-#ifdef _DEBUG_
+#if defined _DEBUG_ || defined DEBUG_EINTR
 #include "logger.h"
 #endif
 
@@ -54,6 +55,38 @@ typedef enum {
 	PERF_ALL,
 	PERF_END,
 } perf_t;
+#endif
+
+/* If signalfd() is used, we will have no signal handlers, and
+ * so we cannot get EINTR. If we cannot get EINTR, there is no
+ * point checking for it.
+ * If check_EINTR is defined as false, gcc will optimise out the
+ * test, and remove any surrounding while loop such as:
+ * while (recvmsg(...) == -1 && check_EINTR(errno)); */
+#if defined DEBUG_EINTR
+static inline bool
+check_EINTR(int xx)
+{
+	if ((xx) == EINTR) {
+		log_message(LOG_INFO, "%s:%s(%d) - EINTR returned", (__FILE__), (__FUNCTION__), (__LINE__));
+		return true;
+	}
+
+	return false;
+}
+#elif defined CHECK_EINTR
+#define check_EINTR(xx)	((xx) == EINTR)
+#else
+#define check_EINTR(xx)	(false)
+#endif
+
+/* Functions that can return EAGAIN also document that they can return
+ * EWOULDBLOCK, and that both should be checked. If they are the same
+ * value, that is unnecessary. */
+#if EAGAIN == EWOULDBLOCK
+#define check_EAGAIN(xx)	((xx) == EAGAIN)
+#else
+#define check_EAGAIN(xx)	((xx) == EAGAIN || (xx) == EWOULDBLOCK)
 #endif
 
 /* inline stuff */

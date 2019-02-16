@@ -43,6 +43,7 @@
 #include "vrrp_scheduler.h"
 #include "scheduler.h"
 #include "parser.h"
+#include "utils.h"
 
 static int inotify_fd = -1;
 static thread_t *inotify_thread;
@@ -1144,10 +1145,10 @@ process_inotify(thread_t *thread)
 	while (true) {
 		if ((len = read(fd, buf, sizeof(buf))) < (ssize_t)sizeof(struct inotify_event)) {
 			if (len == -1) {
-				if (errno == EAGAIN)
+				if (check_EAGAIN(errno))
 					return 0;
 
-				if (errno == EINTR)
+				if (check_EINTR(errno))
 					continue;
 
 				log_message(LOG_INFO, "inotify read() returned error %d - %m", errno);

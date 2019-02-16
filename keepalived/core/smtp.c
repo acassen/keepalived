@@ -182,7 +182,7 @@ smtp_read_thread(thread_t * thread)
 			       SMTP_BUFFER_LENGTH - smtp->buflen);
 
 	if (rcv_buffer_size == -1) {
-		if (errno == EAGAIN)
+		if (check_EAGAIN(errno))
 			goto end;
 		log_message(LOG_INFO, "Error reading data from remote SMTP server %s."
 				    , FMT_SMTP_HOST());

@@ -1301,7 +1301,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 		/* Find out how big our receive buffer needs to be */
 		do {
 			len = recvmsg(nl->fd, &msg, MSG_PEEK | MSG_TRUNC);
-		} while (len < 0 && errno == EINTR);
+		} while (len < 0 && check_EINTR(errno));
 
 		if (len < 0) {
 			ret = -1;
@@ -1319,10 +1319,10 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 
 		do {
 			len = recvmsg(nl->fd, &msg, 0);
-		} while (len < 0 && errno == EINTR);
+		} while (len < 0 && check_EINTR(errno));
 
 		if (len < 0) {
-			if (errno == EWOULDBLOCK || errno == EAGAIN)
+			if (check_EAGAIN(errno))
 				break;
 			if (errno == ENOBUFS) {
 				log_message(LOG_INFO, "Netlink: Receive buffer overrun on %s socket - (%m)", nl == &nl_kernel ? "monitor" : "cmd");

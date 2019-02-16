@@ -1596,7 +1596,6 @@ snmp_epoll_reset(thread_master_t *m)
 static list_head_t *
 thread_fetch_next_queue(thread_master_t *m)
 {
-	int sav_errno;
 	int last_epoll_errno = 0;
 	int ret;
 	int i;
@@ -1637,30 +1636,34 @@ thread_fetch_next_queue(thread_master_t *m)
 
 		/* Call epoll function. */
 		ret = epoll_wait(m->epoll_fd, m->epoll_events, m->epoll_count, -1);
-		sav_errno = errno;
 
 #ifdef _EPOLL_DEBUG_
 		if (do_epoll_debug) {
+			int sav_errno = errno;
+
 			if (ret == -1)
 				log_message(LOG_INFO, "epoll_wait returned %d, errno %d", ret, sav_errno);
 			else
 				log_message(LOG_INFO, "epoll_wait returned %d fds", ret);
+
+			errno = sav_errno;
 		}
 #endif
 
 		if (ret < 0) {
-			if (sav_errno == EINTR)
+			if (check_EINTR(errno))
 				continue;
 
 			/* Real error. */
-			if (sav_errno != last_epoll_errno) {
+			if (errno != last_epoll_errno) {
+				last_epoll_errno = errno;
+
 				/* Log the error first time only */
-				log_message(LOG_INFO, "scheduler: epoll_wait error: %s", strerror(sav_errno));
-				last_epoll_errno = sav_errno;
+				log_message(LOG_INFO, "scheduler: epoll_wait error: %s", strerror(errno));
 			}
 
 			/* Make sure we don't sit it a tight loop */
-			if (sav_errno == EBADF || sav_errno == EFAULT || sav_errno == EINVAL)
+			if (last_epoll_errno == EBADF || last_epoll_errno == EFAULT || last_epoll_errno == EINVAL)
 				sleep(1);
 
 			continue;

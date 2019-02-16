@@ -678,7 +678,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 		if (ret == 0)
 			break;
 		if (ret == -1) {
-			if (errno == EINTR)
+			if (check_EINTR(errno))
 				continue;
 
 			log_message(LOG_INFO, "Terminating epoll_wait returned errno %d", errno);
@@ -703,10 +703,13 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 		if (vrrp_child > 0 && vrrp_child == (pid_t)siginfo.ssi_pid) {
 			report_child_status(status, vrrp_child, PROG_VRRP);
 			ret = waitpid(vrrp_child, &wstatus, WNOHANG);
-			if (ret == 0 || (ret == -1 && errno == EINTR))
+			if (ret == 0)
 				continue;
-			if (ret == -1)
+			if (ret == -1) {
+				if (check_EINTR(errno))
+					continue;
 				log_message(LOG_INFO, "Wait for vrrp child return errno %d", errno);
+			}
 
 			/* We could check ret == vrrp_child, but it seems unneccessary */
 
@@ -719,10 +722,13 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 		if (checkers_child > 0 && checkers_child == (pid_t)siginfo.ssi_pid) {
 			report_child_status(status, checkers_child, PROG_CHECK);
 			ret = waitpid(checkers_child, &wstatus, WNOHANG);
-			if (ret == 0 || (ret == -1 && errno == EINTR))
+			if (ret == 0)
 				continue;
-			if (ret == -1)
+			if (ret == -1) {
+				if (check_EINTR(errno))
+					continue;
 				log_message(LOG_INFO, "Wait for checker child return errno %d", errno);
+			}
 			checkers_child = 0;
 			wait_count--;
 		}
@@ -731,10 +737,13 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 		if (bfd_child > 0 && bfd_child == (pid_t)siginfo.ssi_pid) {
 			report_child_status(status, bfd_child, PROG_BFD);
 			ret = waitpid(bfd_child, &wstatus, WNOHANG);
-			if (ret == 0 || (ret == -1 && errno == EINTR))
+			if (ret == 0)
 				continue;
-			if (ret == -1)
+			if (ret == -1) {
+				if (check_EINTR(errno))
+					continue;
 				log_message(LOG_INFO, "Wait for bfd child return errno %d", errno);
+			}
 			bfd_child = 0;
 			wait_count--;
 		}
@@ -743,9 +752,9 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 #else
 		ret = sigtimedwait(&child_wait, NULL, &timeout);
 		if (ret == -1) {
-			if (errno == EINTR)
+			if (check_EINTR(errno))
 				continue;
-			if (errno == EAGAIN)
+			if (check_EAGAIN(errno))
 				break;
 		}
 

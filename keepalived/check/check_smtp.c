@@ -153,6 +153,7 @@ smtp_check_end_handler(void)
 {
 	smtp_checker_t *smtp_checker = CHECKER_GET();
 	conn_opts_t *co = CHECKER_GET_CO();
+	element e;
 
 	if (!smtp_checker->helo_name) {
 		smtp_checker->helo_name = (char *)MALLOC(strlen(SMTP_DEFAULT_HELO) + 1);
@@ -195,8 +196,22 @@ smtp_check_end_handler(void)
 	/* If there was no host{} section, add a single host to the list */
 	if (LIST_ISEMPTY(smtp_checker->host)) {
 		list_add(smtp_checker->host, default_co);
-	} else
+	} else {
+		/* Set the conection timeout if not set */
+		virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+		real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+		unsigned conn_to = rs->connection_to;
+		if (conn_to == UINT_MAX)
+			conn_to = vs->connection_to;
+
+		LIST_FOREACH(smtp_checker->host, co, e) {
+			if (co->connection_to == UINT_MAX)
+				co->connection_to = conn_to;
+		}
+
 		FREE(default_co);
+	}
+
 	default_co = NULL;
 }
 
@@ -415,7 +430,7 @@ smtp_get_line_cb(thread_t *thread)
 	r = read(thread->u.fd, smtp_checker->buff + smtp_checker->buff_ctr,
 		 SMTP_BUFF_MAX - smtp_checker->buff_ctr);
 
-	if (r == -1 && (errno == EAGAIN || errno == EINTR)) {
+	if (r == -1 && (check_EAGAIN(errno) || check_EINTR(errno))) {
 		thread_add_read(thread->master, smtp_get_line_cb, checker,
 				thread->u.fd, smtp_host->connection_to);
 		return 0;
@@ -511,7 +526,7 @@ smtp_put_line_cb(thread_t *thread)
 	/* write the data */
 	w = write(thread->u.fd, smtp_checker->buff, smtp_checker->buff_ctr);
 
-	if (w == -1 && (errno == EAGAIN || errno == EINTR)) {
+	if (w == -1 && (check_EAGAIN(errno) || check_EINTR(errno))) {
 		thread_add_write(thread->master, smtp_put_line_cb, checker,
 				 thread->u.fd, smtp_host->connection_to);
 		return 0;

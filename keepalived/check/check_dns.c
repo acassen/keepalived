@@ -190,7 +190,7 @@ dns_recv_thread(thread_t * thread)
 
 	ret = recv(thread->u.fd, rbuf, sizeof (rbuf), 0);
 	if (ret == -1) {
-		if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+		if (check_EAGAIN(errno) || check_EINTR(errno)) {
 			thread_add_read(thread->master, dns_recv_thread,
 					checker, thread->u.fd, timeout);
 			return 0;
@@ -299,7 +299,7 @@ dns_send(thread_t *thread)
 
 	ret = send(thread->u.fd, dns_check->sbuf, dns_check->slen, 0);
 	if (ret == -1) {
-		if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+		if (check_EAGAIN(errno) || check_EINTR(errno)) {
 			thread_add_write(thread->master, dns_send_thread,
 					 checker, thread->u.fd, timeout);
 			return;

@@ -1274,7 +1274,7 @@ http_read_thread(thread_t * thread)
 		 MAX_BUFFER_LENGTH - req->len);
 
 	/* Test if data are ready */
-	if (r == -1 && (errno == EAGAIN || errno == EINTR)) {
+	if (r == -1 && (check_EAGAIN(errno) || check_EINTR(errno))) {
 		log_message(LOG_INFO, "Read error with server %s: %s"
 				    , FMT_HTTP_RS(checker)
 				    , strerror(errno));
@@ -1283,7 +1283,7 @@ http_read_thread(thread_t * thread)
 		return 0;
 	}
 
-	if (r == -1 || r == 0) {	/* -1:error , 0:EOF */
+	if (r <= 0) {	/* -1:error , 0:EOF */
 		/* All the HTTP stream has been parsed */
 		if (url->digest)
 			MD5_Final(digest, &req->context);

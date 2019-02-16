@@ -473,7 +473,9 @@ enum rfcv3_snmp_stats_magic {
 
 /* Static return value */
 static longret_t long_ret;
+#ifdef _WITH_SNMP_VRRP_
 static char buf[MAXBUF];
+#endif
 
 /* global variable */
 #ifdef _WITH_SNMP_RFC_
