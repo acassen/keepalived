@@ -42,6 +42,7 @@ bool do_timer_check;
 #define TIMER_HZ_FLOAT		1000000.0
 #define TIMER_CENTI_HZ		10000
 #define TIMER_MAX_SEC		1000U
+#define TIMER_MIN_SEC		0.000001
 #define TIMER_NEVER		ULONG_MAX	/* Used with time intervals in TIMER_HZ units */
 #define TIMER_DISABLED		LONG_MIN	/* Value in timeval_t tv_sec */
 
