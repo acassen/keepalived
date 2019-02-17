@@ -222,7 +222,7 @@ vs_co_timeout_handler(vector_t *strvec)
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	unsigned long timer;
 
-	if (!read_timer(strvec, 1, &timer, TIMER_MIN_SEC, UINT_MAX / TIMER_HZ, true)) {
+	if (!read_timer(strvec, 1, &timer, 1, UINT_MAX, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "virtual server connect_timeout %s invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
@@ -234,7 +234,7 @@ vs_delay_handler(vector_t *strvec)
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	unsigned long delay;
 
-	if (read_timer(strvec, 1, &delay, TIMER_MIN_SEC, 0, true))
+	if (read_timer(strvec, 1, &delay, 1, 0, true))
 		vs->delay_loop = delay;
 	else
 		report_config_error(CONFIG_GENERAL_ERROR, "virtual server delay loop '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
@@ -626,7 +626,7 @@ rs_co_timeout_handler(vector_t *strvec)
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	unsigned long timer;
 
-	if (!read_timer(strvec, 1, &timer, TIMER_MIN_SEC, UINT_MAX / TIMER_HZ, true)) {
+	if (!read_timer(strvec, 1, &timer, 1, UINT_MAX, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "real server connect_timeout %s invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
@@ -639,7 +639,7 @@ rs_delay_handler(vector_t *strvec)
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	unsigned long delay;
 
-	if (read_timer(strvec, 1, &delay, TIMER_MIN_SEC, 0, true))
+	if (read_timer(strvec, 1, &delay, 1, 0, true))
 		rs->delay_loop = delay;
 	else
 		report_config_error(CONFIG_GENERAL_ERROR, "real server delay_loop '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));

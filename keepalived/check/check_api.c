@@ -301,7 +301,7 @@ co_timeout_handler(vector_t *strvec)
 	conn_opts_t *co = CHECKER_GET_CO();
 	unsigned long timer;
 
-	if (!read_timer(strvec, 1, &timer, TIMER_MIN_SEC, UINT_MAX / TIMER_HZ, true)) {
+	if (!read_timer(strvec, 1, &timer, 1, UINT_MAX, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "connect_timeout %s invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
@@ -373,7 +373,7 @@ delay_handler(vector_t *strvec)
 	checker_t *checker = CHECKER_GET_CURRENT();
 	unsigned long delay_loop;
 
-	if (!read_timer(strvec, 1, &delay_loop, TIMER_MIN_SEC, 0, true)) {
+	if (!read_timer(strvec, 1, &delay_loop, 1, 0, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "delay_loop '%s' is invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}

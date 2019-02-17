@@ -1908,10 +1908,13 @@ read_timer(vector_t *strvec, size_t index, unsigned long *res, unsigned long min
 	double timer;
 	bool ret;
 
-	if (!max_time)
+	if (!max_time) {
 		max_time = TIMER_MAXIMUM;
+	} else {
+		max_time = max_time / TIMER_HZ;
+	}
 
-	ret = read_double_strvec(strvec, index, &timer, min_time, max_time, ignore_error);
+	ret = read_double_strvec(strvec, index, &timer, min_time / TIMER_HZ, max_time, ignore_error);
 	*res = (timer > TIMER_MAXIMUM ? TIMER_MAXIMUM : timer) * TIMER_HZ;
 
 	return ret;
