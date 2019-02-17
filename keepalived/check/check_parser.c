@@ -222,7 +222,7 @@ vs_co_timeout_handler(vector_t *strvec)
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	unsigned long timer;
 
-	if (!read_timer(strvec, 1, &timer, 1, UINT_MAX / TIMER_HZ, true)) {
+	if (!read_timer(strvec, 1, &timer, 1, UINT_MAX, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "virtual server connect_timeout %s invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
@@ -626,7 +626,7 @@ rs_co_timeout_handler(vector_t *strvec)
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	unsigned long timer;
 
-	if (!read_timer(strvec, 1, &timer, 1, UINT_MAX / TIMER_HZ, true)) {
+	if (!read_timer(strvec, 1, &timer, 1, UINT_MAX, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "real server connect_timeout %s invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}

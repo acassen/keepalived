@@ -301,7 +301,7 @@ co_timeout_handler(vector_t *strvec)
 	conn_opts_t *co = CHECKER_GET_CO();
 	unsigned long timer;
 
-	if (!read_timer(strvec, 1, &timer, 1, UINT_MAX / TIMER_HZ, true)) {
+	if (!read_timer(strvec, 1, &timer, 1, UINT_MAX, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "connect_timeout %s invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
