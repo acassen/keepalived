@@ -37,8 +37,8 @@
 /* Maximum config line length */
 #define MAXBUF	1024
 
-/* Maximum time read_timer can return */
-#define TIMER_MAXIMUM (ULONG_MAX / TIMER_HZ)
+/* Maximum time read_timer can read - in micro-seconds */
+#define TIMER_MAXIMUM (ULONG_MAX)
 
 /* Configuration test errors. These should be in decreasing order of severity */
 typedef enum {
