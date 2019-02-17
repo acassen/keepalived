@@ -49,6 +49,16 @@ static inline bool __test_bit(unsigned idx, const unsigned long *bmap)
 	return !!(bmap[BIT_WORD(idx)] & BIT_MASK(idx));
 }
 
+static inline bool __test_and_set_bit(unsigned idx, unsigned long *bmap)
+{
+	if (__test_bit(idx, bmap))
+		return true;
+
+	__set_bit(idx, bmap);
+
+	return false;
+}
+
 /* Bits */
 enum global_bits {
 	LOG_CONSOLE_BIT,
