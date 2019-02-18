@@ -118,11 +118,11 @@ get_jitter(bfd_t * bfd)
 	 * negotiated transmission interval.
 	 */
 	if (bfd->local_detect_mult)
-		min_jitter = bfd->local_tx_intv * 0.1;
+		min_jitter = bfd->local_tx_intv / 10;	/* 10% <=> / 10 */
 	else
 		min_jitter = 0;
 
-	return rand_intv(min_jitter, bfd->local_tx_intv * 0.25);
+	return rand_intv(min_jitter, bfd->local_tx_intv / 4);	/* 25% <=> / 4 */
 }
 
 /* Schedules bfd_sender_thread to run in local_tx_intv minus applied jitter */

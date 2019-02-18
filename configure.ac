@@ -316,7 +316,7 @@ args=`echo $ac_configure_args | $SED -e "s/'//g"`
 AC_DEFINE_UNQUOTED(KEEPALIVED_CONFIGURE_OPTIONS,"$args", [configure options specified])
 
 KA_CPPFLAGS="$kernelinc"
-KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -Winit-self -g -D_GNU_SOURCE"
+KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -Wfloat-conversion -Winit-self -g -D_GNU_SOURCE"
 KA_LDFLAGS=
 KA_LIBS=
 NEED_LIBDL=No
