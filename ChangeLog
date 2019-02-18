@@ -1,3 +1,152 @@
+2019-02-19 Alexandre Cassen <acassen@keepalived.org>
+	* keepalived-2.0.13
+	* Add BFD build option to keepalived.spec rpm file
+	  Issue #1114 identified that the keepalived.spec file was not being
+	  generated to build BFD support even if keepalived had been configured
+	  to support it.
+	* Copy tarball to rpmbuild/SOURCES when building in place
+	  It seems that even when building in place, rpmbuild expects the
+	  tarball to be in the rpmbuild/SOURCES directory.
+	* Fix configure check for __always_inline
+	* Handle interface MAC addresses changing
+	  When an interface is added to a bond interface, if it is the first
+	  interface added, the MAC address of the bond interface is changed
+	  to the MAC address of the added interface. When subsequent interfaces
+	  are added, their MAC addresses are changed to that of the bond
+	  interface.
+	  Issue #1112 identified that if a bond interface is deleted and
+	  recreated, the gratuitous ARPs were sent with the wrong source MAC
+	  address.
+	  This commit now updates interface MAC addresses from the netlink
+	  RTM_NEWLINK messages, so that the correct MAC address is always
+	  used.
+	* Minor tidying up of opening gratuitous ARP socket.
+	* Streamline setting SOCK_NONBLOCK on vrrp sockets.
+	* Use netlink reported hardware address length for unsolicited NAs
+	  ETH_ALEN is correct for Ethernet type interaces, but is not right
+	  for Infiniband interfaces.
+	* Minor tidying up of opening gratuitous NA socket.
+	* Make gratuitous ARP/NA sockets non blocking
+	  keepalived shouldn't block when sending gratutious ARP/NA messages.
+	  It is better to lose the messages than for keepalived to block, so
+	  set the sockets non blocking.
+	* Use netlink provided broadcast address for gratuitous ARP
+	  If an interface has a non-standard broadcast address, we should
+	  honour it.
+	* Fix building on pre 3.10 kernels re track_process
+	  Issue #1119 reported that keepalived wouldn't build on CentOS 6.
+	  Various PROC_EVENT_* declarations were assumed to exist, some of which
+	  were not introduced until Linux v3.10. Most of them are not needed, but
+	  PROC_EVENT_COMM is used by the track_process code.
+	  This commit now checks for the existence of the PROC_EVENT_* declarations,
+	  but since keepalived uses PROC_EVENT_COMM, track_process is not supported
+	  prior to Linux v3.2.
+	* Make track_process work prior to Linux 3.2, but with limitations
+	  Prior to Linux 3.2 the PROC_EVENT_COMM event did not exist, which
+	  means that keepalived is unable to detect changes to process name
+	  (/proc/PID/comm) prior to Linux 3.2. most processes do not change
+	  their process name, and so using track_process prior to Linux 3.2
+	  is safe so long as the monitored processes are known not to change
+	  their process name.
+	* Stop configure failing when nftables is not supported.
+	* Streamline socket use with linkbeat.
+	  Previously the socket used for ioctls was opened and closed twice per
+	  poll if using MII or ETHTOOL polling, and once per poll if using ioctl
+	  polling. This commit opens the socket once at startup, uses that socket
+	  for all linkbeat polls, and closes it on termination.
+	* Enable linkbeat polling to work with dynamic interfaces.
+	* Add linkbeat_interfaces configuration block
+	  It was not possible to indicate that an interface that wasn't used
+	  as the interface of a vrrp instance, but was used either as a track
+	  interface, or for virtual/static ip addresses or routes should use
+	  linkbeat. This commit adds that capability.
+	* Add ability to specify linkbeat type in linkbeat_interfaces block.
+	* Add --disable-linkbeat configure option
+	  Does anyone use linkbeat anymore? This commit enables keepalived to
+	  be build without the linkbeat code.
+	* Don't remove link local IPv6 address from VMAC that isn't keepalived's
+	  If IFLA_INET6_ADDR_GEN_MODE isn't supported and a macvlan interface
+	  already had a (non-default) link local addresss and the link local
+	  address that matched the interface's MAC address was added, keepalived
+	  was removing it as soon as it was added. This commit stop keepalived
+	  removing the address when we shouldn't.
+	* Set configure init type correctly in keepalived.spec file.
+	* Fix handling of VMACs with multiple reloads
+	  If a configuration is loaded that has a VRRP instance using a VMAC,
+	  then the configuration is updated to remove that VRRP instance and
+	  keepalived reloads its configuration, then the configuration is
+	  updated again to reinstate the VRRP instance and the configuration
+	  is again reloaded, keepalived thought the VMAC interface still
+	  existed, whereas it was deleted following the first reload.
+	  This commit ensures that keepalived properly detects whether an
+	  interface exists following a reload.
+	* Remember more than one interface local address per interface
+	  Keepalived needs a local address for each interface it sends adverts
+	  on. If the address keepalived is using is deleted and another address
+	  is configured on the interface, then keepalived should start using
+	  that address. To do this, a list of configured address on each
+	  interfaces needs to be maintained.
+	* Don't consider VIPs as local addresses when restart after crash
+	  Keepalived maintains a list of addresses per interface that can be
+	  used as source adddresses for adverts. To build the list, keepalived
+	  reads the addresses configured on interfaces when it starts. However,
+	  if keepalived crashed it will have left VIPs configured on interfaces,
+	  and we don't want to use them as advert source addresses.
+	  This commit makes keepalived compare the addresses on interfaces
+	  to VIPs, and ignores any addresses that are VIPs.
+	* Fix removing left over VIPs at startup.
+	* Use read_timer() when parsing config where appropriate.
+	* Allow fractional warmup, delay_loop and delay_before_retry for checkers
+	  To shorten the real server monitoring interval, make it possible to specify
+	  decimal value for following items:
+		warmup
+		delay_loop
+		delay_before_retry
+	* Update connect_timeout configuration options
+	  Based on the patch submitted by tamu.0.0.tamu@gmail.com this patch
+	  allows setting the connect_timeout to a resolution of micro-seconds.
+	  The patch also adds the ability to set a default value at the virtual
+	  server and real server levels.
+	* Fix unused variable warning when building only with RFC compliant
+	  SNMP.
+	* It enable to set zero value as mintime for delay_loop and connect_timeout.
+	* Add option not to check for EINTR if using signalfd()
+	  If keepalived is using signalfd(), there are no asynchronous signal
+	  handlers, and therefore EINTR cannot be returned.
+	  Currently the check for EINTR is enabled by default, and configure
+	  option --disable-eintr-debug disables the check, while
+	  --enable-eintr-debug enables writing log entries if EINTR is returned.
+	  Once sufficient testing has been performed, the default will be
+	  changed not to test for EINTR if signalfd() is supported.
+	* Make checking for EAGAIN/EWOULDBLOCK consistent
+	  The code in some places checked errno for EAGAIN and EWOULDBLOCK
+	  and in other places only checked EAGAIN. On Linux EAGAIN == EWOULDBLOCK,
+	  so the check is not necessary, but EAGAIN is not guaranteed to be the
+	  same value as EWOULDBLOCK, so define check_EAGAIN that only checks EAGAIN
+	  if they are the same value, but checks both if they are different.
+	* Ensure default connection timeout for smtp checker hosts set.
+	* Set default connection timeout if no smtp check host specified.
+	* Fix min timer value, zero to 0.000001Sec.
+	* Add fixing min time for vs_co_timeout_handler() and rs_co_timeout_handler().
+	* Fix parameter of read_timer(), it treat Mintime and Maxtime as microseconds.
+	* vrrp: vrrp_dispatcher_read() performance extension
+	  We took time with Quentin to simulate and rework this code. We introduced
+	  2 imbricated while loop:
+	  (1) First one is catching recvfrom EINTR (this code trig
+	      only on kernel older than 2.6.22 where signalfd was firstly introduced).
+	      Newer kernel will immediately break the loop (hey guys: if you are running
+	      older than 2.6.22 it is worth considering upgrading).
+	  (2) Second loop will continue reading from socket until same VRID advert
+	      has been received during the same cycle. After simulating, it appears that
+	      during contention with a lot of VRRP instances (around 1500), this design
+	      is needed to relax socket recvq from growing. This can be viewed as a
+	      Poll-Mode activation during contention and fallback to regular I/O MUX
+	      during normal operations. This loop breaks immediately and re-submit
+	      opration to I/O MUX when there is no more to be read.
+	* Fix conversion from long for double in read_timer().
+	* Remove variable timer of unsigned long cast in read_timer().
+	  When Double type variable timer is cast to long type, it's scale falls.
+
 2019-01-26 Alexandre Cassen <acassen@keepalived.org>
 	* keepalived-2.0.12
 	* Documentation related.
