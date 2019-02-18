@@ -283,13 +283,22 @@ find_bfd_by_discr(const uint32_t discr)
 /*
  * Utility functions
  */
+
+/* Check if uint64_t is large enough to hold uint32_t * int */
+#if INT_MAX <= INT32_MAX
+#define CALC_TYPE uint64_t
+#else
+#define CALC_TYPE double
+#endif
+
 /* Generates a random number in the specified interval */
 uint32_t
 rand_intv(uint32_t min, uint32_t max)
 {
-	double scaled = (double) rand() / RAND_MAX;
-	return (max - min + 1) * scaled + min;
+        return (uint32_t)(((CALC_TYPE)(max - min + 1) * rand()) / (RAND_MAX + 1U)) + min;
 }
+
+#undef CALC_TYPE
 
 /* Returns random disciminator number */
 uint32_t
