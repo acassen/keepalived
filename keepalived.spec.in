@@ -123,6 +123,7 @@ if [ $1 -eq 0 ]; then
 @INIT_SYSV_TRUE@	/sbin/chkconfig --del keepalived
 @INIT_SYSTEMD_TRUE@	/bin/systemctl disable keepalived.service >/dev/null 2>&1 || :
 @INIT_SYSTEMD_TRUE@	/bin/systemctl stop keepalived.service >/dev/null 2>&1 || :
+@INIT_UPSTART_TRUE@	/sbin/stop keepalived >/dev/null 2>&1 || :
 :
 fi
 
