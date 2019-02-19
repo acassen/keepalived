@@ -106,12 +106,12 @@ cb_func(const struct nlmsghdr *nlh, void *data)
 	if (NFNL_SUBSYS_ID(nlh->nlmsg_type) != NFNL_SUBSYS_NFTABLES)
 		return 1;
 	switch NFNL_MSG_TYPE(nlh->nlmsg_type) {
-		case NFT_MSG_NEWTABLE: log_message(LOG_INGO, "%s", "NFT_MSG_NEWTABLE"); new_table(nlh);break;
-		case NFT_MSG_NEWCHAIN: log_message(LOG_INGO, "%s", "NFT_MSG_NEWCHAIN"); break;
-		case NFT_MSG_NEWSET: log_message(LOG_INGO, "%s", "NFT_MSG_NEWSET"); break;
-		case NFT_MSG_NEWRULE: log_message(LOG_INGO, "%s", "NFT_MSG_NEWRULE"); break;
-		case NFT_MSG_NEWSETELEM: log_message(LOG_INGO, "%s", "NFT_MSG_NEWSETELEM"); break;
-		default: log_message(LOG_INGO, "Unknown msg type"); break;
+		case NFT_MSG_NEWTABLE: log_message(LOG_INFO, "%s", "NFT_MSG_NEWTABLE"); new_table(nlh);break;
+		case NFT_MSG_NEWCHAIN: log_message(LOG_INFO, "%s", "NFT_MSG_NEWCHAIN"); break;
+		case NFT_MSG_NEWSET: log_message(LOG_INFO, "%s", "NFT_MSG_NEWSET"); break;
+		case NFT_MSG_NEWRULE: log_message(LOG_INFO, "%s", "NFT_MSG_NEWRULE"); break;
+		case NFT_MSG_NEWSETELEM: log_message(LOG_INFO, "%s", "NFT_MSG_NEWSETELEM"); break;
+		default: log_message(LOG_INFO, "Unknown msg type"); break;
 	}
 
 	return 1;
