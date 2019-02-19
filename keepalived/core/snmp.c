@@ -403,5 +403,6 @@ snmp_agent_close(bool base_mib)
 void
 register_snmp_addresses(void)
 {
+	register_thread_address("snmp_timeout_thread", snmp_timeout_thread);
 }
 #endif
