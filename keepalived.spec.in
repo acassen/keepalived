@@ -113,6 +113,7 @@ if [ $1 -eq 1 ]; then
         # Enable (but don't start) the units by default
 @INIT_SYSV_TRUE@	/sbin/chkconfig --add keepalived
 @INIT_SYSTEMD_TRUE@	/bin/systemctl enable keepalived.service >/dev/null 2>&1 || :
+:
 fi
 
 %preun
@@ -122,6 +123,8 @@ if [ $1 -eq 0 ]; then
 @INIT_SYSV_TRUE@	/sbin/chkconfig --del keepalived
 @INIT_SYSTEMD_TRUE@	/bin/systemctl disable keepalived.service >/dev/null 2>&1 || :
 @INIT_SYSTEMD_TRUE@	/bin/systemctl stop keepalived.service >/dev/null 2>&1 || :
+@INIT_UPSTART_TRUE@	/sbin/stop keepalived >/dev/null 2>&1 || :
+:
 fi
 
 %postun
@@ -131,6 +134,7 @@ if [ $1 -ge 1 ]; then
 	# and restart the daemon
 @INIT_SYSTEMD_TRUE@	/bin/systemctl daemon-reload >/dev/null 2>&1 || :
 @INIT_SYSTEMD_TRUE@	/bin/systemctl try-restart keepalived.service >/dev/null 2>&1 || :
+:
 fi
 
 %files

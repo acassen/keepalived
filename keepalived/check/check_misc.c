@@ -89,7 +89,7 @@ misc_check_compare(void *a, void *b)
 	misc_checker_t *old = CHECKER_DATA(a);
 	misc_checker_t *new = CHECKER_DATA(b);
 
-	return !notify_script_compare(&old->script, &new->script);
+	return notify_script_compare(&old->script, &new->script);
 }
 
 static void
