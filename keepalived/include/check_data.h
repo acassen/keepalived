@@ -202,7 +202,7 @@ typedef struct _check_data {
 #define VS_SCRIPT_ISEQ(XS,YS) \
 	(!(XS) == !(YS) && \
 	 (!(XS) || \
-	  (!notify_script_compare((XS), (YS)) && \
+	  (notify_script_compare((XS), (YS)) && \
 	   (XS)->uid == (YS)->uid && \
 	   (XS)->gid == (YS)->gid)))
 
