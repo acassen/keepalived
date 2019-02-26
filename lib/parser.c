@@ -60,7 +60,7 @@
 
 #define BOB "{"
 #define EOB "}"
-#define WHITE_SPACE_STR " \t\f\n\r\v"
+#define WHITE_SPACE_STR " \t\f\n\r\v;"
 
 typedef struct _defs {
 	char *name;
