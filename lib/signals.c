@@ -181,10 +181,8 @@ static void
 signal_handler(int sig)
 {
 	if (write(signal_pipe[1], &sig, sizeof(int)) != sizeof(int)) {
-		DBG("signal_pipe write error %s", strerror(errno));
 		assert(0);
-
-		log_message(LOG_INFO, "BUG - write to signal_pipe[1] error %s - please report", strerror(errno));
+		fprintf(stderr, "BUG - write to signal_pipe[1] error %s - please report\n", strerror(errno));
 	}
 }
 #endif
