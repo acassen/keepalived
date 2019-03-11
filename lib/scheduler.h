@@ -242,7 +242,7 @@ extern void snmp_epoll_reset(thread_master_t *);
 #endif
 extern void process_threads(thread_master_t *);
 extern void thread_child_handler(void *, int);
-extern void thread_add_base_threads(thread_master_t *);
+extern void thread_add_base_threads(thread_master_t *, bool);
 extern void launch_thread_scheduler(thread_master_t *);
 #ifdef THREAD_DUMP
 extern const char *get_signal_function_name(void (*)(void *, int));
