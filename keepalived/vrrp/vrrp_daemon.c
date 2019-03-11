@@ -739,6 +739,8 @@ vrrp_signal_init(void)
 static int
 reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 {
+	bool with_snmp = false;
+
 	log_message(LOG_INFO, "Reloading");
 
 	/* Use standard scheduling while reloading */
@@ -755,10 +757,25 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 
 	vrrp_initialised = false;
 
+#if !defined _DEBUG_ && defined _WITH_VRRP_SNMP_
+	if (
+#ifdef _WITH_SNMP_VRRP_
+	    global_data->enable_snmp_vrrp ||
+#endif
+#ifdef _WITH_SNMP_RFCV2_
+	    global_data->enable_snmp_rfcv2 ||
+#endif
+#ifdef _WITH_SNMP_RFCV3_
+	    global_data->enable_snmp_rfcv3 ||
+#endif
+	    false)
+		with_snmp = true;
+#endif
+
 	/* Destroy master thread */
 	vrrp_dispatcher_release(vrrp_data);
 	thread_cleanup_master(master);
-	thread_add_base_threads(master);
+	thread_add_base_threads(master, with_snmp);
 
 #ifdef _WITH_LVS_
 	if (global_data->lvs_syncd.ifname)

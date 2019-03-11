@@ -1871,12 +1871,17 @@ thread_child_handler(__attribute__((unused)) void *v, __attribute__((unused)) in
 }
 
 void
-thread_add_base_threads(thread_master_t *m)
+thread_add_base_threads(thread_master_t *m,
+#ifndef _WITH_SNMP_
+					    __attribute__ ((unused))
+#endif
+								     bool with_snmp)
 {
 	m->timer_thread = thread_add_read(m, thread_timerfd_handler, NULL, m->timer_fd, TIMER_NEVER);
 	add_signal_read_thread(m);
 #ifdef _WITH_SNMP_
-	m->snmp_timer_thread = thread_add_timer(m, snmp_timeout_thread, 0, TIMER_NEVER);
+	if (with_snmp)
+		m->snmp_timer_thread = thread_add_timer(m, snmp_timeout_thread, 0, TIMER_NEVER);
 #endif
 }
 

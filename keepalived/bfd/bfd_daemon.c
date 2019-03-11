@@ -236,8 +236,8 @@ reload_bfd_thread(__attribute__((unused)) thread_t * thread)
 
 	/* Destroy master thread */
 	bfd_dispatcher_release(bfd_data);
-	thread_destroy_master(master);
-	master = thread_make_master();
+	thread_cleanup_master(master);
+	thread_add_base_threads(master, false);
 
 	old_bfd_data = bfd_data;
 	bfd_data = NULL;
