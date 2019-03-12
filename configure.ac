@@ -895,6 +895,36 @@ AC_CHECK_FUNCS([SSL_set0_rbio OPENSSL_init_crypto])
 # TLS_method() introduced OpenSSL v1.1.0
 AC_CHECK_FUNCS([TLS_method])
 
+# In OpenSSL v1.1.1 the call to SSL_CTX_new() fails if OPENSSL_init_crypto() has been called with
+# OPENSSL_INIT_NO_LOAD_CONFIG. It does not fail in v1.1.0h and v1.1.1b.
+AS_IF([test .$ac_cv_func_OPENSSL_init_crypto = .yes -a .$ac_cv_func_TLS_method = .yes],
+      [
+	AC_RUN_IFELSE(
+	  [AC_LANG_PROGRAM(
+	    [[#include <openssl/ssl.h>]],
+	    [[
+	      const SSL_METHOD *meth;
+	      SSL_CTX *ctx;
+
+	      if (!OPENSSL_init_crypto(OPENSSL_INIT_NO_LOAD_CONFIG, NULL))
+		return 1;
+
+	      /* Initialize SSL context */
+	      meth = TLS_method();
+	      if (!(ctx = SSL_CTX_new(meth)))
+		return 1;
+	      return 0;
+	    ]])],
+	  [openssl_init_no_load_bug=0],
+	  [openssl_init_no_load_bug=1],
+	  [
+	    AC_MSG_WARN([Cannot determine if need to OPENSSL_init_crypto() problem. Assuming yes for safety.])
+	    openssl_init_no_load_bug=1
+	  ]
+	)
+	AS_IF([test $openssl_init_no_load_bug -eq 1],
+	      [AC_DEFINE([HAVE_OPENSSL_INIT_NO_LOAD_CONFIG_BUG], [ 1 ], [Define to 1 if OPENSSL_init_crypto(OPENSSL_INIT_NO_LOAD_CONFIG) bug)])])
+      ])
 unset LIBS
 
 if test $BUILD_GENHASH = No; then
