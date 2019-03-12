@@ -69,7 +69,7 @@ build_ssl_ctx(void)
 
 	/* Library initialization */
 #if HAVE_OPENSSL_INIT_CRYPTO
-	if (!OPENSSL_init_crypto(OPENSSL_INIT_NO_LOAD_CONFIG, NULL))
+	if (!OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, NULL))
 		log_message(LOG_INFO, "OPENSSL_init_crypto failed");
 #else
 	SSL_library_init();
