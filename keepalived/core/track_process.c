@@ -410,13 +410,13 @@ nl_connect(void)
 	}
 
 #if !HAVE_DECL_SOCK_NONBLOCK
-        if (set_sock_flags(nl_sock, F_SETFL, O_NONBLOCK))
-                log_message(LOG_INFO, "Unable to set NONBLOCK on netlink process socket - %s (%d)", strerror(errno), errno);
+	if (set_sock_flags(nl_sock, F_SETFL, O_NONBLOCK))
+		log_message(LOG_INFO, "Unable to set NONBLOCK on netlink process socket - %s (%d)", strerror(errno), errno);
 #endif
 
 #if !HAVE_DECL_SOCK_CLOEXEC
-        if (set_sock_flags(nl_sock, F_SETFD, FD_CLOEXEC))
-                log_message(LOG_INFO, "Unable to set CLOEXEC on netlink process socket - %s (%d)", strerror(errno), errno);
+	if (set_sock_flags(nl_sock, F_SETFD, FD_CLOEXEC))
+		log_message(LOG_INFO, "Unable to set CLOEXEC on netlink process socket - %s (%d)", strerror(errno), errno);
 #endif
 
 	sa_nl.nl_family = AF_NETLINK;
@@ -586,19 +586,25 @@ static int handle_proc_ev(int nl_sock)
 			return -1;
 		}
 		for (nlmsghdr = (struct nlmsghdr *)buf;
-                        NLMSG_OK (nlmsghdr, len);
-                        nlmsghdr = NLMSG_NEXT (nlmsghdr, len)) {
+			NLMSG_OK (nlmsghdr, len);
+			nlmsghdr = NLMSG_NEXT (nlmsghdr, len)) {
 
 			if (nlmsghdr->nlmsg_type == NLMSG_ERROR ||
 			    nlmsghdr->nlmsg_type == NLMSG_NOOP)
 				continue;
 
 			cn_msg = NLMSG_DATA(nlmsghdr);
-			if ((cn_msg->id.idx != CN_IDX_PROC) ||
-                            (cn_msg->id.val != CN_VAL_PROC))
-                                continue;
+			if (cn_msg->id.idx != CN_IDX_PROC ||
+			    cn_msg->id.val != CN_VAL_PROC ||
+			    cn_msg->ack)
+				continue;
 
 			proc_ev = (struct proc_event *)cn_msg->data;
+
+			/* On 3.10 kernel, proc_ev->cpu can be UINT32_MAX */
+			if (proc_ev->cpu >= num_cpus)
+				continue;
+
 			if ((!need_reinitialise || __test_bit(LOG_DETAIL_BIT, &debug)) &&
 			    cpu_seq[proc_ev->cpu] != -1 &&
 			    !(cpu_seq[proc_ev->cpu] + 1 == cn_msg->seq ||
