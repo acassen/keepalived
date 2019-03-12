@@ -21,7 +21,7 @@ Linux flavours
 RedHat based systems (RedHat Enterprise/CentOS/Fedora)
 ------------------------------------------------------
 The following libraries need to be installed:
-	openssl-devel libnl3-devel ipset-devel iptables-devel libnfnetlink-devel
+	openssl-devel libnl3-devel ipset-devel iptables-devel
 For magic file identification support:
 	file-devel
 For SNMP support:
@@ -45,7 +45,7 @@ Debian/Ubuntu
 On Debian, install:
 	pkg-config
 The following libraries need to be installed:
-	iptables-dev libipset-dev libnfnetlink-dev libnl-3-dev libnl-genl-3-dev libnl-route-3-dev libssl-dev
+	iptables-dev libipset-dev libnl-3-dev libnl-genl-3-dev libnl-route-3-dev libssl-dev
 For magic file identification support:
 	libmagic-dev
 For SNMP support:
@@ -65,7 +65,7 @@ For building the documentation, the following packages need to be installed:
 Alpine Linux
 ------------
 The following libraries need to be installed:
-	iptables-dev ipset-dev libnfnetlink-dev libnl3-dev musl-dev and openssl-dev or libressl-dev
+	iptables-dev ipset-dev libnl3-dev musl-dev and openssl-dev or libressl-dev
 For magic file identification support:
 	TBD
 For SNMP support:
@@ -80,7 +80,7 @@ For building the documentation, the following packages need to be installed:
 Archlinux
 ---------
 Run the following to install the required libraries:
-	pacman -S ipset libnfnetlink libnl1
+	pacman -S ipset libnl1
 For magic file identification support:
 	TBD
 For SNMP support:
