@@ -45,8 +45,14 @@ init_ssl(void)
 {
 	/* Library initialization */
 #if HAVE_OPENSSL_INIT_CRYPTO
+#ifndef HAVE_OPENSSL_INIT_NO_LOAD_CONFIG_BUG
+	/* In OpenSSL v1.1.1 if the following is called, SSL_CTX_new() below fails.
+	 * It works in v1.1.0h and v1.1.1b.
+	 * It transpires that it works without setting NO_LOAD_CONFIG, but it is
+	 * presumably more efficient not to load it. */
 	if (!OPENSSL_init_crypto(OPENSSL_INIT_NO_LOAD_CONFIG, NULL))
 		fprintf(stderr, "OPENSSL_init_crypto failed\n");
+#endif
 #else
 	SSL_library_init();
 	SSL_load_error_strings();
