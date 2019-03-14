@@ -235,23 +235,23 @@ AC_ARG_ENABLE(perf,
 AC_ARG_ENABLE(log-file,
   [AS_HELP_STRING([--enable-log-file], [enable logging to file (-g)])])
 AC_ARG_ENABLE(dump-threads,
-  [  --enable-dump-threads   compile with thread dumping support])
+  [AS_HELP_STRING([--enable-dump-threads], [compile with thread dumping support])])
 AC_ARG_ENABLE(epoll-debug,
-  [  --enable-epoll-debug    compile with epoll_wait() debugging support])
+  [AS_HELP_STRING([--enable-epoll-debug], [compile with epoll_wait() debugging support])])
 AC_ARG_ENABLE(epoll-thread-dump,
-  [  --enable-epoll-thread-dump compile with epoll thread dumping support])
+  [AS_HELP_STRING([--enable-epoll-thread-dump], [compile with epoll thread dumping support])])
 AC_ARG_ENABLE(regex-debug,
-  [  --enable-regex-debug    compile with regex debugging support])
+  [AS_HELP_STRING([--enable-regex-debug], [compile with regex debugging support])])
 AC_ARG_ENABLE(tsm-debug,
-  [  --enable-tsm-debug      compile with TSM debugging support])
+  [AS_HELP_STRING([--enable-tsm-debug], [compile with TSM debugging support])])
 AC_ARG_ENABLE(vrrp-fd-debug,
-  [  --enable-vrrp-fd-debug  compile with vrrp fd debugging support])
+  [AS_HELP_STRING([--enable-vrrp-fd-debug], [compile with vrrp fd debugging support])])
 AC_ARG_ENABLE(eintr-debug,
   [AS_HELP_STRING([--enable-eintr-debug],[compile with EINTR debugging support, set to check/nocheck to check/not check for EINTR])])
 AC_ARG_ENABLE(asserts,
   [AS_HELP_STRING([--enable-asserts], [compile with assert() enabled])])
 AC_ARG_WITH(fixed-if-type,
-  [  --with-fixed-if-type=TYPE  treat interface type TYPE as unchangeable])
+  [AS_HELP_STRING([--with-fixed-if-type=TYPE], [treat interface type TYPE as unchangeable])])
 AC_ARG_WITH(default-config-file,
   AS_HELP_STRING([--with-default-config-file=FILE], [Default configuration file]),
   [default_config_file="$withval"], [default_config_file=""])
