@@ -595,15 +595,27 @@ inet_sockaddrtopair(struct sockaddr_storage *addr)
 }
 
 char *
-inet_sockaddrtotrio(struct sockaddr_storage *addr, uint16_t proto)
+inet_sockaddrtotrio_r(struct sockaddr_storage *addr, uint16_t proto, char *buf)
 {
 	char addr_str[INET6_ADDRSTRLEN];
-	static char ret[sizeof(addr_str) + 13];	/* '[' + addr_str + ']' + ':' + 'sctp' + ':' + 'nnnnn' */
-	char *proto_str = proto == IPPROTO_TCP ? "tcp" : proto == IPPROTO_UDP ? "udp" : proto == IPPROTO_SCTP ? "sctp" : proto == 0 ? "none" : "?";
+	char *proto_str = proto == IPPROTO_TCP ? "tcp" :
+			  proto == IPPROTO_UDP ? "udp" :
+			  proto == IPPROTO_SCTP ? "sctp" :
+			  proto == 0 ? "none" : "?";
 
 	inet_sockaddrtos2(addr, addr_str);
-	snprintf(ret, sizeof(ret), "[%s]:%s:%d" ,addr_str, proto_str,
+	snprintf(buf, SOCKADDRTRIO_STR_LEN, "[%s]:%s:%d", addr_str, proto_str,
 		 ntohs(inet_sockaddrport(addr)));
+	return buf;
+}
+
+const char *
+inet_sockaddrtotrio(struct sockaddr_storage *addr, uint16_t proto)
+{
+	static char ret[SOCKADDRTRIO_STR_LEN];
+
+	inet_sockaddrtotrio_r(addr, proto, ret);
+
 	return ret;
 }
 

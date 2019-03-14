@@ -108,7 +108,7 @@ tcp_epilog(thread_t * thread, bool is_success)
 
 		if (is_success && (!checker->is_up || !checker->has_run)) {
 			log_message(LOG_INFO, "TCP connection to %s success."
-					, FMT_TCP_RS(checker));
+					, FMT_CHK(checker));
 			checker_was_up = checker->is_up;
 			rs_was_alive = checker->rs->alive;
 			update_svr_checker_state(UP, checker);
@@ -121,12 +121,12 @@ tcp_epilog(thread_t * thread, bool is_success)
 			if (checker->retry)
 				log_message(LOG_INFO
 				    , "Check on service %s failed after %d retries."
-				    , FMT_TCP_RS(checker)
+				    , FMT_CHK(checker)
 				    , checker->retry);
 			else
 				log_message(LOG_INFO
 				    , "Check on service %s failed."
-				    , FMT_TCP_RS(checker));
+				    , FMT_CHK(checker));
 			checker_was_up = checker->is_up;
 			rs_was_alive = checker->rs->alive;
 			update_svr_checker_state(DOWN, checker);
@@ -167,14 +167,14 @@ tcp_check_thread(thread_t * thread)
 		if (checker->is_up &&
 		    (global_data->checker_log_all_failures || checker->log_all_failures))
 			log_message(LOG_INFO, "TCP connection to %s timeout."
-					, FMT_TCP_RS(checker));
+					, FMT_CHK(checker));
 		tcp_epilog(thread, false);
 		break;
 	default:
 		if (checker->is_up &&
 		    (global_data->checker_log_all_failures || checker->log_all_failures))
 			log_message(LOG_INFO, "TCP connection to %s failed."
-					, FMT_TCP_RS(checker));
+					, FMT_CHK(checker));
 		tcp_epilog(thread, false);
 	}
 

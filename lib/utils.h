@@ -89,6 +89,9 @@ check_EINTR(int xx)
 #define check_EAGAIN(xx)	((xx) == EAGAIN || (xx) == EWOULDBLOCK)
 #endif
 
+/* Buffer length needed for inet_sockaddrtotrio() - '[' + INET6_ADDRSTRLEN + ']' + ':' + 'sctp' + ':' + 'nnnnn' */
+#define SOCKADDRTRIO_STR_LEN	(INET6_ADDRSTRLEN + 13)
+
 /* inline stuff */
 static inline int __ip6_addr_equal(const struct in6_addr *a1,
 				   const struct in6_addr *a2)
@@ -208,7 +211,8 @@ extern void inet_ip4tosockaddr(struct in_addr *, struct sockaddr_storage *);
 extern void inet_ip6tosockaddr(struct in6_addr *, struct sockaddr_storage *);
 extern char *inet_sockaddrtos(struct sockaddr_storage *);
 extern char *inet_sockaddrtopair(struct sockaddr_storage *);
-extern char *inet_sockaddrtotrio(struct sockaddr_storage *, uint16_t);
+extern const char *inet_sockaddrtotrio(struct sockaddr_storage *, uint16_t);
+extern char *inet_sockaddrtotrio_r(struct sockaddr_storage *, uint16_t, char *);
 extern uint16_t inet_sockaddrport(struct sockaddr_storage *);
 extern uint32_t inet_sockaddrip4(struct sockaddr_storage *);
 extern int inet_sockaddrip6(struct sockaddr_storage *, struct in6_addr *);

@@ -889,16 +889,14 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
 # SSL_CTX_set_verify_depth() introduced OpenSSL v0.9.5a
 AC_CHECK_FUNCS([SSL_CTX_set_verify_depth])
 
-# SSL_set0_rbio(), SSL_set0_wbio() and OPENSSL_init_crypto() introduced OpenSSL v1.1.0
-AC_CHECK_FUNCS([SSL_set0_rbio OPENSSL_init_crypto])
-
-# TLS_method() introduced OpenSSL v1.1.0
-AC_CHECK_FUNCS([TLS_method])
+# SSL_set0_rbio(), SSL_set0_wbio() OPENSSL_init_crypto() and TLS_method() introduced OpenSSL v1.1.0
+AC_CHECK_FUNCS([SSL_set0_rbio OPENSSL_init_crypto TLS_method])
 
 # In OpenSSL v1.1.1 the call to SSL_CTX_new() fails if OPENSSL_init_crypto() has been called with
 # OPENSSL_INIT_NO_LOAD_CONFIG. It does not fail in v1.1.0h and v1.1.1b.
-AS_IF([test .$ac_cv_func_OPENSSL_init_crypto = .yes -a .$ac_cv_func_TLS_method = .yes],
+AS_IF([test .$ac_cv_func_OPENSSL_init_crypto = .yes],
       [
+        AS_IF([test .$ac_cv_func_TLS_method = .yes], [method_func=TLS_method], [method_func=SSLv23_method])
 	AC_RUN_IFELSE(
 	  [AC_LANG_PROGRAM(
 	    [[#include <openssl/ssl.h>]],
@@ -910,7 +908,7 @@ AS_IF([test .$ac_cv_func_OPENSSL_init_crypto = .yes -a .$ac_cv_func_TLS_method =
 		return 1;
 
 	      /* Initialize SSL context */
-	      meth = TLS_method();
+	      meth = $method_func();
 	      if (!(ctx = SSL_CTX_new(meth)))
 		return 1;
 	      return 0;

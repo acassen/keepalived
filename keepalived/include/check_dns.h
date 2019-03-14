@@ -67,8 +67,6 @@
 #define DNS_TYPE_RRSIG  46
 #define DNS_TYPE_DNSKEY 48
 
-#define FMT_DNS_RS(C) FMT_CHK(C)
-
 typedef struct _dns_type {
 	uint16_t type;
 	char *label;

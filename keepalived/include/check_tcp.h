@@ -23,9 +23,6 @@
 #ifndef _CHECK_TCP_H
 #define _CHECK_TCP_H
 
-/* macro utility */
-#define FMT_TCP_RS(C) FMT_CHK(C)
-
 /* Prototypes defs */
 extern void install_tcp_check_keyword(void);
 #ifdef THREAD_DUMP

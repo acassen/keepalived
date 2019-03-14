@@ -641,7 +641,7 @@ dump_check_data(FILE *fp, check_data_t *data)
 #endif
 }
 
-char *
+const char *
 format_vs (virtual_server_t *vs)
 {
 	/* alloc large buffer because of unknown length of vs->vsgname */
@@ -658,6 +658,16 @@ format_vs (virtual_server_t *vs)
 			, inet_sockaddrtotrio(&vs->addr, vs->service_type));
 
 	return ret;
+}
+
+const char *
+format_rs(real_server_t *rs, virtual_server_t *vs)
+{
+	static char buf[SOCKADDRTRIO_STR_LEN];
+
+	inet_sockaddrtotrio_r(&rs->addr, vs->service_type, buf);
+
+	return buf;
 }
 
 static void
