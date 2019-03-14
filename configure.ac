@@ -316,7 +316,7 @@ args=`echo $ac_configure_args | $SED -e "s/'//g"`
 AC_DEFINE_UNQUOTED(KEEPALIVED_CONFIGURE_OPTIONS,"$args", [configure options specified])
 
 KA_CPPFLAGS="$kernelinc"
-KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -Wfloat-conversion -Winit-self -g -D_GNU_SOURCE"
+KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -Winit-self -g -D_GNU_SOURCE"
 KA_LDFLAGS=
 KA_LIBS=
 NEED_LIBDL=No
@@ -461,6 +461,23 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   [
     AC_MSG_RESULT([yes])
     add_to_var([KA_CFLAGS], [-Wimplicit-fallthrough=3])
+  ],
+  [
+    AC_MSG_RESULT([no])
+  ])
+CFLAGS="$SAV_CFLAGS"
+
+AC_MSG_CHECKING([for -Wfloat-conversion])
+SAV_CFLAGS="$CFLAGS"
+CFLAGS="-Wfloat-conversion"
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+  int main(int argc, char**argv)
+  {
+  }
+  ]])],
+  [
+    AC_MSG_RESULT([yes])
+    add_to_var([KA_CFLAGS], [-Wfloat-conversion])
   ],
   [
     AC_MSG_RESULT([no])
