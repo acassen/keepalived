@@ -67,27 +67,28 @@ usage(const char *prog)
 
 	fprintf(stderr, VERSION_STRING);
 	fprintf(stderr,
-		"Usage:\n"
-		"  %1$s -s server-address -p port -u url\n"
-		"  %1$s -S -s server-address -p port -u url\n"
-		"  %1$s -h\n" "  %1$s -r\n\n", prog);
-	fprintf(stderr,
+		"Usage: %s COMMAND [OPTIONS]\n"
 		"Commands:\n"
+		"   -s server-address -p port -u url\n"
+		"   -S -s server-address -p port -u url\n"
+		"   -h\n"
+		"   -r\n\n", prog);
+	fprintf(stderr,
+		"Options:\n"
 		"Either long or short options are allowed.\n"
-		"  %1$s --use-ssl         -S       Use SSL connection to remote server.\n"
+		"   --use-ssl         -S       Use SSL connection to remote server.\n"
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
-		"  %1$s --use-sni         -I       Use SNI during SSL handshake (uses virtualhost setting; see -V).\n"
+		"   --use-sni         -I       Use SNI during SSL handshake (uses virtualhost setting; see -V).\n"
 #endif
-		"  %1$s --server          -s       Use the specified remote server address.\n"
-		"  %1$s --port            -p       Use the specified remote server port.\n"
-		"  %1$s --url             -u       Use the specified remote server url.\n"
-		"  %1$s --use-virtualhost -V       Use the specified virtualhost in GET query.\n"
-		"  %1$s --hash            -H       Use the specified hash algorithm.\n"
-		"  %1$s --verbose         -v       Use verbose mode output.\n"
-		"  %1$s --help            -h       Display this short inlined help screen.\n"
-		"  %1$s --release         -r       Display the release number.\n"
-		"  %1$s --fwmark          -m       Use the specified FW mark.\n",
-		prog);
+		"   --server          -s       Use the specified remote server address.\n"
+		"   --port            -p       Use the specified remote server port.\n"
+		"   --url             -u       Use the specified remote server url.\n"
+		"   --use-virtualhost -V       Use the specified virtualhost in GET query.\n"
+		"   --hash            -H       Use the specified hash algorithm.\n"
+		"   --verbose         -v       Use verbose mode output.\n"
+		"   --help            -h       Display this short inlined help screen.\n"
+		"   --release         -r       Display the release number.\n"
+		"   --fwmark          -m       Use the specified FW mark.\n");
 	fprintf(stderr, "\nSupported hash algorithms:\n");
 	for (i = hash_first; i < hash_guard; i++)
 		fprintf(stderr, "  %s%s\n",
