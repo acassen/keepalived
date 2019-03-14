@@ -103,7 +103,7 @@ dns_log_message(thread_t * thread, int level, const char *fmt, ...)
 	vsnprintf(buf, sizeof (buf), fmt, args);
 	va_end(args);
 
-	log_message(level, "DNS_CHECK (%s) %s", FMT_DNS_RS(checker), buf);
+	log_message(level, "DNS_CHECK (%s) %s", FMT_CHK(checker), buf);
 }
 
 static int

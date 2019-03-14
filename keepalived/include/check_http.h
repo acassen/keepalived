@@ -125,9 +125,6 @@ typedef struct _http_checker {
 			 "User-Agent: KeepAliveClient\r\n" \
 			 "Host: [%s]%s\r\n\r\n"
 
-/* macro utility */
-#define FMT_HTTP_RS(C) FMT_CHK(C)
-
 #ifdef _REGEX_DEBUG_
 extern bool do_regex_debug;
 #endif

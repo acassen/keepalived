@@ -830,7 +830,7 @@ epilog(thread_t * thread, int method, unsigned t, unsigned c)
 		 */
 		if (!checker->is_up || !checker->has_run) {
 			log_message(LOG_INFO, "Remote Web server %s succeed on service."
-					    , FMT_HTTP_RS(checker));
+					    , FMT_CHK(checker));
 			checker_was_up = checker->is_up;
 			rs_was_alive = checker->rs->alive;
 			update_svr_checker_state(UP, checker);
@@ -855,12 +855,12 @@ epilog(thread_t * thread, int method, unsigned t, unsigned c)
 			if (checker->has_run && checker->retry)
 				log_message(LOG_INFO
 				   , "Check on service %s failed after %u retry."
-				   , FMT_HTTP_RS(checker)
+				   , FMT_CHK(checker)
 				   , checker->retry_it - 1);
 			else
 				log_message(LOG_INFO
 				   , "Check on service %s failed."
-				   , FMT_HTTP_RS(checker));
+				   , FMT_CHK(checker));
 			checker_was_up = checker->is_up;
 			rs_was_alive = checker->rs->alive;
 			update_svr_checker_state(DOWN, checker);
@@ -911,7 +911,7 @@ timeout_epilog(thread_t * thread, const char *debug_msg)
 		if (global_data->checker_log_all_failures || checker->log_all_failures)
 			log_message(LOG_INFO, "%s server %s."
 					    , debug_msg
-					    , FMT_HTTP_RS(checker));
+					    , FMT_CHK(checker));
 		return epilog(thread, REGISTER_CHECKER_RETRY, 0, 1);
 	}
 
@@ -1184,26 +1184,26 @@ http_handle_response(thread_t * thread, unsigned char digest[MD5_DIGEST_LENGTH]
 			case ON_SUCCESS:
 				log_message(LOG_INFO,
 				       "HTTP success to %s url(%u)."
-				       , FMT_HTTP_RS(checker)
+				       , FMT_CHK(checker)
 				       , http_get_check->url_it + 1);
 				return epilog(thread, REGISTER_CHECKER_NEW, 1, 0) + 1;
 			case ON_STATUS:
 				log_message(LOG_INFO,
 				       "HTTP status code success to %s url(%u)."
-				       , FMT_HTTP_RS(checker)
+				       , FMT_CHK(checker)
 				       , http_get_check->url_it + 1);
 				return epilog(thread, REGISTER_CHECKER_NEW, 1, 0) + 1;
 			case ON_DIGEST:
 				log_message(LOG_INFO,
 					"MD5 digest success to %s url(%u)."
-					, FMT_HTTP_RS(checker)
+					, FMT_CHK(checker)
 					, http_get_check->url_it + 1);
 				return epilog(thread, REGISTER_CHECKER_NEW, 1, 0) + 1;
 #ifdef _WITH_REGEX_CHECK_
 			case ON_REGEX:
 				log_message(LOG_INFO,
 					"Regex match success to %s url(%u)."
-					, FMT_HTTP_RS(checker)
+					, FMT_CHK(checker)
 					, http_get_check->url_it + 1);
 				return epilog(thread, REGISTER_CHECKER_NEW, 1, 0) + 1;
 #endif
@@ -1276,7 +1276,7 @@ http_read_thread(thread_t * thread)
 	/* Test if data are ready */
 	if (r == -1 && (check_EAGAIN(errno) || check_EINTR(errno))) {
 		log_message(LOG_INFO, "Read error with server %s: %s"
-				    , FMT_HTTP_RS(checker)
+				    , FMT_CHK(checker)
 				    , strerror(errno));
 		thread_add_read(thread->master, http_read_thread, checker,
 				thread->u.fd, timeout);
@@ -1408,7 +1408,7 @@ http_request_thread(thread_t * thread)
 			fetched_url->path, request_host, request_host_port);
 	}
 
-	DBG("Processing url(%u) of %s.", http_get_check->url_it + 1 , FMT_HTTP_RS(checker));
+	DBG("Processing url(%u) of %s.", http_get_check->url_it + 1 , FMT_CHK(checker));
 
 	/* Send the GET request to remote Web server */
 	if (http_get_check->proto == PROTO_SSL)
@@ -1499,7 +1499,7 @@ http_check_thread(thread_t * thread)
 			/* Remote WEB server is connected.
 			 * Register the next step thread ssl_request_thread.
 			 */
-			DBG("Remote Web server %s connected.", FMT_HTTP_RS(checker));
+			DBG("Remote Web server %s connected.", FMT_CHK(checker));
 			thread_add_write(thread->master,
 					 http_request_thread, checker,
 					 thread->u.fd,
@@ -1507,7 +1507,7 @@ http_check_thread(thread_t * thread)
 			thread_del_read(thread);
 		} else {
 			DBG("Connection trouble to: %s."
-					 , FMT_HTTP_RS(checker));
+					 , FMT_CHK(checker));
 #ifdef _DEBUG_
 			if (http_get_check->proto == PROTO_SSL)
 				ssl_printerr(SSL_get_error
