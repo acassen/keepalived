@@ -46,8 +46,6 @@ static conn_opts_t* default_co;	/* Default conn_opts for SMTP_CHECK */
 static conn_opts_t *sav_co;	/* Saved conn_opts while host{} block processed */
 
 static int smtp_connect_thread(thread_t *);
-static int smtp_final(thread_t *thread, int error, const char *format, ...)
-	 __attribute__ ((format (printf, 3, 4)));
 
 /*
  * Used as a callback from free_list() to free all
@@ -289,7 +287,7 @@ install_smtp_check_keyword(void)
  * Also has to make a decision if we need to bring the resulting
  * service down in case of error.
  */
-static int
+static int __attribute__ ((format (printf, 3, 4)))
 smtp_final(thread_t *thread, int error, const char *format, ...)
 {
 	checker_t *checker = THREAD_ARG(thread);

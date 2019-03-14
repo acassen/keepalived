@@ -285,9 +285,7 @@ notify_fifo_close(notify_fifo_t* global_fifo, notify_fifo_t* fifo)
 }
 
 /* perform a system call */
-static void system_call(const notify_script_t *) __attribute__ ((noreturn));
-
-static void
+static void __attribute__ ((noreturn))
 system_call(const notify_script_t* script)
 {
 	char *command_line = NULL;
