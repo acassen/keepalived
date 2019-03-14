@@ -15,8 +15,8 @@ noinst_LIBRARIES	= libcheck.a
 libcheck_a_SOURCES = \
 	check_daemon.c check_data.c check_parser.c \
 	check_api.c check_tcp.c check_http.c check_ssl.c \
-	check_smtp.c check_misc.c check_dns.c ipwrapper.c \
-	ipvswrapper.c libipvs.c
+	check_smtp.c check_misc.c check_dns.c check_print.c \
+	ipwrapper.c ipvswrapper.c libipvs.c
 
 AM_CPPFLAGS		+= -I$(srcdir)/../include -I$(srcdir)/../../lib
 

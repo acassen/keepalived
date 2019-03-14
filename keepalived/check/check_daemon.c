@@ -57,6 +57,7 @@
 #include "parser.h"
 #include "bitops.h"
 #include "keepalived_netlink.h"
+#include "check_print.h"
 #ifdef _WITH_SNMP_CHECKER_
   #include "check_snmp.h"
 #endif
@@ -320,10 +321,8 @@ start_check(list old_checkers_queue, data_t *old_global_data)
 		stop_check(KEEPALIVED_EXIT_FATAL);
 
 	/* Dump configuration */
-	if (__test_bit(DUMP_CONF_BIT, &debug)) {
-		dump_global_data(NULL, global_data);
-		dump_check_data(NULL, check_data);
-	}
+	if (__test_bit(DUMP_CONF_BIT, &debug))
+		dump_data_check(NULL);
 
 	/* Register checkers thread */
 	register_checkers_thread();
@@ -404,6 +403,21 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 	return 0;
 }
 
+static int
+print_check_data(__attribute__((unused)) thread_t * thread)
+{
+        check_print_data();
+        return 0;
+}
+
+static void
+sigusr1_check(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
+{
+	log_message(LOG_INFO, "Printing checker data for process(%d) on signal",
+		    getpid());
+	thread_add_event(master, print_check_data, NULL, 0);
+}
+
 static void
 sigreload_check(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
@@ -425,6 +439,7 @@ check_signal_init(void)
 	signal_set(SIGHUP, sigreload_check, NULL);
 	signal_set(SIGINT, sigend_check, NULL);
 	signal_set(SIGTERM, sigend_check, NULL);
+	signal_set(SIGUSR1, sigusr1_check, NULL);
 	signal_ignore(SIGPIPE);
 }
 
@@ -624,6 +639,7 @@ void
 register_check_parent_addresses(void)
 {
 #ifndef _DEBUG_
+	register_thread_address("print_check_data", print_check_data);
 	register_thread_address("check_respawn_thread", check_respawn_thread);
 #endif
 }

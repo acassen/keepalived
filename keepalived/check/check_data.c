@@ -138,6 +138,7 @@ dump_vsg_entry(FILE *fp, void *data)
 		conf_write(fp, "   VIP = %s, VPORT = %d"
 				    , inet_sockaddrtos(&vsg_entry->addr)
 				    , ntohs(inet_sockaddrport(&vsg_entry->addr)));
+	conf_write(fp, "reloaded = %s", vsg_entry->reloaded ? "True" : "False");
 }
 void
 alloc_vsg(char *gname)
@@ -318,8 +319,8 @@ dump_vs(FILE *fp, void *data)
 		conf_write(fp, "   protocol = none");
 	else
 		conf_write(fp, "   protocol = %d", vs->service_type);
-	conf_write(fp, "   alpha is %s, omega is %s",
-		    vs->alpha ? "ON" : "OFF", vs->omega ? "ON" : "OFF");
+	conf_write(fp, "   alpha is %s", vs->alpha ? "ON" : "OFF");
+	conf_write(fp, "   omega is %s", vs->omega ? "ON" : "OFF");
 	if (vs->retry != UINT_MAX)
 		conf_write(fp, "   Retry count = %u" , vs->retry);
 	if (vs->delay_before_retry != ULONG_MAX)
@@ -365,6 +366,10 @@ dump_vs(FILE *fp, void *data)
 			break;
 		}
 	}
+	conf_write(fp, "   alive = %d", vs->alive);
+	conf_write(fp, "   quorum_state_up = %d", vs->quorum_state_up);
+	conf_write(fp, "   reloaded = %d", vs->reloaded);
+
 	dump_list(fp, vs->rs);
 }
 
@@ -473,6 +478,8 @@ static void
 dump_rs(FILE *fp, void *data)
 {
 	real_server_t *rs = data;
+	bfd_checker_t *cbfd;
+	element e;
 
 	conf_write(fp, "   ------< Real server >------");
 	conf_write(fp, "   RIP = %s, RPORT = %d, WEIGHT = %d"
@@ -493,6 +500,7 @@ dump_rs(FILE *fp, void *data)
 
 	conf_write(fp, "   Alpha is %s", rs->alpha ? "ON" : "OFF");
 	conf_write(fp, "   connection timeout = %f", ((double)rs->connection_to) / TIMER_HZ);
+	conf_write(fp, "   connection limit range = %" PRIu32 " -> %" PRIu32, rs->l_threshold, rs->u_threshold);
 	conf_write(fp, "   Delay loop = %f" , (double)rs->delay_loop / TIMER_HZ);
 	if (rs->retry != UINT_MAX)
 		conf_write(fp, "   Retry count = %u" , rs->retry);
@@ -511,6 +519,21 @@ dump_rs(FILE *fp, void *data)
 	if (rs->virtualhost)
 		conf_write(fp, "    VirtualHost = %s", rs->virtualhost);
 	conf_write(fp, "   Using smtp notification = %s", rs->smtp_alert ? "yes" : "no");
+
+	conf_write(fp, "   initial weight = %d", rs->iweight);
+	conf_write(fp, "   previous weight = %d", rs->pweight);
+	conf_write(fp, "   alive = %d", rs->alive);
+	conf_write(fp, "   num failed checkers = %u", rs->num_failed_checkers);
+	conf_write(fp, "   RS set = %d", rs->set);
+	conf_write(fp, "   reloaded = %d", rs->reloaded);
+
+#ifdef _WITH_BFD_
+	if (!LIST_ISEMPTY(rs->tracked_bfds)) {
+		conf_write(fp, "=== Tracked BFDs ===");
+		LIST_FOREACH(rs->tracked_bfds, cbfd, e)
+			conf_write(fp, "     %s", cbfd->bfd->bname);
+	}
+#endif
 }
 
 void
@@ -616,7 +639,7 @@ free_check_data(check_data_t *data)
 	FREE(data);
 }
 
-void
+static void
 dump_check_data(FILE *fp, check_data_t *data)
 {
 	if (data->ssl) {
@@ -639,6 +662,14 @@ dump_check_data(FILE *fp, check_data_t *data)
 		dump_list(fp, data->track_bfds);
 	}
 #endif
+}
+
+void
+dump_data_check(FILE *fp)
+{
+	dump_global_data(fp, global_data);
+
+	dump_check_data(fp, check_data);
 }
 
 const char *

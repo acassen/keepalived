@@ -574,7 +574,7 @@ propagate_signal(__attribute__((unused)) void *v, int sig)
 		start_vrrp_child();
 #endif
 #ifdef _WITH_LVS_
-	if (sig == SIGHUP) {
+	if (sig == SIGHUP || sig == SIGUSR1) {
 		if (checkers_child > 0)
 			kill(checkers_child, sig);
 		else if (running_checker())
