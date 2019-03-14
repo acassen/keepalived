@@ -479,8 +479,10 @@ static void
 dump_rs(FILE *fp, void *data)
 {
 	real_server_t *rs = data;
+#ifdef _WITH_BFD_
 	bfd_checker_t *cbfd;
 	element e;
+#endif
 
 	conf_write(fp, "   ------< Real server >------");
 	conf_write(fp, "   RIP = %s, RPORT = %d, WEIGHT = %d"
