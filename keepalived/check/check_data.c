@@ -25,6 +25,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "main.h"
 #include "check_data.h"
 #include "check_api.h"
 #include "check_misc.h"
@@ -925,9 +926,10 @@ bool validate_check_config(void)
 			}
 		}
 
-		/* In Alpha mode also mark the checker as failed, unless we are reloading and it has already run. */
+		/* In Alpha mode also mark any checker that hasn't run as failed,
+		 * unless we are reloading and the real server has no failed checkers */
 		if (!checker->has_run) {
-			if (checker->alpha) {
+			if (checker->alpha && (!reload || checker->rs->num_failed_checkers)) {
 				set_checker_state(checker, false);
 				UNSET_ALIVE(checker->rs);
 			} else {
