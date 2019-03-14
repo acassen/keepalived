@@ -32,6 +32,7 @@
 /* keepalived includes */
 #include "utils.h"
 #include "signals.h"
+#include "git-commit.h"
 
 /* genhash includes */
 #include "include/main.h"
@@ -65,7 +66,11 @@ usage(const char *prog)
 {
 	enum feat_hashes i;
 
-	fprintf(stderr, VERSION_STRING);
+	fprintf(stderr, "%s", VERSION_STRING);
+#ifdef GIT_COMMIT
+	fprintf(stderr, ", git commit %s", GIT_COMMIT);
+#endif
+	fprintf(stderr, "\n\n%s\n\n", COPYRIGHT_STRING);
 	fprintf(stderr,
 		"Usage: %s COMMAND [OPTIONS]\n"
 		"Commands:\n"
@@ -137,7 +142,11 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 				  , long_options, NULL)) != EOF) {
 		switch (c) {
 		case 'r':
-			fprintf(stderr, VERSION_STRING);
+			fprintf(stderr, "%s", VERSION_STRING);
+#ifdef GIT_COMMIT
+			fprintf(stderr, ", git commit %s", GIT_COMMIT);
+#endif
+			fprintf(stderr, "\n");
 			break;
 		case 'h':
 			usage(argv[0]);

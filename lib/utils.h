@@ -48,6 +48,9 @@
 
 #define STR(x)  #x
 
+#define	VERSION_STRING		PACKAGE_NAME " v" PACKAGE_VERSION " (" GIT_DATE ")"
+#define COPYRIGHT_STRING	"Copyright(C) 2001-" GIT_YEAR " Alexandre Cassen, <acassen@gmail.com>"
+
 #ifdef _WITH_PERF_
 typedef enum {
 	PERF_NONE,
