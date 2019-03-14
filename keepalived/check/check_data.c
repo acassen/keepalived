@@ -660,6 +660,16 @@ format_vs (virtual_server_t *vs)
 	return ret;
 }
 
+const char *
+format_rs(real_server_t *rs, virtual_server_t *vs)
+{
+	static char buf[SOCKADDRTRIO_STR_LEN];
+
+	inet_sockaddrtotrio_r(&rs->addr, vs->service_type, buf);
+
+	return buf;
+}
+
 static void
 check_check_script_security(void)
 {

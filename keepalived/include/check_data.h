@@ -196,7 +196,7 @@ typedef struct _check_data {
 #define ISALIVE(S)		((S)->alive)
 #define SET_ALIVE(S)		((S)->alive = true)
 #define UNSET_ALIVE(S)		((S)->alive = false)
-#define FMT_RS(R, V) (inet_sockaddrtotrio (&(R)->addr, (V)->service_type))
+#define FMT_RS(R, V) (format_rs(R, V))
 #define FMT_VS(V) (format_vs((V)))
 
 #define VS_SCRIPT_ISEQ(XS,YS) \
@@ -253,6 +253,7 @@ extern check_data_t *alloc_check_data(void);
 extern void free_check_data(check_data_t *);
 extern void dump_check_data(FILE *, check_data_t *);
 extern char *format_vs (virtual_server_t *);
+extern const char *format_rs(real_server_t *, virtual_server_t *);
 extern bool validate_check_config(void);
 
 #endif

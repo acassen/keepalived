@@ -88,7 +88,7 @@ notify_fifo_rs(virtual_server_t* vs, real_server_t* rs)
 	char *state = rs->alive ? "UP" : "DOWN";
 	size_t size;
 	char *line;
-	char *str;
+	const char *str;
 	char *rs_str;
 	char *vs_str;
 
