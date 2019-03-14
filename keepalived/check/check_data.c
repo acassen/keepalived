@@ -932,10 +932,11 @@ bool validate_check_config(void)
 			if (checker->alpha && (!reload || checker->rs->num_failed_checkers)) {
 				set_checker_state(checker, false);
 				UNSET_ALIVE(checker->rs);
-			} else {
-				/* For non alpha mode, one failure is enough initially */
-				checker->retry_it = checker->retry;
 			}
+
+			/* For non alpha mode, one failure is enough initially.
+			 * For alpha mode, log failure after one failure */
+			checker->retry_it = checker->retry;
 		}
 	}
 

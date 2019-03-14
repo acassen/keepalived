@@ -131,7 +131,7 @@ dns_final(thread_t * thread, int error, const char *fmt, ...)
 				va_start(args, fmt);
 				len = vsnprintf(buf, sizeof (buf), fmt, args);
 				va_end(args);
-				if (checker->has_run && checker->retry_it >= checker->retry)
+				if (checker->has_run && checker->retry_it >= checker->retry && !checker->has_run)
 					snprintf(buf + len, sizeof(buf) - len, " after %d retries", checker->retry);
 				dns_log_message(thread, LOG_INFO, buf);
 			}
