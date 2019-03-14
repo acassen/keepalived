@@ -215,7 +215,7 @@ AC_ARG_ENABLE(strict-config-checks,
 AC_ARG_ENABLE(hardening,
   [AS_HELP_STRING([--disable-hardening], [do not build with security hardening])])
 AC_ARG_ENABLE(optimise,
-  [AS_HELP_STRING([--optimise], [compiler optimisation level])], [], [enable_optimise=not-specified])
+  [AS_HELP_STRING([--enable-optimise], [compiler optimisation level])], [], [enable_optimise=not-specified])
 AC_ARG_ENABLE(mem-check,
   [AS_HELP_STRING([--enable-mem-check], [compile with memory alloc checking])])
 AC_ARG_ENABLE(mem-check-log,
