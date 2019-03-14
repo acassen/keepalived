@@ -58,7 +58,7 @@ notify_fifo_vs(virtual_server_t* vs)
 	char *state = vs->quorum_state_up ? "UP" : "DOWN";
 	size_t size;
 	char *line;
-	char *vs_str;
+	const char *vs_str;
 
 	if (global_data->notify_fifo.fd == -1 &&
 	    global_data->lvs_notify_fifo.fd == -1)
@@ -88,17 +88,14 @@ notify_fifo_rs(virtual_server_t* vs, real_server_t* rs)
 	char *state = rs->alive ? "UP" : "DOWN";
 	size_t size;
 	char *line;
-	const char *str;
-	char *rs_str;
-	char *vs_str;
+	const char *rs_str;
+	const char *vs_str;
 
 	if (global_data->notify_fifo.fd == -1 &&
 	    global_data->lvs_notify_fifo.fd == -1)
 		return;
 
-	str = FMT_RS(rs, vs);
-	rs_str = MALLOC(strlen(str)+1);
-	strcpy(rs_str, str);
+	rs_str = FMT_RS(rs, vs);
 	vs_str = FMT_VS(vs);
 	size = strlen(rs_str) + strlen(vs_str) + strlen(state) + 7;
 	line = MALLOC(size);
@@ -106,7 +103,6 @@ notify_fifo_rs(virtual_server_t* vs, real_server_t* rs)
 		return;
 
 	snprintf(line, size, "RS %s %s %s\n", rs_str, vs_str, state);
-	FREE(rs_str);
 
 	if (global_data->notify_fifo.fd != -1) {
 		if (write(global_data->notify_fifo.fd, line, size - 1) == - 1) {}

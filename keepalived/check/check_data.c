@@ -641,7 +641,7 @@ dump_check_data(FILE *fp, check_data_t *data)
 #endif
 }
 
-char *
+const char *
 format_vs (virtual_server_t *vs)
 {
 	/* alloc large buffer because of unknown length of vs->vsgname */
