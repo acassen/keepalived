@@ -616,6 +616,9 @@ address_exist(vrrp_t *vrrp, ip_address_t *ipaddress)
 	char addr_str[INET6_ADDRSTRLEN];
 	void *addr;
 
+	if (!ipaddress)
+		return false;
+
 	LIST_FOREACH(vrrp->vip, ipaddr, e) {
 		if (IP_ISEQ(ipaddr, ipaddress)) {
 			ipaddr->set = ipaddress->set;

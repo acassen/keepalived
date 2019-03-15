@@ -2611,6 +2611,8 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	/* If the addresses are IPv6, then the first one must be link local */
 	if (vrrp->family == AF_INET6 && LIST_ISEMPTY(vrrp->unicast_peer) &&
+		  !LIST_ISEMPTY(vrrp->vip) &&
+		  LIST_HEAD(vrrp->vip)->data &&
 		  !IN6_IS_ADDR_LINKLOCAL(&((ip_address_t *)LIST_HEAD(vrrp->vip)->data)->u.sin6_addr)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) the first IPv6 VIP address must be link local", vrrp->iname);
 	}
@@ -3341,12 +3343,16 @@ remove_residual_vips(void)
 	/* Promote address from list to i/f if none on i/f */
 	LIST_FOREACH(get_if_list(), ifp, e) {
 		if (ifp->sin_addr.s_addr == 0 && !LIST_ISEMPTY(ifp->sin_addr_l)) {
-			ifp->sin_addr = *(struct in_addr *)ELEMENT_DATA(LIST_HEAD(ifp->sin_addr_l));
-			list_remove(ifp->sin_addr_l, LIST_HEAD(ifp->sin_addr_l));
+			if (ELEMENT_DATA(LIST_HEAD(ifp->sin_addr_l))) {
+				ifp->sin_addr = *(struct in_addr *)ELEMENT_DATA(LIST_HEAD(ifp->sin_addr_l));
+				list_remove(ifp->sin_addr_l, LIST_HEAD(ifp->sin_addr_l));
+			}
 		}
 		if (ifp->sin6_addr.s6_addr32[0] == 0 && !LIST_ISEMPTY(ifp->sin6_addr_l)) {
-			ifp->sin6_addr = *(struct in6_addr *)ELEMENT_DATA(LIST_HEAD(ifp->sin6_addr_l));
-			list_remove(ifp->sin6_addr_l, LIST_HEAD(ifp->sin6_addr_l));
+			if (ELEMENT_DATA(LIST_HEAD(ifp->sin6_addr_l))) {
+				ifp->sin6_addr = *(struct in6_addr *)ELEMENT_DATA(LIST_HEAD(ifp->sin6_addr_l));
+				list_remove(ifp->sin6_addr_l, LIST_HEAD(ifp->sin6_addr_l));
+			}
 		}
 	}
 }

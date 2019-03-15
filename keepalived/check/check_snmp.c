@@ -824,6 +824,11 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 				break;
 			case STATE_RS_REGULAR_FIRST:
 				e2 = LIST_HEAD(vs->rs);
+				if (!e2) {
+					e = NULL;
+					state = STATE_RS_END;
+					break;
+				}
 				e = ELEMENT_DATA(e2);
 				type = state++;
 				break;

@@ -884,7 +884,7 @@ if_setsockopt_ipv6_checksum(int *sd)
 	int ret;
 	int offset = 6;
 
-	if (!sd && *sd < 0)
+	if (!sd || *sd < 0)
 		return -1;
 
 	ret = setsockopt(*sd, IPPROTO_IPV6, IPV6_CHECKSUM, &offset, sizeof(offset));

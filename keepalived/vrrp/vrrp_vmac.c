@@ -211,7 +211,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	 */
 	ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_CREATE_ALWAYS);
 
-	if (ifp && ifp->ifindex) {
+	if (ifp->ifindex) {
 		/* Check to see whether this interface has wrong mac ? */
 		if (memcmp((const void *) ifp->hw_addr, (const void *) ll_addr, ETH_ALEN) != 0 ||
 		     ifp->base_ifindex != vrrp->ifp->ifindex ||
