@@ -482,7 +482,7 @@ perform_svr_state(bool alive, checker_t *checker)
 	virtual_server_t * vs = checker->vs;
 	real_server_t * rs = checker->rs;
 
-	if (ISALIVE(rs) == alive)
+	if (checker->has_run && ISALIVE(rs) == alive)
 		return true;
 
 	log_message(LOG_INFO, "%sing service %s to VS %s"
@@ -602,6 +602,11 @@ set_checker_state(checker_t *checker, bool up)
 void
 update_svr_checker_state(bool alive, checker_t *checker)
 {
+	/* When we come here first time, due to the unsure init state of checker,
+	 * We should update the checker state although it's is_up is equal with alive
+	 */
+	if (!checker->has_run)
+		goto first_time_arrival;
 	if (checker->is_up == alive) {
 		if (!checker->has_run) {
 			if (checker->alpha || !alive)
@@ -611,7 +616,8 @@ update_svr_checker_state(bool alive, checker_t *checker)
 		return;
 	}
 
-	checker->has_run = true;
+first_time_arrival:
+
 
 	if (alive) {
 		/* call the UP handler unless any more failed checks found */
@@ -627,7 +633,8 @@ update_svr_checker_state(bool alive, checker_t *checker)
 				return;
 		}
 	}
-
+	/* We will use checker's init stat in perform_svr_state */
+	checker->has_run = true;
 	set_checker_state(checker, alive);
 }
 
