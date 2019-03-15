@@ -900,6 +900,7 @@ vrrp_snmp_route(struct variable *vp, oid *name, size_t *length,
 {
 	ip_route_t *route;
 	int state = HEADER_STATE_STATIC_ROUTE;
+	nexthop_t *gw2;
 
 	if ((route = (ip_route_t *)
 	     vrrp_header_ar_table(vp, name, length, exact,
@@ -947,7 +948,7 @@ vrrp_snmp_route(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_ROUTE_SECONDARYGATEWAY:
 		if (LIST_ISEMPTY(route->nhs) || LIST_SIZE(route->nhs) != 1)
 			break;
-		nexthop_t *gw2 = LIST_HEAD(route->nhs)->data;
+		gw2 = LIST_HEAD(route->nhs)->data;
 #if HAVE_DECL_RTA_ENCAP
 		if (gw2->encap.type != LWTUNNEL_ENCAP_NONE)
 			break;
