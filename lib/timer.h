@@ -34,7 +34,7 @@ typedef struct timeval timeval_t;
 extern timeval_t time_now;
 
 #ifdef _TIMER_CHECK_
-bool do_timer_check;
+extern bool do_timer_check;
 #endif
 
 /* Some defines */

@@ -160,7 +160,7 @@ typedef enum if_lookup {
 } if_lookup_t;
 
 /* Global data */
-list garp_delay;
+extern list garp_delay;
 
 /* prototypes */
 extern interface_t *if_get_by_ifindex(ifindex_t);

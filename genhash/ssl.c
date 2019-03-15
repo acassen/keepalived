@@ -33,9 +33,6 @@
 #include "include/ssl.h"
 #include "include/main.h"
 
-/* extern variables */
-extern REQ *req;
-
 /*
  * Initialize the SSL context, with or without specific
  * configuration files.
