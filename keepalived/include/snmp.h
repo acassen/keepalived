@@ -39,8 +39,7 @@
 #else
 /* The above header may be buggy. We just need those two functions. */
 int header_simple_table(struct variable *, oid *, size_t *,
-			int, size_t *,
-			WriteMethod ** write_method, int);
+			int, size_t *, WriteMethod **, int);
 int header_generic(struct variable *, oid *, size_t *, int,
 		   size_t *, WriteMethod **);
 #endif
@@ -59,16 +58,15 @@ typedef union _long_ret {
 	long s;
 } longret_t;
 
-extern unsigned long snmp_scope(int scope);
-extern void* snmp_header_list_table(struct variable *vp, oid *name, size_t *length,
-				    int exact, size_t *var_len, WriteMethod **write_method,
-				    list dlist);
-extern void snmp_agent_init(const char *snmp_socket, bool base_mib);
-extern void snmp_register_mib(oid *myoid, size_t len,
-			      const char *name, struct variable *variables,
-			      size_t varsize, size_t varlen);
-extern void snmp_unregister_mib(oid *myoid, size_t len);
-extern void snmp_agent_close(bool base_mib);
+extern unsigned long snmp_scope(int ) __attribute__ ((const));
+extern void* snmp_header_list_table(struct variable *, oid *, size_t *,
+				    int, size_t *, WriteMethod **,
+				    list);
+extern void snmp_agent_init(const char *, bool);
+extern void snmp_register_mib(oid *, size_t, const char *,
+			      struct variable *, size_t, size_t);
+extern void snmp_unregister_mib(oid *, size_t);
+extern void snmp_agent_close(bool);
 #ifdef THREAD_DUMP
 extern void register_snmp_addresses(void);
 #endif
