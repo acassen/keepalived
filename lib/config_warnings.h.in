@@ -1,0 +1,12 @@
+
+/* The content of the .h.in file is automatically updated by
+ * configure, so in theory the .h.in file does not need to be
+ * in the source tree, but the file must exist, otherwise
+ * automake fails.
+ *
+ * The .h.in is a work-around to AC_DEFINE_UNQUOTED only working
+ * with fixed variable names when using AC_CONFIG_HEADERS.
+ * configure writes the #undef statements to the .h.in file, so
+ * that when AC_OUTPUT is invoked, the .h file is created from
+ * the .h.in file, with the appropriate #define's being set.
+ */
