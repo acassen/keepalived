@@ -1039,7 +1039,7 @@ snmp_socket_handler(vector_t *strvec)
 		return;
 	}
 
-	global_data->snmp_socket = MALLOC(strlen(strvec_slot(strvec, 1) + 1));
+	global_data->snmp_socket = MALLOC(strlen(strvec_slot(strvec, 1)) + 1);
 	strcpy(global_data->snmp_socket, strvec_slot(strvec,1));
 }
 static void

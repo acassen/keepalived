@@ -269,8 +269,8 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		 */
 		addattr32(&req.n, sizeof(req), IFLA_MACVLAN_MODE,
 			  MACVLAN_MODE_PRIVATE);
-		data->rta_len = (unsigned short)((void *)NLMSG_TAIL(&req.n) - (void *)data);
-		linkinfo->rta_len = (unsigned short)((void *)NLMSG_TAIL(&req.n) - (void *)linkinfo);
+		data->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)data);
+		linkinfo->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)linkinfo);
 		addattr32(&req.n, sizeof(req), IFLA_LINK, vrrp->configured_ifp->base_ifp->ifindex);
 		addattr_l(&req.n, sizeof(req), IFLA_IFNAME, vrrp->vmac_ifname, strlen(vrrp->vmac_ifname));
 		addattr_l(&req.n, sizeof(req), IFLA_ADDRESS, ll_addr, ETH_ALEN);
@@ -349,8 +349,8 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		data = NLMSG_TAIL(&req.n);
 		addattr_l(&req.n, sizeof(req), AF_INET6, NULL,0);
 		addattr8(&req.n, sizeof(req), IFLA_INET6_ADDR_GEN_MODE, IN6_ADDR_GEN_MODE_NONE);
-		data->rta_len = (unsigned short)((void *)NLMSG_TAIL(&req.n) - (void *)data);
-		spec->rta_len = (unsigned short)((void *)NLMSG_TAIL(&req.n) - (void *)spec);
+		data->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)data);
+		spec->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)spec);
 
 		if (netlink_talk(&nl_cmd, &req.n) < 0)
 			log_message(LOG_INFO, "vmac: Error setting ADDR_GEN_MODE to NONE");

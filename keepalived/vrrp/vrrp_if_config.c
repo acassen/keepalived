@@ -170,7 +170,7 @@ nest_start(struct nlmsghdr *nlh, unsigned short type)
 static size_t
 nest_end(struct nlattr *nla, struct nlattr *nest)
 {
-	nest->nla_len = (unsigned short)((void *)nla - (void *)nest);
+	nest->nla_len = (unsigned short)((char *)nla - (char *)nest);
 
 	return nest->nla_len;
 }

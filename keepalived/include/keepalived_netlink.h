@@ -48,13 +48,13 @@ typedef struct _nl_handle {
 
 /* Define types */
 #ifndef NLMSG_TAIL
-#define NLMSG_TAIL(nmsg) (((void *) (nmsg)) + NLMSG_ALIGN((nmsg)->nlmsg_len))
+#define NLMSG_TAIL(nmsg) ((void *)(((char *) (nmsg)) + NLMSG_ALIGN((nmsg)->nlmsg_len)))
 #endif
 #if !defined SOL_NETLINK
 #define SOL_NETLINK 270
 #endif
 
-#define RTA_TAIL(rta)	((struct rtattr *) (((void *) (rta)) + RTA_ALIGN((rta)->rta_len)))
+#define RTA_TAIL(rta)	((struct rtattr *)(((char *) (rta)) + RTA_ALIGN((rta)->rta_len)))
 
 /* Global vars exported */
 #ifdef _WITH_VRRP_
