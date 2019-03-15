@@ -492,9 +492,6 @@ struct ip_set_req_get_set {
  union ip_set_name_index set;
 };
 
-#define IP_SET_OP_GET_BYINDEX 0x00000007 /* Get set name by index */
-/* Uses ip_set_req_get_set */
-
 #define IP_SET_OP_VERSION 0x00000100 /* Ask kernel version */
 struct ip_set_req_version {
  unsigned op;

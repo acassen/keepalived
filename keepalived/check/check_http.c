@@ -390,7 +390,7 @@ virtualhost_handler(vector_t *strvec)
 }
 
 static void
-http_get_check(void)
+http_get_check_end(void)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 
@@ -760,7 +760,7 @@ install_http_ssl_check_keyword(const char *keyword)
 #endif
 	install_sublevel_end_handler(url_check);
 	install_sublevel_end();
-	install_sublevel_end_handler(http_get_check);
+	install_sublevel_end_handler(http_get_check_end);
 	install_sublevel_end();
 }
 

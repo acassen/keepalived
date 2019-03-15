@@ -1860,16 +1860,16 @@ read_value_block_line(vector_t *strvec)
 {
 	size_t word;
 	char *str;
-	char *dup;
+	char *dup_str;
 
 	if (!read_value_block_vec)
 		read_value_block_vec = vector_alloc();
 
 	vector_foreach_slot(strvec, str, word) {
-		dup = (char *) MALLOC(strlen(str) + 1);
-		strcpy(dup, str);
+		dup_str = (char *) MALLOC(strlen(str) + 1);
+		strcpy(dup_str, str);
 		vector_alloc_slot(read_value_block_vec);
-		vector_set_slot(read_value_block_vec, dup);
+		vector_set_slot(read_value_block_vec, dup_str);
 	}
 }
 
