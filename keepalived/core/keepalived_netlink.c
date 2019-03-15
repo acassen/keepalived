@@ -716,7 +716,7 @@ netlink_close(nl_handle_t *nl)
 
 /* iproute2 utility function */
 int
-addattr_l(struct nlmsghdr *n, size_t maxlen, unsigned short type, void *data, size_t alen)
+addattr_l(struct nlmsghdr *n, size_t maxlen, unsigned short type, const void *data, size_t alen)
 {
 	size_t len = RTA_LENGTH(alen);
 	size_t align_len = NLMSG_ALIGN(len);
@@ -756,7 +756,7 @@ addattr64(struct nlmsghdr *n, size_t maxlen, unsigned short type, uint64_t data)
 }
 
 int
-addattr_l2(struct nlmsghdr *n, size_t maxlen, unsigned short type, void *data, size_t alen, void *data2, size_t alen2)
+addattr_l2(struct nlmsghdr *n, size_t maxlen, unsigned short type, const void *data, size_t alen, const void *data2, size_t alen2)
 {
 	size_t len = RTA_LENGTH(alen + alen2);
 	size_t align_len = NLMSG_ALIGN(len);

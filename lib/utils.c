@@ -344,7 +344,7 @@ in_csum(const uint16_t *addr, size_t len, uint32_t csum, uint32_t *acc)
 
 	/* mop up an odd byte, if necessary */
 	if (nleft == 1)
-		sum += htons(*(u_char *) w << 8);
+		sum += htons(*(const u_char *)w << 8);
 
 	if (acc)
 		*acc = sum;
@@ -677,12 +677,12 @@ inet_sockaddrcmp(const struct sockaddr_storage *a, const struct sockaddr_storage
 
 	if (a->ss_family == AF_INET)
 		return inet_inaddrcmp(a->ss_family,
-				      &((struct sockaddr_in *) a)->sin_addr,
-				      &((struct sockaddr_in *) b)->sin_addr);
+				      &((const struct sockaddr_in *) a)->sin_addr,
+				      &((const struct sockaddr_in *) b)->sin_addr);
 	if (a->ss_family == AF_INET6)
 		return inet_inaddrcmp(a->ss_family,
-				      &((struct sockaddr_in6 *) a)->sin6_addr,
-				      &((struct sockaddr_in6 *) b)->sin6_addr);
+				      &((const struct sockaddr_in6 *) a)->sin6_addr,
+				      &((const struct sockaddr_in6 *) b)->sin6_addr);
 	return 0;
 }
 

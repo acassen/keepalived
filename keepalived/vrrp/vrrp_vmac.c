@@ -259,7 +259,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		/* macvlan settings */
 		linkinfo = NLMSG_TAIL(&req.n);
 		addattr_l(&req.n, sizeof(req), IFLA_LINKINFO, NULL, 0);
-		addattr_l(&req.n, sizeof(req), IFLA_INFO_KIND, (void *)macvlan_ll_kind, strlen(macvlan_ll_kind));
+		addattr_l(&req.n, sizeof(req), IFLA_INFO_KIND, (const void *)macvlan_ll_kind, strlen(macvlan_ll_kind));
 		data = NLMSG_TAIL(&req.n);
 		addattr_l(&req.n, sizeof(req), IFLA_INFO_DATA, NULL, 0);
 

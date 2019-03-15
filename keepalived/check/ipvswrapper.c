@@ -270,11 +270,11 @@ ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool i
 				daemonrule.mcast_ttl = config->mcast_ttl;
 			if (config->mcast_group.ss_family == AF_INET) {
 				daemonrule.mcast_af = AF_INET;
-				daemonrule.mcast_group.ip = ((struct sockaddr_in *)&config->mcast_group)->sin_addr.s_addr;
+				daemonrule.mcast_group.ip = ((const struct sockaddr_in *)&config->mcast_group)->sin_addr.s_addr;
 			}
 			else if (config->mcast_group.ss_family == AF_INET6) {
 				daemonrule.mcast_af = AF_INET6;
-				memcpy(&daemonrule.mcast_group.in6, &((struct sockaddr_in6 *)&config->mcast_group)->sin6_addr, sizeof(daemonrule.mcast_group.in6));
+				memcpy(&daemonrule.mcast_group.in6, &((const struct sockaddr_in6 *)&config->mcast_group)->sin6_addr, sizeof(daemonrule.mcast_group.in6));
 			}
 		}
 #endif

@@ -28,6 +28,7 @@
 #include "global_data.h"
 #include "main.h"
 #include "utils.h"
+#include "warnings.h"
 
 #include <net-snmp/agent/agent_sysORTable.h>
 
@@ -135,7 +136,9 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 	switch (vp->magic) {
 	case SNMP_KEEPALIVEDVERSION:
 		*var_len = strlen(version_string);
+RELAX_CAST_QUAL_START
 		return (u_char *)version_string;
+RELAX_CAST_QUAL_END
 	case SNMP_ROUTERID:
 		if (!global_data->router_id) return NULL;
 		*var_len = strlen(global_data->router_id);
@@ -197,7 +200,9 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 		}
 #endif
 		*var_len = 0;
+RELAX_CAST_QUAL_START
 		return (u_char *)"";
+RELAX_CAST_QUAL_END
 	case SNMP_DBUS:
 #ifdef _WITH_DBUS_
 		if (global_data->enable_dbus)

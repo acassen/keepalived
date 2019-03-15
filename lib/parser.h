@@ -80,7 +80,7 @@ extern char *config_id;
 extern const char *WHITE_SPACE;
 
 #ifdef _MEM_CHECK_
-#define alloc_strvec(str)	(memcheck_log("alloc_strvec", str, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+#define alloc_strvec(str)	(memcheck_log("alloc_strvec", str, (__FILE__), (__func__), (__LINE__)), \
                                  alloc_strvec_r(str))
 #else
 #define alloc_strvec(str)	(alloc_strvec_r(str))

@@ -71,7 +71,7 @@ static inline bool
 check_EINTR(int xx)
 {
 	if ((xx) == EINTR) {
-		log_message(LOG_INFO, "%s:%s(%d) - EINTR returned", (__FILE__), (__FUNCTION__), (__LINE__));
+		log_message(LOG_INFO, "%s:%s(%d) - EINTR returned", (__FILE__), (__func__), (__LINE__));
 		return true;
 	}
 
@@ -112,16 +112,16 @@ static inline bool sockstorage_equal(const struct sockaddr_storage *s1,
 		return false;
 
 	if (s1->ss_family == AF_INET6) {
-		struct sockaddr_in6 *a1 = (struct sockaddr_in6 *) s1;
-		struct sockaddr_in6 *a2 = (struct sockaddr_in6 *) s2;
+		const struct sockaddr_in6 *a1 = (const struct sockaddr_in6 *) s1;
+		const struct sockaddr_in6 *a2 = (const struct sockaddr_in6 *) s2;
 
 //		if (IN6_ARE_ADDR_EQUAL(a1, a2) && (a1->sin6_port == a2->sin6_port))
 		if (__ip6_addr_equal(&a1->sin6_addr, &a2->sin6_addr) &&
 		    (a1->sin6_port == a2->sin6_port))
 			return true;
 	} else if (s1->ss_family == AF_INET) {
-		struct sockaddr_in *a1 = (struct sockaddr_in *) s1;
-		struct sockaddr_in *a2 = (struct sockaddr_in *) s2;
+		const struct sockaddr_in *a1 = (const struct sockaddr_in *) s1;
+		const struct sockaddr_in *a2 = (const struct sockaddr_in *) s2;
 
 		if ((a1->sin_addr.s_addr == a2->sin_addr.s_addr) &&
 		    (a1->sin_port == a2->sin_port))
@@ -132,18 +132,18 @@ static inline bool sockstorage_equal(const struct sockaddr_storage *s1,
 	return false;
 }
 
-static inline bool inaddr_equal(sa_family_t family, void *addr1, void *addr2)
+static inline bool inaddr_equal(sa_family_t family, const void *addr1, const void *addr2)
 {
 	if (family == AF_INET6) {
-		struct in6_addr *a1 = (struct in6_addr *) addr1;
-		struct in6_addr *a2 = (struct in6_addr *) addr2;
+		const struct in6_addr *a1 = (const struct in6_addr *) addr1;
+		const struct in6_addr *a2 = (const struct in6_addr *) addr2;
 
 		return __ip6_addr_equal(a1, a2);
 	}
 
 	if (family == AF_INET) {
-		struct in_addr *a1 = (struct in_addr *) addr1;
-		struct in_addr *a2 = (struct in_addr *) addr2;
+		const struct in_addr *a1 = (const struct in_addr *) addr1;
+		const struct in_addr *a2 = (const struct in_addr *) addr2;
 
 		return (a1->s_addr == a2->s_addr);
 	}

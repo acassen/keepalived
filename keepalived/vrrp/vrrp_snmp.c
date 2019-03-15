@@ -129,6 +129,7 @@
 #include "main.h"
 #include "rttables.h"
 #include "parser.h"
+#include "warnings.h"
 
 #include "snmp.h"
 
@@ -1388,7 +1389,7 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 {
 	ip_rule_t *rule;
 	int state = HEADER_STATE_STATIC_RULE;
-	const char *str;
+	char *str;
 	ip_address_t *addr;
 
 	if ((rule = (ip_rule_t *)
@@ -1539,7 +1540,9 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 #if HAVE_DECL_FRA_SUPPRESS_IFGROUP
 	case VRRP_SNMP_RULE_SUPPRESSGROUP:
 		if (rule->mask & IPRULE_BIT_SUP_GROUP) {
-			str = get_rttables_group(rule->suppress_group);
+RELAX_CAST_QUAL_START
+			str = (char *)get_rttables_group(rule->suppress_group);
+RELAX_CAST_QUAL_END
 			*var_len = strlen(str);
 		}
 		else

@@ -48,8 +48,8 @@ extern bool do_timer_check;
 #define	NSEC_PER_SEC		1000000000	/* nanoseconds per second. Avoids typos by having a definition */
 
 #ifdef _TIMER_CHECK_
-#define timer_now()	timer_now_r((__FILE__), (char *)(__FUNCTION__), (__LINE__))
-#define set_time_now()	set_time_now_r((__FILE__), (char *)(__FUNCTION__), (__LINE__))
+#define timer_now()	timer_now_r((__FILE__), (__func__), (__LINE__))
+#define set_time_now()	set_time_now_r((__FILE__), (__func__), (__LINE__))
 #endif
 
 #define RB_TIMER_CMP(obj)					\

@@ -66,4 +66,19 @@ _Pragma("GCC diagnostic pop")
 #define RELAX_STRICT_OVERFLOW_END
 #endif
 
+#ifdef _HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_
+#define RELAX_CAST_QUAL_START \
+_Pragma("GCC diagnostic push") \
+_Pragma("GCC diagnostic ignored \"-Wcast-qual\"")
+#else
+#define RELAX_CAST_QUAL_START
+#endif
+
+#ifdef _HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_
+#define RELAX_CAST_QUAL_END \
+_Pragma("GCC diagnostic pop")
+#else
+#define RELAX_CAST_QUAL_END
+#endif
+
 #endif

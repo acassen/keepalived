@@ -599,7 +599,7 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 
 /* check if ipaddr is present in VIP buffer */
 static int
-vrrp_in_chk_vips(vrrp_t * vrrp, ip_address_t *ipaddress, unsigned char *buffer)
+vrrp_in_chk_vips(const vrrp_t *vrrp, const ip_address_t *ipaddress, const unsigned char *buffer)
 {
 	size_t i;
 
@@ -642,7 +642,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t * const hd, char *buffer, ssize_
 #ifdef _WITH_VRRP_AUTH_
 	ipsec_ah_t *ah;
 #endif
-	unsigned char *vips;
+	const unsigned char *vips;
 	ip_address_t *ipaddress;
 	element e;
 	char addr_str[INET6_ADDRSTRLEN];
@@ -884,7 +884,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t * const hd, char *buffer, ssize_
 			ipv4_phdr.len   = htons(vrrppkt_len);
 
 			in_csum((uint16_t *) &ipv4_phdr, sizeof(ipv4_phdr), 0, &acc_csum);
-			if (in_csum((uint16_t *) hd, vrrppkt_len, acc_csum, NULL)) {
+			if (in_csum((const uint16_t *) hd, vrrppkt_len, acc_csum, NULL)) {
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 				chksum_error = true;
 				if (!LIST_ISEMPTY(vrrp->unicast_peer) &&
@@ -892,7 +892,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t * const hd, char *buffer, ssize_
 				    ipv4_phdr.dst != global_data->vrrp_mcast_group4.sin_addr.s_addr) {
 					ipv4_phdr.dst = global_data->vrrp_mcast_group4.sin_addr.s_addr;
 					in_csum((uint16_t *) &ipv4_phdr, sizeof(ipv4_phdr), 0, &acc_csum);
-					if (!in_csum((uint16_t *)hd, vrrppkt_len, acc_csum, NULL)) {
+					if (!in_csum((const uint16_t *)hd, vrrppkt_len, acc_csum, NULL)) {
 						/* Update the checksum for the pseudo header IP address */
 						vrrp_csum_mcast(vrrp);
 
@@ -920,7 +920,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t * const hd, char *buffer, ssize_
 			}
 		} else {
 			vrrppkt_len += VRRP_AUTH_LEN;
-			if (in_csum((uint16_t *) hd, vrrppkt_len, 0, NULL)) {
+			if (in_csum((const uint16_t *) hd, vrrppkt_len, 0, NULL)) {
 				log_message(LOG_INFO, "(%s) Invalid VRRPv2 checksum", vrrp->iname);
 #ifdef _WITH_SNMP_RFC_
 				vrrp->stats->chk_err++;
@@ -953,7 +953,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t * const hd, char *buffer, ssize_
 	++vrrp->stats->advert_rcvd;
 
 	/* pointer to vrrp vips pkt zone */
-	vips = (unsigned char *) ((char *) hd + sizeof(vrrphdr_t));
+	vips = (const unsigned char *) ((const char *) hd + sizeof(vrrphdr_t));
 
 	if (check_vip_addr) {
 		/*

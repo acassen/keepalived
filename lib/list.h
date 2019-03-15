@@ -57,27 +57,27 @@ struct _list {
 #define LIST_FOREACH_NEXT(L,V,E,N) for ((E) = ((L) ? LIST_HEAD(L) : NULL); (E) && ((N) = (E)->next, (V) = ELEMENT_DATA(E), 1); (E) = (N))
 
 #ifdef _MEM_CHECK_
-#define alloc_mlist(f,d,s)	(memcheck_log("alloc_mlist", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+#define alloc_mlist(f,d,s)	(memcheck_log("alloc_mlist", NULL, (__FILE__), (__func__), (__LINE__)), \
 				 alloc_mlist_r((f), (d), (s)))
-#define free_mlist(f,s)		(memcheck_log("free_mlist", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+#define free_mlist(f,s)		(memcheck_log("free_mlist", NULL, (__FILE__), (__func__), (__LINE__)), \
 				 free_mlist_r((f), (s)))
-#define alloc_list(f,d)		(memcheck_log("alloc_list", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+#define alloc_list(f,d)		(memcheck_log("alloc_list", NULL, (__FILE__), (__func__), (__LINE__)), \
 				 alloc_list_r((f), (d)))
-#define free_list(l)		(memcheck_log("free_list", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+#define free_list(l)		(memcheck_log("free_list", NULL, (__FILE__), (__func__), (__LINE__)), \
 				 free_list_r((l)))
-#define free_list_elements(l)	(memcheck_log("free_list_elements", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+#define free_list_elements(l)	(memcheck_log("free_list_elements", NULL, (__FILE__), (__func__), (__LINE__)), \
 				 free_list_elements_r((l)))
-#define free_list_element(l,e)	(memcheck_log("free_list_element", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+#define free_list_element(l,e)	(memcheck_log("free_list_element", NULL, (__FILE__), (__func__), (__LINE__)), \
 				 free_list_element_r((l), (e)))
-#define list_add(l,e)		(memcheck_log("list_add", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+#define list_add(l,e)		(memcheck_log("list_add", NULL, (__FILE__), (__func__), (__LINE__)), \
 				 list_add_r((l), (e)))
-#define list_add_head(l,e)	(memcheck_log("list_add_head", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+#define list_add_head(l,e)	(memcheck_log("list_add_head", NULL, (__FILE__), (__func__), (__LINE__)), \
 				 list_add_head_r((l), (e)))
-#define list_remove(l,e)	(memcheck_log("list_remove", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+#define list_remove(l,e)	(memcheck_log("list_remove", NULL, (__FILE__), (__func__), (__LINE__)), \
 				 list_remove_r((l), (e)))
-#define list_del(l,d)		(memcheck_log("list_del", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+#define list_del(l,d)		(memcheck_log("list_del", NULL, (__FILE__), (__func__), (__LINE__)), \
 				 list_del_r((l), (d)))
-#define free_list_data(l,d)	(memcheck_log("free_list_data", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+#define free_list_data(l,d)	(memcheck_log("free_list_data", NULL, (__FILE__), (__func__), (__LINE__)), \
 				 free_list_data_r((l), (d)))
 #else
 #define alloc_mlist(f,d,s)	(alloc_mlist_r((f), (d), (s)))

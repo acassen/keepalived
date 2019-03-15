@@ -49,11 +49,11 @@ typedef char *(*null_strvec_handler_t)(const vector_t *, size_t);
 #define FMT_STR_VSLOT(V,E) ((char*)strvec_slot(V,E))
 
 #ifdef _MEM_CHECK_
-#define vector_alloc()		(memcheck_log("vector_alloc", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+#define vector_alloc()		(memcheck_log("vector_alloc", NULL, (__FILE__), (__func__), (__LINE__)), \
 				 vector_alloc_r())
-#define vector_alloc_slot(v)	(memcheck_log("vector_alloc_slot", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+#define vector_alloc_slot(v)	(memcheck_log("vector_alloc_slot", NULL, (__FILE__), (__func__), (__LINE__)), \
 				 vector_alloc_slot_r(v))
-#define vector_free(v)		(memcheck_log("vector_free", NULL, (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+#define vector_free(v)		(memcheck_log("vector_free", NULL, (__FILE__), (__func__), (__LINE__)), \
 				 vector_free_r(v))
 #else
 #define vector_alloc()		(vector_alloc_r())
