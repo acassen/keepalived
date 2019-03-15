@@ -1995,5 +1995,5 @@ end:
 #endif
 	close_std_fd();
 
-	exit(exit_code);
+	return exit_code;
 }
