@@ -1572,7 +1572,7 @@ decomment(char *str)
 
 	/* Remove trailing whitespace */
 	p = str + strlen(str) - 1;
-	while (p >= str && isblank(*p))
+	while (p >= str && isblank(*p))		// This line causes a strict-overflow=4 warning in gcc 5.4.0
 		*p-- = '\0';
 	if (cont) {
 		*++p = '\\';

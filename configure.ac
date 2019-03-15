@@ -523,6 +523,7 @@ do
   CFLAGS="-W$WARN"
 
   WARN_VAR=_HAVE_WARNING_`echo $WARN | tr "a-z=-" "A-Z__"`_
+  LOCAL_WARN_VAR=HAVE_WARNING_`echo $WARN | sed -e "s/=.*//" | tr "a-z-" "A-Z_"`
   grep -q "^#undef $WARN_VAR$" $CONFIG_WARNINGS
   AS_IF([test $? -ne 0],
         [echo -e "\n/* Define to 1 if -W$WARN in use */\n#undef $WARN_VAR" >>$CONFIG_WARNINGS]
@@ -547,6 +548,7 @@ do
     ]])],
     [
       AC_MSG_RESULT([yes])
+      eval $LOCAL_WARN_VAR=yes
       add_to_var([KA_CFLAGS], [-W$WARN])
       AC_DEFINE_UNQUOTED([$WARN_VAR], [ 1 ])
       AS_IF([test -z $WARN_VAR_SHORT], [],
@@ -555,8 +557,23 @@ do
     ],
     [
       AC_MSG_RESULT([no])
+      eval $LOCAL_WARN_VAR=no
     ])
 done
+AS_IF([test .$HAVE_WARNING_STRICT_OVERFLOW = .yes],
+      [
+        # The following is not supported in gcc 5.4.0
+	CFLAGS="$CFLAGS -Werror"
+	AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+	  _Pragma("GCC diagnostic warning \"-Wstrict-overflow=1\"")
+	  int main(int argc, char**argv)
+	  {
+	  }
+	  ]])],
+	  [AC_DEFINE([_HAVE_PRAGMA_WARN_STRICT_OVERFLOW_1_], [ 1 ], [Define to 1 if _Pragma("GCC diagnostic warning \"-Wstrict-overflow=1\"") supported])
+	  ])
+      ]
+     )
 CFLAGS="$SAV_CFLAGS"
 
 dnl ---- [ Do we want stricter configuration checking? ] ----

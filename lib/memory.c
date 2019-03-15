@@ -79,6 +79,9 @@ xalloc(unsigned long size)
 	return mem;
 }
 
+#ifdef _MEM_CHECK_
+static
+#endif
 void * __attribute__ ((malloc))
 zalloc(unsigned long size)
 {

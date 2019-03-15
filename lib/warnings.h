@@ -52,9 +52,15 @@ _Pragma("GCC diagnostic pop")
 #endif
 
 #if __GNUC__ && !__GNUC_PREREQ(8,0) && defined _HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_
+#ifdef _HAVE_PRAGMA_WARN_STRICT_OVERFLOW_1_
 #define RELAX_STRICT_OVERFLOW_START \
 _Pragma("GCC diagnostic push") \
 _Pragma("GCC diagnostic warning \"-Wstrict-overflow=1\"")
+#else
+#define RELAX_STRICT_OVERFLOW_START \
+_Pragma("GCC diagnostic push") \
+_Pragma("GCC diagnostic warning \"-Wstrict-overflow\"")
+#endif
 #else
 #define RELAX_STRICT_OVERFLOW_START
 #endif

@@ -67,7 +67,7 @@ int extract_status_code(char *buffer, size_t size)
 	buffer++;
 	if (buffer + 3 >= end || *buffer == ' ' || buffer[3] != ' ')
 		return 0;
-	code = strtoul(buffer, &end, 10);
+	code = strtoul(buffer, &end, 10);	// This line causes a strict-overflow=4 warning with gcc 5.4.0
 	if (buffer + 3 != end)
 		return 0;
 	return code;

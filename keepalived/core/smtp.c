@@ -211,7 +211,7 @@ smtp_read_thread(thread_t * thread)
 
 	/* parse the buffer, finding the last line of the response for the code */
 	reply = buffer;
-	while (reply < buffer + smtp->buflen) {
+	while (reply < buffer + smtp->buflen) {		// This line causes a strict-overflow=4 warning with gcc 5.4.0
 		char *p;
 
 		p = strstr(reply, "\r\n");

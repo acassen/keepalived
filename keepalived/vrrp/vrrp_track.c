@@ -1159,6 +1159,7 @@ process_inotify(thread_t *thread)
 			return 0;
 		}
 
+		/* The following line causes a strict-overflow=4 warning on gcc 5.4.0 */
 		for (buf_ptr = buf; buf_ptr < buf + len; buf_ptr += event->len + sizeof(struct inotify_event)) {
 			event = (struct inotify_event*)buf_ptr;
 
