@@ -135,7 +135,7 @@ get_config_status(void)
 	return config_err;
 }
 
-static char *
+static char * __attribute__ ((noreturn))
 null_strvec(const vector_t *strvec, size_t index)
 {
 	if (index - 1 < vector_size(strvec) && index > 0 && vector_slot(strvec, index - 1))
@@ -144,8 +144,6 @@ null_strvec(const vector_t *strvec, size_t index)
 		report_config_error(CONFIG_MISSING_PARAMETER, "*** Configuration line starting `%s` is missing a parameter at word position %zu", vector_slot(strvec, 0) ? (char *)vector_slot(strvec, 0) : "***MISSING ***", index + 1);
 
 	exit(KEEPALIVED_EXIT_CONFIG);
-
-	return NULL;
 }
 
 static bool
@@ -1804,7 +1802,7 @@ retry:
 		if (!strcmp(buf, BOB))
 			block_depth++;
 		else if (!strcmp(buf, EOB)) {
-			if (--block_depth < 0) {
+			if (block_depth-- < 1) {
 				report_config_error(CONFIG_UNEXPECTED_EOB, "Extra '}' found");
 				block_depth = 0;
 			}

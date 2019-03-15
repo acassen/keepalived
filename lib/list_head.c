@@ -20,6 +20,8 @@
  */
 
 #include "list_head.h"
+#include "warnings.h"
+
 
 void list_sort(struct list_head *head,
 	       int (*cmp)(struct list_head *a, struct list_head *b))
@@ -40,7 +42,9 @@ void list_sort(struct list_head *head,
 			nmerges++;
 			q = p;
 			psize = 0;
+RELAX_STRICT_OVERFLOW_START
 			for (i = 0; i < insize; i++) {
+RELAX_STRICT_OVERFLOW_END
 				psize++;
 				q = q->next == oldhead ? NULL : q->next;
 				if (!q)

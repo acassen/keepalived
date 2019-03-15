@@ -56,6 +56,7 @@
 #include "old_socket.h"
 #endif
 #include "assert_debug.h"
+#include "warnings.h"
 
 
 #ifdef THREAD_DUMP
@@ -415,8 +416,11 @@ log_command_line(unsigned indent)
 
 	log_str = MALLOC(len);
 
-	for (i = 0, p = log_str; i < sav_argc; i++)
+RELAX_STRICT_OVERFLOW_START
+	for (i = 0, p = log_str; i < sav_argc; i++) {
+RELAX_STRICT_OVERFLOW_END
 		p += sprintf(p, "%s'%s'", i ? " " : "", sav_argv[i]);
+	}
 
 	log_options("Command line", log_str, indent);
 

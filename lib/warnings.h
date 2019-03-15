@@ -23,6 +23,10 @@
 #ifndef _WARNINGS_H
 #define _WARNINGS_H
 
+#ifdef __GNUC__
+#include <features.h>
+#endif
+
 #include "config.h"
 
 
@@ -45,6 +49,21 @@ _Pragma("GCC diagnostic ignored \"-Wstack-protector\"")
 _Pragma("GCC diagnostic pop")
 #else
 #define RELAX_STACK_PROTECTOR_END
+#endif
+
+#if __GNUC__ && !__GNUC_PREREQ(8,0) && defined _HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_
+#define RELAX_STRICT_OVERFLOW_START \
+_Pragma("GCC diagnostic push") \
+_Pragma("GCC diagnostic warning \"-Wstrict-overflow=1\"")
+#else
+#define RELAX_STRICT_OVERFLOW_START
+#endif
+
+#if __GNUC__ && !__GNUC_PREREQ(8,0) && defined _HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_
+#define RELAX_STRICT_OVERFLOW_END \
+_Pragma("GCC diagnostic pop")
+#else
+#define RELAX_STRICT_OVERFLOW_END
 #endif
 
 #endif
