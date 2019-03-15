@@ -57,7 +57,7 @@ static const char *terminate_banner;	/* banner string for report file */
 static bool skip_mem_check_final;
 #endif
 
-static void *
+static void * __attribute__ ((malloc))
 xalloc(unsigned long size)
 {
 	void *mem = malloc(size);
@@ -79,7 +79,7 @@ xalloc(unsigned long size)
 	return mem;
 }
 
-static void *
+static void * __attribute__ ((malloc))
 zalloc(unsigned long size)
 {
 	void *mem = xalloc(size);

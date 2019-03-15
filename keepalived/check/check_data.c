@@ -51,8 +51,7 @@ check_data_t *old_check_data = NULL;
 ssl_data_t *
 alloc_ssl(void)
 {
-	ssl_data_t *ssl = (ssl_data_t *) MALLOC(sizeof(ssl_data_t));
-	return ssl;
+	return (ssl_data_t *) MALLOC(sizeof(ssl_data_t));
 }
 void
 free_ssl(void)

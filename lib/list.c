@@ -86,11 +86,10 @@ alloc_list_r(void (*free_func) (void *), void (*dump_func) (FILE *fp, void *))
 	return alloc_mlist_r(free_func, dump_func, 1);
 }
 
-static element
+static element __attribute__ ((malloc))
 alloc_element(void)
 {
-	element new = (element) MALLOC(sizeof (struct _element));
-	return new;
+	return (element) MALLOC(sizeof (struct _element));
 }
 
 static inline void

@@ -65,7 +65,7 @@ typedef char *(*null_strvec_handler_t)(const vector_t *, size_t);
 extern null_strvec_handler_t register_null_strvec_handler(null_strvec_handler_t);
 extern null_strvec_handler_t unregister_null_strvec_handler(void);
 extern void *strvec_slot(const vector_t *strvec, size_t index);
-extern vector_t *vector_alloc_r(void);
+extern vector_t *vector_alloc_r(void) __attribute__ ((malloc));
 extern void vector_alloc_slot_r(vector_t *);
 extern void vector_set_slot(vector_t *, void *);
 extern void vector_unset(vector_t *, unsigned int);

@@ -205,7 +205,7 @@ unregister_object(gpointer key, gpointer value, __attribute__((unused)) gpointer
 	return false;
 }
 
-static gchar *
+static gchar * __attribute__ ((malloc))
 dbus_object_create_path_vrrp(void)
 {
 	return g_strconcat(DBUS_VRRP_OBJECT_ROOT,
@@ -217,7 +217,7 @@ dbus_object_create_path_vrrp(void)
 			  "/Vrrp", NULL);
 }
 
-static gchar *
+static gchar * __attribute__ ((malloc))
 dbus_object_create_path_instance(const gchar *interface, int vrid, sa_family_t family)
 {
 	gchar *object_path;

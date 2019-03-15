@@ -332,8 +332,8 @@ NEED_LIBDL=No
 # Set up the compiler warnings we want
 dnl -- Unused warnings - traditional
 WARNINGS_BASIC="all extra unused strict-prototypes"
-dnl -- Warnings to add and fix - cast-align=strict cast-qual float-equal frame-larger-than=512 null-dereference pointer-arith stack-protector stack-usage=512 strict-overflow=4 suggest-attribute=malloc suggest-attribute=noreturn suggest-attribute=pure unused-macros
-WARNINGS_STD="alloca alloc-zero bad-function-cast chkp date-time disabled-optimization duplicated-branches duplicated-cond float-conversion implicit-fallthrough=3 init-self inline jump-misses-init logical-op missing-declarations missing-prototypes nested-externs normalized old-style-definition overlength-strings redundant-decls shadow shift-overflow=2 strict-prototypes stringop-overflow=2 stringop-truncation suggest-attribute=cold suggest-attribute=const suggest-attribute=format trampolines undef uninitialized unsuffixed-float-constants unused-const-variable=2 variadic-macros"
+dnl -- Warnings to add and fix - cast-align=strict cast-qual float-equal frame-larger-than=512 null-dereference pointer-arith stack-protector stack-usage=512 strict-overflow=4 suggest-attribute=noreturn suggest-attribute=pure unused-macros
+WARNINGS_STD="alloca alloc-zero bad-function-cast chkp date-time disabled-optimization duplicated-branches duplicated-cond float-conversion implicit-fallthrough=3 init-self inline jump-misses-init logical-op missing-declarations missing-prototypes nested-externs normalized old-style-definition overlength-strings redundant-decls shadow shift-overflow=2 strict-prototypes stringop-overflow=2 stringop-truncation suggest-attribute=cold suggest-attribute=const suggest-attribute=format suggest-attribute=malloc trampolines undef uninitialized unsuffixed-float-constants unused-const-variable=2 variadic-macros"
 WARNINGS_EXTRA="aggregate-return pedantic switch-enum strict-overflow=5 stringop-overflow=3 stringop-overflow=4 write-strings conversion sign-conversion padded traditional-conversion"
 
 # We want _GNU_SOURCE defined always
