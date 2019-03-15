@@ -55,7 +55,6 @@
 #define	RTM_SIZE		1024
 #define	RTA_SIZE		1024
 #define	ENCAP_RTA_SIZE		 128
-#define NEXTHOP_RTA_SIZE	1024
 
 /* Utility functions */
 unsigned short

@@ -342,7 +342,6 @@ enum snmp_next_hop_magic {
 #define HEADER_STATE_VIRTUAL_ROUTE 5
 #define HEADER_STATE_STATIC_RULE 6
 #define HEADER_STATE_VIRTUAL_RULE 7
-#define HEADER_STATE_NEXT_HOP 11
 #endif
 #define HEADER_STATE_END 12
 

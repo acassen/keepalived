@@ -141,8 +141,6 @@ enum slot_type {
 #define CHECK_VAL	0xa5a5
 #endif
 
-#define FREE_LIST_SIZE	256
-
 typedef struct {
 	enum slot_type type;
 	int line;
