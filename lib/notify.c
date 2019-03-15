@@ -595,8 +595,6 @@ find_path(notify_script_t *script)
 
 	for (p = path; ; p = subp)
 	{
-		char buffer[path_len + file_len + 1];
-
 		subp = strchrnul (p, ':');
 
 		/* PATH is larger than PATH_MAX and thus potentially larger than
@@ -613,6 +611,7 @@ find_path(notify_script_t *script)
 		}
 
 		/* Use the current path entry, plus a '/' if nonempty, plus the file to execute. */
+		char *buffer = MALLOC(path_len + file_len + 1);
 		char *pend = mempcpy (buffer, p, (size_t)(subp - p));
 		*pend = '/';
 		memcpy (pend + (p < subp), file, file_len + 1);
@@ -632,9 +631,11 @@ find_path(notify_script_t *script)
 
 				ret_val = 0;
 				got_eacces = false;
+				FREE(buffer);
 				goto exit;
 			}
 		}
+		FREE(buffer);
 
 		switch (errno)
 		{
@@ -969,48 +970,53 @@ set_uid_gid(const char *username, const char *groupname, uid_t *uid_p, gid_t *gi
 	struct group *grp_p;
 	int ret;
 	bool using_default_default_user = false;
+	char *buf;
 
 	if (!getpwnam_buf_len)
 		set_pwnam_buf_len();
 
-	{
-		char buf[getpwnam_buf_len];
+	buf = MALLOC(getpwnam_buf_len);
 
-		if (default_user && !username) {
-			using_default_default_user = true;
-			username = "keepalived_script";
-		}
-
-		if ((ret = getpwnam_r(username, &pwd, buf, sizeof(buf), &pwd_p))) {
-			log_message(LOG_INFO, "Unable to resolve %sscript username '%s' - ignoring", default_user ? "default " : "", username);
-			return true;
-		}
-		if (!pwd_p) {
-			if (using_default_default_user)
-				log_message(LOG_INFO, "WARNING - default user '%s' for script execution does not exist - please create.", username);
-			else
-				log_message(LOG_INFO, "%script user '%s' does not exist", default_user ? "Default s" : "S", username);
-			return true;
-		}
-
-		uid = pwd.pw_uid;
-		gid = pwd.pw_gid;
-
-		if (groupname) {
-			if ((ret = getgrnam_r(groupname, &grp, buf, sizeof(buf), &grp_p))) {
-				log_message(LOG_INFO, "Unable to resolve %sscript group name '%s' - ignoring", default_user ? "default " : "", groupname);
-				return true;
-			}
-			if (!grp_p) {
-				log_message(LOG_INFO, "%script group '%s' does not exist", default_user ? "Default s" : "S", groupname);
-				return true;
-			}
-			gid = grp.gr_gid;
-		}
-
-		*uid_p = uid;
-		*gid_p = gid;
+	if (default_user && !username) {
+		using_default_default_user = true;
+		username = "keepalived_script";
 	}
+
+	if ((ret = getpwnam_r(username, &pwd, buf, getpwnam_buf_len, &pwd_p))) {
+		log_message(LOG_INFO, "Unable to resolve %sscript username '%s' - ignoring", default_user ? "default " : "", username);
+		FREE(buf);
+		return true;
+	}
+	if (!pwd_p) {
+		if (using_default_default_user)
+			log_message(LOG_INFO, "WARNING - default user '%s' for script execution does not exist - please create.", username);
+		else
+			log_message(LOG_INFO, "%script user '%s' does not exist", default_user ? "Default s" : "S", username);
+		FREE(buf);
+		return true;
+	}
+
+	uid = pwd.pw_uid;
+	gid = pwd.pw_gid;
+
+	if (groupname) {
+		if ((ret = getgrnam_r(groupname, &grp, buf, getpwnam_buf_len, &grp_p))) {
+			log_message(LOG_INFO, "Unable to resolve %sscript group name '%s' - ignoring", default_user ? "default " : "", groupname);
+			FREE(buf);
+			return true;
+		}
+		if (!grp_p) {
+			log_message(LOG_INFO, "%script group '%s' does not exist", default_user ? "Default s" : "S", groupname);
+			FREE(buf);
+			return true;
+		}
+		gid = grp.gr_gid;
+	}
+
+	*uid_p = uid;
+	*gid_p = gid;
+
+	FREE(buf);
 
 	return false;
 }

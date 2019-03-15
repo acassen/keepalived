@@ -151,7 +151,8 @@ read_procs(list processes)
 	struct dirent *ent;
 	char cmdline[22];	/* "/proc/xxxxxxx/cmdline" */
 	int fd;
-	char cmd_buf[vrrp_data->vrrp_max_process_name_len + 2];
+	char *cmd_buf;
+	size_t cmd_buf_len;
 	char stat_buf[128];
 	char *p;
 	char *comm;
@@ -159,6 +160,9 @@ read_procs(list processes)
 	char *proc_name;
 	vrrp_tracked_process_t *tpr;
 	element e;
+
+	cmd_buf_len = vrrp_data->vrrp_max_process_name_len + 2;
+	cmd_buf = MALLOC(cmd_buf_len);
 
 	while ((ent = readdir(proc_dir))) {
 		if (ent->d_type != DT_DIR)
@@ -175,7 +179,7 @@ read_procs(list processes)
 			if ((fd = open(cmdline, O_RDONLY)) == -1)
 				continue;
 
-			len = read(fd, cmd_buf, sizeof(cmd_buf) - 1);
+			len = read(fd, cmd_buf, vrrp_data->vrrp_max_process_name_len + 1);
 			close(fd);
 			cmd_buf[len] = '\0';
 		}
@@ -222,6 +226,7 @@ read_procs(list processes)
 	}
 
 	closedir(proc_dir);
+	FREE(cmd_buf);
 }
 
 static void
@@ -229,7 +234,8 @@ check_process(pid_t pid, char *comm)
 {
 	char cmdline[22];	/* "/proc/xxxxxxx/cmdline" */
 	int fd;
-	char cmd_buf[vrrp_data->vrrp_max_process_name_len + 2];
+	char *cmd_buf = NULL;
+	size_t cmd_buf_len;
 	char comm_buf[17];
 	ssize_t len;
 	char *proc_name;
@@ -245,7 +251,9 @@ check_process(pid_t pid, char *comm)
 		if ((fd = open(cmdline, O_RDONLY)) == -1)
 			return;
 
-		len = read(fd, cmd_buf, sizeof(cmd_buf) - 1);
+		cmd_buf_len = vrrp_data->vrrp_max_process_name_len + 2;
+		cmd_buf = MALLOC(cmd_buf_len);
+		len = read(fd, cmd_buf, vrrp_data->vrrp_max_process_name_len + 1);
 		close(fd);
 		cmd_buf[len] = '\0';
 	}
@@ -253,8 +261,11 @@ check_process(pid_t pid, char *comm)
 	if (vrrp_data->vrrp_use_process_comm && !comm) {
 		snprintf(cmdline, sizeof(cmdline), "/proc/%d/comm", pid);
 
-		if ((fd = open(cmdline, O_RDONLY)) == -1)
+		fd = open(cmdline, O_RDONLY);
+		if (fd == -1) {
+			FREE_PTR(cmd_buf);
 			return;
+		}
 
 		len = read(fd, comm_buf, sizeof(comm_buf) - 1);
 		close(fd);
@@ -285,6 +296,8 @@ check_process(pid_t pid, char *comm)
 			}
 		}
 	}
+
+	FREE_PTR(cmd_buf);
 }
 
 static void

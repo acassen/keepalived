@@ -253,9 +253,10 @@ int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name,
 	strcpy (chain, chain_name);
 	// Use iptc_append_entry to add to the chain
 	if (cmd == IPADDRESS_DEL) {
-		unsigned char matchmask[fw->next_offset];
+		unsigned char *matchmask = MALLOC(fw->next_offset);
 		memset(matchmask, 0xff, fw->next_offset);
 		res = iptc_delete_entry(chain, fw, matchmask, handle);
+		FREE(matchmask);
 	}
 	else if (rulenum == APPEND_RULE)
 		res = iptc_append_entry (chain, fw, handle ) ;
@@ -383,9 +384,10 @@ int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name
 
 	// Use iptc_append_entry to add to the chain
 	if (cmd == IPADDRESS_DEL) {
-		unsigned char matchmask[fw->next_offset];
+		unsigned char *matchmask = MALLOC(fw->next_offset);
 		memset(matchmask, 0xff, fw->next_offset);
 		res = ip6tc_delete_entry ( chain, fw, matchmask, handle);
+		FREE(matchmask);
 	}
 	else if (rulenum == APPEND_RULE)
 		res = ip6tc_append_entry (chain, fw, handle ) ;
@@ -731,9 +733,10 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, unsi
 
 	// Use iptc_append_entry to add to the chain
 	if (cmd == IPADDRESS_DEL) {
-		unsigned char matchmask[fw->next_offset];
+		unsigned char *matchmask = MALLOC(fw->next_offset);
 		memset(matchmask, 0xff, fw->next_offset);
 		res = iptc_delete_entry(chain, fw, matchmask, handle);
+		FREE(matchmask);
 	}
 	else if (rulenum == APPEND_RULE)
 		res = iptc_append_entry(chain, fw, handle) ;
@@ -856,9 +859,10 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, uns
 
 	// Use iptc_append_entry to add to the chain
 	if (cmd == IPADDRESS_DEL) {
-		unsigned char matchmask[fw->next_offset];
+		unsigned char *matchmask = MALLOC(fw->next_offset);
 		memset(matchmask, 0xff, fw->next_offset);
 		res = ip6tc_delete_entry(chain, fw, matchmask, handle);
+		FREE(matchmask);
 	}
 	else if (rulenum == APPEND_RULE)
 		res = ip6tc_append_entry(chain, fw, handle) ;

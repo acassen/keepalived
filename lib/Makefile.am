@@ -21,7 +21,8 @@ liblib_a_SOURCES	= memory.c utils.c notify.c timer.c scheduler.c \
 			  bitops.h timer.h scheduler.h vector.h parser.h \
 			  signals.h notify.h logger.h list.h memory.h html.h utils.h \
 			  keepalived_magic.h list_head.h rbtree.h process.h \
-			  rbtree_augmented.h assert_debug.h json_writer.h
+			  rbtree_augmented.h assert_debug.h json_writer.h \
+			  warnings.h
 
 liblib_a_LIBADD		=
 EXTRA_liblib_a_SOURCES	=

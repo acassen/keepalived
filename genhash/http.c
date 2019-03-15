@@ -119,9 +119,8 @@ int
 finalize(thread_t * thread)
 {
 	SOCK *sock_obj = THREAD_ARG(thread);
-
 	unsigned char digest_length = HASH_LENGTH(sock_obj);
-	unsigned char digest[digest_length];
+	unsigned char *digest = MALLOC(digest_length);
 	int i;
 
 	/* Compute final hash digest */
@@ -142,6 +141,7 @@ finalize(thread_t * thread)
 
 	DBG("Finalize : [%s]\n", req->url);
 	free_all(thread);
+	FREE(digest);
 	return 0;
 }
 

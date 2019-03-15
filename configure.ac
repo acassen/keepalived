@@ -332,8 +332,8 @@ NEED_LIBDL=No
 # Set up the compiler warnings we want
 dnl -- Unused warnings - traditional
 WARNINGS_BASIC="all extra unused strict-prototypes"
-dnl -- Warnings to add and fix - cast-align=strict cast-qual frame-larger-than=512 pointer-arith stack-protector stack-usage=512 strict-overflow=4
-WARNINGS_STD="alloca alloc-zero bad-function-cast chkp date-time disabled-optimization duplicated-branches duplicated-cond float-conversion float-equal implicit-fallthrough=3 init-self inline jump-misses-init logical-op missing-declarations missing-prototypes nested-externs normalized null-dereference old-style-definition overlength-strings redundant-decls shadow shift-overflow=2 strict-prototypes stringop-overflow=2 stringop-truncation suggest-attribute=cold suggest-attribute=const suggest-attribute=format suggest-attribute=malloc suggest-attribute=noreturn suggest-attribute=pure trampolines undef uninitialized unsuffixed-float-constants unused-const-variable=2 unused-macros variadic-macros"
+dnl -- Warnings to add and fix - cast-align=strict cast-qual frame-larger-than=512 pointer-arith stack-usage=512 strict-overflow=4
+WARNINGS_STD="alloca alloc-zero bad-function-cast chkp date-time disabled-optimization duplicated-branches duplicated-cond float-conversion float-equal implicit-fallthrough=3 init-self inline jump-misses-init logical-op missing-declarations missing-prototypes nested-externs normalized null-dereference old-style-definition overlength-strings redundant-decls shadow shift-overflow=2 stack-protector strict-prototypes stringop-overflow=2 stringop-truncation suggest-attribute=cold suggest-attribute=const suggest-attribute=format suggest-attribute=malloc suggest-attribute=noreturn suggest-attribute=pure trampolines undef uninitialized unsuffixed-float-constants unused-const-variable=2 unused-macros variadic-macros"
 WARNINGS_EXTRA="aggregate-return pedantic switch-enum strict-overflow=5 stringop-overflow=3 stringop-overflow=4 write-strings conversion sign-conversion padded traditional-conversion"
 
 # We want _GNU_SOURCE defined always
@@ -400,6 +400,38 @@ AS_IF([test .$enable_regex != .yes],
     AS_IF([test .$enable_regex_timers = .yes], [AC_MSG_ERROR([enable-regex-timers requires enable-regex])])
     AS_IF([test .$enable_regex_debug = .yes], [AC_MSG_ERROR([enable-regex-debug requires enable-regex])])
   )
+
+dnl -- Check for diagnostic pragmas in functions - GCC 4.6.0
+AC_MSG_CHECKING([diagnostic pragmas in functions])
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+  int main(int argc, char**argv)
+  {
+_Pragma("GCC diagnostic warning \"-Wall\"")
+  }
+  ]])],
+  [
+    AC_MSG_RESULT([yes])
+    AC_DEFINE([_HAVE_FUNCTION_DIAGNOSTIC_PRAGMAS_], [ 1 ], [Define to 1 if can have _Pragma GCC diagnostic in functions])
+  ],
+  [
+    AC_MSG_RESULT([no])
+  ])
+
+dnl -- Check for diagnostic push/pop pragmas - GCC 4.6.0
+AC_MSG_CHECKING([diagnostic push/pop pragmas])
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+  int main(int argc, char**argv)
+  {
+_Pragma("GCC diagnostic push")
+  }
+  ]])],
+  [
+    AC_MSG_RESULT([yes])
+    AC_DEFINE([_HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_], [ 1 ], [Define to 1 if can have _Pragma GCC diagnostic push/pop])
+  ],
+  [
+    AC_MSG_RESULT([no])
+  ])
 
 dnl - Set up warnings list
 AS_IF([test ".$enable_warnings" = .no],
