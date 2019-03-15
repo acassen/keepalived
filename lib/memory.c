@@ -79,7 +79,7 @@ xalloc(unsigned long size)
 	return mem;
 }
 
-static void * __attribute__ ((malloc))
+void * __attribute__ ((malloc))
 zalloc(unsigned long size)
 {
 	void *mem = xalloc(size);
