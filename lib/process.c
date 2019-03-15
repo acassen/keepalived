@@ -205,7 +205,7 @@ set_child_rlimit(int resource, struct rlimit *rlim)
 }
 
 pid_t
-local_fork()
+local_fork(void)
 {
 	pid_t pid;
 

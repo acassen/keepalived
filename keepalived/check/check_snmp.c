@@ -1511,7 +1511,7 @@ check_snmp_agent_init(const char *snmp_socket)
 }
 
 void
-check_snmp_agent_close()
+check_snmp_agent_close(void)
 {
 	if (!snmp_running)
 		return;
