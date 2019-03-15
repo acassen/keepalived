@@ -91,7 +91,7 @@ dns_type_name(uint16_t type)
 	return "(unknown)";
 }
 
-static void
+static void __attribute__ ((format (printf, 3, 4)))
 dns_log_message(thread_t * thread, int level, const char *fmt, ...)
 {
 	char buf[MAX_LOG_MSG];
@@ -106,7 +106,7 @@ dns_log_message(thread_t * thread, int level, const char *fmt, ...)
 	log_message(level, "DNS_CHECK (%s) %s", FMT_CHK(checker), buf);
 }
 
-static int
+static int __attribute__ ((format (printf, 3, 4)))
 dns_final(thread_t * thread, int error, const char *fmt, ...)
 {
 	char buf[MAX_LOG_MSG];
@@ -133,7 +133,7 @@ dns_final(thread_t * thread, int error, const char *fmt, ...)
 				va_end(args);
 				if (checker->has_run && checker->retry_it >= checker->retry && !checker->has_run)
 					snprintf(buf + len, sizeof(buf) - len, " after %d retries", checker->retry);
-				dns_log_message(thread, LOG_INFO, buf);
+				dns_log_message(thread, LOG_INFO, "%s", buf);
 			}
 			if (checker->retry_it < checker->retry) {
 				checker->retry_it++;

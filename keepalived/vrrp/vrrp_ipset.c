@@ -101,8 +101,10 @@ static void* libipset_handle;
 
 static int
 #ifdef LIBIPSET_PRE_V7_COMPAT
+__attribute__ ((format(printf, 1, 2)))
 ipset_printf(const char *fmt, ...)
 #else
+__attribute__ ((format(printf, 3, 4)))
 ipset_printf(__attribute ((__unused__)) struct ipset_session *session, void *p, const char *fmt, ...)
 #endif
 {
