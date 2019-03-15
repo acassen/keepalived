@@ -152,7 +152,7 @@ alloc_group_track_if(vrrp_sgroup_t *sgroup, vector_t *strvec)
 	list_add(sgroup->track_ifp, tip);
 }
 
-vrrp_script_t *
+vrrp_script_t * __attribute__ ((pure))
 find_script_by_name(char *name)
 {
 	element e;
@@ -291,7 +291,7 @@ alloc_group_track_script(vrrp_sgroup_t *sgroup, vector_t *strvec)
 	list_add(sgroup->track_script, tsc);
 }
 
-static vrrp_tracked_file_t *
+static vrrp_tracked_file_t * __attribute__ ((pure))
 find_tracked_file_by_name(const char *name)
 {
 	element e;
@@ -433,7 +433,7 @@ alloc_group_track_file(vrrp_sgroup_t *sgroup, vector_t *strvec)
 }
 
 #ifdef _WITH_CN_PROC_
-static vrrp_tracked_process_t *
+static vrrp_tracked_process_t * __attribute__ ((pure))
 find_tracked_process_by_name(const char *name)
 {
 	element e;
@@ -569,7 +569,7 @@ alloc_group_track_process(vrrp_sgroup_t *sgroup, vector_t *strvec)
 #endif
 
 #ifdef _WITH_BFD_
-vrrp_tracked_bfd_t *
+vrrp_tracked_bfd_t * __attribute__ ((pure))
 find_vrrp_tracked_bfd_by_name(const char *name)
 {
 	element e;

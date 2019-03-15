@@ -74,7 +74,8 @@ int extract_status_code(char *buffer, size_t size)
 }
 
 /* simple function returning a pointer to the html buffer begin */
-char *extract_html(char *buffer, size_t size_buffer)
+char * __attribute__ ((pure))
+extract_html(char *buffer, size_t size_buffer)
 {
 	char *end = buffer + size_buffer;
 	char *cur;

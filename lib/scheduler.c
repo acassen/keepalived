@@ -550,7 +550,7 @@ thread_event_new(thread_master_t *m, int fd)
 	return event;
 }
 
-static thread_event_t *
+static thread_event_t * __attribute__ ((pure))
 thread_event_get(thread_master_t *m, int fd)
 {
 	thread_event_t event = { .fd = fd };

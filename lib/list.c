@@ -180,7 +180,7 @@ list_transfer(element e, list l_from, list l_to)
 	__list_add(l_to, e);
 }
 
-void *
+void * __attribute__ ((pure))
 list_element(list l, size_t num)
 {
 	element e = LIST_HEAD(l);

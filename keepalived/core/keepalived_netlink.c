@@ -191,7 +191,7 @@ addr_is_equal(struct ifaddrmsg* ifa, void* addr, ip_address_t* vip_addr, interfa
 }
 
 #ifdef _WITH_VRRP_
-static vrrp_t *
+static vrrp_t * __attribute__ ((pure))
 address_is_ours(struct ifaddrmsg* ifa, struct in_addr* addr, interface_t* ifp)
 {
 	element e, e1;
@@ -222,7 +222,7 @@ address_is_ours(struct ifaddrmsg* ifa, struct in_addr* addr, interface_t* ifp)
 	return NULL;
 }
 
-static bool
+static bool __attribute__ ((pure))
 ignore_address_if_ours_or_link_local(struct ifaddrmsg* ifa, struct in_addr* addr, interface_t* ifp)
 {
 	element e, e1;

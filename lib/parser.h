@@ -89,7 +89,7 @@ extern const char *WHITE_SPACE;
 /* Prototypes */
 extern void report_config_error(config_err_t, const char *format, ...)
 	__attribute__((format (printf, 2, 3)));
-extern config_err_t get_config_status(void);
+extern config_err_t get_config_status(void) __attribute__ ((pure));
 extern bool read_int(const char *, int *, int, int, bool);
 extern bool read_unsigned(const char *, unsigned *, unsigned, unsigned, bool);
 extern bool read_unsigned64(const char *, uint64_t *, uint64_t, uint64_t, bool);
@@ -112,7 +112,7 @@ extern vector_t *read_value_block(vector_t *);
 extern void alloc_value_block(void (*alloc_func) (vector_t *), const char *);
 extern void *set_value(vector_t *);
 extern bool read_timer(vector_t *, size_t, unsigned long *, unsigned long, unsigned long, bool);
-extern int check_true_false(char *);
+extern int check_true_false(char *) __attribute__ ((pure));
 extern void skip_block(bool);
 extern void init_data(const char *, vector_t * (*init_keywords) (void));
 

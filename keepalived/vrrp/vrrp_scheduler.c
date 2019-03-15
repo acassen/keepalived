@@ -397,7 +397,7 @@ vrrp_thread_add_read(vrrp_t *vrrp)
 }
 
 /* VRRP dispatcher functions */
-static sock_t *
+static sock_t * __attribute__ ((pure))
 already_exist_sock(list l, sa_family_t family, int proto, interface_t *ifp, bool unicast)
 {
 	sock_t *sock;

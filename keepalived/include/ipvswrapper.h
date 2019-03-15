@@ -72,7 +72,7 @@ extern int ipvs_start(void);
 extern void ipvs_stop(void);
 extern void ipvs_set_timeouts(int, int, int);
 extern void ipvs_flush_cmd(void);
-extern virtual_server_group_t *ipvs_get_group_by_name(char *, list);
+extern virtual_server_group_t *ipvs_get_group_by_name(char *, list) __attribute__ ((pure));
 extern void ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge);
 extern void ipvs_group_remove_entry(virtual_server_t *, virtual_server_group_entry_t *);
 extern int ipvs_cmd(int, virtual_server_t *, real_server_t *);

@@ -499,7 +499,8 @@ void __rb_insert_augmented(struct rb_node *node, struct rb_root *root,
 /*
  * This function returns the first node (in sort order) of the tree.
  */
-struct rb_node *rb_first(const struct rb_root *root)
+struct rb_node * __attribute__ ((pure))
+rb_first(const struct rb_root *root)
 {
 	struct rb_node	*n;
 
@@ -511,7 +512,8 @@ struct rb_node *rb_first(const struct rb_root *root)
 	return n;
 }
 
-struct rb_node *rb_last(const struct rb_root *root)
+struct rb_node * __attribute__ ((pure))
+rb_last(const struct rb_root *root)
 {
 	struct rb_node	*n;
 
@@ -523,7 +525,8 @@ struct rb_node *rb_last(const struct rb_root *root)
 	return n;
 }
 
-struct rb_node *rb_next(const struct rb_node *node)
+struct rb_node * __attribute__ ((pure))
+rb_next(const struct rb_node *node)
 {
 	struct rb_node *parent;
 
@@ -554,7 +557,8 @@ struct rb_node *rb_next(const struct rb_node *node)
 	return parent;
 }
 
-struct rb_node *rb_prev(const struct rb_node *node)
+struct rb_node * __attribute__ ((pure))
+rb_prev(const struct rb_node *node)
 {
 	struct rb_node *parent;
 
@@ -630,7 +634,8 @@ void rb_replace_node_rcu(struct rb_node *victim, struct rb_node *new,
 }
 #endif
 
-static struct rb_node *rb_left_deepest_node(const struct rb_node *node)
+static struct rb_node * __attribute__ ((pure))
+rb_left_deepest_node(const struct rb_node *node)
 {
 	for (;;) {
 		if (node->rb_left)
@@ -642,7 +647,8 @@ static struct rb_node *rb_left_deepest_node(const struct rb_node *node)
 	}
 }
 
-struct rb_node *rb_next_postorder(const struct rb_node *node)
+struct rb_node * __attribute__ ((pure))
+rb_next_postorder(const struct rb_node *node)
 {
 	const struct rb_node *parent;
 	if (!node)
@@ -660,7 +666,8 @@ struct rb_node *rb_next_postorder(const struct rb_node *node)
 		return (struct rb_node *)parent;
 }
 
-struct rb_node *rb_first_postorder(const struct rb_root *root)
+struct rb_node * __attribute__ ((pure))
+rb_first_postorder(const struct rb_root *root)
 {
 	if (!root->rb_node)
 		return NULL;

@@ -34,7 +34,7 @@
 #define GROUP_NAME(G)  ((G)->gname)
 
 /* extern prototypes */
-extern vrrp_t *vrrp_get_instance(char *);
+extern vrrp_t *vrrp_get_instance(char *) __attribute__ ((pure));
 extern void vrrp_sync_set_group(vrrp_sgroup_t *);
 extern bool vrrp_sync_can_goto_master(vrrp_t *);
 extern void vrrp_sync_backup(vrrp_t *);

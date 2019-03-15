@@ -65,7 +65,7 @@ const dns_type_t DNS_TYPE[] = {
 static int dns_connect_thread(thread_t *);
 static int dns_send_thread(thread_t *);
 
-static uint16_t
+static uint16_t __attribute__ ((pure))
 dns_type_lookup(const char *label)
 {
 	const dns_type_t *t;
@@ -78,7 +78,7 @@ dns_type_lookup(const char *label)
 	return 0;
 }
 
-static const char *
+static const char * __attribute__ ((pure))
 dns_type_name(uint16_t type)
 {
 	const dns_type_t *t;

@@ -129,7 +129,7 @@ report_config_error(config_err_t err, const char *format, ...)
 		FREE(format_buf);
 }
 
-config_err_t
+config_err_t __attribute__ ((pure))
 get_config_status(void)
 {
 	return config_err;
@@ -1215,7 +1215,7 @@ check_include(char *buf)
 	return ret;
 }
 
-static def_t *
+static def_t * __attribute__ ((pure))
 find_definition(const char *name, size_t len, bool definition)
 {
 	element e;
@@ -1920,7 +1920,7 @@ read_timer(vector_t *strvec, size_t index, unsigned long *res, unsigned long min
 }
 
 /* Checks for on/true/yes or off/false/no */
-int
+int __attribute__ ((pure))
 check_true_false(char *str)
 {
 	if (!strcmp(str, "true") || !strcmp(str, "on") || !strcmp(str, "yes"))

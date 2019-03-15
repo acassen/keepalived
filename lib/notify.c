@@ -1165,7 +1165,7 @@ notify_resource_release(void)
 	}
 }
 
-bool
+bool __attribute__ ((pure))
 notify_script_compare(notify_script_t *a, notify_script_t *b)
 {
 	int i;

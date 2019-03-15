@@ -129,7 +129,7 @@ modprobe_ipvs(void)
 	return false;
 }
 /* fetch virtual server group from group name */
-virtual_server_group_t *
+virtual_server_group_t * __attribute__ ((pure))
 ipvs_get_group_by_name(char *gname, list l)
 {
 	element e;

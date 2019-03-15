@@ -33,7 +33,7 @@
 #include "parser.h"
 
 /* Instance name lookup */
-vrrp_t *
+vrrp_t * __attribute__ ((pure))
 vrrp_get_instance(char *iname)
 {
 	vrrp_t *vrrp;

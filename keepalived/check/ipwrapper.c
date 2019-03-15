@@ -37,7 +37,7 @@
 #include "check_daemon.h"
 
 /* Returns the sum of all alive RS weight in a virtual server. */
-static unsigned long
+static unsigned long __attribute__ ((pure))
 weigh_live_realservers(virtual_server_t * vs)
 {
 	element e;
@@ -632,7 +632,7 @@ update_svr_checker_state(bool alive, checker_t *checker)
 }
 
 /* Check if a vsg entry is in new data */
-static virtual_server_group_entry_t *
+static virtual_server_group_entry_t * __attribute__ ((pure))
 vsge_exist(virtual_server_group_entry_t *vsg_entry, list l)
 {
 	element e;
@@ -690,7 +690,7 @@ clear_diff_vsg(virtual_server_t * old_vs, virtual_server_t * new_vs)
 }
 
 /* Check if a vs exist in new data and returns pointer to it */
-static virtual_server_t*
+static virtual_server_t* __attribute__ ((pure))
 vs_exist(virtual_server_t * old_vs)
 {
 	element e;
@@ -710,7 +710,7 @@ vs_exist(virtual_server_t * old_vs)
 }
 
 /* Check if rs is in new vs data */
-static real_server_t *
+static real_server_t * __attribute__ ((pure))
 rs_exist(real_server_t * old_rs, list l)
 {
 	element e;

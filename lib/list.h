@@ -106,7 +106,7 @@ extern void free_list_element_simple(void *);
 extern void free_list_elements_r(list);
 extern void free_list_element_r(list, element);
 extern void list_transfer(element, list, list);
-extern void *list_element(list, size_t);
+extern void *list_element(list, size_t) __attribute__ ((pure));
 extern void dump_list(FILE *, list);
 extern void list_add_r(list, void *);
 extern void list_add_head_r(list, void *);

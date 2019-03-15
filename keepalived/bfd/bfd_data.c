@@ -119,7 +119,7 @@ dump_bfd(FILE *fp, void *data)
 }
 
 /* Looks up bfd instance by name */
-static bfd_t *
+static bfd_t * __attribute__ ((pure))
 find_bfd_by_name2(const char *name, const bfd_data_t *data)
 {
 	element e;
@@ -141,7 +141,7 @@ find_bfd_by_name2(const char *name, const bfd_data_t *data)
 	return NULL;
 }
 
-bfd_t *
+bfd_t * __attribute__ ((pure))
 find_bfd_by_name(const char *name)
 {
 	return find_bfd_by_name2(name, bfd_data);
@@ -241,7 +241,7 @@ free_bfd_buffer(void)
  * Lookup functions
  */
 /* Looks up bfd instance by neighbor address */
-bfd_t *
+bfd_t * __attribute__ ((pure))
 find_bfd_by_addr(const struct sockaddr_storage *addr)
 {
 	element e;
@@ -262,7 +262,7 @@ find_bfd_by_addr(const struct sockaddr_storage *addr)
 }
 
 /* Looks up bfd instance by local discriminator */
-bfd_t *
+bfd_t * __attribute__ ((pure))
 find_bfd_by_discr(const uint32_t discr)
 {
 	element e;

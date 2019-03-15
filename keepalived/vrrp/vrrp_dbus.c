@@ -135,7 +135,7 @@ set_valid_path(char *valid_path, const char *path)
 	return valid_path;
 }
 
-static bool
+static bool __attribute__ ((pure))
 valid_path_cmp(const char *path, const char *valid_path)
 {
 	for ( ; *path && *valid_path; path++, valid_path++) {
@@ -176,7 +176,7 @@ state_str(int state)
 	return "Unknown";
 }
 
-static vrrp_t *
+static vrrp_t * __attribute__ ((pure))
 get_vrrp_instance(const char *ifname, int vrid, int family)
 {
 	element e;

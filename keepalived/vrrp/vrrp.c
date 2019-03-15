@@ -304,7 +304,7 @@ vrrp_pkt_len(vrrp_t * vrrp)
 	return len;
 }
 
-size_t
+size_t __attribute__ ((pure))
 vrrp_adv_len(vrrp_t *vrrp)
 {
 	size_t len = vrrp_pkt_len(vrrp);
@@ -2252,7 +2252,7 @@ new_vrrp_socket(vrrp_t * vrrp)
 #endif
 
 /* Try to find a VRRP instance */
-static vrrp_t *
+static vrrp_t * __attribute__ ((pure))
 vrrp_exist(vrrp_t *old_vrrp, list *vrrp_list)
 {
 	element e;
