@@ -543,7 +543,8 @@ netlink_rtlist(list rt_list, int cmd)
 
 /* Route dump/allocation */
 #if HAVE_DECL_RTA_ENCAP
-void
+#ifdef INCLUDE_UNUSED_CODE
+static void
 free_encap(void *rt_data)
 {
 	encap_t *encap = rt_data;
@@ -560,8 +561,9 @@ free_encap(void *rt_data)
 	FREE(rt_data);
 }
 #endif
+#endif
 
-void
+static void
 free_nh(void *rt_data)
 {
 	nexthop_t *nh = rt_data;

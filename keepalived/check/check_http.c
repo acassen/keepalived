@@ -1429,7 +1429,7 @@ http_request_thread(thread_t * thread)
 }
 
 /* WEB checkers threads */
-int
+static int
 http_check_thread(thread_t * thread)
 {
 	checker_t *checker = THREAD_ARG(thread);

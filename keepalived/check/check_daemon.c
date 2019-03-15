@@ -86,7 +86,7 @@ lvs_notify_fifo_script_exit(__attribute__((unused)) thread_t *thread)
 	return 0;
 }
 
-void
+static void
 checker_dispatcher_release(void)
 {
 #ifdef _WITH_BFD_

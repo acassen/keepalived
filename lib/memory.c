@@ -79,7 +79,7 @@ xalloc(unsigned long size)
 	return mem;
 }
 
-void *
+static void *
 zalloc(unsigned long size)
 {
 	void *mem = xalloc(size);

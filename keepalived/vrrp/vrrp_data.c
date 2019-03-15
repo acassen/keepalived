@@ -644,7 +644,7 @@ alloc_vrrp_sync_group(char *gname)
 	list_add(vrrp_data->vrrp_sync_group, new);
 }
 
-vrrp_stats *
+static vrrp_stats *
 alloc_vrrp_stats(void)
 {
 	vrrp_stats *new;

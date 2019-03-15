@@ -236,7 +236,7 @@ http_process_stream(SOCK * sock_obj, int r)
 }
 
 /* Asynchronous HTTP stream reader */
-int
+static int
 http_read_thread(thread_t * thread)
 {
 	SOCK *sock_obj = THREAD_ARG(thread);
@@ -291,7 +291,7 @@ http_read_thread(thread_t * thread)
  * Read get result from the remote web server.
  * Apply trigger check to this result.
  */
-int
+static int
 http_response_thread(thread_t * thread)
 {
 	SOCK *sock_obj = THREAD_ARG(thread);

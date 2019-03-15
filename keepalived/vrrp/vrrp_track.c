@@ -291,7 +291,7 @@ alloc_group_track_script(vrrp_sgroup_t *sgroup, vector_t *strvec)
 	list_add(sgroup->track_script, tsc);
 }
 
-vrrp_tracked_file_t *
+static vrrp_tracked_file_t *
 find_tracked_file_by_name(const char *name)
 {
 	element e;
@@ -433,7 +433,7 @@ alloc_group_track_file(vrrp_sgroup_t *sgroup, vector_t *strvec)
 }
 
 #ifdef _WITH_CN_PROC_
-vrrp_tracked_process_t *
+static vrrp_tracked_process_t *
 find_tracked_process_by_name(const char *name)
 {
 	element e;

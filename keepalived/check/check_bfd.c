@@ -93,7 +93,7 @@ bfd_check_compare(void *a, void *b)
 	return true;
 }
 
-checker_tracked_bfd_t *
+static checker_tracked_bfd_t *
 find_checker_tracked_bfd_by_name(char *name)
 {
 	element e;

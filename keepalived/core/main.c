@@ -330,7 +330,7 @@ running_checker(void)
 #endif
 
 #ifdef _WITH_BFD_
-bool
+static bool
 running_bfd(void)
 {
 	return (__test_bit(DAEMON_BFD, &daemon_mode) &&

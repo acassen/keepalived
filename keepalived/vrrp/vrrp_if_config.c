@@ -156,7 +156,7 @@ get_sysctl(const char* prefix, const char* iface, const char* parameter)
 }
 
 #ifdef _HAVE_IPV4_DEVCONF_
-struct nlattr *
+static struct nlattr *
 nest_start(struct nlmsghdr *nlh, unsigned short type)
 {
 	struct nlattr *nest = NLMSG_TAIL(nlh);
@@ -167,7 +167,7 @@ nest_start(struct nlmsghdr *nlh, unsigned short type)
 	return nest;
 }
 
-size_t
+static size_t
 nest_end(struct nlattr *nla, struct nlattr *nest)
 {
 	nest->nla_len = (unsigned short)((void *)nla - (void *)nest);

@@ -958,7 +958,7 @@ set_pwnam_buf_len(void)
 		getpwnam_buf_len = (size_t)buf_len;
 }
 
-bool
+static bool
 set_uid_gid(const char *username, const char *groupname, uid_t *uid_p, gid_t *gid_p, bool default_user)
 {
 	uid_t uid;

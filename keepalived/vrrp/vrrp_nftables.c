@@ -894,7 +894,7 @@ nft_start_batch(void)
 	return batch;
 }
 
-void
+static void
 nft_end_batch(struct mnl_nlmsg_batch *batch, bool more)
 {
 	void *buf;
