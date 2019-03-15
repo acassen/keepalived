@@ -223,7 +223,7 @@ alloc_global_data(void)
 }
 
 void
-init_global_data(data_t * data, data_t *old_global_data)
+init_global_data(data_t * data, data_t *prev_global_data)
 {
 	/* If this is a reload and we are running in a network namespace,
 	 * we may not be able to get local_name, so preserve it */
@@ -231,9 +231,9 @@ init_global_data(data_t * data, data_t *old_global_data)
 
 	/* If we are running in a network namespace, we may not be
 	 * able to get our local name now, so re-use original */
-	if (old_global_data) {
-		data->local_name = old_global_data->local_name;
-		old_global_data->local_name = NULL;
+	if (prev_global_data) {
+		data->local_name = prev_global_data->local_name;
+		prev_global_data->local_name = NULL;
 	}
 
 	if (!data->local_name &&

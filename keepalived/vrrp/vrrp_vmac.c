@@ -42,20 +42,20 @@ const char * const macvlan_ll_kind = "macvlan";
 u_char ll_addr[ETH_ALEN] = {0x00, 0x00, 0x5e, 0x00, 0x01, 0x00};
 
 static void
-make_link_local_address(struct in6_addr* l3_addr, const u_char* ll_addr)
+make_link_local_address(struct in6_addr* l3_addr, const u_char* if_ll_addr)
 {
 	l3_addr->s6_addr[0] = 0xfe;
 	l3_addr->s6_addr[1] = 0x80;
 	l3_addr->s6_addr16[1] = 0;
 	l3_addr->s6_addr32[1] = 0;
-	l3_addr->s6_addr[8] = ll_addr[0] ^ 0x02;
-	l3_addr->s6_addr[9] = ll_addr[1];
-	l3_addr->s6_addr[10] = ll_addr[2];
+	l3_addr->s6_addr[8] = if_ll_addr[0] ^ 0x02;
+	l3_addr->s6_addr[9] = if_ll_addr[1];
+	l3_addr->s6_addr[10] = if_ll_addr[2];
 	l3_addr->s6_addr[11] = 0xff;
 	l3_addr->s6_addr[12] = 0xfe;
-	l3_addr->s6_addr[13] = ll_addr[3];
-	l3_addr->s6_addr[14] = ll_addr[4];
-	l3_addr->s6_addr[15] = ll_addr[5];
+	l3_addr->s6_addr[13] = if_ll_addr[3];
+	l3_addr->s6_addr[14] = if_ll_addr[4];
+	l3_addr->s6_addr[15] = if_ll_addr[5];
 }
 
 bool

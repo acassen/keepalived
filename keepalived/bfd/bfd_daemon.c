@@ -137,7 +137,7 @@ open_bfd_pipes(void)
 
 /* Daemon init sequence */
 static void
-start_bfd(__attribute__((unused)) data_t *old_global_data)
+start_bfd(__attribute__((unused)) data_t *prev_global_data)
 {
 	srand(time(NULL));
 
@@ -155,7 +155,7 @@ start_bfd(__attribute__((unused)) data_t *old_global_data)
 	 * leave the call here but commented out so we know where we want it
 	 * it if is needed.
 	if (reload)
-		init_global_data(global_data, old_global_data);
+		init_global_data(global_data, prev_global_data);
 	*/
 
 	/* If we are just testing the configuration, then we terminate now */

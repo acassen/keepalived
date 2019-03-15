@@ -729,11 +729,11 @@ ipvs_update_stats(virtual_server_t *vs)
 	union nf_inet_addr nfaddr;
 	unsigned i;
 	real_server_t *rs;
-	time_t time_now = time(NULL);
+	time_t cur_time = time(NULL);
 
-	if (time_now - vs->lastupdated < STATS_REFRESH)
+	if (cur_time - vs->lastupdated < STATS_REFRESH)
 		return;
-	vs->lastupdated = time_now;
+	vs->lastupdated = cur_time;
 
 	/* Reset stats */
 	memset(&vs->stats, 0, sizeof(vs->stats));

@@ -753,12 +753,12 @@ thread_rb_dump(rb_root_cached_t *root, const char *tree, FILE *fp)
 }
 
 static void
-thread_list_dump(list_head_t *l, const char *list, FILE *fp)
+thread_list_dump(list_head_t *l, const char *list_type, FILE *fp)
 {
 	thread_t *thread;
 	int i = 1;
 
-	conf_write(fp, "----[ Begin list_dump %s ]----", list);
+	conf_write(fp, "----[ Begin list_dump %s ]----", list_type);
 
 	list_for_each_entry(thread, l, next)
 		conf_write(fp, "#%.2d Thread:%p type %s func %s() id %ld",

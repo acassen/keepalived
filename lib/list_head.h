@@ -152,47 +152,47 @@ static inline void list_del_init(struct list_head *entry)
 
 /**
  * list_move - delete from one list and add as another's head
- * @list: the entry to move
+ * @LIST: the entry to move
  * @head: the head that will precede our entry
  */
-static inline void list_move(struct list_head *list, struct list_head *head)
+static inline void list_move(struct list_head *LIST, struct list_head *head)
 {
-	__list_del(list->prev, list->next);
-	list_head_add(list, head);
+	__list_del(LIST->prev, LIST->next);
+	list_head_add(LIST, head);
 }
 
 /**
  * list_move_tail - delete from one list and add as another's tail
- * @list: the entry to move
+ * @LIST: the entry to move
  * @head: the head that will follow our entry
  */
-static inline void list_move_tail(struct list_head *list,
+static inline void list_move_tail(struct list_head *LIST,
 				  struct list_head *head)
 {
-	__list_del(list->prev, list->next);
-	list_add_tail(list, head);
+	__list_del(LIST->prev, LIST->next);
+	list_add_tail(LIST, head);
 }
 
 /**
  * list_is_first - tests whether @list is the first entry in list @head
- * @list: the entry to test
+ * @LIST: the entry to test
  * @head: the head of the list
  */
-static inline int list_is_first(const struct list_head *list,
+static inline int list_is_first(const struct list_head *LIST,
 				const struct list_head *head)
 {
-	return list->prev == head;
+	return LIST->prev == head;
 }
 
 /**
  * list_is_last - tests whether @list is the last entry in list @head
- * @list: the entry to test
+ * @LIST: the entry to test
  * @head: the head of the list
  */
-static inline int list_is_last(const struct list_head *list,
+static inline int list_is_last(const struct list_head *LIST,
 			       const struct list_head *head)
 {
-	return list->next == head;
+	return LIST->next == head;
 }
 
 /**
@@ -204,11 +204,11 @@ static inline int list_empty(const struct list_head *head)
 	return head->next == head;
 }
 
-static inline void __list_splice(struct list_head *list,
+static inline void __list_splice(struct list_head *LIST,
 				 struct list_head *head)
 {
-	struct list_head *first = list->next;
-	struct list_head *last = list->prev;
+	struct list_head *first = LIST->next;
+	struct list_head *last = LIST->prev;
 	struct list_head *at = head->next;
 
 	first->prev = head;
@@ -220,13 +220,13 @@ static inline void __list_splice(struct list_head *list,
 
 /**
  * list_splice - join two lists
- * @list: the new list to add.
+ * @LIST: the new list to add.
  * @head: the place to add it in the first list.
  */
-static inline void list_splice(struct list_head *list, struct list_head *head)
+static inline void list_splice(struct list_head *LIST, struct list_head *head)
 {
-	if (!list_empty(list))
-		__list_splice(list, head);
+	if (!list_empty(LIST))
+		__list_splice(LIST, head);
 }
 
 /**
@@ -236,12 +236,12 @@ static inline void list_splice(struct list_head *list, struct list_head *head)
  *
  * The list at @list is reinitialised
  */
-static inline void list_splice_init(struct list_head *list,
+static inline void list_splice_init(struct list_head *LIST,
 				    struct list_head *head)
 {
-	if (!list_empty(list)) {
-		__list_splice(list, head);
-		INIT_LIST_HEAD(list);
+	if (!list_empty(LIST)) {
+		__list_splice(LIST, head);
+		INIT_LIST_HEAD(LIST);
 	}
 }
 

@@ -697,7 +697,7 @@ exit1:
 }
 
 static int
-check_security(char *filename, bool script_security)
+check_security(char *filename, bool using_script_security)
 {
 	char *next;
 	char *slash;
@@ -754,9 +754,9 @@ check_security(char *filename, bool script_security)
 		      S_ISREG(buf.st_mode)) &&			/* This is a file */
 		     ((buf.st_gid && buf.st_mode & S_IWGRP) ||	/* Group is not root and group write permission */
 		      buf.st_mode & S_IWOTH))) {		/* World has write permission */
-			log_message(LOG_INFO, "Unsafe permissions found for script '%s'%s.", filename, script_security ? " - disabling" : "");
+			log_message(LOG_INFO, "Unsafe permissions found for script '%s'%s.", filename, using_script_security ? " - disabling" : "");
 			flags |= SC_INSECURE;
-			return flags | (script_security ? SC_INHIBIT : 0);
+			return flags | (using_script_security ? SC_INHIBIT : 0);
 		}
 	}
 

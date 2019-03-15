@@ -261,9 +261,9 @@ add_nexthop(nexthop_t *nh, struct rtmsg *rtm, struct rtattr *rta, size_t len, st
 
 #if HAVE_DECL_RTA_ENCAP
 	if (nh->encap.type != LWTUNNEL_ENCAP_NONE) {
-		unsigned short len = rta->rta_len;
-		add_encap(rta, len, &nh->encap);
-		rtnh->rtnh_len = (unsigned short)(rtnh->rtnh_len + rta->rta_len - len);
+		unsigned short rta_len = rta->rta_len;
+		add_encap(rta, rta_len, &nh->encap);
+		rtnh->rtnh_len = (unsigned short)(rtnh->rtnh_len + rta->rta_len - rta_len);
 	}
 #endif
 }
@@ -1690,7 +1690,6 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 		else if (!strcmp(str, "fastopen_no_cookie")) {
 			i++;
 #if HAVE_DECL_RTAX_FASTOPEN_NO_COOKIE
-			uint32_t val;
 			if (get_u32(&val, strvec_slot(strvec, i), 1, "Invalid fastopen_no_cookie value %s specified for route"))
 				goto err;
 			new->fastopen_no_cookie = !!val;

@@ -670,13 +670,13 @@ vrrp_handle_bfd_event(bfd_event_t * evt)
 	tracking_vrrp_t *tbfd;
 	vrrp_t * vrrp;
 	element e, e1;
-	struct timeval time_now;
+	struct timeval cur_time;
 	struct timeval timer_tmp;
 	uint32_t delivery_time;
 
 	if (__test_bit(LOG_DETAIL_BIT, &debug)) {
-		time_now = timer_now();
-		timersub(&time_now, &evt->sent_time, &timer_tmp);
+		cur_time = timer_now();
+		timersub(&cur_time, &evt->sent_time, &timer_tmp);
 		delivery_time = timer_long(timer_tmp);
 		log_message(LOG_INFO, "Received BFD event: instance %s is in"
 			    " state %s (delivered in %i usec)",

@@ -4113,7 +4113,7 @@ vrrp_rfcv3_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 {
 	vrrp_t *rt;
 	interface_t* ifp;
-	timeval_t uptime, time_now;
+	timeval_t uptime, cur_time;
 
 	if ((rt = snmp_rfcv3_header_list_table(vp, name, length, exact,
 					     var_len, write_method)) == NULL)
@@ -4179,8 +4179,8 @@ vrrp_rfcv3_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 	case VRRP_RFCv3_SNMP_OPER_VR_UPTIME:
 		if (rt->state == VRRP_STATE_BACK ||
 		    rt->state == VRRP_STATE_MAST) {
-			time_now = timer_now();
-			timersub(&time_now, &rt->stats->uptime, &uptime);
+			cur_time = timer_now();
+			timersub(&cur_time, &rt->stats->uptime, &uptime);
 			long_ret.s = uptime.tv_sec * 100 + uptime.tv_usec / 10000;	// unit is centi-seconds
 		}
 		else
@@ -4560,13 +4560,13 @@ vrrp_handles_global_oid(void)
 }
 
 void
-vrrp_snmp_agent_init(const char *snmp_socket)
+vrrp_snmp_agent_init(const char *snmp_socket_name)
 {
 	if (snmp_running)
 		return;
 
 	/* We let the check process handle the global OID if it is running and with snmp */
-	snmp_agent_init(snmp_socket, vrrp_handles_global_oid());
+	snmp_agent_init(snmp_socket_name, vrrp_handles_global_oid());
 
 #ifdef _WITH_SNMP_VRRP_
 	if (global_data->enable_snmp_vrrp)

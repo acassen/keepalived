@@ -397,11 +397,11 @@ static int
 nl_connect(void)
 {
 	int rc;
-	int nl_sock;
+	int nl_sd;
 	struct sockaddr_nl sa_nl;
 
-	nl_sock = socket(PF_NETLINK, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, NETLINK_CONNECTOR);
-	if (nl_sock == -1) {
+	nl_sd = socket(PF_NETLINK, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, NETLINK_CONNECTOR);
+	if (nl_sd == -1) {
 		if (errno == EPROTONOSUPPORT)
 			log_message(LOG_INFO, "track_process not available - is CONFIG_PROC_EVENTS enabled in kernel config?");
 		else
@@ -410,12 +410,12 @@ nl_connect(void)
 	}
 
 #if !HAVE_DECL_SOCK_NONBLOCK
-	if (set_sock_flags(nl_sock, F_SETFL, O_NONBLOCK))
+	if (set_sock_flags(nl_sd, F_SETFL, O_NONBLOCK))
 		log_message(LOG_INFO, "Unable to set NONBLOCK on netlink process socket - %s (%d)", strerror(errno), errno);
 #endif
 
 #if !HAVE_DECL_SOCK_CLOEXEC
-	if (set_sock_flags(nl_sock, F_SETFD, FD_CLOEXEC))
+	if (set_sock_flags(nl_sd, F_SETFD, FD_CLOEXEC))
 		log_message(LOG_INFO, "Unable to set CLOEXEC on netlink process socket - %s (%d)", strerror(errno), errno);
 #endif
 
@@ -423,20 +423,20 @@ nl_connect(void)
 	sa_nl.nl_groups = CN_IDX_PROC;
 	sa_nl.nl_pid = getpid();
 
-	rc = bind(nl_sock, (struct sockaddr *)&sa_nl, sizeof(sa_nl));
+	rc = bind(nl_sd, (struct sockaddr *)&sa_nl, sizeof(sa_nl));
 	if (rc == -1) {
 		log_message(LOG_INFO, "Failed to bind to process monitoring socket - errno %d - %m", errno);
-		close(nl_sock);
+		close(nl_sd);
 		return -1;
 	}
 
-	return nl_sock;
+	return nl_sd;
 }
 
 /*
  * subscribe on proc events (process notifications)
  */
-static int set_proc_ev_listen(int nl_sock, bool enable)
+static int set_proc_ev_listen(int nl_sd, bool enable)
 {
 	int rc;
 	struct __attribute__ ((aligned(NLMSG_ALIGNTO))) {
@@ -458,7 +458,7 @@ static int set_proc_ev_listen(int nl_sock, bool enable)
 
 	nlcn_msg.cn_mcast = enable ? PROC_CN_MCAST_LISTEN : PROC_CN_MCAST_IGNORE;
 
-	rc = send(nl_sock, &nlcn_msg, sizeof(nlcn_msg), 0);
+	rc = send(nl_sd, &nlcn_msg, sizeof(nlcn_msg), 0);
 	if (rc == -1) {
 		log_message(LOG_INFO, "Failed to set/clear process event listen - errno %d - %m", errno);
 		return -1;
@@ -551,7 +551,7 @@ process_lost_messages_timer_thread(__attribute__((unused)) thread_t *thread)
 /*
  * handle a single process event
  */
-static int handle_proc_ev(int nl_sock)
+static int handle_proc_ev(int nl_sd)
 {
 	struct nlmsghdr *nlmsghdr;
 	ssize_t len;
@@ -561,7 +561,7 @@ static int handle_proc_ev(int nl_sock)
 	struct sockaddr_nl addr;
 	socklen_t addrlen = sizeof(addr);
 
-	while ((len = recvfrom(nl_sock, &buf, sizeof(buf), 0, (struct sockaddr *)&addr, &addrlen))) {
+	while ((len = recvfrom(nl_sd, &buf, sizeof(buf), 0, (struct sockaddr *)&addr, &addrlen))) {
 		/* Ensure the message has been sent by the kernel */
 		if (addrlen != sizeof(addr) || addr.nl_pid != 0)
 			return -1;
