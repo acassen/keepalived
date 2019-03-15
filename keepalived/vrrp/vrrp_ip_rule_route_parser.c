@@ -141,7 +141,7 @@ get_time_rtt(uint32_t *val, const char *str, bool *raw)
 	if (strchr(str, '.') ||
 	    (strpbrk(str,"Ee" ) && !strpbrk(str, "xX"))) {
 		t = strtod(str, &end);
-		if (t <= 0.0)
+		if (t <= 0.0F)
 			return true;
 
 		/* no digits? */

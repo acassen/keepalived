@@ -636,7 +636,7 @@ vrrp_adv_handler(vector_t *strvec)
 	double adver_int;
 	bool res;
 
-	res = read_double_strvec(strvec, 1, &adver_int, 0.01, 255.0, true);
+	res = read_double_strvec(strvec, 1, &adver_int, 0.01F, 255.0F, true);
 
 	/* Simple check - just positive */
 	if (!res || adver_int <= 0)
@@ -1343,7 +1343,7 @@ vrrp_tprocess_delay_handler(vector_t *strvec)
 	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
 	double delay;
 
-	if (!read_double_strvec(strvec, 1, &delay, 0.000001, 3600, true)) {
+	if (!read_double_strvec(strvec, 1, &delay, 0.000001F, 3600.F, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Delay (%s) for vrrp_track_process %s must be between "
 				 "[0.000001..3600] inclusive. Ignoring...", FMT_STR_VSLOT(strvec, 1), tprocess->pname);
 		delay = 0;
