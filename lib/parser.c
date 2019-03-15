@@ -266,6 +266,7 @@ read_double_func(const char *number, double *res, double min_val, double max_val
 	double val;
 	char *endptr;
 	char *warn = "";
+	int ftype;
 
 #ifndef _STRICT_CONFIG_
 	if (ignore_error && !__test_bit(CONFIG_TEST_BIT, &debug))
@@ -280,14 +281,21 @@ read_double_func(const char *number, double *res, double min_val, double max_val
 		report_config_error(CONFIG_INVALID_NUMBER, "%sinvalid number '%s'", warn, number);
 	else if (errno == ERANGE)
 		report_config_error(CONFIG_INVALID_NUMBER, "%snumber '%s' out of range", warn, number);
-	else if (val == -HUGE_VAL || val == HUGE_VAL)	/* +/- Inf */
-		report_config_error(CONFIG_INVALID_NUMBER, "infinite number '%s'", number);
-	else if (!(val <= 0 || val >= 0))	/* NaN */
-		report_config_error(CONFIG_INVALID_NUMBER, "not a number '%s'", number);
-	else if (val < min_val || val > max_val)
-		report_config_error(CONFIG_INVALID_NUMBER, "number '%s' outside range [%g, %g]", number, min_val, max_val);
-	else
-		return true;
+	else {
+		ftype = fpclassify(val);
+		if (ftype == FP_INFINITE)	/* +/- Inf */
+			report_config_error(CONFIG_INVALID_NUMBER, "infinite number '%s'", number);
+		else if (ftype == FP_NAN)	/* NaN */
+			report_config_error(CONFIG_INVALID_NUMBER, "not a number '%s'", number);
+		else if (ftype == FP_SUBNORMAL)	{ /* to small */
+			*res = 0.0F;
+			return true;
+		}
+		else if (val < min_val || val > max_val)
+			report_config_error(CONFIG_INVALID_NUMBER, "number '%s' outside range [%g, %g]", number, min_val, max_val);
+		else /* FP_NORMAL or FP_ZERO */
+			return true;
+	}
 
 #ifdef _STRICT_CONFIG_
 	return false;

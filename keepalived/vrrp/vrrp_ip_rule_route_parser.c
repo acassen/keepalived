@@ -136,20 +136,28 @@ get_time_rtt(uint32_t *val, const char *str, bool *raw)
 	unsigned long res;
 	char *end;
 	size_t offset;
+	int ftype;
 
 	errno = 0;
 	if (strchr(str, '.') ||
-	    (strpbrk(str,"Ee" ) && !strpbrk(str, "xX"))) {
+	    (strpbrk(str, "Ee") && !strpbrk(str, "xX"))) {
 		t = strtod(str, &end);
-		if (t <= 0.0F)
-			return true;
 
-		/* no digits? */
+		/* no digits or extra characters */
 		if (end == str)
 			return true;
 
-		/* overflow */
-		if (t == HUGE_VAL && errno == ERANGE)
+		ftype = fpclassify(t);
+		if (ftype != FP_ZERO && ftype != FP_SUBNORMAL) {
+			if (errno == ERANGE) /* overflow */
+				return true;
+			if (ftype != FP_NORMAL) /* NaN, infinity */
+				return true;
+		}
+		else
+			t = 0.0F;	/* in case FP_SUBNORMAL */
+
+		if (t <= 0.0F)
 			return true;
 
 		if (t >= UINT32_MAX)
