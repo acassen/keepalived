@@ -766,6 +766,8 @@ migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new
 	/* Find out how many checkers are really failed */
 	new_rs->num_failed_checkers = 0;
 	LIST_FOREACH(checkers_queue, new_c, e) {
+		if (new_c->rs != new_rs)
+			continue;
 		if (new_c->has_run && !new_c->is_up)
 			new_rs->num_failed_checkers++;
 	}
@@ -773,6 +775,8 @@ migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new
 	/* If a checker has failed, set new alpha checkers to be down until
 	 * they have run. */
 	LIST_FOREACH(checkers_queue, new_c, e) {
+		if (new_c->rs != new_rs)
+			continue;
 		if (!new_c->has_run) {
 			if (new_c->alpha && new_rs->num_failed_checkers)
 				set_checker_state(new_c, false);
