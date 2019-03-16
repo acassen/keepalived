@@ -729,11 +729,12 @@ rs_exist(real_server_t * old_rs, list l)
 }
 
 static void
-migrate_checkers(real_server_t *old_rs, real_server_t *new_rs, list old_checkers_queue)
+migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new_rs, list old_checkers_queue)
 {
 	list l;
 	element e, e1;
 	checker_t *old_c, *new_c;
+	checker_t dummy_checker;
 
 	l = alloc_list(NULL, NULL);
 	LIST_FOREACH(old_checkers_queue, old_c, e) {
@@ -753,16 +754,40 @@ migrate_checkers(real_server_t *old_rs, real_server_t *new_rs, list old_checkers
 
 					/* Transfer some other state flags */
 					new_c->has_run = old_c->has_run;
+// retry_it needs fixing -  if retry changes, we may already have exceeded count
 					new_c->retry_it = old_c->retry_it;
 
 					break;
 				}
 			}
 		}
-
-		if (!new_rs->num_failed_checkers)
-			SET_ALIVE(new_rs);
 	}
+
+	/* Find out how many checkers are really failed */
+	new_rs->num_failed_checkers = 0;
+	LIST_FOREACH(checkers_queue, new_c, e) {
+		if (new_c->has_run && !new_c->is_up)
+			new_rs->num_failed_checkers++;
+	}
+
+	/* If a checker has failed, set new alpha checkers to be down until
+	 * they have run. */
+	LIST_FOREACH(checkers_queue, new_c, e) {
+		if (!new_c->has_run) {
+			if (new_c->alpha && new_rs->num_failed_checkers)
+				set_checker_state(new_c, false);
+			/* One failure is enough */
+			new_c->retry_it = new_c->retry;
+		}
+	}
+
+	/* If there are no failed checkers, the RS needs to be up */
+	if (!new_rs->num_failed_checkers && !new_rs->alive) {
+		dummy_checker.vs = vs;
+		dummy_checker.rs = new_rs;
+		perform_svr_state(true, &dummy_checker);
+	} else if (new_rs->num_failed_checkers && new_rs->set != new_rs->inhibit)
+		ipvs_cmd(new_rs->inhibit ? IP_VS_SO_SET_ADDDEST : IP_VS_SO_SET_DELDEST, vs, new_rs);
 
 	free_list(&l);
 }
@@ -794,8 +819,7 @@ clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs, list old_check
 			 * flag value to not try to set
 			 * already set IPVS rule.
 			 */
-			if (new_rs->alive)
-				new_rs->alive = rs->alive;
+			new_rs->alive = rs->alive;
 			new_rs->set = rs->set;
 			new_rs->weight = rs->weight;
 			new_rs->pweight = rs->iweight;
@@ -810,7 +834,7 @@ clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs, list old_check
 			 * For alpha mode checkers, if it was up, we don't need another
 			 * success to say it is now up.
 			 */
-			migrate_checkers(rs, new_rs, old_checkers_queue);
+			migrate_checkers(new_vs, rs, new_rs, old_checkers_queue);
 		}
 	}
 	clear_service_rs(old_vs, rs_to_remove, false);

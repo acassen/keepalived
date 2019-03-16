@@ -932,10 +932,10 @@ bool validate_check_config(void)
 			}
 		}
 
-		/* In Alpha mode also mark any checker that hasn't run as failed,
-		 * unless we are reloading and the real server has no failed checkers */
-		if (!checker->has_run) {
-			if (checker->alpha && (!reload || checker->rs->num_failed_checkers)) {
+		/* In Alpha mode also mark any checker that hasn't run as failed.
+		 * Reloading is handled in migrate_checkers() */
+		if (!reload) {
+			if (checker->alpha) {
 				set_checker_state(checker, false);
 				UNSET_ALIVE(checker->rs);
 			}
