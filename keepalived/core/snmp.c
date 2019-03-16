@@ -28,6 +28,7 @@
 #include "global_data.h"
 #include "main.h"
 #include "utils.h"
+#include "warnings.h"
 
 #include <net-snmp/agent/agent_sysORTable.h>
 
@@ -135,7 +136,9 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 	switch (vp->magic) {
 	case SNMP_KEEPALIVEDVERSION:
 		*var_len = strlen(version_string);
+RELAX_CAST_QUAL_START
 		return (u_char *)version_string;
+RELAX_CAST_QUAL_END
 	case SNMP_ROUTERID:
 		if (!global_data->router_id) return NULL;
 		*var_len = strlen(global_data->router_id);
@@ -197,7 +200,9 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 		}
 #endif
 		*var_len = 0;
+RELAX_CAST_QUAL_START
 		return (u_char *)"";
+RELAX_CAST_QUAL_END
 	case SNMP_DBUS:
 #ifdef _WITH_DBUS_
 		if (global_data->enable_dbus)
@@ -331,7 +336,7 @@ snmp_unregister_mib(oid *myoid, size_t len)
 }
 
 void
-snmp_agent_init(const char *snmp_socket, bool base_mib)
+snmp_agent_init(const char *snmp_socket_name, bool base_mib)
 {
 	if (snmp_running)
 		return;
@@ -358,10 +363,10 @@ snmp_agent_init(const char *snmp_socket, bool base_mib)
 			       SNMP_CALLBACK_SESSION_INIT,
 			       snmp_setup_session_cb, NULL);
 	/* Specify the socket to master agent, if provided */
-	if (snmp_socket != NULL) {
+	if (snmp_socket_name != NULL) {
 		netsnmp_ds_set_string(NETSNMP_DS_APPLICATION_ID,
 				      NETSNMP_DS_AGENT_X_SOCKET,
-				      snmp_socket);
+				      snmp_socket_name);
 	}
 	/*
 	 * Ping AgentX less often than every 15 seconds: pinging can

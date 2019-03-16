@@ -83,7 +83,7 @@ list garp_delay;
 
 /* Helper functions */
 /* Return interface from interface index */
-interface_t *
+interface_t * __attribute__ ((pure))
 if_get_by_ifindex(ifindex_t ifindex)
 {
 	interface_t *ifp;
@@ -171,7 +171,7 @@ set_base_ifp(void)
 #endif
 
 /* Return the interface list itself */
-list
+list __attribute__ ((pure))
 get_if_list(void)
 {
 	return if_queue;
@@ -884,7 +884,7 @@ if_setsockopt_ipv6_checksum(int *sd)
 	int ret;
 	int offset = 6;
 
-	if (!sd && *sd < 0)
+	if (!sd || *sd < 0)
 		return -1;
 
 	ret = setsockopt(*sd, IPPROTO_IPV6, IPV6_CHECKSUM, &offset, sizeof(offset));

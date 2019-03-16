@@ -182,7 +182,8 @@
 #ifndef MS_SLAVE	/* Since glibc 2.12, but Linux since 2.6.15 */
 #include <linux/fs.h>
 #endif
-int setns(int fd, int nstype)
+static int
+setns(int fd, int nstype)
 {
 	return (int)syscall(SYS_setns, fd, nstype);
 }

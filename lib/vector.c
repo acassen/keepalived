@@ -246,7 +246,7 @@ vector_unset(vector_t *v, unsigned int i)
 }
 
 /* Count the number of not empty slot. */
-unsigned int
+unsigned int __attribute__ ((pure))
 vector_count(vector_t *v)
 {
 	unsigned int i;

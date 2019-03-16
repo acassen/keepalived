@@ -34,8 +34,10 @@ void jsonw_pretty(json_writer_t *self, bool on);
 void jsonw_name(json_writer_t *self, const char *name);
 
 /* Add value  */
-void jsonw_vprintf_enquote(json_writer_t *self, const char *fmt, va_list ap);
-void jsonw_printf(json_writer_t *self, const char *fmt, ...);
+void jsonw_vprintf_enquote(json_writer_t *, const char *, va_list)
+		__attribute__ ((format(printf, 2, 0)));
+void jsonw_printf(json_writer_t *, const char *, ...)
+		__attribute__ ((format(printf, 2, 3)));
 void jsonw_string(json_writer_t *self, const char *value);
 void jsonw_bool(json_writer_t *self, bool value);
 void jsonw_float(json_writer_t *self, double number);

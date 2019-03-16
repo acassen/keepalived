@@ -39,12 +39,12 @@
 #ifdef _MEM_CHECK_
 
 #define MALLOC(n)    ( keepalived_malloc((n), \
-		      (__FILE__), (char *)(__FUNCTION__), (__LINE__)) )
+		      (__FILE__), (__func__), (__LINE__)) )
 #define FREE(b)      ( keepalived_free((b), \
-		      (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+		      (__FILE__), (__func__), (__LINE__)), \
 		       (b) = NULL )
 #define REALLOC(b,n) ( keepalived_realloc((b), (n), \
-		      (__FILE__), (char *)(__FUNCTION__), (__LINE__)) )
+		      (__FILE__), (__func__), (__LINE__)) )
 
 extern size_t mem_allocated;
 

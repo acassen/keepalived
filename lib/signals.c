@@ -355,9 +355,9 @@ clear_signal_handler_addresses(void)
 
 /* Handlers intialization */
 void
-add_signal_read_thread(thread_master_t *master)
+add_signal_read_thread(thread_master_t *thread_master)
 {
-	signal_thread = thread_add_read(master, signal_run_callback, NULL, master->signal_fd, TIMER_NEVER);
+	signal_thread = thread_add_read(thread_master, signal_run_callback, NULL, thread_master->signal_fd, TIMER_NEVER);
 }
 
 void

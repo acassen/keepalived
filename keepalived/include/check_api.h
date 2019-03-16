@@ -87,7 +87,7 @@ extern checker_t *queue_checker(void (*free_func) (void *), void (*dump_func) (F
 			  , conn_opts_t *);
 extern void dequeue_new_checker(void);
 extern bool check_conn_opts(conn_opts_t *);
-extern bool compare_conn_opts(conn_opts_t *, conn_opts_t *);
+extern bool compare_conn_opts(conn_opts_t *, conn_opts_t *) __attribute__ ((pure));
 extern void dump_checkers_queue(FILE *);
 extern void free_checkers_queue(void);
 extern void register_checkers_thread(void);

@@ -176,7 +176,7 @@ add_del_rules(int cmd, bool ignore_errors)
 #endif
 
 struct ipt_handle*
-iptables_open()
+iptables_open(void)
 {
 	struct ipt_handle *h = MALLOC(sizeof(struct ipt_handle));
 

@@ -86,7 +86,7 @@ lvs_notify_fifo_script_exit(__attribute__((unused)) thread_t *thread)
 	return 0;
 }
 
-void
+static void
 checker_dispatcher_release(void)
 {
 #ifdef _WITH_BFD_
@@ -237,7 +237,7 @@ stop_check(int status)
 
 /* Daemon init sequence */
 static void
-start_check(list old_checkers_queue, data_t *old_global_data)
+start_check(list old_checkers_queue, data_t *prev_global_data)
 {
 	init_checkers_queue();
 
@@ -253,7 +253,7 @@ start_check(list old_checkers_queue, data_t *old_global_data)
 	init_data(conf_file, check_init_keywords);
 
 	if (reload)
-		init_global_data(global_data, old_global_data);
+		init_global_data(global_data, prev_global_data);
 
 	/* fill 'vsg' members of the virtual_server_t structure.
 	 * We must do that after parsing config, because

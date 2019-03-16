@@ -86,11 +86,10 @@ alloc_list_r(void (*free_func) (void *), void (*dump_func) (FILE *fp, void *))
 	return alloc_mlist_r(free_func, dump_func, 1);
 }
 
-static element
+static element __attribute__ ((malloc))
 alloc_element(void)
 {
-	element new = (element) MALLOC(sizeof (struct _element));
-	return new;
+	return (element) MALLOC(sizeof (struct _element));
 }
 
 static inline void
@@ -181,7 +180,7 @@ list_transfer(element e, list l_from, list l_to)
 	__list_add(l_to, e);
 }
 
-void *
+void * __attribute__ ((pure))
 list_element(list l, size_t num)
 {
 	element e = LIST_HEAD(l);

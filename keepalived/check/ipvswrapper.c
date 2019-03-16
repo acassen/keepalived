@@ -129,7 +129,7 @@ modprobe_ipvs(void)
 	return false;
 }
 /* fetch virtual server group from group name */
-virtual_server_group_t *
+virtual_server_group_t * __attribute__ ((pure))
 ipvs_get_group_by_name(char *gname, list l)
 {
 	element e;
@@ -270,11 +270,11 @@ ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool i
 				daemonrule.mcast_ttl = config->mcast_ttl;
 			if (config->mcast_group.ss_family == AF_INET) {
 				daemonrule.mcast_af = AF_INET;
-				daemonrule.mcast_group.ip = ((struct sockaddr_in *)&config->mcast_group)->sin_addr.s_addr;
+				daemonrule.mcast_group.ip = ((const struct sockaddr_in *)&config->mcast_group)->sin_addr.s_addr;
 			}
 			else if (config->mcast_group.ss_family == AF_INET6) {
 				daemonrule.mcast_af = AF_INET6;
-				memcpy(&daemonrule.mcast_group.in6, &((struct sockaddr_in6 *)&config->mcast_group)->sin6_addr, sizeof(daemonrule.mcast_group.in6));
+				memcpy(&daemonrule.mcast_group.in6, &((const struct sockaddr_in6 *)&config->mcast_group)->sin6_addr, sizeof(daemonrule.mcast_group.in6));
 			}
 		}
 #endif
@@ -729,11 +729,11 @@ ipvs_update_stats(virtual_server_t *vs)
 	union nf_inet_addr nfaddr;
 	unsigned i;
 	real_server_t *rs;
-	time_t time_now = time(NULL);
+	time_t cur_time = time(NULL);
 
-	if (time_now - vs->lastupdated < STATS_REFRESH)
+	if (cur_time - vs->lastupdated < STATS_REFRESH)
 		return;
-	vs->lastupdated = time_now;
+	vs->lastupdated = cur_time;
 
 	/* Reset stats */
 	memset(&vs->stats, 0, sizeof(vs->stats));

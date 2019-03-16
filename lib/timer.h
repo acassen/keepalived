@@ -34,12 +34,12 @@ typedef struct timeval timeval_t;
 extern timeval_t time_now;
 
 #ifdef _TIMER_CHECK_
-bool do_timer_check;
+extern bool do_timer_check;
 #endif
 
 /* Some defines */
 #define TIMER_HZ		1000000
-#define TIMER_HZ_FLOAT		1000000.0
+#define TIMER_HZ_FLOAT		1000000.0F
 #define TIMER_CENTI_HZ		10000
 #define TIMER_MAX_SEC		1000U
 #define TIMER_NEVER		ULONG_MAX	/* Used with time intervals in TIMER_HZ units */
@@ -48,8 +48,8 @@ bool do_timer_check;
 #define	NSEC_PER_SEC		1000000000	/* nanoseconds per second. Avoids typos by having a definition */
 
 #ifdef _TIMER_CHECK_
-#define timer_now()	timer_now_r((__FILE__), (char *)(__FUNCTION__), (__LINE__))
-#define set_time_now()	set_time_now_r((__FILE__), (char *)(__FUNCTION__), (__LINE__))
+#define timer_now()	timer_now_r((__FILE__), (__func__), (__LINE__))
+#define set_time_now()	set_time_now_r((__FILE__), (__func__), (__LINE__))
 #endif
 
 #define RB_TIMER_CMP(obj)					\

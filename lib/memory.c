@@ -57,7 +57,7 @@ static const char *terminate_banner;	/* banner string for report file */
 static bool skip_mem_check_final;
 #endif
 
-static void *
+static void * __attribute__ ((malloc))
 xalloc(unsigned long size)
 {
 	void *mem = malloc(size);
@@ -79,7 +79,10 @@ xalloc(unsigned long size)
 	return mem;
 }
 
-void *
+#ifdef _MEM_CHECK_
+static
+#endif
+void * __attribute__ ((malloc))
 zalloc(unsigned long size)
 {
 	void *mem = xalloc(size);
@@ -141,8 +144,6 @@ enum slot_type {
 #define CHECK_VAL	0xa5a5
 #endif
 
-#define FREE_LIST_SIZE	256
-
 typedef struct {
 	enum slot_type type;
 	int line;
@@ -176,7 +177,7 @@ static FILE *log_op = NULL;
 static inline int
 memcheck_ptr_cmp(MEMCHECK *m1, MEMCHECK *m2)
 {
-	return m1->ptr - m2->ptr;
+	return (char *)m1->ptr - (char *)m2->ptr;
 }
 
 static inline int

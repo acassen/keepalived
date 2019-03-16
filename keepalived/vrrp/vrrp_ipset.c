@@ -101,8 +101,10 @@ static void* libipset_handle;
 
 static int
 #ifdef LIBIPSET_PRE_V7_COMPAT
+__attribute__ ((format(printf, 1, 2)))
 ipset_printf(const char *fmt, ...)
 #else
+__attribute__ ((format(printf, 3, 4)))
 ipset_printf(__attribute ((__unused__)) struct ipset_session *session, void *p, const char *fmt, ...)
 #endif
 {
@@ -190,7 +192,7 @@ has_ipset_setname(void* vsession, const char *setname)
 	return ipset_cmd1(session, IPSET_CMD_HEADER, 0) == 0;
 }
 
-static bool create_sets(const char* addr4, const char* addr6, const char* addr_if6, bool reload)
+static bool create_sets(const char* addr4, const char* addr6, const char* addr_if6, bool is_reload)
 {
 	struct ipset_session *session;
 
@@ -206,7 +208,7 @@ static bool create_sets(const char* addr4, const char* addr6, const char* addr_i
 
 	/* If we aren't reloading, don't worry if sets already exists. With the
 	 * IPSET_ENV_EXIST option set, any existing entries in the set are removed. */
-	if (!reload)
+	if (!is_reload)
 #ifdef LIBIPSET_PRE_V7_COMPAT
 		ipset_envopt_parse(session, IPSET_ENV_EXIST, NULL);
 #else
@@ -214,14 +216,14 @@ static bool create_sets(const char* addr4, const char* addr6, const char* addr_i
 #endif
 
 	if (block_ipv4) {
-		if (!reload || !has_ipset_setname(session, addr4))
+		if (!is_reload || !has_ipset_setname(session, addr4))
 			ipset_create(session, addr4, "hash:ip", NFPROTO_IPV4);
 	}
 
 	if (block_ipv6) {
-		if (!reload || !has_ipset_setname(session, addr6))
+		if (!is_reload || !has_ipset_setname(session, addr6))
 			ipset_create(session, addr6, "hash:ip", NFPROTO_IPV6);
-		if (!reload || !has_ipset_setname(session, addr_if6)) {
+		if (!is_reload || !has_ipset_setname(session, addr_if6)) {
 #ifdef HAVE_IPSET_ATTR_IFACE
 			/* hash:net,iface was introduced in Linux 3.1 */
 			ipset_create(session, addr_if6, "hash:net,iface", NFPROTO_IPV6);
@@ -351,9 +353,9 @@ bool remove_ipsets(void)
 	return true;
 }
 
-bool add_ipsets(bool reload)
+bool add_ipsets(bool is_reload)
 {
-	return create_sets(global_data->vrrp_ipset_address, global_data->vrrp_ipset_address6, global_data->vrrp_ipset_address_iface6, reload);
+	return create_sets(global_data->vrrp_ipset_address, global_data->vrrp_ipset_address6, global_data->vrrp_ipset_address_iface6, is_reload);
 }
 
 void* ipset_session_start(void)

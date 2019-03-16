@@ -499,7 +499,8 @@ void __rb_insert_augmented(struct rb_node *node, struct rb_root *root,
 /*
  * This function returns the first node (in sort order) of the tree.
  */
-struct rb_node *rb_first(const struct rb_root *root)
+struct rb_node * __attribute__ ((pure))
+rb_first(const struct rb_root *root)
 {
 	struct rb_node	*n;
 
@@ -511,7 +512,8 @@ struct rb_node *rb_first(const struct rb_root *root)
 	return n;
 }
 
-struct rb_node *rb_last(const struct rb_root *root)
+struct rb_node * __attribute__ ((pure))
+rb_last(const struct rb_root *root)
 {
 	struct rb_node	*n;
 
@@ -523,9 +525,11 @@ struct rb_node *rb_last(const struct rb_root *root)
 	return n;
 }
 
-struct rb_node *rb_next(const struct rb_node *node)
+struct rb_node * __attribute__ ((pure))
+rb_next(const struct rb_node *node)
 {
 	struct rb_node *parent;
+	struct rb_node *node1;
 
 	if (RB_EMPTY_NODE(node))
 		return NULL;
@@ -535,10 +539,10 @@ struct rb_node *rb_next(const struct rb_node *node)
 	 * as we can.
 	 */
 	if (node->rb_right) {
-		node = node->rb_right;
-		while (node->rb_left)
-			node=node->rb_left;
-		return (struct rb_node *)node;
+		node1 = node->rb_right;
+		while (node1->rb_left)
+			node1=node1->rb_left;
+		return node1;
 	}
 
 	/*
@@ -554,9 +558,11 @@ struct rb_node *rb_next(const struct rb_node *node)
 	return parent;
 }
 
-struct rb_node *rb_prev(const struct rb_node *node)
+struct rb_node * __attribute__ ((pure))
+rb_prev(const struct rb_node *node)
 {
 	struct rb_node *parent;
+	struct rb_node *node1;
 
 	if (RB_EMPTY_NODE(node))
 		return NULL;
@@ -566,10 +572,10 @@ struct rb_node *rb_prev(const struct rb_node *node)
 	 * as we can.
 	 */
 	if (node->rb_left) {
-		node = node->rb_left;
-		while (node->rb_right)
-			node=node->rb_right;
-		return (struct rb_node *)node;
+		node1 = node->rb_left;
+		while (node1->rb_right)
+			node1=node1->rb_right;
+		return node1;
 	}
 
 	/*
@@ -630,7 +636,8 @@ void rb_replace_node_rcu(struct rb_node *victim, struct rb_node *new,
 }
 #endif
 
-static struct rb_node *rb_left_deepest_node(const struct rb_node *node)
+static struct rb_node * __attribute__ ((pure))
+rb_left_deepest_node(struct rb_node *node)
 {
 	for (;;) {
 		if (node->rb_left)
@@ -638,13 +645,14 @@ static struct rb_node *rb_left_deepest_node(const struct rb_node *node)
 		else if (node->rb_right)
 			node = node->rb_right;
 		else
-			return (struct rb_node *)node;
+			return node;
 	}
 }
 
-struct rb_node *rb_next_postorder(const struct rb_node *node)
+struct rb_node * __attribute__ ((pure))
+rb_next_postorder(const struct rb_node *node)
 {
-	const struct rb_node *parent;
+	struct rb_node *parent;
 	if (!node)
 		return NULL;
 	parent = rb_parent(node);
@@ -657,10 +665,11 @@ struct rb_node *rb_next_postorder(const struct rb_node *node)
 	} else
 		/* Otherwise we are the parent's right node, and the parent
 		 * should be next */
-		return (struct rb_node *)parent;
+		return parent;
 }
 
-struct rb_node *rb_first_postorder(const struct rb_root *root)
+struct rb_node * __attribute__ ((pure))
+rb_first_postorder(const struct rb_root *root)
 {
 	if (!root->rb_node)
 		return NULL;

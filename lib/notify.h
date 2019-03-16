@@ -101,11 +101,12 @@ extern void script_killall(thread_master_t *, int, bool);
 extern int check_script_secure(notify_script_t *, magic_t);
 extern int check_notify_script_secure(notify_script_t **, magic_t);
 extern bool set_default_script_user(const char *, const char *);
+extern bool set_script_uid_gid(vector_t *, unsigned, uid_t *, gid_t *);
 extern void set_script_params_array(vector_t *, notify_script_t *, unsigned);
 extern notify_script_t* notify_script_init(int, const char *);
 extern void add_script_param(notify_script_t *, char *);
 extern void notify_resource_release(void);
-extern bool notify_script_compare(notify_script_t *, notify_script_t *);
+extern bool notify_script_compare(notify_script_t *, notify_script_t *) __attribute__ ((pure));
 #ifdef THREAD_DUMP
 extern void register_notify_addresses(void);
 #endif

@@ -344,7 +344,7 @@ in_csum(const uint16_t *addr, size_t len, uint32_t csum, uint32_t *acc)
 
 	/* mop up an odd byte, if necessary */
 	if (nleft == 1)
-		sum += htons(*(u_char *) w << 8);
+		sum += htons(*(const u_char *)w << 8);
 
 	if (acc)
 		*acc = sum;
@@ -567,7 +567,7 @@ inet_sockaddrtos(struct sockaddr_storage *addr)
 	return addr_str;
 }
 
-uint16_t
+uint16_t __attribute__ ((pure))
 inet_sockaddrport(struct sockaddr_storage *addr)
 {
 	if (addr->ss_family == AF_INET6) {
@@ -619,7 +619,7 @@ inet_sockaddrtotrio(struct sockaddr_storage *addr, uint16_t proto)
 	return ret;
 }
 
-uint32_t
+uint32_t __attribute__ ((pure))
 inet_sockaddrip4(struct sockaddr_storage *addr)
 {
 	if (addr->ss_family != AF_INET)
@@ -639,7 +639,7 @@ inet_sockaddrip6(struct sockaddr_storage *addr, struct in6_addr *ip6)
 }
 
 /* IPv6 address compare */
-int
+int __attribute__ ((pure))
 inet_inaddrcmp(const int family, const void *a, const void *b)
 {
 	int64_t addr_diff;
@@ -669,7 +669,7 @@ inet_inaddrcmp(const int family, const void *a, const void *b)
 	return -2;
 }
 
-int
+int  __attribute__ ((pure))
 inet_sockaddrcmp(const struct sockaddr_storage *a, const struct sockaddr_storage *b)
 {
 	if (a->ss_family != b->ss_family)
@@ -677,12 +677,12 @@ inet_sockaddrcmp(const struct sockaddr_storage *a, const struct sockaddr_storage
 
 	if (a->ss_family == AF_INET)
 		return inet_inaddrcmp(a->ss_family,
-				      &((struct sockaddr_in *) a)->sin_addr,
-				      &((struct sockaddr_in *) b)->sin_addr);
+				      &((const struct sockaddr_in *) a)->sin_addr,
+				      &((const struct sockaddr_in *) b)->sin_addr);
 	if (a->ss_family == AF_INET6)
 		return inet_inaddrcmp(a->ss_family,
-				      &((struct sockaddr_in6 *) a)->sin6_addr,
-				      &((struct sockaddr_in6 *) b)->sin6_addr);
+				      &((const struct sockaddr_in6 *) a)->sin6_addr,
+				      &((const struct sockaddr_in6 *) b)->sin6_addr);
 	return 0;
 }
 
@@ -798,7 +798,7 @@ get_local_name(void)
 }
 
 /* String compare with NULL string handling */
-bool
+bool __attribute__ ((pure))
 string_equal(const char *str1, const char *str2)
 {
 	if (!str1 && !str2)

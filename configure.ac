@@ -99,7 +99,8 @@ AM_INIT_AUTOMAKE([-Wall -Werror -Woverride foreign])
 
 AC_CONFIG_SRCDIR([keepalived/core/main.c])
 
-AC_CONFIG_HEADERS([lib/config.h])
+AC_CONFIG_HEADERS([lib/config.h lib/config_warnings.h])
+
 AH_TOP(
   [
 #ifndef _CONFIG_H
@@ -107,6 +108,8 @@ AH_TOP(
   ])
 AH_BOTTOM(
   [
+#include "config_warnings.h"
+
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
@@ -215,7 +218,11 @@ AC_ARG_ENABLE(strict-config-checks,
 AC_ARG_ENABLE(hardening,
   [AS_HELP_STRING([--disable-hardening], [do not build with security hardening])])
 AC_ARG_ENABLE(optimise,
-  [AS_HELP_STRING([--optimise], [compiler optimisation level])], [], [enable_optimise=not-specified])
+  [AS_HELP_STRING([--enable-optimise], [compiler optimisation level])], [], [enable_optimise=not-specified])
+AC_ARG_ENABLE(warnings,
+  [AS_HELP_STRING([--enable-warnings[[=WARNINGS]]], [additional compiler warnings, disable for reduced set])], [], [enable_warnings=yes])
+AC_ARG_ENABLE(extra-warnings,
+  [AS_HELP_STRING([--enable-extra-warnings], [extra compiler warnings that will probably produce many warnings])])
 AC_ARG_ENABLE(mem-check,
   [AS_HELP_STRING([--enable-mem-check], [compile with memory alloc checking])])
 AC_ARG_ENABLE(mem-check-log,
@@ -235,23 +242,23 @@ AC_ARG_ENABLE(perf,
 AC_ARG_ENABLE(log-file,
   [AS_HELP_STRING([--enable-log-file], [enable logging to file (-g)])])
 AC_ARG_ENABLE(dump-threads,
-  [  --enable-dump-threads   compile with thread dumping support])
+  [AS_HELP_STRING([--enable-dump-threads], [compile with thread dumping support])])
 AC_ARG_ENABLE(epoll-debug,
-  [  --enable-epoll-debug    compile with epoll_wait() debugging support])
+  [AS_HELP_STRING([--enable-epoll-debug], [compile with epoll_wait() debugging support])])
 AC_ARG_ENABLE(epoll-thread-dump,
-  [  --enable-epoll-thread-dump compile with epoll thread dumping support])
+  [AS_HELP_STRING([--enable-epoll-thread-dump], [compile with epoll thread dumping support])])
 AC_ARG_ENABLE(regex-debug,
-  [  --enable-regex-debug    compile with regex debugging support])
+  [AS_HELP_STRING([--enable-regex-debug], [compile with regex debugging support])])
 AC_ARG_ENABLE(tsm-debug,
-  [  --enable-tsm-debug      compile with TSM debugging support])
+  [AS_HELP_STRING([--enable-tsm-debug], [compile with TSM debugging support])])
 AC_ARG_ENABLE(vrrp-fd-debug,
-  [  --enable-vrrp-fd-debug  compile with vrrp fd debugging support])
+  [AS_HELP_STRING([--enable-vrrp-fd-debug], [compile with vrrp fd debugging support])])
 AC_ARG_ENABLE(eintr-debug,
   [AS_HELP_STRING([--enable-eintr-debug],[compile with EINTR debugging support, set to check/nocheck to check/not check for EINTR])])
 AC_ARG_ENABLE(asserts,
   [AS_HELP_STRING([--enable-asserts], [compile with assert() enabled])])
 AC_ARG_WITH(fixed-if-type,
-  [  --with-fixed-if-type=TYPE  treat interface type TYPE as unchangeable])
+  [AS_HELP_STRING([--with-fixed-if-type=TYPE], [treat interface type TYPE as unchangeable])])
 AC_ARG_WITH(default-config-file,
   AS_HELP_STRING([--with-default-config-file=FILE], [Default configuration file]),
   [default_config_file="$withval"], [default_config_file=""])
@@ -316,11 +323,18 @@ args=`echo $ac_configure_args | $SED -e "s/'//g"`
 AC_DEFINE_UNQUOTED(KEEPALIVED_CONFIGURE_OPTIONS,"$args", [configure options specified])
 
 KA_CPPFLAGS="$kernelinc"
-KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -Winit-self -g -D_GNU_SOURCE"
+KA_CFLAGS="-g -D_GNU_SOURCE"
 KA_LDFLAGS=
 KA_LIBS=
 NEED_LIBDL=No
 #KA_LIBTOOLFLAGS =
+
+# Set up the compiler warnings we want
+dnl -- Unused warnings - traditional
+WARNINGS_BASIC="all extra unused strict-prototypes"
+dnl -- Warnings to add and fix - cast-align=strict frame-larger-than=512 stack-usage=512
+WARNINGS_STD="alloca alloc-zero bad-function-cast cast-qual chkp date-time disabled-optimization duplicated-branches duplicated-cond float-conversion float-equal implicit-fallthrough=3 init-self inline jump-misses-init logical-op missing-declarations missing-prototypes nested-externs normalized null-dereference old-style-definition overlength-strings pointer-arith redundant-decls shadow shift-overflow=2 stack-protector strict-overflow=4 strict-prototypes stringop-overflow=2 stringop-truncation suggest-attribute=cold suggest-attribute=const suggest-attribute=format suggest-attribute=malloc suggest-attribute=noreturn suggest-attribute=pure trampolines undef uninitialized unsuffixed-float-constants unused-const-variable=2 unused-macros variadic-macros"
+WARNINGS_EXTRA="aggregate-return pedantic switch-enum strict-overflow=5 stringop-overflow=3 stringop-overflow=4 write-strings conversion sign-conversion padded traditional-conversion"
 
 # We want _GNU_SOURCE defined always
 add_to_var([CFLAGS], [-D_GNU_SOURCE])
@@ -387,6 +401,51 @@ AS_IF([test .$enable_regex != .yes],
     AS_IF([test .$enable_regex_debug = .yes], [AC_MSG_ERROR([enable-regex-debug requires enable-regex])])
   )
 
+dnl -- Check for diagnostic pragmas in functions - GCC 4.6.0
+AC_MSG_CHECKING([diagnostic pragmas in functions])
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+  int main(int argc, char**argv)
+  {
+_Pragma("GCC diagnostic warning \"-Wall\"")
+  }
+  ]])],
+  [
+    AC_MSG_RESULT([yes])
+    AC_DEFINE([_HAVE_FUNCTION_DIAGNOSTIC_PRAGMAS_], [ 1 ], [Define to 1 if can have _Pragma GCC diagnostic in functions])
+  ],
+  [
+    AC_MSG_RESULT([no])
+  ])
+
+dnl -- Check for diagnostic push/pop pragmas - GCC 4.6.0
+AC_MSG_CHECKING([diagnostic push/pop pragmas])
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+  int main(int argc, char**argv)
+  {
+_Pragma("GCC diagnostic push")
+  }
+  ]])],
+  [
+    AC_MSG_RESULT([yes])
+    AC_DEFINE([_HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_], [ 1 ], [Define to 1 if can have _Pragma GCC diagnostic push/pop])
+  ],
+  [
+    AC_MSG_RESULT([no])
+  ])
+
+dnl - Set up warnings list
+AS_IF([test ".$enable_warnings" = .no],
+      [WARNINGS_ENABLED=$WARNINGS_BASIC],
+      [WARNINGS_ENABLED="$WARNINGS_BASIC $WARNINGS_STD"
+       AS_IF([test ".$enable_warnings" != .yes],
+	     [WARN_LIST=`echo $enable_warnings | sed -e "s/-W//g"`
+	      add_to_var([WARNINGS_ENABLED], ["$WARN_LIST"])
+	     ])
+      ]
+     )
+AS_IF([test .$enable_extra_warnings = .yes],
+      [add_to_var([WARNINGS_ENABLED], ["$WARNINGS_EXTRA"])])
+
 if test "$enable_conversion_checks" = yes; then
   # Check if we can sensibly enable -Wconversion
   AC_MSG_CHECKING([for usable -Wconversion])
@@ -435,7 +494,7 @@ if test "$enable_conversion_checks" = yes; then
     ]])],
     [
       AC_MSG_RESULT([yes])
-      add_to_var([KA_CFLAGS], [-Wconversion])
+      add_to_var([WARNINGS_ENABLED], [conversion])
     ],
     [
       AC_MSG_RESULT([no])
@@ -443,45 +502,78 @@ if test "$enable_conversion_checks" = yes; then
     ])
   CFLAGS="$SAV_CFLAGS"
 elif test "$enable_force_conversion_checks" = yes; then
-  add_to_var([KA_CFLAGS], [-Wconversion])
+  add_to_var([WARNINGS_ENABLED], [conversion])
 fi
 
 if test "$enable_Werror" = yes; then
-  add_to_var([KA_CFLAGS], [-Werror])
+  add_to_var([WARNINGS_ENABLED], [error])
 fi
 
-AC_MSG_CHECKING([for -Wimplicit-fallthrough])
-SAV_CFLAGS="$CFLAGS"
-CFLAGS="-Wimplicit-fallthrough=3"
-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-  int main(int argc, char**argv)
-  {
-  }
-  ]])],
-  [
-    AC_MSG_RESULT([yes])
-    add_to_var([KA_CFLAGS], [-Wimplicit-fallthrough=3])
-  ],
-  [
-    AC_MSG_RESULT([no])
-  ])
-CFLAGS="$SAV_CFLAGS"
+CONFIG_WARNINGS=lib/config_warnings.h.in
 
-AC_MSG_CHECKING([for -Wfloat-conversion])
+# Save (or restore) lib/config_warnings.h.in
+AS_IF([test ! -f ${CONFIG_WARNINGS}.sav],
+      [cp -p ${CONFIG_WARNINGS} ${CONFIG_WARNINGS}.sav],
+      [cp -p ${CONFIG_WARNINGS}.sav ${CONFIG_WARNINGS}])
+
 SAV_CFLAGS="$CFLAGS"
-CFLAGS="-Wfloat-conversion"
-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-  int main(int argc, char**argv)
-  {
-  }
-  ]])],
-  [
-    AC_MSG_RESULT([yes])
-    add_to_var([KA_CFLAGS], [-Wfloat-conversion])
-  ],
-  [
-    AC_MSG_RESULT([no])
-  ])
+for WARN in $WARNINGS_ENABLED
+do
+  AC_MSG_CHECKING([for -W$WARN])
+  CFLAGS="-W$WARN"
+
+  WARN_VAR=_HAVE_WARNING_`echo $WARN | tr "a-z=-" "A-Z__"`_
+  LOCAL_WARN_VAR=HAVE_WARNING_`echo $WARN | sed -e "s/=.*//" | tr "a-z-" "A-Z_"`
+  grep -q "^#undef $WARN_VAR$" $CONFIG_WARNINGS
+  AS_IF([test $? -ne 0],
+        [echo -e "\n/* Define to 1 if -W$WARN in use */\n#undef $WARN_VAR" >>$CONFIG_WARNINGS]
+       )
+
+  test `echo $WARN | grep "=[[0-9]][[0-9]]*$"`
+  AS_IF([test $? -eq 0],
+        [ WARN_SHORT=`echo $WARN | sed -e 's/=[[0-9]][[0-9]]*$//'`
+          WARN_VAR_SHORT=_HAVE_WARNING_`echo $WARN_SHORT | tr "a-z=-" "A-Z__"`_
+          grep -q "^#undef $WARN_VAR_SHORT$" $CONFIG_WARNINGS
+          AS_IF([test $? -ne 0],
+	        [echo -e "\n/* Define to 1 if -W$WARN_SHORT in use */\n#undef $WARN_VAR_SHORT" >>$CONFIG_WARNINGS]
+	       )
+	],
+	[ unset WARN_VAR_SHORT ]
+       )
+
+  AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+    int main(int argc, char**argv)
+    {
+    }
+    ]])],
+    [
+      AC_MSG_RESULT([yes])
+      eval $LOCAL_WARN_VAR=yes
+      add_to_var([KA_CFLAGS], [-W$WARN])
+      AC_DEFINE_UNQUOTED([$WARN_VAR], [ 1 ])
+      AS_IF([test -z $WARN_VAR_SHORT], [],
+	    [AC_DEFINE_UNQUOTED([$WARN_VAR_SHORT], [ 1 ])]
+	   )
+    ],
+    [
+      AC_MSG_RESULT([no])
+      eval $LOCAL_WARN_VAR=no
+    ])
+done
+AS_IF([test .$HAVE_WARNING_STRICT_OVERFLOW = .yes],
+      [
+        # The following is not supported in gcc 5.4.0
+	CFLAGS="$CFLAGS -Werror"
+	AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+	  _Pragma("GCC diagnostic warning \"-Wstrict-overflow=1\"")
+	  int main(int argc, char**argv)
+	  {
+	  }
+	  ]])],
+	  [AC_DEFINE([_HAVE_PRAGMA_WARN_STRICT_OVERFLOW_1_], [ 1 ], [Define to 1 if _Pragma("GCC diagnostic warning \"-Wstrict-overflow=1\"") supported])
+	  ])
+      ]
+     )
 CFLAGS="$SAV_CFLAGS"
 
 dnl ---- [ Do we want stricter configuration checking? ] ----
@@ -564,7 +656,7 @@ AS_IF([test "$enable_optimise" = no], [optimise_level=0])
 AS_IF([test "$optimise_level" -eq 0],
   [
     echo $KA_CFLAGS | $GREP -q -- "-D_FORTIFY_SOURCE=[[^0]]"
-    AS_IF([test $ret -eq 0], [AC_MSG_WARN([--disable-optimise requires --disable-hardening])])
+    AS_IF([test $? -eq 0], [AC_MSG_WARN([--disable-optimise requires --disable-hardening])])
   ])
 FLAG="-O$optimise_level"
 AC_MSG_CHECKING([for $FLAG support])
@@ -2391,6 +2483,9 @@ dnl ----[ Process output target ]----
 echo
 
 AC_OUTPUT
+
+# Restore lib/config_warnings.h.in
+mv ${CONFIG_WARNINGS}.sav ${CONFIG_WARNINGS}
 
 dnl ----[ Display current configuration ]----
 cat <<EOF;

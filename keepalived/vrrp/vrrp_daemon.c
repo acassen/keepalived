@@ -447,7 +447,7 @@ stop_vrrp(int status)
 
 /* Daemon init sequence */
 static void
-start_vrrp(data_t *old_global_data)
+start_vrrp(data_t *prev_global_data)
 {
 	/* Clear the flags used for optimising performance */
 	clear_summary_flags();
@@ -482,7 +482,7 @@ start_vrrp(data_t *old_global_data)
 	}
 
 	if (reload)
-		init_global_data(global_data, old_global_data);
+		init_global_data(global_data, prev_global_data);
 
 	/* Set our copy of time */
 	set_time_now();

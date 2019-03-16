@@ -160,12 +160,12 @@ typedef enum if_lookup {
 } if_lookup_t;
 
 /* Global data */
-list garp_delay;
+extern list garp_delay;
 
 /* prototypes */
-extern interface_t *if_get_by_ifindex(ifindex_t);
+extern interface_t *if_get_by_ifindex(ifindex_t) __attribute__ ((pure));
 extern interface_t *if_get_by_ifname(const char *, if_lookup_t);
-extern list get_if_list(void);
+extern list get_if_list(void) __attribute__ ((pure));
 extern void reset_interface_queue(void);
 extern void alloc_garp_delay(void);
 extern void set_default_garp_delay(void);

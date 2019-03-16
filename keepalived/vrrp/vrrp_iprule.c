@@ -683,14 +683,14 @@ fwmark_err:
 #endif
 #if HAVE_DECL_FRA_UID_RANGE
 		else if (!strcmp(str, "uidrange")) {
-			uint32_t start, end;
-			if (sscanf(strvec_slot(strvec, ++i), "%" PRIu32 "-%" PRIu32, &start, &end) != 2) {
+			uint32_t range_start, range_end;
+			if (sscanf(strvec_slot(strvec, ++i), "%" PRIu32 "-%" PRIu32, &range_start, &range_end) != 2) {
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid uidrange %s specified", str);
 				goto err;
 			}
 			new->mask |= IPRULE_BIT_UID_RANGE;
-			new->uid_range.start = start;
-			new->uid_range.end = end;
+			new->uid_range.start = range_start;
+			new->uid_range.end = range_end;
 		}
 #endif
 #if HAVE_DECL_FRA_L3MDEV

@@ -64,7 +64,7 @@ dump_tgroup(FILE *fp, void *data)
 	}
 }
 
-static_track_group_t *
+static_track_group_t * __attribute__ ((pure))
 find_track_group(const char *gname)
 {
 	element e;

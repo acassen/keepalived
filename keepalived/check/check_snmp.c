@@ -824,6 +824,11 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 				break;
 			case STATE_RS_REGULAR_FIRST:
 				e2 = LIST_HEAD(vs->rs);
+				if (!e2) {
+					e = NULL;
+					state = STATE_RS_END;
+					break;
+				}
 				e = ELEMENT_DATA(e2);
 				type = state++;
 				break;
@@ -1511,7 +1516,7 @@ check_snmp_agent_init(const char *snmp_socket)
 }
 
 void
-check_snmp_agent_close()
+check_snmp_agent_close(void)
 {
 	if (!snmp_running)
 		return;

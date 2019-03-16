@@ -46,21 +46,6 @@
 /* Build version */
 #define PROG    "genhash"
 
-#define VERSION_CODE 0x010000
-#define DATE_CODE    0x15070d
-
-#define GETMETER_VERSION(version)	\
-	(version >> 16) & 0xFF,		\
-	(version >> 8) & 0xFF,		\
-	version & 0xFF
-
-#ifdef VERSION_STRING
-  #undef VERSION_STRING
-#endif
-#define VERSION_STRING PROG" v%d.%d.%d (%.2d/%.2d, 20%.2d)\n",	\
-		GETMETER_VERSION(VERSION_CODE),			\
-		GETMETER_VERSION(DATE_CODE)
-
 /* HTTP/HTTPS request structure */
 typedef struct {
 	struct		addrinfo *dst;
@@ -84,7 +69,6 @@ typedef struct {
 } REQ;
 
 /* Global variables */
-extern thread_master_t *master;
 extern REQ *req;		/* Cmd line arguments */
 extern int exit_code;
 

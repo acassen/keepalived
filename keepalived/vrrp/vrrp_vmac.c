@@ -42,20 +42,20 @@ const char * const macvlan_ll_kind = "macvlan";
 u_char ll_addr[ETH_ALEN] = {0x00, 0x00, 0x5e, 0x00, 0x01, 0x00};
 
 static void
-make_link_local_address(struct in6_addr* l3_addr, const u_char* ll_addr)
+make_link_local_address(struct in6_addr* l3_addr, const u_char* if_ll_addr)
 {
 	l3_addr->s6_addr[0] = 0xfe;
 	l3_addr->s6_addr[1] = 0x80;
 	l3_addr->s6_addr16[1] = 0;
 	l3_addr->s6_addr32[1] = 0;
-	l3_addr->s6_addr[8] = ll_addr[0] ^ 0x02;
-	l3_addr->s6_addr[9] = ll_addr[1];
-	l3_addr->s6_addr[10] = ll_addr[2];
+	l3_addr->s6_addr[8] = if_ll_addr[0] ^ 0x02;
+	l3_addr->s6_addr[9] = if_ll_addr[1];
+	l3_addr->s6_addr[10] = if_ll_addr[2];
 	l3_addr->s6_addr[11] = 0xff;
 	l3_addr->s6_addr[12] = 0xfe;
-	l3_addr->s6_addr[13] = ll_addr[3];
-	l3_addr->s6_addr[14] = ll_addr[4];
-	l3_addr->s6_addr[15] = ll_addr[5];
+	l3_addr->s6_addr[13] = if_ll_addr[3];
+	l3_addr->s6_addr[14] = if_ll_addr[4];
+	l3_addr->s6_addr[15] = if_ll_addr[5];
 }
 
 bool
@@ -211,7 +211,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	 */
 	ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_CREATE_ALWAYS);
 
-	if (ifp && ifp->ifindex) {
+	if (ifp->ifindex) {
 		/* Check to see whether this interface has wrong mac ? */
 		if (memcmp((const void *) ifp->hw_addr, (const void *) ll_addr, ETH_ALEN) != 0 ||
 		     ifp->base_ifindex != vrrp->ifp->ifindex ||
@@ -259,7 +259,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		/* macvlan settings */
 		linkinfo = NLMSG_TAIL(&req.n);
 		addattr_l(&req.n, sizeof(req), IFLA_LINKINFO, NULL, 0);
-		addattr_l(&req.n, sizeof(req), IFLA_INFO_KIND, (void *)macvlan_ll_kind, strlen(macvlan_ll_kind));
+		addattr_l(&req.n, sizeof(req), IFLA_INFO_KIND, (const void *)macvlan_ll_kind, strlen(macvlan_ll_kind));
 		data = NLMSG_TAIL(&req.n);
 		addattr_l(&req.n, sizeof(req), IFLA_INFO_DATA, NULL, 0);
 
@@ -269,8 +269,8 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		 */
 		addattr32(&req.n, sizeof(req), IFLA_MACVLAN_MODE,
 			  MACVLAN_MODE_PRIVATE);
-		data->rta_len = (unsigned short)((void *)NLMSG_TAIL(&req.n) - (void *)data);
-		linkinfo->rta_len = (unsigned short)((void *)NLMSG_TAIL(&req.n) - (void *)linkinfo);
+		data->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)data);
+		linkinfo->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)linkinfo);
 		addattr32(&req.n, sizeof(req), IFLA_LINK, vrrp->configured_ifp->base_ifp->ifindex);
 		addattr_l(&req.n, sizeof(req), IFLA_IFNAME, vrrp->vmac_ifname, strlen(vrrp->vmac_ifname));
 		addattr_l(&req.n, sizeof(req), IFLA_ADDRESS, ll_addr, ETH_ALEN);
@@ -349,8 +349,8 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		data = NLMSG_TAIL(&req.n);
 		addattr_l(&req.n, sizeof(req), AF_INET6, NULL,0);
 		addattr8(&req.n, sizeof(req), IFLA_INET6_ADDR_GEN_MODE, IN6_ADDR_GEN_MODE_NONE);
-		data->rta_len = (unsigned short)((void *)NLMSG_TAIL(&req.n) - (void *)data);
-		spec->rta_len = (unsigned short)((void *)NLMSG_TAIL(&req.n) - (void *)spec);
+		data->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)data);
+		spec->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)spec);
 
 		if (netlink_talk(&nl_cmd, &req.n) < 0)
 			log_message(LOG_INFO, "vmac: Error setting ADDR_GEN_MODE to NONE");

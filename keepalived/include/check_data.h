@@ -242,7 +242,7 @@ extern check_data_t *check_data;
 extern check_data_t *old_check_data;
 
 /* prototypes */
-extern ssl_data_t *alloc_ssl(void);
+extern ssl_data_t *alloc_ssl(void) __attribute((malloc));
 extern void free_ssl(void);
 extern void alloc_vsg(char *);
 extern void alloc_vsg_entry(vector_t *);

@@ -51,8 +51,7 @@ check_data_t *old_check_data = NULL;
 ssl_data_t *
 alloc_ssl(void)
 {
-	ssl_data_t *ssl = (ssl_data_t *) MALLOC(sizeof(ssl_data_t));
-	return ssl;
+	return (ssl_data_t *) MALLOC(sizeof(ssl_data_t));
 }
 void
 free_ssl(void)
@@ -757,6 +756,7 @@ bool validate_check_config(void)
 	real_server_t *rs;
 	checker_t *checker;
 	element next;
+	unsigned weight_sum;
 
 	using_ha_suspend = false;
 	LIST_FOREACH_NEXT(check_data->vs, vs, e, next) {
@@ -764,20 +764,6 @@ bool validate_check_config(void)
 			report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s has no real servers - ignoring", FMT_VS(vs));
 			free_list_element(check_data->vs, e);
 			continue;
-		}
-
-		/* Check that the quorum isn't higher than the number of real servers,
-		 * otherwise we will never be able to come up. */
-		if (vs->quorum > LIST_SIZE(vs->rs)) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Warning - quorum %1$d for %2$s exceeds number of real servers %3$d, reducing quorum to %3$d", vs->quorum, FMT_VS(vs), LIST_SIZE(vs->rs));
-			vs->quorum = LIST_SIZE(vs->rs);
-		}
-
-		/* Ensure that no virtual server hysteresis >= quorum */
-		if (vs->hysteresis >= vs->quorum) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: hysteresis %u >= quorum %u; setting hysteresis to %u",
-					FMT_VS(vs), vs->hysteresis, vs->quorum, vs->quorum -1);
-			vs->hysteresis = vs->quorum - 1;
 		}
 
 		/* Ensure that ha_suspend is not set for any virtual server using fwmarks */
@@ -857,6 +843,7 @@ bool validate_check_config(void)
 		}
 
 		/* Spin through all the real servers */
+		weight_sum = 0;
 		LIST_FOREACH(vs->rs, rs, e1) {
 			/* Set the forwarding method if necessary */
 			if (rs->forwarding_method == IP_VS_CONN_F_FWD_MASK) {
@@ -898,7 +885,23 @@ bool validate_check_config(void)
 					rs->smtp_alert = true;
 				}
 			}
+			weight_sum += rs->weight;
 		}
+
+		/* Check that the quorum isn't higher than the total weight of
+		 * the real servers, otherwise we will never be able to come up. */
+		if (vs->quorum > weight_sum) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Warning - quorum %d for %s exceeds total weight of real servers %d, reducing quorum to %d", vs->quorum, FMT_VS(vs), weight_sum, weight_sum);
+			vs->quorum = weight_sum;
+		}
+
+		/* Ensure that no virtual server hysteresis >= quorum */
+		if (vs->hysteresis >= vs->quorum) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: hysteresis %u >= quorum %u; setting hysteresis to %u",
+					FMT_VS(vs), vs->hysteresis, vs->quorum, vs->quorum -1);
+			vs->hysteresis = vs->quorum - 1;
+		}
+
 	}
 
 	LIST_FOREACH(checkers_queue, checker, e)

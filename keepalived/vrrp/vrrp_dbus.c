@@ -135,7 +135,7 @@ set_valid_path(char *valid_path, const char *path)
 	return valid_path;
 }
 
-static bool
+static bool __attribute__ ((pure))
 valid_path_cmp(const char *path, const char *valid_path)
 {
 	for ( ; *path && *valid_path; path++, valid_path++) {
@@ -176,7 +176,7 @@ state_str(int state)
 	return "Unknown";
 }
 
-static vrrp_t *
+static vrrp_t * __attribute__ ((pure))
 get_vrrp_instance(const char *ifname, int vrid, int family)
 {
 	element e;
@@ -205,7 +205,7 @@ unregister_object(gpointer key, gpointer value, __attribute__((unused)) gpointer
 	return false;
 }
 
-static gchar *
+static gchar * __attribute__ ((malloc))
 dbus_object_create_path_vrrp(void)
 {
 	return g_strconcat(DBUS_VRRP_OBJECT_ROOT,
@@ -217,7 +217,7 @@ dbus_object_create_path_vrrp(void)
 			  "/Vrrp", NULL);
 }
 
-static gchar *
+static gchar * __attribute__ ((malloc))
 dbus_object_create_path_instance(const gchar *interface, int vrid, sa_family_t family)
 {
 	gchar *object_path;
@@ -525,17 +525,19 @@ on_bus_acquired(GDBusConnection *connection,
 {
 	global_connection = connection;
 	gchar *path;
+	vrrp_t *vrrp;
 	element e;
 	GError *local_error = NULL;
+	guint vrrp_guint;
 
 	log_message(LOG_INFO, "Acquired DBus bus %s", name);
 
 	/* register VRRP object */
 	path = dbus_object_create_path_vrrp();
-	guint vrrp = g_dbus_connection_register_object(connection, path,
+	vrrp_guint = g_dbus_connection_register_object(connection, path,
 							 vrrp_introspection_data->interfaces[0],
 							 &interface_vtable, NULL, NULL, &local_error);
-	g_hash_table_insert(objects, "__Vrrp__", GUINT_TO_POINTER(vrrp));
+	g_hash_table_insert(objects, "__Vrrp__", GUINT_TO_POINTER(vrrp_guint));
 	g_free(path);
 	if (local_error != NULL) {
 		log_message(LOG_INFO, "Registering VRRP object on %s failed: %s",
@@ -547,10 +549,8 @@ on_bus_acquired(GDBusConnection *connection,
 	if (LIST_ISEMPTY(vrrp_data->vrrp))
 		return;
 
-	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-		vrrp_t * vrrp = ELEMENT_DATA(e);
+	LIST_FOREACH(vrrp_data->vrrp, vrrp, e)
 		dbus_create_object(vrrp);
-	}
 
 	/* Send a signal to say we have started */
 	path = dbus_object_create_path_vrrp();
@@ -558,10 +558,8 @@ on_bus_acquired(GDBusConnection *connection,
 	g_free(path);
 
 	/* Notify DBus of the state of our instances */
-	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-		vrrp_t * vrrp = ELEMENT_DATA(e);
+	LIST_FOREACH(vrrp_data->vrrp, vrrp, e)
 		dbus_send_state_signal(vrrp);
-	}
 }
 
 /* run if bus name is acquired successfully */

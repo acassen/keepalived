@@ -37,6 +37,7 @@
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 #include "signals.h"
 #endif
+#include "warnings.h"
 
 #ifdef _HAVE_SCHED_RT_
 static bool realtime_priority_set;
@@ -101,6 +102,9 @@ reset_process_priority(void)
 	priority_set = false;
 }
 
+/* NOTE: This function generates a "stack protector not protecting local variables:
+   variable length buffer" warning */
+RELAX_STACK_PROTECTOR_START
 void
 set_process_priorities(
 #ifdef _HAVE_SCHED_RT_
@@ -143,6 +147,7 @@ set_process_priorities(
 	if (no_swap_stack_size)
 		set_process_dont_swap(no_swap_stack_size);
 }
+RELAX_STACK_PROTECTOR_END
 
 void
 reset_process_priorities(void)
@@ -205,7 +210,7 @@ set_child_rlimit(int resource, struct rlimit *rlim)
 }
 
 pid_t
-local_fork()
+local_fork(void)
 {
 	pid_t pid;
 

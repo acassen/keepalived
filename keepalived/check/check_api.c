@@ -183,7 +183,7 @@ check_conn_opts(conn_opts_t *co)
 	return true;
 }
 
-bool
+bool __attribute__ ((pure))
 compare_conn_opts(conn_opts_t *a, conn_opts_t *b)
 {
 	if (a == b)
@@ -521,17 +521,17 @@ register_checkers_thread(void)
 }
 
 /* Sync checkers activity with netlink kernel reflection */
-static bool
+static bool __attribute__ ((pure))
 addr_matches(const virtual_server_t *vs, void *address)
 {
-	void *addr;
+	const void *addr;
 	virtual_server_group_entry_t *vsg_entry;
 
 	if (vs->addr.ss_family != AF_UNSPEC) {
 		if (vs->addr.ss_family == AF_INET6)
-			addr = (void *) &((struct sockaddr_in6 *)&vs->addr)->sin6_addr;
+			addr = (const void *) &((const struct sockaddr_in6 *)&vs->addr)->sin6_addr;
 		else
-			addr = (void *) &((struct sockaddr_in *)&vs->addr)->sin_addr;
+			addr = (const void *) &((const struct sockaddr_in *)&vs->addr)->sin_addr;
 
 		return inaddr_equal(vs->addr.ss_family, addr, address);
 	}

@@ -129,13 +129,13 @@ report_config_error(config_err_t err, const char *format, ...)
 		FREE(format_buf);
 }
 
-config_err_t
+config_err_t __attribute__ ((pure))
 get_config_status(void)
 {
 	return config_err;
 }
 
-static char *
+static char * __attribute__ ((noreturn))
 null_strvec(const vector_t *strvec, size_t index)
 {
 	if (index - 1 < vector_size(strvec) && index > 0 && vector_slot(strvec, index - 1))
@@ -144,8 +144,6 @@ null_strvec(const vector_t *strvec, size_t index)
 		report_config_error(CONFIG_MISSING_PARAMETER, "*** Configuration line starting `%s` is missing a parameter at word position %zu", vector_slot(strvec, 0) ? (char *)vector_slot(strvec, 0) : "***MISSING ***", index + 1);
 
 	exit(KEEPALIVED_EXIT_CONFIG);
-
-	return NULL;
 }
 
 static bool
@@ -266,6 +264,7 @@ read_double_func(const char *number, double *res, double min_val, double max_val
 	double val;
 	char *endptr;
 	char *warn = "";
+	int ftype;
 
 #ifndef _STRICT_CONFIG_
 	if (ignore_error && !__test_bit(CONFIG_TEST_BIT, &debug))
@@ -280,14 +279,21 @@ read_double_func(const char *number, double *res, double min_val, double max_val
 		report_config_error(CONFIG_INVALID_NUMBER, "%sinvalid number '%s'", warn, number);
 	else if (errno == ERANGE)
 		report_config_error(CONFIG_INVALID_NUMBER, "%snumber '%s' out of range", warn, number);
-	else if (val == -HUGE_VAL || val == HUGE_VAL)	/* +/- Inf */
-		report_config_error(CONFIG_INVALID_NUMBER, "infinite number '%s'", number);
-	else if (!(val <= 0 || val >= 0))	/* NaN */
-		report_config_error(CONFIG_INVALID_NUMBER, "not a number '%s'", number);
-	else if (val < min_val || val > max_val)
-		report_config_error(CONFIG_INVALID_NUMBER, "number '%s' outside range [%g, %g]", number, min_val, max_val);
-	else
-		return true;
+	else {
+		ftype = fpclassify(val);
+		if (ftype == FP_INFINITE)	/* +/- Inf */
+			report_config_error(CONFIG_INVALID_NUMBER, "infinite number '%s'", number);
+		else if (ftype == FP_NAN)	/* NaN */
+			report_config_error(CONFIG_INVALID_NUMBER, "not a number '%s'", number);
+		else if (ftype == FP_SUBNORMAL)	{ /* to small */
+			*res = 0.0F;
+			return true;
+		}
+		else if (val < min_val || val > max_val)
+			report_config_error(CONFIG_INVALID_NUMBER, "number '%s' outside range [%g, %g]", number, min_val, max_val);
+		else /* FP_NORMAL or FP_ZERO */
+			return true;
+	}
 
 #ifdef _STRICT_CONFIG_
 	return false;
@@ -1215,7 +1221,7 @@ check_include(char *buf)
 	return ret;
 }
 
-static def_t *
+static def_t * __attribute__ ((pure))
 find_definition(const char *name, size_t len, bool definition)
 {
 	element e;
@@ -1566,7 +1572,7 @@ decomment(char *str)
 
 	/* Remove trailing whitespace */
 	p = str + strlen(str) - 1;
-	while (p >= str && isblank(*p))
+	while (p >= str && isblank(*p))		// This line causes a strict-overflow=4 warning in gcc 5.4.0
 		*p-- = '\0';
 	if (cont) {
 		*++p = '\\';
@@ -1796,7 +1802,7 @@ retry:
 		if (!strcmp(buf, BOB))
 			block_depth++;
 		else if (!strcmp(buf, EOB)) {
-			if (--block_depth < 0) {
+			if (block_depth-- < 1) {
 				report_config_error(CONFIG_UNEXPECTED_EOB, "Extra '}' found");
 				block_depth = 0;
 			}
@@ -1854,16 +1860,16 @@ read_value_block_line(vector_t *strvec)
 {
 	size_t word;
 	char *str;
-	char *dup;
+	char *dup_str;
 
 	if (!read_value_block_vec)
 		read_value_block_vec = vector_alloc();
 
 	vector_foreach_slot(strvec, str, word) {
-		dup = (char *) MALLOC(strlen(str) + 1);
-		strcpy(dup, str);
+		dup_str = (char *) MALLOC(strlen(str) + 1);
+		strcpy(dup_str, str);
 		vector_alloc_slot(read_value_block_vec);
-		vector_set_slot(read_value_block_vec, dup);
+		vector_set_slot(read_value_block_vec, dup_str);
 	}
 }
 
@@ -1920,7 +1926,7 @@ read_timer(vector_t *strvec, size_t index, unsigned long *res, unsigned long min
 }
 
 /* Checks for on/true/yes or off/false/no */
-int
+int __attribute__ ((pure))
 check_true_false(char *str)
 {
 	if (!strcmp(str, "true") || !strcmp(str, "on") || !strcmp(str, "yes"))

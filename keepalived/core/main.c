@@ -105,9 +105,6 @@
 #define	WCOREFLAG		((int32_t)WCOREDUMP(0xffffffff))
 #endif
 
-#define	VERSION_STRING		PACKAGE_NAME " v" PACKAGE_VERSION " (" GIT_DATE ")"
-#define COPYRIGHT_STRING	"Copyright(C) 2001-" GIT_YEAR " Alexandre Cassen, <acassen@gmail.com>"
-
 #define CHILD_WAIT_SECS	5
 
 /* global var */
@@ -313,7 +310,7 @@ make_pidfile_name(const char* start, const char* instance, const char* extn)
 }
 
 #ifdef _WITH_VRRP_
-bool
+bool __attribute__ ((pure))
 running_vrrp(void)
 {
 	return (__test_bit(DAEMON_VRRP, &daemon_mode) &&
@@ -323,7 +320,7 @@ running_vrrp(void)
 #endif
 
 #ifdef _WITH_LVS_
-bool
+bool __attribute__ ((pure))
 running_checker(void)
 {
 	return (__test_bit(DAEMON_CHECKERS, &daemon_mode) &&
@@ -333,7 +330,7 @@ running_checker(void)
 #endif
 
 #ifdef _WITH_BFD_
-bool
+static bool __attribute__ ((pure))
 running_bfd(void)
 {
 	return (__test_bit(DAEMON_BFD, &daemon_mode) &&
@@ -1998,5 +1995,5 @@ end:
 #endif
 	close_std_fd();
 
-	exit(exit_code);
+	return exit_code;
 }

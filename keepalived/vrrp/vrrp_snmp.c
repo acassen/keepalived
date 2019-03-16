@@ -129,6 +129,7 @@
 #include "main.h"
 #include "rttables.h"
 #include "parser.h"
+#include "warnings.h"
 
 #include "snmp.h"
 
@@ -342,7 +343,6 @@ enum snmp_next_hop_magic {
 #define HEADER_STATE_VIRTUAL_ROUTE 5
 #define HEADER_STATE_STATIC_RULE 6
 #define HEADER_STATE_VIRTUAL_RULE 7
-#define HEADER_STATE_NEXT_HOP 11
 #endif
 #define HEADER_STATE_END 12
 
@@ -900,6 +900,7 @@ vrrp_snmp_route(struct variable *vp, oid *name, size_t *length,
 {
 	ip_route_t *route;
 	int state = HEADER_STATE_STATIC_ROUTE;
+	nexthop_t *gw2;
 
 	if ((route = (ip_route_t *)
 	     vrrp_header_ar_table(vp, name, length, exact,
@@ -947,7 +948,7 @@ vrrp_snmp_route(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_ROUTE_SECONDARYGATEWAY:
 		if (LIST_ISEMPTY(route->nhs) || LIST_SIZE(route->nhs) != 1)
 			break;
-		nexthop_t *gw2 = LIST_HEAD(route->nhs)->data;
+		gw2 = LIST_HEAD(route->nhs)->data;
 #if HAVE_DECL_RTA_ENCAP
 		if (gw2->encap.type != LWTUNNEL_ENCAP_NONE)
 			break;
@@ -1388,7 +1389,7 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 {
 	ip_rule_t *rule;
 	int state = HEADER_STATE_STATIC_RULE;
-	const char *str;
+	char *str;
 	ip_address_t *addr;
 
 	if ((rule = (ip_rule_t *)
@@ -1539,7 +1540,9 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 #if HAVE_DECL_FRA_SUPPRESS_IFGROUP
 	case VRRP_SNMP_RULE_SUPPRESSGROUP:
 		if (rule->mask & IPRULE_BIT_SUP_GROUP) {
-			str = get_rttables_group(rule->suppress_group);
+RELAX_CAST_QUAL_START
+			str = (char *)get_rttables_group(rule->suppress_group);
+RELAX_CAST_QUAL_END
 			*var_len = strlen(str);
 		}
 		else
@@ -4112,7 +4115,7 @@ vrrp_rfcv3_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 {
 	vrrp_t *rt;
 	interface_t* ifp;
-	timeval_t uptime, time_now;
+	timeval_t uptime, cur_time;
 
 	if ((rt = snmp_rfcv3_header_list_table(vp, name, length, exact,
 					     var_len, write_method)) == NULL)
@@ -4178,8 +4181,8 @@ vrrp_rfcv3_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 	case VRRP_RFCv3_SNMP_OPER_VR_UPTIME:
 		if (rt->state == VRRP_STATE_BACK ||
 		    rt->state == VRRP_STATE_MAST) {
-			time_now = timer_now();
-			timersub(&time_now, &rt->stats->uptime, &uptime);
+			cur_time = timer_now();
+			timersub(&cur_time, &rt->stats->uptime, &uptime);
 			long_ret.s = uptime.tv_sec * 100 + uptime.tv_usec / 10000;	// unit is centi-seconds
 		}
 		else
@@ -4559,13 +4562,13 @@ vrrp_handles_global_oid(void)
 }
 
 void
-vrrp_snmp_agent_init(const char *snmp_socket)
+vrrp_snmp_agent_init(const char *snmp_socket_name)
 {
 	if (snmp_running)
 		return;
 
 	/* We let the check process handle the global OID if it is running and with snmp */
-	snmp_agent_init(snmp_socket, vrrp_handles_global_oid());
+	snmp_agent_init(snmp_socket_name, vrrp_handles_global_oid());
 
 #ifdef _WITH_SNMP_VRRP_
 	if (global_data->enable_snmp_vrrp)

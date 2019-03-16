@@ -253,7 +253,7 @@ vrrp_json_stats_dump(json_writer_t *wr, vrrp_t *vrrp)
  *	this offer generic integration for mapping
  *	socket fd to a FILE stream.
  */
-int
+static int
 vrrp_json_dump(FILE *fp)
 {
 	json_writer_t *wr;

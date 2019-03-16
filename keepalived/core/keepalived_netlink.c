@@ -191,7 +191,7 @@ addr_is_equal(struct ifaddrmsg* ifa, void* addr, ip_address_t* vip_addr, interfa
 }
 
 #ifdef _WITH_VRRP_
-static vrrp_t *
+static vrrp_t * __attribute__ ((pure))
 address_is_ours(struct ifaddrmsg* ifa, struct in_addr* addr, interface_t* ifp)
 {
 	element e, e1;
@@ -222,7 +222,7 @@ address_is_ours(struct ifaddrmsg* ifa, struct in_addr* addr, interface_t* ifp)
 	return NULL;
 }
 
-static bool
+static bool __attribute__ ((pure))
 ignore_address_if_ours_or_link_local(struct ifaddrmsg* ifa, struct in_addr* addr, interface_t* ifp)
 {
 	element e, e1;
@@ -716,7 +716,7 @@ netlink_close(nl_handle_t *nl)
 
 /* iproute2 utility function */
 int
-addattr_l(struct nlmsghdr *n, size_t maxlen, unsigned short type, void *data, size_t alen)
+addattr_l(struct nlmsghdr *n, size_t maxlen, unsigned short type, const void *data, size_t alen)
 {
 	size_t len = RTA_LENGTH(alen);
 	size_t align_len = NLMSG_ALIGN(len);
@@ -756,7 +756,7 @@ addattr64(struct nlmsghdr *n, size_t maxlen, unsigned short type, uint64_t data)
 }
 
 int
-addattr_l2(struct nlmsghdr *n, size_t maxlen, unsigned short type, void *data, size_t alen, void *data2, size_t alen2)
+addattr_l2(struct nlmsghdr *n, size_t maxlen, unsigned short type, const void *data, size_t alen, const void *data2, size_t alen2)
 {
 	size_t len = RTA_LENGTH(alen + alen2);
 	size_t align_len = NLMSG_ALIGN(len);
@@ -769,7 +769,7 @@ addattr_l2(struct nlmsghdr *n, size_t maxlen, unsigned short type, void *data, s
 	rta->rta_type = type;
 	rta->rta_len = (unsigned short)len;
 	memcpy(RTA_DATA(rta), data, alen);
-	memcpy(RTA_DATA(rta) + alen, data2, alen2);
+	memcpy((char *)RTA_DATA(rta) + alen, data2, alen2);
 	n->nlmsg_len += (uint32_t)align_len;
 
 	return 0;
@@ -784,7 +784,7 @@ addraw_l(struct nlmsghdr *n, size_t maxlen, const void *data, size_t len)
 		return -1;
 
 	memcpy(NLMSG_TAIL(n), data, len);
-	memset((void *) NLMSG_TAIL(n) + len, 0, align_len - len);
+	memset((char *) NLMSG_TAIL(n) + len, 0, align_len - len);
 	n->nlmsg_len += (uint32_t)align_len;
 	return 0;
 }
@@ -800,7 +800,7 @@ rta_addattr_l(struct rtattr *rta, size_t maxlen, unsigned short type,
 	if (rta->rta_len + align_len > maxlen)
 		return 0;
 
-	subrta = (struct rtattr*)(((char*)rta) + rta->rta_len);
+	subrta = (struct rtattr*)(((char *)rta) + rta->rta_len);
 	subrta->rta_type = type;
 	subrta->rta_len = (unsigned short)len;
 	memcpy(RTA_DATA(subrta), data, alen);
@@ -824,7 +824,7 @@ rta_addattr_l2(struct rtattr *rta, size_t maxlen, unsigned short type,
 	subrta->rta_type = type;
 	subrta->rta_len = (unsigned short)len;
 	memcpy(RTA_DATA(subrta), data, alen);
-	memcpy(RTA_DATA(subrta) + alen, data2, alen2);
+	memcpy((char *)RTA_DATA(subrta) + alen, data2, alen2);
 	rta->rta_len = (unsigned short)(rta->rta_len + align_len);
 	return align_len;
 }
@@ -878,7 +878,7 @@ rta_nest(struct rtattr *rta, size_t maxlen, unsigned short type)
 size_t
 rta_nest_end(struct rtattr *rta, struct rtattr *nest)
 {
-	nest->rta_len = (unsigned short)((void *)RTA_TAIL(rta) - (void *)nest);
+	nest->rta_len = (unsigned short)((char *)RTA_TAIL(rta) - (char *)nest);
 
 	return rta->rta_len;
 }

@@ -375,7 +375,7 @@ extern bool have_ipv6_instance;
 
 /* prototypes */
 extern void clear_summary_flags(void);
-extern size_t vrrp_adv_len(vrrp_t *);
+extern size_t vrrp_adv_len(vrrp_t *) __attribute__ ((pure));
 extern vrrphdr_t *vrrp_get_header(sa_family_t, char *, size_t);
 extern int open_vrrp_send_socket(sa_family_t, int, interface_t *, bool);
 extern int open_vrrp_read_socket(sa_family_t, int, interface_t *, bool, int);

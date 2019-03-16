@@ -33,9 +33,6 @@
 #include "include/ssl.h"
 #include "include/main.h"
 
-/* extern variables */
-extern REQ *req;
-
 /*
  * Initialize the SSL context, with or without specific
  * configuration files.
@@ -44,7 +41,7 @@ void
 init_ssl(void)
 {
 	/* Library initialization */
-#if HAVE_OPENSSL_INIT_CRYPTO
+#ifdef HAVE_OPENSSL_INIT_CRYPTO
 #ifndef HAVE_OPENSSL_INIT_NO_LOAD_CONFIG_BUG
 	/* In OpenSSL v1.1.1 if the following is called, SSL_CTX_new() below fails.
 	 * It works in v1.1.0h and v1.1.1b.
@@ -59,7 +56,7 @@ init_ssl(void)
 #endif
 
 	/* Initialize SSL context */
-#if HAVE_TLS_METHOD
+#ifdef HAVE_TLS_METHOD
 	req->meth = TLS_method();
 #else
 	req->meth = SSLv23_method();
@@ -123,7 +120,7 @@ ssl_connect(thread_t * thread)
 	}
 
 	BIO_set_nbio(sock_obj->bio, 1);	/* Set the Non-Blocking flag */
-#if HAVE_SSL_SET0_RBIO
+#ifdef HAVE_SSL_SET0_RBIO
 	BIO_up_ref(sock_obj->bio);
 	SSL_set0_rbio(sock_obj->ssl, sock_obj->bio);
 	SSL_set0_wbio(sock_obj->ssl, sock_obj->bio);

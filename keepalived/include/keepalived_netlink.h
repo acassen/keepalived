@@ -48,13 +48,13 @@ typedef struct _nl_handle {
 
 /* Define types */
 #ifndef NLMSG_TAIL
-#define NLMSG_TAIL(nmsg) (((void *) (nmsg)) + NLMSG_ALIGN((nmsg)->nlmsg_len))
+#define NLMSG_TAIL(nmsg) ((void *)(((char *) (nmsg)) + NLMSG_ALIGN((nmsg)->nlmsg_len)))
 #endif
 #if !defined SOL_NETLINK
 #define SOL_NETLINK 270
 #endif
 
-#define RTA_TAIL(rta)	((struct rtattr *) (((void *) (rta)) + RTA_ALIGN((rta)->rta_len)))
+#define RTA_TAIL(rta)	((struct rtattr *)(((char *) (rta)) + RTA_ALIGN((rta)->rta_len)))
 
 /* Global vars exported */
 #ifdef _WITH_VRRP_
@@ -71,11 +71,11 @@ extern bool do_netlink_timers;
 extern void report_and_clear_netlink_timers(const char *);
 #endif
 #ifdef _WITH_VRRP_
-extern int addattr_l(struct nlmsghdr *, size_t, unsigned short, void *, size_t);
+extern int addattr_l(struct nlmsghdr *, size_t, unsigned short, const void *, size_t);
 extern int addattr8(struct nlmsghdr *, size_t, unsigned short, uint8_t);
 extern int addattr32(struct nlmsghdr *, size_t, unsigned short, uint32_t);
 extern int addattr64(struct nlmsghdr *, size_t, unsigned short, uint64_t);
-extern int addattr_l2(struct nlmsghdr *, size_t, unsigned short, void *, size_t, void *, size_t);
+extern int addattr_l2(struct nlmsghdr *, size_t, unsigned short, const void *, size_t, const void *, size_t);
 extern int addraw_l(struct nlmsghdr *, size_t, const void *, size_t);
 extern size_t rta_addattr_l(struct rtattr *, size_t, unsigned short, const void *, size_t);
 extern size_t rta_addattr_l2(struct rtattr *, size_t, unsigned short, const void *, size_t, const void*, size_t);

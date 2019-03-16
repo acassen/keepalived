@@ -29,7 +29,6 @@
 #include "vector.h"
 
 /* Prototypes */
-extern bool set_script_uid_gid(vector_t *, unsigned, uid_t *, gid_t *);
 extern void init_global_keywords(bool);
 
 #endif

@@ -68,7 +68,7 @@ build_ssl_ctx(void)
 	ssl_data_t *ssl;
 
 	/* Library initialization */
-#if HAVE_OPENSSL_INIT_CRYPTO
+#ifdef HAVE_OPENSSL_INIT_CRYPTO
 #ifndef HAVE_OPENSSL_INIT_NO_LOAD_CONFIG_BUG
 	/* In OpenSSL v1.1.1 if the following is called, SSL_CTX_new() below fails.
 	 * It works in v1.1.0h and v1.1.1b.
@@ -88,7 +88,7 @@ build_ssl_ctx(void)
 		ssl = check_data->ssl;
 
 	/* Initialize SSL context */
-#if HAVE_TLS_METHOD
+#ifdef HAVE_TLS_METHOD
 	ssl->meth = TLS_method();
 #else
 	ssl->meth = SSLv23_method();
@@ -226,7 +226,7 @@ ssl_connect(thread_t * thread, int new_req)
 
 		BIO_get_fd(req->bio, &bio_fd);
 		fcntl(bio_fd, F_SETFD, fcntl(bio_fd, F_GETFD) | FD_CLOEXEC);
-#if HAVE_SSL_SET0_RBIO
+#ifdef HAVE_SSL_SET0_RBIO
 		BIO_up_ref(req->bio);
 		SSL_set0_rbio(req->ssl, req->bio);
 		SSL_set0_wbio(req->ssl, req->bio);

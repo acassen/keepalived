@@ -56,6 +56,7 @@
 #include "old_socket.h"
 #endif
 #include "assert_debug.h"
+#include "warnings.h"
 
 
 #ifdef THREAD_DUMP
@@ -415,8 +416,11 @@ log_command_line(unsigned indent)
 
 	log_str = MALLOC(len);
 
-	for (i = 0, p = log_str; i < sav_argc; i++)
+RELAX_STRICT_OVERFLOW_START
+	for (i = 0, p = log_str; i < sav_argc; i++) {
+RELAX_STRICT_OVERFLOW_END
 		p += sprintf(p, "%s'%s'", i ? " " : "", sav_argv[i]);
+	}
 
 	log_options("Command line", log_str, indent);
 
@@ -550,7 +554,7 @@ thread_event_new(thread_master_t *m, int fd)
 	return event;
 }
 
-static thread_event_t *
+static thread_event_t * __attribute__ ((pure))
 thread_event_get(thread_master_t *m, int fd)
 {
 	thread_event_t event = { .fd = fd };
@@ -753,12 +757,12 @@ thread_rb_dump(rb_root_cached_t *root, const char *tree, FILE *fp)
 }
 
 static void
-thread_list_dump(list_head_t *l, const char *list, FILE *fp)
+thread_list_dump(list_head_t *l, const char *list_type, FILE *fp)
 {
 	thread_t *thread;
 	int i = 1;
 
-	conf_write(fp, "----[ Begin list_dump %s ]----", list);
+	conf_write(fp, "----[ Begin list_dump %s ]----", list_type);
 
 	list_for_each_entry(thread, l, next)
 		conf_write(fp, "#%.2d Thread:%p type %s func %s() id %ld",

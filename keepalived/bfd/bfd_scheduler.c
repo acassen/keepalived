@@ -159,7 +159,7 @@ bfd_sender_reschedule(bfd_t *bfd)
 }
 
 /* Returns 1 if bfd_sender_thread is scheduled to run, 0 otherwise */
-static int
+static int __attribute__ ((pure))
 bfd_sender_scheduled(bfd_t *bfd)
 {
 	assert(bfd);
@@ -194,7 +194,7 @@ bfd_sender_resume(bfd_t *bfd)
 }
 
 /* Returns 1 if bfd_sender_thread is suspended, 0 otherwise */
-static int
+static int __attribute__ ((pure))
 bfd_sender_suspended(bfd_t *bfd)
 {
 	assert(bfd);
@@ -295,7 +295,7 @@ bfd_expire_reschedule(bfd_t *bfd)
 }
 
 /* Returns 1 if bfd_expire_thread is scheduled to run, 0 otherwise */
-static int
+static int __attribute__ ((pure))
 bfd_expire_scheduled(bfd_t *bfd)
 {
 	assert(bfd);
@@ -329,7 +329,7 @@ bfd_expire_resume(bfd_t *bfd)
 }
 
 /* Returns 1 if bfd_expire_thread is suspended, 0 otherwise */
-static int
+static int __attribute__ ((pure))
 bfd_expire_suspended(bfd_t *bfd)
 {
 	assert(bfd);
@@ -396,7 +396,7 @@ bfd_reset_cancel(bfd_t *bfd)
 }
 
 /* Returns 1 if bfd_reset_thread is scheduled to run, 0 otherwise */
-static int
+static int __attribute__ ((pure))
 bfd_reset_scheduled(bfd_t *bfd)
 {
 	assert(bfd);
@@ -430,7 +430,7 @@ bfd_reset_resume(bfd_t *bfd)
 }
 
 /* Returns 1 if bfd_reset_thread is suspended, 0 otherwise */
-static int
+static int __attribute__ ((pure))
 bfd_reset_suspended(bfd_t *bfd)
 {
 	assert(bfd);

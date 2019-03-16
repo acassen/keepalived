@@ -55,7 +55,6 @@
 #define	RTM_SIZE		1024
 #define	RTA_SIZE		1024
 #define	ENCAP_RTA_SIZE		 128
-#define NEXTHOP_RTA_SIZE	1024
 
 /* Utility functions */
 unsigned short
@@ -261,9 +260,9 @@ add_nexthop(nexthop_t *nh, struct rtmsg *rtm, struct rtattr *rta, size_t len, st
 
 #if HAVE_DECL_RTA_ENCAP
 	if (nh->encap.type != LWTUNNEL_ENCAP_NONE) {
-		unsigned short len = rta->rta_len;
-		add_encap(rta, len, &nh->encap);
-		rtnh->rtnh_len = (unsigned short)(rtnh->rtnh_len + rta->rta_len - len);
+		unsigned short rta_len = rta->rta_len;
+		add_encap(rta, rta_len, &nh->encap);
+		rtnh->rtnh_len = (unsigned short)(rtnh->rtnh_len + rta->rta_len - rta_len);
 	}
 #endif
 }
@@ -543,7 +542,8 @@ netlink_rtlist(list rt_list, int cmd)
 
 /* Route dump/allocation */
 #if HAVE_DECL_RTA_ENCAP
-void
+#ifdef INCLUDE_UNUSED_CODE
+static void
 free_encap(void *rt_data)
 {
 	encap_t *encap = rt_data;
@@ -560,8 +560,9 @@ free_encap(void *rt_data)
 	FREE(rt_data);
 }
 #endif
+#endif
 
-void
+static void
 free_nh(void *rt_data)
 {
 	nexthop_t *nh = rt_data;
@@ -770,7 +771,7 @@ format_iproute(ip_route_t *route, char *buf, size_t buf_len)
 	if (route->mask & IPROUTE_BIT_RTT) {
 		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s%s ", "rtt", route->lock & (1<<RTAX_RTT) ? " lock" : "");
 		if (route->rtt >= 8000)
-			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gs", route->rtt / 8000.0);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gs", route->rtt / 8000.0F);
 		else
 			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%ums", route->rtt / 8);
 	}
@@ -778,7 +779,7 @@ format_iproute(ip_route_t *route, char *buf, size_t buf_len)
 	if (route->mask & IPROUTE_BIT_RTTVAR) {
 		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s%s ", "rttvar", route->lock & (1<<RTAX_RTTVAR) ? " lock" : "");
 		if (route->rttvar >= 4000)
-			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gs", route->rttvar / 4000.0);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gs", route->rttvar / 4000.0F);
 		else
 			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%ums", route->rttvar / 4);
 	}
@@ -786,7 +787,7 @@ format_iproute(ip_route_t *route, char *buf, size_t buf_len)
 	if (route->mask & IPROUTE_BIT_RTO_MIN) {
 		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s%s ", "rto_min", route->lock & (1<<RTAX_RTO_MIN) ? " lock" : "");
 		if (route->rto_min >= 1000)
-			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gs", route->rto_min / 1000.0);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gs", route->rto_min / 1000.0F);
 		else
 			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%ums", route->rto_min);
 	}
@@ -1688,7 +1689,6 @@ alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
 		else if (!strcmp(str, "fastopen_no_cookie")) {
 			i++;
 #if HAVE_DECL_RTAX_FASTOPEN_NO_COOKIE
-			uint32_t val;
 			if (get_u32(&val, strvec_slot(strvec, i), 1, "Invalid fastopen_no_cookie value %s specified for route"))
 				goto err;
 			new->fastopen_no_cookie = !!val;

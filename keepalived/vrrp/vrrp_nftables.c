@@ -123,7 +123,7 @@ exchange_nl_msg(struct mnl_nlmsg_batch *batch)
 {
 	int ret;
 	uint32_t portid;
-	char buf[MNL_SOCKET_BUFFER_SIZE];
+	char *buf;
 
 	if (mnl_nlmsg_batch_is_empty(batch))
 		return;
@@ -149,14 +149,15 @@ exchange_nl_msg(struct mnl_nlmsg_batch *batch)
 		return;
 	}
 
-	ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	while (ret > 0) {
+	buf = MALLOC(MNL_SOCKET_BUFFER_SIZE);
+	while ((ret = mnl_socket_recvfrom(nl, buf, MNL_SOCKET_BUFFER_SIZE)) > 0) {
 		/* ret = mnl_cb_run(buf, ret, 0, portid, cb_func, NULL); */
 		ret = mnl_cb_run(buf, ret, 0, portid, NULL, NULL);
 		if (ret <= 0)
 			break;
-		ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
 	}
+	FREE(buf);
+
 	if (ret == -1) {
 		log_message(LOG_INFO, "mnl_socket_recvfrom error - %d", errno);
 		return;
@@ -894,7 +895,7 @@ nft_start_batch(void)
 	return batch;
 }
 
-void
+static void
 nft_end_batch(struct mnl_nlmsg_batch *batch, bool more)
 {
 	void *buf;
