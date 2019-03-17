@@ -119,7 +119,7 @@ tcp_socket_state(thread_t * thread, int (*func) (thread_t *))
 
 	/* Connection failed !!! */
 	if (ret) {
-		DBG("TCP connection failed to [%s]:%d.\n",
+		DBG("TCP getsockopt() failed to [%s]:%d.\n",
 		    req->ipaddress, ntohs(req->addr_port));
 		thread_close_fd(thread);
 		return connect_error;
@@ -130,7 +130,7 @@ tcp_socket_state(thread_t * thread, int (*func) (thread_t *))
 	 * and other error code until connection is established.
 	 * Recompute the write timeout (or pending connection).
 	 */
-	if (status != 0) {
+	if (status == EINPROGRESS) {
 		DBG("TCP connection to [%s]:%d still IN_PROGRESS.\n",
 		    req->ipaddress, ntohs(req->addr_port));
 
@@ -138,6 +138,11 @@ tcp_socket_state(thread_t * thread, int (*func) (thread_t *))
 		thread_add_write(thread->master, func, THREAD_ARG(thread)
 				 , thread->u.fd, timer_long(timer_min));
 		return connect_in_progress;
+	} else if (status) {
+		DBG("TCP connection failed to [%s]:%d.\n",
+		    req->ipaddress, ntohs(req->addr_port));
+		thread_close_fd(thread);
+		return connect_error;
 	}
 
 	return connect_success;
@@ -208,10 +213,8 @@ tcp_check_thread(thread_t * thread)
 				DBG("Connection trouble to: [%s]:%d.\n",
 				    req->ipaddress,
 				    ntohs(req->addr_port));
-				if (req->ssl)
-					ssl_printerr(SSL_get_error
-						     (sock_obj->ssl, ret));
 				sock_obj->status = connect_error;
+				thread_add_terminate_event(thread->master);
 				return -1;
 			}
 		}
