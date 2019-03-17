@@ -25,6 +25,7 @@
 /* system include */
 #include <errno.h>
 #include <unistd.h>
+#include <main.h>
 
 /* local include */
 #include "vrrp_notify.h"
@@ -253,11 +254,13 @@ send_instance_notifies(vrrp_t *vrrp)
 	notify_script_t *script = get_iscript(vrrp);
 	notify_script_t *gscript = get_igscript(vrrp);
 
-	if (vrrp->sync && vrrp->state == vrrp->sync->state) {
+	if (vrrp->notifies_sent && vrrp->sync && vrrp->state == vrrp->sync->state) {
 		/* We are already in the required state due to our sync group,
 		 * so don't send further notifies. */
 		return;
 	}
+
+	vrrp->notifies_sent = true;
 
 	/* Launch the notify_* script */
 	if (script) {

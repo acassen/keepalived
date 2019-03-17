@@ -96,7 +96,7 @@ static sigset_t parent_sig;
 /* Signal handling thread */
 static thread_t *signal_thread;
 
-int
+int __attribute__((pure))
 get_signum(const char *sigfunc)
 {
 	if (!strcmp(sigfunc, "STOP"))

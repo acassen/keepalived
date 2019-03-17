@@ -211,6 +211,7 @@ typedef struct _vrrp_t {
 #endif
 	unsigned		num_script_if_fault;	/* Number of scripts and interfaces in fault state */
 	unsigned		num_script_init;	/* Number of scripts in init state */
+	bool			notifies_sent;		/* Set when initial notifies have been sent */
 	struct sockaddr_storage	saddr;			/* Src IP address to use in VRRP IP header */
 	bool			saddr_from_config;	/* Set if the source address is from configuration */
 	bool			track_saddr;		/* Fault state if configured saddr is missing */
