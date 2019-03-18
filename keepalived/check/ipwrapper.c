@@ -735,6 +735,7 @@ migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new
 	element e, e1;
 	checker_t *old_c, *new_c;
 	checker_t dummy_checker;
+	bool a_checker_has_run = false;
 
 	l = alloc_list(NULL, NULL);
 	LIST_FOREACH(old_checkers_queue, old_c, e) {
@@ -749,7 +750,7 @@ migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new
 			LIST_FOREACH(l, old_c, e1) {
 				if (old_c->compare == new_c->compare && new_c->compare(old_c, new_c)) {
 					/* Update status if different */
-					if (old_c->is_up != new_c->is_up)
+					if (old_c->has_run && old_c->is_up != new_c->is_up)
 						set_checker_state(new_c, old_c->is_up);
 
 					/* Transfer some other state flags */
@@ -770,18 +771,22 @@ migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new
 			continue;
 		if (new_c->has_run && !new_c->is_up)
 			new_rs->num_failed_checkers++;
+		if (new_c->has_run)
+			a_checker_has_run = true;
 	}
 
 	/* If a checker has failed, set new alpha checkers to be down until
 	 * they have run. */
-	LIST_FOREACH(checkers_queue, new_c, e) {
-		if (new_c->rs != new_rs)
-			continue;
-		if (!new_c->has_run) {
-			if (new_c->alpha && new_rs->num_failed_checkers)
-				set_checker_state(new_c, false);
-			/* One failure is enough */
-			new_c->retry_it = new_c->retry;
+	if (new_rs->num_failed_checkers || (!new_rs->alive && !a_checker_has_run)) {
+		LIST_FOREACH(checkers_queue, new_c, e) {
+			if (new_c->rs != new_rs)
+				continue;
+			if (!new_c->has_run) {
+				if (new_c->alpha)
+					set_checker_state(new_c, false);
+				/* One failure is enough */
+				new_c->retry_it = new_c->retry;
+			}
 		}
 	}
 
