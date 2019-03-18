@@ -1556,6 +1556,22 @@ umask_handler(vector_t *strvec)
 #endif
 }
 
+#ifdef _WITH_VRRP_
+static void
+vrrp_startup_delay_handler(vector_t *strvec)
+{
+	double startup_delay;
+
+	if (!read_double_strvec(strvec, 1, &startup_delay, 0.001F / TIMER_HZ, UINT_MAX / TIMER_HZ, true))
+		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_startup_delay '%s' is invalid", FMT_STR_VSLOT(strvec, 1));
+	else
+		global_data->vrrp_startup_delay = (unsigned)(startup_delay * TIMER_HZ);
+
+	if (global_data->vrrp_startup_delay >= 60 * TIMER_HZ)
+		log_message(LOG_INFO, "The vrrp_startup_delay is very large - %s seconds", FMT_STR_VSLOT(strvec, 1));
+}
+#endif
+
 void
 init_global_keywords(bool global_active)
 {
@@ -1713,6 +1729,7 @@ init_global_keywords(bool global_active)
 #ifdef _WITH_VRRP_
 	install_keyword("vrrp_rx_bufs_policy", &vrrp_rx_bufs_policy_handler);
 	install_keyword("vrrp_rx_bufs_multiplier", &vrrp_rx_bufs_multiplier_handler);
+	install_keyword("vrrp_startup_delay", &vrrp_startup_delay_handler);
 #endif
 	install_keyword("umask", &umask_handler);
 }

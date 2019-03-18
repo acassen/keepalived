@@ -622,8 +622,13 @@ start_vrrp(data_t *prev_global_data)
 		dump_data_vrrp(NULL);
 
 	/* Init & start the VRRP packet dispatcher */
-	thread_add_event(master, vrrp_dispatcher_init, NULL,
-			 VRRP_DISPATCHER);
+	if (!reload && global_data->vrrp_startup_delay) {
+		log_message(LOG_INFO, "Delaying startup for %g seconds", (float)global_data->vrrp_startup_delay / TIMER_HZ);
+		thread_add_timer(master, vrrp_dispatcher_init, NULL,
+				 global_data->vrrp_startup_delay);
+	} else
+		thread_add_event(master, vrrp_dispatcher_init, NULL,
+				 VRRP_DISPATCHER);
 
 	/* Set the process priority and non swappable if configured */
 	set_process_priorities(
