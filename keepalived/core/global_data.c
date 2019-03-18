@@ -600,5 +600,7 @@ dump_global_data(FILE *fp, data_t * data)
 		conf_write(fp, "%s", buf);
 	conf_write(fp, " rx_bufs_multiples = %u", global_data->vrrp_rx_bufs_multiples);
 	conf_write(fp, " umask = 0%o", umask_val);
+	if (global_data->vrrp_startup_delay)
+		conf_write(fp, " vrrp_startup_delay = %g", (float)global_data->vrrp_startup_delay / TIMER_HZ);
 #endif
 }

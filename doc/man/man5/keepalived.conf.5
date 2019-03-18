@@ -544,6 +544,15 @@ and
     #   The default umask is IWGRP | IWOTH. This option cannot override the
     #   command-line option.
     \fBumask \fR[NUMBER|BITS]
+
+    # On some systems when bond interfaces are created, they can start passing traffic
+    # and then have a several second gap when they stop passing traffic inbound. This
+    # can mean that if keepalived is started at boot time, i.e. at the same time as
+    # bond interfaces are being created, keepalived doesn't receive adverts and hence
+    # can become master despite an instance with higher priority sending adverts.
+    # This option specifies a delay in seconds before vrrp instances start up after
+    # keepalived starts,
+    \fBvrrp_startup_delay \fR5.5
 }
 .fi
 .SH Linkbeat interfaces
