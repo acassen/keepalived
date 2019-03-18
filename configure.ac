@@ -2143,6 +2143,14 @@ CFLAGS="$CFLAGS -D_GNU_SOURCE"
 AC_CHECK_DECLS([CLONE_NEWNET], [], [], [[#include <sched.h>]])
 dnl -- From glibc 2.14. Otherwise use setns syscall, since Linux 2.4.x
 AC_CHECK_FUNCS([setns])
+dnl -- When building a RedHat RPM with hardening enabled, -pie is specified,
+dnl -- and for setns this requires -fPIC
+AS_IF([test $ac_cv_func_setns = no],
+      [
+        AS_UNSET([ac_cv_func_setns])
+        CFLAGS="$CFLAGS -fPIC"
+	AC_CHECK_FUNCS([setns])
+      ])
 CFLAGS="$SAV_CFLAGS"
 AM_CONDITIONAL([WITH_NAMESPACES], [test $ac_cv_have_decl_CLONE_NEWNET = yes])
 
