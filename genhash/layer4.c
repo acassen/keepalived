@@ -40,9 +40,10 @@ tcp_connect(int fd, REQ * req_obj)
 	int ret;
 	int val;
 
-	/* free the tcp port after closing the socket descriptor */
+	/* free the tcp port after closing the socket descriptor, but allow
+	 * time for a proper shutdown. */
 	li.l_onoff = 1;
-	li.l_linger = 0;
+	li.l_linger = 5;
 	setsockopt(fd, SOL_SOCKET, SO_LINGER, (char *) &li, sizeof (struct linger));
 
 #ifdef _WITH_SO_MARK_

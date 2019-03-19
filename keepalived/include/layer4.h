@@ -35,6 +35,7 @@ enum connect_result {
 	connect_error,
 	connect_in_progress,
 	connect_timeout,
+	connect_fail,
 	connect_success
 };
 

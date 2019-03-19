@@ -42,21 +42,21 @@
 #include "scheduler.h"
 #endif
 
-static conn_opts_t* default_co;	/* Default conn_opts for SMTP_CHECK */
+/* Specifying host blocks within the SMTP checker is deprecated, but currently
+ * still supported. All code to support it is in WITH_HOST_ENTRIES conditional
+ * compilation, so it is easy to remove all the code eventually. */
+#define WITH_HOST_ENTRIES
+
+#ifdef WITH_HOST_ENTRIES
+static list host_list;
 static conn_opts_t *sav_co;	/* Saved conn_opts while host{} block processed */
+#endif
+//*** default_co is pointless
+static conn_opts_t* default_co;	/* Default conn_opts for SMTP_CHECK */
 
 static int smtp_connect_thread(thread_t *);
-
-/*
- * Used as a callback from free_list() to free all
- * the list elements in smtp_checker->host before we
- * free smtp_checker itself.
- */
-static void
-smtp_free_host(void *data)
-{
-	FREE(data);
-}
+static int smtp_start_check_thread(thread_t *);
+static int smtp_engine_thread(thread_t *);
 
 /* Used as a callback from the checker api, queue_checker(),
  * to free up a checker entry and all its associated data.
@@ -64,8 +64,10 @@ smtp_free_host(void *data)
 static void
 free_smtp_check(void *data)
 {
+	checker_t *checker = (checker_t *)data;
 	smtp_checker_t *smtp_checker = CHECKER_DATA(data);
-	free_list(&smtp_checker->host);
+
+	FREE_PTR(checker->co);
 	FREE(smtp_checker->helo_name);
 	FREE(smtp_checker);
 	FREE(data);
@@ -84,11 +86,6 @@ dump_smtp_check(FILE *fp, void *data)
 	conf_write(fp, "   Keepalive method = SMTP_CHECK");
 	conf_write(fp, "   helo = %s", smtp_checker->helo_name);
 	dump_checker_opts(fp, checker);
-
-	if (smtp_checker->host) {
-		conf_write(fp, "   Host list");
-		dump_list(fp, smtp_checker->host);
-	}
 }
 
 static bool
@@ -96,22 +93,11 @@ smtp_check_compare(void *a, void *b)
 {
 	smtp_checker_t *old = CHECKER_DATA(a);
 	smtp_checker_t *new = CHECKER_DATA(b);
-	size_t n;
-	conn_opts_t *h1, *h2;
 
 	if (strcmp(old->helo_name, new->helo_name) != 0)
 		return false;
 	if (!compare_conn_opts(CHECKER_CO(a), CHECKER_CO(b)))
 		return false;
-	if (LIST_SIZE(old->host) != LIST_SIZE(new->host))
-		return false;
-	for (n = 0; n < LIST_SIZE(new->host); n++) {
-		h1 = (conn_opts_t *)list_element(old->host, n);
-		h2 = (conn_opts_t *)list_element(new->host, n);
-		if (!compare_conn_opts(h1, h2)) {
-			return false;
-		}
-	}
 
 	return true;
 }
@@ -124,34 +110,30 @@ static void
 smtp_check_handler(__attribute__((unused)) vector_t *strvec)
 {
 	smtp_checker_t *smtp_checker = (smtp_checker_t *)MALLOC(sizeof(smtp_checker_t));
+	conn_opts_t *co;
 
+#ifdef WITH_HOST_ENTRIES
 	/* We keep a copy of the default settings for completing incomplete settings */
-	default_co = (conn_opts_t*)MALLOC(sizeof(conn_opts_t));
+	host_list = alloc_list(free_list_element_simple, NULL);
+#endif
+
+	co = MALLOC(sizeof(conn_opts_t));
+	co->connection_to = UINT_MAX;
 
 	/* Have the checker queue code put our checker into the checkers_queue list. */
-	queue_checker(free_smtp_check, dump_smtp_check, smtp_connect_thread,
-		      smtp_check_compare, smtp_checker, default_co);
-
-	/* Set an empty conn_opts for any connection configured */
-	((checker_t *)checkers_queue->tail->data)->co = (conn_opts_t*)MALLOC(sizeof(conn_opts_t));
-
-	/*
-	 * Last, allocate the list that will hold all the per host
-	 * configuration structures. We already have the "default host"
-	 * in our checker->co.
-	 * If there are additional "host" sections in the config, they will
-	 * be used instead of the default, but all the uninitialized options
-	 * of those hosts will be set to the default's values.
-	 */
-	smtp_checker->host = alloc_list(smtp_free_host, dump_connection_opts);
+	queue_checker(free_smtp_check, dump_smtp_check, smtp_start_check_thread,
+		      smtp_check_compare, smtp_checker, co);
 }
 
 static void
 smtp_check_end_handler(void)
 {
-	smtp_checker_t *smtp_checker = CHECKER_GET();
-	conn_opts_t *co = CHECKER_GET_CO();
-	element e;
+	checker_t *checker = CHECKER_GET_CURRENT();
+	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
+	checker_t *new_checker;
+	smtp_checker_t *new_smtp_checker;
+	element e, n;
+	conn_opts_t *co;
 
 	if (!smtp_checker->helo_name) {
 		smtp_checker->helo_name = (char *)MALLOC(strlen(SMTP_DEFAULT_HELO) + 1);
@@ -159,45 +141,52 @@ smtp_check_end_handler(void)
 	}
 
 	/* If any connection component has been configured, we want to add it to the host list */
-	if (co->dst.ss_family != AF_UNSPEC ||
-	    (co->dst.ss_family == AF_UNSPEC && ((struct sockaddr_in *)&co->dst)->sin_port) ||
-	    co->bindto.ss_family != AF_UNSPEC ||
-	    (co->bindto.ss_family == AF_UNSPEC && ((struct sockaddr_in *)&co->bindto)->sin_port) ||
-	    co->bind_if[0] ||
+	if (checker->co->dst.ss_family != AF_UNSPEC ||
+	    ((struct sockaddr_in *)&checker->co->dst)->sin_port ||
+	    checker->co->bindto.ss_family != AF_UNSPEC ||
+	    ((struct sockaddr_in *)&checker->co->bindto)->sin_port ||
+	    checker->co->bind_if[0] ||
 #ifdef _WITH_SO_MARK_
-	    co->fwmark ||
+	    checker->co->fwmark ||
 #endif
-	    co->connection_to) {
+	    checker->co->connection_to) {
 		/* Set any necessary defaults */
-		if (co->dst.ss_family == AF_UNSPEC) {
-			if (((struct sockaddr_in *)&co->dst)->sin_port) {
-				uint16_t saved_port = ((struct sockaddr_in *)&co->dst)->sin_port;
-				co->dst = default_co->dst;
-				checker_set_dst_port(&co->dst, saved_port);
+		if (checker->co->dst.ss_family == AF_UNSPEC) {
+			if (((struct sockaddr_in *)&checker->co->dst)->sin_port) {
+				uint16_t saved_port = ((struct sockaddr_in *)&checker->co->dst)->sin_port;
+				checker->co->dst = default_co->dst;
+				checker_set_dst_port(&checker->co->dst, saved_port);
 			}
 			else
-				co->dst = default_co->dst;
+				checker->co->dst = default_co->dst;
 		}
-		if (!co->connection_to)
-			co->connection_to = 5 * TIMER_HZ;
 
-		if (!check_conn_opts(co)) {
+		if (!check_conn_opts(checker->co)) {
 			dequeue_new_checker();
-			FREE(co);
-		} else
-			list_add(smtp_checker->host, co);
+			return;
+		}
 	}
 	else
-		FREE(co);
-	CHECKER_GET_CO() = NULL;
+		FREE(checker->co);
 
 	/* If there was no host{} section, add a single host to the list */
-	if (LIST_ISEMPTY(smtp_checker->host)) {
-		list_add(smtp_checker->host, default_co);
-	} else
-		FREE(default_co);
+	if (!checker->co
+#ifdef WITH_HOST_ENTRIES
+			 && LIST_ISEMPTY(host_list)
+#endif
+						   ) {
+		checker->co = default_co;
+		default_co = NULL;
+	} else {
+#ifdef WITH_HOST_ENTRIES
+		if (!checker->co) {
+			checker->co = LIST_HEAD_DATA(host_list);
+			list_extract(host_list, LIST_HEAD(host_list));
+		}
+#endif
 
-	default_co = NULL;
+		FREE(default_co);
+	}
 
 	/* Set the conection timeout if not set */
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
@@ -206,12 +195,38 @@ smtp_check_end_handler(void)
 	if (conn_to == UINT_MAX)
 		conn_to = vs->connection_to;
 
-	LIST_FOREACH(smtp_checker->host, co, e) {
+	if (checker->co->connection_to == UINT_MAX)
+		checker->co->connection_to = conn_to;
+
+#ifdef WITH_HOST_ENTRIES
+	/* Create a new checker for each host on the host list */
+	LIST_FOREACH_NEXT(host_list, co, e, n) {
+		new_smtp_checker = MALLOC(sizeof(smtp_checker_t));
+		*new_smtp_checker = *smtp_checker;
+
 		if (co->connection_to == UINT_MAX)
 			co->connection_to = conn_to;
+
+		new_smtp_checker->helo_name = MALLOC(strlen(smtp_checker->helo_name) + 1);
+		strcpy(new_smtp_checker->helo_name, smtp_checker->helo_name);
+
+		queue_checker(free_smtp_check, dump_smtp_check, smtp_start_check_thread,
+			      smtp_check_compare, new_smtp_checker, NULL);
+
+		new_checker = CHECKER_GET_CURRENT();
+		*new_checker = *checker;
+		new_checker->co = co;
+		new_checker->data = new_smtp_checker;
+
+		list_extract(host_list, e);
 	}
+
+	/* The list is now empty */
+	free_list(&host_list);
+#endif
 }
 
+#ifdef WITH_HOST_ENTRIES
 /* Callback for "host" keyword */
 static void
 smtp_host_handler(__attribute__((unused)) vector_t *strvec)
@@ -221,7 +236,7 @@ smtp_host_handler(__attribute__((unused)) vector_t *strvec)
 	/* save the main conn_opts_t and set a new default for the host */
 	sav_co = checker->co;
 	checker->co = (conn_opts_t*)MALLOC(sizeof(conn_opts_t));
-	memcpy(checker->co, default_co, sizeof(*default_co));
+	*checker->co = *sav_co;
 
 	log_message(LOG_INFO, "The SMTP_CHECK host block is deprecated. Please define additional checkers.");
 }
@@ -230,15 +245,15 @@ static void
 smtp_host_end_handler(void)
 {
 	checker_t *checker = CHECKER_GET_CURRENT();
-	smtp_checker_t *smtp_checker = (smtp_checker_t *)checker->data;
 
 	if (!check_conn_opts(checker->co))
 		FREE(checker->co);
 	else
-		list_add(smtp_checker->host, checker->co);
+		list_add(host_list, checker->co);
 
 	checker->co = sav_co;
 }
+#endif
 
 /* "helo_name" keyword */
 static void
@@ -287,11 +302,10 @@ install_smtp_check_keyword(void)
  * Also has to make a decision if we need to bring the resulting
  * service down in case of error.
  */
-static int __attribute__ ((format (printf, 3, 4)))
-smtp_final(thread_t *thread, int error, const char *format, ...)
+static int __attribute__ ((format (printf, 2, 3)))
+smtp_final(thread_t *thread, const char *format, ...)
 {
 	checker_t *checker = THREAD_ARG(thread);
-	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
 	char error_buff[512];
 	char smtp_buff[542];
 	va_list varg_list;
@@ -301,25 +315,19 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 	/* Error or no error we should always have to close the socket */
 	thread_close_fd(thread);
 
-	/* If we're here, an attempt HAS been made already for the current host */
-	checker->retry_it++;
-
-	if (error) {
+	if (format) {
 		/* Always syslog the error when the real server is up */
-		if (checker->is_up &&
+		if ((checker->is_up || !checker->has_run) &&
 		    (global_data->checker_log_all_failures ||
 		     checker->log_all_failures ||
-		     checker->retry_it > checker->retry)) {
-			if (format != NULL) {
-				/* prepend format with the "SMTP_CHECK " string */
-				strncpy(error_buff, "SMTP_CHECK ", sizeof(error_buff) - 1);
-				strncat(error_buff, format, sizeof(error_buff) - 11 - 1);
+		     checker->retry_it >= checker->retry)) {
+			/* prepend format with the "SMTP_CHECK " string */
+			strncpy(error_buff, "SMTP_CHECK ", sizeof(error_buff) - 1);
+			strncat(error_buff, format, sizeof(error_buff) - 11 - 1);
 
-				va_start(varg_list, format);
-				vlog_message(LOG_INFO, error_buff, varg_list);
-				va_end(varg_list);
-			} else
-				log_message(LOG_INFO, "SMTP_CHECK Unknown error");
+			va_start(varg_list, format);
+			vlog_message(LOG_INFO, error_buff, varg_list);
+			va_end(varg_list);
 		}
 
 		/*
@@ -327,7 +335,7 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 		 * scheduling the main thread to check it again after the
 		 * configured backoff delay. Otherwise down the RS.
 		 */
-		if (checker->retry_it <= checker->retry) {
+		if (++checker->retry_it <= checker->retry) {
 			thread_add_timer(thread->master, smtp_connect_thread, checker,
 					 checker->delay_before_retry);
 			return 0;
@@ -358,12 +366,8 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 			}
 		}
 
-		/* Reset everything back to the first host in the list */
-		checker->retry_it = 0;
-		smtp_checker->host_ctr = 0;
-
-		/* Reschedule the main thread using the configured delay loop */;
-		thread_add_timer(thread->master, smtp_connect_thread, checker, checker->delay_loop);
+		/* Reschedule the main thread using the configured delay loop */
+		thread_add_timer(thread->master, smtp_start_check_thread, checker, checker->delay_loop);
 
 		return 0;
 	}
@@ -371,26 +375,33 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 	/*
 	 * Ok this host was successful, increment to the next host in the list
 	 * and reset the retry_it counter. We'll then reschedule the main thread again.
-	 * If host_ptr exceeds the end of the list, http_main_thread will
+	 * If host_ptr exceeds the end of the list, smtp_connect_main_thread will
 	 * take note and bring up the real server as well as inject the delay_loop.
 	 */
 	checker->retry_it = 0;
-	smtp_checker->host_ctr++;
 
-	thread_add_timer(thread->master, smtp_connect_thread, checker, 1);
-	return 0;
-}
+	/*
+	 * Set the internal host pointer to the host that we'll be
+	 * working on. If it's NULL, we've successfully tested all hosts.
+	 * We'll bring the service up (if it's not already), reset the host list,
+	 * and insert the delay loop. When we get scheduled again the host list
+	 * will be reset and we will continue on checking them one by one.
+	 */
+	if (!checker->is_up || !checker->has_run) {
+		log_message(LOG_INFO, "Remote SMTP server %s succeed on service."
+				    , FMT_CHK(checker));
 
-/*
- * Zeros out the rx/tx buffer
- */
-static void
-smtp_clear_buff(thread_t *thread)
-{
-	checker_t *checker = THREAD_ARG(thread);
-	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
-	memset(smtp_checker->buff, 0, SMTP_BUFF_MAX);
-	smtp_checker->buff_ctr = 0;
+		checker_was_up = checker->is_up;
+		rs_was_alive = checker->rs->alive;
+		update_svr_checker_state(UP, checker);
+		if (checker->rs->smtp_alert && !checker_was_up &&
+		    (rs_was_alive != checker->rs->alive || !global_data->no_checker_emails))
+			smtp_alert(SMTP_MSG_RS, checker, NULL,
+				   "=> CHECK succeed on service <=");
+	}
+
+	thread_add_timer(thread->master, smtp_start_check_thread, checker, checker->delay_loop);
+		return 0;
 }
 
 /*
@@ -404,49 +415,49 @@ smtp_get_line_cb(thread_t *thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
-	conn_opts_t *smtp_host = smtp_checker->host_ptr;
-	unsigned x;
+	conn_opts_t *smtp_host = checker->co;
 	ssize_t r;
+	char *nl;
 
 	/* Handle read timeout */
 	if (thread->type == THREAD_READ_TIMEOUT) {
-		smtp_final(thread, 1, "Read timeout from server %s"
+		smtp_final(thread, "Read timeout from server %s"
 				    , FMT_SMTP_RS(smtp_host));
 		return 0;
 	}
 
 	/* wrap the buffer, if full, by clearing it */
-	if (smtp_checker->buff_ctr > SMTP_BUFF_MAX) {
+	if (smtp_checker->buff_ctr >= SMTP_BUFF_MAX - 1) {
 		log_message(LOG_INFO, "SMTP_CHECK Buffer overflow reading from server %s. "
-				      "Increase SMTP_BUFF_MAX in smtp_check.h"
+				      "Increase SMTP_BUFF_MAX in check_smtp.h"
 				    , FMT_SMTP_RS(smtp_host));
-		smtp_clear_buff(thread);
+		smtp_checker->buff_ctr = 0;
 	}
 
 	/* read the data */
 	r = read(thread->u.fd, smtp_checker->buff + smtp_checker->buff_ctr,
-		 SMTP_BUFF_MAX - smtp_checker->buff_ctr);
+		 SMTP_BUFF_MAX - smtp_checker->buff_ctr - 1);
 
 	if (r == -1 && (check_EAGAIN(errno) || check_EINTR(errno))) {
 		thread_add_read(thread->master, smtp_get_line_cb, checker,
 				thread->u.fd, smtp_host->connection_to);
 		return 0;
-	} else if (r > 0)
+	} else if (r > 0) {
 		smtp_checker->buff_ctr += (size_t)r;
+		smtp_checker->buff[smtp_checker->buff_ctr] = '\0';
+	}
 
 	/* check if we have a newline, if so, callback */
-	for (x = 0; x < SMTP_BUFF_MAX; x++) {
-		if (smtp_checker->buff[x] == '\n') {
-			smtp_checker->buff[SMTP_BUFF_MAX - 1] = '\0';
+	if ((nl = strchr(smtp_checker->buff, '\n'))) {
+		*nl = '\0';
 
-			DBG("SMTP_CHECK %s < %s"
-			    , FMT_SMTP_RS(smtp_host)
-			    , smtp_checker->buff);
+		DBG("SMTP_CHECK %s < %s"
+		    , FMT_SMTP_RS(smtp_host)
+		    , smtp_checker->buff);
 
-			(smtp_checker->buff_cb)(thread);
+		smtp_engine_thread(thread);
 
-			return 0;
-		}
+		return 0;
 	}
 
 	/*
@@ -454,7 +465,7 @@ smtp_get_line_cb(thread_t *thread)
 	 * some sort of error, notify smtp_final()
 	 */
 	if (r <= 0) {
-		smtp_final(thread, 1, "Read failure from server %s"
+		smtp_final(thread, "Read failure from server %s"
 				     , FMT_SMTP_RS(smtp_host));
 		return 0;
 	}
@@ -476,20 +487,17 @@ smtp_get_line_cb(thread_t *thread)
  * happens, the caller assumes we'll pass the error off to smtp_final(),
  * which will either down the real server or schedule a retry. The
  * function smtp_get_line_cb is what does the dirty work since the
- * sceduler can only accept a single *thread argument.
+ * scheduler can only accept a single *thread argument.
  */
 static void
-smtp_get_line(thread_t *thread, int (*callback) (thread_t *))
+smtp_get_line(thread_t *thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
-	conn_opts_t *smtp_host = smtp_checker->host_ptr;
+	conn_opts_t *smtp_host = checker->co;
 
 	/* clear the buffer */
-	smtp_clear_buff(thread);
-
-	/* set the callback */
-	smtp_checker->buff_cb = callback;
+	smtp_checker->buff_ctr = 0;
 
 	/* schedule the I/O with our helper function  */
 	thread_add_read(thread->master, smtp_get_line_cb, checker,
@@ -509,13 +517,12 @@ smtp_put_line_cb(thread_t *thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
-	conn_opts_t *smtp_host = smtp_checker->host_ptr;
+	conn_opts_t *smtp_host = checker->co;
 	ssize_t w;
-
 
 	/* Handle read timeout */
 	if (thread->type == THREAD_WRITE_TIMEOUT) {
-		smtp_final(thread, 1, "Write timeout to server %s"
+		smtp_final(thread, "Write timeout to server %s"
 				     , FMT_SMTP_RS(smtp_host));
 		return 0;
 	}
@@ -538,13 +545,13 @@ smtp_put_line_cb(thread_t *thread)
 	 * some sort of error, notify smtp_final()
 	 */
 	if (w <= 0) {
-		smtp_final(thread, 1, "Write failure to server %s"
+		smtp_final(thread, "Write failure to server %s"
 				     , FMT_SMTP_RS(smtp_host));
 		return 0;
 	}
 
 	/* Execute the callback */
-	(smtp_checker->buff_cb)(thread);
+	smtp_engine_thread(thread);
 	return 0;
 }
 
@@ -553,22 +560,16 @@ smtp_put_line_cb(thread_t *thread)
  * line of data instead of receiving one.
  */
 static void
-smtp_put_line(thread_t *thread, int (*callback) (thread_t *))
+smtp_put_line(thread_t *thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
-	conn_opts_t *smtp_host = smtp_checker->host_ptr;
 
-	smtp_checker->buff[SMTP_BUFF_MAX - 1] = '\0';
 	smtp_checker->buff_ctr = strlen(smtp_checker->buff);
 
-	/* set the callback */
-	smtp_checker->buff_cb = callback;
-
 	/* schedule the I/O with our helper function  */
-	thread_add_write(thread->master, smtp_put_line_cb, checker,
-			 thread->u.fd, smtp_host->connection_to);
-	thread_del_read(thread);
+	smtp_put_line_cb(thread);
+
 	return;
 }
 
@@ -578,10 +579,8 @@ smtp_put_line(thread_t *thread, int (*callback) (thread_t *))
  * return -1.
  */
 static int
-smtp_get_status(thread_t *thread)
+smtp_get_status(smtp_checker_t *smtp_checker)
 {
-	checker_t *checker = THREAD_ARG(thread);
-	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
 	char *buff = smtp_checker->buff;
 	int status;
 	char *endptr;
@@ -606,7 +605,7 @@ smtp_engine_thread(thread_t *thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
-	conn_opts_t *smtp_host = smtp_checker->host_ptr;
+	conn_opts_t *smtp_host = checker->co;
 
 	switch (smtp_checker->state) {
 
@@ -618,15 +617,15 @@ smtp_engine_thread(thread_t *thread)
 			 * will defer directly to smtp_final.
 			 */
 			smtp_checker->state = SMTP_HAVE_BANNER;
-			smtp_get_line(thread, smtp_engine_thread);
+			smtp_get_line(thread);
 			return 0;
 			break;
 
 		/* Second step, analyze banner, send HELO */
 		case SMTP_HAVE_BANNER:
 			/* Check for "220 some.mailserver.com" in the greeting */
-			if (smtp_get_status(thread) != 220) {
-				smtp_final(thread, 1, "Bad greeting banner from server %s"
+			if (smtp_get_status(smtp_checker) != 220) {
+				smtp_final(thread, "Bad greeting banner from server %s"
 						     , FMT_SMTP_RS(smtp_host));
 			} else {
 				/*
@@ -636,43 +635,43 @@ smtp_engine_thread(thread_t *thread)
 				smtp_checker->state = SMTP_SENT_HELO;
 				snprintf(smtp_checker->buff, SMTP_BUFF_MAX, "HELO %s\r\n",
 					 smtp_checker->helo_name);
-				smtp_put_line(thread, smtp_engine_thread);
+				smtp_put_line(thread);
 			}
 			break;
 
 		/* Third step, schedule to read the HELO response */
 		case SMTP_SENT_HELO:
 			smtp_checker->state = SMTP_RECV_HELO;
-			smtp_get_line(thread, smtp_engine_thread);
+			smtp_get_line(thread);
 			break;
 
 		/* Fourth step, analyze HELO return, send QUIT */
 		case SMTP_RECV_HELO:
 			/* Check for "250 Please to meet you..." */
-			if (smtp_get_status(thread) != 250) {
-				smtp_final(thread, 1, "Bad HELO response from server %s"
+			if (smtp_get_status(smtp_checker) != 250) {
+				smtp_final(thread, "Bad HELO response from server %s"
 						     , FMT_SMTP_RS(smtp_host));
 			} else {
 				smtp_checker->state = SMTP_SENT_QUIT;
 				snprintf(smtp_checker->buff, SMTP_BUFF_MAX, "QUIT\r\n");
-				smtp_put_line(thread, smtp_engine_thread);
+				smtp_put_line(thread);
 			}
 			break;
 
 		/* Fifth step, schedule to receive QUIT confirmation */
 		case SMTP_SENT_QUIT:
 			smtp_checker->state = SMTP_RECV_QUIT;
-			smtp_get_line(thread, smtp_engine_thread);
+			smtp_get_line(thread);
 			break;
 
 		/* Sixth step, wrap up success to smtp_final */
 		case SMTP_RECV_QUIT:
-			smtp_final(thread, 0, NULL);
+			smtp_final(thread, NULL);
 			break;
 
 		default:
 			/* We shouldn't be here */
-			smtp_final(thread, 1, "Unknown smtp engine state encountered");
+			smtp_final(thread, "Unknown smtp engine state encountered");
 			break;
 	}
 
@@ -688,18 +687,23 @@ smtp_check_thread(thread_t *thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
-	conn_opts_t *smtp_host = smtp_checker->host_ptr;
+	conn_opts_t *smtp_host = checker->co;
 	int status;
 
 	status = tcp_socket_state(thread, smtp_check_thread);
 	switch (status) {
 		case connect_error:
-			smtp_final(thread, 1, "Error connecting to server %s"
+			smtp_final(thread, "Error connecting to server %s"
 					     , FMT_SMTP_RS(smtp_host));
 			break;
 
 		case connect_timeout:
-			smtp_final(thread, 1, "Connection timeout to server %s"
+			smtp_final(thread, "Connection timeout to server %s"
+					     , FMT_SMTP_RS(smtp_host));
+			break;
+
+		case connect_fail:
+			smtp_final(thread, "Could not connect to server %s"
 					     , FMT_SMTP_RS(smtp_host));
 			break;
 
@@ -714,7 +718,7 @@ smtp_check_thread(thread_t *thread)
 
 		default:
 			/* we shouldn't be here */
-			smtp_final(thread, 1, "Unknown connection error to server %s"
+			smtp_final(thread, "Unknown connection error to server %s"
 					     , FMT_SMTP_RS(smtp_host));
 			break;
 	}
@@ -728,7 +732,7 @@ smtp_check_thread(thread_t *thread)
  * and launches a thread for each checker that got registered.
  * This is the callback/event function for that initial thread.
  *
- * It should be noted that we ARE responsible for sceduling
+ * It should be noted that we ARE responsible for scheduling
  * ourselves to run again. It doesn't have to be right here,
  * but eventually has to happen.
  */
@@ -736,17 +740,14 @@ static int
 smtp_connect_thread(thread_t *thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
-	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
 	conn_opts_t *smtp_host;
 	enum connect_result status;
 	int sd;
-	bool checker_was_up;
-	bool rs_was_alive;
 
 	/* Let's review our data structures.
 	 *
 	 * Thread is the structure used by the sceduler
-	 * for sceduling many types of events. thread->arg in this
+	 * for scheduling many types of events. thread->arg in this
 	 * case points to a checker structure. The checker
 	 * structure holds data about the vs and rs configurations
 	 * as well as the delay loop, etc. Each real server
@@ -756,16 +757,13 @@ smtp_connect_thread(thread_t *thread)
 	 * configurations. So thread->arg(checker)->data points to
 	 * a smtp_checker structure. In the smtp_checker structure
 	 * we hold global configuration data for the smtp check.
-	 * Smtp_checker has a list of per host (smtp_host) configuration
-	 * data in smtp_checker->host.
 	 *
 	 * So this whole thing looks like this:
 	 * thread->arg(checker)->data(smtp_checker)->host(smtp_host)
 	 *
 	 * To make life simple, we'll break the structures out so
 	 * that "checker" always points to the current checker structure,
-	 * "smtp_checker" points to the current smtp_checker structure,
-	 * and "smtp_host" points to the current smtp_host structure.
+	 * "smtp_checker" points to the current smtp_checker structure.
 	 */
 
 	/*
@@ -774,46 +772,17 @@ smtp_connect_thread(thread_t *thread)
 	 * we don't fall of the face of the earth.
 	 */
 	if (!checker->enabled) {
-		thread_add_timer(thread->master, smtp_connect_thread, checker,
+		thread_add_timer(thread->master, smtp_start_check_thread, checker,
 				 checker->delay_loop);
 		return 0;
 	}
 
-	/*
-	 * Set the internal host pointer to the host that we'll be
-	 * working on. If it's NULL, we've successfully tested all hosts.
-	 * We'll bring the service up (if it's not already), reset the host list,
-	 * and insert the delay loop. When we get scheduled again the host list
-	 * will be reset and we will continue on checking them one by one.
-	 */
-	if ((smtp_checker->host_ptr = list_element(smtp_checker->host, smtp_checker->host_ctr)) == NULL) {
-		if (!checker->is_up || !checker->has_run) {
-			log_message(LOG_INFO, "Remote SMTP server %s succeed on service."
-					    , FMT_CHK(checker));
-
-			checker_was_up = checker->is_up;
-			rs_was_alive = checker->rs->alive;
-			update_svr_checker_state(UP, checker);
-			if (checker->rs->smtp_alert && !checker_was_up &&
-			    (rs_was_alive != checker->rs->alive || !global_data->no_checker_emails))
-				smtp_alert(SMTP_MSG_RS, checker, NULL,
-					   "=> CHECK succeed on service <=");
-		}
-
-		checker->retry_it = 0;
-		smtp_checker->host_ctr = 0;
-		smtp_checker->host_ptr = list_element(smtp_checker->host, 0);
-
-		thread_add_timer(thread->master, smtp_connect_thread, checker, checker->delay_loop);
-		return 0;
-	}
-
-	smtp_host = smtp_checker->host_ptr;
+	smtp_host = checker->co;
 
 	/* Create the socket, failing here should be an oddity */
 	if ((sd = socket(smtp_host->dst.ss_family, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, IPPROTO_TCP)) == -1) {
 		log_message(LOG_INFO, "SMTP_CHECK connection failed to create socket. Rescheduling.");
-		thread_add_timer(thread->master, smtp_connect_thread, checker,
+		thread_add_timer(thread->master, smtp_start_check_thread, checker,
 				 checker->delay_loop);
 		return 0;
 	}
@@ -832,20 +801,39 @@ smtp_connect_thread(thread_t *thread)
 
 	/* handle tcp connection status & register callback the next setp in the process */
 	if(tcp_connection_state(sd, status, thread, smtp_check_thread, smtp_host->connection_to)) {
-		close(sd);
-		log_message(LOG_INFO, "SMTP_CHECK socket bind failed. Rescheduling.");
-		thread_add_timer(thread->master, smtp_connect_thread, checker,
-			checker->delay_loop);
+                if (status == connect_fail) {
+                        thread->u.fd = sd;
+                        smtp_final(thread, "Network unreachable for server %s - real server %s",
+                                           inet_sockaddrtos(&checker->co->dst),
+                                           inet_sockaddrtopair(&checker->rs->addr));
+                } else {
+			close(sd);
+			log_message(LOG_INFO, "SMTP_CHECK socket bind failed. Rescheduling.");
+			thread_add_timer(thread->master, smtp_start_check_thread, checker,
+				checker->delay_loop);
+		}
 	}
 
 	return 0;
 }
 
+static int
+smtp_start_check_thread(thread_t *thread)
+{
+	checker_t *checker = THREAD_ARG(thread);
+
+	checker->retry_it = 0;
+
+	smtp_connect_thread(thread);
+
+	return 0;
+}
 
 #ifdef THREAD_DUMP
 void
 register_check_smtp_addresses(void)
 {
+	register_thread_address("smtp_start_check_thread", smtp_start_check_thread);
 	register_thread_address("smtp_check_thread", smtp_check_thread);
 	register_thread_address("smtp_connect_thread", smtp_connect_thread);
 	register_thread_address("smtp_get_line_cb", smtp_get_line_cb);

@@ -120,12 +120,12 @@ tcp_epilog(thread_t * thread, bool is_success)
 			   (checker->is_up || !checker->has_run)) {
 			if (checker->retry && checker->has_run)
 				log_message(LOG_INFO
-				    , "Check on service %s failed after %d retries."
+				    , "TCP_CHECK on service %s failed after %d retries."
 				    , FMT_CHK(checker)
 				    , checker->retry);
 			else
 				log_message(LOG_INFO
-				    , "Check on service %s failed."
+				    , "TCP_CHECK on service %s failed."
 				    , FMT_CHK(checker));
 			checker_was_up = checker->is_up;
 			rs_was_alive = checker->rs->alive;
@@ -166,7 +166,7 @@ tcp_check_thread(thread_t * thread)
 	case connect_timeout:
 		if (checker->is_up &&
 		    (global_data->checker_log_all_failures || checker->log_all_failures))
-			log_message(LOG_INFO, "TCP connection to %s timeout."
+			log_message(LOG_INFO, "TCP connection to %s timedout."
 					, FMT_CHK(checker));
 		tcp_epilog(thread, false);
 		break;
@@ -223,9 +223,14 @@ tcp_connect_thread(thread_t * thread)
 	if(tcp_connection_state(fd, status, thread, tcp_check_thread,
 			co->connection_to)) {
 		close(fd);
-		log_message(LOG_INFO, "TCP socket bind failed. Rescheduling.");
-		thread_add_timer(thread->master, tcp_connect_thread, checker,
-				checker->delay_loop);
+
+		if (status == connect_fail) {
+			tcp_epilog(thread, false);
+		} else {
+			log_message(LOG_INFO, "TCP socket bind failed. Rescheduling.");
+			thread_add_timer(thread->master, tcp_connect_thread, checker,
+					checker->delay_loop);
+		}
 	}
 
 	return 0;

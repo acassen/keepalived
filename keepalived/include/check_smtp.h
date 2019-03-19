@@ -34,12 +34,14 @@
 
 #define SMTP_BUFF_MAX		512U
 
-#define SMTP_START		1
-#define SMTP_HAVE_BANNER	2
-#define SMTP_SENT_HELO		3
-#define SMTP_RECV_HELO		4
-#define SMTP_SENT_QUIT		5
-#define SMTP_RECV_QUIT		6
+typedef enum {
+	SMTP_START,
+	SMTP_HAVE_BANNER,
+	SMTP_SENT_HELO,
+	SMTP_RECV_HELO,
+	SMTP_SENT_QUIT,
+	SMTP_RECV_QUIT
+} smtp_state_t;
 
 #define SMTP_DEFAULT_HELO	"smtpchecker.keepalived.org"
 
@@ -47,18 +49,12 @@
 typedef struct _smtp_checker {
 	/* non per host config data goes here */
 	char				*helo_name;
-	unsigned			host_ctr;
-	conn_opts_t			*host_ptr;
 
 	/* data buffer */
 	char				buff[SMTP_BUFF_MAX];
 	size_t				buff_ctr;
-	int				(*buff_cb) (thread_t *);
 
-	int				state;
-
-	/* list holding the host config data */
-	list				host;
+	smtp_state_t			state;
 } smtp_checker_t;
 
 /* macro utility */

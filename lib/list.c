@@ -161,6 +161,12 @@ list_remove_r(list l, element e)
 }
 
 void
+list_extract(list l, element e)
+{
+	__list_remove(l, e);
+}
+
+void
 list_del_r(list l, void *data)
 {
 	element e;
