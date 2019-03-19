@@ -317,10 +317,10 @@ smtp_final(thread_t *thread, const char *format, ...)
 
 	if (format) {
 		/* Always syslog the error when the real server is up */
-		if (checker->is_up &&
+		if ((checker->is_up || !checker->has_run) &&
 		    (global_data->checker_log_all_failures ||
 		     checker->log_all_failures ||
-		     checker->retry_it > checker->retry)) {
+		     checker->retry_it >= checker->retry)) {
 			/* prepend format with the "SMTP_CHECK " string */
 			strncpy(error_buff, "SMTP_CHECK ", sizeof(error_buff) - 1);
 			strncat(error_buff, format, sizeof(error_buff) - 11 - 1);
@@ -702,6 +702,11 @@ smtp_check_thread(thread_t *thread)
 					     , FMT_SMTP_RS(smtp_host));
 			break;
 
+		case connect_fail:
+			smtp_final(thread, "Could not connect to server %s"
+					     , FMT_SMTP_RS(smtp_host));
+			break;
+
 		case connect_success:
 			DBG("SMTP_CHECK Remote SMTP server %s connected"
 			    , FMT_SMTP_RS(smtp_host));
@@ -796,10 +801,17 @@ smtp_connect_thread(thread_t *thread)
 
 	/* handle tcp connection status & register callback the next setp in the process */
 	if(tcp_connection_state(sd, status, thread, smtp_check_thread, smtp_host->connection_to)) {
-		close(sd);
-		log_message(LOG_INFO, "SMTP_CHECK socket bind failed. Rescheduling.");
-		thread_add_timer(thread->master, smtp_start_check_thread, checker,
-			checker->delay_loop);
+                if (status == connect_fail) {
+                        thread->u.fd = sd;
+                        smtp_final(thread, "Network unreachable for server %s - real server %s",
+                                           inet_sockaddrtos(&checker->co->dst),
+                                           inet_sockaddrtopair(&checker->rs->addr));
+                } else {
+			close(sd);
+			log_message(LOG_INFO, "SMTP_CHECK socket bind failed. Rescheduling.");
+			thread_add_timer(thread->master, smtp_start_check_thread, checker,
+				checker->delay_loop);
+		}
 	}
 
 	return 0;

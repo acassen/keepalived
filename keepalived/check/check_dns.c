@@ -352,6 +352,9 @@ dns_check_thread(thread_t * thread)
 		dns_final(thread, 1, "connection error.");
 		break;
 	case connect_timeout:
+		dns_final(thread, 1, "connection timeout.");
+		break;
+	case connect_fail:
 		dns_final(thread, 1, "connection failure.");
 		break;
 	case connect_success:
@@ -409,6 +412,14 @@ dns_connect_thread(thread_t * thread)
 		thread->u.fd = fd;
 		dns_make_query(thread);
 		dns_send(thread);
+
+		return 0;
+	}
+
+	if (status == connect_fail) {
+		close(fd);
+		thread->u.fd = -1;
+		dns_final(thread, 1, "network unreachable for %s", inet_sockaddrtopair(&co->dst));
 
 		return 0;
 	}

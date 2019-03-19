@@ -854,12 +854,12 @@ epilog(thread_t * thread, int method, unsigned t, unsigned c)
 		if (checker->is_up || !checker->has_run) {
 			if (checker->has_run && checker->retry)
 				log_message(LOG_INFO
-				   , "Check on service %s failed after %u retry."
+				   , "HTTP_CHECK on service %s failed after %u retry."
 				   , FMT_CHK(checker)
 				   , checker->retry_it - 1);
 			else
 				log_message(LOG_INFO
-				   , "Check on service %s failed."
+				   , "HTTP_CHECK on service %s failed."
 				   , FMT_CHK(checker));
 			checker_was_up = checker->is_up;
 			rs_was_alive = checker->rs->alive;
@@ -1453,6 +1453,10 @@ http_check_thread(thread_t * thread)
 		return timeout_epilog(thread, "Timeout connecting");
 		break;
 
+	case connect_fail:
+		return timeout_epilog(thread, "Connection failed");
+		break;
+
 	case connect_success:
 		if (!http_get_check->req) {
 			http_get_check->req = (request_t *) MALLOC(sizeof (request_t));
@@ -1572,9 +1576,13 @@ http_connect_thread(thread_t * thread)
 	if(tcp_connection_state(fd, status, thread, http_check_thread,
 			co->connection_to)) {
 		close(fd);
-		log_message(LOG_INFO, "WEB socket bind failed. Rescheduling");
-		thread_add_timer(thread->master, http_connect_thread, checker,
-				checker->delay_loop);
+		if (status == connect_fail) {
+			timeout_epilog(thread, "HTTP_CHECK - network unreachable");
+		} else {
+			log_message(LOG_INFO, "WEB socket bind failed. Rescheduling");
+			thread_add_timer(thread->master, http_connect_thread, checker,
+					checker->delay_loop);
+		}
 	}
 
 	return 0;
