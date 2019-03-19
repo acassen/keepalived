@@ -53,7 +53,6 @@ typedef struct _smtp_checker {
 	/* data buffer */
 	char				buff[SMTP_BUFF_MAX];
 	size_t				buff_ctr;
-	int				(*buff_cb) (thread_t *);
 
 	int				state;
 
