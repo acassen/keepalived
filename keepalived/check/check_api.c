@@ -128,7 +128,7 @@ queue_checker(void (*free_func) (void *), void (*dump_func) (FILE *, void *)
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	checker_t *checker = (checker_t *) MALLOC(sizeof (checker_t));
 
-	/* Set default dst = RS, timeout = 5 */
+	/* Set default dst = RS, timeout = default */
 	if (co) {
 		co->dst = rs->addr;
 		co->connection_to = UINT_MAX;

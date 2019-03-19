@@ -48,6 +48,7 @@ struct _list {
 #define ELEMENT_NEXT(E)		((E) = (E)->next)
 #define ELEMENT_DATA(E)		((E)->data)
 #define LIST_HEAD(L)		(!(L) ? NULL : (L)->head)
+#define LIST_HEAD_DATA(L)	((L)->head->data)
 #define LIST_TAIL_DATA(L)	((L)->tail->data)
 #define LIST_ISEMPTY(L)		((L) == NULL || ((L)->head == NULL && (L)->tail == NULL))
 #define LIST_EXISTS(L)		((L) != NULL)
@@ -111,6 +112,7 @@ extern void dump_list(FILE *, list);
 extern void list_add_r(list, void *);
 extern void list_add_head_r(list, void *);
 extern void list_remove_r(list, element);
+extern void list_extract(list, element);
 extern void list_del_r(list, void *);
 extern void free_list_data_r(list, void *);
 
