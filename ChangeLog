@@ -1,3 +1,174 @@
+2019-03-24 Alexandre Cassen <acassen@keepalived.org>
+	* keepalived-2.0.14
+	* Add compiler warning -Wfloat-conversion and fix new warnings.
+	  It was discovered that passing 0.000001 as a parameter specified
+	  as uint32_t to a function did not generate any warning of type
+	  mismatch, or loss of precision.
+	  This commit adds -Wfloat-conversion and fixes 3 instances of new
+	  warnings that were generated.
+	* For non systemd enviroment, it occurs syntax error 'fi'.
+	  To avoid syntax error, modify keepalived.spec.in.
+	* When uninstall keepalived with init upstart, stop keepalived process.
+	* Fix type re LOG_INGO should be LOG_INFO * 6git stash --cached.
+	  The code was actualy in a #ifdef INCLUDE_UNUSED_CODE block, and
+	  so isn't currently compiled.
+	* Register missing thread function for thread debugging.
+	* Fix reutrn value of notify_script_compare misusing issue.
+	* Fix typo in keepalived.conf man page re BFD min_rx.
+	* Fix segfault when bfd process reloads config.
+	  Issue #1145 reported the bdf process was segfaulting when reloading.
+	  The bfd process was freeing and allocating a new thread_master_t
+	  when reloading, which doesn't work. This commit changes the bfd
+	  process to clean and reinitialise the thread_master_t.
+	* Fix segfault in handle_proc_ev().
+	  On Linux 3.10 the ack bit can be set in a connector message, and
+	  the CPU number is set to UINT32_MAX. This commit skips acks, and
+	  also checks that CPU number is within range of the number of CPUs
+	  on the system.
+	* Fix OpenSSL init failure with OpenSSL v1.1.1.
+	  OpenSSL v1.1.1, but not v1.1.0h or v1.1.1b failed in SSL_CTX_new()
+	  if OPENSSL_init_crypto(OPENSSL_INIT_NO_LOAD_CONFIG) had previously
+	  been called.
+	  This commit doesn't call OPENSSL_init_crypto() if doing so causes
+	  SSL_CTX_new() to fail.
+	* Remove all references to libnfnetlink.
+	  Commit 2899da6 (Stop using linbl for mcast group membership and
+	  setting rx buf sizes) stopped using libnfnetlink, but INSTALL and
+	  keepalived.spec.in were not updated accordingly.
+	* Fix genhash re OPENSSL_init_crypto bug and improve configure.ac.
+	  Commit fe6d6ac (Fix OpenSSL init failure with OpenSSL v1.1.1) didn't
+	  update the identical code in genhash/ssl.c. Also, an improvement for
+	  the test in configure.ac was suggested.
+	* Fix log output when real server removed.
+	  FMT_VS() and FMT_RS() both call inet_sockaddrtotrio which uses a
+	  static buffer to return the formatted string, but since FMT_VS(),
+	  wheich simply calls format_vs() copies the returned string to its
+	  own static buffer, if FMT_VS() was called before FMT_RS() then
+	  the returned strings from both could be used.
+	  The problem occurs when both FMT_VS() and FMT_RS() are used as
+	  parameters to log_message() (or printf etc). It appeared to work
+	  fine on x86_64, but was writing the same IP address for both the
+	  real server and virtual server on ARM architectures. This is due
+	  to the compiler evaluating parameters to the log_message() function
+	  call in a different order on the different architectures.
+	  This commit adds inet_sockaddrtotrio_r() which allows the output
+	  to be in a buffer specified by the caller, and so FMT_VS() and
+	  FMT_RS() can now be called in either order without one overwriting
+	  a buffer used by the other.
+	* Streamline some string formatting with FMT_RS() and FMR_VS().
+	  Following commit 9fe353d (Fix log output when real server removed)
+	  some code can be streamlined now that the order of calling FMT_VS()
+	  and FMT_RS() does not matter.
+	* Replace FMT_HTTP_RS(), FMT_TCP_RS() and FMT_DNS_RS() with FMT_CHK().
+	  They were all simply defined to be FMT_CHK() so just replace them
+	  with that. This made it much simpler to find all used of FMT_CHK().
+	* Fix building with gcc 4.4.7 (Centos 6.5).
+	  gcc v4.4.7 doesn't support -Wfloat-conversion, so check for it at
+	  configure time.
+	* Add dumping checker config/status when receive SIGUSR1.
+	* Don't put alpha mode checkers into failed state at reload
+	  If a new checker is added at a reload, unless the real server aleady
+	  has failed checkers, then ignore the alpha mode of the checker. This
+	  means that the real server, if up, won't be taken down and then brought
+	  back up again almost straight away. If the real server already has
+	  failed checkers, then setting an alpha mode checker down initially
+	  won't take down the real server, so we can allow the alpha mode setting
+	  to apply.
+	* Handle alpha mode checkers initial failure at startup better.
+	* Fix compile failure discovered by Travis-CI.
+	* Fix calling syslog when not using signalfd().
+	  Pull request #1149 identified that syslog is AS-Unsafe (see signal-safety
+	  man page), and that therefore signals should be blocked when calling it.
+	  This commit blocks signals when calling syslog()/vsyslog() when signalfd()
+	  is not being used.
+	* Rationalise function attributes.
+	* Fix enable-optimise configure option.
+	* Use AS_HELP_STRING for all options in configure.ac.
+	* Streamline genhash -h option.
+	* Make genhash -v version match keepalived.
+	* Fix config check of virtual server quorum against weights of real
+	  servers.
+	* Fix some configure tested checks for OPENSSL_init_crypto.
+	* Add infrastructure for adding additional compiler warnings.
+	* Add standard and extra compiler warnings.
+	* Add and resolve missing-declarations and missing-prototypes warnings
+	  Approximately 16 additional functions are now declared static.
+	* Add and resolve old-style-definitions warnings
+	* Add and resolve redundant-decls warnings
+	* Add and resolve jump-misses-init warnings
+	* Add and resolve shadow warnings
+	* Add and resolve unsuffixed-float-constants warnings
+	* Add and resolve suggest-attribute=const warnings
+	* Add and resolve suggest-attribute=format warnings
+	* Add and resolve suggest-attribute=malloc warnings
+	* Add and resolve suggest-attribute=noreturn warnings
+	* Add and resolve suggest-attribute=pure warnings
+	* Add and resolve unused-macros warnings
+	* Add and resolve null-dereference warnings
+	* Add and resolve float-equal warnings
+	* Add and resolve stack-protector warnings
+	* Add and resolve strict-overflow=4 warnings
+	* Add and resolve pointer-arith warnings
+	  This particularly includes adding a number of bytes to a void *.
+	* Add and resolve cast-qual warnings
+	* Resolve additional warnings identified on Centos 6.5/gcc 4.4.7
+	* Remove static from zalloc()
+	* Fix some compiler warnings on Ubuntu Xenial, and add comments re
+	  others.
+	* Rename LIST parameters to lst in list_head.h to avoid upper case.
+	* Fix real server checkers moving from failed to OK on reload.
+	* add rs judgement in migrate_checkers.
+	* Detect connection failure in genhash and exit rather than loop.
+	* Add another function pure attribute.
+	* Fix sending notifies for vrrp instances at startup when in sync group
+	  Issue #1155 idenfified that notify scripts for vrrp instance transition
+	  to backup state when keepalived started up were not being sent if
+	  the vrrp instance was in a sync group. It was also the case that SNMP
+	  traps, SMTP alerts and FIFO notifies were not being sent either.
+	  This commit make keepalived send the initial notifies when the vrrp
+	  instance is in a sync group.
+	* Fix building keepalived RPM on Fedora 26.
+	  For some reason -fPIC is needed when testing for the presence of
+	  setns().
+	* Add vrrp_startup_delay configuration option.
+	  Some systems that start keepalived at boot time need to delay the
+	  startup of the vrrp instances, due to network interfaces taking
+	  time to properly come up. This commit adds a global configuration
+	  option vrrp_startup_delay that delays the vrrp instances starting
+	  up, for the specified number of seconds.
+	* Handle checkers properly when reload immediately after startup.
+	* Streamline some of the SMTP checker code.
+	* Create separate checker for each host in SMTP_CHECK block
+	  Having multiple host entries in an SMTP_CHECK block is deprecated.
+	  This commit streamlines the SMTP_CHECK code by creating a separate
+	  SMTP checker for each host declared in the SMTP_CHECK block, so that
+	  apart from parsing the configuration, the code no longer handles
+	  multiple hosts per checker.
+	  The support for parsing configuration with multiple hosts is only
+	  enabled if WITH_HOST_ENTRIES is defined in check_smtp.c. It is
+	  currently enabled, but when support for multiple hosts in the
+	  SMTP_CHECK block is finally removed, it will simply be a matter of
+	  deleting all code in the WITH_HOST_ENTRIES conditional blocks.
+	* Make checker fail if ENETUNREACH returned by connect().
+	  The connect() call can return some immediate errors such as ENETUNREACH.
+	  These were not being treated as a failure of the checker, since the code
+	  used to assume that any non success return by connect() meant that the
+	  connection was in progress.
+	  keepalived will now treat ENETUNREACH, EHOSTUNREACH, ECONNREFUSED,
+	  EHOSTDOWN, ENETDOWN, ECONNRESET, ECONNABORTED, ETIMEDOUT, when returned
+	  by connect(), as meaning that the checker has failed.
+	* Don't set SO_LINGER with a timeout of 0
+	  SO_LINGER with a timeout of 0 causes a TCP connection to be reset
+	  rather than cleanly closed. Instead of specifying a timeout of 0,
+	  use 5 seconds, so that there is an orderly shutdown of the TCP
+	  connection, but the close socket doesn't remain in TIMED_WAIT state
+	  for more than a short time.
+	* nftables: fix build with kernel lower than 4.1.
+	* Remove dead code & cosmectics.
+	  Remove code marked as UNUSED where things simply go nowhere even if
+	  define is set. We keep for the moment UNUSED code related to debug
+	  helpers used during coding process.
+
 2019-02-19 Alexandre Cassen <acassen@keepalived.org>
 	* keepalived-2.0.13
 	* Add BFD build option to keepalived.spec rpm file
