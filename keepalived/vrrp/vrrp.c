@@ -831,25 +831,6 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t * const hd, char *buffer, ssize_
 		return VRRP_PACKET_KO;
 	}
 
-#ifdef _INCLUDE_UNUSED_CODE_
-	/* MUST verify that the VRID is valid on the receiving interface_t.
-	 * vrrp is determined from the VRID, so there can't be a mismatch,
-	 * so there is no point in checking. */
-	if (vrrp->vrid != hd->vrid) {
-		log_message(LOG_INFO,
-		       "(%s) received VRID mismatch. Received %d, Expected %d",
-		       vrrp->iname, hd->vrid, vrrp->vrid);
-#ifdef _WITH_SNMP_RFC_
-		vrrp->stats->vrid_err++;
-#ifdef _WITH_SNMP_RFCV3_
-		vrrp->stats->proto_err_reason = vrIdError;
-		vrrp_rfcv3_snmp_proto_err_notify(vrrp);
-#endif
-#endif
-		return VRRP_PACKET_OTHER;
-	}
-#endif
-
 	/* Check the number of VIPs matches what we expect */
 	if (hd->naddr != LIST_ISEMPTY(vrrp->vip) ? 0 : LIST_SIZE(vrrp->vip)) {
 		log_message(LOG_INFO, "(%s) received an unexpected ip number count %d, expected %d!",
@@ -1946,27 +1927,6 @@ vrrp_state_master_rx(vrrp_t * vrrp, vrrphdr_t *hd, char *buf, ssize_t buflen)
 	return false;
 }
 
-#ifdef _INCLUDE_UNUSED_CODE_
-bool
-vrrp_state_fault_rx(vrrp_t * vrrp, vrrphdr_t *hd, char *buf, ssize_t buflen)
-{
-	ssize_t ret = 0;
-	unsigned proto;
-
-	/* Process the incoming packet */
-	ret = vrrp_check_packet(vrrp, hd, buf, buflen, true);
-
-	if (ret != VRRP_PACKET_OK)
-		return false;
-
-	if (vrrp->base_priority == VRRP_PRIO_OWNER ||
-	    (vrrp->effective_priority > hd->priority && !vrrp->nopreempt))
-		return true;
-
-	return false;
-}
-#endif
-
 static void
 free_tracking_vrrp(void *data)
 {
@@ -2209,47 +2169,6 @@ open_vrrp_read_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 
 	return fd;
 }
-
-#ifdef _INCLUDE_UNUSED_CODE_
-static void
-close_vrrp_socket(vrrp_t * vrrp)
-{
-	if (LIST_ISEMPTY(vrrp->unicast_peer))
-		if_leave_vrrp_group(vrrp->family, vrrp->fd_in, vrrp->ifp);
-
-	close(vrrp->fd_in);
-	close(vrrp->fd_out);
-}
-
-int
-new_vrrp_socket(vrrp_t * vrrp)
-{
-	int old_fd = vrrp->fd_in;
-	int proto;
-	interface_t *ifp;
-	bool unicast;
-
-	/* close the desc & open a new one */
-	close_vrrp_socket(vrrp);
-#ifdef _WITH_VRRP_AUTH_
-	if (vrrp->version == VRRP_VERSION_2)
-		proto =(vrrp->auth_type == VRRP_AUTH_AH) ? IPPROTO_AH :
-				IPPROTO_VRRP;
-	else
-#endif
-		proto = IPPROTO_VRRP;
-#ifdef _HAVE_VRRP_VMAC_
-	ifp = __test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) ? IF_BASE_IFP(vrrp->ifp) : vrrp->ifp;
-#else
-	ifp = vrrp->ifp;
-#endif
-	unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
-	vrrp->fd_in = open_vrrp_read_socket(vrrp->family, proto, ifp, unicast, vrrp->sockets->rx_buf_size);
-	vrrp->fd_out = open_vrrp_send_socket(vrrp->family, proto, ifp, unicast);
-
-	return vrrp->fd_in;
-}
-#endif
 
 /* Try to find a VRRP instance */
 static vrrp_t * __attribute__ ((pure))

@@ -541,27 +541,6 @@ netlink_rtlist(list rt_list, int cmd)
 }
 
 /* Route dump/allocation */
-#if HAVE_DECL_RTA_ENCAP
-#ifdef INCLUDE_UNUSED_CODE
-static void
-free_encap(void *rt_data)
-{
-	encap_t *encap = rt_data;
-
-	if (encap->type == LWTUNNEL_ENCAP_IP) {
-		FREE_PTR(encap->ip.dst);
-		FREE_PTR(encap->ip.src);
-	}
-	else if (encap->type == LWTUNNEL_ENCAP_IP6) {
-		FREE_PTR(encap->ip6.dst);
-		FREE_PTR(encap->ip6.src);
-	}
-
-	FREE(rt_data);
-}
-#endif
-#endif
-
 static void
 free_nh(void *rt_data)
 {

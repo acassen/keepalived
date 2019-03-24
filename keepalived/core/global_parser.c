@@ -60,11 +60,6 @@
 
 #define LVS_MAX_TIMEOUT		(86400*31)	/* 31 days */
 
-/* For kernels < 4.1 */
-#ifndef NFT_TABLE_MAXNAMELEN
-#define NFT_TABLE_MAXNAMELEN 32
-#endif
-
 /* data handlers */
 /* Global def handlers */
 #ifdef _WITH_LINKBEAT_

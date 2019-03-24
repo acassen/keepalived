@@ -763,8 +763,8 @@ static struct nftnl_rule
 	return r;
 }
 
-static struct nftnl_rule
-*setup_rule_icmpv6(uint8_t family, const char *table,
+static struct nftnl_rule *
+setup_rule_icmpv6(uint8_t family, const char *table,
 				   const char *chain, const char *handle,
 				   const char *set, uint32_t set_id, uint32_t verdict, bool neg)
 {

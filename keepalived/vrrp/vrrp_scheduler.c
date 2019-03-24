@@ -179,17 +179,13 @@ vrrp_init_state(list l)
 	set_time_now();
 
 	/* Do notifications for any sync groups in fault state */
-	for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; ELEMENT_NEXT(e)) {
+	LIST_FOREACH(vrrp_data->vrrp_sync_group, vgroup, e) {
 		/* Init group if needed  */
-		vgroup = ELEMENT_DATA(e);
-
 		if (vgroup->state == VRRP_STATE_FAULT)
 			send_group_notifies(vgroup);
 	}
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
-
+	LIST_FOREACH(l, vrrp, e) {
 		/* wantstate is the state we would be in disregarding any sync group */
 		if (vrrp->state == VRRP_STATE_FAULT)
 			vrrp->wantstate = VRRP_STATE_FAULT;
@@ -455,12 +451,11 @@ vrrp_create_sockpool(list l)
 #endif
 										    vrrp->ifp;
 		unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
+		proto = IPPROTO_VRRP;
 #if defined _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH)
 			proto = IPPROTO_AH;
-		else
 #endif
-			proto = IPPROTO_VRRP;
 
 		/* add the vrrp element if not exist */
 		if (!(sock = already_exist_sock(l, vrrp->family, proto, ifp, unicast)))
@@ -777,7 +772,7 @@ vrrp_dispatcher_read_timeout(sock_t *sock)
 
 /* Handle dispatcher read packet */
 static int
-vrrp_dispatcher_read(sock_t * sock)
+vrrp_dispatcher_read(sock_t *sock)
 {
 	vrrp_t *vrrp;
 	vrrphdr_t *hd;
@@ -873,8 +868,11 @@ vrrp_dispatcher_read(sock_t * sock)
 		vrrp = rb_search(&sock->rb_vrid, &vrrp_lookup, rb_vrid, vrrp_vrid_cmp);
 
 		/* No instance found => ignore the advert */
-		if (!vrrp)
+		if (!vrrp) {
+			log_message(LOG_INFO, "Unknown VRID(%d) received on interface(%s). ignoring..."
+					    , hd->vrid, IF_NAME(sock->ifp));
 			continue;
+		}
 
 		if (vrrp->state == VRRP_STATE_FAULT || vrrp->state == VRRP_STATE_INIT) {
 			/* We just ignore a message received when we are in fault state or

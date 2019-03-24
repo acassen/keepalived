@@ -30,6 +30,10 @@
 #include "vrrp_ipaddress.h"
 
 #define	DEFAULT_NFTABLES_TABLE	"keepalived"
+/* For kernels < 4.1 */
+#ifndef NFT_TABLE_MAXNAMELEN
+#define NFT_TABLE_MAXNAMELEN 32
+#endif
 
 extern void nft_add_addresses(vrrp_t *);
 extern void nft_remove_addresses(vrrp_t *);
