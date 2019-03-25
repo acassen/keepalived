@@ -115,6 +115,7 @@ enum snmp_global_magic {
 	SNMP_TRAPS,
 	SNMP_LINKBEAT,
 	SNMP_LVSFLUSH,
+	SNMP_LVSFLUSH_ONSTOP,
 	SNMP_IPVS_64BIT_STATS,
 	SNMP_NET_NAMESPACE,
 	SNMP_DBUS,
@@ -183,6 +184,9 @@ RELAX_CAST_QUAL_END
 #ifdef _WITH_LVS_
 	case SNMP_LVSFLUSH:
 		long_ret = global_data->lvs_flush?1:2;
+		return (u_char *)&long_ret;
+	case SNMP_LVSFLUSH_ONSTOP:
+		long_ret = global_data->lvs_flush_onstop?1:2;
 		return (u_char *)&long_ret;
 #endif
 	case SNMP_IPVS_64BIT_STATS:
@@ -286,6 +290,8 @@ static struct variable8 global_vars[] = {
 	{SNMP_LINKBEAT, ASN_INTEGER, RONLY, snmp_scalar, 1, {5}},
 	/* lvsFlush */
 	{SNMP_LVSFLUSH, ASN_INTEGER, RONLY, snmp_scalar, 1, {6}},
+	/* lvsFlushOnStop */
+	{SNMP_LVSFLUSH_ONSTOP, ASN_INTEGER, RONLY, snmp_scalar, 1, {6}},
 #ifdef _WITH_LVS_64BIT_STATS_
 	/* LVS 64-bit stats */
 	{SNMP_IPVS_64BIT_STATS, ASN_INTEGER, RONLY, snmp_scalar, 1, {7}},

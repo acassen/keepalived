@@ -442,6 +442,12 @@ lvs_flush_handler(__attribute__((unused)) vector_t *strvec)
 {
 	global_data->lvs_flush = true;
 }
+
+static void
+lvs_flush_onstop_handler(__attribute__((unused)) vector_t *strvec)
+{
+	global_data->lvs_flush_onstop = true;
+}
 #endif
 #ifdef _HAVE_SCHED_RT_
 static int
@@ -1609,6 +1615,7 @@ init_global_keywords(bool global_active)
 #ifdef _WITH_LVS_
 	install_keyword("lvs_timeouts", &lvs_timeouts);
 	install_keyword("lvs_flush", &lvs_flush_handler);
+	install_keyword("lvs_flush_onstop", &lvs_flush_onstop_handler);
 #ifdef _WITH_VRRP_
 	install_keyword("lvs_sync_daemon", &lvs_syncd_handler);
 #endif
