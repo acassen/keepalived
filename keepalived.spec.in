@@ -29,14 +29,14 @@ BuildRequires: autoconf automake pkgconfig
 @INIT_SYSTEMD_TRUE@BuildRequires: systemd-units
 @WITH_REGEX_TRUE@BuildRequires: pcre2-devel
 
-@SNMP_TRUE@Requires: net-snmp
-@WITH_DBUS_TRUE@Requires: glib2
-@LIBIPTC_TRUE@Requires: iptables-libs
-@LIBIPSET_TRUE@Requires: ipset-libs
-@LIBNL1_TRUE@Requires: libnl
-@LIBNL3_TRUE@Requires: libnl3
-@NFTABLES_TRUE@Requires: libnftnl libmnl
-@WITH_REGEX_TRUE@Requires: pcre2
+@REQUIRE_IPTABLES_LIBS_TRUE@%if 0%{?rhel} <= 7
+@REQUIRE_IPTABLES_LIBS_TRUE@Requires: iptables
+@REQUIRE_IPTABLES_LIBS_TRUE@%else
+@REQUIRE_IPTABLES_LIBS_TRUE@Requires: iptables-libs
+@REQUIRE_IPTABLES_LIBS_TRUE@%endif
+@LIBIPSET_DYNAMIC_TRUE@Requires: ipset-libs
+@LIBNL_DYNAMIC_TRUE@@LIBNL1_TRUE@Require: libnl
+@LIBNL_DYNAMIC_TRUE@@LIBNL3_TRUE@Require: libnl3
 
 %description
 The main goal of the keepalived project is to add a strong & robust keepalive
@@ -65,6 +65,10 @@ CONFIG_OPTS=
 @IPTABLES_FALSE@CONFIG_OPTS="$CONFIG_OPTS --disable-iptables"
 @IPTABLES_TRUE@@LIBIPTC_FALSE@CONFIG_OPTS="$CONFIG_OPTS --disable-libiptc"
 @IPTABLES_TRUE@@LIBIPSET_FALSE@CONFIG_OPTS="$CONFIG_OPTS --disable-libipset"
+@LIBIPTC_DYNAMIC_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-libiptc-dynamic"
+@LIBXTABLES_DYNAMIC_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-libxtables-dynamic"
+@LIBIPSET_DYNAMIC_FALSE@CONFIG_OPTS="$CONFIG_OPTS --disable-libipset-dynamic"
+@LIBNL_DYNAMIC_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-libnl-dynamic"
 @SNMP_KEEPALIVED_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-snmp"
 @SNMP_KEEPALIVED_FALSE@@SNMP_VRRP_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-snmp-vrrp"
 @SNMP_KEEPALIVED_FALSE@@SNMP_CHECKER_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-snmp-checker"

@@ -407,6 +407,7 @@ misc_check_child_thread(thread_t * thread)
 				script_exit_type = "timed out";
 			else {
 				script_exit_type = "failed";
+				script_success = false;
 				reason = "due to signal";
 				reason_code = WTERMSIG(wait_status);
 			}
@@ -428,20 +429,27 @@ misc_check_child_thread(thread_t * thread)
 	if (script_exit_type) {
 		char message[40];
 
+		if (!script_success)
+			snprintf(message, sizeof(message), " after %d retries", checker->retry);
+		else
+			message[0] = '\0';
+
 		if (reason)
-			log_message(LOG_INFO, "Misc check for [%s VS %s] by [%s] %s (%s %d)."
+			log_message(LOG_INFO, "Misc check for [%s VS %s] by [%s] %s%s (%s %d)."
 					    , FMT_CHK(checker)
 					    , FMT_VS(checker->vs)
 					    , misck_checker->script.args[0]
 					    , script_exit_type
+					    , message
 					    , reason
 					    , reason_code);
 		else
-			log_message(LOG_INFO, "Misc check for [%s VS %s] by [%s] %s."
+			log_message(LOG_INFO, "Misc check for [%s VS %s] by [%s] %s%s."
 					    , FMT_CHK(checker)
 					    , FMT_VS(checker->vs)
 					    , misck_checker->script.args[0]
-					    , script_exit_type);
+					    , script_exit_type
+					    , message);
 
 		if (!message_only) {
 			rs_was_alive = checker->rs->alive;
