@@ -407,6 +407,7 @@ misc_check_child_thread(thread_t * thread)
 				script_exit_type = "timed out";
 			else {
 				script_exit_type = "failed";
+				script_success = false;
 				reason = "due to signal";
 				reason_code = WTERMSIG(wait_status);
 			}
