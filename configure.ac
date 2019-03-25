@@ -762,6 +762,27 @@ AC_LINK_IFELSE([AC_LANG_SOURCE([[
     LDFLAGS=$SAV_LDFLAGS
   ])
 
+# Check if fpclassify() requires -lm
+CFLAGS=
+LDFLAGS=
+AC_MSG_CHECKING([whether fpclassify() requires -lm])
+AC_LINK_IFELSE([AC_LANG_SOURCE([[
+  # include <math.h>
+  int main(int argc, char **argv)
+  {
+    double zero = 0.0;
+    if (fpclassify(zero) == FP_ZERO)
+      return 0;
+    return 1;
+  }
+  ]])],
+  AC_MSG_RESULT([no]),
+  AC_MSG_RESULT([yes])
+    add_to_var([KA_LDFLAGS], [-lm])
+  )
+CFLAGS=$SAV_CFLAGS
+LDFLAGS=$SAV_LDFLAGS
+
 # Checks for header files.
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdint.h stdlib.h string.h sys/ioctl.h sys/param.h sys/prctl.h sys/socket.h sys/time.h syslog.h unistd.h],
   [], [AC_MSG_ERROR([Missing/unusable system header file <$ac_header>])])
@@ -1489,6 +1510,10 @@ AM_CONDITIONAL([LIBIPTC], [test $USE_LIBIPTC = Yes])
 AM_CONDITIONAL([LIBIPSET], [test $USE_LIBIPSET = Yes])
 AM_CONDITIONAL([IPTABLES], [test $USE_IPTABLES = Yes])
 AM_CONDITIONAL([IPTABLES_CMD], [test $USE_IPTABLES = Yes -a \( $USE_LIBIPTC = No -o .$LIBIPTC_DYNAMIC = .Yes \)])
+AM_CONDITIONAL([LIBIPTC_DYNAMIC], [test $USE_LIBIPTC = Yes -a .$LIBIPTC_DYNAMIC = .Yes])
+AM_CONDITIONAL([LIBIPSET_DYNAMIC], [test $USE_LIBIPSET = Yes -a .${enable_libipset_dynamic} != .no])
+AM_CONDITIONAL([LIBXTABLES_DYNAMIC], [test $USE_LIBIPTC = Yes -a .$enable_libxtables_dynamic = .yes])
+AM_CONDITIONAL([REQUIRE_IPTABLES_LIBS], [test $USE_IPTABLES = Yes -a $USE_LIBIPTC = Yes -a \( .$LIBIPTC_DYNAMIC = .Yes -o .$enable_libxtables_dynamic = .yes \)])
 unset LIBS
 
 dnl ----[Check for nftables libraries]----
