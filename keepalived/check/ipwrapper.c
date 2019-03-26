@@ -251,22 +251,26 @@ clear_service_vs(virtual_server_t * vs, bool stopping)
 {
 	bool sav_inhibit;
 
-	/* Processing real server queue */
-	if (vs->s_svr && vs->s_svr->set) {
-		/* Ensure removed if inhibit_on_failure set */
-		sav_inhibit = vs->s_svr->inhibit;
-		vs->s_svr->inhibit = false;
+	if (!global_data->checker_shutdown_vs_only) {
+		/* Processing real server queue */
+		if (vs->s_svr && vs->s_svr->set) {
+			/* Ensure removed if inhibit_on_failure set */
+			sav_inhibit = vs->s_svr->inhibit;
+			vs->s_svr->inhibit = false;
 
-		ipvs_cmd(LVS_CMD_DEL_DEST, vs, vs->s_svr);
+			ipvs_cmd(LVS_CMD_DEL_DEST, vs, vs->s_svr);
 
-		vs->s_svr->inhibit = sav_inhibit;
+			vs->s_svr->inhibit = sav_inhibit;
 
-		UNSET_ALIVE(vs->s_svr);
+			UNSET_ALIVE(vs->s_svr);
+		}
+
+		/* Even if the sorry server was configured, if we are using
+		 * inhibit_on_failure, then real servers may be configured. */
+		clear_service_rs(vs, vs->rs, stopping);
 	}
-
-	/* Even if the sorry server was configured, if we are using
-	 * inhibit_on_failure, then real servers may be configured. */
-	clear_service_rs(vs, vs->rs, stopping);
+	else if (vs->s_svr && vs->s_svr->set)
+		UNSET_ALIVE(vs->s_svr);
 
 	/* The above will handle Omega case for VS as well. */
 

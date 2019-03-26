@@ -397,6 +397,7 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " Default smtp_alert_checker = %s",
 			data->smtp_alert_checker == -1 ? "unset" : data->smtp_alert_checker ? "on" : "off");
 	conf_write(fp, " Checkers log all failures = %s", data->checker_log_all_failures ? "true" : "false");
+	conf_write(fp, " Checkers shutdown virtual servers only = %s", data->checker_shutdown_vs_only ? "true" : "false");
 #endif
 #ifdef _WITH_VRRP_
 	conf_write(fp, " Dynamic interfaces = %s", data->dynamic_interfaces ? "true" : "false");

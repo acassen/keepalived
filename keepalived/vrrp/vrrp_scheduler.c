@@ -178,10 +178,11 @@ vrrp_init_state(list l)
 	/* We can send SMTP messages from this point, so set the time */
 	set_time_now();
 
-	/* Do notifications for any sync groups in fault state */
+	/* Do notifications for any sync groups in fault or backup state */
 	LIST_FOREACH(vrrp_data->vrrp_sync_group, vgroup, e) {
 		/* Init group if needed  */
-		if (vgroup->state == VRRP_STATE_FAULT)
+		if (vgroup->state == VRRP_STATE_FAULT ||
+		    vgroup->state == VRRP_STATE_BACK)
 			send_group_notifies(vgroup);
 	}
 

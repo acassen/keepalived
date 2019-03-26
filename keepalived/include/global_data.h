@@ -108,6 +108,7 @@ typedef struct _data {
 	int				lvs_udp_timeout;
 	int				smtp_alert_checker;
 	bool				checker_log_all_failures;
+	bool				checker_shutdown_vs_only;
 #ifdef _WITH_VRRP_
 	struct lvs_syncd_config		lvs_syncd;
 #endif
