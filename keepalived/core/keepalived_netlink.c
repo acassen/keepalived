@@ -2346,7 +2346,7 @@ kernel_netlink(thread_t * thread)
 	if (thread->type != THREAD_READ_TIMEOUT)
 		netlink_parse_info(netlink_broadcast_filter, nl, NULL, true);
 	nl->thread = thread_add_read(master, kernel_netlink, nl, nl->fd,
-				      TIMER_NEVER);
+				      TIMER_NEVER, false);
 	return 0;
 }
 
@@ -2419,7 +2419,7 @@ kernel_netlink_init(void)
 	/* If the netlink kernel fd is already open, just register a read thread.
 	 * This will happen at reload. */
 	if (nl_kernel.fd > 0) {
-		nl_kernel.thread = thread_add_read(master, kernel_netlink, &nl_kernel, nl_kernel.fd, TIMER_NEVER);
+		nl_kernel.thread = thread_add_read(master, kernel_netlink, &nl_kernel, nl_kernel.fd, TIMER_NEVER, false);
 		return;
 	}
 
@@ -2447,7 +2447,7 @@ kernel_netlink_init(void)
 	if (nl_kernel.fd > 0) {
 		log_message(LOG_INFO, "Registering Kernel netlink reflector");
 		nl_kernel.thread = thread_add_read(master, kernel_netlink, &nl_kernel, nl_kernel.fd,
-						   TIMER_NEVER);
+						   TIMER_NEVER, false);
 	} else
 		log_message(LOG_INFO, "Error while registering Kernel netlink reflector channel");
 

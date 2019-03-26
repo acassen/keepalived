@@ -219,7 +219,7 @@ ssl_connect(thread_t * thread, int new_req)
 			return 0;
 		}
 
-		if (!(req->bio = BIO_new_socket(thread->u.fd, BIO_NOCLOSE))) {
+		if (!(req->bio = BIO_new_socket(thread->u.f.fd, BIO_NOCLOSE))) {
 			log_message(LOG_INFO, "Unable to establish ssl connection - BIO_new_socket() failed");
 			return 0;
 		}
@@ -296,7 +296,7 @@ ssl_read_thread(thread_t * thread)
 	if (req->error == SSL_ERROR_WANT_READ) {
 		 /* async read unfinished */
 		thread_add_read(thread->master, ssl_read_thread, checker,
-				thread->u.fd, timeout);
+				thread->u.f.fd, timeout, false);
 	} else if (r > 0 && req->error == 0) {
 		/* Handle response stream */
 		http_process_response(req, (size_t)r, url);
@@ -306,7 +306,7 @@ ssl_read_thread(thread_t * thread)
 		 * Register itself to not perturbe global I/O multiplexer.
 		 */
 		thread_add_read(thread->master, ssl_read_thread, checker,
-				thread->u.fd, timeout);
+				thread->u.f.fd, timeout, false);
 	} else if (req->error) {
 
 		/* All the SSL streal has been parsed */

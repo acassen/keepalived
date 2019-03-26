@@ -115,7 +115,7 @@ tcp_socket_state(thread_t * thread, int (*func) (thread_t *))
 	/* Check file descriptor */
 	slen = sizeof (status);
 	if (getsockopt
-	    (thread->u.fd, SOL_SOCKET, SO_ERROR, (void *) &status, &slen) < 0)
+	    (thread->u.f.fd, SOL_SOCKET, SO_ERROR, (void *) &status, &slen) < 0)
 		ret = errno;
 
 	/* Connection failed !!! */
@@ -137,7 +137,7 @@ tcp_socket_state(thread_t * thread, int (*func) (thread_t *))
 
 		timer_min = timer_sub_now(thread->sands);
 		thread_add_write(thread->master, func, THREAD_ARG(thread)
-				 , thread->u.fd, timer_long(timer_min));
+				 , thread->u.f.fd, timer_long(timer_min), true);
 		return connect_in_progress;
 	} else if (status) {
 		DBG("TCP connection failed to [%s]:%d.\n",
@@ -162,13 +162,13 @@ tcp_connection_state(int fd, enum connect_result status, thread_t * thread,
 
 	case connect_success:
 		thread_add_write(thread->master, func, THREAD_ARG(thread),
-				 fd, timeout);
+				 fd, timeout, true);
 		break;
 
 		/* Checking non-blocking connect, we wait until socket is writable */
 	case connect_in_progress:
 		thread_add_write(thread->master, func, THREAD_ARG(thread),
-				 fd, timeout);
+				 fd, timeout, true);
 		break;
 
 	default:

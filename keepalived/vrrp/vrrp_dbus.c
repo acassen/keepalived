@@ -807,7 +807,7 @@ handle_dbus_msg(__attribute__((unused)) thread_t *thread)
 			log_message(LOG_INFO, "Write from main thread to DBus thread failed");
 	}
 
-	thread_add_read(master, handle_dbus_msg, NULL, dbus_in_pipe[0], TIMER_NEVER);
+	thread_add_read(master, handle_dbus_msg, NULL, dbus_in_pipe[0], TIMER_NEVER, false);
 
 	return 0;
 }
@@ -869,7 +869,7 @@ dbus_reload(list o, list n)
 	dbus_send_reload_signal();
 
 	/* We need to reinstate the read thread */
-	thread_add_read(master, handle_dbus_msg, NULL, dbus_in_pipe[0], TIMER_NEVER);
+	thread_add_read(master, handle_dbus_msg, NULL, dbus_in_pipe[0], TIMER_NEVER, false);
 }
 
 bool
@@ -894,7 +894,7 @@ dbus_start(void)
 	fcntl(dbus_in_pipe[1], F_SETFL, fcntl(dbus_in_pipe[1], F_GETFL) & ~O_NONBLOCK);
 	fcntl(dbus_out_pipe[0], F_SETFL, fcntl(dbus_out_pipe[0], F_GETFL) & ~O_NONBLOCK);
 
-	thread_add_read(master, handle_dbus_msg, NULL, dbus_in_pipe[0], TIMER_NEVER);
+	thread_add_read(master, handle_dbus_msg, NULL, dbus_in_pipe[0], TIMER_NEVER, false);
 
 	/* Initialise the thread termination semaphore */
 	sem_init(&thread_end, 0, 0);

@@ -372,7 +372,7 @@ vrrp_register_workers(list l)
 // TODO - should we only do this if we have track_bfd? Probably not
 		/* Init BFD tracking thread */
 		bfd_thread = thread_add_read(master, vrrp_bfd_thread, NULL,
-					     bfd_vrrp_event_pipe[0], TIMER_NEVER);
+					     bfd_vrrp_event_pipe[0], TIMER_NEVER, false);
 	}
 #endif
 
@@ -381,7 +381,7 @@ vrrp_register_workers(list l)
 		/* Register a timer thread if interface exists */
 		if (sock->fd_in != -1)
 			sock->thread = thread_add_read_sands(master, vrrp_read_dispatcher_thread,
-						       sock, sock->fd_in, vrrp_compute_timer(sock));
+						       sock, sock->fd_in, vrrp_compute_timer(sock), false);
 	}
 }
 
@@ -389,7 +389,7 @@ void
 vrrp_thread_add_read(vrrp_t *vrrp)
 {
 	vrrp->sockets->thread = thread_add_read_sands(master, vrrp_read_dispatcher_thread,
-						vrrp->sockets, vrrp->sockets->fd_in, vrrp_compute_timer(vrrp->sockets));
+						vrrp->sockets, vrrp->sockets->fd_in, vrrp_compute_timer(vrrp->sockets), false);
 }
 
 /* VRRP dispatcher functions */
@@ -720,12 +720,12 @@ vrrp_bfd_thread(thread_t * thread)
 	bfd_event_t evt;
 
 	bfd_thread = thread_add_read(master, vrrp_bfd_thread, NULL,
-				     thread->u.fd, TIMER_NEVER);
+				     thread->u.f.fd, TIMER_NEVER, false);
 
 	if (thread->type != THREAD_READY_FD)
 		return 0;
 
-	while (read(thread->u.fd, &evt, sizeof(bfd_event_t)) != -1)
+	while (read(thread->u.f.fd, &evt, sizeof(bfd_event_t)) != -1)
 		vrrp_handle_bfd_event(&evt);
 
 	return 0;
@@ -957,7 +957,7 @@ vrrp_read_dispatcher_thread(thread_t * thread)
 	/* register next dispatcher thread */
 	if (fd != -1)
 		sock->thread = thread_add_read_sands(thread->master, vrrp_read_dispatcher_thread,
-						     sock, fd, vrrp_compute_timer(sock));
+						     sock, fd, vrrp_compute_timer(sock), false);
 
 	return 0;
 }

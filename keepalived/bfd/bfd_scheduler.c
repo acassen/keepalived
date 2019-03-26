@@ -884,7 +884,7 @@ bfd_receiver_thread(thread_t *thread)
 	data = THREAD_ARG(thread);
 	assert(data);
 
-	fd = thread->u.fd;
+	fd = thread->u.f.fd;
 	assert(fd >= 0);
 
 	data->thread_in = NULL;
@@ -897,7 +897,7 @@ bfd_receiver_thread(thread_t *thread)
 
 	data->thread_in =
 	    thread_add_read(thread->master, bfd_receiver_thread, data,
-			    fd, TIMER_NEVER);
+			    fd, TIMER_NEVER, false);
 
 	return 0;
 }
@@ -1033,7 +1033,7 @@ bfd_register_workers(bfd_data_t *data)
 
 	/* Set timeout to not expire */
 	data->thread_in = thread_add_read(master, bfd_receiver_thread,
-					  data, data->fd_in, TIMER_NEVER);
+					  data, data->fd_in, TIMER_NEVER, false);
 
 	/* Resume or schedule threads */
 	for (e = LIST_HEAD(data->bfd); e; ELEMENT_NEXT(e)) {

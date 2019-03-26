@@ -188,11 +188,11 @@ dns_recv_thread(thread_t * thread)
 
 	timeout = timer_long(thread->sands) - timer_long(time_now);
 
-	ret = recv(thread->u.fd, rbuf, sizeof (rbuf), 0);
+	ret = recv(thread->u.f.fd, rbuf, sizeof (rbuf), 0);
 	if (ret == -1) {
 		if (check_EAGAIN(errno) || check_EINTR(errno)) {
 			thread_add_read(thread->master, dns_recv_thread,
-					checker, thread->u.fd, timeout);
+					checker, thread->u.f.fd, timeout, true);
 			return 0;
 		}
 		dns_final(thread, 1, "failed to read socket. %s", strerror(errno));
@@ -202,7 +202,7 @@ dns_recv_thread(thread_t * thread)
 	if (ret < (ssize_t) sizeof (r_header)) {
 		DNS_DBG("too small message. (%d bytes)", ret);
 		thread_add_read(thread->master, dns_recv_thread, checker,
-				thread->u.fd, timeout);
+				thread->u.f.fd, timeout, true);
 		return 0;
 	}
 
@@ -213,7 +213,7 @@ dns_recv_thread(thread_t * thread)
 		DNS_DBG("ID does not match. (%04x != %04x)",
 			ntohs(s_header->id), ntohs(r_header->id));
 		thread_add_read(thread->master, dns_recv_thread, checker,
-				thread->u.fd, timeout);
+				thread->u.f.fd, timeout, true);
 		return 0;
 	}
 
@@ -222,7 +222,7 @@ dns_recv_thread(thread_t * thread)
 	if (!DNS_QR(flags)) {
 		DNS_DBG("receive query message?");
 		thread_add_read(thread->master, dns_recv_thread, checker,
-				thread->u.fd, timeout);
+				thread->u.f.fd, timeout, true);
 		return 0;
 	}
 
@@ -297,11 +297,11 @@ dns_send(thread_t *thread)
 
 	timeout = timer_long(thread->sands) - timer_long(time_now);
 
-	ret = send(thread->u.fd, dns_check->sbuf, dns_check->slen, 0);
+	ret = send(thread->u.f.fd, dns_check->sbuf, dns_check->slen, 0);
 	if (ret == -1) {
 		if (check_EAGAIN(errno) || check_EINTR(errno)) {
 			thread_add_write(thread->master, dns_send_thread,
-					 checker, thread->u.fd, timeout);
+					 checker, thread->u.f.fd, timeout, true);
 			return;
 		}
 		dns_final(thread, 1, "failed to write socket.");
@@ -313,7 +313,7 @@ dns_send(thread_t *thread)
 		return;
 	}
 
-	thread_add_read(thread->master, dns_recv_thread, checker, thread->u.fd, timeout);
+	thread_add_read(thread->master, dns_recv_thread, checker, thread->u.f.fd, timeout, true);
 
 	return;
 }
@@ -409,7 +409,7 @@ dns_connect_thread(thread_t * thread)
 	status = socket_bind_connect(fd, co);
 
 	if (status == connect_success) {
-		thread->u.fd = fd;
+		thread->u.f.fd = fd;
 		dns_make_query(thread);
 		dns_send(thread);
 
@@ -418,7 +418,7 @@ dns_connect_thread(thread_t * thread)
 
 	if (status == connect_fail) {
 		close(fd);
-		thread->u.fd = -1;
+		thread->u.f.fd = -1;
 		dns_final(thread, 1, "network unreachable for %s", inet_sockaddrtopair(&co->dst));
 
 		return 0;

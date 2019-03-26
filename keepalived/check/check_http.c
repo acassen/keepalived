@@ -1270,7 +1270,7 @@ http_read_thread(thread_t * thread)
 		return timeout_epilog(thread, "Timeout HTTP read");
 
 	/* read the HTTP stream */
-	r = read(thread->u.fd, req->buffer + req->len,
+	r = read(thread->u.f.fd, req->buffer + req->len,
 		 MAX_BUFFER_LENGTH - req->len);
 
 	/* Test if data are ready */
@@ -1279,7 +1279,7 @@ http_read_thread(thread_t * thread)
 				    , FMT_CHK(checker)
 				    , strerror(errno));
 		thread_add_read(thread->master, http_read_thread, checker,
-				thread->u.fd, timeout);
+				thread->u.f.fd, timeout, true);
 		return 0;
 	}
 
@@ -1304,7 +1304,7 @@ http_read_thread(thread_t * thread)
 		 * Register itself to not perturbe global I/O multiplexer.
 		 */
 		thread_add_read(thread->master, http_read_thread, checker,
-				thread->u.fd, timeout);
+				thread->u.f.fd, timeout, true);
 	}
 
 	return 0;
@@ -1345,10 +1345,10 @@ http_response_thread(thread_t * thread)
 	/* Register asynchronous http/ssl read thread */
 	if (http_get_check->proto == PROTO_SSL)
 		thread_add_read(thread->master, ssl_read_thread, checker,
-				thread->u.fd, timeout);
+				thread->u.f.fd, timeout, true);
 	else
 		thread_add_read(thread->master, http_read_thread, checker,
-				thread->u.fd, timeout);
+				thread->u.f.fd, timeout, true);
 	return 0;
 }
 
@@ -1414,7 +1414,7 @@ http_request_thread(thread_t * thread)
 	if (http_get_check->proto == PROTO_SSL)
 		ret = ssl_send_request(req->ssl, str_request, (int)strlen(str_request));
 	else
-		ret = (send(thread->u.fd, str_request, strlen(str_request), 0) != -1);
+		ret = (send(thread->u.f.fd, str_request, strlen(str_request), 0) != -1);
 
 	FREE(str_request);
 
@@ -1423,7 +1423,7 @@ http_request_thread(thread_t * thread)
 
 	/* Register read timeouted thread */
 	thread_add_read(thread->master, http_response_thread, checker,
-			thread->u.fd, timeout);
+			thread->u.f.fd, timeout, true);
 	thread_del_write(thread);
 	return 1;
 }
@@ -1479,14 +1479,14 @@ http_check_thread(thread_t * thread)
 					thread_add_read(thread->master,
 							http_check_thread,
 							THREAD_ARG(thread),
-							thread->u.fd, timeout);
+							thread->u.f.fd, timeout, true);
 					thread_del_write(thread);
 					break;
 				case SSL_ERROR_WANT_WRITE:
 					thread_add_write(thread->master,
 							 http_check_thread,
 							 THREAD_ARG(thread),
-							 thread->u.fd, timeout);
+							 thread->u.f.fd, timeout, true);
 					thread_del_read(thread);
 					break;
 				default:
@@ -1506,8 +1506,8 @@ http_check_thread(thread_t * thread)
 			DBG("Remote Web server %s connected.", FMT_CHK(checker));
 			thread_add_write(thread->master,
 					 http_request_thread, checker,
-					 thread->u.fd,
-					 checker->co->connection_to);
+					 thread->u.f.fd,
+					 checker->co->connection_to, true);
 			thread_del_read(thread);
 		} else {
 			DBG("Connection trouble to: %s."

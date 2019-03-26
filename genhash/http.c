@@ -256,7 +256,7 @@ http_read_thread(thread_t * thread)
 		r = MAX_BUFFER_LENGTH;
 	}
 	memset(sock_obj->buffer + sock_obj->size, 0, (size_t)r);
-	r = read(thread->u.fd, sock_obj->buffer + sock_obj->size, (size_t)r);
+	r = read(thread->u.f.fd, sock_obj->buffer + sock_obj->size, (size_t)r);
 
 	DBG(" [l:%zd,fd:%d]\n", r, sock_obj->fd);
 
@@ -281,7 +281,7 @@ http_read_thread(thread_t * thread)
 		 * Register itself to not perturbe global I/O multiplexer.
 		 */
 		thread_add_read(thread->master, http_read_thread, sock_obj,
-				thread->u.fd, HTTP_CNX_TIMEOUT);
+				thread->u.f.fd, HTTP_CNX_TIMEOUT, true);
 	}
 
 	return 0;
@@ -314,10 +314,10 @@ http_response_thread(thread_t * thread)
 	/* Register asynchronous http/ssl read thread */
 	if (req->ssl)
 		thread_add_read(thread->master, ssl_read_thread, sock_obj,
-				thread->u.fd, HTTP_CNX_TIMEOUT);
+				thread->u.f.fd, HTTP_CNX_TIMEOUT, true);
 	else
 		thread_add_read(thread->master, http_read_thread, sock_obj,
-				thread->u.fd, HTTP_CNX_TIMEOUT);
+				thread->u.f.fd, HTTP_CNX_TIMEOUT, true);
 	return 0;
 }
 
@@ -380,6 +380,6 @@ http_request_thread(thread_t * thread)
 
 	/* Register read timeouted thread */
 	thread_add_read(thread->master, http_response_thread, sock_obj,
-			sock_obj->fd, HTTP_CNX_TIMEOUT);
+			sock_obj->fd, HTTP_CNX_TIMEOUT, true);
 	return 1;
 }

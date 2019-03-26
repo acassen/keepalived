@@ -1138,9 +1138,9 @@ process_inotify(thread_t *thread)
 	struct inotify_event* event;
 	vrrp_tracked_file_t *tfile;
 	element e;
-	int fd = thread->u.fd;
+	int fd = thread->u.f.fd;
 
-	inotify_thread = thread_add_read(master, process_inotify, NULL, fd, TIMER_NEVER);
+	inotify_thread = thread_add_read(master, process_inotify, NULL, fd, TIMER_NEVER, false);
 
 	while (true) {
 		if ((len = read(fd, buf, sizeof(buf))) < (ssize_t)sizeof(struct inotify_event)) {
@@ -1295,7 +1295,7 @@ init_track_files(list track_files)
 		*tfile->file_part = sav_ch;
 	}
 
-	inotify_thread = thread_add_read(master, process_inotify, NULL, inotify_fd, TIMER_NEVER);
+	inotify_thread = thread_add_read(master, process_inotify, NULL, inotify_fd, TIMER_NEVER, false);
 }
 
 void

@@ -86,7 +86,10 @@ typedef struct _thread {
 	timeval_t sands;		/* rest of time sands value. */
 	union {
 		int val;		/* second argument of the event. */
-		int fd;			/* file descriptor in case of read/write. */
+		struct {
+			int fd;		/* file descriptor in case of read/write. */
+			bool close_on_reload;
+		} f;
 		struct {
 			pid_t pid;	/* process id a child thread is wanting. */
 			int status;	/* return status of the process */
@@ -221,11 +224,11 @@ extern void dump_thread_data(thread_master_t *, FILE *);
 #endif
 extern void thread_cleanup_master(thread_master_t *);
 extern void thread_destroy_master(thread_master_t *);
-extern thread_t *thread_add_read_sands(thread_master_t *, int (*) (thread_t *), void *, int, timeval_t *);
-extern thread_t *thread_add_read(thread_master_t *, int (*) (thread_t *), void *, int, unsigned long);
+extern thread_t *thread_add_read_sands(thread_master_t *, int (*) (thread_t *), void *, int, timeval_t *, bool);
+extern thread_t *thread_add_read(thread_master_t *, int (*) (thread_t *), void *, int, unsigned long, bool);
 extern int thread_del_read(thread_t *);
 extern void thread_requeue_read(thread_master_t *, int, const timeval_t *);
-extern thread_t *thread_add_write(thread_master_t *, int (*) (thread_t *), void *, int, unsigned long);
+extern thread_t *thread_add_write(thread_master_t *, int (*) (thread_t *), void *, int, unsigned long, bool);
 extern int thread_del_write(thread_t *);
 extern void thread_close_fd(thread_t *);
 extern thread_t *thread_add_timer(thread_master_t *, int (*) (thread_t *), void *, unsigned long);

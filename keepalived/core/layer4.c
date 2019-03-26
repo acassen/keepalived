@@ -130,7 +130,7 @@ socket_state(thread_t * thread, int (*func) (thread_t *))
 
 	/* Check file descriptor */
 	addrlen = sizeof(status);
-	if (getsockopt(thread->u.fd, SOL_SOCKET, SO_ERROR, (void *) &status, &addrlen) < 0) {
+	if (getsockopt(thread->u.f.fd, SOL_SOCKET, SO_ERROR, (void *) &status, &addrlen) < 0) {
 		/* getsockopt failed !!! */
 		thread_close_fd(thread);
 		return connect_error;
@@ -147,7 +147,7 @@ socket_state(thread_t * thread, int (*func) (thread_t *))
 	if (status == EINPROGRESS) {
 		timer_min = timer_sub_now(thread->sands);
 		thread_add_write(thread->master, func, THREAD_ARG(thread),
-				 thread->u.fd, -timer_long(timer_min));
+				 thread->u.f.fd, -timer_long(timer_min), true);
 		return connect_in_progress;
 	}
 
@@ -172,7 +172,7 @@ socket_connection_state(int fd, enum connect_result status, thread_t * thread,
 
 	if (status == connect_success ||
 	    status == connect_in_progress) {
-		thread_add_write(thread->master, func, checker, fd, timeout);
+		thread_add_write(thread->master, func, checker, fd, timeout, true);
 		return false;
 	}
 
