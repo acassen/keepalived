@@ -314,8 +314,10 @@ start_check(list old_checkers_queue, data_t *prev_global_data)
 		stop_check(KEEPALIVED_EXIT_FATAL);
 
 	/* Processing differential configuration parsing */
-	if (reload)
+	if (reload) {
 		clear_diff_services(old_checkers_queue);
+		check_new_rs_state();
+	}
 
 	/* We can send SMTP messages from here so set the time */
 	set_time_now();

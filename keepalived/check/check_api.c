@@ -113,7 +113,6 @@ dump_checker_opts(FILE *fp, void *data)
 	conf_write(fp, "   Has run = %d", checker->has_run);
 	conf_write(fp, "   Retries left before fail = %d", checker->retry_it);
 	conf_write(fp, "   Delay before retry = %f", (double)checker->default_delay_before_retry / TIMER_HZ);
-	conf_write(fp, "   Log all failures = %d", checker->log_all_failures);
 }
 
 /* Queue a checker into the checkers_queue */
