@@ -934,7 +934,7 @@ bool validate_check_config(void)
 
 		/* In Alpha mode also mark any checker that hasn't run as failed.
 		 * Reloading is handled in migrate_checkers() */
-		if (!reload) {
+		if (!checker->has_run) {
 			if (checker->alpha) {
 				set_checker_state(checker, false);
 				UNSET_ALIVE(checker->rs);
