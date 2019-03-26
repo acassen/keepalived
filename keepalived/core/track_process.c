@@ -737,9 +737,9 @@ read_process_update(thread_t *thread)
 {
 	int rc = EXIT_SUCCESS;
 
-	rc = handle_proc_ev(thread->u.fd);
+	rc = handle_proc_ev(thread->u.f.fd);
 
-	read_thread = thread_add_read(thread->master, read_process_update, NULL, thread->u.fd, TIMER_NEVER);
+	read_thread = thread_add_read(thread->master, read_process_update, NULL, thread->u.f.fd, TIMER_NEVER, false);
 
 	return rc;
 }
@@ -792,7 +792,7 @@ init_track_processes(list processes)
 
 	read_procs(processes);
 
-	read_thread = thread_add_read(master, read_process_update, NULL, nl_sock, TIMER_NEVER);
+	read_thread = thread_add_read(master, read_process_update, NULL, nl_sock, TIMER_NEVER, false);
 
 	return rc;
 }

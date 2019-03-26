@@ -288,21 +288,21 @@ bfd_check_thread(thread_t * thread)
 	bfd_event_t evt;
 
 	bfd_thread = thread_add_read(master, bfd_check_thread, NULL,
-				     thread->u.fd, TIMER_NEVER);
+				     thread->u.f.fd, TIMER_NEVER, false);
 
 	if (thread->type != THREAD_READY_FD)
 		return 0;
 
-	while (read(thread->u.fd, &evt, sizeof(bfd_event_t)) != -1)
+	while (read(thread->u.f.fd, &evt, sizeof(bfd_event_t)) != -1)
 		bfd_check_handle_event(&evt);
 
 	return 0;
 }
 
 void
-start_bfd_monitoring(thread_master_t *threaD_master)
+start_bfd_monitoring(thread_master_t *thread_master)
 {
-	thread_add_read(threaD_master, bfd_check_thread, NULL, bfd_checker_event_pipe[0], TIMER_NEVER);
+	thread_add_read(thread_master, bfd_check_thread, NULL, bfd_checker_event_pipe[0], TIMER_NEVER, false);
 }
 
 void

@@ -435,12 +435,12 @@ smtp_get_line_cb(thread_t *thread)
 	}
 
 	/* read the data */
-	r = read(thread->u.fd, smtp_checker->buff + smtp_checker->buff_ctr,
+	r = read(thread->u.f.fd, smtp_checker->buff + smtp_checker->buff_ctr,
 		 SMTP_BUFF_MAX - smtp_checker->buff_ctr - 1);
 
 	if (r == -1 && (check_EAGAIN(errno) || check_EINTR(errno))) {
 		thread_add_read(thread->master, smtp_get_line_cb, checker,
-				thread->u.fd, smtp_host->connection_to);
+				thread->u.f.fd, smtp_host->connection_to, true);
 		return 0;
 	} else if (r > 0) {
 		smtp_checker->buff_ctr += (size_t)r;
@@ -476,7 +476,7 @@ smtp_get_line_cb(thread_t *thread)
 	 * another round.
 	 */
 	thread_add_read(thread->master, smtp_get_line_cb, checker,
-			thread->u.fd, smtp_host->connection_to);
+			thread->u.f.fd, smtp_host->connection_to, true);
 	return 0;
 }
 
@@ -501,7 +501,7 @@ smtp_get_line(thread_t *thread)
 
 	/* schedule the I/O with our helper function  */
 	thread_add_read(thread->master, smtp_get_line_cb, checker,
-		thread->u.fd, smtp_host->connection_to);
+		thread->u.f.fd, smtp_host->connection_to, true);
 	thread_del_write(thread);
 	return;
 }
@@ -528,11 +528,11 @@ smtp_put_line_cb(thread_t *thread)
 	}
 
 	/* write the data */
-	w = write(thread->u.fd, smtp_checker->buff, smtp_checker->buff_ctr);
+	w = write(thread->u.f.fd, smtp_checker->buff, smtp_checker->buff_ctr);
 
 	if (w == -1 && (check_EAGAIN(errno) || check_EINTR(errno))) {
 		thread_add_write(thread->master, smtp_put_line_cb, checker,
-				 thread->u.fd, smtp_host->connection_to);
+				 thread->u.f.fd, smtp_host->connection_to, true);
 		return 0;
 	}
 
@@ -802,7 +802,7 @@ smtp_connect_thread(thread_t *thread)
 	/* handle tcp connection status & register callback the next setp in the process */
 	if(tcp_connection_state(sd, status, thread, smtp_check_thread, smtp_host->connection_to)) {
                 if (status == connect_fail) {
-                        thread->u.fd = sd;
+                        thread->u.f.fd = sd;
                         smtp_final(thread, "Network unreachable for server %s - real server %s",
                                            inet_sockaddrtos(&checker->co->dst),
                                            inet_sockaddrtopair(&checker->rs->addr));
