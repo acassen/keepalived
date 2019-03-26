@@ -99,7 +99,6 @@ extern bool read_unsigned_strvec(const vector_t *, size_t, unsigned *, unsigned,
 extern bool read_unsigned64_strvec(const vector_t *, size_t, uint64_t *, uint64_t, uint64_t, bool);
 extern bool read_unsigned_base_strvec(const vector_t *, size_t, int, unsigned *, unsigned, unsigned, bool);
 extern bool read_double_strvec(const vector_t *, size_t, double *, double, double, bool);
-extern void set_random_seed(unsigned int);
 extern void install_keyword_root(const char *, void (*handler) (vector_t *), bool);
 extern void install_root_end_handler(void (*handler) (void));
 extern void install_sublevel(void);

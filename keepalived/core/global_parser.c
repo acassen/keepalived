@@ -236,27 +236,12 @@ checker_log_all_failures_handler(vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec,1));
 		if (res < 0) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value for checker_log_all_failures specified");
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value for vrrp_lower_prio_no_advert specified");
 			return;
 		}
 	}
 
 	global_data->checker_log_all_failures = res;
-}
-static void
-checker_shutdown_vs_only_handler(vector_t *strvec)
-{
-	int res = true;
-
-	if (vector_size(strvec) >= 2) {
-		res = check_true_false(strvec_slot(strvec,1));
-		if (res < 0) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value for checker_shutdown_vs_only specified");
-			return;
-		}
-	}
-
-	global_data->checker_shutdown_vs_only = res;
 }
 #endif
 #ifdef _WITH_VRRP_
@@ -1587,19 +1572,6 @@ vrrp_startup_delay_handler(vector_t *strvec)
 }
 #endif
 
-static void
-random_seed_handler(vector_t *strvec)
-{
-	unsigned val;
-
-	if (!read_unsigned_strvec(strvec, 1, &val, 0, UINT_MAX, false)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "random_seed %s invalid", FMT_STR_VSLOT(strvec, 1));
-		return;
-	}
-
-	set_random_seed(val);
-}
-
 void
 init_global_keywords(bool global_active)
 {
@@ -1628,7 +1600,6 @@ init_global_keywords(bool global_active)
 #ifdef _WITH_LVS_
 	install_keyword("smtp_alert_checker", &smtp_alert_checker_handler);
 	install_keyword("checker_log_all_failures", &checker_log_all_failures_handler);
-	install_keyword("checker_shutdown_vs_only", &checker_shutdown_vs_only_handler);
 #endif
 #ifdef _WITH_VRRP_
 	install_keyword("dynamic_interfaces", &dynamic_interfaces_handler);
@@ -1761,5 +1732,4 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_startup_delay", &vrrp_startup_delay_handler);
 #endif
 	install_keyword("umask", &umask_handler);
-	install_keyword("random_seed", &random_seed_handler);
 }

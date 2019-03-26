@@ -1,4 +1,4 @@
-.TH keepalived.conf 5 2019-03-24 "Keepalived" "Keepalived Configuration's Manual"
+.TH keepalived.conf 5 2018-08-10 "Keepalived" "Keepalived Configuration's Manual"
 .SH NAME
 keepalived.conf - configuration file for Keepalived
 .br
@@ -188,11 +188,6 @@ and
 
     # Sets logging all checker failes while checker up
     \fBchecker_log_all_failures \fR<BOOL>
-
-    # If set, keepalived only removes virtual servers at shutdown
-    #  (the kernel will remove the real servers). This is faster
-    #  for large configurations.
-    \fBchecker_shutdown_vs_only \fR<BOOL>
 
     # Don't send smtp alerts for fault conditions
     \fBno_email_faults\fR
@@ -558,11 +553,6 @@ and
     # This option specifies a delay in seconds before vrrp instances start up after
     # keepalived starts,
     \fBvrrp_startup_delay \fR5.5
-
-    # Specify random seed for ${_RANDOM}, to make configurations repeatable (default
-    # is to use a seed based on the time, so that each time a different configuration
-    # will be generated).
-    \fBrandom_seed \fRUNSIGNED_INT
 }
 .fi
 .SH Linkbeat interfaces
@@ -2016,9 +2006,6 @@ The following pre-defined definitions are defined:
 \fB${_PWD} : \fRThe directory of the current configuration file (this can be changed if using the include directive).
 .br
 \fB${_INSTANCE} : \fRThe instance name (as defined by the -i option, defaults to hostname).
-.br
-\fB${_RANDOM [MIN [MAX]]} : \fRThis is replaced by a random integer in the range [MIN, MAX],
-where MIN and MAX are optional non-negative integers. Defaults are MIN=0 and MAX=32767.
 .PP
 Additional pre-defined definitions will be added as their need is identified.
 It will normally be quite straightforward to add additional pre-defined
