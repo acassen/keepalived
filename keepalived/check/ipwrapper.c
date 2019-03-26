@@ -694,14 +694,9 @@ static virtual_server_t* __attribute__ ((pure))
 vs_exist(virtual_server_t * old_vs)
 {
 	element e;
-	list l = check_data->vs;
 	virtual_server_t *vs;
 
-	if (LIST_ISEMPTY(l))
-		return NULL;
-
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vs = ELEMENT_DATA(e);
+	LIST_FOREACH(check_data->vs, vs, e) {
 		if (VS_ISEQ(old_vs, vs))
 			return vs;
 	}
@@ -924,6 +919,24 @@ clear_diff_services(list old_checkers_queue)
 			clear_diff_rs(vs, new_vs, old_checkers_queue);
 			clear_diff_s_srv(vs, new_vs->s_svr);
 		}
+	}
+}
+
+/* This is only called during a reload. Any new real server with
+ * alpha mode checkers should start in down state */
+void
+check_new_rs_state(void)
+{
+	element e;
+	checker_t *checker;
+
+	LIST_FOREACH(checkers_queue, checker, e) {
+		if (checker->rs->reloaded)
+			continue;
+		if (!checker->alpha)
+			continue;
+		set_checker_state(checker, false);
+		UNSET_ALIVE(checker->rs);
 	}
 }
 

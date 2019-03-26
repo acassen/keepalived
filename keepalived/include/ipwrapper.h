@@ -49,6 +49,7 @@ extern bool init_services(void);
 extern void clear_services(void);
 extern void set_quorum_states(void);
 extern void clear_diff_services(list);
+extern void check_new_rs_state(void);
 extern void link_vsg_to_vs(void);
 
 #endif
