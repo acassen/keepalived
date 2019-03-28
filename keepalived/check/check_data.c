@@ -447,12 +447,16 @@ void
 alloc_ssvr(char *ip, char *port)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	char *port_str;
+
+	/* inet_stosockaddr rejects port 0 */
+	port_str = (port && port[strspn(port, "0")]) ? port : NULL;
 
 	vs->s_svr = (real_server_t *) MALLOC(sizeof(real_server_t));
 	vs->s_svr->weight = 1;
 	vs->s_svr->iweight = 1;
 	vs->s_svr->forwarding_method = vs->forwarding_method;
-	if (inet_stosockaddr(ip, port, &vs->s_svr->addr)) {
+	if (inet_stosockaddr(ip, port_str, &vs->s_svr->addr)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid sorry server IP address %s - skipping", ip);
 		FREE(vs->s_svr);
 		vs->s_svr = NULL;
@@ -544,9 +548,13 @@ alloc_rs(char *ip, char *port)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *new;
+	char *port_str;
+
+	/* inet_stosockaddr rejects port 0 */
+	port_str = (port && port[strspn(port, "0")]) ? port : NULL;
 
 	new = (real_server_t *) MALLOC(sizeof(real_server_t));
-	if (inet_stosockaddr(ip, port, &new->addr)) {
+	if (inet_stosockaddr(ip, port_str, &new->addr)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid real server ip address/port %s/%s - skipping", ip, port);
 		skip_block(true);
 		FREE(new);
