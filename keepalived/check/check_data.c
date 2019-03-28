@@ -833,8 +833,7 @@ bool validate_check_config(void)
 			/* Check port specified for udp/tcp/sctp unless persistent */
 			if (!vs->persistence_timeout &&
 			    !vs->vsg &&
-			    ((vs->addr.ss_family == AF_INET6 && !((struct sockaddr_in6 *)&vs->addr)->sin6_port) ||
-			     (vs->addr.ss_family == AF_INET && !((struct sockaddr_in *)&vs->addr)->sin_port))) {
+			    !inet_sockaddrport(&vs->addr)) {
 				report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: zero port only valid for persistent services - setting", FMT_VS(vs));
 				vs->persistence_timeout = IPVS_SVC_PERSISTENT_TIMEOUT;
 			}
@@ -845,8 +844,7 @@ bool validate_check_config(void)
 		 * persistence. */
 		if (!vs->persistence_timeout && vs->vsg) {
 			LIST_FOREACH(vs->vsg->addr_range, vsge, e1) {
-				if ((vsge->addr.ss_family == AF_INET6 && !((struct sockaddr_in6 *)&vsge->addr)->sin6_port) ||
-				    (vsge->addr.ss_family == AF_INET && !((struct sockaddr_in *)&vsge->addr)->sin_port)) {
+				if (!inet_sockaddrport(&vsge->addr)) {
 					report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: zero port only valid for persistent services - setting", FMT_VS(vs));
 					vs->persistence_timeout = IPVS_SVC_PERSISTENT_TIMEOUT;
 					break;
@@ -856,7 +854,7 @@ bool validate_check_config(void)
 
 		/* A virtual server using fwmarks will ignore any protocol setting, so warn if one is set */
 		if (vs->service_type &&
-		    ((vs->vsg && LIST_ISEMPTY(vs->vsg->addr_range) && LIST_ISEMPTY(vs->vsg->addr_range)) ||
+		    ((vs->vsg && LIST_ISEMPTY(vs->vsg->addr_range) && !LIST_ISEMPTY(vs->vsg->vfwmark)) ||
 		     (!vs->vsg && vs->vfwmark)))
 			report_config_error(CONFIG_GENERAL_ERROR, "Warning: Virtual server %s: protocol specified for fwmark - protocol will be ignored", FMT_VS(vs));
 
