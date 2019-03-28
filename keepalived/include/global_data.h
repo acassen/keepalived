@@ -112,6 +112,7 @@ typedef struct _data {
 	struct lvs_syncd_config		lvs_syncd;
 #endif
 	bool				lvs_flush;		/* flush any residual LVS config at startup */
+	bool				lvs_flush_onstop;	/* flush any LVS config at shutdown */
 #endif
 #ifdef _WITH_VRRP_
 	struct sockaddr_in		vrrp_mcast_group4;
