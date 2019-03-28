@@ -480,7 +480,7 @@ svr_forwarding_handler(real_server_t *rs, vector_t *strvec)
 static void
 ssvr_handler(vector_t *strvec)
 {
-	alloc_ssvr(strvec_slot(strvec, 1), strvec_slot(strvec, 2));
+	alloc_ssvr(strvec_slot(strvec, 1), vector_size(strvec) >= 3 ? strvec_slot(strvec, 2) : NULL);
 }
 static void
 ssvri_handler(__attribute__((unused)) vector_t *strvec)
@@ -506,7 +506,7 @@ ss_forwarding_handler(vector_t *strvec)
 static void
 rs_handler(vector_t *strvec)
 {
-	alloc_rs(strvec_slot(strvec, 1), strvec_slot(strvec, 2));
+	alloc_rs(strvec_slot(strvec, 1), vector_size(strvec) >= 3 ? strvec_slot(strvec, 2) : NULL);
 }
 static void
 rs_end_handler(void)

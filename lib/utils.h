@@ -217,6 +217,7 @@ extern char *inet_sockaddrtopair(struct sockaddr_storage *);
 extern const char *inet_sockaddrtotrio(struct sockaddr_storage *, uint16_t);
 extern char *inet_sockaddrtotrio_r(struct sockaddr_storage *, uint16_t, char *);
 extern uint16_t inet_sockaddrport(struct sockaddr_storage *) __attribute__ ((pure));
+extern void inet_set_sockaddrport(struct sockaddr_storage *, uint16_t);
 extern uint32_t inet_sockaddrip4(struct sockaddr_storage *) __attribute__ ((pure));
 extern int inet_sockaddrip6(struct sockaddr_storage *, struct in6_addr *);
 extern int inet_inaddrcmp(int, const void *, const void *); __attribute__ ((pure))

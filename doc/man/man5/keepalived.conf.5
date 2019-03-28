@@ -1417,10 +1417,14 @@ and
 The subblocks contain arguments for configuring Linux IPVS (LVS) feature.
 Knowledge of
 .I ipvsadm(8)
-will be helpful here. Configuring LVS is achieved by defining virtual server group,
-virtual server and optionally SSL configuration. Every virtual server define a set
-of real server, you can attach healthcheckers to each real server. Keepalived will
+will be helpful here. Configuring LVS is achieved by defining virtual server groups,
+virtual servers and optionally SSL configuration. Every virtual server defines a set
+of real servers, you can attach healthcheckers to each real server. Keepalived will
 then lead LVS operation by dynamically maintaining topology.
+.PP
+For details of what configuration combinations are valid, see the
+.I ipvsadm(8)
+man page.
 .PP
 \fBNote:\fR
 Where an option can be configured for a virtual server, real server,
@@ -1435,31 +1439,34 @@ tunnelled, the address family of the virtual server will be the same as the
 address family of the real/sorry servers if they are all the same, otherwise
 it will default to IPv4 (use ip_family inet6 to override this).
 .PP
+\fBNote:\fR
+The port for the virtual server can only be omitted if the virtual service is persistent.
+.PP
 .SH Virtual server group(s)
 .PP
 This feature offers a way to simplify your configuration by factorizing virtual server
-definitions. If you need to define a bunch of virtual server with exactly the same
+definitions. If you need to define a bunch of virtual servers with exactly the same
 real server topology then this feature will make your configuration much more readable
 and will optimize healthchecking task by only spawning one healthchecking where
 multiple virtual server declaration will spawn a dedicated healthchecker for every
 real server which will waste system resources.
 .PP
+Any combination of IP addresses, IP address ranges and firewall marks can be used. Use
+of this option is intended for very large LVSs.
+.PP
 .nf
 The syntax for virtual_server_group is :
 
-# to belong to multiple virtual services
-# and to only be health checked once.
-# Only for very large LVSs.
 \fBvirtual_server_group \fR<STRING> {
     # Virtual IP Address and Port
-    <IPADDR> <PORT>
-    <IPADDR> <PORT>
+    <IPADDR> [<PORT>]
+    <IPADDR> [<PORT>]
     ...
     # <IPADDR RANGE> has the form
     # XXX.YYY.ZZZ.WWW-VVV eg 192.168.200.1-10
     # range includes both .1 and .10 address
-    <IPADDR RANGE> <PORT># VIP range VPORT
-    <IPADDR RANGE> <PORT>
+    <IPADDR RANGE> [<PORT>] # VIP range [VPORT]
+    <IPADDR RANGE> [<PORT>]
     ...
     # Firewall Mark (fwmark)
     \fBfwmark \fR<INTEGER>
@@ -1470,7 +1477,7 @@ The syntax for virtual_server_group is :
 .SH Virtual server(s)
 .PP
 A virtual_server can be a declaration of one of
-\fB<IPADDR> <PORT>\fR
+\fB<IPADDR> [<PORT>]\fR
 ,
 \fBfwmark <INTEGER>\fR
 or
@@ -1479,7 +1486,7 @@ or
 .nf
 The syntax for virtual_server is :
 
-\fBvirtual_server \fR<IPADDR> <PORT>  |
+\fBvirtual_server \fR<IPADDR> [<PORT>]  |
 \fBvirtual_server fwmark \fR<INTEGER> |
 \fBvirtual_server group \fR<STRING> {
     # LVS scheduler
@@ -1563,7 +1570,7 @@ The syntax for virtual_server is :
     # RS to add to LVS topology when the quorum isn't achieved.
     #  If a sorry server is configured, all real servers will
     #  be brought down when the quorum is not achieved.
-    \fBsorry_server \fR<IPADDR> <PORT>
+    \fBsorry_server \fR<IPADDR> [<PORT>]
     # applies inhibit_on_failure behaviour to the sorry_server
     \fBsorry_server_inhibit\fR
     # Sorry server LVS forwarding method
@@ -1594,7 +1601,7 @@ The syntax for virtual_server is :
     \fBinhibit_on_failure\fR
 
     # one entry for each realserver
-    \fBreal_server \fR<IPADDR> <PORT> {
+    \fBreal_server \fR<IPADDR> [<PORT>] {
         # relative weight to use, default: 1
         \fBweight \fR<INTEGER>
         # LVS forwarding method
