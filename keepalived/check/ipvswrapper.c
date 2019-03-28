@@ -418,6 +418,12 @@ ipvs_group_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_serve
 	LIST_FOREACH(vsg->addr_range, vsg_entry, e) {
 		if (ipvs_change_needed(cmd, vsg_entry, vs, rs)) {
 			srule->user.port = inet_sockaddrport(&vsg_entry->addr);
+			if (rs) {
+				if (rs->forwarding_method != IP_VS_CONN_F_MASQ)
+					drule->user.port = srule->user.port;
+				else
+					drule->user.port = inet_sockaddrport(&rs->addr);
+			}
 
 			if (vsg_entry->range) {
 				if (ipvs_group_range_cmd(cmd, srule, drule, vsg_entry))
@@ -439,6 +445,12 @@ ipvs_group_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_serve
 	/* visit vfwmark list */
 	memset(&srule->nf_addr, 0, sizeof(srule->nf_addr));
 	srule->user.port = 0;
+	if (rs) {
+		if (rs->forwarding_method != IP_VS_CONN_F_MASQ)
+			drule->user.port = 0;
+		else
+			drule->user.port = inet_sockaddrport(&rs->addr);
+	}
 	LIST_FOREACH(vsg->vfwmark, vsg_entry, e) {
 		srule->user.fwmark = vsg_entry->vfwmark;
 
@@ -540,12 +552,16 @@ ipvs_cmd(int cmd, virtual_server_t *vs, real_server_t *rs)
 
 	if (vs->vfwmark) {
 		srule.user.fwmark = vs->vfwmark;
+		if (rs && rs->forwarding_method != IP_VS_CONN_F_MASQ)
+			drule.user.port = 0;
 	} else {
 		if (vs->af == AF_INET6)
 			inet_sockaddrip6(&vs->addr, &srule.nf_addr.in6);
 		else
 			srule.nf_addr.ip = inet_sockaddrip4(&vs->addr);
 		srule.user.port = inet_sockaddrport(&vs->addr);
+		if (rs && rs->forwarding_method != IP_VS_CONN_F_MASQ)
+			drule.user.port = srule.user.port;
 	}
 
 	/* Talk to the IPVS channel */
