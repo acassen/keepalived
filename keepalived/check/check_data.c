@@ -574,6 +574,7 @@ alloc_rs(char *ip, char *port)
 	new->weight = INT_MAX;
 	new->forwarding_method = vs->forwarding_method;
 	new->alpha = -1;
+	new->inhibit = -1;
 	new->connection_to = UINT_MAX;
 	new->delay_loop = ULONG_MAX;
 	new->warmup = ULONG_MAX;
