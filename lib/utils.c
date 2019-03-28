@@ -581,6 +581,18 @@ inet_sockaddrport(struct sockaddr_storage *addr)
 	return addr4->sin_port;
 }
 
+void
+inet_set_sockaddrport(struct sockaddr_storage *addr, uint16_t port)
+{
+	if (addr->ss_family == AF_INET6) {
+		struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) addr;
+		addr6->sin6_port = port;
+	} else {
+		struct sockaddr_in *addr4 = (struct sockaddr_in *) addr;
+		addr4->sin_port = port;
+	}
+}
+
 char *
 inet_sockaddrtopair(struct sockaddr_storage *addr)
 {

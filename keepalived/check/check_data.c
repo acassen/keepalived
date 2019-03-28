@@ -685,7 +685,7 @@ dump_data_check(FILE *fp)
 }
 
 const char *
-format_vs (virtual_server_t *vs)
+format_vs(virtual_server_t *vs)
 {
 	/* alloc large buffer because of unknown length of vs->vsgname */
 	static char ret[512];
@@ -699,6 +699,31 @@ format_vs (virtual_server_t *vs)
 	else
 		snprintf(ret, sizeof(ret) - 1, "%s"
 			, inet_sockaddrtotrio(&vs->addr, vs->service_type));
+
+	return ret;
+}
+
+const char *
+format_vsge(virtual_server_group_entry_t *vsge)
+{
+	/* alloc large buffer because of unknown length of vs->vsgname */
+	static char ret[INET6_ADDRSTRLEN + 1 + 4 + 1 + 5]; /* IPv6 addr + -abcd:ppppp */
+	uint16_t start;
+
+	if (vsge->is_fwmark)
+		snprintf(ret, sizeof(ret), "FWM %u", vsge->vfwmark);
+	else if (vsge->range) {
+		start = vsge->addr.ss_family == AF_INET ?
+			  ntohl(((struct sockaddr_in*)&vsge->addr)->sin_addr.s_addr) & 0xFF :
+			  ntohs(((struct sockaddr_in6*)&vsge->addr)->sin6_addr.s6_addr16[7]);
+		snprintf(ret, sizeof(ret),
+			    vsge->addr.ss_family == AF_INET ?  "%s-%d,%d" : "%s-%x,%d",
+			    inet_sockaddrtos(&vsge->addr),
+			    start + vsge->range,
+			    ntohs(inet_sockaddrport(&vsge->addr)));
+	} else
+		snprintf(ret, sizeof(ret), "%s:%d",
+			    inet_sockaddrtos(&vsge->addr), ntohs(inet_sockaddrport(&vsge->addr)));
 
 	return ret;
 }
@@ -759,7 +784,7 @@ check_check_script_security(void)
 
 bool validate_check_config(void)
 {
-	element e, e1;
+	element e, e1, e2;
 	virtual_server_t *vs;
 	virtual_server_group_entry_t *vsge;
 	real_server_t *rs;
@@ -911,6 +936,74 @@ bool validate_check_config(void)
 			vs->hysteresis = vs->quorum - 1;
 		}
 
+		/* Now check that, unless using NAT, real and virtual servers have the same port.
+		 * Also if a fwmark is used, ensure that unless NAT, the real server port is 0. */
+		if (vs->vsg) {
+			if (!LIST_ISEMPTY(vs->vsg->vfwmark)) {
+				LIST_FOREACH(vs->rs, rs, e1) {
+					if (rs->forwarding_method == IP_VS_CONN_F_MASQ)
+						continue;
+					if (inet_sockaddrport(&rs->addr))
+						log_message(LOG_INFO, "WARNING - fwmark virtual server %s, real server %s has port specified - port will be ignored", FMT_VS(vs), FMT_RS(rs, vs));
+				}
+				if (vs->s_svr && vs->s_svr->forwarding_method != IP_VS_CONN_F_MASQ &&
+				    inet_sockaddrport(&vs->s_svr->addr))
+					log_message(LOG_INFO, "WARNING - fwmark virtual server %s, sorry server has port specified - port will be ignored", FMT_VS(vs));
+			}
+			LIST_FOREACH(vs->vsg->addr_range, vsge, e1) {
+				LIST_FOREACH(vs->rs, rs, e2) {
+					if (rs->forwarding_method == IP_VS_CONN_F_MASQ)
+						continue;
+					if (inet_sockaddrport(&rs->addr) &&
+					    inet_sockaddrport(&vsge->addr) != inet_sockaddrport(&rs->addr))
+						report_config_error(CONFIG_GENERAL_ERROR, "virtual server %s:[%s] and real server %s ports don't match", FMT_VS(vs), format_vsge(vsge), FMT_RS(rs, vs));
+				}
+				if (vs->s_svr && vs->s_svr->forwarding_method != IP_VS_CONN_F_MASQ &&
+				    inet_sockaddrport(&vs->s_svr->addr) &&
+				    inet_sockaddrport(&vsge->addr) != inet_sockaddrport(&vs->s_svr->addr))
+					log_message(LOG_INFO, "WARNING - virtual server %s, sorry server has port specified - port will be ignored", FMT_VS(vs));
+			}
+		} else {
+			/* We can also correct errors here */
+			LIST_FOREACH(vs->rs, rs, e1) {
+				if (rs->forwarding_method == IP_VS_CONN_F_MASQ) {
+					if (!vs->vfwmark && !inet_sockaddrport(&rs->addr))
+						inet_set_sockaddrport(&rs->addr, inet_sockaddrport(&vs->addr));
+					continue;
+				}
+
+				if (vs->vfwmark) {
+					if (inet_sockaddrport(&rs->addr)) {
+						report_config_error(CONFIG_GENERAL_ERROR, "WARNING - fwmark virtual server %s, real server %s has port specified - clearing", FMT_VS(vs), FMT_RS(rs, vs));
+						inet_set_sockaddrport(&rs->addr, 0);
+					}
+				} else {
+					if (!inet_sockaddrport(&rs->addr))
+						inet_set_sockaddrport(&rs->addr, inet_sockaddrport(&vs->addr));
+					else if (inet_sockaddrport(&vs->addr) != inet_sockaddrport(&rs->addr)) {
+						report_config_error(CONFIG_GENERAL_ERROR, "WARNING - virtual server %s and real server %s ports don't match - resetting", FMT_VS(vs), FMT_RS(rs, vs));
+						inet_set_sockaddrport(&rs->addr, inet_sockaddrport(&vs->addr));
+					}
+				}
+			}
+
+			/* Check any sorry server */
+			if (vs->s_svr && vs->s_svr->forwarding_method != IP_VS_CONN_F_MASQ) {
+				if (vs->vfwmark) {
+					if (inet_sockaddrport(&vs->s_svr->addr)) {
+						log_message(LOG_INFO, "WARNING - virtual server %s, sorry server has port specified - clearing", FMT_VS(vs));
+						inet_set_sockaddrport(&vs->s_svr->addr, 0);
+					}
+				} else {
+					if (!inet_sockaddrport(&vs->s_svr->addr))
+						inet_set_sockaddrport(&vs->s_svr->addr, inet_sockaddrport(&vs->addr));
+					else if (inet_sockaddrport(&vs->addr) != inet_sockaddrport(&vs->s_svr->addr)) {
+						report_config_error(CONFIG_GENERAL_ERROR, "WARNING - virtual server %s and sorry server ports don't match - resetting", FMT_VS(vs));
+						inet_set_sockaddrport(&vs->s_svr->addr, inet_sockaddrport(&vs->addr));
+					}
+				}
+			}
+		}
 	}
 
 	LIST_FOREACH(checkers_queue, checker, e)
