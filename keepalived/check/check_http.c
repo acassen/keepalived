@@ -373,6 +373,8 @@ http_get_retry_handler(vector_t *strvec)
 	checker_t *checker = LIST_TAIL_DATA(checkers_queue);
 	unsigned retry;
 
+	log_message(LOG_INFO, "nb_get_retry is deprecated - please use 'retry'");
+
 	if (!read_unsigned_strvec(strvec, 1, &retry, 0, UINT_MAX, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid nb_get_retry value '%s'", FMT_STR_VSLOT(strvec, 1));
 		return;
