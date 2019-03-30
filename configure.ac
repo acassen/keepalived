@@ -272,8 +272,7 @@ AC_ARG_ENABLE(Werror,
   [AS_HELP_STRING([--enable-Werror], [compile with warnings being errors])])
 
 AC_ARG_WITH([systemdsystemunitdir],
-	AS_HELP_STRING([--with-systemdsystemunitdir=DIR], [Directory for systemd service files]),
-	[], [with_systemdsystemunitdir=$($PKG_CONFIG --variable=systemdsystemunitdir systemd)])
+	AS_HELP_STRING([--with-systemdsystemunitdir=DIR], [Directory for systemd service files])])
 
 # Set the kernel headers path
 if test -n "$kernel_src_path"; then
@@ -551,7 +550,7 @@ do
       eval $LOCAL_WARN_VAR=yes
       add_to_var([KA_CFLAGS], [-W$WARN])
       AC_DEFINE_UNQUOTED([$WARN_VAR], [ 1 ])
-      AS_IF([test -z $WARN_VAR_SHORT], [],
+      AS_IF([test -z "$WARN_VAR_SHORT"], [],
 	    [AC_DEFINE_UNQUOTED([$WARN_VAR_SHORT], [ 1 ])]
 	   )
     ],
@@ -2451,41 +2450,39 @@ AM_CONDITIONAL([RPM_BIP], [test $RPM_NO_BIP -eq 0])
 
 dnl ----[ Determine system init type]----
 INIT_TYPE=
-if test -z $init_type; then
-  /sbin/init --version 2>/dev/null | grep -q upstart
-  if test $? -eq 0; then
-    INIT_TYPE=upstart
-  else
-    init_path=`which systemctl 2>/dev/null`
-    if test \( $? -eq 0 -a -x "$init_path" \); then
-      systemctl | grep -q -- "-\.mount"
-      if test $? -eq 0; then
-	INIT_TYPE=systemd
-      fi
-    fi
-    if test \( -z "$INIT_TYPE" -a -f /etc/init.d/networking \); then
-      init_path=`which openrc-run 2>/dev/null`
-      if test \( $? -eq 0 -a -x "$init_path" \); then
-	head -1 /etc/init.d/networking | grep -q "^#! */.*/openrc-run$"
-	if test $? -eq 0; then
-	  INIT_TYPE=openrc
-	fi
-      fi
-    fi
-    if test \( -z "$INIT_TYPE" -a -f /etc/init.d/cron -a ! -h /etc/init.d/cron \); then
-      INIT_TYPE=SYSV
-    fi
-  fi
-else
-  INIT_TYPE=$init_type
-fi
+AS_IF(
+  [test -n "$init_type"], [INIT_TYPE=$init_type],
+  [test -n "$with_systemdsystemunitdir"], [INIT_TYPE=systemd],
+  [
+    /sbin/init --version 2>/dev/null | grep -q upstart
+    AS_IF(
+      [test $? -eq 0], [INIT_TYPE=upstart],
+      [
+        init_path=`which systemctl 2>/dev/null`
+        AS_IF([test \( $? -eq 0 -a -x "$init_path" \)],
+	  [
+	    systemctl | grep -q -- "-\.mount"
+	    AS_IF([test $? -eq 0], [INIT_TYPE=systemd])
+          ])
+        AS_IF([test \( -z "$INIT_TYPE" -a -f /etc/init.d/networking \)],
+	  [
+	    init_path=`which openrc-run 2>/dev/null`
+	    AS_IF([test \( $? -eq 0 -a -x "$init_path" \)],
+	      [
+		head -1 /etc/init.d/networking | grep -q "^#! */.*/openrc-run$"
+		AS_IF([test $? -eq 0], [INIT_TYPE=openrc])
+	      ])
+          ])
+        AS_IF([test \( -z "$INIT_TYPE" -a -f /etc/init.d/cron -a ! -h /etc/init.d/cron \)], [INIT_TYPE=SYSV])
+      ])
+  ])
+AS_IF([test \(.$INIT_TYPE = .systemd -a -z "$with_systemdsystemunitdir" \)], [with_systemdsystemunitdir=$($PKG_CONFIG --variable=systemdsystemunitdir systemd)])
 
 dnl ----[Default keepalived configuration file]----
 AS_IF([test $default_config_file],
   [
     AS_IF([test $default_config_file = yes -o $default_config_file = no],
-	  AC_MSG_ERROR([A filename must be specified for default-config-file])
-      ])
+	  [AC_MSG_ERROR([A filename must be specified for default-config-file])])
     CONFIG_FILE=$default_config_file
     add_config_opt([DEFAULT_CONFIG_FILE=${default_config_file}])
   ],
@@ -2493,7 +2490,7 @@ AS_IF([test $default_config_file],
 AC_DEFINE_UNQUOTED([DEFAULT_CONFIG_FILE], ["$default_config_file"], [The default configuration file])
 AC_SUBST([DEFAULT_CONFIG_FILE], [$default_config_file])
 
-if test -z $INIT_TYPE; then
+if test -z "$INIT_TYPE"; then
   INIT_TYPE=undetected
 elif test $INIT_TYPE = systemd; then
   AC_SUBST([systemdsystemunitdir], [$with_systemdsystemunitdir])
