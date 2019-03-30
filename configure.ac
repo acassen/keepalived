@@ -526,16 +526,16 @@ do
   LOCAL_WARN_VAR=HAVE_WARNING_`echo $WARN | sed -e "s/=.*//" | tr "a-z-" "A-Z_"`
   grep -q "^#undef $WARN_VAR$" $CONFIG_WARNINGS
   AS_IF([test $? -ne 0],
-        [echo -e "\n/* Define to 1 if -W$WARN in use */\n#undef $WARN_VAR" >>$CONFIG_WARNINGS]
+	[echo -e "\n/* Define to 1 if -W$WARN in use */\n#undef $WARN_VAR" >>$CONFIG_WARNINGS]
        )
 
   test `echo $WARN | grep "=[[0-9]][[0-9]]*$"`
   AS_IF([test $? -eq 0],
-        [ WARN_SHORT=`echo $WARN | sed -e 's/=[[0-9]][[0-9]]*$//'`
-          WARN_VAR_SHORT=_HAVE_WARNING_`echo $WARN_SHORT | tr "a-z=-" "A-Z__"`_
-          grep -q "^#undef $WARN_VAR_SHORT$" $CONFIG_WARNINGS
-          AS_IF([test $? -ne 0],
-	        [echo -e "\n/* Define to 1 if -W$WARN_SHORT in use */\n#undef $WARN_VAR_SHORT" >>$CONFIG_WARNINGS]
+	[ WARN_SHORT=`echo $WARN | sed -e 's/=[[0-9]][[0-9]]*$//'`
+	  WARN_VAR_SHORT=_HAVE_WARNING_`echo $WARN_SHORT | tr "a-z=-" "A-Z__"`_
+	  grep -q "^#undef $WARN_VAR_SHORT$" $CONFIG_WARNINGS
+	  AS_IF([test $? -ne 0],
+		[echo -e "\n/* Define to 1 if -W$WARN_SHORT in use */\n#undef $WARN_VAR_SHORT" >>$CONFIG_WARNINGS]
 	       )
 	],
 	[ unset WARN_VAR_SHORT ]
@@ -562,7 +562,7 @@ do
 done
 AS_IF([test .$HAVE_WARNING_STRICT_OVERFLOW = .yes],
       [
-        # The following is not supported in gcc 5.4.0
+	# The following is not supported in gcc 5.4.0
 	CFLAGS="$CFLAGS -Werror"
 	AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
 	  _Pragma("GCC diagnostic warning \"-Wstrict-overflow=1\"")
@@ -684,37 +684,37 @@ AC_RUN_IFELSE(
   [
     AC_LANG_PROGRAM(
       [[
-        #include <limits.h>
-        #include <endian.h>
+	#include <limits.h>
+	#include <endian.h>
 
-        #if __BYTE_ORDER == __BIG_ENDIAN
-        #if ULONG_MAX == 0xffffffffffffffffUL
-        #define CHK_VAL       0x1234567890abcdefUL
-        #elif ULONG_MAX == 0xffffffffUL
-        #define CHK_VAL       0x12345678UL
-        #else
-        #define CHK_VAL       0x1234UL
-        #endif
-        #elif __BYTE_ORDER == __LITTLE_ENDIAN
-        #if ULONG_MAX == 0xffffffffffffffffUL
-        #define CHK_VAL       0xefcdab9078563412UL
-        #elif ULONG_MAX == 0xffffffffUL
-        #define CHK_VAL       0x78563412UL
-        #else
-        #define CHK_VAL       0x3412UL
-        #endif
-        #else
-        #error Neither big nor little endian - unsupported
-        #endif
+	#if __BYTE_ORDER == __BIG_ENDIAN
+	#if ULONG_MAX == 0xffffffffffffffffUL
+	#define CHK_VAL       0x1234567890abcdefUL
+	#elif ULONG_MAX == 0xffffffffUL
+	#define CHK_VAL       0x12345678UL
+	#else
+	#define CHK_VAL       0x1234UL
+	#endif
+	#elif __BYTE_ORDER == __LITTLE_ENDIAN
+	#if ULONG_MAX == 0xffffffffffffffffUL
+	#define CHK_VAL       0xefcdab9078563412UL
+	#elif ULONG_MAX == 0xffffffffUL
+	#define CHK_VAL       0x78563412UL
+	#else
+	#define CHK_VAL       0x3412UL
+	#endif
+	#else
+	#error Neither big nor little endian - unsupported
+	#endif
       ]],
       [[
-        unsigned long arr[2] = { 0, 0 };
-        unsigned char *p = (unsigned char *)arr + 1;
-        unsigned i;
+	unsigned long arr[2] = { 0, 0 };
+	unsigned char *p = (unsigned char *)arr + 1;
+	unsigned i;
 
-        *(unsigned long *)p = CHK_VAL;
+	*(unsigned long *)p = CHK_VAL;
 
-        return !!(arr[0] == CHK_VAL || p[0] != 0x12 || p[1] != 0x34 || p[2] != 0x56);
+	return !!(arr[0] == CHK_VAL || p[0] != 0x12 || p[1] != 0x34 || p[2] != 0x56);
       ]]
     )
   ],
@@ -750,14 +750,14 @@ AC_LINK_IFELSE([AC_LANG_SOURCE([[
       #include <time.h>
       int main(int argc, char **argv)
       {
-        int i;
-        struct timespec ts;
+	int i;
+	struct timespec ts;
 
-        i = clock_gettime(CLOCK_MONOTONIC, &ts);
+	i = clock_gettime(CLOCK_MONOTONIC, &ts);
       }
       ]])],
       [AC_MSG_RESULT([yes])]
-        add_to_var([KA_LIBS], [-lrt]),
+	add_to_var([KA_LIBS], [-lrt]),
       [AC_MSG_ERROR([clock_gettime() not supported])])
     LDFLAGS=$SAV_LDFLAGS
   ])
@@ -911,13 +911,13 @@ AS_IF([test "$enable_dynamic_linking"],
   [
     AS_IF([test .$enable_vrrp != .no],
       [
-        enable_libiptc_dynamic=$enable_dynamic_linking
-        enable_libipset_dynamic=$enable_dynamic_linking
-        enable_libxtables_dynamic=$enable_dynamic_linking
+	enable_libiptc_dynamic=$enable_dynamic_linking
+	enable_libipset_dynamic=$enable_dynamic_linking
+	enable_libxtables_dynamic=$enable_dynamic_linking
       ])
     AS_IF([test .$enable_vrrp != .no],
       [
-        enable_libnl_dynamic=$enable_dynamic_linking
+	enable_libnl_dynamic=$enable_dynamic_linking
       ])
   ])
 
@@ -1026,7 +1026,7 @@ AC_CHECK_FUNCS([SSL_set0_rbio OPENSSL_init_crypto TLS_method])
 # OPENSSL_INIT_NO_LOAD_CONFIG. It does not fail in v1.1.0h and v1.1.1b.
 AS_IF([test .$ac_cv_func_OPENSSL_init_crypto = .yes],
       [
-        AS_IF([test .$ac_cv_func_TLS_method = .yes], [method_func=TLS_method], [method_func=SSLv23_method])
+	AS_IF([test .$ac_cv_func_TLS_method = .yes], [method_func=TLS_method], [method_func=SSLv23_method])
 	AC_RUN_IFELSE(
 	  [AC_LANG_PROGRAM(
 	    [[#include <openssl/ssl.h>]],
@@ -1107,8 +1107,8 @@ if test .$enable_lvs != .no -a .${enable_libnl} != .no; then
     add_pkg_config([libnl-3.0], [NL3], [remove-requires])
     AC_CHECK_LIB($NL3_LIB_NAMES, nl_socket_alloc,
       [
-        NETLINK_VER=3
-        NEED_NL3=No
+	NETLINK_VER=3
+	NEED_NL3=No
 
 	add_pkg_config([libnl-genl-3.0], [GENL], [remove-requires])
 	AC_CHECK_LIB($GENL_LIB_NAMES, genl_connect, [],
@@ -1123,7 +1123,7 @@ if test .$enable_lvs != .no -a .${enable_libnl} != .no; then
 	fi
 	NEED_NL3=Yes
 
-        if test $NEED_NL3 = Yes; then
+	if test $NEED_NL3 = Yes; then
 	  AC_DEFINE([_HAVE_LIBNL3_], [ 1 ], [Define to 1 if using libnl-3])
 	  add_system_opt([LIBNL3])
 	  if test .$enable_libnl_dynamic = .yes; then
@@ -1136,7 +1136,7 @@ if test .$enable_lvs != .no -a .${enable_libnl} != .no; then
 	  else
 	    add_pkg_config([libnl-3.0])
 	  fi
-        fi
+	fi
       ], [])
   fi
 
@@ -1231,7 +1231,7 @@ AC_CHECK_DECLS([IP_MULTICAST_ALL],
     # due to conflicting definitions
     AC_LINK_IFELSE(
       [
-        AC_LANG_SOURCE(
+	AC_LANG_SOURCE(
 	[[
 	    #include <netinet/in.h>
 	    int main(int argc, char **argv)
@@ -1242,19 +1242,19 @@ AC_CHECK_DECLS([IP_MULTICAST_ALL],
       ],
       [],
       [
-        # No - netinet/in.h doesn't have IP_MULTICAST_ALL
+	# No - netinet/in.h doesn't have IP_MULTICAST_ALL
 	# Build a program that will output the value of the kernel's IP_MULTICAST_ALL
-        AC_LINK_IFELSE(
+	AC_LINK_IFELSE(
 	  [
 	    AC_LANG_SOURCE(
 	      [[
-	        #include <sys/socket.h>
-	        #include <linux/in.h>
-	        #include <stdio.h>
-	        int main(int argc, char **argv)
-	        {
-	          printf("%d\n", IP_MULTICAST_ALL);
-	        }
+		#include <sys/socket.h>
+		#include <linux/in.h>
+		#include <stdio.h>
+		int main(int argc, char **argv)
+		{
+		  printf("%d\n", IP_MULTICAST_ALL);
+		}
 	      ]])
 	  ],
 	  [
@@ -1299,212 +1299,212 @@ AS_IF([test .$enable_iptables != .no],
       SAV_CPPFLAGS="$CPPFLAGS"
       CPPFLAGS="$CPPFLAGS $kernelinc"
       AC_CHECK_HEADERS([linux/netfilter/x_tables.h xtables.h libiptc/libip6tc.h libiptc/libiptc.h libiptc/libxtc.h], [],
-        [
-          USE_LIBIPTC=No
-          break
-        ])
+	[
+	  USE_LIBIPTC=No
+	  break
+	])
       CPPFLAGS="$SAV_CPPFLAGS"
 
       if test $USE_LIBIPTC = Yes; then
-        add_pkg_config([--static libiptc], [IPTC])
-        LIBS="$IPTC_LIBS"
-        SAV_CPPFLAGS="$CPPFLAGS"
-        CPPFLAGS="$CPPFLAGS $kernelinc"
-        AC_CHECK_LIB(iptc, iptc_init,
-          [
-            AC_DEFINE([_HAVE_LIBIPTC_], [ 1 ], [Define to 1 if have iptables libraries])
-            add_system_opt([LIBIPTC])
-            if test .${enable_libiptc_dynamic} != .yes; then
-              add_pkg_config([--static libiptc])
-              add_config_opt([LIBIPTC])
-              dnl - Older versions of libiptc produced a requirement for -liptc, but we don't need it
-              KA_LIBS=`echo $KA_LIBS | sed -e "s/ -liptc//"`
-              dnl - Even older versions of libiptc don't produce any requirement other than -liptc
-              IPTC_LIBS=`echo $IPTC_LIBS | sed -e "s/ *-L[[^ ]]*  */ /" -e "s/ *-liptc */ /" -e "s/^  *$//"`
-              if test ".$IPTC_LIBS" = .; then
-                KA_LIBS=`echo $KA_LIBS -lip4tc -lip6tc`
-              fi
-            else
-              add_pkg_config_without_libs([libiptc])
-              add_config_opt([LIBIPTC_DYNAMIC])
-              AC_DEFINE([_LIBIPTC_DYNAMIC_], [ 1 ], [Define to 1 if building with libiptc dynamic linking])
-              NEED_LIBDL=Yes
-              get_lib_name([ip4tc], [iptc_init])
-              AC_DEFINE_UNQUOTED([IP4TC_LIB_NAME], [ "$LIB_NAME" ], [Define the ip4tc library name])
-              get_lib_name([ip6tc], [ip6tc_init])
-              AC_DEFINE_UNQUOTED([IP6TC_LIB_NAME], [ "$LIB_NAME" ], [Define the ip6tc library name])
-              LIBIPTC_DYNAMIC=Yes
-            fi
-          ],
-          [USE_LIBIPTC=No])
-        CPPFLAGS="$SAV_CPPFLAGS"
+	add_pkg_config([--static libiptc], [IPTC])
+	LIBS="$IPTC_LIBS"
+	SAV_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $kernelinc"
+	AC_CHECK_LIB(iptc, iptc_init,
+	  [
+	    AC_DEFINE([_HAVE_LIBIPTC_], [ 1 ], [Define to 1 if have iptables libraries])
+	    add_system_opt([LIBIPTC])
+	    if test .${enable_libiptc_dynamic} != .yes; then
+	      add_pkg_config([--static libiptc])
+	      add_config_opt([LIBIPTC])
+	      dnl - Older versions of libiptc produced a requirement for -liptc, but we don't need it
+	      KA_LIBS=`echo $KA_LIBS | sed -e "s/ -liptc//"`
+	      dnl - Even older versions of libiptc don't produce any requirement other than -liptc
+	      IPTC_LIBS=`echo $IPTC_LIBS | sed -e "s/ *-L[[^ ]]*  */ /" -e "s/ *-liptc */ /" -e "s/^  *$//"`
+	      if test ".$IPTC_LIBS" = .; then
+		KA_LIBS=`echo $KA_LIBS -lip4tc -lip6tc`
+	      fi
+	    else
+	      add_pkg_config_without_libs([libiptc])
+	      add_config_opt([LIBIPTC_DYNAMIC])
+	      AC_DEFINE([_LIBIPTC_DYNAMIC_], [ 1 ], [Define to 1 if building with libiptc dynamic linking])
+	      NEED_LIBDL=Yes
+	      get_lib_name([ip4tc], [iptc_init])
+	      AC_DEFINE_UNQUOTED([IP4TC_LIB_NAME], [ "$LIB_NAME" ], [Define the ip4tc library name])
+	      get_lib_name([ip6tc], [ip6tc_init])
+	      AC_DEFINE_UNQUOTED([IP6TC_LIB_NAME], [ "$LIB_NAME" ], [Define the ip6tc library name])
+	      LIBIPTC_DYNAMIC=Yes
+	    fi
+	  ],
+	  [USE_LIBIPTC=No])
+	CPPFLAGS="$SAV_CPPFLAGS"
       fi
 
       if test $USE_LIBIPTC = Yes; then
-        if test .$enable_libxtables_dynamic != .yes; then
-          add_pkg_config([xtables])
-        else
-          add_pkg_config_without_libs([xtables])
-          AC_DEFINE([_LIBXTABLES_DYNAMIC_], [ 1 ], [Define to 1 if building with libxtables dynamic linking])
-          add_config_opt([XTABLES_DYNAMIC])
-          NEED_LIBDL=Yes
-          get_lib_name([xtables], [xtables_insmod])
-          AC_DEFINE_UNQUOTED([XTABLES_LIB_NAME], [ "$LIB_NAME" ], [Define the xtables library name])
-        fi
+	if test .$enable_libxtables_dynamic != .yes; then
+	  add_pkg_config([xtables])
+	else
+	  add_pkg_config_without_libs([xtables])
+	  AC_DEFINE([_LIBXTABLES_DYNAMIC_], [ 1 ], [Define to 1 if building with libxtables dynamic linking])
+	  add_config_opt([XTABLES_DYNAMIC])
+	  NEED_LIBDL=Yes
+	  get_lib_name([xtables], [xtables_insmod])
+	  AC_DEFINE_UNQUOTED([XTABLES_LIB_NAME], [ "$LIB_NAME" ], [Define the xtables library name])
+	fi
 
-        dnl ----[Check for ipset libraries]----
-        SAV_CPPFLAGS="$CPPFLAGS"
-        CPPFLAGS="$CPPFLAGS $kernelinc"
-        if test "${enable_libipset}" != no; then
-          $PKG_CONFIG --exists libipset
-          if test $? -eq 0; then
-    	add_pkg_config([libipset], [IPSET])
-          else
-    	IPSET_LIBS="-lipset"
-          fi
-          SAV_LIBS=$LIBS
-          LIBS="$IPTC_LIBS $IPSET_LIBS"
+	dnl ----[Check for ipset libraries]----
+	SAV_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPPFLAGS $kernelinc"
+	if test "${enable_libipset}" != no; then
+	  $PKG_CONFIG --exists libipset
+	  if test $? -eq 0; then
+	add_pkg_config([libipset], [IPSET])
+	  else
+	IPSET_LIBS="-lipset"
+	  fi
+	  SAV_LIBS=$LIBS
+	  LIBS="$IPTC_LIBS $IPSET_LIBS"
 
-          AC_CHECK_LIB(ipset, ipset_session_init,
-    	[
-    	  USE_LIBIPSET=Yes
-    	  AC_CHECK_HEADERS([libipset/data.h libipset/linux_ip_set.h libipset/session.h libipset/types.h], [],
-    	    [
-    	      USE_LIBIPSET=No
-    	      break
-    	    ])
+	  AC_CHECK_LIB(ipset, ipset_session_init,
+	[
+	  USE_LIBIPSET=Yes
+	  AC_CHECK_HEADERS([libipset/data.h libipset/linux_ip_set.h libipset/session.h libipset/types.h], [],
+	    [
+	      USE_LIBIPSET=No
+	      break
+	    ])
 
-    	  if test $USE_LIBIPSET = Yes; then
-    	    AC_CHECK_LIB(xtables, xtables_insmod, [], [USE_LIBIPSET=No])
-    	  fi
+	  if test $USE_LIBIPSET = Yes; then
+	    AC_CHECK_LIB(xtables, xtables_insmod, [], [USE_LIBIPSET=No])
+	  fi
 
-    	  if test $USE_LIBIPSET = Yes; then
-    	    dnl -- Need to use <libipset/linux_ip_set.h> for <linux/netfilter/xt_set.h> prior to Linux 3.4
-    	    EXTRA_INCLUDE=
-    	    AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-    	      #include <linux/netfilter/xt_set.h>
-    	      ]])],
-    	      [AC_CHECK_HEADERS([linux/netfilter/xt_set.h], [], [USE_LIBIPSET=No], [])],
-    	      [AC_CHECK_HEADER([linux/netfilter/xt_set.h],
-    		[
-    		  AC_DEFINE([USE_LIBIPSET_LINUX_IP_SET_H], [ 1 ], [Define to 1 if <linux/netfilter/xt_set.h> needs <libipset/linux_ip_set.h>])
-    		  EXTRA_INCLUDE="#include <libipset/linux_ip_set.h>"
-    		], [USE_LIBIPSET=No],
-    		[[#include <libipset/linux_ip_set.h>]])
-    	      ]
-    	    )
-    	  fi
+	  if test $USE_LIBIPSET = Yes; then
+	    dnl -- Need to use <libipset/linux_ip_set.h> for <linux/netfilter/xt_set.h> prior to Linux 3.4
+	    EXTRA_INCLUDE=
+	    AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+	      #include <linux/netfilter/xt_set.h>
+	      ]])],
+	      [AC_CHECK_HEADERS([linux/netfilter/xt_set.h], [], [USE_LIBIPSET=No], [])],
+	      [AC_CHECK_HEADER([linux/netfilter/xt_set.h],
+		[
+		  AC_DEFINE([USE_LIBIPSET_LINUX_IP_SET_H], [ 1 ], [Define to 1 if <linux/netfilter/xt_set.h> needs <libipset/linux_ip_set.h>])
+		  EXTRA_INCLUDE="#include <libipset/linux_ip_set.h>"
+		], [USE_LIBIPSET=No],
+		[[#include <libipset/linux_ip_set.h>]])
+	      ]
+	    )
+	  fi
 
-    	  if test $USE_LIBIPSET = Yes; then
-    	    AC_DEFINE([_HAVE_LIBIPSET_], [ 1 ], [Define to 1 if have ipset library])
-    	    $PKG_CONFIG --exists libipset
-    	    if test $? -eq 0; then
-    	      if test .${enable_libipset_dynamic} = .no; then
-    		add_pkg_config([libipset])
-    	      else
-    		add_pkg_config_without_libs([libipset])
-    	      fi
-    	    elif test .${enable_libipset_dynamic} = .no; then
-    	      add_to_var([KA_LIBS], [-lipset])
-    	    fi
-    	    if test .${enable_libipset_dynamic} != .no; then
-    	      AC_DEFINE([_LIBIPSET_DYNAMIC_], [ 1 ], [Define to 1 if building with libipset dynamic linking])
-    	      add_config_opt([LIBIPSET_DYNAMIC])
-    	      NEED_LIBDL=Yes
-    	      get_lib_name([ipset], [ipset_session_init])
-    	      AC_DEFINE_UNQUOTED([IPSET_LIB_NAME], [ "$LIB_NAME" ], [Define the ipset library name])
-    	    else
-    	      add_config_opt([LIBIPSET])
-    	    fi
+	  if test $USE_LIBIPSET = Yes; then
+	    AC_DEFINE([_HAVE_LIBIPSET_], [ 1 ], [Define to 1 if have ipset library])
+	    $PKG_CONFIG --exists libipset
+	    if test $? -eq 0; then
+	      if test .${enable_libipset_dynamic} = .no; then
+		add_pkg_config([libipset])
+	      else
+		add_pkg_config_without_libs([libipset])
+	      fi
+	    elif test .${enable_libipset_dynamic} = .no; then
+	      add_to_var([KA_LIBS], [-lipset])
+	    fi
+	    if test .${enable_libipset_dynamic} != .no; then
+	      AC_DEFINE([_LIBIPSET_DYNAMIC_], [ 1 ], [Define to 1 if building with libipset dynamic linking])
+	      add_config_opt([LIBIPSET_DYNAMIC])
+	      NEED_LIBDL=Yes
+	      get_lib_name([ipset], [ipset_session_init])
+	      AC_DEFINE_UNQUOTED([IPSET_LIB_NAME], [ "$LIB_NAME" ], [Define the ipset library name])
+	    else
+	      add_config_opt([LIBIPSET])
+	    fi
 
-    	    dnl -- xt_set_info_match first introduced in Linux 2.6.39 (initial implementation of ipsets)
-    	    dnl -- xt_set_info_match_v1 declared since Linux 3.1
-    	    AC_CHECK_MEMBER([struct xt_set_info_match_v1.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V1], [ 1 ], [Define to 1 if have struct xt_set_info_match_v1])], [],
-    	      [
-    		$EXTRA_INCLUDE
-    		#include <linux/netfilter/xt_set.h>
-    	      ])
-    	    dnl -- xt_set_info_match_v3 declared since Linux 3.10
-    	    AC_CHECK_MEMBER([struct xt_set_info_match_v3.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V3], [ 1 ], [Define to 1 if have struct xt_set_info_match_v3])], [],
-    	      [
-    		$EXTRA_INCLUDE
-    		#include <linux/netfilter/xt_set.h>
-    	      ])
-    	    dnl -- xt_set_info_match_v4 declared since Linux 3.19
-    	    AC_CHECK_MEMBER([struct xt_set_info_match_v4.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V4], [ 1 ], [Define to 1 if have struct xt_set_info_match_v4])], [],
-    	      [
-    		$EXTRA_INCLUDE
-    		#include <linux/netfilter/xt_set.h>
-    	      ])
+	    dnl -- xt_set_info_match first introduced in Linux 2.6.39 (initial implementation of ipsets)
+	    dnl -- xt_set_info_match_v1 declared since Linux 3.1
+	    AC_CHECK_MEMBER([struct xt_set_info_match_v1.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V1], [ 1 ], [Define to 1 if have struct xt_set_info_match_v1])], [],
+	      [
+		$EXTRA_INCLUDE
+		#include <linux/netfilter/xt_set.h>
+	      ])
+	    dnl -- xt_set_info_match_v3 declared since Linux 3.10
+	    AC_CHECK_MEMBER([struct xt_set_info_match_v3.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V3], [ 1 ], [Define to 1 if have struct xt_set_info_match_v3])], [],
+	      [
+		$EXTRA_INCLUDE
+		#include <linux/netfilter/xt_set.h>
+	      ])
+	    dnl -- xt_set_info_match_v4 declared since Linux 3.19
+	    AC_CHECK_MEMBER([struct xt_set_info_match_v4.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V4], [ 1 ], [Define to 1 if have struct xt_set_info_match_v4])], [],
+	      [
+		$EXTRA_INCLUDE
+		#include <linux/netfilter/xt_set.h>
+	      ])
 
-    	    dnl - ipset type iface introduced in Linux 3.1
-    	    AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-    	      #include <linux/netfilter/ipset/ip_set.h>
-    	      int main(void) { int var = IPSET_ATTR_IFACE; }
-    	      ]])],
-    	      [AC_DEFINE([HAVE_IPSET_ATTR_IFACE], [ 1 ], [Define to 1 if ipset supports iface type])])
+	    dnl - ipset type iface introduced in Linux 3.1
+	    AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+	      #include <linux/netfilter/ipset/ip_set.h>
+	      int main(void) { int var = IPSET_ATTR_IFACE; }
+	      ]])],
+	      [AC_DEFINE([HAVE_IPSET_ATTR_IFACE], [ 1 ], [Define to 1 if ipset supports iface type])])
 
-    	    dnl - The include guard for <linux/netfilter/ipset/ip_set.h> has the leading _UAPI remove when
-    	    dnl - the source code is processed to produce the actual header files.
-    	    dnl - Unfortunately libipset provides a copy of the kernel headers, as <libipset/linux_ip_set*.h>,
-    	    dnl - but it doesn't remove the _UAPI from the header files when installing them.
-    	    dnl - Unfortunately we need to include some libipset header files, which include the
-    	    dnl - libipset version, and also <linux/netfilter/xt_set.h> which includes the kernel version.
-    	    dnl - To get around this problem, after include one of these we need to define the header guard
-    	    dnl - for the other, to stop it being included as well.
-    	    dnl - This is reported as a bug against ipset at https://bugzilla.netfilter.org/show_bug.cgi?id=1139
-    	    dnl - We will take the kernel version if there is an inclusion collision.
-    	    AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-    	      #include <linux/netfilter/ipset/ip_set.h>
-    	      #include <libipset/linux_ip_set.h>
-    	      int main(void) {}
-    	      ]])], [],
-    	      [AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-    		 #include <linux/netfilter/ipset/ip_set.h>
-    		 #ifdef _UAPI_IP_SET_H
-    		 #error _UAPI_IP_SET_H defined
-    		 #endif
-    		 int main(void) {}
-    		 ]])],
-    		 [AC_DEFINE([LIBIPSET_H_ADD_UAPI_IP_SET_H_GUARD], [1], [Define to add guard _UAPI_IP_SET_H before including <libipset/linux_ip_set.h>])],
-    		 [AC_DEFINE([LIBIPSET_H_ADD_IP_SET_H_GUARD], [1], [Define to add guard _IP_SET_H before including <libipset/linux_ip_set.h>])])
-    	      ])
-    	  fi
+	    dnl - The include guard for <linux/netfilter/ipset/ip_set.h> has the leading _UAPI remove when
+	    dnl - the source code is processed to produce the actual header files.
+	    dnl - Unfortunately libipset provides a copy of the kernel headers, as <libipset/linux_ip_set*.h>,
+	    dnl - but it doesn't remove the _UAPI from the header files when installing them.
+	    dnl - Unfortunately we need to include some libipset header files, which include the
+	    dnl - libipset version, and also <linux/netfilter/xt_set.h> which includes the kernel version.
+	    dnl - To get around this problem, after include one of these we need to define the header guard
+	    dnl - for the other, to stop it being included as well.
+	    dnl - This is reported as a bug against ipset at https://bugzilla.netfilter.org/show_bug.cgi?id=1139
+	    dnl - We will take the kernel version if there is an inclusion collision.
+	    AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+	      #include <linux/netfilter/ipset/ip_set.h>
+	      #include <libipset/linux_ip_set.h>
+	      int main(void) {}
+	      ]])], [],
+	      [AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+		 #include <linux/netfilter/ipset/ip_set.h>
+		 #ifdef _UAPI_IP_SET_H
+		 #error _UAPI_IP_SET_H defined
+		 #endif
+		 int main(void) {}
+		 ]])],
+		 [AC_DEFINE([LIBIPSET_H_ADD_UAPI_IP_SET_H_GUARD], [1], [Define to add guard _UAPI_IP_SET_H before including <libipset/linux_ip_set.h>])],
+		 [AC_DEFINE([LIBIPSET_H_ADD_IP_SET_H_GUARD], [1], [Define to add guard _IP_SET_H before including <libipset/linux_ip_set.h>])])
+	      ])
+	  fi
 
-    	  if test $USE_LIBIPSET = Yes; then
-    	    AC_MSG_CHECKING([for libipset version 7 or later])
-    	    AC_COMPILE_IFELSE([AC_LANG_SOURCE(
-    	      [[
-    	        #include <libipset/session.h>
+	  if test $USE_LIBIPSET = Yes; then
+	    AC_MSG_CHECKING([for libipset version 7 or later])
+	    AC_COMPILE_IFELSE([AC_LANG_SOURCE(
+	      [[
+		#include <libipset/session.h>
 
-    		void test_func(void)
-    		{
-    		  ipset_session_init(NULL, NULL);
-    		}
-    	      ]])],
-    	      [
-    	        AC_MSG_RESULT([yes])
-    	      ],
-    	      [
-    	        AC_MSG_RESULT([no])
-    	        AC_DEFINE([LIBIPSET_PRE_V7_COMPAT], [ 1 ], [Define to 1 if libipset library version prior to v7])
-    	        add_system_opt[LIBIPSET_PRE_V7]
-    	      ])
-    	  fi
-    	])
-          LIBS="$SAV_LIBS"
-        fi
+		void test_func(void)
+		{
+		  ipset_session_init(NULL, NULL);
+		}
+	      ]])],
+	      [
+		AC_MSG_RESULT([yes])
+	      ],
+	      [
+		AC_MSG_RESULT([no])
+		AC_DEFINE([LIBIPSET_PRE_V7_COMPAT], [ 1 ], [Define to 1 if libipset library version prior to v7])
+		add_system_opt[LIBIPSET_PRE_V7]
+	      ])
+	  fi
+	])
+	  LIBS="$SAV_LIBS"
+	fi
 
-        dnl -- XT_EXTENSION_MAXNAMELEN not defined until Linux 2.6.35
-        AC_CHECK_DECL([XT_EXTENSION_MAXNAMELEN], [],
-          [AC_DEFINE([XT_EXTENSION_MAXNAMELEN], [ (XT_FUNCTION_MAXNAMELEN - 1) ], [Define if <linux/netfilter/x_tables.h> doesnt define it])],
-          [#include <linux/netfilter/x_tables.h>])
+	dnl -- XT_EXTENSION_MAXNAMELEN not defined until Linux 2.6.35
+	AC_CHECK_DECL([XT_EXTENSION_MAXNAMELEN], [],
+	  [AC_DEFINE([XT_EXTENSION_MAXNAMELEN], [ (XT_FUNCTION_MAXNAMELEN - 1) ], [Define if <linux/netfilter/x_tables.h> doesnt define it])],
+	  [#include <linux/netfilter/x_tables.h>])
 
-        CPPFLAGS="$SAV_CPPFLAGS"
+	CPPFLAGS="$SAV_CPPFLAGS"
       fi
     fi
     AS_IF([test $USE_LIBIPTC = No -o .$LIBIPTC_DYNAMIC = .Yes],
-          [AC_DEFINE([_USE_IPTABLES_CMD_], [ 1 ], [Define to 1 if using iptables command enabled])])
+	  [AC_DEFINE([_USE_IPTABLES_CMD_], [ 1 ], [Define to 1 if using iptables command enabled])])
   ])
 AM_CONDITIONAL([LIBIPTC], [test $USE_LIBIPTC = Yes])
 AM_CONDITIONAL([LIBIPSET], [test $USE_LIBIPSET = Yes])
@@ -1549,18 +1549,18 @@ if test .${enable_nftables} != .no; then
       add_config_opt([NFTABLES])
       AC_MSG_CHECKING([whether NFTNL_EXPR_LOOKUP_FLAGS is defined])
       AC_LINK_IFELSE([AC_LANG_SOURCE([[
-          #include <libnftnl/expr.h>
-          int main(void)
-          {
+	  #include <libnftnl/expr.h>
+	  int main(void)
+	  {
 	int i = NFTNL_EXPR_LOOKUP_FLAGS;
 	return 0;
-          }
-        ]])], [
-          AC_MSG_RESULT(yes)
-          AC_DEFINE([HAVE_NFTNL_EXPR_LOOKUP_FLAGS], [ 1 ], [Define to 1 if NFTNL_EXPR_LOOKUP_FLAGS defined])
-        ],[
-          AC_MSG_RESULT(no)
-        ])
+	  }
+	]])], [
+	  AC_MSG_RESULT(yes)
+	  AC_DEFINE([HAVE_NFTNL_EXPR_LOOKUP_FLAGS], [ 1 ], [Define to 1 if NFTNL_EXPR_LOOKUP_FLAGS defined])
+	],[
+	  AC_MSG_RESULT(no)
+	])
     fi
   fi
 fi
@@ -1707,28 +1707,28 @@ if test "$enable_lvs" != no; then
       AS_IF([test $HAVE_PCRE2 -ne 0], [AC_MSG_ERROR([cannot find pcre library])])
       AC_MSG_CHECKING([for pcre.h])
       AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-        #define PCRE2_CODE_UNIT_WIDTH 8
-        #include <pcre2.h>
-        ]])],
-        [
+	#define PCRE2_CODE_UNIT_WIDTH 8
+	#include <pcre2.h>
+	]])],
+	[
 	  AC_MSG_RESULT([yes])
-          WITH_REGEX=Yes
+	  WITH_REGEX=Yes
 	  add_pkg_config([libpcre2-8])
-          AC_DEFINE([_WITH_REGEX_CHECK_], [ 1 ], [Define to 1 to build with HTTP_GET regex checking])
+	  AC_DEFINE([_WITH_REGEX_CHECK_], [ 1 ], [Define to 1 to build with HTTP_GET regex checking])
 	  add_config_opt([REGEX])
-        ],
-        [
-          AC_MSG_RESULT([no])
+	],
+	[
+	  AC_MSG_RESULT([no])
 	  AC_MSG_ERROR([pcre2.h is missing])
-        ])
+	])
       if test "$enable_regex_timers" = yes; then
 	AC_DEFINE([_WITH_REGEX_TIMERS_], [ 1 ], [Define to 1 to include regex timers])
       fi
 
       if test "${enable_regex_debug}" = yes; then
-        AC_DEFINE([_REGEX_DEBUG_], [ 1 ], [Define to 1 to build with regex debugging support])
-        ENABLE_REGEX_DEBUG=Yes
-        add_config_opt([REGEX_DEBUG])
+	AC_DEFINE([_REGEX_DEBUG_], [ 1 ], [Define to 1 to build with regex debugging support])
+	ENABLE_REGEX_DEBUG=Yes
+	add_config_opt([REGEX_DEBUG])
       fi
     ])
 else
@@ -2172,8 +2172,8 @@ dnl -- When building a RedHat RPM with hardening enabled, -pie is specified,
 dnl -- and for setns this requires -fPIC
 AS_IF([test $ac_cv_func_setns = no],
       [
-        AS_UNSET([ac_cv_func_setns])
-        CFLAGS="$CFLAGS -fPIC"
+	AS_UNSET([ac_cv_func_setns])
+	CFLAGS="$CFLAGS -fPIC"
 	AC_CHECK_FUNCS([setns])
       ])
 CFLAGS="$SAV_CFLAGS"
@@ -2417,8 +2417,8 @@ AS_IF([test .$enable_eintr_debug = .yes],
     dnl --- When finished testing, change following to .$enable_eintr_debug = .check ---
     AS_IF([test .$ac_cv_func_signalfd = .no -o \( .$enable_eintr_debug != .nocheck -a .$enable_eintr_debug != .no \)],
       [
-        AC_DEFINE([CHECK_EINTR], [ 1 ], [Define if need to check for EINTR errno])
-        AS_IF([test .$ac_cv_func_signalfd != .no], [add_config_opt([EINTR_CHECK])])
+	AC_DEFINE([CHECK_EINTR], [ 1 ], [Define if need to check for EINTR errno])
+	AS_IF([test .$ac_cv_func_signalfd != .no], [add_config_opt([EINTR_CHECK])])
       ])
   ])
 
@@ -2484,7 +2484,7 @@ dnl ----[Default keepalived configuration file]----
 AS_IF([test $default_config_file],
   [
     AS_IF([test $default_config_file = yes -o $default_config_file = no],
-          AC_MSG_ERROR([A filename must be specified for default-config-file])
+	  AC_MSG_ERROR([A filename must be specified for default-config-file])
       ])
     CONFIG_FILE=$default_config_file
     add_config_opt([DEFAULT_CONFIG_FILE=${default_config_file}])
