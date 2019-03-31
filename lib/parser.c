@@ -74,6 +74,11 @@ typedef struct _defs {
 	const char *params_end;
 } def_t;
 
+typedef struct _multiline_stack_ent {
+	char *ptr;
+	size_t seq_depth;
+} multiline_stack_ent;
+
 /* global vars */
 vector_t *keywords;
 char *config_id;
@@ -87,6 +92,7 @@ static size_t current_file_line_no;
 static int sublevel = 0;
 static int skip_sublevel = 0;
 static list multiline_stack;
+size_t multiline_seq_depth = 0;
 static char *buf_extern;
 static config_err_t config_err = CONFIG_OK; /* Highest level of config error for --config-test */
 static unsigned int random_seed;
@@ -1339,6 +1345,39 @@ find_definition(const char *name, size_t len, bool definition)
 	return NULL;
 }
 
+static void
+multiline_stack_push(char *ptr)
+{
+	multiline_stack_ent *stack_ent;
+
+	if (!LIST_EXISTS(multiline_stack))
+		multiline_stack = alloc_list(free_list_element_simple, NULL);
+
+	PMALLOC(stack_ent);
+	stack_ent->ptr = ptr;
+	stack_ent->seq_depth = multiline_seq_depth;
+
+	list_add(multiline_stack, stack_ent);
+}
+
+static char *
+multiline_stack_pop(void)
+{
+	multiline_stack_ent *stack_ent;
+	char *next_ptr;
+
+	if (!LIST_EXISTS(multiline_stack) || LIST_ISEMPTY(multiline_stack))
+		return NULL;
+
+	stack_ent = LIST_TAIL_DATA(multiline_stack);
+	next_ptr = stack_ent->ptr;
+	multiline_seq_depth = stack_ent->seq_depth;
+
+	list_remove(multiline_stack, multiline_stack->tail);
+
+	return next_ptr;
+}
+
 static bool
 replace_param(char *buf, size_t max_len, char **multiline_ptr_ptr)
 {
@@ -1363,11 +1402,11 @@ replace_param(char *buf, size_t max_len, char **multiline_ptr_ptr)
 
 			/* We are in a multiline expansion, and now have another
 			 * one, so save the previous state on the multiline stack */
-			if (def->multiline && multiline_ptr) {
-				if (!LIST_EXISTS(multiline_stack))
-					multiline_stack = alloc_list(NULL, NULL);
-				list_add(multiline_stack, multiline_ptr);
-			}
+			if (def->multiline && multiline_ptr)
+				multiline_stack_push(multiline_ptr);
+
+			if (def->multiline)
+				multiline_seq_depth = LIST_EXISTS(seq_list) ? seq_list->count : 0;
 
 			if (def->fn) {
 				/* This is a standard definition that uses a function for the replacement text */
@@ -1693,24 +1732,8 @@ read_line(char *buf, size_t size)
 			FREE(line_residue);
 			line_residue = NULL;
 		}
-		else if (next_ptr) {
-			/* We are expanding a multiline parameter, so copy next line */
-			end = strchr(next_ptr, DEF_LINE_END[0]);
-			if (!end) {
-				strcpy(buf, next_ptr);
-				if (!LIST_ISEMPTY(multiline_stack)) {
-					next_ptr = LIST_TAIL_DATA(multiline_stack);
-					list_remove(multiline_stack, multiline_stack->tail);
-				}
-				else
-					next_ptr = NULL;
-			} else {
-				strncpy(buf, next_ptr, (size_t)(end - next_ptr));
-				buf[end - next_ptr] = '\0';
-				next_ptr = end + 1;
-			}
-		}
-		else if (!LIST_ISEMPTY(seq_list)) {
+		else if (!LIST_ISEMPTY(seq_list) &&
+			 seq_list->count > multiline_seq_depth) {
 			seq_t *seq = LIST_TAIL_DATA(seq_list);
 			char val[12];
 			snprintf(val, sizeof(val), "%d", seq->next);
@@ -1726,6 +1749,23 @@ read_line(char *buf, size_t size)
 				log_message(LOG_INFO, "Removing seq %s for '%s'", seq->var, seq->text);
 #endif
 				list_remove(seq_list, seq_list->tail);
+			}
+		}
+		else if (next_ptr) {
+			/* We are expanding a multiline parameter, so copy next line */
+			end = strchr(next_ptr, DEF_LINE_END[0]);
+			if (!end) {
+				strcpy(buf, next_ptr);
+				if (!LIST_ISEMPTY(multiline_stack))
+					next_ptr = multiline_stack_pop();
+				else {
+					next_ptr = NULL;
+					multiline_seq_depth = 0;
+				}
+			} else {
+				strncpy(buf, next_ptr, (size_t)(end - next_ptr));
+				buf[end - next_ptr] = '\0';
+				next_ptr = end + 1;
 			}
 		}
 		else {
