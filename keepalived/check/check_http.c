@@ -373,7 +373,7 @@ http_get_retry_handler(vector_t *strvec)
 	checker_t *checker = LIST_TAIL_DATA(checkers_queue);
 	unsigned retry;
 
-	log_message(LOG_INFO, "nb_get_retry is deprecated - please use 'retry'");
+	report_config_error(CONFIG_GENERAL_ERROR, "nb_get_retry is deprecated - please use 'retry'");
 
 	if (!read_unsigned_strvec(strvec, 1, &retry, 0, UINT_MAX, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid nb_get_retry value '%s'", FMT_STR_VSLOT(strvec, 1));
@@ -853,6 +853,7 @@ epilog(thread_t * thread, int method, unsigned t, unsigned c)
 	 * servers.
 	 */
 	else if (method == REGISTER_CHECKER_RETRY && checker->retry_it > checker->retry) {
+log_message(LOG_INFO, "is_up %d, has_run %d, retry %d retry_it %d", checker->is_up, checker->has_run, checker->retry, checker->retry_it);
 		if (checker->is_up || !checker->has_run) {
 			if (checker->has_run && checker->retry)
 				log_message(LOG_INFO
@@ -897,6 +898,8 @@ epilog(thread_t * thread, int method, unsigned t, unsigned c)
 		http_get_check->req = NULL;
 		thread_close_fd(thread);
 	}
+
+	checker->has_run = true;
 
 	/* Register next checker thread */
 	thread_add_timer(thread->master, http_connect_thread, checker, delay);

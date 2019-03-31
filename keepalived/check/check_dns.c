@@ -137,6 +137,7 @@ dns_final(thread_t * thread, int error, const char *fmt, ...)
 			}
 			if (checker->retry_it < checker->retry) {
 				checker->retry_it++;
+				checker->has_run = true;
 				thread_add_timer(thread->master,
 						 dns_connect_thread, checker,
 						 checker->delay_before_retry);

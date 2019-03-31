@@ -429,7 +429,7 @@ misc_check_child_thread(thread_t * thread)
 	if (script_exit_type) {
 		char message[40];
 
-		if (!script_success)
+		if (!script_success && checker->retry)
 			snprintf(message, sizeof(message), " after %d retries", checker->retry);
 		else
 			message[0] = '\0';
@@ -473,6 +473,8 @@ misc_check_child_thread(thread_t * thread)
 	thread_add_timer(thread->master, misc_check_thread, checker, timer_long(next_time));
 
 	misck_checker->state = SCRIPT_STATE_IDLE;
+
+	checker->has_run = true;
 
 	return 0;
 }
