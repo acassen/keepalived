@@ -161,9 +161,9 @@ AC_ARG_ENABLE(snmp-rfc,
 AC_ARG_ENABLE(snmp-rfcv2,
   [AS_HELP_STRING([--enable-snmp-rfcv2], [compile with SNMP RFC2787 (VRRPv2) support])])
 AC_ARG_ENABLE(snmp-rfcv3,
-  [AS_HELP_STRING([--enable-snmp-rfcv3], [compile with SNMP RFC6257 (VRRPv3) support])])
+  [AS_HELP_STRING([--enable-snmp-rfcv3], [compile with SNMP RFC6527 (VRRPv3) support])])
 AC_ARG_ENABLE(snmp-reply-v3-for-v2,
-  [AS_HELP_STRING([--disable-snmp-reply-v3-for-v2], [disable RFC6257 responses for VRRPv2 instances])])
+  [AS_HELP_STRING([--disable-snmp-reply-v3-for-v2], [disable RFC6527 responses for VRRPv2 instances])])
 AC_ARG_ENABLE(dbus,
   [AS_HELP_STRING([--enable-dbus], [compile with dbus support])])
 AC_ARG_ENABLE(dbus-create-instance,
@@ -2016,7 +2016,7 @@ if test "$enable_snmp" = yes -o \
   fi
   if test ${SNMP_RFCV3_SUPPORT} = Yes -a \
 	  "$enable_snmp_reply_v3_for_v2" != no; then
-    AC_DEFINE([_SNMP_REPLY_V3_FOR_V2_], [ 1 ], [Define to 1 to have keepalived send RFC6257 SNMP responses for VRRPv2 instances])
+    AC_DEFINE([_SNMP_REPLY_V3_FOR_V2_], [ 1 ], [Define to 1 to have keepalived send RFC6527 SNMP responses for VRRPv2 instances])
     SNMP_V3_FOR_V2=Yes
     add_config_opt([SNMP_V3_FOR_V2])
   fi
@@ -2149,6 +2149,7 @@ fi
 AM_CONDITIONAL([WITH_SHA1], [test $SHA1_SUPPORT = Yes])
 
 dnl ----[ check for SO_MARK support ]----
+dnl -- Since Linux 2.6.25
 SO_MARK_SUPPORT=No
 if test "${enable_fwmark}" != no; then
   AC_CHECK_DECLS([SO_MARK],
