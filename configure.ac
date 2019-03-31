@@ -1357,9 +1357,9 @@ AS_IF([test .$enable_iptables != .no],
 	if test "${enable_libipset}" != no; then
 	  $PKG_CONFIG --exists libipset
 	  if test $? -eq 0; then
-	add_pkg_config([libipset], [IPSET])
+	    add_pkg_config([libipset], [IPSET])
 	  else
-	IPSET_LIBS="-lipset"
+	    IPSET_LIBS="-lipset"
 	  fi
 	  SAV_LIBS=$LIBS
 	  LIBS="$IPTC_LIBS $IPSET_LIBS"
