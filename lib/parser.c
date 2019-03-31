@@ -68,7 +68,10 @@ typedef struct _defs {
 	char *value;
 	size_t value_len;
 	bool multiline;
-	char *(*fn)(void);
+	char *(*fn)(const struct _defs *);
+	unsigned max_params;
+	const char *params;
+	const char *params_end;
 } def_t;
 
 /* global vars */
@@ -86,6 +89,8 @@ static int skip_sublevel = 0;
 static list multiline_stack;
 static char *buf_extern;
 static config_err_t config_err = CONFIG_OK; /* Highest level of config error for --config-test */
+static unsigned int random_seed;
+bool random_seed_configured;
 
 /* Parameter definitions */
 static list defs;
@@ -356,6 +361,13 @@ read_unsigned_base_strvec(const vector_t *strvec, size_t index, int base, unsign
 	return read_unsigned_func(strvec_slot(strvec, index), base, res, min_val, max_val, ignore_error);
 }
 
+void
+set_random_seed(unsigned int seed)
+{
+	random_seed = seed;
+	random_seed_configured = true;
+}
+
 static void
 keyword_alloc(vector_t *keywords_vec, const char *string, void (*handler) (vector_t *), bool active)
 {
@@ -499,7 +511,7 @@ free_keywords(vector_t *keywords_vec)
 
 /* Functions used for standard definitions */
 static char *
-get_cwd(void)
+get_cwd(__attribute__((unused))const def_t *def)
 {
 	char *dir = MALLOC(PATH_MAX);
 
@@ -509,13 +521,46 @@ get_cwd(void)
 }
 
 static char *
-get_instance(void)
+get_instance(__attribute__((unused))const def_t *def)
 {
 	char *conf_id = MALLOC(strlen(config_id) + 1);
 
 	strcpy(conf_id, config_id);
 
 	return conf_id;
+}
+
+static char *
+get_random(const def_t *def)
+{
+	unsigned long min = 0;
+	unsigned long max = 32767;
+	long val;
+	char *endp;
+	char *rand_str;
+	size_t rand_str_len = 0;
+
+	/* We have already checked that the parameter string comprises
+	 * only spaces and decimal digits */
+	if (def->params) {
+		min = strtoul(def->params, &endp, 10);
+		if (endp < def->params_end) {
+			max = strtoul(endp, &endp, 10);
+			if (endp != def->params_end + 1)
+				log_message(LOG_INFO, "Too many parameters or extra text for ${_RANDOM %.*s}", (int)(def->params_end - def->params + 1), def->params);
+		}
+	}
+
+	val = max;
+	do {
+		rand_str_len++;
+	} while (val /= 10);
+	rand_str = MALLOC(rand_str_len + 1);
+
+	val = random() % (max - min + 1) + min;
+	snprintf(rand_str, rand_str_len + 1, "%ld", val);
+
+	return rand_str;
 }
 
 vector_t *
@@ -1229,6 +1274,8 @@ find_definition(const char *name, size_t len, bool definition)
 	const char *p;
 	bool using_braces = false;
 	bool allow_multiline;
+	const char *param_start = NULL;
+	const char *param_end = NULL;
 
 	if (LIST_ISEMPTY(defs))
 		return NULL;
@@ -1245,11 +1292,24 @@ find_definition(const char *name, size_t len, bool definition)
 		for (len = 1, p = name + 1; *p != '\0' && (isalnum(*p) || *p == '_'); len++, p++);
 
 		/* Check we have a suitable end character */
-		if (using_braces && *p != EOB[0])
-			return NULL;
-
-		if (!using_braces && !definition &&
-		     *p != ' ' && *p != '\t' && *p != '\0')
+		if (using_braces) {
+			if (!definition) {
+				/* Allow for parameters to the definition */
+				while (*p && (*p == ' ' || isdigit (*p))) {
+					if (*p != ' ') {
+					       if (!param_start)
+						       param_start = p;
+					       param_end = p;
+					}
+					p++;
+				}
+				/* Ensure don't end with a space */
+				if (param_start && param_end + 1 != p)
+					return NULL;
+			}
+			if (*p != EOB[0])
+				return NULL;
+		} else if (!definition && *p != ' ' && *p != '\t' && *p != '\0')
 			return NULL;
 	}
 
@@ -1260,12 +1320,20 @@ find_definition(const char *name, size_t len, bool definition)
 	else
 		allow_multiline = false;
 
-	for (e = LIST_HEAD(defs); e; ELEMENT_NEXT(e)) {
-		def = ELEMENT_DATA(e);
+	LIST_FOREACH(defs, def, e) {
 		if (def->name_len == len &&
 		    (allow_multiline || !def->multiline) &&
-		    !strncmp(def->name, name, len))
+		    !strncmp(def->name, name, len)) {
+			if (param_start && !def->max_params)
+				return NULL;
+			if (param_start) {
+				def->params = param_start;
+				def->params_end = param_end;
+			}
+			else
+				def->params = NULL;
 			return def;
+		}
 	}
 
 	return NULL;
@@ -1277,10 +1345,12 @@ replace_param(char *buf, size_t max_len, char **multiline_ptr_ptr)
 	char *cur_pos = buf;
 	size_t len_used = strlen(buf);
 	def_t *def;
-	char *s, *d, *e;
+	char *s, *d;
+	const char *e;
 	ssize_t i;
 	size_t extra_braces;
 	size_t replacing_len;
+	size_t replaced_len;
 	char *next_ptr = NULL;
 	bool found_defn = false;
 	char *multiline_ptr = *multiline_ptr_ptr;
@@ -1303,40 +1373,46 @@ replace_param(char *buf, size_t max_len, char **multiline_ptr_ptr)
 				/* This is a standard definition that uses a function for the replacement text */
 				if (def->value)
 					FREE(def->value);
-				def->value = (*def->fn)();
+				def->value = (*def->fn)(def);
 				def->value_len = strlen(def->value);
 			}
 
 			/* Ensure there is enough room to replace $PARAM or ${PARAM} with value */
+			replaced_len = def->name_len;
 			if (def->multiline) {
 				replacing_len = strcspn(def->value, DEF_LINE_END);
 				next_ptr = def->value + replacing_len + 1;
 				multiline_ptr = next_ptr;
 			}
-			else
+			else {
+				if (def->params)
+					replaced_len = def->params_end - (cur_pos + 1 )+ (extra_braces ? 0 : 1);
 				replacing_len = def->value_len;
+			}
 
-			if (len_used + replacing_len - (def->name_len + 1 + extra_braces) >= max_len) {
+			if (len_used + replacing_len - (replaced_len + 1 + extra_braces) >= max_len) {
 				log_message(LOG_INFO, "Parameter substitution on line '%s' would exceed maximum line length", buf);
 				return NULL;
 			}
 
-			if (def->name_len + 1 + extra_braces != replacing_len) {
+			if (replaced_len + 1 + extra_braces != replacing_len) {
 				/* We need to move the existing text */
-				if (def->name_len + 1 + extra_braces < replacing_len) {
+				if (replaced_len + 1 + extra_braces < replacing_len) {
 					/* We are lengthening the buf text */
 					s = cur_pos + strlen(cur_pos);
-					d = s - (def->name_len + 1 + extra_braces) + replacing_len;
+					d = s - (replaced_len + 1 + extra_braces) + replacing_len;
 					e = cur_pos;
 					i = -1;
 				} else {
 					/* We are shortening the buf text */
-					s = cur_pos + (def->name_len + 1 + extra_braces) - replacing_len;
+					s = cur_pos + (replaced_len + 1 + extra_braces) - replacing_len;
 					d = cur_pos;
-					e = cur_pos + strlen(cur_pos);
+					if (def->params)
+						e = def->params_end + (extra_braces ? 2 : 1);
+					else
+						e = cur_pos + strlen(cur_pos);
 					i = 1;
 				}
-
 				do {
 					*d = *s;
 					if (s == e)
@@ -1345,7 +1421,7 @@ replace_param(char *buf, size_t max_len, char **multiline_ptr_ptr)
 					s += i;
 				} while (true);
 
-				len_used = len_used + replacing_len - (def->name_len + 1 + extra_braces);
+				len_used = len_used + replacing_len - (replaced_len + 1 + extra_braces);
 			}
 
 			/* Now copy the replacement text */
@@ -1485,7 +1561,7 @@ check_definition(const char *buf)
 }
 
 static void
-add_std_definition(const char *name, const char *value, char *(*fn)(void))
+add_std_definition(const char *name, const char *value, char *(*fn)(const def_t *), unsigned max_params)
 {
 	def_t* def;
 
@@ -1499,6 +1575,7 @@ add_std_definition(const char *name, const char *value, char *(*fn)(void))
 		strcpy(def->value, value);
 	}
 	def->fn = fn;
+	def->max_params = max_params;
 
 	if (!LIST_EXISTS(defs))
 		defs = alloc_list(free_definition, NULL);
@@ -1508,8 +1585,19 @@ add_std_definition(const char *name, const char *value, char *(*fn)(void))
 static void
 set_std_definitions(void)
 {
-	add_std_definition("_PWD", NULL, get_cwd);
-	add_std_definition("_INSTANCE", NULL, get_instance);
+	time_t tim;
+
+	add_std_definition("_PWD", NULL, get_cwd, 0);
+	add_std_definition("_INSTANCE", NULL, get_instance, 0);
+	add_std_definition("_RANDOM", NULL, get_random, 2);
+
+	/* In case $_RANDOM is used, seed the pseudo RNG */
+	if (random_seed_configured)
+		srandom(random_seed);
+	else {
+		time(&tim);
+		srandom((unsigned int)tim);
+	}
 }
 
 static void
