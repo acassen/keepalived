@@ -1769,30 +1769,38 @@ read_line(char *buf, size_t size)
 			}
 		}
 		else {
-retry:
-			if (!fgets(buf, (int)size, current_stream))
-			{
-				eof = true;
-				buf[0] = '\0';
-				break;
-			}
+			/* Get the next non-blank line */
+			do {
+				if (!fgets(buf, (int)size, current_stream))
+				{
+					eof = true;
+					len = 0;
+					break;
+				}
 
-			/* Check if we have read the end of a line */
-			len = strlen(buf);
-			if (buf[0] && buf[len-1] == '\n')
-				current_file_line_no++;
+				/* Check if we have read the end of a line */
+				len = strlen(buf);
+				if (buf[0] && buf[len-1] == '\n')
+					current_file_line_no++;
 
-			/* Remove end of line chars */
-			while (len && (buf[len-1] == '\n' || buf[len-1] == '\r'))
-				len--;
+				/* Remove end of line chars */
+				while (len && (buf[len-1] == '\n' || buf[len-1] == '\r'))
+					len--;
 
-			/* Skip blank lines */
-			if (!len)
-				goto retry;
+				if (!len && multiline_param_def) {
+					multiline_param_def = false;
+					if (!def->value_len)
+						def->multiline = false;
+				}
+			} while (!len);
 
 			buf[len] = '\0';
 
-			decomment(buf);
+			if (len)
+				decomment(buf);
+
+			if (!buf[0])
+				break;
 		}
 
 		len = strlen(buf);
