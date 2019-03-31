@@ -831,7 +831,7 @@ FILE *fopen_safe(const char *path, const char *mode)
 	int flags = O_NOFOLLOW | O_CREAT | O_CLOEXEC;
 #endif
 	int sav_errno;
-	char file_tmp_name[] = "/tmp/keepalivedXXXXXX";
+	char file_tmp_name[PATH_MAX];
 
 	if (mode[0] == 'r')
 		return fopen(path, mode);
@@ -851,11 +851,16 @@ FILE *fopen_safe(const char *path, const char *mode)
 		 * it leaves a window for someone else to create the same file between the unlink and the open.
 		 *
 		 * The solution is to create a temporary file that we will rename to the desired file name.
-		 * Since the temporary file is created owned by root with the only file access persmissions being
+		 * Since the temporary file is created owned by root with the only file access permissions being
 		 * owner read and write, no non root user will have access to the file. Further, the rename to
 		 * the requested filename is atomic, and so there is no window when someone else could create
 		 * another file of the same name.
 		 */
+		strcpy(file_tmp_name, path);
+		if (strlen(path) + 6 < sizeof(file_tmp_name))
+			strcat(file_tmp_name, "XXXXXX");
+		else
+			strcpy(file_tmp_name + sizeof(file_tmp_name) - 6 - 1, "XXXXXX");
 		fd = mkostemp(file_tmp_name, O_CLOEXEC);
 	} else {
 		/* Only allow append mode if debugging features requiring append are enabled. Since we
