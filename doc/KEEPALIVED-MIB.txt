@@ -4169,11 +4169,11 @@ globalGroup OBJECT-GROUP
     trapEnable,
     linkBeat,
     lvsFlush,
-    lvsFlushOnStop,
     ipvs64BitStats,
     netNamespace,
     dbus,
-    dynamicInterfaces
+    dynamicInterfaces,
+    lvsFlushOnStop
     }
     STATUS current
     DESCRIPTION
