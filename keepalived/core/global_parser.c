@@ -236,7 +236,7 @@ checker_log_all_failures_handler(vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec,1));
 		if (res < 0) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value for vrrp_lower_prio_no_advert specified");
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value for checker_log_all_failures specified");
 			return;
 		}
 	}
