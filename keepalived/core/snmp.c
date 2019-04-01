@@ -186,7 +186,8 @@ RELAX_CAST_QUAL_END
 		long_ret = global_data->lvs_flush?1:2;
 		return (u_char *)&long_ret;
 	case SNMP_LVSFLUSH_ONSTOP:
-		long_ret = global_data->lvs_flush_onstop?1:2;
+		long_ret = global_data->lvs_flush_onstop == LVS_FLUSH_FULL ? 1 :
+			   global_data->lvs_flush_onstop == LVS_FLUSH_VS ? 3 : 2;
 		return (u_char *)&long_ret;
 #endif
 	case SNMP_IPVS_64BIT_STATS:

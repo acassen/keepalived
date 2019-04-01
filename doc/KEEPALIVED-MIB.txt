@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201903250001Z"
+     LAST-UPDATED "201904010001Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201904010001Z"
+     DESCRIPTION "add lvs_flush_onstop for each virtual server"
      REVISION "201903250001Z"
      DESCRIPTION "add lvs_flush_onstop"
      REVISION "201902140001Z"
@@ -392,7 +394,7 @@ dynamicInterfaces OBJECT-TYPE
     ::= { global 10 }
 
 lvsFlushOnStop OBJECT-TYPE
-    SYNTAX INTEGER { enabled(1), disabled(2) }
+    SYNTAX INTEGER { enabled(1), disabled(2), flushVS(3) }
     MAX-ACCESS read-only
     STATUS current
     DESCRIPTION

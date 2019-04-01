@@ -444,9 +444,14 @@ lvs_flush_handler(__attribute__((unused)) vector_t *strvec)
 }
 
 static void
-lvs_flush_onstop_handler(__attribute__((unused)) vector_t *strvec)
+lvs_flush_onstop_handler(vector_t *strvec)
 {
-	global_data->lvs_flush_onstop = true;
+	if (vector_size(strvec) == 1)
+		global_data->lvs_flush_onstop = LVS_FLUSH_FULL;
+	else if (!strcmp(strvec_slot(strvec, 1), "VS"))
+		global_data->lvs_flush_onstop = LVS_FLUSH_VS;
+	else
+		report_config_error(CONFIG_GENERAL_ERROR, "Unknown lvs_flush_onstop type %s", FMT_STR_VSLOT(strvec, 1));
 }
 #endif
 #ifdef _HAVE_SCHED_RT_
