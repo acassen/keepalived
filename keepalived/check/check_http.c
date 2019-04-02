@@ -853,7 +853,6 @@ epilog(thread_t * thread, int method, unsigned t, unsigned c)
 	 * servers.
 	 */
 	else if (method == REGISTER_CHECKER_RETRY && checker->retry_it > checker->retry) {
-log_message(LOG_INFO, "is_up %d, has_run %d, retry %d retry_it %d", checker->is_up, checker->has_run, checker->retry, checker->retry_it);
 		if (checker->is_up || !checker->has_run) {
 			if (checker->has_run && checker->retry)
 				log_message(LOG_INFO
