@@ -96,6 +96,7 @@
 #ifdef _TSM_DEBUG_
 #include "vrrp_scheduler.h"
 #endif
+#include "warnings.h"
 
 /* musl libc doesn't define the following */
 #ifndef	W_EXITCODE
@@ -941,6 +942,7 @@ set_umask(const char *optarg)
 	return umask_bits;
 }
 
+RELAX_SUGGEST_ATTRIBUTE_CONST_START
 void
 initialise_debug_options(void)
 {
@@ -991,6 +993,7 @@ initialise_debug_options(void)
 #endif
 #endif
 }
+RELAX_SUGGEST_ATTRIBUTE_CONST_END
 
 #ifdef  WITH_DEBUG_OPTIONS
 static void
