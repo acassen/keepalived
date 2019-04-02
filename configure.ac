@@ -2477,7 +2477,7 @@ AS_IF(
 	AS_IF([test \( -z "$INIT_TYPE" -a -f /etc/init.d/cron -a ! -h /etc/init.d/cron \)], [INIT_TYPE=SYSV])
       ])
   ])
-AS_IF([test \(.$INIT_TYPE = .systemd -a -z "$with_systemdsystemunitdir" \)], [with_systemdsystemunitdir=$($PKG_CONFIG --variable=systemdsystemunitdir systemd)])
+AS_IF([test \( .$INIT_TYPE = .systemd -a -z "$with_systemdsystemunitdir" \)], [with_systemdsystemunitdir=$($PKG_CONFIG --variable=systemdsystemunitdir systemd)])
 
 dnl ----[Default keepalived configuration file]----
 AS_IF([test $default_config_file],
