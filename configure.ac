@@ -582,6 +582,7 @@ if test "$enable_strict_config_checks" = yes; then
   STRICT_CONFIG=Yes
   add_config_opt([STRICT_CONFIG])
 fi
+AM_CONDITIONAL([WITH_STRICT_CONFIG_CHECKS], [test $STRICT_CONFIG = Yes])
 
 if test "$enable_hardening" != no; then
   AC_MSG_CHECKING([for PIE support])

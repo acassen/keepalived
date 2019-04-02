@@ -85,6 +85,8 @@ CONFIG_OPTS=
 @INIT_OPENRC_TRUE@CONFIG_OPTS="$CONFIG_OPTS --with-init=openrc"
 @WITH_REGEX_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-regex"
 @WITH_BFD_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-bfd"
+@WITH_STRICT_CONFIG_CHECKS_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-strict-config-checks"
+
 autoreconf -f -i
 %configure $CONFIG_OPTS
 %{__make} %{?_smp_mflags} STRIP=/bin/true
