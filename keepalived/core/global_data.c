@@ -438,7 +438,8 @@ dump_global_data(FILE *fp, data_t * data)
 	}
 #endif
 	conf_write(fp, " LVS flush = %s", data->lvs_flush ? "true" : "false");
-	conf_write(fp, " LVS flush on stop = %s", data->lvs_flush_onstop ? "true" : "false");
+	conf_write(fp, " LVS flush on stop = %s", data->lvs_flush_onstop == LVS_FLUSH_FULL ? "full" :
+						  data->lvs_flush_onstop == LVS_FLUSH_VS ? "VS" : "disabled");
 #endif
 	if (data->notify_fifo.name) {
 		conf_write(fp, " Global notify fifo = %s", data->notify_fifo.name);

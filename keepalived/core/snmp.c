@@ -186,7 +186,8 @@ RELAX_CAST_QUAL_END
 		long_ret = global_data->lvs_flush?1:2;
 		return (u_char *)&long_ret;
 	case SNMP_LVSFLUSH_ONSTOP:
-		long_ret = global_data->lvs_flush_onstop?1:2;
+		long_ret = global_data->lvs_flush_onstop == LVS_FLUSH_FULL ? 1 :
+			   global_data->lvs_flush_onstop == LVS_FLUSH_VS ? 3 : 2;
 		return (u_char *)&long_ret;
 #endif
 	case SNMP_IPVS_64BIT_STATS:
@@ -288,10 +289,10 @@ static struct variable8 global_vars[] = {
 	{SNMP_TRAPS, ASN_INTEGER, RONLY, snmp_scalar, 1, {4}},
 	/* linkBeat */
 	{SNMP_LINKBEAT, ASN_INTEGER, RONLY, snmp_scalar, 1, {5}},
+#ifdef _WITH_LVS_
 	/* lvsFlush */
 	{SNMP_LVSFLUSH, ASN_INTEGER, RONLY, snmp_scalar, 1, {6}},
-	/* lvsFlushOnStop */
-	{SNMP_LVSFLUSH_ONSTOP, ASN_INTEGER, RONLY, snmp_scalar, 1, {6}},
+#endif
 #ifdef _WITH_LVS_64BIT_STATS_
 	/* LVS 64-bit stats */
 	{SNMP_IPVS_64BIT_STATS, ASN_INTEGER, RONLY, snmp_scalar, 1, {7}},
@@ -302,6 +303,10 @@ static struct variable8 global_vars[] = {
 #endif
 #ifdef _WITH_VRRP_
 	{SNMP_DYNAMIC_INTERFACES, ASN_INTEGER, RONLY, snmp_scalar, 1, {10}},
+#endif
+#ifdef _WITH_LVS_
+	/* lvsFlushOnStop */
+	{SNMP_LVSFLUSH_ONSTOP, ASN_INTEGER, RONLY, snmp_scalar, 1, {11}},
 #endif
 };
 

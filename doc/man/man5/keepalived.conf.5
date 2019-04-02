@@ -1,4 +1,4 @@
-.TH keepalived.conf 5 2018-08-10 "Keepalived" "Keepalived Configuration's Manual"
+.TH keepalived.conf 5 2019-03-24 "Keepalived" "Keepalived Configuration's Manual"
 .SH NAME
 keepalived.conf - configuration file for Keepalived
 .br
@@ -225,7 +225,10 @@ and
     \fBlvs_flush\fR
 
     # flush remaining LVS configuration at shutdown
-    \fBlvs_flush_onstop\fR
+    # If VS is specified, remove each keepalived managed virtual
+    # server without explicitly removing the real servers (the kernel will
+    # remove them).
+    \fBlvs_flush_onstop [VS]\fR
 
     # delay for second set of gratuitous ARPs after transition to MASTER.
     # in seconds, 0 for no second set.
@@ -556,6 +559,11 @@ and
     # This option specifies a delay in seconds before vrrp instances start up after
     # keepalived starts,
     \fBvrrp_startup_delay \fR5.5
+
+    # Specify random seed for ${_RANDOM}, to make configurations repeatable (default
+    # is to use a seed based on the time, so that each time a different configuration
+    # will be generated).
+    \fBrandom_seed \fRUNSIGNED_INT
 }
 .fi
 .SH Linkbeat interfaces
@@ -2016,6 +2024,9 @@ The following pre-defined definitions are defined:
 \fB${_PWD} : \fRThe directory of the current configuration file (this can be changed if using the include directive).
 .br
 \fB${_INSTANCE} : \fRThe instance name (as defined by the -i option, defaults to hostname).
+.br
+\fB${_RANDOM [MIN [MAX]]} : \fRThis is replaced by a random integer in the range [MIN, MAX],
+where MIN and MAX are optional non-negative integers. Defaults are MIN=0 and MAX=32767.
 .PP
 Additional pre-defined definitions will be added as their need is identified.
 It will normally be quite straightforward to add additional pre-defined

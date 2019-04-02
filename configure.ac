@@ -161,9 +161,9 @@ AC_ARG_ENABLE(snmp-rfc,
 AC_ARG_ENABLE(snmp-rfcv2,
   [AS_HELP_STRING([--enable-snmp-rfcv2], [compile with SNMP RFC2787 (VRRPv2) support])])
 AC_ARG_ENABLE(snmp-rfcv3,
-  [AS_HELP_STRING([--enable-snmp-rfcv3], [compile with SNMP RFC6257 (VRRPv3) support])])
+  [AS_HELP_STRING([--enable-snmp-rfcv3], [compile with SNMP RFC6527 (VRRPv3) support])])
 AC_ARG_ENABLE(snmp-reply-v3-for-v2,
-  [AS_HELP_STRING([--disable-snmp-reply-v3-for-v2], [disable RFC6257 responses for VRRPv2 instances])])
+  [AS_HELP_STRING([--disable-snmp-reply-v3-for-v2], [disable RFC6527 responses for VRRPv2 instances])])
 AC_ARG_ENABLE(dbus,
   [AS_HELP_STRING([--enable-dbus], [compile with dbus support])])
 AC_ARG_ENABLE(dbus-create-instance,
@@ -1357,140 +1357,140 @@ AS_IF([test .$enable_iptables != .no],
 	if test "${enable_libipset}" != no; then
 	  $PKG_CONFIG --exists libipset
 	  if test $? -eq 0; then
-	add_pkg_config([libipset], [IPSET])
+	    add_pkg_config([libipset], [IPSET])
 	  else
-	IPSET_LIBS="-lipset"
+	    IPSET_LIBS="-lipset"
 	  fi
 	  SAV_LIBS=$LIBS
 	  LIBS="$IPTC_LIBS $IPSET_LIBS"
 
 	  AC_CHECK_LIB(ipset, ipset_session_init,
-	[
-	  USE_LIBIPSET=Yes
-	  AC_CHECK_HEADERS([libipset/data.h libipset/linux_ip_set.h libipset/session.h libipset/types.h], [],
 	    [
-	      USE_LIBIPSET=No
-	      break
-	    ])
-
-	  if test $USE_LIBIPSET = Yes; then
-	    AC_CHECK_LIB(xtables, xtables_insmod, [], [USE_LIBIPSET=No])
-	  fi
-
-	  if test $USE_LIBIPSET = Yes; then
-	    dnl -- Need to use <libipset/linux_ip_set.h> for <linux/netfilter/xt_set.h> prior to Linux 3.4
-	    EXTRA_INCLUDE=
-	    AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-	      #include <linux/netfilter/xt_set.h>
-	      ]])],
-	      [AC_CHECK_HEADERS([linux/netfilter/xt_set.h], [], [USE_LIBIPSET=No], [])],
-	      [AC_CHECK_HEADER([linux/netfilter/xt_set.h],
+	      USE_LIBIPSET=Yes
+	      AC_CHECK_HEADERS([libipset/data.h libipset/linux_ip_set.h libipset/session.h libipset/types.h], [],
 		[
-		  AC_DEFINE([USE_LIBIPSET_LINUX_IP_SET_H], [ 1 ], [Define to 1 if <linux/netfilter/xt_set.h> needs <libipset/linux_ip_set.h>])
-		  EXTRA_INCLUDE="#include <libipset/linux_ip_set.h>"
-		], [USE_LIBIPSET=No],
-		[[#include <libipset/linux_ip_set.h>]])
-	      ]
-	    )
-	  fi
+		  USE_LIBIPSET=No
+		  break
+		])
 
-	  if test $USE_LIBIPSET = Yes; then
-	    AC_DEFINE([_HAVE_LIBIPSET_], [ 1 ], [Define to 1 if have ipset library])
-	    $PKG_CONFIG --exists libipset
-	    if test $? -eq 0; then
-	      if test .${enable_libipset_dynamic} = .no; then
-		add_pkg_config([libipset])
-	      else
-		add_pkg_config_without_libs([libipset])
+	      if test $USE_LIBIPSET = Yes; then
+		AC_CHECK_LIB(xtables, xtables_insmod, [], [USE_LIBIPSET=No])
 	      fi
-	    elif test .${enable_libipset_dynamic} = .no; then
-	      add_to_var([KA_LIBS], [-lipset])
-	    fi
-	    if test .${enable_libipset_dynamic} != .no; then
-	      AC_DEFINE([_LIBIPSET_DYNAMIC_], [ 1 ], [Define to 1 if building with libipset dynamic linking])
-	      add_config_opt([LIBIPSET_DYNAMIC])
-	      NEED_LIBDL=Yes
-	      get_lib_name([ipset], [ipset_session_init])
-	      AC_DEFINE_UNQUOTED([IPSET_LIB_NAME], [ "$LIB_NAME" ], [Define the ipset library name])
-	    else
-	      add_config_opt([LIBIPSET])
-	    fi
 
-	    dnl -- xt_set_info_match first introduced in Linux 2.6.39 (initial implementation of ipsets)
-	    dnl -- xt_set_info_match_v1 declared since Linux 3.1
-	    AC_CHECK_MEMBER([struct xt_set_info_match_v1.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V1], [ 1 ], [Define to 1 if have struct xt_set_info_match_v1])], [],
-	      [
-		$EXTRA_INCLUDE
-		#include <linux/netfilter/xt_set.h>
-	      ])
-	    dnl -- xt_set_info_match_v3 declared since Linux 3.10
-	    AC_CHECK_MEMBER([struct xt_set_info_match_v3.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V3], [ 1 ], [Define to 1 if have struct xt_set_info_match_v3])], [],
-	      [
-		$EXTRA_INCLUDE
-		#include <linux/netfilter/xt_set.h>
-	      ])
-	    dnl -- xt_set_info_match_v4 declared since Linux 3.19
-	    AC_CHECK_MEMBER([struct xt_set_info_match_v4.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V4], [ 1 ], [Define to 1 if have struct xt_set_info_match_v4])], [],
-	      [
-		$EXTRA_INCLUDE
-		#include <linux/netfilter/xt_set.h>
-	      ])
+	      if test $USE_LIBIPSET = Yes; then
+		dnl -- Need to use <libipset/linux_ip_set.h> for <linux/netfilter/xt_set.h> prior to Linux 3.4
+		EXTRA_INCLUDE=
+		AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+		  #include <linux/netfilter/xt_set.h>
+		  ]])],
+		  [AC_CHECK_HEADERS([linux/netfilter/xt_set.h], [], [USE_LIBIPSET=No], [])],
+		  [AC_CHECK_HEADER([linux/netfilter/xt_set.h],
+		    [
+		      AC_DEFINE([USE_LIBIPSET_LINUX_IP_SET_H], [ 1 ], [Define to 1 if <linux/netfilter/xt_set.h> needs <libipset/linux_ip_set.h>])
+		      EXTRA_INCLUDE="#include <libipset/linux_ip_set.h>"
+		    ], [USE_LIBIPSET=No],
+		    [[#include <libipset/linux_ip_set.h>]])
+		  ]
+		)
+	      fi
 
-	    dnl - ipset type iface introduced in Linux 3.1
-	    AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-	      #include <linux/netfilter/ipset/ip_set.h>
-	      int main(void) { int var = IPSET_ATTR_IFACE; }
-	      ]])],
-	      [AC_DEFINE([HAVE_IPSET_ATTR_IFACE], [ 1 ], [Define to 1 if ipset supports iface type])])
+	      if test $USE_LIBIPSET = Yes; then
+		AC_DEFINE([_HAVE_LIBIPSET_], [ 1 ], [Define to 1 if have ipset library])
+		$PKG_CONFIG --exists libipset
+		if test $? -eq 0; then
+		  if test .${enable_libipset_dynamic} = .no; then
+		    add_pkg_config([libipset])
+		  else
+		    add_pkg_config_without_libs([libipset])
+		  fi
+		elif test .${enable_libipset_dynamic} = .no; then
+		  add_to_var([KA_LIBS], [-lipset])
+		fi
+		if test .${enable_libipset_dynamic} != .no; then
+		  AC_DEFINE([_LIBIPSET_DYNAMIC_], [ 1 ], [Define to 1 if building with libipset dynamic linking])
+		  add_config_opt([LIBIPSET_DYNAMIC])
+		  NEED_LIBDL=Yes
+		  get_lib_name([ipset], [ipset_session_init])
+		  AC_DEFINE_UNQUOTED([IPSET_LIB_NAME], [ "$LIB_NAME" ], [Define the ipset library name])
+		else
+		  add_config_opt([LIBIPSET])
+		fi
 
-	    dnl - The include guard for <linux/netfilter/ipset/ip_set.h> has the leading _UAPI remove when
-	    dnl - the source code is processed to produce the actual header files.
-	    dnl - Unfortunately libipset provides a copy of the kernel headers, as <libipset/linux_ip_set*.h>,
-	    dnl - but it doesn't remove the _UAPI from the header files when installing them.
-	    dnl - Unfortunately we need to include some libipset header files, which include the
-	    dnl - libipset version, and also <linux/netfilter/xt_set.h> which includes the kernel version.
-	    dnl - To get around this problem, after include one of these we need to define the header guard
-	    dnl - for the other, to stop it being included as well.
-	    dnl - This is reported as a bug against ipset at https://bugzilla.netfilter.org/show_bug.cgi?id=1139
-	    dnl - We will take the kernel version if there is an inclusion collision.
-	    AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-	      #include <linux/netfilter/ipset/ip_set.h>
-	      #include <libipset/linux_ip_set.h>
-	      int main(void) {}
-	      ]])], [],
-	      [AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-		 #include <linux/netfilter/ipset/ip_set.h>
-		 #ifdef _UAPI_IP_SET_H
-		 #error _UAPI_IP_SET_H defined
-		 #endif
-		 int main(void) {}
-		 ]])],
-		 [AC_DEFINE([LIBIPSET_H_ADD_UAPI_IP_SET_H_GUARD], [1], [Define to add guard _UAPI_IP_SET_H before including <libipset/linux_ip_set.h>])],
-		 [AC_DEFINE([LIBIPSET_H_ADD_IP_SET_H_GUARD], [1], [Define to add guard _IP_SET_H before including <libipset/linux_ip_set.h>])])
-	      ])
-	  fi
+		dnl -- xt_set_info_match first introduced in Linux 2.6.39 (initial implementation of ipsets)
+		dnl -- xt_set_info_match_v1 declared since Linux 3.1
+		AC_CHECK_MEMBER([struct xt_set_info_match_v1.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V1], [ 1 ], [Define to 1 if have struct xt_set_info_match_v1])], [],
+		  [
+		    $EXTRA_INCLUDE
+		    #include <linux/netfilter/xt_set.h>
+		  ])
+		dnl -- xt_set_info_match_v3 declared since Linux 3.10
+		AC_CHECK_MEMBER([struct xt_set_info_match_v3.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V3], [ 1 ], [Define to 1 if have struct xt_set_info_match_v3])], [],
+		  [
+		    $EXTRA_INCLUDE
+		    #include <linux/netfilter/xt_set.h>
+		  ])
+		dnl -- xt_set_info_match_v4 declared since Linux 3.19
+		AC_CHECK_MEMBER([struct xt_set_info_match_v4.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V4], [ 1 ], [Define to 1 if have struct xt_set_info_match_v4])], [],
+		  [
+		    $EXTRA_INCLUDE
+		    #include <linux/netfilter/xt_set.h>
+		  ])
 
-	  if test $USE_LIBIPSET = Yes; then
-	    AC_MSG_CHECKING([for libipset version 7 or later])
-	    AC_COMPILE_IFELSE([AC_LANG_SOURCE(
-	      [[
-		#include <libipset/session.h>
+		dnl - ipset type iface introduced in Linux 3.1
+		AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+		  #include <linux/netfilter/ipset/ip_set.h>
+		  int main(void) { int var = IPSET_ATTR_IFACE; }
+		  ]])],
+		  [AC_DEFINE([HAVE_IPSET_ATTR_IFACE], [ 1 ], [Define to 1 if ipset supports iface type])])
 
-		void test_func(void)
-		{
-		  ipset_session_init(NULL, NULL);
-		}
-	      ]])],
-	      [
-		AC_MSG_RESULT([yes])
-	      ],
-	      [
-		AC_MSG_RESULT([no])
-		AC_DEFINE([LIBIPSET_PRE_V7_COMPAT], [ 1 ], [Define to 1 if libipset library version prior to v7])
-		add_system_opt[LIBIPSET_PRE_V7]
-	      ])
-	  fi
-	])
+		dnl - The include guard for <linux/netfilter/ipset/ip_set.h> has the leading _UAPI remove when
+		dnl - the source code is processed to produce the actual header files.
+		dnl - Unfortunately libipset provides a copy of the kernel headers, as <libipset/linux_ip_set*.h>,
+		dnl - but it doesn't remove the _UAPI from the header files when installing them.
+		dnl - Unfortunately we need to include some libipset header files, which include the
+		dnl - libipset version, and also <linux/netfilter/xt_set.h> which includes the kernel version.
+		dnl - To get around this problem, after include one of these we need to define the header guard
+		dnl - for the other, to stop it being included as well.
+		dnl - This is reported as a bug against ipset at https://bugzilla.netfilter.org/show_bug.cgi?id=1139
+		dnl - We will take the kernel version if there is an inclusion collision.
+		AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+		  #include <linux/netfilter/ipset/ip_set.h>
+		  #include <libipset/linux_ip_set.h>
+		  int main(void) {}
+		  ]])], [],
+		  [AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+		     #include <linux/netfilter/ipset/ip_set.h>
+		     #ifdef _UAPI_IP_SET_H
+		     #error _UAPI_IP_SET_H defined
+		     #endif
+		     int main(void) {}
+		     ]])],
+		     [AC_DEFINE([LIBIPSET_H_ADD_UAPI_IP_SET_H_GUARD], [1], [Define to add guard _UAPI_IP_SET_H before including <libipset/linux_ip_set.h>])],
+		     [AC_DEFINE([LIBIPSET_H_ADD_IP_SET_H_GUARD], [1], [Define to add guard _IP_SET_H before including <libipset/linux_ip_set.h>])])
+		  ])
+	      fi
+
+	      if test $USE_LIBIPSET = Yes; then
+		AC_MSG_CHECKING([for libipset version 7 or later])
+		AC_COMPILE_IFELSE([AC_LANG_SOURCE(
+		  [[
+		    #include <libipset/session.h>
+
+		    void test_func(void)
+		    {
+		      ipset_session_init(NULL, NULL);
+		    }
+		  ]])],
+		  [
+		    AC_MSG_RESULT([yes])
+		  ],
+		  [
+		    AC_MSG_RESULT([no])
+		    AC_DEFINE([LIBIPSET_PRE_V7_COMPAT], [ 1 ], [Define to 1 if libipset library version prior to v7])
+		    add_system_opt[LIBIPSET_PRE_V7]
+		  ])
+	      fi
+	    ])
 	  LIBS="$SAV_LIBS"
 	fi
 
@@ -2016,7 +2016,7 @@ if test "$enable_snmp" = yes -o \
   fi
   if test ${SNMP_RFCV3_SUPPORT} = Yes -a \
 	  "$enable_snmp_reply_v3_for_v2" != no; then
-    AC_DEFINE([_SNMP_REPLY_V3_FOR_V2_], [ 1 ], [Define to 1 to have keepalived send RFC6257 SNMP responses for VRRPv2 instances])
+    AC_DEFINE([_SNMP_REPLY_V3_FOR_V2_], [ 1 ], [Define to 1 to have keepalived send RFC6527 SNMP responses for VRRPv2 instances])
     SNMP_V3_FOR_V2=Yes
     add_config_opt([SNMP_V3_FOR_V2])
   fi
@@ -2149,6 +2149,7 @@ fi
 AM_CONDITIONAL([WITH_SHA1], [test $SHA1_SUPPORT = Yes])
 
 dnl ----[ check for SO_MARK support ]----
+dnl -- Since Linux 2.6.25
 SO_MARK_SUPPORT=No
 if test "${enable_fwmark}" != no; then
   AC_CHECK_DECLS([SO_MARK],
@@ -2458,13 +2459,13 @@ AS_IF(
     AS_IF(
       [test $? -eq 0], [INIT_TYPE=upstart],
       [
-        init_path=`which systemctl 2>/dev/null`
-        AS_IF([test \( $? -eq 0 -a -x "$init_path" \)],
+	init_path=`which systemctl 2>/dev/null`
+	AS_IF([test \( $? -eq 0 -a -x "$init_path" \)],
 	  [
 	    systemctl | grep -q -- "-\.mount"
 	    AS_IF([test $? -eq 0], [INIT_TYPE=systemd])
-          ])
-        AS_IF([test \( -z "$INIT_TYPE" -a -f /etc/init.d/networking \)],
+	  ])
+	AS_IF([test \( -z "$INIT_TYPE" -a -f /etc/init.d/networking \)],
 	  [
 	    init_path=`which openrc-run 2>/dev/null`
 	    AS_IF([test \( $? -eq 0 -a -x "$init_path" \)],
@@ -2472,11 +2473,11 @@ AS_IF(
 		head -1 /etc/init.d/networking | grep -q "^#! */.*/openrc-run$"
 		AS_IF([test $? -eq 0], [INIT_TYPE=openrc])
 	      ])
-          ])
-        AS_IF([test \( -z "$INIT_TYPE" -a -f /etc/init.d/cron -a ! -h /etc/init.d/cron \)], [INIT_TYPE=SYSV])
+	  ])
+	AS_IF([test \( -z "$INIT_TYPE" -a -f /etc/init.d/cron -a ! -h /etc/init.d/cron \)], [INIT_TYPE=SYSV])
       ])
   ])
-AS_IF([test \(.$INIT_TYPE = .systemd -a -z "$with_systemdsystemunitdir" \)], [with_systemdsystemunitdir=$($PKG_CONFIG --variable=systemdsystemunitdir systemd)])
+AS_IF([test \( .$INIT_TYPE = .systemd -a -z "$with_systemdsystemunitdir" \)], [with_systemdsystemunitdir=$($PKG_CONFIG --variable=systemdsystemunitdir systemd)])
 
 dnl ----[Default keepalived configuration file]----
 AS_IF([test $default_config_file],

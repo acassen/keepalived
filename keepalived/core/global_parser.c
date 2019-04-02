@@ -236,7 +236,7 @@ checker_log_all_failures_handler(vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec,1));
 		if (res < 0) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value for vrrp_lower_prio_no_advert specified");
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value for checker_log_all_failures specified");
 			return;
 		}
 	}
@@ -444,9 +444,14 @@ lvs_flush_handler(__attribute__((unused)) vector_t *strvec)
 }
 
 static void
-lvs_flush_onstop_handler(__attribute__((unused)) vector_t *strvec)
+lvs_flush_onstop_handler(vector_t *strvec)
 {
-	global_data->lvs_flush_onstop = true;
+	if (vector_size(strvec) == 1)
+		global_data->lvs_flush_onstop = LVS_FLUSH_FULL;
+	else if (!strcmp(strvec_slot(strvec, 1), "VS"))
+		global_data->lvs_flush_onstop = LVS_FLUSH_VS;
+	else
+		report_config_error(CONFIG_GENERAL_ERROR, "Unknown lvs_flush_onstop type %s", FMT_STR_VSLOT(strvec, 1));
 }
 #endif
 #ifdef _HAVE_SCHED_RT_
@@ -1578,6 +1583,19 @@ vrrp_startup_delay_handler(vector_t *strvec)
 }
 #endif
 
+static void
+random_seed_handler(vector_t *strvec)
+{
+	unsigned val;
+
+	if (!read_unsigned_strvec(strvec, 1, &val, 0, UINT_MAX, false)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "random_seed %s invalid", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+
+	set_random_seed(val);
+}
+
 void
 init_global_keywords(bool global_active)
 {
@@ -1739,4 +1757,5 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_startup_delay", &vrrp_startup_delay_handler);
 #endif
 	install_keyword("umask", &umask_handler);
+	install_keyword("random_seed", &random_seed_handler);
 }

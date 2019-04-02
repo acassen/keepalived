@@ -400,8 +400,11 @@ smtp_final(thread_t *thread, const char *format, ...)
 				   "=> CHECK succeed on service <=");
 	}
 
+	checker->has_run = true;
+
 	thread_add_timer(thread->master, smtp_start_check_thread, checker, checker->delay_loop);
-		return 0;
+
+	return 0;
 }
 
 /*

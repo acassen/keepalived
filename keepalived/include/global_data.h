@@ -76,6 +76,14 @@ typedef struct _email {
 	char				*addr;
 } email_t;
 
+#ifdef _WITH_LVS_
+typedef enum {
+	LVS_NO_FLUSH,
+	LVS_FLUSH_FULL,
+	LVS_FLUSH_VS
+} lvs_flush_t;
+#endif
+
 /* Configuration data root */
 typedef struct _data {
 #if HAVE_DECL_CLONE_NEWNET
@@ -112,7 +120,7 @@ typedef struct _data {
 	struct lvs_syncd_config		lvs_syncd;
 #endif
 	bool				lvs_flush;		/* flush any residual LVS config at startup */
-	bool				lvs_flush_onstop;	/* flush any LVS config at shutdown */
+	lvs_flush_t			lvs_flush_onstop;	/* flush any LVS config at shutdown */
 #endif
 #ifdef _WITH_VRRP_
 	struct sockaddr_in		vrrp_mcast_group4;

@@ -167,7 +167,7 @@ read_procs(list processes)
 	while ((ent = readdir(proc_dir))) {
 		if (ent->d_type != DT_DIR)
 			continue;
-		if (ent->d_name[0] <= '0' || ent->d_name[0] >= '9')
+		if (ent->d_name[0] <= '0' || ent->d_name[0] > '9')
 			continue;
 
 		/* We want to avoid reading /proc/PID/cmdline, since it reads the process

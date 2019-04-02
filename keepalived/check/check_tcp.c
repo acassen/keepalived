@@ -140,6 +140,8 @@ tcp_epilog(thread_t * thread, bool is_success)
 		++checker->retry_it;
 	}
 
+	checker->has_run = true;
+
 	/* Register next timer checker */
 	thread_add_timer(thread->master, tcp_connect_thread, checker, delay);
 }

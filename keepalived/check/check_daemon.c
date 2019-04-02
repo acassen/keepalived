@@ -191,11 +191,12 @@ checker_terminate_phase1(bool schedule_next_thread)
 		script_killall(master, SIGTERM, true);
 
 	/* Send shutdown messages */
-	if (global_data->lvs_flush_onstop) {
-		log_message(LOG_INFO, "Flushing lvs on shutdown in oneshot");
-		ipvs_flush_cmd();
-	} else if (!__test_bit(DONT_RELEASE_IPVS_BIT, &debug)) {
-		clear_services();
+	if (!__test_bit(DONT_RELEASE_IPVS_BIT, &debug)) {
+		if (global_data->lvs_flush_onstop == LVS_FLUSH_FULL) {
+			log_message(LOG_INFO, "Flushing lvs on shutdown in oneshot");
+			ipvs_flush_cmd();
+		} else
+			clear_services();
 	}
 
 	if (schedule_next_thread) {
