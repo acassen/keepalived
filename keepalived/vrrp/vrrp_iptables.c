@@ -25,6 +25,7 @@
 
 #include <errno.h>
 
+#include "warnings.h"
 #include "vrrp_iptables.h"
 
 #include "global_data.h"
@@ -154,6 +155,7 @@ check_chains_exist(void)
 #endif
 }
 
+RELAX_SUGGEST_ATTRIBUTE_CONST_START
 void
 iptables_init(void)
 {
@@ -210,3 +212,4 @@ iptables_fini(void)
 		iptables_fini_lib();
 #endif
 }
+RELAX_SUGGEST_ATTRIBUTE_CONST_END
