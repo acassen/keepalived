@@ -48,6 +48,7 @@
 #include "bfd_event.h"
 #include "bfd_daemon.h"
 #endif
+#include "check_udp.h"
 
 /* Global vars */
 list checkers_queue;
@@ -677,6 +678,7 @@ install_checkers_keyword(void)
 	install_misc_check_keyword();
 	install_smtp_check_keyword();
 	install_tcp_check_keyword();
+	install_udp_check_keyword();
 	install_http_check_keyword();
 	install_ssl_check_keyword();
 	install_dns_check_keyword();
