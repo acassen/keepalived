@@ -778,7 +778,7 @@ AC_LINK_IFELSE([AC_LANG_SOURCE([[
   ]])],
   AC_MSG_RESULT([no]),
   AC_MSG_RESULT([yes])
-    add_to_var([KA_LDFLAGS], [-lm])
+    add_to_var([KA_LIBS], [-lm])
   )
 CFLAGS=$SAV_CFLAGS
 LDFLAGS=$SAV_LDFLAGS
