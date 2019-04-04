@@ -1,3 +1,96 @@
+2019-04-04 Alexandre Cassen <acassen@keepalived.org>
+	* keepalived-2.0.15
+	* Fix uninitialised variable.
+	* Fix rpmbuild on CentOS7, and rely on auto-requires.
+	* Add option to flush lvs on shutdown.
+	  Currently all known virtual servers and their real servers are
+	  removed one at a time at shutdown. With large configurations on
+	  a busy system, this can take some time.
+	  Add an option just like the existing 'lvs_flush' which operates
+	  on shutdown. Typical environments with a single keepalived instance
+	  can take advantage of this option to achieve a faster shutdown or
+	  restart cycle.
+	* Make alpha mode checkers on new real servers start down on reload.
+	  Patch #1180 identified that new real servers with alpha mode checkers
+	  were being added online immediately, and if the checker then failed
+	  were being removed. This commit makes real servers that didn't exist
+	  before the reload start in down state if they have alpha mode checkers.
+	* Remove duplicate config dump entry.
+	* Make new real servers at reload start down if have alpha mode
+	  checkers.
+	* Close checker and smtp_alert sockets on reload.
+	  Issue #1177 identified that sockets were being left open (lost) after
+	  a reload. It transpired that these were sockets opened by TCP_CHECK,
+	  HTTP_GET, SSL_GET, DNS_CHECK and SMTP_CHECK checkers, and by smtp_alerts
+	  in the process of being sent.
+	  This commit adds an extra parameter to thread_add_read() and
+	  thread_add_write() to allow indicating that the scheduler should close
+	  the socket when destroying threads.
+	* Send vrrp group backup notifies at startup.
+	* Make inhibit_on_failure be inherited by real server from virtual
+	  server.
+	* Allow real and sorry servers to be configured with port 0
+	  This is to maintain backwards compatibility with keepalived prior
+	  to commit d87f07c - "Ensure always check return from inet_stosockaddr
+	  when parsing config".
+	  The proper way to configure this is to omit the port, which requires
+	  the next commit.
+	* Don't setup IPVS config with real and virtual servers ports
+	  different.
+	  If the real server is using DR or TUN, the port of the real server must
+	  be the same as the port of the virtual server. This commit uses the
+	  virtual server port for the real server when configuring IPVS.
+	* Log warnings if real server and virtual server ports don't match
+	  This commit adds logging warnings if virtual and real server ports,
+	  when using TUN or DR, don't match.
+	  It also sets the real server ports to be the same as the virtual server
+	  ports. Although listing the IPVS configuration with ipvsadm will look
+	  different, the kernel ignored the port of a real server when using DR
+	  or TUN, so the behaviour isn't changed, but when looking at the
+	  configuration it now shows what is actually happening.
+	* Fix warning when protocol specified for virtual server with fwmark.
+	* Add log message that nb_get_retry is deprecated.
+	* Fix whitespace in configure.ac.
+	* Fix configure error when systemd not installed
+	  configure was trying to execute
+	    pkg-config --variable=systemdsystemunitdir systemd
+	  even if systemd was not available.
+	  This commit makes configure only execute the above if it has determined
+	  that systemd is the correct init package to use.
+	* Correct references to RFC6527 (VRRPv3 SNMP RFC).
+	* nsure checker->has_run is always set once a checker has run.
+	* Fix some indentation in configure.ac.
+	* Update fopen_safe() to open temporary file in destination directory
+	  rename() in fopen_safe() was failing if the file being created
+	  was not on the same filesystem as /tmp.
+	* Add ${_RANDOM} configuration keyword.
+	  It might seem strange to introduce random elements to configuration
+	  files, but it can be useful for testing.
+	* Fix using ~SEQ() in multiline configuration definitions.
+	* Make blank lines terminate a multiline definition.
+	* Minor updates for lvs_flush_on_stop.
+	* Add option to skip deleting real servers on shutdown or reload
+	  If a virtual server is removed, the kernel will remove its real servers,
+	  so keepalived doesn't explicitly need to do so.
+	  The lvs_flush_onstop option removes all LVS configuration, whereas this
+	  new option will only remove the virtual servers managed by keepalived.
+	* Correct error message re checker_log_all_failures.
+	* Fix syntax error in configure.ac.
+	* Fix track_process initialisation for processes with PIDs starting 9.
+	* Remove debugging log message.
+	* Remove inappropriate function const attributes
+	  They were causing iptables/ipsets not to be initialised.
+	* Stop warning: function might be candidate for attribute ‘const’
+	  Depending on what configure options are selected, gcc can output
+	  the above warning for initialise_debug_options().
+	  This commit ensures that the warning is not produced.
+	* Enable strict-config-checks option in keepalived.spec RPM file.
+	* vrrp: relax attribute 'const' warning at iptables helpers.
+	* Propagate libm to KA_LIBS.
+	* Fix building on Alpine Linux.
+	  Alpine (musl) doesn't have a definition of __GNU_PREREQ, so create a
+	  dummy definition.
+
 2019-03-24 Alexandre Cassen <acassen@keepalived.org>
 	* keepalived-2.0.14
 	* Add compiler warning -Wfloat-conversion and fix new warnings.
