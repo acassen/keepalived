@@ -30,6 +30,11 @@
 #include "config.h"
 
 
+/* musl does not define __GNUC_PREREQ, so create a dummy definition */
+#ifndef __GNUC_PREREQ
+#define __GNUC_PREREQ(maj, min) 0
+#endif
+
 /* GCC allows pragmas in functions, and diagnostic push/pop from version 4.6.0 */
 
 /* See https://clang.llvm.org/docs/DiagnosticsReference.html for clang diagnostics
