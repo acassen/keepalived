@@ -155,6 +155,11 @@ queue_checker(void (*free_func) (void *), void (*dump_func) (FILE *, void *)
 
 	/* queue the checker */
 	list_add(checkers_queue, checker);
+	if(compare) {
+		if(rs->samecheckers == NULL)
+			rs->samecheckers = alloc_list(NULL, NULL);
+		list_add(rs->samecheckers, checker);
+	}
 
 	return checker;
 }

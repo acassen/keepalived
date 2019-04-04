@@ -736,16 +736,10 @@ migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new
 	checker_t dummy_checker;
 	bool a_checker_has_run = false;
 
-	l = alloc_list(NULL, NULL);
-	LIST_FOREACH(old_checkers_queue, old_c, e) {
-		if (old_c->rs == old_rs)
-			list_add(l, old_c);
-	}
+	l = old_rs->samecheckers;
 
 	if (!LIST_ISEMPTY(l)) {
-		LIST_FOREACH(checkers_queue, new_c, e) {
-			if (new_c->rs != new_rs || !new_c->compare)
-				continue;
+		LIST_FOREACH(new_rs->samecheckers, new_c, e) {
 			LIST_FOREACH(l, old_c, e1) {
 				if (old_c->compare == new_c->compare && new_c->compare(old_c, new_c)) {
 					/* Update status if different */
@@ -765,7 +759,7 @@ migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new
 
 	/* Find out how many checkers are really failed */
 	new_rs->num_failed_checkers = 0;
-	LIST_FOREACH(checkers_queue, new_c, e) {
+	LIST_FOREACH(new_rs->samecheckers, new_c, e) {
 		if (new_c->rs != new_rs)
 			continue;
 		if (new_c->has_run && !new_c->is_up)
@@ -777,7 +771,7 @@ migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new
 	/* If a checker has failed, set new alpha checkers to be down until
 	 * they have run. */
 	if (new_rs->num_failed_checkers || (!new_rs->alive && !a_checker_has_run)) {
-		LIST_FOREACH(checkers_queue, new_c, e) {
+		LIST_FOREACH(new_rs->samecheckers, new_c, e) {
 			if (new_c->rs != new_rs)
 				continue;
 			if (!new_c->has_run) {

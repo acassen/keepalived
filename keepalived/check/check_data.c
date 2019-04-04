@@ -476,6 +476,8 @@ free_rs(void *data)
 	free_list(&rs->tracked_bfds);
 #endif
 	FREE_PTR(rs->virtualhost);
+	if (rs->samecheckers) 
+		free(&rs->samecheckers);
 	FREE(rs);
 }
 

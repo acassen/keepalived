@@ -100,6 +100,7 @@ typedef struct _real_server {
 #ifdef _WITH_BFD_
 	list				tracked_bfds;	/* list of bfd_checker_t */
 #endif
+	list                            samecheckers;	/* recored the checkers with same real server */
 } real_server_t;
 
 /* Virtual Server group definition */
