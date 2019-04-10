@@ -241,6 +241,7 @@ typedef struct _data {
 	size_t				vrrp_rx_bufs_size;
 	int				vrrp_rx_bufs_multiples;
 	unsigned			vrrp_startup_delay;
+	bool				log_unknown_vrids;
 #endif
 } data_t;
 

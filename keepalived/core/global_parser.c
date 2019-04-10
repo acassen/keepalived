@@ -1581,6 +1581,12 @@ vrrp_startup_delay_handler(vector_t *strvec)
 	if (global_data->vrrp_startup_delay >= 60 * TIMER_HZ)
 		log_message(LOG_INFO, "The vrrp_startup_delay is very large - %s seconds", FMT_STR_VSLOT(strvec, 1));
 }
+
+static void
+vrrp_log_unknown_vrids_handler(__attribute__((unused)) vector_t *strvec)
+{
+	global_data->log_unknown_vrids = true;
+}
 #endif
 
 static void
@@ -1755,6 +1761,7 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_rx_bufs_policy", &vrrp_rx_bufs_policy_handler);
 	install_keyword("vrrp_rx_bufs_multiplier", &vrrp_rx_bufs_multiplier_handler);
 	install_keyword("vrrp_startup_delay", &vrrp_startup_delay_handler);
+	install_keyword("log_unknown_vrids", &vrrp_log_unknown_vrids_handler);
 #endif
 	install_keyword("umask", &umask_handler);
 	install_keyword("random_seed", &random_seed_handler);

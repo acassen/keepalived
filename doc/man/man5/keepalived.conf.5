@@ -560,6 +560,10 @@ and
     # keepalived starts,
     \fBvrrp_startup_delay \fR5.5
 
+    # The following will cause logging of receipt of VRRP adverts for VRIDs not configured
+    # on the interface on which they are received.
+    \fBlog_unknown_vrids\fR
+
     # Specify random seed for ${_RANDOM}, to make configurations repeatable (default
     # is to use a seed based on the time, so that each time a different configuration
     # will be generated).
