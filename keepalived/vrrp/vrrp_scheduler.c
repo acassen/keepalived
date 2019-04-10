@@ -870,8 +870,9 @@ vrrp_dispatcher_read(sock_t *sock)
 
 		/* No instance found => ignore the advert */
 		if (!vrrp) {
-			log_message(LOG_INFO, "Unknown VRID(%d) received on interface(%s). ignoring..."
-					    , hd->vrid, IF_NAME(sock->ifp));
+			if (global_data->log_unknown_vrids)
+				log_message(LOG_INFO, "Unknown VRID(%d) received on interface(%s). ignoring..."
+						    , hd->vrid, IF_NAME(sock->ifp));
 			continue;
 		}
 

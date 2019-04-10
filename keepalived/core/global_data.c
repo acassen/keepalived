@@ -604,5 +604,7 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " umask = 0%o", umask_val);
 	if (global_data->vrrp_startup_delay)
 		conf_write(fp, " vrrp_startup_delay = %g", (float)global_data->vrrp_startup_delay / TIMER_HZ);
+	if (global_data->log_unknown_vrids)
+		conf_write(fp, " log_unknown_vrids");
 #endif
 }
