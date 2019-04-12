@@ -375,7 +375,7 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 	/* Remove the notify fifo - we don't know if it will be the same after a reload */
 	notify_fifo_close(&global_data->notify_fifo, &global_data->lvs_notify_fifo);
 
-#if !defined _WITH_DEBUG_ && defined _WITH_SNMP_CHECKER_
+#if !defined _DEBUG_ && defined _WITH_SNMP_CHECKER_
 	if (prog_type == PROG_TYPE_CHECKER && global_data->enable_snmp_checker)
 		with_snmp = true;
 #endif

@@ -132,7 +132,7 @@ static bool free_bfd_pidfile;
 #endif
 unsigned long daemon_mode;				/* VRRP/CHECK/BFD subsystem selection */
 #ifdef _WITH_SNMP_
-bool snmp;						/* Enable SNMP support */
+bool snmp_option;					/* Enable SNMP support */
 const char *snmp_socket;				/* Socket to use for SNMP agent */
 #endif
 static char *syslog_ident;				/* syslog ident if not default */
@@ -1231,7 +1231,7 @@ usage(const char *prog)
 #ifdef _EPOLL_THREAD_DUMP_
 	fprintf(stderr, "                                   D - epoll thread dump debug\n");
 #endif
-#ifdef _VRRP_FD_DEBUG
+#ifdef _VRRP_FD_DEBUG_
 	fprintf(stderr, "                                   F - vrrp fd dump debug\n");
 #endif
 #ifdef _REGEX_DEBUG_
@@ -1512,7 +1512,7 @@ parse_cmdline(int argc, char **argv)
 #endif
 #ifdef _WITH_SNMP_
 		case 'x':
-			snmp = 1;
+			snmp_option = true;
 			break;
 		case 'A':
 			snmp_socket = optarg;
