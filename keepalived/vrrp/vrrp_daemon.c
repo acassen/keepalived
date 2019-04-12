@@ -229,7 +229,7 @@ vrrp_terminate_phase2(int exit_status)
 
 #if defined _WITH_SNMP_RFC_ || defined _WITH_SNMP_VRRP_
 	if (
-#ifdef _WITH_SNMP_RFC_
+#ifdef _WITH_SNMP_VRRP_
 	    global_data->enable_snmp_vrrp ||
 #endif
 #ifdef _WITH_SNMP_RFCV2_
