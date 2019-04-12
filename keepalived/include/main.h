@@ -70,7 +70,7 @@ extern bool have_bfd_instances;		/* bfd instances configured */
 extern bool reload;			/* Set during a reload */
 extern char *main_pidfile;		/* overrule default pidfile */
 #ifdef _WITH_SNMP_
-extern bool snmp;			/* Enable SNMP support */
+extern bool snmp_option;		/* Enable SNMP support */
 extern const char *snmp_socket;		/* Socket to use for SNMP agent */
 #endif
 extern bool use_pid_dir;		/* pid files in /var/run/keepalived */

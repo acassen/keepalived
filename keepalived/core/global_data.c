@@ -189,7 +189,7 @@ alloc_global_data(void)
 #endif
 
 #ifdef _WITH_SNMP_
-	if (snmp) {
+	if (snmp_option) {
 #ifdef _WITH_SNMP_VRRP_
 		new->enable_snmp_vrrp = true;
 #endif
