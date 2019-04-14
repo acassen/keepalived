@@ -718,8 +718,8 @@ static int handle_proc_ev(int nl_sd)
 				log_message(LOG_INFO, "ptrace change: tid=%d pid=%d tracer tid=%d, pid=%d",
 						proc_ev->event_data.ptrace.process_pid,
 						proc_ev->event_data.ptrace.process_tgid,
-						proc_ev->event_data.ptrace.tracer_tgid,
-						proc_ev->event_data.ptrace.tracer_pid);
+						proc_ev->event_data.ptrace.tracer_pid,
+						proc_ev->event_data.ptrace.tracer_tgid);
 				break;
 #endif
 #if HAVE_DECL_PROC_EVENT_COMM		/* Since Linux v3.2 */
@@ -753,22 +753,30 @@ static int handle_proc_ev(int nl_sd)
 			switch (proc_ev->what)
 			{
 			case PROC_EVENT_FORK:
-				/* See if we have parent pid, in which case this is a new process */
-				check_process_fork(proc_ev->event_data.fork.parent_pid, proc_ev->event_data.fork.child_pid);
+				/* See if we have parent pid, in which case this is a new process.
+				 * For a process fork, child_pid == child_tgid.
+				 * For a new thread, child_pid != child_tgid and parent_pid/tgid is
+				 * the parent process of the process doing the pthread_create(). */
+				if (proc_ev->event_data.fork.child_tgid == proc_ev->event_data.fork.child_pid)
+					check_process_fork(proc_ev->event_data.fork.parent_tgid, proc_ev->event_data.fork.child_tgid);
 				break;
 			case PROC_EVENT_EXEC:
 				/* We may be losing a process. Check if have pid, and check new cmdline */
-				check_process(proc_ev->event_data.exec.process_pid, NULL, NULL);
+				if (proc_ev->event_data.exec.process_tgid == proc_ev->event_data.exec.process_pid)
+					check_process(proc_ev->event_data.exec.process_tgid, NULL, NULL);
 				break;
 #if HAVE_DECL_PROC_EVENT_COMM		/* Since Linux v3.2 */
 			/* NOTE: not having PROC_EVENT_COMM means that changes to /proc/PID/comm
 			 * will not be detected */
 			case PROC_EVENT_COMM:
-				check_process_comm_change(proc_ev->event_data.comm.process_pid, proc_ev->event_data.comm.comm);
+//				if (proc_ev->event_data.comm.process_tgid == proc_ev->event_data.comm.process_pid)
+				check_process_comm_change(proc_ev->event_data.comm.process_tgid, proc_ev->event_data.comm.comm);
 				break;
 #endif
 			case PROC_EVENT_EXIT:
-				check_process_termination(proc_ev->event_data.exit.process_pid);
+				/* We aren't interested in thread termination */
+				if (proc_ev->event_data.exit.process_tgid == proc_ev->event_data.exit.process_pid)
+					check_process_termination(proc_ev->event_data.exit.process_tgid);
 				break;
 			default:
 				break;
