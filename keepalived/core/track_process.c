@@ -382,6 +382,10 @@ check_process_comm_change(pid_t pid, char *comm)
 			if (tpr->full_command)
 				continue;
 
+			/* Check that the name really has changed */
+			if (!strcmp(comm, tpr->process_path))
+				return;
+
 			list_remove(tpi->processes, e);
 			if (tpr->num_cur_proc-- == tpr->quorum) {
 				if (tpr->delay)
