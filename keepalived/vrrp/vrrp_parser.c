@@ -1357,14 +1357,15 @@ vrrp_tprocess_full_handler(__attribute__((unused)) vector_t *strvec)
 	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
 
 	tprocess->full_command = true;
-	vrrp_data->vrrp_use_process_cmdline = true;
 }
 static void
 vrrp_tprocess_end_handler(void)
 {
 	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
 
-	if (!tprocess->full_command)
+	if (tprocess->full_command)
+		vrrp_data->vrrp_use_process_cmdline = true;
+	else
 		vrrp_data->vrrp_use_process_comm = true;
 }
 #endif
