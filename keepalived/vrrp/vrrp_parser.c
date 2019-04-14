@@ -61,6 +61,12 @@
 #include "bfd_parser.h"
 #endif
 
+enum process_delay {
+	PROCESS_DELAY,
+	PROCESS_TERMINATE_DELAY,
+	PROCESS_FORK_DELAY,
+};
+
 /* Used for initialising track files */
 static enum {
 	TRACK_FILE_NO_INIT,
@@ -1289,16 +1295,55 @@ static void
 vrrp_tprocess_process_handler(vector_t *strvec)
 {
 	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
-	size_t len;
+	size_t len = 0;
+	size_t i;
+	char *p;
 
 	if (tprocess->process_path) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Process already set for track process %s - ignoring %s", tprocess->pname, FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
 	tprocess->process_path = set_value(strvec);
-	len = strlen(tprocess->process_path);
+
+	if (vector_size(strvec) > 2) {
+		for (i = 2; i < vector_size(strvec); i++)
+			len += strlen(strvec_slot(strvec, i)) + 1;
+
+		tprocess->process_params = MALLOC(len);
+		tprocess->process_params_len = len;
+		p = tprocess->process_params;
+		for (i = 2; i < vector_size(strvec); i++) {
+			strcpy(p, strvec_slot(strvec, i));
+			p += strlen(strvec_slot(strvec, i)) + 1;
+		}
+
+		if (tprocess->param_match == PARAM_MATCH_NONE)
+			tprocess->param_match = PARAM_MATCH_EXACT;
+
+		tprocess->full_command = true;
+	}
+
+	len += strlen(tprocess->process_path) + 1;
 	if (len > vrrp_data->vrrp_max_process_name_len)
 		vrrp_data->vrrp_max_process_name_len = len;
+}
+static void
+vrrp_tprocess_match_handler(vector_t *strvec)
+{
+	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
+
+	if (vector_size(strvec) == 1) {
+		tprocess->param_match = PARAM_MATCH_EXACT;
+		tprocess->full_command = true;
+	} else if (!strcmp(strvec_slot(strvec, 1), "initial")) {
+		tprocess->param_match = PARAM_MATCH_INITIAL;
+		tprocess->full_command = true;
+	} else if (!strcmp(strvec_slot(strvec, 1), "partial")) {
+		tprocess->param_match = PARAM_MATCH_PARTIAL;
+		tprocess->full_command = true;
+	} else
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid param_match type %s - ignoring", FMT_STR_VSLOT(strvec, 1));
+
 }
 static void
 vrrp_tprocess_weight_handler(vector_t *strvec)
@@ -1318,7 +1363,7 @@ vrrp_tprocess_weight_handler(vector_t *strvec)
 	if (!read_int_strvec(strvec, 1, &weight, -254, 254, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Weight (%s) for vrrp_track_process %s must be between "
 				 "[-254..254] inclusive. Ignoring...", FMT_STR_VSLOT(strvec, 1), tprocess->pname);
-		weight = 1;
+		return;
 	}
 
 	tprocess->weight = weight;
@@ -1332,24 +1377,76 @@ vrrp_tprocess_quorum_handler(vector_t *strvec)
 	if (!read_unsigned_strvec(strvec, 1, &quorum, 1, 65535, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Quorum (%s) for vrrp_track_process %s must be between "
 				 "[1..65535] inclusive. Ignoring...", FMT_STR_VSLOT(strvec, 1), tprocess->pname);
-		quorum = 1;
+		return;
+	}
+
+	if (quorum > tprocess->quorum_max) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Quorum is greater than quorum_max - ignoring");
+		return;
 	}
 
 	tprocess->quorum = quorum;
 }
 static void
-vrrp_tprocess_delay_handler(vector_t *strvec)
+vrrp_tprocess_quorum_max_handler(vector_t *strvec)
+{
+	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
+	unsigned quorum_max;
+
+	if (!read_unsigned_strvec(strvec, 1, &quorum_max, 0, 65535, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "quorum_max (%s) for vrrp_track_process %s must be between "
+				 "[0..65535] inclusive. Ignoring...", FMT_STR_VSLOT(strvec, 1), tprocess->pname);
+		return;
+	}
+
+	/* Allow quorum_max = 0 if quorum not specified */
+	if (quorum_max || tprocess->quorum > 1) {
+		if (quorum_max < tprocess->quorum) {
+			report_config_error(CONFIG_GENERAL_ERROR, "quorum_max is less than quorum - ignoring");
+			return;
+		}
+	}
+
+	tprocess->quorum_max = quorum_max;
+	if (quorum_max == 0)
+		tprocess->quorum = 0;
+	else if (!tprocess->quorum)
+		tprocess->quorum = 1;
+}
+static void
+vrrp_tprocess_delay_general(vector_t *strvec, enum process_delay delay_type)
 {
 	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
 	double delay;
 
 	if (!read_double_strvec(strvec, 1, &delay, 0.000001F, 3600.F, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Delay (%s) for vrrp_track_process %s must be between "
-				 "[0.000001..3600] inclusive. Ignoring...", FMT_STR_VSLOT(strvec, 1), tprocess->pname);
-		delay = 0;
+		report_config_error(CONFIG_GENERAL_ERROR, "%sdelay (%s) for vrrp_track_process %s must be between "
+				 "[0.000001..3600] inclusive. Ignoring...",
+				 delay_type == PROCESS_TERMINATE_DELAY ? "terminate_" :
+				 delay_type == PROCESS_FORK_DELAY ? "fork_" : "",
+				 FMT_STR_VSLOT(strvec, 1), tprocess->pname);
+		return;
 	}
 
-	tprocess->delay = (unsigned)(delay * TIMER_HZ);
+	if (delay_type != PROCESS_FORK_DELAY)
+		tprocess->terminate_delay = (unsigned)(delay * TIMER_HZ);
+	if (delay_type != PROCESS_TERMINATE_DELAY)
+		tprocess->fork_delay = (unsigned)(delay * TIMER_HZ);
+}
+static void
+vrrp_tprocess_terminate_delay_handler(vector_t *strvec)
+{
+	vrrp_tprocess_delay_general(strvec, PROCESS_TERMINATE_DELAY);
+}
+static void
+vrrp_tprocess_fork_delay_handler(vector_t *strvec)
+{
+	vrrp_tprocess_delay_general(strvec, PROCESS_FORK_DELAY);
+}
+static void
+vrrp_tprocess_delay_handler(vector_t *strvec)
+{
+	vrrp_tprocess_delay_general(strvec, PROCESS_DELAY);
 }
 static void
 vrrp_tprocess_full_handler(__attribute__((unused)) vector_t *strvec)
@@ -1357,14 +1454,15 @@ vrrp_tprocess_full_handler(__attribute__((unused)) vector_t *strvec)
 	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
 
 	tprocess->full_command = true;
-	vrrp_data->vrrp_use_process_cmdline = true;
 }
 static void
 vrrp_tprocess_end_handler(void)
 {
 	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
 
-	if (!tprocess->full_command)
+	if (tprocess->full_command)
+		vrrp_data->vrrp_use_process_cmdline = true;
+	else
 		vrrp_data->vrrp_use_process_comm = true;
 }
 #endif
@@ -1694,9 +1792,13 @@ init_vrrp_keywords(bool active)
 	/* Track process declarations */
 	install_keyword_root("vrrp_track_process", &vrrp_tprocess_handler, active);
 	install_keyword("process", &vrrp_tprocess_process_handler);
+	install_keyword("param_match", vrrp_tprocess_match_handler);
 	install_keyword("weight", &vrrp_tprocess_weight_handler);
 	install_keyword("quorum", &vrrp_tprocess_quorum_handler);
+	install_keyword("quorum_max", &vrrp_tprocess_quorum_max_handler);
 	install_keyword("delay", &vrrp_tprocess_delay_handler);
+	install_keyword("terminate_delay", &vrrp_tprocess_terminate_delay_handler);
+	install_keyword("fork_delay", &vrrp_tprocess_fork_delay_handler);
 	install_keyword("full_command", &vrrp_tprocess_full_handler);
 	install_sublevel_end_handler(&vrrp_tprocess_end_handler);
 #endif

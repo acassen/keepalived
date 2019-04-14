@@ -100,17 +100,31 @@ typedef struct _tracked_file {
 } tracked_file_t;
 
 #ifdef _WITH_CN_PROC_
+typedef enum _param_match {
+	PARAM_MATCH_NONE,
+	PARAM_MATCH_EXACT,			/* All parameters must match */
+	PARAM_MATCH_INITIAL,			/* Match initial complete parameters */
+	PARAM_MATCH_PARTIAL,			/* Allow the last parameter to be a partial match */
+} param_match_t;
+
 /* process we track */
 typedef struct _vrrp_process {
 	char			*pname;		/* Process name */
 	char			*process_path;	/* Path to process */
+	char			*process_params; /* NUL separated parameters */
+	size_t			process_params_len; /* Total length of parameters, including NULs */
+	param_match_t		param_match;	/* Full or partial match of parameters */
 	int			weight;		/* Default weight */
 	unsigned		quorum;		/* Minimum number of process instances required */
-	int			delay;		/* Lauhcn timer thread which can be cancelled */
+	unsigned		quorum_max;	/* Maximum number of process instances required */
+	int			fork_delay;	/* Delay before processing process fork */
+	int			terminate_delay; /* Delay before processing process termination */
 	bool			full_command;	/* Set if match against full command line */
-	thread_t		*timer_thread;	/* For handling delay */
+	thread_t		*fork_timer_thread; /* For handling delay */
+	thread_t		*terminate_timer_thread; /* For handling delay */
 	list			tracking_vrrp;	/* List of tracking_vrrp_t for vrrp instances tracking this process */
 	unsigned		num_cur_proc;
+	bool			have_quorum;	/* Set if quorum is treated as achieved */
 	unsigned		sav_num_cur_proc; /* Used if have ENOBUFS on netlink socket read */
 } vrrp_tracked_process_t;
 
