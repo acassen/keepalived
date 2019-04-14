@@ -710,7 +710,7 @@ static int handle_proc_ev(int nl_sd)
 				check_process_fork(proc_ev->event_data.fork.parent_pid, proc_ev->event_data.fork.child_pid);
 				break;
 			case PROC_EVENT_EXEC:
-				// We may be losing a process. Check if have pid, and check new cmdline */
+				/* We may be losing a process. Check if have pid, and check new cmdline */
 				check_process(proc_ev->event_data.exec.process_pid, NULL);
 				break;
 #if HAVE_DECL_PROC_EVENT_COMM		/* Since Linux v3.2 */
