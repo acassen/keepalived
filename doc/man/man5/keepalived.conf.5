@@ -155,6 +155,16 @@ and
 
 # Global definitions configuration block
 \fBglobal_defs \fR{
+    # Set the process names of the keepalived processes to the default values:
+    #   keepalived, keepalived_vrrp, keepalived_ipvs, keepalived_bfd
+    \fBprocess_names\fR
+
+    # Specify the individual process names
+    \fBprocess_name\fR NAME
+    \fBvrrp_process_name\fR NAME
+    \fBipvs_process_name\fR NAME
+    \fBbfd_process_name\fR NAME
+
     # Set of email To: notify
     \fBnotification_email \fR{
         admin@example1.com

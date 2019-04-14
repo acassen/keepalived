@@ -86,6 +86,16 @@ typedef enum {
 
 /* Configuration data root */
 typedef struct _data {
+	char 				*process_name;
+#ifdef _WITH_VRRP_
+	char				*vrrp_process_name;
+#endif
+#ifdef _WITH_LVS_
+	char				*lvs_process_name;
+#endif
+#ifdef _WITH_BFD_
+	char				*bfd_process_name;
+#endif
 #if HAVE_DECL_CLONE_NEWNET
 	char				*network_namespace;	/* network namespace name */
 	bool				namespace_with_ipsets;	/* override for namespaces with ipsets on Linux < 3.13 */

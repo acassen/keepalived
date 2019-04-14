@@ -151,12 +151,15 @@ start_bfd(__attribute__((unused)) data_t *prev_global_data)
 	alloc_bfd_buffer();
 
 	init_data(conf_file, bfd_init_keywords);
-	/* At the moment bfd doesn't need global data initialising, but
-	 * leave the call here but commented out so we know where we want it
-	 * it if is needed.
 	if (reload)
 		init_global_data(global_data, prev_global_data);
-	*/
+
+	/* Update process name if necessary */
+	if ((!reload && global_data->bfd_process_name) ||
+	    (reload &&
+	     (!global_data->bfd_process_name != !prev_global_data->bfd_process_name ||
+	      (global_data->bfd_process_name && strcmp(global_data->bfd_process_name, prev_global_data->bfd_process_name)))))
+		set_process_name(global_data->bfd_process_name);
 
 	/* If we are just testing the configuration, then we terminate now */
 	if (__test_bit(CONFIG_TEST_BIT, &debug))
