@@ -300,6 +300,18 @@ check_process(pid_t pid, char *comm)
 	FREE_PTR(cmd_buf);
 }
 
+static int
+process_gained_quorum_timer_thread(thread_t *thread)
+{
+	vrrp_tracked_process_t *tpr = thread->arg;
+
+	if (tpr->num_cur_proc >= tpr->quorum)
+		process_update_track_process_status(tpr, true);
+	tpr->timer_thread = NULL;
+
+	return 0;
+}
+
 static void
 check_process_fork(pid_t parent_pid, pid_t child_pid)
 {
@@ -321,8 +333,15 @@ check_process_fork(pid_t parent_pid, pid_t child_pid)
 	LIST_FOREACH(tpi->processes, tpr, e)
 	{
 		list_add(tpi_child->processes, tpr);
-		if (++tpr->num_cur_proc == tpr->quorum)
-			process_update_track_process_status(tpr, true);
+		if (++tpr->num_cur_proc == tpr->quorum) {
+			if (tpr->timer_thread) {
+				thread_cancel(tpr->timer_thread);	// Cancel down timer
+				tpr->timer_thread = NULL;
+			} else if (tpr->delay)
+				tpr->timer_thread = thread_add_timer(master, process_gained_quorum_timer_thread, tpr, tpr->delay);
+			else
+				process_update_track_process_status(tpr, true);
+		}
 	}
 }
 
@@ -350,12 +369,13 @@ check_process_termination(pid_t pid)
 	if (!tpi)
 		return;
 
-	LIST_FOREACH(tpi->processes, tpr, e)
-	{
+	LIST_FOREACH(tpi->processes, tpr, e) {
 		if (tpr->num_cur_proc-- == tpr->quorum) {
-			if (tpr->delay)
+			if (tpr->timer_thread) {
+				thread_cancel(tpr->timer_thread);	// Cancel up timer
+				tpr->timer_thread = NULL;
 				tpr->timer_thread = thread_add_timer(master, process_lost_quorum_timer_thread, tpr, tpr->delay);
-			else
+			} else
 				process_update_track_process_status(tpr, false);
 		}
 	}
@@ -377,8 +397,7 @@ check_process_comm_change(pid_t pid, char *comm)
 	tpi = rb_search(&process_tree, &tp, pid_tree, pid_compare);
 
 	if (tpi) {
-		LIST_FOREACH_NEXT(tpi->processes, tpr, e, next)
-		{
+		LIST_FOREACH_NEXT(tpi->processes, tpr, e, next) {
 			if (tpr->full_command)
 				continue;
 
@@ -388,9 +407,10 @@ check_process_comm_change(pid_t pid, char *comm)
 
 			list_remove(tpi->processes, e);
 			if (tpr->num_cur_proc-- == tpr->quorum) {
-				if (tpr->delay)
-					tpr->timer_thread = thread_add_timer(master, process_lost_quorum_timer_thread, tpr, tpr->delay);
-				else
+				if (tpr->timer_thread) {
+					thread_cancel(tpr->timer_thread);	// Cancel up timer
+					tpr->timer_thread = NULL;
+				} else
 					process_update_track_process_status(tpr, false);
 			}
 		}
