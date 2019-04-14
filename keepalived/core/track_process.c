@@ -82,13 +82,12 @@ pid_compare(const tracked_process_instance_t *tpi1, const tracked_process_instan
 	return tpi1->pid - tpi2->pid;
 }
 
-static inline void
-add_process(pid_t pid, vrrp_tracked_process_t *tpr)
+static inline tracked_process_instance_t *
+add_process(pid_t pid, vrrp_tracked_process_t *tpr, tracked_process_instance_t *tpi)
 {
 	tracked_process_instance_t tp = { .pid = pid };
-	tracked_process_instance_t *tpi;
 
-	if (!(tpi = rb_search(&process_tree, &tp, pid_tree, pid_compare))) {
+	if (!tpi && !(tpi = rb_search(&process_tree, &tp, pid_tree, pid_compare))) {
 		PMALLOC(tpi);
 		tpi->pid = tp.pid;
 		tpi->processes = alloc_list(NULL, NULL);
@@ -98,6 +97,8 @@ add_process(pid_t pid, vrrp_tracked_process_t *tpr)
 
 	list_add(tpi->processes, tpr);
 	++tpr->num_cur_proc;
+
+	return tpi;
 }
 
 #ifdef _INCLUDE_UNUSED_CODE_
@@ -220,7 +221,7 @@ read_procs(list processes)
 
 			if (!strcmp(proc_name, tpr->process_path)) {
 				/* We have got a match */
-				add_process(atoi(ent->d_name), tpr);
+				add_process(atoi(ent->d_name), tpr, NULL);
 			}
 		}
 	}
@@ -241,6 +242,11 @@ check_process(pid_t pid, char *comm)
 	char *proc_name;
 	vrrp_tracked_process_t *tpr;
 	element e;
+	tracked_process_instance_t *tpi;
+	tracked_process_instance_t tp = { .pid = pid };
+
+	/* Are we counting this process now? */
+	tpi = rb_search(&process_tree, &tp, pid_tree, pid_compare);
 
 	/* We want to avoid reading /proc/PID/cmdline, since it reads the process
 	 * address space, and if the process is swapped out, then it will have to be
@@ -283,7 +289,7 @@ check_process(pid_t pid, char *comm)
 
 		if (!strcmp(proc_name, tpr->process_path)) {
 			/* We have got a match */
-			add_process(pid, tpr);
+			tpi = add_process(pid, tpr, tpi);
 
 			if (tpr->num_cur_proc == tpr->quorum) {
 				/* Cancel timer thread if any, otherwise update status */
