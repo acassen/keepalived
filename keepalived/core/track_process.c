@@ -231,7 +231,7 @@ read_procs(list processes)
 }
 
 static void
-check_process(pid_t pid, char *comm)
+check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 {
 	char cmdline[22];	/* "/proc/xxxxxxx/cmdline" */
 	int fd;
@@ -242,49 +242,55 @@ check_process(pid_t pid, char *comm)
 	char *proc_name;
 	vrrp_tracked_process_t *tpr;
 	element e;
-	tracked_process_instance_t *tpi;
 	tracked_process_instance_t tp = { .pid = pid };
+	bool have_comm = !!comm;
 
 	/* Are we counting this process now? */
-	tpi = rb_search(&process_tree, &tp, pid_tree, pid_compare);
+	if (!tpi)
+		tpi = rb_search(&process_tree, &tp, pid_tree, pid_compare);
 
 	/* We want to avoid reading /proc/PID/cmdline, since it reads the process
 	 * address space, and if the process is swapped out, then it will have to be
 	 * swapped in to read it. */
-	if (vrrp_data->vrrp_use_process_cmdline) {
-		snprintf(cmdline, sizeof(cmdline), "/proc/%d/cmdline", pid);
+	if (!have_comm) {
+		if (vrrp_data->vrrp_use_process_cmdline) {
+			snprintf(cmdline, sizeof(cmdline), "/proc/%d/cmdline", pid);
 
-		if ((fd = open(cmdline, O_RDONLY)) == -1)
-			return;
+			if ((fd = open(cmdline, O_RDONLY)) == -1)
+				return;
 
-		cmd_buf_len = vrrp_data->vrrp_max_process_name_len + 2;
-		cmd_buf = MALLOC(cmd_buf_len);
-		len = read(fd, cmd_buf, vrrp_data->vrrp_max_process_name_len + 1);
-		close(fd);
-		cmd_buf[len] = '\0';
-	}
-
-	if (vrrp_data->vrrp_use_process_comm && !comm) {
-		snprintf(cmdline, sizeof(cmdline), "/proc/%d/comm", pid);
-
-		fd = open(cmdline, O_RDONLY);
-		if (fd == -1) {
-			FREE_PTR(cmd_buf);
-			return;
+			cmd_buf_len = vrrp_data->vrrp_max_process_name_len + 3;
+			cmd_buf = MALLOC(cmd_buf_len);
+			len = read(fd, cmd_buf, vrrp_data->vrrp_max_process_name_len + 2);
+			close(fd);
+			cmd_buf[len] = '\0';
 		}
 
-		len = read(fd, comm_buf, sizeof(comm_buf) - 1);
-		close(fd);
-		comm_buf[len] = '\0';
-		if (len && comm_buf[len-1] == '\n')
-			comm_buf[len-1] = '\0';
-		comm = comm_buf;
+		if (vrrp_data->vrrp_use_process_comm && !comm) {
+			snprintf(cmdline, sizeof(cmdline), "/proc/%d/comm", pid);
+
+			fd = open(cmdline, O_RDONLY);
+			if (fd == -1) {
+				FREE_PTR(cmd_buf);
+				return;
+			}
+
+			len = read(fd, comm_buf, sizeof(comm_buf) - 1);
+			close(fd);
+			comm_buf[len] = '\0';
+			if (len && comm_buf[len-1] == '\n')
+				comm_buf[len-1] = '\0';
+			comm = comm_buf;
+		}
 	}
 
 	LIST_FOREACH(vrrp_data->vrrp_track_processes, tpr, e) {
-		if (tpr->full_command)
+		if (tpr->full_command) {
+			/* If this is a PROC_EVENT_COMM, we aren't dealing with the command line */
+			if (have_comm)
+				continue;
 			proc_name = cmd_buf;
-		else
+		} else
 			proc_name = comm;
 
 		if (!strcmp(proc_name, tpr->process_path)) {
@@ -433,7 +439,7 @@ check_process_comm_change(pid_t pid, char *comm)
 		}
 	}
 
-	check_process(pid, comm);
+	check_process(pid, comm, tpi);
 
 	if (tpi && LIST_ISEMPTY(tpi->processes)) {
 		free_list(&tpi->processes);
@@ -752,7 +758,7 @@ static int handle_proc_ev(int nl_sd)
 				break;
 			case PROC_EVENT_EXEC:
 				/* We may be losing a process. Check if have pid, and check new cmdline */
-				check_process(proc_ev->event_data.exec.process_pid, NULL);
+				check_process(proc_ev->event_data.exec.process_pid, NULL, NULL);
 				break;
 #if HAVE_DECL_PROC_EVENT_COMM		/* Since Linux v3.2 */
 			/* NOTE: not having PROC_EVENT_COMM means that changes to /proc/PID/comm
