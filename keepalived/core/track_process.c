@@ -304,6 +304,17 @@ check_process(pid_t pid, char *comm)
 	}
 
 	FREE_PTR(cmd_buf);
+
+	if (!tpi)
+		return;
+
+	/* If we were monitoring the process, and are no longer,
+	 * remove it */
+	if (LIST_ISEMPTY(tpi->processes)) {
+		free_list(&tpi->processes);
+		rb_erase(&tpi->pid_tree, &process_tree);
+		FREE(tpi);
+	}
 }
 
 static int
@@ -420,15 +431,15 @@ check_process_comm_change(pid_t pid, char *comm)
 					process_update_track_process_status(tpr, false);
 			}
 		}
-
-		if (LIST_ISEMPTY(tpi->processes)) {
-			free_list(&tpi->processes);
-			rb_erase(&tpi->pid_tree, &process_tree);
-			FREE(tpi);
-		}
 	}
 
 	check_process(pid, comm);
+
+	if (tpi && LIST_ISEMPTY(tpi->processes)) {
+		free_list(&tpi->processes);
+		rb_erase(&tpi->pid_tree, &process_tree);
+		FREE(tpi);
+	}
 }
 #endif
 
