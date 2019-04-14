@@ -930,15 +930,19 @@ initialise_process_tracking_priorities(void)
 	element e, e1;
 
 	LIST_FOREACH(vrrp_data->vrrp_track_processes, tprocess, e) {
+		tprocess->have_quorum =
+			(tprocess->num_cur_proc >= tprocess->quorum &&
+			 tprocess->num_cur_proc <= tprocess->quorum_max);
+
 		LIST_FOREACH(tprocess->tracking_vrrp, tvp, e1) {
 			if (!tvp->weight) {
-				if (tprocess->num_cur_proc < tprocess->quorum) {
+				if (!tprocess->have_quorum) {
 					/* The instance is down */
 					tvp->vrrp->state = VRRP_STATE_FAULT;
 					tvp->vrrp->num_script_if_fault++;
 				}
 			}
-			else if (tprocess->num_cur_proc >= tprocess->quorum) {
+			else if (tprocess->have_quorum) {
 				if (tvp->weight > 0)
 					tvp->vrrp->total_priority += tvp->weight;
 			}

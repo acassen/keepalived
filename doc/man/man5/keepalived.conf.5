@@ -713,6 +713,13 @@ The configuration block looks like:
         # minimum number of processes for success
         \fBquorum\fR NUM
 
+        # maximum number of processes for success. For example, setting
+        #   this to 1 would cause a failure if two instances of the process
+        #   were running (but beware forks - see fork_delay below).
+        #   Setting this to 0 would mean failure if the matching process were
+        #   running at all.
+        \fBquorum_max\fR NUM
+
         # time to delay after process quorum gained after fork before
         #   consider process up (in fractions of second)
         #   This is to avoid up/down bounce for fork/exec

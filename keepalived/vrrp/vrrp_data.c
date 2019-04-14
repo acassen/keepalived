@@ -297,10 +297,17 @@ dump_vprocess(FILE *fp, void *data)
 			       vprocess->param_match == PARAM_MATCH_INITIAL ? " = initial" :
 			       "unknown");
 	conf_write(fp, "   Min processes = %d", vprocess->quorum);
+	if (vprocess->quorum_max < UINT_MAX)
+		conf_write(fp, "   Max processes = %d", vprocess->quorum_max);
 	conf_write(fp, "   Current processes = %d", vprocess->num_cur_proc);
+	conf_write(fp, "   Have quorum = %s", vprocess->have_quorum ? "true" : "false");
 	conf_write(fp, "   Weight = %d", vprocess->weight);
 	conf_write(fp, "   Terminate delay = %fs", (double)vprocess->terminate_delay / TIMER_HZ);
 	conf_write(fp, "   Fork delay = %fs", (double)vprocess->fork_delay / TIMER_HZ);
+	if (fp) {
+		conf_write(fp, "   Fork delay timer %srunning", vprocess->fork_timer_thread ? "" : "not ");
+		conf_write(fp, "   Terminate delay timer %srunning", vprocess->terminate_timer_thread ? "" : "not ");
+	}
 	conf_write(fp, "   Full command = %s", vprocess->full_command ? "true" : "false");
 	conf_write(fp, "   Tracking VRRP instances = %d", vprocess->tracking_vrrp ? LIST_SIZE(vprocess->tracking_vrrp) : 0);
 	if (vprocess->tracking_vrrp)
@@ -978,6 +985,7 @@ alloc_vrrp_process(char *pname)
 	new->pname = (char *) MALLOC(size + 1);
 	memcpy(new->pname, pname, size + 1);
 	new->quorum = 1;
+	new->quorum_max = UINT_MAX;
 	list_add(vrrp_data->vrrp_track_processes, new);
 }
 #endif

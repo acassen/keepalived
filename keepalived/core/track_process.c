@@ -264,6 +264,17 @@ read_procs(list processes)
 }
 
 static void
+update_process_status(vrrp_tracked_process_t *tpr, bool now_up)
+{
+	if (now_up == tpr->have_quorum)
+		return;
+
+	tpr->have_quorum = now_up;
+
+	process_update_track_process_status(tpr, now_up);
+}
+
+static void
 remove_process_from_track(tracked_process_instance_t *tpi, vrrp_tracked_process_t *tpr)
 {
 	vrrp_tracked_process_t *proc;
@@ -272,13 +283,13 @@ remove_process_from_track(tracked_process_instance_t *tpi, vrrp_tracked_process_
 	LIST_FOREACH(tpi->processes, proc, e) {
 		if (proc == tpr) {
 			free_list_element(tpi->processes, e);
-			if (tpr->num_cur_proc-- == tpr->quorum) {
-				if (tpr->timer_thread) {
-					thread_cancel(tpr->timer_thread);
-					tpr->timer_thread = NULL;
+			if (tpr->num_cur_proc-- == tpr->quorum ||
+			    tpr->num_cur_proc == tpr->quorum_max) {
+				if (tpr->fork_timer_thread) {
+					thread_cancel(tpr->fork_timer_thread);
+					tpr->fork_timer_thread = NULL;
 				}
-				else
-					process_update_track_process_status(tpr, false);
+				update_process_status(tpr, tpr->num_cur_proc == tpr->quorum_max);
 			}
 			return;
 		}
@@ -367,14 +378,14 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 
 			tpi = add_process(pid, tpr, tpi);
 
-			if (tpr->num_cur_proc == tpr->quorum) {
-				/* Cancel timer thread if any, otherwise update status */
-				if (tpr->timer_thread) {
-					thread_cancel(tpr->timer_thread);
-					tpr->timer_thread = NULL;
+			if (tpr->num_cur_proc == tpr->quorum ||
+			    tpr->num_cur_proc == tpr->quorum_max + 1) {
+				/* Cancel terminate timer thread if any, otherwise update status */
+				if (tpr->terminate_timer_thread) {
+					thread_cancel(tpr->terminate_timer_thread);
+					tpr->terminate_timer_thread = NULL;
 				}
-				else
-					process_update_track_process_status(tpr, true);
+				update_process_status(tpr, tpr->num_cur_proc == tpr->quorum);
 			}
 		}
 		else if (had_process && !have_comm)
@@ -400,9 +411,10 @@ process_gained_quorum_timer_thread(thread_t *thread)
 {
 	vrrp_tracked_process_t *tpr = thread->arg;
 
-	if (tpr->num_cur_proc >= tpr->quorum)
-		process_update_track_process_status(tpr, true);
-	tpr->timer_thread = NULL;
+	update_process_status(tpr,
+			      tpr->num_cur_proc >= tpr->quorum &&
+			      tpr->num_cur_proc <= tpr->quorum_max);
+	tpr->fork_timer_thread = NULL;
 
 	return 0;
 }
@@ -428,14 +440,16 @@ check_process_fork(pid_t parent_pid, pid_t child_pid)
 	LIST_FOREACH(tpi->processes, tpr, e)
 	{
 		list_add(tpi_child->processes, tpr);
-		if (++tpr->num_cur_proc == tpr->quorum) {
-			if (tpr->timer_thread) {
-				thread_cancel(tpr->timer_thread);	// Cancel down timer
-				tpr->timer_thread = NULL;
-			} else if (tpr->fork_delay)
-				tpr->timer_thread = thread_add_timer(master, process_gained_quorum_timer_thread, tpr, tpr->fork_delay);
-			else
-				process_update_track_process_status(tpr, true);
+		if (++tpr->num_cur_proc == tpr->quorum ||
+		    tpr->num_cur_proc == tpr->quorum_max + 1) {
+			if (tpr->terminate_timer_thread) {
+				thread_cancel(tpr->terminate_timer_thread);	// Cancel terminate timer
+				tpr->terminate_timer_thread = NULL;
+			} else if (tpr->fork_delay) {
+				tpr->fork_timer_thread = thread_add_timer(master, process_gained_quorum_timer_thread, tpr, tpr->fork_delay);
+				continue;
+			}
+			update_process_status(tpr, tpr->num_cur_proc == tpr->quorum);
 		}
 	}
 }
@@ -445,9 +459,10 @@ process_lost_quorum_timer_thread(thread_t *thread)
 {
 	vrrp_tracked_process_t *tpr = thread->arg;
 
-	if (tpr->num_cur_proc < tpr->quorum)
-		process_update_track_process_status(tpr, false);
-	tpr->timer_thread = NULL;
+	update_process_status(tpr,
+			      tpr->num_cur_proc >= tpr->quorum &&
+			      tpr->num_cur_proc <= tpr->quorum_max);
+	tpr->terminate_timer_thread = NULL;
 
 	return 0;
 }
@@ -466,14 +481,16 @@ check_process_termination(pid_t pid)
 		return;
 
 	LIST_FOREACH(tpi->processes, tpr, e) {
-		if (tpr->num_cur_proc-- == tpr->quorum) {
-			if (tpr->timer_thread) {
-				thread_cancel(tpr->timer_thread);	// Cancel up timer
-				tpr->timer_thread = NULL;
-			} else if (tpr->terminate_delay)
-				tpr->timer_thread = thread_add_timer(master, process_lost_quorum_timer_thread, tpr, tpr->terminate_delay);
-			else
-				process_update_track_process_status(tpr, false);
+		if (tpr->num_cur_proc-- == tpr->quorum ||
+		    tpr->num_cur_proc == tpr->quorum_max) {
+			if (tpr->fork_timer_thread) {
+				thread_cancel(tpr->fork_timer_thread);	// Cancel fork timer
+				tpr->fork_timer_thread = NULL;
+			} else if (tpr->terminate_delay) {
+				tpr->terminate_timer_thread = thread_add_timer(master, process_lost_quorum_timer_thread, tpr, tpr->terminate_delay);
+				continue;
+			}
+			update_process_status(tpr, tpr->num_cur_proc == tpr->quorum_max);
 		}
 	}
 
@@ -494,6 +511,7 @@ check_process_comm_change(pid_t pid, char *comm)
 	tpi = rb_search(&process_tree, &tp, pid_tree, pid_compare);
 
 	if (tpi) {
+		/* The process was being monitored by its old name */
 		LIST_FOREACH_NEXT(tpi->processes, tpr, e, next) {
 			if (tpr->full_command)
 				continue;
@@ -503,16 +521,18 @@ check_process_comm_change(pid_t pid, char *comm)
 				return;
 
 			list_remove(tpi->processes, e);
-			if (tpr->num_cur_proc-- == tpr->quorum) {
-				if (tpr->timer_thread) {
-					thread_cancel(tpr->timer_thread);	// Cancel up timer
-					tpr->timer_thread = NULL;
-				} else
-					process_update_track_process_status(tpr, false);
+			if (tpr->num_cur_proc-- == tpr->quorum ||
+			    tpr->num_cur_proc == tpr->quorum_max) {
+				if (tpr->fork_timer_thread) {
+					thread_cancel(tpr->fork_timer_thread);	// Cancel fork timer
+					tpr->fork_timer_thread = NULL;
+				}
+				update_process_status(tpr, tpr->num_cur_proc == tpr->quorum_max);
 			}
 		}
 	}
 
+	/* Handle the new process name */
 	check_process(pid, comm, tpi);
 
 	if (tpi && LIST_ISEMPTY(tpi->processes)) {
@@ -639,9 +659,13 @@ reload_track_processes(void)
 	LIST_FOREACH(vrrp_data->vrrp_track_processes, tpr, e) {
 		tpr->sav_num_cur_proc = tpr->num_cur_proc;
 		tpr->num_cur_proc = 0;
-		if (tpr->timer_thread) {
-			thread_cancel(tpr->timer_thread);
-			tpr->timer_thread = NULL;
+		if (tpr->fork_timer_thread) {
+			thread_cancel(tpr->fork_timer_thread);
+			tpr->fork_timer_thread = NULL;
+		}
+		if (tpr->terminate_timer_thread) {
+			thread_cancel(tpr->terminate_timer_thread);
+			tpr->terminate_timer_thread = NULL;
 		}
 	}
 
@@ -651,20 +675,24 @@ reload_track_processes(void)
 	/* See if anything changed */
 	LIST_FOREACH(vrrp_data->vrrp_track_processes, tpr, e) {
 		if (tpr->sav_num_cur_proc != tpr->num_cur_proc) {
-			if ((tpr->sav_num_cur_proc < tpr->quorum) == (tpr->num_cur_proc < tpr->quorum)) {
+			if ((tpr->sav_num_cur_proc < tpr->quorum) == (tpr->num_cur_proc < tpr->quorum) &&
+			    (tpr->sav_num_cur_proc > tpr->quorum_max) == (tpr->num_cur_proc > tpr->quorum_max)) {
 				if (__test_bit(LOG_DETAIL_BIT, &debug))
 					log_message(LOG_INFO, "Process %s, number of current processes changed from %u to %u", tpr->pname, tpr->sav_num_cur_proc, tpr->num_cur_proc);
 				continue;
 			}
-			if (tpr->num_cur_proc >= tpr->quorum) {
+			if (tpr->num_cur_proc >= tpr->quorum &&
+			    tpr->num_cur_proc <= tpr->quorum_max) {
 				if (__test_bit(LOG_DETAIL_BIT, &debug))
 					log_message(LOG_INFO, "Process %s, number of current processes changed from %u to %u, quorum up", tpr->pname, tpr->sav_num_cur_proc, tpr->num_cur_proc);
+				if (tpr->fork_delay)
+					tpr->fork_timer_thread = thread_add_timer(master, process_gained_quorum_timer_thread, tpr, tpr->terminate_delay);
 				process_update_track_process_status(tpr, true);
 			} else {
 				if (__test_bit(LOG_DETAIL_BIT, &debug))
 					log_message(LOG_INFO, "Process %s, number of current processes changed from %u to %u, quorum down", tpr->pname, tpr->sav_num_cur_proc, tpr->num_cur_proc);
 				if (tpr->terminate_delay)
-					tpr->timer_thread = thread_add_timer(master, process_lost_quorum_timer_thread, tpr, tpr->terminate_delay);
+					tpr->terminate_timer_thread = thread_add_timer(master, process_lost_quorum_timer_thread, tpr, tpr->terminate_delay);
 				else
 					process_update_track_process_status(tpr, false);
 			}
@@ -952,9 +980,13 @@ end_process_monitor(void)
 
 	/* Cancel any timer threads */
 	LIST_FOREACH(vrrp_data->vrrp_track_processes, tpr, e) {
-		if (tpr->timer_thread) {
-			thread_cancel(tpr->timer_thread);
-			tpr->timer_thread = NULL;
+		if (tpr->fork_timer_thread) {
+			thread_cancel(tpr->fork_timer_thread);
+			tpr->fork_timer_thread = NULL;
+		}
+		if (tpr->terminate_timer_thread) {
+			thread_cancel(tpr->terminate_timer_thread);
+			tpr->terminate_timer_thread = NULL;
 		}
 	}
 

@@ -1363,7 +1363,7 @@ vrrp_tprocess_weight_handler(vector_t *strvec)
 	if (!read_int_strvec(strvec, 1, &weight, -254, 254, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Weight (%s) for vrrp_track_process %s must be between "
 				 "[-254..254] inclusive. Ignoring...", FMT_STR_VSLOT(strvec, 1), tprocess->pname);
-		weight = 1;
+		return;
 	}
 
 	tprocess->weight = weight;
@@ -1377,10 +1377,41 @@ vrrp_tprocess_quorum_handler(vector_t *strvec)
 	if (!read_unsigned_strvec(strvec, 1, &quorum, 1, 65535, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Quorum (%s) for vrrp_track_process %s must be between "
 				 "[1..65535] inclusive. Ignoring...", FMT_STR_VSLOT(strvec, 1), tprocess->pname);
-		quorum = 1;
+		return;
+	}
+
+	if (quorum > tprocess->quorum_max) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Quorum is greater than quorum_max - ignoring");
+		return;
 	}
 
 	tprocess->quorum = quorum;
+}
+static void
+vrrp_tprocess_quorum_max_handler(vector_t *strvec)
+{
+	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
+	unsigned quorum_max;
+
+	if (!read_unsigned_strvec(strvec, 1, &quorum_max, 0, 65535, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "quorum_max (%s) for vrrp_track_process %s must be between "
+				 "[0..65535] inclusive. Ignoring...", FMT_STR_VSLOT(strvec, 1), tprocess->pname);
+		return;
+	}
+
+	/* Allow quorum_max = 0 if quorum not specified */
+	if (quorum_max || tprocess->quorum > 1) {
+		if (quorum_max < tprocess->quorum) {
+			report_config_error(CONFIG_GENERAL_ERROR, "quorum_max is less than quorum - ignoring");
+			return;
+		}
+	}
+
+	tprocess->quorum_max = quorum_max;
+	if (quorum_max == 0)
+		tprocess->quorum = 0;
+	else if (!tprocess->quorum)
+		tprocess->quorum = 1;
 }
 static void
 vrrp_tprocess_delay_general(vector_t *strvec, enum process_delay delay_type)
@@ -1394,7 +1425,7 @@ vrrp_tprocess_delay_general(vector_t *strvec, enum process_delay delay_type)
 				 delay_type == PROCESS_TERMINATE_DELAY ? "terminate_" :
 				 delay_type == PROCESS_FORK_DELAY ? "fork_" : "",
 				 FMT_STR_VSLOT(strvec, 1), tprocess->pname);
-		delay = 0;
+		return;
 	}
 
 	if (delay_type != PROCESS_FORK_DELAY)
@@ -1764,6 +1795,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("param_match", vrrp_tprocess_match_handler);
 	install_keyword("weight", &vrrp_tprocess_weight_handler);
 	install_keyword("quorum", &vrrp_tprocess_quorum_handler);
+	install_keyword("quorum_max", &vrrp_tprocess_quorum_max_handler);
 	install_keyword("delay", &vrrp_tprocess_delay_handler);
 	install_keyword("terminate_delay", &vrrp_tprocess_terminate_delay_handler);
 	install_keyword("fork_delay", &vrrp_tprocess_fork_delay_handler);
