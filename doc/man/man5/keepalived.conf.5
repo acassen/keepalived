@@ -713,8 +713,17 @@ The configuration block looks like:
         # minimum number of processes for success
         \fBquorum\fR NUM
 
+        # time to delay after process quorum gained after fork before
+        #   consider process up (in fractions of second)
+        #   This is to avoid up/down bounce for fork/exec
+        \fBfork_delay\fR SECS
+
         # time to delay after process quorum lost before
-        #   consider process failed (in fractions of second)
+        #   consider process down (in fractions of second)
+        #   This is to avoid down/up bounce after terminate/parent refork.
+        \fBterminate_delay\fR SECS
+
+        # this sets fork_delay and terminate_delay
         \fBdelay\fR SECS
 
         # Normally process string is matched against the process name,

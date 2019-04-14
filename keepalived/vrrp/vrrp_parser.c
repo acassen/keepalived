@@ -61,6 +61,12 @@
 #include "bfd_parser.h"
 #endif
 
+enum process_delay {
+	PROCESS_DELAY,
+	PROCESS_TERMINATE_DELAY,
+	PROCESS_FORK_DELAY,
+};
+
 /* Used for initialising track files */
 static enum {
 	TRACK_FILE_NO_INIT,
@@ -1377,18 +1383,39 @@ vrrp_tprocess_quorum_handler(vector_t *strvec)
 	tprocess->quorum = quorum;
 }
 static void
-vrrp_tprocess_delay_handler(vector_t *strvec)
+vrrp_tprocess_delay_general(vector_t *strvec, enum process_delay delay_type)
 {
 	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
 	double delay;
 
 	if (!read_double_strvec(strvec, 1, &delay, 0.000001F, 3600.F, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Delay (%s) for vrrp_track_process %s must be between "
-				 "[0.000001..3600] inclusive. Ignoring...", FMT_STR_VSLOT(strvec, 1), tprocess->pname);
+		report_config_error(CONFIG_GENERAL_ERROR, "%sdelay (%s) for vrrp_track_process %s must be between "
+				 "[0.000001..3600] inclusive. Ignoring...",
+				 delay_type == PROCESS_TERMINATE_DELAY ? "terminate_" :
+				 delay_type == PROCESS_FORK_DELAY ? "fork_" : "",
+				 FMT_STR_VSLOT(strvec, 1), tprocess->pname);
 		delay = 0;
 	}
 
-	tprocess->delay = (unsigned)(delay * TIMER_HZ);
+	if (delay_type != PROCESS_FORK_DELAY)
+		tprocess->terminate_delay = (unsigned)(delay * TIMER_HZ);
+	if (delay_type != PROCESS_TERMINATE_DELAY)
+		tprocess->fork_delay = (unsigned)(delay * TIMER_HZ);
+}
+static void
+vrrp_tprocess_terminate_delay_handler(vector_t *strvec)
+{
+	vrrp_tprocess_delay_general(strvec, PROCESS_TERMINATE_DELAY);
+}
+static void
+vrrp_tprocess_fork_delay_handler(vector_t *strvec)
+{
+	vrrp_tprocess_delay_general(strvec, PROCESS_FORK_DELAY);
+}
+static void
+vrrp_tprocess_delay_handler(vector_t *strvec)
+{
+	vrrp_tprocess_delay_general(strvec, PROCESS_DELAY);
 }
 static void
 vrrp_tprocess_full_handler(__attribute__((unused)) vector_t *strvec)
@@ -1738,6 +1765,8 @@ init_vrrp_keywords(bool active)
 	install_keyword("weight", &vrrp_tprocess_weight_handler);
 	install_keyword("quorum", &vrrp_tprocess_quorum_handler);
 	install_keyword("delay", &vrrp_tprocess_delay_handler);
+	install_keyword("terminate_delay", &vrrp_tprocess_terminate_delay_handler);
+	install_keyword("fork_delay", &vrrp_tprocess_fork_delay_handler);
 	install_keyword("full_command", &vrrp_tprocess_full_handler);
 	install_sublevel_end_handler(&vrrp_tprocess_end_handler);
 #endif

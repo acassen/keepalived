@@ -432,8 +432,8 @@ check_process_fork(pid_t parent_pid, pid_t child_pid)
 			if (tpr->timer_thread) {
 				thread_cancel(tpr->timer_thread);	// Cancel down timer
 				tpr->timer_thread = NULL;
-			} else if (tpr->delay)
-				tpr->timer_thread = thread_add_timer(master, process_gained_quorum_timer_thread, tpr, tpr->delay);
+			} else if (tpr->fork_delay)
+				tpr->timer_thread = thread_add_timer(master, process_gained_quorum_timer_thread, tpr, tpr->fork_delay);
 			else
 				process_update_track_process_status(tpr, true);
 		}
@@ -470,8 +470,9 @@ check_process_termination(pid_t pid)
 			if (tpr->timer_thread) {
 				thread_cancel(tpr->timer_thread);	// Cancel up timer
 				tpr->timer_thread = NULL;
-				tpr->timer_thread = thread_add_timer(master, process_lost_quorum_timer_thread, tpr, tpr->delay);
-			} else
+			} else if (tpr->terminate_delay)
+				tpr->timer_thread = thread_add_timer(master, process_lost_quorum_timer_thread, tpr, tpr->terminate_delay);
+			else
 				process_update_track_process_status(tpr, false);
 		}
 	}
@@ -662,8 +663,8 @@ reload_track_processes(void)
 			} else {
 				if (__test_bit(LOG_DETAIL_BIT, &debug))
 					log_message(LOG_INFO, "Process %s, number of current processes changed from %u to %u, quorum down", tpr->pname, tpr->sav_num_cur_proc, tpr->num_cur_proc);
-				if (tpr->delay)
-					tpr->timer_thread = thread_add_timer(master, process_lost_quorum_timer_thread, tpr, tpr->delay);
+				if (tpr->terminate_delay)
+					tpr->timer_thread = thread_add_timer(master, process_lost_quorum_timer_thread, tpr, tpr->terminate_delay);
 				else
 					process_update_track_process_status(tpr, false);
 			}

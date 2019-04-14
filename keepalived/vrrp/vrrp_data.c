@@ -299,7 +299,8 @@ dump_vprocess(FILE *fp, void *data)
 	conf_write(fp, "   Min processes = %d", vprocess->quorum);
 	conf_write(fp, "   Current processes = %d", vprocess->num_cur_proc);
 	conf_write(fp, "   Weight = %d", vprocess->weight);
-	conf_write(fp, "   Delay = %fs", (double)vprocess->delay / TIMER_HZ);
+	conf_write(fp, "   Terminate delay = %fs", (double)vprocess->terminate_delay / TIMER_HZ);
+	conf_write(fp, "   Fork delay = %fs", (double)vprocess->fork_delay / TIMER_HZ);
 	conf_write(fp, "   Full command = %s", vprocess->full_command ? "true" : "false");
 	conf_write(fp, "   Tracking VRRP instances = %d", vprocess->tracking_vrrp ? LIST_SIZE(vprocess->tracking_vrrp) : 0);
 	if (vprocess->tracking_vrrp)

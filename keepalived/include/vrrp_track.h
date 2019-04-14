@@ -116,7 +116,8 @@ typedef struct _vrrp_process {
 	param_match_t		param_match;	/* Full or partial match of parameters */
 	int			weight;		/* Default weight */
 	unsigned		quorum;		/* Minimum number of process instances required */
-	int			delay;		/* Lauhcn timer thread which can be cancelled */
+	int			terminate_delay; /* Delay before processing process termination */
+	int			fork_delay;	/* Delay before processing process fork */
 	bool			full_command;	/* Set if match against full command line */
 	thread_t		*timer_thread;	/* For handling delay */
 	list			tracking_vrrp;	/* List of tracking_vrrp_t for vrrp instances tracking this process */
