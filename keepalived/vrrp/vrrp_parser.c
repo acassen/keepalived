@@ -1289,16 +1289,55 @@ static void
 vrrp_tprocess_process_handler(vector_t *strvec)
 {
 	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
-	size_t len;
+	size_t len = 0;
+	size_t i;
+	char *p;
 
 	if (tprocess->process_path) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Process already set for track process %s - ignoring %s", tprocess->pname, FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
 	tprocess->process_path = set_value(strvec);
-	len = strlen(tprocess->process_path);
+
+	if (vector_size(strvec) > 2) {
+		for (i = 2; i < vector_size(strvec); i++)
+			len += strlen(strvec_slot(strvec, i)) + 1;
+
+		tprocess->process_params = MALLOC(len);
+		tprocess->process_params_len = len;
+		p = tprocess->process_params;
+		for (i = 2; i < vector_size(strvec); i++) {
+			strcpy(p, strvec_slot(strvec, i));
+			p += strlen(strvec_slot(strvec, i)) + 1;
+		}
+
+		if (tprocess->param_match == PARAM_MATCH_NONE)
+			tprocess->param_match = PARAM_MATCH_EXACT;
+
+		tprocess->full_command = true;
+	}
+
+	len += strlen(tprocess->process_path) + 1;
 	if (len > vrrp_data->vrrp_max_process_name_len)
 		vrrp_data->vrrp_max_process_name_len = len;
+}
+static void
+vrrp_tprocess_match_handler(vector_t *strvec)
+{
+	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
+
+	if (vector_size(strvec) == 1) {
+		tprocess->param_match = PARAM_MATCH_EXACT;
+		tprocess->full_command = true;
+	} else if (!strcmp(strvec_slot(strvec, 1), "initial")) {
+		tprocess->param_match = PARAM_MATCH_INITIAL;
+		tprocess->full_command = true;
+	} else if (!strcmp(strvec_slot(strvec, 1), "partial")) {
+		tprocess->param_match = PARAM_MATCH_PARTIAL;
+		tprocess->full_command = true;
+	} else
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid param_match type %s - ignoring", FMT_STR_VSLOT(strvec, 1));
+
 }
 static void
 vrrp_tprocess_weight_handler(vector_t *strvec)
@@ -1695,6 +1734,7 @@ init_vrrp_keywords(bool active)
 	/* Track process declarations */
 	install_keyword_root("vrrp_track_process", &vrrp_tprocess_handler, active);
 	install_keyword("process", &vrrp_tprocess_process_handler);
+	install_keyword("param_match", vrrp_tprocess_match_handler);
 	install_keyword("weight", &vrrp_tprocess_weight_handler);
 	install_keyword("quorum", &vrrp_tprocess_quorum_handler);
 	install_keyword("delay", &vrrp_tprocess_delay_handler);

@@ -269,15 +269,33 @@ free_vprocess(void *data)
 	free_list(&vprocess->tracking_vrrp);
 	FREE(vprocess->pname);
 	FREE(vprocess->process_path);
+	FREE(vprocess->process_params);
 	FREE(vprocess);
 }
 static void
 dump_vprocess(FILE *fp, void *data)
 {
 	vrrp_tracked_process_t *vprocess = data;
+	char *params;
+	char *p;
 
 	conf_write(fp, " VRRP Track process = %s", vprocess->pname);
 	conf_write(fp, "   Process = %s", vprocess->process_path);
+	if (vprocess->process_params) {
+		params = MALLOC(vprocess->process_params_len);
+		memcpy(params, vprocess->process_params, vprocess->process_params_len);
+		p = params;
+		for (p = strchr(params, '\0'); p < params + vprocess->process_params_len - 1; p = strchr(params + 1, '\0'))
+			*p = ' ';
+		conf_write(fp, "   Parameters = %s", params);
+		FREE(params);
+	}
+	if (vprocess->param_match != PARAM_MATCH_NONE)
+		conf_write(fp, "   Param match%s",
+			       vprocess->param_match == PARAM_MATCH_EXACT ? "" :
+			       vprocess->param_match == PARAM_MATCH_PARTIAL ? " = partial" :
+			       vprocess->param_match == PARAM_MATCH_INITIAL ? " = initial" :
+			       "unknown");
 	conf_write(fp, "   Min processes = %d", vprocess->quorum);
 	conf_write(fp, "   Current processes = %d", vprocess->num_cur_proc);
 	conf_write(fp, "   Weight = %d", vprocess->weight);

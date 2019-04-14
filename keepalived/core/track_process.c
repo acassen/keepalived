@@ -139,6 +139,28 @@ read_procs(const char *name)
 }
 #endif
 
+static bool
+check_params(vrrp_tracked_process_t *tpr, const char *params, size_t params_len)
+{
+	if (tpr->param_match == PARAM_MATCH_EXACT &&
+	    !tpr->process_params &&
+	    params_len == 0)
+		return true;
+
+	if (params_len < tpr->process_params_len)
+		return false;
+
+	if (tpr->param_match == PARAM_MATCH_EXACT)
+		return (params_len == tpr->process_params_len &&
+			!memcmp(params, tpr->process_params, tpr->process_params_len));
+
+	if (tpr->param_match == PARAM_MATCH_PARTIAL)
+		return !memcmp(params, tpr->process_params, tpr->process_params_len);
+
+	/* tpr->param_match == PARAM_MATCH_INITIAL */
+	return !memcmp(params, tpr->process_params, tpr->process_params_len - 1);
+}
+
 static void
 read_procs(list processes)
 {
@@ -157,10 +179,12 @@ read_procs(list processes)
 	char stat_buf[128];
 	char *p;
 	char *comm;
-	ssize_t len;
+	ssize_t len = 0;
+	ssize_t cmdline_len = 0;
 	char *proc_name;
 	vrrp_tracked_process_t *tpr;
 	element e;
+	const char *param_start;
 
 	cmd_buf_len = vrrp_data->vrrp_max_process_name_len + 2;
 	cmd_buf = MALLOC(cmd_buf_len);
@@ -180,9 +204,10 @@ read_procs(list processes)
 			if ((fd = open(cmdline, O_RDONLY)) == -1)
 				continue;
 
-			len = read(fd, cmd_buf, vrrp_data->vrrp_max_process_name_len + 1);
+			/* Read max name len + null byte + 1 extra char */
+			cmdline_len = read(fd, cmd_buf, vrrp_data->vrrp_max_process_name_len + 1);
 			close(fd);
-			cmd_buf[len] = '\0';
+			cmd_buf[cmdline_len] = '\0';
 		}
 
 		if (vrrp_data->vrrp_use_process_comm) {
@@ -221,6 +246,14 @@ read_procs(list processes)
 
 			if (!strcmp(proc_name, tpr->process_path)) {
 				/* We have got a match */
+
+				/* Do we need to check parameters? */
+				if (tpr->param_match != PARAM_MATCH_NONE) {
+					param_start = proc_name + strlen(proc_name) + 1;
+					if (!check_params(tpr, param_start, proc_name + cmdline_len - param_start))
+						continue;
+				}
+
 				add_process(atoi(ent->d_name), tpr, NULL);
 			}
 		}
@@ -231,6 +264,28 @@ read_procs(list processes)
 }
 
 static void
+remove_process_from_track(tracked_process_instance_t *tpi, vrrp_tracked_process_t *tpr)
+{
+	vrrp_tracked_process_t *proc;
+	element e;
+
+	LIST_FOREACH(tpi->processes, proc, e) {
+		if (proc == tpr) {
+			free_list_element(tpi->processes, e);
+			if (tpr->num_cur_proc-- == tpr->quorum) {
+				if (tpr->timer_thread) {
+					thread_cancel(tpr->timer_thread);
+					tpr->timer_thread = NULL;
+				}
+				else
+					process_update_track_process_status(tpr, false);
+			}
+			return;
+		}
+	}
+}
+
+static void
 check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 {
 	char cmdline[22];	/* "/proc/xxxxxxx/cmdline" */
@@ -238,16 +293,20 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 	char *cmd_buf = NULL;
 	size_t cmd_buf_len;
 	char comm_buf[17];
-	ssize_t len;
+	ssize_t len = 0;
+	ssize_t cmdline_len = 0;
 	char *proc_name;
+	const char *param_start;
 	vrrp_tracked_process_t *tpr;
 	element e;
+	bool had_process;
 	tracked_process_instance_t tp = { .pid = pid };
 	bool have_comm = !!comm;
 
 	/* Are we counting this process now? */
 	if (!tpi)
 		tpi = rb_search(&process_tree, &tp, pid_tree, pid_compare);
+	had_process = !!tpi;
 
 	/* We want to avoid reading /proc/PID/cmdline, since it reads the process
 	 * address space, and if the process is swapped out, then it will have to be
@@ -261,12 +320,12 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 
 			cmd_buf_len = vrrp_data->vrrp_max_process_name_len + 3;
 			cmd_buf = MALLOC(cmd_buf_len);
-			len = read(fd, cmd_buf, vrrp_data->vrrp_max_process_name_len + 2);
+			cmdline_len = read(fd, cmd_buf, vrrp_data->vrrp_max_process_name_len + 2);
 			close(fd);
-			cmd_buf[len] = '\0';
+			cmd_buf[cmdline_len] = '\0';
 		}
 
-		if (vrrp_data->vrrp_use_process_comm && !comm) {
+		if (vrrp_data->vrrp_use_process_comm) {
 			snprintf(cmdline, sizeof(cmdline), "/proc/%d/comm", pid);
 
 			fd = open(cmdline, O_RDONLY);
@@ -295,6 +354,17 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 
 		if (!strcmp(proc_name, tpr->process_path)) {
 			/* We have got a match */
+
+			/* Do we need to check parameters? */
+			if (tpr->param_match != PARAM_MATCH_NONE) {
+				param_start = proc_name + strlen(proc_name) + 1;
+				if (!check_params(tpr, param_start, proc_name + cmdline_len - param_start)) {
+					if (had_process)
+						remove_process_from_track(tpi, tpr);
+					continue;
+				}
+			}
+
 			tpi = add_process(pid, tpr, tpi);
 
 			if (tpr->num_cur_proc == tpr->quorum) {
@@ -307,6 +377,8 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 					process_update_track_process_status(tpr, true);
 			}
 		}
+		else if (had_process && !have_comm)
+			remove_process_from_track(tpi, tpr);
 	}
 
 	FREE_PTR(cmd_buf);
@@ -373,7 +445,8 @@ process_lost_quorum_timer_thread(thread_t *thread)
 {
 	vrrp_tracked_process_t *tpr = thread->arg;
 
-	process_update_track_process_status(tpr, false);
+	if (tpr->num_cur_proc < tpr->quorum)
+		process_update_track_process_status(tpr, false);
 	tpr->timer_thread = NULL;
 
 	return 0;

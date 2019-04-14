@@ -100,10 +100,20 @@ typedef struct _tracked_file {
 } tracked_file_t;
 
 #ifdef _WITH_CN_PROC_
+typedef enum _param_match {
+	PARAM_MATCH_NONE,
+	PARAM_MATCH_EXACT,			/* All parameters must match */
+	PARAM_MATCH_INITIAL,			/* Match initial complete parameters */
+	PARAM_MATCH_PARTIAL,			/* Allow the last parameter to be a partial match */
+} param_match_t;
+
 /* process we track */
 typedef struct _vrrp_process {
 	char			*pname;		/* Process name */
 	char			*process_path;	/* Path to process */
+	char			*process_params; /* NUL separated parameters */
+	size_t			process_params_len; /* Total length of parameters, including NULs */
+	param_match_t		param_match;	/* Full or partial match of parameters */
 	int			weight;		/* Default weight */
 	unsigned		quorum;		/* Minimum number of process instances required */
 	int			delay;		/* Lauhcn timer thread which can be cancelled */

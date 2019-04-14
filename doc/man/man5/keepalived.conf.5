@@ -697,8 +697,15 @@ To force a route/rule to be IPv6, add the keyword "inet6".
 The configuration block looks like:
 
     \fBvrrp_track_process\fR <STRING> {
-        # process to monitor
-        \fBprocess\fR <QUOTED_STRING>
+        # process to monitor (with optional parameters)
+        \fBprocess\fR <STRING>|<QUOTED_STRING> [<STRING>|<QUOTED_STRING> ...]
+
+        # If matching parameters, specifies a partial match (i.e. the first
+        #   n parameters match exactly, or an initial match, i.e. the last
+        #   parameter may be longer that the parameter configured.
+        # To specify that a command must have no parameters, don't specify
+        #   any parameters, but specify param_match.
+        param_match {initial|partial}
 
         # default weight (default is 1)
         \fBweight\fR <-254..254>
@@ -711,8 +718,9 @@ The configuration block looks like:
         \fBdelay\fR SECS
 
         # Normally process string is matched against the process name,
-        #   as shown on the Name: line in /proc/PID/status.
-        #   This option matches the full command line
+        #   as shown on the Name: line in /proc/PID/status, unless
+        #   parameters are specified.
+        #   This option forces matching the full command line
         \fBfull_command\fR
    }
 .fi
