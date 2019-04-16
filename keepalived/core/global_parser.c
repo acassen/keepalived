@@ -967,6 +967,22 @@ notify_fifo(vector_t *strvec, const char *type, notify_fifo_t *fifo)
 		return;
 	}
 
+	if (vector_size(strvec) > 2) {
+		if (set_script_uid_gid(strvec, 2, &fifo->uid, &fifo->gid)) {
+			log_message(LOG_INFO, "Invalid user/group for %s fifo %s - ignoring", type, fifo->name);
+			return;
+		}
+	}
+	else {
+		if (set_default_script_user(NULL, NULL)) {
+			log_message(LOG_INFO, "Failed to set default user for %s fifo %s - ignoring", type, fifo->name);
+			return;
+		}
+
+		fifo->uid = default_script_uid;
+		fifo->gid = default_script_gid;
+	}
+
 	fifo->name = MALLOC(strlen(strvec_slot(strvec, 1)) + 1);
 	strcpy(fifo->name, strvec_slot(strvec, 1));
 }

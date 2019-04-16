@@ -467,7 +467,7 @@ dump_global_data(FILE *fp, data_t * data)
 						  data->lvs_flush_onstop == LVS_FLUSH_VS ? "VS" : "disabled");
 #endif
 	if (data->notify_fifo.name) {
-		conf_write(fp, " Global notify fifo = %s", data->notify_fifo.name);
+		conf_write(fp, " Global notify fifo = %s, uid:gid %d:%d", data->notify_fifo.name, data->notify_fifo.uid, data->notify_fifo.gid);
 		if (data->notify_fifo.script)
 			conf_write(fp, " Global notify fifo script = %s, uid:gid %d:%d",
 				    cmd_str(data->notify_fifo.script),
@@ -476,7 +476,7 @@ dump_global_data(FILE *fp, data_t * data)
 	}
 #ifdef _WITH_VRRP_
 	if (data->vrrp_notify_fifo.name) {
-		conf_write(fp, " VRRP notify fifo = %s", data->vrrp_notify_fifo.name);
+		conf_write(fp, " VRRP notify fifo = %s, uid:gid %d:%d", data->vrrp_notify_fifo.name, data->vrrp_notify_fifo.uid, data->vrrp_notify_fifo.gid);
 		if (data->vrrp_notify_fifo.script)
 			conf_write(fp, " VRRP notify fifo script = %s, uid:gid %d:%d",
 				    cmd_str(data->vrrp_notify_fifo.script),
@@ -486,7 +486,7 @@ dump_global_data(FILE *fp, data_t * data)
 #endif
 #ifdef _WITH_LVS_
 	if (data->lvs_notify_fifo.name) {
-		conf_write(fp, " LVS notify fifo = %s", data->lvs_notify_fifo.name);
+		conf_write(fp, " LVS notify fifo = %s, uid:gid %d:%d", data->lvs_notify_fifo.name, data->lvs_notify_fifo.uid, data->lvs_notify_fifo.gid);
 		if (data->lvs_notify_fifo.script)
 			conf_write(fp, " LVS notify fifo script = %s, uid:gid %d:%d",
 				    cmd_str(data->lvs_notify_fifo.script),

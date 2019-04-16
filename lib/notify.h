@@ -68,6 +68,8 @@ typedef struct _notify_script {
 typedef struct _notify_fifo {
 	char	*name;
 	int	fd;
+	uid_t	uid;		/* uid of user of fifo if create */
+	gid_t	gid;		/* gid of group of fifo */
 	bool	created_fifo;	/* We created the FIFO */
 	notify_script_t *script; /* Script to run to process FIFO */
 } notify_fifo_t;

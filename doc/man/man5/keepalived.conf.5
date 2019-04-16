@@ -464,9 +464,9 @@ and
     # --
     # FIFO to write notify events to
     # See vrrp_notify_fifo and lvs_notify_fifo for format of output
-    # For further details, see the description under vrrp_sync_group see
-    # doc/samples/sample_notify_fifo.sh for sample usage.
-    \fBnotify_fifo \fRFIFO_NAME
+    # For further details, see the description under vrrp_sync_group.
+    # see doc/samples/sample_notify_fifo.sh for sample usage.
+    \fBnotify_fifo \fRFIFO_NAME [username [groupname]]
 
     # script to be run by keepalived to process notify events
     # The FIFO name will be passed to the script as the last parameter
@@ -477,7 +477,7 @@ and
     # and will be terminated with a new line character.
     # For further details of the output, see the description under vrrp_sync_group
     # and doc/samples/sample_notify_fifo.sh for sample usage.
-    \fBvrrp_notify_fifo \fRFIFO_NAME
+    \fBvrrp_notify_fifo \fRFIFO_NAME [username [groupname]]
 
     # script to be run by keepalived to process vrrp notify events
     # The FIFO name will be passed to the script as the last parameter
@@ -488,7 +488,7 @@ and
     # VS [192.168.201.15]:tcp:80 {UP|DOWN}
     # RS [1.2.3.4]:tcp:80 [192.168.201.15]:tcp:80 {UP|DOWN}
     # and will be terminated with a new line character.
-    \fBlvs_notify_fifo \fRFIFO_NAME
+    \fBlvs_notify_fifo \fRFIFO_NAME [username [groupname]]
 
     # script to be run by keepalived to process healthchecher notify events
     # The FIFO name will be passed to the script as the last parameter
