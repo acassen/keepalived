@@ -298,6 +298,14 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		if (!ifp->ifindex)
 			return false;
 
+		if (!ifp->base_ifp &&
+		    vrrp->configured_ifp->vmac_type &&
+		    vrrp->configured_ifp == vrrp->configured_ifp->base_ifp) {
+			/* If the base interface is a MACVLAN that has been moved into a
+			 * different network namespace from its parent, we can't find the parent */
+			ifp->base_ifp = ifp;
+		}
+
 		/* If we do anything that might cause the interface state to change, we must
 		 * read the reflected netlink messages to ensure that the link status doesn't
 		 * get updated by out of date queued messages */

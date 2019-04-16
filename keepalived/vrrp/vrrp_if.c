@@ -155,6 +155,11 @@ set_base_ifp(void)
 		    ifp->base_ifindex) {
 			ifp->base_ifp = if_get_by_ifindex(ifp->base_ifindex);
 			ifp->base_ifindex = 0;	/* This is only used at startup, so ensure not used later */
+
+			/* If this is a MACVLAN that has been moved into a separate network namespace
+			 * from its parent, then we can't get information about the parent. */
+			if (!ifp->base_ifp)
+				ifp->base_ifp = ifp;
 		}
 
 #ifdef _HAVE_VRF_
@@ -479,7 +484,7 @@ dump_if(FILE *fp, void *data)
 				ifp->vmac_type == MACVLAN_MODE_SOURCE ? "source" :
 #endif
 				"unknown",
-				ifp->base_ifp->ifname,
+				ifp == ifp->base_ifp ? "(unavailable)" : ifp->base_ifp->ifname,
 				ifp->base_ifp->ifi_flags & IFF_UP ? "" : "not ", ifp->base_ifp->ifi_flags & IFF_RUNNING ? "" : "not ");
 	if (ifp->is_ours)
 		conf_write(fp, "   I/f created by keepalived");

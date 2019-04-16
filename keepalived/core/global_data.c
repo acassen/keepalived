@@ -326,6 +326,17 @@ free_global_data(data_t * data)
 	FREE_PTR(data->network_namespace);
 #endif
 	FREE_PTR(data->instance_name);
+	FREE_PTR(data->process_name);
+#ifdef _WITH_VRRP_
+log_message(LOG_INFO, "vrrp_process_name %p", data->vrrp_process_name);
+	FREE_PTR(data->vrrp_process_name);
+#endif
+#ifdef _WITH_LVS_
+	FREE_PTR(data->lvs_process_name);
+#endif
+#ifdef _WITH_BFD_
+	FREE_PTR(data->bfd_process_name);
+#endif
 	FREE_PTR(data->router_id);
 	FREE_PTR(data->email_from);
 	FREE_PTR(data->smtp_helo_name);
@@ -371,6 +382,20 @@ dump_global_data(FILE *fp, data_t * data)
 #endif
 	if (data->instance_name)
 		conf_write(fp, " Instance name = %s", data->instance_name);
+	if (data->process_name)
+		conf_write(fp, " Parent process name = %s", data->process_name);
+#ifdef _WITH_VRRP_
+	if (data->vrrp_process_name)
+		conf_write(fp, " VRRP process name = %s", data->vrrp_process_name);
+#endif
+#ifdef _WITH_LVS_
+	if (data->lvs_process_name)
+		conf_write(fp, " LVS process name = %s", data->lvs_process_name);
+#endif
+#ifdef _WITH_BFD_
+	if (data->bfd_process_name)
+		conf_write(fp, " BFD process name = %s", data->bfd_process_name);
+#endif
 	if (data->router_id)
 		conf_write(fp, " Router ID = %s", data->router_id);
 	if (data->smtp_server.ss_family) {

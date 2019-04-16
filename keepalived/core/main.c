@@ -512,6 +512,11 @@ static bool reload_config(void)
 
 	init_global_data(global_data, old_global_data);
 
+	/* Update process name if necessary */
+	if (!global_data->process_name != !old_global_data->process_name ||
+	    (global_data->process_name && strcmp(global_data->process_name, old_global_data->process_name)))
+		set_process_name(global_data->process_name);
+
 #if HAVE_DECL_CLONE_NEWNET
 	if (!!old_global_data->network_namespace != !!global_data->network_namespace ||
 	    (global_data->network_namespace && strcmp(old_global_data->network_namespace, global_data->network_namespace))) {
@@ -1784,6 +1789,10 @@ keepalived_main(int argc, char **argv)
 	read_config_file();
 
 	init_global_data(global_data, NULL);
+
+	/* Update process name if necessary */
+	if (global_data->process_name)
+		set_process_name(global_data->process_name);
 
 #if HAVE_DECL_CLONE_NEWNET
 	if (override_namespace) {

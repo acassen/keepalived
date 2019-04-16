@@ -33,6 +33,7 @@
 #include <sys/stat.h>
 #include <stdint.h>
 #include <errno.h>
+#include <sys/prctl.h>
 #ifdef _WITH_PERF_
 #include <stdio.h>
 #include <sys/types.h>
@@ -188,6 +189,16 @@ make_file_name(const char *name, const char *prog, const char *namespace, const 
 		strcat(file_name, extn_start);
 
 	return file_name;
+}
+
+void
+set_process_name(const char *name)
+{
+	if (!name)
+		name = "keepalived";
+
+	if (prctl(PR_SET_NAME, name))
+		log_message(LOG_INFO, "Failed to set process name '%s'", name);
 }
 
 #ifdef _WITH_PERF_

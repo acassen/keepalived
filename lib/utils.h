@@ -202,6 +202,7 @@ extern void dump_buffer(char *, size_t, FILE *, int);
 extern void write_stacktrace(const char *, const char *);
 #endif
 extern char *make_file_name(const char *, const char *, const char *, const char *);
+extern void set_process_name(const char *);
 #ifdef _WITH_PERF_
 extern void run_perf(const char *, const char *, const char *);
 #endif

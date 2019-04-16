@@ -73,6 +73,64 @@ use_polling_handler(vector_t *strvec)
 }
 #endif
 static void
+save_process_name(char **dest, char *src)
+{
+	size_t len;
+
+	if (!src) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Process name missing");
+		return;
+	}
+
+	if (*dest)
+		FREE_PTR(*dest);
+
+	if ((len = strlen(src)) > 15)
+		report_config_error(CONFIG_GENERAL_ERROR, "Process name %s more than 15 characters, truncating", src);
+
+	*dest = MALLOC(len + 1);
+	strncpy(*dest, src, len > 15 ? 15 : len);
+}
+static void
+process_names_handler(__attribute__((unused)) vector_t *strvec)
+{
+#ifdef _WITH_VRRP_
+	save_process_name(&global_data->vrrp_process_name, "keepalived_vrrp");
+#endif
+#ifdef _WITH_LVS_
+	save_process_name(&global_data->lvs_process_name, "keepalived_lvs");
+#endif
+#ifdef _WITH_BFD_
+	save_process_name(&global_data->bfd_process_name, "keepalived_bfd");
+#endif
+}
+static void
+process_name_handler(vector_t *strvec)
+{
+	save_process_name(&global_data->process_name, strvec_slot(strvec, 1));
+}
+#ifdef _WITH_VRRP_
+static void
+vrrp_process_name_handler(vector_t *strvec)
+{
+	save_process_name(&global_data->vrrp_process_name, strvec_slot(strvec, 1));
+}
+#endif
+#ifdef _WITH_LVS_
+static void
+lvs_process_name_handler(vector_t *strvec)
+{
+	save_process_name(&global_data->lvs_process_name, strvec_slot(strvec, 1));
+}
+#endif
+#ifdef _WITH_BFD_
+static void
+bfd_process_name_handler(vector_t *strvec)
+{
+	save_process_name(&global_data->bfd_process_name, strvec_slot(strvec, 1));
+}
+#endif
+static void
 routerid_handler(vector_t *strvec)
 {
 	FREE_PTR(global_data->router_id);
@@ -1617,6 +1675,17 @@ init_global_keywords(bool global_active)
 	install_keyword_root("instance", &instance_handler, global_active);
 	install_keyword_root("child_wait_time", &child_wait_handler, global_active);
 	install_keyword_root("global_defs", NULL, global_active);
+	install_keyword("process_names", &process_names_handler);
+	install_keyword("process_name", &process_name_handler);
+#ifdef _WITH_VRRP_
+	install_keyword("vrrp_process_name", &vrrp_process_name_handler);
+#endif
+#ifdef _WITH_LVS_
+	install_keyword("lvs_process_name", &lvs_process_name_handler);
+#endif
+#ifdef _WITH_BFD_
+	install_keyword("bfd_process_name", &bfd_process_name_handler);
+#endif
 	install_keyword("router_id", &routerid_handler);
 	install_keyword("notification_email_from", &emailfrom_handler);
 	install_keyword("smtp_server", &smtpserver_handler);

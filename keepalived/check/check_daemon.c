@@ -260,6 +260,13 @@ start_check(list old_checkers_queue, data_t *prev_global_data)
 	if (reload)
 		init_global_data(global_data, prev_global_data);
 
+	/* Update process name if necessary */
+	if ((!reload && global_data->lvs_process_name) ||
+	    (reload &&
+	     (!global_data->lvs_process_name != !prev_global_data->lvs_process_name ||
+	      (global_data->lvs_process_name && strcmp(global_data->lvs_process_name, prev_global_data->lvs_process_name)))))
+		set_process_name(global_data->lvs_process_name);
+
 	/* fill 'vsg' members of the virtual_server_t structure.
 	 * We must do that after parsing config, because
 	 * vs and vsg declarations may appear in any order,

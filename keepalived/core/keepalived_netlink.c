@@ -1016,11 +1016,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 // We still need to consider non-vmac IPv6 if interface doesn't have a
 // link local address.
 		if (h->nlmsg_type == RTM_NEWADDR) {
-			if (
-#ifdef _HAVE_VRRP_VMAC_
-			    !ifp->vmac_type &&
-#endif
-			    !ignore_address_if_ours_or_link_local(ifa, addr.addr, ifp)) {
+			if (!ignore_address_if_ours_or_link_local(ifa, addr.addr, ifp)) {
 				/* If no address is set on interface then set the first time */
 // TODO if saddr from config && track saddr, addresses must match
 				if (ifa->ifa_family == AF_INET) {

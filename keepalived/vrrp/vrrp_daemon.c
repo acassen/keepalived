@@ -475,6 +475,13 @@ start_vrrp(data_t *prev_global_data)
 
 	init_data(conf_file, vrrp_init_keywords);
 
+	/* Update process name if necessary */
+	if ((!reload && global_data->vrrp_process_name) ||
+	    (reload &&
+	     (!global_data->vrrp_process_name != !prev_global_data->vrrp_process_name ||
+	      (global_data->vrrp_process_name && strcmp(global_data->vrrp_process_name, prev_global_data->vrrp_process_name)))))
+		set_process_name(global_data->vrrp_process_name);
+
 	if (non_existent_interface_specified) {
 		report_config_error(CONFIG_BAD_IF, "Non-existent interface specified in configuration");
 		stop_vrrp(KEEPALIVED_EXIT_CONFIG);
