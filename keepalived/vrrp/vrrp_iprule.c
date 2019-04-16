@@ -864,7 +864,7 @@ fwmark_err:
 	if (!(new->mask & IPRULE_BIT_PRIORITY)) {
 		new->priority = new->family == AF_INET ? next_rule_priority_ipv4-- : next_rule_priority_ipv6--;
 		new->mask |= IPRULE_BIT_PRIORITY;
-		report_config_error(CONFIG_GENERAL_ERROR, "Rule has no preference specifed - setting to %u. This is probably not what you want.", new->priority);
+		report_config_error(CONFIG_GENERAL_ERROR, "Rule has no preference specified - setting to %u. This is probably not what you want.", new->priority);
 	}
 
 	list_add(rule_list, new);
