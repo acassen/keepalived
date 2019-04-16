@@ -44,6 +44,7 @@
 #include "scheduler.h"
 #include "parser.h"
 #include "utils.h"
+#include "vrrp_notify.h"
 
 static int inotify_fd = -1;
 static thread_t *inotify_thread;
