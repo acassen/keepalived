@@ -2658,6 +2658,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			vrrp->smtp_alert = false;
 	}
 
+	if (vrrp->notify_priority_changes == -1)
+		vrrp->notify_priority_changes = global_data->vrrp_notify_priority_changes;
+
 	/* Check that the advertisement interval is valid */
 	if (!vrrp->adver_int)
 		vrrp->adver_int = VRRP_ADVER_DFL * TIMER_HZ;

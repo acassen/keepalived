@@ -30,6 +30,7 @@
 extern void send_event_notify(vrrp_t *, int);
 extern void send_instance_notifies(vrrp_t *);
 extern void send_group_notifies(vrrp_sgroup_t *);
+extern void send_instance_priority_notifies(vrrp_t *);
 extern void notify_shutdown(void);
 
 #endif

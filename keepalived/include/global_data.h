@@ -204,6 +204,9 @@ typedef struct _data {
 #ifdef _WITH_LVS_
 	notify_fifo_t			lvs_notify_fifo;
 #endif
+#ifdef _WITH_VRRP_
+	int				vrrp_notify_priority_changes;
+#endif
 #ifdef _WITH_SNMP_
 	bool				enable_traps;
 	char				*snmp_socket;

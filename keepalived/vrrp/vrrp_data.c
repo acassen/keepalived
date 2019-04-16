@@ -633,6 +633,7 @@ dump_vrrp(FILE *fp, void *data)
 		dump_notify_script(fp, vrrp->script, "Generic");
 	if (vrrp->script_master_rx_lower_pri)
 		dump_notify_script(fp, vrrp->script_master_rx_lower_pri, "Master rx lower pri");
+	conf_write(fp, "   Notify priority changes = %s", vrrp->notify_priority_changes ? "true" : "false");
 }
 
 void
@@ -733,6 +734,7 @@ alloc_vrrp(char *iname)
 	new->unicast_chksum_compat = CHKSUM_COMPATIBILITY_NONE;
 #endif
 	new->smtp_alert = -1;
+	new->notify_priority_changes = -1;
 
 	new->skip_check_adv_addr = global_data->vrrp_skip_check_adv_addr;
 	new->strict_mode = PARAMETER_UNSET;

@@ -44,6 +44,7 @@
 #include "scheduler.h"
 #include "parser.h"
 #include "utils.h"
+#include "vrrp_notify.h"
 
 static int inotify_fd = -1;
 static thread_t *inotify_thread;
@@ -751,6 +752,9 @@ vrrp_set_effective_priority(vrrp_t *vrrp)
 			vrrp->sands = timer_sub_long(vrrp->sands, old_down_timer - vrrp->ms_down_timer);
 		vrrp_thread_requeue_read(vrrp);
 	}
+
+	if (vrrp->notify_priority_changes)
+		send_instance_priority_notifies(vrrp);
 }
 
 static void

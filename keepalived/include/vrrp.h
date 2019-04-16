@@ -296,6 +296,7 @@ typedef struct _vrrp_t {
 	notify_script_t		*script_stop;
 	notify_script_t		*script_master_rx_lower_pri;
 	notify_script_t		*script;
+	int			notify_priority_changes;
 
 	/* rfc2338.6.2 */
 	uint32_t		ms_down_timer;
@@ -339,6 +340,8 @@ typedef struct _vrrp_t {
 #define VRRP_STATE_STOP			98	/* internal */
 #define VRRP_DISPATCHER			99	/* internal */
 #define VRRP_EVENT_MASTER_RX_LOWER_PRI	1000	/* Dummy state for sending event notify */
+#define VRRP_EVENT_MASTER_PRIORITY_CHANGE 1001	/* Dummy state for sending event notify */
+#define VRRP_EVENT_BACKUP_PRIORITY_CHANGE 1002	/* Dummy state for sending event notify */
 
 /* VRRP packet handling */
 #define VRRP_PACKET_OK       0

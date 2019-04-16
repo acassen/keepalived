@@ -967,6 +967,22 @@ notify_fifo(vector_t *strvec, const char *type, notify_fifo_t *fifo)
 		return;
 	}
 
+	if (vector_size(strvec) > 2) {
+		if (set_script_uid_gid(strvec, 2, &fifo->uid, &fifo->gid)) {
+			log_message(LOG_INFO, "Invalid user/group for %s fifo %s - ignoring", type, fifo->name);
+			return;
+		}
+	}
+	else {
+		if (set_default_script_user(NULL, NULL)) {
+			log_message(LOG_INFO, "Failed to set default user for %s fifo %s - ignoring", type, fifo->name);
+			return;
+		}
+
+		fifo->uid = default_script_uid;
+		fifo->gid = default_script_gid;
+	}
+
 	fifo->name = MALLOC(strlen(strvec_slot(strvec, 1)) + 1);
 	strcpy(fifo->name, strvec_slot(strvec, 1));
 }
@@ -1012,6 +1028,21 @@ static void
 vrrp_notify_fifo_script(vector_t *strvec)
 {
 	notify_fifo_script(strvec, "vrrp_", &global_data->vrrp_notify_fifo);
+}
+static void
+vrrp_notify_priority_changes(vector_t *strvec)
+{
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global vrrp_notify_priority_changes specified", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+
+	global_data->vrrp_notify_priority_changes = res;
 }
 #endif
 #ifdef _WITH_LVS_
@@ -1757,6 +1788,7 @@ init_global_keywords(bool global_active)
 #ifdef _WITH_VRRP_
 	install_keyword("vrrp_notify_fifo", &vrrp_notify_fifo);
 	install_keyword("vrrp_notify_fifo_script", &vrrp_notify_fifo_script);
+	install_keyword("vrrp_notify_priority_changes", &vrrp_notify_priority_changes);
 #endif
 #ifdef _WITH_LVS_
 	install_keyword("lvs_notify_fifo", &lvs_notify_fifo);
