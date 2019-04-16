@@ -221,6 +221,12 @@ netlink_set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
 	if (netlink_set_interface_flags(ifp->ifindex, vmac_sysctl))
 		return -1;
 
+	/* If the underlying interface is a MACVLAN that has been moved into
+	 * a separate network namespace from the parent, we can't access the
+	 * parent. */
+	if (ifp->vmac_type && ifp == base_ifp)
+		return 0;
+
 	/* Set arp_ignore and arp_filter on base interface if needed */
 	if (base_ifp->reset_arp_config)
 		base_ifp->reset_arp_config++;
@@ -313,6 +319,12 @@ set_interface_parameters_sysctl(const interface_t *ifp, interface_t *base_ifp)
 	set_sysctl("net/ipv4/conf", ifp->ifname, "rp_filter", 0);
 
 	set_sysctl("net/ipv4/conf", ifp->ifname, "promote_secondaries", 1);
+
+	/* If the underlying interface is a MACVLAN that has been moved into
+	 * a separate network namespace from the parent, we can't access the
+	 * parent. */
+	if (ifp->vmac_type && ifp == base_ifp)
+		return;
 
 	if (base_ifp->reset_arp_config)
 		base_ifp->reset_arp_config++;
