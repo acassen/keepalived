@@ -801,6 +801,22 @@ vrrp_smtp_handler(__attribute__((unused)) vector_t *strvec)
 	}
 	vrrp->smtp_alert = res;
 }
+static void
+vrrp_notify_priority_changes_handler(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+        int res = true;
+
+        if (vector_size(strvec) >= 2) {
+                res = check_true_false(strvec_slot(strvec,1));
+                if (res < 0) {
+                        report_config_error(CONFIG_GENERAL_ERROR, "(%s) Invalid value '%s' for notify_priority_changes specified", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+                        return;
+                }
+        }
+
+        vrrp->notify_priority_changes = res;
+}
 #ifdef _WITH_LVS_
 static void
 vrrp_lvs_syncd_handler(vector_t *strvec)
@@ -1751,6 +1767,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("notify", &vrrp_notify_handler);
 	install_keyword("notify_master_rx_lower_pri", vrrp_notify_master_rx_lower_pri);
 	install_keyword("smtp_alert", &vrrp_smtp_handler);
+	install_keyword("notify_priority_changes", &vrrp_notify_priority_changes_handler);
 #ifdef _WITH_LVS_
 	install_keyword("lvs_sync_daemon_interface", &vrrp_lvs_syncd_handler);
 #endif

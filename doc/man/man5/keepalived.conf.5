@@ -363,6 +363,9 @@ and
     #   IPv6 addresses in VRRP version 2
     \fBvrrp_strict\fR
 
+    # Send vrrp instance priority notifications on notify FIFOs.
+    \fBvrrp_notify_priority_changes\fR <BOOL>
+
     # The following options can be used if vrrp or checker processes
     # are timing out. This can be seen by a backup vrrp instance becoming
     # master even when the master is still running because the master or
@@ -1077,11 +1080,16 @@ The syntax for vrrp_sync_group is :
 
     # The notify fifo output is the same as the last 4 parameters for the "notify"
     # script, with the addition of "MASTER_RX_LOWER_PRI" instead of state for an
-    # instance. This is used if a master needs to set some external state, such as
-    # setting a secondary IP address when using Amazon AWS; if another keepalived
+    # instance, and also "MASTER_PRIORITY" and "BACKUP_PRIORITY" if the priority
+    # changes and notify_priority_changes is configured.
+    # MASTER_RX_LOWER_PRI is used if a master needs to set some external state, such
+    # as setting a secondary IP address when using Amazon AWS; if another keepalived
     # has transitioned to master due to a communications break, the lower priority
     # instance will have taken over the secondary IP address, and the proper master
     # needs to be able to restore it.
+
+    # Send FIFO notifies for vrrp priority changes
+    \fBnotify_priority_changes\fR <BOOL>
 
     # Send email notification during state transition,
     # using addresses in global_defs above (default no,
@@ -1441,6 +1449,9 @@ The syntax for garp_group is :
     # The notify_master_rx_lower_pri script is executed if a master
     #  receives an advert with priority lower than the master's advert.
     \fBnotify_master_rx_lower_pri \fR<STRING>|<QUOTED-STRING> [username [groupname]]
+
+    # Send vrrp instance priority notifications on notify FIFOs.
+    \fBnotify_priority_changes\fR <BOOL>
 
     # Send SMTP alerts
     \fBsmtp_alert \fR<BOOL>

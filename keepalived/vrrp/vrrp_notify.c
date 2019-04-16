@@ -113,6 +113,12 @@ notify_fifo(const char *name, int state_num, bool group, uint8_t priority)
 	case VRRP_EVENT_MASTER_RX_LOWER_PRI:
 		state = "MASTER_RX_LOWER_PRI";
 		break;
+	case VRRP_EVENT_MASTER_PRIORITY_CHANGE:
+		state = "MASTER_PRIORITY";
+		break;
+	case VRRP_EVENT_BACKUP_PRIORITY_CHANGE:
+		state = "BACKUP_PRIORITY";
+		break;
 	}
 
 	type = group ? "GROUP" : "INSTANCE";
@@ -316,6 +322,15 @@ send_group_notifies(vrrp_sgroup_t *vgroup)
 	vrrp_snmp_group_trap(vgroup);
 #endif
 	vrrp_sync_smtp_notifier(vgroup);
+}
+
+void
+send_instance_priority_notifies(vrrp_t *vrrp)
+{
+	notify_fifo(vrrp->iname,
+		    vrrp->state == VRRP_STATE_MAST ? VRRP_EVENT_MASTER_PRIORITY_CHANGE : VRRP_EVENT_BACKUP_PRIORITY_CHANGE,
+		    false,
+		    vrrp->effective_priority);
 }
 
 /* handle terminate state */
