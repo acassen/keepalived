@@ -57,6 +57,7 @@
 #include "utils.h"
 #include "bitops.h"
 #include "logger.h"
+#include "main.h"
 
 
 /* #define LOG_ALL_PROCESS_EVENTS */
@@ -621,8 +622,8 @@ static int set_proc_ev_listen(int nl_sd, bool enable)
 	return 0;
 }
 
-void
-reload_track_processes(void)
+static void
+reinitialise_track_processes(void)
 {
 	reload_thread = NULL;
 	unsigned buf_size;
@@ -705,7 +706,7 @@ reload_track_processes(void)
 static int
 process_lost_messages_timer_thread(__attribute__((unused)) thread_t *thread)
 {
-	reload_track_processes();
+	reinitialise_track_processes();
 
 	return 0;
 }
@@ -952,6 +953,27 @@ init_track_processes(list processes)
 	read_thread = thread_add_read(master, read_process_update, NULL, nl_sock, TIMER_NEVER, false);
 
 	return rc;
+}
+
+void
+reload_track_processes(void)
+{
+	tracked_process_instance_t *tpi, *next;
+
+	/* Remove the existing process tree */
+	rb_for_each_entry_safe(tpi, next, &process_tree, pid_tree) {
+		free_list(&tpi->processes);
+		rb_erase(&tpi->pid_tree, &process_tree);
+		FREE(tpi);
+	}
+
+	/* Re read processes */
+	read_procs(vrrp_data->vrrp_track_processes);
+
+	/* Add read thread */
+	read_thread = thread_add_read(master, read_process_update, NULL, nl_sock, TIMER_NEVER, false);
+
+	return;
 }
 
 void

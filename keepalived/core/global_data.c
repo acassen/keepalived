@@ -328,7 +328,6 @@ free_global_data(data_t * data)
 	FREE_PTR(data->instance_name);
 	FREE_PTR(data->process_name);
 #ifdef _WITH_VRRP_
-log_message(LOG_INFO, "vrrp_process_name %p", data->vrrp_process_name);
 	FREE_PTR(data->vrrp_process_name);
 #endif
 #ifdef _WITH_LVS_
