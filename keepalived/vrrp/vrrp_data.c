@@ -269,7 +269,7 @@ free_vprocess(void *data)
 	free_list(&vprocess->tracking_vrrp);
 	FREE(vprocess->pname);
 	FREE(vprocess->process_path);
-	FREE(vprocess->process_params);
+	FREE_PTR(vprocess->process_params);
 	FREE(vprocess);
 }
 static void
