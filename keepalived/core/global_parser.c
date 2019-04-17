@@ -58,6 +58,12 @@
 #include "namespaces.h"
 #endif
 
+/* Defined in kernel source file include/linux/sched.h but
+ * not currently exposed to userspace */
+#ifndef TASK_COMM_LEN
+#define TASK_COMM_LEN	16
+#endif
+
 #define LVS_MAX_TIMEOUT		(86400*31)	/* 31 days */
 
 /* data handlers */
@@ -85,11 +91,11 @@ save_process_name(char **dest, char *src)
 	if (*dest)
 		FREE_PTR(*dest);
 
-	if ((len = strlen(src)) > 15)
-		report_config_error(CONFIG_GENERAL_ERROR, "Process name %s more than 15 characters, truncating", src);
+	if ((len = strlen(src)) >= TASK_COMM_LEN)
+		report_config_error(CONFIG_GENERAL_ERROR, "Process name %s more than %d characters, truncating", src, TASK_COMM_LEN - 1);
 
 	*dest = MALLOC(len + 1);
-	strncpy(*dest, src, len > 15 ? 15 : len);
+	strncpy(*dest, src, len >= TASK_COMM_LEN ? TASK_COMM_LEN - 1 : len);
 }
 static void
 process_names_handler(__attribute__((unused)) vector_t *strvec)
