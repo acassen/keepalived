@@ -197,7 +197,7 @@ extern perf_t perf_run;
 #endif
 
 /* Prototypes defs */
-extern void dump_buffer(char *, size_t, FILE *, int);
+extern void dump_buffer(const char *, size_t, FILE *, int);
 #ifdef _WITH_STACKTRACE_
 extern void write_stacktrace(const char *, const char *);
 #endif
@@ -211,26 +211,26 @@ extern char *inet_ntop2(uint32_t);
 extern bool inet_stor(const char *, uint32_t *);
 extern int domain_stosockaddr(const char *, const char *, struct sockaddr_storage *);
 extern int inet_stosockaddr(char *, const char *, struct sockaddr_storage *);
-extern void inet_ip4tosockaddr(struct in_addr *, struct sockaddr_storage *);
-extern void inet_ip6tosockaddr(struct in6_addr *, struct sockaddr_storage *);
-extern char *inet_sockaddrtos(struct sockaddr_storage *);
-extern char *inet_sockaddrtopair(struct sockaddr_storage *);
-extern const char *inet_sockaddrtotrio(struct sockaddr_storage *, uint16_t);
-extern char *inet_sockaddrtotrio_r(struct sockaddr_storage *, uint16_t, char *);
-extern uint16_t inet_sockaddrport(struct sockaddr_storage *) __attribute__ ((pure));
+extern void inet_ip4tosockaddr(const struct in_addr *, struct sockaddr_storage *);
+extern void inet_ip6tosockaddr(const struct in6_addr *, struct sockaddr_storage *);
+extern char *inet_sockaddrtos(const struct sockaddr_storage *);
+extern char *inet_sockaddrtopair(const struct sockaddr_storage *);
+extern const char *inet_sockaddrtotrio(const struct sockaddr_storage *, uint16_t);
+extern char *inet_sockaddrtotrio_r(const struct sockaddr_storage *, uint16_t, char *);
+extern uint16_t inet_sockaddrport(const struct sockaddr_storage *) __attribute__ ((pure));
 extern void inet_set_sockaddrport(struct sockaddr_storage *, uint16_t);
-extern uint32_t inet_sockaddrip4(struct sockaddr_storage *) __attribute__ ((pure));
-extern int inet_sockaddrip6(struct sockaddr_storage *, struct in6_addr *);
+extern uint32_t inet_sockaddrip4(const struct sockaddr_storage *) __attribute__ ((pure));
+extern int inet_sockaddrip6(const struct sockaddr_storage *, struct in6_addr *);
 extern int inet_inaddrcmp(int, const void *, const void *); __attribute__ ((pure))
 extern int inet_sockaddrcmp(const struct sockaddr_storage *, const struct sockaddr_storage *) __attribute__ ((pure));
-extern void format_mac_buf(char *, size_t, unsigned char *, size_t);
+extern void format_mac_buf(char *, size_t, const unsigned char *, size_t);
 extern char *get_local_name(void);
 extern bool string_equal(const char *, const char *) __attribute__ ((pure));
 extern FILE *fopen_safe(const char *, const char *);
 extern void set_std_fd(bool);
 extern void close_std_fd(void);
 #if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
-extern int fork_exec(char **);
+extern int fork_exec(char * const []);
 #endif
 #if defined _WITH_VRRP_ || defined _WITH_BFD_
 extern int open_pipe(int [2]);
