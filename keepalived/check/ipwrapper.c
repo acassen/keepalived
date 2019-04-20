@@ -61,6 +61,9 @@ vs_iseq(const virtual_server_t *vs_a, const virtual_server_t *vs_b)
 
 	if (vs_a->vsgname) {
 		/* Should we check the vsg entries match? */
+		if (inet_sockaddrport(&vs_a->addr) != inet_sockaddrport(&vs_b->addr))
+			return false;
+
 		return !strcmp(vs_a->vsgname, vs_b->vsgname);
 	} else if (vs_a->vfwmark) {
 		if (vs_a->vfwmark != vs_b->vfwmark)
@@ -739,14 +742,8 @@ clear_diff_vsge(list old, list new, virtual_server_t * old_vs)
 
 	LIST_FOREACH(old, vsge, e) {
 		new_vsge = vsge_exist(vsge, new);
-		if (new_vsge) {
-			new_vsge->tcp_alive = vsge->tcp_alive;
-			new_vsge->udp_alive = vsge->udp_alive;
-			new_vsge->sctp_alive = vsge->sctp_alive;
-			new_vsge->fwm4_alive = vsge->fwm4_alive;
-			new_vsge->fwm6_alive = vsge->fwm6_alive;
+		if (new_vsge)
 			new_vsge->reloaded = true;
-		}
 		else {
 			log_message(LOG_INFO, "VS [%s:%d:%u] in group %s no longer exists"
 					    , inet_sockaddrtotrio(&vsge->addr, old_vs->service_type)
@@ -755,6 +752,41 @@ clear_diff_vsge(list old, list new, virtual_server_t * old_vs)
 					    , old_vs->vsgname);
 
 			ipvs_group_remove_entry(old_vs, vsge);
+		}
+	}
+}
+
+static void
+update_alive_counts(virtual_server_t *old, virtual_server_t *new)
+{
+	virtual_server_group_entry_t *vsge, *new_vsge;
+	list *old_l, *new_l;
+	element e;
+
+	list old_ll[] = {
+		old->vsg->addr_range,
+		old->vsg->vfwmark,
+		NULL,
+	};
+	list new_ll[] = {
+		new->vsg->addr_range,
+		new->vsg->vfwmark,
+		NULL,
+	};
+
+	for (old_l = old_ll, new_l = new_ll; *old_l; old_l++, new_l++) {
+		LIST_FOREACH(*old_l, vsge, e) {
+			new_vsge = vsge_exist(vsge, *new_l);
+			if (new_vsge) {
+				if (vsge->is_fwmark) {
+					new_vsge->fwm4_alive = vsge->fwm4_alive;
+					new_vsge->fwm6_alive = vsge->fwm6_alive;
+				} else {
+					new_vsge->tcp_alive = vsge->tcp_alive;
+					new_vsge->udp_alive = vsge->udp_alive;
+					new_vsge->sctp_alive = vsge->sctp_alive;
+				}
+			}
 		}
 	}
 }
@@ -985,7 +1017,7 @@ clear_diff_services(list old_checkers_queue)
 			clear_service_vs(vs, false);
 		} else {
 			/* copy status fields from old VS */
-			SET_ALIVE(new_vs);
+			new_vs->alive = vs->alive;
 			new_vs->quorum_state_up = vs->quorum_state_up;
 			new_vs->reloaded = true;
 			if (using_ha_suspend)
@@ -1000,6 +1032,8 @@ clear_diff_services(list old_checkers_queue)
 			vs->omega = true;
 			clear_diff_rs(vs, new_vs, old_checkers_queue);
 			clear_diff_s_srv(vs, new_vs->s_svr);
+
+			update_alive_counts(vs, new_vs);
 		}
 	}
 }

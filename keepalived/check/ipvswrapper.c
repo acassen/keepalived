@@ -420,7 +420,7 @@ ipvs_change_needed(int cmd, virtual_server_group_entry_t *vsge, virtual_server_t
 			vs->service_type == IPPROTO_TCP ? vsge->tcp_alive :
 			vs->service_type == IPPROTO_UDP ? vsge->udp_alive : vsge->sctp_alive;
 
-		return (count == 1);
+		return (count == 0);
 	}
 	else if (cmd == IP_VS_SO_SET_ADDDEST)
 		return !rs->alive;
@@ -433,9 +433,9 @@ ipvs_change_needed(int cmd, virtual_server_group_entry_t *vsge, virtual_server_t
 static void
 ipvs_set_vsge_alive_state(int cmd, virtual_server_group_entry_t *vsge, virtual_server_t *vs)
 {
-	if (cmd == IP_VS_SO_SET_ADD)
+	if (cmd == IP_VS_SO_SET_ADDDEST)
 		set_vsge_alive(vsge, vs);
-	else if (cmd == IP_VS_SO_SET_DEL)
+	else if (cmd == IP_VS_SO_SET_DELDEST)
 		unset_vsge_alive(vsge, vs);
 }
 
@@ -452,6 +452,8 @@ ipvs_group_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_serve
 
 	/* visit addr_ip list */
 	LIST_FOREACH(vsg->addr_range, vsg_entry, e) {
+		if (cmd == IP_VS_SO_SET_ADD && reload && vsg_entry->reloaded)
+			continue;
 		if (ipvs_change_needed(cmd, vsg_entry, vs, rs)) {
 			srule->user.port = inet_sockaddrport(&vsg_entry->addr);
 			if (rs) {
@@ -475,7 +477,9 @@ ipvs_group_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_serve
 					return -1;
 			}
 		}
-		ipvs_set_vsge_alive_state(cmd, vsg_entry, vs);
+
+		if (cmd == IP_VS_SO_SET_ADDDEST || cmd == IP_VS_SO_SET_DELDEST)
+			ipvs_set_vsge_alive_state(cmd, vsg_entry, vs);
 	}
 
 	/* visit vfwmark list */
@@ -488,6 +492,9 @@ ipvs_group_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_serve
 			drule->user.port = inet_sockaddrport(&rs->addr);
 	}
 	LIST_FOREACH(vsg->vfwmark, vsg_entry, e) {
+		if (cmd == IP_VS_SO_SET_ADD && reload && vsg_entry->reloaded)
+			continue;
+
 		srule->user.fwmark = vsg_entry->vfwmark;
 
 		/* Talk to the IPVS channel */
