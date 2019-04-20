@@ -122,24 +122,30 @@ dump_vsg_entry(FILE *fp, void *data)
 	virtual_server_group_entry_t *vsg_entry = data;
 	uint16_t start;
 
-	if (vsg_entry->is_fwmark)
+	if (vsg_entry->is_fwmark) {
 		conf_write(fp, "   FWMARK = %u", vsg_entry->vfwmark);
-	else if (vsg_entry->range) {
-		start = vsg_entry->addr.ss_family == AF_INET ?
-			  ntohl(((struct sockaddr_in*)&vsg_entry->addr)->sin_addr.s_addr) & 0xFF :
-			  ntohs(((struct sockaddr_in6*)&vsg_entry->addr)->sin6_addr.s6_addr16[7]);
-		conf_write(fp,
-			    vsg_entry->addr.ss_family == AF_INET ?
-				"   VIP Range = %s-%d, VPORT = %d" :
-				"   VIP Range = %s-%x, VPORT = %d",
-			    inet_sockaddrtos(&vsg_entry->addr),
-			    start + vsg_entry->range,
-			    ntohs(inet_sockaddrport(&vsg_entry->addr)));
-	} else
-		conf_write(fp, "   VIP = %s, VPORT = %d"
-				    , inet_sockaddrtos(&vsg_entry->addr)
-				    , ntohs(inet_sockaddrport(&vsg_entry->addr)));
-	conf_write(fp, "reloaded = %s", vsg_entry->reloaded ? "True" : "False");
+		conf_write(fp, "   Alive: %u IPv4, %u IPv6",
+				vsg_entry->fwm4_alive, vsg_entry->fwm6_alive);
+	} else {
+		if (vsg_entry->range) {
+			start = vsg_entry->addr.ss_family == AF_INET ?
+				  ntohl(((struct sockaddr_in*)&vsg_entry->addr)->sin_addr.s_addr) & 0xFF :
+				  ntohs(((struct sockaddr_in6*)&vsg_entry->addr)->sin6_addr.s6_addr16[7]);
+			conf_write(fp,
+				    vsg_entry->addr.ss_family == AF_INET ?
+					"   VIP Range = %s-%d, VPORT = %d" :
+					"   VIP Range = %s-%x, VPORT = %d",
+				    inet_sockaddrtos(&vsg_entry->addr),
+				    start + vsg_entry->range,
+				    ntohs(inet_sockaddrport(&vsg_entry->addr)));
+		} else
+			conf_write(fp, "   VIP = %s, VPORT = %d"
+					    , inet_sockaddrtos(&vsg_entry->addr)
+					    , ntohs(inet_sockaddrport(&vsg_entry->addr)));
+		conf_write(fp, "     Alive: %u tcp, %u udp, %u sctp",
+			    vsg_entry->tcp_alive, vsg_entry->udp_alive, vsg_entry->sctp_alive);
+	}
+	conf_write(fp, "     reloaded = %s", vsg_entry->reloaded ? "True" : "False");
 }
 void
 alloc_vsg(char *gname)
