@@ -44,8 +44,7 @@ weigh_live_realservers(virtual_server_t * vs)
 	real_server_t *svr;
 	long count = 0;
 
-	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
-		svr = ELEMENT_DATA(e);
+	LIST_FOREACH(vs->rs, svr, e) {
 		if (ISALIVE(svr))
 			count += svr->weight;
 	}
@@ -345,10 +344,9 @@ sync_service_vsg(virtual_server_t * vs)
 		NULL,
 	};
 
-	for (l = ll; *l; l++)
-		for (e = LIST_HEAD(*l); e; ELEMENT_NEXT(e)) {
-			vsge = ELEMENT_DATA(e);
-			if (vs->reloaded && !vsge->reloaded) {
+	for (l = ll; *l; l++) {
+		LIST_FOREACH(*l, vsge, e) {
+			if (!vsge->reloaded) {
 				log_message(LOG_INFO, "VS [%s:%d:%u] added into group %s"
 // Does this work with no address?
 						    , inet_sockaddrtotrio(&vsge->addr, vs->service_type)
@@ -360,6 +358,7 @@ sync_service_vsg(virtual_server_t * vs)
 				ipvs_group_sync_entry(vs, vsge);
 			}
 		}
+	}
 }
 
 /* add or remove _alive_ real servers from a virtual server */
@@ -642,8 +641,7 @@ vsge_exist(virtual_server_group_entry_t *vsg_entry, list l)
 	element e;
 	virtual_server_group_entry_t *vsge;
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vsge = ELEMENT_DATA(e);
+	LIST_FOREACH(l, vsge, e) {
 		if (VSGE_ISEQ(vsg_entry, vsge))
 			return vsge;
 	}
@@ -658,8 +656,7 @@ clear_diff_vsge(list old, list new, virtual_server_t * old_vs)
 	virtual_server_group_entry_t *vsge, *new_vsge;
 	element e;
 
-	for (e = LIST_HEAD(old); e; ELEMENT_NEXT(e)) {
-		vsge = ELEMENT_DATA(e);
+	LIST_FOREACH(old, vsge, e) {
 		new_vsge = vsge_exist(vsge, new);
 		if (new_vsge) {
 			new_vsge->tcp_alive = vsge->tcp_alive;
@@ -957,10 +954,7 @@ link_vsg_to_vs(void)
 	if (LIST_ISEMPTY(check_data->vs))
 		return;
 
-	for (e = LIST_HEAD(check_data->vs); e; e = next) {
-		next = e->next;
-		vs = ELEMENT_DATA(e);
-
+	LIST_FOREACH_NEXT(check_data->vs, vs, e, next) {
 		if (vs->vsgname) {
 			vs->vsg = ipvs_get_group_by_name(vs->vsgname, check_data->vs_group);
 			if (!vs->vsg) {
@@ -998,16 +992,10 @@ link_vsg_to_vs(void)
 	}
 
 	/* The virtual server port number is used to identify the sequence number of the virtual server in the group */
-	if (LIST_ISEMPTY(check_data->vs_group))
-		return;
-
-	for (e = LIST_HEAD(check_data->vs_group); e; ELEMENT_NEXT(e)) {
+	LIST_FOREACH(check_data->vs_group, vsg, e) {
 		vsg_member_no = 0;
-		vsg = ELEMENT_DATA(e);
 
-		for (e1 = LIST_HEAD(check_data->vs); e1; ELEMENT_NEXT(e1)) {
-			vs = ELEMENT_DATA(e1);
-
+		LIST_FOREACH(check_data->vs, vs, e1) {
 			if (!vs->vsgname)
 				continue;
 

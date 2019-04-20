@@ -76,7 +76,7 @@ ipvs_cmd_str(int cmd)
 	if (cmd == IP_VS_SO_SET_ZERO)
 		return "IP_VS_SO_SET_ZERO";
 
-	return"(unknown)";
+	return "(unknown)";
 }
 
 /*
