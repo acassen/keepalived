@@ -36,6 +36,87 @@
 #include "smtp.h"
 #include "check_daemon.h"
 
+static bool __attribute((pure))
+vs_script_iseq(const notify_script_t *sa, const notify_script_t *sb)
+{
+	if (!sa != !sb)
+		return false;
+
+	if (!sa)
+		return true;
+
+	if (!notify_script_compare(sa, sb) ||
+	    sa->uid != sb->uid ||
+	    sa->gid != sb->gid)
+		return false;
+
+	return true;
+}
+
+static bool __attribute((pure))
+vs_iseq(const virtual_server_t *vs_a, const virtual_server_t *vs_b)
+{
+	if (!vs_a->vsgname != !vs_b->vsgname)
+		return false;
+
+	if (vs_a->vsgname) {
+		/* Should we check the vsg entries match? */
+		return !strcmp(vs_a->vsgname, vs_b->vsgname);
+	} else if (vs_a->vfwmark) {
+		if (vs_a->vfwmark != vs_b->vfwmark)
+			return false;
+	} else {
+		if (!sockstorage_equal(&vs_a->addr, &vs_b->addr) ||
+		    vs_a->af != vs_b->af)
+			return false;
+	}
+
+	if (vs_a->service_type != vs_b->service_type ||
+	    vs_a->forwarding_method != vs_b->forwarding_method ||
+	    vs_a->persistence_granularity != vs_b->persistence_granularity ||
+	    !vs_script_iseq(vs_a->notify_quorum_up, vs_b->notify_quorum_up) ||
+	    !vs_script_iseq(vs_a->notify_quorum_down, vs_b->notify_quorum_down) ||
+	    strcmp(vs_a->sched, vs_b->sched) ||
+	    vs_a->persistence_timeout != vs_b->persistence_timeout ||
+	    !vs_a->virtualhost != !vs_b->virtualhost ||
+	    (vs_a->virtualhost && strcmp(vs_a->virtualhost, vs_b->virtualhost)))
+		return false;
+
+	return true;
+}
+
+static bool __attribute((pure))
+vsge_iseq(const virtual_server_group_entry_t *vsge_a, const virtual_server_group_entry_t *vsge_b)
+{
+	if (vsge_a->is_fwmark != vsge_b->is_fwmark)
+		return false;
+
+	if (vsge_a->is_fwmark)
+		return vsge_a->vfwmark == vsge_b->vfwmark;
+
+	if (!sockstorage_equal(&vsge_a->addr, &vsge_b->addr) ||
+	    vsge_a->range != vsge_b->range)
+		return false;
+
+	return true;
+}
+
+static bool __attribute((pure))
+rs_iseq(const real_server_t *rs_a, const real_server_t *rs_b)
+{
+	if (!sockstorage_equal(&rs_a->addr, &rs_b->addr))
+		return false;
+
+	if (rs_a->forwarding_method != rs_b->forwarding_method)
+		return false;
+
+	if (!rs_a->virtualhost != !rs_b->virtualhost ||
+	    (rs_a->virtualhost && strcmp(rs_a->virtualhost, rs_b->virtualhost)))
+		return false;
+
+	return true;
+}
+
 /* Returns the sum of all alive RS weight in a virtual server. */
 static unsigned long __attribute__ ((pure))
 weigh_live_realservers(virtual_server_t * vs)
@@ -642,7 +723,7 @@ vsge_exist(virtual_server_group_entry_t *vsg_entry, list l)
 	virtual_server_group_entry_t *vsge;
 
 	LIST_FOREACH(l, vsge, e) {
-		if (VSGE_ISEQ(vsg_entry, vsge))
+		if (vsge_iseq(vsg_entry, vsge))
 			return vsge;
 	}
 
@@ -698,7 +779,7 @@ vs_exist(virtual_server_t * old_vs)
 	virtual_server_t *vs;
 
 	LIST_FOREACH(check_data->vs, vs, e) {
-		if (VS_ISEQ(old_vs, vs))
+		if (vs_iseq(old_vs, vs))
 			return vs;
 	}
 
@@ -717,7 +798,7 @@ rs_exist(real_server_t * old_rs, list l)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
-		if (RS_ISEQ(rs, old_rs))
+		if (rs_iseq(rs, old_rs))
 			return rs;
 	}
 
@@ -855,7 +936,7 @@ clear_diff_s_srv(virtual_server_t *old_vs, real_server_t *new_rs)
 	if (!old_rs)
 		return;
 
-	if (new_rs && RS_ISEQ(old_rs, new_rs)) {
+	if (new_rs && rs_iseq(old_rs, new_rs)) {
 		/* which fields are really used on s_svr? */
 		new_rs->alive = old_rs->alive;
 		new_rs->set = old_rs->set;

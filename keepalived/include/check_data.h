@@ -199,37 +199,6 @@ typedef struct _check_data {
 #define FMT_RS(R, V) (format_rs(R, V))
 #define FMT_VS(V) (format_vs((V)))
 
-#define VS_SCRIPT_ISEQ(XS,YS) \
-	(!(XS) == !(YS) && \
-	 (!(XS) || \
-	  (notify_script_compare((XS), (YS)) && \
-	   (XS)->uid == (YS)->uid && \
-	   (XS)->gid == (YS)->gid)))
-
-#define VS_ISEQ(X,Y)	(sockstorage_equal(&(X)->addr,&(Y)->addr)			&&\
-			 (X)->vfwmark		      == (Y)->vfwmark			&&\
-			 (X)->af		      == (Y)->af			&&\
-			 (X)->service_type	      == (Y)->service_type		&&\
-			 (X)->forwarding_method       == (Y)->forwarding_method		&&\
-			 (X)->persistence_granularity == (Y)->persistence_granularity	&&\
-			 VS_SCRIPT_ISEQ((X)->notify_quorum_up, (Y)->notify_quorum_up)	&& \
-			 VS_SCRIPT_ISEQ((X)->notify_quorum_down, (Y)->notify_quorum_down) && \
-			 !strcmp((X)->sched, (Y)->sched)				&&\
-			 (X)->persistence_timeout     == (Y)->persistence_timeout	&&\
-			 !(X)->vsgname		      == !(Y)->vsgname			&& \
-			 (!(X)->vsgname || !strcmp((X)->vsgname, (Y)->vsgname))		&& \
-			 !(X)->virtualhost	      == !(Y)->virtualhost		&& \
-			 (!(X)->virtualhost || !strcmp((X)->virtualhost, (Y)->virtualhost)))
-
-#define VSGE_ISEQ(X,Y)	(sockstorage_equal(&(X)->addr,&(Y)->addr) &&	\
-			 (X)->range     == (Y)->range &&		\
-			 (X)->vfwmark   == (Y)->vfwmark)
-
-#define RS_ISEQ(X,Y)	(sockstorage_equal(&(X)->addr,&(Y)->addr)			&& \
-			 (X)->forwarding_method       == (Y)->forwarding_method		&& \
-			 !(X)->virtualhost	      == !(Y)->virtualhost		&& \
-			 (!(X)->virtualhost || !strcmp((X)->virtualhost, (Y)->virtualhost)))
-
 #ifndef IP_VS_SVC_F_SCHED_MH_PORT
 #define IP_VS_SVC_F_SCHED_MH_PORT IP_VS_SVC_F_SCHED_SH_PORT
 #endif
