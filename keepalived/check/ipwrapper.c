@@ -36,6 +36,90 @@
 #include "smtp.h"
 #include "check_daemon.h"
 
+static bool __attribute((pure))
+vs_script_iseq(const notify_script_t *sa, const notify_script_t *sb)
+{
+	if (!sa != !sb)
+		return false;
+
+	if (!sa)
+		return true;
+
+	if (!notify_script_compare(sa, sb) ||
+	    sa->uid != sb->uid ||
+	    sa->gid != sb->gid)
+		return false;
+
+	return true;
+}
+
+static bool __attribute((pure))
+vs_iseq(const virtual_server_t *vs_a, const virtual_server_t *vs_b)
+{
+	if (!vs_a->vsgname != !vs_b->vsgname)
+		return false;
+
+	if (vs_a->vsgname) {
+		/* Should we check the vsg entries match? */
+		if (inet_sockaddrport(&vs_a->addr) != inet_sockaddrport(&vs_b->addr))
+			return false;
+
+		return !strcmp(vs_a->vsgname, vs_b->vsgname);
+	} else if (vs_a->vfwmark) {
+		if (vs_a->vfwmark != vs_b->vfwmark)
+			return false;
+	} else {
+		if (!sockstorage_equal(&vs_a->addr, &vs_b->addr) ||
+		    vs_a->af != vs_b->af)
+			return false;
+	}
+
+	if (vs_a->service_type != vs_b->service_type ||
+	    vs_a->forwarding_method != vs_b->forwarding_method ||
+	    vs_a->persistence_granularity != vs_b->persistence_granularity ||
+	    !vs_script_iseq(vs_a->notify_quorum_up, vs_b->notify_quorum_up) ||
+	    !vs_script_iseq(vs_a->notify_quorum_down, vs_b->notify_quorum_down) ||
+	    strcmp(vs_a->sched, vs_b->sched) ||
+	    vs_a->persistence_timeout != vs_b->persistence_timeout ||
+	    !vs_a->virtualhost != !vs_b->virtualhost ||
+	    (vs_a->virtualhost && strcmp(vs_a->virtualhost, vs_b->virtualhost)))
+		return false;
+
+	return true;
+}
+
+static bool __attribute((pure))
+vsge_iseq(const virtual_server_group_entry_t *vsge_a, const virtual_server_group_entry_t *vsge_b)
+{
+	if (vsge_a->is_fwmark != vsge_b->is_fwmark)
+		return false;
+
+	if (vsge_a->is_fwmark)
+		return vsge_a->vfwmark == vsge_b->vfwmark;
+
+	if (!sockstorage_equal(&vsge_a->addr, &vsge_b->addr) ||
+	    vsge_a->range != vsge_b->range)
+		return false;
+
+	return true;
+}
+
+static bool __attribute((pure))
+rs_iseq(const real_server_t *rs_a, const real_server_t *rs_b)
+{
+	if (!sockstorage_equal(&rs_a->addr, &rs_b->addr))
+		return false;
+
+	if (rs_a->forwarding_method != rs_b->forwarding_method)
+		return false;
+
+	if (!rs_a->virtualhost != !rs_b->virtualhost ||
+	    (rs_a->virtualhost && strcmp(rs_a->virtualhost, rs_b->virtualhost)))
+		return false;
+
+	return true;
+}
+
 /* Returns the sum of all alive RS weight in a virtual server. */
 static unsigned long __attribute__ ((pure))
 weigh_live_realservers(virtual_server_t * vs)
@@ -44,8 +128,7 @@ weigh_live_realservers(virtual_server_t * vs)
 	real_server_t *svr;
 	long count = 0;
 
-	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
-		svr = ELEMENT_DATA(e);
+	LIST_FOREACH(vs->rs, svr, e) {
 		if (ISALIVE(svr))
 			count += svr->weight;
 	}
@@ -345,10 +428,9 @@ sync_service_vsg(virtual_server_t * vs)
 		NULL,
 	};
 
-	for (l = ll; *l; l++)
-		for (e = LIST_HEAD(*l); e; ELEMENT_NEXT(e)) {
-			vsge = ELEMENT_DATA(e);
-			if (vs->reloaded && !vsge->reloaded) {
+	for (l = ll; *l; l++) {
+		LIST_FOREACH(*l, vsge, e) {
+			if (!vsge->reloaded) {
 				log_message(LOG_INFO, "VS [%s:%d:%u] added into group %s"
 // Does this work with no address?
 						    , inet_sockaddrtotrio(&vsge->addr, vs->service_type)
@@ -360,6 +442,7 @@ sync_service_vsg(virtual_server_t * vs)
 				ipvs_group_sync_entry(vs, vsge);
 			}
 		}
+	}
 }
 
 /* add or remove _alive_ real servers from a virtual server */
@@ -642,9 +725,8 @@ vsge_exist(virtual_server_group_entry_t *vsg_entry, list l)
 	element e;
 	virtual_server_group_entry_t *vsge;
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vsge = ELEMENT_DATA(e);
-		if (VSGE_ISEQ(vsg_entry, vsge))
+	LIST_FOREACH(l, vsge, e) {
+		if (vsge_iseq(vsg_entry, vsge))
 			return vsge;
 	}
 
@@ -658,17 +740,10 @@ clear_diff_vsge(list old, list new, virtual_server_t * old_vs)
 	virtual_server_group_entry_t *vsge, *new_vsge;
 	element e;
 
-	for (e = LIST_HEAD(old); e; ELEMENT_NEXT(e)) {
-		vsge = ELEMENT_DATA(e);
+	LIST_FOREACH(old, vsge, e) {
 		new_vsge = vsge_exist(vsge, new);
-		if (new_vsge) {
-			new_vsge->tcp_alive = vsge->tcp_alive;
-			new_vsge->udp_alive = vsge->udp_alive;
-			new_vsge->sctp_alive = vsge->sctp_alive;
-			new_vsge->fwm4_alive = vsge->fwm4_alive;
-			new_vsge->fwm6_alive = vsge->fwm6_alive;
+		if (new_vsge)
 			new_vsge->reloaded = true;
-		}
 		else {
 			log_message(LOG_INFO, "VS [%s:%d:%u] in group %s no longer exists"
 					    , inet_sockaddrtotrio(&vsge->addr, old_vs->service_type)
@@ -677,6 +752,41 @@ clear_diff_vsge(list old, list new, virtual_server_t * old_vs)
 					    , old_vs->vsgname);
 
 			ipvs_group_remove_entry(old_vs, vsge);
+		}
+	}
+}
+
+static void
+update_alive_counts(virtual_server_t *old, virtual_server_t *new)
+{
+	virtual_server_group_entry_t *vsge, *new_vsge;
+	list *old_l, *new_l;
+	element e;
+
+	list old_ll[] = {
+		old->vsg->addr_range,
+		old->vsg->vfwmark,
+		NULL,
+	};
+	list new_ll[] = {
+		new->vsg->addr_range,
+		new->vsg->vfwmark,
+		NULL,
+	};
+
+	for (old_l = old_ll, new_l = new_ll; *old_l; old_l++, new_l++) {
+		LIST_FOREACH(*old_l, vsge, e) {
+			new_vsge = vsge_exist(vsge, *new_l);
+			if (new_vsge) {
+				if (vsge->is_fwmark) {
+					new_vsge->fwm4_alive = vsge->fwm4_alive;
+					new_vsge->fwm6_alive = vsge->fwm6_alive;
+				} else {
+					new_vsge->tcp_alive = vsge->tcp_alive;
+					new_vsge->udp_alive = vsge->udp_alive;
+					new_vsge->sctp_alive = vsge->sctp_alive;
+				}
+			}
 		}
 	}
 }
@@ -701,7 +811,7 @@ vs_exist(virtual_server_t * old_vs)
 	virtual_server_t *vs;
 
 	LIST_FOREACH(check_data->vs, vs, e) {
-		if (VS_ISEQ(old_vs, vs))
+		if (vs_iseq(old_vs, vs))
 			return vs;
 	}
 
@@ -720,7 +830,7 @@ rs_exist(real_server_t * old_rs, list l)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
-		if (RS_ISEQ(rs, old_rs))
+		if (rs_iseq(rs, old_rs))
 			return rs;
 	}
 
@@ -858,7 +968,7 @@ clear_diff_s_srv(virtual_server_t *old_vs, real_server_t *new_rs)
 	if (!old_rs)
 		return;
 
-	if (new_rs && RS_ISEQ(old_rs, new_rs)) {
+	if (new_rs && rs_iseq(old_rs, new_rs)) {
 		/* which fields are really used on s_svr? */
 		new_rs->alive = old_rs->alive;
 		new_rs->set = old_rs->set;
@@ -907,7 +1017,7 @@ clear_diff_services(list old_checkers_queue)
 			clear_service_vs(vs, false);
 		} else {
 			/* copy status fields from old VS */
-			SET_ALIVE(new_vs);
+			new_vs->alive = vs->alive;
 			new_vs->quorum_state_up = vs->quorum_state_up;
 			new_vs->reloaded = true;
 			if (using_ha_suspend)
@@ -922,6 +1032,8 @@ clear_diff_services(list old_checkers_queue)
 			vs->omega = true;
 			clear_diff_rs(vs, new_vs, old_checkers_queue);
 			clear_diff_s_srv(vs, new_vs->s_svr);
+
+			update_alive_counts(vs, new_vs);
 		}
 	}
 }
@@ -957,10 +1069,7 @@ link_vsg_to_vs(void)
 	if (LIST_ISEMPTY(check_data->vs))
 		return;
 
-	for (e = LIST_HEAD(check_data->vs); e; e = next) {
-		next = e->next;
-		vs = ELEMENT_DATA(e);
-
+	LIST_FOREACH_NEXT(check_data->vs, vs, e, next) {
 		if (vs->vsgname) {
 			vs->vsg = ipvs_get_group_by_name(vs->vsgname, check_data->vs_group);
 			if (!vs->vsg) {
@@ -998,16 +1107,10 @@ link_vsg_to_vs(void)
 	}
 
 	/* The virtual server port number is used to identify the sequence number of the virtual server in the group */
-	if (LIST_ISEMPTY(check_data->vs_group))
-		return;
-
-	for (e = LIST_HEAD(check_data->vs_group); e; ELEMENT_NEXT(e)) {
+	LIST_FOREACH(check_data->vs_group, vsg, e) {
 		vsg_member_no = 0;
-		vsg = ELEMENT_DATA(e);
 
-		for (e1 = LIST_HEAD(check_data->vs); e1; ELEMENT_NEXT(e1)) {
-			vs = ELEMENT_DATA(e1);
-
+		LIST_FOREACH(check_data->vs, vs, e1) {
 			if (!vs->vsgname)
 				continue;
 

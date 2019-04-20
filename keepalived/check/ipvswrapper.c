@@ -40,8 +40,44 @@
 #include "utils.h"
 #include "logger.h"
 #include "libipvs.h"
+#include "main.h"
 
 static bool no_ipvs = false;
+
+static const char * __attribute__((pure))
+ipvs_cmd_str(int cmd)
+{
+	if (cmd == IP_VS_SO_GET_DESTS)
+		return "IP_VS_SO_GET_DESTS";
+	if (cmd == IP_VS_SO_GET_INFO)
+		return "IP_VS_SO_GET_INFO";
+	if (cmd == IP_VS_SO_GET_SERVICE)
+		return "IP_VS_SO_GET_SERVICE";
+	if (cmd == IP_VS_SO_SET_ADD)
+		return "IP_VS_SO_SET_ADD";
+	if (cmd == IP_VS_SO_SET_ADDDEST)
+		return "IP_VS_SO_SET_ADDDEST";
+	if (cmd == IP_VS_SO_SET_DEL)
+		return "IP_VS_SO_SET_DEL";
+	if (cmd == IP_VS_SO_SET_DELDEST)
+		return "IP_VS_SO_SET_DELDEST";
+	if (cmd == IP_VS_SO_SET_EDIT)
+		return "IP_VS_SO_SET_EDIT";
+	if (cmd == IP_VS_SO_SET_EDITDEST)
+		return "IP_VS_SO_SET_EDITDEST";
+	if (cmd == IP_VS_SO_SET_FLUSH)
+		return "IP_VS_SO_SET_FLUSH";
+	if (cmd == IP_VS_SO_SET_STARTDAEMON)
+		return "IP_VS_SO_SET_STARTDAEMON";
+	if (cmd == IP_VS_SO_SET_STOPDAEMON)
+		return "IP_VS_SO_SET_STOPDAEMON";
+	if (cmd == IP_VS_SO_SET_TIMEOUT)
+		return "IP_VS_SO_SET_TIMEOUT";
+	if (cmd == IP_VS_SO_SET_ZERO)
+		return "IP_VS_SO_SET_ZERO";
+
+	return "(unknown)";
+}
 
 /*
  * Utility functions coming from Wensong code
@@ -147,7 +183,7 @@ ipvs_get_group_by_name(char *gname, list l)
 int
 ipvs_start(void)
 {
-	log_message(LOG_DEBUG, "Initializing ipvs");
+	log_message(LOG_DEBUG, "%snitializing ipvs", reload ? "Rei" : "I");
 	/* Initialize IPVS module */
 	if (ipvs_init()) {
 		if (modprobe_ipvs() || ipvs_init()) {
@@ -240,7 +276,7 @@ ipvs_talk(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, ipvs_daemon_t *dae
 		else if (errno == ENOENT &&
 			(cmd == IP_VS_SO_SET_DEL || cmd == IP_VS_SO_SET_DELDEST))
 			result = 0;
-		log_message(LOG_INFO, "IPVS (cmd %d, errno %d): %s", cmd, errno, ipvs_strerror(errno));
+		log_message(LOG_INFO, "IPVS cmd %s(%d) error: %s(%d)", ipvs_cmd_str(cmd), cmd, ipvs_strerror(errno), errno);
 	}
 	return result;
 }
@@ -384,7 +420,7 @@ ipvs_change_needed(int cmd, virtual_server_group_entry_t *vsge, virtual_server_t
 			vs->service_type == IPPROTO_TCP ? vsge->tcp_alive :
 			vs->service_type == IPPROTO_UDP ? vsge->udp_alive : vsge->sctp_alive;
 
-		return (count == 1);
+		return (count == 0);
 	}
 	else if (cmd == IP_VS_SO_SET_ADDDEST)
 		return !rs->alive;
@@ -397,9 +433,9 @@ ipvs_change_needed(int cmd, virtual_server_group_entry_t *vsge, virtual_server_t
 static void
 ipvs_set_vsge_alive_state(int cmd, virtual_server_group_entry_t *vsge, virtual_server_t *vs)
 {
-	if (cmd == IP_VS_SO_SET_ADD)
+	if (cmd == IP_VS_SO_SET_ADDDEST)
 		set_vsge_alive(vsge, vs);
-	else if (cmd == IP_VS_SO_SET_DEL)
+	else if (cmd == IP_VS_SO_SET_DELDEST)
 		unset_vsge_alive(vsge, vs);
 }
 
@@ -416,6 +452,8 @@ ipvs_group_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_serve
 
 	/* visit addr_ip list */
 	LIST_FOREACH(vsg->addr_range, vsg_entry, e) {
+		if (cmd == IP_VS_SO_SET_ADD && reload && vsg_entry->reloaded)
+			continue;
 		if (ipvs_change_needed(cmd, vsg_entry, vs, rs)) {
 			srule->user.port = inet_sockaddrport(&vsg_entry->addr);
 			if (rs) {
@@ -439,7 +477,9 @@ ipvs_group_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_serve
 					return -1;
 			}
 		}
-		ipvs_set_vsge_alive_state(cmd, vsg_entry, vs);
+
+		if (cmd == IP_VS_SO_SET_ADDDEST || cmd == IP_VS_SO_SET_DELDEST)
+			ipvs_set_vsge_alive_state(cmd, vsg_entry, vs);
 	}
 
 	/* visit vfwmark list */
@@ -452,6 +492,9 @@ ipvs_group_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_serve
 			drule->user.port = inet_sockaddrport(&rs->addr);
 	}
 	LIST_FOREACH(vsg->vfwmark, vsg_entry, e) {
+		if (cmd == IP_VS_SO_SET_ADD && reload && vsg_entry->reloaded)
+			continue;
+
 		srule->user.fwmark = vsg_entry->vfwmark;
 
 		/* Talk to the IPVS channel */
