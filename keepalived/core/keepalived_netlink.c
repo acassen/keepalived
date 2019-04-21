@@ -1967,6 +1967,7 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 	size_t hw_addr_len;
 	char mac_buf[3 * sizeof(ifp->hw_addr)];
 	char old_mac_buf[3 * sizeof(ifp->hw_addr)];
+	list old_tracking_vrrp;
 
 	if (!(h->nlmsg_type == RTM_NEWLINK || h->nlmsg_type == RTM_DELLINK))
 		return 0;
@@ -2140,8 +2141,16 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 			list sav_tracking_vrrp = ifp->tracking_vrrp;
 
 			old_mtu = ifp->mtu;
+			free_list(&ifp->sin_addr_l);
+			free_list(&ifp->sin6_addr_l);
+			old_tracking_vrrp = ifp->tracking_vrrp;
 
 			memset(ifp, 0, sizeof(interface_t));
+
+			/* Re-establish lists */
+			ifp->sin_addr_l = alloc_list(free_list_element_simple, NULL);
+			ifp->sin6_addr_l = alloc_list(free_list_element_simple, NULL);
+			ifp->tracking_vrrp = old_tracking_vrrp;
 
 			ifp->garp_delay = sav_garp_delay;
 			ifp->tracking_vrrp = sav_tracking_vrrp;
