@@ -1807,7 +1807,10 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 				if (linkattr[IFLA_MACVLAN_MODE] &&
 				    tb[IFLA_LINK]) {
 					ifp->vmac_type = *(uint32_t*)RTA_DATA(linkattr[IFLA_MACVLAN_MODE]);
-					if (!tb[IFLA_LINK_NETNSID]) {	/* Only use link details if in same network namespace */
+#ifdef IFLA_LINK_NETNSID						/* from Linux v4.0 */
+					if (!tb[IFLA_LINK_NETNSID])	/* Only use link details if in same network namespace */
+#endif
+					{
 						ifp->base_ifindex = *(uint32_t *)RTA_DATA(tb[IFLA_LINK]);
 						ifp->base_ifp = if_get_by_ifindex(ifp->base_ifindex);
 						if (ifp->base_ifp)
