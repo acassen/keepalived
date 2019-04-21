@@ -4,6 +4,8 @@
                                        Alexandre Cassen
                                         July 11th 2012
 
+					latest update
+                                       April 20th 2019
 
 To reduce takeover impact, some networking environment would require using
 VRRP with VMAC address. To reach that goal Keepalived VRRP framework implements
@@ -15,7 +17,7 @@ driver to defines thoses interfaces. It is then mandatory to use kernel
 compiled with macvlan support.
 
 In addition we can mention that VRRP VMAC will work only with kernel including
-the following patch :
+the following patch (include in Linux from v3.2):
 
 http://git.kernel.org/?p=linux/kernel/git/torvalds/linux.git;a=commitdiff;h=729e72a10930ef765c11a5a35031ba47f18221c4
 
@@ -27,22 +29,17 @@ Alternatively, you can specify 'vmac_xmit_base' which will cause the VRRP
 messages to be transmitted and received on the underlying interface whilst ARP
 will happen from the the VMAC interface.
 
-You may also need to tweak your physical interfaces to play around with well
-known ARP issues. If you have issues, try the following configurations :
+keepalived now sets the necessary interface configuration options, but if the
+settings in net.ipv4.conf.all are non-standard, then these may override the
+specific settings for the interface. Source file keepalived/vrrp/vrrp_if_config.c
+documents what interface parameters are set for both the VMAC interface and its
+parent interface. Kernel source file doc/Documentation/networking/ip-sysctl.txt
+documents how the conf.all settings can override the specific settings for
+individual interfaces. If using MACVLAN interfaces is not working as you expect,
+check the interface settings, include the conf.all settings and compare it with
+the documentation.
 
-1) Global configuration
-
-	net.ipv4.conf.all.arp_ignore = 1
-	net.ipv4.conf.all.arp_announce = 1
-	net.ipv4.conf.all.arp_filter = 0
-
-2) Physical interface configuration
-
-For the physical ethernet interface running VRRP instance use:
-
-net.ipv4.conf.eth0.arp_filter = 1
-
-3) VMAC interface
+VMAC interface
 
 consider the following VRRP configuration :
 
@@ -64,12 +61,9 @@ named 'vrrp.250' (default internal paradigm is vrrp.{virtual_router_id}, you can
 override this naming by giving an argument to 'use_vmac' keyword, eg: use_vmac
 vrrp250).
 
-you then need to configure interface with :
-net.ipv4.conf.vrrp.250.arp_filter = 0
-net.ipv4.conf.vrrp.250.accept_local = 1 (this is needed for the address owner case)
-net.ipv4.conf.vrrp.250.rp_filter = 0
-
-you can create notify_master script to automate this configuration step for you :
+If you need to change interface configuration settings, you can create notify_master
+script to automate this configuration step for you. You may also need to use a
+notify_backup script to set interface settings to apply before becoming master.
 
 vrrp_instance instance1 {
 	state BACKUP
