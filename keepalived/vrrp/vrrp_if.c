@@ -147,19 +147,17 @@ set_base_ifp(void)
 #endif
 	element e;
 
-	if (LIST_ISEMPTY(if_queue))
-		return;
-
 	LIST_FOREACH(if_queue, ifp, e) {
-		if (!ifp->base_ifp &&
+		if ((!ifp->base_ifp || ifp == ifp->base_ifp) &&
 		    ifp->base_ifindex) {
 			ifp->base_ifp = if_get_by_ifindex(ifp->base_ifindex);
-			ifp->base_ifindex = 0;	/* This is only used at startup, so ensure not used later */
 
 			/* If this is a MACVLAN that has been moved into a separate network namespace
 			 * from its parent, then we can't get information about the parent. */
 			if (!ifp->base_ifp)
 				ifp->base_ifp = ifp;
+			else
+				ifp->base_ifindex = 0;	/* This is only used at startup, so ensure not used later */
 		}
 
 #ifdef _HAVE_VRF_
@@ -429,7 +427,7 @@ dump_if(FILE *fp, void *data)
 	struct in6_addr *addr6_p;
 
 	conf_write(fp, " Name = %s", ifp->ifname);
-	conf_write(fp, "   index = %u", ifp->ifindex);
+	conf_write(fp, "   index = %u%s", ifp->ifindex, ifp->ifindex ? "" : " (deleted)");
 	conf_write(fp, "   IPv4 address = %s",
 			ifp->sin_addr.s_addr ? inet_ntop2(ifp->sin_addr.s_addr) : "(none)");
 	if (!LIST_ISEMPTY(ifp->sin_addr_l)) {
@@ -472,8 +470,8 @@ dump_if(FILE *fp, void *data)
 		  );
 
 #ifdef _HAVE_VRRP_VMAC_
-	if (ifp->vmac_type && ifp->base_ifp)
-		conf_write(fp, "   VMAC type %s, underlying interface = %s, state = %sUP, %sRUNNING",
+	if (ifp->vmac_type) {
+		const char *macvlan_type =
 				ifp->vmac_type == MACVLAN_MODE_PRIVATE ? "private" :
 				ifp->vmac_type == MACVLAN_MODE_VEPA ? "vepa" :
 				ifp->vmac_type == MACVLAN_MODE_BRIDGE ? "bridge" :
@@ -483,9 +481,17 @@ dump_if(FILE *fp, void *data)
 #ifdef MACVLAN_MODE_SOURCE
 				ifp->vmac_type == MACVLAN_MODE_SOURCE ? "source" :
 #endif
-				"unknown",
-				ifp == ifp->base_ifp ? "(unavailable)" : ifp->base_ifp->ifname,
-				ifp->base_ifp->ifi_flags & IFF_UP ? "" : "not ", ifp->base_ifp->ifi_flags & IFF_RUNNING ? "" : "not ");
+				"unknown";
+		if (ifp != ifp->base_ifp)
+			conf_write(fp, "   VMAC type %s, underlying interface = %s, state = %sUP, %sRUNNING",
+					macvlan_type,
+					ifp->base_ifp->ifname,
+					ifp->base_ifp->ifi_flags & IFF_UP ? "" : "not ", ifp->base_ifp->ifi_flags & IFF_RUNNING ? "" : "not ");
+		else if (ifp->base_ifindex)
+			conf_write(fp, "   VMAC type %s, underlying ifindex = %d", macvlan_type, ifp->base_ifindex);
+		else
+			conf_write(fp, "   VMAC type %s, underlying interface in different namespace", macvlan_type);
+	}
 	if (ifp->is_ours)
 		conf_write(fp, "   I/f created by keepalived");
 	else if (global_data->allow_if_changes && ifp->changeable_type)
