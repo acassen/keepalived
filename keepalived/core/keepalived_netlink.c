@@ -40,6 +40,7 @@
 #endif
 #include <linux/ip.h>
 #include <unistd.h>
+#include <linux/if_link.h>
 
 #ifdef THREAD_DUMP
 #include "scheduler.h"
@@ -1807,7 +1808,7 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 				if (linkattr[IFLA_MACVLAN_MODE] &&
 				    tb[IFLA_LINK]) {
 					ifp->vmac_type = *(uint32_t*)RTA_DATA(linkattr[IFLA_MACVLAN_MODE]);
-#ifdef IFLA_LINK_NETNSID						/* from Linux v4.0 */
+#ifdef HAVE_IFLA_LINK_NETNSID						/* from Linux v4.0 */
 					if (!tb[IFLA_LINK_NETNSID])	/* Only use link details if in same network namespace */
 #endif
 					{

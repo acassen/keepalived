@@ -1777,6 +1777,16 @@ if test "$enable_vrrp" != no; then
   fi
   CPPFLAGS="$SAV_CPPFLAGS"
 
+  dnl ----[ Check for IFLA_LINK_NETNSID support ]---- since Linux v4.0
+  AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+    #include <linux/if_link.h>
+    int main(void) { int var = IFLA_LINK_NETNSID; }
+    ]])],
+    [
+      AC_DEFINE([HAVE_IFLA_LINK_NETNSID], [ 1 ], [Define to 1 if IFLA_LINK_NETNSID supported])
+      add_system_opt([IFLA_LINK_NETNSID])
+    ])
+
   dnl ----[ JSON output or not ? ]----
   if test "${enable_json}" = yes; then
     ENABLE_JSON=Yes

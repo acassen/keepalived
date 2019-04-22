@@ -271,7 +271,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 			  MACVLAN_MODE_PRIVATE);
 		data->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)data);
 		linkinfo->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)linkinfo);
-		addattr32(&req.n, sizeof(req), IFLA_LINK, vrrp->configured_ifp->base_ifp->ifindex);
+		addattr32(&req.n, sizeof(req), IFLA_LINK, vrrp->configured_ifp->ifindex);
 		addattr_l(&req.n, sizeof(req), IFLA_IFNAME, vrrp->vmac_ifname, strlen(vrrp->vmac_ifname));
 		addattr_l(&req.n, sizeof(req), IFLA_ADDRESS, ll_addr, ETH_ALEN);
 
