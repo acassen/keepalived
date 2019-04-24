@@ -223,6 +223,12 @@ the image/Dockerfile to add it before make build) may be helpful if you
 need to examine core files in the container.
 
 
+Running in an AWS container
+===========================
+The VRRP protocol is not enabled in AWS security groups. If you are using AWS,
+create a rule in the AWS security group. The rule should be "Custom Protocol"
+and value should be "112" (the VRRP protocol number). All ports should be opened.
+
 
 Have fun with it !
 
