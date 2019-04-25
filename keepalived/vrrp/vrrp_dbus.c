@@ -824,51 +824,45 @@ dbus_reload(list o, list n)
 	if (!dbus_running)
 		return;
 
-	if (!LIST_ISEMPTY(n)) {
-		for (e1 = LIST_HEAD(n); e1; ELEMENT_NEXT(e1)) {
-			char *n_name;
-			bool match_found;
+	LIST_FOREACH(n, vrrp_n, e1) {
+		char *n_name;
+		bool match_found;
 
-			vrrp_n = ELEMENT_DATA(e1);
+		if (LIST_ISEMPTY(o)) {
+			dbus_create_object(vrrp_n);
+			continue;
+		}
 
-			if (LIST_ISEMPTY(o)) {
-				dbus_create_object(vrrp_n);
-				continue;
-			}
+		n_name = IF_BASE_IFP(vrrp_n->ifp)->ifname;
 
-			n_name = IF_BASE_IFP(vrrp_n->ifp)->ifname;
+		/* Try an find an instance with same vrid/family/interface that existed before and now */
+		match_found = false;
+		LIST_FOREACH(o, vrrp_o, e2) {
+			if (vrrp_n->vrid == vrrp_o->vrid &&
+			    vrrp_n->family == vrrp_o->family &&
+			    !strcmp(n_name, IF_BASE_IFP(vrrp_o->ifp)->ifname)) {
+				/* If the old instance exists in the new config,
+				 * then the dbus object will exist */
+				if (!strcmp(vrrp_n->iname, vrrp_o->iname)) {
+					match_found = true;
+					break;
+				}
 
-			/* Try an find an instance with same vrid/family/interface that existed before and now */
-			for (e2 = LIST_HEAD(o), match_found = false; e2 && !match_found; ELEMENT_NEXT(e2)) {
-				vrrp_o = ELEMENT_DATA(e2);
-
-				if (vrrp_n->vrid == vrrp_o->vrid &&
-				    vrrp_n->family == vrrp_o->family &&
-				    !strcmp(n_name, IF_BASE_IFP(vrrp_o->ifp)->ifname)) {
-					/* If the old instance exists in the new config,
-					 * then the dbus object will exist */
-					if (!strcmp(vrrp_n->iname, vrrp_o->iname)) {
+				/* Check if the old instance name we found still exists
+				 * (but has a different vrid/family/interface) */
+				LIST_FOREACH(n, vrrp_n3, e3) {
+					if (!strcmp(vrrp_o->iname, vrrp_n3->iname)) {
 						match_found = true;
 						break;
 					}
-
-					/* Check if the old instance name we found still exists
-					 * (but has a different vrid/family/interface) */
-					for (e3 = LIST_HEAD(n); e3; ELEMENT_NEXT(e3)) {
-						vrrp_n3 = ELEMENT_DATA(e3);
-						if (!strcmp(vrrp_o->iname, vrrp_n3->iname)) {
-							match_found = true;
-							break;
-						}
-					}
 				}
 			}
-
-			if (match_found)
-				continue;
-
-			dbus_create_object(vrrp_n);
 		}
+
+		if (match_found)
+			continue;
+
+		dbus_create_object(vrrp_n);
 	}
 
 	/* Signal we have reloaded */
