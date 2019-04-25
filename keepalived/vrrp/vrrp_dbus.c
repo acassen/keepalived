@@ -116,7 +116,8 @@ static GMainLoop *loop;
 
 /* Data passing between main vrrp thread and dbus thread */
 dbus_queue_ent_t *ent_ptr;
-static int dbus_in_pipe[2], dbus_out_pipe[2];
+static int dbus_in_pipe[2] = {-1, -1};
+static int dbus_out_pipe[2] = {-1, -1};
 static sem_t thread_end;
 
 /* The only characters that are valid in a dbus path are A-Z, a-z, 0-9, _ */
@@ -894,6 +895,8 @@ dbus_start(void)
 		log_message(LOG_INFO, "Unable to create outbound dbus pipe - disabling DBus");
 		close(dbus_in_pipe[0]);
 		close(dbus_in_pipe[1]);
+		dbus_in_pipe[0] = -1;
+		dbus_out_pipe[0] = -1;
 		return false;
 	}
 
@@ -959,6 +962,15 @@ dbus_stop(void)
 		log_message(LOG_INFO, "Released DBus");
 		sem_destroy(&thread_end);
 	}
+
+	close(dbus_in_pipe[0]);
+	close(dbus_in_pipe[1]);
+	dbus_in_pipe[0] = -1;
+	dbus_in_pipe[0] = -1;
+	close(dbus_out_pipe[0]);
+	close(dbus_out_pipe[1]);
+	dbus_out_pipe[0] = -1;
+	dbus_out_pipe[0] = -1;
 }
 
 #ifdef THREAD_DUMP
