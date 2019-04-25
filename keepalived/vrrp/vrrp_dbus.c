@@ -820,6 +820,9 @@ dbus_reload(list o, list n)
 	element e1, e2, e3;
 	vrrp_t *vrrp_n, *vrrp_o, *vrrp_n3;
 
+	if (!dbus_running)
+		return;
+
 	if (!LIST_ISEMPTY(n)) {
 		for (e1 = LIST_HEAD(n); e1; ELEMENT_NEXT(e1)) {
 			char *n_name;
@@ -928,6 +931,8 @@ dbus_stop(void)
 
 	if (!dbus_running)
 		return;
+
+	dbus_running = false;
 
 	if (global_connection != NULL) {
 		path = dbus_object_create_path_vrrp();

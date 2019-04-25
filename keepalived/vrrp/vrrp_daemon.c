@@ -571,12 +571,6 @@ start_vrrp(data_t *prev_global_data)
 	if (__test_bit(CONFIG_TEST_BIT, &debug))
 		return;
 
-#ifdef _WITH_DBUS_
-	if (!reload && global_data->enable_dbus)
-		if (!dbus_start())
-			global_data->enable_dbus = false;
-#endif
-
 	/* Start or stop gratuitous arp/ndisc as appropriate */
 	if (have_ipv4_instance)
 		gratuitous_arp_init();
@@ -608,8 +602,16 @@ start_vrrp(data_t *prev_global_data)
 		clear_diff_vrrp();
 
 #ifdef _WITH_DBUS_
-	if (reload && global_data->enable_dbus)
-		dbus_reload(old_vrrp_data->vrrp, vrrp_data->vrrp);
+	if (global_data->enable_dbus) {
+		if (reload && old_global_data->enable_dbus)
+			dbus_reload(old_vrrp_data->vrrp, vrrp_data->vrrp);
+		else {
+			if (!dbus_start())
+				global_data->enable_dbus = false;
+		}
+	}
+	else if (reload && old_global_data->enable_dbus)
+		dbus_stop();
 #endif
 
 	/* Post initializations */
