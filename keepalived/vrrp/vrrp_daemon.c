@@ -559,12 +559,6 @@ start_vrrp(data_t *prev_global_data)
 			netlink_error_ignore = 0;
 #endif
 		}
-
-#ifdef _WITH_DBUS_
-		if (!reload && global_data->enable_dbus)
-			if (!dbus_start())
-				global_data->enable_dbus = false;
-#endif
 	}
 
 	/* Complete VRRP initialization */
@@ -576,6 +570,12 @@ start_vrrp(data_t *prev_global_data)
 	/* If we are just testing the configuration, then we terminate now */
 	if (__test_bit(CONFIG_TEST_BIT, &debug))
 		return;
+
+#ifdef _WITH_DBUS_
+	if (!reload && global_data->enable_dbus)
+		if (!dbus_start())
+			global_data->enable_dbus = false;
+#endif
 
 	/* Start or stop gratuitous arp/ndisc as appropriate */
 	if (have_ipv4_instance)

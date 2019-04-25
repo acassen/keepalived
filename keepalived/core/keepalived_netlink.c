@@ -1750,6 +1750,9 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	/* Fill the interface structure */
 	memcpy(ifp->ifname, name, strlen(name));
 	ifp->ifindex = (ifindex_t)ifi->ifi_index;
+#ifdef HAVE_IFLA_LINK_NETNSID						/* from Linux v4.0 */
+	ifp->base_netns_id = -1;
+#endif
 
 #ifdef _HAVE_VRRP_VMAC_
 	if (tb[IFLA_LINKINFO]) {
@@ -1808,11 +1811,13 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 				if (linkattr[IFLA_MACVLAN_MODE] &&
 				    tb[IFLA_LINK]) {
 					ifp->vmac_type = *(uint32_t*)RTA_DATA(linkattr[IFLA_MACVLAN_MODE]);
+					ifp->base_ifindex = *(uint32_t *)RTA_DATA(tb[IFLA_LINK]);
 #ifdef HAVE_IFLA_LINK_NETNSID						/* from Linux v4.0 */
-					if (!tb[IFLA_LINK_NETNSID])	/* Only use link details if in same network namespace */
+					if (tb[IFLA_LINK_NETNSID])	/* Only use link details if in same network namespace */
+						ifp->base_netns_id = *(int32_t *)RTA_DATA(tb[IFLA_LINK_NETNSID]);
+					else
 #endif
 					{
-						ifp->base_ifindex = *(uint32_t *)RTA_DATA(tb[IFLA_LINK]);
 						ifp->base_ifp = if_get_by_ifindex(ifp->base_ifindex);
 						if (ifp->base_ifp)
 							ifp->base_ifindex = 0;	/* Make sure this isn't used at runtime */

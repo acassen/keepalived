@@ -105,6 +105,8 @@ typedef struct dbus_queue_ent {
 	GVariant *args;
 } dbus_queue_ent_t;
 
+static bool dbus_running;
+
 /* Global file variables */
 static GDBusNodeInfo *vrrp_introspection_data = NULL;
 static GDBusNodeInfo *vrrp_instance_introspection_data = NULL;
@@ -878,6 +880,9 @@ dbus_start(void)
 	pthread_t dbus_thread;
 	sigset_t sigset, cursigset;
 
+	if (dbus_running)
+		return false;
+
 	if (open_pipe(dbus_in_pipe)) {
 		log_message(LOG_INFO, "Unable to create inbound dbus pipe - disabling DBus");
 		return false;
@@ -909,6 +914,8 @@ dbus_start(void)
 	/* Reenable our signals */
 	pthread_sigmask(SIG_SETMASK, &cursigset, NULL);
 
+	dbus_running = true;
+
 	return true;
 }
 
@@ -918,6 +925,9 @@ dbus_stop(void)
 	struct timespec thread_end_wait;
 	int ret;
 	gchar *path;
+
+	if (!dbus_running)
+		return;
 
 	if (global_connection != NULL) {
 		path = dbus_object_create_path_vrrp();

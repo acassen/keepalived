@@ -487,8 +487,13 @@ dump_if(FILE *fp, void *data)
 					macvlan_type,
 					ifp->base_ifp->ifname,
 					ifp->base_ifp->ifi_flags & IFF_UP ? "" : "not ", ifp->base_ifp->ifi_flags & IFF_RUNNING ? "" : "not ");
-		else if (ifp->base_ifindex)
+		else if (ifp->base_ifindex) {
+#ifdef HAVE_IFLA_LINK_NETNSID
+			conf_write(fp, "   VMAC type %s, underlying ifindex = %d, netns id = %d", macvlan_type, ifp->base_ifindex, ifp->base_netns_id);
+#else
 			conf_write(fp, "   VMAC type %s, underlying ifindex = %d", macvlan_type, ifp->base_ifindex);
+#endif
+		}
 		else
 			conf_write(fp, "   VMAC type %s, underlying interface in different namespace", macvlan_type);
 	}
