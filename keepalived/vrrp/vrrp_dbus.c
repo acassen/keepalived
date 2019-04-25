@@ -541,12 +541,12 @@ on_bus_acquired(GDBusConnection *connection,
 							 vrrp_introspection_data->interfaces[0],
 							 &interface_vtable, NULL, NULL, &local_error);
 	g_hash_table_insert(objects, "__Vrrp__", GUINT_TO_POINTER(vrrp_guint));
-	g_free(path);
 	if (local_error != NULL) {
 		log_message(LOG_INFO, "Registering VRRP object on %s failed: %s",
 			    path, local_error->message);
 		g_clear_error(&local_error);
 	}
+	g_free(path);
 
 	/* for each available VRRP instance, register an object */
 	if (LIST_ISEMPTY(vrrp_data->vrrp))
