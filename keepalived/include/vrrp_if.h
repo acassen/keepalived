@@ -100,6 +100,9 @@ typedef struct _interface {
 #ifdef _HAVE_VRRP_VMAC_
 	int			vmac_type;		/* Set if interface is a VMAC interface */
 	ifindex_t		base_ifindex;		/* Only used at startup if we find vmac i/f before base i/f */
+#ifdef HAVE_IFLA_LINK_NETNSID
+	int			base_netns_id;		/* Network namespace of the parent interface */
+#endif
 	struct _interface	*base_ifp;		/* Base interface (if interface is a VMAC interface),
 							   otherwise the physical interface */
 	bool			is_ours;		/* keepalived created the interface */
