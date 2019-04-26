@@ -208,6 +208,12 @@ unregister_object(gpointer key, gpointer value, __attribute__((unused)) gpointer
 	return false;
 }
 
+static gboolean
+remove_object(__attribute__((unused)) gpointer key, gpointer value, __attribute__((unused)) gpointer user_data)
+{
+	return g_dbus_connection_unregister_object(global_connection, GPOINTER_TO_UINT(value));
+}
+
 static gchar * __attribute__ ((malloc))
 dbus_object_create_path_vrrp(void)
 {
@@ -582,7 +588,7 @@ on_name_lost(GDBusConnection *connection,
 {
 	log_message(LOG_INFO, "Lost the name %s on the session bus", name);
 	global_connection = connection;
-	g_hash_table_foreach_remove(objects, unregister_object, NULL);
+	g_hash_table_foreach_remove(objects, remove_object, NULL);
 	objects = NULL;
 	global_connection = NULL;
 }
@@ -930,6 +936,9 @@ dbus_stop(void)
 		return;
 
 	dbus_running = false;
+
+	g_hash_table_foreach_remove(objects, remove_object, NULL);
+	objects = NULL;
 
 	if (global_connection != NULL) {
 		path = dbus_object_create_path_vrrp();
