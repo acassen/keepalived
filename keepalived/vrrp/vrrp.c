@@ -3369,7 +3369,7 @@ vrrp_complete_init(void)
 	/* Make sure don't have same vrid on same interface with the same address family */
 	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
 		/* If we don't know about the interface this is on, skip */
-		if (!IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp))->ifindex)
+		if (!vrrp->ifp || !IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp))->ifindex)
 			continue;
 		/* Check none of the rest of the entries conflict */
 		LIST_FOREACH_FROM(e->next, vrrp1, e1) {
