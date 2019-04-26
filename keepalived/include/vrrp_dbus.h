@@ -41,7 +41,7 @@
 
 void dbus_send_state_signal(vrrp_t *);
 void dbus_remove_object(vrrp_t *);
-void dbus_reload(list, list);
+void dbus_reload(const list, const list);
 bool dbus_start(void);
 void dbus_stop(void);
 #ifdef THREAD_DUMP
