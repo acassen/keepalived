@@ -1201,16 +1201,12 @@ net_namespace_handler(vector_t *strvec)
 	if (!strvec)
 		return;
 
-	/* If we are reloading, there has already been a check that the
-	 * namespace hasn't changed */
-	if (!reload) {
-		if (!global_data->network_namespace) {
-			global_data->network_namespace = set_value(strvec);
-			use_pid_dir = true;
-		}
-		else
-			report_config_error(CONFIG_GENERAL_ERROR, "Duplicate net_namespace definition %s - ignoring", FMT_STR_VSLOT(strvec, 1));
+	if (!global_data->network_namespace) {
+		global_data->network_namespace = set_value(strvec);
+		use_pid_dir = true;
 	}
+	else
+		report_config_error(CONFIG_GENERAL_ERROR, "Duplicate net_namespace definition %s - ignoring", FMT_STR_VSLOT(strvec, 1));
 }
 
 static void
