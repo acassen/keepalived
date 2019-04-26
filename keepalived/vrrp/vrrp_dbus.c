@@ -194,7 +194,7 @@ get_vrrp_instance(const char *ifname, int vrid, int family)
 		if (vrrp->vrid == vrid &&
 		    vrrp->family == family &&
 		    !valid_path_cmp(IF_BASE_IFP(vrrp->ifp)->ifname, ifname))
-				return vrrp;
+			return vrrp;
 	}
 
 	return NULL;
@@ -206,6 +206,12 @@ unregister_object(gpointer key, gpointer value, __attribute__((unused)) gpointer
 	if (g_hash_table_remove(objects, key))
 		return g_dbus_connection_unregister_object(global_connection, GPOINTER_TO_UINT(value));
 	return false;
+}
+
+static gboolean
+remove_object(__attribute__((unused)) gpointer key, gpointer value, __attribute__((unused)) gpointer user_data)
+{
+	return g_dbus_connection_unregister_object(global_connection, GPOINTER_TO_UINT(value));
 }
 
 static gchar * __attribute__ ((malloc))
@@ -582,7 +588,7 @@ on_name_lost(GDBusConnection *connection,
 {
 	log_message(LOG_INFO, "Lost the name %s on the session bus", name);
 	global_connection = connection;
-	g_hash_table_foreach_remove(objects, unregister_object, NULL);
+	g_hash_table_foreach_remove(objects, remove_object, NULL);
 	objects = NULL;
 	global_connection = NULL;
 }
@@ -818,8 +824,8 @@ handle_dbus_msg(__attribute__((unused)) thread_t *thread)
 void
 dbus_reload(list o, list n)
 {
-	element e1, e2, e3;
-	vrrp_t *vrrp_n, *vrrp_o, *vrrp_n3;
+	element e1, e2;
+	vrrp_t *vrrp_n, *vrrp_o;
 
 	if (!dbus_running)
 		return;
@@ -828,14 +834,9 @@ dbus_reload(list o, list n)
 		char *n_name;
 		bool match_found;
 
-		if (LIST_ISEMPTY(o)) {
-			dbus_create_object(vrrp_n);
-			continue;
-		}
-
 		n_name = IF_BASE_IFP(vrrp_n->ifp)->ifname;
 
-		/* Try an find an instance with same vrid/family/interface that existed before and now */
+		/* Try and find an instance with same vrid/family/interface that existed before and now */
 		match_found = false;
 		LIST_FOREACH(o, vrrp_o, e2) {
 			if (vrrp_n->vrid == vrrp_o->vrid &&
@@ -845,8 +846,21 @@ dbus_reload(list o, list n)
 				 * then the dbus object will exist */
 				if (!strcmp(vrrp_n->iname, vrrp_o->iname)) {
 					match_found = true;
+					g_hash_table_replace(objects, vrrp_n->iname, g_hash_table_lookup(objects, vrrp_o->iname));
+					break;
+				} else {
+					gpointer instance;
+					if ((instance = g_hash_table_lookup(objects, vrrp_o->iname))) {
+						g_hash_table_remove(objects, vrrp_o->iname);
+						g_hash_table_insert(objects, vrrp_n->iname, instance);
+					}
+					match_found = true;
 					break;
 				}
+
+#if 0
+				/* The following was in the original code, but I can't work out
+				 * its purpose. Leaving it here for now in case it is really needed. */
 
 				/* Check if the old instance name we found still exists
 				 * (but has a different vrid/family/interface) */
@@ -856,6 +870,7 @@ dbus_reload(list o, list n)
 						break;
 					}
 				}
+#endif
 			}
 		}
 
@@ -929,7 +944,8 @@ dbus_stop(void)
 	if (!dbus_running)
 		return;
 
-	dbus_running = false;
+	g_hash_table_foreach_remove(objects, remove_object, NULL);
+	objects = NULL;
 
 	if (global_connection != NULL) {
 		path = dbus_object_create_path_vrrp();
@@ -956,6 +972,8 @@ dbus_stop(void)
 		log_message(LOG_INFO, "Released DBus");
 		sem_destroy(&thread_end);
 	}
+
+	dbus_running = false;
 
 	close(dbus_in_pipe[0]);
 	close(dbus_in_pipe[1]);

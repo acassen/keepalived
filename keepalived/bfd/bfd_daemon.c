@@ -152,7 +152,7 @@ start_bfd(__attribute__((unused)) data_t *prev_global_data)
 
 	init_data(conf_file, bfd_init_keywords);
 	if (reload)
-		init_global_data(global_data, prev_global_data);
+		init_global_data(global_data, prev_global_data, true);
 
 	/* Update process name if necessary */
 	if ((!reload && global_data->bfd_process_name) ||

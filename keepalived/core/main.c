@@ -510,7 +510,7 @@ static bool reload_config(void)
 
 	read_config_file();
 
-	init_global_data(global_data, old_global_data);
+	init_global_data(global_data, old_global_data, false);
 
 	/* Update process name if necessary */
 	if (!global_data->process_name != !old_global_data->process_name ||
@@ -518,6 +518,12 @@ static bool reload_config(void)
 		set_process_name(global_data->process_name);
 
 #if HAVE_DECL_CLONE_NEWNET
+	if (override_namespace) {
+		FREE_PTR(global_data->network_namespace);
+		global_data->network_namespace = MALLOC(strlen(override_namespace) + 1);
+		strcpy(global_data->network_namespace, override_namespace);
+	}
+
 	if (!!old_global_data->network_namespace != !!global_data->network_namespace ||
 	    (global_data->network_namespace && strcmp(old_global_data->network_namespace, global_data->network_namespace))) {
 		log_message(LOG_INFO, "Cannot change network namespace at a reload - please restart %s", PACKAGE);
@@ -1538,8 +1544,7 @@ parse_cmdline(int argc, char **argv)
 #endif
 #if HAVE_DECL_CLONE_NEWNET
 		case 's':
-			override_namespace = MALLOC(strlen(optarg) + 1);
-			strcpy(override_namespace, optarg);
+			override_namespace = optarg;
 			break;
 #endif
 		case 'i':
@@ -1788,7 +1793,7 @@ keepalived_main(int argc, char **argv)
 
 	read_config_file();
 
-	init_global_data(global_data, NULL);
+	init_global_data(global_data, NULL, false);
 
 	/* Update process name if necessary */
 	if (global_data->process_name)
@@ -1800,8 +1805,8 @@ keepalived_main(int argc, char **argv)
 			log_message(LOG_INFO, "Overriding config net_namespace '%s' with command line namespace '%s'", global_data->network_namespace, override_namespace);
 			FREE(global_data->network_namespace);
 		}
-		global_data->network_namespace = override_namespace;
-		override_namespace = NULL;
+		global_data->network_namespace = MALLOC(strlen(override_namespace) + 1);
+		strcpy(global_data->network_namespace, override_namespace);
 	}
 #endif
 

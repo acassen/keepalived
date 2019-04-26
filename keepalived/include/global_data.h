@@ -265,7 +265,7 @@ extern data_t *old_global_data;	/* Old global configuration data - used during r
 /* Prototypes */
 extern void alloc_email(char *);
 extern data_t *alloc_global_data(void);
-extern void init_global_data(data_t *, data_t *);
+extern void init_global_data(data_t *, data_t *, bool);
 extern void free_global_data(data_t *);
 extern void dump_global_data(FILE *, data_t *);
 

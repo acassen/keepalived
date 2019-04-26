@@ -489,7 +489,7 @@ start_vrrp(data_t *prev_global_data)
 	}
 
 	if (reload)
-		init_global_data(global_data, prev_global_data);
+		init_global_data(global_data, prev_global_data, true);
 
 	/* Set our copy of time */
 	set_time_now();
