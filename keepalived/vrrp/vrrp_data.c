@@ -31,6 +31,7 @@
 #include "rttables.h"
 
 #include "global_data.h"
+#include "main.h"
 #include "vrrp_data.h"
 #include "vrrp_sync.h"
 #ifdef _HAVE_VRRP_VMAC_
@@ -345,8 +346,11 @@ free_sock(void *sock_data)
 {
 	sock_t *sock = sock_data;
 
-	/* First of all cancel pending thread */
-	thread_cancel(sock->thread);
+	/* First of all cancel pending thread. If we are reloading
+	 * thread_cleanup_master() has already been called, and so
+	 * the thread already will have been cancelled. */
+	if (!reload)
+		thread_cancel(sock->thread);
 
 	/* Close related socket */
 	if (sock->fd_in > 0)

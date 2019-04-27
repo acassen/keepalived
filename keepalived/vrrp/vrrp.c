@@ -1317,8 +1317,10 @@ vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 	/* build the packet */
 	vrrp_update_pkt(vrrp, prio, NULL);
 
-	if (LIST_ISEMPTY(vrrp->unicast_peer))
-		vrrp_send_pkt(vrrp, NULL);
+	if (LIST_ISEMPTY(vrrp->unicast_peer)) {
+		if (vrrp_send_pkt(vrrp, NULL) == -1)
+			log_message(LOG_INFO, "(%s): send advert error %d (%m)", vrrp->iname, errno);
+	}
 	else {
 		LIST_FOREACH(vrrp->unicast_peer, addr, e) {
 			if (vrrp->family == AF_INET)

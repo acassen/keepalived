@@ -598,8 +598,10 @@ start_vrrp(data_t *prev_global_data)
 
 	/* clear_diff_vrrp must be called after vrrp_complete_init, since the latter
 	 * sets ifp on the addresses, which is used for the address comparison */
-	if (reload)
+	if (reload) {
 		clear_diff_vrrp();
+		vrrp_dispatcher_release(old_vrrp_data);
+	}
 
 #ifdef _WITH_DBUS_
 	if (global_data->enable_dbus) {
@@ -787,7 +789,7 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 #endif
 
 	/* Destroy master thread */
-	vrrp_dispatcher_release(vrrp_data);
+	cancel_vrrp_threads();
 	thread_cleanup_master(master);
 	thread_add_base_threads(master, with_snmp);
 
