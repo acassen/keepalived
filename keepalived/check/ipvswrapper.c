@@ -639,8 +639,14 @@ ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge)
 				/* Talk to the IPVS channel */
 				ipvs_talk(IP_VS_SO_SET_ADDDEST, &srule, &drule, NULL, false);
 			}
-			else
+			else {
+				if (vsge->addr.ss_family == AF_INET6)
+					inet_sockaddrip6(&vsge->addr, &srule.nf_addr.in6);
+				else 
+					srule.nf_addr.ip = inet_sockaddrip4(&vsge->addr);
+
 				ipvs_group_range_cmd(IP_VS_SO_SET_ADDDEST, &srule, &drule, vsge);
+			}
 		}
 	}
 }
@@ -682,8 +688,14 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 	if (!is_vsge_alive(vsge, vs)) {
 		if (vsge->range)
 			ipvs_group_range_cmd(IP_VS_SO_SET_DEL, &srule, NULL, vsge);
-		else
+		else {
+			if (vsge->addr.ss_family == AF_INET6)
+				inet_sockaddrip6(&vsge->addr, &srule.nf_addr.in6);
+			else 
+				srule.nf_addr.ip = inet_sockaddrip4(&vsge->addr);
+
 			ipvs_talk(IP_VS_SO_SET_DEL, &srule, NULL, NULL, false);
+		}
 	}
 }
 
