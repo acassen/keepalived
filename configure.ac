@@ -254,7 +254,9 @@ AC_ARG_ENABLE(tsm-debug,
 AC_ARG_ENABLE(vrrp-fd-debug,
   [AS_HELP_STRING([--enable-vrrp-fd-debug], [compile with vrrp fd debugging support])])
 AC_ARG_ENABLE(eintr-debug,
-  [AS_HELP_STRING([--enable-eintr-debug],[compile with EINTR debugging support, set to check/nocheck to check/not check for EINTR])])
+  [AS_HELP_STRING([--enable-eintr-debug], [compile with EINTR debugging support, set to check/nocheck to check/not check for EINTR])])
+AC_ARG_ENABLE(network-timestamp,
+  [AS_HELP_STRING([--enable-network-timestamp], [compile with network timestamp debugging support])])
 AC_ARG_ENABLE(asserts,
   [AS_HELP_STRING([--enable-asserts], [compile with assert() enabled])])
 AC_ARG_WITH(fixed-if-type,
@@ -351,6 +353,7 @@ AS_IF([test .$enable_vrrp = .no],
     AS_IF([test .$enable_libipset = .no], [AC_MSG_ERROR([disable-libipset requires vrrp])])
     AS_IF([test $with_fixed_if_type], [AC_MSG_ERROR([with-fixed-if-type requires vrrp])])
     AS_IF([test .$enable_vrrp_fd_debug = .yes], [AC_MSG_ERROR([enable-vrrp-fd-debug requires vrrp])])
+    AS_IF([test .$enable_vrrp_fd_debug = .yes], [AC_MSG_ERROR([enable-vrrp-fd-debug requires vrrp])])
     AS_IF([test .$enable_tsm_debug = .yes], [AC_MSG_ERROR([enable-tsm-debug requires vrrp])])
     AS_IF([test .$enable_json = .yes], [AC_MSG_ERROR([enable-json requires vrrp])])
     AS_IF([test .$enable_snmp_vrrp = .yes], [AC_MSG_ERROR([enable-snmp-vrrp requires vrrp])])
@@ -367,6 +370,7 @@ AS_IF([test .$enable_vrrp = .no],
     AS_IF([test .$enable_iptables != .no], [AC_MSG_ERROR([enable-iptables requires vrrp])])
     AS_IF([test .$enable_nftables != .no], [AC_MSG_ERROR([enable-nftables requires vrrp])])
     AS_IF([test .$enable_track_process = .yes], [AC_MSG_ERROR([enable-track-process requires vrrp])])
+    AS_IF([test .$enable_network_timestamp = .yes], [AC_MSG_ERROR([enable-network_timestamp requires vrrp])])
   ])
 AS_IF([test .$enable_iptables = .no],
   [
@@ -2367,6 +2371,15 @@ else
   ENABLE_VRRP_FD_DEBUG=No
 fi
 
+dnl ----[ network timestamp support or not ? ]----
+if test "${enable_network_timestamp}" = yes; then
+  AC_DEFINE([_NETWORK_TIMESTAMP_], [ 1 ], [Define to 1 to build with network timestamp support])
+  ENABLE_NETWORK_TIMESTAMP=Yes
+  add_config_opt([NETWORK_TIMESTAMP])
+else
+  ENABLE_NETWORK_TIMESTAMP=No
+fi
+
 dnl ----[ asserts enabled or not ? ]----
 if test "${enable_asserts}" = yes; then
   AC_DEFINE([_ENABLE_ASSERT_], [ 1 ], [Define to 1 to enable asserts])
@@ -2620,6 +2633,9 @@ if test ${ENABLE_TSM_DEBUG} = Yes; then
 fi
 if test ${ENABLE_VRRP_FD_DEBUG} = Yes; then
   echo "VRRP_FD debugging        : ${ENABLE_VRRP_FD_DEBUG}"
+fi
+if test ${ENABLE_NETWORK_TIMESTAMP} = Yes; then
+  echo "network timestamping     : ${ENABLE_NETWORK_TIMESTAMP}"
 fi
 if test ${ENABLE_ASSERT} = Yes; then
   echo "asserts enabled          : ${ENABLE_ASSERT}"

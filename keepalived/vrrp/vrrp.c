@@ -38,6 +38,9 @@
 #include <stdint.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
+#ifdef _NETWORK_TIMESTAMP_
+#include <linux/net_tstamp.h>
+#endif
 
 /* local include */
 #include "parser.h"
@@ -96,6 +99,10 @@ static bool monitor_ipv4_routes;
 static bool monitor_ipv6_routes;
 static bool monitor_ipv4_rules;
 static bool monitor_ipv6_rules;
+#endif
+
+#ifdef _NETWORK_TIMESTAMP_
+bool do_network_timestamp;
 #endif
 
 static int
@@ -2150,6 +2157,20 @@ open_vrrp_read_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 	if (family == AF_INET6) {
 		if (setsockopt(fd, IPPROTO_IPV6, IPV6_RECVPKTINFO, &on, sizeof on))
 			log_message(LOG_INFO, "fd %d - set IPV6_RECVPKTINFO error %d (%m)", fd, errno);
+	}
+#endif
+
+#ifdef _NETWORK_TIMESTAMP_
+	if (do_network_timestamp) {
+#if 0
+		int flags   = SOF_TIMESTAMPING_RX_HARDWARE | SOF_TIMESTAMPING_RX_SOFTWARE ;
+		if (setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, &flags, sizeof(flags)) < 0)
+			log_message(LOG_INFO, "ERROR: setsockopt %d SO_TIMESTAMPING", fd);
+		if (setsockopt(fd, SOL_SOCKET, SO_TIMESTAMP, &on, sizeof(on)) < 0)
+			log_message(LOG_INFO, "ERROR: setsockopt %d SO_TIMESTAMP", fd);
+#endif
+		if (setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPNS, &on, sizeof(on)) < 0)	// This overrides SO_TIMESTAMP
+			log_message(LOG_INFO, "ERROR: setsockopt %d SO_TIMESTAMPNS", fd);
 	}
 #endif
 
