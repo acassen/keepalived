@@ -96,7 +96,7 @@ static ssize_t send_arp(ip_address_t *ipaddress, ssize_t pack_len)
 	len = sendto(garp_fd, garp_buffer, pack_len, 0,
 		     (struct sockaddr *)&sll, sizeof(sll));
 	if (len < 0)
-		log_message(LOG_INFO, "Error %d sending gratuitous ARP on %s for %s", errno,
+		log_message(LOG_INFO, "Error %d (%m) sending gratuitous ARP on %s for %s", errno,
 			    IF_NAME(ipaddress->ifp), inet_ntop2(ipaddress->u.sin.sin_addr.s_addr));
 	return len;
 }
