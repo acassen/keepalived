@@ -1707,6 +1707,15 @@ thread_fetch_next_queue(thread_master_t *m)
 					ev->write = NULL;
 				}
 
+				if (__test_bit(LOG_DETAIL_BIT, &debug)) {
+					if (ep_ev->events & EPOLLHUP)
+						log_message(LOG_INFO, "Received EPOLLHUP for fd %d", ev->fd);
+					if (ep_ev->events & EPOLLERR)
+						log_message(LOG_INFO, "Received EPOLLERR for fd %d", ev->fd);
+					if (ep_ev->events & EPOLLRDHUP)
+						log_message(LOG_INFO, "Received EPOLLRDHUP for fd %d", ev->fd);
+				}
+
 				continue;
 			}
 
@@ -1730,14 +1739,6 @@ thread_fetch_next_queue(thread_master_t *m)
 				}
 				thread_move_ready(m, &m->write, ev->write, THREAD_READY_FD);
 				ev->write = NULL;
-			}
-
-			if (ep_ev->events & EPOLLHUP) {
-				log_message(LOG_INFO, "Received EPOLLHUP for fd %d", ev->fd);
-			}
-
-			if (ep_ev->events & EPOLLERR) {
-				log_message(LOG_INFO, "Received EPOLLERR for fd %d", ev->fd);
 			}
 		}
 
