@@ -925,7 +925,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t * const hd, char *buffer, ssize_
 	/* check that destination address is multicast if don't have any unicast peers
 	 * and vice versa */
 	if (((vrrp->family == AF_INET && IN_MULTICAST(ntohl(ip->daddr)))
-#ifdef IPV6_RECVHOPLIMIT
+#ifdef IPV6_RECVPKTINFO
 	     || (vrrp->family == AF_INET6 && vrrp->multicast_pkt)
 #endif
 								 ) != LIST_ISEMPTY(vrrp->unicast_peer)) {
