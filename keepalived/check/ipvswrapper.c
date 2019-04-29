@@ -678,9 +678,8 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 	}
 
 	/* Remove VS entry if this is the last VS using it */
-	unset_vsge_alive(vsge, vs);
 	if (!is_vsge_alive(vsge, vs)) {
-		if (vsge->range)
+		if (!vsge->is_fwmark)
 			ipvs_group_range_cmd(IP_VS_SO_SET_DEL, &srule, NULL, vsge);
 		else
 			ipvs_talk(IP_VS_SO_SET_DEL, &srule, NULL, NULL, false);
