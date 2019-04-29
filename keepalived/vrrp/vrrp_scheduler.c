@@ -790,7 +790,11 @@ vrrp_dispatcher_read(sock_t *sock)
 	int prev_state = 0;
 	struct sockaddr_storage src_addr = { .ss_family = AF_UNSPEC };
 	vrrp_t vrrp_lookup;
+#ifdef _NETWORK_TIMESTAMP_
+	char control_buf[128];
+#else
 	char control_buf[64];
+#endif
 	struct iovec iovec = { .iov_base = vrrp_buffer, .iov_len = vrrp_buffer_len };
 	struct msghdr msghdr = { .msg_name = &src_addr, .msg_namelen = sizeof(src_addr),
 				 .msg_iov = &iovec, .msg_iovlen = 1,
@@ -896,6 +900,7 @@ vrrp_dispatcher_read(sock_t *sock)
 		vrrp->hop_limit = -1;           /* Default to not received */
 		vrrp->multicast_pkt = false;
 		for (cmsg = CMSG_FIRSTHDR(&msghdr); cmsg; cmsg = CMSG_NXTHDR(&msghdr, cmsg)) {
+			expected_cmsg = false;
 			if (cmsg->cmsg_level == IPPROTO_IPV6) {
 				expected_cmsg = true;
 
@@ -912,8 +917,34 @@ vrrp_dispatcher_read(sock_t *sock)
 				else
 #endif
 					expected_cmsg = false;
-			} else
-				expected_cmsg = false;
+			}
+#ifdef _NETWORK_TIMESTAMP_
+			else if (do_network_timestamp && cmsg->cmsg_level == SOL_SOCKET) {
+				struct timespec *ts = (void *)CMSG_DATA(cmsg);
+				char time_buf[9];
+
+				expected_cmsg = true;
+				if (cmsg->cmsg_type == SO_TIMESTAMPNS) {
+					strftime(time_buf, sizeof time_buf, "%T", localtime(&ts->tv_sec));
+					log_message(LOG_INFO, "TIMESTAMPNS (socket %d - VRID %u) %s.%9.9ld"
+							    , sock->fd_in, hd->vrid, time_buf, ts->tv_nsec);
+				}
+#if 0
+				if (cmsg->cmsg_type == SO_TIMESTAMP) {
+					struct timeval *tv = (void *)CMSG_DATA(cmsg);
+					log_message(LOG_INFO, "TIMESTAMP message (%d - %u)  %ld.%9.9ld"
+							    , sock->fd_in, hd->vrid, tv->tv_sec, tv->tv_usec);
+				}
+				else if (cmsg->cmsg_type == SO_TIMESTAMPING) {
+					struct timespec *ts = (void *)CMSG_DATA(cmsg);
+					log_message(LOG_INFO, "TIMESTAMPING message (%d - %u)  %ld.%9.9ld, raw %ld.%9.9ld"
+							    , sock->fd_in, hd->vrid, ts->tv_sec, ts->tv_nsec, (ts+2)->tv_sec, (ts+2)->tv_nsec);
+				}
+#endif
+				else
+					expected_cmsg = false;
+			}
+#endif
 
 			if (!expected_cmsg)
 				log_message(LOG_INFO, "fd %d, unexpected control msg len %zd, level %d, type %d"

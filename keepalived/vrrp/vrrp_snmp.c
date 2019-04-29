@@ -24,7 +24,7 @@
  * To test this code, one can use the following:
  *
  * Build keepalived with SNMP support with one or more of the following options
-     ./configure--enable-snmp-keepalived --enable-snmp-checker [or --enable-snmp to enable previous two options] \
+     ./configure--enable-snmp-vrrp --enable-snmp-checker [or --enable-snmp to enable previous two options] \
 		 --enable-snmp-rfcv2 --enable-snmp-rfcv3 [or --enable-snmp-rfc to enable previous two options]
 
  * Edit /etc/snmp/snmpd.conf to contain the following:
@@ -70,7 +70,7 @@
      enable_snmp_rfc	(enables enable_snmp_rfcv2 enable_snmp_rfcv3)
      enable_snmp_rfcv2
      enable_snmp_rfcv3
-     enable_snmp_traps
+     enable_traps
 
  * Run keepalived. Some traps/notifications should be generated which will be displayed on the terminal running snmptrapd
 

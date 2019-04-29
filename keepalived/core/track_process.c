@@ -725,10 +725,6 @@ static int handle_proc_ev(int nl_sd)
 	socklen_t addrlen = sizeof(addr);
 
 	while ((len = recvfrom(nl_sd, &buf, sizeof(buf), 0, (struct sockaddr *)&addr, &addrlen))) {
-		/* Ensure the message has been sent by the kernel */
-		if (addrlen != sizeof(addr) || addr.nl_pid != 0)
-			return -1;
-
 		if (len == -1) {
 			if (check_EINTR(errno))
 				continue;
@@ -748,6 +744,13 @@ static int handle_proc_ev(int nl_sd)
 
 			return -1;
 		}
+
+		/* Ensure the message has been sent by the kernel */
+		if (addrlen != sizeof(addr) || addr.nl_pid != 0) {
+			log_message(LOG_INFO, "addrlen %d, expect %ld, pid %d", addrlen, sizeof addr, addr.nl_pid);
+			return -1;
+		}
+
 		for (nlmsghdr = (struct nlmsghdr *)buf;
 			NLMSG_OK (nlmsghdr, len);
 			nlmsghdr = NLMSG_NEXT (nlmsghdr, len)) {
@@ -886,6 +889,8 @@ static int handle_proc_ev(int nl_sd)
 			}
 		}
 	}
+	if (len == 0)
+		log_message(LOG_INFO, "recvfrom returned %ld", len);
 
 	return 0;
 }

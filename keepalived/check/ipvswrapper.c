@@ -373,7 +373,7 @@ is_vsge_alive(virtual_server_group_entry_t *vsge, virtual_server_t *vs)
 }
 
 static void
-update_vsge_alive_count(virtual_server_group_entry_t *vsge, virtual_server_t *vs, bool up)
+update_vsge_alive_count(virtual_server_group_entry_t *vsge, const virtual_server_t *vs, bool up)
 {
 	unsigned *alive_p;
 
@@ -397,13 +397,13 @@ update_vsge_alive_count(virtual_server_group_entry_t *vsge, virtual_server_t *vs
 }
 
 static void
-set_vsge_alive(virtual_server_group_entry_t *vsge, virtual_server_t *vs)
+set_vsge_alive(virtual_server_group_entry_t *vsge, const virtual_server_t *vs)
 {
 	update_vsge_alive_count(vsge, vs, true);
 }
 
 static void
-unset_vsge_alive(virtual_server_group_entry_t *vsge, virtual_server_t *vs)
+unset_vsge_alive(virtual_server_group_entry_t *vsge, const virtual_server_t *vs)
 {
 	update_vsge_alive_count(vsge, vs, false);
 }
@@ -667,7 +667,7 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 			/* Setting IPVS drule */
 			ipvs_set_drule(IP_VS_SO_SET_DELDEST, &drule, rs);
 
-			/* Set vs rule */
+			/* Delete rs rule */
 			if (vsge->is_fwmark) {
 				/* Talk to the IPVS channel */
 				ipvs_talk(IP_VS_SO_SET_DELDEST, &srule, &drule, NULL, false);
@@ -678,12 +678,11 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 	}
 
 	/* Remove VS entry if this is the last VS using it */
-	unset_vsge_alive(vsge, vs);
 	if (!is_vsge_alive(vsge, vs)) {
-		if (vsge->range)
-			ipvs_group_range_cmd(IP_VS_SO_SET_DEL, &srule, NULL, vsge);
-		else
+		if (vsge->is_fwmark)
 			ipvs_talk(IP_VS_SO_SET_DEL, &srule, NULL, NULL, false);
+		else
+			ipvs_group_range_cmd(IP_VS_SO_SET_DEL, &srule, NULL, vsge);
 	}
 }
 

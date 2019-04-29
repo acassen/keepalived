@@ -168,7 +168,7 @@ static const char *core_dump_pattern = "core";
 static char *orig_core_dump_pattern = NULL;
 
 /* debug flags */
-#if defined _TIMER_CHECK_ || defined _SMTP_ALERT_DEBUG_ || defined _EPOLL_DEBUG_ || defined _EPOLL_THREAD_DUMP_ || defined _REGEX_DEBUG_ || defined _WITH_REGEX_TIMERS_ || defined _TSM_DEBUG_ || defined _VRRP_FD_DEBUG_ || defined _NETLINK_TIMERS_
+#if defined _TIMER_CHECK_ || defined _SMTP_ALERT_DEBUG_ || defined _EPOLL_DEBUG_ || defined _EPOLL_THREAD_DUMP_ || defined _REGEX_DEBUG_ || defined _WITH_REGEX_TIMERS_ || defined _TSM_DEBUG_ || defined _VRRP_FD_DEBUG_ || defined _NETLINK_TIMERS_ || defined _NETWORK_TIMESTAMP_
 #define WITH_DEBUG_OPTIONS 1
 #endif
 
@@ -198,6 +198,9 @@ static char vrrp_fd_debug;
 #endif
 #ifdef _NETLINK_TIMERS_
 static char netlink_timer_debug;
+#endif
+#ifdef _NETWORK_TIMESTAMP_
+static char network_timestamp_debug;
 #endif
 
 void
@@ -1002,6 +1005,9 @@ initialise_debug_options(void)
 #ifdef _NETLINK_TIMERS_
 	do_netlink_timers = !!(netlink_timer_debug & mask);
 #endif
+#ifdef _NETWORK_TIMESTAMP_
+	do_network_timestamp = !!(network_timestamp_debug & mask);
+#endif
 #endif
 }
 RELAX_SUGGEST_ATTRIBUTE_CONST_END
@@ -1056,6 +1062,9 @@ set_debug_options(const char *options)
 #endif
 #ifdef _NETLINK_TIMERS_
 		netlink_timer_debug = all_processes;
+#endif
+#ifdef _NETWORK_TIMESTAMP_
+		network_timestamp_debug = all_processes;
 #endif
 
 		return;
@@ -1149,6 +1158,11 @@ set_debug_options(const char *options)
 #ifdef _NETLINK_TIMERS_
 		case 'N':
 			netlink_timer_debug = processes;
+			break;
+#endif
+#ifdef _NETWORK_TIMESTAMP_
+		case 'P':
+			network_timestamp_debug = processes;
 			break;
 #endif
 		default:
@@ -1256,6 +1270,9 @@ usage(const char *prog)
 #endif
 #ifdef _NETLINK_TIMERS_
 	fprintf(stderr, "                                   N - netlink timer debug\n");
+#endif
+#ifdef _NETWORK_TIMESTAMP_
+	fprintf(stderr, "                                   P - network timestamp debug\n");
 #endif
 	fprintf(stderr, "                                 Example --debug=TpMEvcp\n");
 #endif

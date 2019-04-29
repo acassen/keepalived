@@ -377,6 +377,10 @@ typedef struct _vrrp_t {
 extern bool have_ipv4_instance;
 extern bool have_ipv6_instance;
 
+#ifdef _NETWORK_TIMESTAMP_
+extern bool do_network_timestamp;
+#endif
+
 /* prototypes */
 extern void clear_summary_flags(void);
 extern size_t vrrp_adv_len(vrrp_t *) __attribute__ ((pure));
