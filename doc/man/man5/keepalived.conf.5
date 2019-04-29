@@ -299,7 +299,7 @@ and
     \fBvrrp_higher_prio_send_advert \fR[<BOOL>]
 
     # Set the default VRRP version to use
-    # (default: 2)
+    # (default: 2, but IPv6 instances will use version 3)
     \fBvrrp_version \fR<2 or 3>
 
     # Specify the iptables chain for ensuring a version 3 instance
@@ -1247,7 +1247,8 @@ The syntax for vrrp_instance is :
     \fBtrack_src_ip\fR
 
     # VRRP version to run on interface
-    #  default is global parameter vrrp_version.
+    #  default is global parameter vrrp_version, but IPv6 instances will
+    #  always use version 3.
     \fBversion \fR<2 or 3>
 
     # Do not send VRRP adverts over a VRRP multicast group.
