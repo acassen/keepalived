@@ -745,11 +745,14 @@ clear_diff_vsge(list old, list new, virtual_server_t * old_vs)
 		if (new_vsge)
 			new_vsge->reloaded = true;
 		else {
-			log_message(LOG_INFO, "VS [%s:%d:%u] in group %s no longer exists"
-					    , inet_sockaddrtotrio(&vsge->addr, old_vs->service_type)
-					    , vsge->range
-					    , vsge->vfwmark
-					    , old_vs->vsgname);
+			if (vsge->is_fwmark)
+				log_message(LOG_INFO, "VS [%u] in group %s no longer exists",
+						      vsge->vfwmark, old_vs->vsgname);
+			else
+				log_message(LOG_INFO, "VS [%s:%d] in group %s no longer exists"
+						    , inet_sockaddrtotrio(&vsge->addr, old_vs->service_type)
+						    , vsge->range
+						    , old_vs->vsgname);
 
 			ipvs_group_remove_entry(old_vs, vsge);
 		}
