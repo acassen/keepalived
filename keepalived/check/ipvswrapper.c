@@ -450,7 +450,7 @@ ipvs_group_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_serve
 	if (!vsg)
 		return 0;
 
-	/* visit addr_ip list */
+	/* visit addr_range list */
 	LIST_FOREACH(vsg->addr_range, vsg_entry, e) {
 		if (cmd == IP_VS_SO_SET_ADD && reload && vsg_entry->reloaded)
 			continue;
@@ -463,19 +463,8 @@ ipvs_group_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_serve
 					drule->user.port = inet_sockaddrport(&rs->addr);
 			}
 
-			if (vsg_entry->range) {
-				if (ipvs_group_range_cmd(cmd, srule, drule, vsg_entry))
-					return -1;
-			} else {
-				if (vsg_entry->addr.ss_family == AF_INET6)
-					inet_sockaddrip6(&vsg_entry->addr, &srule->nf_addr.in6);
-				else
-					srule->nf_addr.ip = inet_sockaddrip4(&vsg_entry->addr);
-
-				/* Talk to the IPVS channel */
-				if (ipvs_talk(cmd, srule, drule, NULL, false))
-					return -1;
-			}
+			if (ipvs_group_range_cmd(cmd, srule, drule, vsg_entry))
+				return -1;
 		}
 
 		if (cmd == IP_VS_SO_SET_ADDDEST || cmd == IP_VS_SO_SET_DELDEST)
