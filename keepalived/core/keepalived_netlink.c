@@ -120,44 +120,31 @@ report_and_clear_netlink_timers(const char * str)
 }
 #endif
 
-static char *
+#define strval(x) [x] = #x
+
+static const char *
 get_nl_msg_type(unsigned type)
 {
-	switch (type) {
-	case RTM_NEWLINK:
-		return "RTM_NEWLINK";
-		break;
-	case RTM_DELLINK:
-		return "RTM_DELLINK";
-		break;
-	case RTM_NEWADDR:
-		return "RTM_NEWADDR";
-		break;
-	case RTM_DELADDR:
-		return "RTM_DELADDR";
-		break;
-	case RTM_NEWROUTE:
-		return "RTM_NEWROUTE";
-		break;
-	case RTM_DELROUTE:
-		return "RTM_DELROUTE";
-		break;
-	case RTM_NEWRULE:
-		return "RTM_NEWRULE";
-		break;
-	case RTM_DELRULE:
-		return "RTM_DELRULE";
-		break;
-	case RTM_GETLINK:
-		return "RTM_GETLINK";
-		break;
-	case RTM_GETADDR:
-		return "RTM_GETADDR";
-		break;
-	}
+	static const char *vals[] = {
+		strval(RTM_NEWLINK),
+		strval(RTM_DELLINK),
+		strval(RTM_NEWADDR),
+		strval(RTM_DELADDR),
+		strval(RTM_NEWROUTE),
+		strval(RTM_DELROUTE),
+		strval(RTM_NEWRULE),
+		strval(RTM_DELRULE),
+		strval(RTM_GETLINK),
+		strval(RTM_GETADDR),
+	};
+
+	if (type < sizeof(vals) / sizeof(*vals) && vals[type])
+		return vals[type];
 
 	return "";
 }
+
+#undef strval
 
 static inline bool
 addr_is_equal2(struct ifaddrmsg* ifa, void* addr, ip_address_t* vip_addr, interface_t *ifp, vrrp_t *vrrp)
