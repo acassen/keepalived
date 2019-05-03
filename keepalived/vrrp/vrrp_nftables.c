@@ -20,6 +20,10 @@
  * Copyright (C) 2001-2018 Alexandre Cassen, <acassen@gmail.com>
  */
 
+/* Up to commit 0ec6c01f this used libnftnl/libmnl, but that had overheads,
+ * and constructing the netlink packets directly works just as well.
+ */
+
 #include <stdlib.h>
 #include <stddef.h>
 #include <time.h>
@@ -449,38 +453,38 @@ nftnl_rule *setup_rule(uint8_t family, const char *table,
 	    | 6f 61 64 00  |	|      data      |	 o a d
 	    |00036|N-|00002|	|len |flags| type| 	NFTA_EXPR_DATA | NEST
 	      |00008|--|00001|	|len |flags| type|	NFTNL_EXPR_PAYLOAD_DREG
-	      | 00 00 00 01  |	|      data      |
+	      | 00 00 00 01  |	|      data      |	  NFT_REG_1
 	      |00008|--|00002|	|len |flags| type|	NFTNL_EXPR_PAYLOAD_BASE
-	      | 00 00 00 01  |	|      data      |
+	      | 00 00 00 01  |	|      data      |	  NFT_PAYLOAD_NETWORK_HEADER
 	      |00008|--|00003|	|len |flags| type|	NFTNL_EXPR_PAYLOAD_OFFSET
-	      | 00 00 00 10  |	|      data      |
+	      | 00 00 00 10  |	|      data      |	  offset 16
 	      |00008|--|00004|	|len |flags| type|	NFTNL_EXPR_PAYLOAD_LEN
-	      | 00 00 00 04  |	|      data      |
+	      | 00 00 00 04  |	|      data      | 	  length 4
 	  |00052|N-|00001|	|len |flags| type| 		NFTA_LIST_ELEM | NEST (netlink_gen_set_stmt)
 	    |00011|--|00001|	|len |flags| type|	NFTA_EXPR_NAME	(see netlink_gen_lookup)
 	    | 6c 6f 6f 6b  |	|      data      |	 l o o k
 	    | 75 70 00 00  |	|      data      |	 u p
 	    |00036|N-|00002|	|len |flags| type|	NFTA_EXPR_DATA | NEST
 	      |00008|--|00002|	|len |flags| type|	NFTNL_EXPR_LOOKUP_SREG
-	      | 00 00 00 01  |	|      data      |
+	      | 00 00 00 01  |	|      data      |	  NFT_REG_1
 	      |00015|--|00001|	|len |flags| type|	NFTNL_EXPR_LOOKUP_SET
 	      | 6b 65 65 70  |	|      data      |	 k e e p
 	      | 61 6c 69 76  |	|      data      |	 a l i v
 	      | 65 64 00 00  |	|      data      |	 e d
 	      |00008|--|00004|	|len |flags| type|	NFTNL_EXPR_LOOKUP_SET_ID
-	      | 00 00 00 01  |	|      data      |
+	      | 00 00 00 01  |	|      data      |	 set 1 (Appears not needed)
 	  |00048|N-|00001|	|len |flags| type|		NFTA_LIST_ELEM | NEST (netlink_get_verdict_stmt from netlink_gen_stmt)
 	    |00014|--|00001|	|len |flags| type|	NFTA_EXPR_NAME (see netlink_gen_immediate)
 	    | 69 6d 6d 65  |	|      data      |	 i m m e
 	    | 64 69 61 74  |	|      data      |	 d i a t
 	    | 65 00 00 00  |	|      data      |	 e
 	    |00028|N-|00002|	|len |flags| type|	NFTA_EXPR_DATA | NEST
-	      |00008|--|00001|	|len |flags| type| NFTNL_EXPR_IMM_DREG
-	      | 00 00 00 00  |	|      data      |
-	      |00016|N-|00002|	|len |flags| type| NFTNL_EXPR_IMM_VERDICT
-	        |00012|N-|00002|	|len |flags| type|
-	          |00008|--|00001|	|len |flags| type|
-	          | 00 00 00 00  |	|      data      |
+	      |00008|--|00001|	|len |flags| type| NFTNL_EXPR_IMM_DREG = NFTA_IMMEDIATE_DREG
+	      | 00 00 00 00  |	|      data      |  NFT_REG_VERDICT
+	      |00016|N-|00002|	|len |flags| type| NFTNL_EXPR_IMM_VERDICT = NFTA_IMMEDIATE_DATA
+	        |00012|N-|00002|	|len |flags| type|  NFTA_DATA_VERDICT
+	          |00008|--|00001|	|len |flags| type|  NFTA_VERDICT_CODE
+	          | 00 00 00 00  |	|      data      |  NF_DROP
 	----------------	------------------
 	----------------	------------------
 	|  0000000020  |	| message length |
@@ -523,11 +527,11 @@ nftnl_rule *setup_rule_if(uint8_t family, const char *table,
 	|  0000000000  |	|     port ID    |
 	----------------	------------------
 	| 0a 00 00 00  |	|  extra header  |
-	|00015|--|00001|	|len |flags| type|
+	|00015|--|00001|	|len |flags| type| NFTA_RULE_TABLE
 	| 6b 65 65 70  |	|      data      |	 k e e p
 	| 61 6c 69 76  |	|      data      |	 a l i v
 	| 65 64 00 00  |	|      data      |	 e d
-	|00018|--|00002|	|len |flags| type|
+	|00018|--|00002|	|len |flags| type| NFTA_RULE_CHAIN
 	| 69 6e 5f 6c  |	|      data      |	 i n _ l
 	| 69 6e 6b 5f  |	|      data      |	 i n k _
 	| 6c 6f 63 61  |	|      data      |	 l o c a
@@ -539,9 +543,9 @@ nftnl_rule *setup_rule_if(uint8_t family, const char *table,
 	      | 6f 61 64 00  |	|      data      |	 o a d
 	    |00036|N-|00002|	|len |flags| type| NFTA_EXPR_DATA
 	      |00008|--|00001|	|len |flags| type| DREG
-	      | 00 00 00 01  |	|      data      |
+	      | 00 00 00 01  |	|      data      | NFT_REG_1
 	      |00008|--|00002|	|len |flags| type| BASE
-	      | 00 00 00 01  |	|      data      |
+	      | 00 00 00 01  |	|      data      |  NFT_PAYLOAD_NETWORK_HEADER
 	      |00008|--|00003|	|len |flags| type| OFFSET
 	      | 00 00 00 18  |	|      data      |
 	      |00008|--|00004|	|len |flags| type| LEN
@@ -555,35 +559,35 @@ nftnl_rule *setup_rule_if(uint8_t family, const char *table,
 	      | 00 00 00 06  |	|      data      | NFT_META_IIFNAME
 	      |00008|--|00001|	|len |flags| type| NFTA_META_DREG
 	      | 00 00 00 02  |	|      data      |NFT_REG_2
-	  |00048|N-|00001|	|len |flags| type|
-	    |00011|--|00001|	|len |flags| type|
+	  |00048|N-|00001|	|len |flags| type| NFTA_LIST_ELEM
+	    |00011|--|00001|	|len |flags| type| NFTA_EXPR_NAME
 	    | 6c 6f 6f 6b  |	|      data      |	 l o o k
 	    | 75 70 00 00  |	|      data      |	 u p
-	    |00032|N-|00002|	|len |flags| type|
-	      |00008|--|00002|	|len |flags| type|
-	      | 00 00 00 01  |	|      data      |
-	      |00010|--|00001|	|len |flags| type|
+	    |00032|N-|00002|	|len |flags| type| NFTA_EXPR_DATA
+	      |00008|--|00002|	|len |flags| type| NFTA_LOOKUP_SREG
+	      | 00 00 00 01  |	|      data      | NFT_REG_1
+	      |00010|--|00001|	|len |flags| type| NFTA_LOOKUP_SET
 	      | 69 66 5f 6c  |	|      data      |	 i f _ l
 	      | 6c 00 00 00  |	|      data      |	 l
-	      |00008|--|00004|	|len |flags| type|
+	      |00008|--|00004|	|len |flags| type| NFTA_LOOKUP_SET_ID
 	      | 00 00 00 06  |	|      data      |
-	  |00020|N-|00001|	|len |flags| type|
-	    |00012|--|00001|	|len |flags| type|
+	  |00020|N-|00001|	|len |flags| type| NFTA_LIST_ELEM
+	    |00012|--|00001|	|len |flags| type| NFTA_EXPR_NAME
 	    | 63 6f 75 6e  |	|      data      |	 c o u n
 	    | 74 65 72 00  |	|      data      |	 t e r
-	    |00004|N-|00002|	|len |flags| type|
-	  |00048|N-|00001|	|len |flags| type|
-	    |00014|--|00001|	|len |flags| type|
+	    |00004|N-|00002|	|len |flags| type| NFTA_COUNTER_PACKETS
+	  |00048|N-|00001|	|len |flags| type| NFTA_LIST_ELEM
+	    |00014|--|00001|	|len |flags| type| NFTA_EXPR_NAME
 	    | 69 6d 6d 65  |	|      data      |	 i m m e
 	    | 64 69 61 74  |	|      data      |	 d i a t
 	    | 65 00 00 00  |	|      data      |	 e
-	    |00028|N-|00002|	|len |flags| type|
-	      |00008|--|00001|	|len |flags| type|
-	      | 00 00 00 00  |	|      data      |
-	      |00016|N-|00002|	|len |flags| type|
-	        |00012|N-|00002|	|len |flags| type|
-	          |00008|--|00001|	|len |flags| type|
-	          | 00 00 00 00  |	|      data      |
+	    |00028|N-|00002|	|len |flags| type| NFTA_EXPR_DATA
+	      |00008|--|00001|	|len |flags| type| NFTA_IMMEDIATE_DREG
+	      | 00 00 00 00  |	|      data      | NFT_REG_VERDICT
+	      |00016|N-|00002|	|len |flags| type| NFTA_IMMEDIATE_DATA
+	        |00012|N-|00002|	|len |flags| type| NFTA_DATA_VERDICT
+	          |00008|--|00001|	|len |flags| type| NFTA_VERDICT_CODE
+	          | 00 00 00 00  |	|      data      | NF_DROP
 	----------------	------------------
 	*/
 	r = nftnl_rule_alloc();
@@ -652,7 +656,7 @@ static struct nftnl_rule
 	----------------	------------------
 	----------------	------------------
 	|  0000000292  |	| message length |
-	| 02566 | R--- |	|  type | flags  |
+	| 02566 | R--- |	|  type | flags  | NFT_MSG_NEWRULE
 	|  0000000004  |	| sequence number|
 	|  0000000000  |	|     port ID    |
 	----------------	------------------
@@ -694,7 +698,7 @@ static struct nftnl_rule
 	          | 00 00 00 00  |	|      data      |
 	          | 00 00 00 00  |	|      data      |
 	          | 00 00 00 00  |	|      data      |
-	|00056|N-|00001|	|len |flags| type|
+	|00056|N-|00001|	|len |flags| type| NFTA_LIST_ELEM
 	    |00008|--|00001|	|len |flags| type|
 	    | 63 6d 70 00  |	|      data      |	 c m p
 	    |00044|N-|00002|	|len |flags| type|
@@ -722,7 +726,7 @@ static struct nftnl_rule
 	        |00036|N-|00002|	|len |flags| type| NFTA_DATA_VERDICT
 	          |00008|--|00001|	|len |flags| type| NFTA_VERDICT_CODE
 	          | ff ff ff fc  |	|      data      | NFT_GOTO
-	          |00021|--|00002|	|len |flags| type| NFTA_???
+	          |00021|--|00002|	|len |flags| type| NFTA_VERDICT_DATA
 	          | 6b 65 65 70  |	|      data      |	 k e e p
 	          | 61 6c 69 76  |	|      data      |	 a l i v
 	          | 65 64 5f 69  |	|      data      |	 e d _ i
@@ -1045,7 +1049,7 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 	nftnl_chain_free(t);
 	my_mnl_nlmsg_batch_next(batch);
 
-	/* nft add chain ip6 keepalived out { type filter hook putput priority PRIORITY; policy accept; } */
+	/* nft add chain ip6 keepalived out { type filter hook output priority PRIORITY; policy accept; } */
 	t = chain_add_parse(table, "out");
 	if (t == NULL)
 		exit(EXIT_FAILURE);
@@ -1309,7 +1313,7 @@ nft_update_ipv6_address(struct mnl_nlmsg_batch *batch, ip_address_t *addr, bool 
 	/* Add element to set
 	 * nft add element ip6 keepalived vips ADDR or
 	 * nft add element ip6 keepalived vips_link_local ADDR . IF or
-	 * nft add element ip6 keepalived vips_link_local_ifname ADDR . IF */
+	 * nft add element ip6 keepalived vips_link_local_name ADDR . IF */
 	e = nftnl_set_elem_alloc();
 	if (e == NULL) {
 		log_message(LOG_INFO, "OOM error - %d", errno);
@@ -1456,7 +1460,7 @@ nft_cleanup(void)
 	----------------	------------------
 	----------------	------------------
 	|  0000000036  |	| message length |
-	| 02562 | R-A- |	|  type | flags  |
+	| 02562 | R-A- |	|  type | flags  | NFT_MSG_DELTABLE
 	|  0000000004  |	| sequence number|
 	|  0000000000  |	|     port ID    |
 	----------------	------------------
@@ -1484,6 +1488,7 @@ nft_cleanup(void)
 
 	batch = nft_start_batch();
 
+	/* nft delete table ip keepalived */
 	t = nftnl_table_alloc();
 	nftnl_table_set_str(t, NFTNL_TABLE_NAME, global_data->vrrp_nf_table_name);
 
@@ -1496,6 +1501,7 @@ nft_cleanup(void)
 		my_mnl_nlmsg_batch_next(batch);
 	}
 
+	/* nft delete table ip keepalived */
 	if (ipv6_table_setup) {
 		nlh = nftnl_table_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 						NFT_MSG_DELTABLE, NFPROTO_IPV6,

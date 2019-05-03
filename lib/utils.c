@@ -118,8 +118,8 @@ write_stacktrace(const char *file_name, const char *str)
 {
 	int fd;
 	void *buffer[100];
-	int nptrs;
-	int i;
+	unsigned int nptrs;
+	unsigned int i;
 	char **strs;
 
 	nptrs = backtrace(buffer, 100);
@@ -142,7 +142,8 @@ write_stacktrace(const char *file_name, const char *str)
 		}
 
 		/* We don't need the call to this function, or the first two entries on the stack */
-		for (i = 1; i < nptrs - 2; i++)
+		nptrs -= 2;
+		for (i = 1; i < nptrs; i++)
 			log_message(LOG_INFO, "  %s", strs[i]);
 		free(strs);
 	}
