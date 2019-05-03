@@ -550,13 +550,26 @@ do
     }
     ]])],
     [
-      AC_MSG_RESULT([yes])
-      eval $LOCAL_WARN_VAR=yes
-      add_to_var([KA_CFLAGS], [-W$WARN])
-      AC_DEFINE_UNQUOTED([$WARN_VAR], [ 1 ])
-      AS_IF([test -z "$WARN_VAR_SHORT"], [],
-	    [AC_DEFINE_UNQUOTED([$WARN_VAR_SHORT], [ 1 ])]
-	   )
+      # gcc 9 removed -Wchkp and doesn't error if it is specified,
+      # but rather outputs:
+      #  warning: switch '-Wchkp' is no longer supported
+      # so check for the warning.
+      touch conftest.err
+      grep -q "is no longer supported" conftest.err
+      AS_IF([test $? -ne 0],
+       [
+	AC_MSG_RESULT([yes])
+	eval $LOCAL_WARN_VAR=yes
+	add_to_var([KA_CFLAGS], [-W$WARN])
+	AC_DEFINE_UNQUOTED([$WARN_VAR], [ 1 ])
+	AS_IF([test -z "$WARN_VAR_SHORT"], [],
+	      [AC_DEFINE_UNQUOTED([$WARN_VAR_SHORT], [ 1 ])]
+	     )
+       ],
+       [
+	AC_MSG_RESULT([no])
+	eval $LOCAL_WARN_VAR=no
+       ])
     ],
     [
       AC_MSG_RESULT([no])
