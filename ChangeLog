@@ -1,3 +1,174 @@
+2019-05-03 Alexandre Cassen <acassen@keepalived.org>
+	* keepalived-2.0.16
+	* Add log_unknown_vrids keyword.
+	  Commit 21e6f5f added logging when a VRRP packet was received on an
+	  interface and the VRID in the advert was not configured on that
+	  interface.
+	  Due to valid uses of keepalived having a VRRP instance on an
+	  interface, but there being other, independent, VRRP instances with
+	  different VRIDs on the same interface, this patch only enables logging
+	  of unknown VRIDs if it is specifically configured.
+	* Stop segfault when reload and using -x option.
+	* Fix compilation error found by Travis-CI.
+	* Fix a couple of typos.
+	* Ensure check command line when needed for track process.
+	* Check if comm really changed when get PROC_EVENT_COMM_CHANGE.
+	* Fix debounce delay handling for track_process.
+	* Optimise add_process().
+	* Remove processes no longer being monitored.
+	* Optimise check_process().
+	* Ignore process threads for track_process.
+	* Allow matching of process parameters in track_process
+	  This additional functionality was requested in issue #1190.
+	* Allow separate delay timers for fork and process exit in
+	  track_process.
+	* Add quorum_max for track_process.
+	  This allows track_process to go to fault state if more than a
+	  specified number of instances of a process are running. In particular
+	  it can go to fault state if more than one instance is running, and
+	  also if any instance of a process is running.
+	* Add configuring process name.
+	  With up to 4 processes running all named keepalived, it can be
+	  difficult to know which is which. The commit adds the option to
+	  allow process name to be set independantly for each process.
+	* Handle macvlans/macvtaps being moved into different namespace from parent
+	  If a macvlan or macvtap interface is moved into a different namespace from
+	  its parent, and the interface is in the namespace in which keepalived is
+	  running, keepalived is unable to get information about, or configure, the
+	  parent interface. In this case, treat the macvlan/macvtap interface as though
+	  it doesn't have a parent interface.
+	  There are a couple of consequences of this in this situation:
+	    1) If a vrrp instance is configured with use_vmac and its configured interface
+	       is such a macvlan/macvtap interface, keepalived cannot ensure that the
+	       arp_ignore and arp_filter settings are correct on the parent
+	    2) keepalived cannot check that there a not duplicate VRIDs being used on the
+	       interface.
+	* Typo writing word error fix.
+	* Add vrrp instance priority change notifications on FIFOs only.
+	  Issue #1213 requested notification of vrrp instance priority changes,
+	  and this commit implements that with new FIFO messages:
+	  INSTANCE "VI_0" MASTER_PRIORITY 220
+	  INSTANCE "VI_0" BACKUP_PRIORITY 254
+	  This has been implemented via notify FIFOs only, since the order of
+	  processing of scripts is indeterminate if events happen quickly in
+	  succession, potentially causing the last processed priority by a
+	  script not to be the lastest priority, and using SMTP notification
+	  would be ridiculous.
+	* Allow user and group ownership of FIFOs to be configured.
+	* Remove extraneous debugging message from process_name commit
+	  Commit 4ad6d11 - "Add configuring process name" accidentally left
+	  a debugging log message in the code. This commit removes it.
+	* Fix FREE error if tracked process has no parameters.
+	* Fix track processes when reloading.
+	* Fix route add/delete on reload if only change via address
+	  If a virtual_iproute
+	  src 100.100.100.100 2.2.2.2/32 via 100.100.100.2 dev eth0
+	  is changed to
+	  src 100.100.100.100 2.2.2.2/32 via 100.100.100.1 dev eth0
+	  on a reload the route didn't get updated. The reason is that the
+	  via address wasn't used in the comparison of routes, so keepalived
+	  didn't detect that it had changed.
+	* Define TASK_COMM_LEN rather than use numbers in code.
+	* Fix promote_secondaries.
+	* Add snmpd.service to keepalived.service if SNMP enabled.
+	* Add issue templates for github.
+	* Make utils.c function parameters const where appropriate.
+	* Add missing info to check process dump file.
+	* Make ipvs_talk() error message more meaningful
+	  The error message used to just output the IPVS command number, now
+	  the name of the command is reported too.
+	* Make more use of LIST_FOREACH in ipwrapper.c.
+	* Change VS_ISEQ etc to be functions and correct them.
+	* Resolve removing virtual servers in virtual server groups after
+	  reloading.
+	* Update NOTE_vrrp_vmac.txt re sysctl settings.
+	* Ignore base interfaces of macvlans if in a different namespace.
+	* Don't lose sin_addr_l and sin6_addr_l lists from interface when recreate
+	  Issue #1232 identified that keepalived segfaulted when an interface was
+	  recreated. This commit resolves the problem of the address lists being
+	  lost.
+	* Fix commit 128bfe6 for pre v4.0 kernels
+	  Commit 128bfe6 - "Ignore base interfaces of macvlans if in a different
+	  namespace" added using IFLA_LINK_NETNSID to detect if the parent of an
+	  interface was in a different namespace. Unfortunately that was only
+	  introduced in Linux v4.0, so don't attempt to use it if it is not
+	  defined.
+	  For kernels older than v4.0 if a macvlan interface's parent is in
+	  another network namespace, but the ifindex of the parent interface also
+	  exists in the namespace in which keepalived is running, then keepalived
+	  will believe the parent of the macvlan is the wrong interface.
+	* Fix commit 3207f5c - IFLA_LINK_NETNSID is not #define'd
+	  This fixes commit 3207f5c - "Fix commit 128bfe6 for pre v4.0 kernels".
+	  A configure test is needed to check for IFLA_LINK_NETNSID.
+	* Further fixes/improvements for MACVLAN parents in different
+	  namespaces.
+	* allow to set zero weight for real server.
+	* Add comments re needing to enable protocol 112 in an AWS security
+	  group.
+	* Check if base i/f of a residual macvlan is in correct namespace.
+	* Stop segfault if using DBus and have invalid VRRP configuration.
+	  If a VRRP instance was removed by vrrp_complete_init() it was causing
+	  a segfault in the DBus code. The commit moves the initialisation of
+	  DBus until after the validity of the VRRP instances has been checked.
+	* Handle DBus process properly when reloading.
+	  DBus may change from being enabled to disabled or vice versa and
+	  the code didn't handle that.
+	* Close DBus pipes when stop using DBus.
+	* Add some more LIST_FOREACH to DBus code.
+	* Move a g_free() to after last use of the freed string in vrrp_dbus.
+	* Fix error in man page.
+	* Handle network namespace name properly when reloading.
+	* Don't call g_hash_table_remove() when using g_hash_table_foreach_remove()
+	  g_hash_table_foreach_remove() removes each object from the hash table,
+	  so calling g_hash_table_remove() as well made it not work properly.
+	* Resolve various aspects of reloading when also using DBus.
+	  1. Add ability for DBus to be enabled and disabled at reload
+	  2. Correctly handle vrrp_instance name change for matching interface/
+	     family/VRID.
+	  3. Correct handling of interface/family/VRID change for a vrrp_instance
+	     with the same name.
+	* Resolve segfault when a vrrp_instance has no interface specified.
+	* Fix sending priority 0 adverts after reload for deleted vrrp
+	  instances.
+	  During a reload, vrrp_dispatcher_release() was called prior to
+	  reloading the configuration, and it closed all the vrrp send/receive
+	  sockets. However it isn't until after the reload that it is known which
+	  vrrp instances no longer exist, and clear_diff_vrrp() attempted to send 0
+	  priority adverts for those instances. Since the sockets had already been
+	  closed, the adverts could not be sent. Worse, the socket_t structures had
+	  been released, but the released memory was accessed in attempting to send
+	  the adverts.
+	  This commit delays calling vrrp_dispatcher_release() until after the new
+	  configuration has been reloaded, and it sends 0 priority adverts before
+	  all the old sockets are closed. Following this new sockets are opened.
+	  It would be possible to make the code more efficient and retain the sockets
+	  that still need to be used, rather than closing them and opening new ones,
+	  but that is for another commit.
+	* Update some comments in vrrp_snmp.c.
+	* Use structure initialisation to clear struct, rather than memset.
+	* Fix logging if receive EPOLLHUP, EPOLLERR and add for EPOLLRDHUP.
+	* Add support for network timestamp debugging.
+	* Check return code from recvfrom() before other values for
+	  track_process.
+	* Use IPV6_RECVPKTINFO rather than IPV6_RECVHOPLIMIT when check
+	  multicast.
+	* Ensure virtual servers are properly removed when reloading.
+	  Pull request #1246 provided a patch to resolve the issue of virtual
+	  servers in a virtual server group that are deleted from the virtual
+	  server group on a reload weren't being removed from the IPVS
+	  configuration. However, the patch didn't quite work with the current
+	  HEAD of the master branch.
+	  This commit incorporates that patch provided and makes the necessary
+	  adjustments for it to work correctly.
+	* Cosmetic changes to IPVS code.
+	* Make clear the IPv6 instances use VRRP version 3.
+	* Delete redundant code.
+	* Update comments in vrrp_nftables.c.
+	* Update for gcc v9
+	  Detect if -Wchkp is no longer supported, and fix a -Wstrict-overflow
+	  warning in write_backtrace().
+	* Add additional compiler warnings available in gcc verion 9.
+
 2019-04-04 Alexandre Cassen <acassen@keepalived.org>
 	* keepalived-2.0.15
 	* Fix uninitialised variable.
