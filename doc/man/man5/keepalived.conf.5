@@ -366,7 +366,7 @@ and
     # Send vrrp instance priority notifications on notify FIFOs.
     \fBvrrp_notify_priority_changes\fR <BOOL>
 
-    # The following options can be used if vrrp or checker processes
+    # The following options can be used if vrrp, checker or bfd  processes
     # are timing out. This can be seen by a backup vrrp instance becoming
     # master even when the master is still running because the master or
     # backup system is too busy to process vrrp packets.
@@ -388,6 +388,24 @@ and
 
     # Set the BFD child process non swappable
     \fBbfd_no_swap\fR
+
+    # The following options can be used to force vrrp, checker and bfd
+    # processes to run on a restricted CPU set.
+    # You can either bind processes to a single CPU or define a set of
+    # cpu. In that last case Linux kernel will be restricted to that cpu
+    # set during scheduling. Forcing process binding to single CPU can
+    # increase performances on heavy loaded box.
+    # INTEGER following configuration keyword are representing cpu_id
+    # as shown in /proc/cpuinfo on line "processor:"
+    # --
+    # Set CPU Affinity for the vrrp child process
+    \fBvrrp_cpu_affinity\fR <INTEGER> [<INTERGER>]...[<INTEGER>]
+
+    # Set CPU Affinity for the checker child process
+    \fBchecker_cpu_affinity\fR <INTEGER> [<INTERGER>]...[<INTEGER>]
+
+    # Set CPU Affinity for the bfd child process
+    \fBbfd_cpu_affinity\fR <INTEGER> [<INTERGER>]...[<INTEGER>]
 
     # Set the vrrp child process to use real-time scheduling
     # at the specified priority

@@ -350,6 +350,11 @@ start_check(list old_checkers_queue, data_t *prev_global_data)
 #endif
 #endif
 			       global_data->checker_process_priority, global_data->checker_no_swap ? 4096 : 0);
+
+#ifdef _HAVE_SCHED_RT_
+	/* Set the process cpu affinity if configured */
+	set_process_cpu_affinity(&global_data->checker_cpu_mask, "checker");
+#endif
 }
 
 void

@@ -550,6 +550,38 @@ get_realtime_priority(vector_t *strvec, const char *process)
 
 	return priority;
 }
+static int
+get_cpu_affinity(vector_t *strvec, cpu_set_t *set, const char *process)
+{
+	int cpu_id, num_cpus;
+	unsigned i;
+
+	if (!strvec)
+		return -1;
+
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "No %s cpu_id set specified", process);
+		return -1;
+	}
+
+	CPU_ZERO(set);
+	/* TODO: instead of sysconf, maybe we could fetch current cpu_set via
+	 * sched_getaffinity and use CPU_COUNT */
+	num_cpus = sysconf(_SC_NPROCESSORS_ONLN);
+	for (i = 1; i < vector_size(strvec); i++) {
+		if (!read_int_strvec(strvec, i, &cpu_id, 0, num_cpus-1, true)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid cpu_id:%d specified for %s process"
+								, cpu_id, process);
+			/* Reset cpu_set at first error */
+			CPU_ZERO(set);
+			return -1;
+		}
+
+		CPU_SET(cpu_id, set);
+	}
+
+	return 0;
+}
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 static rlim_t
 get_rt_rlimit(vector_t *strvec, const char *process)
@@ -951,6 +983,11 @@ vrrp_rt_priority_handler(vector_t *strvec)
 	if (priority >= 0)
 		global_data->vrrp_realtime_priority = priority;
 }
+static void
+vrrp_cpu_affinity_handler(vector_t *strvec)
+{
+	get_cpu_affinity(strvec, &global_data->vrrp_cpu_mask, "vrrp");
+}
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 static void
 vrrp_rt_rlimit_handler(vector_t *strvec)
@@ -1083,6 +1120,11 @@ checker_rt_priority_handler(vector_t *strvec)
 	if (priority >= 0)
 		global_data->checker_realtime_priority = priority;
 }
+static void
+checker_cpu_affinity_handler(vector_t *strvec)
+{
+	get_cpu_affinity(strvec, &global_data->checker_cpu_mask, "checker");
+}
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 static void
 checker_rt_rlimit_handler(vector_t *strvec)
@@ -1107,10 +1149,15 @@ bfd_no_swap_handler(__attribute__((unused)) vector_t *strvec)
 static void
 bfd_rt_priority_handler(vector_t *strvec)
 {
-	int priority = get_realtime_priority(strvec, "BFD");
+	int priority = get_realtime_priority(strvec, "bfd");
 
 	if (priority >= 0)
 		global_data->bfd_realtime_priority = priority;
+}
+static void
+bfd_cpu_affinity_handler(vector_t *strvec)
+{
+	get_cpu_affinity(strvec, &global_data->bfd_cpu_mask, "bfd");
 }
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 static void
@@ -1778,6 +1825,7 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_strict", &vrrp_strict_handler);
 	install_keyword("vrrp_priority", &vrrp_prio_handler);
 	install_keyword("vrrp_no_swap", &vrrp_no_swap_handler);
+	install_keyword("vrrp_cpu_affinity", &vrrp_cpu_affinity_handler);
 #ifdef _HAVE_SCHED_RT_
 	install_keyword("vrrp_rt_priority", &vrrp_rt_priority_handler);
 #if HAVE_DECL_RLIMIT_RTTIME == 1
@@ -1797,6 +1845,7 @@ init_global_keywords(bool global_active)
 	install_keyword("lvs_notify_fifo_script", &lvs_notify_fifo_script);
 	install_keyword("checker_priority", &checker_prio_handler);
 	install_keyword("checker_no_swap", &checker_no_swap_handler);
+	install_keyword("checker_cpu_affinity", &checker_cpu_affinity_handler);
 #ifdef _HAVE_SCHED_RT_
 	install_keyword("checker_rt_priority", &checker_rt_priority_handler);
 #if HAVE_DECL_RLIMIT_RTTIME == 1
@@ -1807,6 +1856,7 @@ init_global_keywords(bool global_active)
 #ifdef _WITH_BFD_
 	install_keyword("bfd_priority", &bfd_prio_handler);
 	install_keyword("bfd_no_swap", &bfd_no_swap_handler);
+	install_keyword("bfd_cpu_affinity", &bfd_cpu_affinity_handler);
 #ifdef _HAVE_SCHED_RT_
 	install_keyword("bfd_rt_priority", &bfd_rt_priority_handler);
 #if HAVE_DECL_RLIMIT_RTTIME == 1

@@ -651,6 +651,11 @@ start_vrrp(data_t *prev_global_data)
 #endif
 			       global_data->vrrp_process_priority, global_data->vrrp_no_swap ? 4096 : 0);
 
+#ifdef _HAVE_SCHED_RT_
+	/* Set the process cpu affinity if configured */
+	set_process_cpu_affinity(&global_data->vrrp_cpu_mask, "vrrp");
+#endif
+
 	/* Ensure we can open sufficient file descriptors */
 	set_vrrp_max_fds();
 }

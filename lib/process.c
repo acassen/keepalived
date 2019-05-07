@@ -27,9 +27,6 @@
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
-#ifdef _HAVE_SCHED_RT_
-#include <sched.h>
-#endif
 #include <stdbool.h>
 
 #include "process.h"
@@ -148,6 +145,24 @@ set_process_priorities(
 		set_process_dont_swap(no_swap_stack_size);
 }
 RELAX_STACK_PROTECTOR_END
+
+#ifdef _HAVE_SCHED_RT_
+int
+set_process_cpu_affinity(cpu_set_t *set, const char *process)
+{
+	/* If not used empty set */
+	if (!CPU_COUNT(set))
+		return 0;
+
+	if (sched_setaffinity(0, sizeof(cpu_set_t), set)) {
+		log_message(LOG_WARNING, "unable to set cpu affinity to %s process (%m)"
+				       , process);
+		return -1;
+	}
+
+	return 0;
+}
+#endif
 
 void
 reset_process_priorities(void)

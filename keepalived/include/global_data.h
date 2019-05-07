@@ -170,6 +170,7 @@ typedef struct _data {
 	bool				vrrp_no_swap;
 #ifdef _HAVE_SCHED_RT_
 	unsigned			vrrp_realtime_priority;
+	cpu_set_t			vrrp_cpu_mask;
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 	rlim_t				vrrp_rlimit_rt;
 #endif
@@ -181,6 +182,7 @@ typedef struct _data {
 	bool				checker_no_swap;
 #ifdef _HAVE_SCHED_RT_
 	unsigned			checker_realtime_priority;
+	cpu_set_t			checker_cpu_mask;
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 	rlim_t				checker_rlimit_rt;
 #endif
@@ -192,6 +194,7 @@ typedef struct _data {
 	bool				bfd_no_swap;
 #ifdef _HAVE_SCHED_RT_
 	unsigned			bfd_realtime_priority;
+	cpu_set_t			bfd_cpu_mask;
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 	rlim_t				bfd_rlimit_rt;
 #endif
