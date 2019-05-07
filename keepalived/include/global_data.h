@@ -30,6 +30,10 @@
 #include <stdio.h>
 #include <sys/socket.h>
 
+#ifdef _HAVE_SCHED_RT_
+#include <sched.h>
+#endif
+
 #ifdef HAVE_LINUX_NETFILTER_X_TABLES_H
 #include <linux/netfilter/x_tables.h>
 #endif
