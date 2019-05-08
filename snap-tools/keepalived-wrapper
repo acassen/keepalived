@@ -3,10 +3,14 @@
 MAJ_VER=$(uname -r | cut -d'.' -f1)
 MIN_VER=$(uname -r | cut -d'.' -f2)
 RUNNING_KERNEL_VER=$(printf "%d%2.2d\n" $MAJ_VER $MIN_VER)
-if [ ${RUNNING_KERNEL_VER} -ge 418 ]; then
+if [ ${RUNNING_KERNEL_VER} -ge 500 ]; then
+  BINARY="keepalived-500"
+elif [ ${RUNNING_KERNEL_VER} -ge 418 ]; then
   BINARY="keepalived-418"
 elif [ ${RUNNING_KERNEL_VER} -ge 415 ]; then
   BINARY="keepalived-415"
+#elif [ ${RUNNING_KERNEL_VER} -ge 413 ]; then
+#  BINARY="keepalived-413"
 elif [ ${RUNNING_KERNEL_VER} -ge 404 ]; then
   BINARY="keepalived-404"
 elif [ ${RUNNING_KERNEL_VER} -ge 313 ]; then

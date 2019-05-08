@@ -2750,9 +2750,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				    ifp->hw_addr[sizeof(ll_addr) - 1] == vrrp->vrid &&
 				    (ifp->base_ifp == vrrp->configured_ifp->base_ifp
 #ifdef HAVE_IFLA_LINK_NETNSID
-				     || (ifp == ifp->base_ifp && vrrp->configured_ifp->base_netns_id == ifp->base_netns_id))
+				     || (ifp == ifp->base_ifp && vrrp->configured_ifp->base_netns_id == ifp->base_netns_id)
 #endif
-															   )
+															   ))
 				{
 					log_message(LOG_INFO, "(%s) Found matching interface %s", vrrp->iname, ifp->ifname);
 					if (vrrp->vmac_ifname[0] &&
