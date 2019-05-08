@@ -43,6 +43,7 @@ extern void set_process_priorities(
 				   int, int);
 #ifdef _HAVE_SCHED_RT_
 extern int set_process_cpu_affinity(cpu_set_t *, const char *);
+extern int get_process_cpu_affinity_string(cpu_set_t *, char *, size_t);
 #endif
 extern void reset_process_priorities(void);
 extern void set_child_rlimit(int, struct rlimit *);

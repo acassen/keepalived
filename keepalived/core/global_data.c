@@ -36,7 +36,7 @@
 #include "vrrp.h"
 #include "vrrp_ipaddress.h"
 #endif
-#if HAVE_DECL_RLIMIT_RTTIME == 1
+#ifdef _HAVE_SCHED_RT_
 #include "process.h"
 #endif
 #ifdef _WITH_FIREWALL_
@@ -373,6 +373,9 @@ free_global_data(data_t * data)
 void
 dump_global_data(FILE *fp, data_t * data)
 {
+#ifdef _HAVE_SCHED_RT_
+	char cpu_str[64];
+#endif
 #ifdef _WITH_VRRP_
 	char buf[64];
 #endif
@@ -411,7 +414,7 @@ dump_global_data(FILE *fp, data_t * data)
 		conf_write(fp, " Smtp HELO name = %s" , data->smtp_helo_name);
 	if (data->smtp_connection_to)
 		conf_write(fp, " Smtp server connection timeout = %lu"
-				    , data->smtp_connection_to / TIMER_HZ);
+			     , data->smtp_connection_to / TIMER_HZ);
 	if (data->email_from) {
 		conf_write(fp, " Email notification from = %s"
 				    , data->email_from);
@@ -556,6 +559,10 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " VRRP don't swap = %s", data->vrrp_no_swap ? "true" : "false");
 #ifdef _HAVE_SCHED_RT_
 	conf_write(fp, " VRRP realtime priority = %u", data->vrrp_realtime_priority);
+	if (CPU_COUNT(&data->vrrp_cpu_mask)) {
+		get_process_cpu_affinity_string(&data->vrrp_cpu_mask, cpu_str, 63);
+		conf_write(fp, " VRRP CPU Affinity = %s", cpu_str);
+	}
 #if HAVE_DECL_RLIMIT_RTTIME
 	conf_write(fp, " VRRP realtime limit = %" PRI_rlim_t, data->vrrp_rlimit_rt);
 #endif
@@ -566,6 +573,10 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " Checker don't swap = %s", data->checker_no_swap ? "true" : "false");
 #ifdef _HAVE_SCHED_RT_
 	conf_write(fp, " Checker realtime priority = %u", data->checker_realtime_priority);
+	if (CPU_COUNT(&data->checker_cpu_mask)) {
+		get_process_cpu_affinity_string(&data->checker_cpu_mask, cpu_str, 63);
+		conf_write(fp, " Checker CPU Affinity = %s", cpu_str);
+	}
 #if HAVE_DECL_RLIMIT_RTTIME
 	conf_write(fp, " Checker realtime limit = %" PRI_rlim_t, data->checker_rlimit_rt);
 #endif
@@ -576,6 +587,10 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " BFD don't swap = %s", data->bfd_no_swap ? "true" : "false");
 #ifdef _HAVE_SCHED_RT_
 	conf_write(fp, " BFD realtime priority = %u", data->bfd_realtime_priority);
+	if (CPU_COUNT(&data->bfd_cpu_mask)) {
+		get_process_cpu_affinity_string(&data->bfd_cpu_mask, cpu_str, 63);
+		conf_write(fp, " BFD CPU Affinity = %s", cpu_str);
+	}
 #if HAVE_DECL_RLIMIT_RTTIME
 	conf_write(fp, " BFD realtime limit = %" PRI_rlim_t, data->bfd_rlimit_rt);
 #endif
