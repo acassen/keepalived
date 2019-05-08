@@ -52,6 +52,8 @@ parts:
       - libjson-c-dev
       - libglib2.0-dev
       - libmagic-dev
+      - libmnl-dev
+      - libnftnl-dev
       - libnl-3-dev
       - libnl-genl-3-dev
       - libnfnetlink-dev
@@ -64,6 +66,8 @@ parts:
       - libjson-c2
       - libglib2.0-0
       - libmagic1
+      - libmnl0
+      - libnftnl4
       - libnl-3-200
       - libnl-genl-3-200
       - libpcre2-8-0
