@@ -9,6 +9,8 @@ elif [ ${RUNNING_KERNEL_VER} -ge 418 ]; then
   BINARY="keepalived-418"
 elif [ ${RUNNING_KERNEL_VER} -ge 415 ]; then
   BINARY="keepalived-415"
+#elif [ ${RUNNING_KERNEL_VER} -ge 413 ]; then
+#  BINARY="keepalived-413"
 elif [ ${RUNNING_KERNEL_VER} -ge 404 ]; then
   BINARY="keepalived-404"
 elif [ ${RUNNING_KERNEL_VER} -ge 313 ]; then
