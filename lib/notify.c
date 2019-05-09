@@ -130,10 +130,18 @@ cmd_str_r(const notify_script_t *script, char *buf, size_t len)
 
 		if (i)
 			*str_p++ = ' ';
-		*str_p++ = '\'';
+
+		/* Allow special case of bash script which is redirection only to
+		 * test for file existence. */
+		if (i || (script->args[i][0] != '<' && script->args[i][0] != '>'))
+			*str_p++ = '\'';
+
 		strcpy(str_p, script->args[i]);
 		str_p += str_len;
-		*str_p++ = '\'';
+
+		/* Close opening ' if we added one */
+		if (i || (script->args[i][0] != '<' && script->args[i][0] != '>'))
+			*str_p++ = '\'';
 	}
 	*str_p = '\0';
 
