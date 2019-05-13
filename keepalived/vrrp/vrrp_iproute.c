@@ -675,21 +675,13 @@ format_iproute(ip_route_t *route, char *buf, size_t buf_len)
 
 	if (route->type != RTN_UNICAST)
 		op += (size_t)snprintf(op, (size_t)(buf_end - op), "%s ", get_rttables_rtntype(route->type));
-	if (route->dst) {
+	if (route->dst)
 		op += (size_t)snprintf(op, (size_t)(buf_end - op), "%s", ipaddresstos(NULL, route->dst));
-		if ((route->dst->ifa.ifa_family == AF_INET && route->dst->ifa.ifa_prefixlen != 32 ) ||
-		    (route->dst->ifa.ifa_family == AF_INET6 && route->dst->ifa.ifa_prefixlen != 128 ))
-			op += (size_t)snprintf(op, (size_t)(buf_end - op), "/%u", route->dst->ifa.ifa_prefixlen);
-	}
 	else
 		op += (size_t)snprintf(op, (size_t)(buf_end - op), "%s", "default");
 
-	if (route->src) {
+	if (route->src)
 		op += (size_t)snprintf(op, (size_t)(buf_end - op), " from %s", ipaddresstos(NULL, route->src));
-		if ((route->src->ifa.ifa_family == AF_INET && route->src->ifa.ifa_prefixlen != 32 ) ||
-		    (route->src->ifa.ifa_family == AF_INET6 && route->src->ifa.ifa_prefixlen != 128 ))
-			op += (size_t)snprintf(op, (size_t)(buf_end - op), "/%u", route->src->ifa.ifa_prefixlen);
-	}
 
 //#if HAVE_DECL_RTA_NEWDST
 //	/* MPLS only */

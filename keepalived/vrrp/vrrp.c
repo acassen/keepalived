@@ -1321,6 +1321,21 @@ vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 	struct sockaddr_storage *addr;
 	element e;
 
+#ifdef _HAVE_VRRP_IPVLAN_
+	if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags) &&
+	    vrrp->saddr.ss_family == AF_UNSPEC &&
+	    vrrp->family == AF_INET6) {
+		if (!vrrp->ifp->sin6_addr.s6_addr32[0] &&
+		    !vrrp->ifp->sin6_addr.s6_addr32[1] &&
+		    !vrrp->ifp->sin6_addr.s6_addr32[2] &&
+		    !vrrp->ifp->sin6_addr.s6_addr32[3]) {
+			log_message(LOG_INFO, "No address yet for %s", vrrp->ifp->ifname);
+			return;
+		}
+		inet_ip6tosockaddr(&vrrp->ifp->sin6_addr, &vrrp->saddr);
+	}
+#endif
+
 	/* build the packet */
 	vrrp_update_pkt(vrrp, prio, NULL);
 
@@ -2260,7 +2275,7 @@ shutdown_vrrp_instances(void)
 			/* Remove VMAC. If we are shutting down due to a configuration
 			 * error, the VMACs may not be set up yet, and vrrp->ifp may
 			 * still point to the physical interface. */
-			if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) && vrrp->ifp->vmac_type)
+			if (vrrp->ifp->is_ours)
 				netlink_link_del_vmac(vrrp);
 #endif
 
@@ -2424,6 +2439,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #ifdef _HAVE_VRRP_VMAC_
 	char ifname[IFNAMSIZ];
 	interface_t *ifp;
+	const char *if_type;
 #endif
 	element e;
 	ip_address_t *vip;
@@ -2531,7 +2547,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 #ifdef _HAVE_VRRP_VMAC_
 	/* Check that the underlying interface type is Ethernet if using a VMAC */
-	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) && vrrp->ifp->ifindex && vrrp->ifp->hw_type != ARPHRD_ETHER) {
+	if ((__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)
+#ifdef _HAVE_VRRP_IPVLAN_
+	     || __test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags)
+#endif
+							      ) &&
+	    vrrp->ifp->ifindex && vrrp->ifp->hw_type != ARPHRD_ETHER) {
 		__clear_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags);
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s): vmacs are only supported on Ethernet type interfaces", vrrp->iname);
 		vrrp->num_script_if_fault++;	/* Stop the vrrp instance running */
@@ -2733,26 +2754,51 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 #ifdef _HAVE_VRRP_VMAC_
 	/* Set a default interface name for the vmac if needed */
-	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
+	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)
+#ifdef _HAVE_VRRP_IPVLAN_
+	    || __test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags)
+#endif
+							    ) {
 		/* The same vrid can be used for both IPv4 and IPv6, and also on multiple underlying
 		 * interfaces. */
+
+		if_type =
+#ifdef _HAVE_VRRP_IPVLAN_
+			  __test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags) ? "IPVLAN" :
+#endif
+			  "VMAC";
 
 		/* Look to see if an existing interface matches. If so, use that name */
 		list if_list = get_if_list();
 		if (!LIST_ISEMPTY(if_list)) {		/* If the list were empty we would have a real problem! */
 			LIST_FOREACH(if_list, ifp, e) {
-				/* Check if this interface could be the macvlan for this vrrp */
+				/* Check if this interface could be the macvlan/ipvlan for this vrrp */
 				if (ifp->ifindex &&
-				    ifp->vmac_type == MACVLAN_MODE_PRIVATE &&
-				    !memcmp(ifp->hw_addr, ll_addr, sizeof(ll_addr) - 2) &&
-				    ((vrrp->family == AF_INET && ifp->hw_addr[sizeof(ll_addr) - 2] == 0x01) ||
-				     (vrrp->family == AF_INET6 && ifp->hw_addr[sizeof(ll_addr) - 2] == 0x02)) &&
-				    ifp->hw_addr[sizeof(ll_addr) - 1] == vrrp->vrid &&
 				    (ifp->base_ifp == vrrp->configured_ifp->base_ifp
 #ifdef HAVE_IFLA_LINK_NETNSID
 				     || (ifp == ifp->base_ifp && vrrp->configured_ifp->base_netns_id == ifp->base_netns_id)
 #endif
-															   ))
+															   ) &&
+				    ((__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
+				      ifp->vmac_type == MACVLAN_MODE_PRIVATE &&
+				      !memcmp(ifp->hw_addr, ll_addr, sizeof(ll_addr) - 2) &&
+				      ((vrrp->family == AF_INET && ifp->hw_addr[sizeof(ll_addr) - 2] == 0x01) ||
+				       (vrrp->family == AF_INET6 && ifp->hw_addr[sizeof(ll_addr) - 2] == 0x02)) &&
+				      ifp->hw_addr[sizeof(ll_addr) - 1] == vrrp->vrid)
+#ifdef _HAVE_VRRP_IPVLAN_
+				     ||  /* We should probably check if any VIPs match for IPv6 when no i/f name or address configured */
+				     (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags) &&
+				      ifp->if_type == IF_TYPE_IPVLAN &&
+				      ifp->vmac_type == IPVLAN_MODE_L2 &&
+				      !(vrrp->family == AF_INET6 && !vrrp->vmac_ifname[0] && !vrrp->ipvlan_addr) &&
+				      (!vrrp->vmac_ifname[0] || !strcmp(vrrp->vmac_ifname, ifp->ifname)) &&
+				      (!vrrp->ipvlan_addr ||
+				       (vrrp->ipvlan_addr->ifa.ifa_family == AF_INET &&
+					!inet_inaddrcmp(AF_INET, &vrrp->ipvlan_addr->u.sin.sin_addr.s_addr, &ifp->sin_addr.s_addr)) ||
+				       (vrrp->ipvlan_addr->ifa.ifa_family == AF_INET6 &&
+					!inet_inaddrcmp(AF_INET6, &vrrp->ipvlan_addr->u.sin6_addr, &ifp->sin6_addr))))
+#endif
+					    ))
 				{
 					log_message(LOG_INFO, "(%s) Found matching interface %s", vrrp->iname, ifp->ifname);
 					if (vrrp->vmac_ifname[0] &&
@@ -2776,11 +2822,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			    (ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_NO_CREATE)) &&
 			     ifp->ifindex) {
 				/* An interface with the same name exists, but it doesn't match */
-				if (ifp->vmac_type)
-					log_message(LOG_INFO, "(%s) VMAC %s already exists but is incompatible. It will be deleted", vrrp->iname, vrrp->vmac_ifname);
+				if (IS_VLAN(ifp))
+					log_message(LOG_INFO, "(%s) %s %s already exists but is incompatible. It will be deleted", vrrp->iname,
+							if_type, vrrp->vmac_ifname);
 				else {
-					report_config_error(CONFIG_GENERAL_ERROR, "(%s) VMAC interface name %s already exists as a non VMAC interface - ignoring configured name",
-						    vrrp->iname, vrrp->vmac_ifname);
+					report_config_error(CONFIG_GENERAL_ERROR, "(%s) %s interface name %s already exists as a non %s interface - ignoring configured name",
+						    vrrp->iname, if_type, vrrp->vmac_ifname, if_type);
 					vrrp->vmac_ifname[0] = 0;
 				}
 			}
@@ -2825,12 +2872,19 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			vrrp->ifp = ifp;
 		}
 
-		if (vrrp->strict_mode && __test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) xmit_base is incompatible with strict mode - resetting", vrrp->iname);
-			__clear_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags);
+		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
+			if (vrrp->strict_mode && __test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) {
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) xmit_base is incompatible with strict mode - resetting", vrrp->iname);
+				__clear_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags);
+			}
 		}
 
-		if (vrrp->promote_secondaries) {
+		if (vrrp->promote_secondaries &&
+		    (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)
+#ifdef _HAVE_VRRP_IPVLAN_
+		    || __test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags)
+#endif
+		    )) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) promote_secondaries is automatically set for vmacs - ignoring", vrrp->iname);
 			vrrp->promote_secondaries = false;
 		}
@@ -2842,6 +2896,21 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		 * left over from a previous run. */
 		interface_already_existed = true;
 	}
+
+#ifdef _HAVE_VRRP_IPVLAN_
+	if (vrrp->family == AF_INET && !vrrp->ipvlan_addr) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) IPv4 ipvlan requires a source ip address to be configued - setting instance to fault state",
+							  vrrp->iname);
+		vrrp->num_script_if_fault++;
+	} else if (vrrp->ipvlan_addr) {
+		if (vrrp->family != vrrp->ipvlan_addr->ifa.ifa_family) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) IPv4 ipvlan address family does not match instance - setting instance to fault state",
+								  vrrp->iname);
+			vrrp->num_script_if_fault++;
+		} else
+			vrrp->ipvlan_addr->ifp = vrrp->ifp;
+	}
+#endif
 
 	/* Add us to the interfaces we are tracking */
 	LIST_FOREACH_NEXT(vrrp->track_ifp, tip, e, next) {
@@ -2858,7 +2927,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	add_vrrp_to_interface(vrrp, VRRP_CONFIGURED_IFP(vrrp), vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, true, TRACK_VRRP);
 
 #ifdef _HAVE_VRRP_VMAC_
-	/* If the interface is configured onto a VMAC interface, we want to track
+	/* If the interface is configured onto a VMAC/IPVLAN interface, we want to track
 	 * the underlying interface too */
 	if (vrrp->configured_ifp != vrrp->configured_ifp->base_ifp && vrrp->configured_ifp->base_ifp)
 		add_vrrp_to_interface(vrrp, vrrp->configured_ifp->base_ifp, vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, true, TRACK_VRRP_DYNAMIC);
@@ -2869,12 +2938,15 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		__clear_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags);
 	}
 
-	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
+	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)
+#ifdef _HAVE_VRRP_IPVLAN_
+	    || __test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags)
+#endif
+							     )
 	{
 		/* We need to know if we need to allow IPv6 just for eVIPs */
 		if (vrrp->family == AF_INET && !LIST_ISEMPTY(vrrp->evip)) {
-			for (e = LIST_HEAD(vrrp->evip); e; ELEMENT_NEXT(e)) {
-				vip = ELEMENT_DATA(e);
+			LIST_FOREACH(vrrp->evip, vip, e) {
 				if (vip->ifa.ifa_family == AF_INET6) {
 					vrrp->evip_add_ipv6 = true;
 					break;
@@ -2886,8 +2958,13 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		 * the underlying interface does exist */
 		if (vrrp->ifp->base_ifp->ifindex &&
 		    !__test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags) &&
-		    !__test_bit(CONFIG_TEST_BIT, &debug))
+		    !__test_bit(CONFIG_TEST_BIT, &debug)) {
+#ifdef _HAVE_VRRP_IPVLAN_
+			if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags))
+				netlink_link_add_ipvlan(vrrp);
+#endif
 			netlink_link_add_vmac(vrrp);
+		}
 
 		/* Add this instance to the vmac interface */
 		add_vrrp_to_interface(vrrp, vrrp->ifp, vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, true, TRACK_VRRP);
@@ -3345,8 +3422,18 @@ set_vrrp_src_addr(void)
 			}
 			else if (vrrp->family == AF_INET)
 				inet_ip4tosockaddr(&VRRP_CONFIGURED_IFP(vrrp)->sin_addr, &vrrp->saddr);
-			else if (vrrp->family == AF_INET6)
-				inet_ip6tosockaddr(&VRRP_CONFIGURED_IFP(vrrp)->sin6_addr, &vrrp->saddr);
+			else if (vrrp->family == AF_INET6) {
+#ifdef _HAVE_VRRP_IPVLAN_
+				if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags)) {
+					if (vrrp->ifp->sin6_addr.s6_addr32[0] ||
+					    vrrp->ifp->sin6_addr.s6_addr32[1] ||
+					    vrrp->ifp->sin6_addr.s6_addr32[2] ||
+					    vrrp->ifp->sin6_addr.s6_addr32[3])
+					inet_ip6tosockaddr(&vrrp->ifp->sin6_addr, &vrrp->saddr);
+				} else
+#endif
+					inet_ip6tosockaddr(&VRRP_CONFIGURED_IFP(vrrp)->sin6_addr, &vrrp->saddr);
+			}
 		}
 	}
 }
@@ -3765,7 +3852,7 @@ clear_diff_vrrp(void)
 #ifdef _HAVE_VRRP_VMAC_
 // TODO - the vmac may be being used by another instance
 			/* Remove VMAC if one was created */
-			if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
+			if (vrrp->ifp->is_ours /*__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)*/)
 				netlink_link_del_vmac(vrrp);
 #endif
 #ifdef _WITH_DBUS_
@@ -3793,8 +3880,7 @@ clear_diff_vrrp(void)
 			 * Remove VMAC if it existed in old vrrp instance,
 			 * but not the new one.
 			 */
-			if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
-			    !__test_bit(VRRP_VMAC_BIT, &new_vrrp->vmac_flags)) {
+			if (vrrp->ifp->is_ours) {
 // TODO - the vmac may be being used by another instance
 				netlink_link_del_vmac(vrrp);
 			}

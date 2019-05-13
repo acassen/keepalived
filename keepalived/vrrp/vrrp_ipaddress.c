@@ -52,15 +52,20 @@
 char *
 ipaddresstos(char *buf, ip_address_t *ipaddress)
 {
-	static char addr_str[INET6_ADDRSTRLEN];
+	static char addr_str[INET6_ADDRSTRLEN + 4];	/* allow for subnet */
+	char *end;
 
 	if (!buf)
 		buf = addr_str;
 
-	if (IP_IS6(ipaddress)) {
+	if (IP_IS6(ipaddress))
 		inet_ntop(AF_INET6, &ipaddress->u.sin6_addr, buf, INET6_ADDRSTRLEN);
-	} else {
+	else
 		inet_ntop(AF_INET, &ipaddress->u.sin.sin_addr, buf, INET_ADDRSTRLEN);
+	if ((ipaddress->ifa.ifa_family == AF_INET && ipaddress->ifa.ifa_prefixlen != 32 ) ||
+	    (ipaddress->ifa.ifa_family == AF_INET6 && ipaddress->ifa.ifa_prefixlen != 128 )) {
+		end = addr_str + strlen(addr_str);
+		snprintf(end, addr_str + sizeof(addr_str) - end, "/%u", ipaddress->ifa.ifa_prefixlen);
 	}
 
 	return buf;
@@ -237,13 +242,11 @@ free_ipaddress(void *if_data)
 void
 format_ipaddress(ip_address_t *ipaddr, char *buf, size_t buf_len)
 {
-	char peer[INET6_ADDRSTRLEN];
+	char peer[INET6_ADDRSTRLEN + 4];	/* allow for subnet */
 	char *buf_p = buf;
 	char *buf_end = buf + buf_len;
 
 	buf_p += snprintf(buf_p, buf_end - buf_p, "%s", ipaddresstos(NULL, ipaddr));
-	if (!ipaddr->have_peer)
-		buf_p += snprintf(buf_p, buf_end - buf_p, "/%d", ipaddr->ifa.ifa_prefixlen);
 	if (!IP_IS6(ipaddr) && ipaddr->u.sin.sin_brd.s_addr) {
 		buf_p += snprintf(buf_p, buf_end - buf_p, " brd %s",
 			 inet_ntop2(ipaddr->u.sin.sin_brd.s_addr));

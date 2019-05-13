@@ -414,6 +414,9 @@ free_vrrp(void *data)
 	vrrp_t *vrrp = data;
 
 	FREE(vrrp->iname);
+#ifdef _HAVE_VRRP_IPVLAN_
+	FREE_PTR(vrrp->ipvlan_addr);
+#endif
 	FREE_PTR(vrrp->send_buffer);
 	free_notify_script(&vrrp->script_backup);
 	free_notify_script(&vrrp->script_master);
@@ -488,13 +491,29 @@ dump_vrrp(FILE *fp, void *data)
 	}
 #ifdef _HAVE_VRRP_VMAC_
 	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
-		conf_write(fp, "   Use VMAC, is_up = %s,  xmit_base = %s",
+		conf_write(fp, "   Use VMAC, i/f name %s, is_up = %s, xmit_base = %s",
+				vrrp->vmac_ifname,
 				__test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags) ? "true" : "false",
 				__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) ? "true" : "false");
+#ifdef _HAVE_VRRP_IPVLAN_
+	else if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags))
+		conf_write(fp, "   Use IPVLAN, i/f %s, is_up = %s%s%s, type %s",
+				vrrp->vmac_ifname,
+				__test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags) ? "true" : "false",
+				vrrp->ipvlan_addr ? ", i/f address = " : "",
+				vrrp->ipvlan_addr ? ipaddresstos(NULL, vrrp->ipvlan_addr) : "",
+#ifdef IPVLAN_F_VEPA	/* Since Linux v4.15 */
+				!vrrp->ipvlan_type ? "bridge" : vrrp->ipvlan_type == IPVLAN_F_PRIVATE ? "private" : vrrp->ipvlan_type == IPVLAN_F_VEPA ? "vepa" : "unknown"
+#else
+				"bridge"
+#endif
+#endif
+					);
 	if (vrrp->ifp->is_ours) {
-		conf_write(fp, "   Interface = %s, vmac on %s, xmit %s i/f", IF_NAME(vrrp->ifp),
+		conf_write(fp, "   Interface = %s, %s on %s%s", IF_NAME(vrrp->ifp),
+				__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) ? "vmac" : "ipvlan",
 				vrrp->ifp != vrrp->ifp->base_ifp ? vrrp->ifp->base_ifp->ifname : "(unknown)",
-				__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) ? "base" : "vmac");
+				__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) ? ", xmit base i/f" : "");
 	} else
 #endif
 		conf_write(fp, "   Interface = %s", IF_NAME(vrrp->ifp));

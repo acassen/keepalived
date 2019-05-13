@@ -77,6 +77,25 @@ typedef struct _garp_delay {
 	int			aggregation_group;	/* Index of multi-interface group */
 } garp_delay_t;
 
+#ifdef _HAVE_VRRP_VMAC_
+typedef enum {
+	IF_TYPE_MACVLAN = 1,
+#ifdef _HAVE_VRRP_IPVLAN_
+	IF_TYPE_IPVLAN,
+#endif
+#ifdef _HAVE_VRF_
+	IF_TYPE_VRF,
+#endif
+} if_type_t;
+
+#ifdef _HAVE_VRRP_IPVLAN_
+#define IS_VLAN(IFP)	((IFP)->if_type == IF_TYPE_MACVLAN || (IFP)->if_type == IF_TYPE_IPVLAN)
+#else
+#define IS_VLAN(IFP)	((IFP)->if_type == IF_TYPE_MACVLAN)
+#endif
+
+#endif
+
 /* Interface structure definition */
 typedef struct _interface {
 	char			ifname[IFNAMSIZ];	/* Interface name */
@@ -98,7 +117,8 @@ typedef struct _interface {
 	int			lb_type;		/* Interface regs selection */
 #endif
 #ifdef _HAVE_VRRP_VMAC_
-	int			vmac_type;		/* Set if interface is a VMAC interface */
+	if_type_t		if_type;		/* interface type */
+	int			vmac_type;		/* Type of macvlan or ipvlan */
 	ifindex_t		base_ifindex;		/* Only used at startup if we find vmac i/f before base i/f */
 #ifdef HAVE_IFLA_LINK_NETNSID
 	int			base_netns_id;		/* Network namespace of the parent interface */

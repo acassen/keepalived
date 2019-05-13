@@ -51,6 +51,8 @@
 #define	VERSION_STRING		PACKAGE_NAME " v" PACKAGE_VERSION " (" GIT_DATE ")"
 #define COPYRIGHT_STRING	"Copyright(C) 2001-" GIT_YEAR " Alexandre Cassen, <acassen@gmail.com>"
 
+#define max(a,b) ((a) >= (b) ? (a) : (b))
+
 #ifdef _WITH_PERF_
 typedef enum {
 	PERF_NONE,
@@ -213,6 +215,7 @@ extern int domain_stosockaddr(const char *, const char *, struct sockaddr_storag
 extern int inet_stosockaddr(char *, const char *, struct sockaddr_storage *);
 extern void inet_ip4tosockaddr(const struct in_addr *, struct sockaddr_storage *);
 extern void inet_ip6tosockaddr(const struct in6_addr *, struct sockaddr_storage *);
+extern bool check_valid_ipaddress(char *, bool);
 extern char *inet_sockaddrtos(const struct sockaddr_storage *);
 extern char *inet_sockaddrtopair(const struct sockaddr_storage *);
 extern const char *inet_sockaddrtotrio(const struct sockaddr_storage *, uint16_t);
