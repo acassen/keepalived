@@ -340,6 +340,9 @@ WARNINGS_EXTRA="aggregate-return conversion padded pedantic sign-conversion stri
 # We want _GNU_SOURCE defined always
 add_to_var([CFLAGS], [-D_GNU_SOURCE])
 
+# fpclassify() needs -lm
+add_to_var([KA_LIBS], [-lm])
+
 # Some sanity checks on configure options
 AS_IF([test .$enable_vrrp = .no],
   [
@@ -778,27 +781,6 @@ AC_LINK_IFELSE([AC_LANG_SOURCE([[
       [AC_MSG_ERROR([clock_gettime() not supported])])
     LDFLAGS=$SAV_LDFLAGS
   ])
-
-# Check if fpclassify() requires -lm
-CFLAGS=
-LDFLAGS=
-AC_MSG_CHECKING([whether fpclassify() requires -lm])
-AC_LINK_IFELSE([AC_LANG_SOURCE([[
-  # include <math.h>
-  int main(int argc, char **argv)
-  {
-    double zero = 0.0;
-    if (fpclassify(zero) == FP_ZERO)
-      return 0;
-    return 1;
-  }
-  ]])],
-  AC_MSG_RESULT([no]),
-  AC_MSG_RESULT([yes])
-    add_to_var([KA_LIBS], [-lm])
-  )
-CFLAGS=$SAV_CFLAGS
-LDFLAGS=$SAV_LDFLAGS
 
 # Checks for header files.
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdint.h stdlib.h string.h sys/ioctl.h sys/param.h sys/prctl.h sys/socket.h sys/time.h syslog.h unistd.h],
