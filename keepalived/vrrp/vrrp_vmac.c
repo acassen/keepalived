@@ -507,7 +507,9 @@ netlink_link_add_ipvlan(vrrp_t *vrrp)
 		 * In l2 mode, ipvlan will receive frames.
 		 */
 		addattr16(&req.n, sizeof(req), IFLA_IPVLAN_MODE, IPVLAN_MODE_L2);
+#ifdef IFLA_IPVLAN_FLAGS
 		addattr16(&req.n, sizeof(req), IFLA_IPVLAN_FLAGS, vrrp->ipvlan_type);
+#endif
 		data->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)data);
 		linkinfo->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)linkinfo);
 

@@ -472,7 +472,9 @@ vrrp_ipvlan_handler(vector_t *strvec)
 
 	__set_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags);
 
+#ifdef IPVLAN_F_PRIVATE
 	vrrp->ipvlan_type = IPVLAN_F_PRIVATE;
+#endif
 
 	for (i = 1; i < vector_size(strvec); i++) {
 		if (!strcmp(FMT_STR_VSLOT(strvec, i), "bridge")) {
