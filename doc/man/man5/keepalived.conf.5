@@ -1201,7 +1201,7 @@ The syntax for vrrp_instance is :
     # For IPv4 instances, an IP address is required, for IPv6
     # the address is optional, in which case the link local
     # address will be used.
-    # The mode flags default to private. NOTE: the mode flags must be the
+    # The mode flags default to bridge. NOTE: the mode flags must be the
     # same for all ipvlans on the same underlying interface.
     # It is safer to configure an interface name, in case keepalived crashes
     # and restarts, in which case it can more reliably find a previously
