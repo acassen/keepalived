@@ -655,18 +655,16 @@ if test "$enable_hardening" != no; then
 	int i = 0;
       }
       ]])],
-      (
+      [
 	AC_MSG_RESULT([yes])
-	[WL_FLAGS="$WL_FLAGS,$FLAG"]
-      ),
-      (
-	[AC_MSG_RESULT([no])]
-      )
+	WL_FLAGS="$WL_FLAGS -Wl,$FLAG"
+      ],
+      [AC_MSG_RESULT([no])]
     )
     CFLAGS=$SAV_CFLAGS
   done
   if test -n "$WL_FLAGS"; then
-    add_to_var([KA_LDFLAGS], [-Wl$WL_FLAGS])
+    add_to_var([KA_LDFLAGS], [$WL_FLAGS])
   fi
 fi
 
