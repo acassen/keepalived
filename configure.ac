@@ -324,8 +324,8 @@ args=`echo $ac_configure_args | $SED -e "s/'//g"`
 AC_DEFINE_UNQUOTED(KEEPALIVED_CONFIGURE_OPTIONS,"$args", [configure options specified])
 
 # Save the CPPFLAGS, CFLAGS, LDFLAGS and LDLIBS settings for make time
-KA_CPPFLAGS="$kernelinc $CPPFLAGS"
-KA_CFLAGS="-g -D_GNU_SOURCE $CFLAGS"
+KA_CPPFLAGS="$kernelinc -D_GNU_SOURCE $CPPFLAGS"
+KA_CFLAGS="-g $CFLAGS"
 KA_LDFLAGS=$LDFLAGS
 KA_LIBS=$LDLIBS
 
@@ -340,7 +340,7 @@ WARNINGS_STD="absolute-value address-of-packed-member alloca alloc-zero array-bo
 WARNINGS_EXTRA="aggregate-return conversion padded pedantic sign-conversion strict-overflow=5 stringop-overflow=3 stringop-overflow=4 write-strings switch-enum traditional-conversion"
 
 # We want _GNU_SOURCE defined always
-add_to_var([CFLAGS], [-D_GNU_SOURCE])
+add_to_var([CPPFLAGS], [-D_GNU_SOURCE])
 
 # fpclassify() needs -lm
 add_to_var([KA_LIBS], [-lm])
@@ -1867,13 +1867,13 @@ AC_CHECK_DECL([IPVS_SVC_ATTR_PE_NAME],
 
 dnl ----[ Checks for O_PATH support ]----
 # Introduced in Linux 2.6.39
-SAV_CFLAGS="$CFLAGS"
-CFLAGS="$CFLAGS -D_GNU_SOURCE"
+SAV_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS -D_GNU_SOURCE"
 AC_CHECK_DECLS([O_PATH],
   [
     add_system_opt([O_PATH])
   ], [],[[#include <fcntl.h>]])
-CFLAGS="$SAV_CFLAGS"
+CPPFLAGS="$SAV_CPPFLAGS"
 
 dnl ----[ Check for GLOB_BRACE support ]----
 AC_CHECK_DECLS([GLOB_BRACE], [add_system_opt([GLOB_BRACE])], [], [[#include <glob.h>]])
@@ -1970,7 +1970,8 @@ if test "$enable_snmp" = yes -o \
   NETSNMP_LIBS_AGENT=`${NETSNMP_CONFIG} --netsnmp-agent-libs`
   NETSNMP_LIBS_EXT=`${NETSNMP_CONFIG} --external-libs`
   NETSNMP_LIBS="$NETSNMP_LIBS_AGENT $NETSNMP_LIBS_EXT"
-  NETSNMP_CFLAGS="`${NETSNMP_CONFIG} --base-cflags` -DNETSNMP_NO_INLINE"
+  NETSNMP_CFLAGS="`${NETSNMP_CONFIG} --base-cflags`"
+  NETSNMP_CPPFLAGS="-DNETSNMP_NO_INLINE"
 
   # net-snmp-config adds compiler and linker options that were set at the time
   # net-snmp was built, and this can include spec files that may not exist
@@ -2029,15 +2030,15 @@ if test "$enable_snmp" = yes -o \
   SNMP_SUPPORT=Yes
 
   # NETSNMP_CFLAGS can have CPPFLAGS options, so separate them
-  NETSNMP_CPPFLAGS=`echo " $NETSNMP_CFLAGS " | sed -e "s/ /  /g" -e "s/ -[[^I]] *-/ -/g" -e "s/ -[[^I]] *[[^-]][[^ ]]* / /g" -e "s/  */ /g"`
-  NETSNMP_CFLAGS=`echo " $NETSNMP_CFLAGS " | sed -e "s/ /  /g" -e "s/ -I *[[^ ]]* / /g" -e "s/  */ /g"`
+  NETSNMP_CPPFLAGS_XTRA=`echo " $NETSNMP_CFLAGS " | sed -e "s/ /  /g" -e "s/ -[[^ID]] *-/ -/g" -e "s/ -[[^ID]] *[[^-]][[^ ]]* / /g" -e "s/  */ /g"`
+  NETSNMP_CFLAGS=`echo " $NETSNMP_CFLAGS " | sed -e "s/ /  /g" -e "s/ -[[ID]] *[[^ ]]* / /g" -e "s/  */ /g"`
   add_to_var([KA_CFLAGS], [$NETSNMP_CFLAGS])
-  add_to_var([KA_CPPFLAGS], [$NETSNMP_CPPFLAGS])
+  add_to_var([KA_CPPFLAGS], [$NETSNMP_CPPFLAGS $NETSNMP_CPPFLAGS_XTRA])
 
   # NETSNMP_LIBS may have some LDFLAGS options, so separate them
-  NETSNMP_LDFLAGS=`echo " $NETSNMP_LIBS " | sed -e "s/ /  /g" -e "s/ -l *[[^ ]]* /  /g" -e "s/  */ /g" -e "s/ -/ @-/g" | tr "@" "\n" | sed -e "s/^  *//" -e "s/  *$//" | sort -u | tr "\n" " "`
+  NETSNMP_LDFLAGS_XTRA=`echo " $NETSNMP_LIBS " | sed -e "s/ /  /g" -e "s/ -l *[[^ ]]* /  /g" -e "s/  */ /g" -e "s/ -/ @-/g" | tr "@" "\n" | sed -e "s/^  *//" -e "s/  *$//" | sort -u | tr "\n" " "`
   NETSNMP_LIBS=`echo " $NETSNMP_LIBS " | sed -e "s/ /  /g" -e "s/ \(-l *[[^ ]]*\) /@\1@/g" | tr "@" "\n" | grep  "^-l" | tr "\n" " " | sed -e "s/  */ /g"`
-  add_to_var([KA_LDFLAGS], [$NETSNMP_LDFLAGS])
+  add_to_var([KA_LDFLAGS], [$NETSNMP_LDFLAGS $NETSNMP_LDFLAGS_XTRA])
   add_to_var([KA_LIBS], [$NETSNMP_LIBS])
 
   if test "$enable_snmp_rfc" = yes; then
@@ -2566,6 +2567,12 @@ fi
 
 dnl ----[ Process output target ]----
 echo
+
+# Tidy up some strings
+KA_CPPFLAGS=`echo $KA_CPPFLAGS | sed -e "s/  */ /g" -e "s/^ //" -e "s/ $//"`
+KA_CFLAGS=`echo $KA_CFLAGS | sed -e "s/  */ /g" -e "s/^ //" -e "s/ $//"`
+KA_LDFLAGS=`echo $KA_LDFLAGS | sed -e "s/  */ /g" -e "s/^ //" -e "s/ $//"`
+KA_LIBS=`echo $KA_LIBS | sed -e "s/  */ /g" -e "s/^ //" -e "s/ $//"`
 
 # Tidy up some strings
 KA_CPPFLAGS=`echo $KA_CPPFLAGS | sed -e "s/  */ /g" -e "s/^ //" -e "s/ $//"`
