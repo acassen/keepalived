@@ -178,7 +178,7 @@ alloc_linkbeat_interface(vector_t *strvec)
 
 #ifdef _HAVE_VRRP_VMAC_
 	/* netlink messages work for vmacs */
-	if (ifp->vmac_type) {
+	if (IS_VLAN(ifp)) {
 		log_message(LOG_INFO, "(%s): linkbeat not supported for vmacs since netlink works", ifp->ifname);
 		return;
 	}
@@ -453,6 +453,121 @@ vrrp_vmac_xmit_base_handler(__attribute__((unused)) vector_t *strvec)
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
 	__set_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags);
+}
+#endif
+#ifdef _HAVE_VRRP_IPVLAN_
+static void
+vrrp_ipvlan_handler(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	interface_t *ifp;
+	bool had_flags = false;
+	ip_address_t addr = {};
+	size_t i;
+
+	if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) use_ipvlan already specified", vrrp->iname);
+		return;
+	}
+
+	__set_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags);
+
+	vrrp->ipvlan_type = IPVLAN_F_PRIVATE;
+
+	for (i = 1; i < vector_size(strvec); i++) {
+		if (!strcmp(FMT_STR_VSLOT(strvec, i), "bridge")) {
+			if (had_flags)
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) ipvlan type already specified - ignoring '%s'", vrrp->iname, FMT_STR_VSLOT(strvec, i));
+			else {
+				vrrp->ipvlan_type = 0;
+				had_flags = true;
+			}
+
+			continue;
+		}
+
+		if (!strcmp(FMT_STR_VSLOT(strvec, i), "private")) {
+			if (had_flags)
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) ipvlan type already specified - ignoring '%s'", vrrp->iname, FMT_STR_VSLOT(strvec, i));
+			else {
+#ifdef IPVLAN_F_PRIVATE
+				vrrp->ipvlan_type = IPVLAN_F_PRIVATE;
+#else
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) kernel doesn't support ipvlan type %s", vrrp->iname, FMT_STR_VSLOT(strvec, i));
+#endif
+				had_flags = true;
+			}
+
+			continue;
+		}
+
+		if (!strcmp(FMT_STR_VSLOT(strvec, i), "vepa")) {
+			if (had_flags)
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) ipvlan type already specified - ignoring '%s'", vrrp->iname, FMT_STR_VSLOT(strvec, i));
+			else {
+#ifdef IPVLAN_F_VEPA
+				vrrp->ipvlan_type = IPVLAN_F_VEPA;
+#else
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) kernel doesn't support ipvlan type %s", vrrp->iname, FMT_STR_VSLOT(strvec, i));
+#endif
+				had_flags = true;
+			}
+
+			continue;
+		}
+
+		if (check_valid_ipaddress(FMT_STR_VSLOT(strvec, i), true)) {
+			parse_ipaddress(&addr, FMT_STR_VSLOT(strvec, i), true);
+			if (vrrp->ipvlan_addr) {
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) ipvlan address already specified - ignoring '%s'", vrrp->iname, FMT_STR_VSLOT(strvec, i));
+				continue;
+			}
+
+			if (vrrp->family == AF_UNSPEC)
+				vrrp->family = addr.ifa.ifa_family;
+			else if (addr.ifa.ifa_family != vrrp->family) {
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) ipvlan address"
+						     "[%s] MUST match vrrp instance family !!! Skipping..."
+						   , vrrp->iname, FMT_STR_VSLOT(strvec, i));
+				continue;
+			}
+
+			vrrp->ipvlan_addr = MALLOC(sizeof(*vrrp->ipvlan_addr));
+			*vrrp->ipvlan_addr = addr;
+
+			/* We also want to use this address as the source address */
+			if (vrrp->saddr.ss_family == AF_UNSPEC) {
+				vrrp->saddr.ss_family = vrrp->ipvlan_addr->ifa.ifa_family;
+				if (vrrp->saddr.ss_family == AF_INET)
+					((struct sockaddr_in *)&vrrp->saddr)->sin_addr = vrrp->ipvlan_addr->u.sin.sin_addr;
+				else
+					((struct sockaddr_in6 *)&vrrp->saddr)->sin6_addr = vrrp->ipvlan_addr->u.sin6_addr;
+				vrrp->saddr_from_config = true;
+			}
+
+			continue;
+		}
+
+		if (vrrp->vmac_ifname[0]) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) IPVLAN interface already specified - ignoring '%s'", vrrp->iname, FMT_STR_VSLOT(strvec, i));
+			continue;
+		}
+
+		if (strlen(FMT_STR_VSLOT(strvec, i)) >= IFNAMSIZ) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) IPVLAN interface name '%s' too long - ignoring", vrrp->iname, FMT_STR_VSLOT(strvec, i));
+			continue;
+		}
+
+		strcpy(vrrp->vmac_ifname, FMT_STR_VSLOT(strvec, i));
+
+		/* Check if the interface exists and is ipvlan we can use */
+		if ((ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_NO_CREATE)) &&
+		    (ifp->if_type != IF_TYPE_IPVLAN ||
+		     ifp->vmac_type != IPVLAN_MODE_L2)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) interface %s already exists and is not an l2 ipvlan; ignoring ipvlan if_name", vrrp->iname, vrrp->vmac_ifname);
+			vrrp->vmac_ifname[0] = '\0';
+		}
+	}
 }
 #endif
 static void
@@ -1588,7 +1703,7 @@ garp_group_interface_handler(vector_t *strvec)
 
 #ifdef _HAVE_VRRP_VMAC_
 	/* We cannot have a group on a vmac interface */
-	if (ifp->vmac_type) {
+	if (IS_VLAN(ifp)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Cannot specify garp_delay on a vmac (%s) - ignoring", ifp->ifname);
 		return;
 	}
@@ -1635,7 +1750,7 @@ garp_group_interfaces_handler(vector_t *strvec)
 		}
 
 #ifdef _HAVE_VRRP_VMAC_
-		if (ifp->vmac_type) {
+		if (IS_VLAN(ifp)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Cannot specify garp_delay on a vmac (%s) - ignoring", ifp->ifname);
 			continue;
 		}
@@ -1715,6 +1830,9 @@ init_vrrp_keywords(bool active)
 #ifdef _HAVE_VRRP_VMAC_
 	install_keyword("use_vmac", &vrrp_vmac_handler);
 	install_keyword("vmac_xmit_base", &vrrp_vmac_xmit_base_handler);
+#endif
+#ifdef _HAVE_VRRP_IPVLAN_
+	install_keyword("use_ipvlan", &vrrp_ipvlan_handler);
 #endif
 	install_keyword("unicast_peer", &vrrp_unicast_peer_handler);
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_

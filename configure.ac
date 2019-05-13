@@ -1794,6 +1794,26 @@ if test "$enable_vrrp" != no; then
   fi
   CPPFLAGS="$SAV_CPPFLAGS"
 
+  dnl ----[ Checks for kernel IPVLAN support ]----
+  SAV_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $kernelinc"
+  IPVLAN_SUPPORT=Yes
+  dnl -- Since Linux 3.19
+  AC_CHECK_DECLS([
+      IFLA_IPVLAN_MODE], [],
+    [
+      IPVLAN_SUPPORT=No
+      break
+    ], [[
+      #include <sys/socket.h>
+      #include <linux/if_link.h>
+    ]])
+  if test $IPVLAN_SUPPORT = Yes; then
+    AC_DEFINE([_HAVE_VRRP_IPVLAN_], [ 1 ], [Define to 1 if have IP VLAN support])
+    add_system_opt([VRRP_IPVLAN])
+  fi
+  CPPFLAGS="$SAV_CPPFLAGS"
+
   dnl ----[ Check for IFLA_LINK_NETNSID support ]---- since Linux v4.0
   AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
     #include <linux/if_link.h>

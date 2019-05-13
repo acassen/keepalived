@@ -42,6 +42,9 @@ enum vrrp_vmac_bits {
 	VRRP_VMAC_BIT = 0,
 	VRRP_VMAC_UP_BIT = 1,
 	VRRP_VMAC_XMITBASE_BIT = 2,
+#ifdef _HAVE_VRRP_IPVLAN_
+	VRRP_IPVLAN_BIT = 3,
+#endif
 };
 
 extern const char * const macvlan_ll_kind;
@@ -55,6 +58,9 @@ extern void remove_vmac_auto_gen_addr(interface_t *, struct in6_addr *);
 #endif
 extern bool netlink_link_add_vmac(vrrp_t *);
 extern void netlink_link_del_vmac(vrrp_t *);
+#ifdef _HAVE_VRRP_IPVLAN_
+extern bool netlink_link_add_ipvlan(vrrp_t *);
+#endif
 #ifdef _HAVE_VRF_
 extern void update_vmac_vrfs(interface_t *);
 #endif

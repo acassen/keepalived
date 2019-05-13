@@ -50,6 +50,8 @@
 /* Special value for parameters when we want to know they haven't been set */
 #define	PARAMETER_UNSET		UINT_MAX
 
+struct _ip_address;
+
 typedef struct _vrrphdr {			/* rfc2338.5.1 */
 	uint8_t			vers_type;	/* 0-3=type, 4-7=version */
 	uint8_t			vrid;		/* virtual router id */
@@ -198,6 +200,10 @@ typedef struct _vrrp_t {
 	unsigned long		vmac_flags;		/* VRRP VMAC flags */
 	char			vmac_ifname[IFNAMSIZ];	/* Name of VRRP VMAC interface */
 	bool			duplicate_vrid_fault;	/* Set if we have a fault due to duplicate VRID */
+#ifdef _HAVE_VRRP_IPVLAN_
+	struct _ip_address	*ipvlan_addr;		/* Address to configure on an ipvlan interface */
+	int			ipvlan_type;		/* Bridge, private or VEPA mode */
+#endif
 #endif
 	interface_t		*configured_ifp;	/* Interface the configuration says we are on */
 	list			track_ifp;		/* Interface state we monitor */

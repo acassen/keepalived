@@ -344,21 +344,13 @@ format_iprule(ip_rule_t *rule, char *buf, size_t buf_len)
 	if (rule->invert)
 		op += snprintf(op, (size_t)(buf_end - op), "not ");
 
-	if (rule->from_addr) {
+	if (rule->from_addr)
 		op += snprintf(op, (size_t)(buf_end - op), "from %s", ipaddresstos(NULL, rule->from_addr));
-		if ((rule->from_addr->ifa.ifa_family == AF_INET && rule->from_addr->ifa.ifa_prefixlen != 32 ) ||
-		    (rule->from_addr->ifa.ifa_family == AF_INET6 && rule->from_addr->ifa.ifa_prefixlen != 128 ))
-			op += snprintf(op, (size_t)(buf_end - op), "/%d", rule->from_addr->ifa.ifa_prefixlen);
-	}
 	else
 		op += snprintf(op, (size_t)(buf_end - op), "from all" );
 
-	if (rule->to_addr) {
+	if (rule->to_addr)
 		op += snprintf(op, (size_t)(buf_end - op), " to %s", ipaddresstos(NULL, rule->to_addr));
-		if ((rule->to_addr->ifa.ifa_family == AF_INET && rule->to_addr->ifa.ifa_prefixlen != 32 ) ||
-		    (rule->to_addr->ifa.ifa_family == AF_INET6 && rule->to_addr->ifa.ifa_prefixlen != 128 ))
-			op += snprintf(op, (size_t)(buf_end - op), "/%d", rule->to_addr->ifa.ifa_prefixlen);
-	}
 
 	if (rule->mask & IPRULE_BIT_PRIORITY)
 		op += snprintf(op, (size_t)(buf_end - op), " priority %u", rule->priority);

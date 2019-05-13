@@ -551,6 +551,47 @@ inet_ip6tosockaddr(const struct in6_addr *sin_addr, struct sockaddr_storage *add
 	addr6->sin6_addr = *sin_addr;
 }
 
+/* Check address, possibly with mask, is valid */
+bool
+check_valid_ipaddress(char *str, bool allow_subnet_mask)
+{
+	int family;
+	unsigned long prefixlen;
+	char *p;
+	char *endptr;
+	union {
+		struct in_addr in;
+		struct in6_addr in6;
+	} addr;
+	int res;
+
+	if (!strchr(str, ':') && !strchr(str, '.'))
+		return false;
+
+	family = (strchr(str, ':')) ? AF_INET6 : AF_INET;
+
+	if (allow_subnet_mask)
+		p = strchr(str, '/');
+	else
+		p = NULL;
+
+	if (p) {
+		if (!p[1])
+			return false;
+		prefixlen = strtoul(p + 1, &endptr, 10);
+		if (*endptr || prefixlen > (family == AF_INET6 ? 128 : 32))
+			return false;
+		*p = '\0';
+	}
+
+	res = inet_pton(family, str, &addr);
+
+	if (p)
+		*p = '/';
+
+	return res;
+}
+
 /* IP network to string representation */
 static char *
 inet_sockaddrtos2(const struct sockaddr_storage *addr, char *addr_str)

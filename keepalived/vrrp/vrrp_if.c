@@ -137,7 +137,7 @@ if_get_by_ifname(const char *ifname, if_lookup_t create)
 }
 
 #ifdef _HAVE_VRRP_VMAC_
-/* Set the base_ifp for VMACs and vrf_master_ifp for VRFs - only used at startup */
+/* Set the base_ifp for VMACs and IPVLANs and vrf_master_ifp for VRFs - only used at startup */
 static void
 set_base_ifp(void)
 {
@@ -150,9 +150,14 @@ set_base_ifp(void)
 	LIST_FOREACH(if_queue, ifp, e) {
 		if ((!ifp->base_ifp || ifp == ifp->base_ifp) &&
 		    ifp->base_ifindex) {
-			ifp->base_ifp = if_get_by_ifindex(ifp->base_ifindex);
+#ifdef HAVE_IFLA_LINK_NETNSID
+			if (ifp->base_netns_id)
+				ifp->base_ifp = NULL;
+			else
+#endif
+				ifp->base_ifp = if_get_by_ifindex(ifp->base_ifindex);
 
-			/* If this is a MACVLAN that has been moved into a separate network namespace
+			/* If this is a MACVLAN/IPVLAN that has been moved into a separate network namespace
 			 * from its parent, then we can't get information about the parent. */
 			if (!ifp->base_ifp)
 				ifp->base_ifp = ifp;
@@ -470,32 +475,43 @@ dump_if(FILE *fp, void *data)
 		  );
 
 #ifdef _HAVE_VRRP_VMAC_
-	if (ifp->vmac_type) {
-		const char *macvlan_type =
-				ifp->vmac_type == MACVLAN_MODE_PRIVATE ? "private" :
-				ifp->vmac_type == MACVLAN_MODE_VEPA ? "vepa" :
-				ifp->vmac_type == MACVLAN_MODE_BRIDGE ? "bridge" :
+	if (IS_VLAN(ifp)) {
+		const char *if_type =
+#ifdef _HAVE_VRRP_IPVLAN
+				      ifp->if_type == IF_TYPE_IPVLAN ? "IPVLAN" : 
+#endif
+										  "VMAC";
+		const char *vlan_type =
+				ifp->if_type == IF_TYPE_MACVLAN ?
+					ifp->vmac_type == MACVLAN_MODE_PRIVATE ? "private" :
+					ifp->vmac_type == MACVLAN_MODE_VEPA ? "vepa" :
+					ifp->vmac_type == MACVLAN_MODE_BRIDGE ? "bridge" :
 #ifdef MACVLAN_MODE_PASSTHRU
-				ifp->vmac_type == MACVLAN_MODE_PASSTHRU ? "passthru" :
+					ifp->vmac_type == MACVLAN_MODE_PASSTHRU ? "passthru" :
 #endif
 #ifdef MACVLAN_MODE_SOURCE
-				ifp->vmac_type == MACVLAN_MODE_SOURCE ? "source" :
+					ifp->vmac_type == MACVLAN_MODE_SOURCE ? "source" :
 #endif
-				"unknown";
+					"unknown" :
+#ifdef IFLA_IPVLAN_FLAGS
+					ifp->vmac_type == IPVLAN_MODE_PRIVATE ? "private" :
+					ifp->vmac_type == IPVLAN_MODE_VEPA ? "vepa" :
+#endif
+					"bridge";
 		if (ifp != ifp->base_ifp)
-			conf_write(fp, "   VMAC type %s, underlying interface = %s, state = %sUP, %sRUNNING",
-					macvlan_type,
+			conf_write(fp, "   %s type %s, underlying interface = %s, state = %sUP, %sRUNNING",
+					if_type, vlan_type,
 					ifp->base_ifp->ifname,
 					ifp->base_ifp->ifi_flags & IFF_UP ? "" : "not ", ifp->base_ifp->ifi_flags & IFF_RUNNING ? "" : "not ");
 		else if (ifp->base_ifindex) {
 #ifdef HAVE_IFLA_LINK_NETNSID
-			conf_write(fp, "   VMAC type %s, underlying ifindex = %d, netns id = %d", macvlan_type, ifp->base_ifindex, ifp->base_netns_id);
+			conf_write(fp, "   %s type %s, underlying ifindex = %d, netns id = %d", if_type, vlan_type, ifp->base_ifindex, ifp->base_netns_id);
 #else
-			conf_write(fp, "   VMAC type %s, underlying ifindex = %d", macvlan_type, ifp->base_ifindex);
+			conf_write(fp, "   %s type %s, underlying ifindex = %d", if_type, vlan_type, ifp->base_ifindex);
 #endif
 		}
 		else
-			conf_write(fp, "   VMAC type %s, underlying interface in different namespace", macvlan_type);
+			conf_write(fp, "   %s type %s, underlying interface in different namespace", if_type, vlan_type);
 	}
 	if (ifp->is_ours)
 		conf_write(fp, "   I/f created by keepalived");
@@ -694,8 +710,8 @@ init_interface_linkbeat(void)
 
 #ifdef _HAVE_VRRP_VMAC_
 		/* netlink messages work for vmacs */
-		if (ifp->vmac_type) {
-			log_message(LOG_INFO, "Turning off linkbeat for %s since netlink works for vmacs", ifp->ifname);
+		if (IS_VLAN(ifp)) {
+			log_message(LOG_INFO, "Turning off linkbeat for %s since netlink works for vmacs/ipvlans", ifp->ifname);
 			ifp->linkbeat_use_polling = false;
 			continue;
 		}
@@ -1179,7 +1195,7 @@ cleanup_lost_interface(interface_t *ifp)
 		    vrrp->configured_ifp->base_ifp == vrrp->ifp->base_ifp &&
 		    vrrp->ifp->is_ours) {
 			/* This is a changeable interface that the vrrp instance
-			 * was configured on. Delete the macvlan we created */
+			 * was configured on. Delete the macvlan/ipvlan we created */
 			netlink_link_del_vmac(vrrp);
 		}
 
@@ -1239,14 +1255,17 @@ setup_interface(vrrp_t *vrrp)
 #ifdef _HAVE_VRRP_VMAC_
 	/* If the vrrp instance uses a vmac, and that vmac i/f doesn't
 	 * exist, then create it */
-	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
-	    !vrrp->ifp->ifindex) {
-		if (!netlink_link_add_vmac(vrrp))
+	if (!vrrp->ifp->ifindex) {
+		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
+		    !netlink_link_add_vmac(vrrp))
 			return;
-	}
+#ifdef _HAVE_VRRP_IPVLAN_
+		else if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags) &&
+		    !netlink_link_add_ipvlan(vrrp))
+			return;
 #endif
+	}
 
-#ifdef _HAVE_VRRP_VMAC_
 	if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags))
 		ifp = vrrp->ifp->base_ifp;
 	else
@@ -1305,7 +1324,11 @@ recreate_vmac_thread(thread_t *thread)
 		if (vrrp->ifp != ifp)
 			continue;
 
-		if (!__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
+		if (!__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)
+#ifdef _HAVE_VRRP_IPVLAN_
+		    && !__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags)
+#endif
+		    						      )
 			continue;
 
 		/* Don't attempt to create the VMAC if the configured
@@ -1402,18 +1425,19 @@ update_added_interface(interface_t *ifp)
 			}
 		}
 
-		if (ifp->vmac_type && tvp->type & TRACK_VRRP) {
-			add_vrrp_to_interface(vrrp, ifp->base_ifp, tvp->weight, false, TRACK_VRRP_DYNAMIC);
-			if (!IF_ISUP(vrrp->configured_ifp->base_ifp) && !vrrp->dont_track_primary)
-				vrrp->num_script_if_fault++;
-		}
+		if (vrrp->vmac_flags) {
+			if (tvp->type & TRACK_VRRP) {
+				add_vrrp_to_interface(vrrp, ifp->base_ifp, tvp->weight, false, TRACK_VRRP_DYNAMIC);
+				if (!IF_ISUP(vrrp->configured_ifp->base_ifp) && !vrrp->dont_track_primary)
+					vrrp->num_script_if_fault++;
+			}
 
-		/* We might be the configured interface for a vrrp instance that itself uses
-		 * a macvlan. If so, we can create the macvlans */
-		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
-		    vrrp->configured_ifp == ifp &&
-		    !vrrp->ifp->ifindex)
-			thread_add_event(master, recreate_vmac_thread, vrrp->ifp, 0);
+			/* We might be the configured interface for a vrrp instance that itself uses
+			 * a macvlan. If so, we can create the macvlans */
+			if ( vrrp->configured_ifp == ifp &&
+			    !vrrp->ifp->ifindex)
+				thread_add_event(master, recreate_vmac_thread, vrrp->ifp, 0);
+		}
 #endif
 
 		/* If this is just a tracking interface, we don't need to do anything */
@@ -1423,7 +1447,7 @@ update_added_interface(interface_t *ifp)
 		/* Reopen any socket on this interface if necessary */
 		if (
 #ifdef _HAVE_VRRP_VMAC_
-		    !__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
+		    !vrrp->vmac_flags &&
 #endif
 		    vrrp->sockets->fd_in == -1)
 			setup_interface(vrrp);

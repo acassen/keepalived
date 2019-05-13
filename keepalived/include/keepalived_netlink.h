@@ -73,6 +73,7 @@ extern void report_and_clear_netlink_timers(const char *);
 #ifdef _WITH_VRRP_
 extern int addattr_l(struct nlmsghdr *, size_t, unsigned short, const void *, size_t);
 extern int addattr8(struct nlmsghdr *, size_t, unsigned short, uint8_t);
+extern int addattr16(struct nlmsghdr *, size_t, unsigned short, uint16_t);
 extern int addattr32(struct nlmsghdr *, size_t, unsigned short, uint32_t);
 extern int addattr64(struct nlmsghdr *, size_t, unsigned short, uint64_t);
 extern int addattr_l2(struct nlmsghdr *, size_t, unsigned short, const void *, size_t, const void *, size_t);
