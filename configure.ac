@@ -70,7 +70,7 @@ AC_DEFUN([get_lib_name],
     fi
 
     SAV_LIBS="$LIBS"
-    LIBS=-l$1
+    LIBS="$LIBS -l$1"
     AC_LINK_IFELSE([AC_LANG_SOURCE([[
       extern void $2(void);
       int main(void)
@@ -456,7 +456,7 @@ if test "$enable_conversion_checks" = yes; then
   # Check if we can sensibly enable -Wconversion
   AC_MSG_CHECKING([for usable -Wconversion])
   SAV_CFLAGS="$CFLAGS"
-  CFLAGS="-Wconversion -O2 -Wp,-D_FORTIFY_SOURCE=2 -Werror"
+  CFLAGS="$CFLAGS -Wconversion -O2 -Wp,-D_FORTIFY_SOURCE=2 -Werror"
   AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
     #include <sys/types.h>
     #include <sys/select.h>
@@ -526,7 +526,7 @@ SAV_CFLAGS="$CFLAGS"
 for WARN in $WARNINGS_ENABLED
 do
   AC_MSG_CHECKING([for -W$WARN])
-  CFLAGS="-W$WARN"
+  CFLAGS="$SAV_CFLAGS -W$WARN"
 
   WARN_VAR=_HAVE_WARNING_`echo $WARN | tr "a-z=-" "A-Z__"`_
   LOCAL_WARN_VAR=HAVE_WARNING_`echo $WARN | sed -e "s/=.*//" | tr "a-z-" "A-Z_"`
@@ -662,6 +662,7 @@ if test "$enable_hardening" != no; then
       [AC_MSG_RESULT([no])]
     )
     CFLAGS=$SAV_CFLAGS
+    LDFLAGS=$SAV_LDFLAGS
   done
   if test -n "$WL_FLAGS"; then
     add_to_var([KA_LDFLAGS], [$WL_FLAGS])
@@ -762,8 +763,8 @@ AC_LINK_IFELSE([AC_LANG_SOURCE([[
   ]])],
   [AC_MSG_RESULT([no])],
   [
-    SAV_LDFLAGS="$LDFLAGS"
-    LDFLAGS="$LDFLAGS -lrt"
+    SAV_LIBS="$LIBS"
+    LIBS="$LIBS -lrt"
     AC_LINK_IFELSE([AC_LANG_SOURCE([[
       #include <time.h>
       int main(int argc, char **argv)
@@ -777,7 +778,7 @@ AC_LINK_IFELSE([AC_LANG_SOURCE([[
       [AC_MSG_RESULT([yes])]
 	add_to_var([KA_LIBS], [-lrt]),
       [AC_MSG_ERROR([clock_gettime() not supported])])
-    LDFLAGS=$SAV_LDFLAGS
+    LIBS=$SAV_LIBS
   ])
 
 # Checks for header files.
@@ -995,6 +996,7 @@ if test $NEED_SSL = yes; then
   add_to_var([KA_LIBS], [$LIBS])
 fi
 add_to_var([GENHASH_LIBS], [$LIBS])
+unset LIBS
 
 # Introduced in OpenSSL ver 0.9.9
 LIBS=$OPENSSL_LIBS
@@ -1170,6 +1172,7 @@ fi
 AM_CONDITIONAL([LIBNL1], [test $NETLINK_VER -eq 1])
 AM_CONDITIONAL([LIBNL3], [test $NETLINK_VER -eq 3])
 AM_CONDITIONAL([LIBNL_DYNAMIC], [test .$enable_lvs != .no -a .$enable_libnl_dynamic = .yes -a $NETLINK_VER -ne 0])
+unset LIBS
 
 AC_CHECK_LIB(magic, magic_open,
   [
@@ -2075,7 +2078,6 @@ if test "$enable_snmp" = yes -o \
   fi
 
   CPPFLAGS="$SAV_CPPFLAGS"
-  CPPFLAGS="$SAV_CPPFLAGS"
   CFLAGS="$SAV_CFLAGS"
   LIBS="$SAV_LIBS"
 fi
@@ -2129,7 +2131,9 @@ if test "$enable_dbus" = yes; then
       add_config_opt([DBUS])
 
       dnl -- g_type_init() not needed and deprecated since glib 2.36
+      SAV_CFLAGS=$CFLAGS
       CFLAGS="$($PKG_CONFIG --cflags gio-2.0)"
+      SAV_LIBS=$LIBS
       LIBS="$($PKG_CONFIG --libs gio-2.0)"
       AC_RUN_IFELSE(
 	[
@@ -2145,8 +2149,8 @@ if test "$enable_dbus" = yes; then
       if test $need_g_type_init -eq 1; then
 	AC_DEFINE([DBUS_NEED_G_TYPE_INIT], [ 1 ], [Define to 1 if need to call g_type_init()])
       fi
-      LIBS=
-      CFLAGS=
+      LIBS=$SAV_LIBS
+      CFLAGS=$SAV_CFLAGS
       if test "$enable_dbus_create_instance" = yes; then
 	AC_DEFINE([_WITH_DBUS_CREATE_INSTANCE_], [ 1 ], [Define to 1 to have DBus create instance support])
 	DBUS_CREATE_INSTANCE=Yes
@@ -2155,6 +2159,7 @@ if test "$enable_dbus" = yes; then
       fi
     ],
     [AC_MSG_ERROR([DBUS support requested but libgio-2.0 not found.])])
+  unset LIBS
 fi
 AM_CONDITIONAL([WITH_DBUS], [test $DBUS_SUPPORT = Yes])
 AM_CONDITIONAL([DBUS_CREATE_INSTANCE], [test $DBUS_CREATE_INSTANCE = Yes])
@@ -2168,7 +2173,7 @@ if test "${enable_sha1}" = yes; then
       dnl libcrypto can require -fpic
       AS_UNSET([ac_cv_lib_crypto_SHA1_Init])
       SAV_CFLAGS=$CFLAGS
-      CFLAGS=-fpic
+      CFLAGS="$CFLAGS -fpic"
       AC_CHECK_LIB(crypto, SHA1_Init,,AC_MSG_ERROR([SHA1 in OpenSSL required]))
       CFLAGS=$SAV_CFLAGS
       add_to_var([KA_CFLAGS],[-fpic])
@@ -2177,6 +2182,7 @@ if test "${enable_sha1}" = yes; then
   AC_DEFINE([_WITH_SHA1_], [ 1 ], [Define to 1 to have SHA1 support])
 fi
 AM_CONDITIONAL([WITH_SHA1], [test $SHA1_SUPPORT = Yes])
+unset LIBS
 
 dnl ----[ check for SO_MARK support ]----
 dnl -- Since Linux 2.6.25
@@ -2194,7 +2200,6 @@ fi
 dnl ---[ check for setns() ]----
 dnl -- CLONE_NEWNET defined from Linux 3.0
 SAV_CFLAGS="$CFLAGS"
-CFLAGS="$CFLAGS -D_GNU_SOURCE"
 AC_CHECK_DECLS([CLONE_NEWNET], [], [], [[#include <sched.h>]])
 dnl -- From glibc 2.14. Otherwise use setns syscall, since Linux 2.4.x
 AC_CHECK_FUNCS([setns])
@@ -2210,8 +2215,6 @@ CFLAGS="$SAV_CFLAGS"
 AM_CONDITIONAL([WITH_NAMESPACES], [test $ac_cv_have_decl_CLONE_NEWNET = yes])
 
 dnl ----[ check for realtime scheduling support ]----
-SAV_CFLAGS="$CFLAGS"
-CFLAGS="$CFLAGS -D_GNU_SOURCE"
 dnl -- from Linux ?.?.?
 AC_CHECK_DECLS([SCHED_RR],
   [
@@ -2231,7 +2234,6 @@ AC_CHECK_DECLS([SCHED_RR],
   [
     SCHED_RT_SUPPORT=No
   ], [[#include <sched.h>]])
-CFLAGS="$SAV_CFLAGS"
 
 dnl -- Do we want GNU standard paths (moves .pid files)
 GNU_STD_PATHS=No
