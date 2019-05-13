@@ -323,10 +323,12 @@ ENABLE_LOG_FILE_APPEND=No
 args=`echo $ac_configure_args | $SED -e "s/'//g"`
 AC_DEFINE_UNQUOTED(KEEPALIVED_CONFIGURE_OPTIONS,"$args", [configure options specified])
 
-KA_CPPFLAGS="$kernelinc"
-KA_CFLAGS="-g -D_GNU_SOURCE"
-KA_LDFLAGS=
-KA_LIBS=
+# Save the CPPFLAGS, CFLAGS, LDFLAGS and LDLIBS settings for make time
+KA_CPPFLAGS="$kernelinc $CPPFLAGS"
+KA_CFLAGS="-g -D_GNU_SOURCE $CFLAGS"
+KA_LDFLAGS=$LDFLAGS
+KA_LIBS=$LDLIBS
+
 NEED_LIBDL=No
 #KA_LIBTOOLFLAGS =
 
