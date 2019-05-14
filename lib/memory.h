@@ -40,6 +40,10 @@
 
 #define MALLOC(n)    ( keepalived_malloc((n), \
 		      (__FILE__), (__func__), (__LINE__)) )
+#define STRDUP(p)    (keepalived_strdup((p), \
+		      (__FILE__), (__func__), (__LINE__)) )
+#define STRNDUP(p,n) (keepalived_strndup((p),(n), \
+		      (__FILE__), (__func__), (__LINE__)) )
 #define FREE(b)      ( keepalived_free((b), \
 		      (__FILE__), (__func__), (__LINE__)), \
 		       (b) = NULL )
@@ -54,6 +58,10 @@ extern size_t mem_allocated;
 extern void memcheck_log(const char *, const char *, const char *, const char *, int);
 extern void *keepalived_malloc(size_t, const char *, const char *, int)
 		__attribute__((alloc_size(1))) __attribute__((malloc));
+extern char *keepalived_strdup(const char *, const char *, const char *, int)
+		__attribute__((malloc)) __nonnull ((1));
+extern char *keepalived_strndup(const char *, size_t, const char *, const char *, int)
+		__attribute__((malloc)) __nonnull ((1));
 extern void keepalived_free(void *, const char *, const char *, int);
 extern void *keepalived_realloc(void *, size_t, const char *, const char *, int)
 		__attribute__((alloc_size(2)));
@@ -72,6 +80,8 @@ extern void *zalloc(unsigned long size);
 #define FREE(p)      (free(p), (p) = NULL)
 #define FREE_ONLY(p) (free(p))
 #define REALLOC(p,n) (realloc((p),(n)))
+#define STRDUP(p)    (strdup(p))
+#define STRNDUP(p,n) (strndup((p),(n)))
 
 #endif
 
