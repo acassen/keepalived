@@ -2898,17 +2898,19 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 #ifdef _HAVE_VRRP_IPVLAN_
-	if (vrrp->family == AF_INET && !vrrp->ipvlan_addr) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) IPv4 ipvlan requires a source ip address to be configued - setting instance to fault state",
-							  vrrp->iname);
-		vrrp->num_script_if_fault++;
-	} else if (vrrp->ipvlan_addr) {
-		if (vrrp->family != vrrp->ipvlan_addr->ifa.ifa_family) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) IPv4 ipvlan address family does not match instance - setting instance to fault state",
+	if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags)) {
+		if (vrrp->family == AF_INET && !vrrp->ipvlan_addr) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) IPv4 ipvlan requires a source ip address to be configured - setting instance to fault state",
 								  vrrp->iname);
 			vrrp->num_script_if_fault++;
-		} else
-			vrrp->ipvlan_addr->ifp = vrrp->ifp;
+		} else if (vrrp->ipvlan_addr) {
+			if (vrrp->family != vrrp->ipvlan_addr->ifa.ifa_family) {
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) IPv4 ipvlan address family does not match instance - setting instance to fault state",
+									  vrrp->iname);
+				vrrp->num_script_if_fault++;
+			} else
+				vrrp->ipvlan_addr->ifp = vrrp->ifp;
+		}
 	}
 #endif
 
