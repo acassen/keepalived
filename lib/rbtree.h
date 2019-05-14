@@ -31,6 +31,8 @@
 
 #include <stdbool.h>
 
+#include "container.h"
+
 typedef struct rb_node {
 	unsigned long  __rb_parent_color;
 	struct rb_node *rb_right;
@@ -55,17 +57,6 @@ typedef struct rb_root_cached {
 	struct rb_root rb_root;
 	struct rb_node *rb_leftmost;
 } rb_root_cached_t;
-
-/* Copy from linux kernel 2.6 source (kernel.h, stddef.h) */
-#ifndef container_of
-# define container_of(ptr, type, member) ({	\
-	 const typeof( ((type *)0)->member ) *__mptr = (ptr);  \
-	 (type *)( (char *)__mptr - offsetof(type,member) );})
-#endif
-
-#ifndef offsetof
-# define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
-#endif
 
 
 #define rb_parent(r)   ((struct rb_node *)((r)->__rb_parent_color & ~3))
