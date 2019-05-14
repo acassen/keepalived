@@ -43,6 +43,8 @@
 #define FREE(b)      ( keepalived_free((b), \
 		      (__FILE__), (__func__), (__LINE__)), \
 		       (b) = NULL )
+#define FREE_ONLY(b) ( keepalived_free((b), \
+		      (__FILE__), (__func__), (__LINE__)))
 #define REALLOC(b,n) ( keepalived_realloc((b), (n), \
 		      (__FILE__), (__func__), (__LINE__)) )
 
@@ -68,6 +70,7 @@ extern void *zalloc(unsigned long size);
 
 #define MALLOC(n)    (zalloc(n))
 #define FREE(p)      (free(p), (p) = NULL)
+#define FREE_ONLY(p) (free(p))
 #define REALLOC(p,n) (realloc((p),(n)))
 
 #endif
