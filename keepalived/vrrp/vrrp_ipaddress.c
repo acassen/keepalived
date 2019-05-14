@@ -50,7 +50,7 @@
 #define INFINITY_LIFE_TIME      0xFFFFFFFF
 
 char *
-ipaddresstos(char *buf, ip_address_t *ipaddress)
+ipaddresstos(char *buf, const ip_address_t *ipaddress)
 {
 	static char addr_str[INET6_ADDRSTRLEN + 4];	/* allow for subnet */
 	char *end;
@@ -240,7 +240,7 @@ free_ipaddress(void *if_data)
 }
 
 void
-format_ipaddress(ip_address_t *ipaddr, char *buf, size_t buf_len)
+format_ipaddress(const ip_address_t *ipaddr, char *buf, size_t buf_len)
 {
 	char peer[INET6_ADDRSTRLEN + 4];	/* allow for subnet */
 	char *buf_p = buf;
@@ -299,9 +299,9 @@ format_ipaddress(ip_address_t *ipaddr, char *buf, size_t buf_len)
 }
 
 void
-dump_ipaddress(FILE *fp, void *if_data)
+dump_ipaddress(FILE *fp, const void *if_data)
 {
-	ip_address_t *ipaddr = if_data;
+	const ip_address_t *ipaddr = if_data;
 	char buf[256];
 
 	format_ipaddress(ipaddr, buf, sizeof(buf));

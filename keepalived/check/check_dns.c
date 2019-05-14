@@ -450,10 +450,9 @@ dns_free(void *data)
 }
 
 static void
-dns_dump(FILE *fp, void *data)
+dns_dump(FILE *fp, const checker_t *checker)
 {
-	checker_t *checker = data;
-	dns_check_t *dns_check = checker->data;
+	const dns_check_t *dns_check = checker->data;
 
 	conf_write(fp, "   Keepalive method = DNS_CHECK");
 	dump_checker_opts(fp, checker);

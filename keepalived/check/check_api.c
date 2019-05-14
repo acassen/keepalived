@@ -62,9 +62,9 @@ free_checker(void *data)
 
 /* dump checker data */
 static void
-dump_checker(FILE *fp, void *data)
+dump_checker(FILE *fp, const void *data)
 {
-	checker_t *checker = data;
+	const checker_t *checker = data;
 
 	conf_write(fp, " %s -> %s", FMT_VS(checker->vs), FMT_CHK(checker));
 
@@ -72,9 +72,9 @@ dump_checker(FILE *fp, void *data)
 }
 
 void
-dump_connection_opts(FILE *fp, void *data)
+dump_connection_opts(FILE *fp, const void *data)
 {
-	conn_opts_t *conn = data;
+	const conn_opts_t *conn = data;
 
 	conf_write(fp, "     Dest = %s", inet_sockaddrtopair(&conn->dst));
 	if (conn->bindto.ss_family)
@@ -89,10 +89,10 @@ dump_connection_opts(FILE *fp, void *data)
 }
 
 void
-dump_checker_opts(FILE *fp, void *data)
+dump_checker_opts(FILE *fp, const void *data)
 {
-	checker_t *checker = data;
-	conn_opts_t *conn = checker->co;
+	const checker_t *checker = data;
+	const conn_opts_t *conn = checker->co;
 
 	if (conn) {
 		conf_write(fp, "   Connection");
@@ -117,7 +117,7 @@ dump_checker_opts(FILE *fp, void *data)
 
 /* Queue a checker into the checkers_queue */
 checker_t *
-queue_checker(void (*free_func) (void *), void (*dump_func) (FILE *, void *)
+queue_checker(void (*free_func) (void *), void (*dump_func) (FILE *, const checker_t *)
 	      , int (*launch) (thread_t *)
 	      , bool (*compare) (void *, void *)
 	      , void *data

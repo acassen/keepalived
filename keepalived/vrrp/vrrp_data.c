@@ -126,7 +126,7 @@ free_vgroup(void *data)
 }
 
 static void
-dump_notify_script(FILE *fp, notify_script_t *script, char *type)
+dump_notify_script(FILE *fp, const notify_script_t *script, const char *type)
 {
 	if (!script)
 		return;
@@ -136,9 +136,9 @@ dump_notify_script(FILE *fp, notify_script_t *script, char *type)
 }
 
 static void
-dump_vgroup(FILE *fp, void *data)
+dump_vgroup(FILE *fp, const void *data)
 {
-	vrrp_sgroup_t *vgroup = data;
+	const vrrp_sgroup_t *vgroup = data;
 	element e;
 
 	conf_write(fp, " VRRP Sync Group = %s, %s", vgroup->gname, get_state_str(vgroup->state));
@@ -184,10 +184,10 @@ dump_vgroup(FILE *fp, void *data)
 }
 
 void
-dump_tracking_vrrp(FILE *fp, void *data)
+dump_tracking_vrrp(FILE *fp, const void *data)
 {
-	tracking_vrrp_t *tvp = (tracking_vrrp_t *)data;
-	vrrp_t *vrrp = tvp->vrrp;
+	const tracking_vrrp_t *tvp = (const tracking_vrrp_t *)data;
+	const vrrp_t *vrrp = tvp->vrrp;
 
 	conf_write(fp, "     %s, weight %d%s", vrrp->iname, tvp->weight, tvp->type == TRACK_VRRP_DYNAMIC ? " (dynamic)" : "");
 }
@@ -203,9 +203,9 @@ free_vscript(void *data)
 	FREE(vscript);
 }
 static void
-dump_vscript(FILE *fp, void *data)
+dump_vscript(FILE *fp, const void *data)
 {
-	vrrp_script_t *vscript = data;
+	const vrrp_script_t *vscript = data;
 	const char *str;
 
 	conf_write(fp, " VRRP Script = %s", vscript->sname);
@@ -248,9 +248,9 @@ free_vfile(void *data)
 	FREE(vfile);
 }
 static void
-dump_vfile(FILE *fp, void *data)
+dump_vfile(FILE *fp, const void *data)
 {
-	vrrp_tracked_file_t *vfile = data;
+	const vrrp_tracked_file_t *vfile = data;
 
 	conf_write(fp, " VRRP Track file = %s", vfile->fname);
 	conf_write(fp, "   File = %s", vfile->file_path);
@@ -274,9 +274,9 @@ free_vprocess(void *data)
 	FREE(vprocess);
 }
 static void
-dump_vprocess(FILE *fp, void *data)
+dump_vprocess(FILE *fp, const void *data)
 {
-	vrrp_tracked_process_t *vprocess = data;
+	const vrrp_tracked_process_t *vprocess = data;
 	char *params;
 	char *p;
 
@@ -319,9 +319,9 @@ dump_vprocess(FILE *fp, void *data)
 #ifdef _WITH_BFD_
 /* Track bfd dump */
 static void
-dump_vrrp_bfd(FILE *fp, void *track_data)
+dump_vrrp_bfd(FILE *fp, const void *track_data)
 {
-	vrrp_tracked_bfd_t *vbfd = track_data;
+	const vrrp_tracked_bfd_t *vbfd = track_data;
 
 	conf_write(fp, " VRRP Track BFD = %s", vbfd->bname);
 	conf_write(fp, "   Weight = %d", vbfd->weight);
@@ -361,9 +361,9 @@ free_sock(void *sock_data)
 }
 
 static void
-dump_sock(FILE *fp, void *sock_data)
+dump_sock(FILE *fp, const void *sock_data)
 {
-	sock_t *sock = sock_data;
+	const sock_t *sock = sock_data;
 
 	conf_write(fp, "VRRP sockpool: [ifindex(%u), family(%s), proto(%u), unicast(%d), fd(%d,%d)]"
 			    , sock->ifp->ifindex
@@ -375,11 +375,11 @@ dump_sock(FILE *fp, void *sock_data)
 }
 
 static void
-dump_sock_pool(FILE *fp, list sock_pool)
+dump_sock_pool(FILE *fp, const list sock_pool)
 {
-	sock_t *sock;
+	const sock_t *sock;
 	element e;
-	vrrp_t *vrrp;
+	const vrrp_t *vrrp;
 
 	LIST_FOREACH(sock_pool, sock, e) {
 		conf_write(fp, " fd_in %d fd_out = %d", sock->fd_in, sock->fd_out);
@@ -389,7 +389,7 @@ dump_sock_pool(FILE *fp, list sock_pool)
 		conf_write(fp, "   Type = %scast", sock->unicast ? "Uni" : "Multi");
 		conf_write(fp, "   Rx buf size = %d", sock->rx_buf_size);
 		conf_write(fp, "   VRRP instances");
-		rb_for_each_entry(vrrp, &sock->rb_vrid, rb_vrid)
+		rb_for_each_entry_const(vrrp, &sock->rb_vrid, rb_vrid)
 			conf_write(fp, "     %s vrid %d", vrrp->iname, vrrp->vrid);
 	}
 }
@@ -401,9 +401,9 @@ free_unicast_peer(void *data)
 }
 
 static void
-dump_unicast_peer(FILE *fp, void *data)
+dump_unicast_peer(FILE *fp, const void *data)
 {
-	struct sockaddr_storage *peer = data;
+	const struct sockaddr_storage *peer = data;
 
 	conf_write(fp, "     %s", inet_sockaddrtos(peer));
 }
@@ -444,9 +444,9 @@ free_vrrp(void *data)
 }
 
 static void
-dump_vrrp(FILE *fp, void *data)
+dump_vrrp(FILE *fp, const void *data)
 {
-	vrrp_t *vrrp = data;
+	const vrrp_t *vrrp = data;
 #ifdef _WITH_VRRP_AUTH_
 	char auth_data[sizeof(vrrp->auth_data) + 1];
 #endif
@@ -1087,7 +1087,7 @@ free_vrrp_data(vrrp_data_t * data)
 }
 
 static void
-dump_vrrp_data(FILE *fp, vrrp_data_t * data)
+dump_vrrp_data(FILE *fp, const vrrp_data_t * data)
 {
 	if (!LIST_ISEMPTY(data->static_addresses)) {
 		conf_write(fp, "------< Static Addresses >------");

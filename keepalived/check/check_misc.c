@@ -70,10 +70,9 @@ free_misc_check(void *data)
 }
 
 static void
-dump_misc_check(FILE *fp, void *data)
+dump_misc_check(FILE *fp, const checker_t *checker)
 {
-	checker_t *checker = data;
-	misc_checker_t *misck_checker = checker->data;
+	const misc_checker_t *misck_checker = checker->data;
 
 	conf_write(fp, "   Keepalive method = MISC_CHECK");
 	conf_write(fp, "   script = %s", cmd_str(&misck_checker->script));

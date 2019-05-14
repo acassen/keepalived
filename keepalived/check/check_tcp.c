@@ -52,10 +52,8 @@ free_tcp_check(void *data)
 }
 
 static void
-dump_tcp_check(FILE *fp, void *data)
+dump_tcp_check(FILE *fp, const checker_t *checker)
 {
-	checker_t *checker = data;
-
 	conf_write(fp, "   Keepalive method = TCP_CHECK");
 	dump_checker_opts(fp, checker);
 }

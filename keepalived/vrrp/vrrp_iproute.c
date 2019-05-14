@@ -665,7 +665,7 @@ print_encap(char *op, size_t len, const encap_t* encap)
 #endif
 
 void
-format_iproute(ip_route_t *route, char *buf, size_t buf_len)
+format_iproute(const ip_route_t *route, char *buf, size_t buf_len)
 {
 	char *op = buf;
 	const char *buf_end = buf + buf_len;
@@ -884,9 +884,9 @@ format_iproute(ip_route_t *route, char *buf, size_t buf_len)
 }
 
 void
-dump_iproute(FILE *fp, void *rt_data)
+dump_iproute(FILE *fp, const void *rt_data)
 {
-	ip_route_t *route = rt_data;
+	const ip_route_t *route = rt_data;
 	char *buf = MALLOC(ROUTE_BUF_SIZE);
 	size_t len;
 	size_t i;

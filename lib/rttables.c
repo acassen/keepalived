@@ -220,9 +220,9 @@ free_rt_entry(void *e)
 }
 
 static void
-dump_rt_entry(FILE *fp, void *e)
+dump_rt_entry(FILE *fp, const void *e)
 {
-	rt_entry_t *rte = (rt_entry_t *)e;
+	const rt_entry_t *rte = (const rt_entry_t *)e;
 
 	conf_write(fp, "rt_table %u, name %s", rte->id, rte->name);
 }

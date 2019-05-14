@@ -195,9 +195,9 @@ format_digest(uint8_t *digest, char *buf)
 }
 
 static void
-dump_url(FILE *fp, void *data)
+dump_url(FILE *fp, const void *data)
 {
-	url_t *url = data;
+	const url_t *url = data;
 	char digest_buf[2 * MD5_DIGEST_LENGTH + 1];
 
 	conf_write(fp, "   Checked url = %s", url->path);
@@ -271,10 +271,9 @@ free_http_get_check(void *data)
 }
 
 static void
-dump_http_get_check(FILE *fp, void *data)
+dump_http_get_check(FILE *fp, const checker_t *checker)
 {
-	checker_t *checker = data;
-	http_checker_t *http_get_chk = checker->data;
+	const http_checker_t *http_get_chk = checker->data;
 
 	conf_write(fp, "   Keepalive method = %s_GET",
 			http_get_chk->proto == PROTO_HTTP ? "HTTP" : "SSL");

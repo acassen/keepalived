@@ -347,9 +347,9 @@ free_garp_delay(void *data)
 }
 
 static void
-dump_garp_delay(FILE *fp, void *data)
+dump_garp_delay(FILE *fp, const void *data)
 {
-	garp_delay_t *gd = data;
+	const garp_delay_t *gd = data;
 	char time_str[26];
 	interface_t *ifp;
 	element e;
@@ -422,9 +422,9 @@ set_default_garp_delay(void)
 }
 
 static void
-dump_if(FILE *fp, void *data)
+dump_if(FILE *fp, const void *data)
 {
-	interface_t *ifp = data;
+	const interface_t *ifp = data;
 	char addr_str[INET6_ADDRSTRLEN];
 	char mac_buf[3 * sizeof ifp->hw_addr];
 	element e;

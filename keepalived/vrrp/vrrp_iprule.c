@@ -333,7 +333,7 @@ free_iprule(void *rule_data)
 }
 
 void
-format_iprule(ip_rule_t *rule, char *buf, size_t buf_len)
+format_iprule(const ip_rule_t *rule, char *buf, size_t buf_len)
 {
 	char *op = buf;
 	char *buf_end = buf + buf_len;
@@ -439,9 +439,9 @@ format_iprule(ip_rule_t *rule, char *buf, size_t buf_len)
 }
 
 void
-dump_iprule(FILE *fp, void *rule_data)
+dump_iprule(FILE *fp, const void *rule_data)
 {
-	ip_rule_t *rule = rule_data;
+	const ip_rule_t *rule = rule_data;
 	char *buf = MALLOC(RULE_BUF_SIZE);
 
 	format_iprule(rule, buf, RULE_BUF_SIZE);

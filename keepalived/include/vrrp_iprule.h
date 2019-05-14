@@ -119,8 +119,8 @@ typedef struct _ip_rule {
 extern void reinstate_static_rule(ip_rule_t *);
 extern void netlink_rulelist(list, int, bool);
 extern void free_iprule(void *);
-extern void format_iprule(ip_rule_t *, char *, size_t);
-extern void dump_iprule(FILE *, void *);
+extern void format_iprule(const ip_rule_t *, char *, size_t);
+extern void dump_iprule(FILE *, const void *);
 extern void alloc_rule(list, vector_t *, bool);
 extern void clear_diff_rules(list, list);
 extern void clear_diff_srules(void);

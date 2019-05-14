@@ -221,9 +221,9 @@ extern void alloc_ssvr(char *, char *);
 extern check_data_t *alloc_check_data(void);
 extern void free_check_data(check_data_t *);
 extern void dump_data_check(FILE *);
-extern const char *format_vs (virtual_server_t *);
-extern const char *format_vsge (virtual_server_group_entry_t *);
-extern const char *format_rs(real_server_t *, virtual_server_t *);
+extern const char *format_vs (const virtual_server_t *);
+extern const char *format_vsge (const virtual_server_group_entry_t *);
+extern const char *format_rs(const real_server_t *, const virtual_server_t *);
 extern bool validate_check_config(void);
 
 #endif

@@ -99,7 +99,7 @@ extern void alloc_vrrp_buffer(size_t);
 extern void free_vrrp_buffer(void);
 extern vrrp_data_t *alloc_vrrp_data(void);
 extern void free_vrrp_data(vrrp_data_t *);
-extern void dump_tracking_vrrp(FILE *, void *);
+extern void dump_tracking_vrrp(FILE *, const void *);
 extern void dump_data_vrrp(FILE *);
 
 #endif

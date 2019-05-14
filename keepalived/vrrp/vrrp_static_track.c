@@ -50,9 +50,9 @@ free_tgroup(void *data)
 }
 
 void
-dump_tgroup(FILE *fp, void *data)
+dump_tgroup(FILE *fp, const void *data)
 {
-	static_track_group_t *tgroup = data;
+	const static_track_group_t *tgroup = data;
 	vrrp_t *vrrp;
 	element e;
 

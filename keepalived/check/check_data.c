@@ -102,9 +102,9 @@ free_vsg(void *data)
 	FREE(vsg);
 }
 static void
-dump_vsg(FILE *fp, void *data)
+dump_vsg(FILE *fp, const void *data)
 {
-	virtual_server_group_t *vsg = data;
+	const virtual_server_group_t *vsg = data;
 
 	conf_write(fp, " ------< Virtual server group >------");
 	conf_write(fp, " Virtual Server Group = %s", vsg->gname);
@@ -117,9 +117,9 @@ free_vsg_entry(void *data)
 	FREE(data);
 }
 static void
-dump_vsg_entry(FILE *fp, void *data)
+dump_vsg_entry(FILE *fp, const void *data)
 {
-	virtual_server_group_entry_t *vsg_entry = data;
+	const virtual_server_group_entry_t *vsg_entry = data;
 	uint16_t start;
 
 	if (vsg_entry->is_fwmark) {
@@ -129,8 +129,8 @@ dump_vsg_entry(FILE *fp, void *data)
 	} else {
 		if (vsg_entry->range) {
 			start = vsg_entry->addr.ss_family == AF_INET ?
-				  ntohl(((struct sockaddr_in*)&vsg_entry->addr)->sin_addr.s_addr) & 0xFF :
-				  ntohs(((struct sockaddr_in6*)&vsg_entry->addr)->sin6_addr.s6_addr16[7]);
+				  ntohl(((const struct sockaddr_in*)&vsg_entry->addr)->sin_addr.s_addr) & 0xFF :
+				  ntohs(((const struct sockaddr_in6*)&vsg_entry->addr)->sin6_addr.s6_addr16[7]);
 			conf_write(fp,
 				    vsg_entry->addr.ss_family == AF_INET ?
 					"   VIP Range = %s-%d, VPORT = %d" :
@@ -262,9 +262,9 @@ free_vs(void *data)
 	FREE(vs);
 }
 static void
-dump_vs(FILE *fp, void *data)
+dump_vs(FILE *fp, const void *data)
 {
-	virtual_server_t *vs = data;
+	const virtual_server_t *vs = data;
 
 	conf_write(fp, " ------< Virtual server >------");
 	if (vs->vsgname)
@@ -486,9 +486,9 @@ free_rs(void *data)
 }
 
 static void
-dump_rs(FILE *fp, void *data)
+dump_rs(FILE *fp, const void *data)
 {
-	real_server_t *rs = data;
+	const real_server_t *rs = data;
 #ifdef _WITH_BFD_
 	bfd_checker_t *cbfd;
 	element e;
@@ -608,9 +608,9 @@ alloc_rs(char *ip, char *port)
 #ifdef _WITH_BFD_
 /* Track bfd dump */
 static void
-dump_checker_bfd(FILE *fp, void *track_data)
+dump_checker_bfd(FILE *fp, const void *track_data)
 {
-	checker_tracked_bfd_t *cbfd = track_data;
+	const checker_tracked_bfd_t *cbfd = track_data;
 
 	conf_write(fp, " Checker Track BFD = %s", cbfd->bname);
 //	conf_write(fp, "   Weight = %d", cbfd->weight);
@@ -658,7 +658,7 @@ free_check_data(check_data_t *data)
 }
 
 static void
-dump_check_data(FILE *fp, check_data_t *data)
+dump_check_data(FILE *fp, const check_data_t *data)
 {
 	if (data->ssl) {
 		conf_write(fp, "------< SSL definitions >------");
@@ -691,7 +691,7 @@ dump_data_check(FILE *fp)
 }
 
 const char *
-format_vs(virtual_server_t *vs)
+format_vs(const virtual_server_t *vs)
 {
 	/* alloc large buffer because of unknown length of vs->vsgname */
 	static char ret[512];
@@ -710,7 +710,7 @@ format_vs(virtual_server_t *vs)
 }
 
 const char *
-format_vsge(virtual_server_group_entry_t *vsge)
+format_vsge(const virtual_server_group_entry_t *vsge)
 {
 	/* alloc large buffer because of unknown length of vs->vsgname */
 	static char ret[INET6_ADDRSTRLEN + 1 + 4 + 1 + 5]; /* IPv6 addr + -abcd:ppppp */
@@ -720,8 +720,8 @@ format_vsge(virtual_server_group_entry_t *vsge)
 		snprintf(ret, sizeof(ret), "FWM %u", vsge->vfwmark);
 	else if (vsge->range) {
 		start = vsge->addr.ss_family == AF_INET ?
-			  ntohl(((struct sockaddr_in*)&vsge->addr)->sin_addr.s_addr) & 0xFF :
-			  ntohs(((struct sockaddr_in6*)&vsge->addr)->sin6_addr.s6_addr16[7]);
+			  ntohl(((const struct sockaddr_in*)&vsge->addr)->sin_addr.s_addr) & 0xFF :
+			  ntohs(((const struct sockaddr_in6*)&vsge->addr)->sin6_addr.s6_addr16[7]);
 		snprintf(ret, sizeof(ret),
 			    vsge->addr.ss_family == AF_INET ?  "%s-%d,%d" : "%s-%x,%d",
 			    inet_sockaddrtos(&vsge->addr),
@@ -735,7 +735,7 @@ format_vsge(virtual_server_group_entry_t *vsge)
 }
 
 const char *
-format_rs(real_server_t *rs, virtual_server_t *vs)
+format_rs(const real_server_t *rs, const virtual_server_t *vs)
 {
 	static char buf[SOCKADDRTRIO_STR_LEN];
 

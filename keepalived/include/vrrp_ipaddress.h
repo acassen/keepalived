@@ -110,12 +110,12 @@ typedef struct _ip_address {
 struct ipt_handle;
 
 /* prototypes */
-extern char *ipaddresstos(char *, ip_address_t *);
+extern char *ipaddresstos(char *, const ip_address_t *);
 extern int netlink_ipaddress(ip_address_t *, int);
 extern bool netlink_iplist(list, int, bool);
 extern void free_ipaddress(void *);
-extern void format_ipaddress(ip_address_t *, char *, size_t);
-extern void dump_ipaddress(FILE *, void *);
+extern void format_ipaddress(const ip_address_t *, char *, size_t);
+extern void dump_ipaddress(FILE *, const void *);
 extern ip_address_t *parse_ipaddress(ip_address_t *, char *, bool);
 extern ip_address_t *parse_route(char *);
 extern void alloc_ipaddress(list, vector_t *, interface_t *, bool);

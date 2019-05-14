@@ -61,10 +61,9 @@ free_bfd_check(void *data)
 }
 
 static void
-dump_bfd_check(FILE *fp, void *data)
+dump_bfd_check(FILE *fp, const checker_t *checker)
 {
-	checker_t *checker = data;
-	bfd_checker_t *bfd_checker = CHECKER_DATA(checker);
+	const bfd_checker_t *bfd_checker = checker->data;
 
 	conf_write(fp, "   Keepalive method = BFD_CHECK");
 	conf_write(fp, "   Name = %s", bfd_checker->bfd->bname);
@@ -75,9 +74,10 @@ dump_bfd_check(FILE *fp, void *data)
 
 /* Dump a real server on a BFD's list */
 static void
-dump_bfds_rs(FILE *fp, void *data)
+dump_bfds_rs(FILE *fp, const void *data)
 {
-	checker_t *checker = data;
+	const checker_t *checker = data;
+
 	conf_write(fp, "   %s", FMT_RS(checker->rs, checker->vs));
 }
 

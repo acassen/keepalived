@@ -127,9 +127,9 @@ free_email(void *data)
 	FREE(data);
 }
 static void
-dump_email(FILE *fp, void *data)
+dump_email(FILE *fp, const void *data)
 {
-	char *addr = data;
+	const char *addr = data;
 	conf_write(fp, " Email notification = %s", addr);
 }
 

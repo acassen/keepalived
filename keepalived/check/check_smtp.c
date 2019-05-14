@@ -78,10 +78,9 @@ free_smtp_check(void *data)
  * configuration.
  */
 static void
-dump_smtp_check(FILE *fp, void *data)
+dump_smtp_check(FILE *fp, const checker_t *checker)
 {
-	checker_t *checker = data;
-	smtp_checker_t *smtp_checker = checker->data;
+	const smtp_checker_t *smtp_checker = checker->data;
 
 	conf_write(fp, "   Keepalive method = SMTP_CHECK");
 	conf_write(fp, "   helo = %s", smtp_checker->helo_name);

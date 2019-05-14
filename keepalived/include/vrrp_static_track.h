@@ -39,7 +39,7 @@ typedef struct _static_track_group {
 } static_track_group_t;
 
 extern void free_tgroup(void *);
-extern void dump_tgroup(FILE *, void *);
+extern void dump_tgroup(FILE *, const void *);
 extern static_track_group_t *find_track_group(const char *);
 extern void static_track_group_init(void);
 extern void static_track_reinstate_config(interface_t *);
