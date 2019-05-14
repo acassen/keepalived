@@ -403,6 +403,7 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 	static struct counter64 counter64_ret;
 	virtual_server_t *v;
 	element e;
+	snmp_ret_t ret;
 
 	if ((v = (virtual_server_t *)
 	     snmp_header_list_table(vp, name, length, exact,
@@ -495,7 +496,8 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 	case CHECK_SNMP_VSVIRTUALHOST:
 		if (!v->virtualhost) break;
 		*var_len = strlen(v->virtualhost);
-		return (u_char*)v->virtualhost;
+		ret.cp = v->virtualhost;
+		return ret.p;
 	case CHECK_SNMP_VSPERSIST:
 		long_ret.u = (v->persistence_timeout)?1:2;
 		return (u_char*)&long_ret;
@@ -789,6 +791,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	virtual_server_t *vs, *bvs = NULL;
 	int state;
 	int type, btype;
+	snmp_ret_t ret;
 
 	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
 		memcpy(name, vp->name, sizeof(oid) * vp->namelen);
@@ -955,7 +958,8 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	case CHECK_SNMP_RSVIRTUALHOST:
 		if (!be->virtualhost) break;
 		*var_len = strlen(be->virtualhost);
-		return (u_char*)be->virtualhost;
+		ret.cp = be->virtualhost;
+		return ret.p;
 	case CHECK_SNMP_RSFAILEDCHECKS:
 		if (btype == STATE_RS_SORRY) break;
 		long_ret.u = be->num_failed_checkers;

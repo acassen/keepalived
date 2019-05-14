@@ -52,10 +52,10 @@ typedef struct _ssl_data {
 	int				strong_check;
 	SSL_CTX				*ctx;
 	const SSL_METHOD		*meth;
-	char				*password;
-	char				*cafile;
-	char				*certfile;
-	char				*keyfile;
+	const char			*password;
+	const char			*cafile;
+	const char			*certfile;
+	const char			*keyfile;
 } ssl_data_t;
 
 /* Real Server definition */
@@ -85,7 +85,7 @@ typedef struct _real_server {
 	unsigned			num_failed_checkers;/* Number of failed checkers */
 	bool				set;		/* in the IPVS table */
 	bool				reloaded;	/* active state was copied from old config while reloading */
-	char				*virtualhost;	/* Default virtualhost for HTTP and SSL health checkers */
+	const char			*virtualhost;	/* Default virtualhost for HTTP and SSL health checkers */
 #if defined(_WITH_SNMP_CHECKER_) && defined(_WITH_LVS_)
 	/* Statistics */
 	uint32_t			activeconns;	/* active connections */
@@ -149,7 +149,7 @@ typedef struct _virtual_server {
 	unsigned			forwarding_method;
 	uint32_t			persistence_granularity;
 #endif
-	char				*virtualhost;	/* Default virtualhost for HTTP and SSL healthcheckers
+	const char			*virtualhost;	/* Default virtualhost for HTTP and SSL healthcheckers
 							   if not set on real servers */
 	int				weight;
 	list				rs;

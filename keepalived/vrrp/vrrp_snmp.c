@@ -572,6 +572,7 @@ vrrp_snmp_file(struct variable *vp, oid *name, size_t *length,
 		 int exact, size_t *var_len, WriteMethod **write_method)
 {
 	vrrp_tracked_file_t *file;
+	snmp_ret_t ret;
 
 	if ((file = (vrrp_tracked_file_t *)snmp_header_list_table(vp, name, length, exact,
 							   var_len, write_method,
@@ -581,10 +582,12 @@ vrrp_snmp_file(struct variable *vp, oid *name, size_t *length,
 	switch (vp->magic) {
 	case VRRP_SNMP_FILE_NAME:
 		*var_len = strlen(file->fname);
-		return (u_char *)file->fname;
+		ret.cp = file->fname;
+		return ret.p;
 	case VRRP_SNMP_FILE_PATH:
 		*var_len = strlen(file->file_path);
-		return (u_char *)file->file_path;
+		ret.cp = file->file_path;
+		return ret.p;
 	case VRRP_SNMP_FILE_RESULT:
 		long_ret.s = file->last_status;
 		return (u_char *)&long_ret;
@@ -1652,6 +1655,7 @@ vrrp_snmp_syncgroup(struct variable *vp, oid *name, size_t *length,
 		 int exact, size_t *var_len, WriteMethod **write_method)
 {
 	vrrp_sgroup_t *group;
+	snmp_ret_t ret;
 
 	if ((group = (vrrp_sgroup_t *)
 	     snmp_header_list_table(vp, name, length, exact,
@@ -1662,7 +1666,8 @@ vrrp_snmp_syncgroup(struct variable *vp, oid *name, size_t *length,
 	switch (vp->magic) {
 	case VRRP_SNMP_SYNCGROUP_NAME:
 		*var_len = strlen(group->gname);
-		return (u_char *)group->gname;
+		ret.cp = group->gname;
+		return ret.p;
 	case VRRP_SNMP_SYNCGROUP_STATE:
 		long_ret.s = vrrp_snmp_state(group->state);
 		return (u_char *)&long_ret;
@@ -1729,10 +1734,11 @@ vrrp_snmp_syncgroupmember(struct variable *vp, oid *name, size_t *length,
 	int result;
 	size_t target_len;
 	unsigned curgroup, curinstance;
-	char *binstance = NULL;
+	const char *binstance = NULL;
 	element e, e1;
 	vrrp_sgroup_t *group;
 	vrrp_t *vrrp;
+	snmp_ret_t ret;
 
 	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
 		memcpy(name, vp->name, sizeof(oid) * vp->namelen);
@@ -1774,7 +1780,8 @@ vrrp_snmp_syncgroupmember(struct variable *vp, oid *name, size_t *length,
 			if (result == 0) {
 				/* Got an exact match and asked for it */
 				*var_len = strlen(vrrp->iname);
-				return (u_char *)vrrp->iname;
+				ret.cp = vrrp->iname;
+				return ret.p;
 			}
 			if (snmp_oid_compare(current, 2, best, 2) < 0) {
 				/* This is our best match */
@@ -1797,7 +1804,7 @@ vrrp_snmp_syncgroupmember(struct variable *vp, oid *name, size_t *length,
 	memcpy(target, best, sizeof(oid) * 2);
 	*length = (unsigned)vp->namelen + 2;
 	*var_len = strlen(binstance);
-	return (u_char*)binstance;
+	return (u_char *)no_const_char_p(binstance);
 }
 
 static vrrp_t *
@@ -1976,7 +1983,8 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 	switch (vp->magic) {
 	case VRRP_SNMP_INSTANCE_NAME:
 		*var_len = strlen(rt->iname);
-		return (u_char *)rt->iname;
+		ret.cp = rt->iname;
+		return ret.p;
 	case VRRP_SNMP_INSTANCE_VIRTUALROUTERID:
 		long_ret.u = rt->vrid;
 		return (u_char *)&long_ret;
@@ -2040,7 +2048,8 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_INSTANCE_SYNCGROUP:
 		if (rt->sync) {
 			*var_len = strlen(rt->sync->gname);
-			return (u_char *)rt->sync->gname;
+			ret.cp = rt->sync->gname;
+			return ret.p;
 		}
 		break;
 	case VRRP_SNMP_INSTANCE_GARPDELAY:
@@ -2310,6 +2319,7 @@ vrrp_snmp_trackedfile(struct variable *vp, oid *name, size_t *length,
 	element e1, e2;
 	vrrp_t *instance;
 	tracked_file_t *file, *bfile = NULL;
+	snmp_ret_t ret;
 
 	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
 		memcpy(name, vp->name, sizeof(oid) * vp->namelen);
@@ -2380,7 +2390,8 @@ vrrp_snmp_trackedfile(struct variable *vp, oid *name, size_t *length,
 	switch(vp->magic) {
 	case VRRP_SNMP_TRACKEDFILE_NAME:
 		*var_len = strlen(bfile->file->fname);
-		return (u_char *)bfile->file->fname;
+		ret.cp = bfile->file->fname;
+		return ret.p;
 	case VRRP_SNMP_TRACKEDFILE_WEIGHT:
 		long_ret.s = bfile->file->weight;
 		return (u_char *)&long_ret;
@@ -2577,6 +2588,7 @@ vrrp_snmp_group_trackedfile(struct variable *vp, oid *name, size_t *length,
 	element e1, e2;
 	vrrp_sgroup_t *sgroup;
 	tracked_file_t *file, *bfile = NULL;
+	snmp_ret_t ret;
 
 	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
 		memcpy(name, vp->name, sizeof(oid) * vp->namelen);
@@ -2647,7 +2659,8 @@ vrrp_snmp_group_trackedfile(struct variable *vp, oid *name, size_t *length,
 	switch(vp->magic) {
 	case VRRP_SNMP_SGROUPTRACKEDFILE_NAME:
 		*var_len = strlen(bfile->file->fname);
-		return (u_char *)bfile->file->fname;
+		ret.cp = bfile->file->fname;
+		return ret.p;
 	case VRRP_SNMP_SGROUPTRACKEDFILE_WEIGHT:
 		long_ret.s = bfile->file->weight;
 		return (u_char *)&long_ret;
@@ -3097,10 +3110,11 @@ vrrp_snmp_instance_trap(vrrp_t *vrrp)
 				  (u_char *) notification_oid,
 				  notification_oid_len * sizeof(oid));
 	/* vrrpInstanceName */
+	ptr_conv.cp = vrrp->iname;
 	snmp_varlist_add_variable(&notification_vars,
 				  name_oid, name_oid_len,
 				  ASN_OCTET_STR,
-				  (u_char *)vrrp->iname,
+				  ptr_conv.p,
 				  strlen(vrrp->iname));
 	/* vrrpInstanceState */
 	snmp_varlist_add_variable(&notification_vars,
@@ -3171,10 +3185,11 @@ vrrp_snmp_group_trap(vrrp_sgroup_t *group)
 				  notification_oid_len * sizeof(oid));
 
 	/* vrrpSyncGroupName */
+	ptr_conv.cp = group->gname;
 	snmp_varlist_add_variable(&notification_vars,
 				  name_oid, name_oid_len,
 				  ASN_OCTET_STR,
-				  (u_char *)group->gname,
+				  ptr_conv.p,
 				  strlen(group->gname));
 	/* vrrpSyncGroupState */
 	snmp_varlist_add_variable(&notification_vars,
@@ -3184,7 +3199,7 @@ vrrp_snmp_group_trap(vrrp_sgroup_t *group)
 				  sizeof(state));
 
 	/* routerId */
-	ptr_conv.cp = global_data->router_id,
+	ptr_conv.cp = global_data->router_id;
 	snmp_varlist_add_variable(&notification_vars,
 				  routerId_oid, routerId_oid_len,
 				  ASN_OCTET_STR,

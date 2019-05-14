@@ -111,7 +111,7 @@ extern vector_t *alloc_strvec_r(const char *);
 extern bool check_conf_file(const char*);
 extern const vector_t *read_value_block(const vector_t *);
 extern void alloc_value_block(void (*alloc_func) (const vector_t *), const char *);
-extern void *set_value(const vector_t *) __attribute__((malloc));
+extern const char *set_value(const vector_t *) __attribute__((malloc));
 extern bool read_timer(const vector_t *, size_t, unsigned long *, unsigned long, unsigned long, bool);
 extern int check_true_false(const char *) __attribute__ ((pure));
 extern void skip_block(bool);

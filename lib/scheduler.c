@@ -57,11 +57,8 @@
 #endif
 #include "assert_debug.h"
 #include "warnings.h"
+#include "utils.h"
 
-
-#define no_const(type, var_cp) \
-({ union { type *p; const type *cp; } ps = { .cp = var_cp }; \
- ps.p;})
 
 #ifdef THREAD_DUMP
 typedef struct _func_det {

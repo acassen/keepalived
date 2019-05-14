@@ -84,9 +84,9 @@ typedef struct _tracked_sc {
 
 /* external file we read to track local processes */
 typedef struct _vrrp_file {
-	char			*fname;		/* File name */
-	char			*file_path;	/* Path to file */
-	char			*file_part;	/* Pointer to start of filename without directories */
+	const char		*fname;		/* File name */
+	const char		*file_path;	/* Path to file */
+	const char		*file_part;	/* Pointer to start of filename without directories */
 	int			weight;		/* Default weight */
 	int			wd;		/* Watch descriptor */
 	list			tracking_vrrp;	/* List of tracking_vrrp_t for vrrp instances tracking this file */
@@ -109,9 +109,9 @@ typedef enum _param_match {
 
 /* process we track */
 typedef struct _vrrp_process {
-	char			*pname;		/* Process name */
-	char			*process_path;	/* Path to process */
-	char			*process_params; /* NUL separated parameters */
+	const char		*pname;		/* Process name */
+	const char		*process_path;	/* Path to process */
+	const char		*process_params; /* NUL separated parameters */
 	size_t			process_params_len; /* Total length of parameters, including NULs */
 	param_match_t		param_match;	/* Full or partial match of parameters */
 	int			weight;		/* Default weight */

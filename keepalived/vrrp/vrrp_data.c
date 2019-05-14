@@ -106,7 +106,7 @@ free_vgroup(void *data)
 		log_message(LOG_INFO, "sync group %s - iname vector exists when freeing group", vgroup->gname);
 		free_strvec(vgroup->iname);
 	}
-	FREE(vgroup->gname);
+	FREE_CONST(vgroup->gname);
 	free_list(&vgroup->vrrp_instances);
 	free_list(&vgroup->track_ifp);
 	free_list(&vgroup->track_script);
@@ -243,8 +243,8 @@ free_vfile(void *data)
 	vrrp_tracked_file_t *vfile = data;
 
 	free_list(&vfile->tracking_vrrp);
-	FREE(vfile->fname);
-	FREE(vfile->file_path);
+	FREE_CONST(vfile->fname);
+	FREE_CONST(vfile->file_path);
 	FREE(vfile);
 }
 static void
@@ -268,9 +268,9 @@ free_vprocess(void *data)
 	vrrp_tracked_process_t *vprocess = data;
 
 	free_list(&vprocess->tracking_vrrp);
-	FREE(vprocess->pname);
-	FREE(vprocess->process_path);
-	FREE_PTR(vprocess->process_params);
+	FREE_CONST(vprocess->pname);
+	FREE_CONST(vprocess->process_path);
+	FREE_CONST_PTR(vprocess->process_params);
 	FREE(vprocess);
 }
 static void
@@ -413,7 +413,7 @@ free_vrrp(void *data)
 {
 	vrrp_t *vrrp = data;
 
-	FREE(vrrp->iname);
+	FREE_CONST(vrrp->iname);
 #ifdef _HAVE_VRRP_IPVLAN_
 	FREE_PTR(vrrp->ipvlan_addr);
 #endif
@@ -678,15 +678,13 @@ alloc_static_track_group(const char *gname)
 void
 alloc_vrrp_sync_group(const char *gname)
 {
-	size_t size = strlen(gname);
 	vrrp_sgroup_t *new;
 
 	/* Allocate new VRRP group structure */
 	new = (vrrp_sgroup_t *) MALLOC(sizeof(vrrp_sgroup_t));
-	new->gname = (char *) MALLOC(size + 1);
 	new->state = VRRP_STATE_INIT;
 	new->last_email_state = VRRP_STATE_INIT;
-	memcpy(new->gname, gname, size);
+	new->gname = STRDUP(gname);
 	new->sgroup_tracking_weight = false;
 	new->smtp_alert = -1;
 
@@ -724,7 +722,6 @@ alloc_vrrp_stats(void)
 void
 alloc_vrrp(const char *iname)
 {
-	size_t size = strlen(iname);
 	vrrp_t *new;
 
 	/* Allocate new VRRP structure */
@@ -738,8 +735,7 @@ alloc_vrrp(const char *iname)
 	new->version = 0;
 	new->master_priority = 0;
 	new->last_transition = timer_now();
-	new->iname = (char *) MALLOC(size + 1);
-	memcpy(new->iname, iname, size);
+	new->iname = STRDUP(iname);
 	new->stats = alloc_vrrp_stats();
 #ifdef _WITH_FIREWALL_
 	new->accept = PARAMETER_UNSET;
@@ -984,13 +980,11 @@ alloc_vrrp_script(const char *sname)
 void
 alloc_vrrp_file(const char *fname)
 {
-	size_t size = strlen(fname);
 	vrrp_tracked_file_t *new;
 
 	/* Allocate new VRRP file structure */
 	new = (vrrp_tracked_file_t *) MALLOC(sizeof(vrrp_tracked_file_t));
-	new->fname = (char *) MALLOC(size + 1);
-	memcpy(new->fname, fname, size + 1);
+	new->fname = STRDUP(fname);
 	new->weight = 1;
 	list_add(vrrp_data->vrrp_track_files, new);
 }
@@ -999,13 +993,11 @@ alloc_vrrp_file(const char *fname)
 void
 alloc_vrrp_process(const char *pname)
 {
-	size_t size = strlen(pname);
 	vrrp_tracked_process_t *new;
 
 	/* Allocate new VRRP file structure */
 	new = (vrrp_tracked_process_t *) MALLOC(sizeof(vrrp_tracked_process_t));
-	new->pname = (char *) MALLOC(size + 1);
-	memcpy(new->pname, pname, size + 1);
+	new->pname = STRDUP(pname);
 	new->quorum = 1;
 	new->quorum_max = UINT_MAX;
 	list_add(vrrp_data->vrrp_track_processes, new);

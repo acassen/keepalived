@@ -68,7 +68,7 @@ typedef struct _request {
 
 #ifdef _WITH_REGEX_CHECK_
 typedef struct _regex {
-	unsigned char			*pattern;
+	const unsigned char		*pattern;
 	int				pcre2_options;
 	pcre2_code			*pcre2_reCompiled;
 	pcre2_match_data		*pcre2_match_data;
@@ -83,10 +83,10 @@ typedef struct _regex {
 #endif
 
 typedef struct _url {
-	char				*path;
-	uint8_t				*digest;
+	const char			*path;
+	const uint8_t			*digest;
 	int				status_code;
-	char				*virtualhost;
+	const char			*virtualhost;
 	ssize_t				len_mismatch;
 #ifdef _WITH_REGEX_CHECK_
 	bool				regex_no_match;
@@ -104,7 +104,7 @@ typedef struct _http_checker {
 	unsigned			url_it;		/* current url checked index */
 	request_t			*req;		/* GET buffer and SSL args */
 	list				url;
-	char				*virtualhost;
+	const char			*virtualhost;
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 	bool				enable_sni;
 #endif

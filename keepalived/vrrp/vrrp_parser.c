@@ -1438,9 +1438,8 @@ vrrp_tprocess_process_handler(const vector_t *strvec)
 		for (i = 2; i < vector_size(strvec); i++)
 			len += strlen(strvec_slot(strvec, i)) + 1;
 
-		tprocess->process_params = MALLOC(len);
+		tprocess->process_params = p = MALLOC(len);
 		tprocess->process_params_len = len;
-		p = tprocess->process_params;
 		for (i = 2; i < vector_size(strvec); i++) {
 			strcpy(p, strvec_slot(strvec, i));
 			p += strlen(strvec_slot(strvec, i)) + 1;

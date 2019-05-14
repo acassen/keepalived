@@ -64,10 +64,10 @@ free_ssl(void)
 	ssl = check_data->ssl;
 
 	clear_ssl(ssl);
-	FREE_PTR(ssl->password);
-	FREE_PTR(ssl->cafile);
-	FREE_PTR(ssl->certfile);
-	FREE_PTR(ssl->keyfile);
+	FREE_CONST_PTR(ssl->password);
+	FREE_CONST_PTR(ssl->cafile);
+	FREE_CONST_PTR(ssl->certfile);
+	FREE_CONST_PTR(ssl->keyfile);
 	FREE(ssl);
 	check_data->ssl = NULL;
 }
@@ -254,7 +254,7 @@ free_vs(void *data)
 {
 	virtual_server_t *vs = data;
 	FREE_PTR(vs->vsgname);
-	FREE_PTR(vs->virtualhost);
+	FREE_CONST_PTR(vs->virtualhost);
 	FREE_PTR(vs->s_svr);
 	free_list(&vs->rs);
 	free_notify_script(&vs->notify_quorum_up);
@@ -481,7 +481,7 @@ free_rs(void *data)
 #ifdef _WITH_BFD_
 	free_list(&rs->tracked_bfds);
 #endif
-	FREE_PTR(rs->virtualhost);
+	FREE_CONST_PTR(rs->virtualhost);
 	FREE(rs);
 }
 

@@ -2000,7 +2000,7 @@ read_value_block(const vector_t *strvec)
 	return ret_vec;
 }
 
-void * __attribute__((malloc))
+const char * __attribute__((malloc))
 set_value(const vector_t *strvec)
 {
 	if (vector_size(strvec) < 2)

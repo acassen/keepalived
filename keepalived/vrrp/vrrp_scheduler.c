@@ -785,7 +785,7 @@ static int
 vrrp_dispatcher_read(sock_t *sock)
 {
 	vrrp_t *vrrp;
-	vrrphdr_t *hd;
+	const vrrphdr_t *hd;
 	ssize_t len = 0;
 	int prev_state = 0;
 	struct sockaddr_storage src_addr = { .ss_family = AF_UNSPEC };

@@ -62,6 +62,16 @@ typedef enum {
 } perf_t;
 #endif
 
+/* Some library functions that take pointer parameters should have them
+ * specified as const pointers, but don't. We need to cast away the constness,
+ * but also want to avoid compiler warnings for doing so. The following "trick"
+ * achieves that. */ 
+#define no_const(type, var_cp) \
+({ union { type *p; const type *cp; } ps = { .cp = var_cp }; \
+ ps.p;})
+
+#define no_const_char_p(var_cp)	no_const(char, var_cp)
+
 /* If signalfd() is used, we will have no signal handlers, and
  * so we cannot get EINTR. If we cannot get EINTR, there is no
  * point checking for it.

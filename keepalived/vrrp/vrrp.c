@@ -328,17 +328,17 @@ vrrp_adv_len(vrrp_t *vrrp)
 }
 
 /* VRRP header pointer from buffer */
-vrrphdr_t *
-vrrp_get_header(sa_family_t family, char *buf, size_t len)
+const vrrphdr_t *
+vrrp_get_header(sa_family_t family, const char *buf, size_t len)
 {
-	struct iphdr *iph;
+	const struct iphdr *iph;
 
 	/* Since the raw sockets only specify IPPROTO_VRRP or (for IPv4)
 	 * IPPROTO_AH, it is safe to assume IPPROTO_VRRP if it is not
 	 * IPv4 and IPPROTO_AH. */
 
 	if (family == AF_INET) {
-		iph = (struct iphdr *) buf;
+		iph = (const struct iphdr *)buf;
 
 		/* Ensure we have received the full vrrp header */
 		if (len < sizeof(struct iphdr) ||
@@ -356,10 +356,10 @@ vrrp_get_header(sa_family_t family, char *buf, size_t len)
 				return NULL;
 			}
 
-			return (vrrphdr_t *) ((char *) iph + (iph->ihl << 2) + sizeof(ipsec_ah_t));
+			return (const vrrphdr_t *)((const char *) iph + (iph->ihl << 2) + sizeof(ipsec_ah_t));
 		}
 #endif
-		return (vrrphdr_t *) ((char *) iph + (iph->ihl << 2));
+		return (const vrrphdr_t *)((const char *) iph + (iph->ihl << 2));
 	}
 
 	if (family == AF_INET6) {
@@ -369,7 +369,7 @@ vrrp_get_header(sa_family_t family, char *buf, size_t len)
 			return NULL;
 		}
 
-		return (vrrphdr_t *) buf;
+		return (const vrrphdr_t *)buf;
 	}
 
 	return NULL;
@@ -640,7 +640,7 @@ vrrp_in_chk_vips(const vrrp_t *vrrp, const ip_address_t *ipaddress, const unsign
  * suficient data received for all the VIPs.
  */
 static int
-vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t * const hd, char *buffer, ssize_t buflen_ret, bool check_vip_addr)
+vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t * hd, char *buffer, ssize_t buflen_ret, bool check_vip_addr)
 {
 	struct iphdr *ip = NULL;
 	int ihl = 0;	/* Stop compiler issuing possibly uninitialised warning */
@@ -1643,7 +1643,7 @@ vrrp_state_leave_fault(vrrp_t * vrrp)
 
 /* BACKUP state processing */
 void
-vrrp_state_backup(vrrp_t *vrrp, vrrphdr_t *hd, char *buf, ssize_t buflen)
+vrrp_state_backup(vrrp_t *vrrp, const vrrphdr_t *hd, char *buf, ssize_t buflen)
 {
 	ssize_t ret = 0;
 	unsigned master_adver_int;
@@ -1797,7 +1797,7 @@ vrrp_saddr_cmp(struct sockaddr_storage *addr, vrrp_t *vrrp)
 // TODO SKEW_TIME should use master_adver_int USUALLY!!!
 // TODO check all use of ipsecah_counter, including cycle, and when we set seq_number
 bool
-vrrp_state_master_rx(vrrp_t * vrrp, vrrphdr_t *hd, char *buf, ssize_t buflen)
+vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, char *buf, ssize_t buflen)
 {
 	ssize_t ret;
 #ifdef _WITH_VRRP_AUTH_

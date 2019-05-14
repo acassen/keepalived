@@ -444,7 +444,7 @@ dns_free(checker_t *checker)
 {
 	dns_check_t *dns_check = checker->data;
 
-	FREE(dns_check->name);
+	FREE_CONST(dns_check->name);
 	FREE(checker->co);
 	FREE(checker->data);
 	FREE(checker);
@@ -498,22 +498,19 @@ dns_type_handler(const vector_t *strvec)
 {
 	uint16_t dns_type;
 	dns_check_t *dns_check = CHECKER_GET();
-	char *type_str = CHECKER_VALUE_STRING(strvec);
 
-	dns_type = dns_type_lookup(type_str);
+	dns_type = dns_type_lookup(strvec_slot(strvec, 1));
 	if (!dns_type)
 		report_config_error(CONFIG_GENERAL_ERROR, "Unknown DNS check type %s - defaulting to SOA", vector_size(strvec) < 2 ? "[blank]" : strvec_slot(strvec, 1));
 	else
 		dns_check->type = dns_type;
-
-	FREE(type_str);
 }
 
 static void
 dns_name_handler(const vector_t *strvec)
 {
 	dns_check_t *dns_check = CHECKER_GET();
-	dns_check->name = CHECKER_VALUE_STRING(strvec);
+	dns_check->name = set_value(strvec);
 }
 
 static void

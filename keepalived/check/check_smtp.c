@@ -67,7 +67,7 @@ free_smtp_check(checker_t *checker)
 	smtp_checker_t *smtp_checker = checker->data;
 
 	FREE_PTR(checker->co);
-	FREE(smtp_checker->helo_name);
+	FREE_CONST(smtp_checker->helo_name);
 	FREE(smtp_checker);
 	FREE(checker);
 }
@@ -133,10 +133,8 @@ smtp_check_end_handler(void)
 	element e, n;
 	conn_opts_t *co;
 
-	if (!smtp_checker->helo_name) {
-		smtp_checker->helo_name = (char *)MALLOC(strlen(SMTP_DEFAULT_HELO) + 1);
-		strcpy(smtp_checker->helo_name, SMTP_DEFAULT_HELO);
-	}
+	if (!smtp_checker->helo_name)
+		smtp_checker->helo_name = STRDUP(SMTP_DEFAULT_HELO);
 
 	/* If any connection component has been configured, we want to add it to the host list */
 	if (checker->co->dst.ss_family != AF_UNSPEC ||
@@ -205,8 +203,7 @@ smtp_check_end_handler(void)
 		if (co->connection_to == UINT_MAX)
 			co->connection_to = conn_to;
 
-		new_smtp_checker->helo_name = MALLOC(strlen(smtp_checker->helo_name) + 1);
-		strcpy(new_smtp_checker->helo_name, smtp_checker->helo_name);
+		new_smtp_checker->helo_name = STRDUP(smtp_checker->helo_name);
 
 		queue_checker(free_smtp_check, dump_smtp_check, smtp_start_check_thread,
 			      smtp_check_compare, new_smtp_checker, NULL);
@@ -259,8 +256,8 @@ smtp_helo_name_handler(const vector_t *strvec)
 {
 	smtp_checker_t *smtp_checker = CHECKER_GET();
 	if (smtp_checker->helo_name)
-		FREE(smtp_checker->helo_name);
-	smtp_checker->helo_name = CHECKER_VALUE_STRING(strvec);
+		FREE_CONST(smtp_checker->helo_name);
+	smtp_checker->helo_name = set_value(strvec);
 }
 
 /* Config callback installer */

@@ -68,7 +68,7 @@ sslpass_handler(const vector_t *strvec)
 {
 	if (check_data->ssl->password) {
 		report_config_error(CONFIG_GENERAL_ERROR, "SSL password already specified - replacing");
-		FREE(check_data->ssl->password);
+		FREE_CONST(check_data->ssl->password);
 	}
 	check_data->ssl->password = set_value(strvec);
 }
@@ -77,7 +77,7 @@ sslca_handler(const vector_t *strvec)
 {
 	if (check_data->ssl->cafile) {
 		report_config_error(CONFIG_GENERAL_ERROR, "SSL cafile already specified - replacing");
-		FREE(check_data->ssl->cafile);
+		FREE_CONST(check_data->ssl->cafile);
 	}
 	check_data->ssl->cafile = set_value(strvec);
 }
@@ -86,7 +86,7 @@ sslcert_handler(const vector_t *strvec)
 {
 	if (check_data->ssl->certfile) {
 		report_config_error(CONFIG_GENERAL_ERROR, "SSL certfile already specified - replacing");
-		FREE(check_data->ssl->certfile);
+		FREE_CONST(check_data->ssl->certfile);
 	}
 	check_data->ssl->certfile = set_value(strvec);
 }
@@ -95,7 +95,7 @@ sslkey_handler(const vector_t *strvec)
 {
 	if (check_data->ssl->keyfile) {
 		report_config_error(CONFIG_GENERAL_ERROR, "SSL keyfile already specified - replacing");
-		FREE(check_data->ssl->keyfile);
+		FREE_CONST(check_data->ssl->keyfile);
 	}
 	check_data->ssl->keyfile = set_value(strvec);
 }

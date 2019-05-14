@@ -1208,7 +1208,6 @@ init_track_files(list track_files)
 	char *dir_end = NULL;
 	char *new_path;
 	struct stat stat_buf;
-	char sav_ch;
 	element e, next;
 
 	inotify_fd = -1;
@@ -1242,9 +1241,8 @@ init_track_files(list track_files)
 		resolved_path = realpath(tfile->file_path, NULL);
 		if (resolved_path) {
 			if (strcmp(tfile->file_path, resolved_path)) {
-				FREE(tfile->file_path);
-				tfile->file_path = MALLOC(strlen(resolved_path) + 1);
-				strcpy(tfile->file_path, resolved_path);
+				FREE_CONST(tfile->file_path);
+				tfile->file_path = STRDUP(resolved_path);
 			}
 
 			/* The file exists, so read it now */
@@ -1279,7 +1277,7 @@ init_track_files(list track_files)
 				strcpy(new_path, resolved_path);
 				strcat(new_path, "/");
 				strcat(new_path, dir_end ? dir_end + 1 : tfile->file_path);
-				FREE(tfile->file_path);
+				FREE_CONST(tfile->file_path);
 				tfile->file_path = new_path;
 			}
 			else if (dir_end)
@@ -1296,10 +1294,9 @@ init_track_files(list track_files)
 			free(resolved_path);
 
 		tfile->file_part = strrchr(tfile->file_path, '/') + 1;
-		sav_ch = *tfile->file_part;
-		*tfile->file_part = '\0';
-		tfile->wd = inotify_add_watch(inotify_fd, tfile->file_path, IN_CLOSE_WRITE | IN_DELETE | IN_MOVE);
-		*tfile->file_part = sav_ch;
+		new_path = STRNDUP(tfile->file_path, tfile->file_part - tfile->file_path);
+		tfile->wd = inotify_add_watch(inotify_fd, new_path, IN_CLOSE_WRITE | IN_DELETE | IN_MOVE);
+		FREE(new_path);
 	}
 
 	inotify_thread = thread_add_read(master, process_inotify, NULL, inotify_fd, TIMER_NEVER, false);

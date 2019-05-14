@@ -206,7 +206,7 @@ ssl_connect(thread_ref_t thread, int new_req)
 	request_t *req = http_get_check->req;
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 	url_t *url = list_element(http_get_check->url, http_get_check->url_it);
-	char* vhost = NULL;
+	const char* vhost = NULL;
 #endif
 	int ret = 0;
 
