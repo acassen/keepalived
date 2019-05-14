@@ -130,6 +130,7 @@
 #include "rttables.h"
 #include "parser.h"
 #include "warnings.h"
+#include "utils.h"
 
 #include "snmp.h"
 
