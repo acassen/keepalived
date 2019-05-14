@@ -483,11 +483,11 @@ domain_stosockaddr(const char *domain, const char *port, struct sockaddr_storage
 
 /* IP string to sockaddr_storage */
 int
-inet_stosockaddr(char *ip, const char *port, struct sockaddr_storage *addr)
+inet_stosockaddr(const char *ip, const char *port, struct sockaddr_storage *addr)
 {
 	void *addr_ip;
-	char *cp;
-	char sav_cp;
+	const char *cp;
+	char *ip_str = NULL;
 	unsigned port_num;
 	int res;
 
@@ -514,16 +514,13 @@ inet_stosockaddr(char *ip, const char *port, struct sockaddr_storage *addr)
 
 	/* remove range and mask stuff */
 	if ((cp = strchr(ip, '-')) ||
-	    (cp = strchr(ip, '/'))) {
-		sav_cp = *cp;
-		*cp = 0;
-	}
+	    (cp = strchr(ip, '/')))
+		ip_str = STRNDUP(ip, cp - ip);
 
-	res = inet_pton(addr->ss_family, ip, addr_ip);
+	res = inet_pton(addr->ss_family, ip_str ? ip_str : ip, addr_ip);
 
-	/* restore range and mask stuff */
-	if (cp)
-		*cp = sav_cp;
+	if (ip_str)
+		free(ip_str);
 
 	if (!res) {
 		addr->ss_family = AF_UNSPEC;

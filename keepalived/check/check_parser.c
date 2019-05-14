@@ -52,7 +52,7 @@ char *lvs_schedulers[] =
 
 /* SSL handlers */
 static void
-ssl_handler(vector_t *strvec)
+ssl_handler(const vector_t *strvec)
 {
 	if (!strvec)
 		return;
@@ -64,7 +64,7 @@ ssl_handler(vector_t *strvec)
 	check_data->ssl = alloc_ssl();
 }
 static void
-sslpass_handler(vector_t *strvec)
+sslpass_handler(const vector_t *strvec)
 {
 	if (check_data->ssl->password) {
 		report_config_error(CONFIG_GENERAL_ERROR, "SSL password already specified - replacing");
@@ -73,7 +73,7 @@ sslpass_handler(vector_t *strvec)
 	check_data->ssl->password = set_value(strvec);
 }
 static void
-sslca_handler(vector_t *strvec)
+sslca_handler(const vector_t *strvec)
 {
 	if (check_data->ssl->cafile) {
 		report_config_error(CONFIG_GENERAL_ERROR, "SSL cafile already specified - replacing");
@@ -82,7 +82,7 @@ sslca_handler(vector_t *strvec)
 	check_data->ssl->cafile = set_value(strvec);
 }
 static void
-sslcert_handler(vector_t *strvec)
+sslcert_handler(const vector_t *strvec)
 {
 	if (check_data->ssl->certfile) {
 		report_config_error(CONFIG_GENERAL_ERROR, "SSL certfile already specified - replacing");
@@ -91,7 +91,7 @@ sslcert_handler(vector_t *strvec)
 	check_data->ssl->certfile = set_value(strvec);
 }
 static void
-sslkey_handler(vector_t *strvec)
+sslkey_handler(const vector_t *strvec)
 {
 	if (check_data->ssl->keyfile) {
 		report_config_error(CONFIG_GENERAL_ERROR, "SSL keyfile already specified - replacing");
@@ -102,7 +102,7 @@ sslkey_handler(vector_t *strvec)
 
 /* Virtual Servers handlers */
 static void
-vsg_handler(vector_t *strvec)
+vsg_handler(const vector_t *strvec)
 {
 	virtual_server_group_t *vsg;
 
@@ -121,7 +121,7 @@ vsg_handler(vector_t *strvec)
 	}
 }
 static void
-vs_handler(vector_t *strvec)
+vs_handler(const vector_t *strvec)
 {
 	global_data->have_checker_config = true;
 
@@ -188,7 +188,7 @@ vs_end_handler(void)
 	}
 }
 static void
-ip_family_handler(vector_t *strvec)
+ip_family_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	uint16_t af;
@@ -217,7 +217,7 @@ ip_family_handler(vector_t *strvec)
 	vs->af = af;
 }
 static void
-vs_co_timeout_handler(vector_t *strvec)
+vs_co_timeout_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	unsigned long timer;
@@ -229,7 +229,7 @@ vs_co_timeout_handler(vector_t *strvec)
 	vs->connection_to = timer;
 }
 static void
-vs_delay_handler(vector_t *strvec)
+vs_delay_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	unsigned long delay;
@@ -240,7 +240,7 @@ vs_delay_handler(vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR, "virtual server delay loop '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
 }
 static void
-vs_delay_before_retry_handler(vector_t *strvec)
+vs_delay_before_retry_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	unsigned long delay;
@@ -251,7 +251,7 @@ vs_delay_before_retry_handler(vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR, "virtual server delay before retry '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
 }
 static void
-vs_retry_handler(vector_t *strvec)
+vs_retry_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	unsigned retry;
@@ -263,7 +263,7 @@ vs_retry_handler(vector_t *strvec)
 	vs->retry = retry;
 }
 static void
-vs_warmup_handler(vector_t *strvec)
+vs_warmup_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	unsigned long delay;
@@ -274,7 +274,7 @@ vs_warmup_handler(vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR, "virtual server warmup '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
 }
 static void
-lbalgo_handler(vector_t *strvec)
+lbalgo_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	char *str = strvec_slot(strvec, 1);
@@ -292,7 +292,7 @@ lbalgo_handler(vector_t *strvec)
 }
 
 static void
-lbflags_handler(vector_t *strvec)
+lbflags_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	char *str = strvec_slot(strvec, 0);
@@ -332,7 +332,7 @@ lbflags_handler(vector_t *strvec)
 }
 
 static void
-forwarding_handler(vector_t *strvec)
+forwarding_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	char *str = strvec_slot(strvec, 1);
@@ -347,7 +347,7 @@ forwarding_handler(vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR, "PARSER : unknown [%s] routing method.", str);
 }
 static void
-pto_handler(vector_t *strvec)
+pto_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	unsigned timeout;
@@ -366,7 +366,7 @@ pto_handler(vector_t *strvec)
 }
 #ifdef _HAVE_PE_NAME_
 static void
-pengine_handler(vector_t *strvec)
+pengine_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	char *str = strvec_slot(strvec, 1);
@@ -377,7 +377,7 @@ pengine_handler(vector_t *strvec)
 }
 #endif
 static void
-pgr_handler(vector_t *strvec)
+pgr_handler(const vector_t *strvec)
 {
 	struct in_addr addr;
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
@@ -418,7 +418,7 @@ pgr_handler(vector_t *strvec)
 		vs->persistence_timeout = IPVS_SVC_PERSISTENT_TIMEOUT;
 }
 static void
-proto_handler(vector_t *strvec)
+proto_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	char *str = strvec_slot(strvec, 1);
@@ -433,14 +433,14 @@ proto_handler(vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR, "Unknown protocol %s - ignoring", str);
 }
 static void
-hasuspend_handler(__attribute__((unused)) vector_t *strvec)
+hasuspend_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->ha_suspend = true;
 }
 
 static void
-vs_smtp_alert_handler(vector_t *strvec)
+vs_smtp_alert_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	int res = true;
@@ -456,14 +456,14 @@ vs_smtp_alert_handler(vector_t *strvec)
 }
 
 static void
-vs_virtualhost_handler(vector_t *strvec)
+vs_virtualhost_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->virtualhost = set_value(strvec);
 }
 
 static void
-svr_forwarding_handler(real_server_t *rs, vector_t *strvec)
+svr_forwarding_handler(real_server_t *rs, const vector_t *strvec)
 {
 	char *str = strvec_slot(strvec, 1);
 
@@ -478,12 +478,12 @@ svr_forwarding_handler(real_server_t *rs, vector_t *strvec)
 }
 /* Sorry Servers handlers */
 static void
-ssvr_handler(vector_t *strvec)
+ssvr_handler(const vector_t *strvec)
 {
 	alloc_ssvr(strvec_slot(strvec, 1), vector_size(strvec) >= 3 ? strvec_slot(strvec, 2) : NULL);
 }
 static void
-ssvri_handler(__attribute__((unused)) vector_t *strvec)
+ssvri_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	if (vs->s_svr)
@@ -492,7 +492,7 @@ ssvri_handler(__attribute__((unused)) vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR, "Ignoring sorry_server inhibit used before or without sorry_server");
 }
 static void
-ss_forwarding_handler(vector_t *strvec)
+ss_forwarding_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 
@@ -504,7 +504,7 @@ ss_forwarding_handler(vector_t *strvec)
 
 /* Real Servers handlers */
 static void
-rs_handler(vector_t *strvec)
+rs_handler(const vector_t *strvec)
 {
 	alloc_rs(strvec_slot(strvec, 1), vector_size(strvec) >= 3 ? strvec_slot(strvec, 2) : NULL);
 }
@@ -539,7 +539,7 @@ rs_end_handler(void)
 	}
 }
 static void
-rs_weight_handler(vector_t *strvec)
+rs_weight_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
@@ -553,7 +553,7 @@ rs_weight_handler(vector_t *strvec)
 	rs->iweight = weight;
 }
 static void
-rs_forwarding_handler(vector_t *strvec)
+rs_forwarding_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
@@ -561,7 +561,7 @@ rs_forwarding_handler(vector_t *strvec)
 	svr_forwarding_handler(rs, strvec);
 }
 static void
-uthreshold_handler(vector_t *strvec)
+uthreshold_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
@@ -574,7 +574,7 @@ uthreshold_handler(vector_t *strvec)
 	rs->u_threshold = threshold;
 }
 static void
-lthreshold_handler(vector_t *strvec)
+lthreshold_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
@@ -587,18 +587,18 @@ lthreshold_handler(vector_t *strvec)
 	rs->l_threshold = threshold;
 }
 static void
-vs_inhibit_handler(__attribute__((unused)) vector_t *strvec)
+vs_inhibit_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->inhibit = true;
 }
 static inline notify_script_t*
-set_check_notify_script(__attribute__((unused)) vector_t *strvec, const char *type)
+set_check_notify_script(__attribute__((unused)) const vector_t *strvec, const char *type)
 {
 	return notify_script_init(0, type);
 }
 static void
-notify_up_handler(vector_t *strvec)
+notify_up_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
@@ -609,7 +609,7 @@ notify_up_handler(vector_t *strvec)
 	rs->notify_up = set_check_notify_script(strvec, "notify");
 }
 static void
-notify_down_handler(vector_t *strvec)
+notify_down_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
@@ -620,7 +620,7 @@ notify_down_handler(vector_t *strvec)
 	rs->notify_down = set_check_notify_script(strvec, "notify");
 }
 static void
-rs_co_timeout_handler(vector_t *strvec)
+rs_co_timeout_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
@@ -633,7 +633,7 @@ rs_co_timeout_handler(vector_t *strvec)
 	rs->connection_to = timer;
 }
 static void
-rs_delay_handler(vector_t *strvec)
+rs_delay_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
@@ -645,7 +645,7 @@ rs_delay_handler(vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR, "real server delay_loop '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
 }
 static void
-rs_delay_before_retry_handler(vector_t *strvec)
+rs_delay_before_retry_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
@@ -657,7 +657,7 @@ rs_delay_before_retry_handler(vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR, "real server delay_before_retry '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
 }
 static void
-rs_retry_handler(vector_t *strvec)
+rs_retry_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
@@ -670,7 +670,7 @@ rs_retry_handler(vector_t *strvec)
 	rs->retry = (unsigned)retry;
 }
 static void
-rs_warmup_handler(vector_t *strvec)
+rs_warmup_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
@@ -682,7 +682,7 @@ rs_warmup_handler(vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR, "real server warmup '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
 }
 static void
-rs_inhibit_handler(vector_t *strvec)
+rs_inhibit_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
@@ -698,7 +698,7 @@ rs_inhibit_handler(vector_t *strvec)
 	rs->inhibit = res;
 }
 static void
-rs_alpha_handler(vector_t *strvec)
+rs_alpha_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
@@ -714,7 +714,7 @@ rs_alpha_handler(vector_t *strvec)
 	rs->alpha = res;
 }
 static void
-rs_smtp_alert_handler(vector_t *strvec)
+rs_smtp_alert_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
@@ -730,26 +730,26 @@ rs_smtp_alert_handler(vector_t *strvec)
 	rs->smtp_alert = res;
 }
 static void
-rs_virtualhost_handler(vector_t *strvec)
+rs_virtualhost_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	rs->virtualhost = set_value(strvec);
 }
 static void
-vs_alpha_handler(__attribute__((unused)) vector_t *strvec)
+vs_alpha_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->alpha = true;
 }
 static void
-omega_handler(__attribute__((unused)) vector_t *strvec)
+omega_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->omega = true;
 }
 static void
-quorum_up_handler(vector_t *strvec)
+quorum_up_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	if (vs->notify_quorum_up) {
@@ -759,7 +759,7 @@ quorum_up_handler(vector_t *strvec)
 	vs->notify_quorum_up = set_check_notify_script(strvec, "quorum");
 }
 static void
-quorum_down_handler(vector_t *strvec)
+quorum_down_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	if (vs->notify_quorum_down) {
@@ -769,7 +769,7 @@ quorum_down_handler(vector_t *strvec)
 	vs->notify_quorum_down = set_check_notify_script(strvec, "quorum");
 }
 static void
-quorum_handler(vector_t *strvec)
+quorum_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	unsigned quorum;
@@ -782,7 +782,7 @@ quorum_handler(vector_t *strvec)
 	vs->quorum = quorum;
 }
 static void
-hysteresis_handler(vector_t *strvec)
+hysteresis_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	unsigned hysteresis;
@@ -795,7 +795,7 @@ hysteresis_handler(vector_t *strvec)
 	vs->hysteresis = hysteresis;
 }
 static void
-vs_weight_handler(vector_t *strvec)
+vs_weight_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	unsigned weight;
@@ -892,7 +892,7 @@ init_check_keywords(bool active)
 	install_sublevel_end();
 }
 
-vector_t *
+const vector_t *
 check_init_keywords(void)
 {
 	/* global definitions mapping */

@@ -362,7 +362,7 @@ find_keepalived_child_name(pid_t pid)
 	return NULL;
 }
 
-static vector_t *
+static const vector_t *
 global_init_keywords(void)
 {
 	/* global definitions mapping */

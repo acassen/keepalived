@@ -452,7 +452,7 @@ dump_iprule(FILE *fp, const void *rule_data)
 }
 
 void
-alloc_rule(list rule_list, vector_t *strvec, __attribute__((unused)) bool allow_track_group)
+alloc_rule(list rule_list, const vector_t *strvec, __attribute__((unused)) bool allow_track_group)
 {
 	ip_rule_t *new;
 	char *str;

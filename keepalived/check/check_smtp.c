@@ -105,7 +105,7 @@ smtp_check_compare(const checker_t *old_c, const checker_t *new_c)
  * in the config file.
  */
 static void
-smtp_check_handler(__attribute__((unused)) vector_t *strvec)
+smtp_check_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	smtp_checker_t *smtp_checker = (smtp_checker_t *)MALLOC(sizeof(smtp_checker_t));
 	conn_opts_t *co;
@@ -227,7 +227,7 @@ smtp_check_end_handler(void)
 #ifdef WITH_HOST_ENTRIES
 /* Callback for "host" keyword */
 static void
-smtp_host_handler(__attribute__((unused)) vector_t *strvec)
+smtp_host_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	checker_t *checker = CHECKER_GET_CURRENT();
 
@@ -255,7 +255,7 @@ smtp_host_end_handler(void)
 
 /* "helo_name" keyword */
 static void
-smtp_helo_name_handler(vector_t *strvec)
+smtp_helo_name_handler(const vector_t *strvec)
 {
 	smtp_checker_t *smtp_checker = CHECKER_GET();
 	if (smtp_checker->helo_name)

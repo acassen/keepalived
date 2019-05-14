@@ -1073,7 +1073,7 @@ set_script_params_array(const vector_t *strvec, notify_script_t *script, unsigne
 	size_t len = 0;
 	char **word_ptrs;
 	char *words;
-	vector_t *strvec_qe = NULL;
+	const vector_t *strvec_qe = NULL;
 	unsigned i;
 
 	/* Count the number of words, and total string length */
@@ -1108,7 +1108,7 @@ notify_script_t*
 notify_script_init(int extra_params, const char *type)
 {
 	notify_script_t *script = MALLOC(sizeof(notify_script_t));
-	vector_t *strvec_qe;
+	const vector_t *strvec_qe;
 
 	/* We need to reparse the command line, allowing for quoted and escaped strings */
 	strvec_qe = alloc_strvec_quoted_escaped(NULL);

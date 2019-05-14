@@ -65,7 +65,7 @@ tcp_check_compare(const checker_t *old_c, const checker_t *new_c)
 }
 
 static void
-tcp_check_handler(__attribute__((unused)) vector_t *strvec)
+tcp_check_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	/* queue new checker */
 	queue_checker(free_tcp_check, dump_tcp_check, tcp_connect_thread,

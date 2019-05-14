@@ -63,19 +63,19 @@
 #define WHITE_SPACE_STR " \t\f\n\r\v"
 
 typedef struct _defs {
-	char *name;
+	const char *name;
 	size_t name_len;
-	char *value;
+	const char *value;
 	size_t value_len;
 	bool multiline;
-	char *(*fn)(const struct _defs *);
+	const char *(*fn)(const struct _defs *);
 	unsigned max_params;
 	const char *params;
 	const char *params_end;
 } def_t;
 
 typedef struct _multiline_stack_ent {
-	char *ptr;
+	const char *ptr;
 	size_t seq_depth;
 } multiline_stack_ent;
 
@@ -162,7 +162,7 @@ read_int_func(const char *number, int base, int *res, int min_val, int max_val, 
 {
 	long val;
 	char *endptr;
-	char *warn = "";
+	const char *warn = "";
 
 #ifndef _STRICT_CONFIG_
 	if (ignore_error && !__test_bit(CONFIG_TEST_BIT, &debug))
@@ -194,7 +194,7 @@ read_unsigned_func(const char *number, int base, unsigned *res, unsigned min_val
 {
 	unsigned long val;
 	char *endptr;
-	char *warn = "";
+	const char *warn = "";
 	size_t offset;
 
 #ifndef _STRICT_CONFIG_
@@ -234,7 +234,7 @@ read_unsigned64_func(const char *number, int base, uint64_t *res, uint64_t min_v
 {
 	unsigned long long val;
 	char *endptr;
-	char *warn = "";
+	const char *warn = "";
 	size_t offset;
 
 #ifndef _STRICT_CONFIG_
@@ -274,7 +274,7 @@ read_double_func(const char *number, double *res, double min_val, double max_val
 {
 	double val;
 	char *endptr;
-	char *warn = "";
+	const char *warn = "";
 	int ftype;
 
 #ifndef _STRICT_CONFIG_
@@ -375,7 +375,7 @@ set_random_seed(unsigned int seed)
 }
 
 static void
-keyword_alloc(vector_t *keywords_vec, const char *string, void (*handler) (vector_t *), bool active)
+keyword_alloc(vector_t *keywords_vec, const char *string, void (*handler) (const vector_t *), bool active)
 {
 	keyword_t *keyword;
 
@@ -390,7 +390,7 @@ keyword_alloc(vector_t *keywords_vec, const char *string, void (*handler) (vecto
 }
 
 static void
-keyword_alloc_sub(vector_t *keywords_vec, const char *string, void (*handler) (vector_t *))
+keyword_alloc_sub(vector_t *keywords_vec, const char *string, void (*handler) (const vector_t *))
 {
 	int i = 0;
 	keyword_t *keyword;
@@ -428,7 +428,7 @@ install_sublevel_end(void)
 }
 
 void
-install_keyword_root(const char *string, void (*handler) (vector_t *), bool active)
+install_keyword_root(const char *string, void (*handler) (const vector_t *), bool active)
 {
 	/* If the root keyword is inactive, the handler will still be called,
 	 * but with a NULL strvec */
@@ -450,7 +450,7 @@ install_root_end_handler(void (*handler) (void))
 }
 
 void
-install_keyword(const char *string, void (*handler) (vector_t *))
+install_keyword(const char *string, void (*handler) (const vector_t *))
 {
 	keyword_alloc_sub(keywords, string, handler);
 }
@@ -516,7 +516,7 @@ free_keywords(vector_t *keywords_vec)
 }
 
 /* Functions used for standard definitions */
-static char *
+static const char *
 get_cwd(__attribute__((unused))const def_t *def)
 {
 	char *dir = MALLOC(PATH_MAX);
@@ -526,17 +526,13 @@ get_cwd(__attribute__((unused))const def_t *def)
 	return getcwd(dir, PATH_MAX);
 }
 
-static char *
+static const char *
 get_instance(__attribute__((unused))const def_t *def)
 {
-	char *conf_id = MALLOC(strlen(config_id) + 1);
-
-	strcpy(conf_id, config_id);
-
-	return conf_id;
+	return STRDUP(config_id);
 }
 
-static char *
+static const char *
 get_random(const def_t *def)
 {
 	unsigned long min = 0;
@@ -569,15 +565,14 @@ get_random(const def_t *def)
 	return rand_str;
 }
 
-vector_t *
-alloc_strvec_quoted_escaped(char *src)
+const vector_t *
+alloc_strvec_quoted_escaped(const char *src)
 {
-	char *token;
 	vector_t *strvec;
 	char cur_quote = 0;
 	char *ofs_op;
 	char *op_buf;
-	char *ofs, *ofs1;
+	const char *ofs, *ofs1;
 	char op_char;
 
 	if (!src) {
@@ -705,13 +700,9 @@ alloc_strvec_quoted_escaped(char *src)
 			break;
 		}
 
-		token = MALLOC(ofs_op - op_buf + 1);
-		memcpy(token, op_buf, ofs_op - op_buf);
-		token[ofs_op - op_buf] = '\0';
-
 		/* Alloc & set the slot */
 		vector_alloc_slot(strvec);
-		vector_set_slot(strvec, token);
+		vector_set_slot(strvec, STRNDUP(op_buf, ofs_op - op_buf));
 	}
 
 	FREE(op_buf);
@@ -730,9 +721,9 @@ err_exit:
 }
 
 vector_t *
-alloc_strvec_r(char *string)
+alloc_strvec_r(const char *string)
 {
-	char *cp, *start, *token;
+	const char *cp, *start;
 	size_t str_len;
 	vector_t *strvec;
 
@@ -763,13 +754,10 @@ alloc_strvec_r(char *string)
 			cp += strcspn(start, WHITE_SPACE_STR "\"");
 			str_len = (size_t)(cp - start);
 		}
-		token = MALLOC(str_len + 1);
-		memcpy(token, start, str_len);
-		token[str_len] = '\0';
 
 		/* Alloc & set the slot */
 		vector_alloc_slot(strvec);
-		vector_set_slot(strvec, token);
+		vector_set_slot(strvec, STRNDUP(start, str_len));
 	}
 
 	if (!vector_size(strvec)) {
@@ -781,11 +769,11 @@ alloc_strvec_r(char *string)
 }
 
 typedef struct _seq {
-	char *var;
+	const char *var;
 	int next;
 	int last;
 	int step;
-	char *text;
+	const char *text;
 } seq_t;
 
 static list seq_list;	/* List of seq_t */
@@ -808,20 +796,20 @@ free_seq(void *s)
 {
 	seq_t *seq = s;
 
-	FREE(seq->var);
-	FREE(seq->text);
+	FREE_CONST(seq->var);
+	FREE_CONST(seq->text);
 	FREE(seq);
 }
 
 static bool
 add_seq(char *buf)
 {
-	char *p = buf + 4;		/* Skip ~SEQ */
+	char *p = buf + 4;	/* Skip ~SEQ */
 	long one, two, three;
 	long start, step, end;
 	seq_t *seq_ent;
-	char *var;
-	char *var_end;
+	const char *var;
+	const char *var_end;
 
 	p += strspn(p, " \t");
 	if (*p++ != '(')
@@ -894,13 +882,11 @@ add_seq(char *buf)
 	p += strspn(p + 1, " \t") + 1;
 
 	PMALLOC(seq_ent);
-	seq_ent->var = MALLOC(var_end - var + 1);
-	strncpy(seq_ent->var, var, var_end - var);
+	seq_ent->var = STRNDUP(var, var_end - var + 1);
 	seq_ent->next = start;
 	seq_ent->step = step;
 	seq_ent->last = end;
-	seq_ent->text = MALLOC(strlen(p) + 1);
-	strcpy(seq_ent->text, p);
+	seq_ent->text = STRDUP(p);
 
 	if (!seq_list)
 		seq_list = alloc_list(free_seq, NULL);
@@ -913,7 +899,7 @@ add_seq(char *buf)
 static void
 dump_definitions(void)
 {
-	def_t *def;
+	const def_t *def;
 	element e;
 
 	LIST_FOREACH(defs, def, e)
@@ -931,7 +917,7 @@ process_stream(vector_t *keywords_vec, int need_bob)
 {
 	unsigned int i;
 	keyword_t *keyword_vec;
-	char *str;
+	const char *str;
 	char *buf;
 	vector_t *strvec;
 	vector_t *prev_keywords = current_keywords;
@@ -1237,9 +1223,9 @@ bool check_conf_file(const char *conf_file)
 }
 
 static bool
-check_include(char *buf)
+check_include(const char *buf)
 {
-	vector_t *strvec;
+	const vector_t *strvec;
 	bool ret = false;
 	FILE *prev_stream;
 	const char *prev_file_name;
@@ -1346,7 +1332,7 @@ find_definition(const char *name, size_t len, bool definition)
 }
 
 static void
-multiline_stack_push(char *ptr)
+multiline_stack_push(const char *ptr)
 {
 	multiline_stack_ent *stack_ent;
 
@@ -1360,11 +1346,11 @@ multiline_stack_push(char *ptr)
 	list_add(multiline_stack, stack_ent);
 }
 
-static char *
+static const char *
 multiline_stack_pop(void)
 {
 	multiline_stack_ent *stack_ent;
-	char *next_ptr;
+	const char *next_ptr;
 
 	if (!LIST_EXISTS(multiline_stack) || LIST_ISEMPTY(multiline_stack))
 		return NULL;
@@ -1379,7 +1365,7 @@ multiline_stack_pop(void)
 }
 
 static bool
-replace_param(char *buf, size_t max_len, char **multiline_ptr_ptr)
+replace_param(char *buf, size_t max_len, char const **multiline_ptr_ptr)
 {
 	char *cur_pos = buf;
 	size_t len_used = strlen(buf);
@@ -1390,9 +1376,9 @@ replace_param(char *buf, size_t max_len, char **multiline_ptr_ptr)
 	size_t extra_braces;
 	size_t replacing_len;
 	size_t replaced_len;
-	char *next_ptr = NULL;
+	const char *next_ptr = NULL;
 	bool found_defn = false;
-	char *multiline_ptr = *multiline_ptr_ptr;
+	const char *multiline_ptr = *multiline_ptr_ptr;
 
 	while ((cur_pos = strchr(cur_pos, '$')) && cur_pos[1] != '\0') {
 		if ((def = find_definition(cur_pos + 1, 0, false))) {
@@ -1411,7 +1397,7 @@ replace_param(char *buf, size_t max_len, char **multiline_ptr_ptr)
 			if (def->fn) {
 				/* This is a standard definition that uses a function for the replacement text */
 				if (def->value)
-					FREE(def->value);
+					FREE_CONST(def->value);
 				def->value = (*def->fn)(def);
 				def->value_len = strlen(def->value);
 			}
@@ -1485,8 +1471,8 @@ free_definition(void *d)
 {
 	def_t *def = d;
 
-	FREE(def->name);
-	FREE_PTR(def->value);
+	FREE_CONST(def->name);
+	FREE_CONST_PTR(def->value);
 	FREE(def);
 }
 
@@ -1497,22 +1483,20 @@ set_definition(const char *name, const char *value)
 	size_t name_len = strlen(name);
 
 	if ((def = find_definition(name, name_len, false))) {
-		FREE(def->value);
+		FREE_CONST(def->value);
 		def->fn = NULL;		/* Allow a standard definition to be overridden */
 	}
 	else {
 		def = MALLOC(sizeof(*def));
 		def->name_len = name_len;
-		def->name = MALLOC(name_len + 1);
-		strcpy(def->name, name);
+		def->name = STRNDUP(name, def->name_len);
 
 		if (!LIST_EXISTS(defs))
 			defs = alloc_list(free_definition, NULL);
 		list_add(defs, def);
 	}
 	def->value_len = strlen(value);
-	def->value = MALLOC(def->value_len + 1);
-	strcpy(def->value, value);
+	def->value = STRNDUP(value, def->value_len);
 
 #ifdef PARSER_DEBUG
 	log_message(LOG_INFO, "Definition %s now '%s'", def->name, def->value);
@@ -1552,16 +1536,13 @@ check_definition(const char *buf)
 		return NULL;
 
 	if ((def = find_definition(&buf[1], def_name_len, true))) {
-		FREE(def->value);
+		FREE_CONST(def->value);
 		def->fn = NULL;		/* Allow a standard definition to be overridden */
 	}
 	else {
 		def = MALLOC(sizeof(*def));
 		def->name_len = def_name_len;
-		str = MALLOC(def->name_len + 1);
-		strncpy(str, &buf[1], def->name_len);
-		str[def->name_len] = '\0';
-		def->name = str;
+		def->name = STRNDUP(buf + 1, def->name_len);
 
 		if (!LIST_EXISTS(defs))
 			defs = alloc_list(free_definition, NULL);
@@ -1587,31 +1568,29 @@ check_definition(const char *buf)
 	} else
 		def->multiline = false;
 
-	str = MALLOC(def->value_len + 1);
-	strcpy(str, p);
-	def->value = str;
+	str = STRNDUP(p, def->value_len);
 
 	/* If it a multiline definition, we need to mark the end of the first line
 	 * by overwriting the '\' with the line end marker. */
 	if (def->value_len >= 2 && def->multiline)
-		def->value[def->value_len - 1] = DEF_LINE_END[0];
+		str[def->value_len - 1] = DEF_LINE_END[0];
+
+	def->value = str;
 
 	return def;
 }
 
 static void
-add_std_definition(const char *name, const char *value, char *(*fn)(const def_t *), unsigned max_params)
+add_std_definition(const char *name, const char *value, const char *(*fn)(const def_t *), unsigned max_params)
 {
 	def_t* def;
 
 	def = MALLOC(sizeof(*def));
 	def->name_len = strlen(name);
-	def->name = MALLOC(def->name_len + 1);
-	strcpy(def->name, name);
+	def->name = STRNDUP(name, def->name_len);
 	if (value) {
 		def->value_len = strlen(value);
-		def->value = MALLOC(def->value_len + 1);
-		strcpy(def->value, value);
+		def->value = STRNDUP(value, def->value_len);
 	}
 	def->fn = fn;
 	def->max_params = max_params;
@@ -1710,6 +1689,10 @@ decomment(char *str)
 static bool
 read_line(char *buf, size_t size)
 {
+	static def_t *def = NULL;
+	static const char *next_ptr = NULL;
+	static char *line_residue = NULL;
+
 	size_t len ;
 	bool eof = false;
 	size_t config_id_len;
@@ -1717,11 +1700,8 @@ read_line(char *buf, size_t size)
 	bool rev_cmp;
 	size_t ofs;
 	bool recheck;
-	static def_t *def = NULL;
-	static char *next_ptr = NULL;
 	bool multiline_param_def = false;
 	char *end;
-	static char *line_residue = NULL;
 	size_t skip;
 	char *p;
 
@@ -1823,10 +1803,11 @@ read_line(char *buf, size_t size)
 			if (len >= 2 ||
 			    (len && !multiline_param_def)) {
 				/* Add the line to the definition */
-				def->value = REALLOC(def->value, def->value_len + len + 1);
-				strncpy(def->value + def->value_len, buf, len);
+				char *str = REALLOC_CONST(def->value, def->value_len + len + 1);
+				strncpy(str + def->value_len, buf, len);
 				def->value_len += len;
-				def->value[def->value_len] = '\0';
+				str[def->value_len] = '\0';
+				def->value = str;
 			}
 
 			buf[0] = '\0';
@@ -1953,11 +1934,11 @@ read_line(char *buf, size_t size)
 }
 
 void
-alloc_value_block(void (*alloc_func) (vector_t *), const char *block_type)
+alloc_value_block(void (*alloc_func) (const vector_t *), const char *block_type)
 {
 	char *buf;
-	char *str = NULL;
-	vector_t *vec = NULL;
+	const char *str = NULL;
+	const vector_t *vec = NULL;
 	bool first_line = true;
 
 	buf = (char *) MALLOC(MAXBUF);
@@ -1992,25 +1973,22 @@ alloc_value_block(void (*alloc_func) (vector_t *), const char *block_type)
 
 static vector_t *read_value_block_vec;
 static void
-read_value_block_line(vector_t *strvec)
+read_value_block_line(const vector_t *strvec)
 {
 	size_t word;
-	char *str;
-	char *dup_str;
+	const char *str;
 
 	if (!read_value_block_vec)
 		read_value_block_vec = vector_alloc();
 
 	vector_foreach_slot(strvec, str, word) {
-		dup_str = (char *) MALLOC(strlen(str) + 1);
-		strcpy(dup_str, str);
 		vector_alloc_slot(read_value_block_vec);
-		vector_set_slot(read_value_block_vec, dup_str);
+		vector_set_slot(read_value_block_vec, STRDUP(str));
 	}
 }
 
-vector_t *
-read_value_block(vector_t *strvec)
+const vector_t *
+read_value_block(const vector_t *strvec)
 {
 	vector_t *ret_vec;
 
@@ -2022,31 +2000,18 @@ read_value_block(vector_t *strvec)
 	return ret_vec;
 }
 
-void *
-set_value(vector_t *strvec)
+void * __attribute__((malloc))
+set_value(const vector_t *strvec)
 {
-	char *str;
-	size_t size;
-	char *alloc;
-
 	if (vector_size(strvec) < 2)
 		return NULL;
 
-	str = vector_slot(strvec, 1);
-	size = strlen(str);
-
-	alloc = (char *) MALLOC(size + 1);
-	if (!alloc)
-		return NULL;
-
-	memcpy(alloc, str, size);
-
-	return alloc;
+	return STRDUP(vector_slot(strvec, 1));
 }
 
 /* min_time and max_time are in micro-seconds. The returned value is also in micro-seconds */
 bool
-read_timer(vector_t *strvec, size_t index, unsigned long *res, unsigned long min_time, unsigned long max_time, bool ignore_error)
+read_timer(const vector_t *strvec, size_t index, unsigned long *res, unsigned long min_time, unsigned long max_time, bool ignore_error)
 {
 	double timer;
 	bool ret;
@@ -2063,7 +2028,7 @@ read_timer(vector_t *strvec, size_t index, unsigned long *res, unsigned long min
 
 /* Checks for on/true/yes or off/false/no */
 int __attribute__ ((pure))
-check_true_false(char *str)
+check_true_false(const char *str)
 {
 	if (!strcmp(str, "true") || !strcmp(str, "on") || !strcmp(str, "yes"))
 		return true;
@@ -2084,7 +2049,7 @@ void skip_block(bool need_block_start)
 
 /* Data initialization */
 void
-init_data(const char *conf_file, vector_t * (*init_keywords) (void))
+init_data(const char *conf_file, const vector_t * (*init_keywords) (void))
 {
 	/* Init Keywords structure */
 	keywords = vector_alloc();

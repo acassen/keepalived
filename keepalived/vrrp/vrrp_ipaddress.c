@@ -376,7 +376,7 @@ parse_route(char *str)
 }
 
 void
-alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp, bool allow_track_group)
+alloc_ipaddress(list ip_list, const vector_t *strvec, const interface_t *ifp, bool allow_track_group)
 {
 /* The way this works is slightly strange.
  *

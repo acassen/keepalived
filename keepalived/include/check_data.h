@@ -213,11 +213,11 @@ extern check_data_t *old_check_data;
 /* prototypes */
 extern ssl_data_t *alloc_ssl(void) __attribute((malloc));
 extern void free_ssl(void);
-extern void alloc_vsg(char *);
-extern void alloc_vsg_entry(vector_t *);
-extern void alloc_vs(char *, char *);
-extern void alloc_rs(char *, char *);
-extern void alloc_ssvr(char *, char *);
+extern void alloc_vsg(const char *);
+extern void alloc_vsg_entry(const vector_t *);
+extern void alloc_vs(const char *, const char *);
+extern void alloc_rs(const char *, const char *);
+extern void alloc_ssvr(const char *, const char *);
 extern check_data_t *alloc_check_data(void);
 extern void free_check_data(check_data_t *);
 extern void dump_data_check(FILE *);

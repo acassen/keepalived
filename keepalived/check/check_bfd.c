@@ -108,7 +108,7 @@ find_checker_tracked_bfd_by_name(char *name)
 }
 
 static void
-bfd_check_handler(__attribute__((unused)) vector_t *strvec)
+bfd_check_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	bfd_checker_t *new_bfd_checker;
 
@@ -119,7 +119,7 @@ bfd_check_handler(__attribute__((unused)) vector_t *strvec)
 }
 
 static void
-bfd_name_handler(vector_t *strvec)
+bfd_name_handler(const vector_t *strvec)
 {
 	checker_tracked_bfd_t *tbfd;
 	bfd_checker_t *cbfd, *bfd_c;
@@ -167,7 +167,7 @@ bfd_name_handler(vector_t *strvec)
 }
 
 static void
-bfd_alpha_handler(vector_t *strvec)
+bfd_alpha_handler(const vector_t *strvec)
 {
 	int res;
 

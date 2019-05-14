@@ -71,7 +71,7 @@ check_new_bfd(const char *name)
 }
 
 static void
-bfd_handler(vector_t *strvec)
+bfd_handler(const vector_t *strvec)
 {
 	char *name;
 
@@ -94,7 +94,7 @@ bfd_handler(vector_t *strvec)
 }
 
 static void
-bfd_nbrip_handler(vector_t *strvec)
+bfd_nbrip_handler(const vector_t *strvec)
 {
 	bfd_t *bfd;
 	struct sockaddr_storage nbr_addr;
@@ -129,7 +129,7 @@ bfd_nbrip_handler(vector_t *strvec)
 }
 
 static void
-bfd_srcip_handler(vector_t *strvec)
+bfd_srcip_handler(const vector_t *strvec)
 {
 	bfd_t *bfd;
 	struct sockaddr_storage src_addr;
@@ -150,7 +150,7 @@ bfd_srcip_handler(vector_t *strvec)
 }
 
 static void
-bfd_minrx_handler(vector_t *strvec)
+bfd_minrx_handler(const vector_t *strvec)
 {
 	bfd_t *bfd;
 	unsigned value;
@@ -176,7 +176,7 @@ bfd_minrx_handler(vector_t *strvec)
 }
 
 static void
-bfd_mintx_handler(vector_t *strvec)
+bfd_mintx_handler(const vector_t *strvec)
 {
 	bfd_t *bfd;
 	unsigned value;
@@ -202,7 +202,7 @@ bfd_mintx_handler(vector_t *strvec)
 }
 
 static void
-bfd_idletx_handler(vector_t *strvec)
+bfd_idletx_handler(const vector_t *strvec)
 {
 	bfd_t *bfd;
 	unsigned value;
@@ -228,7 +228,7 @@ bfd_idletx_handler(vector_t *strvec)
 }
 
 static void
-bfd_multiplier_handler(vector_t *strvec)
+bfd_multiplier_handler(const vector_t *strvec)
 {
 	bfd_t *bfd;
 	unsigned value;
@@ -249,7 +249,7 @@ bfd_multiplier_handler(vector_t *strvec)
 }
 
 static void
-bfd_passive_handler(__attribute__((unused)) vector_t *strvec)
+bfd_passive_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	bfd_t *bfd;
 
@@ -262,7 +262,7 @@ bfd_passive_handler(__attribute__((unused)) vector_t *strvec)
 }
 
 static void
-bfd_ttl_handler(vector_t *strvec)
+bfd_ttl_handler(const vector_t *strvec)
 {
 	bfd_t *bfd;
 	unsigned value;
@@ -283,7 +283,7 @@ bfd_ttl_handler(vector_t *strvec)
 }
 
 static void
-bfd_maxhops_handler(vector_t *strvec)
+bfd_maxhops_handler(const vector_t *strvec)
 {
 	bfd_t *bfd;
 	int value;
@@ -378,7 +378,7 @@ bfd_end_handler(void)
 #ifdef _WITH_VRRP_
 #ifndef _DEBUG_
 static void
-bfd_vrrp_handler(vector_t *strvec)
+bfd_vrrp_handler(const vector_t *strvec)
 {
 	vrrp_tracked_bfd_t *tbfd;
 	const char *name;
@@ -412,7 +412,7 @@ bfd_vrrp_handler(vector_t *strvec)
 #endif
 
 static void
-bfd_vrrp_weight_handler(vector_t *strvec)
+bfd_vrrp_weight_handler(const vector_t *strvec)
 {
 	vrrp_tracked_bfd_t *tbfd;
 	int value;
@@ -433,7 +433,7 @@ bfd_vrrp_weight_handler(vector_t *strvec)
 }
 
 static void
-bfd_event_vrrp_handler(__attribute__((unused)) vector_t *strvec)
+bfd_event_vrrp_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	__set_bit(DAEMON_VRRP, &specified_event_processes);
 }
@@ -442,7 +442,7 @@ bfd_event_vrrp_handler(__attribute__((unused)) vector_t *strvec)
 #ifdef _WITH_LVS_
 #ifndef _DEBUG_
 static void
-bfd_checker_handler(vector_t *strvec)
+bfd_checker_handler(const vector_t *strvec)
 {
 	checker_tracked_bfd_t *tbfd;
 	char *name;
@@ -471,20 +471,20 @@ bfd_checker_handler(vector_t *strvec)
 #endif
 
 static void
-bfd_event_checker_handler(__attribute__((unused)) vector_t *strvec)
+bfd_event_checker_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	__set_bit(DAEMON_CHECKERS, &specified_event_processes);
 }
 #endif
 
 static void
-ignore_handler(__attribute__((unused)) vector_t *strvec)
+ignore_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	return;
 }
 
 static void
-install_keyword_conditional(const char *string, void (*handler) (vector_t *), bool want_handler)
+install_keyword_conditional(const char *string, void (*handler) (const vector_t *), bool want_handler)
 {
 	install_keyword(string, want_handler ? handler : ignore_handler);
 }
@@ -546,7 +546,7 @@ init_bfd_keywords(bool active)
 #endif
 }
 
-vector_t *
+const vector_t *
 bfd_init_keywords(void)
 {
 	/* global definitions mapping */

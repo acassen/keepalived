@@ -905,7 +905,7 @@ dump_iproute(FILE *fp, const void *rt_data)
 
 #if HAVE_DECL_RTA_ENCAP
 #if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
-static int parse_encap_mpls(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
+static int parse_encap_mpls(const vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 {
 	char *str;
 
@@ -926,7 +926,7 @@ static int parse_encap_mpls(vector_t *strvec, unsigned int *i_ptr, encap_t *enca
 }
 #endif
 
-static int parse_encap_ip(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
+static int parse_encap_ip(const vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 {
 	unsigned int i = *i_ptr;
 	char *str, *str1;
@@ -1011,7 +1011,7 @@ err:
 
 #if HAVE_DECL_LWTUNNEL_ENCAP_ILA
 static
-int parse_encap_ila(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
+int parse_encap_ila(const vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 {
 	char *str;
 
@@ -1034,7 +1034,7 @@ int parse_encap_ila(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 #endif
 
 static
-int parse_encap_ip6(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
+int parse_encap_ip6(const vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 {
 	unsigned int i = *i_ptr;
 	char *str, *str1;
@@ -1116,7 +1116,7 @@ err:
 }
 
 static bool
-parse_encap(vector_t *strvec, unsigned int *i, encap_t *encap)
+parse_encap(const vector_t *strvec, unsigned int *i, encap_t *encap)
 {
 	char *str;
 
@@ -1150,7 +1150,7 @@ parse_encap(vector_t *strvec, unsigned int *i, encap_t *encap)
 #endif
 
 static void
-parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
+parse_nexthops(const vector_t *strvec, unsigned int i, ip_route_t *route)
 {
 	uint8_t family = AF_UNSPEC;
 	nexthop_t *new;
@@ -1268,7 +1268,7 @@ err:
 }
 
 void
-alloc_route(list rt_list, vector_t *strvec, bool allow_track_group)
+alloc_route(list rt_list, const vector_t *strvec, bool allow_track_group)
 {
 	ip_route_t *new;
 	interface_t *ifp;

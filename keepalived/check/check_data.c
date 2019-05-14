@@ -148,7 +148,7 @@ dump_vsg_entry(FILE *fp, const void *data)
 	conf_write(fp, "     reloaded = %s", vsg_entry->reloaded ? "True" : "False");
 }
 void
-alloc_vsg(char *gname)
+alloc_vsg(const char *gname)
 {
 	size_t size = strlen(gname);
 	virtual_server_group_t *new;
@@ -162,7 +162,7 @@ alloc_vsg(char *gname)
 	list_add(check_data->vs_group, new);
 }
 void
-alloc_vsg_entry(vector_t *strvec)
+alloc_vsg_entry(const vector_t *strvec)
 {
 	virtual_server_group_t *vsg = LIST_TAIL_DATA(check_data->vs_group);
 	virtual_server_group_entry_t *new;
@@ -381,11 +381,11 @@ dump_vs(FILE *fp, const void *data)
 }
 
 void
-alloc_vs(char *param1, char *param2)
+alloc_vs(const char *param1, const char *param2)
 {
 	size_t size;
 	virtual_server_t *new;
-	char *port_str;
+	const char *port_str;
 	unsigned fwmark;
 
 	new = (virtual_server_t *) MALLOC(sizeof(virtual_server_t));
@@ -450,10 +450,10 @@ alloc_vs(char *param1, char *param2)
 
 /* Sorry server facility functions */
 void
-alloc_ssvr(char *ip, char *port)
+alloc_ssvr(const char *ip, const char *port)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	char *port_str;
+	const char *port_str;
 
 	/* inet_stosockaddr rejects port 0 */
 	port_str = (port && port[strspn(port, "0")]) ? port : NULL;
@@ -550,11 +550,11 @@ dump_rs(FILE *fp, const void *data)
 }
 
 void
-alloc_rs(char *ip, char *port)
+alloc_rs(const char *ip, const char *port)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *new;
-	char *port_str;
+	const char *port_str;
 
 	/* inet_stosockaddr rejects port 0 */
 	port_str = (port && port[strspn(port, "0")]) ? port : NULL;

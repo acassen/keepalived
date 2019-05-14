@@ -476,7 +476,7 @@ dns_check_compare(const checker_t *old_c, const checker_t *new_c)
 }
 
 static void
-dns_check_handler(__attribute__((unused)) vector_t * strvec)
+dns_check_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	checker_t *checker;
 
@@ -492,7 +492,7 @@ dns_check_handler(__attribute__((unused)) vector_t * strvec)
 }
 
 static void
-dns_type_handler(vector_t * strvec)
+dns_type_handler(const vector_t *strvec)
 {
 	uint16_t dns_type;
 	dns_check_t *dns_check = CHECKER_GET();
@@ -508,7 +508,7 @@ dns_type_handler(vector_t * strvec)
 }
 
 static void
-dns_name_handler(vector_t * strvec)
+dns_name_handler(const vector_t *strvec)
 {
 	dns_check_t *dns_check = CHECKER_GET();
 	dns_check->name = CHECKER_VALUE_STRING(strvec);

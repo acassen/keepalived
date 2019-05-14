@@ -30,7 +30,7 @@
 #include "vector.h"
 
 /* Prototypes */
-extern vector_t *check_init_keywords(void);
+extern const vector_t *check_init_keywords(void);
 extern void init_check_keywords(bool);
 
 #endif

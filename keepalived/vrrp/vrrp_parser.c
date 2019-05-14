@@ -80,7 +80,7 @@ static bool remove_script;
 
 /* track groups for static items */
 static void
-static_track_group_handler(vector_t *strvec)
+static_track_group_handler(const vector_t *strvec)
 {
 	element e;
 	static_track_group_t *tg;
@@ -110,7 +110,7 @@ static_track_group_handler(vector_t *strvec)
 }
 
 static void
-static_track_group_group_handler(vector_t *strvec)
+static_track_group_group_handler(const vector_t *strvec)
 {
 	static_track_group_t *tgroup = LIST_TAIL_DATA(vrrp_data->static_track_groups);
 
@@ -128,7 +128,7 @@ static_track_group_group_handler(vector_t *strvec)
 
 /* Static addresses handler */
 static void
-static_addresses_handler(vector_t *strvec)
+static_addresses_handler(const vector_t *strvec)
 {
 	global_data->have_vrrp_config = true;
 
@@ -141,7 +141,7 @@ static_addresses_handler(vector_t *strvec)
 #ifdef _HAVE_FIB_ROUTING_
 /* Static routes handler */
 static void
-static_routes_handler(vector_t *strvec)
+static_routes_handler(const vector_t *strvec)
 {
 	global_data->have_vrrp_config = true;
 
@@ -153,7 +153,7 @@ static_routes_handler(vector_t *strvec)
 
 /* Static rules handler */
 static void
-static_rules_handler(vector_t *strvec)
+static_rules_handler(const vector_t *strvec)
 {
 	global_data->have_vrrp_config = true;
 
@@ -166,7 +166,7 @@ static_rules_handler(vector_t *strvec)
 
 #ifdef _WITH_LINKBEAT_
 static void
-alloc_linkbeat_interface(vector_t *strvec)
+alloc_linkbeat_interface(const vector_t *strvec)
 {
 	interface_t *ifp;
 	int lb_type = 0;
@@ -201,7 +201,7 @@ alloc_linkbeat_interface(vector_t *strvec)
 }
 
 static void
-linkbeat_interfaces_handler(vector_t *strvec)
+linkbeat_interfaces_handler(const vector_t *strvec)
 {
 	if (!strvec)
 		return;
@@ -211,7 +211,7 @@ linkbeat_interfaces_handler(vector_t *strvec)
 
 /* VRRP handlers */
 static void
-vrrp_sync_group_handler(vector_t *strvec)
+vrrp_sync_group_handler(const vector_t *strvec)
 {
 	list l;
 	element e;
@@ -246,7 +246,7 @@ vrrp_sync_group_handler(vector_t *strvec)
 }
 
 static void
-vrrp_group_handler(vector_t *strvec)
+vrrp_group_handler(const vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 
@@ -263,26 +263,26 @@ vrrp_group_handler(vector_t *strvec)
 }
 
 static void
-vrrp_group_track_if_handler(vector_t *strvec)
+vrrp_group_track_if_handler(const vector_t *strvec)
 {
 	alloc_value_block(alloc_vrrp_group_track_if, vector_slot(strvec, 0));
 }
 
 static void
-vrrp_group_track_scr_handler(vector_t *strvec)
+vrrp_group_track_scr_handler(const vector_t *strvec)
 {
 	alloc_value_block(alloc_vrrp_group_track_script, vector_slot(strvec, 0));
 }
 
 static void
-vrrp_group_track_file_handler(vector_t *strvec)
+vrrp_group_track_file_handler(const vector_t *strvec)
 {
 	alloc_value_block(alloc_vrrp_group_track_file, vector_slot(strvec, 0));
 }
 
 #ifdef _WITH_CN_PROC_
 static void
-vrrp_group_track_process_handler(vector_t *strvec)
+vrrp_group_track_process_handler(const vector_t *strvec)
 {
 	alloc_value_block(alloc_vrrp_group_track_process, vector_slot(strvec, 0));
 }
@@ -290,20 +290,20 @@ vrrp_group_track_process_handler(vector_t *strvec)
 
 #if defined _WITH_BFD_
 static void
-vrrp_group_track_bfd_handler(vector_t *strvec)
+vrrp_group_track_bfd_handler(const vector_t *strvec)
 {
 	alloc_value_block(alloc_vrrp_group_track_bfd, vector_slot(strvec, 0));
 }
 #endif
 
 static inline notify_script_t*
-set_vrrp_notify_script(__attribute__((unused)) vector_t *strvec, int extra_params)
+set_vrrp_notify_script(__attribute__((unused)) const vector_t *strvec, int extra_params)
 {
 	return notify_script_init(extra_params, "notify");
 }
 
 static void
-vrrp_gnotify_backup_handler(vector_t *strvec)
+vrrp_gnotify_backup_handler(const vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 	if (vgroup->script_backup) {
@@ -314,7 +314,7 @@ vrrp_gnotify_backup_handler(vector_t *strvec)
 	vgroup->notify_exec = true;
 }
 static void
-vrrp_gnotify_master_handler(vector_t *strvec)
+vrrp_gnotify_master_handler(const vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 	if (vgroup->script_master) {
@@ -325,7 +325,7 @@ vrrp_gnotify_master_handler(vector_t *strvec)
 	vgroup->notify_exec = true;
 }
 static void
-vrrp_gnotify_fault_handler(vector_t *strvec)
+vrrp_gnotify_fault_handler(const vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 	if (vgroup->script_fault) {
@@ -336,7 +336,7 @@ vrrp_gnotify_fault_handler(vector_t *strvec)
 	vgroup->notify_exec = true;
 }
 static void
-vrrp_gnotify_stop_handler(vector_t *strvec)
+vrrp_gnotify_stop_handler(const vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 	if (vgroup->script_stop) {
@@ -347,7 +347,7 @@ vrrp_gnotify_stop_handler(vector_t *strvec)
 	vgroup->notify_exec = true;
 }
 static void
-vrrp_gnotify_handler(vector_t *strvec)
+vrrp_gnotify_handler(const vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 	if (vgroup->script) {
@@ -358,7 +358,7 @@ vrrp_gnotify_handler(vector_t *strvec)
 	vgroup->notify_exec = true;
 }
 static void
-vrrp_gsmtp_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_gsmtp_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 	int res = true;
@@ -373,7 +373,7 @@ vrrp_gsmtp_handler(__attribute__((unused)) vector_t *strvec)
 	vgroup->smtp_alert = res;
 }
 static void
-vrrp_gglobal_tracking_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_gglobal_tracking_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 
@@ -381,13 +381,13 @@ vrrp_gglobal_tracking_handler(__attribute__((unused)) vector_t *strvec)
 	vgroup->sgroup_tracking_weight = true;
 }
 static void
-vrrp_sg_tracking_weight_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_sg_tracking_weight_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 	vgroup->sgroup_tracking_weight = true;
 }
 static void
-vrrp_handler(vector_t *strvec)
+vrrp_handler(const vector_t *strvec)
 {
 	list l;
 	element e;
@@ -424,7 +424,7 @@ vrrp_handler(vector_t *strvec)
 }
 #ifdef _HAVE_VRRP_VMAC_
 static void
-vrrp_vmac_handler(vector_t *strvec)
+vrrp_vmac_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	interface_t *ifp;
@@ -448,7 +448,7 @@ vrrp_vmac_handler(vector_t *strvec)
 	}
 }
 static void
-vrrp_vmac_xmit_base_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_vmac_xmit_base_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
@@ -457,7 +457,7 @@ vrrp_vmac_xmit_base_handler(__attribute__((unused)) vector_t *strvec)
 #endif
 #ifdef _HAVE_VRRP_IPVLAN_
 static void
-vrrp_ipvlan_handler(vector_t *strvec)
+vrrp_ipvlan_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	interface_t *ifp;
@@ -569,13 +569,13 @@ vrrp_ipvlan_handler(vector_t *strvec)
 }
 #endif
 static void
-vrrp_unicast_peer_handler(vector_t *strvec)
+vrrp_unicast_peer_handler(const vector_t *strvec)
 {
 	alloc_value_block(alloc_vrrp_unicast_peer, vector_slot(strvec, 0));
 }
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 static void
-vrrp_unicast_chksum_handler(vector_t *strvec)
+vrrp_unicast_chksum_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
@@ -590,7 +590,7 @@ vrrp_unicast_chksum_handler(vector_t *strvec)
 }
 #endif
 static void
-vrrp_native_ipv6_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_native_ipv6_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
@@ -603,7 +603,7 @@ vrrp_native_ipv6_handler(__attribute__((unused)) vector_t *strvec)
 	vrrp->version = VRRP_VERSION_3;
 }
 static void
-vrrp_state_handler(vector_t *strvec)
+vrrp_state_handler(const vector_t *strvec)
 {
 	char *str = strvec_slot(strvec, 1);
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
@@ -623,7 +623,7 @@ vrrp_state_handler(vector_t *strvec)
 	}
 }
 static void
-vrrp_int_handler(vector_t *strvec)
+vrrp_int_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	char *name = strvec_slot(strvec, 1);
@@ -647,7 +647,7 @@ vrrp_int_handler(vector_t *strvec)
 }
 #ifdef _WITH_LINKBEAT_
 static void
-vrrp_linkbeat_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_linkbeat_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
@@ -656,42 +656,42 @@ vrrp_linkbeat_handler(__attribute__((unused)) vector_t *strvec)
 }
 #endif
 static void
-vrrp_track_if_handler(vector_t *strvec)
+vrrp_track_if_handler(const vector_t *strvec)
 {
 	alloc_value_block(alloc_vrrp_track_if, vector_slot(strvec, 0));
 }
 static void
-vrrp_track_scr_handler(vector_t *strvec)
+vrrp_track_scr_handler(const vector_t *strvec)
 {
 	alloc_value_block(alloc_vrrp_track_script, vector_slot(strvec, 0));
 }
 static void
-vrrp_track_file_handler(vector_t *strvec)
+vrrp_track_file_handler(const vector_t *strvec)
 {
 	alloc_value_block(alloc_vrrp_track_file, vector_slot(strvec, 0));
 }
 #ifdef _WITH_CN_PROC_
 static void
-vrrp_track_process_handler(vector_t *strvec)
+vrrp_track_process_handler(const vector_t *strvec)
 {
 	alloc_value_block(alloc_vrrp_track_process, vector_slot(strvec, 0));
 }
 #endif
 static void
-vrrp_dont_track_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_dont_track_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->dont_track_primary = true;
 }
 #ifdef _WITH_BFD_
 static void
-vrrp_track_bfd_handler(vector_t *strvec)
+vrrp_track_bfd_handler(const vector_t *strvec)
 {
 	alloc_value_block(alloc_vrrp_track_bfd, vector_slot(strvec, 0));
 }
 #endif
 static void
-vrrp_srcip_handler(vector_t *strvec)
+vrrp_srcip_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	struct sockaddr_storage *saddr = &vrrp->saddr;
@@ -716,14 +716,14 @@ vrrp_srcip_handler(vector_t *strvec)
 	}
 }
 static void
-vrrp_track_srcip_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_track_srcip_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
 	vrrp->track_saddr = true;
 }
 static void
-vrrp_vrid_handler(vector_t *strvec)
+vrrp_vrid_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	unsigned vrid;
@@ -736,7 +736,7 @@ vrrp_vrid_handler(vector_t *strvec)
 	vrrp->vrid = (uint8_t)vrid;
 }
 static void
-vrrp_prio_handler(vector_t *strvec)
+vrrp_prio_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	unsigned base_priority;
@@ -749,7 +749,7 @@ vrrp_prio_handler(vector_t *strvec)
 		vrrp->base_priority = (uint8_t)base_priority;
 }
 static void
-vrrp_adv_handler(vector_t *strvec)
+vrrp_adv_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	double adver_int;
@@ -764,7 +764,7 @@ vrrp_adv_handler(vector_t *strvec)
 		vrrp->adver_int = (unsigned)(adver_int * TIMER_HZ);
 }
 static void
-vrrp_debug_handler(vector_t *strvec)
+vrrp_debug_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	unsigned debug_val;
@@ -775,7 +775,7 @@ vrrp_debug_handler(vector_t *strvec)
 		vrrp->debug = debug_val;
 }
 static void
-vrrp_skip_check_adv_addr_handler(vector_t *strvec)
+vrrp_skip_check_adv_addr_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	int res;
@@ -792,7 +792,7 @@ vrrp_skip_check_adv_addr_handler(vector_t *strvec)
 	}
 }
 static void
-vrrp_strict_mode_handler(vector_t *strvec)
+vrrp_strict_mode_handler(const vector_t *strvec)
 {
 	int res;
 
@@ -809,19 +809,19 @@ vrrp_strict_mode_handler(vector_t *strvec)
 	}
 }
 static void
-vrrp_nopreempt_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_nopreempt_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->nopreempt = 1;
 }
 static void	/* backwards compatibility */
-vrrp_preempt_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_preempt_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->nopreempt = 0;
 }
 static void
-vrrp_preempt_delay_handler(vector_t *strvec)
+vrrp_preempt_delay_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	double preempt_delay;
@@ -834,7 +834,7 @@ vrrp_preempt_delay_handler(vector_t *strvec)
 		vrrp->preempt_delay = (unsigned long)(preempt_delay * TIMER_HZ);
 }
 static void
-vrrp_notify_backup_handler(vector_t *strvec)
+vrrp_notify_backup_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	if (vrrp->script_backup) {
@@ -845,7 +845,7 @@ vrrp_notify_backup_handler(vector_t *strvec)
 	vrrp->notify_exec = true;
 }
 static void
-vrrp_notify_master_handler(vector_t *strvec)
+vrrp_notify_master_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	if (vrrp->script_master) {
@@ -856,7 +856,7 @@ vrrp_notify_master_handler(vector_t *strvec)
 	vrrp->notify_exec = true;
 }
 static void
-vrrp_notify_fault_handler(vector_t *strvec)
+vrrp_notify_fault_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	if (vrrp->script_fault) {
@@ -867,7 +867,7 @@ vrrp_notify_fault_handler(vector_t *strvec)
 	vrrp->notify_exec = true;
 }
 static void
-vrrp_notify_stop_handler(vector_t *strvec)
+vrrp_notify_stop_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	if (vrrp->script_stop) {
@@ -878,7 +878,7 @@ vrrp_notify_stop_handler(vector_t *strvec)
 	vrrp->notify_exec = true;
 }
 static void
-vrrp_notify_handler(vector_t *strvec)
+vrrp_notify_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	if (vrrp->script) {
@@ -889,7 +889,7 @@ vrrp_notify_handler(vector_t *strvec)
 	vrrp->notify_exec = true;
 }
 static void
-vrrp_notify_master_rx_lower_pri(vector_t *strvec)
+vrrp_notify_master_rx_lower_pri(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	if (vrrp->script_master_rx_lower_pri) {
@@ -900,7 +900,7 @@ vrrp_notify_master_rx_lower_pri(vector_t *strvec)
 	vrrp->notify_exec = true;
 }
 static void
-vrrp_smtp_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_smtp_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	int res = true;
@@ -915,7 +915,7 @@ vrrp_smtp_handler(__attribute__((unused)) vector_t *strvec)
 	vrrp->smtp_alert = res;
 }
 static void
-vrrp_notify_priority_changes_handler(vector_t *strvec)
+vrrp_notify_priority_changes_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
         int res = true;
@@ -932,7 +932,7 @@ vrrp_notify_priority_changes_handler(vector_t *strvec)
 }
 #ifdef _WITH_LVS_
 static void
-vrrp_lvs_syncd_handler(vector_t *strvec)
+vrrp_lvs_syncd_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
@@ -949,7 +949,7 @@ vrrp_lvs_syncd_handler(vector_t *strvec)
 }
 #endif
 static void
-vrrp_garp_delay_handler(vector_t *strvec)
+vrrp_garp_delay_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	unsigned delay;
@@ -962,7 +962,7 @@ vrrp_garp_delay_handler(vector_t *strvec)
 	vrrp->garp_delay = delay * TIMER_HZ;
 }
 static void
-vrrp_garp_refresh_handler(vector_t *strvec)
+vrrp_garp_refresh_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	unsigned refresh;
@@ -976,7 +976,7 @@ vrrp_garp_refresh_handler(vector_t *strvec)
 	vrrp->garp_refresh.tv_usec = 0;
 }
 static void
-vrrp_garp_rep_handler(vector_t *strvec)
+vrrp_garp_rep_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	unsigned repeats;
@@ -996,7 +996,7 @@ vrrp_garp_rep_handler(vector_t *strvec)
 	vrrp->garp_rep = repeats;
 }
 static void
-vrrp_garp_refresh_rep_handler(vector_t *strvec)
+vrrp_garp_refresh_rep_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	unsigned repeats;
@@ -1017,7 +1017,7 @@ vrrp_garp_refresh_rep_handler(vector_t *strvec)
 }
 
 static void
-vrrp_garp_lower_prio_delay_handler(vector_t *strvec)
+vrrp_garp_lower_prio_delay_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	unsigned delay;
@@ -1030,7 +1030,7 @@ vrrp_garp_lower_prio_delay_handler(vector_t *strvec)
 	vrrp->garp_lower_prio_delay = delay * TIMER_HZ;
 }
 static void
-vrrp_garp_lower_prio_rep_handler(vector_t *strvec)
+vrrp_garp_lower_prio_rep_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	unsigned garp_lower_prio_rep;
@@ -1043,7 +1043,7 @@ vrrp_garp_lower_prio_rep_handler(vector_t *strvec)
 	vrrp->garp_lower_prio_rep = garp_lower_prio_rep;
 }
 static void
-vrrp_lower_prio_no_advert_handler(vector_t *strvec)
+vrrp_lower_prio_no_advert_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	int res;
@@ -1061,7 +1061,7 @@ vrrp_lower_prio_no_advert_handler(vector_t *strvec)
 }
 
 static void
-vrrp_higher_prio_send_advert_handler(vector_t *strvec)
+vrrp_higher_prio_send_advert_handler(const vector_t *strvec)
 {
 	int res;
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
@@ -1080,7 +1080,7 @@ vrrp_higher_prio_send_advert_handler(vector_t *strvec)
 
 
 static void
-kernel_rx_buf_size_handler(vector_t *strvec)
+kernel_rx_buf_size_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	unsigned rx_buf_size;
@@ -1096,7 +1096,7 @@ kernel_rx_buf_size_handler(vector_t *strvec)
 
 #if defined _WITH_VRRP_AUTH_
 static void
-vrrp_auth_type_handler(vector_t *strvec)
+vrrp_auth_type_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	char *str = strvec_slot(strvec, 1);
@@ -1109,7 +1109,7 @@ vrrp_auth_type_handler(vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown authentication type '%s'", vrrp->iname, str);
 }
 static void
-vrrp_auth_pass_handler(vector_t *strvec)
+vrrp_auth_pass_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	char *str = strvec_slot(strvec, 1);
@@ -1127,17 +1127,17 @@ vrrp_auth_pass_handler(vector_t *strvec)
 }
 #endif
 static void
-vrrp_vip_handler(vector_t *strvec)
+vrrp_vip_handler(const vector_t *strvec)
 {
 	alloc_value_block(alloc_vrrp_vip, vector_slot(strvec, 0));
 }
 static void
-vrrp_evip_handler(vector_t *strvec)
+vrrp_evip_handler(const vector_t *strvec)
 {
 	alloc_value_block(alloc_vrrp_evip, vector_slot(strvec, 0));
 }
 static void
-vrrp_promote_secondaries_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_promote_secondaries_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
@@ -1145,18 +1145,18 @@ vrrp_promote_secondaries_handler(__attribute__((unused)) vector_t *strvec)
 }
 #ifdef _HAVE_FIB_ROUTING_
 static void
-vrrp_vroutes_handler(vector_t *strvec)
+vrrp_vroutes_handler(const vector_t *strvec)
 {
 	alloc_value_block(alloc_vrrp_vroute, vector_slot(strvec, 0));
 }
 static void
-vrrp_vrules_handler(vector_t *strvec)
+vrrp_vrules_handler(const vector_t *strvec)
 {
 	alloc_value_block(alloc_vrrp_vrule, vector_slot(strvec, 0));
 }
 #endif
 static void
-vrrp_script_handler(vector_t *strvec)
+vrrp_script_handler(const vector_t *strvec)
 {
 	if (!strvec)
 		return;
@@ -1166,10 +1166,10 @@ vrrp_script_handler(vector_t *strvec)
 	remove_script = false;
 }
 static void
-vrrp_vscript_script_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_vscript_script_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
-	vector_t *strvec_qe;
+	const vector_t *strvec_qe;
 
 	/* We need to allow quoted and escaped strings for the script and parameters */
 	strvec_qe = alloc_strvec_quoted_escaped(NULL);
@@ -1178,7 +1178,7 @@ vrrp_vscript_script_handler(__attribute__((unused)) vector_t *strvec)
 	free_strvec(strvec_qe);
 }
 static void
-vrrp_vscript_interval_handler(vector_t *strvec)
+vrrp_vscript_interval_handler(const vector_t *strvec)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
 	unsigned interval;
@@ -1198,7 +1198,7 @@ vrrp_vscript_interval_handler(vector_t *strvec)
 	vscript->interval = interval * TIMER_HZ;
 }
 static void
-vrrp_vscript_timeout_handler(vector_t *strvec)
+vrrp_vscript_timeout_handler(const vector_t *strvec)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
 	unsigned timeout;
@@ -1218,7 +1218,7 @@ vrrp_vscript_timeout_handler(vector_t *strvec)
 	vscript->timeout = timeout * TIMER_HZ;
 }
 static void
-vrrp_vscript_weight_handler(vector_t *strvec)
+vrrp_vscript_weight_handler(const vector_t *strvec)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
 	int weight;
@@ -1228,7 +1228,7 @@ vrrp_vscript_weight_handler(vector_t *strvec)
 	vscript->weight = weight;
 }
 static void
-vrrp_vscript_rise_handler(vector_t *strvec)
+vrrp_vscript_rise_handler(const vector_t *strvec)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
 	unsigned rise;
@@ -1241,7 +1241,7 @@ vrrp_vscript_rise_handler(vector_t *strvec)
 		vscript->rise = rise;
 }
 static void
-vrrp_vscript_fall_handler(vector_t *strvec)
+vrrp_vscript_fall_handler(const vector_t *strvec)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
 	unsigned fall;
@@ -1254,7 +1254,7 @@ vrrp_vscript_fall_handler(vector_t *strvec)
 		vscript->fall = fall;
 }
 static void
-vrrp_vscript_user_handler(vector_t *strvec)
+vrrp_vscript_user_handler(const vector_t *strvec)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
 
@@ -1295,7 +1295,7 @@ vrrp_vscript_end_handler(void)
 	vscript->script.gid = default_script_gid;
 }
 static void
-vrrp_tfile_handler(vector_t *strvec)
+vrrp_tfile_handler(const vector_t *strvec)
 {
 	if (!strvec)
 		return;
@@ -1305,7 +1305,7 @@ vrrp_tfile_handler(vector_t *strvec)
 	track_file_init = TRACK_FILE_NO_INIT;
 }
 static void
-vrrp_tfile_file_handler(vector_t *strvec)
+vrrp_tfile_file_handler(const vector_t *strvec)
 {
 	vrrp_tracked_file_t *tfile = LIST_TAIL_DATA(vrrp_data->vrrp_track_files);
 	if (tfile->file_path) {
@@ -1315,7 +1315,7 @@ vrrp_tfile_file_handler(vector_t *strvec)
 	tfile->file_path = set_value(strvec);
 }
 static void
-vrrp_tfile_weight_handler(vector_t *strvec)
+vrrp_tfile_weight_handler(const vector_t *strvec)
 {
 	int weight;
 	vrrp_tracked_file_t *tfile = LIST_TAIL_DATA(vrrp_data->vrrp_track_files);
@@ -1338,7 +1338,7 @@ vrrp_tfile_weight_handler(vector_t *strvec)
 	tfile->weight = weight;
 }
 static void
-vrrp_tfile_init_handler(vector_t *strvec)
+vrrp_tfile_init_handler(const vector_t *strvec)
 {
 	unsigned i;
 	char *word;
@@ -1413,7 +1413,7 @@ vrrp_tfile_end_handler(void)
 }
 #ifdef _WITH_CN_PROC_
 static void
-vrrp_tprocess_handler(vector_t *strvec)
+vrrp_tprocess_handler(const vector_t *strvec)
 {
 	if (!strvec)
 		return;
@@ -1421,7 +1421,7 @@ vrrp_tprocess_handler(vector_t *strvec)
 	alloc_vrrp_process(strvec_slot(strvec, 1));
 }
 static void
-vrrp_tprocess_process_handler(vector_t *strvec)
+vrrp_tprocess_process_handler(const vector_t *strvec)
 {
 	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
 	size_t len = 0;
@@ -1457,7 +1457,7 @@ vrrp_tprocess_process_handler(vector_t *strvec)
 		vrrp_data->vrrp_max_process_name_len = len;
 }
 static void
-vrrp_tprocess_match_handler(vector_t *strvec)
+vrrp_tprocess_match_handler(const vector_t *strvec)
 {
 	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
 
@@ -1475,7 +1475,7 @@ vrrp_tprocess_match_handler(vector_t *strvec)
 
 }
 static void
-vrrp_tprocess_weight_handler(vector_t *strvec)
+vrrp_tprocess_weight_handler(const vector_t *strvec)
 {
 	int weight;
 	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
@@ -1498,7 +1498,7 @@ vrrp_tprocess_weight_handler(vector_t *strvec)
 	tprocess->weight = weight;
 }
 static void
-vrrp_tprocess_quorum_handler(vector_t *strvec)
+vrrp_tprocess_quorum_handler(const vector_t *strvec)
 {
 	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
 	unsigned quorum;
@@ -1517,7 +1517,7 @@ vrrp_tprocess_quorum_handler(vector_t *strvec)
 	tprocess->quorum = quorum;
 }
 static void
-vrrp_tprocess_quorum_max_handler(vector_t *strvec)
+vrrp_tprocess_quorum_max_handler(const vector_t *strvec)
 {
 	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
 	unsigned quorum_max;
@@ -1543,7 +1543,7 @@ vrrp_tprocess_quorum_max_handler(vector_t *strvec)
 		tprocess->quorum = 1;
 }
 static void
-vrrp_tprocess_delay_general(vector_t *strvec, enum process_delay delay_type)
+vrrp_tprocess_delay_general(const vector_t *strvec, enum process_delay delay_type)
 {
 	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
 	double delay;
@@ -1563,22 +1563,22 @@ vrrp_tprocess_delay_general(vector_t *strvec, enum process_delay delay_type)
 		tprocess->fork_delay = (unsigned)(delay * TIMER_HZ);
 }
 static void
-vrrp_tprocess_terminate_delay_handler(vector_t *strvec)
+vrrp_tprocess_terminate_delay_handler(const vector_t *strvec)
 {
 	vrrp_tprocess_delay_general(strvec, PROCESS_TERMINATE_DELAY);
 }
 static void
-vrrp_tprocess_fork_delay_handler(vector_t *strvec)
+vrrp_tprocess_fork_delay_handler(const vector_t *strvec)
 {
 	vrrp_tprocess_delay_general(strvec, PROCESS_FORK_DELAY);
 }
 static void
-vrrp_tprocess_delay_handler(vector_t *strvec)
+vrrp_tprocess_delay_handler(const vector_t *strvec)
 {
 	vrrp_tprocess_delay_general(strvec, PROCESS_DELAY);
 }
 static void
-vrrp_tprocess_full_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_tprocess_full_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
 
@@ -1596,13 +1596,13 @@ vrrp_tprocess_end_handler(void)
 }
 #endif
 static void
-vrrp_vscript_init_fail_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_vscript_init_fail_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
 	vscript->init_state = SCRIPT_INIT_STATE_FAILED;
 }
 static void
-vrrp_version_handler(vector_t *strvec)
+vrrp_version_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	int version;
@@ -1622,7 +1622,7 @@ vrrp_version_handler(vector_t *strvec)
 }
 
 static void
-vrrp_accept_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_accept_handler(__attribute__((unused)) const vector_t *strvec)
 {
 #ifdef _WITH_FIREWALL_
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
@@ -1633,7 +1633,7 @@ vrrp_accept_handler(__attribute__((unused)) vector_t *strvec)
 
 #ifdef _WITH_FIREWALL_
 static void
-vrrp_no_accept_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_no_accept_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
@@ -1642,7 +1642,7 @@ vrrp_no_accept_handler(__attribute__((unused)) vector_t *strvec)
 #endif
 
 static void
-garp_group_handler(vector_t *strvec)
+garp_group_handler(const vector_t *strvec)
 {
 	if (!strvec)
 		return;
@@ -1650,7 +1650,7 @@ garp_group_handler(vector_t *strvec)
 	alloc_garp_delay();
 }
 static void
-garp_group_garp_interval_handler(vector_t *strvec)
+garp_group_garp_interval_handler(const vector_t *strvec)
 {
 	garp_delay_t *delay = LIST_TAIL_DATA(garp_delay);
 	double val;
@@ -1668,7 +1668,7 @@ garp_group_garp_interval_handler(vector_t *strvec)
 		log_message(LOG_INFO, "The garp_interval is very large - %s seconds", FMT_STR_VSLOT(strvec,1));
 }
 static void
-garp_group_gna_interval_handler(vector_t *strvec)
+garp_group_gna_interval_handler(const vector_t *strvec)
 {
 	garp_delay_t *delay = LIST_TAIL_DATA(garp_delay);
 	double val;
@@ -1686,7 +1686,7 @@ garp_group_gna_interval_handler(vector_t *strvec)
 		log_message(LOG_INFO, "The gna_interval is very large - %s seconds", FMT_STR_VSLOT(strvec,1));
 }
 static void
-garp_group_interface_handler(vector_t *strvec)
+garp_group_interface_handler(const vector_t *strvec)
 {
 	interface_t *ifp = if_get_by_ifname(strvec_slot(strvec, 1), IF_CREATE_IF_DYNAMIC);
 	if (!ifp) {
@@ -1709,11 +1709,11 @@ garp_group_interface_handler(vector_t *strvec)
 	ifp->garp_delay = LIST_TAIL_DATA(garp_delay);
 }
 static void
-garp_group_interfaces_handler(vector_t *strvec)
+garp_group_interfaces_handler(const vector_t *strvec)
 {
 	garp_delay_t *delay = LIST_TAIL_DATA(garp_delay);
 	interface_t *ifp;
-	vector_t *interface_vec = read_value_block(strvec);
+	const vector_t *interface_vec = read_value_block(strvec);
 	size_t i;
 	garp_delay_t *gd;
 	element e;
@@ -1937,7 +1937,7 @@ init_vrrp_keywords(bool active)
 #endif
 }
 
-vector_t *
+const vector_t *
 vrrp_init_keywords(void)
 {
 	/* global definitions mapping */

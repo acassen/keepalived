@@ -69,7 +69,7 @@ get_state_str(int state)
 
 /* Static addresses facility function */
 void
-alloc_saddress(vector_t *strvec)
+alloc_saddress(const vector_t *strvec)
 {
 	if (!LIST_EXISTS(vrrp_data->static_addresses))
 		vrrp_data->static_addresses = alloc_list(free_ipaddress, dump_ipaddress);
@@ -79,7 +79,7 @@ alloc_saddress(vector_t *strvec)
 #ifdef _HAVE_FIB_ROUTING_
 /* Static routes facility function */
 void
-alloc_sroute(vector_t *strvec)
+alloc_sroute(const vector_t *strvec)
 {
 	if (!LIST_EXISTS(vrrp_data->static_routes))
 		vrrp_data->static_routes = alloc_list(free_iproute, dump_iproute);
@@ -88,7 +88,7 @@ alloc_sroute(vector_t *strvec)
 
 /* Static rules facility function */
 void
-alloc_srule(vector_t *strvec)
+alloc_srule(const vector_t *strvec)
 {
 	if (!LIST_EXISTS(vrrp_data->static_rules))
 		vrrp_data->static_rules = alloc_list(free_iprule, dump_iprule);
@@ -661,7 +661,7 @@ dump_vrrp(FILE *fp, const void *data)
 }
 
 void
-alloc_static_track_group(char *gname)
+alloc_static_track_group(const char *gname)
 {
 	size_t size = strlen(gname);
 	static_track_group_t *new;
@@ -678,7 +678,7 @@ alloc_static_track_group(char *gname)
 }
 
 void
-alloc_vrrp_sync_group(char *gname)
+alloc_vrrp_sync_group(const char *gname)
 {
 	size_t size = strlen(gname);
 	vrrp_sgroup_t *new;
@@ -724,7 +724,7 @@ alloc_vrrp_stats(void)
 }
 
 void
-alloc_vrrp(char *iname)
+alloc_vrrp(const char *iname)
 {
 	size_t size = strlen(iname);
 	vrrp_t *new;
@@ -767,7 +767,7 @@ alloc_vrrp(char *iname)
 }
 
 void
-alloc_vrrp_unicast_peer(vector_t *strvec)
+alloc_vrrp_unicast_peer(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	struct sockaddr_storage *peer = NULL;
@@ -799,7 +799,7 @@ alloc_vrrp_unicast_peer(vector_t *strvec)
 }
 
 void
-alloc_vrrp_track_if(vector_t *strvec)
+alloc_vrrp_track_if(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
@@ -809,7 +809,7 @@ alloc_vrrp_track_if(vector_t *strvec)
 }
 
 void
-alloc_vrrp_track_script(vector_t *strvec)
+alloc_vrrp_track_script(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
@@ -819,7 +819,7 @@ alloc_vrrp_track_script(vector_t *strvec)
 }
 
 void
-alloc_vrrp_track_file(vector_t *strvec)
+alloc_vrrp_track_file(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
@@ -830,7 +830,7 @@ alloc_vrrp_track_file(vector_t *strvec)
 
 #ifdef _WITH_CN_PROC_
 void
-alloc_vrrp_track_process(vector_t *strvec)
+alloc_vrrp_track_process(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
@@ -842,7 +842,7 @@ alloc_vrrp_track_process(vector_t *strvec)
 
 #ifdef _WITH_BFD_
 void
-alloc_vrrp_track_bfd(vector_t *strvec)
+alloc_vrrp_track_bfd(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
@@ -853,7 +853,7 @@ alloc_vrrp_track_bfd(vector_t *strvec)
 #endif
 
 void
-alloc_vrrp_group_track_if(vector_t *strvec)
+alloc_vrrp_group_track_if(const vector_t *strvec)
 {
 	vrrp_sgroup_t *sgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 
@@ -863,7 +863,7 @@ alloc_vrrp_group_track_if(vector_t *strvec)
 }
 
 void
-alloc_vrrp_group_track_script(vector_t *strvec)
+alloc_vrrp_group_track_script(const vector_t *strvec)
 {
 	vrrp_sgroup_t *sgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 
@@ -873,7 +873,7 @@ alloc_vrrp_group_track_script(vector_t *strvec)
 }
 
 void
-alloc_vrrp_group_track_file(vector_t *strvec)
+alloc_vrrp_group_track_file(const vector_t *strvec)
 {
 	vrrp_sgroup_t *sgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 
@@ -884,7 +884,7 @@ alloc_vrrp_group_track_file(vector_t *strvec)
 
 #ifdef _WITH_CN_PROC_
 void
-alloc_vrrp_group_track_process(vector_t *strvec)
+alloc_vrrp_group_track_process(const vector_t *strvec)
 {
 	vrrp_sgroup_t *sgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 
@@ -896,7 +896,7 @@ alloc_vrrp_group_track_process(vector_t *strvec)
 
 #ifdef _WITH_BFD_
 void
-alloc_vrrp_group_track_bfd(vector_t *strvec)
+alloc_vrrp_group_track_bfd(const vector_t *strvec)
 {
 	vrrp_sgroup_t *sgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 
@@ -907,7 +907,7 @@ alloc_vrrp_group_track_bfd(vector_t *strvec)
 #endif
 
 void
-alloc_vrrp_vip(vector_t *strvec)
+alloc_vrrp_vip(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	void *list_end = NULL;
@@ -933,7 +933,7 @@ alloc_vrrp_vip(vector_t *strvec)
 }
 
 void
-alloc_vrrp_evip(vector_t *strvec)
+alloc_vrrp_evip(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
@@ -944,7 +944,7 @@ alloc_vrrp_evip(vector_t *strvec)
 
 #ifdef _HAVE_FIB_ROUTING_
 void
-alloc_vrrp_vroute(vector_t *strvec)
+alloc_vrrp_vroute(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
@@ -954,7 +954,7 @@ alloc_vrrp_vroute(vector_t *strvec)
 }
 
 void
-alloc_vrrp_vrule(vector_t *strvec)
+alloc_vrrp_vrule(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
@@ -965,7 +965,7 @@ alloc_vrrp_vrule(vector_t *strvec)
 #endif
 
 void
-alloc_vrrp_script(char *sname)
+alloc_vrrp_script(const char *sname)
 {
 	size_t size = strlen(sname);
 	vrrp_script_t *new;
@@ -986,7 +986,7 @@ alloc_vrrp_script(char *sname)
 }
 
 void
-alloc_vrrp_file(char *fname)
+alloc_vrrp_file(const char *fname)
 {
 	size_t size = strlen(fname);
 	vrrp_tracked_file_t *new;
@@ -1001,7 +1001,7 @@ alloc_vrrp_file(char *fname)
 
 #ifdef _WITH_CN_PROC_
 void
-alloc_vrrp_process(char *pname)
+alloc_vrrp_process(const char *pname)
 {
 	size_t size = strlen(pname);
 	vrrp_tracked_process_t *new;

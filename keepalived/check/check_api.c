@@ -222,7 +222,7 @@ checker_set_dst_port(struct sockaddr_storage *dst, uint16_t port)
 
 /* "connect_ip" keyword */
 static void
-co_ip_handler(vector_t *strvec)
+co_ip_handler(const vector_t *strvec)
 {
 	conn_opts_t *co = CHECKER_GET_CO();
 
@@ -237,7 +237,7 @@ co_ip_handler(vector_t *strvec)
 
 /* "connect_port" keyword */
 static void
-co_port_handler(vector_t *strvec)
+co_port_handler(const vector_t *strvec)
 {
 	conn_opts_t *co = CHECKER_GET_CO();
 	unsigned port;
@@ -252,7 +252,7 @@ co_port_handler(vector_t *strvec)
 
 /* "bindto" keyword */
 static void
-co_srcip_handler(vector_t *strvec)
+co_srcip_handler(const vector_t *strvec)
 {
 	conn_opts_t *co = CHECKER_GET_CO();
 	if (inet_stosockaddr(strvec_slot(strvec, 1), NULL, &co->bindto))
@@ -266,7 +266,7 @@ co_srcip_handler(vector_t *strvec)
 
 /* "bind_port" keyword */
 static void
-co_srcport_handler(vector_t *strvec)
+co_srcport_handler(const vector_t *strvec)
 {
 	conn_opts_t *co = CHECKER_GET_CO();
 	unsigned port;
@@ -281,7 +281,7 @@ co_srcport_handler(vector_t *strvec)
 
 /* "bind_if" keyword */
 static void
-co_srcif_handler(vector_t *strvec)
+co_srcif_handler(const vector_t *strvec)
 {
 	// This is needed for link local IPv6 bindto address
 	conn_opts_t *co = CHECKER_GET_CO();
@@ -295,7 +295,7 @@ co_srcif_handler(vector_t *strvec)
 
 /* "connect_timeout" keyword */
 static void
-co_timeout_handler(vector_t *strvec)
+co_timeout_handler(const vector_t *strvec)
 {
 	conn_opts_t *co = CHECKER_GET_CO();
 	unsigned long timer;
@@ -310,7 +310,7 @@ co_timeout_handler(vector_t *strvec)
 #ifdef _WITH_SO_MARK_
 /* "fwmark" keyword */
 static void
-co_fwmark_handler(vector_t *strvec)
+co_fwmark_handler(const vector_t *strvec)
 {
 	conn_opts_t *co = CHECKER_GET_CO();
 	unsigned fwmark;
@@ -324,7 +324,7 @@ co_fwmark_handler(vector_t *strvec)
 #endif
 
 static void
-retry_handler(vector_t *strvec)
+retry_handler(const vector_t *strvec)
 {
 	checker_t *checker = CHECKER_GET_CURRENT();
 	unsigned retry;
@@ -338,7 +338,7 @@ retry_handler(vector_t *strvec)
 }
 
 static void
-delay_before_retry_handler(vector_t *strvec)
+delay_before_retry_handler(const vector_t *strvec)
 {
 	checker_t *checker = CHECKER_GET_CURRENT();
 	unsigned long delay;
@@ -353,7 +353,7 @@ delay_before_retry_handler(vector_t *strvec)
 
 /* "warmup" keyword */
 static void
-warmup_handler(vector_t *strvec)
+warmup_handler(const vector_t *strvec)
 {
 	checker_t *checker = CHECKER_GET_CURRENT();
 	unsigned long warmup;
@@ -367,7 +367,7 @@ warmup_handler(vector_t *strvec)
 }
 
 static void
-delay_handler(vector_t *strvec)
+delay_handler(const vector_t *strvec)
 {
 	checker_t *checker = CHECKER_GET_CURRENT();
 	unsigned long delay_loop;
@@ -381,7 +381,7 @@ delay_handler(vector_t *strvec)
 }
 
 static void
-alpha_handler(vector_t *strvec)
+alpha_handler(const vector_t *strvec)
 {
 	checker_t *checker = CHECKER_GET_CURRENT();
 	int res = true;
@@ -396,7 +396,7 @@ alpha_handler(vector_t *strvec)
 	checker->alpha = res;
 }
 static void
-log_all_failures_handler(vector_t *strvec)
+log_all_failures_handler(const vector_t *strvec)
 {
 	checker_t *checker = CHECKER_GET_CURRENT();
 	int res = true;

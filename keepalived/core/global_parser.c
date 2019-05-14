@@ -70,7 +70,7 @@
 /* Global def handlers */
 #ifdef _WITH_LINKBEAT_
 static void
-use_polling_handler(vector_t *strvec)
+use_polling_handler(const vector_t *strvec)
 {
 	if (!strvec)
 		return;
@@ -79,7 +79,7 @@ use_polling_handler(vector_t *strvec)
 }
 #endif
 static void
-save_process_name(char **dest, char *src)
+save_process_name(char **dest, const char *src)
 {
 	size_t len;
 
@@ -98,7 +98,7 @@ save_process_name(char **dest, char *src)
 	strncpy(*dest, src, len >= TASK_COMM_LEN ? TASK_COMM_LEN - 1 : len);
 }
 static void
-process_names_handler(__attribute__((unused)) vector_t *strvec)
+process_names_handler(__attribute__((unused)) const vector_t *strvec)
 {
 #ifdef _WITH_VRRP_
 	save_process_name(&global_data->vrrp_process_name, "keepalived_vrrp");
@@ -111,45 +111,45 @@ process_names_handler(__attribute__((unused)) vector_t *strvec)
 #endif
 }
 static void
-process_name_handler(vector_t *strvec)
+process_name_handler(const vector_t *strvec)
 {
 	save_process_name(&global_data->process_name, strvec_slot(strvec, 1));
 }
 #ifdef _WITH_VRRP_
 static void
-vrrp_process_name_handler(vector_t *strvec)
+vrrp_process_name_handler(const vector_t *strvec)
 {
 	save_process_name(&global_data->vrrp_process_name, strvec_slot(strvec, 1));
 }
 #endif
 #ifdef _WITH_LVS_
 static void
-lvs_process_name_handler(vector_t *strvec)
+lvs_process_name_handler(const vector_t *strvec)
 {
 	save_process_name(&global_data->lvs_process_name, strvec_slot(strvec, 1));
 }
 #endif
 #ifdef _WITH_BFD_
 static void
-bfd_process_name_handler(vector_t *strvec)
+bfd_process_name_handler(const vector_t *strvec)
 {
 	save_process_name(&global_data->bfd_process_name, strvec_slot(strvec, 1));
 }
 #endif
 static void
-routerid_handler(vector_t *strvec)
+routerid_handler(const vector_t *strvec)
 {
 	FREE_PTR(global_data->router_id);
 	global_data->router_id = set_value(strvec);
 }
 static void
-emailfrom_handler(vector_t *strvec)
+emailfrom_handler(const vector_t *strvec)
 {
 	FREE_PTR(global_data->email_from);
 	global_data->email_from = set_value(strvec);
 }
 static void
-smtpto_handler(vector_t *strvec)
+smtpto_handler(const vector_t *strvec)
 {
 	unsigned timeout;
 
@@ -169,7 +169,7 @@ smtpto_handler(vector_t *strvec)
 }
 #ifdef _WITH_VRRP_
 static void
-dynamic_interfaces_handler(vector_t *strvec)
+dynamic_interfaces_handler(const vector_t *strvec)
 {
 	char *str;
 
@@ -185,13 +185,13 @@ dynamic_interfaces_handler(vector_t *strvec)
 	}
 }
 static void
-no_email_faults_handler(__attribute__((unused))vector_t *strvec)
+no_email_faults_handler(__attribute__((unused))const vector_t *strvec)
 {
 	global_data->no_email_faults = true;
 }
 #endif
 static void
-smtpserver_handler(vector_t *strvec)
+smtpserver_handler(const vector_t *strvec)
 {
 	int ret = -1;
 	char *port_str = SMTP_PORT_STR;
@@ -211,7 +211,7 @@ smtpserver_handler(vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid smtp server %s %s", FMT_STR_VSLOT(strvec, 1), port_str);
 }
 static void
-smtphelo_handler(vector_t *strvec)
+smtphelo_handler(const vector_t *strvec)
 {
 	char *helo_name;
 
@@ -226,9 +226,9 @@ smtphelo_handler(vector_t *strvec)
 	global_data->smtp_helo_name = helo_name;
 }
 static void
-email_handler(vector_t *strvec)
+email_handler(const vector_t *strvec)
 {
-	vector_t *email_vec = read_value_block(strvec);
+	const vector_t *email_vec = read_value_block(strvec);
 	unsigned int i;
 	char *str;
 
@@ -245,7 +245,7 @@ email_handler(vector_t *strvec)
 	free_strvec(email_vec);
 }
 static void
-smtp_alert_handler(vector_t *strvec)
+smtp_alert_handler(const vector_t *strvec)
 {
 	int res = true;
 
@@ -261,7 +261,7 @@ smtp_alert_handler(vector_t *strvec)
 }
 #ifdef _WITH_VRRP_
 static void
-smtp_alert_vrrp_handler(vector_t *strvec)
+smtp_alert_vrrp_handler(const vector_t *strvec)
 {
 	int res = true;
 
@@ -278,7 +278,7 @@ smtp_alert_vrrp_handler(vector_t *strvec)
 #endif
 #ifdef _WITH_LVS_
 static void
-smtp_alert_checker_handler(vector_t *strvec)
+smtp_alert_checker_handler(const vector_t *strvec)
 {
 	int res = true;
 
@@ -293,7 +293,7 @@ smtp_alert_checker_handler(vector_t *strvec)
 	global_data->smtp_alert_checker = res;
 }
 static void
-checker_log_all_failures_handler(vector_t *strvec)
+checker_log_all_failures_handler(const vector_t *strvec)
 {
 	int res = true;
 
@@ -310,7 +310,7 @@ checker_log_all_failures_handler(vector_t *strvec)
 #endif
 #ifdef _WITH_VRRP_
 static void
-default_interface_handler(vector_t *strvec)
+default_interface_handler(const vector_t *strvec)
 {
 	if (vector_size(strvec) < 2) {
 		report_config_error(CONFIG_GENERAL_ERROR, "default_interface requires interface name");
@@ -332,7 +332,7 @@ default_interface_handler(vector_t *strvec)
 #endif
 #ifdef _WITH_LVS_
 static void
-lvs_timeouts(vector_t *strvec)
+lvs_timeouts(const vector_t *strvec)
 {
 	unsigned val;
 	size_t i;
@@ -384,7 +384,7 @@ lvs_timeouts(vector_t *strvec)
 }
 #if defined _WITH_LVS_ && defined _WITH_VRRP_
 static void
-lvs_syncd_handler(vector_t *strvec)
+lvs_syncd_handler(const vector_t *strvec)
 {
 	unsigned val;
 	size_t i;
@@ -502,13 +502,13 @@ lvs_syncd_handler(vector_t *strvec)
 }
 #endif
 static void
-lvs_flush_handler(__attribute__((unused)) vector_t *strvec)
+lvs_flush_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	global_data->lvs_flush = true;
 }
 
 static void
-lvs_flush_onstop_handler(vector_t *strvec)
+lvs_flush_onstop_handler(const vector_t *strvec)
 {
 	if (vector_size(strvec) == 1)
 		global_data->lvs_flush_onstop = LVS_FLUSH_FULL;
@@ -520,7 +520,7 @@ lvs_flush_onstop_handler(vector_t *strvec)
 #endif
 #ifdef _HAVE_SCHED_RT_
 static int
-get_realtime_priority(vector_t *strvec, const char *process)
+get_realtime_priority(const vector_t *strvec, const char *process)
 {
 	int min_priority;
 	int max_priority;
@@ -551,7 +551,7 @@ get_realtime_priority(vector_t *strvec, const char *process)
 	return priority;
 }
 static int
-get_cpu_affinity(vector_t *strvec, cpu_set_t *set, const char *process)
+get_cpu_affinity(const vector_t *strvec, cpu_set_t *set, const char *process)
 {
 	int cpu_id, num_cpus;
 	unsigned i;
@@ -584,7 +584,7 @@ get_cpu_affinity(vector_t *strvec, cpu_set_t *set, const char *process)
 }
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 static rlim_t
-get_rt_rlimit(vector_t *strvec, const char *process)
+get_rt_rlimit(const vector_t *strvec, const char *process)
 {
 	unsigned limit;
 	rlim_t rlim;
@@ -600,7 +600,7 @@ get_rt_rlimit(vector_t *strvec, const char *process)
 #endif
 #endif
 static int8_t
-get_priority(vector_t *strvec, const char *process)
+get_priority(const vector_t *strvec, const char *process)
 {
 	int priority;
 
@@ -619,7 +619,7 @@ get_priority(vector_t *strvec, const char *process)
 
 #ifdef _WITH_VRRP_
 static void
-vrrp_mcast_group4_handler(vector_t *strvec)
+vrrp_mcast_group4_handler(const vector_t *strvec)
 {
 	struct sockaddr_in *mcast = &global_data->vrrp_mcast_group4;
 	int ret;
@@ -631,7 +631,7 @@ vrrp_mcast_group4_handler(vector_t *strvec)
 	}
 }
 static void
-vrrp_mcast_group6_handler(vector_t *strvec)
+vrrp_mcast_group6_handler(const vector_t *strvec)
 {
 	struct sockaddr_in6 *mcast = &global_data->vrrp_mcast_group6;
 	int ret;
@@ -643,7 +643,7 @@ vrrp_mcast_group6_handler(vector_t *strvec)
 	}
 }
 static void
-vrrp_garp_delay_handler(vector_t *strvec)
+vrrp_garp_delay_handler(const vector_t *strvec)
 {
 	unsigned timeout;
 
@@ -655,7 +655,7 @@ vrrp_garp_delay_handler(vector_t *strvec)
 	global_data->vrrp_garp_delay = timeout * TIMER_HZ;
 }
 static void
-vrrp_garp_rep_handler(vector_t *strvec)
+vrrp_garp_rep_handler(const vector_t *strvec)
 {
 	unsigned repeats;
 
@@ -675,7 +675,7 @@ vrrp_garp_rep_handler(vector_t *strvec)
 
 }
 static void
-vrrp_garp_refresh_handler(vector_t *strvec)
+vrrp_garp_refresh_handler(const vector_t *strvec)
 {
         unsigned refresh;
 
@@ -689,7 +689,7 @@ vrrp_garp_refresh_handler(vector_t *strvec)
         global_data->vrrp_garp_refresh.tv_usec = 0;
 }
 static void
-vrrp_garp_refresh_rep_handler(vector_t *strvec)
+vrrp_garp_refresh_rep_handler(const vector_t *strvec)
 {
         unsigned repeats;
 
@@ -709,7 +709,7 @@ vrrp_garp_refresh_rep_handler(vector_t *strvec)
 
 }
 static void
-vrrp_garp_lower_prio_delay_handler(vector_t *strvec)
+vrrp_garp_lower_prio_delay_handler(const vector_t *strvec)
 {
         unsigned delay;
 
@@ -721,7 +721,7 @@ vrrp_garp_lower_prio_delay_handler(vector_t *strvec)
 	global_data->vrrp_garp_lower_prio_delay = delay * TIMER_HZ;
 }
 static void
-vrrp_garp_lower_prio_rep_handler(vector_t *strvec)
+vrrp_garp_lower_prio_rep_handler(const vector_t *strvec)
 {
 	unsigned garp_lower_prio_rep;
 
@@ -733,7 +733,7 @@ vrrp_garp_lower_prio_rep_handler(vector_t *strvec)
 	global_data->vrrp_garp_lower_prio_rep = garp_lower_prio_rep;
 }
 static void
-vrrp_garp_interval_handler(vector_t *strvec)
+vrrp_garp_interval_handler(const vector_t *strvec)
 {
 	double interval;
 
@@ -746,7 +746,7 @@ vrrp_garp_interval_handler(vector_t *strvec)
 		log_message(LOG_INFO, "The vrrp_garp_interval is very large - %s seconds", FMT_STR_VSLOT(strvec, 1));
 }
 static void
-vrrp_gna_interval_handler(vector_t *strvec)
+vrrp_gna_interval_handler(const vector_t *strvec)
 {
 	double interval;
 
@@ -759,7 +759,7 @@ vrrp_gna_interval_handler(vector_t *strvec)
 		log_message(LOG_INFO, "The vrrp_gna_interval is very large - %s seconds", FMT_STR_VSLOT(strvec, 1));
 }
 static void
-vrrp_min_garp_handler(vector_t *strvec)
+vrrp_min_garp_handler(const vector_t *strvec)
 {
 	int res = false;
 
@@ -786,7 +786,7 @@ vrrp_min_garp_handler(vector_t *strvec)
 		global_data->vrrp_garp_delay = 0;
 }
 static void
-vrrp_lower_prio_no_advert_handler(vector_t *strvec)
+vrrp_lower_prio_no_advert_handler(const vector_t *strvec)
 {
 	int res;
 
@@ -801,7 +801,7 @@ vrrp_lower_prio_no_advert_handler(vector_t *strvec)
 		global_data->vrrp_lower_prio_no_advert = true;
 }
 static void
-vrrp_higher_prio_send_advert_handler(vector_t *strvec)
+vrrp_higher_prio_send_advert_handler(const vector_t *strvec)
 {
 	int res;
 
@@ -817,7 +817,7 @@ vrrp_higher_prio_send_advert_handler(vector_t *strvec)
 }
 #ifdef _WITH_IPTABLES_
 static void
-vrrp_iptables_handler(vector_t *strvec)
+vrrp_iptables_handler(const vector_t *strvec)
 {
 	if (vector_size(strvec) >= 2) {
 		if (strlen(strvec_slot(strvec,1)) >= sizeof(global_data->vrrp_iptables_inchain)-1) {
@@ -839,7 +839,7 @@ vrrp_iptables_handler(vector_t *strvec)
 }
 #ifdef _HAVE_LIBIPSET_
 static void
-vrrp_ipsets_handler(vector_t *strvec)
+vrrp_ipsets_handler(const vector_t *strvec)
 {
 	size_t len;
 
@@ -889,7 +889,7 @@ vrrp_ipsets_handler(vector_t *strvec)
 #endif
 #ifdef _WITH_NFTABLES_
 static void
-vrrp_nftables_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_nftables_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	char *name;
 	size_t len;
@@ -917,7 +917,7 @@ vrrp_nftables_handler(__attribute__((unused)) vector_t *strvec)
 	global_data->vrrp_nf_chain_priority = -1;
 }
 static void
-vrrp_nftables_priority_handler(vector_t *strvec)
+vrrp_nftables_priority_handler(const vector_t *strvec)
 {
 	int priority;
 
@@ -927,18 +927,18 @@ vrrp_nftables_priority_handler(vector_t *strvec)
 		report_config_error(CONFIG_INVALID_NUMBER, "invalid nftables chain priority '%s'", FMT_STR_VSLOT(strvec, 1));
 }
 static void
-vrrp_nftables_counters_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_nftables_counters_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	global_data->vrrp_nf_counters = true;
 }
 static void
-vrrp_nftables_ifindex_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_nftables_ifindex_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	global_data->vrrp_nf_ifindex = true;
 }
 #endif
 static void
-vrrp_version_handler(vector_t *strvec)
+vrrp_version_handler(const vector_t *strvec)
 {
 	int version;
 
@@ -950,33 +950,33 @@ vrrp_version_handler(vector_t *strvec)
 	global_data->vrrp_version = version;
 }
 static void
-vrrp_check_unicast_src_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_check_unicast_src_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	global_data->vrrp_check_unicast_src = 1;
 }
 static void
-vrrp_check_adv_addr_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_check_adv_addr_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	global_data->vrrp_skip_check_adv_addr = 1;
 }
 static void
-vrrp_strict_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_strict_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	global_data->vrrp_strict = 1;
 }
 static void
-vrrp_prio_handler(vector_t *strvec)
+vrrp_prio_handler(const vector_t *strvec)
 {
 	global_data->vrrp_process_priority = get_priority(strvec, "vrrp");
 }
 static void
-vrrp_no_swap_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_no_swap_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	global_data->vrrp_no_swap = true;
 }
 #ifdef _HAVE_SCHED_RT_
 static void
-vrrp_rt_priority_handler(vector_t *strvec)
+vrrp_rt_priority_handler(const vector_t *strvec)
 {
 	int priority = get_realtime_priority(strvec, "vrrp");
 
@@ -984,13 +984,13 @@ vrrp_rt_priority_handler(vector_t *strvec)
 		global_data->vrrp_realtime_priority = priority;
 }
 static void
-vrrp_cpu_affinity_handler(vector_t *strvec)
+vrrp_cpu_affinity_handler(const vector_t *strvec)
 {
 	get_cpu_affinity(strvec, &global_data->vrrp_cpu_mask, "vrrp");
 }
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 static void
-vrrp_rt_rlimit_handler(vector_t *strvec)
+vrrp_rt_rlimit_handler(const vector_t *strvec)
 {
 	global_data->vrrp_rlimit_rt = get_rt_rlimit(strvec, "vrrp");
 }
@@ -998,7 +998,7 @@ vrrp_rt_rlimit_handler(vector_t *strvec)
 #endif
 #endif
 static void
-notify_fifo(vector_t *strvec, const char *type, notify_fifo_t *fifo)
+notify_fifo(const vector_t *strvec, const char *type, notify_fifo_t *fifo)
 {
 	if (vector_size(strvec) < 2) {
 		report_config_error(CONFIG_GENERAL_ERROR, "No %snotify_fifo name specified", type);
@@ -1030,7 +1030,7 @@ notify_fifo(vector_t *strvec, const char *type, notify_fifo_t *fifo)
 	strcpy(fifo->name, strvec_slot(strvec, 1));
 }
 static void
-notify_fifo_script(vector_t *strvec, const char *type, notify_fifo_t *fifo)
+notify_fifo_script(const vector_t *strvec, const char *type, notify_fifo_t *fifo)
 {
 	char *id_str;
 
@@ -1052,28 +1052,28 @@ notify_fifo_script(vector_t *strvec, const char *type, notify_fifo_t *fifo)
 	FREE(id_str);
 }
 static void
-global_notify_fifo(vector_t *strvec)
+global_notify_fifo(const vector_t *strvec)
 {
 	notify_fifo(strvec, "", &global_data->notify_fifo);
 }
 static void
-global_notify_fifo_script(vector_t *strvec)
+global_notify_fifo_script(const vector_t *strvec)
 {
 	notify_fifo_script(strvec, "", &global_data->notify_fifo);
 }
 #ifdef _WITH_VRRP_
 static void
-vrrp_notify_fifo(vector_t *strvec)
+vrrp_notify_fifo(const vector_t *strvec)
 {
 	notify_fifo(strvec, "vrrp_", &global_data->vrrp_notify_fifo);
 }
 static void
-vrrp_notify_fifo_script(vector_t *strvec)
+vrrp_notify_fifo_script(const vector_t *strvec)
 {
 	notify_fifo_script(strvec, "vrrp_", &global_data->vrrp_notify_fifo);
 }
 static void
-vrrp_notify_priority_changes(vector_t *strvec)
+vrrp_notify_priority_changes(const vector_t *strvec)
 {
 	int res = true;
 
@@ -1090,30 +1090,30 @@ vrrp_notify_priority_changes(vector_t *strvec)
 #endif
 #ifdef _WITH_LVS_
 static void
-lvs_notify_fifo(vector_t *strvec)
+lvs_notify_fifo(const vector_t *strvec)
 {
 	notify_fifo(strvec, "lvs_", &global_data->lvs_notify_fifo);
 }
 static void
-lvs_notify_fifo_script(vector_t *strvec)
+lvs_notify_fifo_script(const vector_t *strvec)
 {
 	notify_fifo_script(strvec, "lvs_", &global_data->lvs_notify_fifo);
 }
 #endif
 #ifdef _WITH_LVS_
 static void
-checker_prio_handler(vector_t *strvec)
+checker_prio_handler(const vector_t *strvec)
 {
 	global_data->checker_process_priority = get_priority(strvec, "checker");
 }
 static void
-checker_no_swap_handler(__attribute__((unused)) vector_t *strvec)
+checker_no_swap_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	global_data->checker_no_swap = true;
 }
 #ifdef _HAVE_SCHED_RT_
 static void
-checker_rt_priority_handler(vector_t *strvec)
+checker_rt_priority_handler(const vector_t *strvec)
 {
 	int priority = get_realtime_priority(strvec, "checker");
 
@@ -1121,13 +1121,13 @@ checker_rt_priority_handler(vector_t *strvec)
 		global_data->checker_realtime_priority = priority;
 }
 static void
-checker_cpu_affinity_handler(vector_t *strvec)
+checker_cpu_affinity_handler(const vector_t *strvec)
 {
 	get_cpu_affinity(strvec, &global_data->checker_cpu_mask, "checker");
 }
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 static void
-checker_rt_rlimit_handler(vector_t *strvec)
+checker_rt_rlimit_handler(const vector_t *strvec)
 {
 	global_data->checker_rlimit_rt = get_rt_rlimit(strvec, "checker");
 }
@@ -1136,18 +1136,18 @@ checker_rt_rlimit_handler(vector_t *strvec)
 #endif
 #ifdef _WITH_BFD_
 static void
-bfd_prio_handler(vector_t *strvec)
+bfd_prio_handler(const vector_t *strvec)
 {
 	global_data->bfd_process_priority = get_priority(strvec, "bfd");
 }
 static void
-bfd_no_swap_handler(__attribute__((unused)) vector_t *strvec)
+bfd_no_swap_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	global_data->bfd_no_swap = true;
 }
 #ifdef _HAVE_SCHED_RT_
 static void
-bfd_rt_priority_handler(vector_t *strvec)
+bfd_rt_priority_handler(const vector_t *strvec)
 {
 	int priority = get_realtime_priority(strvec, "bfd");
 
@@ -1155,13 +1155,13 @@ bfd_rt_priority_handler(vector_t *strvec)
 		global_data->bfd_realtime_priority = priority;
 }
 static void
-bfd_cpu_affinity_handler(vector_t *strvec)
+bfd_cpu_affinity_handler(const vector_t *strvec)
 {
 	get_cpu_affinity(strvec, &global_data->bfd_cpu_mask, "bfd");
 }
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 static void
-bfd_rt_rlimit_handler(vector_t *strvec)
+bfd_rt_rlimit_handler(const vector_t *strvec)
 {
 	global_data->bfd_rlimit_rt = get_rt_rlimit(strvec, "bfd");
 }
@@ -1170,7 +1170,7 @@ bfd_rt_rlimit_handler(vector_t *strvec)
 #endif
 #ifdef _WITH_SNMP_
 static void
-snmp_socket_handler(vector_t *strvec)
+snmp_socket_handler(const vector_t *strvec)
 {
 	if (vector_size(strvec) > 2) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Too many parameters specified for snmp_socket - ignoring");
@@ -1196,20 +1196,20 @@ snmp_socket_handler(vector_t *strvec)
 	strcpy(global_data->snmp_socket, strvec_slot(strvec,1));
 }
 static void
-trap_handler(__attribute__((unused)) vector_t *strvec)
+trap_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	global_data->enable_traps = true;
 }
 #ifdef _WITH_SNMP_VRRP_
 static void
-snmp_vrrp_handler(__attribute__((unused)) vector_t *strvec)
+snmp_vrrp_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	global_data->enable_snmp_vrrp = true;
 }
 #endif
 #ifdef _WITH_SNMP_RFC_
 static void
-snmp_rfc_handler(__attribute__((unused)) vector_t *strvec)
+snmp_rfc_handler(__attribute__((unused)) const vector_t *strvec)
 {
 #ifdef _WITH_SNMP_RFCV2_
 	global_data->enable_snmp_rfcv2 = true;
@@ -1221,21 +1221,21 @@ snmp_rfc_handler(__attribute__((unused)) vector_t *strvec)
 #endif
 #ifdef _WITH_SNMP_RFCV2_
 static void
-snmp_rfcv2_handler(__attribute__((unused)) vector_t *strvec)
+snmp_rfcv2_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	global_data->enable_snmp_rfcv2 = true;
 }
 #endif
 #ifdef _WITH_SNMP_RFCV3_
 static void
-snmp_rfcv3_handler(__attribute__((unused)) vector_t *strvec)
+snmp_rfcv3_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	global_data->enable_snmp_rfcv3 = true;
 }
 #endif
 #ifdef _WITH_SNMP_CHECKER_
 static void
-snmp_checker_handler(__attribute__((unused)) vector_t *strvec)
+snmp_checker_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	global_data->enable_snmp_checker = true;
 }
@@ -1243,7 +1243,7 @@ snmp_checker_handler(__attribute__((unused)) vector_t *strvec)
 #endif
 #if HAVE_DECL_CLONE_NEWNET
 static void
-net_namespace_handler(vector_t *strvec)
+net_namespace_handler(const vector_t *strvec)
 {
 	if (!strvec)
 		return;
@@ -1257,7 +1257,7 @@ net_namespace_handler(vector_t *strvec)
 }
 
 static void
-namespace_ipsets_handler(vector_t *strvec)
+namespace_ipsets_handler(const vector_t *strvec)
 {
 	if (!strvec)
 		return;
@@ -1268,13 +1268,13 @@ namespace_ipsets_handler(vector_t *strvec)
 
 #ifdef _WITH_DBUS_
 static void
-enable_dbus_handler(__attribute__((unused)) vector_t *strvec)
+enable_dbus_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	global_data->enable_dbus = true;
 }
 
 static void
-dbus_service_name_handler(vector_t *strvec)
+dbus_service_name_handler(const vector_t *strvec)
 {
 	FREE_PTR(global_data->dbus_service_name);
 	global_data->dbus_service_name = set_value(strvec);
@@ -1282,7 +1282,7 @@ dbus_service_name_handler(vector_t *strvec)
 #endif
 
 static void
-instance_handler(vector_t *strvec)
+instance_handler(const vector_t *strvec)
 {
 	if (!strvec)
 		return;
@@ -1298,7 +1298,7 @@ instance_handler(vector_t *strvec)
 }
 
 static void
-use_pid_dir_handler(vector_t *strvec)
+use_pid_dir_handler(const vector_t *strvec)
 {
 	if (!strvec)
 		return;
@@ -1307,7 +1307,7 @@ use_pid_dir_handler(vector_t *strvec)
 }
 
 static void
-script_user_handler(vector_t *strvec)
+script_user_handler(const vector_t *strvec)
 {
 	if (vector_size(strvec) < 2) {
 		report_config_error(CONFIG_GENERAL_ERROR, "No script username specified");
@@ -1319,13 +1319,13 @@ script_user_handler(vector_t *strvec)
 }
 
 static void
-script_security_handler(__attribute__((unused)) vector_t *strvec)
+script_security_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	script_security = true;
 }
 
 static void
-child_wait_handler(vector_t *strvec)
+child_wait_handler(const vector_t *strvec)
 {
 	unsigned secs;
 
@@ -1342,7 +1342,7 @@ child_wait_handler(vector_t *strvec)
 
 #ifdef _WITH_VRRP_
 static void
-vrrp_rx_bufs_policy_handler(vector_t *strvec)
+vrrp_rx_bufs_policy_handler(const vector_t *strvec)
 {
 	unsigned rx_buf_size;
 	unsigned i;
@@ -1383,7 +1383,7 @@ vrrp_rx_bufs_policy_handler(vector_t *strvec)
 }
 
 static void
-vrrp_rx_bufs_multiplier_handler(vector_t *strvec)
+vrrp_rx_bufs_multiplier_handler(const vector_t *strvec)
 {
 	unsigned rx_buf_mult;
 
@@ -1404,7 +1404,7 @@ vrrp_rx_bufs_multiplier_handler(vector_t *strvec)
 
 #if defined _WITH_VRRP_ || defined _WITH_LVS_
 static unsigned
-get_netlink_rcv_bufs_size(vector_t *strvec, const char *type)
+get_netlink_rcv_bufs_size(const vector_t *strvec, const char *type)
 {
 	unsigned val;
 
@@ -1427,7 +1427,7 @@ get_netlink_rcv_bufs_size(vector_t *strvec, const char *type)
 
 #ifdef _WITH_VRRP_
 static void
-vrrp_netlink_monitor_rcv_bufs_handler(vector_t *strvec)
+vrrp_netlink_monitor_rcv_bufs_handler(const vector_t *strvec)
 {
 	unsigned val;
 
@@ -1441,7 +1441,7 @@ vrrp_netlink_monitor_rcv_bufs_handler(vector_t *strvec)
 }
 
 static void
-vrrp_netlink_monitor_rcv_bufs_force_handler(vector_t *strvec)
+vrrp_netlink_monitor_rcv_bufs_force_handler(const vector_t *strvec)
 {
 	int res = true;
 
@@ -1460,7 +1460,7 @@ vrrp_netlink_monitor_rcv_bufs_force_handler(vector_t *strvec)
 }
 
 static void
-vrrp_netlink_cmd_rcv_bufs_handler(vector_t *strvec)
+vrrp_netlink_cmd_rcv_bufs_handler(const vector_t *strvec)
 {
 	unsigned val;
 
@@ -1474,7 +1474,7 @@ vrrp_netlink_cmd_rcv_bufs_handler(vector_t *strvec)
 }
 
 static void
-vrrp_netlink_cmd_rcv_bufs_force_handler(vector_t *strvec)
+vrrp_netlink_cmd_rcv_bufs_force_handler(const vector_t *strvec)
 {
 	int res = true;
 
@@ -1494,7 +1494,7 @@ vrrp_netlink_cmd_rcv_bufs_force_handler(vector_t *strvec)
 
 #ifdef _WITH_CN_PROC_
 static void
-process_monitor_rcv_bufs_handler(vector_t *strvec)
+process_monitor_rcv_bufs_handler(const vector_t *strvec)
 {
 	unsigned val;
 
@@ -1508,7 +1508,7 @@ process_monitor_rcv_bufs_handler(vector_t *strvec)
 }
 
 static void
-process_monitor_rcv_bufs_force_handler(vector_t *strvec)
+process_monitor_rcv_bufs_force_handler(const vector_t *strvec)
 {
 	int res = true;
 
@@ -1530,7 +1530,7 @@ process_monitor_rcv_bufs_force_handler(vector_t *strvec)
 
 #ifdef _WITH_LVS_
 static void
-lvs_netlink_monitor_rcv_bufs_handler(vector_t *strvec)
+lvs_netlink_monitor_rcv_bufs_handler(const vector_t *strvec)
 {
 	unsigned val;
 
@@ -1544,7 +1544,7 @@ lvs_netlink_monitor_rcv_bufs_handler(vector_t *strvec)
 }
 
 static void
-lvs_netlink_monitor_rcv_bufs_force_handler(vector_t *strvec)
+lvs_netlink_monitor_rcv_bufs_force_handler(const vector_t *strvec)
 {
 	int res = true;
 
@@ -1563,7 +1563,7 @@ lvs_netlink_monitor_rcv_bufs_force_handler(vector_t *strvec)
 }
 
 static void
-lvs_netlink_cmd_rcv_bufs_handler(vector_t *strvec)
+lvs_netlink_cmd_rcv_bufs_handler(const vector_t *strvec)
 {
 	unsigned val;
 
@@ -1577,7 +1577,7 @@ lvs_netlink_cmd_rcv_bufs_handler(vector_t *strvec)
 }
 
 static void
-lvs_netlink_cmd_rcv_bufs_force_handler(vector_t *strvec)
+lvs_netlink_cmd_rcv_bufs_force_handler(const vector_t *strvec)
 {
 	int res = true;
 
@@ -1596,7 +1596,7 @@ lvs_netlink_cmd_rcv_bufs_force_handler(vector_t *strvec)
 }
 
 static void
-rs_init_notifies_handler(vector_t *strvec)
+rs_init_notifies_handler(const vector_t *strvec)
 {
 	int res = true;
 
@@ -1612,7 +1612,7 @@ rs_init_notifies_handler(vector_t *strvec)
 }
 
 static void
-no_checker_emails_handler(vector_t *strvec)
+no_checker_emails_handler(const vector_t *strvec)
 {
 	int res = true;
 
@@ -1629,7 +1629,7 @@ no_checker_emails_handler(vector_t *strvec)
 #endif
 
 static void
-umask_handler(vector_t *strvec)
+umask_handler(const vector_t *strvec)
 {
 	long umask_long;
 	mode_t umask_bits = 0;
@@ -1707,7 +1707,7 @@ umask_handler(vector_t *strvec)
 
 #ifdef _WITH_VRRP_
 static void
-vrrp_startup_delay_handler(vector_t *strvec)
+vrrp_startup_delay_handler(const vector_t *strvec)
 {
 	double startup_delay;
 
@@ -1721,14 +1721,14 @@ vrrp_startup_delay_handler(vector_t *strvec)
 }
 
 static void
-vrrp_log_unknown_vrids_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_log_unknown_vrids_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	global_data->log_unknown_vrids = true;
 }
 #endif
 
 static void
-random_seed_handler(vector_t *strvec)
+random_seed_handler(const vector_t *strvec)
 {
 	unsigned val;
 

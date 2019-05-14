@@ -121,7 +121,7 @@ extern void netlink_rulelist(list, int, bool);
 extern void free_iprule(void *);
 extern void format_iprule(const ip_rule_t *, char *, size_t);
 extern void dump_iprule(FILE *, const void *);
-extern void alloc_rule(list, vector_t *, bool);
+extern void alloc_rule(list, const vector_t *, bool);
 extern void clear_diff_rules(list, list);
 extern void clear_diff_srules(void);
 extern void reset_next_rule_priority(void);

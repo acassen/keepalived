@@ -30,7 +30,7 @@
 #include "vector.h"
 
 /* Prototypes */
-extern vector_t *vrrp_init_keywords(void);
+extern const vector_t *vrrp_init_keywords(void);
 extern void init_vrrp_keywords(bool);
 
 #endif

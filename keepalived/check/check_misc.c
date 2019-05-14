@@ -92,7 +92,7 @@ misc_check_compare(const checker_t *old_c, const checker_t *new_c)
 }
 
 static void
-misc_check_handler(__attribute__((unused)) vector_t *strvec)
+misc_check_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	checker_t *checker;
 
@@ -109,9 +109,9 @@ misc_check_handler(__attribute__((unused)) vector_t *strvec)
 }
 
 static void
-misc_path_handler(__attribute__((unused)) vector_t *strvec)
+misc_path_handler(__attribute__((unused)) const vector_t *strvec)
 {
-	vector_t *strvec_qe;
+	const vector_t *strvec_qe;
 
 	if (!new_misck_checker)
 		return;
@@ -125,7 +125,7 @@ misc_path_handler(__attribute__((unused)) vector_t *strvec)
 }
 
 static void
-misc_timeout_handler(vector_t *strvec)
+misc_timeout_handler(const vector_t *strvec)
 {
 	unsigned timeout;
 
@@ -141,7 +141,7 @@ misc_timeout_handler(vector_t *strvec)
 }
 
 static void
-misc_dynamic_handler(__attribute__((unused)) vector_t *strvec)
+misc_dynamic_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	if (!new_misck_checker)
 		return;
@@ -155,7 +155,7 @@ misc_dynamic_handler(__attribute__((unused)) vector_t *strvec)
 }
 
 static void
-misc_user_handler(vector_t *strvec)
+misc_user_handler(const vector_t *strvec)
 {
 	if (!new_misck_checker)
 		return;

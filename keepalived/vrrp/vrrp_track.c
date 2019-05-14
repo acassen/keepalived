@@ -64,7 +64,7 @@ free_track_if(void *tip)
 }
 
 void
-alloc_track_if(vrrp_t *vrrp, vector_t *strvec)
+alloc_track_if(vrrp_t *vrrp, const vector_t *strvec)
 {
 	interface_t *ifp = NULL;
 	tracked_if_t *tip = NULL;
@@ -109,7 +109,7 @@ alloc_track_if(vrrp_t *vrrp, vector_t *strvec)
 }
 
 void
-alloc_group_track_if(vrrp_sgroup_t *sgroup, vector_t *strvec)
+alloc_group_track_if(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 {
 	interface_t *ifp;
 	tracked_if_t *tip;
@@ -185,7 +185,7 @@ free_track_script(void *tsc)
 }
 
 void
-alloc_track_script(vrrp_t *vrrp, vector_t *strvec)
+alloc_track_script(vrrp_t *vrrp, const vector_t *strvec)
 {
 	vrrp_script_t *vsc;
 	tracked_sc_t *tsc;
@@ -239,7 +239,7 @@ alloc_track_script(vrrp_t *vrrp, vector_t *strvec)
 }
 
 void
-alloc_group_track_script(vrrp_sgroup_t *sgroup, vector_t *strvec)
+alloc_group_track_script(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 {
 	vrrp_script_t *vsc = NULL;
 	tracked_sc_t *tsc = NULL;
@@ -324,7 +324,7 @@ free_track_file(void *tsf)
 }
 
 void
-alloc_track_file(vrrp_t *vrrp, vector_t *strvec)
+alloc_track_file(vrrp_t *vrrp, const vector_t *strvec)
 {
 	vrrp_tracked_file_t *vsf;
 	tracked_file_t *tfile;
@@ -379,7 +379,7 @@ alloc_track_file(vrrp_t *vrrp, vector_t *strvec)
 }
 
 void
-alloc_group_track_file(vrrp_sgroup_t *sgroup, vector_t *strvec)
+alloc_group_track_file(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 {
 	vrrp_tracked_file_t *vsf;
 	tracked_file_t *tfile;
@@ -465,7 +465,7 @@ free_track_process(void *tsf)
 }
 
 void
-alloc_track_process(vrrp_t *vrrp, vector_t *strvec)
+alloc_track_process(vrrp_t *vrrp, const vector_t *strvec)
 {
 	vrrp_tracked_process_t *vsp;
 	tracked_process_t *tprocess;
@@ -517,7 +517,7 @@ alloc_track_process(vrrp_t *vrrp, vector_t *strvec)
 }
 
 void
-alloc_group_track_process(vrrp_sgroup_t *sgroup, vector_t *strvec)
+alloc_group_track_process(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 {
 	vrrp_tracked_process_t *vsp;
 	tracked_process_t *tprocess;
@@ -598,7 +598,7 @@ free_vrrp_tracked_bfd(void *bfd)
 }
 
 void
-alloc_track_bfd(vrrp_t *vrrp, vector_t *strvec)
+alloc_track_bfd(vrrp_t *vrrp, const vector_t *strvec)
 {
 	vrrp_tracked_bfd_t *vtb;
 	tracked_bfd_t *tbfd;
@@ -650,7 +650,7 @@ alloc_track_bfd(vrrp_t *vrrp, vector_t *strvec)
 }
 
 void
-alloc_group_track_bfd(vrrp_sgroup_t *sgroup, vector_t *strvec)
+alloc_group_track_bfd(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 {
 	vrrp_tracked_bfd_t *vtb;
 	tracked_bfd_t *tbfd;

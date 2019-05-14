@@ -212,7 +212,7 @@ extern uint16_t in_csum(const uint16_t *, size_t, uint32_t, uint32_t *);
 extern char *inet_ntop2(uint32_t);
 extern bool inet_stor(const char *, uint32_t *);
 extern int domain_stosockaddr(const char *, const char *, struct sockaddr_storage *);
-extern int inet_stosockaddr(char *, const char *, struct sockaddr_storage *);
+extern int inet_stosockaddr(const char *, const char *, struct sockaddr_storage *);
 extern void inet_ip4tosockaddr(const struct in_addr *, struct sockaddr_storage *);
 extern void inet_ip6tosockaddr(const struct in6_addr *, struct sockaddr_storage *);
 extern bool check_valid_ipaddress(char *, bool);

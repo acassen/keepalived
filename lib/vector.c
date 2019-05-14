@@ -247,7 +247,7 @@ vector_unset(vector_t *v, unsigned int i)
 
 /* Count the number of not empty slot. */
 unsigned int __attribute__ ((pure))
-vector_count(vector_t *v)
+vector_count(const vector_t *v)
 {
 	unsigned int i;
 	unsigned count = 0;
@@ -283,17 +283,17 @@ vector_only_index_free(void *slot)
 #endif
 
 void
-vector_free_r(vector_t *v)
+vector_free_r(const vector_t *v)
 {
 	if (v->slot)
-		FREE(v->slot);
-	FREE(v);
+		FREE_CONST_ONLY(v->slot);
+	FREE_CONST_ONLY(v);
 }
 
 #ifdef _INCLUDE_UNUSED_CODE_
 /* dump vector slots */
 void
-vector_dump(FILE *fp, vector_t *v)
+vector_dump(FILE *fp, const vector_t *v)
 {
 	unsigned int i;
 
@@ -309,7 +309,7 @@ vector_dump(FILE *fp, vector_t *v)
 
 /* String vector related */
 void
-free_strvec(vector_t *strvec)
+free_strvec(const vector_t *strvec)
 {
 	unsigned int i;
 	char *str;
@@ -328,7 +328,7 @@ free_strvec(vector_t *strvec)
 
 #ifdef _INCLUDE_UNUSED_CODE_
 void
-dump_strvec(vector_t *strvec)
+dump_strvec(const vector_t *strvec)
 {
 	unsigned int i;
 	char *str;

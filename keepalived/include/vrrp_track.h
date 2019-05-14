@@ -185,28 +185,28 @@ typedef struct _tracking_vrrp {
 /* prototypes */
 extern void dump_track_if(FILE *, const void *);
 extern void free_track_if(void *);
-extern void alloc_track_if(struct _vrrp_t *, vector_t *);
-extern void alloc_group_track_if(struct _vrrp_sgroup *, vector_t *);
+extern void alloc_track_if(struct _vrrp_t *, const vector_t *);
+extern void alloc_group_track_if(struct _vrrp_sgroup *, const vector_t *);
 extern void dump_track_script(FILE *, const void *);
 extern void free_track_script(void *);
-extern void alloc_track_script(struct _vrrp_t *, vector_t *);
-extern void alloc_group_track_script(struct _vrrp_sgroup *, vector_t *);
+extern void alloc_track_script(struct _vrrp_t *, const vector_t *);
+extern void alloc_group_track_script(struct _vrrp_sgroup *, const vector_t *);
 extern void dump_track_file(FILE *, const void *);
 extern void free_track_file(void *);
-extern void alloc_track_file(struct _vrrp_t *, vector_t *);
-extern void alloc_group_track_file(struct _vrrp_sgroup *, vector_t *);
+extern void alloc_track_file(struct _vrrp_t *, const vector_t *);
+extern void alloc_group_track_file(struct _vrrp_sgroup *, const vector_t *);
 #ifdef _WITH_CN_PROC_
 extern void dump_track_process(FILE *, const void *);
 extern void free_track_process(void *);
-extern void alloc_track_process(struct _vrrp_t *, vector_t *);
-extern void alloc_group_track_process(struct _vrrp_sgroup *, vector_t *);
+extern void alloc_track_process(struct _vrrp_t *, const vector_t *);
+extern void alloc_group_track_process(struct _vrrp_sgroup *, const vector_t *);
 #endif
 #ifdef _WITH_BFD_
 extern vrrp_tracked_bfd_t *find_vrrp_tracked_bfd_by_name(const char *) __attribute__ ((pure));
 extern void dump_vrrp_tracked_bfd(FILE *, const void *);
 extern void free_vrrp_tracked_bfd(void *);
-extern void alloc_track_bfd(struct _vrrp_t *, vector_t *);
-extern void alloc_group_track_bfd(struct _vrrp_sgroup *, vector_t *);
+extern void alloc_track_bfd(struct _vrrp_t *, const vector_t *);
+extern void alloc_group_track_bfd(struct _vrrp_sgroup *, const vector_t *);
 #endif
 extern vrrp_script_t *find_script_by_name(char *) __attribute__ ((pure));
 extern void update_script_priorities(vrrp_script_t *, bool);

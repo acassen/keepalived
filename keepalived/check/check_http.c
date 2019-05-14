@@ -352,7 +352,7 @@ http_get_check_compare(const checker_t *old_c, const checker_t *new_c)
 
 /* Configuration stream handling */
 static void
-http_get_handler(vector_t *strvec)
+http_get_handler(const vector_t *strvec)
 {
 	checker_t *checker;
 	http_checker_t *http_get_chk;
@@ -367,7 +367,7 @@ http_get_handler(vector_t *strvec)
 }
 
 static void
-http_get_retry_handler(vector_t *strvec)
+http_get_retry_handler(const vector_t *strvec)
 {
 	checker_t *checker = LIST_TAIL_DATA(checkers_queue);
 	unsigned retry;
@@ -383,7 +383,7 @@ http_get_retry_handler(vector_t *strvec)
 }
 
 static void
-virtualhost_handler(vector_t *strvec)
+virtualhost_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 
@@ -406,7 +406,7 @@ http_get_check_end(void)
 }
 
 static void
-url_handler(__attribute__((unused)) vector_t *strvec)
+url_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *new;
@@ -422,7 +422,7 @@ url_handler(__attribute__((unused)) vector_t *strvec)
 }
 
 static void
-path_handler(vector_t *strvec)
+path_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
@@ -431,7 +431,7 @@ path_handler(vector_t *strvec)
 }
 
 static void
-digest_handler(vector_t *strvec)
+digest_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
@@ -471,7 +471,7 @@ digest_handler(vector_t *strvec)
 }
 
 static void
-status_code_handler(vector_t *strvec)
+status_code_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
@@ -484,7 +484,7 @@ status_code_handler(vector_t *strvec)
 }
 
 static void
-url_virtualhost_handler(vector_t *strvec)
+url_virtualhost_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
@@ -494,9 +494,9 @@ url_virtualhost_handler(vector_t *strvec)
 
 #ifdef _WITH_REGEX_CHECK_
 static void
-regex_handler(__attribute__((unused)) vector_t *strvec)
+regex_handler(__attribute__((unused)) const vector_t *strvec)
 {
-	vector_t* strvec_qe = alloc_strvec_quoted_escaped(NULL);
+	const vector_t *strvec_qe = alloc_strvec_quoted_escaped(NULL);
 
 	if (vector_size(strvec_qe) != 2) {
 		log_message(LOG_INFO, "regex missing or too many fields");
@@ -509,7 +509,7 @@ regex_handler(__attribute__((unused)) vector_t *strvec)
 }
 
 static void
-regex_no_match_handler(__attribute__((unused)) vector_t *strvec)
+regex_no_match_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
@@ -518,7 +518,7 @@ regex_no_match_handler(__attribute__((unused)) vector_t *strvec)
 }
 
 static void
-regex_options_handler(vector_t *strvec)
+regex_options_handler(const vector_t *strvec)
 {
 	unsigned i, j;
 	char *str;
@@ -536,7 +536,7 @@ regex_options_handler(vector_t *strvec)
 }
 
 static size_t
-regex_offset_handler(vector_t *strvec, const char *type)
+regex_offset_handler(const vector_t *strvec, const char *type)
 {
 	char *endptr;
 	unsigned long val;
@@ -556,7 +556,7 @@ regex_offset_handler(vector_t *strvec, const char *type)
 }
 
 static void
-regex_min_offset_handler(vector_t *strvec)
+regex_min_offset_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
@@ -565,7 +565,7 @@ regex_min_offset_handler(vector_t *strvec)
 }
 
 static void
-regex_max_offset_handler(vector_t *strvec)
+regex_max_offset_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
@@ -576,7 +576,7 @@ regex_max_offset_handler(vector_t *strvec)
 
 #ifndef PCRE2_DONT_USE_JIT
 static void
-regex_stack_handler(vector_t *strvec)
+regex_stack_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
@@ -676,7 +676,7 @@ prepare_regex(url_t *url)
 
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 static void
-enable_sni_handler(vector_t *strvec)
+enable_sni_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	int res = true;
