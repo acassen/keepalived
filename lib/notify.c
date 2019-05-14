@@ -1054,8 +1054,8 @@ set_default_script_user(const char *username, const char *groupname)
 bool
 set_script_uid_gid(const vector_t *strvec, unsigned keyword_offset, uid_t *uid_p, gid_t *gid_p)
 {
-	char *username;
-	char *groupname;
+	const char *username;
+	const char *groupname;
 
 	username = strvec_slot(strvec, keyword_offset);
 	if (vector_size(strvec) > keyword_offset + 1)
@@ -1121,7 +1121,7 @@ notify_script_init(int extra_params, const char *type)
 
 	set_script_params_array(strvec_qe, script, extra_params);
 	if (!script->args) {
-		log_message(LOG_INFO, "Unable to parse script '%s' - ignoring", FMT_STR_VSLOT(strvec_qe, 1));
+		log_message(LOG_INFO, "Unable to parse script '%s' - ignoring", strvec_slot(strvec_qe, 1));
 		FREE(script);
 		free_strvec(strvec_qe);
 		return NULL;

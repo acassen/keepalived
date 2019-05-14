@@ -215,7 +215,7 @@ extern int domain_stosockaddr(const char *, const char *, struct sockaddr_storag
 extern int inet_stosockaddr(const char *, const char *, struct sockaddr_storage *);
 extern void inet_ip4tosockaddr(const struct in_addr *, struct sockaddr_storage *);
 extern void inet_ip6tosockaddr(const struct in6_addr *, struct sockaddr_storage *);
-extern bool check_valid_ipaddress(char *, bool);
+extern bool check_valid_ipaddress(const char *, bool);
 extern char *inet_sockaddrtos(const struct sockaddr_storage *);
 extern const char *inet_sockaddrtopair(const struct sockaddr_storage *);
 extern const char *inet_sockaddrtotrio(const struct sockaddr_storage *, uint16_t);

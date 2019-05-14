@@ -550,17 +550,18 @@ inet_ip6tosockaddr(const struct in6_addr *sin_addr, struct sockaddr_storage *add
 
 /* Check address, possibly with mask, is valid */
 bool
-check_valid_ipaddress(char *str, bool allow_subnet_mask)
+check_valid_ipaddress(const char *str, bool allow_subnet_mask)
 {
 	int family;
 	unsigned long prefixlen;
-	char *p;
+	const char *p;
 	char *endptr;
 	union {
 		struct in_addr in;
 		struct in6_addr in6;
 	} addr;
 	int res;
+	const char *str_dup = NULL;
 
 	if (!strchr(str, ':') && !strchr(str, '.'))
 		return false;
@@ -578,13 +579,13 @@ check_valid_ipaddress(char *str, bool allow_subnet_mask)
 		prefixlen = strtoul(p + 1, &endptr, 10);
 		if (*endptr || prefixlen > (family == AF_INET6 ? 128 : 32))
 			return false;
-		*p = '\0';
+		str_dup = STRNDUP(str, p - str);
 	}
 
-	res = inet_pton(family, str, &addr);
+	res = inet_pton(family, str_dup ? str_dup : str, &addr);
 
-	if (p)
-		*p = '/';
+	if (str_dup)
+		FREE_CONST(str_dup);
 
 	return res;
 }

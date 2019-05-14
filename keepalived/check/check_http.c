@@ -283,7 +283,7 @@ dump_http_get_check(FILE *fp, const checker_t *checker)
 	dump_list(fp, http_get_chk->url);
 }
 static http_checker_t *
-alloc_http_get(char *proto)
+alloc_http_get(const char *proto)
 {
 	http_checker_t *http_get_chk;
 
@@ -356,7 +356,7 @@ http_get_handler(const vector_t *strvec)
 {
 	checker_t *checker;
 	http_checker_t *http_get_chk;
-	char *str = strvec_slot(strvec, 0);
+	const char *str = strvec_slot(strvec, 0);
 
 	/* queue new checker */
 	http_get_chk = alloc_http_get(str);
@@ -375,7 +375,7 @@ http_get_retry_handler(const vector_t *strvec)
 	report_config_error(CONFIG_GENERAL_ERROR, "nb_get_retry is deprecated - please use 'retry'");
 
 	if (!read_unsigned_strvec(strvec, 1, &retry, 0, UINT_MAX, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Invalid nb_get_retry value '%s'", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid nb_get_retry value '%s'", strvec_slot(strvec, 1));
 		return;
 	}
 
@@ -478,7 +478,7 @@ status_code_handler(const vector_t *strvec)
 	unsigned val;
 
 	if (!read_unsigned_strvec(strvec, 1, &val, 100, 999, true))
-		report_config_error(CONFIG_GENERAL_ERROR, "Invalid HTTP_GET status code '%s'", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid HTTP_GET status code '%s'", strvec_slot(strvec, 1));
 	else
 		url->status_code = val;
 }
@@ -521,7 +521,7 @@ static void
 regex_options_handler(const vector_t *strvec)
 {
 	unsigned i, j;
-	char *str;
+	const char *str;
 
 	for (i = 1; i < vector_size(strvec); i++) {
 		str = strvec_slot(strvec, i);
@@ -548,7 +548,7 @@ regex_offset_handler(const vector_t *strvec, const char *type)
 
 	val = strtoul(vector_slot(strvec, 1), &endptr, 10);
 	if (*endptr) {
-		log_message(LOG_INFO, "Invalid regex_%s_offset %s specified", type, FMT_STR_VSLOT(strvec, 1));
+		log_message(LOG_INFO, "Invalid regex_%s_offset %s specified", type, strvec_slot(strvec, 1));
 		return 0;
 	}
 
@@ -684,7 +684,7 @@ enable_sni_handler(const vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec, 1));
 		if (res == -1) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid enable_sni parameter %s", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid enable_sni parameter %s", strvec_slot(strvec, 1));
 			return;
 		}
 	}

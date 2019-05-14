@@ -166,7 +166,7 @@ read_file(const char* file_name, list *l, uint32_t max)
 		}
 		rte->id = (unsigned)id;
 
-		rte->name = STRDUP(FMT_STR_VSLOT(strvec, 1));
+		rte->name = STRDUP(strvec_slot(strvec, 1));
 		if (!rte->name) {
 			FREE(rte);
 			free_strvec(strvec);

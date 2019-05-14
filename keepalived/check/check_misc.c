@@ -133,7 +133,7 @@ misc_timeout_handler(const vector_t *strvec)
 		return;
 
 	if (!read_unsigned_strvec(strvec, 1, &timeout, 0, UINT_MAX / TIMER_HZ, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Invalid misc_timeout value '%s'", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid misc_timeout value '%s'", strvec_slot(strvec, 1));
 		return;
 	}
 

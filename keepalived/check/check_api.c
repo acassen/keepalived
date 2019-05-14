@@ -227,10 +227,10 @@ co_ip_handler(const vector_t *strvec)
 	conn_opts_t *co = CHECKER_GET_CO();
 
 	if (inet_stosockaddr(strvec_slot(strvec, 1), NULL, &co->dst))
-		report_config_error(CONFIG_GENERAL_ERROR, "Invalid connect_ip address %s - ignoring", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid connect_ip address %s - ignoring", strvec_slot(strvec, 1));
 	else if (co->bindto.ss_family != AF_UNSPEC &&
 		 co->bindto.ss_family != co->dst.ss_family) {
-		report_config_error(CONFIG_GENERAL_ERROR, "connect_ip address %s does not match address family of bindto - skipping", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "connect_ip address %s does not match address family of bindto - skipping", strvec_slot(strvec, 1));
 		co->dst.ss_family = AF_UNSPEC;
 	}
 }
@@ -243,7 +243,7 @@ co_port_handler(const vector_t *strvec)
 	unsigned port;
 
 	if (!read_unsigned_strvec(strvec, 1, &port, 1, 65535, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Invalid checker connect_port '%s'", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid checker connect_port '%s'", strvec_slot(strvec, 1));
 		return;
 	}
 
@@ -256,10 +256,10 @@ co_srcip_handler(const vector_t *strvec)
 {
 	conn_opts_t *co = CHECKER_GET_CO();
 	if (inet_stosockaddr(strvec_slot(strvec, 1), NULL, &co->bindto))
-		report_config_error(CONFIG_GENERAL_ERROR, "Invalid bindto address %s - ignoring", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid bindto address %s - ignoring", strvec_slot(strvec, 1));
 	else if (co->dst.ss_family != AF_UNSPEC &&
 		 co->dst.ss_family != co->bindto.ss_family) {
-		report_config_error(CONFIG_GENERAL_ERROR, "bindto address %s does not match address family of connect_ip - skipping", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "bindto address %s does not match address family of connect_ip - skipping", strvec_slot(strvec, 1));
 		co->bindto.ss_family = AF_UNSPEC;
 	}
 }
@@ -272,7 +272,7 @@ co_srcport_handler(const vector_t *strvec)
 	unsigned port;
 
 	if (!read_unsigned_strvec(strvec, 1, &port, 1, 65535, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Invalid checker bind_port '%s'", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid checker bind_port '%s'", strvec_slot(strvec, 1));
 		return;
 	}
 
@@ -287,7 +287,7 @@ co_srcif_handler(const vector_t *strvec)
 	conn_opts_t *co = CHECKER_GET_CO();
 
 	if (strlen(strvec_slot(strvec, 1)) > sizeof(co->bind_if) - 1) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Interface name %s is too long - ignoring", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Interface name %s is too long - ignoring", strvec_slot(strvec, 1));
 		return;
 	}
 	strcpy(co->bind_if, strvec_slot(strvec, 1));
@@ -301,7 +301,7 @@ co_timeout_handler(const vector_t *strvec)
 	unsigned long timer;
 
 	if (!read_timer(strvec, 1, &timer, 1, UINT_MAX, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "connect_timeout %s invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "connect_timeout %s invalid - ignoring", strvec_slot(strvec, 1));
 		return;
 	}
 	co->connection_to = timer;
@@ -316,7 +316,7 @@ co_fwmark_handler(const vector_t *strvec)
 	unsigned fwmark;
 
 	if (!read_unsigned_strvec(strvec, 1, &fwmark, 0, UINT_MAX, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Invalid fwmark connection value '%s'", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid fwmark connection value '%s'", strvec_slot(strvec, 1));
 		return;
 	}
 	co->fwmark = fwmark;
@@ -330,7 +330,7 @@ retry_handler(const vector_t *strvec)
 	unsigned retry;
 
 	if (!read_unsigned_strvec(strvec, 1, &retry, 0, UINT_MAX, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Invalid retry connection value '%s'", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid retry connection value '%s'", strvec_slot(strvec, 1));
 		return;
 	}
 
@@ -344,7 +344,7 @@ delay_before_retry_handler(const vector_t *strvec)
 	unsigned long delay;
 
 	if (!read_timer(strvec, 1, &delay, 0, 0, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Invalid delay_before_retry connection value '%s'", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid delay_before_retry connection value '%s'", strvec_slot(strvec, 1));
 		return;
 	}
 
@@ -359,7 +359,7 @@ warmup_handler(const vector_t *strvec)
 	unsigned long warmup;
 
 	if (!read_timer(strvec, 1, &warmup, 0, 0, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Invalid warmup connection value '%s'", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid warmup connection value '%s'", strvec_slot(strvec, 1));
 		return;
 	}
 
@@ -373,7 +373,7 @@ delay_handler(const vector_t *strvec)
 	unsigned long delay_loop;
 
 	if (!read_timer(strvec, 1, &delay_loop, 1, 0, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "delay_loop '%s' is invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "delay_loop '%s' is invalid - ignoring", strvec_slot(strvec, 1));
 		return;
 	}
 
@@ -389,7 +389,7 @@ alpha_handler(const vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec, 1));
 		if (res == -1) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid alpha parameter %s", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid alpha parameter %s", strvec_slot(strvec, 1));
 			return;
 		}
 	}
@@ -404,7 +404,7 @@ log_all_failures_handler(const vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec, 1));
 		if (res == -1) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid log_all_failures parameter %s", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid log_all_failures parameter %s", strvec_slot(strvec, 1));
 			return;
 		}
 	}

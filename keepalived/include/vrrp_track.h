@@ -208,7 +208,7 @@ extern void free_vrrp_tracked_bfd(void *);
 extern void alloc_track_bfd(struct _vrrp_t *, const vector_t *);
 extern void alloc_group_track_bfd(struct _vrrp_sgroup *, const vector_t *);
 #endif
-extern vrrp_script_t *find_script_by_name(char *) __attribute__ ((pure));
+extern vrrp_script_t *find_script_by_name(const char *) __attribute__ ((pure));
 extern void update_script_priorities(vrrp_script_t *, bool);
 extern void down_instance(struct _vrrp_t *);
 extern void vrrp_set_effective_priority(struct _vrrp_t *);

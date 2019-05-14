@@ -169,7 +169,7 @@ alloc_vsg_entry(const vector_t *strvec)
 	virtual_server_group_entry_t *old;
 	uint32_t start;
 	element e;
-	char *port_str;
+	const char *port_str;
 	uint32_t range;
 	unsigned fwmark;
 
@@ -177,7 +177,7 @@ alloc_vsg_entry(const vector_t *strvec)
 
 	if (!strcmp(strvec_slot(strvec, 0), "fwmark")) {
 		if (!read_unsigned_strvec(strvec, 1, &fwmark, 0, UINT32_MAX, true)) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s): fwmark '%s' must be in [0, %u] - ignoring", vsg->gname, FMT_STR_VSLOT(strvec, 1), UINT32_MAX);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s): fwmark '%s' must be in [0, %u] - ignoring", vsg->gname, strvec_slot(strvec, 1), UINT32_MAX);
 			FREE(new);
 			return;
 		}
@@ -202,14 +202,14 @@ alloc_vsg_entry(const vector_t *strvec)
 			port_str = NULL;
 
 		if (inet_stosockaddr(strvec_slot(strvec, 0), port_str, &new->addr)) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid virtual server group IP address%s %s%s%s - skipping", FMT_STR_VSLOT(strvec, 0),
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid virtual server group IP address%s %s%s%s - skipping", strvec_slot(strvec, 0),
 						port_str ? "/port" : "", port_str ? "/" : "", port_str ? port_str : "");
 			FREE(new);
 			return;
 		}
 #ifndef LIBIPVS_USE_NL
 		if (new->addr.ss_family != AF_INET) {
-			report_config_error(CONFIG_GENERAL_ERROR, "IPVS does not support IPv6 in this build - skipping %s", FMT_STR_VSLOT(strvec, 0));
+			report_config_error(CONFIG_GENERAL_ERROR, "IPVS does not support IPv6 in this build - skipping %s", strvec_slot(strvec, 0));
 			FREE(new);
 			return;
 		}
@@ -236,7 +236,7 @@ alloc_vsg_entry(const vector_t *strvec)
 				start = ntohs(((struct sockaddr_in6 *)&new->addr)->sin6_addr.s6_addr16[7]);
 
 			if (start >= new->range) {
-				report_config_error(CONFIG_GENERAL_ERROR, "Address range end is not greater than address range start - %s - skipping", FMT_STR_VSLOT(strvec, 0));
+				report_config_error(CONFIG_GENERAL_ERROR, "Address range end is not greater than address range start - %s - skipping", strvec_slot(strvec, 0));
 				FREE(new);
 				return;
 			}

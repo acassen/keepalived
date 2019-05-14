@@ -46,7 +46,8 @@ null_strvec_handler_t unregister_null_strvec_handler(void)
 	return old_handler;
 }
 
-void *strvec_slot(const vector_t *strvec, size_t index)
+const char *
+strvec_slot(const vector_t *strvec, size_t index)
 {
 	if (strvec &&
 	    index < vector_size(strvec) &&
@@ -100,7 +101,7 @@ vector_alloc_slot_r(vector_t *v)
 
 #ifdef _INCLUDE_UNUSED_CODE_
 /* Insert a value into a specific slot */
-void
+static void
 vector_insert_slot(vector_t *v, unsigned int index, void *value)
 {
 	unsigned int i;
@@ -116,8 +117,8 @@ vector_insert_slot(vector_t *v, unsigned int index, void *value)
 }
 
 /* Copy / dup a vector */
-vector_t *
-vector_copy(vector_t *v)
+static vector_t *
+vector_copy(const vector_t *v)
 {
 	unsigned int size;
 	vector_t *new = vector_alloc();
@@ -134,7 +135,7 @@ vector_copy(vector_t *v)
 
 /* Check assigned index, and if it runs short double index pointer */
 static void
-vector_ensure(vector_t *v, unsigned int num)
+vector_ensure(const vector_t *v, unsigned int num)
 {
 	if (v->allocated > num)
 		return;
@@ -152,7 +153,7 @@ vector_ensure(vector_t *v, unsigned int num)
  * after calling this function.
  */
 static int
-vector_empty_slot(vector_t *v)
+vector_empty_slot(const vector_t *v)
 {
 	unsigned int i;
 
@@ -169,8 +170,8 @@ vector_empty_slot(vector_t *v)
 }
 
 /* Set value to the smallest empty slot. */
-int
-vector_set(vector_t *v, void *val)
+static int
+vector_set(const vector_t *v, void *val)
 {
 	unsigned int i;
 
@@ -198,7 +199,7 @@ vector_set_slot(vector_t *v, void *value)
 
 #ifdef _INCLUDE_UNUSED_CODE_
 /* Set value to specified index slot. */
-int
+static int
 vector_set_index(vector_t *v, unsigned int i, void *val)
 {
 	vector_ensure(v, i);
@@ -212,8 +213,8 @@ vector_set_index(vector_t *v, unsigned int i, void *val)
 }
 
 /* Look up vector.  */
-void *
-vector_lookup(vector_t *v, unsigned int i)
+static void *
+vector_lookup(const vector_t *v, unsigned int i)
 {
 	if (i >= v->active)
 		return NULL;
@@ -221,8 +222,8 @@ vector_lookup(vector_t *v, unsigned int i)
 }
 
 /* Lookup vector, ensure it. */
-void *
-vector_lookup_ensure(vector_t *v, unsigned int i)
+static void *
+vector_lookup_ensure(const vector_t *v, unsigned int i)
 {
 	vector_ensure(v, i);
 	return v->slot[i];

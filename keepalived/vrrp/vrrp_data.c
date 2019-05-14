@@ -780,7 +780,7 @@ alloc_vrrp_unicast_peer(const vector_t *strvec)
 	if (inet_stosockaddr(strvec_slot(strvec, 0), NULL, peer)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: VRRP instance[%s] malformed unicast"
 				     " peer address[%s]. Skipping..."
-				   , vrrp->iname, FMT_STR_VSLOT(strvec, 0));
+				   , vrrp->iname, strvec_slot(strvec, 0));
 		FREE(peer);
 		return;
 	}
@@ -790,7 +790,7 @@ alloc_vrrp_unicast_peer(const vector_t *strvec)
 	else if (peer->ss_family != vrrp->family) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: VRRP instance[%s] and unicast peer address"
 				     "[%s] MUST be of the same family !!! Skipping..."
-				   , vrrp->iname, FMT_STR_VSLOT(strvec, 0));
+				   , vrrp->iname, strvec_slot(strvec, 0));
 		FREE(peer);
 		return;
 	}
@@ -926,7 +926,7 @@ alloc_vrrp_vip(const vector_t *strvec)
 		if (vrrp->family == AF_UNSPEC)
 			vrrp->family = address_family;
 		else if (address_family != vrrp->family) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s): address family must match VRRP instance [%s] - ignoring", vrrp->iname, FMT_STR_VSLOT(strvec, 0));
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s): address family must match VRRP instance [%s] - ignoring", vrrp->iname, strvec_slot(strvec, 0));
 			free_list_element(vrrp->vip, vrrp->vip->tail);
 		}
 	}

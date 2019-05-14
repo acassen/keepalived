@@ -149,7 +149,7 @@ bfd_name_handler(const vector_t *strvec)
 	if (!config_error) {
 		LIST_FOREACH(new_checker->rs->tracked_bfds, bfd_c, e) {
 			if (tbfd == bfd_c->bfd) {
-				report_config_error(CONFIG_GENERAL_ERROR, "(%s) BFD_CHECK - RS already monitoring %s", FMT_RS(new_checker->rs, new_checker->vs), FMT_STR_VSLOT(strvec, 1));
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) BFD_CHECK - RS already monitoring %s", FMT_RS(new_checker->rs, new_checker->vs), strvec_slot(strvec, 1));
 				config_error = true;
 				break;
 			}
@@ -176,7 +176,7 @@ bfd_alpha_handler(const vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec, 1));
 		if (res == -1) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid alpha parameter %s", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid alpha parameter %s", strvec_slot(strvec, 1));
 			return;
 		}
 	}

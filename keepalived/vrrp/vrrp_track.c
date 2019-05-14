@@ -69,7 +69,7 @@ alloc_track_if(vrrp_t *vrrp, const vector_t *strvec)
 	interface_t *ifp = NULL;
 	tracked_if_t *tip = NULL;
 	int weight = 0;
-	char *tracked = strvec_slot(strvec, 0);
+	const char *tracked = strvec_slot(strvec, 0);
 	element e;
 
 	ifp = if_get_by_ifname(tracked, IF_CREATE_IF_DYNAMIC);
@@ -91,7 +91,7 @@ alloc_track_if(vrrp_t *vrrp, const vector_t *strvec)
 	    !strcmp(strvec_slot(strvec, 1), "weight")) {
 		if (!read_int_strvec(strvec, 2, &weight, -254, 254, true)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight %s for %s must be between "
-					 "[-253..253] inclusive. Ignoring...", vrrp->iname, FMT_STR_VSLOT(strvec, 2), tracked);
+					 "[-253..253] inclusive. Ignoring...", vrrp->iname, strvec_slot(strvec, 2), tracked);
 			weight = 0;
 		}
 		else if (weight == -254 || weight == 254) {
@@ -114,7 +114,7 @@ alloc_group_track_if(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 	interface_t *ifp;
 	tracked_if_t *tip;
 	int weight = 0;
-	char *tracked = strvec_slot(strvec, 0);
+	const char *tracked = strvec_slot(strvec, 0);
 	element e;
 
 	ifp = if_get_by_ifname(tracked, IF_CREATE_IF_DYNAMIC);
@@ -154,7 +154,7 @@ alloc_group_track_if(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 }
 
 vrrp_script_t * __attribute__ ((pure))
-find_script_by_name(char *name)
+find_script_by_name(const char *name)
 {
 	element e;
 	vrrp_script_t *scr;
@@ -162,8 +162,7 @@ find_script_by_name(char *name)
 	if (LIST_ISEMPTY(vrrp_data->vrrp_script))
 		return NULL;
 
-	for (e = LIST_HEAD(vrrp_data->vrrp_script); e; ELEMENT_NEXT(e)) {
-		scr = ELEMENT_DATA(e);
+	LIST_FOREACH(vrrp_data->vrrp_script, scr, e) {
 		if (!strcmp(scr->sname, name))
 			return scr;
 	}
@@ -190,7 +189,7 @@ alloc_track_script(vrrp_t *vrrp, const vector_t *strvec)
 	vrrp_script_t *vsc;
 	tracked_sc_t *tsc;
 	int weight;
-	char *tracked = strvec_slot(strvec, 0);
+	const char *tracked = strvec_slot(strvec, 0);
 	element e;
 	tracked_sc_t *etsc;
 
@@ -244,7 +243,7 @@ alloc_group_track_script(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 	vrrp_script_t *vsc = NULL;
 	tracked_sc_t *tsc = NULL;
 	int weight = 0;
-	char *tracked = strvec_slot(strvec, 0);
+	const char *tracked = strvec_slot(strvec, 0);
 	tracked_sc_t *etsc = NULL;
 	element e;
 
@@ -328,7 +327,7 @@ alloc_track_file(vrrp_t *vrrp, const vector_t *strvec)
 {
 	vrrp_tracked_file_t *vsf;
 	tracked_file_t *tfile;
-	char *tracked = strvec_slot(strvec, 0);
+	const char *tracked = strvec_slot(strvec, 0);
 	tracked_file_t *etfile;
 	element e;
 	int weight;
@@ -356,7 +355,7 @@ alloc_track_file(vrrp_t *vrrp, const vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		if (strcmp(strvec_slot(strvec, 1), "weight")) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track file option %s - ignoring",
-					 vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+					 vrrp->iname, strvec_slot(strvec, 1));
 			return;
 		}
 		if (vector_size(strvec) >= 3) {
@@ -383,7 +382,7 @@ alloc_group_track_file(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 {
 	vrrp_tracked_file_t *vsf;
 	tracked_file_t *tfile;
-	char *tracked = strvec_slot(strvec, 0);
+	const char *tracked = strvec_slot(strvec, 0);
 	tracked_file_t *etfile;
 	element e;
 	int weight;
@@ -411,7 +410,7 @@ alloc_group_track_file(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		if (strcmp(strvec_slot(strvec, 1), "weight")) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track file option %s - ignoring",
-					 sgroup->gname, FMT_STR_VSLOT(strvec, 1));
+					 sgroup->gname, strvec_slot(strvec, 1));
 			return;
 		}
 		if (vector_size(strvec) >= 3) {
@@ -469,7 +468,7 @@ alloc_track_process(vrrp_t *vrrp, const vector_t *strvec)
 {
 	vrrp_tracked_process_t *vsp;
 	tracked_process_t *tprocess;
-	char *tracked = strvec_slot(strvec, 0);
+	const char *tracked = strvec_slot(strvec, 0);
 	tracked_process_t *etprocess;
 	element e;
 	int weight;
@@ -494,7 +493,7 @@ alloc_track_process(vrrp_t *vrrp, const vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		if (strcmp(strvec_slot(strvec, 1), "weight")) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track process option %s - ignoring",
-					 vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+					 vrrp->iname, strvec_slot(strvec, 1));
 			return;
 		}
 		if (vector_size(strvec) >= 3) {
@@ -521,7 +520,7 @@ alloc_group_track_process(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 {
 	vrrp_tracked_process_t *vsp;
 	tracked_process_t *tprocess;
-	char *tracked = strvec_slot(strvec, 0);
+	const char *tracked = strvec_slot(strvec, 0);
 	tracked_process_t *etprocess;
 	element e;
 	int weight;
@@ -546,7 +545,7 @@ alloc_group_track_process(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		if (strcmp(strvec_slot(strvec, 1), "weight")) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track process option %s - ignoring",
-					 sgroup->gname, FMT_STR_VSLOT(strvec, 1));
+					 sgroup->gname, strvec_slot(strvec, 1));
 			return;
 		}
 		if (vector_size(strvec) >= 3) {
@@ -602,7 +601,7 @@ alloc_track_bfd(vrrp_t *vrrp, const vector_t *strvec)
 {
 	vrrp_tracked_bfd_t *vtb;
 	tracked_bfd_t *tbfd;
-	char *tracked = strvec_slot(strvec, 0);
+	const char *tracked = strvec_slot(strvec, 0);
 	tracked_bfd_t *etbfd;
 	element e;
 	int weight;
@@ -627,7 +626,7 @@ alloc_track_bfd(vrrp_t *vrrp, const vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		if (strcmp(strvec_slot(strvec, 1), "weight")) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track bfd option %s - ignoring",
-					 vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+					 vrrp->iname, strvec_slot(strvec, 1));
 			return;
 		}
 		if (vector_size(strvec) >= 3) {
@@ -654,7 +653,7 @@ alloc_group_track_bfd(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 {
 	vrrp_tracked_bfd_t *vtb;
 	tracked_bfd_t *tbfd;
-	char *tracked = strvec_slot(strvec, 0);
+	const char *tracked = strvec_slot(strvec, 0);
 	tracked_bfd_t *etbfd;
 	element e;
 	int weight;
@@ -679,7 +678,7 @@ alloc_group_track_bfd(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		if (strcmp(strvec_slot(strvec, 1), "weight")) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track bfd option %s - ignoring",
-					 sgroup->gname, FMT_STR_VSLOT(strvec, 1));
+					 sgroup->gname, strvec_slot(strvec, 1));
 			return;
 		}
 		if (vector_size(strvec) >= 3) {

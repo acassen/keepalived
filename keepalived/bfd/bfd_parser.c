@@ -112,7 +112,7 @@ bfd_nbrip_handler(const vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR,
 			    "Configuration error: BFD instance %s has"
 			    " malformed %s address %s, ignoring instance",
-			    bfd->iname, neighbor_str, FMT_STR_VSLOT(strvec, 1));
+			    bfd->iname, neighbor_str, strvec_slot(strvec, 1));
 		list_del(bfd_data->bfd, bfd);
 		skip_block(false);
 		return;
@@ -120,7 +120,7 @@ bfd_nbrip_handler(const vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR,
 			    "Configuration error: BFD instance %s has"
 			    " duplicate %s address %s, ignoring instance",
-			    bfd->iname, neighbor_str, FMT_STR_VSLOT(strvec, 1));
+			    bfd->iname, neighbor_str, strvec_slot(strvec, 1));
 		list_del(bfd_data->bfd, bfd);
 		skip_block(false);
 		return;
@@ -144,7 +144,7 @@ bfd_srcip_handler(const vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR,
 			    "Configuration error: BFD instance %s has"
 			    " malformed source address %s, ignoring",
-			    bfd->iname, FMT_STR_VSLOT(strvec, 1));
+			    bfd->iname, strvec_slot(strvec, 1));
 	} else
 		bfd->src_addr = src_addr;
 }
@@ -164,7 +164,7 @@ bfd_minrx_handler(const vector_t *strvec)
 	if (!read_unsigned_strvec(strvec, 1, &value, BFD_MINRX_MIN, BFD_MINRX_MAX, false))
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
 			    " min_rx value %s is not valid (must be in range"
-			    " [%u-%u]), ignoring", bfd->iname, FMT_STR_VSLOT(strvec, 1),
+			    " [%u-%u]), ignoring", bfd->iname, strvec_slot(strvec, 1),
 			    BFD_MINRX_MIN, BFD_MINRX_MAX);
 	else
 		bfd->local_min_rx_intv = value * 1000U;
@@ -190,7 +190,7 @@ bfd_mintx_handler(const vector_t *strvec)
 	if (!read_unsigned_strvec(strvec, 1, &value, BFD_MINTX_MIN, BFD_MINTX_MAX, false))
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
 			    " min_tx value %s is not valid (must be in range"
-			    " [%u-%u]), ignoring", bfd->iname, FMT_STR_VSLOT(strvec, 1),
+			    " [%u-%u]), ignoring", bfd->iname, strvec_slot(strvec, 1),
 			    BFD_MINTX_MIN, BFD_MINTX_MAX);
 	else
 		bfd->local_min_tx_intv = value * 1000U;
@@ -216,7 +216,7 @@ bfd_idletx_handler(const vector_t *strvec)
 	if (!read_unsigned_strvec(strvec, 1, &value,BFD_IDLETX_MIN, BFD_IDLETX_MAX, false))
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
 			    " idle_tx value %s is not valid (must be in range"
-			    " [%u-%u]), ignoring", bfd->iname, FMT_STR_VSLOT(strvec, 1),
+			    " [%u-%u]), ignoring", bfd->iname, strvec_slot(strvec, 1),
 			    BFD_IDLETX_MIN, BFD_IDLETX_MAX);
 	else
 		bfd->local_idle_tx_intv = value * 1000U;
@@ -242,7 +242,7 @@ bfd_multiplier_handler(const vector_t *strvec)
 	if (!read_unsigned_strvec(strvec, 1, &value, BFD_MULTIPLIER_MIN, BFD_MULTIPLIER_MAX, false))
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
 			    " multiplier value %s not valid (must be in range"
-			    " [%u-%u]), ignoring", bfd->iname, FMT_STR_VSLOT(strvec, 1),
+			    " [%u-%u]), ignoring", bfd->iname, strvec_slot(strvec, 1),
 			    BFD_MULTIPLIER_MIN, BFD_MULTIPLIER_MAX);
 	else
 		bfd->local_detect_mult = value;
@@ -277,7 +277,7 @@ bfd_ttl_handler(const vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
 			    " ttl/hoplimit value %s not valid (must be in range"
 			    " [1-%u]), ignoring", bfd->iname,
-			    FMT_STR_VSLOT(strvec, 1), BFD_TTL_MAX);
+			    strvec_slot(strvec, 1), BFD_TTL_MAX);
 	else
 		bfd->ttl = value;
 }
@@ -298,7 +298,7 @@ bfd_maxhops_handler(const vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
 			    " max_hops value %s not valid (must be in range"
 			    " [-1-%u]), ignoring", bfd->iname,
-			    FMT_STR_VSLOT(strvec, 1), BFD_TTL_MAX);
+			    strvec_slot(strvec, 1), BFD_TTL_MAX);
 	else
 		bfd->max_hops = value;
 }
@@ -426,7 +426,7 @@ bfd_vrrp_weight_handler(const vector_t *strvec)
 	if (!read_int_strvec(strvec, 1, &value, -253, 253, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
 			    " weight value %s not valid (must be in range"
-			    " [%d-%d]), ignoring", tbfd->bname, FMT_STR_VSLOT(strvec, 1),
+			    " [%d-%d]), ignoring", tbfd->bname, strvec_slot(strvec, 1),
 			    -253, 253);
 	} else
 		tbfd->weight = value;

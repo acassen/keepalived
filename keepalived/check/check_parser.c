@@ -204,13 +204,13 @@ ip_family_handler(const vector_t *strvec)
 		af = AF_INET6;
 	}
 	else {
-		report_config_error(CONFIG_GENERAL_ERROR, "unknown address family %s", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "unknown address family %s", strvec_slot(strvec, 1));
 		return;
 	}
 
 	if (vs->af != AF_UNSPEC &&
 	    af != vs->af) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Virtual server specified family %s conflicts with server family", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Virtual server specified family %s conflicts with server family", strvec_slot(strvec, 1));
 		return;
 	}
 
@@ -223,7 +223,7 @@ vs_co_timeout_handler(const vector_t *strvec)
 	unsigned long timer;
 
 	if (!read_timer(strvec, 1, &timer, 1, UINT_MAX, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "virtual server connect_timeout %s invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "virtual server connect_timeout %s invalid - ignoring", strvec_slot(strvec, 1));
 		return;
 	}
 	vs->connection_to = timer;
@@ -237,7 +237,7 @@ vs_delay_handler(const vector_t *strvec)
 	if (read_timer(strvec, 1, &delay, 1, 0, true))
 		vs->delay_loop = delay;
 	else
-		report_config_error(CONFIG_GENERAL_ERROR, "virtual server delay loop '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "virtual server delay loop '%s' invalid - ignoring", strvec_slot(strvec, 1));
 }
 static void
 vs_delay_before_retry_handler(const vector_t *strvec)
@@ -248,7 +248,7 @@ vs_delay_before_retry_handler(const vector_t *strvec)
 	if (read_timer(strvec, 1, &delay, 0, 0, true))
 		vs->delay_before_retry = delay;
 	else
-		report_config_error(CONFIG_GENERAL_ERROR, "virtual server delay before retry '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "virtual server delay before retry '%s' invalid - ignoring", strvec_slot(strvec, 1));
 }
 static void
 vs_retry_handler(const vector_t *strvec)
@@ -257,7 +257,7 @@ vs_retry_handler(const vector_t *strvec)
 	unsigned retry;
 
 	if (!read_unsigned_strvec(strvec, 1, &retry, 1, UINT32_MAX, false)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "retry value invalid - %s", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "retry value invalid - %s", strvec_slot(strvec, 1));
 		return;
 	}
 	vs->retry = retry;
@@ -271,20 +271,20 @@ vs_warmup_handler(const vector_t *strvec)
 	if (read_timer(strvec, 1, &delay, 0, 0, true))
 		vs->warmup = delay;
 	else
-		report_config_error(CONFIG_GENERAL_ERROR, "virtual server warmup '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "virtual server warmup '%s' invalid - ignoring", strvec_slot(strvec, 1));
 }
 static void
 lbalgo_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	char *str = strvec_slot(strvec, 1);
+	const char *str = strvec_slot(strvec, 1);
 	int i;
 
 	/* Check valid scheduler name */
 	for (i = 0; lvs_schedulers[i] && strcmp(str, lvs_schedulers[i]); i++);
 
 	if (!lvs_schedulers[i] || strlen(str) >= sizeof(vs->sched)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_scheduler '%s' - ignoring", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_scheduler '%s' - ignoring", strvec_slot(strvec, 1));
 		return;
 	}
 
@@ -295,7 +295,7 @@ static void
 lbflags_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	char *str = strvec_slot(strvec, 0);
+	const char *str = strvec_slot(strvec, 0);
 
 	if (!strcmp(str, "hashed"))
 		vs->flags |= IP_VS_SVC_F_HASHED;
@@ -335,7 +335,7 @@ static void
 forwarding_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	char *str = strvec_slot(strvec, 1);
+	const char *str = strvec_slot(strvec, 1);
 
 	if (!strcmp(str, "NAT"))
 		vs->forwarding_method = IP_VS_CONN_F_MASQ;
@@ -369,7 +369,7 @@ static void
 pengine_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	char *str = strvec_slot(strvec, 1);
+	const char *str = strvec_slot(strvec, 1);
 	size_t size = sizeof (vs->pe_name);
 
 	strncpy(vs->pe_name, str, size - 1);
@@ -389,13 +389,13 @@ pgr_handler(const vector_t *strvec)
 
 	if (af == AF_INET6) {
 		if (!read_unsigned_strvec(strvec, 1, &granularity, 1, 128, false)) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid IPv6 persistence_granularity specified - %s", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid IPv6 persistence_granularity specified - %s", strvec_slot(strvec, 1));
 			return;
 		}
 		vs->persistence_granularity = granularity;
 	} else {
 		if (!inet_aton(strvec_slot(strvec, 1), &addr)) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid IPv4 persistence_granularity specified - %s", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid IPv4 persistence_granularity specified - %s", strvec_slot(strvec, 1));
 			return;
 		}
 
@@ -404,7 +404,7 @@ pgr_handler(const vector_t *strvec)
 		while (!(haddr & 1))
 			haddr = (haddr >> 1) | 0x80000000;
 		if (haddr != 0xffffffff) {
-			report_config_error(CONFIG_GENERAL_ERROR, "IPv4 persistence_granularity netmask is not solid - %s", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "IPv4 persistence_granularity netmask is not solid - %s", strvec_slot(strvec, 1));
 			return;
 		}
 
@@ -421,7 +421,7 @@ static void
 proto_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	char *str = strvec_slot(strvec, 1);
+	const char *str = strvec_slot(strvec, 1);
 
 	if (!strcasecmp(str, "TCP"))
 		vs->service_type = IPPROTO_TCP;
@@ -448,7 +448,7 @@ vs_smtp_alert_handler(const vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec, 1));
 		if (res == -1) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid virtual_server smtp_alert parameter %s", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid virtual_server smtp_alert parameter %s", strvec_slot(strvec, 1));
 			return;
 		}
 	}
@@ -465,7 +465,7 @@ vs_virtualhost_handler(const vector_t *strvec)
 static void
 svr_forwarding_handler(real_server_t *rs, const vector_t *strvec)
 {
-	char *str = strvec_slot(strvec, 1);
+	const char *str = strvec_slot(strvec, 1);
 
 	if (!strcmp(str, "NAT"))
 		rs->forwarding_method = IP_VS_CONN_F_MASQ;
@@ -546,7 +546,7 @@ rs_weight_handler(const vector_t *strvec)
 	unsigned weight;
 
 	if (!read_unsigned_strvec(strvec, 1, &weight, 0, 65535, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Real server weight %s is outside range 0-65535", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Real server weight %s is outside range 0-65535", strvec_slot(strvec, 1));
 		return;
 	}
 	rs->weight = weight;
@@ -568,7 +568,7 @@ uthreshold_handler(const vector_t *strvec)
 	unsigned threshold;
 
 	if (!read_unsigned_strvec(strvec, 1, &threshold, 0, UINT_MAX, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Invalid real_server uthreshold '%s' - ignoring", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid real_server uthreshold '%s' - ignoring", strvec_slot(strvec, 1));
 		return;
 	}
 	rs->u_threshold = threshold;
@@ -581,7 +581,7 @@ lthreshold_handler(const vector_t *strvec)
 	unsigned threshold;
 
 	if (!read_unsigned_strvec(strvec, 1, &threshold, 0, UINT_MAX, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Invalid real_server lthreshold '%s' - ignoring", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid real_server lthreshold '%s' - ignoring", strvec_slot(strvec, 1));
 		return;
 	}
 	rs->l_threshold = threshold;
@@ -603,7 +603,7 @@ notify_up_handler(const vector_t *strvec)
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	if (rs->notify_up) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) notify_up script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) notify_up script already specified - ignoring %s", vs->vsgname, strvec_slot(strvec,1));
 		return;
 	}
 	rs->notify_up = set_check_notify_script(strvec, "notify");
@@ -614,7 +614,7 @@ notify_down_handler(const vector_t *strvec)
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	if (rs->notify_down) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) notify_down script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) notify_down script already specified - ignoring %s", vs->vsgname, strvec_slot(strvec,1));
 		return;
 	}
 	rs->notify_down = set_check_notify_script(strvec, "notify");
@@ -627,7 +627,7 @@ rs_co_timeout_handler(const vector_t *strvec)
 	unsigned long timer;
 
 	if (!read_timer(strvec, 1, &timer, 1, UINT_MAX, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "real server connect_timeout %s invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "real server connect_timeout %s invalid - ignoring", strvec_slot(strvec, 1));
 		return;
 	}
 	rs->connection_to = timer;
@@ -642,7 +642,7 @@ rs_delay_handler(const vector_t *strvec)
 	if (read_timer(strvec, 1, &delay, 1, 0, true))
 		rs->delay_loop = delay;
 	else
-		report_config_error(CONFIG_GENERAL_ERROR, "real server delay_loop '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "real server delay_loop '%s' invalid - ignoring", strvec_slot(strvec, 1));
 }
 static void
 rs_delay_before_retry_handler(const vector_t *strvec)
@@ -654,7 +654,7 @@ rs_delay_before_retry_handler(const vector_t *strvec)
 	if (read_timer(strvec, 1, &delay, 0, 0, true))
 		rs->delay_before_retry = delay;
 	else
-		report_config_error(CONFIG_GENERAL_ERROR, "real server delay_before_retry '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "real server delay_before_retry '%s' invalid - ignoring", strvec_slot(strvec, 1));
 }
 static void
 rs_retry_handler(const vector_t *strvec)
@@ -664,7 +664,7 @@ rs_retry_handler(const vector_t *strvec)
 	unsigned retry;
 
 	if (!read_unsigned_strvec(strvec, 1, &retry, 1, UINT32_MAX, false)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "retry value invalid - %s", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "retry value invalid - %s", strvec_slot(strvec, 1));
 		return;
 	}
 	rs->retry = (unsigned)retry;
@@ -679,7 +679,7 @@ rs_warmup_handler(const vector_t *strvec)
 	if (read_timer(strvec, 1, &delay, 0, 0, true))
 		rs->warmup = delay;
 	else
-		report_config_error(CONFIG_GENERAL_ERROR, "real server warmup '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "real server warmup '%s' invalid - ignoring", strvec_slot(strvec, 1));
 }
 static void
 rs_inhibit_handler(const vector_t *strvec)
@@ -691,7 +691,7 @@ rs_inhibit_handler(const vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec, 1));
 		if (res == -1) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid inhibit_on_failure parameter %s", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid inhibit_on_failure parameter %s", strvec_slot(strvec, 1));
 			return;
 		}
 	}
@@ -707,7 +707,7 @@ rs_alpha_handler(const vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec, 1));
 		if (res == -1) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid alpha parameter %s", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid alpha parameter %s", strvec_slot(strvec, 1));
 			return;
 		}
 	}
@@ -723,7 +723,7 @@ rs_smtp_alert_handler(const vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec, 1));
 		if (res == -1) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid real_server smtp_alert parameter %s", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid real_server smtp_alert parameter %s", strvec_slot(strvec, 1));
 			return;
 		}
 	}
@@ -753,7 +753,7 @@ quorum_up_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	if (vs->notify_quorum_up) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) quorum_up script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) quorum_up script already specified - ignoring %s", vs->vsgname, strvec_slot(strvec,1));
 		return;
 	}
 	vs->notify_quorum_up = set_check_notify_script(strvec, "quorum");
@@ -763,7 +763,7 @@ quorum_down_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	if (vs->notify_quorum_down) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) quorum_down script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) quorum_down script already specified - ignoring %s", vs->vsgname, strvec_slot(strvec,1));
 		return;
 	}
 	vs->notify_quorum_down = set_check_notify_script(strvec, "quorum");
@@ -775,7 +775,7 @@ quorum_handler(const vector_t *strvec)
 	unsigned quorum;
 
 	if (!read_unsigned_strvec(strvec, 1, &quorum, 1, UINT_MAX, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Quorum %s must be in [1, %u]. Setting to 1.", FMT_STR_VSLOT(strvec, 1), UINT_MAX);
+		report_config_error(CONFIG_GENERAL_ERROR, "Quorum %s must be in [1, %u]. Setting to 1.", strvec_slot(strvec, 1), UINT_MAX);
 		quorum = 1;
 	}
 
@@ -788,7 +788,7 @@ hysteresis_handler(const vector_t *strvec)
 	unsigned hysteresis;
 
 	if (!read_unsigned_strvec(strvec, 1, &hysteresis, 0, UINT_MAX, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Hysteresis %s must be in [0, %u] - ignoring", FMT_STR_VSLOT(strvec, 1), UINT_MAX);
+		report_config_error(CONFIG_GENERAL_ERROR, "Hysteresis %s must be in [0, %u] - ignoring", strvec_slot(strvec, 1), UINT_MAX);
 		return;
 	}
 
@@ -801,7 +801,7 @@ vs_weight_handler(const vector_t *strvec)
 	unsigned weight;
 
 	if (!read_unsigned_strvec(strvec, 1, &weight, 1, 65535, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Virtual server weight %s is outside range 1-65535", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Virtual server weight %s is outside range 1-65535", strvec_slot(strvec, 1));
 		return;
 	}
 	vs->weight = weight;

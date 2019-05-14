@@ -156,7 +156,7 @@ smtpto_handler(const vector_t *strvec)
 	/* The min value should be 1, but allow 0 to maintain backward compatibility
 	 * with pre v2.0.7 */
 	if (!read_unsigned_strvec(strvec, 1, &timeout, 0, UINT_MAX / TIMER_HZ, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "smtp_connect_timeout '%s' must be in [0, %d] - ignoring", FMT_STR_VSLOT(strvec, 1), UINT_MAX / TIMER_HZ);
+		report_config_error(CONFIG_GENERAL_ERROR, "smtp_connect_timeout '%s' must be in [0, %d] - ignoring", strvec_slot(strvec, 1), UINT_MAX / TIMER_HZ);
 		return;
 	}
 
@@ -171,7 +171,7 @@ smtpto_handler(const vector_t *strvec)
 static void
 dynamic_interfaces_handler(const vector_t *strvec)
 {
-	char *str;
+	const char *str;
 
 	global_data->dynamic_interfaces = true;
 
@@ -194,7 +194,7 @@ static void
 smtpserver_handler(const vector_t *strvec)
 {
 	int ret = -1;
-	char *port_str = SMTP_PORT_STR;
+	const char *port_str = SMTP_PORT_STR;
 
 	/* Has a port number been specified? */
 	if (vector_size(strvec) >= 3)
@@ -208,7 +208,7 @@ smtpserver_handler(const vector_t *strvec)
 		domain_stosockaddr(strvec_slot(strvec, 1), port_str, &global_data->smtp_server);
 
 	if (global_data->smtp_server.ss_family == AF_UNSPEC)
-		report_config_error(CONFIG_GENERAL_ERROR, "Invalid smtp server %s %s", FMT_STR_VSLOT(strvec, 1), port_str);
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid smtp server %s %s", strvec_slot(strvec, 1), port_str);
 }
 static void
 smtphelo_handler(const vector_t *strvec)
@@ -252,7 +252,7 @@ smtp_alert_handler(const vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec,1));
 		if (res < 0) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global smtp_alert specified", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global smtp_alert specified", strvec_slot(strvec, 1));
 			return;
 		}
 	}
@@ -268,7 +268,7 @@ smtp_alert_vrrp_handler(const vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec,1));
 		if (res < 0) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global smtp_alert_vrrp specified", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global smtp_alert_vrrp specified", strvec_slot(strvec, 1));
 			return;
 		}
 	}
@@ -285,7 +285,7 @@ smtp_alert_checker_handler(const vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec,1));
 		if (res < 0) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global smtp_alert_checker specified", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global smtp_alert_checker specified", strvec_slot(strvec, 1));
 			return;
 		}
 	}
@@ -349,7 +349,7 @@ lvs_timeouts(const vector_t *strvec)
 				continue;
 			}
 			if (!read_unsigned_strvec(strvec, i + 1, &val, 0, LVS_MAX_TIMEOUT, false))
-				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_timeout tcp (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_timeout tcp (%s) - ignoring", strvec_slot(strvec, i+1));
 			else
 				global_data->lvs_tcp_timeout = val;
 			i++;	/* skip over value */
@@ -361,7 +361,7 @@ lvs_timeouts(const vector_t *strvec)
 				continue;
 			}
 			if (!read_unsigned_strvec(strvec, i + 1, &val, 0, LVS_MAX_TIMEOUT, false))
-				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_timeout tcpfin (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_timeout tcpfin (%s) - ignoring", strvec_slot(strvec, i+1));
 			else
 				global_data->lvs_tcpfin_timeout = val;
 			i++;	/* skip over value */
@@ -373,13 +373,13 @@ lvs_timeouts(const vector_t *strvec)
 				continue;
 			}
 			if (!read_unsigned_strvec(strvec, i + 1, &val, 0, LVS_MAX_TIMEOUT, false))
-				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_timeout udp (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_timeout udp (%s) - ignoring", strvec_slot(strvec, i+1));
 			else
 				global_data->lvs_udp_timeout = val;
 			i++;	/* skip over value */
 			continue;
 		}
-		report_config_error(CONFIG_GENERAL_ERROR, "Unknown option %s specified for lvs_timeouts", FMT_STR_VSLOT(strvec, i));
+		report_config_error(CONFIG_GENERAL_ERROR, "Unknown option %s specified for lvs_timeouts", strvec_slot(strvec, i));
 	}
 }
 #if defined _WITH_LVS_ && defined _WITH_VRRP_
@@ -400,12 +400,12 @@ lvs_syncd_handler(const vector_t *strvec)
 	}
 
 	if (strlen(strvec_slot(strvec, 1)) >= IP_VS_IFNAME_MAXLEN) {
-		report_config_error(CONFIG_GENERAL_ERROR, "lvs_sync_daemon interface name '%s' too long - ignoring", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "lvs_sync_daemon interface name '%s' too long - ignoring", strvec_slot(strvec, 1));
 		return;
 	}
 
 	if (strlen(strvec_slot(strvec, 2)) >= IP_VS_IFNAME_MAXLEN) {
-		report_config_error(CONFIG_GENERAL_ERROR, "lvs_sync_daemon vrrp interface name '%s' too long - ignoring", FMT_STR_VSLOT(strvec, 2));
+		report_config_error(CONFIG_GENERAL_ERROR, "lvs_sync_daemon vrrp interface name '%s' too long - ignoring", strvec_slot(strvec, 2));
 		return;
 	}
 
@@ -417,10 +417,10 @@ lvs_syncd_handler(const vector_t *strvec)
 	strcpy(global_data->lvs_syncd.vrrp_name, strvec_slot(strvec, 2));
 
 	/* This is maintained for backwards compatibility, prior to adding "id" option */
-	if (vector_size(strvec) >= 4 && isdigit(FMT_STR_VSLOT(strvec, 3)[0])) {
+	if (vector_size(strvec) >= 4 && isdigit(strvec_slot(strvec, 3)[0])) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Please use keyword \"id\" before lvs_sync_daemon syncid value");
 		if (!read_unsigned_strvec(strvec, 3, &val, 0, 255, false))
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid syncid (%s) - defaulting to vrid", FMT_STR_VSLOT(strvec, 3));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid syncid (%s) - defaulting to vrid", strvec_slot(strvec, 3));
 		else
 			global_data->lvs_syncd.syncid = val;
 		i = 4;
@@ -435,7 +435,7 @@ lvs_syncd_handler(const vector_t *strvec)
 				continue;
 			}
 			if (!read_unsigned_strvec(strvec, i + 1, &val, 0, 255, false))
-				report_config_error(CONFIG_GENERAL_ERROR, "Invalid syncid (%s) - defaulting to vrid", FMT_STR_VSLOT(strvec, i+1));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid syncid (%s) - defaulting to vrid", strvec_slot(strvec, i+1));
 			else
 				global_data->lvs_syncd.syncid = val;
 			i++;	/* skip over value */
@@ -448,7 +448,7 @@ lvs_syncd_handler(const vector_t *strvec)
 				continue;
 			}
 			if (!read_unsigned_strvec(strvec, i + 1, &val, 0, 65535 - 20 - 8, false))
-				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_sync_daemon maxlen (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_sync_daemon maxlen (%s) - ignoring", strvec_slot(strvec, i+1));
 			else
 				global_data->lvs_syncd.sync_maxlen = (uint16_t)val;
 			i++;	/* skip over value */
@@ -460,7 +460,7 @@ lvs_syncd_handler(const vector_t *strvec)
 				continue;
 			}
 			if (!read_unsigned_strvec(strvec, i + 1, &val, 0, 65535, false))
-				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_sync_daemon port (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_sync_daemon port (%s) - ignoring", strvec_slot(strvec, i+1));
 			else
 				global_data->lvs_syncd.mcast_port = (uint16_t)val;
 			i++;	/* skip over value */
@@ -472,7 +472,7 @@ lvs_syncd_handler(const vector_t *strvec)
 				continue;
 			}
 			if (!read_unsigned_strvec(strvec, i + 1, &val, 0, 255, false))
-				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_sync_daemon ttl (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_sync_daemon ttl (%s) - ignoring", strvec_slot(strvec, i+1));
 			else
 				global_data->lvs_syncd.mcast_ttl = (uint8_t)val;
 			i++;	/* skip over value */
@@ -485,11 +485,11 @@ lvs_syncd_handler(const vector_t *strvec)
 			}
 
 			if (inet_stosockaddr(strvec_slot(strvec, i+1), NULL, &global_data->lvs_syncd.mcast_group) < 0)
-				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_sync_daemon group (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_sync_daemon group (%s) - ignoring", strvec_slot(strvec, i+1));
 
 			if ((global_data->lvs_syncd.mcast_group.ss_family == AF_INET  && !IN_MULTICAST(htonl(((struct sockaddr_in *)&global_data->lvs_syncd.mcast_group)->sin_addr.s_addr))) ||
 			    (global_data->lvs_syncd.mcast_group.ss_family == AF_INET6 && !IN6_IS_ADDR_MULTICAST(&((struct sockaddr_in6 *)&global_data->lvs_syncd.mcast_group)->sin6_addr))) {
-				report_config_error(CONFIG_GENERAL_ERROR, "lvs_sync_daemon group address %s is not multicast - ignoring", FMT_STR_VSLOT(strvec, i+1));
+				report_config_error(CONFIG_GENERAL_ERROR, "lvs_sync_daemon group address %s is not multicast - ignoring", strvec_slot(strvec, i+1));
 				global_data->lvs_syncd.mcast_group.ss_family = AF_UNSPEC;
 			}
 
@@ -497,7 +497,7 @@ lvs_syncd_handler(const vector_t *strvec)
 			continue;
 		}
 #endif
-		report_config_error(CONFIG_GENERAL_ERROR, "Unknown option %s specified for lvs_sync_daemon", FMT_STR_VSLOT(strvec, i));
+		report_config_error(CONFIG_GENERAL_ERROR, "Unknown option %s specified for lvs_sync_daemon", strvec_slot(strvec, i));
 	}
 }
 #endif
@@ -515,7 +515,7 @@ lvs_flush_onstop_handler(const vector_t *strvec)
 	else if (!strcmp(strvec_slot(strvec, 1), "VS"))
 		global_data->lvs_flush_onstop = LVS_FLUSH_VS;
 	else
-		report_config_error(CONFIG_GENERAL_ERROR, "Unknown lvs_flush_onstop type %s", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Unknown lvs_flush_onstop type %s", strvec_slot(strvec, 1));
 }
 #endif
 #ifdef _HAVE_SCHED_RT_
@@ -535,7 +535,7 @@ get_realtime_priority(const vector_t *strvec, const char *process)
 	max_priority = sched_get_priority_max(SCHED_RR);
 
 	if (!read_int_strvec(strvec, 1, &priority, INT_MIN, INT_MAX, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "%s process real-time priority '%s' invalid", process, FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "%s process real-time priority '%s' invalid", process, strvec_slot(strvec, 1));
 		return -1;
 	}
 
@@ -590,7 +590,7 @@ get_rt_rlimit(const vector_t *strvec, const char *process)
 	rlim_t rlim;
 
 	if (!read_unsigned_strvec(strvec, 1, &limit, 1, UINT32_MAX, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Invalid %s real-time limit - %s", process, FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid %s real-time limit - %s", process, strvec_slot(strvec, 1));
 		return 0;
 	}
 
@@ -627,7 +627,7 @@ vrrp_mcast_group4_handler(const vector_t *strvec)
 	ret = inet_stosockaddr(strvec_slot(strvec, 1), 0, (struct sockaddr_storage *)mcast);
 	if (ret < 0) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: Cant parse vrrp_mcast_group4 [%s]. Skipping"
-				   , FMT_STR_VSLOT(strvec, 1));
+				   , strvec_slot(strvec, 1));
 	}
 }
 static void
@@ -639,7 +639,7 @@ vrrp_mcast_group6_handler(const vector_t *strvec)
 	ret = inet_stosockaddr(strvec_slot(strvec, 1), 0, (struct sockaddr_storage *)mcast);
 	if (ret < 0) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: Cant parse vrrp_mcast_group6 [%s]. Skipping"
-				   , FMT_STR_VSLOT(strvec, 1));
+				   , strvec_slot(strvec, 1));
 	}
 }
 static void
@@ -648,7 +648,7 @@ vrrp_garp_delay_handler(const vector_t *strvec)
 	unsigned timeout;
 
         if (!read_unsigned_strvec(strvec, 1, &timeout, 0, UINT_MAX / TIMER_HZ, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_garp_master_delay '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_garp_master_delay '%s' invalid - ignoring", strvec_slot(strvec, 1));
                 return;
         }
 
@@ -662,7 +662,7 @@ vrrp_garp_rep_handler(const vector_t *strvec)
 	/* The min value should be 1, but allow 0 to maintain backward compatibility
 	 * with pre v2.0.7 */
 	if (!read_unsigned_strvec(strvec, 1, &repeats, 0, UINT_MAX, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_garp_master_repeat '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_garp_master_repeat '%s' invalid - ignoring", strvec_slot(strvec, 1));
 		return;
 	}
 
@@ -680,7 +680,7 @@ vrrp_garp_refresh_handler(const vector_t *strvec)
         unsigned refresh;
 
         if (!read_unsigned_strvec(strvec, 1, &refresh, 0, UINT_MAX, true)) {
-                report_config_error(CONFIG_GENERAL_ERROR, "Invalid vrrp_garp_master_refresh '%s' - ignoring", FMT_STR_VSLOT(strvec, 1));
+                report_config_error(CONFIG_GENERAL_ERROR, "Invalid vrrp_garp_master_refresh '%s' - ignoring", strvec_slot(strvec, 1));
                 global_data->vrrp_garp_refresh.tv_sec = 0;
         }
         else
@@ -696,7 +696,7 @@ vrrp_garp_refresh_rep_handler(const vector_t *strvec)
         /* The min value should be 1, but allow 0 to maintain backward compatibility
          * with pre v2.0.7 */
         if (!read_unsigned_strvec(strvec, 1, &repeats, 0, UINT_MAX, true)) {
-                report_config_error(CONFIG_GENERAL_ERROR, "vrrp_garp_master_refresh_repeat '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
+                report_config_error(CONFIG_GENERAL_ERROR, "vrrp_garp_master_refresh_repeat '%s' invalid - ignoring", strvec_slot(strvec, 1));
                 return;
         }
 
@@ -714,7 +714,7 @@ vrrp_garp_lower_prio_delay_handler(const vector_t *strvec)
         unsigned delay;
 
         if (!read_unsigned_strvec(strvec, 1, &delay, 0, UINT_MAX / TIMER_HZ, true)) {
-                report_config_error(CONFIG_GENERAL_ERROR, "vrrp_garp_lower_prio_delay '%s' invalid - ignoring", FMT_STR_VSLOT(strvec, 1));
+                report_config_error(CONFIG_GENERAL_ERROR, "vrrp_garp_lower_prio_delay '%s' invalid - ignoring", strvec_slot(strvec, 1));
                 return;
         }
 
@@ -726,7 +726,7 @@ vrrp_garp_lower_prio_rep_handler(const vector_t *strvec)
 	unsigned garp_lower_prio_rep;
 
         if (!read_unsigned_strvec(strvec, 1, &garp_lower_prio_rep, 0, INT_MAX, true)) {
-                report_config_error(CONFIG_GENERAL_ERROR, "Invalid vrrp_garp_lower_prio_repeat '%s'", FMT_STR_VSLOT(strvec, 1));
+                report_config_error(CONFIG_GENERAL_ERROR, "Invalid vrrp_garp_lower_prio_repeat '%s'", strvec_slot(strvec, 1));
                 return;
         }
 
@@ -738,12 +738,12 @@ vrrp_garp_interval_handler(const vector_t *strvec)
 	double interval;
 
 	if (!read_double_strvec(strvec, 1, &interval, 1.0F / TIMER_HZ, UINT_MAX / TIMER_HZ, true))
-		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_garp_interval '%s' is invalid", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_garp_interval '%s' is invalid", strvec_slot(strvec, 1));
 	else
 		global_data->vrrp_garp_interval = (unsigned)(interval * TIMER_HZ);
 
 	if (global_data->vrrp_garp_interval >= 1 * TIMER_HZ)
-		log_message(LOG_INFO, "The vrrp_garp_interval is very large - %s seconds", FMT_STR_VSLOT(strvec, 1));
+		log_message(LOG_INFO, "The vrrp_garp_interval is very large - %s seconds", strvec_slot(strvec, 1));
 }
 static void
 vrrp_gna_interval_handler(const vector_t *strvec)
@@ -751,12 +751,12 @@ vrrp_gna_interval_handler(const vector_t *strvec)
 	double interval;
 
 	if (!read_double_strvec(strvec, 1, &interval, 1.0F / TIMER_HZ, UINT_MAX / TIMER_HZ, true))
-		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_gna_interval '%s' is invalid", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_gna_interval '%s' is invalid", strvec_slot(strvec, 1));
 	else
 		global_data->vrrp_gna_interval = (unsigned)(interval * TIMER_HZ);
 
 	if (global_data->vrrp_gna_interval >= 1 * TIMER_HZ)
-		log_message(LOG_INFO, "The vrrp_gna_interval is very large - %s seconds", FMT_STR_VSLOT(strvec, 1));
+		log_message(LOG_INFO, "The vrrp_gna_interval is very large - %s seconds", strvec_slot(strvec, 1));
 }
 static void
 vrrp_min_garp_handler(const vector_t *strvec)
@@ -891,7 +891,7 @@ vrrp_ipsets_handler(const vector_t *strvec)
 static void
 vrrp_nftables_handler(__attribute__((unused)) const vector_t *strvec)
 {
-	char *name;
+	const char *name;
 	size_t len;
 
 	if (global_data->vrrp_nf_table_name) {
@@ -924,7 +924,7 @@ vrrp_nftables_priority_handler(const vector_t *strvec)
 	if (read_int_strvec(strvec, 1, &priority, INT32_MIN, INT32_MAX, false))
 		global_data->vrrp_nf_chain_priority = priority;
 	else
-		report_config_error(CONFIG_INVALID_NUMBER, "invalid nftables chain priority '%s'", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_INVALID_NUMBER, "invalid nftables chain priority '%s'", strvec_slot(strvec, 1));
 }
 static void
 vrrp_nftables_counters_handler(__attribute__((unused)) const vector_t *strvec)
@@ -1006,7 +1006,7 @@ notify_fifo(const vector_t *strvec, const char *type, notify_fifo_t *fifo)
 	}
 
 	if (fifo->name) {
-		report_config_error(CONFIG_GENERAL_ERROR, "%snotify_fifo already specified - ignoring %s", type, FMT_STR_VSLOT(strvec,1));
+		report_config_error(CONFIG_GENERAL_ERROR, "%snotify_fifo already specified - ignoring %s", type, strvec_slot(strvec,1));
 		return;
 	}
 
@@ -1040,7 +1040,7 @@ notify_fifo_script(const vector_t *strvec, const char *type, notify_fifo_t *fifo
 	}
 
 	if (fifo->script) {
-		report_config_error(CONFIG_GENERAL_ERROR, "%snotify_fifo_script already specified - ignoring %s", type, FMT_STR_VSLOT(strvec,1));
+		report_config_error(CONFIG_GENERAL_ERROR, "%snotify_fifo_script already specified - ignoring %s", type, strvec_slot(strvec,1));
 		return;
 	}
 
@@ -1080,7 +1080,7 @@ vrrp_notify_priority_changes(const vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec,1));
 		if (res < 0) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global vrrp_notify_priority_changes specified", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global vrrp_notify_priority_changes specified", strvec_slot(strvec, 1));
 			return;
 		}
 	}
@@ -1253,7 +1253,7 @@ net_namespace_handler(const vector_t *strvec)
 		use_pid_dir = true;
 	}
 	else
-		report_config_error(CONFIG_GENERAL_ERROR, "Duplicate net_namespace definition %s - ignoring", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Duplicate net_namespace definition %s - ignoring", strvec_slot(strvec, 1));
 }
 
 static void
@@ -1293,7 +1293,7 @@ instance_handler(const vector_t *strvec)
 			use_pid_dir = true;
 		}
 		else
-			report_config_error(CONFIG_GENERAL_ERROR, "Duplicate instance definition %s - ignoring", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Duplicate instance definition %s - ignoring", strvec_slot(strvec, 1));
 	}
 }
 
@@ -1333,7 +1333,7 @@ child_wait_handler(const vector_t *strvec)
 		return;
 
 	if (!read_unsigned_strvec(strvec, 1, &secs, 0, UINT_MAX, false)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Invalid child_wait_time %s", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid child_wait_time %s", strvec_slot(strvec, 1));
 		return;
 	}
 
@@ -1362,7 +1362,7 @@ vrrp_rx_bufs_policy_handler(const vector_t *strvec)
 			global_data->vrrp_rx_bufs_policy |= RX_BUFS_POLICY_ADVERT;
 		else {
 			if (!read_unsigned_strvec(strvec, 1, &rx_buf_size, 0, UINT_MAX, false))
-				report_config_error(CONFIG_GENERAL_ERROR, "Invalid vrrp_rx_bufs_policy %s", FMT_STR_VSLOT(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid vrrp_rx_bufs_policy %s", strvec_slot(strvec, i));
 			else {
 				global_data->vrrp_rx_bufs_size = rx_buf_size;
 				global_data->vrrp_rx_bufs_policy |= RX_BUFS_SIZE;
@@ -1396,7 +1396,7 @@ vrrp_rx_bufs_multiplier_handler(const vector_t *strvec)
 	}
 
 	if (!read_unsigned_strvec(strvec, 1, &rx_buf_mult, 1, UINT_MAX, false))
-		report_config_error(CONFIG_GENERAL_ERROR, "Invalid vrrp_rx_bufs_multiplier %s", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid vrrp_rx_bufs_multiplier %s", strvec_slot(strvec, 1));
 	else
 		global_data->vrrp_rx_bufs_multiples = rx_buf_mult;
 }
@@ -1417,7 +1417,7 @@ get_netlink_rcv_bufs_size(const vector_t *strvec, const char *type)
 	}
 
 	if (!read_unsigned_strvec(strvec, 1, &val, 0, UINT_MAX, false)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "%s_rcv_bufs size (%s) invalid", type, FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "%s_rcv_bufs size (%s) invalid", type, strvec_slot(strvec, 1));
 		return 0;
 	}
 
@@ -1451,7 +1451,7 @@ vrrp_netlink_monitor_rcv_bufs_force_handler(const vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec,1));
 		if (res < 0) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global vrrp_netlink_monitor_rcv_bufs_force specified", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global vrrp_netlink_monitor_rcv_bufs_force specified", strvec_slot(strvec, 1));
 			return;
 		}
 	}
@@ -1484,7 +1484,7 @@ vrrp_netlink_cmd_rcv_bufs_force_handler(const vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec,1));
 		if (res < 0) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global vrrp_netlink_cmd_rcv_bufs_force specified", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global vrrp_netlink_cmd_rcv_bufs_force specified", strvec_slot(strvec, 1));
 			return;
 		}
 	}
@@ -1518,7 +1518,7 @@ process_monitor_rcv_bufs_force_handler(const vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec,1));
 		if (res < 0) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global process_monitor_rcv_bufs_force specified", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global process_monitor_rcv_bufs_force specified", strvec_slot(strvec, 1));
 			return;
 		}
 	}
@@ -1554,7 +1554,7 @@ lvs_netlink_monitor_rcv_bufs_force_handler(const vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec,1));
 		if (res < 0) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global lvs_netlink_monitor_rcv_bufs_force specified", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global lvs_netlink_monitor_rcv_bufs_force specified", strvec_slot(strvec, 1));
 			return;
 		}
 	}
@@ -1587,7 +1587,7 @@ lvs_netlink_cmd_rcv_bufs_force_handler(const vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec,1));
 		if (res < 0) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global lvs_netlink_cmd_rcv_bufs_force specified", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global lvs_netlink_cmd_rcv_bufs_force specified", strvec_slot(strvec, 1));
 			return;
 		}
 	}
@@ -1603,7 +1603,7 @@ rs_init_notifies_handler(const vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec,1));
 		if (res < 0) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global rs_init_notifies specified", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global rs_init_notifies specified", strvec_slot(strvec, 1));
 			return;
 		}
 	}
@@ -1619,7 +1619,7 @@ no_checker_emails_handler(const vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec,1));
 		if (res < 0) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global no_checker_emails specified", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global no_checker_emails specified", strvec_slot(strvec, 1));
 			return;
 		}
 	}
@@ -1633,10 +1633,10 @@ umask_handler(const vector_t *strvec)
 {
 	long umask_long;
 	mode_t umask_bits = 0;
-	char *mask = strvec_slot(strvec, 1);
+	const char *mask = strvec_slot(strvec, 1);
 	char *endptr;
 	unsigned i;
-	char *p;
+	const char *p;
 
 	if (umask_cmdline) {
 		log_message(LOG_INFO, "umask command line option specified, ignoring config option");
@@ -1666,7 +1666,7 @@ umask_handler(const vector_t *strvec)
 						continue;
 					}
 
-					report_config_error(CONFIG_GENERAL_ERROR, "Invalid umask syntax %s", FMT_STR_VSLOT(strvec, i));
+					report_config_error(CONFIG_GENERAL_ERROR, "Invalid umask syntax %s", strvec_slot(strvec, i));
 					return;
 				}
 
@@ -1712,12 +1712,12 @@ vrrp_startup_delay_handler(const vector_t *strvec)
 	double startup_delay;
 
 	if (!read_double_strvec(strvec, 1, &startup_delay, 0.001F / TIMER_HZ, UINT_MAX / TIMER_HZ, true))
-		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_startup_delay '%s' is invalid", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_startup_delay '%s' is invalid", strvec_slot(strvec, 1));
 	else
 		global_data->vrrp_startup_delay = (unsigned)(startup_delay * TIMER_HZ);
 
 	if (global_data->vrrp_startup_delay >= 60 * TIMER_HZ)
-		log_message(LOG_INFO, "The vrrp_startup_delay is very large - %s seconds", FMT_STR_VSLOT(strvec, 1));
+		log_message(LOG_INFO, "The vrrp_startup_delay is very large - %s seconds", strvec_slot(strvec, 1));
 }
 
 static void
@@ -1733,7 +1733,7 @@ random_seed_handler(const vector_t *strvec)
 	unsigned val;
 
 	if (!read_unsigned_strvec(strvec, 1, &val, 0, UINT_MAX, false)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "random_seed %s invalid", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "random_seed %s invalid", strvec_slot(strvec, 1));
 		return;
 	}
 
