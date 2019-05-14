@@ -52,12 +52,12 @@ static int bfd_check_thread(thread_t *);
 
 /* Configuration stream handling */
 static void
-free_bfd_check(void *data)
+free_bfd_check(checker_t *checker)
 {
-	bfd_checker_t *bfd_checker = CHECKER_DATA(data);
+	bfd_checker_t *bfd_checker = checker->data;
 
 	FREE(bfd_checker);
-	FREE(data);
+	FREE(checker);
 }
 
 static void

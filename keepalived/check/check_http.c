@@ -257,17 +257,17 @@ free_http_request(request_t *req)
 }
 
 static void
-free_http_get_check(void *data)
+free_http_get_check(checker_t *checker)
 {
-	http_checker_t *http_get_chk = CHECKER_DATA(data);
+	http_checker_t *http_get_chk = checker->data;
 	request_t *req = http_get_chk->req;
 
 	free_list(&http_get_chk->url);
 	free_http_request(req);
 	FREE_PTR(http_get_chk->virtualhost);
 	FREE_PTR(http_get_chk);
-	FREE_PTR(CHECKER_CO(data));
-	FREE(data);
+	FREE_PTR(checker->data);
+	FREE(checker);
 }
 
 static void

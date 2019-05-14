@@ -438,15 +438,14 @@ dns_connect_thread(thread_t * thread)
 }
 
 static void
-dns_free(void *data)
+dns_free(checker_t *checker)
 {
-	checker_t *checker = data;
 	dns_check_t *dns_check = checker->data;
 
 	FREE(dns_check->name);
-	FREE(CHECKER_CO(data));
-	FREE(CHECKER_DATA(data));
-	FREE(data);
+	FREE(checker->co);
+	FREE(checker->data);
+	FREE(checker);
 }
 
 static void

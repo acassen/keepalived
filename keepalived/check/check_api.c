@@ -117,7 +117,7 @@ dump_checker_opts(FILE *fp, const void *data)
 
 /* Queue a checker into the checkers_queue */
 checker_t *
-queue_checker(void (*free_func) (void *), void (*dump_func) (FILE *, const checker_t *)
+queue_checker(void (*free_func) (checker_t *), void (*dump_func) (FILE *, const checker_t *)
 	      , int (*launch) (thread_t *)
 	      , bool (*compare) (const checker_t *, const checker_t *)
 	      , void *data

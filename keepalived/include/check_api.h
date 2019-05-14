@@ -38,7 +38,7 @@
 
 /* Checkers structure definition */
 typedef struct _checker {
-	void				(*free_func) (void *);
+	void				(*free_func) (struct _checker *);
 	void				(*dump_func) (FILE *, const struct _checker *);
 	int				(*launch) (struct _thread *);
 	bool				(*compare) (const struct _checker *, const struct _checker *);
@@ -80,7 +80,7 @@ extern void init_checkers_queue(void);
 extern void free_vs_checkers(virtual_server_t *);
 extern void dump_connection_opts(FILE *, const void *);
 extern void dump_checker_opts(FILE *, const void *);
-extern checker_t *queue_checker(void (*free_func) (void *), void (*dump_func) (FILE *, const checker_t *)
+extern checker_t *queue_checker(void (*free_func) (checker_t *), void (*dump_func) (FILE *, const checker_t *)
 			  , int (*launch) (thread_t *)
 			  , bool (*compare) (const checker_t *, const checker_t *)
 			  , void *

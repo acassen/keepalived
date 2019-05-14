@@ -60,13 +60,13 @@ clear_dynamic_misc_check_flag(void)
 
 /* Configuration stream handling */
 static void
-free_misc_check(void *data)
+free_misc_check(checker_t *checker)
 {
-	misc_checker_t *misck_checker = CHECKER_DATA(data);
+	misc_checker_t *misck_checker = checker->data;
 
 	FREE(misck_checker->script.args);
 	FREE(misck_checker);
-	FREE(data);
+	FREE(checker);
 }
 
 static void

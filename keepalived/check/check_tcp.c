@@ -45,10 +45,10 @@ static int tcp_connect_thread(thread_t *);
 
 /* Configuration stream handling */
 static void
-free_tcp_check(void *data)
+free_tcp_check(checker_t *checker)
 {
-	FREE(CHECKER_CO(data));
-	FREE(data);
+	FREE(checker->co);
+	FREE(checker);
 }
 
 static void

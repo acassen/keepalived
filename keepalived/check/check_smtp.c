@@ -62,15 +62,14 @@ static int smtp_engine_thread(thread_t *);
  * to free up a checker entry and all its associated data.
  */
 static void
-free_smtp_check(void *data)
+free_smtp_check(checker_t *checker)
 {
-	checker_t *checker = (checker_t *)data;
-	smtp_checker_t *smtp_checker = CHECKER_DATA(data);
+	smtp_checker_t *smtp_checker = checker->data;
 
 	FREE_PTR(checker->co);
 	FREE(smtp_checker->helo_name);
 	FREE(smtp_checker);
-	FREE(data);
+	FREE(checker);
 }
 
 /*
