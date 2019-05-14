@@ -476,7 +476,7 @@ script_killall(thread_master_t *m, int signo, bool requeue)
 }
 
 static bool
-is_executable(struct stat *buf, uid_t uid, gid_t gid)
+is_executable(const struct stat *buf, uid_t uid, gid_t gid)
 {
 	return (uid == 0 && buf->st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) ||
 	       (uid == buf->st_uid && buf->st_mode & S_IXUSR) ||
@@ -486,7 +486,7 @@ is_executable(struct stat *buf, uid_t uid, gid_t gid)
 }
 
 static void
-replace_cmd_name(notify_script_t *script, char *new_path)
+replace_cmd_name(notify_script_t *script, const char *new_path)
 {
 	size_t len;
 	char **wp = &script->args[1];
@@ -1052,7 +1052,7 @@ set_default_script_user(const char *username, const char *groupname)
 }
 
 bool
-set_script_uid_gid(vector_t *strvec, unsigned keyword_offset, uid_t *uid_p, gid_t *gid_p)
+set_script_uid_gid(const vector_t *strvec, unsigned keyword_offset, uid_t *uid_p, gid_t *gid_p)
 {
 	char *username;
 	char *groupname;
@@ -1067,7 +1067,7 @@ set_script_uid_gid(vector_t *strvec, unsigned keyword_offset, uid_t *uid_p, gid_
 }
 
 void
-set_script_params_array(vector_t *strvec, notify_script_t *script, unsigned extra_params)
+set_script_params_array(const vector_t *strvec, notify_script_t *script, unsigned extra_params)
 {
 	unsigned num_words = 0;
 	size_t len = 0;
