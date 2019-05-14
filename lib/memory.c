@@ -175,13 +175,13 @@ static unsigned seq_num;
 static FILE *log_op = NULL;
 
 static inline int
-memcheck_ptr_cmp(MEMCHECK *m1, MEMCHECK *m2)
+memcheck_ptr_cmp(const MEMCHECK *m1, const MEMCHECK *m2)
 {
 	return (char *)m1->ptr - (char *)m2->ptr;
 }
 
 static inline int
-memcheck_seq_cmp(MEMCHECK *m1, MEMCHECK *m2)
+memcheck_seq_cmp(const MEMCHECK *m1, const MEMCHECK *m2)
 {
 	return m1->seq_num - m2->seq_num;
 }
