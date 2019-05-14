@@ -33,7 +33,7 @@
 #define CONTENT_LENGTH	"Content-Length:"
 
 /* Return the http header content length */
-size_t extract_content_length(char *buffer, size_t size)
+size_t extract_content_length(const char *buffer, size_t size)
 {
 	char *clen = strstr(buffer, CONTENT_LENGTH);
 	size_t len;
@@ -56,16 +56,17 @@ size_t extract_content_length(char *buffer, size_t size)
  * to rfc2616.6.1 status code is between HTTP_Version
  * and Reason_Phrase, separated by space caracter.
  */
-int extract_status_code(char *buffer, size_t size)
+int extract_status_code(const char *buffer, size_t size)
 {
-	char *end = buffer + size;
+	const char *buf_end = buffer + size;
+	char *end;
 	unsigned long code;
 
 	/* Status-Code extraction */
-	while (buffer < end && *buffer != ' ' && *buffer != '\r')
+	while (buffer < buf_end && *buffer != ' ' && *buffer != '\r')
 		buffer++;
 	buffer++;
-	if (buffer + 3 >= end || *buffer == ' ' || buffer[3] != ' ')
+	if (buffer + 3 >= buf_end || *buffer == ' ' || buffer[3] != ' ')
 		return 0;
 	code = strtoul(buffer, &end, 10);	// This line causes a strict-overflow=4 warning with gcc 5.4.0
 	if (buffer + 3 != end)
@@ -74,11 +75,11 @@ int extract_status_code(char *buffer, size_t size)
 }
 
 /* simple function returning a pointer to the html buffer begin */
-char * __attribute__ ((pure))
-extract_html(char *buffer, size_t size_buffer)
+const char * __attribute__ ((pure))
+extract_html(const char *buffer, size_t size_buffer)
 {
-	char *end = buffer + size_buffer;
-	char *cur;
+	const char *end = buffer + size_buffer;
+	const char *cur;
 
 	for (cur = buffer; cur + 3 < end; cur++)
 		if (*cur == '\r' && *(cur+1) == '\n'

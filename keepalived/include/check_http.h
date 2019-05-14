@@ -46,7 +46,7 @@
 /* ssl specific thread arguments defs */
 typedef struct _request {
 	char				*buffer;
-	char				*extracted;
+	const char			*extracted;
 	int				error;
 	int				status_code;
 	size_t				len;
