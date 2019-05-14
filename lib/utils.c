@@ -150,7 +150,7 @@ write_stacktrace(const char *file_name, const char *str)
 }
 #endif
 
-char *
+const char *
 make_file_name(const char *name, const char *prog, const char *namespace, const char *instance)
 {
 	const char *extn_start;
@@ -209,7 +209,7 @@ run_perf(const char *process, const char *network_namespace, const char *instanc
 	int ret;
 	pid_t pid;
 	char *orig_name = NULL;
-	char *new_name;
+	const char *new_name;
 	const char *perf_name = "perf.data";
 	int in = -1;
 	int ep = -1;
@@ -321,7 +321,7 @@ run_perf(const char *process, const char *network_namespace, const char *instanc
 			if (rename(orig_name, new_name))
 				log_message(LOG_INFO, "Rename %s to %s failed - %m (%d)", orig_name, new_name, errno);
 
-			FREE(new_name);
+			FREE_CONST(new_name);
 		} while (false);
 	} while (false);
 
@@ -375,9 +375,9 @@ char *
 inet_ntop2(uint32_t ip)
 {
 	static char buf[16];
-	unsigned char *bytep;
+	const unsigned char *bytep;
 
-	bytep = (unsigned char *) &(ip);
+	bytep = (const unsigned char *)&ip;
 	sprintf(buf, "%d.%d.%d.%d", bytep[0], bytep[1], bytep[2], bytep[3]);
 	return buf;
 }
@@ -390,9 +390,9 @@ inet_ntop2(uint32_t ip)
 char *
 inet_ntoa2(uint32_t ip, char *buf)
 {
-	unsigned char *bytep;
+	const unsigned char *bytep;
 
-	bytep = (unsigned char *) &(ip);
+	bytep = (const unsigned char *)&ip;
 	sprintf(buf, "%d.%d.%d.%d", bytep[0], bytep[1], bytep[2], bytep[3]);
 	return buf;
 }
@@ -643,7 +643,7 @@ inet_set_sockaddrport(struct sockaddr_storage *addr, uint16_t port)
 	}
 }
 
-char *
+const char *
 inet_sockaddrtopair(const struct sockaddr_storage *addr)
 {
 	char addr_str[INET6_ADDRSTRLEN];
@@ -829,13 +829,12 @@ format_mac_buf(char *op, size_t op_len, const unsigned char *addr, size_t addr_l
 }
 
 /* Getting localhost official canonical name */
-char *
+const char * __attribute__((malloc))
 get_local_name(void)
 {
 	struct utsname name;
 	struct addrinfo hints, *res = NULL;
 	char *canonname = NULL;
-	size_t len = 0;
 
 	memset(&hints, 0, sizeof(struct addrinfo));
 	hints.ai_flags = AI_CANONNAME;
@@ -846,13 +845,8 @@ get_local_name(void)
 	if (getaddrinfo(name.nodename, NULL, &hints, &res) != 0)
 		return NULL;
 
-	if (res && res->ai_canonname) {
-		len = strlen(res->ai_canonname);
-		canonname = MALLOC(len + 1);
-		if (canonname) {
-			memcpy(canonname, res->ai_canonname, len);
-		}
-	}
+	if (res && res->ai_canonname)
+		canonname = STRDUP(res->ai_canonname);
 
 	freeaddrinfo(res);
 

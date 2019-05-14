@@ -203,7 +203,7 @@ extern void dump_buffer(const char *, size_t, FILE *, int);
 #ifdef _WITH_STACKTRACE_
 extern void write_stacktrace(const char *, const char *);
 #endif
-extern char *make_file_name(const char *, const char *, const char *, const char *);
+extern const char *make_file_name(const char *, const char *, const char *, const char *);
 extern void set_process_name(const char *);
 #ifdef _WITH_PERF_
 extern void run_perf(const char *, const char *, const char *);
@@ -217,7 +217,7 @@ extern void inet_ip4tosockaddr(const struct in_addr *, struct sockaddr_storage *
 extern void inet_ip6tosockaddr(const struct in6_addr *, struct sockaddr_storage *);
 extern bool check_valid_ipaddress(char *, bool);
 extern char *inet_sockaddrtos(const struct sockaddr_storage *);
-extern char *inet_sockaddrtopair(const struct sockaddr_storage *);
+extern const char *inet_sockaddrtopair(const struct sockaddr_storage *);
 extern const char *inet_sockaddrtotrio(const struct sockaddr_storage *, uint16_t);
 extern char *inet_sockaddrtotrio_r(const struct sockaddr_storage *, uint16_t, char *);
 extern uint16_t inet_sockaddrport(const struct sockaddr_storage *) __attribute__ ((pure));
@@ -227,7 +227,7 @@ extern int inet_sockaddrip6(const struct sockaddr_storage *, struct in6_addr *);
 extern int inet_inaddrcmp(int, const void *, const void *); __attribute__ ((pure))
 extern int inet_sockaddrcmp(const struct sockaddr_storage *, const struct sockaddr_storage *) __attribute__ ((pure));
 extern void format_mac_buf(char *, size_t, const unsigned char *, size_t);
-extern char *get_local_name(void);
+extern const char *get_local_name(void) __attribute__((malloc));
 extern bool string_equal(const char *, const char *) __attribute__ ((pure));
 extern FILE *fopen_safe(const char *, const char *);
 extern void set_std_fd(bool);

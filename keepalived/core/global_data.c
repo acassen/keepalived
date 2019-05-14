@@ -49,13 +49,12 @@ data_t *old_global_data = NULL;
 
 /* Default settings */
 static void
-set_default_router_id(data_t *data, char *new_id)
+set_default_router_id(data_t *data, const char *new_id)
 {
 	if (!new_id || !new_id[0])
 		return;
 
-	data->router_id = MALLOC(strlen(new_id)+1);
-	strcpy(data->router_id, new_id);
+	data->router_id = STRDUP(new_id);
 }
 
 static void
@@ -227,7 +226,8 @@ init_global_data(data_t * data, data_t *prev_global_data, bool copy_network_name
 {
 	/* If this is a reload and we are running in a network namespace,
 	 * we may not be able to get local_name, so preserve it */
-	char unknown_name[] = "[unknown]";
+	const char unknown_name[] = "[unknown]";
+	char *str;
 
 	/* If we are running in a network namespace, we may not be
 	 * able to get our local name now, so re-use original */
@@ -252,8 +252,8 @@ init_global_data(data_t * data, data_t *prev_global_data, bool copy_network_name
 		/* If for some reason get_local_name() fails, we need to have
 		 * some string in local_name, otherwise keepalived can segfault */
 		if (!data->local_name) {
-			data->local_name = MALLOC(sizeof(unknown_name));
-			strcpy(data->local_name, unknown_name);
+			data->local_name = str = MALLOC(sizeof(unknown_name));
+			strcpy(str, unknown_name);
 		}
 	}
 
@@ -345,7 +345,7 @@ free_global_data(data_t * data)
 	FREE_PTR(data->router_id);
 	FREE_PTR(data->email_from);
 	FREE_PTR(data->smtp_helo_name);
-	FREE_PTR(data->local_name);
+	FREE_CONST_PTR(data->local_name);
 #ifdef _WITH_SNMP_
 	FREE_PTR(data->snmp_socket);
 #endif

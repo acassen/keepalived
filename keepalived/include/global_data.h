@@ -104,7 +104,7 @@ typedef struct _data {
 	char				*network_namespace;	/* network namespace name */
 	bool				namespace_with_ipsets;	/* override for namespaces with ipsets on Linux < 3.13 */
 #endif
-	char				*local_name;
+	const char			*local_name;
 	char				*instance_name;		/* keepalived instance name */
 #ifdef _WITH_LINKBEAT_
 	bool				linkbeat_use_polling;
