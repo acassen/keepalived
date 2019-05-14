@@ -24,8 +24,9 @@ typedef struct json_writer json_writer_t;
 
 /* Create a new JSON stream */
 json_writer_t *jsonw_new(FILE *f);
+
 /* End output to JSON stream */
-void jsonw_destroy(json_writer_t **self_p);
+void jsonw_destroy(json_writer_t ** const self_p);
 
 /* Cause output to have pretty whitespace */
 void jsonw_pretty(json_writer_t *self, bool on);
