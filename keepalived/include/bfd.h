@@ -227,7 +227,7 @@ typedef struct _bfdpkt {
 	struct sockaddr_storage dst_addr;
 	unsigned int ttl;
 	unsigned int len;
-	char *buf;
+	const char *buf;
 } bfdpkt_t;
 
 extern void bfd_update_local_tx_intv(bfd_t *);

@@ -253,7 +253,7 @@ ssl_connect(thread_ref_t thread, int new_req)
 }
 
 bool
-ssl_send_request(SSL * ssl, char *str_request, int request_len)
+ssl_send_request(SSL * ssl, const char *str_request, int request_len)
 {
 	int err, r = 0;
 

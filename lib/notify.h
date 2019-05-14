@@ -92,8 +92,8 @@ extern gid_t default_script_gid;
 extern bool script_security;
 
 /* prototypes */
-extern char *cmd_str_r(const notify_script_t *, char *, size_t);
-extern char *cmd_str(const notify_script_t *);
+extern const char *cmd_str_r(const notify_script_t *, char *, size_t);
+extern const char *cmd_str(const notify_script_t *);
 extern void notify_fifo_open(notify_fifo_t*, notify_fifo_t*, int (*)(thread_ref_t), const char *);
 extern void notify_fifo_close(notify_fifo_t*, notify_fifo_t*);
 extern int system_call_script(thread_master_t *, int (*)(thread_ref_t), void *, unsigned long, notify_script_t *);

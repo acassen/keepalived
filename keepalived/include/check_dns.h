@@ -69,7 +69,7 @@
 
 typedef struct _dns_type {
 	uint16_t type;
-	char *label;
+	const char * const label;
 } dns_type_t;
 
 extern const dns_type_t DNS_TYPE[];

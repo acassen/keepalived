@@ -371,7 +371,7 @@ in_csum(const uint16_t *addr, size_t len, uint32_t csum, uint32_t *acc)
 }
 
 /* IP network to ascii representation */
-char *
+const char *
 inet_ntop2(uint32_t ip)
 {
 	static char buf[16];
@@ -610,7 +610,7 @@ inet_sockaddrtos2(const struct sockaddr_storage *addr, char *addr_str)
 	return addr_str;
 }
 
-char *
+const char *
 inet_sockaddrtos(const struct sockaddr_storage *addr)
 {
 	static char addr_str[INET6_ADDRSTRLEN];

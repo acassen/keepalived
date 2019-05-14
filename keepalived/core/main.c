@@ -110,24 +110,24 @@
 
 /* global var */
 const char *version_string = VERSION_STRING;		/* keepalived version */
-char *conf_file = KEEPALIVED_CONFIG_FILE;		/* Configuration file */
+const char *conf_file = KEEPALIVED_CONFIG_FILE;		/* Configuration file */
 int log_facility = LOG_DAEMON;				/* Optional logging facilities */
 bool reload;						/* Set during a reload */
-char *main_pidfile;					/* overrule default pidfile */
+const char *main_pidfile;				/* overrule default pidfile */
 static bool free_main_pidfile;
 #ifdef _WITH_LVS_
 pid_t checkers_child;					/* Healthcheckers child process ID */
-char *checkers_pidfile;					/* overrule default pidfile */
+const char *checkers_pidfile;				/* overrule default pidfile */
 static bool free_checkers_pidfile;
 #endif
 #ifdef _WITH_VRRP_
 pid_t vrrp_child;					/* VRRP child process ID */
-char *vrrp_pidfile;					/* overrule default pidfile */
+const char *vrrp_pidfile;				/* overrule default pidfile */
 static bool free_vrrp_pidfile;
 #endif
 #ifdef _WITH_BFD_
 pid_t bfd_child;					/* BFD child process ID */
-char *bfd_pidfile;					/* overrule default pidfile */
+const char *bfd_pidfile;				/* overrule default pidfile */
 static bool free_bfd_pidfile;
 #endif
 unsigned long daemon_mode;				/* VRRP/CHECK/BFD subsystem selection */
@@ -135,7 +135,7 @@ unsigned long daemon_mode;				/* VRRP/CHECK/BFD subsystem selection */
 bool snmp_option;					/* Enable SNMP support */
 const char *snmp_socket;				/* Socket to use for SNMP agent */
 #endif
-static char *syslog_ident;				/* syslog ident if not default */
+static const char *syslog_ident;			/* syslog ident if not default */
 bool use_pid_dir;					/* Put pid files in /var/run/keepalived or @localstatedir@/run/keepalived */
 
 unsigned os_major;					/* Kernel version */
@@ -211,9 +211,9 @@ free_parent_mallocs_startup(bool am_child)
 		free_dirname();
 #endif
 #ifndef _MEM_CHECK_LOG_
-		FREE_PTR(syslog_ident);
+		FREE_CONST_PTR(syslog_ident);
 #else
-		free(syslog_ident);
+		free(no_const_char_p(syslog_ident));
 #endif
 		syslog_ident = NULL;
 
@@ -221,7 +221,7 @@ free_parent_mallocs_startup(bool am_child)
 	}
 
 	if (free_main_pidfile) {
-		FREE_PTR(main_pidfile);
+		FREE_CONST_PTR(main_pidfile);
 		free_main_pidfile = false;
 	}
 }
@@ -231,21 +231,21 @@ free_parent_mallocs_exit(void)
 {
 #ifdef _WITH_VRRP_
 	if (free_vrrp_pidfile)
-		FREE_PTR(vrrp_pidfile);
+		FREE_CONST_PTR(vrrp_pidfile);
 #endif
 #ifdef _WITH_LVS_
 	if (free_checkers_pidfile)
-		FREE_PTR(checkers_pidfile);
+		FREE_CONST_PTR(checkers_pidfile);
 #endif
 #ifdef _WITH_BFD_
 	if (free_bfd_pidfile)
-		FREE_PTR(bfd_pidfile);
+		FREE_CONST_PTR(bfd_pidfile);
 #endif
 
 	FREE_CONST_PTR(config_id);
 }
 
-char *
+const char *
 make_syslog_ident(const char* name)
 {
 	size_t ident_len = strlen(name) + 1;
@@ -2017,10 +2017,10 @@ end:
 	closelog();
 
 #ifndef _MEM_CHECK_LOG_
-	FREE_PTR(syslog_ident);
+	FREE_CONST_PTR(syslog_ident);
 #else
 	if (syslog_ident)
-		free(syslog_ident);
+		free(no_const_char_p(syslog_ident));
 #endif
 	close_std_fd();
 

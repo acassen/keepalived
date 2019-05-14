@@ -33,7 +33,7 @@ typedef struct _vector {
 	void		**slot;
 } vector_t;
 
-typedef char *(*null_strvec_handler_t)(const vector_t *, size_t);
+typedef const char *(*null_strvec_handler_t)(const vector_t *, size_t);
 
 /* Some defines */
 #define VECTOR_DEFAULT_SIZE 1

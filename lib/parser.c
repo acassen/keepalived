@@ -146,7 +146,7 @@ get_config_status(void)
 	return config_err;
 }
 
-static char * __attribute__ ((noreturn))
+static const char * __attribute__ ((noreturn))
 null_strvec(const vector_t *strvec, size_t index)
 {
 	if (index - 1 < vector_size(strvec) && index > 0 && vector_slot(strvec, index - 1))

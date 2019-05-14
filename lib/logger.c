@@ -42,7 +42,7 @@ static bool log_console = false;
 
 #ifdef ENABLE_LOG_TO_FILE
 /* File to write log messages to */
-char *log_file_name;
+const char *log_file_name;
 static FILE *log_file;
 bool always_flush_log_file;
 #endif

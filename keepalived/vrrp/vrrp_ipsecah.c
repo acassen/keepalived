@@ -33,7 +33,7 @@
 
 /* hmac_md5 computation according to the RFCs 2085 & 2104 */
 void
-hmac_md5(unsigned char *buffer, size_t buffer_len, unsigned char *key, size_t key_len,
+hmac_md5(const unsigned char *buffer, size_t buffer_len, const unsigned char *key, size_t key_len,
 	 unsigned char *digest)
 {
 	MD5_CTX context;

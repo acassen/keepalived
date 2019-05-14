@@ -75,7 +75,7 @@
 bool using_ha_suspend;
 
 /* local variables */
-static char *check_syslog_ident;
+static const char *check_syslog_ident;
 static bool two_phase_terminate;
 
 static int
@@ -146,10 +146,10 @@ checker_terminate_phase2(void)
 	closelog();
 
 #ifndef _MEM_CHECK_LOG_
-	FREE_PTR(check_syslog_ident);
+	FREE_CONST_PTR(check_syslog_ident);
 #else
 	if (check_syslog_ident)
-		free(check_syslog_ident);
+		free(no_const_char_p(check_syslog_ident));
 #endif
 	close_std_fd();
 
@@ -524,7 +524,7 @@ start_check_child(void)
 {
 #ifndef _DEBUG_
 	pid_t pid;
-	char *syslog_ident;
+	const char *syslog_ident;
 
 	/* Initialize child process */
 #ifdef ENABLE_LOG_TO_FILE

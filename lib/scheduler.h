@@ -215,7 +215,7 @@ extern bool do_epoll_thread_dump;
 
 /* Prototypes. */
 extern void set_child_finder_name(char const * (*)(pid_t));
-extern void save_cmd_line_options(int, char **);
+extern void save_cmd_line_options(int, char * const *);
 extern void log_command_line(unsigned);
 #ifndef _DEBUG_
 extern bool report_child_status(int, pid_t, const char *);

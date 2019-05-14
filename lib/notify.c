@@ -121,7 +121,7 @@ set_privileges(uid_t uid, gid_t gid)
 	return false;
 }
 
-char *
+const char *
 cmd_str_r(const notify_script_t *script, char *buf, size_t len)
 {
 	char *str_p;
@@ -156,7 +156,7 @@ cmd_str_r(const notify_script_t *script, char *buf, size_t len)
 	return buf;
 }
 
-char *
+const char *
 cmd_str(const notify_script_t *script)
 {
 	size_t len;

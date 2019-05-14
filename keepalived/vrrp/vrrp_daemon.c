@@ -101,7 +101,7 @@ perf_t perf_run = PERF_NONE;
 #endif
 
 /* local variables */
-static char *vrrp_syslog_ident;
+static const char *vrrp_syslog_ident;
 #ifndef _DEBUG_
 static bool two_phase_terminate;
 #endif
@@ -290,10 +290,10 @@ vrrp_terminate_phase2(int exit_status)
 	closelog();
 
 #ifndef _MEM_CHECK_LOG_
-	FREE_PTR(vrrp_syslog_ident);
+	FREE_CONST_PTR(vrrp_syslog_ident);
 #else
 	if (vrrp_syslog_ident)
-		free(vrrp_syslog_ident);
+		free(no_const_char_p(vrrp_syslog_ident));
 #endif
 	close_std_fd();
 
@@ -942,7 +942,7 @@ start_vrrp_child(void)
 {
 #ifndef _DEBUG_
 	pid_t pid;
-	char *syslog_ident;
+	const char *syslog_ident;
 
 	/* Initialize child process */
 #ifdef ENABLE_LOG_TO_FILE

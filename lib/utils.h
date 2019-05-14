@@ -219,14 +219,14 @@ extern void set_process_name(const char *);
 extern void run_perf(const char *, const char *, const char *);
 #endif
 extern uint16_t in_csum(const uint16_t *, size_t, uint32_t, uint32_t *);
-extern char *inet_ntop2(uint32_t);
+extern const char *inet_ntop2(uint32_t);
 extern bool inet_stor(const char *, uint32_t *);
 extern int domain_stosockaddr(const char *, const char *, struct sockaddr_storage *);
 extern int inet_stosockaddr(const char *, const char *, struct sockaddr_storage *);
 extern void inet_ip4tosockaddr(const struct in_addr *, struct sockaddr_storage *);
 extern void inet_ip6tosockaddr(const struct in6_addr *, struct sockaddr_storage *);
 extern bool check_valid_ipaddress(const char *, bool);
-extern char *inet_sockaddrtos(const struct sockaddr_storage *);
+extern const char *inet_sockaddrtos(const struct sockaddr_storage *);
 extern const char *inet_sockaddrtopair(const struct sockaddr_storage *);
 extern const char *inet_sockaddrtotrio(const struct sockaddr_storage *, uint16_t);
 extern char *inet_sockaddrtotrio_r(const struct sockaddr_storage *, uint16_t, char *);

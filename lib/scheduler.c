@@ -80,7 +80,7 @@ bool snmp_running;		/* True if this process is running SNMP */
 /* local variables */
 static bool shutting_down;
 static int sav_argc;
-static char **sav_argv;
+static char * const *sav_argv;
 #ifdef _EPOLL_DEBUG_
 bool do_epoll_debug;
 #endif
@@ -350,7 +350,7 @@ set_child_finder_name(char const * (*func)(pid_t))
 }
 
 void
-save_cmd_line_options(int argc, char **argv)
+save_cmd_line_options(int argc, char * const *argv)
 {
 	sav_argc = argc;
 	sav_argv = argv;

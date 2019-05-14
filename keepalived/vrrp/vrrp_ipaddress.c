@@ -49,7 +49,7 @@
 
 #define INFINITY_LIFE_TIME      0xFFFFFFFF
 
-char *
+const char *
 ipaddresstos(char *buf, const ip_address_t *ipaddress)
 {
 	static char addr_str[INET6_ADDRSTRLEN + 4];	/* allow for subnet */
@@ -314,8 +314,9 @@ parse_ipaddress(ip_address_t *ip_address, const char *str, bool allow_subnet_mas
 {
 	ip_address_t *new = ip_address;
 	void *addr;
-	char *p;
+	const char *p;
 	unsigned prefixlen;
+	const char *str_dup = NULL;
 
 	/* No ip address, allocate a brand new one */
 	if (!new)
@@ -331,25 +332,26 @@ parse_ipaddress(ip_address_t *ip_address, const char *str, bool allow_subnet_mas
 		p = NULL;
 
 	if (p) {
-		*p = 0;
 		if (!read_unsigned(p + 1, &prefixlen, 0, new->ifa.ifa_prefixlen, true))
 			report_config_error(CONFIG_GENERAL_ERROR, "Invalid address prefix len %s for address %s - using %d", p + 1, str, new->ifa.ifa_prefixlen);
 		else
 			new->ifa.ifa_prefixlen = prefixlen;
+
+		str_dup = STRNDUP(str, p - str);
 	}
 
 	addr = (IP_IS6(new)) ? (void *) &new->u.sin6_addr :
 			       (void *) &new->u.sin.sin_addr;
-	if (!inet_pton(IP_FAMILY(new), str, addr)) {
+	if (!inet_pton(IP_FAMILY(new), str_dup ? str_dup : str, addr)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "VRRP parsed invalid IP %s. skipping IP...", str);
 		if (!ip_address)
 			FREE(new);
 		new = NULL;
 	}
 
-	/* Restore slash */
-	if (p)
-		*p = '/';
+	/* Release dup'd string */
+	if (str_dup)
+		FREE_CONST(str_dup);
 
 	return new;
 }
