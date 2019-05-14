@@ -453,7 +453,6 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage* addr)
 
 #ifdef _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH) {
-			ICV_mutable_fields ip_mutable_fields;
 			unsigned char digest[MD5_DIGEST_LENGTH];
 			ipsec_ah_t *ah = (ipsec_ah_t *) (vrrp->send_buffer + sizeof (struct iphdr));
 
@@ -483,28 +482,20 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage* addr)
 			}
 
 			if (final_update) {
-				/* backup the ip mutable fields */
-				ip_mutable_fields.tos = ip->tos;
-				ip_mutable_fields.ttl = ip->ttl;
-				ip_mutable_fields.frag_off = ip->frag_off;
+				struct iphdr iph = *ip;
 
 				/* zero the ip mutable fields */
-				ip->tos = 0;
-				ip->frag_off = 0;
+				iph.tos = 0;
+				iph.frag_off = 0;
 				if (!LIST_ISEMPTY(vrrp->unicast_peer))
-					ip->ttl = 0;
+					iph.ttl = 0;
 				/* Compute the ICV & trunc the digest to 96bits
 				   => No padding needed.
 				   -- rfc2402.3.3.3.1.1.1 & rfc2401.5
 				 */
 				memset(&ah->auth_data, 0, sizeof(ah->auth_data));
-				hmac_md5((unsigned char *)vrrp->send_buffer, vrrp->send_buffer_size, vrrp->auth_data, sizeof (vrrp->auth_data), digest);
+				hmac_md5((const unsigned char *)&iph, sizeof iph, (const unsigned char *)ah, vrrp->send_buffer_size - sizeof (struct iphdr), vrrp->auth_data, sizeof (vrrp->auth_data), digest);
 				memcpy(ah->auth_data, digest, HMAC_MD5_TRUNC);
-
-				/* Restore the ip mutable fields */
-				ip->tos = ip_mutable_fields.tos;
-				ip->frag_off = ip_mutable_fields.frag_off;
-				ip->ttl = ip_mutable_fields.ttl;
 			}
 		}
 #endif
@@ -542,12 +533,13 @@ vrrp_csum_mcast(vrrp_t *vrrp)
  * return false for a valid pkt, true otherwise.
  */
 static bool
-vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
+vrrp_in_chk_ipsecah(vrrp_t *vrrp, const struct iphdr *ip, const ipsec_ah_t *ah, const vrrphdr_t *hd, size_t buflen)
 {
-	struct iphdr *ip = (struct iphdr *) (buffer);
-	ipsec_ah_t *ah = (ipsec_ah_t *) ((char *) ip + (ip->ihl << 2));
+	size_t hdr_len = (const char *)ah - (const char *)ip;
 	unsigned char digest[MD5_DIGEST_LENGTH];
-	char backup_auth_data[sizeof(ah->auth_data)];
+	unsigned char tmp_buf[(15 << 2) + sizeof(ipsec_ah_t)]; /* Allow for max ip header size */
+	struct iphdr *ip_tmp = (struct iphdr *)tmp_buf;
+	ipsec_ah_t *ah_tmp = (ipsec_ah_t *)((char *)ip_tmp + hdr_len);
 
 	/*
 	 * First compute an ICV to compare with the one present in AH pkt.
@@ -555,23 +547,24 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 	 * packet to be valid.
 	 */
 
+	hdr_len = (const char *)hd - (const char *)ip;
+
 	/* zero the ip mutable fields */
-	ip->tos = 0;
-	ip->frag_off = 0;
-	ip->check = 0;
+	memcpy(tmp_buf, ip, hdr_len);
+	ip_tmp->tos = 0;
+	ip_tmp->frag_off = 0;
+	ip_tmp->check = 0;
 	if (!LIST_ISEMPTY(vrrp->unicast_peer))
-		ip->ttl = 0;
-	memcpy(backup_auth_data, ah->auth_data, sizeof (ah->auth_data));
-	memset(ah->auth_data, 0, sizeof (ah->auth_data));
+		ip_tmp->ttl = 0;
+	memset(ah_tmp->auth_data, 0, sizeof (ah_tmp->auth_data));
 	memset(digest, 0, MD5_DIGEST_LENGTH);
 
 	/* Compute the ICV */
-	hmac_md5((unsigned char *) buffer,
-		 sizeof(struct iphdr) + sizeof(ipsec_ah_t) + vrrp_pkt_len(vrrp)
-		 , vrrp->auth_data, sizeof (vrrp->auth_data)
-		 , digest);
+	hmac_md5((const unsigned char *)ip_tmp, hdr_len,
+		 (const unsigned char *)hd, buflen - ((const unsigned char *)hd - (const unsigned char *)ip)
+		 , vrrp->auth_data, sizeof (vrrp->auth_data) , digest);
 
-	if (memcmp_constant_time(backup_auth_data, digest, HMAC_MD5_TRUNC) != 0) {
+	if (memcmp_constant_time(ah->auth_data, digest, HMAC_MD5_TRUNC) != 0) {
 		log_message(LOG_INFO, "(%s) IPSEC-AH : invalid"
 				      " IPSEC HMAC-MD5 value. Due to fields mutation"
 				      " or bad password !",
@@ -640,14 +633,14 @@ vrrp_in_chk_vips(const vrrp_t *vrrp, const ip_address_t *ipaddress, const unsign
  * suficient data received for all the VIPs.
  */
 static int
-vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t * hd, char *buffer, ssize_t buflen_ret, bool check_vip_addr)
+vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t buflen_ret, bool check_vip_addr)
 {
-	struct iphdr *ip = NULL;
+	const struct iphdr *ip = NULL;
 	int ihl = 0;	/* Stop compiler issuing possibly uninitialised warning */
 	size_t vrrppkt_len;
 	unsigned adver_int;
 #ifdef _WITH_VRRP_AUTH_
-	ipsec_ah_t *ah;
+	const ipsec_ah_t *ah;
 #endif
 	const unsigned char *vips;
 	ip_address_t *ipaddress;
@@ -666,7 +659,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t * hd, char *buffer, ssize_t bufl
 	/* IPv4 related */
 	if (vrrp->family == AF_INET) {
 		/* To begin with, we just concern ourselves with the protocol headers */
-		ip = (struct iphdr *) (buffer);
+		ip = (const struct iphdr *) (buffer);
 		ihl = ip->ihl << 2;
 
 		expected_len = ihl;
@@ -783,7 +776,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t * hd, char *buffer, ssize_t bufl
 
 		if (vrrp->auth_type == VRRP_AUTH_PASS) {
 			/* check the authentication if it is a passwd */
-			char *pw = (char *) ip + ntohs(ip->tot_len) - sizeof (vrrp->auth_data);
+			const char *pw = (const char *)ip + ntohs(ip->tot_len) - sizeof (vrrp->auth_data);
 			if (memcmp_constant_time(pw, vrrp->auth_data, sizeof(vrrp->auth_data)) != 0) {
 				log_message(LOG_INFO, "(%s) received an invalid passwd!", vrrp->iname);
 				++vrrp->stats->auth_failure;
@@ -794,7 +787,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t * hd, char *buffer, ssize_t bufl
 			}
 		}
 		else if (vrrp->auth_type == VRRP_AUTH_AH) {
-			ah = (ipsec_ah_t *) (buffer + ihl);
+			ah = (const ipsec_ah_t *) (buffer + ihl);
 
 			/* Check that the next header is vrrphdr_t */
 			if (ah->next_header != IPPROTO_VRRP) {
@@ -803,7 +796,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t * hd, char *buffer, ssize_t bufl
 			}
 
 			/* check the authentication if it is ipsec ah */
-			if (vrrp_in_chk_ipsecah(vrrp, buffer)) {
+			if (vrrp_in_chk_ipsecah(vrrp, ip, ah, hd, buflen)) {
 				++vrrp->stats->auth_failure;
 #ifdef _WITH_SNMP_RFCV2_
 				vrrp_rfcv2_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, authFailure);
@@ -1080,7 +1073,7 @@ vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, size_t buflen)
 	   => No padding needed.
 	   -- rfc2402.3.3.3.1.1.1 & rfc2401.5
 	 */
-	hmac_md5((unsigned char *) buffer, buflen, vrrp->auth_data, sizeof (vrrp->auth_data), digest);
+	hmac_md5((unsigned char *) buffer, buflen, NULL, 0, vrrp->auth_data, sizeof (vrrp->auth_data), digest);
 	memcpy(ah->auth_data, digest, HMAC_MD5_TRUNC);
 }
 #endif
@@ -1643,7 +1636,7 @@ vrrp_state_leave_fault(vrrp_t * vrrp)
 
 /* BACKUP state processing */
 void
-vrrp_state_backup(vrrp_t *vrrp, const vrrphdr_t *hd, char *buf, ssize_t buflen)
+vrrp_state_backup(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buf, ssize_t buflen)
 {
 	ssize_t ret = 0;
 	unsigned master_adver_int;
@@ -1797,11 +1790,11 @@ vrrp_saddr_cmp(struct sockaddr_storage *addr, vrrp_t *vrrp)
 // TODO SKEW_TIME should use master_adver_int USUALLY!!!
 // TODO check all use of ipsecah_counter, including cycle, and when we set seq_number
 bool
-vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, char *buf, ssize_t buflen)
+vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_t buflen)
 {
 	ssize_t ret;
 #ifdef _WITH_VRRP_AUTH_
-	ipsec_ah_t *ah;
+	const ipsec_ah_t *ah;
 #endif
 	unsigned master_adver_int;
 	int addr_cmp;
@@ -1864,7 +1857,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, char *buf, ssize_t bufl
 					!vrrp->lower_prio_no_advert ? ", forcing new election" : "");
 #ifdef _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH) {
-			ah = (ipsec_ah_t *) (buf + sizeof(struct iphdr));
+			ah = (const ipsec_ah_t *) (buf + sizeof(struct iphdr));
 			log_message(LOG_INFO, "(%s) IPSEC-AH : Syncing seq_num"
 					      " - Increment seq"
 					    , vrrp->iname);
