@@ -462,8 +462,7 @@ bfd_checker_handler(const vector_t *strvec)
 	}
 
 	PMALLOC(tbfd);
-	tbfd->bname = MALLOC(strlen(name)+1);
-	strcpy(tbfd->bname, name);
+	tbfd->bname = STRDUP(name);
 //	tbfd->weight = 0;
 
 	list_add(check_data->track_bfds, tbfd);
