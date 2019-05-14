@@ -86,6 +86,16 @@ extern void *zalloc(unsigned long size);
 #endif
 
 /* Common defines */
+typedef union _ptr_hack {
+	void *p;
+	const void *cp;
+} ptr_hack_t;
+
+#define FREE_CONST(ptr) { ptr_hack_t ptr_hack = { .cp = ptr }; FREE(ptr_hack.p); }
+#define FREE_CONST_ONLY(ptr) { ptr_hack_t ptr_hack = { .cp = ptr }; FREE_ONLY(ptr_hack.p); }
+#define REALLOC_CONST(ptr, n) ({ ptr_hack_t ptr_hack = { .cp = ptr }; REALLOC(ptr_hack.p, n); })
+
 #define PMALLOC(p)	{ p = MALLOC(sizeof(*p)); }
 #define FREE_PTR(p)	{ if (p) { FREE(p);} }
+#define FREE_CONST_PTR(p) { if (p) { FREE_CONST(p);} }
 #endif
