@@ -381,13 +381,19 @@ static void
 bfd_vrrp_handler(vector_t *strvec)
 {
 	vrrp_tracked_bfd_t *tbfd;
-	char *name;
+	const char *name;
 	element e;
 
 	if (!strvec)
 		return;
 
-	name = vector_slot(strvec, 1);
+	name = strvec_slot(strvec, 1);
+
+	if (strlen(name) >= sizeof tbfd->bname) {
+		report_config_error(CONFIG_GENERAL_ERROR, "BFD name %s too long", name);
+		skip_block(true);
+		return;
+	}
 
 	LIST_FOREACH(vrrp_data->vrrp_track_bfds, tbfd, e) {
 		if (!strcmp(name, tbfd->bname)) {
