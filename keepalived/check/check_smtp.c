@@ -88,14 +88,14 @@ dump_smtp_check(FILE *fp, const checker_t *checker)
 }
 
 static bool
-smtp_check_compare(void *a, void *b)
+smtp_check_compare(const checker_t *old_c, const checker_t *new_c)
 {
-	smtp_checker_t *old = CHECKER_DATA(a);
-	smtp_checker_t *new = CHECKER_DATA(b);
+	const smtp_checker_t *old = old_c->data;
+	const smtp_checker_t *new = new_c->data;
 
 	if (strcmp(old->helo_name, new->helo_name) != 0)
 		return false;
-	if (!compare_conn_opts(CHECKER_CO(a), CHECKER_CO(b)))
+	if (!compare_conn_opts(old_c->co, new_c->co))
 		return false;
 
 	return true;

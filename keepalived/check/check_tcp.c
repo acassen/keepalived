@@ -59,9 +59,9 @@ dump_tcp_check(FILE *fp, const checker_t *checker)
 }
 
 static bool
-tcp_check_compare(void *a, void *b)
+tcp_check_compare(const checker_t *old_c, const checker_t *new_c)
 {
-	return compare_conn_opts(CHECKER_CO(a), CHECKER_CO(b));
+	return compare_conn_opts(old_c->co, new_c->co);
 }
 
 static void

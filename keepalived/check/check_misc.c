@@ -83,10 +83,10 @@ dump_misc_check(FILE *fp, const checker_t *checker)
 }
 
 static bool
-misc_check_compare(void *a, void *b)
+misc_check_compare(const checker_t *old_c, const checker_t *new_c)
 {
-	misc_checker_t *old = CHECKER_DATA(a);
-	misc_checker_t *new = CHECKER_DATA(b);
+	const misc_checker_t *old = old_c->data;
+	const misc_checker_t *new = new_c->data;
 
 	return notify_script_compare(&old->script, &new->script);
 }

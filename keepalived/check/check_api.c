@@ -119,7 +119,7 @@ dump_checker_opts(FILE *fp, const void *data)
 checker_t *
 queue_checker(void (*free_func) (void *), void (*dump_func) (FILE *, const checker_t *)
 	      , int (*launch) (thread_t *)
-	      , bool (*compare) (void *, void *)
+	      , bool (*compare) (const checker_t *, const checker_t *)
 	      , void *data
 	      , conn_opts_t *co)
 {
@@ -183,7 +183,7 @@ check_conn_opts(conn_opts_t *co)
 }
 
 bool __attribute__ ((pure))
-compare_conn_opts(conn_opts_t *a, conn_opts_t *b)
+compare_conn_opts(const conn_opts_t *a, const conn_opts_t *b)
 {
 	if (a == b)
 		return true;

@@ -300,14 +300,14 @@ alloc_http_get(char *proto)
 }
 
 static bool
-http_get_check_compare(void *a, void *b)
+http_get_check_compare(const checker_t *old_c, const checker_t *new_c)
 {
-	http_checker_t *old = CHECKER_DATA(a);
-	http_checker_t *new = CHECKER_DATA(b);
+	const http_checker_t *old = old_c->data;
+	const http_checker_t *new = new_c->data;
 	size_t n;
 	url_t *u1, *u2;
 
-	if (!compare_conn_opts(CHECKER_CO(a), CHECKER_CO(b)))
+	if (!compare_conn_opts(old_c->co, new_c->co))
 		return false;
 	if (LIST_SIZE(old->url) != LIST_SIZE(new->url))
 		return false;

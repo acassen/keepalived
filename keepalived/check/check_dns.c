@@ -461,12 +461,12 @@ dns_dump(FILE *fp, const checker_t *checker)
 }
 
 static bool
-dns_check_compare(void *a, void *b)
+dns_check_compare(const checker_t *old_c, const checker_t *new_c)
 {
-	dns_check_t *old = CHECKER_DATA(a);
-	dns_check_t *new = CHECKER_DATA(b);
+	const dns_check_t *old = old_c->data;
+	const dns_check_t *new = new_c->data;
 
-	if (!compare_conn_opts(CHECKER_CO(a), CHECKER_CO(b)))
+	if (!compare_conn_opts(old_c->co, new_c->co))
 		return false;
 	if (old->type != new->type)
 		return false;

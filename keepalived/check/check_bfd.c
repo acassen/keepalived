@@ -82,10 +82,10 @@ dump_bfds_rs(FILE *fp, const void *data)
 }
 
 static bool
-bfd_check_compare(void *a, void *b)
+bfd_check_compare(const checker_t *old_c, const checker_t *new_c)
 {
-	bfd_checker_t *old = CHECKER_DATA(a);
-	bfd_checker_t *new = CHECKER_DATA(b);
+	const bfd_checker_t *old = old_c->data;
+	const bfd_checker_t *new = new_c->data;
 
 	if (strcmp(old->bfd->bname, new->bfd->bname))
 		return false;

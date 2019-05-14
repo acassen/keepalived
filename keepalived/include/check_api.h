@@ -41,7 +41,7 @@ typedef struct _checker {
 	void				(*free_func) (void *);
 	void				(*dump_func) (FILE *, const struct _checker *);
 	int				(*launch) (struct _thread *);
-	bool				(*compare) (void *, void *);
+	bool				(*compare) (const struct _checker *, const struct _checker *);
 	virtual_server_t		*vs;			/* pointer to the checker thread virtualserver */
 	real_server_t			*rs;			/* pointer to the checker thread realserver */
 	void				*data;
@@ -82,12 +82,12 @@ extern void dump_connection_opts(FILE *, const void *);
 extern void dump_checker_opts(FILE *, const void *);
 extern checker_t *queue_checker(void (*free_func) (void *), void (*dump_func) (FILE *, const checker_t *)
 			  , int (*launch) (thread_t *)
-			  , bool (*compare) (void *, void *)
+			  , bool (*compare) (const checker_t *, const checker_t *)
 			  , void *
 			  , conn_opts_t *);
 extern void dequeue_new_checker(void);
 extern bool check_conn_opts(conn_opts_t *);
-extern bool compare_conn_opts(conn_opts_t *, conn_opts_t *) __attribute__ ((pure));
+extern bool compare_conn_opts(const conn_opts_t *, const conn_opts_t *) __attribute__ ((pure));
 extern void dump_checkers_queue(FILE *);
 extern void free_checkers_queue(void);
 extern void register_checkers_thread(void);
