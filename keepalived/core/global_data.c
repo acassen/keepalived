@@ -62,7 +62,7 @@ set_default_email_from(data_t * data, const char *hostname)
 {
 	struct passwd *pwd = NULL;
 	size_t len;
-
+	char *str;
 	if (!hostname || !hostname[0])
 		return;
 
@@ -71,11 +71,11 @@ set_default_email_from(data_t * data, const char *hostname)
 		return;
 
 	len = strlen(hostname) + strlen(pwd->pw_name) + 2;
-	data->email_from = MALLOC(len);
+	data->email_from = str = MALLOC(len);
 	if (!data->email_from)
 		return;
 
-	snprintf(data->email_from, len, "%s@%s", pwd->pw_name, hostname);
+	snprintf(str, len, "%s@%s", pwd->pw_name, hostname);
 }
 
 static void
@@ -133,15 +133,9 @@ dump_email(FILE *fp, const void *data)
 }
 
 void
-alloc_email(char *addr)
+alloc_email(const char *addr)
 {
-	size_t size = strlen(addr);
-	char *new;
-
-	new = (char *) MALLOC(size + 1);
-	memcpy(new, addr, size + 1);
-
-	list_add(global_data->email, new);
+	list_add(global_data->email, STRDUP(addr));
 }
 
 /* data facility functions */
@@ -153,7 +147,7 @@ alloc_global_data(void)
 	if (global_data)
 		return global_data;
 
-	new = (data_t *) MALLOC(sizeof(data_t));
+	new = MALLOC(sizeof(data_t));
 	new->email = alloc_list(free_email, dump_email);
 	new->smtp_alert = -1;
 #ifdef _WITH_VRRP_
@@ -203,10 +197,8 @@ alloc_global_data(void)
 #endif
 	}
 
-	if (snmp_socket) {
-		new->snmp_socket = MALLOC(strlen(snmp_socket + 1));
-		strcpy(new->snmp_socket, snmp_socket);
-	}
+	if (snmp_socket)
+		new->snmp_socket = STRDUP(snmp_socket);
 #endif
 
 #ifdef _WITH_LVS_
@@ -227,7 +219,6 @@ init_global_data(data_t * data, data_t *prev_global_data, bool copy_network_name
 	/* If this is a reload and we are running in a network namespace,
 	 * we may not be able to get local_name, so preserve it */
 	const char unknown_name[] = "[unknown]";
-	char *str;
 
 	/* If we are running in a network namespace, we may not be
 	 * able to get our local name now, so re-use original */
@@ -236,7 +227,7 @@ init_global_data(data_t * data, data_t *prev_global_data, bool copy_network_name
 		prev_global_data->local_name = NULL;
 
 		if (copy_network_namespace) {
-			FREE_PTR(data->network_namespace);
+			FREE_CONST_PTR(data->network_namespace);
 			data->network_namespace = prev_global_data->network_namespace;
 			prev_global_data->network_namespace = NULL;
 		}
@@ -251,10 +242,8 @@ init_global_data(data_t * data, data_t *prev_global_data, bool copy_network_name
 
 		/* If for some reason get_local_name() fails, we need to have
 		 * some string in local_name, otherwise keepalived can segfault */
-		if (!data->local_name) {
-			data->local_name = str = MALLOC(sizeof(unknown_name));
-			strcpy(str, unknown_name);
-		}
+		if (!data->local_name)
+			data->local_name = STRDUP(unknown_name);
 	}
 
 	if (!data->router_id)
@@ -268,10 +257,8 @@ init_global_data(data_t * data, data_t *prev_global_data, bool copy_network_name
 			if (!data->email_from)
 				set_default_email_from(data, data->local_name);
 
-			if (!data->smtp_helo_name) {
-				data->smtp_helo_name = MALLOC(strlen(data->local_name) + 1);
-				strcpy(data->smtp_helo_name, data->local_name);
-			}
+			if (!data->smtp_helo_name)
+				data->smtp_helo_name = STRDUP(data->local_name);
 		}
 	}
 
@@ -286,7 +273,7 @@ init_global_data(data_t * data, data_t *prev_global_data, bool copy_network_name
 	    data->notify_fifo.name && data->vrrp_notify_fifo.name &&
 	    !strcmp(data->notify_fifo.name, data->vrrp_notify_fifo.name)) {
 		log_message(LOG_INFO, "notify FIFO %s has been specified for global and vrrp FIFO - ignoring vrrp FIFO", data->vrrp_notify_fifo.name);
-		FREE_PTR(data->vrrp_notify_fifo.name);
+		FREE_CONST_PTR(data->vrrp_notify_fifo.name);
 		data->vrrp_notify_fifo.name = NULL;
 		free_notify_script(&data->vrrp_notify_fifo.script);
 	}
@@ -301,7 +288,7 @@ init_global_data(data_t * data, data_t *prev_global_data, bool copy_network_name
 		if (data->notify_fifo.name && data->lvs_notify_fifo.name &&
 		    !strcmp(data->notify_fifo.name, data->lvs_notify_fifo.name)) {
 			log_message(LOG_INFO, "notify FIFO %s has been specified for global and LVS FIFO - ignoring LVS FIFO", data->lvs_notify_fifo.name);
-			FREE_PTR(data->lvs_notify_fifo.name);
+			FREE_CONST_PTR(data->lvs_notify_fifo.name);
 			data->lvs_notify_fifo.name = NULL;
 			free_notify_script(&data->lvs_notify_fifo.script);
 		}
@@ -329,42 +316,42 @@ free_global_data(data_t * data)
 
 	free_list(&data->email);
 #if HAVE_DECL_CLONE_NEWNET
-	FREE_PTR(data->network_namespace);
+	FREE_CONST_PTR(data->network_namespace);
 #endif
-	FREE_PTR(data->instance_name);
-	FREE_PTR(data->process_name);
+	FREE_CONST_PTR(data->instance_name);
+	FREE_CONST_PTR(data->process_name);
 #ifdef _WITH_VRRP_
-	FREE_PTR(data->vrrp_process_name);
+	FREE_CONST_PTR(data->vrrp_process_name);
 #endif
 #ifdef _WITH_LVS_
-	FREE_PTR(data->lvs_process_name);
+	FREE_CONST_PTR(data->lvs_process_name);
 #endif
 #ifdef _WITH_BFD_
-	FREE_PTR(data->bfd_process_name);
+	FREE_CONST_PTR(data->bfd_process_name);
 #endif
-	FREE_PTR(data->router_id);
-	FREE_PTR(data->email_from);
-	FREE_PTR(data->smtp_helo_name);
+	FREE_CONST_PTR(data->router_id);
+	FREE_CONST_PTR(data->email_from);
+	FREE_CONST_PTR(data->smtp_helo_name);
 	FREE_CONST_PTR(data->local_name);
 #ifdef _WITH_SNMP_
-	FREE_PTR(data->snmp_socket);
+	FREE_CONST_PTR(data->snmp_socket);
 #endif
 #if defined _WITH_LVS_ && defined _WITH_VRRP_
-	FREE_PTR(data->lvs_syncd.ifname);
-	FREE_PTR(data->lvs_syncd.vrrp_name);
+	FREE_CONST_PTR(data->lvs_syncd.ifname);
+	FREE_CONST_PTR(data->lvs_syncd.vrrp_name);
 #endif
-	FREE_PTR(data->notify_fifo.name);
+	FREE_CONST_PTR(data->notify_fifo.name);
 	free_notify_script(&data->notify_fifo.script);
 #ifdef _WITH_VRRP_
-	FREE_PTR(data->default_ifname);
-	FREE_PTR(data->vrrp_notify_fifo.name);
+	FREE_CONST_PTR(data->default_ifname);
+	FREE_CONST_PTR(data->vrrp_notify_fifo.name);
 	free_notify_script(&data->vrrp_notify_fifo.script);
 #ifdef _WITH_NFTABLES_
-	FREE_PTR(data->vrrp_nf_table_name);
+	FREE_CONST_PTR(data->vrrp_nf_table_name);
 #endif
 #endif
 #ifdef _WITH_LVS_
-	FREE_PTR(data->lvs_notify_fifo.name);
+	FREE_CONST_PTR(data->lvs_notify_fifo.name);
 	free_notify_script(&data->lvs_notify_fifo.script);
 #endif
 	FREE(data);

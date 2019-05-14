@@ -61,7 +61,7 @@
 
 /* external script we call to track local processes */
 typedef struct _vrrp_script {
-	char			*sname;		/* instance name */
+	const char		*sname;		/* instance name */
 	notify_script_t		script;		/* The script details */
 	unsigned long		interval;	/* interval between script calls */
 	unsigned long		timeout;	/* microseconds before script timeout */

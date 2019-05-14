@@ -54,7 +54,7 @@
 
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 struct lvs_syncd_config {
-	char				*ifname;	/* handle LVS sync daemon state using this */
+	const char			*ifname;	/* handle LVS sync daemon state using this */
 	vrrp_t				*vrrp;		/* instance FSM & running on specific interface */
 	unsigned			syncid;		/* 0 .. 255 */
 #ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
@@ -63,7 +63,7 @@ struct lvs_syncd_config {
 	uint16_t			mcast_port;
 	uint8_t				mcast_ttl;
 #endif
-	char				*vrrp_name;	/* used during configuration and SNMP */
+	const char			*vrrp_name;	/* used during configuration and SNMP */
 };
 #endif
 

@@ -1122,6 +1122,8 @@ static u_char*
 check_snmp_lvs_sync_daemon(struct variable *vp, oid *name, size_t *length,
 				 int exact, size_t *var_len, WriteMethod **write_method)
 {
+	snmp_ret_t ret;
+
 	if (header_generic(vp, name, length, exact, var_len, write_method))
 		return NULL;
 
@@ -1133,12 +1135,14 @@ check_snmp_lvs_sync_daemon(struct variable *vp, oid *name, size_t *length,
 		if (global_data->lvs_syncd.syncid == PARAMETER_UNSET)
 			return NULL;
 		*var_len = strlen(global_data->lvs_syncd.ifname);
-		return (u_char *)global_data->lvs_syncd.ifname;
+		ret.cp = global_data->lvs_syncd.ifname;
+		return ret.p;
 	case CHECK_SNMP_LVSSYNCDAEMONVRRPINSTANCE:
 		if (global_data->lvs_syncd.syncid == PARAMETER_UNSET)
 			return NULL;
 		*var_len = strlen(global_data->lvs_syncd.vrrp_name);
-		return (u_char *)global_data->lvs_syncd.vrrp_name;
+		ret.cp = global_data->lvs_syncd.vrrp_name;
+		return ret.p;
 	case CHECK_SNMP_LVSSYNCDAEMONSYNCID:
 		if (global_data->lvs_syncd.syncid == PARAMETER_UNSET)
 			return NULL;
@@ -1529,6 +1533,7 @@ void
 check_snmp_rs_trap(real_server_t *rs, virtual_server_t *vs, bool stopping)
 {
 	element e;
+	snmp_ret_t ptr_conv;
 
 	/* OID of the notification */
 	oid notification_oid[] = { CHECK_OID, 5, 0, 1 };
@@ -1713,10 +1718,11 @@ check_snmp_rs_trap(real_server_t *rs, virtual_server_t *vs, bool stopping)
 				  sizeof(realtotal));
 
 	/* routerId */
+	ptr_conv.cp = global_data->router_id,
 	snmp_varlist_add_variable(&notification_vars,
 				  routerId_oid, routerId_oid_len,
 				  ASN_OCTET_STR,
-				  (u_char *)global_data->router_id,
+				  ptr_conv.p,
 				  strlen(global_data->router_id));
 
 	send_v2trap(notification_vars);

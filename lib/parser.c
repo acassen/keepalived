@@ -81,7 +81,7 @@ typedef struct _multiline_stack_ent {
 
 /* global vars */
 vector_t *keywords;
-char *config_id;
+const char *config_id;
 const char *WHITE_SPACE = WHITE_SPACE_STR;
 
 /* local vars */

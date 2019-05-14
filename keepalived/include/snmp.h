@@ -53,10 +53,18 @@ int header_generic(struct variable *, oid *, size_t *, int,
 #define SNMPTRAP_OID 1, 3, 6, 1, 6, 3, 1, 1, 4, 1, 0
 #define GLOBAL_OID {KEEPALIVED_OID, 1}
 
-typedef union _long_ret {
+typedef union {
+	unsigned char uc;
 	unsigned long u;
 	long s;
 } longret_t;
+/* The type of a FindVarMethod function should be const unsigned char *, but
+ * it is declared unsigned char *. We use this simple work around to be able
+ * to return const char *, and other types. */
+typedef union {
+	const char *cp;
+	u_char *p;
+} snmp_ret_t;
 
 extern unsigned long snmp_scope(int ) __attribute__ ((const));
 extern void* snmp_header_list_table(struct variable *, oid *, size_t *,

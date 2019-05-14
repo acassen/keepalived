@@ -76,7 +76,7 @@ typedef struct _keyword {
 
 /* global vars exported */
 extern vector_t *keywords;
-extern char *config_id;
+extern const char *config_id;
 extern const char *WHITE_SPACE;
 
 #ifdef _MEM_CHECK_

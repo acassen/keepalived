@@ -33,7 +33,7 @@
 
 /* Parameters for static track groups */
 typedef struct _static_track_group {
-	char			*gname;			/* Group name */
+	const char		*gname;			/* Group name */
 	const vector_t		*iname;			/* Set of VRRP instances in this group, only used during initialisation */
 	list			vrrp_instances;		/* List of VRRP instances */
 } static_track_group_t;

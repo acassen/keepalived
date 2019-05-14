@@ -44,7 +44,7 @@ free_tgroup(void *data)
 		log_message(LOG_INFO, "track group %s - iname vector exists when freeing group", tgroup->gname);
 		free_strvec(tgroup->iname);
 	}
-	FREE(tgroup->gname);
+	FREE_CONST(tgroup->gname);
 	free_list(&tgroup->vrrp_instances);
 	FREE(tgroup);
 }

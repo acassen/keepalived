@@ -523,6 +523,7 @@ vrrp_snmp_script(struct variable *vp, oid *name, size_t *length,
 		 int exact, size_t *var_len, WriteMethod **write_method)
 {
 	vrrp_script_t *scr;
+	snmp_ret_t ret;
 
 	if ((scr = (vrrp_script_t *)snmp_header_list_table(vp, name, length, exact,
 							   var_len, write_method,
@@ -532,7 +533,8 @@ vrrp_snmp_script(struct variable *vp, oid *name, size_t *length,
 	switch (vp->magic) {
 	case VRRP_SNMP_SCRIPT_NAME:
 		*var_len = strlen(scr->sname);
-		return (u_char *)scr->sname;
+		ret.cp = scr->sname;
+		return ret.p;
 	case VRRP_SNMP_SCRIPT_COMMAND:
 		cmd_str_r(&scr->script, buf, sizeof(buf));
 		*var_len = strlen(buf);
@@ -1964,6 +1966,7 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 		   int exact, size_t *var_len, WriteMethod **write_method)
 {
 	vrrp_t *rt;
+	snmp_ret_t ret;
 
 	if ((rt = (vrrp_t *)snmp_header_list_table(vp, name, length, exact,
 						    var_len, write_method,
@@ -2029,7 +2032,8 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_INSTANCE_LVSSYNCINTERFACE:
 		if (global_data->lvs_syncd.vrrp == rt) {
 			*var_len = strlen(global_data->lvs_syncd.ifname);
-			return (u_char *)global_data->lvs_syncd.ifname;
+			ret.cp = global_data->lvs_syncd.ifname;
+			return ret.p;
 		}
 		break;
 #endif
@@ -2215,6 +2219,7 @@ vrrp_snmp_trackedscript(struct variable *vp, oid *name, size_t *length,
 	element e1, e2;
 	vrrp_t *instance;
 	tracked_sc_t *scr, *bscr = NULL;
+	snmp_ret_t ret;
 
 	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
 		memcpy(name, vp->name, sizeof(oid) * vp->namelen);
@@ -2285,7 +2290,8 @@ vrrp_snmp_trackedscript(struct variable *vp, oid *name, size_t *length,
 	switch (vp->magic) {
 	case VRRP_SNMP_TRACKEDSCRIPT_NAME:
 		*var_len = strlen(bscr->scr->sname);
-		return (u_char *)bscr->scr->sname;
+		ret.cp = bscr->scr->sname;
+		return ret.p;
 	case VRRP_SNMP_TRACKEDSCRIPT_WEIGHT:
 		long_ret.s = bscr->weight;
 		return (u_char *)&long_ret;
@@ -2480,6 +2486,7 @@ vrrp_snmp_group_trackedscript(struct variable *vp, oid *name, size_t *length,
 	element e1, e2;
 	vrrp_sgroup_t *sgroup;
 	tracked_sc_t *scr, *bscr = NULL;
+	snmp_ret_t ret;
 
 	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
 		memcpy(name, vp->name, sizeof(oid) * vp->namelen);
@@ -2550,7 +2557,8 @@ vrrp_snmp_group_trackedscript(struct variable *vp, oid *name, size_t *length,
 	switch (vp->magic) {
 	case VRRP_SNMP_SGROUPTRACKEDSCRIPT_NAME:
 		*var_len = strlen(bscr->scr->sname);
-		return (u_char *)bscr->scr->sname;
+		ret.cp = bscr->scr->sname;
+		return ret.p;
 	case VRRP_SNMP_SGROUPTRACKEDSCRIPT_WEIGHT:
 		long_ret.s = bscr->weight;
 		return (u_char *)&long_ret;
@@ -3056,6 +3064,7 @@ vrrp_snmp_instance_trap(vrrp_t *vrrp)
 	/* OID for snmpTrapOID.0 */
 	oid objid_snmptrap[] = { SNMPTRAP_OID };
 	size_t objid_snmptrap_len = OID_LENGTH(objid_snmptrap);
+	snmp_ret_t ptr_conv;
 
 	/* Other OID */
 	oid name_oid[] = { VRRP_OID, 3, 1, 2 };
@@ -3107,10 +3116,11 @@ vrrp_snmp_instance_trap(vrrp_t *vrrp)
 				  sizeof(vrrp->configured_state));
 
 	/* routerId */
+	ptr_conv.cp = global_data->router_id;
 	snmp_varlist_add_variable(&notification_vars,
 				  routerId_oid, routerId_oid_len,
 				  ASN_OCTET_STR,
-				  (u_char *)global_data->router_id,
+				  ptr_conv.p,
 				  strlen(global_data->router_id));
 
 	log_message(LOG_INFO,
@@ -3129,6 +3139,7 @@ vrrp_snmp_group_trap(vrrp_sgroup_t *group)
 	/* OID for snmpTrapOID.0 */
 	oid objid_snmptrap[] = { SNMPTRAP_OID };
 	size_t objid_snmptrap_len = OID_LENGTH(objid_snmptrap);
+	snmp_ret_t ptr_conv;
 
 	/* Other OID */
 	oid name_oid[] = { VRRP_OID, 1, 1, 2 };
@@ -3173,10 +3184,11 @@ vrrp_snmp_group_trap(vrrp_sgroup_t *group)
 				  sizeof(state));
 
 	/* routerId */
+	ptr_conv.cp = global_data->router_id,
 	snmp_varlist_add_variable(&notification_vars,
 				  routerId_oid, routerId_oid_len,
 				  ASN_OCTET_STR,
-				  (u_char *)global_data->router_id,
+				  ptr_conv.p,
 				  strlen(global_data->router_id));
 
 	log_message(LOG_INFO,

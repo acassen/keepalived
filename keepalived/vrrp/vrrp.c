@@ -3701,7 +3701,7 @@ vrrp_complete_init(void)
 
 		if (!global_data->lvs_syncd.vrrp) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Unable to find vrrp instance %s for lvs_syncd - clearing lvs_syncd config", global_data->lvs_syncd.vrrp_name);
-			FREE_PTR(global_data->lvs_syncd.ifname);
+			FREE_CONST_PTR(global_data->lvs_syncd.ifname);
 			global_data->lvs_syncd.ifname = NULL;
 			global_data->lvs_syncd.syncid = PARAMETER_UNSET;
 		}
@@ -3711,7 +3711,7 @@ vrrp_complete_init(void)
 		}
 
 		/* vrrp_name is no longer used */
-		FREE_PTR(global_data->lvs_syncd.vrrp_name);
+		FREE_CONST_PTR(global_data->lvs_syncd.vrrp_name);
 		global_data->lvs_syncd.vrrp_name = NULL;
 	}
 #endif

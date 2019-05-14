@@ -242,7 +242,7 @@ free_parent_mallocs_exit(void)
 		FREE_PTR(bfd_pidfile);
 #endif
 
-	FREE_PTR(config_id);
+	FREE_CONST_PTR(config_id);
 }
 
 char *
@@ -522,9 +522,8 @@ static bool reload_config(void)
 
 #if HAVE_DECL_CLONE_NEWNET
 	if (override_namespace) {
-		FREE_PTR(global_data->network_namespace);
-		global_data->network_namespace = MALLOC(strlen(override_namespace) + 1);
-		strcpy(global_data->network_namespace, override_namespace);
+		FREE_CONST_PTR(global_data->network_namespace);
+		global_data->network_namespace = STRDUP(override_namespace);
 	}
 
 	if (!!old_global_data->network_namespace != !!global_data->network_namespace ||
@@ -532,7 +531,7 @@ static bool reload_config(void)
 		log_message(LOG_INFO, "Cannot change network namespace at a reload - please restart %s", PACKAGE);
 		unsupported_change = true;
 	}
-	FREE_PTR(global_data->network_namespace);
+	FREE_CONST_PTR(global_data->network_namespace);
 	global_data->network_namespace = old_global_data->network_namespace;
 	old_global_data->network_namespace = NULL;
 #endif
@@ -542,7 +541,7 @@ static bool reload_config(void)
 		log_message(LOG_INFO, "Cannot change instance name at a reload - please restart %s", PACKAGE);
 		unsupported_change = true;
 	}
-	FREE_PTR(global_data->instance_name);
+	FREE_CONST_PTR(global_data->instance_name);
 	global_data->instance_name = old_global_data->instance_name;
 	old_global_data->instance_name = NULL;
 
@@ -552,7 +551,7 @@ static bool reload_config(void)
 		log_message(LOG_INFO, "Cannot change nftables table name at a reload - please restart %s", PACKAGE);
 		unsupported_change = true;
 	}
-	FREE_PTR(global_data->vrrp_nf_table_name);
+	FREE_CONST_PTR(global_data->vrrp_nf_table_name);
 	global_data->vrrp_nf_table_name = old_global_data->vrrp_nf_table_name;
 	old_global_data->vrrp_nf_table_name = NULL;
 #endif
@@ -1565,9 +1564,8 @@ parse_cmdline(int argc, char **argv)
 			break;
 #endif
 		case 'i':
-			FREE_PTR(config_id);
-			config_id = MALLOC(strlen(optarg) + 1);
-			strcpy(config_id, optarg);
+			FREE_CONST_PTR(config_id);
+			config_id = STRDUP(optarg);
 			break;
 		case 4:			/* --signum */
 			signum = get_signum(optarg);
@@ -1741,9 +1739,7 @@ keepalived_main(int argc, char **argv)
 		/* config_id defaults to hostname */
 		if (!config_id) {
 			end = strchrnul(uname_buf.nodename, '.');
-			config_id = MALLOC((size_t)(end - uname_buf.nodename) + 1);
-			strncpy(config_id, uname_buf.nodename, (size_t)(end - uname_buf.nodename));
-			config_id[end - uname_buf.nodename] = '\0';
+			config_id = STRNDUP(uname_buf.nodename, (size_t)(end - uname_buf.nodename));
 		}
 	}
 
@@ -1820,10 +1816,9 @@ keepalived_main(int argc, char **argv)
 	if (override_namespace) {
 		if (global_data->network_namespace) {
 			log_message(LOG_INFO, "Overriding config net_namespace '%s' with command line namespace '%s'", global_data->network_namespace, override_namespace);
-			FREE(global_data->network_namespace);
+			FREE_CONST(global_data->network_namespace);
 		}
-		global_data->network_namespace = MALLOC(strlen(override_namespace) + 1);
-		strcpy(global_data->network_namespace, override_namespace);
+		global_data->network_namespace = STRDUP(override_namespace);
 	}
 #endif
 
@@ -1944,7 +1939,7 @@ keepalived_main(int argc, char **argv)
 	if (!__test_bit(DONT_FORK_BIT, &debug) &&
 	    xdaemon(false, false, true) > 0) {
 		closelog();
-		FREE_PTR(config_id);
+		FREE_CONST_PTR(config_id);
 		FREE_PTR(orig_core_dump_pattern);
 		close_std_fd();
 		exit(0);

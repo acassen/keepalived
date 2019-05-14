@@ -57,7 +57,7 @@ typedef enum {
 
 /* notify_script details */
 typedef struct _notify_script {
-	char**	args;		/* Script args */
+	const char **args;	/* Script args - should be "char const * const *" */
 	int	num_args;	/* Used for notify script when adding last 4 parameters */
 	int	flags;
 	uid_t	uid;		/* uid of user to execute script */
@@ -66,7 +66,7 @@ typedef struct _notify_script {
 
 /* notify_fifo details */
 typedef struct _notify_fifo {
-	char	*name;
+	const char *name;
 	int	fd;
 	uid_t	uid;		/* uid of user of fifo if create */
 	gid_t	gid;		/* gid of group of fifo */
@@ -106,7 +106,7 @@ extern bool set_default_script_user(const char *, const char *);
 extern bool set_script_uid_gid(const vector_t *, unsigned, uid_t *, gid_t *);
 extern void set_script_params_array(const vector_t *, notify_script_t *, unsigned);
 extern notify_script_t* notify_script_init(int, const char *);
-extern void add_script_param(notify_script_t *, char *);
+extern void add_script_param(notify_script_t *, const char *);
 extern void notify_resource_release(void);
 extern bool notify_script_compare(const notify_script_t *, const notify_script_t *) __attribute__ ((pure));
 #ifdef THREAD_DUMP

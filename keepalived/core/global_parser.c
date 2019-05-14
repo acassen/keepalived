@@ -79,7 +79,7 @@ use_polling_handler(const vector_t *strvec)
 }
 #endif
 static void
-save_process_name(char **dest, const char *src)
+save_process_name(char const **dest, const char *src)
 {
 	size_t len;
 
@@ -89,13 +89,14 @@ save_process_name(char **dest, const char *src)
 	}
 
 	if (*dest)
-		FREE_PTR(*dest);
+		FREE_CONST_PTR(*dest);
 
-	if ((len = strlen(src)) >= TASK_COMM_LEN)
+	if ((len = strlen(src)) >= TASK_COMM_LEN) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Process name %s more than %d characters, truncating", src, TASK_COMM_LEN - 1);
+		len = TASK_COMM_LEN - 1;
+	}
 
-	*dest = MALLOC(len + 1);
-	strncpy(*dest, src, len >= TASK_COMM_LEN ? TASK_COMM_LEN - 1 : len);
+	*dest = STRNDUP(src, len);
 }
 static void
 process_names_handler(__attribute__((unused)) const vector_t *strvec)
@@ -139,13 +140,13 @@ bfd_process_name_handler(const vector_t *strvec)
 static void
 routerid_handler(const vector_t *strvec)
 {
-	FREE_PTR(global_data->router_id);
+	FREE_CONST_PTR(global_data->router_id);
 	global_data->router_id = set_value(strvec);
 }
 static void
 emailfrom_handler(const vector_t *strvec)
 {
-	FREE_PTR(global_data->email_from);
+	FREE_CONST_PTR(global_data->email_from);
 	global_data->email_from = set_value(strvec);
 }
 static void
@@ -213,17 +214,10 @@ smtpserver_handler(const vector_t *strvec)
 static void
 smtphelo_handler(const vector_t *strvec)
 {
-	char *helo_name;
-
 	if (vector_size(strvec) < 2)
 		return;
 
-	helo_name = MALLOC(strlen(strvec_slot(strvec, 1)) + 1);
-	if (!helo_name)
-		return;
-
-	strcpy(helo_name, strvec_slot(strvec, 1));
-	global_data->smtp_helo_name = helo_name;
+	global_data->smtp_helo_name = STRDUP(strvec_slot(strvec, 1));
 }
 static void
 email_handler(const vector_t *strvec)
@@ -316,7 +310,7 @@ default_interface_handler(const vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR, "default_interface requires interface name");
 		return;
 	}
-	FREE_PTR(global_data->default_ifname);
+	FREE_CONST_PTR(global_data->default_ifname);
 	global_data->default_ifname = set_value(strvec);
 
 	/* On a reload, the VRRP process needs the default_ifp */
@@ -411,10 +405,8 @@ lvs_syncd_handler(const vector_t *strvec)
 
 	global_data->lvs_syncd.ifname = set_value(strvec);
 
-	global_data->lvs_syncd.vrrp_name = MALLOC(strlen(strvec_slot(strvec, 2)) + 1);
-	if (!global_data->lvs_syncd.vrrp_name)
+	if (!(global_data->lvs_syncd.vrrp_name = STRDUP(strvec_slot(strvec, 2))))
 		return;
-	strcpy(global_data->lvs_syncd.vrrp_name, strvec_slot(strvec, 2));
 
 	/* This is maintained for backwards compatibility, prior to adding "id" option */
 	if (vector_size(strvec) >= 4 && isdigit(strvec_slot(strvec, 3)[0])) {
@@ -892,7 +884,6 @@ static void
 vrrp_nftables_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	const char *name;
-	size_t len;
 
 	if (global_data->vrrp_nf_table_name) {
 		report_config_error(CONFIG_GENERAL_ERROR, "nftables already specified - ignoring");
@@ -900,7 +891,7 @@ vrrp_nftables_handler(__attribute__((unused)) const vector_t *strvec)
 	}
 
 	if (vector_size(strvec) >= 2) {
-	       	if ((len = strlen(strvec_slot(strvec, 1))) >= NFT_TABLE_MAXNAMELEN) {
+		if (strlen(strvec_slot(strvec, 1)) >= NFT_TABLE_MAXNAMELEN) {
 			report_config_error(CONFIG_GENERAL_ERROR, "nftables table name too long - ignoring");
 			return;
 		}
@@ -909,11 +900,9 @@ vrrp_nftables_handler(__attribute__((unused)) const vector_t *strvec)
 	else {
 		/* Table named defaults to "keepalived" */
 		name = DEFAULT_NFTABLES_TABLE;
-		len = strlen(name);
 	}
 
-	global_data->vrrp_nf_table_name = MALLOC(len + 1);
-	strcpy(global_data->vrrp_nf_table_name, name);
+	global_data->vrrp_nf_table_name = STRDUP(name);
 	global_data->vrrp_nf_chain_priority = -1;
 }
 static void
@@ -1026,8 +1015,7 @@ notify_fifo(const vector_t *strvec, const char *type, notify_fifo_t *fifo)
 		fifo->gid = default_script_gid;
 	}
 
-	fifo->name = MALLOC(strlen(strvec_slot(strvec, 1)) + 1);
-	strcpy(fifo->name, strvec_slot(strvec, 1));
+	fifo->name = STRDUP(strvec_slot(strvec, 1));
 }
 static void
 notify_fifo_script(const vector_t *strvec, const char *type, notify_fifo_t *fifo)
@@ -1192,8 +1180,7 @@ snmp_socket_handler(const vector_t *strvec)
 		return;
 	}
 
-	global_data->snmp_socket = MALLOC(strlen(strvec_slot(strvec, 1)) + 1);
-	strcpy(global_data->snmp_socket, strvec_slot(strvec,1));
+	global_data->snmp_socket = STRDUP(strvec_slot(strvec, 1));
 }
 static void
 trap_handler(__attribute__((unused)) const vector_t *strvec)
@@ -1276,7 +1263,7 @@ enable_dbus_handler(__attribute__((unused)) const vector_t *strvec)
 static void
 dbus_service_name_handler(const vector_t *strvec)
 {
-	FREE_PTR(global_data->dbus_service_name);
+	FREE_CONST_PTR(global_data->dbus_service_name);
 	global_data->dbus_service_name = set_value(strvec);
 }
 #endif

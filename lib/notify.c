@@ -44,6 +44,14 @@
 #include "keepalived_magic.h"
 #include "scheduler.h"
 
+/* The argv parameter is declared as char *const [], whereas it should be
+ * char const *const [], so we use the following union to cast away the
+ * const that we have, but execve doesn't. */
+union non_const_args {
+	const char *const *args;
+	char *const *execve_args;
+};
+
 /* Default user/group for script execution */
 uid_t default_script_uid;
 gid_t default_script_gid;
@@ -169,7 +177,8 @@ notify_fifo_exec(thread_master_t *m, int (*func) (thread_ref_t), void *arg, noti
 {
 	pid_t pid;
 	int retval;
-	char *scr;
+	const char *scr;
+	union non_const_args args;
 
 	pid = local_fork();
 
@@ -196,7 +205,8 @@ notify_fifo_exec(thread_master_t *m, int (*func) (thread_ref_t), void *arg, noti
 		/* If keepalived dies, we want the script to die */
 		prctl(PR_SET_PDEATHSIG, SIGTERM);
 
-		execve(script->args[0], script->args, environ);
+		args.args = script->args;	/* Note: we are casting away constness, since execve parameter type is wrong */
+		execve(script->args[0], args.execve_args, environ);
 
 		if (errno == EACCES)
 			log_message(LOG_INFO, "FIFO notify script %s is not executable", script->args[0]);
@@ -257,7 +267,7 @@ fifo_open(notify_fifo_t* fifo, int (*script_exit)(thread_ref_t), const char *typ
 		}
 
 		if (fifo->fd == -1) {
-			FREE(fifo->name);
+			FREE_CONST(fifo->name);
 			fifo->name = NULL;
 		}
 	}
@@ -300,8 +310,9 @@ static void __attribute__ ((noreturn))
 system_call(const notify_script_t* script)
 {
 	char *command_line = NULL;
-	char *str;
+	const char *str;
 	int retval;
+	union non_const_args args;
 
 	if (set_privileges(script->uid, script->gid))
 		exit(0);
@@ -314,7 +325,8 @@ system_call(const notify_script_t* script)
 		/* If keepalived dies, we want the script to die */
 		prctl(PR_SET_PDEATHSIG, SIGTERM);
 
-		execve(script->args[0], script->args, environ);
+		args.args = script->args;	/* Note: we are casting away constness, since execve parameter type is wrong */
+		execve(script->args[0], args.execve_args, environ);
 
 		/* error */
 		log_message(LOG_ALERT, "Error exec-ing command '%s', error %d: %m", script->args[0], errno);
@@ -489,16 +501,26 @@ static void
 replace_cmd_name(notify_script_t *script, const char *new_path)
 {
 	size_t len;
-	char **wp = &script->args[1];
+	const char * const *wp = &script->args[1];
 	size_t num_words = 1;
 	char **params;
 	char **word_ptrs;
 	char *words;
+	/* Avoid gcc warning: to be safe all intermediate pointers in cast from ‘char **’
+	 *   to ‘const char **’ must be ‘const’ qualified
+	 * What we want to assign to is a pointer (therefore non const) to an array of pointers
+	 *   which can be modified, therefore non-const, to const strings, i.e. const char **;
+	 *   but if assign a char ** to a const char ** we get the above warning
+	 */
+	union {
+		char **params;
+		const char **cparams;
+	} args;
 
 	len = strlen(new_path) + 1;
 	while (*wp)
 		len += strlen(*wp++) + 1;
-	num_words = ((char **)script->args[0] - &script->args[0]) - 1;
+	num_words = (script->args[0] - (const char *)&script->args[0]) - 1;
 
 	params = word_ptrs = MALLOC((num_words + 1) * sizeof(char *) + len);
 	words = (char *)&params[num_words + 1];
@@ -516,8 +538,9 @@ replace_cmd_name(notify_script_t *script, const char *new_path)
 	}
 	*word_ptrs = NULL;
 
-	FREE(script->args);
-	script->args = params;
+	FREE_CONST(script->args);
+	args.params = params;
+	script->args = args.cparams;
 }
 
 /* The following function is essentially __execve() from glibc */
@@ -527,7 +550,7 @@ find_path(notify_script_t *script)
 	size_t filename_len;
 	size_t file_len;
 	size_t path_len;
-	char *file = script->args[0];
+	const char *file = script->args[0];
 	struct stat buf;
 	int ret;
 	int ret_val = ENOENT;
@@ -709,14 +732,14 @@ exit1:
 }
 
 static int
-check_security(char *filename, bool using_script_security)
+check_security(const char *filename, bool using_script_security)
 {
-	char *next;
+	const char *next;
 	char *slash;
-	char sav;
 	int ret;
 	struct stat buf;
 	int flags = 0;
+	char *filename_copy;
 
 	next = filename;
 	while (next) {
@@ -732,15 +755,14 @@ check_security(char *filename, bool using_script_security)
 			/* We want to check '/' for first time around */
 			if (slash == filename)
 				slash++;
-			sav = *slash;
-			*slash = 0;
+			filename_copy = STRNDUP(filename, slash - filename);
 		}
 
-		ret = fstatat(0, filename, &buf, AT_SYMLINK_NOFOLLOW);
+		ret = fstatat(0, slash ? filename_copy : filename, &buf, AT_SYMLINK_NOFOLLOW);
 
 		/* Restore the full path name */
 		if (slash)
-			*slash = sav;
+			FREE(filename_copy);
 
 		if (ret) {
 			if (errno == EACCES || errno == ELOOP || errno == ENOENT || errno == ENOTDIR)
@@ -1075,6 +1097,10 @@ set_script_params_array(const vector_t *strvec, notify_script_t *script, unsigne
 	char *words;
 	const vector_t *strvec_qe = NULL;
 	unsigned i;
+	union {		/* See replace_cmd_line for details of why this is necessary */
+		char **params;
+		const char **cparams;
+	} args;
 
 	/* Count the number of words, and total string length */
 	if (vector_size(strvec) >= 2)
@@ -1088,8 +1114,10 @@ set_script_params_array(const vector_t *strvec, notify_script_t *script, unsigne
 		len += strlen(strvec_slot(strvec_qe, i)) + 1;
 
 	/* Allocate memory for pointers to words and words themselves */
-	script->args = word_ptrs = MALLOC((num_words + extra_params + 1) * sizeof(char *) + len);
+	word_ptrs = MALLOC((num_words + extra_params + 1) * sizeof(char *) + len);
 	words = (char *)word_ptrs + (num_words + extra_params + 1) * sizeof(char *);
+	args.params = word_ptrs;
+	script->args = args.cparams;
 
 	/* Set up pointers to words, and copy the words */
 	for (i = 0; i < num_words; i++) {
@@ -1132,7 +1160,7 @@ notify_script_init(int extra_params, const char *type)
 	if (vector_size(strvec_qe) > 2) {
 		if (set_script_uid_gid(strvec_qe, 2, &script->uid, &script->gid)) {
 			log_message(LOG_INFO, "Invalid user/group for %s script %s - ignoring", type, script->args[0]);
-			FREE(script->args);
+			FREE_CONST(script->args);
 			FREE(script);
 			free_strvec(strvec_qe);
 			return NULL;
@@ -1141,7 +1169,7 @@ notify_script_init(int extra_params, const char *type)
 	else {
 		if (set_default_script_user(NULL, NULL)) {
 			log_message(LOG_INFO, "Failed to set default user for %s script %s - ignoring", type, script->args[0]);
-			FREE(script->args);
+			FREE_CONST(script->args);
 			FREE(script);
 			free_strvec(strvec_qe);
 			return NULL;
@@ -1157,7 +1185,7 @@ notify_script_init(int extra_params, const char *type)
 }
 
 void
-add_script_param(notify_script_t *script, char *param)
+add_script_param(notify_script_t *script, const char *param)
 {
 	/* We store the args as an array of pointers to the args, terminated
 	 * by a NULL pointer, followed by the null terminated strings themselves

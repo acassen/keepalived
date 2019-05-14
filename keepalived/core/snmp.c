@@ -130,6 +130,7 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 		 int exact, size_t *var_len, WriteMethod **write_method)
 {
 	static unsigned long long_ret;
+	snmp_ret_t ret;
 
 	if (header_generic(vp, name, length, exact, var_len, write_method))
 		return NULL;
@@ -137,13 +138,13 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 	switch (vp->magic) {
 	case SNMP_KEEPALIVEDVERSION:
 		*var_len = strlen(version_string);
-RELAX_CAST_QUAL_START
-		return (u_char *)version_string;
-RELAX_CAST_QUAL_END
+		ret.cp = version_string;
+		return ret.p;
 	case SNMP_ROUTERID:
 		if (!global_data->router_id) return NULL;
 		*var_len = strlen(global_data->router_id);
-		return (u_char *)global_data->router_id;
+		ret.cp = global_data->router_id;
+		return ret.p;
 	case SNMP_MAIL_SMTPSERVERADDRESSTYPE:
 		long_ret = (global_data->smtp_server.ss_family == AF_INET6)?2:1;
 		return (u_char *)&long_ret;
@@ -167,7 +168,8 @@ RELAX_CAST_QUAL_END
 	case SNMP_MAIL_EMAILFROM:
 		if (!global_data->email_from) return NULL;
 		*var_len = strlen(global_data->email_from);
-		return (u_char *)global_data->email_from;
+		ret.cp = global_data->email_from;
+		return ret.p;
 #ifdef _WITH_VRRP_
 	case SNMP_MAIL_EMAILFAULTS:
 		long_ret = global_data->no_email_faults?2:1;
@@ -201,13 +203,13 @@ RELAX_CAST_QUAL_END
 #if HAVE_DECL_CLONE_NEWNET
 		if (global_data->network_namespace) {
 			*var_len = strlen(global_data->network_namespace);
-			return (u_char *)global_data->network_namespace;
+			ret.cp = global_data->network_namespace;
+			return ret.p;
 		}
 #endif
 		*var_len = 0;
-RELAX_CAST_QUAL_START
-		return (u_char *)"";
-RELAX_CAST_QUAL_END
+		ret.cp = "";
+		return ret.p;
 	case SNMP_DBUS:
 #ifdef _WITH_DBUS_
 		if (global_data->enable_dbus)

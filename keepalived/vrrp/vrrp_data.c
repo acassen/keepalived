@@ -198,7 +198,7 @@ free_vscript(void *data)
 	vrrp_script_t *vscript = data;
 
 	free_list(&vscript->tracking_vrrp);
-	FREE(vscript->sname);
+	FREE_CONST(vscript->sname);
 	FREE_PTR(vscript->script.args);
 	FREE(vscript);
 }
@@ -663,7 +663,6 @@ dump_vrrp(FILE *fp, const void *data)
 void
 alloc_static_track_group(const char *gname)
 {
-	size_t size = strlen(gname);
 	static_track_group_t *new;
 
 	if (!LIST_EXISTS(vrrp_data->static_track_groups))
@@ -671,8 +670,7 @@ alloc_static_track_group(const char *gname)
 
 	/* Allocate new VRRP group structure */
 	new = (static_track_group_t *) MALLOC(sizeof(*new));
-	new->gname = (char *) MALLOC(size + 1);
-	memcpy(new->gname, gname, size);
+	new->gname = STRDUP(gname);
 
 	list_add(vrrp_data->static_track_groups, new);
 }
@@ -967,13 +965,11 @@ alloc_vrrp_vrule(const vector_t *strvec)
 void
 alloc_vrrp_script(const char *sname)
 {
-	size_t size = strlen(sname);
 	vrrp_script_t *new;
 
 	/* Allocate new VRRP script structure */
 	new = (vrrp_script_t *) MALLOC(sizeof(vrrp_script_t));
-	new->sname = (char *) MALLOC(size + 1);
-	memcpy(new->sname, sname, size + 1);
+	new->sname = STRDUP(sname);
 	new->interval = VRRP_SCRIPT_DI * TIMER_HZ;
 	new->timeout = VRRP_SCRIPT_DT * TIMER_HZ;
 	new->weight = VRRP_SCRIPT_DW;
