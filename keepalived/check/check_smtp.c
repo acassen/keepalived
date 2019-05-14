@@ -54,9 +54,9 @@ static conn_opts_t *sav_co;	/* Saved conn_opts while host{} block processed */
 //*** default_co is pointless
 static conn_opts_t* default_co;	/* Default conn_opts for SMTP_CHECK */
 
-static int smtp_connect_thread(thread_t *);
-static int smtp_start_check_thread(thread_t *);
-static int smtp_engine_thread(thread_t *);
+static int smtp_connect_thread(thread_ref_t);
+static int smtp_start_check_thread(thread_ref_t);
+static int smtp_engine_thread(thread_ref_t);
 
 /* Used as a callback from the checker api, queue_checker(),
  * to free up a checker entry and all its associated data.
@@ -301,7 +301,7 @@ install_smtp_check_keyword(void)
  * service down in case of error.
  */
 static int __attribute__ ((format (printf, 2, 3)))
-smtp_final(thread_t *thread, const char *format, ...)
+smtp_final(thread_ref_t thread, const char *format, ...)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	char error_buff[512];
@@ -311,7 +311,8 @@ smtp_final(thread_t *thread, const char *format, ...)
 	bool rs_was_alive;
 
 	/* Error or no error we should always have to close the socket */
-	thread_close_fd(thread);
+	if (thread->type != THREAD_TIMER)
+		thread_close_fd(thread);
 
 	if (format) {
 		/* Always syslog the error when the real server is up */
@@ -412,7 +413,7 @@ smtp_final(thread_t *thread, const char *format, ...)
  * SMTP response codes at the beginning anyway.
  */
 static int
-smtp_get_line_cb(thread_t *thread)
+smtp_get_line_cb(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
@@ -491,7 +492,7 @@ smtp_get_line_cb(thread_t *thread)
  * scheduler can only accept a single *thread argument.
  */
 static void
-smtp_get_line(thread_t *thread)
+smtp_get_line(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
@@ -514,7 +515,7 @@ smtp_get_line(thread_t *thread)
  * we'll return to the scheduler and try again later.
  */
 static int
-smtp_put_line_cb(thread_t *thread)
+smtp_put_line_cb(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
@@ -561,7 +562,7 @@ smtp_put_line_cb(thread_t *thread)
  * line of data instead of receiving one.
  */
 static void
-smtp_put_line(thread_t *thread)
+smtp_put_line(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
@@ -602,7 +603,7 @@ smtp_get_status(smtp_checker_t *smtp_checker)
  * should be set to SMTP_START.
  */
 static int
-smtp_engine_thread(thread_t *thread)
+smtp_engine_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
@@ -684,7 +685,7 @@ smtp_engine_thread(thread_t *thread)
  * to the host we're checking was successful or not.
  */
 static int
-smtp_check_thread(thread_t *thread)
+smtp_check_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
@@ -738,7 +739,7 @@ smtp_check_thread(thread_t *thread)
  * but eventually has to happen.
  */
 static int
-smtp_connect_thread(thread_t *thread)
+smtp_connect_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	conn_opts_t *smtp_host;
@@ -800,10 +801,10 @@ smtp_connect_thread(thread_t *thread)
 
 	status = tcp_bind_connect(sd, smtp_host);
 
-	/* handle tcp connection status & register callback the next setp in the process */
+	/* handle tcp connection status & register callback the next step in the process */
 	if(tcp_connection_state(sd, status, thread, smtp_check_thread, smtp_host->connection_to)) {
                 if (status == connect_fail) {
-                        thread->u.f.fd = sd;
+                        close(sd);
                         smtp_final(thread, "Network unreachable for server %s - real server %s",
                                            inet_sockaddrtos(&checker->co->dst),
                                            inet_sockaddrtopair(&checker->rs->addr));
@@ -819,7 +820,7 @@ smtp_connect_thread(thread_t *thread)
 }
 
 static int
-smtp_start_check_thread(thread_t *thread)
+smtp_start_check_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 

@@ -79,7 +79,7 @@ static char *check_syslog_ident;
 static bool two_phase_terminate;
 
 static int
-lvs_notify_fifo_script_exit(__attribute__((unused)) thread_t *thread)
+lvs_notify_fifo_script_exit(__attribute__((unused)) thread_ref_t thread)
 {
 	log_message(LOG_INFO, "lvs notify fifo script terminated");
 
@@ -157,16 +157,16 @@ checker_terminate_phase2(void)
 }
 
 static int
-checker_shutdown_backstop_thread(thread_t *thread)
+checker_shutdown_backstop_thread(thread_ref_t thread)
 {
 	int count = 0;
-	thread_t *t;
+	thread_ref_t t;
 
 	/* Force terminate all script processes */
 	if (thread->master->child.rb_root.rb_node)
 		script_killall(thread->master, SIGKILL, true);
 
-	rb_for_each_entry_cached(t, &thread->master->child, n)
+	rb_for_each_entry_cached_const(t, &thread->master->child, n)
 		count++;
 
 	log_message(LOG_ERR, "backstop thread invoked: shutdown timer %srunning, child count %d",
@@ -213,7 +213,7 @@ checker_terminate_phase1(bool schedule_next_thread)
 
 #ifndef _DEBUG_
 static int
-start_checker_termination_thread(__attribute__((unused)) thread_t * thread)
+start_checker_termination_thread(__attribute__((unused)) thread_ref_t thread)
 {
 	/* This runs in the context of a thread */
 	two_phase_terminate = true;
@@ -366,7 +366,7 @@ check_validate_config(void)
 #ifndef _DEBUG_
 /* Reload thread */
 static int
-reload_check_thread(__attribute__((unused)) thread_t * thread)
+reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 {
 	list old_checkers_queue;
 	bool with_snmp = false;
@@ -423,7 +423,7 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 }
 
 static int
-print_check_data(__attribute__((unused)) thread_t * thread)
+print_check_data(__attribute__((unused)) thread_ref_t thread)
 {
         check_print_data();
         return 0;
@@ -464,7 +464,7 @@ check_signal_init(void)
 
 /* CHECK Child respawning thread */
 static int
-check_respawn_thread(thread_t * thread)
+check_respawn_thread(thread_ref_t thread)
 {
 	/* We catch a SIGCHLD, handle it */
 	checkers_child = 0;

@@ -116,7 +116,7 @@ bool do_regex_timers;
 bool do_regex_debug;
 #endif
 
-static int http_connect_thread(thread_t *);
+static int http_connect_thread(thread_ref_t);
 
 #ifdef _WITH_REGEX_CHECK_
 static void
@@ -812,7 +812,7 @@ install_ssl_check_keyword(void)
  * method == 2 => register a retry on url checker thread
  */
 static int
-epilog(thread_t * thread, int method, unsigned t, unsigned c)
+epilog(thread_ref_t thread, int method, unsigned t, unsigned c)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
@@ -905,7 +905,7 @@ epilog(thread_t * thread, int method, unsigned t, unsigned c)
 }
 
 int
-timeout_epilog(thread_t * thread, const char *debug_msg)
+timeout_epilog(thread_ref_t thread, const char *debug_msg)
 {
 	checker_t *checker = THREAD_ARG(thread);
 
@@ -1106,7 +1106,7 @@ check_regex(url_t *url, request_t *req)
 
 /* Handle response */
 int
-http_handle_response(thread_t * thread, unsigned char digest[MD5_DIGEST_LENGTH]
+http_handle_response(thread_ref_t thread, unsigned char digest[MD5_DIGEST_LENGTH]
 		     , bool empty_buffer)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -1258,7 +1258,7 @@ http_process_response(request_t *req, size_t r, url_t *url)
 
 /* Asynchronous HTTP stream reader */
 static int
-http_read_thread(thread_t * thread)
+http_read_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
@@ -1318,7 +1318,7 @@ http_read_thread(thread_t * thread)
  * Apply trigger check to this result.
  */
 static int
-http_response_thread(thread_t * thread)
+http_response_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
@@ -1357,7 +1357,7 @@ http_response_thread(thread_t * thread)
 
 /* remote Web server is connected, send it the get url query.  */
 static int
-http_request_thread(thread_t * thread)
+http_request_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
@@ -1433,7 +1433,7 @@ http_request_thread(thread_t * thread)
 
 /* WEB checkers threads */
 static int
-http_check_thread(thread_t * thread)
+http_check_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
@@ -1530,7 +1530,7 @@ http_check_thread(thread_t * thread)
 }
 
 static int
-http_connect_thread(thread_t * thread)
+http_connect_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);

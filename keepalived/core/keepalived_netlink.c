@@ -2386,7 +2386,7 @@ netlink_broadcast_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 }
 
 static int
-kernel_netlink(thread_t * thread)
+kernel_netlink(thread_ref_t thread)
 {
 	nl_handle_t *nl = THREAD_ARG(thread);
 

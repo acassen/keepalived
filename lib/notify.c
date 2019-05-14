@@ -165,7 +165,7 @@ cmd_str(const notify_script_t *script)
 
 /* Execute external script/program to process FIFO */
 static pid_t
-notify_fifo_exec(thread_master_t *m, int (*func) (thread_t *), void *arg, notify_script_t *script)
+notify_fifo_exec(thread_master_t *m, int (*func) (thread_ref_t), void *arg, notify_script_t *script)
 {
 	pid_t pid;
 	int retval;
@@ -221,7 +221,7 @@ notify_fifo_exec(thread_master_t *m, int (*func) (thread_t *), void *arg, notify
 }
 
 static void
-fifo_open(notify_fifo_t* fifo, int (*script_exit)(thread_t *), const char *type)
+fifo_open(notify_fifo_t* fifo, int (*script_exit)(thread_ref_t), const char *type)
 {
 	int ret;
 	int sav_errno;
@@ -264,7 +264,7 @@ fifo_open(notify_fifo_t* fifo, int (*script_exit)(thread_t *), const char *type)
 }
 
 void
-notify_fifo_open(notify_fifo_t* global_fifo, notify_fifo_t* fifo, int (*script_exit)(thread_t *), const char *type)
+notify_fifo_open(notify_fifo_t* global_fifo, notify_fifo_t* fifo, int (*script_exit)(thread_ref_t), const char *type)
 {
 	/* Open the global FIFO if specified */
 	if (global_fifo->name)
@@ -386,7 +386,7 @@ notify_exec(const notify_script_t *script)
 }
 
 int
-system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, unsigned long timer, notify_script_t* script)
+system_call_script(thread_master_t *m, int (*func) (thread_ref_t), void * arg, unsigned long timer, notify_script_t* script)
 {
 	pid_t pid;
 
@@ -421,7 +421,7 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, uns
 }
 
 int
-child_killed_thread(thread_t *thread)
+child_killed_thread(thread_ref_t thread)
 {
 	thread_master_t *m = thread->master;
 

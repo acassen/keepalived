@@ -750,7 +750,7 @@ dbus_remove_object(vrrp_t *vrrp)
 }
 
 static int
-handle_dbus_msg(__attribute__((unused)) thread_t *thread)
+handle_dbus_msg(__attribute__((unused)) thread_ref_t thread)
 {
 	dbus_queue_ent_t *ent;
 	char recv_buf;

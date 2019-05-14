@@ -32,7 +32,7 @@
 typedef struct _bfd_data {
 	list bfd;		/* List of BFD instances */
 	int fd_in;		/* Input socket fd */
-	thread_t *thread_in;	/* Input socket thread */
+	thread_ref_t thread_in;	/* Input socket thread */
 } bfd_data_t;
 
 #define BFD_BUFFER_SIZE 32

@@ -45,8 +45,8 @@
 #include "scheduler.h"
 #endif
 
-static int misc_check_thread(thread_t *);
-static int misc_check_child_thread(thread_t *);
+static int misc_check_thread(thread_ref_t);
+static int misc_check_child_thread(thread_ref_t);
 
 static bool script_user_set;
 static misc_checker_t *new_misck_checker;
@@ -265,7 +265,7 @@ check_misc_script_security(magic_t magic)
 }
 
 static int
-misc_check_thread(thread_t * thread)
+misc_check_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	misc_checker_t *misck_checker;
@@ -297,7 +297,7 @@ misc_check_thread(thread_t * thread)
 }
 
 static int
-misc_check_child_thread(thread_t * thread)
+misc_check_child_thread(thread_ref_t thread)
 {
 	int wait_status;
 	pid_t pid;

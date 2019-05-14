@@ -646,7 +646,7 @@ init_linkbeat_status(int fd, interface_t *ifp)
 }
 
 static int
-if_linkbeat_refresh_thread(thread_t * thread)
+if_linkbeat_refresh_thread(thread_ref_t thread)
 {
 	interface_t *ifp = THREAD_ARG(thread);
 	bool if_up = true, was_up;
@@ -1307,7 +1307,7 @@ setup_interface(vrrp_t *vrrp)
 
 #ifdef _HAVE_VRRP_VMAC_
 int
-recreate_vmac_thread(thread_t *thread)
+recreate_vmac_thread(thread_ref_t thread)
 {
 	vrrp_t *vrrp;
 	tracking_vrrp_t *tvp;

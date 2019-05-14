@@ -36,7 +36,7 @@
 
 /* global vars */
 extern timeval_t garp_next_time;
-extern thread_t *garp_thread;
+extern thread_ref_t garp_thread;
 extern bool vrrp_initialised;
 
 /* VRRP TSM Macro */
@@ -55,12 +55,12 @@ extern bool do_tsm_debug;
 extern void vrrp_init_instance_sands(vrrp_t *);
 extern void vrrp_thread_requeue_read(vrrp_t *);
 extern void vrrp_thread_add_read(vrrp_t *);
-extern int vrrp_dispatcher_init(thread_t *);
+extern int vrrp_dispatcher_init(thread_ref_t);
 extern void cancel_vrrp_threads(void);
 extern void vrrp_dispatcher_release(vrrp_data_t *);
-extern int vrrp_gratuitous_arp_thread(thread_t *);
-extern int vrrp_lower_prio_gratuitous_arp_thread(thread_t *);
-extern int vrrp_arp_thread(thread_t *);
+extern int vrrp_gratuitous_arp_thread(thread_ref_t);
+extern int vrrp_lower_prio_gratuitous_arp_thread(thread_ref_t);
+extern int vrrp_arp_thread(thread_ref_t);
 extern void try_up_instance(vrrp_t *, bool);
 #ifdef _WITH_DUMP_THREADS_
 extern void dump_threads(void);

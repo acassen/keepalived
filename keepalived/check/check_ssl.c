@@ -199,7 +199,7 @@ ssl_printerr(int err)
 }
 
 int
-ssl_connect(thread_t * thread, int new_req)
+ssl_connect(thread_ref_t thread, int new_req)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
@@ -274,7 +274,7 @@ ssl_send_request(SSL * ssl, char *str_request, int request_len)
 
 /* Asynchronous SSL stream reader */
 int
-ssl_read_thread(thread_t * thread)
+ssl_read_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);

@@ -87,7 +87,7 @@ const hash_t hashes[hash_guard] = {
 
 /* free allocated pieces */
 static void
-free_all(thread_t * thread)
+free_all(thread_ref_t thread)
 {
 	SOCK *sock_obj = THREAD_ARG(thread);
 
@@ -107,7 +107,7 @@ free_all(thread_t * thread)
 
 /* Simple epilog functions. */
 int
-epilog(thread_t * thread)
+epilog(thread_ref_t thread)
 {
 	DBG("Timeout on URL : [%s]\n", req->url);
 	free_all(thread);
@@ -116,7 +116,7 @@ epilog(thread_t * thread)
 
 /* Simple finalization function */
 int
-finalize(thread_t * thread)
+finalize(thread_ref_t thread)
 {
 	SOCK *sock_obj = THREAD_ARG(thread);
 	unsigned char digest_length = HASH_LENGTH(sock_obj);
@@ -237,7 +237,7 @@ http_process_stream(SOCK * sock_obj, int r)
 
 /* Asynchronous HTTP stream reader */
 static int
-http_read_thread(thread_t * thread)
+http_read_thread(thread_ref_t thread)
 {
 	SOCK *sock_obj = THREAD_ARG(thread);
 	ssize_t r = 0;
@@ -292,7 +292,7 @@ http_read_thread(thread_t * thread)
  * Apply trigger check to this result.
  */
 static int
-http_response_thread(thread_t * thread)
+http_response_thread(thread_ref_t thread)
 {
 	SOCK *sock_obj = THREAD_ARG(thread);
 
@@ -323,7 +323,7 @@ http_response_thread(thread_t * thread)
 
 /* remote Web server is connected, send it the get url query.  */
 int
-http_request_thread(thread_t * thread)
+http_request_thread(thread_ref_t thread)
 {
 	SOCK *sock_obj = THREAD_ARG(thread);
 	char *str_request;

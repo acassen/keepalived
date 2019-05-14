@@ -45,7 +45,7 @@ typedef struct _sock {
 	int			fd_in;
 	int			fd_out;
 	int			rx_buf_size;
-	thread_t		*thread;
+	thread_ref_t		thread;
 	rb_root_t		rb_vrid;
 	rb_root_cached_t	rb_sands;
 } sock_t;

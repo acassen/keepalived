@@ -59,10 +59,14 @@
 #include "warnings.h"
 
 
+#define no_const(type, var_cp) \
+({ union { type *p; const type *cp; } ps = { .cp = var_cp }; \
+ ps.p;})
+
 #ifdef THREAD_DUMP
 typedef struct _func_det {
 	const char *name;
-	int (*func)(thread_t *);
+	thread_func_t func;
 	rb_node_t n;
 } func_det_t;
 #endif
@@ -136,7 +140,7 @@ function_cmp(const func_det_t *func1, const func_det_t *func2)
 }
 
 static const char *
-get_function_name(int (*func)(thread_t *))
+get_function_name(thread_func_t func)
 {
 	func_det_t func_det = { .func = func };
 	func_det_t *match;
@@ -163,7 +167,7 @@ get_signal_function_name(void (*func)(void *, int))
 }
 
 void
-register_thread_address(const char *func_name, int (*func)(thread_t *))
+register_thread_address(const char *func_name, thread_func_t func)
 {
 	func_det_t *func_det;
 
@@ -243,7 +247,7 @@ thread_rb_move_ready(thread_master_t *m, rb_root_cached_t *root, int type)
 static void
 thread_update_timer(rb_root_cached_t *root, timeval_t *timer_min)
 {
-	thread_t *first;
+	const thread_t *first;
 
 	if (!root->rb_root.rb_node)
 		return;
@@ -313,7 +317,7 @@ thread_set_timer(thread_master_t *m)
 }
 
 static int
-thread_timerfd_handler(thread_t *thread)
+thread_timerfd_handler(thread_ref_t thread)
 {
 	thread_master_t *m = thread->master;
 	uint64_t expired;
@@ -337,7 +341,7 @@ thread_timerfd_handler(thread_t *thread)
 
 /* Child PID cmp helper */
 static inline int
-thread_child_pid_cmp(thread_t *t1, thread_t *t2)
+thread_child_pid_cmp(const thread_t *t1, const thread_t *t2)
 {
 	return t1->u.c.pid - t2->u.c.pid;
 }
@@ -563,7 +567,7 @@ thread_event_get(thread_master_t *m, int fd)
 }
 
 static int
-thread_event_set(thread_t *thread)
+thread_event_set(const thread_t *thread)
 {
 	thread_event_t *event = thread->event;
 	thread_master_t *m = thread->master;
@@ -592,8 +596,9 @@ thread_event_set(thread_t *thread)
 }
 
 static int
-thread_event_cancel(thread_t *thread)
+thread_event_cancel(const thread_t *thread_cp)
 {
+	thread_t *thread = no_const(thread_t, thread_cp);
 	thread_event_t *event = thread->event;
 	thread_master_t *m = thread->master;
 
@@ -620,8 +625,9 @@ thread_event_cancel(thread_t *thread)
 }
 
 static int
-thread_event_del(thread_t *thread, unsigned flag)
+thread_event_del(const thread_t *thread_cp, unsigned flag)
 {
+	thread_t *thread = no_const(thread_t, thread_cp);
 	thread_event_t *event = thread->event;
 
 	if (!__test_bit(flag, &event->flags))
@@ -742,7 +748,7 @@ timer_delay(timeval_t sands)
 
 /* Dump rbtree */
 static void
-thread_rb_dump(rb_root_cached_t *root, const char *tree, FILE *fp)
+thread_rb_dump(const rb_root_cached_t *root, const char *tree, FILE *fp)
 {
 	thread_t *thread;
 	int i = 1;
@@ -756,7 +762,7 @@ thread_rb_dump(rb_root_cached_t *root, const char *tree, FILE *fp)
 }
 
 static void
-thread_list_dump(list_head_t *l, const char *list_type, FILE *fp)
+thread_list_dump(const list_head_t *l, const char *list_type, FILE *fp)
 {
 	thread_t *thread;
 	int i = 1;
@@ -771,7 +777,7 @@ thread_list_dump(list_head_t *l, const char *list_type, FILE *fp)
 }
 
 static void
-event_rb_dump(rb_root_t *root, const char *tree, FILE *fp)
+event_rb_dump(const rb_root_t *root, const char *tree, FILE *fp)
 {
 	thread_event_t *event;
 	int i = 1;
@@ -783,7 +789,7 @@ event_rb_dump(rb_root_t *root, const char *tree, FILE *fp)
 }
 
 void
-dump_thread_data(thread_master_t *m, FILE *fp)
+dump_thread_data(const thread_master_t *m, FILE *fp)
 {
 	thread_rb_dump(&m->read, "read", fp);
 	thread_rb_dump(&m->write, "write", fp);
@@ -970,8 +976,8 @@ thread_new(thread_master_t *m)
 }
 
 /* Add new read thread. */
-thread_t *
-thread_add_read_sands(thread_master_t *m, int (*func) (thread_t *), void *arg, int fd, timeval_t *sands, bool close_on_reload)
+thread_ref_t
+thread_add_read_sands(thread_master_t *m, thread_func_t func, void *arg, int fd, const timeval_t *sands, bool close_on_reload)
 {
 	thread_event_t *event;
 	thread_t *thread;
@@ -1024,8 +1030,8 @@ thread_add_read_sands(thread_master_t *m, int (*func) (thread_t *), void *arg, i
 	return thread;
 }
 
-thread_t *
-thread_add_read(thread_master_t *m, int (*func) (thread_t *), void *arg, int fd, unsigned long timer, bool close_on_reload)
+thread_ref_t
+thread_add_read(thread_master_t *m, thread_func_t func, void *arg, int fd, unsigned long timer, bool close_on_reload)
 {
 	timeval_t sands;
 
@@ -1041,7 +1047,7 @@ thread_add_read(thread_master_t *m, int (*func) (thread_t *), void *arg, int fd,
 }
 
 int
-thread_del_read(thread_t *thread)
+thread_del_read(thread_ref_t thread)
 {
 	if (!thread || !thread->event)
 		return -1;
@@ -1056,7 +1062,7 @@ thread_del_read(thread_t *thread)
 static void
 thread_del_read_fd(thread_master_t *m, int fd)
 {
-	thread_event_t *event;
+	const thread_event_t *event;
 
 	event = thread_event_get(m, fd);
 	if (!event || !event->read)
@@ -1095,8 +1101,8 @@ thread_requeue_read(thread_master_t *m, int fd, const timeval_t *sands)
 }
 
 /* Add new write thread. */
-thread_t *
-thread_add_write(thread_master_t *m, int (*func) (thread_t *), void *arg, int fd, unsigned long timer, bool close_on_reload)
+thread_ref_t
+thread_add_write(thread_master_t *m, thread_func_t func, void *arg, int fd, unsigned long timer, bool close_on_reload)
 {
 	thread_event_t *event;
 	thread_t *thread;
@@ -1156,7 +1162,7 @@ thread_add_write(thread_master_t *m, int (*func) (thread_t *), void *arg, int fd
 }
 
 int
-thread_del_write(thread_t *thread)
+thread_del_write(thread_ref_t thread)
 {
 	if (!thread || !thread->event)
 		return -1;
@@ -1168,8 +1174,10 @@ thread_del_write(thread_t *thread)
 }
 
 void
-thread_close_fd(thread_t *thread)
+thread_close_fd(thread_ref_t thread_cp)
 {
+	thread_t *thread = no_const(thread_t, thread_cp);
+
 	if (thread->u.f.fd == -1)
 		return;
 
@@ -1181,8 +1189,8 @@ thread_close_fd(thread_t *thread)
 }
 
 /* Add timer event thread. */
-thread_t *
-thread_add_timer(thread_master_t *m, int (*func) (thread_t *), void *arg, unsigned long timer)
+thread_ref_t
+thread_add_timer(thread_master_t *m, thread_func_t func, void *arg, unsigned long timer)
 {
 	thread_t *thread;
 
@@ -1209,8 +1217,9 @@ thread_add_timer(thread_master_t *m, int (*func) (thread_t *), void *arg, unsign
 }
 
 void
-timer_thread_update_timeout(thread_t *thread, unsigned long timer)
+timer_thread_update_timeout(thread_ref_t thread_cp, unsigned long timer)
 {
+	thread_t *thread = no_const(thread_t, thread_cp);
 	timeval_t sands;
 
 	if (thread->type > THREAD_MAX_WAITING) {
@@ -1229,19 +1238,24 @@ timer_thread_update_timeout(thread_t *thread, unsigned long timer)
 	rb_move_cached(&thread->master->timer, thread, n, thread_timer_cmp);
 }
 
-thread_t *
-thread_add_timer_shutdown(thread_master_t *m, int(*func)(thread_t *), void *arg, unsigned long timer)
+thread_ref_t
+thread_add_timer_shutdown(thread_master_t *m, thread_func_t func, void *arg, unsigned long timer)
 {
-	thread_t *thread = thread_add_timer(m, func, arg, timer);
+	union {
+		thread_t *p;
+		const thread_t *cp;
+	} thread;
+       
+	thread.cp = thread_add_timer(m, func, arg, timer);
 
-	thread->type = THREAD_TIMER_SHUTDOWN;
+	thread.p->type = THREAD_TIMER_SHUTDOWN;
 
-	return thread;
+	return thread.cp;
 }
 
 /* Add a child thread. */
-thread_t *
-thread_add_child(thread_master_t * m, int (*func) (thread_t *), void * arg, pid_t pid, unsigned long timer)
+thread_ref_t
+thread_add_child(thread_master_t * m, thread_func_t func, void * arg, pid_t pid, unsigned long timer)
 {
 	thread_t *thread;
 
@@ -1273,7 +1287,7 @@ thread_add_child(thread_master_t * m, int (*func) (thread_t *), void * arg, pid_
 }
 
 void
-thread_children_reschedule(thread_master_t *m, int (*func)(thread_t *), unsigned long timer)
+thread_children_reschedule(thread_master_t *m, thread_func_t func, unsigned long timer)
 {
 	thread_t *thread;
 
@@ -1286,8 +1300,8 @@ thread_children_reschedule(thread_master_t *m, int (*func)(thread_t *), unsigned
 }
 
 /* Add simple event thread. */
-thread_t *
-thread_add_event(thread_master_t * m, int (*func) (thread_t *), void *arg, int val)
+thread_ref_t
+thread_add_event(thread_master_t * m, thread_func_t func, void *arg, int val)
 {
 	thread_t *thread;
 
@@ -1306,8 +1320,8 @@ thread_add_event(thread_master_t * m, int (*func) (thread_t *), void *arg, int v
 }
 
 /* Add terminate event thread. */
-static thread_t *
-thread_add_generic_terminate_event(thread_master_t * m, thread_type_t type, int (*func)(thread_t *))
+static thread_ref_t
+thread_add_generic_terminate_event(thread_master_t * m, thread_type_t type, thread_func_t func)
 {
 	thread_t *thread;
 
@@ -1325,22 +1339,22 @@ thread_add_generic_terminate_event(thread_master_t * m, thread_type_t type, int 
 	return thread;
 }
 
-thread_t *
+thread_ref_t
 thread_add_terminate_event(thread_master_t *m)
 {
 	return thread_add_generic_terminate_event(m, THREAD_TERMINATE, NULL);
 }
 
-thread_t *
-thread_add_start_terminate_event(thread_master_t *m, int(*func)(thread_t *))
+thread_ref_t
+thread_add_start_terminate_event(thread_master_t *m, thread_func_t func)
 {
 	return thread_add_generic_terminate_event(m, THREAD_TERMINATE_START, func);
 }
 
 #ifdef USE_SIGNAL_THREADS
 /* Add signal thread. */
-thread_t *
-thread_add_signal(thread_master_t *m, int (*func) (thread_t *), void *arg, int signum)
+thread_ref_t
+thread_add_signal(thread_master_t *m, thread_func_t func, void *arg, int signum)
 {
 	thread_t *thread;
 
@@ -1367,8 +1381,9 @@ thread_add_signal(thread_master_t *m, int (*func) (thread_t *), void *arg, int s
 
 /* Cancel thread from scheduler. */
 void
-thread_cancel(thread_t *thread)
+thread_cancel(thread_ref_t thread_cp)
 {
+	thread_t *thread = no_const(thread_t, thread_cp);
 	thread_master_t *m;
 
 	if (!thread || thread->type == THREAD_UNUSED)
@@ -1457,7 +1472,7 @@ thread_cancel_event(thread_master_t *m, void *arg)
 
 #ifdef _WITH_SNMP_
 static int
-snmp_read_thread(thread_t *thread)
+snmp_read_thread(thread_ref_t thread)
 {
 	fd_set snmp_fdset;
 
@@ -1473,7 +1488,7 @@ snmp_read_thread(thread_t *thread)
 }
 
 int
-snmp_timeout_thread(thread_t *thread)
+snmp_timeout_thread(thread_ref_t thread)
 {
 	snmp_timeout();
 	run_alarms();

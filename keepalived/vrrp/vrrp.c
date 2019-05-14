@@ -106,7 +106,7 @@ bool do_network_timestamp;
 #endif
 
 static int
-vrrp_notify_fifo_script_exit(__attribute__((unused)) thread_t *thread)
+vrrp_notify_fifo_script_exit(__attribute__((unused)) thread_ref_t thread)
 {
 	log_message(LOG_INFO, "vrrp notify fifo script terminated");
 

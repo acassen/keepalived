@@ -44,11 +44,10 @@
 #endif
 
 /* local data */
-static thread_t *bfd_thread;
+static thread_ref_t bfd_thread;
 static checker_t *new_checker;
 
-static int bfd_check_thread(thread_t *);
-//static int bfd_check_child_thread(thread_t *);
+static int bfd_check_thread(thread_ref_t);
 
 /* Configuration stream handling */
 static void
@@ -283,7 +282,7 @@ bfd_check_handle_event(bfd_event_t * evt)
 }
 
 static int
-bfd_check_thread(thread_t * thread)
+bfd_check_thread(thread_ref_t thread)
 {
 	bfd_event_t evt;
 

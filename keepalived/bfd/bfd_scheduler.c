@@ -57,7 +57,7 @@ static void bfd_dump_timers(FILE *fp, bfd_t *);
  */
 
 inline static long
-thread_time_to_wakeup(thread_t *thread)
+thread_time_to_wakeup(thread_ref_t thread)
 {
 	struct timeval tmp_time;
 
@@ -68,7 +68,7 @@ thread_time_to_wakeup(thread_t *thread)
 
 /* Sends one BFD control packet and reschedules itself if needed */
 static int
-bfd_sender_thread(thread_t *thread)
+bfd_sender_thread(thread_ref_t thread)
 {
 	bfd_t *bfd;
 	bfdpkt_t pkt;
@@ -220,7 +220,7 @@ bfd_sender_discard(bfd_t *bfd)
 
 /* Marks session as down because of Control Detection Time Expiration */
 static int
-bfd_expire_thread(thread_t *thread)
+bfd_expire_thread(thread_ref_t thread)
 {
 	bfd_t *bfd;
 	uint32_t dead_time, overdue_time;
@@ -355,7 +355,7 @@ bfd_expire_discard(bfd_t *bfd)
 
 /* Resets BFD session to initial state */
 static int
-bfd_reset_thread(thread_t *thread)
+bfd_reset_thread(thread_ref_t thread)
 {
 	bfd_t *bfd;
 
@@ -873,7 +873,7 @@ bfd_receive_packet(bfdpkt_t *pkt, int fd, char *buf, ssize_t bufsz)
 
 /* Runs when data is available in listening socket */
 static int
-bfd_receiver_thread(thread_t *thread)
+bfd_receiver_thread(thread_ref_t thread)
 {
 	bfd_data_t *data;
 	bfdpkt_t pkt;
@@ -1122,7 +1122,7 @@ bfd_dispatcher_release(bfd_data_t *data)
 
 /* Starts BFD dispatcher */
 int
-bfd_dispatcher_init(thread_t *thread)
+bfd_dispatcher_init(thread_ref_t thread)
 {
 	bfd_data_t *data;
 

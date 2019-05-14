@@ -102,7 +102,7 @@ ssl_printerr(int err)
 }
 
 bool
-ssl_connect(thread_t * thread)
+ssl_connect(thread_ref_t thread)
 {
 	SOCK *sock_obj = THREAD_ARG(thread);
 	int ret;
@@ -163,7 +163,7 @@ ssl_send_request(SSL * ssl, char *str_request, int request_len)
 
 /* Asynchronous SSL stream reader */
 int
-ssl_read_thread(thread_t * thread)
+ssl_read_thread(thread_ref_t thread)
 {
 	SOCK *sock_obj = THREAD_ARG(thread);
 	int r = 0;

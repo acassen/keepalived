@@ -47,7 +47,7 @@
 #include "vrrp_notify.h"
 
 static int inotify_fd = -1;
-static thread_t *inotify_thread;
+static thread_ref_t inotify_thread;
 
 /* Track interface dump */
 void
@@ -1138,7 +1138,7 @@ process_track_file(vrrp_tracked_file_t *tfile, bool init)
 }
 
 static int
-process_inotify(thread_t *thread)
+process_inotify(thread_ref_t thread)
 {
 	char buf[sizeof(struct inotify_event) + NAME_MAX + 1];
 	char *buf_ptr;

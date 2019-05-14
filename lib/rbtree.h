@@ -341,6 +341,9 @@ static inline void rb_link_node_rcu(struct rb_node *node, struct rb_node *parent
 #define rb_for_each_entry_cached(pos, root, member)				\
 	for (pos = rb_entry_safe(rb_first_cached(root), typeof(*pos), member);	\
 	     pos; pos = rb_entry_safe(rb_next(&pos->member), typeof(*pos), member))
+#define rb_for_each_entry_cached_const(pos, root, member)				\
+	for (pos = rb_entry_safe_const(rb_first_cached(root), typeof(*pos), member);	\
+	     pos; pos = rb_entry_safe_const(rb_next(&pos->member), typeof(*pos), member))
 
 /**
  * rb_for_each_entry_safe_cached - Iterate over cached rbtree of given type

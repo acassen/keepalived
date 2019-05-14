@@ -41,7 +41,7 @@
 #include "scheduler.h"
 #endif
 
-static int tcp_connect_thread(thread_t *);
+static int tcp_connect_thread(thread_ref_t);
 
 /* Configuration stream handling */
 static void
@@ -91,7 +91,7 @@ install_tcp_check_keyword(void)
 }
 
 static void
-tcp_epilog(thread_t * thread, bool is_success)
+tcp_epilog(thread_ref_t thread, bool is_success)
 {
 	checker_t *checker;
 	unsigned long delay;
@@ -145,7 +145,7 @@ tcp_epilog(thread_t * thread, bool is_success)
 }
 
 static int
-tcp_check_thread(thread_t * thread)
+tcp_check_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	int status;
@@ -182,7 +182,7 @@ tcp_check_thread(thread_t * thread)
 }
 
 static int
-tcp_connect_thread(thread_t * thread)
+tcp_connect_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	conn_opts_t *co = checker->co;

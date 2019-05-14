@@ -120,8 +120,8 @@ typedef struct _vrrp_process {
 	int			fork_delay;	/* Delay before processing process fork */
 	int			terminate_delay; /* Delay before processing process termination */
 	bool			full_command;	/* Set if match against full command line */
-	thread_t		*fork_timer_thread; /* For handling delay */
-	thread_t		*terminate_timer_thread; /* For handling delay */
+	thread_ref_t		fork_timer_thread; /* For handling delay */
+	thread_ref_t		terminate_timer_thread; /* For handling delay */
 	list			tracking_vrrp;	/* List of tracking_vrrp_t for vrrp instances tracking this process */
 	unsigned		num_cur_proc;
 	bool			have_quorum;	/* Set if quorum is treated as achieved */

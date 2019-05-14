@@ -61,7 +61,7 @@ int bfd_checker_event_pipe[2] = { -1, -1};
 static char *bfd_syslog_ident;
 
 #ifndef _DEBUG_
-static int reload_bfd_thread(thread_t *);
+static int reload_bfd_thread(thread_ref_t);
 #endif
 
 /* Daemon stop sequence */
@@ -229,7 +229,7 @@ bfd_signal_init(void)
 
 /* Reload thread */
 static int
-reload_bfd_thread(__attribute__((unused)) thread_t * thread)
+reload_bfd_thread(__attribute__((unused)) thread_ref_t thread)
 {
 	timeval_t timer;
 	timer = timer_now();
@@ -269,7 +269,7 @@ reload_bfd_thread(__attribute__((unused)) thread_t * thread)
 
 /* BFD Child respawning thread */
 static int
-bfd_respawn_thread(thread_t * thread)
+bfd_respawn_thread(thread_ref_t thread)
 {
 	/* We catch a SIGCHLD, handle it */
 	bfd_child = 0;

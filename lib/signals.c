@@ -94,7 +94,7 @@ static sigset_t dfl_sig;
 static sigset_t parent_sig;
 
 /* Signal handling thread */
-static thread_t *signal_thread;
+static thread_ref_t signal_thread;
 
 int __attribute__((pure))
 get_signum(const char *sigfunc)
@@ -304,7 +304,7 @@ signal_ignore(int signo)
 
 /* Handlers callback  */
 static int
-signal_run_callback(thread_t *thread)
+signal_run_callback(thread_ref_t thread)
 {
 	int sig;
 #ifdef HAVE_SIGNALFD
