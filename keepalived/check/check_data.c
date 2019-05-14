@@ -150,12 +150,10 @@ dump_vsg_entry(FILE *fp, const void *data)
 void
 alloc_vsg(const char *gname)
 {
-	size_t size = strlen(gname);
 	virtual_server_group_t *new;
 
 	new = (virtual_server_group_t *) MALLOC(sizeof(virtual_server_group_t));
-	new->gname = (char *) MALLOC(size + 1);
-	memcpy(new->gname, gname, size);
+	new->gname = STRDUP(gname);
 	new->addr_range = alloc_list(free_vsg_entry, dump_vsg_entry);
 	new->vfwmark = alloc_list(free_vsg_entry, dump_vsg_entry);
 
@@ -383,7 +381,6 @@ dump_vs(FILE *fp, const void *data)
 void
 alloc_vs(const char *param1, const char *param2)
 {
-	size_t size;
 	virtual_server_t *new;
 	const char *port_str;
 	unsigned fwmark;
@@ -392,11 +389,9 @@ alloc_vs(const char *param1, const char *param2)
 
 	new->af = AF_UNSPEC;
 
-	if (!strcmp(param1, "group")) {
-		size = strlen(param2);
-		new->vsgname = (char *) MALLOC(size + 1);
-		memcpy(new->vsgname, param2, size);
-	} else if (!strcmp(param1, "fwmark")) {
+	if (!strcmp(param1, "group"))
+		new->vsgname = STRDUP(param2);
+	else if (!strcmp(param1, "fwmark")) {
 		if (!read_unsigned(param2, &fwmark, 0, UINT32_MAX, true)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "virtual server fwmark '%s' must be in [0, %u] - ignoring", param2, UINT32_MAX);
 			skip_block(true);
