@@ -49,12 +49,12 @@
 
 struct rt_entry {
 	unsigned int id;
-	char *name;
+	const char *name;
 } ;
 typedef struct rt_entry rt_entry_t;
 
 #ifdef _HAVE_FIB_ROUTING_
-static rt_entry_t rtntypes[] = {
+static rt_entry_t const rtntypes[] = {
 	{ RTN_LOCAL, "local"},
 	{ RTN_NAT, "nat"},
 	{ RTN_BROADCAST, "broadcast"},
@@ -70,7 +70,7 @@ static rt_entry_t rtntypes[] = {
 	{ 0, NULL},
 };
 
-static rt_entry_t rtprot_default[] = {
+static rt_entry_t const rtprot_default[] = {
 	{ RTPROT_UNSPEC, "none"},
 	{ RTPROT_REDIRECT, "redirect"},
 	{ RTPROT_KERNEL, "kernel"},
@@ -92,7 +92,7 @@ static rt_entry_t rtprot_default[] = {
 	{ 0, NULL},
 };
 
-static rt_entry_t rttable_default[] = {
+static rt_entry_t const rttable_default[] = {
 	{ RT_TABLE_DEFAULT, "default"},
 	{ RT_TABLE_MAIN, "main"},
 	{ RT_TABLE_LOCAL, "local"},
@@ -100,7 +100,7 @@ static rt_entry_t rttable_default[] = {
 };
 #endif
 
-static rt_entry_t rtscope_default[] = {
+static rt_entry_t const rtscope_default[] = {
 	{ RT_SCOPE_UNIVERSE, "global"},
 	{ RT_SCOPE_NOWHERE, "nowhere"},
 	{ RT_SCOPE_HOST, "host"},
@@ -132,7 +132,7 @@ read_file(const char* file_name, list *l, uint32_t max)
 	vector_t *strvec = NULL;
 	char buf[MAX_RT_BUF];
 	unsigned long id;
-	char *number;
+	const char *number;
 	char *endptr;
 
 	fp = fopen(file_name, "r");
@@ -166,14 +166,12 @@ read_file(const char* file_name, list *l, uint32_t max)
 		}
 		rte->id = (unsigned)id;
 
-		rte->name = MALLOC(strlen(FMT_STR_VSLOT(strvec, 1)) + 1);
+		rte->name = STRDUP(strvec_slot(strvec, 1));
 		if (!rte->name) {
 			FREE(rte);
 			free_strvec(strvec);
 			goto err;
 		}
-
-		strcpy(rte->name, FMT_STR_VSLOT(strvec, 1));
 
 		list_add(*l, rte);
 
@@ -215,14 +213,14 @@ free_rt_entry(void *e)
 	rt_entry_t *rte = (rt_entry_t*)e;
 
 	if (rte->name)
-		FREE(rte->name);
+		FREE_CONST(rte->name);
 	FREE(rte);
 }
 
 static void
-dump_rt_entry(FILE *fp, void *e)
+dump_rt_entry(FILE *fp, const void *e)
 {
-	rt_entry_t *rte = (rt_entry_t *)e;
+	const rt_entry_t *rte = (const rt_entry_t *)e;
 
 	conf_write(fp, "rt_table %u, name %s", rte->id, rte->name);
 }
@@ -248,13 +246,12 @@ add_default(list *l, const struct rt_entry* default_list)
 			continue;
 
 		rte = MALLOC(sizeof(rt_entry_t));
-		rte->name = MALLOC(strlen(default_list->name) + 1);
+		rte->name = STRDUP(default_list->name);
 		if (!rte->name) {
 			FREE(rte);
 			return;
 		}
 
-		strcpy(rte->name, default_list->name);
 		rte->id = default_list->id;
 
 		list_add(*l, rte);
@@ -379,14 +376,14 @@ static const char *
 get_entry(unsigned int id, list* l, const char* file_name, const struct rt_entry* default_list, uint32_t max)
 {
 	element e;
+	const rt_entry_t *rte;
+
 
 	if (!(*l))
 		initialise_list(l, file_name, default_list, max);
 
 	if (!LIST_ISEMPTY(*l)) {
-		for (e = LIST_HEAD(*l); e; ELEMENT_NEXT(e)) {
-			rt_entry_t *rte = ELEMENT_DATA(e);
-
+		LIST_FOREACH(*l, rte, e) {
 			if (rte->id == id)
 				return rte->name;
 		}

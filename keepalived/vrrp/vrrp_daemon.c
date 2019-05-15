@@ -89,11 +89,11 @@ bool non_existent_interface_specified;
 
 /* Forward declarations */
 #ifndef _DEBUG_
-static int print_vrrp_data(thread_t * thread);
-static int print_vrrp_stats(thread_t * thread);
-static int reload_vrrp_thread(thread_t * thread);
+static int print_vrrp_data(thread_ref_t);
+static int print_vrrp_stats(thread_ref_t);
+static int reload_vrrp_thread(thread_ref_t);
 #ifdef _WITH_JSON_
-static int print_vrrp_json(thread_t * thread);
+static int print_vrrp_json(thread_ref_t);
 #endif
 #endif
 #ifdef _WITH_PERF_
@@ -101,7 +101,7 @@ perf_t perf_run = PERF_NONE;
 #endif
 
 /* local variables */
-static char *vrrp_syslog_ident;
+static const char *vrrp_syslog_ident;
 #ifndef _DEBUG_
 static bool two_phase_terminate;
 #endif
@@ -290,10 +290,10 @@ vrrp_terminate_phase2(int exit_status)
 	closelog();
 
 #ifndef _MEM_CHECK_LOG_
-	FREE_PTR(vrrp_syslog_ident);
+	FREE_CONST_PTR(vrrp_syslog_ident);
 #else
 	if (vrrp_syslog_ident)
-		free(vrrp_syslog_ident);
+		free(no_const_char_p(vrrp_syslog_ident));
 #endif
 	close_std_fd();
 
@@ -304,16 +304,16 @@ vrrp_terminate_phase2(int exit_status)
 }
 
 static int
-vrrp_shutdown_backstop_thread(thread_t *thread)
+vrrp_shutdown_backstop_thread(thread_ref_t thread)
 {
 	int count = 0;
-	thread_t *t;
+	thread_ref_t t;
 
 	/* Force terminate all script processes */
 	if (thread->master->child.rb_root.rb_node)
 		script_killall(thread->master, SIGKILL, true);
 
-	rb_for_each_entry_cached(t, &thread->master->child, n)
+	rb_for_each_entry_cached_const(t, &thread->master->child, n)
 		count++;
 
 	log_message(LOG_ERR, "Backstop thread invoked: shutdown timer %srunning, child count %d",
@@ -325,7 +325,7 @@ vrrp_shutdown_backstop_thread(thread_t *thread)
 }
 
 static int
-vrrp_shutdown_timer_thread(thread_t *thread)
+vrrp_shutdown_timer_thread(thread_ref_t thread)
 {
 	thread->master->shutdown_timer_running = false;
 
@@ -418,7 +418,7 @@ vrrp_terminate_phase1(bool schedule_next_thread)
 
 #ifndef _DEBUG_
 static int
-start_vrrp_termination_thread(__attribute__((unused)) thread_t * thread)
+start_vrrp_termination_thread(__attribute__((unused)) thread_ref_t thread)
 {
 	/* This runs in the context of a thread */
 	two_phase_terminate = true;
@@ -662,7 +662,7 @@ start_vrrp(data_t *prev_global_data)
 
 #ifndef _DEBUG_
 static int
-send_reload_advert_thread(thread_t *thread)
+send_reload_advert_thread(thread_ref_t thread)
 {
 	vrrp_t *vrrp = THREAD_ARG(thread);
 
@@ -758,7 +758,7 @@ vrrp_signal_init(void)
 
 /* Reload thread */
 static int
-reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
+reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 {
 	bool with_snmp = false;
 
@@ -849,14 +849,14 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 }
 
 static int
-print_vrrp_data(__attribute__((unused)) thread_t * thread)
+print_vrrp_data(__attribute__((unused)) thread_ref_t thread)
 {
 	vrrp_print_data();
 	return 0;
 }
 
 static int
-print_vrrp_stats(__attribute__((unused)) thread_t * thread)
+print_vrrp_stats(__attribute__((unused)) thread_ref_t thread)
 {
 	vrrp_print_stats();
 	return 0;
@@ -864,7 +864,7 @@ print_vrrp_stats(__attribute__((unused)) thread_t * thread)
 
 #ifdef _WITH_JSON_
 static int
-print_vrrp_json(__attribute__((unused)) thread_t * thread)
+print_vrrp_json(__attribute__((unused)) thread_ref_t thread)
 {
 	vrrp_print_json();
 	return 0;
@@ -873,7 +873,7 @@ print_vrrp_json(__attribute__((unused)) thread_t * thread)
 
 /* VRRP Child respawning thread */
 static int
-vrrp_respawn_thread(thread_t * thread)
+vrrp_respawn_thread(thread_ref_t thread)
 {
 	/* We catch a SIGCHLD, handle it */
 	vrrp_child = 0;
@@ -942,7 +942,7 @@ start_vrrp_child(void)
 {
 #ifndef _DEBUG_
 	pid_t pid;
-	char *syslog_ident;
+	const char *syslog_ident;
 
 	/* Initialize child process */
 #ifdef ENABLE_LOG_TO_FILE

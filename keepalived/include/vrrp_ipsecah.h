@@ -46,17 +46,11 @@ typedef struct _ipsec_ah {				/* rfc2402.2 */
 						/* Authentication data 128-bit MD5 digest trucated */
 } ipsec_ah_t;
 
-typedef struct {		/* rfc2402.3.3.3.1.1.1 */
-	uint8_t			tos;
-	uint8_t			ttl;
-	uint16_t		frag_off;
-} ICV_mutable_fields;		/* We need to zero this fields to compute the ICV */
-
 typedef struct _seq_counter {
 	bool			cycle;
 	uint32_t		seq_number;
 } seq_counter_t;
 
-extern void hmac_md5(unsigned char *, size_t, unsigned char *, size_t, unsigned char *);
+extern void hmac_md5(const unsigned char *, size_t, const unsigned char *, size_t, const unsigned char *, size_t, unsigned char *);
 
 #endif

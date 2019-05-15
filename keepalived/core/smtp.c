@@ -47,31 +47,31 @@ bool do_smtp_alert_debug;
 #endif
 
 /* SMTP FSM definition */
-static int connection_error(thread_t *);
-static int connection_in_progress(thread_t *);
-static int connection_timeout(thread_t *);
-static int connection_success(thread_t *);
-static int helo_cmd(thread_t *);
-static int mail_cmd(thread_t *);
-static int rcpt_cmd(thread_t *);
-static int data_cmd(thread_t *);
-static int body_cmd(thread_t *);
-static int quit_cmd(thread_t *);
+static int connection_error(thread_ref_t);
+static int connection_in_progress(thread_ref_t);
+static int connection_timeout(thread_ref_t);
+static int connection_success(thread_ref_t);
+static int helo_cmd(thread_ref_t);
+static int mail_cmd(thread_ref_t);
+static int rcpt_cmd(thread_ref_t);
+static int data_cmd(thread_ref_t);
+static int body_cmd(thread_ref_t);
+static int quit_cmd(thread_ref_t);
 
-static int connection_code(thread_t *, int);
-static int helo_code(thread_t *, int);
-static int mail_code(thread_t *, int);
-static int rcpt_code(thread_t *, int);
-static int data_code(thread_t *, int);
-static int body_code(thread_t *, int);
-static int quit_code(thread_t *, int);
+static int connection_code(thread_ref_t , int);
+static int helo_code(thread_ref_t , int);
+static int mail_code(thread_ref_t , int);
+static int rcpt_code(thread_ref_t , int);
+static int data_code(thread_ref_t , int);
+static int body_code(thread_ref_t , int);
+static int quit_code(thread_ref_t , int);
 
-static int smtp_read_thread(thread_t *);
-static int smtp_send_thread(thread_t *);
+static int smtp_read_thread(thread_ref_t);
+static int smtp_send_thread(thread_ref_t);
 
 struct {
-	int (*send) (thread_t *);
-	int (*read) (thread_t *, int);
+	int (*send) (thread_ref_t);
+	int (*read) (thread_ref_t, int);
 } SMTP_FSM[SMTP_MAX_FSM_STATE] = {
 /*      Stream Write Handlers    |   Stream Read handlers   *
  *-------------------------------+--------------------------*/
@@ -105,7 +105,7 @@ fetch_next_email(smtp_t * smtp)
 
 /* layer4 connection handlers */
 static int
-connection_error(thread_t * thread)
+connection_error(thread_ref_t thread)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
 
@@ -115,7 +115,7 @@ connection_error(thread_t * thread)
 	return 0;
 }
 static int
-connection_timeout(thread_t * thread)
+connection_timeout(thread_ref_t thread)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
 
@@ -125,7 +125,7 @@ connection_timeout(thread_t * thread)
 	return 0;
 }
 static int
-connection_in_progress(thread_t * thread)
+connection_in_progress(thread_ref_t thread)
 {
 	int status;
 
@@ -144,7 +144,7 @@ connection_in_progress(thread_t * thread)
 	return 0;
 }
 static int
-connection_success(thread_t * thread)
+connection_success(thread_ref_t thread)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
 
@@ -159,7 +159,7 @@ connection_success(thread_t * thread)
 
 /* SMTP protocol handlers */
 static int
-smtp_read_thread(thread_t * thread)
+smtp_read_thread(thread_ref_t thread)
 {
 	smtp_t *smtp;
 	char *buffer;
@@ -265,7 +265,7 @@ smtp_read_thread(thread_t * thread)
 }
 
 static int
-smtp_send_thread(thread_t * thread)
+smtp_send_thread(thread_ref_t thread)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
 
@@ -299,7 +299,7 @@ smtp_send_thread(thread_t * thread)
 }
 
 static int
-connection_code(thread_t * thread, int status)
+connection_code(thread_ref_t thread, int status)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
 
@@ -318,7 +318,7 @@ connection_code(thread_t * thread, int status)
 
 /* HELO command processing */
 static int
-helo_cmd(thread_t * thread)
+helo_cmd(thread_ref_t thread)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
 	char *buffer;
@@ -332,7 +332,7 @@ helo_cmd(thread_t * thread)
 	return 0;
 }
 static int
-helo_code(thread_t * thread, int status)
+helo_code(thread_ref_t thread, int status)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
 
@@ -351,7 +351,7 @@ helo_code(thread_t * thread, int status)
 
 /* MAIL command processing */
 static int
-mail_cmd(thread_t * thread)
+mail_cmd(thread_ref_t thread)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
 	char *buffer;
@@ -365,7 +365,7 @@ mail_cmd(thread_t * thread)
 	return 0;
 }
 static int
-mail_code(thread_t * thread, int status)
+mail_code(thread_ref_t thread, int status)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
 
@@ -384,7 +384,7 @@ mail_code(thread_t * thread, int status)
 
 /* RCPT command processing */
 static int
-rcpt_cmd(thread_t * thread)
+rcpt_cmd(thread_ref_t thread)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
 	char *buffer;
@@ -404,7 +404,7 @@ rcpt_cmd(thread_t * thread)
 	return 0;
 }
 static int
-rcpt_code(thread_t * thread, int status)
+rcpt_code(thread_ref_t thread, int status)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
 	char *fetched_email;
@@ -429,7 +429,7 @@ rcpt_code(thread_t * thread, int status)
 
 /* DATA command processing */
 static int
-data_cmd(thread_t * thread)
+data_cmd(thread_ref_t thread)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
 
@@ -438,7 +438,7 @@ data_cmd(thread_t * thread)
 	return 0;
 }
 static int
-data_code(thread_t * thread, int status)
+data_code(thread_ref_t thread, int status)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
 
@@ -460,7 +460,7 @@ data_code(thread_t * thread, int status)
  * handling ? Don t really think :)
  */
 static int
-body_cmd(thread_t * thread)
+body_cmd(thread_ref_t thread)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
 	char *buffer;
@@ -496,7 +496,7 @@ body_cmd(thread_t * thread)
 	return 0;
 }
 static int
-body_code(thread_t * thread, int status)
+body_code(thread_ref_t thread, int status)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
 
@@ -516,7 +516,7 @@ body_code(thread_t * thread, int status)
 
 /* QUIT command processing */
 static int
-quit_cmd(thread_t * thread)
+quit_cmd(thread_ref_t thread)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
 
@@ -528,7 +528,7 @@ quit_cmd(thread_t * thread)
 }
 
 static int
-quit_code(thread_t * thread, __attribute__((unused)) int status)
+quit_code(thread_ref_t thread, __attribute__((unused)) int status)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
 

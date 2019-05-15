@@ -27,6 +27,6 @@
 #include "vector.h"
 
 extern void init_bfd_keywords(bool);
-extern vector_t *bfd_init_keywords(void);
+extern const vector_t *bfd_init_keywords(void);
 
 #endif				/* _BFD_PARSER_H_ */

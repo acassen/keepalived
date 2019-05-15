@@ -42,7 +42,7 @@ static bool log_console = false;
 
 #ifdef ENABLE_LOG_TO_FILE
 /* File to write log messages to */
-char *log_file_name;
+const char *log_file_name;
 static FILE *log_file;
 bool always_flush_log_file;
 #endif
@@ -72,7 +72,7 @@ close_log_file(void)
 void
 open_log_file(const char *name, const char *prog, const char *namespace, const char *instance)
 {
-	char *file_name;
+	const char *file_name;
 
 	if (log_file) {
 		fclose(log_file);
@@ -91,7 +91,7 @@ open_log_file(const char *name, const char *prog, const char *namespace, const c
 		fcntl(n, F_SETFL, O_NONBLOCK | fcntl(n, F_GETFL));
 	}
 
-	FREE(file_name);
+	FREE_CONST(file_name);
 }
 
 void

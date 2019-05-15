@@ -116,7 +116,7 @@ socket_connect(int fd, struct sockaddr_storage *addr)
 }
 
 enum connect_result
-socket_state(thread_t * thread, int (*func) (thread_t *))
+socket_state(thread_ref_t thread, thread_func_t func)
 {
 	int status;
 	socklen_t addrlen;
@@ -163,8 +163,8 @@ socket_state(thread_t * thread, int (*func) (thread_t *))
 
 #ifdef _WITH_LVS_
 bool
-socket_connection_state(int fd, enum connect_result status, thread_t * thread,
-		     int (*func) (thread_t *), unsigned long timeout)
+socket_connection_state(int fd, enum connect_result status, thread_ref_t thread,
+		     thread_func_t func, unsigned long timeout)
 {
 	void *checker;
 

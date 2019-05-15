@@ -54,7 +54,7 @@ extern bool do_timer_check;
 
 #define RB_TIMER_CMP(obj)					\
 static inline int						\
-obj##_timer_cmp(obj##_t *r1, obj##_t *r2)			\
+obj##_timer_cmp(const obj##_t *r1, const obj##_t *r2)		\
 {								\
 	if (r1->sands.tv_sec == TIMER_DISABLED) {		\
 		if (r2->sands.tv_sec == TIMER_DISABLED)		\

@@ -68,7 +68,7 @@ typedef enum {
 /* keyword definition */
 typedef struct _keyword {
 	const char *string;
-	void (*handler) (vector_t *);
+	void (*handler) (const vector_t *);
 	vector_t *sub;
 	void (*sub_close_handler) (void);
 	bool active;
@@ -76,7 +76,7 @@ typedef struct _keyword {
 
 /* global vars exported */
 extern vector_t *keywords;
-extern char *config_id;
+extern const char *config_id;
 extern const char *WHITE_SPACE;
 
 #ifdef _MEM_CHECK_
@@ -100,21 +100,21 @@ extern bool read_unsigned64_strvec(const vector_t *, size_t, uint64_t *, uint64_
 extern bool read_unsigned_base_strvec(const vector_t *, size_t, int, unsigned *, unsigned, unsigned, bool);
 extern bool read_double_strvec(const vector_t *, size_t, double *, double, double, bool);
 extern void set_random_seed(unsigned int);
-extern void install_keyword_root(const char *, void (*handler) (vector_t *), bool);
+extern void install_keyword_root(const char *, void (*handler) (const vector_t *), bool);
 extern void install_root_end_handler(void (*handler) (void));
 extern void install_sublevel(void);
 extern void install_sublevel_end(void);
 extern void install_sublevel_end_handler(void (*handler) (void));
-extern void install_keyword(const char *, void (*handler) (vector_t *));
-extern vector_t *alloc_strvec_quoted_escaped(char *);
-extern vector_t *alloc_strvec_r(char *);
+extern void install_keyword(const char *, void (*handler) (const vector_t *));
+extern const vector_t *alloc_strvec_quoted_escaped(const char *);
+extern vector_t *alloc_strvec_r(const char *);
 extern bool check_conf_file(const char*);
-extern vector_t *read_value_block(vector_t *);
-extern void alloc_value_block(void (*alloc_func) (vector_t *), const char *);
-extern void *set_value(vector_t *);
-extern bool read_timer(vector_t *, size_t, unsigned long *, unsigned long, unsigned long, bool);
-extern int check_true_false(char *) __attribute__ ((pure));
+extern const vector_t *read_value_block(const vector_t *);
+extern void alloc_value_block(void (*alloc_func) (const vector_t *), const char *);
+extern const char *set_value(const vector_t *) __attribute__((malloc));
+extern bool read_timer(const vector_t *, size_t, unsigned long *, unsigned long, unsigned long, bool);
+extern int check_true_false(const char *) __attribute__ ((pure));
 extern void skip_block(bool);
-extern void init_data(const char *, vector_t * (*init_keywords) (void));
+extern void init_data(const char *, const vector_t * (*init_keywords) (void));
 
 #endif

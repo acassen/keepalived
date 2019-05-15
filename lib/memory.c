@@ -175,13 +175,13 @@ static unsigned seq_num;
 static FILE *log_op = NULL;
 
 static inline int
-memcheck_ptr_cmp(MEMCHECK *m1, MEMCHECK *m2)
+memcheck_ptr_cmp(const MEMCHECK *m1, const MEMCHECK *m2)
 {
 	return (char *)m1->ptr - (char *)m2->ptr;
 }
 
 static inline int
-memcheck_seq_cmp(MEMCHECK *m1, MEMCHECK *m2)
+memcheck_seq_cmp(const MEMCHECK *m1, const MEMCHECK *m2)
 {
 	return m1->seq_num - m2->seq_num;
 }
@@ -227,8 +227,8 @@ get_free_alloc_entry(void)
 	return entry;
 }
 
-void *
-keepalived_malloc(size_t size, const char *file, const char *function, int line)
+static void *
+keepalived_malloc_common(size_t size, const char *file, const char *function, int line, const char *name)
 {
 	void *buf;
 	MEMCHECK *entry, *entry2;
@@ -256,12 +256,12 @@ keepalived_malloc(size_t size, const char *file, const char *function, int line)
 	if (++number_alloc_list > max_alloc_list)
 		max_alloc_list = number_alloc_list;
 
-	fprintf(log_op, "%szalloc [%3d:%3d], %9p, %4zu at %s, %3d, %s%s\n",
-	       format_time(), entry->seq_num, number_alloc_list, buf, size, file, line, function, !size ? " - size is 0" : "");
+	fprintf(log_op, "%s%s [%3d:%3d], %9p, %4zu at %s, %3d, %s%s\n",
+	       format_time(), name, entry->seq_num, number_alloc_list, buf, size, file, line, function, !size ? " - size is 0" : "");
 #ifdef _MEM_CHECK_LOG_
 	if (__test_bit(MEM_CHECK_LOG_BIT, &debug))
-		log_message(LOG_INFO, "zalloc[%3d:%3d], %9p, %4zu at %s, %3d, %s",
-		       entry->seq_num, number_alloc_list, buf, size, file, line, function);
+		log_message(LOG_INFO, "%s[%3d:%3d], %9p, %4zu at %s, %3d, %s",
+		       name, entry->seq_num, number_alloc_list, buf, size, file, line, function);
 #endif
 
 	num_mallocs++;
@@ -275,6 +275,30 @@ keepalived_malloc(size_t size, const char *file, const char *function, int line)
 	}
 
 	return buf;
+}
+
+void *
+keepalived_malloc(size_t size, const char *file, const char *function, int line)
+{
+	return keepalived_malloc_common(size, file, function, line, "zalloc");
+}
+
+char *
+keepalived_strdup(const char *str, const char *file, const char *function, int line)
+{
+	char *str_p;
+
+	str_p = keepalived_malloc_common(strlen(str) + 1, file, function, line, "strdup");
+	return strcpy(str_p, str);
+}
+
+char *
+keepalived_strndup(const char *str, size_t size, const char *file, const char *function, int line)
+{
+	char *str_p;
+
+	str_p = keepalived_malloc_common(size + 1, file, function, line, "strndup");
+	return strncpy(str_p, str, size);
 }
 
 static void *

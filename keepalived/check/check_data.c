@@ -64,10 +64,10 @@ free_ssl(void)
 	ssl = check_data->ssl;
 
 	clear_ssl(ssl);
-	FREE_PTR(ssl->password);
-	FREE_PTR(ssl->cafile);
-	FREE_PTR(ssl->certfile);
-	FREE_PTR(ssl->keyfile);
+	FREE_CONST_PTR(ssl->password);
+	FREE_CONST_PTR(ssl->cafile);
+	FREE_CONST_PTR(ssl->certfile);
+	FREE_CONST_PTR(ssl->keyfile);
 	FREE(ssl);
 	check_data->ssl = NULL;
 }
@@ -102,9 +102,9 @@ free_vsg(void *data)
 	FREE(vsg);
 }
 static void
-dump_vsg(FILE *fp, void *data)
+dump_vsg(FILE *fp, const void *data)
 {
-	virtual_server_group_t *vsg = data;
+	const virtual_server_group_t *vsg = data;
 
 	conf_write(fp, " ------< Virtual server group >------");
 	conf_write(fp, " Virtual Server Group = %s", vsg->gname);
@@ -117,9 +117,9 @@ free_vsg_entry(void *data)
 	FREE(data);
 }
 static void
-dump_vsg_entry(FILE *fp, void *data)
+dump_vsg_entry(FILE *fp, const void *data)
 {
-	virtual_server_group_entry_t *vsg_entry = data;
+	const virtual_server_group_entry_t *vsg_entry = data;
 	uint16_t start;
 
 	if (vsg_entry->is_fwmark) {
@@ -129,8 +129,8 @@ dump_vsg_entry(FILE *fp, void *data)
 	} else {
 		if (vsg_entry->range) {
 			start = vsg_entry->addr.ss_family == AF_INET ?
-				  ntohl(((struct sockaddr_in*)&vsg_entry->addr)->sin_addr.s_addr) & 0xFF :
-				  ntohs(((struct sockaddr_in6*)&vsg_entry->addr)->sin6_addr.s6_addr16[7]);
+				  ntohl(((const struct sockaddr_in*)&vsg_entry->addr)->sin_addr.s_addr) & 0xFF :
+				  ntohs(((const struct sockaddr_in6*)&vsg_entry->addr)->sin6_addr.s6_addr16[7]);
 			conf_write(fp,
 				    vsg_entry->addr.ss_family == AF_INET ?
 					"   VIP Range = %s-%d, VPORT = %d" :
@@ -148,28 +148,26 @@ dump_vsg_entry(FILE *fp, void *data)
 	conf_write(fp, "     reloaded = %s", vsg_entry->reloaded ? "True" : "False");
 }
 void
-alloc_vsg(char *gname)
+alloc_vsg(const char *gname)
 {
-	size_t size = strlen(gname);
 	virtual_server_group_t *new;
 
 	new = (virtual_server_group_t *) MALLOC(sizeof(virtual_server_group_t));
-	new->gname = (char *) MALLOC(size + 1);
-	memcpy(new->gname, gname, size);
+	new->gname = STRDUP(gname);
 	new->addr_range = alloc_list(free_vsg_entry, dump_vsg_entry);
 	new->vfwmark = alloc_list(free_vsg_entry, dump_vsg_entry);
 
 	list_add(check_data->vs_group, new);
 }
 void
-alloc_vsg_entry(vector_t *strvec)
+alloc_vsg_entry(const vector_t *strvec)
 {
 	virtual_server_group_t *vsg = LIST_TAIL_DATA(check_data->vs_group);
 	virtual_server_group_entry_t *new;
 	virtual_server_group_entry_t *old;
 	uint32_t start;
 	element e;
-	char *port_str;
+	const char *port_str;
 	uint32_t range;
 	unsigned fwmark;
 
@@ -177,7 +175,7 @@ alloc_vsg_entry(vector_t *strvec)
 
 	if (!strcmp(strvec_slot(strvec, 0), "fwmark")) {
 		if (!read_unsigned_strvec(strvec, 1, &fwmark, 0, UINT32_MAX, true)) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s): fwmark '%s' must be in [0, %u] - ignoring", vsg->gname, FMT_STR_VSLOT(strvec, 1), UINT32_MAX);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s): fwmark '%s' must be in [0, %u] - ignoring", vsg->gname, strvec_slot(strvec, 1), UINT32_MAX);
 			FREE(new);
 			return;
 		}
@@ -202,14 +200,14 @@ alloc_vsg_entry(vector_t *strvec)
 			port_str = NULL;
 
 		if (inet_stosockaddr(strvec_slot(strvec, 0), port_str, &new->addr)) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid virtual server group IP address%s %s%s%s - skipping", FMT_STR_VSLOT(strvec, 0),
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid virtual server group IP address%s %s%s%s - skipping", strvec_slot(strvec, 0),
 						port_str ? "/port" : "", port_str ? "/" : "", port_str ? port_str : "");
 			FREE(new);
 			return;
 		}
 #ifndef LIBIPVS_USE_NL
 		if (new->addr.ss_family != AF_INET) {
-			report_config_error(CONFIG_GENERAL_ERROR, "IPVS does not support IPv6 in this build - skipping %s", FMT_STR_VSLOT(strvec, 0));
+			report_config_error(CONFIG_GENERAL_ERROR, "IPVS does not support IPv6 in this build - skipping %s", strvec_slot(strvec, 0));
 			FREE(new);
 			return;
 		}
@@ -236,7 +234,7 @@ alloc_vsg_entry(vector_t *strvec)
 				start = ntohs(((struct sockaddr_in6 *)&new->addr)->sin6_addr.s6_addr16[7]);
 
 			if (start >= new->range) {
-				report_config_error(CONFIG_GENERAL_ERROR, "Address range end is not greater than address range start - %s - skipping", FMT_STR_VSLOT(strvec, 0));
+				report_config_error(CONFIG_GENERAL_ERROR, "Address range end is not greater than address range start - %s - skipping", strvec_slot(strvec, 0));
 				FREE(new);
 				return;
 			}
@@ -254,7 +252,7 @@ free_vs(void *data)
 {
 	virtual_server_t *vs = data;
 	FREE_PTR(vs->vsgname);
-	FREE_PTR(vs->virtualhost);
+	FREE_CONST_PTR(vs->virtualhost);
 	FREE_PTR(vs->s_svr);
 	free_list(&vs->rs);
 	free_notify_script(&vs->notify_quorum_up);
@@ -262,9 +260,9 @@ free_vs(void *data)
 	FREE(vs);
 }
 static void
-dump_vs(FILE *fp, void *data)
+dump_vs(FILE *fp, const void *data)
 {
-	virtual_server_t *vs = data;
+	const virtual_server_t *vs = data;
 
 	conf_write(fp, " ------< Virtual server >------");
 	if (vs->vsgname)
@@ -381,22 +379,19 @@ dump_vs(FILE *fp, void *data)
 }
 
 void
-alloc_vs(char *param1, char *param2)
+alloc_vs(const char *param1, const char *param2)
 {
-	size_t size;
 	virtual_server_t *new;
-	char *port_str;
+	const char *port_str;
 	unsigned fwmark;
 
 	new = (virtual_server_t *) MALLOC(sizeof(virtual_server_t));
 
 	new->af = AF_UNSPEC;
 
-	if (!strcmp(param1, "group")) {
-		size = strlen(param2);
-		new->vsgname = (char *) MALLOC(size + 1);
-		memcpy(new->vsgname, param2, size);
-	} else if (!strcmp(param1, "fwmark")) {
+	if (!strcmp(param1, "group"))
+		new->vsgname = STRDUP(param2);
+	else if (!strcmp(param1, "fwmark")) {
 		if (!read_unsigned(param2, &fwmark, 0, UINT32_MAX, true)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "virtual server fwmark '%s' must be in [0, %u] - ignoring", param2, UINT32_MAX);
 			skip_block(true);
@@ -450,10 +445,10 @@ alloc_vs(char *param1, char *param2)
 
 /* Sorry server facility functions */
 void
-alloc_ssvr(char *ip, char *port)
+alloc_ssvr(const char *ip, const char *port)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	char *port_str;
+	const char *port_str;
 
 	/* inet_stosockaddr rejects port 0 */
 	port_str = (port && port[strspn(port, "0")]) ? port : NULL;
@@ -481,14 +476,14 @@ free_rs(void *data)
 #ifdef _WITH_BFD_
 	free_list(&rs->tracked_bfds);
 #endif
-	FREE_PTR(rs->virtualhost);
+	FREE_CONST_PTR(rs->virtualhost);
 	FREE(rs);
 }
 
 static void
-dump_rs(FILE *fp, void *data)
+dump_rs(FILE *fp, const void *data)
 {
-	real_server_t *rs = data;
+	const real_server_t *rs = data;
 #ifdef _WITH_BFD_
 	bfd_checker_t *cbfd;
 	element e;
@@ -550,11 +545,11 @@ dump_rs(FILE *fp, void *data)
 }
 
 void
-alloc_rs(char *ip, char *port)
+alloc_rs(const char *ip, const char *port)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *new;
-	char *port_str;
+	const char *port_str;
 
 	/* inet_stosockaddr rejects port 0 */
 	port_str = (port && port[strspn(port, "0")]) ? port : NULL;
@@ -608,9 +603,9 @@ alloc_rs(char *ip, char *port)
 #ifdef _WITH_BFD_
 /* Track bfd dump */
 static void
-dump_checker_bfd(FILE *fp, void *track_data)
+dump_checker_bfd(FILE *fp, const void *track_data)
 {
-	checker_tracked_bfd_t *cbfd = track_data;
+	const checker_tracked_bfd_t *cbfd = track_data;
 
 	conf_write(fp, " Checker Track BFD = %s", cbfd->bname);
 //	conf_write(fp, "   Weight = %d", cbfd->weight);
@@ -658,7 +653,7 @@ free_check_data(check_data_t *data)
 }
 
 static void
-dump_check_data(FILE *fp, check_data_t *data)
+dump_check_data(FILE *fp, const check_data_t *data)
 {
 	if (data->ssl) {
 		conf_write(fp, "------< SSL definitions >------");
@@ -691,7 +686,7 @@ dump_data_check(FILE *fp)
 }
 
 const char *
-format_vs(virtual_server_t *vs)
+format_vs(const virtual_server_t *vs)
 {
 	/* alloc large buffer because of unknown length of vs->vsgname */
 	static char ret[512];
@@ -710,7 +705,7 @@ format_vs(virtual_server_t *vs)
 }
 
 const char *
-format_vsge(virtual_server_group_entry_t *vsge)
+format_vsge(const virtual_server_group_entry_t *vsge)
 {
 	/* alloc large buffer because of unknown length of vs->vsgname */
 	static char ret[INET6_ADDRSTRLEN + 1 + 4 + 1 + 5]; /* IPv6 addr + -abcd:ppppp */
@@ -720,8 +715,8 @@ format_vsge(virtual_server_group_entry_t *vsge)
 		snprintf(ret, sizeof(ret), "FWM %u", vsge->vfwmark);
 	else if (vsge->range) {
 		start = vsge->addr.ss_family == AF_INET ?
-			  ntohl(((struct sockaddr_in*)&vsge->addr)->sin_addr.s_addr) & 0xFF :
-			  ntohs(((struct sockaddr_in6*)&vsge->addr)->sin6_addr.s6_addr16[7]);
+			  ntohl(((const struct sockaddr_in*)&vsge->addr)->sin_addr.s_addr) & 0xFF :
+			  ntohs(((const struct sockaddr_in6*)&vsge->addr)->sin6_addr.s6_addr16[7]);
 		snprintf(ret, sizeof(ret),
 			    vsge->addr.ss_family == AF_INET ?  "%s-%d,%d" : "%s-%x,%d",
 			    inet_sockaddrtos(&vsge->addr),
@@ -735,7 +730,7 @@ format_vsge(virtual_server_group_entry_t *vsge)
 }
 
 const char *
-format_rs(real_server_t *rs, virtual_server_t *vs)
+format_rs(const real_server_t *rs, const virtual_server_t *vs)
 {
 	static char buf[SOCKADDRTRIO_STR_LEN];
 

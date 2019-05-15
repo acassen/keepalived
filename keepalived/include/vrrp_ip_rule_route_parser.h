@@ -30,7 +30,7 @@
 #include "vrrp_iproute.h"
 #endif
 
-extern bool get_realms(uint32_t *, char *);
+extern bool get_realms(uint32_t *, const char *);
 extern bool get_u8(uint8_t *, const char *, uint8_t, const char*);
 extern bool get_u32(uint32_t *, const char *, uint32_t, const char*);
 extern bool get_u16(uint16_t *, const char *, uint16_t, const char*);

@@ -57,7 +57,7 @@ typedef enum {
 
 /* notify_script details */
 typedef struct _notify_script {
-	char**	args;		/* Script args */
+	const char **args;	/* Script args - should be "char const * const *" */
 	int	num_args;	/* Used for notify script when adding last 4 parameters */
 	int	flags;
 	uid_t	uid;		/* uid of user to execute script */
@@ -66,7 +66,7 @@ typedef struct _notify_script {
 
 /* notify_fifo details */
 typedef struct _notify_fifo {
-	char	*name;
+	const char *name;
 	int	fd;
 	uid_t	uid;		/* uid of user of fifo if create */
 	gid_t	gid;		/* gid of group of fifo */
@@ -92,21 +92,21 @@ extern gid_t default_script_gid;
 extern bool script_security;
 
 /* prototypes */
-extern char *cmd_str_r(const notify_script_t *, char *, size_t);
-extern char *cmd_str(const notify_script_t *);
-extern void notify_fifo_open(notify_fifo_t*, notify_fifo_t*, int (*)(thread_t *), const char *);
+extern const char *cmd_str_r(const notify_script_t *, char *, size_t);
+extern const char *cmd_str(const notify_script_t *);
+extern void notify_fifo_open(notify_fifo_t*, notify_fifo_t*, int (*)(thread_ref_t), const char *);
 extern void notify_fifo_close(notify_fifo_t*, notify_fifo_t*);
-extern int system_call_script(thread_master_t *, int (*)(thread_t *), void *, unsigned long, notify_script_t *);
+extern int system_call_script(thread_master_t *, int (*)(thread_ref_t), void *, unsigned long, notify_script_t *);
 extern int notify_exec(const notify_script_t *);
-extern int child_killed_thread(thread_t *);
+extern int child_killed_thread(thread_ref_t);
 extern void script_killall(thread_master_t *, int, bool);
 extern int check_script_secure(notify_script_t *, magic_t);
 extern int check_notify_script_secure(notify_script_t **, magic_t);
 extern bool set_default_script_user(const char *, const char *);
-extern bool set_script_uid_gid(vector_t *, unsigned, uid_t *, gid_t *);
-extern void set_script_params_array(vector_t *, notify_script_t *, unsigned);
+extern bool set_script_uid_gid(const vector_t *, unsigned, uid_t *, gid_t *);
+extern void set_script_params_array(const vector_t *, notify_script_t *, unsigned);
 extern notify_script_t* notify_script_init(int, const char *);
-extern void add_script_param(notify_script_t *, char *);
+extern void add_script_param(notify_script_t *, const char *);
 extern void notify_resource_release(void);
 extern bool notify_script_compare(const notify_script_t *, const notify_script_t *) __attribute__ ((pure));
 #ifdef THREAD_DUMP

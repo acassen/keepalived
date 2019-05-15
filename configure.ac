@@ -2030,8 +2030,8 @@ if test "$enable_snmp" = yes -o \
   SNMP_SUPPORT=Yes
 
   # NETSNMP_CFLAGS can have CPPFLAGS options, so separate them
-  NETSNMP_CPPFLAGS_XTRA=`echo " $NETSNMP_CFLAGS " | sed -e "s/ /  /g" -e "s/ -[[^ID]] *-/ -/g" -e "s/ -[[^ID]] *[[^-]][[^ ]]* / /g" -e "s/  */ /g"`
-  NETSNMP_CFLAGS=`echo " $NETSNMP_CFLAGS " | sed -e "s/ /  /g" -e "s/ -[[ID]] *[[^ ]]* / /g" -e "s/  */ /g"`
+  NETSNMP_CPPFLAGS_XTRA=`echo " $NETSNMP_CFLAGS " | sed -e "s/ /  /g" -e "s/ -[[^IDU]] *-/ -/g" -e "s/ -[[^IDU]] *[[^-]][[^ ]]* / /g" -e "s/  */ /g"`
+  NETSNMP_CFLAGS=`echo " $NETSNMP_CFLAGS " | sed -e "s/ /  /g" -e "s/ -[[IDU]] *[[^ ]]* / /g" -e "s/  */ /g"`
   add_to_var([KA_CFLAGS], [$NETSNMP_CFLAGS])
   add_to_var([KA_CPPFLAGS], [$NETSNMP_CPPFLAGS $NETSNMP_CPPFLAGS_XTRA])
 

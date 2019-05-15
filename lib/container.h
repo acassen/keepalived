@@ -3,7 +3,7 @@
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
  *
- * Part:        Process management
+ * Part:        container.h include file.
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -17,36 +17,36 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2019-2019 Alexandre Cassen, <acassen@gmail.com>
  */
 
-#ifndef _PROCESS_H
-#define _PROCESS_H
+#ifndef _CONTAINER_H
+#define _CONTAINER_H
 
-#ifdef _HAVE_SCHED_RT_
-#include <sched.h>
-#endif
-#include <sys/types.h>
-#include <sys/resource.h>
+/* Copy from linux kernel 2.6 source (kernel.h, stddef.h) */
 
-#if HAVE_DECL_RLIMIT_RTTIME == 1
-#define	RT_RLIMIT_DEFAULT	10000
+#ifndef offsetof
+# define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
 #endif
 
-extern void set_process_priorities(
-#ifdef _HAVE_SCHED_RT_
-			           int,
-#if HAVE_DECL_RLIMIT_RTTIME == 1
-			           int,
+/*
+ * container_of - cast a member of a structure out to the containing structure
+ *
+ * @ptr:	the pointer to the member.
+ * @type:	the type of the container struct this is embedded in.
+ * @member:	the name of the member within the struct.
+ *
+ */
+#ifndef container_of
+# define container_of(ptr, type, member) ({	\
+	 typeof( ((type *)0)->member ) *__mptr = (ptr);  \
+	 (type *)( (char *)__mptr - offsetof(type,member) );})
 #endif
+
+#ifndef container_of_const
+# define container_of_const(ptr, type, member) ({	\
+	 const typeof( ((type *)0)->member ) *__mptr = (ptr);  \
+	 (type *)( (const char *)__mptr - offsetof(type,member) );})
 #endif
-				   int, int);
-#ifdef _HAVE_SCHED_RT_
-extern int set_process_cpu_affinity(cpu_set_t *, const char *);
-extern int get_process_cpu_affinity_string(cpu_set_t *, char *, size_t);
-#endif
-extern void reset_process_priorities(void);
-extern void set_child_rlimit(int, const struct rlimit *);
-extern pid_t local_fork(void);
 
 #endif

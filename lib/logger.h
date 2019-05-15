@@ -33,7 +33,7 @@
 #define	MAX_LOG_MSG	255
 
 #ifdef ENABLE_LOG_TO_FILE
-extern char *log_file_name;
+extern const char *log_file_name;
 #endif
 
 extern void enable_console_log(void);

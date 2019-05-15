@@ -63,43 +63,43 @@ extern char *vrrp_buffer;
 extern size_t vrrp_buffer_len;
 
 /* prototypes */
-extern void alloc_static_track_group(char *);
-extern void alloc_saddress(vector_t *);
-extern void alloc_sroute(vector_t *);
-extern void alloc_srule(vector_t *);
-extern void alloc_vrrp_sync_group(char *);
-extern void alloc_vrrp(char *);
-extern void alloc_vrrp_unicast_peer(vector_t *);
-extern void alloc_vrrp_track_if(vector_t *);
-extern void alloc_vrrp_script(char *);
-extern void alloc_vrrp_track_script(vector_t *);
-extern void alloc_vrrp_file(char *);
-extern void alloc_vrrp_track_file(vector_t *);
+extern void alloc_static_track_group(const char *);
+extern void alloc_saddress(const vector_t *);
+extern void alloc_sroute(const vector_t *);
+extern void alloc_srule(const vector_t *);
+extern void alloc_vrrp_sync_group(const char *);
+extern void alloc_vrrp(const char *);
+extern void alloc_vrrp_unicast_peer(const vector_t *);
+extern void alloc_vrrp_track_if(const vector_t *);
+extern void alloc_vrrp_script(const char *);
+extern void alloc_vrrp_track_script(const vector_t *);
+extern void alloc_vrrp_file(const char *);
+extern void alloc_vrrp_track_file(const vector_t *);
 #ifdef _WITH_CN_PROC_
-extern void alloc_vrrp_process(char *);
-extern void alloc_vrrp_track_process(vector_t *);
+extern void alloc_vrrp_process(const char *);
+extern void alloc_vrrp_track_process(const vector_t *);
 #endif
 #ifdef _WITH_BFD_
-extern void alloc_vrrp_track_bfd(vector_t *);
+extern void alloc_vrrp_track_bfd(const vector_t *);
 #endif
-extern void alloc_vrrp_group_track_if(vector_t *);
-extern void alloc_vrrp_group_track_script(vector_t *);
-extern void alloc_vrrp_group_track_file(vector_t *);
+extern void alloc_vrrp_group_track_if(const vector_t *);
+extern void alloc_vrrp_group_track_script(const vector_t *);
+extern void alloc_vrrp_group_track_file(const vector_t *);
 #ifdef _WITH_CN_PROC_
-extern void alloc_vrrp_group_track_process(vector_t *);
+extern void alloc_vrrp_group_track_process(const vector_t *);
 #endif
 #ifdef _WITH_BFD_
-extern void alloc_vrrp_group_track_bfd(vector_t *);
+extern void alloc_vrrp_group_track_bfd(const vector_t *);
 #endif
-extern void alloc_vrrp_vip(vector_t *);
-extern void alloc_vrrp_evip(vector_t *);
-extern void alloc_vrrp_vroute(vector_t *);
-extern void alloc_vrrp_vrule(vector_t *);
+extern void alloc_vrrp_vip(const vector_t *);
+extern void alloc_vrrp_evip(const vector_t *);
+extern void alloc_vrrp_vroute(const vector_t *);
+extern void alloc_vrrp_vrule(const vector_t *);
 extern void alloc_vrrp_buffer(size_t);
 extern void free_vrrp_buffer(void);
 extern vrrp_data_t *alloc_vrrp_data(void);
 extern void free_vrrp_data(vrrp_data_t *);
-extern void dump_tracking_vrrp(FILE *, void *);
+extern void dump_tracking_vrrp(FILE *, const void *);
 extern void dump_data_vrrp(FILE *);
 
 #endif

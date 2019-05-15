@@ -105,6 +105,14 @@ typedef struct dbus_queue_ent {
 	GVariant *args;
 } dbus_queue_ent_t;
 
+#define DBUS_SERVICE_NAME			"org.keepalived.Vrrp1"
+#define DBUS_VRRP_INTERFACE			"org.keepalived.Vrrp1.Vrrp"
+#define DBUS_VRRP_OBJECT_ROOT			"/org/keepalived/Vrrp1"
+#define DBUS_VRRP_INSTANCE_PATH_DEFAULT_LENGTH	8
+#define DBUS_VRRP_INSTANCE_INTERFACE		"org.keepalived.Vrrp1.Instance"
+#define DBUS_VRRP_INTERFACE_FILE_PATH		"/usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml"
+#define DBUS_VRRP_INSTANCE_INTERFACE_FILE_PATH	"/usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml"
+
 static bool dbus_running;
 
 /* Global file variables */
@@ -201,7 +209,7 @@ get_vrrp_instance(const char *ifname, int vrid, int family)
 }
 
 static gboolean
-unregister_object(gpointer key, gpointer value, __attribute__((unused)) gpointer user_data)
+unregister_object(const void * const key, gpointer value, __attribute__((unused)) gpointer user_data)
 {
 	if (g_hash_table_remove(objects, key))
 		return g_dbus_connection_unregister_object(global_connection, GPOINTER_TO_UINT(value));
@@ -467,7 +475,7 @@ static const GDBusInterfaceVTable interface_vtable =
 };
 
 static int
-dbus_create_object_params(char *instance_name, const char *interface_name, int vrid, sa_family_t family, bool log_success)
+dbus_create_object_params(const char *instance_name, const char *interface_name, int vrid, sa_family_t family, bool log_success)
 {
 	gchar *object_path;
 	GError *local_error = NULL;
@@ -489,7 +497,7 @@ dbus_create_object_params(char *instance_name, const char *interface_name, int v
 	}
 
 	if (instance) {
-		g_hash_table_insert(objects, instance_name, GUINT_TO_POINTER(instance));
+		g_hash_table_insert(objects, no_const_char_p(instance_name), GUINT_TO_POINTER(instance));
 		if (log_success)
 			log_message(LOG_INFO, "Added DBus object for instance %s on path %s", instance_name, object_path);
 	}
@@ -726,7 +734,7 @@ dbus_send_reload_signal(void)
 }
 
 static gboolean
-dbus_unregister_object(char *str)
+dbus_unregister_object(const char *str)
 {
 	gboolean ret = false;
 
@@ -744,13 +752,13 @@ dbus_unregister_object(char *str)
 }
 
 void
-dbus_remove_object(vrrp_t *vrrp)
+dbus_remove_object(const vrrp_t *vrrp)
 {
 	dbus_unregister_object(vrrp->iname);
 }
 
 static int
-handle_dbus_msg(__attribute__((unused)) thread_t *thread)
+handle_dbus_msg(__attribute__((unused)) thread_ref_t thread)
 {
 	dbus_queue_ent_t *ent;
 	char recv_buf;
@@ -846,13 +854,13 @@ dbus_reload(list o, list n)
 				 * then the dbus object will exist */
 				if (!strcmp(vrrp_n->iname, vrrp_o->iname)) {
 					match_found = true;
-					g_hash_table_replace(objects, vrrp_n->iname, g_hash_table_lookup(objects, vrrp_o->iname));
+					g_hash_table_replace(objects, no_const_char_p(vrrp_n->iname), g_hash_table_lookup(objects, vrrp_o->iname));
 					break;
 				} else {
 					gpointer instance;
 					if ((instance = g_hash_table_lookup(objects, vrrp_o->iname))) {
 						g_hash_table_remove(objects, vrrp_o->iname);
-						g_hash_table_insert(objects, vrrp_n->iname, instance);
+						g_hash_table_insert(objects, no_const_char_p(vrrp_n->iname), instance);
 					}
 					match_found = true;
 					break;

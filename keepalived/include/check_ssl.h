@@ -35,10 +35,10 @@
 extern void install_ssl_check_keyword(void);
 extern bool init_ssl_ctx(void);
 extern void clear_ssl(ssl_data_t *);
-extern int ssl_connect(thread_t *, int);
+extern int ssl_connect(thread_ref_t, int);
 extern int ssl_printerr(int);
-extern bool ssl_send_request(SSL *, char *, int);
-extern int ssl_read_thread(thread_t *);
+extern bool ssl_send_request(SSL *, const char *, int);
+extern int ssl_read_thread(thread_ref_t);
 #ifdef THREAD_DUMP
 extern void register_check_ssl_addresses(void);
 #endif

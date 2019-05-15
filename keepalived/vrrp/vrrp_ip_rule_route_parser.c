@@ -41,13 +41,13 @@
 #include "parser.h"
 
 bool
-get_realms(uint32_t *realms, char *str)
+get_realms(uint32_t *realms, const char *str)
 {
 	uint32_t val, val1;
 	char *end;
 
 	if ((end = strchr(str,'/')))
-		*end = '\0';
+		str = STRNDUP(str,  end - str);
 
 	if (!find_rttables_realms(str, &val))
 		goto err;
@@ -59,7 +59,7 @@ get_realms(uint32_t *realms, char *str)
 		val <<= 16;
 		val |= val1;
 
-		*end = '/';
+		FREE_CONST(str);
 	}
 
 	*realms = val;
@@ -68,7 +68,7 @@ get_realms(uint32_t *realms, char *str)
 
 err:
 	if (end)
-		*end = '/';
+		FREE_CONST(str);
 	return true;
 }
 

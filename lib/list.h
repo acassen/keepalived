@@ -41,7 +41,7 @@ struct _list {
 	struct _element *tail;
 	unsigned int count;
 	void (*free) (void *);
-	void (*dump) (FILE *, void *);
+	void (*dump) (FILE *, const void *);
 };
 
 /* utility macro */
@@ -96,24 +96,24 @@ struct _list {
 
 
 /* Prototypes */
-extern list alloc_mlist_r(void (*) (void *), void (*) (FILE *, void *), size_t);
+extern list alloc_mlist_r(void (*) (void *), void (*) (FILE *, const void *), size_t);
 #ifdef _VRRP_FD_DEBUG_
 extern void dump_mlist(FILE *, list, size_t);
 #endif
 extern void free_mlist_r(list, size_t);
-extern list alloc_list_r(void (*) (void *), void (*) (FILE *, void *));
+extern list alloc_list_r(void (*) (void *), void (*) (FILE *, const void *));
 extern void free_list_r(list *);
 extern void free_list_element_simple(void *);
 extern void free_list_elements_r(list);
-extern void free_list_element_r(list, element);
+extern void free_list_element_r(list, const element);
 extern void list_transfer(element, list, list);
 extern void *list_element(list, size_t) __attribute__ ((pure));
-extern void dump_list(FILE *, list);
+extern void dump_list(FILE *, const list);
 extern void list_add_r(list, void *);
 extern void list_add_head_r(list, void *);
-extern void list_remove_r(list, element);
-extern void list_extract(list, element);
-extern void list_del_r(list, void *);
-extern void free_list_data_r(list, void *);
+extern void list_remove_r(list, const element);
+extern void list_extract(list, const element);
+extern void list_del_r(list, const void *);
+extern void free_list_data_r(list, const void *);
 
 #endif

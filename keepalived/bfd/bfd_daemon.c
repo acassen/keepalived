@@ -58,10 +58,10 @@ int bfd_vrrp_event_pipe[2] = { -1, -1};
 int bfd_checker_event_pipe[2] = { -1, -1};
 
 /* Local variables */
-static char *bfd_syslog_ident;
+static const char *bfd_syslog_ident;
 
 #ifndef _DEBUG_
-static int reload_bfd_thread(thread_t *);
+static int reload_bfd_thread(thread_ref_t);
 #endif
 
 /* Daemon stop sequence */
@@ -102,10 +102,10 @@ stop_bfd(int status)
 	closelog();
 
 #ifndef _MEM_CHECK_LOG_
-	FREE_PTR(bfd_syslog_ident);
+	FREE_CONST_PTR(bfd_syslog_ident);
 #else
 	if (bfd_syslog_ident)
-		free(bfd_syslog_ident);
+		free(no_const_char_p(bfd_syslog_ident));
 #endif
 	close_std_fd();
 
@@ -229,7 +229,7 @@ bfd_signal_init(void)
 
 /* Reload thread */
 static int
-reload_bfd_thread(__attribute__((unused)) thread_t * thread)
+reload_bfd_thread(__attribute__((unused)) thread_ref_t thread)
 {
 	timeval_t timer;
 	timer = timer_now();
@@ -269,7 +269,7 @@ reload_bfd_thread(__attribute__((unused)) thread_t * thread)
 
 /* BFD Child respawning thread */
 static int
-bfd_respawn_thread(thread_t * thread)
+bfd_respawn_thread(thread_ref_t thread)
 {
 	/* We catch a SIGCHLD, handle it */
 	bfd_child = 0;
@@ -311,7 +311,7 @@ start_bfd_child(void)
 #ifndef _DEBUG_
 	pid_t pid;
 	int ret;
-	char *syslog_ident;
+	const char *syslog_ident;
 
 	/* Initialize child process */
 #ifdef ENABLE_LOG_TO_FILE

@@ -90,29 +90,29 @@ typedef enum {
 
 /* Configuration data root */
 typedef struct _data {
-	char 				*process_name;
+	const char 			*process_name;
 #ifdef _WITH_VRRP_
-	char				*vrrp_process_name;
+	const char			*vrrp_process_name;
 #endif
 #ifdef _WITH_LVS_
-	char				*lvs_process_name;
+	const char			*lvs_process_name;
 #endif
 #ifdef _WITH_BFD_
-	char				*bfd_process_name;
+	const char			*bfd_process_name;
 #endif
 #if HAVE_DECL_CLONE_NEWNET
-	char				*network_namespace;	/* network namespace name */
+	const char			*network_namespace;	/* network namespace name */
 	bool				namespace_with_ipsets;	/* override for namespaces with ipsets on Linux < 3.13 */
 #endif
-	char				*local_name;
-	char				*instance_name;		/* keepalived instance name */
+	const char			*local_name;
+	const char			*instance_name;		/* keepalived instance name */
 #ifdef _WITH_LINKBEAT_
 	bool				linkbeat_use_polling;
 #endif
-	char				*router_id;
-	char				*email_from;
+	const char			*router_id;
+	const char			*email_from;
 	struct sockaddr_storage		smtp_server;
-	char				*smtp_helo_name;
+	const char			*smtp_helo_name;
 	unsigned long			smtp_connection_to;
 	list				email;
 	int				smtp_alert;
@@ -121,7 +121,7 @@ typedef struct _data {
 	bool				allow_if_changes;
 	bool				no_email_faults;
 	int				smtp_alert_vrrp;
-	char				*default_ifname;	/* Name of default interface */
+	const char			*default_ifname;	/* Name of default interface */
 	interface_t			*default_ifp;		/* Default interface for static addresses */
 #endif
 #ifdef _WITH_LVS_
@@ -161,7 +161,7 @@ typedef struct _data {
 #endif
 #endif
 #ifdef _WITH_NFTABLES_
-	char*				vrrp_nf_table_name;
+	const char			*vrrp_nf_table_name;
 	int				vrrp_nf_chain_priority;
 	bool				vrrp_nf_counters;
 	bool				vrrp_nf_ifindex;
@@ -216,7 +216,7 @@ typedef struct _data {
 #endif
 #ifdef _WITH_SNMP_
 	bool				enable_traps;
-	char				*snmp_socket;
+	const char			*snmp_socket;
 #ifdef _WITH_VRRP_
 #ifdef _WITH_SNMP_VRRP_
 	bool				enable_snmp_vrrp;
@@ -234,7 +234,7 @@ typedef struct _data {
 #endif
 #ifdef _WITH_DBUS_
 	bool				enable_dbus;
-	char				*dbus_service_name;
+	const char			*dbus_service_name;
 #endif
 #ifdef _WITH_VRRP_
 	unsigned			vrrp_netlink_cmd_rcv_bufs;
@@ -270,7 +270,7 @@ extern data_t *global_data;	/* Global configuration data */
 extern data_t *old_global_data;	/* Old global configuration data - used during reload */
 
 /* Prototypes */
-extern void alloc_email(char *);
+extern void alloc_email(const char *);
 extern data_t *alloc_global_data(void);
 extern void init_global_data(data_t *, data_t *, bool);
 extern void free_global_data(data_t *);

@@ -50,25 +50,25 @@ enum daemon_bits {
 /* Global vars exported */
 extern const char *version_string;	/* keepalived version */
 extern unsigned long daemon_mode;	/* Which child processes are run */
-extern char *conf_file;			/* Configuration file */
+extern const char *conf_file;		/* Configuration file */
 extern int log_facility;		/* Optional logging facilities */
 #ifdef _WITH_VRRP_
 extern pid_t vrrp_child;		/* VRRP child process ID */
-extern char *vrrp_pidfile;		/* overrule default pidfile */
+extern const char *vrrp_pidfile;	/* overrule default pidfile */
 extern bool have_vrrp_instances;	/* vrrp instances configured */
 #endif
 #ifdef _WITH_LVS_
 extern pid_t checkers_child;		/* Healthcheckers child process ID */
-extern char *checkers_pidfile;		/* overrule default pidfile */
+extern const char *checkers_pidfile;	/* overrule default pidfile */
 extern bool have_virtual_servers;	/* virtual servers configured */
 #endif
 #ifdef _WITH_BFD_
 extern pid_t bfd_child;			/* BFD child process ID */
-extern char *bfd_pidfile;		/* overrule default pidfile */
+extern const char *bfd_pidfile;		/* overrule default pidfile */
 extern bool have_bfd_instances;		/* bfd instances configured */
 #endif
 extern bool reload;			/* Set during a reload */
-extern char *main_pidfile;		/* overrule default pidfile */
+extern const char *main_pidfile;	/* overrule default pidfile */
 #ifdef _WITH_SNMP_
 extern bool snmp_option;		/* Enable SNMP support */
 extern const char *snmp_socket;		/* Socket to use for SNMP agent */
@@ -80,7 +80,7 @@ extern unsigned os_release;
 
 extern void free_parent_mallocs_startup(bool);
 extern void free_parent_mallocs_exit(void);
-extern char *make_syslog_ident(const char*);
+extern const char *make_syslog_ident(const char*);
 #ifdef _WITH_VRRP_
 extern bool running_vrrp(void) __attribute__ ((pure));
 #endif

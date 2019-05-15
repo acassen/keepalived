@@ -301,8 +301,8 @@ add_counter(struct nftnl_rule *r)
 	nftnl_rule_add_expr(r, e);
 }
 
-static struct nftnl_table
-*table_add_parse(uint16_t family, char *table)
+static struct nftnl_table *
+table_add_parse(uint16_t family, const char *table)
 {
 	struct nftnl_table *t;
 
@@ -319,7 +319,7 @@ static struct nftnl_table
 }
 
 static struct
-nftnl_chain *chain_add_parse(char *table, char *name)
+nftnl_chain *chain_add_parse(const char *table, const char *name)
 {
 	struct nftnl_chain *t;
 
@@ -933,7 +933,7 @@ nft_setup_ipv4(struct mnl_nlmsg_batch *batch)
 	struct nftnl_chain *t;
 	struct nftnl_set *s;
 	struct nftnl_rule *r;
-	char *table = global_data->vrrp_nf_table_name;
+	const char *table = global_data->vrrp_nf_table_name;
 
 	/* nft add table ip keepalived */
 	ta = table_add_parse(NFPROTO_IPV4, table);
@@ -1022,7 +1022,7 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 	struct nftnl_rule *r;
 	struct nftnl_set_elem *e;
 	struct icmp6_hdr icmp6;
-	char *table = global_data->vrrp_nf_table_name;
+	const char *table = global_data->vrrp_nf_table_name;
 
 	/* nft add table ip6 keepalived */
 	ta = table_add_parse(NFPROTO_IPV6, table);

@@ -61,7 +61,7 @@
 
 /* external script we call to track local processes */
 typedef struct _vrrp_script {
-	char			*sname;		/* instance name */
+	const char		*sname;		/* instance name */
 	notify_script_t		script;		/* The script details */
 	unsigned long		interval;	/* interval between script calls */
 	unsigned long		timeout;	/* microseconds before script timeout */
@@ -84,9 +84,9 @@ typedef struct _tracked_sc {
 
 /* external file we read to track local processes */
 typedef struct _vrrp_file {
-	char			*fname;		/* File name */
-	char			*file_path;	/* Path to file */
-	char			*file_part;	/* Pointer to start of filename without directories */
+	const char		*fname;		/* File name */
+	const char		*file_path;	/* Path to file */
+	const char		*file_part;	/* Pointer to start of filename without directories */
 	int			weight;		/* Default weight */
 	int			wd;		/* Watch descriptor */
 	list			tracking_vrrp;	/* List of tracking_vrrp_t for vrrp instances tracking this file */
@@ -109,9 +109,9 @@ typedef enum _param_match {
 
 /* process we track */
 typedef struct _vrrp_process {
-	char			*pname;		/* Process name */
-	char			*process_path;	/* Path to process */
-	char			*process_params; /* NUL separated parameters */
+	const char		*pname;		/* Process name */
+	const char		*process_path;	/* Path to process */
+	const char		*process_params; /* NUL separated parameters */
 	size_t			process_params_len; /* Total length of parameters, including NULs */
 	param_match_t		param_match;	/* Full or partial match of parameters */
 	int			weight;		/* Default weight */
@@ -120,8 +120,8 @@ typedef struct _vrrp_process {
 	int			fork_delay;	/* Delay before processing process fork */
 	int			terminate_delay; /* Delay before processing process termination */
 	bool			full_command;	/* Set if match against full command line */
-	thread_t		*fork_timer_thread; /* For handling delay */
-	thread_t		*terminate_timer_thread; /* For handling delay */
+	thread_ref_t		fork_timer_thread; /* For handling delay */
+	thread_ref_t		terminate_timer_thread; /* For handling delay */
 	list			tracking_vrrp;	/* List of tracking_vrrp_t for vrrp instances tracking this process */
 	unsigned		num_cur_proc;
 	bool			have_quorum;	/* Set if quorum is treated as achieved */
@@ -183,32 +183,32 @@ typedef struct _tracking_vrrp {
 } tracking_vrrp_t;
 
 /* prototypes */
-extern void dump_track_if(FILE *, void *);
+extern void dump_track_if(FILE *, const void *);
 extern void free_track_if(void *);
-extern void alloc_track_if(struct _vrrp_t *, vector_t *);
-extern void alloc_group_track_if(struct _vrrp_sgroup *, vector_t *);
-extern void dump_track_script(FILE *, void *);
+extern void alloc_track_if(struct _vrrp_t *, const vector_t *);
+extern void alloc_group_track_if(struct _vrrp_sgroup *, const vector_t *);
+extern void dump_track_script(FILE *, const void *);
 extern void free_track_script(void *);
-extern void alloc_track_script(struct _vrrp_t *, vector_t *);
-extern void alloc_group_track_script(struct _vrrp_sgroup *, vector_t *);
-extern void dump_track_file(FILE *, void *);
+extern void alloc_track_script(struct _vrrp_t *, const vector_t *);
+extern void alloc_group_track_script(struct _vrrp_sgroup *, const vector_t *);
+extern void dump_track_file(FILE *, const void *);
 extern void free_track_file(void *);
-extern void alloc_track_file(struct _vrrp_t *, vector_t *);
-extern void alloc_group_track_file(struct _vrrp_sgroup *, vector_t *);
+extern void alloc_track_file(struct _vrrp_t *, const vector_t *);
+extern void alloc_group_track_file(struct _vrrp_sgroup *, const vector_t *);
 #ifdef _WITH_CN_PROC_
-extern void dump_track_process(FILE *, void *);
+extern void dump_track_process(FILE *, const void *);
 extern void free_track_process(void *);
-extern void alloc_track_process(struct _vrrp_t *, vector_t *);
-extern void alloc_group_track_process(struct _vrrp_sgroup *, vector_t *);
+extern void alloc_track_process(struct _vrrp_t *, const vector_t *);
+extern void alloc_group_track_process(struct _vrrp_sgroup *, const vector_t *);
 #endif
 #ifdef _WITH_BFD_
 extern vrrp_tracked_bfd_t *find_vrrp_tracked_bfd_by_name(const char *) __attribute__ ((pure));
-extern void dump_vrrp_tracked_bfd(FILE *, void *);
+extern void dump_vrrp_tracked_bfd(FILE *, const void *);
 extern void free_vrrp_tracked_bfd(void *);
-extern void alloc_track_bfd(struct _vrrp_t *, vector_t *);
-extern void alloc_group_track_bfd(struct _vrrp_sgroup *, vector_t *);
+extern void alloc_track_bfd(struct _vrrp_t *, const vector_t *);
+extern void alloc_group_track_bfd(struct _vrrp_sgroup *, const vector_t *);
 #endif
-extern vrrp_script_t *find_script_by_name(char *) __attribute__ ((pure));
+extern vrrp_script_t *find_script_by_name(const char *) __attribute__ ((pure));
 extern void update_script_priorities(vrrp_script_t *, bool);
 extern void down_instance(struct _vrrp_t *);
 extern void vrrp_set_effective_priority(struct _vrrp_t *);

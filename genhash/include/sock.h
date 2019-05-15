@@ -39,7 +39,7 @@ typedef struct {
 	int		status;
 	int		lock;
 	char		*buffer;
-	char		*extracted;
+	const char	*extracted;
 	int		size;
 	int		total_size;
 	ssize_t		content_len;

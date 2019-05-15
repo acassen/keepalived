@@ -67,7 +67,7 @@
 
 /* global vars */
 timeval_t garp_next_time;
-thread_t *garp_thread;
+thread_ref_t garp_thread;
 bool vrrp_initialised;
 
 #ifdef _TSM_DEBUG_
@@ -76,7 +76,7 @@ bool do_tsm_debug;
 
 /* local variables */
 #ifdef _WITH_BFD_
-static thread_t *bfd_thread;		 /* BFD control pipe read thread */
+static thread_ref_t bfd_thread;		 /* BFD control pipe read thread */
 #endif
 
 /* VRRP FSM (Finite State Machine) design.
@@ -104,13 +104,13 @@ static thread_t *bfd_thread;		 /* BFD control pipe read thread */
  *     +---------------+                       +---------------+
  */
 
-static int vrrp_script_child_thread(thread_t *);
-static int vrrp_script_thread(thread_t *);
+static int vrrp_script_child_thread(thread_ref_t);
+static int vrrp_script_thread(thread_ref_t);
 #ifdef _WITH_BFD_
-static int vrrp_bfd_thread(thread_t *);
+static int vrrp_bfd_thread(thread_ref_t);
 #endif
 
-static int vrrp_read_dispatcher_thread(thread_t *);
+static int vrrp_read_dispatcher_thread(thread_ref_t);
 
 /* VRRP TSM (Transition State Matrix) design.
  *
@@ -526,7 +526,7 @@ vrrp_set_fds(list l)
  * multiplexing points.
  */
 int
-vrrp_dispatcher_init(__attribute__((unused)) thread_t * thread)
+vrrp_dispatcher_init(__attribute__((unused)) thread_ref_t thread)
 {
 	vrrp_create_sockpool(vrrp_data->vrrp_socket_pool);
 
@@ -578,7 +578,7 @@ vrrp_goto_master(vrrp_t * vrrp)
 
 /* Delayed gratuitous ARP thread */
 int
-vrrp_gratuitous_arp_thread(thread_t * thread)
+vrrp_gratuitous_arp_thread(thread_ref_t thread)
 {
 	vrrp_t *vrrp = THREAD_ARG(thread);
 
@@ -590,7 +590,7 @@ vrrp_gratuitous_arp_thread(thread_t * thread)
 
 /* Delayed gratuitous ARP thread after receiving a lower priority advert */
 int
-vrrp_lower_prio_gratuitous_arp_thread(thread_t * thread)
+vrrp_lower_prio_gratuitous_arp_thread(thread_ref_t thread)
 {
 	vrrp_t *vrrp = THREAD_ARG(thread);
 
@@ -725,7 +725,7 @@ vrrp_handle_bfd_event(bfd_event_t * evt)
 }
 
 static int
-vrrp_bfd_thread(thread_t * thread)
+vrrp_bfd_thread(thread_ref_t thread)
 {
 	bfd_event_t evt;
 
@@ -785,7 +785,7 @@ static int
 vrrp_dispatcher_read(sock_t *sock)
 {
 	vrrp_t *vrrp;
-	vrrphdr_t *hd;
+	const vrrphdr_t *hd;
 	ssize_t len = 0;
 	int prev_state = 0;
 	struct sockaddr_storage src_addr = { .ss_family = AF_UNSPEC };
@@ -982,7 +982,7 @@ vrrp_dispatcher_read(sock_t *sock)
 
 /* Our read packet dispatcher */
 static int
-vrrp_read_dispatcher_thread(thread_t * thread)
+vrrp_read_dispatcher_thread(thread_ref_t thread)
 {
 	sock_t *sock;
 	int fd;
@@ -1005,7 +1005,7 @@ vrrp_read_dispatcher_thread(thread_t * thread)
 }
 
 static int
-vrrp_script_thread(thread_t * thread)
+vrrp_script_thread(thread_ref_t thread)
 {
 	vrrp_script_t *vscript = THREAD_ARG(thread);
 	int ret;
@@ -1033,7 +1033,7 @@ vrrp_script_thread(thread_t * thread)
 }
 
 static int
-vrrp_script_child_thread(thread_t * thread)
+vrrp_script_child_thread(thread_ref_t thread)
 {
 	int wait_status;
 	pid_t pid;
@@ -1223,7 +1223,7 @@ vrrp_arpna_send(vrrp_t *vrrp, list l, timeval_t *n)
 }
 
 int
-vrrp_arp_thread(thread_t *thread)
+vrrp_arp_thread(thread_ref_t thread)
 {
 	vrrp_t *vrrp;
 	element e;
@@ -1267,7 +1267,7 @@ dump_threads(void)
 	char time_buf[26];
 	element e;
 	vrrp_t *vrrp;
-	char *file_name;
+	const char *file_name;
 
 	file_name = make_file_name("/tmp/thread_dump.dat",
 					"vrrp",
@@ -1278,7 +1278,7 @@ dump_threads(void)
 #endif
 					global_data->instance_name);
 	fp = fopen_safe(file_name, "a");
-	FREE(file_name);
+	FREE_CONST(file_name);
 
 	set_time_now();
 	ctime_r(&time_now.tv_sec, time_buf);

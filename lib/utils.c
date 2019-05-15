@@ -150,7 +150,7 @@ write_stacktrace(const char *file_name, const char *str)
 }
 #endif
 
-char *
+const char *
 make_file_name(const char *name, const char *prog, const char *namespace, const char *instance)
 {
 	const char *extn_start;
@@ -209,7 +209,7 @@ run_perf(const char *process, const char *network_namespace, const char *instanc
 	int ret;
 	pid_t pid;
 	char *orig_name = NULL;
-	char *new_name;
+	const char *new_name;
 	const char *perf_name = "perf.data";
 	int in = -1;
 	int ep = -1;
@@ -321,7 +321,7 @@ run_perf(const char *process, const char *network_namespace, const char *instanc
 			if (rename(orig_name, new_name))
 				log_message(LOG_INFO, "Rename %s to %s failed - %m (%d)", orig_name, new_name, errno);
 
-			FREE(new_name);
+			FREE_CONST(new_name);
 		} while (false);
 	} while (false);
 
@@ -371,13 +371,13 @@ in_csum(const uint16_t *addr, size_t len, uint32_t csum, uint32_t *acc)
 }
 
 /* IP network to ascii representation */
-char *
+const char *
 inet_ntop2(uint32_t ip)
 {
 	static char buf[16];
-	unsigned char *bytep;
+	const unsigned char *bytep;
 
-	bytep = (unsigned char *) &(ip);
+	bytep = (const unsigned char *)&ip;
 	sprintf(buf, "%d.%d.%d.%d", bytep[0], bytep[1], bytep[2], bytep[3]);
 	return buf;
 }
@@ -390,9 +390,9 @@ inet_ntop2(uint32_t ip)
 char *
 inet_ntoa2(uint32_t ip, char *buf)
 {
-	unsigned char *bytep;
+	const unsigned char *bytep;
 
-	bytep = (unsigned char *) &(ip);
+	bytep = (const unsigned char *)&ip;
 	sprintf(buf, "%d.%d.%d.%d", bytep[0], bytep[1], bytep[2], bytep[3]);
 	return buf;
 }
@@ -483,11 +483,11 @@ domain_stosockaddr(const char *domain, const char *port, struct sockaddr_storage
 
 /* IP string to sockaddr_storage */
 int
-inet_stosockaddr(char *ip, const char *port, struct sockaddr_storage *addr)
+inet_stosockaddr(const char *ip, const char *port, struct sockaddr_storage *addr)
 {
 	void *addr_ip;
-	char *cp;
-	char sav_cp;
+	const char *cp;
+	char *ip_str = NULL;
 	unsigned port_num;
 	int res;
 
@@ -514,16 +514,13 @@ inet_stosockaddr(char *ip, const char *port, struct sockaddr_storage *addr)
 
 	/* remove range and mask stuff */
 	if ((cp = strchr(ip, '-')) ||
-	    (cp = strchr(ip, '/'))) {
-		sav_cp = *cp;
-		*cp = 0;
-	}
+	    (cp = strchr(ip, '/')))
+		ip_str = STRNDUP(ip, cp - ip);
 
-	res = inet_pton(addr->ss_family, ip, addr_ip);
+	res = inet_pton(addr->ss_family, ip_str ? ip_str : ip, addr_ip);
 
-	/* restore range and mask stuff */
-	if (cp)
-		*cp = sav_cp;
+	if (ip_str)
+		free(ip_str);
 
 	if (!res) {
 		addr->ss_family = AF_UNSPEC;
@@ -553,17 +550,18 @@ inet_ip6tosockaddr(const struct in6_addr *sin_addr, struct sockaddr_storage *add
 
 /* Check address, possibly with mask, is valid */
 bool
-check_valid_ipaddress(char *str, bool allow_subnet_mask)
+check_valid_ipaddress(const char *str, bool allow_subnet_mask)
 {
 	int family;
 	unsigned long prefixlen;
-	char *p;
+	const char *p;
 	char *endptr;
 	union {
 		struct in_addr in;
 		struct in6_addr in6;
 	} addr;
 	int res;
+	const char *str_dup = NULL;
 
 	if (!strchr(str, ':') && !strchr(str, '.'))
 		return false;
@@ -581,13 +579,13 @@ check_valid_ipaddress(char *str, bool allow_subnet_mask)
 		prefixlen = strtoul(p + 1, &endptr, 10);
 		if (*endptr || prefixlen > (family == AF_INET6 ? 128 : 32))
 			return false;
-		*p = '\0';
+		str_dup = STRNDUP(str, p - str);
 	}
 
-	res = inet_pton(family, str, &addr);
+	res = inet_pton(family, str_dup ? str_dup : str, &addr);
 
-	if (p)
-		*p = '/';
+	if (str_dup)
+		FREE_CONST(str_dup);
 
 	return res;
 }
@@ -612,7 +610,7 @@ inet_sockaddrtos2(const struct sockaddr_storage *addr, char *addr_str)
 	return addr_str;
 }
 
-char *
+const char *
 inet_sockaddrtos(const struct sockaddr_storage *addr)
 {
 	static char addr_str[INET6_ADDRSTRLEN];
@@ -646,7 +644,7 @@ inet_set_sockaddrport(struct sockaddr_storage *addr, uint16_t port)
 	}
 }
 
-char *
+const char *
 inet_sockaddrtopair(const struct sockaddr_storage *addr)
 {
 	char addr_str[INET6_ADDRSTRLEN];
@@ -832,13 +830,12 @@ format_mac_buf(char *op, size_t op_len, const unsigned char *addr, size_t addr_l
 }
 
 /* Getting localhost official canonical name */
-char *
+const char * __attribute__((malloc))
 get_local_name(void)
 {
 	struct utsname name;
 	struct addrinfo hints, *res = NULL;
 	char *canonname = NULL;
-	size_t len = 0;
 
 	memset(&hints, 0, sizeof(struct addrinfo));
 	hints.ai_flags = AI_CANONNAME;
@@ -849,13 +846,8 @@ get_local_name(void)
 	if (getaddrinfo(name.nodename, NULL, &hints, &res) != 0)
 		return NULL;
 
-	if (res && res->ai_canonname) {
-		len = strlen(res->ai_canonname);
-		canonname = MALLOC(len + 1);
-		if (canonname) {
-			memcpy(canonname, res->ai_canonname, len);
-		}
-	}
+	if (res && res->ai_canonname)
+		canonname = STRDUP(res->ai_canonname);
 
 	freeaddrinfo(res);
 

@@ -45,8 +45,8 @@
 #include "scheduler.h"
 #endif
 
-static int misc_check_thread(thread_t *);
-static int misc_check_child_thread(thread_t *);
+static int misc_check_thread(thread_ref_t);
+static int misc_check_child_thread(thread_ref_t);
 
 static bool script_user_set;
 static misc_checker_t *new_misck_checker;
@@ -60,20 +60,19 @@ clear_dynamic_misc_check_flag(void)
 
 /* Configuration stream handling */
 static void
-free_misc_check(void *data)
+free_misc_check(checker_t *checker)
 {
-	misc_checker_t *misck_checker = CHECKER_DATA(data);
+	misc_checker_t *misck_checker = checker->data;
 
 	FREE(misck_checker->script.args);
 	FREE(misck_checker);
-	FREE(data);
+	FREE(checker);
 }
 
 static void
-dump_misc_check(FILE *fp, void *data)
+dump_misc_check(FILE *fp, const checker_t *checker)
 {
-	checker_t *checker = data;
-	misc_checker_t *misck_checker = checker->data;
+	const misc_checker_t *misck_checker = checker->data;
 
 	conf_write(fp, "   Keepalive method = MISC_CHECK");
 	conf_write(fp, "   script = %s", cmd_str(&misck_checker->script));
@@ -84,16 +83,16 @@ dump_misc_check(FILE *fp, void *data)
 }
 
 static bool
-misc_check_compare(void *a, void *b)
+misc_check_compare(const checker_t *old_c, const checker_t *new_c)
 {
-	misc_checker_t *old = CHECKER_DATA(a);
-	misc_checker_t *new = CHECKER_DATA(b);
+	const misc_checker_t *old = old_c->data;
+	const misc_checker_t *new = new_c->data;
 
 	return notify_script_compare(&old->script, &new->script);
 }
 
 static void
-misc_check_handler(__attribute__((unused)) vector_t *strvec)
+misc_check_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	checker_t *checker;
 
@@ -110,9 +109,9 @@ misc_check_handler(__attribute__((unused)) vector_t *strvec)
 }
 
 static void
-misc_path_handler(__attribute__((unused)) vector_t *strvec)
+misc_path_handler(__attribute__((unused)) const vector_t *strvec)
 {
-	vector_t *strvec_qe;
+	const vector_t *strvec_qe;
 
 	if (!new_misck_checker)
 		return;
@@ -126,7 +125,7 @@ misc_path_handler(__attribute__((unused)) vector_t *strvec)
 }
 
 static void
-misc_timeout_handler(vector_t *strvec)
+misc_timeout_handler(const vector_t *strvec)
 {
 	unsigned timeout;
 
@@ -134,7 +133,7 @@ misc_timeout_handler(vector_t *strvec)
 		return;
 
 	if (!read_unsigned_strvec(strvec, 1, &timeout, 0, UINT_MAX / TIMER_HZ, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Invalid misc_timeout value '%s'", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid misc_timeout value '%s'", strvec_slot(strvec, 1));
 		return;
 	}
 
@@ -142,7 +141,7 @@ misc_timeout_handler(vector_t *strvec)
 }
 
 static void
-misc_dynamic_handler(__attribute__((unused)) vector_t *strvec)
+misc_dynamic_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	if (!new_misck_checker)
 		return;
@@ -156,7 +155,7 @@ misc_dynamic_handler(__attribute__((unused)) vector_t *strvec)
 }
 
 static void
-misc_user_handler(vector_t *strvec)
+misc_user_handler(const vector_t *strvec)
 {
 	if (!new_misck_checker)
 		return;
@@ -266,7 +265,7 @@ check_misc_script_security(magic_t magic)
 }
 
 static int
-misc_check_thread(thread_t * thread)
+misc_check_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	misc_checker_t *misck_checker;
@@ -298,7 +297,7 @@ misc_check_thread(thread_t * thread)
 }
 
 static int
-misc_check_child_thread(thread_t * thread)
+misc_check_child_thread(thread_ref_t thread)
 {
 	int wait_status;
 	pid_t pid;

@@ -47,13 +47,13 @@
 #include "vrrp_notify.h"
 
 static int inotify_fd = -1;
-static thread_t *inotify_thread;
+static thread_ref_t inotify_thread;
 
 /* Track interface dump */
 void
-dump_track_if(FILE *fp, void *track_data)
+dump_track_if(FILE *fp, const void *track_data)
 {
-	tracked_if_t *tip = track_data;
+	const tracked_if_t *tip = track_data;
 	conf_write(fp, "     %s weight %d", IF_NAME(tip->ifp), tip->weight);
 }
 
@@ -64,12 +64,12 @@ free_track_if(void *tip)
 }
 
 void
-alloc_track_if(vrrp_t *vrrp, vector_t *strvec)
+alloc_track_if(vrrp_t *vrrp, const vector_t *strvec)
 {
 	interface_t *ifp = NULL;
 	tracked_if_t *tip = NULL;
 	int weight = 0;
-	char *tracked = strvec_slot(strvec, 0);
+	const char *tracked = strvec_slot(strvec, 0);
 	element e;
 
 	ifp = if_get_by_ifname(tracked, IF_CREATE_IF_DYNAMIC);
@@ -91,7 +91,7 @@ alloc_track_if(vrrp_t *vrrp, vector_t *strvec)
 	    !strcmp(strvec_slot(strvec, 1), "weight")) {
 		if (!read_int_strvec(strvec, 2, &weight, -254, 254, true)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight %s for %s must be between "
-					 "[-253..253] inclusive. Ignoring...", vrrp->iname, FMT_STR_VSLOT(strvec, 2), tracked);
+					 "[-253..253] inclusive. Ignoring...", vrrp->iname, strvec_slot(strvec, 2), tracked);
 			weight = 0;
 		}
 		else if (weight == -254 || weight == 254) {
@@ -109,12 +109,12 @@ alloc_track_if(vrrp_t *vrrp, vector_t *strvec)
 }
 
 void
-alloc_group_track_if(vrrp_sgroup_t *sgroup, vector_t *strvec)
+alloc_group_track_if(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 {
 	interface_t *ifp;
 	tracked_if_t *tip;
 	int weight = 0;
-	char *tracked = strvec_slot(strvec, 0);
+	const char *tracked = strvec_slot(strvec, 0);
 	element e;
 
 	ifp = if_get_by_ifname(tracked, IF_CREATE_IF_DYNAMIC);
@@ -154,7 +154,7 @@ alloc_group_track_if(vrrp_sgroup_t *sgroup, vector_t *strvec)
 }
 
 vrrp_script_t * __attribute__ ((pure))
-find_script_by_name(char *name)
+find_script_by_name(const char *name)
 {
 	element e;
 	vrrp_script_t *scr;
@@ -162,8 +162,7 @@ find_script_by_name(char *name)
 	if (LIST_ISEMPTY(vrrp_data->vrrp_script))
 		return NULL;
 
-	for (e = LIST_HEAD(vrrp_data->vrrp_script); e; ELEMENT_NEXT(e)) {
-		scr = ELEMENT_DATA(e);
+	LIST_FOREACH(vrrp_data->vrrp_script, scr, e) {
 		if (!strcmp(scr->sname, name))
 			return scr;
 	}
@@ -172,9 +171,9 @@ find_script_by_name(char *name)
 
 /* Track script dump */
 void
-dump_track_script(FILE *fp, void *track_data)
+dump_track_script(FILE *fp, const void *track_data)
 {
-	tracked_sc_t *tsc = track_data;
+	const tracked_sc_t *tsc = track_data;
 	conf_write(fp, "     %s weight %d", tsc->scr->sname, tsc->weight);
 }
 
@@ -185,12 +184,12 @@ free_track_script(void *tsc)
 }
 
 void
-alloc_track_script(vrrp_t *vrrp, vector_t *strvec)
+alloc_track_script(vrrp_t *vrrp, const vector_t *strvec)
 {
 	vrrp_script_t *vsc;
 	tracked_sc_t *tsc;
 	int weight;
-	char *tracked = strvec_slot(strvec, 0);
+	const char *tracked = strvec_slot(strvec, 0);
 	element e;
 	tracked_sc_t *etsc;
 
@@ -239,12 +238,12 @@ alloc_track_script(vrrp_t *vrrp, vector_t *strvec)
 }
 
 void
-alloc_group_track_script(vrrp_sgroup_t *sgroup, vector_t *strvec)
+alloc_group_track_script(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 {
 	vrrp_script_t *vsc = NULL;
 	tracked_sc_t *tsc = NULL;
 	int weight = 0;
-	char *tracked = strvec_slot(strvec, 0);
+	const char *tracked = strvec_slot(strvec, 0);
 	tracked_sc_t *etsc = NULL;
 	element e;
 
@@ -311,9 +310,9 @@ find_tracked_file_by_name(const char *name)
 
 /* Track file dump */
 void
-dump_track_file(FILE *fp, void *track_data)
+dump_track_file(FILE *fp, const void *track_data)
 {
-	tracked_file_t *tfile = track_data;
+	const tracked_file_t *tfile = track_data;
 	conf_write(fp, "     %s, weight %d", tfile->file->fname, tfile->weight);
 }
 
@@ -324,11 +323,11 @@ free_track_file(void *tsf)
 }
 
 void
-alloc_track_file(vrrp_t *vrrp, vector_t *strvec)
+alloc_track_file(vrrp_t *vrrp, const vector_t *strvec)
 {
 	vrrp_tracked_file_t *vsf;
 	tracked_file_t *tfile;
-	char *tracked = strvec_slot(strvec, 0);
+	const char *tracked = strvec_slot(strvec, 0);
 	tracked_file_t *etfile;
 	element e;
 	int weight;
@@ -356,7 +355,7 @@ alloc_track_file(vrrp_t *vrrp, vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		if (strcmp(strvec_slot(strvec, 1), "weight")) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track file option %s - ignoring",
-					 vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+					 vrrp->iname, strvec_slot(strvec, 1));
 			return;
 		}
 		if (vector_size(strvec) >= 3) {
@@ -379,11 +378,11 @@ alloc_track_file(vrrp_t *vrrp, vector_t *strvec)
 }
 
 void
-alloc_group_track_file(vrrp_sgroup_t *sgroup, vector_t *strvec)
+alloc_group_track_file(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 {
 	vrrp_tracked_file_t *vsf;
 	tracked_file_t *tfile;
-	char *tracked = strvec_slot(strvec, 0);
+	const char *tracked = strvec_slot(strvec, 0);
 	tracked_file_t *etfile;
 	element e;
 	int weight;
@@ -411,7 +410,7 @@ alloc_group_track_file(vrrp_sgroup_t *sgroup, vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		if (strcmp(strvec_slot(strvec, 1), "weight")) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track file option %s - ignoring",
-					 sgroup->gname, FMT_STR_VSLOT(strvec, 1));
+					 sgroup->gname, strvec_slot(strvec, 1));
 			return;
 		}
 		if (vector_size(strvec) >= 3) {
@@ -452,9 +451,9 @@ find_tracked_process_by_name(const char *name)
 
 /* Track process dump */
 void
-dump_track_process(FILE *fp, void *track_data)
+dump_track_process(FILE *fp, const void *track_data)
 {
-	tracked_process_t *tprocess = track_data;
+	const tracked_process_t *tprocess = track_data;
 	conf_write(fp, "     %s, weight %d", tprocess->process->pname, tprocess->weight);
 }
 
@@ -465,11 +464,11 @@ free_track_process(void *tsf)
 }
 
 void
-alloc_track_process(vrrp_t *vrrp, vector_t *strvec)
+alloc_track_process(vrrp_t *vrrp, const vector_t *strvec)
 {
 	vrrp_tracked_process_t *vsp;
 	tracked_process_t *tprocess;
-	char *tracked = strvec_slot(strvec, 0);
+	const char *tracked = strvec_slot(strvec, 0);
 	tracked_process_t *etprocess;
 	element e;
 	int weight;
@@ -494,7 +493,7 @@ alloc_track_process(vrrp_t *vrrp, vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		if (strcmp(strvec_slot(strvec, 1), "weight")) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track process option %s - ignoring",
-					 vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+					 vrrp->iname, strvec_slot(strvec, 1));
 			return;
 		}
 		if (vector_size(strvec) >= 3) {
@@ -517,11 +516,11 @@ alloc_track_process(vrrp_t *vrrp, vector_t *strvec)
 }
 
 void
-alloc_group_track_process(vrrp_sgroup_t *sgroup, vector_t *strvec)
+alloc_group_track_process(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 {
 	vrrp_tracked_process_t *vsp;
 	tracked_process_t *tprocess;
-	char *tracked = strvec_slot(strvec, 0);
+	const char *tracked = strvec_slot(strvec, 0);
 	tracked_process_t *etprocess;
 	element e;
 	int weight;
@@ -546,7 +545,7 @@ alloc_group_track_process(vrrp_sgroup_t *sgroup, vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		if (strcmp(strvec_slot(strvec, 1), "weight")) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track process option %s - ignoring",
-					 sgroup->gname, FMT_STR_VSLOT(strvec, 1));
+					 sgroup->gname, strvec_slot(strvec, 1));
 			return;
 		}
 		if (vector_size(strvec) >= 3) {
@@ -585,9 +584,9 @@ find_vrrp_tracked_bfd_by_name(const char *name)
 
 /* Track bfd dump */
 void
-dump_vrrp_tracked_bfd(FILE *fp, void *track_data)
+dump_vrrp_tracked_bfd(FILE *fp, const void *track_data)
 {
-	tracked_bfd_t *tbfd = track_data;
+	const tracked_bfd_t *tbfd = track_data;
 	conf_write(fp, "     %s: weight %d", tbfd->bfd->bname, tbfd->weight);
 }
 
@@ -598,11 +597,11 @@ free_vrrp_tracked_bfd(void *bfd)
 }
 
 void
-alloc_track_bfd(vrrp_t *vrrp, vector_t *strvec)
+alloc_track_bfd(vrrp_t *vrrp, const vector_t *strvec)
 {
 	vrrp_tracked_bfd_t *vtb;
 	tracked_bfd_t *tbfd;
-	char *tracked = strvec_slot(strvec, 0);
+	const char *tracked = strvec_slot(strvec, 0);
 	tracked_bfd_t *etbfd;
 	element e;
 	int weight;
@@ -627,7 +626,7 @@ alloc_track_bfd(vrrp_t *vrrp, vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		if (strcmp(strvec_slot(strvec, 1), "weight")) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track bfd option %s - ignoring",
-					 vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+					 vrrp->iname, strvec_slot(strvec, 1));
 			return;
 		}
 		if (vector_size(strvec) >= 3) {
@@ -650,11 +649,11 @@ alloc_track_bfd(vrrp_t *vrrp, vector_t *strvec)
 }
 
 void
-alloc_group_track_bfd(vrrp_sgroup_t *sgroup, vector_t *strvec)
+alloc_group_track_bfd(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 {
 	vrrp_tracked_bfd_t *vtb;
 	tracked_bfd_t *tbfd;
-	char *tracked = strvec_slot(strvec, 0);
+	const char *tracked = strvec_slot(strvec, 0);
 	tracked_bfd_t *etbfd;
 	element e;
 	int weight;
@@ -679,7 +678,7 @@ alloc_group_track_bfd(vrrp_sgroup_t *sgroup, vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		if (strcmp(strvec_slot(strvec, 1), "weight")) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track bfd option %s - ignoring",
-					 sgroup->gname, FMT_STR_VSLOT(strvec, 1));
+					 sgroup->gname, strvec_slot(strvec, 1));
 			return;
 		}
 		if (vector_size(strvec) >= 3) {
@@ -1138,7 +1137,7 @@ process_track_file(vrrp_tracked_file_t *tfile, bool init)
 }
 
 static int
-process_inotify(thread_t *thread)
+process_inotify(thread_ref_t thread)
 {
 	char buf[sizeof(struct inotify_event) + NAME_MAX + 1];
 	char *buf_ptr;
@@ -1209,7 +1208,6 @@ init_track_files(list track_files)
 	char *dir_end = NULL;
 	char *new_path;
 	struct stat stat_buf;
-	char sav_ch;
 	element e, next;
 
 	inotify_fd = -1;
@@ -1243,9 +1241,8 @@ init_track_files(list track_files)
 		resolved_path = realpath(tfile->file_path, NULL);
 		if (resolved_path) {
 			if (strcmp(tfile->file_path, resolved_path)) {
-				FREE(tfile->file_path);
-				tfile->file_path = MALLOC(strlen(resolved_path) + 1);
-				strcpy(tfile->file_path, resolved_path);
+				FREE_CONST(tfile->file_path);
+				tfile->file_path = STRDUP(resolved_path);
 			}
 
 			/* The file exists, so read it now */
@@ -1280,7 +1277,7 @@ init_track_files(list track_files)
 				strcpy(new_path, resolved_path);
 				strcat(new_path, "/");
 				strcat(new_path, dir_end ? dir_end + 1 : tfile->file_path);
-				FREE(tfile->file_path);
+				FREE_CONST(tfile->file_path);
 				tfile->file_path = new_path;
 			}
 			else if (dir_end)
@@ -1297,10 +1294,9 @@ init_track_files(list track_files)
 			free(resolved_path);
 
 		tfile->file_part = strrchr(tfile->file_path, '/') + 1;
-		sav_ch = *tfile->file_part;
-		*tfile->file_part = '\0';
-		tfile->wd = inotify_add_watch(inotify_fd, tfile->file_path, IN_CLOSE_WRITE | IN_DELETE | IN_MOVE);
-		*tfile->file_part = sav_ch;
+		new_path = STRNDUP(tfile->file_path, tfile->file_part - tfile->file_path);
+		tfile->wd = inotify_add_watch(inotify_fd, new_path, IN_CLOSE_WRITE | IN_DELETE | IN_MOVE);
+		FREE(new_path);
 	}
 
 	inotify_thread = thread_add_read(master, process_inotify, NULL, inotify_fd, TIMER_NEVER, false);

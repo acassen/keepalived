@@ -153,7 +153,7 @@ notify_group_fifo(const vrrp_sgroup_t *vgroup)
 }
 
 static void
-notify_script_exec(notify_script_t* script, char *type, int state_num, char* name, int prio)
+notify_script_exec(notify_script_t* script, char *type, int state_num, const char* name, int prio)
 {
 	char prio_buf[4];
 

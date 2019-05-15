@@ -97,7 +97,7 @@ tcp_connect(int fd, REQ * req_obj)
 }
 
 static enum connect_result
-tcp_socket_state(thread_t * thread, int (*func) (thread_t *))
+tcp_socket_state(thread_ref_t thread, thread_func_t func)
 {
 	int status;
 	socklen_t slen;
@@ -150,8 +150,8 @@ tcp_socket_state(thread_t * thread, int (*func) (thread_t *))
 }
 
 static void
-tcp_connection_state(int fd, enum connect_result status, thread_t * thread,
-		     int (*func) (thread_t *)
+tcp_connection_state(int fd, enum connect_result status, thread_ref_t thread
+		     , thread_func_t func
 		     , unsigned long timeout)
 {
 	switch (status) {
@@ -177,7 +177,7 @@ tcp_connection_state(int fd, enum connect_result status, thread_t * thread,
 }
 
 static int
-tcp_check_thread(thread_t * thread)
+tcp_check_thread(thread_ref_t thread)
 {
 	SOCK *sock_obj = THREAD_ARG(thread);
 	int ret = 1;
@@ -226,7 +226,7 @@ tcp_check_thread(thread_t * thread)
 }
 
 int
-tcp_connect_thread(thread_t * thread)
+tcp_connect_thread(thread_ref_t thread)
 {
 	SOCK *sock_obj = THREAD_ARG(thread);
 

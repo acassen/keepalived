@@ -44,15 +44,15 @@ free_tgroup(void *data)
 		log_message(LOG_INFO, "track group %s - iname vector exists when freeing group", tgroup->gname);
 		free_strvec(tgroup->iname);
 	}
-	FREE(tgroup->gname);
+	FREE_CONST(tgroup->gname);
 	free_list(&tgroup->vrrp_instances);
 	FREE(tgroup);
 }
 
 void
-dump_tgroup(FILE *fp, void *data)
+dump_tgroup(FILE *fp, const void *data)
 {
-	static_track_group_t *tgroup = data;
+	const static_track_group_t *tgroup = data;
 	vrrp_t *vrrp;
 	element e;
 

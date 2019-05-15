@@ -110,24 +110,24 @@
 
 /* global var */
 const char *version_string = VERSION_STRING;		/* keepalived version */
-char *conf_file = KEEPALIVED_CONFIG_FILE;		/* Configuration file */
+const char *conf_file = KEEPALIVED_CONFIG_FILE;		/* Configuration file */
 int log_facility = LOG_DAEMON;				/* Optional logging facilities */
 bool reload;						/* Set during a reload */
-char *main_pidfile;					/* overrule default pidfile */
+const char *main_pidfile;				/* overrule default pidfile */
 static bool free_main_pidfile;
 #ifdef _WITH_LVS_
 pid_t checkers_child;					/* Healthcheckers child process ID */
-char *checkers_pidfile;					/* overrule default pidfile */
+const char *checkers_pidfile;				/* overrule default pidfile */
 static bool free_checkers_pidfile;
 #endif
 #ifdef _WITH_VRRP_
 pid_t vrrp_child;					/* VRRP child process ID */
-char *vrrp_pidfile;					/* overrule default pidfile */
+const char *vrrp_pidfile;				/* overrule default pidfile */
 static bool free_vrrp_pidfile;
 #endif
 #ifdef _WITH_BFD_
 pid_t bfd_child;					/* BFD child process ID */
-char *bfd_pidfile;					/* overrule default pidfile */
+const char *bfd_pidfile;				/* overrule default pidfile */
 static bool free_bfd_pidfile;
 #endif
 unsigned long daemon_mode;				/* VRRP/CHECK/BFD subsystem selection */
@@ -135,7 +135,7 @@ unsigned long daemon_mode;				/* VRRP/CHECK/BFD subsystem selection */
 bool snmp_option;					/* Enable SNMP support */
 const char *snmp_socket;				/* Socket to use for SNMP agent */
 #endif
-static char *syslog_ident;				/* syslog ident if not default */
+static const char *syslog_ident;			/* syslog ident if not default */
 bool use_pid_dir;					/* Put pid files in /var/run/keepalived or @localstatedir@/run/keepalived */
 
 unsigned os_major;					/* Kernel version */
@@ -211,9 +211,9 @@ free_parent_mallocs_startup(bool am_child)
 		free_dirname();
 #endif
 #ifndef _MEM_CHECK_LOG_
-		FREE_PTR(syslog_ident);
+		FREE_CONST_PTR(syslog_ident);
 #else
-		free(syslog_ident);
+		free(no_const_char_p(syslog_ident));
 #endif
 		syslog_ident = NULL;
 
@@ -221,7 +221,7 @@ free_parent_mallocs_startup(bool am_child)
 	}
 
 	if (free_main_pidfile) {
-		FREE_PTR(main_pidfile);
+		FREE_CONST_PTR(main_pidfile);
 		free_main_pidfile = false;
 	}
 }
@@ -231,21 +231,21 @@ free_parent_mallocs_exit(void)
 {
 #ifdef _WITH_VRRP_
 	if (free_vrrp_pidfile)
-		FREE_PTR(vrrp_pidfile);
+		FREE_CONST_PTR(vrrp_pidfile);
 #endif
 #ifdef _WITH_LVS_
 	if (free_checkers_pidfile)
-		FREE_PTR(checkers_pidfile);
+		FREE_CONST_PTR(checkers_pidfile);
 #endif
 #ifdef _WITH_BFD_
 	if (free_bfd_pidfile)
-		FREE_PTR(bfd_pidfile);
+		FREE_CONST_PTR(bfd_pidfile);
 #endif
 
-	FREE_PTR(config_id);
+	FREE_CONST_PTR(config_id);
 }
 
-char *
+const char *
 make_syslog_ident(const char* name)
 {
 	size_t ident_len = strlen(name) + 1;
@@ -362,7 +362,7 @@ find_keepalived_child_name(pid_t pid)
 	return NULL;
 }
 
-static vector_t *
+static const vector_t *
 global_init_keywords(void)
 {
 	/* global definitions mapping */
@@ -522,9 +522,8 @@ static bool reload_config(void)
 
 #if HAVE_DECL_CLONE_NEWNET
 	if (override_namespace) {
-		FREE_PTR(global_data->network_namespace);
-		global_data->network_namespace = MALLOC(strlen(override_namespace) + 1);
-		strcpy(global_data->network_namespace, override_namespace);
+		FREE_CONST_PTR(global_data->network_namespace);
+		global_data->network_namespace = STRDUP(override_namespace);
 	}
 
 	if (!!old_global_data->network_namespace != !!global_data->network_namespace ||
@@ -532,7 +531,7 @@ static bool reload_config(void)
 		log_message(LOG_INFO, "Cannot change network namespace at a reload - please restart %s", PACKAGE);
 		unsupported_change = true;
 	}
-	FREE_PTR(global_data->network_namespace);
+	FREE_CONST_PTR(global_data->network_namespace);
 	global_data->network_namespace = old_global_data->network_namespace;
 	old_global_data->network_namespace = NULL;
 #endif
@@ -542,7 +541,7 @@ static bool reload_config(void)
 		log_message(LOG_INFO, "Cannot change instance name at a reload - please restart %s", PACKAGE);
 		unsupported_change = true;
 	}
-	FREE_PTR(global_data->instance_name);
+	FREE_CONST_PTR(global_data->instance_name);
 	global_data->instance_name = old_global_data->instance_name;
 	old_global_data->instance_name = NULL;
 
@@ -552,7 +551,7 @@ static bool reload_config(void)
 		log_message(LOG_INFO, "Cannot change nftables table name at a reload - please restart %s", PACKAGE);
 		unsupported_change = true;
 	}
-	FREE_PTR(global_data->vrrp_nf_table_name);
+	FREE_CONST_PTR(global_data->vrrp_nf_table_name);
 	global_data->vrrp_nf_table_name = old_global_data->vrrp_nf_table_name;
 	old_global_data->vrrp_nf_table_name = NULL;
 #endif
@@ -1565,9 +1564,8 @@ parse_cmdline(int argc, char **argv)
 			break;
 #endif
 		case 'i':
-			FREE_PTR(config_id);
-			config_id = MALLOC(strlen(optarg) + 1);
-			strcpy(config_id, optarg);
+			FREE_CONST_PTR(config_id);
+			config_id = STRDUP(optarg);
 			break;
 		case 4:			/* --signum */
 			signum = get_signum(optarg);
@@ -1741,9 +1739,7 @@ keepalived_main(int argc, char **argv)
 		/* config_id defaults to hostname */
 		if (!config_id) {
 			end = strchrnul(uname_buf.nodename, '.');
-			config_id = MALLOC((size_t)(end - uname_buf.nodename) + 1);
-			strncpy(config_id, uname_buf.nodename, (size_t)(end - uname_buf.nodename));
-			config_id[end - uname_buf.nodename] = '\0';
+			config_id = STRNDUP(uname_buf.nodename, (size_t)(end - uname_buf.nodename));
 		}
 	}
 
@@ -1820,10 +1816,9 @@ keepalived_main(int argc, char **argv)
 	if (override_namespace) {
 		if (global_data->network_namespace) {
 			log_message(LOG_INFO, "Overriding config net_namespace '%s' with command line namespace '%s'", global_data->network_namespace, override_namespace);
-			FREE(global_data->network_namespace);
+			FREE_CONST(global_data->network_namespace);
 		}
-		global_data->network_namespace = MALLOC(strlen(override_namespace) + 1);
-		strcpy(global_data->network_namespace, override_namespace);
+		global_data->network_namespace = STRDUP(override_namespace);
 	}
 #endif
 
@@ -1944,7 +1939,7 @@ keepalived_main(int argc, char **argv)
 	if (!__test_bit(DONT_FORK_BIT, &debug) &&
 	    xdaemon(false, false, true) > 0) {
 		closelog();
-		FREE_PTR(config_id);
+		FREE_CONST_PTR(config_id);
 		FREE_PTR(orig_core_dump_pattern);
 		close_std_fd();
 		exit(0);
@@ -2022,10 +2017,10 @@ end:
 	closelog();
 
 #ifndef _MEM_CHECK_LOG_
-	FREE_PTR(syslog_ident);
+	FREE_CONST_PTR(syslog_ident);
 #else
 	if (syslog_ident)
-		free(syslog_ident);
+		free(no_const_char_p(syslog_ident));
 #endif
 	close_std_fd();
 

@@ -80,12 +80,12 @@ free_bfd(void *data)
 
 /* Dump BFD instance configuration parameters */
 static void
-dump_bfd(FILE *fp, void *data)
+dump_bfd(FILE *fp, const void *data)
 {
-	bfd_t *bfd;
+	const bfd_t *bfd;
 
 	assert(data);
-	bfd = (bfd_t *)data;
+	bfd = (const bfd_t *)data;
 
 	conf_write(fp, " BFD Instance = %s", bfd->iname);
 	conf_write(fp, "   Neighbor IP = %s",
@@ -183,7 +183,7 @@ free_bfd_data(bfd_data_t * data)
 }
 
 void
-dump_bfd_data(FILE *fp, bfd_data_t * data)
+dump_bfd_data(FILE *fp, const bfd_data_t * data)
 {
 	assert(data);
 

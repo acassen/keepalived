@@ -41,33 +41,31 @@
 #include "scheduler.h"
 #endif
 
-static int tcp_connect_thread(thread_t *);
+static int tcp_connect_thread(thread_ref_t);
 
 /* Configuration stream handling */
 static void
-free_tcp_check(void *data)
+free_tcp_check(checker_t *checker)
 {
-	FREE(CHECKER_CO(data));
-	FREE(data);
+	FREE(checker->co);
+	FREE(checker);
 }
 
 static void
-dump_tcp_check(FILE *fp, void *data)
+dump_tcp_check(FILE *fp, const checker_t *checker)
 {
-	checker_t *checker = data;
-
 	conf_write(fp, "   Keepalive method = TCP_CHECK");
 	dump_checker_opts(fp, checker);
 }
 
 static bool
-tcp_check_compare(void *a, void *b)
+tcp_check_compare(const checker_t *old_c, const checker_t *new_c)
 {
-	return compare_conn_opts(CHECKER_CO(a), CHECKER_CO(b));
+	return compare_conn_opts(old_c->co, new_c->co);
 }
 
 static void
-tcp_check_handler(__attribute__((unused)) vector_t *strvec)
+tcp_check_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	/* queue new checker */
 	queue_checker(free_tcp_check, dump_tcp_check, tcp_connect_thread,
@@ -93,7 +91,7 @@ install_tcp_check_keyword(void)
 }
 
 static void
-tcp_epilog(thread_t * thread, bool is_success)
+tcp_epilog(thread_ref_t thread, bool is_success)
 {
 	checker_t *checker;
 	unsigned long delay;
@@ -147,7 +145,7 @@ tcp_epilog(thread_t * thread, bool is_success)
 }
 
 static int
-tcp_check_thread(thread_t * thread)
+tcp_check_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	int status;
@@ -184,7 +182,7 @@ tcp_check_thread(thread_t * thread)
 }
 
 static int
-tcp_connect_thread(thread_t * thread)
+tcp_connect_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	conn_opts_t *co = checker->co;

@@ -40,9 +40,15 @@
 
 #define MALLOC(n)    ( keepalived_malloc((n), \
 		      (__FILE__), (__func__), (__LINE__)) )
+#define STRDUP(p)    (keepalived_strdup((p), \
+		      (__FILE__), (__func__), (__LINE__)) )
+#define STRNDUP(p,n) (keepalived_strndup((p),(n), \
+		      (__FILE__), (__func__), (__LINE__)) )
 #define FREE(b)      ( keepalived_free((b), \
 		      (__FILE__), (__func__), (__LINE__)), \
 		       (b) = NULL )
+#define FREE_ONLY(b) ( keepalived_free((b), \
+		      (__FILE__), (__func__), (__LINE__)))
 #define REALLOC(b,n) ( keepalived_realloc((b), (n), \
 		      (__FILE__), (__func__), (__LINE__)) )
 
@@ -52,6 +58,10 @@ extern size_t mem_allocated;
 extern void memcheck_log(const char *, const char *, const char *, const char *, int);
 extern void *keepalived_malloc(size_t, const char *, const char *, int)
 		__attribute__((alloc_size(1))) __attribute__((malloc));
+extern char *keepalived_strdup(const char *, const char *, const char *, int)
+		__attribute__((malloc)) __nonnull ((1));
+extern char *keepalived_strndup(const char *, size_t, const char *, const char *, int)
+		__attribute__((malloc)) __nonnull ((1));
 extern void keepalived_free(void *, const char *, const char *, int);
 extern void *keepalived_realloc(void *, size_t, const char *, const char *, int)
 		__attribute__((alloc_size(2)));
@@ -68,11 +78,24 @@ extern void *zalloc(unsigned long size);
 
 #define MALLOC(n)    (zalloc(n))
 #define FREE(p)      (free(p), (p) = NULL)
+#define FREE_ONLY(p) (free(p))
 #define REALLOC(p,n) (realloc((p),(n)))
+#define STRDUP(p)    (strdup(p))
+#define STRNDUP(p,n) (strndup((p),(n)))
 
 #endif
 
 /* Common defines */
+typedef union _ptr_hack {
+	void *p;
+	const void *cp;
+} ptr_hack_t;
+
+#define FREE_CONST(ptr) { ptr_hack_t ptr_hack = { .cp = ptr }; FREE(ptr_hack.p); }
+#define FREE_CONST_ONLY(ptr) { ptr_hack_t ptr_hack = { .cp = ptr }; FREE_ONLY(ptr_hack.p); }
+#define REALLOC_CONST(ptr, n) ({ ptr_hack_t ptr_hack = { .cp = ptr }; REALLOC(ptr_hack.p, n); })
+
 #define PMALLOC(p)	{ p = MALLOC(sizeof(*p)); }
 #define FREE_PTR(p)	{ if (p) { FREE(p);} }
+#define FREE_CONST_PTR(p) { if (p) { FREE_CONST(p);} }
 #endif

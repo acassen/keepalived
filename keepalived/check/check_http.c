@@ -91,7 +91,7 @@ regex_option_t regex_options[] = {
 };
 
 /* Used for holding regex details during configuration */
-static unsigned char *conf_regex_pattern;
+static const unsigned char *conf_regex_pattern;
 static int conf_regex_options;
 
 #ifndef PCRE2_DONT_USE_JIT
@@ -116,7 +116,7 @@ bool do_regex_timers;
 bool do_regex_debug;
 #endif
 
-static int http_connect_thread(thread_t *);
+static int http_connect_thread(thread_ref_t);
 
 #ifdef _WITH_REGEX_CHECK_
 static void
@@ -125,7 +125,7 @@ free_regex(void *data)
 	regex_t *regex = data;
 
 	// Free up the regular expression.
-	FREE_PTR(regex->pattern);
+	FREE_CONST_PTR(regex->pattern);
 	pcre2_code_free(regex->pcre2_reCompiled);
 	pcre2_match_data_free(regex->pcre2_match_data);
 
@@ -149,9 +149,9 @@ free_url(void *data)
 {
 	url_t *url = data;
 
-	FREE_PTR(url->path);
-	FREE_PTR(url->digest);
-	FREE_PTR(url->virtualhost);
+	FREE_CONST_PTR(url->path);
+	FREE_CONST_PTR(url->digest);
+	FREE_CONST_PTR(url->virtualhost);
 #ifdef _WITH_REGEX_CHECK_
 	if (url->regex) {
 		if (!--url->regex->use_count) {
@@ -184,7 +184,7 @@ free_url(void *data)
 }
 
 static char *
-format_digest(uint8_t *digest, char *buf)
+format_digest(const uint8_t *digest, char *buf)
 {
 	int i;
 
@@ -195,9 +195,9 @@ format_digest(uint8_t *digest, char *buf)
 }
 
 static void
-dump_url(FILE *fp, void *data)
+dump_url(FILE *fp, const void *data)
 {
-	url_t *url = data;
+	const url_t *url = data;
 	char digest_buf[2 * MD5_DIGEST_LENGTH + 1];
 
 	conf_write(fp, "   Checked url = %s", url->path);
@@ -257,24 +257,23 @@ free_http_request(request_t *req)
 }
 
 static void
-free_http_get_check(void *data)
+free_http_get_check(checker_t *checker)
 {
-	http_checker_t *http_get_chk = CHECKER_DATA(data);
+	http_checker_t *http_get_chk = checker->data;
 	request_t *req = http_get_chk->req;
 
 	free_list(&http_get_chk->url);
 	free_http_request(req);
-	FREE_PTR(http_get_chk->virtualhost);
+	FREE_CONST_PTR(http_get_chk->virtualhost);
 	FREE_PTR(http_get_chk);
-	FREE_PTR(CHECKER_CO(data));
-	FREE(data);
+	FREE_PTR(checker->data);
+	FREE(checker);
 }
 
 static void
-dump_http_get_check(FILE *fp, void *data)
+dump_http_get_check(FILE *fp, const checker_t *checker)
 {
-	checker_t *checker = data;
-	http_checker_t *http_get_chk = checker->data;
+	const http_checker_t *http_get_chk = checker->data;
 
 	conf_write(fp, "   Keepalive method = %s_GET",
 			http_get_chk->proto == PROTO_HTTP ? "HTTP" : "SSL");
@@ -284,7 +283,7 @@ dump_http_get_check(FILE *fp, void *data)
 	dump_list(fp, http_get_chk->url);
 }
 static http_checker_t *
-alloc_http_get(char *proto)
+alloc_http_get(const char *proto)
 {
 	http_checker_t *http_get_chk;
 
@@ -301,14 +300,14 @@ alloc_http_get(char *proto)
 }
 
 static bool
-http_get_check_compare(void *a, void *b)
+http_get_check_compare(const checker_t *old_c, const checker_t *new_c)
 {
-	http_checker_t *old = CHECKER_DATA(a);
-	http_checker_t *new = CHECKER_DATA(b);
+	const http_checker_t *old = old_c->data;
+	const http_checker_t *new = new_c->data;
 	size_t n;
 	url_t *u1, *u2;
 
-	if (!compare_conn_opts(CHECKER_CO(a), CHECKER_CO(b)))
+	if (!compare_conn_opts(old_c->co, new_c->co))
 		return false;
 	if (LIST_SIZE(old->url) != LIST_SIZE(new->url))
 		return false;
@@ -335,7 +334,7 @@ http_get_check_compare(void *a, void *b)
 		if (!u1->regex != !u2->regex)
 			return false;
 		if (u1->regex) {
-			if (strcmp((char *)u1->regex->pattern, (char *)u2->regex->pattern))
+			if (strcmp((const char *)u1->regex->pattern, (const char *)u2->regex->pattern))
 				return false;
 			if (u1->regex->pcre2_options != u2->regex->pcre2_options)
 				return false;
@@ -353,11 +352,11 @@ http_get_check_compare(void *a, void *b)
 
 /* Configuration stream handling */
 static void
-http_get_handler(vector_t *strvec)
+http_get_handler(const vector_t *strvec)
 {
 	checker_t *checker;
 	http_checker_t *http_get_chk;
-	char *str = strvec_slot(strvec, 0);
+	const char *str = strvec_slot(strvec, 0);
 
 	/* queue new checker */
 	http_get_chk = alloc_http_get(str);
@@ -368,7 +367,7 @@ http_get_handler(vector_t *strvec)
 }
 
 static void
-http_get_retry_handler(vector_t *strvec)
+http_get_retry_handler(const vector_t *strvec)
 {
 	checker_t *checker = LIST_TAIL_DATA(checkers_queue);
 	unsigned retry;
@@ -376,7 +375,7 @@ http_get_retry_handler(vector_t *strvec)
 	report_config_error(CONFIG_GENERAL_ERROR, "nb_get_retry is deprecated - please use 'retry'");
 
 	if (!read_unsigned_strvec(strvec, 1, &retry, 0, UINT_MAX, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Invalid nb_get_retry value '%s'", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid nb_get_retry value '%s'", strvec_slot(strvec, 1));
 		return;
 	}
 
@@ -384,11 +383,11 @@ http_get_retry_handler(vector_t *strvec)
 }
 
 static void
-virtualhost_handler(vector_t *strvec)
+virtualhost_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 
-	http_get_chk->virtualhost = CHECKER_VALUE_STRING(strvec);
+	http_get_chk->virtualhost = set_value(strvec);
 }
 
 static void
@@ -407,7 +406,7 @@ http_get_check_end(void)
 }
 
 static void
-url_handler(__attribute__((unused)) vector_t *strvec)
+url_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *new;
@@ -423,24 +422,25 @@ url_handler(__attribute__((unused)) vector_t *strvec)
 }
 
 static void
-path_handler(vector_t *strvec)
+path_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
 
-	url->path = CHECKER_VALUE_STRING(strvec);
+	url->path = set_value(strvec);
 }
 
 static void
-digest_handler(vector_t *strvec)
+digest_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
 	char *digest;
 	char *endptr;
 	int i;
+	uint8_t *digest_buf;
 
-	digest = CHECKER_VALUE_STRING(strvec);
+	digest = STRDUP(strvec_slot(strvec, 1));
 
 	if (url->digest) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Digest '%s' is a duplicate", digest);
@@ -454,50 +454,51 @@ digest_handler(vector_t *strvec)
 		return;
 	}
 
-	url->digest = MALLOC(MD5_DIGEST_LENGTH);
+	digest_buf = MALLOC(MD5_DIGEST_LENGTH);
 
 	for (i = MD5_DIGEST_LENGTH - 1; i >= 0; i--) {
 		digest[2 * i + 2] = '\0';
-		url->digest[i] = strtoul(digest + 2 * i, &endptr, 16);
+		digest_buf[i] = strtoul(digest + 2 * i, &endptr, 16);
 		if (endptr != digest + 2 * i + 2) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Unable to interpret hex digit in '%s' at offset %d/%d", digest, 2 * i, 2 * i + 1);
-			FREE(url->digest);
+			FREE(digest_buf);
 			FREE(digest);
-			url->digest = NULL;
 			return;
 		}
 	}
 
-	FREE(digest);
+	url->digest = digest_buf;
+
+	FREE_CONST(digest);
 }
 
 static void
-status_code_handler(vector_t *strvec)
+status_code_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
 	unsigned val;
 
 	if (!read_unsigned_strvec(strvec, 1, &val, 100, 999, true))
-		report_config_error(CONFIG_GENERAL_ERROR, "Invalid HTTP_GET status code '%s'", FMT_STR_VSLOT(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid HTTP_GET status code '%s'", strvec_slot(strvec, 1));
 	else
 		url->status_code = val;
 }
 
 static void
-url_virtualhost_handler(vector_t *strvec)
+url_virtualhost_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
 
-	url->virtualhost = CHECKER_VALUE_STRING(strvec);
+	url->virtualhost = set_value(strvec);
 }
 
 #ifdef _WITH_REGEX_CHECK_
 static void
-regex_handler(__attribute__((unused)) vector_t *strvec)
+regex_handler(__attribute__((unused)) const vector_t *strvec)
 {
-	vector_t* strvec_qe = alloc_strvec_quoted_escaped(NULL);
+	const vector_t *strvec_qe = alloc_strvec_quoted_escaped(NULL);
 
 	if (vector_size(strvec_qe) != 2) {
 		log_message(LOG_INFO, "regex missing or too many fields");
@@ -505,12 +506,12 @@ regex_handler(__attribute__((unused)) vector_t *strvec)
 		return;
 	}
 
-	conf_regex_pattern = CHECKER_VALUE_STRING(strvec_qe);
+	conf_regex_pattern = (const unsigned char *)set_value(strvec_qe);
 	free_strvec(strvec_qe);
 }
 
 static void
-regex_no_match_handler(__attribute__((unused)) vector_t *strvec)
+regex_no_match_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
@@ -519,10 +520,10 @@ regex_no_match_handler(__attribute__((unused)) vector_t *strvec)
 }
 
 static void
-regex_options_handler(vector_t *strvec)
+regex_options_handler(const vector_t *strvec)
 {
 	unsigned i, j;
-	char *str;
+	const char *str;
 
 	for (i = 1; i < vector_size(strvec); i++) {
 		str = strvec_slot(strvec, i);
@@ -537,7 +538,7 @@ regex_options_handler(vector_t *strvec)
 }
 
 static size_t
-regex_offset_handler(vector_t *strvec, const char *type)
+regex_offset_handler(const vector_t *strvec, const char *type)
 {
 	char *endptr;
 	unsigned long val;
@@ -549,7 +550,7 @@ regex_offset_handler(vector_t *strvec, const char *type)
 
 	val = strtoul(vector_slot(strvec, 1), &endptr, 10);
 	if (*endptr) {
-		log_message(LOG_INFO, "Invalid regex_%s_offset %s specified", type, FMT_STR_VSLOT(strvec, 1));
+		log_message(LOG_INFO, "Invalid regex_%s_offset %s specified", type, strvec_slot(strvec, 1));
 		return 0;
 	}
 
@@ -557,7 +558,7 @@ regex_offset_handler(vector_t *strvec, const char *type)
 }
 
 static void
-regex_min_offset_handler(vector_t *strvec)
+regex_min_offset_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
@@ -566,7 +567,7 @@ regex_min_offset_handler(vector_t *strvec)
 }
 
 static void
-regex_max_offset_handler(vector_t *strvec)
+regex_max_offset_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
@@ -577,7 +578,7 @@ regex_max_offset_handler(vector_t *strvec)
 
 #ifndef PCRE2_DONT_USE_JIT
 static void
-regex_stack_handler(vector_t *strvec)
+regex_stack_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
@@ -629,9 +630,9 @@ prepare_regex(url_t *url)
 	/* See if this regex has already been specified */
 	LIST_FOREACH(regexs, r, e) {
 		if (r->pcre2_options == conf_regex_options &&
-		    !strcmp((char *)r->pattern, (char *)conf_regex_pattern)) {
+		    !strcmp((const char *)r->pattern, (const char *)conf_regex_pattern)) {
 			url->regex = r;
-			FREE_PTR(conf_regex_pattern);
+			FREE_CONST_PTR(conf_regex_pattern);
 
 			url->regex->use_count++;
 
@@ -653,7 +654,7 @@ prepare_regex(url_t *url)
 		pcre2_get_error_message(pcreErrorNumber, buffer, sizeof buffer);
 		log_message(LOG_INFO, "Invalid regex: '%s' at offset %zu: %s\n", url->regex->pattern, pcreErrorOffset, (char *)buffer);
 
-		FREE_PTR(url->regex->pattern);
+		FREE_CONST_PTR(url->regex->pattern);
 		FREE_PTR(url->regex);
 
 		return;
@@ -677,7 +678,7 @@ prepare_regex(url_t *url)
 
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 static void
-enable_sni_handler(vector_t *strvec)
+enable_sni_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	int res = true;
@@ -685,7 +686,7 @@ enable_sni_handler(vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec, 1));
 		if (res == -1) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid enable_sni parameter %s", FMT_STR_VSLOT(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid enable_sni parameter %s", strvec_slot(strvec, 1));
 			return;
 		}
 	}
@@ -813,7 +814,7 @@ install_ssl_check_keyword(void)
  * method == 2 => register a retry on url checker thread
  */
 static int
-epilog(thread_t * thread, int method, unsigned t, unsigned c)
+epilog(thread_ref_t thread, int method, unsigned t, unsigned c)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
@@ -906,7 +907,7 @@ epilog(thread_t * thread, int method, unsigned t, unsigned c)
 }
 
 int
-timeout_epilog(thread_t * thread, const char *debug_msg)
+timeout_epilog(thread_ref_t thread, const char *debug_msg)
 {
 	checker_t *checker = THREAD_ARG(thread);
 
@@ -1107,7 +1108,7 @@ check_regex(url_t *url, request_t *req)
 
 /* Handle response */
 int
-http_handle_response(thread_t * thread, unsigned char digest[MD5_DIGEST_LENGTH]
+http_handle_response(thread_ref_t thread, unsigned char digest[MD5_DIGEST_LENGTH]
 		     , bool empty_buffer)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -1259,7 +1260,7 @@ http_process_response(request_t *req, size_t r, url_t *url)
 
 /* Asynchronous HTTP stream reader */
 static int
-http_read_thread(thread_t * thread)
+http_read_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
@@ -1319,7 +1320,7 @@ http_read_thread(thread_t * thread)
  * Apply trigger check to this result.
  */
 static int
-http_response_thread(thread_t * thread)
+http_response_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
@@ -1358,15 +1359,15 @@ http_response_thread(thread_t * thread)
 
 /* remote Web server is connected, send it the get url query.  */
 static int
-http_request_thread(thread_t * thread)
+http_request_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
 	request_t *req = http_get_check->req;
 	struct sockaddr_storage *addr = &checker->co->dst;
 	unsigned timeout = checker->co->connection_to;
-	char *vhost;
-	char *request_host;
+	const char *vhost;
+	const char *request_host;
 	char request_host_port[7];	/* ":" [0-9][0-9][0-9][0-9][0-9] "\0" */
 	char *str_request;
 	url_t *fetched_url;
@@ -1434,7 +1435,7 @@ http_request_thread(thread_t * thread)
 
 /* WEB checkers threads */
 static int
-http_check_thread(thread_t * thread)
+http_check_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
@@ -1531,7 +1532,7 @@ http_check_thread(thread_t * thread)
 }
 
 static int
-http_connect_thread(thread_t * thread)
+http_connect_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);

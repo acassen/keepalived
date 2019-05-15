@@ -62,6 +62,16 @@ typedef enum {
 } perf_t;
 #endif
 
+/* Some library functions that take pointer parameters should have them
+ * specified as const pointers, but don't. We need to cast away the constness,
+ * but also want to avoid compiler warnings for doing so. The following "trick"
+ * achieves that. */ 
+#define no_const(type, var_cp) \
+({ union { type *p; const type *cp; } ps = { .cp = var_cp }; \
+ ps.p;})
+
+#define no_const_char_p(var_cp)	no_const(char, var_cp)
+
 /* If signalfd() is used, we will have no signal handlers, and
  * so we cannot get EINTR. If we cannot get EINTR, there is no
  * point checking for it.
@@ -203,21 +213,21 @@ extern void dump_buffer(const char *, size_t, FILE *, int);
 #ifdef _WITH_STACKTRACE_
 extern void write_stacktrace(const char *, const char *);
 #endif
-extern char *make_file_name(const char *, const char *, const char *, const char *);
+extern const char *make_file_name(const char *, const char *, const char *, const char *);
 extern void set_process_name(const char *);
 #ifdef _WITH_PERF_
 extern void run_perf(const char *, const char *, const char *);
 #endif
 extern uint16_t in_csum(const uint16_t *, size_t, uint32_t, uint32_t *);
-extern char *inet_ntop2(uint32_t);
+extern const char *inet_ntop2(uint32_t);
 extern bool inet_stor(const char *, uint32_t *);
 extern int domain_stosockaddr(const char *, const char *, struct sockaddr_storage *);
-extern int inet_stosockaddr(char *, const char *, struct sockaddr_storage *);
+extern int inet_stosockaddr(const char *, const char *, struct sockaddr_storage *);
 extern void inet_ip4tosockaddr(const struct in_addr *, struct sockaddr_storage *);
 extern void inet_ip6tosockaddr(const struct in6_addr *, struct sockaddr_storage *);
-extern bool check_valid_ipaddress(char *, bool);
-extern char *inet_sockaddrtos(const struct sockaddr_storage *);
-extern char *inet_sockaddrtopair(const struct sockaddr_storage *);
+extern bool check_valid_ipaddress(const char *, bool);
+extern const char *inet_sockaddrtos(const struct sockaddr_storage *);
+extern const char *inet_sockaddrtopair(const struct sockaddr_storage *);
 extern const char *inet_sockaddrtotrio(const struct sockaddr_storage *, uint16_t);
 extern char *inet_sockaddrtotrio_r(const struct sockaddr_storage *, uint16_t, char *);
 extern uint16_t inet_sockaddrport(const struct sockaddr_storage *) __attribute__ ((pure));
@@ -227,7 +237,7 @@ extern int inet_sockaddrip6(const struct sockaddr_storage *, struct in6_addr *);
 extern int inet_inaddrcmp(int, const void *, const void *); __attribute__ ((pure))
 extern int inet_sockaddrcmp(const struct sockaddr_storage *, const struct sockaddr_storage *) __attribute__ ((pure));
 extern void format_mac_buf(char *, size_t, const unsigned char *, size_t);
-extern char *get_local_name(void);
+extern const char *get_local_name(void) __attribute__((malloc));
 extern bool string_equal(const char *, const char *) __attribute__ ((pure));
 extern int integer_to_string(const int, char *, size_t);
 extern FILE *fopen_safe(const char *, const char *);

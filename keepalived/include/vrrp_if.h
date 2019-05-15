@@ -217,7 +217,7 @@ extern int if_setsockopt_no_receive(int *);
 extern void interface_up(interface_t *);
 extern void interface_down(interface_t *);
 extern void cleanup_lost_interface(interface_t *);
-extern int recreate_vmac_thread(thread_t *);
+extern int recreate_vmac_thread(thread_ref_t);
 void update_mtu(interface_t *);
 extern void update_added_interface(interface_t *);
 #ifdef THREAD_DUMP

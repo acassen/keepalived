@@ -44,6 +44,6 @@ enum connect_result {
 };
 
 /* Prototypes defs */
-extern int tcp_connect_thread(thread_t *);
+extern int tcp_connect_thread(thread_ref_t);
 
 #endif

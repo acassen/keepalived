@@ -31,7 +31,7 @@ struct json_writer {
 };
 
 /* indentation for pretty print */
-static void jsonw_indent(json_writer_t *self)
+static void jsonw_indent(const json_writer_t *self)
 {
 	unsigned i;
 	for (i = 0; i < self->depth; ++i)
@@ -39,7 +39,7 @@ static void jsonw_indent(json_writer_t *self)
 }
 
 /* end current line and indent if pretty printing */
-static void jsonw_eol(json_writer_t *self)
+static void jsonw_eol(const json_writer_t *self)
 {
 	if (!self->pretty)
 		return;
@@ -59,7 +59,7 @@ static void jsonw_eor(json_writer_t *self)
 
 /* Output JSON encoded string */
 /* Handles C escapes, does not do Unicode */
-static void jsonw_puts(json_writer_t *self, const char *str)
+static void jsonw_puts(const json_writer_t *self, const char *str)
 {
 	putc('"', self->out);
 	for (; *str; ++str)
@@ -108,7 +108,7 @@ json_writer_t *jsonw_new(FILE *f)
 }
 
 /* End output to JSON stream */
-void jsonw_destroy(json_writer_t **self_p)
+void jsonw_destroy(json_writer_t ** const self_p)
 {
 	json_writer_t *self = *self_p;
 

@@ -199,14 +199,14 @@ ssl_printerr(int err)
 }
 
 int
-ssl_connect(thread_t * thread, int new_req)
+ssl_connect(thread_ref_t thread, int new_req)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
 	request_t *req = http_get_check->req;
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 	url_t *url = list_element(http_get_check->url, http_get_check->url_it);
-	char* vhost = NULL;
+	const char* vhost = NULL;
 #endif
 	int ret = 0;
 
@@ -253,7 +253,7 @@ ssl_connect(thread_t * thread, int new_req)
 }
 
 bool
-ssl_send_request(SSL * ssl, char *str_request, int request_len)
+ssl_send_request(SSL * ssl, const char *str_request, int request_len)
 {
 	int err, r = 0;
 
@@ -274,7 +274,7 @@ ssl_send_request(SSL * ssl, char *str_request, int request_len)
 
 /* Asynchronous SSL stream reader */
 int
-ssl_read_thread(thread_t * thread)
+ssl_read_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);

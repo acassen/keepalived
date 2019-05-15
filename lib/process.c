@@ -241,7 +241,7 @@ reset_process_priorities(void)
 }
 
 void
-set_child_rlimit(int resource, struct rlimit *rlim)
+set_child_rlimit(int resource, const struct rlimit *rlim)
 {
 	if (resource == RLIMIT_NOFILE) {
 		nofile = *rlim;

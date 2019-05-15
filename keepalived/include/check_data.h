@@ -52,10 +52,10 @@ typedef struct _ssl_data {
 	int				strong_check;
 	SSL_CTX				*ctx;
 	const SSL_METHOD		*meth;
-	char				*password;
-	char				*cafile;
-	char				*certfile;
-	char				*keyfile;
+	const char			*password;
+	const char			*cafile;
+	const char			*certfile;
+	const char			*keyfile;
 } ssl_data_t;
 
 /* Real Server definition */
@@ -85,7 +85,7 @@ typedef struct _real_server {
 	unsigned			num_failed_checkers;/* Number of failed checkers */
 	bool				set;		/* in the IPVS table */
 	bool				reloaded;	/* active state was copied from old config while reloading */
-	char				*virtualhost;	/* Default virtualhost for HTTP and SSL health checkers */
+	const char			*virtualhost;	/* Default virtualhost for HTTP and SSL health checkers */
 #if defined(_WITH_SNMP_CHECKER_) && defined(_WITH_LVS_)
 	/* Statistics */
 	uint32_t			activeconns;	/* active connections */
@@ -149,7 +149,7 @@ typedef struct _virtual_server {
 	unsigned			forwarding_method;
 	uint32_t			persistence_granularity;
 #endif
-	char				*virtualhost;	/* Default virtualhost for HTTP and SSL healthcheckers
+	const char			*virtualhost;	/* Default virtualhost for HTTP and SSL healthcheckers
 							   if not set on real servers */
 	int				weight;
 	list				rs;
@@ -213,17 +213,17 @@ extern check_data_t *old_check_data;
 /* prototypes */
 extern ssl_data_t *alloc_ssl(void) __attribute((malloc));
 extern void free_ssl(void);
-extern void alloc_vsg(char *);
-extern void alloc_vsg_entry(vector_t *);
-extern void alloc_vs(char *, char *);
-extern void alloc_rs(char *, char *);
-extern void alloc_ssvr(char *, char *);
+extern void alloc_vsg(const char *);
+extern void alloc_vsg_entry(const vector_t *);
+extern void alloc_vs(const char *, const char *);
+extern void alloc_rs(const char *, const char *);
+extern void alloc_ssvr(const char *, const char *);
 extern check_data_t *alloc_check_data(void);
 extern void free_check_data(check_data_t *);
 extern void dump_data_check(FILE *);
-extern const char *format_vs (virtual_server_t *);
-extern const char *format_vsge (virtual_server_group_entry_t *);
-extern const char *format_rs(real_server_t *, virtual_server_t *);
+extern const char *format_vs (const virtual_server_t *);
+extern const char *format_vsge (const virtual_server_group_entry_t *);
+extern const char *format_rs(const real_server_t *, const virtual_server_t *);
 extern bool validate_check_config(void);
 
 #endif

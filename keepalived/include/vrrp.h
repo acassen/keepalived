@@ -107,8 +107,8 @@ typedef struct {
  * of VRRP instances that need to be state sync together.
  */
 typedef struct _vrrp_sgroup {
-	char			*gname;			/* Group name */
-	vector_t		*iname;			/* Set of VRRP instances in this group, only used during initialisation */
+	const char		*gname;			/* Group name */
+	const vector_t		*iname;			/* Set of VRRP instances in this group, only used during initialisation */
 	list			vrrp_instances;		/* List of VRRP instances */
 	unsigned		num_member_fault;	/* Number of members of group in fault state */
 	unsigned		num_member_init;	/* Number of members of group in pending state */
@@ -187,7 +187,7 @@ typedef enum chksum_compatibility {
 /* parameters per virtual router -- rfc2338.6.1.2 */
 typedef struct _vrrp_t {
 	sa_family_t		family;			/* AF_INET|AF_INET6 */
-	char			*iname;			/* Instance Name */
+	const char		*iname;			/* Instance Name */
 	vrrp_sgroup_t		*sync;			/* Sync group we belong to */
 	vrrp_stats		*stats;			/* Statistics */
 	interface_t		*ifp;			/* Interface we belong to */
@@ -390,7 +390,7 @@ extern bool do_network_timestamp;
 /* prototypes */
 extern void clear_summary_flags(void);
 extern size_t vrrp_adv_len(vrrp_t *) __attribute__ ((pure));
-extern vrrphdr_t *vrrp_get_header(sa_family_t, char *, size_t);
+extern const vrrphdr_t *vrrp_get_header(sa_family_t, const char *, size_t);
 extern int open_vrrp_send_socket(sa_family_t, int, interface_t *, bool);
 extern int open_vrrp_read_socket(sa_family_t, int, interface_t *, bool, int);
 extern int new_vrrp_socket(vrrp_t *);
@@ -398,12 +398,9 @@ extern void vrrp_send_adv(vrrp_t *, uint8_t);
 extern void vrrp_send_link_update(vrrp_t *, unsigned);
 extern void add_vrrp_to_interface(vrrp_t *, interface_t *, int, bool, track_t);
 extern void del_vrrp_from_interface(vrrp_t *, interface_t *);
-#ifdef _INCLUDE_UNUSED_CODE_
-extern bool vrrp_state_fault_rx(vrrp_t *, vrrphdr_t *, char *, ssize_t);
-#endif
-extern bool vrrp_state_master_rx(vrrp_t *, vrrphdr_t *, char *, ssize_t);
+extern bool vrrp_state_master_rx(vrrp_t *, const vrrphdr_t *, const char *, ssize_t);
 extern void vrrp_state_master_tx(vrrp_t *);
-extern void vrrp_state_backup(vrrp_t *, vrrphdr_t *, char *, ssize_t);
+extern void vrrp_state_backup(vrrp_t *, const vrrphdr_t *, const char *, ssize_t);
 extern void vrrp_state_goto_master(vrrp_t *);
 extern void vrrp_state_leave_master(vrrp_t *, bool);
 extern void vrrp_state_leave_fault(vrrp_t *);

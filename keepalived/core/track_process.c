@@ -62,8 +62,8 @@
 
 /* #define LOG_ALL_PROCESS_EVENTS */
 
-static thread_t *read_thread;
-static thread_t *reload_thread;
+static thread_ref_t read_thread;
+static thread_ref_t reload_thread;
 static rb_root_t process_tree = RB_ROOT;
 static int nl_sock = -1;
 unsigned num_cpus;
@@ -408,7 +408,7 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 }
 
 static int
-process_gained_quorum_timer_thread(thread_t *thread)
+process_gained_quorum_timer_thread(thread_ref_t thread)
 {
 	vrrp_tracked_process_t *tpr = thread->arg;
 
@@ -456,7 +456,7 @@ check_process_fork(pid_t parent_pid, pid_t child_pid)
 }
 
 static int
-process_lost_quorum_timer_thread(thread_t *thread)
+process_lost_quorum_timer_thread(thread_ref_t thread)
 {
 	vrrp_tracked_process_t *tpr = thread->arg;
 
@@ -704,7 +704,7 @@ reinitialise_track_processes(void)
 }
 
 static int
-process_lost_messages_timer_thread(__attribute__((unused)) thread_t *thread)
+process_lost_messages_timer_thread(__attribute__((unused)) thread_ref_t thread)
 {
 	reinitialise_track_processes();
 
@@ -896,7 +896,7 @@ static int handle_proc_ev(int nl_sd)
 }
 
 static int
-read_process_update(thread_t *thread)
+read_process_update(thread_ref_t thread)
 {
 	int rc = EXIT_SUCCESS;
 

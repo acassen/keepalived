@@ -33,7 +33,7 @@ typedef struct _vector {
 	void		**slot;
 } vector_t;
 
-typedef char *(*null_strvec_handler_t)(const vector_t *, size_t);
+typedef const char *(*null_strvec_handler_t)(const vector_t *, size_t);
 
 /* Some defines */
 #define VECTOR_DEFAULT_SIZE 1
@@ -46,7 +46,6 @@ typedef char *(*null_strvec_handler_t)(const vector_t *, size_t);
 #define vector_active(V) ((V)->active)
 #define vector_foreach_slot(v,p,i) \
 	for (i = 0; i < (v)->allocated && ((p) = (v)->slot[i]); i++)
-#define FMT_STR_VSLOT(V,E) ((char*)strvec_slot(V,E))
 
 #ifdef _MEM_CHECK_
 #define vector_alloc()		(memcheck_log("vector_alloc", NULL, (__FILE__), (__func__), (__LINE__)), \
@@ -64,16 +63,16 @@ typedef char *(*null_strvec_handler_t)(const vector_t *, size_t);
 /* Prototypes */
 extern null_strvec_handler_t register_null_strvec_handler(null_strvec_handler_t);
 extern null_strvec_handler_t unregister_null_strvec_handler(void);
-extern void *strvec_slot(const vector_t *strvec, size_t index);
+extern const char *strvec_slot(const vector_t *strvec, size_t index);
 extern vector_t *vector_alloc_r(void) __attribute__ ((malloc));
 extern void vector_alloc_slot_r(vector_t *);
 extern void vector_set_slot(vector_t *, void *);
 extern void vector_unset(vector_t *, unsigned int);
-extern unsigned int vector_count(vector_t *) __attribute__ ((pure));
-extern void vector_free_r(vector_t *);
+extern unsigned int vector_count(const vector_t *) __attribute__ ((pure));
+extern void vector_free_r(const vector_t *);
 #ifdef _INCLUDE_UNUSED_CODE_
-extern void vector_dump(FILE *fp, vector_t *);
+extern void vector_dump(FILE *fp, const vector_t *);
 #endif
-extern void free_strvec(vector_t *);
+extern void free_strvec(const vector_t *);
 
 #endif

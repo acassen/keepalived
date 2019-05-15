@@ -48,7 +48,7 @@ typedef enum {
 /* Checker argument structure  */
 typedef struct _smtp_checker {
 	/* non per host config data goes here */
-	char				*helo_name;
+	const char			*helo_name;
 
 	/* data buffer */
 	char				buff[SMTP_BUFF_MAX];

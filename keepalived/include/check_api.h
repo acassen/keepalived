@@ -38,10 +38,10 @@
 
 /* Checkers structure definition */
 typedef struct _checker {
-	void				(*free_func) (void *);
-	void				(*dump_func) (FILE *, void *);
-	int				(*launch) (struct _thread *);
-	bool				(*compare) (void *, void *);
+	void				(*free_func) (struct _checker *);
+	void				(*dump_func) (FILE *, const struct _checker *);
+	thread_func_t			launch;
+	bool				(*compare) (const struct _checker *, const struct _checker *);
 	virtual_server_t		*vs;			/* pointer to the checker thread virtualserver */
 	real_server_t			*rs;			/* pointer to the checker thread realserver */
 	void				*data;
@@ -70,7 +70,6 @@ extern list checkers_queue;
 #define CHECKER_GET_CURRENT() (LIST_TAIL_DATA(checkers_queue))
 #define CHECKER_GET() (CHECKER_DATA(CHECKER_GET_CURRENT()))
 #define CHECKER_GET_CO() (((checker_t *)CHECKER_GET_CURRENT())->co)
-#define CHECKER_VALUE_STRING(X) (set_value(X))
 #define CHECKER_HA_SUSPEND(C) ((C)->vs->ha_suspend)
 #define CHECKER_NEW_CO() ((conn_opts_t *) MALLOC(sizeof (conn_opts_t)))
 #define FMT_CHK(C) FMT_RS((C)->rs, (C)->vs)
@@ -78,16 +77,16 @@ extern list checkers_queue;
 /* Prototypes definition */
 extern void init_checkers_queue(void);
 extern void free_vs_checkers(virtual_server_t *);
-extern void dump_connection_opts(FILE *, void *);
-extern void dump_checker_opts(FILE *, void *);
-extern checker_t *queue_checker(void (*free_func) (void *), void (*dump_func) (FILE *, void *)
-			  , int (*launch) (thread_t *)
-			  , bool (*compare) (void *, void *)
+extern void dump_connection_opts(FILE *, const void *);
+extern void dump_checker_opts(FILE *, const void *);
+extern checker_t *queue_checker(void (*) (checker_t *), void (*) (FILE *, const checker_t *)
+			  , thread_func_t
+			  , bool (*) (const checker_t *, const checker_t *)
 			  , void *
 			  , conn_opts_t *);
 extern void dequeue_new_checker(void);
 extern bool check_conn_opts(conn_opts_t *);
-extern bool compare_conn_opts(conn_opts_t *, conn_opts_t *) __attribute__ ((pure));
+extern bool compare_conn_opts(const conn_opts_t *, const conn_opts_t *) __attribute__ ((pure));
 extern void dump_checkers_queue(FILE *);
 extern void free_checkers_queue(void);
 extern void register_checkers_thread(void);
