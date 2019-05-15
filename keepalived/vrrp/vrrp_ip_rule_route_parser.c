@@ -39,6 +39,7 @@
 #include "vrrp_iproute.h"
 #endif
 #include "parser.h"
+#include "memory.h"
 
 bool
 get_realms(uint32_t *realms, const char *str)
@@ -256,7 +257,7 @@ get_addr64(uint64_t *ap, const char *cp)
 	return false;
 }
 
-#if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
+#if HAVE_DECL_RTA_ENCAP && HAVE_DECL_LWTUNNEL_ENCAP_MPLS
 bool
 parse_mpls_address(const char *str, encap_mpls_t *mpls)
 {

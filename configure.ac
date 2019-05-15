@@ -1274,16 +1274,17 @@ AC_CHECK_DECLS([IP_MULTICAST_ALL],
   ]])
 
 dnl -- RedHat backported ENCAP_IP and ENCAP_IP6 without MPLS and ILA
-AC_CHECK_DECLS([LWTUNNEL_ENCAP_MPLS, LWTUNNEL_ENCAP_ILA], [], [],
-  [[#include <linux/lwtunnel.h>]])
-if test ${ac_cv_have_decl_RTA_ENCAP}; then
-  for flag in LWTUNNEL_ENCAP_MPLS LWTUNNEL_ENCAP_ILA; do
-    AS_VAR_COPY([decl_var], [ac_cv_have_decl_$flag])
-    if test ${decl_var} = yes; then
-      add_system_opt[${flag}]
-    fi
-  done
-fi
+AS_IF([test $ac_cv_have_decl_RTA_ENCAP = yes],
+  [
+    AC_CHECK_DECLS([LWTUNNEL_ENCAP_MPLS, LWTUNNEL_ENCAP_ILA], [], [],
+      [[#include <linux/lwtunnel.h>]])
+    for flag in LWTUNNEL_ENCAP_MPLS LWTUNNEL_ENCAP_ILA; do
+      AS_VAR_COPY([decl_var], [ac_cv_have_decl_$flag])
+      if test ${decl_var} = yes; then
+	add_system_opt([${flag}])
+      fi
+    done
+  ])
 
 dnl ----[Check for iptables libraries]----
 USE_IPTABLES=No

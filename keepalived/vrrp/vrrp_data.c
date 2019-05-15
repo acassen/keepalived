@@ -507,8 +507,8 @@ dump_vrrp(FILE *fp, const void *data)
 #else
 				"bridge"
 #endif
-#endif
 					);
+#endif
 	if (vrrp->ifp->is_ours) {
 		conf_write(fp, "   Interface = %s, %s on %s%s", IF_NAME(vrrp->ifp),
 				__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) ? "vmac" : "ipvlan",
