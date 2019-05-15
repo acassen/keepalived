@@ -866,6 +866,23 @@ string_equal(const char *str1, const char *str2)
 	return !strcmp(str1, str2);
 }
 
+/* Convert an integer into a string */
+int
+integer_to_string(const int value, char *str, size_t size)
+{
+	int i, len = 0, t = value, s = size;
+
+	for (i = value; i; i/=10) {
+		if (++len > s)
+			return -1;
+	}
+
+	for (i = 0; i < len; i++,t/=10)
+		str[len - (i + 1)] = t % 10 + '0';
+
+	return len;
+}
+
 /* We need to use O_NOFOLLOW if opening a file for write, so that a non privileged user can't
  * create a symbolic link from the path to a system file and cause a system file to be overwritten. */
 FILE *fopen_safe(const char *path, const char *mode)

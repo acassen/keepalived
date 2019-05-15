@@ -239,6 +239,7 @@ extern int inet_sockaddrcmp(const struct sockaddr_storage *, const struct sockad
 extern void format_mac_buf(char *, size_t, const unsigned char *, size_t);
 extern const char *get_local_name(void) __attribute__((malloc));
 extern bool string_equal(const char *, const char *) __attribute__ ((pure));
+extern int integer_to_string(const int, char *, size_t);
 extern FILE *fopen_safe(const char *, const char *);
 extern void set_std_fd(bool);
 extern void close_std_fd(void);

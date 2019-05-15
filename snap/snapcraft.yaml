@@ -15,10 +15,14 @@ apps:
     command: bin/keepalived-wrapper
   keepalived:
     command: bin/keepalived-wrapper
+  "500":
+    command: usr/sbin/keepalived-500
   "418":
     command: usr/sbin/keepalived-418
   "415":
     command: usr/sbin/keepalived-415
+#  "413":
+#    command: usr/sbin/keepalived-413
   "404":
     command: usr/sbin/keepalived-404
   "313":
@@ -52,6 +56,8 @@ parts:
       - libjson-c-dev
       - libglib2.0-dev
       - libmagic-dev
+      - libmnl-dev
+      - libnftnl-dev
       - libnl-3-dev
       - libnl-genl-3-dev
       - libnfnetlink-dev
@@ -64,6 +70,8 @@ parts:
       - libjson-c2
       - libglib2.0-0
       - libmagic1
+      - libmnl0
+      - libnftnl4
       - libnl-3-200
       - libnl-genl-3-200
       - libpcre2-8-0
@@ -71,17 +79,97 @@ parts:
     organize:
       'usr/sbin/keepalived': usr/sbin/keepalived-404
 
-  linux-headers-418:
-    plugin: dump
-    source: http://security.ubuntu.com/ubuntu/pool/main/l/linux/linux-libc-dev_4.18.0-10.11_amd64.deb
+  linux-headers-500:
+    plugin: nil
+    build-packages:
+      - dpkg
+      - dpkg-dev
+      - wget
     after:
       - keepalived
+    override-pull: |
+      KERNEL_VER="5.0.0"
+      ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
+      if [ $ARCH = amd64 ] || [ $ARCH = i386 ]; then
+        ARCHIVE_URL="http://security.ubuntu.com/ubuntu/pool/main/l/linux/"
+      else
+        ARCHIVE_URL="http://ports.ubuntu.com/pool/main/l/linux/"
+      fi
+      DEB_SUFFIX=$(wget ${ARCHIVE_URL} -O - | grep linux-libc-dev | cut -d'_' -f2-3 | cut -d'"' -f1 | grep ${ARCH} | grep ${KERNEL_VER} | tail -n1)
+      wget --quiet ${ARCHIVE_URL}/linux-libc-dev_${DEB_SUFFIX} -O ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
+      echo "Unpacking kernel headers..."
+      dpkg -x ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb ${SNAPCRAFT_PART_INSTALL}
+      cat ${SNAPCRAFT_PART_INSTALL}/usr/include/linux/version.h
+      rm -f ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
     override-build: |
       snapcraftctl build
       # Move the headers on the host out of the way
+      echo -n "Host kernel:"
+      cat /usr/include/linux/version.h
       rm -rf /usr/include/linux || true
       # Move header from the part to the host
-      mv usr/include/linux /usr/include/  || true
+      mv ${SNAPCRAFT_PART_INSTALL}/usr/include/linux /usr/include/ || true
+      echo -n "Build kernel:"
+      cat /usr/include/linux/version.h
+    stage:
+      - -*
+    prime:
+      - -*
+
+  keepalived-500:
+    plugin: autotools
+    source: .
+    source-type: git
+    after:
+      - linux-headers-500
+    configflags:
+      - --prefix=/usr
+      - --enable-bfd
+      - --enable-dbus
+      - --enable-json
+      - --enable-regex
+      - --enable-snmp
+      - --enable-snmp-rfc
+      - --disable-libipset-dynamic
+    organize:
+      'usr/sbin/keepalived': usr/sbin/keepalived-500
+    stage:
+      - usr/sbin/keepalived-500
+    prime:
+      - usr/sbin/keepalived-500
+
+  linux-headers-418:
+    plugin: nil
+    build-packages:
+      - dpkg
+      - dpkg-dev
+      - wget
+    after:
+      - keepalived-500
+    override-pull: |
+      KERNEL_VER="4.18.0"
+      ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
+      if [ $ARCH = amd64 ] || [ $ARCH = i386 ]; then
+        ARCHIVE_URL="http://security.ubuntu.com/ubuntu/pool/main/l/linux/"
+      else
+        ARCHIVE_URL="http://ports.ubuntu.com/pool/main/l/linux/"
+      fi
+      DEB_SUFFIX=$(wget ${ARCHIVE_URL} -O - | grep linux-libc-dev | cut -d'_' -f2-3 | cut -d'"' -f1 | grep ${ARCH} | grep ${KERNEL_VER} | tail -n1)
+      wget --quiet ${ARCHIVE_URL}/linux-libc-dev_${DEB_SUFFIX} -O ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
+      echo "Unpacking kernel headers..."
+      dpkg -x ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb ${SNAPCRAFT_PART_INSTALL}
+      cat ${SNAPCRAFT_PART_INSTALL}/usr/include/linux/version.h
+      rm -f ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
+    override-build: |
+      snapcraftctl build
+      # Move the headers on the host out of the way
+      echo -n "Host kernel:"
+      cat /usr/include/linux/version.h
+      rm -rf /usr/include/linux || true
+      # Move header from the part to the host
+      mv ${SNAPCRAFT_PART_INSTALL}/usr/include/linux /usr/include/ || true
+      echo -n "Build kernel:"
+      cat /usr/include/linux/version.h
     stage:
       - -*
     prime:
@@ -92,7 +180,6 @@ parts:
     source: .
     source-type: git
     after:
-      - keepalived
       - linux-headers-418
     configflags:
       - --prefix=/usr
@@ -111,16 +198,37 @@ parts:
       - usr/sbin/keepalived-418
 
   linux-headers-415:
-    plugin: dump
-    source: http://launchpadlibrarian.net/394599433/linux-libc-dev_4.15.0-39.42_amd64.deb
+    plugin: nil
+    build-packages:
+      - dpkg
+      - dpkg-dev
+      - wget
     after:
       - keepalived-418
+    override-pull: |
+      KERNEL_VER="4.15.0"
+      ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
+      if [ $ARCH = amd64 ] || [ $ARCH = i386 ]; then
+        ARCHIVE_URL="http://security.ubuntu.com/ubuntu/pool/main/l/linux/"
+      else
+        ARCHIVE_URL="http://ports.ubuntu.com/pool/main/l/linux/"
+      fi
+      DEB_SUFFIX=$(wget ${ARCHIVE_URL} -O - | grep linux-libc-dev | cut -d'_' -f2-3 | cut -d'"' -f1 | grep ${ARCH} | grep ${KERNEL_VER} | tail -n1)
+      wget --quiet ${ARCHIVE_URL}/linux-libc-dev_${DEB_SUFFIX} -O ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
+      echo "Unpacking kernel headers..."
+      dpkg -x ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb ${SNAPCRAFT_PART_INSTALL}
+      cat ${SNAPCRAFT_PART_INSTALL}/usr/include/linux/version.h
+      rm -f ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
     override-build: |
       snapcraftctl build
       # Move the headers on the host out of the way
+      echo -n "Host kernel:"
+      cat /usr/include/linux/version.h
       rm -rf /usr/include/linux || true
       # Move header from the part to the host
-      mv usr/include/linux /usr/include/  || true
+      mv ${SNAPCRAFT_PART_INSTALL}/usr/include/linux /usr/include/ || true
+      echo -n "Build kernel:"
+      cat /usr/include/linux/version.h
     stage:
       - -*
     prime:
@@ -131,7 +239,6 @@ parts:
     source: .
     source-type: git
     after:
-      - keepalived-418
       - linux-headers-415
     configflags:
       - --prefix=/usr
@@ -149,18 +256,94 @@ parts:
     prime:
       - usr/sbin/keepalived-415
 
+  # linux-headers-413:
+  #   plugin: nil
+  #   build-packages:
+  #     - dpkg
+  #     - dpkg-dev
+  #     - wget
+  #   after:
+  #     - keepalived-415
+  #   override-pull: |
+  #     KERNEL_VER="4.13.0"
+  #     ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
+  #     ARCHIVE_URL="http://old-releases.ubuntu.com/ubuntu/pool/main/l/linux/"
+  #     DEB_SUFFIX=$(wget ${ARCHIVE_URL} -O - | grep linux-libc-dev | cut -d'_' -f2-3 | cut -d'"' -f1 | grep ${ARCH} | grep ${KERNEL_VER} | tail -n1)
+  #     wget --quiet ${ARCHIVE_URL}/linux-libc-dev_${DEB_SUFFIX} -O ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
+  #     echo "Unpacking kernel headers..."
+  #     dpkg -x ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb ${SNAPCRAFT_PART_INSTALL}
+  #     cat ${SNAPCRAFT_PART_INSTALL}/usr/include/linux/version.h
+  #     rm -f ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
+  #   override-build: |
+  #     snapcraftctl build
+  #     # Move the headers on the host out of the way
+  #     echo -n "Host kernel:"
+  #     cat /usr/include/linux/version.h
+  #     rm -rf /usr/include/linux || true
+  #     # Move header from the part to the host
+  #     mv ${SNAPCRAFT_PART_INSTALL}/usr/include/linux /usr/include/ || true
+  #     echo -n "Build kernel:"
+  #     cat /usr/include/linux/version.h
+  #   stage:
+  #     - -*
+  #   prime:
+  #     - -*
+
+  # keepalived-413:
+  #   plugin: autotools
+  #   source: .
+  #   source-type: git
+  #   after:
+  #     - linux-headers-413
+  #   configflags:
+  #     - --prefix=/usr
+  #     - --enable-bfd
+  #     - --enable-dbus
+  #     - --enable-json
+  #     - --enable-regex
+  #     - --enable-snmp
+  #     - --enable-snmp-rfc
+  #     - --disable-libipset-dynamic
+  #   organize:
+  #     'usr/sbin/keepalived': usr/sbin/keepalived-413
+  #   stage:
+  #     - usr/sbin/keepalived-413
+  #   prime:
+  #     - usr/sbin/keepalived-413
 
   linux-headers-313:
-    plugin: dump
-    source: http://security.ubuntu.com/ubuntu/pool/main/l/linux/linux-libc-dev_3.13.0-161.211_amd64.deb
+    plugin: nil
+    build-packages:
+      - dpkg
+      - dpkg-dev
+      - wget
     after:
       - keepalived-415
+#     - keepalived-413
+    override-pull: |
+      KERNEL_VER="3.13.0"
+      ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
+      if [ $ARCH = amd64 ] || [ $ARCH = i386 ]; then
+        ARCHIVE_URL="http://security.ubuntu.com/ubuntu/pool/main/l/linux/"
+      else
+        ARCHIVE_URL="http://ports.ubuntu.com/pool/main/l/linux/"
+      fi
+      DEB_SUFFIX=$(wget ${ARCHIVE_URL} -O - | grep linux-libc-dev | cut -d'_' -f2-3 | cut -d'"' -f1 | grep ${ARCH} | grep ${KERNEL_VER} | tail -n1)
+      wget --quiet ${ARCHIVE_URL}/linux-libc-dev_${DEB_SUFFIX} -O ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
+      echo "Unpacking kernel headers..."
+      dpkg -x ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb ${SNAPCRAFT_PART_INSTALL}
+      cat ${SNAPCRAFT_PART_INSTALL}/usr/include/linux/version.h
+      rm -f ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
     override-build: |
       snapcraftctl build
       # Move the headers on the host out of the way
+      echo -n "Host kernel:"
+      cat /usr/include/linux/version.h
       rm -rf /usr/include/linux || true
       # Move header from the part to the host
-      mv usr/include/linux /usr/include/  || true
+      mv ${SNAPCRAFT_PART_INSTALL}/usr/include/linux /usr/include/ || true
+      echo -n "Build kernel:"
+      cat /usr/include/linux/version.h
     stage:
       - -*
     prime:
@@ -171,7 +354,6 @@ parts:
     source: .
     source-type: git
     after:
-      - keepalived-415
       - linux-headers-313
     configflags:
       - --prefix=/usr
@@ -190,16 +372,37 @@ parts:
       - usr/sbin/keepalived-313
 
   linux-headers-310:
-    plugin: dump
-    source: http://launchpadlibrarian.net/144719237/linux-libc-dev_3.10.0-2.11_amd64.deb
+    plugin: nil
+    build-packages:
+      - dpkg
+      - dpkg-dev
+      - wget
     after:
       - keepalived-313
+    override-pull: |
+      ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
+      if [ $ARCH = amd64 ] || [ $ARCH = ppc64el ] ||  [ $ARCH = arm64 ]; then
+        DEB_URL="http://launchpadlibrarian.net/144719237/linux-libc-dev_3.10.0-2.11_amd64.deb"
+      elif [ $ARCH = i386 ]; then
+        DEB_URL="http://launchpadlibrarian.net/144720155/linux-libc-dev_3.10.0-2.11_i386.deb"
+      elif [ $ARCH = armhf ]; then
+        DEB_URL="http://launchpadlibrarian.net/144753483/linux-libc-dev_3.10.0-2.11_armhf.deb"
+      fi
+      wget --quiet ${DEB_URL} -O ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
+      echo "Unpacking kernel headers..."
+      dpkg -x ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb ${SNAPCRAFT_PART_INSTALL}
+      cat ${SNAPCRAFT_PART_INSTALL}/usr/include/linux/version.h
+      rm -f ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
     override-build: |
       snapcraftctl build
       # Move the headers on the host out of the way
+      echo -n "Host kernel:"
+      cat /usr/include/linux/version.h
       rm -rf /usr/include/linux || true
       # Move header from the part to the host
-      mv usr/include/linux /usr/include/  || true
+      mv ${SNAPCRAFT_PART_INSTALL}/usr/include/linux /usr/include/ || true
+      echo -n "Build kernel:"
+      cat /usr/include/linux/version.h
     stage:
       - -*
     prime:
@@ -210,7 +413,6 @@ parts:
     source: .
     source-type: git
     after:
-      - keepalived-313
       - linux-headers-310
     configflags:
       - --prefix=/usr

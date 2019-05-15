@@ -1812,9 +1812,9 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_strict", &vrrp_strict_handler);
 	install_keyword("vrrp_priority", &vrrp_prio_handler);
 	install_keyword("vrrp_no_swap", &vrrp_no_swap_handler);
-	install_keyword("vrrp_cpu_affinity", &vrrp_cpu_affinity_handler);
 #ifdef _HAVE_SCHED_RT_
 	install_keyword("vrrp_rt_priority", &vrrp_rt_priority_handler);
+	install_keyword("vrrp_cpu_affinity", &vrrp_cpu_affinity_handler);
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 	install_keyword("vrrp_rlimit_rtime", &vrrp_rt_rlimit_handler);
 #endif
@@ -1832,9 +1832,9 @@ init_global_keywords(bool global_active)
 	install_keyword("lvs_notify_fifo_script", &lvs_notify_fifo_script);
 	install_keyword("checker_priority", &checker_prio_handler);
 	install_keyword("checker_no_swap", &checker_no_swap_handler);
-	install_keyword("checker_cpu_affinity", &checker_cpu_affinity_handler);
 #ifdef _HAVE_SCHED_RT_
 	install_keyword("checker_rt_priority", &checker_rt_priority_handler);
+	install_keyword("checker_cpu_affinity", &checker_cpu_affinity_handler);
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 	install_keyword("checker_rlimit_rtime", &checker_rt_rlimit_handler);
 #endif
@@ -1843,9 +1843,9 @@ init_global_keywords(bool global_active)
 #ifdef _WITH_BFD_
 	install_keyword("bfd_priority", &bfd_prio_handler);
 	install_keyword("bfd_no_swap", &bfd_no_swap_handler);
-	install_keyword("bfd_cpu_affinity", &bfd_cpu_affinity_handler);
 #ifdef _HAVE_SCHED_RT_
 	install_keyword("bfd_rt_priority", &bfd_rt_priority_handler);
+	install_keyword("bfd_cpu_affinity", &bfd_cpu_affinity_handler);
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 	install_keyword("bfd_rlimit_rtime", &bfd_rt_rlimit_handler);
 #endif

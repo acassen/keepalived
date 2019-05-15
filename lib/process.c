@@ -30,6 +30,7 @@
 #include <stdbool.h>
 
 #include "process.h"
+#include "utils.h"
 #include "logger.h"
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 #include "signals.h"
@@ -150,7 +151,7 @@ RELAX_STACK_PROTECTOR_END
 int
 set_process_cpu_affinity(cpu_set_t *set, const char *process)
 {
-	/* If not used empty set */
+	/* If not used then empty set */
 	if (!CPU_COUNT(set))
 		return 0;
 
@@ -162,6 +163,36 @@ set_process_cpu_affinity(cpu_set_t *set, const char *process)
 
 	return 0;
 }
+
+int
+get_process_cpu_affinity_string(cpu_set_t *set, char *buffer, size_t size)
+{
+	int i, num_cpus, len, s = size;
+	char *cp = buffer;
+
+	/* If not used then empty set */
+	if (!CPU_COUNT(set))
+		return 0;
+
+	num_cpus = sysconf(_SC_NPROCESSORS_ONLN);
+	for (i = 0; i < num_cpus; i++) {
+		if (!CPU_ISSET(i, set))
+			continue;
+
+		len = integer_to_string(i, cp, s);
+		if (len < 0 || s <= len + 1) {
+			*cp = '\0';
+			return -1;
+		}
+		*(cp + len) = ' ';
+		cp += len + 1;
+		s -= len + 1;
+	}
+
+	*cp = '\0';
+	return 0;
+}
+
 #endif
 
 void
