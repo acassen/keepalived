@@ -729,10 +729,16 @@ The configuration block looks like:
 
     \fBvrrp_track_process\fR <STRING> {
         # process to monitor (with optional parameters)
+        # A quoted string is treated as a single element, so if the first item
+        # after the process keyword is quoted, that will be the command name.
+        # For example:
+        #  process "/tmp/a b" param1 "param 2"
+        # would mean a process named '/tmp/a b' (quotes removed) with 2 parameters
+        #  'param1' and 'param 2'.
         \fBprocess\fR <STRING>|<QUOTED_STRING> [<STRING>|<QUOTED_STRING> ...]
 
-        # If matching parameters, specifies a partial match (i.e. the first
-        #   n parameters match exactly, or an initial match, i.e. the last
+        # If matching parameters, this specifies a partial match (i.e. the first
+        #   n parameters match exactly), or an initial match, i.e. the last
         #   parameter may be longer that the parameter configured.
         # To specify that a command must have no parameters, don't specify
         #   any parameters, but specify param_match.
@@ -1068,7 +1074,9 @@ The syntax for vrrp_sync_group is :
     # under which the scripts should be run. If username is
     # specified, the group defaults to the group of the user.
     # If username is not specified, they default to the
-    # global script_user and script_group to MASTER transition
+    # global script_user and script_group
+
+    # to MASTER transition
     \fBnotify_master \fR/path/to_master.sh [username [groupname]]
 
     # to BACKUP transition
@@ -1090,7 +1098,6 @@ The syntax for vrrp_sync_group is :
     #            ("MASTER"|"BACKUP"|"FAULT"|"STOP")
     #   $(n)   = priority value
     #   $(n-3) and $(n-1) are ALWAYS sent in uppercase, and the possible
-    #
     # strings sent are the same ones listed above
     #   ("GROUP"/"INSTANCE", "MASTER"/"BACKUP"/"FAULT"/"STOP")
     # (note: STOP is only applicable to instances)
