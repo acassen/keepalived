@@ -174,12 +174,14 @@ notify_script_exec(notify_script_t* script, char *type, int state_num, const cha
 	}
 	snprintf(prio_buf, sizeof(prio_buf), "%d", prio);
 	script->args[script->num_args+3] = prio_buf;
+	script->num_args += 4;
 
 	/* Launch the script */
 	if (state_num == VRRP_STATE_STOP)
 		system_call_script(master, child_killed_thread, NULL, TIMER_HZ, script);
 	else
 		notify_exec(script);
+	script->num_args -= 4;
 }
 
 /* SMTP alert notifier */
