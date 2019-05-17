@@ -66,8 +66,7 @@ static const char *request_template_ipv6 =
  * The global synopsis of the inter-thread-call is :
  *
  *     http_request_thread (send SSL GET request)
- *            v
- *     http_response_thread (initialize read stream step)
+ *                v
  *         /             \
  *        /               \
  *       v                 v
@@ -307,40 +306,6 @@ http_read_thread(thread_ref_t thread)
 	return 0;
 }
 
-/*
- * Read get result from the remote web server.
- * Apply trigger check to this result.
- */
-static int
-http_response_thread(thread_ref_t thread)
-{
-	SOCK *sock_obj = THREAD_ARG(thread);
-
-	/* Handle read timeout */
-	if (thread->type == THREAD_READ_TIMEOUT) {
-		exit_code = 1;
-		return epilog(thread);
-	}
-
-	/* Allocate & clean the get buffer */
-	sock_obj->buffer = (char *) MALLOC(MAX_BUFFER_LENGTH);
-
-	/* Initalize the hash context */
-	sock_obj->hash = &hashes[req->hash];
-	HASH_INIT(sock_obj);
-
-	sock_obj->rx_bytes = 0;
-
-	/* Register asynchronous http/ssl read thread */
-	if (req->ssl)
-		thread_add_read(thread->master, ssl_read_thread, sock_obj,
-				thread->u.f.fd, req->timeout, true);
-	else
-		thread_add_read(thread->master, http_read_thread, sock_obj,
-				thread->u.f.fd, req->timeout, true);
-	return 0;
-}
-
 /* remote Web server is connected, send it the get url query.  */
 int
 http_request_thread(thread_ref_t thread)
@@ -402,8 +367,22 @@ http_request_thread(thread_ref_t thread)
 		return epilog(thread);
 	}
 
-	/* Register read timeouted thread */
-	thread_add_read(thread->master, http_response_thread, sock_obj,
-			sock_obj->fd, req->timeout, true);
+	/* Allocate & clean the get buffer */
+	sock_obj->buffer = (char *) MALLOC(MAX_BUFFER_LENGTH);
+
+	/* Initalize the hash context */
+	sock_obj->hash = &hashes[req->hash];
+	HASH_INIT(sock_obj);
+
+	sock_obj->rx_bytes = 0;
+
+	/* Register asynchronous http/ssl read thread */
+	if (req->ssl)
+		thread_add_read(thread->master, ssl_read_thread, sock_obj,
+				sock_obj->fd, req->timeout, true);
+	else
+		thread_add_read(thread->master, http_read_thread, sock_obj,
+				sock_obj->fd, req->timeout, true);
+
 	return 1;
 }
