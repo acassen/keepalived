@@ -71,7 +71,6 @@ extern bool do_netlink_timers;
 extern void report_and_clear_netlink_timers(const char *);
 #endif
 
-#ifdef _WITH_VRRP_
 extern int addattr_l(struct nlmsghdr *, size_t, unsigned short, const void *, size_t);
 extern int addattr_l2(struct nlmsghdr *, size_t, unsigned short, const void *, size_t, const void *, size_t);
 extern int addraw_l(struct nlmsghdr *, size_t, const void *, size_t);
@@ -100,6 +99,7 @@ addattr64(struct nlmsghdr *n, size_t maxlen, unsigned short type, uint64_t data)
 	return addattr_l(n, maxlen, type, &data, sizeof(data));
 }
 
+#ifdef _WITH_VRRP_
 extern size_t rta_addattr_l(struct rtattr *, size_t, unsigned short, const void *, size_t);
 extern size_t rta_addattr_l2(struct rtattr *, size_t, unsigned short, const void *, size_t, const void*, size_t);
 

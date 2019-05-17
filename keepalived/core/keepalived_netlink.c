@@ -880,9 +880,9 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 		struct in_addr *in;
 		struct in6_addr *in6;
 	} addr;
+#ifdef _WITH_VRRP_
 	struct in_addr *addr_p;
 	struct in6_addr *addr6_p;
-#ifdef _WITH_VRRP_
 	char addr_str[INET6_ADDRSTRLEN];
 	bool addr_chg = false;
 	element e;
