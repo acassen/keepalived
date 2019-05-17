@@ -93,7 +93,9 @@ usage(const char *prog)
 		"   --verbose         -v       Use verbose mode output.\n"
 		"   --help            -h       Display this short inlined help screen.\n"
 		"   --release         -r       Display the release number.\n"
-		"   --fwmark          -m       Use the specified FW mark.\n");
+		"   --fwmark          -m       Use the specified FW mark.\n"
+		"   --protocol        -P       Use the specified HTTP protocol - '1.0', 1.0c', '1.1'.\n"
+		"                                1.0c means 1.0 with 'Connection: close'\n");
 	fprintf(stderr, "\nSupported hash algorithms:\n");
 	for (i = hash_first; i < hash_guard; i++)
 		fprintf(stderr, "  %s%s\n",
@@ -131,11 +133,12 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 		{"port",		required_argument, 0, 'p'},
 		{"url",			required_argument, 0, 'u'},
 		{"fwmark",		required_argument, 0, 'm'},
+		{"protocol",		required_argument, 0, 'P'},
 		{0, 0, 0, 0}
 	};
 
 	/* Parse the command line arguments */
-	while ((c = getopt_long (argc, argv, "rhvSs:H:V:p:u:m:"
+	while ((c = getopt_long (argc, argv, "rhvSs:H:V:p:u:m:P:"
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 							       "I"
 #endif
@@ -218,6 +221,23 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 			return CMD_LINE_ERROR;
 #endif
 			break;
+		case 'P':
+			if (!strcmp(optarg, "1.0"))
+				req_obj->http_protocol = HTTP_PROTOCOL_1_0;
+			else if (!strcmp(optarg, "1.0c") || !strcmp(optarg, "1.0C"))
+				req_obj->http_protocol = HTTP_PROTOCOL_1_0C;
+			else if (!strcmp(optarg, "1.1"))
+				req_obj->http_protocol = HTTP_PROTOCOL_1_1;
+			/* 1.0k and 1.1k are for test purposes and are not expected to be used */
+			else if (!strcmp(optarg, "1.0k"))
+				req_obj->http_protocol = HTTP_PROTOCOL_1_0K;
+			else if (!strcmp(optarg, "1.1k"))
+				req_obj->http_protocol = HTTP_PROTOCOL_1_1K;
+			else {
+				fprintf(stderr, "invalid HTTP protocol version '%s'\n", optarg);
+				return CMD_LINE_ERROR;
+			}
+			break;
 		default:
 			usage(argv[0]);
 			return CMD_LINE_ERROR;
@@ -251,6 +271,7 @@ main(int argc, char **argv)
 
 	/* Preset (potentially) non-zero defaults */
 	req->hash = hash_default;
+	req->http_protocol = HTTP_PROTOCOL_1_0;
 
 	/* Command line parser */
 	if (!parse_cmdline(argc, argv, req)) {

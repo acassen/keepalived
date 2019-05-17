@@ -55,6 +55,7 @@ typedef struct {
 	char		*vhost;
 	int		verbose;
 	int		ssl;
+	http_protocol_t http_protocol;
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 	int		sni;
 #endif

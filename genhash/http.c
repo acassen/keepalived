@@ -33,6 +33,28 @@
 #include "include/http.h"
 #include "include/layer4.h"
 
+/* GET processing command */
+static const char *request_template =
+			"GET %s HTTP/1.%d\r\n"
+			"User-Agent: KeepAlive GenHash Client\r\n"
+			"%s"
+			"Host: %s%s\r\n\r\n";
+
+static const char *request_template_ipv6 =
+			"GET %s HTTP/1.%d\r\n"
+			"User-Agent: KeepAlive GenHash Client\r\n"
+			"%s"
+			"Host: [%s]%s\r\n\r\n";
+
+/* Output delimiters */
+#define DELIM_BEGIN		"-----------------------["
+#define DELIM_END		"]-----------------------\n"
+#define HTTP_HEADER_HEXA	DELIM_BEGIN"    HTTP Header Buffer    "DELIM_END
+#define HTTP_HEADER_ASCII	DELIM_BEGIN" HTTP Header Ascii Buffer "DELIM_END
+#define HTML_HEADER_HEXA	DELIM_BEGIN"        HTML Buffer        "DELIM_END
+#define HTML_HASH		DELIM_BEGIN"    HTML hash resulting    "DELIM_END
+#define HTML_HASH_FINAL		DELIM_BEGIN" HTML hash final resulting "DELIM_END
+
 /*
  * The global design of this checker is the following :
  *
@@ -352,12 +374,16 @@ http_request_thread(thread_ref_t thread)
 		/* Allocate a buffer for the port string ( ":" [0-9][0-9][0-9][0-9][0-9] "\0" ) */
 		request_host_port = (char*) MALLOC(7);
 		snprintf(request_host_port, 7, ":%d",
-		 ntohs(req->addr_port));
+		ntohs(req->addr_port));
 	}
 
 	snprintf(str_request, GET_BUFFER_LENGTH,
-		 (req->dst && req->dst->ai_family == AF_INET6 && !req->vhost) ? REQUEST_TEMPLATE_IPV6 : REQUEST_TEMPLATE,
-		  req->url, request_host, request_host_port);
+		 (req->dst && req->dst->ai_family == AF_INET6 && !req->vhost) ? request_template_ipv6 : request_template,
+		  req->url,
+		  req->http_protocol == HTTP_PROTOCOL_1_1 || req->http_protocol == HTTP_PROTOCOL_1_1K ? 1 : 0,
+		  req->http_protocol == HTTP_PROTOCOL_1_0C || req->http_protocol == HTTP_PROTOCOL_1_1 ? "Connection: close\r\n" :
+		    req->http_protocol == HTTP_PROTOCOL_1_0K || req->http_protocol == HTTP_PROTOCOL_1_1K ? "Connection: keep-alive\r\n" : "",
+		  request_host, request_host_port);
 
 	FREE(request_host_port);
 
