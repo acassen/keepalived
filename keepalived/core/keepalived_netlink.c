@@ -124,39 +124,19 @@ static char *
 get_nl_msg_type(unsigned type)
 {
 	switch (type) {
-	case RTM_NEWLINK:
-		return "RTM_NEWLINK";
-		break;
-	case RTM_DELLINK:
-		return "RTM_DELLINK";
-		break;
-	case RTM_NEWADDR:
-		return "RTM_NEWADDR";
-		break;
-	case RTM_DELADDR:
-		return "RTM_DELADDR";
-		break;
-	case RTM_NEWROUTE:
-		return "RTM_NEWROUTE";
-		break;
-	case RTM_DELROUTE:
-		return "RTM_DELROUTE";
-		break;
-	case RTM_NEWRULE:
-		return "RTM_NEWRULE";
-		break;
-	case RTM_DELRULE:
-		return "RTM_DELRULE";
-		break;
-	case RTM_GETLINK:
-		return "RTM_GETLINK";
-		break;
-	case RTM_GETADDR:
-		return "RTM_GETADDR";
-		break;
-	}
+                switch_define_str(RTM_NEWLINK);
+                switch_define_str(RTM_DELLINK);
+                switch_define_str(RTM_NEWADDR);
+                switch_define_str(RTM_DELADDR);
+                switch_define_str(RTM_NEWROUTE);
+                switch_define_str(RTM_DELROUTE);
+                switch_define_str(RTM_NEWRULE);
+                switch_define_str(RTM_DELRULE);
+                switch_define_str(RTM_GETLINK);
+                switch_define_str(RTM_GETADDR);
+        };
 
-	return "";
+        return "";
 }
 
 static inline bool

@@ -47,34 +47,20 @@ static bool no_ipvs = false;
 static const char * __attribute__((pure))
 ipvs_cmd_str(int cmd)
 {
-	if (cmd == IP_VS_SO_GET_DESTS)
-		return "IP_VS_SO_GET_DESTS";
-	if (cmd == IP_VS_SO_GET_INFO)
-		return "IP_VS_SO_GET_INFO";
-	if (cmd == IP_VS_SO_GET_SERVICE)
-		return "IP_VS_SO_GET_SERVICE";
-	if (cmd == IP_VS_SO_SET_ADD)
-		return "IP_VS_SO_SET_ADD";
-	if (cmd == IP_VS_SO_SET_ADDDEST)
-		return "IP_VS_SO_SET_ADDDEST";
-	if (cmd == IP_VS_SO_SET_DEL)
-		return "IP_VS_SO_SET_DEL";
-	if (cmd == IP_VS_SO_SET_DELDEST)
-		return "IP_VS_SO_SET_DELDEST";
-	if (cmd == IP_VS_SO_SET_EDIT)
-		return "IP_VS_SO_SET_EDIT";
-	if (cmd == IP_VS_SO_SET_EDITDEST)
-		return "IP_VS_SO_SET_EDITDEST";
-	if (cmd == IP_VS_SO_SET_FLUSH)
-		return "IP_VS_SO_SET_FLUSH";
-	if (cmd == IP_VS_SO_SET_STARTDAEMON)
-		return "IP_VS_SO_SET_STARTDAEMON";
-	if (cmd == IP_VS_SO_SET_STOPDAEMON)
-		return "IP_VS_SO_SET_STOPDAEMON";
-	if (cmd == IP_VS_SO_SET_TIMEOUT)
-		return "IP_VS_SO_SET_TIMEOUT";
-	if (cmd == IP_VS_SO_SET_ZERO)
-		return "IP_VS_SO_SET_ZERO";
+	switch (cmd)
+	{
+		switch_define_str(IP_VS_SO_SET_ADD);
+		switch_define_str(IP_VS_SO_SET_ADDDEST);
+		switch_define_str(IP_VS_SO_SET_DEL);
+		switch_define_str(IP_VS_SO_SET_DELDEST);
+		switch_define_str(IP_VS_SO_SET_EDIT);
+		switch_define_str(IP_VS_SO_SET_EDITDEST);
+		switch_define_str(IP_VS_SO_SET_FLUSH);
+		switch_define_str(IP_VS_SO_SET_STARTDAEMON);
+		switch_define_str(IP_VS_SO_SET_STOPDAEMON);
+		switch_define_str(IP_VS_SO_SET_TIMEOUT);
+		switch_define_str(IP_VS_SO_SET_ZERO);
+	}
 
 	return "(unknown)";
 }
