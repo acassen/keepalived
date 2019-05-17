@@ -116,6 +116,19 @@ bool do_regex_timers;
 bool do_regex_debug;
 #endif
 
+/* GET processing command */
+static const char *request_template =
+			"GET %s HTTP/1.%d\r\n"
+			"User-Agent: KeepAliveClient\r\n"
+			"%s"
+			"Host: %s%s\r\n\r\n";
+
+static const char *request_template_ipv6 =
+			"GET %s HTTP/1.%d\r\n"
+			"User-Agent: KeepAliveClient\r\n"
+			"%s"
+			"Host: [%s]%s\r\n\r\n";
+
 static int http_connect_thread(thread_ref_t);
 
 #ifdef _WITH_REGEX_CHECK_
@@ -275,8 +288,10 @@ dump_http_get_check(FILE *fp, const checker_t *checker)
 {
 	const http_checker_t *http_get_chk = checker->data;
 
-	conf_write(fp, "   Keepalive method = %s_GET",
-			http_get_chk->proto == PROTO_HTTP ? "HTTP" : "SSL");
+	conf_write(fp, "   Keepalive method = %s_GET, http protocol %s",
+			http_get_chk->proto == PROTO_HTTP ? "HTTP" : "SSL",
+			http_get_chk->http_protocol == HTTP_PROTOCOL_1_0C ? "1.0C" :
+			  http_get_chk->http_protocol == HTTP_PROTOCOL_1_1 ? "1.1" : "1.0");
 	dump_checker_opts(fp, checker);
 	if (http_get_chk->virtualhost)
 		conf_write(fp, "   Virtualhost = %s", http_get_chk->virtualhost);
@@ -290,6 +305,7 @@ alloc_http_get(const char *proto)
 	http_get_chk = (http_checker_t *) MALLOC(sizeof (http_checker_t));
 	http_get_chk->proto =
 	    (!strcmp(proto, "HTTP_GET")) ? PROTO_HTTP : PROTO_SSL;
+	http_get_chk->http_protocol = HTTP_PROTOCOL_1_0;
 	http_get_chk->url = alloc_list(free_url, dump_url);
 	http_get_chk->virtualhost = NULL;
 
@@ -492,6 +508,29 @@ url_virtualhost_handler(const vector_t *strvec)
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
 
 	url->virtualhost = set_value(strvec);
+}
+
+static void
+http_protocol_handler(const vector_t *strvec)
+{
+	http_checker_t *http_get_chk = CHECKER_GET();
+
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Missing http_protocol version");
+		return;
+	}
+
+	if (!strcmp(strvec_slot(strvec, 1), "1.0"))
+		http_get_chk->http_protocol = HTTP_PROTOCOL_1_0;
+	else if (!strcmp(strvec_slot(strvec, 1), "1.1"))
+		http_get_chk->http_protocol = HTTP_PROTOCOL_1_1;
+	else if (!strcmp(strvec_slot(strvec, 1), "1.0C") ||
+		 !strcmp(strvec_slot(strvec, 1), "1.0c"))
+		http_get_chk->http_protocol = HTTP_PROTOCOL_1_0C;
+	else {
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid http_protocol version %s", strvec_slot(strvec, 1));
+		return;
+	}
 }
 
 #ifdef _WITH_REGEX_CHECK_
@@ -742,6 +781,7 @@ install_http_ssl_check_keyword(const char *keyword)
 	install_checker_common_keywords(true);
 	install_keyword("nb_get_retry", &http_get_retry_handler);	/* Deprecated */
 	install_keyword("virtualhost", &virtualhost_handler);
+	install_keyword("http_protocol", &http_protocol_handler);
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 	install_keyword("enable_sni", &enable_sni_handler);
 #endif
@@ -1404,14 +1444,12 @@ http_request_thread(thread_ref_t thread)
 			 ntohs(inet_sockaddrport(addr)));
 	}
 
-	if(addr->ss_family == AF_INET6 && !vhost){
 		/* if literal ipv6 address, use ipv6 template, see RFC 2732 */
-		snprintf(str_request, GET_BUFFER_LENGTH, REQUEST_TEMPLATE_IPV6,
-			fetched_url->path, request_host, request_host_port);
-	} else {
-		snprintf(str_request, GET_BUFFER_LENGTH, REQUEST_TEMPLATE,
-			fetched_url->path, request_host, request_host_port);
-	}
+	snprintf(str_request, GET_BUFFER_LENGTH, (addr->ss_family == AF_INET6 && !vhost) ? request_template_ipv6 : request_template,
+			fetched_url->path,
+			http_get_check->http_protocol == HTTP_PROTOCOL_1_1 ? 1 : 0,
+			http_get_check->http_protocol == HTTP_PROTOCOL_1_0C || http_get_check->http_protocol == HTTP_PROTOCOL_1_1 ? "Connection: close\r\n" : "",
+			request_host, request_host_port);
 
 	DBG("Processing url(%u) of %s.", http_get_check->url_it + 1 , FMT_CHK(checker));
 

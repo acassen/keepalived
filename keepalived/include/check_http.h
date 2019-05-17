@@ -42,6 +42,12 @@
 #include "scheduler.h"
 #include "list.h"
 
+typedef enum {
+        HTTP_PROTOCOL_1_0,
+        HTTP_PROTOCOL_1_0C,
+        HTTP_PROTOCOL_1_1,
+} http_protocol_t;
+
 /* Checker argument structure  */
 /* ssl specific thread arguments defs */
 typedef struct _request {
@@ -104,6 +110,7 @@ typedef struct _http_checker {
 	unsigned			url_it;		/* current url checked index */
 	request_t			*req;		/* GET buffer and SSL args */
 	list				url;
+	http_protocol_t			http_protocol;
 	const char			*virtualhost;
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 	bool				enable_sni;
@@ -115,15 +122,6 @@ typedef struct _http_checker {
 #define MAX_BUFFER_LENGTH 4096U
 #define PROTO_HTTP	0x01
 #define PROTO_SSL	0x02
-
-/* GET processing command */
-#define REQUEST_TEMPLATE "GET %s HTTP/1.0\r\n" \
-			 "User-Agent: KeepAliveClient\r\n" \
-			 "Host: %s%s\r\n\r\n"
-
-#define REQUEST_TEMPLATE_IPV6 "GET %s HTTP/1.0\r\n" \
-			 "User-Agent: KeepAliveClient\r\n" \
-			 "Host: [%s]%s\r\n\r\n"
 
 #ifdef _REGEX_DEBUG_
 extern bool do_regex_debug;

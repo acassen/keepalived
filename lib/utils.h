@@ -104,6 +104,9 @@ check_EINTR(int xx)
 #define check_EAGAIN(xx)	((xx) == EAGAIN || (xx) == EWOULDBLOCK)
 #endif
 
+/* Used in functions returning a string matching a defined value */
+#define switch_define_str(x) case x: return #x
+
 /* Buffer length needed for inet_sockaddrtotrio() - '[' + INET6_ADDRSTRLEN + ']' + ':' + 'sctp' + ':' + 'nnnnn' */
 #define SOCKADDRTRIO_STR_LEN	(INET6_ADDRSTRLEN + 13)
 

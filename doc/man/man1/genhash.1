@@ -39,6 +39,15 @@ Specify the hash algorithm to make a digest of the target page.
 Consult the help screen for list of available ones with a mark
 of the default one.
 .TP
+.B --protocol <protocol_version>, -P
+Specify the HTTP protocol version to use. protocol_version can
+be 1.0, 1.1 or 1.0c. 1.0c means protocol version 1.0 but with
+a "Connection: close" line; this is included in version 1.1 by
+default.
+.TP
+.B --timeout <timeout>, -t
+Specify the connection timeout in seconds.
+.TP
 .B --verbose, -v
 Be verbose with the output.
 .TP

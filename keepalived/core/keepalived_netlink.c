@@ -124,39 +124,19 @@ static char *
 get_nl_msg_type(unsigned type)
 {
 	switch (type) {
-	case RTM_NEWLINK:
-		return "RTM_NEWLINK";
-		break;
-	case RTM_DELLINK:
-		return "RTM_DELLINK";
-		break;
-	case RTM_NEWADDR:
-		return "RTM_NEWADDR";
-		break;
-	case RTM_DELADDR:
-		return "RTM_DELADDR";
-		break;
-	case RTM_NEWROUTE:
-		return "RTM_NEWROUTE";
-		break;
-	case RTM_DELROUTE:
-		return "RTM_DELROUTE";
-		break;
-	case RTM_NEWRULE:
-		return "RTM_NEWRULE";
-		break;
-	case RTM_DELRULE:
-		return "RTM_DELRULE";
-		break;
-	case RTM_GETLINK:
-		return "RTM_GETLINK";
-		break;
-	case RTM_GETADDR:
-		return "RTM_GETADDR";
-		break;
-	}
+                switch_define_str(RTM_NEWLINK);
+                switch_define_str(RTM_DELLINK);
+                switch_define_str(RTM_NEWADDR);
+                switch_define_str(RTM_DELADDR);
+                switch_define_str(RTM_NEWROUTE);
+                switch_define_str(RTM_DELROUTE);
+                switch_define_str(RTM_NEWRULE);
+                switch_define_str(RTM_DELRULE);
+                switch_define_str(RTM_GETLINK);
+                switch_define_str(RTM_GETADDR);
+        };
 
-	return "";
+        return "";
 }
 
 static inline bool
@@ -737,32 +717,6 @@ addattr_l(struct nlmsghdr *n, size_t maxlen, unsigned short type, const void *da
 
 #ifdef _WITH_VRRP_
 int
-addattr8(struct nlmsghdr *n, size_t maxlen, unsigned short type, uint8_t data)
-{
-	return addattr_l(n, maxlen, type, &data, sizeof data);
-}
-#endif
-
-int
-addattr16(struct nlmsghdr *n, size_t maxlen, unsigned short type, uint16_t data)
-{
-	return addattr_l(n, maxlen, type, &data, sizeof data);
-}
-
-int
-addattr32(struct nlmsghdr *n, size_t maxlen, unsigned short type, uint32_t data)
-{
-	return addattr_l(n, maxlen, type, &data, sizeof data);
-}
-
-#ifdef _WITH_VRRP_
-int
-addattr64(struct nlmsghdr *n, size_t maxlen, unsigned short type, uint64_t data)
-{
-	return addattr_l(n, maxlen, type, &data, sizeof(data));
-}
-
-int
 addattr_l2(struct nlmsghdr *n, size_t maxlen, unsigned short type, const void *data, size_t alen, const void *data2, size_t alen2)
 {
 	size_t len = RTA_LENGTH(alen + alen2);
@@ -836,42 +790,6 @@ rta_addattr_l2(struct rtattr *rta, size_t maxlen, unsigned short type,
 	return align_len;
 }
 
-size_t
-rta_addattr64(struct rtattr *rta, size_t maxlen, unsigned short type, uint64_t data)
-{
-	return rta_addattr_l(rta, maxlen, type, &data, sizeof data);
-}
-
-size_t
-rta_addattr32(struct rtattr *rta, size_t maxlen, unsigned short type, uint32_t data)
-{
-	struct rtattr *subrta;
-	size_t len = RTA_LENGTH(sizeof data);
-	size_t align_len = RTA_ALIGN(len);
-
-	if (rta->rta_len + align_len > maxlen)
-		return 0;
-
-	subrta = (struct rtattr*)(((char*)rta) + rta->rta_len);
-	subrta->rta_type = type;
-	subrta->rta_len = (unsigned short)len;
-	memcpy(RTA_DATA(subrta), &data, sizeof data);
-	rta->rta_len = (unsigned short)(rta->rta_len + align_len);
-	return align_len;
-}
-
-size_t
-rta_addattr16(struct rtattr *rta, size_t maxlen, unsigned short type, uint16_t data)
-{
-	return rta_addattr_l(rta, maxlen, type, &data, sizeof data);
-}
-
-size_t
-rta_addattr8(struct rtattr *rta, size_t maxlen, unsigned short type, uint8_t data)
-{
-	return rta_addattr_l(rta, maxlen, type, &data, sizeof data);
-}
-
 struct rtattr *
 rta_nest(struct rtattr *rta, size_t maxlen, unsigned short type)
 {
@@ -890,11 +808,6 @@ rta_nest_end(struct rtattr *rta, struct rtattr *nest)
 	return rta->rta_len;
 }
 #endif
-
-static inline __u8 rta_getattr_u8(const struct rtattr *rta)
-{
-	return *(__u8 *)RTA_DATA(rta);
-}
 
 static void
 parse_rtattr(struct rtattr **tb, int max, struct rtattr *rta, size_t len)
@@ -967,9 +880,9 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 		struct in_addr *in;
 		struct in6_addr *in6;
 	} addr;
+#ifdef _WITH_VRRP_
 	struct in_addr *addr_p;
 	struct in6_addr *addr6_p;
-#ifdef _WITH_VRRP_
 	char addr_str[INET6_ADDRSTRLEN];
 	bool addr_chg = false;
 	element e;

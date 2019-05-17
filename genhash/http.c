@@ -33,6 +33,28 @@
 #include "include/http.h"
 #include "include/layer4.h"
 
+/* GET processing command */
+static const char *request_template =
+			"GET %s HTTP/1.%d\r\n"
+			"User-Agent: KeepAlive GenHash Client\r\n"
+			"%s"
+			"Host: %s%s\r\n\r\n";
+
+static const char *request_template_ipv6 =
+			"GET %s HTTP/1.%d\r\n"
+			"User-Agent: KeepAlive GenHash Client\r\n"
+			"%s"
+			"Host: [%s]%s\r\n\r\n";
+
+/* Output delimiters */
+#define DELIM_BEGIN		"-----------------------["
+#define DELIM_END		"]-----------------------\n"
+#define HTTP_HEADER_HEXA	DELIM_BEGIN"    HTTP Header Buffer    "DELIM_END
+#define HTTP_HEADER_ASCII	DELIM_BEGIN" HTTP Header Ascii Buffer "DELIM_END
+#define HTML_HEADER_HEXA	DELIM_BEGIN"        HTML Buffer        "DELIM_END
+#define HTML_HASH		DELIM_BEGIN"    HTML hash resulting    "DELIM_END
+#define HTML_HASH_FINAL		DELIM_BEGIN" HTML hash final resulting "DELIM_END
+
 /*
  * The global design of this checker is the following :
  *
@@ -44,8 +66,7 @@
  * The global synopsis of the inter-thread-call is :
  *
  *     http_request_thread (send SSL GET request)
- *            v
- *     http_response_thread (initialize read stream step)
+ *                v
  *         /             \
  *        /               \
  *       v                 v
@@ -260,18 +281,16 @@ http_read_thread(thread_ref_t thread)
 
 	DBG(" [l:%zd,fd:%d]\n", r, sock_obj->fd);
 
-	if (r == -1 || r == 0) {	/* -1:error , 0:EOF */
-		if (r == -1) {
-			/* We have encourred a real read error */
-			DBG("Read error with server [%s]:%d: %s\n",
-			    req->ipaddress, ntohs(req->addr_port),
-			    strerror(errno));
-			exit_code = 1;
-			return epilog(thread);
-		}
-
+	if (r == 0) {		/* EOF */
 		/* All the HTTP stream has been parsed */
 		finalize(thread);
+	} else if (r == -1) {	/* error */
+		/* We have encountered a real read error */
+		DBG("Read error with server [%s]:%d: %s\n",
+		    req->ipaddress, ntohs(req->addr_port),
+		    strerror(errno));
+		exit_code = 1;
+		return epilog(thread);
 	} else {
 		/* Handle the response stream */
 		http_process_stream(sock_obj, (int)r);
@@ -281,43 +300,9 @@ http_read_thread(thread_ref_t thread)
 		 * Register itself to not perturbe global I/O multiplexer.
 		 */
 		thread_add_read(thread->master, http_read_thread, sock_obj,
-				thread->u.f.fd, HTTP_CNX_TIMEOUT, true);
+				thread->u.f.fd, req->timeout, true);
 	}
 
-	return 0;
-}
-
-/*
- * Read get result from the remote web server.
- * Apply trigger check to this result.
- */
-static int
-http_response_thread(thread_ref_t thread)
-{
-	SOCK *sock_obj = THREAD_ARG(thread);
-
-	/* Handle read timeout */
-	if (thread->type == THREAD_READ_TIMEOUT) {
-		exit_code = 1;
-		return epilog(thread);
-	}
-
-	/* Allocate & clean the get buffer */
-	sock_obj->buffer = (char *) MALLOC(MAX_BUFFER_LENGTH);
-
-	/* Initalize the hash context */
-	sock_obj->hash = &hashes[req->hash];
-	HASH_INIT(sock_obj);
-
-	sock_obj->rx_bytes = 0;
-
-	/* Register asynchronous http/ssl read thread */
-	if (req->ssl)
-		thread_add_read(thread->master, ssl_read_thread, sock_obj,
-				thread->u.f.fd, HTTP_CNX_TIMEOUT, true);
-	else
-		thread_add_read(thread->master, http_read_thread, sock_obj,
-				thread->u.f.fd, HTTP_CNX_TIMEOUT, true);
 	return 0;
 }
 
@@ -352,12 +337,16 @@ http_request_thread(thread_ref_t thread)
 		/* Allocate a buffer for the port string ( ":" [0-9][0-9][0-9][0-9][0-9] "\0" ) */
 		request_host_port = (char*) MALLOC(7);
 		snprintf(request_host_port, 7, ":%d",
-		 ntohs(req->addr_port));
+		ntohs(req->addr_port));
 	}
 
 	snprintf(str_request, GET_BUFFER_LENGTH,
-		 (req->dst && req->dst->ai_family == AF_INET6 && !req->vhost) ? REQUEST_TEMPLATE_IPV6 : REQUEST_TEMPLATE,
-		  req->url, request_host, request_host_port);
+		 (req->dst && req->dst->ai_family == AF_INET6 && !req->vhost) ? request_template_ipv6 : request_template,
+		  req->url,
+		  req->http_protocol == HTTP_PROTOCOL_1_1 || req->http_protocol == HTTP_PROTOCOL_1_1K ? 1 : 0,
+		  req->http_protocol == HTTP_PROTOCOL_1_0C || req->http_protocol == HTTP_PROTOCOL_1_1 ? "Connection: close\r\n" :
+		    req->http_protocol == HTTP_PROTOCOL_1_0K || req->http_protocol == HTTP_PROTOCOL_1_1K ? "Connection: keep-alive\r\n" : "",
+		  request_host, request_host_port);
 
 	FREE(request_host_port);
 
@@ -378,8 +367,22 @@ http_request_thread(thread_ref_t thread)
 		return epilog(thread);
 	}
 
-	/* Register read timeouted thread */
-	thread_add_read(thread->master, http_response_thread, sock_obj,
-			sock_obj->fd, HTTP_CNX_TIMEOUT, true);
+	/* Allocate & clean the get buffer */
+	sock_obj->buffer = (char *) MALLOC(MAX_BUFFER_LENGTH);
+
+	/* Initalize the hash context */
+	sock_obj->hash = &hashes[req->hash];
+	HASH_INIT(sock_obj);
+
+	sock_obj->rx_bytes = 0;
+
+	/* Register asynchronous http/ssl read thread */
+	if (req->ssl)
+		thread_add_read(thread->master, ssl_read_thread, sock_obj,
+				sock_obj->fd, req->timeout, true);
+	else
+		thread_add_read(thread->master, http_read_thread, sock_obj,
+				sock_obj->fd, req->timeout, true);
+
 	return 1;
 }

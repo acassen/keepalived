@@ -34,27 +34,17 @@
 /* global defs */
 #define GET_BUFFER_LENGTH 2048
 #define MAX_BUFFER_LENGTH 4096
-#define HTTP_CNX_TIMEOUT (5 * TIMER_HZ)
+#define HTTP_CNX_TIMEOUT 5
 #define PROTO_HTTP	0x01
 #define PROTO_SSL	0x02
 
-/* GET processing command */
-#define REQUEST_TEMPLATE "GET %s HTTP/1.0\r\n" \
-			 "User-Agent: KeepAlive GenHash Client\r\n" \
-			 "Host: %s%s\r\n\r\n"
-
-#define REQUEST_TEMPLATE_IPV6 "GET %s HTTP/1.0\r\n" \
-			 "User-Agent: KeepAlive GenHash Client\r\n" \
-			 "Host: [%s]%s\r\n\r\n"
-
-/* Output delimiters */
-#define DELIM_BEGIN		"-----------------------["
-#define DELIM_END		"]-----------------------\n"
-#define HTTP_HEADER_HEXA	DELIM_BEGIN"    HTTP Header Buffer    "DELIM_END
-#define HTTP_HEADER_ASCII	DELIM_BEGIN" HTTP Header Ascii Buffer "DELIM_END
-#define HTML_HEADER_HEXA	DELIM_BEGIN"        HTML Buffer        "DELIM_END
-#define HTML_HASH		DELIM_BEGIN"    HTML hash resulting    "DELIM_END
-#define HTML_HASH_FINAL		DELIM_BEGIN" HTML hash final resulting "DELIM_END
+typedef enum {
+	HTTP_PROTOCOL_1_0,
+	HTTP_PROTOCOL_1_0C,
+	HTTP_PROTOCOL_1_0K,
+	HTTP_PROTOCOL_1_1,
+	HTTP_PROTOCOL_1_1K,
+} http_protocol_t;
 
 /* Globals exported */
 extern const hash_t hashes[];
