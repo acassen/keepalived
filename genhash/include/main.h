@@ -56,6 +56,7 @@ typedef struct {
 	int		verbose;
 	int		ssl;
 	http_protocol_t http_protocol;
+	unsigned	timeout;
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 	int		sni;
 #endif

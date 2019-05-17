@@ -301,7 +301,7 @@ http_read_thread(thread_ref_t thread)
 		 * Register itself to not perturbe global I/O multiplexer.
 		 */
 		thread_add_read(thread->master, http_read_thread, sock_obj,
-				thread->u.f.fd, HTTP_CNX_TIMEOUT, true);
+				thread->u.f.fd, req->timeout, true);
 	}
 
 	return 0;
@@ -334,10 +334,10 @@ http_response_thread(thread_ref_t thread)
 	/* Register asynchronous http/ssl read thread */
 	if (req->ssl)
 		thread_add_read(thread->master, ssl_read_thread, sock_obj,
-				thread->u.f.fd, HTTP_CNX_TIMEOUT, true);
+				thread->u.f.fd, req->timeout, true);
 	else
 		thread_add_read(thread->master, http_read_thread, sock_obj,
-				thread->u.f.fd, HTTP_CNX_TIMEOUT, true);
+				thread->u.f.fd, req->timeout, true);
 	return 0;
 }
 
@@ -404,6 +404,6 @@ http_request_thread(thread_ref_t thread)
 
 	/* Register read timeouted thread */
 	thread_add_read(thread->master, http_response_thread, sock_obj,
-			sock_obj->fd, HTTP_CNX_TIMEOUT, true);
+			sock_obj->fd, req->timeout, true);
 	return 1;
 }

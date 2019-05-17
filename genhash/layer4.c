@@ -248,6 +248,6 @@ tcp_connect_thread(thread_ref_t thread)
 
 	/* handle tcp connection status & register check worker thread */
 	tcp_connection_state(sock_obj->fd, sock_obj->status, thread, tcp_check_thread,
-			     HTTP_CNX_TIMEOUT);
+			     req->timeout);
 	return 0;
 }

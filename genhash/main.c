@@ -95,7 +95,8 @@ usage(const char *prog)
 		"   --release         -r       Display the release number.\n"
 		"   --fwmark          -m       Use the specified FW mark.\n"
 		"   --protocol        -P       Use the specified HTTP protocol - '1.0', 1.0c', '1.1'.\n"
-		"                                1.0c means 1.0 with 'Connection: close'\n");
+		"                                1.0c means 1.0 with 'Connection: close'\n"
+		"   --timeout         -t       Timeout in seconds\n");
 	fprintf(stderr, "\nSupported hash algorithms:\n");
 	for (i = hash_first; i < hash_guard; i++)
 		fprintf(stderr, "  %s%s\n",
@@ -113,6 +114,7 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 	void *ptr;
 	char *endptr;
 	long port_num;
+	const char *start;
 
 	memset(&hint, '\0', sizeof hint);
 
@@ -134,11 +136,12 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 		{"url",			required_argument, 0, 'u'},
 		{"fwmark",		required_argument, 0, 'm'},
 		{"protocol",		required_argument, 0, 'P'},
+		{"timeout",		required_argument, 0, 't'},
 		{0, 0, 0, 0}
 	};
 
 	/* Parse the command line arguments */
-	while ((c = getopt_long (argc, argv, "rhvSs:H:V:p:u:m:P:"
+	while ((c = getopt_long (argc, argv, "rhvSs:H:V:p:u:m:P:t:"
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 							       "I"
 #endif
@@ -211,8 +214,9 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 			break;
 		case 'm':
 #ifdef _WITH_SO_MARK_
-			req_obj->mark = (unsigned)strtoul(optarg + strspn(optarg, " \t"), &endptr, 10);
-			if (*endptr || optarg[strspn(optarg, " \t")] == '-') {
+			start = optarg + strspn(optarg, " \t");
+			req_obj->mark = (unsigned)strtoul(start, &endptr, 10);
+			if (*endptr || start[0] == '-' || start[0] == ' ') {
 				fprintf(stderr, "invalid fwmark '%s'\n", optarg);
 				return CMD_LINE_ERROR;
 			}
@@ -237,6 +241,15 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 				fprintf(stderr, "invalid HTTP protocol version '%s'\n", optarg);
 				return CMD_LINE_ERROR;
 			}
+			break;
+		case 't':
+			start = optarg + strspn(optarg, " \t");
+			req_obj->timeout = (unsigned)strtoul(start, &endptr, 10);
+			if (*endptr || start[0] == '-' || !start[0]) {
+				fprintf(stderr, "invalid timeout '%s'\n", optarg);
+				return CMD_LINE_ERROR;
+			}
+			req_obj->timeout *= TIMER_HZ;
 			break;
 		default:
 			usage(argv[0]);
@@ -272,6 +285,7 @@ main(int argc, char **argv)
 	/* Preset (potentially) non-zero defaults */
 	req->hash = hash_default;
 	req->http_protocol = HTTP_PROTOCOL_1_0;
+	req->timeout = HTTP_CNX_TIMEOUT * TIMER_HZ;
 
 	/* Command line parser */
 	if (!parse_cmdline(argc, argv, req)) {

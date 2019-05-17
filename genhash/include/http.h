@@ -34,7 +34,7 @@
 /* global defs */
 #define GET_BUFFER_LENGTH 2048
 #define MAX_BUFFER_LENGTH 4096
-#define HTTP_CNX_TIMEOUT (5 * TIMER_HZ)
+#define HTTP_CNX_TIMEOUT 5
 #define PROTO_HTTP	0x01
 #define PROTO_SSL	0x02
 
