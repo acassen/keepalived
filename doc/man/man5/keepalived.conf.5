@@ -1778,6 +1778,11 @@ The syntax for virtual_server is :
 
         # HTTP and SSL healthcheckers
         \fBHTTP_GET|SSL_GET \fR{
+            # HTTP protocol version, one of 1.0, 1.0C, 1.1
+            # Protocol version 1.0C means version 1.0 with the addition
+            # of a "Connection: close" line, which is included in
+            # version 1.1 by default.
+            \fBhttp_protocol \fR<PROTOCOL>
             # An url to test
             # can have multiple entries here
             \fBurl \fR{
