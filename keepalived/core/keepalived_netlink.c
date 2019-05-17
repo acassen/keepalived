@@ -717,32 +717,6 @@ addattr_l(struct nlmsghdr *n, size_t maxlen, unsigned short type, const void *da
 
 #ifdef _WITH_VRRP_
 int
-addattr8(struct nlmsghdr *n, size_t maxlen, unsigned short type, uint8_t data)
-{
-	return addattr_l(n, maxlen, type, &data, sizeof data);
-}
-#endif
-
-int
-addattr16(struct nlmsghdr *n, size_t maxlen, unsigned short type, uint16_t data)
-{
-	return addattr_l(n, maxlen, type, &data, sizeof data);
-}
-
-int
-addattr32(struct nlmsghdr *n, size_t maxlen, unsigned short type, uint32_t data)
-{
-	return addattr_l(n, maxlen, type, &data, sizeof data);
-}
-
-#ifdef _WITH_VRRP_
-int
-addattr64(struct nlmsghdr *n, size_t maxlen, unsigned short type, uint64_t data)
-{
-	return addattr_l(n, maxlen, type, &data, sizeof(data));
-}
-
-int
 addattr_l2(struct nlmsghdr *n, size_t maxlen, unsigned short type, const void *data, size_t alen, const void *data2, size_t alen2)
 {
 	size_t len = RTA_LENGTH(alen + alen2);
@@ -816,42 +790,6 @@ rta_addattr_l2(struct rtattr *rta, size_t maxlen, unsigned short type,
 	return align_len;
 }
 
-size_t
-rta_addattr64(struct rtattr *rta, size_t maxlen, unsigned short type, uint64_t data)
-{
-	return rta_addattr_l(rta, maxlen, type, &data, sizeof data);
-}
-
-size_t
-rta_addattr32(struct rtattr *rta, size_t maxlen, unsigned short type, uint32_t data)
-{
-	struct rtattr *subrta;
-	size_t len = RTA_LENGTH(sizeof data);
-	size_t align_len = RTA_ALIGN(len);
-
-	if (rta->rta_len + align_len > maxlen)
-		return 0;
-
-	subrta = (struct rtattr*)(((char*)rta) + rta->rta_len);
-	subrta->rta_type = type;
-	subrta->rta_len = (unsigned short)len;
-	memcpy(RTA_DATA(subrta), &data, sizeof data);
-	rta->rta_len = (unsigned short)(rta->rta_len + align_len);
-	return align_len;
-}
-
-size_t
-rta_addattr16(struct rtattr *rta, size_t maxlen, unsigned short type, uint16_t data)
-{
-	return rta_addattr_l(rta, maxlen, type, &data, sizeof data);
-}
-
-size_t
-rta_addattr8(struct rtattr *rta, size_t maxlen, unsigned short type, uint8_t data)
-{
-	return rta_addattr_l(rta, maxlen, type, &data, sizeof data);
-}
-
 struct rtattr *
 rta_nest(struct rtattr *rta, size_t maxlen, unsigned short type)
 {
@@ -870,11 +808,6 @@ rta_nest_end(struct rtattr *rta, struct rtattr *nest)
 	return rta->rta_len;
 }
 #endif
-
-static inline __u8 rta_getattr_u8(const struct rtattr *rta)
-{
-	return *(__u8 *)RTA_DATA(rta);
-}
 
 static void
 parse_rtattr(struct rtattr **tb, int max, struct rtattr *rta, size_t len)

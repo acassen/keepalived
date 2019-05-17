@@ -70,20 +70,63 @@ extern bool do_netlink_timers;
 #ifdef _NETLINK_TIMERS_
 extern void report_and_clear_netlink_timers(const char *);
 #endif
+
 #ifdef _WITH_VRRP_
 extern int addattr_l(struct nlmsghdr *, size_t, unsigned short, const void *, size_t);
-extern int addattr8(struct nlmsghdr *, size_t, unsigned short, uint8_t);
-extern int addattr16(struct nlmsghdr *, size_t, unsigned short, uint16_t);
-extern int addattr32(struct nlmsghdr *, size_t, unsigned short, uint32_t);
-extern int addattr64(struct nlmsghdr *, size_t, unsigned short, uint64_t);
 extern int addattr_l2(struct nlmsghdr *, size_t, unsigned short, const void *, size_t, const void *, size_t);
 extern int addraw_l(struct nlmsghdr *, size_t, const void *, size_t);
+
+static inline int
+addattr8(struct nlmsghdr *n, size_t maxlen, unsigned short type, uint8_t data)
+{
+	return addattr_l(n, maxlen, type, &data, sizeof data);
+}
+
+static inline int
+addattr16(struct nlmsghdr *n, size_t maxlen, unsigned short type, uint16_t data)
+{
+	return addattr_l(n, maxlen, type, &data, sizeof data);
+}
+
+static inline int
+addattr32(struct nlmsghdr *n, size_t maxlen, unsigned short type, uint32_t data)
+{
+	return addattr_l(n, maxlen, type, &data, sizeof data);
+}
+
+static inline int
+addattr64(struct nlmsghdr *n, size_t maxlen, unsigned short type, uint64_t data)
+{
+	return addattr_l(n, maxlen, type, &data, sizeof(data));
+}
+
 extern size_t rta_addattr_l(struct rtattr *, size_t, unsigned short, const void *, size_t);
 extern size_t rta_addattr_l2(struct rtattr *, size_t, unsigned short, const void *, size_t, const void*, size_t);
-extern size_t rta_addattr64(struct rtattr *, size_t, unsigned short, uint64_t);
-extern size_t rta_addattr32(struct rtattr *, size_t, unsigned short, uint32_t);
-extern size_t rta_addattr16(struct rtattr *, size_t, unsigned short, uint16_t);
-extern size_t rta_addattr8(struct rtattr *, size_t, unsigned short, uint8_t);
+
+static inline size_t
+rta_addattr8(struct rtattr *rta, size_t maxlen, unsigned short type, uint8_t data)
+{
+	return rta_addattr_l(rta, maxlen, type, &data, sizeof data);
+}
+
+static inline size_t
+rta_addattr16(struct rtattr *rta, size_t maxlen, unsigned short type, uint16_t data)
+{
+	return rta_addattr_l(rta, maxlen, type, &data, sizeof data);
+}
+
+static inline size_t
+rta_addattr32(struct rtattr *rta, size_t maxlen, unsigned short type, uint32_t data)
+{
+	return rta_addattr_l(rta, maxlen, type, &data, sizeof data);
+}
+
+static inline size_t
+rta_addattr64(struct rtattr *rta, size_t maxlen, unsigned short type, uint64_t data)
+{
+	return rta_addattr_l(rta, maxlen, type, &data, sizeof data);
+}
+
 extern struct rtattr *rta_nest(struct rtattr *, size_t, unsigned short);
 extern size_t rta_nest_end(struct rtattr *, struct rtattr *);
 extern ssize_t netlink_talk(nl_handle_t *, struct nlmsghdr *);
