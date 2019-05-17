@@ -282,18 +282,16 @@ http_read_thread(thread_ref_t thread)
 
 	DBG(" [l:%zd,fd:%d]\n", r, sock_obj->fd);
 
-	if (r == -1 || r == 0) {	/* -1:error , 0:EOF */
-		if (r == -1) {
-			/* We have encourred a real read error */
-			DBG("Read error with server [%s]:%d: %s\n",
-			    req->ipaddress, ntohs(req->addr_port),
-			    strerror(errno));
-			exit_code = 1;
-			return epilog(thread);
-		}
-
+	if (r == 0) {		/* EOF */
 		/* All the HTTP stream has been parsed */
 		finalize(thread);
+	} else if (r == -1) {	/* error */
+		/* We have encountered a real read error */
+		DBG("Read error with server [%s]:%d: %s\n",
+		    req->ipaddress, ntohs(req->addr_port),
+		    strerror(errno));
+		exit_code = 1;
+		return epilog(thread);
 	} else {
 		/* Handle the response stream */
 		http_process_stream(sock_obj, (int)r);

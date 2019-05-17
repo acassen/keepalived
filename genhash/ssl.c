@@ -191,37 +191,33 @@ ssl_read_thread(thread_ref_t thread)
 	 * and sometime not...
 	 */
 
-      read_stream:
+	do {
+		/* read the SSL stream */
+		r = MAX_BUFFER_LENGTH - sock_obj->size;
+		if (r <= 0) {
+			/* defensive check, should not occur */
+			fprintf(stderr, "SSL socket buffer overflow (not consumed)\n");
+			r = MAX_BUFFER_LENGTH;
+		}
+		memset(sock_obj->buffer + sock_obj->size, 0, (size_t)r);
+		r = SSL_read(sock_obj->ssl, sock_obj->buffer + sock_obj->size, r);
+		error = SSL_get_error(sock_obj->ssl, r);
 
-	/* read the SSL stream */
-	r = MAX_BUFFER_LENGTH - sock_obj->size;
-	if (r <= 0) {
-		/* defensive check, should not occur */
-		fprintf(stderr, "SSL socket buffer overflow (not consumed)\n");
-		r = MAX_BUFFER_LENGTH;
-	}
-	memset(sock_obj->buffer + sock_obj->size, 0, (size_t)r);
-	r = SSL_read(sock_obj->ssl, sock_obj->buffer + sock_obj->size, r);
-	error = SSL_get_error(sock_obj->ssl, r);
+		DBG(" [l:%d,fd:%d]\n", r, sock_obj->fd);
 
-	DBG(" [l:%d,fd:%d]\n", r, sock_obj->fd);
-
-	if (error) {
-		/* All the SSL streal has been parsed */
-		/* Handle response stream */
-		if (error != SSL_ERROR_NONE)
-			return finalize(thread);
-	} else if (r > 0 && error == 0) {
+		if (error) {
+			/* All the SSL streal has been parsed */
+			/* Handle response stream */
+			if (error != SSL_ERROR_NONE)
+				return finalize(thread);
+			return 0;
+		} else if (r <= 0)
+			return 0;
 
 		/* Handle the response stream */
 		http_process_stream(sock_obj, r);
+	} while (true);
 
-		/*
-		 * Register next ssl stream reader.
-		 * Register itself to not perturbe global I/O multiplexer.
-		 */
-		goto read_stream;
-	}
-
+	/* Unreachable */
 	return 0;
 }
