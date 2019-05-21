@@ -2255,6 +2255,8 @@ GNU_STD_PATHS=No
 if test "${enable_gnu_std_paths}" = "yes"; then
   AC_DEFINE([GNU_STD_PATHS], [ 1 ], [set to enforce GNU standard paths, for .pid files etc])
   PID_DIR=$localstatedir
+elif test $INIT_TYPE = systemd; then
+  PID_DIR=/
 else
   PID_DIR=/var
 fi
