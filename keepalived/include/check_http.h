@@ -48,6 +48,9 @@ typedef enum {
         HTTP_PROTOCOL_1_1,
 } http_protocol_t;
 
+/* Http status code potential MAX=599 needs 599/sizeof(unsigned long), up to 10*/
+#define HTTP_STATUS_ARRAY_SIZE	10
+
 /* Checker argument structure  */
 /* ssl specific thread arguments defs */
 typedef struct _request {
@@ -91,7 +94,7 @@ typedef struct _regex {
 typedef struct _url {
 	const char			*path;
 	const uint8_t			*digest;
-	int				status_code;
+	unsigned long			status_code[HTTP_STATUS_ARRAY_SIZE]; /* Total 100...599 states, each one in array can store 64 bits information */
 	const char			*virtualhost;
 	ssize_t				len_mismatch;
 #ifdef _WITH_REGEX_CHECK_
@@ -117,11 +120,18 @@ typedef struct _http_checker {
 #endif
 } http_checker_t;
 
+enum parse_result {
+	parse_get_x = 1000,
+	parse_error,
+};
+
 /* global defs */
 #define GET_BUFFER_LENGTH 2048U
 #define MAX_BUFFER_LENGTH 4096U
 #define PROTO_HTTP	0x01
 #define PROTO_SSL	0x02
+/* is the status code a (potentially) valid response code?  */
+#define IS_HTTP_VALID_RESPONSE(x) (((x) >= 100)&&((x) < 600))
 
 #ifdef _REGEX_DEBUG_
 extern bool do_regex_debug;
