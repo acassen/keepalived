@@ -30,7 +30,7 @@
 #include "vrrp_static_track.h"
 #include "vrrp_ipaddress.h"
 #include "vrrp_track.h"
-#if _HAVE_FIB_ROUTING_
+#ifdef _HAVE_FIB_ROUTING_
 #include "vrrp_iproute.h"
 #include "vrrp_iprule.h"
 #endif
@@ -112,7 +112,7 @@ static_track_group_init(void)
 	static_track_group_t *tg;
 	vrrp_t *vrrp;
 	ip_address_t *addr;
-#if _HAVE_FIB_ROUTING_
+#ifdef _HAVE_FIB_ROUTING_
 	ip_route_t *route;
 	ip_rule_t *rule;
 #endif
@@ -146,7 +146,7 @@ static_track_group_init(void)
 			add_vrrp_to_interface(vrrp, addr->ifp, 0, false, TRACK_SADDR);
 	}
 
-#if _HAVE_FIB_ROUTING_
+#ifdef _HAVE_FIB_ROUTING_
 	/* Add the tracking vrrps to track the interface of each tracked address */
 	LIST_FOREACH(vrrp_data->static_routes, route, e) {
 		if (!route->track_group)
@@ -182,7 +182,7 @@ void
 static_track_reinstate_config(interface_t *ifp)
 {
 	ip_address_t *addr;
-#if _HAVE_FIB_ROUTING_
+#ifdef _HAVE_FIB_ROUTING_
 	ip_route_t *route;
 /*	ip_rule_t *rule; */
 #endif
@@ -196,7 +196,7 @@ static_track_reinstate_config(interface_t *ifp)
 		reinstate_static_address(addr);
 	}
 
-#if _HAVE_FIB_ROUTING_
+#ifdef _HAVE_FIB_ROUTING_
 	/* Add the tracking vrrps to track the interface of each tracked address */
 	LIST_FOREACH(vrrp_data->static_routes, route, e) {
 		if (route->dont_track)

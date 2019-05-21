@@ -2973,6 +2973,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #ifdef _WITH_FIREWALL_
 	if (vrrp->base_priority != VRRP_PRIO_OWNER && !vrrp->accept) {
 		bool have_firewall = false;
+		char *str;
 
 #ifdef _WITH_IPTABLES_
 		if (global_data->vrrp_iptables_inchain[0])
@@ -2988,8 +2989,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			strcpy(global_data->vrrp_iptables_inchain, DEFAULT_IPTABLES_CHAIN_IN);
 			strcpy(global_data->vrrp_iptables_outchain, DEFAULT_IPTABLES_CHAIN_OUT);
 #else
-			global_data->vrrp_nf_table_name = MALLOC(strlen(DEFAULT_NFTABLES_TABLE) + 1);
-			strcpy(global_data->vrrp_nf_table_name, DEFAULT_NFTABLES_TABLE);
+			str = MALLOC(strlen(DEFAULT_NFTABLES_TABLE) + 1);
+			strcpy(str, DEFAULT_NFTABLES_TABLE);
+			global_data->vrrp_nf_table_name = str;
 #endif
 		}
 
@@ -3279,7 +3281,7 @@ sync_group_tracking_init(void)
 	}
 }
 
-#if _HAVE_FIB_ROUTING_
+#ifdef _HAVE_FIB_ROUTING_
 static void
 process_static_entries(void)
 {

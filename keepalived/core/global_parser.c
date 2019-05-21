@@ -64,7 +64,9 @@
 #define TASK_COMM_LEN	16
 #endif
 
+#ifdef _WITH_LVS_
 #define LVS_MAX_TIMEOUT		(86400*31)	/* 31 days */
+#endif
 
 /* data handlers */
 /* Global def handlers */

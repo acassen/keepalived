@@ -36,7 +36,8 @@ enum connect_result {
 	connect_in_progress,
 	connect_timeout,
 	connect_fail,
-	connect_success
+	connect_success,
+	connect_result_next
 };
 
 /* connection options structure definition */
