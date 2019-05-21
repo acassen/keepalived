@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <ctype.h>
 
 #ifdef _WITH_REGEX_CHECK_
 #define PCRE2_CODE_UNIT_WIDTH 8
@@ -276,7 +277,6 @@ dump_url(FILE *fp, const void *data)
 	if (url->regex) {
 		char options_buf[512];
 		char *op;
-		int i;
 
 		conf_write(fp, "     Regex = \"%s\"", url->regex->pattern);
 		if (url->regex_no_match)
