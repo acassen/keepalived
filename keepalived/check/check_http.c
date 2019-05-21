@@ -56,6 +56,56 @@
 #define	REGISTER_CHECKER_NEW	1
 #define	REGISTER_CHECKER_RETRY	2
 
+/* Each unsigned long is 64 bits, equals to 1 << 6 */
+#define	STATUS_CODE_ARRAY_BITS	6
+#define	STATUS_CODE_ARRAY_ENTRY_NUM	(1 << STATUS_CODE_ARRAY_BITS)
+#define	STATUS_CODE_ARRAY_MASK		(STATUS_CODE_ARRAY_ENTRY_NUM - 1)
+
+static unsigned long int set_code_bit(url_t *url, int code) {
+	return url->status_code[code >> STATUS_CODE_ARRAY_BITS] |= (1UL << (code & STATUS_CODE_ARRAY_MASK));
+}
+
+static unsigned long int get_code_bit(url_t *url, int code) {
+	return url->status_code[code >> STATUS_CODE_ARRAY_BITS] & (1UL << (code & STATUS_CODE_ARRAY_MASK));
+}
+
+static int parse_str(char str) {
+	if (str == 'x' || str == 'X')
+		return parse_get_x;
+	if (isdigit(str))
+		return str - '0';
+	return parse_error;
+}
+
+static void process_one_status_code(url_t *url, char *str) {
+	int j = 0;
+	int code[5] = {0};
+	bool valid = true;
+
+	/* We use code[0] to store potential valid value */
+	code[0] = 0;
+	for (j = 0; j < 3; j++) {
+		code[j + 1] = parse_str(str[j]);
+		code[0] = code[0] * 10 + code[j + 1];
+	}
+
+	if (code[1] > 0 && code[1] < 6 && (code[2] == parse_get_x && code[3] == parse_get_x)) {
+		/* Once we got somesthing like 2xx, set code[0] to like 2*100 */
+		code[0] = code[1] * 100;
+		for (j = code[0]; j < code[0] + 100; j++)
+			set_code_bit(url, j);
+	} else if (IS_HTTP_VALID_RESPONSE(code[0])) {
+		set_code_bit(url, code[0]);
+	} else {
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid HTTP_GET status code '%s'", str);
+		valid = false;
+	}
+
+ 	/* We use bit zero to mark if we set code  */
+	if(valid)
+		set_code_bit(url, 0);
+}
+
 #ifdef _WITH_REGEX_CHECK_
 typedef struct {
 	const char *option;
@@ -212,12 +262,14 @@ dump_url(FILE *fp, const void *data)
 {
 	const url_t *url = data;
 	char digest_buf[2 * MD5_DIGEST_LENGTH + 1];
+	unsigned int i = 0;
 
 	conf_write(fp, "   Checked url = %s", url->path);
 	if (url->digest)
 		conf_write(fp, "     digest = %s", format_digest(url->digest, digest_buf));
-	if (url->status_code)
-		conf_write(fp, "     HTTP Status Code = %d", url->status_code);
+	if (url->status_code[0])
+		for (i = 100; i< 600; i++)
+			conf_write(fp, "     HTTP Status Code = %d", i);
 	if (url->virtualhost)
 		conf_write(fp, "     Virtual host = %s", url->virtualhost);
 #ifdef _WITH_REGEX_CHECK_
@@ -322,6 +374,7 @@ http_get_check_compare(const checker_t *old_c, const checker_t *new_c)
 	const http_checker_t *new = new_c->data;
 	size_t n;
 	url_t *u1, *u2;
+	int i;
 
 	if (!compare_conn_opts(old_c->co, new_c->co))
 		return false;
@@ -340,8 +393,9 @@ http_get_check_compare(const checker_t *old_c, const checker_t *new_c)
 			return false;
 		if (u1->digest && memcmp(u1->digest, u2->digest, MD5_DIGEST_LENGTH))
 			return false;
-		if (u1->status_code != u2->status_code)
-			return false;
+		for (i = 0; i < HTTP_STATUS_ARRAY_SIZE; i++)
+			if (u1->status_code[i] != u2->status_code[i])
+				return false;
 		if (!u1->virtualhost != !u2->virtualhost)
 			return false;
 		if (u1->virtualhost && strcmp(u1->virtualhost, u2->virtualhost))
@@ -493,12 +547,20 @@ status_code_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
-	unsigned val;
+	char *str = NULL;
+	unsigned int i = 1;
+	unsigned int len = 0;
 
-	if (!read_unsigned_strvec(strvec, 1, &val, 100, 999, true))
-		report_config_error(CONFIG_GENERAL_ERROR, "Invalid HTTP_GET status code '%s'", strvec_slot(strvec, 1));
-	else
-		url->status_code = val;
+ 	while (i < vector_size(strvec)) {
+		str = vector_slot(strvec, i);
+		len = strlen(str);
+		if(len != 3) 
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid HTTP_GET status code '%s'", str);
+		else
+			process_one_status_code(url, str);
+		i++;
+	}
+
 }
 
 static void
@@ -1171,8 +1233,8 @@ http_handle_response(thread_ref_t thread, unsigned char digest[MD5_DIGEST_LENGTH
 		return timeout_epilog(thread, "Read, no data received from ");
 
 	/* Next check the HTTP status code */
-	if (url->status_code) {
-		if (req->status_code != url->status_code)
+	if (url->status_code[0]) {
+		if (!get_code_bit(url, req->status_code))
 			return timeout_epilog(thread, "HTTP status code error to");
 
 		last_success = ON_STATUS;
