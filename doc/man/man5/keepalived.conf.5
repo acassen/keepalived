@@ -1788,14 +1788,15 @@ The syntax for virtual_server is :
             \fBurl \fR{
               #eg path / , or path /mrtg2/
               \fBpath \fR<STRING>
-              # healthcheck needs status_code
+              # healthcheck needs digest
               # or status_code and digest
               # Digest computed with genhash
               # eg digest 9b3a0c85a887a256d6939da88aabd8cd
               \fBdigest \fR<STRING>
               # status code returned in the HTTP header
-              # eg status_code 200. Default is any 2xx value
-              \fBstatus_code \fR<INTEGER>
+              # eg status_code 200 or status_code 200-299 400-499 503 505
+              # Default is 200-299
+              \fBstatus_code \fR<INTEGER|RANGE> [<INTEGER|RANGE>] ...
               # VirtualHost string. eg virtualhost www.firewall.loc
               # If not set, uses virtualhost from real or virtual server
               \fBvirtualhost \fR<STRING>
