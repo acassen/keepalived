@@ -29,6 +29,7 @@
 
 /* local includes */
 #include "global_data.h"
+#include "layer4.h"
 #ifdef _WITH_LVS_
 #include "check_data.h"
 #include "check_api.h"
