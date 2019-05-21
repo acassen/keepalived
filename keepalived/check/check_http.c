@@ -39,6 +39,7 @@
 #include "check_http.h"
 #include "check_api.h"
 #include "check_ssl.h"
+#include "bitops.h"
 #include "logger.h"
 #include "parser.h"
 #include "utils.h"
@@ -57,19 +58,6 @@
 #define	REGISTER_CHECKER_NEW	1
 #define	REGISTER_CHECKER_RETRY	2
 
-/* Each unsigned long is 64 bits, equals to 1 << 6 */
-#define	STATUS_CODE_ARRAY_BITS	6
-#define	STATUS_CODE_ARRAY_ENTRY_NUM	(1 << STATUS_CODE_ARRAY_BITS)
-#define	STATUS_CODE_ARRAY_MASK		(STATUS_CODE_ARRAY_ENTRY_NUM - 1)
-
-static unsigned long int set_code_bit(url_t *url, int code) {
-	return url->status_code[code >> STATUS_CODE_ARRAY_BITS] |= (1UL << (code & STATUS_CODE_ARRAY_MASK));
-}
-
-static unsigned long int get_code_bit(url_t *url, int code) {
-	return url->status_code[code >> STATUS_CODE_ARRAY_BITS] & (1UL << (code & STATUS_CODE_ARRAY_MASK));
-}
-
 static int parse_str(char str) {
 	if (str == 'x' || str == 'X')
 		return parse_get_x;
@@ -81,7 +69,6 @@ static int parse_str(char str) {
 static void process_one_status_code(url_t *url, char *str) {
 	int j = 0;
 	int code[5] = {0};
-	bool valid = true;
 
 	/* We use code[0] to store potential valid value */
 	code[0] = 0;
@@ -94,17 +81,12 @@ static void process_one_status_code(url_t *url, char *str) {
 		/* Once we got somesthing like 2xx, set code[0] to like 2*100 */
 		code[0] = code[1] * 100;
 		for (j = code[0]; j < code[0] + 100; j++)
-			set_code_bit(url, j);
+			__set_bit(j - HTTP_STATUS_CODE_MIN, url->status_code);
 	} else if (IS_HTTP_VALID_RESPONSE(code[0])) {
-		set_code_bit(url, code[0]);
+		__set_bit(j - HTTP_STATUS_CODE_MIN, url->status_code);
 	} else {
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid HTTP_GET status code '%s'", str);
-		valid = false;
 	}
-
- 	/* We use bit zero to mark if we set code  */
-	if(valid)
-		set_code_bit(url, 0);
 }
 
 #ifdef _WITH_REGEX_CHECK_
@@ -264,15 +246,35 @@ dump_url(FILE *fp, const void *data)
 	const url_t *url = data;
 	char digest_buf[2 * MD5_DIGEST_LENGTH + 1];
 	unsigned int i = 0;
+	unsigned min = 0;
 
 	conf_write(fp, "   Checked url = %s", url->path);
 	if (url->digest)
 		conf_write(fp, "     digest = %s", format_digest(url->digest, digest_buf));
-	if (url->status_code[0])
-		for (i = 100; i< 600; i++)
-			conf_write(fp, "     HTTP Status Code = %d", i);
+
+	conf_write(fp, "     HTTP Status Code(s)");
+	for (i = HTTP_STATUS_CODE_MIN; i <= HTTP_STATUS_CODE_MAX; i++) {
+		if (__test_bit(i - HTTP_STATUS_CODE_MIN, url->status_code)) {
+			if (!min)
+				min = i;
+		} else {
+			if (!min)
+				continue;
+			if (i - 1 == min)
+				conf_write(fp, "       %d", min);
+			else
+				conf_write(fp, "       %d-%d", min, i - 1);
+			min = 0;
+		}
+	}
+	if (min == HTTP_STATUS_CODE_MAX)
+		conf_write(fp, "       %d", min);
+	else if (min)
+		conf_write(fp, "       %d-%d", min, HTTP_STATUS_CODE_MAX);
+
 	if (url->virtualhost)
 		conf_write(fp, "     Virtual host = %s", url->virtualhost);
+
 #ifdef _WITH_REGEX_CHECK_
 	if (url->regex) {
 		char options_buf[512];
@@ -374,7 +376,7 @@ http_get_check_compare(const checker_t *old_c, const checker_t *new_c)
 	const http_checker_t *new = new_c->data;
 	size_t n;
 	url_t *u1, *u2;
-	int i;
+	unsigned i;
 
 	if (!compare_conn_opts(old_c->co, new_c->co))
 		return false;
@@ -393,9 +395,10 @@ http_get_check_compare(const checker_t *old_c, const checker_t *new_c)
 			return false;
 		if (u1->digest && memcmp(u1->digest, u2->digest, MD5_DIGEST_LENGTH))
 			return false;
-		for (i = 0; i < HTTP_STATUS_ARRAY_SIZE; i++)
+		for (i = 0; i < sizeof(u1->status_code) / sizeof(u1->status_code[0]); i++) {
 			if (u1->status_code[i] != u2->status_code[i])
 				return false;
+		}
 		if (!u1->virtualhost != !u2->virtualhost)
 			return false;
 		if (u1->virtualhost && strcmp(u1->virtualhost, u2->virtualhost))
@@ -560,7 +563,6 @@ status_code_handler(const vector_t *strvec)
 			process_one_status_code(url, str);
 		i++;
 	}
-
 }
 
 static void
@@ -800,11 +802,22 @@ url_check(void)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
+	unsigned i;
 
 	if (!url->path) {
 		report_config_error(CONFIG_GENERAL_ERROR, "HTTP/SSL_GET checker url has no path - ignoring");
 		free_list_element(http_get_chk->url, http_get_chk->url->tail);
 		return;
+	}
+
+	/* Set default status codes if none set */
+	for (i = 0; i < sizeof(url->status_code) / sizeof(url->status_code[0]); i++) {
+		if (url->status_code[i])
+			break;
+	}
+	if (i >= sizeof(url->status_code) / sizeof(url->status_code[0])) {
+		for (i = HTTP_DEFAULT_STATUS_CODE_MIN; i <= HTTP_DEFAULT_STATUS_CODE_MAX; i++)
+			__set_bit(i - HTTP_STATUS_CODE_MIN, url->status_code);
 	}
 
 #ifdef _WITH_REGEX_CHECK_
@@ -1233,14 +1246,10 @@ http_handle_response(thread_ref_t thread, unsigned char digest[MD5_DIGEST_LENGTH
 		return timeout_epilog(thread, "Read, no data received from ");
 
 	/* Next check the HTTP status code */
-	if (url->status_code[0]) {
-		if (!get_code_bit(url, req->status_code))
-			return timeout_epilog(thread, "HTTP status code error to");
+	if (!__test_bit(req->status_code - HTTP_STATUS_CODE_MIN, url->status_code))
+		return timeout_epilog(thread, "HTTP status code error to");
 
-		last_success = ON_STATUS;
-	}
-	else if (req->status_code >= 200 && req->status_code <= 299)
-		last_success = ON_SUCCESS;
+	last_success = ON_STATUS;
 
 	/* Report a length mismatch the first time we get the specific difference */
 	if (req->content_len != SIZE_MAX && req->content_len != req->rx_bytes) {
