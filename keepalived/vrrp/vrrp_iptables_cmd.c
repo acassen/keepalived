@@ -43,6 +43,7 @@
 #include <stdbool.h>
 
 /* local includes */
+#include "vrrp_iptables_cmd.h"
 #include "logger.h"
 #include "vrrp_ipaddress.h"
 #include "global_data.h"
@@ -60,11 +61,11 @@ static bool ip6tables_cmd_available;
 static void
 handle_iptable_rule_to_NA_cmd(ip_address_t *ipaddress, int cmd, bool force)
 {
-	char *argv[14];
+	const char *argv[14];
 	int i = 0;
 	int if_specifier = -1;
 	int type_specifier ;
-	char *addr_str;
+	const char *addr_str;
 
 	if (global_data->vrrp_iptables_inchain[0] == '\0')
 		return;
@@ -126,11 +127,11 @@ handle_iptable_rule_to_NA_cmd(ip_address_t *ipaddress, int cmd, bool force)
 void
 handle_iptable_rule_to_vip_cmd(ip_address_t *ipaddress, int cmd, bool force)
 {
-	char *argv[10];
+	const char *argv[10];
 	int i = 0;
 	int if_specifier = -1;
-	char *addr_str;
-	char *ifname = NULL;
+	const char *addr_str;
+	const char *ifname = NULL;
 
 	if (IP_IS6(ipaddress)) {
 		if (!ip6tables_cmd_available)
@@ -190,7 +191,7 @@ void
 check_chains_exist_cmd(void)
 {
 #if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
-	char *argv[4];
+	const char *argv[4];
 
 	argv[1] = "-nL";
 	argv[2] = global_data->vrrp_iptables_inchain;
@@ -247,7 +248,7 @@ void
 iptables_init_cmd(void)
 {
 #if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
-	char *argv[3];
+	const char *argv[3];
 
 	/* If can't use libiptc, check iptables command available */
 	argv[1] = "-V";

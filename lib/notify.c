@@ -44,13 +44,6 @@
 #include "keepalived_magic.h"
 #include "scheduler.h"
 
-/* The argv parameter is declared as char *const [], whereas it should be
- * char const *const [], so we use the following union to cast away the
- * const that we have, but execve doesn't. */
-union non_const_args {
-	const char *const *args;
-	char *const *execve_args;
-};
 
 /* Default user/group for script execution */
 uid_t default_script_uid;

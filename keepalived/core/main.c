@@ -964,15 +964,15 @@ initialise_debug_options(void)
 
 	if (prog_type == PROG_TYPE_PARENT)
 		mask = 1 << PROG_TYPE_PARENT;
-#if _WITH_BFD_
+#ifdef _WITH_BFD_
 	else if (prog_type == PROG_TYPE_BFD)
 		mask = 1 << PROG_TYPE_BFD;
 #endif
-#if _WITH_LVS_
+#ifdef _WITH_LVS_
 	else if (prog_type == PROG_TYPE_CHECKER)
 		mask = 1 << PROG_TYPE_CHECKER;
 #endif
-#if _WITH_VRRP_
+#ifdef _WITH_VRRP_
 	else if (prog_type == PROG_TYPE_VRRP)
 		mask = 1 << PROG_TYPE_VRRP;
 #endif
@@ -1023,13 +1023,13 @@ set_debug_options(const char *options)
 	all_processes = 1;
 #else
 	all_processes = (1 << PROG_TYPE_PARENT);
-#if _WITH_BFD_
+#ifdef _WITH_BFD_
 	all_processes |= (1 << PROG_TYPE_BFD);
 #endif
-#if _WITH_LVS_
+#ifdef _WITH_LVS_
 	all_processes |= (1 << PROG_TYPE_CHECKER);
 #endif
-#if _WITH_VRRP_
+#ifdef _WITH_VRRP_
 	all_processes |= (1 << PROG_TYPE_VRRP);
 #endif
 #endif
@@ -1089,17 +1089,17 @@ set_debug_options(const char *options)
 				case 'p':
 					processes |= (1 << PROG_TYPE_PARENT);
 					break;
-#if _WITH_BFD_
+#ifdef _WITH_BFD_
 				case 'b':
 					processes |= (1 << PROG_TYPE_BFD);
 					break;
 #endif
-#if _WITH_LVS_
+#ifdef _WITH_LVS_
 				case 'c':
 					processes |= (1 << PROG_TYPE_CHECKER);
 					break;
 #endif
-#if _WITH_VRRP_
+#ifdef _WITH_VRRP_
 				case 'v':
 					processes |= (1 << PROG_TYPE_VRRP);
 					break;

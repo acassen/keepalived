@@ -1024,12 +1024,13 @@ close_std_fd(void)
 
 #if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
 int
-fork_exec(char * const argv[])
+fork_exec(const char * const argv[])
 {
 	pid_t pid;
 	int status;
 	struct sigaction act, old_act;
 	int res = 0;
+	union non_const_args args;
 
 	act.sa_handler = SIG_DFL;
 	sigemptyset(&act.sa_mask);
@@ -1051,7 +1052,8 @@ fork_exec(char * const argv[])
 
 		signal_handler_script();
 
-		execvp(*argv, argv);
+		args.args = argv;       /* Note: we are casting away constness, since execvp parameter type is wrong */
+		execvp(*argv, args.execve_args);
 		exit(EXIT_FAILURE);
 	} else {
 		/* Parent */

@@ -46,9 +46,16 @@ extern bool block_ipv6;
 /* prototypes */
 extern void firewall_handle_accept_mode(vrrp_t *, int, bool);
 extern void firewall_remove_rule_to_iplist(list, bool);
-
+#ifdef _WITH_IPTABLES_
 extern void firewall_init(void);
+#else
+extern void firewall_init(void) __attribute__((const));
+#endif
+#ifdef _WITH_IPTABLES_
 extern void firewall_startup(bool);
+#else
+extern void firewall_startup(bool) __attribute__((const));
+#endif
 extern void firewall_cleanup(void);
 extern void firewall_fini(void);
 
