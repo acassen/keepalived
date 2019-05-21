@@ -122,18 +122,11 @@ typedef struct _http_checker {
 #endif
 } http_checker_t;
 
-enum parse_result {
-	parse_get_x = 1000,
-	parse_error,
-};
-
 /* global defs */
 #define GET_BUFFER_LENGTH 2048U
 #define MAX_BUFFER_LENGTH 4096U
 #define PROTO_HTTP	0x01
 #define PROTO_SSL	0x02
-/* is the status code a (potentially) valid response code?  */
-#define IS_HTTP_VALID_RESPONSE(x) (((x) >= 100)&&((x) < 600))
 
 #ifdef _REGEX_DEBUG_
 extern bool do_regex_debug;

@@ -29,7 +29,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <ctype.h>
 
 #ifdef _WITH_REGEX_CHECK_
 #define PCRE2_CODE_UNIT_WIDTH 8
@@ -58,36 +57,6 @@
 #define	REGISTER_CHECKER_NEW	1
 #define	REGISTER_CHECKER_RETRY	2
 
-static int parse_str(char str) {
-	if (str == 'x' || str == 'X')
-		return parse_get_x;
-	if (isdigit(str))
-		return str - '0';
-	return parse_error;
-}
-
-static void process_one_status_code(url_t *url, char *str) {
-	int j = 0;
-	int code[5] = {0};
-
-	/* We use code[0] to store potential valid value */
-	code[0] = 0;
-	for (j = 0; j < 3; j++) {
-		code[j + 1] = parse_str(str[j]);
-		code[0] = code[0] * 10 + code[j + 1];
-	}
-
-	if (code[1] > 0 && code[1] < 6 && (code[2] == parse_get_x && code[3] == parse_get_x)) {
-		/* Once we got somesthing like 2xx, set code[0] to like 2*100 */
-		code[0] = code[1] * 100;
-		for (j = code[0]; j < code[0] + 100; j++)
-			__set_bit(j - HTTP_STATUS_CODE_MIN, url->status_code);
-	} else if (IS_HTTP_VALID_RESPONSE(code[0])) {
-		__set_bit(j - HTTP_STATUS_CODE_MIN, url->status_code);
-	} else {
-		report_config_error(CONFIG_GENERAL_ERROR, "Invalid HTTP_GET status code '%s'", str);
-	}
-}
 
 #ifdef _WITH_REGEX_CHECK_
 typedef struct {
@@ -550,18 +519,28 @@ status_code_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
-	char *str = NULL;
-	unsigned int i = 1;
-	unsigned int len = 0;
+	const char *str;
+	unsigned int i, j;
+	char *endptr;
+	unsigned min, max;
 
- 	while (i < vector_size(strvec)) {
+	for (i = 1; i < vector_size(strvec); i++) {
 		str = vector_slot(strvec, i);
-		len = strlen(str);
-		if(len != 3) 
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid HTTP_GET status code '%s'", str);
+
+		min = strtoul(str, &endptr, 10);
+		if (*endptr == '-')
+			max = strtoul(endptr + 1, &endptr, 10);
 		else
-			process_one_status_code(url, str);
-		i++;
+			max = min;
+		if (*endptr ||
+		    min < HTTP_STATUS_CODE_MIN || min > HTTP_STATUS_CODE_MAX ||
+		    max < HTTP_STATUS_CODE_MIN || max > HTTP_STATUS_CODE_MAX) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid HTTP_GET status code '%s'", str);
+			continue;
+		}
+
+		for (j = min; j <= max; j++)
+			__set_bit(j - HTTP_STATUS_CODE_MIN, url->status_code);
 	}
 }
 
