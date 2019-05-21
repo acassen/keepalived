@@ -41,17 +41,20 @@
 #define SMTP_PORT_STR		"25"
 #define SMTP_BUFFER_LENGTH	512U
 #define SMTP_BUFFER_MAX		1024U
-#define SMTP_MAX_FSM_STATE	10
 
-/* SMTP command stage */
-#define HELO	4
-#define MAIL	5
-#define RCPT	6
-#define DATA	7
-#define BODY	8
-#define QUIT	9
-#define END	10
-#define ERROR	11
+/* SMTP command stage. This values are used along with the enum connect_result
+ * values in the SMTP FSM, and so need to follow them. */
+enum smtp_cmd_state {
+	HELO = connect_result_next,
+	MAIL,
+	RCPT,
+	DATA,
+	BODY,
+	QUIT,
+	END,
+	ERROR
+};
+#define SMTP_MAX_FSM_STATE	END
 
 /* SMTP mesage type format */
 typedef enum {

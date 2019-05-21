@@ -73,18 +73,19 @@ struct {
 	int (*send) (thread_ref_t);
 	int (*read) (thread_ref_t, int);
 } SMTP_FSM[SMTP_MAX_FSM_STATE] = {
-/*      Stream Write Handlers    |   Stream Read handlers   *
- *-------------------------------+--------------------------*/
-	{connection_error,		NULL},			/* connect_error */
-	{connection_in_progress,	NULL},			/* connect_in_progress */
-	{connection_timeout,		NULL},			/* connect_timeout */
-	{connection_success,		connection_code},	/* connect_success */
-	{helo_cmd,			helo_code},		/* HELO */
-	{mail_cmd,			mail_code},		/* MAIL */
-	{rcpt_cmd,			rcpt_code},		/* RCPT */
-	{data_cmd,			data_code},		/* DATA */
-	{body_cmd,			body_code},		/* BODY */
-	{quit_cmd,			quit_code}		/* QUIT */
+/*       Code			  Stream Write Handlers		Stream Read handlers *
+ *------------------------------+----------------------------------------------------*/
+	[connect_error]		= {connection_error,		NULL},
+	[connect_in_progress]	= {connection_in_progress,	NULL},
+	[connect_timeout]	= {connection_timeout,		NULL},
+	[connect_fail]		= {connection_error,		NULL},
+	[connect_success]	= {connection_success,		connection_code},
+	[HELO]			= {helo_cmd,			helo_code},
+	[MAIL]			= {mail_cmd,			mail_code},
+	[RCPT]			= {rcpt_cmd,			rcpt_code},
+	[DATA]			= {data_cmd,			data_code},
+	[BODY]			= {body_cmd,			body_code},
+	[QUIT]			= {quit_cmd,			quit_code}
 };
 
 static void
