@@ -110,6 +110,14 @@ check_EINTR(int xx)
 /* Buffer length needed for inet_sockaddrtotrio() - '[' + INET6_ADDRSTRLEN + ']' + ':' + 'sctp' + ':' + 'nnnnn' */
 #define SOCKADDRTRIO_STR_LEN	(INET6_ADDRSTRLEN + 13)
 
+/* The argv parameter to execve etc is declared as char *const [], whereas
+ * it should be char const *const [], so we use the following union to cast
+ * away the const that we have, but execve etc doesn't. */
+union non_const_args {
+	const char *const *args;
+	char *const *execve_args;
+};
+
 /* inline stuff */
 static inline int __ip6_addr_equal(const struct in6_addr *a1,
 				   const struct in6_addr *a2)
@@ -247,7 +255,7 @@ extern FILE *fopen_safe(const char *, const char *);
 extern void set_std_fd(bool);
 extern void close_std_fd(void);
 #if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
-extern int fork_exec(char * const []);
+extern int fork_exec(const char * const []);
 #endif
 #if defined _WITH_VRRP_ || defined _WITH_BFD_
 extern int open_pipe(int [2]);
