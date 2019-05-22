@@ -2255,9 +2255,12 @@ GNU_STD_PATHS=No
 if test "${enable_gnu_std_paths}" = "yes"; then
   AC_DEFINE([GNU_STD_PATHS], [ 1 ], [set to enforce GNU standard paths, for .pid files etc])
   PID_DIR=$localstatedir
+elif test -d /run; then
+  PID_DIR=
 else
   PID_DIR=/var
 fi
+AC_DEFINE_UNQUOTED([PID_DIR_ROOT], [ "${PID_DIR}" ], [Parent directory of /run])
 AC_SUBST([PID_DIR])
 
 dnl - Check type of rlim_t for printf() - this check needs to be late on

@@ -36,7 +36,7 @@
 #include "bitops.h"
 #include "utils.h"
 
-const char *pid_directory = PID_DIR PACKAGE;
+const char *pid_directory = KEEPALIVED_PID_DIR;
 
 /* Create the directory for non-standard pid files */
 void
