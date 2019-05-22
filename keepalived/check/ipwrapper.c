@@ -138,7 +138,7 @@ weigh_live_realservers(virtual_server_t * vs)
 static void
 notify_fifo_vs(virtual_server_t* vs)
 {
-	char *state = vs->quorum_state_up ? "UP" : "DOWN";
+	const char *state = vs->quorum_state_up ? "UP" : "DOWN";
 	size_t size;
 	char *line;
 	const char *vs_str;
@@ -168,7 +168,7 @@ notify_fifo_vs(virtual_server_t* vs)
 static void
 notify_fifo_rs(virtual_server_t* vs, real_server_t* rs)
 {
-	char *state = rs->alive ? "UP" : "DOWN";
+	const char *state = rs->alive ? "UP" : "DOWN";
 	size_t size;
 	char *line;
 	const char *rs_str;

@@ -406,7 +406,7 @@ inet_stor(const char *addr, uint32_t *range_end)
 	char *endptr;
 	unsigned long range;
 	int family = strchr(addr, ':') ? AF_INET6 : AF_INET;
-	char *warn = "";
+	const char *warn = "";
 
 #ifndef _STRICT_CONFIG_
 	if (!__test_bit(CONFIG_TEST_BIT, &debug))
@@ -661,10 +661,11 @@ char *
 inet_sockaddrtotrio_r(const struct sockaddr_storage *addr, uint16_t proto, char *buf)
 {
 	char addr_str[INET6_ADDRSTRLEN];
-	char *proto_str = proto == IPPROTO_TCP ? "tcp" :
-			  proto == IPPROTO_UDP ? "udp" :
-			  proto == IPPROTO_SCTP ? "sctp" :
-			  proto == 0 ? "none" : "?";
+	const char *proto_str =
+			proto == IPPROTO_TCP ? "tcp" :
+			proto == IPPROTO_UDP ? "udp" :
+			proto == IPPROTO_SCTP ? "sctp" :
+			proto == 0 ? "none" : "?";
 
 	inet_sockaddrtos2(addr, addr_str);
 	snprintf(buf, SOCKADDRTRIO_STR_LEN, "[%s]:%s:%d", addr_str, proto_str,

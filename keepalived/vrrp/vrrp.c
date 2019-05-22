@@ -1353,7 +1353,7 @@ vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 static void
 vrrp_send_update(vrrp_t * vrrp, ip_address_t * ipaddress, bool log_msg)
 {
-	char *msg;
+	const char *msg;
 	char addr_str[INET6_ADDRSTRLEN];
 
 	if (!IP_IS6(ipaddress))

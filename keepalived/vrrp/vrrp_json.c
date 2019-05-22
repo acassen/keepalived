@@ -48,7 +48,7 @@ timeval_to_double(const timeval_t *t)
 }
 
 static int
-vrrp_json_script_dump(json_writer_t *wr, char *prop, notify_script_t *script)
+vrrp_json_script_dump(json_writer_t *wr, const char *prop, notify_script_t *script)
 {
 	if (!script)
 		return -1;
@@ -112,7 +112,7 @@ vrrp_json_track_script_dump(json_writer_t *wr, void *data)
 }
 
 static int
-vrrp_json_array_dump(json_writer_t *wr, char *prop, list l,
+vrrp_json_array_dump(json_writer_t *wr, const char *prop, list l,
 		     int (*func) (json_writer_t *, void *))
 {
 	void *data;
@@ -131,7 +131,7 @@ vrrp_json_array_dump(json_writer_t *wr, char *prop, list l,
 }
 
 static int
-vrrp_json_auth_dump(json_writer_t *wr, char *prop, vrrp_t *vrrp)
+vrrp_json_auth_dump(json_writer_t *wr, const char *prop, vrrp_t *vrrp)
 {
 	char buf[256];
 

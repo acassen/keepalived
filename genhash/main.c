@@ -272,7 +272,7 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 int
 main(int argc, char **argv)
 {
-	char *url_default = "/";
+	const char *url_default = "/";
 
 #ifdef _MEM_CHECK_
 	mem_log_init("Genhash", "Genhash process");

@@ -722,7 +722,7 @@ thread_make_master(void)
 }
 
 #ifdef THREAD_DUMP
-static char *
+static const char *
 timer_delay(timeval_t sands)
 {
 	static char str[42];

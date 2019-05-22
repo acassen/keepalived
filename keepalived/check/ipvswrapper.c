@@ -106,12 +106,13 @@ get_modprobe(void)
 static bool
 modprobe_ipvs(void)
 {
-	char *argv[] = { "/sbin/modprobe", "-s", "--", "ip_vs", NULL };
+	const char *argv[] = { "/sbin/modprobe", "-s", "--", "ip_vs", NULL };
 	int child;
 	int status;
 	int rc;
 	char *modprobe = get_modprobe();
 	struct sigaction act, old_act;
+	union non_const_args args;
 
 	if (modprobe)
 		argv[0] = modprobe;
@@ -128,7 +129,8 @@ modprobe_ipvs(void)
 #endif
 
 	if (!(child = fork())) {
-		execv(argv[0], argv);
+		args.args = argv;
+		execv(argv[0], args.execve_args);
 		exit(1);
 	}
 

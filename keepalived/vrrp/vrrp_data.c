@@ -56,7 +56,7 @@ vrrp_data_t *old_vrrp_data = NULL;
 char *vrrp_buffer;
 size_t vrrp_buffer_len;
 
-static char *
+static const char *
 get_state_str(int state)
 {
 	if (state == VRRP_STATE_INIT) return "INIT";

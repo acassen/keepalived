@@ -554,7 +554,7 @@ on_bus_acquired(GDBusConnection *connection,
 	vrrp_guint = g_dbus_connection_register_object(connection, path,
 							 vrrp_introspection_data->interfaces[0],
 							 &interface_vtable, NULL, NULL, &local_error);
-	g_hash_table_insert(objects, "__Vrrp__", GUINT_TO_POINTER(vrrp_guint));
+	g_hash_table_insert(objects, no_const_char_p("__Vrrp__"), GUINT_TO_POINTER(vrrp_guint));
 	if (local_error != NULL) {
 		log_message(LOG_INFO, "Registering VRRP object on %s failed: %s",
 			    path, local_error->message);
@@ -601,8 +601,8 @@ on_name_lost(GDBusConnection *connection,
 	global_connection = NULL;
 }
 
-static gchar*
-read_file(gchar* filepath)
+static const gchar*
+read_file(const gchar* filepath)
 {
 	FILE * f;
 	size_t length;
@@ -633,7 +633,7 @@ read_file(gchar* filepath)
 static void *
 dbus_main(__attribute__ ((unused)) void *unused)
 {
-	gchar *introspection_xml;
+	const gchar *introspection_xml;
 	guint owner_id;
 	const char *service_name;
 
@@ -655,7 +655,7 @@ dbus_main(__attribute__ ((unused)) void *unused)
 	if (!introspection_xml)
 		return NULL;
 	vrrp_introspection_data = g_dbus_node_info_new_for_xml(introspection_xml, &error);
-	FREE(introspection_xml);
+	FREE_CONST(introspection_xml);
 	if (error != NULL) {
 		log_message(LOG_INFO, "Parsing DBus interface %s from file %s failed: %s",
 			    DBUS_VRRP_INTERFACE, DBUS_VRRP_INTERFACE_FILE_PATH, error->message);
@@ -667,7 +667,7 @@ dbus_main(__attribute__ ((unused)) void *unused)
 	if (!introspection_xml)
 		return NULL;
 	vrrp_instance_introspection_data = g_dbus_node_info_new_for_xml(introspection_xml, &error);
-	FREE(introspection_xml);
+	FREE_CONST(introspection_xml);
 	if (error != NULL) {
 		log_message(LOG_INFO, "Parsing DBus interface %s from file %s failed: %s",
 			    DBUS_VRRP_INSTANCE_INTERFACE, DBUS_VRRP_INSTANCE_INTERFACE_FILE_PATH, error->message);

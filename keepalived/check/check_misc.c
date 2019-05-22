@@ -306,9 +306,9 @@ misc_check_child_thread(thread_ref_t thread)
 	timeval_t next_time;
 	int sig_num;
 	unsigned timeout = 0;
-	char *script_exit_type = NULL;
+	const char *script_exit_type = NULL;
 	bool script_success;
-	char *reason = NULL;
+	const char *reason = NULL;
 	int reason_code = 0;	/* Avoid uninitialised warning by older versions of gcc */
 	bool rs_was_alive;
 	bool message_only = false;

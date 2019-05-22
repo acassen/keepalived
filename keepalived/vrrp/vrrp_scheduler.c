@@ -1040,9 +1040,9 @@ vrrp_script_child_thread(thread_ref_t thread)
 	vrrp_script_t *vscript = THREAD_ARG(thread);
 	int sig_num;
 	unsigned timeout = 0;
-	char *script_exit_type = NULL;
+	const char *script_exit_type = NULL;
 	bool script_success;
-	char *reason = NULL;
+	const char *reason = NULL;
 	int reason_code;
 
 	if (thread->type == THREAD_CHILD_TIMEOUT) {

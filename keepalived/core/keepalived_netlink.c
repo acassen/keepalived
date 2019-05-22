@@ -120,7 +120,7 @@ report_and_clear_netlink_timers(const char * str)
 }
 #endif
 
-static char *
+static const char *
 get_nl_msg_type(unsigned type)
 {
 	switch (type) {
@@ -1561,7 +1561,8 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 		interface_up(ifp);
 }
 
-static char *get_mac_string(int type)
+static const char *
+get_mac_string(int type)
  {
 	switch (type) {
 	case IFLA_BROADCAST:

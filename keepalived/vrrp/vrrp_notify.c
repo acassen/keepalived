@@ -88,10 +88,10 @@ get_ggscript(vrrp_sgroup_t * vgroup)
 static void
 notify_fifo(const char *name, int state_num, bool group, uint8_t priority)
 {
-	char *state = "{UNKNOWN}";
+	const char *state = "{UNKNOWN}";
 	size_t size;
 	char *line;
-	char *type;
+	const char *type;
 
 	if (global_data->notify_fifo.fd == -1 &&
 	    global_data->vrrp_notify_fifo.fd == -1)
@@ -153,7 +153,7 @@ notify_group_fifo(const vrrp_sgroup_t *vgroup)
 }
 
 static void
-notify_script_exec(notify_script_t* script, char *type, int state_num, const char* name, int prio)
+notify_script_exec(notify_script_t* script, const char *type, int state_num, const char* name, int prio)
 {
 	char prio_buf[4];
 
