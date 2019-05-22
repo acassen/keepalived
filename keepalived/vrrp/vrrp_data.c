@@ -468,7 +468,7 @@ dump_vrrp(FILE *fp, const void *data)
 			conf_write(fp, "   Master router = %s", inet_sockaddrtos(&vrrp->master_saddr));
 			conf_write(fp, "   Master priority = %d", vrrp->master_priority);
 			if (vrrp->version == VRRP_VERSION_3)
-				conf_write(fp, "   Master advert int = %.2f sec", (float)vrrp->master_adver_int / TIMER_HZ);
+				conf_write(fp, "   Master advert int = %.2f sec", vrrp->master_adver_int / TIMER_HZ_DOUBLE);
 		}
 	}
 	conf_write(fp, "   Wantstate = %s", get_state_str(vrrp->wantstate));
@@ -559,7 +559,7 @@ dump_vrrp(FILE *fp, const void *data)
 	conf_write(fp, "   Preempt = %s", vrrp->nopreempt ? "disabled" : "enabled");
 	if (vrrp->preempt_delay)
 		conf_write(fp, "   Preempt delay = %g secs",
-		       (float)vrrp->preempt_delay / TIMER_HZ);
+		       vrrp->preempt_delay / TIMER_HZ_DOUBLE);
 	conf_write(fp, "   Promote_secondaries = %s", vrrp->promote_secondaries ? "enabled" : "disabled");
 #if defined _WITH_VRRP_AUTH_
 	if (vrrp->auth_type) {

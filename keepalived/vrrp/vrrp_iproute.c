@@ -742,7 +742,7 @@ format_iproute(const ip_route_t *route, char *buf, size_t buf_len)
 	if (route->mask & IPROUTE_BIT_RTT) {
 		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s%s ", "rtt", route->lock & (1<<RTAX_RTT) ? " lock" : "");
 		if (route->rtt >= 8000)
-			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gs", route->rtt / 8000.0F);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gs", route->rtt / (double)8000.0F);
 		else
 			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%ums", route->rtt / 8);
 	}
@@ -750,7 +750,7 @@ format_iproute(const ip_route_t *route, char *buf, size_t buf_len)
 	if (route->mask & IPROUTE_BIT_RTTVAR) {
 		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s%s ", "rttvar", route->lock & (1<<RTAX_RTTVAR) ? " lock" : "");
 		if (route->rttvar >= 4000)
-			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gs", route->rttvar / 4000.0F);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gs", route->rttvar / (double)4000.0F);
 		else
 			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%ums", route->rttvar / 4);
 	}
@@ -758,7 +758,7 @@ format_iproute(const ip_route_t *route, char *buf, size_t buf_len)
 	if (route->mask & IPROUTE_BIT_RTO_MIN) {
 		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s%s ", "rto_min", route->lock & (1<<RTAX_RTO_MIN) ? " lock" : "");
 		if (route->rto_min >= 1000)
-			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gs", route->rto_min / 1000.0F);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gs", route->rto_min / (double)1000.0F);
 		else
 			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%ums", route->rto_min);
 	}

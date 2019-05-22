@@ -2700,12 +2700,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	if (vrrp->version == VRRP_VERSION_2) {
 		if (vrrp->adver_int >= (1<<8) * TIMER_HZ) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRPv2 advertisement interval %.2fs is out of range. Must be less than %ds. Setting to %ds",
-					vrrp->iname, (float)vrrp->adver_int / TIMER_HZ, 1<<8, (1<<8) - 1);
+					vrrp->iname, vrrp->adver_int / TIMER_HZ_DOUBLE, 1<<8, (1<<8) - 1);
 			vrrp->adver_int = ((1<<8) - 1) * TIMER_HZ;
 		}
 		else if (vrrp->adver_int % TIMER_HZ) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRPv2 advertisement interval %fs must be an integer - rounding",
-					vrrp->iname, (float)vrrp->adver_int / TIMER_HZ);
+					vrrp->iname, vrrp->adver_int / TIMER_HZ_DOUBLE);
 			vrrp->adver_int = vrrp->adver_int + (TIMER_HZ / 2);
 			vrrp->adver_int -= vrrp->adver_int % TIMER_HZ;
 			if (vrrp->adver_int == 0)
@@ -2716,12 +2716,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	{
 		if (vrrp->adver_int >= (1<<12) * TIMER_CENTI_HZ) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRPv3 advertisement interval %.2fs is out of range. Must be less than %.2fs. Setting to %.2fs",
-					vrrp->iname, (float)vrrp->adver_int / TIMER_HZ, (float)(1<<12) / 100, (float)((1<<12) - 1) / 100);
+					vrrp->iname, vrrp->adver_int / TIMER_HZ_DOUBLE, (double)(1<<12) / 100, (double)((1<<12) - 1) / 100);
 			vrrp->adver_int = ((1<<12) - 1) * TIMER_CENTI_HZ;
 		}
 		else if (vrrp->adver_int % TIMER_CENTI_HZ) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRPv3 advertisement interval %fs must be in units of 10ms - rounding",
-					vrrp->iname, (float)vrrp->adver_int / TIMER_HZ);
+					vrrp->iname, vrrp->adver_int / TIMER_HZ_DOUBLE);
 			vrrp->adver_int = vrrp->adver_int + (TIMER_CENTI_HZ / 2);
 			vrrp->adver_int -= vrrp->adver_int % TIMER_CENTI_HZ;
 
