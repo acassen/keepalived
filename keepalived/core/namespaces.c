@@ -209,19 +209,18 @@ static void
 set_run_mount(const char *net_namespace)
 {
 	/* /var/run/keepalived/NAMESPACE */
-	mount_dirname = MALLOC(strlen(PID_DIR PACKAGE "/") + 1 + strlen(net_namespace));
+	mount_dirname = MALLOC(strlen(KEEPALIVED_PID_DIR) + 1 + strlen(net_namespace));
 	if (!mount_dirname) {
 		log_message(LOG_INFO, "Unable to allocate memory for pid file dirname");
 		return;
 	}
 
-	strcpy(mount_dirname, PID_DIR PACKAGE "/");
+	strcpy(mount_dirname, KEEPALIVED_PID_DIR);
 	strcat(mount_dirname, net_namespace);
 
 	if (mkdir(mount_dirname, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) && errno != EEXIST) {
 		log_message(LOG_INFO, "Unable to create directory %s", mount_dirname);
-		FREE(mount_dirname);
-		mount_dirname = NULL;
+		free_dirname();
 		return;
 	}
 
@@ -248,7 +247,7 @@ unmount_run(void)
 	if (mount_dirname) {
 		if (rmdir(mount_dirname) && errno != ENOTEMPTY && errno != EBUSY)
 			log_message(LOG_INFO, "unlink of %s failed - error (%d) '%s'", mount_dirname, errno, strerror(errno));
-		FREE(mount_dirname);
+		free_dirname();
 	}
 }
 
