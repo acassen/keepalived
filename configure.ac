@@ -1526,11 +1526,12 @@ if test .${enable_nftables} != .no; then
   dnl -- linux/netfilter/nf_tables.h since Linux 3.13
   SAV_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$CPPFLAGS $kernelinc"
-  AC_CHECK_HEADERS([linux/netfilter/nf_tables.h], [],
+  AC_CHECK_DECL([NFTA_TABLE_MAX], [],
    [
-     AS_IF([test .${enable_nftables} = .yes], [AC_MSG_ERROR([nftables header files missing])])
+     AS_IF([test .${enable_nftables} = .yes], [AC_MSG_ERROR([nftables header files missing/not useable])])
      USE_NFTABLES=No
-   ])
+   ],
+   [#include <linux/netfilter/nf_tables.h>])
   CPPFLAGS="$SAV_CPPFLAGS"
 
   if test $USE_NFTABLES = Yes; then
