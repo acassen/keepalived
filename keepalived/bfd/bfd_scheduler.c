@@ -44,7 +44,7 @@
 static int bfd_send_packet(int, bfdpkt_t *, bool);
 static void bfd_sender_schedule(bfd_t *);
 
-static void bfd_state_down(bfd_t *, char diag);
+static void bfd_state_down(bfd_t *, u_char diag);
 static void bfd_state_admindown(bfd_t *);
 static void bfd_state_up(bfd_t *);
 static void bfd_dump_timers(FILE *fp, bfd_t *);
@@ -474,7 +474,7 @@ bfd_state_fall(bfd_t *bfd, bool send_event)
 
 /* Runs when BFD session state goes Down */
 static void
-bfd_state_down(bfd_t *bfd, char diag)
+bfd_state_down(bfd_t *bfd, u_char diag)
 {
 	assert(bfd);
 	assert(BFD_VALID_DIAG(diag));
