@@ -2267,7 +2267,7 @@ AC_SUBST([PID_DIR])
 dnl - Check type of rlim_t for printf() - this check needs to be late on
 dnl - since _FILE_OFFSET_BITS (set when using netsnmp) alters sizeof(rlim_t)
 SAV_CFLAGS="$CFLAGS"
-CFLAGS="$CFLAGS $KA_CFLAGS -Wformat -Werror"
+CFLAGS="-Wformat -Werror=format $SAV_CPPFLAGS $KA_CPPFLAGS"
 AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   #include <stdio.h>
   #include <sys/resource.h>
@@ -2275,13 +2275,13 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   main(int argc, char **argv)
   {
     rlim_t val = 23U;
-    printf("%llu %d %p", val, argc, argv);
+    printf("%lu %d %p", val, argc, argv);
 
     return 0;
   }
   ]])],
-  [AC_DEFINE([PRI_rlim_t], ["llu"], [Define printf format specifier for rlim_t])],
   [AC_DEFINE([PRI_rlim_t], ["lu"], [Define printf format specifier for rlim_t])],
+  [AC_DEFINE([PRI_rlim_t], ["llu"], [Define printf format specifier for rlim_t])],
   )
 CFLAGS="$SAV_CFLAGS"
 
