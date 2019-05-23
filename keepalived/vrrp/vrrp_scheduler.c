@@ -30,6 +30,7 @@
 #endif
 #include <stdint.h>
 #include <stdio.h>
+#include <inttypes.h>
 
 #include "vrrp_scheduler.h"
 #include "vrrp_track.h"

@@ -40,6 +40,7 @@
 #endif
 #include <linux/ip.h>
 #include <unistd.h>
+#include <inttypes.h>
 #include <linux/if_link.h>
 
 #ifdef THREAD_DUMP

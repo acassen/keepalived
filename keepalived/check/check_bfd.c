@@ -25,6 +25,7 @@
 
 #include <unistd.h>
 #include <stdio.h>
+#include <inttypes.h>
 
 #include "main.h"
 #include "check_bfd.h"

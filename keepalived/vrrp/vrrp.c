@@ -30,6 +30,7 @@
 #include <openssl/md5.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <inttypes.h>
 #ifdef _WITH_VRRP_AUTH_
 #include <netinet/in.h>
 #endif

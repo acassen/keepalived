@@ -111,6 +111,7 @@
 #endif
 #include <linux/fib_rules.h>
 #include <stdint.h>
+#include <inttypes.h>
 
 #include "vrrp.h"
 #include "vrrp_snmp.h"
