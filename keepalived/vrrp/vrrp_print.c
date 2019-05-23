@@ -71,9 +71,9 @@ vrrp_print_stats(void)
 		fprintf(file, "VRRP Instance: %s\n", vrrp->iname);
 		fprintf(file, "  Advertisements:\n");
 		fprintf(file, "    Received: %" PRIu64 "\n", vrrp->stats->advert_rcvd);
-		fprintf(file, "    Sent: %d\n", vrrp->stats->advert_sent);
-		fprintf(file, "  Became master: %d\n", vrrp->stats->become_master);
-		fprintf(file, "  Released master: %d\n", vrrp->stats->release_master);
+		fprintf(file, "    Sent: %u\n", vrrp->stats->advert_sent);
+		fprintf(file, "  Became master: %u\n", vrrp->stats->become_master);
+		fprintf(file, "  Released master: %u\n", vrrp->stats->release_master);
 		fprintf(file, "  Packet Errors:\n");
 		fprintf(file, "    Length: %" PRIu64 "\n", vrrp->stats->packet_len_err);
 		fprintf(file, "    TTL: %" PRIu64 "\n", vrrp->stats->ip_ttl_err);
@@ -84,12 +84,12 @@ vrrp_print_stats(void)
 		fprintf(file, "    Address List: %" PRIu64 "\n",
 			vrrp->stats->addr_list_err);
 		fprintf(file, "  Authentication Errors:\n");
-		fprintf(file, "    Invalid Type: %d\n",
+		fprintf(file, "    Invalid Type: %u\n",
 			vrrp->stats->invalid_authtype);
 #ifdef _WITH_VRRP_AUTH_
-		fprintf(file, "    Type Mismatch: %d\n",
+		fprintf(file, "    Type Mismatch: %u\n",
 			vrrp->stats->authtype_mismatch);
-		fprintf(file, "    Failure: %d\n",
+		fprintf(file, "    Failure: %u\n",
 			vrrp->stats->auth_failure);
 #endif
 		fprintf(file, "  Priority Zero:\n");

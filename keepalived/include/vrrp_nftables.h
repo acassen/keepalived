@@ -25,11 +25,15 @@
 
 #include "config.h"
 
+/* Include to check NFT_TABLE_MAXNAMELEN defined */
+#include <linux/netfilter/nf_tables.h>
+
 #include "list.h"
 #include "vrrp.h"
 #include "vrrp_ipaddress.h"
 
 #define	DEFAULT_NFTABLES_TABLE	"keepalived"
+
 /* For kernels < 4.1 */
 #ifndef NFT_TABLE_MAXNAMELEN
 #define NFT_TABLE_MAXNAMELEN 32

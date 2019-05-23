@@ -178,7 +178,7 @@ http_dump_header(char *buffer, size_t size)
 static ssize_t
 find_content_len(char *buffer, size_t size)
 {
-	char *content_len_str = "Content-Length:";
+	const char *content_len_str = "Content-Length:";
 	unsigned long content_len;
 	bool valid_len = false;
 	char sav_char = buffer[size];
@@ -312,9 +312,10 @@ http_request_thread(thread_ref_t thread)
 {
 	SOCK *sock_obj = THREAD_ARG(thread);
 	char *str_request;
-	char *request_host;
-	char *request_host_port;
+	const char *request_host;
+	const char *request_host_port;
 	int ret = 0;
+	char *str;
 
 	/* Handle read timeout */
 	if (thread->type == THREAD_WRITE_TIMEOUT) {
@@ -324,20 +325,20 @@ http_request_thread(thread_ref_t thread)
 
 	/* Allocate & clean the GET string */
 	str_request = (char *) MALLOC(GET_BUFFER_LENGTH);
-	memset(str_request, 0, GET_BUFFER_LENGTH);
 
 	if (req->vhost) {
 		/* If vhost was defined we don't need to override it's port */
 		request_host = req->vhost;
-		request_host_port = (char*) MALLOC(1);
-		*request_host_port = 0;
+		str = (char*) MALLOC(1);
+		*str = '\0';
+		request_host_port = str;
 	} else {
 		request_host = req->ipaddress;
 
 		/* Allocate a buffer for the port string ( ":" [0-9][0-9][0-9][0-9][0-9] "\0" ) */
-		request_host_port = (char*) MALLOC(7);
-		snprintf(request_host_port, 7, ":%d",
-		ntohs(req->addr_port));
+		str = (char*) MALLOC(7);
+		snprintf(str, 7, ":%d", ntohs(req->addr_port));
+		request_host_port = str;
 	}
 
 	snprintf(str_request, GET_BUFFER_LENGTH,
@@ -348,7 +349,7 @@ http_request_thread(thread_ref_t thread)
 		    req->http_protocol == HTTP_PROTOCOL_1_0K || req->http_protocol == HTTP_PROTOCOL_1_1K ? "Connection: keep-alive\r\n" : "",
 		  request_host, request_host_port);
 
-	FREE(request_host_port);
+	FREE_CONST(request_host_port);
 
 	/* Send the GET request to remote Web server */
 	DBG("Sending GET request [%s] on fd:%d\n", req->url, sock_obj->fd);

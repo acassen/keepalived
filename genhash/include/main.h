@@ -51,8 +51,8 @@ typedef struct {
 	struct		addrinfo *dst;
 	char		ipaddress[INET6_ADDRSTRLEN];
 	uint16_t	addr_port;
-	char		*url;
-	char		*vhost;
+	const char	*url;
+	const char	*vhost;
 	int		verbose;
 	int		ssl;
 	http_protocol_t http_protocol;

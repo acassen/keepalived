@@ -115,11 +115,11 @@ report_config_error(config_err_t err, const char *format, ...)
 	if (current_file_name) {
 		/* "(file_name:line_no) format" + '\0' */
 		format_buf = MALLOC(1 + strlen(current_file_name) + 1 + 10 + 1 + 1 + strlen(format) + 1);
-		sprintf(format_buf, "(%s:%zd) %s", current_file_name, current_file_line_no, format);
+		sprintf(format_buf, "(%s:%zu) %s", current_file_name, current_file_line_no, format);
 	} else if (current_file_line_no) {	/* Set while reading from config files */
 		/* "(Line line_no) format" + '\0' */
 		format_buf = MALLOC(1 + 5 + 10 + 1 + 1 + strlen(format) + 1);
-		sprintf(format_buf, "(%s %zd) %s", "Line", current_file_line_no, format);
+		sprintf(format_buf, "(%s %zu) %s", "Line", current_file_line_no, format);
 	}
 
 	va_start(args, format);

@@ -25,6 +25,7 @@
 
 #include <unistd.h>
 #include <stdio.h>
+#include <inttypes.h>
 
 #include "main.h"
 #include "check_bfd.h"
@@ -248,7 +249,7 @@ bfd_check_handle_event(bfd_event_t * evt)
 		timersub(&cur_time, &evt->sent_time, &timer_tmp);
 		delivery_time = timer_long(timer_tmp);
 		log_message(LOG_INFO, "Received BFD event: instance %s is in"
-			    " state %s (delivered in %i usec)",
+			    " state %s (delivered in %" PRIu32 " usec)",
 			    evt->iname, BFD_STATE_STR(evt->state), delivery_time);
 	}
 

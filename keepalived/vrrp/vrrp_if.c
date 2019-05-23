@@ -29,6 +29,7 @@
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <syslog.h>
+#include <inttypes.h>
 #include <linux/ip.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -436,7 +437,7 @@ dump_if(FILE *fp, const void *data)
 	conf_write(fp, "   IPv4 address = %s",
 			ifp->sin_addr.s_addr ? inet_ntop2(ifp->sin_addr.s_addr) : "(none)");
 	if (!LIST_ISEMPTY(ifp->sin_addr_l)) {
-		conf_write(fp, "   Additional IPv4 addresses = %d", LIST_SIZE(ifp->sin_addr_l));
+		conf_write(fp, "   Additional IPv4 addresses = %u", LIST_SIZE(ifp->sin_addr_l));
 		LIST_FOREACH(ifp->sin_addr_l, addr_p, e)
 			conf_write(fp, "     %s", inet_ntop2(addr_p->s_addr));
 	}
@@ -446,7 +447,7 @@ dump_if(FILE *fp, const void *data)
 	} else
 		conf_write(fp, "   IPv6 address = (none)");
 	if (!LIST_ISEMPTY(ifp->sin6_addr_l)) {
-		conf_write(fp, "   Additional IPv6 addresses = %d", LIST_SIZE(ifp->sin6_addr_l));
+		conf_write(fp, "   Additional IPv6 addresses = %u", LIST_SIZE(ifp->sin6_addr_l));
 		LIST_FOREACH(ifp->sin6_addr_l, addr6_p, e) {
 			inet_ntop(AF_INET6, addr6_p, addr_str, sizeof(addr_str));
 			conf_write(fp, "     %s", addr_str);
@@ -505,7 +506,7 @@ dump_if(FILE *fp, const void *data)
 					ifp->base_ifp->ifi_flags & IFF_UP ? "" : "not ", ifp->base_ifp->ifi_flags & IFF_RUNNING ? "" : "not ");
 		else if (ifp->base_ifindex) {
 #ifdef HAVE_IFLA_LINK_NETNSID
-			conf_write(fp, "   %s type %s, underlying ifindex = %d, netns id = %d", if_type, vlan_type, ifp->base_ifindex, ifp->base_netns_id);
+			conf_write(fp, "   %s type %s, underlying ifindex = %u, netns id = %d", if_type, vlan_type, ifp->base_ifindex, ifp->base_netns_id);
 #else
 			conf_write(fp, "   %s type %s, underlying ifindex = %d", if_type, vlan_type, ifp->base_ifindex);
 #endif
@@ -520,7 +521,7 @@ dump_if(FILE *fp, const void *data)
 	if (ifp->seen_interface)
 		conf_write(fp, "   Done VRID check");
 #endif
-	conf_write(fp, "   MTU = %d", ifp->mtu);
+	conf_write(fp, "   MTU = %" PRIu32, ifp->mtu);
 
 	switch (ifp->hw_type) {
 	case ARPHRD_LOOPBACK:
@@ -573,12 +574,12 @@ dump_if(FILE *fp, const void *data)
 	conf_write(fp, "   Original arp_ignore %d", ifp->arp_ignore);
 	conf_write(fp, "   Original arp_filter %d", ifp->arp_filter);
 	if (ifp->rp_filter < UINT_MAX)
-		conf_write(fp, "   rp_filter %d", ifp->rp_filter);
+		conf_write(fp, "   rp_filter %u", ifp->rp_filter);
 #endif
 	conf_write(fp, "   Original promote_secondaries %d", ifp->promote_secondaries);
-	conf_write(fp, "   Reset promote_secondaries counter %d", ifp->reset_promote_secondaries);
+	conf_write(fp, "   Reset promote_secondaries counter %" PRIu32, ifp->reset_promote_secondaries);
 
-	conf_write(fp, "   Tracking VRRP instances = %d", !LIST_ISEMPTY(ifp->tracking_vrrp) ? LIST_SIZE(ifp->tracking_vrrp) : 0);
+	conf_write(fp, "   Tracking VRRP instances = %u", !LIST_ISEMPTY(ifp->tracking_vrrp) ? LIST_SIZE(ifp->tracking_vrrp) : 0);
 	if (!LIST_ISEMPTY(ifp->tracking_vrrp))
 		dump_list(fp, ifp->tracking_vrrp);
 }

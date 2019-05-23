@@ -23,6 +23,7 @@
 #include "config.h"
 
 #include <unistd.h>
+#include <inttypes.h>
 
 #include "ipwrapper.h"
 #include "check_api.h"
@@ -138,7 +139,7 @@ weigh_live_realservers(virtual_server_t * vs)
 static void
 notify_fifo_vs(virtual_server_t* vs)
 {
-	char *state = vs->quorum_state_up ? "UP" : "DOWN";
+	const char *state = vs->quorum_state_up ? "UP" : "DOWN";
 	size_t size;
 	char *line;
 	const char *vs_str;
@@ -168,7 +169,7 @@ notify_fifo_vs(virtual_server_t* vs)
 static void
 notify_fifo_rs(virtual_server_t* vs, real_server_t* rs)
 {
-	char *state = rs->alive ? "UP" : "DOWN";
+	const char *state = rs->alive ? "UP" : "DOWN";
 	size_t size;
 	char *line;
 	const char *rs_str;
@@ -431,7 +432,7 @@ sync_service_vsg(virtual_server_t * vs)
 	for (l = ll; *l; l++) {
 		LIST_FOREACH(*l, vsge, e) {
 			if (!vsge->reloaded) {
-				log_message(LOG_INFO, "VS [%s:%d:%u] added into group %s"
+				log_message(LOG_INFO, "VS [%s:%" PRIu32 ":%u] added into group %s"
 // Does this work with no address?
 						    , inet_sockaddrtotrio(&vsge->addr, vs->service_type)
 						    , vsge->range
@@ -749,7 +750,7 @@ clear_diff_vsge(list old, list new, virtual_server_t * old_vs)
 				log_message(LOG_INFO, "VS [%u] in group %s no longer exists",
 						      vsge->vfwmark, old_vs->vsgname);
 			else
-				log_message(LOG_INFO, "VS [%s:%d] in group %s no longer exists"
+				log_message(LOG_INFO, "VS [%s:%" PRIu32 "] in group %s no longer exists"
 						    , inet_sockaddrtotrio(&vsge->addr, old_vs->service_type)
 						    , vsge->range
 						    , old_vs->vsgname);

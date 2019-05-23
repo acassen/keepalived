@@ -842,7 +842,7 @@ static struct nftnl_rule *setup_rule_simple(uint8_t family, const char *table,
 static void
 setup_link_local_checks(struct mnl_nlmsg_batch *batch, bool concat_ifname)
 {
-	char *set_name = concat_ifname ? "vips_link_local_name" : "vips_link_local";
+	const char *set_name = concat_ifname ? "vips_link_local_name" : "vips_link_local";
 	struct nlmsghdr *nlh;
 	struct nftnl_set *s;
 	struct nftnl_rule *r;
@@ -1260,7 +1260,7 @@ nft_update_ipv6_address(struct mnl_nlmsg_batch *batch, ip_address_t *addr, bool 
 	struct nftnl_set_elem *e;
 	uint32_t data_buf[sizeof(struct in6_addr) + IFNAMSIZ];
 	struct nftnl_set **s;
-	char *set_name;
+	const char *set_name;
 	bool use_link_name = false;
 	bool is_link_local;
 	uint32_t len;

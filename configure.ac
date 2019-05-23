@@ -287,10 +287,10 @@ if test -n "$kernel_src_path"; then
   if test -d $kernel_src_path/include/uapi/linux; then
     AC_MSG_ERROR([kernel source path $kernel_src_path appears to be an unprocessed kernel source tree])
   fi
-  kernelinc="-I$kernel_src_path/include"
+  kernelinc="-isystem $kernel_src_path/include"
 elif test ! -d /usr/include/linux -a \
 	    -d /usr/src/linux/include; then
-  kernelinc="-I/usr/src/linux/include"
+  kernelinc="-isystem /usr/src/linux/include"
 else
   kernelinc=
 fi
@@ -334,10 +334,10 @@ NEED_LIBDL=No
 
 # Set up the compiler warnings we want
 dnl -- Unused warnings - traditional
+MAX_FRAME_SIZE=5120
 WARNINGS_BASIC="all extra unused strict-prototypes"
-dnl -- Warnings to add and fix - cast-align=strict frame-larger-than=512 stack-usage=512
-WARNINGS_STD="absolute-value address-of-packed-member alloca alloc-zero array-bounds=2 attribute-alias bad-function-cast cast-qual chkp date-time disabled-optimization duplicated-branches duplicated-cond float-conversion float-equal format-overflow format-truncation implicit-fallthrough=3 init-self inline jump-misses-init logical-op missing-declarations missing-prototypes nested-externs normalized null-dereference old-style-definition overlength-strings pointer-arith redundant-decls shadow shift-overflow=2 stack-protector strict-overflow=4 strict-prototypes stringop-overflow=2 suggest-attribute=cold suggest-attribute=const suggest-attribute=format suggest-attribute=malloc suggest-attribute=noreturn suggest-attribute=pure trampolines undef uninitialized unsuffixed-float-constants unused-const-variable=2 unused-macros variadic-macros"
-WARNINGS_EXTRA="aggregate-return conversion padded pedantic sign-conversion strict-overflow=5 stringop-overflow=3 stringop-overflow=4 write-strings switch-enum traditional-conversion"
+WARNINGS_STD="absolute-value address-of-packed-member alloca alloc-zero array-bounds=2 attribute-alias bad-function-cast cast-align cast-qual chkp date-time disabled-optimization double-promotion duplicated-branches duplicated-cond float-conversion float-equal format-overflow format-security format-signedness format-truncation frame-larger-than=$MAX_FRAME_SIZE implicit-fallthrough=3 init-self inline jump-misses-init logical-op missing-declarations missing-field-initializers missing-prototypes nested-externs normalized null-dereference old-style-definition overlength-strings pointer-arith redundant-decls shadow shift-overflow=2 stack-protector strict-overflow=4 strict-prototypes stringop-overflow=2 suggest-attribute=cold suggest-attribute=const suggest-attribute=format suggest-attribute=malloc suggest-attribute=noreturn suggest-attribute=pure sync-nand trampolines undef uninitialized unknown-pragmas unsuffixed-float-constants unused-const-variable=2 unused-macros variadic-macros write-strings"
+WARNINGS_EXTRA="aggregate-return cast-align= strict conversion format-nonliteral format-overflow=2 format-truncation=2 padded pedantic sign-conversion stack-usage=$MAX_FRAME_SIZE strict-overflow=5 stringop-overflow=3 stringop-overflow=4 switch-enum system-headers traditional-conversion"
 
 # We want _GNU_SOURCE defined always
 add_to_var([CPPFLAGS], [-D_GNU_SOURCE])
@@ -1526,11 +1526,12 @@ if test .${enable_nftables} != .no; then
   dnl -- linux/netfilter/nf_tables.h since Linux 3.13
   SAV_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$CPPFLAGS $kernelinc"
-  AC_CHECK_HEADERS([linux/netfilter/nf_tables.h], [],
+  AC_CHECK_DECL([NFTA_TABLE_MAX], [],
    [
-     AS_IF([test .${enable_nftables} = .yes], [AC_MSG_ERROR([nftables header files missing])])
+     AS_IF([test .${enable_nftables} = .yes], [AC_MSG_ERROR([nftables header files missing/not useable])])
      USE_NFTABLES=No
-   ])
+   ],
+   [#include <linux/netfilter/nf_tables.h>])
   CPPFLAGS="$SAV_CPPFLAGS"
 
   if test $USE_NFTABLES = Yes; then
@@ -2266,7 +2267,7 @@ AC_SUBST([PID_DIR])
 dnl - Check type of rlim_t for printf() - this check needs to be late on
 dnl - since _FILE_OFFSET_BITS (set when using netsnmp) alters sizeof(rlim_t)
 SAV_CFLAGS="$CFLAGS"
-CFLAGS="$CFLAGS $KA_CFLAGS -Wformat -Werror"
+CFLAGS="-Wformat -Werror=format $SAV_CPPFLAGS $KA_CPPFLAGS"
 AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   #include <stdio.h>
   #include <sys/resource.h>
@@ -2274,13 +2275,13 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   main(int argc, char **argv)
   {
     rlim_t val = 23U;
-    printf("%llu %d %p", val, argc, argv);
+    printf("%lu %d %p", val, argc, argv);
 
     return 0;
   }
   ]])],
-  [AC_DEFINE([PRI_rlim_t], ["llu"], [Define printf format specifier for rlim_t])],
   [AC_DEFINE([PRI_rlim_t], ["lu"], [Define printf format specifier for rlim_t])],
+  [AC_DEFINE([PRI_rlim_t], ["llu"], [Define printf format specifier for rlim_t])],
   )
 CFLAGS="$SAV_CFLAGS"
 

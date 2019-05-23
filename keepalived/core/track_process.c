@@ -45,6 +45,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <inttypes.h>
 
 #include "track_process.h"
 #include "global_data.h"
@@ -325,7 +326,7 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 	 * swapped in to read it. */
 	if (!have_comm) {
 		if (vrrp_data->vrrp_use_process_cmdline) {
-			snprintf(cmdline, sizeof(cmdline), "/proc/%d/cmdline", pid);
+			snprintf(cmdline, sizeof(cmdline), "/proc/%hd/cmdline", pid);
 
 			if ((fd = open(cmdline, O_RDONLY)) == -1)
 				return;
@@ -338,7 +339,7 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 		}
 
 		if (vrrp_data->vrrp_use_process_comm) {
-			snprintf(cmdline, sizeof(cmdline), "/proc/%d/comm", pid);
+			snprintf(cmdline, sizeof(cmdline), "/proc/%hd/comm", pid);
 
 			fd = open(cmdline, O_RDONLY);
 			if (fd == -1) {
@@ -747,7 +748,7 @@ static int handle_proc_ev(int nl_sd)
 
 		/* Ensure the message has been sent by the kernel */
 		if (addrlen != sizeof(addr) || addr.nl_pid != 0) {
-			log_message(LOG_INFO, "addrlen %d, expect %ld, pid %d", addrlen, sizeof addr, addr.nl_pid);
+			log_message(LOG_INFO, "addrlen %u, expect %zu, pid %u", addrlen, sizeof addr, addr.nl_pid);
 			return -1;
 		}
 
@@ -775,7 +776,7 @@ static int handle_proc_ev(int nl_sd)
 			    cpu_seq[proc_ev->cpu] != -1 &&
 			    !(cpu_seq[proc_ev->cpu] + 1 == cn_msg->seq ||
 			      (cn_msg->seq == 0 && cpu_seq[proc_ev->cpu] == UINT32_MAX)))
-				log_message(LOG_INFO, "Missed %" PRIi64 " messages on CPU %d", cn_msg->seq - cpu_seq[proc_ev->cpu] - 1, proc_ev->cpu);
+				log_message(LOG_INFO, "Missed %" PRIi64 " messages on CPU %u", cn_msg->seq - cpu_seq[proc_ev->cpu] - 1, proc_ev->cpu);
 
 			cpu_seq[proc_ev->cpu] = cn_msg->seq;
 
@@ -890,7 +891,7 @@ static int handle_proc_ev(int nl_sd)
 		}
 	}
 	if (len == 0)
-		log_message(LOG_INFO, "recvfrom returned %ld", len);
+		log_message(LOG_INFO, "recvfrom returned %zd", len);
 
 	return 0;
 }

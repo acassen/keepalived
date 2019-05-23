@@ -30,6 +30,7 @@
 #include <openssl/md5.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <inttypes.h>
 #ifdef _WITH_VRRP_AUTH_
 #include <netinet/in.h>
 #endif
@@ -343,7 +344,7 @@ vrrp_get_header(sa_family_t family, const char *buf, size_t len)
 		/* Ensure we have received the full vrrp header */
 		if (len < sizeof(struct iphdr) ||
 		    len < (iph->ihl << 2) + sizeof(vrrphdr_t)) {
-			log_message(LOG_INFO, "IPv4 VRRP packet too short - %zd bytes", len);
+			log_message(LOG_INFO, "IPv4 VRRP packet too short - %zu bytes", len);
 			return NULL;
 		}
 
@@ -352,7 +353,7 @@ vrrp_get_header(sa_family_t family, const char *buf, size_t len)
 		if (iph->protocol == IPPROTO_AH) {
 			/* Make sure we have received the full vrrp header */
 			if (len < (iph->ihl << 2) + sizeof(ipsec_ah_t) + sizeof(vrrphdr_t)) {
-				log_message(LOG_INFO, "IPv4 VRRP packet with AH too short - %zd bytes", len);
+				log_message(LOG_INFO, "IPv4 VRRP packet with AH too short - %zu bytes", len);
 				return NULL;
 			}
 
@@ -365,7 +366,7 @@ vrrp_get_header(sa_family_t family, const char *buf, size_t len)
 	if (family == AF_INET6) {
 		/* Make sure we have received the full vrrp header */
 		if (len < sizeof(vrrphdr_t)) {
-			log_message(LOG_INFO, "IPv6 VRRP packet too short - %zd bytes", len);
+			log_message(LOG_INFO, "IPv6 VRRP packet too short - %zu bytes", len);
 			return NULL;
 		}
 
@@ -574,7 +575,7 @@ vrrp_in_chk_ipsecah(vrrp_t *vrrp, const struct iphdr *ip, const ipsec_ah_t *ah, 
 
 	/* Now verify that the SPI value is equal to src IP */
 	if (ah->spi != ip->saddr) {
-		log_message(LOG_INFO, "IPSEC AH : invalid IPSEC SPI value. %d and expect %d",
+		log_message(LOG_INFO, "IPSEC AH : invalid IPSEC SPI value. %u and expect %u",
 			    ip->saddr, ah->spi);
 		return true;
 	}
@@ -586,8 +587,8 @@ vrrp_in_chk_ipsecah(vrrp_t *vrrp, const struct iphdr *ip, const ipsec_ah_t *ah, 
 	if (ntohl(ah->seq_number) > vrrp->ipsecah_counter.seq_number)
 		vrrp->ipsecah_counter.seq_number = ntohl(ah->seq_number);
 	else {
-		log_message(LOG_INFO, "(%s) IPSEC-AH : sequence number %d"
-					" already processed. Packet dropped. Local(%d)",
+		log_message(LOG_INFO, "(%s) IPSEC-AH : sequence number %u"
+					" already processed. Packet dropped. Local(%" PRIu32 ")",
 					vrrp->iname, ntohl(ah->seq_number),
 					vrrp->ipsecah_counter.seq_number);
 		return true;
@@ -815,7 +816,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 		 * the locally configured for this virtual router if VRRPv2
 		 */
 		if (vrrp->adver_int != hd->v2.adver_int * TIMER_HZ) {
-			log_message(LOG_INFO, "(%s) advertisement interval mismatch mine=%d sec rcv'd=%d sec",
+			log_message(LOG_INFO, "(%s) advertisement interval mismatch mine=%u sec rcv'd=%d sec",
 				vrrp->iname, vrrp->adver_int / TIMER_HZ, hd->v2.adver_int);
 			/* to prevent concurent VRID running => multiple master in 1 VRID */
 			return VRRP_PACKET_DROP;
@@ -833,7 +834,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 
 	/* Check the number of VIPs matches what we expect */
 	if (hd->naddr != LIST_ISEMPTY(vrrp->vip) ? 0 : LIST_SIZE(vrrp->vip)) {
-		log_message(LOG_INFO, "(%s) received an unexpected ip number count %d, expected %d!",
+		log_message(LOG_INFO, "(%s) received an unexpected ip number count %u, expected %u!",
 			vrrp->iname, hd->naddr, LIST_ISEMPTY(vrrp->vip) ? 0 : LIST_SIZE(vrrp->vip));
 		++vrrp->stats->addr_list_err;
 		return VRRP_PACKET_KO;
@@ -992,7 +993,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 		 * advertisement interval to match the MASTER's. */
 		adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_CENTI_HZ;
 		if (vrrp->master_adver_int != adver_int) {
-			log_message(LOG_INFO, "(%s) advertisement interval changed: mine=%d milli-sec, rcved=%d milli-sec",
+			log_message(LOG_INFO, "(%s) advertisement interval changed: mine=%u milli-sec, rcved=%u milli-sec",
 				vrrp->iname, vrrp->master_adver_int / (TIMER_HZ / 1000), adver_int / (TIMER_HZ / 1000));
 		}
 	}
@@ -1353,7 +1354,7 @@ vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 static void
 vrrp_send_update(vrrp_t * vrrp, ip_address_t * ipaddress, bool log_msg)
 {
-	char *msg;
+	const char *msg;
 	char addr_str[INET6_ADDRSTRLEN];
 
 	if (!IP_IS6(ipaddress))
@@ -1441,7 +1442,7 @@ vrrp_state_become_master(vrrp_t * vrrp)
 	++vrrp->stats->become_master;
 
 	if (vrrp->version == VRRP_VERSION_3)
-		log_message(LOG_INFO, "(%s) using locally configured advertisement interval (%d milli-sec)",
+		log_message(LOG_INFO, "(%s) using locally configured advertisement interval (%u milli-sec)",
 					vrrp->iname, vrrp->adver_int / (TIMER_HZ / 1000));
 
 	/* add the ip addresses */
@@ -1688,7 +1689,7 @@ vrrp_state_backup(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buf, ssize_t bu
 			 * in the ADVERTISEMENT
 			 */
 			if (vrrp->master_adver_int != master_adver_int) {
-				log_message(LOG_INFO, "(%s) advertisement interval updated to %d milli-sec from %d milli-sec",
+				log_message(LOG_INFO, "(%s) advertisement interval updated to %u milli-sec from %u milli-sec",
 						vrrp->iname, master_adver_int / (TIMER_HZ / 1000), vrrp->master_adver_int / (TIMER_HZ / 1000));
 				vrrp->master_adver_int = master_adver_int;
 			}
@@ -1711,7 +1712,7 @@ vrrp_state_backup(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buf, ssize_t bu
 			} else if (!vrrp->preempt_time.tv_sec) {
 				if (__test_bit(LOG_DETAIL_BIT, &debug))
 					log_message(LOG_INFO,
-						"(%s) start preempt delay (%ld.%6.6ld)", vrrp->iname,
+						"(%s) start preempt delay (%lu.%6.6lu)", vrrp->iname,
 						vrrp->preempt_delay / TIMER_HZ, vrrp->preempt_delay % TIMER_HZ);
 				vrrp->preempt_time = timer_add_long(timer_now(), vrrp->preempt_delay);
 			}
@@ -1938,7 +1939,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 			 * in the ADVERTISEMENT
 			 */
 			if (vrrp->master_adver_int != master_adver_int) {
-				log_message(LOG_INFO, "(%s) advertisement interval updated from %d to %d milli-sec from higher priority master",
+				log_message(LOG_INFO, "(%s) advertisement interval updated from %u to %u milli-sec from higher priority master",
 						vrrp->iname, vrrp->master_adver_int / (TIMER_HZ / 1000), master_adver_int / (TIMER_HZ / 1000));
 				vrrp->master_adver_int = master_adver_int;
 			}
@@ -2594,7 +2595,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	/* Move any extra addresses to be evips. We won't advertise them, but at least we can respond to them */
 	if (!LIST_ISEMPTY(vrrp->vip) && LIST_SIZE(vrrp->vip) > max_addr) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Number of VIPs (%d) exceeds maximum/space available in packet (max %zu addresses) - excess moved to eVIPs",
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Number of VIPs (%u) exceeds maximum/space available in packet (max %zu addresses) - excess moved to eVIPs",
 				vrrp->iname, LIST_SIZE(vrrp->vip), max_addr);
 		for (i = 0, e = LIST_HEAD(vrrp->vip); e; i++, e = next) {
 			next = e->next;
@@ -2700,12 +2701,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	if (vrrp->version == VRRP_VERSION_2) {
 		if (vrrp->adver_int >= (1<<8) * TIMER_HZ) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRPv2 advertisement interval %.2fs is out of range. Must be less than %ds. Setting to %ds",
-					vrrp->iname, (float)vrrp->adver_int / TIMER_HZ, 1<<8, (1<<8) - 1);
+					vrrp->iname, vrrp->adver_int / TIMER_HZ_DOUBLE, 1<<8, (1<<8) - 1);
 			vrrp->adver_int = ((1<<8) - 1) * TIMER_HZ;
 		}
 		else if (vrrp->adver_int % TIMER_HZ) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRPv2 advertisement interval %fs must be an integer - rounding",
-					vrrp->iname, (float)vrrp->adver_int / TIMER_HZ);
+					vrrp->iname, vrrp->adver_int / TIMER_HZ_DOUBLE);
 			vrrp->adver_int = vrrp->adver_int + (TIMER_HZ / 2);
 			vrrp->adver_int -= vrrp->adver_int % TIMER_HZ;
 			if (vrrp->adver_int == 0)
@@ -2716,12 +2717,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	{
 		if (vrrp->adver_int >= (1<<12) * TIMER_CENTI_HZ) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRPv3 advertisement interval %.2fs is out of range. Must be less than %.2fs. Setting to %.2fs",
-					vrrp->iname, (float)vrrp->adver_int / TIMER_HZ, (float)(1<<12) / 100, (float)((1<<12) - 1) / 100);
+					vrrp->iname, vrrp->adver_int / TIMER_HZ_DOUBLE, (double)(1<<12) / 100, (double)((1<<12) - 1) / 100);
 			vrrp->adver_int = ((1<<12) - 1) * TIMER_CENTI_HZ;
 		}
 		else if (vrrp->adver_int % TIMER_CENTI_HZ) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRPv3 advertisement interval %fs must be in units of 10ms - rounding",
-					vrrp->iname, (float)vrrp->adver_int / TIMER_HZ);
+					vrrp->iname, vrrp->adver_int / TIMER_HZ_DOUBLE);
 			vrrp->adver_int = vrrp->adver_int + (TIMER_CENTI_HZ / 2);
 			vrrp->adver_int -= vrrp->adver_int % TIMER_CENTI_HZ;
 

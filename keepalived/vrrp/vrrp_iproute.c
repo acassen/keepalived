@@ -723,15 +723,15 @@ format_iproute(const ip_route_t *route, char *buf, size_t buf_len)
 
 	if (route->realms) {
 		if (route->realms & 0xFFFF0000)
-			op += (size_t)snprintf(op, (size_t)(buf_end - op), " realms %d/", route->realms >> 16);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), " realms %" PRIu32 "/", route->realms >> 16);
 		else
 			op += (size_t)snprintf(op, (size_t)(buf_end - op), " realm ");
-		op += (size_t)snprintf(op, (size_t)(buf_end - op), "%d", route->realms & 0xFFFF);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), "%u", route->realms & 0xFFFF);
 	}
 
 #if HAVE_DECL_RTA_EXPIRES
 	if (route->mask & IPROUTE_BIT_EXPIRES)
-		op += (size_t)snprintf(op, (size_t)(buf_end - op), " expires %dsec", route->expires);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " expires %" PRIu32 "sec", route->expires);
 #endif
 
 #if HAVE_DECL_RTAX_CC_ALGO
@@ -742,7 +742,7 @@ format_iproute(const ip_route_t *route, char *buf, size_t buf_len)
 	if (route->mask & IPROUTE_BIT_RTT) {
 		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s%s ", "rtt", route->lock & (1<<RTAX_RTT) ? " lock" : "");
 		if (route->rtt >= 8000)
-			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gs", route->rtt / 8000.0F);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gs", route->rtt / (double)8000.0F);
 		else
 			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%ums", route->rtt / 8);
 	}
@@ -750,7 +750,7 @@ format_iproute(const ip_route_t *route, char *buf, size_t buf_len)
 	if (route->mask & IPROUTE_BIT_RTTVAR) {
 		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s%s ", "rttvar", route->lock & (1<<RTAX_RTTVAR) ? " lock" : "");
 		if (route->rttvar >= 4000)
-			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gs", route->rttvar / 4000.0F);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gs", route->rttvar / (double)4000.0F);
 		else
 			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%ums", route->rttvar / 4);
 	}
@@ -758,7 +758,7 @@ format_iproute(const ip_route_t *route, char *buf, size_t buf_len)
 	if (route->mask & IPROUTE_BIT_RTO_MIN) {
 		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s%s ", "rto_min", route->lock & (1<<RTAX_RTO_MIN) ? " lock" : "");
 		if (route->rto_min >= 1000)
-			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gs", route->rto_min / 1000.0F);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gs", route->rto_min / (double)1000.0F);
 		else
 			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%ums", route->rto_min);
 	}
@@ -812,7 +812,7 @@ format_iproute(const ip_route_t *route, char *buf, size_t buf_len)
 
 #if HAVE_DECL_RTAX_QUICKACK
 	if (route->mask & IPROUTE_BIT_QUICKACK)
-		op += (size_t)snprintf(op, (size_t)(buf_end - op), " quickack %u", route->quickack);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " quickack %d", route->quickack);
 #endif
 
 #if HAVE_DECL_RTA_PREF
@@ -826,7 +826,7 @@ format_iproute(const ip_route_t *route, char *buf, size_t buf_len)
 
 #if HAVE_DECL_RTAX_FASTOPEN_NO_COOKIE
 	if (route->mask & IPROUTE_BIT_FASTOPEN_NO_COOKIE)
-		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s %u", "fastopen_no_cookie", route->fastopen_no_cookie);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s %d", "fastopen_no_cookie", route->fastopen_no_cookie);
 #endif
 
 #if HAVE_DECL_RTA_TTL_PROPAGATE
@@ -855,10 +855,10 @@ format_iproute(const ip_route_t *route, char *buf, size_t buf_len)
 
 			if (nh->realms) {
 				if (route->realms & 0xFFFF0000)
-					op += (size_t)snprintf(op, (size_t)(buf_end - op), " realms %d/", nh->realms >> 16);
+					op += (size_t)snprintf(op, (size_t)(buf_end - op), " realms %" PRIu32 "/", nh->realms >> 16);
 				else
 					op += (size_t)snprintf(op, (size_t)(buf_end - op), " realm ");
-				op += (size_t)snprintf(op, (size_t)(buf_end - op), "%d", nh->realms & 0xFFFF);
+				op += (size_t)snprintf(op, (size_t)(buf_end - op), "%" PRIu32, nh->realms & 0xFFFF);
 			}
 #if HAVE_DECL_RTA_ENCAP
 			if (nh->encap.type != LWTUNNEL_ENCAP_NONE)
@@ -879,7 +879,7 @@ format_iproute(const ip_route_t *route, char *buf, size_t buf_len)
 		if ((ifp = if_get_by_ifindex(route->configured_ifindex)))
 			op += (size_t)snprintf(op, (size_t)(buf_end - op), " [dev %s]", ifp->ifname);
 		else
-			op += (size_t)snprintf(op, (size_t)(buf_end - op), " [installed ifindex %d]", route->configured_ifindex);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), " [installed ifindex %" PRIu32 "]", route->configured_ifindex);
 	}
 }
 

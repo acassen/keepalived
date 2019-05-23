@@ -462,18 +462,18 @@ dump_global_data(FILE *fp, data_t * data)
 						  data->lvs_flush_onstop == LVS_FLUSH_VS ? "VS" : "disabled");
 #endif
 	if (data->notify_fifo.name) {
-		conf_write(fp, " Global notify fifo = %s, uid:gid %d:%d", data->notify_fifo.name, data->notify_fifo.uid, data->notify_fifo.gid);
+		conf_write(fp, " Global notify fifo = %s, uid:gid %u:%u", data->notify_fifo.name, data->notify_fifo.uid, data->notify_fifo.gid);
 		if (data->notify_fifo.script)
-			conf_write(fp, " Global notify fifo script = %s, uid:gid %d:%d",
+			conf_write(fp, " Global notify fifo script = %s, uid:gid %u:%u",
 				    cmd_str(data->notify_fifo.script),
 				    data->notify_fifo.script->uid,
 				    data->notify_fifo.script->gid);
 	}
 #ifdef _WITH_VRRP_
 	if (data->vrrp_notify_fifo.name) {
-		conf_write(fp, " VRRP notify fifo = %s, uid:gid %d:%d", data->vrrp_notify_fifo.name, data->vrrp_notify_fifo.uid, data->vrrp_notify_fifo.gid);
+		conf_write(fp, " VRRP notify fifo = %s, uid:gid %u:%u", data->vrrp_notify_fifo.name, data->vrrp_notify_fifo.uid, data->vrrp_notify_fifo.gid);
 		if (data->vrrp_notify_fifo.script)
-			conf_write(fp, " VRRP notify fifo script = %s, uid:gid %d:%d",
+			conf_write(fp, " VRRP notify fifo script = %s, uid:gid %u:%u",
 				    cmd_str(data->vrrp_notify_fifo.script),
 				    data->vrrp_notify_fifo.script->uid,
 				    data->vrrp_notify_fifo.script->gid);
@@ -481,9 +481,9 @@ dump_global_data(FILE *fp, data_t * data)
 #endif
 #ifdef _WITH_LVS_
 	if (data->lvs_notify_fifo.name) {
-		conf_write(fp, " LVS notify fifo = %s, uid:gid %d:%d", data->lvs_notify_fifo.name, data->lvs_notify_fifo.uid, data->lvs_notify_fifo.gid);
+		conf_write(fp, " LVS notify fifo = %s, uid:gid %u:%u", data->lvs_notify_fifo.name, data->lvs_notify_fifo.uid, data->lvs_notify_fifo.gid);
 		if (data->lvs_notify_fifo.script)
-			conf_write(fp, " LVS notify fifo script = %s, uid:gid %d:%d",
+			conf_write(fp, " LVS notify fifo script = %s, uid:gid %u:%u",
 				    cmd_str(data->lvs_notify_fifo.script),
 				    data->lvs_notify_fifo.script->uid,
 				    data->lvs_notify_fifo.script->gid);
@@ -502,15 +502,14 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " Gratuitous ARP delay = %u",
 		       data->vrrp_garp_delay/TIMER_HZ);
 	conf_write(fp, " Gratuitous ARP repeat = %u", data->vrrp_garp_rep);
-	conf_write(fp, " Gratuitous ARP refresh timer = %lu",
-		       data->vrrp_garp_refresh.tv_sec);
-	conf_write(fp, " Gratuitous ARP refresh repeat = %d", data->vrrp_garp_refresh_rep);
-	conf_write(fp, " Gratuitous ARP lower priority delay = %d", data->vrrp_garp_lower_prio_delay == PARAMETER_UNSET ? PARAMETER_UNSET : data->vrrp_garp_lower_prio_delay / TIMER_HZ);
-	conf_write(fp, " Gratuitous ARP lower priority repeat = %d", data->vrrp_garp_lower_prio_rep);
+	conf_write(fp, " Gratuitous ARP refresh timer = %ld", data->vrrp_garp_refresh.tv_sec);
+	conf_write(fp, " Gratuitous ARP refresh repeat = %u", data->vrrp_garp_refresh_rep);
+	conf_write(fp, " Gratuitous ARP lower priority delay = %u", data->vrrp_garp_lower_prio_delay == PARAMETER_UNSET ? PARAMETER_UNSET : data->vrrp_garp_lower_prio_delay / TIMER_HZ);
+	conf_write(fp, " Gratuitous ARP lower priority repeat = %u", data->vrrp_garp_lower_prio_rep);
 	conf_write(fp, " Send advert after receive lower priority advert = %s", data->vrrp_lower_prio_no_advert ? "false" : "true");
 	conf_write(fp, " Send advert after receive higher priority advert = %s", data->vrrp_higher_prio_send_advert ? "true" : "false");
-	conf_write(fp, " Gratuitous ARP interval = %d", data->vrrp_garp_interval);
-	conf_write(fp, " Gratuitous NA interval = %d", data->vrrp_gna_interval);
+	conf_write(fp, " Gratuitous ARP interval = %u", data->vrrp_garp_interval);
+	conf_write(fp, " Gratuitous NA interval = %u", data->vrrp_gna_interval);
 	conf_write(fp, " VRRP default protocol version = %d", data->vrrp_version);
 #ifdef _WITH_IPTABLES_
 	if (data->vrrp_iptables_inchain[0]) {
@@ -604,24 +603,24 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " DBus service name = %s", data->dbus_service_name ? data->dbus_service_name : "");
 #endif
 	conf_write(fp, " Script security %s", script_security ? "enabled" : "disabled");
-	conf_write(fp, " Default script uid:gid %d:%d", default_script_uid, default_script_gid);
+	conf_write(fp, " Default script uid:gid %u:%u", default_script_uid, default_script_gid);
 #ifdef _WITH_VRRP_
 	conf_write(fp, " vrrp_netlink_cmd_rcv_bufs = %u", global_data->vrrp_netlink_cmd_rcv_bufs);
-	conf_write(fp, " vrrp_netlink_cmd_rcv_bufs_force = %u", global_data->vrrp_netlink_cmd_rcv_bufs_force);
+	conf_write(fp, " vrrp_netlink_cmd_rcv_bufs_force = %d", global_data->vrrp_netlink_cmd_rcv_bufs_force);
 	conf_write(fp, " vrrp_netlink_monitor_rcv_bufs = %u", global_data->vrrp_netlink_monitor_rcv_bufs);
-	conf_write(fp, " vrrp_netlink_monitor_rcv_bufs_force = %u", global_data->vrrp_netlink_monitor_rcv_bufs_force);
+	conf_write(fp, " vrrp_netlink_monitor_rcv_bufs_force = %d", global_data->vrrp_netlink_monitor_rcv_bufs_force);
 #ifdef _WITH_CN_PROC_
 	conf_write(fp, " process_monitor_rcv_bufs = %u", global_data->process_monitor_rcv_bufs);
-	conf_write(fp, " process_monitor_rcv_bufs_force = %u", global_data->process_monitor_rcv_bufs_force);
+	conf_write(fp, " process_monitor_rcv_bufs_force = %d", global_data->process_monitor_rcv_bufs_force);
 #endif
 #endif
 #ifdef _WITH_LVS_
 	conf_write(fp, " lvs_netlink_cmd_rcv_bufs = %u", global_data->lvs_netlink_cmd_rcv_bufs);
-	conf_write(fp, " lvs_netlink_cmd_rcv_bufs_force = %u", global_data->lvs_netlink_cmd_rcv_bufs_force);
+	conf_write(fp, " lvs_netlink_cmd_rcv_bufs_force = %d", global_data->lvs_netlink_cmd_rcv_bufs_force);
 	conf_write(fp, " lvs_netlink_monitor_rcv_bufs = %u", global_data->lvs_netlink_monitor_rcv_bufs);
-	conf_write(fp, " lvs_netlink_monitor_rcv_bufs_force = %u", global_data->lvs_netlink_monitor_rcv_bufs_force);
-	conf_write(fp, " rs_init_notifies = %u", global_data->rs_init_notifies);
-	conf_write(fp, " no_checker_emails = %u", global_data->no_checker_emails);
+	conf_write(fp, " lvs_netlink_monitor_rcv_bufs_force = %d", global_data->lvs_netlink_monitor_rcv_bufs_force);
+	conf_write(fp, " rs_init_notifies = %d", global_data->rs_init_notifies);
+	conf_write(fp, " no_checker_emails = %d", global_data->no_checker_emails);
 #endif
 #ifdef _WITH_VRRP_
 	buf[0] = '\0';
@@ -633,10 +632,10 @@ dump_global_data(FILE *fp, data_t * data)
 		sprintf(buf, " rx_bufs_size = %zu", global_data->vrrp_rx_bufs_size);
 	if (buf[0])
 		conf_write(fp, "%s", buf);
-	conf_write(fp, " rx_bufs_multiples = %u", global_data->vrrp_rx_bufs_multiples);
+	conf_write(fp, " rx_bufs_multiples = %d", global_data->vrrp_rx_bufs_multiples);
 	conf_write(fp, " umask = 0%o", umask_val);
 	if (global_data->vrrp_startup_delay)
-		conf_write(fp, " vrrp_startup_delay = %g", (float)global_data->vrrp_startup_delay / TIMER_HZ);
+		conf_write(fp, " vrrp_startup_delay = %g", global_data->vrrp_startup_delay / TIMER_HZ_DOUBLE);
 	if (global_data->log_unknown_vrids)
 		conf_write(fp, " log_unknown_vrids");
 #endif

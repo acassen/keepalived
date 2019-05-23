@@ -78,7 +78,7 @@ dump_misc_check(FILE *fp, const checker_t *checker)
 	conf_write(fp, "   script = %s", cmd_str(&misck_checker->script));
 	conf_write(fp, "   timeout = %lu", misck_checker->timeout/TIMER_HZ);
 	conf_write(fp, "   dynamic = %s", misck_checker->dynamic ? "YES" : "NO");
-	conf_write(fp, "   uid:gid = %d:%d", misck_checker->script.uid, misck_checker->script.gid);
+	conf_write(fp, "   uid:gid = %u:%u", misck_checker->script.uid, misck_checker->script.gid);
 	dump_checker_opts(fp, checker);
 }
 
@@ -306,9 +306,9 @@ misc_check_child_thread(thread_ref_t thread)
 	timeval_t next_time;
 	int sig_num;
 	unsigned timeout = 0;
-	char *script_exit_type = NULL;
+	const char *script_exit_type = NULL;
 	bool script_success;
-	char *reason = NULL;
+	const char *reason = NULL;
 	int reason_code = 0;	/* Avoid uninitialised warning by older versions of gcc */
 	bool rs_was_alive;
 	bool message_only = false;
@@ -339,7 +339,7 @@ misc_check_child_thread(thread_ref_t thread)
 			if (!kill(-pid, sig_num))
 				timeout = 1000;
 		} else if (misck_checker->state != SCRIPT_STATE_IDLE) {
-			log_message(LOG_INFO, "Child thread pid %d timeout with unknown script state %d", pid, misck_checker->state);
+			log_message(LOG_INFO, "Child thread pid %d timeout with unknown script state %u", pid, misck_checker->state);
 			timeout = 10;	/* We need some timeout */
 		}
 
@@ -429,7 +429,7 @@ misc_check_child_thread(thread_ref_t thread)
 		char message[40];
 
 		if (!script_success && checker->retry)
-			snprintf(message, sizeof(message), " after %d retries", checker->retry);
+			snprintf(message, sizeof(message), " after %u retries", checker->retry);
 		else
 			message[0] = '\0';
 

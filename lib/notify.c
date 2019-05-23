@@ -87,14 +87,14 @@ set_privileges(uid_t uid, gid_t gid)
 	if (gid) {
 		retval = setgid(gid);
 		if (retval < 0) {
-			log_message(LOG_ALERT, "Couldn't setgid: %d (%m)", gid);
+			log_message(LOG_ALERT, "Couldn't setgid: %u (%m)", gid);
 			return true;
 		}
 
 		/* Clear any extra supplementary groups */
 		retval = setgroups(1, &gid);
 		if (retval < 0) {
-			log_message(LOG_ALERT, "Couldn't setgroups: %d (%m)", gid);
+			log_message(LOG_ALERT, "Couldn't setgroups: %u (%m)", gid);
 			return true;
 		}
 	}
@@ -102,7 +102,7 @@ set_privileges(uid_t uid, gid_t gid)
 	if (uid) {
 		retval = setuid(uid);
 		if (retval < 0) {
-			log_message(LOG_ALERT, "Couldn't setuid: %d (%m)", uid);
+			log_message(LOG_ALERT, "Couldn't setuid: %u (%m)", uid);
 			return true;
 		}
 	}
@@ -596,7 +596,7 @@ find_path(notify_script_t *script)
 	/* Set file access to the relevant uid/gid */
 	if (script->gid) {
 		if (setegid(script->gid)) {
-			log_message(LOG_INFO, "Unable to set egid to %d (%m)", script->gid);
+			log_message(LOG_INFO, "Unable to set egid to %u (%m)", script->gid);
 			ret_val = EACCES;
 			goto exit1;
 		}
@@ -615,7 +615,7 @@ find_path(notify_script_t *script)
 		}
 	}
 	if (script->uid && seteuid(script->uid)) {
-		log_message(LOG_INFO, "Unable to set euid to %d (%m)", script->uid);
+		log_message(LOG_INFO, "Unable to set euid to %u (%m)", script->uid);
 		ret_val = EACCES;
 		goto exit;
 	}
@@ -837,11 +837,11 @@ check_script_secure(notify_script_t *script,
 
 	if ((script->gid && setegid(script->gid)) ||
 	    (script->uid && seteuid(script->uid))) {
-		log_message(LOG_INFO, "Unable to set uid:gid %d:%d for script %s - disabling", script->uid, script->gid, script->args[0]);
+		log_message(LOG_INFO, "Unable to set uid:gid %u:%u for script %s - disabling", script->uid, script->gid, script->args[0]);
 
 		if ((script->uid && seteuid(old_uid)) ||
 		    (script->gid && setegid(old_gid)))
-			log_message(LOG_INFO, "Unable to restore uid:gid %d:%d after script %s", script->uid, script->gid, script->args[0]);
+			log_message(LOG_INFO, "Unable to restore uid:gid %u:%u after script %s", script->uid, script->gid, script->args[0]);
 
 		return SC_INHIBIT;
 	}
@@ -852,7 +852,7 @@ check_script_secure(notify_script_t *script,
 
 	if ((script->gid && setegid(old_gid)) ||
 	    (script->uid && seteuid(old_uid)))
-		log_message(LOG_INFO, "Unable to restore uid:gid %d:%d after checking script %s", script->uid, script->gid, script->args[0]);
+		log_message(LOG_INFO, "Unable to restore uid:gid %u:%u after checking script %s", script->uid, script->gid, script->args[0]);
 
 	if (!new_path)
 	{
@@ -918,7 +918,7 @@ check_script_secure(notify_script_t *script,
 		    (file_buf.st_gid == 0 && (file_buf.st_mode & S_IXGRP) && (file_buf.st_mode & S_ISGID)))
 			need_script_protection = true;
 	} else
-		log_message(LOG_INFO, "WARNING - script '%s' is not executable for uid:gid %d:%d - disabling.", script->args[0], script->uid, script->gid);
+		log_message(LOG_INFO, "WARNING - script '%s' is not executable for uid:gid %u:%u - disabling.", script->args[0], script->uid, script->gid);
 
 	/* Default to execable */
 	script->flags |= SC_EXECABLE;

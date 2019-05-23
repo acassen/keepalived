@@ -634,7 +634,7 @@ start_vrrp(data_t *prev_global_data)
 
 	/* Init & start the VRRP packet dispatcher */
 	if (!reload && global_data->vrrp_startup_delay) {
-		log_message(LOG_INFO, "Delaying startup for %g seconds", (float)global_data->vrrp_startup_delay / TIMER_HZ);
+		log_message(LOG_INFO, "Delaying startup for %g seconds", global_data->vrrp_startup_delay / TIMER_HZ_DOUBLE);
 		thread_add_timer(master, vrrp_dispatcher_init, NULL,
 				 global_data->vrrp_startup_delay);
 	} else

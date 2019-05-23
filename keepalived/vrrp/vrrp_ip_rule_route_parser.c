@@ -133,7 +133,7 @@ get_u64(uint64_t *val, const char *str, uint64_t max, const char* errmsg)
 bool
 get_time_rtt(uint32_t *val, const char *str, bool *raw)
 {
-	double t;
+	float t;
 	unsigned long res;
 	char *end;
 	size_t offset;
@@ -142,7 +142,7 @@ get_time_rtt(uint32_t *val, const char *str, bool *raw)
 	errno = 0;
 	if (strchr(str, '.') ||
 	    (strpbrk(str, "Ee") && !strpbrk(str, "xX"))) {
-		t = strtod(str, &end);
+		t = strtof(str, &end);
 
 		/* no digits or extra characters */
 		if (end == str)
@@ -184,7 +184,7 @@ get_time_rtt(uint32_t *val, const char *str, bool *raw)
 		if (res > UINT32_MAX)
 			return true;
 
-		t = (double)res;
+		t = (float)res;
 	}
 
 	if (*end) {

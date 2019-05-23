@@ -55,7 +55,7 @@ check_new_bfd(const char *name)
 {
 	if (strlen(name) >= BFD_INAME_MAX) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
-			    " name too long (maximum length is %i"
+			    " name too long (maximum length is %d"
 			    " characters) - ignoring", name,
 			    BFD_INAME_MAX - 1);
 		return false;
@@ -276,7 +276,7 @@ bfd_ttl_handler(const vector_t *strvec)
 	if (!read_unsigned_strvec(strvec, 1, &value, 1, BFD_TTL_MAX, false))
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
 			    " ttl/hoplimit value %s not valid (must be in range"
-			    " [1-%u]), ignoring", bfd->iname,
+			    " [1-%d]), ignoring", bfd->iname,
 			    strvec_slot(strvec, 1), BFD_TTL_MAX);
 	else
 		bfd->ttl = value;
@@ -297,7 +297,7 @@ bfd_maxhops_handler(const vector_t *strvec)
 	if (!read_int_strvec(strvec, 1, &value, -1, BFD_TTL_MAX, false))
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
 			    " max_hops value %s not valid (must be in range"
-			    " [-1-%u]), ignoring", bfd->iname,
+			    " [-1-%d]), ignoring", bfd->iname,
 			    strvec_slot(strvec, 1), BFD_TTL_MAX);
 	else
 		bfd->max_hops = value;

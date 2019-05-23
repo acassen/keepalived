@@ -159,7 +159,7 @@ smtpto_handler(const vector_t *strvec)
 	/* The min value should be 1, but allow 0 to maintain backward compatibility
 	 * with pre v2.0.7 */
 	if (!read_unsigned_strvec(strvec, 1, &timeout, 0, UINT_MAX / TIMER_HZ, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "smtp_connect_timeout '%s' must be in [0, %d] - ignoring", strvec_slot(strvec, 1), UINT_MAX / TIMER_HZ);
+		report_config_error(CONFIG_GENERAL_ERROR, "smtp_connect_timeout '%s' must be in [0, %u] - ignoring", strvec_slot(strvec, 1), UINT_MAX / TIMER_HZ);
 		return;
 	}
 

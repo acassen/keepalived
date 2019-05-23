@@ -378,12 +378,12 @@ format_iprule(const ip_rule_t *rule, char *buf, size_t buf_len)
 
 #if HAVE_DECL_FRA_SUPPRESS_PREFIXLEN
 	if (rule->suppress_prefix_len != -1)
-		op += snprintf(op, (size_t)(buf_end - op), " suppress_prefixlen %u", rule->suppress_prefix_len);
+		op += snprintf(op, (size_t)(buf_end - op), " suppress_prefixlen %" PRIi32, rule->suppress_prefix_len);
 #endif
 
 #if HAVE_DECL_FRA_SUPPRESS_IFGROUP
 	if (rule->mask & IPRULE_BIT_SUP_GROUP)
-		op += snprintf(op, (size_t)(buf_end - op), " suppress_ifgroup %d", rule->suppress_group);
+		op += snprintf(op, (size_t)(buf_end - op), " suppress_ifgroup %" PRIu32, rule->suppress_group);
 #endif
 
 #if HAVE_DECL_FRA_TUN_ID
@@ -422,7 +422,7 @@ format_iprule(const ip_rule_t *rule, char *buf, size_t buf_len)
 #endif
 
 	if (rule->realms)
-		op += snprintf(op, (size_t)(buf_end - op), " realms %d/%d", rule->realms >> 16, rule->realms & 0xffff);
+		op += snprintf(op, (size_t)(buf_end - op), " realms %" PRIu32 "/%u", rule->realms >> 16, rule->realms & 0xffff);
 
 	if (rule->action == FR_ACT_TO_TBL)
 		op += snprintf(op, (size_t)(buf_end - op), " lookup %u", rule->table);

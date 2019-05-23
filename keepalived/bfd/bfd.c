@@ -236,7 +236,7 @@ bfd_check_packet(const bfdpkt_t *pkt)
 	if (pkt->hdr->version != BFD_VERSION_1) {
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
 			log_message(LOG_ERR, "Packet is of unsupported"
-				    " version: %i", pkt->hdr->version);
+				    " version: %d", pkt->hdr->version);
 		return true;
 	}
 
@@ -282,14 +282,14 @@ bfd_check_packet(const bfdpkt_t *pkt)
 	if (!BFD_VALID_STATE(pkt->hdr->state)) {
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
 			log_message(LOG_ERR, "Packet has invalid 'state'"
-				    " field: %u", pkt->hdr->state);
+				    " field: %d", pkt->hdr->state);
 		return true;
 	}
 
 	if (!BFD_VALID_DIAG(pkt->hdr->diag)) {
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
 			log_message(LOG_ERR, "Packet has invalid 'diag'"
-				    " field: %u", pkt->hdr->diag);
+				    " field: %d", pkt->hdr->diag);
 		return true;
 	}
 
@@ -303,7 +303,7 @@ bfd_check_packet_ttl(const bfdpkt_t *pkt, const bfd_t *bfd)
 	 * - extended so we can specify a maximum number of hops */
 	if (pkt->ttl && bfd->max_hops + pkt->ttl < bfd->ttl) {
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
-			log_message(LOG_ERR, "Packet %s(%i) < %i - discarding",
+			log_message(LOG_ERR, "Packet %s(%u) < %d - discarding",
 				    pkt->src_addr.ss_family == AF_INET ? "ttl" : "hop_limit",
 				    pkt->ttl,
 				    bfd->ttl - bfd->max_hops);

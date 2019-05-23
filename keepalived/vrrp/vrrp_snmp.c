@@ -111,6 +111,7 @@
 #endif
 #include <linux/fib_rules.h>
 #include <stdint.h>
+#include <inttypes.h>
 
 #include "vrrp.h"
 #include "vrrp_snmp.h"
@@ -1395,7 +1396,7 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 {
 	ip_rule_t *rule;
 	int state = HEADER_STATE_STATIC_RULE;
-	char *str;
+	const char *str;
 	ip_address_t *addr;
 
 	if ((rule = (ip_rule_t *)
@@ -1408,7 +1409,7 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_RULE_DIRECTION:	/* obsolete */
 		str = rule->to_addr ? rule->from_addr ? "both" : "to" : rule->from_addr ? "from" : "";
 		*var_len = strlen(str);
-		return (u_char *)str;
+		return (u_char *)no_const_char_p(str);
 	case VRRP_SNMP_RULE_ADDRESSTYPE:	/* obsolete */
 		addr = rule->to_addr ? rule->to_addr : rule->from_addr;
 		if (!addr)
@@ -1553,7 +1554,7 @@ RELAX_CAST_QUAL_END
 		}
 		else
 			break;
-		return (u_char *)str;
+		return (u_char *)no_const_char_p(str);
 #endif
 #if HAVE_DECL_FRA_TUN_ID
 	case VRRP_SNMP_RULE_TUNNELID_HIGH:
@@ -4521,7 +4522,7 @@ vrrp_rfcv3_snmp_new_master_notify(vrrp_t *vrrp)
 				  (u_char *)&reason,
 				  sizeof(reason));
 	log_message(LOG_INFO, "(%s) Sending SNMP notification"
-			      " vrrpv3NotifyNewMaster, reason %d"
+			      " vrrpv3NotifyNewMaster, reason %" PRIu32
 			    , vrrp->iname, reason);
 	send_v2trap(notification_vars);
 	snmp_free_varbind(notification_vars);

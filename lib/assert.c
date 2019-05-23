@@ -33,7 +33,7 @@
 void __assert_fail (const char *__assertion, const char *__file,
 			   LINE_type __line, const char *__function)
 {
-	log_message(LOG_ERR, "assert: %s:%d: %s: Assertion: `%s' failed.", __file, __line, __function, __assertion);
+	log_message(LOG_ERR, "assert: %s:%u: %s: Assertion: `%s' failed.", __file, __line, __function, __assertion);
 	abort();
 }
 
@@ -42,7 +42,7 @@ void __assert_fail (const char *__assertion, const char *__file,
 void __assert_perror_fail (int __errnum, const char *__file,
 				  unsigned int __line, const char *__function)
 {
-	log_message(LOG_ERR, "assert: %s:%d: %s: Unexpected error: %s.", __file, __line, __function, strerror(__errnum));
+	log_message(LOG_ERR, "assert: %s:%u: %s: Unexpected error: %s.", __file, __line, __function, strerror(__errnum));
 	abort();
 }
 #endif

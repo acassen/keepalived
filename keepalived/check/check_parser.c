@@ -47,7 +47,7 @@
 #include "libipvs.h"
 
 /* List of valid schedulers */
-char *lvs_schedulers[] =
+static const char *lvs_schedulers[] =
 	{"rr", "wrr", "lc", "wlc", "lblc", "sh", "mh", "dh", "fo", "ovf", "lblcr", "sed", "nq", NULL};
 
 /* SSL handlers */

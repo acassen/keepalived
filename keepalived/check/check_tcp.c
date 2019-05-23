@@ -118,7 +118,7 @@ tcp_epilog(thread_ref_t thread, bool is_success)
 			   (checker->is_up || !checker->has_run)) {
 			if (checker->retry && checker->has_run)
 				log_message(LOG_INFO
-				    , "TCP_CHECK on service %s failed after %d retries."
+				    , "TCP_CHECK on service %s failed after %u retries."
 				    , FMT_CHK(checker)
 				    , checker->retry);
 			else
