@@ -442,7 +442,7 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 		prog_id = child_finder_name(pid);
 
 	if (!prog_id) {
-		snprintf(pid_buf, sizeof(pid_buf), "pid %d", pid);
+		snprintf(pid_buf, sizeof(pid_buf), "pid %hd", pid);
 		prog_id = pid_buf;
 	}
 
@@ -725,7 +725,7 @@ thread_make_master(void)
 static const char *
 timer_delay(timeval_t sands)
 {
-	static char str[42];
+	static char str[43];
 
 	if (sands.tv_sec == TIMER_DISABLED)
 		return "NEVER";

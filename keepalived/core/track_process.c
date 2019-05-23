@@ -326,7 +326,7 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 	 * swapped in to read it. */
 	if (!have_comm) {
 		if (vrrp_data->vrrp_use_process_cmdline) {
-			snprintf(cmdline, sizeof(cmdline), "/proc/%d/cmdline", pid);
+			snprintf(cmdline, sizeof(cmdline), "/proc/%hd/cmdline", pid);
 
 			if ((fd = open(cmdline, O_RDONLY)) == -1)
 				return;
@@ -339,7 +339,7 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 		}
 
 		if (vrrp_data->vrrp_use_process_comm) {
-			snprintf(cmdline, sizeof(cmdline), "/proc/%d/comm", pid);
+			snprintf(cmdline, sizeof(cmdline), "/proc/%hd/comm", pid);
 
 			fd = open(cmdline, O_RDONLY);
 			if (fd == -1) {
