@@ -23,6 +23,7 @@
 #include "config.h"
 
 #include <unistd.h>
+#include <inttypes.h>
 
 #include "ipwrapper.h"
 #include "check_api.h"
