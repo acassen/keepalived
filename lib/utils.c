@@ -87,7 +87,7 @@ dump_buffer(const char *buff, size_t count, FILE* fp, int indent)
 			fprintf(fp, "%*s%.4zu ", indent, "", i & 0xffff);
 		}
 		if (i < count)
-			fprintf(fp, "%3.2x", buff[i] & 0xff);
+			fprintf(fp, "%3.2x", (unsigned char)buff[i] & 0xff);
 		else
 			fprintf(fp, "   ");
 		if (!((i + 1) % 8)) {

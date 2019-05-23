@@ -431,7 +431,7 @@ sync_service_vsg(virtual_server_t * vs)
 	for (l = ll; *l; l++) {
 		LIST_FOREACH(*l, vsge, e) {
 			if (!vsge->reloaded) {
-				log_message(LOG_INFO, "VS [%s:%d:%u] added into group %s"
+				log_message(LOG_INFO, "VS [%s:%" PRIu32 ":%u] added into group %s"
 // Does this work with no address?
 						    , inet_sockaddrtotrio(&vsge->addr, vs->service_type)
 						    , vsge->range
@@ -749,7 +749,7 @@ clear_diff_vsge(list old, list new, virtual_server_t * old_vs)
 				log_message(LOG_INFO, "VS [%u] in group %s no longer exists",
 						      vsge->vfwmark, old_vs->vsgname);
 			else
-				log_message(LOG_INFO, "VS [%s:%d] in group %s no longer exists"
+				log_message(LOG_INFO, "VS [%s:%" PRIu32 "] in group %s no longer exists"
 						    , inet_sockaddrtotrio(&vsge->addr, old_vs->service_type)
 						    , vsge->range
 						    , old_vs->vsgname);

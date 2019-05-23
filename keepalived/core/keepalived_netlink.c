@@ -113,7 +113,7 @@ report_and_clear_netlink_timers(const char * str)
 	log_message(LOG_INFO, "Netlink timers - %s", str);
 	for (i = 0; i <= MAX_NETLINK_TIMER; i++) {
 		if (netlink_count[i]) {
-			log_message(LOG_INFO, "  netlink cmd %d (%d calls), time %ld.%6.6ld", i, netlink_count[i], netlink_times[i].tv_sec, netlink_times[i].tv_usec);
+			log_message(LOG_INFO, "  netlink cmd %d (%u calls), time %ld.%6.6ld", i, netlink_count[i], netlink_times[i].tv_sec, netlink_times[i].tv_usec);
 			netlink_times[i].tv_sec = netlink_times[i].tv_usec = netlink_count[i] = 0;
 		}
 	}
@@ -1257,7 +1257,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 
 		if (msg.msg_namelen != sizeof snl) {
 			log_message(LOG_INFO,
-			       "Netlink: Sender address length error: length %d",
+			       "Netlink: Sender address length error: length %u",
 			       msg.msg_namelen);
 			ret = -1;
 			break;
@@ -1316,7 +1316,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 				if (netlink_error_ignore != -err->error)
 #endif
 					log_message(LOG_INFO,
-					       "Netlink: error: %s(%d), type=%s(%u), seq=%u, pid=%d",
+					       "Netlink: error: %s(%d), type=%s(%u), seq=%u, pid=%u",
 					       strerror(-err->error), -err->error,
 					       get_nl_msg_type(err->msg.nlmsg_type), err->msg.nlmsg_type,
 					       err->msg.nlmsg_seq, err->msg.nlmsg_pid);
@@ -2181,7 +2181,7 @@ netlink_route_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlm
 		if (tb[RTA_OIF]) {
 			route->configured_ifindex = *(uint32_t*)RTA_DATA(tb[RTA_OIF]);
 			if (route->oif && route->oif->ifindex != route->configured_ifindex)
-				log_message(LOG_INFO, "route added index %d != config index %d", route->configured_ifindex, route->oif->ifindex);
+				log_message(LOG_INFO, "route added index %" PRIu32 " != config index %u", route->configured_ifindex, route->oif->ifindex);
 		}
 		else
 			log_message(LOG_INFO, "New route doesn't have i/f index");

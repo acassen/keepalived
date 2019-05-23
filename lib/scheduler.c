@@ -309,7 +309,7 @@ thread_set_timer(thread_master_t *m)
 
 #ifdef _EPOLL_DEBUG_
 	if (do_epoll_debug)
-		log_message(LOG_INFO, "Setting timer_fd %lu.%9.9ld", its.it_value.tv_sec, its.it_value.tv_nsec);
+		log_message(LOG_INFO, "Setting timer_fd %ld.%9.9ld", its.it_value.tv_sec, its.it_value.tv_nsec);
 #endif
 }
 
@@ -392,7 +392,7 @@ log_options(const char *option, const char *option_str, unsigned indent)
 
 		end = get_end(p, 100 - opt_len);
 		if (first_line) {
-			log_message(LOG_INFO, "%*s%s: %.*s", indent, "", option, (int)(end - p), p);
+			log_message(LOG_INFO, "%*s%s: %.*s", (int)indent, "", option, (int)(end - p), p);
 			first_line = false;
 		}
 		else
@@ -734,10 +734,10 @@ timer_delay(timeval_t sands)
 
 	if (timercmp(&sands, &time_now, >=)) {
 		sands = timer_sub_now(sands);
-		snprintf(str, sizeof str, "%lu.%6.6ld", sands.tv_sec, sands.tv_usec);
+		snprintf(str, sizeof str, "%ld.%6.6ld", sands.tv_sec, sands.tv_usec);
 	} else {
 		timersub(&time_now, &sands, &sands);
-		snprintf(str, sizeof str, "-%lu.%6.6ld", sands.tv_sec, sands.tv_usec);
+		snprintf(str, sizeof str, "-%ld.%6.6ld", sands.tv_sec, sands.tv_usec);
 	}
 
 	return str;
@@ -753,7 +753,7 @@ thread_rb_dump(const rb_root_cached_t *root, const char *tree, FILE *fp)
 	conf_write(fp, "----[ Begin rb_dump %s ]----", tree);
 
 	rb_for_each_entry_cached(thread, root, n)
-		conf_write(fp, "#%.2d Thread type %s, event_fd %d, val/fd/pid %d, fd_close %d, timer: %s, func %s(), id %ld", i++, get_thread_type_str(thread->type), thread->event ? thread->event->fd: -2, thread->u.val, thread->u.f.close_on_reload, timer_delay(thread->sands), get_function_name(thread->func), thread->id);
+		conf_write(fp, "#%.2d Thread type %s, event_fd %d, val/fd/pid %d, fd_close %d, timer: %s, func %s(), id %lu", i++, get_thread_type_str(thread->type), thread->event ? thread->event->fd: -2, thread->u.val, thread->u.f.close_on_reload, timer_delay(thread->sands), get_function_name(thread->func), thread->id);
 
 	conf_write(fp, "----[ End rb_dump ]----");
 }
@@ -767,7 +767,7 @@ thread_list_dump(const list_head_t *l, const char *list_type, FILE *fp)
 	conf_write(fp, "----[ Begin list_dump %s ]----", list_type);
 
 	list_for_each_entry(thread, l, next)
-		conf_write(fp, "#%.2d Thread:%p type %s func %s() id %ld",
+		conf_write(fp, "#%.2d Thread:%p type %s func %s() id %lu",
 				i++, thread, get_thread_type_str(thread->type), get_function_name(thread->func), thread->id);
 
 	conf_write(fp, "----[ End list_dump ]----");
@@ -1858,7 +1858,7 @@ process_child_termination(pid_t pid, int status)
 
 #ifdef _EPOLL_DEBUG_
 	if (do_epoll_debug)
-		log_message(LOG_INFO, "Child %d terminated with status 0x%x, thread_id %lu", pid, status, thread ? thread->id : 0);
+		log_message(LOG_INFO, "Child %d terminated with status 0x%x, thread_id %lu", pid, (unsigned)status, thread ? thread->id : 0);
 #endif
 
 	if (!thread)

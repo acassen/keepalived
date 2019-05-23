@@ -4521,7 +4521,7 @@ vrrp_rfcv3_snmp_new_master_notify(vrrp_t *vrrp)
 				  (u_char *)&reason,
 				  sizeof(reason));
 	log_message(LOG_INFO, "(%s) Sending SNMP notification"
-			      " vrrpv3NotifyNewMaster, reason %d"
+			      " vrrpv3NotifyNewMaster, reason %" PRIu32
 			    , vrrp->iname, reason);
 	send_v2trap(notification_vars);
 	snmp_free_varbind(notification_vars);

@@ -131,7 +131,7 @@ dump_notify_script(FILE *fp, const notify_script_t *script, const char *type)
 	if (!script)
 		return;
 
-	conf_write(fp, "   %s state transition script = %s, uid:gid %d:%d", type,
+	conf_write(fp, "   %s state transition script = %s, uid:gid %u:%u", type,
 	       cmd_str(script), script->uid, script->gid);
 }
 
@@ -143,7 +143,7 @@ dump_vgroup(FILE *fp, const void *data)
 
 	conf_write(fp, " VRRP Sync Group = %s, %s", vgroup->gname, get_state_str(vgroup->state));
 	if (vgroup->vrrp_instances) {
-		conf_write(fp, "   VRRP member instances = %d", LIST_SIZE(vgroup->vrrp_instances));
+		conf_write(fp, "   VRRP member instances = %u", LIST_SIZE(vgroup->vrrp_instances));
 		for (e = LIST_HEAD(vgroup->vrrp_instances); e; ELEMENT_NEXT(e)) {
 			vrrp_t *vrrp = ELEMENT_DATA(e);
 			conf_write(fp, "     %s", vrrp->iname);
@@ -153,26 +153,26 @@ dump_vgroup(FILE *fp, const void *data)
 		conf_write(fp, "   sync group tracking weight set");
 	conf_write(fp, "   Using smtp notification = %s", vgroup->smtp_alert ? "yes" : "no");
 	if (!LIST_ISEMPTY(vgroup->track_ifp)) {
-		conf_write(fp, "   Tracked interfaces = %d", LIST_SIZE(vgroup->track_ifp));
+		conf_write(fp, "   Tracked interfaces = %u", LIST_SIZE(vgroup->track_ifp));
 		dump_list(fp, vgroup->track_ifp);
 	}
 	if (!LIST_ISEMPTY(vgroup->track_script)) {
-		conf_write(fp, "   Tracked scripts = %d", LIST_SIZE(vgroup->track_script));
+		conf_write(fp, "   Tracked scripts = %u", LIST_SIZE(vgroup->track_script));
 		dump_list(fp, vgroup->track_script);
 	}
 	if (!LIST_ISEMPTY(vgroup->track_file)) {
-		conf_write(fp, "   Tracked files = %d", LIST_SIZE(vgroup->track_file));
+		conf_write(fp, "   Tracked files = %u", LIST_SIZE(vgroup->track_file));
 		dump_list(fp, vgroup->track_file);
 	}
 #ifdef _WITH_CN_PROC_
 	if (!LIST_ISEMPTY(vgroup->track_process)) {
-		conf_write(fp, "   Tracked process = %d", LIST_SIZE(vgroup->track_process));
+		conf_write(fp, "   Tracked process = %u", LIST_SIZE(vgroup->track_process));
 		dump_list(fp, vgroup->track_process);
 	}
 #endif
 #ifdef _WITH_BFD_
 	if (!LIST_ISEMPTY(vgroup->track_bfd)) {
-		conf_write(fp, "   Tracked BFDs = %d", LIST_SIZE(vgroup->track_bfd));
+		conf_write(fp, "   Tracked BFDs = %u", LIST_SIZE(vgroup->track_bfd));
 		dump_list(fp, vgroup->track_bfd);
 	}
 #endif
@@ -226,8 +226,8 @@ dump_vscript(FILE *fp, const void *data)
 		str = (vscript->result >= vscript->rise) ? "GOOD" : "BAD";
 	}
 	conf_write(fp, "   Status = %s", str);
-	conf_write(fp, "   Script uid:gid = %d:%d", vscript->script.uid, vscript->script.gid);
-	conf_write(fp, "   VRRP instances = %d", vscript->tracking_vrrp ? LIST_SIZE(vscript->tracking_vrrp) : 0);
+	conf_write(fp, "   Script uid:gid = %u:%u", vscript->script.uid, vscript->script.gid);
+	conf_write(fp, "   VRRP instances = %u", vscript->tracking_vrrp ? LIST_SIZE(vscript->tracking_vrrp) : 0);
 	if (vscript->tracking_vrrp)
 		dump_list(fp, vscript->tracking_vrrp);
 	conf_write(fp, "   State = %s",
@@ -256,7 +256,7 @@ dump_vfile(FILE *fp, const void *data)
 	conf_write(fp, "   File = %s", vfile->file_path);
 	conf_write(fp, "   Status = %d", vfile->last_status);
 	conf_write(fp, "   Weight = %d", vfile->weight);
-	conf_write(fp, "   Tracking VRRP instances = %d", vfile->tracking_vrrp ? LIST_SIZE(vfile->tracking_vrrp) : 0);
+	conf_write(fp, "   Tracking VRRP instances = %u", vfile->tracking_vrrp ? LIST_SIZE(vfile->tracking_vrrp) : 0);
 	if (vfile->tracking_vrrp)
 		dump_list(fp, vfile->tracking_vrrp);
 }
@@ -297,10 +297,10 @@ dump_vprocess(FILE *fp, const void *data)
 			       vprocess->param_match == PARAM_MATCH_PARTIAL ? " = partial" :
 			       vprocess->param_match == PARAM_MATCH_INITIAL ? " = initial" :
 			       "unknown");
-	conf_write(fp, "   Min processes = %d", vprocess->quorum);
+	conf_write(fp, "   Min processes = %u", vprocess->quorum);
 	if (vprocess->quorum_max < UINT_MAX)
-		conf_write(fp, "   Max processes = %d", vprocess->quorum_max);
-	conf_write(fp, "   Current processes = %d", vprocess->num_cur_proc);
+		conf_write(fp, "   Max processes = %u", vprocess->quorum_max);
+	conf_write(fp, "   Current processes = %u", vprocess->num_cur_proc);
 	conf_write(fp, "   Have quorum = %s", vprocess->have_quorum ? "true" : "false");
 	conf_write(fp, "   Weight = %d", vprocess->weight);
 	conf_write(fp, "   Terminate delay = %fs", (double)vprocess->terminate_delay / TIMER_HZ);
@@ -310,7 +310,7 @@ dump_vprocess(FILE *fp, const void *data)
 		conf_write(fp, "   Terminate delay timer %srunning", vprocess->terminate_timer_thread ? "" : "not ");
 	}
 	conf_write(fp, "   Full command = %s", vprocess->full_command ? "true" : "false");
-	conf_write(fp, "   Tracking VRRP instances = %d", vprocess->tracking_vrrp ? LIST_SIZE(vprocess->tracking_vrrp) : 0);
+	conf_write(fp, "   Tracking VRRP instances = %u", vprocess->tracking_vrrp ? LIST_SIZE(vprocess->tracking_vrrp) : 0);
 	if (vprocess->tracking_vrrp)
 		dump_list(fp, vprocess->tracking_vrrp);
 }
@@ -325,7 +325,7 @@ dump_vrrp_bfd(FILE *fp, const void *track_data)
 
 	conf_write(fp, " VRRP Track BFD = %s", vbfd->bname);
 	conf_write(fp, "   Weight = %d", vbfd->weight);
-	conf_write(fp, "   Tracking VRRP instances = %d", vbfd->tracking_vrrp ? LIST_SIZE(vbfd->tracking_vrrp) : 0);
+	conf_write(fp, "   Tracking VRRP instances = %u", vbfd->tracking_vrrp ? LIST_SIZE(vbfd->tracking_vrrp) : 0);
 	if (vbfd->tracking_vrrp)
 		dump_list(fp, vbfd->tracking_vrrp);
 }
@@ -365,7 +365,7 @@ dump_sock(FILE *fp, const void *sock_data)
 {
 	const sock_t *sock = sock_data;
 
-	conf_write(fp, "VRRP sockpool: [ifindex(%u), family(%s), proto(%u), unicast(%d), fd(%d,%d)]"
+	conf_write(fp, "VRRP sockpool: [ifindex(%u), family(%s), proto(%d), unicast(%d), fd(%d,%d)]"
 			    , sock->ifp->ifindex
 			    , sock->family == AF_INET ? "IPv4" : sock->family == AF_INET6 ? "IPv6" : "unknown"
 			    , sock->proto
@@ -478,7 +478,7 @@ dump_vrrp(FILE *fp, const void *data)
 		if (vrrp->duplicate_vrid_fault)
 			conf_write(fp, "   Duplicate VRID");
 #endif
-		conf_write(fp, "   Number of track scripts init = %d", vrrp->num_script_init);
+		conf_write(fp, "   Number of track scripts init = %u", vrrp->num_script_init);
 		ctime_r(&vrrp->last_transition.tv_sec, time_str);
 		conf_write(fp, "   Last transition = %ld (%.24s)", vrrp->last_transition.tv_sec, time_str);
 		if (!ctime_r(&vrrp->sands.tv_sec, time_str))
@@ -531,12 +531,12 @@ dump_vrrp(FILE *fp, const void *data)
 						    ? inet_sockaddrtos(&vrrp->saddr)
 						    : "(none)",
 						  vrrp->saddr_from_config ? " (from configuration)" : "");
-	conf_write(fp, "   Gratuitous ARP delay = %d",
+	conf_write(fp, "   Gratuitous ARP delay = %u",
 		       vrrp->garp_delay/TIMER_HZ);
-	conf_write(fp, "   Gratuitous ARP repeat = %d", vrrp->garp_rep);
-	conf_write(fp, "   Gratuitous ARP refresh = %lu",
+	conf_write(fp, "   Gratuitous ARP repeat = %u", vrrp->garp_rep);
+	conf_write(fp, "   Gratuitous ARP refresh = %ld",
 		       vrrp->garp_refresh.tv_sec);
-	conf_write(fp, "   Gratuitous ARP refresh repeat = %d", vrrp->garp_refresh_rep);
+	conf_write(fp, "   Gratuitous ARP refresh repeat = %u", vrrp->garp_refresh_rep);
 	conf_write(fp, "   Gratuitous ARP lower priority delay = %u", vrrp->garp_lower_prio_delay / TIMER_HZ);
 	conf_write(fp, "   Gratuitous ARP lower priority repeat = %u", vrrp->garp_lower_prio_rep);
 	conf_write(fp, "   Send advert after receive lower priority advert = %s", vrrp->lower_prio_no_advert ? "false" : "true");
@@ -547,12 +547,12 @@ dump_vrrp(FILE *fp, const void *data)
 		conf_write(fp, "   Effective priority = %d", vrrp->effective_priority);
 		conf_write(fp, "   Total priority = %d", vrrp->total_priority);
 	}
-	conf_write(fp, "   Advert interval = %d %s",
+	conf_write(fp, "   Advert interval = %u %s",
 		(vrrp->version == VRRP_VERSION_2) ? (vrrp->adver_int / TIMER_HZ) :
 		(vrrp->adver_int / (TIMER_HZ / 1000)),
 		(vrrp->version == VRRP_VERSION_2) ? "sec" : "milli-sec");
 	if (vrrp->state == VRRP_STATE_BACK && vrrp->version == VRRP_VERSION_3)
-		conf_write(fp, "   Master advert interval = %d milli-sec", vrrp->master_adver_int / (TIMER_HZ / 1000));
+		conf_write(fp, "   Master advert interval = %u milli-sec", vrrp->master_adver_int / (TIMER_HZ / 1000));
 #ifdef _WITH_FIREWALL_
 	conf_write(fp, "   Accept = %s", vrrp->accept ? "enabled" : "disabled");
 #endif
@@ -583,16 +583,16 @@ dump_vrrp(FILE *fp, const void *data)
 		conf_write(fp, "   Debug level = %d", vrrp->debug);
 
 	if (!LIST_ISEMPTY(vrrp->vip)) {
-		conf_write(fp, "   Virtual IP = %d", LIST_SIZE(vrrp->vip));
+		conf_write(fp, "   Virtual IP = %u", LIST_SIZE(vrrp->vip));
 		dump_list(fp, vrrp->vip);
 	}
 	if (!LIST_ISEMPTY(vrrp->evip)) {
-		conf_write(fp, "   Virtual IP Excluded = %d",
+		conf_write(fp, "   Virtual IP Excluded = %u",
 			LIST_SIZE(vrrp->evip));
 		dump_list(fp, vrrp->evip);
 	}
 	if (!LIST_ISEMPTY(vrrp->unicast_peer)) {
-		conf_write(fp, "   Unicast Peer = %d",
+		conf_write(fp, "   Unicast Peer = %u",
 			LIST_SIZE(vrrp->unicast_peer));
 		dump_list(fp, vrrp->unicast_peer);
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
@@ -609,36 +609,36 @@ dump_vrrp(FILE *fp, const void *data)
 		conf_write(fp, "   No sockets allocated");
 #ifdef _HAVE_FIB_ROUTING_
 	if (!LIST_ISEMPTY(vrrp->vroutes)) {
-		conf_write(fp, "   Virtual Routes = %d", LIST_SIZE(vrrp->vroutes));
+		conf_write(fp, "   Virtual Routes = %u", LIST_SIZE(vrrp->vroutes));
 		dump_list(fp, vrrp->vroutes);
 	}
 	if (!LIST_ISEMPTY(vrrp->vrules)) {
-		conf_write(fp, "   Virtual Rules = %d", LIST_SIZE(vrrp->vrules));
+		conf_write(fp, "   Virtual Rules = %u", LIST_SIZE(vrrp->vrules));
 		dump_list(fp, vrrp->vrules);
 	}
 #endif
 
 	if (!LIST_ISEMPTY(vrrp->track_ifp)) {
-		conf_write(fp, "   Tracked interfaces = %d", LIST_SIZE(vrrp->track_ifp));
+		conf_write(fp, "   Tracked interfaces = %u", LIST_SIZE(vrrp->track_ifp));
 		dump_list(fp, vrrp->track_ifp);
 	}
 	if (!LIST_ISEMPTY(vrrp->track_script)) {
-		conf_write(fp, "   Tracked scripts = %d", LIST_SIZE(vrrp->track_script));
+		conf_write(fp, "   Tracked scripts = %u", LIST_SIZE(vrrp->track_script));
 		dump_list(fp, vrrp->track_script);
 	}
 	if (!LIST_ISEMPTY(vrrp->track_file)) {
-		conf_write(fp, "   Tracked files = %d", LIST_SIZE(vrrp->track_file));
+		conf_write(fp, "   Tracked files = %u", LIST_SIZE(vrrp->track_file));
 		dump_list(fp, vrrp->track_file);
 	}
 #ifdef _WITH_CN_PROC_
 	if (!LIST_ISEMPTY(vrrp->track_process)) {
-		conf_write(fp, "   Tracked processes = %d", LIST_SIZE(vrrp->track_process));
+		conf_write(fp, "   Tracked processes = %u", LIST_SIZE(vrrp->track_process));
 		dump_list(fp, vrrp->track_process);
 	}
 #endif
 #ifdef _WITH_BFD_
 	if (!LIST_ISEMPTY(vrrp->track_bfd)) {
-		conf_write(fp, "   Tracked BFDs = %d", LIST_SIZE(vrrp->track_bfd));
+		conf_write(fp, "   Tracked BFDs = %u", LIST_SIZE(vrrp->track_bfd));
 		dump_list(fp, vrrp->track_bfd);
 	}
 #endif

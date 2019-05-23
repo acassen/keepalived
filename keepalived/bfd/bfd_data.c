@@ -95,13 +95,13 @@ dump_bfd(FILE *fp, const void *data)
 		conf_write(fp, "   Source IP = %s",
 			    inet_sockaddrtos(&bfd->src_addr));
 
-	conf_write(fp, "   Required min RX interval = %i ms",
+	conf_write(fp, "   Required min RX interval = %u ms",
 		    bfd->local_min_rx_intv / (TIMER_HZ / 1000));
-	conf_write(fp, "   Desired min TX interval = %i ms",
+	conf_write(fp, "   Desired min TX interval = %u ms",
 		    bfd->local_min_tx_intv / (TIMER_HZ / 1000));
-	conf_write(fp, "   Desired idle TX interval = %i ms",
+	conf_write(fp, "   Desired idle TX interval = %u ms",
 		    bfd->local_idle_tx_intv / (TIMER_HZ / 1000));
-	conf_write(fp, "   Detection multiplier = %i",
+	conf_write(fp, "   Detection multiplier = %d",
 		    bfd->local_detect_mult);
 	conf_write(fp, "   %s = %d",
 		    bfd->nbr_addr.ss_family == AF_INET ? "TTL" : "hoplimit",

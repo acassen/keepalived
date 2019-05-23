@@ -111,7 +111,7 @@ dump_checker_opts(FILE *fp, const void *data)
 	conf_write(fp, "   Enabled = %d", checker->enabled);
 	conf_write(fp, "   Is up = %d", checker->is_up);
 	conf_write(fp, "   Has run = %d", checker->has_run);
-	conf_write(fp, "   Retries left before fail = %d", checker->retry_it);
+	conf_write(fp, "   Retries left before fail = %u", checker->retry_it);
 	conf_write(fp, "   Delay before retry = %f", (double)checker->default_delay_before_retry / TIMER_HZ);
 }
 

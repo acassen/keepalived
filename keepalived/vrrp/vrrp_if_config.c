@@ -439,7 +439,7 @@ clear_rp_filter(void)
 	/* We want to ensure that default/rp_filter is at least the value of all/rp_filter */
 	rp_filter = get_sysctl("net/ipv4/conf", "default", "rp_filter");
 	if (rp_filter < all_rp_filter) {
-		log_message(LOG_INFO, "NOTICE: setting sysctl net.ipv4.conf.default.rp_filter from %d to %d", rp_filter, all_rp_filter);
+		log_message(LOG_INFO, "NOTICE: setting sysctl net.ipv4.conf.default.rp_filter from %u to %u", rp_filter, all_rp_filter);
 		set_sysctl("net/ipv4/conf", "default", "rp_filter", all_rp_filter);
 		default_rp_filter = rp_filter;
 	}
@@ -472,7 +472,7 @@ clear_rp_filter(void)
 	}
 
 	/* We have now made sure that all the interfaces have rp_filter >= all_rp_filter */
-	log_message(LOG_INFO, "NOTICE: setting sysctl net.ipv4.conf.all.rp_filter from %d to 0", all_rp_filter);
+	log_message(LOG_INFO, "NOTICE: setting sysctl net.ipv4.conf.all.rp_filter from %u to 0", all_rp_filter);
 	set_sysctl("net/ipv4/conf", "all", "rp_filter", 0);
 }
 
@@ -494,14 +494,14 @@ restore_rp_filter(void)
 
 	rp_filter = get_sysctl("net/ipv4/conf", "all", "rp_filter");
 	if (rp_filter == 0) {
-		log_message(LOG_INFO, "NOTICE: resetting sysctl net.ipv4.conf.all.rp_filter to %d", all_rp_filter);
+		log_message(LOG_INFO, "NOTICE: resetting sysctl net.ipv4.conf.all.rp_filter to %u", all_rp_filter);
 		set_sysctl("net/ipv4/conf", "all", "rp_filter", all_rp_filter);
 	}
 
 	if (default_rp_filter != UINT_MAX) {
 		rp_filter = get_sysctl("net/ipv4/conf", "default", "rp_filter");
 		if (rp_filter == all_rp_filter) {
-			log_message(LOG_INFO, "NOTICE: resetting sysctl net.ipv4.conf.default.rp_filter to %d", default_rp_filter);
+			log_message(LOG_INFO, "NOTICE: resetting sysctl net.ipv4.conf.default.rp_filter to %u", default_rp_filter);
 			set_sysctl("net/ipv4/conf", "default", "rp_filter", default_rp_filter);
 		}
 		default_rp_filter = UINT_MAX;

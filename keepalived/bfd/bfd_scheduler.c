@@ -246,7 +246,7 @@ bfd_expire_thread(thread_ref_t thread)
 	if (bfd->local_state == BFD_STATE_UP ||
 	    __test_bit(LOG_EXTRA_DETAIL_BIT, &debug))
 		log_message(LOG_WARNING, "BFD_Instance(%s) Expired after"
-			    " %i ms (%i usec overdue)",
+			    " %" PRIu32 " ms (%" PRIu32 " usec overdue)",
 			    bfd->iname, dead_time / 1000, overdue_time);
 
 	/*

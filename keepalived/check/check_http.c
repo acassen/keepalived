@@ -230,16 +230,16 @@ dump_url(FILE *fp, const void *data)
 			if (!min)
 				continue;
 			if (i - 1 == min)
-				conf_write(fp, "       %d", min);
+				conf_write(fp, "       %u", min);
 			else
-				conf_write(fp, "       %d-%d", min, i - 1);
+				conf_write(fp, "       %u-%u", min, i - 1);
 			min = 0;
 		}
 	}
 	if (min == HTTP_STATUS_CODE_MAX)
-		conf_write(fp, "       %d", min);
+		conf_write(fp, "       %u", min);
 	else if (min)
-		conf_write(fp, "       %d-%d", min, HTTP_STATUS_CODE_MAX);
+		conf_write(fp, "       %u-%d", min, HTTP_STATUS_CODE_MAX);
 
 	if (url->virtualhost)
 		conf_write(fp, "     Virtual host = %s", url->virtualhost);
@@ -274,7 +274,7 @@ dump_url(FILE *fp, const void *data)
 		conf_write(fp, "     Regex use count = %u", url->regex->use_count);
 #ifndef PCRE2_DONT_USE_JIT
 		if (url->regex_use_stack)
-			conf_write(fp, "     Regex stack start %lu, max %lu", jit_stack_start, jit_stack_max);
+			conf_write(fp, "     Regex stack start %zu, max %zu", jit_stack_start, jit_stack_max);
 #endif
 	}
 #endif
@@ -490,7 +490,7 @@ digest_handler(const vector_t *strvec)
 	}
 
 	if (strlen(digest) != 2 * MD5_DIGEST_LENGTH) {
-		report_config_error(CONFIG_GENERAL_ERROR, "digest '%s' character length should be %d rather than %zd", digest, 2 * MD5_DIGEST_LENGTH, strlen(digest));
+		report_config_error(CONFIG_GENERAL_ERROR, "digest '%s' character length should be %d rather than %zu", digest, 2 * MD5_DIGEST_LENGTH, strlen(digest));
 		FREE(digest);
 		return;
 	}
@@ -820,7 +820,7 @@ url_check(void)
 	}
 
 	if (url->regex_max_offset && url->regex_min_offset >= url->regex_max_offset) {
-		log_message(LOG_INFO, "regex min offset %lu > regex_max_offset %lu - ignoring", url->regex_min_offset, url->regex_max_offset - 1);
+		log_message(LOG_INFO, "regex min offset %zu > regex_max_offset %zu - ignoring", url->regex_min_offset, url->regex_max_offset - 1);
 		url->regex_min_offset = url->regex_max_offset = 0;
 	}
 #endif
@@ -1036,7 +1036,7 @@ check_regex(url_t *url, request_t *req)
 
 #ifdef _REGEX_DEBUG_
 	if (do_regex_debug)
-		log_message(LOG_INFO, "matched %d, min_offset %lu max_offset %lu, subject_offset %lu req->len %lu lookbehind %u start_offset %lu"
+		log_message(LOG_INFO, "matched %d, min_offset %zu max_offset %zu, subject_offset %zu req->len %zu lookbehind %u start_offset %zu"
 #ifdef _WITH_REGEX_TIMERS_
 				", num_match_calls %u"
 #endif
@@ -1123,7 +1123,7 @@ check_regex(url_t *url, request_t *req)
 		ovector = pcre2_get_ovector_pointer(url->regex->pcre2_match_data);
 #ifdef _REGEX_DEBUG_
 		if (do_regex_debug)
-			log_message(LOG_INFO, "Partial returned, ovector %ld, max_lookbehind %u", ovector[0], url->regex->pcre2_max_lookbehind);
+			log_message(LOG_INFO, "Partial returned, ovector %zu, max_lookbehind %u", ovector[0], url->regex->pcre2_max_lookbehind);
 #endif
 		if ((keep = ovector[0] - url->regex->pcre2_max_lookbehind) <= 0)
 			keep = 0;
@@ -1189,7 +1189,7 @@ check_regex(url_t *url, request_t *req)
 			log_message(LOG_INFO, "Result: We have a match at offset %zu - \"%.*s\"", req->regex_subject_offset + ovector[0], (int)(ovector[1] - ovector[0]), req->buffer + ovector[0]);
 	}
 	else {
-		log_message(LOG_INFO, "Match found but %lu bytes beyond regex_max_offset(%lu)", req->regex_subject_offset + ovector[0] - (url->regex_max_offset - 1), url->regex_max_offset - 1);
+		log_message(LOG_INFO, "Match found but %zu bytes beyond regex_max_offset(%zu)", req->regex_subject_offset + ovector[0] - (url->regex_max_offset - 1), url->regex_max_offset - 1);
 #endif
 	}
 

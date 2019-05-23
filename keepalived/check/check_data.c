@@ -133,7 +133,7 @@ dump_vsg_entry(FILE *fp, const void *data)
 				  ntohs(((const struct sockaddr_in6*)&vsg_entry->addr)->sin6_addr.s6_addr16[7]);
 			conf_write(fp,
 				    vsg_entry->addr.ss_family == AF_INET ?
-					"   VIP Range = %s-%d, VPORT = %d" :
+					"   VIP Range = %s-%u, VPORT = %d" :
 					"   VIP Range = %s-%x, VPORT = %d",
 				    inet_sockaddrtos(&vsg_entry->addr),
 				    start + vsg_entry->range,
@@ -308,7 +308,7 @@ dump_vs(FILE *fp, const void *data)
 		conf_write(fp, "   persistence timeout = %u", vs->persistence_timeout);
 	if (vs->persistence_granularity) {
 		if (vs->af == AF_INET6)
-			conf_write(fp, "   persistence granularity = %d",
+			conf_write(fp, "   persistence granularity = %" PRIu32,
 				       vs->persistence_granularity);
 		else
 			conf_write(fp, "   persistence granularity = %s",
@@ -335,10 +335,10 @@ dump_vs(FILE *fp, const void *data)
 	conf_write(fp, "   Inhibit on failure is %s", vs->inhibit ? "ON" : "OFF");
 	conf_write(fp, "   quorum = %u, hysteresis = %u", vs->quorum, vs->hysteresis);
 	if (vs->notify_quorum_up)
-		conf_write(fp, "   Quorum up notify script = %s, uid:gid %d:%d",
+		conf_write(fp, "   Quorum up notify script = %s, uid:gid %u:%u",
 			    cmd_str(vs->notify_quorum_up), vs->notify_quorum_up->uid, vs->notify_quorum_up->gid);
 	if (vs->notify_quorum_down)
-		conf_write(fp, "   Quorum down notify script = %s, uid:gid %d:%d",
+		conf_write(fp, "   Quorum down notify script = %s, uid:gid %u:%u",
 			    cmd_str(vs->notify_quorum_down), vs->notify_quorum_down->uid, vs->notify_quorum_down->gid);
 	if (vs->ha_suspend)
 		conf_write(fp, "   Using HA suspend");
@@ -519,10 +519,10 @@ dump_rs(FILE *fp, const void *data)
 	conf_write(fp, "   Inhibit on failure is %s", rs->inhibit ? "ON" : "OFF");
 
 	if (rs->notify_up)
-		conf_write(fp, "     RS up notify script = %s, uid:gid %d:%d",
+		conf_write(fp, "     RS up notify script = %s, uid:gid %u:%u",
 				cmd_str(rs->notify_up), rs->notify_up->uid, rs->notify_up->gid);
 	if (rs->notify_down)
-		conf_write(fp, "     RS down notify script = %s, uid:gid %d:%d",
+		conf_write(fp, "     RS down notify script = %s, uid:gid %u:%u",
 				cmd_str(rs->notify_down), rs->notify_down->uid, rs->notify_down->gid);
 	if (rs->virtualhost)
 		conf_write(fp, "    VirtualHost = %s", rs->virtualhost);
@@ -609,7 +609,7 @@ dump_checker_bfd(FILE *fp, const void *track_data)
 
 	conf_write(fp, " Checker Track BFD = %s", cbfd->bname);
 //	conf_write(fp, "   Weight = %d", cbfd->weight);
-	conf_write(fp, "   Tracking RS = %d", cbfd->tracking_rs ? LIST_SIZE(cbfd->tracking_rs) : 0);
+	conf_write(fp, "   Tracking RS = %u", cbfd->tracking_rs ? LIST_SIZE(cbfd->tracking_rs) : 0);
 	if (cbfd->tracking_rs)
 		dump_list(fp, cbfd->tracking_rs);
 }
@@ -718,7 +718,7 @@ format_vsge(const virtual_server_group_entry_t *vsge)
 			  ntohl(((const struct sockaddr_in*)&vsge->addr)->sin_addr.s_addr) & 0xFF :
 			  ntohs(((const struct sockaddr_in6*)&vsge->addr)->sin6_addr.s6_addr16[7]);
 		snprintf(ret, sizeof(ret),
-			    vsge->addr.ss_family == AF_INET ?  "%s-%d,%d" : "%s-%x,%d",
+			    vsge->addr.ss_family == AF_INET ?  "%s-%u,%d" : "%s-%x,%d",
 			    inet_sockaddrtos(&vsge->addr),
 			    start + vsge->range,
 			    ntohs(inet_sockaddrport(&vsge->addr)));
@@ -924,7 +924,7 @@ bool validate_check_config(void)
 		/* Check that the quorum isn't higher than the total weight of
 		 * the real servers, otherwise we will never be able to come up. */
 		if (vs->quorum > weight_sum) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Warning - quorum %d for %s exceeds total weight of real servers %d, reducing quorum to %d", vs->quorum, FMT_VS(vs), weight_sum, weight_sum);
+			report_config_error(CONFIG_GENERAL_ERROR, "Warning - quorum %u for %s exceeds total weight of real servers %u, reducing quorum to %u", vs->quorum, FMT_VS(vs), weight_sum, weight_sum);
 			vs->quorum = weight_sum;
 		}
 

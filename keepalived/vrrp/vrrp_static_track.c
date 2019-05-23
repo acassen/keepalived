@@ -58,7 +58,7 @@ dump_tgroup(FILE *fp, const void *data)
 
 	conf_write(fp, " Static Track Group = %s", tgroup->gname);
 	if (tgroup->vrrp_instances) {
-		conf_write(fp, "   VRRP member instances = %d", LIST_SIZE(tgroup->vrrp_instances));
+		conf_write(fp, "   VRRP member instances = %u", LIST_SIZE(tgroup->vrrp_instances));
 		LIST_FOREACH(tgroup->vrrp_instances, vrrp, e)
 			conf_write(fp, "     %s", vrrp->iname);
 	}

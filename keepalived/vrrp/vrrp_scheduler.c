@@ -684,7 +684,7 @@ vrrp_handle_bfd_event(bfd_event_t * evt)
 		timersub(&cur_time, &evt->sent_time, &timer_tmp);
 		delivery_time = timer_long(timer_tmp);
 		log_message(LOG_INFO, "Received BFD event: instance %s is in"
-			    " state %s (delivered in %i usec)",
+			    " state %s (delivered in %" PRIu32 " usec)",
 			    evt->iname, BFD_STATE_STR(evt->state), delivery_time);
 	}
 
@@ -856,13 +856,13 @@ vrrp_dispatcher_read(sock_t *sock)
 #endif
 
 		if (msghdr.msg_flags & MSG_TRUNC) {
-			log_message(LOG_INFO, "recvmsg(%d) message truncated from %zd to %zd bytes"
+			log_message(LOG_INFO, "recvmsg(%d) message truncated from %zd to %zu bytes"
 					    , sock->fd_in, len, vrrp_buffer_len);
 			continue;
 		}
 
 		if (msghdr.msg_flags & MSG_CTRUNC) {
-			log_message(LOG_INFO, "recvmsg(%d), control message truncated from %zd to %zd bytes"
+			log_message(LOG_INFO, "recvmsg(%d), control message truncated from %zu to %zu bytes"
 					    , sock->fd_in, sizeof(control_buf), msghdr.msg_controllen);
 			msghdr.msg_controllen = 0;
 		}
@@ -947,7 +947,7 @@ vrrp_dispatcher_read(sock_t *sock)
 #endif
 
 			if (!expected_cmsg)
-				log_message(LOG_INFO, "fd %d, unexpected control msg len %zd, level %d, type %d"
+				log_message(LOG_INFO, "fd %d, unexpected control msg len %zu, level %d, type %d"
 						    , sock->fd_in, cmsg->cmsg_len
 						    , cmsg->cmsg_level, cmsg->cmsg_type);
 		}
@@ -1074,12 +1074,12 @@ vrrp_script_child_thread(thread_ref_t thread)
 					 * that to handle it. */
 					timeout = 1;
 				} else {
-					log_message(LOG_INFO, "kill -%d of process %s(%d) with new state %d failed with errno %d", sig_num, vscript->script.args[0], pid, vscript->state, errno);
+					log_message(LOG_INFO, "kill -%d of process %s(%d) with new state %u failed with errno %d", sig_num, vscript->script.args[0], pid, vscript->state, errno);
 					timeout = 1000;
 				}
 			}
 		} else if (vscript->state != SCRIPT_STATE_IDLE) {
-			log_message(LOG_INFO, "Child thread pid %d timeout with unknown script state %d", pid, vscript->state);
+			log_message(LOG_INFO, "Child thread pid %d timeout with unknown script state %u", pid, vscript->state);
 			timeout = 10;	/* We need some timeout */
 		}
 
