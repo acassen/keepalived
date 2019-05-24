@@ -1734,7 +1734,7 @@ The syntax for virtual_server is :
         \fBlog_all_failures \fR<BOOL>         # log all failures when checker up
 
         # healthcheckers. Can be multiple of each type
-        # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|DNS_CHECK|MISC_CHECK|BFD_CHECK
+        # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|DNS_CHECK|MISC_CHECK|BFD_CHECK|UDP_CHECK
 
         # All checkers have the following options, except MISC_CHECK
         # which only has options alpha onwards, and BFD_CHECK which has none
@@ -1892,6 +1892,11 @@ The syntax for virtual_server is :
         # BFD instance name to check
         \fBBFD_CHECK \fR{
             \fBname \fR<STRING>
+        }
+
+        # UDP healthchecker
+        \fBUDP_CHECK \fR{
+            # No additional options
         }
     }
 }
