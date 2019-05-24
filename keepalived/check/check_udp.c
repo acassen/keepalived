@@ -59,7 +59,7 @@ static void
 dump_udp_check(FILE *fp, void *data)
 {
 	checker_t *checker = data;
-	conf_write(fp, "   Keepalive method = TCP_CHECK");
+	conf_write(fp, "   Keepalive method = UDP_CHECK");
 	dump_checker_opts(fp, checker);
 }
 
@@ -74,7 +74,7 @@ udp_check_handler(__attribute__((unused)) vector_t *strvec)
 {
 	udp_check_t *udp_check;
 	udp_check = MALLOC(sizeof (udp_check_t));
-        udp_check->ping_check = 1;
+        udp_check->ping_check = true;
 
 	/* queue new checker */
 	queue_checker(free_udp_check, dump_udp_check, choose_mode_thread,
@@ -85,7 +85,7 @@ static void
 udp_ping_check_off_handler(__attribute__((unused)) vector_t *strvec)
 {
 	udp_check_t *udp_check = CHECKER_GET();
-	udp_check->ping_check = 0;
+	udp_check->ping_check = false;
 }
 
 static void
@@ -150,7 +150,7 @@ udp_epilog(thread_t * thread, bool is_success)
 			if (checker->rs->smtp_alert && checker_was_up &&
 			    (rs_was_alive != checker->rs->alive || !global_data->no_checker_emails))
 				smtp_alert(SMTP_MSG_RS, checker, NULL,
-					   "=> TCP CHECK failed on service <=");
+					   "=> UDP CHECK failed on service <=");
 		}
 		if(udp_check->ping_check)
 			thread_add_timer(thread->master, icmp_connect_thread, checker, delay);
@@ -208,13 +208,22 @@ udp_connect_thread(thread_t * thread)
 		return 0;
 	}
 
-	if ((fd = socket(co->dst.ss_family, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
+	if ((fd = socket(co->dst.ss_family, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, IPPROTO_UDP)) == -1) {
 		log_message(LOG_INFO, "UDP connect fail to create socket. Rescheduling.");
 		thread_add_timer(thread->master, udp_connect_thread, checker,
 				checker->delay_loop);
 
 		return 0;
 	}
+#if !HAVE_DECL_SOCK_NONBLOCK
+	if (set_sock_flags(fd, F_SETFL, O_NONBLOCK))
+		log_message(LOG_INFO, "Unable to set NONBLOCK on icmp_connect socket - %s (%d)", strerror(errno), errno);
+#endif
+
+#if !HAVE_DECL_SOCK_CLOEXEC
+	if (set_sock_flags(fd, F_SETFD, FD_CLOEXEC))
+		log_message(LOG_INFO, "Unable to set CLOEXEC on icmp_connect socket - %s (%d)", strerror(errno), errno);
+#endif
 
 	status = udp_bind_connect(fd, co);
 
@@ -222,7 +231,7 @@ udp_connect_thread(thread_t * thread)
 	if(udp_connection_state(fd, status, thread, udp_check_thread,
 			co->connection_to)) {
 		close(fd);
-		log_message(LOG_INFO, "TCP socket bind failed. Maybe port used up. Rescheduling.");
+		log_message(LOG_INFO, "UDP socket bind failed. Maybe port used up. Rescheduling.");
 		thread_add_timer(thread->master, udp_connect_thread, checker,
 					checker->delay_loop);
 	}
@@ -268,7 +277,7 @@ icmp_epilog(thread_t * thread, bool is_success)
 		++checker->retry_it;
 	}
 	if(is_success)
-		thread_add_timer(thread->master, udp_connect_thread, checker, 0);
+		thread_add_event(thread->master, udp_connect_thread, checker, 0);
 	else
 		thread_add_timer(thread->master, icmp_connect_thread, checker, delay);
 }
@@ -316,7 +325,6 @@ icmp_connect_thread(thread_t * thread)
 	conn_opts_t *co = checker->co;
 	int fd;
 	int status;
-	struct protoent* protocol = NULL;
 	int size = SOCK_RECV_BUFF;
 
 	if (!checker->enabled) {
@@ -325,23 +333,23 @@ icmp_connect_thread(thread_t * thread)
 		return 0;
 	}
 
-	protocol = co->dst.ss_family == AF_INET ? getprotobyname("icmp"):getprotobyname("ipv6-icmp");
-
-	if (!protocol) {
-		log_message(LOG_INFO, "%s connect fail to getprotobyname. Rescheduling.",
-			(co->dst.ss_family == AF_INET)?"ICMP":"ICMPv6");
-		thread_add_timer(thread->master, icmp_connect_thread, checker,
-				checker->delay_loop);
-		return 0;
-	}
-
-	if ((fd = socket(co->dst.ss_family, SOCK_DGRAM, protocol->p_proto)) == -1) {
+	if ((fd = socket(co->dst.ss_family, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, (co->dst.ss_family == AF_INET)?IPPROTO_ICMP:IPPROTO_ICMPV6)) == -1) {
 		log_message(LOG_INFO, "%s connect fail to create socket. Rescheduling.",
 			(co->dst.ss_family == AF_INET)?"ICMP":"ICMPv6");
 		thread_add_timer(thread->master, icmp_connect_thread, checker,
 				checker->delay_loop);
 		return 0;
 	}
+
+#if !HAVE_DECL_SOCK_NONBLOCK
+	if (set_sock_flags(fd, F_SETFL, O_NONBLOCK))
+		log_message(LOG_INFO, "Unable to set NONBLOCK on icmp_connect socket - %s (%d)", strerror(errno), errno);
+#endif
+
+#if !HAVE_DECL_SOCK_CLOEXEC
+	if (set_sock_flags(fd, F_SETFD, FD_CLOEXEC))
+		log_message(LOG_INFO, "Unable to set CLOEXEC on icmp_connect socket - %s (%d)", strerror(errno), errno);
+#endif
 
 	setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
 	/*
@@ -369,9 +377,9 @@ choose_mode_thread(thread_t * thread){
 	checker_t *checker = THREAD_ARG(thread);
 	udp_check_t *udp_check = CHECKER_ARG(checker);
 	if(udp_check->ping_check)
-		thread_add_timer(thread->master, icmp_connect_thread, checker, 0);
+		thread_add_event(thread->master, icmp_connect_thread, checker, 0);
 	else
-		thread_add_timer(thread->master, udp_connect_thread, checker, 0);
+		thread_add_event(thread->master, udp_connect_thread, checker, 0);
 	return 0;
 }
 

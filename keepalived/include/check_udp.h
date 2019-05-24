@@ -32,7 +32,7 @@
 #include "scheduler.h"
 
 typedef struct _udp_check {
-	unsigned	ping_check;
+	bool	ping_check;
 } udp_check_t;
 
 /* Prototypes defs */
