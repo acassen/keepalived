@@ -25,10 +25,12 @@
 
 #include <errno.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include "layer4.h"
 #include "logger.h"
 #include "scheduler.h"
+#include "check_api.h"
 
 #ifndef _WITH_LVS_
 static
@@ -177,5 +179,118 @@ socket_connection_state(int fd, enum connect_result status, thread_ref_t thread,
 	}
 
 	return true;
+}
+#endif
+
+#ifdef _WITH_LVS_
+enum connect_result
+udp_bind_connect(int fd, conn_opts_t *co)
+{
+	socklen_t addrlen;
+	int ret;
+	int val;
+	struct sockaddr_storage *addr = &co->dst;
+	struct sockaddr_storage *bind_addr = &co->bindto;
+	char buff[UDP_BUFSIZE] = "";
+
+	/* Make socket non-block. */
+	val = fcntl(fd, F_GETFL, 0);
+	fcntl(fd, F_SETFL, val | O_NONBLOCK);
+#ifdef _WITH_SO_MARK_
+	if (co->fwmark) {
+		if (setsockopt (fd, SOL_SOCKET, SO_MARK, &co->fwmark, sizeof (co->fwmark)) < 0) {
+			log_message(LOG_ERR, "Error setting fwmark %d to socket: %s", co->fwmark, strerror(errno));
+			return connect_error;
+		}
+	}
+#endif
+
+	/* Bind socket */
+	if (((struct sockaddr *) bind_addr)->sa_family != AF_UNSPEC) {
+		addrlen = sizeof(*bind_addr);
+		if (bind(fd, (struct sockaddr *) bind_addr, addrlen) != 0) {
+			log_message(LOG_INFO, "bind failed. errno: %d, error: %s", errno, strerror(errno));
+			return connect_error;
+		}
+	}
+
+	/* Set remote IP and connect */
+	addrlen = sizeof(*addr);
+	ret = connect(fd, (struct sockaddr *) addr, addrlen);
+
+	if(ret < 0) {
+		log_message(LOG_INFO, "connect failed. ret: %d, errno: %d, error: %s", ret, errno, strerror(errno));
+		return connect_error;
+	}
+
+	/* Send udp packets and receive icmp packets */
+	ret = send(fd, buff, strlen(buff), 0);
+
+	if ((unsigned int)ret == strlen(buff)) {
+		fcntl(fd, F_SETFL, val);
+		return connect_success;
+	}
+
+	/* restore previous fd args */
+	fcntl(fd, F_SETFL, val);
+	return connect_error;
+}
+
+enum connect_result
+udp_socket_state(int fd, thread_t * thread)
+{
+	int ret = 0;
+	char recv_buf[UDP_BUFSIZE];
+
+	/* Handle Read timeout, we consider it success */
+	if (thread->type == THREAD_READ_TIMEOUT) {
+	/* Once the real server ignore me, return connect_success */
+		return connect_success;
+	}
+
+	ret = recv(fd, recv_buf, sizeof(recv_buf)-1, 0);
+
+	/* Ret less than 0 means the port is unreachable.
+	 * Otherwise, we consider it success. 
+	 */
+
+	if (ret < 0) 
+		return connect_error;
+				
+	return connect_success;
+}
+
+int
+udp_connection_state(int fd, enum connect_result status, thread_t * thread,
+					int (*func) (thread_t *), long timeout)
+{
+	checker_t *checker;
+
+	checker = THREAD_ARG(thread);
+
+	switch (status) {
+	case connect_success:
+		thread_add_read(thread->master, func, checker, fd, timeout, true);
+		return 0;
+	default:
+		return 1;
+	}
+}
+
+int
+icmp_send_state(int fd, enum connect_result status, thread_t * thread,
+					int (*func) (thread_t *), long timeout)
+{
+	checker_t *checker;
+
+	checker = THREAD_ARG(thread);
+
+	switch (status) {
+	case connect_success:
+		thread_add_read(thread->master, func, checker, fd, timeout, true);
+		return 0;
+	default:
+		return 1;
+	}
 }
 #endif

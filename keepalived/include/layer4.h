@@ -31,6 +31,8 @@
 /* local includes */
 #include "scheduler.h"
 
+#define UDP_BUFSIZE 512
+
 enum connect_result {
 	connect_error,
 	connect_in_progress,
@@ -98,6 +100,19 @@ tcp_connection_state(int fd, enum connect_result status, thread_ref_t thread,
 {
 	return socket_connection_state(fd, status, thread, func, timeout);
 }
-#endif
 
+extern enum connect_result
+udp_bind_connect(int, conn_opts_t *);
+
+extern enum connect_result
+udp_socket_state(int, thread_t *);
+
+extern int
+udp_connection_state(int, enum connect_result, thread_t *,
+	int (*func) (thread_t *), long);
+
+extern int
+icmp_send_state(int, enum connect_result, thread_t *,
+	int (*func) (thread_t *), long);
+#endif
 #endif
