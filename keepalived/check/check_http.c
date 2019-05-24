@@ -533,7 +533,8 @@ status_code_handler(const vector_t *strvec)
 			max = min;
 		if (*endptr ||
 		    min < HTTP_STATUS_CODE_MIN || min > HTTP_STATUS_CODE_MAX ||
-		    max < HTTP_STATUS_CODE_MIN || max > HTTP_STATUS_CODE_MAX) {
+		    max < HTTP_STATUS_CODE_MIN || max > HTTP_STATUS_CODE_MAX ||
+		    min > max) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Invalid HTTP_GET status code '%s'", str);
 			continue;
 		}
