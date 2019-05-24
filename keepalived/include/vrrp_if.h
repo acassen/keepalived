@@ -36,7 +36,7 @@
 #ifdef _HAVE_NET_LINUX_IF_H_COLLISION_
 #define _LINUX_IF_H
 #endif
-#include <linux/netdevice.h>
+#include "linux_netdevice.h"
 #ifdef _HAVE_VRRP_VMAC_
 #include <linux/if_link.h>
 #endif
@@ -94,6 +94,14 @@ typedef enum {
 #define IS_VLAN(IFP)	((IFP)->if_type == IF_TYPE_MACVLAN)
 #endif
 
+#endif
+
+/* <net/if_arp.h> defines MAX_ADDR_LEN as 7, whereas <linux/netdevice.h> defines it as 32.
+ * Make sure we have the right definition. */
+#if MAX_ADDR_LEN == 7
+#error "MAX_ADDR_LEN == 7 - probably <net/if_arp.h> was included after <linux/netdevice.h>"
+#elif MAX_ADDR_LEN != 32
+#error "MAX_ADDR_LEN != 32 - probably <net/if_arp.h> was included after <linux/netdevice.h>"
 #endif
 
 /* Interface structure definition */
