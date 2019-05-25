@@ -36,7 +36,7 @@
 #ifdef _HAVE_NET_LINUX_IF_H_COLLISION_
 #define _LINUX_IF_H
 #endif
-#include "linux_netdevice.h"
+#include <linux/netdevice.h>
 #ifdef _HAVE_VRRP_VMAC_
 #include <linux/if_link.h>
 #endif
