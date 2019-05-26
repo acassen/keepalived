@@ -34,7 +34,9 @@
 #include <sys/resource.h>
 
 #ifdef THREAD_DUMP
+#ifdef _WITH_SNMP_
 #include "snmp.h"
+#endif
 #include "scheduler.h"
 #include "smtp.h"
 #include "vrrp_track.h"

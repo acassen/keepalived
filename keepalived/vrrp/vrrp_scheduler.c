@@ -612,6 +612,7 @@ void
 try_up_instance(vrrp_t *vrrp, bool leaving_init)
 {
 	int wantstate;
+	ip_address_t ipaddress = {};
 
 	if (leaving_init) {
 		if (vrrp->num_script_if_fault)
@@ -654,6 +655,29 @@ try_up_instance(vrrp_t *vrrp, bool leaving_init)
 
 	/* We can come up */
 	vrrp_state_leave_fault(vrrp);
+
+	/* If we are using unicast, the master may have lost us from its ARP cache.
+	 * We want to renew the ARP cache on the master, so that it can send adverts
+	 * to us straight away, without a delay before it sends an ARP request message
+	 * and we respond. If we don't do this, we can time out and transition to master
+	 * before the master renews its ARP entry, since the master cannot send us adverts
+	 * until it has done so. */
+	if (!LIST_ISEMPTY(vrrp->unicast_peer) &&
+	    vrrp->saddr.ss_family != AF_UNSPEC) {
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "%s: sending gratuitous %s for %s", vrrp->iname, vrrp->family == AF_INET ? "ARP" : "NA", inet_sockaddrtos(&vrrp->saddr));
+
+		ipaddress.ifp = IF_BASE_IFP(vrrp->ifp);
+
+		if (vrrp->saddr.ss_family == AF_INET) {
+			ipaddress.u.sin.sin_addr.s_addr = ((struct sockaddr_in *)&vrrp->saddr)->sin_addr.s_addr;
+			send_gratuitous_arp_immediate(ipaddress.ifp, &ipaddress);
+		} else {
+			/* IPv6 */
+			ipaddress.u.sin6_addr = ((struct sockaddr_in6 *)&vrrp->saddr)->sin6_addr;
+			ndisc_send_unsolicited_na_immediate(ipaddress.ifp, &ipaddress);
+		}
+	}
 
 	vrrp_init_instance_sands(vrrp);
 	vrrp_thread_requeue_read(vrrp);

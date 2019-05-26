@@ -74,11 +74,13 @@ For building the documentation, the following packages need to be installed:
 Alpine Linux
 ------------
 The following libraries need to be installed:
-	iptables-dev ipset-dev libnl3-dev musl-dev and openssl-dev or libressl-dev
+	iptables-dev ipset-dev libnl3-dev musl-dev libnftnl-dev and openssl-dev or libressl-dev
 For magic file identification support:
-	TBD
+	file-dev
 For SNMP support:
 	net-snmp-dev (requires libressl-dev and not openssl-dev)
+For PCRE support
+	pcre2-dev
 
 For building the documentation, the following packages need to be installed:
 	py-sphinx py3-sphinx_rtd_theme
@@ -91,7 +93,7 @@ Archlinux
 Run the following to install the required libraries:
 	pacman -S ipset libnl1
 For magic file identification support:
-	TBD
+	TDB
 For SNMP support:
 	pacman -S net-snmp
 for PCRE support:

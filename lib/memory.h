@@ -59,9 +59,9 @@ extern void memcheck_log(const char *, const char *, const char *, const char *,
 extern void *keepalived_malloc(size_t, const char *, const char *, int)
 		__attribute__((alloc_size(1))) __attribute__((malloc));
 extern char *keepalived_strdup(const char *, const char *, const char *, int)
-		__attribute__((malloc)) __nonnull ((1));
+		__attribute__((malloc)) __attribute__((nonnull (1)));
 extern char *keepalived_strndup(const char *, size_t, const char *, const char *, int)
-		__attribute__((malloc)) __nonnull ((1));
+		__attribute__((malloc)) __attribute__((nonnull (1)));
 extern void keepalived_free(void *, const char *, const char *, int);
 extern void *keepalived_realloc(void *, size_t, const char *, const char *, int)
 		__attribute__((alloc_size(2)));
