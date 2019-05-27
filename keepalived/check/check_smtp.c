@@ -617,7 +617,6 @@ smtp_engine_thread(thread_ref_t thread)
 			 */
 			smtp_checker->state = SMTP_HAVE_BANNER;
 			smtp_get_line(thread);
-			return 0;
 			break;
 
 		/* Second step, analyze banner, send HELO */
