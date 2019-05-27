@@ -23,7 +23,7 @@ virtual_server 192.168.200.100 443 {
         SSL_GET {
             url {
               path /
-              status_code 200  # Can only specify a HTTP status_code
+              status_code 200-299 400-499 503 505 # Can specify a HTTP status_code or a section separated by '-' or both
             }
             url {
               path /mrtg/
