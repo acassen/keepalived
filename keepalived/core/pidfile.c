@@ -69,7 +69,12 @@ pidfile_write(const char *pid_file, int pid)
 		       pid_file);
 		return 0;
 	}
-	fprintf(pidfile, "%d\n", pid);
+	if (fprintf(pidfile, "%d\n", pid) < 0) {
+		log_message(LOG_INFO, "pidfile_write : Cannot write %s pidfile",
+		       pid_file);
+		fclose(pidfile);
+		return 0;
+	}
 	fclose(pidfile);
 	return 1;
 }
