@@ -161,7 +161,7 @@ vrrp_json_data_dump(json_writer_t *wr, vrrp_t *vrrp)
 #endif
 	jsonw_string_field(wr, "ifp_ifname", vrrp->ifp->ifname);
 	jsonw_uint_field(wr, "master_priority", vrrp->master_priority);
-	jsonw_float_field(wr, "last_transition", timeval_to_double(&vrrp->last_transition));
+	jsonw_float_field_fmt(wr, "last_transition", "%f", timeval_to_double(&vrrp->last_transition));
 	jsonw_float_field(wr, "garp_delay", vrrp->garp_delay / TIMER_HZ_FLOAT);
 	jsonw_uint_field(wr, "garp_refresh", vrrp->garp_refresh.tv_sec);
 	jsonw_uint_field(wr, "garp_rep", vrrp->garp_rep);
