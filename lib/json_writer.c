@@ -85,8 +85,8 @@ static void jsonw_puts(const json_writer_t *self, const char *str)
 		case '"':
 			fputs("\\\"", self->out);
 			break;
-		case '\'':
-			fputs("\\\'", self->out);
+		case '/':
+			fputs("\\/", self->out);
 			break;
 		default:
 			putc(*str, self->out);
