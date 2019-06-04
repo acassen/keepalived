@@ -800,14 +800,14 @@ static int handle_proc_ev(int nl_sd)
 						proc_ev->event_data.exec.process_tgid);
 				break;
 			case PROC_EVENT_UID:
-				log_message(LOG_INFO, "uid change: tid=%d pid=%d from %d to %d",
+				log_message(LOG_INFO, "uid change: tid=%d pid=%d from %" PRIu32 " to %" PRIu32,
 						proc_ev->event_data.id.process_pid,
 						proc_ev->event_data.id.process_tgid,
 						proc_ev->event_data.id.r.ruid,
 						proc_ev->event_data.id.e.euid);
 				break;
 			case PROC_EVENT_GID:
-				log_message(LOG_INFO, "gid change: tid=%d pid=%d from %d to %d",
+				log_message(LOG_INFO, "gid change: tid=%d pid=%d from %" PRIu32 " to %" PRIu32,
 						proc_ev->event_data.id.process_pid,
 						proc_ev->event_data.id.process_tgid,
 						proc_ev->event_data.id.r.rgid,
@@ -852,7 +852,7 @@ static int handle_proc_ev(int nl_sd)
 						proc_ev->event_data.exit.exit_signal);
 				break;
 			default:
-				log_message(LOG_INFO, "unhandled proc event %d", proc_ev->what);
+				log_message(LOG_INFO, "unhandled proc event %u", proc_ev->what);
 				break;
 			}
 #endif
@@ -876,8 +876,8 @@ static int handle_proc_ev(int nl_sd)
 			/* NOTE: not having PROC_EVENT_COMM means that changes to /proc/PID/comm
 			 * will not be detected */
 			case PROC_EVENT_COMM:
-//				if (proc_ev->event_data.comm.process_tgid == proc_ev->event_data.comm.process_pid)
-				check_process_comm_change(proc_ev->event_data.comm.process_tgid, proc_ev->event_data.comm.comm);
+				if (proc_ev->event_data.comm.process_tgid == proc_ev->event_data.comm.process_pid)
+					check_process_comm_change(proc_ev->event_data.comm.process_tgid, proc_ev->event_data.comm.comm);
 				break;
 #endif
 			case PROC_EVENT_EXIT:
