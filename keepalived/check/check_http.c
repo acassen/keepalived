@@ -1212,7 +1212,6 @@ http_handle_response(thread_ref_t thread, unsigned char digest[MD5_DIGEST_LENGTH
 	url_t *url = fetch_next_url(http_get_check);
 	enum {
 		NONE,
-		ON_SUCCESS,
 		ON_STATUS,
 		ON_DIGEST,
 #ifdef _WITH_REGEX_CHECK_
@@ -1276,12 +1275,6 @@ http_handle_response(thread_ref_t thread, unsigned char digest[MD5_DIGEST_LENGTH
 		switch (last_success) {
 			case NONE:
 				break;
-			case ON_SUCCESS:
-				log_message(LOG_INFO,
-				       "HTTP success to %s url(%u)."
-				       , FMT_CHK(checker)
-				       , http_get_check->url_it + 1);
-				return epilog(thread, REGISTER_CHECKER_NEW, 1, 0) + 1;
 			case ON_STATUS:
 				log_message(LOG_INFO,
 				       "HTTP status code success to %s url(%u)."
