@@ -876,8 +876,8 @@ static int handle_proc_ev(int nl_sd)
 			/* NOTE: not having PROC_EVENT_COMM means that changes to /proc/PID/comm
 			 * will not be detected */
 			case PROC_EVENT_COMM:
-//				if (proc_ev->event_data.comm.process_tgid == proc_ev->event_data.comm.process_pid)
-				check_process_comm_change(proc_ev->event_data.comm.process_tgid, proc_ev->event_data.comm.comm);
+				if (proc_ev->event_data.comm.process_tgid == proc_ev->event_data.comm.process_pid)
+					check_process_comm_change(proc_ev->event_data.comm.process_tgid, proc_ev->event_data.comm.comm);
 				break;
 #endif
 			case PROC_EVENT_EXIT:
