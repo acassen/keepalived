@@ -2954,8 +2954,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #ifdef _HAVE_VRRP_IPVLAN_
 			if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags))
 				netlink_link_add_ipvlan(vrrp);
+			else
 #endif
-			netlink_link_add_vmac(vrrp);
+				netlink_link_add_vmac(vrrp);
 		}
 
 		/* Add this instance to the vmac interface */
