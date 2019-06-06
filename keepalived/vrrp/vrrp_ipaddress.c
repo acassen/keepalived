@@ -617,7 +617,6 @@ address_exist(vrrp_t *vrrp, ip_address_t *ipaddress)
 {
 	ip_address_t *ipaddr;
 	element e;
-	bool found = false;
 	char addr_str[INET6_ADDRSTRLEN];
 	void *addr;
 
@@ -634,42 +633,35 @@ address_exist(vrrp_t *vrrp, ip_address_t *ipaddress)
 			ipaddr->nftable_rule_set = ipaddress->nftable_rule_set;
 #endif
 			ipaddr->ifa.ifa_index = ipaddress->ifa.ifa_index;
-			found = true;
-			break;
+			return true;
 		}
 	}
 
-	if (!found) {
-		LIST_FOREACH(vrrp->evip, ipaddr, e) {
-			if (IP_ISEQ(ipaddr, ipaddress)) {
-				ipaddr->set = ipaddress->set;
+	LIST_FOREACH(vrrp->evip, ipaddr, e) {
+		if (IP_ISEQ(ipaddr, ipaddress)) {
+			ipaddr->set = ipaddress->set;
 #ifdef _WITH_IPTABLES_
-				ipaddr->iptable_rule_set = ipaddress->iptable_rule_set;
+			ipaddr->iptable_rule_set = ipaddress->iptable_rule_set;
 #endif
 #ifdef _WITH_NFTABLES_
-				ipaddr->nftable_rule_set = ipaddress->nftable_rule_set;
+			ipaddr->nftable_rule_set = ipaddress->nftable_rule_set;
 #endif
-				ipaddr->ifa.ifa_index = ipaddress->ifa.ifa_index;
-				found = true;
-				break;
-			}
+			ipaddr->ifa.ifa_index = ipaddress->ifa.ifa_index;
+			return true;
 		}
 	}
 
-	if (!found)
-		return false;
-
-	addr = (IP_IS6(ipaddr)) ? (void *) &ipaddr->u.sin6_addr :
-				  (void *) &ipaddr->u.sin.sin_addr;
-	inet_ntop(IP_FAMILY(ipaddr), addr, addr_str, INET6_ADDRSTRLEN);
+	addr = (IP_IS6(ipaddress)) ? (void *) &ipaddress->u.sin6_addr :
+				  (void *) &ipaddress->u.sin.sin_addr;
+	inet_ntop(IP_FAMILY(ipaddress), addr, addr_str, INET6_ADDRSTRLEN);
 
 	log_message(LOG_INFO, "(%s) ip address %s/%d dev %s, no longer exist"
 			    , vrrp->iname
 			    , addr_str
-			    , ipaddr->ifa.ifa_prefixlen
-			    , ipaddr->ifp->ifname);
+			    , ipaddress->ifa.ifa_prefixlen
+			    , ipaddress->ifp->ifname);
 
-	return true;
+	return false;
 }
 
 /* Clear diff addresses */
