@@ -2954,8 +2954,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #ifdef _HAVE_VRRP_IPVLAN_
 			if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags))
 				netlink_link_add_ipvlan(vrrp);
+			else
 #endif
-			netlink_link_add_vmac(vrrp);
+				netlink_link_add_vmac(vrrp);
 		}
 
 		/* Add this instance to the vmac interface */
@@ -3870,11 +3871,14 @@ clear_diff_vrrp(void)
 
 #ifdef _HAVE_VRRP_VMAC_
 			/*
-			 * Remove VMAC if it existed in old vrrp instance,
+			 * Remove VMAC/IPVLAN if it existed in old vrrp instance,
 			 * but not the new one.
 			 */
-			if (vrrp->ifp->is_ours) {
-// TODO - the vmac may be being used by another instance
+			if (vrrp->ifp->is_ours &&
+			    ((__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
+			      !__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) ||
+			     (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags) &&
+			      !__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags)))) {
 				netlink_link_del_vmac(vrrp);
 			}
 #endif
