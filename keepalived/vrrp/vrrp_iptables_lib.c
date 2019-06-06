@@ -97,6 +97,10 @@ bool using_libip6tc = false;
 #endif
 
 #ifdef _HAVE_LIBIPSET_
+bool setup_ipsets = false;
+#endif
+
+#ifdef _HAVE_LIBIPSET_
 static void
 add_del_sets(int cmd, bool reload)
 {
@@ -370,9 +374,10 @@ handle_iptable_rule_to_vip_lib(ip_address_t *ipaddress, int cmd, struct ipt_hand
 static void
 iptables_remove_structure(bool ignore_errors)
 {
-	if (global_data->using_ipsets) {
+	if (global_data->using_ipsets && setup_ipsets) {
 		add_del_rules(IPADDRESS_DEL, ignore_errors);
 		add_del_sets(IPADDRESS_DEL, false);
+		setup_ipsets = false;
 	}
 }
 
@@ -382,9 +387,10 @@ iptables_startup_lib(bool reload)
 	if (!block_ipv4 && !block_ipv6)
 		global_data->using_ipsets = false;
 
-	if (global_data->using_ipsets) {
+	if (global_data->using_ipsets && !setup_ipsets) {
 		add_del_sets(IPADDRESS_ADD, reload);
 		add_del_rules(IPADDRESS_ADD, false);
+		setup_ipsets = true;
 	}
 }
 
