@@ -3871,11 +3871,14 @@ clear_diff_vrrp(void)
 
 #ifdef _HAVE_VRRP_VMAC_
 			/*
-			 * Remove VMAC if it existed in old vrrp instance,
+			 * Remove VMAC/IPVLAN if it existed in old vrrp instance,
 			 * but not the new one.
 			 */
-			if (vrrp->ifp->is_ours) {
-// TODO - the vmac may be being used by another instance
+			if (vrrp->ifp->is_ours &&
+			    ((__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
+			      !__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) ||
+			     (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags) &&
+			      !__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags)))) {
 				netlink_link_del_vmac(vrrp);
 			}
 #endif
