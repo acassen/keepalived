@@ -545,6 +545,8 @@ smtp_connect(smtp_t * smtp)
 {
 	enum connect_result status;
 
+	smtp->email_it = 0;
+
 	if ((smtp->fd = socket(global_data->smtp_server.ss_family, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, IPPROTO_TCP)) == -1) {
 		DBG("SMTP connect fail to create socket.");
 		free_smtp_all(smtp);
@@ -612,11 +614,7 @@ build_to_header_rcpt_addrs(smtp_t *smtp)
 
 	email_to_addrs = smtp->email_to;
 
-	while (true) {
-		fetched_email = fetch_next_email(smtp);
-		if (fetched_email == NULL)
-			break;
-
+	for (smtp->email_it = 0; (fetched_email = fetch_next_email(smtp)); smtp->email_it++) {
 		bytes_to_write = strlen(fetched_email);
 		if (done_addr) {
 			if (bytes_available < 2)
@@ -638,8 +636,6 @@ build_to_header_rcpt_addrs(smtp_t *smtp)
 		email_to_addrs += bytes_to_write;
 		bytes_available -= bytes_to_write;
 	}
-
-	smtp->email_it = 0;
 }
 
 /* Main entry point */
