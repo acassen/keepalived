@@ -98,12 +98,6 @@ free_smtp_all(smtp_t * smtp)
 	FREE(smtp);
 }
 
-static char *
-fetch_next_email(smtp_t * smtp)
-{
-	return list_element(global_data->email, smtp->email_it);
-}
-
 /* layer4 connection handlers */
 static int
 connection_error(thread_ref_t thread)
@@ -395,7 +389,8 @@ rcpt_cmd(thread_ref_t thread)
 	/* We send RCPT TO command multiple time to add all our email receivers.
 	 * --rfc821.3.1
 	 */
-	fetched_email = fetch_next_email(smtp);
+	fetched_email = ELEMENT_DATA(smtp->next_email_element);
+	ELEMENT_NEXT(smtp->next_email_element);
 
 	snprintf(buffer, SMTP_BUFFER_MAX, SMTP_RCPT_CMD, fetched_email);
 	if (send(thread->u.f.fd, buffer, strlen(buffer), 0) == -1)
@@ -408,14 +403,9 @@ static int
 rcpt_code(thread_ref_t thread, int status)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
-	char *fetched_email;
 
 	if (status == 250) {
-		smtp->email_it++;
-
-		fetched_email = fetch_next_email(smtp);
-
-		if (!fetched_email)
+		if (!smtp->next_email_element)
 			smtp->stage++;
 	} else {
 		log_message(LOG_INFO, "Error processing RCPT cmd on SMTP server %s."
@@ -541,9 +531,11 @@ quit_code(thread_ref_t thread, __attribute__((unused)) int status)
 
 /* connect remote SMTP server */
 static void
-smtp_connect(smtp_t * smtp)
+smtp_connect(smtp_t *smtp)
 {
 	enum connect_result status;
+
+	smtp->next_email_element = LIST_HEAD(global_data->email);
 
 	if ((smtp->fd = socket(global_data->smtp_server.ss_family, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, IPPROTO_TCP)) == -1) {
 		DBG("SMTP connect fail to create socket.");
@@ -601,22 +593,19 @@ smtp_log_to_file(smtp_t *smtp)
 static void
 build_to_header_rcpt_addrs(smtp_t *smtp)
 {
-	char *fetched_email;
+	const char *fetched_email;
 	char *email_to_addrs;
 	size_t bytes_available = SMTP_BUFFER_MAX - 1;
 	size_t bytes_to_write;
 	bool done_addr = false;
+	element e;
 
 	if (smtp == NULL)
 		return;
 
 	email_to_addrs = smtp->email_to;
 
-	while (true) {
-		fetched_email = fetch_next_email(smtp);
-		if (fetched_email == NULL)
-			break;
-
+	LIST_FOREACH(global_data->email, fetched_email, e) {
 		bytes_to_write = strlen(fetched_email);
 		if (done_addr) {
 			if (bytes_available < 2)
@@ -638,8 +627,6 @@ build_to_header_rcpt_addrs(smtp_t *smtp)
 		email_to_addrs += bytes_to_write;
 		bytes_available -= bytes_to_write;
 	}
-
-	smtp->email_it = 0;
 }
 
 /* Main entry point */

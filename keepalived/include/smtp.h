@@ -91,7 +91,7 @@ do {					\
 typedef struct _smtp {
 	int		fd;
 	int		stage;
-	unsigned	email_it;
+	element		next_email_element;
 	char		*subject;
 	char		*body;
 	char		*buffer;
