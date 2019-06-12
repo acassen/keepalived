@@ -767,6 +767,9 @@ update_alive_counts(virtual_server_t *old, virtual_server_t *new)
 	list *old_l, *new_l;
 	element e;
 
+	if (!old->vsg || !new->vsg)
+	 	return ;
+
 	list old_ll[] = {
 		old->vsg->addr_range,
 		old->vsg->vfwmark,
