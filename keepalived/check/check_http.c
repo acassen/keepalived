@@ -917,10 +917,19 @@ epilog(thread_ref_t thread, int method, unsigned t, unsigned c)
 	bool checker_was_up;
 	bool rs_was_alive;
 
-	http_get_check->url_it += t ? t : -http_get_check->url_it;
-	checker->retry_it += c ? c : -checker->retry_it;
+	if (method == REGISTER_CHECKER_NEW) {
+		http_get_check->url_it += t ? t : -http_get_check->url_it;
+		checker->retry_it += c ? c : -checker->retry_it;
+	}
+	/* When we retry, if the url is success, we should check next url,
+	 * but keep the retry_it as before.
+	 */
+	else {
+		 http_get_check->url_it += t;
+		 checker->retry_it += c;
+	}
 
-	if (method == REGISTER_CHECKER_NEW && http_get_check->url_it >= LIST_SIZE(http_get_check->url)) {
+	if (http_get_check->url_it >= LIST_SIZE(http_get_check->url)) {
 		/* All the url have been successfully checked.
 		 * Check completed.
 		 * check if server is currently alive.
@@ -947,7 +956,7 @@ epilog(thread_ref_t thread, int method, unsigned t, unsigned c)
 	 * html buffer. This is sometime needed with some applications
 	 * servers.
 	 */
-	else if (method == REGISTER_CHECKER_RETRY && checker->retry_it > checker->retry) {
+	else if (checker->retry_it > checker->retry) {
 		if (checker->is_up || !checker->has_run) {
 			if (checker->has_run && checker->retry)
 				log_message(LOG_INFO
@@ -1305,7 +1314,13 @@ http_handle_response(thread_ref_t thread, unsigned char digest[MD5_DIGEST_LENGTH
 		}
 	}
 
-	return epilog(thread, REGISTER_CHECKER_NEW, 0, 0) + 1;
+	/* If we come here, we should check the next url and
+	 * keep the retry_it as zero. There are total two cases:
+	 * 1. we start check url in a new round.
+	 * 2. we retry one url with a successful result.
+	 * we can handler these together using REGISTER_CHECKER_RETRY here.
+	 */
+	return epilog(thread, REGISTER_CHECKER_RETRY, 1, 0) + 1;
 }
 
 /* Handle response stream performing MD5 updates */
