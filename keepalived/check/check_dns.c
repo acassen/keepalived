@@ -509,8 +509,14 @@ dns_type_handler(const vector_t *strvec)
 static void
 dns_name_handler(const vector_t *strvec)
 {
+	char *dns_name = NULL;
 	dns_check_t *dns_check = CHECKER_GET();
-	dns_check->name = set_value(strvec);
+
+	dns_name = set_value(strvec);
+	if (!dns_name)
+		report_config_error(CONFIG_GENERAL_ERROR, "Blank DNS name - defaulting to \".\"");
+	else
+		dns_check->name = dns_name;
 }
 
 static void
