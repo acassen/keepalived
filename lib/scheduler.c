@@ -250,8 +250,6 @@ thread_update_timer(rb_root_cached_t *root, timeval_t *timer_min)
 		return;
 
 	first = rb_entry(rb_first_cached(root), thread_t, n);
-	if (!first)
-		return;
 
 	if (first->sands.tv_sec == TIMER_DISABLED)
 		return;
