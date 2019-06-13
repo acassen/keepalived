@@ -1070,7 +1070,7 @@ set_debug_options(const char *options)
 	}
 
 	opt_p = options;
-	do {
+	while (*opt_p) {
 		if (!isupper(*opt_p)) {
 			fprintf(stderr, "Unknown debug option'%c' in '%s'\n", *opt_p, options);
 			return;
@@ -1168,7 +1168,7 @@ set_debug_options(const char *options)
 			fprintf(stderr, "Unknown debug type '%c' in '%s'\n", opt, options);
 			return;
 		}
-	} while (opt_p && *opt_p);
+	}
 }
 #endif
 
