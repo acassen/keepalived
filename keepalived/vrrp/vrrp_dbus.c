@@ -605,13 +605,17 @@ static const gchar*
 read_file(const gchar* filepath)
 {
 	FILE * f;
-	size_t length;
+	long length;
 	gchar *ret = NULL;
 
 	f = fopen(filepath, "r");
 	if (f) {
 		fseek(f, 0, SEEK_END);
-		length = (size_t)ftell(f);
+		length = ftell(f);
+		if (length < 0) {
+			fclose(f);
+			return NULL;
+		}
 		fseek(f, 0, SEEK_SET);
 
 		/* We can't use MALLOC since it isn't thread safe */
