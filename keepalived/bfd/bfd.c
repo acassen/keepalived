@@ -279,13 +279,6 @@ bfd_check_packet(const bfdpkt_t *pkt)
 		return true;
 	}
 
-	if (!BFD_VALID_STATE(pkt->hdr->state)) {
-		if (__test_bit(LOG_DETAIL_BIT, &debug))
-			log_message(LOG_ERR, "Packet has invalid 'state'"
-				    " field: %d", pkt->hdr->state);
-		return true;
-	}
-
 	if (!BFD_VALID_DIAG(pkt->hdr->diag)) {
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
 			log_message(LOG_ERR, "Packet has invalid 'diag'"

@@ -184,8 +184,6 @@ typedef struct _bfdhdr {
 	(BFD_STATE_INIT == s ? "Init" : \
 	(BFD_STATE_UP == s ? "Up" : "Unknown"))))
 
-#define BFD_VALID_STATE(s) (s <= 3)
-
 #define BFD_ISADMINDOWN(b) (b->local_state == BFD_STATE_ADMINDOWN)
 #define BFD_ISDOWN(b) (b->local_state == BFD_STATE_DOWN)
 #define BFD_ISINIT(b) (b->local_state == BFD_STATE_INIT)
