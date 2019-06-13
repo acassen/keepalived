@@ -183,6 +183,7 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 					inet_ntop (res->ai_family, ptr, req_obj->ipaddress, INET6_ADDRSTRLEN);
 				} else {
 					fprintf(stderr, "server should be an IP, not %s\n", optarg);
+					freeaddrinfo(res);
 					return CMD_LINE_ERROR;
 				}
 			}
