@@ -73,7 +73,7 @@ init_ssl(void)
 }
 
 /* Display SSL error to readable string */
-int
+static int
 ssl_printerr(int err)
 {
 	switch (err) {
