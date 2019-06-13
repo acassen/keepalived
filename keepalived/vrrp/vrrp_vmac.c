@@ -578,8 +578,9 @@ netlink_link_add_ipvlan(vrrp_t *vrrp)
 	netlink_link_up(vrrp);
 	kernel_netlink_poll();
 
-	if (vrrp->ipvlan_addr)
-		netlink_ipaddress(vrrp->ipvlan_addr, IPADDRESS_ADD);
+	if (vrrp->ipvlan_addr &&
+	    netlink_ipaddress(vrrp->ipvlan_addr, IPADDRESS_ADD) != -1)
+		log_message(LOG_INFO, "%s: Failed to add interface address to %s", vrrp->iname, ifp->ifname);
 
 	return true;
 }
