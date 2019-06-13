@@ -1223,6 +1223,9 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 			break;
 		}
 
+		if (len == 0)
+			break;
+
 		if (len > nlmsg_buf_size) {
 			FREE_PTR(nlmsg_buf);
 			nlmsg_buf = MALLOC(len);
