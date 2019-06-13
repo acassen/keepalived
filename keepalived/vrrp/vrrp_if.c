@@ -126,6 +126,7 @@ if_get_by_ifname(const char *ifname, if_lookup_t create)
 #ifdef _HAVE_VRRP_VMAC_
 	ifp->base_ifp = ifp;
 #endif
+	ifp->if_type = IF_TYPE_STANDARD;
 	ifp->sin_addr_l = alloc_list(free_list_element_simple, NULL);
 	ifp->sin6_addr_l = alloc_list(free_list_element_simple, NULL);
 

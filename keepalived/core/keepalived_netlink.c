@@ -1669,6 +1669,7 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	/* Fill the interface structure */
 	strcpy_safe(ifp->ifname, name);
 	ifp->ifindex = (ifindex_t)ifi->ifi_index;
+	ifp->if_type = IF_TYPE_STANDARD;
 #ifdef HAVE_IFLA_LINK_NETNSID						/* from Linux v4.0 */
 	ifp->base_netns_id = -1;
 #endif

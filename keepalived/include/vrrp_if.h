@@ -79,7 +79,8 @@ typedef struct _garp_delay {
 
 #ifdef _HAVE_VRRP_VMAC_
 typedef enum {
-	IF_TYPE_MACVLAN = 1,
+	IF_TYPE_STANDARD,
+	IF_TYPE_MACVLAN,
 #ifdef _HAVE_VRRP_IPVLAN_
 	IF_TYPE_IPVLAN,
 #endif
