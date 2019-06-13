@@ -196,7 +196,7 @@ no_email_faults_handler(__attribute__((unused))const vector_t *strvec)
 static void
 smtpserver_handler(const vector_t *strvec)
 {
-	int ret = -1;
+	bool ret = true;
 	const char *port_str = SMTP_PORT_STR;
 
 	/* Has a port number been specified? */
@@ -207,7 +207,7 @@ smtpserver_handler(const vector_t *strvec)
 	if (!strpbrk(strvec_slot(strvec, 1), "-/"))
 		ret = inet_stosockaddr(strvec_slot(strvec, 1), port_str, &global_data->smtp_server);
 
-	if (ret < 0)
+	if (ret)
 		domain_stosockaddr(strvec_slot(strvec, 1), port_str, &global_data->smtp_server);
 
 	if (global_data->smtp_server.ss_family == AF_UNSPEC)
@@ -478,7 +478,7 @@ lvs_syncd_handler(const vector_t *strvec)
 				continue;
 			}
 
-			if (inet_stosockaddr(strvec_slot(strvec, i+1), NULL, &global_data->lvs_syncd.mcast_group) < 0)
+			if (inet_stosockaddr(strvec_slot(strvec, i+1), NULL, &global_data->lvs_syncd.mcast_group))
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_sync_daemon group (%s) - ignoring", strvec_slot(strvec, i+1));
 
 			if ((global_data->lvs_syncd.mcast_group.ss_family == AF_INET  && !IN_MULTICAST(htonl(((struct sockaddr_in *)&global_data->lvs_syncd.mcast_group)->sin_addr.s_addr))) ||

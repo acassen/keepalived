@@ -27,7 +27,7 @@ void list_sort(struct list_head *head,
 	       int (*cmp)(struct list_head *a, struct list_head *b))
 {
 	struct list_head *p, *q, *e, *list, *tail, *oldhead;
-	int insize, nmerges, psize, qsize, i;
+	unsigned insize, nmerges, psize, qsize, i;
 
 	list = head->next;
 	list_head_del(head);
@@ -42,9 +42,7 @@ void list_sort(struct list_head *head,
 			nmerges++;
 			q = p;
 			psize = 0;
-RELAX_STRICT_OVERFLOW_START
 			for (i = 0; i < insize; i++) {
-RELAX_STRICT_OVERFLOW_END
 				psize++;
 				q = q->next == oldhead ? NULL : q->next;
 				if (!q)

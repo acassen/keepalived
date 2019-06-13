@@ -318,7 +318,7 @@ smtp_final(thread_ref_t thread, const char *format, ...)
 		     checker->log_all_failures ||
 		     checker->retry_it >= checker->retry)) {
 			/* prepend format with the "SMTP_CHECK " string */
-			strncpy(error_buff, "SMTP_CHECK ", sizeof(error_buff) - 1);
+			strcpy_safe(error_buff, "SMTP_CHECK ");
 			strncat(error_buff, format, sizeof(error_buff) - 11 - 1);
 
 			va_start(varg_list, format);

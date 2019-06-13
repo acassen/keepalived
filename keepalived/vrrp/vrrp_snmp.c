@@ -3303,9 +3303,7 @@ vrrp_rfcv2_header_ar_table(struct variable *vp, oid *name, size_t *length,
 	else
 		target_addr.s_addr = 0;
 
-	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-		scr = (vrrp_t *)ELEMENT_DATA(e);
-
+	LIST_FOREACH(vrrp_data->vrrp, scr, e) {
 		if (!suitable_for_rfc2787(scr))
 			continue;
 
@@ -3331,9 +3329,7 @@ vrrp_rfcv2_header_ar_table(struct variable *vp, oid *name, size_t *length,
 		}
 
 		found_better = false;
-		for (e2 = LIST_HEAD(scr->vip); e2; ELEMENT_NEXT(e2)) {
-			vip = ELEMENT_DATA(e2);
-
+		LIST_FOREACH(scr->vip, vip, e2) {
 			/* We need the address to be MSB first, for numerical comparison */
 			current_addr.s_addr = htonl(vip->u.sin.sin_addr.s_addr);
 
@@ -3955,9 +3951,7 @@ vrrp_rfcv3_header_ar_table(struct variable *vp, oid *name, size_t *length,
 			target_addr6.s6_addr[i] = (uint8_t)name[*length - 16 + i];
 	}
 
-	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-		scr = (vrrp_t *)ELEMENT_DATA(e);
-
+	LIST_FOREACH(vrrp_data->vrrp, scr, e) {
 		if (!suitable_for_rfc6527(scr))
 			continue;
 
@@ -3984,9 +3978,7 @@ vrrp_rfcv3_header_ar_table(struct variable *vp, oid *name, size_t *length,
 		}
 
 		found_better = false;
-		for (e2 = LIST_HEAD(scr->vip); e2; ELEMENT_NEXT(e2)) {
-			vip = ELEMENT_DATA(e2);
-
+		LIST_FOREACH(scr->vip, vip, e2) {
 			if (scr->family == AF_INET) {
 				current_addr.s_addr = htons(vip->u.sin.sin_addr.s_addr);
 
