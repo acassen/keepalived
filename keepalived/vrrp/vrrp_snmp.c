@@ -1829,12 +1829,21 @@ _get_instance(oid *name, size_t name_len)
 
 #ifdef _WITH_FIREWALL_
 static int
+#ifndef ALLOW_SNMP_SET_ACCEPT
+vrrp_snmp_instance_accept(__attribute__((unused)) int action,
+			  __attribute__((unused)) u_char *var_val, __attribute__((unused)) u_char var_val_type,
+			  __attribute__((unused)) size_t var_val_len, __attribute__((unused)) u_char *statP,
+			  __attribute__((unused)) oid *name, __attribute__((unused)) size_t name_len)
+{
+	return SNMP_ERR_NOACCESS;
+}
+
+#else
 vrrp_snmp_instance_accept(int action,
 			  u_char *var_val, u_char var_val_type,
 			  size_t var_val_len, __attribute__((unused)) u_char *statP,
 			  oid *name, size_t name_len)
 {
-	return SNMP_ERR_NOACCESS;
 	vrrp_t *vrrp = NULL;
 
 	switch (action) {
@@ -1882,6 +1891,7 @@ vrrp_snmp_instance_accept(int action,
 		}
 	return SNMP_ERR_NOERROR;
 }
+#endif
 #endif
 
 static int
