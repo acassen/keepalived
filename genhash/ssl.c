@@ -281,12 +281,10 @@ ssl_read_thread(thread_ref_t thread)
 		}
 		DBG(" [l:%d,fd:%d]\n", r, sock_obj->fd);
 
-		if (error) {
-			/* All the SSL streal has been parsed */
+		if (error != SSL_ERROR_NONE) {
+			/* All the SSL stream has been parsed */
 			/* Handle response stream */
-			if (error != SSL_ERROR_NONE)
-				return finalize(thread);
-			return 0;
+			return finalize(thread);
 		} else if (r <= 0)
 			return 0;
 
