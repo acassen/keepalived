@@ -279,8 +279,7 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 	best[0] = best[1] = MAX_SUBID; /* Our best match */
 	target = &name[vp->namelen];   /* Our target match */
 	target_len = *length - vp->namelen;
-	for (e1 = LIST_HEAD(check_data->vs_group); e1; ELEMENT_NEXT(e1)) {
-		group = ELEMENT_DATA(e1);
+	LIST_FOREACH(check_data->vs_group, group, e1) {
 		curgroup++;
 		curentry = 0;
 		if (target_len && (curgroup < target[0]))
@@ -299,10 +298,7 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 				return NULL;
 			}
 			state++;
-			if (LIST_ISEMPTY(l))
-				continue;
-			for (e2 = LIST_HEAD(l); e2; ELEMENT_NEXT(e2)) {
-				e = ELEMENT_DATA(e2);
+			LIST_FOREACH(l, e, e2) {
 				curentry++;
 				/* We build our current match */
 				current[0] = curgroup;
