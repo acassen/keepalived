@@ -2779,6 +2779,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				     ||  /* We should probably check if any VIPs match for IPv6 when no i/f name or address configured */
 				     (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags) &&
 				      ifp->if_type == IF_TYPE_IPVLAN &&
+				      /* coverity[mixed_enums] */
 				      ifp->vmac_type == IPVLAN_MODE_L2 &&
 				      !(vrrp->family == AF_INET6 && !vrrp->vmac_ifname[0] && !vrrp->ipvlan_addr) &&
 				      (!vrrp->vmac_ifname[0] || !strcmp(vrrp->vmac_ifname, ifp->ifname)) &&
