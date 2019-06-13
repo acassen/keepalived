@@ -546,8 +546,8 @@ set_extra_netlink_monitoring(bool ipv4_routes, bool ipv6_routes, bool ipv4_rules
 #endif
 
 /* Create a socket to netlink interface_t */
-static int
-netlink_socket(nl_handle_t *nl, unsigned rcvbuf_size, bool force, int flags, int group, ...)
+static void
+netlink_socket(nl_handle_t *nl, unsigned rcvbuf_size, bool force, int flags, unsigned group, ...)
 {
 	int ret;
 	va_list gp;
@@ -565,13 +565,12 @@ netlink_socket(nl_handle_t *nl, unsigned rcvbuf_size, bool force, int flags, int
 	if (nl->fd < 0) {
 		log_message(LOG_INFO, "Netlink: Cannot open netlink socket : (%s)",
 		       strerror(errno));
-		return -1;
+		return;
 	}
 
 #if !HAVE_DECL_SOCK_NONBLOCK
-	if ((flags & SOCK_NONBLOCK) &&
-	    set_sock_flags(nl->fd, F_SETFL, O_NONBLOCK))
-		return -1;
+	if ((flags & SOCK_NONBLOCK) && set_sock_flags(nl->fd, F_SETFL, O_NONBLOCK))
+		log_message(LOG_INFO, "Unable to set NONBLOCK on netlink socket - %s (%d)", strerror(errno), errno);
 #endif
 
 #if !HAVE_DECL_SOCK_CLOEXEC
@@ -588,26 +587,18 @@ netlink_socket(nl_handle_t *nl, unsigned rcvbuf_size, bool force, int flags, int
 		       strerror(errno));
 		close(nl->fd);
 		nl->fd = -1;
-		return -1;
+		return;
 	}
 
 	/* Join the requested groups */
 	va_start(gp, group);
-	while (group != 0) {
-		if (group < 0) {
-			va_end(gp);
-			return -1;
-		}
-
+	while (group) {
 		ret = setsockopt(nl->fd, SOL_NETLINK, NETLINK_ADD_MEMBERSHIP, &group, sizeof(group));
-		if (ret < 0) {
-			log_message(LOG_INFO, "Netlink: Cannot add membership on netlink socket : (%s)",
-			       strerror(errno));
-			va_end(gp);
-			return -1;
-		}
+		if (ret < 0)
+			log_message(LOG_INFO, "Netlink: Cannot add group %u membership on netlink socket : (%s)",
+			       group, strerror(errno));
 
-		group = va_arg(gp,int);
+		group = va_arg(gp, unsigned);
 	}
 	va_end(gp);
 
@@ -617,14 +608,16 @@ netlink_socket(nl_handle_t *nl, unsigned rcvbuf_size, bool force, int flags, int
 		log_message(LOG_INFO, "Netlink: Cannot getsockname : (%s)",
 		       strerror(errno));
 		close(nl->fd);
-		return -1;
+		nl->fd = -1;
+		return;
 	}
 
 	if (snl.nl_family != AF_NETLINK) {
 		log_message(LOG_INFO, "Netlink: Wrong address family %d",
 		       snl.nl_family);
 		close(nl->fd);
-		return -1;
+		nl->fd = -1;
+		return;
 	}
 
 	/* Save the port id for checking message source later */
@@ -667,11 +660,9 @@ netlink_socket(nl_handle_t *nl, unsigned rcvbuf_size, bool force, int flags, int
 	nl->seq = (uint32_t)time(NULL);
 
 	if (nl->fd < 0)
-		return -1;
+		return;
 
 	netlink_set_rx_buf_size(nl, rcvbuf_size, force);
-
-	return 0;
 }
 
 /* Close a netlink socket */
@@ -2409,7 +2400,7 @@ kernel_netlink_init(void)
 #endif
 #endif
 
-	if (nl_kernel.fd > 0) {
+	if (nl_kernel.fd >= 0) {
 		log_message(LOG_INFO, "Registering Kernel netlink reflector");
 		nl_kernel.thread = thread_add_read(master, kernel_netlink, &nl_kernel, nl_kernel.fd,
 						   TIMER_NEVER, false);
@@ -2433,7 +2424,7 @@ kernel_netlink_init(void)
 		netlink_socket(&nl_cmd, global_data->lvs_netlink_cmd_rcv_bufs, global_data->lvs_netlink_cmd_rcv_bufs_force, 0, 0);
 #endif
 #endif
-	if (nl_cmd.fd > 0)
+	if (nl_cmd.fd >= 0)
 		log_message(LOG_INFO, "Registering Kernel netlink command channel");
 	else
 		log_message(LOG_INFO, "Error while registering Kernel netlink cmd channel");
@@ -2466,7 +2457,7 @@ kernel_netlink_read_interfaces(void)
 	netlink_socket(&nl_cmd, global_data->lvs_netlink_cmd_rcv_bufs, global_data->lvs_netlink_cmd_rcv_bufs_force, 0, 0);
 #endif
 
-	if (nl_cmd.fd <= 0)
+	if (nl_cmd.fd < 0)
 		fprintf(stderr, "Error while registering Kernel netlink cmd channel\n");
 
 	init_interface_queue();
