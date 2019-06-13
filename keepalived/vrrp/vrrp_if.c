@@ -122,7 +122,7 @@ if_get_by_ifname(const char *ifname, if_lookup_t create)
 	if (!(ifp = MALLOC(sizeof(interface_t))))
 		return NULL;
 
-	strcpy(ifp->ifname, ifname);
+	strcpy_safe(ifp->ifname, ifname);
 #ifdef _HAVE_VRRP_VMAC_
 	ifp->base_ifp = ifp;
 #endif
