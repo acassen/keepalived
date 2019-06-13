@@ -302,12 +302,12 @@ if_ethtool_status(const int fd)
 }
 
 static int
-if_ethtool_probe(const int fd, const char *ifname)
+if_ethtool_probe(const int fd, const interface_t *ifp)
 {
 	int status;
 
 	memset(&ifr, 0, sizeof (struct ifreq));
-	strcpy(ifr.ifr_name, ifname);
+	strcpy_safe(ifr.ifr_name, ifp->ifname);
 
 	status = if_ethtool_status(fd);
 
@@ -614,7 +614,7 @@ init_linkbeat_status(int fd, interface_t *ifp)
 	}
 
 	if ((!ifp->lb_type || ifp->lb_type == LB_ETHTOOL)) {
-		if ((status = if_ethtool_probe(fd, ifp->ifname)) >= 0) {
+		if ((status = if_ethtool_probe(fd, ifp)) >= 0) {
 			ifp->lb_type = LB_ETHTOOL;
 			if_up = !!status;
 		} else {
@@ -664,7 +664,7 @@ if_linkbeat_refresh_thread(thread_ref_t thread)
 			if (IF_MII_SUPPORTED(ifp))
 				if_up = if_mii_probe(linkbeat_fd, ifp->ifname);
 			else if (IF_ETHTOOL_SUPPORTED(ifp))
-				if_up = if_ethtool_probe(linkbeat_fd, ifp->ifname);
+				if_up = if_ethtool_probe(linkbeat_fd, ifp);
 
 			/*
 			 * update ifp->flags to get the new IFF_RUNNING status.
