@@ -44,7 +44,8 @@ tcp_connect(int fd, REQ * req_obj)
 	 * time for a proper shutdown. */
 	li.l_onoff = 1;
 	li.l_linger = 5;
-	setsockopt(fd, SOL_SOCKET, SO_LINGER, (char *) &li, sizeof (struct linger));
+	if (setsockopt(fd, SOL_SOCKET, SO_LINGER, (char *) &li, sizeof (struct linger)))
+		fprintf(stderr, "Error setting SO_LINGER on socket %d\n", fd);
 
 #ifdef _WITH_SO_MARK_
 	if (req->mark) {
