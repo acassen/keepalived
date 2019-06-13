@@ -262,17 +262,18 @@ static dbus_queue_ent_t *
 process_method_call(dbus_queue_ent_t *ent)
 {
 	ssize_t ret;
+	char buf = 0;
 
 	if (!ent)
 		return NULL;
 
 	/* Tell the main thread that a queue entry is waiting. Any data works */
 	ent_ptr = ent;
-	if (write(dbus_in_pipe[1], ent, 1) != 1)
+	if (write(dbus_in_pipe[1], &buf, 1) != 1)
 		log_message(LOG_INFO, "Write from DBus thread to main thread failed");
 
 	/* Wait for a response */
-	while ((ret = read(dbus_out_pipe[0], ent, 1)) == -1 && check_EINTR(errno))
+	while ((ret = read(dbus_out_pipe[0], &buf, 1)) == -1 && check_EINTR(errno))
 		log_message(LOG_INFO, "dbus_out_pipe read returned EINTR");
 	if (ret == -1)
 		log_message(LOG_INFO, "DBus response read error - errno = %d", errno);
@@ -824,7 +825,7 @@ handle_dbus_msg(__attribute__((unused)) thread_ref_t thread)
 				ent->reply = DBUS_SUCCESS;
 			}
 		}
-		if (write(dbus_out_pipe[1], ent, 1) != 1)
+		if (write(dbus_out_pipe[1], &recv_buf, 1) != 1)
 			log_message(LOG_INFO, "Write from main thread to DBus thread failed");
 	}
 
