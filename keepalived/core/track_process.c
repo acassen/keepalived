@@ -252,8 +252,10 @@ read_procs(list processes)
 		LIST_FOREACH(processes, tpr, e) {
 			if (tpr->full_command)
 				proc_name = cmd_buf;
-			else
+			else if (comm)
 				proc_name = comm;
+			else /* This should never happen, but coverity produces a "Explicit null dereference" error */
+				continue;
 
 			if (!strcmp(proc_name, tpr->process_path)) {
 				/* We have got a match */
