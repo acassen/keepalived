@@ -1675,7 +1675,7 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	name = (char *)RTA_DATA(tb[IFLA_IFNAME]);
 
 	/* Fill the interface structure */
-	memcpy(ifp->ifname, name, strlen(name));
+	strcpy_safe(ifp->ifname, name);
 	ifp->ifindex = (ifindex_t)ifi->ifi_index;
 #ifdef HAVE_IFLA_LINK_NETNSID						/* from Linux v4.0 */
 	ifp->base_netns_id = -1;
