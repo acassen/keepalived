@@ -86,10 +86,11 @@ get_modprobe(void)
 		return NULL;
 	}
 
-	count = read(procfile, ret, PATH_MAX);
+	count = read(procfile, ret, PATH_MAX - 1);
+	ret[PATH_MAX - 1] = '\0';
 	close(procfile);
 
-	if (count > 0 && count < PATH_MAX)
+	if (count > 0 && count < PATH_MAX - 1)
 	{
 		if (ret[count - 1] == '\n')
 			ret[count - 1] = '\0';
