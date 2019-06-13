@@ -3876,9 +3876,12 @@ clear_diff_vrrp(void)
 			 */
 			if (vrrp->ifp->is_ours &&
 			    ((__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
-			      !__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) ||
-			     (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags) &&
-			      !__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags)))) {
+                             !__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
+#ifdef _HAVE_VRRP_IPVLAN_
+			     || (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags) &&
+			     !__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags))
+#endif
+			    )) {
 				netlink_link_del_vmac(vrrp);
 			}
 #endif
