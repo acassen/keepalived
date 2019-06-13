@@ -603,6 +603,11 @@ find_path(notify_script_t *script)
 
 		/* Get our supplementary groups */
 		sgid_num = getgroups(0, NULL);
+		if (sgid_num == -1) {
+			log_message(LOG_INFO, "Unable to get number of supplementary gids (%m)");
+			ret_val = EACCES;
+			goto exit;
+		}
 		sgid_list = MALLOC(((size_t)sgid_num + 1) * sizeof(gid_t));
 		sgid_num = getgroups(sgid_num, sgid_list);
 		sgid_list[sgid_num++] = 0;
