@@ -481,8 +481,9 @@ domain_stosockaddr(const char *domain, const char *port, struct sockaddr_storage
 	return 0;
 }
 
-/* IP string to sockaddr_storage */
-int
+/* IP string to sockaddr_storage
+ *   return value is "error". */
+bool
 inet_stosockaddr(const char *ip, const char *port, struct sockaddr_storage *addr)
 {
 	void *addr_ip;
@@ -496,7 +497,7 @@ inet_stosockaddr(const char *ip, const char *port, struct sockaddr_storage *addr
 	if (port) {
 		if (!read_unsigned(port, &port_num, 1, 65535, true)) {
 			addr->ss_family = AF_UNSPEC;
-			return -1;
+			return true;
 		}
 	}
 
@@ -524,10 +525,10 @@ inet_stosockaddr(const char *ip, const char *port, struct sockaddr_storage *addr
 
 	if (!res) {
 		addr->ss_family = AF_UNSPEC;
-		return -1;
+		return true;
 	}
 
-	return 0;
+	return false;
 }
 
 /* IPv4 to sockaddr_storage */
