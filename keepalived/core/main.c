@@ -1390,10 +1390,8 @@ parse_cmdline(int argc, char **argv)
 
 		/* Check for an empty option argument. For example --use-file= returns
 		 * a 0 length option, which we don't want */
-		if (longindex >= 0 && long_options[longindex].has_arg == required_argument && optarg && !optarg[0]) {
+		if (longindex >= 0 && long_options[longindex].has_arg == required_argument && optarg && !optarg[0])
 			c = ':';
-			optarg = NULL;
-		}
 
 		switch (c) {
 		case 'v':
