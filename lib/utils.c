@@ -919,7 +919,7 @@ FILE *fopen_safe(const char *path, const char *mode)
 		 * the requested filename is atomic, and so there is no window when someone else could create
 		 * another file of the same name.
 		 */
-		strcpy(file_tmp_name, path);
+		strcpy_safe(file_tmp_name, path);
 		if (strlen(path) + 6 < sizeof(file_tmp_name))
 			strcat(file_tmp_name, "XXXXXX");
 		else
