@@ -271,7 +271,7 @@ if_mii_probe(const int fd, const char *ifname)
 	uint16_t phy_id;
 
 	memset(&ifr, 0, sizeof (struct ifreq));
-	strcpy(ifr.ifr_name, ifname);
+	strcpy_safe(ifr.ifr_name, ifname);
 	if (ioctl(fd, SIOCGMIIPHY, &ifr) < 0)
 		return -1;
 
