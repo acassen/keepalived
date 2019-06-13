@@ -138,6 +138,7 @@ modprobe_ipvs(void)
 
 	if (!(child = fork())) {
 		args.args = argv;
+		/* coverity[tainted_string] */
 		execv(argv[0], args.execve_args);
 		exit(1);
 	}
