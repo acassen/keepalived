@@ -787,13 +787,15 @@ static int handle_proc_ev(int nl_sd)
 			if (proc_ev->cpu >= num_cpus)
 				continue;
 
-			if ((!need_reinitialise || __test_bit(LOG_DETAIL_BIT, &debug)) &&
-			    cpu_seq[proc_ev->cpu] != -1 &&
-			    !(cpu_seq[proc_ev->cpu] + 1 == cn_msg->seq ||
-			      (cn_msg->seq == 0 && cpu_seq[proc_ev->cpu] == UINT32_MAX)))
-				log_message(LOG_INFO, "Missed %" PRIi64 " messages on CPU %u", cn_msg->seq - cpu_seq[proc_ev->cpu] - 1, proc_ev->cpu);
+			if (cpu_seq) {
+				if ((!need_reinitialise || __test_bit(LOG_DETAIL_BIT, &debug)) &&
+				    cpu_seq[proc_ev->cpu] != -1 &&
+				    !(cpu_seq[proc_ev->cpu] + 1 == cn_msg->seq ||
+				      (cn_msg->seq == 0 && cpu_seq[proc_ev->cpu] == UINT32_MAX)))
+					log_message(LOG_INFO, "Missed %" PRIi64 " messages on CPU %u", cn_msg->seq - cpu_seq[proc_ev->cpu] - 1, proc_ev->cpu);
 
-			cpu_seq[proc_ev->cpu] = cn_msg->seq;
+				cpu_seq[proc_ev->cpu] = cn_msg->seq;
+			}
 
 #ifdef LOG_ALL_PROCESS_EVENTS
 			switch (proc_ev->what)
@@ -951,6 +953,7 @@ init_track_processes(list processes)
 {
 	int rc = EXIT_SUCCESS;
 	unsigned i;
+	long num;
 
 	if (global_data->process_monitor_rcv_bufs)
 		set_rcv_buf(global_data->process_monitor_rcv_bufs, global_data->process_monitor_rcv_bufs_force);
@@ -963,10 +966,15 @@ init_track_processes(list processes)
 	}
 
 	if (!cpu_seq) {
-		num_cpus = sysconf(_SC_NPROCESSORS_CONF);
-		cpu_seq = MALLOC(num_cpus * sizeof(*cpu_seq));
-		for (i = 0; i < num_cpus; i++)
-			cpu_seq[i] = -1;
+		num = sysconf(_SC_NPROCESSORS_CONF);
+		if (num > 0) {
+			num_cpus = num;
+			cpu_seq = MALLOC(num_cpus * sizeof(*cpu_seq));
+			for (i = 0; i < num_cpus; i++)
+				cpu_seq[i] = -1;
+		}
+		else
+			log_message(LOG_INFO, "sysconf returned %ld CPUs - ignoring and won't track process event sequence numbers", num);
 	}
 
 	read_procs(processes);
