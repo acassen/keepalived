@@ -1093,7 +1093,7 @@ int parse_encap_ip6(const vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 		i += 2;
 	}
 
-	if (!encap->ip.dst && !(encap->flags | IPROUTE_BIT_ENCAP_ID)) {
+	if (!encap->ip.dst && !(encap->flags & IPROUTE_BIT_ENCAP_ID)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "address or id missing for ip6 encapsulation");
 		goto err;
 	}
