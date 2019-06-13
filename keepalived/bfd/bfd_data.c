@@ -40,12 +40,27 @@ char *bfd_buffer;
  * bfd_t functions
  */
 /* Initialize bfd_t */
-void
-alloc_bfd(char *name)
+bool
+alloc_bfd(const char *name)
 {
 	bfd_t *bfd;
 
 	assert(name);
+
+	if (strlen(name) >= sizeof(bfd->iname)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
+			    " name too long (maximum length is %zu"
+			    " characters) - ignoring", name,
+			    sizeof(bfd->iname) - 1);
+		return false;
+	}
+
+	if (find_bfd_by_name(name)) {
+		report_config_error(CONFIG_GENERAL_ERROR,
+			    "Configuration error: BFD instance %s"
+			    " already configured - ignoring", name);
+		return false;
+	}
 
 	bfd = (bfd_t *) MALLOC(sizeof (bfd_t));
 	strcpy(bfd->iname, name);
@@ -69,6 +84,8 @@ alloc_bfd(char *name)
 	bfd->sands_rst = -1;
 
 	list_add(bfd_data->bfd, bfd);
+
+	return true;
 }
 
 static void
