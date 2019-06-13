@@ -285,8 +285,6 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 		curentry = 0;
 		if (target_len && (curgroup < target[0]))
 			continue; /* Optimization: cannot be part of our set */
-		if (be)
-			break; /* Optimization: cannot be the lower anymore */
 		state = STATE_VSGM_FWMARK;
 		while (state < STATE_VSGM_END) {
 			switch (state) {
