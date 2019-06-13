@@ -379,8 +379,10 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 			if (have_comm)
 				continue;
 			proc_name = cmd_buf;
-		} else
+		} else if (comm)
 			proc_name = comm;
+		else /* This should never happen, but coverity produces a "Dereference after null check" error */
+			continue;
 
 		if (!strcmp(proc_name, tpr->process_path)) {
 			/* We have got a match */
