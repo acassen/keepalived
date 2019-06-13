@@ -666,6 +666,7 @@ vrrp_header_ar_table(struct variable *vp, oid *name, size_t *length,
 			break;
 		case HEADER_STATE_EXCLUDED_VIRTUAL_ADDRESS:
 			/* Try excluded virtual addresses */
+			/* coverity[var_deref_op] */
 			l2 = ((vrrp_t *)ELEMENT_DATA(e1))->evip;
 			nextstate = HEADER_STATE_VIRTUAL_ADDRESS;
 			break;
