@@ -851,9 +851,9 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, uns
 	fw->next_offset = (uint16_t)size;
 	target = ip6t_get_target(fw);
 	target->u.user.target_size = XT_ALIGN(sizeof(struct xt_entry_target) + 1);
-	strcpy(target->u.user.name, target_name);
+	strcpy_safe(target->u.user.name, target_name);
 //	fw->ip.flags |= IP6T_F_GOTO;
-	strcpy(chain, chain_name);
+	strcpy_safe(chain, chain_name);
 
 	// Use iptc_append_entry to add to the chain
 	if (cmd == IPADDRESS_DEL) {
