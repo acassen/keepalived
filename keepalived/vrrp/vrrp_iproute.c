@@ -1513,7 +1513,7 @@ alloc_route(list rt_list, const vector_t *strvec, bool allow_track_group)
 				i++;
 			}
 			if (get_time_rtt(&new->rttvar, strvec_slot(strvec, i), &raw) ||
-			    (!raw && new->rtt >= UINT32_MAX / 4)) {
+			    (!raw && new->rttvar >= UINT32_MAX / 4)) {
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid rttvar %s for route", strvec_slot(strvec,i));
 				goto err;
 			}
