@@ -392,7 +392,7 @@ alloc_garp_delay(void)
 void
 set_default_garp_delay(void)
 {
-	garp_delay_t default_delay;
+	garp_delay_t default_delay = {};
 	element e;
 	interface_t *ifp;
 	garp_delay_t *delay;
