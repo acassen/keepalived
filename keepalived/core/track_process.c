@@ -355,6 +355,10 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 
 			len = read(fd, comm_buf, sizeof(comm_buf) - 1);
 			close(fd);
+			if (len < 0) {
+				FREE_PTR(cmd_buf);
+				return;
+			}
 			comm_buf[len] = '\0';
 			if (len && comm_buf[len-1] == '\n')
 				comm_buf[len-1] = '\0';
