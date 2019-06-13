@@ -674,7 +674,8 @@ mem_log_init(const char* prog_name, const char *banner)
 		int fd = fileno(log_op);
 
 		/* We don't want any children to inherit the log file */
-		fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC);
+		if (fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC))
+			log_message(LOG_INFO, "Warning - failed to set CLOEXEC on log file %s", log_name);
 
 		/* Make the log output line buffered. This was to ensure that
 		 * children didn't inherit the buffer, but the CLOEXEC above
