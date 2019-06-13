@@ -209,6 +209,8 @@ read_procs(list processes)
 			/* Read max name len + null byte + 1 extra char */
 			cmdline_len = read(fd, cmd_buf, vrrp_data->vrrp_max_process_name_len + 1);
 			close(fd);
+			if (cmdline_len < 0)
+				continue;
 			cmd_buf[cmdline_len] = '\0';
 		}
 
@@ -220,6 +222,8 @@ read_procs(list processes)
 
 			len = read(fd, stat_buf, sizeof(stat_buf) - 1);
 			close(fd);
+			if (len < 0)
+				continue;
 			stat_buf[len] = '\0';
 			if (len && stat_buf[len-1] == '\n')
 				stat_buf[len - 1] = '\0';
@@ -335,6 +339,8 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 			cmd_buf = MALLOC(cmd_buf_len);
 			cmdline_len = read(fd, cmd_buf, vrrp_data->vrrp_max_process_name_len + 2);
 			close(fd);
+			if (cmdline_len < 0)
+				return;
 			cmd_buf[cmdline_len] = '\0';
 		}
 
