@@ -4042,8 +4042,6 @@ vrrp_rfcv3_header_ar_table(struct variable *vp, oid *name, size_t *length,
 
 	if (bel == NULL)	/* No best match */
 		return NULL;
-	if (exact && !found_exact) /* No exact match */
-		return NULL;
 
 	/* Let's use our best match */
 	memcpy(target, best, sizeof(best));
