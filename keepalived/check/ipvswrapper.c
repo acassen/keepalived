@@ -29,6 +29,7 @@
 #include <sys/wait.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <sys/stat.h>
 
 #ifndef O_CLOEXEC	/* Since Linux 2.6.23 and glibc 2.7 */
 #define O_CLOEXEC 0	/* It doesn't really matter if O_CLOEXEC isn't set here */
@@ -75,6 +76,7 @@ get_modprobe(void)
 	int procfile;
 	char *ret;
 	ssize_t count;
+	struct stat buf;
 
 	ret = MALLOC(PATH_MAX);
 	if (!ret)
@@ -96,7 +98,12 @@ get_modprobe(void)
 			ret[count - 1] = '\0';
 		else
 			ret[count] = '\0';
-		return ret;
+
+		/* Check it is a regular file, with a execute bit set */
+		if (!stat(ret, &buf) &&
+		    S_ISREG(buf.st_mode) &&
+		    (buf.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)))
+			return ret;
 	}
 
 	FREE(ret);
