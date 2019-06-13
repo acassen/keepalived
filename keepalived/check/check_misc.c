@@ -307,7 +307,7 @@ misc_check_child_thread(thread_ref_t thread)
 	int sig_num;
 	unsigned timeout = 0;
 	const char *script_exit_type = NULL;
-	bool script_success;
+	bool script_success = false;
 	const char *reason = NULL;
 	int reason_code = 0;	/* Avoid uninitialised warning by older versions of gcc */
 	bool rs_was_alive;
@@ -374,7 +374,6 @@ misc_check_child_thread(thread_ref_t thread)
 			checker->retry_it = 0;
 		} else if (checker->is_up || !checker->has_run) {
 			script_exit_type = "failed";
-			script_success = false;
 			reason = "exited with status";
 			reason_code = status;
 
@@ -406,7 +405,6 @@ misc_check_child_thread(thread_ref_t thread)
 				script_exit_type = "timed out";
 			else {
 				script_exit_type = "failed";
-				script_success = false;
 				reason = "due to signal";
 				reason_code = WTERMSIG(wait_status);
 			}
@@ -417,11 +415,8 @@ misc_check_child_thread(thread_ref_t thread)
 					message_only = true;
 				else
 					script_exit_type = NULL;
-			} else {
-				script_success = false;
-
+			} else
 				checker->retry_it = 0;
-			}
 		}
 	}
 
