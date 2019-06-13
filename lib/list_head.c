@@ -63,14 +63,10 @@ RELAX_STRICT_OVERFLOW_END
 					e = p;
 					p = p->next;
 					psize--;
-					if (p == oldhead)
-						p = NULL;
 				} else if (cmp(p, q) <= 0) {
 					e = p;
 					p = p->next;
 					psize--;
-					if (p == oldhead)
-						p = NULL;
 				} else {
 					e = q;
 					q = q->next;
