@@ -1134,7 +1134,7 @@ check_regex(url_t *url, request_t *req)
 			req->len -= keep;
 			memmove(req->buffer, req->buffer + keep, req->len);
 			req->regex_subject_offset += keep;
-		} else if (req->len == MAX_BUFFER_LENGTH) {
+		} else if (req->len == MAX_BUFFER_LENGTH - 1) {
 			req->regex_subject_offset += req->len;
 			log_message(LOG_INFO, "Regex partial match preserve too large - discarding");
 			return false;
@@ -1315,6 +1315,7 @@ http_process_response(request_t *req, size_t r, url_t *url)
 	size_t old_req_len = req->len;
 
 	req->len += r;
+	req->buffer[req->len] = '\0';	/* Terminate the received data since it is used as a string */
 
 	if (!req->extracted) {
 		if ((req->extracted = extract_html(req->buffer, req->len))) {
@@ -1366,7 +1367,7 @@ http_read_thread(thread_ref_t thread)
 
 	/* read the HTTP stream */
 	r = read(thread->u.f.fd, req->buffer + req->len,
-		 MAX_BUFFER_LENGTH - req->len);
+		 MAX_BUFFER_LENGTH - 1 - req->len);	/* Allow space for adding '\0' */
 
 	/* Test if data are ready */
 	if (r == -1 && (check_EAGAIN(errno) || check_EINTR(errno))) {

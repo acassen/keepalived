@@ -288,8 +288,8 @@ ssl_read_thread(thread_ref_t thread)
 	if (thread->type == THREAD_READ_TIMEOUT && !req->extracted)
 		return timeout_epilog(thread, "Timeout SSL read");
 
-	/* read the SSL stream */
-	r = SSL_read(req->ssl, req->buffer + req->len, (int)(MAX_BUFFER_LENGTH - req->len));
+	/* read the SSL stream - allow for terminating the data with '\0 */
+	r = SSL_read(req->ssl, req->buffer + req->len, (int)(MAX_BUFFER_LENGTH - 1 - req->len));
 
 	req->error = SSL_get_error(req->ssl, r);
 
