@@ -904,6 +904,7 @@ dbus_start(void)
 {
 	pthread_t dbus_thread;
 	sigset_t sigset, cursigset;
+	int flags;
 
 	if (dbus_running)
 		return false;
@@ -923,8 +924,14 @@ dbus_start(void)
 
 	/* We don't want the main thread to block when using the pipes,
 	 * but the other side of the pipes should block. */
-	fcntl(dbus_in_pipe[1], F_SETFL, fcntl(dbus_in_pipe[1], F_GETFL) & ~O_NONBLOCK);
-	fcntl(dbus_out_pipe[0], F_SETFL, fcntl(dbus_out_pipe[0], F_GETFL) & ~O_NONBLOCK);
+	flags = fcntl(dbus_in_pipe[1], F_GETFL);
+	if (flags == -1 ||
+	    fcntl(dbus_in_pipe[1], F_SETFL, flags & ~O_NONBLOCK) == -1)
+		log_message(LOG_INFO, "Unable to set dbus thread in_pipe blocking - (%d - %m)", errno);
+	flags = fcntl(dbus_out_pipe[0], F_GETFL);
+	if (flags == -1 ||
+	    fcntl(dbus_out_pipe[0], F_SETFL, flags & ~O_NONBLOCK) == -1)
+		log_message(LOG_INFO, "Unable to set dbus thread out_pipe blocking - (%d - %m)", errno);
 
 	thread_add_read(master, handle_dbus_msg, NULL, dbus_in_pipe[0], TIMER_NEVER, false);
 
