@@ -441,7 +441,9 @@ smtp_get_line_cb(thread_ref_t thread)
 		thread_add_read(thread->master, smtp_get_line_cb, checker,
 				thread->u.f.fd, smtp_host->connection_to, true);
 		return 0;
-	} else if (r > 0) {
+	}
+
+	if (r >= 0) {
 		smtp_checker->buff_ctr += (size_t)r;
 		smtp_checker->buff[smtp_checker->buff_ctr] = '\0';
 	}
