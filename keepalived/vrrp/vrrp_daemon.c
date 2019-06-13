@@ -458,7 +458,7 @@ start_vrrp(data_t *prev_global_data)
 	if (!__test_bit(CONFIG_TEST_BIT, &debug))
 		kernel_netlink_init();
 
-	if (reload)
+	if (!global_data)
 		global_data = alloc_global_data();
 	else if (global_data->default_ifname) {
 		/* We need to set the default_ifp here on startup, since
