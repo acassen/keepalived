@@ -32,6 +32,7 @@
 /* genhash includes */
 #include "include/ssl.h"
 #include "include/main.h"
+#include "include/layer4.h"
 
 /*
  * Initialize the SSL context, with or without specific
@@ -101,11 +102,60 @@ ssl_printerr(int err)
 	return 0;
 }
 
+static void
+ssl_connection_done(thread_ref_t thread)
+{
+	SOCK *sock_obj = THREAD_ARG(thread);
+
+	sock_obj->lock = 0;
+	thread_add_event(thread->master,
+			 http_request_thread, sock_obj, 0);
+	thread_del_write(thread);
+}
+
+static int
+ssl_connect_complete_thread(thread_ref_t thread)
+{
+	SOCK *sock_obj = THREAD_ARG(thread);
+	int ret;
+	int error;
+
+	if (thread->type == THREAD_READ_TIMEOUT ||
+	    thread->type == THREAD_WRITE_TIMEOUT) {
+		exit_code = 1;
+		return epilog(thread);
+	}
+
+	ret = SSL_connect(sock_obj->ssl);
+	if (ret > 0) {
+		ssl_connection_done(thread);
+		return 0;
+	}
+
+	error = SSL_get_error(sock_obj->ssl, ret);
+	if (ret == -1 && error == SSL_ERROR_WANT_READ) {
+		thread_add_read(thread->master, ssl_connect_complete_thread, sock_obj,
+				sock_obj->fd, req->timeout, true);
+	}
+	else if (ret == -1 && error == SSL_ERROR_WANT_WRITE) {
+		thread_add_write(thread->master, ssl_connect_complete_thread, sock_obj,
+				sock_obj->fd, req->timeout, true);
+	} else {
+		DBG("  SSL_connect return code = %d on fd:%d\n", ret, thread->u.fd);
+		ssl_printerr(error);
+		sock_obj->status = connect_error;
+		thread_add_terminate_event(thread->master);
+	}
+
+	return 0;
+}
+
 bool
 ssl_connect(thread_ref_t thread)
 {
 	SOCK *sock_obj = THREAD_ARG(thread);
 	int ret;
+	int error;
 
 	sock_obj->ssl = SSL_new(req->ctx);
 	if (!sock_obj->ssl) {
@@ -128,15 +178,31 @@ ssl_connect(thread_ref_t thread)
 	SSL_set_bio(sock_obj->ssl, sock_obj->bio, sock_obj->bio);
 #endif
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
-		if (req->vhost != NULL && req->sni) {
-			SSL_set_tlsext_host_name(sock_obj->ssl, req->vhost);
-		}
+	if (req->vhost != NULL && req->sni) {
+		SSL_set_tlsext_host_name(sock_obj->ssl, req->vhost);
+	}
 #endif
 
 	ret = SSL_connect(sock_obj->ssl);
+	if (ret > 0) {
+		ssl_connection_done(thread);
+		return 1;
+	}
+
+	error = SSL_get_error(sock_obj->ssl, ret);
+	if (ret == -1 && error == SSL_ERROR_WANT_READ) {
+		thread_add_read(thread->master, ssl_connect_complete_thread, sock_obj,
+				sock_obj->fd, req->timeout, true);
+		return 1;
+	}
+	else if (ret == -1 && error == SSL_ERROR_WANT_WRITE) {
+		thread_add_write(thread->master, ssl_connect_complete_thread, sock_obj,
+				sock_obj->fd, req->timeout, true);
+		return 1;
+	}
 
 	DBG("  SSL_connect return code = %d on fd:%d\n", ret, thread->u.fd);
-	ssl_printerr(SSL_get_error(sock_obj->ssl, ret));
+	ssl_printerr(error);
 
 	return (ret > 0);
 }
@@ -202,7 +268,17 @@ ssl_read_thread(thread_ref_t thread)
 		memset(sock_obj->buffer + sock_obj->size, 0, (size_t)r);
 		r = SSL_read(sock_obj->ssl, sock_obj->buffer + sock_obj->size, r);
 		error = SSL_get_error(sock_obj->ssl, r);
+		if (r == -1 && error == SSL_ERROR_WANT_READ) {
+			thread_add_read(thread->master, ssl_read_thread, sock_obj,
+					sock_obj->fd, req->timeout, true);
 
+			return 0;
+		} else if (r == -1 && error == SSL_ERROR_WANT_WRITE) {
+			thread_add_write(thread->master, ssl_read_thread, sock_obj,
+					sock_obj->fd, req->timeout, true);
+
+			return 0;
+		}
 		DBG(" [l:%d,fd:%d]\n", r, sock_obj->fd);
 
 		if (error) {

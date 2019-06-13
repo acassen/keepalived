@@ -38,7 +38,6 @@ tcp_connect(int fd, REQ * req_obj)
 	struct sockaddr_in adr_serv;
 	struct sockaddr_in6 adr_serv6;
 	int ret;
-	int val;
 
 	/* free the tcp port after closing the socket descriptor, but allow
 	 * time for a proper shutdown. */
@@ -56,9 +55,6 @@ tcp_connect(int fd, REQ * req_obj)
 		}
 	}
 #endif
-	/* Make socket non-block. */
-	val = fcntl(fd, F_GETFL, 0);
-	fcntl(fd, F_SETFL, val | O_NONBLOCK);
 
 	if(req_obj->dst && req_obj->dst->ai_family == AF_INET6) {
 		long_inet = sizeof (struct sockaddr_in6);
@@ -81,19 +77,14 @@ tcp_connect(int fd, REQ * req_obj)
 	}
 
 	/* Immediate success */
-	if (ret == 0) {
-		fcntl(fd, F_SETFL, val);
+	if (ret == 0)
 		return connect_success;
-	}
 
-	/* If connect is in progress then return 1 else it's real error. */
-	if (ret < 0) {
-		if (errno != EINPROGRESS)
-			return connect_error;
-	}
+	/* If connect is in progress then return connect_in_progress else it's real error. */
+	if (errno != EINPROGRESS)
+		return connect_error;
 
 	/* restore previous fd args */
-	fcntl(fd, F_SETFL, val);
 	return connect_in_progress;
 }
 
@@ -204,6 +195,10 @@ tcp_check_thread(thread_ref_t thread)
 				ret = ssl_connect(thread);
 
 			if (ret) {
+				/* SSL connections manage their own threads for SSL_connect */
+				if (req->ssl)
+					return 1;
+
 				/* Remote WEB server is connected.
 				 * Unlock eventual locked socket.
 				 */
@@ -232,7 +227,7 @@ tcp_connect_thread(thread_ref_t thread)
 	SOCK *sock_obj = THREAD_ARG(thread);
 
 	if ((sock_obj->fd = socket((req->dst && req->dst->ai_family == AF_INET6) ? AF_INET6 : AF_INET,
-				   SOCK_STREAM
+				   SOCK_STREAM | SOCK_NONBLOCK
 #ifdef SOCK_CLOEXEC
 					       | SOCK_CLOEXEC
 #endif
@@ -241,8 +236,9 @@ tcp_connect_thread(thread_ref_t thread)
 		return 0;
 	}
 
-#ifndef SOCK_CLOEXEC
-	fcntl(sock_obj->fd, F_SETFD, fcntl(sock_obj->fd, F_GETFD) | FD_CLOEXEC);
+#if !HAVE_DECL_SOCK_NONBLOCK
+	if (fcntl(sock_obj->fd, F_SETFL, fcntl(sock_obj->fd, F_GETFL) | O_NONBLOCK))
+		fprintf(stderr, "Unable to set socket non blocking\n");
 #endif
 
 	sock->status = tcp_connect(sock_obj->fd, req);
