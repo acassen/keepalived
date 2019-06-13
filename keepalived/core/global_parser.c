@@ -1700,7 +1700,7 @@ vrrp_startup_delay_handler(const vector_t *strvec)
 {
 	double startup_delay;
 
-	if (!read_double_strvec(strvec, 1, &startup_delay, 0.001F / TIMER_HZ, UINT_MAX / TIMER_HZ, true))
+	if (!read_double_strvec(strvec, 1, &startup_delay, 0.001F / TIMER_HZ, (unsigned)(UINT_MAX / TIMER_HZ), true))
 		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_startup_delay '%s' is invalid", strvec_slot(strvec, 1));
 	else
 		global_data->vrrp_startup_delay = (unsigned)(startup_delay * TIMER_HZ);
