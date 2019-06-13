@@ -188,6 +188,11 @@ vrrp_init_state(list l)
 	}
 
 	LIST_FOREACH(l, vrrp, e) {
+		int vrrp_begin_state;
+
+		/* save the current state of VRRP instance */
+		vrrp_begin_state = vrrp->state;
+
 		/* wantstate is the state we would be in disregarding any sync group */
 		if (vrrp->state == VRRP_STATE_FAULT)
 			vrrp->wantstate = VRRP_STATE_FAULT;
@@ -257,7 +262,9 @@ vrrp_init_state(list l)
 					vrrp->state = VRRP_STATE_FAULT;
 					log_message(LOG_INFO, "(%s) Entering FAULT STATE (init)", vrrp->iname);
 				}
-				send_instance_notifies(vrrp);
+				/* send notifiers in case of VRRP state was changed */
+				if (vrrp_begin_state != vrrp->state)
+					send_instance_notifies(vrrp);
 			}
 			vrrp->last_transition = timer_now();
 		}
