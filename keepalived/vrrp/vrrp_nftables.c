@@ -887,9 +887,15 @@ nft_start_batch(void)
 {
 	struct mnl_nlmsg_batch *batch;
 	char *buf = MALLOC(2 * MNL_SOCKET_BUFFER_SIZE);
+	time_t time_ret;
 
-	if (!seq)
-		seq = time(NULL);
+	if (!seq) {
+		time_ret = time(NULL);
+		if (time_ret == -1)
+			seq = 1;
+		else
+			seq = (uint32_t)time_ret;
+	}
 
 	batch = mnl_nlmsg_batch_start(buf, 2 * MNL_SOCKET_BUFFER_SIZE);
 
