@@ -206,7 +206,8 @@ ipvs_set_timeouts(int tcp_timeout, int tcpfin_timeout, int udp_timeout)
 	to.tcp_fin_timeout = tcpfin_timeout;
 	to.udp_timeout = udp_timeout;
 
-	ipvs_set_timeout(&to);
+	if (ipvs_set_timeout(&to))
+		log_message(LOG_INFO, "Failed to set ipvs timeouts");
 }
 
 /* Send user rules to IPVS module */
