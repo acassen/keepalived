@@ -510,24 +510,20 @@ rule_is_ours(struct fib_rule_hdr* frh, struct rtattr *tb[FRA_MAX + 1], vrrp_t **
 #endif
 
 /* Update the netlink socket receive buffer sizes */
-static int
+static void
 netlink_set_rx_buf_size(nl_handle_t *nl, unsigned rcvbuf_size, bool force)
 {
-	int ret;
-
 	if (!rcvbuf_size)
 		rcvbuf_size = IF_DEFAULT_BUFSIZE;
 
 	/* Set rcvbuf size */
 	if (force) {
-		if ((ret = setsockopt(nl->fd, SOL_SOCKET, SO_RCVBUFFORCE, &rcvbuf_size, sizeof(rcvbuf_size))) < 0)
+		if (setsockopt(nl->fd, SOL_SOCKET, SO_RCVBUFFORCE, &rcvbuf_size, sizeof(rcvbuf_size)) < 0)
 			log_message(LOG_INFO, "cant set SO_RCVBUFFORCE IP option. errno=%d (%m)", errno);
 	} else {
-		if ((ret = setsockopt(nl->fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf_size, sizeof(rcvbuf_size))) < 0)
+		if (setsockopt(nl->fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf_size, sizeof(rcvbuf_size)) < 0)
 			log_message(LOG_INFO, "Cannot set SO_RCVBUF IP option. errno=%d (%m)", errno);
 	}
-
-	return ret;
 }
 
 #ifdef _HAVE_FIB_ROUTING_
@@ -673,7 +669,9 @@ netlink_socket(nl_handle_t *nl, unsigned rcvbuf_size, bool force, int flags, int
 	if (nl->fd < 0)
 		return -1;
 
-	return netlink_set_rx_buf_size(nl, rcvbuf_size, force);
+	netlink_set_rx_buf_size(nl, rcvbuf_size, force);
+
+	return 0;
 }
 
 /* Close a netlink socket */
