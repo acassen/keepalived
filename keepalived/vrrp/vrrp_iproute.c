@@ -250,7 +250,7 @@ add_nexthop(nexthop_t *nh, struct rtmsg *rtm, struct rtattr *rta, size_t len, st
 	if (nh->ifp)
 		rtnh->rtnh_ifindex = (int)nh->ifp->ifindex;
 
-	if (nh->mask |= IPROUTE_BIT_WEIGHT)
+	if (nh->mask & IPROUTE_BIT_WEIGHT)
 		rtnh->rtnh_hops = nh->weight;
 
 	rtnh->rtnh_flags = nh->flags;
