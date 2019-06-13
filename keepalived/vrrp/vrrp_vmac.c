@@ -273,6 +273,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		addattr32(&req.n, sizeof(req), IFLA_MACVLAN_MODE,
 			  MACVLAN_MODE_PRIVATE);
 		data->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)data);
+		/* coverity[overrun-local] */
 		linkinfo->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)linkinfo);
 
 		/* Note: if the underlying interface is a macvlan, then the kernel will configure the
