@@ -856,9 +856,8 @@ static int ipvs_services_parse_cb(struct nl_msg *msg, void *arg)
 		get->user.entrytable[i].user.port = nla_get_u16(svc_attrs[IPVS_SVC_ATTR_PORT]);
 	}
 
-	strncpy(get->user.entrytable[i].user.sched_name,
-		nla_get_string(svc_attrs[IPVS_SVC_ATTR_SCHED_NAME]),
-		IP_VS_SCHEDNAME_MAXLEN);
+	strcpy_safe(get->user.entrytable[i].user.sched_name,
+		nla_get_string(svc_attrs[IPVS_SVC_ATTR_SCHED_NAME]));
 
 #ifdef _HAVE_PE_NAME_
 	if (svc_attrs[IPVS_SVC_ATTR_PE_NAME])
