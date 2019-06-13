@@ -1070,7 +1070,7 @@ set_debug_options(const char *options)
 	}
 
 	opt_p = options;
-	do {
+	while (*opt_p) {
 		if (!isupper(*opt_p)) {
 			fprintf(stderr, "Unknown debug option'%c' in '%s'\n", *opt_p, options);
 			return;
@@ -1168,7 +1168,7 @@ set_debug_options(const char *options)
 			fprintf(stderr, "Unknown debug type '%c' in '%s'\n", opt, options);
 			return;
 		}
-	} while (opt_p && *opt_p);
+	}
 }
 #endif
 
@@ -1390,10 +1390,8 @@ parse_cmdline(int argc, char **argv)
 
 		/* Check for an empty option argument. For example --use-file= returns
 		 * a 0 length option, which we don't want */
-		if (longindex >= 0 && long_options[longindex].has_arg == required_argument && optarg && !optarg[0]) {
+		if (longindex >= 0 && long_options[longindex].has_arg == required_argument && optarg && !optarg[0])
 			c = ':';
-			optarg = NULL;
-		}
 
 		switch (c) {
 		case 'v':

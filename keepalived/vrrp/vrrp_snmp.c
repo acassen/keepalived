@@ -666,6 +666,7 @@ vrrp_header_ar_table(struct variable *vp, oid *name, size_t *length,
 			break;
 		case HEADER_STATE_EXCLUDED_VIRTUAL_ADDRESS:
 			/* Try excluded virtual addresses */
+			/* coverity[var_deref_op] */
 			l2 = ((vrrp_t *)ELEMENT_DATA(e1))->evip;
 			nextstate = HEADER_STATE_VIRTUAL_ADDRESS;
 			break;
@@ -1828,12 +1829,21 @@ _get_instance(oid *name, size_t name_len)
 
 #ifdef _WITH_FIREWALL_
 static int
+#ifndef ALLOW_SNMP_SET_ACCEPT
+vrrp_snmp_instance_accept(__attribute__((unused)) int action,
+			  __attribute__((unused)) u_char *var_val, __attribute__((unused)) u_char var_val_type,
+			  __attribute__((unused)) size_t var_val_len, __attribute__((unused)) u_char *statP,
+			  __attribute__((unused)) oid *name, __attribute__((unused)) size_t name_len)
+{
+	return SNMP_ERR_NOACCESS;
+}
+
+#else
 vrrp_snmp_instance_accept(int action,
 			  u_char *var_val, u_char var_val_type,
 			  size_t var_val_len, __attribute__((unused)) u_char *statP,
 			  oid *name, size_t name_len)
 {
-	return SNMP_ERR_NOACCESS;
 	vrrp_t *vrrp = NULL;
 
 	switch (action) {
@@ -1881,6 +1891,7 @@ vrrp_snmp_instance_accept(int action,
 		}
 	return SNMP_ERR_NOERROR;
 }
+#endif
 #endif
 
 static int
@@ -3360,8 +3371,6 @@ vrrp_rfcv2_header_ar_table(struct variable *vp, oid *name, size_t *length,
 
 	if (bel == NULL)	/* No best match */
 		return NULL;
-	if (exact && !found_exact) /* No exact match */
-		return NULL;
 
 	/* Let's use our best match */
 	memcpy(target, best, sizeof(best));
@@ -4041,8 +4050,6 @@ vrrp_rfcv3_header_ar_table(struct variable *vp, oid *name, size_t *length,
 	}
 
 	if (bel == NULL)	/* No best match */
-		return NULL;
-	if (exact && !found_exact) /* No exact match */
 		return NULL;
 
 	/* Let's use our best match */

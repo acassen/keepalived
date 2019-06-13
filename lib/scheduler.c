@@ -250,8 +250,6 @@ thread_update_timer(rb_root_cached_t *root, timeval_t *timer_min)
 		return;
 
 	first = rb_entry(rb_first_cached(root), thread_t, n);
-	if (!first)
-		return;
 
 	if (first->sands.tv_sec == TIMER_DISABLED)
 		return;
@@ -1033,9 +1031,10 @@ thread_add_read(thread_master_t *m, thread_func_t func, void *arg, int fd, unsig
 	timeval_t sands;
 
 	/* Compute read timeout value */
-	if (timer == TIMER_NEVER)
+	if (timer == TIMER_NEVER) {
 		sands.tv_sec = TIMER_DISABLED;
-	else {
+		sands.tv_usec = 0;
+	} else {
 		set_time_now();
 		sands = timer_add_long(time_now, timer);
 	}

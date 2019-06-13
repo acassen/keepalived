@@ -50,26 +50,6 @@ static unsigned long specified_event_processes;
 /* Allow for English spelling */
 static const char * neighbor_str = "neighbor";
 
-static bool
-check_new_bfd(const char *name)
-{
-	if (strlen(name) >= BFD_INAME_MAX) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
-			    " name too long (maximum length is %d"
-			    " characters) - ignoring", name,
-			    BFD_INAME_MAX - 1);
-		return false;
-	}
-
-	if (find_bfd_by_name(name)) {
-		report_config_error(CONFIG_GENERAL_ERROR,
-			    "Configuration error: BFD instance %s"
-			    " already configured - ignoring", name);
-		return false;
-	}
-	return true;
-}
-
 static void
 bfd_handler(const vector_t *strvec)
 {
@@ -83,12 +63,10 @@ bfd_handler(const vector_t *strvec)
 
 	name = vector_slot(strvec, 1);
 
-	if (!check_new_bfd(name)) {
+	if (!alloc_bfd(name)) {
 		skip_block(true);
 		return;
 	}
-
-	alloc_bfd(name);
 
 	specified_event_processes = 0;
 }

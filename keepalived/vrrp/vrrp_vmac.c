@@ -273,6 +273,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		addattr32(&req.n, sizeof(req), IFLA_MACVLAN_MODE,
 			  MACVLAN_MODE_PRIVATE);
 		data->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)data);
+		/* coverity[overrun-local] */
 		linkinfo->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)linkinfo);
 
 		/* Note: if the underlying interface is a macvlan, then the kernel will configure the
@@ -510,6 +511,7 @@ netlink_link_add_ipvlan(vrrp_t *vrrp)
 #ifdef IFLA_IPVLAN_FLAGS
 		addattr16(&req.n, sizeof(req), IFLA_IPVLAN_FLAGS, vrrp->ipvlan_type);
 #endif
+		/* coverity[overrun-local] */
 		data->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)data);
 		linkinfo->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)linkinfo);
 
@@ -578,8 +580,9 @@ netlink_link_add_ipvlan(vrrp_t *vrrp)
 	netlink_link_up(vrrp);
 	kernel_netlink_poll();
 
-	if (vrrp->ipvlan_addr)
-		netlink_ipaddress(vrrp->ipvlan_addr, IPADDRESS_ADD);
+	if (vrrp->ipvlan_addr &&
+	    netlink_ipaddress(vrrp->ipvlan_addr, IPADDRESS_ADD) != -1)
+		log_message(LOG_INFO, "%s: Failed to add interface address to %s", vrrp->iname, ifp->ifname);
 
 	return true;
 }

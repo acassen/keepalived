@@ -1654,7 +1654,7 @@ garp_group_garp_interval_handler(const vector_t *strvec)
 	garp_delay_t *delay = LIST_TAIL_DATA(garp_delay);
 	double val;
 
-	if (!read_double_strvec(strvec, 1, &val, 0, INT_MAX / 1000000, true)) {
+	if (!read_double_strvec(strvec, 1, &val, 0, (int)(INT_MAX / 1000000), true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "garp_group garp_interval '%s' invalid", strvec_slot(strvec, 1));
 		return;
 	}
@@ -1672,7 +1672,7 @@ garp_group_gna_interval_handler(const vector_t *strvec)
 	garp_delay_t *delay = LIST_TAIL_DATA(garp_delay);
 	double val;
 
-	if (!read_double_strvec(strvec, 1, &val, 0, INT_MAX / 1000000, true)) {
+	if (!read_double_strvec(strvec, 1, &val, 0, (int)(INT_MAX / 1000000), true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "garp_group gna_interval '%s' invalid", strvec_slot(strvec, 1));
 		return;
 	}

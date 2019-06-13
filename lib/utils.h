@@ -33,6 +33,7 @@
 #include <netinet/in.h>
 #include <stdio.h>
 #include <errno.h>
+#include <string.h>
 
 #include "vector.h"
 #if defined _DEBUG_ || defined DEBUG_EINTR
@@ -211,6 +212,9 @@ static inline uint16_t csum_incremental_update16(const uint16_t old_csum, const 
 
 	return ~acc & 0xffff;
 }
+
+#define strcpy_safe(dst, src) \
+	(dst[0] = '\0', strncat(dst, src, sizeof(dst) - 1))
 
 /* global vars exported */
 extern unsigned long debug;

@@ -34,6 +34,7 @@
 #ifdef _INCLUDE_UNUSED_CODE_
 #include <sys/epoll.h>
 #endif
+#include <inttypes.h>
 
 #include "signals.h"
 #include "utils.h"
@@ -178,9 +179,9 @@ signal_pending(void)
 /* Signal flag */
 #ifndef HAVE_SIGNALFD
 static void
-signal_handler(int sig)
+signal_handler(uint32_t sig)
 {
-	if (write(signal_pipe[1], &sig, sizeof(int)) != sizeof(int)) {
+	if (write(signal_pipe[1], &sig, sizeof(uint32_t)) != sizeof(uint32_t)) {
 		DBG("signal_pipe write error %s", strerror(errno));
 		assert(0);
 
@@ -306,19 +307,23 @@ signal_ignore(int signo)
 static int
 signal_run_callback(thread_ref_t thread)
 {
-	int sig;
+	uint32_t sig;
 #ifdef HAVE_SIGNALFD
 	struct signalfd_siginfo siginfo;
 
 	while (read(signal_fd, &siginfo, sizeof(struct signalfd_siginfo)) == sizeof(struct signalfd_siginfo)) {
 		sig = siginfo.ssi_signo;
 #else
-	while (read(signal_pipe[0], &sig, sizeof(int)) == sizeof(int)) {
+	while (read(signal_pipe[0], &sig, sizeof(uint32_t)) == sizeof(uint32_t)) {
 #endif
 
 #ifdef _EPOLL_DEBUG_
-		if (do_epoll_debug)
-			log_message(LOG_INFO, "Signal %d, func %s()", sig, get_signal_function_name(signal_handler_func[sig-1]));
+		if (do_epoll_debug) {
+			if (sig >= 1 && sig < sizeof(signal_handler_func) / sizeof(signal_handler_func[0]))
+				log_message(LOG_INFO, "Signal %" PRIu32 ", func %s()", sig, get_signal_function_name(signal_handler_func[sig-1]));
+			else
+				log_message(LOG_INFO, "Signal %" PRIu32 ", unknown function", sig);
+		}
 #endif
 
 #ifdef USE_SIGNAL_THREADS

@@ -174,16 +174,22 @@ smtp_read_thread(thread_ref_t thread)
 	buffer = smtp->buffer;
 
 	rcv_buffer_size = read(thread->u.f.fd, buffer + smtp->buflen,
-			       SMTP_BUFFER_LENGTH - smtp->buflen);
+			       SMTP_BUFFER_LENGTH - 1 - smtp->buflen);
 
 	if (rcv_buffer_size == -1) {
-		if (check_EAGAIN(errno))
-			goto end;
+		if (check_EAGAIN(errno)) {
+			thread_add_read(thread->master, smtp_read_thread, smtp,
+					thread->u.f.fd, global_data->smtp_connection_to, true);
+			return 0;
+		}
+
 		log_message(LOG_INFO, "Error reading data from remote SMTP server %s."
 				    , FMT_SMTP_HOST());
 		SMTP_FSM_READ(QUIT, thread, 0);
 		return 0;
-	} else if (rcv_buffer_size == 0) {
+	}
+
+	if (rcv_buffer_size == 0) {
 		log_message(LOG_INFO, "Remote SMTP server %s has closed the connection."
 				    , FMT_SMTP_HOST());
 		SMTP_FSM_READ(QUIT, thread, 0);
@@ -197,12 +203,10 @@ smtp_read_thread(thread_ref_t thread)
 				    , FMT_SMTP_HOST());
 		SMTP_FSM_READ(QUIT, thread, 0);
 		return 0;
-	} else {
-		smtp->buflen += (size_t)rcv_buffer_size;
-		buffer[smtp->buflen] = 0;	/* NULL terminate */
 	}
 
-      end:
+	smtp->buflen += (size_t)rcv_buffer_size;
+	buffer[smtp->buflen] = 0;	/* NULL terminate */
 
 	/* parse the buffer, finding the last line of the response for the code */
 	reply = buffer;

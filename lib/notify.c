@@ -194,7 +194,7 @@ notify_fifo_exec(thread_master_t *m, int (*func) (thread_ref_t), void *arg, noti
 	setpgid(0, 0);
 	set_privileges(script->uid, script->gid);
 
-	if (script->flags | SC_EXECABLE) {
+	if (script->flags & SC_EXECABLE) {
 		/* If keepalived dies, we want the script to die */
 		prctl(PR_SET_PDEATHSIG, SIGTERM);
 
@@ -603,6 +603,11 @@ find_path(notify_script_t *script)
 
 		/* Get our supplementary groups */
 		sgid_num = getgroups(0, NULL);
+		if (sgid_num == -1) {
+			log_message(LOG_INFO, "Unable to get number of supplementary gids (%m)");
+			ret_val = EACCES;
+			goto exit;
+		}
 		sgid_list = MALLOC(((size_t)sgid_num + 1) * sizeof(gid_t));
 		sgid_num = getgroups(sgid_num, sgid_list);
 		sgid_list[sgid_num++] = 0;

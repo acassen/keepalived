@@ -225,7 +225,8 @@ ssl_connect(thread_ref_t thread, int new_req)
 		}
 
 		BIO_get_fd(req->bio, &bio_fd);
-		fcntl(bio_fd, F_SETFD, fcntl(bio_fd, F_GETFD) | FD_CLOEXEC);
+		if (fcntl(bio_fd, F_SETFD, fcntl(bio_fd, F_GETFD) | FD_CLOEXEC) == -1)
+			log_message(LOG_INFO, "Setting CLOEXEC failed on ssl socket - errno %d", errno);
 #ifdef HAVE_SSL_SET0_RBIO
 		BIO_up_ref(req->bio);
 		SSL_set0_rbio(req->ssl, req->bio);
@@ -288,8 +289,8 @@ ssl_read_thread(thread_ref_t thread)
 	if (thread->type == THREAD_READ_TIMEOUT && !req->extracted)
 		return timeout_epilog(thread, "Timeout SSL read");
 
-	/* read the SSL stream */
-	r = SSL_read(req->ssl, req->buffer + req->len, (int)(MAX_BUFFER_LENGTH - req->len));
+	/* read the SSL stream - allow for terminating the data with '\0 */
+	r = SSL_read(req->ssl, req->buffer + req->len, (int)(MAX_BUFFER_LENGTH - 1 - req->len));
 
 	req->error = SSL_get_error(req->ssl, r);
 

@@ -87,8 +87,10 @@ open_log_file(const char *name, const char *prog, const char *namespace, const c
 	log_file = fopen_safe(file_name, "a");
 	if (log_file) {
 		int n = fileno(log_file);
-		fcntl(n, F_SETFD, FD_CLOEXEC | fcntl(n, F_GETFD));
-		fcntl(n, F_SETFL, O_NONBLOCK | fcntl(n, F_GETFL));
+		if (fcntl(n, F_SETFD, FD_CLOEXEC | fcntl(n, F_GETFD)) == -1)
+			log_message(LOG_INFO, "Failed to set CLOEXEC on log file %s", file_name);
+		if (fcntl(n, F_SETFL, O_NONBLOCK | fcntl(n, F_GETFL)) == -1)
+			log_message(LOG_INFO, "Failed to set NONBLOCK on log file %s", file_name);
 	}
 
 	FREE_CONST(file_name);

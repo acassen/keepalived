@@ -262,17 +262,18 @@ static dbus_queue_ent_t *
 process_method_call(dbus_queue_ent_t *ent)
 {
 	ssize_t ret;
+	char buf = 0;
 
 	if (!ent)
 		return NULL;
 
 	/* Tell the main thread that a queue entry is waiting. Any data works */
 	ent_ptr = ent;
-	if (write(dbus_in_pipe[1], ent, 1) != 1)
+	if (write(dbus_in_pipe[1], &buf, 1) != 1)
 		log_message(LOG_INFO, "Write from DBus thread to main thread failed");
 
 	/* Wait for a response */
-	while ((ret = read(dbus_out_pipe[0], ent, 1)) == -1 && check_EINTR(errno))
+	while ((ret = read(dbus_out_pipe[0], &buf, 1)) == -1 && check_EINTR(errno))
 		log_message(LOG_INFO, "dbus_out_pipe read returned EINTR");
 	if (ret == -1)
 		log_message(LOG_INFO, "DBus response read error - errno = %d", errno);
@@ -605,13 +606,17 @@ static const gchar*
 read_file(const gchar* filepath)
 {
 	FILE * f;
-	size_t length;
+	long length;
 	gchar *ret = NULL;
 
 	f = fopen(filepath, "r");
 	if (f) {
 		fseek(f, 0, SEEK_END);
-		length = (size_t)ftell(f);
+		length = ftell(f);
+		if (length < 0) {
+			fclose(f);
+			return NULL;
+		}
 		fseek(f, 0, SEEK_SET);
 
 		/* We can't use MALLOC since it isn't thread safe */
@@ -820,7 +825,7 @@ handle_dbus_msg(__attribute__((unused)) thread_ref_t thread)
 				ent->reply = DBUS_SUCCESS;
 			}
 		}
-		if (write(dbus_out_pipe[1], ent, 1) != 1)
+		if (write(dbus_out_pipe[1], &recv_buf, 1) != 1)
 			log_message(LOG_INFO, "Write from main thread to DBus thread failed");
 	}
 
@@ -900,6 +905,7 @@ dbus_start(void)
 {
 	pthread_t dbus_thread;
 	sigset_t sigset, cursigset;
+	int flags;
 
 	if (dbus_running)
 		return false;
@@ -919,8 +925,14 @@ dbus_start(void)
 
 	/* We don't want the main thread to block when using the pipes,
 	 * but the other side of the pipes should block. */
-	fcntl(dbus_in_pipe[1], F_SETFL, fcntl(dbus_in_pipe[1], F_GETFL) & ~O_NONBLOCK);
-	fcntl(dbus_out_pipe[0], F_SETFL, fcntl(dbus_out_pipe[0], F_GETFL) & ~O_NONBLOCK);
+	flags = fcntl(dbus_in_pipe[1], F_GETFL);
+	if (flags == -1 ||
+	    fcntl(dbus_in_pipe[1], F_SETFL, flags & ~O_NONBLOCK) == -1)
+		log_message(LOG_INFO, "Unable to set dbus thread in_pipe blocking - (%d - %m)", errno);
+	flags = fcntl(dbus_out_pipe[0], F_GETFL);
+	if (flags == -1 ||
+	    fcntl(dbus_out_pipe[0], F_SETFL, flags & ~O_NONBLOCK) == -1)
+		log_message(LOG_INFO, "Unable to set dbus thread out_pipe blocking - (%d - %m)", errno);
 
 	thread_add_read(master, handle_dbus_msg, NULL, dbus_in_pipe[0], TIMER_NEVER, false);
 

@@ -148,7 +148,7 @@ get_sysctl(const char* prefix, const char* iface, const char* parameter)
 	close(fd);
 
 	/* We only read integers 0-9 */
-	if (len <= 0)
+	if (len <= 0 || buf[0] < '0' || buf[0] > '9')
 		return UINT_MAX;
 
 	/* Return the value of the string read */

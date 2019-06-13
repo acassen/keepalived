@@ -29,6 +29,7 @@
 #include <sys/wait.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <sys/stat.h>
 
 #ifndef O_CLOEXEC	/* Since Linux 2.6.23 and glibc 2.7 */
 #define O_CLOEXEC 0	/* It doesn't really matter if O_CLOEXEC isn't set here */
@@ -75,6 +76,7 @@ get_modprobe(void)
 	int procfile;
 	char *ret;
 	ssize_t count;
+	struct stat buf;
 
 	ret = MALLOC(PATH_MAX);
 	if (!ret)
@@ -86,16 +88,22 @@ get_modprobe(void)
 		return NULL;
 	}
 
-	count = read(procfile, ret, PATH_MAX);
+	count = read(procfile, ret, PATH_MAX - 1);
+	ret[PATH_MAX - 1] = '\0';
 	close(procfile);
 
-	if (count > 0 && count < PATH_MAX)
+	if (count > 0 && count < PATH_MAX - 1)
 	{
 		if (ret[count - 1] == '\n')
 			ret[count - 1] = '\0';
 		else
 			ret[count] = '\0';
-		return ret;
+
+		/* Check it is a regular file, with a execute bit set */
+		if (!stat(ret, &buf) &&
+		    S_ISREG(buf.st_mode) &&
+		    (buf.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)))
+			return ret;
 	}
 
 	FREE(ret);
@@ -130,6 +138,7 @@ modprobe_ipvs(void)
 
 	if (!(child = fork())) {
 		args.args = argv;
+		/* coverity[tainted_string] */
 		execv(argv[0], args.execve_args);
 		exit(1);
 	}
@@ -206,7 +215,8 @@ ipvs_set_timeouts(int tcp_timeout, int tcpfin_timeout, int udp_timeout)
 	to.tcp_fin_timeout = tcpfin_timeout;
 	to.udp_timeout = udp_timeout;
 
-	ipvs_set_timeout(&to);
+	if (ipvs_set_timeout(&to))
+		log_message(LOG_INFO, "Failed to set ipvs timeouts");
 }
 
 /* Send user rules to IPVS module */
@@ -283,7 +293,7 @@ ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool i
 	if (config) {
 		daemonrule.syncid = (int)config->syncid;
 		if (!ignore_interface)
-			strcpy(daemonrule.mcast_ifn, config->ifname);
+			strcpy_safe(daemonrule.mcast_ifn, config->ifname);
 #ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
 		if (cmd == IPVS_STARTDAEMON) {
 			if (config->sync_maxlen)
@@ -492,7 +502,7 @@ ipvs_set_srule(int cmd, ipvs_service_t *srule, virtual_server_t *vs)
 	/* Clean service rule */
 	memset(srule, 0, sizeof(ipvs_service_t));
 
-	strncpy(srule->user.sched_name, vs->sched, IP_VS_SCHEDNAME_MAXLEN);
+	strcpy_safe(srule->user.sched_name, vs->sched);
 	srule->af = vs->af;
 	srule->user.flags = vs->flags;
 	srule->user.netmask = (vs->af == AF_INET6) ? 128 : ((uint32_t) 0xffffffff);

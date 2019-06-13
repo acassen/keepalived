@@ -441,10 +441,20 @@ smtp_get_line_cb(thread_ref_t thread)
 		thread_add_read(thread->master, smtp_get_line_cb, checker,
 				thread->u.f.fd, smtp_host->connection_to, true);
 		return 0;
-	} else if (r > 0) {
-		smtp_checker->buff_ctr += (size_t)r;
-		smtp_checker->buff[smtp_checker->buff_ctr] = '\0';
 	}
+
+	/*
+	 * If the connection was closed or there was
+	 * some sort of error, notify smtp_final()
+	 */
+	if (r <= 0) {
+		smtp_final(thread, "Read failure from server %s"
+				     , FMT_SMTP_RS(smtp_host));
+		return 0;
+	}
+
+	smtp_checker->buff_ctr += (size_t)r;
+	smtp_checker->buff[smtp_checker->buff_ctr] = '\0';
 
 	/* check if we have a newline, if so, callback */
 	if ((nl = strchr(smtp_checker->buff, '\n'))) {
@@ -456,16 +466,6 @@ smtp_get_line_cb(thread_ref_t thread)
 
 		smtp_engine_thread(thread);
 
-		return 0;
-	}
-
-	/*
-	 * If the connection was closed or there was
-	 * some sort of error, notify smtp_final()
-	 */
-	if (r <= 0) {
-		smtp_final(thread, "Read failure from server %s"
-				     , FMT_SMTP_RS(smtp_host));
 		return 0;
 	}
 

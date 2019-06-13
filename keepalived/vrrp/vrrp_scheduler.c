@@ -249,16 +249,13 @@ vrrp_init_state(list l)
 			/* Set interface state */
 			vrrp_restore_interface(vrrp, false, false);
 			if (is_up && new_state != VRRP_STATE_FAULT && !vrrp->num_script_init && (!vrrp->sync || !vrrp->sync->num_member_init)) {
-				if (is_up) {
-					vrrp->state = VRRP_STATE_BACK;
-					log_message(LOG_INFO, "(%s) Entering BACKUP STATE (init)", vrrp->iname);
-				}
-				else {
-					vrrp->state = VRRP_STATE_FAULT;
-					log_message(LOG_INFO, "(%s) Entering FAULT STATE (init)", vrrp->iname);
-				}
-				send_instance_notifies(vrrp);
+				vrrp->state = VRRP_STATE_BACK;
+				log_message(LOG_INFO, "(%s) Entering BACKUP STATE (init)", vrrp->iname);
+			} else {
+				vrrp->state = VRRP_STATE_FAULT;
+				log_message(LOG_INFO, "(%s) Entering FAULT STATE (init)", vrrp->iname);
 			}
+			send_instance_notifies(vrrp);
 			vrrp->last_transition = timer_now();
 		}
 #ifdef _WITH_SNMP_RFC_
@@ -331,15 +328,11 @@ static timeval_t *
 vrrp_compute_timer(const sock_t *sock)
 {
 	vrrp_t *vrrp;
-	static timeval_t timer = { .tv_sec = TIMER_DISABLED };
 
 	/* The sock won't exist if there isn't a vrrp instance on it,
 	 * so rb_first will always exist. */
 	vrrp = rb_entry(rb_first_cached(&sock->rb_sands), vrrp_t, rb_sands);
-	if (vrrp)
-		return &vrrp->sands;
-
-	return &timer;
+	return &vrrp->sands;
 }
 
 void

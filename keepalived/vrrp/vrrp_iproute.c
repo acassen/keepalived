@@ -250,7 +250,7 @@ add_nexthop(nexthop_t *nh, struct rtmsg *rtm, struct rtattr *rta, size_t len, st
 	if (nh->ifp)
 		rtnh->rtnh_ifindex = (int)nh->ifp->ifindex;
 
-	if (nh->mask |= IPROUTE_BIT_WEIGHT)
+	if (nh->mask & IPROUTE_BIT_WEIGHT)
 		rtnh->rtnh_hops = nh->weight;
 
 	rtnh->rtnh_flags = nh->flags;
@@ -985,7 +985,7 @@ static int parse_encap_ip(const vector_t *strvec, unsigned int *i_ptr, encap_t *
 		i += 2;
 	}
 
-	if (!encap->ip.dst && !(encap->flags | IPROUTE_BIT_ENCAP_ID)) {
+	if (!encap->ip.dst && !(encap->flags & IPROUTE_BIT_ENCAP_ID)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "address or id missing for ip encapsulation");
 		goto err;
 	}
@@ -1093,7 +1093,7 @@ int parse_encap_ip6(const vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 		i += 2;
 	}
 
-	if (!encap->ip.dst && !(encap->flags | IPROUTE_BIT_ENCAP_ID)) {
+	if (!encap->ip.dst && !(encap->flags & IPROUTE_BIT_ENCAP_ID)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "address or id missing for ip6 encapsulation");
 		goto err;
 	}
@@ -1513,7 +1513,7 @@ alloc_route(list rt_list, const vector_t *strvec, bool allow_track_group)
 				i++;
 			}
 			if (get_time_rtt(&new->rttvar, strvec_slot(strvec, i), &raw) ||
-			    (!raw && new->rtt >= UINT32_MAX / 4)) {
+			    (!raw && new->rttvar >= UINT32_MAX / 4)) {
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid rttvar %s for route", strvec_slot(strvec,i));
 				goto err;
 			}

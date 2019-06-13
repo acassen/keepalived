@@ -154,13 +154,18 @@ check_params(vrrp_tracked_process_t *tpr, const char *params, size_t params_len)
 
 	if (tpr->param_match == PARAM_MATCH_EXACT)
 		return (params_len == tpr->process_params_len &&
-			!memcmp(params, tpr->process_params, tpr->process_params_len));
+			(!tpr->process_params ||
+			 !memcmp(params, tpr->process_params, tpr->process_params_len)));
+
+	if (!tpr->process_params)
+		return true;
 
 	if (tpr->param_match == PARAM_MATCH_PARTIAL)
 		return !memcmp(params, tpr->process_params, tpr->process_params_len);
 
 	/* tpr->param_match == PARAM_MATCH_INITIAL */
-	return !memcmp(params, tpr->process_params, tpr->process_params_len - 1);
+	return tpr->process_params_len == 1 ||
+	       !memcmp(params, tpr->process_params, tpr->process_params_len - 1);
 }
 
 static void
@@ -209,6 +214,8 @@ read_procs(list processes)
 			/* Read max name len + null byte + 1 extra char */
 			cmdline_len = read(fd, cmd_buf, vrrp_data->vrrp_max_process_name_len + 1);
 			close(fd);
+			if (cmdline_len < 0)
+				continue;
 			cmd_buf[cmdline_len] = '\0';
 		}
 
@@ -220,6 +227,8 @@ read_procs(list processes)
 
 			len = read(fd, stat_buf, sizeof(stat_buf) - 1);
 			close(fd);
+			if (len < 0)
+				continue;
 			stat_buf[len] = '\0';
 			if (len && stat_buf[len-1] == '\n')
 				stat_buf[len - 1] = '\0';
@@ -243,8 +252,10 @@ read_procs(list processes)
 		LIST_FOREACH(processes, tpr, e) {
 			if (tpr->full_command)
 				proc_name = cmd_buf;
-			else
+			else if (comm)
 				proc_name = comm;
+			else /* This should never happen, but coverity produces a "Explicit null dereference" error */
+				continue;
 
 			if (!strcmp(proc_name, tpr->process_path)) {
 				/* We have got a match */
@@ -335,6 +346,8 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 			cmd_buf = MALLOC(cmd_buf_len);
 			cmdline_len = read(fd, cmd_buf, vrrp_data->vrrp_max_process_name_len + 2);
 			close(fd);
+			if (cmdline_len < 0)
+				return;
 			cmd_buf[cmdline_len] = '\0';
 		}
 
@@ -349,6 +362,10 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 
 			len = read(fd, comm_buf, sizeof(comm_buf) - 1);
 			close(fd);
+			if (len < 0) {
+				FREE_PTR(cmd_buf);
+				return;
+			}
 			comm_buf[len] = '\0';
 			if (len && comm_buf[len-1] == '\n')
 				comm_buf[len-1] = '\0';
@@ -362,8 +379,10 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 			if (have_comm)
 				continue;
 			proc_name = cmd_buf;
-		} else
+		} else if (comm)
 			proc_name = comm;
+		else /* This should never happen, but coverity produces a "Dereference after null check" error */
+			continue;
 
 		if (!strcmp(proc_name, tpr->process_path)) {
 			/* We have got a match */
@@ -772,13 +791,15 @@ static int handle_proc_ev(int nl_sd)
 			if (proc_ev->cpu >= num_cpus)
 				continue;
 
-			if ((!need_reinitialise || __test_bit(LOG_DETAIL_BIT, &debug)) &&
-			    cpu_seq[proc_ev->cpu] != -1 &&
-			    !(cpu_seq[proc_ev->cpu] + 1 == cn_msg->seq ||
-			      (cn_msg->seq == 0 && cpu_seq[proc_ev->cpu] == UINT32_MAX)))
-				log_message(LOG_INFO, "Missed %" PRIi64 " messages on CPU %u", cn_msg->seq - cpu_seq[proc_ev->cpu] - 1, proc_ev->cpu);
+			if (cpu_seq) {
+				if ((!need_reinitialise || __test_bit(LOG_DETAIL_BIT, &debug)) &&
+				    cpu_seq[proc_ev->cpu] != -1 &&
+				    !(cpu_seq[proc_ev->cpu] + 1 == cn_msg->seq ||
+				      (cn_msg->seq == 0 && cpu_seq[proc_ev->cpu] == UINT32_MAX)))
+					log_message(LOG_INFO, "Missed %" PRIi64 " messages on CPU %u", cn_msg->seq - cpu_seq[proc_ev->cpu] - 1, proc_ev->cpu);
 
-			cpu_seq[proc_ev->cpu] = cn_msg->seq;
+				cpu_seq[proc_ev->cpu] = cn_msg->seq;
+			}
 
 #ifdef LOG_ALL_PROCESS_EVENTS
 			switch (proc_ev->what)
@@ -936,6 +957,7 @@ init_track_processes(list processes)
 {
 	int rc = EXIT_SUCCESS;
 	unsigned i;
+	long num;
 
 	if (global_data->process_monitor_rcv_bufs)
 		set_rcv_buf(global_data->process_monitor_rcv_bufs, global_data->process_monitor_rcv_bufs_force);
@@ -948,10 +970,15 @@ init_track_processes(list processes)
 	}
 
 	if (!cpu_seq) {
-		num_cpus = sysconf(_SC_NPROCESSORS_CONF);
-		cpu_seq = MALLOC(num_cpus * sizeof(*cpu_seq));
-		for (i = 0; i < num_cpus; i++)
-			cpu_seq[i] = -1;
+		num = sysconf(_SC_NPROCESSORS_CONF);
+		if (num > 0) {
+			num_cpus = num;
+			cpu_seq = MALLOC(num_cpus * sizeof(*cpu_seq));
+			for (i = 0; i < num_cpus; i++)
+				cpu_seq[i] = -1;
+		}
+		else
+			log_message(LOG_INFO, "sysconf returned %ld CPUs - ignoring and won't track process event sequence numbers", num);
 	}
 
 	read_procs(processes);

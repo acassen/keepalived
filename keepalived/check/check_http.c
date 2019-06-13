@@ -1134,7 +1134,7 @@ check_regex(url_t *url, request_t *req)
 			req->len -= keep;
 			memmove(req->buffer, req->buffer + keep, req->len);
 			req->regex_subject_offset += keep;
-		} else if (req->len == MAX_BUFFER_LENGTH) {
+		} else if (req->len == MAX_BUFFER_LENGTH - 1) {
 			req->regex_subject_offset += req->len;
 			log_message(LOG_INFO, "Regex partial match preserve too large - discarding");
 			return false;
@@ -1211,14 +1211,12 @@ http_handle_response(thread_ref_t thread, unsigned char digest[MD5_DIGEST_LENGTH
 	int r;
 	url_t *url = fetch_next_url(http_get_check);
 	enum {
-		NONE,
-		ON_SUCCESS,
 		ON_STATUS,
 		ON_DIGEST,
 #ifdef _WITH_REGEX_CHECK_
 		ON_REGEX,
 #endif
-	} last_success = NONE; /* the source of last considered success */
+	} last_success = ON_STATUS; /* the source of last considered success */
 
 	/* First check if remote webserver returned data */
 	if (empty_buffer)
@@ -1227,8 +1225,6 @@ http_handle_response(thread_ref_t thread, unsigned char digest[MD5_DIGEST_LENGTH
 	/* Next check the HTTP status code */
 	if (!__test_bit(req->status_code - HTTP_STATUS_CODE_MIN, url->status_code))
 		return timeout_epilog(thread, "HTTP status code error to");
-
-	last_success = ON_STATUS;
 
 	/* Report a length mismatch the first time we get the specific difference */
 	if (req->content_len != SIZE_MAX && req->content_len != req->rx_bytes) {
@@ -1274,14 +1270,6 @@ http_handle_response(thread_ref_t thread, unsigned char digest[MD5_DIGEST_LENGTH
 
 	if (!checker->is_up) {
 		switch (last_success) {
-			case NONE:
-				break;
-			case ON_SUCCESS:
-				log_message(LOG_INFO,
-				       "HTTP success to %s url(%u)."
-				       , FMT_CHK(checker)
-				       , http_get_check->url_it + 1);
-				return epilog(thread, REGISTER_CHECKER_NEW, 1, 0) + 1;
 			case ON_STATUS:
 				log_message(LOG_INFO,
 				       "HTTP status code success to %s url(%u)."
@@ -1315,6 +1303,7 @@ http_process_response(request_t *req, size_t r, url_t *url)
 	size_t old_req_len = req->len;
 
 	req->len += r;
+	req->buffer[req->len] = '\0';	/* Terminate the received data since it is used as a string */
 
 	if (!req->extracted) {
 		if ((req->extracted = extract_html(req->buffer, req->len))) {
@@ -1366,7 +1355,7 @@ http_read_thread(thread_ref_t thread)
 
 	/* read the HTTP stream */
 	r = read(thread->u.f.fd, req->buffer + req->len,
-		 MAX_BUFFER_LENGTH - req->len);
+		 MAX_BUFFER_LENGTH - 1 - req->len);	/* Allow space for adding '\0' */
 
 	/* Test if data are ready */
 	if (r == -1 && (check_EAGAIN(errno) || check_EINTR(errno))) {

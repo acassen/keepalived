@@ -61,6 +61,7 @@
 #endif
 #include "vrrp_iptables_lib.h"
 #include "vrrp_firewall.h"
+#include "utils.h"
 
 /* We sometimes get a resource_busy on iptc_commit. This appears to happen
  * when someone else is also updating it.
@@ -246,11 +247,11 @@ int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name,
 
 // target is XTC_LABEL_DROP/XTC_LABEL_ACCEPT
 	fw->next_offset = (uint16_t)size;
-	target = ipt_get_target ( fw ) ;
+	target = ipt_get_target(fw);
 	target->u.user.target_size = XT_ALIGN (sizeof (struct xt_entry_target) + 1);
-	strcpy (target->u.user.name, target_name );
+	strcpy_safe(target->u.user.name, target_name);
 //	fw->ip.flags |= IPT_F_GOTO;
-	strcpy (chain, chain_name);
+	strcpy_safe(chain, chain_name);
 	// Use iptc_append_entry to add to the chain
 	if (cmd == IPADDRESS_DEL) {
 		unsigned char *matchmask = MALLOC(fw->next_offset);
@@ -378,9 +379,9 @@ int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name
 	fw->next_offset = (uint16_t)size;
 	target = ip6t_get_target ( fw ) ;
 	target->u.user.target_size = XT_ALIGN (sizeof (struct xt_entry_target) + 1);
-	strcpy (target->u.user.name, target_name );
+	strcpy_safe(target->u.user.name, target_name);
 //	fw->ip.flags |= IPT_F_GOTO;
-	strcpy (chain, chain_name);
+	strcpy_safe(chain, chain_name);
 
 	// Use iptc_append_entry to add to the chain
 	if (cmd == IPADDRESS_DEL) {
@@ -649,9 +650,6 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, unsi
 	int sav_errno;
 
 	/* Add an entry */
-
-	memset(chain, 0, sizeof(chain));
-
 	size = XT_ALIGN(sizeof (struct ipt_entry)) +
 			XT_ALIGN(sizeof(struct xt_entry_match)) +
 			XT_ALIGN(sizeof(struct xt_entry_target) + 1) +
@@ -724,9 +722,9 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, unsi
 	fw->next_offset = (uint16_t)size;
 	target = ipt_get_target(fw);
 	target->u.user.target_size = XT_ALIGN(sizeof(struct xt_entry_target) + 1);
-	strcpy(target->u.user.name, target_name);
+	strcpy_safe(target->u.user.name, target_name);
 //	fw->ip.flags |= IPT_F_GOTO;
-	strcpy(chain, chain_name);
+	strcpy_safe(chain, chain_name);
 
 	// Use iptc_append_entry to add to the chain
 	if (cmd == IPADDRESS_DEL) {
@@ -747,7 +745,7 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, unsi
 	if (res!= 1)
 	{
 		if (!ignore_errors)
-			log_message(LOG_INFO, "iptc_insert_entry for chain %s returned %d: %s", chain, res, iptc_strerror(sav_errno)) ;
+			log_message(LOG_INFO, "iptc_insert_entry for chain %s returned %d: %s", chain_name, res, iptc_strerror(sav_errno)) ;
 
 		return sav_errno;
 	}
@@ -850,9 +848,9 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, uns
 	fw->next_offset = (uint16_t)size;
 	target = ip6t_get_target(fw);
 	target->u.user.target_size = XT_ALIGN(sizeof(struct xt_entry_target) + 1);
-	strcpy(target->u.user.name, target_name);
+	strcpy_safe(target->u.user.name, target_name);
 //	fw->ip.flags |= IP6T_F_GOTO;
-	strcpy(chain, chain_name);
+	strcpy_safe(chain, chain_name);
 
 	// Use iptc_append_entry to add to the chain
 	if (cmd == IPADDRESS_DEL) {

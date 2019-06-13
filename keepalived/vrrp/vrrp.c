@@ -636,7 +636,8 @@ vrrp_in_chk_vips(const vrrp_t *vrrp, const ip_address_t *ipaddress, const unsign
 static int
 vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t buflen_ret, bool check_vip_addr)
 {
-	const struct iphdr *ip = NULL;
+	const struct iphdr *ip = (const struct iphdr *)buffer;
+					/* Stop coverity issuing NULL pointer dereference warning */
 	int ihl = 0;	/* Stop compiler issuing possibly uninitialised warning */
 	size_t vrrppkt_len;
 	unsigned adver_int;
@@ -660,7 +661,6 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 	/* IPv4 related */
 	if (vrrp->family == AF_INET) {
 		/* To begin with, we just concern ourselves with the protocol headers */
-		ip = (const struct iphdr *) (buffer);
 		ihl = ip->ihl << 2;
 
 		expected_len = ihl;
@@ -2779,6 +2779,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				     ||  /* We should probably check if any VIPs match for IPv6 when no i/f name or address configured */
 				     (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags) &&
 				      ifp->if_type == IF_TYPE_IPVLAN &&
+				      /* coverity[mixed_enums] */
 				      ifp->vmac_type == IPVLAN_MODE_L2 &&
 				      !(vrrp->family == AF_INET6 && !vrrp->vmac_ifname[0] && !vrrp->ipvlan_addr) &&
 				      (!vrrp->vmac_ifname[0] || !strcmp(vrrp->vmac_ifname, ifp->ifname)) &&
