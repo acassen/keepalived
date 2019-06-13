@@ -149,19 +149,18 @@ notify_fifo_vs(virtual_server_t* vs)
 		return;
 
 	vs_str = FMT_VS(vs);
-	size = strlen(vs_str) + strlen(state) + 6;
-	line = MALLOC(size);
+	size = strlen(vs_str) + strlen(state) + 5;
+	line = MALLOC(size + 1);
 	if (!line)
 		return;
 
-	snprintf(line, size, "VS %s %s\n", vs_str, state);
+	snprintf(line, size + 1, "VS %s %s\n", vs_str, state);
 
-	if (global_data->notify_fifo.fd != -1) {
-		if (write(global_data->notify_fifo.fd, line, size - 1) == -1) {}
-	}
-	if (global_data->lvs_notify_fifo.fd != -1) {
-		if (write(global_data->lvs_notify_fifo.fd, line, size - 1) == -1) {}
-	}
+	if (global_data->notify_fifo.fd != -1)
+		if (write(global_data->notify_fifo.fd, line, size) == -1) {}
+
+	if (global_data->lvs_notify_fifo.fd != -1)
+		if (write(global_data->lvs_notify_fifo.fd, line, size) == -1) {}
 
 	FREE(line);
 }
