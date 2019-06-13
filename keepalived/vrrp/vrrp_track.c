@@ -481,7 +481,7 @@ alloc_track_process(vrrp_t *vrrp, const vector_t *strvec)
 		return;
 	}
 
-	/* Check this vrrp isn't already tracking the script */
+	/* Check this vrrp isn't already tracking the process */
 	LIST_FOREACH(vrrp->track_process, etprocess, e) {
 		if (etprocess->process == vsp) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) duplicate track_process %s - ignoring", vrrp->iname, tracked);
