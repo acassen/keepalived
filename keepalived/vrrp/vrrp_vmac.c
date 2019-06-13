@@ -510,6 +510,7 @@ netlink_link_add_ipvlan(vrrp_t *vrrp)
 #ifdef IFLA_IPVLAN_FLAGS
 		addattr16(&req.n, sizeof(req), IFLA_IPVLAN_FLAGS, vrrp->ipvlan_type);
 #endif
+		/* coverity[overrun-local] */
 		data->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)data);
 		linkinfo->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)linkinfo);
 
