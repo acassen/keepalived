@@ -731,7 +731,7 @@ vrrp_garp_interval_handler(const vector_t *strvec)
 {
 	double interval;
 
-	if (!read_double_strvec(strvec, 1, &interval, 1.0F / TIMER_HZ, UINT_MAX / TIMER_HZ, true))
+	if (!read_double_strvec(strvec, 1, &interval, 1.0F / TIMER_HZ, (unsigned)(UINT_MAX / TIMER_HZ), true))
 		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_garp_interval '%s' is invalid", strvec_slot(strvec, 1));
 	else
 		global_data->vrrp_garp_interval = (unsigned)(interval * TIMER_HZ);
