@@ -493,7 +493,7 @@ ipvs_set_srule(int cmd, ipvs_service_t *srule, virtual_server_t *vs)
 	/* Clean service rule */
 	memset(srule, 0, sizeof(ipvs_service_t));
 
-	strncpy(srule->user.sched_name, vs->sched, IP_VS_SCHEDNAME_MAXLEN);
+	strcpy_safe(srule->user.sched_name, vs->sched);
 	srule->af = vs->af;
 	srule->user.flags = vs->flags;
 	srule->user.netmask = (vs->af == AF_INET6) ? 128 : ((uint32_t) 0xffffffff);
