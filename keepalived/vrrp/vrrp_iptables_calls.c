@@ -247,11 +247,11 @@ int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name,
 
 // target is XTC_LABEL_DROP/XTC_LABEL_ACCEPT
 	fw->next_offset = (uint16_t)size;
-	target = ipt_get_target ( fw ) ;
+	target = ipt_get_target(fw);
 	target->u.user.target_size = XT_ALIGN (sizeof (struct xt_entry_target) + 1);
-	strcpy (target->u.user.name, target_name );
+	strcpy_safe(target->u.user.name, target_name);
 //	fw->ip.flags |= IPT_F_GOTO;
-	strcpy (chain, chain_name);
+	strcpy_safe(chain, chain_name);
 	// Use iptc_append_entry to add to the chain
 	if (cmd == IPADDRESS_DEL) {
 		unsigned char *matchmask = MALLOC(fw->next_offset);
