@@ -650,9 +650,6 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, unsi
 	int sav_errno;
 
 	/* Add an entry */
-
-	memset(chain, 0, sizeof(chain));
-
 	size = XT_ALIGN(sizeof (struct ipt_entry)) +
 			XT_ALIGN(sizeof(struct xt_entry_match)) +
 			XT_ALIGN(sizeof(struct xt_entry_target) + 1) +
@@ -725,9 +722,9 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, unsi
 	fw->next_offset = (uint16_t)size;
 	target = ipt_get_target(fw);
 	target->u.user.target_size = XT_ALIGN(sizeof(struct xt_entry_target) + 1);
-	strcpy(target->u.user.name, target_name);
+	strcpy_safe(target->u.user.name, target_name);
 //	fw->ip.flags |= IPT_F_GOTO;
-	strcpy(chain, chain_name);
+	strcpy_safe(chain, chain_name);
 
 	// Use iptc_append_entry to add to the chain
 	if (cmd == IPADDRESS_DEL) {
@@ -748,7 +745,7 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, unsi
 	if (res!= 1)
 	{
 		if (!ignore_errors)
-			log_message(LOG_INFO, "iptc_insert_entry for chain %s returned %d: %s", chain, res, iptc_strerror(sav_errno)) ;
+			log_message(LOG_INFO, "iptc_insert_entry for chain %s returned %d: %s", chain_name, res, iptc_strerror(sav_errno)) ;
 
 		return sav_errno;
 	}
