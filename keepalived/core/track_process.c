@@ -154,13 +154,18 @@ check_params(vrrp_tracked_process_t *tpr, const char *params, size_t params_len)
 
 	if (tpr->param_match == PARAM_MATCH_EXACT)
 		return (params_len == tpr->process_params_len &&
-			!memcmp(params, tpr->process_params, tpr->process_params_len));
+			(!tpr->process_params ||
+			 !memcmp(params, tpr->process_params, tpr->process_params_len)));
+
+	if (!tpr->process_params)
+		return true;
 
 	if (tpr->param_match == PARAM_MATCH_PARTIAL)
 		return !memcmp(params, tpr->process_params, tpr->process_params_len);
 
 	/* tpr->param_match == PARAM_MATCH_INITIAL */
-	return !memcmp(params, tpr->process_params, tpr->process_params_len - 1);
+	return tpr->process_params_len == 1 ||
+	       !memcmp(params, tpr->process_params, tpr->process_params_len - 1);
 }
 
 static void
