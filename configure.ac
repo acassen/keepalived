@@ -254,7 +254,7 @@ AC_ARG_ENABLE(tsm-debug,
 AC_ARG_ENABLE(vrrp-fd-debug,
   [AS_HELP_STRING([--enable-vrrp-fd-debug], [compile with vrrp fd debugging support])])
 AC_ARG_ENABLE(eintr-debug,
-  [AS_HELP_STRING([--enable-eintr-debug], [compile with EINTR debugging support, set to check/not check for EINTR])])
+  [AS_HELP_STRING([--enable-eintr-debug], [compile with EINTR debugging support, set to check/nocheck to check/not check for EINTR])])
 AC_ARG_ENABLE(track-process-debug,
   [AS_HELP_STRING([--enable-track-process-debug], [compile with track process debugging support, set to log all process connector events])])
 AC_ARG_ENABLE(parser-debug,
@@ -2479,12 +2479,11 @@ AS_IF([test .$enable_eintr_debug = .yes],
     add_config_opt([EINTR_DEBUG])
   ],
   [
-    dnl --- While testing that EINTR checking is not necessary, default to still test ---
-    dnl --- When finished testing, change following to .$enable_eintr_debug = .check ---
-    AS_IF([test .$ac_cv_func_signalfd = .no -o \( .$enable_eintr_debug != .nocheck -a .$enable_eintr_debug != .no \)],
+    dnl --- We need to check for EINTR if we are not using signalfd
+    AS_IF([test .$ac_cv_func_signalfd != .yes -o .$enable_eintr_debug = .check],
       [
 	AC_DEFINE([CHECK_EINTR], [ 1 ], [Define if need to check for EINTR errno])
-	AS_IF([test .$ac_cv_func_signalfd != .no], [add_config_opt([EINTR_CHECK])])
+	AS_IF([test .$ac_cv_func_signalfd = .yes], [add_config_opt([EINTR_CHECK])])
       ])
   ])
 
