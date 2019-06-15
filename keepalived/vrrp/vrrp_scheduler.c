@@ -1325,8 +1325,7 @@ dump_threads(void)
 				vrrp->state == VRRP_STATE_BACK ? "BACKUP" :
 				vrrp->state == VRRP_STATE_MAST ? "MASTER" :
 				vrrp->state == VRRP_STATE_FAULT ? "FAULT" :
-				vrrp->state == VRRP_STATE_STOP ? "STOP" :
-				vrrp->state == VRRP_DISPATCHER ? "DISPATCHER" : "unknown");
+				vrrp->state == VRRP_STATE_STOP ? "STOP" : "unknown");
 	}
 	fclose(fp);
 }
