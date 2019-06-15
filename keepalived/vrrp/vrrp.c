@@ -3842,7 +3842,8 @@ clear_diff_vrrp(void)
 		 */
 		new_vrrp = vrrp_exist(vrrp, &vrrp_data->vrrp);
 		if (!new_vrrp) {
-			vrrp_restore_interface(vrrp, true, false);
+			if (vrrp->state == VRRP_STATE_MAST)
+				vrrp_restore_interface(vrrp, true, false);
 
 #ifdef _HAVE_VRRP_VMAC_
 // TODO - the vmac may be being used by another instance
