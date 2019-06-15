@@ -254,7 +254,13 @@ AC_ARG_ENABLE(tsm-debug,
 AC_ARG_ENABLE(vrrp-fd-debug,
   [AS_HELP_STRING([--enable-vrrp-fd-debug], [compile with vrrp fd debugging support])])
 AC_ARG_ENABLE(eintr-debug,
-  [AS_HELP_STRING([--enable-eintr-debug], [compile with EINTR debugging support, set to check/nocheck to check/not check for EINTR])])
+  [AS_HELP_STRING([--enable-eintr-debug], [compile with EINTR debugging support, set to check/not check for EINTR])])
+AC_ARG_ENABLE(track-process-debug,
+  [AS_HELP_STRING([--enable-track-process-debug], [compile with track process debugging support, set to log all process connector events])])
+AC_ARG_ENABLE(parser-debug,
+  [AS_HELP_STRING([--enable-parser-debug], [compile with parser debugging support])])
+AC_ARG_ENABLE(dump-keywords,
+  [AS_HELP_STRING([--enable-dump-keywords], [compile with keyword dumping support])])
 AC_ARG_ENABLE(network-timestamp,
   [AS_HELP_STRING([--enable-network-timestamp], [compile with network timestamp debugging support])])
 AC_ARG_ENABLE(asserts,
@@ -2480,6 +2486,27 @@ AS_IF([test .$enable_eintr_debug = .yes],
 	AC_DEFINE([CHECK_EINTR], [ 1 ], [Define if need to check for EINTR errno])
 	AS_IF([test .$ac_cv_func_signalfd != .no], [add_config_opt([EINTR_CHECK])])
       ])
+  ])
+
+dnl ----[ Do we want to enable track process debugging code]----
+AS_IF([test .$enable_track_process_debug = .yes],
+  [
+    AC_DEFINE([_TRACK_PROCESS_DEBUG_], [ 1 ], [Define to enable logging all process connector events])
+    add_config_opt([TRACK_PROCESS_DEBUG])
+  ])
+
+dnl ----[ Do we want to enable parser debugging code]----
+AS_IF([test .$enable_parser_debug = .yes],
+  [
+    AC_DEFINE([_PARSER_DEBUG_], [ 1 ], [Define to enable parser debugging])
+    add_config_opt([PARSER_DEBUG])
+  ])
+
+dnl ----[ Do we want to enable dump keywords code]----
+AS_IF([test .$enable_dump_keywords = .yes],
+  [
+    AC_DEFINE([_DUMP_KEYWORDS_], [ 1 ], [Define to enable keyword dumping])
+    add_config_opt([DUMP_KEYWORDS])
   ])
 
 if test ${NEED_LIBDL} = Yes; then

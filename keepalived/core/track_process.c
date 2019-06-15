@@ -61,8 +61,6 @@
 #include "main.h"
 
 
-/* #define LOG_ALL_PROCESS_EVENTS */
-
 static thread_ref_t read_thread;
 static thread_ref_t reload_thread;
 static rb_root_t process_tree = RB_ROOT;
@@ -70,6 +68,10 @@ static int nl_sock = -1;
 unsigned num_cpus;
 static int64_t *cpu_seq;
 static bool need_reinitialise;
+
+#ifdef _TRACK_PROCESS_DEBUG_
+bool do_track_process_debug;
+#endif
 
 static void
 set_rcv_buf(unsigned buf_size, bool force)
@@ -801,80 +803,82 @@ static int handle_proc_ev(int nl_sd)
 				cpu_seq[proc_ev->cpu] = cn_msg->seq;
 			}
 
-#ifdef LOG_ALL_PROCESS_EVENTS
-			switch (proc_ev->what)
-			{
-			case PROC_EVENT_NONE:
-				log_message(LOG_INFO, "set mcast listen ok");
-				break;
-			case PROC_EVENT_FORK:
-				/* See if we have parent pid, in which case this is a new process */
-				log_message(LOG_INFO, "fork: parent tid=%d pid=%d -> child tid=%d pid=%d",
-						proc_ev->event_data.fork.parent_pid,
-						proc_ev->event_data.fork.parent_tgid,
-						proc_ev->event_data.fork.child_pid,
-						proc_ev->event_data.fork.child_tgid);
-				break;
-			case PROC_EVENT_EXEC:
-				log_message(LOG_INFO, "exec: tid=%d pid=%d",
-						proc_ev->event_data.exec.process_pid,
-						proc_ev->event_data.exec.process_tgid);
-				break;
-			case PROC_EVENT_UID:
-				log_message(LOG_INFO, "uid change: tid=%d pid=%d from %" PRIu32 " to %" PRIu32,
-						proc_ev->event_data.id.process_pid,
-						proc_ev->event_data.id.process_tgid,
-						proc_ev->event_data.id.r.ruid,
-						proc_ev->event_data.id.e.euid);
-				break;
-			case PROC_EVENT_GID:
-				log_message(LOG_INFO, "gid change: tid=%d pid=%d from %" PRIu32 " to %" PRIu32,
-						proc_ev->event_data.id.process_pid,
-						proc_ev->event_data.id.process_tgid,
-						proc_ev->event_data.id.r.rgid,
-						proc_ev->event_data.id.e.egid);
-				break;
+#ifdef _TRACK_PROCESS_DEBUG_
+			if (do_track_process_debug) {
+				switch (proc_ev->what)
+				{
+				case PROC_EVENT_NONE:
+					log_message(LOG_INFO, "set mcast listen ok");
+					break;
+				case PROC_EVENT_FORK:
+					/* See if we have parent pid, in which case this is a new process */
+					log_message(LOG_INFO, "fork: parent tid=%d pid=%d -> child tid=%d pid=%d",
+							proc_ev->event_data.fork.parent_pid,
+							proc_ev->event_data.fork.parent_tgid,
+							proc_ev->event_data.fork.child_pid,
+							proc_ev->event_data.fork.child_tgid);
+					break;
+				case PROC_EVENT_EXEC:
+					log_message(LOG_INFO, "exec: tid=%d pid=%d",
+							proc_ev->event_data.exec.process_pid,
+							proc_ev->event_data.exec.process_tgid);
+					break;
+				case PROC_EVENT_UID:
+					log_message(LOG_INFO, "uid change: tid=%d pid=%d from %" PRIu32 " to %" PRIu32,
+							proc_ev->event_data.id.process_pid,
+							proc_ev->event_data.id.process_tgid,
+							proc_ev->event_data.id.r.ruid,
+							proc_ev->event_data.id.e.euid);
+					break;
+				case PROC_EVENT_GID:
+					log_message(LOG_INFO, "gid change: tid=%d pid=%d from %" PRIu32 " to %" PRIu32,
+							proc_ev->event_data.id.process_pid,
+							proc_ev->event_data.id.process_tgid,
+							proc_ev->event_data.id.r.rgid,
+							proc_ev->event_data.id.e.egid);
+					break;
 #if HAVE_DECL_PROC_EVENT_SID	/* Since Linux v2.6.32 */
-			case PROC_EVENT_SID:
-				log_message(LOG_INFO, "sid change: tid=%d pid=%d",
-						proc_ev->event_data.sid.process_pid,
-						proc_ev->event_data.sid.process_tgid);
-				break;
+				case PROC_EVENT_SID:
+					log_message(LOG_INFO, "sid change: tid=%d pid=%d",
+							proc_ev->event_data.sid.process_pid,
+							proc_ev->event_data.sid.process_tgid);
+					break;
 #endif
 #if HAVE_DECL_PROC_EVENT_PTRACE	/* Since Linux v3.1 */
-			case PROC_EVENT_PTRACE:
-				log_message(LOG_INFO, "ptrace change: tid=%d pid=%d tracer tid=%d, pid=%d",
-						proc_ev->event_data.ptrace.process_pid,
-						proc_ev->event_data.ptrace.process_tgid,
-						proc_ev->event_data.ptrace.tracer_pid,
-						proc_ev->event_data.ptrace.tracer_tgid);
-				break;
+				case PROC_EVENT_PTRACE:
+					log_message(LOG_INFO, "ptrace change: tid=%d pid=%d tracer tid=%d, pid=%d",
+							proc_ev->event_data.ptrace.process_pid,
+							proc_ev->event_data.ptrace.process_tgid,
+							proc_ev->event_data.ptrace.tracer_pid,
+							proc_ev->event_data.ptrace.tracer_tgid);
+					break;
 #endif
 #if HAVE_DECL_PROC_EVENT_COMM		/* Since Linux v3.2 */
-			case PROC_EVENT_COMM:
-				log_message(LOG_INFO, "comm: tid=%d pid=%d comm %s",
-						proc_ev->event_data.comm.process_pid,
-						proc_ev->event_data.comm.process_tgid,
-						proc_ev->event_data.comm.comm);
-				break;
+				case PROC_EVENT_COMM:
+					log_message(LOG_INFO, "comm: tid=%d pid=%d comm %s",
+							proc_ev->event_data.comm.process_pid,
+							proc_ev->event_data.comm.process_tgid,
+							proc_ev->event_data.comm.comm);
+					break;
 #endif
 #if HAVE_DECL_PROC_EVENT_COREDUMP	/* Since Linux v3.10 */
-			case PROC_EVENT_COREDUMP:
-				log_message(LOG_INFO, "coredump: tid=%d pid=%d",
-						proc_ev->event_data.coredump.process_pid,
-						proc_ev->event_data.coredump.process_tgid);
-				break;
+				case PROC_EVENT_COREDUMP:
+					log_message(LOG_INFO, "coredump: tid=%d pid=%d",
+							proc_ev->event_data.coredump.process_pid,
+							proc_ev->event_data.coredump.process_tgid);
+					break;
 #endif
-			case PROC_EVENT_EXIT:
-				log_message(LOG_INFO, "exit: tid=%d pid=%d exit_code=%u, signal=%u,",
-						proc_ev->event_data.exit.process_pid,
-						proc_ev->event_data.exit.process_tgid,
-						proc_ev->event_data.exit.exit_code,
-						proc_ev->event_data.exit.exit_signal);
-				break;
-			default:
-				log_message(LOG_INFO, "unhandled proc event %u", proc_ev->what);
-				break;
+				case PROC_EVENT_EXIT:
+					log_message(LOG_INFO, "exit: tid=%d pid=%d exit_code=%u, signal=%u,",
+							proc_ev->event_data.exit.process_pid,
+							proc_ev->event_data.exit.process_tgid,
+							proc_ev->event_data.exit.exit_code,
+							proc_ev->event_data.exit.exit_signal);
+					break;
+				default:
+					log_message(LOG_INFO, "unhandled proc event %u", proc_ev->what);
+					break;
+				}
 			}
 #endif
 

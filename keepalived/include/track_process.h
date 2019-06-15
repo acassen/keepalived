@@ -30,6 +30,9 @@
 #include "list.h"
 #include "vrrp.h"
 
+#ifdef _TRACK_PROCESS_DEBUG_
+extern bool do_track_process_debug;
+#endif
 
 /* prototypes */
 extern void reload_track_processes(void);

@@ -79,6 +79,13 @@ extern vector_t *keywords;
 extern const char *config_id;
 extern const char *WHITE_SPACE;
 
+#ifdef _PARSER_DEBUG_
+extern bool do_parser_debug;
+#endif
+#ifdef _DUMP_KEYWORDS_
+extern bool do_dump_keywords;
+#endif
+
 #ifdef _MEM_CHECK_
 #define alloc_strvec(str)	(memcheck_log("alloc_strvec", str, (__FILE__), (__func__), (__LINE__)), \
                                  alloc_strvec_r(str))
