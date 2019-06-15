@@ -1197,6 +1197,7 @@ thread_add_timer(thread_master_t *m, thread_func_t func, void *arg, unsigned lon
 	thread->master = m;
 	thread->func = func;
 	thread->arg = arg;
+	thread->u.val = 0;
 
 	/* Do we need jitter here? */
 	if (timer == TIMER_NEVER)
