@@ -188,6 +188,8 @@ vrrp_init_state(list l)
 	}
 
 	LIST_FOREACH(l, vrrp, e) {
+		int vrrp_begin_state = vrrp->state;
+
 		/* wantstate is the state we would be in disregarding any sync group */
 		if (vrrp->state == VRRP_STATE_FAULT)
 			vrrp->wantstate = VRRP_STATE_FAULT;
@@ -249,14 +251,22 @@ vrrp_init_state(list l)
 			/* Set interface state */
 			vrrp_restore_interface(vrrp, false, false);
 			if (is_up && new_state != VRRP_STATE_FAULT && !vrrp->num_script_init && (!vrrp->sync || !vrrp->sync->num_member_init)) {
-				vrrp->state = VRRP_STATE_BACK;
-				log_message(LOG_INFO, "(%s) Entering BACKUP STATE (init)", vrrp->iname);
+				if (vrrp->state != VRRP_STATE_BACK) {
+					log_message(LOG_INFO, "(%s) Entering BACKUP STATE (init)", vrrp->iname);
+					vrrp->state = VRRP_STATE_BACK;
+				}
 			} else {
+				/* Note: if we have alpha mode scripts, we enter fault state, but don't want
+				 * to log it here */
+				if (vrrp_begin_state != vrrp->state)
+					log_message(LOG_INFO, "(%s) Entering FAULT STATE (init)", vrrp->iname);
 				vrrp->state = VRRP_STATE_FAULT;
-				log_message(LOG_INFO, "(%s) Entering FAULT STATE (init)", vrrp->iname);
 			}
-			send_instance_notifies(vrrp);
-			vrrp->last_transition = timer_now();
+			if (vrrp_begin_state != vrrp->state) {
+				if (vrrp->state != VRRP_STATE_FAULT || vrrp->num_script_if_fault)
+					send_instance_notifies(vrrp);
+				vrrp->last_transition = timer_now();
+			}
 		}
 #ifdef _WITH_SNMP_RFC_
 		vrrp->stats->uptime = timer_now();
