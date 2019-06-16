@@ -52,9 +52,6 @@
 #include "bitops.h"
 #include "utils.h"
 
-/* #define PARSER_DEBUG */
-
-#define DUMP_KEYWORDS	0
 
 #define DEF_LINE_END	"\n"
 
@@ -83,6 +80,12 @@ typedef struct _multiline_stack_ent {
 vector_t *keywords;
 const char *config_id;
 const char *WHITE_SPACE = WHITE_SPACE_STR;
+#ifdef _PARSER_DEBUG_
+bool do_parser_debug;
+#endif
+#ifdef _DUMP_KEYWORDS_
+bool do_dump_keywords;
+#endif
 
 /* local vars */
 static vector_t *current_keywords;
@@ -473,7 +476,7 @@ install_sublevel_end_handler(void (*handler) (void))
 	keyword->sub_close_handler = handler;
 }
 
-#if DUMP_KEYWORDS
+#ifdef _DUMP_KEYWORDS_
 static void
 dump_keywords(vector_t *keydump, int level, FILE *fp)
 {
@@ -778,7 +781,7 @@ typedef struct _seq {
 
 static list seq_list;	/* List of seq_t */
 
-#ifdef PARSER_DEBUG
+#ifdef _PARSER_DEBUG_
 static void
 dump_seqs(void)
 {
@@ -895,7 +898,7 @@ add_seq(char *buf)
 	return true;
 }
 
-#ifdef PARSER_DEBUG
+#ifdef _PARSER_DEBUG_
 static void
 dump_definitions(void)
 {
@@ -996,9 +999,11 @@ process_stream(vector_t *keywords_vec, int need_bob)
 			if (!add_seq(buf))
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid ~SEQ specification '%s'", buf);
 			free_strvec(strvec);
-#ifdef PARSER_DEBUG
-			dump_definitions();
-			dump_seqs();
+#ifdef _PARSER_DEBUG_
+			if (do_parser_debug) {
+				dump_definitions();
+				dump_seqs();
+			}
 #endif
 			continue;
 		}
@@ -1498,8 +1503,9 @@ set_definition(const char *name, const char *value)
 	def->value_len = strlen(value);
 	def->value = STRNDUP(value, def->value_len);
 
-#ifdef PARSER_DEBUG
-	log_message(LOG_INFO, "Definition %s now '%s'", def->name, def->value);
+#ifdef _PARSER_DEBUG_
+	if (do_parser_debug)
+		log_message(LOG_INFO, "Definition %s now '%s'", def->name, def->value);
 #endif
 
 	return def;
@@ -1717,16 +1723,18 @@ read_line(char *buf, size_t size)
 			seq_t *seq = LIST_TAIL_DATA(seq_list);
 			char val[12];
 			snprintf(val, sizeof(val), "%d", seq->next);
-#ifdef PARSER_DEBUG
-			log_message(LOG_INFO, "Processing seq %d of %s for '%s'",  seq->next, seq->var, seq->text);
+#ifdef _PARSER_DEBUG_
+			if (do_parser_debug)
+				log_message(LOG_INFO, "Processing seq %d of %s for '%s'",  seq->next, seq->var, seq->text);
 #endif
 			set_definition(seq->var, val);
 			strcpy(buf, seq->text);
 			seq->next += seq->step;
 			if ((seq->step > 0 && seq->next > seq->last) ||
 			    (seq->step < 0 && seq->next < seq->last)) {
-#ifdef PARSER_DEBUG
-				log_message(LOG_INFO, "Removing seq %s for '%s'", seq->var, seq->text);
+#ifdef _PARSER_DEBUG_
+				if (do_parser_debug)
+					log_message(LOG_INFO, "Removing seq %s for '%s'", seq->var, seq->text);
 #endif
 				list_remove(seq_list, seq_list->tail);
 			}
@@ -1926,8 +1934,9 @@ read_line(char *buf, size_t size)
 		}
 	}
 
-#ifdef PARSER_DEBUG
-	log_message(LOG_INFO, "read_line(%d): '%s'", block_depth, buf);
+#ifdef _PARSER_DEBUG_
+	if (do_parser_debug)
+		log_message(LOG_INFO, "read_line(%d): '%s'", block_depth, buf);
 #endif
 
 	return !eof;
@@ -2059,9 +2068,10 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void))
 	/* Add out standard definitions */
 	set_std_definitions();
 
-#if DUMP_KEYWORDS
+#ifdef _DUMP_KEYWORDS_
 	/* Dump configuration */
-	dump_keywords(keywords, 0, NULL);
+	if (do_dump_keywords)
+		dump_keywords(keywords, 0, NULL);
 #endif
 
 	/* Stream handling */

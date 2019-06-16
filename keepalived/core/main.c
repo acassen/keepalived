@@ -96,6 +96,9 @@
 #ifdef _TSM_DEBUG_
 #include "vrrp_scheduler.h"
 #endif
+#if defined _PARSER_DEBUG_ || defined _DUMP_KEYWORDS_
+#include "parser.h"
+#endif
 #include "warnings.h"
 
 /* musl libc doesn't define the following */
@@ -168,7 +171,7 @@ static const char *core_dump_pattern = "core";
 static char *orig_core_dump_pattern = NULL;
 
 /* debug flags */
-#if defined _TIMER_CHECK_ || defined _SMTP_ALERT_DEBUG_ || defined _EPOLL_DEBUG_ || defined _EPOLL_THREAD_DUMP_ || defined _REGEX_DEBUG_ || defined _WITH_REGEX_TIMERS_ || defined _TSM_DEBUG_ || defined _VRRP_FD_DEBUG_ || defined _NETLINK_TIMERS_ || defined _NETWORK_TIMESTAMP_
+#if defined _TIMER_CHECK_ || defined _SMTP_ALERT_DEBUG_ || defined _EPOLL_DEBUG_ || defined _EPOLL_THREAD_DUMP_ || defined _REGEX_DEBUG_ || defined _WITH_REGEX_TIMERS_ || defined _TSM_DEBUG_ || defined _VRRP_FD_DEBUG_ || defined _NETLINK_TIMERS_ || defined _NETWORK_TIMESTAMP_ || defined _TRACK_PROCESS_DEBUG_ || defined _PARSER_DEBUG_ || defined _DUMP_KEYWORDS_
 #define WITH_DEBUG_OPTIONS 1
 #endif
 
@@ -201,6 +204,15 @@ static char netlink_timer_debug;
 #endif
 #ifdef _NETWORK_TIMESTAMP_
 static char network_timestamp_debug;
+#endif
+#ifdef _TRACK_PROCESS_DEBUG_
+static char track_process_debug;
+#endif
+#ifdef _PARSER_DEBUG_
+static char parser_debug;
+#endif
+#ifdef _DUMP_KEYWORDS_
+static char dump_keywords;
 #endif
 
 void
@@ -1007,6 +1019,15 @@ initialise_debug_options(void)
 #ifdef _NETWORK_TIMESTAMP_
 	do_network_timestamp = !!(network_timestamp_debug & mask);
 #endif
+#ifdef _TRACK_PROCESS_DEBUG_
+	do_track_process_debug = !!(track_process_debug & mask);
+#endif
+#ifdef _PARSER_DEBUG_
+	do_parser_debug = !!(parser_debug & mask);
+#endif
+#ifdef _DUMP_KEYWORDS_
+	do_dump_keywords = !!(dump_keywords & mask);
+#endif
 #endif
 }
 RELAX_SUGGEST_ATTRIBUTE_CONST_END
@@ -1064,6 +1085,15 @@ set_debug_options(const char *options)
 #endif
 #ifdef _NETWORK_TIMESTAMP_
 		network_timestamp_debug = all_processes;
+#endif
+#ifdef _TRACK_PROCESS_DEBUG_
+		track_process_debug = all_processes;
+#endif
+#ifdef _PARSER_DEBUG_
+		parser_debug = all_processes;
+#endif
+#ifdef _DUMP_KEYWORDS_
+		dump_keywords = all_processes;
 #endif
 
 		return;
@@ -1162,6 +1192,21 @@ set_debug_options(const char *options)
 #ifdef _NETWORK_TIMESTAMP_
 		case 'P':
 			network_timestamp_debug = processes;
+			break;
+#endif
+#ifdef _TRACK_PROCESS_DEBUG_
+		case 'O':
+			track_process_debug = processes;
+			break;
+#endif
+#ifdef _PARSER_DEBUG_
+		case 'C':
+			parser_debug = processes;
+			break;
+#endif
+#ifdef _DUMP_KEYWORDS_
+		case 'K':
+			dump_keywords = processes;
 			break;
 #endif
 		default:
@@ -1272,6 +1317,15 @@ usage(const char *prog)
 #endif
 #ifdef _NETWORK_TIMESTAMP_
 	fprintf(stderr, "                                   P - network timestamp debug\n");
+#endif
+#ifdef _TRACK_PROCESS_DEBUG_
+	fprintf(stderr, "                                   O - track process debug\n");
+#endif
+#ifdef _PARSER_DEBUG_
+	fprintf(stderr, "                                   C - parser (config) debug\n");
+#endif
+#ifdef _DUMP_KEYWORDS_
+	fprintf(stderr, "                                   K - dump keywords\n");
 #endif
 	fprintf(stderr, "                                 Example --debug=TpMEvcp\n");
 #endif

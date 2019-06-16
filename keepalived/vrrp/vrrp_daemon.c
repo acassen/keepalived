@@ -640,8 +640,7 @@ start_vrrp(data_t *prev_global_data)
 		thread_add_timer(master, vrrp_dispatcher_init, NULL,
 				 global_data->vrrp_startup_delay);
 	} else
-		thread_add_event(master, vrrp_dispatcher_init, NULL,
-				 VRRP_DISPATCHER);
+		thread_add_event(master, vrrp_dispatcher_init, NULL, 0);
 
 	/* Set the process priority and non swappable if configured */
 	set_process_priorities(

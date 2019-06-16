@@ -131,7 +131,7 @@ static void
 dump_email(FILE *fp, const void *data)
 {
 	const char *addr = data;
-	conf_write(fp, " Email notification = %s", addr);
+	conf_write(fp, "   %s", addr);
 }
 
 void
@@ -407,6 +407,7 @@ dump_global_data(FILE *fp, data_t * data)
 	if (data->email_from) {
 		conf_write(fp, " Email notification from = %s"
 				    , data->email_from);
+		conf_write(fp, " Email notification to:");
 		dump_list(fp, data->email);
 	}
 	conf_write(fp, " Default smtp_alert = %s",
@@ -510,8 +511,8 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " Gratuitous ARP lower priority repeat = %u", data->vrrp_garp_lower_prio_rep);
 	conf_write(fp, " Send advert after receive lower priority advert = %s", data->vrrp_lower_prio_no_advert ? "false" : "true");
 	conf_write(fp, " Send advert after receive higher priority advert = %s", data->vrrp_higher_prio_send_advert ? "true" : "false");
-	conf_write(fp, " Gratuitous ARP interval = %u", data->vrrp_garp_interval);
-	conf_write(fp, " Gratuitous NA interval = %u", data->vrrp_gna_interval);
+	conf_write(fp, " Gratuitous ARP interval = %f", data->vrrp_garp_interval / TIMER_HZ_DOUBLE);
+	conf_write(fp, " Gratuitous NA interval = %f", data->vrrp_gna_interval / TIMER_HZ_DOUBLE);
 	conf_write(fp, " VRRP default protocol version = %d", data->vrrp_version);
 #ifdef _WITH_IPTABLES_
 	if (data->vrrp_iptables_inchain[0]) {

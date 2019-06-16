@@ -344,7 +344,6 @@ typedef struct _vrrp_t {
 #define VRRP_STATE_MAST			2	/* rfc2338.6.4.3 */
 #define VRRP_STATE_FAULT		3	/* internal */
 #define VRRP_STATE_STOP			98	/* internal */
-#define VRRP_DISPATCHER			99	/* internal */
 #define VRRP_EVENT_MASTER_RX_LOWER_PRI	1000	/* Dummy state for sending event notify */
 #define VRRP_EVENT_MASTER_PRIORITY_CHANGE 1001	/* Dummy state for sending event notify */
 #define VRRP_EVENT_BACKUP_PRIORITY_CHANGE 1002	/* Dummy state for sending event notify */

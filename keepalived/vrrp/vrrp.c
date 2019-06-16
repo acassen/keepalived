@@ -3842,8 +3842,17 @@ clear_diff_vrrp(void)
 		 */
 		new_vrrp = vrrp_exist(vrrp, &vrrp_data->vrrp);
 		if (!new_vrrp) {
-			vrrp_restore_interface(vrrp, true, false);
+			if (vrrp->state != VRRP_STATE_FAULT) {
+				if (vrrp->state == VRRP_STATE_MAST)
+					vrrp_restore_interface(vrrp, true, false);
 
+				/* We don't have a way of saying that an instance is deleted;
+				 * the nearest thing is to say the instance is in fault state,
+				 * i.e. it cannot run, which it certainly can't if it isr
+				 * deleted. */
+				vrrp->state = VRRP_STATE_FAULT;
+				send_instance_notifies(vrrp);
+			}
 #ifdef _HAVE_VRRP_VMAC_
 // TODO - the vmac may be being used by another instance
 			/* Remove VMAC if one was created */
