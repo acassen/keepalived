@@ -1783,6 +1783,16 @@ The syntax for virtual_server is :
             # of a "Connection: close" line, which is included in
             # version 1.1 by default.
             \fBhttp_protocol \fR<PROTOCOL>
+            # When alpha mode is set, or when recovering from a failure,
+            # each URL is checked, with a delay of <delay_loop> between
+            # each check. if there were 20 URLs, and the <delay_loop> were
+            # 3 seconds, it would take 1 minute before the RS would come up
+            # following startup, or recovery from a failure. Setting
+            # fast_recovery removes the delay, both at start up and after
+            # recovery from a failure, meaning that the RS will come up
+            # once all the URLs have been checked, with no delay between
+            # checking each URL.
+            \fBfast_recovery \fR[<BOOL>]
             # An url to test
             # can have multiple entries here
             \fBurl \fR{

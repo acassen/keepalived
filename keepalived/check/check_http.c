@@ -320,6 +320,10 @@ dump_http_get_check(FILE *fp, const checker_t *checker)
 	dump_checker_opts(fp, checker);
 	if (http_get_chk->virtualhost)
 		conf_write(fp, "   Virtualhost = %s", http_get_chk->virtualhost);
+#ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
+	conf_write(fp, "   Enable SNI %sset", http_get_chk->enable_sni ? "" : "un");
+#endif
+ 	conf_write(fp, "   Fast recovery %sset", http_get_chk->fast_recovery ? "" : "un");
 	dump_list(fp, http_get_chk->url);
 	if (http_get_chk->failed_url)
 		conf_write(fp, "   Failed URL = %s", http_get_chk->failed_url->path);
@@ -784,6 +788,22 @@ enable_sni_handler(const vector_t *strvec)
 #endif
 
 static void
+fast_recovery_handler(const vector_t *strvec)
+{
+	http_checker_t *http_get_chk = CHECKER_GET();
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec, 1));
+		if (res == -1) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid fast_recovery parameter %s", strvec_slot(strvec, 1));
+			return;
+		}
+	}
+	http_get_chk->fast_recovery = res;
+}
+
+static void
 url_check(void)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
@@ -846,6 +866,7 @@ install_http_ssl_check_keyword(const char *keyword)
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 	install_keyword("enable_sni", &enable_sni_handler);
 #endif
+	install_keyword("fast_recovery", &fast_recovery_handler);
 	install_keyword("url", &url_handler);
 	install_sublevel();
 	install_keyword("path", &path_handler);
@@ -1009,9 +1030,10 @@ epilog(thread_ref_t thread, register_checker_t method)
 
 	/* Register next checker thread.
 	 * If the checker is not up, but we are not aware of any failure,
-	 * don't delay the checks. */
-	if (!checker->has_run ||
-	    (!checker->is_up && !http_get_check->failed_url))
+	 * don't delay the checks if fast_recovery option specified. */
+	if (http_get_check->fast_recovery &&
+	    (!checker->has_run ||
+	     (!checker->is_up && !http_get_check->failed_url)))
 		thread_add_event(thread->master, http_connect_thread, checker, 0);
 	else
 		thread_add_timer(thread->master, http_connect_thread, checker, delay);

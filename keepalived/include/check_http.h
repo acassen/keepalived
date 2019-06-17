@@ -121,6 +121,7 @@ typedef struct _http_checker {
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 	bool				enable_sni;
 #endif
+	bool				fast_recovery;
 } http_checker_t;
 
 /* global defs */
