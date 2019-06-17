@@ -940,6 +940,9 @@ epilog(thread_ref_t thread, register_checker_t method)
 			    (rs_was_alive != checker->rs->alive || !global_data->no_checker_emails))
 				smtp_alert(SMTP_MSG_RS, checker, NULL,
 					   "=> CHECK succeed on service <=");
+
+			/* We have done all the checks, so mark as has run */
+			checker->has_run = true;
 		}
 
 		/* Reset it counters */
@@ -991,8 +994,6 @@ epilog(thread_ref_t thread, register_checker_t method)
 		thread_close_fd(thread);
 	}
 
-	checker->has_run = true;
-
 	/* Register next checker thread */
 	thread_add_timer(thread->master, http_connect_thread, checker, delay);
 	return 0;
@@ -1004,11 +1005,12 @@ timeout_epilog(thread_ref_t thread, const char *debug_msg)
 	checker_t *checker = THREAD_ARG(thread);
 
 	/* check if server is currently alive */
-	if (checker->is_up) {
+	if (checker->is_up || !checker->has_run) {
 		if (global_data->checker_log_all_failures || checker->log_all_failures)
 			log_message(LOG_INFO, "%s server %s."
 					    , debug_msg
 					    , FMT_CHK(checker));
+		checker->has_run = true;
 		return epilog(thread, REGISTER_CHECKER_RETRY);
 	}
 
