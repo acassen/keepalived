@@ -974,17 +974,10 @@ epilog(thread_ref_t thread, int method, unsigned t, unsigned c)
 	}
 
 	/* register next timer thread */
-	switch (method) {
-	case REGISTER_CHECKER_NEW:
+	if (method == REGISTER_CHECKER_NEW)
 		delay = checker->delay_loop;
-		break;
-	case REGISTER_CHECKER_RETRY:
-		if (http_get_check->url_it == 0 && checker->retry_it == 0)
-			delay = checker->delay_loop;
-		else
-			delay = checker->delay_before_retry;
-		break;
-	}
+	else
+		delay = checker->delay_before_retry;
 
 	/* If req == NULL, fd is not created */
 	if (req) {
@@ -1210,13 +1203,7 @@ http_handle_response(thread_ref_t thread, unsigned char digest[MD5_DIGEST_LENGTH
 	request_t *req = http_get_check->req;
 	int r;
 	url_t *url = fetch_next_url(http_get_check);
-	enum {
-		ON_STATUS,
-		ON_DIGEST,
-#ifdef _WITH_REGEX_CHECK_
-		ON_REGEX,
-#endif
-	} last_success = ON_STATUS; /* the source of last considered success */
+	const char *msg = "HTTP status code";
 
 	/* First check if remote webserver returned data */
 	if (empty_buffer)
@@ -1245,7 +1232,7 @@ http_handle_response(thread_ref_t thread, unsigned char digest[MD5_DIGEST_LENGTH
 
 		if (r)
 			return timeout_epilog(thread, "MD5 digest error to");
-		last_success = ON_DIGEST;
+		msg = "MD5 digest";
 	}
 
 #ifdef _WITH_REGEX_CHECK_
@@ -1264,33 +1251,16 @@ http_handle_response(thread_ref_t thread, unsigned char digest[MD5_DIGEST_LENGTH
 
 		if (req->regex_matched == url->regex_no_match)
 			return timeout_epilog(thread, "Regex match failed");
-		last_success = ON_REGEX;
+		msg = "Regex match";
 	}
 #endif
 
 	if (!checker->is_up) {
-		switch (last_success) {
-			case ON_STATUS:
-				log_message(LOG_INFO,
-				       "HTTP status code success to %s url(%u)."
-				       , FMT_CHK(checker)
-				       , http_get_check->url_it + 1);
-				return epilog(thread, REGISTER_CHECKER_NEW, 1, 0) + 1;
-			case ON_DIGEST:
-				log_message(LOG_INFO,
-					"MD5 digest success to %s url(%u)."
-					, FMT_CHK(checker)
-					, http_get_check->url_it + 1);
-				return epilog(thread, REGISTER_CHECKER_NEW, 1, 0) + 1;
-#ifdef _WITH_REGEX_CHECK_
-			case ON_REGEX:
-				log_message(LOG_INFO,
-					"Regex match success to %s url(%u)."
-					, FMT_CHK(checker)
-					, http_get_check->url_it + 1);
-				return epilog(thread, REGISTER_CHECKER_NEW, 1, 0) + 1;
-#endif
-		}
+		log_message(LOG_INFO,
+			"%s success to %s url(%u).", msg
+			, FMT_CHK(checker)
+			, http_get_check->url_it + 1);
+		return epilog(thread, REGISTER_CHECKER_NEW, 1, 0) + 1;
 	}
 
 	return epilog(thread, REGISTER_CHECKER_NEW, 0, 0) + 1;
