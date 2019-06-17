@@ -321,6 +321,8 @@ dump_http_get_check(FILE *fp, const checker_t *checker)
 	if (http_get_chk->virtualhost)
 		conf_write(fp, "   Virtualhost = %s", http_get_chk->virtualhost);
 	dump_list(fp, http_get_chk->url);
+	if (http_get_chk->failed_url)
+		conf_write(fp, "   Failed URL = %s", http_get_chk->failed_url->path);
 }
 static http_checker_t *
 alloc_http_get(const char *proto)
@@ -927,9 +929,8 @@ epilog(thread_ref_t thread, register_checker_t method)
 	} else if (method == REGISTER_CHECKER_RETRY)
 		checker->retry_it++;
 
-	if (method == REGISTER_CHECKER_NEW && !http_get_check->url_it) {
-		/* All the url have been successfully checked.
-		 * Check completed.
+	if (method == REGISTER_CHECKER_NEW && !http_get_check->url_it && !http_get_check->failed_url) {
+		/* Check completed. All the url have been successfully checked.
 		 * check if server is currently alive.
 		 */
 		if (!checker->is_up || !checker->has_run) {
@@ -978,7 +979,12 @@ epilog(thread_ref_t thread, register_checker_t method)
 					   " : HTTP request failed <=");
 		}
 
-		/* Reset it counters */
+		/* Mark we have a failed URL */
+		http_get_check->failed_url = ELEMENT_DATA(http_get_check->url_it);
+	}
+	else if (method == REGISTER_CHECKER_NEW && http_get_check->failed_url) {
+		/* If the failed URL is now up, check all the URLs */
+		http_get_check->failed_url = NULL;
 		http_get_check->url_it = LIST_HEAD(http_get_check->url);
 		checker->retry_it = 0;
 	}

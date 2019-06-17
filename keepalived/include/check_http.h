@@ -113,6 +113,7 @@ typedef struct _url {
 typedef struct _http_checker {
 	unsigned			proto;
 	element				url_it;		/* current url checked list element */
+	url_t				*failed_url;	/* the url that is currently failing, if any */
 	request_t			*req;		/* GET buffer and SSL args */
 	list				url;
 	http_protocol_t			http_protocol;
