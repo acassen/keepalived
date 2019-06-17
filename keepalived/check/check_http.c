@@ -1010,7 +1010,8 @@ epilog(thread_ref_t thread, register_checker_t method)
 	/* Register next checker thread.
 	 * If the checker is not up, but we are not aware of any failure,
 	 * don't delay the checks. */
-	if (!checker->has_run)
+	if (!checker->has_run ||
+	    (!checker->is_up && !http_get_check->failed_url))
 		thread_add_event(thread->master, http_connect_thread, checker, 0);
 	else
 		thread_add_timer(thread->master, http_connect_thread, checker, delay);
