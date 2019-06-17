@@ -54,8 +54,11 @@
 #include "scheduler.h"
 #endif
 
-#define	REGISTER_CHECKER_NEW	1
-#define	REGISTER_CHECKER_RETRY	2
+typedef enum {
+	REGISTER_CHECKER_NEW,
+	REGISTER_CHECKER_RETRY,
+	REGISTER_CHECKER_FAILED
+} register_checker_t;
 
 
 #ifdef _WITH_REGEX_CHECK_
@@ -317,7 +320,13 @@ dump_http_get_check(FILE *fp, const checker_t *checker)
 	dump_checker_opts(fp, checker);
 	if (http_get_chk->virtualhost)
 		conf_write(fp, "   Virtualhost = %s", http_get_chk->virtualhost);
+#ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
+	conf_write(fp, "   Enable SNI %sset", http_get_chk->enable_sni ? "" : "un");
+#endif
+ 	conf_write(fp, "   Fast recovery %sset", http_get_chk->fast_recovery ? "" : "un");
 	dump_list(fp, http_get_chk->url);
+	if (http_get_chk->failed_url)
+		conf_write(fp, "   Failed URL = %s", http_get_chk->failed_url->path);
 }
 static http_checker_t *
 alloc_http_get(const char *proto)
@@ -460,6 +469,8 @@ url_handler(__attribute__((unused)) const vector_t *strvec)
 #ifdef _WITH_REGEX_CHECK_
 	conf_regex_options = 0;
 #endif
+
+	http_get_chk->url_it = LIST_HEAD(http_get_chk->url);
 }
 
 static void
@@ -777,6 +788,22 @@ enable_sni_handler(const vector_t *strvec)
 #endif
 
 static void
+fast_recovery_handler(const vector_t *strvec)
+{
+	http_checker_t *http_get_chk = CHECKER_GET();
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec, 1));
+		if (res == -1) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid fast_recovery parameter %s", strvec_slot(strvec, 1));
+			return;
+		}
+	}
+	http_get_chk->fast_recovery = res;
+}
+
+static void
 url_check(void)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
@@ -839,6 +866,7 @@ install_http_ssl_check_keyword(const char *keyword)
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 	install_keyword("enable_sni", &enable_sni_handler);
 #endif
+	install_keyword("fast_recovery", &fast_recovery_handler);
 	install_keyword("url", &url_handler);
 	install_sublevel();
 	install_keyword("path", &path_handler);
@@ -900,15 +928,14 @@ install_ssl_check_keyword(void)
 
 /*
  * Simple epilog functions. Handling event timeout.
- * Finish the checker with memory managment or url rety check.
+ * Finish the checker with memory management or url rety check.
  *
- * c == 0 => reset to 0 retry_it counter
- * t == 0 => reset to 0 url_it counter
- * method == 1 => register a new checker thread
- * method == 2 => register a retry on url checker thread
+ * method == REGISTER_CHECKER_NEW => register a new checker thread
+ * method == REGISTER_CHECKER_RETRY => register a retry on url checker thread
+ * method == REGISTER_CHECKER_FAILED => register a checker on the failed URL
  */
 static int
-epilog(thread_ref_t thread, int method, unsigned t, unsigned c)
+epilog(thread_ref_t thread, register_checker_t method)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
@@ -917,12 +944,14 @@ epilog(thread_ref_t thread, int method, unsigned t, unsigned c)
 	bool checker_was_up;
 	bool rs_was_alive;
 
-	http_get_check->url_it += t ? t : -http_get_check->url_it;
-	checker->retry_it += c ? c : -checker->retry_it;
+	if (method == REGISTER_CHECKER_NEW) {
+		ELEMENT_NEXT(http_get_check->url_it);
+		checker->retry_it = 0;
+	} else if (method == REGISTER_CHECKER_RETRY)
+		checker->retry_it++;
 
-	if (method == REGISTER_CHECKER_NEW && http_get_check->url_it >= LIST_SIZE(http_get_check->url)) {
-		/* All the url have been successfully checked.
-		 * Check completed.
+	if (method == REGISTER_CHECKER_NEW && !http_get_check->url_it && !http_get_check->failed_url) {
+		/* Check completed. All the url have been successfully checked.
 		 * check if server is currently alive.
 		 */
 		if (!checker->is_up || !checker->has_run) {
@@ -935,10 +964,13 @@ epilog(thread_ref_t thread, int method, unsigned t, unsigned c)
 			    (rs_was_alive != checker->rs->alive || !global_data->no_checker_emails))
 				smtp_alert(SMTP_MSG_RS, checker, NULL,
 					   "=> CHECK succeed on service <=");
+
+			/* We have done all the checks, so mark as has run */
+			checker->has_run = true;
 		}
 
 		/* Reset it counters */
-		http_get_check->url_it = 0;
+		http_get_check->url_it = LIST_HEAD(http_get_check->url);
 		checker->retry_it = 0;
 	}
 	/*
@@ -968,23 +1000,26 @@ epilog(thread_ref_t thread, int method, unsigned t, unsigned c)
 					   " : HTTP request failed <=");
 		}
 
-		/* Reset it counters */
-		http_get_check->url_it = 0;
+		/* Mark we have a failed URL */
+		http_get_check->failed_url = ELEMENT_DATA(http_get_check->url_it);
+	}
+	else if (method == REGISTER_CHECKER_NEW && http_get_check->failed_url) {
+		/* If the failed URL is now up, check all the URLs */
+		http_get_check->failed_url = NULL;
+		http_get_check->url_it = LIST_HEAD(http_get_check->url);
 		checker->retry_it = 0;
 	}
 
 	/* register next timer thread */
-	switch (method) {
-	case REGISTER_CHECKER_NEW:
+	if (method == REGISTER_CHECKER_NEW) {
 		delay = checker->delay_loop;
-		break;
-	case REGISTER_CHECKER_RETRY:
-		if (http_get_check->url_it == 0 && checker->retry_it == 0)
-			delay = checker->delay_loop;
-		else
-			delay = checker->delay_before_retry;
-		break;
+		if (!checker->has_run)
+			checker->retry_it = checker->retry;
 	}
+	else if (http_get_check->failed_url)
+		delay = checker->delay_before_retry > checker->delay_loop ? checker->delay_before_retry : checker->delay_loop;
+	else
+		delay = checker->delay_before_retry;
 
 	/* If req == NULL, fd is not created */
 	if (req) {
@@ -993,10 +1028,16 @@ epilog(thread_ref_t thread, int method, unsigned t, unsigned c)
 		thread_close_fd(thread);
 	}
 
-	checker->has_run = true;
+	/* Register next checker thread.
+	 * If the checker is not up, but we are not aware of any failure,
+	 * don't delay the checks if fast_recovery option specified. */
+	if (http_get_check->fast_recovery &&
+	    (!checker->has_run ||
+	     (!checker->is_up && !http_get_check->failed_url)))
+		thread_add_event(thread->master, http_connect_thread, checker, 0);
+	else
+		thread_add_timer(thread->master, http_connect_thread, checker, delay);
 
-	/* Register next checker thread */
-	thread_add_timer(thread->master, http_connect_thread, checker, delay);
 	return 0;
 }
 
@@ -1006,23 +1047,24 @@ timeout_epilog(thread_ref_t thread, const char *debug_msg)
 	checker_t *checker = THREAD_ARG(thread);
 
 	/* check if server is currently alive */
-	if (checker->is_up) {
+	if (checker->is_up || !checker->has_run) {
 		if (global_data->checker_log_all_failures || checker->log_all_failures)
 			log_message(LOG_INFO, "%s server %s."
 					    , debug_msg
 					    , FMT_CHK(checker));
-		return epilog(thread, REGISTER_CHECKER_RETRY, 0, 1);
+		checker->has_run = true;
+		return epilog(thread, REGISTER_CHECKER_RETRY);
 	}
 
 	/* do not retry if server is already known as dead */
-	return epilog(thread, REGISTER_CHECKER_NEW, 0, 0);
+	return epilog(thread, REGISTER_CHECKER_FAILED);
 }
 
 /* return the url pointer of the current url iterator  */
-static url_t *
+static inline url_t *
 fetch_next_url(http_checker_t * http_get_check)
 {
-	return list_element(http_get_check->url, http_get_check->url_it);
+	return ELEMENT_DATA(http_get_check->url_it);
 }
 
 #ifdef _WITH_REGEX_CHECK_
@@ -1210,13 +1252,7 @@ http_handle_response(thread_ref_t thread, unsigned char digest[MD5_DIGEST_LENGTH
 	request_t *req = http_get_check->req;
 	int r;
 	url_t *url = fetch_next_url(http_get_check);
-	enum {
-		ON_STATUS,
-		ON_DIGEST,
-#ifdef _WITH_REGEX_CHECK_
-		ON_REGEX,
-#endif
-	} last_success = ON_STATUS; /* the source of last considered success */
+	const char *msg = "HTTP status code";
 
 	/* First check if remote webserver returned data */
 	if (empty_buffer)
@@ -1245,7 +1281,7 @@ http_handle_response(thread_ref_t thread, unsigned char digest[MD5_DIGEST_LENGTH
 
 		if (r)
 			return timeout_epilog(thread, "MD5 digest error to");
-		last_success = ON_DIGEST;
+		msg = "MD5 digest";
 	}
 
 #ifdef _WITH_REGEX_CHECK_
@@ -1264,36 +1300,19 @@ http_handle_response(thread_ref_t thread, unsigned char digest[MD5_DIGEST_LENGTH
 
 		if (req->regex_matched == url->regex_no_match)
 			return timeout_epilog(thread, "Regex match failed");
-		last_success = ON_REGEX;
+		msg = "Regex match";
 	}
 #endif
 
 	if (!checker->is_up) {
-		switch (last_success) {
-			case ON_STATUS:
-				log_message(LOG_INFO,
-				       "HTTP status code success to %s url(%u)."
-				       , FMT_CHK(checker)
-				       , http_get_check->url_it + 1);
-				return epilog(thread, REGISTER_CHECKER_NEW, 1, 0) + 1;
-			case ON_DIGEST:
-				log_message(LOG_INFO,
-					"MD5 digest success to %s url(%u)."
-					, FMT_CHK(checker)
-					, http_get_check->url_it + 1);
-				return epilog(thread, REGISTER_CHECKER_NEW, 1, 0) + 1;
-#ifdef _WITH_REGEX_CHECK_
-			case ON_REGEX:
-				log_message(LOG_INFO,
-					"Regex match success to %s url(%u)."
-					, FMT_CHK(checker)
-					, http_get_check->url_it + 1);
-				return epilog(thread, REGISTER_CHECKER_NEW, 1, 0) + 1;
-#endif
-		}
+		log_message(LOG_INFO,
+			"%s success to %s url(%s)", msg
+			, FMT_CHK(checker)
+			, url->path);
+		return epilog(thread, REGISTER_CHECKER_NEW) + 1;
 	}
 
-	return epilog(thread, REGISTER_CHECKER_NEW, 0, 0) + 1;
+	return epilog(thread, REGISTER_CHECKER_NEW) + 1;
 }
 
 /* Handle response stream performing MD5 updates */
@@ -1490,7 +1509,7 @@ http_request_thread(thread_ref_t thread)
 			http_get_check->http_protocol == HTTP_PROTOCOL_1_0C || http_get_check->http_protocol == HTTP_PROTOCOL_1_1 ? "Connection: close\r\n" : "",
 			request_host, request_host_port);
 
-	DBG("Processing url(%u) of %s.", http_get_check->url_it + 1 , FMT_CHK(checker));
+	DBG("Processing url(%s) of %s.", url->path, FMT_CHK(checker));
 
 	/* Send the GET request to remote Web server */
 	if (http_get_check->proto == PROTO_SSL)
@@ -1631,7 +1650,7 @@ http_connect_thread(thread_ref_t thread)
 	/* if there are no URLs in list, enable server w/o checking */
 	fetched_url = fetch_next_url(http_get_check);
 	if (!fetched_url)
-		return epilog(thread, REGISTER_CHECKER_NEW, 1, 0) + 1;
+		return epilog(thread, REGISTER_CHECKER_NEW) + 1;
 
 	/* Create the socket */
 	if ((fd = socket(co->dst.ss_family, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, IPPROTO_TCP)) == -1) {

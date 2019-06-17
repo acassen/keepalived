@@ -112,7 +112,8 @@ typedef struct _url {
 
 typedef struct _http_checker {
 	unsigned			proto;
-	unsigned			url_it;		/* current url checked index */
+	element				url_it;		/* current url checked list element */
+	url_t				*failed_url;	/* the url that is currently failing, if any */
 	request_t			*req;		/* GET buffer and SSL args */
 	list				url;
 	http_protocol_t			http_protocol;
@@ -120,6 +121,7 @@ typedef struct _http_checker {
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 	bool				enable_sni;
 #endif
+	bool				fast_recovery;
 } http_checker_t;
 
 /* global defs */
