@@ -995,6 +995,8 @@ epilog(thread_ref_t thread, register_checker_t method)
 		if (!checker->has_run)
 			checker->retry_it = checker->retry;
 	}
+	else if (http_get_check->failed_url)
+		delay = checker->delay_before_retry > checker->delay_loop ? checker->delay_before_retry : checker->delay_loop;
 	else
 		delay = checker->delay_before_retry;
 
