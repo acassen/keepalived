@@ -463,6 +463,8 @@ url_handler(__attribute__((unused)) const vector_t *strvec)
 #ifdef _WITH_REGEX_CHECK_
 	conf_regex_options = 0;
 #endif
+
+	http_get_chk->url_it = LIST_HEAD(http_get_chk->url);
 }
 
 static void
@@ -920,12 +922,12 @@ epilog(thread_ref_t thread, register_checker_t method)
 	bool rs_was_alive;
 
 	if (method == REGISTER_CHECKER_NEW) {
-		http_get_check->url_it++;
+		ELEMENT_NEXT(http_get_check->url_it);
 		checker->retry_it = 0;
 	} else if (method == REGISTER_CHECKER_RETRY)
 		checker->retry_it++;
 
-	if (method == REGISTER_CHECKER_NEW && http_get_check->url_it >= LIST_SIZE(http_get_check->url)) {
+	if (method == REGISTER_CHECKER_NEW && !http_get_check->url_it) {
 		/* All the url have been successfully checked.
 		 * Check completed.
 		 * check if server is currently alive.
@@ -946,7 +948,7 @@ epilog(thread_ref_t thread, register_checker_t method)
 		}
 
 		/* Reset it counters */
-		http_get_check->url_it = 0;
+		http_get_check->url_it = LIST_HEAD(http_get_check->url);
 		checker->retry_it = 0;
 	}
 	/*
@@ -977,7 +979,7 @@ epilog(thread_ref_t thread, register_checker_t method)
 		}
 
 		/* Reset it counters */
-		http_get_check->url_it = 0;
+		http_get_check->url_it = LIST_HEAD(http_get_check->url);
 		checker->retry_it = 0;
 	}
 
@@ -1019,10 +1021,10 @@ timeout_epilog(thread_ref_t thread, const char *debug_msg)
 }
 
 /* return the url pointer of the current url iterator  */
-static url_t *
+static inline url_t *
 fetch_next_url(http_checker_t * http_get_check)
 {
-	return list_element(http_get_check->url, http_get_check->url_it);
+	return ELEMENT_DATA(http_get_check->url_it);
 }
 
 #ifdef _WITH_REGEX_CHECK_
@@ -1264,9 +1266,9 @@ http_handle_response(thread_ref_t thread, unsigned char digest[MD5_DIGEST_LENGTH
 
 	if (!checker->is_up) {
 		log_message(LOG_INFO,
-			"%s success to %s url(%u).", msg
+			"%s success to %s url(%s)", msg
 			, FMT_CHK(checker)
-			, http_get_check->url_it + 1);
+			, url->path);
 		return epilog(thread, REGISTER_CHECKER_NEW) + 1;
 	}
 
@@ -1467,7 +1469,7 @@ http_request_thread(thread_ref_t thread)
 			http_get_check->http_protocol == HTTP_PROTOCOL_1_0C || http_get_check->http_protocol == HTTP_PROTOCOL_1_1 ? "Connection: close\r\n" : "",
 			request_host, request_host_port);
 
-	DBG("Processing url(%u) of %s.", http_get_check->url_it + 1 , FMT_CHK(checker));
+	DBG("Processing url(%s) of %s.", url->path, FMT_CHK(checker));
 
 	/* Send the GET request to remote Web server */
 	if (http_get_check->proto == PROTO_SSL)
