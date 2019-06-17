@@ -317,13 +317,11 @@ ssl_read_thread(thread_ref_t thread)
 
 		r = (req->error == SSL_ERROR_ZERO_RETURN) ? SSL_shutdown(req->ssl) : 0;
 
-		if (r && !req->extracted) {
+		if (r && !req->extracted)
 			return timeout_epilog(thread, "SSL read error from");
-		}
 
 		/* Handle response stream */
 		http_handle_response(thread, digest, !req->extracted);
-
 	}
 
 	return 0;
