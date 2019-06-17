@@ -984,8 +984,11 @@ epilog(thread_ref_t thread, register_checker_t method)
 	}
 
 	/* register next timer thread */
-	if (method == REGISTER_CHECKER_NEW)
+	if (method == REGISTER_CHECKER_NEW) {
 		delay = checker->delay_loop;
+		if (!checker->has_run)
+			checker->retry_it = checker->retry;
+	}
 	else
 		delay = checker->delay_before_retry;
 
