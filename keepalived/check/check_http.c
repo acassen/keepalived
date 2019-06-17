@@ -1005,8 +1005,14 @@ epilog(thread_ref_t thread, register_checker_t method)
 		thread_close_fd(thread);
 	}
 
-	/* Register next checker thread */
-	thread_add_timer(thread->master, http_connect_thread, checker, delay);
+	/* Register next checker thread.
+	 * If the checker is not up, but we are not aware of any failure,
+	 * don't delay the checks. */
+	if (!checker->has_run)
+		thread_add_event(thread->master, http_connect_thread, checker, 0);
+	else
+		thread_add_timer(thread->master, http_connect_thread, checker, delay);
+
 	return 0;
 }
 
