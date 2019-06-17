@@ -54,8 +54,11 @@
 #include "scheduler.h"
 #endif
 
-#define	REGISTER_CHECKER_NEW	1
-#define	REGISTER_CHECKER_RETRY	2
+typedef enum {
+	REGISTER_CHECKER_NEW,
+	REGISTER_CHECKER_RETRY,
+	REGISTER_CHECKER_FAILED
+} register_checker_t;
 
 
 #ifdef _WITH_REGEX_CHECK_
@@ -900,15 +903,14 @@ install_ssl_check_keyword(void)
 
 /*
  * Simple epilog functions. Handling event timeout.
- * Finish the checker with memory managment or url rety check.
+ * Finish the checker with memory management or url rety check.
  *
- * c == 0 => reset to 0 retry_it counter
- * t == 0 => reset to 0 url_it counter
- * method == 1 => register a new checker thread
- * method == 2 => register a retry on url checker thread
+ * method == REGISTER_CHECKER_NEW => register a new checker thread
+ * method == REGISTER_CHECKER_RETRY => register a retry on url checker thread
+ * method == REGISTER_CHECKER_FAILED => register a checker on the failed URL
  */
 static int
-epilog(thread_ref_t thread, int method, unsigned t, unsigned c)
+epilog(thread_ref_t thread, register_checker_t method)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
@@ -917,8 +919,11 @@ epilog(thread_ref_t thread, int method, unsigned t, unsigned c)
 	bool checker_was_up;
 	bool rs_was_alive;
 
-	http_get_check->url_it += t ? t : -http_get_check->url_it;
-	checker->retry_it += c ? c : -checker->retry_it;
+	if (method == REGISTER_CHECKER_NEW) {
+		http_get_check->url_it++;
+		checker->retry_it = 0;
+	} else if (method == REGISTER_CHECKER_RETRY)
+		checker->retry_it++;
 
 	if (method == REGISTER_CHECKER_NEW && http_get_check->url_it >= LIST_SIZE(http_get_check->url)) {
 		/* All the url have been successfully checked.
@@ -1004,11 +1009,11 @@ timeout_epilog(thread_ref_t thread, const char *debug_msg)
 			log_message(LOG_INFO, "%s server %s."
 					    , debug_msg
 					    , FMT_CHK(checker));
-		return epilog(thread, REGISTER_CHECKER_RETRY, 0, 1);
+		return epilog(thread, REGISTER_CHECKER_RETRY);
 	}
 
 	/* do not retry if server is already known as dead */
-	return epilog(thread, REGISTER_CHECKER_NEW, 0, 0);
+	return epilog(thread, REGISTER_CHECKER_FAILED);
 }
 
 /* return the url pointer of the current url iterator  */
@@ -1260,10 +1265,10 @@ http_handle_response(thread_ref_t thread, unsigned char digest[MD5_DIGEST_LENGTH
 			"%s success to %s url(%u).", msg
 			, FMT_CHK(checker)
 			, http_get_check->url_it + 1);
-		return epilog(thread, REGISTER_CHECKER_NEW, 1, 0) + 1;
+		return epilog(thread, REGISTER_CHECKER_NEW) + 1;
 	}
 
-	return epilog(thread, REGISTER_CHECKER_NEW, 0, 0) + 1;
+	return epilog(thread, REGISTER_CHECKER_NEW) + 1;
 }
 
 /* Handle response stream performing MD5 updates */
@@ -1601,7 +1606,7 @@ http_connect_thread(thread_ref_t thread)
 	/* if there are no URLs in list, enable server w/o checking */
 	fetched_url = fetch_next_url(http_get_check);
 	if (!fetched_url)
-		return epilog(thread, REGISTER_CHECKER_NEW, 1, 0) + 1;
+		return epilog(thread, REGISTER_CHECKER_NEW) + 1;
 
 	/* Create the socket */
 	if ((fd = socket(co->dst.ss_family, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, IPPROTO_TCP)) == -1) {
