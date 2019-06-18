@@ -30,6 +30,7 @@
 
 /* local includes */
 #include "vector.h"
+#include "memory.h"
 
 /* Global definitions */
 #define KEEPALIVED_CONFIG_FILE	DEFAULT_CONFIG_FILE
@@ -93,6 +94,12 @@ extern bool do_dump_keywords;
 #define alloc_strvec(str)	(alloc_strvec_r(str))
 #endif
 
+static inline const char * __attribute__((malloc))
+set_value(const vector_t *strvec)
+{
+        return STRDUP(strvec_slot(strvec, 1));
+}
+
 /* Prototypes */
 extern void report_config_error(config_err_t, const char *format, ...)
 	__attribute__((format (printf, 2, 3)));
@@ -118,7 +125,6 @@ extern vector_t *alloc_strvec_r(const char *);
 extern bool check_conf_file(const char*);
 extern const vector_t *read_value_block(const vector_t *);
 extern void alloc_value_block(void (*alloc_func) (const vector_t *), const char *);
-extern const char *set_value(const vector_t *) __attribute__((malloc));
 extern bool read_timer(const vector_t *, size_t, unsigned long *, unsigned long, unsigned long, bool);
 extern int check_true_false(const char *) __attribute__ ((pure));
 extern void skip_block(bool);

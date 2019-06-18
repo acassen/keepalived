@@ -142,12 +142,22 @@ bfd_process_name_handler(const vector_t *strvec)
 static void
 routerid_handler(const vector_t *strvec)
 {
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "routerid name missing - ignoring");
+		return;
+	}
+
 	FREE_CONST_PTR(global_data->router_id);
 	global_data->router_id = set_value(strvec);
 }
 static void
 emailfrom_handler(const vector_t *strvec)
 {
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "emailfrom missing - ignoring");
+		return;
+	}
+
 	FREE_CONST_PTR(global_data->email_from);
 	global_data->email_from = set_value(strvec);
 }
@@ -1237,6 +1247,11 @@ net_namespace_handler(const vector_t *strvec)
 	if (!strvec)
 		return;
 
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "net_namespace name missing - ignoring");
+		return;
+	}
+
 	if (!global_data->network_namespace) {
 		global_data->network_namespace = set_value(strvec);
 		use_pid_dir = true;
@@ -1265,6 +1280,11 @@ enable_dbus_handler(__attribute__((unused)) const vector_t *strvec)
 static void
 dbus_service_name_handler(const vector_t *strvec)
 {
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "dbus_service_name missing - ignoring");
+		return;
+	}
+
 	FREE_CONST_PTR(global_data->dbus_service_name);
 	global_data->dbus_service_name = set_value(strvec);
 }
@@ -1275,6 +1295,11 @@ instance_handler(const vector_t *strvec)
 {
 	if (!strvec)
 		return;
+
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "instance name missing - ignoring");
+		return;
+	}
 
 	if (!reload) {
 		if (!global_data->instance_name) {

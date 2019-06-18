@@ -519,6 +519,7 @@ dns_check_end(void)
 	if (!check_conn_opts(CHECKER_GET_CO())) {
 		dequeue_new_checker();
 	}
+// Is name needed?
 }
 
 void

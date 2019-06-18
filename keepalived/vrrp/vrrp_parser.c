@@ -1308,10 +1308,17 @@ static void
 vrrp_tfile_file_handler(const vector_t *strvec)
 {
 	vrrp_tracked_file_t *tfile = LIST_TAIL_DATA(vrrp_data->vrrp_track_files);
+
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "track file file name missing");
+		return;
+	}
+
 	if (tfile->file_path) {
 		report_config_error(CONFIG_GENERAL_ERROR, "File already set for track file %s - ignoring %s", tfile->fname, strvec_slot(strvec, 1));
 		return;
 	}
+
 	tfile->file_path = set_value(strvec);
 }
 static void
@@ -1432,6 +1439,7 @@ vrrp_tprocess_process_handler(const vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR, "Process already set for track process %s - ignoring %s", tprocess->pname, strvec_slot(strvec, 1));
 		return;
 	}
+
 	tprocess->process_path = set_value(strvec);
 
 	if (vector_size(strvec) > 2) {
@@ -1587,6 +1595,12 @@ static void
 vrrp_tprocess_end_handler(void)
 {
 	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
+
+	if (!tprocess->process_path) {
+		report_config_error(CONFIG_GENERAL_ERROR, "track process '%s' process name not specified", tprocess->pname);
+		list_remove(vrrp_data->vrrp_track_processes, LIST_TAIL(vrrp_data->vrrp_track_processes));
+		return;
+	}
 
 	if (tprocess->full_command)
 		vrrp_data->vrrp_use_process_cmdline = true;
