@@ -48,6 +48,7 @@ struct _list {
 #define ELEMENT_NEXT(E)		((E) = (E)->next)
 #define ELEMENT_DATA(E)		((E)->data)
 #define LIST_HEAD(L)		(!(L) ? NULL : (L)->head)
+#define LIST_TAIL(L)		(!(L) ? NULL : (L)->tail)
 #define LIST_HEAD_DATA(L)	((L)->head->data)
 #define LIST_TAIL_DATA(L)	((L)->tail->data)
 #define LIST_ISEMPTY(L)		((L) == NULL || ((L)->head == NULL && (L)->tail == NULL))

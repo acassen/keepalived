@@ -66,6 +66,11 @@ ssl_handler(const vector_t *strvec)
 static void
 sslpass_handler(const vector_t *strvec)
 {
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "SSL password missing");
+		return;
+	}
+
 	if (check_data->ssl->password) {
 		report_config_error(CONFIG_GENERAL_ERROR, "SSL password already specified - replacing");
 		FREE_CONST(check_data->ssl->password);
@@ -75,6 +80,11 @@ sslpass_handler(const vector_t *strvec)
 static void
 sslca_handler(const vector_t *strvec)
 {
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "SSL cafile missing");
+		return;
+	}
+
 	if (check_data->ssl->cafile) {
 		report_config_error(CONFIG_GENERAL_ERROR, "SSL cafile already specified - replacing");
 		FREE_CONST(check_data->ssl->cafile);
@@ -84,6 +94,11 @@ sslca_handler(const vector_t *strvec)
 static void
 sslcert_handler(const vector_t *strvec)
 {
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "SSL certfile missing");
+		return;
+	}
+
 	if (check_data->ssl->certfile) {
 		report_config_error(CONFIG_GENERAL_ERROR, "SSL certfile already specified - replacing");
 		FREE_CONST(check_data->ssl->certfile);
@@ -93,6 +108,11 @@ sslcert_handler(const vector_t *strvec)
 static void
 sslkey_handler(const vector_t *strvec)
 {
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "SSL keyfile missing");
+		return;
+	}
+
 	if (check_data->ssl->keyfile) {
 		report_config_error(CONFIG_GENERAL_ERROR, "SSL keyfile already specified - replacing");
 		FREE_CONST(check_data->ssl->keyfile);
@@ -459,6 +479,12 @@ static void
 vs_virtualhost_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "virtual server virtualhost missing");
+		return;
+	}
+
 	vs->virtualhost = set_value(strvec);
 }
 
@@ -734,6 +760,12 @@ rs_virtualhost_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "real server virtualhost missing");
+		return;
+	}
+
 	rs->virtualhost = set_value(strvec);
 }
 static void

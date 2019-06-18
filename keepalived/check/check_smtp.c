@@ -255,8 +255,15 @@ static void
 smtp_helo_name_handler(const vector_t *strvec)
 {
 	smtp_checker_t *smtp_checker = CHECKER_GET();
+
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "SMTP_CHECK helo name missing");
+		return;
+	}
+
 	if (smtp_checker->helo_name)
 		FREE_CONST(smtp_checker->helo_name);
+
 	smtp_checker->helo_name = set_value(strvec);
 }
 

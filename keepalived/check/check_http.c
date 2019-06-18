@@ -437,6 +437,11 @@ virtualhost_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "HTTP_GET virtualhost name missing");
+		return;
+	}
+
 	http_get_chk->virtualhost = set_value(strvec);
 }
 
@@ -560,6 +565,11 @@ url_virtualhost_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
+
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Missing HTTP_GET virtualhost name");
+		return;
+	}
 
 	url->virtualhost = set_value(strvec);
 }
