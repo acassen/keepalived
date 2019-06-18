@@ -620,8 +620,10 @@ address_exist(vrrp_t *vrrp, ip_address_t *ipaddress)
 	char addr_str[INET6_ADDRSTRLEN];
 	void *addr;
 
+	/* If the following check isn't made, we get lots of compiler warnings */
 	if (!ipaddress)
-		return false;
+		return true;
+
 
 	LIST_FOREACH(vrrp->vip, ipaddr, e) {
 		if (IP_ISEQ(ipaddr, ipaddress)) {
