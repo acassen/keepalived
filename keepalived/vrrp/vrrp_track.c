@@ -883,17 +883,15 @@ initialise_interface_tracking_priorities(void)
 				continue;
 
 			if (!tvp->weight) {
-				if (!IF_ISUP(ifp)) {
+				if (!IF_FLAGS_UP(ifp)) {
 					/* The instance is down */
 					tvp->vrrp->state = VRRP_STATE_FAULT;
 					tvp->vrrp->num_script_if_fault++;
 				}
-			}
-			else if (IF_ISUP(ifp)) {
+			} else if (IF_FLAGS_UP(ifp)) {
 				if (tvp->weight > 0)
 					tvp->vrrp->total_priority += tvp->weight;
-			}
-			else {
+			} else {
 				if (tvp->weight < 0)
 					tvp->vrrp->total_priority += tvp->weight;
 			}
