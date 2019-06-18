@@ -1333,15 +1333,19 @@ vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 	/* build the packet */
 	vrrp_update_pkt(vrrp, prio, NULL);
 
+	/* Send the packet, but don't log an error if it is a prio 0 message
+	 * and the interface is down. */
 	if (LIST_ISEMPTY(vrrp->unicast_peer)) {
-		if (vrrp_send_pkt(vrrp, NULL) == -1)
+		if (vrrp_send_pkt(vrrp, NULL) == -1 &&
+		    (prio != VRRP_PRIO_STOP || errno != ENETUNREACH || IF_FLAGS_UP(vrrp->ifp)))
 			log_message(LOG_INFO, "(%s): send advert error %d (%m)", vrrp->iname, errno);
 	}
 	else {
 		LIST_FOREACH(vrrp->unicast_peer, addr, e) {
 			if (vrrp->family == AF_INET)
 				vrrp_update_pkt(vrrp, prio, addr);
-			if (vrrp_send_pkt(vrrp, addr) < 0)
+			if (vrrp_send_pkt(vrrp, addr) == -1 &&
+			    (prio != VRRP_PRIO_STOP || errno != ENETUNREACH || IF_FLAGS_UP(vrrp->ifp)))
 				log_message(LOG_INFO, "(%s) Cant send advert to %s (%m)"
 						    , vrrp->iname, inet_sockaddrtos(addr));
 		}
