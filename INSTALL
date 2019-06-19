@@ -232,6 +232,19 @@ create a rule in the AWS security group. The rule should be "Custom Protocol"
 and value should be "112" (the VRRP protocol number). All ports should be opened.
 
 
+Running with SElinux
+====================
+If the system running keepalived has SElinux enabled in enforcing mode, keepalived
+may have difficulty running scripts, accessing configuration files, etc, especially
+if keepalived is being started by systemd.
+
+To set the necessary security context for a script, execute:
+chcon -t keepalived_unconfined_script_exec_t PATH_TO_SCRIPT
+
+See https://www.mankier.com/8/keepalived_selinux for further details of SElinux
+and keepalived.
+
+
 Have fun with it !
 
 Alexandre, <acassen@linux-vs.org>
