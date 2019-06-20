@@ -1,14 +1,14 @@
 ---
-name: Bug report
-about: Create a report to help us improve keepalived
+name: Use this for any other issue
+about: Please use this rather than 'OPen a regular issue' below
 title: ''
 labels: ''
 assignees: ''
 
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+**Describe the issue**
+A clear and concise description of what the issue is.
 
 **To Reproduce**
 Any steps necessary to reproduce the behaviour:
