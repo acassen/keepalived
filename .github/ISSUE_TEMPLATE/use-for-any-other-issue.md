@@ -1,6 +1,6 @@
 ---
 name: Use this for any other issue
-about: Please use this rather than 'OPen a regular issue' below
+about: Please use this rather than 'Open a regular issue' below
 title: ''
 labels: ''
 assignees: ''
