@@ -56,6 +56,7 @@ size_t extract_content_length(const char *buffer, size_t size)
  * to rfc2616.6.1 status code is between HTTP_Version
  * and Reason_Phrase, separated by space caracter.
  */
+#include "logger.h"
 int extract_status_code(const char *buffer, size_t size)
 {
 	const char *buf_end = buffer + size;
@@ -65,6 +66,8 @@ int extract_status_code(const char *buffer, size_t size)
 	/* Status-Code extraction */
 	while (buffer < buf_end && *buffer != ' ' && *buffer != '\r')
 		buffer++;
+	if (*buffer != ' ')
+		return 0;
 	buffer++;
 	if (buffer + 3 >= buf_end || *buffer == ' ' || buffer[3] != ' ')
 		return 0;
