@@ -1269,7 +1269,9 @@ http_handle_response(thread_ref_t thread, unsigned char digest[MD5_DIGEST_LENGTH
 		return timeout_epilog(thread, "Read, no data received from ");
 
 	/* Next check the HTTP status code */
-	if (!__test_bit(req->status_code - HTTP_STATUS_CODE_MIN, url->status_code))
+	if (req->status_code < HTTP_STATUS_CODE_MIN ||
+		req->status_code > HTTP_STATUS_CODE_MAX ||
+		!__test_bit(req->status_code - HTTP_STATUS_CODE_MIN, url->status_code))
 		return timeout_epilog(thread, "HTTP status code error to");
 
 	/* Report a length mismatch the first time we get the specific difference */
