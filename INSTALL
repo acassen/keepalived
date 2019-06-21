@@ -238,11 +238,14 @@ If the system running keepalived has SElinux enabled in enforcing mode, keepaliv
 may have difficulty running scripts, accessing configuration files, etc, especially
 if keepalived is being started by systemd.
 
-To set the necessary security context for a script, execute:
+By default, scripts should be located in /usr/libexec/keepalived, or alternatively,
+to set the necessary security context for a script, execute:
 chcon -t keepalived_unconfined_script_exec_t PATH_TO_SCRIPT
 
-See https://www.mankier.com/8/keepalived_selinux for further details of SElinux
-and keepalived.
+See
+   https://www.mankier.com/8/keepalived_selinux and
+   https://www.mankier.com/8/keepalived_unconfined_script_selinux
+for further details of SElinux and keepalived.
 
 
 Have fun with it !
