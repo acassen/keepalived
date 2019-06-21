@@ -153,7 +153,7 @@ set_base_ifp(void)
 		if ((!ifp->base_ifp || ifp == ifp->base_ifp) &&
 		    ifp->base_ifindex) {
 #ifdef HAVE_IFLA_LINK_NETNSID
-			if (ifp->base_netns_id)
+			if (ifp->base_netns_id != -1)
 				ifp->base_ifp = NULL;
 			else
 #endif
