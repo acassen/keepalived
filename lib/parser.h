@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 
 /* local includes */
 #include "vector.h"
