@@ -1664,6 +1664,10 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 #endif
 #endif
 
+#ifdef _HAVE_VRRP_VMAC_
+	was_vlan = IS_VLAN(ifp);
+#endif
+
 	name = (char *)RTA_DATA(tb[IFLA_IFNAME]);
 
 	/* Fill the interface structure */
@@ -1675,7 +1679,6 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 #endif
 
 #ifdef _HAVE_VRRP_VMAC_
-	was_vlan = IS_VLAN(ifp);
 	if (tb[IFLA_LINKINFO]) {
 		parse_rtattr_nested(linkinfo, IFLA_INFO_MAX, tb[IFLA_LINKINFO]);
 

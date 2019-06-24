@@ -1228,7 +1228,6 @@ cleanup_lost_interface(interface_t *ifp)
 			close(vrrp->sockets->fd_out);
 			vrrp->sockets->fd_out = -1;
 		}
-		vrrp->sockets->ifp->ifindex = 0;
 
 		if (IF_ISUP(ifp))
 			down_instance(vrrp);
