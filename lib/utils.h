@@ -225,6 +225,9 @@ extern perf_t perf_run;
 
 /* Prototypes defs */
 extern void dump_buffer(const char *, size_t, FILE *, int);
+#ifdef CHECKSUM_DIAGNOSTICS
+extern void log_buffer(const char *, const void *, size_t);
+#endif
 #ifdef _WITH_STACKTRACE_
 extern void write_stacktrace(const char *, const char *);
 #endif

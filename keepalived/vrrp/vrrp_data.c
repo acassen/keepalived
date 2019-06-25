@@ -402,9 +402,13 @@ free_unicast_peer(void *data)
 static void
 dump_unicast_peer(FILE *fp, const void *data)
 {
-	const struct sockaddr_storage *peer = data;
+	const unicast_peer_t *peer = data;
 
-	conf_write(fp, "     %s", inet_sockaddrtos(peer));
+	conf_write(fp, "     %s", inet_sockaddrtos(&peer->address));
+#ifdef CHECKSUM_DIAGNOSTICS
+	conf_write(fp, "       last rx checksum = 0x%4.4x, priority %d", peer->chk.last_rx_checksum, peer->chk.last_rx_priority);
+	conf_write(fp, "       last tx checksum = 0x%4.4x, priority %d", peer->chk.last_tx_checksum, peer->chk.last_tx_priority);
+#endif
 }
 
 static void
@@ -580,6 +584,11 @@ dump_vrrp(FILE *fp, const void *data)
 
 	if (vrrp->debug)
 		conf_write(fp, "   Debug level = %d", vrrp->debug);
+
+#ifdef CHECKSUM_DIAGNOSTICS
+	conf_write(fp, "   last rx checksum = 0x%4.4x, priority %d", vrrp->chk.last_rx_checksum, vrrp->chk.last_rx_priority);
+	conf_write(fp, "   last tx checksum = 0x%4.4x, priority %d", vrrp->chk.last_tx_checksum, vrrp->chk.last_tx_priority);
+#endif
 
 	if (!LIST_ISEMPTY(vrrp->vip)) {
 		conf_write(fp, "   Virtual IP = %u", LIST_SIZE(vrrp->vip));
@@ -763,14 +772,14 @@ void
 alloc_vrrp_unicast_peer(const vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	struct sockaddr_storage *peer = NULL;
+	unicast_peer_t *peer;
 
 	if (!LIST_EXISTS(vrrp->unicast_peer))
 		vrrp->unicast_peer = alloc_list(free_unicast_peer, dump_unicast_peer);
 
 	/* Allocate new unicast peer */
-	peer = (struct sockaddr_storage *) MALLOC(sizeof(struct sockaddr_storage));
-	if (inet_stosockaddr(strvec_slot(strvec, 0), NULL, peer)) {
+	peer = (unicast_peer_t *) MALLOC(sizeof(unicast_peer_t));
+	if (inet_stosockaddr(strvec_slot(strvec, 0), NULL, &peer->address)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: VRRP instance[%s] malformed unicast"
 				     " peer address[%s]. Skipping..."
 				   , vrrp->iname, strvec_slot(strvec, 0));
@@ -779,8 +788,8 @@ alloc_vrrp_unicast_peer(const vector_t *strvec)
 	}
 
 	if (!vrrp->family)
-		vrrp->family = peer->ss_family;
-	else if (peer->ss_family != vrrp->family) {
+		vrrp->family = peer->address.ss_family;
+	else if (peer->address.ss_family != vrrp->family) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: VRRP instance[%s] and unicast peer address"
 				     "[%s] MUST be of the same family !!! Skipping..."
 				   , vrrp->iname, strvec_slot(strvec, 0));

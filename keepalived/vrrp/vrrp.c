@@ -619,6 +619,146 @@ vrrp_in_chk_vips(const vrrp_t *vrrp, const ip_address_t *ipaddress, const unsign
 	return 0;
 }
 
+#ifdef CHECKSUM_DIAGNOSTICS
+static void
+check_tx_checksum(vrrp_t *vrrp, unicast_peer_t *peer)
+{
+	struct iphdr *ip = (struct iphdr *)vrrp->send_buffer;
+	vrrphdr_t *hd = (vrrphdr_t *)((char *)vrrp->send_buffer + sizeof(struct iphdr));
+	size_t vrrppkt_len;
+	uint32_t acc_csum;
+	ipv4_phdr_t ipv4_phdr;
+	uint16_t calc_chksum;
+	uint16_t pkt_chksum;
+	checksum_check_t *chk = peer ? &peer->chk : &vrrp->chk;
+
+#ifdef _WITH_VRRP_AUTH_
+	if (ip->protocol == IPPROTO_AH)
+		hd = (vrrphdr_t *)((char *)hd + sizeof(ipsec_ah_t));
+#endif
+	vrrppkt_len = sizeof(vrrphdr_t) + hd->naddr * sizeof(struct in_addr);
+
+	if (vrrp->version == VRRP_VERSION_3) {
+		/* Create IPv4 pseudo-header */
+		ipv4_phdr.src   = ip->saddr;
+#ifdef _WITH_UNICAST_CHKSUM_COMPAT_
+		ipv4_phdr.dst   = vrrp->unicast_chksum_compat <= CHKSUM_COMPATIBILITY_MIN_COMPAT
+				  ? ip->daddr : global_data->vrrp_mcast_group4.sin_addr.s_addr;
+#else
+		ipv4_phdr.dst   = ip->daddr;
+#endif
+		ipv4_phdr.zero  = 0;
+		ipv4_phdr.proto = IPPROTO_VRRP;
+		ipv4_phdr.len   = htons(vrrppkt_len);
+
+		in_csum((uint16_t *) &ipv4_phdr, sizeof(ipv4_phdr), 0, &acc_csum);
+	} else {
+		vrrppkt_len += VRRP_AUTH_LEN;
+		acc_csum = 0;
+	}
+
+	pkt_chksum = hd->chksum;
+	hd->chksum = 0;
+	calc_chksum = in_csum((uint16_t *) hd, vrrppkt_len, acc_csum, &acc_csum);
+	hd->chksum = pkt_chksum;
+
+	if (calc_chksum != pkt_chksum ||
+	    !chk->sent_to ||
+	    acc_csum != chk->last_tx_checksum) {
+		struct sockaddr_storage *dst_addr;
+		struct sockaddr_storage addr;
+
+		if (peer)
+			dst_addr = &peer->address;
+		else {
+			inet_ip4tosockaddr(&global_data->vrrp_mcast_group4.sin_addr, &addr);
+			dst_addr = &addr;
+		}
+
+		if (!chk->sent_to)
+			log_message(LOG_INFO, "(%s): First advert to %s, checksum: pkt 0x%4.4x, calc 0x%4.4x acc 0x%x%s",
+					vrrp->iname, inet_sockaddrtos(dst_addr),
+					pkt_chksum, calc_chksum, acc_csum,
+					pkt_chksum != calc_chksum ? " - MISMATCH" : "");
+		else if (hd->priority != chk->last_tx_priority &&
+			 acc_csum - htons(hd->priority << 8) == (chk->last_tx_checksum - htons(chk->last_tx_priority << 8)))
+			log_message(LOG_INFO, "(%s): Checksum change to %s (priority %d to %d), checksum: pkt 0x%4.4x, calc 0x%4.4x acc 0x%x, previous acc 0x%x",
+					vrrp->iname, inet_sockaddrtos(dst_addr), chk->last_tx_priority, hd->priority,
+					pkt_chksum, calc_chksum, acc_csum, chk->last_tx_checksum);
+		else if (pkt_chksum != hd->chksum ||
+			 acc_csum != chk->last_tx_checksum)
+			log_message(LOG_INFO, "(%s): Checksum ERROR to %s, checksum: pkt 0x%4.4x, calc 0x%4.4x acc 0x%x, previous acc 0x%x",
+					vrrp->iname, inet_sockaddrtos(dst_addr),
+					pkt_chksum, calc_chksum, acc_csum, chk->last_tx_checksum);
+
+		if (vrrp->version == VRRP_VERSION_3)
+			log_buffer("IPv4 pseudo header", &ipv4_phdr, sizeof ipv4_phdr);
+		log_buffer("Advert packet", vrrp->send_buffer, vrrp->send_buffer_size);
+
+		chk->sent_to = true;
+		chk->last_tx_checksum = acc_csum;
+		chk->last_tx_priority = hd->priority;
+	}
+}
+
+static void
+check_rx_checksum(vrrp_t *vrrp, const ipv4_phdr_t *ipv4_phdr, const struct iphdr *iph, size_t pkt_len, const vrrphdr_t *vrrp_pkt, uint16_t calc_chksum, uint32_t acc_csum)
+{
+	unicast_peer_t *peer = NULL;
+	struct in_addr *saddr4;
+	struct sockaddr_storage addr;
+	element e;
+	checksum_check_t *chk;
+
+	/* If unicast, find the sending peer */
+	saddr4 = &((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr;
+	LIST_FOREACH(vrrp->unicast_peer, peer, e) {
+		if (saddr4->s_addr == ((struct sockaddr_in *)&peer->address)->sin_addr.s_addr)
+			break;
+	}
+
+	chk = peer ? &peer->chk : &vrrp->chk;
+	if (calc_chksum ||
+	    !chk->received_from ||
+	    chk->last_rx_checksum != vrrp_pkt->chksum ||
+	    chk->last_rx_from != saddr4->s_addr ||
+	    chk->last_rx_priority != vrrp_pkt->priority) {
+		inet_ip4tosockaddr(saddr4, &addr);
+
+		if (!chk->received_from)
+			log_message(LOG_INFO, "%s: First received advert from %s, checksum: pkt 0x%4.4x, calc 0x%4.4x, acc 0x%x%s",
+					vrrp->iname, inet_sockaddrtos(&addr), vrrp_pkt->chksum, calc_chksum, acc_csum,
+					calc_chksum ? " - MISMATCH" : "");
+		else if (calc_chksum)
+			log_message(LOG_INFO, "(%s): Checksum ERROR from %s, checksum: pkt 0x%4.4x, previous 0x%4.4x, calc 0x%4.4x acc 0x%x",
+					vrrp->iname, inet_sockaddrtos(&addr), vrrp_pkt->chksum, chk->last_rx_checksum, calc_chksum, acc_csum);
+		else if (chk->last_rx_from != saddr4->s_addr) {
+			char old_addr[INET_ADDRSTRLEN];
+
+			log_message(LOG_INFO, "(%s): Checksum valid change from %s (was %s), checksum: pkt 0x%4.4x, previous 0x%4.4x calc 0x%4.4x acc 0x%x",
+					vrrp->iname, inet_sockaddrtos(&addr), inet_ntop(AF_INET, &chk->last_rx_from, old_addr, sizeof(old_addr)),
+					vrrp_pkt->chksum, chk->last_rx_checksum, calc_chksum, acc_csum);
+		}
+		else if (chk->last_rx_priority != vrrp_pkt->priority)
+			log_message(LOG_INFO, "(%s): Checksum valid change from %s (priority %d to %d), checksum: pkt 0x%4.4x, previous 0x%4.4x, calc 0x%4.4x acc 0x%x",
+					vrrp->iname, inet_sockaddrtos(&addr), chk->last_rx_priority, vrrp_pkt->priority,
+					chk->last_rx_checksum, vrrp_pkt->chksum, calc_chksum, acc_csum);
+		else
+			log_message(LOG_INFO, "(%s): Checksum valid change from %s, checksum: 0x%4.4x, previous 0x%4.4x, acc 0x%x",
+					vrrp->iname, inet_sockaddrtos(&addr), vrrp_pkt->chksum, chk->last_rx_checksum, acc_csum);
+
+		if (ipv4_phdr)
+			log_buffer("IPv4 pseudo header", ipv4_phdr, sizeof(*ipv4_phdr));
+		log_buffer("Advert packet", iph, pkt_len);
+
+		chk->received_from = true;
+		chk->last_rx_checksum = vrrp_pkt->chksum;
+		chk->last_rx_priority = vrrp_pkt->priority;
+		chk->last_rx_from = saddr4->s_addr;
+	}
+}
+#endif
+
 /*
  * VRRP incoming packet check.
  * return VRRP_PACKET_OK if the pkt is valid, or
@@ -650,11 +790,12 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 	char addr_str[INET6_ADDRSTRLEN];
 	ipv4_phdr_t ipv4_phdr;
 	uint32_t acc_csum = 0;
-	struct sockaddr_storage *up_addr;
+	unicast_peer_t *up_addr;
 	size_t buflen, expected_len;
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 	bool chksum_error;
 #endif
+	uint16_t csum_calc;
 
 	buflen = (size_t)buflen_ret;
 
@@ -866,7 +1007,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 			ipv4_phdr.len   = htons(vrrppkt_len);
 
 			in_csum((uint16_t *) &ipv4_phdr, sizeof(ipv4_phdr), 0, &acc_csum);
-			if (in_csum((const uint16_t *) hd, vrrppkt_len, acc_csum, NULL)) {
+			if ((csum_calc = in_csum((const uint16_t *) hd, vrrppkt_len, acc_csum, &acc_csum))) {
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 				chksum_error = true;
 				if (!LIST_ISEMPTY(vrrp->unicast_peer) &&
@@ -874,7 +1015,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 				    ipv4_phdr.dst != global_data->vrrp_mcast_group4.sin_addr.s_addr) {
 					ipv4_phdr.dst = global_data->vrrp_mcast_group4.sin_addr.s_addr;
 					in_csum((uint16_t *) &ipv4_phdr, sizeof(ipv4_phdr), 0, &acc_csum);
-					if (!in_csum((const uint16_t *)hd, vrrppkt_len, acc_csum, NULL)) {
+					if (!(csum_calc = in_csum((const uint16_t *)hd, vrrppkt_len, acc_csum, &acc_csum))) {
 						/* Update the checksum for the pseudo header IP address */
 						vrrp_csum_mcast(vrrp);
 
@@ -900,9 +1041,19 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 					return VRRP_PACKET_KO;
 				}
 			}
+
+#ifdef CHECKSUM_DIAGNOSTICS
+			check_rx_checksum(vrrp, &ipv4_phdr, ip, buflen, hd, csum_calc, acc_csum);
+#endif
 		} else {
 			vrrppkt_len += VRRP_AUTH_LEN;
-			if (in_csum((const uint16_t *) hd, vrrppkt_len, 0, NULL)) {
+			csum_calc = in_csum((const uint16_t *) hd, vrrppkt_len, 0, &acc_csum);
+
+#ifdef CHECKSUM_DIAGNOSTICS
+			check_rx_checksum(vrrp, NULL, ip, buflen, hd, csum_calc, acc_csum);
+#endif
+
+			if (csum_calc) {
 				log_message(LOG_INFO, "(%s) Invalid VRRPv2 checksum", vrrp->iname);
 #ifdef _WITH_SNMP_RFC_
 				vrrp->stats->chk_err++;
@@ -963,13 +1114,13 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 			if (vrrp->family == AF_INET6) {
 				saddr6 = &((struct sockaddr_in6 *)&vrrp->pkt_saddr)->sin6_addr;
 				LIST_FOREACH(vrrp->unicast_peer, up_addr, e) {
-					if (IN6_ARE_ADDR_EQUAL(saddr6, &((struct sockaddr_in6 *)up_addr)->sin6_addr))
+					if (IN6_ARE_ADDR_EQUAL(saddr6, &((struct sockaddr_in6 *)&up_addr->address)->sin6_addr))
 						break;
 				}
 			} else {
 				saddr4 = &((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr;
 				LIST_FOREACH(vrrp->unicast_peer, up_addr, e) {
-					if (saddr4->s_addr == ((struct sockaddr_in *)up_addr)->sin_addr.s_addr)
+					if (saddr4->s_addr == ((struct sockaddr_in *)&up_addr->address)->sin_addr.s_addr)
 						break;
 				}
 			}
@@ -1028,8 +1179,8 @@ vrrp_build_ip4(vrrp_t *vrrp, char *buffer)
 
 	/* If using unicast peers, pick the first one */
 	if (!LIST_ISEMPTY(vrrp->unicast_peer)) {
-		struct sockaddr_storage* addr = ELEMENT_DATA(LIST_HEAD(vrrp->unicast_peer));
-		ip->daddr = inet_sockaddrip4(addr);
+		unicast_peer_t* peer = ELEMENT_DATA(LIST_HEAD(vrrp->unicast_peer));
+		ip->daddr = inet_sockaddrip4(&peer->address);
 	}
 	else
 		ip->daddr = global_data->vrrp_mcast_group4.sin_addr.s_addr;
@@ -1264,7 +1415,7 @@ vrrp_build_ancillary_data(struct msghdr *msg, char *cbuf, struct sockaddr_storag
 }
 
 static ssize_t
-vrrp_send_pkt(vrrp_t * vrrp, struct sockaddr_storage *addr)
+vrrp_send_pkt(vrrp_t * vrrp, unicast_peer_t *peer)
 {
 	struct sockaddr_storage *src = &vrrp->saddr;
 	struct msghdr msg;
@@ -1279,11 +1430,11 @@ vrrp_send_pkt(vrrp_t * vrrp, struct sockaddr_storage *addr)
 	iov.iov_len = vrrp->send_buffer_size;
 
 	/* Unicast sending path */
-	if (addr && addr->ss_family == AF_INET) {
-		msg.msg_name = addr;
+	if (peer && peer->address.ss_family == AF_INET) {
+		msg.msg_name = &peer->address;
 		msg.msg_namelen = sizeof(struct sockaddr_in);
-	} else if (addr && addr->ss_family == AF_INET6) {
-		msg.msg_name = addr;
+	} else if (peer && peer->address.ss_family == AF_INET6) {
+		msg.msg_name = &peer->address;
 		msg.msg_namelen = sizeof(struct sockaddr_in6);
 		vrrp_build_ancillary_data(&msg, cbuf, src, vrrp);
 	} else if (vrrp->family == AF_INET) { /* Multicast sending path */
@@ -1295,8 +1446,13 @@ vrrp_send_pkt(vrrp_t * vrrp, struct sockaddr_storage *addr)
 		vrrp_build_ancillary_data(&msg, cbuf, src, vrrp);
 	}
 
+#ifdef CHECKSUM_DIAGNOSTICS
+	if (vrrp->family == AF_INET)
+		check_tx_checksum(vrrp, peer);
+#endif
+
 	/* Send the packet */
-	return sendmsg(vrrp->sockets->fd_out, &msg, (addr) ? 0 : MSG_DONTROUTE);
+	return sendmsg(vrrp->sockets->fd_out, &msg, (peer) ? 0 : MSG_DONTROUTE);
 }
 
 /* Allocate the sending buffer */
@@ -1312,7 +1468,7 @@ vrrp_alloc_send_buffer(vrrp_t * vrrp)
 void
 vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 {
-	struct sockaddr_storage *addr;
+	unicast_peer_t *peer;
 	element e;
 
 #ifdef _HAVE_VRRP_IPVLAN_
@@ -1341,13 +1497,13 @@ vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 			log_message(LOG_INFO, "(%s): send advert error %d (%m)", vrrp->iname, errno);
 	}
 	else {
-		LIST_FOREACH(vrrp->unicast_peer, addr, e) {
+		LIST_FOREACH(vrrp->unicast_peer, peer, e) {
 			if (vrrp->family == AF_INET)
-				vrrp_update_pkt(vrrp, prio, addr);
-			if (vrrp_send_pkt(vrrp, addr) == -1 &&
+				vrrp_update_pkt(vrrp, prio, &peer->address);
+			if (vrrp_send_pkt(vrrp, peer) == -1 &&
 			    (prio != VRRP_PRIO_STOP || errno != ENETUNREACH || IF_FLAGS_UP(vrrp->ifp)))
 				log_message(LOG_INFO, "(%s) Cant send advert to %s (%m)"
-						    , vrrp->iname, inet_sockaddrtos(addr));
+						    , vrrp->iname, inet_sockaddrtos(&peer->address));
 		}
 	}
 

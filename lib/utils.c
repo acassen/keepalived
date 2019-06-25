@@ -112,6 +112,33 @@ dump_buffer(const char *buff, size_t count, FILE* fp, int indent)
 	}
 }
 
+#ifdef CHECKSUM_DIAGNOSTICS
+void
+log_buffer(const char *msg, const void *buff, size_t count)
+{
+	char op_buf[60];	// Probably 56 really
+	const unsigned char *bufp = buff;
+	char *ptr;
+	size_t offs = 0;
+	unsigned i;
+
+	log_message(LOG_INFO, "%s - len %zu", msg, count);
+
+	while (offs < count) {
+		ptr = op_buf;
+		ptr += snprintf(ptr, op_buf + sizeof(op_buf) - ptr, "%4.4lx ", offs);
+
+		for (i = 0; i < 16 && offs < count; i++) {
+			if (i == 8)
+				*ptr++ = ' ';
+			ptr += snprintf(ptr, op_buf + sizeof(op_buf) - ptr, " %2.2x", bufp[offs++]);
+		}
+
+		log_message(LOG_INFO, "%s", op_buf);
+	}
+}
+#endif
+
 #ifdef _WITH_STACKTRACE_
 void
 write_stacktrace(const char *file_name, const char *str)
