@@ -356,6 +356,9 @@ free_global_data(data_t * data)
 	FREE_CONST_PTR(data->lvs_notify_fifo.name);
 	free_notify_script(&data->lvs_notify_fifo.script);
 #endif
+#ifdef _WITH_DBUS_
+	FREE_CONST_PTR(data->dbus_service_name);
+#endif
 	FREE(data);
 }
 
