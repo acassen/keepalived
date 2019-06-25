@@ -184,6 +184,25 @@ typedef enum chksum_compatibility {
 } chksum_compatibility_t;
 #endif
 
+#ifdef CHECKSUM_DIAGNOSTICS
+typedef struct {
+	uint32_t		last_rx_checksum;
+	uint32_t		last_tx_checksum;
+	uint8_t			last_rx_priority;
+	uint8_t			last_tx_priority;
+	in_addr_t		last_rx_from;
+	bool			sent_to;
+	bool			received_from;
+} checksum_check_t;
+#endif
+
+typedef struct {
+	struct sockaddr_storage	address;
+#ifdef CHECKSUM_DIAGNOSTICS
+	checksum_check_t	chk;
+#endif
+} unicast_peer_t;
+
 /* parameters per virtual router -- rfc2338.6.1.2 */
 typedef struct _vrrp_t {
 	sa_family_t		family;			/* AF_INET|AF_INET6 */
@@ -231,6 +250,9 @@ typedef struct _vrrp_t {
 	list			unicast_peer;		/* List of Unicast peer to send advert to */
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 	chksum_compatibility_t	unicast_chksum_compat;	/* Whether v1.3.6 and earlier chksum is used */
+#endif
+#ifdef CHECKSUM_DIAGNOSTICS
+	checksum_check_t	chk;
 #endif
 	struct sockaddr_storage master_saddr;		/* Store last heard Master address */
 	uint8_t			master_priority;	/* Store last heard priority */

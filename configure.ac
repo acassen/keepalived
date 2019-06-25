@@ -262,6 +262,8 @@ AC_ARG_ENABLE(track-process-debug,
   [AS_HELP_STRING([--enable-track-process-debug], [compile with track process debugging support, set to log all process connector events])])
 AC_ARG_ENABLE(parser-debug,
   [AS_HELP_STRING([--enable-parser-debug], [compile with parser debugging support])])
+AC_ARG_ENABLE(checksum-debug,
+  [AS_HELP_STRING([--enable-checksum-debug], [compile with checksum debugging support])])
 AC_ARG_ENABLE(dump-keywords,
   [AS_HELP_STRING([--enable-dump-keywords], [compile with keyword dumping support])])
 AC_ARG_ENABLE(network-timestamp,
@@ -2504,6 +2506,13 @@ AS_IF([test .$enable_parser_debug = .yes],
   [
     AC_DEFINE([_PARSER_DEBUG_], [ 1 ], [Define to enable parser debugging])
     add_config_opt([PARSER_DEBUG])
+  ])
+
+dnl ----[ Do we want to enable checksum debugging code]----
+AS_IF([test .$enable_checksum_debug = .yes],
+  [
+    AC_DEFINE([CHECKSUM_DIAGNOSTICS], [ 1 ], [Define to enable checksum debugging])
+    add_config_opt([CHECKSUM_DEBUG])
   ])
 
 dnl ----[ Do we want to enable dump keywords code]----
