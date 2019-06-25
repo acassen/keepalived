@@ -554,7 +554,9 @@ void link_set_ipv6(const interface_t* ifp, bool enable)
 }
 #endif
 
-bool get_ipv6_forwarding(const interface_t* ifp)
+void
+set_ipv6_forwarding(interface_t* ifp)
 {
-	return !!get_sysctl("net/ipv6/conf", ifp->ifname, "forwarding");
+	ifp->gna_router = !!get_sysctl("net/ipv6/conf", ifp->ifname, "forwarding");
+	ifp->last_gna_router_check = time_now;
 }

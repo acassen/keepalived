@@ -171,9 +171,12 @@ ndisc_send_unsolicited_na_immediate(interface_t *ifp, ip_address_t *ipaddress)
 	ip6h->daddr.s6_addr16[7] = htons(1);
 
 	/* ICMPv6 Header */
-//	icmp6h->icmp6_type = ND_NEIGHBOR_ADVERT;
-//	icmp6h->icmp6_router = ifp->gna_router;
 	ndh->nd_na_type = ND_NEIGHBOR_ADVERT;
+
+	/* Set the router flag if necessary. We recheck each interface if not
+	 * checked in the last 5 seconds. */
+	if (timer_cmp_now_diff(ifp->last_gna_router_check, 5 * TIMER_HZ))
+		set_ipv6_forwarding(ifp);
 	if (ifp->gna_router)
 		ndh->nd_na_flags_reserved |= ND_NA_FLAG_ROUTER;
 

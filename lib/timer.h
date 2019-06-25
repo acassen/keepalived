@@ -90,6 +90,17 @@ timer_add_now(timeval_t a)
 	return a;
 }
 
+/* Returns true if time a + diff_hz < time_now */
+static inline bool
+timer_cmp_now_diff(timeval_t a, unsigned long diff_hz)
+{
+	timeval_t b = { .tv_sec = diff_hz / TIMER_HZ, .tv_usec = diff_hz % TIMER_HZ };
+
+	timeradd(&b, &a, &b);
+
+	return !!timercmp(&b, &time_now, <);
+}
+
 /* Return time as unsigned long */
 static inline unsigned long
 timer_long(timeval_t a)
