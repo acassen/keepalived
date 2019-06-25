@@ -38,6 +38,6 @@ extern void set_interface_parameters(const interface_t*, interface_t*);
 extern void reset_interface_parameters(interface_t*);
 extern void link_set_ipv6(const interface_t*, bool);
 #endif
-extern bool get_ipv6_forwarding(const interface_t*);
+extern void set_ipv6_forwarding(interface_t *);
 
 #endif

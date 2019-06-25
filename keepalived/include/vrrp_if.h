@@ -147,6 +147,7 @@ typedef struct _interface {
 	unsigned		rp_filter;		/* < UINT_MAX if we have changed the value */
 #endif
 	garp_delay_t		*garp_delay;		/* Delays for sending gratuitous ARP/NA */
+	timeval_t		last_gna_router_check;	/* Time we last checked if IPv6 forwarding set on interface */
 	bool			gna_router;		/* Router flag for NA messages */
 	bool			promote_secondaries;	/* Original value of promote_secondaries to be restored */
 	uint32_t		reset_promote_secondaries; /* Count of how many vrrps have changed promote_secondaries on interface */

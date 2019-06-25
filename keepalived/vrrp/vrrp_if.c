@@ -432,6 +432,7 @@ dump_if(FILE *fp, const void *data)
 	element e;
 	struct in_addr *addr_p;
 	struct in6_addr *addr6_p;
+	char time_str[26];
 
 	conf_write(fp, " Name = %s", ifp->ifname);
 	conf_write(fp, "   index = %u%s", ifp->ifindex, ifp->ifindex ? "" : " (deleted)");
@@ -579,6 +580,11 @@ dump_if(FILE *fp, const void *data)
 #endif
 	conf_write(fp, "   Original promote_secondaries %d", ifp->promote_secondaries);
 	conf_write(fp, "   Reset promote_secondaries counter %" PRIu32, ifp->reset_promote_secondaries);
+	if (timerisset(&ifp->last_gna_router_check)) {
+		ctime_r(&ifp->last_gna_router_check.tv_sec, time_str);
+		conf_write(fp, "   %sIPv6 forwarding. Last checked %ld.%6.6ld (%.24s.%6.6ld)", ifp->gna_router ? "" : "Not ", ifp->last_gna_router_check.tv_sec, ifp->last_gna_router_check.tv_usec, time_str, ifp->last_gna_router_check.tv_usec);
+
+	}
 
 	conf_write(fp, "   Tracking VRRP instances = %u", !LIST_ISEMPTY(ifp->tracking_vrrp) ? LIST_SIZE(ifp->tracking_vrrp) : 0);
 	if (!LIST_ISEMPTY(ifp->tracking_vrrp))

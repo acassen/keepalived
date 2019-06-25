@@ -479,7 +479,7 @@ dump_vrrp(FILE *fp, const void *data)
 #endif
 		conf_write(fp, "   Number of track scripts init = %u", vrrp->num_script_init);
 		ctime_r(&vrrp->last_transition.tv_sec, time_str);
-		conf_write(fp, "   Last transition = %ld (%.24s)", vrrp->last_transition.tv_sec, time_str);
+		conf_write(fp, "   Last transition = %ld.%6.6ld (%.24s.%6.6ld)", vrrp->last_transition.tv_sec, vrrp->last_transition.tv_usec, time_str, vrrp->last_transition.tv_usec);
 		if (!ctime_r(&vrrp->sands.tv_sec, time_str))
 			strcpy(time_str, "invalid time ");
 		if (vrrp->sands.tv_sec == TIMER_DISABLED)
