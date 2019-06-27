@@ -473,6 +473,7 @@ vs_smtp_alert_handler(const vector_t *strvec)
 		}
 	}
 	vs->smtp_alert = res;
+	check_data->num_smtp_alert++;
 }
 
 static void
@@ -754,6 +755,7 @@ rs_smtp_alert_handler(const vector_t *strvec)
 		}
 	}
 	rs->smtp_alert = res;
+	check_data->num_smtp_alert++;
 }
 static void
 rs_virtualhost_handler(const vector_t *strvec)

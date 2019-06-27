@@ -486,7 +486,7 @@ dns_check_handler(__attribute__((unused)) const vector_t *strvec)
 	dns_check->type = DNS_DEFAULT_TYPE;
 	dns_check->name = DNS_DEFAULT_NAME;
 	checker = queue_checker(dns_free, dns_dump, dns_connect_thread,
-				dns_check_compare, dns_check, CHECKER_NEW_CO());
+				dns_check_compare, dns_check, CHECKER_NEW_CO(), true);
 
 	/* Set the non-standard retry time */
 	checker->default_retry = DNS_DEFAULT_RETRY;

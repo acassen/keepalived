@@ -120,7 +120,7 @@ smtp_check_handler(__attribute__((unused)) const vector_t *strvec)
 
 	/* Have the checker queue code put our checker into the checkers_queue list. */
 	queue_checker(free_smtp_check, dump_smtp_check, smtp_start_check_thread,
-		      smtp_check_compare, smtp_checker, co);
+		      smtp_check_compare, smtp_checker, co, true);
 }
 
 static void
@@ -206,7 +206,7 @@ smtp_check_end_handler(void)
 		new_smtp_checker->helo_name = STRDUP(smtp_checker->helo_name);
 
 		queue_checker(free_smtp_check, dump_smtp_check, smtp_start_check_thread,
-			      smtp_check_compare, new_smtp_checker, NULL);
+			      smtp_check_compare, new_smtp_checker, NULL, true);
 
 		new_checker = CHECKER_GET_CURRENT();
 		*new_checker = *checker;

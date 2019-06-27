@@ -102,7 +102,7 @@ misc_check_handler(__attribute__((unused)) const vector_t *strvec)
 	script_user_set = false;
 
 	/* queue new checker */
-	checker = queue_checker(free_misc_check, dump_misc_check, misc_check_thread, misc_check_compare, new_misck_checker, NULL);
+	checker = queue_checker(free_misc_check, dump_misc_check, misc_check_thread, misc_check_compare, new_misck_checker, NULL, false);
 
 	/* Set non-standard default value */
 	checker->default_retry = 0;

@@ -190,6 +190,8 @@ typedef struct _check_data {
 #ifdef _WITH_BFD_
 	list				track_bfds;	/* list of checker_tracked_bfd_t */
 #endif
+	unsigned			num_checker_fd_required;
+	unsigned			num_smtp_alert;
 } check_data_t;
 
 /* macro utility */
