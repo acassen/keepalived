@@ -206,7 +206,6 @@ tcp_connect_thread(thread_ref_t thread)
 
 		return 0;
 	}
-log_message(LOG_INFO, "tcp_connect fd %d", fd);
 
 #if !HAVE_DECL_SOCK_NONBLOCK
 	if (set_sock_flags(fd, F_SETFL, O_NONBLOCK))
