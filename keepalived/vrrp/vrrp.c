@@ -1719,15 +1719,6 @@ vrrp_restore_interface(vrrp_t * vrrp, bool advF, bool force)
 #endif
 		vrrp->vipset = false;
 	}
-
-#ifdef _WITH_LVS_
-	if (global_data->lvs_syncd.vrrp == vrrp) {
-		/* Stop syncd if controlled by this VRRP instance. */
-		ipvs_syncd_cmd(IPVS_STOPDAEMON, &global_data->lvs_syncd,
-			       (vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER: IPVS_BACKUP,
-			       true, false);
-	}
-#endif
 }
 
 void
