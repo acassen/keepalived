@@ -364,6 +364,15 @@ vrrp_terminate_phase1(bool schedule_next_thread)
 		report_and_clear_netlink_timers("Start shutdown");
 #endif
 
+#ifdef _WITH_LVS_
+        if (global_data->lvs_syncd.vrrp) {
+                /* Stop syncd if controlled by this VRRP instance. */
+                ipvs_syncd_cmd(IPVS_STOPDAEMON, &global_data->lvs_syncd,
+                               (global_data->lvs_syncd.vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER: IPVS_BACKUP,
+                               true, false);
+        }
+#endif
+
 	/* Ensure any interfaces are in backup mode,
 	 * sending a priority 0 vrrp message
 	 */
