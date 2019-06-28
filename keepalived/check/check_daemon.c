@@ -126,9 +126,12 @@ set_max_file_limit(void)
 	limit.rlim_max = orig_fd_limit.rlim_max > fd_required ? orig_fd_limit.rlim_max : fd_required;
 
 	if (setrlimit(RLIMIT_NOFILE, &limit) == -1)
-		log_message(LOG_INFO, "set fd limit fd to %lu:%lu failed - errno %d.", limit.rlim_cur, limit.rlim_max, errno);
+		log_message(LOG_INFO, "set fd limit to %" PRI_rlim_t ":%" PRI_rlim_t " failed - errno %d.", limit.rlim_cur, limit.rlim_max, errno);
 	else if (__test_bit(LOG_DETAIL_BIT, &debug))
-		log_message(LOG_INFO, "set fd limit fd to %lu:%lu.", limit.rlim_cur, limit.rlim_max);
+		log_message(LOG_INFO, "set fd limit to %" PRI_rlim_t ":%" PRI_rlim_t ".", limit.rlim_cur, limit.rlim_max);
+
+	/* We don't want child processes to get excessive limits */
+	set_child_rlimit(RLIMIT_NOFILE, &orig_fd_limit);
 }
 
 static int
