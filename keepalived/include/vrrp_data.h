@@ -54,6 +54,7 @@ typedef struct _vrrp_data {
 #ifdef _WITH_BFD_
 	list			vrrp_track_bfds;	/* vrrp_tracked_bfd_t */
 #endif
+	unsigned		num_smtp_alert;		/* No of smtp_alerts configured */
 } vrrp_data_t;
 
 /* Global Vars exported */

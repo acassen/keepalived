@@ -371,6 +371,7 @@ vrrp_gsmtp_handler(__attribute__((unused)) const vector_t *strvec)
 		}
 	}
 	vgroup->smtp_alert = res;
+	vrrp_data->num_smtp_alert++;
 }
 static void
 vrrp_gglobal_tracking_handler(__attribute__((unused)) const vector_t *strvec)
@@ -913,6 +914,7 @@ vrrp_smtp_handler(__attribute__((unused)) const vector_t *strvec)
 		}
 	}
 	vrrp->smtp_alert = res;
+	vrrp_data->num_smtp_alert++;
 }
 static void
 vrrp_notify_priority_changes_handler(const vector_t *strvec)
