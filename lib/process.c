@@ -36,6 +36,7 @@
 #include "signals.h"
 #endif
 #include "warnings.h"
+#include "bitops.h"
 
 #ifdef _HAVE_SCHED_RT_
 static bool realtime_priority_set;
@@ -49,6 +50,8 @@ static struct rlimit orig_rlimit_rt;
 static bool priority_set;
 static int orig_priority;
 static bool process_locked_in_memory;
+
+static struct rlimit orig_fd_limit;
 
 /* rlimit values to set for child processes */
 static struct rlimit nofile;
@@ -267,4 +270,33 @@ local_fork(void)
 		reset_process_priorities();
 
 	return pid;
+}
+
+void
+set_max_file_limit(unsigned fd_required)
+{
+	struct rlimit limit = { .rlim_cur = 0 };
+
+	if (orig_fd_limit.rlim_cur == 0) {
+		if (getrlimit(RLIMIT_NOFILE, &orig_fd_limit))
+			log_message(LOG_INFO, "Failed to get original RLIMIT_NOFILE, errno %d", errno);
+		else
+			limit = orig_fd_limit;
+	} else if (getrlimit(RLIMIT_NOFILE, &limit))
+		log_message(LOG_INFO, "Failed to get current RLIMIT_NOFILE, errno %d", errno);
+
+	if (fd_required < orig_fd_limit.rlim_cur &&
+	    orig_fd_limit.rlim_cur == limit.rlim_cur)
+		return;
+
+	limit.rlim_cur = orig_fd_limit.rlim_cur > fd_required ? orig_fd_limit.rlim_cur : fd_required;
+	limit.rlim_max = orig_fd_limit.rlim_max > fd_required ? orig_fd_limit.rlim_max : fd_required;
+
+	if (setrlimit(RLIMIT_NOFILE, &limit) == -1)
+		log_message(LOG_INFO, "Failed to set open file limit to %" PRI_rlim_t ":%" PRI_rlim_t " failed - errno %d", limit.rlim_cur, limit.rlim_max, errno);
+	else if (__test_bit(LOG_DETAIL_BIT, &debug))
+		log_message(LOG_INFO, "Set open file limit to %" PRI_rlim_t ":%" PRI_rlim_t ".", limit.rlim_cur, limit.rlim_max);
+
+	/* We don't want child processes to get excessive limits */
+	set_child_rlimit(RLIMIT_NOFILE, &orig_fd_limit);
 }

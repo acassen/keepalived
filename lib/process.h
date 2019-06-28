@@ -49,4 +49,5 @@ extern void reset_process_priorities(void);
 extern void set_child_rlimit(int, const struct rlimit *);
 extern pid_t local_fork(void);
 
+extern void set_max_file_limit(unsigned);
 #endif
