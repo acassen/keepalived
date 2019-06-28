@@ -79,23 +79,11 @@ bool using_ha_suspend;
 /* local variables */
 static const char *check_syslog_ident;
 static bool two_phase_terminate;
-static struct rlimit orig_fd_limit;
 
 /* set fd ulimits  */
 static void
-set_max_file_limit(void)
+set_checker_max_fds(void)
 {
-	struct rlimit limit = { .rlim_cur = 0 };;
-	unsigned fd_required;
-
-	if (orig_fd_limit.rlim_cur == 0) {
-		if (getrlimit(RLIMIT_NOFILE, &orig_fd_limit))
-			log_message(LOG_INFO, "Failed to get original RLIMIT_NOFILE, errno %d", errno);
-		else
-			limit = orig_fd_limit;
-	} else if (getrlimit(RLIMIT_NOFILE, &limit))
-		log_message(LOG_INFO, "Failed to get current RLIMIT_NOFILE, errno %d", errno);
-
 	/* Allow for:
 	 *   0	stdin
 	 *   1	stdout
@@ -116,22 +104,7 @@ set_max_file_limit(void)
 	 *   One per SMTP alert
 	 *   qty 10 spare
 	 */
-	fd_required = 14 + check_data->num_checker_fd_required + check_data->num_smtp_alert + 10;
-
-	if (fd_required < orig_fd_limit.rlim_cur &&
-	    orig_fd_limit.rlim_cur == limit.rlim_cur)
-		return;
-
-	limit.rlim_cur = orig_fd_limit.rlim_cur > fd_required ? orig_fd_limit.rlim_cur : fd_required;
-	limit.rlim_max = orig_fd_limit.rlim_max > fd_required ? orig_fd_limit.rlim_max : fd_required;
-
-	if (setrlimit(RLIMIT_NOFILE, &limit) == -1)
-		log_message(LOG_INFO, "set fd limit to %" PRI_rlim_t ":%" PRI_rlim_t " failed - errno %d.", limit.rlim_cur, limit.rlim_max, errno);
-	else if (__test_bit(LOG_DETAIL_BIT, &debug))
-		log_message(LOG_INFO, "set fd limit to %" PRI_rlim_t ":%" PRI_rlim_t ".", limit.rlim_cur, limit.rlim_max);
-
-	/* We don't want child processes to get excessive limits */
-	set_child_rlimit(RLIMIT_NOFILE, &orig_fd_limit);
+	set_max_file_limit(14 + check_data->num_checker_fd_required + check_data->num_smtp_alert + 10);
 }
 
 static int
@@ -352,7 +325,7 @@ start_check(list old_checkers_queue, data_t *prev_global_data)
 	}
 
 	/* Ensure we can open sufficient file descriptors */
-	set_max_file_limit();
+	set_checker_max_fds();
 
 	/* Create a notify FIFO if needed, and open it */
 	notify_fifo_open(&global_data->notify_fifo, &global_data->lvs_notify_fifo, lvs_notify_fifo_script_exit, "lvs_");

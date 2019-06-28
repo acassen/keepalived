@@ -107,7 +107,6 @@ static const char *vrrp_syslog_ident;
 #ifndef _DEBUG_
 static bool two_phase_terminate;
 #endif
-static struct rlimit orig_fd_limit;
 
 #ifdef _VRRP_FD_DEBUG_
 bool do_vrrp_fd_debug;
@@ -152,19 +151,8 @@ dump_vrrp_fd(void)
 static void
 set_vrrp_max_fds(void)
 {
-	struct rlimit limit;
-	unsigned fd_required;
-
 	if (!vrrp_data->vrrp)
 		return;
-
-	if (orig_fd_limit.rlim_cur == 0) {
-		if (getrlimit(RLIMIT_NOFILE, &orig_fd_limit) == -1)
-			log_message(LOG_INFO, "Failed to get original RLIMIT_NOFILE - errno %d (%m)", errno);
-		else
-			limit = orig_fd_limit;
-	} else if (getrlimit(RLIMIT_NOFILE, &limit))
-		log_message(LOG_INFO, "Failed to get current RLIMIT_NOFILE, errno %d", errno);
 
 	/* Allow:
 	 * 2 per vrrp instance - always needed for VMAC instances
@@ -191,22 +179,7 @@ set_vrrp_max_fds(void)
 	 *
 	 * 20 spare (in case we have forgotten anything)
 	 */
-	fd_required = LIST_SIZE(vrrp_data->vrrp) * 2 + vrrp_data->num_smtp_alert + 21 + 20;
-
-	if (fd_required < orig_fd_limit.rlim_cur &&
-	    orig_fd_limit.rlim_cur == limit.rlim_cur)
-		return;
-
-	limit.rlim_cur = orig_fd_limit.rlim_cur > fd_required ? orig_fd_limit.rlim_cur : fd_required;
-	limit.rlim_max = orig_fd_limit.rlim_max > fd_required ? orig_fd_limit.rlim_max : fd_required;
-
-	if (setrlimit(RLIMIT_NOFILE, &limit) == -1)
-		log_message(LOG_INFO, "Failed to set open file limit to %" PRI_rlim_t " - errno %d (%m)", limit.rlim_cur, errno);
-	else if (__test_bit(LOG_DETAIL_BIT, &debug))
-		log_message(LOG_INFO, "Set open file limit to %" PRI_rlim_t ":%" PRI_rlim_t ".", limit.rlim_cur, limit.rlim_max);
-
-	/* We don't want child processes to get excessive limits */
-	set_child_rlimit(RLIMIT_NOFILE, &orig_fd_limit);
+	set_max_file_limit(LIST_SIZE(vrrp_data->vrrp) * 2 + vrrp_data->num_smtp_alert + 21 + 20);
 }
 
 #ifdef _WITH_LVS_
