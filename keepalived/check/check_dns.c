@@ -501,9 +501,8 @@ dns_type_handler(const vector_t *strvec)
 
 	dns_type = dns_type_lookup(strvec_slot(strvec, 1));
 	if (!dns_type)
-		report_config_error(CONFIG_GENERAL_ERROR, "Unknown DNS check type %s - setting to %s",
-				    vector_size(strvec) < 2 ? "[blank]" : strvec_slot(strvec, 1),
-				    dns_type_name(dns_check->type));
+		report_config_error(CONFIG_GENERAL_ERROR, "Unknown DNS check type %s - ignoring",
+				    strvec_slot(strvec, 1));
 	else
 		dns_check->type = dns_type;
 }
