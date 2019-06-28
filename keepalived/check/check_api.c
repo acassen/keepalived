@@ -121,7 +121,8 @@ queue_checker(void (*free_func) (checker_t *), void (*dump_func) (FILE *, const 
 	      , thread_func_t launch
 	      , bool (*compare) (const checker_t *, const checker_t *)
 	      , void *data
-	      , conn_opts_t *co)
+	      , conn_opts_t *co
+	      , bool fd_required)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
@@ -154,6 +155,9 @@ queue_checker(void (*free_func) (checker_t *), void (*dump_func) (FILE *, const 
 
 	/* queue the checker */
 	list_add(checkers_queue, checker);
+
+	if (fd_required)
+		check_data->num_checker_fd_required++;
 
 	return checker;
 }

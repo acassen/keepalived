@@ -115,7 +115,7 @@ bfd_check_handler(__attribute__((unused)) const vector_t *strvec)
 	PMALLOC(new_bfd_checker);
 
 	/* queue new checker */
-	new_checker = queue_checker(free_bfd_check, dump_bfd_check, NULL, bfd_check_compare, new_bfd_checker, NULL);
+	new_checker = queue_checker(free_bfd_check, dump_bfd_check, NULL, bfd_check_compare, new_bfd_checker, NULL, false);
 }
 
 static void

@@ -412,7 +412,7 @@ http_get_handler(const vector_t *strvec)
 	http_get_chk = alloc_http_get(str);
 	checker = queue_checker(free_http_get_check, dump_http_get_check,
 		      http_connect_thread, http_get_check_compare,
-		      http_get_chk, CHECKER_NEW_CO());
+		      http_get_chk, CHECKER_NEW_CO(), true);
 	checker->default_delay_before_retry = 3 * TIMER_HZ;
 }
 

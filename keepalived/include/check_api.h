@@ -83,7 +83,8 @@ extern checker_t *queue_checker(void (*) (checker_t *), void (*) (FILE *, const 
 			  , thread_func_t
 			  , bool (*) (const checker_t *, const checker_t *)
 			  , void *
-			  , conn_opts_t *);
+			  , conn_opts_t *
+			  , bool);
 extern void dequeue_new_checker(void);
 extern bool check_conn_opts(conn_opts_t *);
 extern bool compare_conn_opts(const conn_opts_t *, const conn_opts_t *) __attribute__ ((pure));
