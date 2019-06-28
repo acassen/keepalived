@@ -54,7 +54,6 @@ static bool process_locked_in_memory;
 static struct rlimit orig_fd_limit;
 
 /* rlimit values to set for child processes */
-static struct rlimit nofile;
 bool rlimit_nofile_set;
 static struct rlimit core;
 bool rlimit_core_set;
@@ -234,7 +233,7 @@ reset_process_priorities(void)
 	}
 
 	if (rlimit_nofile_set) {
-		setrlimit(RLIMIT_NOFILE, &nofile);
+		setrlimit(RLIMIT_NOFILE, &orig_fd_limit);
 		rlimit_nofile_set = false;
 	}
 	if (rlimit_core_set) {
@@ -246,11 +245,7 @@ reset_process_priorities(void)
 void
 set_child_rlimit(int resource, const struct rlimit *rlim)
 {
-	if (resource == RLIMIT_NOFILE) {
-		nofile = *rlim;
-		rlimit_nofile_set = true;
-	}
-	else if (resource == RLIMIT_CORE) {
+	if (resource == RLIMIT_CORE) {
 		core = *rlim;
 		rlimit_core_set = true;
 	}
@@ -285,7 +280,7 @@ set_max_file_limit(unsigned fd_required)
 	} else if (getrlimit(RLIMIT_NOFILE, &limit))
 		log_message(LOG_INFO, "Failed to get current RLIMIT_NOFILE, errno %d", errno);
 
-	if (fd_required < orig_fd_limit.rlim_cur &&
+	if (fd_required <= orig_fd_limit.rlim_cur &&
 	    orig_fd_limit.rlim_cur == limit.rlim_cur)
 		return;
 
@@ -298,5 +293,5 @@ set_max_file_limit(unsigned fd_required)
 		log_message(LOG_INFO, "Set open file limit to %" PRI_rlim_t ":%" PRI_rlim_t ".", limit.rlim_cur, limit.rlim_max);
 
 	/* We don't want child processes to get excessive limits */
-	set_child_rlimit(RLIMIT_NOFILE, &orig_fd_limit);
+	rlimit_nofile_set = (limit.rlim_cur != orig_fd_limit.rlim_cur);
 }
