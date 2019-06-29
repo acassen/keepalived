@@ -143,7 +143,7 @@ static_track_group_init(void)
 		}
 
 		LIST_FOREACH(addr->track_group->vrrp_instances, vrrp, e1)
-			add_vrrp_to_interface(vrrp, addr->ifp, 0, false, TRACK_SADDR);
+			add_vrrp_to_interface(vrrp, addr->ifp, 0, false, false, TRACK_SADDR);
 	}
 
 #ifdef _HAVE_FIB_ROUTING_
@@ -158,7 +158,7 @@ static_track_group_init(void)
 
 		LIST_FOREACH(route->track_group->vrrp_instances, vrrp, e1) {
 			if (route->oif)
-				add_vrrp_to_interface(vrrp, route->oif, 0, false, TRACK_SROUTE);
+				add_vrrp_to_interface(vrrp, route->oif, 0, false, false, TRACK_SROUTE);
 		}
 	}
 
@@ -172,7 +172,7 @@ static_track_group_init(void)
 
 		LIST_FOREACH(rule->track_group->vrrp_instances, vrrp, e1) {
 			if (rule->iif)
-				add_vrrp_to_interface(vrrp, rule->iif, 0, false, TRACK_SRULE);
+				add_vrrp_to_interface(vrrp, rule->iif, 0, false, false, TRACK_SRULE);
 		}
 	}
 #endif

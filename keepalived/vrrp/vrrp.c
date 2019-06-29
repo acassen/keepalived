@@ -2105,7 +2105,7 @@ free_tracking_vrrp(void *data)
 }
 
 void
-add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool log_addr, track_t type)
+add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool reverse, bool log_addr, track_t type)
 {
 	tracking_vrrp_t *etvp = NULL;
 	element e;
@@ -2138,8 +2138,10 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool log_addr,
 
 				/* Update the weight appropriately. We will use the sync group's
 				 * weight unless the vrrp setting is unweighted. */
-				if (etvp->weight && weight != VRRP_NOT_TRACK_IF)
+				if (etvp->weight && weight != VRRP_NOT_TRACK_IF) {
 					etvp->weight = weight;
+					etvp->weight_multiplier = reverse ? -1 : 1;
+				}
 
 				etvp->type |= type;
 
@@ -2152,6 +2154,7 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool log_addr,
 	etvp = MALLOC(sizeof *etvp);
 	etvp->vrrp = vrrp;
 	etvp->weight = weight;
+	etvp->weight_multiplier = reverse ? -1 : 1;
 	etvp->type = type;
 
 	/* We want the dynamic entries at the start of the list, so that it
@@ -3060,17 +3063,17 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			free_list_element(vrrp->track_ifp, e);
 		}
 		else
-			add_vrrp_to_interface(vrrp, tip->ifp, tip->weight, false, TRACK_IF);
+			add_vrrp_to_interface(vrrp, tip->ifp, tip->weight, tip->weight_reverse, false, TRACK_IF);
 	}
 
 	/* Add this instance to the physical interface and vice versa */
-	add_vrrp_to_interface(vrrp, VRRP_CONFIGURED_IFP(vrrp), vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, true, TRACK_VRRP);
+	add_vrrp_to_interface(vrrp, VRRP_CONFIGURED_IFP(vrrp), vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, false, true, TRACK_VRRP);
 
 #ifdef _HAVE_VRRP_VMAC_
 	/* If the interface is configured onto a VMAC/IPVLAN interface, we want to track
 	 * the underlying interface too */
 	if (vrrp->configured_ifp != vrrp->configured_ifp->base_ifp && vrrp->configured_ifp->base_ifp)
-		add_vrrp_to_interface(vrrp, vrrp->configured_ifp->base_ifp, vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, true, TRACK_VRRP_DYNAMIC);
+		add_vrrp_to_interface(vrrp, vrrp->configured_ifp->base_ifp, vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, false, true, TRACK_VRRP_DYNAMIC);
 
 	if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&
 	    !__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
@@ -3108,7 +3111,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		}
 
 		/* Add this instance to the vmac interface */
-		add_vrrp_to_interface(vrrp, vrrp->ifp, vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, true, TRACK_VRRP);
+		add_vrrp_to_interface(vrrp, vrrp->ifp, vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, false, true, TRACK_VRRP);
 	}
 #endif
 
@@ -3161,13 +3164,13 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		if (!vip->ifp)
 			vip->ifp = vrrp->ifp;
 		if (!vip->dont_track)
-			add_vrrp_to_interface(vrrp, vip->ifp, 0, false, TRACK_ADDR);
+			add_vrrp_to_interface(vrrp, vip->ifp, 0, false, false, TRACK_ADDR);
 	}
 	LIST_FOREACH(vrrp->evip, vip, e) {
 		if (!vip->ifp)
 			vip->ifp = vrrp->ifp;
 		if (!vip->dont_track)
-			add_vrrp_to_interface(vrrp, vip->ifp, 0, false, TRACK_ADDR);
+			add_vrrp_to_interface(vrrp, vip->ifp, 0, false, false, TRACK_ADDR);
 
 		if (vip->ifa.ifa_family == AF_INET)
 			have_ipv4_instance = true;
@@ -3305,7 +3308,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 			/* If the route specifies an interface, this vrrp instance should track the interface */
 			if (vroute->oif)
-				add_vrrp_to_interface(vrrp, vroute->oif, 0, false, TRACK_ROUTE);
+				add_vrrp_to_interface(vrrp, vroute->oif, 0, false, false, TRACK_ROUTE);
 		}
 	}
 	LIST_FOREACH(vrrp->vrules, vrule, e) {
@@ -3317,10 +3320,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 			/* If the rule specifies an interface, this vrrp instance should track the interface */
 			if (vrule->iif)
-				add_vrrp_to_interface(vrrp, vrule->iif, 0, false, TRACK_RULE);
+				add_vrrp_to_interface(vrrp, vrule->iif, 0, false, false, TRACK_RULE);
 #if HAVE_DECL_FRA_OIFNAME
 			if (vrule->oif)
-				add_vrrp_to_interface(vrrp, vrule->oif, 0, false, TRACK_RULE);
+				add_vrrp_to_interface(vrrp, vrule->oif, 0, false, false, TRACK_RULE);
 #endif
 		}
 	}
@@ -3411,7 +3414,7 @@ sync_group_tracking_init(void)
 			}
 
 			LIST_FOREACH(sgroup->vrrp_instances, vrrp, e2)
-				add_vrrp_to_interface(vrrp, tif->ifp, tif->weight, true, TRACK_SG);
+				add_vrrp_to_interface(vrrp, tif->ifp, tif->weight, tif->weight_reverse, true, TRACK_SG);
 		}
 
 		/* Set default smtp_alert */

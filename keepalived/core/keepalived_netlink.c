@@ -1505,9 +1505,9 @@ process_if_status_change(interface_t *ifp)
 
 		if (tvp->weight) {
 			if (now_up)
-				vrrp->total_priority += abs(tvp->weight);
+				vrrp->total_priority += abs(tvp->weight) * tvp->weight_multiplier;
 			else
-				vrrp->total_priority -= abs(tvp->weight);
+				vrrp->total_priority -= abs(tvp->weight) * tvp->weight_multiplier;
 			vrrp_set_effective_priority(vrrp);
 
 			continue;

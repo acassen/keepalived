@@ -1040,7 +1040,7 @@ The syntax for vrrp_sync_group is :
     \fBtrack_interface \fR{
         eth0
         eth1
-        eth2 weight <-253..253>
+        eth2 weight <-253..253> [reverse]
         ...
     }
 
@@ -1241,17 +1241,19 @@ The syntax for vrrp_instance is :
     # instance to the FAULT state in case of failure, its priority will be
     # increased by the weight when the interface is up (for positive weights),
     # or decreased by the weight's absolute value when the interface is down
-    # (for negative weights). The weight must be comprised between -254 and +254
-    # inclusive. 0 is the default behaviour which means that a failure implies a
+    # (for negative weights), unless reverse is specified, in which case the
+    # direction of adjustment of the priority is reversed.
+    # The weight must be comprised between -253 and +253 inclusive.
+    # 0 is the default behaviour which means that a failure implies a
     # FAULT state. The common practice is to use positive weights to count a
     # limited number of good services so that the server with the highest count
     # becomes master. Negative weights are better to count unexpected failures
     # among a high number of interfaces, as it will not saturate even with high
-    # number of interfaces.
+    # number of interfaces. Use reverse to increase priority if an interfaces is down
     \fBtrack_interface \fR{
         eth0
         eth1
-        eth2 weight <-253..253>
+        eth2 weight <-253..253> [reverse]
          ...
     }
 

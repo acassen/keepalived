@@ -157,6 +157,7 @@ typedef struct _interface {
 /* Tracked interface structure definition */
 typedef struct _tracked_if {
 	int			weight;		/* tracking weight when non-zero */
+	bool			weight_reverse; /* which direction is the weight applied */
 	interface_t		*ifp;		/* interface backpointer, cannot be NULL */
 } tracked_if_t;
 

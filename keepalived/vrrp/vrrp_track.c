@@ -54,7 +54,7 @@ void
 dump_track_if(FILE *fp, const void *track_data)
 {
 	const tracked_if_t *tip = track_data;
-	conf_write(fp, "     %s weight %d", IF_NAME(tip->ifp), tip->weight);
+	conf_write(fp, "     %s weight %d%s", IF_NAME(tip->ifp), tip->weight, tip->weight_reverse ? " reverse" : "");
 }
 
 void
@@ -71,6 +71,7 @@ alloc_track_if(vrrp_t *vrrp, const vector_t *strvec)
 	int weight = 0;
 	const char *tracked = strvec_slot(strvec, 0);
 	element e;
+	bool reverse = false;
 
 	ifp = if_get_by_ifname(tracked, IF_CREATE_IF_DYNAMIC);
 
@@ -87,8 +88,19 @@ alloc_track_if(vrrp_t *vrrp, const vector_t *strvec)
 		}
 	}
 
-	if (vector_size(strvec) >= 3 &&
-	    !strcmp(strvec_slot(strvec, 1), "weight")) {
+	if (vector_size(strvec) >= 2) {
+		if (strcmp(strvec_slot(strvec, 1), "weight")) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track_interface %s option %s - ignoring",
+					 vrrp->iname, tracked, strvec_slot(strvec, 1));
+			return;
+		}
+
+		if (vector_size(strvec) == 2) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight without value specified for track_interface %s - ignoring",
+					vrrp->iname, tracked);
+			return;
+		}
+
 		if (!read_int_strvec(strvec, 2, &weight, -254, 254, true)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight %s for %s must be between "
 					 "[-253..253] inclusive. Ignoring...", vrrp->iname, strvec_slot(strvec, 2), tracked);
@@ -99,11 +111,20 @@ alloc_track_if(vrrp_t *vrrp, const vector_t *strvec)
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for %s cannot be +/-254. Setting to +/-253", vrrp->iname, tracked);
 			weight = weight == -254 ? -253 : 253;
 		}
+
+                if (vector_size(strvec) >= 4) {
+			if (!strcmp(strvec_slot(strvec, 3), "reverse"))
+				reverse = true;
+			else
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track_interace %s weight option %s - ignoring",
+						vrrp->iname, tracked, strvec_slot(strvec, 3));
+		}
 	}
 
 	tip	    = (tracked_if_t *) MALLOC(sizeof(tracked_if_t));
 	tip->ifp    = ifp;
 	tip->weight = weight;
+	tip->weight_reverse = reverse;
 
 	list_add(vrrp->track_ifp, tip);
 }
@@ -116,6 +137,7 @@ alloc_group_track_if(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 	int weight = 0;
 	const char *tracked = strvec_slot(strvec, 0);
 	element e;
+	bool reverse = false;
 
 	ifp = if_get_by_ifname(tracked, IF_CREATE_IF_DYNAMIC);
 
@@ -132,8 +154,19 @@ alloc_group_track_if(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 		}
 	}
 
-	if (vector_size(strvec) >= 3 &&
-	    !strcmp(strvec_slot(strvec, 1), "weight")) {
+	if (vector_size(strvec) >= 2) {
+		if (strcmp(strvec_slot(strvec, 1), "weight")) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track_interface %s option %s - ignoring",
+					 sgroup->gname, tracked, strvec_slot(strvec, 1));
+			return;
+		}
+
+		if (vector_size(strvec) == 2) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight without value specified for track_interface %s - ignoring",
+					sgroup->gname, tracked);
+			return;
+		}
+
 		if (!read_int_strvec(strvec, 2, &weight, -254, 254, true)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for %s must be between "
 					 "[-253..253] inclusive. Ignoring...", sgroup->gname, tracked);
@@ -144,11 +177,20 @@ alloc_group_track_if(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for %s cannot be +/-254. Setting to +/-253", sgroup->gname, tracked);
 			weight = weight == -254 ? -253 : 253;
 		}
+
+		if (vector_size(strvec) >= 4) {
+			if (!strcmp(strvec_slot(strvec, 3), "reverse"))
+				reverse = true;
+			else
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track_interace %s weight option %s - ignoring",
+						sgroup->gname, tracked, strvec_slot(strvec, 3));
+		}
 	}
 
 	tip	    = (tracked_if_t *) MALLOC(sizeof(tracked_if_t));
 	tip->ifp    = ifp;
 	tip->weight = weight;
+	tip->weight_reverse = reverse;
 
 	list_add(sgroup->track_ifp, tip);
 }
@@ -922,10 +964,10 @@ initialise_interface_tracking_priorities(void)
 				}
 			} else if (IF_FLAGS_UP(ifp)) {
 				if (tvp->weight > 0)
-					tvp->vrrp->total_priority += tvp->weight;
+					tvp->vrrp->total_priority += tvp->weight * tvp->weight_multiplier;
 			} else {
 				if (tvp->weight < 0)
-					tvp->vrrp->total_priority += tvp->weight;
+					tvp->vrrp->total_priority += tvp->weight * tvp->weight_multiplier;
 			}
 		}
 	}
