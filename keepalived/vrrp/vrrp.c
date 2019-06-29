@@ -2447,16 +2447,17 @@ add_vrrp_to_track_script(vrrp_t *vrrp, tracked_sc_t *sc)
 		/* Is this script already tracking the vrrp instance directly?
 		 * For this to be the case, the script was added directly on the vrrp instance,
 		 * and now we are adding it for a sync group. */
-		for (e = LIST_HEAD(sc->scr->tracking_vrrp); e; ELEMENT_NEXT(e)) {
-			etvp = ELEMENT_DATA(e);
+		LIST_FOREACH(sc->scr->tracking_vrrp, etvp, e) {
 			if (etvp->vrrp == vrrp) {
 				/* Update the weight appropriately. We will use the sync group's
 				 * weight unless the vrrp setting is unweighted. */
 				log_message(LOG_INFO, "(%s) track_script %s is configured on VRRP instance and sync group. Remove vrrp instance config",
 						vrrp->iname, sc->scr->sname);
 
-				if (etvp->weight)
+				if (etvp->weight) {
 					etvp->weight = sc->weight;
+					etvp->weight_multiplier = sc->weight_reverse ? -1 : 1;
+				}
 				return;
 			}
 		}
