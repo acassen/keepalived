@@ -301,7 +301,7 @@ dump_vprocess(FILE *fp, const void *data)
 		conf_write(fp, "   Max processes = %u", vprocess->quorum_max);
 	conf_write(fp, "   Current processes = %u", vprocess->num_cur_proc);
 	conf_write(fp, "   Have quorum = %s", vprocess->have_quorum ? "true" : "false");
-	conf_write(fp, "   Weight = %d", vprocess->weight);
+	conf_write(fp, "   Weight = %d%s", vprocess->weight, vprocess->weight_reverse ? " reverse" : "");
 	conf_write(fp, "   Terminate delay = %fs", (double)vprocess->terminate_delay / TIMER_HZ);
 	conf_write(fp, "   Fork delay = %fs", (double)vprocess->fork_delay / TIMER_HZ);
 	if (fp) {

@@ -2531,6 +2531,7 @@ add_vrrp_to_track_process(vrrp_t *vrrp, tracked_process_t *tpr)
 	tvp = MALLOC(sizeof(tracking_vrrp_t));
 	tvp->vrrp = vrrp;
 	tvp->weight = tpr->weight;
+	tvp->weight_multiplier = tpr->weight_reverse ? -1 : 1;
 	list_add(tpr->process->tracking_vrrp, tvp);
 }
 #endif

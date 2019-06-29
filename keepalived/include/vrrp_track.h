@@ -115,6 +115,7 @@ typedef struct _vrrp_process {
 	size_t			process_params_len; /* Total length of parameters, including NULs */
 	param_match_t		param_match;	/* Full or partial match of parameters */
 	int			weight;		/* Default weight */
+	bool			weight_reverse;	/* which direction is the weight applied */
 	unsigned		quorum;		/* Minimum number of process instances required */
 	unsigned		quorum_max;	/* Maximum number of process instances required */
 	int			fork_delay;	/* Delay before processing process fork */
@@ -132,6 +133,7 @@ typedef struct _vrrp_process {
 typedef struct _tracked_process {
 	vrrp_tracked_process_t	*process;	/* track process pointer, cannot be NULL */
 	int			weight;		/* Multiplier for process value */
+	bool			weight_reverse;	/* which direction is the weight applied */
 } tracked_process_t;
 
 /* A monitored process instance */

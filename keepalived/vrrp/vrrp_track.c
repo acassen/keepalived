@@ -496,7 +496,7 @@ void
 dump_track_process(FILE *fp, const void *track_data)
 {
 	const tracked_process_t *tprocess = track_data;
-	conf_write(fp, "     %s, weight %d", tprocess->process->pname, tprocess->weight);
+	conf_write(fp, "     %s, weight %d%s", tprocess->process->pname, tprocess->weight, tprocess->weight_reverse ? " reverse" : "");
 }
 
 void
@@ -514,6 +514,7 @@ alloc_track_process(vrrp_t *vrrp, const vector_t *strvec)
 	tracked_process_t *etprocess;
 	element e;
 	int weight;
+	bool reverse;
 
 	vsp = find_tracked_process_by_name(tracked);
 
@@ -532,28 +533,41 @@ alloc_track_process(vrrp_t *vrrp, const vector_t *strvec)
 	}
 
 	weight = vsp->weight;
+	reverse = vsp->weight_reverse;
 	if (vector_size(strvec) >= 2) {
 		if (strcmp(strvec_slot(strvec, 1), "weight")) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track process option %s - ignoring",
 					 vrrp->iname, strvec_slot(strvec, 1));
 			return;
 		}
-		if (vector_size(strvec) >= 3) {
-			if (!read_int_strvec(strvec, 2, &weight, -254, 254, true)) {
-				report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for track process %s must be in "
-						 "[-254..254] inclusive. Ignoring...", vrrp->iname, tracked);
-				weight = vsp->weight;
-			}
-		} else {
+
+		if (vector_size(strvec) == 2) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight without value specified for track process %s - ignoring",
 					vrrp->iname, tracked);
 			return;
+		}
+
+		if (!read_int_strvec(strvec, 2, &weight, -254, 254, true)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for track process %s must be in "
+					 "[-254..254] inclusive. Ignoring...", vrrp->iname, tracked);
+			weight = vsp->weight;
+		}
+
+		if (vector_size(strvec) >= 4) {
+			if (!strcmp(strvec_slot(strvec, 3), "reverse"))
+				reverse = true;
+			else if (!strcmp(strvec_slot(strvec, 3), "noreverse"))
+                                reverse = false;
+			else
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track_process %s weight option %s - ignoring",
+						vrrp->iname, tracked, strvec_slot(strvec, 3));
 		}
 	}
 
 	tprocess = (tracked_process_t *) MALLOC(sizeof(tracked_process_t));
 	tprocess->process = vsp;
 	tprocess->weight = weight;
+	tprocess->weight_reverse = reverse;
 	list_add(vrrp->track_process, tprocess);
 }
 
@@ -566,6 +580,7 @@ alloc_group_track_process(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 	tracked_process_t *etprocess;
 	element e;
 	int weight;
+	bool reverse;
 
 	vsp = find_tracked_process_by_name(tracked);
 
@@ -584,28 +599,43 @@ alloc_group_track_process(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 	}
 
 	weight = vsp->weight;
+	reverse = vsp->weight_reverse;
 	if (vector_size(strvec) >= 2) {
 		if (strcmp(strvec_slot(strvec, 1), "weight")) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track process option %s - ignoring",
 					 sgroup->gname, strvec_slot(strvec, 1));
 			return;
 		}
+
+		if (vector_size(strvec) == 2) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight without value specified for track process %s - ignoring",
+					sgroup->gname, tracked);
+			return;
+		}
+
 		if (vector_size(strvec) >= 3) {
 			if (!read_int_strvec(strvec, 2, &weight, -254, 254, true)) {
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for track process %s must be in "
 						 "[-254..254] inclusive. Ignoring...", sgroup->gname, tracked);
 				weight = vsp->weight;
 			}
-		} else {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight without value specified for track process %s - ignoring",
-					sgroup->gname, tracked);
-			return;
+		}
+
+		if (vector_size(strvec) >= 4) {
+			if (!strcmp(strvec_slot(strvec, 3), "reverse"))
+				reverse = true;
+			else if (!strcmp(strvec_slot(strvec, 3), "noreverse"))
+				reverse = false;
+			else
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track_process %s weight option %s - ignoring",
+						sgroup->gname, tracked, strvec_slot(strvec, 3));
 		}
 	}
 
 	tprocess = (tracked_process_t *) MALLOC(sizeof(tracked_process_t));
 	tprocess->process = vsp;
 	tprocess->weight = weight;
+	tprocess->weight_reverse = reverse;
 	list_add(sgroup->track_process, tprocess);
 }
 #endif
@@ -1019,11 +1049,11 @@ initialise_process_tracking_priorities(void)
 			}
 			else if (tprocess->have_quorum) {
 				if (tvp->weight > 0)
-					tvp->vrrp->total_priority += tvp->weight;
+					tvp->vrrp->total_priority += tvp->weight * tvp->weight_multiplier;
 			}
 			else {
 				if (tvp->weight < 0)
-					tvp->vrrp->total_priority += tvp->weight;
+					tvp->vrrp->total_priority += tvp->weight * tvp->weight_multiplier;
 			}
 		}
 	}
@@ -1406,9 +1436,9 @@ process_update_track_process_status(vrrp_tracked_process_t *tprocess, bool now_u
 		}
 		else if (tvp->vrrp->base_priority != VRRP_PRIO_OWNER) {
 			if ((tvp->weight > 0) == now_up)
-				tvp->vrrp->total_priority += tvp->weight;
+				tvp->vrrp->total_priority += tvp->weight * tvp->weight_multiplier;
 			else
-				tvp->vrrp->total_priority -= tvp->weight;
+				tvp->vrrp->total_priority -= tvp->weight * tvp->weight_multiplier;
 			vrrp_set_effective_priority(tvp->vrrp);
 		}
 	}

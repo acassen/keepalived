@@ -744,8 +744,8 @@ The configuration block looks like:
         #   any parameters, but specify param_match.
         param_match {initial|partial}
 
-        # default weight (default is 1)
-        \fBweight\fR <-254..254>
+        # default weight (default is 1). For description of reverse, see track_process.
+        \fBweight\fR <-254..254> [reverse]
 
         # minimum number of processes for success
         \fBquorum\fR NUM
@@ -1063,10 +1063,11 @@ The syntax for vrrp_sync_group is :
 
     # Process to monitor, weight is added to effective priority.
     # <STRING> is the name of a vrrp_track_process
-    # weight defaults to weight configured in vrrp_track_process
+    # weight defaults to weight configured in vrrp_track_process.
+    # See vrrp_instance track_process for description of weight.
     \fBtrack_process \fR{
         <STRING>
-        <STRING> weight <-254..254>
+        <STRING> weight <-254..254> [reverse|noreverse]
         ...
     }
 
@@ -1278,11 +1279,12 @@ The syntax for vrrp_instance is :
 
     # Positive weights are added/subtracted when the process is running,
     # negative weights are subtracted/added when the not running.
+    # If reverse is specified, the addition/subtraction is reversed.
     # <STRING> is the name of a vrrp_track_process
     # weight defaults to weight configured in vrrp_track_process
     \fBtrack_process \fR{
         <STRING>
-        <STRING> weight <-254..254>
+        <STRING> weight <-254..254> [reverse|noreverse]
         ...
     }
 
