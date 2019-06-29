@@ -66,6 +66,7 @@ typedef struct _vrrp_script {
 	unsigned long		interval;	/* interval between script calls */
 	unsigned long		timeout;	/* microseconds before script timeout */
 	int			weight;		/* weight associated to this script */
+	bool			weight_reverse;	/* which direction is the weight applied */
 	int			result;		/* result of last call to this script: 0..R-1 = KO, R..R+F-1 = OK */
 	int			rise;		/* R: how many successes before OK */
 	int			fall;		/* F: how many failures before KO */
@@ -80,6 +81,7 @@ typedef struct _vrrp_script {
 typedef struct _tracked_sc {
 	vrrp_script_t		*scr;		/* script pointer, cannot be NULL */
 	int			weight;		/* tracking weight when non-zero */
+	bool			weight_reverse;	/* which direction is the weight applied */
 } tracked_sc_t;
 
 /* external file we read to track local processes */

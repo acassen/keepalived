@@ -216,7 +216,7 @@ void
 dump_track_script(FILE *fp, const void *track_data)
 {
 	const tracked_sc_t *tsc = track_data;
-	conf_write(fp, "     %s weight %d", tsc->scr->sname, tsc->weight);
+	conf_write(fp, "     %s weight %d%s", tsc->scr->sname, tsc->weight, tsc->weight_reverse ? " reverse" : "");
 }
 
 void
@@ -234,6 +234,7 @@ alloc_track_script(vrrp_t *vrrp, const vector_t *strvec)
 	const char *tracked = strvec_slot(strvec, 0);
 	element e;
 	tracked_sc_t *etsc;
+	bool reverse;
 
 	vsc = find_script_by_name(tracked);
 
@@ -245,8 +246,7 @@ alloc_track_script(vrrp_t *vrrp, const vector_t *strvec)
 
 	if (!LIST_ISEMPTY(vrrp->track_script)) {
 		/* Check this vrrp isn't already tracking the script */
-		for (e = LIST_HEAD(vrrp->track_script); e; ELEMENT_NEXT(e)) {
-			etsc = ELEMENT_DATA(e);
+		LIST_FOREACH(vrrp->track_script, etsc, e) {
 			if (etsc->scr == vsc) {
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) duplicate track_script %s - ignoring", vrrp->iname, tracked);
 				return;
@@ -256,9 +256,21 @@ alloc_track_script(vrrp_t *vrrp, const vector_t *strvec)
 
 	/* default weight */
 	weight = vsc->weight;
+	reverse = vsc->weight_reverse;
 
-	if (vector_size(strvec) >= 3 &&
-	    !strcmp(strvec_slot(strvec, 1), "weight")) {
+	if (vector_size(strvec) >= 2) {
+		if (strcmp(strvec_slot(strvec, 1), "weight")) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track script option %s - ignoring",
+					 vrrp->iname, strvec_slot(strvec, 1));
+			return;
+		}
+
+		if (vector_size(strvec) == 2) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight without value specified for track script %s - ignoring",
+					vrrp->iname, tracked);
+			return;
+		}
+
 		if (!read_int_strvec(strvec, 2, &weight, -254, 254, true)) {
 			weight = vsc->weight;
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) track script %s: weight must be between [-253..253]"
@@ -270,11 +282,22 @@ alloc_track_script(vrrp_t *vrrp, const vector_t *strvec)
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for %s cannot be +/-254. Setting to +/-253", vrrp->iname, tracked);
 			weight = weight == -254 ? -253 : 253;
 		}
+
+		if (vector_size(strvec) >= 4) {
+			if (!strcmp(strvec_slot(strvec, 3), "reverse"))
+				reverse = true;
+			else if (!strcmp(strvec_slot(strvec, 3), "noreverse"))
+				reverse = false;
+			else
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track_script %s weight option %s - ignoring",
+						vrrp->iname, tracked, strvec_slot(strvec, 3));
+		}
 	}
 
 	tsc	    = (tracked_sc_t *) MALLOC(sizeof(tracked_sc_t));
 	tsc->scr    = vsc;
 	tsc->weight = weight;
+	tsc->weight_reverse = reverse;
 	vsc->init_state = SCRIPT_INIT_STATE_INIT;
 	list_add(vrrp->track_script, tsc);
 }
@@ -288,6 +311,7 @@ alloc_group_track_script(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 	const char *tracked = strvec_slot(strvec, 0);
 	tracked_sc_t *etsc = NULL;
 	element e;
+	bool reverse;
 
 	vsc = find_script_by_name(tracked);
 
@@ -310,9 +334,21 @@ alloc_group_track_script(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 
 	/* default weight */
 	weight = vsc->weight;
+	reverse = vsc->weight_reverse;
 
-	if (vector_size(strvec) >= 3 &&
-	    !strcmp(strvec_slot(strvec, 1), "weight")) {
+	if (vector_size(strvec) >= 2) {
+		if (strcmp(strvec_slot(strvec, 1), "weight")) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track script option %s - ignoring",
+					 sgroup->gname, strvec_slot(strvec, 1));
+			return;
+		}
+ 
+		if (vector_size(strvec) == 2) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight without value specified for track script %s - ignoring",
+					sgroup->gname, tracked);
+			return;
+		}
+ 
 		if (!read_int_strvec(strvec, 2, &weight, -254, 254, true)) {
 			weight = vsc->weight;
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) track script %s: weight must be between [-253..253]"
@@ -324,11 +360,22 @@ alloc_group_track_script(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for %s cannot be +/-254. Setting to +/-253", sgroup->gname, tracked);
 			weight = weight == -254 ? -253 : 253;
 		}
+
+		if (vector_size(strvec) >= 4) {
+			if (!strcmp(strvec_slot(strvec, 3), "reverse"))
+				reverse = true;
+			else if (!strcmp(strvec_slot(strvec, 3), "noreverse"))
+				reverse = false;
+			else
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track_script %s weight option %s - ignoring",
+						sgroup->gname, tracked, strvec_slot(strvec, 3));
+		}
 	}
 
 	tsc	    = (tracked_sc_t *) MALLOC(sizeof(tracked_sc_t));
 	tsc->scr    = vsc;
 	tsc->weight = weight;
+	tsc->weight_reverse = reverse;
 	vsc->init_state = SCRIPT_INIT_STATE_INIT;
 	list_add(sgroup->track_script, tsc);
 }
@@ -861,7 +908,7 @@ vrrp_set_effective_priority(vrrp_t *vrrp)
 }
 
 static void
-process_script_update_priority(int weight, vrrp_script_t *vscript, bool script_ok, vrrp_t *vrrp)
+process_script_update_priority(int weight, int multiplier, vrrp_script_t *vscript, bool script_ok, vrrp_t *vrrp)
 {
 	bool instance_left_init = false;
 
@@ -892,16 +939,16 @@ process_script_update_priority(int weight, vrrp_script_t *vscript, bool script_o
 		   is now in causes an adjustment to the priority */
 		if (script_ok) {
 			if (weight > 0)
-				vrrp->total_priority += weight;
+				vrrp->total_priority += weight * multiplier;
 		} else {
 			if (weight < 0)
-				vrrp->total_priority += weight;
+				vrrp->total_priority += weight * multiplier;
 		}
 	} else {
 		if (script_ok)
-			vrrp->total_priority += abs(weight);
+			vrrp->total_priority += abs(weight) * multiplier;
 		else
-			vrrp->total_priority -= abs(weight);
+			vrrp->total_priority -= abs(weight) * multiplier;
 	}
 
 	vrrp_set_effective_priority(vrrp);
@@ -916,11 +963,10 @@ update_script_priorities(vrrp_script_t *vscript, bool script_ok)
 
 	/* First process the vrrp instances tracking the script */
 	if (!LIST_ISEMPTY(vscript->tracking_vrrp)) {
-		for (e = LIST_HEAD(vscript->tracking_vrrp); e; ELEMENT_NEXT(e)) {
-			tvp = ELEMENT_DATA(e);
+		LIST_FOREACH(vscript->tracking_vrrp, tvp, e) {
 			vrrp = tvp->vrrp;
 
-			process_script_update_priority(tvp->weight, vscript, script_ok, vrrp);
+			process_script_update_priority(tvp->weight, tvp->weight_multiplier, vscript, script_ok, vrrp);
 		}
 	}
 }

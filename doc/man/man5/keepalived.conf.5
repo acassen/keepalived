@@ -941,7 +941,8 @@ The syntax for the vrrp script is:
     \fBtimeout \fR<INTEGER>
 
     # adjust priority by this weight, (default: 0)
-    \fBweight \fR<INTEGER:-253..253>
+    # For description of reverse, see track_script.
+    \fBweight \fR<INTEGER:-253..253> [reverse]
 
     # required number of successes for OK transition
     \fBrise \fR<INTEGER>
@@ -1047,9 +1048,10 @@ The syntax for vrrp_sync_group is :
     # add a tracking script to the sync group (<SCRIPT_NAME> is the name
     # of the vrrp_script entry) go to FAULT state if any of these go down
     # if unweighted.
+    # reverse causes the direction of the adjustment of the priority to be reversed.
     \fBtrack_script \fR{
         <SCRIPT_NAME>
-        <SCRIPT_NAME> weight <-253..253>
+        <SCRIPT_NAME> weight <-253..253> [reverse|no_reverse]
     }
 
     # Files whose state we monitor, value is added to effective priority.
@@ -1263,9 +1265,10 @@ The syntax for vrrp_instance is :
     # The same principle as track_interface can be applied to track_script entries,
     # except that an unspecified weight means that the default weight declared in
     # the script will be used (which itself defaults to 0).
+    # reverse causes the direction of the adjustment of the priority to be reversed.
     \fBtrack_script \fR{
         <SCRIPT_NAME>
-        <SCRIPT_NAME> weight <-253..253>
+        <SCRIPT_NAME> weight <-253..253> [reverse|no_reverse]
     }
 
     # Files whose state we monitor, value is added to effective priority.

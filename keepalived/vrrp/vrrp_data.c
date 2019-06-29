@@ -211,7 +211,7 @@ dump_vscript(FILE *fp, const void *data)
 	conf_write(fp, "   Command = %s", cmd_str(&vscript->script));
 	conf_write(fp, "   Interval = %lu sec", vscript->interval / TIMER_HZ);
 	conf_write(fp, "   Timeout = %lu sec", vscript->timeout / TIMER_HZ);
-	conf_write(fp, "   Weight = %d", vscript->weight);
+	conf_write(fp, "   Weight = %d%s", vscript->weight, vscript->weight_reverse ? " reverse" : "");
 	conf_write(fp, "   Rise = %d", vscript->rise);
 	conf_write(fp, "   Fall = %d", vscript->fall);
 	conf_write(fp, "   Insecure = %s", vscript->insecure ? "yes" : "no");

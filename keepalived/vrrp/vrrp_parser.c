@@ -1228,6 +1228,13 @@ vrrp_vscript_weight_handler(const vector_t *strvec)
 	if (!read_int_strvec(strvec, 1, &weight, -253, 253, true))
 		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_script %s weight %s must be in [-253, 253]", vscript->sname, strvec_slot(strvec, 1));
 	vscript->weight = weight;
+
+	if (vector_size(strvec) >= 3) {
+		if (!strcmp(strvec_slot(strvec, 2), "reverse"))
+			vscript->weight_reverse = true;
+		else
+			report_config_error(CONFIG_GENERAL_ERROR, "vrrp_script %s unknown weight option %s", vscript->sname, strvec_slot(strvec, 2));
+	}
 }
 static void
 vrrp_vscript_rise_handler(const vector_t *strvec)
