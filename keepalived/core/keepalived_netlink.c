@@ -1514,7 +1514,7 @@ process_if_status_change(interface_t *ifp)
 		}
 
 		/* This vrrp's interface or underlying interface has changed */
-		if (now_up)
+		if (now_up == (tvp->weight_multiplier == 1))
 			try_up_instance(vrrp, false);
 		else
 			down_instance(vrrp);

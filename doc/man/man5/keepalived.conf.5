@@ -745,6 +745,8 @@ The configuration block looks like:
         param_match {initial|partial}
 
         # default weight (default is 1). For description of reverse, see track_process.
+        # 'weight 0 reverse' will cause the vrrp instance to be down when the
+        # quorum is up, and vice versa.
         \fBweight\fR <-254..254> [reverse]
 
         # minimum number of processes for success
@@ -895,7 +897,8 @@ The syntax for bfd instance is :
     # Normally, positive weights are added to the vrrp instance priority when
     # the bfd instance is up, negative weights reduce the priority when it is down.
     # However, if reverse is specified, the priority is decreased when up and
-    # increased when down.
+    # increased when down. 'weight 0 reverse' will cause the vrrp instance to be down
+    # when the bfd instance is up, and vice versa.
     \fBweight\fR <-253:253> [reverse]
 }
 .fi
@@ -942,6 +945,8 @@ The syntax for the vrrp script is:
 
     # adjust priority by this weight, (default: 0)
     # For description of reverse, see track_script.
+    # 'weight 0 reverse' will cause the vrrp instance to be down when the
+    # script is up, and vice versa.
     \fBweight \fR<INTEGER:-253..253> [reverse]
 
     # required number of successes for OK transition
@@ -969,7 +974,7 @@ or sync group monitors it.
 
 A value will be read as a number in text from the file.  If the weight
 configured against the track_file is 0, a non-zero value in the file will
-be treated as a failure status, and a zero value will be treaded as
+be treated as a failure status, and a zero value will be treated as
 an OK status, otherwise the value will be  multiplied by the weight configured
 in the track_file statement. If the result is less than -253 any VRRP
 instance or sync group monitoring the script will transition to the fault state
@@ -1038,6 +1043,8 @@ The syntax for vrrp_sync_group is :
     # Synchronization group tracking interface, script, file & bfd will
     # update the status/priority of all VRRP instances which are members
     # of the sync group.
+    # 'weight 0 reverse' will cause the vrrp instance to be down when the
+    # interface is up, and vice versa.
     \fBtrack_interface \fR{
         eth0
         eth1

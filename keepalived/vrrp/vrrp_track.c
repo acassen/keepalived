@@ -922,7 +922,7 @@ process_script_update_priority(int weight, int multiplier, vrrp_script_t *vscrip
 			}
 		}
 
-		if (!script_ok) {
+		if (script_ok != (multiplier == 1)) {
 			/* The instance needs to go down */
 			down_instance(vrrp);
 		} else if (!vrrp->num_script_init &&
@@ -1006,16 +1006,21 @@ initialise_track_script_state(tracked_sc_t *tsc, vrrp_t *vrrp)
 static void
 initialise_track_bfd_state(tracked_bfd_t *tbfd, vrrp_t *vrrp)
 {
-	if (tbfd->bfd->bfd_up) {
-		if (tbfd->weight > 0)
-			vrrp->total_priority += tbfd->weight * tbfd->weight_multiplier;
-	} else {
-		if (tbfd->weight < 0)
-			vrrp->total_priority += tbfd->weight * tbfd->weight_multiplier;
-		else if (!tbfd->weight) {
-			vrrp->num_script_if_fault++;
-			vrrp->state = VRRP_STATE_FAULT;
+	if (tbfd->weight) {
+		if (tbfd->bfd->bfd_up) {
+			if (tbfd->weight > 0)
+				vrrp->total_priority += tbfd->weight * tbfd->weight_multiplier;
+		} else {
+			if (tbfd->weight < 0)
+				vrrp->total_priority += tbfd->weight * tbfd->weight_multiplier;
+			else if (!tbfd->weight) {
+				vrrp->num_script_if_fault++;
+				vrrp->state = VRRP_STATE_FAULT;
+			}
 		}
+	} else if (!!tbfd->bfd->bfd_up != (tbfd->weight_multiplier == 1)) {
+		vrrp->num_script_if_fault++;
+		vrrp->state = VRRP_STATE_FAULT;
 	}
 }
 #endif
@@ -1033,7 +1038,7 @@ initialise_interface_tracking_priorities(void)
 				continue;
 
 			if (!tvp->weight) {
-				if (!IF_FLAGS_UP(ifp)) {
+				if (IF_FLAGS_UP(ifp) != (tvp->weight_multiplier == 1)) {
 					/* The instance is down */
 					tvp->vrrp->state = VRRP_STATE_FAULT;
 					tvp->vrrp->num_script_if_fault++;
@@ -1087,7 +1092,7 @@ initialise_process_tracking_priorities(void)
 
 		LIST_FOREACH(tprocess->tracking_vrrp, tvp, e1) {
 			if (!tvp->weight) {
-				if (!tprocess->have_quorum) {
+				if (tprocess->have_quorum != (tvp->weight_multiplier == 1)) {
 					/* The instance is down */
 					tvp->vrrp->state = VRRP_STATE_FAULT;
 					tvp->vrrp->num_script_if_fault++;
@@ -1475,7 +1480,7 @@ process_update_track_process_status(vrrp_tracked_process_t *tprocess, bool now_u
 
 	LIST_FOREACH(tprocess->tracking_vrrp, tvp, e) {
 		if (!tvp->weight) {
-			if (now_up)
+			if (now_up == (tvp->weight_multiplier == 1))
 				try_up_instance(tvp->vrrp, false);
 			else
 				down_instance(tvp->vrrp);

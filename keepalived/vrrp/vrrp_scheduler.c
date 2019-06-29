@@ -742,7 +742,7 @@ vrrp_handle_bfd_event(bfd_event_t * evt)
 				continue;
 			}
 
-			if (vbfd->bfd_up)
+			if (!!vbfd->bfd_up == (tbfd->weight_multiplier == 1))
 				try_up_instance(vrrp, false);
 			else
 				down_instance(vrrp);
