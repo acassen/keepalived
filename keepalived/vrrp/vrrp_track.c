@@ -587,7 +587,7 @@ void
 dump_vrrp_tracked_bfd(FILE *fp, const void *track_data)
 {
 	const tracked_bfd_t *tbfd = track_data;
-	conf_write(fp, "     %s: weight %d", tbfd->bfd->bname, tbfd->weight);
+	conf_write(fp, "     %s: weight %d%s", tbfd->bfd->bname, tbfd->weight, tbfd->weight_multiplier == -1 ? " reverse" : "");
 }
 
 void
@@ -605,6 +605,7 @@ alloc_track_bfd(vrrp_t *vrrp, const vector_t *strvec)
 	tracked_bfd_t *etbfd;
 	element e;
 	int weight;
+	bool reverse = false;
 
 	vtb = find_vrrp_tracked_bfd_by_name(tracked);
 
@@ -623,28 +624,43 @@ alloc_track_bfd(vrrp_t *vrrp, const vector_t *strvec)
 	}
 
 	weight = vtb->weight;
+	reverse = vtb->weight_reverse;
 	if (vector_size(strvec) >= 2) {
 		if (strcmp(strvec_slot(strvec, 1), "weight")) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track bfd option %s - ignoring",
-					 vrrp->iname, strvec_slot(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track bfd %s option %s - ignoring",
+					 vrrp->iname, tracked, strvec_slot(strvec, 1));
 			return;
 		}
-		if (vector_size(strvec) >= 3) {
-			if (!read_int_strvec(strvec, 2, &weight, -253, 253, true)) {
-				report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for track bfd %s must be in "
-						 "[-253..253] inclusive. Ignoring...", vrrp->iname, tracked);
-				weight = vtb->weight;
-			}
-		} else {
+
+		if (vector_size(strvec) == 2) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight without value specified for track bfd %s - ignoring",
 					vrrp->iname, tracked);
 			return;
+		}
+
+		if (!read_int_strvec(strvec, 2, &weight, -253, 253, true)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for track bfd %s must be in "
+					 "[-253..253] inclusive. Ignoring...", vrrp->iname, tracked);
+			weight = vtb->weight;
+		}
+
+		if (vector_size(strvec) >= 4) {
+			if (!strcmp(strvec_slot(strvec, 3), "reverse"))
+				reverse = true;
+			else if (!strcmp(strvec_slot(strvec, 3), "noreverse"))
+				reverse = false;
+			else {
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track bfd %s weight option %s - ignoring",
+						 vrrp->iname, tracked, strvec_slot(strvec, 3));
+				return;
+			}
 		}
 	}
 
 	tbfd = (tracked_bfd_t *) MALLOC(sizeof(tracked_bfd_t));
 	tbfd->bfd = vtb;
 	tbfd->weight = weight;
+	tbfd->weight_multiplier = reverse ? -1 : 1;
 	list_add(vrrp->track_bfd, tbfd);
 }
 
@@ -657,6 +673,7 @@ alloc_group_track_bfd(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 	tracked_bfd_t *etbfd;
 	element e;
 	int weight;
+	bool reverse = false;
 
 	vtb = find_vrrp_tracked_bfd_by_name(tracked);
 
@@ -666,7 +683,7 @@ alloc_group_track_bfd(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 		return;
 	}
 
-	/* Check this vrrp isn't already tracking the script */
+	/* Check this vrrp isn't already tracking the bfd */
 	LIST_FOREACH(sgroup->track_bfd, etbfd, e) {
 		if (etbfd->bfd == vtb) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) duplicate track_bfd %s - ignoring", sgroup->gname, tracked);
@@ -675,28 +692,43 @@ alloc_group_track_bfd(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 	}
 
 	weight = vtb->weight;
+	reverse = vtb->weight_reverse;
 	if (vector_size(strvec) >= 2) {
 		if (strcmp(strvec_slot(strvec, 1), "weight")) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track bfd option %s - ignoring",
-					 sgroup->gname, strvec_slot(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track bfd %s option %s - ignoring",
+					 sgroup->gname, tracked, strvec_slot(strvec, 1));
 			return;
 		}
-		if (vector_size(strvec) >= 3) {
-			if (!read_int_strvec(strvec, 2, &weight, -253, 253, true)) {
-				report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for track bfd %s must be in "
-						 "[-253..253] inclusive. Ignoring...", sgroup->gname, tracked);
-				weight = vtb->weight;
-			}
-		} else {
+
+		if (vector_size(strvec) == 2) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight without value specified for track bfd %s - ignoring",
 					sgroup->gname, tracked);
 			return;
+		}
+
+		if (!read_int_strvec(strvec, 2, &weight, -253, 253, true)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for track bfd %s must be in "
+					 "[-253..253] inclusive. Ignoring...", sgroup->gname, tracked);
+			weight = vtb->weight;
+		}
+
+		if (vector_size(strvec) >= 4) {
+			if (!strcmp(strvec_slot(strvec, 3), "reverse"))
+				reverse = true;
+			else if (!strcmp(strvec_slot(strvec, 3), "noreverse"))
+				reverse = false;
+			else {
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track bfd weight option %s - ignoring",
+						 sgroup->gname, strvec_slot(strvec, 3));
+				return;
+			}
 		}
 	}
 
 	tbfd = (tracked_bfd_t *) MALLOC(sizeof(tracked_bfd_t));
 	tbfd->bfd = vtb;
 	tbfd->weight = weight;
+	tbfd->weight_multiplier = reverse ? -1 : 1;
 	list_add(sgroup->track_bfd, tbfd);
 }
 #endif
@@ -858,10 +890,10 @@ initialise_track_bfd_state(tracked_bfd_t *tbfd, vrrp_t *vrrp)
 {
 	if (tbfd->bfd->bfd_up) {
 		if (tbfd->weight > 0)
-			vrrp->total_priority += tbfd->weight;
+			vrrp->total_priority += tbfd->weight * tbfd->weight_multiplier;
 	} else {
 		if (tbfd->weight < 0)
-			vrrp->total_priority += tbfd->weight;
+			vrrp->total_priority += tbfd->weight * tbfd->weight_multiplier;
 		else if (!tbfd->weight) {
 			vrrp->num_script_if_fault++;
 			vrrp->state = VRRP_STATE_FAULT;

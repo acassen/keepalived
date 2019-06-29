@@ -147,6 +147,7 @@ typedef struct _tracked_process_instance {
 typedef struct _vrrp_bfd {
 	char			bname[BFD_INAME_MAX];	/* bfd name */
 	int			weight;		/* Default weight */
+	bool			weight_reverse;	/* apply weight in opposite direction */
 	list			tracking_vrrp;	/* List of tracking_vrrp_t for vrrp instances tracking this bfd */
 	bool			bfd_up;		/* Last status returned by bfd. Used to report changes */
 } vrrp_tracked_bfd_t;
@@ -155,6 +156,7 @@ typedef struct _vrrp_bfd {
 typedef struct _tracked_bfd {
 	vrrp_tracked_bfd_t	*bfd;		/* track bfd pointer, cannot be NULL */
 	int			weight;		/* Weight for bfd */
+	int			weight_multiplier; /* Which direction is weight applied */
 } tracked_bfd_t;
 #endif
 
@@ -178,6 +180,7 @@ typedef enum {
 /* List structure from scripts, files and interfaces to tracking vrrp */
 typedef struct _tracking_vrrp {
 	int			weight;		/* Tracking weight, or zero for down instance */
+	int			weight_multiplier; /* Which direction is weight applied */
 	struct _vrrp_t		*vrrp;		/* The vrrp instance */
 	track_t			type;		/* Type of object being tracked */
 } tracking_vrrp_t;

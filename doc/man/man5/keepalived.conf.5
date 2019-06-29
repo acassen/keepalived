@@ -892,7 +892,11 @@ The syntax for bfd instance is :
     \fBmax_hops \fR<INTEGER>
 
     # Default tracking weight
-    \fBweight\fR
+    # Normally, positive weights are added to the vrrp instance priority when
+    # the bfd instance is up, negative weights reduce the priority when it is down.
+    # However, if reverse is specified, the priority is decreased when up and
+    # increased when down.
+    \fBweight\fR <-253:253> [reverse]
 }
 .fi
 .PP
@@ -1071,7 +1075,7 @@ The syntax for vrrp_sync_group is :
     \fBtrack_bfd \fR{
         <STRING>
         <STRING>
-        <STRING> weight <INTEGER: -253..253>
+        <STRING> weight <INTEGER: -253..253> [reverse|noreverse]
         ...
     }
 
@@ -1280,12 +1284,15 @@ The syntax for vrrp_instance is :
         ...
     }
 
-    # BFD instances we monitor, value is added to effective priority.
+    # BFD instances we monitor, value is added to effective priority,
+    # unless reverse is specified, when the value is subtracted.
+    # Positive weights are add/subtracted when the bfd instance is up,
+    # negative weights are subtracted/added when the bfd instance is down.
     # <STRING> is the name of a BFD instance
     \fBtrack_bfd \fR{
         <STRING>
         <STRING>
-        <STRING> weight <INTEGER: -253..253>
+        <STRING> weight <INTEGER: -253..253> [reverse|noreverse]
         ...
     }
 

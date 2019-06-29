@@ -188,7 +188,7 @@ dump_tracking_vrrp(FILE *fp, const void *data)
 	const tracking_vrrp_t *tvp = (const tracking_vrrp_t *)data;
 	const vrrp_t *vrrp = tvp->vrrp;
 
-	conf_write(fp, "     %s, weight %d%s", vrrp->iname, tvp->weight, tvp->type == TRACK_VRRP_DYNAMIC ? " (dynamic)" : "");
+	conf_write(fp, "     %s, weight %d%s%s", vrrp->iname, tvp->weight, tvp->weight_multiplier == -1 ? " reverse" : "", tvp->type == TRACK_VRRP_DYNAMIC ? " (dynamic)" : "");
 }
 
 static void
@@ -323,7 +323,7 @@ dump_vrrp_bfd(FILE *fp, const void *track_data)
 	const vrrp_tracked_bfd_t *vbfd = track_data;
 
 	conf_write(fp, " VRRP Track BFD = %s", vbfd->bname);
-	conf_write(fp, "   Weight = %d", vbfd->weight);
+	conf_write(fp, "   Weight = %d%s", vbfd->weight, vbfd->weight_reverse ? " reverse" : "");
 	conf_write(fp, "   Tracking VRRP instances = %u", vbfd->tracking_vrrp ? LIST_SIZE(vbfd->tracking_vrrp) : 0);
 	if (vbfd->tracking_vrrp)
 		dump_list(fp, vbfd->tracking_vrrp);
