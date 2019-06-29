@@ -431,8 +431,7 @@ alloc_track_file(vrrp_t *vrrp, const vector_t *strvec)
 
 	if (!LIST_ISEMPTY(vrrp->track_file)) {
 		/* Check this vrrp isn't already tracking the script */
-		for (e = LIST_HEAD(vrrp->track_file); e; ELEMENT_NEXT(e)) {
-			etfile = ELEMENT_DATA(e);
+		LIST_FOREACH(vrrp->track_file, etfile, e) {
 			if (etfile->file == vsf) {
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) duplicate track_file %s - ignoring", vrrp->iname, tracked);
 				return;
@@ -447,16 +446,17 @@ alloc_track_file(vrrp_t *vrrp, const vector_t *strvec)
 					 vrrp->iname, strvec_slot(strvec, 1));
 			return;
 		}
-		if (vector_size(strvec) >= 3) {
-			if (!read_int_strvec(strvec, 2, &weight, -254, 254, true)) {
-				report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for track file %s must be in "
-						 "[-254..254] inclusive. Ignoring...", vrrp->iname, tracked);
-				weight = vsf->weight;
-			}
-		} else {
+
+		if (vector_size(strvec) == 2) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight without value specified for track file %s - ignoring",
 					vrrp->iname, tracked);
 			return;
+		}
+
+		if (!read_int_strvec(strvec, 2, &weight, -254, 254, true)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for track file %s must be in "
+					 "[-254..254] inclusive. Ignoring...", vrrp->iname, tracked);
+			weight = vsf->weight;
 		}
 	}
 
@@ -486,8 +486,7 @@ alloc_group_track_file(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 
 	if (!LIST_ISEMPTY(sgroup->track_file)) {
 		/* Check this vrrp isn't already tracking the script */
-		for (e = LIST_HEAD(sgroup->track_file); e; ELEMENT_NEXT(e)) {
-			etfile = ELEMENT_DATA(e);
+		LIST_FOREACH(sgroup->track_file, etfile, e) {
 			if (etfile->file == vsf) {
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) duplicate track_file %s - ignoring", sgroup->gname, tracked);
 				return;
@@ -502,16 +501,17 @@ alloc_group_track_file(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 					 sgroup->gname, strvec_slot(strvec, 1));
 			return;
 		}
-		if (vector_size(strvec) >= 3) {
-			if (!read_int_strvec(strvec, 2, &weight, -254, 254, true)) {
-				report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for track file %s must be in "
-						 "[-254..254] inclusive. Ignoring...", sgroup->gname, tracked);
-				weight = vsf->weight;
-			}
-		} else {
+
+		if (vector_size(strvec) == 2) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight without value specified for track file %s - ignoring",
 					sgroup->gname, tracked);
 			return;
+		}
+
+		if (!read_int_strvec(strvec, 2, &weight, -254, 254, true)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for track file %s must be in "
+					 "[-254..254] inclusive. Ignoring...", sgroup->gname, tracked);
+			weight = vsf->weight;
 		}
 	}
 
