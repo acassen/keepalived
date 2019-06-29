@@ -1049,9 +1049,18 @@ The syntax for vrrp_sync_group is :
     }
 
     # Files whose state we monitor, value is added to effective priority.
-    # <STRING> is the name of a vrrp_status_file
+    # <STRING> is the name of a vrrp_track_file
     # weight defaults to weight configured in vrrp_track_file
     \fBtrack_file \fR{
+        <STRING>
+        <STRING> weight <-254..254>
+        ...
+    }
+
+    # Process to monitor, weight is added to effective priority.
+    # <STRING> is the name of a vrrp_track_process
+    # weight defaults to weight configured in vrrp_track_process
+    \fBtrack_process \fR{
         <STRING>
         <STRING> weight <-254..254>
         ...
@@ -1256,6 +1265,16 @@ The syntax for vrrp_instance is :
     # <STRING> is the name of a vrrp_track_file
     \fBtrack_file \fR{
         <STRING>
+        <STRING>
+        <STRING> weight <-254..254>
+        ...
+    }
+
+    # Positive weights are added/subtracted when the process is running,
+    # negative weights are subtracted/added when the not running.
+    # <STRING> is the name of a vrrp_track_process
+    # weight defaults to weight configured in vrrp_track_process
+    \fBtrack_process \fR{
         <STRING>
         <STRING> weight <-254..254>
         ...
