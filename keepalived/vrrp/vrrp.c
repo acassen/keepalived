@@ -2562,7 +2562,7 @@ add_vrrp_to_track_bfd(vrrp_t *vrrp, tracked_bfd_t *tbfd)
 
 				if (etvp->weight) {
 					etvp->weight = tbfd->weight;
-					etvp->weight_multiplier = tbfd->weight_multiplier;
+					etvp->weight_multiplier = tbfd->weight_reverse ? -1 : 1;
 				}
 				return;
 			}
@@ -2572,7 +2572,7 @@ add_vrrp_to_track_bfd(vrrp_t *vrrp, tracked_bfd_t *tbfd)
 	PMALLOC(tvp);
 	tvp->vrrp = vrrp;
 	tvp->weight = tbfd->weight;
-	tvp->weight_multiplier = tbfd->weight_multiplier;
+	tvp->weight_multiplier = tbfd->weight_reverse ? -1 : 1;
 	list_add(tbfd->bfd->tracking_vrrp, tvp);
 }
 #endif

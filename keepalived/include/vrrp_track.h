@@ -162,7 +162,7 @@ typedef struct _vrrp_bfd {
 typedef struct _tracked_bfd {
 	vrrp_tracked_bfd_t	*bfd;		/* track bfd pointer, cannot be NULL */
 	int			weight;		/* Weight for bfd */
-	int			weight_multiplier; /* Which direction is weight applied */
+	bool			weight_reverse; /* which direction is the weight applied */
 } tracked_bfd_t;
 #endif
 

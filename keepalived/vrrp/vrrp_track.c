@@ -736,7 +736,7 @@ void
 dump_vrrp_tracked_bfd(FILE *fp, const void *track_data)
 {
 	const tracked_bfd_t *tbfd = track_data;
-	conf_write(fp, "     %s: weight %d%s", tbfd->bfd->bname, tbfd->weight, tbfd->weight_multiplier == -1 ? " reverse" : "");
+	conf_write(fp, "     %s: weight %d%s", tbfd->bfd->bname, tbfd->weight, tbfd->weight_reverse ? " reverse" : "");
 }
 
 void
@@ -809,7 +809,7 @@ alloc_track_bfd(vrrp_t *vrrp, const vector_t *strvec)
 	tbfd = (tracked_bfd_t *) MALLOC(sizeof(tracked_bfd_t));
 	tbfd->bfd = vtb;
 	tbfd->weight = weight;
-	tbfd->weight_multiplier = reverse ? -1 : 1;
+	tbfd->weight_reverse = reverse;
 	list_add(vrrp->track_bfd, tbfd);
 }
 
@@ -877,7 +877,7 @@ alloc_group_track_bfd(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 	tbfd = (tracked_bfd_t *) MALLOC(sizeof(tracked_bfd_t));
 	tbfd->bfd = vtb;
 	tbfd->weight = weight;
-	tbfd->weight_multiplier = reverse ? -1 : 1;
+	tbfd->weight_reverse = reverse;
 	list_add(sgroup->track_bfd, tbfd);
 }
 #endif
@@ -1036,19 +1036,21 @@ initialise_track_script_state(tracked_sc_t *tsc, vrrp_t *vrrp)
 static void
 initialise_track_bfd_state(tracked_bfd_t *tbfd, vrrp_t *vrrp)
 {
+	int multiplier = tbfd->weight_reverse ? -1 : 1;
+
 	if (tbfd->weight) {
 		if (tbfd->bfd->bfd_up) {
 			if (tbfd->weight > 0)
-				vrrp->total_priority += tbfd->weight * tbfd->weight_multiplier;
+				vrrp->total_priority += tbfd->weight * multiplier;
 		} else {
 			if (tbfd->weight < 0)
-				vrrp->total_priority += tbfd->weight * tbfd->weight_multiplier;
+				vrrp->total_priority += tbfd->weight * multiplier;
 			else if (!tbfd->weight) {
 				vrrp->num_script_if_fault++;
 				vrrp->state = VRRP_STATE_FAULT;
 			}
 		}
-	} else if (!!tbfd->bfd->bfd_up != (tbfd->weight_multiplier == 1)) {
+	} else if (tbfd->bfd->bfd_up == tbfd->weight_reverse) {
 		vrrp->num_script_if_fault++;
 		vrrp->state = VRRP_STATE_FAULT;
 	}
