@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201906300001Z"
+     LAST-UPDATED "201906300002Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201906300002Z"
+     DESCRIPTION "add vrrp bfd tracker"
      REVISION "201906300001Z"
      DESCRIPTION "add reverse for vrrp trackers"
      REVISION "201904010001Z"
@@ -692,6 +694,64 @@ vrrpSyncTrackedFileWgtRev OBJECT-TYPE
     DESCRIPTION
         "Weight reversed for the tracked file."
     ::= { vrrpSyncTrackedFileEntry 4 }
+
+vrrpSyncTrackedBfdTable OBJECT-TYPE
+    SYNTAX SEQUENCE OF VrrpSyncTrackedBfdEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Table of tracked BFDs for each sync group."
+    ::= { vrrp 19 }
+
+vrrpSyncTrackedBfdEntry OBJECT-TYPE
+    SYNTAX VrrpSyncTrackedBfdEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Information describing a tracked BFD"
+    INDEX { vrrpSyncGroupIndex, vrrpSyncTrackedBfdIndex }
+    ::= { vrrpSyncTrackedBfdTable 1 }
+
+VrrpSyncTrackedBfdEntry ::= SEQUENCE {
+    vrrpSyncTrackedBfdIndex Integer32,
+    vrrpSyncTrackedBfdName DisplayString,
+    vrrpSyncTrackedBfdWeight Integer32,
+    vrrpSyncTrackedBfdWgtRev Integer32
+}
+
+vrrpSyncTrackedBfdIndex OBJECT-TYPE
+    SYNTAX Integer32 (1..2147483647)
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Index of the tracked BFD in the set of tracked BFDs for
+         the given VRRP instance. This index has no relation with the
+         index of vrrpSyncBfdTable."
+    ::= { vrrpSyncTrackedBfdEntry 1 }
+
+vrrpSyncTrackedBfdName OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Name of the tracked BFD."
+    ::= { vrrpSyncTrackedBfdEntry 2 }
+
+vrrpSyncTrackedBfdWeight OBJECT-TYPE
+    SYNTAX Integer32 (-254..254)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Weight of the tracked BFD."
+    ::= { vrrpSyncTrackedBfdEntry 3 }
+
+vrrpSyncTrackedBfdWgtRev OBJECT-TYPE
+    SYNTAX INTEGER { true(1), false(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Weight reversed for the tracked BFD."
+    ::= { vrrpSyncTrackedBfdEntry 4 }
 
 vrrpSyncGroupMemberTable OBJECT-TYPE
     SYNTAX SEQUENCE OF VrrpSyncGroupMemberEntry
@@ -2611,6 +2671,132 @@ vrrpFileWgtRev OBJECT-TYPE
         "Default weight reverse for the tracked file."
     ::= { vrrpFileEntry 6 }
 
+-- VRRP track BFD
+-- see vrrp_track.h
+
+vrrpTrackedBfdTable OBJECT-TYPE
+    SYNTAX SEQUENCE OF VrrpTrackedBfdEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Table of tracked BFDs for each VRRP instance."
+    ::= { vrrp 17 }
+
+vrrpTrackedBfdEntry OBJECT-TYPE
+    SYNTAX VrrpTrackedBfdEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Information describing a tracked BFD"
+    INDEX { vrrpInstanceIndex, vrrpTrackedBfdIndex }
+    ::= { vrrpTrackedBfdTable 1 }
+
+VrrpTrackedBfdEntry ::= SEQUENCE {
+    vrrpTrackedBfdIndex Integer32,
+    vrrpTrackedBfdName DisplayString,
+    vrrpTrackedBfdWeight Integer32,
+    vrrpTrackedBfdWgtRev Integer32
+}
+
+vrrpTrackedBfdIndex OBJECT-TYPE
+    SYNTAX Integer32 (1..2147483647)
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Index of the tracked BFD in the set of tracked BFDs for
+         the given VRRP instance. This index has no relation with the
+         index of vrrpBfdTable."
+    ::= { vrrpTrackedBfdEntry 1 }
+
+vrrpTrackedBfdName OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Name of the tracked BFD."
+    ::= { vrrpTrackedBfdEntry 2 }
+
+vrrpTrackedBfdWeight OBJECT-TYPE
+    SYNTAX Integer32 (-254..254)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Weight of the tracked BFD."
+    ::= { vrrpTrackedBfdEntry 3 }
+
+vrrpTrackedBfdWgtRev OBJECT-TYPE
+    SYNTAX INTEGER { true(1), false(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Weight reverse for the tracked BFD."
+    ::= { vrrpTrackedBfdEntry 4 }
+
+vrrpBfdTable OBJECT-TYPE
+    SYNTAX SEQUENCE OF VrrpBfdEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Table of VRRP BFDs"
+    ::= { vrrp 18 }
+
+vrrpBfdEntry OBJECT-TYPE
+    SYNTAX VrrpBfdEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Information describing a VRRP BFD"
+    INDEX { vrrpBfdIndex }
+    ::= { vrrpBfdTable 1 }
+
+VrrpBfdEntry ::= SEQUENCE {
+    vrrpBfdIndex Integer32,
+    vrrpBfdName DisplayString,
+    vrrpBfdResult INTEGER,
+    vrrpBfdWeight Integer32,
+    vrrpBfdWgtRev Integer32
+}
+
+vrrpBfdIndex OBJECT-TYPE
+    SYNTAX Integer32 (1..2147483647)
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Bfd index."
+    ::= { vrrpBfdEntry 1 }
+
+vrrpBfdName OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Symbolic name of the BFD."
+    ::= { vrrpBfdEntry 2 }
+
+vrrpBfdResult OBJECT-TYPE
+    SYNTAX Integer32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current status of the BFD."
+    ::= { vrrpBfdEntry 3 }
+
+vrrpBfdWeight OBJECT-TYPE
+    SYNTAX Integer32 (-254..254)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Default weight of the tracked BFD."
+    ::= { vrrpBfdEntry 4 }
+
+vrrpBfdWgtRev OBJECT-TYPE
+    SYNTAX INTEGER { true(1), false(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Default weight reverse for the tracked BFD."
+    ::= { vrrpBfdEntry 5 }
+
 -- Traps
 
 vrrpTrap OBJECT IDENTIFIER ::= { vrrp 10 }
@@ -4197,7 +4383,8 @@ vrrpCompliances MODULE-COMPLIANCE
     vrrpSyncGroup,
     vrrpInstanceGroup,
     vrrpTrapsGroup,
-    vrrpFileGroup
+    vrrpFileGroup,
+    vrrpBfdGroup
     }
     ::= { compliances 2 }
 
@@ -4279,7 +4466,10 @@ vrrpSyncGroup OBJECT-GROUP
     vrrpSyncTrackedScriptWgtRev,
     vrrpSyncTrackedFileName,
     vrrpSyncTrackedFileWeight,
-    vrrpSyncTrackedFileWgtRev
+    vrrpSyncTrackedFileWgtRev,
+    vrrpSyncTrackedBfdName,
+    vrrpSyncTrackedBfdWeight,
+    vrrpSyncTrackedBfdWgtRev
     }
     STATUS current
     DESCRIPTION
@@ -4325,6 +4515,9 @@ vrrpInstanceGroup OBJECT-GROUP
     vrrpTrackedFileName,
     vrrpTrackedFileWeight,
     vrrpTrackedFileWgtRev,
+    vrrpTrackedBfdName,
+    vrrpTrackedBfdWeight,
+    vrrpTrackedBfdWgtRev,
     vrrpAddressType,
     vrrpAddressValue,
     vrrpAddressBroadcast,
@@ -4505,6 +4698,18 @@ vrrpFileGroup OBJECT-GROUP
     DESCRIPTION
         "Conformance group for VRRP track files."
     ::= { vrrpGroups 7 }
+
+vrrpBfdGroup OBJECT-GROUP
+    OBJECTS {
+    vrrpBfdName,
+    vrrpBfdResult,
+    vrrpBfdWeight,
+    vrrpBfdWgtRev
+    }
+    STATUS current
+    DESCRIPTION
+        "Conformance group for VRRP track BFDs."
+    ::= { vrrpGroups 8 }
 
 checkGroups OBJECT IDENTIFIER ::= { groups 3 }
 
