@@ -144,6 +144,7 @@ enum snmp_vrrp_magic {
 	VRRP_SNMP_SCRIPT_COMMAND,
 	VRRP_SNMP_SCRIPT_INTERVAL,
 	VRRP_SNMP_SCRIPT_WEIGHT,
+	VRRP_SNMP_SCRIPT_WEIGHT_REVERSE,
 	VRRP_SNMP_SCRIPT_RESULT,
 	VRRP_SNMP_SCRIPT_RISE,
 	VRRP_SNMP_SCRIPT_FALL,
@@ -151,6 +152,7 @@ enum snmp_vrrp_magic {
 	VRRP_SNMP_FILE_PATH,
 	VRRP_SNMP_FILE_RESULT,
 	VRRP_SNMP_FILE_WEIGHT,
+	VRRP_SNMP_FILE_WEIGHT_REVERSE,
 	VRRP_SNMP_ADDRESS_ADDRESSTYPE,
 	VRRP_SNMP_ADDRESS_VALUE,
 	VRRP_SNMP_ADDRESS_BROADCAST,
@@ -206,16 +208,22 @@ enum snmp_vrrp_magic {
 	VRRP_SNMP_INSTANCE_SCRIPTMASTER_RX_LOWER_PRI,
 	VRRP_SNMP_TRACKEDINTERFACE_NAME,
 	VRRP_SNMP_TRACKEDINTERFACE_WEIGHT,
+	VRRP_SNMP_TRACKEDINTERFACE_WEIGHT_REVERSE,
 	VRRP_SNMP_TRACKEDSCRIPT_NAME,
 	VRRP_SNMP_TRACKEDSCRIPT_WEIGHT,
+	VRRP_SNMP_TRACKEDSCRIPT_WEIGHT_REVERSE,
 	VRRP_SNMP_TRACKEDFILE_NAME,
 	VRRP_SNMP_TRACKEDFILE_WEIGHT,
+	VRRP_SNMP_TRACKEDFILE_WEIGHT_REVERSE,
 	VRRP_SNMP_SGROUPTRACKEDINTERFACE_NAME,
 	VRRP_SNMP_SGROUPTRACKEDINTERFACE_WEIGHT,
+	VRRP_SNMP_SGROUPTRACKEDINTERFACE_WEIGHT_REVERSE,
 	VRRP_SNMP_SGROUPTRACKEDSCRIPT_NAME,
 	VRRP_SNMP_SGROUPTRACKEDSCRIPT_WEIGHT,
+	VRRP_SNMP_SGROUPTRACKEDSCRIPT_WEIGHT_REVERSE,
 	VRRP_SNMP_SGROUPTRACKEDFILE_NAME,
 	VRRP_SNMP_SGROUPTRACKEDFILE_WEIGHT,
+	VRRP_SNMP_SGROUPTRACKEDFILE_WEIGHT_REVERSE,
 };
 
 #ifdef _HAVE_FIB_ROUTING_
@@ -547,6 +555,9 @@ vrrp_snmp_script(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_SCRIPT_WEIGHT:
 		long_ret.s = scr->weight;
 		return (u_char *)&long_ret;
+	case VRRP_SNMP_SCRIPT_WEIGHT_REVERSE:
+		long_ret.u = scr->weight_reverse ? 1 : 2;
+		return (u_char *)&long_ret;
 	case VRRP_SNMP_SCRIPT_RESULT:
 		switch (scr->init_state) {
 		case SCRIPT_INIT_STATE_INIT:
@@ -595,6 +606,9 @@ vrrp_snmp_file(struct variable *vp, oid *name, size_t *length,
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_FILE_WEIGHT:
 		long_ret.s = file->weight;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_FILE_WEIGHT_REVERSE:
+		long_ret.u = file->weight_reverse ? 1 : 2;
 		return (u_char *)&long_ret;
 	default:
 		break;
@@ -2226,6 +2240,9 @@ vrrp_snmp_trackedinterface(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_TRACKEDINTERFACE_WEIGHT:
 		long_ret.s = bifp->weight;
 		return (u_char *)&long_ret;
+	case VRRP_SNMP_TRACKEDINTERFACE_WEIGHT_REVERSE:
+		long_ret.s = bifp->weight_reverse ? 1 : 2;
+		return (u_char *)&long_ret;
 	}
 	return NULL;
 }
@@ -2316,6 +2333,9 @@ vrrp_snmp_trackedscript(struct variable *vp, oid *name, size_t *length,
 		return ret.p;
 	case VRRP_SNMP_TRACKEDSCRIPT_WEIGHT:
 		long_ret.s = bscr->weight;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_TRACKEDSCRIPT_WEIGHT_REVERSE:
+		long_ret.s = bscr->weight_reverse ? 1 : 2;
 		return (u_char *)&long_ret;
 	}
 	return NULL;
@@ -2408,6 +2428,9 @@ vrrp_snmp_trackedfile(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_TRACKEDFILE_WEIGHT:
 		long_ret.s = bfile->file->weight;
 		return (u_char *)&long_ret;
+	case VRRP_SNMP_TRACKEDFILE_WEIGHT_REVERSE:
+		long_ret.s = bfile->file->weight_reverse ? 1 : 2;
+		return (u_char *)&long_ret;
 	}
 
 	return NULL;
@@ -2494,6 +2517,9 @@ vrrp_snmp_group_trackedinterface(struct variable *vp, oid *name, size_t *length,
 		return (u_char *)bifp->ifp->ifname;
 	case VRRP_SNMP_SGROUPTRACKEDINTERFACE_WEIGHT:
 		long_ret.s = bifp->weight;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_SGROUPTRACKEDINTERFACE_WEIGHT_REVERSE:
+		long_ret.s = bifp->weight_reverse ? 1 : 2;
 		return (u_char *)&long_ret;
 	}
 	return NULL;
@@ -2586,6 +2612,9 @@ vrrp_snmp_group_trackedscript(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_SGROUPTRACKEDSCRIPT_WEIGHT:
 		long_ret.s = bscr->weight;
 		return (u_char *)&long_ret;
+	case VRRP_SNMP_SGROUPTRACKEDSCRIPT_WEIGHT_REVERSE:
+		long_ret.s = bscr->weight_reverse ? 1 : 2;
+		return (u_char *)&long_ret;
 	}
 	return NULL;
 }
@@ -2676,6 +2705,9 @@ vrrp_snmp_group_trackedfile(struct variable *vp, oid *name, size_t *length,
 		return ret.p;
 	case VRRP_SNMP_SGROUPTRACKEDFILE_WEIGHT:
 		long_ret.s = bfile->file->weight;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_SGROUPTRACKEDFILE_WEIGHT_REVERSE:
+		long_ret.s = bfile->file->weight_reverse ? 1 : 2;
 		return (u_char *)&long_ret;
 	}
 
@@ -2777,12 +2809,16 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_trackedinterface, 3, {4, 1, 1}},
 	{VRRP_SNMP_TRACKEDINTERFACE_WEIGHT, ASN_INTEGER, RONLY,
 	 vrrp_snmp_trackedinterface, 3, {4, 1, 2}},
+	{VRRP_SNMP_TRACKEDINTERFACE_WEIGHT_REVERSE, ASN_INTEGER, RONLY,
+	 vrrp_snmp_trackedinterface, 3, {4, 1, 3}},
 
 	/* vrrpTrackedScriptTable */
 	{VRRP_SNMP_TRACKEDSCRIPT_NAME, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_trackedscript, 3, {5, 1, 2}},
 	{VRRP_SNMP_TRACKEDSCRIPT_WEIGHT, ASN_INTEGER, RONLY,
 	 vrrp_snmp_trackedscript, 3, {5, 1, 3}},
+	{VRRP_SNMP_TRACKEDSCRIPT_WEIGHT_REVERSE, ASN_INTEGER, RONLY,
+	 vrrp_snmp_trackedscript, 3, {5, 1, 4}},
 
 	/* vrrpAddressTable */
 	{VRRP_SNMP_ADDRESS_ADDRESSTYPE, ASN_INTEGER, RONLY,
@@ -3004,6 +3040,7 @@ static struct variable8 vrrp_vars[] = {
 	{VRRP_SNMP_SCRIPT_RESULT, ASN_INTEGER, RONLY, vrrp_snmp_script, 3, {9, 1, 6}},
 	{VRRP_SNMP_SCRIPT_RISE, ASN_UNSIGNED, RONLY, vrrp_snmp_script, 3, {9, 1, 7}},
 	{VRRP_SNMP_SCRIPT_FALL, ASN_UNSIGNED, RONLY, vrrp_snmp_script, 3, {9, 1, 8}},
+	{VRRP_SNMP_SCRIPT_WEIGHT_REVERSE, ASN_INTEGER, RONLY, vrrp_snmp_script, 3, {9, 1, 9}},
 
 #ifdef _HAVE_FIB_ROUTING_
 	/* vrrpRouteNextHopTable */
@@ -3054,30 +3091,40 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_trackedfile, 3, {12, 1, 2}},
 	{VRRP_SNMP_TRACKEDFILE_WEIGHT, ASN_INTEGER, RONLY,
 	 vrrp_snmp_trackedfile, 3, {12, 1, 3}},
+	{VRRP_SNMP_TRACKEDFILE_WEIGHT_REVERSE, ASN_INTEGER, RONLY,
+	 vrrp_snmp_trackedfile, 3, {12, 1, 4}},
 
 	/* vrrpFileTable */
 	{VRRP_SNMP_FILE_NAME, ASN_OCTET_STR, RONLY, vrrp_snmp_file, 3, {13, 1, 2}},
 	{VRRP_SNMP_FILE_PATH, ASN_OCTET_STR, RONLY, vrrp_snmp_file, 3, {13, 1, 3}},
 	{VRRP_SNMP_FILE_RESULT, ASN_INTEGER, RONLY, vrrp_snmp_file, 3, {13, 1, 4}},
 	{VRRP_SNMP_FILE_WEIGHT, ASN_INTEGER, RONLY, vrrp_snmp_file, 3, {13, 1, 5}},
+	{VRRP_SNMP_FILE_WEIGHT_REVERSE, ASN_INTEGER, RONLY, vrrp_snmp_file, 3, {13, 1, 6}},
 
 	/* syncGroupTrackedInterfaceTable */
 	{VRRP_SNMP_SGROUPTRACKEDINTERFACE_NAME, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_group_trackedinterface, 3, {14, 1, 1}},
 	{VRRP_SNMP_SGROUPTRACKEDINTERFACE_WEIGHT, ASN_INTEGER, RONLY,
 	 vrrp_snmp_group_trackedinterface, 3, {14, 1, 2}},
+	{VRRP_SNMP_SGROUPTRACKEDINTERFACE_WEIGHT_REVERSE, ASN_INTEGER, RONLY,
+	 vrrp_snmp_group_trackedinterface, 3, {14, 1, 3}},
+
 
 	/* syncGroupTrackedScriptTable */
 	{VRRP_SNMP_SGROUPTRACKEDSCRIPT_NAME, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_group_trackedscript, 3, {15, 1, 2}},
 	{VRRP_SNMP_SGROUPTRACKEDSCRIPT_WEIGHT, ASN_INTEGER, RONLY,
 	 vrrp_snmp_group_trackedscript, 3, {15, 1, 3}},
+	{VRRP_SNMP_SGROUPTRACKEDSCRIPT_WEIGHT_REVERSE, ASN_INTEGER, RONLY,
+	 vrrp_snmp_group_trackedscript, 3, {15, 1, 4}},
 
 	/* syncGroupTrackedFileTable */
 	{VRRP_SNMP_SGROUPTRACKEDFILE_NAME, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_group_trackedfile, 3, {16, 1, 2}},
 	{VRRP_SNMP_SGROUPTRACKEDFILE_WEIGHT, ASN_INTEGER, RONLY,
 	 vrrp_snmp_group_trackedfile, 3, {16, 1, 3}},
+	{VRRP_SNMP_SGROUPTRACKEDFILE_WEIGHT_REVERSE, ASN_INTEGER, RONLY,
+	 vrrp_snmp_group_trackedfile, 3, {16, 1, 4}},
 
 };
 

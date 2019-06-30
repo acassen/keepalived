@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201904010001Z"
+     LAST-UPDATED "201906300001Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201906300001Z"
+     DESCRIPTION "add reverse for vrrp trackers"
      REVISION "201904010001Z"
      DESCRIPTION "add lvs_flush_onstop for each virtual server"
      REVISION "201903250001Z"
@@ -547,7 +549,8 @@ vrrpSyncTrackedInterfaceEntry OBJECT-TYPE
 
 VrrpSyncTrackedInterfaceEntry ::= SEQUENCE {
     vrrpSyncTrackedInterfaceName DisplayString,
-    vrrpSyncTrackedInterfaceWeight Integer32
+    vrrpSyncTrackedInterfaceWeight Integer32,
+    vrrpSyncTrackedInterfaceWgtRev Integer32
 }
 
 vrrpSyncTrackedInterfaceName OBJECT-TYPE
@@ -565,6 +568,14 @@ vrrpSyncTrackedInterfaceWeight OBJECT-TYPE
     DESCRIPTION
         "Weight of the tracked interface."
     ::= { vrrpSyncTrackedInterfaceEntry 2 }
+
+vrrpSyncTrackedInterfaceWgtRev OBJECT-TYPE
+    SYNTAX INTEGER { true(1), false(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Weight reversed for the tracked interface."
+    ::= { vrrpSyncTrackedInterfaceEntry 3 }
 
 vrrpSyncTrackedScriptTable OBJECT-TYPE
     SYNTAX SEQUENCE OF VrrpSyncTrackedScriptEntry
@@ -586,7 +597,8 @@ vrrpSyncTrackedScriptEntry OBJECT-TYPE
 VrrpSyncTrackedScriptEntry ::= SEQUENCE {
     vrrpSyncTrackedScriptIndex Integer32,
     vrrpSyncTrackedScriptName DisplayString,
-    vrrpSyncTrackedScriptWeight Integer32
+    vrrpSyncTrackedScriptWeight Integer32,
+    vrrpSyncTrackedScriptWgtRev Integer32
 }
 
 vrrpSyncTrackedScriptIndex OBJECT-TYPE
@@ -615,6 +627,14 @@ vrrpSyncTrackedScriptWeight OBJECT-TYPE
         "Weight of the tracked interface."
     ::= { vrrpSyncTrackedScriptEntry 3 }
 
+vrrpSyncTrackedScriptWgtRev OBJECT-TYPE
+    SYNTAX INTEGER { true(1), false(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Weight reversed for the tracked interface."
+    ::= { vrrpSyncTrackedScriptEntry 4 }
+
 vrrpSyncTrackedFileTable OBJECT-TYPE
     SYNTAX SEQUENCE OF VrrpSyncTrackedFileEntry
     MAX-ACCESS not-accessible
@@ -635,7 +655,8 @@ vrrpSyncTrackedFileEntry OBJECT-TYPE
 VrrpSyncTrackedFileEntry ::= SEQUENCE {
     vrrpSyncTrackedFileIndex Integer32,
     vrrpSyncTrackedFileName DisplayString,
-    vrrpSyncTrackedFileWeight Integer32
+    vrrpSyncTrackedFileWeight Integer32,
+    vrrpSyncTrackedFileWgtRev Integer32
 }
 
 vrrpSyncTrackedFileIndex OBJECT-TYPE
@@ -663,6 +684,14 @@ vrrpSyncTrackedFileWeight OBJECT-TYPE
     DESCRIPTION
         "Weight of the tracked file."
     ::= { vrrpSyncTrackedFileEntry 3 }
+
+vrrpSyncTrackedFileWgtRev OBJECT-TYPE
+    SYNTAX INTEGER { true(1), false(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Weight reversed for the tracked file."
+    ::= { vrrpSyncTrackedFileEntry 4 }
 
 vrrpSyncGroupMemberTable OBJECT-TYPE
     SYNTAX SEQUENCE OF VrrpSyncGroupMemberEntry
@@ -1043,7 +1072,8 @@ vrrpTrackedInterfaceEntry OBJECT-TYPE
 
 VrrpTrackedInterfaceEntry ::= SEQUENCE {
     vrrpTrackedInterfaceName DisplayString,
-    vrrpTrackedInterfaceWeight Integer32
+    vrrpTrackedInterfaceWeight Integer32,
+    vrrpTrackedInterfaceWgtRev Integer32
 }
 
 vrrpTrackedInterfaceName OBJECT-TYPE
@@ -1061,6 +1091,14 @@ vrrpTrackedInterfaceWeight OBJECT-TYPE
     DESCRIPTION
         "Weight of the tracked interface."
     ::= { vrrpTrackedInterfaceEntry 2 }
+
+vrrpTrackedInterfaceWgtRev OBJECT-TYPE
+    SYNTAX Integer32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Weight reverse for the tracked interface."
+    ::= { vrrpTrackedInterfaceEntry 3 }
 
 vrrpTrackedScriptTable OBJECT-TYPE
     SYNTAX SEQUENCE OF VrrpTrackedScriptEntry
@@ -1082,7 +1120,8 @@ vrrpTrackedScriptEntry OBJECT-TYPE
 VrrpTrackedScriptEntry ::= SEQUENCE {
     vrrpTrackedScriptIndex Integer32,
     vrrpTrackedScriptName DisplayString,
-    vrrpTrackedScriptWeight Integer32
+    vrrpTrackedScriptWeight Integer32,
+    vrrpTrackedScriptWgtRev Integer32
 }
 
 vrrpTrackedScriptIndex OBJECT-TYPE
@@ -1110,6 +1149,14 @@ vrrpTrackedScriptWeight OBJECT-TYPE
     DESCRIPTION
         "Weight of the tracked interface."
     ::= { vrrpTrackedScriptEntry 3 }
+
+vrrpTrackedScriptWgtRev OBJECT-TYPE
+    SYNTAX INTEGER { true(1), false(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Weight reverse for the tracked interface."
+    ::= { vrrpTrackedScriptEntry 4 }
 
 -- IP addresses
 -- see vrrp_ipaddress.h
@@ -2347,7 +2394,8 @@ VrrpScriptEntry ::= SEQUENCE {
     vrrpScriptWeight Integer32,
     vrrpScriptResult INTEGER,
     vrrpScriptRise Unsigned32,
-    vrrpScriptFall Unsigned32
+    vrrpScriptFall Unsigned32,
+    vrrpScriptWgtRev Integer32
 }
 
 vrrpScriptIndex OBJECT-TYPE
@@ -2420,6 +2468,14 @@ vrrpScriptFall OBJECT-TYPE
         "How many times the script should fail before KO."
     ::= { vrrpScriptEntry 8 }
 
+vrrpScriptWgtRev OBJECT-TYPE
+    SYNTAX INTEGER { true(1), false(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Weight reverse for the script if successful."
+    ::= { vrrpScriptEntry 9 }
+
 -- VRRP files
 -- see vrrp_track.h
 
@@ -2443,7 +2499,8 @@ vrrpTrackedFileEntry OBJECT-TYPE
 VrrpTrackedFileEntry ::= SEQUENCE {
     vrrpTrackedFileIndex Integer32,
     vrrpTrackedFileName DisplayString,
-    vrrpTrackedFileWeight Integer32
+    vrrpTrackedFileWeight Integer32,
+    vrrpTrackedFileWgtRev Integer32
 }
 
 vrrpTrackedFileIndex OBJECT-TYPE
@@ -2472,6 +2529,14 @@ vrrpTrackedFileWeight OBJECT-TYPE
         "Weight of the tracked file."
     ::= { vrrpTrackedFileEntry 3 }
 
+vrrpTrackedFileWgtRev OBJECT-TYPE
+    SYNTAX INTEGER { true(1), false(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Weight reverse for the tracked file."
+    ::= { vrrpTrackedFileEntry 4 }
+
 vrrpFileTable OBJECT-TYPE
     SYNTAX SEQUENCE OF VrrpFileEntry
     MAX-ACCESS not-accessible
@@ -2494,7 +2559,8 @@ VrrpFileEntry ::= SEQUENCE {
     vrrpFileName DisplayString,
     vrrpFilePath DisplayString,
     vrrpFileResult INTEGER,
-    vrrpFileWeight Integer32
+    vrrpFileWeight Integer32,
+    vrrpFileWgtRev Integer32
 }
 
 vrrpFileIndex OBJECT-TYPE
@@ -2536,6 +2602,14 @@ vrrpFileWeight OBJECT-TYPE
     DESCRIPTION
         "Default weight of the tracked file."
     ::= { vrrpFileEntry 5 }
+
+vrrpFileWgtRev OBJECT-TYPE
+    SYNTAX INTEGER { true(1), false(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Default weight reverse for the tracked file."
+    ::= { vrrpFileEntry 6 }
 
 -- Traps
 
@@ -4199,10 +4273,13 @@ vrrpSyncGroup OBJECT-GROUP
     vrrpSyncGroupMemberName,
     vrrpSyncTrackedInterfaceName,
     vrrpSyncTrackedInterfaceWeight,
+    vrrpSyncTrackedInterfaceWgtRev,
     vrrpSyncTrackedScriptName,
     vrrpSyncTrackedScriptWeight,
+    vrrpSyncTrackedScriptWgtRev,
     vrrpSyncTrackedFileName,
-    vrrpSyncTrackedFileWeight
+    vrrpSyncTrackedFileWeight,
+    vrrpSyncTrackedFileWgtRev
     }
     STATUS current
     DESCRIPTION
@@ -4241,10 +4318,13 @@ vrrpInstanceGroup OBJECT-GROUP
     vrrpInstanceScriptMstrRxLowerPri,
     vrrpTrackedInterfaceName,
     vrrpTrackedInterfaceWeight,
+    vrrpTrackedInterfaceWgtRev,
     vrrpTrackedScriptName,
     vrrpTrackedScriptWeight,
+    vrrpTrackedScriptWgtRev,
     vrrpTrackedFileName,
     vrrpTrackedFileWeight,
+    vrrpTrackedFileWgtRev,
     vrrpAddressType,
     vrrpAddressValue,
     vrrpAddressBroadcast,
@@ -4373,7 +4453,8 @@ vrrpScriptGroup OBJECT-GROUP
     vrrpScriptWeight,
     vrrpScriptResult,
     vrrpScriptRise,
-    vrrpScriptFall
+    vrrpScriptFall,
+    vrrpScriptWgtRev
     }
     STATUS current
     DESCRIPTION
@@ -4417,7 +4498,8 @@ vrrpFileGroup OBJECT-GROUP
     vrrpFileName,
     vrrpFilePath,
     vrrpFileResult,
-    vrrpFileWeight
+    vrrpFileWeight,
+    vrrpFileWgtRev
     }
     STATUS current
     DESCRIPTION
