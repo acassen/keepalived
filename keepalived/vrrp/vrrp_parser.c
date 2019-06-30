@@ -1340,6 +1340,7 @@ vrrp_tfile_weight_handler(const vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR, "No weight specified for track file %s - ignoring", tfile->fname);
 		return;
 	}
+
 	if (tfile->weight != 1) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Weight already set for track file %s - ignoring %s", tfile->fname, strvec_slot(strvec, 1));
 		return;
@@ -1350,8 +1351,14 @@ vrrp_tfile_weight_handler(const vector_t *strvec)
 				 "[-254..254] inclusive. Ignoring...", strvec_slot(strvec, 1), tfile->fname);
 		weight = 1;
 	}
-
 	tfile->weight = weight;
+
+	if (vector_size(strvec) >= 3) {
+		if (!strcmp(strvec_slot(strvec, 2), "reverse"))
+			tfile->weight_reverse = true;
+		else
+			report_config_error(CONFIG_GENERAL_ERROR, "track_file %s unknown weight option %s", tfile->fname, strvec_slot(strvec, 2));
+	}
 }
 static void
 vrrp_tfile_init_handler(const vector_t *strvec)

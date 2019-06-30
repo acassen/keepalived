@@ -254,7 +254,7 @@ dump_vfile(FILE *fp, const void *data)
 	conf_write(fp, " VRRP Track file = %s", vfile->fname);
 	conf_write(fp, "   File = %s", vfile->file_path);
 	conf_write(fp, "   Status = %d", vfile->last_status);
-	conf_write(fp, "   Weight = %d", vfile->weight);
+	conf_write(fp, "   Weight = %d%s", vfile->weight, vfile->weight_reverse ? " reverse" : "");
 	conf_write(fp, "   Tracking VRRP instances = %u", vfile->tracking_vrrp ? LIST_SIZE(vfile->tracking_vrrp) : 0);
 	if (vfile->tracking_vrrp)
 		dump_list(fp, vfile->tracking_vrrp);

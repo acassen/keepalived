@@ -997,7 +997,7 @@ The syntax for vrrp track file is :
     \fBfile \fR<QUOTED_STRING>
 
     # optional default weight
-    \fBweight \fR<-254..254>
+    \fBweight \fR<-254..254> [reverse]
 
     # create the file and/or initialise the value
     # This causes VALUE (default 0) to be written to
@@ -1066,7 +1066,7 @@ The syntax for vrrp_sync_group is :
     # weight defaults to weight configured in vrrp_track_file
     \fBtrack_file \fR{
         <STRING>
-        <STRING> weight <-254..254>
+        <STRING> weight <-254..254> [reverse|noreverse]
         ...
     }
 
@@ -1283,7 +1283,7 @@ The syntax for vrrp_instance is :
     \fBtrack_file \fR{
         <STRING>
         <STRING>
-        <STRING> weight <-254..254>
+        <STRING> weight <-254..254> [reverse|noreverse]
         ...
     }
 

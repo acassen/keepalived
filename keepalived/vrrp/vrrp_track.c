@@ -402,7 +402,7 @@ void
 dump_track_file(FILE *fp, const void *track_data)
 {
 	const tracked_file_t *tfile = track_data;
-	conf_write(fp, "     %s, weight %d", tfile->file->fname, tfile->weight);
+	conf_write(fp, "     %s, weight %d%s", tfile->file->fname, tfile->weight, tfile->weight_reverse ? " reverse" : "");
 }
 
 void
@@ -420,6 +420,7 @@ alloc_track_file(vrrp_t *vrrp, const vector_t *strvec)
 	tracked_file_t *etfile;
 	element e;
 	int weight;
+	bool reverse;
 
 	vsf = find_tracked_file_by_name(tracked);
 
@@ -440,6 +441,7 @@ alloc_track_file(vrrp_t *vrrp, const vector_t *strvec)
 	}
 
 	weight = vsf->weight;
+	reverse = vsf->weight_reverse;
 	if (vector_size(strvec) >= 2) {
 		if (strcmp(strvec_slot(strvec, 1), "weight")) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track file option %s - ignoring",
@@ -458,11 +460,24 @@ alloc_track_file(vrrp_t *vrrp, const vector_t *strvec)
 					 "[-254..254] inclusive. Ignoring...", vrrp->iname, tracked);
 			weight = vsf->weight;
 		}
+
+		if (vector_size(strvec) >= 4) {
+			if (!strcmp(strvec_slot(strvec, 3), "reverse"))
+				reverse = true;
+			else if (!strcmp(strvec_slot(strvec, 3), "noreverse"))
+				reverse = false;
+			else {
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track file %s weight option %s - ignoring",
+						 vrrp->iname, tracked, strvec_slot(strvec, 3));
+				return;
+			}
+		}
 	}
 
 	tfile = (tracked_file_t *) MALLOC(sizeof(tracked_file_t));
 	tfile->file = vsf;
 	tfile->weight = weight;
+	tfile->weight_reverse = reverse;
 	list_add(vrrp->track_file, tfile);
 }
 
@@ -475,6 +490,7 @@ alloc_group_track_file(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 	tracked_file_t *etfile;
 	element e;
 	int weight;
+	bool reverse;
 
 	vsf = find_tracked_file_by_name(tracked);
 
@@ -495,6 +511,7 @@ alloc_group_track_file(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 	}
 
 	weight = vsf->weight;
+	reverse = vsf->weight_reverse;
 	if (vector_size(strvec) >= 2) {
 		if (strcmp(strvec_slot(strvec, 1), "weight")) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track file option %s - ignoring",
@@ -513,11 +530,24 @@ alloc_group_track_file(vrrp_sgroup_t *sgroup, const vector_t *strvec)
 					 "[-254..254] inclusive. Ignoring...", sgroup->gname, tracked);
 			weight = vsf->weight;
 		}
+
+		if (vector_size(strvec) >= 4) {
+			if (!strcmp(strvec_slot(strvec, 3), "reverse"))
+				reverse = true;
+			else if (!strcmp(strvec_slot(strvec, 3), "noreverse"))
+				reverse = false;
+			else {
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown track file %s weight option %s - ignoring",
+						 sgroup->gname, tracked, strvec_slot(strvec, 3));
+				return;
+			}
+		}
 	}
 
 	tfile = (tracked_file_t *) MALLOC(sizeof(tracked_file_t));
 	tfile->file = vsf;
 	tfile->weight = weight;
+	tfile->weight_reverse = reverse;
 	list_add(sgroup->track_file, tfile);
 }
 
@@ -1064,7 +1094,7 @@ initialise_file_tracking_priorities(void)
 
 	LIST_FOREACH(vrrp_data->vrrp_track_files, tfile, e) {
 		LIST_FOREACH(tfile->tracking_vrrp, tvp, e1) {
-			status = !tvp->weight ? (tfile->last_status ? -254 : 0 ) : tfile->last_status * tvp->weight;
+			status = !tvp->weight ? (!!tfile->last_status == (tvp->weight_multiplier == 1) ? -254 : 0 ) : tfile->last_status * tvp->weight * tvp->weight_multiplier;
 
 			if (status <= -254) {
 				/* The instance is down */
@@ -1211,7 +1241,7 @@ process_update_track_file_status(vrrp_tracked_file_t *tfile, int new_status, tra
 {
 	int previous_status;
 
-	previous_status = !tvp->weight ? (tfile->last_status ? -254 : 0 ) : tfile->last_status * tvp->weight;
+	previous_status = !tvp->weight ? (!!tfile->last_status == (tvp->weight_multiplier == 1) ? -254 : 0 ) : tfile->last_status * tvp->weight * tvp->weight_multiplier;
 	if (previous_status < -254)
 		previous_status = -254;
 	else if (previous_status > 253)
@@ -1247,9 +1277,9 @@ update_track_file_status(vrrp_tracked_file_t* tfile, int new_status)
 		/* If the tracking weight is 0, a non-zero value means
 		 * failure, a 0 status means success */
 		if (!tvp->weight)
-			status = new_status ? -254 : 0;
+			status = !!new_status == (tvp->weight_multiplier == 1) ? -254 : 0;
 		else {
-			status = new_status * tvp->weight;
+			status = new_status * tvp->weight * tvp->weight_multiplier;
 			if (status < -254)
 				status = -254;
 			else if (status > 253)

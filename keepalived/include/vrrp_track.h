@@ -90,6 +90,7 @@ typedef struct _vrrp_file {
 	const char		*file_path;	/* Path to file */
 	const char		*file_part;	/* Pointer to start of filename without directories */
 	int			weight;		/* Default weight */
+	bool			weight_reverse;	/* which direction is the weight applied */
 	int			wd;		/* Watch descriptor */
 	list			tracking_vrrp;	/* List of tracking_vrrp_t for vrrp instances tracking this file */
 	int			last_status;	/* Last status returned by file. Used to report changes */
@@ -99,6 +100,7 @@ typedef struct _vrrp_file {
 typedef struct _tracked_file {
 	vrrp_tracked_file_t	*file;		/* track file pointer, cannot be NULL */
 	int			weight;		/* Multiplier for file value */
+	bool			weight_reverse;	/* which direction is the weight applied */
 } tracked_file_t;
 
 #ifdef _WITH_CN_PROC_
