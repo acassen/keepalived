@@ -1019,8 +1019,10 @@ initialise_debug_options(void)
 #ifdef _NETWORK_TIMESTAMP_
 	do_network_timestamp = !!(network_timestamp_debug & mask);
 #endif
+#ifdef _WITH_CN_PROC_
 #ifdef _TRACK_PROCESS_DEBUG_
 	do_track_process_debug = !!(track_process_debug & mask);
+#endif
 #endif
 #ifdef _PARSER_DEBUG_
 	do_parser_debug = !!(parser_debug & mask);
