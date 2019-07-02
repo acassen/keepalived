@@ -2021,7 +2021,7 @@ read_timer(const vector_t *strvec, size_t index, unsigned long *res, unsigned lo
 	fmax_time = (double)((max_time) ? max_time : TIMER_MAXIMUM) / TIMER_HZ;
 
 	ret = read_double_strvec(strvec, index, &timer, fmin_time, fmax_time, ignore_error);
-	*res = timer * TIMER_HZ > TIMER_MAXIMUM ? TIMER_MAXIMUM : (unsigned long)(timer * TIMER_HZ);
+	*res = (unsigned long)(timer * TIMER_HZ);
 
 	return ret;
 }
