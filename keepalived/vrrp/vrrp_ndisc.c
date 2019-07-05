@@ -65,6 +65,7 @@ ndisc_send_na(ip_address_t *ipaddress)
 	/* The values in sll_ha_type, sll_addr and sll_halen appear to be ignored */
 	sll.sll_hatype = ifp->hw_type;
 	sll.sll_halen = ifp->hw_addr_len;
+	sll.sll_protocol = htons(ETH_P_IPV6);
 	memcpy(sll.sll_addr, IF_HWADDR(ifp), ifp->hw_addr_len);
 
 	if (__test_bit(LOG_DETAIL_BIT, &debug)) {

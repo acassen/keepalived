@@ -80,6 +80,7 @@ static ssize_t send_arp(ip_address_t *ipaddress, ssize_t pack_len)
 	memset(&sll, 0, sizeof(sll));
 	((struct sockaddr_large_ll *)&sll)->sll_family = AF_PACKET;
 	((struct sockaddr_large_ll *)&sll)->sll_hatype = ifp->hw_type;
+	((struct sockaddr_large_ll *)&sll)->sll_protocol = htons(ETHERTYPE_ARP);
 	((struct sockaddr_large_ll *)&sll)->sll_ifindex = (int) ifp->ifindex;
 
 	/* The values in sll_addr and sll_halen appear to be ignored */
