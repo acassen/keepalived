@@ -188,7 +188,7 @@ dump_tracking_vrrp(FILE *fp, const void *data)
 	const tracking_vrrp_t *tvp = (const tracking_vrrp_t *)data;
 	const vrrp_t *vrrp = tvp->vrrp;
 
-	conf_write(fp, "     %s, weight %d%s", vrrp->iname, tvp->weight, tvp->type == TRACK_VRRP_DYNAMIC ? " (dynamic)" : "");
+	conf_write(fp, "     %s, weight %d%s%s", vrrp->iname, tvp->weight, tvp->weight_multiplier == -1 ? " reverse" : "", tvp->type == TRACK_VRRP_DYNAMIC ? " (dynamic)" : "");
 }
 
 static void
@@ -211,7 +211,7 @@ dump_vscript(FILE *fp, const void *data)
 	conf_write(fp, "   Command = %s", cmd_str(&vscript->script));
 	conf_write(fp, "   Interval = %lu sec", vscript->interval / TIMER_HZ);
 	conf_write(fp, "   Timeout = %lu sec", vscript->timeout / TIMER_HZ);
-	conf_write(fp, "   Weight = %d", vscript->weight);
+	conf_write(fp, "   Weight = %d%s", vscript->weight, vscript->weight_reverse ? " reverse" : "");
 	conf_write(fp, "   Rise = %d", vscript->rise);
 	conf_write(fp, "   Fall = %d", vscript->fall);
 	conf_write(fp, "   Insecure = %s", vscript->insecure ? "yes" : "no");
@@ -254,7 +254,7 @@ dump_vfile(FILE *fp, const void *data)
 	conf_write(fp, " VRRP Track file = %s", vfile->fname);
 	conf_write(fp, "   File = %s", vfile->file_path);
 	conf_write(fp, "   Status = %d", vfile->last_status);
-	conf_write(fp, "   Weight = %d", vfile->weight);
+	conf_write(fp, "   Weight = %d%s", vfile->weight, vfile->weight_reverse ? " reverse" : "");
 	conf_write(fp, "   Tracking VRRP instances = %u", vfile->tracking_vrrp ? LIST_SIZE(vfile->tracking_vrrp) : 0);
 	if (vfile->tracking_vrrp)
 		dump_list(fp, vfile->tracking_vrrp);
@@ -301,7 +301,7 @@ dump_vprocess(FILE *fp, const void *data)
 		conf_write(fp, "   Max processes = %u", vprocess->quorum_max);
 	conf_write(fp, "   Current processes = %u", vprocess->num_cur_proc);
 	conf_write(fp, "   Have quorum = %s", vprocess->have_quorum ? "true" : "false");
-	conf_write(fp, "   Weight = %d", vprocess->weight);
+	conf_write(fp, "   Weight = %d%s", vprocess->weight, vprocess->weight_reverse ? " reverse" : "");
 	conf_write(fp, "   Terminate delay = %fs", (double)vprocess->terminate_delay / TIMER_HZ);
 	conf_write(fp, "   Fork delay = %fs", (double)vprocess->fork_delay / TIMER_HZ);
 	if (fp) {
@@ -323,7 +323,7 @@ dump_vrrp_bfd(FILE *fp, const void *track_data)
 	const vrrp_tracked_bfd_t *vbfd = track_data;
 
 	conf_write(fp, " VRRP Track BFD = %s", vbfd->bname);
-	conf_write(fp, "   Weight = %d", vbfd->weight);
+	conf_write(fp, "   Weight = %d%s", vbfd->weight, vbfd->weight_reverse ? " reverse" : "");
 	conf_write(fp, "   Tracking VRRP instances = %u", vbfd->tracking_vrrp ? LIST_SIZE(vbfd->tracking_vrrp) : 0);
 	if (vbfd->tracking_vrrp)
 		dump_list(fp, vbfd->tracking_vrrp);

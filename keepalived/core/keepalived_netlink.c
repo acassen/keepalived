@@ -1505,16 +1505,16 @@ process_if_status_change(interface_t *ifp)
 
 		if (tvp->weight) {
 			if (now_up)
-				vrrp->total_priority += abs(tvp->weight);
+				vrrp->total_priority += abs(tvp->weight) * tvp->weight_multiplier;
 			else
-				vrrp->total_priority -= abs(tvp->weight);
+				vrrp->total_priority -= abs(tvp->weight) * tvp->weight_multiplier;
 			vrrp_set_effective_priority(vrrp);
 
 			continue;
 		}
 
 		/* This vrrp's interface or underlying interface has changed */
-		if (now_up)
+		if (now_up == (tvp->weight_multiplier == 1))
 			try_up_instance(vrrp, false);
 		else
 			down_instance(vrrp);

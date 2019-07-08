@@ -1228,6 +1228,13 @@ vrrp_vscript_weight_handler(const vector_t *strvec)
 	if (!read_int_strvec(strvec, 1, &weight, -253, 253, true))
 		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_script %s weight %s must be in [-253, 253]", vscript->sname, strvec_slot(strvec, 1));
 	vscript->weight = weight;
+
+	if (vector_size(strvec) >= 3) {
+		if (!strcmp(strvec_slot(strvec, 2), "reverse"))
+			vscript->weight_reverse = true;
+		else
+			report_config_error(CONFIG_GENERAL_ERROR, "vrrp_script %s unknown weight option %s", vscript->sname, strvec_slot(strvec, 2));
+	}
 }
 static void
 vrrp_vscript_rise_handler(const vector_t *strvec)
@@ -1333,6 +1340,7 @@ vrrp_tfile_weight_handler(const vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR, "No weight specified for track file %s - ignoring", tfile->fname);
 		return;
 	}
+
 	if (tfile->weight != 1) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Weight already set for track file %s - ignoring %s", tfile->fname, strvec_slot(strvec, 1));
 		return;
@@ -1343,8 +1351,14 @@ vrrp_tfile_weight_handler(const vector_t *strvec)
 				 "[-254..254] inclusive. Ignoring...", strvec_slot(strvec, 1), tfile->fname);
 		weight = 1;
 	}
-
 	tfile->weight = weight;
+
+	if (vector_size(strvec) >= 3) {
+		if (!strcmp(strvec_slot(strvec, 2), "reverse"))
+			tfile->weight_reverse = true;
+		else
+			report_config_error(CONFIG_GENERAL_ERROR, "track_file %s unknown weight option %s", tfile->fname, strvec_slot(strvec, 2));
+	}
 }
 static void
 vrrp_tfile_init_handler(const vector_t *strvec)
@@ -1493,6 +1507,7 @@ vrrp_tprocess_weight_handler(const vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR, "No weight specified for track process %s - ignoring", tprocess->pname);
 		return;
 	}
+
 	if (tprocess->weight) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Weight already set for track process %s - ignoring %s", tprocess->pname, strvec_slot(strvec, 1));
 		return;
@@ -1502,6 +1517,13 @@ vrrp_tprocess_weight_handler(const vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR, "Weight (%s) for vrrp_track_process %s must be between "
 				 "[-254..254] inclusive. Ignoring...", strvec_slot(strvec, 1), tprocess->pname);
 		return;
+	}
+
+	if (vector_size(strvec) >= 3) {
+		if (!strcmp(strvec_slot(strvec, 2), "reverse"))
+			tprocess->weight_reverse = true;
+		else
+			report_config_error(CONFIG_GENERAL_ERROR, "vrrp_track_process %s unknown weight option %s", tprocess->pname, strvec_slot(strvec, 2));
 	}
 
 	tprocess->weight = weight;

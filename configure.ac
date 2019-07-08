@@ -419,6 +419,9 @@ AS_IF([test .$enable_regex != .yes],
     AS_IF([test .$enable_regex_timers = .yes], [AC_MSG_ERROR([enable-regex-timers requires enable-regex])])
     AS_IF([test .$enable_regex_debug = .yes], [AC_MSG_ERROR([enable-regex-debug requires enable-regex])])
   )
+AS_IF([test .$enable_track_process = .no],
+    AS_IF([test .$enable_track_process_debug = .yes], [AC_MSG_ERROR([enable-track-process-debug incompatible with disable-track-process])])
+  )
 
 dnl -- Check for diagnostic pragmas in functions - GCC 4.6.0
 AC_MSG_CHECKING([diagnostic pragmas in functions])

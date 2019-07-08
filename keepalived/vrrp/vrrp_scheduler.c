@@ -734,15 +734,15 @@ vrrp_handle_bfd_event(bfd_event_t * evt)
 
 			if (tbfd->weight) {
 				if (vbfd->bfd_up)
-					vrrp->total_priority += abs(tbfd->weight);
+					vrrp->total_priority += abs(tbfd->weight) * tbfd->weight_multiplier;
 				else
-					vrrp->total_priority -= abs(tbfd->weight);
+					vrrp->total_priority -= abs(tbfd->weight) * tbfd->weight_multiplier;
 				vrrp_set_effective_priority(vrrp);
 
 				continue;
 			}
 
-			if (vbfd->bfd_up)
+			if (!!vbfd->bfd_up == (tbfd->weight_multiplier == 1))
 				try_up_instance(vrrp, false);
 			else
 				down_instance(vrrp);

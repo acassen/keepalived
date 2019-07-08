@@ -66,6 +66,7 @@ typedef struct _vrrp_script {
 	unsigned long		interval;	/* interval between script calls */
 	unsigned long		timeout;	/* microseconds before script timeout */
 	int			weight;		/* weight associated to this script */
+	bool			weight_reverse;	/* which direction is the weight applied */
 	int			result;		/* result of last call to this script: 0..R-1 = KO, R..R+F-1 = OK */
 	int			rise;		/* R: how many successes before OK */
 	int			fall;		/* F: how many failures before KO */
@@ -80,6 +81,7 @@ typedef struct _vrrp_script {
 typedef struct _tracked_sc {
 	vrrp_script_t		*scr;		/* script pointer, cannot be NULL */
 	int			weight;		/* tracking weight when non-zero */
+	bool			weight_reverse;	/* which direction is the weight applied */
 } tracked_sc_t;
 
 /* external file we read to track local processes */
@@ -88,6 +90,7 @@ typedef struct _vrrp_file {
 	const char		*file_path;	/* Path to file */
 	const char		*file_part;	/* Pointer to start of filename without directories */
 	int			weight;		/* Default weight */
+	bool			weight_reverse;	/* which direction is the weight applied */
 	int			wd;		/* Watch descriptor */
 	list			tracking_vrrp;	/* List of tracking_vrrp_t for vrrp instances tracking this file */
 	int			last_status;	/* Last status returned by file. Used to report changes */
@@ -97,6 +100,7 @@ typedef struct _vrrp_file {
 typedef struct _tracked_file {
 	vrrp_tracked_file_t	*file;		/* track file pointer, cannot be NULL */
 	int			weight;		/* Multiplier for file value */
+	bool			weight_reverse;	/* which direction is the weight applied */
 } tracked_file_t;
 
 #ifdef _WITH_CN_PROC_
@@ -115,6 +119,7 @@ typedef struct _vrrp_process {
 	size_t			process_params_len; /* Total length of parameters, including NULs */
 	param_match_t		param_match;	/* Full or partial match of parameters */
 	int			weight;		/* Default weight */
+	bool			weight_reverse;	/* which direction is the weight applied */
 	unsigned		quorum;		/* Minimum number of process instances required */
 	unsigned		quorum_max;	/* Maximum number of process instances required */
 	int			fork_delay;	/* Delay before processing process fork */
@@ -132,6 +137,7 @@ typedef struct _vrrp_process {
 typedef struct _tracked_process {
 	vrrp_tracked_process_t	*process;	/* track process pointer, cannot be NULL */
 	int			weight;		/* Multiplier for process value */
+	bool			weight_reverse;	/* which direction is the weight applied */
 } tracked_process_t;
 
 /* A monitored process instance */
@@ -147,6 +153,7 @@ typedef struct _tracked_process_instance {
 typedef struct _vrrp_bfd {
 	char			bname[BFD_INAME_MAX];	/* bfd name */
 	int			weight;		/* Default weight */
+	bool			weight_reverse;	/* apply weight in opposite direction */
 	list			tracking_vrrp;	/* List of tracking_vrrp_t for vrrp instances tracking this bfd */
 	bool			bfd_up;		/* Last status returned by bfd. Used to report changes */
 } vrrp_tracked_bfd_t;
@@ -155,6 +162,7 @@ typedef struct _vrrp_bfd {
 typedef struct _tracked_bfd {
 	vrrp_tracked_bfd_t	*bfd;		/* track bfd pointer, cannot be NULL */
 	int			weight;		/* Weight for bfd */
+	bool			weight_reverse; /* which direction is the weight applied */
 } tracked_bfd_t;
 #endif
 
@@ -178,6 +186,7 @@ typedef enum {
 /* List structure from scripts, files and interfaces to tracking vrrp */
 typedef struct _tracking_vrrp {
 	int			weight;		/* Tracking weight, or zero for down instance */
+	int			weight_multiplier; /* Which direction is weight applied */
 	struct _vrrp_t		*vrrp;		/* The vrrp instance */
 	track_t			type;		/* Type of object being tracked */
 } tracking_vrrp_t;

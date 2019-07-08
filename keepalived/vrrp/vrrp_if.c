@@ -1434,7 +1434,7 @@ update_added_interface(interface_t *ifp)
 
 		if (vrrp->vmac_flags) {
 			if (tvp->type & TRACK_VRRP) {
-				add_vrrp_to_interface(vrrp, ifp->base_ifp, tvp->weight, false, TRACK_VRRP_DYNAMIC);
+				add_vrrp_to_interface(vrrp, ifp->base_ifp, tvp->weight, tvp->weight_multiplier == -1, false, TRACK_VRRP_DYNAMIC);
 				if (!IF_ISUP(vrrp->configured_ifp->base_ifp) && !vrrp->dont_track_primary)
 					vrrp->num_script_if_fault++;
 			}

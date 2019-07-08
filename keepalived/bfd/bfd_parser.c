@@ -384,6 +384,7 @@ bfd_vrrp_handler(const vector_t *strvec)
 	PMALLOC(tbfd);
 	strcpy(tbfd->bname, name);
 	tbfd->weight = 0;
+	tbfd->weight_reverse = false;
 	tbfd->bfd_up = false;
 	list_add(vrrp_data->vrrp_track_bfds, tbfd);
 }
@@ -408,6 +409,14 @@ bfd_vrrp_weight_handler(const vector_t *strvec)
 			    -253, 253);
 	} else
 		tbfd->weight = value;
+
+	if (vector_size(strvec) >= 3) {
+		if (strcmp(strvec_slot(strvec, 2), "reverse"))
+			report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
+				    " unknown weight option %s", tbfd->bname, strvec_slot(strvec, 2));
+		else
+			tbfd->weight_reverse = true;
+	}
 }
 
 static void
