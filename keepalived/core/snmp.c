@@ -120,16 +120,19 @@ snmp_find_element(struct variable *vp, oid *name, size_t *length,
 	__attribute__((unused)) void *dummy;
 	list list2;
 
-	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
-		memcpy(name, vp->name, sizeof(oid) * vp->namelen);
-		*length = vp->namelen;
-	}
-
 	*write_method = 0;
 	*var_len = sizeof(long);
 
 	if (LIST_ISEMPTY(list1))
 		return NULL;
+
+	if (exact && *length != (size_t)vp->namelen + 2)
+		return NULL;
+
+	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
+		memcpy(name, vp->name, sizeof(oid) * vp->namelen);
+		*length = vp->namelen;
+	}
 
 	/* We search the best match: equal if exact, the lower OID in
 	   the set of the OID strictly superior to the target
