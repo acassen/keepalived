@@ -334,7 +334,7 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
  vsgmember_found:
 	switch (vp->magic) {
 	case CHECK_SNMP_VSGROUPMEMBERTYPE:
-		if (be->vfwmark)
+		if (be->is_fwmark)
 			long_ret.u = 1;
 		else if (be->range)
 			long_ret.u = 3;
@@ -342,23 +342,23 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 			long_ret.u = 2;
 		return (u_char *)&long_ret;
 	case CHECK_SNMP_VSGROUPMEMBERFWMARK:
-		if (!be->vfwmark) break;
+		if (!be->is_fwmark) break;
 		long_ret.u = be->vfwmark;
 		return (u_char *)&long_ret;
 	case CHECK_SNMP_VSGROUPMEMBERADDRTYPE:
-		if (be->vfwmark) break;
+		if (be->is_fwmark) break;
 		long_ret.u = (be->addr.ss_family == AF_INET6) ? 2:1;
 		return (u_char *)&long_ret;
 	case CHECK_SNMP_VSGROUPMEMBERADDRESS:
-		if (be->vfwmark || be->range) break;
+		if (be->is_fwmark || be->range) break;
 		RETURN_IP46ADDRESS(be);
 		break;
 	case CHECK_SNMP_VSGROUPMEMBERADDR1:
-		if (!be->range) break;
+		if (be->is_fwmark || !be->range) break;
 		RETURN_IP46ADDRESS(be);
 		break;
 	case CHECK_SNMP_VSGROUPMEMBERADDR2:
-		if (!be->range) break;
+		if (!be->range || be->is_fwmark) break;
 		if (be->addr.ss_family == AF_INET6) {
 			struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&be->addr;
 			*var_len = 16;
@@ -374,7 +374,7 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 		}
 		break;
 	case CHECK_SNMP_VSGROUPMEMBERPORT:
-		if (be->vfwmark) break;
+		if (be->is_fwmark) break;
 		long_ret.u = htons(inet_sockaddrport(&be->addr));
 		return (u_char *)&long_ret;
 	default:
