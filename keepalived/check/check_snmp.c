@@ -405,7 +405,7 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 
 	switch (vp->magic) {
 	case CHECK_SNMP_VSTYPE:
-		if (v->vsgname)
+		if (v->vsg)
 			long_ret.u = 3;
 		else if (v->vfwmark)
 			long_ret.u = 1;
@@ -413,7 +413,7 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 			long_ret.u = 2;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSNAMEGROUP:
-		if (!v->vsgname) break;
+		if (!v->vsg) break;
 		ret.cp = v->vsgname;
 		*var_len = strlen(ret.cp);
 		return ret.p;
@@ -422,18 +422,18 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = v->vfwmark;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSADDRTYPE:
-		if (v->vfwmark || v->vsgname) break;
-		long_ret.u = (v->addr.ss_family == AF_INET6) ? 2:1;
+		long_ret.u = (v->af == AF_INET6) ? 2:1;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSADDRESS:
-		if (v->vfwmark || v->vsgname) break;
+		if (v->vfwmark || v->vsg) break;
 		RETURN_IP46ADDRESS(v);
 		break;
 	case CHECK_SNMP_VSPORT:
-		if (v->vfwmark || v->vsgname) break;
+		if (v->vfwmark || v->vsg) break;
 		long_ret.u = htons(inet_sockaddrport(&v->addr));
 		return (u_char *)&long_ret;
 	case CHECK_SNMP_VSPROTOCOL:
+		if (v->vfwmark) break;
 		long_ret.u = (v->service_type == IPPROTO_TCP) ? 1 :
 			     (v->service_type == IPPROTO_UDP) ? 2 :
 			     (v->service_type == IPPROTO_SCTP) ? 3 : 4;
