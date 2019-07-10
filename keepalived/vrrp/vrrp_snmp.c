@@ -399,8 +399,7 @@ enum rfcv2_snmp_node_magic {
 };
 
 enum rfcv2_snmp_oper_magic {
-	VRRP_RFC_SNMP_OPER_VRID = 2,
-	VRRP_RFC_SNMP_OPER_AUTH_KEY,
+	VRRP_RFC_SNMP_OPER_AUTH_KEY = 3,
 	VRRP_RFC_SNMP_OPER_ADVERT_INT,
 	VRRP_RFC_SNMP_OPER_PREEMPT,
 	VRRP_RFC_SNMP_OPER_VR_UPTIME,
@@ -417,8 +416,7 @@ enum rfcv2_snmp_oper_magic {
 };
 
 enum rfcv2_snmp_assoc_ip_magic {
-	VRRP_RFC_SNMP_ASSOC_IP_ADDR = 2,
-	VRRP_RFC_SNMP_ASSOC_IP_ADDR_ROW
+	VRRP_RFC_SNMP_ASSOC_IP_ADDR_ROW = 3
 };
 
 enum rfcv2_snmp_stats_err_magic {
@@ -4109,9 +4107,6 @@ vrrp_rfcv2_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 		return NULL;
 
 	switch (vp->magic) {
-	case VRRP_RFC_SNMP_OPER_VRID:
-		long_ret.u = rt->vrid;
-		return (u_char*)&long_ret;
 	case VRRP_RFC_SNMP_OPER_VMAC:
 		*var_len = rt->ifp->hw_addr_len;
 		return (u_char*)&rt->ifp->hw_addr;
@@ -4202,9 +4197,6 @@ vrrp_rfcv2_snmp_assoiptable(struct variable *vp, oid *name, size_t *length,
 		return NULL;
 
 	switch (vp->magic) {
-	case VRRP_RFC_SNMP_ASSOC_IP_ADDR:
-		*var_len = sizeof addr->u.sin.sin_addr;
-		return (u_char*)&addr->u.sin.sin_addr;
 	case VRRP_RFC_SNMP_ASSOC_IP_ADDR_ROW:
 		/* If we implement write access, then this could be 2 for down */
 		long_ret.u = 1;
@@ -4335,8 +4327,6 @@ static struct variable8 vrrp_rfcv2_vars[] = {
 	{ VRRP_RFC_SNMP_NOTIF_CNTL, ASN_INTEGER, RONLY,
 	  vrrp_rfcv2_snmp_node_info, 2, {1, 2}},
 	/* vrrpOperTable */
-	{ VRRP_RFC_SNMP_OPER_VRID, ASN_INTEGER, RONLY,
-	  vrrp_rfcv2_snmp_opertable, 4, {1, 3, 1, 1}},
 	{ VRRP_RFC_SNMP_OPER_VMAC, ASN_OCTET_STR, RONLY,
 	  vrrp_rfcv2_snmp_opertable, 4, {1, 3, 1, 2}},
 	{ VRRP_RFC_SNMP_OPER_STATE, ASN_INTEGER, RONLY,
@@ -4366,8 +4356,6 @@ static struct variable8 vrrp_rfcv2_vars[] = {
 	{ VRRP_RFC_SNMP_OPER_ROW_STAT, ASN_INTEGER, RONLY,
 	  vrrp_rfcv2_snmp_opertable, 4, {1, 3, 1, 15}},
 	/* vrrpAssoIpAddrTable */
-	{ VRRP_RFC_SNMP_ASSOC_IP_ADDR, ASN_IPADDRESS, RONLY,
-	  vrrp_rfcv2_snmp_assoiptable, 4, {1, 4, 1, 1}},
 	{ VRRP_RFC_SNMP_ASSOC_IP_ADDR_ROW, ASN_INTEGER, RONLY,
 	  vrrp_rfcv2_snmp_assoiptable, 4, {1, 4, 1, 2}},
 	/* vrrpRouterStats */
