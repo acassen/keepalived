@@ -4566,14 +4566,14 @@ vrrp_rfcv3_header_ar_table(struct variable *vp, oid *name, size_t *length,
 	target = &name[vp->namelen];   /* Our target match */
 	target_len = *length - vp->namelen;
 	target_addr.s_addr = 0;		/* Avoid compiler uninitialised warning */
-	if (target_len == 3 + 1 + 4 ) {
+	if (target_len == 3 + 4) {
 		target_len = 3;
 		target_addr.s_addr = (in_addr_t)(name[*length - 4] << 24 |
 						 name[*length - 3] << 16 |
 						 name[*length - 2] << 8 |
 						 name[*length - 1]);
 	}
-	else if (target_len == 3 + 1 + 16) {
+	else if (target_len == 3 + 16) {
 		target_len = 3;
 		for (i = 0; i < 16; i++)
 			target_addr6.s6_addr[i] = (uint8_t)name[*length - 16 + i];
@@ -4608,7 +4608,7 @@ vrrp_rfcv3_header_ar_table(struct variable *vp, oid *name, size_t *length,
 		found_better = false;
 		LIST_FOREACH(scr->vip, vip, e2) {
 			if (scr->family == AF_INET) {
-				current_addr.s_addr = htons(vip->u.sin.sin_addr.s_addr);
+				current_addr.s_addr = htonl(vip->u.sin.sin_addr.s_addr);
 
 				if (exact) {
 					if (target_addr.s_addr == current_addr.s_addr) {
@@ -4676,8 +4676,6 @@ vrrp_rfcv3_header_ar_table(struct variable *vp, oid *name, size_t *length,
 	memcpy(target, best, sizeof(best));
 	*length = (unsigned)vp->namelen + 3;
 	if (name[*length - 1] == 1) {
-		name[*length] = sizeof(struct in_addr);
-		*length += 1;
 		name[*length  ] =  best_addr.s_addr >> 24;
 		name[*length+1] = (best_addr.s_addr >> 16) & 0xff;
 		name[*length+2] = (best_addr.s_addr >>  8) & 0xff;
@@ -4685,8 +4683,6 @@ vrrp_rfcv3_header_ar_table(struct variable *vp, oid *name, size_t *length,
 		*length += sizeof(struct in_addr);
 	}
 	else {
-		name[*length] = sizeof(struct in6_addr);
-		*length += 1;
 		for (i = 0; i < sizeof(struct in6_addr); i++)
 			name[*length + i] = best_addr6.s6_addr[i];
 		*length += sizeof(struct in6_addr);
