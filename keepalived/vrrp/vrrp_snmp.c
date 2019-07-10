@@ -528,7 +528,7 @@ set_counter64 (struct counter64 *c64, uint64_t val)
 
 #ifdef _FOR_DEBUGGING_
 static void
-sprint_oid(char *str, oid* oid, int len)
+sprint_oid(char *str, const oid* oid, int len)
 {
 	int offs = 0;
 	int i;
@@ -3159,7 +3159,7 @@ vrrp_snmp_rfc_state(int state)
 
 #ifdef _WITH_SNMP_RFCV2_
 static bool
-suitable_for_rfc2787(vrrp_t* vrrp)
+suitable_for_rfc2787(const vrrp_t* vrrp)
 {
 #ifdef _WITH_SNMP_RFCV3_
 	/* We mustn't return any VRRP instances that aren't version 2 */
@@ -3775,7 +3775,7 @@ vrrp_rfcv2_snmp_auth_err_trap(vrrp_t *vrrp, struct in_addr src, enum rfcv2_trap_
 #ifdef _WITH_SNMP_RFCV3_
 
 static bool
-suitable_for_rfc6527(vrrp_t* vrrp)
+suitable_for_rfc6527(const vrrp_t* vrrp)
 {
 #ifndef _SNMP_REPLY_V3_FOR_V2_
 	/* We mustn't return any VRRP instances that don't match version */
