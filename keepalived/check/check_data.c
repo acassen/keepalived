@@ -251,7 +251,7 @@ static void
 free_vs(void *data)
 {
 	virtual_server_t *vs = data;
-	FREE_PTR(vs->vsgname);
+	FREE_CONST_PTR(vs->vsgname);
 	FREE_CONST_PTR(vs->virtualhost);
 	FREE_PTR(vs->s_svr);
 	free_list(&vs->rs);

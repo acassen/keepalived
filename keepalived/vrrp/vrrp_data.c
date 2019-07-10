@@ -324,6 +324,7 @@ dump_vrrp_bfd(FILE *fp, const void *track_data)
 
 	conf_write(fp, " VRRP Track BFD = %s", vbfd->bname);
 	conf_write(fp, "   Weight = %d%s", vbfd->weight, vbfd->weight_reverse ? " reverse" : "");
+	conf_write(fp, "   Bfd is %s", vbfd->bfd_up ? "up" : "down");
 	conf_write(fp, "   Tracking VRRP instances = %u", vbfd->tracking_vrrp ? LIST_SIZE(vbfd->tracking_vrrp) : 0);
 	if (vbfd->tracking_vrrp)
 		dump_list(fp, vbfd->tracking_vrrp);
@@ -807,7 +808,7 @@ alloc_vrrp_track_if(const vector_t *strvec)
 
 	if (!LIST_EXISTS(vrrp->track_ifp))
 		vrrp->track_ifp = alloc_list(free_track_if, dump_track_if);
-	alloc_track_if(vrrp, strvec);
+	alloc_track_if(vrrp->iname, vrrp->track_ifp, strvec);
 }
 
 void
@@ -817,7 +818,7 @@ alloc_vrrp_track_script(const vector_t *strvec)
 
 	if (!LIST_EXISTS(vrrp->track_script))
 		vrrp->track_script = alloc_list(free_track_script, dump_track_script);
-	alloc_track_script(vrrp, strvec);
+	alloc_track_script(vrrp->iname, vrrp->track_script, strvec);
 }
 
 void
@@ -827,7 +828,7 @@ alloc_vrrp_track_file(const vector_t *strvec)
 
 	if (!LIST_EXISTS(vrrp->track_file))
 		vrrp->track_file = alloc_list(free_track_file, dump_track_file);
-	alloc_track_file(vrrp, strvec);
+	alloc_track_file(vrrp->iname, vrrp->track_file, strvec);
 }
 
 #ifdef _WITH_CN_PROC_
@@ -838,7 +839,7 @@ alloc_vrrp_track_process(const vector_t *strvec)
 
 	if (!LIST_EXISTS(vrrp->track_process))
 		vrrp->track_process = alloc_list(free_track_process, dump_track_process);
-	alloc_track_process(vrrp, strvec);
+	alloc_track_process(vrrp->iname, vrrp->track_process, strvec);
 }
 #endif
 
@@ -850,7 +851,7 @@ alloc_vrrp_track_bfd(const vector_t *strvec)
 
 	if (!LIST_EXISTS(vrrp->track_bfd))
 		vrrp->track_bfd = alloc_list(free_vrrp_tracked_bfd, dump_vrrp_tracked_bfd);
-	alloc_track_bfd(vrrp, strvec);
+	alloc_track_bfd(vrrp->iname, vrrp->track_bfd, strvec);
 }
 #endif
 
@@ -861,7 +862,7 @@ alloc_vrrp_group_track_if(const vector_t *strvec)
 
 	if (!LIST_EXISTS(sgroup->track_ifp))
 		sgroup->track_ifp = alloc_list(free_track_if, dump_track_if);
-	alloc_group_track_if(sgroup, strvec);
+	alloc_track_if(sgroup->gname, sgroup->track_ifp, strvec);
 }
 
 void
@@ -871,7 +872,7 @@ alloc_vrrp_group_track_script(const vector_t *strvec)
 
 	if (!LIST_EXISTS(sgroup->track_script))
 		sgroup->track_script = alloc_list(free_track_script, dump_track_script);
-	alloc_group_track_script(sgroup, strvec);
+	alloc_track_script(sgroup->gname, sgroup->track_script, strvec);
 }
 
 void
@@ -881,7 +882,7 @@ alloc_vrrp_group_track_file(const vector_t *strvec)
 
 	if (!LIST_EXISTS(sgroup->track_file))
 		sgroup->track_file = alloc_list(free_track_file, dump_track_file);
-	alloc_group_track_file(sgroup, strvec);
+	alloc_track_file(sgroup->gname, sgroup->track_file, strvec);
 }
 
 #ifdef _WITH_CN_PROC_
@@ -892,7 +893,7 @@ alloc_vrrp_group_track_process(const vector_t *strvec)
 
 	if (!LIST_EXISTS(sgroup->track_process))
 		sgroup->track_process = alloc_list(free_track_process, dump_track_process);
-	alloc_group_track_process(sgroup, strvec);
+	alloc_track_process(sgroup->gname, sgroup->track_process, strvec);
 }
 #endif
 
@@ -904,7 +905,7 @@ alloc_vrrp_group_track_bfd(const vector_t *strvec)
 
 	if (!LIST_EXISTS(sgroup->track_bfd))
 		sgroup->track_bfd = alloc_list(free_vrrp_tracked_bfd, dump_vrrp_tracked_bfd);
-	alloc_group_track_bfd(sgroup, strvec);
+	alloc_track_bfd(sgroup->gname, sgroup->track_bfd, strvec);
 }
 #endif
 

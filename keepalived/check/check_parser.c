@@ -157,6 +157,7 @@ vs_end_handler(void)
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs;
 	element e;
+	bool mixed_af;
 
 	/* If the real (sorry) server uses tunnel forwarding, the address family
 	 * does not have to match the address family of the virtual server */
@@ -176,8 +177,9 @@ vs_end_handler(void)
 	}
 
 	if (vs->af == AF_UNSPEC) {
-		/* This only occurs if the virtual server uses a fwmark, and all the
-		 * real/sorry servers are tunnelled.
+		/* This only occurs if the virtual server uses a fwmark, all the
+		 * real/sorry servers are tunnelled, and the address family has not
+		 * been specified.
 		 *
 		 * Maintain backward compatibility. Prior to the commit following 17fa4a3c
 		 * the address family of the virtual server was set from any of its
@@ -185,22 +187,21 @@ vs_end_handler(void)
 		 * and sorry servers had to be the same address family, even if tunnelled,
 		 * so only set the address family from the tunnelled real/sorry servers
 		 * if all the real/sorry servers are of the same address family. */
+		mixed_af = false;
+
 		if (vs->s_svr)
 			vs->af = vs->s_svr->addr.ss_family;
 
-		if (!LIST_ISEMPTY(vs->rs)) {
-			for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
-				rs = ELEMENT_DATA(e);
-				if (vs->af == AF_UNSPEC)
-					vs->af = rs->addr.ss_family;
-				else if (vs->af != rs->addr.ss_family) {
-					vs->af = AF_UNSPEC;
-					break;
-				}
+		LIST_FOREACH(vs->rs, rs, e) {
+			if (vs->af == AF_UNSPEC)
+				vs->af = rs->addr.ss_family;
+			else if (vs->af != rs->addr.ss_family) {
+				mixed_af = true;
+				break;
 			}
 		}
 
-		if (vs->af == AF_UNSPEC) {
+		if (mixed_af || vs->af == AF_UNSPEC) {
 			/* We have a mixture of IPv4 and IPv6 tunnelled real/sorry servers.
 			 * Default to IPv4. */
 			vs->af = AF_INET;

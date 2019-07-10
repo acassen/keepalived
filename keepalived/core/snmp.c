@@ -73,7 +73,7 @@ snmp_header_list_table(struct variable *vp, oid *name, size_t *length,
 	void *scr;
 	oid target, current;
 
-	if (header_simple_table(vp, name, length, exact, var_len, write_method, -1))
+	if (header_simple_table(vp, name, length, exact, var_len, write_method, -1) != MATCH_SUCCEEDED)
 		return NULL;
 
 	if (LIST_ISEMPTY(dlist))
@@ -82,15 +82,17 @@ snmp_header_list_table(struct variable *vp, oid *name, size_t *length,
 	target = name[*length - 1];
 	current = 0;
 
-	for (e = LIST_HEAD(dlist); e; ELEMENT_NEXT(e)) {
-		scr = ELEMENT_DATA(e);
-		current++;
+	/* If there are insufficent entries in the list, just return no match */
+	if (LIST_SIZE(dlist) < target)
+		return NULL;
+
+	LIST_FOREACH(dlist, scr, e) {
+		if (++current < target)
+			/* No match found yet */
+			continue;
 		if (current == target)
 			/* Exact match */
 			return scr;
-		if (current < target)
-			/* No match found yet */
-			continue;
 		if (exact)
 			/* No exact match found */
 			return NULL;
@@ -98,7 +100,100 @@ snmp_header_list_table(struct variable *vp, oid *name, size_t *length,
 		name[*length - 1] = current;
 		return scr;
 	}
+
 	/* No match found at end */
+	return NULL;
+}
+
+/* This is the equivalent of snmp_header_list_table where each element of the first
+ * list has a list itself for which each element in turn needs to be returned. */
+element
+snmp_find_element(struct variable *vp, oid *name, size_t *length,
+	     int exact, size_t *var_len, WriteMethod **write_method,
+	     list list1, size_t list2_offset)
+{
+	oid *target, current[2];
+	int result;
+	size_t target_len;
+	element e, e1;
+	void *element_data;
+	__attribute__((unused)) void *dummy;
+	list list2;
+
+	*write_method = 0;
+	*var_len = sizeof(long);
+
+	if (LIST_ISEMPTY(list1))
+		return NULL;
+
+	if (exact && *length != (size_t)vp->namelen + 2)
+		return NULL;
+
+	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
+		memcpy(name, vp->name, sizeof(oid) * vp->namelen);
+		*length = vp->namelen;
+	}
+
+	/* We search the best match: equal if exact, the lower OID in
+	   the set of the OID strictly superior to the target
+	   otherwise. */
+	target = &name[vp->namelen];   /* Our target match */
+	target_len = *length - vp->namelen;
+	current[0] = 0;
+
+	if (target_len && LIST_SIZE(list1) < target[0])
+		return NULL;
+
+	LIST_FOREACH(list1, element_data, e) {
+		current[0]++;
+
+		if (target_len) {
+			if (current[0] < target[0])
+				continue; /* Optimization: cannot be part of our set */
+			if (exact && current[0] > target[0])
+				return NULL;
+		}
+
+		list2 = *(list *)((char *)element_data + list2_offset);
+
+		if (target_len && LIST_SIZE(list2) < target[1]) {
+			if (exact)
+				return NULL;
+			continue;
+		}
+
+		current[1] = 0;
+		LIST_FOREACH(list2, dummy, e1) {
+			current[1]++;
+
+			/* Compare to our target match */
+			if (target_len) {
+				if ((result = snmp_oid_compare(current, 2, target,
+							       target_len)) < 0)
+					continue;
+
+				if (result == 0) {
+					if (!exact)
+						continue;
+
+					/* Got an exact match and asked for it */
+					return e1;
+				}
+
+				if (exact) {
+					/* result > 0, so no match */
+					return NULL;
+				}
+			}
+
+			/* This is our best match */
+			memcpy(target, current, sizeof(oid) * 2);
+			*length = (unsigned)vp->namelen + 2;
+			return e1;
+		}
+	}
+
+	/* No match at all */
 	return NULL;
 }
 
