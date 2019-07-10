@@ -414,8 +414,9 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSNAMEGROUP:
 		if (!v->vsgname) break;
-		*var_len = strlen(v->vsgname);
-		return (u_char*)v->vsgname;
+		ret.cp = v->vsgname;
+		*var_len = strlen(ret.cp);
+		return ret.p;
 	case CHECK_SNMP_VSFWMARK:
 		if (!v->vfwmark) break;
 		long_ret.u = v->vfwmark;
@@ -1652,7 +1653,7 @@ check_snmp_rs_trap(real_server_t *rs, virtual_server_t *vs, bool stopping)
 		snmp_varlist_add_variable(&notification_vars,
 					  vsgroupname_oid, vsgroupname_oid_len,
 					  ASN_OCTET_STR,
-					  (u_char *)vs->vsgname,
+					  (const u_char *)vs->vsgname,
 					  strlen(vs->vsgname));
 	} else if (vs->vfwmark) {
 		vsfwmark = vs->vfwmark;

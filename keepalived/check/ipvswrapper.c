@@ -163,13 +163,12 @@ modprobe_ipvs(void)
 }
 /* fetch virtual server group from group name */
 virtual_server_group_t * __attribute__ ((pure))
-ipvs_get_group_by_name(char *gname, list l)
+ipvs_get_group_by_name(const char *gname, list l)
 {
 	element e;
 	virtual_server_group_t *vsg;
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vsg = ELEMENT_DATA(e);
+	LIST_FOREACH(l, vsg, e) {
 		if (!strcmp(vsg->gname, gname))
 			return vsg;
 	}

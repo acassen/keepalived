@@ -130,7 +130,7 @@ typedef struct _virtual_server_group {
 
 /* Virtual Server definition */
 typedef struct _virtual_server {
-	char				*vsgname;
+	const char			*vsgname;
 	virtual_server_group_t		*vsg;
 	struct sockaddr_storage		addr;
 	uint32_t			vfwmark;
