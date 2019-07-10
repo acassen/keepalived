@@ -4566,17 +4566,17 @@ vrrp_rfcv3_header_ar_table(struct variable *vp, oid *name, size_t *length,
 	target = &name[vp->namelen];   /* Our target match */
 	target_len = *length - vp->namelen;
 	target_addr.s_addr = 0;		/* Avoid compiler uninitialised warning */
-	if (target_len == 3 + 4) {
+	if (target_len == 3 + sizeof(struct in_addr)) {
 		target_len = 3;
 		target_addr.s_addr = (in_addr_t)(name[*length - 4] << 24 |
 						 name[*length - 3] << 16 |
 						 name[*length - 2] << 8 |
 						 name[*length - 1]);
 	}
-	else if (target_len == 3 + 16) {
+	else if (target_len == 3 + sizeof(struct in6_addr)) {
 		target_len = 3;
-		for (i = 0; i < 16; i++)
-			target_addr6.s6_addr[i] = (uint8_t)name[*length - 16 + i];
+		for (i = 0; i < sizeof (struct in6_addr); i++)
+			target_addr6.s6_addr[i] = (uint8_t)name[*length - sizeof(struct in6_addr) + i];
 	}
 
 	LIST_FOREACH(vrrp_data->vrrp, scr, e) {
