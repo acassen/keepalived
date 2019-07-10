@@ -73,7 +73,7 @@ snmp_header_list_table(struct variable *vp, oid *name, size_t *length,
 	void *scr;
 	oid target, current;
 
-	if (header_simple_table(vp, name, length, exact, var_len, write_method, -1))
+	if (header_simple_table(vp, name, length, exact, var_len, write_method, -1) != MATCH_SUCCEEDED)
 		return NULL;
 
 	if (LIST_ISEMPTY(dlist))
@@ -82,15 +82,17 @@ snmp_header_list_table(struct variable *vp, oid *name, size_t *length,
 	target = name[*length - 1];
 	current = 0;
 
-	for (e = LIST_HEAD(dlist); e; ELEMENT_NEXT(e)) {
-		scr = ELEMENT_DATA(e);
-		current++;
+	/* If there are insufficent entries in the list, just return no match */
+	if (LIST_SIZE(dlist) < target)
+		return NULL;
+
+	LIST_FOREACH(dlist, scr, e) {
+		if (++current < target)
+			/* No match found yet */
+			continue;
 		if (current == target)
 			/* Exact match */
 			return scr;
-		if (current < target)
-			/* No match found yet */
-			continue;
 		if (exact)
 			/* No exact match found */
 			return NULL;
@@ -98,6 +100,7 @@ snmp_header_list_table(struct variable *vp, oid *name, size_t *length,
 		name[*length - 1] = current;
 		return scr;
 	}
+
 	/* No match found at end */
 	return NULL;
 }
