@@ -102,6 +102,89 @@ snmp_header_list_table(struct variable *vp, oid *name, size_t *length,
 	return NULL;
 }
 
+element
+snmp_find_element(struct variable *vp, oid *name, size_t *length,
+	     int exact, size_t *var_len, WriteMethod **write_method,
+	     list list1, size_t list2_offset)
+{
+	oid *target, current[2], best[2];
+	int result;
+	size_t target_len;
+	unsigned cur1, cur2;
+	element e, e1;
+	element belement = NULL;
+	void *element_data;
+	__attribute__((unused)) void *dummy;
+	list list2;
+
+	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
+		memcpy(name, vp->name, sizeof(oid) * vp->namelen);
+		*length = vp->namelen;
+	}
+
+	*write_method = 0;
+	*var_len = sizeof(long);
+
+	if (LIST_ISEMPTY(list1))
+		return NULL;
+
+	/* We search the best match: equal if exact, the lower OID in
+	   the set of the OID strictly superior to the target
+	   otherwise. */
+	best[0] = best[1] = MAX_SUBID; /* Our best match */
+	target = &name[vp->namelen];   /* Our target match */
+	target_len = *length - vp->namelen;
+	cur1 = 0;
+	LIST_FOREACH(list1, element_data, e) {
+		cur1++;
+		if (target_len && (cur1 < target[0]))
+			continue; /* Optimization: cannot be part of our set */
+		if (belement)
+			break; /* Optimization: cannot be the lower
+				  anymore, see break below */
+		list2 = *(list *)((char *)element_data + list2_offset);
+		cur2 = 0;
+		LIST_FOREACH(list2, dummy, e1) {
+			cur2++;
+			/* We build our current match */
+			current[0] = cur1;
+			current[1] = cur2;
+			/* And compare it to our target match */
+			if ((result = snmp_oid_compare(current, 2, target,
+						       target_len)) < 0)
+				continue;
+			if (result == 0) {
+				if (!exact)
+					continue;
+
+				/* Got an exact match and asked for it */
+				return e1;
+			}
+			if (snmp_oid_compare(current, 2, best, 2) < 0) {
+				/* This is our best match */
+				memcpy(best, current, sizeof(oid) * 2);
+				belement = e1;
+				/* (current[0],current[1]) are
+				   strictly increasing, this is our
+				   lower element of our set */
+				break;
+			}
+		}
+	}
+
+	if (!belement)
+		/* No best match */
+		return NULL;
+	if (exact)
+		/* No exact match */
+		return NULL;
+
+	/* Return our best match */
+	memcpy(target, best, sizeof(oid) * 2);
+	*length = (unsigned)vp->namelen + 2;
+	return belement;
+}
+
 enum snmp_global_magic {
 	SNMP_KEEPALIVEDVERSION,
 	SNMP_ROUTERID,

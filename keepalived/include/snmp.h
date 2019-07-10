@@ -70,6 +70,9 @@ extern unsigned long snmp_scope(int ) __attribute__ ((const));
 extern void* snmp_header_list_table(struct variable *, oid *, size_t *,
 				    int, size_t *, WriteMethod **,
 				    list);
+extern element snmp_find_element(struct variable *, oid *, size_t *,
+				 int, size_t *, WriteMethod **,
+				 list, size_t);
 extern void snmp_agent_init(const char *, bool);
 extern void snmp_register_mib(oid *, size_t, const char *,
 			      struct variable *, size_t, size_t);
