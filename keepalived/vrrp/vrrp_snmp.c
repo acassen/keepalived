@@ -456,8 +456,6 @@ enum rfcv2_snmp_stats_magic {
 
 /* Magic for RFC MIB functions */
 enum rfcv3_snmp_oper_magic {
-	VRRP_RFCv3_SNMP_OPER_VRID,
-	VRRP_RFCv3_SNMP_OPER_INET_ADDR_TYPE,
 	VRRP_RFCv3_SNMP_OPER_MIP,
 	VRRP_RFCv3_SNMP_OPER_PIP,
 	VRRP_RFCv3_SNMP_OPER_VMAC,
@@ -472,8 +470,7 @@ enum rfcv3_snmp_oper_magic {
 };
 
 enum rfcv3_snmp_assoc_ip_magic {
-	VRRP_RFCv3_SNMP_ASSOC_IP_ADDR = 2,
-	VRRP_RFCv3_SNMP_ASSOC_IP_ADDR_ROW_STATUS
+	VRRP_RFCv3_SNMP_ASSOC_IP_ADDR_ROW_STATUS = 3
 };
 
 enum rfcv3_snmp_stats_err_magic {
@@ -4762,12 +4759,6 @@ vrrp_rfcv3_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 		return NULL;
 
 	switch (vp->magic) {
-	case VRRP_RFCv3_SNMP_OPER_VRID:
-		long_ret.u = rt->vrid;
-		return (u_char*)&long_ret;
-	case VRRP_RFCv3_SNMP_OPER_INET_ADDR_TYPE:
-		long_ret.u = rt->family == AF_INET ? 1 : 2;
-		return (u_char*)&long_ret;
 	case VRRP_RFCv3_SNMP_OPER_MIP:
 		if (rt->state != VRRP_STATE_MAST) {
 			if (rt->family == AF_INET) {
@@ -4858,13 +4849,6 @@ vrrp_rfcv3_snmp_assoiptable(struct variable *vp, oid *name, size_t *length,
 		return NULL;
 
 	switch (vp->magic) {
-	case VRRP_RFCv3_SNMP_ASSOC_IP_ADDR:
-		if (addr->ifa.ifa_family == AF_INET) {
-			*var_len = sizeof(struct in_addr);
-			return (u_char*)&addr->u.sin.sin_addr;
-		}
-		*var_len = sizeof(struct in6_addr);
-		return (u_char*)&addr->u.sin6_addr;
 	case VRRP_RFCv3_SNMP_ASSOC_IP_ADDR_ROW_STATUS:
 		/* If we implement write access, then this could be 2 for down */
 		long_ret.u = 1;
@@ -5014,10 +4998,6 @@ vrrp_rfcv3_snmp_statstable(struct variable *vp, oid *name, size_t *length,
 static oid vrrp_rfcv3_oid[] = {VRRP_RFCv3_OID};
 static struct variable8 vrrp_rfcv3_vars[] = {
 	/* vrrpOperTable */
-	{ VRRP_RFCv3_SNMP_OPER_VRID, ASN_INTEGER, RONLY,
-	  vrrp_rfcv3_snmp_opertable, 5, {1, 1, 1, 1, 1}},
-	{ VRRP_RFCv3_SNMP_OPER_INET_ADDR_TYPE, ASN_INTEGER, RONLY,
-	  vrrp_rfcv3_snmp_opertable, 5, {1, 1, 1, 1, 2}},
 	{ VRRP_RFCv3_SNMP_OPER_MIP, ASN_OCTET_STR, RONLY,
 	  vrrp_rfcv3_snmp_opertable, 5, {1, 1, 1, 1, 3}},
 	{ VRRP_RFCv3_SNMP_OPER_PIP, ASN_OCTET_STR, RONLY,
@@ -5041,8 +5021,6 @@ static struct variable8 vrrp_rfcv3_vars[] = {
 	{ VRRP_RFCv3_SNMP_OPER_ROW_STATUS, ASN_INTEGER, RONLY,
 	  vrrp_rfcv3_snmp_opertable, 5, {1, 1, 1, 1, 13}},
 	/* vrrpAssoIpAddrTable */
-	{ VRRP_RFCv3_SNMP_ASSOC_IP_ADDR, ASN_OCTET_STR, RONLY,
-	  vrrp_rfcv3_snmp_assoiptable, 5, {1, 1, 2, 1, 1}},
 	{ VRRP_RFCv3_SNMP_ASSOC_IP_ADDR_ROW_STATUS, ASN_INTEGER, RONLY,
 	  vrrp_rfcv3_snmp_assoiptable, 5, {1, 1, 2, 1, 2}},
 	/* vrrpRouterStats */
