@@ -719,6 +719,8 @@ initialise_interface_tracking_priorities(void)
 			if (!tvp->weight) {
 				if (IF_FLAGS_UP(ifp) != (tvp->weight_multiplier == 1)) {
 					/* The instance is down */
+					/* XXX note which interface is affected */
+					log_message(LOG_INFO, "(%s): entering FAULT state (interface is down)", tvp->vrrp->iname);
 					tvp->vrrp->state = VRRP_STATE_FAULT;
 					tvp->vrrp->num_script_if_fault++;
 				}
@@ -747,6 +749,8 @@ initialise_file_tracking_priorities(void)
 
 			if (status <= -254) {
 				/* The instance is down */
+				/* XXX which file? */
+				log_message(LOG_INFO, "(%s): entering FAULT state (tracked file status %i)", vrrp->iname, status);
 				tvp->vrrp->state = VRRP_STATE_FAULT;
 				tvp->vrrp->num_script_if_fault++;
 			}
@@ -773,6 +777,8 @@ initialise_process_tracking_priorities(void)
 			if (!tvp->weight) {
 				if (tprocess->have_quorum != (tvp->weight_multiplier == 1)) {
 					/* The instance is down */
+					/* XXX which process */
+					log_message(LOG_INFO, "(%s) entering FAULT state (tracked process has no qorum)", tvp->vrrp->iname);
 					tvp->vrrp->state = VRRP_STATE_FAULT;
 					tvp->vrrp->num_script_if_fault++;
 				}
@@ -802,8 +808,10 @@ initialise_vrrp_tracking_priorities(vrrp_t *vrrp)
 	/* If no src address has been specified, and the interface doesn't have
 	 * an appropriate address, put the interface into fault state */
 	if (vrrp->saddr.ss_family == AF_UNSPEC) {
-		vrrp->num_script_if_fault++;
+		/* The instance is down */
+		log_message(LOG_INFO, "(%s) entering FAULT state (no source address specified, no appropriate address found)", vrrp->iname);
 		vrrp->state = VRRP_STATE_FAULT;
+		vrrp->num_script_if_fault++;
 	}
 
 	/* Initialise the vrrp instance's tracked scripts */
@@ -849,7 +857,7 @@ initialise_tracking_priorities(void)
 			if (vrrp->state == VRRP_STATE_FAULT) {
 				if (vrrp->sync->state != VRRP_STATE_FAULT) {
 					vrrp->sync->state = VRRP_STATE_FAULT;
-					log_message(LOG_INFO, "VRRP_Group(%s): Syncing instances to FAULT state", vrrp->sync->gname);
+					log_message(LOG_INFO, "VRRP_Group(%s): Syncing instances to FAULT state due to (%s) being in FAULT state", vrrp->sync->gname, vrrp->iname);
 				}
 
 				vrrp->sync->num_member_fault++;
