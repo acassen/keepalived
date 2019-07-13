@@ -54,6 +54,10 @@ struct ip_vs_dest_app {
 	struct ip_vs_dest_user	user;
 	uint16_t		af;
 	union nf_inet_addr	nf_addr;
+#ifdef _HAVE_IPVS_TUN_TYPE_
+	int			tun_type;
+	int			tun_port;
+#endif
 };
 
 

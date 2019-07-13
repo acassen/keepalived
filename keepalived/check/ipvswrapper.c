@@ -543,6 +543,10 @@ ipvs_set_drule(int cmd, ipvs_dest_t *drule, real_server_t * rs)
 	drule->user.weight = rs->weight;
 	drule->user.u_threshold = rs->u_threshold;
 	drule->user.l_threshold = rs->l_threshold;
+#ifdef _HAVE_IPVS_TUN_TYPE_
+	drule->tun_type = rs->tun_type;
+	drule->tun_port = rs->tun_port;
+#endif
 }
 
 /* Set/Remove a RS from a VS */

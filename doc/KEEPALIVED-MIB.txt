@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201906300003Z"
+     LAST-UPDATED "201907120001Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201907120001Z"
+     DESCRIPTION "add IPVS tunnel type"
      REVISION "201906300003Z"
      DESCRIPTION "add vrrp process tracker"
      REVISION "201906300002Z"
@@ -3337,7 +3339,9 @@ VirtualServerEntry ::= SEQUENCE {
     virtualServerDelayLoopUsec Unsigned32,
     virtualServerDelayBeforeRetrUsec Unsigned32,
     virtualServerWarmupUsec Unsigned32,
-    virtualServerConnTimeoutUsec Unsigned32
+    virtualServerConnTimeoutUsec Unsigned32,
+    virtualServerTunnelType INTEGER,
+    virtualServerTunnelPort InetPortNumber,
 }
 
 virtualServerIndex OBJECT-TYPE
@@ -3946,6 +3950,22 @@ virtualServerConnTimeoutUsec OBJECT-TYPE
         "Maximum number of micro-seconds for checker to establish connection."
     ::= { virtualServerEntry 67 }
 
+virtualServerTunnelType OBJECT-TYPE
+    SYNTAX INTEGER { ipip(1), gue(2), gre(3) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Default forwarding tunnel type use for this virtual server."
+    ::= { virtualServerEntry 68 }
+
+virtualServerTunnelPort OBJECT-TYPE
+    SYNTAX InetPortNumber
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Default forwarding tunnel GUE port use for this virtual server."
+    ::= { virtualServerEntry 69 }
+
 
 -- real servers
 
@@ -4017,7 +4037,9 @@ RealServerEntry ::= SEQUENCE {
     realServerDelayBeforeRetryUsec Unsigned32,
     realServerWarmupUsec Unsigned32,
     realServerDelayLoopUsec Unsigned32,
-    realServerConnTimeoutUsec Unsigned32
+    realServerConnTimeoutUsec Unsigned32,
+    realServerTunnelType INTEGER,
+    realServerTunnelPort InetPortNumber
 }
 
 realServerIndex OBJECT-TYPE
@@ -4473,6 +4495,22 @@ realServerConnTimeoutUsec OBJECT-TYPE
     DESCRIPTION
         "Maximum number of micro-seconds for checker to establish connection."
     ::= { realServerEntry 51 }
+
+realServerTunnelType OBJECT-TYPE
+    SYNTAX INTEGER { ipip(1), gue(2), gre(3) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Forwarding tunnel type use for this real server."
+    ::= { realServerEntry 52 }
+
+realServerTunnelPort OBJECT-TYPE
+    SYNTAX InetPortNumber
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Forwarding tunnel GUE port use for this real server."
+    ::= { realServerEntry 53 }
 
 lvsSyncDaemon    OBJECT IDENTIFIER ::= { check 6 }
 
@@ -5093,7 +5131,9 @@ virtualServerGroup OBJECT-GROUP
     virtualServerDelayLoopUsec,
     virtualServerDelayBeforeRetrUsec,
     virtualServerWarmupUsec,
-    virtualServerConnTimeoutUsec
+    virtualServerConnTimeoutUsec,
+    virtualServerTunnelType,
+    virtualServerTunnelPort
     }
     STATUS current
     DESCRIPTION
@@ -5151,7 +5191,10 @@ realServerGroup OBJECT-GROUP
     realServerDelayBeforeRetryUsec,
     realServerWarmupUsec,
     realServerDelayLoopUsec,
-    realServerConnTimeoutUsec
+    realServerConnTimeoutUsec,
+    realServerTunnelType,
+    realServerTunnelPort,
+    realServerTunnelCsum
     }
     STATUS current
     DESCRIPTION

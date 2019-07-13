@@ -1715,6 +1715,16 @@ if test "$enable_lvs" != no; then
       add_system_opt([IPVS_64BIT_STATS])
     fi
   fi
+
+  dnl ----[ IPVS tunnel type ]----
+  dnl -- Since Linux 5.2
+  AC_CHECK_DECLS([IPVS_DEST_ATTR_TUN_TYPE],
+    [
+      AC_DEFINE([_HAVE_IPVS_TUN_TYPE_], [ 1 ], [Define to 1 if have IPVS tunnel type])
+      add_system_opt([IPVS_TUN_TYPE])
+    ], [],
+    [[#include <linux/ip_vs.h>]])
+
   CPPFLAGS="$SAV_CPPFLAGS"
 
   dnl ----[ Is HTTP_GET regex checking wanted? ]----

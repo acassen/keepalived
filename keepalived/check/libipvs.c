@@ -118,6 +118,10 @@ static struct nla_policy ipvs_dest_policy[IPVS_DEST_ATTR_MAX + 1] = {
 #if HAVE_DECL_IPVS_DEST_ATTR_ADDR_FAMILY
 	[IPVS_DEST_ATTR_ADDR_FAMILY]	= { .type = NLA_U16 },
 #endif
+#ifdef _HAVE_IPVS_TUN_TYPE_
+	[IPVS_DEST_ATTR_TUN_TYPE]	= { .type = NLA_U8 },
+	[IPVS_DEST_ATTR_TUN_PORT]	= { .type = NLA_U16 },
+#endif
 #ifdef _WITH_LVS_64BIT_STATS_
 	[IPVS_DEST_ATTR_STATS64]	= {.type = NLA_NESTED },
 #endif
@@ -526,6 +530,13 @@ static int ipvs_nl_fill_dest_attr(struct nl_msg *msg, ipvs_dest_t *dst)
 	NLA_PUT_U16(msg, IPVS_DEST_ATTR_PORT, dst->user.port);
 	NLA_PUT_U32(msg, IPVS_DEST_ATTR_FWD_METHOD, dst->user.conn_flags & IP_VS_CONN_F_FWD_MASK);
 	NLA_PUT_U32(msg, IPVS_DEST_ATTR_WEIGHT, (uint32_t)dst->user.weight);
+#ifdef _HAVE_IPVS_TUN_TYPE_
+	if ((dst->user.conn_flags & IP_VS_CONN_F_FWD_MASK) == IP_VS_CONN_F_TUNNEL) {
+		NLA_PUT_U8 (msg, IPVS_DEST_ATTR_TUN_TYPE, dst->tun_type);
+		if (dst->tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GUE)
+			NLA_PUT_U16(msg, IPVS_DEST_ATTR_TUN_PORT, dst->tun_port);
+	}
+#endif
 	NLA_PUT_U32(msg, IPVS_DEST_ATTR_U_THRESH, dst->user.u_threshold);
 	NLA_PUT_U32(msg, IPVS_DEST_ATTR_L_THRESH, dst->user.l_threshold);
 

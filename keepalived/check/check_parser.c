@@ -353,20 +353,88 @@ lbflags_handler(const vector_t *strvec)
 }
 
 static void
+svr_forwarding_handler(real_server_t *rs, const vector_t *strvec, const char *s_type)
+{
+	const char *str = strvec_slot(strvec, 1);
+#ifdef _HAVE_IPVS_TUN_TYPE_
+	size_t i;
+	int tun_type = IP_VS_CONN_F_TUNNEL_TYPE_IPIP;
+	unsigned port = 0;
+#ifdef _HAVE_IPVS_TUN_CSUM_
+	int csum = IP_VS_TUNNEL_ENCAP_FLAG_NOCSUM;
+#endif
+#endif
+
+	if (!strcmp(str, "NAT"))
+		rs->forwarding_method = IP_VS_CONN_F_MASQ;
+	else if (!strcmp(str, "DR"))
+		rs->forwarding_method = IP_VS_CONN_F_DROUTE;
+	else if (!strcmp(str, "TUN"))
+		rs->forwarding_method = IP_VS_CONN_F_TUNNEL;
+	else {
+		report_config_error(CONFIG_GENERAL_ERROR, "PARSER : unknown [%s] routing method for %s server.", str, s_type);
+		return;
+	}
+
+#ifdef _HAVE_IPVS_TUN_TYPE_
+	for (i = 2; i < vector_size(strvec); i++) {
+		if (!strcmp(strvec_slot(strvec, i), "type")) {
+			if (vector_size(strvec) == i + 1) {
+				report_config_error(CONFIG_GENERAL_ERROR, "Missing tunnel type for %s server.", s_type);
+				return;
+			}
+			if (!strcmp(strvec_slot(strvec, i + 1), "ipip"))
+				tun_type = IP_VS_CONN_F_TUNNEL_TYPE_IPIP;
+			else if (!strcmp(strvec_slot(strvec, i + 1), "gue"))
+				tun_type = IP_VS_CONN_F_TUNNEL_TYPE_GUE;
+			else {
+				report_config_error(CONFIG_GENERAL_ERROR, "Unknown tunnel type %s for %s server.", strvec_slot(strvec, i + 1), s_type);
+				return;
+			}
+			i++;
+		} else if (!strcmp(strvec_slot(strvec, i), "port")) {
+			if (vector_size(strvec) == i + 1) {
+				report_config_error(CONFIG_GENERAL_ERROR, "Missing port for %s server gue tunnel.", s_type);
+				return;
+			}
+			if (!read_unsigned_strvec(strvec, i + 1, &port, 1, 65535, false)) {
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid gue tunnel port %s for %s server.", strvec_slot(strvec, i + 1), s_type);
+				return;
+			}
+			i++;
+		}
+		else {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid tunnel option %s for %s server.", strvec_slot(strvec, i), s_type);
+			return;
+		}
+	}
+
+	if ((tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GUE) != (port != 0)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "gue tunnels require port, otherwise cannot have port.");
+		return;
+	}
+
+#ifdef _HAVE_IPVS_TUN_TYPE_
+	rs->tun_type = tun_type;
+	rs->tun_port = htons(port);
+#endif
+#endif
+}
+
+static void
 forwarding_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	const char *str = strvec_slot(strvec, 1);
+	real_server_t rs;	// dummy for setting parameters
 
-	if (!strcmp(str, "NAT"))
-		vs->forwarding_method = IP_VS_CONN_F_MASQ;
-	else if (!strcmp(str, "DR"))
-		vs->forwarding_method = IP_VS_CONN_F_DROUTE;
-	else if (!strcmp(str, "TUN"))
-		vs->forwarding_method = IP_VS_CONN_F_TUNNEL;
-	else
-		report_config_error(CONFIG_GENERAL_ERROR, "PARSER : unknown [%s] routing method.", str);
+	svr_forwarding_handler(&rs, strvec, "virtual");
+	vs->forwarding_method = rs.forwarding_method;
+#ifdef _HAVE_IPVS_TUN_TYPE_
+	vs->tun_type = rs.tun_type;
+	vs->tun_port = rs.tun_port;
+#endif
 }
+
 static void
 pto_handler(const vector_t *strvec)
 {
@@ -490,20 +558,6 @@ vs_virtualhost_handler(const vector_t *strvec)
 	vs->virtualhost = set_value(strvec);
 }
 
-static void
-svr_forwarding_handler(real_server_t *rs, const vector_t *strvec)
-{
-	const char *str = strvec_slot(strvec, 1);
-
-	if (!strcmp(str, "NAT"))
-		rs->forwarding_method = IP_VS_CONN_F_MASQ;
-	else if (!strcmp(str, "DR"))
-		rs->forwarding_method = IP_VS_CONN_F_DROUTE;
-	else if (!strcmp(str, "TUN"))
-		rs->forwarding_method = IP_VS_CONN_F_TUNNEL;
-	else
-		report_config_error(CONFIG_GENERAL_ERROR, "PARSER : unknown [%s] routing method for real server.", str);
-}
 /* Sorry Servers handlers */
 static void
 ssvr_handler(const vector_t *strvec)
@@ -525,7 +579,7 @@ ss_forwarding_handler(const vector_t *strvec)
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 
 	if (vs->s_svr)
-		svr_forwarding_handler(vs->s_svr, strvec);
+		svr_forwarding_handler(vs->s_svr, strvec, "sorry");
 	else
 		report_config_error(CONFIG_GENERAL_ERROR, "sorry_server forwarding used without sorry_server");
 }
@@ -586,7 +640,7 @@ rs_forwarding_handler(const vector_t *strvec)
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 
-	svr_forwarding_handler(rs, strvec);
+	svr_forwarding_handler(rs, strvec, "real");
 }
 static void
 uthreshold_handler(const vector_t *strvec)

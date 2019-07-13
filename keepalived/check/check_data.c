@@ -259,6 +259,38 @@ free_vs(void *data)
 	free_notify_script(&vs->notify_quorum_down);
 	FREE(vs);
 }
+
+static void
+dump_forwarding_method(FILE *fp, const char *prefix, const real_server_t *rs)
+{
+	const char *fwd_method = "forwarding method = ";
+#ifdef _HAVE_IPVS_TUN_TYPE_
+	const char *csum_str = "";
+	const char *tun_type = "TUN, type = ";
+#endif
+
+	switch (rs->forwarding_method) {
+	case IP_VS_CONN_F_MASQ:
+		conf_write(fp, "   %s%sNAT", prefix, fwd_method);
+		break;
+	case IP_VS_CONN_F_DROUTE:
+		conf_write(fp, "   %s%sDR", prefix, fwd_method);
+		break;
+	case IP_VS_CONN_F_TUNNEL:
+#ifdef _HAVE_IPVS_TUN_TYPE_
+		if (rs->tun_type == IP_VS_CONN_F_TUNNEL_TYPE_IPIP)
+			conf_write(fp, "   %s%s%sIPIP", prefix, fwd_method, tun_type);
+		else {
+			if (rs->tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GUE)
+				conf_write(fp, "   %s%sGUE, port = %u%s", fwd_method, tun_type, ntohs(rs->tun_port), csum_str);
+		}
+#else
+		conf_write(fp, "   %s%sTUN", prefix, fwd_method);
+#endif
+		break;
+	}
+}
+
 static void
 dump_vs(FILE *fp, const void *data)
 {
@@ -344,32 +376,17 @@ dump_vs(FILE *fp, const void *data)
 		conf_write(fp, "   Using HA suspend");
 	conf_write(fp, "   Using smtp notification = %s", vs->smtp_alert ? "yes" : "no");
 
-	switch (vs->forwarding_method) {
-	case IP_VS_CONN_F_MASQ:
-		conf_write(fp, "   default forwarding method = NAT");
-		break;
-	case IP_VS_CONN_F_DROUTE:
-		conf_write(fp, "   default forwarding method = DR");
-		break;
-	case IP_VS_CONN_F_TUNNEL:
-		conf_write(fp, "   default forwarding method = TUN");
-		break;
-	}
+	real_server_t rs = { .forwarding_method = vs->forwarding_method };
+#ifdef _HAVE_IPVS_TUN_TYPE_
+	rs.tun_type = vs->tun_type;
+	rs.tun_port = vs->tun_port;
+#endif
+	dump_forwarding_method(fp, "default ", &rs);
 
 	if (vs->s_svr) {
 		conf_write(fp, "   sorry server = %s"
 				    , FMT_RS(vs->s_svr, vs));
-		switch (vs->s_svr->forwarding_method) {
-		case IP_VS_CONN_F_MASQ:
-			conf_write(fp, "   sorry server forwarding method = NAT");
-			break;
-		case IP_VS_CONN_F_DROUTE:
-			conf_write(fp, "   sorry server forwarding method = DR");
-			break;
-		case IP_VS_CONN_F_TUNNEL:
-			conf_write(fp, "   sorry server forwarding method = TUN");
-			break;
-		}
+		dump_forwarding_method(fp, "sorry server ", vs->s_svr);
 	}
 	conf_write(fp, "   alive = %d", vs->alive);
 	conf_write(fp, "   quorum_state_up = %d", vs->quorum_state_up);
@@ -457,6 +474,10 @@ alloc_ssvr(const char *ip, const char *port)
 	vs->s_svr->weight = 1;
 	vs->s_svr->iweight = 1;
 	vs->s_svr->forwarding_method = vs->forwarding_method;
+#ifdef _HAVE_IPVS_TUN_TYPE_
+	vs->s_svr->tun_type = vs->tun_type;
+	vs->s_svr->tun_port = vs->tun_port;
+#endif
 	if (inet_stosockaddr(ip, port_str, &vs->s_svr->addr)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid sorry server IP address %s - skipping", ip);
 		FREE(vs->s_svr);
@@ -494,17 +515,7 @@ dump_rs(FILE *fp, const void *data)
 			    , inet_sockaddrtos(&rs->addr)
 			    , ntohs(inet_sockaddrport(&rs->addr))
 			    , rs->weight);
-	switch (rs->forwarding_method) {
-	case IP_VS_CONN_F_MASQ:
-		conf_write(fp, "   Forwarding method = NAT");
-		break;
-	case IP_VS_CONN_F_DROUTE:
-		conf_write(fp, "   Forwarding method = DR");
-		break;
-	case IP_VS_CONN_F_TUNNEL:
-		conf_write(fp, "   Forwarding method = TUN");
-		break;
-	}
+	dump_forwarding_method(fp, "", rs);
 
 	conf_write(fp, "   Alpha is %s", rs->alpha ? "ON" : "OFF");
 	conf_write(fp, "   connection timeout = %f", ((double)rs->connection_to) / TIMER_HZ);
@@ -582,6 +593,10 @@ alloc_rs(const char *ip, const char *port)
 
 	new->weight = INT_MAX;
 	new->forwarding_method = vs->forwarding_method;
+#ifdef _HAVE_IPVS_TUN_TYPE_
+	new->tun_type = vs->tun_type;
+	new->tun_port = vs->tun_port;
+#endif
 	new->alpha = -1;
 	new->inhibit = -1;
 	new->connection_to = UINT_MAX;
@@ -885,6 +900,10 @@ bool validate_check_config(void)
 					vs->forwarding_method = IP_VS_CONN_F_MASQ;
 				}
 				rs->forwarding_method = vs->forwarding_method;
+#ifdef _HAVE_IPVS_TUN_TYPE_
+				rs->tun_type = vs->tun_type;
+				rs->tun_port = vs->tun_port;
+#endif
 			}
 
 			/* Take default values from virtual server */

@@ -66,6 +66,10 @@ typedef struct _real_server {
 	int				pweight;	/* previous weight
 							 * used for reloading */
 	unsigned			forwarding_method; /* NAT/TUN/DR */
+#ifdef _HAVE_IPVS_TUN_TYPE_
+	int				tun_type;	/* tunnel type */
+	unsigned			tun_port;	/* tunnel port for gue tunnels */
+#endif
 	uint32_t			u_threshold;   /* Upper connection limit. */
 	uint32_t			l_threshold;   /* Lower connection limit. */
 	int				inhibit;	/* Set weight to 0 instead of removing
@@ -147,6 +151,10 @@ typedef struct _virtual_server {
 	char				pe_name[IP_VS_PENAME_MAXLEN];
 #endif
 	unsigned			forwarding_method;
+#ifdef _HAVE_IPVS_TUN_TYPE_
+	int				tun_type;	/* tunnel type */
+	unsigned			tun_port;	/* tunnel port for gue tunnels */
+#endif
 	uint32_t			persistence_granularity;
 #endif
 	const char			*virtualhost;	/* Default virtualhost for HTTP and SSL healthcheckers
