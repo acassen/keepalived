@@ -346,13 +346,13 @@ alloc_http_get(const char *proto)
 	return http_get_chk;
 }
 
-static bool
+static bool __attribute__((pure))
 http_get_check_compare(const checker_t *old_c, const checker_t *new_c)
 {
 	const http_checker_t *old = old_c->data;
 	const http_checker_t *new = new_c->data;
 	size_t n;
-	url_t *u1, *u2;
+	const url_t *u1, *u2;
 	unsigned i;
 
 	if (!compare_conn_opts(old_c->co, new_c->co))
@@ -364,8 +364,8 @@ http_get_check_compare(const checker_t *old_c, const checker_t *new_c)
 	if (old->virtualhost && strcmp(old->virtualhost, new->virtualhost))
 		return false;
 	for (n = 0; n < LIST_SIZE(new->url); n++) {
-		u1 = (url_t *)list_element(old->url, n);
-		u2 = (url_t *)list_element(new->url, n);
+		u1 = (const url_t *)list_element(old->url, n);
+		u2 = (const url_t *)list_element(new->url, n);
 		if (strcmp(u1->path, u2->path))
 			return false;
 		if (!u1->digest != !u2->digest)
