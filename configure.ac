@@ -1725,6 +1725,14 @@ if test "$enable_lvs" != no; then
     ], [],
     [[#include <linux/ip_vs.h>]])
 
+  dnl -- Since Linux 5.3
+  AC_CHECK_DECLS([IP_VS_TUNNEL_ENCAP_FLAG_NOCSUM],
+    [
+      AC_DEFINE([_HAVE_IPVS_TUN_CSUM_], [ 1 ], [Define to 1 if have IPVS tunnel checksum options])
+      add_system_opt([IPVS_TUN_CSUM])
+    ], [],
+    [[#include <linux/ip_vs.h>]])
+
   CPPFLAGS="$SAV_CPPFLAGS"
 
   dnl ----[ Is HTTP_GET regex checking wanted? ]----

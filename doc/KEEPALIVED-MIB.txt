@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201907120001Z"
+     LAST-UPDATED "201907120002Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201907120002Z"
+     DESCRIPTION "add IPVS tunnel checksum option"
      REVISION "201907120001Z"
      DESCRIPTION "add IPVS tunnel type"
      REVISION "201906300003Z"
@@ -3342,6 +3344,7 @@ VirtualServerEntry ::= SEQUENCE {
     virtualServerConnTimeoutUsec Unsigned32,
     virtualServerTunnelType INTEGER,
     virtualServerTunnelPort InetPortNumber,
+    virtualServerTunnelCsum INTEGER
 }
 
 virtualServerIndex OBJECT-TYPE
@@ -3966,6 +3969,14 @@ virtualServerTunnelPort OBJECT-TYPE
         "Default forwarding tunnel GUE port use for this virtual server."
     ::= { virtualServerEntry 69 }
 
+virtualServerTunnelCsum OBJECT-TYPE
+    SYNTAX INTEGER { nocsum(1), csum(2), remcsum(3) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Default forwarding tunnel checksum type use for this virtual server."
+    ::= { virtualServerEntry 70 }
+
 
 -- real servers
 
@@ -4039,7 +4050,8 @@ RealServerEntry ::= SEQUENCE {
     realServerDelayLoopUsec Unsigned32,
     realServerConnTimeoutUsec Unsigned32,
     realServerTunnelType INTEGER,
-    realServerTunnelPort InetPortNumber
+    realServerTunnelPort InetPortNumber,
+    realServerTunnelCsum INTEGER
 }
 
 realServerIndex OBJECT-TYPE
@@ -4511,6 +4523,14 @@ realServerTunnelPort OBJECT-TYPE
     DESCRIPTION
         "Forwarding tunnel GUE port use for this real server."
     ::= { realServerEntry 53 }
+
+realServerTunnelCsum OBJECT-TYPE
+    SYNTAX INTEGER { nocsum(1), csum(2), remcsum(3) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Forwarding tunnel checksum type use for this real server."
+    ::= { realServerEntry 54 }
 
 lvsSyncDaemon    OBJECT IDENTIFIER ::= { check 6 }
 
@@ -5133,7 +5153,8 @@ virtualServerGroup OBJECT-GROUP
     virtualServerWarmupUsec,
     virtualServerConnTimeoutUsec,
     virtualServerTunnelType,
-    virtualServerTunnelPort
+    virtualServerTunnelPort,
+    virtualServerTunnelCsum
     }
     STATUS current
     DESCRIPTION

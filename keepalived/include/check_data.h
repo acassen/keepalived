@@ -69,6 +69,9 @@ typedef struct _real_server {
 #ifdef _HAVE_IPVS_TUN_TYPE_
 	int				tun_type;	/* tunnel type */
 	unsigned			tun_port;	/* tunnel port for gue tunnels */
+#ifdef _HAVE_IPVS_TUN_CSUM_
+	int				tun_flags;	/* tunnel checksum type for gue tunnels */
+#endif
 #endif
 	uint32_t			u_threshold;   /* Upper connection limit. */
 	uint32_t			l_threshold;   /* Lower connection limit. */
@@ -154,6 +157,9 @@ typedef struct _virtual_server {
 #ifdef _HAVE_IPVS_TUN_TYPE_
 	int				tun_type;	/* tunnel type */
 	unsigned			tun_port;	/* tunnel port for gue tunnels */
+#ifdef _HAVE_IPVS_TUN_CSUM_
+	int				tun_flags;	/* tunnel checksum type for gue tunnels */
+#endif
 #endif
 	uint32_t			persistence_granularity;
 #endif

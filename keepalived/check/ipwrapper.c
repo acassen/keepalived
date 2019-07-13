@@ -80,6 +80,9 @@ vs_iseq(const virtual_server_t *vs_a, const virtual_server_t *vs_b)
 #ifdef _HAVE_IPVS_TUN_TYPE_
 	    vs_a->tun_type != vs_b->tun_type ||
 	    vs_a->tun_port != vs_b->tun_port ||
+#ifdef _HAVE_IPVS_TUN_CSUM_
+	    vs_a->tun_flags != vs_b->tun_flags ||
+#endif
 #endif
 	    vs_a->persistence_granularity != vs_b->persistence_granularity ||
 	    !vs_script_iseq(vs_a->notify_quorum_up, vs_b->notify_quorum_up) ||
@@ -121,6 +124,11 @@ rs_iseq(const real_server_t *rs_a, const real_server_t *rs_b)
 #ifdef _HAVE_IPVS_TUN_TYPE_
 	if (rs_a->tun_type != rs_b->tun_type ||
 	    rs_a->tun_port != rs_b->tun_port)
+		return false;
+#endif
+
+#ifdef _HAVE_IPVS_TUN_CSUM_
+	if (rs_a->tun_flags != rs_b->tun_flags)
 		return false;
 #endif
 

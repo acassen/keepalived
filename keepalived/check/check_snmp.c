@@ -120,6 +120,9 @@ enum check_snmp_virtualserver_magic {
 	CHECK_SNMP_VSTUNNELTYPE,
 #ifdef _HAVE_IPVS_TUN_TYPE_
 	CHECK_SNMP_VSTUNNELPORT,
+#ifdef _HAVE_IPVS_TUN_CSUM_
+	CHECK_SNMP_VSTUNNELCSUM,
+#endif
 #endif
 };
 
@@ -179,6 +182,9 @@ enum check_snmp_realserver_magic {
 	CHECK_SNMP_RSTUNNELTYPE,
 #ifdef _HAVE_IPVS_TUN_TYPE_
 	CHECK_SNMP_RSTUNNELPORT,
+#ifdef _HAVE_IPVS_TUN_CSUM_
+	CHECK_SNMP_RSTUNNELCSUM,
+#endif
 #endif
 };
 
@@ -735,6 +741,17 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 			break;
 		long_ret.u = ntohs(v->tun_port);
 		return (u_char*)&long_ret;
+#ifdef _HAVE_IPVS_TUN_CSUM_
+	case CHECK_SNMP_VSTUNNELCSUM:
+		if (v->forwarding_method != IP_VS_CONN_F_TUNNEL ||
+		    v->tun_type == IP_VS_CONN_F_TUNNEL_TYPE_IPIP)
+			break;
+		long_ret.u = v->tun_flags == IP_VS_TUNNEL_ENCAP_FLAG_NOCSUM ? 1
+			   : v->tun_flags == IP_VS_TUNNEL_ENCAP_FLAG_CSUM ? 2
+			   : v->tun_flags == IP_VS_TUNNEL_ENCAP_FLAG_REMCSUM ? 3
+			   : 0;
+		return (u_char*)&long_ret;
+#endif
 #endif
 	default:
 		return NULL;
@@ -1432,6 +1449,10 @@ static struct variable8 check_vars[] = {
 	{CHECK_SNMP_VSTUNNELPORT, ASN_UNSIGNED, RONLY,
 	 check_snmp_virtualserver, 3, {3, 1, 69}},
 #endif
+#ifdef _HAVE_IPVS_TUN_CSUM_
+	{CHECK_SNMP_VSTUNNELCSUM, ASN_INTEGER, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 70}},
+#endif
 
 	/* realServerTable */
 	{CHECK_SNMP_RSTYPE, ASN_INTEGER, RONLY,
@@ -1541,6 +1562,10 @@ static struct variable8 check_vars[] = {
 #ifdef _HAVE_IPSV_TUN_TYPE_
 	{CHECK_SNMP_RSTUNNELPORT, ASN_UNSIGNED, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 53}},
+#endif
+#ifdef _HAVE_IPVS_TUN_CSUM_
+	{CHECK_SNMP_RSTUNNELCSUM, ASN_INTEGER, RONLY,
+	 check_snmp_realserver, 3, {4, 1, 54}},
 #endif
 
 #ifdef _WITH_VRRP_

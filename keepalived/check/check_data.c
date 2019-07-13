@@ -281,6 +281,12 @@ dump_forwarding_method(FILE *fp, const char *prefix, const real_server_t *rs)
 		if (rs->tun_type == IP_VS_CONN_F_TUNNEL_TYPE_IPIP)
 			conf_write(fp, "   %s%s%sIPIP", prefix, fwd_method, tun_type);
 		else {
+#ifdef _HAVE_IPVS_TUN_CSUM_
+			csum_str = rs->tun_flags == IP_VS_TUNNEL_ENCAP_FLAG_NOCSUM ? ", no checksum" :
+				   rs->tun_flags == IP_VS_TUNNEL_ENCAP_FLAG_CSUM ? ", checksum" :
+				   rs->tun_flags == IP_VS_TUNNEL_ENCAP_FLAG_REMCSUM ? ", remote checksum" :
+				   ", unknown checksum type";
+#endif
 			if (rs->tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GUE)
 				conf_write(fp, "   %s%sGUE, port = %u%s", fwd_method, tun_type, ntohs(rs->tun_port), csum_str);
 		}
@@ -380,6 +386,9 @@ dump_vs(FILE *fp, const void *data)
 #ifdef _HAVE_IPVS_TUN_TYPE_
 	rs.tun_type = vs->tun_type;
 	rs.tun_port = vs->tun_port;
+#ifdef _HAVE_IPVS_TUN_CSUM_
+	rs.tun_flags = vs->tun_flags;
+#endif
 #endif
 	dump_forwarding_method(fp, "default ", &rs);
 
@@ -477,6 +486,9 @@ alloc_ssvr(const char *ip, const char *port)
 #ifdef _HAVE_IPVS_TUN_TYPE_
 	vs->s_svr->tun_type = vs->tun_type;
 	vs->s_svr->tun_port = vs->tun_port;
+#ifdef _HAVE_IPVS_TUN_CSUM_
+	vs->s_svr->tun_flags = vs->tun_flags;
+#endif
 #endif
 	if (inet_stosockaddr(ip, port_str, &vs->s_svr->addr)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid sorry server IP address %s - skipping", ip);
@@ -596,6 +608,9 @@ alloc_rs(const char *ip, const char *port)
 #ifdef _HAVE_IPVS_TUN_TYPE_
 	new->tun_type = vs->tun_type;
 	new->tun_port = vs->tun_port;
+#ifdef _HAVE_IPVS_TUN_CSUM_
+	new->tun_flags = vs->tun_flags;
+#endif
 #endif
 	new->alpha = -1;
 	new->inhibit = -1;
@@ -903,6 +918,9 @@ bool validate_check_config(void)
 #ifdef _HAVE_IPVS_TUN_TYPE_
 				rs->tun_type = vs->tun_type;
 				rs->tun_port = vs->tun_port;
+#ifdef _HAVE_IPVS_TUN_CSUM_
+				rs->tun_flags = vs->tun_flags;
+#endif
 #endif
 			}
 

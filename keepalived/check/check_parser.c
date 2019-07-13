@@ -403,6 +403,14 @@ svr_forwarding_handler(real_server_t *rs, const vector_t *strvec, const char *s_
 			}
 			i++;
 		}
+#ifdef _HAVE_IPVS_TUN_CSUM_
+		else if (!strcmp(strvec_slot(strvec, i), "nocsum"))
+			csum = IP_VS_TUNNEL_ENCAP_FLAG_NOCSUM;
+		else if (!strcmp(strvec_slot(strvec, i), "csum"))
+			csum = IP_VS_TUNNEL_ENCAP_FLAG_CSUM;
+		else if (!strcmp(strvec_slot(strvec, i), "remcsum"))
+			csum = IP_VS_TUNNEL_ENCAP_FLAG_REMCSUM;
+#endif
 		else {
 			report_config_error(CONFIG_GENERAL_ERROR, "Invalid tunnel option %s for %s server.", strvec_slot(strvec, i), s_type);
 			return;
@@ -413,10 +421,19 @@ svr_forwarding_handler(real_server_t *rs, const vector_t *strvec, const char *s_
 		report_config_error(CONFIG_GENERAL_ERROR, "gue tunnels require port, otherwise cannot have port.");
 		return;
 	}
+#ifdef _HAVE_IPVS_TUN_CSUM_
+	if (tun_type == IP_VS_CONN_F_TUNNEL_TYPE_IPIP && csum != IP_VS_TUNNEL_ENCAP_FLAG_NOCSUM) {
+		report_config_error(CONFIG_GENERAL_ERROR, "ipip tunnels do not support checksum option.");
+		return;
+	}
+#endif
 
 #ifdef _HAVE_IPVS_TUN_TYPE_
 	rs->tun_type = tun_type;
 	rs->tun_port = htons(port);
+#ifdef _HAVE_IPVS_TUN_CSUM_
+	rs->tun_flags = csum;
+#endif
 #endif
 #endif
 }
@@ -432,6 +449,9 @@ forwarding_handler(const vector_t *strvec)
 #ifdef _HAVE_IPVS_TUN_TYPE_
 	vs->tun_type = rs.tun_type;
 	vs->tun_port = rs.tun_port;
+#ifdef _HAVE_IPVS_TUN_CSUM_
+	vs->tun_flags = rs.tun_flags;
+#endif
 #endif
 }
 

@@ -57,6 +57,9 @@ struct ip_vs_dest_app {
 #ifdef _HAVE_IPVS_TUN_TYPE_
 	int			tun_type;
 	int			tun_port;
+#ifdef _HAVE_IPVS_TUN_CSUM_
+	int			tun_flags;
+#endif
 #endif
 };
 

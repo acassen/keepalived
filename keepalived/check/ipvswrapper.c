@@ -546,6 +546,9 @@ ipvs_set_drule(int cmd, ipvs_dest_t *drule, real_server_t * rs)
 #ifdef _HAVE_IPVS_TUN_TYPE_
 	drule->tun_type = rs->tun_type;
 	drule->tun_port = rs->tun_port;
+#ifdef _HAVE_IPVS_TUN_CSUM_
+	drule->tun_flags = rs->tun_flags;
+#endif
 #endif
 }
 
