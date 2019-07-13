@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201907120002Z"
+     LAST-UPDATED "201907120003Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201907120003Z"
+     DESCRIPTION "add IPVS GRE tunnels"
      REVISION "201907120002Z"
      DESCRIPTION "add IPVS tunnel checksum option"
      REVISION "201907120001Z"

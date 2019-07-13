@@ -387,6 +387,10 @@ svr_forwarding_handler(real_server_t *rs, const vector_t *strvec, const char *s_
 				tun_type = IP_VS_CONN_F_TUNNEL_TYPE_IPIP;
 			else if (!strcmp(strvec_slot(strvec, i + 1), "gue"))
 				tun_type = IP_VS_CONN_F_TUNNEL_TYPE_GUE;
+#ifdef _HAVE_IPVS_TUN_GRE_
+			else if (!strcmp(strvec_slot(strvec, i + 1), "gre"))
+				tun_type = IP_VS_CONN_F_TUNNEL_TYPE_GRE;
+#endif
 			else {
 				report_config_error(CONFIG_GENERAL_ERROR, "Unknown tunnel type %s for %s server.", strvec_slot(strvec, i + 1), s_type);
 				return;
@@ -424,6 +428,12 @@ svr_forwarding_handler(real_server_t *rs, const vector_t *strvec, const char *s_
 #ifdef _HAVE_IPVS_TUN_CSUM_
 	if (tun_type == IP_VS_CONN_F_TUNNEL_TYPE_IPIP && csum != IP_VS_TUNNEL_ENCAP_FLAG_NOCSUM) {
 		report_config_error(CONFIG_GENERAL_ERROR, "ipip tunnels do not support checksum option.");
+		return;
+	}
+#endif
+#ifdef _HAVE_IPVS_TUN_GRE_
+	if (tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GRE && csum == IP_VS_TUNNEL_ENCAP_FLAG_REMCSUM) {
+		report_config_error(CONFIG_GENERAL_ERROR, "gre tunnels do not support remote checksum option.");
 		return;
 	}
 #endif

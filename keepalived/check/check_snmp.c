@@ -731,6 +731,9 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 #else
 		long_ret.u = v->tun_type == IP_VS_CONN_F_TUNNEL_TYPE_IPIP ? 1
 			   : v->tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GUE ? 2
+#ifdef _HAVE_IPVS_TUN_GRE_
+			   : v->tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GRE ? 3
+#endif
 			   : 0;
 #endif
 		return (u_char*)&long_ret;

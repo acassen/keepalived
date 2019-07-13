@@ -70,7 +70,7 @@ typedef struct _real_server {
 	int				tun_type;	/* tunnel type */
 	unsigned			tun_port;	/* tunnel port for gue tunnels */
 #ifdef _HAVE_IPVS_TUN_CSUM_
-	int				tun_flags;	/* tunnel checksum type for gue tunnels */
+	int				tun_flags;	/* tunnel checksum type for gue/gre tunnels */
 #endif
 #endif
 	uint32_t			u_threshold;   /* Upper connection limit. */
@@ -158,7 +158,7 @@ typedef struct _virtual_server {
 	int				tun_type;	/* tunnel type */
 	unsigned			tun_port;	/* tunnel port for gue tunnels */
 #ifdef _HAVE_IPVS_TUN_CSUM_
-	int				tun_flags;	/* tunnel checksum type for gue tunnels */
+	int				tun_flags;	/* tunnel checksum type for gue/gre tunnels */
 #endif
 #endif
 	uint32_t			persistence_granularity;

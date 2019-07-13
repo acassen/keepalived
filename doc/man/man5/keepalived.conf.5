@@ -1647,12 +1647,14 @@ The syntax for virtual_server is :
     \fBops\fR
 
     # Default LVS forwarding method.
-    # Default tunnel type is ipip. Since Linux 5.2 the tunnel type can
+    # Default tunnel type is ipip. Since Linux 5.2 the GUE tunnel type can
     # be specified. If using GUE, a port number is required. Since Linux 5.3
     # if the tunnel type is GUE, the checksum option can also be specified.
+    # Since Linux 5.3, GRE tunnel type is also supported, but without the
+    # remcsum option.
     \fBlvs_method \fRNAT|DR
     or
-    \fBlvs_method \fRTUN [type {ipip|gue port NUM} [nocsum|csum|remcsum]]
+    \fBlvs_method \fRTUN [type {ipip|gue port NUM|gre} [nocsum|csum|remcsum]]
     # LVS persistence engine name
     \fBpersistence_engine \fR<STRING>
     # LVS persistence timeout in seconds, default 6 minutes
@@ -1717,7 +1719,7 @@ The syntax for virtual_server is :
     # For details of tunnel type, see virtual_server details.
     \fBsorry_server_lvs_method \fRNAT|DR
     or
-    \fBsorry_server_lvs_method \fRTUN [type {ipip|gue port NUM} [nocsum|csum|remcsum]]
+    \fBsorry_server_lvs_method \fRTUN [type {ipip|gue port NUM|gre} [nocsum|csum|remcsum]]
 
     # Optional connection timeout in seconds.
     # The default is 5 seconds
@@ -1751,7 +1753,7 @@ The syntax for virtual_server is :
         # For details of tunnel type, see virtual_server details.
         \fBlvs_method \fRNAT|DR
         or
-        \fBlvs_method \fRTUN [type {ipip|gue port NUM} [nocsum|csum|remcsum]]
+        \fBlvs_method \fRTUN [type {ipip|gue port NUM|gre} [nocsum|csum|remcsum]]
 
         # Script to execute when healthchecker
         # considers service as up.

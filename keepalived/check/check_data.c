@@ -289,6 +289,10 @@ dump_forwarding_method(FILE *fp, const char *prefix, const real_server_t *rs)
 #endif
 			if (rs->tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GUE)
 				conf_write(fp, "   %s%sGUE, port = %u%s", fwd_method, tun_type, ntohs(rs->tun_port), csum_str);
+#ifdef _HAVE_IPVS_TUN_GRE_
+			else if (rs->tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GRE)
+				conf_write(fp, "   %s%sGRE%s", fwd_method, tun_type, csum_str);
+#endif
 		}
 #else
 		conf_write(fp, "   %s%sTUN", prefix, fwd_method);

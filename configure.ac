@@ -1733,6 +1733,14 @@ if test "$enable_lvs" != no; then
     ], [],
     [[#include <linux/ip_vs.h>]])
 
+  dnl -- Since Linux 5.3
+  AC_CHECK_DECLS([IP_VS_CONN_F_TUNNEL_TYPE_GRE],
+    [
+      AC_DEFINE([_HAVE_IPVS_TUN_GRE_], [ 1 ], [Define to 1 if have IPVS gre tunnel])
+      add_system_opt([IPVS_TUN_GRE])
+    ], [],
+    [[#include <linux/ip_vs.h>]])
+
   CPPFLAGS="$SAV_CPPFLAGS"
 
   dnl ----[ Is HTTP_GET regex checking wanted? ]----
