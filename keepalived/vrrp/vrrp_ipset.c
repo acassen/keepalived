@@ -65,7 +65,7 @@
 #ifdef LIBIPSET_PRE_V7_COMPAT
 struct ipset_session* (*ipset_session_init_addr)(ipset_outfn outfn);
 #else
-struct ipset_session* (*ipset_session_init_addr)(ipset_print_outfn outfn, void *p);
+struct ipset_session* (*ipset_session_init_addr)(ipset_print_outfn outfn, const void *p);
 #endif
 int (*ipset_session_fini_addr)(struct ipset_session *session);
 struct ipset_data* (*ipset_session_data_addr)(const struct ipset_session *session);

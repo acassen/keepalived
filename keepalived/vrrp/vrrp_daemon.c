@@ -783,7 +783,9 @@ reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 #endif
 
 	/* Destroy master thread */
+#ifdef _WITH_BFD_
 	cancel_vrrp_threads();
+#endif
 	thread_cleanup_master(master);
 	thread_add_base_threads(master, with_snmp);
 

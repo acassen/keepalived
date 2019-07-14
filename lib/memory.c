@@ -274,6 +274,7 @@ keepalived_malloc_common(size_t size, const char *file, const char *function, in
 		list_add_tail(&entry2->l, &bad_list);
 	}
 
+	/* coverity[leaked_storage] */
 	return buf;
 }
 
@@ -379,6 +380,7 @@ keepalived_free_realloc_common(void *buffer, size_t size, const char *file, cons
 
 		list_add_tail(&entry->l, &bad_list);
 
+		/* coverity[leaked_storage] */
 		return NULL;
 	}
 
@@ -499,6 +501,7 @@ keepalived_free_realloc_common(void *buffer, size_t size, const char *file, cons
 
 	num_reallocs++;
 
+	/* coverity[leaked_storage] */
 	return buffer;
 }
 

@@ -47,6 +47,10 @@
 #include <sys/wait.h>
 #endif
 
+#if !defined HAVE_GETRANDOM && HAVE_DECL_SYS_GETRANDOM == 1
+#include  <sys/syscall.h>
+#endif
+
 #ifdef _WITH_STACKTRACE_
 #include <sys/stat.h>
 #include <execinfo.h>
@@ -1140,3 +1144,38 @@ memcmp_constant_time(const void *s1, const void *s2, size_t n)
 
 	return ret;
 }
+
+#ifndef HAVE_GETRANDOM
+/* Emulate library getrandom() */
+int
+getrandom(void *buf, size_t buflen, unsigned int flags)
+{
+#if HAVE_DECL_SYS_GETRANDOM
+	return syscall(SYS_getrandom, buf, buflen, flags);
+#else
+	int fd = open("/dev/urandom", O_RDONLY, flags & GRND_NONBLOCK ? O_NONBLOCK : 0);
+	ssize_t len;
+	int sav_errno;
+
+	if (fd == -1) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	len = read(fd, buf, buflen);
+	if (len == -1) {
+		if (errno != EAGAIN && errno != EINTR && errno != EBADF)
+			sav_errno = EINVAL;
+		else
+			sav_errno = errno;
+	}
+
+	close(fd);
+
+	if (len == -1)
+		errno = sav_errno;
+
+	return (int)len;
+#endif
+}
+#endif

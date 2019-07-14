@@ -34,6 +34,11 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#ifndef HAVE_GETRANDOM
+#if HAVE_DECL_SYS_GETRANDOM == 1
+#include <linux/random.h>
+#endif
+#endif
 
 #include "vector.h"
 #if defined _DEBUG_ || defined DEBUG_EINTR
@@ -268,5 +273,11 @@ extern int fork_exec(const char * const []);
 extern int open_pipe(int [2]);
 #endif
 extern int memcmp_constant_time(const void *, const void *, size_t);
+#ifndef HAVE_GETRANDOM
+#if HAVE_DECL_SYS_GETRANDOM == 0
+#define GRND_NONBLOCK	0x0001
+#endif
+extern int getrandom(void *, size_t, unsigned int);
+#endif
 
 #endif

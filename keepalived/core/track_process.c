@@ -557,12 +557,6 @@ check_process_comm_change(pid_t pid, char *comm)
 
 	/* Handle the new process name */
 	check_process(pid, comm, tpi);
-
-	if (tpi && LIST_ISEMPTY(tpi->processes)) {
-		free_list(&tpi->processes);
-		rb_erase(&tpi->pid_tree, &process_tree);
-		FREE(tpi);
-	}
 }
 #endif
 

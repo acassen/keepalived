@@ -58,8 +58,6 @@ extern void vrrp_thread_add_read(vrrp_t *);
 extern int vrrp_dispatcher_init(thread_ref_t);
 #ifdef _WITH_BFD_
 extern void cancel_vrrp_threads(void);
-#else
-extern void cancel_vrrp_threads(void) __attribute__((const));
 #endif
 extern void vrrp_dispatcher_release(vrrp_data_t *);
 extern int vrrp_gratuitous_arp_thread(thread_ref_t);
