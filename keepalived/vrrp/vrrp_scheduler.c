@@ -553,23 +553,25 @@ vrrp_dispatcher_init(__attribute__((unused)) thread_ref_t thread)
 	return 1;
 }
 
+#ifdef _WITH_BFD_
 void
 cancel_vrrp_threads(void)
 {
-#ifdef _WITH_BFD_
 	if (bfd_thread) {
 		thread_cancel(bfd_thread);
 		bfd_thread = NULL;
 	}
-#endif
 }
+#endif
 
 void
 vrrp_dispatcher_release(vrrp_data_t *data)
 {
 	free_list(&data->vrrp_socket_pool);
 
+#ifdef _WITH_BFD_
 	cancel_vrrp_threads();
+#endif
 }
 
 static void

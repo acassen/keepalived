@@ -667,10 +667,10 @@ update_svr_wgt(int weight, virtual_server_t * vs, real_server_t * rs
 		, bool update_quorum)
 {
 	if (weight != rs->weight) {
-		log_message(LOG_INFO, "Changing weight from %d to %d for %s service %s of VS %s"
+		log_message(LOG_INFO, "Changing weight from %d to %d for %sactive service %s of VS %s"
 				    , rs->weight
 				    , weight
-				    , ISALIVE(rs) ? "active" : "inactive"
+				    , ISALIVE(rs) ? "" : "in"
 				    , FMT_RS(rs, vs)
 				    , FMT_VS(vs));
 		rs->weight = weight;
