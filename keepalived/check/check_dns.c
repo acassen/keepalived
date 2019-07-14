@@ -257,6 +257,7 @@ dns_make_query(thread_ref_t thread)
 
 	DNS_SET_RD(flags, 1);	/* Recursion Desired */
 
+	/* coverity[dont_call] */
 	header->id = htons(random());
 	header->flags = htons(flags);
 	header->qdcount = htons(1);

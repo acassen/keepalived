@@ -709,8 +709,11 @@ vrrp_snmp_process(struct variable *vp, oid *name, size_t *length,
 			memcpy(buf, proc->process_params, len);
 			buf[sizeof(buf) - 1] = '\0';
 
-			for (i = strlen(buf); i < len; i += strlen(buf + i))
+			for (i = strlen(buf); i < len; i += strlen(buf + i)) {
 				buf[i++] = ' ';
+				if (i >= len)
+					break;
+			}
 			*var_len = len;
 			ret.cp = buf;
 		}

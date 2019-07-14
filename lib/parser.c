@@ -562,6 +562,7 @@ get_random(const def_t *def)
 	} while (val /= 10);
 	rand_str = MALLOC(rand_str_len + 1);
 
+	/* coverity[dont_call] */
 	val = random() % (max - min + 1) + min;
 	snprintf(rand_str, rand_str_len + 1, "%ld", val);
 

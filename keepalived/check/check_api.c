@@ -507,8 +507,10 @@ register_checkers_thread(void)
 			   the same RS.
 			*/
 			warmup = checker->warmup;
-			if (warmup)
-				warmup = warmup * (unsigned)rand() / RAND_MAX;
+			if (warmup) {
+				/* coverity[dont_call] */
+				warmup = warmup * (unsigned)random() / RAND_MAX;
+			}
 			thread_add_timer(master, checker->launch, checker,
 					 BOOTSTRAP_DELAY + warmup);
 		}

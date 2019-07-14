@@ -128,6 +128,8 @@ exchange_nl_msg(struct mnl_nlmsg_batch *batch)
 	int ret;
 	uint32_t portid;
 	char *buf;
+	size_t buf_size;
+	long mnl_buf_size;
 
 	if (mnl_nlmsg_batch_is_empty(batch))
 		return;
@@ -153,8 +155,14 @@ exchange_nl_msg(struct mnl_nlmsg_batch *batch)
 		return;
 	}
 
-	buf = MALLOC(MNL_SOCKET_BUFFER_SIZE);
-	while ((ret = mnl_socket_recvfrom(nl, buf, MNL_SOCKET_BUFFER_SIZE)) > 0) {
+	mnl_buf_size = MNL_SOCKET_BUFFER_SIZE;
+	if (mnl_buf_size < 1)
+		buf_size = 8192L;
+	else
+		buf_size = (size_t)mnl_buf_size;
+
+	buf = MALLOC(buf_size);
+	while ((ret = mnl_socket_recvfrom(nl, buf, buf_size)) > 0) {
 		/* ret = mnl_cb_run(buf, ret, 0, portid, cb_func, NULL); */
 		ret = mnl_cb_run(buf, ret, 0, portid, NULL, NULL);
 		if (ret <= 0)
