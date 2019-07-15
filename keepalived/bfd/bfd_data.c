@@ -316,8 +316,9 @@ uint32_t
 rand_intv(uint32_t min, uint32_t max)
 {
 	int rand_val;
+	int ret;
 
-	rand_val = getrandom(&rand_val, sizeof(rand_val), 0);
+	while ((ret = getrandom(&rand_val, sizeof(rand_val), 0) == -1) && check_EINTR(errno));
 
         return (uint32_t)(((CALC_TYPE)(max - min + 1) * rand_val) / (RAND_MAX + 1U)) + min;
 }
