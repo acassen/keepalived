@@ -40,16 +40,22 @@ bfd_event_send(bfd_t *bfd)
 {
 	bfd_event_t evt;
 	int ret;
+#ifdef _WITH_VRRP_
+	bool vrrp_running = running_vrrp();
+#endif
+#ifdef _WITH_LVS_
+	bool checker_running = running_checker();
+#endif
 
 	assert(bfd);
 
 	/* If there is no VRRP process running, don't write to the pipe */
 	if (true
 #ifdef _WITH_VRRP_
-	    && !running_vrrp()
+	    && !vrrp_running
 #endif
 #ifdef _WITH_LVS_
-	    && !running_checker()
+	    && !checker_running
 #endif
 		)
 		return;
@@ -60,7 +66,7 @@ bfd_event_send(bfd_t *bfd)
 	evt.sent_time = timer_now();
 
 #ifdef _WITH_VRRP_
-	if (bfd->vrrp) {
+	if (vrrp_running && bfd->vrrp) {
 		ret = write(bfd_vrrp_event_pipe[1], &evt, sizeof evt);
 		if (ret == -1 && __test_bit(LOG_DETAIL_BIT, &debug))
 			log_message(LOG_ERR, "BFD_Instance(%s) vrrp pipe write() error %m",
@@ -69,7 +75,7 @@ bfd_event_send(bfd_t *bfd)
 #endif
 
 #ifdef _WITH_LVS_
-	if (bfd->checker) {
+	if (checker_running && bfd->checker) {
 		ret = write(bfd_checker_event_pipe[1], &evt, sizeof evt);
 		if (ret == -1 && __test_bit(LOG_DETAIL_BIT, &debug))
 			log_message(LOG_ERR, "BFD_Instance(%s) checker pipe write() error %m",
