@@ -261,7 +261,7 @@ local_fork(void)
 	pid = fork();
 
 	/* If we are the child process, reset all elevated priorities */
-	if (pid > 0)
+	if (pid == 0)
 		reset_process_priorities();
 
 	return pid;
