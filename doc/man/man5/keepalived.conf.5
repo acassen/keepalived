@@ -900,6 +900,12 @@ The syntax for bfd instance is :
     # increased when down. 'weight 0 reverse' will cause the vrrp instance to be down
     # when the bfd instance is up, and vice versa.
     \fBweight\fR <-253:253> [reverse]
+
+    # Normally bfd event notifications are sent to both the VRRP and checker processes.
+    # Specifying vrrp or checker will cause event notifications for this bfd_instance
+    # only to be sent to the specified process
+    \fBvrrp\fR
+    \fBchecker\fR
 }
 .fi
 .PP
