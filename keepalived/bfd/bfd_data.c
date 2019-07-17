@@ -22,9 +22,6 @@
 
 #include "config.h"
 
-#ifdef HAVE_GETRANDOM
-#include <sys/random.h>
-#endif
 #include "bfd.h"
 #include "bfd_data.h"
 #include "logger.h"
@@ -315,12 +312,8 @@ find_bfd_by_discr(const uint32_t discr)
 uint32_t
 rand_intv(uint32_t min, uint32_t max)
 {
-	int rand_val;
-	int ret;
-
-	while ((ret = getrandom(&rand_val, sizeof(rand_val), 0) == -1) && check_EINTR(errno));
-
-        return (uint32_t)(((CALC_TYPE)(max - min + 1) * rand_val) / (RAND_MAX + 1U)) + min;
+	/* coverity[dont_call] */
+	return (uint32_t)((((CALC_TYPE)max - min + 1) * random()) / (RAND_MAX + 1U)) + min;
 }
 
 #undef CALC_TYPE
@@ -336,11 +329,12 @@ bfd_get_random_discr(bfd_data_t *data)
 	assert(data);
 
 	do {
-		discr = rand_intv(1, UINT32_MAX);
+		/* rand_intv(1, UINT32_MAX) only returns even numbers, since
+		 * RAND_MAX == INT32_MAX == UINT32_MAX / 2 */
+		discr = (rand_intv(1, UINT32_MAX) & ~1) | (time_now.tv_sec & 1);
 
 		/* Check for collisions */
-		for (e = LIST_HEAD(data->bfd); e; ELEMENT_NEXT(e)) {
-			bfd = ELEMENT_DATA(e);
+		LIST_FOREACH(data->bfd, bfd, e) {
 			if (bfd->local_discr == discr) {
 				discr = 0;
 				break;

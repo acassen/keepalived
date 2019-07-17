@@ -849,7 +849,7 @@ unweighted track_bfds between a master/backup pair of VRRP instances means that
 the VRRP instance will only be able to come up if both VRRP instance are running,
 which somewhat defeats the purpose of VRRP.
 .PP
-This imlpementation has been tested with OpenBFDD (available at
+This implementation has been tested with OpenBFDD (available at
 https://github.com/dyninc/OpenBFDD).
 .PP
 .nf
@@ -859,7 +859,8 @@ The syntax for bfd instance is :
     # BFD Neighbor IP (synonym neighbour_ip)
     \fBneighbor_ip \fR<IP ADDRESS>
 
-    # Source IP to use (optional)
+    # Source IP to use (optional, except in order to ensure that the
+    # local port is valid, it is required)
     \fBsource_ip \fR<IP ADDRESS>
 
     # Required min RX interval, in ms
