@@ -312,7 +312,7 @@ find_bfd_by_discr(const uint32_t discr)
 uint32_t
 rand_intv(uint32_t min, uint32_t max)
 {
-	return (uint32_t)(((CALC_TYPE)(max - min + 1) * rand()) / (RAND_MAX + 1U)) + min;
+	return (uint32_t)(((CALC_TYPE)(max - min + 1) * random()) / (RAND_MAX + 1U)) + min;
 }
 
 #undef CALC_TYPE

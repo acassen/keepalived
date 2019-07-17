@@ -139,7 +139,7 @@ open_bfd_pipes(void)
 static void
 start_bfd(__attribute__((unused)) data_t *prev_global_data)
 {
-	srand(time(NULL));
+	srandom(time(NULL));
 
 	if (reload)
 		global_data = alloc_global_data();
