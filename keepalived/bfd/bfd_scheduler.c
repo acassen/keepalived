@@ -27,6 +27,8 @@
 #include <netdb.h>
 #include <inttypes.h>
 #include <stdio.h>
+#include <fcntl.h>
+#include <stdlib.h>
 
 #include "bfd.h"
 #include "bfd_data.h"
@@ -40,6 +42,10 @@
 #include "utils.h"
 #include "signals.h"
 #include "assert_debug.h"
+
+/* RFC5881 section 4 */
+#define	BFD_MIN_PORT	49152
+#define	BFD_MAX_PORT	65535
 
 static int bfd_send_packet(int, bfdpkt_t *, bool);
 static void bfd_sender_schedule(bfd_t *);
@@ -942,12 +948,51 @@ bfd_open_fd_in(bfd_data_t *data)
 	return ret;
 }
 
+static bool
+read_local_port_range(uint32_t port_limits[2])
+{
+	char buf[5 + 1 + 5 + 1 + 1];	/* 32768<TAB>60999<NL> */
+	int fd;
+	ssize_t len;
+	long val[2];
+	char *endptr;
+
+	/* Default to sensible values */
+	port_limits[0] = 49152;
+	port_limits[1] = 60999;
+
+	fd = open("/proc/sys/net/ipv4/ip_local_port_range", O_RDONLY);
+	if (fd == -1)
+		return false;
+	len = read(fd, buf, sizeof(buf));
+	close(fd);
+
+	if (len == -1 || len == sizeof(buf))
+		return false;
+
+	buf[len] = '\0';
+
+	val[0] = strtol(buf, &endptr, 10);
+	if (val[0] <= 0 || val[0] == LONG_MAX || (*endptr != '\t' && *endptr != ' '))
+		return false;
+	val[1] = strtol(buf, &endptr, 10);
+	if (val[1] <= 0 || val[0] == LONG_MAX || *endptr != '\n')
+		return false;
+
+	port_limits[0] = val[0];
+	port_limits[1] = val[1];
+
+	return true;
+}
+
 /* Prepares UDP socket for sending data to neighbor */
 static int
 bfd_open_fd_out(bfd_t *bfd)
 {
 	int ttl;
 	int ret;
+	uint32_t port_limits[2];
+	uint16_t orig_port, port;
 
 	assert(bfd);
 	assert(bfd->fd_out == -1);
@@ -960,15 +1005,53 @@ bfd_open_fd_out(bfd_t *bfd)
 	}
 
 	if (bfd->src_addr.ss_family) {
-		ret =
-		    bind(bfd->fd_out, (struct sockaddr *) &bfd->src_addr,
-			 sizeof (struct sockaddr));
+		/* Generate a random port number within the valid range */
+		read_local_port_range(port_limits);
+		if (port_limits[0] < BFD_MIN_PORT)
+			port_limits[0] = BFD_MIN_PORT;
+		if (port_limits[1] > BFD_MAX_PORT)
+			port_limits[1] = BFD_MAX_PORT;
+
+		/* Ensure we have a range of at least 1024 ports (an arbitrary number)
+		 * to try. */
+		if (port_limits[0] + 1023 > port_limits[1]) {
+			/* Just use the BFD defaults */
+			port_limits[0] = BFD_MIN_PORT;
+			port_limits[1] = BFD_MAX_PORT;
+		}
+
+		orig_port = port = rand_intv(port_limits[0], port_limits[1]);
+		do {
+			/* Try binding socket to the address until we find one available */
+			if (bfd->src_addr.ss_family == AF_INET)
+				((struct sockaddr_in *)&bfd->src_addr)->sin_port = htons(port);
+			else
+				((struct sockaddr_in6 *)&bfd->src_addr)->sin6_port = htons(port);
+
+			ret = bind(bfd->fd_out, (struct sockaddr *) &bfd->src_addr,
+				   sizeof (struct sockaddr));
+
+			if (ret == -1 && errno == EADDRINUSE) {
+				/* Port already in use, try next */
+				if (++port > port_limits[1])
+					port = port_limits[0];
+				if (port == orig_port)
+					break;
+				continue;
+			}
+		} while (false);
+
 		if (ret == -1) {
 			log_message(LOG_ERR,
 				    "BFD_Instance(%s) bind() error (%m)",
 				    bfd->iname);
 			return 1;
 		}
+	} else {
+		/* We have a problem here - we do not have a source address, and so
+		 * cannot bind the socket. That means that we will get a system allocated
+		 * port, which may be outside the range [49152, 65535], as specified in
+		 * RFC5881. */
 	}
 
 	ttl = bfd->ttl;
