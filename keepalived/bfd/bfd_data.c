@@ -22,9 +22,6 @@
 
 #include "config.h"
 
-#ifdef HAVE_GETRANDOM
-#include <sys/random.h>
-#endif
 #include "bfd.h"
 #include "bfd_data.h"
 #include "logger.h"
@@ -315,12 +312,7 @@ find_bfd_by_discr(const uint32_t discr)
 uint32_t
 rand_intv(uint32_t min, uint32_t max)
 {
-	int rand_val;
-	int ret;
-
-	while ((ret = getrandom(&rand_val, sizeof(rand_val), 0) == -1) && check_EINTR(errno));
-
-        return (uint32_t)(((CALC_TYPE)(max - min + 1) * rand_val) / (RAND_MAX + 1U)) + min;
+	return (uint32_t)(((CALC_TYPE)(max - min + 1) * rand()) / (RAND_MAX + 1U)) + min;
 }
 
 #undef CALC_TYPE
