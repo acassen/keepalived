@@ -1702,6 +1702,13 @@ The syntax for virtual_server is :
         # LVS forwarding method
         \fBlvs_method \fRNAT|DR|TUN
 
+        # Set tunnel type for TUN forwarding method (--tun-type in ipvsadm)
+        \fBtun_type \fRipip|gue
+        # Set tunnel port for TUN forwarding method (--tun-port in ipvsadm)
+        \fBtun_port \fR<PORT>
+        # Set tunnel flags for TUN forwarding method (--tun-flags in ipvsadm)
+        \fBtun_flags \fRnocsum|csum|remcsum
+
         # Script to execute when healthchecker
         # considers service as up.
         \fBnotify_up \fR<STRING>|<QUOTED-STRING> [username [groupname]]

@@ -66,6 +66,9 @@ typedef struct _real_server {
 	int				pweight;	/* previous weight
 							 * used for reloading */
 	unsigned			forwarding_method; /* NAT/TUN/DR */
+	uint16_t			tun_type;	/* tunnel type */
+	__be16				tun_port;	/* tunnel port */
+	uint16_t			tun_flags;	/* tunnel flags */
 	uint32_t			u_threshold;   /* Upper connection limit. */
 	uint32_t			l_threshold;   /* Lower connection limit. */
 	int				inhibit;	/* Set weight to 0 instead of removing

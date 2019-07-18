@@ -503,6 +503,26 @@ dump_rs(FILE *fp, const void *data)
 		break;
 	case IP_VS_CONN_F_TUNNEL:
 		conf_write(fp, "   Forwarding method = TUN");
+		switch (rs->tun_type) {
+		case IP_VS_CONN_F_TUNNEL_TYPE_IPIP:
+			conf_write(fp, "   Tunnel type = ipip");
+			break;
+		case IP_VS_CONN_F_TUNNEL_TYPE_GUE:
+			conf_write(fp, "   Tunnel type = gue");
+			conf_write(fp, "   Tunnel port = %d", ntohs(rs->tun_port));
+			switch (rs->tun_flags) {
+			case IP_VS_TUNNEL_ENCAP_FLAG_NOCSUM:
+				conf_write(fp, "   Tunnel flags = nocsum");
+				break;
+			case IP_VS_TUNNEL_ENCAP_FLAG_CSUM:
+				conf_write(fp, "   Tunnel flags = csum");
+				break;
+			case IP_VS_TUNNEL_ENCAP_FLAG_REMCSUM:
+				conf_write(fp, "   Tunnel flags = remcsum");
+				break;
+			}
+			break;
+		}
 		break;
 	}
 
@@ -591,6 +611,12 @@ alloc_rs(const char *ip, const char *port)
 	new->delay_before_retry = ULONG_MAX;
 	new->virtualhost = NULL;
 	new->smtp_alert = -1;
+
+	if (new->forwarding_method == IP_VS_CONN_F_TUNNEL) {
+		new->tun_type = IP_VS_CONN_F_TUNNEL_TYPE_IPIP;
+		new->tun_port = 0;
+		new->tun_flags = IP_VS_TUNNEL_ENCAP_FLAG_NOCSUM;
+	}
 
 // ??? alloc list in alloc_vs
 	if (!LIST_EXISTS(vs->rs))

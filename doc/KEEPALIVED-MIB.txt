@@ -3488,7 +3488,10 @@ RealServerEntry ::= SEQUENCE {
     realServerDelayBeforeRetryUsec Unsigned32,
     realServerWarmupUsec Unsigned32,
     realServerDelayLoopUsec Unsigned32,
-    realServerConnTimeoutUsec Unsigned32
+    realServerConnTimeoutUsec Unsigned32,
+    realServerTunnelType INTEGER,
+    realServerTunnelPort InetPortNumber,
+    realServerTunnelFlags INTEGER
 }
 
 realServerIndex OBJECT-TYPE
@@ -3944,6 +3947,30 @@ realServerConnTimeoutUsec OBJECT-TYPE
     DESCRIPTION
         "Maximum number of micro-seconds for checker to establish connection."
     ::= { realServerEntry 51 }
+
+realServerTunnelType OBJECT-TYPE
+    SYNTAX INTEGER { ipip(0), gue(1) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Default tunneling method to use for this real server."
+    ::= { realServerEntry 52 }
+
+realServerTunnelPort OBJECT-TYPE
+    SYNTAX InetPortNumber
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Destination port of the tunnel."
+    ::= { realServerEntry 53 }
+
+realServerTunnelFlags OBJECT-TYPE
+    SYNTAX INTEGER { nocsum(0), csum(1), remcsum(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Default tunneling flags to use for this real server."
+    ::= { realServerEntry 54 }
 
 lvsSyncDaemon    OBJECT IDENTIFIER ::= { check 6 }
 
@@ -4567,7 +4594,10 @@ realServerGroup OBJECT-GROUP
     realServerDelayBeforeRetryUsec,
     realServerWarmupUsec,
     realServerDelayLoopUsec,
-    realServerConnTimeoutUsec
+    realServerConnTimeoutUsec,
+    realServerTunnelType,
+    realServerTunnelPort,
+    realServerTunnelFlags
     }
     STATUS current
     DESCRIPTION

@@ -588,6 +588,50 @@ rs_forwarding_handler(const vector_t *strvec)
 	svr_forwarding_handler(rs, strvec);
 }
 static void
+rs_tunnel_type_handler(const vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	const char *str = strvec_slot(strvec, 1);
+
+	if (!strcmp(str, "ipip"))
+		rs->tun_type = IP_VS_CONN_F_TUNNEL_TYPE_IPIP;
+	else if (!strcmp(str, "gue"))
+		rs->tun_type = IP_VS_CONN_F_TUNNEL_TYPE_GUE;
+	else
+		report_config_error(CONFIG_GENERAL_ERROR, "PARSER : unknown [%s] tunnel type.", str);
+}
+static void
+rs_tunnel_port_handler(const vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+
+	unsigned port;
+
+	if (!read_unsigned_strvec(strvec, 1, &port, 1, 65535, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Real server tunnel port %s is outside range 1-65535", strvec_slot(strvec, 1));
+		return;
+	}
+	rs->tun_port = htons(port);
+}
+static void
+rs_tunnel_flags_handler(const vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	const char *str = strvec_slot(strvec, 1);
+
+	if (!strcmp(str, "nocsum"))
+		rs->tun_flags |= IP_VS_TUNNEL_ENCAP_FLAG_NOCSUM;
+	else if (!strcmp(str, "csum"))
+		rs->tun_flags |= IP_VS_TUNNEL_ENCAP_FLAG_CSUM;
+	else if (!strcmp(str, "remcsum"))
+		rs->tun_flags |= IP_VS_TUNNEL_ENCAP_FLAG_REMCSUM;
+	else
+		report_config_error(CONFIG_GENERAL_ERROR, "PARSER : unknown [%s] tunnel flags.", str);
+}
+static void
 uthreshold_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
@@ -905,6 +949,9 @@ init_check_keywords(bool active)
 	install_sublevel();
 	install_keyword("weight", &rs_weight_handler);
 	install_keyword("lvs_method", &rs_forwarding_handler);
+	install_keyword("tun_type", &rs_tunnel_type_handler);
+	install_keyword("tun_port", &rs_tunnel_port_handler);
+	install_keyword("tun_flags", &rs_tunnel_flags_handler);
 	install_keyword("uthreshold", &uthreshold_handler);
 	install_keyword("lthreshold", &lthreshold_handler);
 	install_keyword("inhibit_on_failure", &rs_inhibit_handler);

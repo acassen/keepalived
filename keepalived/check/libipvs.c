@@ -121,6 +121,9 @@ static struct nla_policy ipvs_dest_policy[IPVS_DEST_ATTR_MAX + 1] = {
 #ifdef _WITH_LVS_64BIT_STATS_
 	[IPVS_DEST_ATTR_STATS64]	= {.type = NLA_NESTED },
 #endif
+	[IPVS_DEST_ATTR_TUN_TYPE]	= { .type = NLA_U8 },
+	[IPVS_DEST_ATTR_TUN_PORT]	= { .type = NLA_U16 },
+	[IPVS_DEST_ATTR_TUN_FLAGS]	= { .type = NLA_U16 },
 };
 
 #ifdef _WITH_LVS_64BIT_STATS_
@@ -528,6 +531,9 @@ static int ipvs_nl_fill_dest_attr(struct nl_msg *msg, ipvs_dest_t *dst)
 	NLA_PUT_U32(msg, IPVS_DEST_ATTR_WEIGHT, (uint32_t)dst->user.weight);
 	NLA_PUT_U32(msg, IPVS_DEST_ATTR_U_THRESH, dst->user.u_threshold);
 	NLA_PUT_U32(msg, IPVS_DEST_ATTR_L_THRESH, dst->user.l_threshold);
+	NLA_PUT_U8(msg, IPVS_DEST_ATTR_TUN_TYPE, dst->user.tun_type);
+	NLA_PUT_U16(msg, IPVS_DEST_ATTR_TUN_PORT, dst->user.tun_port);
+	NLA_PUT_U16(msg, IPVS_DEST_ATTR_TUN_FLAGS, dst->user.tun_flags);
 
 	nla_nest_end(msg, nl_dest);
 	return 0;
@@ -940,6 +946,15 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg)
 	d->user.entrytable[i].user.activeconns = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_ACTIVE_CONNS]);
 	d->user.entrytable[i].user.inactconns = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_INACT_CONNS]);
 	d->user.entrytable[i].user.persistconns = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_PERSIST_CONNS]);
+	attr_tun_type = dest_attrs[IPVS_DEST_ATTR_TUN_TYPE];
+	if (attr_tun_type)
+		d->user.entrytable[i].user.tun_type = nla_get_u8(attr_tun_type);
+	attr_tun_port = dest_attrs[IPVS_DEST_ATTR_TUN_PORT];
+	if (attr_tun_port)
+		d->user.entrytable[i].user.tun_port = nla_get_u16(attr_tun_port);
+	attr_tun_flags = dest_attrs[IPVS_DEST_ATTR_TUN_FLAGS];
+	if (attr_tun_flags)
+		d->user.entrytable[i].user.tun_flags = nla_get_u16(attr_tun_flags);
 #if HAVE_DECL_IPVS_DEST_ATTR_ADDR_FAMILY
 	attr_addr_family = dest_attrs[IPVS_DEST_ATTR_ADDR_FAMILY];
 	if (attr_addr_family)
