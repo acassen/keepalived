@@ -348,8 +348,10 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 			cmd_buf = MALLOC(cmd_buf_len);
 			cmdline_len = read(fd, cmd_buf, vrrp_data->vrrp_max_process_name_len + 2);
 			close(fd);
-			if (cmdline_len < 0)
+			if (cmdline_len < 0) {
+				FREE(cmd_buf);
 				return;
+			}
 			cmd_buf[cmdline_len] = '\0';
 		}
 
