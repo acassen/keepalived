@@ -720,7 +720,6 @@ initialise_interface_tracking_priorities(void)
 			if (!tvp->weight) {
 				if (IF_FLAGS_UP(ifp) != (tvp->weight_multiplier == 1)) {
 					/* The instance is down */
-					/* XXX note which interface is affected */
 					log_message(LOG_INFO, "(%s): entering FAULT state (interface is down)", tvp->vrrp->iname);
 					tvp->vrrp->state = VRRP_STATE_FAULT;
 					tvp->vrrp->num_script_if_fault++;
@@ -750,8 +749,7 @@ initialise_file_tracking_priorities(void)
 
 			if (status <= -254) {
 				/* The instance is down */
-				/* XXX which file? */
-				log_message(LOG_INFO, "(%s): entering FAULT state (tracked file status %i)", tvp->vrrp->iname, status);
+				log_message(LOG_INFO, "(%s): entering FAULT state (tracked file %s has status %i)", tvp->vrrp->iname, tfile->fname, status);
 				tvp->vrrp->state = VRRP_STATE_FAULT;
 				tvp->vrrp->num_script_if_fault++;
 			}
@@ -778,8 +776,7 @@ initialise_process_tracking_priorities(void)
 			if (!tvp->weight) {
 				if (tprocess->have_quorum != (tvp->weight_multiplier == 1)) {
 					/* The instance is down */
-					/* XXX which process */
-					log_message(LOG_INFO, "(%s) entering FAULT state (tracked process has no qorum)", tvp->vrrp->iname);
+					log_message(LOG_INFO, "(%s) entering FAULT state (tracked process %s has no qorum)", tvp->vrrp->iname, tprocess->pname);
 					tvp->vrrp->state = VRRP_STATE_FAULT;
 					tvp->vrrp->num_script_if_fault++;
 				}
@@ -908,12 +905,14 @@ process_update_track_file_status(vrrp_tracked_file_t *tfile, int new_status, tra
 	if (previous_status == new_status)
 		return;
 
-	if (new_status == -254)
+	if (new_status == -254) {
+		log_message(LOG_INFO, "(%s): entering FAULT state (tracked file %s has status %i)", tvp->vrrp->iname, tfile->fname, new_status);
 		down_instance(tvp->vrrp);
-	else {
-		if (previous_status == -254)
+	} else {
+		if (previous_status == -254) {
+			log_message(LOG_INFO, "(%s): leaving FAULT state (tracked file %s has status %i)", tvp->vrrp->iname, tfile->fname, new_status);
 			try_up_instance(tvp->vrrp, false);
-		else if (tvp->vrrp->base_priority != VRRP_PRIO_OWNER) {
+		} else if (tvp->vrrp->base_priority != VRRP_PRIO_OWNER) {
 			tvp->vrrp->total_priority += new_status - previous_status;
 			vrrp_set_effective_priority(tvp->vrrp);
 		}
