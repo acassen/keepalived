@@ -658,6 +658,7 @@ initialise_track_script_state(tracked_sc_t *tsc, vrrp_t *vrrp)
 			 (tsc->scr->result >= 0 && tsc->scr->result < tsc->scr->rise)) {
 			/* The script is in fault state */
 			vrrp->num_script_if_fault++;
+			log_message(LOG_INFO, "(%s): entering FAULT state (script %s has %i faults)", vrrp->iname, tsc->scr->sname, vrrp->num_script_if_fault);
 			vrrp->state = VRRP_STATE_FAULT;
 		}
 		return;
@@ -750,7 +751,7 @@ initialise_file_tracking_priorities(void)
 			if (status <= -254) {
 				/* The instance is down */
 				/* XXX which file? */
-				log_message(LOG_INFO, "(%s): entering FAULT state (tracked file status %i)", vrrp->iname, status);
+				log_message(LOG_INFO, "(%s): entering FAULT state (tracked file status %i)", tvp->vrrp->iname, status);
 				tvp->vrrp->state = VRRP_STATE_FAULT;
 				tvp->vrrp->num_script_if_fault++;
 			}

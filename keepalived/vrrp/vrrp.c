@@ -1740,7 +1740,7 @@ vrrp_state_leave_master(vrrp_t * vrrp, bool advF)
 		vrrp->master_adver_int = vrrp->adver_int;
 	}
 	else if (vrrp->wantstate == VRRP_STATE_FAULT) {
-		log_message(LOG_INFO, "(%s) Entering FAULT STATE", vrrp->iname);
+		log_message(LOG_INFO, "(%s) Entering FAULT STATE (wanted)", vrrp->iname);
 		vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
 	}
 	else {

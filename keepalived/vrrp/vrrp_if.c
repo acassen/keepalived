@@ -481,7 +481,7 @@ dump_if(FILE *fp, const void *data)
 	if (IS_VLAN(ifp)) {
 		const char *if_type =
 #ifdef _HAVE_VRRP_IPVLAN
-				      ifp->if_type == IF_TYPE_IPVLAN ? "IPVLAN" : 
+				      ifp->if_type == IF_TYPE_IPVLAN ? "IPVLAN" :
 #endif
 										  "VMAC";
 		const char *vlan_type =
@@ -1436,6 +1436,8 @@ update_added_interface(interface_t *ifp)
 			if (tvp->type & TRACK_VRRP) {
 				add_vrrp_to_interface(vrrp, ifp->base_ifp, tvp->weight, tvp->weight_multiplier == -1, false, TRACK_VRRP_DYNAMIC);
 				if (!IF_ISUP(vrrp->configured_ifp->base_ifp) && !vrrp->dont_track_primary)
+					log_message(LOG_INFO, "(%s) interface %s is down",
+							vrrp->iname, vrrp->configured_ifp->base_ifp->ifname);
 					vrrp->num_script_if_fault++;
 			}
 
