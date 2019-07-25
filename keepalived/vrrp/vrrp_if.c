@@ -481,7 +481,7 @@ dump_if(FILE *fp, const void *data)
 	if (IS_VLAN(ifp)) {
 		const char *if_type =
 #ifdef _HAVE_VRRP_IPVLAN
-				      ifp->if_type == IF_TYPE_IPVLAN ? "IPVLAN" :
+				      ifp->if_type == IF_TYPE_IPVLAN ? "IPVLAN" : 
 #endif
 										  "VMAC";
 		const char *vlan_type =
