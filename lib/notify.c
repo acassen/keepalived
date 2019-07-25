@@ -878,7 +878,7 @@ check_script_secure(notify_script_t *script,
 		 * alter their behaviour based on what they are called */
 		if (strcmp(orig_file_part + 1, new_file_part + 1)) {
 			real_file_path = new_path;
-			new_path = MALLOC(new_file_part - real_file_path + 1 + strlen(orig_file_part + 1) + 1);
+			new_path = MALLOC(new_file_part - real_file_path + 1 + strlen(orig_file_part) - 1 + 1);
 			strncpy(new_path, real_file_path, new_file_part + 1 - real_file_path);
 			strcpy(new_path + (new_file_part + 1 - real_file_path), orig_file_part + 1);
 

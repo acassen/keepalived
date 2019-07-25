@@ -1039,7 +1039,9 @@ bfd_open_fd_out(bfd_t *bfd)
 					break;
 				continue;
 			}
-		} while (false);
+
+			break;
+		} while (true);
 
 		if (ret == -1) {
 			log_message(LOG_ERR,

@@ -374,7 +374,12 @@ parse_route(const char *str)
 		return new;
 	}
 
-	return parse_ipaddress(new, str, true);
+	if (!parse_ipaddress(new, str, true)) {
+		FREE(new);
+		return NULL;
+	}
+
+	return new;
 }
 
 void

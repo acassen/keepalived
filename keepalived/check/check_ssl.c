@@ -95,6 +95,10 @@ build_ssl_ctx(void)
 #endif
 	if (!(ssl->ctx = SSL_CTX_new(ssl->meth))) {
 		log_message(LOG_INFO, "SSL error: cannot create new SSL context");
+
+		if (!check_data->ssl)
+			FREE(ssl);
+
 		return false;
 	}
 
