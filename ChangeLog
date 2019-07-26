@@ -1,5 +1,5 @@
 2019-07-26 Alexandre Cassen <acassen@keepalived.org>
-	* keepalived-1.0.18
+	* keepalived-2.0.18
 	* Set NA_ROUTER flag in gratuitous NA messages appropriately.
 	  Previously keepalived checked the IPv6 forwarding state of the interface/
 	  parent interface of a VRRP instance, and used that for all GNA messages.
