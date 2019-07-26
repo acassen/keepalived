@@ -94,7 +94,7 @@ m4_ifndef([AS_VAR_COPY],
 
 dnl ----[ Process this file with autoconf to produce a configure script ]----
 AC_PREREQ([2.63])
-AC_INIT([Keepalived], [2.0.17], [keepalived-devel@lists.sourceforge.net], [], [http://www.keepalived.org/])
+AC_INIT([Keepalived], [2.0.18], [keepalived-users@groups.io], [], [http://www.keepalived.org/])
 AM_INIT_AUTOMAKE([-Wall -Werror -Woverride foreign])
 
 AC_CONFIG_SRCDIR([keepalived/core/main.c])

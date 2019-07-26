@@ -1,3 +1,168 @@
+2019-07-26 Alexandre Cassen <acassen@keepalived.org>
+	* keepalived-1.0.18
+	* Set NA_ROUTER flag in gratuitous NA messages appropriately.
+	  Previously keepalived checked the IPv6 forwarding state of the interface/
+	  parent interface of a VRRP instance, and used that for all GNA messages.
+	  However, if addresses are configured on different interfaces, it should
+	  be the setting for the address's interface that is used.
+	* Fix memory leak with dbus_instance_name.
+	* Make set_value() add entry for memcheck identifying where called.
+	* Add configure option --enable-checksum-debug.
+	  Issue #1175 identified that intermittently they were getting VRRPv3
+	  checksum errors. The maintainers of keepalived were unable to reproduce
+	  the problem despite extensive testing, and so a special patch was produced
+	  to check and log any checksum changes from previous adverts sent or received.
+	  Almost two months later there has been no feedback. The patch has now been
+	  forward ported from v2.0.12 to v2.0.17 and is included here, enabled by
+	  --enable-checksum-debug option, so that if there are ever any checksum problems
+	  in the future this code can be used to ascertain what is happening.
+	* Fix configuring LVS sync daemon in backup state.
+	  Commit eb929f8 - "Stop LVS sync daemon on shutdown" moved shutting
+	  down the LVS sync daemon to the wrong place, so that it was called
+	  whenever a VRRP instance transitioned out of master state. This
+	  commit moves the shutting down of the sync daemon to shutdown phase 1,
+	  and it is shutdown before the VRRP instances are shut down.
+	* Increase open file limit for checker process if no of checkers need it.
+	  TCP, HTTP/SSL, DNS and SMTP checkers all use a socket. If there is a
+	  sufficiently large number of checkers, the default open file limit may
+	  be exceeded. This commits counts the number of such checkers, and also
+	  thr number of smtp_alerts, and if necessary increases the open file limit
+	  to allow them all to run at once.  	
+	* Ensure MISC_CHECK processes don't get increase open file limit.
+	* When checking number of open files for vrrp process, allow for smtp
+	  alerts.
+	* Combine checker set_max_file_limit() and set_vrrp_max_fds() common
+	  code.
+	* DNS_CHECK: correct error info in dns_type_handler func.
+	  Sometimes, users set two type values by mistake in keepalived.conf,
+	  and the first is right and the second one is not in DNS_TYPE[].
+	  Then the dns_check->type is set successfully when parsing first type value
+	  , which may be different from the default SOA. As for the second one,
+	  the dns_type_handler func will print error info "Defaulting to SOA",
+	  actually, currently the dns_check->type may be not equal to SOA.
+	  Here, we will print the dns_type_name(dns_check->type) instead of "SOA".
+	* Simplify restoring RLIMIT_NOFILE for child processes.
+	* Simplify handling incorrect dns_check type.
+	* Add missing track_process documentation to keepalived.conf(5) man
+	  page.
+	* Add weight "reverse" feature to track_bfd.
+	  The reverse feature allows reducing the priority when the tracker is up
+	  and reducing the priority when the tracker is down.
+	* Add weight "reverse" feature to track_interface.
+	  The reverse feature allows reducing the priority when the tracker is up
+	  and reducing the priority when the tracker is down.
+	* Add weight "reverse" feature to track_script.
+	  The reverse feature allows reducing the priority when the tracker is up
+	  and reducing the priority when the tracker is down.
+	* Update alloc_track_file() and alloc_group_track_file() to be
+	  consistent.
+	* Allow reverse tracking with weight 0.
+	  This allows a vrrp instance to go to fault state if an interfaces is UP,
+	  or a track script or bfd instance is up, or a track process has achieved
+	  quorum, and down otherwise.
+	* Fix reverse on track_script when configured on sync group and instance
+	  If a track script was configured on both a vrrp instance and the sync
+	  group that the instance was configured in, then the reverse setting
+	  wasn't being properly carried forward.
+	* Add weight "reverse" feature to track_file.
+	  The reverse feature allows reducing the priority when the tracker is up
+	  and increasing the priority when the tracker is down.
+	* Make track_bfd reverse handling consistent with other trackers.
+	* Add track weight reverse to SNMP output.
+	* Add vrrp track_bfd details to SNMP output.
+	* Add vrrp track_process details to SNMP output.
+	* Disallow --enable-track-process-debug with --disable-track-process.
+	* Add conditional compilation around track_bfd/process SNMP code.
+	* Remove duplicate code for parsing vrrp and sync group trackers.
+	  The code for parsing trackers for vrrp instances and sync groups
+	  was to all intents and purposes identical, so this commit now uses
+	  common code for both of them.
+	* sll_protocol should be set to  0x806.
+	  Some times , send the gratuitous ARP message should set sll_protocol,
+	  let some drivers can evaluate which protocol we use.
+	* Neighbor discovery set sll_protocol.
+	* Fix SNMP VRRPv3 IP address OIDs returned.
+	  The OIDs returned for SNMPv3 addresses were incorrectly formatted,
+	  including one extra subid that was the length of the IP address.
+	* Don't use numeric values of address lengths for VRRP SNMP v3.
+	* Stop returning not-accessible fields for v2 SNMP.
+	* Stop return not-accessible fields for v3 SNMP.
+	* Use common code for VRRP tracker SNMP output.
+	  Many functions were using the same, fairly large, code block to do
+	  the same thing. These are now standardised to use the new function
+	  snmp_find_element().
+	* make some vrrp snmp function parameters const.
+	* Make virtual_server_t vsgname const.
+	* Fix SNMP reporting of virtual server group fwmark and address
+	  ranges.
+	* More SNMP fixes for virtual server group fwmark and address ranges.
+	* If virtual server is fwmark and rs's tunnelled, default to IPv4.
+	  If a virtual server uses a fwmark, and all the real servers are
+	  tunnelled, the address family could be IPv4 or IPv6. If the family
+	  is not specified, default to IPv4 (to match behavious of ipvsadm).
+	* Make LIST_SIZE safe to use if list is not assigned.
+	* Optimisations to snmp_header_list_table().
+	* Optimisations to snmp_find_element().
+	* Further optimisation to snmp_find_element().
+	* Add support for IPVS GUE tunnel type
+	  This functionality was introduced in Linux 5.2.
+	  To view the IPVS setup with ipvsadm requires ipvsadm v1.30 plus
+	  commits 2347b504e3ce and c3c2c3c6ae12e3.
+	* Add support for IPVS GUE tunnel checksum option.
+	  The kernel functionality is scheduled for Linux 5.3.
+	* Add support for IPVS GRE tunnels.
+	  The kernel functionality is scheduled for Linux 5.3.
+	  In addition to the ipvsadm patch requirements identified for GUE
+	  tunnels, the patch at
+	* Add pure attribute to http_get_check_compare().
+	  GCC was suggesting adding the pure attribute to http_get_check_compare()
+	  so let's do so.
+	* Resolve warnings from gcc 9.1.1.
+	* Resolve all outstanding coverity issues.
+	* Fix use of getrandom() in BFD rand_intv().
+	* When resetting priority of child process, don't change parent's priority
+	  Issue 1358 identified that it was the priority of the parent process,
+	  rather than the child process, that was being reset. This commit corrects
+	  that and resets the priority of the child process.
+	* Add missing bfd_instance vrrp and checker keyword documentation.
+	* Don't send bfd events to vrrp or checker process if no
+	  configuration.
+	  If there is no vrrp configuration, or no checker configuration, there
+	  is no point sending bfd_event notifications to the relevant processes.
+	  Actually, since the processes may not be running, sending such
+	  notifications can cause the pipes to become full, so it is necessary,
+	  as well as desirable, not to write events to the pipes in those
+	  circumstances.
+	* Revert use of getrandom() for bfd jitter.
+	  This can be called up to 1000 times a second per bfd instance, and
+	  so risks emptying the entropy pool.
+	* Use random() rather than rand() in bfd rand_intv().
+	  The rest of keepalived uses random(), so this changes creates more
+	  consistency.
+	* Allow bfd discriminator to be an odd number.
+	  rand_intv(1, UINT32_MAX) was always returning an even number, since
+	  RAND_MAX == UINT32_MAX / 2. This commit sets the lsb of the discriminator
+	  to the lsb of the current time in seconds.
+	* Ensure BFD source port in range 49152..65535.
+	  RFC5881 requires the source port for BFD packets to be in the above
+	  range, but keepalived was allowing the port to be randomly generated
+	  by the kernel, and hence could be outside the range.
+	  This commit sets the permitted port range to the intersection of
+	  [49152, 65535] and the values in /proc/sys/net/ipv4/ip_local_port_range,
+	  unless the intersection is too small, in which case it just uses the BFD
+	  specified values.
+	  keepalived generates a random port number in the required range, and then
+	  loops through the range starting from the random port number until it
+	  finds one it can bind to.
+	* Resolve coverity resource leak issue 218872.
+	* Resolve coverity Resource leak issue 218875.
+	* Resolve coverity Resource leak issue 218876.
+	* Resolve coverity Unexpected control flow issue 218873.
+	* Change code to avoid coverity String length miscalculation issue 218874
+	  The code was correct, but as coverity points out, strlen(str + 1) is more
+	  likely to be an error for strlen(str) + 1, so avoid the use of the former
+	  construct.
+
 2019-06-25 Alexandre Cassen <acassen@keepalived.org>
 	* keepalived-2.0.17
 	* Add support to define CPU affinity for vrrp, checker & bfd processes
