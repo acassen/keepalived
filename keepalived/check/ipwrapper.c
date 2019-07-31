@@ -49,12 +49,13 @@ vs_iseq(const virtual_server_t *vs_a, const virtual_server_t *vs_b)
 			return false;
 
 		return !strcmp(vs_a->vsgname, vs_b->vsgname);
-	} else if (vs_a->vfwmark) {
+	} else if (vs_a->af != vs_b->af)
+		return false;
+	else if (vs_a->vfwmark) {
 		if (vs_a->vfwmark != vs_b->vfwmark)
 			return false;
 	} else {
-		if (vs_a->af != vs_b->af ||
-		    vs_a->service_type != vs_b->service_type ||
+		if (vs_a->service_type != vs_b->service_type ||
 		    !sockstorage_equal(&vs_a->addr, &vs_b->addr))
 			return false;
 	}
