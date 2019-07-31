@@ -38,23 +38,6 @@
 #include "check_daemon.h"
 
 static bool __attribute((pure))
-vs_script_iseq(const notify_script_t *sa, const notify_script_t *sb)
-{
-	if (!sa != !sb)
-		return false;
-
-	if (!sa)
-		return true;
-
-	if (!notify_script_compare(sa, sb) ||
-	    sa->uid != sb->uid ||
-	    sa->gid != sb->gid)
-		return false;
-
-	return true;
-}
-
-static bool __attribute((pure))
 vs_iseq(const virtual_server_t *vs_a, const virtual_server_t *vs_b)
 {
 	if (!vs_a->vsgname != !vs_b->vsgname)
@@ -70,28 +53,11 @@ vs_iseq(const virtual_server_t *vs_a, const virtual_server_t *vs_b)
 		if (vs_a->vfwmark != vs_b->vfwmark)
 			return false;
 	} else {
-		if (!sockstorage_equal(&vs_a->addr, &vs_b->addr) ||
-		    vs_a->af != vs_b->af)
+		if (vs_a->af != vs_b->af ||
+		    vs_a->service_type != vs_b->service_type ||
+		    !sockstorage_equal(&vs_a->addr, &vs_b->addr))
 			return false;
 	}
-
-	if (vs_a->service_type != vs_b->service_type ||
-	    vs_a->forwarding_method != vs_b->forwarding_method ||
-#ifdef _HAVE_IPVS_TUN_TYPE_
-	    vs_a->tun_type != vs_b->tun_type ||
-	    vs_a->tun_port != vs_b->tun_port ||
-#ifdef _HAVE_IPVS_TUN_CSUM_
-	    vs_a->tun_flags != vs_b->tun_flags ||
-#endif
-#endif
-	    vs_a->persistence_granularity != vs_b->persistence_granularity ||
-	    !vs_script_iseq(vs_a->notify_quorum_up, vs_b->notify_quorum_up) ||
-	    !vs_script_iseq(vs_a->notify_quorum_down, vs_b->notify_quorum_down) ||
-	    strcmp(vs_a->sched, vs_b->sched) ||
-	    vs_a->persistence_timeout != vs_b->persistence_timeout ||
-	    !vs_a->virtualhost != !vs_b->virtualhost ||
-	    (vs_a->virtualhost && strcmp(vs_a->virtualhost, vs_b->virtualhost)))
-		return false;
 
 	return true;
 }
@@ -115,28 +81,7 @@ vsge_iseq(const virtual_server_group_entry_t *vsge_a, const virtual_server_group
 static bool __attribute((pure))
 rs_iseq(const real_server_t *rs_a, const real_server_t *rs_b)
 {
-	if (!sockstorage_equal(&rs_a->addr, &rs_b->addr))
-		return false;
-
-	if (rs_a->forwarding_method != rs_b->forwarding_method)
-		return false;
-
-#ifdef _HAVE_IPVS_TUN_TYPE_
-	if (rs_a->tun_type != rs_b->tun_type ||
-	    rs_a->tun_port != rs_b->tun_port)
-		return false;
-#endif
-
-#ifdef _HAVE_IPVS_TUN_CSUM_
-	if (rs_a->tun_flags != rs_b->tun_flags)
-		return false;
-#endif
-
-	if (!rs_a->virtualhost != !rs_b->virtualhost ||
-	    (rs_a->virtualhost && strcmp(rs_a->virtualhost, rs_b->virtualhost)))
-		return false;
-
-	return true;
+	return sockstorage_equal(&rs_a->addr, &rs_b->addr);
 }
 
 /* Returns the sum of all alive RS weight in a virtual server. */
@@ -851,8 +796,7 @@ rs_exist(real_server_t * old_rs, list l)
 	if (LIST_ISEMPTY(l))
 		return NULL;
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		rs = ELEMENT_DATA(e);
+	LIST_FOREACH(l, rs, e) {
 		if (rs_iseq(rs, old_rs))
 			return rs;
 	}
@@ -976,6 +920,18 @@ clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs, list old_check
 			 * success to say it is now up.
 			 */
 			migrate_checkers(new_vs, rs, new_rs, old_checkers_queue);
+
+			/* Do we need to update the RS configuration? */
+			if (false ||
+#ifdef _HAVE_IPVS_TUN_TYPE_
+			    rs->tun_type != new_rs->tun_type ||
+			    rs->tun_port != new_rs->tun_port ||
+#ifdef _HAVE_IPVS_TUN_CSUM_
+			    rs->tun_flags != new_rs->tun_flags ||
+#endif
+#endif
+			    rs->forwarding_method != new_rs->forwarding_method)
+				ipvs_cmd(LVS_CMD_EDIT_DEST, new_vs, new_rs);
 		}
 	}
 	clear_service_rs(old_vs, rs_to_remove, false);
@@ -1052,6 +1008,13 @@ clear_diff_services(list old_checkers_queue)
 			/* If vs exist, perform rs pool diff */
 			/* omega = false must not prevent the notifiers from being called,
 			   because the VS still exists in new configuration */
+			if (strcmp(vs->sched, new_vs->sched) ||
+			    vs->flags != new_vs->flags ||
+			    vs->persistence_granularity != new_vs->persistence_granularity ||
+			    vs->persistence_timeout != new_vs->persistence_timeout) {
+				ipvs_cmd(IP_VS_SO_SET_EDIT, new_vs, NULL);
+			}
+
 			vs->omega = true;
 			clear_diff_rs(vs, new_vs, old_checkers_queue);
 			clear_diff_s_srv(vs, new_vs->s_svr);
