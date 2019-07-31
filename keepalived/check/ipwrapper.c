@@ -38,23 +38,6 @@
 #include "check_daemon.h"
 
 static bool __attribute((pure))
-vs_script_iseq(const notify_script_t *sa, const notify_script_t *sb)
-{
-	if (!sa != !sb)
-		return false;
-
-	if (!sa)
-		return true;
-
-	if (!notify_script_compare(sa, sb) ||
-	    sa->uid != sb->uid ||
-	    sa->gid != sb->gid)
-		return false;
-
-	return true;
-}
-
-static bool __attribute((pure))
 vs_iseq(const virtual_server_t *vs_a, const virtual_server_t *vs_b)
 {
 	if (!vs_a->vsgname != !vs_b->vsgname)
@@ -71,24 +54,10 @@ vs_iseq(const virtual_server_t *vs_a, const virtual_server_t *vs_b)
 			return false;
 	} else {
 		if (vs_a->af != vs_b->af ||
+		    vs_a->service_type != vs_b->service_type ||
 		    !sockstorage_equal(&vs_a->addr, &vs_b->addr))
 			return false;
 	}
-
-	if (vs_a->service_type != vs_b->service_type ||
-	    vs_a->forwarding_method != vs_b->forwarding_method ||
-#ifdef _HAVE_IPVS_TUN_TYPE_
-	    vs_a->tun_type != vs_b->tun_type ||
-	    vs_a->tun_port != vs_b->tun_port ||
-#ifdef _HAVE_IPVS_TUN_CSUM_
-	    vs_a->tun_flags != vs_b->tun_flags ||
-#endif
-#endif
-	    !vs_script_iseq(vs_a->notify_quorum_up, vs_b->notify_quorum_up) ||
-	    !vs_script_iseq(vs_a->notify_quorum_down, vs_b->notify_quorum_down) ||
-	    !vs_a->virtualhost != !vs_b->virtualhost ||
-	    (vs_a->virtualhost && strcmp(vs_a->virtualhost, vs_b->virtualhost)))
-		return false;
 
 	return true;
 }
