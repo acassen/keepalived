@@ -81,28 +81,7 @@ vsge_iseq(const virtual_server_group_entry_t *vsge_a, const virtual_server_group
 static bool __attribute((pure))
 rs_iseq(const real_server_t *rs_a, const real_server_t *rs_b)
 {
-	if (!sockstorage_equal(&rs_a->addr, &rs_b->addr))
-		return false;
-
-	if (rs_a->forwarding_method != rs_b->forwarding_method)
-		return false;
-
-#ifdef _HAVE_IPVS_TUN_TYPE_
-	if (rs_a->tun_type != rs_b->tun_type ||
-	    rs_a->tun_port != rs_b->tun_port)
-		return false;
-#endif
-
-#ifdef _HAVE_IPVS_TUN_CSUM_
-	if (rs_a->tun_flags != rs_b->tun_flags)
-		return false;
-#endif
-
-	if (!rs_a->virtualhost != !rs_b->virtualhost ||
-	    (rs_a->virtualhost && strcmp(rs_a->virtualhost, rs_b->virtualhost)))
-		return false;
-
-	return true;
+	return sockstorage_equal(&rs_a->addr, &rs_b->addr);
 }
 
 /* Returns the sum of all alive RS weight in a virtual server. */
@@ -817,8 +796,7 @@ rs_exist(real_server_t * old_rs, list l)
 	if (LIST_ISEMPTY(l))
 		return NULL;
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		rs = ELEMENT_DATA(e);
+	LIST_FOREACH(l, rs, e) {
 		if (rs_iseq(rs, old_rs))
 			return rs;
 	}
@@ -942,6 +920,18 @@ clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs, list old_check
 			 * success to say it is now up.
 			 */
 			migrate_checkers(new_vs, rs, new_rs, old_checkers_queue);
+
+			/* Do we need to update the RS configuration? */
+			if (false ||
+#ifdef _HAVE_IPVS_TUN_TYPE_
+			    rs->tun_type != new_rs->tun_type ||
+			    rs->tun_port != new_rs->tun_port ||
+#ifdef _HAVE_IPVS_TUN_CSUM_
+			    rs->tun_flags != new_rs->tun_flags ||
+#endif
+#endif
+			    rs->forwarding_method != new_rs->forwarding_method)
+				ipvs_cmd(LVS_CMD_EDIT_DEST, new_vs, new_rs);
 		}
 	}
 	clear_service_rs(old_vs, rs_to_remove, false);
