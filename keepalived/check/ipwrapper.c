@@ -70,8 +70,8 @@ vs_iseq(const virtual_server_t *vs_a, const virtual_server_t *vs_b)
 		if (vs_a->vfwmark != vs_b->vfwmark)
 			return false;
 	} else {
-		if (!sockstorage_equal(&vs_a->addr, &vs_b->addr) ||
-		    vs_a->af != vs_b->af)
+		if (vs_a->af != vs_b->af ||
+		    !sockstorage_equal(&vs_a->addr, &vs_b->addr))
 			return false;
 	}
 
@@ -84,11 +84,8 @@ vs_iseq(const virtual_server_t *vs_a, const virtual_server_t *vs_b)
 	    vs_a->tun_flags != vs_b->tun_flags ||
 #endif
 #endif
-	    vs_a->persistence_granularity != vs_b->persistence_granularity ||
 	    !vs_script_iseq(vs_a->notify_quorum_up, vs_b->notify_quorum_up) ||
 	    !vs_script_iseq(vs_a->notify_quorum_down, vs_b->notify_quorum_down) ||
-	    strcmp(vs_a->sched, vs_b->sched) ||
-	    vs_a->persistence_timeout != vs_b->persistence_timeout ||
 	    !vs_a->virtualhost != !vs_b->virtualhost ||
 	    (vs_a->virtualhost && strcmp(vs_a->virtualhost, vs_b->virtualhost)))
 		return false;
@@ -1052,6 +1049,13 @@ clear_diff_services(list old_checkers_queue)
 			/* If vs exist, perform rs pool diff */
 			/* omega = false must not prevent the notifiers from being called,
 			   because the VS still exists in new configuration */
+			if (strcmp(vs->sched, new_vs->sched) ||
+			    vs->flags != new_vs->flags ||
+			    vs->persistence_granularity != new_vs->persistence_granularity ||
+			    vs->persistence_timeout != new_vs->persistence_timeout) {
+				ipvs_cmd(IP_VS_SO_SET_EDIT, new_vs, NULL);
+			}
+
 			vs->omega = true;
 			clear_diff_rs(vs, new_vs, old_checkers_queue);
 			clear_diff_s_srv(vs, new_vs->s_svr);
