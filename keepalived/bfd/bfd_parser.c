@@ -94,14 +94,6 @@ bfd_nbrip_handler(const vector_t *strvec)
 		list_del(bfd_data->bfd, bfd);
 		skip_block(false);
 		return;
-	} else if (find_bfd_by_addr(&nbr_addr)) {
-		report_config_error(CONFIG_GENERAL_ERROR,
-			    "Configuration error: BFD instance %s has"
-			    " duplicate %s address %s, ignoring instance",
-			    bfd->iname, neighbor_str, strvec_slot(strvec, 1));
-		list_del(bfd_data->bfd, bfd);
-		skip_block(false);
-		return;
 	} else
 		bfd->nbr_addr = nbr_addr;
 }
@@ -324,6 +316,23 @@ bfd_end_handler(void)
 			    " are not of the same family, disabling instance",
 			    bfd->iname, inet_sockaddrtos(&bfd->src_addr),
 			    neighbor_str, inet_sockaddrtos(&bfd->nbr_addr));
+		list_del(bfd_data->bfd, bfd);
+		return;
+	}
+
+	if (find_bfd_by_addr(&bfd->nbr_addr, &bfd->src_addr)) {
+		if (bfd->src_addr.ss_family) {
+			char src_addr[INET6_ADDRSTRLEN];
+			strcpy(src_addr, inet_sockaddrtos(&bfd->src_addr));
+			report_config_error(CONFIG_GENERAL_ERROR,
+				    "Configuration error: BFD instance %s has"
+				    " duplicate source/%s address %s/%s, ignoring instance",
+				    bfd->iname, neighbor_str, src_addr, inet_sockaddrtos(&bfd->nbr_addr));
+		} else
+			report_config_error(CONFIG_GENERAL_ERROR,
+				    "Configuration error: BFD instance %s has"
+				    " duplicate %s address %s, ignoring instance",
+				    bfd->iname, neighbor_str, inet_sockaddrtos(&bfd->nbr_addr));
 		list_del(bfd_data->bfd, bfd);
 		return;
 	}

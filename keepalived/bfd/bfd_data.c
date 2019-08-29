@@ -257,21 +257,35 @@ free_bfd_buffer(void)
 /*
  * Lookup functions
  */
-/* Looks up bfd instance by neighbor address */
+/* Looks up bfd instance by neighbor address, and optional local address.
+ * If local address is not set, then it is a configuration time check and
+ * the bfd instance is configured without a local address. */
 bfd_t * __attribute__ ((pure))
-find_bfd_by_addr(const struct sockaddr_storage *addr)
+find_bfd_by_addr(const struct sockaddr_storage *nbr_addr, const struct sockaddr_storage *local_addr)
 {
 	element e;
 	bfd_t *bfd;
-	assert(addr);
+	assert(nbr_addr);
+	assert(local_addr);
 	assert(bfd_data);
 
-	if (LIST_ISEMPTY(bfd_data->bfd))
-		return NULL;
+	LIST_FOREACH(bfd_data->bfd, bfd, e) {
+		if (&bfd->nbr_addr == nbr_addr)
+			continue;
 
-	for (e = LIST_HEAD(bfd_data->bfd); e; ELEMENT_NEXT(e)) {
-		bfd = ELEMENT_DATA(e);
-		if (!inet_sockaddrcmp(&bfd->nbr_addr, addr))
+		if (inet_sockaddrcmp(&bfd->nbr_addr, nbr_addr))
+			continue;
+
+		if (!bfd->src_addr.ss_family)
+			return bfd;
+
+		if (!local_addr->ss_family) {
+			/* A new bfd instance without an address is being configured,
+			 * but we already have the neighbor address configured. */
+			return bfd;
+		}
+
+		if (!inet_sockaddrcmp(&bfd->src_addr, local_addr))
 			return bfd;
 	}
 

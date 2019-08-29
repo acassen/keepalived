@@ -10,18 +10,79 @@
 #include <string.h>
 #include <stdbool.h>
 #include <errno.h>
+#include <time.h>
+
+struct cmd_resp {
+	struct cmd_resp *next;
+	char *cmd;
+	char *resp;
+};
+
+static struct cmd_resp *cmd_resp_list;
+static char EOL = '\r';
+static struct timespec rep_delay;
+static bool random_delay;
+static int random_seed = 0;
+
+static void find_resp(int fd, const char *cmd)
+{
+	struct cmd_resp *p;
+	const char *s, *e;
+	size_t len;
+	const char *resp;
+	struct timespec delay;
+
+//printf("Processing: '%s', end = %d\n", cmd, cmd[strlen(cmd)-1]);
+	s = cmd;
+	for (s = cmd; *s; s = *e ? e + 1 : e) {
+		e = strchr(s, EOL);
+		if (!e)
+			e = s + strlen(s);
+		len = e - s;
+//printf("Looking for '%.*s'\n", len, s);
+
+		resp = s;
+		for (p = cmd_resp_list; p; p = p->next) {
+			if (len == strlen(p->cmd) &&
+			    !strncmp(p->cmd, s, len)) {
+//printf("Found %s -> %s\n", p->cmd, p->resp);
+				resp = p->resp;
+				len = strlen(resp);
+				if (!len)
+					exit(0);
+				break;
+			}
+		}
+		if (rep_delay.tv_nsec || rep_delay.tv_sec) {
+			if (random_delay) {
+				delay.tv_nsec = (rep_delay.tv_sec * 1000000000 + rep_delay.tv_nsec) * random();
+				delay.tv_sec = delay.tv_nsec / 1000000000;
+				delay.tv_nsec %= 1000000000;
+			} else
+				delay = rep_delay;
+			nanosleep(&delay, NULL);
+		}
+
+printf("Replying '%.*s'\n", len, resp);
+		write(fd, resp, len);
+	}
+}
 
 static void
 process_data(int fd)
 {
-	char buf[128];
+	char buf[129];
 	int len;
 
-	while ((len = read(fd, buf, sizeof(buf))) > 0) {
+	while ((len = read(fd, buf, sizeof(buf) - 1)) > 0) {
 		/* Exit if receive ^D */
 		if (len == 1 && buf[0] == 4)
 			return;
-		write(fd, buf, len);
+		if (cmd_resp_list) {
+			buf[len] = '\0';
+			find_resp(fd, buf);
+		} else
+			write(fd, buf, len);
 	}
 }
 
@@ -45,8 +106,10 @@ int main(int argc, char **argv)
 	bool echo_data = false;
 	char *endptr;
 	long port_num;
+	unsigned backlog = 4;
+	struct cmd_resp *cr;
 
-	while ((opt = getopt(argc, argv, "46a:p:sue")) != -1) {
+	while ((opt = getopt(argc, argv, "46a:p:sueb:c:l:d:r")) != -1) {
 		switch (opt) {
 		case '4':
 			family = AF_INET;
@@ -74,10 +137,51 @@ int main(int argc, char **argv)
 		case 'e':
 			echo_data = true;
 			break;
+		case 'b':
+			backlog = strtoul(optarg, &endptr, 10);
+			if (*endptr || backlog > 65535) {
+				fprintf(stderr, "Backlog '%s' invalid\n", optarg);
+				exit(EXIT_FAILURE);
+			}
+			break;
+		case 'c':
+			if (optind >= argc) {
+				fprintf(stderr, "-c '%s' missing response\n", optarg);
+				exit(EXIT_FAILURE);
+			}
+
+			cr = malloc(sizeof(struct cmd_resp));
+			cr->next = cmd_resp_list;
+			cmd_resp_list = cr;
+			cr->cmd = malloc(strlen(optarg)+1);
+			cr->resp = malloc(strlen(argv[optind]) + 1);
+			strcpy(cr->cmd, optarg);
+			strcpy(cr->resp, argv[optind++]);
+			break;
+		case 'l':
+			EOL = strtoul(optarg, &endptr, 10);
+			break;
+		case 'd':
+			rep_delay.tv_nsec = strtoul(optarg, &endptr, 10);
+			rep_delay.tv_sec = rep_delay.tv_nsec / 1000;
+			rep_delay.tv_nsec %= 1000;
+			rep_delay.tv_nsec *= 1000000;
+			break;
+		case 'r':
+			random_delay = true;
+			if (optind < argc && argv[optind][0] != '-')
+				random_seed = strtoul(argv[optind++], &endptr, 10);
+			break;
 		default: /* '?' */
-			fprintf(stderr, "Usage: %s [-a bind address] [-p port] [-4] [-6] [-s(ilent)] [-u(dp)] [-e(cho)]\n", argv[0]);
+			fprintf(stderr, "Usage: %s [-a bind address] [-p port] [-4] [-6] [-s(ilent)] [-u(dp)] [-e(cho)] [-b(acklog) n][-c cmd resp] [-l EOL char value] [-d reply-delay [-r]]\n", argv[0]);
 			exit(EXIT_FAILURE);
 		}
+	}
+
+	if (random_delay) {
+		if (!random_seed)
+			random_seed = time(NULL);
+		srandom(random_seed);
 	}
 
 	if (addr_str) {
@@ -129,7 +233,7 @@ int main(int argc, char **argv)
 	sigaction(SIGCHLD, &sa, NULL);
 
 	if (sock_type == SOCK_STREAM) {
-		listen(listenfd, 4);
+		listen(listenfd, backlog);
 
 		for (;;) {
 			if (family == AF_INET) {
@@ -145,7 +249,7 @@ int main(int argc, char **argv)
 				printf("Received connection\n");
 			if ((childpid = fork()) == 0) {
 				close(listenfd);
-				if (echo_data)
+				if (echo_data || cmd_resp_list)
 					process_data(connfd);
 				else
 					sleep (1);
@@ -158,7 +262,6 @@ int main(int argc, char **argv)
 	else
 	{
 		for (;;) {
-			clilen = sizeof(cliaddr);
 			if (family == AF_INET) {
 				clilen = sizeof (cliaddr);
 				n = recvfrom(listenfd, buf, sizeof(buf), 0, (struct sockaddr *)&cliaddr, &clilen);
@@ -166,6 +269,7 @@ int main(int argc, char **argv)
 			}
 			else {
 				clilen = sizeof (cliaddr6);
+				n = recvfrom(listenfd, buf, sizeof(buf), 0, (struct sockaddr *)&cliaddr6, &clilen);
 				sendto(listenfd, buf, n, 0, (struct sockaddr *)&cliaddr6, clilen);
 			}
 			if (!silent)

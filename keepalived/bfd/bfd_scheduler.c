@@ -658,7 +658,7 @@ bfd_handle_packet(bfdpkt_t *pkt)
 
 	/* Lookup session */
 	if (!pkt->hdr->remote_discr)
-		bfd = find_bfd_by_addr(&pkt->src_addr);
+		bfd = find_bfd_by_addr(&pkt->src_addr, &pkt->dst_addr);
 	else
 		bfd = find_bfd_by_discr(ntohl(pkt->hdr->remote_discr));
 
@@ -812,10 +812,11 @@ bfd_receive_packet(bfdpkt_t *pkt, int fd, char *buf, ssize_t bufsz)
 {
 	ssize_t len;
 	unsigned int ttl = 0;
-	struct msghdr msg = { 0 };
+	struct msghdr msg;
 	struct cmsghdr *cmsg = NULL;
-	char cbuf[CMSG_SPACE(sizeof (ttl))] = { 0 };
-	struct iovec iov[1] = { {0} };
+	char cbuf[CMSG_SPACE(sizeof (struct in6_pktinfo)) + CMSG_SPACE(sizeof(ttl))];
+	struct iovec iov[1];
+	struct in6_pktinfo *pktinfo;
 
 	assert(pkt);
 	assert(fd >= 0);
@@ -851,6 +852,16 @@ bfd_receive_packet(bfdpkt_t *pkt, int fd, char *buf, ssize_t bufsz)
 		if ((cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_TTL) ||
 		    (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_HOPLIMIT))
 			ttl = *CMSG_DATA(cmsg);
+		else if (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO) {
+			pktinfo = (struct in6_pktinfo *)CMSG_DATA(cmsg);
+			if (IN6_IS_ADDR_V4MAPPED(&pktinfo->ipi6_addr)) {
+				((struct sockaddr_in *)&pkt->dst_addr)->sin_addr.s_addr = pktinfo->ipi6_addr.s6_addr32[3];
+				pkt->dst_addr.ss_family = AF_INET;
+			} else {
+				memcpy(&((struct sockaddr_in6 *)&pkt->dst_addr)->sin6_addr, &pktinfo->ipi6_addr, sizeof(pktinfo->ipi6_addr));
+				pkt->dst_addr.ss_family = AF_INET6;
+			}
+		}
 		else
 			log_message(LOG_WARNING, "recvmsg() received"
 				    " unexpected control message (level %d type %d)",
@@ -938,6 +949,8 @@ bfd_open_fd_in(bfd_data_t *data)
 		log_message(LOG_ERR, "setsockopt(IP_RECVTTL) error (%m)");
 	else if ((ret = setsockopt(data->fd_in, IPPROTO_IPV6, IPV6_RECVHOPLIMIT, &yes, sizeof (yes))) == -1)
 		log_message(LOG_ERR, "setsockopt(IPV6_RECVHOPLIMIT) error (%m)");
+	else if ((ret = setsockopt(data->fd_in, IPPROTO_IPV6, IPV6_RECVPKTINFO, &yes, sizeof (yes))) == -1)
+		log_message(LOG_ERR, "setsockopt(IPV6_RECVPKTINFO) error (%m)");
 	else if ((ret = bind(data->fd_in, ai_in->ai_addr, ai_in->ai_addrlen)) == -1)
 		log_message(LOG_ERR, "bind() error (%m)");
 

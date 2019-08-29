@@ -69,6 +69,11 @@ pidfile_write(const char *pid_file, int pid)
 		       pid_file);
 		return 0;
 	}
+
+	/* Override the umask setting to force the permission bits above */
+	if (umask_val & (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))
+		fchmod(pidfd, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+
 	fprintf(pidfile, "%d\n", pid);
 	fclose(pidfile);
 	return 1;
