@@ -871,6 +871,18 @@ signal_init(void)
 	signal_ignore(SIGPIPE);
 }
 
+static void
+signals_ignore(void) {
+#ifndef _DEBUG_
+	signal_ignore(SIGHUP);
+	signal_ignore(SIGUSR1);
+	signal_ignore(SIGUSR2);
+#ifdef _WITH_JSON_
+	signal_ignore(SIGJSON);
+#endif
+#endif
+}
+
 /* To create a core file when abrt is running (a RedHat distribution),
  * and keepalived isn't installed from an RPM package, edit the file
  * “/etc/abrt/abrt.conf”, and change the value of the field
@@ -1732,6 +1744,9 @@ keepalived_main(int argc, char **argv)
 	struct utsname uname_buf;
 	char *end;
 	int exit_code = KEEPALIVED_EXIT_OK;
+	
+	/* Ignore reloading signals till signal_init call */
+	signals_ignore();
 
 	/* Ensure time_now is set. We then don't have to check anywhere
 	 * else if it is set. */
