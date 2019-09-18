@@ -886,7 +886,7 @@ add_seq(char *buf)
 	p += strspn(p + 1, " \t") + 1;
 
 	PMALLOC(seq_ent);
-	seq_ent->var = STRNDUP(var, var_end - var + 1);
+	seq_ent->var = STRNDUP(var, var_end - var);
 	seq_ent->next = start;
 	seq_ent->step = step;
 	seq_ent->last = end;
