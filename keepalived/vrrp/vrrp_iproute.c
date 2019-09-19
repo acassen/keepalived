@@ -1797,15 +1797,13 @@ err:
 }
 
 /* Try to find a route in a list */
-static bool
+static ip_route_t *
 route_exist(list l, ip_route_t *iproute)
 {
 	ip_route_t *ipr;
 	element e;
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		ipr = ELEMENT_DATA(e);
-
+	LIST_FOREACH(l, ipr, e) {
 		/* The kernel's key to a route is (to, tos, preference, table) */
 		if (IP_ISEQ(ipr->dst, iproute->dst) &&
 		    ipr->dst->ifa.ifa_prefixlen == iproute->dst->ifa.ifa_prefixlen &&
@@ -1814,17 +1812,17 @@ route_exist(list l, ip_route_t *iproute)
 		     ipr->metric == iproute->metric) &&
 		    ipr->table == iproute->table) {
 			ipr->set = iproute->set;
-			return true;
+			return ipr;
 		}
 	}
-	return false;
+	return NULL;
 }
 
 /* Clear diff routes */
 void
 clear_diff_routes(list l, list n)
 {
-	ip_route_t *iproute;
+	ip_route_t *iproute, *new_iproute;
 	element e;
 
 	/* No route in previous conf */
@@ -1841,7 +1839,7 @@ clear_diff_routes(list l, list n)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		iproute = ELEMENT_DATA(e);
 		if (iproute->set) {
-			if (!route_exist(n, iproute)) {
+			if (!(new_iproute = route_exist(n, iproute))) {
 				log_message(LOG_INFO, "ip route %s/%d ... , no longer exist"
 						    , ipaddresstos(NULL, iproute->dst), iproute->dst->ifa.ifa_prefixlen);
 				netlink_route(iproute, IPROUTE_DEL);
@@ -1850,7 +1848,7 @@ clear_diff_routes(list l, list n)
 				/* There are too many route options to compare to see if the
 				 * routes are the same or not, so just replace the existing route
 				 * with the new one. */
-				netlink_route(iproute, IPROUTE_REPLACE);
+				netlink_route(new_iproute, IPROUTE_REPLACE);
 			}
 		}
 	}
