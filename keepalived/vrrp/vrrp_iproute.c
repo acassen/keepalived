@@ -1844,8 +1844,19 @@ clear_diff_routes(list l, list n)
 			else {
 				/* There are too many route options to compare to see if the
 				 * routes are the same or not, so just replace the existing route
-				 * with the new one. */
-				netlink_route(new_iproute, IPROUTE_REPLACE);
+				 * with the new one.
+				 * We try replacing the route, but if, for example, it has a src
+				 * address that is a new VIP, then the route won't be able to be
+				 * added (replaced) now. In this case delete the old route, mark
+				 * it as not set, and then it will be added later when any new
+				 * routes are added. */
+				netlink_error_ignore = EINVAL;
+				if (netlink_route(new_iproute, IPROUTE_REPLACE)) {
+					netlink_error_ignore = 0;
+					netlink_route(iproute, IPROUTE_DEL);
+					new_iproute->set = false;
+				} else
+					netlink_error_ignore = 0;
 			}
 		}
 	}
