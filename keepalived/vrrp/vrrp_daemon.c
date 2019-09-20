@@ -529,11 +529,11 @@ start_vrrp(data_t *prev_global_data)
 		if (reload) {
 			kernel_netlink_set_recv_bufs();
 
-			clear_diff_saddresses();
 #ifdef _HAVE_FIB_ROUTING_
 			clear_diff_srules();
 			clear_diff_sroutes();
 #endif
+			clear_diff_saddresses();
 			clear_diff_script();
 #ifdef _WITH_BFD_
 			clear_diff_bfd();
