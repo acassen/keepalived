@@ -4024,15 +4024,15 @@ clear_diff_vrrp(void)
 			 * If this vrrp instance exist in new
 			 * data, then perform a VIP|EVIP diff.
 			 */
-			clear_diff_vrrp_vip(vrrp, new_vrrp);
-
 #ifdef _HAVE_FIB_ROUTING_
-			/* virtual routes diff */
-			clear_diff_vrrp_vroutes(vrrp, new_vrrp);
-
 			/* virtual rules diff */
 			clear_diff_vrrp_vrules(vrrp, new_vrrp);
+
+			/* virtual routes diff */
+			clear_diff_vrrp_vroutes(vrrp, new_vrrp);
 #endif
+
+			clear_diff_vrrp_vip(vrrp, new_vrrp);
 
 #ifdef _HAVE_VRRP_VMAC_
 			/*
