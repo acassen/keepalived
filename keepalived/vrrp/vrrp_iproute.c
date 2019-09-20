@@ -295,10 +295,9 @@ add_nexthops(ip_route_t *route, struct nlmsghdr *nlh, struct rtmsg *rtm)
 }
 
 /* Add/Delete IP route to/from a specific interface */
-static int
+static bool
 netlink_route(ip_route_t *iproute, int cmd)
 {
-	int status = 1;
 	struct {
 		struct nlmsghdr n;
 		struct rtmsg r;
@@ -512,10 +511,10 @@ netlink_route(ip_route_t *iproute, int cmd)
 		/* If an expiry was set on the route, it may have disappeared already */
 		if (cmd != IPROUTE_DEL || !(iproute->mask & IPROUTE_BIT_EXPIRES))
 #endif
-			status = -1;
+			return true;
 	}
 
-	return status;
+	return false;
 }
 
 /* Add/Delete a list of IP routes */
@@ -529,10 +528,9 @@ netlink_rtlist(list rt_list, int cmd)
 	if (LIST_ISEMPTY(rt_list))
 		return;
 
-	for (e = LIST_HEAD(rt_list); e; ELEMENT_NEXT(e)) {
-		iproute = ELEMENT_DATA(e);
+	LIST_FOREACH(rt_list, iproute, e) {
 		if ((cmd == IPROUTE_DEL) == iproute->set) {
-			if (netlink_route(iproute, cmd) > 0)
+			if (!netlink_route(iproute, cmd))
 				iproute->set = (cmd == IPROUTE_ADD);
 			else
 				iproute->set = false;
@@ -1836,8 +1834,7 @@ clear_diff_routes(list l, list n)
 		return;
 	}
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		iproute = ELEMENT_DATA(e);
+	LIST_FOREACH(l, iproute, e) {
 		if (iproute->set) {
 			if (!(new_iproute = route_exist(n, iproute))) {
 				log_message(LOG_INFO, "ip route %s/%d ... , no longer exist"
@@ -1866,7 +1863,7 @@ reinstate_static_route(ip_route_t *route)
 {
 	char buf[256];
 
-	route->set = (netlink_route(route, IPROUTE_ADD) > 0);
+	route->set = !netlink_route(route, IPROUTE_ADD);
 
 	format_iproute(route, buf, sizeof(buf));
 	log_message(LOG_INFO, "Restoring deleted static route %s", buf);
