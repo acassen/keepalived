@@ -510,7 +510,7 @@ netlink_route(ip_route_t *iproute, int cmd)
 	if (netlink_talk(&nl_cmd, &req.n) < 0) {
 #if HAVE_DECL_RTA_EXPIRES
 		/* If an expiry was set on the route, it may have disappeared already */
-		if (cmd != IPADDRESS_DEL || !(iproute->mask & IPROUTE_BIT_EXPIRES))
+		if (cmd != IPROUTE_DEL || !(iproute->mask & IPROUTE_BIT_EXPIRES))
 #endif
 			status = -1;
 	}
