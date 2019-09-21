@@ -95,7 +95,8 @@ vrrp_json_vrule_dump(json_writer_t *wr, void *data)
 static int
 vrrp_json_track_ifp_dump(json_writer_t *wr, void *data)
 {
-	interface_t *ifp = data;
+	tracked_if_t *tip = data;
+	interface_t *ifp = tip->ifp;
 
 	jsonw_string(wr, ifp->ifname);
 	return 0;
