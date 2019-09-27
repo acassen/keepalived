@@ -337,8 +337,19 @@ misc_check_child_thread(thread_ref_t thread)
 		if (timeout) {
 			/* If kill returns an error, we can't kill the process since either the process has terminated,
 			 * or we don't have permission. If we can't kill it, there is no point trying again. */
-			if (!kill(-pid, sig_num))
-				timeout = 1000;
+			if (!kill(-pid, sig_num)) {
+				if (errno == ESRCH) {
+					/* The process does not exist, and we should
+					 * have reaped its exit status, otherwise it
+					 * would exist as a zombie process. */
+					log_message(LOG_INFO, "Misc script %s child (PID %d) lost", misck_checker->script.args[0], pid);
+					misck_checker->state = SCRIPT_STATE_IDLE;
+					timeout = 0;
+				} else {
+					log_message(LOG_INFO, "kill -%d of process %s(%d) with new state %u failed with errno %d", sig_num, misck_checker->script.args[0], pid, misck_checker->state, errno);
+					timeout = 1000;
+				}
+			}
 		} else if (misck_checker->state != SCRIPT_STATE_IDLE) {
 			log_message(LOG_INFO, "Child thread pid %d timeout with unknown script state %u", pid, misck_checker->state);
 			timeout = 10;	/* We need some timeout */

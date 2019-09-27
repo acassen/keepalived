@@ -1058,6 +1058,7 @@ int
 fork_exec(const char * const argv[])
 {
 	pid_t pid;
+	int ret_pid;
 	int status;
 	struct sigaction act, old_act;
 	int res = 0;
@@ -1088,9 +1089,9 @@ fork_exec(const char * const argv[])
 		exit(EXIT_FAILURE);
 	} else {
 		/* Parent */
-		while (waitpid(pid, &status, 0) != pid);
+		while ((ret_pid = waitpid(pid, &status, 0)) == -1 && check_EINTR(errno));
 
-		if (!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS)
+		if (ret_pid != pid || !WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS)
 			res = -1;
 	}
 
