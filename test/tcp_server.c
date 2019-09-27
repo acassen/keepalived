@@ -95,7 +95,7 @@ int main(int argc, char **argv)
 	socklen_t clilen;
 	struct sockaddr_in cliaddr, servaddr;
 	struct sockaddr_in6 cliaddr6, servaddr6;
-	char opt;
+	int opt;
 	int sock_type = SOCK_STREAM;
 	int n;
 	char buf[128];
@@ -109,7 +109,7 @@ int main(int argc, char **argv)
 	unsigned backlog = 4;
 	struct cmd_resp *cr;
 
-	while ((opt = getopt(argc, argv, "46a:p:sueb:c:l:d:r")) != -1) {
+	while ((opt = getopt(argc, argv, ":46a:p:sueb:c:l:d:r")) != -1) {
 		switch (opt) {
 		case '4':
 			family = AF_INET;
@@ -171,6 +171,9 @@ int main(int argc, char **argv)
 			random_delay = true;
 			if (optind < argc && argv[optind][0] != '-')
 				random_seed = strtoul(argv[optind++], &endptr, 10);
+			break;
+		case ':':
+			fprintf(stderr, "Option '%c' is missing an argument\n", optopt);
 			break;
 		default: /* '?' */
 			fprintf(stderr, "Usage: %s [-a bind address] [-p port] [-4] [-6] [-s(ilent)] [-u(dp)] [-e(cho)] [-b(acklog) n][-c cmd resp] [-l EOL char value] [-d reply-delay [-r]]\n", argv[0]);

@@ -337,8 +337,19 @@ misc_check_child_thread(thread_ref_t thread)
 		if (timeout) {
 			/* If kill returns an error, we can't kill the process since either the process has terminated,
 			 * or we don't have permission. If we can't kill it, there is no point trying again. */
-			if (!kill(-pid, sig_num))
-				timeout = 1000;
+			if (!kill(-pid, sig_num)) {
+				if (errno == ESRCH) {
+					/* The process does not exist, and we should
+					 * have reaped its exit status, otherwise it
+					 * would exist as a zombie process. */
+					log_message(LOG_INFO, "Misc script %s child (PID %d) lost", misck_checker->script.args[0], pid);
+					misck_checker->state = SCRIPT_STATE_IDLE;
+					timeout = 0;
+				} else {
+					log_message(LOG_INFO, "kill -%d of process %s(%d) with new state %u failed with errno %d", sig_num, misck_checker->script.args[0], pid, misck_checker->state, errno);
+					timeout = 1000;
+				}
+			}
 		} else if (misck_checker->state != SCRIPT_STATE_IDLE) {
 			log_message(LOG_INFO, "Child thread pid %d timeout with unknown script state %u", pid, misck_checker->state);
 			timeout = 10;	/* We need some timeout */
@@ -353,7 +364,8 @@ misc_check_child_thread(thread_ref_t thread)
 	wait_status = THREAD_CHILD_STATUS(thread);
 
 	if (WIFEXITED(wait_status)) {
-		int status = WEXITSTATUS(wait_status);
+		unsigned status = WEXITSTATUS(wait_status);
+		unsigned effective_weight;
 
 		if (status == 0 ||
 		    (misck_checker->dynamic && status >= 2 && status <= 255)) {
@@ -362,9 +374,15 @@ misc_check_child_thread(thread_ref_t thread)
 			 * the exit status returned.  Effective range is 0..253.
 			 * Catch legacy case of status being 0 but misc_dynamic being set.
 			 */
-			if (status != 0)
-				update_svr_wgt(status - 2, checker->vs,
+			if (status >= 2)
+				effective_weight = status - 2;
+			else
+				effective_weight = checker->rs->iweight;
+			if (status != misck_checker->last_exit_code) {
+				update_svr_wgt(effective_weight, checker->vs,
 					       checker->rs, true);
+				misck_checker->last_exit_code = status;
+			}
 
 			/* everything is good */
 			if (!checker->is_up || !checker->has_run) {
@@ -384,8 +402,10 @@ misc_check_child_thread(thread_ref_t thread)
 					message_only = true;
 				else
 					script_exit_type = NULL;
-			} else
+			} else {
 				checker->retry_it = 0;
+				misck_checker->last_exit_code = status;
+			}
 		}
 	}
 	else if (WIFSIGNALED(wait_status)) {

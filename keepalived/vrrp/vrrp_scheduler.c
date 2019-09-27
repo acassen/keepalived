@@ -1087,7 +1087,7 @@ vrrp_script_child_thread(thread_ref_t thread)
 			sig_num = SIGKILL;
 			timeout = 2;
 		} else if (vscript->state == SCRIPT_STATE_FORCING_TERMINATION) {
-			log_message(LOG_INFO, "Child (PID %d) failed to terminate after kill", pid);
+			log_message(LOG_INFO, "Script %s child (PID %d) failed to terminate after kill", vscript->sname, pid);
 			sig_num = SIGKILL;
 			timeout = 10;	/* Give it longer to terminate */
 		}
@@ -1098,18 +1098,19 @@ vrrp_script_child_thread(thread_ref_t thread)
 			 * or we don't have permission. If we can't kill it, there is no point trying again. */
 			if (kill(-pid, sig_num)) {
 				if (errno == ESRCH) {
-					/* The process does not exist; presumably it
-					 * has just terminated. We should get
-					 * notification of it's termination, so allow
-					 * that to handle it. */
-					timeout = 1;
+					/* The process does not exist, and we should
+					 * have reaped its exit status, otherwise it
+					 * would exist as a zombie process. */
+					log_message(LOG_INFO, "Script %s child (PID %d) lost", vscript->sname, THREAD_CHILD_PID(thread));
+					vscript->state = SCRIPT_STATE_IDLE;
+					timeout = 0;
 				} else {
 					log_message(LOG_INFO, "kill -%d of process %s(%d) with new state %u failed with errno %d", sig_num, vscript->script.args[0], pid, vscript->state, errno);
 					timeout = 1000;
 				}
 			}
 		} else if (vscript->state != SCRIPT_STATE_IDLE) {
-			log_message(LOG_INFO, "Child thread pid %d timeout with unknown script state %u", pid, vscript->state);
+			log_message(LOG_INFO, "Script %s child thread pid %d timeout with unknown script state %u", vscript->sname, pid, vscript->state);
 			timeout = 10;	/* We need some timeout */
 		}
 
