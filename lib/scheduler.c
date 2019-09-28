@@ -884,6 +884,7 @@ void
 thread_cleanup_master(thread_master_t * m)
 {
 	/* Unuse current thread lists */
+	m->current_event = NULL;
 	thread_destroy_rb(m, &m->read);
 	thread_destroy_rb(m, &m->write);
 	thread_destroy_rb(m, &m->timer);
