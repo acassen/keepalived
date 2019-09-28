@@ -942,17 +942,17 @@ bfd_open_fd_in(bfd_data_t *data)
 	hints.ai_socktype = SOCK_DGRAM;
 
 	if ((ret = getaddrinfo(NULL, BFD_CONTROL_PORT, &hints, &ai_in)))
-		log_message(LOG_ERR, "getaddrinfo() error (%s)", gai_strerror(ret));
+		log_message(LOG_ERR, "getaddrinfo() error %d (%s)", ret, gai_strerror(ret));
 	else if ((data->fd_in = socket(AF_INET6, ai_in->ai_socktype, ai_in->ai_protocol)) == -1)
-		log_message(LOG_ERR, "socket() error (%m)");
+		log_message(LOG_ERR, "socket() error %d (%m)", errno);
 	else if ((ret = setsockopt(data->fd_in, IPPROTO_IP, IP_RECVTTL, &yes, sizeof (yes))) == -1)
-		log_message(LOG_ERR, "setsockopt(IP_RECVTTL) error (%m)");
+		log_message(LOG_ERR, "setsockopt(IP_RECVTTL) error %d (%m)", errno);
 	else if ((ret = setsockopt(data->fd_in, IPPROTO_IPV6, IPV6_RECVHOPLIMIT, &yes, sizeof (yes))) == -1)
-		log_message(LOG_ERR, "setsockopt(IPV6_RECVHOPLIMIT) error (%m)");
+		log_message(LOG_ERR, "setsockopt(IPV6_RECVHOPLIMIT) error %d (%m)", errno);
 	else if ((ret = setsockopt(data->fd_in, IPPROTO_IPV6, IPV6_RECVPKTINFO, &yes, sizeof (yes))) == -1)
-		log_message(LOG_ERR, "setsockopt(IPV6_RECVPKTINFO) error (%m)");
+		log_message(LOG_ERR, "setsockopt(IPV6_RECVPKTINFO) error %d (%m)", errno);
 	else if ((ret = bind(data->fd_in, ai_in->ai_addr, ai_in->ai_addrlen)) == -1)
-		log_message(LOG_ERR, "bind() error (%m)");
+		log_message(LOG_ERR, "bind() error %d (%m)", errno);
 
 	if (ret)
 		ret = 1;
