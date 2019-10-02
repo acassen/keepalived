@@ -832,6 +832,7 @@ bfd_receive_packet(bfdpkt_t *pkt, int fd, char *buf, ssize_t bufsz)
 	msg.msg_iovlen = 1;
 	msg.msg_control = cbuf;
 	msg.msg_controllen = sizeof (cbuf);
+	msg.msg_flags = 0;	/* Unnecessary, but keep coverity happy */
 
 	len = recvmsg(fd, &msg, MSG_DONTWAIT);
 	if (len == -1) {
