@@ -3719,6 +3719,9 @@ vrrp_complete_init(void)
 	if (__test_bit(CONFIG_TEST_BIT, &debug))
 		return true;
 
+	/* Create a notify FIFO if needed, and open it */
+	notify_fifo_open(&global_data->notify_fifo, &global_data->vrrp_notify_fifo, vrrp_notify_fifo_script_exit, "vrrp_");
+
 	/* If we have a global garp_delay add it to any interfaces without a garp_delay */
 	if (global_data->vrrp_garp_interval || global_data->vrrp_gna_interval)
 		set_default_garp_delay();
@@ -3873,9 +3876,6 @@ vrrp_complete_init(void)
 	}
 
 	alloc_vrrp_buffer(max_mtu_len);
-
-	/* Create a notify FIFO if needed, and open it */
-	notify_fifo_open(&global_data->notify_fifo, &global_data->vrrp_notify_fifo, vrrp_notify_fifo_script_exit, "vrrp_");
 
 	return true;
 }
