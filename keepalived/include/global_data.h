@@ -165,6 +165,7 @@ typedef struct _data {
 	int				vrrp_nf_chain_priority;
 	bool				vrrp_nf_counters;
 	bool				vrrp_nf_ifindex;
+	unsigned			nft_version;
 #endif
 	bool				vrrp_check_unicast_src;
 	bool				vrrp_skip_check_adv_addr;

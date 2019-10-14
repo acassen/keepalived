@@ -1546,7 +1546,6 @@ if test .${enable_nftables} != .no; then
      USE_NFTABLES=No
    ],
    [#include <linux/netfilter/nf_tables.h>])
-  CPPFLAGS="$SAV_CPPFLAGS"
 
   if test $USE_NFTABLES = Yes; then
     $PKG_CONFIG --exists libnftnl
@@ -1561,26 +1560,54 @@ if test .${enable_nftables} != .no; then
     fi
 
     if test $USE_NFTABLES = Yes; then
+      # nft prior to version 0.8.3 does not support type ifname in sets. We can't check the version of
+      #  nft, but we can check the version of libnftnl. nft v0.8.3 required libnftnl v1.0.9, but so did
+      #  nft v0.8.2. So play safe, and require the next version.
+      LIBNFTNL_VERSION=`printf "0x%2.2x%2.2x%2.2xU" \`pkg-config --modversion libnftnl | sed -e "s/\./ /g"\``
+      AC_DEFINE_UNQUOTED([LIBNFTNL_VERSION], [ $LIBNFTNL_VERSION ], [libnftnl version in hex])
+
       add_pkg_config([libnftnl])
       add_pkg_config([libmnl])
       AC_DEFINE([_WITH_NFTABLES_], [ 1 ], [Define to 1 if want nftables support])
       add_config_opt([NFTABLES])
       AC_MSG_CHECKING([whether NFTNL_EXPR_LOOKUP_FLAGS is defined])
       AC_LINK_IFELSE([AC_LANG_SOURCE([[
-	  #include <libnftnl/expr.h>
-	  int main(void)
-	  {
-	int i = NFTNL_EXPR_LOOKUP_FLAGS;
-	return 0;
-	  }
+	#include <libnftnl/expr.h>
+	int main(void)
+	{
+	  int i = NFTNL_EXPR_LOOKUP_FLAGS;
+	  return 0;
+	}
 	]])], [
 	  AC_MSG_RESULT(yes)
 	  AC_DEFINE([HAVE_NFTNL_EXPR_LOOKUP_FLAGS], [ 1 ], [Define to 1 if NFTNL_EXPR_LOOKUP_FLAGS defined])
 	],[
 	  AC_MSG_RESULT(no)
 	])
+      # nft dup from Linux 4.3
+      AC_CHECK_DECLS([NFTA_DUP_MAX], [], [],
+        [#include <linux/netfilter/nf_tables.h>])
+
+      AC_MSG_CHECKING([for nftnl_udata_put_u32])
+      SAV_LIBS="$LIBS"
+      LIBS="$LIBS `$PKG_CONFIG --libs libnftnl`"
+      AC_LINK_IFELSE([AC_LANG_SOURCE([[
+	  #include <libnftnl/udata.h>
+	  int main(void)
+	  {
+	    nftnl_udata_put_u32(NULL, 0, 0);
+	    return 0;
+	  }
+	]])], [
+	  AC_MSG_RESULT(yes)
+	  AC_DEFINE([HAVE_NFTNL_UDATA_PUT_U32], [ 1 ], [Define to 1 if nftnl_udata_put_u32 declared])
+	],[
+	  AC_MSG_RESULT(no)
+	])
+      LIBS="$SAV_LIBS"
     fi
   fi
+  CPPFLAGS="$SAV_CPPFLAGS"
 fi
 AM_CONDITIONAL([NFTABLES], [test $USE_NFTABLES = Yes])
 unset LIBS

@@ -68,6 +68,9 @@
 #ifdef THREAD_DUMP
 #include "scheduler.h"
 #endif
+#ifdef _WITH_FIREWALL_
+#include "vrrp_firewall.h"
+#endif
 
 
 /* Local vars */
@@ -810,19 +813,43 @@ if_join_vrrp_group(sa_family_t family, int *sd, interface_t *ifp)
 	if (family == AF_INET) {
 		memset(&imr, 0, sizeof(imr));
 		imr.imr_multiaddr = global_data->vrrp_mcast_group4.sin_addr;
-		imr.imr_ifindex = (int)IF_INDEX(ifp);
 
 		/* -> Need to handle multicast convergance after takeover.
 		 * We retry until multicast is available on the interface.
 		 */
+#if defined _HAVE_VRRP_VMAC_ && !HAVE_DECL_NFTA_DUP_MAX
+		/* nftables doesn't support dup statement, so we need to send the IGMP join groups
+		 * on both the vmac interface and the parent interface, and let the firewall drop the
+		 * join group on the vmac interface */
+		if (IS_VLAN(ifp) &&
+		    ifp->if_type == IF_TYPE_MACVLAN &&
+		    ifp->is_ours) {
+			imr.imr_ifindex = IF_INDEX(IF_BASE_IFP(ifp));
+			if (setsockopt(*sd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+					 (char *) &imr, (socklen_t)sizeof(struct ip_mreqn)) < 0)
+				log_message(LOG_INFO, "Failed to set GARP on base if - errno %d (%m)", errno);
+		}
+#endif
+		imr.imr_ifindex = (int)IF_INDEX(ifp);
 		ret = setsockopt(*sd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
 				 (char *) &imr, (socklen_t)sizeof(struct ip_mreqn));
 	} else {
 		memset(&imr6, 0, sizeof(imr6));
 		imr6.ipv6mr_multiaddr = global_data->vrrp_mcast_group6.sin6_addr;
+#if defined _HAVE_VRRP_VMAC_ && !HAVE_DECL_NFTA_DUP_MAX
+		/* See description above */
+		if (IS_VLAN(ifp) &&
+		    ifp->if_type == IF_TYPE_MACVLAN &&
+		    ifp->is_ours) {
+			imr6.ipv6mr_interface = IF_INDEX(IF_BASE_IFP(ifp));
+			if (setsockopt(*sd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP,
+					 (char *) &imr6, (socklen_t)sizeof(struct ipv6_mreq)) < 0)
+				log_message(LOG_INFO, "Failed to set MLD on base if - errno %d (%m)", errno);
+		}
 		imr6.ipv6mr_interface = IF_INDEX(ifp);
 		ret = setsockopt(*sd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP,
 				 (char *) &imr6, (socklen_t)sizeof(struct ipv6_mreq));
+#endif
 	}
 
 	if (ret < 0) {
@@ -850,12 +877,32 @@ if_leave_vrrp_group(sa_family_t family, int sd, interface_t *ifp)
 	if (family == AF_INET) {
 		memset(&imr, 0, sizeof(imr));
 		imr.imr_multiaddr = global_data->vrrp_mcast_group4.sin_addr;
+#if defined _HAVE_VRRP_VMAC_ && !HAVE_DECL_NFTA_DUP_MAX
+		/* See description in if_join_vrrp_group */
+		if (IS_VLAN(ifp) &&
+		    ifp->if_type == IF_TYPE_MACVLAN &&
+		    ifp->is_ours) {
+			imr.imr_ifindex = IF_INDEX(IF_BASE_IFP(ifp));
+			setsockopt(sd, IPPROTO_IP, IP_DROP_MEMBERSHIP,
+					 (char *) &imr, sizeof(imr));
+		}
 		imr.imr_ifindex = (int)IF_INDEX(ifp);
 		ret = setsockopt(sd, IPPROTO_IP, IP_DROP_MEMBERSHIP,
 				 (char *) &imr, sizeof(imr));
+#endif
 	} else {
 		memset(&imr6, 0, sizeof(imr6));
 		imr6.ipv6mr_multiaddr = global_data->vrrp_mcast_group6.sin6_addr;
+#if defined _HAVE_VRRP_VMAC_ && !HAVE_DECL_NFTA_DUP_MAX
+		/* See description in if_join_vrrp_group */
+		if (IS_VLAN(ifp) &&
+		    ifp->if_type == IF_TYPE_MACVLAN &&
+		    ifp->is_ours) {
+			imr6.ipv6mr_interface = IF_INDEX(IF_BASE_IFP(ifp));
+			setsockopt(sd, IPPROTO_IPV6, IPV6_DROP_MEMBERSHIP,
+					 (char *) &imr6, sizeof(struct ipv6_mreq));
+		}
+#endif
 		imr6.ipv6mr_interface = IF_INDEX(ifp);
 		ret = setsockopt(sd, IPPROTO_IPV6, IPV6_DROP_MEMBERSHIP,
 				 (char *) &imr6, sizeof(struct ipv6_mreq));
@@ -1196,8 +1243,12 @@ cleanup_lost_interface(interface_t *ifp)
 
 #ifdef _HAVE_VRRP_VMAC_
 		/* If vmac going, clear VMAC_UP_BIT on vrrp instance */
-		if (vrrp->ifp->is_ours)
+		if (vrrp->ifp->is_ours) {
 			__clear_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
+#ifdef _WITH_FIREWALL_
+			firewall_remove_vmac(vrrp);
+#endif
+		}
 
 		if (vrrp->configured_ifp == ifp &&
 		    vrrp->configured_ifp->base_ifp == vrrp->ifp->base_ifp &&

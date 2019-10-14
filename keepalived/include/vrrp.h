@@ -280,7 +280,7 @@ typedef struct _vrrp_t {
 							 * VRRP adverts
 							 */
 	bool			promote_secondaries;	/* Set promote_secondaries option on interface */
-	bool			evip_add_ipv6;		/* Enable IPv6 for eVIPs if this is an IPv4 instance */
+	bool			evip_other_family;	/* There are eVIPs of the different address family from the vrrp family */
 	list			vroutes;		/* list of virtual routes */
 	list			vrules;			/* list of virtual rules */
 	unsigned		adver_int;		/* locally configured delay between advertisements*/

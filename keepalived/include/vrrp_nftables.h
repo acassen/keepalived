@@ -42,7 +42,11 @@
 extern void nft_add_addresses(vrrp_t *);
 extern void nft_remove_addresses(vrrp_t *);
 extern void nft_remove_addresses_iplist(list);
+#ifdef _HAVE_VRRP_VMAC_
+extern void nft_add_vmac(const vrrp_t *);
+extern void nft_remove_vmac(const vrrp_t *);
+#endif
 extern void nft_cleanup(void);
 extern void nft_end(void);
-
+extern void set_nf_ifname_type(void);
 #endif

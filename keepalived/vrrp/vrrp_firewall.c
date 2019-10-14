@@ -81,6 +81,36 @@ firewall_remove_rule_to_iplist(list ip_list,
 #endif
 }
 
+#ifdef _HAVE_VRRP_VMAC_
+void
+firewall_add_vmac(const vrrp_t *vrrp)
+{
+#ifdef _WITH_IPTABLES_
+	if (global_data->vrrp_iptables_inchain[0])
+		iptables_add_vmac(vrrp);
+#endif
+
+#ifdef _WITH_NFTABLES_
+	if (global_data->vrrp_nf_table_name)
+		nft_add_vmac(vrrp);
+#endif
+}
+
+void
+firewall_remove_vmac(const vrrp_t *vrrp)
+{
+#ifdef _WITH_IPTABLES_
+	if (global_data->vrrp_iptables_inchain[0])
+		iptables_remove_vmac(vrrp);
+#endif
+
+#ifdef _WITH_NFTABLES_
+	if (global_data->vrrp_nf_table_name)
+		nft_remove_vmac(vrrp);
+#endif
+}
+#endif
+
 void
 firewall_init(void)
 {

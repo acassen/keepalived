@@ -3092,13 +3092,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #endif
 							     )
 	{
-		/* We need to know if we need to allow IPv6 just for eVIPs */
-		if (vrrp->family == AF_INET && !LIST_ISEMPTY(vrrp->evip)) {
-			LIST_FOREACH(vrrp->evip, vip, e) {
-				if (vip->ifa.ifa_family == AF_INET6) {
-					vrrp->evip_add_ipv6 = true;
-					break;
-				}
+		/* We need to know if we have eVIPs of the other address family */
+		LIST_FOREACH(vrrp->evip, vip, e) {
+			if (vip->ifa.ifa_family != vrrp->family) {
+				vrrp->evip_other_family = true;
+				break;
 			}
 		}
 

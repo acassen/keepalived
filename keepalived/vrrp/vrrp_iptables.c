@@ -140,6 +140,20 @@ handle_iptables_accept_mode(vrrp_t *vrrp, int cmd, bool force)
 	handle_iptable_rule_to_iplist(vrrp->vip, vrrp->evip, cmd, force);
 }
 
+#ifdef _HAVE_VRRP_VMAC_
+void
+iptables_add_vmac(__attribute__((unused)) const vrrp_t *vrrp)
+{
+	/* TBD */
+}
+
+void
+iptables_remove_vmac(__attribute__((unused)) const vrrp_t *vrrp)
+{
+	/* TBD */
+}
+#endif
+
 static void
 check_chains_exist(void)
 {

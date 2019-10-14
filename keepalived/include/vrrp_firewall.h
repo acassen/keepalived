@@ -46,6 +46,10 @@ extern bool block_ipv6;
 /* prototypes */
 extern void firewall_handle_accept_mode(vrrp_t *, int, bool);
 extern void firewall_remove_rule_to_iplist(list, bool);
+#ifdef _HAVE_VRRP_VMAC_
+extern void firewall_add_vmac(const vrrp_t *);
+extern void firewall_remove_vmac(const vrrp_t *);
+#endif
 #ifdef _WITH_IPTABLES_
 extern void firewall_init(void);
 #else
