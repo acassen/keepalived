@@ -158,6 +158,10 @@ typedef struct _data {
 	char				vrrp_ipset_address[IPSET_MAXNAMELEN];
 	char				vrrp_ipset_address6[IPSET_MAXNAMELEN];
 	char				vrrp_ipset_address_iface6[IPSET_MAXNAMELEN];
+#ifdef HAVE_IPSET_ATTR_IFACE
+	char				vrrp_ipset_igmp[IPSET_MAXNAMELEN];
+	char				vrrp_ipset_mld[IPSET_MAXNAMELEN];
+#endif
 #endif
 #endif
 #ifdef _WITH_NFTABLES_

@@ -25,15 +25,24 @@
 
 #define LIBIPSET_NFPROTO_H
 #include "vrrp_ipaddress.h"
+#include "vrrp_iptables.h"
 
 #define DEFAULT_IPSET_NAME	"keepalived"
 
-bool add_ipsets(bool);
-bool remove_ipsets(void);
-bool has_ipset_setname(void*, const char *);
+struct ipset_session;
+
+bool add_vip_ipsets(struct ipset_session **, uint8_t, bool);
+#ifdef HAVE_IPSET_ATTR_IFACE
+bool add_igmp_ipsets(struct ipset_session **, uint8_t, bool);
+#endif
+bool remove_vip_ipsets(struct ipset_session **, uint8_t);
+bool remove_igmp_ipsets(struct ipset_session **, uint8_t);
 bool ipset_initialise(void);
 void* ipset_session_start(void);
-void ipset_session_end(void*);
-void ipset_entry(void*, int cmd, const ip_address_t*);
+void ipset_session_end(void *);
+void ipset_entry(void *, int, const ip_address_t*);
+#ifdef HAVE_IPSET_ATTR_IFACE
+void ipset_entry_igmp(void*, int, const char *, uint8_t);
+#endif
 
 #endif

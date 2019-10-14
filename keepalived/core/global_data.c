@@ -111,6 +111,8 @@ set_vrrp_defaults(data_t * data)
 	strcpy(data->vrrp_ipset_address, DEFAULT_IPSET_NAME);
 	strcpy(data->vrrp_ipset_address6, DEFAULT_IPSET_NAME "6");
 	strcpy(data->vrrp_ipset_address_iface6, DEFAULT_IPSET_NAME "if6");
+	strcpy(data->vrrp_ipset_igmp, DEFAULT_IPSET_NAME "_igmp");
+	strcpy(data->vrrp_ipset_mld, DEFAULT_IPSET_NAME "_mld");
 #endif
 	data->vrrp_check_unicast_src = false;
 	data->vrrp_skip_check_adv_addr = false;
@@ -531,6 +533,10 @@ dump_global_data(FILE *fp, data_t * data)
 				conf_write(fp," ipset IPv6 address set = %s", data->vrrp_ipset_address6);
 			if (data->vrrp_ipset_address_iface6[0])
 				conf_write(fp," ipset IPv6 address,iface set = %s", data->vrrp_ipset_address_iface6);
+			if (data->vrrp_ipset_igmp[0])
+				conf_write(fp," ipset IGMP set = %s", data->vrrp_ipset_igmp);
+			if (data->vrrp_ipset_mld[0])
+				conf_write(fp," ipset MLD set = %s", data->vrrp_ipset_mld);
 		}
 #endif
 	}

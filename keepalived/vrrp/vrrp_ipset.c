@@ -57,6 +57,7 @@
 #include "vrrp_firewall.h"
 #include "vrrp_iptables_calls.h"
 #include "main.h"
+#include "utils.h"
 
 #ifdef _LIBIPSET_DYNAMIC_
 #include <dlfcn.h>
@@ -123,7 +124,7 @@ ipset_printf(__attribute ((__unused__)) struct ipset_session *session, void *p, 
 
 static bool
 do_ipset_cmd(struct ipset_session* session, enum ipset_cmd cmd, const char *setname,
-		const ip_address_t *addr, uint32_t timeout, const char* iface)
+		const ip_address_t *addr, int cidr, uint32_t timeout, const char* iface)
 {
 	const struct ipset_type *type;
 	uint8_t family;
@@ -140,6 +141,8 @@ do_ipset_cmd(struct ipset_session* session, enum ipset_cmd cmd, const char *setn
 	family = (addr->ifa.ifa_family == AF_INET) ? NFPROTO_IPV4 : NFPROTO_IPV6;
 	ipset_session_data_set(session, IPSET_OPT_FAMILY, &family);
 	ipset_session_data_set(session, IPSET_OPT_IP, &addr->u);
+	if (cidr >= 0)
+		ipset_session_data_set(session, IPSET_OPT_CIDR, &cidr);
 	if (timeout)
 		ipset_session_data_set(session, IPSET_OPT_TIMEOUT, &timeout);
 	if (iface)
@@ -182,26 +185,24 @@ ipset_destroy(struct ipset_session* session, const char *setname)
 	return r == 0;
 }
 
-bool
-has_ipset_setname(void* vsession, const char *setname)
+static bool
+has_ipset_setname(struct ipset_session* session, const char *setname)
 {
-	struct ipset_session *session = vsession;
-
 	ipset_session_data_set(session, IPSET_SETNAME, setname);
 
 	return ipset_cmd1(session, IPSET_CMD_HEADER, 0) == 0;
 }
 
-static bool create_sets(const char* addr4, const char* addr6, const char* addr_if6, bool is_reload)
+static bool
+create_sets(struct ipset_session **session, const char* addr4, const char* addr6, const char* addr_if6, const char *igmp, const char *mld, bool is_reload)
 {
-	struct ipset_session *session;
-
+	if (!*session)
 #ifdef LIBIPSET_PRE_V7_COMPAT
-	session = ipset_session_init(ipset_printf);
+		*session = ipset_session_init(ipset_printf);
 #else
-	session = ipset_session_init(ipset_printf, "create_sets");
+		*session = ipset_session_init(ipset_printf, "create_sets");
 #endif
-	if (!session) {
+	if (!*session) {
 		log_message(LOG_INFO, "Cannot initialize ipset session.");
 		return false;
 	}
@@ -210,30 +211,40 @@ static bool create_sets(const char* addr4, const char* addr6, const char* addr_i
 	 * IPSET_ENV_EXIST option set, any existing entries in the set are removed. */
 	if (!is_reload)
 #ifdef LIBIPSET_PRE_V7_COMPAT
-		ipset_envopt_parse(session, IPSET_ENV_EXIST, NULL);
+		ipset_envopt_parse(*session, IPSET_ENV_EXIST, NULL);
 #else
-		ipset_envopt_set(session, IPSET_ENV_EXIST);
+		ipset_envopt_set(*session, IPSET_ENV_EXIST);
 #endif
 
-	if (block_ipv4) {
-		if (!is_reload || !has_ipset_setname(session, addr4))
-			ipset_create(session, addr4, "hash:ip", NFPROTO_IPV4);
+	if (addr4) {
+		if (!is_reload || !has_ipset_setname(*session, addr4))
+			ipset_create(*session, addr4, "hash:ip", NFPROTO_IPV4);
 	}
 
-	if (block_ipv6) {
-		if (!is_reload || !has_ipset_setname(session, addr6))
-			ipset_create(session, addr6, "hash:ip", NFPROTO_IPV6);
-		if (!is_reload || !has_ipset_setname(session, addr_if6)) {
+	if (addr6) {
+		if (!is_reload || !has_ipset_setname(*session, addr6))
+			ipset_create(*session, addr6, "hash:ip", NFPROTO_IPV6);
+		if (!is_reload || !has_ipset_setname(*session, addr_if6)) {
 #ifdef HAVE_IPSET_ATTR_IFACE
 			/* hash:net,iface was introduced in Linux 3.1 */
-			ipset_create(session, addr_if6, "hash:net,iface", NFPROTO_IPV6);
+			ipset_create(*session, addr_if6, "hash:net,iface", NFPROTO_IPV6);
 #else
-			ipset_create(session, addr_if6, "hash:ip", NFPROTO_IPV6);
+			ipset_create(*session, addr_if6, "hash:ip", NFPROTO_IPV6);
 #endif
 		}
 	}
 
-	ipset_session_fini(session);
+#ifdef HAVE_IPSET_ATTR_IFACE
+	if (igmp) {
+		if (!is_reload || !has_ipset_setname(*session, igmp))
+			ipset_create(*session, igmp, "hash:net,iface", NFPROTO_IPV4);
+	}
+
+	if (mld) {
+		if (!is_reload || !has_ipset_setname(*session, mld))
+			ipset_create(*session, mld, "hash:net,iface", NFPROTO_IPV6);
+	}
+#endif
 
 	return true;
 }
@@ -310,7 +321,7 @@ bool ipset_initialise(void)
 
 	ipset_load_types();
 
-	if (!set_match_loaded() && !load_xtables_module("xt_set", "ipsets")) {
+	if (!set_match_loaded() && !keepalived_modprobe("xt_set")) {
 		log_message(LOG_INFO, "Unable to load module xt_set - not using ipsets");
 		return false;
 	}
@@ -318,10 +329,10 @@ bool ipset_initialise(void)
 	return true;
 }
 
-bool remove_ipsets(void)
+// TODO - just revert to single call to remove_ipsets
+static bool
+remove_ipsets(struct ipset_session **session, uint8_t family, bool vip_sets)
 {
-	struct ipset_session *session;
-
 	if (!global_data->using_ipsets)
 		return true;
 
@@ -330,33 +341,66 @@ bool remove_ipsets(void)
 		return true;
 #endif
 
+	if (!*session)
 #ifdef LIBIPSET_PRE_V7_COMPAT
-	session = ipset_session_init(ipset_printf);
+		*session = ipset_session_init(ipset_printf);
 #else
-	session = ipset_session_init(ipset_printf, "remove_ipsets");
+		*session = ipset_session_init(ipset_printf, "remove_ipsets");
 #endif
-	if (!session) {
+	if (!*session) {
 		log_message(LOG_INFO, "Cannot initialize ipset session.");
 		return false;
 	}
 
-	if (block_ipv4)
-		ipset_destroy(session, global_data->vrrp_ipset_address);
-
-	if (block_ipv6) {
-		ipset_destroy(session, global_data->vrrp_ipset_address6);
-		ipset_destroy(session, global_data->vrrp_ipset_address_iface6);
+	if (vip_sets) {
+		if (family == AF_INET)
+			ipset_destroy(*session, global_data->vrrp_ipset_address);
+		else {
+			ipset_destroy(*session, global_data->vrrp_ipset_address6);
+			ipset_destroy(*session, global_data->vrrp_ipset_address_iface6);
+		}
 	}
-
-	ipset_session_fini(session);
+#ifdef HAVE_IPSET_ATTR_IFACE
+	else {
+		if (family == AF_INET)
+			ipset_destroy(*session, global_data->vrrp_ipset_igmp);
+		else
+			ipset_destroy(*session, global_data->vrrp_ipset_mld);
+	}
+#endif
 
 	return true;
 }
 
-bool add_ipsets(bool is_reload)
+bool
+remove_vip_ipsets(struct ipset_session **session, uint8_t family)
 {
-	return create_sets(global_data->vrrp_ipset_address, global_data->vrrp_ipset_address6, global_data->vrrp_ipset_address_iface6, is_reload);
+	return remove_ipsets(session, family, true);
 }
+
+bool
+remove_igmp_ipsets(struct ipset_session **session, uint8_t family)
+{
+	return remove_ipsets(session, family, false);
+}
+
+bool add_vip_ipsets(struct ipset_session **session, uint8_t family, bool is_reload)
+{
+	if (family == AF_INET)
+		return create_sets(session, global_data->vrrp_ipset_address, NULL, NULL, NULL, NULL, is_reload);
+
+	return create_sets(session, NULL, global_data->vrrp_ipset_address6, global_data->vrrp_ipset_address_iface6, NULL, NULL, is_reload);
+}
+
+#ifdef HAVE_IPSET_ATTR_IFACE
+bool add_igmp_ipsets(struct ipset_session **session, uint8_t family, bool is_reload)
+{
+	if (family == AF_INET)
+		return create_sets(session, NULL, NULL, NULL, global_data->vrrp_ipset_igmp, NULL, is_reload);
+
+	return create_sets(session, NULL, NULL, NULL, NULL, global_data->vrrp_ipset_mld, is_reload);
+}
+#endif
 
 void* ipset_session_start(void)
 {
@@ -381,15 +425,9 @@ void ipset_entry(void* vsession, int cmd, const ip_address_t* addr)
 	struct ipset_session *session = vsession;
 
 
-	if (addr->ifa.ifa_family == AF_INET) {
-		if (!block_ipv4)
-			return;
+	if (addr->ifa.ifa_family == AF_INET)
 		set = global_data->vrrp_ipset_address;
-	}
 	else if (IN6_IS_ADDR_LINKLOCAL(&addr->u.sin6_addr)) {
-		if (!block_ipv6)
-			return;
-
 		set = global_data->vrrp_ipset_address_iface6;
 #ifdef HAVE_IPSET_ATTR_IFACE
 		iface = addr->ifp->ifname;
@@ -398,5 +436,23 @@ void ipset_entry(void* vsession, int cmd, const ip_address_t* addr)
 	else
 		set = global_data->vrrp_ipset_address6;
 
-	do_ipset_cmd(session, (cmd == IPADDRESS_DEL) ? IPSET_CMD_DEL : IPSET_CMD_ADD, set, addr, 0, iface);
+	do_ipset_cmd(session, (cmd == IPADDRESS_DEL) ? IPSET_CMD_DEL : IPSET_CMD_ADD, set, addr, -1, 0, iface);
 }
+
+#ifdef HAVE_IPSET_ATTR_IFACE
+void ipset_entry_igmp(void* vsession, int cmd, const char* ifname, uint8_t family)
+{
+	const char* set;
+	struct ipset_session *session = vsession;
+	ip_address_t addr = { .ifa.ifa_family = AF_INET };
+
+	if (family == AF_INET) {
+		set = global_data->vrrp_ipset_igmp;
+	} else {
+		set = global_data->vrrp_ipset_mld;
+		addr.ifa.ifa_family = AF_INET6;
+	}
+
+	do_ipset_cmd(session, (cmd == IPADDRESS_DEL) ? IPSET_CMD_DEL : IPSET_CMD_ADD, set, &addr, 0, 0, ifname);
+}
+#endif

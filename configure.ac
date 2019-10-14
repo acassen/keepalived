@@ -198,8 +198,6 @@ AC_ARG_ENABLE(libiptc-dynamic,
   [AS_HELP_STRING([--enable-libiptc-dynamic], [compile with libiptc dynamically linked])])
 AC_ARG_ENABLE(libipset-dynamic,
   [AS_HELP_STRING([--disable-libipset-dynamic], [compile with libipset statically linked])])
-AC_ARG_ENABLE(libxtables-dynamic,
-  [AS_HELP_STRING([--enable-libxtables-dynamic], [compile with libxtables dynamically linked])])
 AC_ARG_ENABLE(libnl-dynamic,
   [AS_HELP_STRING([--enable-libnl-dynamic], [compile with libnl dynamically linked])])
 AC_ARG_ENABLE(libiptc,
@@ -364,7 +362,6 @@ AS_IF([test .$enable_vrrp = .no],
 
     AS_IF([test .$enable_perf = .yes], [AC_MSG_ERROR([enable-perf requires vrrp])])
     AS_IF([test .$enable_libiptc_dynamic = .yes], [AC_MSG_ERROR([enable-libiptc-dynamic requires vrrp])])
-    AS_IF([test .$enable_libxtables_dynamic = .yes], [AC_MSG_ERROR([enable-libxtables-dynamic requires vrrp])])
     AS_IF([test .$enable_libiptc = .no], [AC_MSG_ERROR([disable-libiptc requires vrrp])])
     AS_IF([test .$enable_libipset = .no], [AC_MSG_ERROR([disable-libipset requires vrrp])])
     AS_IF([test $with_fixed_if_type], [AC_MSG_ERROR([with-fixed-if-type requires vrrp])])
@@ -392,7 +389,6 @@ AS_IF([test .$enable_iptables = .no],
   [
     AS_IF([test .$enable_libiptc_dynamic = .yes], [AC_MSG_ERROR([enable-libiptc-dynamic requires vrrp and iptables])])
     AS_IF([test .$enable_libipset_dynamic = .yes], [AC_MSG_ERROR([enable-libipset-dynamic requires vrrp and iptables])])
-    AS_IF([test .$enable_libxtables-dynamic = .yes], [AC_MSG_ERROR([enable-libxtables-dynamic requires vrrp and iptables])])
     AS_IF([test .$enable_libipset = .yes], [AC_MSG_ERROR([enable-libipset requires vrrp and iptables])])
   ])
 AS_IF([test .$enable_libipset = .no],
@@ -927,7 +923,6 @@ AS_IF([test "$enable_dynamic_linking"],
       [
 	enable_libiptc_dynamic=$enable_dynamic_linking
 	enable_libipset_dynamic=$enable_dynamic_linking
-	enable_libxtables_dynamic=$enable_dynamic_linking
       ])
     AS_IF([test .$enable_vrrp != .no],
       [
@@ -1315,7 +1310,7 @@ AS_IF([test .$enable_iptables != .no],
       dnl -- linux/netfilter/x_tables.h since Linux 2.6.16
       SAV_CPPFLAGS="$CPPFLAGS"
       CPPFLAGS="$CPPFLAGS $kernelinc"
-      AC_CHECK_HEADERS([linux/netfilter/x_tables.h xtables.h libiptc/libip6tc.h libiptc/libiptc.h libiptc/libxtc.h], [],
+      AC_CHECK_HEADERS([linux/netfilter/x_tables.h libiptc/libip6tc.h libiptc/libiptc.h libiptc/libxtc.h], [],
 	[
 	  USE_LIBIPTC=No
 	  break
@@ -1358,17 +1353,6 @@ AS_IF([test .$enable_iptables != .no],
       fi
 
       if test $USE_LIBIPTC = Yes; then
-	if test .$enable_libxtables_dynamic != .yes; then
-	  add_pkg_config([xtables])
-	else
-	  add_pkg_config_without_libs([xtables])
-	  AC_DEFINE([_LIBXTABLES_DYNAMIC_], [ 1 ], [Define to 1 if building with libxtables dynamic linking])
-	  add_config_opt([XTABLES_DYNAMIC])
-	  NEED_LIBDL=Yes
-	  get_lib_name([xtables], [xtables_insmod])
-	  AC_DEFINE_UNQUOTED([XTABLES_LIB_NAME], [ "$LIB_NAME" ], [Define the xtables library name])
-	fi
-
 	dnl ----[Check for ipset libraries]----
 	SAV_CPPFLAGS="$CPPFLAGS"
 	CPPFLAGS="$CPPFLAGS $kernelinc"
@@ -1390,10 +1374,6 @@ AS_IF([test .$enable_iptables != .no],
 		  USE_LIBIPSET=No
 		  break
 		])
-
-	      if test $USE_LIBIPSET = Yes; then
-		AC_CHECK_LIB(xtables, xtables_insmod, [], [USE_LIBIPSET=No])
-	      fi
 
 	      if test $USE_LIBIPSET = Yes; then
 		dnl -- Need to use <libipset/linux_ip_set.h> for <linux/netfilter/xt_set.h> prior to Linux 3.4
@@ -1529,8 +1509,7 @@ AM_CONDITIONAL([IPTABLES], [test $USE_IPTABLES = Yes])
 AM_CONDITIONAL([IPTABLES_CMD], [test $USE_IPTABLES = Yes -a \( $USE_LIBIPTC = No -o .$LIBIPTC_DYNAMIC = .Yes \)])
 AM_CONDITIONAL([LIBIPTC_DYNAMIC], [test $USE_LIBIPTC = Yes -a .$LIBIPTC_DYNAMIC = .Yes])
 AM_CONDITIONAL([LIBIPSET_DYNAMIC], [test $USE_LIBIPSET = Yes -a .${enable_libipset_dynamic} != .no])
-AM_CONDITIONAL([LIBXTABLES_DYNAMIC], [test $USE_LIBIPTC = Yes -a .$enable_libxtables_dynamic = .yes])
-AM_CONDITIONAL([REQUIRE_IPTABLES_LIBS], [test $USE_IPTABLES = Yes -a $USE_LIBIPTC = Yes -a \( .$LIBIPTC_DYNAMIC = .Yes -o .$enable_libxtables_dynamic = .yes \)])
+AM_CONDITIONAL([REQUIRE_IPTABLES_LIBS], [test $USE_IPTABLES = Yes -a $USE_LIBIPTC = Yes -a .$LIBIPTC_DYNAMIC = .Yes])
 unset LIBS
 
 dnl ----[Check for nftables libraries]----

@@ -326,8 +326,8 @@ and
     # iptables. If so, then the ipset names can be specified, defaults
     # as below. If no names are specified, ipsets will not be used,
     # otherwise any omitted names will be constructed by adding "_if"
-    # and/or "6" to previously specified names.
-    \fBvrrp_ipsets \fR[keepalived [keepalived6 [keepalived_if6]]]
+    # and/or "6" and _igmp/_mld to previously specified names.
+    \fBvrrp_ipsets \fR[keepalived [keepalived6 [keepalived_if6 [keepalived_igmp [keepalived_mld]]]]]
 
     # Use nftables to implement no_accept mode and only send IGMP/MLD
     #   messages on the parent interface of a VMAC.

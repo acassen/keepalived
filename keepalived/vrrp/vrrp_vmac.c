@@ -434,7 +434,9 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	 * as we progress */
 	kernel_netlink_poll();
 
+#ifdef _WITH_FIREWALL_
 	firewall_add_vmac(vrrp);
+#endif
 	return true;
 }
 
@@ -634,7 +636,9 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 		return;
 	}
 
+#ifdef _WITH_FIREWALL_
 	firewall_remove_vmac(vrrp);
+#endif
 
 	log_message(LOG_INFO, "vmac: Success removing VMAC interface %s for vrrp_instance %s"
 			    , vrrp->vmac_ifname, vrrp->iname);

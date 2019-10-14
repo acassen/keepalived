@@ -571,19 +571,6 @@ start_vrrp(data_t *prev_global_data)
 	else
 		ndisc_close();
 
-#ifdef _WITH_FIREWALL_
-	/* We need to delay the init of iptables to after vrrp_complete_init()
-	 * has been called so we know whether we want IPv4 and/or IPv6 */
-	firewall_init();
-
-	/* Make sure we don't have any old iptables/ipsets settings left around */
-// !!!! THIS IS TOO LATE - we have already set up new stuff for vmacs
-//	if (!reload)
-//		firewall_cleanup();
-
-	firewall_startup(reload);
-#endif
-
 	if (!reload)
 		vrrp_restore_interfaces_startup();
 

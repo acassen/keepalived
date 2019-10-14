@@ -34,6 +34,9 @@
 #include <stdint.h>
 #include <errno.h>
 #include <sys/prctl.h>
+#if defined _WITH_LVS_ || defined _LIBIPSET_DYNAMIC_
+#include <sys/wait.h>
+#endif
 #ifdef _WITH_PERF_
 #include <stdio.h>
 #include <sys/types.h>
@@ -1141,3 +1144,101 @@ memcmp_constant_time(const void *s1, const void *s2, size_t n)
 
 	return ret;
 }
+
+/*
+ * Utility functions coming from Wensong code
+ */
+
+#if defined _WITH_LVS_ || defined _LIBIPSET_DYNAMIC_
+static char*
+get_modprobe(void)
+{
+	int procfile;
+	char *ret;
+	ssize_t count;
+	struct stat buf;
+
+	ret = MALLOC(PATH_MAX);
+	if (!ret)
+		return NULL;
+
+	procfile = open("/proc/sys/kernel/modprobe", O_RDONLY | O_CLOEXEC);
+	if (procfile < 0) {
+		FREE(ret);
+		return NULL;
+	}
+
+	count = read(procfile, ret, PATH_MAX - 1);
+	ret[PATH_MAX - 1] = '\0';
+	close(procfile);
+
+	if (count > 0 && count < PATH_MAX - 1)
+	{
+		if (ret[count - 1] == '\n')
+			ret[count - 1] = '\0';
+		else
+			ret[count] = '\0';
+
+		/* Check it is a regular file, with a execute bit set */
+		if (!stat(ret, &buf) &&
+		    S_ISREG(buf.st_mode) &&
+		    (buf.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)))
+			return ret;
+	}
+
+	FREE(ret);
+
+	return NULL;
+}
+
+bool
+keepalived_modprobe(const char *mod_name)
+{
+	const char *argv[] = { "/sbin/modprobe", "-s", "--", mod_name, NULL };
+	int child;
+	int status;
+	int rc;
+	char *modprobe = get_modprobe();
+	struct sigaction act, old_act;
+	union non_const_args args;
+
+	if (modprobe)
+		argv[0] = modprobe;
+
+	act.sa_handler = SIG_DFL;
+	sigemptyset(&act.sa_mask);
+	act.sa_flags = 0;
+
+	sigaction ( SIGCHLD, &act, &old_act);
+
+#ifdef ENABLE_LOG_TO_FILE
+	if (log_file_name)
+		flush_log_file();
+#endif
+
+	if (!(child = fork())) {
+		args.args = argv;
+		/* coverity[tainted_string] */
+		execv(argv[0], args.execve_args);
+		exit(1);
+	}
+
+	rc = waitpid(child, &status, 0);
+
+	sigaction ( SIGCHLD, &old_act, NULL);
+
+	if (rc < 0) {
+		log_message(LOG_INFO, "IPVS: waitpid error (%s)"
+				    , strerror(errno));
+	}
+
+	if (modprobe)
+		FREE(modprobe);
+
+	if (!WIFEXITED(status) || WEXITSTATUS(status)) {
+		return true;
+	}
+
+	return false;
+}
+#endif
