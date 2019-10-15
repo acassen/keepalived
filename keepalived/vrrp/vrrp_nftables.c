@@ -104,6 +104,7 @@ static const char vmac_map_name[] = "vmac_map";
 
 static struct mnl_socket *nl;
 static uint32_t seq;
+static int ignore_errno;
 
 static int ifname_type;
 
@@ -221,7 +222,7 @@ exchange_nl_msg(struct mnl_nlmsg_batch *batch)
 	}
 	FREE(buf);
 
-	if (ret == -1) {
+	if (ret == -1 && errno != ignore_errno) {
 		log_message(LOG_INFO, "mnl_socket_recvfrom error - %d", errno);
 		return;
 	}
@@ -1099,7 +1100,12 @@ nft_setup_ipv4(struct mnl_nlmsg_batch *batch)
 					NLM_F_ACK, seq++);
 	nftnl_table_nlmsg_build_payload(nlh, ta);
 	my_mnl_nlmsg_batch_next(batch1);
+
+	/* Don't log an error of the table does not exist */
+	ignore_errno = ENOENT;
+
 	nft_end_batch(batch1, false);
+	ignore_errno = 0;
 
 	/* nft add table ip keepalived */
 	nlh = nftnl_table_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
@@ -1208,7 +1214,12 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 					NLM_F_CREATE|NLM_F_ACK, seq++);
 	nftnl_table_nlmsg_build_payload(nlh, ta);
 	my_mnl_nlmsg_batch_next(batch1);
+
+	/* Don't log an error of the table does not exist */
+	ignore_errno = ENOENT;
+
 	nft_end_batch(batch1, false);
+	ignore_errno = 0;
 
 	/* nft add table ip6 keepalived */
 	nlh = nftnl_table_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
