@@ -24,6 +24,8 @@
  * and constructing the netlink packets directly works just as well.
  */
 
+#include "config.h"
+
 #include <stdlib.h>
 #include <stddef.h>
 #include <time.h>
@@ -31,14 +33,13 @@
 #include <netinet/in.h>
 
 #include <net/if.h>
-#ifdef _HAVE_NET_LINUX_IF_H_COLLISION_
-#define _LINUX_IF_H
-#endif
 #include <linux/netfilter.h>
 #include <linux/netfilter/nf_tables.h>
 #include <linux/netfilter/nfnetlink.h>
 
+#ifdef HAVE_LIBNFTNL_UDATA_H
 #include <libnftnl/udata.h>
+#endif
 #include <libmnl/libmnl.h>
 #include <libnftnl/table.h>
 #include <libnftnl/chain.h>
@@ -76,6 +77,7 @@
 #define TYPE_BITS               6
 #define TYPE_MASK               ((1 << TYPE_BITS) - 1)
 
+#ifdef HAVE_LIBNFTNL_UDATA_H
 /* This should be declared in /usr/include/libnftnl/udata.h */
 enum byteorder {
         BYTEORDER_INVALID,
@@ -92,6 +94,7 @@ enum udata_set_type {
 	__NFTNL_UDATA_SET_MAX,
 };
 /* #define NFTNL_UDATA_SET_MAX (__NFTNL_UDATA_SET_MAX - 1) */
+#endif
 #endif
 
 /* Local definitions */
@@ -158,7 +161,7 @@ cb_func(const struct nlmsghdr *nlh, void *data)
 }
 #endif
 
-#ifndef HAVE_NFTNL_UDATA_PUT_U32
+#if defined HAVE_LIBNFTNL_UDATA_H && !defined HAVE_NFTNL_UDATA_PUT_U32
 static uint8_t
 nftnl_udata_put_u32(struct nftnl_udata_buf *buf, uint8_t type, uint32_t data)
 {
@@ -445,7 +448,9 @@ nftnl_set *setup_set(uint8_t family, const char *table,
 				 int set_type, int data_type)
 {
 	struct nftnl_set *s = NULL;
+#ifdef HAVE_LIBNFTNL_UDATA_H
 	struct nftnl_udata_buf *udbuf;
+#endif
 	static int set_id = 0;
 	int type_copy = type;
 	int size = 0;
@@ -520,6 +525,7 @@ nftnl_set *setup_set(uint8_t family, const char *table,
 	}
 	nftnl_set_set_u32(s, NFTNL_SET_ID, ++set_id);
 
+#ifdef HAVE_LIBNFTNL_UDATA_H
 	if (set_type & NFT_SET_MAP) {
 		udbuf = nftnl_udata_buf_alloc(NFT_USERDATA_MAXLEN);
 		if (!udbuf) {
@@ -534,6 +540,7 @@ nftnl_set *setup_set(uint8_t family, const char *table,
 				   nftnl_udata_buf_len(udbuf));
 		nftnl_udata_buf_free(udbuf);
 	}
+#endif
 
 	return s;
 }

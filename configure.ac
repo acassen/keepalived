@@ -1564,23 +1564,26 @@ if test .${enable_nftables} != .no; then
       AC_CHECK_DECLS([NFTA_DUP_MAX], [], [],
         [#include <linux/netfilter/nf_tables.h>])
 
-      AC_MSG_CHECKING([for nftnl_udata_put_u32])
-      SAV_LIBS="$LIBS"
-      LIBS="$LIBS `$PKG_CONFIG --libs libnftnl`"
-      AC_LINK_IFELSE([AC_LANG_SOURCE([[
-	  #include <libnftnl/udata.h>
-	  int main(void)
-	  {
-	    nftnl_udata_put_u32(NULL, 0, 0);
-	    return 0;
-	  }
-	]])], [
-	  AC_MSG_RESULT(yes)
-	  AC_DEFINE([HAVE_NFTNL_UDATA_PUT_U32], [ 1 ], [Define to 1 if nftnl_udata_put_u32 declared])
-	],[
-	  AC_MSG_RESULT(no)
+      AC_CHECK_HEADERS([libnftnl/udata.h],
+	[
+          AC_MSG_CHECKING([for nftnl_udata_put_u32])
+          SAV_LIBS="$LIBS"
+          LIBS="$LIBS `$PKG_CONFIG --libs libnftnl`"
+          AC_LINK_IFELSE([AC_LANG_SOURCE([[
+	      #include <libnftnl/udata.h>
+	      int main(void)
+	      {
+	        nftnl_udata_put_u32(NULL, 0, 0);
+	        return 0;
+	      }
+	    ]])], [
+	      AC_MSG_RESULT(yes)
+	      AC_DEFINE([HAVE_NFTNL_UDATA_PUT_U32], [ 1 ], [Define to 1 if nftnl_udata_put_u32 declared])
+	    ],[
+	      AC_MSG_RESULT(no)
+	    ])
+          LIBS="$SAV_LIBS"
 	])
-      LIBS="$SAV_LIBS"
     fi
   fi
   CPPFLAGS="$SAV_CPPFLAGS"
