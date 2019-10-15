@@ -181,7 +181,7 @@ exchange_nl_msg(struct mnl_nlmsg_batch *batch)
 	if (mnl_nlmsg_batch_is_empty(batch))
 		return;
 
-#if 1
+#if 0
 	FILE *fp = fopen("/tmp/nftrace", "a");
 	mnl_nlmsg_fprintf(fp, (char *)mnl_nlmsg_batch_head(batch), mnl_nlmsg_batch_size(batch), sizeof( struct nfgenmsg));
 	fclose(fp);

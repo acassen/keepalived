@@ -637,7 +637,8 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 	}
 
 #ifdef _WITH_FIREWALL_
-	firewall_remove_vmac(vrrp);
+	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
+		firewall_remove_vmac(vrrp);
 #endif
 
 	log_message(LOG_INFO, "vmac: Success removing VMAC interface %s for vrrp_instance %s"
