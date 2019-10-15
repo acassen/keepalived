@@ -269,4 +269,8 @@ extern int open_pipe(int [2]);
 #endif
 extern int memcmp_constant_time(const void *, const void *, size_t);
 
+#if defined _WITH_LVS_ || defined _LIBIPSET_DYNAMIC_
+extern bool keepalived_modprobe(const char *);
+#endif
+
 #endif

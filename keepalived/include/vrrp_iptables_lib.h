@@ -28,25 +28,22 @@
 #include <stdbool.h>
 
 #include "vrrp_ipaddress.h"
+#include "vrrp_iptables.h"
 
 struct ipt_handle;
 
 #define	IPTABLES_MAX_TRIES	3	/* How many times to try adding/deleting when get EAGAIN */
 
-#ifdef _LIBIPTC_DYNAMIC_
-extern bool using_libip4tc;		/* Set if using lib4iptc - for dynamic linking */
-extern bool using_libip6tc;		/* Set if using lib6iptc - for dynamic linking */
-#endif
-
-extern struct ipt_handle *iptables_open(void) __attribute__ ((malloc));
+extern struct ipt_handle *iptables_open(int) __attribute__ ((malloc));
 extern int iptables_close(struct ipt_handle *h);
-extern void check_chains_exist_lib(void);
+extern init_state_t check_chains_exist_lib(uint8_t);
 extern void handle_iptable_rule_to_vip_lib(ip_address_t *, int, struct ipt_handle *, bool);
+extern void handle_iptable_rule_for_igmp_lib(const char *, int, uint8_t, struct ipt_handle *);
 #ifdef _HAVE_LIBIPSET_
 extern void iptables_startup_lib(bool);
 extern void iptables_cleanup_lib(void);
-extern void iptables_fini_lib(void);
 #endif
-extern void iptables_init_lib(void);
+extern void iptables_fini_lib(void);
+extern init_state_t iptables_init_lib(uint8_t);
 
 #endif

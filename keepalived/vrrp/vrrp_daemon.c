@@ -230,6 +230,10 @@ vrrp_terminate_phase2(int exit_status)
 	}
 #endif
 
+#ifdef _WITH_FIREWALL_
+	firewall_fini();
+#endif
+
 	kernel_netlink_close_cmd();
 	thread_destroy_master(master);
 	master = NULL;
@@ -365,10 +369,6 @@ vrrp_terminate_phase1(bool schedule_next_thread)
 
 	if (vrrp_data->vrrp_track_files)
 		stop_track_files();
-
-#ifdef _WITH_FIREWALL_
-	firewall_fini();
-#endif
 
 	/* Clear static entries */
 #ifdef _HAVE_FIB_ROUTING_
@@ -570,18 +570,6 @@ start_vrrp(data_t *prev_global_data)
 		ndisc_init();
 	else
 		ndisc_close();
-
-#ifdef _WITH_FIREWALL_
-	/* We need to delay the init of iptables to after vrrp_complete_init()
-	 * has been called so we know whether we want IPv4 and/or IPv6 */
-	firewall_init();
-
-	/* Make sure we don't have any old iptables/ipsets settings left around */
-	if (!reload)
-		firewall_cleanup();
-
-	firewall_startup(reload);
-#endif
 
 	if (!reload)
 		vrrp_restore_interfaces_startup();

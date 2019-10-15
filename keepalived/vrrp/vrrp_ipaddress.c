@@ -710,7 +710,7 @@ clear_address_list(list delete_addr,
 	netlink_iplist(delete_addr, IPADDRESS_DEL, false);
 #ifdef _WITH_FIREWALL_
 	if (remove_from_firewall)
-		firewall_remove_rule_to_iplist(delete_addr, false);
+		firewall_remove_rule_to_iplist(delete_addr);
 #endif
 }
 

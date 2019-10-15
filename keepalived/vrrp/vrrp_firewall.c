@@ -33,11 +33,6 @@
 #include "vrrp_ipaddress.h"
 
 
-/* Set if need to block ip addresses and are able to do so */
-bool block_ipv4;
-bool block_ipv6;
-
-
 /* add/remove iptables/nftables drop rules */
 void
 firewall_handle_accept_mode(vrrp_t *vrrp, int cmd,
@@ -64,15 +59,11 @@ firewall_handle_accept_mode(vrrp_t *vrrp, int cmd,
 }
 
 void
-firewall_remove_rule_to_iplist(list ip_list,
-#ifndef _WITH_IPTABLES_
-					     __attribute__((unused))
-#endif
-								     bool force)
+firewall_remove_rule_to_iplist(list ip_list)
 {
 #ifdef _WITH_IPTABLES_
 	if (global_data->vrrp_iptables_inchain[0])
-		handle_iptable_rule_to_iplist(ip_list, NULL, IPADDRESS_DEL, force);
+		handle_iptable_rule_to_iplist(ip_list, NULL, IPADDRESS_DEL, false);
 #endif
 
 #ifdef _WITH_NFTABLES_
@@ -81,47 +72,42 @@ firewall_remove_rule_to_iplist(list ip_list,
 #endif
 }
 
+#ifdef _HAVE_VRRP_VMAC_
 void
-firewall_init(void)
+firewall_add_vmac(const vrrp_t *vrrp)
 {
 #ifdef _WITH_IPTABLES_
-	if (global_data->vrrp_iptables_inchain[0])
-		iptables_init();
-#endif
-}
-
-void
-firewall_startup(bool
-#ifndef _WITH_IPTABLES_
-		      __attribute__((unused))
-#endif
-					      reload)
-{
-#ifdef _WITH_IPTABLES_
-	if (global_data->vrrp_iptables_inchain[0])
-		iptables_startup(reload);
-#endif
-}
-
-void
-firewall_cleanup(void)
-{
-#ifdef _WITH_IPTABLES_
-	if (global_data->vrrp_iptables_inchain[0])
-		iptables_cleanup();
+	if (global_data->vrrp_iptables_outchain[0])
+		iptables_add_vmac(vrrp);
 #endif
 
 #ifdef _WITH_NFTABLES_
 	if (global_data->vrrp_nf_table_name)
-		nft_cleanup();
+		nft_add_vmac(vrrp);
 #endif
 }
+
+void
+firewall_remove_vmac(const vrrp_t *vrrp)
+{
+#ifdef _WITH_IPTABLES_
+	if (global_data->vrrp_iptables_outchain[0])
+		iptables_remove_vmac(vrrp);
+#endif
+
+#ifdef _WITH_NFTABLES_
+	if (global_data->vrrp_nf_table_name)
+		nft_remove_vmac(vrrp);
+#endif
+}
+#endif
 
 void
 firewall_fini(void)
 {
 #ifdef _WITH_IPTABLES_
-	if (global_data->vrrp_iptables_inchain[0])
+	if (global_data->vrrp_iptables_inchain[0] ||
+	    global_data->vrrp_iptables_outchain[0])
 		iptables_fini();
 #endif
 

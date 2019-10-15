@@ -66,101 +66,6 @@ ipvs_cmd_str(int cmd)
 	return "(unknown)";
 }
 
-/*
- * Utility functions coming from Wensong code
- */
-
-static char*
-get_modprobe(void)
-{
-	int procfile;
-	char *ret;
-	ssize_t count;
-	struct stat buf;
-
-	ret = MALLOC(PATH_MAX);
-	if (!ret)
-		return NULL;
-
-	procfile = open("/proc/sys/kernel/modprobe", O_RDONLY | O_CLOEXEC);
-	if (procfile < 0) {
-		FREE(ret);
-		return NULL;
-	}
-
-	count = read(procfile, ret, PATH_MAX - 1);
-	ret[PATH_MAX - 1] = '\0';
-	close(procfile);
-
-	if (count > 0 && count < PATH_MAX - 1)
-	{
-		if (ret[count - 1] == '\n')
-			ret[count - 1] = '\0';
-		else
-			ret[count] = '\0';
-
-		/* Check it is a regular file, with a execute bit set */
-		if (!stat(ret, &buf) &&
-		    S_ISREG(buf.st_mode) &&
-		    (buf.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)))
-			return ret;
-	}
-
-	FREE(ret);
-
-	return NULL;
-}
-
-static bool
-modprobe_ipvs(void)
-{
-	const char *argv[] = { "/sbin/modprobe", "-s", "--", "ip_vs", NULL };
-	int child;
-	int status;
-	int rc;
-	char *modprobe = get_modprobe();
-	struct sigaction act, old_act;
-	union non_const_args args;
-
-	if (modprobe)
-		argv[0] = modprobe;
-
-	act.sa_handler = SIG_DFL;
-	sigemptyset(&act.sa_mask);
-	act.sa_flags = 0;
-
-	sigaction ( SIGCHLD, &act, &old_act);
-
-#ifdef ENABLE_LOG_TO_FILE
-	if (log_file_name)
-		flush_log_file();
-#endif
-
-	if (!(child = fork())) {
-		args.args = argv;
-		/* coverity[tainted_string] */
-		execv(argv[0], args.execve_args);
-		exit(1);
-	}
-
-	rc = waitpid(child, &status, 0);
-
-	sigaction ( SIGCHLD, &old_act, NULL);
-
-	if (rc < 0) {
-		log_message(LOG_INFO, "IPVS: waitpid error (%s)"
-				    , strerror(errno));
-	}
-
-	if (modprobe)
-		FREE(modprobe);
-
-	if (!WIFEXITED(status) || WEXITSTATUS(status)) {
-		return true;
-	}
-
-	return false;
-}
 /* fetch virtual server group from group name */
 virtual_server_group_t * __attribute__ ((pure))
 ipvs_get_group_by_name(const char *gname, list l)
@@ -182,7 +87,7 @@ ipvs_start(void)
 	log_message(LOG_DEBUG, "%snitializing ipvs", reload ? "Rei" : "I");
 	/* Initialize IPVS module */
 	if (ipvs_init()) {
-		if (modprobe_ipvs() || ipvs_init()) {
+		if (keepalived_modprobe("ip_vs") || ipvs_init()) {
 			log_message(LOG_INFO, "IPVS: Can't initialize ipvs: %s",
 			       ipvs_strerror(errno));
 			no_ipvs = true;

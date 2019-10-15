@@ -41,6 +41,7 @@
 
 /* global includes */
 #include <stdbool.h>
+#include <arpa/inet.h>
 
 /* local includes */
 #include "vrrp_iptables_cmd.h"
@@ -52,14 +53,104 @@
 #endif
 #include "vrrp_firewall.h"
 
-#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
-static bool iptables_cmd_available;
-static bool ip6tables_cmd_available;
+#ifdef _HAVE_VRRP_VMAC_
+static bool igmp_setup[2];
 #endif
 
-#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
+static const char *
+ipaddressonlytos(char *buf, const ip_address_t *ipaddress)
+{
+	static char addr_str[INET6_ADDRSTRLEN];
+
+	if (!buf)
+		buf = addr_str;
+
+	if (IP_IS6(ipaddress))
+		inet_ntop(AF_INET6, &ipaddress->u.sin6_addr, buf, INET6_ADDRSTRLEN);
+	else
+		inet_ntop(AF_INET, &ipaddress->u.sin.sin_addr, buf, INET_ADDRSTRLEN);
+
+	return buf;
+}
+
+init_state_t
+check_chains_exist_cmd(uint8_t family)
+{
+	const char *argv[4];
+
+	argv[1] = "-nL";
+	argv[2] = global_data->vrrp_iptables_inchain;
+	argv[3] = NULL;
+
+	if (family == AF_INET)
+	{
+		argv[0] = "iptables";
+
+		if (fork_exec(argv) < 0) {
+			log_message(LOG_INFO, "iptables chain %s does not exist", global_data->vrrp_iptables_inchain);
+			return INIT_FAILED;
+		}
+
+		if (global_data->vrrp_iptables_outchain[0]) {
+			argv[2] = global_data->vrrp_iptables_outchain;
+			if (fork_exec(argv) < 0) {
+				log_message(LOG_INFO, "iptables chain %s does not exist", global_data->vrrp_iptables_outchain);
+				return INIT_FAILED;
+			}
+		}
+
+		return INIT_SUCCESS;
+	}
+
+	argv[0] = "ip6tables";
+	argv[2] = global_data->vrrp_iptables_inchain;
+
+	if (fork_exec(argv) < 0) {
+		log_message(LOG_INFO, "ip6tables chain %s does not exist", global_data->vrrp_iptables_inchain);
+		return INIT_FAILED;
+	}
+
+	if (global_data->vrrp_iptables_outchain[0]) {
+		argv[2] = global_data->vrrp_iptables_outchain;
+		if (fork_exec(argv) < 0) {
+			log_message(LOG_INFO, "ip6tables chain %s does not exist", global_data->vrrp_iptables_outchain);
+			return INIT_FAILED;
+		}
+	}
+
+	return INIT_SUCCESS;
+}
+
+init_state_t
+iptables_init_cmd(uint8_t family)
+{
+	const char *argv[3];
+
+	/* If can't use libiptc, check iptables command available */
+	argv[1] = "-V";
+	argv[2] = NULL;
+
+	if (family == AF_INET)
+	{
+		argv[0] = "iptables";
+		if (fork_exec(argv) < 0) {
+			log_message(LOG_INFO, "iptables command not available - can't filter IPv4 VIP address destinations");
+			return INIT_FAILED;
+		}
+
+	} else {
+		argv[0] = "ip6tables";
+		if (fork_exec(argv) < 0) {
+			log_message(LOG_INFO, "ip6tables command not available - can't filter IPv6 VIP address destinations");
+			return INIT_FAILED;
+		}
+	}
+
+	return INIT_SUCCESS;
+}
+
 static void
-handle_iptable_rule_to_NA_cmd(ip_address_t *ipaddress, int cmd, bool force)
+handle_iptable_rule_to_NA_cmd(ip_address_t *ipaddress, const char *ifname, int cmd, bool force)
 {
 	const char *argv[14];
 	int i = 0;
@@ -70,17 +161,17 @@ handle_iptable_rule_to_NA_cmd(ip_address_t *ipaddress, int cmd, bool force)
 	if (global_data->vrrp_iptables_inchain[0] == '\0')
 		return;
 
-	addr_str = ipaddresstos(NULL, ipaddress);
+	addr_str = ipaddressonlytos(NULL, ipaddress);
 
 	argv[i++] = "ip6tables";
-	argv[i++] = cmd ? "-A" : "-D";
+	argv[i++] = cmd ? "-I" : "-D";
 	argv[i++] = global_data->vrrp_iptables_inchain;
 	argv[i++] = "-d";
 	argv[i++] = addr_str;
 	if (IN6_IS_ADDR_LINKLOCAL(&ipaddress->u.sin6_addr)) {
 		if_specifier = i;
 		argv[i++] = "-i";
-		argv[i++] = ipaddress->ifp->ifname;
+		argv[i++] = ifname;
 	}
 	argv[i++] = "-p";
 	argv[i++] = "icmpv6";
@@ -134,25 +225,16 @@ handle_iptable_rule_to_vip_cmd(ip_address_t *ipaddress, int cmd, bool force)
 	const char *ifname = NULL;
 
 	if (IP_IS6(ipaddress)) {
-		if (!ip6tables_cmd_available)
-			return;
-	} else {
-		if (!iptables_cmd_available)
-			return;
-	}
-
-	if (IP_IS6(ipaddress)) {
 		if (IN6_IS_ADDR_LINKLOCAL(&ipaddress->u.sin6_addr))
 			ifname = ipaddress->ifp->ifname;
-		handle_iptable_rule_to_NA_cmd(ipaddress, cmd, force);
 		argv[i++] = "ip6tables";
 	} else {
 		argv[i++] = "iptables";
 	}
 
-	addr_str = ipaddresstos(NULL, ipaddress);
+	addr_str = ipaddressonlytos(NULL, ipaddress);
 
-	argv[i++] = cmd ? "-A" : "-D";
+	argv[i++] = cmd ? "-I" : "-D";
 	argv[i++] = global_data->vrrp_iptables_inchain;
 	argv[i++] = "-d";
 	argv[i++] = addr_str;
@@ -184,100 +266,86 @@ handle_iptable_rule_to_vip_cmd(ip_address_t *ipaddress, int cmd, bool force)
 	if (fork_exec(argv) < 0 && !force)
 		log_message(LOG_ERR, "Failed to %s ip%stable drop rule"
 				     " from vip %s", (cmd) ? "set" : "remove", IP_IS6(ipaddress) ? "6" : "", addr_str);
+
+	if (IP_IS6(ipaddress))
+		handle_iptable_rule_to_NA_cmd(ipaddress, ifname, cmd, force);
+}
+
+#ifdef _HAVE_VRRP_VMAC_
+static void
+add_del_igmp_rules(uint8_t family, int cmd)
+{
+	const char *argv[9];
+	int i = 0;
+
+	argv[i++] = family == AF_INET ? "iptables" : "ip6tables";
+	argv[i++] = cmd ? "-A" : "-D";
+	argv[i++] = global_data->vrrp_iptables_outchain;
+	argv[i++] = "!";
+	argv[i++] = "-d";
+	argv[i++] = family == AF_INET ? "224.0.0.22" : "ff02::16";
+	argv[i++] = "-j";
+	argv[i++] = "RETURN";
+	argv[i] = NULL;
+
+	if (fork_exec(argv))
+		log_message(LOG_ERR, "Failed to %s ip%stable igmp check rule",
+				     cmd ? "set" : "remove", family == AF_INET6 ? "6" : "");
+log_message(LOG_INFO, "Adding comment for cmd");
+i=3;
+argv[i++] = "-m";
+argv[i++] = "comment";
+argv[i++] = "--comment";
+argv[i++] = "Using_iptables_cmd";
+argv[i] = NULL;
+	if (fork_exec(argv))
+		log_message(LOG_ERR, "Failed to %s ip%stable comment",
+				     cmd ? "set" : "remove", family == AF_INET6 ? "6" : "");
+}
+
+static void
+setup_igmp(uint8_t family)
+{
+	add_del_igmp_rules(family, IPADDRESS_ADD);
+	igmp_setup[family != AF_INET] = true;
+}
+
+void
+handle_iptable_rule_for_igmp_cmd(const char *ifname, int cmd, uint8_t family)
+{
+	const char *argv[8];
+	int i = 0;
+
+	if (!igmp_setup[family != AF_INET])
+		setup_igmp(family);
+
+	argv[i++] = family == AF_INET ? "iptables" : "ip6tables";
+	argv[i++] = cmd ? "-A" : "-D";
+	argv[i++] = global_data->vrrp_iptables_outchain;
+	argv[i++] = "-o";
+	argv[i++] = ifname;
+	argv[i++] = "-j";
+	argv[i++] = "DROP";
+	argv[i] = NULL;
+
+	if (fork_exec(argv))
+		log_message(LOG_ERR, "Failed to %s ip%stable igmp drop rule for %s",
+				     cmd ? "set" : "remove", family == AF_INET6 ? "6" : "", ifname);
 }
 #endif
 
 void
-check_chains_exist_cmd(void)
+iptables_fini_cmd(void)
 {
-#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
-	const char *argv[4];
-
-	argv[1] = "-nL";
-	argv[2] = global_data->vrrp_iptables_inchain;
-	argv[3] = NULL;
-
-	if (block_ipv4)
-	{
-#ifdef _LIBIPTC_DYNAMIC_
-		if (!using_libip4tc)
-#endif
-		{
-			argv[0] = "iptables";
-
-			if (fork_exec(argv) < 0) {
-				log_message(LOG_INFO, "iptables chain %s does not exist", global_data->vrrp_iptables_inchain);
-				block_ipv4 = false;
-			}
-			else if (global_data->vrrp_iptables_outchain[0]) {
-				argv[2] = global_data->vrrp_iptables_outchain;
-				if (fork_exec(argv) < 0) {
-					log_message(LOG_INFO, "iptables chain %s does not exist", global_data->vrrp_iptables_outchain);
-					block_ipv4 = false;
-				}
-			}
-		}
+#ifdef _HAVE_VRRP_VMAC_
+	if (igmp_setup[0]) {
+		add_del_igmp_rules(AF_INET, IPADDRESS_DEL);
+		igmp_setup[0] = false;
 	}
 
-	if (block_ipv6)
-	{
-#ifdef _LIBIPTC_DYNAMIC_
-		if (!using_libip6tc)
-#endif
-		{
-			argv[0] = "ip6tables";
-			argv[2] = global_data->vrrp_iptables_inchain;
-
-			if (fork_exec(argv) < 0) {
-				log_message(LOG_INFO, "ip6tables chain %s does not exist", global_data->vrrp_iptables_inchain);
-				block_ipv6 = false;
-			}
-			else if (global_data->vrrp_iptables_outchain[0]) {
-				argv[2] = global_data->vrrp_iptables_outchain;
-				if (fork_exec(argv) < 0) {
-					log_message(LOG_INFO, "ip6tables chain %s does not exist", global_data->vrrp_iptables_outchain);
-					block_ipv6 = false;
-				}
-			}
-		}
-	}
-#endif
-}
-
-void
-iptables_init_cmd(void)
-{
-#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
-	const char *argv[3];
-
-	/* If can't use libiptc, check iptables command available */
-	argv[1] = "-V";
-	argv[2] = NULL;
-
-	if (block_ipv4
-#ifdef _LIBIPTC_DYNAMIC_
-		       && !using_libip4tc
-#endif
-				       )
-	{
-		argv[0] = "iptables";
-		if (!(iptables_cmd_available = (fork_exec(argv) >= 0))) {
-			log_message(LOG_INFO, "iptables command not available - can't filter IPv4 VIP address destinations");
-			block_ipv4 = false;
-		}
-	}
-
-	if (block_ipv6
-#ifdef _LIBIPTC_DYNAMIC_
-		       && !using_libip6tc
-#endif
-					 )
-	{
-		argv[0] = "ip6tables";
-		if (!(ip6tables_cmd_available = (fork_exec(argv) >= 0))) {
-			log_message(LOG_INFO, "ip6tables command not available - can't filter IPv6 VIP address destinations");
-			block_ipv6 = false;
-		}
+	if (igmp_setup[1]) {
+		add_del_igmp_rules(AF_INET6, IPADDRESS_DEL);
+		igmp_setup[1] = false;
 	}
 #endif
 }

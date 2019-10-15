@@ -3092,13 +3092,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #endif
 							     )
 	{
-		/* We need to know if we need to allow IPv6 just for eVIPs */
-		if (vrrp->family == AF_INET && !LIST_ISEMPTY(vrrp->evip)) {
-			LIST_FOREACH(vrrp->evip, vip, e) {
-				if (vip->ifa.ifa_family == AF_INET6) {
-					vrrp->evip_add_ipv6 = true;
-					break;
-				}
+		/* We need to know if we have eVIPs of the other address family */
+		LIST_FOREACH(vrrp->evip, vip, e) {
+			if (vip->ifa.ifa_family != vrrp->family) {
+				vrrp->evip_other_family = true;
+				break;
 			}
 		}
 
@@ -3120,12 +3118,15 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 #endif
 
-	/* Spin through all our addresses, setting ifindex and ifp.
-	   We also need to know what addresses we might block */
+	/* See if we need to enable the firewall */
 //TODO = we have a problem since SNMP may change accept mode
 //it can also change priority
 #ifdef _WITH_FIREWALL_
-	if (vrrp->base_priority != VRRP_PRIO_OWNER && !vrrp->accept) {
+	if ((vrrp->base_priority != VRRP_PRIO_OWNER && !vrrp->accept)
+#ifdef _HAVE_VRRP_VMAC_
+	    || __test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)
+#endif
+			) {
 		bool have_firewall = false;
 
 #ifdef _WITH_IPTABLES_
@@ -3138,26 +3139,17 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #endif
 
 		if (!have_firewall) {
-#ifdef _WITH_IPTABLES_
-			strcpy(global_data->vrrp_iptables_inchain, DEFAULT_IPTABLES_CHAIN_IN);
-			strcpy(global_data->vrrp_iptables_outchain, DEFAULT_IPTABLES_CHAIN_OUT);
-#else
-			char *str = MALLOC(strlen(DEFAULT_NFTABLES_TABLE) + 1);
+#ifdef _WITH_NFTABLES_
+			/* str is needed since vrrp_nf_table_name is const char * */
+			char *str;
+			str = MALLOC(strlen(DEFAULT_NFTABLES_TABLE) + 1);
 			strcpy(str, DEFAULT_NFTABLES_TABLE);
 			global_data->vrrp_nf_table_name = str;
+#else
+			log_message(LOG_INFO, "Adding iptables rules to default chains, but chains not configured");
+			strcpy(global_data->vrrp_iptables_inchain, DEFAULT_IPTABLES_CHAIN_IN);
+			strcpy(global_data->vrrp_iptables_outchain, DEFAULT_IPTABLES_CHAIN_OUT);
 #endif
-		}
-
-		if (vrrp->family == AF_INET)
-			block_ipv4 = true;
-		else
-			block_ipv6 = true;
-
-		LIST_FOREACH(vrrp->evip, vip, e) {
-			if (vip->ifa.ifa_family == AF_INET)
-				block_ipv4 = true;
-			else
-				block_ipv6 = true;
 		}
 	}
 #endif
@@ -3899,10 +3891,9 @@ static void
 clear_diff_vrrp_vip(vrrp_t *old_vrrp, vrrp_t *vrrp)
 {
 	list addr_list;
-#ifdef _WITH_FIREWALL_
-	bool fw_set;
-#endif
+	bool fw_set = false;
 
+// !!!! TODO need to handle accept_mode changing - either remove all or add all. Do new entries get added for new VIPs?
 	if (!old_vrrp->vipset)
 		return;
 
@@ -3911,16 +3902,9 @@ clear_diff_vrrp_vip(vrrp_t *old_vrrp, vrrp_t *vrrp)
 
 #ifdef _WITH_FIREWALL_
 	fw_set = (old_vrrp->base_priority != VRRP_PRIO_OWNER && !old_vrrp->accept);
-	clear_address_list(addr_list, fw_set);
-
-	if (old_vrrp->base_priority != VRRP_PRIO_OWNER && !old_vrrp->accept) {
-		firewall_remove_rule_to_iplist(addr_list, false);
-		vrrp->firewall_rules_set = true;
-	} else
-		vrrp->firewall_rules_set = false;
-#else
-	clear_address_list(addr_list, false);
+	vrrp->firewall_rules_set = fw_set;
 #endif
+	clear_address_list(addr_list, fw_set);
 
 	free_list(&addr_list);
 }

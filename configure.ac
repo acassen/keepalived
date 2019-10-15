@@ -190,7 +190,7 @@ AC_ARG_ENABLE(linkbeat,
 AC_ARG_ENABLE(gnu-std-paths,
   [AS_HELP_STRING([--enable-gnu-std-paths], [use GNU standard paths for pid files etc])])
 AC_ARG_ENABLE(dynamic-linking,
-  [AS_HELP_STRING([--enable-dynamic-linking], [compile with/without dynamically linked libiptc/libipset])])
+  [AS_HELP_STRING([--enable-dynamic-linking], [compile with/without dynamically linked libiptc/libipset/libnl])])
 AC_ARG_ENABLE(iptables,
   [AS_HELP_STRING([--disable-iptables], [compile without iptables support])],
   [], [IPTABLES_SILENT=Yes])
@@ -198,8 +198,6 @@ AC_ARG_ENABLE(libiptc-dynamic,
   [AS_HELP_STRING([--enable-libiptc-dynamic], [compile with libiptc dynamically linked])])
 AC_ARG_ENABLE(libipset-dynamic,
   [AS_HELP_STRING([--disable-libipset-dynamic], [compile with libipset statically linked])])
-AC_ARG_ENABLE(libxtables-dynamic,
-  [AS_HELP_STRING([--enable-libxtables-dynamic], [compile with libxtables dynamically linked])])
 AC_ARG_ENABLE(libnl-dynamic,
   [AS_HELP_STRING([--enable-libnl-dynamic], [compile with libnl dynamically linked])])
 AC_ARG_ENABLE(libiptc,
@@ -358,69 +356,64 @@ add_to_var([KA_LIBS], [-lm])
 
 # Some sanity checks on configure options
 AS_IF([test .$enable_vrrp = .no],
-  [
     AS_IF([test .$IPTABLES_SILENT == .Yes], [enable_iptables=no])
     AS_IF([test .$NFTABLES_SILENT == .Yes], [enable_nftables=no])
 
-    AS_IF([test .$enable_perf = .yes], [AC_MSG_ERROR([enable-perf requires vrrp])])
-    AS_IF([test .$enable_libiptc_dynamic = .yes], [AC_MSG_ERROR([enable-libiptc-dynamic requires vrrp])])
-    AS_IF([test .$enable_libxtables_dynamic = .yes], [AC_MSG_ERROR([enable-libxtables-dynamic requires vrrp])])
-    AS_IF([test .$enable_libiptc = .no], [AC_MSG_ERROR([disable-libiptc requires vrrp])])
-    AS_IF([test .$enable_libipset = .no], [AC_MSG_ERROR([disable-libipset requires vrrp])])
+    AS_IF([test .$enable_perf != .], [AC_MSG_ERROR([enable-perf requires vrrp])])
     AS_IF([test $with_fixed_if_type], [AC_MSG_ERROR([with-fixed-if-type requires vrrp])])
-    AS_IF([test .$enable_vrrp_fd_debug = .yes], [AC_MSG_ERROR([enable-vrrp-fd-debug requires vrrp])])
-    AS_IF([test .$enable_vrrp_fd_debug = .yes], [AC_MSG_ERROR([enable-vrrp-fd-debug requires vrrp])])
-    AS_IF([test .$enable_tsm_debug = .yes], [AC_MSG_ERROR([enable-tsm-debug requires vrrp])])
-    AS_IF([test .$enable_json = .yes], [AC_MSG_ERROR([enable-json requires vrrp])])
-    AS_IF([test .$enable_snmp_vrrp = .yes], [AC_MSG_ERROR([enable-snmp-vrrp requires vrrp])])
-    AS_IF([test .$enable_snmp_keepalived = .yes], [AC_MSG_ERROR([enable-snmp-keepalived requires vrrp])])
-    AS_IF([test .$enable_snmp_rfc = .yes], [AC_MSG_ERROR([enable-snmp-rfc requires vrrp])])
-    AS_IF([test .$enable_snmp_rfcv2 = .yes], [AC_MSG_ERROR([enable-snmp-rfcv2 requires vrrp])])
-    AS_IF([test .$enable_snmp_rfcv3 = .yes], [AC_MSG_ERROR([enable-snmp-rfcv3 requires vrrp])])
-    AS_IF([test .$enable_dbus = .yes], [AC_MSG_ERROR([enable-dbus requires vrrp])])
-    AS_IF([test .$enable_vrrp_auth = .no], [AC_MSG_ERROR([disable-vrrp-auth requires vrrp])])
-    AS_IF([test .$enable_checksum_compat = .no], [AC_MSG_ERROR([disable-checksum-compat requires vrrp])])
-    AS_IF([test .$enable_routes = .no], [AC_MSG_ERROR([disable-routes requires vrrp])])
-    AS_IF([test .$enable_linkbeat = .no], [AC_MSG_ERROR([disable-linkbeat requires vrrp])])
-    AS_IF([test .$enable_bfd = .yes], [AC_MSG_ERROR([enable-bfd requires vrrp])])
+    AS_IF([test .$enable_vrrp_fd_debug != .], [AC_MSG_ERROR([enable-vrrp-fd-debug requires vrrp])])
+    AS_IF([test .$enable_tsm_debug != .], [AC_MSG_ERROR([enable-tsm-debug requires vrrp])])
+    AS_IF([test .$enable_json != .], [AC_MSG_ERROR([enable-json requires vrrp])])
+    AS_IF([test .$enable_snmp_vrrp != .], [AC_MSG_ERROR([enable-snmp-vrrp requires vrrp])])
+    AS_IF([test .$enable_snmp_keepalived != .], [AC_MSG_ERROR([enable-snmp-keepalived requires vrrp])])
+    AS_IF([test .$enable_snmp_rfc != .], [AC_MSG_ERROR([enable-snmp-rfc requires vrrp])])
+    AS_IF([test .$enable_snmp_rfcv2 != .], [AC_MSG_ERROR([enable-snmp-rfcv2 requires vrrp])])
+    AS_IF([test .$enable_snmp_rfcv3 != .], [AC_MSG_ERROR([enable-snmp-rfcv3 requires vrrp])])
+    AS_IF([test .$enable_dbus != .], [AC_MSG_ERROR([enable-dbus requires vrrp])])
+    AS_IF([test .$enable_vrrp_auth != .], [AC_MSG_ERROR([disable-vrrp-auth requires vrrp])])
+    AS_IF([test .$enable_checksum_compat != .], [AC_MSG_ERROR([disable-checksum-compat requires vrrp])])
+    AS_IF([test .$enable_routes != .], [AC_MSG_ERROR([disable-routes requires vrrp])])
+    AS_IF([test .$enable_linkbeat != .], [AC_MSG_ERROR([disable-linkbeat requires vrrp])])
+    AS_IF([test .$enable_bfd != .], [AC_MSG_ERROR([enable-bfd requires vrrp])])
     AS_IF([test .$enable_iptables != .no], [AC_MSG_ERROR([enable-iptables requires vrrp])])
     AS_IF([test .$enable_nftables != .no], [AC_MSG_ERROR([enable-nftables requires vrrp])])
-    AS_IF([test .$enable_track_process = .yes], [AC_MSG_ERROR([enable-track-process requires vrrp])])
-    AS_IF([test .$enable_network_timestamp = .yes], [AC_MSG_ERROR([enable-network_timestamp requires vrrp])])
-  ])
+    AS_IF([test .$enable_track_process != .], [AC_MSG_ERROR([enable-track-process requires vrrp])])
+    AS_IF([test .$enable_network_timestamp != .], [AC_MSG_ERROR([enable-network_timestamp requires vrrp])])
+  )
 AS_IF([test .$enable_iptables = .no],
-  [
-    AS_IF([test .$enable_libiptc_dynamic = .yes], [AC_MSG_ERROR([enable-libiptc-dynamic requires vrrp and iptables])])
-    AS_IF([test .$enable_libipset_dynamic = .yes], [AC_MSG_ERROR([enable-libipset-dynamic requires vrrp and iptables])])
-    AS_IF([test .$enable_libxtables-dynamic = .yes], [AC_MSG_ERROR([enable-libxtables-dynamic requires vrrp and iptables])])
-    AS_IF([test .$enable_libipset = .yes], [AC_MSG_ERROR([enable-libipset requires vrrp and iptables])])
-  ])
+    AS_IF([test .$enable_libiptc != .], [AC_MSG_ERROR([disable-libiptc requires vrrp and iptables])])
+    AS_IF([test .$enable_libipset != .], [AC_MSG_ERROR([disable-libipset requires vrrp and iptables])])
+  )
+AS_IF([test .$enable_libiptc = .no],
+    AS_IF([test .$enable_libiptc_dynamic != .], [AC_MSG_ERROR([enable-libiptc-dynamic requires vrrp and libiptc])])
+    AS_IF([test .$enable_libipset != .], [AC_MSG_ERROR([disable-libipset requires libiptc])])
+    AS_IF([test .$enable_libipset_dynamic != .], [AC_MSG_ERROR([disable-libipset-dynamic requires libiptc])])
+  )
 AS_IF([test .$enable_libipset = .no],
-  [
-    AS_IF([test .$enable_libipset_dynamic = .yes], [AC_MSG_ERROR([enable-libipset-dynamic requires ipsets])])
-  ])
+    AS_IF([test .$enable_libipset_dynamic != .], [AC_MSG_ERROR([disable-libipset-dynamic requires ipsets])])
+  )
 AS_IF([test .$enable_snmp_rfc != .yes -a .$enable_snmp_rfcv3 != yes],
-  [
-    AS_IF([test .$enable_snmp_reply_v3_for_v2 = .yes], [AC_MSG_ERROR([enable-snmp-reply-v3-for-v2 requires enable-snmp-rfcv3 or enable-snmp-rfc])])
-  ])
+    AS_IF([test .$enable_snmp_reply_v3_for_v2 != .], [AC_MSG_ERROR([enable-snmp-reply-v3-for-v2 requires enable-snmp-rfcv3 or enable-snmp-rfc])])
+  )
 AS_IF([test .$enable_dbus != .yes],
-  [
-    AS_IF([test .$enable_dbus_create_instance = .yes], [AC_MSG_ERROR([enable-dbus-create-instance requires enable-dbus])])
-  ])
+    AS_IF([test .$enable_dbus_create_instance != .], [AC_MSG_ERROR([enable-dbus-create-instance requires enable-dbus])])
+  )
 AS_IF([test .$enable_lvs = .no],
-    AS_IF([test .$enable_regex = .yes], [AC_MSG_ERROR([enable-regex requires lvs])])
-    AS_IF([test .$enable_libnl_dynamic = .yes], [AC_MSG_ERROR([enable-libnl-dynamic requires lvs])])
-    AS_IF([test .$enable_libnl = .no], [AC_MSG_ERROR([disable-libnl requires lvs])])
-    AS_IF([test .$enable_lvs_syncd = .no], [AC_MSG_ERROR([disable-lvs-syncd requires lvs])])
-    AS_IF([test .$enable_lvs_64bit_stats = .no], [AC_MSG_ERROR([disable-lvs-64bit-stats requires lvs])])
-    AS_IF([test .$enable_fwmark = .yes], [AC_MSG_ERROR([enable-fwmark requires lvs])])
+    AS_IF([test .$enable_regex != .], [AC_MSG_ERROR([enable-regex requires lvs])])
+    AS_IF([test .$enable_libnl != .], [AC_MSG_ERROR([disable-libnl requires lvs])])
+    AS_IF([test .$enable_lvs_syncd != .], [AC_MSG_ERROR([disable-lvs-syncd requires lvs])])
+    AS_IF([test .$enable_lvs_64bit_stats != .], [AC_MSG_ERROR([disable-lvs-64bit-stats requires lvs])])
+    AS_IF([test .$enable_fwmark != .], [AC_MSG_ERROR([enable-fwmark requires lvs])])
+  )
+AS_IF([test .$enable_lvs = .no],
+    AS_IF([test .$enable_libnl_dynamic != .], [AC_MSG_ERROR([enable-libnl-dynamic requires lvs and libnl])])
   )
 AS_IF([test .$enable_regex != .yes],
-    AS_IF([test .$enable_regex_timers = .yes], [AC_MSG_ERROR([enable-regex-timers requires enable-regex])])
-    AS_IF([test .$enable_regex_debug = .yes], [AC_MSG_ERROR([enable-regex-debug requires enable-regex])])
+    AS_IF([test .$enable_regex_timers != .], [AC_MSG_ERROR([enable-regex-timers requires enable-regex])])
+    AS_IF([test .$enable_regex_debug != .], [AC_MSG_ERROR([enable-regex-debug requires enable-regex])])
   )
 AS_IF([test .$enable_track_process = .no],
-    AS_IF([test .$enable_track_process_debug = .yes], [AC_MSG_ERROR([enable-track-process-debug incompatible with disable-track-process])])
+    AS_IF([test .$enable_track_process_debug != .], [AC_MSG_ERROR([enable-track-process-debug incompatible with disable-track-process])])
   )
 
 dnl -- Check for diagnostic pragmas in functions - GCC 4.6.0
@@ -927,9 +920,8 @@ AS_IF([test "$enable_dynamic_linking"],
       [
 	enable_libiptc_dynamic=$enable_dynamic_linking
 	enable_libipset_dynamic=$enable_dynamic_linking
-	enable_libxtables_dynamic=$enable_dynamic_linking
       ])
-    AS_IF([test .$enable_vrrp != .no],
+    AS_IF([test .$enable_lvs != .no],
       [
 	enable_libnl_dynamic=$enable_dynamic_linking
       ])
@@ -1315,7 +1307,7 @@ AS_IF([test .$enable_iptables != .no],
       dnl -- linux/netfilter/x_tables.h since Linux 2.6.16
       SAV_CPPFLAGS="$CPPFLAGS"
       CPPFLAGS="$CPPFLAGS $kernelinc"
-      AC_CHECK_HEADERS([linux/netfilter/x_tables.h xtables.h libiptc/libip6tc.h libiptc/libiptc.h libiptc/libxtc.h], [],
+      AC_CHECK_HEADERS([linux/netfilter/x_tables.h libiptc/libip6tc.h libiptc/libiptc.h libiptc/libxtc.h], [],
 	[
 	  USE_LIBIPTC=No
 	  break
@@ -1358,17 +1350,6 @@ AS_IF([test .$enable_iptables != .no],
       fi
 
       if test $USE_LIBIPTC = Yes; then
-	if test .$enable_libxtables_dynamic != .yes; then
-	  add_pkg_config([xtables])
-	else
-	  add_pkg_config_without_libs([xtables])
-	  AC_DEFINE([_LIBXTABLES_DYNAMIC_], [ 1 ], [Define to 1 if building with libxtables dynamic linking])
-	  add_config_opt([XTABLES_DYNAMIC])
-	  NEED_LIBDL=Yes
-	  get_lib_name([xtables], [xtables_insmod])
-	  AC_DEFINE_UNQUOTED([XTABLES_LIB_NAME], [ "$LIB_NAME" ], [Define the xtables library name])
-	fi
-
 	dnl ----[Check for ipset libraries]----
 	SAV_CPPFLAGS="$CPPFLAGS"
 	CPPFLAGS="$CPPFLAGS $kernelinc"
@@ -1390,10 +1371,6 @@ AS_IF([test .$enable_iptables != .no],
 		  USE_LIBIPSET=No
 		  break
 		])
-
-	      if test $USE_LIBIPSET = Yes; then
-		AC_CHECK_LIB(xtables, xtables_insmod, [], [USE_LIBIPSET=No])
-	      fi
 
 	      if test $USE_LIBIPSET = Yes; then
 		dnl -- Need to use <libipset/linux_ip_set.h> for <linux/netfilter/xt_set.h> prior to Linux 3.4
@@ -1529,8 +1506,7 @@ AM_CONDITIONAL([IPTABLES], [test $USE_IPTABLES = Yes])
 AM_CONDITIONAL([IPTABLES_CMD], [test $USE_IPTABLES = Yes -a \( $USE_LIBIPTC = No -o .$LIBIPTC_DYNAMIC = .Yes \)])
 AM_CONDITIONAL([LIBIPTC_DYNAMIC], [test $USE_LIBIPTC = Yes -a .$LIBIPTC_DYNAMIC = .Yes])
 AM_CONDITIONAL([LIBIPSET_DYNAMIC], [test $USE_LIBIPSET = Yes -a .${enable_libipset_dynamic} != .no])
-AM_CONDITIONAL([LIBXTABLES_DYNAMIC], [test $USE_LIBIPTC = Yes -a .$enable_libxtables_dynamic = .yes])
-AM_CONDITIONAL([REQUIRE_IPTABLES_LIBS], [test $USE_IPTABLES = Yes -a $USE_LIBIPTC = Yes -a \( .$LIBIPTC_DYNAMIC = .Yes -o .$enable_libxtables_dynamic = .yes \)])
+AM_CONDITIONAL([REQUIRE_IPTABLES_LIBS], [test $USE_IPTABLES = Yes -a $USE_LIBIPTC = Yes -a .$LIBIPTC_DYNAMIC = .Yes])
 unset LIBS
 
 dnl ----[Check for nftables libraries]----
@@ -1546,7 +1522,6 @@ if test .${enable_nftables} != .no; then
      USE_NFTABLES=No
    ],
    [#include <linux/netfilter/nf_tables.h>])
-  CPPFLAGS="$SAV_CPPFLAGS"
 
   if test $USE_NFTABLES = Yes; then
     $PKG_CONFIG --exists libnftnl
@@ -1561,26 +1536,57 @@ if test .${enable_nftables} != .no; then
     fi
 
     if test $USE_NFTABLES = Yes; then
+      # nft prior to version 0.8.3 does not support type ifname in sets. We can't check the version of
+      #  nft, but we can check the version of libnftnl. nft v0.8.3 required libnftnl v1.0.9, but so did
+      #  nft v0.8.2. So play safe, and require the next version.
+      LIBNFTNL_VERSION=`printf "0x%2.2x%2.2x%2.2xU" \`pkg-config --modversion libnftnl | sed -e "s/\./ /g"\``
+      AC_DEFINE_UNQUOTED([LIBNFTNL_VERSION], [ $LIBNFTNL_VERSION ], [libnftnl version in hex])
+
       add_pkg_config([libnftnl])
       add_pkg_config([libmnl])
       AC_DEFINE([_WITH_NFTABLES_], [ 1 ], [Define to 1 if want nftables support])
       add_config_opt([NFTABLES])
       AC_MSG_CHECKING([whether NFTNL_EXPR_LOOKUP_FLAGS is defined])
       AC_LINK_IFELSE([AC_LANG_SOURCE([[
-	  #include <libnftnl/expr.h>
-	  int main(void)
-	  {
-	int i = NFTNL_EXPR_LOOKUP_FLAGS;
-	return 0;
-	  }
+	#include <libnftnl/expr.h>
+	int main(void)
+	{
+	  int i = NFTNL_EXPR_LOOKUP_FLAGS;
+	  return 0;
+	}
 	]])], [
 	  AC_MSG_RESULT(yes)
 	  AC_DEFINE([HAVE_NFTNL_EXPR_LOOKUP_FLAGS], [ 1 ], [Define to 1 if NFTNL_EXPR_LOOKUP_FLAGS defined])
 	],[
 	  AC_MSG_RESULT(no)
 	])
+      # nft dup from Linux 4.3
+      AC_CHECK_DECLS([NFTA_DUP_MAX], [], [],
+        [#include <linux/netfilter/nf_tables.h>])
+
+      AC_CHECK_HEADERS([libnftnl/udata.h],
+	[
+          AC_MSG_CHECKING([for nftnl_udata_put_u32])
+          SAV_LIBS="$LIBS"
+          LIBS="$LIBS `$PKG_CONFIG --libs libnftnl`"
+          AC_LINK_IFELSE([AC_LANG_SOURCE([[
+	      #include <libnftnl/udata.h>
+	      int main(void)
+	      {
+	        nftnl_udata_put_u32(NULL, 0, 0);
+	        return 0;
+	      }
+	    ]])], [
+	      AC_MSG_RESULT(yes)
+	      AC_DEFINE([HAVE_NFTNL_UDATA_PUT_U32], [ 1 ], [Define to 1 if nftnl_udata_put_u32 declared])
+	    ],[
+	      AC_MSG_RESULT(no)
+	    ])
+          LIBS="$SAV_LIBS"
+	])
     fi
   fi
+  CPPFLAGS="$SAV_CPPFLAGS"
 fi
 AM_CONDITIONAL([NFTABLES], [test $USE_NFTABLES = Yes])
 unset LIBS
@@ -2109,8 +2115,12 @@ if test "$enable_snmp" = yes -o \
   fi
 
   if test "$enable_snmp" = yes; then
-    SNMP_VRRP_SUPPORT=Yes
-    SNMP_CHECKER_SUPPORT=Yes
+    if test ${VRRP_SUPPORT} = Yes; then
+      SNMP_VRRP_SUPPORT=Yes
+    fi
+    if test ${IPVS_SUPPORT} = Yes; then
+      SNMP_CHECKER_SUPPORT=Yes
+    fi
   else
     if test "$enable_snmp_vrrp" = yes; then
       SNMP_VRRP_SUPPORT=Yes

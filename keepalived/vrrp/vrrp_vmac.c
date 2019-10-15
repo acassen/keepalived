@@ -37,6 +37,7 @@
 #include "utils.h"
 #include "vrrp_if_config.h"
 #include "vrrp_ipaddress.h"
+#include "vrrp_firewall.h"
 
 const char * const macvlan_ll_kind = "macvlan";
 #ifdef _HAVE_VRRP_IPVLAN_
@@ -331,7 +332,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 
 		/* We don't want IPv6 running on the interface unless we have some IPv6
 		 * eVIPs, so disable it if not needed */
-		if (!vrrp->evip_add_ipv6)
+		if (vrrp->family == AF_INET && !vrrp->evip_other_family)
 			link_set_ipv6(ifp, false);
 		else if (!create_interface) {
 			/* If we didn't create the VMAC we don't know what state it is in */
@@ -339,7 +340,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		}
 	}
 
-	if (vrrp->family == AF_INET6 || vrrp->evip_add_ipv6) {
+	if (vrrp->family == AF_INET6 || vrrp->evip_other_family) {
 		/* Make sure IPv6 is enabled for the interface, in case the
 		 * sysctl net.ipv6.conf.default.disable_ipv6 is set true. */
 		link_set_ipv6(ifp, true);
@@ -405,7 +406,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	kernel_netlink_poll();
 
 #if !HAVE_DECL_IFLA_INET6_ADDR_GEN_MODE
-	if (vrrp->family == AF_INET6 || vrrp->evip_add_ipv6) {
+	if (vrrp->family == AF_INET6 || vrrp->evip_other_family) {
 		/* Delete the automatically created link-local address based on the
 		 * MAC address if we weren't able to configure the interface not to
 		 * create the address (see above).
@@ -433,6 +434,9 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	 * as we progress */
 	kernel_netlink_poll();
 
+#ifdef _WITH_FIREWALL_
+	firewall_add_vmac(vrrp);
+#endif
 	return true;
 }
 
@@ -561,7 +565,7 @@ netlink_link_add_ipvlan(vrrp_t *vrrp)
 	if (vrrp->family == AF_INET) {
 		/* We don't want IPv6 running on the interface unless we have some IPv6
 		 * eVIPs, so disable it if not needed */
-		if (!vrrp->evip_add_ipv6)
+		if (vrrp->family == AF_INET && !vrrp->evip_other_family)
 			link_set_ipv6(ifp, false);
 		else if (!create_interface) {
 			/* If we didn't create the VMAC we don't know what state it is in */
@@ -569,7 +573,7 @@ netlink_link_add_ipvlan(vrrp_t *vrrp)
 		}
 	}
 
-	if (vrrp->family == AF_INET6 || vrrp->evip_add_ipv6) {
+	if (vrrp->family == AF_INET6 || vrrp->evip_other_family) {
 		/* Make sure IPv6 is enabled for the interface, in case the
 		 * sysctl net.ipv6.conf.default.disable_ipv6 is set true. */
 		link_set_ipv6(ifp, true);
@@ -631,6 +635,10 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 				    , vrrp->vmac_ifname, vrrp->iname);
 		return;
 	}
+
+#ifdef _WITH_FIREWALL_
+	firewall_remove_vmac(vrrp);
+#endif
 
 	log_message(LOG_INFO, "vmac: Success removing VMAC interface %s for vrrp_instance %s"
 			    , vrrp->vmac_ifname, vrrp->iname);
