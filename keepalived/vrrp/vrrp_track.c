@@ -45,6 +45,7 @@
 #include "parser.h"
 #include "utils.h"
 #include "vrrp_notify.h"
+#include "bitops.h"
 
 static int inotify_fd = -1;
 static thread_ref_t inotify_thread;
@@ -658,6 +659,7 @@ initialise_track_script_state(tracked_sc_t *tsc, vrrp_t *vrrp)
 			 (tsc->scr->result >= 0 && tsc->scr->result < tsc->scr->rise)) {
 			/* The script is in fault state */
 			vrrp->num_script_if_fault++;
+			log_message(LOG_INFO, "(%s): entering FAULT state due to script %s", vrrp->iname, tsc->scr->sname);
 			vrrp->state = VRRP_STATE_FAULT;
 		}
 		return;
@@ -719,6 +721,7 @@ initialise_interface_tracking_priorities(void)
 			if (!tvp->weight) {
 				if (IF_FLAGS_UP(ifp) != (tvp->weight_multiplier == 1)) {
 					/* The instance is down */
+					log_message(LOG_INFO, "(%s): entering FAULT state (interface %s down)", tvp->vrrp->iname, ifp->ifname);
 					tvp->vrrp->state = VRRP_STATE_FAULT;
 					tvp->vrrp->num_script_if_fault++;
 				}
@@ -747,6 +750,7 @@ initialise_file_tracking_priorities(void)
 
 			if (status <= -254) {
 				/* The instance is down */
+				log_message(LOG_INFO, "(%s): entering FAULT state (tracked file %s has status %i)", tvp->vrrp->iname, tfile->fname, status);
 				tvp->vrrp->state = VRRP_STATE_FAULT;
 				tvp->vrrp->num_script_if_fault++;
 			}
@@ -773,6 +777,7 @@ initialise_process_tracking_priorities(void)
 			if (!tvp->weight) {
 				if (tprocess->have_quorum != (tvp->weight_multiplier == 1)) {
 					/* The instance is down */
+					log_message(LOG_INFO, "(%s) entering FAULT state (tracked process %s quorum not achieved)", tvp->vrrp->iname, tprocess->pname);
 					tvp->vrrp->state = VRRP_STATE_FAULT;
 					tvp->vrrp->num_script_if_fault++;
 				}
@@ -802,8 +807,10 @@ initialise_vrrp_tracking_priorities(vrrp_t *vrrp)
 	/* If no src address has been specified, and the interface doesn't have
 	 * an appropriate address, put the interface into fault state */
 	if (vrrp->saddr.ss_family == AF_UNSPEC) {
-		vrrp->num_script_if_fault++;
+		/* The instance is down */
+		log_message(LOG_INFO, "(%s) entering FAULT state (no IPv4 address for interface)", vrrp->iname);
 		vrrp->state = VRRP_STATE_FAULT;
+		vrrp->num_script_if_fault++;
 	}
 
 	/* Initialise the vrrp instance's tracked scripts */
@@ -849,7 +856,7 @@ initialise_tracking_priorities(void)
 			if (vrrp->state == VRRP_STATE_FAULT) {
 				if (vrrp->sync->state != VRRP_STATE_FAULT) {
 					vrrp->sync->state = VRRP_STATE_FAULT;
-					log_message(LOG_INFO, "VRRP_Group(%s): Syncing instances to FAULT state", vrrp->sync->gname);
+					log_message(LOG_INFO, "VRRP_Group(%s): Syncing %s to FAULT state", vrrp->sync->gname, vrrp->iname);
 				}
 
 				vrrp->sync->num_member_fault++;
@@ -899,15 +906,17 @@ process_update_track_file_status(vrrp_tracked_file_t *tfile, int new_status, tra
 	if (previous_status == new_status)
 		return;
 
-	if (new_status == -254)
+	if (new_status == -254) {
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "(%s): tracked file %s now FAULT state", tvp->vrrp->iname, tfile->fname);
 		down_instance(tvp->vrrp);
-	else {
-		if (previous_status == -254)
-			try_up_instance(tvp->vrrp, false);
-		else if (tvp->vrrp->base_priority != VRRP_PRIO_OWNER) {
-			tvp->vrrp->total_priority += new_status - previous_status;
-			vrrp_set_effective_priority(tvp->vrrp);
-		}
+	} else if (previous_status == -254) {
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "(%s): tracked file %s leaving FAULT state", tvp->vrrp->iname, tfile->fname);
+		try_up_instance(tvp->vrrp, false);
+	} else if (tvp->vrrp->base_priority != VRRP_PRIO_OWNER) {
+		tvp->vrrp->total_priority += new_status - previous_status;
+		vrrp_set_effective_priority(tvp->vrrp);
 	}
 }
 

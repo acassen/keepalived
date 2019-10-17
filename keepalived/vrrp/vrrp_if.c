@@ -1521,8 +1521,11 @@ update_added_interface(interface_t *ifp)
 		if (vrrp->vmac_flags) {
 			if (tvp->type & TRACK_VRRP) {
 				add_vrrp_to_interface(vrrp, ifp->base_ifp, tvp->weight, tvp->weight_multiplier == -1, false, TRACK_VRRP_DYNAMIC);
-				if (!IF_ISUP(vrrp->configured_ifp->base_ifp) && !vrrp->dont_track_primary)
+				if (!IF_ISUP(vrrp->configured_ifp->base_ifp) && !vrrp->dont_track_primary) {
+					log_message(LOG_INFO, "(%s) interface %s is down",
+							vrrp->iname, vrrp->configured_ifp->base_ifp->ifname);
 					vrrp->num_script_if_fault++;
+				}
 			}
 
 			/* We might be the configured interface for a vrrp instance that itself uses
