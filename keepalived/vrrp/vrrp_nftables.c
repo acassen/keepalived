@@ -103,8 +103,8 @@ enum udata_set_type {
 static const char vmac_map_name[] = "vmac_map";
 
 static struct mnl_socket *nl;
+static unsigned int portid;
 static uint32_t seq;
-static int ignore_errno;
 
 static int ifname_type;
 
@@ -170,11 +170,32 @@ nftnl_udata_put_u32(struct nftnl_udata_buf *buf, uint8_t type, uint32_t data)
 }
 #endif
 
+
+static bool
+nl_socket_open(void)
+{
+	nl = mnl_socket_open(NETLINK_NETFILTER);
+	if (nl == NULL) {
+		log_message(LOG_INFO, "mnl_socket_open failed - %d", errno);
+		return false;
+	}
+
+	if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) < 0) {
+		log_message(LOG_INFO, "mnl_socket_bind error - %d", errno);
+		mnl_socket_close(nl);
+		nl = NULL;
+		return false;
+	}
+
+	portid = mnl_socket_get_portid(nl);
+
+	return true;
+}
+
 static void
 exchange_nl_msg(struct mnl_nlmsg_batch *batch)
 {
 	int ret;
-	uint32_t portid;
 	char *buf;
 	size_t buf_size;
 	long mnl_buf_size;
@@ -187,19 +208,8 @@ exchange_nl_msg(struct mnl_nlmsg_batch *batch)
 	mnl_nlmsg_fprintf(fp, (char *)mnl_nlmsg_batch_head(batch), mnl_nlmsg_batch_size(batch), sizeof( struct nfgenmsg));
 	fclose(fp);
 #endif
-	if (!nl) {
-		nl = mnl_socket_open(NETLINK_NETFILTER);
-		if (nl == NULL) {
-			log_message(LOG_INFO, "mnl_socket_open failed - %d", errno);
-			return;
-		}
-
-		if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) < 0) {
-			log_message(LOG_INFO, "mnl_socket_bind error - %d", errno);
-			return;
-		}
-	}
-	portid = mnl_socket_get_portid(nl);
+	if (!nl && !nl_socket_open())
+		return;
 
 	if (mnl_socket_sendto(nl, mnl_nlmsg_batch_head(batch),
 			      mnl_nlmsg_batch_size(batch)) < 0) {
@@ -215,28 +225,62 @@ exchange_nl_msg(struct mnl_nlmsg_batch *batch)
 
 	buf = MALLOC(buf_size);
 	while ((ret = mnl_socket_recvfrom(nl, buf, buf_size)) > 0) {
-		/* ret = mnl_cb_run(buf, ret, 0, portid, cb_func, NULL); */
 		ret = mnl_cb_run(buf, ret, 0, portid, NULL, NULL);
 		if (ret <= 0)
 			break;
 	}
 	FREE(buf);
 
-	if (ret == -1 && errno != ignore_errno) {
+	if (ret == -1)
 		log_message(LOG_INFO, "mnl_socket_recvfrom error - %d", errno);
-		return;
-	}
 }
 
-static bool
+static int
+table_cb(__attribute__((unused)) const struct nlmsghdr *nlh, void *data)
+{
+	*(bool *)data = true;
+
+        return MNL_CB_OK;
+}
+
+static void
+exchange_nl_msg_single(struct nlmsghdr *nlm, int (*cb_func)(const struct nlmsghdr *, void*), bool *success)
+{
+	int ret;
+	char buf[256];
+
+#if 0
+	FILE *fp = fopen("/tmp/nftrace", "a");
+	mnl_nlmsg_fprintf(fp, (char *)nlm, nlm->nlmsg_len, 0);
+	fclose(fp);
+#endif
+
+	if (!nl && !nl_socket_open())
+		return;
+
+	if (mnl_socket_sendto(nl, nlm, nlm->nlmsg_len) < 0) {
+		log_message(LOG_INFO, "mnl_socket_send error - %d", errno);
+		return ;
+	}
+
+	*success = false;
+	while ((ret = mnl_socket_recvfrom(nl, buf, sizeof(buf))) > 0) {
+		ret = mnl_cb_run(buf, ret, 0, portid, cb_func, success);
+		if (ret <= 0)
+			break;
+	}
+
+	if (ret == -1 && errno != ENOENT)
+		log_message(LOG_INFO, "mnl_socket_recvfrom single error - %d", errno);
+}
+
+static void
 my_mnl_nlmsg_batch_next(struct mnl_nlmsg_batch *batch)
 {
 	if (!mnl_nlmsg_batch_next(batch)) {
 		exchange_nl_msg(batch);
 		mnl_nlmsg_batch_reset(batch);
 	}
-
-	return true;
 }
 
 static void
@@ -1081,6 +1125,61 @@ nft_end_batch(struct mnl_nlmsg_batch *batch, bool more)
 	}
 }
 
+static bool
+check_table(uint8_t family, const char *table)
+{
+	struct nlmsghdr *nlh;
+	struct nftnl_table *t;
+	char buf[64];
+	bool have_table = false;
+
+	t = table_add_parse(family, table);
+	nlh = nftnl_table_nlmsg_build_hdr(buf, NFT_MSG_GETTABLE, family, NLM_F_ACK, seq++);
+	nftnl_table_nlmsg_build_payload(nlh, t);
+	nftnl_table_free(t);
+
+	exchange_nl_msg_single(nlh, table_cb, &have_table);
+
+	return have_table;
+}
+
+static void
+delete_table(struct mnl_nlmsg_batch *batch, uint8_t family, const char *table)
+{
+	struct nlmsghdr *nlh;
+	struct nftnl_table *t;
+
+	log_message(LOG_INFO, "Deleting old ip%s %s table", family == NFPROTO_IPV4 ? "" : "6", table);
+
+	/* nft delete table ip keepalived - make sure there is no residue*/
+	t = table_add_parse(family, table);
+	nlh = nftnl_table_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
+					NFT_MSG_DELTABLE, family,
+					NLM_F_ACK, seq++);
+	nftnl_table_nlmsg_build_payload(nlh, t);
+	nftnl_table_free(t);
+
+	my_mnl_nlmsg_batch_next(batch);
+}
+
+static void
+check_and_delete_tables(struct mnl_nlmsg_batch *batch, const char *table)
+{
+	bool have_ipv4_table;
+	bool have_ipv6_table;
+
+	/* We have to check the tables before adding the delete table entries
+	 * into the batch in order to ensure that the seq number doesn't get
+	 * out of step in the batch. */
+	have_ipv4_table = check_table(NFPROTO_IPV4, table);
+	have_ipv6_table = check_table(NFPROTO_IPV6, table);
+
+	if (have_ipv4_table)
+		delete_table(batch, NFPROTO_IPV4, table);
+	if (have_ipv6_table)
+		delete_table(batch, NFPROTO_IPV6, table);
+}
+
 /* To get the netlink message returned (with the handle), set NLM_F_ECHO in nftnl_..._nlmsg_build_hdr
  * For some reason, it isn't working for the second batch sent.
  */
@@ -1090,26 +1189,14 @@ nft_setup_ipv4(struct mnl_nlmsg_batch *batch)
 	struct nlmsghdr *nlh;
 	struct nftnl_table *ta;
 	struct nftnl_chain *t;
-	struct mnl_nlmsg_batch *batch1;
 
-	/* nft delete table ip keepalived - make sure there is no residue*/
-	ta = table_add_parse(NFPROTO_IPV4, global_data->vrrp_nf_table_name);
-	batch1 = nft_start_batch();
-	nlh = nftnl_table_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch1),
-					NFT_MSG_DELTABLE, nftnl_table_get_u32(ta, NFTNL_TABLE_FAMILY),
-					NLM_F_ACK, seq++);
-	nftnl_table_nlmsg_build_payload(nlh, ta);
-	my_mnl_nlmsg_batch_next(batch1);
-
-	/* Don't log an error of the table does not exist */
-	ignore_errno = ENOENT;
-
-	nft_end_batch(batch1, false);
-	ignore_errno = 0;
+	if (!ipv6_table_setup)
+		check_and_delete_tables(batch, global_data->vrrp_nf_table_name);
 
 	/* nft add table ip keepalived */
+	ta = table_add_parse(NFPROTO_IPV4, global_data->vrrp_nf_table_name);
 	nlh = nftnl_table_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
-					NFT_MSG_NEWTABLE, nftnl_table_get_u32(ta, NFTNL_TABLE_FAMILY),
+					NFT_MSG_NEWTABLE, NFPROTO_IPV4,
 					NLM_F_CREATE|NLM_F_ACK, seq++);
 	nftnl_table_nlmsg_build_payload(nlh, ta);
 	nftnl_table_free(ta);
@@ -1204,26 +1291,14 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 	struct nftnl_table *ta;
 	struct nftnl_chain *t;
 	const char *table = global_data->vrrp_nf_table_name;
-	struct mnl_nlmsg_batch *batch1;
 
-	/* nft delete table ip6 keepalived - make sure there is no residue */
-	ta = table_add_parse(NFPROTO_IPV6, table);
-	batch1 = nft_start_batch();
-	nlh = nftnl_table_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch1),
-					NFT_MSG_DELTABLE, nftnl_table_get_u32(ta, NFTNL_TABLE_FAMILY),
-					NLM_F_CREATE|NLM_F_ACK, seq++);
-	nftnl_table_nlmsg_build_payload(nlh, ta);
-	my_mnl_nlmsg_batch_next(batch1);
-
-	/* Don't log an error of the table does not exist */
-	ignore_errno = ENOENT;
-
-	nft_end_batch(batch1, false);
-	ignore_errno = 0;
+	if (!ipv4_table_setup)
+		check_and_delete_tables(batch, global_data->vrrp_nf_table_name);
 
 	/* nft add table ip6 keepalived */
+	ta = table_add_parse(NFPROTO_IPV6, table);
 	nlh = nftnl_table_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
-					NFT_MSG_NEWTABLE, nftnl_table_get_u32(ta, NFTNL_TABLE_FAMILY),
+					NFT_MSG_NEWTABLE, NFPROTO_IPV6,
 					NLM_F_CREATE|NLM_F_ACK, seq++);
 	nftnl_table_nlmsg_build_payload(nlh, ta);
 	nftnl_table_free(ta);
@@ -1435,7 +1510,7 @@ nft_update_ipv4_address(struct mnl_nlmsg_batch *batch, ip_address_t *addr, struc
 		return;
 	}
 
-	nftnl_set_elem_set(e, NFTNL_SET_ELEM_KEY, &addr->u.sin.sin_addr.s_addr, sizeof(struct in_addr));
+	nftnl_set_elem_set(e, NFTNL_SET_ELEM_KEY, &addr->u.sin.sin_addr.s_addr, sizeof(in_addr_t));
 	nftnl_set_elem_add(*s, e);
 }
 
@@ -1539,6 +1614,7 @@ nft_update_addresses(vrrp_t *vrrp, int cmd)
 	struct nftnl_set *ipv6_ll_index_set = NULL;
 	struct nftnl_set *ipv6_ll_name_set = NULL;
 	bool set_rule = (cmd == NFT_MSG_NEWSETELEM);
+	uint16_t type = (cmd == NFT_MSG_NEWSETELEM) ? NLM_F_CREATE | NLM_F_EXCL | NLM_F_ACK : NLM_F_ACK;
 
 	batch = nft_start_batch();
 
@@ -1571,7 +1647,7 @@ nft_update_addresses(vrrp_t *vrrp, int cmd)
 	if (ipv4_set) {
 		nlh = nftnl_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 					    cmd, NFPROTO_IPV4,
-					    NLM_F_CREATE | NLM_F_EXCL | NLM_F_ACK,
+					    type,
 					    seq++);
 		nftnl_set_elems_nlmsg_build_payload(nlh, ipv4_set);
 		nftnl_set_free(ipv4_set);
@@ -1581,7 +1657,7 @@ nft_update_addresses(vrrp_t *vrrp, int cmd)
 	if (ipv6_set) {
 		nlh = nftnl_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 					    cmd, NFPROTO_IPV6,
-					    NLM_F_CREATE | NLM_F_EXCL | NLM_F_ACK,
+					    type,
 					    seq++);
 		nftnl_set_elems_nlmsg_build_payload(nlh, ipv6_set);
 		nftnl_set_free(ipv6_set);
@@ -1591,7 +1667,7 @@ nft_update_addresses(vrrp_t *vrrp, int cmd)
 	if (ipv6_ll_index_set) {
 		nlh = nftnl_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 					    cmd, NFPROTO_IPV6,
-					    NLM_F_CREATE | NLM_F_EXCL | NLM_F_ACK,
+					    type,
 					    seq++);
 		nftnl_set_elems_nlmsg_build_payload(nlh, ipv6_ll_index_set);
 		nftnl_set_free(ipv6_ll_index_set);
@@ -1601,7 +1677,7 @@ nft_update_addresses(vrrp_t *vrrp, int cmd)
 	if (ipv6_ll_name_set) {
 		nlh = nftnl_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 					    cmd, NFPROTO_IPV6,
-					    NLM_F_CREATE | NLM_F_EXCL | NLM_F_ACK,
+					    type,
 					    seq++);
 		nftnl_set_elems_nlmsg_build_payload(nlh, ipv6_ll_name_set);
 		nftnl_set_free(ipv6_ll_name_set);
@@ -1750,11 +1826,12 @@ nft_update_vmac_element(struct mnl_nlmsg_batch *batch, struct nftnl_set *s, ifin
 {
 	struct nlmsghdr *nlh;
 	struct nftnl_set_elem *e;
+	uint16_t type = cmd == NFT_MSG_NEWSETELEM ? NLM_F_CREATE | NLM_F_ACK : NLM_F_ACK;
 
 	/* nft add element ip keepalived imap { "vrrp.253", "eth0" } */
 	nlh = nftnl_set_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 				      cmd, nfproto,
-				      NLM_F_CREATE|NLM_F_ACK, seq++);
+				      type, seq++);
 	e = nftnl_set_elem_alloc();
 	nftnl_set_elem_set(e, NFTNL_SET_ELEM_KEY, &vmac_ifindex, sizeof(vmac_ifindex));
 #if HAVE_DECL_NFTA_DUP_MAX
