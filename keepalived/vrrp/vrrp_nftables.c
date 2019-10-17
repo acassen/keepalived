@@ -228,15 +228,13 @@ exchange_nl_msg(struct mnl_nlmsg_batch *batch)
 	}
 }
 
-static bool
+static void
 my_mnl_nlmsg_batch_next(struct mnl_nlmsg_batch *batch)
 {
 	if (!mnl_nlmsg_batch_next(batch)) {
 		exchange_nl_msg(batch);
 		mnl_nlmsg_batch_reset(batch);
 	}
-
-	return true;
 }
 
 static void
@@ -1096,7 +1094,7 @@ nft_setup_ipv4(struct mnl_nlmsg_batch *batch)
 	ta = table_add_parse(NFPROTO_IPV4, global_data->vrrp_nf_table_name);
 	batch1 = nft_start_batch();
 	nlh = nftnl_table_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch1),
-					NFT_MSG_DELTABLE, nftnl_table_get_u32(ta, NFTNL_TABLE_FAMILY),
+					NFT_MSG_DELTABLE, NFPROTO_IPV4,
 					NLM_F_ACK, seq++);
 	nftnl_table_nlmsg_build_payload(nlh, ta);
 	my_mnl_nlmsg_batch_next(batch1);
@@ -1109,7 +1107,7 @@ nft_setup_ipv4(struct mnl_nlmsg_batch *batch)
 
 	/* nft add table ip keepalived */
 	nlh = nftnl_table_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
-					NFT_MSG_NEWTABLE, nftnl_table_get_u32(ta, NFTNL_TABLE_FAMILY),
+					NFT_MSG_NEWTABLE, NFPROTO_IPV4,
 					NLM_F_CREATE|NLM_F_ACK, seq++);
 	nftnl_table_nlmsg_build_payload(nlh, ta);
 	nftnl_table_free(ta);
@@ -1210,8 +1208,8 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 	ta = table_add_parse(NFPROTO_IPV6, table);
 	batch1 = nft_start_batch();
 	nlh = nftnl_table_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch1),
-					NFT_MSG_DELTABLE, nftnl_table_get_u32(ta, NFTNL_TABLE_FAMILY),
-					NLM_F_CREATE|NLM_F_ACK, seq++);
+					NFT_MSG_DELTABLE, NFPROTO_IPV6,
+					NLM_F_ACK, seq++);
 	nftnl_table_nlmsg_build_payload(nlh, ta);
 	my_mnl_nlmsg_batch_next(batch1);
 
@@ -1223,7 +1221,7 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 
 	/* nft add table ip6 keepalived */
 	nlh = nftnl_table_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
-					NFT_MSG_NEWTABLE, nftnl_table_get_u32(ta, NFTNL_TABLE_FAMILY),
+					NFT_MSG_NEWTABLE, NFPROTO_IPV6,
 					NLM_F_CREATE|NLM_F_ACK, seq++);
 	nftnl_table_nlmsg_build_payload(nlh, ta);
 	nftnl_table_free(ta);
@@ -1435,7 +1433,7 @@ nft_update_ipv4_address(struct mnl_nlmsg_batch *batch, ip_address_t *addr, struc
 		return;
 	}
 
-	nftnl_set_elem_set(e, NFTNL_SET_ELEM_KEY, &addr->u.sin.sin_addr.s_addr, sizeof(struct in_addr));
+	nftnl_set_elem_set(e, NFTNL_SET_ELEM_KEY, &addr->u.sin.sin_addr.s_addr, sizeof(in_addr_t));
 	nftnl_set_elem_add(*s, e);
 }
 
@@ -1539,6 +1537,7 @@ nft_update_addresses(vrrp_t *vrrp, int cmd)
 	struct nftnl_set *ipv6_ll_index_set = NULL;
 	struct nftnl_set *ipv6_ll_name_set = NULL;
 	bool set_rule = (cmd == NFT_MSG_NEWSETELEM);
+	uint16_t type = (cmd == NFT_MSG_NEWSETELEM) ? NLM_F_CREATE | NLM_F_EXCL | NLM_F_ACK : NLM_F_ACK;
 
 	batch = nft_start_batch();
 
@@ -1571,7 +1570,7 @@ nft_update_addresses(vrrp_t *vrrp, int cmd)
 	if (ipv4_set) {
 		nlh = nftnl_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 					    cmd, NFPROTO_IPV4,
-					    NLM_F_CREATE | NLM_F_EXCL | NLM_F_ACK,
+					    type,
 					    seq++);
 		nftnl_set_elems_nlmsg_build_payload(nlh, ipv4_set);
 		nftnl_set_free(ipv4_set);
@@ -1581,7 +1580,7 @@ nft_update_addresses(vrrp_t *vrrp, int cmd)
 	if (ipv6_set) {
 		nlh = nftnl_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 					    cmd, NFPROTO_IPV6,
-					    NLM_F_CREATE | NLM_F_EXCL | NLM_F_ACK,
+					    type,
 					    seq++);
 		nftnl_set_elems_nlmsg_build_payload(nlh, ipv6_set);
 		nftnl_set_free(ipv6_set);
@@ -1591,7 +1590,7 @@ nft_update_addresses(vrrp_t *vrrp, int cmd)
 	if (ipv6_ll_index_set) {
 		nlh = nftnl_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 					    cmd, NFPROTO_IPV6,
-					    NLM_F_CREATE | NLM_F_EXCL | NLM_F_ACK,
+					    type,
 					    seq++);
 		nftnl_set_elems_nlmsg_build_payload(nlh, ipv6_ll_index_set);
 		nftnl_set_free(ipv6_ll_index_set);
@@ -1601,7 +1600,7 @@ nft_update_addresses(vrrp_t *vrrp, int cmd)
 	if (ipv6_ll_name_set) {
 		nlh = nftnl_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 					    cmd, NFPROTO_IPV6,
-					    NLM_F_CREATE | NLM_F_EXCL | NLM_F_ACK,
+					    type,
 					    seq++);
 		nftnl_set_elems_nlmsg_build_payload(nlh, ipv6_ll_name_set);
 		nftnl_set_free(ipv6_ll_name_set);
@@ -1750,11 +1749,12 @@ nft_update_vmac_element(struct mnl_nlmsg_batch *batch, struct nftnl_set *s, ifin
 {
 	struct nlmsghdr *nlh;
 	struct nftnl_set_elem *e;
+	uint16_t type = cmd == NFT_MSG_NEWSETELEM ? NLM_F_CREATE | NLM_F_ACK : NLM_F_ACK;
 
 	/* nft add element ip keepalived imap { "vrrp.253", "eth0" } */
 	nlh = nftnl_set_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 				      cmd, nfproto,
-				      NLM_F_CREATE|NLM_F_ACK, seq++);
+				      type, seq++);
 	e = nftnl_set_elem_alloc();
 	nftnl_set_elem_set(e, NFTNL_SET_ELEM_KEY, &vmac_ifindex, sizeof(vmac_ifindex));
 #if HAVE_DECL_NFTA_DUP_MAX
