@@ -103,6 +103,7 @@ enum udata_set_type {
 static const char vmac_map_name[] = "vmac_map";
 
 static struct mnl_socket *nl;
+static unsigned int portid;
 static uint32_t seq;
 
 static int ifname_type;
@@ -169,11 +170,32 @@ nftnl_udata_put_u32(struct nftnl_udata_buf *buf, uint8_t type, uint32_t data)
 }
 #endif
 
+
+static bool
+nl_socket_open(void)
+{
+	nl = mnl_socket_open(NETLINK_NETFILTER);
+	if (nl == NULL) {
+		log_message(LOG_INFO, "mnl_socket_open failed - %d", errno);
+		return false;
+	}
+
+	if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) < 0) {
+		log_message(LOG_INFO, "mnl_socket_bind error - %d", errno);
+		mnl_socket_close(nl);
+		nl = NULL;
+		return false;
+	}
+
+	portid = mnl_socket_get_portid(nl);
+
+	return true;
+}
+
 static void
 exchange_nl_msg(struct mnl_nlmsg_batch *batch)
 {
 	int ret;
-	uint32_t portid;
 	char *buf;
 	size_t buf_size;
 	long mnl_buf_size;
@@ -186,19 +208,8 @@ exchange_nl_msg(struct mnl_nlmsg_batch *batch)
 	mnl_nlmsg_fprintf(fp, (char *)mnl_nlmsg_batch_head(batch), mnl_nlmsg_batch_size(batch), sizeof( struct nfgenmsg));
 	fclose(fp);
 #endif
-	if (!nl) {
-		nl = mnl_socket_open(NETLINK_NETFILTER);
-		if (nl == NULL) {
-			log_message(LOG_INFO, "mnl_socket_open failed - %d", errno);
-			return;
-		}
-
-		if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) < 0) {
-			log_message(LOG_INFO, "mnl_socket_bind error - %d", errno);
-			return;
-		}
-	}
-	portid = mnl_socket_get_portid(nl);
+	if (!nl && !nl_socket_open())
+		return;
 
 	if (mnl_socket_sendto(nl, mnl_nlmsg_batch_head(batch),
 			      mnl_nlmsg_batch_size(batch)) < 0) {
@@ -214,7 +225,6 @@ exchange_nl_msg(struct mnl_nlmsg_batch *batch)
 
 	buf = MALLOC(buf_size);
 	while ((ret = mnl_socket_recvfrom(nl, buf, buf_size)) > 0) {
-		/* ret = mnl_cb_run(buf, ret, 0, portid, cb_func, NULL); */
 		ret = mnl_cb_run(buf, ret, 0, portid, NULL, NULL);
 		if (ret <= 0)
 			break;
@@ -237,7 +247,6 @@ static void
 exchange_nl_msg_single(struct nlmsghdr *nlm, int (*cb_func)(const struct nlmsghdr *, void*), bool *success)
 {
 	int ret;
-	uint32_t portid;
 	char buf[256];
 
 #if 0
@@ -245,19 +254,9 @@ exchange_nl_msg_single(struct nlmsghdr *nlm, int (*cb_func)(const struct nlmsghd
 	mnl_nlmsg_fprintf(fp, (char *)nlm, nlm->nlmsg_len, 0);
 	fclose(fp);
 #endif
-	if (!nl) {
-		nl = mnl_socket_open(NETLINK_NETFILTER);
-		if (nl == NULL) {
-			log_message(LOG_INFO, "mnl_socket_open failed - %d", errno);
-			return ;
-		}
 
-		if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) < 0) {
-			log_message(LOG_INFO, "mnl_socket_bind error - %d", errno);
-			return ;
-		}
-	}
-	portid = mnl_socket_get_portid(nl);
+	if (!nl && !nl_socket_open())
+		return;
 
 	if (mnl_socket_sendto(nl, nlm, nlm->nlmsg_len) < 0) {
 		log_message(LOG_INFO, "mnl_socket_send error - %d", errno);
