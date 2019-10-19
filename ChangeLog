@@ -1,3 +1,189 @@
+2019-10-19 Alexandre Cassen <acassen@keepalived.org>
+	* keepalived-2.0.19
+	* Allow persistence, scheduler and flags of VS to be changed on reload
+	  A virtual server is identified by its IP address, protocol and port,
+	  or the firewall mark and address family, and not by the persistence
+	  settings or scheduler and scheduler flags. When comparing virtual
+	  servers on a reload, don't check persistence and scheduler settings
+	  match, but update them if necessary.
+	* Ignore default RS settings when comparing VSs after reload
+	  Various default settings for real servers belonging to a virtual
+	  server can be configured against a virtual server. These settings
+	  should be ignored when comparing virtual servers following a
+	  reload. Any differences in real server settings will be handled
+	  separately.
+	* Clarify what IPVS persistence engines are supported in man page
+	* Allow RS forwarding method to be changed on reload
+	  A real server is identified by its IP address and port, and not by
+	  the forwarding method.  When comparing real servers on a reload, don't
+	  check the forwarding method, but update it if necessary.
+	* Check address family when comparing fwmark VSs on reload
+	* Update test tcp server
+	* Allow more than one BFD instance with a neighbour
+	  This commit now checks both the neighbour address and the source/local
+	  address when finding a BFD instance. This means that more than one BFD
+	  instance can be set up with the same neighbour, so long as a different
+	  local address is used.
+	* Make PID files group and world readable
+	  Issue #1378 identified that PID files were created without group
+	  and work read in the file permission bits being set, due to the umask.
+	  This was causing a problem, since a non-root user was needing to read
+	  the PID file.
+	  This commit now forces the file permissions of PID files to be:
+	  owner=rw, group=r, other=r.
+	* Fix erroneous error message when creating IPv4 ipvlan interfaces
+	  The code was checking for a return value != -1 to identify an error,
+	  whereas it should have been checking for return value != 1.
+	* Ignore reloading signals till signal_init call
+	* fix bug in vrrp_json_track_ifp_dump()
+	* Fix handling unknown user in MISC_CHECK
+	  If the user was unknown, it wasn't dequeuing the new checker, resulting
+	  in a subsequent coredump.
+	* Fix ~SEQ handling
+	  Commit 47b2207 - "Add const attribute where appropriate in config parser
+	  code" broke handling of ~SEQ, due to including one extra character at the
+	  end of the sequence variable name.
+	  This commit corrects the length of the variable set as part of the ~SEQ
+	  processing.
+	* Revert "Fix route add/delete on reload if only change via address"
+	  This reverts commit f54c2e8294c6f2080c3ae951ba25bf40d5b8d211.
+	  The commit did the wrong thing: the via address is not part of the
+	  key of the route.
+	  The problem was that if it detected it already had a route with the
+	  same key, it replaced the route, but with the old route and not the
+	  new one. The next commit will rectify this.
+	* Correct handling of replacing routes on reload
+	  Issue #1390 identified that a route with a changed source address
+	  wasn't being changed on reload, and identified that the problem was
+	  related to issue #1220.
+	  It turns out that commit f54c2e8 which resolved issue #1220 was not
+	  the correct fix. The problem was that when reloading, if a new route
+	  matched an old route, the old route was replaced with the OLD route
+	  (i.e. it did nothing), rather than replacing it with the NEW route.
+	  This commit now replaces the old route with the new route.
+	* Add addresses/routes/rules in that order and delete in reverse order
+	  Routes can requires addresses to exist in order to be able to add them,
+	  and rules determine which routes are used.
+	* Fix not logging error on deletion of expired route
+	* Make netlink_route() return bool, and add some LIST_FOREACH
+	* Handle changing virtual route to use new VIP on reload
+	  During a reload, routes replacing existing routes are replaced, as
+	  opposed to deleted and added; this avoids the route disappearing for
+	  a short while.  However, if a new route uses a VIP that didn't exist
+	  in the old configuration then the route replacement will fail.
+	  The code is now changed so that it attempts to replace the route, but
+	  if that fails, it deletes the old route and later adds the new route
+	  after the new VIPS have been added.
+	* Don't log EPOLLERR or EPOLLHUP - they can occur with TCP_CHECK
+	* Fix tcp_server getopt() handling
+	* Properly handle MISC_CHECK script returning exit status 0
+	  If a MISC_CHECK script returned an exit status >= 2, and then the
+	  script returns 0, the weight of the real server was not updated
+	  following the script returning 0, and the quorum also wasn't updated.
+	  This commit makes keepalived update the weight of a real server and
+	  the quorum following a MISC_CHECK returning a 0 exit status.
+	  This is a change of behaviour for MISC_CHECKs whose scripts return
+	  an exit status >= 2 subsequently followed by an exit status of 0.
+	  However, the new behaviour is consistent with the documentation and
+	  is also the behaviour that would be expected. Some users may need to
+	  modify their MISC_CHECK scripts if the scripts return an exit code >= 2
+	  and subsequently return an exit code of 0 expecting that to mean that
+	  the status hasn't changed.
+	* Correct documentation re range of values for Virtual Router ID
+	  The valid range of values for the VRID is 1 to 255, and does not
+	  include 0.
+	* Handle script timeouts when child process has terminated
+	  Issue #1364 identified that if a track script timed out and the kill
+	  of the process failed to to its exit status already having been reaped,
+	  keepalived would never run the track scripts again. It transpires that
+	  the same problem existed with MISC_CHECK scripts.
+	  The commit now ensures that after the timeout the script will be set
+	  to idle state, so that it can be run again.
+	* Clear thread_master current_event when cleanup thread_master
+	  The current_event was left pointing to an event that had been deleted,
+	  with the consequence that if the next epoll event matched the outdated
+	  current_event, that outdated event could be used.
+	  This commit clears the current_event when the thread_master is cleaned up.
+	* Add errno numbers to some bfd error messages, rather than just text
+	  Although the strerror() text is helpful, it is often useful just to
+	  know the error number.
+	* Enable FIFOs to receive initial fault notifications at startup
+	  Issue #1399 identified that if a track_file caused a VRRP instance
+	  to start in fault state, there was no notification of the fault sent
+	  to the notify FIFOs.
+	  This commit implements the suggestion of chenwng in issue #1399 and
+	  moves the opening of the notify FIFOs to earlier in the init process.
+	* Resolve incorectly identified Coverity error
+	* Define VRRP and BFD initialisms
+	* Add support for nftables blocking IGMP/MLD packets on VMAC interfaces
+	  Issue #882 identified that VRRP instances using VMACs sent IGMP/MLD
+	  packets using the MAC address of the VMAC interface even when the
+	  vrrp instance was in backup state. This meant that switches would
+	  update what interface the VRRP MAC address was on to the backup
+	  instance, thereby meaning that until the master instance sent another
+	  advert, packets destined to be forwarded by the master instance would
+	  be delivered to the backup instance and lost.
+	  This commit adds support to use nftables to stop the packets being
+	  send from the VMAC interface (and thereby using the 00:00:5e:00:0x:xx
+	  MAC address), and instead the packets are sent on the parent interface.
+	  How this is acheived depends on whether the kernel supports the dup
+	  statement; if it does the IGMP messages are simply moved from the VMAC
+	  interface to the parent interface otherwise the join groups are done on
+	  both the VMAC interface and the parent interface, and nftables drops
+	  the join messages on the VMAC interface.
+	  This functionality might be better implemented using eBPF, but older
+	  systems don't support that, and I still need to work out how to use
+	  eBPF.
+	* Add support for using iptables to block VMAC IGMP/MLD messages
+	  Commit b10bbfc2a added support for using nftables to block
+	  IGMP/MLD messages being sent VMAC interfaces. This commit adds
+	  the equivalent functionality using iptables.
+	* Improve checking of incompatible configure options
+	* Fix Travis-CI build errors
+	* Don't attempt to remove IGMP blocking iptables rules for IPVLANs
+	  We don't block IGMP/MLD for IPVLANs so there are no rules to remove.
+	* Turn off nftables mnl debug logging
+	* Don't log an error when deleting nonexistant nftable at startup
+	  Since there is no native flush command to the kernel to delete all
+	  the rules, sets, meters etc in a table, we just delete the table,
+	  and if the table doesn't exist an error is returned.
+	  This commits stops the error being logged, since it isn't an error
+	  of interest.
+	* Minor tidying up of setting up nftables
+	* Fix error when setting up nftables with eVIPs from other family
+	  The sequence number of nftables netlink messages was getting out
+	  of order when a VRRP instance had both IPv4 and IPv6 entries.
+	  This is now resolved by checking for the existance of residual
+	  tables of both families when keepalived first checks for residual
+	  tables.
+	* Remove some duplicate nftables code
+	* Remove inhibit_on_failure from keepalived.conf(5) man page
+	  The inhibit_on_failure keyword does not apply to checkers, and is
+	  not implemented for them.
+	* Remove vi swap file erroneously included in previous commit
+	* Add additional logging of reasons for vrrp instances going to fault
+	  Pull request #1353 suggested adding additional logging for reasons
+	  for vrrp instances going to fault state at startup, and for track
+	  file status changes.
+	  This commit merges those changes, fixes one error, and only logs
+	  track file status changes if the -D option (log detail) is set.
+	* Make skip_check_adv_addr work properly
+	  Keepalived was checking the received advert packet length against
+	  the expected length based on the number of VIPs configured on the
+	  vrrp instance. This commit changes the check so that the received
+	  packet length is checked against the number of VIPs in the VRRP
+	  packet header, thereby ensuring that the advert packet is self
+	  consistent.
+	  The check for the number of addresses is now only done if
+	  skip_check_adr_addr is not set (which matches what the RFC says).
+	  Note: skip_check_adv_addr only skips the check of VIPs in a received
+	  packet if the advert is received from the same master as the previous
+	  advert.
+	  With this commit, if skip_check_adv_addr is set, it is possible to
+	  reload a master instance with a different number of VIPs, and then
+	  subsequently reload the backup instance, without the backup instance
+	  becoming master due to the mismatch of the number of VIPs.
+
 2019-07-26 Alexandre Cassen <acassen@keepalived.org>
 	* keepalived-2.0.18
 	* Set NA_ROUTER flag in gratuitous NA messages appropriately.
