@@ -410,7 +410,7 @@ extern bool do_network_timestamp;
 
 /* prototypes */
 extern void clear_summary_flags(void);
-extern size_t vrrp_adv_len(vrrp_t *) __attribute__ ((pure));
+extern size_t vrrp_adv_len(const vrrp_t *) __attribute__ ((pure));
 extern const vrrphdr_t *vrrp_get_header(sa_family_t, const char *, size_t);
 extern int open_vrrp_send_socket(sa_family_t, int, interface_t *, bool);
 extern int open_vrrp_read_socket(sa_family_t, int, interface_t *, bool, int);

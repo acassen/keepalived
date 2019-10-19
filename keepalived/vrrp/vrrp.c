@@ -297,7 +297,7 @@ check_vrrp_script_security(void)
 
 /* VRRP header length */
 static size_t
-vrrp_pkt_len(vrrp_t * vrrp)
+vrrp_pkt_len(const vrrp_t *vrrp)
 {
 	size_t len = sizeof(vrrphdr_t);
 
@@ -313,7 +313,7 @@ vrrp_pkt_len(vrrp_t * vrrp)
 }
 
 size_t __attribute__ ((pure))
-vrrp_adv_len(vrrp_t *vrrp)
+vrrp_adv_len(const vrrp_t *vrrp)
 {
 	size_t len = vrrp_pkt_len(vrrp);
 
@@ -374,6 +374,22 @@ vrrp_get_header(sa_family_t family, const char *buf, size_t len)
 	}
 
 	return NULL;
+}
+
+static size_t
+expected_vrrp_pkt_len(const vrrphdr_t *vh, int family)
+{
+	size_t len = sizeof(vrrphdr_t);
+
+	if (family == AF_INET) {
+		if (vh->vers_type >> 4 == VRRP_VERSION_2)
+			len += VRRP_AUTH_LEN;
+		len += vh->naddr * sizeof(struct in_addr);
+	}
+	else if (family == AF_INET6)
+		len += vh->naddr * sizeof(struct in6_addr);
+
+	return len;
 }
 
 static void
@@ -823,16 +839,15 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 		if (vrrp->auth_type == VRRP_AUTH_AH)
 			expected_len += sizeof(ipsec_ah_t);
 #endif
-
-		/* Now calculate expected_len to include everything */
-		expected_len += vrrp_pkt_len(vrrp);
 	} else if (vrrp->family == AF_INET6) {
-		/* Set expected vrrp packet length */
-		expected_len = vrrp_pkt_len(vrrp);
+		expected_len = 0;
 	} else {
 		log_message(LOG_INFO, "(%s) configured address family is %d, which is neither AF_INET or AF_INET6. This is probably a bug - please report", vrrp->iname, vrrp->family);
 		return VRRP_PACKET_KO;
 	}
+
+	/* Now calculate expected_len to include everything */
+	expected_len += expected_vrrp_pkt_len(hd, vrrp->family);
 
 	/*
 	 * MUST verify that the received packet contains the complete VRRP
@@ -974,9 +989,9 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 	}
 
 	/* Check the number of VIPs matches what we expect */
-	if (hd->naddr != LIST_ISEMPTY(vrrp->vip) ? 0 : LIST_SIZE(vrrp->vip)) {
+	if (check_vip_addr && hd->naddr != LIST_SIZE(vrrp->vip)) {
 		log_message(LOG_INFO, "(%s) received an unexpected ip number count %u, expected %u!",
-			vrrp->iname, hd->naddr, LIST_ISEMPTY(vrrp->vip) ? 0 : LIST_SIZE(vrrp->vip));
+			vrrp->iname, hd->naddr, LIST_SIZE(vrrp->vip));
 		++vrrp->stats->addr_list_err;
 		return VRRP_PACKET_KO;
 	}
@@ -1093,6 +1108,11 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 		 * MAY verify that the IP address(es) associated with the
 		 * VRID are valid
 		 */
+		if (hd->naddr != LIST_SIZE(vrrp->vip)) {
+			log_message(LOG_INFO, "(%s) expected %u VIPs but received %u", vrrp->iname, LIST_SIZE(vrrp->vip), hd->naddr);
+			return VRRP_PACKET_KO;
+		}
+
 		LIST_FOREACH(vrrp->vip, ipaddress, e) {
 			if (!vrrp_in_chk_vips(vrrp, ipaddress, vips)) {
 				log_message(LOG_INFO, "(%s) ip address associated with VRID %d"
