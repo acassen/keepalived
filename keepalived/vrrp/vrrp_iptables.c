@@ -29,6 +29,7 @@
 #include <linux/magic.h>
 
 #include "warnings.h"
+#include "logger.h"
 #include "vrrp_iptables.h"
 
 #include "global_data.h"
