@@ -133,10 +133,17 @@ parts:
       - --disable-libipset-dynamic
     organize:
       'usr/sbin/keepalived': usr/sbin/keepalived-500
+      'usr/etc/dbus-1/system.d/org.keepalived.Vrrp1.conf': etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
     stage:
       - usr/sbin/keepalived-500
+      - etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
+      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml
+      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
     prime:
       - usr/sbin/keepalived-500
+      - etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
+      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml
+      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
 
   linux-headers-418:
     plugin: nil
