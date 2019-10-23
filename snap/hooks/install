@@ -1,10 +1,15 @@
 #!/bin/sh
 
+# Create a default (emtpy) configuration file
 if [ ! -f /etc/keepalived/keepalived.conf ]; then
   mkdir -p /etc/keepalived
   touch /etc/keepalived/keepalived.conf
 fi
 
+# Copy the DBus files to the required directories
 for file in /etc/dbus-1/system.d/org.keepalived.Vrrp1.conf /usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml /usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml; do
-	[[ -d ${file%/*} ]] && cp -p $SNAP$file $file
+  DIR=`echo $fred | sed -e "s:/[^/]*$::"`
+  if [ -d $DIR ]; then
+    cp -p $SNAP$file $file
+  fi
 done
