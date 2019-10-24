@@ -218,7 +218,7 @@ alloc_global_data(void)
 }
 
 void
-init_global_data(data_t * data, data_t *prev_global_data, bool copy_network_namespace)
+init_global_data(data_t * data, data_t *prev_global_data, bool copy_unchangeable_config)
 {
 	/* If this is a reload and we are running in a network namespace,
 	 * we may not be able to get local_name, so preserve it */
@@ -230,10 +230,14 @@ init_global_data(data_t * data, data_t *prev_global_data, bool copy_network_name
 		data->local_name = prev_global_data->local_name;
 		prev_global_data->local_name = NULL;
 
-		if (copy_network_namespace) {
+		if (copy_unchangeable_config) {
 			FREE_CONST_PTR(data->network_namespace);
 			data->network_namespace = prev_global_data->network_namespace;
 			prev_global_data->network_namespace = NULL;
+
+			FREE_CONST_PTR(data->instance_name);
+			data->instance_name = prev_global_data->instance_name;
+			prev_global_data->instance_name = NULL;
 		}
 	}
 
