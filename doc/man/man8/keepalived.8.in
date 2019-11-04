@@ -336,7 +336,21 @@ Write statistics info to
 Write configuration data in JSON format to
 .B /tmp/keepalived.json
 .LP
-
+.SH "USING KEEPALIVED WITH FIREWALLD"
+If you are running a firewall (see
+.BR firewalld (8) )
+you must allow VRRP protocol traffic through the firewall. For example
+if this instance of
+.B keepalived(8)
+has a peer node on IPv4 address 192.168.0.1:
+.IP
+.nf
+# firewall-cmd \\
+    --add-rich-rule="rule family='ipv4' \\
+                     source address='192.168.0.1' \\
+                     protocol value='vrrp' accept" --permanent
+# firewall-cmd --reload
+.fi
 .SH "SEE ALSO"
 \fBkeepalived.conf\fP(5), \fBipvsadm\fP(8)
 
