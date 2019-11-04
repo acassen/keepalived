@@ -24,6 +24,7 @@
 #define _VRRP_TRACK_PROCESS_H
 
 /* global includes */
+#include <stdbool.h>
 
 /* local includes */
 #include "track_process.h"
@@ -33,6 +34,7 @@
 #ifdef _TRACK_PROCESS_DEBUG_
 extern bool do_track_process_debug;
 #endif
+extern bool proc_events_not_supported;
 
 /* prototypes */
 extern void reload_track_processes(void);

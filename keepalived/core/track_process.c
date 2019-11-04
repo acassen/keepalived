@@ -65,9 +65,10 @@ static thread_ref_t read_thread;
 static thread_ref_t reload_thread;
 static rb_root_t process_tree = RB_ROOT;
 static int nl_sock = -1;
-unsigned num_cpus;
+static unsigned num_cpus;
 static int64_t *cpu_seq;
 static bool need_reinitialise;
+bool proc_events_not_supported;
 
 #ifdef _TRACK_PROCESS_DEBUG_
 bool do_track_process_debug;
@@ -575,9 +576,11 @@ nl_connect(void)
 
 	nl_sd = socket(PF_NETLINK, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, NETLINK_CONNECTOR);
 	if (nl_sd == -1) {
-		if (errno == EPROTONOSUPPORT)
-			log_message(LOG_INFO, "track_process not available - is CONFIG_PROC_EVENTS enabled in kernel config?");
-		else
+		if (errno == EPROTONOSUPPORT) {
+			if (__test_bit(LOG_DETAIL_BIT, &debug))
+				log_message(LOG_INFO, "track_process not available - is CONFIG_PROC_EVENTS enabled in kernel config?");
+			proc_events_not_supported = true;
+		} else
 			log_message(LOG_INFO, "Failed to open process monitoring socket - errno %d - %m", errno);
 		return -1;
 	}

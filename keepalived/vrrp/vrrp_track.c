@@ -46,6 +46,9 @@
 #include "utils.h"
 #include "vrrp_notify.h"
 #include "bitops.h"
+#ifdef _WITH_CN_PROC_
+#include "track_process.h"
+#endif
 
 static int inotify_fd = -1;
 static thread_ref_t inotify_thread;
@@ -381,7 +384,10 @@ alloc_track_process(const char *name, list track_process, const vector_t *strvec
 
 	/* Ignoring if no process found */
 	if (!vsp) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) track process %s not found, ignoring...", name, tracked);
+		if (proc_events_not_supported)
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) track process not supported by kernel", name);
+		else
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) track process %s not found, ignoring...", name, tracked);
 		return;
 	}
 

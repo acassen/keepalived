@@ -60,6 +60,9 @@
 #ifdef _WITH_BFD_
 #include "bfd_parser.h"
 #endif
+#ifdef _WITH_CN_PROC_
+#include "track_process.h"
+#endif
 
 enum process_delay {
 	PROCESS_DELAY,
@@ -1441,6 +1444,9 @@ vrrp_tprocess_handler(const vector_t *strvec)
 	if (!strvec)
 		return;
 
+	if (proc_events_not_supported)
+		report_config_error(CONFIG_GENERAL_ERROR, "no kernel support for track_process (CONFIG_PROC_EVENTS)");
+
 	alloc_vrrp_process(strvec_slot(strvec, 1));
 }
 static void
@@ -1619,6 +1625,11 @@ static void
 vrrp_tprocess_end_handler(void)
 {
 	vrrp_tracked_process_t *tprocess = LIST_TAIL_DATA(vrrp_data->vrrp_track_processes);
+
+	if (proc_events_not_supported) {
+		list_remove(vrrp_data->vrrp_track_processes, LIST_TAIL(vrrp_data->vrrp_track_processes));
+		return;
+	}
 
 	if (!tprocess->process_path) {
 		report_config_error(CONFIG_GENERAL_ERROR, "track process '%s' process name not specified", tprocess->pname);
