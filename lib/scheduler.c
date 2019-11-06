@@ -116,7 +116,8 @@ get_thread_type_str(thread_type_t id)
 	if (id == THREAD_CHILD_TERMINATED) return "CHILD_TERMINATED";
 	if (id == THREAD_TERMINATE_START) return "TERMINATE_START";
 	if (id == THREAD_TERMINATE) return "TERMINATE";
-	if (id == THREAD_READY_FD) return "READY_FD";
+	if (id == THREAD_READY_READ_FD) return "READY_READ_FD";
+	if (id == THREAD_READY_WRITE_FD) return "READY_WRITE_FD";
 	if (id == THREAD_READ_ERROR) return "READ_ERROR";
 	if (id == THREAD_WRITE_ERROR) return "WRITE_ERROR";
 #ifdef USE_SIGNAL_THREADS
@@ -859,7 +860,8 @@ thread_destroy_rb(thread_master_t *m, rb_root_cached_t *root)
 
 		if (thread->type == THREAD_READ ||
 		    thread->type == THREAD_WRITE ||
-		    thread->type == THREAD_READY_FD ||
+		    thread->type == THREAD_READY_READ_FD ||
+		    thread->type == THREAD_READY_WRITE_FD ||
 		    thread->type == THREAD_READ_TIMEOUT ||
 		    thread->type == THREAD_WRITE_TIMEOUT ||
 		    thread->type == THREAD_READ_ERROR ||
@@ -1409,14 +1411,18 @@ thread_cancel(thread_ref_t thread_cp)
 		rb_erase_cached(&thread->n, &m->child);
 		rb_erase(&thread->rb_data, &m->child_pid);
 		break;
-	case THREAD_READY_FD:
+	case THREAD_READY_READ_FD:
 	case THREAD_READ_TIMEOUT:
+		if (thread->event)
+			thread_event_del(thread, THREAD_FL_EPOLL_READ_BIT);
+		list_head_del(&thread->next);
+		break;
+	case THREAD_READY_WRITE_FD:
 	case THREAD_WRITE_TIMEOUT:
-		if (thread->event) {
-			rb_erase(&thread->event->n, &m->io_events);
-			FREE(thread->event);
-		}
-		/* ... falls through ... */
+		if (thread->event)
+			thread_event_del(thread, THREAD_FL_EPOLL_WRITE_BIT);
+		list_head_del(&thread->next);
+		break;
 	case THREAD_EVENT:
 	case THREAD_READY:
 #ifdef USE_SIGNAL_THREADS
@@ -1735,7 +1741,7 @@ thread_fetch_next_queue(thread_master_t *m)
 						      , ev->fd, ep_ev->events);
 					continue;
 				}
-				thread_move_ready(m, &m->read, ev->read, THREAD_READY_FD);
+				thread_move_ready(m, &m->read, ev->read, THREAD_READY_READ_FD);
 				ev->read = NULL;
 			}
 
@@ -1746,7 +1752,7 @@ thread_fetch_next_queue(thread_master_t *m)
 						      , ev->fd, ep_ev->events);
 					continue;
 				}
-				thread_move_ready(m, &m->write, ev->write, THREAD_READY_FD);
+				thread_move_ready(m, &m->write, ev->write, THREAD_READY_WRITE_FD);
 				ev->write = NULL;
 			}
 		}
@@ -1804,7 +1810,8 @@ process_threads(thread_master_t *m)
 		 * snmp_read, bfd_receiver, bfd pipe in vrrp/check, dbus pipe or netlink fds. */
 		thread = thread_trim_head(thread_list);
 		if (!shutting_down ||
-		    (thread->type == THREAD_READY_FD &&
+		    ((thread->type == THREAD_READY_READ_FD ||
+		      thread->type == THREAD_READY_WRITE_FD) &&
 		     (thread->u.f.fd == m->timer_fd ||
 		      thread->u.f.fd == m->signal_fd
 #ifdef _WITH_SNMP_
@@ -1823,7 +1830,7 @@ process_threads(thread_master_t *m)
 				shutting_down = true;
 		}
 
-		m->current_event = (thread->type == THREAD_READY_FD) ? thread->event : NULL;
+		m->current_event = (thread->type == THREAD_READY_READ_FD || thread->type == THREAD_READY_WRITE_FD) ? thread->event : NULL;
 		thread_type = thread->type;
 		thread_add_unuse(master, thread);
 

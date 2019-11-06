@@ -814,7 +814,7 @@ initialise_vrrp_tracking_priorities(vrrp_t *vrrp)
 	 * an appropriate address, put the interface into fault state */
 	if (vrrp->saddr.ss_family == AF_UNSPEC) {
 		/* The instance is down */
-		log_message(LOG_INFO, "(%s) entering FAULT state (no IPv4 address for interface)", vrrp->iname);
+		log_message(LOG_INFO, "(%s) entering FAULT state (no IPv%d address for interface)", vrrp->iname, vrrp->family == AF_INET ? 4 : 6);
 		vrrp->state = VRRP_STATE_FAULT;
 		vrrp->num_script_if_fault++;
 	}
