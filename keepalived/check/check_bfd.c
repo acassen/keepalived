@@ -290,7 +290,7 @@ bfd_check_thread(thread_ref_t thread)
 	bfd_thread = thread_add_read(master, bfd_check_thread, NULL,
 				     thread->u.f.fd, TIMER_NEVER, false);
 
-	if (thread->type != THREAD_READY_FD)
+	if (thread->type != THREAD_READY_READ_FD)
 		return 0;
 
 	while (read(thread->u.f.fd, &evt, sizeof(bfd_event_t)) != -1)

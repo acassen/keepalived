@@ -908,7 +908,7 @@ bfd_receiver_thread(thread_ref_t thread)
 	data->thread_in = NULL;
 
 	/* Ignore THREAD_READ_TIMEOUT */
-	if (thread->type == THREAD_READY_FD) {
+	if (thread->type == THREAD_READY_READ_FD) {
 		if (!bfd_receive_packet(&pkt, fd, bfd_buffer, BFD_BUFFER_SIZE))
 			bfd_handle_packet(&pkt);
 	}
