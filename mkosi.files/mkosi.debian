@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: GPLv2+
+#==================================================#
+#                                                  #
+# Make operating system image configuration file   #
+# for Keepalive and Debian linux distribution      #
+#                                                  #
+#==================================================#
+
+[Distribution]
+Distribution=debian
+Release=unstable
+
+[Output]
+Format=raw_gpt
+Bootable=yes
+Output=mkosi.output/debian.raw
+
+[Partitions]
+ESPSize=256M
+RootSize=3G
+SwapSize=512M
+
+[Packages]
+BuildPackages=
+         build-essential
+         pkg-config
+         autoconf
+         automake
+         autotools-dev
+         make
+         pkg-config
+         iptables-dev
+         libipset-dev
+         libnl-3-dev
+         libnl-genl-3-dev
+         libssl-dev
+         libmagic-dev
+         libsnmp-dev
+         libglib2.0-dev
+         libjson-c-dev
+         libpcre2-dev
+         libnftnl-dev
+         libmnl-dev
+         python-sphinx
+         python-sphinx-rtd-theme
+
+Packages=
+         nftables
+         openssh-server
+         vim
+         bash-completion
+         iproute2
+         iputils-arping
+         iputils-ping
+         tcpdump
+         kbd
+
+BuildDirectory=mkosi.cache
+Cache=mkosi.cache
+
+[Validation]
+Password=CHANGEME

@@ -1,0 +1,21 @@
+#!/bin/sh
+set -ex
+./build_setup
+./configure \
+--prefix=/usr/ \
+--sysconfdir=/etc \
+--sbindir=/usr/bin \
+--localstatedir=/var \
+--runstatedir=/run \
+--enable-nftables \
+--enable-sha1 \
+make
+make install
+
+mkdir -p "$DESTDIR"/etc
+cp /usr/lib/os-release "$DESTDIR"/etc/os-release
+cat >> "$DESTDIR"/etc/os-release <<EOF
+PORTABLE_PRETTY_NAME="Raw Keepalived image"
+EOF
+
+touch "$DESTDIR"/etc/resolv.conf

@@ -1,0 +1,68 @@
+#=========================================#
+#                                         #
+# * * * * * * * * systemd * * * * * * * * #
+#                                         #
+#=========================================#
+
+# Enabling systemd networking
+
+ln -s /usr/lib/systemd/system/systemd-networkd.service /etc/systemd/system/dbus-org.freedesktop.network1.service
+ln -s /usr/lib/systemd/system/systemd-networkd.service /etc/systemd/system/multi-user.target.wants/systemd-networkd.service
+ln -s /usr/lib/systemd/system/systemd-networkd.socket /etc/systemd/system/sockets.target.wants/systemd-networkd.socket
+ln -s /usr/lib/systemd/system/systemd-networkd-wait-online.service /etc/systemd/system/systemd-networkd-wait-online.service
+
+# Enabling systemd timesync
+
+ln -s /usr/lib/systemd/system/systemd-timesyncd.service /etc/systemd/system/dbus-org.freedesktop.timesync1.service
+ln -s /usr/lib/systemd/system/systemd-timesyncd.service /etc/systemd/system/systemd-timesyncd.service
+
+# Enabling systemd resolved
+
+ln -s /usr/lib/systemd/system/systemd-resolved.service /etc/systemd/system/dbus-org.freedesktop.resolve1.service
+ln -s /usr/lib/systemd/system/systemd-resolved.service /etc/systemd/system/multi-user.target.wants/systemd-resolved.service
+
+# Creating symbolic link to systemd resolve, resolv.conf file
+ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
+
+#==========================================#
+#                                          #
+# * * * * * * * * nftables * * * * * * * * #
+#                                          #
+#==========================================#
+
+# Enabling nftables
+
+ln -s /usr/lib/systemd/system/nftables.service /etc/systemd/system/multi-user.target.wants/nftables.service
+
+#==========================================#
+#                                          #
+# * * * * * * * * * ssh * * * * * * * * *  #
+#                                          #
+#==========================================#
+
+# Enabling ssh
+# Fedora enables ssh by default let's swap that out for socket activated sshd provided units.þ
+
+rm /etc/systemd/system/multi-user.target.wants/sshd.service
+ln -s /etc/systemd/system/sshd.socket /etc/systemd/system/multi-user.target.wants/sshd.socket
+
+#==========================================#
+#                                          #
+# * * * * * * * * * ssh * * * * * * * * *  #
+#                                          #
+#==========================================#
+
+# Enabling keepalived
+
+ln -s /etc/systemd/system/keepalived.service /etc/systemd/system/multi-user.target.wants/keepalived.service
+
+
+# Classic cat sample for jigs and giggles 
+cat > /etc/keepalived/keepalived.conf << 'EOF'
+global_defs {
+	nftables
+	nftables_counters
+}
+
+include /etc/keepalived/enp1s0.conf
+EOF
