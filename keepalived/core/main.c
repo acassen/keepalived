@@ -211,6 +211,7 @@ static char network_timestamp_debug;
 #endif
 #ifdef _TRACK_PROCESS_DEBUG_
 static char track_process_debug;
+static char track_process_debug_detail;
 #endif
 #ifdef _PARSER_DEBUG_
 static char parser_debug;
@@ -1037,7 +1038,8 @@ initialise_debug_options(void)
 #endif
 #ifdef _WITH_CN_PROC_
 #ifdef _TRACK_PROCESS_DEBUG_
-	do_track_process_debug = !!(track_process_debug & mask);
+	do_track_process_debug_detail = !!(track_process_debug_detail & mask);
+	do_track_process_debug = !!(track_process_debug & mask) | do_track_process_debug_detail;
 #endif
 #endif
 #ifdef _PARSER_DEBUG_
@@ -1106,6 +1108,7 @@ set_debug_options(const char *options)
 #endif
 #ifdef _TRACK_PROCESS_DEBUG_
 		track_process_debug = all_processes;
+		track_process_debug_detail = all_processes;
 #endif
 #ifdef _PARSER_DEBUG_
 		parser_debug = all_processes;
@@ -1215,6 +1218,9 @@ set_debug_options(const char *options)
 #ifdef _TRACK_PROCESS_DEBUG_
 		case 'O':
 			track_process_debug = processes;
+			break;
+		case 'A':
+			track_process_debug_detail = processes;
 			break;
 #endif
 #ifdef _PARSER_DEBUG_
@@ -1338,6 +1344,7 @@ usage(const char *prog)
 #endif
 #ifdef _TRACK_PROCESS_DEBUG_
 	fprintf(stderr, "                                   O - track process debug\n");
+	fprintf(stderr, "                                   A - track process debug with extra detail\n");
 #endif
 #ifdef _PARSER_DEBUG_
 	fprintf(stderr, "                                   C - parser (config) debug\n");

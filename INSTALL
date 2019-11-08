@@ -47,9 +47,7 @@ For building the documentation, the following packages need to be installed:
 
 Debian/Ubuntu
 -------------
-On Debian, install:
-	pkg-config
-On Ubuntu, install:
+For building packages:
 	build-essential pkg-config, and to build from git repo automake autoconf
 The following libraries need to be installed:
 	iptables-dev libipset-dev libnl-3-dev libnl-genl-3-dev libssl-dev
