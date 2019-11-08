@@ -32,6 +32,7 @@
 
 #ifdef _TRACK_PROCESS_DEBUG_
 extern bool do_track_process_debug;
+extern bool do_track_process_debug_detail;
 #endif
 extern bool proc_events_not_supported;
 
