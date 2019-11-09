@@ -614,6 +614,8 @@ nftnl_rule *setup_rule(uint8_t family, const char *table,
 	}
 
 	/* Use nft --debug netlink,mnl to see the netlink message for an nft command.
+	 * nft --debug all gives more info
+	 * nft monitor --debug all - allows monitoring of iptables-nft etc.
 	 * mnl_nlmsg_fprintf is the function that prints it if
 	 * we want to view what we have constructed
 	 *
