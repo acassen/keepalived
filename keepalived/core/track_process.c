@@ -283,8 +283,13 @@ read_procs(list processes)
 static void
 update_process_status(vrrp_tracked_process_t *tpr, bool now_up)
 {
-	if (now_up == tpr->have_quorum)
+	if (now_up == tpr->have_quorum) {
+#ifdef _TRACK_PROCESS_DEBUG_
+		if (do_track_process_debug_detail)
+			log_message(LOG_INFO, "update process status no change for %s", tpr->pname);
+#endif
 		return;
+	}
 
 	tpr->have_quorum = now_up;
 
@@ -330,6 +335,9 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 	bool had_process;
 	tracked_process_instance_t tp = { .pid = pid };
 	bool have_comm = !!comm;
+#ifdef _TRACK_PROCESS_DEBUG_
+	int sav_errno;
+#endif
 
 	/* Are we counting this process now? */
 	if (!tpi)
@@ -343,14 +351,26 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 		if (vrrp_data->vrrp_use_process_cmdline) {
 			snprintf(cmdline, sizeof(cmdline), "/proc/%d/cmdline", pid);
 
-			if ((fd = open(cmdline, O_RDONLY)) == -1)
+			if ((fd = open(cmdline, O_RDONLY)) == -1) {
+#ifdef _TRACK_PROCESS_DEBUG_
+				if (do_track_process_debug_detail)
+					log_message(LOG_INFO, "check_process failed to open %s, errno %d", cmdline, errno);
+#endif
 				return;
+			}
 
 			cmd_buf_len = vrrp_data->vrrp_max_process_name_len + 3;
 			cmd_buf = MALLOC(cmd_buf_len);
 			cmdline_len = read(fd, cmd_buf, vrrp_data->vrrp_max_process_name_len + 2);
+#ifdef _TRACK_PROCESS_DEBUG_
+			sav_errno = errno;
+#endif
 			close(fd);
 			if (cmdline_len < 0) {
+#ifdef _TRACK_PROCESS_DEBUG_
+				if (do_track_process_debug_detail)
+					log_message(LOG_INFO, "check_process failed to read %s, errno %d", cmdline, sav_errno);
+#endif
 				FREE(cmd_buf);
 				return;
 			}
@@ -360,15 +380,25 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 		if (vrrp_data->vrrp_use_process_comm) {
 			snprintf(cmdline, sizeof(cmdline), "/proc/%d/comm", pid);
 
-			fd = open(cmdline, O_RDONLY);
-			if (fd == -1) {
+			if ((fd = open(cmdline, O_RDONLY)) == -1) {
+#ifdef _TRACK_PROCESS_DEBUG_
+				if (do_track_process_debug_detail)
+					log_message(LOG_INFO, "check_process failed to open %s, errno %d", cmdline, errno);
+#endif
 				FREE_PTR(cmd_buf);
 				return;
 			}
 
 			len = read(fd, comm_buf, sizeof(comm_buf) - 1);
+#ifdef _TRACK_PROCESS_DEBUG_
+			sav_errno = errno;
+#endif
 			close(fd);
 			if (len < 0) {
+#ifdef _TRACK_PROCESS_DEBUG_
+				if (do_track_process_debug_detail)
+					log_message(LOG_INFO, "check_process failed to read %s, errno %d", cmdline, sav_errno);
+#endif
 				FREE_PTR(cmd_buf);
 				return;
 			}
@@ -413,6 +443,11 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 			}
 
 			tpi = add_process(pid, tpr, tpi);
+
+#ifdef _TRACK_PROCESS_DEBUG_
+			if (do_track_process_debug_detail)
+				log_message(LOG_INFO, "check_process adding process %d to %s", pid, tpr->pname);
+#endif
 
 			if (tpr->num_cur_proc == tpr->quorum ||
 			    tpr->num_cur_proc == tpr->quorum_max + 1) {
@@ -515,6 +550,10 @@ check_process_fork(pid_t parent_pid, pid_t child_pid)
 				tpr->terminate_timer_thread = NULL;
 			} else if (tpr->fork_delay) {
 				tpr->fork_timer_thread = thread_add_timer(master, process_gained_quorum_timer_thread, tpr, tpr->fork_delay);
+#ifdef _TRACK_PROCESS_DEBUG_
+				if (do_track_process_debug_detail)
+					log_message(LOG_INFO, "Adding timer %d for %s up", tpr->fork_delay, tpr->pname);
+#endif
 				continue;
 			}
 			update_process_status(tpr, tpr->num_cur_proc == tpr->quorum);
@@ -570,6 +609,10 @@ check_process_termination(pid_t pid)
 				tpr->fork_timer_thread = NULL;
 			} else if (tpr->terminate_delay) {
 				tpr->terminate_timer_thread = thread_add_timer(master, process_lost_quorum_timer_thread, tpr, tpr->terminate_delay);
+#ifdef _TRACK_PROCESS_DEBUG_
+				if (do_track_process_debug_detail)
+					log_message(LOG_INFO, "Adding timer %d for %s termination", tpr->fork_delay, tpr->pname);
+#endif
 				continue;
 			}
 			update_process_status(tpr, tpr->num_cur_proc == tpr->quorum_max);
