@@ -441,7 +441,7 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 		prog_id = child_finder_name(pid);
 
 	if (!prog_id) {
-		snprintf(pid_buf, sizeof(pid_buf), "pid %hd", pid);
+		snprintf(pid_buf, sizeof(pid_buf), "pid %d", pid);
 		prog_id = pid_buf;
 	}
 
