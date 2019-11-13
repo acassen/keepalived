@@ -214,8 +214,6 @@ static int
 thread_move_ready(thread_master_t *m, rb_root_cached_t *root, thread_t *thread, int type)
 {
 	rb_erase_cached(&thread->n, root);
-	if (type == THREAD_CHILD_TIMEOUT)
-		rb_erase(&thread->rb_data, &master->child_pid);
 	INIT_LIST_HEAD(&thread->next);
 	list_add_tail(&thread->next, &m->ready);
 	if (thread->type != THREAD_TIMER_SHUTDOWN)
@@ -1809,6 +1807,14 @@ process_threads(thread_master_t *m)
 		 * We only want timer and signal fd, and don't want inotify, vrrp socket,
 		 * snmp_read, bfd_receiver, bfd pipe in vrrp/check, dbus pipe or netlink fds. */
 		thread = thread_trim_head(thread_list);
+
+		if (thread && thread->type == THREAD_CHILD_TIMEOUT) {
+			/* We remove the thread from the child_pid queue here so that
+			 * if the termination arrives before we processed the timeout
+			 * we can still handle the termination. */
+			rb_erase(&thread->rb_data, &master->child_pid);
+		}
+
 		if (!shutting_down ||
 		    ((thread->type == THREAD_READY_READ_FD ||
 		      thread->type == THREAD_READY_WRITE_FD) &&
@@ -1879,6 +1885,12 @@ process_child_termination(pid_t pid, int status)
 		thread_add_unuse(m, thread);
 
 		thread_add_terminate_event(m);
+	}
+	else if (thread->type == THREAD_CHILD_TIMEOUT) {
+		/* The child had been timed out, but we have not processed the timeout
+		 * and it is still on the thread->ready queue. Since we have now got
+		 * the termination, just handle the termination instead. */
+		thread->type = THREAD_CHILD_TERMINATED;
 	}
 	else
 		thread_move_ready(m, &m->child, thread, THREAD_CHILD_TERMINATED);
