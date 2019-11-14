@@ -23,6 +23,7 @@
 #include "config.h"
 
 #include "bfd.h"
+#include "global_data.h"
 #include "bfd_data.h"
 #include "logger.h"
 #include "parser.h"
@@ -35,6 +36,9 @@
 bfd_data_t *bfd_data;
 bfd_data_t *old_bfd_data;
 char *bfd_buffer;
+
+/* Local vars */
+static const char *dump_file = "/tmp/keepalived_bfd.data";
 
 /*
  * bfd_t functions
@@ -95,11 +99,29 @@ free_bfd(void *data)
 	FREE(data);
 }
 
+static void
+conf_write_sands(FILE *fp, const char *text, long sands)
+{
+	char time_str[26];
+	long secs;
+
+	if (sands == -1) {
+		conf_write(fp, "   %s = [disabled]", text);
+		return;
+	}
+
+	secs = sands / TIMER_HZ;
+	if (!ctime_r(&secs, time_str))
+		strcpy(time_str, "invalid time ");
+	conf_write(fp, "   %s = %ld.%6.6ld (%.19s.%6.6ld)", text, secs, sands % TIMER_HZ, time_str, sands % TIMER_HZ);
+}
+
 /* Dump BFD instance configuration parameters */
 static void
 dump_bfd(FILE *fp, const void *data)
 {
 	const bfd_t *bfd;
+	char time_str[26];
 
 	assert(data);
 	bfd = (const bfd_t *)data;
@@ -125,6 +147,7 @@ dump_bfd(FILE *fp, const void *data)
 		    bfd->ttl);
 	conf_write(fp, "   max_hops = %d",
 		    bfd->max_hops);
+	conf_write(fp, "   passive = %s", bfd->passive ? "true" : "false");
 #ifdef _WITH_VRRP_
 	conf_write(fp, "   send event to VRRP process = %s",
 		    bfd->vrrp ? "Yes" : "No");
@@ -133,6 +156,39 @@ dump_bfd(FILE *fp, const void *data)
 	conf_write(fp, "   send event to checker process = %s",
 		    bfd->checker ? "Yes" : "No");
 #endif
+	/* If this is not at startup time, write some state variables */
+	if (fp) {
+		conf_write(fp, "   fd_out %d", bfd->fd_out);
+		conf_write(fp, "   thread_out 0x%p", bfd->thread_out);
+		conf_write_sands(fp, "sands_out", bfd->sands_out);
+		conf_write(fp, "   thread_exp 0x%p", bfd->thread_exp);
+		conf_write_sands(fp, "sands_exp", bfd->sands_exp);
+		conf_write(fp, "   thread_rst 0x%p", bfd->thread_rst);
+		conf_write_sands(fp, "sands_rst", bfd->sands_rst);
+		conf_write(fp, "   send error = %s", bfd->send_error ? "true" : "false");
+		conf_write(fp, "   local state = %s", BFD_STATE_STR(bfd->local_state));
+		conf_write(fp, "   remote state = %s", BFD_STATE_STR(bfd->remote_state));
+		conf_write(fp, "   local discriminator = 0x%x", bfd->local_discr);
+		conf_write(fp, "   remote discriminator = 0x%x", bfd->remote_discr);
+		conf_write(fp, "   local diag = %s", BFD_DIAG_STR(bfd->local_diag));
+		conf_write(fp, "   remote diag = %s", BFD_DIAG_STR(bfd->remote_diag));
+		conf_write(fp, "   remote min tx intv = %u ms", bfd->remote_min_tx_intv / (TIMER_HZ / 1000));
+		conf_write(fp, "   remote min rx intv = %u ms", bfd->remote_min_rx_intv / (TIMER_HZ / 1000));
+		conf_write(fp, "   local demand = %u", bfd->local_demand);
+		conf_write(fp, "   remote demand = %u", bfd->remote_demand);
+		conf_write(fp, "   remote detect multiplier = %u", bfd->remote_detect_mult);
+		conf_write(fp, "   %spoll, %sfinal", bfd->poll ? "" : "!", bfd->final ? "" : "!");
+		conf_write(fp, "   local tx intv = %u ms", bfd->local_tx_intv / (TIMER_HZ / 1000));
+		conf_write(fp, "   remote tx intv = %u ms", bfd->remote_tx_intv / (TIMER_HZ / 1000));
+		conf_write(fp, "   local detection time = %" PRIu64 " ms", bfd->local_detect_time / (TIMER_HZ / 1000));
+		conf_write(fp, "   remote detection time = %" PRIu64 " ms", bfd->remote_detect_time / (TIMER_HZ / 1000));
+		if (bfd->last_seen.tv_sec == 0)
+			conf_write(fp, "   last_seen = [never]");
+		else {
+			ctime_r(&bfd->last_seen.tv_sec, time_str);
+			conf_write(fp, "   last seen = %ld.%6.6ld (%.24s.%6.6ld)", bfd->last_seen.tv_sec, bfd->last_seen.tv_usec, time_str, bfd->last_seen.tv_usec);
+		}
+	}
 }
 
 /* Looks up bfd instance by name */
@@ -200,14 +256,38 @@ free_bfd_data(bfd_data_t * data)
 }
 
 void
-dump_bfd_data(FILE *fp, const bfd_data_t * data)
+dump_bfd_data(FILE *fp, const bfd_data_t *data)
 {
 	assert(data);
+
+	dump_global_data(fp, global_data);
+
+	if (fp) {
+		conf_write(fp, "------< BFD Data >------");
+		conf_write(fp, " fd_in = %d", data->fd_in);
+		conf_write(fp, " thread_in = 0x%p", data->thread_in);
+	}
 
 	if (!LIST_ISEMPTY(data->bfd)) {
 		conf_write(fp, "------< BFD Topology >------");
 		dump_list(fp, data->bfd);
 	}
+}
+
+void
+bfd_print_data(void)
+{
+	FILE *file = fopen_safe(dump_file, "w");
+
+	if (!file) {
+		log_message(LOG_INFO, "Can't open %s (%d: %s)",
+			dump_file, errno, strerror(errno));
+		return;
+	}
+
+	dump_bfd_data(file, bfd_data);
+
+	fclose(file);
 }
 
 void

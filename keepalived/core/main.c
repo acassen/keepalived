@@ -610,7 +610,7 @@ propagate_signal(__attribute__((unused)) void *v, int sig)
 	}
 #endif
 #ifdef _WITH_BFD_
-	if (sig == SIGHUP) {
+	if (sig == SIGHUP || sig == SIGUSR1) {
 		if (bfd_child > 0)
 			kill(bfd_child, sig);
 		else if (running_bfd())
