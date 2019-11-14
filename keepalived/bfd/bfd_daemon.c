@@ -199,6 +199,13 @@ bfd_validate_config(void)
 	start_bfd(NULL);
 }
 
+static int
+print_bfd_thread(__attribute__((unused)) thread_ref_t thread)
+{
+        bfd_print_data();
+        return 0;
+}
+
 #ifndef _DEBUG_
 /* Reload handler */
 static void
@@ -206,6 +213,14 @@ sigreload_bfd(__attribute__ ((unused)) void *v,
 	   __attribute__ ((unused)) int sig)
 {
 	thread_add_event(master, reload_bfd_thread, NULL, 0);
+}
+
+static void
+sigdump_bfd(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
+{
+        log_message(LOG_INFO, "Printing BFD data for process(%d) on signal",
+                    getpid());
+        thread_add_event(master, print_bfd_thread, NULL, 0);
 }
 
 /* Terminate handler */
@@ -224,6 +239,7 @@ bfd_signal_init(void)
 	signal_set(SIGHUP, sigreload_bfd, NULL);
 	signal_set(SIGINT, sigend_bfd, NULL);
 	signal_set(SIGTERM, sigend_bfd, NULL);
+	signal_set(SIGUSR1, sigdump_bfd, NULL);
 	signal_ignore(SIGPIPE);
 }
 
@@ -297,8 +313,10 @@ register_bfd_thread_addresses(void)
 
 	register_thread_address("bfd_dispatcher_init", bfd_dispatcher_init);
 	register_thread_address("reload_bfd_thread", reload_bfd_thread);
+	register_thread_address("print_bfd_thread", print_bfd_thread);
 
 	register_signal_handler_address("sigreload_bfd", sigreload_bfd);
+	register_signal_handler_address("sigdump_bfd", sigdump_bfd);
 	register_signal_handler_address("sigend_bfd", sigend_bfd);
 	register_signal_handler_address("thread_child_handler", thread_child_handler);
 }
