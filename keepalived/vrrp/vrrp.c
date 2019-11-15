@@ -4121,7 +4121,7 @@ clear_diff_bfd(void)
 	LIST_FOREACH(old_vrrp_data->vrrp_track_bfds, vbfd, e) {
 		nvbfd = find_vrrp_tracked_bfd_by_name(vbfd->bname);
 		if (nvbfd)
-			vbfd->bfd_up = nvbfd->bfd_up;
+			nvbfd->bfd_up = vbfd->bfd_up;
 	}
 }
 #endif
