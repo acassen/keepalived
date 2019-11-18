@@ -50,6 +50,7 @@
 #include "rttables.h"
 #include "vrrp_ip_rule_route_parser.h"
 #include "parser.h"
+#include "bitops.h"
 
 /* Since we will be adding and deleting rules in potentially random
  * orders due to master/backup transitions, we therefore need to
@@ -875,8 +876,7 @@ rule_exist(list l, ip_rule_t *iprule)
 	ip_rule_t *ipr;
 	element e;
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		ipr = ELEMENT_DATA(e);
+	LIST_FOREACH(l, ipr, e) {
 		if (rule_is_equal(ipr, iprule)) {
 			ipr->set = iprule->set;
 			return 1;
@@ -891,23 +891,33 @@ clear_diff_rules(list l, list n)
 {
 	ip_rule_t *iprule;
 	element e;
+	char from_addr[IPADDRESSTOS_BUF_LEN];
+	char to_addr[IPADDRESSTOS_BUF_LEN];
 
 	/* No rule in previous conf */
 	if (LIST_ISEMPTY(l))
 		return;
 
-	/* All Static rules removed */
+	/* All rules removed */
 	if (LIST_ISEMPTY(n)) {
 		log_message(LOG_INFO, "Removing a VirtualRule block");
 		netlink_rulelist(l, IPRULE_DEL, false);
 		return;
 	}
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		iprule = ELEMENT_DATA(e);
+	LIST_FOREACH(l, iprule, e) {
 		if (!rule_exist(n, iprule) && iprule->set) {
-			log_message(LOG_INFO, "ip rule %s/%d ... , no longer exist"
-					    , ipaddresstos(NULL, iprule->from_addr), iprule->from_addr->ifa.ifa_prefixlen);
+			if (__test_bit(LOG_DETAIL_BIT, &debug)) {
+				if (iprule->from_addr)
+					ipaddresstos(from_addr, iprule->from_addr);
+				if (iprule->to_addr)
+					ipaddresstos(to_addr, iprule->to_addr);
+				log_message(LOG_INFO, "ip rule from %s%s%s removed",
+					    iprule->from_addr ? from_addr : "all",
+					    iprule->to_addr ? " to " : "",
+					    iprule->to_addr ? to_addr : "");
+			}
+
 			netlink_rule(iprule, IPRULE_DEL);
 		}
 	}
