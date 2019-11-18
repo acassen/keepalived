@@ -348,7 +348,7 @@ dump_vs(FILE *fp, const void *data)
 
 	if (vs->persistence_timeout)
 		conf_write(fp, "   persistence timeout = %u", vs->persistence_timeout);
-	if (vs->persistence_granularity) {
+	if (vs->persistence_granularity != 0xffffffff) {
 		if (vs->af == AF_INET6)
 			conf_write(fp, "   persistence granularity = %" PRIu32,
 				       vs->persistence_granularity);
@@ -469,6 +469,7 @@ alloc_vs(const char *param1, const char *param2)
 	new->delay_before_retry = ULONG_MAX;
 	new->weight = 1;
 	new->smtp_alert = -1;
+	new->persistence_granularity = 0xffffffff;
 
 	list_add(check_data->vs, new);
 }

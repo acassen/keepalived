@@ -417,7 +417,7 @@ ipvs_set_srule(int cmd, ipvs_service_t *srule, virtual_server_t *vs)
 		srule->user.timeout = vs->persistence_timeout;
 		srule->user.flags |= IP_VS_SVC_F_PERSISTENT;
 
-		if (vs->persistence_granularity)
+		if (vs->persistence_granularity != 0xffffffff)
 			srule->user.netmask = vs->persistence_granularity;
 	}
 
