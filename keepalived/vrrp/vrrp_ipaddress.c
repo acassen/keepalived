@@ -52,7 +52,7 @@
 const char *
 ipaddresstos(char *buf, const ip_address_t *ipaddress)
 {
-	static char addr_str[INET6_ADDRSTRLEN + 4];	/* allow for subnet */
+	static char addr_str[IPADDRESSTOS_BUF_LEN];
 	char *end;
 
 	if (!buf)
@@ -64,8 +64,8 @@ ipaddresstos(char *buf, const ip_address_t *ipaddress)
 		inet_ntop(AF_INET, &ipaddress->u.sin.sin_addr, buf, INET_ADDRSTRLEN);
 	if ((ipaddress->ifa.ifa_family == AF_INET && ipaddress->ifa.ifa_prefixlen != 32 ) ||
 	    (ipaddress->ifa.ifa_family == AF_INET6 && ipaddress->ifa.ifa_prefixlen != 128 )) {
-		end = addr_str + strlen(addr_str);
-		snprintf(end, addr_str + sizeof(addr_str) - end, "/%u", ipaddress->ifa.ifa_prefixlen);
+		end = buf + strlen(buf);
+		snprintf(end, buf + IPADDRESSTOS_BUF_LEN - end, "/%u", ipaddress->ifa.ifa_prefixlen);
 	}
 
 	return buf;
