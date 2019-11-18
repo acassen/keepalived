@@ -33,11 +33,9 @@
 #include <netinet/in.h>
 #include <openssl/ssl.h>
 
-#ifdef _WITH_LVS_
-  #include "ip_vs.h"
-#endif
 
 /* local includes */
+#include "ip_vs.h"
 #include "list.h"
 #include "vector.h"
 #include "notify.h"
@@ -93,7 +91,7 @@ typedef struct _real_server {
 	bool				set;		/* in the IPVS table */
 	bool				reloaded;	/* active state was copied from old config while reloading */
 	const char			*virtualhost;	/* Default virtualhost for HTTP and SSL health checkers */
-#if defined(_WITH_SNMP_CHECKER_) && defined(_WITH_LVS_)
+#if defined(_WITH_SNMP_CHECKER_)
 	/* Statistics */
 	uint32_t			activeconns;	/* active connections */
 	uint32_t			inactconns;	/* inactive connections */
@@ -146,7 +144,6 @@ typedef struct _virtual_server {
 	uint16_t			service_type;
 	bool				ha_suspend;
 	int				ha_suspend_addr_count;
-#ifdef _WITH_LVS_
 	char				sched[IP_VS_SCHEDNAME_MAXLEN];
 	uint32_t			flags;
 	uint32_t			persistence_timeout;
@@ -162,7 +159,6 @@ typedef struct _virtual_server {
 #endif
 #endif
 	uint32_t			persistence_granularity;
-#endif
 	const char			*virtualhost;	/* Default virtualhost for HTTP and SSL healthcheckers
 							   if not set on real servers */
 	int				weight;
@@ -184,7 +180,7 @@ typedef struct _virtual_server {
 	int				smtp_alert;	/* Send email on status change */
 	bool				quorum_state_up; /* Reflects result of the last transition done. */
 	bool				reloaded;	/* quorum_state was copied from old config while reloading */
-#if defined(_WITH_SNMP_CHECKER_) && defined(_WITH_LVS_)
+#if defined(_WITH_SNMP_CHECKER_)
 	/* Statistics */
 	time_t				lastupdated;
 #ifndef _WITH_LVS_64BIT_STATS_
