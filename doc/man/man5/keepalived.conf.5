@@ -1712,7 +1712,8 @@ The syntax for virtual_server is :
     # Script to execute when quorum is lost.
     \fBquorum_down \fR<STRING>|<QUOTED-STRING> [username [groupname]]
 
-    # IP family for a fwmark service (optional)
+    # IP family for a fwmark service (only needed if all real servers are tunnelled
+    # and persistence_granularity is not specified). Defaults to inet if not specified.
     \fBip_family \fRinet|inet6
 
     # setup realserver(s)

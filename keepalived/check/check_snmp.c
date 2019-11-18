@@ -513,11 +513,11 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = v->persistence_timeout;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSPERSISTGRANULARITY:
-		if (!v->persistence_granularity || v->addr.ss_family == AF_INET6) break;
+		if (v->addr.ss_family == AF_INET6) break;
 		*var_len = sizeof(v->persistence_granularity);
 		return (u_char*)&v->persistence_granularity;
 	case CHECK_SNMP_VSPERSISTGRANULARITY6:
-		if (!v->persistence_granularity || v->addr.ss_family == AF_INET) break;
+		if (v->addr.ss_family == AF_INET) break;
 		*var_len = sizeof(v->persistence_granularity);
 		return (u_char*)&v->persistence_granularity;
 	case CHECK_SNMP_VSDELAYLOOP:
