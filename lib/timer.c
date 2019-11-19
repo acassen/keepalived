@@ -46,7 +46,7 @@ timer_add_long(timeval_t a, unsigned long b)
 	if (b == TIMER_NEVER)
 	{
 		a.tv_usec = TIMER_HZ - 1;
-		a.tv_sec = LONG_MAX;
+		a.tv_sec = TIMER_DISABLED;
 
 		return a;
 	}

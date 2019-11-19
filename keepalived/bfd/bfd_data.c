@@ -83,9 +83,9 @@ alloc_bfd(const char *name)
 	bfd->thread_out = NULL;
 	bfd->thread_exp = NULL;
 	bfd->thread_rst = NULL;
-	bfd->sands_out = -1;
-	bfd->sands_exp = -1;
-	bfd->sands_rst = -1;
+	bfd->sands_out = TIMER_NEVER;
+	bfd->sands_exp = TIMER_NEVER;
+	bfd->sands_rst = TIMER_NEVER;
 
 	list_add(bfd_data->bfd, bfd);
 
@@ -100,12 +100,12 @@ free_bfd(void *data)
 }
 
 static void
-conf_write_sands(FILE *fp, const char *text, long sands)
+conf_write_sands(FILE *fp, const char *text, unsigned long sands)
 {
 	char time_str[26];
 	long secs;
 
-	if (sands == -1) {
+	if (sands == TIMER_NEVER) {
 		conf_write(fp, "   %s = [disabled]", text);
 		return;
 	}
@@ -113,7 +113,7 @@ conf_write_sands(FILE *fp, const char *text, long sands)
 	secs = sands / TIMER_HZ;
 	if (!ctime_r(&secs, time_str))
 		strcpy(time_str, "invalid time ");
-	conf_write(fp, "   %s = %ld.%6.6ld (%.19s.%6.6ld)", text, secs, sands % TIMER_HZ, time_str, sands % TIMER_HZ);
+	conf_write(fp, "   %s = %ld.%6.6lu (%.19s.%6.6lu)", text, secs, sands % TIMER_HZ, time_str, sands % TIMER_HZ);
 }
 
 /* Dump BFD instance configuration parameters */
