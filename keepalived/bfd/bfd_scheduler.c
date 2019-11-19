@@ -67,8 +67,13 @@ thread_time_to_wakeup(thread_ref_t thread)
 {
 	struct timeval tmp_time;
 
-	timersub(&thread->sands, &time_now, &tmp_time);
+	/* Make sure thread->sands is not in the past */
+	if (thread->sands.tv_sec < time_now.tv_sec ||
+	    (thread->sands.tv_sec == time_now.tv_sec &&
+	     thread->sands.tv_usec <= time_now.tv_usec))
+		return 1;
 
+	timersub(&thread->sands, &time_now, &tmp_time);
 	return timer_long(tmp_time);
 }
 
