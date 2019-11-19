@@ -93,11 +93,11 @@ typedef struct _bfd {
 	/* Internal variables */
 	int fd_out;		/* Output socket fd */
 	thread_ref_t thread_out; /* Output socket thread */
-	long sands_out;		/* Output thread sands, used for suspend/resume */
+	unsigned long sands_out; /* Output thread sands, used for suspend/resume */
 	thread_ref_t thread_exp; /* Expire thread */
-	long sands_exp;		/* Expire thread sands, used for suspend/resume */
+	unsigned long sands_exp; /* Expire thread sands, used for suspend/resume */
 	thread_ref_t thread_rst; /* Reset thread */
-	long sands_rst;		/* Reset thread sands, used for suspend/resume */
+	unsigned long sands_rst; /* Reset thread sands, used for suspend/resume */
 	bool send_error;	/* Set if last send had an error */
 
 	/* State variables */

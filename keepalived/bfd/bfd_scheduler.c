@@ -62,7 +62,7 @@ static void bfd_dump_timers(FILE *fp, bfd_t *);
  * with Poll bit set
  */
 
-inline static long
+inline static unsigned long
 thread_time_to_wakeup(thread_ref_t thread)
 {
 	struct timeval tmp_time;
@@ -184,7 +184,7 @@ bfd_sender_suspend(bfd_t * bfd)
 {
 	assert(bfd);
 	assert(bfd->thread_out);
-	assert(bfd->sands_out == -1);
+	assert(bfd->sands_out == TIMER_NEVER);
 
 	bfd->sands_out = thread_time_to_wakeup(bfd->thread_out);
 	bfd_sender_cancel(bfd);
@@ -196,12 +196,12 @@ bfd_sender_resume(bfd_t *bfd)
 {
 	assert(bfd);
 	assert(!bfd->thread_out);
-	assert(bfd->sands_out != -1);
+	assert(bfd->sands_out != TIMER_NEVER);
 
 	if (!bfd->passive || bfd->local_state == BFD_STATE_UP)
 		bfd->thread_out =
 		    thread_add_timer(master, bfd_sender_thread, bfd, bfd->sands_out);
-	bfd->sands_out = -1;
+	bfd->sands_out = TIMER_NEVER;
 }
 
 /* Returns 1 if bfd_sender_thread is suspended, 0 otherwise */
@@ -210,16 +210,16 @@ bfd_sender_suspended(bfd_t *bfd)
 {
 	assert(bfd);
 
-	return bfd->sands_out != -1;
+	return bfd->sands_out != TIMER_NEVER;
 }
 
 static void
 bfd_sender_discard(bfd_t *bfd)
 {
 	assert(bfd);
-	assert(bfd->sands_out != -1);
+	assert(bfd->sands_out != TIMER_NEVER);
 
-	bfd->sands_out = -1;
+	bfd->sands_out = TIMER_NEVER;
 }
 
 /*
@@ -320,7 +320,7 @@ bfd_expire_suspend(bfd_t *bfd)
 {
 	assert(bfd);
 	assert(bfd->thread_exp);
-	assert(bfd->sands_exp == -1);
+	assert(bfd->sands_exp == TIMER_NEVER);
 
 	bfd->sands_exp = thread_time_to_wakeup(bfd->thread_exp);
 	bfd_expire_cancel(bfd);
@@ -332,11 +332,11 @@ bfd_expire_resume(bfd_t *bfd)
 {
 	assert(bfd);
 	assert(!bfd->thread_exp);
-	assert(bfd->sands_exp != -1);
+	assert(bfd->sands_exp != TIMER_NEVER);
 
 	bfd->thread_exp =
 	    thread_add_timer(master, bfd_expire_thread, bfd, bfd->sands_exp);
-	bfd->sands_exp = -1;
+	bfd->sands_exp = TIMER_NEVER;
 }
 
 /* Returns 1 if bfd_expire_thread is suspended, 0 otherwise */
@@ -345,16 +345,16 @@ bfd_expire_suspended(bfd_t *bfd)
 {
 	assert(bfd);
 
-	return bfd->sands_exp != -1;
+	return bfd->sands_exp != TIMER_NEVER;
 }
 
 static void
 bfd_expire_discard(bfd_t *bfd)
 {
 	assert(bfd);
-	assert(bfd->sands_exp != -1);
+	assert(bfd->sands_exp != TIMER_NEVER);
 
-	bfd->sands_exp = -1;
+	bfd->sands_exp = TIMER_NEVER;
 }
 
 /*
@@ -421,7 +421,7 @@ bfd_reset_suspend(bfd_t *bfd)
 {
 	assert(bfd);
 	assert(bfd->thread_rst);
-	assert(bfd->sands_rst == -1);
+	assert(bfd->sands_rst == TIMER_NEVER);
 
 	bfd->sands_rst = thread_time_to_wakeup(bfd->thread_rst);
 	bfd_reset_cancel(bfd);
@@ -433,11 +433,11 @@ bfd_reset_resume(bfd_t *bfd)
 {
 	assert(bfd);
 	assert(!bfd->thread_rst);
-	assert(bfd->sands_rst != -1);
+	assert(bfd->sands_rst != TIMER_NEVER);
 
 	bfd->thread_rst =
 	    thread_add_timer(master, bfd_reset_thread, bfd, bfd->sands_rst);
-	bfd->sands_rst = -1;
+	bfd->sands_rst = TIMER_NEVER;
 }
 
 /* Returns 1 if bfd_reset_thread is suspended, 0 otherwise */
@@ -446,16 +446,16 @@ bfd_reset_suspended(bfd_t *bfd)
 {
 	assert(bfd);
 
-	return bfd->sands_rst != -1;
+	return bfd->sands_rst != TIMER_NEVER;
 }
 
 static void
 bfd_reset_discard(bfd_t *bfd)
 {
 	assert(bfd);
-	assert(bfd->sands_rst != -1);
+	assert(bfd->sands_rst != TIMER_NEVER);
 
-	bfd->sands_rst = -1;
+	bfd->sands_rst = TIMER_NEVER;
 }
 
 /*
