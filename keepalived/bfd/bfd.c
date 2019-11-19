@@ -42,7 +42,7 @@
 #include "assert_debug.h"
 
 /* Initial state */
-const bfd_t bfd0 = {
+static const bfd_t bfd0 = {
 	.local_state = BFD_STATE_DOWN,
 	.remote_state = BFD_STATE_DOWN,
 	.local_discr = 0,	/* ! */
