@@ -1521,7 +1521,7 @@ http_request_thread(thread_ref_t thread)
 			http_get_check->http_protocol == HTTP_PROTOCOL_1_0C || http_get_check->http_protocol == HTTP_PROTOCOL_1_1 ? "Connection: close\r\n" : "",
 			request_host, request_host_port);
 
-	DBG("Processing url(%s) of %s.", url->path, FMT_CHK(checker));
+	DBG("Processing url(%s) of %s.", fetched_url->path, FMT_CHK(checker));
 
 	/* Send the GET request to remote Web server */
 	if (http_get_check->proto == PROTO_SSL)

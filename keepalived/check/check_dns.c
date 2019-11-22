@@ -117,7 +117,7 @@ dns_final(thread_ref_t thread, int error, const char *fmt, ...)
 
 	checker_t *checker = THREAD_ARG(thread);
 
-	DNS_DBG("final error=%d attempts=%d retry=%d", error,
+	DNS_DBG("final error=%d attempts=%u retry=%u", error,
 		checker->retry_it, checker->retry);
 
 	if (thread->type != THREAD_TIMER)
@@ -202,7 +202,7 @@ dns_recv_thread(thread_ref_t thread)
 	}
 
 	if (ret < (ssize_t) sizeof (r_header)) {
-		DNS_DBG("too small message. (%d bytes)", ret);
+		DNS_DBG("too small message. (%ld bytes)", ret);
 		thread_add_read(thread->master, dns_recv_thread, checker,
 				thread->u.f.fd, timeout, true);
 		return 0;

@@ -141,7 +141,7 @@ ssl_connect_complete_thread(thread_ref_t thread)
 		thread_add_write(thread->master, ssl_connect_complete_thread, sock_obj,
 				sock_obj->fd, req->timeout, true);
 	} else {
-		DBG("  SSL_connect return code = %d on fd:%d\n", ret, thread->u.fd);
+		DBG("  SSL_connect return code = %d on fd:%d\n", ret, thread->u.f.fd);
 		ssl_printerr(error);
 		sock_obj->status = connect_error;
 		thread_add_terminate_event(thread->master);
@@ -201,7 +201,7 @@ ssl_connect(thread_ref_t thread)
 		return 1;
 	}
 
-	DBG("  SSL_connect return code = %d on fd:%d\n", ret, thread->u.fd);
+	DBG("  SSL_connect return code = %d on fd:%d\n", ret, thread->u.f.fd);
 	ssl_printerr(error);
 
 	return (ret > 0);

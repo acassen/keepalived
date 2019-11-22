@@ -220,6 +220,11 @@ static char parser_debug;
 static char dump_keywords;
 #endif
 
+#ifdef _DEBUG_
+/* Ensure that the --enable-debug option is really wanted, and that the user is prepared to edit the source code */
+#error "configure option --enable-debug is not expected to work properly and is only for debugging purposes. If you really want to use it comment out this #error statement"
+#endif
+
 void
 free_parent_mallocs_startup(bool am_child)
 {

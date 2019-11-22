@@ -199,6 +199,7 @@ bfd_validate_config(void)
 	start_bfd(NULL);
 }
 
+#ifndef _DEBUG_
 static int
 print_bfd_thread(__attribute__((unused)) thread_ref_t thread)
 {
@@ -206,7 +207,6 @@ print_bfd_thread(__attribute__((unused)) thread_ref_t thread)
         return 0;
 }
 
-#ifndef _DEBUG_
 /* Reload handler */
 static void
 sigreload_bfd(__attribute__ ((unused)) void *v,
