@@ -147,7 +147,7 @@ AC_ARG_WITH(kernel-dir,
   [AS_HELP_STRING([--with-kernel-dir=DIR], [path to linux kernel source directory])],
   [AS_HELP_STRING([kernel_src_path="$withval"],], [[kernel_src_path=""])])
 AC_ARG_ENABLE(fwmark,
-  [AS_HELP_STRING([--disable-fwmark], [compile without SO_MARK support])])
+  [AS_HELP_STRING([--enable-fwmark], [compile with SO_MARK support])])
 AC_ARG_ENABLE(snmp,
   [AS_HELP_STRING([--enable-snmp], [compile with SNMP support])])
 AC_ARG_ENABLE(snmp-vrrp,
@@ -403,7 +403,7 @@ AS_IF([test .$enable_lvs = .no],
     AS_IF([test .$enable_libnl != .], [AC_MSG_ERROR([disable-libnl requires lvs])])
     AS_IF([test .$enable_lvs_syncd != .], [AC_MSG_ERROR([disable-lvs-syncd requires lvs])])
     AS_IF([test .$enable_lvs_64bit_stats != .], [AC_MSG_ERROR([disable-lvs-64bit-stats requires lvs])])
-    AS_IF([test .$enable_fwmark != .], [AC_MSG_ERROR([enable-fwmark requires lvs])])
+    AS_IF([test .$enable_fwmark != .no], [AC_MSG_ERROR([enable-fwmark requires lvs])])
   )
 AS_IF([test .$enable_lvs = .no],
     AS_IF([test .$enable_libnl_dynamic != .], [AC_MSG_ERROR([enable-libnl-dynamic requires lvs and libnl])])
