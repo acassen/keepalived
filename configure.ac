@@ -2614,7 +2614,7 @@ dnl ----[ Do we want to enable checksum debugging code]----
 ENABLE_CHECKSUM_DEBUG=No
 AS_IF([test .$enable_checksum_debug = .yes],
   [
-    AC_DEFINE([CHECKSUM_DIAGNOSTICS], [ 1 ], [Define to enable checksum debugging])
+    AC_DEFINE([_CHECKSUM_DEBUG_], [ 1 ], [Define to enable checksum debugging])
     add_config_opt([CHECKSUM_DEBUG])
     ENABLE_CHECKSUM_DEBUG=Yes
   ])

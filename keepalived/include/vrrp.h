@@ -184,7 +184,7 @@ typedef enum chksum_compatibility {
 } chksum_compatibility_t;
 #endif
 
-#ifdef CHECKSUM_DIAGNOSTICS
+#ifdef _CHECKSUM_DEBUG_
 typedef struct {
 	uint32_t		last_rx_checksum;
 	uint32_t		last_tx_checksum;
@@ -198,7 +198,7 @@ typedef struct {
 
 typedef struct {
 	struct sockaddr_storage	address;
-#ifdef CHECKSUM_DIAGNOSTICS
+#ifdef _CHECKSUM_DEBUG_
 	checksum_check_t	chk;
 #endif
 } unicast_peer_t;
@@ -251,7 +251,7 @@ typedef struct _vrrp_t {
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 	chksum_compatibility_t	unicast_chksum_compat;	/* Whether v1.3.6 and earlier chksum is used */
 #endif
-#ifdef CHECKSUM_DIAGNOSTICS
+#ifdef _CHECKSUM_DEBUG_
 	checksum_check_t	chk;
 #endif
 	struct sockaddr_storage master_saddr;		/* Store last heard Master address */
@@ -406,6 +406,10 @@ extern bool have_ipv6_instance;
 
 #ifdef _NETWORK_TIMESTAMP_
 extern bool do_network_timestamp;
+#endif
+
+#ifdef _CHECKSUM_DEBUG_
+extern bool do_checksum_debug;
 #endif
 
 /* prototypes */

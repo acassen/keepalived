@@ -96,6 +96,9 @@
 #if defined _REGEX_DEBUG_ || defined _WITH_REGEX_TIMERS_
 #include "check_http.h"
 #endif
+#if defined _NETWORK_TIMESTAMP_ || defined _CHECKSUM_DEBUG_
+#include "vrrp.h"
+#endif
 #ifdef _TSM_DEBUG_
 #include "vrrp_scheduler.h"
 #endif
@@ -191,6 +194,7 @@ static char *orig_core_dump_pattern = NULL;
     defined _VRRP_FD_DEBUG_ || \
     defined _NETLINK_TIMERS_ || \
     defined _NETWORK_TIMESTAMP_ || \
+    defined _CHECKSUM_DEBUG_ || \
     defined _TRACK_PROCESS_DEBUG_ || \
     defined _PARSER_DEBUG_ || \
     defined _DUMP_KEYWORDS_ || \
@@ -232,6 +236,9 @@ static char netlink_timer_debug;
 #endif
 #ifdef _NETWORK_TIMESTAMP_
 static char network_timestamp_debug;
+#endif
+#ifdef _CHECKSUM_DEBUG_
+static char checksum_debug;
 #endif
 #ifdef _TRACK_PROCESS_DEBUG_
 static char track_process_debug;
@@ -1072,6 +1079,9 @@ initialise_debug_options(void)
 #ifdef _NETWORK_TIMESTAMP_
 	do_network_timestamp = !!(network_timestamp_debug & mask);
 #endif
+#ifdef _NETWORK_TIMESTAMP_
+	do_checksum_debug = !!(checksum_debug & mask);
+#endif
 #ifdef _WITH_CN_PROC_
 #ifdef _TRACK_PROCESS_DEBUG_
 	do_track_process_debug_detail = !!(track_process_debug_detail & mask);
@@ -1154,6 +1164,9 @@ set_debug_options(const char *options)
 #ifdef _NETWORK_TIMESTAMP_
 		network_timestamp_debug = all_processes;
 #endif
+#ifdef _CHECKSUM_DEBUG_
+		checksum_debug = all_processes;
+#endif
 #ifdef _TRACK_PROCESS_DEBUG_
 		track_process_debug = all_processes;
 		track_process_debug_detail = all_processes;
@@ -1221,7 +1234,7 @@ set_debug_options(const char *options)
 		}
 #endif
 
-		/* Letters used - ABCDEFIHKMNOPRSTXZ */
+		/* Letters used - ABCDEFIHKMNOPRSTUXZ */
 		switch (opt) {
 #ifdef _TIMER_CHECK_
 		case 'T':
@@ -1276,6 +1289,11 @@ set_debug_options(const char *options)
 #ifdef _NETWORK_TIMESTAMP_
 		case 'P':
 			network_timestamp_debug = processes;
+			break;
+#endif
+#ifdef _CHECKSUM_DEBUG_
+		case 'U':
+			checksum_debug = processes;
 			break;
 #endif
 #ifdef _TRACK_PROCESS_DEBUG_
@@ -1423,6 +1441,9 @@ usage(const char *prog)
 #endif
 #ifdef _NETWORK_TIMESTAMP_
 	fprintf(stderr, "                                   P - network timestamp debug\n");
+#endif
+#ifdef _CHECKSUM_DEBUG_
+	fprintf(stderr, "                                   U - checksum diagnostics\n");
 #endif
 #ifdef _TRACK_PROCESS_DEBUG_
 	fprintf(stderr, "                                   O - track process debug\n");

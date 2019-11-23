@@ -406,7 +406,7 @@ dump_unicast_peer(FILE *fp, const void *data)
 	const unicast_peer_t *peer = data;
 
 	conf_write(fp, "     %s", inet_sockaddrtos(&peer->address));
-#ifdef CHECKSUM_DIAGNOSTICS
+#ifdef _CHECKSUM_DEBUG_
 	conf_write(fp, "       last rx checksum = 0x%4.4x, priority %d", peer->chk.last_rx_checksum, peer->chk.last_rx_priority);
 	conf_write(fp, "       last tx checksum = 0x%4.4x, priority %d", peer->chk.last_tx_checksum, peer->chk.last_tx_priority);
 #endif
@@ -586,7 +586,7 @@ dump_vrrp(FILE *fp, const void *data)
 	if (vrrp->debug)
 		conf_write(fp, "   Debug level = %d", vrrp->debug);
 
-#ifdef CHECKSUM_DIAGNOSTICS
+#ifdef _CHECKSUM_DEBUG_
 	conf_write(fp, "   last rx checksum = 0x%4.4x, priority %d", vrrp->chk.last_rx_checksum, vrrp->chk.last_rx_priority);
 	conf_write(fp, "   last tx checksum = 0x%4.4x, priority %d", vrrp->chk.last_tx_checksum, vrrp->chk.last_tx_priority);
 #endif
