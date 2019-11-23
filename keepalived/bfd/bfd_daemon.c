@@ -60,7 +60,7 @@ int bfd_checker_event_pipe[2] = { -1, -1};
 /* Local variables */
 static const char *bfd_syslog_ident;
 
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 static int reload_bfd_thread(thread_ref_t);
 #endif
 
@@ -199,6 +199,7 @@ bfd_validate_config(void)
 	start_bfd(NULL);
 }
 
+#ifndef _ONE_PROCESS_DEBUG_
 static int
 print_bfd_thread(__attribute__((unused)) thread_ref_t thread)
 {
@@ -206,7 +207,6 @@ print_bfd_thread(__attribute__((unused)) thread_ref_t thread)
         return 0;
 }
 
-#ifndef _DEBUG_
 /* Reload handler */
 static void
 sigreload_bfd(__attribute__ ((unused)) void *v,
@@ -301,7 +301,7 @@ bfd_respawn_thread(thread_ref_t thread)
 }
 #endif
 
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 #ifdef THREAD_DUMP
 static void
 register_bfd_thread_addresses(void)
@@ -326,7 +326,7 @@ register_bfd_thread_addresses(void)
 int
 start_bfd_child(void)
 {
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 	pid_t pid;
 	int ret;
 	const char *syslog_ident;
@@ -429,7 +429,7 @@ start_bfd_child(void)
 	 */
 	UNSET_RELOAD;
 
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 	/* Signal handling initialization */
 	bfd_signal_init();
 #endif
@@ -437,7 +437,7 @@ start_bfd_child(void)
 	/* Start BFD daemon */
 	start_bfd(NULL);
 
-#ifdef _DEBUG_
+#ifdef _ONE_PROCESS_DEBUG_
 	return 0;
 #else
 
@@ -464,7 +464,7 @@ start_bfd_child(void)
 void
 register_bfd_parent_addresses(void)
 {
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 	register_thread_address("bfd_respawn_thread", bfd_respawn_thread);
 #endif
 }

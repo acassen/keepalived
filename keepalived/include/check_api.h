@@ -74,6 +74,10 @@ extern list checkers_queue;
 #define CHECKER_NEW_CO() ((conn_opts_t *) MALLOC(sizeof (conn_opts_t)))
 #define FMT_CHK(C) FMT_RS((C)->rs, (C)->vs)
 
+#ifdef _CHECKER_DEBUG_
+extern bool do_checker_debug;
+#endif
+
 /* Prototypes definition */
 extern void init_checkers_queue(void);
 extern void free_vs_checkers(virtual_server_t *);

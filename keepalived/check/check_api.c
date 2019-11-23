@@ -51,6 +51,9 @@
 
 /* Global vars */
 list checkers_queue;
+#ifdef _CHECKER_DEBUG_
+bool do_checker_debug;
+#endif
 
 /* free checker data */
 static void

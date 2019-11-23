@@ -26,9 +26,6 @@
 #include <openssl/err.h>
 #include <stdbool.h>
 
-/* keepalived includes */
-#include "utils.h"
-
 /* genhash includes */
 #include "include/ssl.h"
 #include "include/main.h"
@@ -141,7 +138,9 @@ ssl_connect_complete_thread(thread_ref_t thread)
 		thread_add_write(thread->master, ssl_connect_complete_thread, sock_obj,
 				sock_obj->fd, req->timeout, true);
 	} else {
-		DBG("  SSL_connect return code = %d on fd:%d\n", ret, thread->u.fd);
+#ifdef _GENHASH_DEBUG_
+		fprintf(stderr, "  SSL_connect return code = %d on fd:%d\n", ret, thread->u.f.fd);
+#endif
 		ssl_printerr(error);
 		sock_obj->status = connect_error;
 		thread_add_terminate_event(thread->master);
@@ -201,7 +200,9 @@ ssl_connect(thread_ref_t thread)
 		return 1;
 	}
 
-	DBG("  SSL_connect return code = %d on fd:%d\n", ret, thread->u.fd);
+#ifdef _GENHASH_DEBUG_
+	fprintf(stderr, "  SSL_connect return code = %d on fd:%d\n", ret, thread->u.f.fd);
+#endif
 	ssl_printerr(error);
 
 	return (ret > 0);
@@ -279,7 +280,9 @@ ssl_read_thread(thread_ref_t thread)
 
 			return 0;
 		}
-		DBG(" [l:%d,fd:%d]\n", r, sock_obj->fd);
+#ifdef _GENHASH_DEBUG_
+		fprintf(stderr, " [l:%d,fd:%d]\n", r, sock_obj->fd);
+#endif
 
 		if (error != SSL_ERROR_NONE) {
 			/* All the SSL stream has been parsed */

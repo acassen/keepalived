@@ -275,7 +275,7 @@ init_global_data(data_t * data, data_t *prev_global_data, bool copy_unchangeable
 	/* If the global and vrrp notify FIFOs are the same, then data will be
 	 * duplicated on the FIFO */
 	if (
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 	    prog_type == PROG_TYPE_VRRP &&
 #endif
 	    data->notify_fifo.name && data->vrrp_notify_fifo.name &&
@@ -289,7 +289,7 @@ init_global_data(data_t * data, data_t *prev_global_data, bool copy_unchangeable
 #ifdef _WITH_LVS_
 	/* If the global and LVS notify FIFOs are the same, then data will be
 	 * duplicated on the FIFO */
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 	if (prog_type == PROG_TYPE_CHECKER)
 #endif
 	{
@@ -445,7 +445,7 @@ dump_global_data(FILE *fp, data_t * data)
 	if (data->lvs_udp_timeout)
 		conf_write(fp, " LVS TCP timeout = %d", data->lvs_udp_timeout);
 #ifdef _WITH_VRRP_
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 	if (prog_type == PROG_TYPE_VRRP)
 #endif
 		conf_write(fp, " Default interface = %s", data->default_ifp ? data->default_ifp->ifname : DFLT_INT);

@@ -122,7 +122,7 @@ static void
 log_sigxcpu(__attribute__((unused)) void * ptr, __attribute__((unused)) int signum)
 {
 	log_message(LOG_INFO, "%s process has used too much CPU time, %s_rlimit_rtime may need to be increased",
-#ifdef _DEBUG_
+#ifdef _ONE_PROCESS_DEBUG_
 		    "Main debug",
 #else
 #ifdef _WITH_VRRP_
@@ -136,7 +136,7 @@ log_sigxcpu(__attribute__((unused)) void * ptr, __attribute__((unused)) int sign
 #endif
 		    "Unknown",
 #endif
-#ifdef _DEBUG_
+#ifdef _ONE_PROCESS_DEBUG_
 		    "UNDEFINED"
 #else
 #ifdef _WITH_VRRP_
@@ -181,12 +181,9 @@ signal_pending(void)
 static void
 signal_handler(uint32_t sig)
 {
-	if (write(signal_pipe[1], &sig, sizeof(uint32_t)) != sizeof(uint32_t)) {
-		DBG("signal_pipe write error %s", strerror(errno));
-		assert(0);
+	if (write(signal_pipe[1], &sig, sizeof(uint32_t)) != sizeof(uint32_t))
+		log_message(LOG_INFO, "BUG - write to signal_pipe[1] error %d (%s) - please report", errno, strerror(errno));
 
-		log_message(LOG_INFO, "BUG - write to signal_pipe[1] error %s - please report", strerror(errno));
-	}
 }
 #endif
 
@@ -435,7 +432,7 @@ signal_handler_parent_init(void)
 #endif
 }
 
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 static void
 signal_handler_child_init(void)
 {
@@ -458,7 +455,7 @@ signal_handler_init(void)
 {
 	int fd;
 
-#ifdef _DEBUG_
+#ifdef _ONE_PROCESS_DEBUG_
 	signal_handler_parent_init();
 #else
 	if (prog_type == PROG_TYPE_PARENT)

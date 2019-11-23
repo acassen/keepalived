@@ -3631,7 +3631,7 @@ vrrp_complete_init(void)
 	/* Mark any scripts as insecure */
 	check_vrrp_script_security();
 
-#if !defined _DEBUG_ && defined _WITH_LVS_
+#if !defined _ONE_PROCESS_DEBUG_ && defined _WITH_LVS_
 	/* Only one process must run the script to process the global fifo,
 	 * so let the checker process do so. */
 	if (running_checker())

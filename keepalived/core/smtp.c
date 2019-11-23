@@ -45,6 +45,9 @@
 #ifdef _SMTP_ALERT_DEBUG_
 bool do_smtp_alert_debug;
 #endif
+#ifdef _SMTP_CONNECT_DEBUG_
+bool do_smtp_connect_debug;
+#endif
 
 /* SMTP FSM definition */
 static int connection_error(thread_ref_t);
@@ -124,8 +127,10 @@ connection_in_progress(thread_ref_t thread)
 {
 	int status;
 
-	DBG("SMTP connection to %s now IN_PROGRESS.",
-	    FMT_SMTP_HOST());
+#ifdef _SMTP_CONNECT_DEBUG_
+	if (do_smtp_connect_debug)
+		log_message(LOG_DEBUG, "SMTP connection to %s now IN_PROGRESS.", FMT_SMTP_HOST());
+#endif
 
 	/*
 	 * Here we use the propriety of a union structure,
@@ -542,7 +547,10 @@ smtp_connect(smtp_t *smtp)
 	smtp->next_email_element = LIST_HEAD(global_data->email);
 
 	if ((smtp->fd = socket(global_data->smtp_server.ss_family, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, IPPROTO_TCP)) == -1) {
-		DBG("SMTP connect fail to create socket.");
+#ifdef _SMTP_CONNECT_DEBUG_
+		if (do_smtp_connect_debug)
+			log_message(LOG_DEBUG, "SMTP connect fail to create socket.");
+#endif
 		free_smtp_all(smtp);
 		return;
 	}

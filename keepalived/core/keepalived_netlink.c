@@ -910,7 +910,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 		return -1;
 
 #ifdef _WITH_VRRP_
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 	if (prog_type == PROG_TYPE_VRRP || __test_bit(CONFIG_TEST_BIT, &debug))
 #endif
 	{
@@ -1164,7 +1164,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 #endif
 
 #ifdef _WITH_LVS_
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 	if (prog_type == PROG_TYPE_CHECKER)
 #endif
 	{
@@ -1321,7 +1321,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 #ifdef _WITH_VRRP_
 			/* Skip unsolicited messages from cmd channel */
 			if (
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 			    prog_type == PROG_TYPE_VRRP &&
 #endif
 			    h->nlmsg_type != RTM_NEWLINK &&
@@ -1949,7 +1949,7 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 		if (h->nlmsg_type == RTM_DELLINK) {
 			if (!LIST_ISEMPTY(ifp->tracking_vrrp) || __test_bit(LOG_DETAIL_BIT, &debug))
 				log_message(LOG_INFO, "Interface %s deleted", ifp->ifname);
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 			if (prog_type != PROG_TYPE_VRRP) {
 				ifp->ifi_flags = 0;
 				ifp->ifindex = 0;
@@ -1960,7 +1960,7 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 #ifdef _HAVE_VRRP_VMAC_
 			/* If this was a vmac we created, create it again, so long as the underlying i/f exists */
 			if (ifp->is_ours
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 			    && prog_type == PROG_TYPE_VRRP
 #endif
 							  )
@@ -2015,7 +2015,7 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 				/* The name can change, so handle that here */
 				log_message(LOG_INFO, "Interface name has changed from %s to %s", ifp->ifname, name);
 
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 				if (prog_type != PROG_TYPE_VRRP) {
 					ifp->ifi_flags = 0;
 					ifp->ifindex = 0;
@@ -2026,7 +2026,7 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 #ifdef _HAVE_VRRP_VMAC_
 				/* If this was one of our vmacs, create it again */
 				if (ifp->is_ours
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 				    && prog_type == PROG_TYPE_VRRP
 #endif
 								)
@@ -2056,7 +2056,7 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 
 				/* Check if the MTU has increased */
 				if (
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 				    prog_type == PROG_TYPE_VRRP &&
 #endif
 				    tb[IFLA_MTU]) {
@@ -2114,7 +2114,7 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 
 			update_added_interface(ifp);
 
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 			if (prog_type == PROG_TYPE_VRRP)
 #endif
 				if (ifp->mtu > old_mtu)
@@ -2271,7 +2271,7 @@ netlink_broadcast_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 		 * occurs when the link is set to up state.
 		 * Only the VRRP process is interested in link messages. */
 #ifdef _WITH_VRRP_
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 		if (prog_type == PROG_TYPE_VRRP)
 #endif
 			return netlink_link_filter(snl, h);
@@ -2324,7 +2324,7 @@ kernel_netlink_poll(void)
 void
 kernel_netlink_set_recv_bufs(void)
 {
-#ifdef _DEBUG_
+#ifdef _ONE_PROCESS_DEBUG_
 #ifdef _WITH_VRRP_
 	netlink_set_rx_buf_size(&nl_kernel, global_data->vrrp_netlink_monitor_rcv_bufs, global_data->vrrp_netlink_monitor_rcv_bufs_force);
 	netlink_set_rx_buf_size(&nl_cmd, global_data->vrrp_netlink_cmd_rcv_bufs, global_data->vrrp_netlink_cmd_rcv_bufs_force);
@@ -2383,7 +2383,7 @@ kernel_netlink_init(void)
 		return;
 	}
 
-#ifdef _DEBUG_
+#ifdef _ONE_PROCESS_DEBUG_
 #ifdef _WITH_VRRP_
 	netlink_socket(&nl_kernel, global_data->vrrp_netlink_monitor_rcv_bufs, global_data->vrrp_netlink_monitor_rcv_bufs_force,
 			SOCK_NONBLOCK, RTNLGRP_LINK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, 0);
@@ -2412,7 +2412,7 @@ kernel_netlink_init(void)
 		log_message(LOG_INFO, "Error while registering Kernel netlink reflector channel");
 
 	/* Prepare netlink command channel. The cmd socket is used synchronously.*/
-#ifdef _DEBUG_
+#ifdef _ONE_PROCESS_DEBUG_
 #ifdef _WITH_VRRP_
 	netlink_socket(&nl_cmd, global_data->vrrp_netlink_cmd_rcv_bufs, global_data->vrrp_netlink_cmd_rcv_bufs_force, 0, 0);
 #else
@@ -2435,7 +2435,7 @@ kernel_netlink_init(void)
 
 	/* Start with netlink interface and address lookup */
 #ifdef _WITH_VRRP_
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 	if (prog_type == PROG_TYPE_VRRP)
 #endif
 		init_interface_queue();
@@ -2443,7 +2443,7 @@ kernel_netlink_init(void)
 
 	netlink_address_lookup();
 
-#if !defined _DEBUG_ && defined _WITH_LVS_
+#if !defined _ONE_PROCESS_DEBUG_ && defined _WITH_LVS_
 	if (prog_type == PROG_TYPE_CHECKER)
 		kernel_netlink_close_cmd();
 #endif

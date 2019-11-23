@@ -348,7 +348,7 @@ bfd_end_handler(void)
 	if (!specified_event_processes || __test_bit(DAEMON_VRRP, &specified_event_processes))
 		bfd->vrrp = true;
 
-#ifdef _DEBUG_
+#ifdef _ONE_PROCESS_DEBUG_
 	bfd_vrrp_end_handler();
 #endif
 #endif
@@ -356,14 +356,14 @@ bfd_end_handler(void)
 	if (!specified_event_processes || __test_bit(DAEMON_CHECKERS, &specified_event_processes))
 		bfd->checker = true;
 
-#ifdef _DEBUG_
+#ifdef _ONE_PROCESS_DEBUG_
 	bfd_checker_end_handler();
 #endif
 #endif
 }
 
 #ifdef _WITH_VRRP_
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 static void
 bfd_vrrp_handler(const vector_t *strvec)
 {
@@ -436,7 +436,7 @@ bfd_event_vrrp_handler(__attribute__((unused)) const vector_t *strvec)
 #endif
 
 #ifdef _WITH_LVS_
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 static void
 bfd_checker_handler(const vector_t *strvec)
 {
@@ -492,7 +492,7 @@ init_bfd_keywords(bool active)
 	/* This will be called with active == false for parent and checker process,
 	 * for bfd, checker and vrrp process active will be true, but they are only interested
 	 * in different keywords. */
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 	if (prog_type == PROG_TYPE_BFD || !active)
 #endif
 	{
@@ -500,7 +500,7 @@ init_bfd_keywords(bool active)
 		install_sublevel_end_handler(bfd_end_handler);
 		bfd_handlers = true;
 	}
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 #ifdef _WITH_VRRP_
 	else if (prog_type == PROG_TYPE_VRRP) {
 		install_keyword_root("bfd_instance", &bfd_vrrp_handler, active);
@@ -528,7 +528,7 @@ init_bfd_keywords(bool active)
 	install_keyword_conditional("max_hops", &bfd_maxhops_handler, bfd_handlers);
 #ifdef _WITH_VRRP_
 	install_keyword_conditional("weight", &bfd_vrrp_weight_handler,
-#ifdef _DEBUG_
+#ifdef _ONE_PROCESS_DEBUG_
 									true
 #else
 									prog_type == PROG_TYPE_VRRP

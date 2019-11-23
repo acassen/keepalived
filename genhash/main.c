@@ -306,7 +306,9 @@ main(int argc, char **argv)
 
 	/* Init the reference timer */
 	req->ref_time = timer_long(timer_now());
-	DBG("Reference timer = %lu\n", req->ref_time);
+#ifdef _GENHASH_DEBUG_
+	fprintf(stderr, "Reference timer = %lu\n", req->ref_time);
+#endif
 
 	/* Init SSL context */
 	init_ssl();

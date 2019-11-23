@@ -34,6 +34,7 @@
 #else
 #include <stdlib.h>
 #endif
+#include <stdbool.h>
 
 /* Local defines */
 #ifdef _MEM_CHECK_
@@ -53,6 +54,10 @@
 		      (__FILE__), (__func__), (__LINE__)) )
 
 extern size_t mem_allocated;
+
+#ifdef _MEM_ERR_DEBUG_
+extern bool do_mem_err_debug;
+#endif
 
 /* Memory debug prototypes defs */
 extern void memcheck_log(const char *, const char *, const char *, const char *, int);

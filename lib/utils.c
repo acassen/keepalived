@@ -72,6 +72,10 @@
 unsigned long debug = 0;
 mode_t umask_val = S_IXUSR | S_IRWXG | S_IRWXO;
 
+#ifdef _EINTR_DEBUG_
+bool do_eintr_debug;
+#endif
+
 /* Display a buffer into a HEXA formated output */
 void
 dump_buffer(const char *buff, size_t count, FILE* fp, int indent)

@@ -70,7 +70,7 @@ typedef struct _func_det {
 
 /* global vars */
 thread_master_t *master = NULL;
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 prog_type_t prog_type;		/* Parent/VRRP/Checker process */
 #endif
 #ifdef _WITH_SNMP_
@@ -353,7 +353,6 @@ save_cmd_line_options(int argc, char * const *argv)
 	sav_argv = argv;
 }
 
-#ifndef _DEBUG_
 static const char *
 get_end(const char *str, size_t max_len)
 {
@@ -425,6 +424,7 @@ RELAX_STRICT_OVERFLOW_END
 	FREE(log_str);
 }
 
+#ifndef _ONE_PROCESS_DEBUG_
 /* report_child_status returns true if the exit is a hard error, so unable to continue */
 bool
 report_child_status(int status, pid_t pid, char const *prog_name)
@@ -1789,8 +1789,9 @@ process_threads(thread_master_t *m)
 	 */
 	while ((thread_list = thread_fetch_next_queue(m))) {
 		/* Run until error, used for debuging only */
-#if defined _DEBUG_ && defined _MEM_CHECK_
-		if (__test_bit(MEM_ERR_DETECT_BIT, &debug)
+#ifdef _MEM_ERR_DEBUG_
+		if (do_mem_err_debug &&
+		    __test_bit(MEM_ERR_DETECT_BIT, &debug)
 #ifdef _WITH_VRRP_
 		    && __test_bit(DONT_RELEASE_VRRP_BIT, &debug)
 #endif
@@ -1859,7 +1860,7 @@ process_child_termination(pid_t pid, int status)
 	thread_t *thread;
 	bool permanent_vrrp_checker_error = false;
 
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 	if (prog_type == PROG_TYPE_PARENT)
 		permanent_vrrp_checker_error = report_child_status(status, pid, NULL);
 #endif

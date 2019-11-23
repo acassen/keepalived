@@ -1521,7 +1521,10 @@ http_request_thread(thread_ref_t thread)
 			http_get_check->http_protocol == HTTP_PROTOCOL_1_0C || http_get_check->http_protocol == HTTP_PROTOCOL_1_1 ? "Connection: close\r\n" : "",
 			request_host, request_host_port);
 
-	DBG("Processing url(%s) of %s.", url->path, FMT_CHK(checker));
+#ifdef _CHECKER_DEBUG_
+	if (do_checker_debug)
+		log_message(LOG_DEBUG, "Processing url(%s) of %s.", fetched_url->path, FMT_CHK(checker));
+#endif
 
 	/* Send the GET request to remote Web server */
 	if (http_get_check->proto == PROTO_SSL)
@@ -1547,9 +1550,6 @@ http_check_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
-#ifdef _DEBUG_
-	request_t *req = http_get_check->req;
-#endif
 	int ret = 1;
 	int status;
 	unsigned long timeout = 0;
@@ -1616,19 +1616,22 @@ http_check_thread(thread_ref_t thread)
 			/* Remote WEB server is connected.
 			 * Register the next step thread ssl_request_thread.
 			 */
-			DBG("Remote Web server %s connected.", FMT_CHK(checker));
+#ifdef _CHECKER_DEBUG_
+			if (do_checker_debug)
+				log_message(LOG_DEBUG, "Remote Web server %s connected.", FMT_CHK(checker));
+#endif
 			thread_add_write(thread->master,
 					 http_request_thread, checker,
 					 thread->u.f.fd,
 					 checker->co->connection_to, true);
 			thread_del_read(thread);
 		} else {
-			DBG("Connection trouble to: %s."
-					 , FMT_CHK(checker));
-#ifdef _DEBUG_
+#ifdef _CHECKER_DEBUG_
+			if (do_checker_debug)
+				log_message(LOG_DEBUG, "Connection trouble to: %s." , FMT_CHK(checker));
+
 			if (http_get_check->proto == PROTO_SSL)
-				ssl_printerr(SSL_get_error
-					     (req->ssl, ret));
+				ssl_printerr(SSL_get_error (http_get_check->req->ssl, ret));
 #endif
 			return timeout_epilog(thread, "SSL handshake/communication error"
 						 " connecting to");
