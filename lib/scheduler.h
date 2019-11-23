@@ -164,7 +164,7 @@ typedef struct _thread_master {
 	bool			shutdown_timer_running;
 } thread_master_t;
 
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 typedef enum {
 	PROG_TYPE_PARENT,
 #ifdef _WITH_VRRP_
@@ -201,7 +201,7 @@ typedef enum {
 
 /* global vars exported */
 extern thread_master_t *master;
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 extern prog_type_t prog_type;		/* Parent/VRRP/Checker process */
 #endif
 #ifdef _WITH_SNMP_
@@ -218,7 +218,7 @@ extern bool do_epoll_thread_dump;
 extern void set_child_finder_name(char const * (*)(pid_t));
 extern void save_cmd_line_options(int, char * const *);
 extern void log_command_line(unsigned);
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 extern bool report_child_status(int, pid_t, const char *);
 #endif
 extern thread_master_t *thread_make_master(void);

@@ -326,7 +326,7 @@ default_interface_handler(const vector_t *strvec)
 	global_data->default_ifname = set_value(strvec);
 
 	/* On a reload, the VRRP process needs the default_ifp */
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 	if (prog_type == PROG_TYPE_VRRP)
 #endif
 	{

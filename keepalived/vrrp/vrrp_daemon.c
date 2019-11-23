@@ -90,7 +90,7 @@
 bool non_existent_interface_specified;
 
 /* Forward declarations */
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 static int print_vrrp_data(thread_ref_t);
 static int print_vrrp_stats(thread_ref_t);
 static int reload_vrrp_thread(thread_ref_t);
@@ -104,7 +104,7 @@ perf_t perf_run = PERF_NONE;
 
 /* local variables */
 static const char *vrrp_syslog_ident;
-#ifndef _DEBUG_
+#ifndef __ONE_PROCESSDEBUG_
 static bool two_phase_terminate;
 #endif
 
@@ -112,7 +112,7 @@ static bool two_phase_terminate;
 bool do_vrrp_fd_debug;
 #endif
 
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 #ifdef _VRRP_FD_DEBUG_
 static void
 dump_vrrp_fd(void)
@@ -406,7 +406,7 @@ vrrp_terminate_phase1(bool schedule_next_thread)
 	}
 }
 
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 static int
 start_vrrp_termination_thread(__attribute__((unused)) thread_ref_t thread)
 {
@@ -637,7 +637,7 @@ start_vrrp(data_t *prev_global_data)
 	set_vrrp_max_fds();
 }
 
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 static int
 send_reload_advert_thread(thread_ref_t thread)
 {
@@ -755,7 +755,7 @@ reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 
 	vrrp_initialised = false;
 
-#if !defined _DEBUG_ && defined _WITH_SNMP_VRRP_
+#if !defined _ONE_PROCESS_DEBUG_ && defined _WITH_SNMP_VRRP_
 	if (
 #ifdef _WITH_SNMP_VRRP_
 	    global_data->enable_snmp_vrrp ||
@@ -893,7 +893,7 @@ register_vrrp_thread_addresses(void)
 	register_process_monitor_addresses();
 #endif
 
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 	register_thread_address("print_vrrp_data", print_vrrp_data);
 	register_thread_address("print_vrrp_stats", print_vrrp_stats);
 	register_thread_address("reload_vrrp_thread", reload_vrrp_thread);
@@ -903,7 +903,7 @@ register_vrrp_thread_addresses(void)
 	register_thread_address("vrrp_shutdown_backstop_thread", vrrp_shutdown_backstop_thread);
 	register_thread_address("vrrp_shutdown_timer_thread", vrrp_shutdown_timer_thread);
 
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 	register_signal_handler_address("sigreload_vrrp", sigreload_vrrp);
 	register_signal_handler_address("sigend_vrrp", sigend_vrrp);
 	register_signal_handler_address("sigusr1_vrrp", sigusr1_vrrp);
@@ -919,7 +919,7 @@ register_vrrp_thread_addresses(void)
 int
 start_vrrp_child(void)
 {
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 	pid_t pid;
 	const char *syslog_ident;
 
@@ -1026,7 +1026,7 @@ start_vrrp_child(void)
 	 */
 	UNSET_RELOAD;
 
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 	/* Signal handling initialization */
 	vrrp_signal_init();
 #endif
@@ -1034,7 +1034,7 @@ start_vrrp_child(void)
 	/* Start VRRP daemon */
 	start_vrrp(NULL);
 
-#ifdef _DEBUG_
+#ifdef _ONE_PROCESS_DEBUG_
 	return 0;
 #endif
 
@@ -1070,7 +1070,7 @@ vrrp_validate_config(void)
 void
 register_vrrp_parent_addresses(void)
 {
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 	register_thread_address("vrrp_respawn_thread", vrrp_respawn_thread);
 #endif
 }

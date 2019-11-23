@@ -467,9 +467,10 @@ smtp_get_line_cb(thread_ref_t thread)
 	if ((nl = strchr(smtp_checker->buff, '\n'))) {
 		*nl = '\0';
 
-		DBG("SMTP_CHECK %s < %s"
-		    , FMT_SMTP_RS(smtp_host)
-		    , smtp_checker->buff);
+#ifdef _CHECKER_DEBUG_
+		if (do_checker_debug)
+			log_message(LOG_DEBUG, "SMTP_CHECK %s < %s" , FMT_SMTP_RS(smtp_host) , smtp_checker->buff);
+#endif
 
 		smtp_engine_thread(thread);
 
@@ -542,9 +543,10 @@ smtp_put_line_cb(thread_ref_t thread)
 		return 0;
 	}
 
-	DBG("SMTP_CHECK %s > %s"
-	    , FMT_SMTP_RS(smtp_host)
-	    , smtp_checker->buff);
+#ifdef _CHECKER_DEBUG_
+	if (do_checker_debug)
+		log_message(LOG_DEBUG, "SMTP_CHECK %s > %s" , FMT_SMTP_RS(smtp_host) , smtp_checker->buff);
+#endif
 
 	/*
 	 * If the connection was closed or there was
@@ -713,8 +715,11 @@ smtp_check_thread(thread_ref_t thread)
 			break;
 
 		case connect_success:
-			DBG("SMTP_CHECK Remote SMTP server %s connected"
-			    , FMT_SMTP_RS(smtp_host));
+#ifdef _CHECKER_DEBUG_
+			if (do_checker_debug)
+				log_message(LOG_DEBUG, "SMTP_CHECK Remote SMTP server %s connected",
+						     FMT_SMTP_RS(smtp_host));
+#endif
 
 			/* Enter the engine at SMTP_START */
 			smtp_checker->state = SMTP_START;

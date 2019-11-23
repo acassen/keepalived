@@ -36,16 +36,6 @@
 #include <string.h>
 
 #include "vector.h"
-#if defined _DEBUG_ || defined DEBUG_EINTR
-#include "logger.h"
-#endif
-
-/* Global debugging logging facilities */
-#ifdef _DEBUG_
-#define DBG(fmt, msg...) log_message(LOG_DEBUG, fmt, ## msg)
-#else
-#define DBG(fmt, msg...)
-#endif
 
 #define STR(x)  #x
 
@@ -61,6 +51,10 @@ typedef enum {
 	PERF_ALL,
 	PERF_END,
 } perf_t;
+#endif
+
+#ifdef _EINTR_DEBUG_
+extern bool do_eintr_debug;
 #endif
 
 /* Some library functions that take pointer parameters should have them
@@ -83,7 +77,10 @@ typedef enum {
 static inline bool
 check_EINTR(int xx)
 {
-	if ((xx) == EINTR) {
+	if (!do_eintr_debug)
+		return (xx == EINTR);
+
+	if (xx == EINTR) {
 		log_message(LOG_INFO, "%s:%s(%d) - EINTR returned", (__FILE__), (__func__), (__LINE__));
 		return true;
 	}

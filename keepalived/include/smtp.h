@@ -128,6 +128,9 @@ typedef void vrrp_sgroup_t;
 #ifdef _SMTP_ALERT_DEBUG_
 extern bool do_smtp_alert_debug;
 #endif
+#ifdef _SMTP_CONNECT_DEBUG_
+extern bool do_smtp_connect_debug;
+#endif
 
 /* Prototypes defs */
 extern void smtp_alert(smtp_msg_t, void *data, const char *, const char *);

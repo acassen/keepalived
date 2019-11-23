@@ -55,6 +55,10 @@ static size_t max_mem_allocated;	/* Maximum memory used in Bytes */
 static const char *terminate_banner;	/* banner string for report file */
 
 static bool skip_mem_check_final;
+
+#ifdef _MEM_ERR_DEBUG_
+bool do_mem_err_debug;
+#endif
 #endif
 
 static void * __attribute__ ((malloc))
@@ -332,7 +336,9 @@ keepalived_free_realloc_common(void *buffer, size_t size, const char *file, cons
 				"realloc", "ERROR", "NULL",
 				size, file, line, function, size ? " *** converted to malloc" : "");
 
+#ifdef _MEM_ERR_DEBUG_
 		__set_bit(MEM_ERR_DETECT_BIT, &debug);
+#endif
 
 		list_add_tail(&entry->l, &bad_list);
 
@@ -362,7 +368,9 @@ keepalived_free_realloc_common(void *buffer, size_t size, const char *file, cons
 				"realloc", "ERROR",
 				buffer, size, file, line, function);
 
+#ifdef _MEM_ERR_DEBUG_
 		__set_bit(MEM_ERR_DETECT_BIT, &debug);
+#endif
 
 		list_for_each_entry_reverse(le, &free_list, l) {
 			if (le->ptr == buffer &&
@@ -407,7 +415,9 @@ keepalived_free_realloc_common(void *buffer, size_t size, const char *file, cons
 		dump_buffer((char *) &check,
 			    sizeof(check), log_op, TIME_STR_LEN);
 
+#ifdef _MEM_ERR_DEBUG_
 		__set_bit(MEM_ERR_DETECT_BIT, &debug);
+#endif
 	}
 
 	mem_allocated -= entry->size;

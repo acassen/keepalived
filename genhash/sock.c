@@ -26,7 +26,6 @@
 
 /* keepalived includes */
 #include "memory.h"
-#include "utils.h"
 
 /* genhash includes */
 #include "include/sock.h"
@@ -50,7 +49,9 @@ close_sock(SOCK * sock_obj)
 void
 free_sock(SOCK * sock_obj)
 {
-	DBG("Freeing fd:%d\n", sock_obj->fd);
+#ifdef _GENHASH_DEBUG_
+	fprintf(stderr, "Freeing fd:%d\n", sock_obj->fd);
+#endif
 
 	close_sock(sock_obj);
 	FREE(sock_obj);

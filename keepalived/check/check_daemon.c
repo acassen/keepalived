@@ -240,7 +240,7 @@ checker_terminate_phase1(bool schedule_next_thread)
 	}
 }
 
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 static int
 start_checker_termination_thread(__attribute__((unused)) thread_ref_t thread)
 {
@@ -395,7 +395,7 @@ check_validate_config(void)
 	start_check(NULL, NULL);
 }
 
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 /* Reload thread */
 static int
 reload_check_thread(__attribute__((unused)) thread_ref_t thread)
@@ -419,7 +419,7 @@ reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 	/* Remove the notify fifo - we don't know if it will be the same after a reload */
 	notify_fifo_close(&global_data->notify_fifo, &global_data->lvs_notify_fifo);
 
-#if !defined _DEBUG_ && defined _WITH_SNMP_CHECKER_
+#if !defined _ONE_PROCESS_DEBUG_ && defined _WITH_SNMP_CHECKER_
 	if (prog_type == PROG_TYPE_CHECKER && global_data->enable_snmp_checker)
 		with_snmp = true;
 #endif
@@ -536,14 +536,14 @@ register_check_thread_addresses(void)
 	register_check_bfd_addresses();
 #endif
 
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 	register_thread_address("reload_check_thread", reload_check_thread);
 	register_thread_address("start_checker_termination_thread", start_checker_termination_thread);
 #endif
 	register_thread_address("lvs_notify_fifo_script_exit", lvs_notify_fifo_script_exit);
 	register_thread_address("checker_shutdown_backstop_thread", checker_shutdown_backstop_thread);
 
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 	register_signal_handler_address("sigreload_check", sigreload_check);
 	register_signal_handler_address("sigend_check", sigend_check);
 #endif
@@ -554,7 +554,7 @@ register_check_thread_addresses(void)
 int
 start_check_child(void)
 {
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 	pid_t pid;
 	const char *syslog_ident;
 
@@ -652,7 +652,7 @@ start_check_child(void)
 	 */
 	UNSET_RELOAD;
 
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 	/* Signal handling initialization */
 	check_signal_init();
 #endif
@@ -660,7 +660,7 @@ start_check_child(void)
 	/* Start Healthcheck daemon */
 	start_check(NULL, NULL);
 
-#ifdef _DEBUG_
+#ifdef _ONE_PROCESS_DEBUG_
 	return 0;
 #endif
 
@@ -689,7 +689,7 @@ start_check_child(void)
 void
 register_check_parent_addresses(void)
 {
-#ifndef _DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 	register_thread_address("print_check_data", print_check_data);
 	register_thread_address("check_respawn_thread", check_respawn_thread);
 #endif
