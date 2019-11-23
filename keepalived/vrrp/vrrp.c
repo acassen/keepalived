@@ -106,6 +106,10 @@ static bool monitor_ipv6_rules;
 bool do_network_timestamp;
 #endif
 
+#ifdef _CHECKSUM_DEBUG_
+bool do_checksum_debug;
+#endif
+
 static int
 vrrp_notify_fifo_script_exit(__attribute__((unused)) thread_ref_t thread)
 {
@@ -635,7 +639,7 @@ vrrp_in_chk_vips(const vrrp_t *vrrp, const ip_address_t *ipaddress, const unsign
 	return 0;
 }
 
-#ifdef CHECKSUM_DIAGNOSTICS
+#ifdef _CHECKSUM_DEBUG_
 static void
 check_tx_checksum(vrrp_t *vrrp, unicast_peer_t *peer)
 {
@@ -1057,15 +1061,17 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 				}
 			}
 
-#ifdef CHECKSUM_DIAGNOSTICS
-			check_rx_checksum(vrrp, &ipv4_phdr, ip, buflen, hd, csum_calc, acc_csum);
+#ifdef _CHECKSUM_DEBUG_
+			if (do_checksum_debug)
+				check_rx_checksum(vrrp, &ipv4_phdr, ip, buflen, hd, csum_calc, acc_csum);
 #endif
 		} else {
 			vrrppkt_len += VRRP_AUTH_LEN;
 			csum_calc = in_csum((const uint16_t *) hd, vrrppkt_len, 0, &acc_csum);
 
-#ifdef CHECKSUM_DIAGNOSTICS
-			check_rx_checksum(vrrp, NULL, ip, buflen, hd, csum_calc, acc_csum);
+#ifdef _CHECKSUM_DEBUG_
+			if (do_checksum_debug)
+				check_rx_checksum(vrrp, NULL, ip, buflen, hd, csum_calc, acc_csum);
 #endif
 
 			if (csum_calc) {
@@ -1466,8 +1472,8 @@ vrrp_send_pkt(vrrp_t * vrrp, unicast_peer_t *peer)
 		vrrp_build_ancillary_data(&msg, cbuf, src, vrrp);
 	}
 
-#ifdef CHECKSUM_DIAGNOSTICS
-	if (vrrp->family == AF_INET)
+#ifdef _CHECKSUM_DEBUG_
+	if (vrrp->family == AF_INET && do_checksum_debug)
 		check_tx_checksum(vrrp, peer);
 #endif
 

@@ -119,7 +119,7 @@ dump_buffer(const char *buff, size_t count, FILE* fp, int indent)
 	}
 }
 
-#ifdef CHECKSUM_DIAGNOSTICS
+#ifdef _CHECKSUM_DEBUG_
 void
 log_buffer(const char *msg, const void *buff, size_t count)
 {
