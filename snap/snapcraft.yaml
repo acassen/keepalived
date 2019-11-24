@@ -17,7 +17,7 @@ apps:
     command: bin/keepalived-wrapper
   "503":        # Ubuntu 19.10 and Fedora 31
     command: usr/sbin/keepalived-503
-  "500":        # Ununtu 19.04 and Fedora 30
+  "500":        # Ubuntu 19.04 and Fedora 30
     command: usr/sbin/keepalived-500
   "418":        # Ubuntu 18.10 and RHEL 8 and Fedora 29
     command: usr/sbin/keepalived-418
@@ -86,7 +86,7 @@ parts:
     after:
       - keepalived
     override-pull: |
-      KERNEL_VER="5.0.3"
+      KERNEL_VER="5.3.0"
       ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
       if [ $ARCH = amd64 ] || [ $ARCH = i386 ]; then
         ARCHIVE_URL="http://security.ubuntu.com/ubuntu/pool/main/l/linux/"
@@ -344,19 +344,25 @@ parts:
       elif [ $ARCH = armhf ]; then
         DEB_URL="http://launchpadlibrarian.net/144753483/linux-libc-dev_3.10.0-2.11_armhf.deb"
       fi
-      wget --quiet ${DEB_URL} -O ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
-      echo "Unpacking kernel headers..."
-      dpkg -x ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb ${SNAPCRAFT_PART_INSTALL}
-      cat ${SNAPCRAFT_PART_INSTALL}/usr/include/linux/version.h
-      rm -f ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
+      if [ $ARCH != s390x ]; then
+        # s390x was not supported on Trusty, so there are no kernel headers for it.
+        # Just let it build with the previous headers.
+        wget --quiet ${DEB_URL} -O ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
+        echo "Unpacking kernel headers..."
+        dpkg -x ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb ${SNAPCRAFT_PART_INSTALL}
+        cat ${SNAPCRAFT_PART_INSTALL}/usr/include/linux/version.h
+        rm -f ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
+      fi
     override-build: |
       snapcraftctl build
       # Move the headers on the host out of the way
       echo -n "Host kernel:"
       cat /usr/include/linux/version.h
-      rm -rf /usr/include/linux || true
-      # Move header from the part to the host
-      mv ${SNAPCRAFT_PART_INSTALL}/usr/include/linux /usr/include/ || true
+      if [ $ARCH != s390x ]; then
+        rm -rf /usr/include/linux || true
+        # Move header from the part to the host
+        mv ${SNAPCRAFT_PART_INSTALL}/usr/include/linux /usr/include/ || true
+      fi
       echo -n "Build kernel:"
       cat /usr/include/linux/version.h
     stage:
