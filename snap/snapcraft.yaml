@@ -344,19 +344,25 @@ parts:
       elif [ $ARCH = armhf ]; then
         DEB_URL="http://launchpadlibrarian.net/144753483/linux-libc-dev_3.10.0-2.11_armhf.deb"
       fi
-      wget --quiet ${DEB_URL} -O ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
-      echo "Unpacking kernel headers..."
-      dpkg -x ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb ${SNAPCRAFT_PART_INSTALL}
-      cat ${SNAPCRAFT_PART_INSTALL}/usr/include/linux/version.h
-      rm -f ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
+      if [ $ARCH != s390x ]; then
+        # s390x was not supported on Trusty, so there are no kernel headers for it.
+        # Just let it build with the previous headers.
+        wget --quiet ${DEB_URL} -O ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
+        echo "Unpacking kernel headers..."
+        dpkg -x ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb ${SNAPCRAFT_PART_INSTALL}
+        cat ${SNAPCRAFT_PART_INSTALL}/usr/include/linux/version.h
+        rm -f ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
+      fi
     override-build: |
       snapcraftctl build
       # Move the headers on the host out of the way
       echo -n "Host kernel:"
       cat /usr/include/linux/version.h
-      rm -rf /usr/include/linux || true
-      # Move header from the part to the host
-      mv ${SNAPCRAFT_PART_INSTALL}/usr/include/linux /usr/include/ || true
+      if [ $ARCH != s390x ]; then
+        rm -rf /usr/include/linux || true
+        # Move header from the part to the host
+        mv ${SNAPCRAFT_PART_INSTALL}/usr/include/linux /usr/include/ || true
+      fi
       echo -n "Build kernel:"
       cat /usr/include/linux/version.h
     stage:
