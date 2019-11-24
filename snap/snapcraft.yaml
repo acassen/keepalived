@@ -49,7 +49,7 @@ parts:
       VER=$(grep GIT_COMMIT lib/git-commit.h | cut -d'"' -f2)
       snapcraftctl set-version $VER
       echo -n "Build kernel:"
-      printf "%d.%d.%d" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
+      printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
     build-packages:
       - iptables-dev
       - libipset-dev
@@ -99,7 +99,7 @@ parts:
       wget --quiet ${ARCHIVE_URL}/linux-libc-dev_${DEB_SUFFIX} -O ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
       echo -n "Unpacking kernel headers..."
       dpkg -x ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb ${SNAPCRAFT_PART_INSTALL}
-      printf "%d.%d.%d" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${SNAPCRAFT_PART_INSTALL}/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
+      printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${SNAPCRAFT_PART_INSTALL}/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
       rm -f ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
     override-build: |
       snapcraftctl build
@@ -108,7 +108,7 @@ parts:
       # Move header from the part to the host
       mv ${SNAPCRAFT_PART_INSTALL}/usr/include/linux /usr/include/ || true
       echo -n "Build kernel:"
-      printf "%d.%d.%d" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
+      printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
     stage:
       - -*
     prime:
@@ -163,7 +163,7 @@ parts:
       wget --quiet ${ARCHIVE_URL}/linux-libc-dev_${DEB_SUFFIX} -O ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
       echo -n "Unpacking kernel headers..."
       dpkg -x ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb ${SNAPCRAFT_PART_INSTALL}
-      printf "%d.%d.%d" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${SNAPCRAFT_PART_INSTALL}/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
+      printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${SNAPCRAFT_PART_INSTALL}/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
       rm -f ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
     override-build: |
       snapcraftctl build
@@ -172,7 +172,7 @@ parts:
       # Move header from the part to the host
       mv ${SNAPCRAFT_PART_INSTALL}/usr/include/linux /usr/include/ || true
       echo -n "Build kernel:"
-      printf "%d.%d.%d" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
+      printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
     stage:
       - -*
     prime:
@@ -227,7 +227,7 @@ parts:
       wget --quiet ${ARCHIVE_URL}/linux-libc-dev_${DEB_SUFFIX} -O ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
       echo -n "Unpacking kernel headers..."
       dpkg -x ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb ${SNAPCRAFT_PART_INSTALL}
-      printf "%d.%d.%d" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${SNAPCRAFT_PART_INSTALL}/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
+      printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${SNAPCRAFT_PART_INSTALL}/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
       rm -f ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
     override-build: |
       snapcraftctl build
@@ -236,7 +236,7 @@ parts:
       # Move header from the part to the host
       mv ${SNAPCRAFT_PART_INSTALL}/usr/include/linux /usr/include/ || true
       echo -n "Build kernel:"
-      printf "%d.%d.%d" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
+      printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
     stage:
       - -*
     prime:
@@ -284,7 +284,7 @@ parts:
       wget --quiet ${ARCHIVE_URL}/linux-libc-dev_${DEB_SUFFIX} -O ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
       echo -n "Unpacking kernel headers..."
       dpkg -x ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb ${SNAPCRAFT_PART_INSTALL}
-      printf "%d.%d.%d" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${SNAPCRAFT_PART_INSTALL}/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
+      printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${SNAPCRAFT_PART_INSTALL}/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
       rm -f ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
     override-build: |
       snapcraftctl build
@@ -293,7 +293,7 @@ parts:
       # Move header from the part to the host
       mv ${SNAPCRAFT_PART_INSTALL}/usr/include/linux /usr/include/ || true
       echo -n "Build kernel:"
-      printf "%d.%d.%d" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
+      printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
     stage:
       - -*
     prime:
@@ -344,7 +344,7 @@ parts:
         wget --quiet ${DEB_URL} -O ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
         echo -n "Unpacking kernel headers..."
         dpkg -x ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb ${SNAPCRAFT_PART_INSTALL}
-        printf "%d.%d.%d" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${SNAPCRAFT_PART_INSTALL}/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
+        printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${SNAPCRAFT_PART_INSTALL}/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
         rm -f ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
       fi
     override-build: |
@@ -357,7 +357,7 @@ parts:
         mv ${SNAPCRAFT_PART_INSTALL}/usr/include/linux /usr/include/ || true
       fi
       echo -n "Build kernel:"
-      printf "%d.%d.%d" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
+      printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
     stage:
       - -*
     prime:
