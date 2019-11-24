@@ -730,6 +730,9 @@ vrrp_signal_init(void)
 #ifdef _WITH_JSON_
 	signal_set(SIGJSON, sigjson_vrrp, NULL);
 #endif
+#ifdef THREAD_DUMP
+	signal_set(SIGTDUMP, thread_dump_signal, NULL);
+#endif
 	signal_ignore(SIGPIPE);
 }
 

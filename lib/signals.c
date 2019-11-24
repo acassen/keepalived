@@ -112,6 +112,10 @@ get_signum(const char *sigfunc)
 	else if (!strcmp(sigfunc, "JSON"))
 		return SIGJSON;
 #endif
+#ifdef THREAD_DUMP
+	else if (!strcmp(sigfunc, "TDUMP"))
+		return SIGTDUMP;
+#endif
 
 	/* Not found */
 	return -1;

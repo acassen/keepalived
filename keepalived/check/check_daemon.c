@@ -491,6 +491,9 @@ check_signal_init(void)
 	signal_set(SIGINT, sigend_check, NULL);
 	signal_set(SIGTERM, sigend_check, NULL);
 	signal_set(SIGUSR1, sigusr1_check, NULL);
+#ifdef THREAD_DUMP
+	signal_set(SIGTDUMP, thread_dump_signal, NULL);
+#endif
 	signal_ignore(SIGPIPE);
 }
 

@@ -240,6 +240,9 @@ bfd_signal_init(void)
 	signal_set(SIGINT, sigend_bfd, NULL);
 	signal_set(SIGTERM, sigend_bfd, NULL);
 	signal_set(SIGUSR1, sigdump_bfd, NULL);
+#ifdef THREAD_DUMP
+	signal_set(SIGTDUMP, thread_dump_signal, NULL);
+#endif
 	signal_ignore(SIGPIPE);
 }
 

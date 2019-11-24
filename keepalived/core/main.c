@@ -641,23 +641,41 @@ propagate_signal(__attribute__((unused)) void *v, int sig)
 	else if (sig == SIGHUP && running_vrrp())
 		start_vrrp_child();
 #endif
+
+	/* Only the VRRP process consumes SIGUSR2 and SIGJSON */
+	if (sig == SIGUSR2)
+		return;
+#ifdef _WITH_JSON_
+	if (sig == SIGJSON)
+		return;
+#endif
+
 #ifdef _WITH_LVS_
-	if (sig == SIGHUP || sig == SIGUSR1) {
-		if (checkers_child > 0)
-			kill(checkers_child, sig);
-		else if (running_checker())
-			start_check_child();
-	}
+	if (checkers_child > 0)
+		kill(checkers_child, sig);
+	else if (running_checker())
+		start_check_child();
 #endif
 #ifdef _WITH_BFD_
-	if (sig == SIGHUP || sig == SIGUSR1) {
-		if (bfd_child > 0)
-			kill(bfd_child, sig);
-		else if (running_bfd())
-			start_bfd_child();
-	}
+	if (bfd_child > 0)
+		kill(bfd_child, sig);
+	else if (running_bfd())
+		start_bfd_child();
 #endif
 }
+
+#ifdef THREAD_DUMP
+void
+thread_dump_signal(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
+{
+#ifndef _ONE_PROCESS_DEBUG_
+	if (prog_type == PROG_TYPE_PARENT)
+		propagate_signal(NULL, sig);
+#endif
+
+	dump_thread_data(master, NULL);
+}
+#endif
 
 /* Terminate handler */
 static void
@@ -912,6 +930,9 @@ signal_init(void)
 #endif
 	signal_set(SIGINT, sigend, NULL);
 	signal_set(SIGTERM, sigend, NULL);
+#ifdef THREAD_DUMP
+	signal_set(SIGTDUMP, thread_dump_signal, NULL);
+#endif
 #endif
 	signal_ignore(SIGPIPE);
 }
@@ -1400,6 +1421,9 @@ usage(const char *prog)
 #ifdef _WITH_JSON_
 								", JSON"
 #endif
+#ifdef THREAD_DUMP
+								", TDUMP"
+#endif
 								"\n");
 	fprintf(stderr, "  -t, --config-test[=LOG_FILE] Check the configuration for obvious errors, output to\n"
 			"                                stderr by default\n");
@@ -1856,6 +1880,7 @@ register_parent_thread_addresses(void)
 	register_signal_handler_address("sigend", sigend);
 #endif
 	register_signal_handler_address("thread_child_handler", thread_child_handler);
+	register_signal_handler_address("thread_dump_signal", thread_dump_signal);
 }
 #endif
 
