@@ -89,6 +89,9 @@ extern bool running_checker(void) __attribute__ ((pure));
 #endif
 
 extern void stop_keepalived(void);
+#ifdef THREAD_DUMP
+extern void thread_dump_signal(void *, int);
+#endif
 extern void initialise_debug_options(void);
 extern int keepalived_main(int, char**); /* The "real" main function */
 
