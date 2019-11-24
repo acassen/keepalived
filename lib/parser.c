@@ -95,11 +95,11 @@ static size_t current_file_line_no;
 static int sublevel = 0;
 static int skip_sublevel = 0;
 static list multiline_stack;
-size_t multiline_seq_depth = 0;
+static size_t multiline_seq_depth = 0;
 static char *buf_extern;
 static config_err_t config_err = CONFIG_OK; /* Highest level of config error for --config-test */
 static unsigned int random_seed;
-bool random_seed_configured;
+static bool random_seed_configured;
 
 /* Parameter definitions */
 static list defs;
@@ -2052,6 +2052,16 @@ void skip_block(bool need_block_start)
 void
 init_data(const char *conf_file, const vector_t * (*init_keywords) (void))
 {
+	/* A parent process or previous config load may have left these set */
+	block_depth = 0;
+	kw_level = 0;
+	sublevel = 0;
+	skip_sublevel = 0;
+	multiline_seq_depth = 0;
+	config_err = CONFIG_OK;
+	random_seed = 0;
+	random_seed_configured = false;
+
 	/* Init Keywords structure */
 	keywords = vector_alloc();
 
@@ -2071,10 +2081,6 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void))
 
 	current_file_name = NULL;
 	current_file_line_no = 0;
-
-	/* A parent process may have left these set */
-	block_depth = 0;
-	kw_level = 0;
 
 	register_null_strvec_handler(null_strvec);
 	read_conf_file(conf_file);
