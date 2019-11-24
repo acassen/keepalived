@@ -358,6 +358,7 @@ parts:
       # Move the headers on the host out of the way
       echo -n "Host kernel:"
       cat /usr/include/linux/version.h
+      ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
       if [ $ARCH != s390x ]; then
         rm -rf /usr/include/linux || true
         # Move header from the part to the host
