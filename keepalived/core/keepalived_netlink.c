@@ -2449,6 +2449,15 @@ kernel_netlink_init(void)
 #endif
 }
 
+void
+cancel_kernel_netlink_threads(void)
+{
+	if (nl_kernel.fd != -1 && nl_kernel.thread) {
+		thread_cancel(nl_kernel.thread);
+		nl_kernel.thread = NULL;
+	}
+}
+
 #ifdef _WITH_VRRP_
 void
 kernel_netlink_read_interfaces(void)
