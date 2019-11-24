@@ -122,6 +122,7 @@ checker_dispatcher_release(void)
 	checker_bfd_dispatcher_release();
 #endif
 	cancel_signal_read_thread();
+	cancel_kernel_netlink_threads();
 }
 
 
@@ -334,8 +335,7 @@ start_check(list old_checkers_queue, data_t *prev_global_data)
 	if (using_ha_suspend || __test_bit(LOG_ADDRESS_CHANGES, &debug)) {
 		if (reload)
 			kernel_netlink_set_recv_bufs();
-		else
-			kernel_netlink_init();
+		kernel_netlink_init();
 	}
 	else if (reload)
 		kernel_netlink_close();

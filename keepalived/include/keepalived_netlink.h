@@ -139,6 +139,7 @@ extern void kernel_netlink_set_recv_bufs(void);
 extern void set_extra_netlink_monitoring(bool, bool, bool, bool);
 #endif
 extern void kernel_netlink_init(void);
+extern void cancel_kernel_netlink_threads(void);
 #if defined _WITH_VRRP_ || defined _WITH_LVS_
 extern void kernel_netlink_read_interfaces(void);
 #endif

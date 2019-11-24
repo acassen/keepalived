@@ -774,6 +774,7 @@ reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 #ifdef _WITH_BFD_
 	cancel_vrrp_threads();
 #endif
+	cancel_kernel_netlink_threads();
 	thread_cleanup_master(master);
 	thread_add_base_threads(master, with_snmp);
 
