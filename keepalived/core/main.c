@@ -1100,7 +1100,7 @@ initialise_debug_options(void)
 #ifdef _NETWORK_TIMESTAMP_
 	do_network_timestamp = !!(network_timestamp_debug & mask);
 #endif
-#ifdef _NETWORK_TIMESTAMP_
+#ifdef _CHECKSUM_DEBUG_
 	do_checksum_debug = !!(checksum_debug & mask);
 #endif
 #ifdef _WITH_CN_PROC_
