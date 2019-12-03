@@ -915,12 +915,21 @@ process_update_track_file_status(vrrp_tracked_file_t *tfile, int new_status, tra
 	if (new_status == -254) {
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
 			log_message(LOG_INFO, "(%s): tracked file %s now FAULT state", tvp->vrrp->iname, tfile->fname);
+		if (tvp->weight)
+			tvp->vrrp->total_priority -= previous_status;
 		down_instance(tvp->vrrp);
 	} else if (previous_status == -254) {
-		if (__test_bit(LOG_DETAIL_BIT, &debug))
+		if (tvp->weight) {
+			tvp->vrrp->total_priority += new_status;
+			tvp->vrrp->effective_priority = tvp->vrrp->total_priority >= VRRP_PRIO_OWNER ? VRRP_PRIO_OWNER - 1 : tvp->vrrp->total_priority < 1 ? 1 : tvp->vrrp->total_priority;
+		}
+		if (__test_bit(LOG_DETAIL_BIT, &debug)) {
 			log_message(LOG_INFO, "(%s): tracked file %s leaving FAULT state", tvp->vrrp->iname, tfile->fname);
+			if (new_status)
+				log_message(LOG_INFO, "(%s) Setting effective priority to %d", tvp->vrrp->iname, tvp->vrrp->effective_priority);
+		}
 		try_up_instance(tvp->vrrp, false);
-	} else if (tvp->vrrp->base_priority != VRRP_PRIO_OWNER) {
+	} else {
 		tvp->vrrp->total_priority += new_status - previous_status;
 		vrrp_set_effective_priority(tvp->vrrp);
 	}
