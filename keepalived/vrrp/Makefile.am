@@ -50,18 +50,8 @@ if FIREWALL
 endif
 
 if IPTABLES
-  libvrrp_a_LIBADD	+= vrrp_iptables.o
-  EXTRA_libvrrp_a_SOURCES += vrrp_iptables.c
-endif
-
-if LIBIPTC
-  libvrrp_a_LIBADD	+= vrrp_iptables_lib.o vrrp_iptables_calls.o
-  EXTRA_libvrrp_a_SOURCES += vrrp_iptables_lib.c vrrp_iptables_calls.c
-endif
-
-if IPTABLES_CMD
-  libvrrp_a_LIBADD	+= vrrp_iptables_cmd.o
-  EXTRA_libvrrp_a_SOURCES += vrrp_iptables_cmd.c
+  libvrrp_a_LIBADD	+= vrrp_iptables.o vrrp_iptables_lib.o vrrp_iptables_calls.o
+  EXTRA_libvrrp_a_SOURCES += vrrp_iptables.c vrrp_iptables_lib.c vrrp_iptables_calls.c
 endif
 
 if LIBIPSET

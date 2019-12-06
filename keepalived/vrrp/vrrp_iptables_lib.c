@@ -53,9 +53,7 @@
 #include <net/if.h>
 #endif
 
-#ifdef _HAVE_LIBIPTC_
 #include <libiptc/libxtc.h>
-#endif
 #include <stdint.h>
 #ifdef _HAVE_LIBIPSET_
 #ifdef USE_LIBIPSET_LINUX_IP_SET_H
@@ -260,22 +258,18 @@ iptables_close(struct ipt_handle* h)
 {
 	int res = 0;
 
-#ifdef _HAVE_LIBIPSET_
-	if (h->cmd == IPADDRESS_ADD && h->session) {
+	/* We need to do the sets first in case we are adding sets, and then rules
+	 * that reference them.
+	 * If deleting sets, the rules must have been deleted prior to starting the
+	 * ipset session, so we can't delete the rules and the sets at the same time.
+	 */
+	if (h->session)
 		ipset_session_end(h->session);
-		h->session = NULL;
-	}
-#endif
 
 	if (h->h4)
 		res = ip4tables_close(h->h4, h->updated_v4);
 	if (h->h6)
 		res += ip6tables_close(h->h6, h->updated_v6);
-
-#ifdef _HAVE_LIBIPSET_
-	if (h->session)
-		ipset_session_end(h->session);
-#endif
 
 	FREE(h);
 
@@ -410,7 +404,6 @@ handle_iptable_rule_to_NA_lib(ip_address_t *ipaddress, const char *ifname, int c
 	iptables_entry(h, AF_INET6, global_data->vrrp_iptables_inchain, 1,
 			XTC_LABEL_ACCEPT, NULL, ipaddress, ifname, NULL,
 			IPPROTO_ICMPV6, 136, cmd, 0, force);
-
 }
 
 void

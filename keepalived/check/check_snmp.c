@@ -706,7 +706,7 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = v->warmup == ULONG_MAX ? 0 : v->warmup / TIMER_HZ;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSWEIGHT:
-		long_ret.s = v->weight;
+		long_ret.s = v->lvs_weight;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSSMTPALERT:
 		long_ret.u = v->smtp_alert?1:2;
@@ -811,7 +811,7 @@ check_snmp_realserver_weight(int action,
 		if (action == RESERVE2)
 			break;
 		/* Commit: change values. There is no way to fail. */
-		update_svr_wgt((unsigned)(*var_val), vs, rs, true);
+		update_svr_wgt((unsigned)(*var_val), (unsigned)(*var_val), vs, rs, true);
 		break;
 	}
 	return SNMP_ERR_NOERROR;
@@ -966,7 +966,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSWEIGHT:
 		if (btype == STATE_RS_SORRY) break;
-		long_ret.s = be->weight;
+		long_ret.s = be->lvs_weight;
 		*write_method = check_snmp_realserver_weight;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSUPPERCONNECTIONLIMIT:

@@ -41,14 +41,12 @@
 #include "scheduler.h"
 #endif
 
-static int tcp_connect_thread(thread_ref_t);
+static void tcp_connect_thread(thread_ref_t);
 
 /* Configuration stream handling */
 static void
-free_tcp_check(checker_t *checker)
+free_tcp_check(__attribute__((unused)) checker_t *checker)
 {
-	FREE(checker->co);
-	FREE(checker);
 }
 
 static void
@@ -93,58 +91,10 @@ install_tcp_check_keyword(void)
 static void
 tcp_epilog(thread_ref_t thread, bool is_success)
 {
-	checker_t *checker;
-	unsigned long delay;
-	bool checker_was_up;
-	bool rs_was_alive;
-
-	checker = THREAD_ARG(thread);
-
-	if (is_success || checker->retry_it >= checker->retry) {
-		delay = checker->delay_loop;
-		checker->retry_it = 0;
-
-		if (is_success && (!checker->is_up || !checker->has_run)) {
-			log_message(LOG_INFO, "TCP connection to %s success."
-					, FMT_CHK(checker));
-			checker_was_up = checker->is_up;
-			rs_was_alive = checker->rs->alive;
-			update_svr_checker_state(UP, checker);
-			if (checker->rs->smtp_alert && !checker_was_up &&
-			    (rs_was_alive != checker->rs->alive || !global_data->no_checker_emails))
-				smtp_alert(SMTP_MSG_RS, checker, NULL,
-					   "=> TCP CHECK succeed on service <=");
-		} else if (!is_success && 
-			   (checker->is_up || !checker->has_run)) {
-			if (checker->retry && checker->has_run)
-				log_message(LOG_INFO
-				    , "TCP_CHECK on service %s failed after %u retries."
-				    , FMT_CHK(checker)
-				    , checker->retry);
-			else
-				log_message(LOG_INFO
-				    , "TCP_CHECK on service %s failed."
-				    , FMT_CHK(checker));
-			checker_was_up = checker->is_up;
-			rs_was_alive = checker->rs->alive;
-			update_svr_checker_state(DOWN, checker);
-			if (checker->rs->smtp_alert && checker_was_up &&
-			    (rs_was_alive != checker->rs->alive || !global_data->no_checker_emails))
-				smtp_alert(SMTP_MSG_RS, checker, NULL,
-					   "=> TCP CHECK failed on service <=");
-		}
-	} else {
-		delay = checker->delay_before_retry;
-		++checker->retry_it;
-	}
-
-	checker->has_run = true;
-
-	/* Register next timer checker */
-	thread_add_timer(thread->master, tcp_connect_thread, checker, delay);
+	check_update_svr_checker_state(is_success, THREAD_ARG(thread), thread, "TCP", tcp_connect_thread);
 }
 
-static int
+static void
 tcp_check_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -177,11 +127,9 @@ tcp_check_thread(thread_ref_t thread)
 					, FMT_CHK(checker));
 		tcp_epilog(thread, false);
 	}
-
-	return 0;
 }
 
-static int
+static void
 tcp_connect_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -196,7 +144,7 @@ tcp_connect_thread(thread_ref_t thread)
 	if (!checker->enabled) {
 		thread_add_timer(thread->master, tcp_connect_thread, checker,
 				 checker->delay_loop);
-		return 0;
+		return;
 	}
 
 	if ((fd = socket(co->dst.ss_family, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, IPPROTO_TCP)) == -1) {
@@ -204,7 +152,7 @@ tcp_connect_thread(thread_ref_t thread)
 		thread_add_timer(thread->master, tcp_connect_thread, checker,
 				checker->delay_loop);
 
-		return 0;
+		return;
 	}
 
 #if !HAVE_DECL_SOCK_NONBLOCK
@@ -232,8 +180,6 @@ tcp_connect_thread(thread_ref_t thread)
 					checker->delay_loop);
 		}
 	}
-
-	return 0;
 }
 
 #ifdef THREAD_DUMP

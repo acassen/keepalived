@@ -55,14 +55,14 @@ extern bool do_tsm_debug;
 extern void vrrp_init_instance_sands(vrrp_t *);
 extern void vrrp_thread_requeue_read(vrrp_t *);
 extern void vrrp_thread_add_read(vrrp_t *);
-extern int vrrp_dispatcher_init(thread_ref_t);
+extern void vrrp_dispatcher_init(thread_ref_t);
 #ifdef _WITH_BFD_
 extern void cancel_vrrp_threads(void);
 #endif
 extern void vrrp_dispatcher_release(vrrp_data_t *);
-extern int vrrp_gratuitous_arp_thread(thread_ref_t);
-extern int vrrp_lower_prio_gratuitous_arp_thread(thread_ref_t);
-extern int vrrp_arp_thread(thread_ref_t);
+extern void vrrp_gratuitous_arp_thread(thread_ref_t);
+extern void vrrp_lower_prio_gratuitous_arp_thread(thread_ref_t);
+extern void vrrp_arp_thread(thread_ref_t);
 extern void try_up_instance(vrrp_t *, bool);
 #ifdef _WITH_DUMP_THREADS_
 extern void dump_threads(void);

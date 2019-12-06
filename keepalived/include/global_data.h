@@ -62,10 +62,6 @@
 #endif
 #include "notify.h"
 
-#ifndef _HAVE_LIBIPTC_
-#define	XT_EXTENSION_MAXNAMELEN		29
-#endif
-
 /* constants */
 #define DEFAULT_SMTP_CONNECTION_TIMEOUT (30 * TIMER_HZ)
 

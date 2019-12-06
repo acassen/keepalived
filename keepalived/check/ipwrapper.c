@@ -87,7 +87,7 @@ rs_iseq(const real_server_t *rs_a, const real_server_t *rs_b)
 
 /* Returns the sum of all alive RS weight in a virtual server. */
 static unsigned long __attribute__ ((pure))
-weigh_live_realservers(virtual_server_t * vs)
+weigh_live_realservers(const virtual_server_t * vs)
 {
 	element e;
 	real_server_t *svr;
@@ -95,13 +95,13 @@ weigh_live_realservers(virtual_server_t * vs)
 
 	LIST_FOREACH(vs->rs, svr, e) {
 		if (ISALIVE(svr))
-			count += svr->weight;
+			count += svr->quorum_weight;
 	}
 	return count;
 }
 
 static void
-notify_fifo_vs(virtual_server_t* vs)
+notify_fifo_vs(const virtual_server_t* vs)
 {
 	const char *state = vs->quorum_state_up ? "UP" : "DOWN";
 	size_t size;
@@ -352,8 +352,9 @@ init_service_rs(virtual_server_t * vs)
 
 	LIST_FOREACH(vs->rs, rs, e) {
 		if (rs->reloaded) {
-			if (rs->iweight != rs->pweight)
-				update_svr_wgt(rs->iweight, vs, rs, false);
+			if (rs->lvs_iweight != rs->lvs_pweight ||
+			    rs->quorum_iweight != rs->quorum_pweight)
+				update_svr_wgt(rs->lvs_iweight, rs->quorum_iweight, vs, rs, false);
 			/* Do not re-add failed RS instantly on reload */
 			continue;
 		}
@@ -435,22 +436,17 @@ set_quorum_states(void)
 	virtual_server_t *vs;
 	element e;
 
-	if (LIST_ISEMPTY(check_data->vs))
-		return;
-
-	for (e = LIST_HEAD(check_data->vs); e; ELEMENT_NEXT(e)) {
-		vs = ELEMENT_DATA(e);
-
+	LIST_FOREACH(check_data->vs, vs, e)
 		vs->quorum_state_up = (weigh_live_realservers(vs) >= vs->quorum + vs->hysteresis);
-	}
 }
 
 /* set quorum state depending on current weight of real servers */
-static void
+static bool
 update_quorum_state(virtual_server_t * vs, bool init)
 {
 	long weight_sum = weigh_live_realservers(vs);
 	long threshold;
+	bool lvs_updated = false;
 
 	threshold = vs->quorum + (vs->quorum_state_up ? -1 : 1) * vs->hysteresis;
 
@@ -467,6 +463,7 @@ update_quorum_state(virtual_server_t * vs, bool init)
 		if (vs->s_svr && ISALIVE(vs->s_svr)) {
 			/* Adding back alive real servers */
 			perform_quorum_state(vs, true);
+			lvs_updated = true;
 
 			log_message(LOG_INFO, "%s sorry server %s from VS %s"
 					    , (vs->s_svr->inhibit ? "Disabling" : "Removing")
@@ -476,10 +473,6 @@ update_quorum_state(virtual_server_t * vs, bool init)
 			ipvs_cmd(LVS_CMD_DEL_DEST, vs, vs->s_svr);
 			vs->s_svr->alive = false;
 		}
-
-		do_vs_notifies(vs, init, threshold, weight_sum, false);
-
-		return;
 	}
 	else if ((vs->quorum_state_up &&
 		  (!weight_sum || weight_sum < threshold)) ||
@@ -511,10 +504,15 @@ update_quorum_state(virtual_server_t * vs, bool init)
 
 			/* Remove remaining alive real servers */
 			perform_quorum_state(vs, false);
+			lvs_updated = true;
 		}
-
-		do_vs_notifies(vs, init, threshold, weight_sum, false);
 	}
+	else
+		return false;
+
+	do_vs_notifies(vs, init, threshold, weight_sum, false);
+
+	return lvs_updated;
 }
 
 /* manipulate add/remove rs according to alive state */
@@ -609,29 +607,51 @@ init_services(void)
 
 /* Store new weight in real_server struct and then update kernel. */
 void
-update_svr_wgt(int weight, virtual_server_t * vs, real_server_t * rs
+update_svr_wgt(int lvs_weight, int quorum_weight, virtual_server_t * vs, real_server_t * rs
 		, bool update_quorum)
 {
-	if (weight != rs->weight) {
-		log_message(LOG_INFO, "Changing weight from %d to %d for %sactive service %s of VS %s"
-				    , rs->weight
-				    , weight
+	bool lvs_weight_change = false;
+	bool quorum_weight_change = false;
+
+	if (lvs_weight != rs->lvs_weight) {
+		log_message(LOG_INFO, "Changing LVS weight from %d to %d for %sactive service %s of VS %s"
+				    , rs->lvs_weight
+				    , lvs_weight
 				    , ISALIVE(rs) ? "" : "in"
 				    , FMT_RS(rs, vs)
 				    , FMT_VS(vs));
-		rs->weight = weight;
-		/*
-		 * Have weight change take effect now only if rs is in
-		 * the pool and alive and the quorum is met (or if
-		 * there is no sorry server). If not, it will take
-		 * effect later when it becomes alive.
-		 */
-		if (rs->set && ISALIVE(rs) &&
-		    (vs->quorum_state_up || !vs->s_svr || !ISALIVE(vs->s_svr)))
-			ipvs_cmd(LVS_CMD_EDIT_DEST, vs, rs);
-		if (update_quorum)
-			update_quorum_state(vs, false);
+		rs->lvs_weight = lvs_weight;
+		lvs_weight_change = true;
 	}
+
+	if (quorum_weight != rs->quorum_weight) {
+		log_message(LOG_INFO, "Changing quorum weight from %d to %d for %sactive service %s of VS %s"
+				    , rs->quorum_weight
+				    , quorum_weight
+				    , ISALIVE(rs) ? "" : "in"
+				    , FMT_RS(rs, vs)
+				    , FMT_VS(vs));
+		rs->quorum_weight = quorum_weight;
+		quorum_weight_change = true;
+	}
+
+	if (!lvs_weight_change && !quorum_weight_change)
+		return;
+
+	/* If the LVS configuration is updated, we are all done */
+	if (update_quorum && quorum_weight_change && update_quorum_state(vs, false))
+		return;
+
+	/*
+	 * Have weight change take effect now only if rs is in
+	 * the pool and alive and the quorum is met (or if
+	 * there is no sorry server). If not, it will take
+	 * effect later when it becomes alive.
+	 */
+	if (lvs_weight_change &&
+	    rs->set && ISALIVE(rs) &&
+	    (vs->quorum_state_up || !vs->s_svr || !ISALIVE(vs->s_svr)))
+		ipvs_cmd(LVS_CMD_EDIT_DEST, vs, rs);
 }
 
 void
@@ -649,36 +669,84 @@ set_checker_state(checker_t *checker, bool up)
 }
 
 /* Update checker's state */
-void
-update_svr_checker_state(bool alive, checker_t *checker)
+static inline void
+update_svr_checker_state_only(bool now_up, checker_t *checker)
 {
-	if (checker->is_up == alive) {
-		if (!checker->has_run) {
-			if (checker->alpha || !alive)
-				do_rs_notifies(checker->vs, checker->rs, false);
-			checker->has_run = true;
-		}
+	bool has_run = checker->has_run;
+
+	checker->has_run = true;
+
+	if (checker->is_up == now_up) {
+		if (!has_run && (checker->alpha || !now_up))
+			do_rs_notifies(checker->vs, checker->rs, false);
 		return;
+	}
+
+	if (now_up) {
+		/* call the UP handler unless any more failed checks found */
+		if (checker->rs->num_failed_checkers <= 1 &&
+		    !perform_svr_state(true, checker))
+			return;
+	}
+	else {
+		/* Handle no longer alive state */
+		if (checker->rs->num_failed_checkers == 0 &&
+		    !perform_svr_state(false, checker))
+			return;
+	}
+
+	set_checker_state(checker, now_up);
+}
+
+void
+update_svr_checker_state(bool now_up, checker_t *checker, const char *check_type)
+{
+	char buf[64];
+	bool checker_was_up= checker->is_up;
+	bool rs_was_alive = checker->rs->alive;
+
+	update_svr_checker_state_only(now_up, checker);
+
+	if (checker->rs->smtp_alert &&
+	    now_up != checker_was_up &&
+	    (rs_was_alive != checker->rs->alive ||
+	     !global_data->no_checker_emails)) {
+		snprintf(buf, sizeof(buf), "=> %s CHECK %s on service <=", check_type, now_up ? "succeed" : "failed");
+		smtp_alert(SMTP_MSG_RS, checker, NULL, buf);
+	}
+}
+
+void
+check_update_svr_checker_state(bool now_up, checker_t *checker, thread_ref_t thread, const char *check_type, thread_func_t thread_func)
+{
+	unsigned long delay;
+	char buf[64];
+
+	delay = checker->delay_loop;
+	if (now_up || ((checker->is_up || !checker->has_run) && checker->retry_it >= checker->retry)) {
+		checker->retry_it = 0;
+
+		if (!checker->has_run || now_up != checker->is_up) {
+			if (checker->retry && checker->has_run && !now_up)
+				snprintf(buf, sizeof(buf), " after %u retries", checker->retry);
+			else
+				buf[0] = '\0';
+
+			log_message(LOG_INFO, "%s check on service %s %s%s.", check_type,
+					FMT_CHK(checker), now_up ? "success" : "failed", buf);
+
+			update_svr_checker_state(now_up, checker, check_type);
+		}
+	} else if (checker->is_up) {
+		delay = checker->delay_before_retry;
+		checker->retry_it++;
 	}
 
 	checker->has_run = true;
 
-	if (alive) {
-		/* call the UP handler unless any more failed checks found */
-		if (checker->rs->num_failed_checkers <= 1) {
-			if (!perform_svr_state(true, checker))
-				return;
-		}
-	}
-	else {
-		/* Handle not alive state */
-		if (checker->rs->num_failed_checkers == 0) {
-			if (!perform_svr_state(false, checker))
-				return;
-		}
-	}
-
-	set_checker_state(checker, alive);
+	/* Register next timer checker */
+	if (thread)
+		thread_add_timer(thread->master, thread_func, checker, delay);
 }
 
 /* Check if a vsg entry is in new data */
@@ -907,8 +975,10 @@ clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs, list old_check
 			 */
 			new_rs->alive = rs->alive;
 			new_rs->set = rs->set;
-			new_rs->weight = rs->weight;
-			new_rs->pweight = rs->iweight;
+			new_rs->lvs_weight = rs->lvs_weight;
+			new_rs->lvs_pweight = rs->lvs_iweight;
+			new_rs->quorum_weight = rs->quorum_weight;
+			new_rs->quorum_pweight = rs->quorum_iweight;
 			new_rs->reloaded = true;
 
 			/*
@@ -952,8 +1022,8 @@ clear_diff_s_srv(virtual_server_t *old_vs, real_server_t *new_rs)
 		/* which fields are really used on s_svr? */
 		new_rs->alive = old_rs->alive;
 		new_rs->set = old_rs->set;
-		new_rs->weight = old_rs->weight;
-		new_rs->pweight = old_rs->iweight;
+		new_rs->lvs_weight = old_rs->lvs_weight;
+		new_rs->lvs_pweight = old_rs->lvs_iweight;
 		new_rs->reloaded = true;
 	}
 	else {

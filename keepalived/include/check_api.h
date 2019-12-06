@@ -58,6 +58,8 @@ typedef struct _checker {
 	unsigned			default_retry;		/* number of retries before failing */
 	unsigned long			default_delay_before_retry; /* interval between retries */
 	bool				log_all_failures;	/* Log all failures when checker up */
+	unsigned			lvs_weight;		/* Weight to add to LVS weight when checker up */
+	unsigned			quorum_weight;		/* Weight to add to quorum weight when checker up */
 } checker_t;
 
 /* Checkers queue */

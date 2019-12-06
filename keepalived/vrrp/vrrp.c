@@ -110,12 +110,10 @@ bool do_network_timestamp;
 bool do_checksum_debug;
 #endif
 
-static int
+static void
 vrrp_notify_fifo_script_exit(__attribute__((unused)) thread_ref_t thread)
 {
 	log_message(LOG_INFO, "vrrp notify fifo script terminated");
-
-	return 0;
 }
 
 void

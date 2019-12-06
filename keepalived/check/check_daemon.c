@@ -43,12 +43,14 @@
 #include "check_misc.h"
 #include "check_smtp.h"
 #include "check_tcp.h"
+#include "check_udp.h"
 #endif
 #include "check_daemon.h"
 #include "check_parser.h"
 #include "ipwrapper.h"
 #include "check_ssl.h"
 #include "check_api.h"
+#include "check_ping.h"
 #include "global_data.h"
 #include "pidfile.h"
 #include "signals.h"
@@ -100,19 +102,17 @@ set_checker_max_fds(void)
 	 *   12	closed
 	 *   13	passwd file
 	 *   14	Unix domain socket
-	 *   One per checker using UDP/TCP
+	 *   One per checker using UDP/TCP/PING
 	 *   One per SMTP alert
 	 *   qty 10 spare
 	 */
 	set_max_file_limit(14 + check_data->num_checker_fd_required + check_data->num_smtp_alert + 10);
 }
 
-static int
+static void
 lvs_notify_fifo_script_exit(__attribute__((unused)) thread_ref_t thread)
 {
 	log_message(LOG_INFO, "lvs notify fifo script terminated");
-
-	return 0;
 }
 
 static void
@@ -141,6 +141,7 @@ checker_terminate_phase2(void)
 	master = NULL;
 	free_checkers_queue();
 	free_ssl();
+	set_ping_group_range(false);
 
 	ipvs_stop();
 #ifdef _WITH_SNMP_CHECKER_
@@ -186,7 +187,7 @@ checker_terminate_phase2(void)
 	return 0;
 }
 
-static int
+static void
 checker_shutdown_backstop_thread(thread_ref_t thread)
 {
 	int count = 0;
@@ -206,8 +207,6 @@ checker_shutdown_backstop_thread(thread_ref_t thread)
 		thread_add_timer_shutdown(thread->master, checker_shutdown_backstop_thread, NULL, TIMER_HZ / 10);
 	else
 		thread_add_terminate_event(thread->master);
-
-	return 0;
 }
 
 static void
@@ -242,15 +241,13 @@ checker_terminate_phase1(bool schedule_next_thread)
 }
 
 #ifndef _ONE_PROCESS_DEBUG_
-static int
+static void
 start_checker_termination_thread(__attribute__((unused)) thread_ref_t thread)
 {
 	/* This runs in the context of a thread */
 	two_phase_terminate = true;
 
 	checker_terminate_phase1(true);
-
-	return 0;
 }
 #endif
 
@@ -397,7 +394,7 @@ check_validate_config(void)
 
 #ifndef _ONE_PROCESS_DEBUG_
 /* Reload thread */
-static int
+static void
 reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 {
 	list old_checkers_queue;
@@ -450,15 +447,12 @@ reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 	free_global_data(old_global_data);
 	free_list(&old_checkers_queue);
 	UNSET_RELOAD;
-
-	return 0;
 }
 
-static int
+static void
 print_check_data(__attribute__((unused)) thread_ref_t thread)
 {
-        check_print_data();
-        return 0;
+	check_print_data();
 }
 
 static void
@@ -498,7 +492,7 @@ check_signal_init(void)
 }
 
 /* CHECK Child respawning thread */
-static int
+static void
 check_respawn_thread(thread_ref_t thread)
 {
 	/* We catch a SIGCHLD, handle it */
@@ -511,7 +505,6 @@ check_respawn_thread(thread_ref_t thread)
 		log_message(LOG_ALERT, "Healthcheck child process(%d) died: Exiting", thread->u.c.pid);
 		raise(SIGTERM);
 	}
-	return 0;
 }
 #endif
 
@@ -535,6 +528,8 @@ register_check_thread_addresses(void)
 	register_check_smtp_addresses();
 	register_check_ssl_addresses();
 	register_check_tcp_addresses();
+	register_check_ping_addresses();
+	register_check_udp_addresses();
 #ifdef _WITH_BFD_
 	register_check_bfd_addresses();
 #endif

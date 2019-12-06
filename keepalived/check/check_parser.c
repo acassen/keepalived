@@ -665,8 +665,42 @@ rs_weight_handler(const vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR, "Real server weight %s is outside range 0-65535", strvec_slot(strvec, 1));
 		return;
 	}
-	rs->weight = weight;
-	rs->iweight = weight;
+	rs->lvs_weight = weight;
+	rs->lvs_iweight = weight;
+
+log_message(LOG_INFO, "weight handler, quorum_weight %d, weight %u", rs->quorum_weight, weight);
+	if (rs->quorum_weight == INT_MAX) {
+		rs->quorum_weight = weight;
+		rs->quorum_iweight = weight;
+	}
+}
+static void
+rs_lvs_weight_handler(const vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	unsigned weight;
+
+	if (!read_unsigned_strvec(strvec, 1, &weight, 0, 65535, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Real server LVS weight %s is outside range 0-65535", strvec_slot(strvec, 1));
+		return;
+	}
+	rs->lvs_weight = weight;
+	rs->lvs_iweight = weight;
+}
+static void
+rs_quorum_weight_handler(const vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	unsigned weight;
+
+	if (!read_unsigned_strvec(strvec, 1, &weight, 0, 65535, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Real server weight %s is outside range 0-65535", strvec_slot(strvec, 1));
+		return;
+	}
+	rs->quorum_weight = weight;
+	rs->quorum_iweight = weight;
 }
 static void
 rs_forwarding_handler(const vector_t *strvec)
@@ -923,11 +957,40 @@ vs_weight_handler(const vector_t *strvec)
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	unsigned weight;
 
-	if (!read_unsigned_strvec(strvec, 1, &weight, 1, 65535, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Virtual server weight %s is outside range 1-65535", strvec_slot(strvec, 1));
+	if (!read_unsigned_strvec(strvec, 1, &weight, 0, 65535, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Virtual server weight %s is outside range 0-65535", strvec_slot(strvec, 1));
 		return;
 	}
-	vs->weight = weight;
+	vs->lvs_weight = weight;
+	if (vs->quorum_weight == INT_MAX)
+		vs->quorum_weight = weight;
+log_message(LOG_INFO, "vs wieghts now lvs - %d, quorum %d", vs->lvs_weight, vs->quorum_weight);
+}
+
+static void
+vs_quorum_weight_handler(const vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	unsigned weight;
+
+	if (!read_unsigned_strvec(strvec, 1, &weight, 0, 65535, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Virtual server quorum weight %s is outside range 0-65535", strvec_slot(strvec, 1));
+		return;
+	}
+	vs->quorum_weight = weight;
+}
+
+static void
+vs_lvs_weight_handler(const vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	unsigned weight;
+
+	if (!read_unsigned_strvec(strvec, 1, &weight, 0, 65535, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Virtual server LVS weight %s is outside range 0-65535", strvec_slot(strvec, 1));
+		return;
+	}
+	vs->lvs_weight = weight;
 }
 
 void
@@ -985,6 +1048,8 @@ init_check_keywords(bool active)
 	install_keyword("quorum", &quorum_handler);
 	install_keyword("hysteresis", &hysteresis_handler);
 	install_keyword("weight", &vs_weight_handler);
+	install_keyword("quorum_weight", &vs_quorum_weight_handler);
+	install_keyword("lvs_weight", &vs_lvs_weight_handler);
 
 	/* Real server mapping */
 	install_keyword("sorry_server", &ssvr_handler);
@@ -993,6 +1058,8 @@ init_check_keywords(bool active)
 	install_keyword("real_server", &rs_handler);
 	install_sublevel();
 	install_keyword("weight", &rs_weight_handler);
+	install_keyword("quorum_weight", &rs_quorum_weight_handler);
+	install_keyword("lvs_weight", &rs_lvs_weight_handler);
 	install_keyword("lvs_method", &rs_forwarding_handler);
 	install_keyword("uthreshold", &uthreshold_handler);
 	install_keyword("lthreshold", &lthreshold_handler);

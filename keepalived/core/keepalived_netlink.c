@@ -2298,7 +2298,7 @@ netlink_broadcast_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	return 0;
 }
 
-static int
+static void
 kernel_netlink(thread_ref_t thread)
 {
 	nl_handle_t *nl = THREAD_ARG(thread);
@@ -2307,7 +2307,6 @@ kernel_netlink(thread_ref_t thread)
 		netlink_parse_info(netlink_broadcast_filter, nl, NULL, true);
 	nl->thread = thread_add_read(master, kernel_netlink, nl, nl->fd,
 				      TIMER_NEVER, false);
-	return 0;
 }
 
 #ifdef _WITH_VRRP_

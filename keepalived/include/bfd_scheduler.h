@@ -25,7 +25,7 @@
 #include "scheduler.h"
 #include "bfd_data.h"
 
-extern int bfd_dispatcher_init(thread_ref_t);
+extern void bfd_dispatcher_init(thread_ref_t);
 extern void bfd_dispatcher_release(bfd_data_t *);
 #ifdef THREAD_DUMP
 extern void register_bfd_scheduler_addresses(void);

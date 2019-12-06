@@ -139,9 +139,9 @@ extern bool do_regex_timers;
 
 /* Define prototypes */
 extern void install_http_check_keyword(void);
-extern int timeout_epilog(thread_ref_t, const char *);
+extern void timeout_epilog(thread_ref_t, const char *);
 extern void http_process_response(request_t *, size_t, url_t *);
-extern int http_handle_response(thread_ref_t, unsigned char digest[16], bool);
+extern void http_handle_response(thread_ref_t, unsigned char digest[16], bool);
 #ifdef THREAD_DUMP
 extern void register_check_http_addresses(void);
 #endif

@@ -42,9 +42,10 @@
 #define LVS_CMD_EDIT_DEST	IP_VS_SO_SET_EDITDEST
 
 /* prototypes */
-extern void update_svr_wgt(int, virtual_server_t *, real_server_t *, bool);
+extern void update_svr_wgt(int, int, virtual_server_t *, real_server_t *, bool);
 extern void set_checker_state(checker_t *, bool);
-extern void update_svr_checker_state(bool, checker_t *);
+extern void update_svr_checker_state(bool, checker_t *, const char *);
+extern void check_update_svr_checker_state(bool now_up, checker_t *, thread_ref_t, const char *, thread_func_t);
 extern bool init_services(void);
 extern void clear_services(void);
 extern void set_quorum_states(void);

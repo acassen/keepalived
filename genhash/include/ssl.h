@@ -33,6 +33,6 @@
 extern void init_ssl(void);
 extern bool ssl_connect(thread_ref_t);
 extern int ssl_send_request(SSL *, const char *, int);
-extern int ssl_read_thread(thread_ref_t);
+extern void ssl_read_thread(thread_ref_t);
 
 #endif

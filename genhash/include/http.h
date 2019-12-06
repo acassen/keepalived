@@ -53,6 +53,6 @@ extern const hash_t hashes[];
 extern int epilog(thread_ref_t);
 extern int finalize(thread_ref_t);
 extern int http_process_stream(SOCK *, int);
-extern int http_request_thread(thread_ref_t);
+extern void http_request_thread(thread_ref_t);
 
 #endif

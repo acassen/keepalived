@@ -48,16 +48,12 @@
 static thread_ref_t bfd_thread;
 static checker_t *new_checker;
 
-static int bfd_check_thread(thread_ref_t);
+static void bfd_check_thread(thread_ref_t);
 
 /* Configuration stream handling */
 static void
-free_bfd_check(checker_t *checker)
+free_bfd_check(__attribute__((unused)) checker_t *checker)
 {
-	bfd_checker_t *bfd_checker = checker->data;
-
-	FREE(bfd_checker);
-	FREE(checker);
 }
 
 static void
@@ -204,6 +200,11 @@ bfd_end_handler(void)
 		return;
 	}
 
+	if (new_checker->retry) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) BFD_CHECK does not support retries - resetting", FMT_RS(new_checker->rs, new_checker->vs));
+		new_checker->retry = 0;
+	}
+
 //	if (!bdfc->weight)
 //		bdfc->weight = 
 
@@ -240,9 +241,7 @@ bfd_check_handle_event(bfd_event_t * evt)
 	uint32_t delivery_time;
 	checker_tracked_bfd_t *cbfd;
 	checker_t *checker;
-	char message[80];
-	bool checker_was_up;
-	bool rs_was_alive;
+	char buf[64];
 
 	if (__test_bit(LOG_DETAIL_BIT, &debug)) {
 		cur_time = timer_now();
@@ -268,21 +267,14 @@ bfd_check_handle_event(bfd_event_t * evt)
 			log_message(LOG_INFO, "BFD check of [%s] RS(%s) is %s",
 				    evt->iname, FMT_RS(checker->rs, checker->vs), evt->state == BFD_STATE_UP ? "UP" : "DOWN");
 
-			checker_was_up = checker->is_up;
-			rs_was_alive = checker->rs->alive;
-			update_svr_checker_state(evt->state == BFD_STATE_UP ? UP : DOWN, checker);
-			if (checker->rs->smtp_alert &&
-			    (rs_was_alive != checker->rs->alive || !global_data->no_checker_emails) &&
-			    (evt->state == BFD_STATE_UP) != checker_was_up) {
-				snprintf(message, sizeof(message), "=> BFD CHECK %s %s on service <=", evt->iname, evt->state == BFD_STATE_UP ? "succeeded" : "failed");
-				smtp_alert(SMTP_MSG_RS, checker, NULL, message);
-			}
+			snprintf(buf, sizeof(buf), "BFD %s", evt->iname);
+			update_svr_checker_state(evt->state == BFD_STATE_UP ? UP : DOWN, checker, buf);
 		}
 		break;
 	}
 }
 
-static int
+static void
 bfd_check_thread(thread_ref_t thread)
 {
 	bfd_event_t evt;
@@ -291,12 +283,10 @@ bfd_check_thread(thread_ref_t thread)
 				     thread->u.f.fd, TIMER_NEVER, false);
 
 	if (thread->type != THREAD_READY_READ_FD)
-		return 0;
+		return;
 
 	while (read(thread->u.f.fd, &evt, sizeof(bfd_event_t)) != -1)
 		bfd_check_handle_event(&evt);
-
-	return 0;
 }
 
 void

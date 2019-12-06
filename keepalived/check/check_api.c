@@ -41,6 +41,8 @@
 #include "check_http.h"
 #include "check_ssl.h"
 #include "check_dns.h"
+#include "check_ping.h"
+#include "check_udp.h"
 #include "ipwrapper.h"
 #include "check_daemon.h"
 #ifdef _WITH_BFD_
@@ -60,7 +62,13 @@ static void
 free_checker(void *data)
 {
 	checker_t *checker = data;
-	(*checker->free_func) (checker);
+
+	if (checker->free_func)
+		(*checker->free_func) (checker);
+
+	FREE_PTR(checker->co);
+	FREE_PTR(checker->data);
+	FREE(checker);
 }
 
 /* dump checker data */
@@ -108,14 +116,16 @@ dump_checker_opts(FILE *fp, const void *data)
 	if (checker->retry) {
 		conf_write(fp, "   Retry count = %u" , checker->retry);
 		conf_write(fp, "   Retry delay = %f" , (double)checker->delay_before_retry / TIMER_HZ);
+		conf_write(fp, "   Retries left before fail = %u", checker->retry - checker->retry_it + 1);
 	}
 	conf_write(fp, "   Warmup = %f", (double)checker->warmup / TIMER_HZ);
 
 	conf_write(fp, "   Enabled = %d", checker->enabled);
 	conf_write(fp, "   Is up = %d", checker->is_up);
 	conf_write(fp, "   Has run = %d", checker->has_run);
-	conf_write(fp, "   Retries left before fail = %u", checker->retry_it);
 	conf_write(fp, "   Delay before retry = %f", (double)checker->default_delay_before_retry / TIMER_HZ);
+	conf_write(fp, "   LVS weight = %u", checker->lvs_weight);
+	conf_write(fp, "   Quorum weight = %u", checker->quorum_weight);
 }
 
 /* Queue a checker into the checkers_queue */
@@ -417,6 +427,32 @@ log_all_failures_handler(const vector_t *strvec)
 	}
 	checker->log_all_failures = res;
 }
+static void
+checker_lvs_weight_handler(const vector_t *strvec)
+{
+	checker_t *checker = CHECKER_GET_CURRENT();
+
+	unsigned weight;
+
+	if (!read_unsigned_strvec(strvec, 1, &weight, 1, 65535, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Checker lvs weight %s is outside range 1-65535", strvec_slot(strvec, 1));
+		return;
+	}
+
+	checker->lvs_weight = weight;
+}
+static void
+checker_quorum_weight_handler(const vector_t *strvec)
+{
+	checker_t *checker = CHECKER_GET_CURRENT();
+	unsigned weight;
+
+	if (!read_unsigned_strvec(strvec, 1, &weight, 1, 65535, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Checker quorum weight %s is outside range 1-65535", strvec_slot(strvec, 1));
+		return;
+	}
+	checker->quorum_weight = weight;
+}
 void
 install_checker_common_keywords(bool connection_keywords)
 {
@@ -437,6 +473,8 @@ install_checker_common_keywords(bool connection_keywords)
 	install_keyword("delay_loop", &delay_handler);
 	install_keyword("alpha", &alpha_handler);
 	install_keyword("log_all_failures", &log_all_failures_handler);
+	install_keyword("lvs_weight", &checker_lvs_weight_handler);
+	install_keyword("quorum_weight", &checker_quorum_weight_handler);
 }
 
 /* dump the checkers_queue */
@@ -686,6 +724,8 @@ install_checkers_keyword(void)
 	install_misc_check_keyword();
 	install_smtp_check_keyword();
 	install_tcp_check_keyword();
+	install_ping_check_keyword();
+	install_udp_check_keyword();
 	install_http_check_keyword();
 	install_ssl_check_keyword();
 	install_dns_check_keyword();
