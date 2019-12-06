@@ -1694,12 +1694,6 @@ The syntax for virtual_server is :
     # Omega mode is disabled by default.
     \fBomega\fR
 
-    # Default LVS and quorum weights for real servers
-    # to use, default: 1
-    \fBweight \fR<INTEGER>	# Sets default LVS and quorum weights
-    \fBlvs_weight \fR<INTEGER>
-    \fBquorum_weight \fR<INTEGER>
-
     # Minimum total weight of all live servers in
     # the pool necessary to operate VS with no
     # quality regression. Defaults to 1.
@@ -1760,12 +1754,8 @@ The syntax for virtual_server is :
 
     # one entry for each realserver
     \fBreal_server \fR<IPADDR> [<PORT>] {
-        # relative lvs and quorum weight to use, default: 1
+        # relative weight to use, default: 1
         \fBweight \fR<INTEGER>
-	# LVS weight to use for real server
-	\fBlvs_weight \fR<INTEGER>
-	# Quorum weight to use for real server
-	\fBquorum_weight \fR<INTEGER>
         # LVS forwarding method
         # For details of tunnel type, see virtual_server details.
         \fBlvs_method \fRNAT|DR
@@ -1804,7 +1794,7 @@ The syntax for virtual_server is :
         \fBlog_all_failures \fR<BOOL>         # log all failures when checker up
 
         # healthcheckers. Can be multiple of each type
-        # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|DNS_CHECK|MISC_CHECK|BFD_CHECK|UDP_CHECK|PING_CHECK
+        # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|DNS_CHECK|MISC_CHECK|BFD_CHECK
 
         # All checkers have the following options, except MISC_CHECK
         # which only has options alpha onwards, and BFD_CHECK which has none
@@ -1971,23 +1961,6 @@ The syntax for virtual_server is :
         # BFD instance name to check
         \fBBFD_CHECK \fR{
             \fBname \fR<STRING>
-        }
-
-        # PING healthchecker
-	# Note: using this checker may cause /proc/sys/net/ipv4/ping_group_range to be
-	# updated to allow root to use an IPPROTO_ICMP socket.
-        \fBPING_CHECK \fR{
-            # No additional options
-        }
-
-        # UDP healthchecker
-	# Note: for this checker to work properly, it relies on ICMP error messages such as
-	#   HOST_UNREACH, NET_UNREACH, PORT_UNREACH. HOST_UNREACH relies on ARP requests
-	#   timing out, and so connect_timeout should be long enough to allow for this (e.g.
-	#   at least 4 seconds).
-	# It may be that you will want to use PING_CHECK to the same server as well.
-        \fBUDP_CHECK \fR{
-	    \fBrequire_reply\fR		# Require a reply packet for check to be successful
         }
     }
 }

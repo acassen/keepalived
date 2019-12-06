@@ -29,11 +29,11 @@ BuildRequires: autoconf automake pkgconfig
 @INIT_SYSTEMD_TRUE@BuildRequires: systemd-units
 @WITH_REGEX_TRUE@BuildRequires: pcre2-devel
 
-@IPTABLES_TRUE@%if 0%{?rhel} <= 7
-@IPTABLES_TRUE@Requires: iptables
-@IPTABLES_TRUE@%else
-@IPTABLES_TRUE@Requires: iptables-libs
-@IPTABLES_TRUE@%endif
+@REQUIRE_IPTABLES_LIBS_TRUE@%if 0%{?rhel} <= 7
+@REQUIRE_IPTABLES_LIBS_TRUE@Requires: iptables
+@REQUIRE_IPTABLES_LIBS_TRUE@%else
+@REQUIRE_IPTABLES_LIBS_TRUE@Requires: iptables-libs
+@REQUIRE_IPTABLES_LIBS_TRUE@%endif
 @LIBIPSET_DYNAMIC_TRUE@Requires: ipset-libs
 @LIBNL_DYNAMIC_TRUE@@LIBNL1_TRUE@Require: libnl
 @LIBNL_DYNAMIC_TRUE@@LIBNL3_TRUE@Require: libnl3

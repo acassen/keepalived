@@ -487,7 +487,7 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 	}
 }
 
-static void
+static int
 process_gained_quorum_timer_thread(thread_ref_t thread)
 {
 	vrrp_tracked_process_t *tpr = thread->arg;
@@ -501,6 +501,8 @@ process_gained_quorum_timer_thread(thread_ref_t thread)
 			      tpr->num_cur_proc >= tpr->quorum &&
 			      tpr->num_cur_proc <= tpr->quorum_max);
 	tpr->fork_timer_thread = NULL;
+
+	return 0;
 }
 
 static void
@@ -559,7 +561,7 @@ check_process_fork(pid_t parent_pid, pid_t child_pid)
 	}
 }
 
-static void
+static int
 process_lost_quorum_timer_thread(thread_ref_t thread)
 {
 	vrrp_tracked_process_t *tpr = thread->arg;
@@ -573,6 +575,8 @@ process_lost_quorum_timer_thread(thread_ref_t thread)
 			      tpr->num_cur_proc >= tpr->quorum &&
 			      tpr->num_cur_proc <= tpr->quorum_max);
 	tpr->terminate_timer_thread = NULL;
+
+	return 0;
 }
 
 static void
@@ -831,10 +835,12 @@ reinitialise_track_processes(void)
 	return;
 }
 
-static void
+static int
 process_lost_messages_timer_thread(__attribute__((unused)) thread_ref_t thread)
 {
 	reinitialise_track_processes();
+
+	return 0;
 }
 
 /*
@@ -1041,12 +1047,16 @@ static int handle_proc_ev(int nl_sd)
 	return 0;
 }
 
-static void
+static int
 read_process_update(thread_ref_t thread)
 {
-	handle_proc_ev(thread->u.f.fd);
+	int rc = EXIT_SUCCESS;
+
+	rc = handle_proc_ev(thread->u.f.fd);
 
 	read_thread = thread_add_read(thread->master, read_process_update, NULL, thread->u.f.fd, TIMER_NEVER, false);
+
+	return rc;
 }
 
 bool

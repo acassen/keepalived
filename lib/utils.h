@@ -258,6 +258,9 @@ extern int integer_to_string(const int, char *, size_t);
 extern FILE *fopen_safe(const char *, const char *);
 extern void set_std_fd(bool);
 extern void close_std_fd(void);
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
+extern int fork_exec(const char * const []);
+#endif
 #if defined _WITH_VRRP_ || defined _WITH_BFD_
 extern int open_pipe(int [2]);
 #endif

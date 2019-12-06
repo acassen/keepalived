@@ -656,7 +656,7 @@ init_linkbeat_status(int fd, interface_t *ifp)
 	return if_up;
 }
 
-static void
+static int
 if_linkbeat_refresh_thread(thread_ref_t thread)
 {
 	interface_t *ifp = THREAD_ARG(thread);
@@ -695,6 +695,8 @@ if_linkbeat_refresh_thread(thread_ref_t thread)
 
 	/* Register next polling thread */
 	thread_add_timer(master, if_linkbeat_refresh_thread, ifp, POLLING_DELAY);
+
+	return 0;
 }
 
 void
@@ -1397,7 +1399,7 @@ setup_interface(vrrp_t *vrrp)
 }
 
 #ifdef _HAVE_VRRP_VMAC_
-void
+int
 recreate_vmac_thread(thread_ref_t thread)
 {
 	vrrp_t *vrrp;
@@ -1406,7 +1408,7 @@ recreate_vmac_thread(thread_ref_t thread)
 	interface_t *ifp = THREAD_ARG(thread);
 
 	if (LIST_ISEMPTY(ifp->tracking_vrrp))
-		return;
+		return 0;
 
 	LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {
 		vrrp = tvp->vrrp;
@@ -1433,6 +1435,8 @@ recreate_vmac_thread(thread_ref_t thread)
 
 		break;
 	}
+
+	return 0;
 }
 #endif
 

@@ -268,14 +268,12 @@ int main(int argc, char **argv)
 			if (family == AF_INET) {
 				clilen = sizeof (cliaddr);
 				n = recvfrom(listenfd, buf, sizeof(buf), 0, (struct sockaddr *)&cliaddr, &clilen);
-				if (echo_data)
-					sendto(listenfd, buf, n, 0, (struct sockaddr *)&cliaddr, clilen);
+				sendto(listenfd, buf, n, 0, (struct sockaddr *)&cliaddr, clilen);
 			}
 			else {
 				clilen = sizeof (cliaddr6);
 				n = recvfrom(listenfd, buf, sizeof(buf), 0, (struct sockaddr *)&cliaddr6, &clilen);
-				if (echo_data)
-					sendto(listenfd, buf, n, 0, (struct sockaddr *)&cliaddr6, clilen);
+				sendto(listenfd, buf, n, 0, (struct sockaddr *)&cliaddr6, clilen);
 			}
 			if (!silent)
 				printf("Received %d bytes\n", n);

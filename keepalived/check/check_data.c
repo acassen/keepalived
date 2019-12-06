@@ -401,9 +401,6 @@ dump_vs(FILE *fp, const void *data)
 				    , FMT_RS(vs->s_svr, vs));
 		dump_forwarding_method(fp, "sorry server ", vs->s_svr);
 	}
-
-	conf_write(fp, "   Default RS LVS weight = %d", vs->lvs_weight);
-	conf_write(fp, "   Default RS quorum weight = %d", vs->quorum_weight);
 	conf_write(fp, "   alive = %d", vs->alive);
 	conf_write(fp, "   quorum_state_up = %d", vs->quorum_state_up);
 	conf_write(fp, "   reloaded = %d", vs->reloaded);
@@ -470,8 +467,7 @@ alloc_vs(const char *param1, const char *param2)
 	new->warmup = ULONG_MAX;
 	new->retry = UINT_MAX;
 	new->delay_before_retry = ULONG_MAX;
-	new->lvs_weight = INT_MAX;
-	new->quorum_weight = INT_MAX;
+	new->weight = 1;
 	new->smtp_alert = -1;
 	new->persistence_granularity = 0xffffffff;
 
@@ -489,8 +485,8 @@ alloc_ssvr(const char *ip, const char *port)
 	port_str = (port && port[strspn(port, "0")]) ? port : NULL;
 
 	vs->s_svr = (real_server_t *) MALLOC(sizeof(real_server_t));
-	vs->s_svr->lvs_weight = 1;
-	vs->s_svr->lvs_iweight = 1;
+	vs->s_svr->weight = 1;
+	vs->s_svr->iweight = 1;
 	vs->s_svr->forwarding_method = vs->forwarding_method;
 #ifdef _HAVE_IPVS_TUN_TYPE_
 	vs->s_svr->tun_type = vs->tun_type;
@@ -532,11 +528,10 @@ dump_rs(FILE *fp, const void *data)
 #endif
 
 	conf_write(fp, "   ------< Real server >------");
-	conf_write(fp, "   RIP = %s, RPORT = %d, LVS WEIGHT = %d, QUORUM WEIGHT = %d"
+	conf_write(fp, "   RIP = %s, RPORT = %d, WEIGHT = %d"
 			    , inet_sockaddrtos(&rs->addr)
 			    , ntohs(inet_sockaddrport(&rs->addr))
-			    , rs->lvs_weight
-			    , rs->quorum_weight);
+			    , rs->weight);
 	dump_forwarding_method(fp, "", rs);
 
 	conf_write(fp, "   Alpha is %s", rs->alpha ? "ON" : "OFF");
@@ -561,10 +556,8 @@ dump_rs(FILE *fp, const void *data)
 		conf_write(fp, "    VirtualHost = %s", rs->virtualhost);
 	conf_write(fp, "   Using smtp notification = %s", rs->smtp_alert ? "yes" : "no");
 
-	conf_write(fp, "   initial lvs weight = %d", rs->lvs_iweight);
-	conf_write(fp, "   previous lvs weight = %d", rs->lvs_pweight);
-	conf_write(fp, "   initial quorum weight = %d", rs->quorum_iweight);
-	conf_write(fp, "   previous quorum weight = %d", rs->quorum_pweight);
+	conf_write(fp, "   initial weight = %d", rs->iweight);
+	conf_write(fp, "   previous weight = %d", rs->pweight);
 	conf_write(fp, "   alive = %d", rs->alive);
 	conf_write(fp, "   num failed checkers = %u", rs->num_failed_checkers);
 	conf_write(fp, "   RS set = %d", rs->set);
@@ -615,8 +608,7 @@ alloc_rs(const char *ip, const char *port)
 #endif
 #endif
 
-	new->lvs_weight = INT_MAX;
-	new->quorum_weight = INT_MAX;
+	new->weight = INT_MAX;
 	new->forwarding_method = vs->forwarding_method;
 #ifdef _HAVE_IPVS_TUN_TYPE_
 	new->tun_type = vs->tun_type;
@@ -918,12 +910,6 @@ bool validate_check_config(void)
 				vs->smtp_alert = false;
 		}
 
-		/* Set vs default weights if not configured */
-		if (vs->lvs_weight == INT_MAX)
-			vs->lvs_weight = 1;
-		if (vs->quorum_weight == INT_MAX)
-			vs->quorum_weight = 1;
-
 		/* Spin through all the real servers */
 		weight_sum = 0;
 		LIST_FOREACH(vs->rs, rs, e1) {
@@ -958,13 +944,9 @@ bool validate_check_config(void)
 				rs->warmup = vs->warmup;
 			if (rs->delay_before_retry == ULONG_MAX)
 				rs->delay_before_retry = vs->delay_before_retry;
-			if (rs->lvs_weight == INT_MAX) {
-				rs->lvs_weight = vs->lvs_weight;
-				rs->lvs_iweight = rs->lvs_weight;
-			}
-			if (rs->quorum_weight == INT_MAX) {
-				rs->quorum_weight = vs->quorum_weight;
-				rs->quorum_iweight = rs->quorum_weight;
+			if (rs->weight == INT_MAX) {
+				rs->weight = vs->weight;
+				rs->iweight = rs->weight;
 			}
 
 			if (rs->smtp_alert == -1) {
@@ -978,14 +960,13 @@ bool validate_check_config(void)
 					rs->smtp_alert = true;
 				}
 			}
-			weight_sum += rs->quorum_weight;
-			/* Add here any checker weights achievable */
+			weight_sum += rs->weight;
 		}
 
 		/* Check that the quorum isn't higher than the total weight of
 		 * the real servers, otherwise we will never be able to come up. */
 		if (vs->quorum > weight_sum) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Warning - quorum %u for %s exceeds total quorum weight of real servers %u, reducing quorum to %u", vs->quorum, FMT_VS(vs), weight_sum, weight_sum);
+			report_config_error(CONFIG_GENERAL_ERROR, "Warning - quorum %u for %s exceeds total weight of real servers %u, reducing quorum to %u", vs->quorum, FMT_VS(vs), weight_sum, weight_sum);
 			vs->quorum = weight_sum;
 		}
 

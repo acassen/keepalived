@@ -305,7 +305,7 @@ signal_ignore(int signo)
 }
 
 /* Handlers callback  */
-static void
+static int
 signal_run_callback(thread_ref_t thread)
 {
 	uint32_t sig;
@@ -346,6 +346,8 @@ signal_run_callback(thread_ref_t thread)
 	}
 
 	signal_thread = thread_add_read(master, signal_run_callback, NULL, thread->u.f.fd, TIMER_NEVER, false);
+
+	return 0;
 }
 
 static void

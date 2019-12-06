@@ -59,12 +59,10 @@ typedef struct _ssl_data {
 /* Real Server definition */
 typedef struct _real_server {
 	struct sockaddr_storage		addr;
-	int				lvs_weight;
-	int				lvs_iweight;	/* Initial weight */
-	int				lvs_pweight;	/* previous weight, used for reloading */
-	int				quorum_weight;
-	int				quorum_iweight;	/* Initial weight */
-	int				quorum_pweight;	/* previous weight, used for reloading */
+	int				weight;
+	int				iweight;	/* Initial weight */
+	int				pweight;	/* previous weight
+							 * used for reloading */
 	unsigned			forwarding_method; /* NAT/TUN/DR */
 #ifdef _HAVE_IPVS_TUN_TYPE_
 	int				tun_type;	/* tunnel type */
@@ -163,8 +161,7 @@ typedef struct _virtual_server {
 	uint32_t			persistence_granularity;
 	const char			*virtualhost;	/* Default virtualhost for HTTP and SSL healthcheckers
 							   if not set on real servers */
-	int				lvs_weight;
-	int				quorum_weight;
+	int				weight;
 	list				rs;
 	int				alive;
 	bool				alpha;		/* Set if alpha mode is default. */

@@ -310,7 +310,7 @@ thread_set_timer(thread_master_t *m)
 #endif
 }
 
-static void
+static int
 thread_timerfd_handler(thread_ref_t thread)
 {
 	thread_master_t *m = thread->master;
@@ -329,6 +329,8 @@ thread_timerfd_handler(thread_ref_t thread)
 
 	/* Register next timerfd thread */
 	m->timer_thread = thread_add_read(m, thread_timerfd_handler, NULL, m->timer_fd, TIMER_NEVER, false);
+
+	return 0;
 }
 
 /* Child PID cmp helper */
@@ -1041,13 +1043,16 @@ thread_add_read(thread_master_t *m, thread_func_t func, void *arg, int fd, unsig
 	return thread_add_read_sands(m, func, arg, fd, &sands, close_on_reload);
 }
 
-void
+int
 thread_del_read(thread_ref_t thread)
 {
 	if (!thread || !thread->event)
-		return;
+		return -1;
 
-	thread_event_del(thread, THREAD_FL_EPOLL_READ_BIT);
+	if (thread_event_del(thread, THREAD_FL_EPOLL_READ_BIT) < 0)
+		return -1;
+
+	return 0;
 }
 
 #ifdef _WITH_SNMP_
@@ -1153,13 +1158,16 @@ thread_add_write(thread_master_t *m, thread_func_t func, void *arg, int fd, unsi
 	return thread;
 }
 
-void
+int
 thread_del_write(thread_ref_t thread)
 {
 	if (!thread || !thread->event)
-		return;
+		return -1;
 
-	thread_event_del(thread, THREAD_FL_EPOLL_WRITE_BIT);
+	if (thread_event_del(thread, THREAD_FL_EPOLL_WRITE_BIT) < 0)
+		return -1;
+
+	return 0;
 }
 
 void
@@ -1465,7 +1473,7 @@ thread_cancel_event(thread_master_t *m, void *arg)
 #endif
 
 #ifdef _WITH_SNMP_
-static void
+static int
 snmp_read_thread(thread_ref_t thread)
 {
 	fd_set snmp_fdset;
@@ -1477,9 +1485,11 @@ snmp_read_thread(thread_ref_t thread)
 	netsnmp_check_outstanding_agent_requests();
 
 	thread_add_read(thread->master, snmp_read_thread, thread->arg, thread->u.f.fd, TIMER_NEVER, false);
+
+	return 0;
 }
 
-void
+int
 snmp_timeout_thread(thread_ref_t thread)
 {
 	snmp_timeout();
@@ -1487,6 +1497,8 @@ snmp_timeout_thread(thread_ref_t thread)
 	netsnmp_check_outstanding_agent_requests();
 
 	thread->master->snmp_timer_thread = thread_add_timer(thread->master, snmp_timeout_thread, thread->arg, TIMER_NEVER);
+
+	return 0;
 }
 
 // See https://vincent.bernat.im/en/blog/2012-snmp-event-loop

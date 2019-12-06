@@ -41,7 +41,6 @@
 #ifdef THREAD_DUMP
 #include "scheduler.h"
 #endif
-#include "bitops.h"
 
 /* Specifying host blocks within the SMTP checker is deprecated, but currently
  * still supported. All code to support it is in WITH_HOST_ENTRIES conditional
@@ -55,8 +54,9 @@ static conn_opts_t *sav_co;	/* Saved conn_opts while host{} block processed */
 //*** default_co is pointless
 static conn_opts_t* default_co;	/* Default conn_opts for SMTP_CHECK */
 
-static void smtp_connect_thread(thread_ref_t);
-static void smtp_engine_thread(thread_ref_t);
+static int smtp_connect_thread(thread_ref_t);
+static int smtp_start_check_thread(thread_ref_t);
+static int smtp_engine_thread(thread_ref_t);
 
 /* Used as a callback from the checker api, queue_checker(),
  * to free up a checker entry and all its associated data.
@@ -66,7 +66,10 @@ free_smtp_check(checker_t *checker)
 {
 	smtp_checker_t *smtp_checker = checker->data;
 
+	FREE_PTR(checker->co);
 	FREE_CONST(smtp_checker->helo_name);
+	FREE(smtp_checker);
+	FREE(checker);
 }
 
 /*
@@ -116,7 +119,7 @@ smtp_check_handler(__attribute__((unused)) const vector_t *strvec)
 	co->connection_to = UINT_MAX;
 
 	/* Have the checker queue code put our checker into the checkers_queue list. */
-	queue_checker(free_smtp_check, dump_smtp_check, smtp_connect_thread,
+	queue_checker(free_smtp_check, dump_smtp_check, smtp_start_check_thread,
 		      smtp_check_compare, smtp_checker, co, true);
 }
 
@@ -202,7 +205,7 @@ smtp_check_end_handler(void)
 
 		new_smtp_checker->helo_name = STRDUP(smtp_checker->helo_name);
 
-		queue_checker(free_smtp_check, dump_smtp_check, smtp_connect_thread,
+		queue_checker(free_smtp_check, dump_smtp_check, smtp_start_check_thread,
 			      smtp_check_compare, new_smtp_checker, NULL, true);
 
 		new_checker = CHECKER_GET_CURRENT();
@@ -301,16 +304,110 @@ install_smtp_check_keyword(void)
  * Also has to make a decision if we need to bring the resulting
  * service down in case of error.
  */
-static void 
-smtp_epilog(thread_ref_t thread, bool is_success)
+static int __attribute__ ((format (printf, 2, 3)))
+smtp_final(thread_ref_t thread, const char *format, ...)
 {
 	checker_t *checker = THREAD_ARG(thread);
+	char error_buff[512];
+	char smtp_buff[542];
+	va_list varg_list;
+	bool checker_was_up;
+	bool rs_was_alive;
 
 	/* Error or no error we should always have to close the socket */
 	if (thread->type != THREAD_TIMER)
 		thread_close_fd(thread);
 
-	check_update_svr_checker_state(is_success, checker, thread, "SMTP", smtp_connect_thread);
+	if (format) {
+		/* Always syslog the error when the real server is up */
+		if ((checker->is_up || !checker->has_run) &&
+		    (global_data->checker_log_all_failures ||
+		     checker->log_all_failures ||
+		     checker->retry_it >= checker->retry)) {
+			/* prepend format with the "SMTP_CHECK " string */
+			strcpy_safe(error_buff, "SMTP_CHECK ");
+			strncat(error_buff, format, sizeof(error_buff) - 11 - 1);
+
+			va_start(varg_list, format);
+			vlog_message(LOG_INFO, error_buff, varg_list);
+			va_end(varg_list);
+		}
+
+		/*
+		 * If we still have retries left, try this host again by
+		 * scheduling the main thread to check it again after the
+		 * configured backoff delay. Otherwise down the RS.
+		 */
+		if (++checker->retry_it <= checker->retry) {
+			thread_add_timer(thread->master, smtp_connect_thread, checker,
+					 checker->delay_before_retry);
+			return 0;
+		}
+
+		/*
+		 * No more retries, pull the real server from the virtual server.
+		 * Only smtp_alert if it wasn't previously down. It should
+		 * be noted that smtp_alert makes a copy of the string arguments, so
+		 * we don't have to keep them statically allocated.
+		 */
+		if (checker->is_up || !checker->has_run) {
+			checker_was_up = checker->is_up;
+			rs_was_alive = checker->rs->alive;
+			update_svr_checker_state(DOWN, checker);
+			if (checker->rs->smtp_alert && checker_was_up &&
+			    (rs_was_alive != checker->rs->alive || !global_data->no_checker_emails)) {
+				if (format != NULL) {
+					snprintf(error_buff, sizeof(error_buff), "=> CHECK failed on service : %s <=", format);
+					va_start(varg_list, format);
+					vsnprintf(smtp_buff, sizeof(smtp_buff), error_buff, varg_list);
+					va_end(varg_list);
+				} else
+					strncpy(smtp_buff, "=> CHECK failed on service <=", sizeof(smtp_buff));
+
+				smtp_buff[sizeof(smtp_buff) - 1] = '\0';
+				smtp_alert(SMTP_MSG_RS, checker, NULL, smtp_buff);
+			}
+		}
+
+		/* Reschedule the main thread using the configured delay loop */
+		thread_add_timer(thread->master, smtp_start_check_thread, checker, checker->delay_loop);
+
+		return 0;
+	}
+
+	/*
+	 * Ok this host was successful, increment to the next host in the list
+	 * and reset the retry_it counter. We'll then reschedule the main thread again.
+	 * If host_ptr exceeds the end of the list, smtp_connect_main_thread will
+	 * take note and bring up the real server as well as inject the delay_loop.
+	 */
+	checker->retry_it = 0;
+
+	/*
+	 * Set the internal host pointer to the host that we'll be
+	 * working on. If it's NULL, we've successfully tested all hosts.
+	 * We'll bring the service up (if it's not already), reset the host list,
+	 * and insert the delay loop. When we get scheduled again the host list
+	 * will be reset and we will continue on checking them one by one.
+	 */
+	if (!checker->is_up || !checker->has_run) {
+		log_message(LOG_INFO, "Remote SMTP server %s succeed on service."
+				    , FMT_CHK(checker));
+
+		checker_was_up = checker->is_up;
+		rs_was_alive = checker->rs->alive;
+		update_svr_checker_state(UP, checker);
+		if (checker->rs->smtp_alert && !checker_was_up &&
+		    (rs_was_alive != checker->rs->alive || !global_data->no_checker_emails))
+			smtp_alert(SMTP_MSG_RS, checker, NULL,
+				   "=> CHECK succeed on service <=");
+	}
+
+	checker->has_run = true;
+
+	thread_add_timer(thread->master, smtp_start_check_thread, checker, checker->delay_loop);
+
+	return 0;
 }
 
 /*
@@ -319,7 +416,7 @@ smtp_epilog(thread_ref_t thread, bool is_success)
  * single packet, but we don't care. We are only looking at the
  * SMTP response codes at the beginning anyway.
  */
-static void
+static int
 smtp_get_line_cb(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -330,13 +427,9 @@ smtp_get_line_cb(thread_ref_t thread)
 
 	/* Handle read timeout */
 	if (thread->type == THREAD_READ_TIMEOUT) {
-		if (__test_bit(LOG_DETAIL_BIT, &debug))
-			log_message(LOG_INFO, "Read timeout from server %s"
+		smtp_final(thread, "Read timeout from server %s"
 				    , FMT_SMTP_RS(smtp_host));
-
-		smtp_epilog(thread, false);
-
-		return;
+		return 0;
 	}
 
 	/* wrap the buffer, if full, by clearing it */
@@ -354,21 +447,17 @@ smtp_get_line_cb(thread_ref_t thread)
 	if (r == -1 && (check_EAGAIN(errno) || check_EINTR(errno))) {
 		thread_add_read(thread->master, smtp_get_line_cb, checker,
 				thread->u.f.fd, smtp_host->connection_to, true);
-		return;
+		return 0;
 	}
 
 	/*
 	 * If the connection was closed or there was
-	 * some sort of error, notify smtp_epilog()
+	 * some sort of error, notify smtp_final()
 	 */
 	if (r <= 0) {
-		if (__test_bit(LOG_DETAIL_BIT, &debug))
-			log_message(LOG_INFO, "Read failure from server %s"
+		smtp_final(thread, "Read failure from server %s"
 				     , FMT_SMTP_RS(smtp_host));
-
-		smtp_epilog(thread, false);
-
-		return;
+		return 0;
 	}
 
 	smtp_checker->buff_ctr += (size_t)r;
@@ -385,7 +474,7 @@ smtp_get_line_cb(thread_ref_t thread)
 
 		smtp_engine_thread(thread);
 
-		return;
+		return 0;
 	}
 
 	/*
@@ -395,13 +484,14 @@ smtp_get_line_cb(thread_ref_t thread)
 	 */
 	thread_add_read(thread->master, smtp_get_line_cb, checker,
 			thread->u.f.fd, smtp_host->connection_to, true);
+	return 0;
 }
 
 /*
  * Ok a caller has asked us to asyncronously schedule a single line
  * to be received from the server. They have also passed us a call back
  * function that we'll call once we have the newline. If something bad
- * happens, the caller assumes we'll pass the error off to smtp_epilog(),
+ * happens, the caller assumes we'll pass the error off to smtp_final(),
  * which will either down the real server or schedule a retry. The
  * function smtp_get_line_cb is what does the dirty work since the
  * scheduler can only accept a single *thread argument.
@@ -420,6 +510,7 @@ smtp_get_line(thread_ref_t thread)
 	thread_add_read(thread->master, smtp_get_line_cb, checker,
 		thread->u.f.fd, smtp_host->connection_to, true);
 	thread_del_write(thread);
+	return;
 }
 
 /*
@@ -428,7 +519,7 @@ smtp_get_line(thread_ref_t thread)
  * the current write would block or not. If it wants to block,
  * we'll return to the scheduler and try again later.
  */
-static void
+static int
 smtp_put_line_cb(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -438,13 +529,9 @@ smtp_put_line_cb(thread_ref_t thread)
 
 	/* Handle read timeout */
 	if (thread->type == THREAD_WRITE_TIMEOUT) {
-		if (__test_bit(LOG_DETAIL_BIT, &debug))
-			log_message(LOG_INFO, "Write timeout to server %s"
+		smtp_final(thread, "Write timeout to server %s"
 				     , FMT_SMTP_RS(smtp_host));
-
-		smtp_epilog(thread, false);
-
-		return;
+		return 0;
 	}
 
 	/* write the data */
@@ -453,7 +540,7 @@ smtp_put_line_cb(thread_ref_t thread)
 	if (w == -1 && (check_EAGAIN(errno) || check_EINTR(errno))) {
 		thread_add_write(thread->master, smtp_put_line_cb, checker,
 				 thread->u.f.fd, smtp_host->connection_to, true);
-		return;
+		return 0;
 	}
 
 #ifdef _CHECKER_DEBUG_
@@ -463,20 +550,17 @@ smtp_put_line_cb(thread_ref_t thread)
 
 	/*
 	 * If the connection was closed or there was
-	 * some sort of error, notify smtp_epilog()
+	 * some sort of error, notify smtp_final()
 	 */
 	if (w <= 0) {
-		if (__test_bit(LOG_DETAIL_BIT, &debug))
-			log_message(LOG_INFO, "Write failure to server %s"
+		smtp_final(thread, "Write failure to server %s"
 				     , FMT_SMTP_RS(smtp_host));
-
-		smtp_epilog(thread, false);
-
-		return;
+		return 0;
 	}
 
 	/* Execute the callback */
 	smtp_engine_thread(thread);
+	return 0;
 }
 
 /*
@@ -524,7 +608,7 @@ smtp_get_status(smtp_checker_t *smtp_checker)
  * smtp_checker->state. Upon first calling, smtp_checker->state
  * should be set to SMTP_START.
  */
-static void
+static int
 smtp_engine_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -538,7 +622,7 @@ smtp_engine_thread(thread_ref_t thread)
 			/*
 			 * Ok, if smtp_get_line schedules us back, we will
 			 * have data to analyze. Otherwise, smtp_get_line
-			 * will defer directly to smtp_epilog.
+			 * will defer directly to smtp_final.
 			 */
 			smtp_checker->state = SMTP_HAVE_BANNER;
 			smtp_get_line(thread);
@@ -548,15 +632,12 @@ smtp_engine_thread(thread_ref_t thread)
 		case SMTP_HAVE_BANNER:
 			/* Check for "220 some.mailserver.com" in the greeting */
 			if (smtp_get_status(smtp_checker) != 220) {
-				if (__test_bit(LOG_DETAIL_BIT, &debug))
-					log_message(LOG_INFO, "Bad greeting banner from server %s"
+				smtp_final(thread, "Bad greeting banner from server %s"
 						     , FMT_SMTP_RS(smtp_host));
-
-				smtp_epilog(thread, false);
 			} else {
 				/*
 				 * Schedule to send the HELO, smtp_put_line will
-				 * defer directly to smtp_epilog on error.
+				 * defer directly to smtp_final on error.
 				 */
 				smtp_checker->state = SMTP_SENT_HELO;
 				snprintf(smtp_checker->buff, SMTP_BUFF_MAX, "HELO %s\r\n",
@@ -575,11 +656,8 @@ smtp_engine_thread(thread_ref_t thread)
 		case SMTP_RECV_HELO:
 			/* Check for "250 Please to meet you..." */
 			if (smtp_get_status(smtp_checker) != 250) {
-				if (__test_bit(LOG_DETAIL_BIT, &debug))
-					log_message(LOG_INFO, "Bad HELO response from server %s"
+				smtp_final(thread, "Bad HELO response from server %s"
 						     , FMT_SMTP_RS(smtp_host));
-
-				smtp_epilog(thread, false);
 			} else {
 				smtp_checker->state = SMTP_SENT_QUIT;
 				snprintf(smtp_checker->buff, SMTP_BUFF_MAX, "QUIT\r\n");
@@ -593,26 +671,25 @@ smtp_engine_thread(thread_ref_t thread)
 			smtp_get_line(thread);
 			break;
 
-		/* Sixth step, wrap up success to smtp_epilog */
+		/* Sixth step, wrap up success to smtp_final */
 		case SMTP_RECV_QUIT:
-			smtp_epilog(thread, true);
+			smtp_final(thread, NULL);
 			break;
 
 		default:
 			/* We shouldn't be here */
-			if (__test_bit(LOG_DETAIL_BIT, &debug))
-				log_message(LOG_INFO, "Unknown smtp engine state encountered");
-
-			smtp_epilog(thread, false);
+			smtp_final(thread, "Unknown smtp engine state encountered");
 			break;
 	}
+
+	return 0;
 }
 
 /*
  * Second step in the process. Here we'll see if the connection
  * to the host we're checking was successful or not.
  */
-static void
+static int
 smtp_check_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -623,27 +700,18 @@ smtp_check_thread(thread_ref_t thread)
 	status = tcp_socket_state(thread, smtp_check_thread);
 	switch (status) {
 		case connect_error:
-			if (__test_bit(LOG_DETAIL_BIT, &debug))
-				log_message(LOG_INFO, "Error connecting to server %s"
+			smtp_final(thread, "Error connecting to server %s"
 					     , FMT_SMTP_RS(smtp_host));
-
-			smtp_epilog(thread, false);
 			break;
 
 		case connect_timeout:
-			if (__test_bit(LOG_DETAIL_BIT, &debug))
-				log_message(LOG_INFO, "Connection timeout to server %s"
+			smtp_final(thread, "Connection timeout to server %s"
 					     , FMT_SMTP_RS(smtp_host));
-
-			smtp_epilog(thread, false);
 			break;
 
 		case connect_fail:
-			if (__test_bit(LOG_DETAIL_BIT, &debug))
-				log_message(LOG_INFO, "Could not connect to server %s"
+			smtp_final(thread, "Could not connect to server %s"
 					     , FMT_SMTP_RS(smtp_host));
-
-			smtp_epilog(thread, false);
 			break;
 
 		case connect_success:
@@ -660,13 +728,12 @@ smtp_check_thread(thread_ref_t thread)
 
 		default:
 			/* we shouldn't be here */
-			if (__test_bit(LOG_DETAIL_BIT, &debug))
-				log_message(LOG_INFO, "Unknown connection error to server %s"
+			smtp_final(thread, "Unknown connection error to server %s"
 					     , FMT_SMTP_RS(smtp_host));
-
-			smtp_epilog(thread, false);
 			break;
 	}
+
+	return 0;
 }
 
 /*
@@ -679,7 +746,7 @@ smtp_check_thread(thread_ref_t thread)
  * ourselves to run again. It doesn't have to be right here,
  * but eventually has to happen.
  */
-static void
+static int
 smtp_connect_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -715,9 +782,9 @@ smtp_connect_thread(thread_ref_t thread)
 	 * we don't fall of the face of the earth.
 	 */
 	if (!checker->enabled) {
-		thread_add_timer(thread->master, smtp_check_thread, checker,
+		thread_add_timer(thread->master, smtp_start_check_thread, checker,
 				 checker->delay_loop);
-		return;
+		return 0;
 	}
 
 	smtp_host = checker->co;
@@ -725,9 +792,9 @@ smtp_connect_thread(thread_ref_t thread)
 	/* Create the socket, failing here should be an oddity */
 	if ((sd = socket(smtp_host->dst.ss_family, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, IPPROTO_TCP)) == -1) {
 		log_message(LOG_INFO, "SMTP_CHECK connection failed to create socket. Rescheduling.");
-		thread_add_timer(thread->master, smtp_check_thread, checker,
+		thread_add_timer(thread->master, smtp_start_check_thread, checker,
 				 checker->delay_loop);
-		return;
+		return 0;
 	}
 
 #if !HAVE_DECL_SOCK_NONBLOCK
@@ -746,25 +813,37 @@ smtp_connect_thread(thread_ref_t thread)
 	if(tcp_connection_state(sd, status, thread, smtp_check_thread, smtp_host->connection_to)) {
                 if (status == connect_fail) {
                         close(sd);
-                        if (__test_bit(LOG_DETAIL_BIT, &debug))
-                        	log_message(LOG_INFO, "Network unreachable for server %s - real server %s",
+                        smtp_final(thread, "Network unreachable for server %s - real server %s",
                                            inet_sockaddrtos(&checker->co->dst),
                                            inet_sockaddrtopair(&checker->rs->addr));
-
-                        smtp_epilog(thread, false);
                 } else {
 			close(sd);
 			log_message(LOG_INFO, "SMTP_CHECK socket bind failed. Rescheduling.");
-			thread_add_timer(thread->master, smtp_check_thread, checker,
+			thread_add_timer(thread->master, smtp_start_check_thread, checker,
 				checker->delay_loop);
 		}
 	}
+
+	return 0;
+}
+
+static int
+smtp_start_check_thread(thread_ref_t thread)
+{
+	checker_t *checker = THREAD_ARG(thread);
+
+	checker->retry_it = 0;
+
+	smtp_connect_thread(thread);
+
+	return 0;
 }
 
 #ifdef THREAD_DUMP
 void
 register_check_smtp_addresses(void)
 {
+	register_thread_address("smtp_start_check_thread", smtp_start_check_thread);
 	register_thread_address("smtp_check_thread", smtp_check_thread);
 	register_thread_address("smtp_connect_thread", smtp_connect_thread);
 	register_thread_address("smtp_get_line_cb", smtp_get_line_cb);

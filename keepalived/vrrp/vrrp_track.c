@@ -992,7 +992,7 @@ process_track_file(vrrp_tracked_file_t *tfile, bool init)
 	tfile->last_status = new_status;
 }
 
-static void
+static int
 process_inotify(thread_ref_t thread)
 {
 	char buf[sizeof(struct inotify_event) + NAME_MAX + 1];
@@ -1009,17 +1009,17 @@ process_inotify(thread_ref_t thread)
 		if ((len = read(fd, buf, sizeof(buf))) < (ssize_t)sizeof(struct inotify_event)) {
 			if (len == -1) {
 				if (check_EAGAIN(errno))
-					return;
+					return 0;
 
 				if (check_EINTR(errno))
 					continue;
 
 				log_message(LOG_INFO, "inotify read() returned error %d - %m", errno);
-				return;
+				return 0;
 			}
 
 			log_message(LOG_INFO, "inotify read() returned short length %zd", len);
-			return;
+			return 0;
 		}
 
 		/* Try and keep coverity happy. It thinks event->name is not null

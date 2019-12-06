@@ -762,7 +762,7 @@ dbus_remove_object(const vrrp_t *vrrp)
 	dbus_unregister_object(vrrp->iname);
 }
 
-static void
+static int
 handle_dbus_msg(__attribute__((unused)) thread_ref_t thread)
 {
 	dbus_queue_ent_t *ent;
@@ -830,6 +830,8 @@ handle_dbus_msg(__attribute__((unused)) thread_ref_t thread)
 	}
 
 	thread_add_read(master, handle_dbus_msg, NULL, dbus_in_pipe[0], TIMER_NEVER, false);
+
+	return 0;
 }
 
 void

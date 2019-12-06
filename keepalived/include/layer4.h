@@ -31,7 +31,6 @@
 /* local includes */
 #include "scheduler.h"
 
-
 enum connect_result {
 	connect_error,
 	connect_in_progress,
@@ -54,13 +53,12 @@ typedef struct _conn_opts {
 
 /* Prototypes defs */
 #ifdef _WITH_LVS_
-extern void set_buf(char *, size_t);
 extern enum connect_result
-socket_bind_connect(int, const conn_opts_t *);
+socket_bind_connect(int, conn_opts_t *);
 #endif
 
 extern enum connect_result
-socket_connect(int, const struct sockaddr_storage *);
+socket_connect(int, struct sockaddr_storage *);
 
 extern enum connect_result
 socket_state(thread_ref_t, thread_func_t);
@@ -75,14 +73,14 @@ socket_connection_state(int, enum connect_result
 /* Backward compatibility */
 #ifdef _WITH_LVS_
 static inline enum connect_result
-tcp_bind_connect(int fd, const conn_opts_t *co)
+tcp_bind_connect(int fd, conn_opts_t *co)
 {
 	return socket_bind_connect(fd, co);
 }
 #endif
 
 static inline enum connect_result
-tcp_connect(int fd, const struct sockaddr_storage *addr)
+tcp_connect(int fd, struct sockaddr_storage *addr)
 {
 	return socket_connect(fd, addr);
 }
@@ -100,10 +98,6 @@ tcp_connection_state(int fd, enum connect_result status, thread_ref_t thread,
 {
 	return socket_connection_state(fd, status, thread, func, timeout);
 }
-
-extern enum connect_result udp_bind_connect(int, const conn_opts_t *);
-extern enum connect_result udp_socket_state(int, thread_ref_t, bool);
-extern bool udp_icmp_check_state(int, enum connect_result, thread_ref_t, thread_func_t, unsigned long);
 #endif
 
 #endif

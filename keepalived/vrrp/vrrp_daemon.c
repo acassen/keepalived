@@ -91,11 +91,11 @@ bool non_existent_interface_specified;
 
 /* Forward declarations */
 #ifndef _ONE_PROCESS_DEBUG_
-static void print_vrrp_data(thread_ref_t);
-static void print_vrrp_stats(thread_ref_t);
-static void reload_vrrp_thread(thread_ref_t);
+static int print_vrrp_data(thread_ref_t);
+static int print_vrrp_stats(thread_ref_t);
+static int reload_vrrp_thread(thread_ref_t);
 #ifdef _WITH_JSON_
-static void print_vrrp_json(thread_ref_t);
+static int print_vrrp_json(thread_ref_t);
 #endif
 #endif
 #ifdef _WITH_PERF_
@@ -288,7 +288,7 @@ vrrp_terminate_phase2(int exit_status)
 	exit(exit_status);
 }
 
-static void
+static int
 vrrp_shutdown_backstop_thread(thread_ref_t thread)
 {
 	int count = 0;
@@ -305,9 +305,11 @@ vrrp_shutdown_backstop_thread(thread_ref_t thread)
 			thread->master->shutdown_timer_running ? "" : "not ", count);
 
 	thread_add_terminate_event(thread->master);
+
+	return 0;
 }
 
-static void
+static int
 vrrp_shutdown_timer_thread(thread_ref_t thread)
 {
 	thread->master->shutdown_timer_running = false;
@@ -316,6 +318,8 @@ vrrp_shutdown_timer_thread(thread_ref_t thread)
 		thread_add_timer_shutdown(thread->master, vrrp_shutdown_backstop_thread, NULL, TIMER_HZ / 10);
 	else
 		thread_add_terminate_event(thread->master);
+
+	return 0;
 }
 
 /* Daemon stop sequence */
@@ -403,13 +407,15 @@ vrrp_terminate_phase1(bool schedule_next_thread)
 }
 
 #ifndef _ONE_PROCESS_DEBUG_
-static void
+static int
 start_vrrp_termination_thread(__attribute__((unused)) thread_ref_t thread)
 {
 	/* This runs in the context of a thread */
 	two_phase_terminate = true;
 
 	vrrp_terminate_phase1(true);
+
+	return 0;
 }
 #endif
 
@@ -632,7 +638,7 @@ start_vrrp(data_t *prev_global_data)
 }
 
 #ifndef _ONE_PROCESS_DEBUG_
-static void
+static int
 send_reload_advert_thread(thread_ref_t thread)
 {
 	vrrp_t *vrrp = THREAD_ARG(thread);
@@ -644,6 +650,8 @@ send_reload_advert_thread(thread_ref_t thread)
 	 * actual reload. */
 	if (THREAD_VAL(thread))
 		thread_add_event(master, reload_vrrp_thread, NULL, 0);
+
+	return 0;
 }
 
 static void
@@ -729,7 +737,7 @@ vrrp_signal_init(void)
 }
 
 /* Reload thread */
-static void
+static int
 reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 {
 	bool with_snmp = false;
@@ -819,30 +827,35 @@ reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 	free_old_interface_queue();
 
 	UNSET_RELOAD;
+
+	return 0;
 }
 
-static void
+static int
 print_vrrp_data(__attribute__((unused)) thread_ref_t thread)
 {
 	vrrp_print_data();
+	return 0;
 }
 
-static void
+static int
 print_vrrp_stats(__attribute__((unused)) thread_ref_t thread)
 {
 	vrrp_print_stats();
+	return 0;
 }
 
 #ifdef _WITH_JSON_
-static void
+static int
 print_vrrp_json(__attribute__((unused)) thread_ref_t thread)
 {
 	vrrp_print_json();
+	return 0;
 }
 #endif
 
 /* VRRP Child respawning thread */
-static void
+static int
 vrrp_respawn_thread(thread_ref_t thread)
 {
 	/* We catch a SIGCHLD, handle it */
@@ -855,6 +868,7 @@ vrrp_respawn_thread(thread_ref_t thread)
 		log_message(LOG_ALERT, "VRRP child process(%d) died: Exiting", thread->u.c.pid);
 		raise(SIGTERM);
 	}
+	return 0;
 }
 #endif
 

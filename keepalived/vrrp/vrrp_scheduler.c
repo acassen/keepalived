@@ -105,13 +105,13 @@ static thread_ref_t bfd_thread;		 /* BFD control pipe read thread */
  *     +---------------+                       +---------------+
  */
 
-static void vrrp_script_child_thread(thread_ref_t);
-static void vrrp_script_thread(thread_ref_t);
+static int vrrp_script_child_thread(thread_ref_t);
+static int vrrp_script_thread(thread_ref_t);
 #ifdef _WITH_BFD_
-static void vrrp_bfd_thread(thread_ref_t);
+static int vrrp_bfd_thread(thread_ref_t);
 #endif
 
-static void vrrp_read_dispatcher_thread(thread_ref_t);
+static int vrrp_read_dispatcher_thread(thread_ref_t);
 
 /* VRRP TSM (Transition State Matrix) design.
  *
@@ -529,7 +529,7 @@ vrrp_set_fds(list l)
  * are multiplexed through this fds. So our design can handle 2*n
  * multiplexing points.
  */
-void
+int
 vrrp_dispatcher_init(__attribute__((unused)) thread_ref_t thread)
 {
 	vrrp_create_sockpool(vrrp_data->vrrp_socket_pool);
@@ -549,6 +549,8 @@ vrrp_dispatcher_init(__attribute__((unused)) thread_ref_t thread)
 		dump_list(NULL, vrrp_data->vrrp_socket_pool);
 
 	vrrp_initialised = true;
+
+	return 1;
 }
 
 #ifdef _WITH_BFD_
@@ -581,23 +583,27 @@ vrrp_goto_master(vrrp_t * vrrp)
 }
 
 /* Delayed gratuitous ARP thread */
-void
+int
 vrrp_gratuitous_arp_thread(thread_ref_t thread)
 {
 	vrrp_t *vrrp = THREAD_ARG(thread);
 
 	/* Simply broadcast the gratuitous ARP */
 	vrrp_send_link_update(vrrp, vrrp->garp_rep);
+
+	return 0;
 }
 
 /* Delayed gratuitous ARP thread after receiving a lower priority advert */
-void
+int
 vrrp_lower_prio_gratuitous_arp_thread(thread_ref_t thread)
 {
 	vrrp_t *vrrp = THREAD_ARG(thread);
 
 	/* Simply broadcast the gratuitous ARP */
 	vrrp_send_link_update(vrrp, vrrp->garp_lower_prio_rep);
+
+	return 0;
 }
 
 static void
@@ -748,7 +754,7 @@ vrrp_handle_bfd_event(bfd_event_t * evt)
 	}
 }
 
-static void
+static int
 vrrp_bfd_thread(thread_ref_t thread)
 {
 	bfd_event_t evt;
@@ -757,10 +763,12 @@ vrrp_bfd_thread(thread_ref_t thread)
 				     thread->u.f.fd, TIMER_NEVER, false);
 
 	if (thread->type != THREAD_READY_READ_FD)
-		return;
+		return 0;
 
 	while (read(thread->u.f.fd, &evt, sizeof(bfd_event_t)) != -1)
 		vrrp_handle_bfd_event(&evt);
+
+	return 0;
 }
 #endif
 
@@ -1003,7 +1011,7 @@ vrrp_dispatcher_read(sock_t *sock)
 }
 
 /* Our read packet dispatcher */
-static void
+static int
 vrrp_read_dispatcher_thread(thread_ref_t thread)
 {
 	sock_t *sock;
@@ -1022,9 +1030,11 @@ vrrp_read_dispatcher_thread(thread_ref_t thread)
 	if (fd != -1)
 		sock->thread = thread_add_read_sands(thread->master, vrrp_read_dispatcher_thread,
 						     sock, fd, vrrp_compute_timer(sock), false);
+
+	return 0;
 }
 
-static void
+static int
 vrrp_script_thread(thread_ref_t thread)
 {
 	vrrp_script_t *vscript = THREAD_ARG(thread);
@@ -1038,6 +1048,8 @@ vrrp_script_thread(thread_ref_t thread)
 		/* We don't want the system to be overloaded with scripts that we are executing */
 		log_message(LOG_INFO, "Track script %s is %s, expect idle - skipping run",
 			    vscript->sname, vscript->state == SCRIPT_STATE_RUNNING ? "already running" : "being timed out");
+
+		return 0;
 	}
 
 	/* Execute the script in a child process. Parent returns, child doesn't */
@@ -1046,9 +1058,11 @@ vrrp_script_thread(thread_ref_t thread)
 				  &vscript->script);
 	if (!ret)
 		vscript->state = SCRIPT_STATE_RUNNING;
+
+	return ret;
 }
 
-static void
+static int
 vrrp_script_child_thread(thread_ref_t thread)
 {
 	int wait_status;
@@ -1103,7 +1117,7 @@ vrrp_script_child_thread(thread_ref_t thread)
 		if (timeout)
 			thread_add_child(thread->master, vrrp_script_child_thread, vscript, pid, timeout * TIMER_HZ);
 
-		return;
+		return 0;
 	}
 
 	wait_status = THREAD_CHILD_STATUS(thread);
@@ -1180,6 +1194,8 @@ vrrp_script_child_thread(thread_ref_t thread)
 
 	vscript->state = SCRIPT_STATE_IDLE;
 	vscript->init_state = SCRIPT_INIT_STATE_DONE;
+
+	return 0;
 }
 
 /* Delayed ARP/NA thread */
@@ -1237,7 +1253,7 @@ vrrp_arpna_send(vrrp_t *vrrp, list l, timeval_t *n)
 	return 0;
 }
 
-void
+int
 vrrp_arp_thread(thread_ref_t thread)
 {
 	vrrp_t *vrrp;
@@ -1267,8 +1283,11 @@ vrrp_arp_thread(thread_ref_t thread)
 		garp_next_time = next_time;
 		garp_thread = thread_add_timer(thread->master, vrrp_arp_thread, NULL,
 					       timer_long(timer_sub_now(next_time)));
-	} else
-		garp_thread = NULL;
+		return 0;
+	}
+
+	garp_thread = NULL;
+	return 0;
 }
 
 #ifdef _WITH_DUMP_THREADS_
