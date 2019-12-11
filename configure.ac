@@ -488,6 +488,7 @@ _Pragma("GCC diagnostic warning \"-Wall\"")
   [
     AC_MSG_RESULT([no])
   ])
+AM_CONDITIONAL([DEBUG], [test .$enable_debug = .yes])
 
 dnl -- Check for diagnostic push/pop pragmas - GCC 4.6.0
 AC_MSG_CHECKING([diagnostic push/pop pragmas])
