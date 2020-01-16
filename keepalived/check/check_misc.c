@@ -337,7 +337,7 @@ misc_check_child_thread(thread_ref_t thread)
 		if (timeout) {
 			/* If kill returns an error, we can't kill the process since either the process has terminated,
 			 * or we don't have permission. If we can't kill it, there is no point trying again. */
-			if (!kill(-pid, sig_num)) {
+			if (kill(-pid, sig_num)) {
 				if (errno == ESRCH) {
 					/* The process does not exist, and we should
 					 * have reaped its exit status, otherwise it
