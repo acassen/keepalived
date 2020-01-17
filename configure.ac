@@ -1629,17 +1629,19 @@ if test .${enable_nftables} != .no; then
       add_pkg_config([libmnl])
       AC_DEFINE([_WITH_NFTABLES_], [ 1 ], [Define to 1 if want nftables support])
       add_config_opt([NFTABLES])
-      AC_MSG_CHECKING([whether NFTNL_EXPR_LOOKUP_FLAGS is defined])
+      AC_MSG_CHECKING([whether NFTNL_EXPR_LOOKUP_FLAGS and NFT_LOOKUP_F_INV are defined])
       AC_LINK_IFELSE([AC_LANG_SOURCE([[
+	#include <stdio.h>	// libnftnl/expr.h requires this
 	#include <libnftnl/expr.h>
+	#include <linux/netfilter/nf_tables.h>
 	int main(void)
 	{
-	  int i = NFTNL_EXPR_LOOKUP_FLAGS;
+	  int i = NFTNL_EXPR_LOOKUP_FLAGS | NFT_LOOKUP_F_INV;
 	  return 0;
 	}
 	]])], [
 	  AC_MSG_RESULT(yes)
-	  AC_DEFINE([HAVE_NFTNL_EXPR_LOOKUP_FLAGS], [ 1 ], [Define to 1 if NFTNL_EXPR_LOOKUP_FLAGS defined])
+	  AC_DEFINE([HAVE_NFTNL_EXPR_LOOKUP_FLAG_INV], [ 1 ], [Define to 1 if NFTNL_EXPR_LOOKUP_FLAGS and NFT_LOOKUP_F_INV defined])
 	],[
 	  AC_MSG_RESULT(no)
 	])
