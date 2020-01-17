@@ -323,7 +323,7 @@ add_meta(struct nftnl_rule *r, uint32_t ifindex, uint32_t dreg)
 static void
 add_lookup(struct nftnl_rule *r, uint32_t base, uint32_t dreg, const char *set_name,
 			uint32_t set_id,
-#ifndef HAVE_NFTNL_EXPR_LOOKUP_FLAGS
+#ifndef HAVE_NFTNL_EXPR_LOOKUP_FLAG_INV
 			__attribute__((unused))
 #endif
 						bool neg)
@@ -339,7 +339,7 @@ add_lookup(struct nftnl_rule *r, uint32_t base, uint32_t dreg, const char *set_n
 	nftnl_expr_set_u32(e, NFTNL_EXPR_LOOKUP_SREG, base);
 	if (dreg != NO_REG)
 		nftnl_expr_set_u32(e, NFTNL_EXPR_LOOKUP_DREG, dreg);
-#ifdef HAVE_NFTNL_EXPR_LOOKUP_FLAGS
+#ifdef HAVE_NFTNL_EXPR_LOOKUP_FLAG_INV
 	if (neg)
 		nftnl_expr_set_u32(e, NFTNL_EXPR_LOOKUP_FLAGS, NFT_LOOKUP_F_INV);
 #endif
