@@ -21,13 +21,16 @@ RUN apk --no-cache add \
        libnfnetlink-dev \
        libnl3 \
        libnl3-dev \
+       libnftnl-dev \
        make \
        musl-dev \
        openssl \
        openssl-dev \
        autoconf \
+       automake \
 
     && cd /tmp/keepalived-sources \
+    && ./build_setup \
     && ./configure --disable-dynamic-linking \
     && make && make install \
     && cd - \
@@ -39,10 +42,12 @@ RUN apk --no-cache add \
 	iptables-dev \
 	libnfnetlink-dev \
 	libnl3-dev \
+       libnftnl-dev \
 	make \
 	musl-dev \
 	openssl-dev \
-	autoconf
+	autoconf \
+	automake
 
 ADD docker/keepalived.conf /usr/local/etc/keepalived/keepalived.conf
 
