@@ -892,7 +892,7 @@ vrrp_dispatcher_read(sock_t *sock)
 		}
 
 		if (msghdr.msg_flags & MSG_CTRUNC) {
-			log_message(LOG_INFO, "recvmsg(%d), control message truncated from %zu to %zu bytes"
+			log_message(LOG_INFO, "recvmsg(%d), control message truncated from %zu to %" PRI_MSG_CONTROLLEN " bytes"
 					    , sock->fd_in, sizeof(control_buf), msghdr.msg_controllen);
 			msghdr.msg_controllen = 0;
 		}
@@ -977,7 +977,7 @@ vrrp_dispatcher_read(sock_t *sock)
 #endif
 
 			if (!expected_cmsg)
-				log_message(LOG_INFO, "fd %d, unexpected control msg len %zu, level %d, type %d"
+				log_message(LOG_INFO, "fd %d, unexpected control msg len %" PRI_MSG_CONTROLLEN ", level %d, type %d"
 						    , sock->fd_in, cmsg->cmsg_len
 						    , cmsg->cmsg_level, cmsg->cmsg_type);
 		}

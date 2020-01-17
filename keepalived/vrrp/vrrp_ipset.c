@@ -200,7 +200,7 @@ create_sets(struct ipset_session **session, const char* addr4, const char* addr6
 #ifdef LIBIPSET_PRE_V7_COMPAT
 		*session = ipset_session_init(ipset_printf);
 #else
-		*session = ipset_session_init(ipset_printf, "create_sets");
+		*session = ipset_session_init(ipset_printf, no_const(char, "create_sets"));
 #endif
 	if (!*session) {
 		log_message(LOG_INFO, "Cannot initialize ipset session.");
@@ -345,7 +345,7 @@ remove_ipsets(struct ipset_session **session, uint8_t family, bool vip_sets)
 #ifdef LIBIPSET_PRE_V7_COMPAT
 		*session = ipset_session_init(ipset_printf);
 #else
-		*session = ipset_session_init(ipset_printf, "remove_ipsets");
+		*session = ipset_session_init(ipset_printf, no_const(char, "remove_ipsets"));
 #endif
 	if (!*session) {
 		log_message(LOG_INFO, "Cannot initialize ipset session.");
@@ -407,7 +407,7 @@ void* ipset_session_start(void)
 #ifdef LIBIPSET_PRE_V7_COMPAT
 	return ipset_session_init(ipset_printf);
 #else
-	return ipset_session_init(ipset_printf, "session_start");
+	return ipset_session_init(ipset_printf, no_const(char, "session_start"));
 #endif
 }
 
