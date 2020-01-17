@@ -473,6 +473,31 @@ AS_IF([test .$enable_debug = .yes],
       ])
   ])
 
+dnl -- ulibc/glibc differences
+ AC_MSG_CHECKING([msghdr.msg_controllen is size_t])
+SAV_CFLAGS=$CFLAGS
+CFLAGS="$CFLAGS -Werror"
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+  #include <sys/socket.h>
+  #include <stdio.h>
+
+  int main(int argc, char**argv)
+  {
+    struct msghdr msgh = { .msg_controllen = 0 };
+
+    printf("%zu", msgh.msg_controllen);
+  }
+  ]])],
+  [
+    AC_MSG_RESULT([yes])
+    AC_DEFINE([PRI_MSG_CONTROLLEN], [ "zu" ], [Define to zu if msghdr.msg_controllen is size_t, else u])
+  ],
+  [
+    AC_MSG_RESULT([no])
+    AC_DEFINE([PRI_MSG_CONTROLLEN], [ "u" ], [Define to zu if msghdr.msg_controllen is size_t, else u])
+  ])
+CFLAGS=$SAV_CFLAGS
+
 dnl -- Check for diagnostic pragmas in functions - GCC 4.6.0
 AC_MSG_CHECKING([diagnostic pragmas in functions])
 AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
