@@ -397,9 +397,11 @@ dump_vs(FILE *fp, const void *data)
 	dump_forwarding_method(fp, "default ", &rs);
 
 	if (vs->s_svr) {
-		conf_write(fp, "   sorry server = %s"
+		conf_write(fp, "   sorry server %s= %s"
+				    , vs->s_svr_duplicates_rs ? "(duplicates rs) " : ""
 				    , FMT_RS(vs->s_svr, vs));
-		dump_forwarding_method(fp, "sorry server ", vs->s_svr);
+		dump_forwarding_method(fp, "  ", vs->s_svr);
+		conf_write(fp, "     Inhibit on failure is %s", vs->s_svr->inhibit ? "ON" : "OFF");
 	}
 	conf_write(fp, "   alive = %d", vs->alive);
 	conf_write(fp, "   quorum_state_up = %d", vs->quorum_state_up);
@@ -823,13 +825,14 @@ bool validate_check_config(void)
 	element e, e1, e2;
 	virtual_server_t *vs;
 	virtual_server_group_entry_t *vsge;
-	real_server_t *rs;
+	real_server_t *rs, *rs1;
 	checker_t *checker;
-	element next;
+	element next_vs, next_rs;
 	unsigned weight_sum;
+	bool rs_removed;
 
 	using_ha_suspend = false;
-	LIST_FOREACH_NEXT(check_data->vs, vs, e, next) {
+	LIST_FOREACH_NEXT(check_data->vs, vs, e, next_vs) {
 		if (!vs->rs || LIST_ISEMPTY(vs->rs)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s has no real servers - ignoring", FMT_VS(vs));
 			free_list_element(check_data->vs, e);
@@ -852,7 +855,7 @@ bool validate_check_config(void)
 			/* Check protocol set */
 			if (!vs->service_type) {
 				/* If the protocol is 0, the kernel defaults to UDP, so set it explicitly */
-				log_message(LOG_INFO, "Virtual server %s: no protocol set - defaulting to UDP", FMT_VS(vs));
+				report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: no protocol set - defaulting to UDP", FMT_VS(vs));
 				vs->service_type = IPPROTO_UDP;
 			}
 
@@ -896,7 +899,7 @@ bool validate_check_config(void)
 
 		/* Check scheduler set */
 		if (!vs->sched[0]) {
-			log_message(LOG_INFO, "Virtual server %s: no scheduler set, setting default '%s'", FMT_VS(vs), IPVS_DEF_SCHED);
+			report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: no scheduler set, setting default '%s'", FMT_VS(vs), IPVS_DEF_SCHED);
 			strcpy(vs->sched, IPVS_DEF_SCHED);
 		}
 
@@ -912,11 +915,26 @@ bool validate_check_config(void)
 
 		/* Spin through all the real servers */
 		weight_sum = 0;
-		LIST_FOREACH(vs->rs, rs, e1) {
+		LIST_FOREACH_NEXT(vs->rs, rs, e1, next_rs) {
+			/* Check the real server is not a duplicate of any rs earlier in the list */
+			rs_removed = false;
+			LIST_FOREACH(vs->rs, rs1, e2) {
+				if (rs == rs1)
+					break;
+				if (rs_iseq(rs, rs1)) {
+					report_config_error(CONFIG_GENERAL_ERROR, "VS %s: real server %s is duplicated - removing second rs", FMT_VS(vs), FMT_RS(rs, vs));
+					free_list_element(vs->rs, e1);
+					rs_removed = true;
+					break;
+				}
+			}
+			if (rs_removed)
+				continue;
+
 			/* Set the forwarding method if necessary */
 			if (rs->forwarding_method == IP_VS_CONN_F_FWD_MASK) {
 				if (vs->forwarding_method == IP_VS_CONN_F_FWD_MASK) {
-					log_message(LOG_INFO, "Virtual server %s: no forwarding method set, setting default NAT", FMT_VS(vs));
+					report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: no forwarding method set, setting default NAT", FMT_VS(vs));
 					vs->forwarding_method = IP_VS_CONN_F_MASQ;
 				}
 				rs->forwarding_method = vs->forwarding_method;
@@ -961,6 +979,18 @@ bool validate_check_config(void)
 				}
 			}
 			weight_sum += rs->weight;
+
+			/* Check if the real server is the same as the sorry server,
+			 * and if so the inhibit on failure settings must match. */
+			if (vs->s_svr &&
+			    rs_iseq(vs->s_svr, rs)) {
+				if (vs->s_svr->inhibit != rs->inhibit) {
+					report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: real server %s matches sorry server, but inhibit setting differs, %sing on sorry server", FMT_VS(vs), FMT_RS(rs, vs), rs->inhibit ? "sett" : "clear");
+					vs->s_svr->inhibit = rs->inhibit;
+				}
+
+				vs->s_svr_duplicates_rs = true;
+			}
 		}
 
 		/* Check that the quorum isn't higher than the total weight of
@@ -985,11 +1015,11 @@ bool validate_check_config(void)
 					if (rs->forwarding_method == IP_VS_CONN_F_MASQ)
 						continue;
 					if (inet_sockaddrport(&rs->addr))
-						log_message(LOG_INFO, "WARNING - fwmark virtual server %s, real server %s has port specified - port will be ignored", FMT_VS(vs), FMT_RS(rs, vs));
+						report_config_error(CONFIG_GENERAL_ERROR, "WARNING - fwmark virtual server %s, real server %s has port specified - port will be ignored", FMT_VS(vs), FMT_RS(rs, vs));
 				}
 				if (vs->s_svr && vs->s_svr->forwarding_method != IP_VS_CONN_F_MASQ &&
 				    inet_sockaddrport(&vs->s_svr->addr))
-					log_message(LOG_INFO, "WARNING - fwmark virtual server %s, sorry server has port specified - port will be ignored", FMT_VS(vs));
+					report_config_error(CONFIG_GENERAL_ERROR, "WARNING - fwmark virtual server %s, sorry server has port specified - port will be ignored", FMT_VS(vs));
 			}
 			LIST_FOREACH(vs->vsg->addr_range, vsge, e1) {
 				LIST_FOREACH(vs->rs, rs, e2) {
@@ -1002,7 +1032,7 @@ bool validate_check_config(void)
 				if (vs->s_svr && vs->s_svr->forwarding_method != IP_VS_CONN_F_MASQ &&
 				    inet_sockaddrport(&vs->s_svr->addr) &&
 				    inet_sockaddrport(&vsge->addr) != inet_sockaddrport(&vs->s_svr->addr))
-					log_message(LOG_INFO, "WARNING - virtual server %s, sorry server has port specified - port will be ignored", FMT_VS(vs));
+					report_config_error(CONFIG_GENERAL_ERROR, "WARNING - virtual server %s, sorry server has port specified - port will be ignored", FMT_VS(vs));
 			}
 		} else {
 			/* We can also correct errors here */
@@ -1032,7 +1062,7 @@ bool validate_check_config(void)
 			if (vs->s_svr && vs->s_svr->forwarding_method != IP_VS_CONN_F_MASQ) {
 				if (vs->vfwmark) {
 					if (inet_sockaddrport(&vs->s_svr->addr)) {
-						log_message(LOG_INFO, "WARNING - virtual server %s, sorry server has port specified - clearing", FMT_VS(vs));
+						report_config_error(CONFIG_GENERAL_ERROR, "WARNING - virtual server %s, sorry server has port specified - clearing", FMT_VS(vs));
 						inet_set_sockaddrport(&vs->s_svr->addr, 0);
 					}
 				} else {

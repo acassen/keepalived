@@ -71,11 +71,10 @@ typedef struct _real_server {
 	int				tun_flags;	/* tunnel checksum type for gue/gre tunnels */
 #endif
 #endif
-	uint32_t			u_threshold;   /* Upper connection limit. */
-	uint32_t			l_threshold;   /* Lower connection limit. */
+	uint32_t			u_threshold;	/* Upper connection limit. */
+	uint32_t			l_threshold;	/* Lower connection limit. */
 	int				inhibit;	/* Set weight to 0 instead of removing
-							 * the service from IPVS topology.
-							 */
+							 * the service from IPVS topology. */
 	notify_script_t			*notify_up;	/* Script to launch when RS is added to LVS */
 	notify_script_t			*notify_down;	/* Script to launch when RS is removed from LVS */
 	int				alpha;		/* true if alpha mode is default. */
@@ -140,6 +139,7 @@ typedef struct _virtual_server {
 	struct sockaddr_storage		addr;
 	uint32_t			vfwmark;
 	real_server_t			*s_svr;
+	bool				s_svr_duplicates_rs;
 	uint16_t			af;
 	uint16_t			service_type;
 	bool				ha_suspend;
