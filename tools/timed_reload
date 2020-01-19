@@ -1,0 +1,117 @@
+#!/bin/bash
+
+# This script will cause keepalived to reload its configuration
+# at a specified time.
+
+KILL=kill
+
+TIME=
+INSTANCE=
+ALL=0
+
+export HOUR
+
+show_help()
+{
+        cat <<EOF
+$0 - Usage: $0 -t TIME [-a|-i name] [-h]
+
+	-h		Show this!
+	-t HH:MM[:SS]	Time to reload
+	-i name		Instance name (keepalived -i option)
+	-a		Reload all instances
+EOF
+}
+
+strip0()
+{
+	eval $1=$( <<<$2 sed -e "s/^0*//")
+	[[ -z ${!1} ]] && eval $1=0
+}
+
+while getopts ":ahi:t:" opt; do
+        case $opt in
+                h)
+                        show_help
+                        exit 0
+                        ;;
+                t)
+                        TIME=$OPTARG
+                        ;;
+                i)
+                        INSTANCE=$OPTARG
+                        ;;
+                a)
+                        ALL=1
+                        ;;
+                ?)
+                        echo Unknown option -$opt && show_help && exit 1
+                        ;;
+        esac
+done
+
+if [[ -z $TIME ]]; then
+	echo Time missing
+	show_help
+	exit 1
+fi
+
+[[ $ALL -eq 1 && -n $INSTANCE ]] && echo -a and -i are mutually exclusive && exit 1
+
+[[ $(id -u) -ne 0 ]] && echo Only root can reload keepalived && exit 1
+
+if [[ -n $INSTANCE ]]; then
+	[[ ! -f /run/keepalived/$INSTANCE/keepalived.pid ]] && echo Cannot find instance pid file && exit 1
+elif [[ ALL -eq 0 ]]; then
+	[[ ! -f /run/keepalived.pid ]] && echo Cannot find pid file && exit 1
+else
+	NUM_PIDS=$(find /run/keepalived -name keepalived.pid 2>/dev/null | wc -l)
+	[[ ! -f /run/keepalived.pid && $NUM_PIDS -eq 0 ]] && echo Cannot find any pid file && exit 1
+fi
+
+set $(<<<$TIME tr ":" " ")
+
+if [[ $# -lt 2 || $# -gt 3 ]]; then
+	echo $0 Time format is HH:MM or HH:MM:SS
+	exit 1
+fi
+
+strip0 HOUR $1
+strip0 MIN $2
+[[ $# -eq 3 ]] && strip0 SEC $3
+
+set $(date +"%H %M %S %N")
+strip0 C_HOUR $1
+strip0 C_MIN $2
+strip0 C_SEC $3
+strip0 C_NSEC $4
+
+# echo $HOUR - $C_HOUR \* 3600 + $MIN - $C_MIN \* 60 + $SEC - $C_SEC
+DELAY=$(( (HOUR - C_HOUR) * 3600 + (MIN - C_MIN) * 60 + SEC - C_SEC ))
+
+if [[ $C_NSEC -ne 0 ]]; then
+	: $((DELAY--))
+	NSEC_DELAY=$((1000000000 - $C_NSEC))
+	NSEC_DELAY=$( <<<$NSEC_DELAY sed -e "s/^0*//")
+	NSEC_DELAY=.$(printf "%9.9d" $NSEC_DELAY)
+else
+	NSEC_DELAY=
+fi
+
+if [[ $DELAY -lt 0 ]]; then
+	echo Time specified is in the past
+	exit 1
+fi
+
+sleep $DELAY$NSEC_DELAY
+echo Reloading at $(date +"%H:%M:%S.%N")
+
+if [[ $ALL -eq 1 ]]; then
+	for f in /run/keepalived.pid $(find /run/keepalived -name keepalived.pid); do
+		[[ -f $f ]] && $KILL -HUP $(cat $f)
+	done
+elif [[ -n $INSTANCE ]]; then
+	$KILL -HUP $(cat /run/keepalived/$INSTANCE/keepalived.pid)
+else
+	$KILL -HUP $(cat /run/keepalived.pid)
+fi
