@@ -465,9 +465,7 @@ update_quorum_state(virtual_server_t * vs, bool init)
 				    , weight_sum
 				    , FMT_VS(vs));
 		if (vs->s_svr && ISALIVE(vs->s_svr)) {
-			/* Adding back alive real servers */
-			perform_quorum_state(vs, true);
-
+			/* Removing sorry server since we don't need it anymore */
 			log_message(LOG_INFO, "%s sorry server %s from VS %s"
 					    , (vs->s_svr->inhibit ? "Disabling" : "Removing")
 					    , FMT_RS(vs->s_svr, vs)
@@ -475,6 +473,9 @@ update_quorum_state(virtual_server_t * vs, bool init)
 
 			ipvs_cmd(LVS_CMD_DEL_DEST, vs, vs->s_svr);
 			vs->s_svr->alive = false;
+
+			/* Adding back alive real servers */
+			perform_quorum_state(vs, true);
 		}
 
 		do_vs_notifies(vs, init, threshold, weight_sum, false);
@@ -505,12 +506,12 @@ update_quorum_state(virtual_server_t * vs, bool init)
 					    , FMT_RS(vs->s_svr, vs)
 					    , FMT_VS(vs));
 
+			/* Remove remaining alive real servers */
+			perform_quorum_state(vs, false);
+
 			/* the sorry server is now up in the pool, we flag it alive */
 			ipvs_cmd(LVS_CMD_ADD_DEST, vs, vs->s_svr);
 			vs->s_svr->alive = true;
-
-			/* Remove remaining alive real servers */
-			perform_quorum_state(vs, false);
 		}
 
 		do_vs_notifies(vs, init, threshold, weight_sum, false);
