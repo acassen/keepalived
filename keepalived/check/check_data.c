@@ -825,13 +825,14 @@ bool validate_check_config(void)
 	element e, e1, e2;
 	virtual_server_t *vs;
 	virtual_server_group_entry_t *vsge;
-	real_server_t *rs;
+	real_server_t *rs, *rs1;
 	checker_t *checker;
-	element next;
+	element next_vs, next_rs;
 	unsigned weight_sum;
+	bool rs_removed;
 
 	using_ha_suspend = false;
-	LIST_FOREACH_NEXT(check_data->vs, vs, e, next) {
+	LIST_FOREACH_NEXT(check_data->vs, vs, e, next_vs) {
 		if (!vs->rs || LIST_ISEMPTY(vs->rs)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s has no real servers - ignoring", FMT_VS(vs));
 			free_list_element(check_data->vs, e);
@@ -914,7 +915,22 @@ bool validate_check_config(void)
 
 		/* Spin through all the real servers */
 		weight_sum = 0;
-		LIST_FOREACH(vs->rs, rs, e1) {
+		LIST_FOREACH_NEXT(vs->rs, rs, e1, next_rs) {
+			/* Check the real server is not a duplicate of any rs earlier in the list */
+			rs_removed = false;
+			LIST_FOREACH(vs->rs, rs1, e2) {
+				if (rs == rs1)
+					break;
+				if (rs_iseq(rs, rs1)) {
+					report_config_error(CONFIG_GENERAL_ERROR, "VS %s: real server %s is duplicated - removing second rs", FMT_VS(vs), FMT_RS(rs, vs));
+					free_list_element(vs->rs, e1);
+					rs_removed = true;
+					break;
+				}
+			}
+			if (rs_removed)
+				continue;
+
 			/* Set the forwarding method if necessary */
 			if (rs->forwarding_method == IP_VS_CONN_F_FWD_MASK) {
 				if (vs->forwarding_method == IP_VS_CONN_F_FWD_MASK) {
