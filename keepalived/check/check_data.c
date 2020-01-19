@@ -855,7 +855,7 @@ bool validate_check_config(void)
 			/* Check protocol set */
 			if (!vs->service_type) {
 				/* If the protocol is 0, the kernel defaults to UDP, so set it explicitly */
-				log_message(LOG_INFO, "Virtual server %s: no protocol set - defaulting to UDP", FMT_VS(vs));
+				report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: no protocol set - defaulting to UDP", FMT_VS(vs));
 				vs->service_type = IPPROTO_UDP;
 			}
 
@@ -899,7 +899,7 @@ bool validate_check_config(void)
 
 		/* Check scheduler set */
 		if (!vs->sched[0]) {
-			log_message(LOG_INFO, "Virtual server %s: no scheduler set, setting default '%s'", FMT_VS(vs), IPVS_DEF_SCHED);
+			report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: no scheduler set, setting default '%s'", FMT_VS(vs), IPVS_DEF_SCHED);
 			strcpy(vs->sched, IPVS_DEF_SCHED);
 		}
 
@@ -934,7 +934,7 @@ bool validate_check_config(void)
 			/* Set the forwarding method if necessary */
 			if (rs->forwarding_method == IP_VS_CONN_F_FWD_MASK) {
 				if (vs->forwarding_method == IP_VS_CONN_F_FWD_MASK) {
-					log_message(LOG_INFO, "Virtual server %s: no forwarding method set, setting default NAT", FMT_VS(vs));
+					report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: no forwarding method set, setting default NAT", FMT_VS(vs));
 					vs->forwarding_method = IP_VS_CONN_F_MASQ;
 				}
 				rs->forwarding_method = vs->forwarding_method;
@@ -1015,11 +1015,11 @@ bool validate_check_config(void)
 					if (rs->forwarding_method == IP_VS_CONN_F_MASQ)
 						continue;
 					if (inet_sockaddrport(&rs->addr))
-						log_message(LOG_INFO, "WARNING - fwmark virtual server %s, real server %s has port specified - port will be ignored", FMT_VS(vs), FMT_RS(rs, vs));
+						report_config_error(CONFIG_GENERAL_ERROR, "WARNING - fwmark virtual server %s, real server %s has port specified - port will be ignored", FMT_VS(vs), FMT_RS(rs, vs));
 				}
 				if (vs->s_svr && vs->s_svr->forwarding_method != IP_VS_CONN_F_MASQ &&
 				    inet_sockaddrport(&vs->s_svr->addr))
-					log_message(LOG_INFO, "WARNING - fwmark virtual server %s, sorry server has port specified - port will be ignored", FMT_VS(vs));
+					report_config_error(CONFIG_GENERAL_ERROR, "WARNING - fwmark virtual server %s, sorry server has port specified - port will be ignored", FMT_VS(vs));
 			}
 			LIST_FOREACH(vs->vsg->addr_range, vsge, e1) {
 				LIST_FOREACH(vs->rs, rs, e2) {
@@ -1032,7 +1032,7 @@ bool validate_check_config(void)
 				if (vs->s_svr && vs->s_svr->forwarding_method != IP_VS_CONN_F_MASQ &&
 				    inet_sockaddrport(&vs->s_svr->addr) &&
 				    inet_sockaddrport(&vsge->addr) != inet_sockaddrport(&vs->s_svr->addr))
-					log_message(LOG_INFO, "WARNING - virtual server %s, sorry server has port specified - port will be ignored", FMT_VS(vs));
+					report_config_error(CONFIG_GENERAL_ERROR, "WARNING - virtual server %s, sorry server has port specified - port will be ignored", FMT_VS(vs));
 			}
 		} else {
 			/* We can also correct errors here */
@@ -1062,7 +1062,7 @@ bool validate_check_config(void)
 			if (vs->s_svr && vs->s_svr->forwarding_method != IP_VS_CONN_F_MASQ) {
 				if (vs->vfwmark) {
 					if (inet_sockaddrport(&vs->s_svr->addr)) {
-						log_message(LOG_INFO, "WARNING - virtual server %s, sorry server has port specified - clearing", FMT_VS(vs));
+						report_config_error(CONFIG_GENERAL_ERROR, "WARNING - virtual server %s, sorry server has port specified - clearing", FMT_VS(vs));
 						inet_set_sockaddrport(&vs->s_svr->addr, 0);
 					}
 				} else {
