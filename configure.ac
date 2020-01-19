@@ -1769,7 +1769,7 @@ if test "$enable_lvs" != no; then
   dnl -- Since Linux 3.18
   AC_CHECK_DECLS([IPVS_DEST_ATTR_ADDR_FAMILY], [add_system_opt([IPVS_DEST_ATTR_ADDR_FAMILY])], [], [#include <linux/ip_vs.h>])
 
-  dnl -- Since Linux ?.?.?
+  dnl -- Since Linux 4.3
   IPVS_SYNCD_ATTRIBUTES=Yes
   AC_CHECK_DECLS([
     IPVS_DAEMON_ATTR_SYNC_MAXLEN,
@@ -1783,7 +1783,6 @@ if test "$enable_lvs" != no; then
     ],
     [[#include <linux/ip_vs.h>]])
 
-  dnl -- Since Linux 4.3
   if test $IPVS_SYNCD_ATTRIBUTES = Yes; then
     AC_DEFINE([_HAVE_IPVS_SYNCD_ATTRIBUTES_], [ 1 ], [Define to 1 if have IPVS syncd attributes])
     add_system_opt([IPVS_SYNCD_ATTRIBUTES])
