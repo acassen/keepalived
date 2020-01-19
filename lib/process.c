@@ -38,13 +38,11 @@
 #include "warnings.h"
 #include "bitops.h"
 
-#ifdef _HAVE_SCHED_RT_
 static bool realtime_priority_set;
 
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 static bool rlimit_rt_set;
 static struct rlimit orig_rlimit_rt;
-#endif
 #endif
 
 static bool priority_set;
@@ -106,16 +104,12 @@ reset_process_priority(void)
    variable length buffer" warning */
 RELAX_STACK_PROTECTOR_START
 void
-set_process_priorities(
-#ifdef _HAVE_SCHED_RT_
-		       int realtime_priority,
+set_process_priorities(int realtime_priority,
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 		       int rlimit_rt,
 #endif
-#endif
 		       int process_priority, int no_swap_stack_size)
 {
-#ifdef _HAVE_SCHED_RT_
 	if (realtime_priority) {
 		/* Set realtime priority */
 		struct sched_param sp = {
@@ -139,7 +133,6 @@ set_process_priorities(
 #endif
 	}
 	else
-#endif
 	     if (process_priority)
 		set_process_priority(process_priority);
 
@@ -149,7 +142,6 @@ set_process_priorities(
 }
 RELAX_STACK_PROTECTOR_END
 
-#ifdef _HAVE_SCHED_RT_
 int
 set_process_cpu_affinity(cpu_set_t *set, const char *process)
 {
@@ -195,12 +187,9 @@ get_process_cpu_affinity_string(cpu_set_t *set, char *buffer, size_t size)
 	return 0;
 }
 
-#endif
-
 void
 reset_process_priorities(void)
 {
-#ifdef _HAVE_SCHED_RT_
 	if (realtime_priority_set) {
 		/* Set realtime priority */
 		struct sched_param sp = {
@@ -223,7 +212,7 @@ reset_process_priorities(void)
 #endif
 		}
 	}
-#endif
+
 	if (priority_set)
 		reset_process_priority();
 

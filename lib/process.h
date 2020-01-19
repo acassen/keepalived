@@ -23,9 +23,7 @@
 #ifndef _PROCESS_H
 #define _PROCESS_H
 
-#ifdef _HAVE_SCHED_RT_
 #include <sched.h>
-#endif
 #include <sys/types.h>
 #include <sys/resource.h>
 
@@ -33,18 +31,13 @@
 #define	RT_RLIMIT_DEFAULT	10000
 #endif
 
-extern void set_process_priorities(
-#ifdef _HAVE_SCHED_RT_
-			           int,
+extern void set_process_priorities(int,
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 			           int,
 #endif
-#endif
 				   int, int);
-#ifdef _HAVE_SCHED_RT_
 extern int set_process_cpu_affinity(cpu_set_t *, const char *);
 extern int get_process_cpu_affinity_string(cpu_set_t *, char *, size_t);
-#endif
 extern void reset_process_priorities(void);
 extern void set_child_rlimit(int, const struct rlimit *);
 extern pid_t local_fork(void);
