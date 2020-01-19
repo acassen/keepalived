@@ -397,9 +397,11 @@ dump_vs(FILE *fp, const void *data)
 	dump_forwarding_method(fp, "default ", &rs);
 
 	if (vs->s_svr) {
-		conf_write(fp, "   sorry server = %s"
+		conf_write(fp, "   sorry server %s= %s"
+				    , vs->s_svr_duplicates_rs ? "(duplicates rs) " : ""
 				    , FMT_RS(vs->s_svr, vs));
-		dump_forwarding_method(fp, "sorry server ", vs->s_svr);
+		dump_forwarding_method(fp, "  ", vs->s_svr);
+		conf_write(fp, "     Inhibit on failure is %s", vs->s_svr->inhibit ? "ON" : "OFF");
 	}
 	conf_write(fp, "   alive = %d", vs->alive);
 	conf_write(fp, "   quorum_state_up = %d", vs->quorum_state_up);
@@ -961,6 +963,18 @@ bool validate_check_config(void)
 				}
 			}
 			weight_sum += rs->weight;
+
+			/* Check if the real server is the same as the sorry server,
+			 * and if so the inhibit on failure settings must match. */
+			if (vs->s_svr &&
+			    rs_iseq(vs->s_svr, rs)) {
+				if (vs->s_svr->inhibit != rs->inhibit) {
+					report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: real server %s matches sorry server, but inhibit setting differs, %sing on sorry server", FMT_VS(vs), FMT_RS(rs, vs), rs->inhibit ? "sett" : "clear");
+					vs->s_svr->inhibit = rs->inhibit;
+				}
+
+				vs->s_svr_duplicates_rs = true;
+			}
 		}
 
 		/* Check that the quorum isn't higher than the total weight of

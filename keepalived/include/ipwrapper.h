@@ -29,6 +29,7 @@
 /* local includes */
 #include "check_data.h"
 #include "check_api.h"
+#include "utils.h"
 
 /* UP & DOWN value */
 #define UP   true
@@ -40,6 +41,12 @@
 #define LVS_CMD_ADD_DEST	IP_VS_SO_SET_ADDDEST
 #define LVS_CMD_DEL_DEST	IP_VS_SO_SET_DELDEST
 #define LVS_CMD_EDIT_DEST	IP_VS_SO_SET_EDITDEST
+
+static inline bool __attribute((pure))
+rs_iseq(const real_server_t *rs_a, const real_server_t *rs_b)
+{
+        return sockstorage_equal(&rs_a->addr, &rs_b->addr);
+}
 
 /* prototypes */
 extern void update_svr_wgt(int, virtual_server_t *, real_server_t *, bool);

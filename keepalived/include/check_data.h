@@ -140,6 +140,7 @@ typedef struct _virtual_server {
 	struct sockaddr_storage		addr;
 	uint32_t			vfwmark;
 	real_server_t			*s_svr;
+	bool				s_svr_duplicates_rs;
 	uint16_t			af;
 	uint16_t			service_type;
 	bool				ha_suspend;
