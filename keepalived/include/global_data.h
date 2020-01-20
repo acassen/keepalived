@@ -29,10 +29,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <sys/socket.h>
-
-#ifdef _HAVE_SCHED_RT_
 #include <sched.h>
-#endif
 
 #ifdef HAVE_LINUX_NETFILTER_X_TABLES_H
 #include <linux/netfilter/x_tables.h>
@@ -177,36 +174,30 @@ typedef struct _data {
 	bool				have_vrrp_config;
 	char				vrrp_process_priority;
 	bool				vrrp_no_swap;
-#ifdef _HAVE_SCHED_RT_
 	unsigned			vrrp_realtime_priority;
 	cpu_set_t			vrrp_cpu_mask;
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 	rlim_t				vrrp_rlimit_rt;
 #endif
 #endif
-#endif
 #ifdef _WITH_LVS_
 	bool				have_checker_config;
 	char				checker_process_priority;
 	bool				checker_no_swap;
-#ifdef _HAVE_SCHED_RT_
 	unsigned			checker_realtime_priority;
 	cpu_set_t			checker_cpu_mask;
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 	rlim_t				checker_rlimit_rt;
 #endif
 #endif
-#endif
 #ifdef _WITH_BFD_
 	bool				have_bfd_config;
 	char				bfd_process_priority;
 	bool				bfd_no_swap;
-#ifdef _HAVE_SCHED_RT_
 	unsigned			bfd_realtime_priority;
 	cpu_set_t			bfd_cpu_mask;
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 	rlim_t				bfd_rlimit_rt;
-#endif
 #endif
 #endif
 	notify_fifo_t			notify_fifo;

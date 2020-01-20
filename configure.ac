@@ -1769,7 +1769,7 @@ if test "$enable_lvs" != no; then
   dnl -- Since Linux 3.18
   AC_CHECK_DECLS([IPVS_DEST_ATTR_ADDR_FAMILY], [add_system_opt([IPVS_DEST_ATTR_ADDR_FAMILY])], [], [#include <linux/ip_vs.h>])
 
-  dnl -- Since Linux ?.?.?
+  dnl -- Since Linux 4.3
   IPVS_SYNCD_ATTRIBUTES=Yes
   AC_CHECK_DECLS([
     IPVS_DAEMON_ATTR_SYNC_MAXLEN,
@@ -1783,7 +1783,6 @@ if test "$enable_lvs" != no; then
     ],
     [[#include <linux/ip_vs.h>]])
 
-  dnl -- Since Linux 4.3
   if test $IPVS_SYNCD_ATTRIBUTES = Yes; then
     AC_DEFINE([_HAVE_IPVS_SYNCD_ATTRIBUTES_], [ 1 ], [Define to 1 if have IPVS syncd attributes])
     add_system_opt([IPVS_SYNCD_ATTRIBUTES])
@@ -2365,26 +2364,14 @@ AS_IF([test $ac_cv_func_setns = no],
 CFLAGS="$SAV_CFLAGS"
 AM_CONDITIONAL([WITH_NAMESPACES], [test $ac_cv_have_decl_CLONE_NEWNET = yes])
 
-dnl ----[ check for realtime scheduling support ]----
-dnl -- from Linux ?.?.?
-AC_CHECK_DECLS([SCHED_RR],
-  [
-    SCHED_RT_SUPPORT=Yes
-    AC_DEFINE([_HAVE_SCHED_RT_], [ 1 ], [Define to 1 if have SCHED_RR])
-    add_system_opt([SCHED_RT])
+dnl -- RLIMIT_RTTIME since Linux 2.6.25 - not supported with musl libc
+AC_CHECK_DECLS([RLIMIT_RTTIME], [], [], [[#include <sys/resource.h>]])
 
-    dnl -- RLIMIT_RTTIME since Linux 2.6.25 - not supported wwith musl libc
-    AC_CHECK_DECLS([RLIMIT_RTTIME], [], [], [[#include <sys/resource.h>]])
-
-    dnl -- SCHED_RESET_ON_FORK since Linux 2.6.32
-    AC_CHECK_DECLS([SCHED_RESET_ON_FORK],
-      [add_system_opt([SCHED_RESET_ON_FORK])],
-      [AC_DEFINE([SCHED_RESET_ON_FORK], [ 0 ], [Dummy definition if not defined in system headers])],
-      [[#include <sched.h>]])
-  ],
-  [
-    SCHED_RT_SUPPORT=No
-  ], [[#include <sched.h>]])
+dnl -- SCHED_RESET_ON_FORK since Linux 2.6.32
+AC_CHECK_DECLS([SCHED_RESET_ON_FORK],
+  [add_system_opt([SCHED_RESET_ON_FORK])],
+  [AC_DEFINE([SCHED_RESET_ON_FORK], [ 0 ], [Dummy definition if not defined in system headers])],
+  [[#include <sched.h>]])
 
 dnl -- Do we want GNU standard paths (moves .pid files)
 GNU_STD_PATHS=No

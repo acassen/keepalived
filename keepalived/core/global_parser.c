@@ -31,9 +31,7 @@
 #include <pwd.h>
 #include <grp.h>
 #include <ctype.h>
-#ifdef _HAVE_SCHED_RT_
 #include <sched.h>
-#endif
 #include <strings.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -522,7 +520,7 @@ lvs_flush_onstop_handler(const vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR, "Unknown lvs_flush_onstop type %s", strvec_slot(strvec, 1));
 }
 #endif
-#ifdef _HAVE_SCHED_RT_
+
 static int
 get_realtime_priority(const vector_t *strvec, const char *process)
 {
@@ -602,7 +600,7 @@ get_rt_rlimit(const vector_t *strvec, const char *process)
 	return rlim;
 }
 #endif
-#endif
+
 static int8_t
 get_priority(const vector_t *strvec, const char *process)
 {
@@ -995,7 +993,7 @@ vrrp_no_swap_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	global_data->vrrp_no_swap = true;
 }
-#ifdef _HAVE_SCHED_RT_
+
 static void
 vrrp_rt_priority_handler(const vector_t *strvec)
 {
@@ -1017,7 +1015,7 @@ vrrp_rt_rlimit_handler(const vector_t *strvec)
 }
 #endif
 #endif
-#endif
+
 static void
 notify_fifo(const vector_t *strvec, const char *type, notify_fifo_t *fifo)
 {
@@ -1131,7 +1129,7 @@ checker_no_swap_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	global_data->checker_no_swap = true;
 }
-#ifdef _HAVE_SCHED_RT_
+
 static void
 checker_rt_priority_handler(const vector_t *strvec)
 {
@@ -1153,7 +1151,7 @@ checker_rt_rlimit_handler(const vector_t *strvec)
 }
 #endif
 #endif
-#endif
+
 #ifdef _WITH_BFD_
 static void
 bfd_prio_handler(const vector_t *strvec)
@@ -1165,7 +1163,7 @@ bfd_no_swap_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	global_data->bfd_no_swap = true;
 }
-#ifdef _HAVE_SCHED_RT_
+
 static void
 bfd_rt_priority_handler(const vector_t *strvec)
 {
@@ -1187,7 +1185,7 @@ bfd_rt_rlimit_handler(const vector_t *strvec)
 }
 #endif
 #endif
-#endif
+
 #ifdef _WITH_SNMP_
 static void
 snmp_socket_handler(const vector_t *strvec)
@@ -1859,12 +1857,10 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_strict", &vrrp_strict_handler);
 	install_keyword("vrrp_priority", &vrrp_prio_handler);
 	install_keyword("vrrp_no_swap", &vrrp_no_swap_handler);
-#ifdef _HAVE_SCHED_RT_
 	install_keyword("vrrp_rt_priority", &vrrp_rt_priority_handler);
 	install_keyword("vrrp_cpu_affinity", &vrrp_cpu_affinity_handler);
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 	install_keyword("vrrp_rlimit_rtime", &vrrp_rt_rlimit_handler);
-#endif
 #endif
 #endif
 	install_keyword("notify_fifo", &global_notify_fifo);
@@ -1879,23 +1875,19 @@ init_global_keywords(bool global_active)
 	install_keyword("lvs_notify_fifo_script", &lvs_notify_fifo_script);
 	install_keyword("checker_priority", &checker_prio_handler);
 	install_keyword("checker_no_swap", &checker_no_swap_handler);
-#ifdef _HAVE_SCHED_RT_
 	install_keyword("checker_rt_priority", &checker_rt_priority_handler);
 	install_keyword("checker_cpu_affinity", &checker_cpu_affinity_handler);
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 	install_keyword("checker_rlimit_rtime", &checker_rt_rlimit_handler);
 #endif
 #endif
-#endif
 #ifdef _WITH_BFD_
 	install_keyword("bfd_priority", &bfd_prio_handler);
 	install_keyword("bfd_no_swap", &bfd_no_swap_handler);
-#ifdef _HAVE_SCHED_RT_
 	install_keyword("bfd_rt_priority", &bfd_rt_priority_handler);
 	install_keyword("bfd_cpu_affinity", &bfd_cpu_affinity_handler);
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 	install_keyword("bfd_rlimit_rtime", &bfd_rt_rlimit_handler);
-#endif
 #endif
 #endif
 #ifdef _WITH_SNMP_

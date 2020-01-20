@@ -1,0 +1,245 @@
+keepalived used kernel features that have been introduced over time,
+but in order to still allow keepalived to be built and run on older
+kernel versions it has many checks of what kernel features are available.
+
+Set out below in chronological order are the features that have been added
+to Linux that keepalived makes use of if they are available.
+
+If in doubt about features, grep the source tree searching for "Linux". The
+source (including configure.ac) attempts to document which kernel version
+introduced features that are used conditionally.
+
+At the end of this file is a list of kernel configure options that affect
+functionality that keepalived uses.
+
+=============================================================================
+
+dnl -- From glibc 2.14. Otherwise use setns syscall, since Linux 2.4.x
+AC_CHECK_FUNCS([setns])
+
+IPV6_RECVHOPLIMIT & IPV6_RECVPKTINFO		Since Linux 2.6.14
+
+./keepalived/core/namespaces.c:#ifndef MS_SLAVE	/* Since glibc 2.12, but Linux since 2.6.15 */
+./keepalived/core/namespaces.c:#ifdef MS_SLAVE		/* Since Linux 2.6.15. Prior to that mounts weren't shared */
+
+dnl -- linux/netfilter/x_tables.h since Linux 2.6.16
+
+dnl ----[ Checks for FIB routing support ]----
+  # Introduced in Linux 2.6.19
+
+./keepalived/vrrp/vrrp_ipaddress.c:#ifdef IFA_F_NODAD	/* Since Linux 2.6.19 */
+./keepalived/vrrp/vrrp_ipaddress.c:#ifdef IFA_F_HOMEADDRESS		/* Linux 2.6.19 */
+
+dnl - signalfd() since Linux 2.6.22 and glibc 2.8
+AC_CHECK_FUNCS([signalfd], [add_system_opt([SIGNALFD])])
+
+./keepalived/check/ipvswrapper.c:#ifndef O_CLOEXEC	/* Since Linux 2.6.23 and glibc 2.7 */
+
+dnl -- RLIMIT_RTTIME since Linux 2.6.25 - not supported with musl libc
+
+./lib/signals.c:#ifdef SFD_NONBLOCK	/* From Linux 2.6.26 */
+
+./lib/scheduler.c:#ifdef TFD_NONBLOCK				/* Since Linux 2.6.27 */
+
+dnl - pipe2() since Linux 2.6.27 and glibc 2.9.
+AC_CHECK_FUNCS([pipe2], [add_system_opt([PIPE2])])
+
+dnl - inotify_init1() since Linux 2.6.27
+AC_CHECK_FUNCS([inotify_init1], [add_system_opt([INOTIFY_INIT1])])
+
+dnl -- <linux/ip_vs.h> exists from Linux 2.6.27; prior to that <net/ip_vs.h> is used
+
+dnl - epoll_create1() since Linux  2.6.27 and glibc 2.9
+AC_CHECK_FUNCS([epoll_create1], [add_system_opt([EPOLL_CREATE1])])
+
+dnl ----[ Checks for glibc SOCK_NONBLOCK support ]----
+# Introduced in Linux 2.6.27 and glibc 2.9
+AM_CONDITIONAL([SOCK_NONBLOCK], [test $ac_cv_have_decl_SOCK_NONBLOCK = yes])
+
+dnl ----[ Checks for glibc SOCK_CLOEXEC support ]----
+# Introduced in Linux 2.6.27 and glibc 2.9
+AC_CHECK_DECLS([SOCK_CLOEXEC], [add_system_opt([SOCK_CLOEXEC])], [],[[#include <sys/socket.h>]])
+
+./keepalived/core/keepalived_netlink.c:	 * NETLINK_NO_ENOBUFS was introduced in Linux 2.6.30
+
+dnl - Introduced in Linux 2.6.31
+AC_CHECK_DECLS([IP_MULTICAST_ALL], [], [], [[#include <linux/in.h>]])
+
+./keepalived/include/vrrp_if.h:#if HAVE_DECL_IP_MULTICAST_ALL  /* Since Linux 2.6.31 */
+
+./keepalived/vrrp/vrrp_if.c:#if HAVE_DECL_IP_MULTICAST_ALL	/* Since Linux 2.6.31 */
+./keepalived/vrrp/vrrp.c:#if HAVE_DECL_IP_MULTICAST_ALL  /* Since Linux 2.6.31 */
+./keepalived/vrrp/vrrp.c:#if HAVE_DECL_IP_MULTICAST_ALL  /* Since Linux 2.6.31 */
+dnl -- SCHED_RESET_ON_FORK since Linux 2.6.32
+
+dnl -- From Linux 2.6.35 (but CentOS has it in 2.6.32)
+AC_CHECK_DECLS([IP_VS_SVC_F_ONEPACKET], [], [],
+
+dnl --FRA_OIFNAME		dnl -- Linux 2.6.33
+
+./keepalived/core/keepalived_netlink.c:	 * interface name until Linux v2.6.33 */
+
+dnl -- Since Linux 2.6.33
+IFLA_MACVLAN_MODE,
+MACVLAN_MODE_PRIVATE], [],
+
+dnl -- XT_EXTENSION_MAXNAMELEN not defined until Linux 2.6.35
+
+dnl ----[ Checks for pe support ]----
+# Introduced in Linux 2.6.37
+AC_CHECK_DECL([IPVS_SVC_ATTR_PE_NAME],
+
+dnl ----[ Checks for O_PATH support ]----
+# Introduced in Linux 2.6.39
+
+dnl -- xt_set_info_match first introduced in Linux 2.6.39 (initial implementation of ipsets)
+
+dnl ---[ check for setns() ]----
+dnl -- CLONE_NEWNET defined from Linux 3.0
+
+dnl -- <linux/netlink.h> needed <sys/socket.h> until Linux 3.1
+
+dnl -- <linux/rtnetlink.h> needed <sys/socket.h> until ? Linux 3.1
+dnl -- using AC_CHECK_HEADER causes a horrible error message for the user
+
+dnl -- xt_set_info_match_v1 declared since Linux 3.1
+
+dnl - ipset type iface introduced in Linux 3.1
+
+./keepalived/vrrp/vrrp_ipset.c:			/* hash:net,iface was introduced in Linux 3.1 */
+
+dnl -- Need to use <libipset/linux_ip_set.h> for <linux/netfilter/xt_set.h> prior to Linux 3.4
+
+./keepalived/vrrp/vrrp_iptables_calls.c:#ifndef IP_SET_OP_VERSION	/* Exposed to userspace from Linux 3.4 */
+
+./lib/parser.c:			   The man page open(2) states that fchdir() didn't support O_PATH until Linux 3.5,
+./lib/parser.c:			   even though testing on Linux 3.1 shows it appears to work. To be safe, don't
+./lib/parser.c:			   use it until Linux 3.5. */
+
+dnl -- xt_set_info_match_v3 declared since Linux 3.10
+
+dnl ----[Check have IPV4_DEVCONF defines - since Linux 3.11]----
+
+./keepalived/check/check_parser.c:#ifdef IP_VS_SVC_F_SCHED1		/* From Linux 3.11 */
+
+dnl --RTAX_QUICKACK		dnl -- Linux 3.11
+dnl --FRA_SUPPRESS_PREFIXLEN	dnl -- Linux 3.12
+dnl --FRA_SUPPRESS_IFGROUP	dnl -- Linux 3.12
+
+./keepalived/include/global_data.h:	bool				namespace_with_ipsets;	/* override for namespaces with ipsets on Linux < 3.13 */
+
+./keepalived/vrrp/vrrp_iptables_calls.c:#if defined IP_SET_OP_GET_FNAME		/* Since Linux 3.13 */
+
+./keepalived/vrrp/vrrp_ipset.c:	 * than Linux 3.13, since ipsets didn't understand namespaces prior to that. */
+
+dnl - Introduced in Linux 3.14
+AC_CHECK_DECLS([IFA_FLAGS], [], [], [[#include <linux/if_addr.h>]])
+
+./keepalived/vrrp/vrrp_ipaddress.c:#ifdef IFA_F_MANAGETEMPADDR		/* Linux 3.14 */
+./keepalived/vrrp/vrrp_ipaddress.c:#ifdef IFA_F_NOPREFIXROUTE		/* Linux 3.14 */
+
+./keepalived/vrrp/vrrp_ipaddress.c:#ifdef IFA_F_MANAGETEMPADDR		/* Linux 3.14 */
+./keepalived/vrrp/vrrp_ipaddress.c:#ifdef IFA_F_NOPREFIXROUTE		/* Linux 3.14 */
+
+dnl ----[ Checks for kernel IFLA_INET6_ADDR_GEN_MODE support ]----
+  # Introduced in Linux 3.17
+
+dnl -- Since Linux 3.18
+AC_CHECK_DECLS([IPVS_DEST_ATTR_ADDR_FAMILY], [add_system_opt([IPVS_DEST_ATTR_ADDR_FAMILY])], [], [#include <linux/ip_vs.h>])
+
+dnl -- xt_set_info_match_v4 declared since Linux 3.19
+
+./lib/rttables.c:#ifdef RTPROT_BABEL		/* Since Linux 3.19 */
+
+dnl --RTAX_CC_ALGO		dnl -- Linux 4.0
+
+./keepalived/vrrp/vrrp_ipaddress.c:#ifdef IFA_F_MCAUTOJOIN			/* Linux 4.1 */
+
+dnl -- Since Linux 4.1
+IPVS_SVC_ATTR_STATS64,
+IPVS_DEST_ATTR_STATS64], [],
+
+dnl --RTA_VIA			dnl -- Linux 4.1
+dnl --RTA_NEWDST		dnl -- Linux 4.1
+dnl --RTA_PREF			dnl -- Linux 4.1
+
+./keepalived/include/ip_vs.h:/* Prior to Linux 4.2 have to include linux/in.h and linux/in6.h
+
+./keepalived/include/vrrp_iproute.h:#if HAVE_DECL_RTA_ENCAP	/* Since Linux 4.3 */
+
+dnl -- Since Linux 4.3
+AC_CHECK_DECLS([
+IPVS_DAEMON_ATTR_SYNC_MAXLEN,
+IPVS_DAEMON_ATTR_MCAST_GROUP,
+IPVS_DAEMON_ATTR_MCAST_GROUP6,
+IPVS_DAEMON_ATTR_MCAST_PORT,
+IPVS_DAEMON_ATTR_MCAST_TTL], [],
+
+dnl -- Since Linux 4.3
+AC_DEFINE([_HAVE_IPVS_SYNCD_ATTRIBUTES_], [ 1 ], [Define to 1 if have IPVS syncd attributes])
+
+dnl --FRA_TUN_ID		dnl -- Linux 4.3
+dnl --RTA_ENCAP			dnl -- Linux 4.3
+
+dnl ----[ Checks for kernel IFLA_VRF_... support ]----
+  # Introduced in Linux 4.3
+
+dnl --RTEXT_FILTER_SKIP_STATS	dnl -- Linux 4.4
+dnl --RTA_EXPIRES		dnl -- Linux 4.5
+
+./keepalived/vrrp/vrrp_iptables.c:/* Linux 4.5 introduced a namespace collision when including
+./keepalived/vrrp/vrrp_iptables_calls.c:/* Linux 4.5 introduced a namespace collision when including
+
+# Linux 4.5 to 4.5.4 has <libiptc/libiptc.h> indirectly including <net/if.h>
+# and <linux/if.h> which causes a namespace collision.
+
+dnl --FRA_L3MDEV		dnl -- Linux 4.8
+
+dnl --FRA_UID_RANGE		dnl -- Linux 4.10
+
+./keepalived/core/main.c:	 * fs/coredump.c. Currently (Linux 4.10) defines it to be 128, but the
+
+dnl --RTA_TTL_PROPAGATE		dnl -- Linux 4.12
+dnl --RTAX_FASTOPEN_NO_COOKIE	dnl -- Linux 4.15
+dnl --FRA_PROTOCOL		dnl -- Linux 4.17
+dnl --FRA_IP_PROTO		dnl -- Linux 4.17
+dnl --FRA_SPORT_RANGE		dnl -- Linux 4.17
+dnl --FRA_DPORT_RANGE		dnl -- Linux 4.17
+
+./lib/rbtree.c:/* This is updated to Linux v4.18.10 lib/rbtree.c
+
+dnl -- Since Linux 5.2
+IPVS_DEST_ATTR_TUN_TYPE
+
+dnl -- Since Linux 5.3
+IP_VS_TUNNEL_ENCAP_FLAG_NOCSUM
+IP_VS_CONN_F_TUNNEL_TYPE_GRE
+
+??? dnl -- RedHat backported ENCAP_IP and ENCAP_IP6 without MPLS and ILA
+
+dnl ----[ Is HTTP_GET regex checking wanted? ]----
+$PKG_CONFIG --exists libpcre2-8
+
+=============================================================================
+
+Kernel configuration requirements
+---------------------------------
+The following list is probably incomplete, and will be updated as other
+options become known.
+
+BPF
+EPOLL
+SIGNALFD
+TIMERFD
+SYSCTL
+PROC_FS
+INET
+IP_MULTICAST
+IPV6
+IP_VS (unless --disable-lvs is specified)
+  IP_VS suboptions to match the real_server/virtual_server configuration
+NETFILTER_XTABLES - if strict_mode or no_accept.
+  NETFILTER_XT options and IP_SET
+IP_ADVANCED_ROUTER and various associated options if static/dynamic routes specified
+FIB_RULES if static or dynamic rules are specified
+NFTABLES

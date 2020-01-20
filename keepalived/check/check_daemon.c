@@ -22,9 +22,7 @@
 
 #include "config.h"
 
-#ifdef _HAVE_SCHED_RT_
 #include <sched.h>
-#endif
 #include <errno.h>
 #include <signal.h>
 #include <unistd.h>
@@ -374,19 +372,14 @@ start_check(list old_checkers_queue, data_t *prev_global_data)
 	register_checkers_thread();
 
 	/* Set the process priority and non swappable if configured */
-	set_process_priorities(
-#ifdef _HAVE_SCHED_RT_
-			       global_data->checker_realtime_priority,
+	set_process_priorities(global_data->checker_realtime_priority,
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 			       global_data->checker_rlimit_rt,
 #endif
-#endif
 			       global_data->checker_process_priority, global_data->checker_no_swap ? 4096 : 0);
 
-#ifdef _HAVE_SCHED_RT_
 	/* Set the process cpu affinity if configured */
 	set_process_cpu_affinity(&global_data->checker_cpu_mask, "checker");
-#endif
 }
 
 void

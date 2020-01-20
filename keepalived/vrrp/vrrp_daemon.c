@@ -22,9 +22,7 @@
 
 #include "config.h"
 
-#ifdef _HAVE_SCHED_RT_
 #include <sched.h>
-#endif
 #include <errno.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -619,19 +617,14 @@ start_vrrp(data_t *prev_global_data)
 		thread_add_event(master, vrrp_dispatcher_init, NULL, 0);
 
 	/* Set the process priority and non swappable if configured */
-	set_process_priorities(
-#ifdef _HAVE_SCHED_RT_
-			       global_data->vrrp_realtime_priority,
+	set_process_priorities(global_data->vrrp_realtime_priority,
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 			       global_data->vrrp_rlimit_rt,
 #endif
-#endif
 			       global_data->vrrp_process_priority, global_data->vrrp_no_swap ? 4096 : 0);
 
-#ifdef _HAVE_SCHED_RT_
 	/* Set the process cpu affinity if configured */
 	set_process_cpu_affinity(&global_data->vrrp_cpu_mask, "vrrp");
-#endif
 
 	/* Ensure we can open sufficient file descriptors */
 	set_vrrp_max_fds();

@@ -117,16 +117,15 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 
 	if (IP_IS6(ipaddress)) {
 		if (cmd == IPADDRESS_ADD) {
-			/* Mark IPv6 address as deprecated (rfc3484) in order to prevent
-			 * using VRRP VIP as source address in healthchecking use cases.
-			 */
-			if (ipaddress->ifa.ifa_prefixlen == 128) {
+			/* A preferred_lft of 0 marks an IPv6 address as deprecated (rfc3484)
+			 * in order to prevent using VRRP VIP as source address in
+			 * healthchecking use cases. */
+			if (ipaddress->preferred_lft != INFINITY_LIFE_TIME) {
 				memset(&cinfo, 0, sizeof(cinfo));
-				cinfo.ifa_prefered = 0;
+				cinfo.ifa_prefered = ipaddress->preferred_lft;
 				cinfo.ifa_valid = INFINITY_LIFE_TIME;
 
-				addattr_l(&req.n, sizeof(req), IFA_CACHEINFO, &cinfo,
-					  sizeof(cinfo));
+				addattr_l(&req.n, sizeof(req), IFA_CACHEINFO, &cinfo, sizeof(cinfo));
 			}
 
 			/* Disable, per VIP, Duplicate Address Detection algorithm (DAD).
@@ -286,6 +285,15 @@ format_ipaddress(const ip_address_t *ipaddr, char *buf, size_t buf_len)
 	if (ipaddr->track_group)
 		buf_p += snprintf(buf_p, buf_end - buf_p, " track_group %s", ipaddr->track_group->gname);
 
+	if (IP_IS6(ipaddr)) {
+		if (ipaddr->preferred_lft == 0)
+			buf_p += snprintf(buf_p, buf_end - buf_p, " deprecated");
+		else if (ipaddr->preferred_lft == INFINITY_LIFE_TIME)
+			buf_p += snprintf(buf_p, buf_end - buf_p, " preferred_lft forever");
+		else
+			buf_p += snprintf(buf_p, buf_end - buf_p, " preferred_lft %" PRIu32, ipaddr->preferred_lft);
+	}
+
 	if (ipaddr->set)
 		buf_p += snprintf(buf_p, buf_end - buf_p, " set");
 #ifdef _WITH_IPTABLES_
@@ -408,6 +416,8 @@ alloc_ipaddress(list ip_list, const vector_t *strvec, const interface_t *ifp, bo
 	int brd_len = 0;
 	uint32_t mask;
 	bool have_broadcast = false;
+	unsigned preferred_lft;
+	bool preferred_lft_set = false;
 
 	new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
 
@@ -542,6 +552,21 @@ alloc_ipaddress(list ip_list, const vector_t *strvec, const interface_t *ifp, bo
 #endif
 		} else if (!strcmp(str, "no_track")) {
 			new->dont_track = true;
+		} else if (!strcmp(str, "preferred_lft")) {
+			if (!param_avail) {
+				param_missing = true;
+				break;
+			}
+
+			i++;
+			if (!strcmp(strvec_slot(strvec, i), "forever")) {
+				new->preferred_lft = INFINITY_LIFE_TIME;
+				preferred_lft_set = true;
+			} else if (read_unsigned_strvec(strvec, i, &preferred_lft, 0, UINT32_MAX, true)) {
+				new->preferred_lft = (uint32_t)preferred_lft;
+				preferred_lft_set = true;
+			} else
+				report_config_error(CONFIG_GENERAL_ERROR, "preferred_lft %s is invalid", strvec_slot(strvec, i));
 		} else if (allow_track_group && !strcmp(str, "track_group")) {
 			if (!param_avail) {
 				param_missing = true;
@@ -605,6 +630,14 @@ alloc_ipaddress(list ip_list, const vector_t *strvec, const interface_t *ifp, bo
 			report_config_error(CONFIG_GENERAL_ERROR, "Cannot specify label for IPv6 addresses (%s) - ignoring label", strvec_slot(strvec, addr_idx));
 			FREE(new->label);
 			new->label = NULL;
+		}
+
+		if (!preferred_lft_set) {
+			/* Set the old defaults if preferred_lft not set */
+			if (new->ifa.ifa_prefixlen == 128)
+				new->preferred_lft = 0;
+			else
+				new->preferred_lft = INFINITY_LIFE_TIME;
 		}
 	}
 

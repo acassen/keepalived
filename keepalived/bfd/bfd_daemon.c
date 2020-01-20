@@ -179,18 +179,14 @@ start_bfd(__attribute__((unused)) data_t *prev_global_data)
 	/* Set the process priority and non swappable if configured */
 // TODO - measure max stack usage
 	set_process_priorities(
-#ifdef _HAVE_SCHED_RT_
 			global_data->bfd_realtime_priority,
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 			global_data->bfd_rlimit_rt,
 #endif
-#endif
 			global_data->bfd_process_priority, global_data->bfd_no_swap ? 4096 : 0);
 
-#ifdef _HAVE_SCHED_RT_
 	/* Set the process cpu affinity if configured */
 	set_process_cpu_affinity(&global_data->bfd_cpu_mask, "bfd");
-#endif
 }
 
 void
