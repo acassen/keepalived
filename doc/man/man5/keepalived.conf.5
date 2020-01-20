@@ -673,7 +673,7 @@ To force a route/rule to be IPv6, add the keyword "inet6".
         <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>]
                           [label <LABEL>] [peer <IPADDR>] [home]
                           [-nodad] [mngtmpaddr] [noprefixroute]
-                          [autojoin] [track_group GROUP]
+                          [autojoin] [track_group GROUP] [preferred_lft nn|forever]
         192.168.1.1/24 dev eth0 scope global
         ...
     }
@@ -1425,11 +1425,14 @@ The syntax for vrrp_instance is :
                be of the form <realdev>:<anytext>, for example
                eth0:1 for an alias on eth0.
     # <SCOPE>: ("site"|"link"|"host"|"nowhere"|"global")
+    # preferred_lft is set to 0 to deprecate IPv6 addresses (this is the
+    # default if the address mask is /128). Use "preferred_lft forever"
+    # to specify that a /128 address should not be deprecated.
     \fBvirtual_ipaddress \fR{
         <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>]
                           [label <LABEL>] [peer <IPADDR>] [home]
                           [-nodad] [mngtmpaddr] [noprefixroute]
-                          [autojoin] [no_track]
+                          [autojoin] [no_track] [preferred_lft nn|forever]
         192.168.200.17/24 dev eth1
         192.168.200.18/24 dev eth2 label eth2:1
     }
