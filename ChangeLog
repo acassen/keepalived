@@ -1,3 +1,227 @@
+2020-01-22 Alexandre Cassen <acassen@keepalived.org>
+	* keepalived-2.0.20
+	* Add DBus interface and config files to snap
+	* Install DBus files from snap onto host system.
+	* Fix snap install hook script.
+	* Set instance_name in child processes after reload
+	  Although the parent process was reinstating the instance_name after
+	  a reload, the child processes were not.
+	* Remove libxtables-dynamic from keepalived.spec.in
+	  Commit 72c4e54 - "Add support for using iptables to block VMAC IGMP/MLD
+	  messages" removed libxtables-dynamic option, since it was only used to
+	  load the ip_tables/ip6_tables kernel modules, and there was already other
+	  code to load modules. The original commit, however, omitted to update
+	  keepalived.spec.in.
+	* Include firewalld documentation.
+	* Improving logging of error if kernel doesn't support PROC_EVENTS
+	  OpenWRT has kernels build with PROC_EEVNS enabled, and it was outputing
+	  an unhelpful error message.
+	  This commit will not log the PROC_EVENTS is not built into the kernel
+	  unless the log detail (-D) option is specified, or the configuration uses
+	  track_process.
+	* Resolve file descriptor errors on reload
+	  If a read or write thread was on the thread reaady queue when a
+	  reload was processed, the file descriptor was not removed from the
+	  epoll instance.
+	  This commit ensures that file descriptors relating to threads on
+	  the thread ready queue are removed from the epoll instance during
+	  a reload.
+	* Log correct address family when interface doesn't have required address.
+	* Stop track_process.h including itself.
+	* Update package requirements for Debian.
+	* Add more detailed track-process debugging.
+	* Fix track_process with PIDs > 32767
+	* Add more track_process debugging.
+	* Correct detection of success loading module xt_set.
+	  The detection of success loading the module was reversed, so that
+	  if it failed it thought it was successful, and vice versa. This
+	  meant that if it was not successful loading the module, it would
+	  attempt to use ipsets, and if it was successful loading the module
+	  it would not. If the module was already loaded, then there was no
+	  problem.
+	* Update info on using nft --debug.
+	* Add README icon for snaps.
+	* Fix intermittent "child lost" messages.
+	  Issue #1364 identified that occassionaly a "child lost" message could
+	  be logged. Although keepalived continued working as expected, the
+	  "child lost" message indicated that something wasn't working properly.
+	  If a vrrp track script had a timeout in the script that was the
+	  same as the script timeout configured in keepalived, when the system
+	  was heavily loaded it was possible for the timeout to occur, followed
+	  by the termination before the timeout thread was run, in which case
+	  the termination would be lost because the child thread was no longer
+	  on the child_pid queue, but on the ready queue.
+	  This commit leaves threads on the child_pid queue after a timeout, and
+	  only removes it when the timeout thread is run. That means that if the
+	  termination is received before the timeout thread is run, the thread
+	  (now on the ready queue) can be updated to be a termination rather than
+	  a timeout.
+	* Add configuration/state dumping for BFD with SIGUSR1.
+	  The VRRP and checker processes dump their configuration/state, and
+	  this commits and the same for the BFD process.
+	* Stop always going to fault state on reload if have bfd tracker.
+	  On a reload, the state of a new bfd tracker should be set from the
+	  state of the old matching tracker, rather than the other way around.
+	* Resolve some issues identified by LGTM.
+	* Clarify in man page when ip_family is required for virtual servers.
+	* Don't check _WITH_LVS_ defined in chack_data.h
+	  If check_data.h is being included anywhere, then _WITH_LVS_ must
+	  be defined.
+	* Stop checking that persistence_granularity is a solid netmask for IPv4
+	  ipvsadm and the kernel do not require a solid netmask, so we shouldn't
+	  either.
+	* Allow persistence_granularity to be 0.0.0.0.
+	  ipvsadm allows the netmask to be 0.0.0.0 and the kernel supports
+	  it, so we should allow it. It is inconsistent with IPv6 which
+	  doesn't allow a mask length of 0.
+	* Fix ipaddresstos when it is passed a buffer to write string to
+	  Although ipaddresstos() was not correct, since it was never passed
+	  a buffer, the problem never manifested itself.
+	* Stop segfault at reload when removing a ip rule without from address
+	  Issue #1436 identified that removing an ip rule was causing a segfault
+	  when keepalived reloaded. This is caused by always logging the from
+	  address even if there wasn't one.
+	* Make bfd0 initialisation structure static.
+	* Ensure bfd thread_time_to_wakeup() doesn't return "negative" value.
+	  If thread_time_to_wakeup() was called with thread->sands in the
+	  past compared to time_now, the function overflowed and returned an
+	  extremely high value, resulting in the thread not being scheduled
+	  for another 585,000 years or so (on 64 bit systems).
+	  This commit makes thread_time_to_wakeup() return 1 (microsecond) if
+	  thread->sands is earlier than time_now.
+	* Make bfd's sand_out, sands_exp and sands_rst unsigned.
+	* Make timer_add_long return TIMER_DISABLED if called with TIMER_NEVER.
+	* Fix generation of keepalived.spec when libipset disabled.
+	* Fix building with --enable-debug option, but add deliberate error
+	  Issue #1444 identified that keepalived would not build with the
+	  --enable-debug option. This commits resolves the compilation errors
+	  but also adds a #error statement if --enable-debug is selected, so
+	  that the source code has to be editted to be able to build with the
+	  option.
+	  Since --enable-debug is not expected to work properly and is only
+	  for debugging purposes, the #error statement will stop it being used
+	  accidentally or being enabled in a distro's build of keepalived, for
+	  example as Gentoo had done. Only developers/maintainers who are
+	  prepared to edit the source code will be able to use --enable-debug.
+	* Make json_writer.c include "assert_debug.h" rather than <assert.h>
+	  This means that the assert() code will only be enabled if the
+	  --enable-asserts configure option is specified.
+	* Correct description of notify_master_rx_lower_pri in keepalived.conf(5).
+	* Reorganise debug configuration
+	  --enable-debug enabled several different sets of debugging functionality.
+	  That is now split out into:
+		--enable-genhash-debug
+		--enable-checker-debug
+		--enable-smtp-connect-debug
+		--enable-mem-err-debug
+		--enable-one-process-debug
+	  All options except --enable-one-process-debug also require enabling at
+	  runtime. This means that a debug version of keepalived cam be build with
+	  almost all debugging built in, but different debugging can be selectively
+	  enabled at run time, to avoid being overwhelmed with unwanted debug output.
+	  The --enable-debug option now enables all debugging options except
+		--enable-genhash-debug
+		--enable-one-process-debug
+	  This is essentially the debug options that can be controlled at run time. It
+	  also sets --enable-log-file so that logging output can be written to log
+	  files rather than syslog.
+	  keepalived -h shows all the built-in debugging options and how to enable
+	  them.
+	* Turn of checksum debugging unless enabled from command line.
+	* Clear previous parser errors at startup or when reloading
+	  When keepalived starts, the parent process reads the config. If there
+	  was an error such as a missing } or extra { the skip_block flags was
+	  left set, so when the child processes read the configuration, they
+	  just skipped everything. This also meant that the configuration was
+	  not correctly parser when reloading.
+	  All parser state variables are now reinitialised before the configuration
+	  is read.
+	* Fix a checker process segfault when reloading with ha_suspend
+	  If ha_suspend was enabled, when the checker process reloaded, it
+	  left an old pointer to the read thread for the netlink monitoring
+	  fd. When the process subsequently terminated, it tried cancelling
+	  the thread using the old pointer, and would often segfault.
+	  This also meant that after a reload, the checker process would no
+	  longer be monitoring address changes, in other words ha_suspend
+	  would not work.
+	  Before a reload, both for the vrrp and the checker process, the
+	  thread is cancelled and the pointer to the thread cleared. After
+	  a reload the checker process now adds a new read thread, so ha_suspend
+	  will continue working after the reload.
+	* Add signal to trigger thread dump when built with --enable-thread-dump.
+	* Update snapcraft.yaml to remove Ubuntu 14.04 and add 19.10 kernel.
+	* Fix building snaps for 5.3 kernel.
+	* snap: Fix checking for s390x.
+	* snap: Improving logging of kernel header version in snap build logs.
+	* snap: Add missing <NL> in snap logs.
+	* Update nopreempt documentation in keepalived.conf(5) man page
+	  Issue #1457 suggested that the documentation for nopreempt was not
+	  clear, so this update attempts to clarify the situation.
+	* Fix building with network-timestamp without checksum-debug
+	  Commit 844e197 - "Reorganise debug configuration" had an incorrect
+	  conditional compilation check, which this commit resolves.
+	* Fix VRRP priority after weighted track files leaving fault state
+	  Issue #1460 identified that the VRRP priority was incorrect after a
+	  weighted track file exited fault state. This commit resolves the issue.
+	* Correct typo in keepalived.conf(5).
+	* Fix DNS_CHECK when name ends with a '.'.
+	  Issue #1462 identified that DNS_CHECK was not working with
+	  name example.jp.
+	  It transpired that if the name ended with a '.', the terminating
+	  zero length was not being written to the query packet.
+	* Fix generation of keepalived.spec
+	  An AM_CONDITIONAL was missing for DEBUG
+	* Fix vrrp dont_track_primary.
+	  VIPs on the primary interface were causing the interface to be
+	  tracked. keepalived now checks when adding an interface for tracking
+	  VIPs or eVIPs that it is not the primary interface of the vrrp instance
+	  if dont_track_primary is set.
+	* fix: unknown keyword 'mh-fallback' and 'mh-port'.
+	* Fix detecting of kill failure for MISC_CHECK scripts
+	  github @lankstra pointed out that the check for kill failing for
+	  misc check scripts was inverted, so this commit corrects that, and
+	  the code now matches the similar code in vrrp_script_child_thread().
+	* Update Dockerfile
+	  1. Update to use alpine:3.10 as the base container
+	  2. Include libnftnl-dev in the build to support nftables
+	  3. Install automake package for building keepalived
+	  4. Run build_setup
+	  The reason for installing automake and running build_setup is that
+	  if the version of automake is different from what is installed in the
+	  container, then the links set up by automake --add-missing on the host
+	  will not work in the container used for the build.
+	* Actually update docker to use alpine:3.10.
+	* Resolve some warnings when building with ulibc.
+	* Handle a newer libnftnl with an older kernel
+	  To use NFT_LOOKUP_F_INV we need to check that both it and
+	  NFTNL_EXPR_LOOKUP_FLAGS are defined. Previously we only checked
+	  the latter.
+	* Change order of IPVS commands on quorum change to allow a sorry server
+	  to be the same as a real server.
+	* Further code to hanve sorry server being same as a real server
+	  Commit 6f03bb2 - "Change order of IPVS commands on quorum change" allowed
+	  a sorry server to be the same as a real server. This commit now adds some
+	  additional code to ensure that it operates without errors being reported.
+	* Check, report and handle a duplicate real server on a virtual server.
+	* Change some log_message()s to report_config_error()s in IPVS code.
+	* Cosmetic alignment corrections in check_data.h.
+	* Tidy up a Linux version comment in configure.ac.
+	* Remove configure check for SCHED_RR.
+	  It has existed since at least Linux 2.4.32.
+	* Add README.kernel_versions to document kernel dependant features.
+	* Add tools/timed_reload
+	  This script makes keepalived reload its configuration at a specified time.
+	  If there are several keepaliveds running on different systems, then can be
+	  scheduled to all reload at the same time, by running the script on each system.
+	  This is useful if the old and new configurations are not compatible with each
+	  other.
+	* Add option to set preferred lifetime for static and virtual IPv6 addresses.
+	  Generally  virtual ip addresses will want to be deprecated, but static
+	  IPv6 addresses may or may not want to be deprecated. Previously the code
+	  deprecated IPv6 addresses only if that had a /128 mask.
+	  This commit retains the old settings as default, but now allows the
+	  preferred_lft to be specified for each address.
+
 2019-10-19 Alexandre Cassen <acassen@keepalived.org>
 	* keepalived-2.0.19
 	* Allow persistence, scheduler and flags of VS to be changed on reload
