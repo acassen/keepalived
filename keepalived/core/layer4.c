@@ -34,11 +34,15 @@
 #include "layer4.h"
 #include "logger.h"
 #include "scheduler.h"
+#ifdef _WITH_LVS_
 #include "check_api.h"
+#endif
 
 // #define ICMP_DEBUG	1
 
+#ifdef _WITH_LVS_
 #define UDP_BUFSIZE	32
+#endif
 
 #ifdef _WITH_LVS_
 void

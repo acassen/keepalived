@@ -39,6 +39,7 @@
 #include "logger.h"
 #include "global_data.h"
 #include "scheduler.h"
+#include "utils.h"
 
 static int dir_wd, file_wd;
 
