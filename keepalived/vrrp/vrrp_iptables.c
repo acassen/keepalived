@@ -64,7 +64,6 @@
 #endif
 #include "logger.h"
 #include "memory.h"
-#include "warnings.h"
 
 #define IPTABLES_MAX_TRIES      3       /* How many times to try adding/deleting when get EAGAIN */
 
@@ -461,7 +460,6 @@ iptables_init(int family)
 	return setup[family != AF_INET] == INIT_SUCCESS;
 }
 
-//RELAX_SUGGEST_ATTRIBUTE_CONST_START
 void
 iptables_fini(void)
 {
@@ -513,7 +511,6 @@ iptables_fini(void)
 	}
 #endif
 }
-//RELAX_SUGGEST_ATTRIBUTE_CONST_END
 
 /* add/remove iptable drop rules to iplist */
 static void
