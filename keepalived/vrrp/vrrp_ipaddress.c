@@ -38,9 +38,6 @@
 #include "global_data.h"
 #include "rttables.h"
 #include "memory.h"
-#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
-#include "utils.h"
-#endif
 #include "parser.h"
 #ifdef _WITH_FIREWALL_
 #include "vrrp_firewall.h"

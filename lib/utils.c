@@ -45,11 +45,6 @@
 #include <sys/inotify.h>
 #endif
 
-#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
-#include <signal.h>
-#include <sys/wait.h>
-#endif
-
 #ifdef _WITH_STACKTRACE_
 #include <sys/stat.h>
 #include <execinfo.h>
@@ -64,9 +59,6 @@
 #include "bitops.h"
 #include "parser.h"
 #include "logger.h"
-#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
-#include "process.h"
-#endif
 
 /* global vars */
 unsigned long debug = 0;
@@ -1059,54 +1051,6 @@ close_std_fd(void)
 	close(STDOUT_FILENO);
 	close(STDERR_FILENO);
 }
-
-#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
-int
-fork_exec(const char * const argv[])
-{
-	pid_t pid;
-	int ret_pid;
-	int status;
-	struct sigaction act, old_act;
-	int res = 0;
-	union non_const_args args;
-
-	act.sa_handler = SIG_DFL;
-	sigemptyset(&act.sa_mask);
-	act.sa_flags = 0;
-
-	sigaction(SIGCHLD, &act, &old_act);
-
-#ifdef ENABLE_LOG_TO_FILE
-	if (log_file_name)
-		flush_log_file();
-#endif
-
-	pid = local_fork();
-	if (pid < 0)
-		res = -1;
-	else if (pid == 0) {
-		/* Child */
-		set_std_fd(false);
-
-		signal_handler_script();
-
-		args.args = argv;       /* Note: we are casting away constness, since execvp parameter type is wrong */
-		execvp(*argv, args.execve_args);
-		exit(EXIT_FAILURE);
-	} else {
-		/* Parent */
-		while ((ret_pid = waitpid(pid, &status, 0)) == -1 && check_EINTR(errno));
-
-		if (ret_pid != pid || !WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS)
-			res = -1;
-	}
-
-	sigaction(SIGCHLD, &old_act, NULL);
-
-	return res;
-}
-#endif
 
 #if defined _WITH_VRRP_ || defined _WITH_BFD_
 int

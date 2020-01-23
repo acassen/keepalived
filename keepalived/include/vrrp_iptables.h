@@ -34,15 +34,12 @@
 #ifdef _HAVE_LIBIPSET_
 #include "vrrp_ipset.h"
 #endif
+#include "vrrp_ipaddress.h"
+#include "vrrp_iptables.h"
+
 
 #define DEFAULT_IPTABLES_CHAIN_IN	"INPUT"
 #define DEFAULT_IPTABLES_CHAIN_OUT	"OUTPUT"
-
-typedef enum {
-        NOT_INIT,
-        INIT_SUCCESS,
-        INIT_FAILED,
-} init_state_t;
 
 /* prototypes */
 extern void handle_iptable_rule_to_iplist(list, list, int, bool force);
@@ -51,8 +48,6 @@ extern void handle_iptables_accept_mode(vrrp_t *, int, bool);
 extern void iptables_add_vmac(const vrrp_t *);
 extern void iptables_remove_vmac(const vrrp_t *);
 #endif
-extern void iptables_startup(bool);
-extern void iptables_cleanup(void);
 extern void iptables_fini(void);
 
 #endif
