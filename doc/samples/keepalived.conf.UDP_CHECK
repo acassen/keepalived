@@ -1,0 +1,30 @@
+! Configuration File for keepalived
+! This example demonstrates UDP_CHECK, a component of LVS configuration.
+
+global_defs {
+   notification_email {
+     acassen
+   }
+   notification_email_from Alexandre.Cassen@firewall.loc
+   smtp_server 192.168.200.1
+   smtp_connect_timeout 30
+   router_id LVS_DEVEL
+}
+
+virtual_server 10.10.10.2 1358 {
+    delay_loop 6
+    lb_algo rr
+    lb_kind NAT
+    persistence_timeout 50
+    protocol UDP
+
+    real_server 192.168.200.6 1358 {
+        weight 1
+        UDP_CHECK {
+		connect_timeout 3
+		retry 3
+		delay_before_retry 3
+!		require_reply
+        }
+    }
+}

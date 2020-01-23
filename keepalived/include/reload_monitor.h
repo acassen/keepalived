@@ -3,9 +3,9 @@
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
  *
- * Part:        vrrp_iptables.c include file.
+ * Part:        reload_monitor.c include file.
  *
- * Author:      Alexandre Cassen, <acassen@linux-vs.org>
+ * Author:      Quentin Armitage <quentin@armitage.org.uk>
  *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -17,37 +17,17 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2018 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2020-2020 Alexandre Cassen, <acassen@gmail.com>
  */
 
-#ifndef _VRRP_IPTABLES_H
-#define _VRRP_IPTABLES_H
+#ifndef _RELOAD_MONITOR_H
+#define _RELOAD_MONITOR_H
 
-#include "config.h"
+extern void start_reload_monitor(void);
+extern void stop_reload_monitor(void);
 
-/* global includes */
-#include <stdbool.h>
-
-/* local includes */
-#include "list.h"
-#include "vrrp.h"
-#ifdef _HAVE_LIBIPSET_
-#include "vrrp_ipset.h"
+#ifdef THREAD_DUMP
+extern void register_reload_addresses(void);
 #endif
-#include "vrrp_ipaddress.h"
-#include "vrrp_iptables.h"
-
-
-#define DEFAULT_IPTABLES_CHAIN_IN	"INPUT"
-#define DEFAULT_IPTABLES_CHAIN_OUT	"OUTPUT"
-
-/* prototypes */
-extern void handle_iptable_rule_to_iplist(list, list, int, bool force);
-extern void handle_iptables_accept_mode(vrrp_t *, int, bool);
-#ifdef _HAVE_VRRP_VMAC_
-extern void iptables_add_vmac(const vrrp_t *);
-extern void iptables_remove_vmac(const vrrp_t *);
-#endif
-extern void iptables_fini(void);
 
 #endif

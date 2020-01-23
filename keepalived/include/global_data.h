@@ -59,10 +59,6 @@
 #endif
 #include "notify.h"
 
-#ifndef _HAVE_LIBIPTC_
-#define	XT_EXTENSION_MAXNAMELEN		29
-#endif
-
 /* constants */
 #define DEFAULT_SMTP_CONNECTION_TIMEOUT (30 * TIMER_HZ)
 
@@ -113,6 +109,11 @@ typedef struct _data {
 	unsigned long			smtp_connection_to;
 	list				email;
 	int				smtp_alert;
+#ifndef _ONE_PROCESS_DEBUG_
+	const char			*reload_time_file;
+	bool				reload_repeat;
+	time_t				reload_time;
+#endif
 #ifdef _WITH_VRRP_
 	bool				dynamic_interfaces;
 	bool				allow_if_changes;

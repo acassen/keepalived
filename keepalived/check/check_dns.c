@@ -101,7 +101,7 @@ dns_log_message(thread_ref_t thread, int level, const char *fmt, ...)
 }
 
 static int __attribute__ ((format (printf, 3, 4)))
-dns_final(thread_ref_t thread, int error, const char *fmt, ...)
+dns_final(thread_ref_t thread, bool error, const char *fmt, ...)
 {
 	char buf[MAX_LOG_MSG];
 	va_list args;
@@ -181,7 +181,7 @@ dns_recv_thread(thread_ref_t thread)
 	dns_check_t *dns_check = CHECKER_ARG(checker);
 
 	if (thread->type == THREAD_READ_TIMEOUT) {
-		dns_final(thread, 1, "read timeout from socket");
+		dns_final(thread, true, "read timeout from socket");
 		return 0;
 	}
 
@@ -194,7 +194,7 @@ dns_recv_thread(thread_ref_t thread)
 					checker, thread->u.f.fd, timeout, true);
 			return 0;
 		}
-		dns_final(thread, 1, "failed to read socket. %s", strerror(errno));
+		dns_final(thread, true, "failed to read socket. %s", strerror(errno));
 		return 0;
 	}
 
@@ -235,12 +235,12 @@ dns_recv_thread(thread_ref_t thread)
 	}
 
 	if ((rcode = DNS_RC(flags)) != 0) {
-		dns_final(thread, 1, "read error occurred. (rcode = %d)", rcode);
+		dns_final(thread, true, "read error occurred. (rcode = %d)", rcode);
 		return 0;
 	}
 
 	/* success */
-	dns_final(thread, 0, NULL);
+	dns_final(thread, false, NULL);
 
 	return 0;
 }
@@ -310,12 +310,12 @@ dns_send(thread_ref_t thread)
 					 checker, thread->u.f.fd, timeout, true);
 			return;
 		}
-		dns_final(thread, 1, "failed to write socket.");
+		dns_final(thread, true, "failed to write socket.");
 		return;
 	}
 
 	if (ret != (ssize_t) dns_check->slen) {
-		dns_final(thread, 1, "failed to write all of the datagram.");
+		dns_final(thread, true, "failed to write all of the datagram.");
 		return;
 	}
 
@@ -328,7 +328,7 @@ static int
 dns_send_thread(thread_ref_t thread)
 {
 	if (thread->type == THREAD_WRITE_TIMEOUT) {
-		dns_final(thread, 1, "write timeout to socket.");
+		dns_final(thread, true, "write timeout to socket.");
 		return 0;
 	}
 
@@ -343,7 +343,7 @@ dns_check_thread(thread_ref_t thread)
 	int status;
 
 	if (thread->type == THREAD_WRITE_TIMEOUT) {
-		dns_final(thread, 1, "write timeout to socket.");
+		dns_final(thread, true, "write timeout to socket.");
 		return 0;
 	}
 
@@ -355,13 +355,13 @@ dns_check_thread(thread_ref_t thread)
 	 */
 	switch (status) {
 	case connect_error:
-		dns_final(thread, 1, "connection error.");
+		dns_final(thread, true, "connection error.");
 		break;
 	case connect_timeout:
-		dns_final(thread, 1, "connection timeout.");
+		dns_final(thread, true, "connection timeout.");
 		break;
 	case connect_fail:
-		dns_final(thread, 1, "connection failure.");
+		dns_final(thread, true, "connection failure.");
 		break;
 	case connect_success:
 		dns_make_query(thread);
@@ -426,7 +426,7 @@ dns_connect_thread(thread_ref_t thread)
 
 	if (status == connect_fail) {
 		close(fd);
-		dns_final(thread, 1, "network unreachable for %s", inet_sockaddrtopair(&co->dst));
+		dns_final(thread, true, "network unreachable for %s", inet_sockaddrtopair(&co->dst));
 
 		return 0;
 	}

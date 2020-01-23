@@ -58,7 +58,6 @@
 #ifdef _LIBIPTC_DYNAMIC_
 #include "global_data.h"
 #endif
-#include "vrrp_iptables_lib.h"
 #include "vrrp_firewall.h"
 #include "utils.h"
 

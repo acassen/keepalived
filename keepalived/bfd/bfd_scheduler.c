@@ -994,8 +994,8 @@ read_local_port_range(uint32_t port_limits[2])
 	val[0] = strtol(buf, &endptr, 10);
 	if (val[0] <= 0 || val[0] == LONG_MAX || (*endptr != '\t' && *endptr != ' '))
 		return false;
-	val[1] = strtol(buf, &endptr, 10);
-	if (val[1] <= 0 || val[0] == LONG_MAX || *endptr != '\n')
+	val[1] = strtol(endptr + 1, &endptr, 10);
+	if (val[1] <= 0 || val[1] == LONG_MAX || *endptr != '\n')
 		return false;
 
 	port_limits[0] = val[0];

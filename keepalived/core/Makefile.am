@@ -40,4 +40,9 @@ if CN_PROC
   EXTRA_libcore_a_SOURCES += track_process.c
 endif
 
+if !ONE_PROCESS_DEBUG
+  libcore_a_LIBADD	+= reload_monitor.o
+  EXTRA_libcore_a_SOURCES += reload_monitor.c
+endif
+
 MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@
