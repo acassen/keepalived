@@ -41,12 +41,14 @@
 #include "check_misc.h"
 #include "check_smtp.h"
 #include "check_tcp.h"
+#include "check_udp.h"
 #endif
 #include "check_daemon.h"
 #include "check_parser.h"
 #include "ipwrapper.h"
 #include "check_ssl.h"
 #include "check_api.h"
+#include "check_ping.h"
 #include "global_data.h"
 #include "pidfile.h"
 #include "signals.h"
@@ -98,7 +100,7 @@ set_checker_max_fds(void)
 	 *   12	closed
 	 *   13	passwd file
 	 *   14	Unix domain socket
-	 *   One per checker using UDP/TCP
+	 *   One per checker using UDP/TCP/PING
 	 *   One per SMTP alert
 	 *   qty 10 spare
 	 */
@@ -139,6 +141,7 @@ checker_terminate_phase2(void)
 	master = NULL;
 	free_checkers_queue();
 	free_ssl();
+	set_ping_group_range(false);
 
 	ipvs_stop();
 #ifdef _WITH_SNMP_CHECKER_
@@ -528,6 +531,8 @@ register_check_thread_addresses(void)
 	register_check_smtp_addresses();
 	register_check_ssl_addresses();
 	register_check_tcp_addresses();
+	register_check_ping_addresses();
+	register_check_udp_addresses();
 #ifdef _WITH_BFD_
 	register_check_bfd_addresses();
 #endif
