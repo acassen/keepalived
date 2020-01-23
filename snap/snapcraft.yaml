@@ -104,9 +104,10 @@ parts:
     override-build: |
       snapcraftctl build
       # Move the headers on the host out of the way
-      rm -rf /usr/include/linux || true
+      HEADER_DIRS={linux,asm-generic}
+      rm -rf /usr/include/${HEADER_DIRS} || true
       # Move header from the part to the host
-      mv ${SNAPCRAFT_PART_INSTALL}/usr/include/linux /usr/include/ || true
+      mv ${SNAPCRAFT_PART_INSTALL}/usr/include/${HEADER_DIRS} /usr/include/ || true
       echo -n "Build kernel:"
       printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
     stage:
@@ -168,9 +169,10 @@ parts:
     override-build: |
       snapcraftctl build
       # Move the headers on the host out of the way
-      rm -rf /usr/include/linux || true
+      HEADER_DIRS={linux,asm-generic}
+      rm -rf /usr/include/${HEADER_DIRS} || true
       # Move header from the part to the host
-      mv ${SNAPCRAFT_PART_INSTALL}/usr/include/linux /usr/include/ || true
+      mv ${SNAPCRAFT_PART_INSTALL}/usr/include/${HEADER_DIRS} /usr/include/ || true
       echo -n "Build kernel:"
       printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
     stage:
@@ -232,9 +234,10 @@ parts:
     override-build: |
       snapcraftctl build
       # Move the headers on the host out of the way
-      rm -rf /usr/include/linux || true
+      HEADER_DIRS={linux,asm-generic}
+      rm -rf /usr/include/${HEADER_DIRS} || true
       # Move header from the part to the host
-      mv ${SNAPCRAFT_PART_INSTALL}/usr/include/linux /usr/include/ || true
+      mv ${SNAPCRAFT_PART_INSTALL}/usr/include/${HEADER_DIRS} /usr/include/ || true
       echo -n "Build kernel:"
       printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
     stage:
@@ -289,9 +292,10 @@ parts:
     override-build: |
       snapcraftctl build
       # Move the headers on the host out of the way
-      rm -rf /usr/include/linux || true
+      HEADER_DIRS={linux,asm-generic}
+      rm -rf /usr/include/${HEADER_DIRS} || true
       # Move header from the part to the host
-      mv ${SNAPCRAFT_PART_INSTALL}/usr/include/linux /usr/include/ || true
+      mv ${SNAPCRAFT_PART_INSTALL}/usr/include/${HEADER_DIRS} /usr/include/ || true
       echo -n "Build kernel:"
       printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
     stage:
@@ -352,9 +356,10 @@ parts:
       # Move the headers on the host out of the way
       ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
       if [ $ARCH != s390x ]; then
-        rm -rf /usr/include/linux || true
+        HEADER_DIRS={linux,asm-generic}
+        rm -rf /usr/include/${HEADER_DIRS} || true
         # Move header from the part to the host
-        mv ${SNAPCRAFT_PART_INSTALL}/usr/include/linux /usr/include/ || true
+        mv ${SNAPCRAFT_PART_INSTALL}/usr/include/${HEADER_DIRS} /usr/include/ || true
       fi
       echo -n "Build kernel:"
       printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
