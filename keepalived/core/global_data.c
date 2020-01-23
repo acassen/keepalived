@@ -347,6 +347,9 @@ free_global_data(data_t * data)
 	FREE_CONST_PTR(data->lvs_syncd.vrrp_name);
 #endif
 	FREE_CONST_PTR(data->notify_fifo.name);
+#ifndef _ONE_PROCESS_DEBUG_
+	FREE_CONST_PTR(data->reload_time_file);
+#endif
 	free_notify_script(&data->notify_fifo.script);
 #ifdef _WITH_VRRP_
 	FREE_CONST_PTR(data->default_ifname);
@@ -372,6 +375,10 @@ dump_global_data(FILE *fp, data_t * data)
 	char cpu_str[64];
 #ifdef _WITH_VRRP_
 	char buf[64];
+#endif
+#ifndef _ONE_PROCESS_DEBUG_
+	char date_time_str[20];
+	struct tm tm;
 #endif
 
 	if (!data)
@@ -425,6 +432,17 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " Default smtp_alert_checker = %s",
 			data->smtp_alert_checker == -1 ? "unset" : data->smtp_alert_checker ? "on" : "off");
 	conf_write(fp, " Checkers log all failures = %s", data->checker_log_all_failures ? "true" : "false");
+#endif
+#ifndef _ONE_PROCESS_DEBUG_
+	if (data->reload_time_file) {
+		conf_write(fp, " Reload time file = %s%s", data->reload_time_file, data->reload_repeat ? " (repeat)" : "");
+		if (data->reload_time) {
+			localtime_r(&data->reload_time, &tm);
+			strftime(date_time_str, sizeof(date_time_str), "%Y-%m-%d %H:%M:%S", &tm);
+			conf_write(fp, " Reload scheduled for %s", date_time_str);
+		} else
+			conf_write(fp, " No reload scheduled");
+	}
 #endif
 #ifdef _WITH_VRRP_
 	conf_write(fp, " Dynamic interfaces = %s", data->dynamic_interfaces ? "true" : "false");

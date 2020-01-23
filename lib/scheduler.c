@@ -302,7 +302,8 @@ thread_set_timer(thread_master_t *m)
 	/* We don't want periodic timer expiry */
 	its.it_interval.tv_sec = its.it_interval.tv_nsec = 0;
 
-	timerfd_settime(m->timer_fd, 0, &its, NULL);
+	if (timerfd_settime(m->timer_fd, 0, &its, NULL))
+		log_message(LOG_INFO, "Setting timer_fd returned errno %d - %m", errno);
 
 #ifdef _EPOLL_DEBUG_
 	if (do_epoll_debug)

@@ -111,6 +111,9 @@
 #ifdef _MEM_ERR_DEBUG_
 #include "memory.h"
 #endif
+#ifndef _ONE_PROCESS_DEBUG_
+#include "reload_monitor.h"
+#endif
 #include "warnings.h"
 
 /* musl libc doesn't define the following */
@@ -181,6 +184,8 @@ static bool set_core_dump_pattern = false;
 static bool create_core_dump = false;
 static const char *core_dump_pattern = "core";
 static char *orig_core_dump_pattern = NULL;
+
+static const char *dump_file = "/tmp/keepalived_parent.data";
 
 /* debug flags */
 #if defined _TIMER_CHECK_ || \
@@ -563,6 +568,11 @@ static bool reload_config(void)
 
 	log_message(LOG_INFO, "Reloading ...");
 
+#ifndef _ONE_PROCESS_DEBUG_
+	if (global_data->reload_time_file)
+		stop_reload_monitor();
+#endif
+
 	/* Make sure there isn't an attempt to change the network namespace or instance name */
 	old_global_data = global_data;
 	global_data = NULL;
@@ -621,8 +631,34 @@ static bool reload_config(void)
 	else
 		free_global_data (old_global_data);
 
+#ifndef _ONE_PROCESS_DEBUG_
+	if (global_data->reload_time_file)
+		start_reload_monitor();
+#endif
 
 	return !unsupported_change;
+}
+
+static int
+print_parent_data(__attribute__((unused)) thread_ref_t thread)
+{
+	FILE *fp;
+
+	log_message(LOG_INFO, "Printing parent data for process(%d) on signal", getpid());
+
+	fp = fopen_safe(dump_file, "w");
+
+	if (!fp) {
+		log_message(LOG_INFO, "Can't open %s (%d: %s)",
+			dump_file, errno, strerror(errno));
+		return 0;
+	}
+
+	dump_global_data(fp, global_data);
+
+	fclose(fp);
+
+	return 0;
 }
 
 /* SIGHUP/USR1/USR2 handler */
@@ -662,6 +698,9 @@ propagate_signal(__attribute__((unused)) void *v, int sig)
 	else if (running_bfd())
 		start_bfd_child();
 #endif
+
+	if (sig == SIGUSR1)
+		thread_add_event(master, print_parent_data, NULL, 0);
 }
 
 #ifdef THREAD_DUMP
@@ -705,6 +744,11 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 	thread_add_terminate_event(master);
 
 	log_message(LOG_INFO, "Stopping");
+
+#ifndef _ONE_PROCESSS_DEBUG_
+	if (global_data->reload_time_file)
+		stop_reload_monitor();
+#endif
 
 #ifdef HAVE_SIGNALFD
 	/* We only want to receive SIGCHLD now */
@@ -1876,6 +1920,7 @@ register_parent_thread_addresses(void)
 #endif
 
 #ifndef _ONE_PROCESS_DEBUG_
+	register_reload_addresses();
 	register_signal_handler_address("propagate_signal", propagate_signal);
 	register_signal_handler_address("sigend", sigend);
 #endif
@@ -2214,6 +2259,12 @@ keepalived_main(int argc, char **argv)
 
 #ifdef THREAD_DUMP
 	register_parent_thread_addresses();
+#endif
+
+#ifndef _ONE_PROCESS_DEBUG_
+	/* Do we have a reload file to monitor */
+	if (global_data->reload_time_file)
+		start_reload_monitor();
 #endif
 
 	/* Launch the scheduling I/O multiplexer */

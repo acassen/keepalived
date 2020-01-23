@@ -600,6 +600,38 @@ and
     # is to use a seed based on the time, so that each time a different configuration
     # will be generated).
     \fBrandom_seed \fRUNSIGNED_INT
+
+    # reload_time_file allows a reload of keepalived to be scheduled in the future. This is
+    # particularly useful if there is a master keepalived and one or more backup keepalived
+    # instances and the new configuration is incompatible with the previous configuration,
+    # e.g. adding or removing VIPs which would cause adverts to be rejected.
+    # All the instances can be scheduled to reload at the same time, thereby ensuring that
+    # no mismatching adverts are received by the backup instances.
+    # The configuration specifies a file which keepalived will monitor. The first line of
+    # the file must contain a valid time or date/time exactly in the formats specified below.
+    # When keepalived starts up, it reads the file if it exists, and schedules a reload at
+    # the specified time. If the file does not exist, then when it is subsequently created
+    # a reload will be scheduled. If the file is updated, the reload time will be modified
+    # accordingly. If the file is deleted, the reload is cancelled.
+    # Normally when the reload occurs the specified file is deleted, since the reload has
+    # been done; if the file included a date then the reload will be in the past and so
+    # ignored. However, if there is no date, then if the file were reread following the
+    # reload, a reload would be scheduled for 24 hours time. In order to stop this, the
+    # file is deleted (unlinked) by default. If reload_repeat is specified, then the
+    # file is not deleted, and if the file contains a time only with no date, then
+    # keepalived will keep reloading at that time every day until the file is removed or
+    # modified.
+    # If the directory containing the file does not exist at startup/reload, or if the
+    # directory is removed or renamed, then no future scheduled reloads will occur until
+    # a manual (SIGHUP) reload is done or keepalived restarts.
+    # The permitted formats of the entry in the timer file are precisely:
+    # HH:MM:SS
+    # YY-MM-DD HH:MM:SS
+    # YYYY-MM-DD HH:MM:SS
+    # There must be no leading or trailing whitespace, and only one space between the date
+    # and the time.
+    reload_time_file ABSOLUTE-PATHNAME-OF-FILE
+    reload_repeat
 }
 .fi
 .SH Linkbeat interfaces

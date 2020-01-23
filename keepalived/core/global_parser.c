@@ -1772,6 +1772,27 @@ random_seed_handler(const vector_t *strvec)
 	set_random_seed(val);
 }
 
+#ifndef _ONE_PROCESS_DEBUG_
+static void
+reload_time_file_handler(const vector_t *strvec)
+{
+	char *str;
+
+	if (vector_size(strvec) != 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "reload_time_file invalid");
+		return;
+	}
+	global_data->reload_time_file = str = MALLOC(strlen(strvec_slot(strvec, 1)) + 1);
+	strcpy(str, strvec_slot(strvec, 1));
+}
+
+static void
+reload_repeat_handler(__attribute__((unused)) const vector_t *strvec)
+{
+	global_data->reload_repeat = true;
+}
+#endif
+
 void
 init_global_keywords(bool global_active)
 {
@@ -1944,4 +1965,8 @@ init_global_keywords(bool global_active)
 #endif
 	install_keyword("umask", &umask_handler);
 	install_keyword("random_seed", &random_seed_handler);
+#ifndef _ONE_PROCESS_DEBUG_
+	install_keyword("reload_time_file", &reload_time_file_handler);
+	install_keyword("reload_repeat", &reload_repeat_handler);
+#endif
 }
