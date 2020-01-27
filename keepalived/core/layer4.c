@@ -79,6 +79,7 @@ socket_bind_connect(int fd, const conn_opts_t *co)
 	int ret;
 	const struct sockaddr_storage *addr = &co->dst;
 	const struct sockaddr_storage *bind_addr = &co->bindto;
+	static int last_errno;
 
 	optlen = sizeof(opt);
 	if (getsockopt(fd, SOL_SOCKET, SO_TYPE, (void *) &opt, &optlen) < 0) {
@@ -140,6 +141,12 @@ socket_bind_connect(int fd, const conn_opts_t *co)
 	    errno == ENETDOWN || errno == ECONNRESET ||
 	    errno == ECONNABORTED || errno == ETIMEDOUT)
 		return connect_fail;
+
+	/* We want to know about the error, but not repeatedly */
+	if (errno != last_errno) {
+		last_errno = errno;
+		log_message(LOG_INFO, "connect error %d - %m", errno);
+	}
 
 	return connect_error;
 }
