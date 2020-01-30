@@ -330,7 +330,7 @@ udp_socket_error(int fd)
 						log_message(LOG_INFO, "Port Unreachable Error");
 						break;
 					default:
-						fprintf(stderr, "Unreach code %d", sock_err->ee_code);
+						log_message(LOG_INFO, "Unreach code %d", sock_err->ee_code);
 					}
 #endif
 					return connect_error;
@@ -366,7 +366,7 @@ udp_socket_error(int fd)
 						log_message(LOG_INFO, "Port Unreachable Error");
 						break;
 					default:
-						fprintf(stderr, "Unreach code %d", sock_err->ee_code);
+						log_message(LOG_INFO, "Unreach code %d", sock_err->ee_code);
 					}
 #endif
 					return connect_error;
