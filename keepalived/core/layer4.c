@@ -38,6 +38,7 @@
 #include "check_api.h"
 #endif
 #include "bitops.h"
+#include "utils.h"
 
 // #define ICMP_DEBUG	1
 
