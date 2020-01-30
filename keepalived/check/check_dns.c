@@ -194,7 +194,7 @@ dns_recv_thread(thread_ref_t thread)
 					checker, thread->u.f.fd, timeout, true);
 			return 0;
 		}
-		dns_final(thread, true, "failed to read socket. %s", strerror(errno));
+		dns_final(thread, true, "failed to read socket; errno %d (%s)", errno, strerror(errno));
 		return 0;
 	}
 

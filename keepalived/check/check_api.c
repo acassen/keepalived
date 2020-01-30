@@ -91,6 +91,8 @@ dump_connection_opts(FILE *fp, const void *data)
 		conf_write(fp, "     Mark = %u", conn->fwmark);
 #endif
 	conf_write(fp, "     Timeout = %f", (double)conn->connection_to / TIMER_HZ);
+	if (conn->last_errno)
+		conf_write(fp, "     Last errno = %d", conn->last_errno);
 }
 
 void

@@ -37,6 +37,7 @@
 #ifdef _WITH_LVS_
 #include "check_api.h"
 #endif
+#include "bitops.h"
 
 // #define ICMP_DEBUG	1
 
@@ -70,7 +71,7 @@ set_buf(char *buf, size_t buf_len)
 static
 #endif
 enum connect_result
-socket_bind_connect(int fd, const conn_opts_t *co)
+socket_bind_connect(int fd, conn_opts_t *co)
 {
 	int opt;
 	socklen_t optlen;
@@ -79,7 +80,6 @@ socket_bind_connect(int fd, const conn_opts_t *co)
 	int ret;
 	const struct sockaddr_storage *addr = &co->dst;
 	const struct sockaddr_storage *bind_addr = &co->bindto;
-	static int last_errno;
 
 	optlen = sizeof(opt);
 	if (getsockopt(fd, SOL_SOCKET, SO_TYPE, (void *) &opt, &optlen) < 0) {
@@ -143,9 +143,10 @@ socket_bind_connect(int fd, const conn_opts_t *co)
 		return connect_fail;
 
 	/* We want to know about the error, but not repeatedly */
-	if (errno != last_errno) {
-		last_errno = errno;
-		log_message(LOG_INFO, "connect error %d - %m", errno);
+	if (errno != co->last_errno) {
+		co->last_errno = errno;
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "socket connect error %d - %m", errno);
 	}
 
 	return connect_error;
@@ -154,7 +155,7 @@ socket_bind_connect(int fd, const conn_opts_t *co)
 enum connect_result
 socket_connect(int fd, const struct sockaddr_storage *addr)
 {
-	const conn_opts_t co = { .dst = *addr };
+	conn_opts_t co = { .dst = *addr };
 
 	return socket_bind_connect(fd, &co);
 }
@@ -226,7 +227,7 @@ socket_connection_state(int fd, enum connect_result status, thread_ref_t thread,
 
 #ifdef _WITH_LVS_
 enum connect_result
-udp_bind_connect(int fd, const conn_opts_t *co)
+udp_bind_connect(int fd, conn_opts_t *co)
 {
 	socklen_t addrlen;
 	ssize_t ret;
@@ -266,14 +267,33 @@ udp_bind_connect(int fd, const conn_opts_t *co)
 	addrlen = sizeof(*addr);
 	ret = connect(fd, (const struct sockaddr *) addr, addrlen);
 
-	if (ret < 0)
+	if (ret < 0) {
+		/* We want to know about the error, but not repeatedly */
+		if (errno != co->last_errno) {
+			co->last_errno = errno;
+			if (__test_bit(LOG_DETAIL_BIT, &debug))
+				log_message(LOG_INFO, "UDP connect error %d - %m", errno);
+		}
+
 		return connect_error;
+	}
 
 	/* Send udp packet */
 	ret = send(fd, buf, sizeof(buf), 0);
 
 	if (ret == (ssize_t)sizeof(buf))
 		return connect_success;
+
+	if (ret == -1) {
+		/* We want to know about the error, but not repeatedly */
+		if (errno != co->last_errno) {
+			co->last_errno = errno;
+			if (__test_bit(LOG_DETAIL_BIT, &debug))
+				log_message(LOG_INFO, "UDP send error %d - %m", errno);
+		}
+	}
+	else if (__test_bit(LOG_DETAIL_BIT, &debug))
+		log_message(LOG_INFO, "udp_bind_connect send - sent %zd bytes instead of %zu", ret, sizeof(buf));
 
 	return connect_error;
 }
