@@ -268,6 +268,8 @@ AC_ARG_ENABLE(smtp-connect-debug,
   [AS_HELP_STRING([--enable-smtp-connect-debug], [compile with smtp connect debugging support])])
 AC_ARG_ENABLE(mem-err-debug,
   [AS_HELP_STRING([--enable-mem-err-debug], [compile with MALLOC/FREE error debugging support])])
+AC_ARG_ENABLE(script-debug,
+  [AS_HELP_STRING([--enable-script-debug], [compile with script termination debugging support])])
 AC_ARG_ENABLE(one-process-debug,
   [AS_HELP_STRING([--enable-one-process-debug], [compile with all functionality running in a single process])])
 AC_ARG_ENABLE(dump-keywords,
@@ -438,6 +440,7 @@ AS_IF([test .$enable_debug = .yes],
     AS_IF([test .$enable_smtp_alert_debug = .], [enable_smtp_alert_debug=yes])
     AS_IF([test .$enable_smtp_connect_debug = .], [enable_smtp_connect_debug=yes])
     AS_IF([test .$enable_dump_keywords = .], [enable_dump_keywords=yes])
+    AS_IF([test .$enable_script_debug = .], [enable_script_debug=yes])
 
     AS_IF([test .$enable_vrrp != .no],
       [
@@ -2588,6 +2591,15 @@ AS_IF([test .$enable_eintr_debug = .yes],
       ])
   ])
 
+dnl ----[ Do we enable script debugging code]----
+ENABLE_SCRIPT_DEBUG=No
+AS_IF([test .$enable_script_debug = .yes],
+  [
+    AC_DEFINE([_SCRIPT_DEBUG_], [ 1 ], [Define to enable script debugging support])
+    add_config_opt([SCRIPT_DEBUG])
+    ENABLE_SCRIPT_DEBUG=Yes
+  ])
+
 dnl ----[ Do we want to enable track process debugging code]----
 ENABLE_TRACK_PROCESS_DEBUG=No
 AS_IF([test .$enable_track_process_debug = .yes],
@@ -2872,6 +2884,9 @@ if test ${ENABLE_SMTP_ALERT_DEBUG} = Yes; then
 fi
 if test ${ENABLE_EINTR_DEBUG} = Yes; then
   echo "EINTR debugging          : Yes"
+fi
+if test ${ENABLE_SCRIPT_DEBUG} = Yes; then
+  echo "Script debugging         : Yes"
 fi
 if test ${ENABLE_TRACK_PROCESS_DEBUG} = Yes; then
   echo "track process debugging  : Yes"

@@ -93,6 +93,9 @@ static rb_root_t funcs = RB_ROOT;
 #ifdef _VRRP_FD_DEBUG_
 static void (*extra_threads_debug)(void);
 #endif
+#ifdef _SCRIPT_DEBUG_
+bool do_script_debug;
+#endif
 
 
 /* Function that returns prog_name if pid is a known child */
@@ -1914,6 +1917,12 @@ thread_child_handler(__attribute__((unused)) void *v, __attribute__((unused)) in
 
 			return;
 		}
+
+#ifdef _SCRIPT_DEBUG_
+		if (do_script_debug)
+			log_message(LOG_INFO, "waitpid for %d returned 0x%x", pid, (unsigned)status);
+#endif
+
 		process_child_termination(pid, status);
 	}
 }

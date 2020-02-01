@@ -1053,6 +1053,10 @@ vrrp_script_thread(thread_ref_t thread)
 	}
 
 	/* Execute the script in a child process. Parent returns, child doesn't */
+#ifdef _SCRIPT_DEBUG_
+	if (do_script_debug)
+		log_message(LOG_INFO, "Running vrrp script %s", vscript->sname);
+#endif
 	ret = system_call_script(thread->master, vrrp_script_child_thread,
 				  vscript, (vscript->timeout) ? vscript->timeout : vscript->interval,
 				  &vscript->script);
@@ -1080,17 +1084,33 @@ vrrp_script_child_thread(thread_ref_t thread)
 
 		if (vscript->state == SCRIPT_STATE_RUNNING) {
 			vscript->state = SCRIPT_STATE_REQUESTING_TERMINATION;
+#ifdef _SCRIPT_DEBUG_
+			if (do_script_debug)
+				log_message(LOG_INFO, "Sending TERM to %d", pid);
+#endif
 			sig_num = SIGTERM;
 			timeout = 2;
 		} else if (vscript->state == SCRIPT_STATE_REQUESTING_TERMINATION) {
 			vscript->state = SCRIPT_STATE_FORCING_TERMINATION;
 			sig_num = SIGKILL;
+#ifdef _SCRIPT_DEBUG_
+			if (do_script_debug)
+				log_message(LOG_INFO, "Sending KILL 2 to %d", pid);
+#endif
 			timeout = 2;
 		} else if (vscript->state == SCRIPT_STATE_FORCING_TERMINATION) {
 			log_message(LOG_INFO, "Script %s child (PID %d) failed to terminate after kill", vscript->sname, pid);
 			sig_num = SIGKILL;
 			timeout = 10;	/* Give it longer to terminate */
+#ifdef _SCRIPT_DEBUG_
+			if (do_script_debug)
+				log_message(LOG_INFO, "Sending KILL 10 to %d", pid);
+#endif
 		}
+#ifdef _SCRIPT_DEBUG_
+		else if (do_script_debug)
+			log_message(LOG_INFO, "script state %u for pid %d", vscript->state, pid);
+#endif
 
 		/* Kill it off. */
 		if (timeout) {
@@ -1102,6 +1122,10 @@ vrrp_script_child_thread(thread_ref_t thread)
 					 * have reaped its exit status, otherwise it
 					 * would exist as a zombie process. */
 					log_message(LOG_INFO, "Script %s child (PID %d) lost", vscript->sname, THREAD_CHILD_PID(thread));
+#ifdef _SCRIPT_DEBUG_
+					if (do_script_debug)
+						dump_thread_data(thread->master, NULL);
+#endif
 					vscript->state = SCRIPT_STATE_IDLE;
 					timeout = 0;
 				} else {
@@ -1125,6 +1149,11 @@ vrrp_script_child_thread(thread_ref_t thread)
 	if (WIFEXITED(wait_status)) {
 		int status = WEXITSTATUS(wait_status);
 
+#ifdef _SCRIPT_DEBUG_
+		if (do_script_debug)
+			log_message(LOG_INFO, "pid %d exited with status %d", THREAD_CHILD_PID(thread), status);
+#endif
+
 		/* Report if status has changed */
 		if (status != vscript->last_status)
 			log_message(LOG_INFO, "Script `%s` now returning %d", vscript->sname, status);
@@ -1144,6 +1173,11 @@ vrrp_script_child_thread(thread_ref_t thread)
 		vscript->last_status = status;
 	}
 	else if (WIFSIGNALED(wait_status)) {
+#ifdef _SCRIPT_DEBUG_
+		if (do_script_debug)
+			log_message(LOG_INFO, "pid %d exited due to signal %d", THREAD_CHILD_PID(thread), WTERMSIG(wait_status));
+#endif
+
 		if (vscript->state == SCRIPT_STATE_REQUESTING_TERMINATION && WTERMSIG(wait_status) == SIGTERM) {
 			/* The script terminated due to a SIGTERM, and we sent it a SIGTERM to
 			 * terminate the process. Now make sure any children it created have
@@ -1163,6 +1197,10 @@ vrrp_script_child_thread(thread_ref_t thread)
 		}
 		script_success = false;
 	}
+#ifdef _SCRIPT_DEBUG_
+	else if (do_script_debug)
+		log_message(LOG_INFO, "wait for pid %d exited with exit code 0x%x", THREAD_CHILD_PID(thread), (unsigned)wait_status);
+#endif
 
 	if (script_exit_type) {
 		if (script_success) {

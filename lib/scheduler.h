@@ -213,6 +213,9 @@ extern bool do_epoll_debug;
 #ifdef _EPOLL_THREAD_DUMP_
 extern bool do_epoll_thread_dump;
 #endif
+#ifdef _SCRIPT_DEBUG_
+extern bool do_script_debug;
+#endif
 
 /* Prototypes. */
 extern void set_child_finder_name(char const * (*)(pid_t));
