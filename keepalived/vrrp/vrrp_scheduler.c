@@ -1175,7 +1175,7 @@ vrrp_script_child_thread(thread_ref_t thread)
 	else if (WIFSIGNALED(wait_status)) {
 #ifdef _SCRIPT_DEBUG_
 		if (do_script_debug)
-			log_message(LOG_INFO, "pid %d exited due to signal %d", THREAD_CHILD_PID(thread), WTERMSIG(wait_status));
+			log_message(LOG_INFO, "pid %d exited due to signal %d (%s)", THREAD_CHILD_PID(thread), WTERMSIG(wait_status), strsignal(WTERMSIG(wait_status)));
 #endif
 
 		if (vscript->state == SCRIPT_STATE_REQUESTING_TERMINATION && WTERMSIG(wait_status) == SIGTERM) {

@@ -380,6 +380,7 @@ dump_global_data(FILE *fp, data_t * data)
 	char date_time_str[20];
 	struct tm tm;
 #endif
+	unsigned val;
 
 	if (!data)
 		return;
@@ -667,5 +668,11 @@ dump_global_data(FILE *fp, data_t * data)
 		conf_write(fp, " vrrp_startup_delay = %g", global_data->vrrp_startup_delay / TIMER_HZ_DOUBLE);
 	if (global_data->log_unknown_vrids)
 		conf_write(fp, " log_unknown_vrids");
+#endif
+	if ((val = get_cur_priority()))
+		conf_write(fp, " current realtime priority = %u", val);
+#if HAVE_DECL_RLIMIT_RTTIME
+	if ((val = get_cur_rlimit_rttime()))
+		conf_write(fp, " current realtime time limit = %u", val);
 #endif
 }
