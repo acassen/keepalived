@@ -590,11 +590,22 @@ get_rt_rlimit(const vector_t *strvec, const char *process)
 {
 	unsigned limit;
 	rlim_t rlim;
+	size_t keyword_len;
+
+	/* *_rlimit_rtime is deprecated since 02/02/2020. Keyword should be *_rlimit_rttime */
+	keyword_len = strlen(strvec_slot(strvec, 0));
+	if (strvec_slot(strvec, 0)[keyword_len - 5] == 'r')
+		log_message(LOG_INFO, "Keyword '%s' is deprecated - please use '%.*srttime'", strvec_slot(strvec, 0), (int)keyword_len - 5, strvec_slot(strvec, 0));
 
 	if (!read_unsigned_strvec(strvec, 1, &limit, 1, UINT32_MAX, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid %s real-time limit - %s", process, strvec_slot(strvec, 1));
 		return 0;
 	}
+
+	/* The rlim value is divided by 2 elsewhere, and the result must be
+	 * non-zero, therefore we need rlim to have a minimum value of 2. */
+	if (limit == 1)
+		limit = 2;
 
 	rlim = limit;
 	return rlim;
@@ -1881,7 +1892,8 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_rt_priority", &vrrp_rt_priority_handler);
 	install_keyword("vrrp_cpu_affinity", &vrrp_cpu_affinity_handler);
 #if HAVE_DECL_RLIMIT_RTTIME == 1
-	install_keyword("vrrp_rlimit_rtime", &vrrp_rt_rlimit_handler);
+	install_keyword("vrrp_rlimit_rttime", &vrrp_rt_rlimit_handler);
+	install_keyword("vrrp_rlimit_rtime", &vrrp_rt_rlimit_handler);		/* Deprecated 02/02/2020 */
 #endif
 #endif
 	install_keyword("notify_fifo", &global_notify_fifo);
@@ -1899,7 +1911,8 @@ init_global_keywords(bool global_active)
 	install_keyword("checker_rt_priority", &checker_rt_priority_handler);
 	install_keyword("checker_cpu_affinity", &checker_cpu_affinity_handler);
 #if HAVE_DECL_RLIMIT_RTTIME == 1
-	install_keyword("checker_rlimit_rtime", &checker_rt_rlimit_handler);
+	install_keyword("checker_rlimit_rttime", &checker_rt_rlimit_handler);
+	install_keyword("checker_rlimit_rtime", &checker_rt_rlimit_handler);	/* Deprecated 02/02/2020 */
 #endif
 #endif
 #ifdef _WITH_BFD_
@@ -1908,7 +1921,8 @@ init_global_keywords(bool global_active)
 	install_keyword("bfd_rt_priority", &bfd_rt_priority_handler);
 	install_keyword("bfd_cpu_affinity", &bfd_cpu_affinity_handler);
 #if HAVE_DECL_RLIMIT_RTTIME == 1
-	install_keyword("bfd_rlimit_rtime", &bfd_rt_rlimit_handler);
+	install_keyword("bfd_rlimit_rttime", &bfd_rt_rlimit_handler);
+	install_keyword("bfd_rlimit_rtime", &bfd_rt_rlimit_handler);		/* Deprecated 02/02/2020 */
 #endif
 #endif
 #ifdef _WITH_SNMP_
