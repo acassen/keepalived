@@ -1720,23 +1720,25 @@ thread_fetch_next_queue(thread_master_t *m)
 			/* Take care about monotonic clock */
 			timersub(&earliest_timer, &time_now, &earliest_timer);
 
-			/* If it is over 1 second after the timer should have expired, we are
-			 * not running soon enough. */
-			if (earliest_timer.tv_sec <= -2) {
-				if (earliest_timer.tv_usec) {
-					earliest_timer.tv_sec++;
-					earliest_timer.tv_usec = 1000000 - earliest_timer.tv_usec;
-				}
-				log_message(LOG_INFO, "A thread timer expired %ld.%6.6ld seconds ago", -earliest_timer.tv_sec, earliest_timer.tv_usec);
+			/* If it is over min_auto_increment_delay usecs after the timer should have expired,
+			 * we are not running soon enough. */
+			if (earliest_timer.tv_sec < 0) {
+				if (earliest_timer.tv_sec * -1000000 - earliest_timer.tv_usec > min_auto_priority_delay) {
+					if (earliest_timer.tv_usec) {
+						earliest_timer.tv_sec++;
+						earliest_timer.tv_usec = 1000000 - earliest_timer.tv_usec;
+					}
+					log_message(LOG_INFO, "A thread timer expired %ld.%6.6ld seconds ago", -earliest_timer.tv_sec, earliest_timer.tv_usec);
 
-				/* Set realtime scheduling if not already using it, or if already in use,
-				 * increase the priority. */
-				increment_process_priority();
+					/* Set realtime scheduling if not already using it, or if already in use,
+					 * increase the priority. */
+					increment_process_priority();
 
 #ifdef _EPOLL_THREAD_DUMP_
-				if (do_epoll_thread_dump)
-					dump_thread_data(m, NULL);
+					if (do_epoll_thread_dump)
+						dump_thread_data(m, NULL);
 #endif
+				}
 			}
 		}
 

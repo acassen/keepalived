@@ -280,6 +280,22 @@ max_auto_priority_handler(const vector_t *strvec)
 
 	global_data->max_auto_priority = priority;
 }
+static void
+min_auto_priority_delay_handler(const vector_t *strvec)
+{
+	unsigned delay;
+
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "min_auto_priority_delay requires delay time");
+		return;
+	}
+	if (!read_unsigned_strvec(strvec, 1, &delay, 1, 10000000, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "min_auto_priority_delay '%s' must be in [1, 10000000] - ignoring", strvec_slot(strvec, 1));
+		return;
+	}
+
+	global_data->min_auto_priority_delay = delay;
+}
 #ifdef _WITH_VRRP_
 static void
 smtp_alert_vrrp_handler(const vector_t *strvec)
@@ -1855,6 +1871,7 @@ init_global_keywords(bool global_active)
 	install_keyword("notification_email", &email_handler);
 	install_keyword("smtp_alert", &smtp_alert_handler);
 	install_keyword("max_auto_priority", &max_auto_priority_handler);
+	install_keyword("min_auto_priority_delay", &min_auto_priority_delay_handler);
 #ifdef _WITH_VRRP_
 	install_keyword("smtp_alert_vrrp", &smtp_alert_vrrp_handler);
 #endif

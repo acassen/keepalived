@@ -31,7 +31,9 @@
 #define	RT_RLIMIT_DEFAULT	10000
 #endif
 
-extern void set_process_priorities(int, unsigned,
+extern unsigned min_auto_priority_delay;
+
+extern void set_process_priorities(int, unsigned, unsigned,
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 			           int,
 #endif

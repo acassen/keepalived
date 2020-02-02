@@ -617,7 +617,7 @@ start_vrrp(data_t *prev_global_data)
 		thread_add_event(master, vrrp_dispatcher_init, NULL, 0);
 
 	/* Set the process priority and non swappable if configured */
-	set_process_priorities(global_data->vrrp_realtime_priority, global_data->max_auto_priority,
+	set_process_priorities(global_data->vrrp_realtime_priority, global_data->max_auto_priority, global_data->min_auto_priority_delay,
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 			       global_data->vrrp_rlimit_rt,
 #endif

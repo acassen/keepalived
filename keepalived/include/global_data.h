@@ -174,6 +174,7 @@ typedef struct _data {
 	bool				vrrp_strict;
 	bool				have_vrrp_config;
 	unsigned			max_auto_priority;
+	unsigned			min_auto_priority_delay;
 	char				vrrp_process_priority;
 	bool				vrrp_no_swap;
 	unsigned			vrrp_realtime_priority;

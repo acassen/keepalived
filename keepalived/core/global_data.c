@@ -166,6 +166,7 @@ alloc_global_data(void)
 #endif
 	new->notify_fifo.fd = -1;
 	new->max_auto_priority = sched_get_priority_max(SCHED_RR);
+	new->min_auto_priority_delay = 1000000;	/* 1 second */
 #ifdef _WITH_VRRP_
 	new->vrrp_notify_fifo.fd = -1;
 #if HAVE_DECL_RLIMIT_RTTIME == 1
@@ -580,6 +581,7 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " VRRP skip check advert addresses = %s", data->vrrp_skip_check_adv_addr ? "true" : "false");
 	conf_write(fp, " VRRP strict mode = %s", data->vrrp_strict ? "true" : "false");
 	conf_write(fp, " Max auto priority = %u", data->max_auto_priority);
+	conf_write(fp, " Min auto priority delay = %u usecs", data->min_auto_priority_delay);
 	conf_write(fp, " VRRP process priority = %d", data->vrrp_process_priority);
 	conf_write(fp, " VRRP don't swap = %s", data->vrrp_no_swap ? "true" : "false");
 	conf_write(fp, " VRRP realtime priority = %u", data->vrrp_realtime_priority);

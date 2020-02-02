@@ -40,6 +40,7 @@
 
 static unsigned cur_rt_priority;
 static unsigned max_rt_priority;
+unsigned min_auto_priority_delay;
 
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 static unsigned cur_rlimit_rttime;
@@ -110,7 +111,7 @@ reset_process_priority(void)
    variable length buffer" warning */
 RELAX_STACK_PROTECTOR_START
 void
-set_process_priorities(int realtime_priority, unsigned max_realtime_priority,
+set_process_priorities(int realtime_priority, unsigned max_realtime_priority, unsigned min_delay,
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 		       int rlimit_rt,
 #endif
@@ -154,6 +155,9 @@ set_process_priorities(int realtime_priority, unsigned max_realtime_priority,
 		default_rlimit_rttime = rlimit_rt;
 #endif
 	}
+
+	if (min_delay)
+		min_auto_priority_delay = min_delay;
 
 // TODO - measure max stack usage
 	if (no_swap_stack_size)
@@ -219,7 +223,7 @@ increment_process_priority(void)
 	} else
 		cur_rt_priority = sched_get_priority_min(SCHED_RR);
 
-	set_process_priorities(cur_rt_priority, UINT_MAX,
+	set_process_priorities(cur_rt_priority, UINT_MAX, 0,
 #if HAVE_DECL_RLIMIT_RTTIME
 			       cur_rlimit_rttime ? 0 : default_rlimit_rttime,
 #endif

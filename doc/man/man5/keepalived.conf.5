@@ -385,6 +385,11 @@ and
     # (0 disables automatic priority increases)
     \fBmax_auto_priority\fR<0 to 99>	# 99 is really sched_get_priority_max(SCHED_RR)
 
+    # Minimum delay in microseconds after timer expires before keeplalived is
+    # scheduled after which the process priority will be auto incremented
+    # (default is 1000000 usecs (1 second), maximum is 10000000 (10 seconds))
+    \fBmin_auto_priority_delay\fR <delay in usecs>
+
     # Set the vrrp child process priority (Negative values increase priority)
     \fBvrrp_priority \fR<-20 to 19>
 
