@@ -99,7 +99,7 @@
 #if defined _NETWORK_TIMESTAMP_ || defined _CHECKSUM_DEBUG_
 #include "vrrp.h"
 #endif
-#ifdef _TSM_DEBUG_
+#if defined _TSM_DEBUG_ || defined _SCRIPT_DEBUG_
 #include "vrrp_scheduler.h"
 #endif
 #if defined _PARSER_DEBUG_ || defined _DUMP_KEYWORDS_
@@ -205,7 +205,8 @@ static const char *dump_file = "/tmp/keepalived_parent.data";
     defined _DUMP_KEYWORDS_ || \
     defined _CHECKER_DEBUG_ || \
     defined _MEM_ERR_DEBUG_ || \
-    defined _EINTR_DEBUG_
+    defined _EINTR_DEBUG_ || \
+    defined _SCRIPT_DEBUG_
 #define WITH_DEBUG_OPTIONS 1
 #endif
 
@@ -260,6 +261,9 @@ static char mem_err_debug;
 #endif
 #ifdef _EINTR_DEBUG_
 static char eintr_debug;
+#endif
+#ifdef _SCRIPT_DEBUG_
+static char script_debug;
 #endif
 #ifdef _DUMP_KEYWORDS_
 static char dump_keywords;
@@ -1165,6 +1169,9 @@ initialise_debug_options(void)
 #ifdef _EINTR_DEBUG_
 	do_eintr_debug = !!(eintr_debug & mask);
 #endif
+#ifdef _SCRIPT_DEBUG_
+	do_script_debug = !!(script_debug & mask);
+#endif
 #ifdef _DUMP_KEYWORDS_
 	do_dump_keywords = !!(dump_keywords & mask);
 #endif
@@ -1248,6 +1255,9 @@ set_debug_options(const char *options)
 #ifdef _EINTR_DEBUG_
 		eintr_debug = all_processes;
 #endif
+#ifdef _SCRIPT_DEBUG_
+		script_debug = all_processes;
+#endif
 #ifdef _DUMP_KEYWORDS_
 		dump_keywords = all_processes;
 #endif
@@ -1299,7 +1309,7 @@ set_debug_options(const char *options)
 		}
 #endif
 
-		/* Letters used - ABCDEFIHKMNOPRSTUXZ */
+		/* Letters used - ABCDEFIHKMNOPRSTUVXZ */
 		switch (opt) {
 #ifdef _TIMER_CHECK_
 		case 'T':
@@ -1387,6 +1397,11 @@ set_debug_options(const char *options)
 #ifdef _EINTR_DEBUG_
 		case 'I':
 			eintr_debug = processes;
+			break;
+#endif
+#ifdef _SCRIPT_DEBUG_
+		case 'V':
+			script_debug = processes;
 			break;
 #endif
 #ifdef _DUMP_KEYWORDS_
@@ -1484,7 +1499,7 @@ usage(const char *prog)
 	fprintf(stderr, "                                   M - email alert debug\n");
 #endif
 #ifdef _SMTP_CONNECT_DEBUG_
-	fprintf(stderr, "                                   H - smtp connect debug\n");
+	fprintf(stderr, "                                   B - smtp connect debug\n");
 #endif
 #ifdef _EPOLL_DEBUG_
 	fprintf(stderr, "                                   E - epoll debug\n");
@@ -1528,6 +1543,9 @@ usage(const char *prog)
 #endif
 #ifdef _EINTR_DEBUG_
 	fprintf(stderr, "                                   I - EINTR debugging\n");
+#endif
+#ifdef _SCRIPT_DEBUG_
+	fprintf(stderr, "                                   V - script debugging\n");
 #endif
 #ifdef _DUMP_KEYWORDS_
 	fprintf(stderr, "                                   K - dump keywords\n");

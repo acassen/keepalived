@@ -221,7 +221,7 @@ read_unsigned_func(const char *number, int base, unsigned *res, unsigned min_val
 	else if (errno == ERANGE || val > UINT_MAX)
 		report_config_error(CONFIG_INVALID_NUMBER, "%snumber '%s' outside unsigned integer range", warn, number);
 	else if (val < min_val || val > max_val)
-		report_config_error(CONFIG_INVALID_NUMBER, "number '%s' outside range [%u, %u]", number, min_val, max_val);
+		report_config_error(CONFIG_INVALID_NUMBER, "%snumber '%s' outside range [%u, %u]", warn, number, min_val, max_val);
 	else
 		return true;
 

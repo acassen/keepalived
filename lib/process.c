@@ -38,15 +38,19 @@
 #include "warnings.h"
 #include "bitops.h"
 
-static bool realtime_priority_set;
+static unsigned cur_rt_priority;
+static unsigned max_rt_priority;
+unsigned min_auto_priority_delay;
 
 #if HAVE_DECL_RLIMIT_RTTIME == 1
-static bool rlimit_rt_set;
+static unsigned cur_rlimit_rttime;
+static unsigned default_rlimit_rttime;
 static struct rlimit orig_rlimit_rt;
 #endif
 
-static bool priority_set;
+static int cur_priority;
 static int orig_priority;
+static bool orig_priority_set;
 static bool process_locked_in_memory;
 
 static struct rlimit orig_fd_limit;
@@ -77,7 +81,10 @@ set_process_dont_swap(size_t stack_reserve)
 static void
 set_process_priority(int priority)
 {
-	orig_priority = getpriority(PRIO_PROCESS, 0);
+	if (!orig_priority_set) {
+		orig_priority = getpriority(PRIO_PROCESS, 0);
+		orig_priority_set = true;
+	}
 
 	errno = 0;
 	if (setpriority(PRIO_PROCESS, 0, priority) == -1 && errno) {
@@ -85,7 +92,7 @@ set_process_priority(int priority)
 		return;
 	}
 
-	priority_set = true;
+	cur_priority = priority;
 }
 
 static void
@@ -97,19 +104,22 @@ reset_process_priority(void)
 		return;
 	}
 
-	priority_set = false;
+	cur_priority = 0;
 }
 
 /* NOTE: This function generates a "stack protector not protecting local variables:
    variable length buffer" warning */
 RELAX_STACK_PROTECTOR_START
 void
-set_process_priorities(int realtime_priority,
+set_process_priorities(int realtime_priority, unsigned max_realtime_priority, unsigned min_delay,
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 		       int rlimit_rt,
 #endif
 		       int process_priority, int no_swap_stack_size)
 {
+	if (max_realtime_priority != UINT_MAX)
+		max_rt_priority = max_realtime_priority;
+
 	if (realtime_priority) {
 		/* Set realtime priority */
 		struct sched_param sp = {
@@ -118,29 +128,123 @@ set_process_priorities(int realtime_priority,
 
 		if (sched_setscheduler(getpid(), SCHED_RR | SCHED_RESET_ON_FORK, &sp))
 			log_message(LOG_WARNING, "child process: cannot raise priority");
+		else {
+			cur_rt_priority = realtime_priority;
 #if HAVE_DECL_RLIMIT_RTTIME == 1
-		else if (rlimit_rt)
-		{
-			struct rlimit rlim;
+			if (rlimit_rt)
+			{
+				struct rlimit rlim;
 
-			set_sigxcpu_handler();
+				set_sigxcpu_handler();
 
-			rlim.rlim_cur = rlimit_rt / 2;	/* Get warnings if approaching limit */
-			rlim.rlim_max = rlimit_rt;
-			if (setrlimit(RLIMIT_RTTIME, &rlim))
-				log_message(LOG_WARNING, "child process cannot set realtime rlimit");
+				rlim.rlim_cur = rlimit_rt / 2;	/* Get warnings if approaching limit */
+				rlim.rlim_max = rlimit_rt;
+				if (setrlimit(RLIMIT_RTTIME, &rlim))
+					log_message(LOG_WARNING, "child process cannot set realtime rlimit");
+				else
+					cur_rlimit_rttime = rlimit_rt;
+			}
+#endif
 		}
+	}
+	else {
+		if (process_priority)
+			set_process_priority(process_priority);
+
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+		default_rlimit_rttime = rlimit_rt;
 #endif
 	}
-	else
-	     if (process_priority)
-		set_process_priority(process_priority);
+
+	if (min_delay)
+		min_auto_priority_delay = min_delay;
 
 // TODO - measure max stack usage
 	if (no_swap_stack_size)
 		set_process_dont_swap(no_swap_stack_size);
 }
 RELAX_STACK_PROTECTOR_END
+
+void
+reset_process_priorities(void)
+{
+	if (cur_rt_priority) {
+		/* Set realtime priority */
+		struct sched_param sp = {
+			.sched_priority = 0
+		};
+
+		if (sched_setscheduler(getpid(), SCHED_OTHER, &sp))
+			log_message(LOG_WARNING, "child process: cannot reset realtime scheduling");
+		else {
+			cur_rt_priority = 0;
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+			if (cur_rlimit_rttime)
+			{
+				if (setrlimit(RLIMIT_RTTIME, &orig_rlimit_rt))
+					log_message(LOG_WARNING, "child process cannot reset realtime rlimit");
+				else
+					cur_rlimit_rttime = 0;
+
+			}
+#endif
+		}
+	}
+
+	if (cur_priority != orig_priority)
+		reset_process_priority();
+
+	if (process_locked_in_memory) {
+		munlockall();
+		process_locked_in_memory = false;
+	}
+
+	if (rlimit_nofile_set) {
+		setrlimit(RLIMIT_NOFILE, &orig_fd_limit);
+		rlimit_nofile_set = false;
+	}
+	if (rlimit_core_set) {
+		setrlimit(RLIMIT_CORE, &core);
+		rlimit_core_set = false;
+	}
+}
+
+void
+increment_process_priority(void)
+{
+	if (!max_rt_priority)
+		return;
+
+	if (cur_rt_priority) {
+		if (cur_rt_priority >= max_rt_priority)
+			return;
+
+		cur_rt_priority++;
+	} else
+		cur_rt_priority = sched_get_priority_min(SCHED_RR);
+
+	set_process_priorities(cur_rt_priority, UINT_MAX, 0,
+#if HAVE_DECL_RLIMIT_RTTIME
+			       cur_rlimit_rttime ? 0 : default_rlimit_rttime,
+#endif
+			       0, 0);
+
+	log_message(LOG_INFO, "Set realtime priority %u", cur_rt_priority);
+}
+
+unsigned __attribute__((pure))
+get_cur_priority(void)
+{
+	return cur_rt_priority;
+}
+
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+unsigned __attribute__((pure))
+get_cur_rlimit_rttime(void)
+{
+	return cur_rlimit_rttime;
+}
+#endif
 
 int
 set_process_cpu_affinity(cpu_set_t *set, const char *process)
@@ -185,50 +289,6 @@ get_process_cpu_affinity_string(cpu_set_t *set, char *buffer, size_t size)
 
 	*cp = '\0';
 	return 0;
-}
-
-void
-reset_process_priorities(void)
-{
-	if (realtime_priority_set) {
-		/* Set realtime priority */
-		struct sched_param sp = {
-			.sched_priority = 0
-		};
-
-		if (sched_setscheduler(getpid(), SCHED_OTHER, &sp))
-			log_message(LOG_WARNING, "child process: cannot reset realtime scheduling");
-		else {
-			realtime_priority_set = false;
-#if HAVE_DECL_RLIMIT_RTTIME == 1
-			if (rlimit_rt_set)
-			{
-				if (setrlimit(RLIMIT_RTTIME, &orig_rlimit_rt))
-					log_message(LOG_WARNING, "child process cannot reset realtime rlimit");
-				else
-					rlimit_rt_set = false;
-
-			}
-#endif
-		}
-	}
-
-	if (priority_set)
-		reset_process_priority();
-
-	if (process_locked_in_memory) {
-		munlockall();
-		process_locked_in_memory = false;
-	}
-
-	if (rlimit_nofile_set) {
-		setrlimit(RLIMIT_NOFILE, &orig_fd_limit);
-		rlimit_nofile_set = false;
-	}
-	if (rlimit_core_set) {
-		setrlimit(RLIMIT_CORE, &core);
-		rlimit_core_set = false;
-	}
 }
 
 void

@@ -42,6 +42,7 @@
 #endif
 #include <sys/utsname.h>
 #include <linux/version.h>
+#include <sched.h>
 
 #include "scheduler.h"
 #include "memory.h"
@@ -58,6 +59,7 @@
 #include "assert_debug.h"
 #include "warnings.h"
 #include "utils.h"
+#include "process.h"
 
 
 #ifdef THREAD_DUMP
@@ -92,6 +94,9 @@ static rb_root_t funcs = RB_ROOT;
 #endif
 #ifdef _VRRP_FD_DEBUG_
 static void (*extra_threads_debug)(void);
+#endif
+#ifdef _SCRIPT_DEBUG_
+bool do_script_debug;
 #endif
 
 
@@ -259,25 +264,25 @@ thread_update_timer(rb_root_cached_t *root, timeval_t *timer_min)
 }
 
 /* Compute the wait timer. Take care of timeouted fd */
-static void
+static timeval_t
 thread_set_timer(thread_master_t *m)
 {
-	timeval_t timer_wait;
+	timeval_t timer_wait, timer_wait_time;
 	struct itimerspec its;
 
 	/* Prepare timer */
-	timerclear(&timer_wait);
-	thread_update_timer(&m->timer, &timer_wait);
-	thread_update_timer(&m->write, &timer_wait);
-	thread_update_timer(&m->read, &timer_wait);
-	thread_update_timer(&m->child, &timer_wait);
+	timerclear(&timer_wait_time);
+	thread_update_timer(&m->timer, &timer_wait_time);
+	thread_update_timer(&m->write, &timer_wait_time);
+	thread_update_timer(&m->read, &timer_wait_time);
+	thread_update_timer(&m->child, &timer_wait_time);
 
-	if (timerisset(&timer_wait)) {
+	if (timerisset(&timer_wait_time)) {
 		/* Re-read the current time to get the maximum accuracy */
 		set_time_now();
 
 		/* Take care about monotonic clock */
-		timersub(&timer_wait, &time_now, &timer_wait);
+		timersub(&timer_wait_time, &time_now, &timer_wait);
 
 		if (timer_wait.tv_sec < 0) {
 			/* This will disable the timerfd */
@@ -309,6 +314,8 @@ thread_set_timer(thread_master_t *m)
 	if (do_epoll_debug)
 		log_message(LOG_INFO, "Setting timer_fd %ld.%9.9ld", its.it_value.tv_sec, its.it_value.tv_nsec);
 #endif
+
+	return timer_wait_time;
 }
 
 static int
@@ -490,7 +497,7 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 //				segv_termination = true;
 		}
 		else
-			log_message(LOG_INFO, "%s exited due to signal %d", prog_id, WTERMSIG(status));
+			log_message(LOG_INFO, "%s exited due to signal %d (%s)", prog_id, WTERMSIG(status), strsignal(WTERMSIG(status)));
 	}
 
 	return false;
@@ -751,7 +758,7 @@ thread_rb_dump(const rb_root_cached_t *root, const char *tree, FILE *fp)
 	conf_write(fp, "----[ Begin rb_dump %s ]----", tree);
 
 	rb_for_each_entry_cached(thread, root, n)
-		conf_write(fp, "#%.2d Thread type %s, event_fd %d, val/fd/pid %d, fd_close %d, timer: %s, func %s(), id %lu", i++, get_thread_type_str(thread->type), thread->event ? thread->event->fd: -2, thread->u.val, thread->u.f.close_on_reload, timer_delay(thread->sands), get_function_name(thread->func), thread->id);
+		conf_write(fp, "#%.2d Thread:%p type %s, event_fd %d, val/fd/pid %d, fd_close %d, timer: %s, func %s(), id %lu", i++, thread, get_thread_type_str(thread->type), thread->event ? thread->event->fd: -2, thread->u.val, thread->u.f.close_on_reload, timer_delay(thread->sands), get_function_name(thread->func), thread->id);
 
 	conf_write(fp, "----[ End rb_dump ]----");
 }
@@ -765,8 +772,8 @@ thread_list_dump(const list_head_t *l, const char *list_type, FILE *fp)
 	conf_write(fp, "----[ Begin list_dump %s ]----", list_type);
 
 	list_for_each_entry(thread, l, next)
-		conf_write(fp, "#%.2d Thread:%p type %s func %s() id %lu",
-				i++, thread, get_thread_type_str(thread->type), get_function_name(thread->func), thread->id);
+		conf_write(fp, "#%.2d Thread:%p type %s val/fd/pid %d, fd_close %d, timer: %s, func %s() id %lu",
+				i++, thread, get_thread_type_str(thread->type), thread->u.val, thread->u.f.close_on_reload, timer_delay(thread->sands), get_function_name(thread->func), thread->id);
 
 	conf_write(fp, "----[ End list_dump ]----");
 }
@@ -1634,6 +1641,7 @@ thread_fetch_next_queue(thread_master_t *m)
 	int last_epoll_errno = 0;
 	int ret;
 	int i;
+	timeval_t earliest_timer;
 
 	assert(m != NULL);
 
@@ -1652,7 +1660,7 @@ thread_fetch_next_queue(thread_master_t *m)
 #endif
 
 		/* Calculate and set wait timer. Take care of timeouted fd.  */
-		thread_set_timer(m);
+		earliest_timer = thread_set_timer(m);
 
 #ifdef _VRRP_FD_DEBUG_
 		if (extra_threads_debug)
@@ -1694,7 +1702,7 @@ thread_fetch_next_queue(thread_master_t *m)
 				last_epoll_errno = errno;
 
 				/* Log the error first time only */
-				log_message(LOG_INFO, "scheduler: epoll_wait error: %s", strerror(errno));
+				log_message(LOG_INFO, "scheduler: epoll_wait error: %d (%s)", errno, strerror(errno));
 			}
 
 			/* Make sure we don't sit it a tight loop */
@@ -1702,6 +1710,36 @@ thread_fetch_next_queue(thread_master_t *m)
 				sleep(1);
 
 			continue;
+		}
+
+		/* Check to see if we are long overdue. This can happen on a very heavily loaded system */
+		if (timerisset(&earliest_timer)) {
+			/* Re-read the current time to get the maximum accuracy */
+			set_time_now();
+
+			/* Take care about monotonic clock */
+			timersub(&earliest_timer, &time_now, &earliest_timer);
+
+			/* If it is over min_auto_increment_delay usecs after the timer should have expired,
+			 * we are not running soon enough. */
+			if (earliest_timer.tv_sec < 0) {
+				if (earliest_timer.tv_sec * -1000000 - earliest_timer.tv_usec > min_auto_priority_delay) {
+					if (earliest_timer.tv_usec) {
+						earliest_timer.tv_sec++;
+						earliest_timer.tv_usec = 1000000 - earliest_timer.tv_usec;
+					}
+					log_message(LOG_INFO, "A thread timer expired %ld.%6.6ld seconds ago", -earliest_timer.tv_sec, earliest_timer.tv_usec);
+
+					/* Set realtime scheduling if not already using it, or if already in use,
+					 * increase the priority. */
+					increment_process_priority();
+
+#ifdef _EPOLL_THREAD_DUMP_
+					if (do_epoll_thread_dump)
+						dump_thread_data(m, NULL);
+#endif
+				}
+			}
 		}
 
 		/* Handle epoll events */
@@ -1914,6 +1952,12 @@ thread_child_handler(__attribute__((unused)) void *v, __attribute__((unused)) in
 
 			return;
 		}
+
+#ifdef _SCRIPT_DEBUG_
+		if (do_script_debug)
+			log_message(LOG_INFO, "waitpid for %d returned 0x%x", pid, (unsigned)status);
+#endif
+
 		process_child_termination(pid, status);
 	}
 }

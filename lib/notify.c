@@ -412,6 +412,10 @@ system_call_script(thread_master_t *m, int (*func) (thread_ref_t), void * arg, u
 	if (pid) {
 		/* parent process */
 		thread_add_child(m, func, arg, pid, timer);
+#ifdef _SCRIPT_DEBUG_
+		if (do_script_debug)
+			log_message(LOG_INFO, "Running script with pid %d, timer %lu.%6.6lu", pid, timer / TIMER_HZ, timer % TIMER_HZ);
+#endif
 		return 0;
 	}
 

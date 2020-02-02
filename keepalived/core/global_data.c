@@ -24,6 +24,7 @@
 
 #include <unistd.h>
 #include <pwd.h>
+#include <sched.h>
 
 #include "global_data.h"
 #include "list.h"
@@ -164,6 +165,8 @@ alloc_global_data(void)
 	set_vrrp_defaults(new);
 #endif
 	new->notify_fifo.fd = -1;
+	new->max_auto_priority = sched_get_priority_max(SCHED_RR);
+	new->min_auto_priority_delay = 1000000;	/* 1 second */
 #ifdef _WITH_VRRP_
 	new->vrrp_notify_fifo.fd = -1;
 #if HAVE_DECL_RLIMIT_RTTIME == 1
@@ -380,6 +383,7 @@ dump_global_data(FILE *fp, data_t * data)
 	char date_time_str[20];
 	struct tm tm;
 #endif
+	unsigned val;
 
 	if (!data)
 		return;
@@ -576,6 +580,8 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " VRRP check unicast_src = %s", data->vrrp_check_unicast_src ? "true" : "false");
 	conf_write(fp, " VRRP skip check advert addresses = %s", data->vrrp_skip_check_adv_addr ? "true" : "false");
 	conf_write(fp, " VRRP strict mode = %s", data->vrrp_strict ? "true" : "false");
+	conf_write(fp, " Max auto priority = %u", data->max_auto_priority);
+	conf_write(fp, " Min auto priority delay = %u usecs", data->min_auto_priority_delay);
 	conf_write(fp, " VRRP process priority = %d", data->vrrp_process_priority);
 	conf_write(fp, " VRRP don't swap = %s", data->vrrp_no_swap ? "true" : "false");
 	conf_write(fp, " VRRP realtime priority = %u", data->vrrp_realtime_priority);
@@ -667,5 +673,11 @@ dump_global_data(FILE *fp, data_t * data)
 		conf_write(fp, " vrrp_startup_delay = %g", global_data->vrrp_startup_delay / TIMER_HZ_DOUBLE);
 	if (global_data->log_unknown_vrids)
 		conf_write(fp, " log_unknown_vrids");
+#endif
+	if ((val = get_cur_priority()))
+		conf_write(fp, " current realtime priority = %u", val);
+#if HAVE_DECL_RLIMIT_RTTIME
+	if ((val = get_cur_rlimit_rttime()))
+		conf_write(fp, " current realtime time limit = %u", val);
 #endif
 }
