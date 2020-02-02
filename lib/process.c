@@ -110,12 +110,15 @@ reset_process_priority(void)
    variable length buffer" warning */
 RELAX_STACK_PROTECTOR_START
 void
-set_process_priorities(int realtime_priority,
+set_process_priorities(int realtime_priority, unsigned max_realtime_priority,
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 		       int rlimit_rt,
 #endif
 		       int process_priority, int no_swap_stack_size)
 {
+	if (max_realtime_priority != UINT_MAX)
+		max_rt_priority = max_realtime_priority;
+
 	if (realtime_priority) {
 		/* Set realtime priority */
 		struct sched_param sp = {
@@ -126,8 +129,6 @@ set_process_priorities(int realtime_priority,
 			log_message(LOG_WARNING, "child process: cannot raise priority");
 		else {
 			cur_rt_priority = realtime_priority;
-			if (!max_rt_priority)
-				max_rt_priority = sched_get_priority_max(SCHED_RR);
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 			if (rlimit_rt)
 			{
@@ -207,17 +208,18 @@ reset_process_priorities(void)
 void
 increment_process_priority(void)
 {
+	if (!max_rt_priority)
+		return;
+
 	if (cur_rt_priority) {
 		if (cur_rt_priority >= max_rt_priority)
 			return;
 
 		cur_rt_priority++;
-	} else {
+	} else
 		cur_rt_priority = sched_get_priority_min(SCHED_RR);
-		max_rt_priority = sched_get_priority_max(SCHED_RR);
-	}
 
-	set_process_priorities(cur_rt_priority,
+	set_process_priorities(cur_rt_priority, UINT_MAX,
 #if HAVE_DECL_RLIMIT_RTTIME
 			       cur_rlimit_rttime ? 0 : default_rlimit_rttime,
 #endif

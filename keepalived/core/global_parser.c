@@ -263,6 +263,23 @@ smtp_alert_handler(const vector_t *strvec)
 
 	global_data->smtp_alert = res;
 }
+static void
+max_auto_priority_handler(const vector_t *strvec)
+{
+	unsigned priority;
+	unsigned max_priority;
+
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "max_auto_priority requires priority");
+		return;
+	}
+	if (!read_unsigned_strvec(strvec, 1, &priority, 0, max_priority = sched_get_priority_max(SCHED_RR), true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "max_auto_priority '%s' must be in [0, %u] - ignoring", strvec_slot(strvec, 1), max_priority);
+		return;
+	}
+
+	global_data->max_auto_priority = priority;
+}
 #ifdef _WITH_VRRP_
 static void
 smtp_alert_vrrp_handler(const vector_t *strvec)
@@ -1837,6 +1854,7 @@ init_global_keywords(bool global_active)
 	install_keyword("smtp_connect_timeout", &smtpto_handler);
 	install_keyword("notification_email", &email_handler);
 	install_keyword("smtp_alert", &smtp_alert_handler);
+	install_keyword("max_auto_priority", &max_auto_priority_handler);
 #ifdef _WITH_VRRP_
 	install_keyword("smtp_alert_vrrp", &smtp_alert_vrrp_handler);
 #endif

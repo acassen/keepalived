@@ -24,6 +24,7 @@
 
 #include <unistd.h>
 #include <pwd.h>
+#include <sched.h>
 
 #include "global_data.h"
 #include "list.h"
@@ -164,6 +165,7 @@ alloc_global_data(void)
 	set_vrrp_defaults(new);
 #endif
 	new->notify_fifo.fd = -1;
+	new->max_auto_priority = sched_get_priority_max(SCHED_RR);
 #ifdef _WITH_VRRP_
 	new->vrrp_notify_fifo.fd = -1;
 #if HAVE_DECL_RLIMIT_RTTIME == 1
@@ -577,6 +579,7 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " VRRP check unicast_src = %s", data->vrrp_check_unicast_src ? "true" : "false");
 	conf_write(fp, " VRRP skip check advert addresses = %s", data->vrrp_skip_check_adv_addr ? "true" : "false");
 	conf_write(fp, " VRRP strict mode = %s", data->vrrp_strict ? "true" : "false");
+	conf_write(fp, " Max auto priority = %u", data->max_auto_priority);
 	conf_write(fp, " VRRP process priority = %d", data->vrrp_process_priority);
 	conf_write(fp, " VRRP don't swap = %s", data->vrrp_no_swap ? "true" : "false");
 	conf_write(fp, " VRRP realtime priority = %u", data->vrrp_realtime_priority);

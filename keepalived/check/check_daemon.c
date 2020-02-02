@@ -375,7 +375,7 @@ start_check(list old_checkers_queue, data_t *prev_global_data)
 	register_checkers_thread();
 
 	/* Set the process priority and non swappable if configured */
-	set_process_priorities(global_data->checker_realtime_priority,
+	set_process_priorities(global_data->checker_realtime_priority, global_data->max_auto_priority,
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 			       global_data->checker_rlimit_rt,
 #endif

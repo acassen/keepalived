@@ -179,7 +179,7 @@ start_bfd(__attribute__((unused)) data_t *prev_global_data)
 	/* Set the process priority and non swappable if configured */
 // TODO - measure max stack usage
 	set_process_priorities(
-			global_data->bfd_realtime_priority,
+			global_data->bfd_realtime_priority, global_data->max_auto_priority,
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 			global_data->bfd_rlimit_rt,
 #endif

@@ -369,9 +369,22 @@ and
 
     # The following options can be used if vrrp, checker or bfd  processes
     # are timing out. This can be seen by a backup vrrp instance becoming
-    # master even when the master is still running because the master or
+    # master even when the master is still running, because the master or
     # backup system is too busy to process vrrp packets.
     # --
+    # By default, if keepalived detects that it is not running sufficiently
+    # quickly after a timer should expire, it will increase it's priority,
+    # first of all switching to realtime scheduling, and if that is not
+    # sufficient, it will then increase it's realtime priority by one each
+    # time it detects a further delay in running. If the event that realtime
+    # scheduling is enabled, RLIMIT_RTTIME will be set, using the values for
+    # {bfd,checker,vrrp}_rlimit_rttime (see below). These values may need
+    # to be increased for slower processors.
+    # --
+    # To limit the maximum increased automatic priority, specify the following
+    # (0 disables automatic priority increases)
+    \fBmax_auto_priority\fR<0 to 99>	# 99 is really sched_get_priority_max(SCHED_RR)
+
     # Set the vrrp child process priority (Negative values increase priority)
     \fBvrrp_priority \fR<-20 to 19>
 
