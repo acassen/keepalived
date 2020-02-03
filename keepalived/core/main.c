@@ -2263,6 +2263,9 @@ keepalived_main(int argc, char **argv)
 	if (!pidfile_write(main_pidfile, getpid()))
 		goto end;
 
+	if (!global_data->max_auto_priority)
+		log_message(LOG_INFO, "NOTICE: setting config option max_auto_priority should result in better keepalived performance");
+
 	/* Create the master thread */
 	master = thread_make_master();
 

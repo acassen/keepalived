@@ -134,7 +134,7 @@ typedef struct _data {
 	bool				lvs_flush;		/* flush any residual LVS config at startup */
 	lvs_flush_t			lvs_flush_onstop;	/* flush any LVS config at shutdown */
 #endif
-	unsigned			max_auto_priority;
+	int				max_auto_priority;
 	unsigned			min_auto_priority_delay;
 #ifdef _WITH_VRRP_
 	struct sockaddr_in		vrrp_mcast_group4;

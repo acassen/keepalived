@@ -266,15 +266,16 @@ smtp_alert_handler(const vector_t *strvec)
 static void
 max_auto_priority_handler(const vector_t *strvec)
 {
-	unsigned priority;
-	unsigned max_priority;
+	int priority;
+	int max_priority = sched_get_priority_max(SCHED_RR);
 
 	if (vector_size(strvec) < 2) {
-		report_config_error(CONFIG_GENERAL_ERROR, "max_auto_priority requires priority");
+		global_data->max_auto_priority = max_priority;
 		return;
 	}
-	if (!read_unsigned_strvec(strvec, 1, &priority, 0, max_priority = sched_get_priority_max(SCHED_RR), true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "max_auto_priority '%s' must be in [0, %u] - ignoring", strvec_slot(strvec, 1), max_priority);
+
+	if (!read_int_strvec(strvec, 1, &priority, -1, max_priority, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "max_auto_priority '%s' must be in [0, %d] (or -1 to disable) - ignoring", strvec_slot(strvec, 1), max_priority);
 		return;
 	}
 
