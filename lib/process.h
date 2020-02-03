@@ -33,7 +33,7 @@
 
 extern unsigned min_auto_priority_delay;
 
-extern void set_process_priorities(int, unsigned, unsigned,
+extern void set_process_priorities(int, int, unsigned,
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 			           int,
 #endif

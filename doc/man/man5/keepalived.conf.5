@@ -372,18 +372,19 @@ and
     # master even when the master is still running, because the master or
     # backup system is too busy to process vrrp packets.
     # --
-    # By default, if keepalived detects that it is not running sufficiently
-    # quickly after a timer should expire, it will increase it's priority,
-    # first of all switching to realtime scheduling, and if that is not
-    # sufficient, it will then increase it's realtime priority by one each
+    # keepalived can, if it detects that it is not running sufficiently
+    # soon after a timer should expire, increase its priority, first
+    # of all switching to realtime scheduling, and if that is not
+    # sufficient, it will then increase its realtime priority by one each
     # time it detects a further delay in running. If the event that realtime
     # scheduling is enabled, RLIMIT_RTTIME will be set, using the values for
     # {bfd,checker,vrrp}_rlimit_rttime (see below). These values may need
     # to be increased for slower processors.
     # --
     # To limit the maximum increased automatic priority, specify the following
-    # (0 disables automatic priority increases)
-    \fBmax_auto_priority\fR<0 to 99>	# 99 is really sched_get_priority_max(SCHED_RR)
+    # (0 doesn't use automatic priority increases, and is the default. -1 disables
+    # the warning message at startup). Omitting the priority sets the maximum value.
+    \fBmax_auto_priority\fR [<-1 to 99>]  # 99 is really sched_get_priority_max(SCHED_RR)
 
     # Minimum delay in microseconds after timer expires before keeplalived is
     # scheduled after which the process priority will be auto incremented

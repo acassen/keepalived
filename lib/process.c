@@ -111,13 +111,13 @@ reset_process_priority(void)
    variable length buffer" warning */
 RELAX_STACK_PROTECTOR_START
 void
-set_process_priorities(int realtime_priority, unsigned max_realtime_priority, unsigned min_delay,
+set_process_priorities(int realtime_priority, int max_realtime_priority, unsigned min_delay,
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 		       int rlimit_rt,
 #endif
 		       int process_priority, int no_swap_stack_size)
 {
-	if (max_realtime_priority != UINT_MAX)
+	if (max_realtime_priority != -1)
 		max_rt_priority = max_realtime_priority;
 
 	if (realtime_priority) {
@@ -223,7 +223,7 @@ increment_process_priority(void)
 	} else
 		cur_rt_priority = sched_get_priority_min(SCHED_RR);
 
-	set_process_priorities(cur_rt_priority, UINT_MAX, 0,
+	set_process_priorities(cur_rt_priority, -1, 0,
 #if HAVE_DECL_RLIMIT_RTTIME
 			       cur_rlimit_rttime ? 0 : default_rlimit_rttime,
 #endif
