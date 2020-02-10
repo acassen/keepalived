@@ -1122,7 +1122,7 @@ vrrp_script_child_thread(thread_ref_t thread)
 					 * have reaped its exit status, otherwise it
 					 * would exist as a zombie process. */
 					log_message(LOG_INFO, "Script %s child (PID %d) lost", vscript->sname, THREAD_CHILD_PID(thread));
-#ifdef _SCRIPT_DEBUG_
+#if defined _SCRIPT_DEBUG_ && defined THREAD_DUMP
 					if (do_script_debug)
 						dump_thread_data(thread->master, NULL);
 #endif
