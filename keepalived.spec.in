@@ -35,8 +35,8 @@ BuildRequires: autoconf automake pkgconfig
 @IPTABLES_TRUE@Requires: iptables-libs
 @IPTABLES_TRUE@%endif
 @LIBIPSET_TRUE@Requires: ipset-libs
-@LIBNL1_TRUE@Require: libnl
-@LIBNL3_TRUE@Require: libnl3
+@LIBNL1_TRUE@Requires: libnl
+@LIBNL3_TRUE@Requires: libnl3
 
 %description
 The main goal of the keepalived project is to add a strong & robust keepalive
