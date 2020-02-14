@@ -125,7 +125,7 @@ extern timeval_t set_time_now_r(const char *, const char *, int);
 extern timeval_t timer_now(void);
 extern timeval_t set_time_now(void);
 #endif
-extern timeval_t timer_add_long(timeval_t, unsigned long);
-extern timeval_t timer_sub_long(timeval_t, unsigned long);
+extern timeval_t timer_add_long(timeval_t, unsigned long) __attribute__((const));
+extern timeval_t timer_sub_long(timeval_t, unsigned long) __attribute__((const));
 
 #endif
