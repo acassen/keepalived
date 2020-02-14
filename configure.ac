@@ -1193,11 +1193,24 @@ if test .$enable_lvs != .no -a .${enable_libnl} != .no; then
     AC_CHECK_LIB($NL3_LIB_NAMES, nl_socket_alloc,
       [
 	NETLINK_VER=3
-	NEED_NL3=No
+
+	AC_DEFINE([_HAVE_LIBNL3_], [ 1 ], [Define to 1 if using libnl-3])
+	add_system_opt([LIBNL3])
+	if test .$enable_libnl_dynamic = .yes; then
+	  add_system_opt([LIBNL_DYNAMIC])
+	  add_pkg_config_without_libs([libnl-3.0])
+	  AC_DEFINE([_LIBNL_DYNAMIC_], [ 1 ], [Define to 1 if building with libnl dynamic linking])
+	  NEED_LIBDL=Yes
+	  get_lib_name([$NL3_LIB_NAMES], [nl_socket_alloc])
+	  AC_DEFINE_UNQUOTED([NL3_LIB_NAME], [ "$LIB_NAME" ], [Define the nl-3 library name])
+	else
+	  add_pkg_config([libnl-3.0])
+	fi
 
 	add_pkg_config([libnl-genl-3.0], [GENL], [remove-requires])
 	AC_CHECK_LIB($GENL_LIB_NAMES, genl_connect, [],
-	  [AC_MSG_ERROR([libnl-3 is installed but not libnl-gen-3. Please, install libnl-gen-3/libnl-genl-3.])])
+	  [AC_MSG_ERROR([libnl-3 is installed but not libnl-gen-3. Please, install libnl-gen-3/libnl-genl-3.])],
+	  [$NL3_LIBS])
 	IPVS_USE_NL=Yes
 	if test .$enable_libnl_dynamic = .yes; then
 	  add_pkg_config_without_libs([libnl-genl-3.0])
@@ -1205,22 +1218,6 @@ if test .$enable_lvs != .no -a .${enable_libnl} != .no; then
 	  AC_DEFINE_UNQUOTED([NL3_GENL_LIB_NAME], [ "$LIB_NAME" ], [Define the nl-genl-3.0 library name])
 	else
 	  add_pkg_config([libnl-genl-3.0])
-	fi
-	NEED_NL3=Yes
-
-	if test $NEED_NL3 = Yes; then
-	  AC_DEFINE([_HAVE_LIBNL3_], [ 1 ], [Define to 1 if using libnl-3])
-	  add_system_opt([LIBNL3])
-	  if test .$enable_libnl_dynamic = .yes; then
-	    add_system_opt([LIBNL_DYNAMIC])
-	    add_pkg_config_without_libs([libnl-3.0])
-	    AC_DEFINE([_LIBNL_DYNAMIC_], [ 1 ], [Define to 1 if building with libnl dynamic linking])
-	    NEED_LIBDL=Yes
-	    get_lib_name([$NL3_LIB_NAMES], [nl_socket_alloc])
-	    AC_DEFINE_UNQUOTED([NL3_LIB_NAME], [ "$LIB_NAME" ], [Define the nl-3 library name])
-	  else
-	    add_pkg_config([libnl-3.0])
-	  fi
 	fi
       ], [])
   fi
@@ -1387,29 +1384,58 @@ AS_IF([test .$enable_iptables != .no],
     CPPFLAGS="$SAV_CPPFLAGS"
 
     if test $USE_IPTABLES = Yes; then
-      add_pkg_config([--static libiptc], [IPTC])
-      LIBS="$IPTC_LIBS"
+      PKG_CONFIG_IP4TC=Yes
+      $PKG_CONFIG --exists libip4tc
+      AS_IF([test $? -eq 0],
+	[
+	  add_pkg_config([--static libip4tc], [IP4TC], [remove-requires])
+	  add_pkg_config([--static libip6tc], [IP6TC], [remove-requires])
+	  IPTC_LIBS="$IP4TC_LIBS $IP6TC_LIBS"
+	  IPTC_LIB_NAMES="$IP4TC_LIB_NAMES $IP6TC_LIB_NAMES"
+	],
+	[
+	  PKG_CONFIG_IP4TC=No
+	  add_pkg_config([--static libiptc], [IPTC], [remove-requires])
+	])
+
       SAV_CPPFLAGS="$CPPFLAGS"
       CPPFLAGS="$CPPFLAGS $kernelinc"
-      AC_CHECK_LIB(iptc, iptc_init,
+
+      AC_SEARCH_LIBS(iptc_init, $IPTC_LIB_NAMES,
 	[
 	  if test .${enable_libiptc_dynamic} != .yes; then
-	    add_pkg_config([--static libiptc])
+	    AS_IF([test $PKG_CONFIG_IP4TC = Yes],
+	      [
+	        add_pkg_config([--static libip4tc])
+	        add_pkg_config([--static libip6tc])
+	      ],
+	      [add_pkg_config([--static libiptc])])
+
 	    dnl - Older versions of libiptc produced a requirement for -liptc, but we don't need it
 	    KA_LIBS=`echo $KA_LIBS | sed -e "s/ -liptc//"`
 	    dnl - Even older versions of libiptc don't produce any requirement other than -liptc
 	    IPTC_LIBS=`echo $IPTC_LIBS | sed -e "s/ *-L[[^ ]]*  */ /" -e "s/ *-liptc */ /" -e "s/^  *$//"`
 	    if test ".$IPTC_LIBS" = .; then
-	      KA_LIBS=`echo $KA_LIBS -lip4tc -lip6tc`
+	      KA_LIBS="$KA_LIBS -lip4tc -lip6tc"
 	    fi
 	  else
-	    add_pkg_config_without_libs([libiptc])
+	    AS_IF([test $PKG_CONFIG_IP4TC = Yes],
+	      [
+	        add_pkg_config_without_libs([libip4tc])
+	        add_pkg_config_without_libs([libip6tc])
+	      ],
+	      [
+	        add_pkg_config_without_libs([libiptc])
+	      ])
 	    add_config_opt([LIBIPTC_DYNAMIC])
 	    AC_DEFINE([_LIBIPTC_DYNAMIC_], [ 1 ], [Define to 1 if building with libiptc dynamic linking])
 	    NEED_LIBDL=Yes
-	    get_lib_name([ip4tc], [iptc_init])
+	    AC_SEARCH_LIBS(ip6tc_init, $IPTC_LIB_NAMES)
+	    IP4TC_NAME=`echo $ac_cv_search_iptc_init | sed -e "s/-l//"`
+	    IP6TC_NAME=`echo $ac_cv_search_ip6tc_init | sed -e "s/-l//"`
+	    get_lib_name([$IP4TC_NAME], [iptc_init])
 	    AC_DEFINE_UNQUOTED([IP4TC_LIB_NAME], [ "$LIB_NAME" ], [Define the ip4tc library name])
-	    get_lib_name([ip6tc], [ip6tc_init])
+	    get_lib_name([$IP6TC_NAME], [ip6tc_init])
 	    AC_DEFINE_UNQUOTED([IP6TC_LIB_NAME], [ "$LIB_NAME" ], [Define the ip6tc library name])
 	    LIBIPTC_DYNAMIC=Yes
 	  fi
@@ -1425,14 +1451,14 @@ AS_IF([test .$enable_iptables != .no],
       if test "${enable_libipset}" != no; then
 	$PKG_CONFIG --exists libipset
 	if test $? -eq 0; then
-	  add_pkg_config([libipset], [IPSET])
+	  add_pkg_config([libipset], [IPSET], [remove-requires])
 	else
 	  IPSET_LIBS="-lipset"
+	  IPSET_LIB_NAMES=ipset
 	fi
 	SAV_LIBS=$LIBS
-	LIBS="$IPTC_LIBS $IPSET_LIBS"
 
-	AC_CHECK_LIB(ipset, ipset_session_init,
+	AC_SEARCH_LIBS(ipset_session_init, $IPSET_LIB_NAMES,
 	  [
 	    USE_LIBIPSET=Yes
 	    AC_CHECK_HEADERS([libipset/data.h libipset/linux_ip_set.h libipset/session.h libipset/types.h], [],
@@ -1468,13 +1494,14 @@ AS_IF([test .$enable_iptables != .no],
 		  add_pkg_config_without_libs([libipset])
 		fi
 	      elif test .${enable_libipset_dynamic} = .no; then
-		add_to_var([KA_LIBS], [-lipset])
+		add_to_var([KA_LIBS], [$ac_cv_search_ipset_session_init])
 	      fi
 	      if test .${enable_libipset_dynamic} != .no; then
 		AC_DEFINE([_LIBIPSET_DYNAMIC_], [ 1 ], [Define to 1 if building with libipset dynamic linking])
 		add_config_opt([LIBIPSET_DYNAMIC])
 		NEED_LIBDL=Yes
-		get_lib_name([ipset], [ipset_session_init])
+		LIBIPSET_NAME=`echo $ac_cv_search_ipset_session_init | sed -e "s/-l//"`
+		get_lib_name([$LIBIPSET_NAME], [ipset_session_init])
 		AC_DEFINE_UNQUOTED([IPSET_LIB_NAME], [ "$LIB_NAME" ], [Define the ipset library name])
 	      else
 		add_config_opt([LIBIPSET])
