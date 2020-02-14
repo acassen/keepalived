@@ -529,7 +529,7 @@ get_cwd(__attribute__((unused))const def_t *def)
 	return getcwd(dir, PATH_MAX);
 }
 
-static const char *
+static const char * __attribute__((malloc))
 get_instance(__attribute__((unused))const def_t *def)
 {
 	return STRDUP(config_id);
