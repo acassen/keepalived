@@ -1445,20 +1445,14 @@ netlink_request(nl_handle_t *nl,
 					char *name)
 {
 	ssize_t status;
-	struct sockaddr_nl snl;
+	struct sockaddr_nl snl = { .nl_family = AF_NETLINK };
 	struct {
 		struct nlmsghdr nlh;
 		struct ifinfomsg i;
 		char buf[64];
-	} req;
+	} req = { .nlh.nlmsg_type = type };
 
-	/* Cleanup the room */
-	memset(&snl, 0, sizeof (snl));
-	snl.nl_family = AF_NETLINK;
-
-	memset(&req, 0, sizeof req);
 	req.nlh.nlmsg_len = NLMSG_LENGTH(sizeof req.i);
-	req.nlh.nlmsg_type = type;
 	req.nlh.nlmsg_flags = NLM_F_REQUEST;
 	req.nlh.nlmsg_pid = 0;
 	req.nlh.nlmsg_seq = ++nl->seq;

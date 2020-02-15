@@ -472,8 +472,8 @@ nftnl_chain *chain_add_parse(const char *table, const char *name)
 		log_message(LOG_INFO, "OOM error - %d", errno);
 		return NULL;
 	}
-	nftnl_chain_set(t, NFTNL_CHAIN_TABLE, table);
-	nftnl_chain_set(t, NFTNL_CHAIN_NAME, name);
+	nftnl_chain_set_str(t, NFTNL_CHAIN_TABLE, table);
+	nftnl_chain_set_str(t, NFTNL_CHAIN_NAME, name);
 
 	return t;
 }
@@ -604,8 +604,8 @@ nftnl_rule *setup_rule(uint8_t family, const char *table,
 		return NULL;
 	}
 
-	nftnl_rule_set(r, NFTNL_RULE_TABLE, table);
-	nftnl_rule_set(r, NFTNL_RULE_CHAIN, chain);
+	nftnl_rule_set_str(r, NFTNL_RULE_TABLE, table);
+	nftnl_rule_set_str(r, NFTNL_RULE_CHAIN, chain);
 	nftnl_rule_set_u32(r, NFTNL_RULE_FAMILY, family);
 
 	if (handle != NULL) {
@@ -795,8 +795,8 @@ nftnl_rule *setup_rule_if(uint8_t family, const char *table,
 		return NULL;
 	}
 
-	nftnl_rule_set(r, NFTNL_RULE_TABLE, table);
-	nftnl_rule_set(r, NFTNL_RULE_CHAIN, chain);
+	nftnl_rule_set_str(r, NFTNL_RULE_TABLE, table);
+	nftnl_rule_set_str(r, NFTNL_RULE_CHAIN, chain);
 	nftnl_rule_set_u32(r, NFTNL_RULE_FAMILY, family);
 
 	if (handle != NULL) {
@@ -840,8 +840,8 @@ static struct nftnl_rule
 		return NULL;
 	}
 
-	nftnl_rule_set(r, NFTNL_RULE_TABLE, table);
-	nftnl_rule_set(r, NFTNL_RULE_CHAIN, chain);
+	nftnl_rule_set_str(r, NFTNL_RULE_TABLE, table);
+	nftnl_rule_set_str(r, NFTNL_RULE_CHAIN, chain);
 	nftnl_rule_set_u32(r, NFTNL_RULE_FAMILY, family);
 
 	/*
@@ -982,8 +982,8 @@ setup_rule_icmpv6(uint8_t family, const char *table,
 		return NULL;
 	}
 
-	nftnl_rule_set(r, NFTNL_RULE_TABLE, table);
-	nftnl_rule_set(r, NFTNL_RULE_CHAIN, chain);
+	nftnl_rule_set_str(r, NFTNL_RULE_TABLE, table);
+	nftnl_rule_set_str(r, NFTNL_RULE_CHAIN, chain);
 	nftnl_rule_set_u32(r, NFTNL_RULE_FAMILY, family);
 
 	if (handle != NULL) {
@@ -1021,8 +1021,8 @@ static struct nftnl_rule *setup_rule_simple(uint8_t family, const char *table,
 		return NULL;
 	}
 
-	nftnl_rule_set(r, NFTNL_RULE_TABLE, table);
-	nftnl_rule_set(r, NFTNL_RULE_CHAIN, chain);
+	nftnl_rule_set_str(r, NFTNL_RULE_TABLE, table);
+	nftnl_rule_set_str(r, NFTNL_RULE_CHAIN, chain);
 	nftnl_rule_set_u32(r, NFTNL_RULE_FAMILY, family);
 
 	if (handle != NULL) {
@@ -1502,8 +1502,8 @@ nft_update_ipv4_address(struct mnl_nlmsg_batch *batch, ip_address_t *addr, struc
 			return;
 		}
 
-		nftnl_set_set(*s, NFTNL_SET_TABLE, global_data->vrrp_nf_table_name);
-		nftnl_set_set(*s, NFTNL_SET_NAME, "vips");
+		nftnl_set_set_str(*s, NFTNL_SET_TABLE, global_data->vrrp_nf_table_name);
+		nftnl_set_set_str(*s, NFTNL_SET_NAME, "vips");
 	}
 
 	/* nft add element ip keepalived vips { ADDR } */
@@ -1570,8 +1570,8 @@ nft_update_ipv6_address(struct mnl_nlmsg_batch *batch, ip_address_t *addr, bool 
 			return;
 		}
 
-		nftnl_set_set(*s, NFTNL_SET_TABLE, global_data->vrrp_nf_table_name);
-		nftnl_set_set(*s, NFTNL_SET_NAME, set_name);
+		nftnl_set_set_str(*s, NFTNL_SET_TABLE, global_data->vrrp_nf_table_name);
+		nftnl_set_set_str(*s, NFTNL_SET_NAME, set_name);
 	}
 
 	/* Add element to set
@@ -1733,8 +1733,8 @@ static struct nftnl_rule
 		return NULL;
 	}
 
-	nftnl_rule_set(r, NFTNL_RULE_TABLE, table);
-	nftnl_rule_set(r, NFTNL_RULE_CHAIN, chain);
+	nftnl_rule_set_str(r, NFTNL_RULE_TABLE, table);
+	nftnl_rule_set_str(r, NFTNL_RULE_CHAIN, chain);
 	nftnl_rule_set_u32(r, NFTNL_RULE_FAMILY, family);
 
 	if (handle != NULL) {
@@ -1861,8 +1861,8 @@ nft_update_vmac_family(struct mnl_nlmsg_batch *batch, const vrrp_t *vrrp, uint8_
 			return;
 		}
 
-		nftnl_set_set(s, NFTNL_SET_TABLE, global_data->vrrp_nf_table_name);
-		nftnl_set_set(s, NFTNL_SET_NAME, vmac_map_name);
+		nftnl_set_set_str(s, NFTNL_SET_TABLE, global_data->vrrp_nf_table_name);
+		nftnl_set_set_str(s, NFTNL_SET_NAME, vmac_map_name);
 	}
 
 	nft_update_vmac_element(batch, s, vrrp->ifp->ifindex, vrrp->ifp->base_ifp->ifindex, cmd, nfproto);

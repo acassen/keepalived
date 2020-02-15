@@ -620,7 +620,6 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, unsi
 #else
 	setinfo = (struct xt_set_info_match *)match->data;
 #endif
-	memset(setinfo, 0, sizeof (*setinfo));
 
 	get_set_byname(set_name, &setinfo->match_set, NFPROTO_IPV4, ignore_errors);
 	if (setinfo->match_set.index == IPSET_INVALID_ID) {
@@ -758,7 +757,6 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, uns
 #else
 	setinfo = (struct xt_set_info_match *)match->data;
 #endif
-	memset(setinfo, 0, sizeof(*setinfo));
 
 	get_set_byname (set_name, &setinfo->match_set, NFPROTO_IPV6, ignore_errors);
 	if (setinfo->match_set.index == IPSET_INVALID_ID) {
