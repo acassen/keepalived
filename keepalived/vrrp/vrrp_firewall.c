@@ -22,6 +22,11 @@
 
 #include "config.h"
 
+#include <stdio.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "vrrp_firewall.h"
 #ifdef _WITH_IPTABLES_
 #include "vrrp_iptables.h"
@@ -31,7 +36,76 @@
 #endif
 #include "global_data.h"
 #include "vrrp_ipaddress.h"
+#include "bitops.h"
+#include "logger.h"
 
+#if defined _WITH_IPTABLES_ && defined _WITH_NFTABLES_
+static bool checked_iptables_nft;
+
+static void
+check_iptables_nft(void)
+{
+	FILE *fp;
+	char buf[40];
+	size_t len;
+	char *res;
+
+	/* Increasingly the iptables command is being provided as a front end to nftables. If so,
+	 * then if we are built with nftables support, we should use nftables. */
+	checked_iptables_nft = true;
+
+	/* If using iptables is not configured, we don't need to do anything */
+	if (!global_data->vrrp_iptables_inchain[0] &&
+	    !global_data->vrrp_iptables_outchain[0])
+		return;
+
+	fp = popen("iptables -V", "r");
+	if (!fp) {
+		/* No iptables command, so we need to use nftables */
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "Using nftables since no iptables command found - please update configuration");
+
+		global_data->vrrp_iptables_inchain[0] = '\0';
+		global_data->vrrp_iptables_outchain[0] = '\0';
+
+		/* If nftables table name not set up, set it to default */
+		if (!global_data->vrrp_nf_table_name) {
+			global_data->vrrp_nf_table_name = res = MALLOC(strlen(DEFAULT_NFTABLES_TABLE) + 1);
+			strcpy(res, DEFAULT_NFTABLES_TABLE);
+		}
+
+		return;
+	}
+
+	res = fgets(buf, sizeof buf, fp);
+	pclose(fp);
+
+	if (!res) {
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "popen(\"iptables -V\" read failed - errno %d - %m", errno);
+		return;
+	}
+
+	/* iptables will either have no type, or the type will be "nf_tables" or "legacy" */
+	if ((len = strlen(buf)) && buf[len-1] == '\n')
+		buf[--len] = '\0';
+
+	if (len > 10 && buf[len-1] == ')') {
+		if (!strncmp(buf + len - 1 - 9, "nf_tables", 9)) {
+			log_message(LOG_INFO, "Not using iptables since iptables uses nf_tables - please update configuration");
+
+			global_data->vrrp_iptables_inchain[0] = '\0';
+			global_data->vrrp_iptables_outchain[0] = '\0';
+
+			/* If nftables table name not set up, set it to default */
+			if (global_data->vrrp_nf_table_name) {
+				global_data->vrrp_nf_table_name = res = MALLOC(strlen(DEFAULT_NFTABLES_TABLE) + 1);
+				strcpy(res, DEFAULT_NFTABLES_TABLE);
+			}
+		}
+	}
+}
+#endif
 
 /* add/remove iptables/nftables drop rules */
 void
@@ -41,6 +115,11 @@ firewall_handle_accept_mode(vrrp_t *vrrp, int cmd,
 #endif
 						    bool force)
 {
+#if defined _WITH_IPTABLES_ && defined _WITH_NFTABLES_
+	if (!checked_iptables_nft)
+		check_iptables_nft();
+#endif
+
 #ifdef _WITH_IPTABLES_
 	if (global_data->vrrp_iptables_inchain[0])
 		handle_iptables_accept_mode(vrrp, cmd, force);
@@ -76,6 +155,11 @@ firewall_remove_rule_to_iplist(list ip_list)
 void
 firewall_add_vmac(const vrrp_t *vrrp)
 {
+#if defined _WITH_IPTABLES_ && defined _WITH_NFTABLES_
+	if (!checked_iptables_nft)
+		check_iptables_nft();
+#endif
+
 #ifdef _WITH_IPTABLES_
 	if (global_data->vrrp_iptables_outchain[0])
 		iptables_add_vmac(vrrp);
