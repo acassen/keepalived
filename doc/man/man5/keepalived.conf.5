@@ -302,8 +302,33 @@ and
     # (default: 2, but IPv6 instances will use version 3)
     \fBvrrp_version \fR<2 or 3>
 
-    # Specify the iptables chain for ensuring a version 3 instance
-    # doesn't respond on addresses that it doesn't own.
+    # keepalived uses a firewall (either nftables or iptables) for two purposes:
+    #  i)  To implement no_accept mode
+    #  ii) To stop IGMP/MLD packets being sent on VMAC interfaces, and to move
+    #      them onto the underlying interface.
+    # If both vrrp_iptables and vrrp_nftables are specified, keepalived will use
+    # nftables and not iptables. Similarly, if the iptables command is generating
+    # nftables configuration, or there is no iptables command installed,
+    # keepalived will use nftables rather than iptables.
+
+    # Use nftables as the firewall.
+    #   TABLENAME must not exist, and must be different for each
+    #   instance of keepalived running in the same network namespace.
+    #   Default tablename is keepalived, and priority is -1.
+    #   keepalived will create base chains in the table.
+    #   counters means counters are added to the rules (primarily for
+    #   debugging purposes).
+    #   ifindex means create IPv6 link local sets using ifindex rather
+    #   than ifnames. This is the default unless the vrrp_instance has
+    #   set dont_track_primary. The alternative is to use interface names
+    #   as part of the set key, but the nft utility prior to v0.8.3 will
+    #   then not output interface names properly.
+    \fBnftables \fR[TABLENAME]
+    \fBnftables_priority \fRPRIORITY
+    \fBnftables_counters\fR
+    \fBnftables_ifindex\fR
+
+    # Use iptables as the firewall.
     # Note: it is necessary for the specified chain to exist in
     # the iptables and/or ip6tables configuration, and for the chain
     # to be called from an appropriate point in the iptables configuration.
@@ -328,24 +353,6 @@ and
     # otherwise any omitted names will be constructed by adding "_if"
     # and/or "6" and _igmp/_mld to previously specified names.
     \fBvrrp_ipsets \fR[keepalived [keepalived6 [keepalived_if6 [keepalived_igmp [keepalived_mld]]]]]
-
-    # Use nftables to implement no_accept mode and only send IGMP/MLD
-    #   messages on the parent interface of a VMAC.
-    #   TABLENAME must not exist, and must be different for each
-    #   instance of keepalived running in the same network namespace.
-    #   Default tablename is keepalived, and priority is -1.
-    #   keepalived will create base chains in the table.
-    #   counters means counters are added to the rules (primarily for
-    #   debugging purposes).
-    #   ifindex means create IPv6 link local sets using ifindex rather
-    #   than ifnames. This is the default unless the vrrp_instance has
-    #   set dont_track_primary. The alternative is to use interface names
-    #   as part of the set key, but the nft utility prior to v0.8.3 will
-    #   then not output interface names properly.
-    \fBnftables \fR[TABLENAME]
-    \fBnftables_priority \fRPRIORITY
-    \fBnftables_counters\fR
-    \fBnftables_ifindex\fR
 
     # The following enables checking that when in unicast mode, the
     # source address of a VRRP packet is one of our unicast peers.
