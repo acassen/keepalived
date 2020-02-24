@@ -302,35 +302,16 @@ and
     # (default: 2, but IPv6 instances will use version 3)
     \fBvrrp_version \fR<2 or 3>
 
-    # Specify the iptables chain for ensuring a version 3 instance
-    # doesn't respond on addresses that it doesn't own.
-    # Note: it is necessary for the specified chain to exist in
-    # the iptables and/or ip6tables configuration, and for the chain
-    # to be called from an appropriate point in the iptables configuration.
-    # It will probably be necessary to have this filtering after accepting
-    # any ESTABLISHED,RELATED packets, because IPv4 might select the VIP as
-    # the source address for outgoing connections.
-    # (default: INPUT)
-    \fBvrrp_iptables \fRkeepalived
+    # keepalived uses a firewall (either nftables or iptables) for two purposes:
+    #  i)  To implement no_accept mode
+    #  ii) To stop IGMP/MLD packets being sent on VMAC interfaces, and to move
+    #      them onto the underlying interface.
+    # If both vrrp_iptables and vrrp_nftables are specified, keepalived will use
+    # nftables and not iptables. Similarly, if the iptables command is generating
+    # nftables configuration, or there is no iptables command installed,
+    # keepalived will use nftables rather than iptables.
 
-    # or for outbound filtering as well
-    # Note, outbound filtering won't work with IPv4, since the VIP can be
-    # selected as the source address for an outgoing connection. With IPv6
-    # this is unlikely since the addresses are deprecated.
-    \fBvrrp_iptables \fRkeepalived_in keepalived_out
-
-    # or to not add any iptables rules:
-    \fBvrrp_iptables\fR
-
-    # Keepalived may have the option to use ipsets in conjunction with
-    # iptables. If so, then the ipset names can be specified, defaults
-    # as below. If no names are specified, ipsets will not be used,
-    # otherwise any omitted names will be constructed by adding "_if"
-    # and/or "6" and _igmp/_mld to previously specified names.
-    \fBvrrp_ipsets \fR[keepalived [keepalived6 [keepalived_if6 [keepalived_igmp [keepalived_mld]]]]]
-
-    # Use nftables to implement no_accept mode and only send IGMP/MLD
-    #   messages on the parent interface of a VMAC.
+    # Use nftables as the firewall.
     #   TABLENAME must not exist, and must be different for each
     #   instance of keepalived running in the same network namespace.
     #   Default tablename is keepalived, and priority is -1.
@@ -346,6 +327,32 @@ and
     \fBnftables_priority \fRPRIORITY
     \fBnftables_counters\fR
     \fBnftables_ifindex\fR
+
+    # Use iptables as the firewall.
+    # Note: it is necessary for the specified chain to exist in
+    # the iptables and/or ip6tables configuration, and for the chain
+    # to be called from an appropriate point in the iptables configuration.
+    # It will probably be necessary to have this filtering after accepting
+    # any ESTABLISHED,RELATED packets, because IPv4 might select the VIP as
+    # the source address for outgoing connections.
+    # (default: INPUT)
+    \fBvrrp_iptables \fRkeepalived
+
+    # or for outbound filtering as well
+    # Note, outbound filtering won't work with IPv4, since the VIP can be
+    # selected as the source address for an outgoing connection. With IPv6
+    # this is unlikely since the addresses are deprecated.
+    \fBvrrp_iptables \fRkeepalived_in keepalived_out
+
+    # or to to use default chains (INPUT and OUTPUT)
+    \fBvrrp_iptables\fR
+
+    # Keepalived may have the option to use ipsets in conjunction with
+    # iptables. If so, then the ipset names can be specified, defaults
+    # as below. If no names are specified, ipsets will not be used,
+    # otherwise any omitted names will be constructed by adding "_if"
+    # and/or "6" and _igmp/_mld to previously specified names.
+    \fBvrrp_ipsets \fR[keepalived [keepalived6 [keepalived_if6 [keepalived_igmp [keepalived_mld]]]]]
 
     # The following enables checking that when in unicast mode, the
     # source address of a VRRP packet is one of our unicast peers.
