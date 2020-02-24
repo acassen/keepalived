@@ -1,3 +1,4 @@
+Don't allow nft/iptables changes at reload
 Test LVS forwarding via VIP if no_accept set
 
 Don't load nftables and iptables rules
