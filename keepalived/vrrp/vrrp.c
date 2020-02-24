@@ -2843,8 +2843,8 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			}
 #endif
 		}
-#endif
 	}
+#endif
 
 	if (vrrp->garp_lower_prio_rep == PARAMETER_UNSET)
 		vrrp->garp_lower_prio_rep = vrrp->strict_mode ? 0 : global_data->vrrp_garp_lower_prio_rep;
@@ -3180,8 +3180,8 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			global_data->vrrp_iptables_outchain = STRDUP(DEFAULT_IPTABLES_CHAIN_OUT);
 
 #ifdef _HAVE_LIBIPSET_
-			if (!data->using_ipsets) {
-				data->using_ipsets = true;
+			if (!global_data->using_ipsets) {
+				global_data->using_ipsets = true;
 				set_default_ipsets();
 			}
 #endif
