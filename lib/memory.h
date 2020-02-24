@@ -96,7 +96,7 @@ typedef union _ptr_hack {
 	const void *cp;
 } ptr_hack_t;
 
-#define FREE_CONST(ptr) { ptr_hack_t ptr_hack = { .cp = ptr }; FREE(ptr_hack.p); }
+#define FREE_CONST(ptr) { ptr_hack_t ptr_hack = { .cp = ptr }; FREE(ptr_hack.p); ptr = NULL; }
 #define FREE_CONST_ONLY(ptr) { ptr_hack_t ptr_hack = { .cp = ptr }; FREE_ONLY(ptr_hack.p); }
 #define REALLOC_CONST(ptr, n) ({ ptr_hack_t ptr_hack = { .cp = ptr }; REALLOC(ptr_hack.p, n); })
 
