@@ -1,11 +1,8 @@
-Don't allow nft/iptables changes at reload
 Test LVS forwarding via VIP if no_accept set
 
-Don't load nftables and iptables rules
-Detect iptables using nftables
 Fix warnings on Rpi builds
-vrrp-strict and nftables
-If iptables command adds nftables commands, we mustn't use iptables
+
+PKG_CONFIG_* autoconf options - see man pkg.m4
 
 Whatever you want !
 

@@ -225,15 +225,11 @@ check_vrrp_script_security(void)
 
 	/* Set the insecure flag of any insecure scripts */
 	if (!LIST_ISEMPTY(vrrp_data->vrrp_script)) {
-		for (e = LIST_HEAD(vrrp_data->vrrp_script); e; ELEMENT_NEXT(e)) {
-			vscript = ELEMENT_DATA(e);
+		LIST_FOREACH(vrrp_data->vrrp_script, vscript, e)
 			script_flags |= check_track_script_secure(vscript, magic);
-		}
 	}
 
-	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
-
+	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
 		script_flags |= check_notify_script_secure(&vrrp->script_backup, magic);
 		script_flags |= check_notify_script_secure(&vrrp->script_master, magic);
 		script_flags |= check_notify_script_secure(&vrrp->script_fault, magic);
@@ -244,10 +240,7 @@ check_vrrp_script_security(void)
 		if (LIST_ISEMPTY(vrrp->track_script))
 			continue;
 
-		for (e1 = LIST_HEAD(vrrp->track_script); e1; e1 = next) {
-			next = e1->next;
-			track_script = ELEMENT_DATA(e1);
-
+		LIST_FOREACH_NEXT(vrrp->track_script, track_script, e1, next) {
 			if (track_script->scr->insecure) {
 				/* Remove it from the vrrp instance's queue */
 				free_list_element(vrrp->track_script, e1);
@@ -256,18 +249,14 @@ check_vrrp_script_security(void)
 	}
 
 	if (!LIST_ISEMPTY(vrrp_data->vrrp_sync_group)) {
-		for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; ELEMENT_NEXT(e)) {
-			sg = ELEMENT_DATA(e);
+		LIST_FOREACH(vrrp_data->vrrp_sync_group, sg, e) {
 			script_flags |= check_notify_script_secure(&sg->script_backup, magic);
 			script_flags |= check_notify_script_secure(&sg->script_master, magic);
 			script_flags |= check_notify_script_secure(&sg->script_fault, magic);
 			script_flags |= check_notify_script_secure(&sg->script_stop, magic);
 			script_flags |= check_notify_script_secure(&sg->script, magic);
 
-			for (e1 = LIST_HEAD(sg->track_script); e1; e1 = next) {
-				next = e1->next;
-				track_script = ELEMENT_DATA(e1);
-
+			LIST_FOREACH_NEXT(sg->track_script, track_script, e1, next) {
 				if (track_script->scr->insecure) {
 					/* Remove it from the vrrp sync group's queue */
 					free_list_element(sg->track_script, e1);
@@ -290,10 +279,7 @@ check_vrrp_script_security(void)
 		ka_magic_close(magic);
 
 	/* Now walk through the vrrp_script list, removing any that aren't used */
-	for (e = LIST_HEAD(vrrp_data->vrrp_script); e; e = next) {
-		next = e->next;
-		vscript = ELEMENT_DATA(e);
-
+	LIST_FOREACH_NEXT(vrrp_data->vrrp_script, vscript, e, next) {
 		if (vscript->insecure)
 			free_list_element(vrrp_data->vrrp_script, e);
 	}
