@@ -2124,14 +2124,14 @@ if test "$enable_snmp" = yes -o \
   # For further information, see https://bugzilla.redhat.com/show_bug.cgi?id=1544527
   # and the other bugs referred to in it.
   for spec in `echo $NETSNMP_LIBS | sed -e "s? ?\n?g" | grep "^-specs="`; do
-    SPEC_FILE=`echo $spec | sed -e "s?^-spaces=??"`
+    SPEC_FILE=`echo $spec | sed -e "s?^-specs=??"`
     if test ! -f $SPEC_FILE; then
       NETSNMP_LIBS=`echo $NETSNMP_LIBS | sed -e "s? *$spec *? ?"`
       AC_MSG_WARN([Removing $spec from NETSNMP_LIBS since spec file not installed])
     fi
   done
   for spec in `echo $NETSNMP_CFLAGS | sed -e "s? ?\n?g" | grep "^-specs="`; do
-    SPEC_FILE=`echo $spec | sed -e "s?^-spaces=??"`
+    SPEC_FILE=`echo $spec | sed -e "s?^-specs=??"`
     if test ! -f $SPEC_FILE; then
       NETSNMP_CFLAGS=`echo $NETSNMP_CFLAGS | sed -e "s? *$spec *? ?"`
       AC_MSG_WARN([Removing $spec from NETSNMP_CFLAGS since spec file not installed])
