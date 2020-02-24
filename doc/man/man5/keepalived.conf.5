@@ -310,6 +310,8 @@ and
     # nftables and not iptables. Similarly, if the iptables command is generating
     # nftables configuration, or there is no iptables command installed,
     # keepalived will use nftables rather than iptables.
+    # If neither vrrp_nftables or vrrp_iptables are specified but VMACs are in use
+    # or no_accept is specified, keepalived will use nftables if it is available.
 
     # Use nftables as the firewall.
     #   TABLENAME must not exist, and must be different for each

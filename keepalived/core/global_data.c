@@ -106,7 +106,7 @@ set_vrrp_defaults(data_t * data)
 	data->vrrp_higher_prio_send_advert = false;
 	data->vrrp_version = VRRP_VERSION_2;
 #ifdef _HAVE_LIBIPSET_
-	data->using_ipsets = true;
+	data->using_ipsets = PARAMETER_UNSET;
 #endif
 	data->vrrp_check_unicast_src = false;
 	data->vrrp_skip_check_adv_addr = false;

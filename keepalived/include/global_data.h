@@ -154,7 +154,7 @@ typedef struct _data {
 	const char			*vrrp_iptables_inchain;
 	const char			*vrrp_iptables_outchain;
 #ifdef _HAVE_LIBIPSET_
-	bool				using_ipsets;
+	unsigned			using_ipsets;
 	const char			*vrrp_ipset_address;
 	const char			*vrrp_ipset_address6;
 	const char			*vrrp_ipset_address_iface6;

@@ -1,3 +1,5 @@
+Test LVS forwarding via VIP if no_accept set
+
 Don't load nftables and iptables rules
 Detect iptables using nftables
 Fix warnings on Rpi builds

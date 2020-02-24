@@ -882,20 +882,6 @@ vrrp_iptables_handler(const vector_t *strvec)
 		global_data->vrrp_iptables_inchain = STRDUP(DEFAULT_IPTABLES_CHAIN_IN);
 		global_data->vrrp_iptables_outchain = STRDUP(DEFAULT_IPTABLES_CHAIN_OUT);
 	}
-	if (global_data->using_ipsets) {
-		if (!global_data->vrrp_ipset_address)
-			global_data->vrrp_ipset_address = STRDUP(DEFAULT_IPSET_NAME);
-		if (!global_data->vrrp_ipset_address6)
-			global_data->vrrp_ipset_address6 = STRDUP(DEFAULT_IPSET_NAME "6");
-		if (!global_data->vrrp_ipset_address_iface6)
-			global_data->vrrp_ipset_address_iface6 = STRDUP(DEFAULT_IPSET_NAME "_if6");
-#ifdef HAVE_IPSET_ATTR_IFACE
-		if (!global_data->vrrp_ipset_igmp)
-			global_data->vrrp_ipset_igmp = STRDUP(DEFAULT_IPSET_NAME "_igmp");
-		if (!global_data->vrrp_ipset_mld)
-			global_data->vrrp_ipset_mld = STRDUP(DEFAULT_IPSET_NAME "_mld");
-#endif
-	}
 }
 #ifdef _HAVE_LIBIPSET_
 static void

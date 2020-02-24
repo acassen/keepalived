@@ -2824,20 +2824,41 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 #ifdef _WITH_FIREWALL_
 	/* Set default for accept mode if not specified. If we are running in strict mode,
-	 * default is to disable accept mode, otherwise default is to enable it.
+	 * default is to disable accept mode unless the instance is the address owner
+	 * (priority 255), otherwise default is to enable it.
 	 * At some point we might want to change this to make non accept_mode the default,
 	 * to comply with the RFCs. */
 	if (vrrp->accept == PARAMETER_UNSET)
-		vrrp->accept = !vrrp->strict_mode;
+		vrrp->accept = (vrrp->base_priority == VRRP_PRIO_OWNER) ? true : !vrrp->strict_mode;
 
 	if (vrrp->accept &&
 	    vrrp->base_priority != VRRP_PRIO_OWNER &&
 	    vrrp->strict_mode &&
 	    vrrp->version == VRRP_VERSION_2) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) warning - accept mode for VRRP version 2 does not comply with RFC3768 - resetting", vrrp->iname);
-		vrrp->accept = 0;
+		vrrp->accept = false;
 	}
+
+	if (!vrrp->accept
+#ifdef _HAVE_VRRP_VMAC_
+	    || __test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)
 #endif
+							   ) {
+#ifdef _WITH_IPTABLES_
+		if (!global_data->vrrp_iptables_inchain)
+#endif
+		{
+#ifndef _WITH_NFTABLES_
+			log_message(LOG_INFO, "Warning - firewall needed due to use_vmac or no_accept/strict but not configured");
+#else
+			if (!global_data->vrrp_nf_table_name) {
+				log_message(LOG_INFO, "use_vmac or no_accept/strict specified, but no firewall configured - using nftables");
+				global_data->vrrp_nf_table_name = STRDUP(DEFAULT_NFTABLES_TABLE);
+			}
+#endif
+		}
+#endif
+	}
 
 	if (vrrp->garp_lower_prio_rep == PARAMETER_UNSET)
 		vrrp->garp_lower_prio_rep = vrrp->strict_mode ? 0 : global_data->vrrp_garp_lower_prio_rep;
@@ -3175,13 +3196,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #ifdef _HAVE_LIBIPSET_
 			if (!data->using_ipsets) {
 				data->using_ipsets = true;
-				data->vrrp_ipset_address = STRDUP(DEFAULT_IPSET_NAME);
-				data->vrrp_ipset_address6 = STRDUP(DEFAULT_IPSET_NAME "6");
-				data->vrrp_ipset_address_iface6 = STRDUP(DEFAULT_IPSET_NAME "if6");
-#ifdef HAVE_IPSET_ATTR_IFACE
-				data->vrrp_ipset_igmp = STRDUP(DEFAULT_IPSET_NAME "_igmp");
-				data->vrrp_ipset_mld = STRDUP(DEFAULT_IPSET_NAME "_mld");
-#endif
+				set_default_ipsets();
 			}
 #endif
 
@@ -3644,7 +3659,7 @@ vrrp_complete_init(void)
 	bool have_master, have_backup;
 	vrrp_script_t *scr;
 
-	/* Set defaults of not specified, depending on strict mode */
+	/* Set defaults if not specified, depending on strict mode */
 	if (global_data->vrrp_garp_lower_prio_rep == PARAMETER_UNSET)
 		global_data->vrrp_garp_lower_prio_rep = global_data->vrrp_garp_rep;
 	if (global_data->vrrp_garp_lower_prio_delay == PARAMETER_UNSET)
@@ -3655,6 +3670,35 @@ vrrp_complete_init(void)
 		add_script_param(global_data->notify_fifo.script, global_data->notify_fifo.name);
 	if (global_data->vrrp_notify_fifo.script)
 		add_script_param(global_data->vrrp_notify_fifo.script, global_data->vrrp_notify_fifo.name);
+
+#if defined _WITH_IPTABLES_ && defined _WITH_NFTABLES_
+	/* It doesn't make sense to use both iptables and nftables; prefer nftables */
+	if (global_data->vrrp_iptables_inchain && global_data->vrrp_nf_table_name) {
+		log_message(LOG_INFO, "Both iptables and nftables have been specified - ignoring iptables");
+		FREE_CONST_PTR(global_data->vrrp_iptables_inchain);
+		FREE_CONST_PTR(global_data->vrrp_iptables_outchain);
+
+#if defined _HAVE_LIBIPSET_
+		if (global_data->using_ipsets)
+			disable_ipsets();
+#endif
+	}
+#endif
+
+#if defined _HAVE_LIBIPSET_
+	if (!global_data->vrrp_iptables_inchain && global_data->using_ipsets == true) {
+		log_message(LOG_INFO, "vrrp_ipsets has been specified but not vrrp_iptables - vrrp_ipsets will be ignored");
+		disable_ipsets();
+	}
+
+	if (global_data->using_ipsets == PARAMETER_UNSET) {
+		if (global_data->vrrp_iptables_inchain) {
+			set_default_ipsets();
+			global_data->using_ipsets = true;
+		} else
+			global_data->using_ipsets = false;
+	}
+#endif
 
 	/* Mark any scripts as insecure */
 	check_vrrp_script_security();
@@ -3916,23 +3960,6 @@ vrrp_complete_init(void)
 	}
 
 	alloc_vrrp_buffer(max_mtu_len);
-
-#if defined _WITH_IPTABLES && defined _WITH_NFTABLES_
-	/* It doesn't make sense to use both iptables and nftables; prefer nftables */
-	if (global_data->vrrp_iptables_inchain && global_data->vrrp_nf_table_name) {
-		log_message(LOG_INFO, "Both iptables and nftables have been specified - ignoring iptables");
-		FREE_CONST_PTR(global_data->vrrp_iptables_inchain);
-		FREE_CONST_PTR(global_data->vrrp_iptables_outchain);
-		global_data->using_ipsets = false;
-	}
-#endif
-
-#if defined _WITH_IPTABLES_ && defined _HAVE_LIBIPSET_
-	if (!global_data->vrrp_iptables_inchain && global_data->using_ipsets) {
-		log_message(LOG_INFO, "vrrp_ipsets has been specified but not vrrp_iptables - vrrp_ipsets will be ignored");
-		global_data->using_ipsets = false;
-	}
-#endif
 
 	return true;
 }
