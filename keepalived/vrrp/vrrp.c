@@ -3700,6 +3700,16 @@ vrrp_complete_init(void)
 	}
 #endif
 
+	/* NOTE: A reload which changes the iptables/nftables configuration will not
+	 * work properly. However, it is hard to check it. We could check here that everything
+	 * matches between old_global_data and global_data, because vrrp_complete_instance() can
+	 * update the need for using iptables/nftables, and also because it can update the
+	 * requirement if there is a VMAC, at this point we don't have a clear picture of what
+	 * the firewall situation is.
+	 *
+	 * So, if someone changes the configuration, it will be a bit confused, but it is unlikely
+	 * to happen. */
+
 	/* Mark any scripts as insecure */
 	check_vrrp_script_security();
 
