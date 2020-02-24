@@ -1919,38 +1919,34 @@ if test "$enable_vrrp" != no; then
   if test $MACVLAN_SUPPORT = Yes; then
     AC_DEFINE([_HAVE_VRRP_VMAC_], [ 1 ], [Define to 1 if have MAC VLAN support])
     add_system_opt([VRRP_VMAC])
-  fi
-  CPPFLAGS="$SAV_CPPFLAGS"
 
-  dnl ----[ Checks for kernel IPVLAN support ]----
-  SAV_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$CPPFLAGS $kernelinc"
-  IPVLAN_SUPPORT=Yes
-  dnl -- Since Linux 3.19
-  AC_CHECK_DECLS([
-      IFLA_IPVLAN_MODE], [],
-    [
-      IPVLAN_SUPPORT=No
-      break
-    ], [[
-      #include <sys/socket.h>
+    dnl ----[ Checks for kernel IPVLAN support ]----
+    IPVLAN_SUPPORT=Yes
+    dnl -- Since Linux 3.19
+    AC_CHECK_DECLS([IFLA_IPVLAN_MODE], [],
+      [
+        IPVLAN_SUPPORT=No
+        break
+      ], [[
+        #include <sys/socket.h>
+        #include <linux/if_link.h>
+      ]])
+    if test $IPVLAN_SUPPORT = Yes; then
+      AC_DEFINE([_HAVE_VRRP_IPVLAN_], [ 1 ], [Define to 1 if have IP VLAN support])
+      add_system_opt([VRRP_IPVLAN])
+    fi
+
+    dnl ----[ Check for IFLA_LINK_NETNSID support ]---- since Linux v4.0
+    AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
       #include <linux/if_link.h>
-    ]])
-  if test $IPVLAN_SUPPORT = Yes; then
-    AC_DEFINE([_HAVE_VRRP_IPVLAN_], [ 1 ], [Define to 1 if have IP VLAN support])
-    add_system_opt([VRRP_IPVLAN])
+      int main(void) { int var = IFLA_LINK_NETNSID; }
+      ]])],
+      [
+        AC_DEFINE([HAVE_IFLA_LINK_NETNSID], [ 1 ], [Define to 1 if IFLA_LINK_NETNSID supported])
+        add_system_opt([IFLA_LINK_NETNSID])
+      ])
   fi
   CPPFLAGS="$SAV_CPPFLAGS"
-
-  dnl ----[ Check for IFLA_LINK_NETNSID support ]---- since Linux v4.0
-  AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-    #include <linux/if_link.h>
-    int main(void) { int var = IFLA_LINK_NETNSID; }
-    ]])],
-    [
-      AC_DEFINE([HAVE_IFLA_LINK_NETNSID], [ 1 ], [Define to 1 if IFLA_LINK_NETNSID supported])
-      add_system_opt([IFLA_LINK_NETNSID])
-    ])
 
   dnl ----[ JSON output or not ? ]----
   if test "${enable_json}" = yes; then
@@ -2073,9 +2069,10 @@ fi
 CPPFLAGS="$SAV_CPPFLAGS"
 
 dnl ----[ Checks for kernel IFLA_VRF_... support ]----
-SAV_CPPFLAGS="$CPPFLAGS"
-CPPFLAGS="$CPPFLAGS $kernelinc"
 if test ${MACVLAN_SUPPORT} = Yes; then
+  SAV_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $kernelinc"
+
   # Introduced in Linux 4.3
   AC_CHECK_DECLS([IFLA_VRF_MAX],
     [
@@ -2084,8 +2081,8 @@ if test ${MACVLAN_SUPPORT} = Yes; then
     ], [], [[
       #include <linux/if_link.h>
     ]])
+  CPPFLAGS="$SAV_CPPFLAGS"
 fi
-CPPFLAGS="$SAV_CPPFLAGS"
 
 dnl ----[ Checks for SNMP support ]----
 SNMP_SUPPORT=No

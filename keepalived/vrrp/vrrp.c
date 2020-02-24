@@ -3216,8 +3216,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		 * ensure that VIPs don't cause it to be tracked. */
 		if (!vip->dont_track &&
 		    (!vrrp->dont_track_primary ||
-		     (vip->ifp != vrrp->ifp &&
-		      vip->ifp != IF_BASE_IFP(vrrp->ifp))))
+		     (vip->ifp != vrrp->ifp
+#ifdef _HAVE_VRRP_VMAC_
+		      && vip->ifp != IF_BASE_IFP(vrrp->ifp)
+#endif
+							   )))
 			add_vrrp_to_interface(vrrp, vip->ifp, 0, false, false, TRACK_ADDR);
 	}
 	LIST_FOREACH(vrrp->evip, vip, e) {
@@ -3228,8 +3231,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		 * ensure that eVIPs don't cause it to be tracked. */
 		if (!vip->dont_track &&
 		    (!vrrp->dont_track_primary ||
-		     (vip->ifp != vrrp->ifp &&
-		      vip->ifp != IF_BASE_IFP(vrrp->ifp))))
+		     (vip->ifp != vrrp->ifp
+#ifdef _HAVE_VRRP_VMAC_
+		      && vip->ifp != IF_BASE_IFP(vrrp->ifp)
+#endif
+							   )))
 			add_vrrp_to_interface(vrrp, vip->ifp, 0, false, false, TRACK_ADDR);
 
 		if (vip->ifa.ifa_family == AF_INET)

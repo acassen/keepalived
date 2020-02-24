@@ -101,7 +101,9 @@ enum udata_set_type {
 /* Local definitions */
 #define NO_REG (NFT_REG_MAX+1)
 
+#ifdef _HAVE_VRRP_VMAC_
 static const char vmac_map_name[] = "vmac_map";
+#endif
 
 static struct mnl_socket *nl;
 static unsigned int portid;
@@ -351,7 +353,7 @@ add_lookup(struct nftnl_rule *r, uint32_t base, uint32_t dreg, const char *set_n
 	nftnl_rule_add_expr(r, e);
 }
 
-#if HAVE_DECL_NFTA_DUP_MAX
+#if HAVE_DECL_NFTA_DUP_MAX && defined _HAVE_VRRP_VMAC_
 static void
 add_dup(struct nftnl_rule *r, uint32_t addr_reg, uint32_t dev_reg)
 {
@@ -391,7 +393,7 @@ add_immediate_verdict(struct nftnl_rule *r, uint32_t verdict, const char *chain)
 	nftnl_rule_add_expr(r, e);
 }
 
-#if HAVE_DECL_NFTA_DUP_MAX
+#if HAVE_DECL_NFTA_DUP_MAX && defined _HAVE_VRRP_VMAC_
 static void
 add_immediate_data(struct nftnl_rule *r, uint32_t reg, const void *data, uint32_t data_len)
 {
@@ -2001,10 +2003,12 @@ nft_cleanup(void)
 
 	ipv4_table_setup = false;
 	ipv4_vips_setup = false;
-	ipv4_igmp_setup = false;
 	ipv6_table_setup = false;
 	ipv6_vips_setup = false;
+#ifdef _HAVE_VRRP_VMAC_
+	ipv4_igmp_setup = false;
 	ipv6_igmp_setup = false;
+#endif
 	setup_ll_ifname = false;
 	setup_ll_ifindex = false;
 }

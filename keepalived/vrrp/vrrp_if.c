@@ -128,8 +128,8 @@ if_get_by_ifname(const char *ifname, if_lookup_t create)
 	strcpy_safe(ifp->ifname, ifname);
 #ifdef _HAVE_VRRP_VMAC_
 	ifp->base_ifp = ifp;
-#endif
 	ifp->if_type = IF_TYPE_STANDARD;
+#endif
 	ifp->sin_addr_l = alloc_list(free_list_element_simple, NULL);
 	ifp->sin6_addr_l = alloc_list(free_list_element_simple, NULL);
 
@@ -1269,7 +1269,11 @@ cleanup_lost_interface(interface_t *ifp)
 		vrrp = tvp->vrrp;
 
 		/* If this is just a tracking interface, we don't need to do anything */
-		if (vrrp->ifp != ifp && IF_BASE_IFP(vrrp->ifp) != ifp && VRRP_CONFIGURED_IFP(vrrp) != ifp)
+		if (vrrp->ifp != ifp
+#ifdef _HAVE_VRRP_VMAC_
+		    && IF_BASE_IFP(vrrp->ifp) != ifp && VRRP_CONFIGURED_IFP(vrrp) != ifp
+#endif
+											)
 			continue;
 
 		/* If the vrrp instance's interface doesn't exist, skip it */
@@ -1537,7 +1541,11 @@ update_added_interface(interface_t *ifp)
 #endif
 
 		/* If this is just a tracking interface, we don't need to do anything */
-		if (vrrp->ifp != ifp && IF_BASE_IFP(vrrp->ifp) != ifp)
+		if (vrrp->ifp != ifp
+#ifdef _HAVE_VRRP_VMAC_
+		    && IF_BASE_IFP(vrrp->ifp) != ifp
+#endif
+						    )
 			continue;
 
 		/* Reopen any socket on this interface if necessary */

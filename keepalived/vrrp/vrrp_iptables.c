@@ -229,6 +229,7 @@ add_del_igmp_rules(struct ipt_handle *h, int cmd, uint8_t family)
 		igmp_addr.u.sin6_addr.s6_addr32[3] = htonl(0x16);
 	}
 
+#ifdef HAVE_IPSET_ATTR_IFACE
 	if (global_data->using_ipsets) {
 		if (family == AF_INET) {
 			if (h->h4 || (h->h4 = ip4tables_open("filter"))) {
@@ -246,6 +247,7 @@ add_del_igmp_rules(struct ipt_handle *h, int cmd, uint8_t family)
 
 		return;
 	}
+#endif
 }
 #endif
 #endif
