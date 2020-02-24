@@ -55,8 +55,8 @@ check_iptables_nft(void)
 	checked_iptables_nft = true;
 
 	/* If using iptables is not configured, we don't need to do anything */
-	if (!global_data->vrrp_iptables_inchain[0] &&
-	    !global_data->vrrp_iptables_outchain[0])
+	if (!global_data->vrrp_iptables_inchain &&
+	    !global_data->vrrp_iptables_outchain)
 		return;
 
 	fp = popen("iptables -V", "r");
@@ -97,8 +97,8 @@ check_iptables_nft(void)
 		log_message(LOG_INFO, "Not using iptables since iptables uses nf_tables - please update configuration");
 	}
 
-	global_data->vrrp_iptables_inchain[0] = '\0';
-	global_data->vrrp_iptables_outchain[0] = '\0';
+	FREE_CONST_PTR(global_data->vrrp_iptables_inchain);
+	FREE_CONST_PTR(global_data->vrrp_iptables_outchain);
 #ifdef _HAVE_LIBISPET_
 	global_data->using_ipsets = false;
 #endif
@@ -123,7 +123,7 @@ firewall_handle_accept_mode(vrrp_t *vrrp, int cmd,
 #endif
 
 #ifdef _WITH_IPTABLES_
-	if (global_data->vrrp_iptables_inchain[0])
+	if (global_data->vrrp_iptables_inchain)
 		handle_iptables_accept_mode(vrrp, cmd, force);
 #endif
 
@@ -143,7 +143,7 @@ void
 firewall_remove_rule_to_iplist(list ip_list)
 {
 #ifdef _WITH_IPTABLES_
-	if (global_data->vrrp_iptables_inchain[0])
+	if (global_data->vrrp_iptables_inchain)
 		handle_iptable_rule_to_iplist(ip_list, NULL, IPADDRESS_DEL, false);
 #endif
 
@@ -163,7 +163,7 @@ firewall_add_vmac(const vrrp_t *vrrp)
 #endif
 
 #ifdef _WITH_IPTABLES_
-	if (global_data->vrrp_iptables_outchain[0])
+	if (global_data->vrrp_iptables_outchain)
 		iptables_add_vmac(vrrp);
 #endif
 
@@ -177,7 +177,7 @@ void
 firewall_remove_vmac(const vrrp_t *vrrp)
 {
 #ifdef _WITH_IPTABLES_
-	if (global_data->vrrp_iptables_outchain[0])
+	if (global_data->vrrp_iptables_outchain)
 		iptables_remove_vmac(vrrp);
 #endif
 
@@ -192,8 +192,8 @@ void
 firewall_fini(void)
 {
 #ifdef _WITH_IPTABLES_
-	if (global_data->vrrp_iptables_inchain[0] ||
-	    global_data->vrrp_iptables_outchain[0])
+	if (global_data->vrrp_iptables_inchain ||
+	    global_data->vrrp_iptables_outchain)
 		iptables_fini();
 #endif
 

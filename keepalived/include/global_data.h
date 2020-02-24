@@ -151,16 +151,16 @@ typedef struct _data {
 	bool				vrrp_higher_prio_send_advert;
 	int				vrrp_version;		/* VRRP version (2 or 3) */
 #ifdef _WITH_IPTABLES_
-	char				vrrp_iptables_inchain[XT_EXTENSION_MAXNAMELEN];
-	char				vrrp_iptables_outchain[XT_EXTENSION_MAXNAMELEN];
+	const char			*vrrp_iptables_inchain;
+	const char			*vrrp_iptables_outchain;
 #ifdef _HAVE_LIBIPSET_
 	bool				using_ipsets;
-	char				vrrp_ipset_address[IPSET_MAXNAMELEN];
-	char				vrrp_ipset_address6[IPSET_MAXNAMELEN];
-	char				vrrp_ipset_address_iface6[IPSET_MAXNAMELEN];
+	const char			*vrrp_ipset_address;
+	const char			*vrrp_ipset_address6;
+	const char			*vrrp_ipset_address_iface6;
 #ifdef HAVE_IPSET_ATTR_IFACE
-	char				vrrp_ipset_igmp[IPSET_MAXNAMELEN];
-	char				vrrp_ipset_mld[IPSET_MAXNAMELEN];
+	const char			*vrrp_ipset_igmp;
+	const char			*vrrp_ipset_mld;
 #endif
 #endif
 #endif

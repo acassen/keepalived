@@ -107,13 +107,6 @@ set_vrrp_defaults(data_t * data)
 	data->vrrp_version = VRRP_VERSION_2;
 #ifdef _HAVE_LIBIPSET_
 	data->using_ipsets = true;
-	strcpy(data->vrrp_ipset_address, DEFAULT_IPSET_NAME);
-	strcpy(data->vrrp_ipset_address6, DEFAULT_IPSET_NAME "6");
-	strcpy(data->vrrp_ipset_address_iface6, DEFAULT_IPSET_NAME "if6");
-#ifdef HAVE_IPSET_ATTR_IFACE
-	strcpy(data->vrrp_ipset_igmp, DEFAULT_IPSET_NAME "_igmp");
-	strcpy(data->vrrp_ipset_mld, DEFAULT_IPSET_NAME "_mld");
-#endif
 #endif
 	data->vrrp_check_unicast_src = false;
 	data->vrrp_skip_check_adv_addr = false;
@@ -360,6 +353,19 @@ free_global_data(data_t * data)
 	FREE_CONST_PTR(data->default_ifname);
 	FREE_CONST_PTR(data->vrrp_notify_fifo.name);
 	free_notify_script(&data->vrrp_notify_fifo.script);
+#ifdef _WITH_IPTABLES_
+	FREE_CONST_PTR(data->vrrp_iptables_inchain);
+	FREE_CONST_PTR(data->vrrp_iptables_outchain);
+#ifdef _HAVE_LIBIPSET_
+	FREE_CONST_PTR(data->vrrp_ipset_address);
+	FREE_CONST_PTR(data->vrrp_ipset_address6);
+	FREE_CONST_PTR(data->vrrp_ipset_address_iface6);
+#ifdef HAVE_IPSET_ATTR_IFACE
+	FREE_CONST_PTR(data->vrrp_ipset_igmp);
+	FREE_CONST_PTR(data->vrrp_ipset_mld);
+#endif
+#endif
+#endif
 #ifdef _WITH_NFTABLES_
 	FREE_CONST_PTR(data->vrrp_nf_table_name);
 #endif
@@ -544,23 +550,23 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " Gratuitous NA interval = %f", data->vrrp_gna_interval / TIMER_HZ_DOUBLE);
 	conf_write(fp, " VRRP default protocol version = %d", data->vrrp_version);
 #ifdef _WITH_IPTABLES_
-	if (data->vrrp_iptables_inchain[0]) {
+	if (data->vrrp_iptables_inchain) {
 		conf_write(fp," Iptables input chain = %s", data->vrrp_iptables_inchain);
-		if (data->vrrp_iptables_outchain[0])
+		if (data->vrrp_iptables_outchain)
 			conf_write(fp," Iptables output chain = %s", data->vrrp_iptables_outchain);
 #ifdef _HAVE_LIBIPSET_
 		conf_write(fp, " Using ipsets = %s", data->using_ipsets ? "true" : "false");
 		if (data->using_ipsets) {
-			if (data->vrrp_ipset_address[0])
+			if (data->vrrp_ipset_address)
 				conf_write(fp," ipset IPv4 address set = %s", data->vrrp_ipset_address);
-			if (data->vrrp_ipset_address6[0])
+			if (data->vrrp_ipset_address6)
 				conf_write(fp," ipset IPv6 address set = %s", data->vrrp_ipset_address6);
-			if (data->vrrp_ipset_address_iface6[0])
+			if (data->vrrp_ipset_address_iface6)
 				conf_write(fp," ipset IPv6 address,iface set = %s", data->vrrp_ipset_address_iface6);
 #ifdef HAVE_IPSET_ATTR_IFACE
-			if (data->vrrp_ipset_igmp[0])
+			if (data->vrrp_ipset_igmp)
 				conf_write(fp," ipset IGMP set = %s", data->vrrp_ipset_igmp);
-			if (data->vrrp_ipset_mld[0])
+			if (data->vrrp_ipset_mld)
 				conf_write(fp," ipset MLD set = %s", data->vrrp_ipset_mld);
 #endif
 		}

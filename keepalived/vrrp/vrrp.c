@@ -3156,7 +3156,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		bool have_firewall = false;
 
 #ifdef _WITH_IPTABLES_
-		if (global_data->vrrp_iptables_inchain[0])
+		if (global_data->vrrp_iptables_inchain)
 			have_firewall = true;
 #endif
 #ifdef _WITH_NFTABLES_
@@ -3166,15 +3166,25 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 		if (!have_firewall) {
 #ifdef _WITH_NFTABLES_
-			/* str is needed since vrrp_nf_table_name is const char * */
-			char *str;
-			str = MALLOC(strlen(DEFAULT_NFTABLES_TABLE) + 1);
-			strcpy(str, DEFAULT_NFTABLES_TABLE);
-			global_data->vrrp_nf_table_name = str;
+			global_data->vrrp_nf_table_name = STRDUP(DEFAULT_NFTABLES_TABLE);
 #else
 			log_message(LOG_INFO, "Adding iptables rules to default chains, but chains not configured");
-			strcpy(global_data->vrrp_iptables_inchain, DEFAULT_IPTABLES_CHAIN_IN);
-			strcpy(global_data->vrrp_iptables_outchain, DEFAULT_IPTABLES_CHAIN_OUT);
+			global_data->vrrp_iptables_inchain = STRDUP(DEFAULT_IPTABLES_CHAIN_IN);
+			global_data->vrrp_iptables_outchain = STRDUP(DEFAULT_IPTABLES_CHAIN_OUT);
+
+#ifdef _HAVE_LIBIPSET_
+			if (!data->using_ipsets) {
+				data->using_ipsets = true;
+				data->vrrp_ipset_address = STRDUP(DEFAULT_IPSET_NAME);
+				data->vrrp_ipset_address6 = STRDUP(DEFAULT_IPSET_NAME "6");
+				data->vrrp_ipset_address_iface6 = STRDUP(DEFAULT_IPSET_NAME "if6");
+#ifdef HAVE_IPSET_ATTR_IFACE
+				data->vrrp_ipset_igmp = STRDUP(DEFAULT_IPSET_NAME "_igmp");
+				data->vrrp_ipset_mld = STRDUP(DEFAULT_IPSET_NAME "_mld");
+#endif
+			}
+#endif
+
 #endif
 		}
 	}
@@ -3909,16 +3919,16 @@ vrrp_complete_init(void)
 
 #if defined _WITH_IPTABLES && defined _WITH_NFTABLES_
 	/* It doesn't make sense to use both iptables and nftables; prefer nftables */
-	if (global_data->vrrp_iptables_inchain[0] && global_data->vrrp_nf_table_name) {
+	if (global_data->vrrp_iptables_inchain && global_data->vrrp_nf_table_name) {
 		log_message(LOG_INFO, "Both iptables and nftables have been specified - ignoring iptables");
-		global_data->vrrp_iptables_inchain[0] = '\0';
-		global_data->vrrp_iptables_outchain[0] = '\0';
+		FREE_CONST_PTR(global_data->vrrp_iptables_inchain);
+		FREE_CONST_PTR(global_data->vrrp_iptables_outchain);
 		global_data->using_ipsets = false;
 	}
 #endif
 
 #if defined _WITH_IPTABLES_ && defined _HAVE_LIBIPSET_
-	if (!global_data->vrrp_iptables_inchain[0] && global_data->using_ipsets) {
+	if (!global_data->vrrp_iptables_inchain && global_data->using_ipsets) {
 		log_message(LOG_INFO, "vrrp_ipsets has been specified but not vrrp_iptables - vrrp_ipsets will be ignored");
 		global_data->using_ipsets = false;
 	}

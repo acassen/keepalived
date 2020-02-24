@@ -860,22 +860,41 @@ vrrp_higher_prio_send_advert_handler(const vector_t *strvec)
 static void
 vrrp_iptables_handler(const vector_t *strvec)
 {
+	if (global_data->vrrp_iptables_inchain) {
+		report_config_error(CONFIG_GENERAL_ERROR, "iptables already specified - ignoring");
+		return;
+	}
+
 	if (vector_size(strvec) >= 2) {
-		if (strlen(strvec_slot(strvec,1)) >= sizeof(global_data->vrrp_iptables_inchain)-1) {
+		if (strlen(strvec_slot(strvec,1)) >= XT_EXTENSION_MAXNAMELEN - 1) {
 			report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : iptables in chain name too long - ignored");
 			return;
 		}
-		strcpy(global_data->vrrp_iptables_inchain, strvec_slot(strvec,1));
+		global_data->vrrp_iptables_inchain = STRDUP(strvec_slot(strvec,1));
 		if (vector_size(strvec) >= 3) {
-			if (strlen(strvec_slot(strvec,2)) >= sizeof(global_data->vrrp_iptables_outchain)-1) {
+			if (strlen(strvec_slot(strvec,2)) >= XT_EXTENSION_MAXNAMELEN - 1) {
 				report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : iptables out chain name too long - ignored");
 				return;
 			}
-			strcpy(global_data->vrrp_iptables_outchain, strvec_slot(strvec,2));
+			global_data->vrrp_iptables_outchain = STRDUP(strvec_slot(strvec,2));
 		}
 	} else {
-		strcpy(global_data->vrrp_iptables_inchain, DEFAULT_IPTABLES_CHAIN_IN);
-		strcpy(global_data->vrrp_iptables_outchain, DEFAULT_IPTABLES_CHAIN_OUT);
+		global_data->vrrp_iptables_inchain = STRDUP(DEFAULT_IPTABLES_CHAIN_IN);
+		global_data->vrrp_iptables_outchain = STRDUP(DEFAULT_IPTABLES_CHAIN_OUT);
+	}
+	if (global_data->using_ipsets) {
+		if (!global_data->vrrp_ipset_address)
+			global_data->vrrp_ipset_address = STRDUP(DEFAULT_IPSET_NAME);
+		if (!global_data->vrrp_ipset_address6)
+			global_data->vrrp_ipset_address6 = STRDUP(DEFAULT_IPSET_NAME "6");
+		if (!global_data->vrrp_ipset_address_iface6)
+			global_data->vrrp_ipset_address_iface6 = STRDUP(DEFAULT_IPSET_NAME "_if6");
+#ifdef HAVE_IPSET_ATTR_IFACE
+		if (!global_data->vrrp_ipset_igmp)
+			global_data->vrrp_ipset_igmp = STRDUP(DEFAULT_IPSET_NAME "_igmp");
+		if (!global_data->vrrp_ipset_mld)
+			global_data->vrrp_ipset_mld = STRDUP(DEFAULT_IPSET_NAME "_mld");
+#endif
 	}
 }
 #ifdef _HAVE_LIBIPSET_
@@ -883,74 +902,87 @@ static void
 vrrp_ipsets_handler(const vector_t *strvec)
 {
 	size_t len;
+	char set_name[IPSET_MAXNAMELEN];
 
-	if (vector_size(strvec) >= 2) {
-		if (strlen(strvec_slot(strvec,1)) >= sizeof(global_data->vrrp_ipset_address)-1) {
-			report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : ipset address name too long - ignored");
-			return;
-		}
-		strcpy(global_data->vrrp_ipset_address, strvec_slot(strvec,1));
-	}
-	else {
+	FREE_CONST_PTR(global_data->vrrp_ipset_address);
+	FREE_CONST_PTR(global_data->vrrp_ipset_address6);
+	FREE_CONST_PTR(global_data->vrrp_ipset_address_iface6);
+#ifdef HAVE_IPSET_ATTR_IFACE
+	FREE_CONST_PTR(global_data->vrrp_ipset_igmp);
+	FREE_CONST_PTR(global_data->vrrp_ipset_mld);
+#endif
+
+	if (vector_size(strvec) < 2) {
 		global_data->using_ipsets = false;
 		return;
 	}
 
+	if (strlen(strvec_slot(strvec,1)) >= IPSET_MAXNAMELEN - 1) {
+		report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : ipset address name too long - ignored");
+		return;
+	}
+	global_data->vrrp_ipset_address = STRDUP(strvec_slot(strvec,1));
+
 	if (vector_size(strvec) >= 3) {
-		if (strlen(strvec_slot(strvec,2)) >= sizeof(global_data->vrrp_ipset_address6)-1) {
+		if (strlen(strvec_slot(strvec,2)) >= IPSET_MAXNAMELEN - 1) {
 			report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : ipset IPv6 address name too long - ignored");
 			return;
 		}
-		strcpy(global_data->vrrp_ipset_address6, strvec_slot(strvec,2));
+		global_data->vrrp_ipset_address6 = STRDUP(strvec_slot(strvec,2));
 	}
 	else {
 		/* No second set specified, copy first name and add "6" */
-		strcpy(global_data->vrrp_ipset_address6, global_data->vrrp_ipset_address);
-		global_data->vrrp_ipset_address6[sizeof(global_data->vrrp_ipset_address6) - 2] = '\0';
-		strcat(global_data->vrrp_ipset_address6, "6");
+		strcpy_safe(set_name, global_data->vrrp_ipset_address);
+		set_name[IPSET_MAXNAMELEN - 2] = '\0';
+		strcat(set_name, "6");
+		global_data->vrrp_ipset_address6 = STRDUP(set_name);
 	}
 	if (vector_size(strvec) >= 4) {
-		if (strlen(strvec_slot(strvec,3)) >= sizeof(global_data->vrrp_ipset_address_iface6)-1) {
+		if (strlen(strvec_slot(strvec,3)) >= IPSET_MAXNAMELEN - 1) {
 			report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : ipset IPv6 address_iface name too long - ignored");
 			return;
 		}
-		strcpy(global_data->vrrp_ipset_address_iface6, strvec_slot(strvec,3));
+		global_data->vrrp_ipset_address_iface6 = STRDUP(strvec_slot(strvec,3));
 	}
 	else {
 		/* No third set specified, copy second name and add "_if6" */
-		strcpy(global_data->vrrp_ipset_address_iface6, global_data->vrrp_ipset_address6);
-		len = strlen(global_data->vrrp_ipset_address_iface6);
-		if (global_data->vrrp_ipset_address_iface6[len-1] == '6')
-			global_data->vrrp_ipset_address_iface6[--len] = '\0';
-		global_data->vrrp_ipset_address_iface6[sizeof(global_data->vrrp_ipset_address_iface6) - 5] = '\0';
-		strcat(global_data->vrrp_ipset_address_iface6, "_if6");
+		strcpy_safe(set_name, global_data->vrrp_ipset_address6);
+		len = strlen(set_name);
+		if (set_name[len-1] == '6')
+			set_name[--len] = '\0';
+		set_name[IPSET_MAXNAMELEN - 5] = '\0';
+		strcat(set_name, "_if6");
+		global_data->vrrp_ipset_address_iface6 = STRDUP(set_name);
 	}
+
 #ifdef HAVE_IPSET_ATTR_IFACE
 	if (vector_size(strvec) >= 5) {
-		if (strlen(strvec_slot(strvec,4)) >= sizeof(global_data->vrrp_ipset_igmp)-1) {
+		if (strlen(strvec_slot(strvec,4)) >= IPSET_MAXNAMELEN - 1) {
 			report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : ipset IGMP name too long - ignored");
 			return;
 		}
-		strcpy(global_data->vrrp_ipset_igmp, strvec_slot(strvec,4));
+		global_data->vrrp_ipset_igmp = STRDUP(strvec_slot(strvec,4));
 	}
 	else {
 		/* No second set specified, copy first name and add "_igmp" */
-		strcpy(global_data->vrrp_ipset_igmp, global_data->vrrp_ipset_address);
-		global_data->vrrp_ipset_address6[sizeof(global_data->vrrp_ipset_igmp) - 6] = '\0';
-		strcat(global_data->vrrp_ipset_igmp, "_igmp");
+		strcpy_safe(set_name, global_data->vrrp_ipset_address);
+		set_name[sizeof(global_data->vrrp_ipset_igmp) - 6] = '\0';
+		strcat(set_name, "_igmp");
+		global_data->vrrp_ipset_igmp = STRDUP(set_name);
 	}
 	if (vector_size(strvec) >= 6) {
-		if (strlen(strvec_slot(strvec,5)) >= sizeof(global_data->vrrp_ipset_mld)-1) {
+		if (strlen(strvec_slot(strvec,5)) >= IPSET_MAXNAMELEN - 1) {
 			report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : ipset MLD name too long - ignored");
 			return;
 		}
-		strcpy(global_data->vrrp_ipset_mld, strvec_slot(strvec,5));
+		global_data->vrrp_ipset_mld = STRDUP(strvec_slot(strvec,5));
 	}
 	else {
 		/* No second set specified, copy first name and add "_mld" */
-		strcpy(global_data->vrrp_ipset_mld, global_data->vrrp_ipset_address);
-		global_data->vrrp_ipset_mld[sizeof(global_data->vrrp_ipset_mld) - 5] = '\0';
-		strcat(global_data->vrrp_ipset_mld, "_mld");
+		strcpy_safe(set_name, global_data->vrrp_ipset_address);
+		set_name[sizeof(global_data->vrrp_ipset_mld) - 5] = '\0';
+		strcat(set_name, "_mld");
+		global_data->vrrp_ipset_mld = STRDUP(set_name);
 	}
 #endif
 }

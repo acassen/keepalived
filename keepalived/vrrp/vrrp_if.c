@@ -837,7 +837,7 @@ if_join_vrrp_group(sa_family_t family, int *sd, interface_t *ifp)
 	    ifp->if_type == IF_TYPE_MACVLAN &&
 	    ifp->is_ours) {
 #ifdef _WITH_IPTABLES_
-		if (global_data->vrrp_iptables_outchain[0])
+		if (global_data->vrrp_iptables_outchain)
 			send_on_base_if = true;
 #endif
 #ifdef _WITH_NFTABLES_
