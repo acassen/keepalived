@@ -2596,7 +2596,7 @@ if test "${enable_log_file}" = yes; then
   add_config_opt([FILE_LOGGING])
 fi
 
-if test ${ENABLE_LOG_FILE_APPEND} = Yes; then
+if test "${ENABLE_LOG_FILE_APPEND}" = Yes; then
   AC_DEFINE([ENABLE_LOG_FILE_APPEND], [ 1 ], [Define if appending to log files is allowed])
   add_config_opt([LOG_FILE_APPEND])
 fi
@@ -2697,7 +2697,7 @@ AS_IF([test .$enable_dump_keywords = .yes],
     add_config_opt([DUMP_KEYWORDS])
   ])
 
-if test ${NEED_LIBDL} = Yes; then
+if test "${NEED_LIBDL}" = Yes; then
   add_to_var([KA_LIBS], [-ldl])
 fi
 
