@@ -31,6 +31,7 @@
 #include <time.h>
 #include <string.h>
 #include <netinet/in.h>
+#include <stdlib.h>
 
 #include <net/if.h>
 #include <linux/netfilter.h>
@@ -1990,8 +1991,29 @@ nft_end(void)
 void
 set_nf_ifname_type(void)
 {
-	if (global_data->nft_version)
-		ifname_type = global_data->nft_version >= 0x000803 ? TYPE_IFNAME : TYPE_STRING;
+	FILE *fp;
+	char nft_ver_buf[64];
+	char *p;
+	unsigned nft_major = 0, nft_minor = 0, nft_release = 0;
+	unsigned nft_version = 0;
+
+	fp = popen("nft -v 2>/dev/null", "r");
+	if (fp) {
+		if (fgets(nft_ver_buf, sizeof(nft_ver_buf) - 1, fp)) {
+			p = strchr(nft_ver_buf, ' ');
+			while (*p == ' ')
+				p++;
+			if (*p == 'v')
+				p++;
+
+			if (sscanf(p, "%u.%u.%u", &nft_major, &nft_minor, &nft_release) >= 2)
+				nft_version = (nft_major * 0x100 + nft_minor) * 0x100 + nft_release;
+		}
+		pclose(fp);
+	}
+
+	if (nft_version)
+		ifname_type = nft_version >= 0x000803 ? TYPE_IFNAME : TYPE_STRING;
 	else
 		ifname_type = LIBNFTNL_VERSION > 0x010009 ? TYPE_IFNAME : TYPE_STRING;
 

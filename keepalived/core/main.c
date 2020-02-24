@@ -40,7 +40,6 @@
 #include <getopt.h>
 #include <linux/version.h>
 #include <ctype.h>
-#include <stdlib.h>
 
 #include "main.h"
 #include "global_data.h"
@@ -1955,12 +1954,6 @@ keepalived_main(int argc, char **argv)
 	struct utsname uname_buf;
 	char *end;
 	int exit_code = KEEPALIVED_EXIT_OK;
-#ifdef _WITH_NFTABLES_
-	FILE *fp;
-	char nft_ver_buf[128];
-	char *p;
-	unsigned nft_major = 0, nft_minor = 0, nft_release = 0;
-#endif
 
 	/* Ignore reloading signals till signal_init call */
 	signals_ignore();
@@ -2093,23 +2086,8 @@ keepalived_main(int argc, char **argv)
 	init_global_data(global_data, NULL, false);
 
 #ifdef _WITH_NFTABLES_
-	if (global_data->vrrp_nf_table_name) {
-		/* We are using nftables. Find the version of nft. */
-		fp = popen("nft -v 2>/dev/null", "r");
-		if (fgets(nft_ver_buf, sizeof(nft_ver_buf) - 1, fp)) {
-			p = strchr(nft_ver_buf, ' ');
-			while (*p == ' ')
-				p++;
-			if (*p == 'v')
-				p++;
-
-			if (sscanf(p, "%u.%u.%u", &nft_major, &nft_minor, &nft_release) >= 2)
-				global_data->nft_version = (nft_major * 0x100 + nft_minor) * 0x100 + nft_release;
-		}
-		pclose(fp);
-
+	if (global_data->vrrp_nf_table_name)
 		set_nf_ifname_type();
-	}
 #endif
 
 	/* Update process name if necessary */
