@@ -977,7 +977,11 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 						else
 							is_tracking_saddr = false;
 
-						if (ifp == (vrrp->family == AF_INET ? VRRP_CONFIGURED_IFP(vrrp) : vrrp->ifp) &&
+						if (ifp == (
+#ifdef _HAVE_VRRP_VMAC_
+							    vrrp->family == AF_INET ? VRRP_CONFIGURED_IFP(vrrp) :
+#endif
+							    vrrp->ifp) &&
 						    vrrp->num_script_if_fault &&
 						    vrrp->family == ifa->ifa_family &&
 						    vrrp->saddr.ss_family == AF_UNSPEC &&
@@ -1077,7 +1081,11 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 				LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {
 					vrrp = tvp->vrrp;
 
-					if (ifp != vrrp->ifp && ifp != VRRP_CONFIGURED_IFP(vrrp))
+					if (ifp != vrrp->ifp
+#ifdef _HAVE_VRRP_VMAC_
+					    && ifp != VRRP_CONFIGURED_IFP(vrrp)
+#endif
+									       )
 						continue;
 					if (vrrp->family != ifa->ifa_family)
 						continue;
@@ -1109,7 +1117,11 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 					}
 					else
 #endif
-					     if (ifp == (vrrp->family == AF_INET ? VRRP_CONFIGURED_IFP(vrrp) : vrrp->ifp) &&
+					     if (ifp == (
+#ifdef _HAVE_VRRP_VMAC_
+							 vrrp->family == AF_INET ? VRRP_CONFIGURED_IFP(vrrp) :
+#endif
+							 vrrp->ifp) &&
 						 vrrp->family == ifa->ifa_family &&
 						 vrrp->saddr.ss_family != AF_UNSPEC &&
 						 (!vrrp->saddr_from_config || is_tracking_saddr)) {
@@ -1667,7 +1679,9 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	/* Fill the interface structure */
 	strcpy_safe(ifp->ifname, name);
 	ifp->ifindex = (ifindex_t)ifi->ifi_index;
+#ifdef _HAVE_VRRP_VMAC_
 	ifp->if_type = IF_TYPE_STANDARD;
+#endif
 #ifdef HAVE_IFLA_LINK_NETNSID						/* from Linux v4.0 */
 	ifp->base_netns_id = -1;
 #endif

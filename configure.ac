@@ -1919,38 +1919,34 @@ if test "$enable_vrrp" != no; then
   if test $MACVLAN_SUPPORT = Yes; then
     AC_DEFINE([_HAVE_VRRP_VMAC_], [ 1 ], [Define to 1 if have MAC VLAN support])
     add_system_opt([VRRP_VMAC])
-  fi
-  CPPFLAGS="$SAV_CPPFLAGS"
 
-  dnl ----[ Checks for kernel IPVLAN support ]----
-  SAV_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$CPPFLAGS $kernelinc"
-  IPVLAN_SUPPORT=Yes
-  dnl -- Since Linux 3.19
-  AC_CHECK_DECLS([
-      IFLA_IPVLAN_MODE], [],
-    [
-      IPVLAN_SUPPORT=No
-      break
-    ], [[
-      #include <sys/socket.h>
+    dnl ----[ Checks for kernel IPVLAN support ]----
+    IPVLAN_SUPPORT=Yes
+    dnl -- Since Linux 3.19
+    AC_CHECK_DECLS([IFLA_IPVLAN_MODE], [],
+      [
+        IPVLAN_SUPPORT=No
+        break
+      ], [[
+        #include <sys/socket.h>
+        #include <linux/if_link.h>
+      ]])
+    if test $IPVLAN_SUPPORT = Yes; then
+      AC_DEFINE([_HAVE_VRRP_IPVLAN_], [ 1 ], [Define to 1 if have IP VLAN support])
+      add_system_opt([VRRP_IPVLAN])
+    fi
+
+    dnl ----[ Check for IFLA_LINK_NETNSID support ]---- since Linux v4.0
+    AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
       #include <linux/if_link.h>
-    ]])
-  if test $IPVLAN_SUPPORT = Yes; then
-    AC_DEFINE([_HAVE_VRRP_IPVLAN_], [ 1 ], [Define to 1 if have IP VLAN support])
-    add_system_opt([VRRP_IPVLAN])
+      int main(void) { int var = IFLA_LINK_NETNSID; }
+      ]])],
+      [
+        AC_DEFINE([HAVE_IFLA_LINK_NETNSID], [ 1 ], [Define to 1 if IFLA_LINK_NETNSID supported])
+        add_system_opt([IFLA_LINK_NETNSID])
+      ])
   fi
   CPPFLAGS="$SAV_CPPFLAGS"
-
-  dnl ----[ Check for IFLA_LINK_NETNSID support ]---- since Linux v4.0
-  AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-    #include <linux/if_link.h>
-    int main(void) { int var = IFLA_LINK_NETNSID; }
-    ]])],
-    [
-      AC_DEFINE([HAVE_IFLA_LINK_NETNSID], [ 1 ], [Define to 1 if IFLA_LINK_NETNSID supported])
-      add_system_opt([IFLA_LINK_NETNSID])
-    ])
 
   dnl ----[ JSON output or not ? ]----
   if test "${enable_json}" = yes; then
@@ -2073,9 +2069,10 @@ fi
 CPPFLAGS="$SAV_CPPFLAGS"
 
 dnl ----[ Checks for kernel IFLA_VRF_... support ]----
-SAV_CPPFLAGS="$CPPFLAGS"
-CPPFLAGS="$CPPFLAGS $kernelinc"
 if test ${MACVLAN_SUPPORT} = Yes; then
+  SAV_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $kernelinc"
+
   # Introduced in Linux 4.3
   AC_CHECK_DECLS([IFLA_VRF_MAX],
     [
@@ -2084,8 +2081,8 @@ if test ${MACVLAN_SUPPORT} = Yes; then
     ], [], [[
       #include <linux/if_link.h>
     ]])
+  CPPFLAGS="$SAV_CPPFLAGS"
 fi
-CPPFLAGS="$SAV_CPPFLAGS"
 
 dnl ----[ Checks for SNMP support ]----
 SNMP_SUPPORT=No
@@ -2124,14 +2121,14 @@ if test "$enable_snmp" = yes -o \
   # For further information, see https://bugzilla.redhat.com/show_bug.cgi?id=1544527
   # and the other bugs referred to in it.
   for spec in `echo $NETSNMP_LIBS | sed -e "s? ?\n?g" | grep "^-specs="`; do
-    SPEC_FILE=`echo $spec | sed -e "s?^-spaces=??"`
+    SPEC_FILE=`echo $spec | sed -e "s?^-specs=??"`
     if test ! -f $SPEC_FILE; then
       NETSNMP_LIBS=`echo $NETSNMP_LIBS | sed -e "s? *$spec *? ?"`
       AC_MSG_WARN([Removing $spec from NETSNMP_LIBS since spec file not installed])
     fi
   done
   for spec in `echo $NETSNMP_CFLAGS | sed -e "s? ?\n?g" | grep "^-specs="`; do
-    SPEC_FILE=`echo $spec | sed -e "s?^-spaces=??"`
+    SPEC_FILE=`echo $spec | sed -e "s?^-specs=??"`
     if test ! -f $SPEC_FILE; then
       NETSNMP_CFLAGS=`echo $NETSNMP_CFLAGS | sed -e "s? *$spec *? ?"`
       AC_MSG_WARN([Removing $spec from NETSNMP_CFLAGS since spec file not installed])
@@ -2596,7 +2593,7 @@ if test "${enable_log_file}" = yes; then
   add_config_opt([FILE_LOGGING])
 fi
 
-if test ${ENABLE_LOG_FILE_APPEND} = Yes; then
+if test "${ENABLE_LOG_FILE_APPEND}" = Yes; then
   AC_DEFINE([ENABLE_LOG_FILE_APPEND], [ 1 ], [Define if appending to log files is allowed])
   add_config_opt([LOG_FILE_APPEND])
 fi
@@ -2697,7 +2694,7 @@ AS_IF([test .$enable_dump_keywords = .yes],
     add_config_opt([DUMP_KEYWORDS])
   ])
 
-if test ${NEED_LIBDL} = Yes; then
+if test "${NEED_LIBDL}" = Yes; then
   add_to_var([KA_LIBS], [-ldl])
 fi
 

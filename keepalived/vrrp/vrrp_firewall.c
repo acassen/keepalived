@@ -55,55 +55,58 @@ check_iptables_nft(void)
 	checked_iptables_nft = true;
 
 	/* If using iptables is not configured, we don't need to do anything */
-	if (!global_data->vrrp_iptables_inchain[0] &&
-	    !global_data->vrrp_iptables_outchain[0])
+	if (!global_data->vrrp_iptables_inchain &&
+	    !global_data->vrrp_iptables_outchain)
 		return;
 
 	fp = popen("iptables -V", "r");
 	if (!fp) {
 		/* No iptables command, so we need to use nftables */
-		if (__test_bit(LOG_DETAIL_BIT, &debug))
-			log_message(LOG_INFO, "Using nftables since no iptables command found - please update configuration");
+		log_message(LOG_INFO, "Using nftables since no iptables command found - please update configuration");
+	} else {
+		res = fgets(buf, sizeof buf, fp);
+		pclose(fp);
 
-		global_data->vrrp_iptables_inchain[0] = '\0';
-		global_data->vrrp_iptables_outchain[0] = '\0';
-
-		/* If nftables table name not set up, set it to default */
-		if (!global_data->vrrp_nf_table_name) {
-			global_data->vrrp_nf_table_name = res = MALLOC(strlen(DEFAULT_NFTABLES_TABLE) + 1);
-			strcpy(res, DEFAULT_NFTABLES_TABLE);
+		if (!res) {
+			if (__test_bit(LOG_DETAIL_BIT, &debug))
+				log_message(LOG_INFO, "popen(\"iptables -V\" read failed - errno %d - %m", errno);
+			return;
 		}
 
-		return;
-	}
+		/* iptables will either have no type, or the type will be "nf_tables" or "legacy" */
+		if ((len = strlen(buf)) && buf[len-1] == '\n')
+			buf[--len] = '\0';
 
-	res = fgets(buf, sizeof buf, fp);
-	pclose(fp);
+		if (len <= 10 || buf[len-1] != ')')
+			return;
 
-	if (!res) {
-		if (__test_bit(LOG_DETAIL_BIT, &debug))
-			log_message(LOG_INFO, "popen(\"iptables -V\" read failed - errno %d - %m", errno);
-		return;
-	}
+		/* If the type is not nf_tables, then iptables command is creating iptables configuration */
+		if (strncmp(buf + len - 1 - 9, "nf_tables", 9))
+			return;
 
-	/* iptables will either have no type, or the type will be "nf_tables" or "legacy" */
-	if ((len = strlen(buf)) && buf[len-1] == '\n')
-		buf[--len] = '\0';
+#ifdef ALLOW_IPTABLES_LEGACY
+		fp = popen("iptables-legacy -V", "r");
+		fclose(fp);
 
-	if (len > 10 && buf[len-1] == ')') {
-		if (!strncmp(buf + len - 1 - 9, "nf_tables", 9)) {
-			log_message(LOG_INFO, "Not using iptables since iptables uses nf_tables - please update configuration");
-
-			global_data->vrrp_iptables_inchain[0] = '\0';
-			global_data->vrrp_iptables_outchain[0] = '\0';
-
-			/* If nftables table name not set up, set it to default */
-			if (global_data->vrrp_nf_table_name) {
-				global_data->vrrp_nf_table_name = res = MALLOC(strlen(DEFAULT_NFTABLES_TABLE) + 1);
-				strcpy(res, DEFAULT_NFTABLES_TABLE);
-			}
+		if (fp) {
+			/* The iptables-legacy command exists, so can use iptables */
+			return;
 		}
+#endif
+
+		log_message(LOG_INFO, "Not using iptables since iptables uses nf_tables - please update configuration");
 	}
+
+	FREE_CONST_PTR(global_data->vrrp_iptables_inchain);
+	FREE_CONST_PTR(global_data->vrrp_iptables_outchain);
+#ifdef _HAVE_LIBISPET_
+	if (global_data->using_ipsets)
+		disable_ipsets();
+#endif
+
+	/* If nftables table name not set up, set it to default */
+	if (!global_data->vrrp_nf_table_name)
+		global_data->vrrp_nf_table_name = STRDUP(DEFAULT_NFTABLES_TABLE);
 }
 #endif
 
@@ -121,7 +124,7 @@ firewall_handle_accept_mode(vrrp_t *vrrp, int cmd,
 #endif
 
 #ifdef _WITH_IPTABLES_
-	if (global_data->vrrp_iptables_inchain[0])
+	if (global_data->vrrp_iptables_inchain)
 		handle_iptables_accept_mode(vrrp, cmd, force);
 #endif
 
@@ -141,7 +144,7 @@ void
 firewall_remove_rule_to_iplist(list ip_list)
 {
 #ifdef _WITH_IPTABLES_
-	if (global_data->vrrp_iptables_inchain[0])
+	if (global_data->vrrp_iptables_inchain)
 		handle_iptable_rule_to_iplist(ip_list, NULL, IPADDRESS_DEL, false);
 #endif
 
@@ -161,7 +164,7 @@ firewall_add_vmac(const vrrp_t *vrrp)
 #endif
 
 #ifdef _WITH_IPTABLES_
-	if (global_data->vrrp_iptables_outchain[0])
+	if (global_data->vrrp_iptables_outchain)
 		iptables_add_vmac(vrrp);
 #endif
 
@@ -175,7 +178,7 @@ void
 firewall_remove_vmac(const vrrp_t *vrrp)
 {
 #ifdef _WITH_IPTABLES_
-	if (global_data->vrrp_iptables_outchain[0])
+	if (global_data->vrrp_iptables_outchain)
 		iptables_remove_vmac(vrrp);
 #endif
 
@@ -190,8 +193,8 @@ void
 firewall_fini(void)
 {
 #ifdef _WITH_IPTABLES_
-	if (global_data->vrrp_iptables_inchain[0] ||
-	    global_data->vrrp_iptables_outchain[0])
+	if (global_data->vrrp_iptables_inchain ||
+	    global_data->vrrp_iptables_outchain)
 		iptables_fini();
 #endif
 

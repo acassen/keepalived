@@ -31,6 +31,7 @@
 #include <time.h>
 #include <string.h>
 #include <netinet/in.h>
+#include <stdlib.h>
 
 #include <net/if.h>
 #include <linux/netfilter.h>
@@ -100,7 +101,9 @@ enum udata_set_type {
 /* Local definitions */
 #define NO_REG (NFT_REG_MAX+1)
 
+#ifdef _HAVE_VRRP_VMAC_
 static const char vmac_map_name[] = "vmac_map";
+#endif
 
 static struct mnl_socket *nl;
 static unsigned int portid;
@@ -350,7 +353,7 @@ add_lookup(struct nftnl_rule *r, uint32_t base, uint32_t dreg, const char *set_n
 	nftnl_rule_add_expr(r, e);
 }
 
-#if HAVE_DECL_NFTA_DUP_MAX
+#if HAVE_DECL_NFTA_DUP_MAX && defined _HAVE_VRRP_VMAC_
 static void
 add_dup(struct nftnl_rule *r, uint32_t addr_reg, uint32_t dev_reg)
 {
@@ -390,7 +393,7 @@ add_immediate_verdict(struct nftnl_rule *r, uint32_t verdict, const char *chain)
 	nftnl_rule_add_expr(r, e);
 }
 
-#if HAVE_DECL_NFTA_DUP_MAX
+#if HAVE_DECL_NFTA_DUP_MAX && defined _HAVE_VRRP_VMAC_
 static void
 add_immediate_data(struct nftnl_rule *r, uint32_t reg, const void *data, uint32_t data_len)
 {
@@ -424,6 +427,27 @@ add_cmp(struct nftnl_rule *r, uint32_t sreg, uint32_t op,
 	nftnl_expr_set_u32(e, NFTNL_EXPR_CMP_SREG, sreg);
 	nftnl_expr_set_u32(e, NFTNL_EXPR_CMP_OP, op);
 	nftnl_expr_set(e, NFTNL_EXPR_CMP_DATA, data, data_len);
+
+	nftnl_rule_add_expr(r, e);
+}
+
+static void
+add_bitwise(struct nftnl_rule *r, uint32_t sreg, uint32_t dreg,
+		    uint32_t len, const void *mask, const void *xor)
+{
+	struct nftnl_expr *e;
+
+	e = nftnl_expr_alloc("bitwise");
+	if (e == NULL) {
+		log_message(LOG_INFO, "expr cmp oom error - %d", errno);
+		return;
+	}
+
+	nftnl_expr_set_u32(e, NFTA_BITWISE_SREG, sreg);
+	nftnl_expr_set_u32(e, NFTA_BITWISE_DREG, dreg);
+	nftnl_expr_set_u32(e, NFTA_BITWISE_LEN, len);
+	nftnl_expr_set(e, NFTA_BITWISE_MASK, mask, len);
+	nftnl_expr_set(e, NFTA_BITWISE_XOR, xor, len);
 
 	nftnl_rule_add_expr(r, e);
 }
@@ -832,8 +856,10 @@ static struct nftnl_rule
 {
 	struct nftnl_rule *r = NULL;
 	uint64_t handle_num;
-	struct in6_addr ip6;
+	struct in6_addr ip6 = { .s6_addr32[0] = htonl(0xffc00000) };
+	struct in6_addr ip6_xor = { .s6_addr32[0] = 0 };
 
+	/* nft add rule ip6 TABLE CHAIN ip6 {s|d}addr fe80::/10 goto CHAIN_DEST */
 	r = nftnl_rule_alloc();
 	if (r == NULL) {
 		log_message(LOG_INFO, "OOM error - %d", errno);
@@ -868,7 +894,7 @@ static struct nftnl_rule
 	| 61 6c 69 76  |	|      data      |	 a l i v
 	| 65 64 5f 69  |	|      data      |	 e d _ i
 	| 6e 00 00 00  |	|      data      |	 n
-	|00240|N-|00004|	|len |flags| type|
+	|00204|N-|00004|	|len |flags| type|
 	  |00052|N-|00001|	|len |flags| type|
 	  |00012|--|00001|	|len |flags| type|
 	  | 70 61 79 6c  |	|      data      |	 p a y l
@@ -882,35 +908,43 @@ static struct nftnl_rule
 	      | 00 00 00 18  |	|      data      |
 	      |00008|--|00004|	|len |flags| type|	NFTNL_EXPR_PAYLOAD_PAYLOAD_LEN 16
 	      | 00 00 00 10  |	|      data      |
-
-	  |00056|N-|00001|	|len |flags| type|		LIST_ELEM
-	    |00008|--|00001|	|len |flags| type|	NFTNL_EXPR_NAME
-	    | 63 6d 70 00  |	|      data      |	 c m p
-	    |00044|N-|00002|	|len |flags| type|	EXPR_DATA
-	      |00008|--|00001|	|len |flags| type|	NFTNL_EXPR_CMP_SREG = NFTA_CMP_SREG - look at nftnl_expr_***_build
-	      | 00 00 00 01  |	|      data      |	NFT_REG_1
-	      |00008|--|00002|	|len |flags| type|	NFTNL_EXPR_CMP_OP = NFTA_CMP_OP
-	      | 00 00 00 05  |	|      data      |	NFT_CMP_GTE
-	      |00024|N-|00003|	|len |flags| type|	NFTNL_EXPR_CMP_DATA = NFTA_CMP_DATA
-	        |00020|--|00001|	|len |flags| type| NFTA_DATA_VALUE
-	        | fe 80 00 00  |	|      data      |
-	        | 00 00 00 00  |	|      data      |
-	        | 00 00 00 00  |	|      data      |
-	        | 00 00 00 00  |	|      data      |
+	  |00092|N-|00001|	|len |flags| type| NFTA_LIST_ELEM
+	    |00012|--|00001|	|len |flags| type|
+	    | 62 69 74 77  |	|      data      |	 b i t w
+	    | 69 73 65 00  |	|      data      |	 i s e
+	    |00076|N-|00002|	|len |flags| type|
+	      |00008|--|00001|	|len |flags| type|
+	      | 00 00 00 01  |	|      data      |	 NFTA_BITWISE_SREG = NFT_REG_1
+	      |00008|--|00002|	|len |flags| type|
+	      | 00 00 00 01  |	|      data      |	 NFTA_BITWISE_DREG = NFT_REG_1
+	      |00008|--|00003|	|len |flags| type|
+	      | 00 00 00 10  |	|      data      |	 NFTA_BITWISE_LEN = 16
+	      |00024|N-|00004|	|len |flags| type|	 NFTA_BITWISE_MASK = ffc0::
+	        |00020|--|00001|	|len |flags| type|
+	          | ff c0 00 00  |	|      data      |
+	          | 00 00 00 00  |	|      data      |
+	          | 00 00 00 00  |	|      data      |
+	          | 00 00 00 00  |	|      data      |
+	      |00024|N-|00005|	|len |flags| type|	 NFTA_BITWISE_xor = ::
+	        |00020|--|00001|	|len |flags| type|
+	          | 00 00 00 00  |	|      data      |
+	          | 00 00 00 00  |	|      data      |
+	          | 00 00 00 00  |	|      data      |
+	          | 00 00 00 00  |	|      data      |
 	  |00056|N-|00001|	|len |flags| type| NFTA_LIST_ELEM
 	    |00008|--|00001|	|len |flags| type|
 	    | 63 6d 70 00  |	|      data      |	 c m p
 	    |00044|N-|00002|	|len |flags| type|
 	      |00008|--|00001|	|len |flags| type|
-	      | 00 00 00 01  |	|      data      |
+	      | 00 00 00 01  |	|      data      |	 NFT_CMP_SREG = NFT_REG_1
 	      |00008|--|00002|	|len |flags| type|
-	      | 00 00 00 03  |	|      data      |	NFT_CMP_LTE
-	      |00024|N-|00003|	|len |flags| type|
-	        |00020|--|00001|	|len |flags| type|
-	        | fe bf 00 00  |	|      data      |
-	        | 00 00 00 00  |	|      data      |
-	        | 00 00 00 00  |	|      data      |
-	      | 00 00 ff ff  |	|      data      |
+	      | 00 00 00 00  |	|      data      |	 NFT_CMP_OP = NFT_CMP_EQ
+	      |00024|N-|00003|	|len |flags| type|	 NFT_CMP_DATA
+	        |00020|--|00001|	|len |flags| type| fe80::
+	          | fe 80 00 00  |	|      data      |
+	          | 00 00 00 00  |	|      data      |
+	          | 00 00 00 00  |	|      data      |
+	          | 00 00 00 00  |	|      data      |
 	|00072|N-|00001|	|len |flags| type| NFTA_LIST_ELEM
 	    |00014|--|00001|	|len |flags| type|	NFTA_EXPR_NAME
 	    | 69 6d 6d 65  |	|      data      |	 i m m e
@@ -950,14 +984,13 @@ static struct nftnl_rule
 	add_payload(r, NFT_PAYLOAD_NETWORK_HEADER, NFT_REG_1,
 		    saddr ? offsetof(struct ip6_hdr, ip6_src) : offsetof(struct ip6_hdr, ip6_dst), sizeof(struct in6_addr));
 
-	/* The following is interpreted as a range by nftables */
-	ip6.s6_addr32[0] = htonl(0xfe800000);
+	/* The following is interpreted as fe80::/10 by nftables */
+	ip6.s6_addr32[0] = htonl(0xffc00000);
 	ip6.s6_addr32[1] = ip6.s6_addr32[2] = ip6.s6_addr32[3] = 0;
-	add_cmp(r, NFT_REG_1, NFT_CMP_GTE, &ip6, sizeof(ip6));
+	add_bitwise(r, NFT_REG_1, NFT_REG_1, sizeof(ip6), &ip6, &ip6_xor);
 
-	ip6.s6_addr32[0] = htonl(0xfebfffff);
-	ip6.s6_addr32[1] = ip6.s6_addr32[2] = ip6.s6_addr32[3] = 0xffffffff;
-	add_cmp(r, NFT_REG_1, NFT_CMP_LTE, &ip6, sizeof(ip6));
+	ip6.s6_addr32[0] = htonl(0xfe800000);
+	add_cmp(r, NFT_REG_1, NFT_CMP_EQ, &ip6, sizeof(ip6));
 
 	add_counter(r);
 
@@ -1970,10 +2003,12 @@ nft_cleanup(void)
 
 	ipv4_table_setup = false;
 	ipv4_vips_setup = false;
-	ipv4_igmp_setup = false;
 	ipv6_table_setup = false;
 	ipv6_vips_setup = false;
+#ifdef _HAVE_VRRP_VMAC_
+	ipv4_igmp_setup = false;
 	ipv6_igmp_setup = false;
+#endif
 	setup_ll_ifname = false;
 	setup_ll_ifindex = false;
 }
@@ -1990,8 +2025,29 @@ nft_end(void)
 void
 set_nf_ifname_type(void)
 {
-	if (global_data->nft_version)
-		ifname_type = global_data->nft_version >= 0x000803 ? TYPE_IFNAME : TYPE_STRING;
+	FILE *fp;
+	char nft_ver_buf[64];
+	char *p;
+	unsigned nft_major = 0, nft_minor = 0, nft_release = 0;
+	unsigned nft_version = 0;
+
+	fp = popen("nft -v 2>/dev/null", "r");
+	if (fp) {
+		if (fgets(nft_ver_buf, sizeof(nft_ver_buf) - 1, fp)) {
+			p = strchr(nft_ver_buf, ' ');
+			while (*p == ' ')
+				p++;
+			if (*p == 'v')
+				p++;
+
+			if (sscanf(p, "%u.%u.%u", &nft_major, &nft_minor, &nft_release) >= 2)
+				nft_version = (nft_major * 0x100 + nft_minor) * 0x100 + nft_release;
+		}
+		pclose(fp);
+	}
+
+	if (nft_version)
+		ifname_type = nft_version >= 0x000803 ? TYPE_IFNAME : TYPE_STRING;
 	else
 		ifname_type = LIBNFTNL_VERSION > 0x010009 ? TYPE_IFNAME : TYPE_STRING;
 

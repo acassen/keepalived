@@ -31,18 +31,20 @@
 
 struct ipset_session;
 
-bool add_vip_ipsets(struct ipset_session **, uint8_t, bool);
+extern bool add_vip_ipsets(struct ipset_session **, uint8_t, bool);
 #ifdef HAVE_IPSET_ATTR_IFACE
-bool add_igmp_ipsets(struct ipset_session **, uint8_t, bool);
+extern bool add_igmp_ipsets(struct ipset_session **, uint8_t, bool);
 #endif
-bool remove_vip_ipsets(struct ipset_session **, uint8_t);
-bool remove_igmp_ipsets(struct ipset_session **, uint8_t);
-bool ipset_initialise(void);
-void* ipset_session_start(void);
-void ipset_session_end(void *);
-void ipset_entry(void *, int, const ip_address_t*);
+extern bool remove_vip_ipsets(struct ipset_session **, uint8_t);
+extern bool remove_igmp_ipsets(struct ipset_session **, uint8_t);
+extern bool ipset_initialise(void);
+extern void* ipset_session_start(void);
+extern void ipset_session_end(void *);
+extern void ipset_entry(void *, int, const ip_address_t*);
 #ifdef HAVE_IPSET_ATTR_IFACE
-void ipset_entry_igmp(void*, int, const char *, uint8_t);
+extern void ipset_entry_igmp(void*, int, const char *, uint8_t);
 #endif
+extern void set_default_ipsets(void);
+extern void disable_ipsets(void);
 
 #endif

@@ -225,15 +225,11 @@ check_vrrp_script_security(void)
 
 	/* Set the insecure flag of any insecure scripts */
 	if (!LIST_ISEMPTY(vrrp_data->vrrp_script)) {
-		for (e = LIST_HEAD(vrrp_data->vrrp_script); e; ELEMENT_NEXT(e)) {
-			vscript = ELEMENT_DATA(e);
+		LIST_FOREACH(vrrp_data->vrrp_script, vscript, e)
 			script_flags |= check_track_script_secure(vscript, magic);
-		}
 	}
 
-	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
-
+	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
 		script_flags |= check_notify_script_secure(&vrrp->script_backup, magic);
 		script_flags |= check_notify_script_secure(&vrrp->script_master, magic);
 		script_flags |= check_notify_script_secure(&vrrp->script_fault, magic);
@@ -244,10 +240,7 @@ check_vrrp_script_security(void)
 		if (LIST_ISEMPTY(vrrp->track_script))
 			continue;
 
-		for (e1 = LIST_HEAD(vrrp->track_script); e1; e1 = next) {
-			next = e1->next;
-			track_script = ELEMENT_DATA(e1);
-
+		LIST_FOREACH_NEXT(vrrp->track_script, track_script, e1, next) {
 			if (track_script->scr->insecure) {
 				/* Remove it from the vrrp instance's queue */
 				free_list_element(vrrp->track_script, e1);
@@ -256,18 +249,14 @@ check_vrrp_script_security(void)
 	}
 
 	if (!LIST_ISEMPTY(vrrp_data->vrrp_sync_group)) {
-		for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; ELEMENT_NEXT(e)) {
-			sg = ELEMENT_DATA(e);
+		LIST_FOREACH(vrrp_data->vrrp_sync_group, sg, e) {
 			script_flags |= check_notify_script_secure(&sg->script_backup, magic);
 			script_flags |= check_notify_script_secure(&sg->script_master, magic);
 			script_flags |= check_notify_script_secure(&sg->script_fault, magic);
 			script_flags |= check_notify_script_secure(&sg->script_stop, magic);
 			script_flags |= check_notify_script_secure(&sg->script, magic);
 
-			for (e1 = LIST_HEAD(sg->track_script); e1; e1 = next) {
-				next = e1->next;
-				track_script = ELEMENT_DATA(e1);
-
+			LIST_FOREACH_NEXT(sg->track_script, track_script, e1, next) {
 				if (track_script->scr->insecure) {
 					/* Remove it from the vrrp sync group's queue */
 					free_list_element(sg->track_script, e1);
@@ -290,10 +279,7 @@ check_vrrp_script_security(void)
 		ka_magic_close(magic);
 
 	/* Now walk through the vrrp_script list, removing any that aren't used */
-	for (e = LIST_HEAD(vrrp_data->vrrp_script); e; e = next) {
-		next = e->next;
-		vscript = ELEMENT_DATA(e);
-
+	LIST_FOREACH_NEXT(vrrp_data->vrrp_script, vscript, e, next) {
 		if (vscript->insecure)
 			free_list_element(vrrp_data->vrrp_script, e);
 	}
@@ -2824,18 +2810,39 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 #ifdef _WITH_FIREWALL_
 	/* Set default for accept mode if not specified. If we are running in strict mode,
-	 * default is to disable accept mode, otherwise default is to enable it.
+	 * default is to disable accept mode unless the instance is the address owner
+	 * (priority 255), otherwise default is to enable it.
 	 * At some point we might want to change this to make non accept_mode the default,
 	 * to comply with the RFCs. */
 	if (vrrp->accept == PARAMETER_UNSET)
-		vrrp->accept = !vrrp->strict_mode;
+		vrrp->accept = (vrrp->base_priority == VRRP_PRIO_OWNER) ? true : !vrrp->strict_mode;
 
 	if (vrrp->accept &&
 	    vrrp->base_priority != VRRP_PRIO_OWNER &&
 	    vrrp->strict_mode &&
 	    vrrp->version == VRRP_VERSION_2) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) warning - accept mode for VRRP version 2 does not comply with RFC3768 - resetting", vrrp->iname);
-		vrrp->accept = 0;
+		vrrp->accept = false;
+	}
+
+	if (!vrrp->accept
+#ifdef _HAVE_VRRP_VMAC_
+	    || __test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)
+#endif
+							   ) {
+#ifdef _WITH_IPTABLES_
+		if (!global_data->vrrp_iptables_inchain)
+#endif
+		{
+#ifndef _WITH_NFTABLES_
+			log_message(LOG_INFO, "Warning - firewall needed due to use_vmac or no_accept/strict but not configured");
+#else
+			if (!global_data->vrrp_nf_table_name) {
+				log_message(LOG_INFO, "use_vmac or no_accept/strict specified, but no firewall configured - using nftables");
+				global_data->vrrp_nf_table_name = STRDUP(DEFAULT_NFTABLES_TABLE);
+			}
+#endif
+		}
 	}
 #endif
 
@@ -3156,7 +3163,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		bool have_firewall = false;
 
 #ifdef _WITH_IPTABLES_
-		if (global_data->vrrp_iptables_inchain[0])
+		if (global_data->vrrp_iptables_inchain)
 			have_firewall = true;
 #endif
 #ifdef _WITH_NFTABLES_
@@ -3166,15 +3173,19 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 		if (!have_firewall) {
 #ifdef _WITH_NFTABLES_
-			/* str is needed since vrrp_nf_table_name is const char * */
-			char *str;
-			str = MALLOC(strlen(DEFAULT_NFTABLES_TABLE) + 1);
-			strcpy(str, DEFAULT_NFTABLES_TABLE);
-			global_data->vrrp_nf_table_name = str;
+			global_data->vrrp_nf_table_name = STRDUP(DEFAULT_NFTABLES_TABLE);
 #else
 			log_message(LOG_INFO, "Adding iptables rules to default chains, but chains not configured");
-			strcpy(global_data->vrrp_iptables_inchain, DEFAULT_IPTABLES_CHAIN_IN);
-			strcpy(global_data->vrrp_iptables_outchain, DEFAULT_IPTABLES_CHAIN_OUT);
+			global_data->vrrp_iptables_inchain = STRDUP(DEFAULT_IPTABLES_CHAIN_IN);
+			global_data->vrrp_iptables_outchain = STRDUP(DEFAULT_IPTABLES_CHAIN_OUT);
+
+#ifdef _HAVE_LIBIPSET_
+			if (!global_data->using_ipsets) {
+				global_data->using_ipsets = true;
+				set_default_ipsets();
+			}
+#endif
+
 #endif
 		}
 	}
@@ -3191,8 +3202,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		 * ensure that VIPs don't cause it to be tracked. */
 		if (!vip->dont_track &&
 		    (!vrrp->dont_track_primary ||
-		     (vip->ifp != vrrp->ifp &&
-		      vip->ifp != IF_BASE_IFP(vrrp->ifp))))
+		     (vip->ifp != vrrp->ifp
+#ifdef _HAVE_VRRP_VMAC_
+		      && vip->ifp != IF_BASE_IFP(vrrp->ifp)
+#endif
+							   )))
 			add_vrrp_to_interface(vrrp, vip->ifp, 0, false, false, TRACK_ADDR);
 	}
 	LIST_FOREACH(vrrp->evip, vip, e) {
@@ -3203,8 +3217,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		 * ensure that eVIPs don't cause it to be tracked. */
 		if (!vip->dont_track &&
 		    (!vrrp->dont_track_primary ||
-		     (vip->ifp != vrrp->ifp &&
-		      vip->ifp != IF_BASE_IFP(vrrp->ifp))))
+		     (vip->ifp != vrrp->ifp
+#ifdef _HAVE_VRRP_VMAC_
+		      && vip->ifp != IF_BASE_IFP(vrrp->ifp)
+#endif
+							   )))
 			add_vrrp_to_interface(vrrp, vip->ifp, 0, false, false, TRACK_ADDR);
 
 		if (vip->ifa.ifa_family == AF_INET)
@@ -3634,7 +3651,7 @@ vrrp_complete_init(void)
 	bool have_master, have_backup;
 	vrrp_script_t *scr;
 
-	/* Set defaults of not specified, depending on strict mode */
+	/* Set defaults if not specified, depending on strict mode */
 	if (global_data->vrrp_garp_lower_prio_rep == PARAMETER_UNSET)
 		global_data->vrrp_garp_lower_prio_rep = global_data->vrrp_garp_rep;
 	if (global_data->vrrp_garp_lower_prio_delay == PARAMETER_UNSET)
@@ -3645,6 +3662,45 @@ vrrp_complete_init(void)
 		add_script_param(global_data->notify_fifo.script, global_data->notify_fifo.name);
 	if (global_data->vrrp_notify_fifo.script)
 		add_script_param(global_data->vrrp_notify_fifo.script, global_data->vrrp_notify_fifo.name);
+
+#if defined _WITH_IPTABLES_ && defined _WITH_NFTABLES_
+	/* It doesn't make sense to use both iptables and nftables; prefer nftables */
+	if (global_data->vrrp_iptables_inchain && global_data->vrrp_nf_table_name) {
+		log_message(LOG_INFO, "Both iptables and nftables have been specified - ignoring iptables");
+		FREE_CONST_PTR(global_data->vrrp_iptables_inchain);
+		FREE_CONST_PTR(global_data->vrrp_iptables_outchain);
+
+#if defined _HAVE_LIBIPSET_
+		if (global_data->using_ipsets)
+			disable_ipsets();
+#endif
+	}
+#endif
+
+#if defined _HAVE_LIBIPSET_
+	if (!global_data->vrrp_iptables_inchain && global_data->using_ipsets == true) {
+		log_message(LOG_INFO, "vrrp_ipsets has been specified but not vrrp_iptables - vrrp_ipsets will be ignored");
+		disable_ipsets();
+	}
+
+	if (global_data->using_ipsets == PARAMETER_UNSET) {
+		if (global_data->vrrp_iptables_inchain) {
+			set_default_ipsets();
+			global_data->using_ipsets = true;
+		} else
+			global_data->using_ipsets = false;
+	}
+#endif
+
+	/* NOTE: A reload which changes the iptables/nftables configuration will not
+	 * work properly. However, it is hard to check it. We could check here that everything
+	 * matches between old_global_data and global_data, because vrrp_complete_instance() can
+	 * update the need for using iptables/nftables, and also because it can update the
+	 * requirement if there is a VMAC, at this point we don't have a clear picture of what
+	 * the firewall situation is.
+	 *
+	 * So, if someone changes the configuration, it will be a bit confused, but it is unlikely
+	 * to happen. */
 
 	/* Mark any scripts as insecure */
 	check_vrrp_script_security();
@@ -3906,23 +3962,6 @@ vrrp_complete_init(void)
 	}
 
 	alloc_vrrp_buffer(max_mtu_len);
-
-#if defined _WITH_IPTABLES && defined _WITH_NFTABLES_
-	/* It doesn't make sense to use both iptables and nftables; prefer nftables */
-	if (global_data->vrrp_iptables_inchain[0] && global_data->vrrp_nf_table_name) {
-		log_message(LOG_INFO, "Both iptables and nftables have been specified - ignoring iptables");
-		global_data->vrrp_iptables_inchain[0] = '\0';
-		global_data->vrrp_iptables_outchain[0] = '\0';
-		global_data->using_ipsets = false;
-	}
-#endif
-
-#if defined _WITH_IPTABLES_ && defined _HAVE_LIBIPSET_
-	if (!global_data->vrrp_iptables_inchain[0] && global_data->using_ipsets) {
-		log_message(LOG_INFO, "vrrp_ipsets has been specified but not vrrp_iptables - vrrp_ipsets will be ignored");
-		global_data->using_ipsets = false;
-	}
-#endif
 
 	return true;
 }

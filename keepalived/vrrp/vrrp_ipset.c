@@ -194,7 +194,13 @@ has_ipset_setname(struct ipset_session* session, const char *setname)
 }
 
 static bool
-create_sets(struct ipset_session **session, const char* addr4, const char* addr6, const char* addr_if6, const char *igmp, const char *mld, bool is_reload)
+create_sets(struct ipset_session **session, const char* addr4, const char* addr6, const char* addr_if6,
+#ifdef HAVE_IPSET_ATTR_IFACE
+		const char *igmp, const char *mld,
+#else
+		__attribute__((unused)) const char *igmp, __attribute__((unused)) const char *mld,
+#endif
+		bool is_reload)
 {
 	if (!*session)
 #ifdef LIBIPSET_PRE_V7_COMPAT
@@ -456,3 +462,28 @@ void ipset_entry_igmp(void* vsession, int cmd, const char* ifname, uint8_t famil
 	do_ipset_cmd(session, (cmd == IPADDRESS_DEL) ? IPSET_CMD_DEL : IPSET_CMD_ADD, set, &addr, 0, 0, ifname);
 }
 #endif
+
+void
+set_default_ipsets(void)
+{
+	global_data->vrrp_ipset_address = STRDUP(DEFAULT_IPSET_NAME);
+	global_data->vrrp_ipset_address6 = STRDUP(DEFAULT_IPSET_NAME "6");
+	global_data->vrrp_ipset_address_iface6 = STRDUP(DEFAULT_IPSET_NAME "_if6");
+#ifdef HAVE_IPSET_ATTR_IFACE
+	global_data->vrrp_ipset_igmp = STRDUP(DEFAULT_IPSET_NAME "_igmp");
+	global_data->vrrp_ipset_mld = STRDUP(DEFAULT_IPSET_NAME "_mld");
+#endif
+}
+
+void
+disable_ipsets(void)
+{
+	global_data->using_ipsets = false;
+	FREE_CONST_PTR(global_data->vrrp_ipset_address);
+	FREE_CONST_PTR(global_data->vrrp_ipset_address6);
+	FREE_CONST_PTR(global_data->vrrp_ipset_address_iface6);
+#ifdef HAVE_IPSET_ATTR_IFACE
+	FREE_CONST_PTR(global_data->vrrp_ipset_igmp);
+	FREE_CONST_PTR(global_data->vrrp_ipset_mld);
+#endif
+}

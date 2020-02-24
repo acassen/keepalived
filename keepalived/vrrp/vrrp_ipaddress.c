@@ -178,8 +178,11 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 	/* If the state of the interface or its parent is down, it might be because the interface
 	 * has been deleted, but we get the link status change message before the RTM_DELLINK message */
 	if (cmd == IPADDRESS_DEL &&
-	    (((ipaddress->ifp->ifi_flags & (IFF_UP | IFF_RUNNING)) != (IFF_UP | IFF_RUNNING)) ||
-	     ((IF_BASE_IFP(ipaddress->ifp)->ifi_flags & (IFF_UP | IFF_RUNNING)) != (IFF_UP | IFF_RUNNING))))
+	    (((ipaddress->ifp->ifi_flags & (IFF_UP | IFF_RUNNING)) != (IFF_UP | IFF_RUNNING))
+#ifdef _HAVE_VRRP_VMAC_
+	     || ((IF_BASE_IFP(ipaddress->ifp)->ifi_flags & (IFF_UP | IFF_RUNNING)) != (IFF_UP | IFF_RUNNING))
+#endif
+													     ))
 		netlink_error_ignore = ENODEV;
 	if (netlink_talk(&nl_cmd, &req.n) < 0)
 		status = -1;
