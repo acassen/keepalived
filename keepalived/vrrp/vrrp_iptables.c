@@ -208,7 +208,6 @@ add_del_vip_rules(struct ipt_handle *h, int cmd, uint8_t family)
 		}
 	}
 }
-#endif
 
 #if defined _HAVE_VRRP_VMAC_ && defined HAVE_IPSET_ATTR_IFACE
 static void
@@ -248,6 +247,7 @@ add_del_igmp_rules(struct ipt_handle *h, int cmd, uint8_t family)
 		return;
 	}
 }
+#endif
 #endif
 
 static struct ipt_handle*
@@ -346,7 +346,6 @@ check_chains_exist(uint8_t family)
 	return ret;
 }
 
-#if defined _HAVE_VRRP_VMAC_
 static void
 handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, struct ipt_handle *h, bool force)
 {
@@ -524,8 +523,10 @@ handle_iptable_vip_list(struct ipt_handle *h, list ip_list, int cmd, bool force)
 			}
 
 #ifdef _HAVE_LIBIPSET_
-			add_del_vip_sets(h, IPADDRESS_ADD, family);
-			add_del_vip_rules(h, IPADDRESS_ADD, family);
+			if (global_data->using_ipsets) {
+				add_del_vip_sets(h, IPADDRESS_ADD, family);
+				add_del_vip_rules(h, IPADDRESS_ADD, family);
+			}
 #endif
 
 			vips_setup[family != AF_INET] = INIT_SUCCESS;
@@ -598,7 +599,6 @@ handle_iptable_rule_for_igmp(const char *ifname, int cmd, int family, struct ipt
 	}
 
 #ifdef HAVE_IPSET_ATTR_IFACE
-// Check sets with ifname
 	if (global_data->using_ipsets)
 	{
 		if (!h->session)
@@ -624,7 +624,6 @@ handle_iptable_rule_for_igmp(const char *ifname, int cmd, int family, struct ipt
 	iptables_entry(h, family, global_data->vrrp_iptables_outchain, APPEND_RULE,
 			XTC_LABEL_DROP, NULL, &igmp_addr, NULL, ifname,
 			IPPROTO_NONE, 0, cmd, 0, false);
-#endif
 }
 
 static void
