@@ -194,7 +194,13 @@ has_ipset_setname(struct ipset_session* session, const char *setname)
 }
 
 static bool
-create_sets(struct ipset_session **session, const char* addr4, const char* addr6, const char* addr_if6, const char *igmp, const char *mld, bool is_reload)
+create_sets(struct ipset_session **session, const char* addr4, const char* addr6, const char* addr_if6,
+#ifdef HAVE_IPSET_ATTR_IFACE
+		const char *igmp, const char *mld,
+#else
+		__attribute__((unused)) const char *igmp, __attribute__((unused)) const char *mld,
+#endif
+		bool is_reload)
 {
 	if (!*session)
 #ifdef LIBIPSET_PRE_V7_COMPAT

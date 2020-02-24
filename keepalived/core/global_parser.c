@@ -925,6 +925,7 @@ vrrp_ipsets_handler(const vector_t *strvec)
 		global_data->vrrp_ipset_address_iface6[sizeof(global_data->vrrp_ipset_address_iface6) - 5] = '\0';
 		strcat(global_data->vrrp_ipset_address_iface6, "_if6");
 	}
+#ifdef HAVE_IPSET_ATTR_IFACE
 	if (vector_size(strvec) >= 5) {
 		if (strlen(strvec_slot(strvec,4)) >= sizeof(global_data->vrrp_ipset_igmp)-1) {
 			report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : ipset IGMP name too long - ignored");
@@ -951,6 +952,7 @@ vrrp_ipsets_handler(const vector_t *strvec)
 		global_data->vrrp_ipset_mld[sizeof(global_data->vrrp_ipset_mld) - 5] = '\0';
 		strcat(global_data->vrrp_ipset_mld, "_mld");
 	}
+#endif
 }
 #endif
 #endif

@@ -146,6 +146,7 @@ add_del_vip_sets(struct ipt_handle *h, int cmd, uint8_t family, bool reload)
 		remove_vip_ipsets(&h->session, family);
 }
 
+#ifdef HAVE_IPSET_ATTR_IFACE
 static void
 add_del_igmp_sets(struct ipt_handle *h, int cmd, uint8_t family, bool reload)
 {
@@ -154,6 +155,7 @@ add_del_igmp_sets(struct ipt_handle *h, int cmd, uint8_t family, bool reload)
 	else
 		remove_igmp_ipsets(&h->session, family);
 }
+#endif
 
 static void
 add_del_vip_rules(struct ipt_handle *h, int cmd, uint8_t family, bool ignore_errors)
@@ -500,10 +502,12 @@ iptables_fini(void)
 				add_del_vip_sets(h, IPADDRESS_DEL, family, false);
 				vips_setup[family != AF_INET] = NOT_INIT;
 			}
+#ifdef HAVE_IPSET_ATTR_IFACE
 			if (igmp_setup[family != AF_INET] == INIT_SUCCESS) {
 				add_del_igmp_sets(h, IPADDRESS_DEL, family, false);
 				igmp_setup[family != AF_INET] = NOT_INIT;
 			}
+#endif
 			family = family == AF_INET ? AF_INET6 : 0;
 		} while (family);
 
