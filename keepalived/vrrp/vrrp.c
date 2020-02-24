@@ -3907,23 +3907,6 @@ vrrp_complete_init(void)
 
 	alloc_vrrp_buffer(max_mtu_len);
 
-#if defined _WITH_IPTABLES && defined _WITH_NFTABLES_
-	/* It doesn't make sense to use both iptables and nftables; prefer nftables */
-	if (global_data->vrrp_iptables_inchain[0] && global_data->vrrp_nf_table_name) {
-		log_message(LOG_INFO, "Both iptables and nftables have been specified - ignoring iptables");
-		global_data->vrrp_iptables_inchain[0] = '\0';
-		global_data->vrrp_iptables_outchain[0] = '\0';
-		global_data->using_ipsets = false;
-	}
-#endif
-
-#if defined _WITH_IPTABLES_ && defined _HAVE_LIBIPSET_
-	if (!global_data->vrrp_iptables_inchain[0] && global_data->using_ipsets) {
-		log_message(LOG_INFO, "vrrp_ipsets has been specified but not vrrp_iptables - vrrp_ipsets will be ignored");
-		global_data->using_ipsets = false;
-	}
-#endif
-
 	return true;
 }
 
