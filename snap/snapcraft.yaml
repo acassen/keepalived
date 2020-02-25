@@ -20,6 +20,9 @@ confinement: classic
 #   i386, armhf and s390x.
 # Select the most recent version, and click on link under Version column (RHS). Under
 #   Downloadable files is a link to the .deb file. That is what we need in DEB_URL.
+#
+# We should probably update the locations of the files to use this more difficult way
+#   of finding them once the Ubuntu version that provides them goes EOL.
 
 apps:
   daemon:
@@ -238,7 +241,7 @@ parts:
         DEB_URL="http://launchpadlibrarian.net/431500961/linux-libc-dev_4.18.0-26.27_i386.deb"
       elif [ $ARCH = armhf ]; then
         DEB_URL="http://launchpadlibrarian.net/431525966/linux-libc-dev_4.18.0-26.27_armhf.deb"
-      elif [ $ARCH != s390x ]; then
+      elif [ $ARCH = s390x ]; then
         DEB_URL="http://launchpadlibrarian.net/431485536/linux-libc-dev_4.18.0-26.27_s390x.deb"
       fi
       wget --quiet ${DEB_URL} -O ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
