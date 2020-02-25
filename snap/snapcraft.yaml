@@ -9,6 +9,18 @@ description: |
 grade: stable
 confinement: classic
 
+# linux-libc-dev for 4.18 and 3.10 are no longer available via
+#    http://security.ubuntu.com/ubuntu/pool/main/l/linux/
+# or
+#    http://ports.ubuntu.com/pool/main/l/linux/
+# and will disappear for other versions is due course.
+#
+# To find the relevant files, go to launchpad.net/ubuntu/CODENAME/ARCH/linux-libc-dev
+#   where CODENAME is, for example cosmic for Ubuntu 18.10, and ARCH is each of amd64,
+#   i386, armhf and s390x.
+# Select the most recent version, and click on link under Version column (RHS). Under
+#   Downloadable files is a link to the .deb file. That is what we need in DEB_URL.
+
 apps:
   daemon:
     daemon: forking
@@ -220,13 +232,16 @@ parts:
     override-pull: |
       KERNEL_VER="4.18.0"
       ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
-      if [ $ARCH = amd64 ] || [ $ARCH = i386 ]; then
-        ARCHIVE_URL="http://security.ubuntu.com/ubuntu/pool/main/l/linux/"
-      else
-        ARCHIVE_URL="http://ports.ubuntu.com/pool/main/l/linux/"
+      if [ $ARCH = amd64 ] || [ $ARCH = ppc64el ] ||  [ $ARCH = arm64 ]; then
+        DEB_URL="http://launchpadlibrarian.net/431512728/linux-libc-dev_4.18.0-26.27_amd64.deb"
+      elif [ $ARCH = i386 ]; then
+        DEB_URL="http://launchpadlibrarian.net/431500961/linux-libc-dev_4.18.0-26.27_i386.deb"
+      elif [ $ARCH = armhf ]; then
+        DEB_URL="http://launchpadlibrarian.net/431525966/linux-libc-dev_4.18.0-26.27_armhf.deb"
+      elif [ $ARCH != s390x ]; then
+        DEB_URL="http://launchpadlibrarian.net/431485536/linux-libc-dev_4.18.0-26.27_s390x.deb"
       fi
-      DEB_SUFFIX=$(wget ${ARCHIVE_URL} -O - | grep linux-libc-dev | cut -d'_' -f2-3 | cut -d'"' -f1 | grep ${ARCH} | grep ${KERNEL_VER} | tail -n1)
-      wget --quiet ${ARCHIVE_URL}/linux-libc-dev_${DEB_SUFFIX} -O ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
+      wget --quiet ${DEB_URL} -O ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
       echo -n "Unpacking kernel headers..."
       dpkg -x ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb ${SNAPCRAFT_PART_INSTALL}
       printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${SNAPCRAFT_PART_INSTALL}/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
