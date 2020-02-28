@@ -1048,6 +1048,8 @@ process_inotify(thread_ref_t thread)
 				if (event->mask & (IN_MOVED_FROM | IN_DELETE)) {
 					/* The file has disappeared. Treat as though the value is 0 */
 					update_track_file_status(tfile, 0);
+
+					tfile->last_status = 0;
 				}
 				else {	/* event->mask & (IN_MOVED_TO | IN_CLOSE_WRITE) */
 					/* The file has been writted/moved in */
