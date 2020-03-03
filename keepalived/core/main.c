@@ -601,9 +601,6 @@ static bool reload_config(void)
 		log_message(LOG_INFO, "Cannot change network namespace at a reload - please restart %s", PACKAGE);
 		unsupported_change = true;
 	}
-	FREE_CONST_PTR(global_data->network_namespace);
-	global_data->network_namespace = old_global_data->network_namespace;
-	old_global_data->network_namespace = NULL;
 #endif
 
 	if (!!old_global_data->instance_name != !!global_data->instance_name ||
@@ -611,9 +608,6 @@ static bool reload_config(void)
 		log_message(LOG_INFO, "Cannot change instance name at a reload - please restart %s", PACKAGE);
 		unsupported_change = true;
 	}
-	FREE_CONST_PTR(global_data->instance_name);
-	global_data->instance_name = old_global_data->instance_name;
-	old_global_data->instance_name = NULL;
 
 #ifdef _WITH_NFTABLES_
 	if (!!old_global_data->vrrp_nf_table_name != !!global_data->vrrp_nf_table_name ||
@@ -621,9 +615,6 @@ static bool reload_config(void)
 		log_message(LOG_INFO, "Cannot change nftables table name at a reload - please restart %s", PACKAGE);
 		unsupported_change = true;
 	}
-	FREE_CONST_PTR(global_data->vrrp_nf_table_name);
-	global_data->vrrp_nf_table_name = old_global_data->vrrp_nf_table_name;
-	old_global_data->vrrp_nf_table_name = NULL;
 #endif
 
 	if (unsupported_change) {
