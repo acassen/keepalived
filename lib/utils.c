@@ -34,7 +34,7 @@
 #include <stdint.h>
 #include <errno.h>
 #include <sys/prctl.h>
-#if defined _WITH_LVS_ || defined _LIBIPSET_DYNAMIC_
+#if defined _WITH_LVS_ || defined _HAVE_LIBIPSET_
 #include <sys/wait.h>
 #endif
 #ifdef _WITH_PERF_
@@ -1097,7 +1097,7 @@ memcmp_constant_time(const void *s1, const void *s2, size_t n)
  * Utility functions coming from Wensong code
  */
 
-#if defined _WITH_LVS_ || defined _LIBIPSET_DYNAMIC_
+#if defined _WITH_LVS_ || defined _HAVE_LIBIPSET_
 static char*
 get_modprobe(void)
 {
