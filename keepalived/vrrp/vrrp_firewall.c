@@ -36,6 +36,7 @@
 #endif
 #include "global_data.h"
 #include "vrrp_ipaddress.h"
+#include "utils.h"
 #include "bitops.h"
 #include "logger.h"
 
