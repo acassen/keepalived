@@ -106,6 +106,7 @@ static list defs;
 
 /* Forward declarations for recursion */
 static bool read_line(char *, size_t);
+static bool replace_param(char *, size_t, char const **);
 
 void
 report_config_error(config_err_t err, const char *format, ...)
@@ -814,6 +815,9 @@ add_seq(char *buf)
 	seq_t *seq_ent;
 	const char *var;
 	const char *var_end;
+	const char *multiline = NULL;
+	char seq_buf[3 * 20 + 3 + 1]; /* 3 longs, each with , or ) after plus terminating nul */
+	char *end_seq;
 
 	p += strspn(p, " \t");
 	if (*p++ != '(')
@@ -830,7 +834,23 @@ add_seq(char *buf)
 		return false;
 	}
 
+	/* Convert any parameters of ~SEQ which are definitions */
 	p++;
+	p += strspn(p, " \t");
+	end_seq = strchr(p, ')');
+	if ((size_t)(end_seq + 1 - p + 1) > sizeof(seq_buf)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "~SEQ parameter strings too long '%s'", buf);
+		return false;
+	}
+	strncpy(seq_buf, p, end_seq + 1 - p);
+	seq_buf[end_seq + 1 - p] = '\0';
+	replace_param(seq_buf, sizeof(seq_buf), &multiline);
+	if (multiline) {
+		report_config_error(CONFIG_GENERAL_ERROR, "~SEQ parameter is multiline definition '%s'", buf);
+		return false;
+	}
+
+	p = seq_buf;
 	do {
 		// Handle missing number
 		one = strtol(p, &p, 0);
@@ -883,6 +903,7 @@ add_seq(char *buf)
 		}
 	} while (false);
 
+	p = end_seq;
 	p += strspn(p + 1, " \t") + 1;
 
 	PMALLOC(seq_ent);
@@ -1307,7 +1328,7 @@ find_definition(const char *name, size_t len, bool definition)
 			}
 			if (*p != EOB[0])
 				return NULL;
-		} else if (!definition && *p != ' ' && *p != '\t' && *p != '\0')
+		} else if (!definition && *p != ' ' && *p != '\t' && *p != ',' && *p != ')' && *p != '\0')
 			return NULL;
 	}
 
@@ -1720,7 +1741,7 @@ read_line(char *buf, size_t size)
 			line_residue = NULL;
 		}
 		else if (!LIST_ISEMPTY(seq_list) &&
-			 seq_list->count > multiline_seq_depth) {
+			seq_list->count > multiline_seq_depth) {
 			seq_t *seq = LIST_TAIL_DATA(seq_list);
 			char val[12];
 			snprintf(val, sizeof(val), "%d", seq->next);
