@@ -2281,16 +2281,28 @@ line to be processed multiple times, with the variable \fB$var\fR set initially 
 \fBstart\fR, and then \fB$var\fR will be incremented by \fBstep\fR repeatedly, terminating when
 it is greater than \fBend\fR. \fBstep\fR may be omitted, in which case it defaults to 1 or
 -1, depending on whether \fBend\fR is greater or less than \fBstart\fR. \fBstart\fR may also be
-omitted, in which case it defaults to 1 if \fBend\fR > 0 or -1 if \fBend\fR < 0. so, for example:
+omitted, in which case it defaults to 1 if \fBend\fR > 0 or -1 if \fBend\fR < 0.
+~SEQx(...) is the same as ~SEQ(...), except the variable $var will for formatted in hexadecimal,
+which would be useful for IPv6 addresses.
+For example:
 .PP
 .nf
-    ~SEQ(SUBNET, 0, 3) ip_address 10.0.$SUBNET.1
+    ~SEQ(SUBNET, 0, 3) ip_address 10.0.${SUBNET}.1
 
     would produce:
         ip_address 10.0.0.1
         ip_address 10.0.1.1
         ip_address 10.0.2.1
         ip_address 10.0.3.1
+
+and
+    ~SEQx(SUBNET, 144, 16, 192) ip_address fe80::20:${SUBNET}:1
+
+    would produce:
+        ip_address fe80::20:90:1
+        ip_address fe80::20:a0:1
+        ip_address fe80::20:b0:1
+        ip_address fe80::20:c0:1
 .fi
 .PP
 There can be multiple ~SEQ elements on a line, so for example:

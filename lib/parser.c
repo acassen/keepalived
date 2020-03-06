@@ -76,6 +76,16 @@ typedef struct _multiline_stack_ent {
 	size_t seq_depth;
 } multiline_stack_ent;
 
+typedef struct _seq {
+	const char *var;
+	long next;
+	long last;
+	long step;
+	bool hex;
+	const char *text;
+} seq_t;
+
+
 /* global vars */
 vector_t *keywords;
 const char *config_id;
@@ -100,6 +110,7 @@ static char *buf_extern;
 static config_err_t config_err = CONFIG_OK; /* Highest level of config error for --config-test */
 static unsigned int random_seed;
 static bool random_seed_configured;
+static list seq_list;	/* List of seq_t */
 
 /* Parameter definitions */
 static list defs;
@@ -773,16 +784,6 @@ alloc_strvec_r(const char *string)
 	return strvec;
 }
 
-typedef struct _seq {
-	const char *var;
-	int next;
-	int last;
-	int step;
-	const char *text;
-} seq_t;
-
-static list seq_list;	/* List of seq_t */
-
 #ifdef _PARSER_DEBUG_
 static void
 dump_seqs(void)
@@ -790,8 +791,12 @@ dump_seqs(void)
 	seq_t *seq;
 	element e;
 
-	LIST_FOREACH(seq_list, seq, e)
-		log_message(LOG_INFO, "SEQ: %s => %d -> %d step %d: '%s'", seq->var, seq->next, seq->last, seq->step, seq->text);
+	LIST_FOREACH(seq_list, seq, e) {
+		if (seq->hex)
+			log_message(LOG_INFO, "SEQ: %s => 0x%lx -> 0x%lx step %ld: '%s'", seq->var, (unsigned long)seq->next, (unsigned long)seq->last, seq->step, seq->text);
+		else
+			log_message(LOG_INFO, "SEQ: %s => %ld -> %ld step %ld: '%s'", seq->var, seq->next, seq->last, seq->step, seq->text);
+	}
 	log_message(LOG_INFO, "%s", "");
 }
 #endif
@@ -810,6 +815,7 @@ static bool
 add_seq(char *buf)
 {
 	char *p = buf + 4;	/* Skip ~SEQ */
+	bool hex;
 	long one, two, three;
 	long start, step, end;
 	seq_t *seq_ent;
@@ -818,6 +824,13 @@ add_seq(char *buf)
 	const char *multiline = NULL;
 	char seq_buf[3 * 20 + 3 + 1]; /* 3 longs, each with , or ) after plus terminating nul */
 	char *end_seq;
+
+	/* Do we want the output in hex format - e.g. for IPv6 addresses */
+	if (*p == 'x') {
+		p++;
+		hex = true;
+	} else
+		hex = false;
 
 	p += strspn(p, " \t");
 	if (*p++ != '(')
@@ -903,6 +916,11 @@ add_seq(char *buf)
 		}
 	} while (false);
 
+	if (hex && (start < 0 || end < 0)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "~SEQx is only valid for positive numbers '%s'", buf);
+		return false;
+	}
+
 	p = end_seq;
 	p += strspn(p + 1, " \t") + 1;
 
@@ -911,6 +929,7 @@ add_seq(char *buf)
 	seq_ent->next = start;
 	seq_ent->step = step;
 	seq_ent->last = end;
+	seq_ent->hex = hex;
 	seq_ent->text = STRDUP(p);
 
 	if (!seq_list)
@@ -1744,10 +1763,13 @@ read_line(char *buf, size_t size)
 			seq_list->count > multiline_seq_depth) {
 			seq_t *seq = LIST_TAIL_DATA(seq_list);
 			char val[12];
-			snprintf(val, sizeof(val), "%d", seq->next);
+			if (seq->hex)
+				snprintf(val, sizeof(val), "%lx", (unsigned long)seq->next);
+			else
+				snprintf(val, sizeof(val), "%ld", seq->next);
 #ifdef _PARSER_DEBUG_
 			if (do_parser_debug)
-				log_message(LOG_INFO, "Processing seq %d of %s for '%s'",  seq->next, seq->var, seq->text);
+				log_message(LOG_INFO, "Processing seq %ld of %s for '%s'",  seq->next, seq->var, seq->text);
 #endif
 			set_definition(seq->var, val);
 			strcpy(buf, seq->text);
