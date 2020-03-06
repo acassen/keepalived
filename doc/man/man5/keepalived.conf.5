@@ -2284,7 +2284,13 @@ it is greater than \fBend\fR. \fBstep\fR may be omitted, in which case it defaul
 omitted, in which case it defaults to 1 if \fBend\fR > 0 or -1 if \fBend\fR < 0.
 ~SEQx(...) is the same as ~SEQ(...), except the variable $var will for formatted in hexadecimal,
 which would be useful for IPv6 addresses.
-For example:
+
+Note: At the moment it is necessary to use different variables for the ~SEQ block from any
+previously defined variable, including one used as the variable in a previous ~SEQ block.
+This may change in the future, so do not rely on a ~SEQ block variable being defined after
+the end of the block.
+
+Examples:
 .PP
 .nf
     ~SEQ(SUBNET, 0, 3) ip_address 10.0.${SUBNET}.1
@@ -2297,12 +2303,20 @@ For example:
 
 and
     ~SEQx(SUBNET, 144, 16, 192) ip_address fe80::20:${SUBNET}:1
+  or better
+    ~SEQx(SUBNET, 0x90, 0x10, 0xc0) ip_address fe80::20:${SUBNET}:1
 
     would produce:
         ip_address fe80::20:90:1
         ip_address fe80::20:a0:1
         ip_address fe80::20:b0:1
         ip_address fe80::20:c0:1
+
+   Another example:
+
+	virtual_ipaddress {
+	    ~SEQx(AD2, 0x90, 0x10, 0xc0) ~SEQx(AD1, 0x12, -1, 0x0c) fe81::10:${AD2}:${AD1}
+	}
 .fi
 .PP
 There can be multiple ~SEQ elements on a line, so for example:
