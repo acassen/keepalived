@@ -1036,19 +1036,6 @@ process_stream(vector_t *keywords_vec, int need_bob)
 			break;
 		}
 
-		if (!strncmp(str, "~SEQ", 4)) {
-			if (!add_seq(buf))
-				report_config_error(CONFIG_GENERAL_ERROR, "Invalid ~SEQ specification '%s'", buf);
-			free_strvec(strvec);
-#ifdef _PARSER_DEBUG_
-			if (do_parser_debug) {
-				dump_definitions();
-				dump_seqs();
-			}
-#endif
-			continue;
-		}
-
 		for (i = 0; i < vector_size(keywords_vec); i++) {
 			keyword_vec = vector_slot(keywords_vec, i);
 
@@ -1739,7 +1726,6 @@ read_line(char *buf, size_t size)
 	static def_t *def = NULL;
 	static const char *next_ptr = NULL;
 	static char *line_residue = NULL;
-
 	size_t len ;
 	bool eof = false;
 	size_t config_id_len;
@@ -1762,7 +1748,7 @@ read_line(char *buf, size_t size)
 		else if (!LIST_ISEMPTY(seq_list) &&
 			seq_list->count > multiline_seq_depth) {
 			seq_t *seq = LIST_TAIL_DATA(seq_list);
-			char val[12];
+			char val[21];
 			if (seq->hex)
 				snprintf(val, sizeof(val), "%lx", (unsigned long)seq->next);
 			else
@@ -1908,6 +1894,19 @@ read_line(char *buf, size_t size)
 					multiline_param_def = true;
 				buf[0] = '\0';
 				break;
+			}
+
+			if (!strncmp(buf, "~SEQ", 4)) {
+				if (!add_seq(buf))
+					report_config_error(CONFIG_GENERAL_ERROR, "Invalid ~SEQ specification '%s'", buf);
+#ifdef _PARSER_DEBUG_
+				if (do_parser_debug) {
+					dump_definitions();
+					dump_seqs();
+				}
+#endif
+				buf[0] = '\0';
+				continue;
 			}
 
 			if (buf[0] == '~')
