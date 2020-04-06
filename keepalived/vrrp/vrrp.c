@@ -2040,22 +2040,22 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 			if (vrrp->garp_lower_prio_delay)
 				thread_add_timer(master, vrrp_lower_prio_gratuitous_arp_thread,
 						 vrrp, vrrp->garp_lower_prio_delay);
+		}
 
-			/* If we are a member of a sync group, send GARP messages
-			 * for any other member of the group that has
-			 * garp_lower_prio_rep set */
-			if (vrrp->sync) {
-				LIST_FOREACH(vrrp->sync->vrrp_instances, gvrrp, e) {
-					if (gvrrp == vrrp)
-						continue;
-					if (!gvrrp->garp_lower_prio_rep)
-						continue;
+		/* If we are a member of a sync group, send GARP messages
+		 * for any other member of the group that has
+		 * garp_lower_prio_rep set */
+		if (vrrp->sync) {
+			LIST_FOREACH(vrrp->sync->vrrp_instances, gvrrp, e) {
+				if (gvrrp == vrrp)
+					continue;
+				if (!gvrrp->garp_lower_prio_rep)
+					continue;
 
-					vrrp_send_link_update(gvrrp, gvrrp->garp_lower_prio_rep);
-					if (gvrrp->garp_lower_prio_delay)
-						thread_add_timer(master, vrrp_lower_prio_gratuitous_arp_thread,
-								 gvrrp, gvrrp->garp_lower_prio_delay);
-				}
+				vrrp_send_link_update(gvrrp, gvrrp->garp_lower_prio_rep);
+				if (gvrrp->garp_lower_prio_delay)
+					thread_add_timer(master, vrrp_lower_prio_gratuitous_arp_thread,
+							 gvrrp, gvrrp->garp_lower_prio_delay);
 			}
 		}
 
