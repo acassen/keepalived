@@ -180,7 +180,7 @@ Provided the parent process doesn't terminate abnormally, it will restore
 \fBNote:\fP This will also affect any other process producing a core dump while keepalived is running.
 .TP
 \fB --signum\fP=PATTERN
-Returns the signal number to use for STOP, RELOAD, DATA, STATS and JSON.
+Returns the signal number to use for STOP, RELOAD, DATA, STATS, STATS_CLEAR and JSON.
 For example, to stop keepalived running, execute:
 .IP
 .nf
@@ -330,7 +330,11 @@ Write configuration data to
 .B USR2\fP or \fBSIGFUNC=STATS
 Write statistics info to
 .B /tmp/keepalived.stats
-.LP
+.TP
+.B SIGFUNC=STATS_CLEAR
+Write statistics info to
+.B /tmp/keepalived.stats
+and clear the statistics counters
 .TP
 .B SIGFUNC=JSON
 Write configuration data in JSON format to

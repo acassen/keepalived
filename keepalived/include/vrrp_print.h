@@ -25,7 +25,9 @@
 #ifndef _VRRP_PRINT_H
 #define _VRRP_PRINT_H
 
+#include <stdbool.h>
+
 extern void vrrp_print_data(void);
-extern void vrrp_print_stats(void);
+extern void vrrp_print_stats(bool);
 
 #endif

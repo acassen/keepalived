@@ -26,6 +26,14 @@
 	<method name='PrintStats'>
 	</method>
 	<!--
+	  PrintStatsClear:
+
+	  Signals VRRP process to print stats in file
+	  /tmp/keepalived.stats and clear the stats
+	-->
+	<method name='PrintStatsClear'>
+	</method>
+	<!--
 	  ReloadConfig:
 
 	  Signals keepalvied process to reload its configuration

@@ -108,6 +108,8 @@ get_signum(const char *sigfunc)
 		return SIGUSR1;
 	else if (!strcmp(sigfunc, "STATS"))
 		return SIGUSR2;
+	else if (!strcmp(sigfunc, "STATS_CLEAR"))
+		return SIGSTATS_CLEAR;
 #ifdef _WITH_JSON_
 	else if (!strcmp(sigfunc, "JSON"))
 		return SIGJSON;
