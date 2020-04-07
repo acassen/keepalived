@@ -5,7 +5,7 @@ Wants=network-online.target @SNMP_SERVICE@
 
 [Service]
 Type=forking
-PIDFile=@PID_DIR@/run/keepalived.pid
+PIDFile=@RUN_DIR@/run/keepalived.pid
 KillMode=process
 EnvironmentFile=-@sysconfdir@/sysconfig/keepalived
 ExecStart=@sbindir@/keepalived $KEEPALIVED_OPTIONS

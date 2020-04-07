@@ -153,7 +153,7 @@ bool snmp_option;					/* Enable SNMP support */
 const char *snmp_socket;				/* Socket to use for SNMP agent */
 #endif
 static const char *syslog_ident;			/* syslog ident if not default */
-bool use_pid_dir;					/* Put pid files in /var/run/keepalived or @localstatedir@/run/keepalived */
+bool use_pid_dir;					/* Put pid files in /run/keepalived or @localstatedir@/run/keepalived */
 
 unsigned os_major;					/* Kernel version */
 unsigned os_minor;
@@ -655,7 +655,7 @@ print_parent_data(__attribute__((unused)) thread_ref_t thread)
 	return 0;
 }
 
-/* SIGHUP/USR1/USR2 handler */
+/* SIGHUP/USR1/USR2/STATS_CLEAR handler */
 static void
 propagate_signal(__attribute__((unused)) void *v, int sig)
 {
@@ -673,7 +673,7 @@ propagate_signal(__attribute__((unused)) void *v, int sig)
 #endif
 
 	/* Only the VRRP process consumes SIGUSR2 and SIGJSON */
-	if (sig == SIGUSR2)
+	if (sig == SIGUSR2 || sig == SIGSTATS_CLEAR)
 		return;
 #ifdef _WITH_JSON_
 	if (sig == SIGJSON)
@@ -963,6 +963,7 @@ signal_init(void)
 	signal_set(SIGHUP, propagate_signal, NULL);
 	signal_set(SIGUSR1, propagate_signal, NULL);
 	signal_set(SIGUSR2, propagate_signal, NULL);
+	signal_set(SIGSTATS_CLEAR, propagate_signal, NULL);
 #ifdef _WITH_JSON_
 	signal_set(SIGJSON, propagate_signal, NULL);
 #endif
@@ -981,6 +982,7 @@ signals_ignore(void) {
 	signal_ignore(SIGHUP);
 	signal_ignore(SIGUSR1);
 	signal_ignore(SIGUSR2);
+	signal_ignore(SIGSTATS_CLEAR);
 #ifdef _WITH_JSON_
 	signal_ignore(SIGJSON);
 #endif
@@ -1466,7 +1468,7 @@ usage(const char *prog)
 	fprintf(stderr, "  -i, --config-id id           Skip any configuration lines beginning '@' that don't match id\n"
 			"                                or any lines beginning @^ that do match.\n"
 			"                                The config-id defaults to the node name if option not used\n");
-	fprintf(stderr, "      --signum=SIGFUNC         Return signal number for STOP, RELOAD, DATA, STATS"
+	fprintf(stderr, "      --signum=SIGFUNC         Return signal number for STOP, RELOAD, DATA, STATS, STATS_CLEAR"
 #ifdef _WITH_JSON_
 								", JSON"
 #endif
@@ -1839,6 +1841,7 @@ parse_cmdline(int argc, char **argv)
 				exit(1);
 			}
 
+			/* If we want to print the signal description, strsignal(signum) can be used */
 			printf("%d\n", signum);
 			exit(0);
 			break;
@@ -2185,18 +2188,18 @@ keepalived_main(int argc, char **argv)
 		else
 		{
 			if (!main_pidfile)
-				main_pidfile = PID_DIR KEEPALIVED_PID_FILE PID_EXTENSION;
+				main_pidfile = RUN_DIR KEEPALIVED_PID_FILE PID_EXTENSION;
 #ifdef _WITH_LVS_
 			if (!checkers_pidfile)
-				checkers_pidfile = PID_DIR CHECKERS_PID_FILE PID_EXTENSION;
+				checkers_pidfile = RUN_DIR CHECKERS_PID_FILE PID_EXTENSION;
 #endif
 #ifdef _WITH_VRRP_
 			if (!vrrp_pidfile)
-				vrrp_pidfile = PID_DIR VRRP_PID_FILE PID_EXTENSION;
+				vrrp_pidfile = RUN_DIR VRRP_PID_FILE PID_EXTENSION;
 #endif
 #ifdef _WITH_BFD_
 			if (!bfd_pidfile)
-				bfd_pidfile = PID_DIR BFD_PID_FILE PID_EXTENSION;
+				bfd_pidfile = RUN_DIR BFD_PID_FILE PID_EXTENSION;
 #endif
 		}
 

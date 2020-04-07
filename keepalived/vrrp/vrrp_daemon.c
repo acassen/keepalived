@@ -686,11 +686,11 @@ sigusr1_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 }
 
 static void
-sigusr2_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
+sigusr2_vrrp(__attribute__((unused)) void *v, int sig)
 {
-	log_message(LOG_INFO, "Printing VRRP stats for process(%d) on signal",
-		    getpid());
-	thread_add_event(master, print_vrrp_stats, NULL, 0);
+	log_message(LOG_INFO, "Printing %sVRRP stats for process(%d) on signal",
+		    sig == SIGSTATS_CLEAR ? "and clearing " : "", getpid());
+	thread_add_event(master, print_vrrp_stats, NULL, sig);
 }
 
 #ifdef _WITH_JSON_
@@ -720,6 +720,7 @@ vrrp_signal_init(void)
 	signal_set(SIGTERM, sigend_vrrp, NULL);
 	signal_set(SIGUSR1, sigusr1_vrrp, NULL);
 	signal_set(SIGUSR2, sigusr2_vrrp, NULL);
+	signal_set(SIGSTATS_CLEAR, sigusr2_vrrp, NULL);
 #ifdef _WITH_JSON_
 	signal_set(SIGJSON, sigjson_vrrp, NULL);
 #endif
@@ -832,9 +833,9 @@ print_vrrp_data(__attribute__((unused)) thread_ref_t thread)
 }
 
 static int
-print_vrrp_stats(__attribute__((unused)) thread_ref_t thread)
+print_vrrp_stats(thread_ref_t thread)
 {
-	vrrp_print_stats();
+	vrrp_print_stats(thread->u.val == SIGSTATS_CLEAR);
 	return 0;
 }
 

@@ -78,6 +78,7 @@ typedef enum dbus_action {
 	DBUS_ACTION_NONE,
 	DBUS_PRINT_DATA,
 	DBUS_PRINT_STATS,
+	DBUS_PRINT_STATS_CLEAR,
 	DBUS_RELOAD,
 #ifdef _WITH_DBUS_CREATE_INSTANCE_
 	DBUS_CREATE_INSTANCE,
@@ -399,6 +400,11 @@ handle_method_call(__attribute__((unused)) GDBusConnection *connection,
 		}
 		else if (g_strcmp0(method_name, "PrintStats") == 0) {
 			ent.action = DBUS_PRINT_STATS;
+			process_method_call(&ent);
+			g_dbus_method_invocation_return_value(invocation, NULL);
+		}
+		else if (g_strcmp0(method_name, "PrintStatsClear") == 0) {
+			ent.action = DBUS_PRINT_STATS_CLEAR;
 			process_method_call(&ent);
 			g_dbus_method_invocation_return_value(invocation, NULL);
 		}
@@ -785,7 +791,11 @@ handle_dbus_msg(__attribute__((unused)) thread_ref_t thread)
 		}
 		else if (ent->action == DBUS_PRINT_STATS) {
 			log_message(LOG_INFO, "Printing VRRP stats on DBus request");
-			vrrp_print_stats();
+			vrrp_print_stats(false);
+		}
+		else if (ent->action == DBUS_PRINT_STATS_CLEAR) {
+			log_message(LOG_INFO, "Printing and clearing VRRP stats on DBus request");
+			vrrp_print_stats(true);
 		}
 #ifdef _WITH_DBUS_CREATE_INSTANCE_
 		else if (ent->action == DBUS_CREATE_INSTANCE) {

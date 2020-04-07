@@ -1529,11 +1529,6 @@ vrrp_send_update(vrrp_t * vrrp, ip_address_t * ipaddress, bool log_msg)
 	const char *msg;
 	char addr_str[INET6_ADDRSTRLEN];
 
-	if (!IP_IS6(ipaddress))
-		send_gratuitous_arp(vrrp, ipaddress);
-	else
-		ndisc_send_unsolicited_na(vrrp, ipaddress);
-
 	if (log_msg && __test_bit(LOG_DETAIL_BIT, &debug)) {
 		if (!IP_IS6(ipaddress)) {
 			msg = "gratuitous ARPs";
@@ -1546,6 +1541,11 @@ vrrp_send_update(vrrp_t * vrrp, ip_address_t * ipaddress, bool log_msg)
 		log_message(LOG_INFO, "(%s) Sending/queueing %s on %s for %s",
 			    vrrp->iname, msg, IF_NAME(ipaddress->ifp), addr_str);
 	}
+
+	if (!IP_IS6(ipaddress))
+		send_gratuitous_arp(vrrp, ipaddress);
+	else
+		ndisc_send_unsolicited_na(vrrp, ipaddress);
 }
 
 void
@@ -1991,11 +1991,12 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 	    (vrrp->higher_prio_send_advert &&
 	     (hd->priority > vrrp->effective_priority ||
 	      (hd->priority == vrrp->effective_priority && addr_cmp > 0)))) {
-		log_message(LOG_INFO, "(%s) Master received priority 0 or lower priority advert", vrrp->iname);
 		vrrp_send_adv(vrrp, vrrp->effective_priority);
 
-		if (hd->priority == 0)
+		if (hd->priority == 0) {
+			log_message(LOG_INFO, "(%s) Master received priority 0 message", vrrp->iname);
 			return false;
+		}
 	}
 
 	if (hd->priority == vrrp->effective_priority) {
@@ -2039,22 +2040,22 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 			if (vrrp->garp_lower_prio_delay)
 				thread_add_timer(master, vrrp_lower_prio_gratuitous_arp_thread,
 						 vrrp, vrrp->garp_lower_prio_delay);
+		}
 
-			/* If we are a member of a sync group, send GARP messages
-			 * for any other member of the group that has
-			 * garp_lower_prio_rep set */
-			if (vrrp->sync) {
-				LIST_FOREACH(vrrp->sync->vrrp_instances, gvrrp, e) {
-					if (gvrrp == vrrp)
-						continue;
-					if (!gvrrp->garp_lower_prio_rep)
-						continue;
+		/* If we are a member of a sync group, send GARP messages
+		 * for any other member of the group that has
+		 * garp_lower_prio_rep set */
+		if (vrrp->sync) {
+			LIST_FOREACH(vrrp->sync->vrrp_instances, gvrrp, e) {
+				if (gvrrp == vrrp)
+					continue;
+				if (!gvrrp->garp_lower_prio_rep)
+					continue;
 
-					vrrp_send_link_update(gvrrp, gvrrp->garp_lower_prio_rep);
-					if (gvrrp->garp_lower_prio_delay)
-						thread_add_timer(master, vrrp_lower_prio_gratuitous_arp_thread,
-								 gvrrp, gvrrp->garp_lower_prio_delay);
-				}
+				vrrp_send_link_update(gvrrp, gvrrp->garp_lower_prio_rep);
+				if (gvrrp->garp_lower_prio_delay)
+					thread_add_timer(master, vrrp_lower_prio_gratuitous_arp_thread,
+							 gvrrp, gvrrp->garp_lower_prio_delay);
 			}
 		}
 

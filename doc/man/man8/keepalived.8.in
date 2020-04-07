@@ -121,19 +121,19 @@ Dump the configuration data.
 .TP
 \fB -p, --pid\fP=FILE
 Use the specified pidfile for the parent keepalived process. The default
-pidfile for keepalived is "/var/run/keepalived.pid", unless a network
+pidfile for keepalived is "/run/keepalived.pid", unless a network
 namespace is being used. See
 .B NAMESPACES
 below for more details.
 .TP
 \fB -r, --vrrp_pid\fP=FILE
 Use the specified pidfile for the VRRP child process. The default pidfile
-for the VRRP child process is "/var/run/keepalived_vrrp.pid", unless a
+for the VRRP child process is "/run/keepalived_vrrp.pid", unless a
 network namespace is being used.
 .TP
 \fB -c, --checkers_pid\fP=FILE
 Use the specified pidfile for checkers child process. The default pidfile
-for the checker child process is "/var/run/keepalived_checkers.pid" unless
+for the checker child process is "/run/keepalived_checkers.pid" unless
 a network namespace is being used.
 .TP
 \fB -a, --address-monitoring\fP
@@ -141,7 +141,7 @@ Log all address additions/deletions reported by netlink.
 .TP
 \fB -b, --bfd_pid\fP=FILE
 Use the specified pidfile for the BFD child process. The default pidfile
-for the BFD child process is "/var/run/keepalived_bfd.pid" unless
+for the BFD child process is "/run/keepalived_bfd.pid" unless
 a network namespace is being used.
 .TP
 \fB -s, --namespace\fP=NAME
@@ -180,11 +180,11 @@ Provided the parent process doesn't terminate abnormally, it will restore
 \fBNote:\fP This will also affect any other process producing a core dump while keepalived is running.
 .TP
 \fB --signum\fP=PATTERN
-Returns the signal number to use for STOP, RELOAD, DATA, STATS and JSON.
+Returns the signal number to use for STOP, RELOAD, DATA, STATS, STATS_CLEAR and JSON.
 For example, to stop keepalived running, execute:
 .IP
 .nf
-kill -s $(keepalived --signum=STOP) $(cat /var/run/keepalived.pid)
+kill -s $(keepalived --signum=STOP) $(cat /run/keepalived.pid)
 .fi
 .TP
 \fB -t, --config-test\fP[=FILE]
@@ -275,12 +275,12 @@ are configured.
 can be run in a network namespace (see
 \fBkeepalived.conf\fP(5) for configuration details). When
 run in a network namespace, a local mount namespace is also
-created, and /var/run/keepalived/keepalived_NamespaceName
-is mounted on /var/run/keepalived. By default, pid files with
+created, and /run/keepalived/keepalived_NamespaceName
+is mounted on /run/keepalived. By default, pid files with
 the usual default names are then created in
-/var/run/keepalived from the perspective of a process in the
+/run/keepalived from the perspective of a process in the
 mount namespace, and they will be visible in
-/var/run/keepalived/keepalived_NamespaceName for a process
+/run/keepalived/keepalived_NamespaceName for a process
 running in the default mount namespace.
 
 .SH SIGNALS
@@ -291,13 +291,13 @@ the parent
 process using the following:
 .IP
 .nf
-kill -SIGNAL $(cat /var/run/keepalived.pid)
+kill -SIGNAL $(cat /run/keepalived.pid)
 .fi
 .PP
 or better:
 .IP
 .nf
-kill -s $(keepalived --signum=SIGFUNC) $(cat /var/run/keepalived.pid)
+kill -s $(keepalived --signum=SIGFUNC) $(cat /run/keepalived.pid)
 .fi
 .PP
 Note that if the first option is used, -SIGNAL must be
@@ -305,7 +305,7 @@ replaced with the actual signal you are trying to send,
 e.g. with HUP. So it then becomes:
 .IP
 .nf
-kill -HUP $(cat /var/run/keepalived.pid)
+kill -HUP $(cat /run/keepalived.pid)
 .fi
 .PP
 Signals other than for STOP, RELOAD, DATA and STATS may change depending
@@ -330,7 +330,11 @@ Write configuration data to
 .B USR2\fP or \fBSIGFUNC=STATS
 Write statistics info to
 .B /tmp/keepalived.stats
-.LP
+.TP
+.B SIGFUNC=STATS_CLEAR
+Write statistics info to
+.B /tmp/keepalived.stats
+and clear the statistics counters
 .TP
 .B SIGFUNC=JSON
 Write configuration data in JSON format to

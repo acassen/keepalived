@@ -2385,16 +2385,16 @@ dnl -- Do we want GNU standard paths (moves .pid files)
 GNU_STD_PATHS=No
 if test "${enable_gnu_std_paths}" = "yes"; then
   AC_DEFINE([GNU_STD_PATHS], [ 1 ], [set to enforce GNU standard paths, for .pid files etc])
-  PID_DIR=$localstatedir
+  RUN_DIR=$localstatedir
 elif test $RUN_DIR_SPECIFIED = Y -a .${with_run_dir} != .no; then
-  PID_DIR=`echo ${with_run_dir} | sed -e "s:/run$::"`	# Remove a trailing /run - somewill will include it sometime
+  RUN_DIR=`echo ${with_run_dir} | sed -e "s:/run/*$::"`	# Remove a trailing /run - somewill will include it sometime
 elif test -d /run; then
-  PID_DIR=
+  RUN_DIR=
 else
-  PID_DIR=/var
+  RUN_DIR=/var
 fi
-AC_DEFINE_UNQUOTED([PID_DIR_ROOT], [ "${PID_DIR}" ], [Parent directory of /run])
-AC_SUBST([PID_DIR])
+AC_DEFINE_UNQUOTED([RUN_DIR_ROOT], [ "${RUN_DIR}" ], [Parent directory of /run])
+AC_SUBST([RUN_DIR])
 
 dnl - Check type of rlim_t for printf() - this check needs to be late on
 dnl - since _FILE_OFFSET_BITS (set when using netsnmp) alters sizeof(rlim_t)
