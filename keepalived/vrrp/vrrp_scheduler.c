@@ -623,8 +623,17 @@ try_up_instance(vrrp_t *vrrp, bool leaving_init)
 		if (vrrp->num_script_if_fault)
 			return;
 	}
-	else if (--vrrp->num_script_if_fault || vrrp->num_script_init)
+	else if (--vrrp->num_script_if_fault || vrrp->num_script_init) {
+		if (!vrrp->num_script_if_fault) {
+			if (vrrp->sync) {
+				vrrp->sync->num_member_fault--;
+				vrrp->sync->state = VRRP_STATE_INIT;
+			}
+			vrrp->wantstate = VRRP_STATE_BACK;
+		}
+
 		return;
+	}
 
 	if (vrrp->wantstate == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER) {
 		vrrp->wantstate = VRRP_STATE_MAST;
