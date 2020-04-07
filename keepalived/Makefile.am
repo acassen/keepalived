@@ -14,7 +14,7 @@ edit = echo "  EDIT     $@"; \
 	 -e 's|@sbindir[@]|$(sbindir)|g' \
 	 -e 's|@localstatedir[@]|$(localstatedir)|g' \
 	 -e 's|@sysconfdir[@]|$(sysconfdir)|g' \
-	 -e 's|@PID_DIR[@]|$(PID_DIR)|g' \
+	 -e 's|@RUN_DIR[@]|$(RUN_DIR)|g' \
 	 -e 's|@SNMP_SERVICE[@]|$(SNMP_SERVICE)|g'
 
 sbin_PROGRAMS		= keepalived

@@ -28,10 +28,10 @@
  * In order not to have to specify different pid files for each instance of
  * keepalived, if keepalived is running in a network namespace it will also create
  * its own mount namespace, and will slave bind mount a unique directory
- * (/var/run/keepalived/NAMESPACE) on /var/run/keepalived, so keepalived will
- * write its usual pid files (but to /var/run/keepalived rather than to /var/run),
+ * (/run/keepalived/NAMESPACE) on /run/keepalived, so keepalived will
+ * write its usual pid files (but to /run/keepalived rather than to /run),
  * and outside the mount namespace these will be visible at
- * /var/run/keepalived/NAMESPACE.
+ * /run/keepalived/NAMESPACE.
  *
  * If you are familiar with network namespaces, then you will know what you can do
  * with them. If not, then the following scenarios should give you an idea of what
@@ -195,7 +195,7 @@ setns(int fd, int nstype)
 #include "pidfile.h"
 
 /* Local data */
-static const char *netns_dir = "/var/run/netns/";
+static const char *netns_dir = RUN_DIR "netns/";
 static char *mount_dirname;
 
 void
@@ -208,7 +208,7 @@ free_dirname(void)
 static void
 set_run_mount(const char *net_namespace)
 {
-	/* /var/run/keepalived/NAMESPACE */
+	/* /run/keepalived/NAMESPACE */
 	mount_dirname = MALLOC(strlen(KEEPALIVED_PID_DIR) + 1 + strlen(net_namespace));
 	if (!mount_dirname) {
 		log_message(LOG_INFO, "Unable to allocate memory for pid file dirname");

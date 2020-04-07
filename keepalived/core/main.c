@@ -153,7 +153,7 @@ bool snmp_option;					/* Enable SNMP support */
 const char *snmp_socket;				/* Socket to use for SNMP agent */
 #endif
 static const char *syslog_ident;			/* syslog ident if not default */
-bool use_pid_dir;					/* Put pid files in /var/run/keepalived or @localstatedir@/run/keepalived */
+bool use_pid_dir;					/* Put pid files in /run/keepalived or @localstatedir@/run/keepalived */
 
 unsigned os_major;					/* Kernel version */
 unsigned os_minor;
@@ -2185,18 +2185,18 @@ keepalived_main(int argc, char **argv)
 		else
 		{
 			if (!main_pidfile)
-				main_pidfile = PID_DIR KEEPALIVED_PID_FILE PID_EXTENSION;
+				main_pidfile = RUN_DIR KEEPALIVED_PID_FILE PID_EXTENSION;
 #ifdef _WITH_LVS_
 			if (!checkers_pidfile)
-				checkers_pidfile = PID_DIR CHECKERS_PID_FILE PID_EXTENSION;
+				checkers_pidfile = RUN_DIR CHECKERS_PID_FILE PID_EXTENSION;
 #endif
 #ifdef _WITH_VRRP_
 			if (!vrrp_pidfile)
-				vrrp_pidfile = PID_DIR VRRP_PID_FILE PID_EXTENSION;
+				vrrp_pidfile = RUN_DIR VRRP_PID_FILE PID_EXTENSION;
 #endif
 #ifdef _WITH_BFD_
 			if (!bfd_pidfile)
-				bfd_pidfile = PID_DIR BFD_PID_FILE PID_EXTENSION;
+				bfd_pidfile = RUN_DIR BFD_PID_FILE PID_EXTENSION;
 #endif
 		}
 

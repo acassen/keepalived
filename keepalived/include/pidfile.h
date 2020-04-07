@@ -28,15 +28,15 @@
 #include <paths.h>
 
 /* lock pidfile */
-#if defined PID_DIR_ROOT
-#define	PID_DIR			PID_DIR_ROOT "/run/"
+#if defined RUN_DIR_ROOT
+#define	RUN_DIR			RUN_DIR_ROOT "/run/"
 #elif defined GNU_STD_PATHS
-#define PID_DIR			LOCAL_STATE_DIR "/run/"
+#define RUN_DIR			LOCAL_STATE_DIR "/run/"
 #else
-#define PID_DIR			_PATH_VARRUN
+#define RUN_DIR			_PATH_VARRUN
 #endif
 
-#define KEEPALIVED_PID_DIR	PID_DIR PACKAGE "/"
+#define KEEPALIVED_PID_DIR	RUN_DIR PACKAGE "/"
 #define KEEPALIVED_PID_FILE	PACKAGE
 
 #ifdef _WITH_VRRP_
