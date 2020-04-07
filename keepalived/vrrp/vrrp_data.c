@@ -138,15 +138,15 @@ static void
 dump_vgroup(FILE *fp, const void *data)
 {
 	const vrrp_sgroup_t *vgroup = data;
+	const vrrp_t *vrrp;
 	element e;
 
 	conf_write(fp, " VRRP Sync Group = %s, %s", vgroup->gname, get_state_str(vgroup->state));
+	conf_write(fp, "   Num member fault %u, num member init %u", vgroup->num_member_fault, vgroup->num_member_init);
 	if (vgroup->vrrp_instances) {
 		conf_write(fp, "   VRRP member instances = %u", LIST_SIZE(vgroup->vrrp_instances));
-		for (e = LIST_HEAD(vgroup->vrrp_instances); e; ELEMENT_NEXT(e)) {
-			vrrp_t *vrrp = ELEMENT_DATA(e);
+		LIST_FOREACH(vgroup->vrrp_instances, vrrp, e)
 			conf_write(fp, "     %s", vrrp->iname);
-		}
 	}
 	if (vgroup->sgroup_tracking_weight)
 		conf_write(fp, "   sync group tracking weight set");
