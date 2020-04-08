@@ -194,15 +194,10 @@ get_vrrp_instance(const char *ifname, int vrid, int family)
 	element e;
 	vrrp_t *vrrp;
 
-	if (LIST_ISEMPTY(vrrp_data->vrrp))
-		return NULL;
-
-	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
-
+	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
 		if (vrrp->vrid == vrid &&
 		    vrrp->family == family &&
-		    !valid_path_cmp(IF_BASE_IFP(vrrp->ifp)->ifname, ifname))
+		    !valid_path_cmp(VRRP_CONFIGURED_IFP(vrrp)->ifname, ifname))
 			return vrrp;
 	}
 
@@ -516,7 +511,7 @@ dbus_create_object_params(const char *instance_name, const char *interface_name,
 static void
 dbus_create_object(vrrp_t *vrrp)
 {
-	dbus_create_object_params(vrrp->iname, IF_NAME(IF_BASE_IFP(vrrp->ifp)), vrrp->vrid, vrrp->family, false);
+	dbus_create_object_params(vrrp->iname, IF_NAME(VRRP_CONFIGURED_IFP(vrrp)), vrrp->vrid, vrrp->family, false);
 }
 
 static bool
@@ -723,7 +718,7 @@ dbus_send_state_signal(vrrp_t *vrrp)
 	if (global_connection == NULL)
 		return;
 
-	object_path = dbus_object_create_path_instance(IF_NAME(IF_BASE_IFP(vrrp->ifp)), vrrp->vrid, vrrp->family);
+	object_path = dbus_object_create_path_instance(IF_NAME(VRRP_CONFIGURED_IFP(vrrp)), vrrp->vrid, vrrp->family);
 
 	args = g_variant_new("(u)", vrrp->state);
 	dbus_emit_signal(global_connection, object_path, DBUS_VRRP_INSTANCE_INTERFACE, "VrrpStatusChange", args);
@@ -857,14 +852,14 @@ dbus_reload(list o, list n)
 		char *n_name;
 		bool match_found;
 
-		n_name = IF_BASE_IFP(vrrp_n->ifp)->ifname;
+		n_name = VRRP_CONFIGURED_IFP(vrrp_n)->ifname;
 
 		/* Try and find an instance with same vrid/family/interface that existed before and now */
 		match_found = false;
 		LIST_FOREACH(o, vrrp_o, e2) {
 			if (vrrp_n->vrid == vrrp_o->vrid &&
 			    vrrp_n->family == vrrp_o->family &&
-			    !strcmp(n_name, IF_BASE_IFP(vrrp_o->ifp)->ifname)) {
+			    !strcmp(n_name, VRRP_CONFIGURED_IFP(vrrp_o)->ifname)) {
 				/* If the old instance exists in the new config,
 				 * then the dbus object will exist */
 				if (!strcmp(vrrp_n->iname, vrrp_o->iname)) {
