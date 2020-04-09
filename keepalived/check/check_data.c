@@ -123,7 +123,7 @@ dump_vsg_entry(FILE *fp, const void *data)
 	uint16_t start;
 
 	if (vsg_entry->is_fwmark) {
-		conf_write(fp, "   FWMARK = %u", vsg_entry->vfwmark);
+		conf_write(fp, "   FWMARK = %u%s", vsg_entry->vfwmark, vsg_entry->fwm_family == AF_INET ? " IPv4" : vsg_entry->fwm_family == AF_INET6 ? " IPv6" : "");
 		conf_write(fp, "   Alive: %u IPv4, %u IPv6",
 				vsg_entry->fwm4_alive, vsg_entry->fwm6_alive);
 	} else {
@@ -168,6 +168,7 @@ alloc_vsg_entry(const vector_t *strvec)
 	const char *port_str;
 	uint32_t range;
 	unsigned fwmark;
+	const char *family_str;
 
 	new = (virtual_server_group_entry_t *) MALLOC(sizeof(virtual_server_group_entry_t));
 
@@ -177,6 +178,24 @@ alloc_vsg_entry(const vector_t *strvec)
 			FREE(new);
 			return;
 		}
+		if (vector_size(strvec) > 2) {
+			family_str = strvec_slot(strvec, 2);
+			if (!strcmp(family_str, "inet")) {
+				new->fwm_family = AF_INET;
+				vsg->have_ipv4 = true;
+			} else if (!strcmp(family_str, "inet6")) {
+				new->fwm_family = AF_INET6;
+				vsg->have_ipv6 = true;
+			} else {
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s): fwmark '%u' family %s unknown - ignoring", vsg->gname, fwmark, family_str);
+				FREE(new);
+				return;
+			}
+		} else {
+			new->fwm_family = AF_UNSPEC;
+			vsg->fwmark_no_family = true;
+		}
+
 		new->vfwmark = fwmark;
 		new->is_fwmark = true;
 		list_add(vsg->vfwmark, new);

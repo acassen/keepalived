@@ -1078,10 +1078,14 @@ link_vsg_to_vs(void)
 				vsg_af = AF_UNSPEC;
 			}
 
-			/* We can have mixed IPv4 and IPv6 in a vsg only if the vsg has no fwmark, and also
-			 * all the real/sorry servers of the virtual server are tunnelled. */
+			/* We can have mixed IPv4 and IPv6 in a vsg only if all fwmarks have a family,
+			 * and also all the real/sorry servers of the virtual server are tunnelled. */
 			if (vs->vsg->have_ipv4 && vs->vsg->have_ipv6 && vs->af != AF_UNSPEC) {
 				log_message(LOG_INFO, "Virtual server group %s with IPv4 & IPv6 doesn't match virtual server %s - ignoring", vs->vsgname, FMT_VS(vs));
+				free_list_element(check_data->vs, e);
+
+			} else if ((vs->vsg->have_ipv4 && vs->af == AF_INET6) || (vs->vsg->have_ipv6 && vs->af == AF_INET)) {
+				log_message(LOG_INFO, "Virtual server group %s address family doesn't match virtual server %s - ignoring", vs->vsgname, FMT_VS(vs));
 				free_list_element(check_data->vs, e);
 			} else if (vsg_af != AF_UNSPEC) {
 				if (vs->af == AF_UNSPEC)

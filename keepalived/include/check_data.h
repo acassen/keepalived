@@ -119,6 +119,7 @@ typedef struct _virtual_server_group_entry {
 		};
 		struct {
 			uint32_t	vfwmark;
+			uint16_t	fwm_family;
 			unsigned	fwm4_alive;
 			unsigned	fwm6_alive;
 		};
@@ -132,6 +133,7 @@ typedef struct _virtual_server_group {
 	list				vfwmark;
 	bool				have_ipv4;
 	bool				have_ipv6;
+	bool				fwmark_no_family;
 } virtual_server_group_t;
 
 /* Virtual Server definition */
