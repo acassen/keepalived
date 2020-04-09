@@ -257,6 +257,8 @@ free_vs(void *data)
 	free_list(&vs->rs);
 	free_notify_script(&vs->notify_quorum_up);
 	free_notify_script(&vs->notify_quorum_down);
+	free_vs_checkers(vs);
+
 	FREE(vs);
 }
 
@@ -517,6 +519,8 @@ free_rs(void *data)
 	free_list(&rs->tracked_bfds);
 #endif
 	FREE_CONST_PTR(rs->virtualhost);
+	free_rs_checkers(rs);
+
 	FREE(rs);
 }
 
@@ -923,7 +927,6 @@ bool validate_check_config(void)
 					break;
 				if (rs_iseq(rs, rs1)) {
 					report_config_error(CONFIG_GENERAL_ERROR, "VS %s: real server %s is duplicated - removing second rs", FMT_VS(vs), FMT_RS(rs, vs));
-					free_rs_checkers(rs);
 					free_list_element(vs->rs, e1);
 					rs_removed = true;
 					break;

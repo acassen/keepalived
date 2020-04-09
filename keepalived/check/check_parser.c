@@ -650,7 +650,6 @@ rs_end_handler(void)
 			vs->af = rs->addr.ss_family;
 		else if (vs->af != rs->addr.ss_family) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Address family of virtual server and real server %s don't match - skipping real server.", inet_sockaddrtos(&rs->addr));
-			free_rs_checkers(rs);
 			free_list_element(vs->rs, vs->rs->tail);
 		}
 	}

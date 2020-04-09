@@ -1064,7 +1064,6 @@ link_vsg_to_vs(void)
 			vs->vsg = ipvs_get_group_by_name(vs->vsgname, check_data->vs_group);
 			if (!vs->vsg) {
 				log_message(LOG_INFO, "Virtual server group %s specified but not configured - ignoring virtual server %s", vs->vsgname, FMT_VS(vs));
-				free_vs_checkers(vs);
 				free_list_element(check_data->vs, e);
 				continue;
 			}
@@ -1073,7 +1072,6 @@ link_vsg_to_vs(void)
 			if (LIST_ISEMPTY(vs->vsg->addr_range) &&
 			    LIST_ISEMPTY(vs->vsg->vfwmark)) {
 				log_message(LOG_INFO, "Virtual server group %s has no configuration - ignoring virtual server %s", vs->vsgname, FMT_VS(vs));
-				free_vs_checkers(vs);
 				free_list_element(check_data->vs, e);
 				continue;
 			}
@@ -1093,7 +1091,6 @@ link_vsg_to_vs(void)
 					vs->af = vsg_af;
 				else if (vsg_af != vs->af) {
 					log_message(LOG_INFO, "Virtual server group %s address family doesn't match virtual server %s - ignoring", vs->vsgname, FMT_VS(vs));
-					free_vs_checkers(vs);
 					free_list_element(check_data->vs, e);
 				}
 			} else if (vs->af == AF_UNSPEC) {
