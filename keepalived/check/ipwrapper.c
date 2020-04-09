@@ -1068,14 +1068,6 @@ link_vsg_to_vs(void)
 				continue;
 			}
 
-			/* Check the vsg has some configuration */
-			if (LIST_ISEMPTY(vs->vsg->addr_range) &&
-			    LIST_ISEMPTY(vs->vsg->vfwmark)) {
-				log_message(LOG_INFO, "Virtual server group %s has no configuration - ignoring virtual server %s", vs->vsgname, FMT_VS(vs));
-				free_list_element(check_data->vs, e);
-				continue;
-			}
-
 			/* Check the vs and vsg address families match */
 			if (!LIST_ISEMPTY(vs->vsg->addr_range)) {
 				vsge = ELEMENT_DATA(LIST_HEAD(vs->vsg->addr_range));
