@@ -1088,10 +1088,17 @@ link_vsg_to_vs(void)
 				vsg_af = AF_UNSPEC;
 			}
 
-			if (vsg_af != AF_UNSPEC && vsg_af != vs->af) {
-				log_message(LOG_INFO, "Virtual server group %s address family doesn't match virtual server %s - ignoring", vs->vsgname, FMT_VS(vs));
-				free_vs_checkers(vs);
-				free_list_element(check_data->vs, e);
+			if (vsg_af != AF_UNSPEC) {
+				if (vs->af == AF_UNSPEC)
+					vs->af = vsg_af;
+				else if (vsg_af != vs->af) {
+					log_message(LOG_INFO, "Virtual server group %s address family doesn't match virtual server %s - ignoring", vs->vsgname, FMT_VS(vs));
+					free_vs_checkers(vs);
+					free_list_element(check_data->vs, e);
+				}
+			} else if (vs->af == AF_UNSPEC) {
+				log_message(LOG_INFO, "Virtual server %s address family cannot be determined, defaulting to IPv4", FMT_VS(vs));
+				vs->af = AF_INET;
 			}
 		}
 	}
