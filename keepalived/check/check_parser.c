@@ -138,6 +138,9 @@ vsg_handler(const vector_t *strvec)
 	if (LIST_ISEMPTY(vsg->vfwmark) && LIST_ISEMPTY(vsg->addr_range)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "virtual server group %s has no entries - removing", vsg->gname);
 		free_list_element(check_data->vs_group, check_data->vs_group->tail);
+	} else if (!LIST_ISEMPTY(vsg->vfwmark) && vsg->have_ipv4 && vsg->have_ipv6) {
+		report_config_error(CONFIG_GENERAL_ERROR, "virtual server group %s cannot have IPv4, IPv6 and fwmark - removing", vsg->gname);
+		free_list_element(check_data->vs_group, check_data->vs_group->tail);
 	}
 }
 static void
@@ -650,7 +653,6 @@ rs_end_handler(void)
 			vs->af = rs->addr.ss_family;
 		else if (vs->af != rs->addr.ss_family) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Address family of virtual server and real server %s don't match - skipping real server.", inet_sockaddrtos(&rs->addr));
-			free_rs_checkers(rs);
 			free_list_element(vs->rs, vs->rs->tail);
 		}
 	}

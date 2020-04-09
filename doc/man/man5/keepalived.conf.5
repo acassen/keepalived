@@ -1655,8 +1655,14 @@ and will optimize healthchecking task by only spawning one healthchecking where
 multiple virtual server declaration will spawn a dedicated healthchecker for every
 real server which will waste system resources.
 .PP
-Any combination of IP addresses, IP address ranges and firewall marks can be used. Use
-of this option is intended for very large LVSs.
+Any combination of IP addresses, IP address ranges and firewall marks can be used, provided
+that the family of the IP addresses of the virtual server group match the IP address family
+of all the real servers of any virtual server using the virtual server group. The one
+exception to this is that the virtual server group can be configured with both IPv4 and IPv6
+addresses provided that all the real servers (and sorry servers) of all virtual servers using
+the virtual server group use tunnel forwarding, but in this can the virtual server group
+cannot be configured with any fwmarks..
+Use of this option is intended for very large LVSs.
 .PP
 .nf
 The syntax for virtual_server_group is :

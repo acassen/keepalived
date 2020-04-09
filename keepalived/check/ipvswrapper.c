@@ -240,6 +240,8 @@ ipvs_group_range_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual
 		inet_sockaddrip6(&vsg_entry->addr, &srule->nf_addr.in6);
 	else
 		srule->nf_addr.ip = inet_sockaddrip4(&vsg_entry->addr);
+	srule->af = vsg_entry->addr.ss_family;
+	srule->user.netmask = (srule->af == AF_INET6) ? 128 : ((uint32_t) 0xffffffff);
 
 	/* Process the whole range */
 	for (i = 0; i <= vsg_entry->range; i++) {

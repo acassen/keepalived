@@ -107,7 +107,7 @@ dump_vsg(FILE *fp, const void *data)
 	const virtual_server_group_t *vsg = data;
 
 	conf_write(fp, " ------< Virtual server group >------");
-	conf_write(fp, " Virtual Server Group = %s", vsg->gname);
+	conf_write(fp, " Virtual Server Group = %s, IPv4 = %s, IPv6 = %s", vsg->gname, vsg->have_ipv4 ? "yes" : "no", vsg->have_ipv6 ? "yes" : "no");
 	dump_list(fp, vsg->addr_range);
 	dump_list(fp, vsg->vfwmark);
 }
@@ -164,9 +164,7 @@ alloc_vsg_entry(const vector_t *strvec)
 {
 	virtual_server_group_t *vsg = LIST_TAIL_DATA(check_data->vs_group);
 	virtual_server_group_entry_t *new;
-	virtual_server_group_entry_t *old;
 	uint32_t start;
-	element e;
 	const char *port_str;
 	uint32_t range;
 	unsigned fwmark;
@@ -213,17 +211,6 @@ alloc_vsg_entry(const vector_t *strvec)
 		}
 #endif
 
-		/* Ensure the address family matches any previously configured addresses */
-		if (!LIST_ISEMPTY(vsg->addr_range)) {
-			e = LIST_HEAD(vsg->addr_range);
-			old = ELEMENT_DATA(e);
-			if (old->addr.ss_family != new->addr.ss_family) {
-				report_config_error(CONFIG_GENERAL_ERROR, "Cannot mix IPv4 and IPv6 in virtual server group - %s", vsg->gname);
-				FREE(new);
-				return;
-			}
-		}
-
 		/* If no range specified, new->range == UINT32_MAX */
 		if (new->range == UINT32_MAX)
 			new->range = 0;
@@ -243,6 +230,11 @@ alloc_vsg_entry(const vector_t *strvec)
 
 		new->is_fwmark = false;
 		list_add(vsg->addr_range, new);
+
+		if (new->addr.ss_family == AF_INET)
+			vsg->have_ipv4 = true;
+		else
+			vsg->have_ipv6 = true;
 	}
 }
 
@@ -257,6 +249,8 @@ free_vs(void *data)
 	free_list(&vs->rs);
 	free_notify_script(&vs->notify_quorum_up);
 	free_notify_script(&vs->notify_quorum_down);
+	free_vs_checkers(vs);
+
 	FREE(vs);
 }
 
@@ -318,6 +312,10 @@ dump_vs(FILE *fp, const void *data)
 		conf_write(fp, "   VirtualHost = %s", vs->virtualhost);
 	if (vs->af != AF_UNSPEC)
 		conf_write(fp, "   Address family = inet%s", vs->af == AF_INET ? "" : "6");
+	else if (vs->vsg && vs->vsg->have_ipv4 && vs->vsg->have_ipv6)
+		conf_write(fp, "   Address family = IPv4 & IPv6");
+	else
+		conf_write(fp, "   Address family = unknown");
 	conf_write(fp, "   connection timeout = %f", (double)vs->connection_to / TIMER_HZ);
 	conf_write(fp, "   delay_loop = %f", (double)vs->delay_loop / TIMER_HZ);
 	conf_write(fp, "   lvs_sched = %s", vs->sched);
@@ -517,6 +515,8 @@ free_rs(void *data)
 	free_list(&rs->tracked_bfds);
 #endif
 	FREE_CONST_PTR(rs->virtualhost);
+	free_rs_checkers(rs);
+
 	FREE(rs);
 }
 
@@ -923,7 +923,6 @@ bool validate_check_config(void)
 					break;
 				if (rs_iseq(rs, rs1)) {
 					report_config_error(CONFIG_GENERAL_ERROR, "VS %s: real server %s is duplicated - removing second rs", FMT_VS(vs), FMT_RS(rs, vs));
-					free_rs_checkers(rs);
 					free_list_element(vs->rs, e1);
 					rs_removed = true;
 					break;

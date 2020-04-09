@@ -130,6 +130,8 @@ typedef struct _virtual_server_group {
 	char				*gname;
 	list				addr_range;
 	list				vfwmark;
+	bool				have_ipv4;
+	bool				have_ipv6;
 } virtual_server_group_t;
 
 /* Virtual Server definition */
