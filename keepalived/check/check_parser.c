@@ -176,7 +176,7 @@ vs_end_handler(void)
 		}
 	}
 
-	if (vs->af == AF_UNSPEC) {
+	if (vs->af == AF_UNSPEC && !vs->vsgname) {
 		/* This only occurs if the virtual server uses a fwmark, all the
 		 * real/sorry servers are tunnelled, and the address family has not
 		 * been specified.
