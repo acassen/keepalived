@@ -1659,9 +1659,9 @@ Any combination of IP addresses, IP address ranges and firewall marks can be use
 that the family of the IP addresses of the virtual server group match the IP address family
 of all the real servers of any virtual server using the virtual server group. The one
 exception to this is that the virtual server group can be configured with both IPv4 and IPv6
-addresses provided that all the real servers (and sorry servers) of all virtual servers using
-the virtual server group use tunnel forwarding, but in this can the virtual server group
-cannot be configured with any fwmarks..
+addresses and fwmarks provided that all the real servers (and sorry servers) of all virtual
+servers using the virtual server group use tunnel forwarding; if fwmarks are specified in
+this case, the address family must be specified.
 Use of this option is intended for very large LVSs.
 .PP
 .nf
@@ -1679,8 +1679,10 @@ The syntax for virtual_server_group is :
     <IPADDR RANGE> [<PORT>]
     ...
     # Firewall Mark (fwmark)
+    # inet/inet6 should only be specified for virtual server groups
+    # where all real servers of the virtual servers are tunnelled.
     \fBfwmark \fR<INTEGER>
-    \fBfwmark \fR<INTEGER>
+    \fBfwmark \fR<INTEGER> [inet|inet6]
     ...
 }
 .fi

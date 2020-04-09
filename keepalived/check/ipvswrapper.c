@@ -390,6 +390,11 @@ ipvs_group_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_serve
 
 		srule->user.fwmark = vsg_entry->vfwmark;
 
+		if (vsg_entry->fwm_family != AF_UNSPEC) {
+			srule->af = vsg_entry->fwm_family;
+			srule->user.netmask = (srule->af == AF_INET6) ? 128 : ((uint32_t) 0xffffffff);
+		}
+
 		/* Talk to the IPVS channel */
 		if (ipvs_change_needed(cmd, vsg_entry, vs, rs)) {
 			if (ipvs_talk(cmd, srule, drule, NULL, false))
