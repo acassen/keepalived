@@ -138,6 +138,9 @@ vsg_handler(const vector_t *strvec)
 	if (LIST_ISEMPTY(vsg->vfwmark) && LIST_ISEMPTY(vsg->addr_range)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "virtual server group %s has no entries - removing", vsg->gname);
 		free_list_element(check_data->vs_group, check_data->vs_group->tail);
+	} else if (!LIST_ISEMPTY(vsg->vfwmark) && vsg->have_ipv4 && vsg->have_ipv6) {
+		report_config_error(CONFIG_GENERAL_ERROR, "virtual server group %s cannot have IPv4, IPv6 and fwmark - removing", vsg->gname);
+		free_list_element(check_data->vs_group, check_data->vs_group->tail);
 	}
 }
 static void
