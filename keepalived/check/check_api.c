@@ -462,7 +462,7 @@ init_checkers_queue(void)
 
 /* release the checkers for a virtual server */
 void
-free_vs_checkers(virtual_server_t *vs)
+free_vs_checkers(const virtual_server_t *vs)
 {
 	element e;
 	element next;
@@ -471,11 +471,27 @@ free_vs_checkers(virtual_server_t *vs)
 	if (LIST_ISEMPTY(checkers_queue))
 		return;
 
-	for (e = LIST_HEAD(checkers_queue); e; e = next) {
-		next = e->next;
-
-		checker = ELEMENT_DATA(e);
+	LIST_FOREACH_NEXT(checkers_queue, checker, e, next) {
 		if (checker->vs != vs)
+			continue;
+
+		free_list_element(checkers_queue, e);
+	}
+}
+
+/* release the checkers for a virtual server */
+void
+free_rs_checkers(const real_server_t *rs)
+{
+	element e;
+	element next;
+	checker_t *checker;
+
+	if (LIST_ISEMPTY(checkers_queue))
+		return;
+
+	LIST_FOREACH_NEXT(checkers_queue, checker, e, next) {
+		if (checker->rs != rs)
 			continue;
 
 		free_list_element(checkers_queue, e);

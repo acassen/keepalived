@@ -923,6 +923,7 @@ bool validate_check_config(void)
 					break;
 				if (rs_iseq(rs, rs1)) {
 					report_config_error(CONFIG_GENERAL_ERROR, "VS %s: real server %s is duplicated - removing second rs", FMT_VS(vs), FMT_RS(rs, vs));
+					free_rs_checkers(rs);
 					free_list_element(vs->rs, e1);
 					rs_removed = true;
 					break;

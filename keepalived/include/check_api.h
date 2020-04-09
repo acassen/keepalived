@@ -80,7 +80,8 @@ extern bool do_checker_debug;
 
 /* Prototypes definition */
 extern void init_checkers_queue(void);
-extern void free_vs_checkers(virtual_server_t *);
+extern void free_vs_checkers(const virtual_server_t *);
+extern void free_rs_checkers(const real_server_t *);
 extern void dump_connection_opts(FILE *, const void *);
 extern void dump_checker_opts(FILE *, const void *);
 extern checker_t *queue_checker(void (*) (checker_t *), void (*) (FILE *, const checker_t *)
