@@ -1014,6 +1014,9 @@ clear_diff_services(list old_checkers_queue)
 			   because the VS still exists in new configuration */
 			if (strcmp(vs->sched, new_vs->sched) ||
 			    vs->flags != new_vs->flags ||
+#ifdef _HAVE_PE_NAME_
+			    strcmp(vs->pe_name, new_vs->pe_name) ||
+#endif
 			    vs->persistence_granularity != new_vs->persistence_granularity ||
 			    vs->persistence_timeout != new_vs->persistence_timeout) {
 				ipvs_cmd(IP_VS_SO_SET_EDIT, new_vs, NULL);

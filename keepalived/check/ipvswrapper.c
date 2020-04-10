@@ -420,17 +420,17 @@ ipvs_set_srule(int cmd, ipvs_service_t *srule, virtual_server_t *vs)
 	srule->user.protocol = vs->service_type;
 
 	if (vs->persistence_timeout &&
-	    (cmd == IP_VS_SO_SET_ADD || cmd == IP_VS_SO_SET_DEL)) {
+	    (cmd == IP_VS_SO_SET_ADD || cmd == IP_VS_SO_SET_DEL || cmd == IP_VS_SO_SET_EDIT)) {
 		srule->user.timeout = vs->persistence_timeout;
 		srule->user.flags |= IP_VS_SVC_F_PERSISTENT;
 
 		if (vs->persistence_granularity != 0xffffffff)
 			srule->user.netmask = vs->persistence_granularity;
-	}
 
 #ifdef _HAVE_PE_NAME_
-	strcpy(srule->pe_name, vs->pe_name);
+		strcpy(srule->pe_name, vs->pe_name);
 #endif
+	}
 }
 
 /* Fill IPVS rule with rs infos */
