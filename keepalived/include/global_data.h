@@ -109,6 +109,10 @@ typedef struct _data {
 	unsigned long			smtp_connection_to;
 	list				email;
 	int				smtp_alert;
+	notify_script_t			*startup_script;
+	unsigned			startup_script_timeout;
+	notify_script_t			*shutdown_script;
+	unsigned			shutdown_script_timeout;
 #ifndef _ONE_PROCESS_DEBUG_
 	const char			*reload_time_file;
 	bool				reload_repeat;

@@ -904,6 +904,11 @@ thread_cleanup_master(thread_master_t * m)
 	thread_destroy_list(m, &m->ready);
 	m->child_pid = RB_ROOT;
 
+	if (m->current_thread) {
+		thread_add_unuse(m, m->current_thread);
+		m->current_thread = NULL;
+	}
+
 	/* Clean garbage */
 	thread_clean_unuse(m);
 
@@ -1713,7 +1718,7 @@ thread_fetch_next_queue(thread_master_t *m)
 		}
 
 		/* Check to see if we are long overdue. This can happen on a very heavily loaded system */
-		if (timerisset(&earliest_timer)) {
+		if (min_auto_priority_delay && timerisset(&earliest_timer)) {
 			/* Re-read the current time to get the maximum accuracy */
 			set_time_now();
 
@@ -1848,6 +1853,8 @@ process_threads(thread_master_t *m)
 		 * snmp_read, bfd_receiver, bfd pipe in vrrp/check, dbus pipe or netlink fds. */
 		thread = thread_trim_head(thread_list);
 
+		m->current_thread = thread;
+
 		if (thread && thread->type == THREAD_CHILD_TIMEOUT) {
 			/* We remove the thread from the child_pid queue here so that
 			 * if the termination arrives before we processed the timeout
@@ -1878,6 +1885,7 @@ process_threads(thread_master_t *m)
 
 		m->current_event = (thread->type == THREAD_READY_READ_FD || thread->type == THREAD_READY_WRITE_FD) ? thread->event : NULL;
 		thread_type = thread->type;
+		m->current_thread = NULL;
 		thread_add_unuse(master, thread);
 
 		/* If we are shutting down, and the shutdown timer is not running and
@@ -1897,12 +1905,6 @@ process_child_termination(pid_t pid, int status)
 	thread_master_t * m = master;
 	thread_t th = { .u.c.pid = pid };
 	thread_t *thread;
-	bool permanent_vrrp_checker_error = false;
-
-#ifndef _ONE_PROCESS_DEBUG_
-	if (prog_type == PROG_TYPE_PARENT)
-		permanent_vrrp_checker_error = report_child_status(status, pid, NULL);
-#endif
 
 	thread = rb_search(&master->child_pid, &th, rb_data, thread_child_pid_cmp);
 
@@ -1918,15 +1920,7 @@ process_child_termination(pid_t pid, int status)
 
 	thread->u.c.status = status;
 
-	if (permanent_vrrp_checker_error)
-	{
-		/* The child had a permanant error, so no point in respawning */
-		rb_erase_cached(&thread->n, &m->child);
-		thread_add_unuse(m, thread);
-
-		thread_add_terminate_event(m);
-	}
-	else if (thread->type == THREAD_CHILD_TIMEOUT) {
+	if (thread->type == THREAD_CHILD_TIMEOUT) {
 		/* The child had been timed out, but we have not processed the timeout
 		 * and it is still on the thread->ready queue. Since we have now got
 		 * the termination, just handle the termination instead. */

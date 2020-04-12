@@ -165,6 +165,25 @@ and
     \fBipvs_process_name\fR NAME
     \fBbfd_process_name\fR NAME
 
+    # The startup and shutdown scripts are run once, when keepalived starts
+    # before any child processes are run, and when keepalived stops after
+    # all child processes have terminated, respectively.
+    # The original motivation for adding this feature was that although
+    # keepalived can setup IPVS configuration using firewall marks, there
+    # was no mechanism for adding configuration to set the firewall marks
+    # (or for removing it afterwards).
+    # This feature can also be used to setup the iptables framework required
+    # if using iptables (see vrrp_iptables option below), modify interface
+    # settings, or anything else that can be done from a script or program.
+    # Only one startup script and one shutdown script can be specified.
+    # The timeouts (in seconds default 10 seconds) are the time allowed for
+    # scripts to run; if the timeout expires the scripts will be killed (this
+    # is to stop keepalived hanging waiting for the scripts to terminate).
+    \fBstartup_script\fR SCRIPT_NAME [username [groupname]]
+    \fBstartup_script_timeout\fR SECONDS    # range [1,1000]
+    \fBshutdown_script\fR SCRIPT_NAME [username [groupname]]
+    \fBshutdown_script_timeout\fR SECONDS   # range [1,1000]
+
     # Set of email To: notify
     \fBnotification_email \fR{
         admin@example1.com

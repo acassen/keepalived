@@ -263,6 +263,81 @@ smtp_alert_handler(const vector_t *strvec)
 
 	global_data->smtp_alert = res;
 }
+
+static void
+startup_shutdown_script(const vector_t *strvec, notify_script_t **script, bool startup)
+{
+	const char *type = startup ? "startup" : "shutdown";
+
+	if (*script) {
+		report_config_error(CONFIG_GENERAL_ERROR, "%s script already specified", type);
+		return;
+	}
+
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "%s script missing", type);
+		return;
+	}
+
+	if (!(*script = notify_script_init(0, type))) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid %s script", type);
+		return;
+	}
+
+	if (startup) {
+		if (!global_data->startup_script_timeout)
+			global_data->startup_script_timeout = 10;
+	} else {
+		if (!global_data->shutdown_script_timeout)
+			global_data->shutdown_script_timeout = 10;
+	}
+}
+
+static void
+startup_shutdown_script_timeout_handler(const vector_t *strvec, bool startup)
+{
+	const char *type = startup ? "startup" : "shutdown";
+	unsigned delay;
+
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "%s_script_timeout requires value", type);
+		return;
+	}
+	if (!read_unsigned_strvec(strvec, 1, &delay, 1, 1000, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "%s_script_timeout '%s' must be in [1, 1000] - ignoring", type, strvec_slot(strvec, 1));
+		return;
+	}
+
+	if (startup)
+		global_data->startup_script_timeout = delay;
+	else
+		global_data->shutdown_script_timeout = delay;
+}
+
+static void
+startup_script_handler(const vector_t *strvec)
+{
+	startup_shutdown_script(strvec, &global_data->startup_script, true);
+}
+
+static void
+startup_script_timeout_handler(const vector_t *strvec)
+{
+	startup_shutdown_script_timeout_handler(strvec, true);
+}
+
+static void
+shutdown_script_handler(const vector_t *strvec)
+{
+	startup_shutdown_script(strvec, &global_data->shutdown_script, false);
+}
+
+static void
+shutdown_script_timeout_handler(const vector_t *strvec)
+{
+	startup_shutdown_script_timeout_handler(strvec, false);
+}
+
 static void
 max_auto_priority_handler(const vector_t *strvec)
 {
@@ -1891,6 +1966,10 @@ init_global_keywords(bool global_active)
 	install_keyword("smtp_connect_timeout", &smtpto_handler);
 	install_keyword("notification_email", &email_handler);
 	install_keyword("smtp_alert", &smtp_alert_handler);
+	install_keyword("startup_script", &startup_script_handler);
+	install_keyword("startup_script_timeout", &startup_script_timeout_handler);
+	install_keyword("shutdown_script", &shutdown_script_handler);
+	install_keyword("shutdown_script_timeout", &shutdown_script_timeout_handler);
 	install_keyword("max_auto_priority", &max_auto_priority_handler);
 	install_keyword("min_auto_priority_delay", &min_auto_priority_delay_handler);
 #ifdef _WITH_VRRP_

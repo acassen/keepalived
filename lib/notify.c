@@ -799,14 +799,14 @@ check_security(const char *filename, bool using_script_security)
 	return flags;
 }
 
-int
+unsigned
 check_script_secure(notify_script_t *script,
 #ifndef _HAVE_LIBMAGIC_
 					     __attribute__((unused))
 #endif
 								     magic_t magic)
 {
-	int flags;
+	unsigned flags;
 	int ret, ret_real, ret_new;
 	struct stat file_buf, real_buf;
 	bool need_script_protection = false;
@@ -960,10 +960,10 @@ check_script_secure(notify_script_t *script,
 	return flags;
 }
 
-int
+unsigned
 check_notify_script_secure(notify_script_t **script_p, magic_t magic)
 {
-	int flags;
+	unsigned flags;
 	notify_script_t *script = *script_p;
 
 	if (!script)

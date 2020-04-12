@@ -340,6 +340,8 @@ free_global_data(data_t * data)
 #ifdef _WITH_SNMP_
 	FREE_CONST_PTR(data->snmp_socket);
 #endif
+	free_notify_script(&data->startup_script);
+	free_notify_script(&data->shutdown_script);
 #if defined _WITH_LVS_ && defined _WITH_VRRP_
 	FREE_CONST_PTR(data->lvs_syncd.ifname);
 	FREE_CONST_PTR(data->lvs_syncd.vrrp_name);
@@ -456,6 +458,18 @@ dump_global_data(FILE *fp, data_t * data)
 			conf_write(fp, " No reload scheduled");
 	}
 #endif
+	if (data->startup_script)
+		conf_write(fp, " Startup script = %s, uid:gid %u:%u, timeout %u",
+			    cmd_str(data->startup_script),
+			    data->startup_script->uid,
+			    data->startup_script->gid,
+			    data->startup_script_timeout);
+	if (data->shutdown_script)
+		conf_write(fp, " Shutdown script = %s, uid:gid %u:%u timeout %u",
+			    cmd_str(data->shutdown_script),
+			    data->shutdown_script->uid,
+			    data->shutdown_script->gid,
+			    data->shutdown_script_timeout);
 #ifdef _WITH_VRRP_
 	conf_write(fp, " Dynamic interfaces = %s", data->dynamic_interfaces ? "true" : "false");
 	if (data->dynamic_interfaces)

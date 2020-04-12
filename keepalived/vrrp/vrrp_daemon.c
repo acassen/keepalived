@@ -848,14 +848,16 @@ print_vrrp_json(__attribute__((unused)) thread_ref_t thread)
 }
 #endif
 
-/* VRRP Child respawning thread */
+/* VRRP Child respawning thread. This function runs in the parent process. */
 static int
 vrrp_respawn_thread(thread_ref_t thread)
 {
 	/* We catch a SIGCHLD, handle it */
 	vrrp_child = 0;
 
-	if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
+	if (report_child_status(thread->u.c.status, thread->u.c.pid, NULL))
+		thread_add_terminate_event(thread->master);
+	else if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
 		log_message(LOG_ALERT, "VRRP child process(%d) died: Respawning", thread->u.c.pid);
 		start_vrrp_child();
 	} else {
@@ -870,6 +872,9 @@ vrrp_respawn_thread(thread_ref_t thread)
 static void
 register_vrrp_thread_addresses(void)
 {
+	/* Remove anything we might have inherited from parent */
+	deregister_thread_addresses();
+
 	register_scheduler_addresses();
 	register_signal_thread_addresses();
 	register_notify_addresses();

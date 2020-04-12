@@ -32,7 +32,7 @@ extern int bfd_vrrp_event_pipe[2];
 extern int bfd_checker_event_pipe[2];
 #endif
 
-extern void open_bfd_pipes(void);
+extern bool open_bfd_pipes(void);
 extern int start_bfd_child(void);
 extern void bfd_validate_config(void);
 #ifdef THREAD_DUMP

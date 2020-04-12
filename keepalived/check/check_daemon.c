@@ -493,14 +493,16 @@ check_signal_init(void)
 	signal_ignore(SIGPIPE);
 }
 
-/* CHECK Child respawning thread */
+/* CHECK Child respawning thread. This function runs in the parent process. */
 static int
 check_respawn_thread(thread_ref_t thread)
 {
 	/* We catch a SIGCHLD, handle it */
 	checkers_child = 0;
 
-	if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
+	if (report_child_status(thread->u.c.status, thread->u.c.pid, NULL))
+		thread_add_terminate_event(thread->master);
+	else if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
 		log_message(LOG_ALERT, "Healthcheck child process(%d) died: Respawning", thread->u.c.pid);
 		start_check_child();
 	} else {
@@ -515,6 +517,9 @@ check_respawn_thread(thread_ref_t thread)
 static void
 register_check_thread_addresses(void)
 {
+	/* Remove anything we might have inherited from parent */
+	deregister_thread_addresses();
+
 	register_scheduler_addresses();
 	register_signal_thread_addresses();
 	register_notify_addresses();

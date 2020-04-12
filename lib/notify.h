@@ -100,8 +100,8 @@ extern int system_call_script(thread_master_t *, int (*)(thread_ref_t), void *, 
 extern int notify_exec(const notify_script_t *);
 extern int child_killed_thread(thread_ref_t);
 extern void script_killall(thread_master_t *, int, bool);
-extern int check_script_secure(notify_script_t *, magic_t);
-extern int check_notify_script_secure(notify_script_t **, magic_t);
+extern unsigned check_script_secure(notify_script_t *, magic_t);
+extern unsigned check_notify_script_secure(notify_script_t **, magic_t);
 extern bool set_default_script_user(const char *, const char *);
 extern bool set_script_uid_gid(const vector_t *, unsigned, uid_t *, gid_t *);
 extern void set_script_params_array(const vector_t *, notify_script_t *, unsigned);

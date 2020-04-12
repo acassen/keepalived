@@ -182,10 +182,10 @@ vrrp_handle_accept_mode(vrrp_t *vrrp, int cmd, bool force)
 #endif
 
 /* Check that the scripts are secure */
-static int
+static unsigned
 check_track_script_secure(vrrp_script_t *script, magic_t magic)
 {
-	int flags;
+	unsigned flags;
 
 	if (script->insecure)
 		return 0;
@@ -215,7 +215,7 @@ check_vrrp_script_security(void)
 	vrrp_sgroup_t *sg;
 	tracked_sc_t *track_script;
 	vrrp_script_t *vscript;
-	int script_flags = 0;
+	unsigned script_flags = 0;
 	magic_t magic;
 
 	if (LIST_ISEMPTY(vrrp_data->vrrp))
@@ -237,9 +237,6 @@ check_vrrp_script_security(void)
 		script_flags |= check_notify_script_secure(&vrrp->script, magic);
 		script_flags |= check_notify_script_secure(&vrrp->script_master_rx_lower_pri, magic);
 
-		if (LIST_ISEMPTY(vrrp->track_script))
-			continue;
-
 		LIST_FOREACH_NEXT(vrrp->track_script, track_script, e1, next) {
 			if (track_script->scr->insecure) {
 				/* Remove it from the vrrp instance's queue */
@@ -248,19 +245,17 @@ check_vrrp_script_security(void)
 		}
 	}
 
-	if (!LIST_ISEMPTY(vrrp_data->vrrp_sync_group)) {
-		LIST_FOREACH(vrrp_data->vrrp_sync_group, sg, e) {
-			script_flags |= check_notify_script_secure(&sg->script_backup, magic);
-			script_flags |= check_notify_script_secure(&sg->script_master, magic);
-			script_flags |= check_notify_script_secure(&sg->script_fault, magic);
-			script_flags |= check_notify_script_secure(&sg->script_stop, magic);
-			script_flags |= check_notify_script_secure(&sg->script, magic);
+	LIST_FOREACH(vrrp_data->vrrp_sync_group, sg, e) {
+		script_flags |= check_notify_script_secure(&sg->script_backup, magic);
+		script_flags |= check_notify_script_secure(&sg->script_master, magic);
+		script_flags |= check_notify_script_secure(&sg->script_fault, magic);
+		script_flags |= check_notify_script_secure(&sg->script_stop, magic);
+		script_flags |= check_notify_script_secure(&sg->script, magic);
 
-			LIST_FOREACH_NEXT(sg->track_script, track_script, e1, next) {
-				if (track_script->scr->insecure) {
-					/* Remove it from the vrrp sync group's queue */
-					free_list_element(sg->track_script, e1);
-				}
+		LIST_FOREACH_NEXT(sg->track_script, track_script, e1, next) {
+			if (track_script->scr->insecure) {
+				/* Remove it from the vrrp sync group's queue */
+				free_list_element(sg->track_script, e1);
 			}
 		}
 	}
