@@ -219,23 +219,20 @@ install_misc_check_keyword(void)
 }
 
 /* Check that the scripts are secure */
-int
+unsigned
 check_misc_script_security(magic_t magic)
 {
 	element e, next;
 	checker_t *checker;
 	misc_checker_t *misc_script;
-	int script_flags = 0;
-	int flags;
+	unsigned script_flags = 0;
+	unsigned flags;
 	bool insecure;
 
 	if (LIST_ISEMPTY(checkers_queue))
 		return 0;
 
-	for (e = LIST_HEAD(checkers_queue); e; e = next) {
-		next = e->next;
-		checker = ELEMENT_DATA(e);
-
+	LIST_FOREACH_NEXT(checkers_queue, checker, e, next) {
 		if (checker->launch != misc_check_thread)
 			continue;
 

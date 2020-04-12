@@ -453,7 +453,7 @@ read_config_file(void)
 }
 
 /* Daemon stop sequence */
-void
+static void
 stop_keepalived(void)
 {
 #ifndef _ONE_PROCESS_DEBUG_
@@ -481,13 +481,16 @@ stop_keepalived(void)
 
 /* Daemon init sequence */
 static int
-start_keepalived(void)
+start_keepalived(__attribute__((unused)) thread_ref_t thread)
 {
 	bool have_child = false;
 
 #ifdef _WITH_BFD_
 	/* must be opened before vrrp and bfd start */
-	open_bfd_pipes();
+	if (!open_bfd_pipes()) {
+		thread_add_terminate_event(thread->master);
+		return 0;
+	}
 #endif
 
 #ifdef _WITH_LVS_
@@ -512,7 +515,128 @@ start_keepalived(void)
 	}
 #endif
 
-	return have_child;
+#ifndef _ONE_PROCESS_DEBUG_
+	/* Do we have a reload file to monitor */
+	if (global_data->reload_time_file)
+		start_reload_monitor();
+#endif
+
+	if (!have_child)
+		log_message(LOG_INFO, "Warning - keepalived has no configuration to run");
+
+	return 0;
+}
+
+static bool
+startup_shutdown_script_completed(thread_ref_t thread, bool startup)
+{
+	const char *type = startup ? "startup" : "shutdown";
+	int wait_status;
+	pid_t pid;
+	int sig_num;
+	unsigned timeout = 0;
+	void *next_arg;
+
+	if (thread->type == THREAD_CHILD_TIMEOUT) {
+		pid = THREAD_CHILD_PID(thread);
+
+		if (thread->arg == (void *)0) {
+			next_arg = (void *)1;
+			sig_num = SIGTERM;
+			timeout = 2;
+			log_message(LOG_INFO, "%s script timed out", type);
+		} else if (thread->arg == (void *)1) {
+			next_arg = (void *)2;
+			sig_num = SIGKILL;
+			timeout = 2;
+		} else if (thread->arg == (void *)2) {
+			log_message(LOG_INFO, "%s script (PID %d) failed to terminate after kill", type, pid);
+			next_arg = (void *)3;
+			sig_num = SIGKILL;
+			timeout = 10;	/* Give it longer to terminate */
+		} else if (thread->arg == (void *)3) {
+			/* We give up trying to kill the script */
+			return true;
+		}
+
+		if (timeout) {
+			/* If kill returns an error, we can't kill the process since either the process has terminated,
+			 * or we don't have permission. If we can't kill it, there is no point trying again. */
+			if (kill(-pid, sig_num)) {
+				if (errno == ESRCH) {
+					/* The process does not exist, and we should
+					 * have reaped its exit status, otherwise it
+					 * would exist as a zombie process. */
+					log_message(LOG_INFO, "%s script (PID %d) lost", type, pid);
+					timeout = 0;
+				} else {
+					log_message(LOG_INFO, "kill -%d of %s script (%d) with new state %p failed with errno %d", sig_num, type, pid, next_arg, errno);
+					timeout = 1000;
+				}
+			}
+		} else {
+			log_message(LOG_INFO, "%s script %d timeout with unknown script state %p", type, pid, thread->arg);
+			next_arg = thread->arg;
+			timeout = 10;	/* We need some timeout */
+		}
+
+		if (timeout)
+			thread_add_child(thread->master, thread->func, next_arg, pid, timeout * TIMER_HZ);
+
+		return false;
+	}
+
+	wait_status = THREAD_CHILD_STATUS(thread);
+
+	if (WIFEXITED(wait_status)) {
+		unsigned status = WEXITSTATUS(wait_status);
+
+		if (status)
+			log_message(LOG_INFO, "%s script failed, status %u", type, status);
+		else if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "%s script succeeded", type);
+	}
+	else if (WIFSIGNALED(wait_status)) {
+		if (thread->arg == (void *)1 && WTERMSIG(wait_status) == SIGTERM) {
+			/* The script terminated due to a SIGTERM, and we sent it a SIGTERM to
+			 * terminate the process. Now make sure any children it created have
+			 * died too. */
+			pid = THREAD_CHILD_PID(thread);
+			kill(-pid, SIGKILL);
+		}
+	}
+
+	return true;
+}
+
+static int
+startup_script_completed(thread_ref_t thread)
+{
+	if (startup_shutdown_script_completed(thread, true))
+		thread_add_event(thread->master, start_keepalived, NULL, 0);
+
+	return 0;
+}
+
+static int
+shutdown_script_completed(thread_ref_t thread)
+{
+	if (startup_shutdown_script_completed(thread, false))
+		thread_add_terminate_event(thread->master);
+
+	return 0;
+}
+
+static int
+run_startup_script(thread_ref_t thread)
+{
+	if (__test_bit(LOG_DETAIL_BIT, &debug))
+		log_message(LOG_INFO, "Running startup script %s", global_data->startup_script->args[0]);
+
+	if (system_call_script(thread->master, startup_script_completed, NULL, global_data->startup_script_timeout * TIMER_HZ, global_data->startup_script) == -1)
+		log_message(LOG_INFO, "Call of startup script %s failed", global_data->startup_script->args[0]);
+
+	return 0;
 }
 
 static void
@@ -734,9 +858,6 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 	};
 #endif
 
-	/* register the terminate thread */
-	thread_add_terminate_event(master);
-
 	log_message(LOG_INFO, "Stopping");
 
 #ifndef _ONE_PROCESSS_DEBUG_
@@ -948,10 +1069,22 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 	}
 #endif
 
+	if (!global_data->shutdown_script) {
+		/* register the terminate thread */
+		thread_add_terminate_event(master);
+
 #ifndef HAVE_SIGNALFD
-	if (!sigismember(&old_set, SIGCHLD))
-		sigmask_func(SIG_UNBLOCK, &child_wait, NULL);
+		if (!sigismember(&old_set, SIGCHLD))
+			sigmask_func(SIG_UNBLOCK, &child_wait, NULL);
 #endif
+	} else {
+		/* If we have a shutdown script, run it now */
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "Running shutdown script %s", global_data->shutdown_script->args[0]);
+
+		if (system_call_script(master, shutdown_script_completed, NULL, global_data->shutdown_script_timeout * TIMER_HZ, global_data->shutdown_script) == -1)
+			log_message(LOG_INFO, "Call of shutdown script %s failed", global_data->shutdown_script->args[0]);
+	}
 }
 #endif
 
@@ -1937,8 +2070,28 @@ register_parent_thread_addresses(void)
 #endif
 	register_signal_handler_address("thread_child_handler", thread_child_handler);
 	register_signal_handler_address("thread_dump_signal", thread_dump_signal);
+
+	register_thread_address("start_keepalived", start_keepalived);
+	register_thread_address("startup_script_completed", startup_script_completed);
+	register_thread_address("shutdown_script_completed", shutdown_script_completed);
+	register_thread_address("run_startup_script", run_startup_script);
 }
 #endif
+
+static unsigned
+check_start_stop_script_secure(notify_script_t **script, magic_t magic)
+{
+	unsigned flags;
+
+	flags = check_notify_script_secure(script, magic);
+
+	/* Mark not to run if needs inhibiting */
+	if (flags & (SC_INHIBIT | SC_NOTFOUND) ||
+	    !(flags & (SC_EXECUTABLE | SC_SYSTEM)))
+		free_notify_script(script);
+
+	return flags;
+}
 
 /* Entry point */
 int
@@ -1948,6 +2101,8 @@ keepalived_main(int argc, char **argv)
 	struct utsname uname_buf;
 	char *end;
 	int exit_code = KEEPALIVED_EXIT_OK;
+	magic_t magic;
+	unsigned script_flags;
 
 	/* Ignore reloading signals till signal_init call */
 	signals_ignore();
@@ -2225,6 +2380,23 @@ keepalived_main(int argc, char **argv)
 	enable_mem_log_termination();
 #endif
 
+	if (global_data->startup_script || global_data->shutdown_script) {
+		magic = ka_magic_open();
+		script_flags = 0;
+		if (global_data->startup_script)
+			script_flags |= check_start_stop_script_secure(&global_data->startup_script, magic);
+		if (global_data->shutdown_script)
+			script_flags |= check_start_stop_script_secure(&global_data->shutdown_script, magic);
+
+		if (magic)
+			ka_magic_close(magic);
+
+		if (!script_security && script_flags & SC_ISSCRIPT) {
+			report_config_error(CONFIG_SECURITY_ERROR, "SECURITY VIOLATION - start/shutdown scripts are being executed but script_security not enabled.%s",
+						script_flags & SC_INSECURE ? " There are insecure scripts." : "");
+		}
+	}
+
 	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
 		validate_config();
 
@@ -2244,20 +2416,18 @@ keepalived_main(int argc, char **argv)
 	/* Signal handling initialization  */
 	signal_init();
 
-	/* Init daemon */
-	if (!start_keepalived())
-		log_message(LOG_INFO, "Warning - keepalived has no configuration to run");
+	/* If we have a startup script, run it first */
+	if (global_data->startup_script) {
+		thread_add_event(master, run_startup_script, NULL, 0);
+	} else {
+		/* Init daemon */
+		thread_add_event(master, start_keepalived, NULL, 0);
+	}
 
 	initialise_debug_options();
 
 #ifdef THREAD_DUMP
 	register_parent_thread_addresses();
-#endif
-
-#ifndef _ONE_PROCESS_DEBUG_
-	/* Do we have a reload file to monitor */
-	if (global_data->reload_time_file)
-		start_reload_monitor();
 #endif
 
 	/* Launch the scheduling I/O multiplexer */

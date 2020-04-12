@@ -133,6 +133,8 @@ typedef struct _thread_master {
 	list_head_t		ready;
 	list_head_t		unuse;
 
+	thread_t		*current_thread;
+
 	/* child process related */
 	rb_root_t		child_pid;
 

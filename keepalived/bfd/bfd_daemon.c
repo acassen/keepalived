@@ -113,15 +113,14 @@ stop_bfd(int status)
 }
 
 /* Daemon init sequence */
-void
+bool
 open_bfd_pipes(void)
 {
 #ifdef _WITH_VRRP_
 	/* Open BFD VRRP control pipe */
 	if (open_pipe(bfd_vrrp_event_pipe) == -1) {
 		log_message(LOG_ERR, "Unable to create BFD vrrp event pipe: %m");
-		stop_keepalived();
-		return;
+		return false;
 	}
 #endif
 
@@ -129,10 +128,11 @@ open_bfd_pipes(void)
 	/* Open BFD checker control pipe */
 	if (open_pipe(bfd_checker_event_pipe) == -1) {
 		log_message(LOG_ERR, "Unable to create BFD checker event pipe: %m");
-		stop_keepalived();
-		return;
+		return false;
 	}
 #endif
+
+	return true;
 }
 
 /* Daemon init sequence */
@@ -282,14 +282,16 @@ reload_bfd_thread(__attribute__((unused)) thread_ref_t thread)
 	return 0;
 }
 
-/* BFD Child respawning thread */
+/* BFD Child respawning thread. This function runs in the parent process. */
 static int
 bfd_respawn_thread(thread_ref_t thread)
 {
 	/* We catch a SIGCHLD, handle it */
 	bfd_child = 0;
 
-	if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
+	if (report_child_status(thread->u.c.status, thread->u.c.pid, NULL))
+		thread_add_terminate_event(thread->master);
+	else if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
 		log_message(LOG_ALERT, "BFD child process(%d) died: Respawning", thread->u.c.pid);
 		start_bfd_child();
 	} else {
@@ -298,13 +300,14 @@ bfd_respawn_thread(thread_ref_t thread)
 	}
 	return 0;
 }
-#endif
 
-#ifndef _ONE_PROCESS_DEBUG_
 #ifdef THREAD_DUMP
 static void
 register_bfd_thread_addresses(void)
 {
+	/* Remove anything we might have inherited from parent */
+	deregister_thread_addresses();
+
 	register_scheduler_addresses();
 	register_signal_thread_addresses();
 

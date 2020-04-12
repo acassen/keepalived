@@ -801,7 +801,7 @@ check_check_script_security(void)
 	element e, e1;
 	virtual_server_t *vs;
 	real_server_t *rs;
-	int script_flags;
+	unsigned script_flags;
 	magic_t magic;
 
 	if (LIST_ISEMPTY(check_data->vs))
