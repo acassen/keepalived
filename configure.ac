@@ -469,7 +469,7 @@ AS_IF([test .$enable_debug = .yes],
   ])
 
 dnl -- ulibc/glibc differences
- AC_MSG_CHECKING([msghdr.msg_controllen is size_t])
+AC_MSG_CHECKING([msghdr.msg_controllen is size_t])
 SAV_CFLAGS=$CFLAGS
 CFLAGS="$CFLAGS -Werror"
 AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
@@ -900,6 +900,24 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
       RTNETLINK_EXTRA_INCLUDE="#include <sys/socket.h>"
     ], [AC_MSG_ERROR([Missing/unusable kernel header file <linux/rtnetlink.h>])],
     [[#include <sys/socket.h>]])])
+
+dnl -- Does linux/errqueue.h need sys/time.h?
+AC_MSG_CHECKING([linux/errqueue.h needs sys/time.h])
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+  #include <fcntl.h>
+  #include <linux/errqueue.h>
+
+  int main(int argc, char**argv)
+  {
+  }
+  ]])],
+  [
+    AC_MSG_RESULT([no])
+  ],
+  [
+    AC_MSG_RESULT([yes])
+    AC_DEFINE([ERRQUEUE_NEEDS_SYS_TIME], [ 1 ], [Define to 1 if linux/errqueue.h needs sys/time.h])
+  ])
 
 AC_CHECK_HEADERS([asm/types.h linux/ethtool.h linux/icmpv6.h linux/if_ether.h linux/if_packet.h linux/ip.h linux/sockios.h linux/types.h],
   [], [AC_MSG_ERROR([Missing/unusable kernel header file <$ac_header>])])
