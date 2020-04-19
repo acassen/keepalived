@@ -40,6 +40,7 @@
 #ifdef _WITH_CN_PROC_
 #include "rbtree.h"
 #endif
+#include "tracker.h"
 
 /* VRRP script tracking defaults */
 #define VRRP_SCRIPT_DI 1	/* external script track interval (in sec) */
@@ -70,7 +71,7 @@ typedef struct _vrrp_script {
 	int			result;		/* result of last call to this script: 0..R-1 = KO, R..R+F-1 = OK */
 	int			rise;		/* R: how many successes before OK */
 	int			fall;		/* F: how many failures before KO */
-	list			tracking_vrrp;	/* List of tracking_vrrp_t for vrrp instances tracking this script */
+	list			tracking_vrrp;	/* List of tracking_obj_t for vrrp instances tracking this script */
 	int			last_status;	/* Last status returned by script. Used to report changes */
 	script_state_t		state;		/* current state of script */
 	script_init_state_t	init_state;	/* current initialisation state of script */
@@ -83,25 +84,6 @@ typedef struct _tracked_sc {
 	int			weight;		/* tracking weight when non-zero */
 	bool			weight_reverse;	/* which direction is the weight applied */
 } tracked_sc_t;
-
-/* external file we read to track local processes */
-typedef struct _vrrp_file {
-	const char		*fname;		/* File name */
-	const char		*file_path;	/* Path to file */
-	const char		*file_part;	/* Pointer to start of filename without directories */
-	int			weight;		/* Default weight */
-	bool			weight_reverse;	/* which direction is the weight applied */
-	int			wd;		/* Watch descriptor */
-	list			tracking_vrrp;	/* List of tracking_vrrp_t for vrrp instances tracking this file */
-	int			last_status;	/* Last status returned by file. Used to report changes */
-} vrrp_tracked_file_t;
-
-/* Tracked file structure definition */
-typedef struct _tracked_file {
-	vrrp_tracked_file_t	*file;		/* track file pointer, cannot be NULL */
-	int			weight;		/* Multiplier for file value */
-	bool			weight_reverse;	/* which direction is the weight applied */
-} tracked_file_t;
 
 #ifdef _WITH_CN_PROC_
 typedef enum _param_match {
@@ -127,7 +109,7 @@ typedef struct _vrrp_process {
 	bool			full_command;	/* Set if match against full command line */
 	thread_ref_t		fork_timer_thread; /* For handling delay */
 	thread_ref_t		terminate_timer_thread; /* For handling delay */
-	list			tracking_vrrp;	/* List of tracking_vrrp_t for vrrp instances tracking this process */
+	list			tracking_vrrp;	/* List of tracking_obj_t for vrrp instances tracking this process */
 	unsigned		num_cur_proc;
 	bool			have_quorum;	/* Set if quorum is treated as achieved */
 	unsigned		sav_num_cur_proc; /* Used if have ENOBUFS on netlink socket read */
@@ -154,7 +136,7 @@ typedef struct _vrrp_bfd {
 	char			bname[BFD_INAME_MAX];	/* bfd name */
 	int			weight;		/* Default weight */
 	bool			weight_reverse;	/* apply weight in opposite direction */
-	list			tracking_vrrp;	/* List of tracking_vrrp_t for vrrp instances tracking this bfd */
+	list			tracking_vrrp;	/* List of tracking_obj_t for vrrp instances tracking this bfd */
 	bool			bfd_up;		/* Last status returned by bfd. Used to report changes */
 } vrrp_tracked_bfd_t;
 
@@ -170,27 +152,6 @@ typedef struct _tracked_bfd {
 struct _vrrp_t;
 struct _vrrp_sgroup;
 
-typedef enum {
-	TRACK_VRRP = 0x01,
-	TRACK_IF = 0x02,
-	TRACK_SG = 0x04,
-	TRACK_ADDR = 0x08,
-	TRACK_ROUTE = 0x10,
-	TRACK_RULE = 0x20,
-	TRACK_SADDR = 0x40,
-	TRACK_SROUTE = 0x80,
-	TRACK_SRULE = 0x100,
-	TRACK_VRRP_DYNAMIC = 0x200,
-} track_t;
-
-/* List structure from scripts, files and interfaces to tracking vrrp */
-typedef struct _tracking_vrrp {
-	int			weight;		/* Tracking weight, or zero for down instance */
-	int			weight_multiplier; /* Which direction is weight applied */
-	struct _vrrp_t		*vrrp;		/* The vrrp instance */
-	track_t			type;		/* Type of object being tracked */
-} tracking_vrrp_t;
-
 /* prototypes */
 extern void dump_track_if(FILE *, const void *);
 extern void free_track_if(void *);
@@ -198,9 +159,6 @@ extern void alloc_track_if(const char *, list, const vector_t *);
 extern void dump_track_script(FILE *, const void *);
 extern void free_track_script(void *);
 extern void alloc_track_script(const char *, list, const vector_t *);
-extern void dump_track_file(FILE *, const void *);
-extern void free_track_file(void *);
-extern void alloc_track_file(const char *, list, const vector_t *);
 #ifdef _WITH_CN_PROC_
 extern void dump_track_process(FILE *, const void *);
 extern void free_track_process(void *);
@@ -217,13 +175,8 @@ extern void update_script_priorities(vrrp_script_t *, bool);
 extern void down_instance(struct _vrrp_t *);
 extern void vrrp_set_effective_priority(struct _vrrp_t *);
 extern void initialise_tracking_priorities(void);
-extern void init_track_files(list);
-extern void stop_track_files(void);
 #ifdef _WITH_CN_PROC_
 extern void process_update_track_process_status(vrrp_tracked_process_t *, bool);
-#endif
-#ifdef THREAD_DUMP
-extern void register_vrrp_inotify_addresses(void);
 #endif
 
 #endif

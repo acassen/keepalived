@@ -45,6 +45,7 @@
 #include "bfd_parser.h"
 #endif
 #include "libipvs.h"
+#include "track_file.h"
 
 /* List of valid schedulers */
 static const char *lvs_schedulers[] =
@@ -1033,5 +1034,7 @@ check_init_keywords(void)
 #ifdef _WITH_BFD_
 	init_bfd_keywords(true);
 #endif
+	add_track_file_keywords(false);
+
 	return keywords;
 }

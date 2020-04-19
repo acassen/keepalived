@@ -711,7 +711,7 @@ static void
 vrrp_handle_bfd_event(bfd_event_t * evt)
 {
 	vrrp_tracked_bfd_t *vbfd;
-	tracking_vrrp_t *tbfd;
+	tracking_obj_t *tbfd;
 	vrrp_t * vrrp;
 	element e, e1;
 	struct timeval cur_time;
@@ -738,7 +738,7 @@ vrrp_handle_bfd_event(bfd_event_t * evt)
 		vbfd->bfd_up = (evt->state == BFD_STATE_UP);
 
 		LIST_FOREACH(vbfd->tracking_vrrp, tbfd, e1) {
-			vrrp = tbfd->vrrp;
+			vrrp = tbfd->obj.vrrp;
 
 			log_message(LOG_INFO, "VRRP_Instance(%s) Tracked BFD"
 				    " instance %s is %s", vrrp->iname, evt->iname, vbfd->bfd_up ? "UP" : "DOWN");

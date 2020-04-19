@@ -27,6 +27,8 @@ AM_CPPFLAGS		+= -I$(srcdir)/include -I $(top_srcdir)/lib
 if WITH_IPVS
   IPVS_SUBDIR		= check
   IPVS_LIB		= check/libcheck.a
+  TRACKER_SUBDIR	= trackers
+  TRACKER_LIB		= trackers/libtracker.a
 endif
 
 if WITH_VRRP
@@ -49,11 +51,11 @@ keepalived.service: Makefile
 
 keepalived.service: $(srcdir)/keepalived.service.in
 
-SUBDIRS			= core $(VRRP_SUBDIR) $(IPVS_SUBDIR) $(DBUS_SUBDIR) $(BFD_SUBDIR) etc
+SUBDIRS			= core $(VRRP_SUBDIR) $(IPVS_SUBDIR) $(DBUS_SUBDIR) $(BFD_SUBDIR) $(TRACKER_SUBDIR) etc
 
 EXTRA_DIST		= keepalived.service.in
 
-keepalived_LDADD	= core/libcore.a $(IPVS_LIB) $(VRRP_LIB) $(BFD_LIB) core/libcore.a ../lib/liblib.a $(KA_LIBS)
+keepalived_LDADD	= core/libcore.a $(IPVS_LIB) $(VRRP_LIB) $(BFD_LIB) core/libcore.a $(TRACKER_LIB) ../lib/liblib.a $(KA_LIBS)
 
 MOSTLYCLEANFILES	= keepalived.service
 

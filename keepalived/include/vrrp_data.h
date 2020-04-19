@@ -44,7 +44,7 @@ typedef struct _vrrp_data {
 	list			vrrp;			/* vrrp_t */
 	list			vrrp_socket_pool;
 	list			vrrp_script;		/* vrrp_script_t */
-	list			vrrp_track_files;	/* vrrp_tracked_file_t */
+	list			vrrp_track_files;	/* tracked_file_t */
 #ifdef _WITH_CN_PROC_
 	list			vrrp_track_processes;	/* vrrp_tracked_process_t */
 	size_t			vrrp_max_process_name_len;
@@ -74,7 +74,6 @@ extern void alloc_vrrp_unicast_peer(const vector_t *);
 extern void alloc_vrrp_track_if(const vector_t *);
 extern void alloc_vrrp_script(const char *);
 extern void alloc_vrrp_track_script(const vector_t *);
-extern void alloc_vrrp_file(const char *);
 extern void alloc_vrrp_track_file(const vector_t *);
 #ifdef _WITH_CN_PROC_
 extern void alloc_vrrp_process(const char *);

@@ -1262,11 +1262,11 @@ void
 cleanup_lost_interface(interface_t *ifp)
 {
 	vrrp_t *vrrp;
-	tracking_vrrp_t *tvp;
+	tracking_obj_t *top;
 	element e;
 
-	LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {
-		vrrp = tvp->vrrp;
+	LIST_FOREACH(ifp->tracking_vrrp, top, e) {
+		vrrp = top->obj.vrrp;
 
 		/* If this is just a tracking interface, we don't need to do anything */
 		if (vrrp->ifp != ifp
@@ -1407,15 +1407,15 @@ int
 recreate_vmac_thread(thread_ref_t thread)
 {
 	vrrp_t *vrrp;
-	tracking_vrrp_t *tvp;
+	tracking_obj_t *top;
 	element e;
 	interface_t *ifp = THREAD_ARG(thread);
 
 	if (LIST_ISEMPTY(ifp->tracking_vrrp))
 		return 0;
 
-	LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {
-		vrrp = tvp->vrrp;
+	LIST_FOREACH(ifp->tracking_vrrp, top, e) {
+		vrrp = top->obj.vrrp;
 
 		/* If this isn't the vrrp's interface, skip */
 		if (vrrp->ifp != ifp)
@@ -1481,19 +1481,19 @@ void
 update_added_interface(interface_t *ifp)
 {
 	vrrp_t *vrrp;
-	tracking_vrrp_t *tvp;
+	tracking_obj_t *top;
 	element e;
 #ifdef _HAVE_VRRP_VMAC_
 	vrrp_t *vrrp1;
-	tracking_vrrp_t *tvp1;
+	tracking_obj_t *top1;
 	element e1;
 #endif
 
 	if (LIST_ISEMPTY(ifp->tracking_vrrp))
 		return;
 
-	LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {
-		vrrp = tvp->vrrp;
+	LIST_FOREACH(ifp->tracking_vrrp, top, e) {
+		vrrp = top->obj.vrrp;
 
 #ifdef _HAVE_VRRP_VMAC_
 		/* If this interface is a macvlan that we haven't created,
@@ -1502,8 +1502,8 @@ update_added_interface(interface_t *ifp)
 		 * conflict. */
 		if (!ifp->is_ours &&
 		    (global_data->allow_if_changes || !ifp->seen_interface)) {
-			LIST_FOREACH(ifp->base_ifp->tracking_vrrp, tvp1, e1) {
-				vrrp1 = tvp1->vrrp;
+			LIST_FOREACH(ifp->base_ifp->tracking_vrrp, top1, e1) {
+				vrrp1 = top1->obj.vrrp;
 				if (vrrp == vrrp1)
 					continue;
 
@@ -1523,8 +1523,8 @@ update_added_interface(interface_t *ifp)
 		}
 
 		if (vrrp->vmac_flags) {
-			if (tvp->type & TRACK_VRRP) {
-				add_vrrp_to_interface(vrrp, ifp->base_ifp, tvp->weight, tvp->weight_multiplier == -1, false, TRACK_VRRP_DYNAMIC);
+			if (top->type & TRACK_VRRP) {
+				add_vrrp_to_interface(vrrp, ifp->base_ifp, top->weight, top->weight_multiplier == -1, false, TRACK_VRRP_DYNAMIC);
 				if (!IF_ISUP(vrrp->configured_ifp->base_ifp) && !vrrp->dont_track_primary) {
 					log_message(LOG_INFO, "(%s) interface %s is down",
 							vrrp->iname, vrrp->configured_ifp->base_ifp->ifname);

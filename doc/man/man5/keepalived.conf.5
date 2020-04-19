@@ -802,6 +802,51 @@ To force a route/rule to be IPv6, add the keyword "inet6".
     }
 .fi
 .PP
+.SH Track files
+.PP
+Adds a file to be monitored. The file will be read whenever it is
+modified. The value in the file will be recorded for all VRRP instances,
+sync groups and real servers which monitor it.
+Note that the file will only be read if at least one VRRP instance,
+sync group or real server monitors it.
+
+A value will be read as a number in text from the file.  If the weight
+configured against the track_file is 0, a non-zero value in the file will
+be treated as a failure status, and a zero value will be treated as
+an OK status, otherwise the value will be  multiplied by the weight configured
+in the track_file statement. If the result is less than -253 anything
+monitoring the script will transition to the fault state (the weight can be
+254 to allow for a negative value being read from the file).
+
+If the vrrp instance or sync group is not the address owner and the result is between
+-253 and 253, the result will be added to the initial priority of the VRRP instance
+(a negative value will reduce the priority), although the effective priority will
+be limited to the range [1,254]. Likewise for real servers.
+
+If a vrrp instance using a track_file is a member of a sync group, unless
+sync_group_tracking_weight is set on the group weight 0 must be set.
+Likewise, if the vrrp instance is the address owner, weight 0 must also be set.
+.PP
+.nf
+The syntax for track file is:
+
+\fBtrack_file \fR<STRING> {	# vrrp_track_file is a deprecated synonym
+    # file to track (weight defaults to 1)
+    \fBfile \fR<QUOTED_STRING>
+
+    # optional default weight
+    \fBweight \fR<-254..254> [reverse]
+
+    # create the file and/or initialise the value
+    # This causes VALUE (default 0) to be written to
+    # the specified file at startup if the file doesn't
+    # exist, unless overwrite is specified in which case
+    # any existing file contents will be overwritten with
+    # the specified value.
+    \fBinit_file \fR[VALUE] [overwrite]
+}
+.fi
+.PP
 .SH VRRP track processes
 .PP
 .nf
@@ -1048,51 +1093,6 @@ The syntax for the vrrp script is:
 
     # assume script initially is in failed state
     \fBinit_fail\fR
-}
-.fi
-.PP
-.SH VRRP track files
-.PP
-Adds a file to be monitored. The file will be read whenever it is
-modified. The value in the file will be recorded for all VRRP instances
-and sync groups which monitor it.
-Note that the file will only be read if at least one VRRP instance
-or sync group monitors it.
-
-A value will be read as a number in text from the file.  If the weight
-configured against the track_file is 0, a non-zero value in the file will
-be treated as a failure status, and a zero value will be treated as
-an OK status, otherwise the value will be  multiplied by the weight configured
-in the track_file statement. If the result is less than -253 any VRRP
-instance or sync group monitoring the script will transition to the fault state
-(the weight can be 254 to allow for a negative value being read from the file).
-
-If the vrrp instance or sync group is not the address owner and the result is between
--253 and 253, the result will be added to the initial priority of the VRRP instance
-(a negative value will reduce the priority), although the effective priority will
-be limited to the range [1,254].
-
-If a vrrp instance using a track_file is a member of a sync group, unless
-sync_group_tracking_weight is set on the group weight 0 must be set.
-Likewise, if the vrrp instance is the address owner, weight 0 must also be set.
-.PP
-.nf
-The syntax for vrrp track file is :
-
-\fBvrrp_track_file \fR<STRING> {
-    # file to track (weight defaults to 1)
-    \fBfile \fR<QUOTED_STRING>
-
-    # optional default weight
-    \fBweight \fR<-254..254> [reverse]
-
-    # create the file and/or initialise the value
-    # This causes VALUE (default 0) to be written to
-    # the specified file at startup if the file doesn't
-    # exist, unless overwrite is specified in which case
-    # any existing file contents will be overwritten with
-    # the specified value.
-    \fBinit_file \fR[VALUE] [overwrite]
 }
 .fi
 .SH VRRP synchronization group(s)
