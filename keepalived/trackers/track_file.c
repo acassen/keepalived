@@ -475,7 +475,9 @@ process_update_vrrp_track_file_status(const tracked_file_t *tfile, int new_statu
 		new_status = 253;
 
 	previous_status = !top->weight ? (!!tfile->last_status == (top->weight_multiplier == 1) ? -254 : 0 ) : tfile->last_status * top->weight * top->weight_multiplier;
+#ifdef TMP_TRACK_FILE_DEBUG
 log_message(LOG_INFO, "top->weight %d, mult %d tfile->last_status %d, previous_status %d new_status %d", top->weight, top->weight_multiplier, tfile->last_status, previous_status, new_status);
+#endif
 	if (previous_status < -254)
 		previous_status = -254;
 	else if (previous_status > 253)
@@ -539,7 +541,9 @@ process_update_checker_track_file_status(const tracked_file_t *tfile, int new_st
 		update_svr_checker_state(UP, checker);
 	}
 	else {
+#ifdef TMP_TRACK_FILE_DEBUG
 log_message(LOG_INFO, "Updated weight to %d (weight %d, new_status %d previous_status %d)", checker->rs->effective_weight + new_status - previous_status, checker->rs->weight, new_status, previous_status);
+#endif
 		update_svr_wgt(checker->rs->effective_weight + new_status - previous_status, checker->vs, checker->rs, true);
 	}
 }
@@ -603,7 +607,10 @@ process_track_file(tracked_file_t *tfile, bool init)
 		update_track_file_status(tfile, (int)new_status);
 
 	tfile->last_status = new_status;
+
+#ifdef TMP_TRACK_FILE_DEBUG
 log_message(LOG_INFO, "Read %s: long val %ld, val %d, new last status %d", tfile->file_path, new_status, (int)new_status, tfile->last_status);
+#endif
 }
 
 static int
