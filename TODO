@@ -1,3 +1,11 @@
+In parsers, using LIST_TAIL to find object to configure doesn't work
+if error in first line means not created. TAIL could be null, or previous
+object.
+
+No SMTP alert for vrrp instance FAULT/BACKUP/MASTER following track file changes
+Shutdown SMTP messages not completing before keepalived terminates (especially for
+connect timeout. Causes memory leak!)
+
 Test LVS forwarding via VIP if no_accept set
 
 Fix warnings on Rpi builds
