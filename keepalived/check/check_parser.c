@@ -131,7 +131,7 @@ vsg_handler(const vector_t *strvec)
 
 	/* Fetch queued vsg */
 	alloc_vsg(strvec_slot(strvec, 1));
-	alloc_value_block(alloc_vsg_entry, strvec_slot(strvec, 0));
+	alloc_value_block(alloc_vsg_entry, strvec);
 
 	/* Ensure the virtual server group has some configuration */
 	vsg = LIST_TAIL_DATA(check_data->vs_group);

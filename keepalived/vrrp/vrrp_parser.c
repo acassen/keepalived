@@ -138,7 +138,7 @@ static_addresses_handler(const vector_t *strvec)
 	if (!strvec)
 		return;
 
-	alloc_value_block(alloc_saddress, vector_slot(strvec, 0));
+	alloc_value_block(alloc_saddress, strvec);
 }
 
 #ifdef _HAVE_FIB_ROUTING_
@@ -151,7 +151,7 @@ static_routes_handler(const vector_t *strvec)
 	if (!strvec)
 		return;
 
-	alloc_value_block(alloc_sroute, vector_slot(strvec, 0));
+	alloc_value_block(alloc_sroute, strvec);
 }
 
 /* Static rules handler */
@@ -163,7 +163,7 @@ static_rules_handler(const vector_t *strvec)
 	if (!strvec)
 		return;
 
-	alloc_value_block(alloc_srule, vector_slot(strvec, 0));
+	alloc_value_block(alloc_srule, strvec);
 }
 #endif
 
@@ -208,7 +208,7 @@ linkbeat_interfaces_handler(const vector_t *strvec)
 {
 	if (!strvec)
 		return;
-	alloc_value_block(alloc_linkbeat_interface, vector_slot(strvec, 0));
+	alloc_value_block(alloc_linkbeat_interface, strvec);
 }
 #endif
 
@@ -268,26 +268,26 @@ vrrp_group_handler(const vector_t *strvec)
 static void
 vrrp_group_track_if_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_group_track_if, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_group_track_if, strvec);
 }
 
 static void
 vrrp_group_track_scr_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_group_track_script, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_group_track_script, strvec);
 }
 
 static void
 vrrp_group_track_file_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_group_track_file, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_group_track_file, strvec);
 }
 
 #ifdef _WITH_CN_PROC_
 static void
 vrrp_group_track_process_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_group_track_process, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_group_track_process, strvec);
 }
 #endif
 
@@ -295,7 +295,7 @@ vrrp_group_track_process_handler(const vector_t *strvec)
 static void
 vrrp_group_track_bfd_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_group_track_bfd, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_group_track_bfd, strvec);
 }
 #endif
 
@@ -575,7 +575,7 @@ vrrp_ipvlan_handler(const vector_t *strvec)
 static void
 vrrp_unicast_peer_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_unicast_peer, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_unicast_peer, strvec);
 }
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 static void
@@ -662,23 +662,23 @@ vrrp_linkbeat_handler(__attribute__((unused)) const vector_t *strvec)
 static void
 vrrp_track_if_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_track_if, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_track_if, strvec);
 }
 static void
 vrrp_track_scr_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_track_script, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_track_script, strvec);
 }
 static void
 vrrp_track_file_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_track_file, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_track_file, strvec);
 }
 #ifdef _WITH_CN_PROC_
 static void
 vrrp_track_process_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_track_process, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_track_process, strvec);
 }
 #endif
 static void
@@ -691,7 +691,7 @@ vrrp_dont_track_handler(__attribute__((unused)) const vector_t *strvec)
 static void
 vrrp_track_bfd_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_track_bfd, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_track_bfd, strvec);
 }
 #endif
 static void
@@ -1134,12 +1134,12 @@ vrrp_auth_pass_handler(const vector_t *strvec)
 static void
 vrrp_vip_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_vip, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_vip, strvec);
 }
 static void
 vrrp_evip_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_evip, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_evip, strvec);
 }
 static void
 vrrp_promote_secondaries_handler(__attribute__((unused)) const vector_t *strvec)
@@ -1152,12 +1152,12 @@ vrrp_promote_secondaries_handler(__attribute__((unused)) const vector_t *strvec)
 static void
 vrrp_vroutes_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_vroute, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_vroute, strvec);
 }
 static void
 vrrp_vrules_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_vrule, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_vrule, strvec);
 }
 #endif
 static void

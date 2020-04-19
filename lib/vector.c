@@ -22,6 +22,8 @@
 
 #include "config.h"
 
+#include <string.h>
+
 #include "vector.h"
 #include "memory.h"
 
@@ -99,6 +101,23 @@ vector_alloc_slot_r(vector_t *v)
 		v->slot = (void *) MALLOC(sizeof (void *) * v->allocated);
 }
 
+/* Copy / dup a vector */
+vector_t *
+vector_copy_r(const vector_t *v)
+{
+	unsigned int size;
+	vector_t *new = vector_alloc();
+
+	new->active = v->active;
+	new->allocated = v->allocated;
+
+	size = sizeof(void *) * (v->allocated);
+	new->slot = (void *) MALLOC(size);
+	memcpy(new->slot, v->slot, size);
+
+	return new;
+}
+
 #ifdef _INCLUDE_UNUSED_CODE_
 /* Insert a value into a specific slot */
 static void
@@ -114,23 +133,6 @@ vector_insert_slot(vector_t *v, unsigned int index, void *value)
 		v->active++;
 	else
 		v->active = index + 1;
-}
-
-/* Copy / dup a vector */
-static vector_t *
-vector_copy(const vector_t *v)
-{
-	unsigned int size;
-	vector_t *new = vector_alloc();
-
-	new->active = v->active;
-	new->allocated = v->allocated;
-
-	size = sizeof(void *) * (v->allocated);
-	new->slot = (void *) MALLOC(size);
-	memcpy(new->slot, v->slot, size);
-
-	return new;
 }
 
 /* Check assigned index, and if it runs short double index pointer */
@@ -234,7 +236,7 @@ vector_lookup_ensure(const vector_t *v, unsigned int i)
 void
 vector_unset(vector_t *v, unsigned int i)
 {
-	if (i >= v->allocated)
+	if (i >= v->allocated || !v->slot[i])
 		return;
 
 	v->slot[i] = NULL;
@@ -291,6 +293,37 @@ vector_free_r(const vector_t *v)
 	FREE_CONST_ONLY(v);
 }
 
+vector_t *
+vector_compact_r(const vector_t *v)
+{
+	unsigned size, i, j;
+	vector_t *new;
+
+	for (size = 0, i = 0; i < v->active; i++) {
+		if (v->slot[i])
+			size++;
+	}
+
+	if (size) {
+		new = vector_alloc();
+		new->active = size;
+		new->allocated = size;
+
+		new->slot = (void *) MALLOC(sizeof(void *) * size);
+
+		for (i = 0, j = 0; i < size; i++, j++) {
+			while (!v->slot[j])
+				j++;
+			new->slot[i] = v->slot[j];
+		}
+	} else
+		new = NULL;
+
+	vector_free(v);
+
+	return new;
+}
+
 #ifdef _INCLUDE_UNUSED_CODE_
 /* dump vector slots */
 void
@@ -325,6 +358,18 @@ free_strvec(const vector_t *strvec)
 	}
 
 	vector_free(strvec);
+}
+
+vector_t *
+strvec_remove_slot(vector_t *strvec, unsigned slot)
+{
+	if (slot > strvec->allocated || !strvec->slot[slot])
+		return strvec;
+
+	FREE(strvec->slot[slot]);
+	vector_unset(strvec, slot);
+
+	return vector_compact_r(strvec);
 }
 
 #ifdef _INCLUDE_UNUSED_CODE_
