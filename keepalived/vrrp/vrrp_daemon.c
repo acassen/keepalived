@@ -70,7 +70,7 @@
 #include "parser.h"
 #include "utils.h"
 #include "vrrp_notify.h"
-#include "vrrp_track.h"
+#include "track_file.h"
 #ifdef _WITH_JSON_
 #include "vrrp_json.h"
 #endif
@@ -891,7 +891,7 @@ register_vrrp_thread_addresses(void)
 	register_vrrp_dbus_addresses();
 #endif
 	register_vrrp_fifo_addresses();
-	register_vrrp_inotify_addresses();
+	register_track_file_inotify_addresses();
 #ifdef _WITH_CN_PROC_
 	register_process_monitor_addresses();
 #endif

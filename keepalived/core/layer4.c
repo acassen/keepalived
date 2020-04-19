@@ -28,6 +28,9 @@
 #include <fcntl.h>
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>
+#ifdef ERRQUEUE_NEEDS_SYS_TIME
+#include <sys/time.h>
+#endif
 #include <linux/errqueue.h>
 #include <netinet/in.h>
 

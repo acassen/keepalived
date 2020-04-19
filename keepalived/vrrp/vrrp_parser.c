@@ -30,7 +30,6 @@
 #include <net/if_arp.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-//#include <unistd.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <net/if.h>
@@ -60,6 +59,7 @@
 #ifdef _WITH_BFD_
 #include "bfd_parser.h"
 #endif
+#include "track_file.h"
 #ifdef _WITH_CN_PROC_
 #include "track_process.h"
 #endif
@@ -69,14 +69,6 @@ enum process_delay {
 	PROCESS_TERMINATE_DELAY,
 	PROCESS_FORK_DELAY,
 };
-
-/* Used for initialising track files */
-static enum {
-	TRACK_FILE_NO_INIT,
-	TRACK_FILE_CREATE,
-	TRACK_FILE_INIT,
-} track_file_init;
-static int track_file_init_value;
 
 static bool script_user_set;
 static bool remove_script;
@@ -138,7 +130,7 @@ static_addresses_handler(const vector_t *strvec)
 	if (!strvec)
 		return;
 
-	alloc_value_block(alloc_saddress, vector_slot(strvec, 0));
+	alloc_value_block(alloc_saddress, strvec);
 }
 
 #ifdef _HAVE_FIB_ROUTING_
@@ -151,7 +143,7 @@ static_routes_handler(const vector_t *strvec)
 	if (!strvec)
 		return;
 
-	alloc_value_block(alloc_sroute, vector_slot(strvec, 0));
+	alloc_value_block(alloc_sroute, strvec);
 }
 
 /* Static rules handler */
@@ -163,7 +155,7 @@ static_rules_handler(const vector_t *strvec)
 	if (!strvec)
 		return;
 
-	alloc_value_block(alloc_srule, vector_slot(strvec, 0));
+	alloc_value_block(alloc_srule, strvec);
 }
 #endif
 
@@ -208,7 +200,7 @@ linkbeat_interfaces_handler(const vector_t *strvec)
 {
 	if (!strvec)
 		return;
-	alloc_value_block(alloc_linkbeat_interface, vector_slot(strvec, 0));
+	alloc_value_block(alloc_linkbeat_interface, strvec);
 }
 #endif
 
@@ -268,26 +260,26 @@ vrrp_group_handler(const vector_t *strvec)
 static void
 vrrp_group_track_if_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_group_track_if, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_group_track_if, strvec);
 }
 
 static void
 vrrp_group_track_scr_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_group_track_script, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_group_track_script, strvec);
 }
 
 static void
 vrrp_group_track_file_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_group_track_file, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_group_track_file, strvec);
 }
 
 #ifdef _WITH_CN_PROC_
 static void
 vrrp_group_track_process_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_group_track_process, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_group_track_process, strvec);
 }
 #endif
 
@@ -295,7 +287,7 @@ vrrp_group_track_process_handler(const vector_t *strvec)
 static void
 vrrp_group_track_bfd_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_group_track_bfd, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_group_track_bfd, strvec);
 }
 #endif
 
@@ -575,7 +567,7 @@ vrrp_ipvlan_handler(const vector_t *strvec)
 static void
 vrrp_unicast_peer_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_unicast_peer, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_unicast_peer, strvec);
 }
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 static void
@@ -662,23 +654,23 @@ vrrp_linkbeat_handler(__attribute__((unused)) const vector_t *strvec)
 static void
 vrrp_track_if_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_track_if, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_track_if, strvec);
 }
 static void
 vrrp_track_scr_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_track_script, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_track_script, strvec);
 }
 static void
 vrrp_track_file_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_track_file, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_track_file, strvec);
 }
 #ifdef _WITH_CN_PROC_
 static void
 vrrp_track_process_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_track_process, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_track_process, strvec);
 }
 #endif
 static void
@@ -691,7 +683,7 @@ vrrp_dont_track_handler(__attribute__((unused)) const vector_t *strvec)
 static void
 vrrp_track_bfd_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_track_bfd, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_track_bfd, strvec);
 }
 #endif
 static void
@@ -1134,12 +1126,12 @@ vrrp_auth_pass_handler(const vector_t *strvec)
 static void
 vrrp_vip_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_vip, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_vip, strvec);
 }
 static void
 vrrp_evip_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_evip, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_evip, strvec);
 }
 static void
 vrrp_promote_secondaries_handler(__attribute__((unused)) const vector_t *strvec)
@@ -1152,12 +1144,12 @@ vrrp_promote_secondaries_handler(__attribute__((unused)) const vector_t *strvec)
 static void
 vrrp_vroutes_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_vroute, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_vroute, strvec);
 }
 static void
 vrrp_vrules_handler(const vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_vrule, vector_slot(strvec, 0));
+	alloc_value_block(alloc_vrrp_vrule, strvec);
 }
 #endif
 static void
@@ -1306,137 +1298,7 @@ vrrp_vscript_end_handler(void)
 	vscript->script.uid = default_script_uid;
 	vscript->script.gid = default_script_gid;
 }
-static void
-vrrp_tfile_handler(const vector_t *strvec)
-{
-	if (!strvec)
-		return;
 
-	alloc_vrrp_file(strvec_slot(strvec, 1));
-
-	track_file_init = TRACK_FILE_NO_INIT;
-}
-static void
-vrrp_tfile_file_handler(const vector_t *strvec)
-{
-	vrrp_tracked_file_t *tfile = LIST_TAIL_DATA(vrrp_data->vrrp_track_files);
-
-	if (vector_size(strvec) < 2) {
-		report_config_error(CONFIG_GENERAL_ERROR, "track file file name missing");
-		return;
-	}
-
-	if (tfile->file_path) {
-		report_config_error(CONFIG_GENERAL_ERROR, "File already set for track file %s - ignoring %s", tfile->fname, strvec_slot(strvec, 1));
-		return;
-	}
-
-	tfile->file_path = set_value(strvec);
-}
-static void
-vrrp_tfile_weight_handler(const vector_t *strvec)
-{
-	int weight;
-	vrrp_tracked_file_t *tfile = LIST_TAIL_DATA(vrrp_data->vrrp_track_files);
-
-	if (vector_size(strvec) < 2) {
-		report_config_error(CONFIG_GENERAL_ERROR, "No weight specified for track file %s - ignoring", tfile->fname);
-		return;
-	}
-
-	if (tfile->weight != 1) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Weight already set for track file %s - ignoring %s", tfile->fname, strvec_slot(strvec, 1));
-		return;
-	}
-
-	if (!read_int_strvec(strvec, 1, &weight, -254, 254, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Weight (%s) for vrrp_track_file %s must be between "
-				 "[-254..254] inclusive. Ignoring...", strvec_slot(strvec, 1), tfile->fname);
-		weight = 1;
-	}
-	tfile->weight = weight;
-
-	if (vector_size(strvec) >= 3) {
-		if (!strcmp(strvec_slot(strvec, 2), "reverse"))
-			tfile->weight_reverse = true;
-		else
-			report_config_error(CONFIG_GENERAL_ERROR, "track_file %s unknown weight option %s", tfile->fname, strvec_slot(strvec, 2));
-	}
-}
-static void
-vrrp_tfile_init_handler(const vector_t *strvec)
-{
-	unsigned i;
-	const char *word;
-	vrrp_tracked_file_t *tfile = LIST_TAIL_DATA(vrrp_data->vrrp_track_files);
-	int value;
-
-	track_file_init = TRACK_FILE_CREATE;
-	track_file_init_value = 0;
-
-	for (i = 1; i < vector_size(strvec); i++) {
-		word = strvec_slot(strvec, i);
-		word += strspn(word, WHITE_SPACE);
-		if (isdigit(word[0]) || word[0] == '-') {
-			if (!read_int_strvec(strvec, i, &value, INT_MIN, INT_MAX, false)) {
-				/* It is not a valid integer */
-				report_config_error(CONFIG_GENERAL_ERROR, "Track file %s init value %s is invalid", tfile->fname, word);
-				value = 0;
-			}
-			else if (value < -254 || value > 254)
-				report_config_error(CONFIG_GENERAL_ERROR, "Track file %s init value %d is outside sensible range [%d, %d]", tfile->fname, value, -254, 254);
-			track_file_init_value = value;
-		}
-		else if (!strcmp(word, "overwrite"))
-			track_file_init = TRACK_FILE_INIT;
-		else
-			report_config_error(CONFIG_GENERAL_ERROR, "Unknown track file init option %s", word);
-	}
-}
-static void
-vrrp_tfile_end_handler(void)
-{
-	vrrp_tracked_file_t *tfile = LIST_TAIL_DATA(vrrp_data->vrrp_track_files);
-	struct stat statb;
-	FILE *tf;
-	int ret;
-
-	if (!tfile->file_path) {
-		report_config_error(CONFIG_GENERAL_ERROR, "No file set for track_file %s - removing", tfile->fname);
-		free_list_element(vrrp_data->vrrp_track_files, vrrp_data->vrrp_track_files->tail);
-		return;
-	}
-
-	if (track_file_init == TRACK_FILE_NO_INIT)
-		return;
-
-	ret = stat(tfile->file_path, &statb);
-	if (!ret) {
-		if (track_file_init == TRACK_FILE_CREATE) {
-			/* The file exists */
-			return;
-		}
-		if ((statb.st_mode & S_IFMT) != S_IFREG) {
-			/* It is not a regular file */
-			report_config_error(CONFIG_GENERAL_ERROR, "Cannot initialise track file %s - it is not a regular file", tfile->fname);
-			return;
-		}
-
-		/* Don't overwrite a file on reload */
-		if (reload)
-			return;
-	}
-
-	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
-		/* Write the value to the file */
-		if ((tf = fopen_safe(tfile->file_path, "w"))) {
-			fprintf(tf, "%d\n", track_file_init_value);
-			fclose(tf);
-		}
-		else
-			report_config_error(CONFIG_GENERAL_ERROR, "Unable to initialise track file %s", tfile->fname);
-	}
-}
 #ifdef _WITH_CN_PROC_
 static void
 vrrp_tprocess_handler(const vector_t *strvec)
@@ -1962,13 +1824,6 @@ init_vrrp_keywords(bool active)
 	install_keyword("init_fail", &vrrp_vscript_init_fail_handler);
 	install_sublevel_end_handler(&vrrp_vscript_end_handler);
 
-	/* Track file declarations */
-	install_keyword_root("vrrp_track_file", &vrrp_tfile_handler, active);
-	install_keyword("file", &vrrp_tfile_file_handler);
-	install_keyword("weight", &vrrp_tfile_weight_handler);
-	install_keyword("init_file", &vrrp_tfile_init_handler);
-	install_sublevel_end_handler(&vrrp_tfile_end_handler);
-
 #ifdef _WITH_CN_PROC_
 	/* Track process declarations */
 	install_keyword_root("vrrp_track_process", &vrrp_tprocess_handler, active);
@@ -1998,6 +1853,7 @@ vrrp_init_keywords(void)
 #ifdef _WITH_BFD_
 	init_bfd_keywords(true);
 #endif
+	add_track_file_keywords(true);
 
 	return keywords;
 }

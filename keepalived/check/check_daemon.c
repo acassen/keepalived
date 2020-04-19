@@ -49,6 +49,7 @@
 #include "check_ssl.h"
 #include "check_api.h"
 #include "check_ping.h"
+#include "check_file.h"
 #include "global_data.h"
 #include "pidfile.h"
 #include "signals.h"
@@ -69,6 +70,7 @@
 #include "check_bfd.h"
 #endif
 #include "timer.h"
+#include "track_file.h"
 #ifdef _WITH_CN_PROC_
 #include "track_process.h"
 #endif
@@ -221,6 +223,10 @@ checker_terminate_phase1(bool schedule_next_thread)
 	if (master->child.rb_root.rb_node)
 		script_killall(master, SIGTERM, true);
 
+	/* Stop monitoring files */
+	if (check_data->track_files)
+		stop_track_files();
+
 	/* Send shutdown messages */
 	if (!__test_bit(DONT_RELEASE_IPVS_BIT, &debug)) {
 		if (global_data->lvs_flush_onstop == LVS_FLUSH_FULL) {
@@ -367,6 +373,8 @@ start_check(list old_checkers_queue, data_t *prev_global_data)
 	if (!init_services())
 		stop_check(KEEPALIVED_EXIT_FATAL);
 
+	add_rs_to_track_files();
+
 	/* Dump configuration */
 	if (__test_bit(DUMP_CONF_BIT, &debug))
 		dump_data_check(NULL);
@@ -411,6 +419,9 @@ reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 
 	/* Terminate all script process */
 	script_killall(master, SIGTERM, false);
+
+	if (check_data->track_files)
+		stop_track_files();
 
 	/* Remove the notify fifo - we don't know if it will be the same after a reload */
 	notify_fifo_close(&global_data->notify_fifo, &global_data->lvs_notify_fifo);
@@ -538,6 +549,7 @@ register_check_thread_addresses(void)
 	register_check_tcp_addresses();
 	register_check_ping_addresses();
 	register_check_udp_addresses();
+	register_check_file_addresses();
 #ifdef _WITH_BFD_
 	register_check_bfd_addresses();
 #endif

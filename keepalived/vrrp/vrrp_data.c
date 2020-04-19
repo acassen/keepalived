@@ -49,6 +49,7 @@
 #endif
 #include "vrrp_static_track.h"
 #include "parser.h"
+#include "track_file.h"
 
 /* global vars */
 vrrp_data_t *vrrp_data = NULL;
@@ -185,10 +186,10 @@ dump_vgroup(FILE *fp, const void *data)
 void
 dump_tracking_vrrp(FILE *fp, const void *data)
 {
-	const tracking_vrrp_t *tvp = (const tracking_vrrp_t *)data;
-	const vrrp_t *vrrp = tvp->vrrp;
+	const tracking_obj_t *top = (const tracking_obj_t *)data;
+	const vrrp_t *vrrp = top->obj.vrrp;
 
-	conf_write(fp, "     %s, weight %d%s%s", vrrp->iname, tvp->weight, tvp->weight_multiplier == -1 ? " reverse" : "", tvp->type == TRACK_VRRP_DYNAMIC ? " (dynamic)" : "");
+	conf_write(fp, "     %s, weight %d%s%s", vrrp->iname, top->weight, top->weight_multiplier == -1 ? " reverse" : "", top->type == TRACK_VRRP_DYNAMIC ? " (dynamic)" : "");
 }
 
 static void
@@ -234,30 +235,6 @@ dump_vscript(FILE *fp, const void *data)
 			vscript->state == SCRIPT_STATE_RUNNING ? "running" :
 			vscript->state == SCRIPT_STATE_REQUESTING_TERMINATION ? "requested termination" :
 			vscript->state == SCRIPT_STATE_FORCING_TERMINATION ? "forcing termination" : "unknown");
-}
-
-static void
-free_vfile(void *data)
-{
-	vrrp_tracked_file_t *vfile = data;
-
-	free_list(&vfile->tracking_vrrp);
-	FREE_CONST(vfile->fname);
-	FREE_CONST(vfile->file_path);
-	FREE(vfile);
-}
-static void
-dump_vfile(FILE *fp, const void *data)
-{
-	const vrrp_tracked_file_t *vfile = data;
-
-	conf_write(fp, " VRRP Track file = %s", vfile->fname);
-	conf_write(fp, "   File = %s", vfile->file_path);
-	conf_write(fp, "   Status = %d", vfile->last_status);
-	conf_write(fp, "   Weight = %d%s", vfile->weight, vfile->weight_reverse ? " reverse" : "");
-	conf_write(fp, "   Tracking VRRP instances = %u", vfile->tracking_vrrp ? LIST_SIZE(vfile->tracking_vrrp) : 0);
-	if (vfile->tracking_vrrp)
-		dump_list(fp, vfile->tracking_vrrp);
 }
 
 #ifdef _WITH_CN_PROC_
@@ -827,8 +804,8 @@ alloc_vrrp_track_file(const vector_t *strvec)
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
 	if (!LIST_EXISTS(vrrp->track_file))
-		vrrp->track_file = alloc_list(free_track_file, dump_track_file);
-	alloc_track_file(vrrp->iname, vrrp->track_file, strvec);
+		vrrp->track_file = alloc_track_file_list();
+	vrrp_alloc_track_file(vrrp->iname, vrrp_data->vrrp_track_files, vrrp->track_file, strvec);
 }
 
 #ifdef _WITH_CN_PROC_
@@ -881,8 +858,8 @@ alloc_vrrp_group_track_file(const vector_t *strvec)
 	vrrp_sgroup_t *sgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 
 	if (!LIST_EXISTS(sgroup->track_file))
-		sgroup->track_file = alloc_list(free_track_file, dump_track_file);
-	alloc_track_file(sgroup->gname, sgroup->track_file, strvec);
+		sgroup->track_file = alloc_track_file_list();
+	vrrp_alloc_track_file(sgroup->gname, vrrp_data->vrrp_track_files, sgroup->track_file, strvec);
 }
 
 #ifdef _WITH_CN_PROC_
@@ -986,18 +963,6 @@ alloc_vrrp_script(const char *sname)
 	list_add(vrrp_data->vrrp_script, new);
 }
 
-void
-alloc_vrrp_file(const char *fname)
-{
-	vrrp_tracked_file_t *new;
-
-	/* Allocate new VRRP file structure */
-	new = (vrrp_tracked_file_t *) MALLOC(sizeof(vrrp_tracked_file_t));
-	new->fname = STRDUP(fname);
-	new->weight = 1;
-	list_add(vrrp_data->vrrp_track_files, new);
-}
-
 #ifdef _WITH_CN_PROC_
 void
 alloc_vrrp_process(const char *pname)
@@ -1049,7 +1014,7 @@ alloc_vrrp_data(void)
 	new->vrrp = alloc_list(free_vrrp, dump_vrrp);
 	new->vrrp_sync_group = alloc_list(free_vgroup, dump_vgroup);
 	new->vrrp_script = alloc_list(free_vscript, dump_vscript);
-	new->vrrp_track_files = alloc_list(free_vfile, dump_vfile);
+	new->vrrp_track_files = alloc_list(free_track_file_list, dump_track_file_list);
 #ifdef _WITH_CN_PROC_
 	new->vrrp_track_processes = alloc_list(free_vprocess, dump_vprocess);
 #endif

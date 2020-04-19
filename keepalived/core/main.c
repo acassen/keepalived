@@ -61,6 +61,9 @@
 #include "vrrp_daemon.h"
 #include "vrrp_parser.h"
 #include "vrrp_if.h"
+#if defined _WITH_LVS_ || defined _WITH_VRRP_
+#include "track_file.h"
+#endif
 #ifdef _WITH_CN_PROC_
 #include "track_process.h"
 #endif
@@ -441,6 +444,9 @@ global_init_keywords(void)
 #endif
 #ifdef _WITH_BFD_
 	init_bfd_keywords(false);
+#endif
+#if defined _WITH_VRRP_ || defined _WITH_LVS_
+	add_track_file_keywords(false);
 #endif
 
 	return keywords;

@@ -84,6 +84,8 @@
 #ifdef _WITH_FIREWALL_
 #include "vrrp_firewall.h"
 #endif
+#include "tracker.h"
+#include "track_file.h"
 #ifdef _WITH_CN_PROC_
 #include "track_process.h"
 #endif
@@ -2106,21 +2108,15 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 	return false;
 }
 
-static void
-free_tracking_vrrp(void *data)
-{
-	FREE(data);
-}
-
 void
 add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool reverse, bool log_addr, track_t type)
 {
-	tracking_vrrp_t *etvp = NULL;
+	tracking_obj_t *etop = NULL;
 	element e;
 	char addr_str[INET6_ADDRSTRLEN];
 
 	if (!LIST_EXISTS(ifp->tracking_vrrp)) {
-		ifp->tracking_vrrp = alloc_list(free_tracking_vrrp, dump_tracking_vrrp);
+		ifp->tracking_vrrp = alloc_list(free_tracking_obj, dump_tracking_vrrp);
 
 		if (log_addr && __test_bit(LOG_DETAIL_BIT, &debug)) {
 			if (ifp->sin_addr.s_addr) {
@@ -2137,21 +2133,21 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool reverse, 
 	}
 	else if (type != TRACK_VRRP_DYNAMIC) {
 		/* Check if this is already in the list, and adjust the weight appropriately */
-		LIST_FOREACH(ifp->tracking_vrrp, etvp, e) {
-			if (etvp->vrrp == vrrp) {
-				if (etvp->type & (TRACK_VRRP | TRACK_IF | TRACK_SG) &&
+		LIST_FOREACH(ifp->tracking_vrrp, etop, e) {
+			if (etop->obj.vrrp == vrrp) {
+				if (etop->type & (TRACK_VRRP | TRACK_IF | TRACK_SG) &&
 				    type & (TRACK_VRRP | TRACK_IF | TRACK_SG))
 					log_message(LOG_INFO, "(%s) track_interface %s is configured on VRRP instance and sync group. Remove vrrp instance or sync group config",
 							vrrp->iname, ifp->ifname);
 
 				/* Update the weight appropriately. We will use the sync group's
 				 * weight unless the vrrp setting is unweighted. */
-				if (etvp->weight && weight != VRRP_NOT_TRACK_IF) {
-					etvp->weight = weight;
-					etvp->weight_multiplier = reverse ? -1 : 1;
+				if (etop->weight && weight != VRRP_NOT_TRACK_IF) {
+					etop->weight = weight;
+					etop->weight_multiplier = reverse ? -1 : 1;
 				}
 
-				etvp->type |= type;
+				etop->type |= type;
 
 				return;
 			}
@@ -2159,18 +2155,18 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool reverse, 
 	}
 
 	/* Not in list so add */
-	etvp = MALLOC(sizeof *etvp);
-	etvp->vrrp = vrrp;
-	etvp->weight = weight;
-	etvp->weight_multiplier = reverse ? -1 : 1;
-	etvp->type = type;
+	etop = MALLOC(sizeof *etop);
+	etop->obj.vrrp = vrrp;
+	etop->weight = weight;
+	etop->weight_multiplier = reverse ? -1 : 1;
+	etop->type = type;
 
 	/* We want the dynamic entries at the start of the list, so that it
 	 * will be processed before a weighted track */
 	if (type == TRACK_VRRP_DYNAMIC)
-		list_add_head(ifp->tracking_vrrp, etvp);
+		list_add_head(ifp->tracking_vrrp, etop);
 	else
-		list_add(ifp->tracking_vrrp, etvp);
+		list_add(ifp->tracking_vrrp, etop);
 
 	/* if vrrp->num_if_script_fault needs incrementing, it will be
 	 * done in initialise_tracking_priorities() */
@@ -2179,11 +2175,11 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool reverse, 
 void
 del_vrrp_from_interface(vrrp_t *vrrp, interface_t *ifp)
 {
-	tracking_vrrp_t *tvp;
+	tracking_obj_t *top;
 	element e, next;
 
-	LIST_FOREACH_NEXT(ifp->tracking_vrrp, tvp, e, next) {
-		if (tvp->vrrp == vrrp && tvp->type == TRACK_VRRP_DYNAMIC) {
+	LIST_FOREACH_NEXT(ifp->tracking_vrrp, top, e, next) {
+		if (top->obj.vrrp == vrrp && top->type == TRACK_VRRP_DYNAMIC) {
 			if (!IF_ISUP(ifp) && !vrrp->dont_track_primary)
 				vrrp->num_script_if_fault--;
 			list_remove(ifp->tracking_vrrp, e);
@@ -2191,7 +2187,7 @@ del_vrrp_from_interface(vrrp_t *vrrp, interface_t *ifp)
 		}
 
 		/* The dynamic entries are at the start of the list */
-		if (tvp->type != TRACK_VRRP_DYNAMIC)
+		if (top->type != TRACK_VRRP_DYNAMIC)
 			break;
 	}
 }
@@ -2446,105 +2442,70 @@ shutdown_vrrp_instances(void)
 static void
 add_vrrp_to_track_script(vrrp_t *vrrp, tracked_sc_t *sc)
 {
-	tracking_vrrp_t *tvp, *etvp;
+	tracking_obj_t *top, *etop;
 	element e;
 
 	if (!LIST_EXISTS(sc->scr->tracking_vrrp))
-		sc->scr->tracking_vrrp = alloc_list(free_tracking_vrrp, dump_tracking_vrrp);
+		sc->scr->tracking_vrrp = alloc_list(free_tracking_obj, dump_tracking_vrrp);
 	else {
 		/* Is this script already tracking the vrrp instance directly?
 		 * For this to be the case, the script was added directly on the vrrp instance,
 		 * and now we are adding it for a sync group. */
-		LIST_FOREACH(sc->scr->tracking_vrrp, etvp, e) {
-			if (etvp->vrrp == vrrp) {
+		LIST_FOREACH(sc->scr->tracking_vrrp, etop, e) {
+			if (etop->obj.vrrp == vrrp) {
 				/* Update the weight appropriately. We will use the sync group's
 				 * weight unless the vrrp setting is unweighted. */
 				log_message(LOG_INFO, "(%s) track_script %s is configured on VRRP instance and sync group. Remove vrrp instance config",
 						vrrp->iname, sc->scr->sname);
 
-				if (etvp->weight) {
-					etvp->weight = sc->weight;
-					etvp->weight_multiplier = sc->weight_reverse ? -1 : 1;
+				if (etop->weight) {
+					etop->weight = sc->weight;
+					etop->weight_multiplier = sc->weight_reverse ? -1 : 1;
 				}
 				return;
 			}
 		}
 	}
 
-	tvp = MALLOC(sizeof(tracking_vrrp_t));
-	tvp->vrrp = vrrp;
-	tvp->weight = sc->weight;
-	tvp->weight_multiplier = sc->weight_reverse ? -1 : 1;
-	list_add(sc->scr->tracking_vrrp, tvp);
-}
-
-static void
-add_vrrp_to_track_file(vrrp_t *vrrp, tracked_file_t *tfl)
-{
-	tracking_vrrp_t *tvp, *etvp;
-	element e;
-
-	if (!LIST_EXISTS(tfl->file->tracking_vrrp))
-		tfl->file->tracking_vrrp = alloc_list(free_tracking_vrrp, dump_tracking_vrrp);
-	else {
-		/* Is this file already tracking the vrrp instance directly?
-		 * For this to be the case, the file was added directly on the vrrp instance,
-		 * and now we are adding it for a sync group. */
-		LIST_FOREACH(tfl->file->tracking_vrrp, etvp, e) {
-			if (etvp->vrrp == vrrp) {
-				/* Update the weight appropriately. We will use the sync group's
-				 * weight unless the vrrp setting is unweighted. */
-				log_message(LOG_INFO, "(%s) track_file %s is configured on VRRP instance and sync group. Remove vrrp instance config",
-						vrrp->iname, tfl->file->fname);
-
-				if (etvp->weight) {
-					etvp->weight = tfl->weight;
-					etvp->weight_multiplier = tfl->weight_reverse ? -1 : 1;
-				}
-				return;
-			}
-		}
-	}
-
-	tvp = MALLOC(sizeof(tracking_vrrp_t));
-	tvp->vrrp = vrrp;
-	tvp->weight = tfl->weight;
-	tvp->weight_multiplier = tfl->weight_reverse ? -1 : 1;
-	list_add(tfl->file->tracking_vrrp, tvp);
+	top = MALLOC(sizeof(tracking_obj_t));
+	top->obj.vrrp = vrrp;
+	top->weight = sc->weight;
+	top->weight_multiplier = sc->weight_reverse ? -1 : 1;
+	list_add(sc->scr->tracking_vrrp, top);
 }
 
 #ifdef _WITH_CN_PROC_
 static void
 add_vrrp_to_track_process(vrrp_t *vrrp, tracked_process_t *tpr)
 {
-	tracking_vrrp_t *tvp, *etvp;
+	tracking_obj_t *top, *etop;
 	element e;
 
 	if (!LIST_EXISTS(tpr->process->tracking_vrrp))
-		tpr->process->tracking_vrrp = alloc_list(free_tracking_vrrp, dump_tracking_vrrp);
+		tpr->process->tracking_vrrp = alloc_list(free_tracking_obj, dump_tracking_vrrp);
 	else {
 		/* Is this process already tracking the vrrp instance directly?
 		 * For this to be the case, the file was added directly on the vrrp instance,
 		 * and now we are adding it for a sync group. */
-		LIST_FOREACH(tpr->process->tracking_vrrp, etvp, e) {
-			if (etvp->vrrp == vrrp) {
+		LIST_FOREACH(tpr->process->tracking_vrrp, etop, e) {
+			if (etop->obj.vrrp == vrrp) {
 				/* Update the weight appropriately. We will use the sync group's
 				 * weight unless the vrrp setting is unweighted. */
 				log_message(LOG_INFO, "(%s) track_process %s is configured on VRRP instance and sync group. Remove vrrp instance config",
 						vrrp->iname, tpr->process->pname);
 
-				if (etvp->weight)
-					etvp->weight = tpr->weight;
+				if (etop->weight)
+					etop->weight = tpr->weight;
 				return;
 			}
 		}
 	}
 
-	tvp = MALLOC(sizeof(tracking_vrrp_t));
-	tvp->vrrp = vrrp;
-	tvp->weight = tpr->weight;
-	tvp->weight_multiplier = tpr->weight_reverse ? -1 : 1;
-	list_add(tpr->process->tracking_vrrp, tvp);
+	top = MALLOC(sizeof(tracking_obj_t));
+	top->obj.vrrp = vrrp;
+	top->weight = tpr->weight;
+	top->weight_multiplier = tpr->weight_reverse ? -1 : 1;
+	list_add(tpr->process->tracking_vrrp, top);
 }
 #endif
 
@@ -2552,36 +2513,36 @@ add_vrrp_to_track_process(vrrp_t *vrrp, tracked_process_t *tpr)
 static void
 add_vrrp_to_track_bfd(vrrp_t *vrrp, tracked_bfd_t *tbfd)
 {
-	tracking_vrrp_t *tvp, *etvp;
+	tracking_obj_t *top, *etop;
 	element e;
 
 	if (!LIST_EXISTS(tbfd->bfd->tracking_vrrp))
-		tbfd->bfd->tracking_vrrp = alloc_list(free_tracking_vrrp, dump_tracking_vrrp);
+		tbfd->bfd->tracking_vrrp = alloc_list(free_tracking_obj, dump_tracking_vrrp);
 	else {
 		/* Is this bfd already tracking the vrrp instance directly?
 		 * For this to be the case, the bfd was added directly on the vrrp instance,
 		 * and now we are adding it for a sync group. */
-		LIST_FOREACH(tbfd->bfd->tracking_vrrp, etvp, e) {
-			if (etvp->vrrp == vrrp) {
+		LIST_FOREACH(tbfd->bfd->tracking_vrrp, etop, e) {
+			if (etop->obj.vrrp == vrrp) {
 				/* Update the weight appropriately. We will use the sync group's
 				 * weight unless the vrrp setting is unweighted. */
 				log_message(LOG_INFO, "(%s) track_bfd %s is configured on VRRP instance and sync group. Remove vrrp instance config",
 						vrrp->iname, tbfd->bfd->bname);
 
-				if (etvp->weight) {
-					etvp->weight = tbfd->weight;
-					etvp->weight_multiplier = tbfd->weight_reverse ? -1 : 1;
+				if (etop->weight) {
+					etop->weight = tbfd->weight;
+					etop->weight_multiplier = tbfd->weight_reverse ? -1 : 1;
 				}
 				return;
 			}
 		}
 	}
 
-	PMALLOC(tvp);
-	tvp->vrrp = vrrp;
-	tvp->weight = tbfd->weight;
-	tvp->weight_multiplier = tbfd->weight_reverse ? -1 : 1;
-	list_add(tbfd->bfd->tracking_vrrp, tvp);
+	PMALLOC(top);
+	top->obj.vrrp = vrrp;
+	top->weight = tbfd->weight;
+	top->weight_multiplier = tbfd->weight_reverse ? -1 : 1;
+	list_add(tbfd->bfd->tracking_vrrp, top);
 }
 #endif
 
@@ -2603,7 +2564,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	bool interface_already_existed = false;
 	tracked_sc_t *sc;
 	tracked_if_t *tip;
-	tracked_file_t *tfl;
+	tracked_file_monitor_t *tfl;
 #ifdef _WITH_CN_PROC_
 	tracked_process_t *tpr;
 #endif
@@ -3317,9 +3278,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		add_vrrp_to_track_script(vrrp, sc);
 	}
 
-	/* Add our track files to the tracking file tracking_vrrp list */
+	/* Add our track files to the tracking file tracking_obj list */
 	LIST_FOREACH(vrrp->track_file, tfl, e)
-		add_vrrp_to_track_file(vrrp, tfl);
+		add_obj_to_track_file(vrrp, tfl, vrrp->iname, dump_tracking_vrrp);
 
 #ifdef _WITH_CN_PROC_
 	/* Add our track processes to the tracking process tracking_vrrp list */
@@ -3392,7 +3353,7 @@ sync_group_tracking_init(void)
 	tracked_sc_t *sc;
 	vrrp_script_t *vsc;
 	tracked_if_t *tif;
-	tracked_file_t *tfl;
+	tracked_file_monitor_t *tfl;
 #ifdef _WITH_BFD_
 	tracked_bfd_t *tbfd;
 #endif
@@ -3438,7 +3399,7 @@ sync_group_tracking_init(void)
 			}
 
 			LIST_FOREACH(sgroup->vrrp_instances, vrrp, e2)
-				add_vrrp_to_track_file(vrrp, tfl);
+				add_obj_to_track_file(vrrp, tfl, vrrp->iname, dump_tracking_vrrp);
 		}
 
 #ifdef _WITH_BFD_
@@ -4077,7 +4038,7 @@ clear_diff_vrrp(void)
 
 				/* We don't have a way of saying that an instance is deleted;
 				 * the nearest thing is to say the instance is in fault state,
-				 * i.e. it cannot run, which it certainly can't if it isr
+				 * i.e. it cannot run, which it certainly can't if it is
 				 * deleted. */
 				vrrp->state = VRRP_STATE_FAULT;
 				send_instance_notifies(vrrp);

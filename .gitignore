@@ -36,6 +36,7 @@ stamp-h?
 
 /tmp/
 /devel/
+/private/
 
 # To be able to build without automake/autoconf comment out the following
 lib/config.h.in

@@ -177,12 +177,12 @@ static vrrp_t * __attribute__ ((pure))
 address_is_ours(struct ifaddrmsg* ifa, struct in_addr* addr, interface_t* ifp)
 {
 	element e, e1;
-	tracking_vrrp_t* tvp;
+	tracking_obj_t* top;
 	vrrp_t* vrrp;
 	ip_address_t* vaddr;
 
-	LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {
-		vrrp = tvp->vrrp;
+	LIST_FOREACH(ifp->tracking_vrrp, top, e) {
+		vrrp = top->obj.vrrp;
 
 		/* If we are not master, then we won't have the address configured */
 		if (vrrp->state != VRRP_STATE_MAST)
@@ -208,7 +208,7 @@ static bool __attribute__ ((pure))
 ignore_address_if_ours_or_link_local(struct ifaddrmsg* ifa, struct in_addr* addr, interface_t* ifp)
 {
 	element e, e1;
-	tracking_vrrp_t* tvp;
+	tracking_obj_t* top;
 	vrrp_t* vrrp;
 	ip_address_t* vaddr;
 
@@ -217,8 +217,8 @@ ignore_address_if_ours_or_link_local(struct ifaddrmsg* ifa, struct in_addr* addr
 	    ifa->ifa_scope != RT_SCOPE_LINK)
 		return true;
 
-	LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {
-		vrrp = tvp->vrrp;
+	LIST_FOREACH(ifp->tracking_vrrp, top, e) {
+		vrrp = top->obj.vrrp;
 
 		if (ifa->ifa_family == vrrp->family) {
 			LIST_FOREACH(vrrp->vip, vaddr, e1) {
@@ -878,7 +878,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 	element e;
 	vrrp_t *vrrp;
 	vrrp_t *address_vrrp;
-	tracking_vrrp_t *tvp;
+	tracking_obj_t *top;
 	bool is_tracking_saddr;
 #endif
 
@@ -969,8 +969,8 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 
 					/* Now see if any vrrp instances were missing an interface address
 					 * and see if they can be brought up */
-					LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {
-						vrrp = tvp->vrrp;
+					LIST_FOREACH(ifp->tracking_vrrp, top, e) {
+						vrrp = top->obj.vrrp;
 
 						if (vrrp->track_saddr && vrrp->family == ifa->ifa_family)
 							is_tracking_saddr = inaddr_equal(ifa->ifa_family, &vrrp->saddr, addr.addr);
@@ -1022,8 +1022,8 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 					else {
 						ifp->sin_addr = *(struct in_addr *)ELEMENT_DATA(LIST_HEAD(ifp->sin_addr_l));
 						list_remove(ifp->sin_addr_l, LIST_HEAD(ifp->sin_addr_l));
-						LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {
-							vrrp = tvp->vrrp;
+						LIST_FOREACH(ifp->tracking_vrrp, top, e) {
+							vrrp = top->obj.vrrp;
 							if (VRRP_CONFIGURED_IFP(vrrp) != ifp)
 								continue;
 							if (vrrp->family != AF_INET || vrrp->saddr_from_config)
@@ -1047,8 +1047,8 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 					else {
 						ifp->sin6_addr = *(struct in6_addr *)ELEMENT_DATA(LIST_HEAD(ifp->sin6_addr_l));
 						list_remove(ifp->sin6_addr_l, LIST_HEAD(ifp->sin6_addr_l));
-						LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {
-							vrrp = tvp->vrrp;
+						LIST_FOREACH(ifp->tracking_vrrp, top, e) {
+							vrrp = top->obj.vrrp;
 							if (vrrp->ifp != ifp)
 								continue;
 							if (vrrp->family != AF_INET6 || vrrp->saddr_from_config)
@@ -1078,8 +1078,8 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 					ifp->sin6_addr.s6_addr32[0] = 0;
 
 				/* See if any vrrp instances need to be downed */
-				LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {
-					vrrp = tvp->vrrp;
+				LIST_FOREACH(ifp->tracking_vrrp, top, e) {
+					vrrp = top->obj.vrrp;
 
 					if (ifp != vrrp->ifp
 #ifdef _HAVE_VRRP_VMAC_
@@ -1496,31 +1496,31 @@ process_if_status_change(interface_t *ifp)
 {
 	vrrp_t *vrrp;
 	element e;
-	tracking_vrrp_t *tvp;
+	tracking_obj_t *top;
 	bool now_up = FLAGS_UP(ifp->ifi_flags);
 
 	/* The state of the interface has changed from up to down or vice versa.
 	 * Find which vrrp instances are affected */
-	LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {
-		vrrp = tvp->vrrp;
+	LIST_FOREACH(ifp->tracking_vrrp, top, e) {
+		vrrp = top->obj.vrrp;
 
-		if (tvp->weight == VRRP_NOT_TRACK_IF) {
+		if (top->weight == VRRP_NOT_TRACK_IF) {
 			/* We might want to restore things to the interface if it is coming up */
 			continue;
 		}
 
-		if (tvp->weight) {
+		if (top->weight) {
 			if (now_up)
-				vrrp->total_priority += abs(tvp->weight) * tvp->weight_multiplier;
+				vrrp->total_priority += abs(top->weight) * top->weight_multiplier;
 			else
-				vrrp->total_priority -= abs(tvp->weight) * tvp->weight_multiplier;
+				vrrp->total_priority -= abs(top->weight) * top->weight_multiplier;
 			vrrp_set_effective_priority(vrrp);
 
 			continue;
 		}
 
 		/* This vrrp's interface or underlying interface has changed */
-		if (now_up == (tvp->weight_multiplier == 1))
+		if (now_up == (top->weight_multiplier == 1))
 			try_up_instance(vrrp, false);
 		else
 			down_instance(vrrp);

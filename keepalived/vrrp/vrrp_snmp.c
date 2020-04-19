@@ -122,6 +122,7 @@
 #include "vrrp_iprule.h"
 #endif
 #include "vrrp_scheduler.h"
+#include "track_file.h"
 #include "config.h"
 #include "list.h"
 #include "logger.h"
@@ -608,10 +609,10 @@ static u_char*
 vrrp_snmp_file(struct variable *vp, oid *name, size_t *length,
 		 int exact, size_t *var_len, WriteMethod **write_method)
 {
-	vrrp_tracked_file_t *file;
+	tracked_file_t *file;
 	snmp_ret_t ret;
 
-	if ((file = (vrrp_tracked_file_t *)snmp_header_list_table(vp, name, length, exact,
+	if ((file = (tracked_file_t *)snmp_header_list_table(vp, name, length, exact,
 							   var_len, write_method,
 							   vrrp_data->vrrp_track_files)) == NULL)
 		return NULL;
@@ -2294,7 +2295,7 @@ static u_char*
 vrrp_snmp_trackedfile(struct variable *vp, oid *name, size_t *length,
 			int exact, size_t *var_len, WriteMethod **write_method)
 {
-	const tracked_file_t *bfile;
+	const tracked_file_monitor_t *bfile;
 	snmp_ret_t ret;
 	const element e = snmp_find_element(vp, name, length, exact, var_len, write_method, vrrp_data->vrrp, offsetof(vrrp_t, track_file));
 
@@ -2441,7 +2442,7 @@ static u_char*
 vrrp_snmp_group_trackedfile(struct variable *vp, oid *name, size_t *length,
 			int exact, size_t *var_len, WriteMethod **write_method)
 {
-	const tracked_file_t *bfile;
+	const tracked_file_monitor_t *bfile;
 	snmp_ret_t ret;
 	const element e = snmp_find_element(vp, name, length, exact, var_len, write_method, vrrp_data->vrrp_sync_group, offsetof(vrrp_sgroup_t, track_file));
 

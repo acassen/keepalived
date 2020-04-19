@@ -696,11 +696,11 @@ void
 update_vmac_vrfs(interface_t *ifp)
 {
 	vrrp_t *vrrp;
-        tracking_vrrp_t *tvp;
+        tracking_obj_t *top;
         element e;
 
-        LIST_FOREACH(ifp->tracking_vrrp, tvp, e) {
-                vrrp = tvp->vrrp;
+        LIST_FOREACH(ifp->tracking_vrrp, top, e) {
+                vrrp = top->obj.vrrp;
 
                 /* We only need to look for vmacs we created that
 		 * are configured on the interface which has changed

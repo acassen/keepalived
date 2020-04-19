@@ -41,6 +41,9 @@
 #include "vrrp_track.h"
 #include "vrrp_data.h"
 #endif
+#if defined _WITH_VRRP_ || defined _WITH_LVS_
+#include "track_file.h"
+#endif
 #include "main.h"
 #include "assert_debug.h"
 
@@ -553,6 +556,9 @@ bfd_init_keywords(void)
 #endif
 #ifdef _WITH_VRRP_
 	init_vrrp_keywords(false);
+#endif
+#if defined _WITH_VRRP_ || defined _WITH_LVS_
+	add_track_file_keywords(false);
 #endif
 
 	return keywords;

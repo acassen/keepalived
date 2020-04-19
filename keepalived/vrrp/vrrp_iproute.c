@@ -1759,10 +1759,10 @@ alloc_route(list rt_list, const vector_t *strvec, bool allow_track_group)
 
 		if (!new->oif) {
 			/* Alternative is to track oif from when route last added.
-			 * The interface will need to be added temporarily. tracking_vrrp_t will need
+			 * The interface will need to be added temporarily. tracking_obj_t will need
 			 * a flag to specify permanent track, and a counter for number of temporary
 			 * trackers. If the termporary tracker count becomes 0 and there is no permanent
-			 * track, then the tracking_vrrp_t will need to be removed.
+			 * track, then the tracking_obj_t will need to be removed.
 			 *
 			 * We also have a problem if using nexthop, since the route will only be deleted
 			 * when the interfaces for all of the hops have gone down. We would need to track

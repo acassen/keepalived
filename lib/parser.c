@@ -1986,40 +1986,81 @@ read_line(char *buf, size_t size)
 }
 
 void
-alloc_value_block(void (*alloc_func) (const vector_t *), const char *block_type)
+alloc_value_block(void (*alloc_func) (const vector_t *), const vector_t *strvec)
 {
 	char *buf;
-	const char *str = NULL;
-	const vector_t *vec = NULL;
-	bool first_line = true;
+	const char *str;
+	vector_t *vec;
+	vector_t *first_vec = NULL;
+	bool need_bob = true;
+	bool had_eob = false;
+
+	if (vector_active(strvec) > 1) {
+		if (!strcmp(strvec_slot(strvec, 1), BOB)) {
+			need_bob = false;
+			if (vector_active(strvec) > 2) {
+				first_vec = vector_copy(strvec);
+				vector_unset(first_vec, 0);
+				vector_unset(first_vec, 1);
+				if (!strcmp(strvec_slot(strvec, vector_active(first_vec) - 1), EOB)) {
+					vector_unset(first_vec, vector_active(first_vec) - 1);
+					had_eob = true;
+				}
+				first_vec = vector_compact(first_vec);
+			}
+		} else
+			report_config_error(CONFIG_GENERAL_ERROR, "Block %s has extra parameters %s ...", strvec_slot(strvec, 0), strvec_slot(strvec, 1));
+	}
 
 	buf = (char *) MALLOC(MAXBUF);
-	while (read_line(buf, MAXBUF)) {
-		if (!(vec = alloc_strvec(buf)))
+	while (first_vec || read_line(buf, MAXBUF)) {
+		if (first_vec)
+			vec = first_vec;
+		else if (!(vec = alloc_strvec(buf)))
 			continue;
 
-		if (first_line) {
-			first_line = false;
+		if (!first_vec) {
+			if (need_bob) {
+				need_bob = false;
 
-			if (!strcmp(vector_slot(vec, 0), BOB)) {
-				free_strvec(vec);
-				continue;
+				if (!strcmp(vector_slot(vec, 0), BOB)) {
+					if (vector_size(vec) == 1) {
+						free_strvec(vec);
+						continue;
+					}
+
+					/* Remove the BOB */
+					vec = strvec_remove_slot(vec, 0);
+				} else
+					log_message(LOG_INFO, "'%s' missing from beginning of block %s", BOB, strvec_slot(strvec, 0));
 			}
 
-			log_message(LOG_INFO, "'%s' missing from beginning of block %s", BOB, block_type);
-		}
+			/* Check if line read ends with EOB */
+			str = vector_slot(vec, vector_active(vec) - 1);
+			if (!strcmp(str, EOB)) {
+				if (vector_active(vec) == 1) {
+					free_strvec(vec);
+					break;
+				}
 
-		str = vector_slot(vec, 0);
-		if (!strcmp(str, EOB)) {
-			free_strvec(vec);
-			break;
+				had_eob = true;
+				vec = strvec_remove_slot(vec, vector_active(vec) - 1);
+			}
 		}
 
 		if (vector_size(vec))
-			(*alloc_func) (vec);
+			(*alloc_func)(vec);
 
-		free_strvec(vec);
+		if (first_vec) {
+			vector_free(first_vec);
+			first_vec = NULL;
+		} else
+			free_strvec(vec);
+
+		if (had_eob)
+			break;
 	}
+
 	FREE(buf);
 }
 
@@ -2044,7 +2085,7 @@ read_value_block(const vector_t *strvec)
 {
 	vector_t *ret_vec;
 
-	alloc_value_block(read_value_block_line, vector_slot(strvec,0));
+	alloc_value_block(read_value_block_line, strvec);
 
 	ret_vec = read_value_block_vec;
 	read_value_block_vec = NULL;

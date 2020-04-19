@@ -39,6 +39,7 @@
 #include "parser.h"
 #include "libipvs.h"
 #include "keepalived_magic.h"
+#include "track_file.h"
 #ifdef _WITH_BFD_
 #include "check_bfd.h"
 #endif
@@ -441,8 +442,8 @@ alloc_vs(const char *param1, const char *param2)
 	if (!strcmp(param1, "group"))
 		new->vsgname = STRDUP(param2);
 	else if (!strcmp(param1, "fwmark")) {
-		if (!read_unsigned(param2, &fwmark, 0, UINT32_MAX, true)) {
-			report_config_error(CONFIG_GENERAL_ERROR, "virtual server fwmark '%s' must be in [0, %u] - ignoring", param2, UINT32_MAX);
+		if (!read_unsigned(param2, &fwmark, 0, IPVS_FWMARK_MAX, true)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "virtual server fwmark '%s' must be in [0, %u] - ignoring", param2, IPVS_FWMARK_MAX);
 			skip_block(true);
 			FREE(new);
 			return;
@@ -530,6 +531,7 @@ free_rs(void *data)
 
 	free_notify_script(&rs->notify_up);
 	free_notify_script(&rs->notify_down);
+	free_list(&rs->track_files);
 #ifdef _WITH_BFD_
 	free_list(&rs->tracked_bfds);
 #endif
@@ -537,6 +539,15 @@ free_rs(void *data)
 	free_rs_checkers(rs);
 
 	FREE(rs);
+}
+
+void
+dump_tracking_rs(FILE *fp, const void *data)
+{
+        const tracking_obj_t *top = (const tracking_obj_t *)data;
+        const checker_t *checker = top->obj.checker;
+
+        conf_write(fp, "     %s -> %s, weight %d%s", FMT_VS(checker->vs), FMT_RS(checker->rs, checker->vs), top->weight, top->weight_multiplier == -1 ? " reverse" : "");
 }
 
 static void
@@ -549,10 +560,10 @@ dump_rs(FILE *fp, const void *data)
 #endif
 
 	conf_write(fp, "   ------< Real server >------");
-	conf_write(fp, "   RIP = %s, RPORT = %d, WEIGHT = %d"
+	conf_write(fp, "   RIP = %s, RPORT = %d, WEIGHT = %d EFF WEIGHT = %d"
 			    , inet_sockaddrtos(&rs->addr)
 			    , ntohs(inet_sockaddrport(&rs->addr))
-			    , rs->weight);
+			    , rs->weight, rs->effective_weight);
 	dump_forwarding_method(fp, "", rs);
 
 	conf_write(fp, "   Alpha is %s", rs->alpha ? "ON" : "OFF");
@@ -583,6 +594,11 @@ dump_rs(FILE *fp, const void *data)
 	conf_write(fp, "   num failed checkers = %u", rs->num_failed_checkers);
 	conf_write(fp, "   RS set = %d", rs->set);
 	conf_write(fp, "   reloaded = %d", rs->reloaded);
+
+	if (!LIST_ISEMPTY(rs->track_files)) {
+		conf_write(fp, "=== Tracked Files ===");
+		dump_list(fp, rs->track_files);
+	}
 
 #ifdef _WITH_BFD_
 	if (!LIST_ISEMPTY(rs->tracked_bfds)) {
@@ -690,6 +706,7 @@ alloc_check_data(void)
 	new = (check_data_t *) MALLOC(sizeof(check_data_t));
 	new->vs = alloc_list(free_vs, dump_vs);
 	new->vs_group = alloc_list(free_vsg, dump_vsg);
+	new->track_files = alloc_list(free_track_file_list, dump_track_file_list);
 #ifdef _WITH_BFD_
 	new->track_bfds = alloc_list(free_checker_bfd, dump_checker_bfd);
 #endif
@@ -702,6 +719,7 @@ free_check_data(check_data_t *data)
 {
 	free_list(&data->vs);
 	free_list(&data->vs_group);
+	free_list(&data->track_files);
 #ifdef _WITH_BFD_
 	free_list(&data->track_bfds);
 #endif
@@ -724,6 +742,11 @@ dump_check_data(FILE *fp, const check_data_t *data)
 		dump_list(fp, data->vs);
 	}
 	dump_checkers_queue(fp);
+
+	if (!LIST_ISEMPTY(data->track_files)) {
+		conf_write(fp, "------< Checker track files >------");
+		dump_list(fp, data->track_files);
+	}
 
 #ifdef _WITH_BFD_
 	if (!LIST_ISEMPTY(data->track_bfds)) {

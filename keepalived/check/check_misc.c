@@ -229,9 +229,6 @@ check_misc_script_security(magic_t magic)
 	unsigned flags;
 	bool insecure;
 
-	if (LIST_ISEMPTY(checkers_queue))
-		return 0;
-
 	LIST_FOREACH_NEXT(checkers_queue, checker, e, next) {
 		if (checker->launch != misc_check_thread)
 			continue;
