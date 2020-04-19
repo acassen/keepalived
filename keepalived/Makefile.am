@@ -24,11 +24,12 @@ noinst_HEADERS		= $(srcdir)/include/*.h
 
 AM_CPPFLAGS		+= -I$(srcdir)/include -I $(top_srcdir)/lib
 
+TRACKER_SUBDIR		= trackers
+TRACKER_LIB		= trackers/libtracker.a
+
 if WITH_IPVS
   IPVS_SUBDIR		= check
   IPVS_LIB		= check/libcheck.a
-  TRACKER_SUBDIR	= trackers
-  TRACKER_LIB		= trackers/libtracker.a
 endif
 
 if WITH_VRRP
