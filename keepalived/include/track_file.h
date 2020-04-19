@@ -52,7 +52,8 @@ typedef struct _tracked_file_monitor {
 } tracked_file_monitor_t;
 
 extern list alloc_track_file_list(void);
-extern void alloc_track_file(const char *, list, list, const vector_t *);
+extern tracked_file_t * __attribute__ ((pure)) find_tracked_file_by_name(const char *, list);
+extern void vrrp_alloc_track_file(const char *, list, list, const vector_t *);
 extern void add_track_file_keywords(bool active);
 
 extern void free_track_file_list(void *);

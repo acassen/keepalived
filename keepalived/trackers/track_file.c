@@ -38,10 +38,16 @@
 #include "main.h"	/* For reload */
 #include "utils.h"	/* For debug */
 #include "logger.h"
+#ifdef _WITH_LVS_
+#include "ipwrapper.h"
+#include "check_data.h"
+#endif
+#ifdef _WITH_VRRP_
 #include "vrrp_scheduler.h"
 
 /* Possibly remove */
 #include "vrrp_data.h"
+#endif
 
 /* Used for initialising track files */
 static enum {
@@ -72,7 +78,7 @@ free_track_file(void *tsf)
 	FREE(tsf);
 }
 
-static tracked_file_t * __attribute__ ((pure))
+tracked_file_t * __attribute__ ((pure))
 find_tracked_file_by_name(const char *name, list tracked_files)
 {
 	element e;
@@ -86,7 +92,7 @@ find_tracked_file_by_name(const char *name, list tracked_files)
 }
 
 void
-alloc_track_file(const char *name, list tracked_files, list track_file, const vector_t *strvec)
+vrrp_alloc_track_file(const char *name, list tracked_files, list track_file, const vector_t *strvec)
 {
 	tracked_file_t *vsf;
 	tracked_file_monitor_t *tfile;
@@ -294,9 +300,7 @@ track_file_end_handler(void)
 		list_add(vrrp_data->vrrp_track_files, track_file);
 #endif
 
-#if 0
 #ifdef _WITH_LVS_
-// CHANGE for LVS
 	if (check_data) {
 #if defined _ONE_PROCESS_DEBUG_ && defined _WITH_VRRP_
 		/* If we want it for both VRRP and LVS we must duplicate the data */
@@ -308,9 +312,8 @@ track_file_end_handler(void)
 			track_file = dup_track_file;
 		}
 #endif
-		list_add(check_data->check_track_files, track_file);
+		list_add(check_data->track_files, track_file);
 	}
-#endif
 #endif
 
 	if (track_file_init == TRACK_FILE_NO_INIT)
@@ -354,11 +357,13 @@ add_track_file_keywords(bool active)
 	install_keyword("init_file", &track_file_init_handler);
 	install_sublevel_end_handler(&track_file_end_handler);
 
+#ifdef _WITH_VRRP_
 	install_keyword_root("vrrp_track_file", &vrrp_track_file_handler, active);	/* Deprecated synonym - after v2.0.20 */
 	install_keyword("file", &track_file_file_handler);
 	install_keyword("weight", &track_file_weight_handler);
 	install_keyword("init_file", &track_file_init_handler);
 	install_sublevel_end_handler(&track_file_end_handler);
+#endif
 }
 
 void
@@ -438,10 +443,9 @@ remove_track_file(list track_files, element e)
 			track_file_list = top->obj.vrrp->track_file;
 		else
 #endif
-#ifdef _WITH_LVS_0
-// CHANGE for LVS
+#ifdef _WITH_LVS_
 		if (check_data)
-			track_file_list = top->obj.rs->track_file;
+			track_file_list = top->obj.checker->rs->track_files;
 		else
 #endif
 			break;
@@ -458,13 +462,20 @@ remove_track_file(list track_files, element e)
 	free_list_element(track_files, e);
 }
 
+#ifdef _WITH_VRRP_
 static void
 process_update_vrrp_track_file_status(const tracked_file_t *tfile, int new_status, const tracking_obj_t *top)
 {
 	int previous_status;
 	vrrp_t *vrrp = top->obj.vrrp;
 
+	if (new_status < -254)
+		new_status = -254;
+	else if (new_status > 253)
+		new_status = 253;
+
 	previous_status = !top->weight ? (!!tfile->last_status == (top->weight_multiplier == 1) ? -254 : 0 ) : tfile->last_status * top->weight * top->weight_multiplier;
+log_message(LOG_INFO, "top->weight %d, mult %d tfile->last_status %d, previous_status %d new_status %d", top->weight, top->weight_multiplier, tfile->last_status, previous_status, new_status);
 	if (previous_status < -254)
 		previous_status = -254;
 	else if (previous_status > 253)
@@ -495,6 +506,44 @@ process_update_vrrp_track_file_status(const tracked_file_t *tfile, int new_statu
 		vrrp_set_effective_priority(vrrp);
 	}
 }
+#endif
+
+#ifdef _WITH_LVS_
+static void
+process_update_checker_track_file_status(const tracked_file_t *tfile, int new_status, const tracking_obj_t *top)
+{
+	int previous_status;
+	checker_t *checker = top->obj.checker;
+
+	if (new_status < -IPVS_WEIGHT_MAX)
+		new_status = -IPVS_WEIGHT_MAX;
+	else if (new_status > IPVS_WEIGHT_MAX -1)
+		new_status = IPVS_WEIGHT_MAX - 1;
+
+	previous_status = !top->weight ? (!!tfile->last_status == (top->weight_multiplier == 1) ? -IPVS_WEIGHT_MAX : 0 ) : tfile->last_status * top->weight * top->weight_multiplier;
+	if (previous_status < -IPVS_WEIGHT_MAX)
+		previous_status = -IPVS_WEIGHT_MAX;
+	else if (previous_status > IPVS_WEIGHT_MAX - 1)
+		previous_status = IPVS_WEIGHT_MAX - 1;
+
+	if (previous_status == new_status)
+		return;
+
+	if (new_status == -IPVS_WEIGHT_MAX) {
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "(%s): tracked file %s now FAULT state", FMT_RS(checker->rs, checker->vs), tfile->fname);
+		update_svr_checker_state(DOWN, checker);
+	} else if (previous_status == -IPVS_WEIGHT_MAX) {
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "(%s): tracked file %s leaving FAULT state", FMT_RS(checker->rs, checker->vs), tfile->fname);
+		update_svr_checker_state(UP, checker);
+	}
+	else {
+log_message(LOG_INFO, "Updated weight to %d (weight %d, new_status %d previous_status %d)", checker->rs->effective_weight + new_status - previous_status, checker->rs->weight, new_status, previous_status);
+		update_svr_wgt(checker->rs->effective_weight + new_status - previous_status, checker->vs, checker->rs, true);
+	}
+}
+#endif
 
 static void
 update_track_file_status(tracked_file_t* tfile, int new_status)
@@ -506,23 +555,23 @@ update_track_file_status(tracked_file_t* tfile, int new_status)
 	if (new_status == tfile->last_status)
 		return;
 
-	/* Process the VRRP instances tracking the file */
+	/* Process the objects tracking the file */
 	LIST_FOREACH(tfile->tracking_obj, top, e) {
 		/* If the tracking weight is 0, a non-zero value means
 		 * failure, a 0 status means success */
 		if (!top->weight)
-			status = !!new_status == (top->weight_multiplier == 1) ? -254 : 0;
-		else {
-// CHANGE for LVS
+			status = !!new_status == (top->weight_multiplier == 1) ? INT_MIN : 0;
+		else
 			status = new_status * top->weight * top->weight_multiplier;
-			if (status < -254)
-				status = -254;
-			else if (status > 253)
-				status = 253;
-		}
 
-// CHANGE for LVS
-		process_update_vrrp_track_file_status(tfile, status, top);
+#ifdef _WITH_VRRP_
+		if (vrrp_data)
+			process_update_vrrp_track_file_status(tfile, status, top);
+#endif
+#ifdef _WITH_LVS_
+		if (check_data)
+			process_update_checker_track_file_status(tfile, status, top);
+#endif
 	}
 }
 
@@ -535,24 +584,26 @@ process_track_file(tracked_file_t *tfile, bool init)
 	ssize_t len;
 
 	if ((fd = open(tfile->file_path, O_RDONLY | O_NONBLOCK)) != -1) {
-		if ((len = read(fd, buf, sizeof(buf) - 1)) > 0) {
+		len = read(fd, buf, sizeof(buf) - 1);
+		close(fd);
+		if (len > 0) {
 			buf[len] = '\0';
 			/* If there is an error, we want to use 0,
 			 * so we don't really mind if there is an error */
+			errno = 0;
 			new_status = strtol(buf, NULL, 0);
+			if (errno || new_status < INT_MIN || new_status > INT_MAX) {
+				log_message(LOG_INFO, "Invalid number %ld read from %s - ignoring",  new_status, tfile->file_path);
+				return;
+			}
 		}
-		close(fd);
 	}
-
-	if (new_status > 254)
-		new_status = 254;
-	else if (new_status < -254)
-		new_status = -254;
 
 	if (!init)
 		update_track_file_status(tfile, (int)new_status);
 
 	tfile->last_status = new_status;
+log_message(LOG_INFO, "Read %s: long val %ld, val %d, new last status %d", tfile->file_path, new_status, (int)new_status, tfile->last_status);
 }
 
 static int

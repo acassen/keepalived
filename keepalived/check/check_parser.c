@@ -665,8 +665,8 @@ rs_weight_handler(const vector_t *strvec)
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	unsigned weight;
 
-	if (!read_unsigned_strvec(strvec, 1, &weight, 0, 65535, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Real server weight %s is outside range 0-65535", strvec_slot(strvec, 1));
+	if (!read_unsigned_strvec(strvec, 1, &weight, 0, IPVS_WEIGHT_MAX, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Real server weight %s is outside range 0-%d", strvec_slot(strvec, 1), IPVS_WEIGHT_MAX);
 		return;
 	}
 	rs->weight = weight;
@@ -927,8 +927,8 @@ vs_weight_handler(const vector_t *strvec)
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	unsigned weight;
 
-	if (!read_unsigned_strvec(strvec, 1, &weight, 1, 65535, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Virtual server weight %s is outside range 1-65535", strvec_slot(strvec, 1));
+	if (!read_unsigned_strvec(strvec, 1, &weight, 1, IPVS_WEIGHT_MAX, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Virtual server weight %s is outside range 1-%d", strvec_slot(strvec, 1), IPVS_WEIGHT_MAX);
 		return;
 	}
 	vs->weight = weight;
@@ -1034,7 +1034,7 @@ check_init_keywords(void)
 #ifdef _WITH_BFD_
 	init_bfd_keywords(true);
 #endif
-	add_track_file_keywords(false);
+	add_track_file_keywords(true);
 
 	return keywords;
 }

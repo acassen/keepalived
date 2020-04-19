@@ -356,6 +356,8 @@ init_service_rs(virtual_server_t * vs)
 			continue;
 		}
 
+		rs->effective_weight = rs->weight;
+
 		/* In alpha mode, be pessimistic (or realistic?) and don't
 		 * add real servers into the VS pool unless inhibit_on_failure.
 		 * They will get there later upon healthchecks recovery (if ever).
@@ -615,6 +617,14 @@ void
 update_svr_wgt(int weight, virtual_server_t * vs, real_server_t * rs
 		, bool update_quorum)
 {
+	rs->effective_weight = weight;
+
+/* TODO - handle weight = 0 - ? affects quorum */
+	if (weight <= 0)
+		weight = 1;
+	else if (weight > IPVS_WEIGHT_MAX)
+		weight = IPVS_WEIGHT_MAX;
+
 	if (weight != rs->weight) {
 		log_message(LOG_INFO, "Changing weight from %d to %d for %sactive service %s of VS %s"
 				    , rs->weight

@@ -43,6 +43,7 @@
 #include "check_dns.h"
 #include "check_ping.h"
 #include "check_udp.h"
+#include "check_file.h"
 #include "ipwrapper.h"
 #include "check_daemon.h"
 #ifdef _WITH_BFD_
@@ -50,6 +51,7 @@
 #include "bfd_event.h"
 #include "bfd_daemon.h"
 #endif
+#include "track_file.h"
 
 /* Global vars */
 list checkers_queue;
@@ -468,9 +470,6 @@ free_vs_checkers(const virtual_server_t *vs)
 	element next;
 	checker_t *checker;
 
-	if (LIST_ISEMPTY(checkers_queue))
-		return;
-
 	LIST_FOREACH_NEXT(checkers_queue, checker, e, next) {
 		if (checker->vs != vs)
 			continue;
@@ -538,6 +537,8 @@ register_checkers_thread(void)
 					 BOOTSTRAP_DELAY + warmup);
 		}
 	}
+
+        init_track_files(check_data->track_files);
 
 #ifdef _WITH_BFD_
 	log_message(LOG_INFO, "Activating BFD healthchecker");
@@ -711,6 +712,7 @@ install_checkers_keyword(void)
 	install_http_check_keyword();
 	install_ssl_check_keyword();
 	install_dns_check_keyword();
+	install_file_check_keyword();
 #ifdef _WITH_BFD_
 	install_bfd_check_keyword();
 #endif

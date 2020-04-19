@@ -22,6 +22,9 @@
 #include <linux/netfilter.h>	/* For nf_inet_addr */
 #include <stdint.h>
 
+#define IPVS_WEIGHT_MAX		INT32_MAX
+#define IPVS_FWMARK_MAX		UINT32_MAX
+
 #ifdef _WITH_LVS_64BIT_STATS_
 struct ip_vs_stats64 {
 	__u64	conns;		/* connections scheduled */

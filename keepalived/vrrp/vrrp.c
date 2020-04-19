@@ -4038,7 +4038,7 @@ clear_diff_vrrp(void)
 
 				/* We don't have a way of saying that an instance is deleted;
 				 * the nearest thing is to say the instance is in fault state,
-				 * i.e. it cannot run, which it certainly can't if it isr
+				 * i.e. it cannot run, which it certainly can't if it is
 				 * deleted. */
 				vrrp->state = VRRP_STATE_FAULT;
 				send_instance_notifies(vrrp);

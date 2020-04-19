@@ -805,7 +805,7 @@ alloc_vrrp_track_file(const vector_t *strvec)
 
 	if (!LIST_EXISTS(vrrp->track_file))
 		vrrp->track_file = alloc_track_file_list();
-	alloc_track_file(vrrp->iname, vrrp_data->vrrp_track_files, vrrp->track_file, strvec);
+	vrrp_alloc_track_file(vrrp->iname, vrrp_data->vrrp_track_files, vrrp->track_file, strvec);
 }
 
 #ifdef _WITH_CN_PROC_
@@ -859,7 +859,7 @@ alloc_vrrp_group_track_file(const vector_t *strvec)
 
 	if (!LIST_EXISTS(sgroup->track_file))
 		sgroup->track_file = alloc_track_file_list();
-	alloc_track_file(sgroup->gname, vrrp_data->vrrp_track_files, sgroup->track_file, strvec);
+	vrrp_alloc_track_file(sgroup->gname, vrrp_data->vrrp_track_files, sgroup->track_file, strvec);
 }
 
 #ifdef _WITH_CN_PROC_

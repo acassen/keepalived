@@ -60,6 +60,7 @@ typedef struct _ssl_data {
 typedef struct _real_server {
 	struct sockaddr_storage		addr;
 	int				weight;
+	int				effective_weight;
 	int				iweight;	/* Initial weight */
 	int				pweight;	/* previous weight
 							 * used for reloading */
@@ -101,6 +102,7 @@ typedef struct _real_server {
 	struct ip_vs_stats64		stats;
 #endif
 #endif
+	list				track_files;	/* list of tracked_file_monitor_t - Files whose value we monitor */
 #ifdef _WITH_BFD_
 	list				tracked_bfds;	/* list of bfd_checker_t */
 #endif
@@ -201,6 +203,7 @@ typedef struct _check_data {
 	ssl_data_t			*ssl;
 	list				vs_group;
 	list				vs;
+	list				track_files;	/* list of tracked_file_t */
 #ifdef _WITH_BFD_
 	list				track_bfds;	/* list of checker_tracked_bfd_t */
 #endif
@@ -232,6 +235,7 @@ extern void free_ssl(void);
 extern void alloc_vsg(const char *);
 extern void alloc_vsg_entry(const vector_t *);
 extern void alloc_vs(const char *, const char *);
+extern void dump_tracking_rs(FILE *, const void *);
 extern void alloc_rs(const char *, const char *);
 extern void alloc_ssvr(const char *, const char *);
 extern check_data_t *alloc_check_data(void);

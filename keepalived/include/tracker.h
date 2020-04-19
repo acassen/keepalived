@@ -29,7 +29,7 @@
 #include "vrrp.h"
 #endif
 #ifdef _WITH_LVS_
-#include "check_data.h"
+#include "check_api.h"
 #endif
 
 typedef enum {
@@ -51,7 +51,7 @@ typedef union {
 	struct _vrrp_t *vrrp;			/* vrrp instance */
 #endif
 #ifdef _WITH_LVS_
-	real_server_t *rs;			/* real server instance */
+	checker_t *checker;			/* checker instance */
 #endif
 } tracking_obj_p;
 

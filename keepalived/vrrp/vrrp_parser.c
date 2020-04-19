@@ -30,7 +30,6 @@
 #include <net/if_arp.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-//#include <unistd.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <net/if.h>
