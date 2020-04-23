@@ -312,6 +312,9 @@ dump_forwarding_method(FILE *fp, const char *prefix, const real_server_t *rs)
 		conf_write(fp, "   %s%sTUN", prefix, fwd_method);
 #endif
 		break;
+	default:
+		conf_write(fp, "   %s 0x%x", fwd_method, rs->forwarding_method);
+		break;
 	}
 }
 

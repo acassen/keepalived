@@ -456,7 +456,15 @@ static void
 forwarding_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	real_server_t rs;	// dummy for setting parameters
+	real_server_t rs = {		 // dummy for setting parameters. Ensure previous values are preserved
+#ifdef _HAVE_IPVS_TUN_TYPE_
+		     .tun_type = vs->tun_type,
+		     .tun_port = vs->tun_port,
+#ifdef _HAVE_IPVS_TUN_CSUM_
+		     .tun_flags = vs->tun_flags,
+#endif
+#endif
+		     .forwarding_method = vs->forwarding_method };
 
 	svr_forwarding_handler(&rs, strvec, "virtual");
 	vs->forwarding_method = rs.forwarding_method;
