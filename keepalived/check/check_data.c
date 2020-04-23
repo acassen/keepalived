@@ -1038,6 +1038,21 @@ bool validate_check_config(void)
 			}
 		}
 
+		if (vs->s_svr && vs->s_svr->forwarding_method == IP_VS_CONN_F_FWD_MASK) {
+			if (vs->forwarding_method == IP_VS_CONN_F_FWD_MASK) {
+				report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: no forwarding method set, setting default NAT", FMT_VS(vs));
+				vs->forwarding_method = IP_VS_CONN_F_MASQ;
+			}
+			vs->s_svr->forwarding_method = vs->forwarding_method;
+#ifdef _HAVE_IPVS_TUN_TYPE_
+			vs->s_svr->tun_type = vs->tun_type;
+			vs->s_svr->tun_port = vs->tun_port;
+#ifdef _HAVE_IPVS_TUN_CSUM_
+			vs->s_svr->tun_flags = vs->tun_flags;
+#endif
+#endif
+		}
+
 		/* Check that the quorum isn't higher than the total weight of
 		 * the real servers, otherwise we will never be able to come up. */
 		if (vs->quorum > weight_sum) {
