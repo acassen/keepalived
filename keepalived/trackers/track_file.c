@@ -580,7 +580,7 @@ update_track_file_status(tracked_file_t* tfile, int new_status)
 }
 
 static void
-process_track_file(tracked_file_t *tfile, bool init)
+process_track_file(tracked_file_t *tfile)
 {
 	long new_status = 0;
 	char buf[128];
@@ -603,8 +603,7 @@ process_track_file(tracked_file_t *tfile, bool init)
 		}
 	}
 
-	if (!init)
-		update_track_file_status(tfile, (int)new_status);
+	update_track_file_status(tfile, (int)new_status);
 
 	tfile->last_status = new_status;
 
@@ -675,7 +674,7 @@ process_inotify(thread_ref_t thread)
 				}
 				else {	/* event->mask & (IN_MOVED_TO | IN_CLOSE_WRITE) */
 					/* The file has been writted/moved in */
-					process_track_file(tfile, false);
+					process_track_file(tfile);
 				}
 			}
 		}
@@ -728,7 +727,7 @@ init_track_files(list track_files)
 			}
 
 			/* The file exists, so read it now */
-			process_track_file(tfile, true);
+			process_track_file(tfile);
 		}
 		else if (errno == ENOENT) {
 			/* Resolve the directory */
