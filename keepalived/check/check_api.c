@@ -74,6 +74,17 @@ dump_checker(FILE *fp, const void *data)
 	const checker_t *checker = data;
 
 	conf_write(fp, " %s -> %s", FMT_VS(checker->vs), FMT_CHK(checker));
+	conf_write(fp, "   Enabled = %s", checker->enabled ? "yes" : "no");
+	conf_write(fp, "   Up = %s", checker->is_up ? "yes" : "no");
+	conf_write(fp, "   Has run = %s", checker->has_run ? "yes" : "no");
+	conf_write(fp, "   Alpha = %s", checker->has_run ? "yes" : "no");
+	conf_write(fp, "   Delay loop = %lu", checker->delay_loop);
+	conf_write(fp, "   Warmup = %lu", checker->warmup);
+	conf_write(fp, "   Retries = %u", checker->retry);
+	conf_write(fp, "   Delay before retry = %lu", checker->delay_before_retry);
+	conf_write(fp, "   Retries iterations = %u", checker->retry_it);
+	conf_write(fp, "   Defailt delay before retry = %lu", checker->default_delay_before_retry);
+	conf_write(fp, "   Log all failures = %s", checker->log_all_failures ? "yes" : "no");
 
 	(*checker->dump_func) (fp, checker);
 }
