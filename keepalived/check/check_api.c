@@ -549,8 +549,6 @@ register_checkers_thread(void)
 		}
 	}
 
-        init_track_files(check_data->track_files);
-
 #ifdef _WITH_BFD_
 	log_message(LOG_INFO, "Activating BFD healthchecker");
 
