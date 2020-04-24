@@ -369,11 +369,14 @@ start_check(list old_checkers_queue, data_t *prev_global_data)
 	/* We can send SMTP messages from here so set the time */
 	set_time_now();
 
+	/* Set up the track files */
+	add_rs_to_track_files();
+	init_track_files(check_data->track_files);
+	set_track_file_checkers_down();
+
 	/* Initialize IPVS topology */
 	if (!init_services())
 		stop_check(KEEPALIVED_EXIT_FATAL);
-
-	add_rs_to_track_files();
 
 	/* Dump configuration */
 	if (__test_bit(DUMP_CONF_BIT, &debug))

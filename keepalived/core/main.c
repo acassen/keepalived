@@ -53,6 +53,7 @@
 #include "logger.h"
 #include "parser.h"
 #include "notify.h"
+#include "track_file.h"
 #ifdef _WITH_LVS_
 #include "check_parser.h"
 #include "check_daemon.h"
@@ -61,9 +62,6 @@
 #include "vrrp_daemon.h"
 #include "vrrp_parser.h"
 #include "vrrp_if.h"
-#if defined _WITH_LVS_ || defined _WITH_VRRP_
-#include "track_file.h"
-#endif
 #ifdef _WITH_CN_PROC_
 #include "track_process.h"
 #endif

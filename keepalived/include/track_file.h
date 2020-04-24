@@ -29,7 +29,9 @@
 
 /* local includes */
 #include "list.h"
+#ifdef _WITH_VRRP_
 #include "vrrp.h"
+#endif
 #include "tracker.h"
 
 /* external file we read to track local processes */

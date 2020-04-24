@@ -36,6 +36,7 @@
 #include "global_data.h"
 #include "smtp.h"
 #include "check_daemon.h"
+#include "track_file.h"
 
 static bool __attribute((pure))
 vs_iseq(const virtual_server_t *vs_a, const virtual_server_t *vs_b)
@@ -345,8 +346,10 @@ clear_services(void)
 static bool
 init_service_rs(virtual_server_t * vs)
 {
-	element e;
+	element e, e1;
 	real_server_t *rs;
+	tracked_file_monitor_t *tfm;
+	long weight;
 
 	LIST_FOREACH(vs->rs, rs, e) {
 		if (rs->reloaded) {
@@ -356,7 +359,32 @@ init_service_rs(virtual_server_t * vs)
 			continue;
 		}
 
+		/* TODO - is this copied on reload? */
 		rs->effective_weight = rs->weight;
+
+		if (!rs->reloaded) {
+			LIST_FOREACH(rs->track_files, tfm, e1) {
+				if (tfm->weight) {
+					weight = tfm->file->last_status * tfm->weight * tfm->weight_reverse;
+					if (weight <= -IPVS_WEIGHT_MAX) {
+						rs->num_failed_checkers++;
+						weight = 0;
+					}
+					else if (weight > IPVS_WEIGHT_MAX - 1)
+						weight = IPVS_WEIGHT_MAX -1;
+					rs->effective_weight += weight;
+				}
+				else if (tfm->file->last_status)
+					rs->num_failed_checkers++;
+			}
+
+			if (rs->effective_weight < 1)
+				rs->weight = 1;
+			else if (rs->effective_weight > IPVS_WEIGHT_MAX - 1)
+				rs->weight = IPVS_WEIGHT_MAX - 1;
+			else
+				rs->weight = rs->effective_weight;
+		}
 
 		/* In alpha mode, be pessimistic (or realistic?) and don't
 		 * add real servers into the VS pool unless inhibit_on_failure.

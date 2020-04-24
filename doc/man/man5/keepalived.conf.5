@@ -1750,7 +1750,7 @@ The syntax for virtual_server is :
     # Enable One-Packet-Scheduling for UDP (-O in ipvsadm)
     \fBops\fR
 
-    # Default LVS forwarding method.
+    # Override default LVS forwarding method (default is NAT).
     # Default tunnel type is ipip. Since Linux 5.2 the GUE tunnel type can
     # be specified. If using GUE, a port number is required. Since Linux 5.3
     # if the tunnel type is GUE, the checksum option can also be specified.
@@ -1816,11 +1816,13 @@ The syntax for virtual_server is :
 
     # RS to add to LVS topology when the quorum isn't achieved.
     #  If a sorry server is configured, all real servers will
-    #  be brought down when the quorum is not achieved.
+    #  be brought down when the quorum is not achieved and be
+    #  replaced with the sorry server.
     \fBsorry_server \fR<IPADDR> [<PORT>]
     # applies inhibit_on_failure behaviour to the sorry_server
     \fBsorry_server_inhibit\fR
-    # Sorry server LVS forwarding method
+    # Sorry server LVS forwarding method. Default is the virtual
+    #  server's default.
     # For details of tunnel type, see virtual_server details.
     \fBsorry_server_lvs_method \fRNAT|DR
     or
@@ -1855,7 +1857,8 @@ The syntax for virtual_server is :
         # relative weight to use, default: 1
         \fBweight \fR<INTEGER>
         # LVS forwarding method
-        # For details of tunnel type, see virtual_server details.
+        # For details of tunnel type, see virtual_server details. The default
+	# setting is taken from the virtual_server's setting.
         \fBlvs_method \fRNAT|DR
         or
         \fBlvs_method \fRTUN [type {ipip|gue port NUM|gre} [nocsum|csum|remcsum]]

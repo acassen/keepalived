@@ -181,7 +181,30 @@ add_rs_to_track_files(void)
 				new_checker->vs = vs;
 				new_checker->rs = rs;
 
+				/* There is no concept of the checker running, but we will have
+				 * checked the file, so mark it as run. */
+				new_checker->has_run = true;
+
 				add_obj_to_track_file(new_checker, tfl, FMT_RS(rs, vs), dump_tracking_rs);
+			}
+		}
+	}
+}
+
+void
+set_track_file_checkers_down(void)
+{
+	element e, e1;
+	tracked_file_t *tfl;
+	tracking_obj_t *top;
+
+	LIST_FOREACH(check_data->track_files, tfl, e) {
+		if (tfl->last_status) {
+			LIST_FOREACH(tfl->tracking_obj, top, e1) {
+				checker_t *checker = top->obj.checker;
+
+				if (!top->weight)
+					checker->is_up = false;
 			}
 		}
 	}
