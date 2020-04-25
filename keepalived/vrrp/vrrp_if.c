@@ -487,7 +487,7 @@ dump_if(FILE *fp, const void *data)
 		  );
 
 #ifdef _HAVE_VRRP_VMAC_
-	if (IS_VLAN(ifp)) {
+	if (IS_MAC_IP_VLAN(ifp)) {
 		const char *if_type =
 #ifdef _HAVE_VRRP_IPVLAN
 				      ifp->if_type == IF_TYPE_IPVLAN ? "IPVLAN" : 
@@ -721,7 +721,7 @@ init_interface_linkbeat(void)
 
 #ifdef _HAVE_VRRP_VMAC_
 		/* netlink messages work for vmacs */
-		if (IS_VLAN(ifp)) {
+		if (IS_MAC_IP_VLAN(ifp)) {
 			log_message(LOG_INFO, "Turning off linkbeat for %s since netlink works for vmacs/ipvlans", ifp->ifname);
 			ifp->linkbeat_use_polling = false;
 			continue;
@@ -833,7 +833,7 @@ if_join_vrrp_group(sa_family_t family, int *sd, interface_t *ifp)
 	 */
 #if defined _HAVE_VRRP_VMAC_
 	send_on_base_if = false;
-	if (IS_VLAN(ifp) &&
+	if (IS_MAC_IP_VLAN(ifp) &&
 	    ifp->if_type == IF_TYPE_MACVLAN &&
 	    ifp->is_ours) {
 #ifdef _WITH_IPTABLES_
@@ -914,7 +914,7 @@ if_leave_vrrp_group(sa_family_t family, int sd, interface_t *ifp)
 		imr.imr_multiaddr = global_data->vrrp_mcast_group4.sin_addr;
 #if defined _HAVE_VRRP_VMAC_ && defined _WITH_NFTABLES_ && !HAVE_DECL_NFTA_DUP_MAX
 		/* See description in if_join_vrrp_group */
-		if (IS_VLAN(ifp) &&
+		if (IS_MAC_IP_VLAN(ifp) &&
 		    ifp->if_type == IF_TYPE_MACVLAN &&
 		    ifp->is_ours) {
 			imr.imr_ifindex = IF_INDEX(IF_BASE_IFP(ifp));
@@ -930,7 +930,7 @@ if_leave_vrrp_group(sa_family_t family, int sd, interface_t *ifp)
 		imr6.ipv6mr_multiaddr = global_data->vrrp_mcast_group6.sin6_addr;
 #if defined _HAVE_VRRP_VMAC_ && defined _WITH_NFTABLES_ && !HAVE_DECL_NFTA_DUP_MAX
 		/* See description in if_join_vrrp_group */
-		if (IS_VLAN(ifp) &&
+		if (IS_MAC_IP_VLAN(ifp) &&
 		    ifp->if_type == IF_TYPE_MACVLAN &&
 		    ifp->is_ours) {
 			imr6.ipv6mr_interface = IF_INDEX(IF_BASE_IFP(ifp));

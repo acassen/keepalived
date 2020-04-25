@@ -173,7 +173,7 @@ alloc_linkbeat_interface(const vector_t *strvec)
 
 #ifdef _HAVE_VRRP_VMAC_
 	/* netlink messages work for vmacs */
-	if (IS_VLAN(ifp)) {
+	if (IS_MAC_IP_VLAN(ifp)) {
 		log_message(LOG_INFO, "(%s): linkbeat not supported for vmacs since netlink works", ifp->ifname);
 		return;
 	}
@@ -1611,7 +1611,7 @@ garp_group_interface_handler(const vector_t *strvec)
 
 #ifdef _HAVE_VRRP_VMAC_
 	/* We cannot have a group on a vmac interface */
-	if (IS_VLAN(ifp)) {
+	if (IS_MAC_IP_VLAN(ifp)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Cannot specify garp_delay on a vmac (%s) - ignoring", ifp->ifname);
 		return;
 	}
@@ -1658,7 +1658,7 @@ garp_group_interfaces_handler(const vector_t *strvec)
 		}
 
 #ifdef _HAVE_VRRP_VMAC_
-		if (IS_VLAN(ifp)) {
+		if (IS_MAC_IP_VLAN(ifp)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Cannot specify garp_delay on a vmac (%s) - ignoring", ifp->ifname);
 			continue;
 		}

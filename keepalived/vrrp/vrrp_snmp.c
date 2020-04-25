@@ -3425,7 +3425,7 @@ vrrp_rfcv2_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 		return (u_char*)&((struct sockaddr_in *)&rt->master_saddr)->sin_addr.s_addr;
 	case VRRP_RFC_SNMP_OPER_PIP:
 #ifdef _HAVE_VRRP_VMAC_
-		if (IS_VLAN(rt->ifp))
+		if (IS_MAC_IP_VLAN(rt->ifp))
 			ifp = rt->ifp->base_ifp;
 		else
 #endif
@@ -4069,7 +4069,7 @@ vrrp_rfcv3_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 		/* Falls through. */
 	case VRRP_RFCv3_SNMP_OPER_PIP:
 #ifdef _HAVE_VRRP_VMAC_
-		if (IS_VLAN(rt->ifp))
+		if (IS_MAC_IP_VLAN(rt->ifp))
 			ifp = rt->ifp->base_ifp;
 		else
 #endif

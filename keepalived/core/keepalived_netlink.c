@@ -997,7 +997,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 						/* If IPv6 link local and vmac doesn't have an address, add it to the vmac */
 						else if (vrrp->family == AF_INET6 &&
 							 ifp == vrrp->ifp->base_ifp &&
-							 IS_VLAN(vrrp->ifp) &&
+							 IS_MAC_IP_VLAN(vrrp->ifp) &&
 							 !__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&
 							 vrrp->num_script_if_fault &&
 							 vrrp->family == ifa->ifa_family &&
@@ -1671,7 +1671,7 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 #endif
 
 #ifdef _HAVE_VRRP_VMAC_
-	was_vlan = IS_VLAN(ifp);
+	was_vlan = IS_MAC_IP_VLAN(ifp);
 #endif
 
 	name = (char *)RTA_DATA(tb[IFLA_IFNAME]);
@@ -1722,11 +1722,11 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	if (!global_data->allow_if_changes && ifp->seen_interface) {
 		/* If it was a macvlan and now isn't, or vice versa,
 		 * then the interface type has changed */
-		if (IS_VLAN(ifp) != was_vlan)
+		if (IS_MAC_IP_VLAN(ifp) != was_vlan)
 			return false;
 
 		/* If a macvlan, check the underlying interface hasn't changed */
-		if (IS_VLAN(ifp) &&
+		if (IS_MAC_IP_VLAN(ifp) &&
 		    (!tb[IFLA_LINK] || ifp->base_ifp->ifindex != *(uint32_t *)RTA_DATA(tb[IFLA_LINK])))
 			return false;
 	}
@@ -1747,7 +1747,7 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	if (tb[IFLA_LINKINFO]) {
 		if (linkinfo[IFLA_INFO_KIND]) {
 			/* See if this interface is a MACVLAN */
-			if (IS_VLAN(ifp)) {
+			if (IS_MAC_IP_VLAN(ifp)) {
 				if (((ifp->if_type == IF_TYPE_MACVLAN && linkattr[IFLA_MACVLAN_MODE])
 #ifdef _HAVE_VRRP_IPVLAN_
 				     || (ifp->if_type == IF_TYPE_IPVLAN && linkattr[IFLA_IPVLAN_MODE])
