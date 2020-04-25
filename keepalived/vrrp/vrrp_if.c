@@ -104,6 +104,12 @@ if_get_by_ifindex(ifindex_t ifindex)
 	return NULL;
 }
 
+static void
+if_add_queue(interface_t * ifp)
+{
+	list_add(if_queue, ifp);
+}
+
 interface_t *
 if_get_by_ifname(const char *ifname, if_lookup_t create)
 {
@@ -598,12 +604,6 @@ static void
 init_if_queue(void)
 {
 	if_queue = alloc_list(free_if, dump_if);
-}
-
-void
-if_add_queue(interface_t * ifp)
-{
-	list_add(if_queue, ifp);
 }
 
 #ifdef _WITH_LINKBEAT_
