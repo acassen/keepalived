@@ -203,7 +203,6 @@ extern list get_if_list(void) __attribute__ ((pure));
 extern void reset_interface_queue(void);
 extern void alloc_garp_delay(void);
 extern void set_default_garp_delay(void);
-extern void if_add_queue(interface_t *);
 extern void init_interface_queue(void);
 #ifdef _WITH_LINKBEAT_
 extern void init_interface_linkbeat(void);

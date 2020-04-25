@@ -247,6 +247,9 @@ and
     #  ttl (1..255)
     #  group - multicast group address (IPv4 or IPv6)
     # NOTE: maxlen, port, ttl and group are only available on Linux 4.3 or later.
+    # See kernel source doc/Documentation/networking/ipvs-sysctl.txt for details of
+    # parameters controlling IPVS and the sync daemon.
+    # /proc/net/ip_vs* provide some details about the state of IPVS.
     \fBlvs_sync_daemon \fR<INTERFACE> <VRRP_INSTANCE> [id <SYNC_ID>] [maxlen <LEN>] \e
                     [port <PORT>] [ttl <TTL>] [group <IP ADDR>]
 

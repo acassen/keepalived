@@ -517,11 +517,6 @@ lvs_syncd_handler(const vector_t *strvec)
 		return;
 	}
 
-	if (strlen(strvec_slot(strvec, 2)) >= IP_VS_IFNAME_MAXLEN) {
-		report_config_error(CONFIG_GENERAL_ERROR, "lvs_sync_daemon vrrp interface name '%s' too long - ignoring", strvec_slot(strvec, 2));
-		return;
-	}
-
 	global_data->lvs_syncd.ifname = set_value(strvec);
 
 	if (!(global_data->lvs_syncd.vrrp_name = STRDUP(strvec_slot(strvec, 2))))

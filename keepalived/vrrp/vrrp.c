@@ -2911,7 +2911,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				if (ifp->ifindex &&
 				    (ifp->base_ifp == vrrp->configured_ifp->base_ifp
 #ifdef HAVE_IFLA_LINK_NETNSID
-				     || (ifp == ifp->base_ifp && vrrp->configured_ifp->base_netns_id == ifp->base_netns_id)
+				     || (ifp == ifp->base_ifp &&
+					 ifp->base_netns_id != -1 &&
+					 vrrp->configured_ifp->base_netns_id == ifp->base_netns_id &&
+					 vrrp->configured_ifp->base_ifindex == ifp->base_ifindex)
 #endif
 															   ) &&
 				    ((__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
@@ -3682,7 +3685,13 @@ vrrp_complete_init(void)
 
 			if (vrrp->family == vrrp1->family &&
 			    vrrp->vrid == vrrp1->vrid &&
-			    IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp)) == IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp1))) {
+			    (IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp)) == IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp1))
+#if defined _HAVE_VRRP_VMAC_ && defined HAVE_IFLA_LINK_NETNSID
+			     || (vrrp->configured_ifp->base_netns_id != -1 &&
+				 vrrp->configured_ifp->base_netns_id == vrrp1->configured_ifp->base_netns_id &&
+				 vrrp->configured_ifp->base_ifindex == vrrp1->configured_ifp->base_ifindex)
+#endif
+			     )) {
 #ifdef _HAVE_VRRP_VMAC_
 				if (global_data->allow_if_changes &&
 				    (VRRP_CONFIGURED_IFP(vrrp)->changeable_type ||
