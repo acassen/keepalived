@@ -224,7 +224,7 @@ netlink_set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
 	/* If the underlying interface is a MACVLAN that has been moved into
 	 * a separate network namespace from the parent, we can't access the
 	 * parent. */
-	if (IS_VLAN(ifp) && ifp == base_ifp)
+	if (IS_MAC_IP_VLAN(ifp) && ifp == base_ifp)
 		return 0;
 
 	/* Set arp_ignore and arp_filter on base interface if needed */
@@ -323,7 +323,7 @@ set_interface_parameters_sysctl(const interface_t *ifp, interface_t *base_ifp)
 	/* If the underlying interface is a MACVLAN that has been moved into
 	 * a separate network namespace from the parent, we can't access the
 	 * parent. */
-	if (IS_VLAN(ifp) && ifp == base_ifp)
+	if (IS_MAC_IP_VLAN(ifp) && ifp == base_ifp)
 		return;
 
 	if (base_ifp->reset_arp_config)

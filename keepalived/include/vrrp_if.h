@@ -90,9 +90,9 @@ typedef enum {
 } if_type_t;
 
 #ifdef _HAVE_VRRP_IPVLAN_
-#define IS_VLAN(IFP)	((IFP)->if_type == IF_TYPE_MACVLAN || (IFP)->if_type == IF_TYPE_IPVLAN)
+#define IS_MAC_IP_VLAN(IFP)	((IFP)->if_type == IF_TYPE_MACVLAN || (IFP)->if_type == IF_TYPE_IPVLAN)
 #else
-#define IS_VLAN(IFP)	((IFP)->if_type == IF_TYPE_MACVLAN)
+#define IS_MAC_IP_VLAN(IFP)	((IFP)->if_type == IF_TYPE_MACVLAN)
 #endif
 
 #endif

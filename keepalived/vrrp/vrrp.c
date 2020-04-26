@@ -2961,7 +2961,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			    (ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_NO_CREATE)) &&
 			     ifp->ifindex) {
 				/* An interface with the same name exists, but it doesn't match */
-				if (IS_VLAN(ifp))
+				if (IS_MAC_IP_VLAN(ifp))
 					log_message(LOG_INFO, "(%s) %s %s already exists but is incompatible. It will be deleted", vrrp->iname,
 							if_type, vrrp->vmac_ifname);
 				else {

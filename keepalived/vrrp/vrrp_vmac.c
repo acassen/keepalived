@@ -307,7 +307,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 			return false;
 
 		if (!ifp->base_ifp &&
-		    IS_VLAN(vrrp->configured_ifp) &&
+		    IS_MAC_IP_VLAN(vrrp->configured_ifp) &&
 		    vrrp->configured_ifp == vrrp->configured_ifp->base_ifp) {
 			/* If the base interface is a MACVLAN/IPVLAN that has been moved into a
 			 * different network namespace from its parent, we can't find the parent */
