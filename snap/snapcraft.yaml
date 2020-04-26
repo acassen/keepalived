@@ -9,7 +9,7 @@ description: |
 grade: stable
 confinement: classic
 
-# linux-libc-dev for 4.18 and 3.10 are no longer available via
+# linux-libc-dev for 5.0, 4.18 and 3.10 are no longer available via
 #    http://security.ubuntu.com/ubuntu/pool/main/l/linux/
 # or
 #    http://ports.ubuntu.com/pool/main/l/linux/
@@ -17,7 +17,7 @@ confinement: classic
 #
 # To find the relevant files, go to launchpad.net/ubuntu/CODENAME/ARCH/linux-libc-dev
 #   where CODENAME is, for example cosmic for Ubuntu 18.10, and ARCH is each of amd64,
-#   i386, armhf and s390x.
+#   i386, ppc64el, arm64, armhf and s390x.
 # Select the most recent version, and click on link under Version column (RHS). Under
 #   Downloadable files is a link to the .deb file. That is what we need in DEB_URL.
 #
@@ -30,9 +30,11 @@ apps:
     command: bin/keepalived-wrapper
   keepalived:
     command: bin/keepalived-wrapper
+  "504":        # Ubuntu 20.04 and Fedora 31
+    command: usr/sbin/keepalived-504
   "503":        # Ubuntu 19.10 and Fedora 31
     command: usr/sbin/keepalived-503
-  "500":        # Ubuntu 19.04 and Fedora 30
+  "500":        # Fedora 30
     command: usr/sbin/keepalived-500
   "418":        # Ubuntu 18.10 and RHEL 8 and Fedora 29
     command: usr/sbin/keepalived-418
@@ -94,7 +96,7 @@ parts:
     organize:
       'usr/sbin/keepalived': usr/sbin/keepalived-404
 
-  linux-headers-503:
+  linux-headers-504:
     plugin: nil
     build-packages:
       - dpkg
@@ -102,6 +104,71 @@ parts:
       - wget
     after:
       - keepalived
+    override-pull: |
+      KERNEL_VER="5.4.0"
+      ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
+      if [ $ARCH = amd64 ] || [ $ARCH = i386 ]; then
+        ARCHIVE_URL="http://security.ubuntu.com/ubuntu/pool/main/l/linux/"
+      else
+        ARCHIVE_URL="http://ports.ubuntu.com/pool/main/l/linux/"
+      fi
+      DEB_SUFFIX=$(wget ${ARCHIVE_URL} -O - | grep linux-libc-dev | cut -d'_' -f2-3 | cut -d'"' -f1 | grep ${ARCH} | grep ${KERNEL_VER} | tail -n1)
+      wget --quiet ${ARCHIVE_URL}/linux-libc-dev_${DEB_SUFFIX} -O ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
+      echo -n "Unpacking kernel headers..."
+      dpkg -x ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb ${SNAPCRAFT_PART_INSTALL}
+      printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${SNAPCRAFT_PART_INSTALL}/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
+      rm -f ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
+    override-build: |
+      snapcraftctl build
+      # Move the headers on the host out of the way
+      HEADER_DIRS={linux,asm-generic}
+      rm -rf /usr/include/${HEADER_DIRS} || true
+      # Move header from the part to the host
+      mv ${SNAPCRAFT_PART_INSTALL}/usr/include/${HEADER_DIRS} /usr/include/ || true
+      echo -n "Build kernel:"
+      printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
+    stage:
+      - -*
+    prime:
+      - -*
+
+  keepalived-504:
+    plugin: autotools
+    source: .
+    source-type: git
+    after:
+      - linux-headers-504
+    configflags:
+      - --prefix=/usr
+      - --enable-bfd
+      - --enable-dbus
+      - --enable-json
+      - --enable-regex
+      - --enable-snmp
+      - --enable-snmp-rfc
+      - --disable-libipset-dynamic
+    organize:
+      'usr/sbin/keepalived': usr/sbin/keepalived-504
+      'usr/etc/dbus-1/system.d/org.keepalived.Vrrp1.conf': etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
+    stage:
+      - usr/sbin/keepalived-504
+      - etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
+      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml
+      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
+    prime:
+      - usr/sbin/keepalived-504
+      - etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
+      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml
+      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
+
+  linux-headers-503:
+    plugin: nil
+    build-packages:
+      - dpkg
+      - dpkg-dev
+      - wget
+    after:
+      - keepalived-504
     override-pull: |
       KERNEL_VER="5.3.0"
       ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
@@ -170,13 +237,20 @@ parts:
     override-pull: |
       KERNEL_VER="5.0.0"
       ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
-      if [ $ARCH = amd64 ] || [ $ARCH = i386 ]; then
-        ARCHIVE_URL="http://security.ubuntu.com/ubuntu/pool/main/l/linux/"
-      else
-        ARCHIVE_URL="http://ports.ubuntu.com/pool/main/l/linux/"
+      if [ $ARCH = amd64 ]; then
+        DEB_URL="http://launchpadlibrarian.net/460650013/linux-libc-dev_5.0.0-40.44_amd64.deb"
+      elif [ $ARCH = ppc64el ]; then
+        DEB_URL="http://launchpadlibrarian.net/460651527/linux-libc-dev_5.0.0-40.44_ppc64el.deb"
+      elif [ $ARCH = arm64 ]; then
+        DEB_URL="http://launchpadlibrarian.net/460676453/linux-libc-dev_5.0.0-40.44_arm64.deb"
+      elif [ $ARCH = i386 ]; then
+        DEB_URL="http://launchpadlibrarian.net/460681467/linux-libc-dev_5.0.0-40.44_i386.deb"
+      elif [ $ARCH = armhf ]; then
+        DEB_URL="http://launchpadlibrarian.net/460683805/linux-libc-dev_5.0.0-40.44_armhf.deb"
+      elif [ $ARCH = s390x ]; then
+        DEB_URL="http://launchpadlibrarian.net/460646235/linux-libc-dev_5.0.0-40.44_s390x.deb"
       fi
-      DEB_SUFFIX=$(wget ${ARCHIVE_URL} -O - | grep linux-libc-dev | cut -d'_' -f2-3 | cut -d'"' -f1 | grep ${ARCH} | grep ${KERNEL_VER} | tail -n1)
-      wget --quiet ${ARCHIVE_URL}/linux-libc-dev_${DEB_SUFFIX} -O ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
+      wget --quiet ${DEB_URL} -O ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
       echo -n "Unpacking kernel headers..."
       dpkg -x ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb ${SNAPCRAFT_PART_INSTALL}
       printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${SNAPCRAFT_PART_INSTALL}/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
