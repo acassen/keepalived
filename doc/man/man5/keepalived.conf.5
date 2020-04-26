@@ -238,14 +238,18 @@ and
     \fBdefault_interface \fRp33p1.3
 
     # Sync daemon as provided by IPVS kernel code only support
-    # a single daemon instance at a time to synchronize connection table.
+    #  a single daemon instance at a time to synchronize connection table.
+    # See ipvsadm(8) man page for more details of the sync daemon.
     # Binding interface, vrrp instance and optional
-    #  syncid for lvs syncd
-    #  syncid (0 to 255) for lvs syncd
+    #  syncid (0 to 255) for lvs syncd, default is the VRID of vrrp instance
     #  maxlen (1..65507) maximum packet length
-    #  port (1..65535) UDP port number to use
+    #  port (1..65535) UDP port number to use, default 8848
     #  ttl (1..255)
-    #  group - multicast group address (IPv4 or IPv6)
+    #  group - multicast group address, default 224.0.0.81 (IPv4 or IPv6)
+    # The sync daemon master/backup state tracks the state of the specified vrrp
+    #  instance; if the vrrp instance is in master state, the sync daemon will be
+    #  in master state, if the vrrp instance is not master, the sync daemon will be
+    #  in backup state.
     # NOTE: maxlen, port, ttl and group are only available on Linux 4.3 or later.
     # See kernel source doc/Documentation/networking/ipvs-sysctl.txt for details of
     # parameters controlling IPVS and the sync daemon.
