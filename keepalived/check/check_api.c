@@ -83,7 +83,7 @@ dump_checker(FILE *fp, const void *data)
 	conf_write(fp, "   Retries = %u", checker->retry);
 	conf_write(fp, "   Delay before retry = %lu", checker->delay_before_retry);
 	conf_write(fp, "   Retries iterations = %u", checker->retry_it);
-	conf_write(fp, "   Defailt delay before retry = %lu", checker->default_delay_before_retry);
+	conf_write(fp, "   Default delay before retry = %lu", checker->default_delay_before_retry);
 	conf_write(fp, "   Log all failures = %s", checker->log_all_failures ? "yes" : "no");
 
 	(*checker->dump_func) (fp, checker);
