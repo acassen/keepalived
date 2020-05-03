@@ -45,6 +45,7 @@ docker:
 autoclean:
 	@$(MAKE) distclean
 	@rm -f configure `find . -name Makefile.in` lib/config.h.in lib/git-commit.h
+	@rm -rf m4 build-aux
 
 git-clean:
 	@$(MAKE) autoclean

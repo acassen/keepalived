@@ -1,6 +1,8 @@
 #!/bin/sh
 
-aclocal
+mkdir -p build-aux
+
+aclocal --install
 autoheader
 automake --add-missing
 autoreconf
