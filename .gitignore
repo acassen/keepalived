@@ -16,21 +16,18 @@ Makefile
 Makefile.in
 
 # http://www.gnu.org/software/autoconf
-/ar-lib
-/autom4te.cache
+/autom4te.cache/
 /autoscan.log
 /autoscan-*.log
 /aclocal.m4
-/compile
+/build-aux/
 /config.cache
 /config.h.in
 /config.log
 /config.status
 /configure.scan
-/depcomp
-/install-sh
-/missing
-stamp-h?
+/lib/stamp-h[12]
+/m4/
 
 .deps/
 
@@ -39,7 +36,7 @@ stamp-h?
 /private/
 
 # To be able to build without automake/autoconf comment out the following
-lib/config.h.in
+/lib/config.h.in
 /configure
 
 # For snap builds
