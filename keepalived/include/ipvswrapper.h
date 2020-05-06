@@ -56,7 +56,7 @@
 struct lvs_syncd_config {
 	const char			*ifname;	/* handle LVS sync daemon state using this */
 	vrrp_t				*vrrp;		/* instance FSM & running on specific interface */
-	unsigned			syncid;		/* 0 .. 255 */
+	unsigned			syncid;		/* 0 .. 255, or PARAMETER_UNSET if not configured */
 #ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
 	uint16_t			sync_maxlen;
 	struct sockaddr_storage		mcast_group;
@@ -64,6 +64,7 @@ struct lvs_syncd_config {
 	uint8_t				mcast_ttl;
 #endif
 	const char			*vrrp_name;	/* used during configuration and SNMP */
+	bool				daemon_set_reload;
 };
 #endif
 
