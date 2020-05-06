@@ -186,7 +186,7 @@ ipvs_talk(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, ipvs_daemon_t *dae
 #ifdef _WITH_VRRP_
 /* Note: This function is called in the context of the vrrp child process, not the checker process */
 void
-ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool ignore_interface, bool ignore_error)
+ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool ignore_error)
 {
 	ipvs_daemon_t daemonrule;
 
@@ -196,10 +196,10 @@ ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool i
 	daemonrule.state = state;
 	if (config) {
 		daemonrule.syncid = (int)config->syncid;
-		if (!ignore_interface)
-			strcpy_safe(daemonrule.mcast_ifn, config->ifname);
-#ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
 		if (cmd == IPVS_STARTDAEMON) {
+			strcpy_safe(daemonrule.mcast_ifn, config->ifname);
+
+#ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
 			if (config->sync_maxlen)
 				daemonrule.sync_maxlen = config->sync_maxlen;
 			if (config->mcast_port)
@@ -214,8 +214,8 @@ ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool i
 				daemonrule.mcast_af = AF_INET6;
 				memcpy(&daemonrule.mcast_group.in6, &((const struct sockaddr_in6 *)&config->mcast_group)->sin6_addr, sizeof(daemonrule.mcast_group.in6));
 			}
-		}
 #endif
+		}
 	}
 
 	/* Talk to the IPVS channel */
@@ -756,15 +756,15 @@ ipvs_update_stats(virtual_server_t *vs)
 void
 ipvs_syncd_master(const struct lvs_syncd_config *config)
 {
-	ipvs_syncd_cmd(IPVS_STOPDAEMON, config, IPVS_BACKUP, false, false);
-	ipvs_syncd_cmd(IPVS_STARTDAEMON, config, IPVS_MASTER, false, false);
+	ipvs_syncd_cmd(IPVS_STOPDAEMON, config, IPVS_BACKUP, false);
+	ipvs_syncd_cmd(IPVS_STARTDAEMON, config, IPVS_MASTER, false);
 }
 
 /* Note: This function is called in the context of the vrrp child process, not the checker process */
 void
 ipvs_syncd_backup(const struct lvs_syncd_config *config)
 {
-	ipvs_syncd_cmd(IPVS_STOPDAEMON, config, IPVS_MASTER, false, false);
-	ipvs_syncd_cmd(IPVS_STARTDAEMON, config, IPVS_BACKUP, false, false);
+	ipvs_syncd_cmd(IPVS_STOPDAEMON, config, IPVS_MASTER, false);
+	ipvs_syncd_cmd(IPVS_STARTDAEMON, config, IPVS_BACKUP, false);
 }
 #endif

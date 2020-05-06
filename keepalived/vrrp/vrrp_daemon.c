@@ -350,7 +350,7 @@ vrrp_terminate_phase1(bool schedule_next_thread)
                 /* Stop syncd if controlled by this VRRP instance. */
                 ipvs_syncd_cmd(IPVS_STOPDAEMON, &global_data->lvs_syncd,
                                (global_data->lvs_syncd.vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER: IPVS_BACKUP,
-                               true, false);
+                               false);
         }
 #endif
 
@@ -519,8 +519,8 @@ start_vrrp(data_t *prev_global_data)
 			/* If we are managing the sync daemon, then stop any
 			 * instances of it that may have been running if
 			 * we terminated abnormally */
-			ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_MASTER, true, true);
-			ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_BACKUP, true, true);
+			ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_MASTER, true);
+			ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_BACKUP, true);
 		}
 #endif
 
@@ -780,7 +780,7 @@ reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 		ipvs_syncd_cmd(IPVS_STOPDAEMON, &global_data->lvs_syncd,
 		       (global_data->lvs_syncd.vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
 										 IPVS_BACKUP,
-		       true, false);
+		       false);
 #endif
 
 	/* Remove the notify fifo - we don't know if it will be the same after a reload */
@@ -811,7 +811,7 @@ reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 		ipvs_syncd_cmd(IPVS_STARTDAEMON, &global_data->lvs_syncd,
 			       (global_data->lvs_syncd.vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
 											 IPVS_BACKUP,
-			       true, false);
+			       false);
 #endif
 
 	/* free backup data */

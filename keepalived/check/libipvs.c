@@ -742,7 +742,6 @@ int ipvs_stop_daemon(ipvs_daemon_t *dm)
 			goto nla_put_failure;
 
 		NLA_PUT_S32(msg, IPVS_DAEMON_ATTR_STATE, dm->state);
-		NLA_PUT_STRING(msg, IPVS_DAEMON_ATTR_MCAST_IFN, dm->mcast_ifn);
 		NLA_PUT_S32(msg, IPVS_DAEMON_ATTR_SYNC_ID, dm->syncid);
 
 		nla_nest_end(msg, nl_daemon);

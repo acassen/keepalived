@@ -77,7 +77,7 @@ extern void ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_ent
 extern void ipvs_group_remove_entry(virtual_server_t *, virtual_server_group_entry_t *);
 extern int ipvs_cmd(int, virtual_server_t *, real_server_t *);
 #ifdef _WITH_VRRP_
-extern void ipvs_syncd_cmd(int, const struct lvs_syncd_config *, int, bool, bool);
+extern void ipvs_syncd_cmd(int, const struct lvs_syncd_config *, int, bool);
 extern void ipvs_syncd_master(const struct lvs_syncd_config *);
 extern void ipvs_syncd_backup(const struct lvs_syncd_config *);
 #endif
