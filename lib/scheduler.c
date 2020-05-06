@@ -1844,16 +1844,18 @@ process_threads(thread_master_t *m)
 #ifdef _WITH_VRRP_
 			__clear_bit(DONT_RELEASE_VRRP_BIT, &debug);
 #endif
-			thread_add_terminate_event(master);
+			thread_add_terminate_event(m);
 		}
 #endif
 
 		/* If we are shutting down, only process relevant thread types.
 		 * We only want timer and signal fd, and don't want inotify, vrrp socket,
 		 * snmp_read, bfd_receiver, bfd pipe in vrrp/check, dbus pipe or netlink fds. */
-		thread = thread_trim_head(thread_list);
+		if (!(thread = thread_trim_head(thread_list)))
+			continue;
 
 		m->current_thread = thread;
+		thread_type = thread->type;
 
 		if (thread && thread->type == THREAD_CHILD_TIMEOUT) {
 			/* We remove the thread from the child_pid queue here so that
@@ -1879,14 +1881,20 @@ process_threads(thread_master_t *m)
 			if (thread->func)
 				thread_call(thread);
 
-			if (thread->type == THREAD_TERMINATE_START)
+			/* If m->current_thread has been cleared, the thread
+			 * has been freed. This happens during a reload. */
+			thread = m->current_thread;
+
+			if (thread_type == THREAD_TERMINATE_START)
 				shutting_down = true;
 		}
 
-		m->current_event = (thread->type == THREAD_READY_READ_FD || thread->type == THREAD_READY_WRITE_FD) ? thread->event : NULL;
-		thread_type = thread->type;
-		m->current_thread = NULL;
-		thread_add_unuse(master, thread);
+		if (thread) {
+			m->current_event = (thread_type == THREAD_READY_READ_FD || thread_type == THREAD_READY_WRITE_FD) ? thread->event : NULL;
+			thread_add_unuse(m, thread);
+			m->current_thread = NULL;
+		} else
+			m->current_event = NULL;
 
 		/* If we are shutting down, and the shutdown timer is not running and
 		 * all children have terminated, then we can terminate */
