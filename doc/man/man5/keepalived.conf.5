@@ -237,25 +237,29 @@ and
     # (default: eth0)
     \fBdefault_interface \fRp33p1.3
 
-    # Sync daemon as provided by IPVS kernel code only support
-    #  a single daemon instance at a time to synchronize connection table.
+    # The sync daemon as provided by the IPVS kernel code only supports
+    #  one master and one backup daemon instance at a time to synchronize
+    #  the IPVS connection table.
     # See ipvsadm(8) man page for more details of the sync daemon.
-    # Binding interface, vrrp instance and optional
-    #  syncid (0 to 255) for lvs syncd, default is the VRID of vrrp instance
-    #  maxlen (1..65507) maximum packet length
+    # Parameters are binding interface, and optional:
+    #  inst VRRP_INSTANCE (inst can be omitted for backward compatibility)
+    #  syncid (0 to 255) for lvs syncd, default is the VRID of vrrp instance,
+    #    or 0 if no vrrp instance
+    #  maxlen (1..65507) maximum packet length (limit is mtu - 20 - 8)
     #  port (1..65535) UDP port number to use, default 8848
     #  ttl (1..255)
-    #  group - multicast group address, default 224.0.0.81 (IPv4 or IPv6)
-    # The sync daemon master/backup state tracks the state of the specified vrrp
-    #  instance; if the vrrp instance is in master state, the sync daemon will be
-    #  in master state, if the vrrp instance is not master, the sync daemon will be
-    #  in backup state.
+    #  group - multicast group address(IPv4 or IPv6), default 224.0.0.81
+    # If VRRP_INSTANCE is not specified, both the master and backup sync daemons
+    #  will be run as long as keepalived is running, otherwise the sync daemon
+    #  master/backup state tracks the state of the specified vrrp instance: if
+    #  the vrrp instance is in master state, only the master sync daemon will run,
+    #  if the vrrp instance is not master, only the backup sync daemon will run.
     # NOTE: maxlen, port, ttl and group are only available on Linux 4.3 or later.
     # See kernel source doc/Documentation/networking/ipvs-sysctl.txt for details of
     # parameters controlling IPVS and the sync daemon.
     # /proc/net/ip_vs* provide some details about the state of IPVS.
-    \fBlvs_sync_daemon \fR<INTERFACE> <VRRP_INSTANCE> [id <SYNC_ID>] [maxlen <LEN>] \e
-                    [port <PORT>] [ttl <TTL>] [group <IP ADDR>]
+    \fBlvs_sync_daemon \fR<INTERFACE> [[inst] <VRRP_INSTANCE>] [id <SYNC_ID>] \e
+                    [maxlen <LEN>] [port <PORT>] [ttl <TTL>] [group <IP ADDR>]
 
     # flush any existing LVS configuration at startup
     \fBlvs_flush\fR

@@ -489,12 +489,12 @@ dump_global_data(FILE *fp, data_t * data)
 	if (prog_type == PROG_TYPE_VRRP)
 #endif
 		conf_write(fp, " Default interface = %s", data->default_ifp ? data->default_ifp->ifname : DFLT_INT);
-	if (data->lvs_syncd.vrrp) {
-		conf_write(fp, " LVS syncd vrrp instance = %s"
-				    , data->lvs_syncd.vrrp->iname);
-		if (data->lvs_syncd.ifname)
-			conf_write(fp, " LVS syncd interface = %s"
-				    , data->lvs_syncd.ifname);
+	if (data->lvs_syncd.ifname) {
+		if (data->lvs_syncd.vrrp)
+			conf_write(fp, " LVS syncd vrrp instance = %s"
+				     , data->lvs_syncd.vrrp->iname);
+		conf_write(fp, " LVS syncd interface = %s"
+			     , data->lvs_syncd.ifname);
 		conf_write(fp, " LVS syncd syncid = %u"
 				    , data->lvs_syncd.syncid);
 #ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_

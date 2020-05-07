@@ -207,11 +207,11 @@ vrrp_init_state(list l)
 #ifdef _WITH_LVS_
 			/* Check if sync daemon handling is needed */
 			if (global_data->lvs_syncd.ifname &&
-			    global_data->lvs_syncd.vrrp == vrrp)
+			    global_data->lvs_syncd.vrrp == vrrp &&
+			    !global_data->lvs_syncd.daemon_set_reload)
 				ipvs_syncd_cmd(IPVS_STARTDAEMON,
 					       &global_data->lvs_syncd,
 					       vrrp->state == VRRP_STATE_MAST ? IPVS_MASTER : IPVS_BACKUP,
-					       false,
 					       false);
 #endif
 			if (!vrrp->reload_master) {
@@ -240,11 +240,11 @@ vrrp_init_state(list l)
 #ifdef _WITH_LVS_
 			/* Check if sync daemon handling is needed */
 			if (global_data->lvs_syncd.ifname &&
-			    global_data->lvs_syncd.vrrp == vrrp)
+			    global_data->lvs_syncd.vrrp == vrrp &&
+			    !global_data->lvs_syncd.daemon_set_reload)
 				ipvs_syncd_cmd(IPVS_STARTDAEMON,
 					       &global_data->lvs_syncd,
 					       IPVS_BACKUP,
-					       false,
 					       false);
 #endif
 

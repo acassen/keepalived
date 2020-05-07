@@ -503,12 +503,12 @@ lvs_syncd_handler(const vector_t *strvec)
 	size_t i;
 
 	if (global_data->lvs_syncd.ifname) {
-		report_config_error(CONFIG_GENERAL_ERROR, "lvs_sync_daemon has already been specified as %s %s - ignoring", global_data->lvs_syncd.ifname, global_data->lvs_syncd.vrrp_name);
+		report_config_error(CONFIG_GENERAL_ERROR, "lvs_sync_daemon has already been specified as %s %s - ignoring", global_data->lvs_syncd.ifname, global_data->lvs_syncd.vrrp_name ? global_data->lvs_syncd.vrrp_name : "");
 		return;
 	}
 
-	if (vector_size(strvec) < 3) {
-		report_config_error(CONFIG_GENERAL_ERROR, "lvs_sync_daemon requires interface, VRRP instance");
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "lvs_sync_daemon requires interface");
 		return;
 	}
 
@@ -519,22 +519,16 @@ lvs_syncd_handler(const vector_t *strvec)
 
 	global_data->lvs_syncd.ifname = set_value(strvec);
 
-	if (!(global_data->lvs_syncd.vrrp_name = STRDUP(strvec_slot(strvec, 2))))
-		return;
+	for (i = 2; i < vector_size(strvec); i++) {
+		if (!strcmp(strvec_slot(strvec, i), "inst")) {
+			if (global_data->lvs_syncd.vrrp_name)
+				report_config_error(CONFIG_GENERAL_ERROR, "lvs_sync_daemon vrrp instance has already been specified as %s - ignoring", global_data->lvs_syncd.vrrp_name);
+			else
+				global_data->lvs_syncd.vrrp_name = STRDUP(strvec_slot(strvec, i + 1));
 
-	/* This is maintained for backwards compatibility, prior to adding "id" option */
-	if (vector_size(strvec) >= 4 && isdigit(strvec_slot(strvec, 3)[0])) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Please use keyword \"id\" before lvs_sync_daemon syncid value");
-		if (!read_unsigned_strvec(strvec, 3, &val, 0, 255, false))
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid syncid (%s) - defaulting to vrid", strvec_slot(strvec, 3));
-		else
-			global_data->lvs_syncd.syncid = val;
-		i = 4;
-	}
-	else
-		i = 3;
-
-	for ( ; i < vector_size(strvec); i++) {
+			i++;	/* skip over value */
+			continue;
+		}
 		if (!strcmp(strvec_slot(strvec, i), "id")) {
 			if (i == vector_size(strvec) - 1) {
 				report_config_error(CONFIG_GENERAL_ERROR, "No value specified for lvs_sync_daemon id, defaulting to vrid");
@@ -603,6 +597,25 @@ lvs_syncd_handler(const vector_t *strvec)
 			continue;
 		}
 #endif
+
+		/* The following are for backward compatibility when lvs_sync_daemon IF VRRP_INSTANCE [SYNC_ID] could be specified */
+		if (i == 2) {
+			global_data->lvs_syncd.vrrp_name = STRDUP(strvec_slot(strvec, 2));
+			continue;
+		}
+
+		if (i == 3) {
+			if (!read_unsigned_strvec(strvec, 3, &val, 0, 255, false))
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid syncid (%s) - defaulting to vrid", strvec_slot(strvec, 3));
+			else {
+				report_config_error(CONFIG_GENERAL_ERROR, "Please use keyword \"id\" before lvs_sync_daemon syncid value");
+				global_data->lvs_syncd.syncid = val;
+			}
+
+			continue;
+		}
+
+		/* We haven't matched anything */
 		report_config_error(CONFIG_GENERAL_ERROR, "Unknown option %s specified for lvs_sync_daemon", strvec_slot(strvec, i));
 	}
 }

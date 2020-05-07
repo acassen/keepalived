@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201907120003Z"
+     LAST-UPDATED "202005070001Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "202005070001Z"
+     DESCRIPTION "Comment that lvsSyncDaemonVrrpInstance may not be set even with sync daemon"
      REVISION "201907120003Z"
      DESCRIPTION "add IPVS GRE tunnels"
      REVISION "201907120002Z"
@@ -4557,7 +4559,8 @@ lvsSyncDaemonVrrpInstance OBJECT-TYPE
     MAX-ACCESS read-only
     STATUS current
     DESCRIPTION
-        "If LVS sync daemon is enabled, which VRRP instance is it tracking?"
+        "If LVS sync daemon is enabled and it is tracking a VRRP instance,
+	 which VRRP instance is it tracking?"
     ::= { lvsSyncDaemon 3 }
 
 lvsSyncDaemonSyncId OBJECT-TYPE

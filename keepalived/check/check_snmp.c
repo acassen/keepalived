@@ -1206,48 +1206,49 @@ check_snmp_lvs_sync_daemon(struct variable *vp, oid *name, size_t *length,
 
 	switch (vp->magic) {
 	case CHECK_SNMP_LVSSYNCDAEMONENABLED:
-		long_ret.u = global_data->lvs_syncd.syncid != PARAMETER_UNSET ? 1 : 2;
+		long_ret.u = global_data->lvs_syncd.ifname ? 1 : 2;
 		return (u_char *)&long_ret;
 	case CHECK_SNMP_LVSSYNCDAEMONINTERFACE:
-		if (global_data->lvs_syncd.syncid == PARAMETER_UNSET)
+		if (!global_data->lvs_syncd.ifname)
 			return NULL;
 		*var_len = strlen(global_data->lvs_syncd.ifname);
 		ret.cp = global_data->lvs_syncd.ifname;
 		return ret.p;
 	case CHECK_SNMP_LVSSYNCDAEMONVRRPINSTANCE:
-		if (global_data->lvs_syncd.syncid == PARAMETER_UNSET)
+		if (!global_data->lvs_syncd.ifname ||
+		    !global_data->lvs_syncd.vrrp_name)
 			return NULL;
 		*var_len = strlen(global_data->lvs_syncd.vrrp_name);
 		ret.cp = global_data->lvs_syncd.vrrp_name;
 		return ret.p;
 	case CHECK_SNMP_LVSSYNCDAEMONSYNCID:
-		if (global_data->lvs_syncd.syncid == PARAMETER_UNSET)
+		if (!global_data->lvs_syncd.ifname)
 			return NULL;
 		long_ret.u = global_data->lvs_syncd.syncid;
 		return (u_char *)&long_ret;
 #ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
 	case CHECK_SNMP_LVSSYNCDAEMONMAXLEN:
-		if (global_data->lvs_syncd.syncid == PARAMETER_UNSET)
+		if (!global_data->lvs_syncd.ifname)
 			return NULL;
 		long_ret.u = global_data->lvs_syncd.sync_maxlen;
 		return (u_char *)&long_ret;
 	case CHECK_SNMP_LVSSYNCDAEMONPORT:
-		if (global_data->lvs_syncd.syncid == PARAMETER_UNSET)
+		if (!global_data->lvs_syncd.ifname)
 			return NULL;
 		long_ret.u = global_data->lvs_syncd.mcast_port;
 		return (u_char *)&long_ret;
 	case CHECK_SNMP_LVSSYNCDAEMONTTL:
-		if (global_data->lvs_syncd.syncid == PARAMETER_UNSET)
+		if (!global_data->lvs_syncd.ifname)
 			return NULL;
 		long_ret.u = global_data->lvs_syncd.mcast_ttl;
 		return (u_char *)&long_ret;
 	case CHECK_SNMP_LVSSYNCDAEMONMCASTGROUPADDRTYPE:
-		if (global_data->lvs_syncd.syncid == PARAMETER_UNSET)
+		if (!global_data->lvs_syncd.ifname)
 			return NULL;
 		long_ret.u = (global_data->lvs_syncd.mcast_group.ss_family == AF_INET6) ? 2:1;
 		return (u_char *)&long_ret;
 	case CHECK_SNMP_LVSSYNCDAEMONMCASTGROUPADDRVALUE:
-		if (global_data->lvs_syncd.syncid == PARAMETER_UNSET)
+		if (!global_data->lvs_syncd.ifname)
 			return NULL;
 		if (global_data->lvs_syncd.mcast_group.ss_family == AF_INET6) {
 			struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&global_data->lvs_syncd.mcast_group;
