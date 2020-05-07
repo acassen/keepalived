@@ -3917,6 +3917,8 @@ vrrp_complete_init(void)
 		FREE_CONST_PTR(global_data->lvs_syncd.vrrp_name);
 		global_data->lvs_syncd.vrrp_name = NULL;
 	}
+	else if (global_data->lvs_syncd.syncid == PARAMETER_UNSET)
+		global_data->lvs_syncd.syncid = 0;
 #endif
 
 	/* Identify and remove any unused tracking scripts */
