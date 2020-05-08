@@ -185,7 +185,7 @@ signal_pending(void)
 /* Signal flag */
 #ifndef HAVE_SIGNALFD
 static void
-signal_handler(uint32_t sig)
+signal_handler(int sig)
 {
 	if (write(signal_pipe[1], &sig, sizeof(uint32_t)) != sizeof(uint32_t))
 		log_message(LOG_INFO, "BUG - write to signal_pipe[1] error %d (%s) - please report", errno, strerror(errno));
