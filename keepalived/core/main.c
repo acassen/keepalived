@@ -126,6 +126,26 @@
 
 #define CHILD_WAIT_SECS	5
 
+/* Structure used for handling termination of children */
+struct child_term {
+	pid_t * const pid_p;
+	const char * const name;
+	const char * const short_name;
+};
+
+static const struct child_term children_term[] = {
+#ifdef _WITH_VRRP_
+	{ &vrrp_child, PROG_VRRP, "vrrp" },
+#endif
+#ifdef _WITH_LVS_
+	{ &checkers_child, PROG_CHECK, "checker" },
+#endif
+#ifdef _WITH_BFD
+	{ &bfd_child, PROG_BFD, "bfd" },
+#endif
+};
+#define NUM_CHILD_TERM	(sizeof children_term / sizeof children_term[0])
+
 /* global var */
 const char *version_string = VERSION_STRING;		/* keepalived version */
 const char *conf_file = KEEPALIVED_CONFIG_FILE;		/* Configuration file */
@@ -842,10 +862,11 @@ thread_dump_signal(__attribute__((unused)) void *v, __attribute__((unused)) int 
 static void
 sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
-	int status;
 	int ret;
 	int wait_count = 0;
 	struct timeval start_time, now;
+	size_t i;
+	int wstatus;
 #ifdef HAVE_SIGNALFD
 	int timeout = child_wait_time * 1000;
 	int signal_fd = master->signal_fd;
@@ -853,7 +874,6 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 	sigset_t sigmask;
 	struct epoll_event ev = { .events = EPOLLIN, .data.fd = master->signal_fd };
 	int efd;
-	int wstatus;
 #else
 	sigset_t old_set, child_wait;
 	struct timespec timeout = {
@@ -883,37 +903,18 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 	}
 #endif
 
-#ifdef _WITH_VRRP_
-	if (vrrp_child > 0) {
-		if (kill(vrrp_child, SIGTERM)) {
-			/* ESRCH means no such process */
-			if (errno == ESRCH)
-				vrrp_child = 0;
+	/* Signal our children to terminate */
+	for (i = 0; i < NUM_CHILD_TERM; i++) {
+		if (*children_term[i].pid_p > 0) {
+			if (kill(*children_term[i].pid_p, SIGTERM)) {
+				/* ESRCH means no such process */
+				if (errno == ESRCH)
+					*children_term[i].pid_p = 0;
+			}
+			else
+				wait_count++;
 		}
-		else
-			wait_count++;
 	}
-#endif
-#ifdef _WITH_LVS_
-	if (checkers_child > 0) {
-		if (kill(checkers_child, SIGTERM)) {
-			if (errno == ESRCH)
-				checkers_child = 0;
-		}
-		else
-			wait_count++;
-	}
-#endif
-#ifdef _WITH_BFD_
-	if (bfd_child > 0) {
-		if (kill(bfd_child, SIGTERM)) {
-			if (errno == ESRCH)
-				bfd_child = 0;
-		}
-		else
-			wait_count++;
-	}
-#endif
 
 #ifdef HAVE_SIGNALFD
 	efd = epoll_create(1);
@@ -944,60 +945,38 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 			break;
 		}
 
-		status = siginfo.ssi_code == CLD_EXITED ? W_EXITCODE(siginfo.ssi_status, 0) :
-			 siginfo.ssi_code == CLD_KILLED ? W_EXITCODE(0, siginfo.ssi_status) :
-							   WCOREFLAG;
-
-#ifdef _WITH_VRRP_
-		if (vrrp_child > 0 && vrrp_child == (pid_t)siginfo.ssi_pid) {
-			report_child_status(status, vrrp_child, PROG_VRRP);
-			ret = waitpid(vrrp_child, &wstatus, WNOHANG);
-			if (ret == 0)
-				continue;
-			if (ret == -1) {
-				if (check_EINTR(errno))
-					continue;
-				log_message(LOG_INFO, "Wait for vrrp child return errno %d", errno);
-			}
-
-			/* We could check ret == vrrp_child, but it seems unneccessary */
-
-			vrrp_child = 0;
-			wait_count--;
+		/* We are only expecting SIGCHLD */
+		if (siginfo.ssi_signo != SIGCHLD) {
+			log_message(LOG_INFO, "Received signal %u code %d status %d from pid %u while waiting for children to terminate", siginfo.ssi_signo, siginfo.ssi_code, siginfo.ssi_status, siginfo.ssi_pid);
+			continue;
 		}
-#endif
 
-#ifdef _WITH_LVS_
-		if (checkers_child > 0 && checkers_child == (pid_t)siginfo.ssi_pid) {
-			report_child_status(status, checkers_child, PROG_CHECK);
-			ret = waitpid(checkers_child, &wstatus, WNOHANG);
-			if (ret == 0)
-				continue;
-			if (ret == -1) {
-				if (check_EINTR(errno))
-					continue;
-				log_message(LOG_INFO, "Wait for checker child return errno %d", errno);
-			}
-			checkers_child = 0;
-			wait_count--;
+		if (siginfo.ssi_code != CLD_EXITED && siginfo.ssi_code != CLD_KILLED && siginfo.ssi_code != CLD_DUMPED) {
+			/* CLD_STOPPED, CLD_CONTINUED or CLD_TRAPPED */
+			log_message(LOG_INFO, "Received SIGCHLD code %d status %d from pid %u while waiting for children to terminate", siginfo.ssi_code, siginfo.ssi_status, siginfo.ssi_pid);
+			continue;
 		}
-#endif
-#ifdef _WITH_BFD_
-		if (bfd_child > 0 && bfd_child == (pid_t)siginfo.ssi_pid) {
-			report_child_status(status, bfd_child, PROG_BFD);
-			ret = waitpid(bfd_child, &wstatus, WNOHANG);
-			if (ret == 0)
-				continue;
-			if (ret == -1) {
-				if (check_EINTR(errno))
-					continue;
-				log_message(LOG_INFO, "Wait for bfd child return errno %d", errno);
-			}
-			bfd_child = 0;
-			wait_count--;
-		}
-#endif
 
+		for (i = 0; i < NUM_CHILD_TERM && wait_count; i++) {
+			if (*children_term[i].pid_p > 0 && *children_term[i].pid_p == (pid_t)siginfo.ssi_pid) {
+				ret = waitpid(*children_term[i].pid_p, &wstatus, WNOHANG);
+				if (ret == 0)
+					continue;
+				if (ret == -1) {
+					if (!check_EINTR(errno))
+						log_message(LOG_INFO, "Wait for %s child return errno %d", children_term[i].short_name, errno);
+					continue;
+				}
+
+				report_child_status(wstatus, *children_term[i].pid_p, children_term[i].name);
+
+				/* We could check ret == *children_term[i].pid_p, but it seems unneccessary */
+				*children_term[i].pid_p = 0;
+				wait_count--;
+
+				break;
+			}
+		}
 #else
 		ret = sigtimedwait(&child_wait, NULL, &timeout);
 		if (ret == -1) {
@@ -1007,28 +986,13 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 				break;
 		}
 
-#ifdef _WITH_VRRP_
-		if (vrrp_child > 0 && vrrp_child == waitpid(vrrp_child, &status, WNOHANG)) {
-			report_child_status(status, vrrp_child, PROG_VRRP);
-			vrrp_child = 0;
-			wait_count--;
+		for (i = 0; i < NUM_CHILD_TERM && wait_count; i++) {
+			if (*children_term[i].pid_p > 0 && *children_term[i].pid_p == waitpid(*children_term[i].pid_p, &wstatus, WNOHANG)) {
+				report_child_status(wstatus, *children_term[i].pid_p, children_term[i].name);
+				*children_term[i].pid_p = 0;
+				wait_count--;
+			}
 		}
-#endif
-
-#ifdef _WITH_LVS_
-		if (checkers_child > 0 && checkers_child == waitpid(checkers_child, &status, WNOHANG)) {
-			report_child_status(status, checkers_child, PROG_CHECK);
-			checkers_child = 0;
-			wait_count--;
-		}
-#endif
-#ifdef _WITH_BFD_
-		if (bfd_child > 0 && bfd_child == waitpid(bfd_child, &status, WNOHANG)) {
-			report_child_status(status, bfd_child, PROG_BFD);
-			bfd_child = 0;
-			wait_count--;
-		}
-#endif
 #endif
 
 		if (wait_count) {
@@ -1054,24 +1018,12 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 #endif
 
 	/* A child may not have terminated, so force its termination */
-#ifdef _WITH_VRRP_
-	if (vrrp_child) {
-		log_message(LOG_INFO, "vrrp process failed to die - forcing termination");
-		kill(vrrp_child, SIGKILL);
+	for (i = 0; i < NUM_CHILD_TERM; i++) {
+		if (*children_term[i].pid_p) {
+			log_message(LOG_INFO, "%s process failed to die - forcing termination", children_term[i].short_name);
+			kill(*children_term[i].pid_p, SIGKILL);
+		}
 	}
-#endif
-#ifdef _WITH_LVS_
-	if (checkers_child) {
-		log_message(LOG_INFO, "checker process failed to die - forcing termination");
-		kill(checkers_child, SIGKILL);
-	}
-#endif
-#ifdef _WITH_BFD_
-	if (bfd_child) {
-		log_message(LOG_INFO, "bfd process failed to die - forcing termination");
-		kill(bfd_child, SIGKILL);
-	}
-#endif
 
 	if (!global_data->shutdown_script) {
 		/* register the terminate thread */
@@ -2107,6 +2059,8 @@ keepalived_main(int argc, char **argv)
 	int exit_code = KEEPALIVED_EXIT_OK;
 	magic_t magic;
 	unsigned script_flags;
+	struct rusage usage;
+	struct rusage child_usage;
 
 	/* Ignore reloading signals till signal_init call */
 	signals_ignore();
@@ -2450,6 +2404,15 @@ keepalived_main(int argc, char **argv)
 	 */
 end:
 	if (report_stopped) {
+		if (__test_bit(LOG_DETAIL_BIT, &debug)) {
+			getrusage(RUSAGE_SELF, &usage);
+			getrusage(RUSAGE_CHILDREN, &child_usage);
+
+			log_message(LOG_INFO, "CPU usage (self/children) user: %ld.%6.6ld/%ld.%6.6ld system: %ld.%6.6ld/%ld.%6.6ld",
+					usage.ru_utime.tv_sec, usage.ru_utime.tv_usec, child_usage.ru_utime.tv_sec, child_usage.ru_utime.tv_usec,
+					usage.ru_stime.tv_sec, usage.ru_stime.tv_usec, child_usage.ru_stime.tv_sec, child_usage.ru_stime.tv_usec);
+		}
+
 #ifdef GIT_COMMIT
 		log_message(LOG_INFO, "Stopped %s, git commit %s", version_string, GIT_COMMIT);
 #else
