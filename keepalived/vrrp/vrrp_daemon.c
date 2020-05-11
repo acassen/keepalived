@@ -66,6 +66,7 @@
   #include "vrrp_dbus.h"
 #endif
 #include "list.h"
+#include "list_head.h"
 #include "main.h"
 #include "parser.h"
 #include "utils.h"
@@ -149,8 +150,15 @@ dump_vrrp_fd(void)
 static void
 set_vrrp_max_fds(void)
 {
-	if (!vrrp_data->vrrp)
+	vrrp_t *vrrp;
+	int cnt = 0;
+
+	if (list_empty(&vrrp_data->vrrp))
 		return;
+
+	/* This is called at boot so ok performing full walk */
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, next)
+		cnt++;
 
 	/* Allow:
 	 * 2 per vrrp instance - always needed for VMAC instances
@@ -177,7 +185,7 @@ set_vrrp_max_fds(void)
 	 *
 	 * 20 spare (in case we have forgotten anything)
 	 */
-	set_max_file_limit(LIST_SIZE(vrrp_data->vrrp) * 2 + vrrp_data->num_smtp_alert + 21 + 20);
+	set_max_file_limit(cnt * 2 + vrrp_data->num_smtp_alert + 21 + 20);
 }
 
 #ifdef _WITH_LVS_
@@ -388,7 +396,7 @@ vrrp_terminate_phase1(bool schedule_next_thread)
 	notify_shutdown();
 
 	if (schedule_next_thread) {
-		if (!LIST_ISEMPTY(vrrp_data->vrrp)) {
+		if (!list_empty(&vrrp_data->vrrp)) {
 			/* This is not nice, but it significantly increases the chances
 			 * of an IGMP leave group being sent for some reason.
 			 * Since we are about to exit, it doesn't affect anything else
@@ -660,22 +668,19 @@ send_reload_advert_thread(thread_ref_t thread)
 static void
 sigreload_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
-	element e;
 	vrrp_t *vrrp;
 	int num_master_inst = 0;
-	int i;
+	int i = 0;
 
 	/* We want to send adverts for the vrrp instances which are
 	 * in master state. After that the reload can be initiated */
-	if (!LIST_ISEMPTY(vrrp_data->vrrp)) {
-		for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-			vrrp = ELEMENT_DATA(e);
+	if (!list_empty(&vrrp_data->vrrp)) {
+		list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
 			if (vrrp->state == VRRP_STATE_MAST)
 				num_master_inst++;
 		}
 
-		for (e = LIST_HEAD(vrrp_data->vrrp), i = 0; e; ELEMENT_NEXT(e)) {
-			vrrp = ELEMENT_DATA(e);
+		list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
 			if (vrrp->state == VRRP_STATE_MAST) {
 				i++;
 				thread_add_event(master, send_reload_advert_thread, vrrp, i == num_master_inst);

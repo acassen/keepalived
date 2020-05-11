@@ -46,6 +46,7 @@ int header_generic(struct variable *, oid *, size_t *, int,
 #undef FREE
 
 #include "list.h"
+#include "list_head.h"
 
 #define SNMP_DEFAULT_NETWORK_SOCKET	"udp:localhost:705"
 
@@ -67,12 +68,18 @@ typedef union {
 } snmp_ret_t;
 
 extern unsigned long snmp_scope(int ) __attribute__ ((const));
-extern void* snmp_header_list_table(struct variable *, oid *, size_t *,
+extern void *snmp_header_list_table(struct variable *, oid *, size_t *,
 				    int, size_t *, WriteMethod **,
 				    list);
+extern list_head_t *snmp_header_list_head_table(struct variable *, oid *, size_t *,
+						int, size_t *, WriteMethod **,
+						list_head_t *);
 extern element snmp_find_element(struct variable *, oid *, size_t *,
 				 int, size_t *, WriteMethod **,
 				 list, size_t);
+extern element snmp_find_elem(struct variable *, oid *, size_t *,
+			      int, size_t *, WriteMethod **,
+			      list_head_t *, size_t, size_t);
 extern void snmp_agent_init(const char *, bool);
 extern void snmp_register_mib(oid *, size_t, const char *,
 			      struct variable *, size_t, size_t);

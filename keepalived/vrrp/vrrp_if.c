@@ -403,7 +403,6 @@ void
 set_default_garp_delay(void)
 {
 	garp_delay_t default_delay = {};
-	element e;
 	interface_t *ifp;
 	garp_delay_t *delay;
 	vrrp_t *vrrp;
@@ -421,7 +420,7 @@ set_default_garp_delay(void)
 
 	/* Allocate a delay structure to each physical interface that doesn't have one and
 	 * is being used by a VRRP instance */
-	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
 		ifp = IF_BASE_IFP(vrrp->ifp);
 		if (!ifp->garp_delay) {
 			alloc_garp_delay();
@@ -1215,7 +1214,7 @@ interface_down(interface_t *ifp)
 	/* Unfortunately the kernel doesn't send RTM_DELROUTE for userspace added
 	 * routes that are deleted when the link goes down (?kernel bug). */
 
-	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
 		if (vrrp->state != VRRP_STATE_MAST)
 			continue;
 

@@ -744,7 +744,6 @@ void
 initialise_tracking_priorities(void)
 {
 	vrrp_t *vrrp;
-	element e;
 
 	/* Check for instance down due to an interface */
 	initialise_interface_tracking_priorities();
@@ -756,7 +755,7 @@ initialise_tracking_priorities(void)
 #endif
 
 	/* Now check for tracking scripts, files, bfd etc. */
-	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
 		/* Set effective priority and fault state */
 		initialise_vrrp_tracking_priorities(vrrp);
 

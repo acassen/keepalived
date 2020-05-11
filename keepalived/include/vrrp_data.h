@@ -30,6 +30,7 @@
 
 /* local includes */
 #include "list.h"
+#include "list_head.h"
 #include "vector.h"
 
 /* Configuration data root */
@@ -41,7 +42,7 @@ typedef struct _vrrp_data {
 	list			static_rules;
 #endif
 	list			vrrp_sync_group;
-	list			vrrp;			/* vrrp_t */
+	list_head_t		vrrp;			/* vrrp_t */
 	list			vrrp_socket_pool;
 	list			vrrp_script;		/* vrrp_script_t */
 	list			vrrp_track_files;	/* tracked_file_t */

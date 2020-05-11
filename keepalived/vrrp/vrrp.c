@@ -63,6 +63,7 @@
 #include "vrrp_snmp.h"
 #endif
 #include "list.h"
+#include "list_head.h"
 #include "logger.h"
 #include "main.h"
 #include "utils.h"
@@ -220,7 +221,7 @@ check_vrrp_script_security(void)
 	unsigned script_flags = 0;
 	magic_t magic;
 
-	if (LIST_ISEMPTY(vrrp_data->vrrp))
+	if (list_empty(&vrrp_data->vrrp))
 		return;
 
 	magic = ka_magic_open();
@@ -231,7 +232,7 @@ check_vrrp_script_security(void)
 			script_flags |= check_track_script_secure(vscript, magic);
 	}
 
-	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
 		script_flags |= check_notify_script_secure(&vrrp->script_backup, magic);
 		script_flags |= check_notify_script_secure(&vrrp->script_master, magic);
 		script_flags |= check_notify_script_secure(&vrrp->script_fault, magic);
@@ -2364,12 +2365,11 @@ open_vrrp_read_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 
 /* Try to find a VRRP instance */
 static vrrp_t * __attribute__ ((pure))
-vrrp_exist(vrrp_t *old_vrrp, list *vrrp_list)
+vrrp_exist(vrrp_t *old_vrrp, list_head_t *l)
 {
-	element e;
 	vrrp_t *vrrp;
 
-	LIST_FOREACH(*vrrp_list, vrrp, e) {
+	list_for_each_entry(vrrp, l, next) {
 		if (vrrp->vrid != old_vrrp->vrid ||
 		    vrrp->family != old_vrrp->family)
 			continue;
@@ -2398,13 +2398,12 @@ vrrp_exist(vrrp_t *old_vrrp, list *vrrp_list)
 void
 restore_vrrp_interfaces(void)
 {
-	element e;
 	vrrp_t *vrrp;
 
 	/* Ensure any interfaces are in backup mode,
 	 * sending a priority 0 vrrp message
 	 */
-	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
 		/* Remove VIPs/VROUTEs/VRULEs */
 		if (vrrp->state == VRRP_STATE_MAST)
 			vrrp_restore_interface(vrrp, true, false);
@@ -2415,14 +2414,13 @@ restore_vrrp_interfaces(void)
 void
 shutdown_vrrp_instances(void)
 {
-	element e;
 	vrrp_t *vrrp;
 
 #ifdef _HAVE_VRRP_VMAC_
 	restore_rp_filter();
 #endif
 
-	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
 		/* We may not have an ifp if we are aborting at startup */
 		if (vrrp->ifp) {
 #ifdef _HAVE_VRRP_VMAC_
@@ -3481,7 +3479,7 @@ remove_residual_vips(void)
 	list *vip_list;
 	interface_t *ifp;
 
-	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
 		if (vrrp->vipset) {
 			/* Remove any addresses configured on interfaces if they match any
 			 * VIP/eVIP addresses since we must not use them as source addresses
@@ -3543,11 +3541,9 @@ remove_residual_vips(void)
 static void
 set_vrrp_src_addr(void)
 {
-	element e;
 	vrrp_t *vrrp;
 
-	LIST_FOREACH(vrrp_data->vrrp, vrrp, e)
-	{
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
 		if (vrrp->saddr_from_config)
 			continue;
 
@@ -3673,12 +3669,13 @@ vrrp_complete_init(void)
 #endif
 
 	/* Make sure don't have same vrid on same interface with the same address family */
-	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
 		/* If we don't know about the interface this is on, skip */
 		if (!vrrp->ifp || !IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp))->ifindex)
 			continue;
 		/* Check none of the rest of the entries conflict */
-		LIST_FOREACH_FROM(e->next, vrrp1, e1) {
+		vrrp1 = list_entry(vrrp->next.next, vrrp_t, next);
+		list_for_each_entry_from(vrrp1, &vrrp_data->vrrp, next) {
 			/* If we don't know about the interface this is on, skip */
 			if (!IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp1))->ifindex)
 				continue;
@@ -3740,7 +3737,7 @@ vrrp_complete_init(void)
 	}
 
 	/* Complete VRRP instance initialization */
-	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
 		if (!vrrp_complete_instance(vrrp))
 			return false;
 
@@ -3835,7 +3832,7 @@ vrrp_complete_init(void)
 //   and then go through and set up sync groups in fault or init with counts
 // TODO-PQA
 	/* Set all sync group members to fault state if sync group is in fault state */
-	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
 		if (vrrp->state == VRRP_STATE_FAULT ||
 		    (vrrp->sync && vrrp->sync->state == VRRP_STATE_FAULT)) {
 			vrrp->state = VRRP_STATE_FAULT;
@@ -3856,7 +3853,7 @@ vrrp_complete_init(void)
 
 	if (reload) {
 		/* Now step through the old vrrp to set the status on matching new instances */
-		LIST_FOREACH(old_vrrp_data->vrrp, old_vrrp, e) {
+		list_for_each_entry(old_vrrp, &old_vrrp_data->vrrp, next) {
 			/* We work out for ourselves if the vrrp instance
 			 * should be in fault state, so it doesn't matter
 			 * if it was before */
@@ -3894,7 +3891,7 @@ vrrp_complete_init(void)
 #ifdef _WITH_LVS_
 	/* Set up the lvs_syncd vrrp */
 	if (global_data->lvs_syncd.vrrp_name) {
-		LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+		list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
 			if (!strcmp(global_data->lvs_syncd.vrrp_name, vrrp->iname)) {
 				global_data->lvs_syncd.vrrp = vrrp;
 
@@ -3936,13 +3933,12 @@ vrrp_complete_init(void)
 
 void vrrp_restore_interfaces_startup(void)
 {
-	element e;
 	vrrp_t *vrrp;
 
 /* We don't know which VMACs are ours at startup. Delete all irrelevant addresses from VMACs here. But,
  * since if we configure a VMAC on a VMAC, it ends up on the underlying interface, we don't need to
  * have addresses for VMACs, accept the link local address based on the MAC of the underlying i/f. */
-	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
 		if (vrrp->vipset)
 			vrrp_restore_interface(vrrp, false, true);
 	}
@@ -4031,10 +4027,9 @@ restore_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 void
 clear_diff_vrrp(void)
 {
-	element e;
 	vrrp_t *vrrp;
 
-	LIST_FOREACH(old_vrrp_data->vrrp, vrrp, e) {
+	list_for_each_entry(vrrp, &old_vrrp_data->vrrp, next) {
 		vrrp_t *new_vrrp;
 
 		/*

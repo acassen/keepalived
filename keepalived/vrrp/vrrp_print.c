@@ -28,6 +28,7 @@
 #include <inttypes.h>
 
 #include "logger.h"
+#include "list_head.h"
 
 #include "vrrp.h"
 #include "vrrp_data.h"
@@ -57,7 +58,6 @@ void
 vrrp_print_stats(bool clear_stats)
 {
 	FILE *file = fopen_safe(stats_file, "w");
-	element e;
 	vrrp_t *vrrp;
 
 	if (!file) {
@@ -67,7 +67,7 @@ vrrp_print_stats(bool clear_stats)
 	}
 
 
-	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
 		fprintf(file, "VRRP Instance: %s\n", vrrp->iname);
 		fprintf(file, "  Advertisements:\n");
 		fprintf(file, "    Received: %" PRIu64 "\n", vrrp->stats->advert_rcvd);

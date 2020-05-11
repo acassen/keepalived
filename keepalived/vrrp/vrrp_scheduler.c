@@ -168,7 +168,7 @@ static struct {
  * --rfc2338.6.4.1
  */
 static void
-vrrp_init_state(list l)
+vrrp_init_state(list_head_t *l)
 {
 	vrrp_t *vrrp;
 	vrrp_sgroup_t *vgroup;
@@ -187,7 +187,7 @@ vrrp_init_state(list l)
 			send_group_notifies(vgroup);
 	}
 
-	LIST_FOREACH(l, vrrp, e) {
+	list_for_each_entry(vrrp, l, next) {
 		int vrrp_begin_state = vrrp->state;
 
 		/* wantstate is the state we would be in disregarding any sync group */
@@ -304,12 +304,11 @@ vrrp_init_instance_sands(vrrp_t * vrrp)
 }
 
 static void
-vrrp_init_sands(list l)
+vrrp_init_sands(list_head_t *l)
 {
 	vrrp_t *vrrp;
-	element e;
 
-	LIST_FOREACH(l, vrrp, e) {
+	list_for_each_entry(vrrp, l, next) {
 		vrrp->sands.tv_sec = TIMER_DISABLED;
 		rb_insert_sort_cached(&vrrp->sockets->rb_sands, vrrp, rb_sands, vrrp_timer_cmp);
 		vrrp_init_instance_sands(vrrp);
@@ -363,17 +362,17 @@ vrrp_register_workers(list l)
 	memset(&timer, 0, sizeof(timer));
 
 	/* Init the VRRP instances state */
-	vrrp_init_state(vrrp_data->vrrp);
+	vrrp_init_state(&vrrp_data->vrrp);
 
 	/* Init VRRP instances sands */
-	vrrp_init_sands(vrrp_data->vrrp);
+	vrrp_init_sands(&vrrp_data->vrrp);
 
 	/* Init VRRP tracking scripts */
 	if (!LIST_ISEMPTY(vrrp_data->vrrp_script))
 		vrrp_init_script(vrrp_data->vrrp_script);
 
 #ifdef _WITH_BFD_
-	if (!LIST_ISEMPTY(vrrp_data->vrrp)) {
+	if (!list_empty(&vrrp_data->vrrp)) {
 // TODO - should we only do this if we have track_bfd? Probably not
 		/* Init BFD tracking thread */
 		bfd_thread = thread_add_read(master, vrrp_bfd_thread, NULL,
@@ -443,13 +442,12 @@ static void
 vrrp_create_sockpool(list l)
 {
 	vrrp_t *vrrp;
-	element e;
 	interface_t *ifp;
 	int proto;
 	bool unicast;
 	sock_t *sock;
 
-	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
 		ifp =
 #ifdef _HAVE_VRRP_VMAC_
 			  (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? vrrp->ifp->base_ifp :
@@ -1304,14 +1302,13 @@ int
 vrrp_arp_thread(thread_ref_t thread)
 {
 	vrrp_t *vrrp;
-	element e;
 	timeval_t next_time = {
 		.tv_sec = INT_MAX	/* We're never going to delay this long - I hope! */
 	};
 
 	set_time_now();
 
-	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
 		if (!vrrp->garp_pending && !vrrp->gna_pending)
 			continue;
 

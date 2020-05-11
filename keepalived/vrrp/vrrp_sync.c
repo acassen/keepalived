@@ -37,11 +37,8 @@ vrrp_t * __attribute__ ((pure))
 vrrp_get_instance(char *iname)
 {
 	vrrp_t *vrrp;
-	list l = vrrp_data->vrrp;
-	element e;
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
 		if (strcmp(vrrp->iname, iname) == 0)
 			return vrrp;
 	}

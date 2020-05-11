@@ -390,10 +390,8 @@ dump_unicast_peer(FILE *fp, const void *data)
 }
 
 static void
-free_vrrp(void *data)
+free_vrrp(vrrp_t *vrrp)
 {
-	vrrp_t *vrrp = data;
-
 	FREE_CONST(vrrp->iname);
 #ifdef _HAVE_VRRP_IPVLAN_
 	FREE_PTR(vrrp->ipvlan_addr);
@@ -425,9 +423,18 @@ free_vrrp(void *data)
 }
 
 static void
-dump_vrrp(FILE *fp, const void *data)
+free_vrrp_list(list_head_t *l)
 {
-	const vrrp_t *vrrp = data;
+	vrrp_t *vrrp, *vrrp_tmp;
+
+	list_for_each_entry_safe(vrrp, vrrp_tmp, l, next) {
+		free_vrrp(vrrp);
+	}
+}
+
+static void
+dump_vrrp(FILE *fp, const vrrp_t *vrrp)
+{
 #ifdef _WITH_VRRP_AUTH_
 	char auth_data[sizeof(vrrp->auth_data) + 1];
 #endif
@@ -646,6 +653,16 @@ dump_vrrp(FILE *fp, const void *data)
 	conf_write(fp, "   Notify priority changes = %s", vrrp->notify_priority_changes ? "true" : "false");
 }
 
+static void
+dump_vrrp_list(FILE *fp, const list_head_t *l)
+{
+	vrrp_t *vrrp;
+
+	list_for_each_entry(vrrp, l, next) {
+		dump_vrrp(fp, vrrp);
+	}
+}
+
 void
 alloc_static_track_group(const char *gname)
 {
@@ -712,6 +729,7 @@ alloc_vrrp(const char *iname)
 
 	/* Allocate new VRRP structure */
 	new = (vrrp_t *) MALLOC(sizeof(vrrp_t));
+	INIT_LIST_HEAD(&new->next);
 
 	/* Set default values */
 	new->family = AF_UNSPEC;
@@ -743,13 +761,13 @@ alloc_vrrp(const char *iname)
 	new->skip_check_adv_addr = global_data->vrrp_skip_check_adv_addr;
 	new->strict_mode = PARAMETER_UNSET;
 
-	list_add(vrrp_data->vrrp, new);
+	list_add_tail(&new->next, &vrrp_data->vrrp);
 }
 
 void
 alloc_vrrp_unicast_peer(const vector_t *strvec)
 {
-	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, next);
 	unicast_peer_t *peer;
 
 	if (!LIST_EXISTS(vrrp->unicast_peer))
@@ -781,7 +799,7 @@ alloc_vrrp_unicast_peer(const vector_t *strvec)
 void
 alloc_vrrp_track_if(const vector_t *strvec)
 {
-	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, next);
 
 	if (!LIST_EXISTS(vrrp->track_ifp))
 		vrrp->track_ifp = alloc_list(free_track_if, dump_track_if);
@@ -791,7 +809,7 @@ alloc_vrrp_track_if(const vector_t *strvec)
 void
 alloc_vrrp_track_script(const vector_t *strvec)
 {
-	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, next);
 
 	if (!LIST_EXISTS(vrrp->track_script))
 		vrrp->track_script = alloc_list(free_track_script, dump_track_script);
@@ -801,7 +819,7 @@ alloc_vrrp_track_script(const vector_t *strvec)
 void
 alloc_vrrp_track_file(const vector_t *strvec)
 {
-	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, next);
 
 	if (!LIST_EXISTS(vrrp->track_file))
 		vrrp->track_file = alloc_track_file_list();
@@ -812,7 +830,7 @@ alloc_vrrp_track_file(const vector_t *strvec)
 void
 alloc_vrrp_track_process(const vector_t *strvec)
 {
-	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, next);
 
 	if (!LIST_EXISTS(vrrp->track_process))
 		vrrp->track_process = alloc_list(free_track_process, dump_track_process);
@@ -824,7 +842,7 @@ alloc_vrrp_track_process(const vector_t *strvec)
 void
 alloc_vrrp_track_bfd(const vector_t *strvec)
 {
-	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, next);
 
 	if (!LIST_EXISTS(vrrp->track_bfd))
 		vrrp->track_bfd = alloc_list(free_vrrp_tracked_bfd, dump_vrrp_tracked_bfd);
@@ -889,7 +907,7 @@ alloc_vrrp_group_track_bfd(const vector_t *strvec)
 void
 alloc_vrrp_vip(const vector_t *strvec)
 {
-	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, next);
 	void *list_end = NULL;
 	sa_family_t address_family;
 
@@ -915,7 +933,7 @@ alloc_vrrp_vip(const vector_t *strvec)
 void
 alloc_vrrp_evip(const vector_t *strvec)
 {
-	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, next);
 
 	if (!LIST_EXISTS(vrrp->evip))
 		vrrp->evip = alloc_list(free_ipaddress, dump_ipaddress);
@@ -926,7 +944,7 @@ alloc_vrrp_evip(const vector_t *strvec)
 void
 alloc_vrrp_vroute(const vector_t *strvec)
 {
-	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, next);
 
 	if (!LIST_EXISTS(vrrp->vroutes))
 		vrrp->vroutes = alloc_list(free_iproute, dump_iproute);
@@ -936,7 +954,7 @@ alloc_vrrp_vroute(const vector_t *strvec)
 void
 alloc_vrrp_vrule(const vector_t *strvec)
 {
-	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, next);
 
 	if (!LIST_EXISTS(vrrp->vrules))
 		vrrp->vrules = alloc_list(free_iprule, dump_iprule);
@@ -1011,7 +1029,7 @@ alloc_vrrp_data(void)
 	vrrp_data_t *new;
 
 	new = (vrrp_data_t *) MALLOC(sizeof(vrrp_data_t));
-	new->vrrp = alloc_list(free_vrrp, dump_vrrp);
+	INIT_LIST_HEAD(&new->vrrp);
 	new->vrrp_sync_group = alloc_list(free_vgroup, dump_vgroup);
 	new->vrrp_script = alloc_list(free_vscript, dump_vscript);
 	new->vrrp_track_files = alloc_list(free_track_file_list, dump_track_file_list);
@@ -1035,7 +1053,7 @@ free_vrrp_data(vrrp_data_t * data)
 	free_list(&data->static_rules);
 #endif
 	free_list(&data->static_track_groups);
-	free_list(&data->vrrp);
+	free_vrrp_list(&data->vrrp);
 	free_list(&data->vrrp_sync_group);
 	free_list(&data->vrrp_script);
 	free_list(&data->vrrp_track_files);
@@ -1069,9 +1087,9 @@ dump_vrrp_data(FILE *fp, const vrrp_data_t * data)
 		conf_write(fp, "------< Static Track groups >------");
 		dump_list(fp, data->static_track_groups);
 	}
-	if (!LIST_ISEMPTY(data->vrrp)) {
+	if (!list_empty(&data->vrrp)) {
 		conf_write(fp, "------< VRRP Topology >------");
-		dump_list(fp, data->vrrp);
+		dump_vrrp_list(fp, &data->vrrp);
 	}
 	if (!LIST_ISEMPTY(data->vrrp_socket_pool)) {
 		conf_write(fp, "------< VRRP Sockpool >------");

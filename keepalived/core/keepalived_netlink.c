@@ -277,7 +277,7 @@ route_is_ours(struct rtmsg* rt, struct rtattr *tb[RTA_MAX + 1], vrrp_t** ret_vrr
 	if (tb[RTA_PRIORITY])
 		priority = *(uint32_t *)RTA_DATA(tb[RTA_PRIORITY]);
 
-	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
 		LIST_FOREACH(vrrp->vroutes, route, e1) {
 			if (table != route->table ||
 			    family != route->family ||
@@ -490,7 +490,7 @@ rule_is_ours(struct fib_rule_hdr* frh, struct rtattr *tb[FRA_MAX + 1], vrrp_t **
 
 	*ret_vrrp = NULL;
 
-	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
 		LIST_FOREACH(vrrp->vrules, rule, e1) {
 			if (compare_rule(frh, tb, rule)) {
 				*ret_vrrp = vrrp;
