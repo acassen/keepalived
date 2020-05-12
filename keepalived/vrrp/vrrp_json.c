@@ -31,6 +31,7 @@
 #include "vrrp.h"
 #include "vrrp_track.h"
 #include "list.h"
+#include "list_head.h"
 #include "vrrp_data.h"
 #include "vrrp_ipaddress.h"
 #include "vrrp_iproute.h"
@@ -259,12 +260,11 @@ vrrp_json_dump(FILE *fp)
 {
 	json_writer_t *wr;
 	vrrp_t *vrrp;
-	element e;
 
 	wr = jsonw_new(fp);
 	jsonw_start_array(wr);
 
-	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
 		jsonw_start_object(wr);
 		vrrp_json_data_dump(wr, vrrp);
 		vrrp_json_stats_dump(wr, vrrp);
@@ -281,7 +281,7 @@ vrrp_print_json(void)
 {
 	FILE *fp;
 
-	if (LIST_ISEMPTY(vrrp_data->vrrp))
+	if (list_empty(&vrrp_data->vrrp))
 		return;
 
 	fp = fopen_safe("/tmp/keepalived.json", "w");
