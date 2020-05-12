@@ -191,10 +191,9 @@ state_str(int state)
 static vrrp_t * __attribute__ ((pure))
 get_vrrp_instance(const char *ifname, int vrid, int family)
 {
-	element e;
 	vrrp_t *vrrp;
 
-	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
 		if (vrrp->vrid == vrid &&
 		    vrrp->family == family &&
 		    !valid_path_cmp(VRRP_CONFIGURED_IFP(vrrp)->ifname, ifname))
@@ -545,7 +544,6 @@ on_bus_acquired(GDBusConnection *connection,
 	global_connection = connection;
 	gchar *path;
 	vrrp_t *vrrp;
-	element e;
 	GError *local_error = NULL;
 	guint vrrp_guint;
 
@@ -565,10 +563,10 @@ on_bus_acquired(GDBusConnection *connection,
 	g_free(path);
 
 	/* for each available VRRP instance, register an object */
-	if (LIST_ISEMPTY(vrrp_data->vrrp))
+	if (list_empty(&vrrp_data->vrrp))
 		return;
 
-	LIST_FOREACH(vrrp_data->vrrp, vrrp, e)
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, next)
 		dbus_create_object(vrrp);
 
 	/* Send a signal to say we have started */
@@ -577,7 +575,7 @@ on_bus_acquired(GDBusConnection *connection,
 	g_free(path);
 
 	/* Notify DBus of the state of our instances */
-	LIST_FOREACH(vrrp_data->vrrp, vrrp, e)
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, next)
 		dbus_send_state_signal(vrrp);
 }
 
@@ -840,15 +838,14 @@ handle_dbus_msg(__attribute__((unused)) thread_ref_t thread)
 }
 
 void
-dbus_reload(list o, list n)
+dbus_reload(const list_head_t *o, const list_head_t *n)
 {
-	element e1, e2;
 	vrrp_t *vrrp_n, *vrrp_o;
 
 	if (!dbus_running)
 		return;
 
-	LIST_FOREACH(n, vrrp_n, e1) {
+	list_for_each_entry(vrrp_n, n, next) {
 		char *n_name;
 		bool match_found;
 
@@ -856,7 +853,7 @@ dbus_reload(list o, list n)
 
 		/* Try and find an instance with same vrid/family/interface that existed before and now */
 		match_found = false;
-		LIST_FOREACH(o, vrrp_o, e2) {
+		list_for_each_entry(vrrp_o, o, next) {
 			if (vrrp_n->vrid == vrrp_o->vrid &&
 			    vrrp_n->family == vrrp_o->family &&
 			    !strcmp(n_name, VRRP_CONFIGURED_IFP(vrrp_o)->ifname)) {

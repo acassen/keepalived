@@ -600,7 +600,7 @@ start_vrrp(data_t *prev_global_data)
 #ifdef _WITH_DBUS_
 	if (global_data->enable_dbus) {
 		if (reload && old_global_data->enable_dbus)
-			dbus_reload(old_vrrp_data->vrrp, vrrp_data->vrrp);
+			dbus_reload(&old_vrrp_data->vrrp, &vrrp_data->vrrp);
 		else {
 			if (!dbus_start())
 				global_data->enable_dbus = false;

@@ -28,12 +28,12 @@
 
 /* Local includes */
 #include "vrrp.h"
-#include "list.h"
+#include "list_head.h"
 
 
 void dbus_send_state_signal(vrrp_t *);
 void dbus_remove_object(const vrrp_t *);
-void dbus_reload(const list, const list);
+void dbus_reload(const list_head_t *, const list_head_t *);
 bool dbus_start(void);
 void dbus_stop(void);
 #ifdef THREAD_DUMP
