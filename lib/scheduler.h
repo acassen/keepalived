@@ -47,7 +47,7 @@ typedef enum {
 #define THREAD_MAX_WAITING THREAD_CHILD
 	THREAD_UNUSED,		/* thread_master.unuse list_head */
 
-	/* The following are all on the thread_master.next list_head */
+	/* The following are all on the thread_master.e_list list_head */
 	THREAD_READY,
 	THREAD_EVENT,
 	THREAD_WRITE_TIMEOUT,
@@ -104,7 +104,7 @@ struct _thread {
 
 	union {
 		rb_node_t n;
-		list_head_t next;
+		list_head_t e_list;
 	};
 
 	rb_node_t rb_data;		/* PID or fd/vrid */

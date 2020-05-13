@@ -219,8 +219,8 @@ static int
 thread_move_ready(thread_master_t *m, rb_root_cached_t *root, thread_t *thread, int type)
 {
 	rb_erase_cached(&thread->n, root);
-	INIT_LIST_HEAD(&thread->next);
-	list_add_tail(&thread->next, &m->ready);
+	INIT_LIST_HEAD(&thread->e_list);
+	list_add_tail(&thread->e_list, &m->ready);
 	if (thread->type != THREAD_TIMER_SHUTDOWN)
 		thread->type = type;
 	return 0;
@@ -771,7 +771,7 @@ thread_list_dump(const list_head_t *l, const char *list_type, FILE *fp)
 
 	conf_write(fp, "----[ Begin list_dump %s ]----", list_type);
 
-	list_for_each_entry(thread, l, next)
+	list_for_each_entry(thread, l, e_list)
 		conf_write(fp, "#%.2d Thread:%p type %s val/fd/pid %d, fd_close %d, timer: %s, func %s() id %lu",
 				i++, thread, get_thread_type_str(thread->type), thread->u.val, thread->u.f.close_on_reload, timer_delay(thread->sands), get_function_name(thread->func), thread->id);
 
@@ -817,8 +817,8 @@ thread_clean_unuse(thread_master_t * m)
 	thread_t *thread, *thread_tmp;
 	list_head_t *l = &m->unuse;
 
-	list_for_each_entry_safe(thread, thread_tmp, l, next) {
-		list_head_del(&thread->next);
+	list_for_each_entry_safe(thread, thread_tmp, l, e_list) {
+		list_head_del(&thread->e_list);
 
 		/* free the thread */
 		FREE(thread);
@@ -836,8 +836,8 @@ thread_add_unuse(thread_master_t *m, thread_t *thread)
 
 	thread->type = THREAD_UNUSED;
 	thread->event = NULL;
-	INIT_LIST_HEAD(&thread->next);
-	list_add_tail(&thread->next, &m->unuse);
+	INIT_LIST_HEAD(&thread->e_list);
+	list_add_tail(&thread->e_list, &m->unuse);
 }
 
 /* Move list element to unuse queue */
@@ -846,12 +846,12 @@ thread_destroy_list(thread_master_t *m, list_head_t *l)
 {
 	thread_t *thread, *thread_tmp;
 
-	list_for_each_entry_safe(thread, thread_tmp, l, next) {
+	list_for_each_entry_safe(thread, thread_tmp, l, e_list) {
 		if (thread->event) {
 			thread_del_read(thread);
 			thread_del_write(thread);
 		}
-		list_head_del(&thread->next);
+		list_head_del(&thread->e_list);
 		thread_add_unuse(m, thread);
 	}
 }
@@ -954,8 +954,8 @@ thread_trim_head(list_head_t *l)
 	if (list_empty(l))
 		return NULL;
 
-	thread = list_first_entry(l, thread_t, next);
-	list_del_init(&thread->next);
+	thread = list_first_entry(l, thread_t, e_list);
+	list_del_init(&thread->e_list);
 	return thread;
 }
 
@@ -979,7 +979,7 @@ thread_new(thread_master_t *m)
 		m->alloc++;
 	}
 
-	INIT_LIST_HEAD(&new->next);
+	INIT_LIST_HEAD(&new->e_list);
 	new->id = thread_get_id(m);
 	return new;
 }
@@ -1324,8 +1324,8 @@ thread_add_event(thread_master_t * m, thread_func_t func, void *arg, int val)
 	thread->func = func;
 	thread->arg = arg;
 	thread->u.val = val;
-	INIT_LIST_HEAD(&thread->next);
-	list_add_tail(&thread->next, &m->event);
+	INIT_LIST_HEAD(&thread->e_list);
+	list_add_tail(&thread->e_list, &m->event);
 
 	return thread;
 }
@@ -1344,8 +1344,8 @@ thread_add_generic_terminate_event(thread_master_t * m, thread_type_t type, thre
 	thread->func = func;
 	thread->arg = NULL;
 	thread->u.val = 0;
-	INIT_LIST_HEAD(&thread->next);
-	list_add_tail(&thread->next, &m->event);
+	INIT_LIST_HEAD(&thread->e_list);
+	list_add_tail(&thread->e_list, &m->event);
 
 	return thread;
 }
@@ -1377,8 +1377,8 @@ thread_add_signal(thread_master_t *m, thread_func_t func, void *arg, int signum)
 	thread->func = func;
 	thread->arg = arg;
 	thread->u.val = signum;
-	INIT_LIST_HEAD(&thread->next);
-	list_add_tail(&thread->next, &m->signal);
+	INIT_LIST_HEAD(&thread->e_list);
+	list_add_tail(&thread->e_list, &m->signal);
 
 	/* Update signalfd accordingly */
 	if (sigismember(&m->signal_mask, signum))
@@ -1426,13 +1426,13 @@ thread_cancel(thread_ref_t thread_cp)
 	case THREAD_READ_TIMEOUT:
 		if (thread->event)
 			thread_event_del(thread, THREAD_FL_EPOLL_READ_BIT);
-		list_head_del(&thread->next);
+		list_head_del(&thread->e_list);
 		break;
 	case THREAD_READY_WRITE_FD:
 	case THREAD_WRITE_TIMEOUT:
 		if (thread->event)
 			thread_event_del(thread, THREAD_FL_EPOLL_WRITE_BIT);
-		list_head_del(&thread->next);
+		list_head_del(&thread->e_list);
 		break;
 	case THREAD_EVENT:
 	case THREAD_READY:
@@ -1441,7 +1441,7 @@ thread_cancel(thread_ref_t thread_cp)
 #endif
 	case THREAD_CHILD_TIMEOUT:
 	case THREAD_CHILD_TERMINATED:
-		list_head_del(&thread->next);
+		list_head_del(&thread->e_list);
 		break;
 	default:
 		break;
@@ -1476,9 +1476,9 @@ thread_cancel_event(thread_master_t *m, void *arg)
 	list_head_t *l = &m->event;
 
 // Why doesn't this use thread_cancel() above
-	list_for_each_entry_safe(thread, thread_tmp, l, next) {
+	list_for_each_entry_safe(thread, thread_tmp, l, e_list) {
 		if (thread->arg == arg) {
-			list_head_del(&thread->next);
+			list_head_del(&thread->e_list);
 			thread_add_unuse(m, thread);
 		}
 	}
