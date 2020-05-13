@@ -77,7 +77,6 @@ static bool remove_script;
 static void
 static_track_group_handler(const vector_t *strvec)
 {
-	element e;
 	static_track_group_t *tg;
 	const char *gname;
 
@@ -93,9 +92,10 @@ static_track_group_handler(const vector_t *strvec)
 	gname = strvec_slot(strvec, 1);
 
 	/* check group doesn't already exist */
-	LIST_FOREACH(vrrp_data->static_track_groups, tg, e) {
+	list_for_each_entry(tg, &vrrp_data->static_track_groups, e_list) {
 		if (!strcmp(gname,tg->gname)) {
-			report_config_error(CONFIG_GENERAL_ERROR, "track_group %s already defined", gname);
+			report_config_error(CONFIG_GENERAL_ERROR, "track_group %s already defined"
+								, gname);
 			skip_block(true);
 			return;
 		}
@@ -107,7 +107,8 @@ static_track_group_handler(const vector_t *strvec)
 static void
 static_track_group_group_handler(const vector_t *strvec)
 {
-	static_track_group_t *tgroup = LIST_TAIL_DATA(vrrp_data->static_track_groups);
+	static_track_group_t *tgroup = list_last_entry(&vrrp_data->static_track_groups,
+						       static_track_group_t, e_list);
 
 	if (tgroup->iname) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Group list already specified for sync group %s", tgroup->gname);

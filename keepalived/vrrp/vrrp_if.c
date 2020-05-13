@@ -1200,7 +1200,7 @@ void
 interface_up(interface_t *ifp)
 {
 	/* We need to re-add static addresses and static routes */
-	static_track_reinstate_config(ifp);
+	static_track_group_reinstate_config(ifp);
 }
 
 void

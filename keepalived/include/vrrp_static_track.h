@@ -36,12 +36,13 @@ typedef struct _static_track_group {
 	const char		*gname;			/* Group name */
 	const vector_t		*iname;			/* Set of VRRP instances in this group, only used during initialisation */
 	list			vrrp_instances;		/* List of VRRP instances */
+	list_head_t		e_list;
 } static_track_group_t;
 
-extern void free_tgroup(void *);
-extern void dump_tgroup(FILE *, const void *);
-extern static_track_group_t *find_track_group(const char *);
+extern void free_static_track_group(static_track_group_t *);
+extern void dump_static_track_group(FILE *, const static_track_group_t *);
+extern static_track_group_t *static_track_group_find(const char *);
 extern void static_track_group_init(void);
-extern void static_track_reinstate_config(interface_t *);
+extern void static_track_group_reinstate_config(interface_t *);
 
 #endif

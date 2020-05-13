@@ -67,6 +67,39 @@ get_state_str(int state)
 	return "unknown";
 }
 
+/* Static track groups facility function */
+static void
+free_static_track_groups_list(list_head_t *l)
+{
+	static_track_group_t *tgroup, *tgroup_tmp;
+
+	list_for_each_entry_safe(tgroup, tgroup_tmp, l, e_list) {
+		free_static_track_group(tgroup);
+	}
+}
+
+static void
+dump_static_track_groups_list(FILE *fp, const list_head_t *l)
+{
+	static_track_group_t *tgroup;
+
+	list_for_each_entry(tgroup, l, e_list)
+		dump_static_track_group(fp, tgroup);
+}
+
+void
+alloc_static_track_group(const char *gname)
+{
+	static_track_group_t *new;
+
+	/* Allocate new VRRP group structure */
+	new = (static_track_group_t *) MALLOC(sizeof(*new));
+	INIT_LIST_HEAD(&new->e_list);
+	new->gname = STRDUP(gname);
+
+	list_add_tail(&new->e_list, &vrrp_data->static_track_groups);
+}
+
 /* Static addresses facility function */
 void
 alloc_saddress(const vector_t *strvec)
@@ -664,21 +697,6 @@ dump_vrrp_list(FILE *fp, const list_head_t *l)
 }
 
 void
-alloc_static_track_group(const char *gname)
-{
-	static_track_group_t *new;
-
-	if (!LIST_EXISTS(vrrp_data->static_track_groups))
-		vrrp_data->static_track_groups = alloc_list(free_tgroup, dump_tgroup);
-
-	/* Allocate new VRRP group structure */
-	new = (static_track_group_t *) MALLOC(sizeof(*new));
-	new->gname = STRDUP(gname);
-
-	list_add(vrrp_data->static_track_groups, new);
-}
-
-void
 alloc_vrrp_sync_group(const char *gname)
 {
 	vrrp_sgroup_t *new;
@@ -1029,6 +1047,7 @@ alloc_vrrp_data(void)
 	vrrp_data_t *new;
 
 	new = (vrrp_data_t *) MALLOC(sizeof(vrrp_data_t));
+	INIT_LIST_HEAD(&new->static_track_groups);
 	INIT_LIST_HEAD(&new->vrrp);
 	new->vrrp_sync_group = alloc_list(free_vgroup, dump_vgroup);
 	new->vrrp_script = alloc_list(free_vscript, dump_vscript);
@@ -1052,7 +1071,7 @@ free_vrrp_data(vrrp_data_t * data)
 	free_list(&data->static_routes);
 	free_list(&data->static_rules);
 #endif
-	free_list(&data->static_track_groups);
+	free_static_track_groups_list(&data->static_track_groups);
 	free_vrrp_list(&data->vrrp);
 	free_list(&data->vrrp_sync_group);
 	free_list(&data->vrrp_script);
@@ -1083,9 +1102,9 @@ dump_vrrp_data(FILE *fp, const vrrp_data_t * data)
 		dump_list(fp, data->static_rules);
 	}
 #endif
-	if (!LIST_ISEMPTY(data->static_track_groups)) {
+	if (!list_empty(&data->static_track_groups)) {
 		conf_write(fp, "------< Static Track groups >------");
-		dump_list(fp, data->static_track_groups);
+		dump_static_track_groups_list(fp, &data->static_track_groups);
 	}
 	if (!list_empty(&data->vrrp)) {
 		conf_write(fp, "------< VRRP Topology >------");

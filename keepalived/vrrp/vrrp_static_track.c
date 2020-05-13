@@ -17,7 +17,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2018-2018 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2018-2020 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #include "config.h"
@@ -36,23 +36,21 @@
 #endif
 
 void
-free_tgroup(void *data)
+free_static_track_group(static_track_group_t *tgroup)
 {
-	static_track_group_t *tgroup = data;
-
 	if (tgroup->iname) {
 		log_message(LOG_INFO, "track group %s - iname vector exists when freeing group", tgroup->gname);
 		free_strvec(tgroup->iname);
 	}
+	list_head_del(&tgroup->e_list);
 	FREE_CONST(tgroup->gname);
 	free_list(&tgroup->vrrp_instances);
 	FREE(tgroup);
 }
 
 void
-dump_tgroup(FILE *fp, const void *data)
+dump_static_track_group(FILE *fp, const static_track_group_t *tgroup)
 {
-	const static_track_group_t *tgroup = data;
 	vrrp_t *vrrp;
 	element e;
 
@@ -65,20 +63,19 @@ dump_tgroup(FILE *fp, const void *data)
 }
 
 static_track_group_t * __attribute__ ((pure))
-find_track_group(const char *gname)
+static_track_group_find(const char *gname)
 {
-	element e;
-	static_track_group_t *tg;
+	static_track_group_t *tgroup;
 
-	LIST_FOREACH(vrrp_data->static_track_groups, tg, e)
-		if (!strcmp(gname, tg->gname))
-			return tg;
+	list_for_each_entry(tgroup, &vrrp_data->static_track_groups, e_list)
+		if (!strcmp(gname, tgroup->gname))
+			return tgroup;
 
 	return NULL;
 }
 
 static void
-static_track_set_group(static_track_group_t *tgroup)
+static_track_group_set(static_track_group_t *tgroup)
 {
 	vrrp_t *vrrp;
 	char *str;
@@ -94,7 +91,8 @@ static_track_set_group(static_track_group_t *tgroup)
 		str = vector_slot(tgroup->iname, i);
 		vrrp = vrrp_get_instance(str);
 		if (!vrrp) {
-			log_message(LOG_INFO, "vrrp instance %s specified in track group %s doesn't exist - ignoring", str, tgroup->gname);
+			log_message(LOG_INFO, "vrrp instance %s specified in track group %s doesn't exist - ignoring"
+					    , str, tgroup->gname);
 			continue;
 		}
 
@@ -109,28 +107,31 @@ static_track_set_group(static_track_group_t *tgroup)
 void
 static_track_group_init(void)
 {
-	static_track_group_t *tg;
+	static_track_group_t *tgroup, *tgroup_tmp;
 	vrrp_t *vrrp;
 	ip_address_t *addr;
 #ifdef _HAVE_FIB_ROUTING_
 	ip_route_t *route;
 	ip_rule_t *rule;
 #endif
-	element e, e1, next;
+	element e, e1;
 
-	LIST_FOREACH_NEXT(vrrp_data->static_track_groups, tg, e, next) {
-		if (!tg->iname) {
-                        log_message(LOG_INFO, "Static track group %s has no virtual router(s) - removing", tg->gname);
-                        free_list_element(vrrp_data->static_track_groups, e);
-                        continue;
-                }
+	list_for_each_entry_safe(tgroup, tgroup_tmp, &vrrp_data->static_track_groups, e_list) {
+		if (!tgroup->iname) {
+			log_message(LOG_INFO, "Static track group %s has no virtual router(s) - removing"
+					    , tgroup->gname);
+			free_static_track_group(tgroup);
+			continue;
+		}
 
-		static_track_set_group(tg);
+		static_track_group_set(tgroup);
 
-		if (!tg->vrrp_instances) {
-                        free_list_element(vrrp_data->static_track_groups, e);
-                        continue;
-                }
+		if (!tgroup->vrrp_instances) {
+			log_message(LOG_INFO, "Static track group %s has no VRRP instance(s) - removing"
+					    , tgroup->gname);
+			free_static_track_group(tgroup);
+			continue;
+		}
 	}
 
 	/* Add the tracking vrrps to track the interface of each tracked address */
@@ -179,7 +180,7 @@ static_track_group_init(void)
 }
 
 void
-static_track_reinstate_config(interface_t *ifp)
+static_track_group_reinstate_config(interface_t *ifp)
 {
 	ip_address_t *addr;
 #ifdef _HAVE_FIB_ROUTING_

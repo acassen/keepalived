@@ -577,7 +577,7 @@ alloc_ipaddress(list ip_list, const vector_t *strvec, const interface_t *ifp, bo
 				report_config_error(CONFIG_GENERAL_ERROR, "track_group %s is a duplicate", strvec_slot(strvec, i));
 				break;
 			}
-			if (!(new->track_group = find_track_group(strvec_slot(strvec, i))))
+			if (!(new->track_group = static_track_group_find(strvec_slot(strvec, i))))
                                 report_config_error(CONFIG_GENERAL_ERROR, "track_group %s not found", strvec_slot(strvec, i));
 		} else
 			report_config_error(CONFIG_GENERAL_ERROR, "Unknown configuration entry '%s' for ip address - ignoring", str);

@@ -35,7 +35,7 @@
 
 /* Configuration data root */
 typedef struct _vrrp_data {
-	list			static_track_groups;
+	list_head_t		static_track_groups;
 	list			static_addresses;
 #ifdef _HAVE_FIB_ROUTING_
 	list			static_routes;
