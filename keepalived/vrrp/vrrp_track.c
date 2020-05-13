@@ -755,7 +755,7 @@ initialise_tracking_priorities(void)
 #endif
 
 	/* Now check for tracking scripts, files, bfd etc. */
-	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		/* Set effective priority and fault state */
 		initialise_vrrp_tracking_priorities(vrrp);
 

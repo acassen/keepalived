@@ -67,7 +67,7 @@ vrrp_print_stats(bool clear_stats)
 	}
 
 
-	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		fprintf(file, "VRRP Instance: %s\n", vrrp->iname);
 		fprintf(file, "  Advertisements:\n");
 		fprintf(file, "    Received: %" PRIu64 "\n", vrrp->stats->advert_rcvd);

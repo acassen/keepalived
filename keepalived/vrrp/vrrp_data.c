@@ -427,7 +427,7 @@ free_vrrp_list(list_head_t *l)
 {
 	vrrp_t *vrrp, *vrrp_tmp;
 
-	list_for_each_entry_safe(vrrp, vrrp_tmp, l, next) {
+	list_for_each_entry_safe(vrrp, vrrp_tmp, l, e_list) {
 		free_vrrp(vrrp);
 	}
 }
@@ -658,7 +658,7 @@ dump_vrrp_list(FILE *fp, const list_head_t *l)
 {
 	vrrp_t *vrrp;
 
-	list_for_each_entry(vrrp, l, next) {
+	list_for_each_entry(vrrp, l, e_list) {
 		dump_vrrp(fp, vrrp);
 	}
 }
@@ -729,7 +729,7 @@ alloc_vrrp(const char *iname)
 
 	/* Allocate new VRRP structure */
 	new = (vrrp_t *) MALLOC(sizeof(vrrp_t));
-	INIT_LIST_HEAD(&new->next);
+	INIT_LIST_HEAD(&new->e_list);
 
 	/* Set default values */
 	new->family = AF_UNSPEC;
@@ -761,13 +761,13 @@ alloc_vrrp(const char *iname)
 	new->skip_check_adv_addr = global_data->vrrp_skip_check_adv_addr;
 	new->strict_mode = PARAMETER_UNSET;
 
-	list_add_tail(&new->next, &vrrp_data->vrrp);
+	list_add_tail(&new->e_list, &vrrp_data->vrrp);
 }
 
 void
 alloc_vrrp_unicast_peer(const vector_t *strvec)
 {
-	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, next);
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 	unicast_peer_t *peer;
 
 	if (!LIST_EXISTS(vrrp->unicast_peer))
@@ -799,7 +799,7 @@ alloc_vrrp_unicast_peer(const vector_t *strvec)
 void
 alloc_vrrp_track_if(const vector_t *strvec)
 {
-	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, next);
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 
 	if (!LIST_EXISTS(vrrp->track_ifp))
 		vrrp->track_ifp = alloc_list(free_track_if, dump_track_if);
@@ -809,7 +809,7 @@ alloc_vrrp_track_if(const vector_t *strvec)
 void
 alloc_vrrp_track_script(const vector_t *strvec)
 {
-	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, next);
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 
 	if (!LIST_EXISTS(vrrp->track_script))
 		vrrp->track_script = alloc_list(free_track_script, dump_track_script);
@@ -819,7 +819,7 @@ alloc_vrrp_track_script(const vector_t *strvec)
 void
 alloc_vrrp_track_file(const vector_t *strvec)
 {
-	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, next);
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 
 	if (!LIST_EXISTS(vrrp->track_file))
 		vrrp->track_file = alloc_track_file_list();
@@ -830,7 +830,7 @@ alloc_vrrp_track_file(const vector_t *strvec)
 void
 alloc_vrrp_track_process(const vector_t *strvec)
 {
-	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, next);
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 
 	if (!LIST_EXISTS(vrrp->track_process))
 		vrrp->track_process = alloc_list(free_track_process, dump_track_process);
@@ -842,7 +842,7 @@ alloc_vrrp_track_process(const vector_t *strvec)
 void
 alloc_vrrp_track_bfd(const vector_t *strvec)
 {
-	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, next);
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 
 	if (!LIST_EXISTS(vrrp->track_bfd))
 		vrrp->track_bfd = alloc_list(free_vrrp_tracked_bfd, dump_vrrp_tracked_bfd);
@@ -907,7 +907,7 @@ alloc_vrrp_group_track_bfd(const vector_t *strvec)
 void
 alloc_vrrp_vip(const vector_t *strvec)
 {
-	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, next);
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 	void *list_end = NULL;
 	sa_family_t address_family;
 
@@ -933,7 +933,7 @@ alloc_vrrp_vip(const vector_t *strvec)
 void
 alloc_vrrp_evip(const vector_t *strvec)
 {
-	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, next);
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 
 	if (!LIST_EXISTS(vrrp->evip))
 		vrrp->evip = alloc_list(free_ipaddress, dump_ipaddress);
@@ -944,7 +944,7 @@ alloc_vrrp_evip(const vector_t *strvec)
 void
 alloc_vrrp_vroute(const vector_t *strvec)
 {
-	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, next);
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 
 	if (!LIST_EXISTS(vrrp->vroutes))
 		vrrp->vroutes = alloc_list(free_iproute, dump_iproute);
@@ -954,7 +954,7 @@ alloc_vrrp_vroute(const vector_t *strvec)
 void
 alloc_vrrp_vrule(const vector_t *strvec)
 {
-	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, next);
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 
 	if (!LIST_EXISTS(vrrp->vrules))
 		vrrp->vrules = alloc_list(free_iprule, dump_iprule);

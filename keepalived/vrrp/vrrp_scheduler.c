@@ -46,6 +46,7 @@
 #include "global_data.h"
 #include "memory.h"
 #include "list.h"
+#include "list_head.h"
 #include "logger.h"
 #include "main.h"
 #include "signals.h"
@@ -187,7 +188,7 @@ vrrp_init_state(list_head_t *l)
 			send_group_notifies(vgroup);
 	}
 
-	list_for_each_entry(vrrp, l, next) {
+	list_for_each_entry(vrrp, l, e_list) {
 		int vrrp_begin_state = vrrp->state;
 
 		/* wantstate is the state we would be in disregarding any sync group */
@@ -308,7 +309,7 @@ vrrp_init_sands(list_head_t *l)
 {
 	vrrp_t *vrrp;
 
-	list_for_each_entry(vrrp, l, next) {
+	list_for_each_entry(vrrp, l, e_list) {
 		vrrp->sands.tv_sec = TIMER_DISABLED;
 		rb_insert_sort_cached(&vrrp->sockets->rb_sands, vrrp, rb_sands, vrrp_timer_cmp);
 		vrrp_init_instance_sands(vrrp);
@@ -447,7 +448,7 @@ vrrp_create_sockpool(list l)
 	bool unicast;
 	sock_t *sock;
 
-	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		ifp =
 #ifdef _HAVE_VRRP_VMAC_
 			  (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? vrrp->ifp->base_ifp :
@@ -1308,7 +1309,7 @@ vrrp_arp_thread(thread_ref_t thread)
 
 	set_time_now();
 
-	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		if (!vrrp->garp_pending && !vrrp->gna_pending)
 			continue;
 
@@ -1340,7 +1341,6 @@ dump_threads(void)
 {
 	FILE *fp;
 	char time_buf[26];
-	element e;
 	vrrp_t *vrrp;
 	const char *file_name;
 
@@ -1365,7 +1365,7 @@ dump_threads(void)
 	fprintf(fp, "alloc = %lu\n", master->alloc);
 
 	fprintf(fp, "\n");
-	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
+	list_for_each_entry(vrrp, vrrp_data->vrrp, e_list) {
 		ctime_r(&vrrp->sands.tv_sec, time_buf);
 		fprintf(fp, "VRRP instance %s, sands %.19s.%6.6lu, status %s\n", vrrp->iname, time_buf, vrrp->sands.tv_usec,
 				vrrp->state == VRRP_STATE_INIT ? "INIT" :

@@ -157,7 +157,7 @@ set_vrrp_max_fds(void)
 		return;
 
 	/* This is called at boot so ok performing full walk */
-	list_for_each_entry(vrrp, &vrrp_data->vrrp, next)
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list)
 		cnt++;
 
 	/* Allow:
@@ -675,12 +675,12 @@ sigreload_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 	/* We want to send adverts for the vrrp instances which are
 	 * in master state. After that the reload can be initiated */
 	if (!list_empty(&vrrp_data->vrrp)) {
-		list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
+		list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 			if (vrrp->state == VRRP_STATE_MAST)
 				num_master_inst++;
 		}
 
-		list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
+		list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 			if (vrrp->state == VRRP_STATE_MAST) {
 				i++;
 				thread_add_event(master, send_reload_advert_thread, vrrp, i == num_master_inst);

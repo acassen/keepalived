@@ -359,8 +359,8 @@ typedef struct _vrrp_t {
 	/* RB tree on a sock_t for vrrp sands */
 	rb_node_t		rb_sands;
 
-	/* Linked list */
-	list_head_t		next;
+	/* Linked list member */
+	list_head_t		e_list;
 } vrrp_t;
 
 /* VRRP state machine -- rfc2338.6.4 */

@@ -193,7 +193,7 @@ get_vrrp_instance(const char *ifname, int vrid, int family)
 {
 	vrrp_t *vrrp;
 
-	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		if (vrrp->vrid == vrid &&
 		    vrrp->family == family &&
 		    !valid_path_cmp(VRRP_CONFIGURED_IFP(vrrp)->ifname, ifname))
@@ -566,7 +566,7 @@ on_bus_acquired(GDBusConnection *connection,
 	if (list_empty(&vrrp_data->vrrp))
 		return;
 
-	list_for_each_entry(vrrp, &vrrp_data->vrrp, next)
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list)
 		dbus_create_object(vrrp);
 
 	/* Send a signal to say we have started */
@@ -575,7 +575,7 @@ on_bus_acquired(GDBusConnection *connection,
 	g_free(path);
 
 	/* Notify DBus of the state of our instances */
-	list_for_each_entry(vrrp, &vrrp_data->vrrp, next)
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list)
 		dbus_send_state_signal(vrrp);
 }
 
@@ -845,7 +845,7 @@ dbus_reload(const list_head_t *o, const list_head_t *n)
 	if (!dbus_running)
 		return;
 
-	list_for_each_entry(vrrp_n, n, next) {
+	list_for_each_entry(vrrp_n, n, e_list) {
 		char *n_name;
 		bool match_found;
 
@@ -853,7 +853,7 @@ dbus_reload(const list_head_t *o, const list_head_t *n)
 
 		/* Try and find an instance with same vrid/family/interface that existed before and now */
 		match_found = false;
-		list_for_each_entry(vrrp_o, o, next) {
+		list_for_each_entry(vrrp_o, o, e_list) {
 			if (vrrp_n->vrid == vrrp_o->vrid &&
 			    vrrp_n->family == vrrp_o->family &&
 			    !strcmp(n_name, VRRP_CONFIGURED_IFP(vrrp_o)->ifname)) {

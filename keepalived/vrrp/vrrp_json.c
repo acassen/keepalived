@@ -264,7 +264,7 @@ vrrp_json_dump(FILE *fp)
 	wr = jsonw_new(fp);
 	jsonw_start_array(wr);
 
-	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		jsonw_start_object(wr);
 		vrrp_json_data_dump(wr, vrrp);
 		vrrp_json_stats_dump(wr, vrrp);

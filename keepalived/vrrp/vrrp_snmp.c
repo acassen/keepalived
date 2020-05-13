@@ -807,13 +807,13 @@ vrrp_header_ar_table(struct variable *vp, oid *name, size_t *length,
 			}
 			curinstance++;
 			if (vrrp == NULL)
-				vrrp = list_first_entry(&vrrp_data->vrrp, vrrp_t, next);
+				vrrp = list_first_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 			else {
-				if (list_is_last(&vrrp->next, &vrrp_data->vrrp)) {
+				if (list_is_last(&vrrp->e_list, &vrrp_data->vrrp)) {
 					nextstate = HEADER_STATE_END;
 					continue;
 				}
-				vrrp = list_entry(vrrp->next.next, vrrp_t, next);
+				vrrp = list_entry(vrrp->e_list.next, vrrp_t, e_list);
 			}
 			l2 = vrrp->vip;
 			current[1] = 0;
@@ -840,13 +840,13 @@ vrrp_header_ar_table(struct variable *vp, oid *name, size_t *length,
 			}
 			curinstance++;
 			if (vrrp == NULL)
-				vrrp = list_first_entry(&vrrp_data->vrrp, vrrp_t, next);
+				vrrp = list_first_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 			else {
-				if (list_is_last(&vrrp->next, &vrrp_data->vrrp)) {
+				if (list_is_last(&vrrp->e_list, &vrrp_data->vrrp)) {
 					nextstate = HEADER_STATE_END;
 					continue;
 				}
-				vrrp = list_entry(vrrp->next.next, vrrp_t, next);
+				vrrp = list_entry(vrrp->e_list.next, vrrp_t, e_list);
 			}
 			l2 = vrrp->vroutes;
 			current[1] = 0;
@@ -866,13 +866,13 @@ vrrp_header_ar_table(struct variable *vp, oid *name, size_t *length,
 			}
 			curinstance++;
 			if (vrrp == NULL)
-				vrrp = list_first_entry(&vrrp_data->vrrp, vrrp_t, next);
+				vrrp = list_first_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 			else {
-				if (list_is_last(&vrrp->next, &vrrp_data->vrrp)) {
+				if (list_is_last(&vrrp->e_list, &vrrp_data->vrrp)) {
 					nextstate = HEADER_STATE_END;
 					continue;
 				}
-				vrrp = list_entry(vrrp->next.next, vrrp_t, next);
+				vrrp = list_entry(vrrp->e_list.next, vrrp_t, e_list);
 			}
 			l2 = vrrp->vrules;
 			current[1] = 0;
@@ -959,10 +959,10 @@ vrrp_header_nh_table(struct variable *vp, oid *name, size_t *length,
 	
 
 	for (vrrp = MAX_PTR, curinstance[0] = 0;
-	     vrrp && !list_is_last(&vrrp->next, &vrrp_data->vrrp);
+	     vrrp && !list_is_last(&vrrp->e_list, &vrrp_data->vrrp);
 	     vrrp = ((vrrp == MAX_PTR) ? (list_empty(&vrrp_data->vrrp) ? NULL :
-	       list_first_entry(&vrrp_data->vrrp, vrrp_t, next)) :
-	         list_entry(vrrp->next.next, vrrp_t, next)), curinstance[0]++) {
+	       list_first_entry(&vrrp_data->vrrp, vrrp_t, e_list)) :
+	         list_entry(vrrp->e_list.next, vrrp_t, e_list)), curinstance[0]++) {
 		if (exact && curinstance[0] > target[0])
 			return NULL;
 		if (target_len && curinstance[0] < target[0])
@@ -1932,7 +1932,7 @@ _get_instance(oid *name, size_t name_len)
 		return NULL;
 	instance = name[name_len - 1];
 
-	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		if (--instance == 0) break;
 	}
 	return vrrp;
@@ -2104,7 +2104,7 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 					     var_len, write_method,
 					     &vrrp_data->vrrp)) == NULL)
 		return NULL;
-	rt = list_entry(e, vrrp_t, next);
+	rt = list_entry(e, vrrp_t, e_list);
 
 	switch (vp->magic) {
 	case VRRP_SNMP_INSTANCE_NAME:
@@ -3301,7 +3301,7 @@ vrrp_rfcv2_header_ar_table(struct variable *vp, oid *name, size_t *length,
 	else
 		target_addr.s_addr = 0;
 
-	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		if (!suitable_for_rfc2787(vrrp))
 			continue;
 
@@ -3426,7 +3426,7 @@ snmp_rfcv2_header_list_table(struct variable *vp, oid *name, size_t *length,
 	target = &name[vp->namelen];   /* Our target match */
 	target_len = *length - vp->namelen;
 
-	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		if (!suitable_for_rfc2787(vrrp))
 			continue;
 
@@ -3601,7 +3601,7 @@ vrrp_rfcv2_snmp_stats(struct variable *vp, oid *name, size_t *length,
 		return (u_char*)&long_ret;
 
 	/* Work through all the vrrp instances that we can respond for */
-	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		if (!suitable_for_rfc2787(vrrp))
 			continue;
 
@@ -3934,7 +3934,7 @@ vrrp_rfcv3_header_ar_table(struct variable *vp, oid *name, size_t *length,
 			target_addr6.s6_addr[i] = (uint8_t)name[*length - sizeof(struct in6_addr) + i];
 	}
 
-	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		if (!suitable_for_rfc6527(vrrp))
 			continue;
 
@@ -4073,7 +4073,7 @@ snmp_rfcv3_header_list_table(struct variable *vp, oid *name, size_t *length,
 	target = &name[vp->namelen];   /* Our target match */
 	target_len = *length - vp->namelen;
 
-	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		if (!suitable_for_rfc6527(vrrp))
 			continue;
 
@@ -4268,7 +4268,7 @@ vrrp_rfcv3_snmp_stats(struct variable *vp, oid *name, size_t *length,
 	}
 
 	/* Work through all the vrrp instances that we can respond for */
-	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		if (!suitable_for_rfc6527(vrrp))
 			continue;
 

@@ -343,7 +343,7 @@ notify_shutdown(void)
 	vrrp_t *vrrp;
 	vrrp_sgroup_t *vgroup;
 
-	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		vrrp->state = VRRP_STATE_STOP;
 		send_instance_notifies(vrrp);
 	}

@@ -38,7 +38,7 @@ vrrp_get_instance(char *iname)
 {
 	vrrp_t *vrrp;
 
-	list_for_each_entry(vrrp, &vrrp_data->vrrp, next) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		if (strcmp(vrrp->iname, iname) == 0)
 			return vrrp;
 	}
