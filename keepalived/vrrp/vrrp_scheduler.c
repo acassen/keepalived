@@ -1365,9 +1365,9 @@ dump_threads(void)
 	fprintf(fp, "alloc = %lu\n", master->alloc);
 
 	fprintf(fp, "\n");
-	list_for_each_entry(vrrp, vrrp_data->vrrp, e_list) {
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		ctime_r(&vrrp->sands.tv_sec, time_buf);
-		fprintf(fp, "VRRP instance %s, sands %.19s.%6.6lu, status %s\n", vrrp->iname, time_buf, vrrp->sands.tv_usec,
+		fprintf(fp, "VRRP instance %s, sands %.19s.%6.6ld, status %s\n", vrrp->iname, time_buf, vrrp->sands.tv_usec,
 				vrrp->state == VRRP_STATE_INIT ? "INIT" :
 				vrrp->state == VRRP_STATE_BACK ? "BACKUP" :
 				vrrp->state == VRRP_STATE_MAST ? "MASTER" :

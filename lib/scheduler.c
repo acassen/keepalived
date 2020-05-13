@@ -678,7 +678,7 @@ thread_make_master(void)
 
 #if !HAVE_EPOLL_CREATE1
 	if (set_sock_flags(new->epoll_fd, F_SETFD, FD_CLOEXEC))
-		log_message(LOG_INFO, "Unable to set CLOEXEC on epoll_fd - %s (%d)", strerror(errno), errno);
+		log_message(LOG_INFO, "Unable to set CLOEXEC on epoll_fd - %d (%m)", errno);
 #endif
 
 	new->read = RB_ROOT_CACHED;
@@ -711,10 +711,10 @@ thread_make_master(void)
 
 #ifndef TFD_NONBLOCK
 	if (set_sock_flags(new->timer_fd, F_SETFL, O_NONBLOCK))
-		log_message(LOG_INFO, "Unable to set NONBLOCK on timer_fd - %s (%d)", strerror(errno), errno);
+		log_message(LOG_INFO, "Unable to set NONBLOCK on timer_fd - %d (%m)", errno);
 
 	if (set_sock_flags(new->timer_fd, F_SETFD, FD_CLOEXEC))
-		log_message(LOG_INFO, "Unable to set CLOEXEC on timer_fd - %s (%d)", strerror(errno), errno);
+		log_message(LOG_INFO, "Unable to set CLOEXEC on timer_fd - %d (%m)", errno);
 #endif
 
 	new->signal_fd = signal_handler_init();
@@ -758,7 +758,11 @@ thread_rb_dump(const rb_root_cached_t *root, const char *tree, FILE *fp)
 	conf_write(fp, "----[ Begin rb_dump %s ]----", tree);
 
 	rb_for_each_entry_cached(thread, root, n)
-		conf_write(fp, "#%.2d Thread:%p type %s, event_fd %d, val/fd/pid %d, fd_close %d, timer: %s, func %s(), id %lu", i++, thread, get_thread_type_str(thread->type), thread->event ? thread->event->fd: -2, thread->u.val, thread->u.f.close_on_reload, timer_delay(thread->sands), get_function_name(thread->func), thread->id);
+		conf_write(fp, "#%.2d Thread:%p type %s, event_fd %d, val/fd/pid %d, fd_close %d, timer: %s, func %s(), id %lu"
+			     , i++, thread, get_thread_type_str(thread->type)
+			     , thread->event ? thread->event->fd: -2, thread->u.val
+			     , thread->u.f.close_on_reload, timer_delay(thread->sands)
+			     , get_function_name(thread->func), thread->id);
 
 	conf_write(fp, "----[ End rb_dump ]----");
 }
@@ -772,8 +776,10 @@ thread_list_dump(const list_head_t *l, const char *list_type, FILE *fp)
 	conf_write(fp, "----[ Begin list_dump %s ]----", list_type);
 
 	list_for_each_entry(thread, l, e_list)
-		conf_write(fp, "#%.2d Thread:%p type %s val/fd/pid %d, fd_close %d, timer: %s, func %s() id %lu",
-				i++, thread, get_thread_type_str(thread->type), thread->u.val, thread->u.f.close_on_reload, timer_delay(thread->sands), get_function_name(thread->func), thread->id);
+		conf_write(fp, "#%.2d Thread:%p type %s val/fd/pid %d, fd_close %d, timer: %s, func %s() id %lu"
+			     , i++, thread, get_thread_type_str(thread->type), thread->u.val
+			     , thread->u.f.close_on_reload, timer_delay(thread->sands)
+			     , get_function_name(thread->func), thread->id);
 
 	conf_write(fp, "----[ End list_dump ]----");
 }
@@ -786,7 +792,9 @@ event_rb_dump(const rb_root_t *root, const char *tree, FILE *fp)
 
 	conf_write(fp, "----[ Begin rb_dump %s ]----", tree);
 	rb_for_each_entry(event, root, n)
-		conf_write(fp, "#%.2d event %p fd %d, flags: 0x%lx, read %p, write %p", i++, event, event->fd, event->flags, event->read, event->write);
+		conf_write(fp, "#%.2d event %p fd %d, flags: 0x%lx, read %p, write %p"
+			     , i++, event, event->fd, event->flags
+			     , event->read, event->write);
 	conf_write(fp, "----[ End rb_dump ]----");
 }
 
@@ -1707,7 +1715,7 @@ thread_fetch_next_queue(thread_master_t *m)
 				last_epoll_errno = errno;
 
 				/* Log the error first time only */
-				log_message(LOG_INFO, "scheduler: epoll_wait error: %d (%s)", errno, strerror(errno));
+				log_message(LOG_INFO, "scheduler: epoll_wait error: %d (%m)", errno);
 			}
 
 			/* Make sure we don't sit it a tight loop */
@@ -1949,7 +1957,7 @@ thread_child_handler(__attribute__((unused)) void *v, __attribute__((unused)) in
 		if (pid == -1) {
 			if (errno == ECHILD)
 				return;
-			log_message(LOG_DEBUG, "waitpid error %d: %s", errno, strerror(errno));
+			log_message(LOG_DEBUG, "waitpid error %d (%m)", errno);
 			assert(0);
 
 			return;
