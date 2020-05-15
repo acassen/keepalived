@@ -434,7 +434,7 @@ AS_IF([test .$enable_debug = .yes],
     # If we are debugging, we want to be able to write logs to files
     AS_IF([test .$enable_log_file = .], [enable_log_file=yes])
 
-    AS_IF([test .$enable_assert = .], [enable_assert=yes])
+    AS_IF([test .$enable_asserts = .], [enable_asserts=yes])
     AS_IF([test .$enable_epoll_debug = .], [enable_epoll_debug=yes])
     AS_IF([test .$enable_epoll_thread_dump = .], [enable_epoll_thread_dump=yes])
     AS_IF([test .$enable_eintr_debug = .], [enable_eintr_debug=yes])
