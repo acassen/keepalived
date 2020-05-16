@@ -416,8 +416,7 @@ reset_promote_secondaries(interface_t *ifp)
 static void
 clear_rp_filter(void)
 {
-	list ifs;
-	element e;
+	list_head_t *ifq;
 	interface_t *ifp;
 	unsigned rp_filter;
 #ifdef _HAVE_IPV4_DEVCONF_
@@ -449,8 +448,8 @@ clear_rp_filter(void)
 	rpfilter_sysctl[0].value = all_rp_filter;
 #endif
 	kernel_netlink_poll();		/* Update our view of interfaces first */
-	ifs = get_if_list();
-	LIST_FOREACH(ifs, ifp, e) {
+	ifq = get_interface_queue();
+	list_for_each_entry(ifp, ifq, e_list) {
 		if (!ifp->ifindex)
 			continue;
 #ifndef _HAVE_IPV4_DEVCONF_
@@ -479,8 +478,7 @@ clear_rp_filter(void)
 void
 restore_rp_filter(void)
 {
-	list ifs;
-	element e;
+	list_head_t *ifq;
 	interface_t *ifp;
 	unsigned rp_filter;
 #ifdef _HAVE_IPV4_DEVCONF_
@@ -507,8 +505,8 @@ restore_rp_filter(void)
 		default_rp_filter = UINT_MAX;
 	}
 
-	ifs = get_if_list();
-	LIST_FOREACH(ifs, ifp, e) {
+	ifq = get_interface_queue();
+	list_for_each_entry(ifp, ifq, e_list) {
 		if (ifp->rp_filter != UINT_MAX) {
 			rp_filter = get_sysctl("net/ipv4/conf", ifp->ifname, "rp_filter");
 			if (rp_filter == all_rp_filter) {

@@ -29,6 +29,7 @@
 #include "check_data.h"
 #include "track_file.h"
 #include "parser.h"
+#include "logger.h"
 #include "check_data.h"
 
 

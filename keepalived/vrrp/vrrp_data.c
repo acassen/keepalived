@@ -222,7 +222,10 @@ dump_tracking_vrrp(FILE *fp, const void *data)
 	const tracking_obj_t *top = (const tracking_obj_t *)data;
 	const vrrp_t *vrrp = top->obj.vrrp;
 
-	conf_write(fp, "     %s, weight %d%s%s", vrrp->iname, top->weight, top->weight_multiplier == -1 ? " reverse" : "", top->type == TRACK_VRRP_DYNAMIC ? " (dynamic)" : "");
+	conf_write(fp, "     %s, weight %d%s%s"
+		     , vrrp->iname, top->weight
+		     , top->weight_multiplier == -1 ? " reverse" : ""
+		     , top->type == TRACK_VRRP_DYNAMIC ? " (dynamic)" : "");
 }
 
 static void
@@ -1143,21 +1146,21 @@ dump_vrrp_data(FILE *fp, const vrrp_data_t * data)
 void
 dump_data_vrrp(FILE *fp)
 {
-	list ifl;
+	list_head_t *ifq;
 
 	dump_global_data(fp, global_data);
 
-	if (!LIST_ISEMPTY(garp_delay)) {
+	if (!list_empty(garp_delay)) {
 		conf_write(fp, "------< Gratuitous ARP delays >------");
-		dump_list(fp, garp_delay);
+		dump_garp_delay_list(fp, garp_delay);
 	}
 
 	dump_vrrp_data(fp, vrrp_data);
 
-	ifl = get_if_list();
-	if (!LIST_ISEMPTY(ifl)) {
+	ifq = get_interface_queue();
+	if (!list_empty(ifq)) {
 		conf_write(fp, "------< Interfaces >------");
-		dump_list(fp, ifl);
+		dump_interface_queue(fp, ifq);
 	}
 
 	clear_rt_names();

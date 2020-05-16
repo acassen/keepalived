@@ -614,10 +614,14 @@ initialise_interface_tracking_priorities(void)
 	tracking_obj_t *top;
 	vrrp_t *vrrp;
 	interface_t *ifp;
-	element e, e1;
+	list_head_t *ifq;
 
-	LIST_FOREACH(get_if_list(), ifp, e) {
-		LIST_FOREACH(ifp->tracking_vrrp, top, e1) {
+	ifq = get_interface_queue();
+	list_for_each_entry(ifp, ifq, e_list) {
+		if (!ifp->tracking_vrrp)
+			continue;
+
+		list_for_each_entry(top, ifp->tracking_vrrp, e_list) {
 			vrrp = top->obj.vrrp;
 			if (top->weight == VRRP_NOT_TRACK_IF)
 				continue;

@@ -1557,7 +1557,7 @@ garp_group_handler(const vector_t *strvec)
 static void
 garp_group_garp_interval_handler(const vector_t *strvec)
 {
-	garp_delay_t *delay = LIST_TAIL_DATA(garp_delay);
+	garp_delay_t *delay = list_last_entry(garp_delay, garp_delay_t, e_list);
 	double val;
 
 	if (!read_double_strvec(strvec, 1, &val, 0, (int)(INT_MAX / 1000000), true)) {
@@ -1575,7 +1575,7 @@ garp_group_garp_interval_handler(const vector_t *strvec)
 static void
 garp_group_gna_interval_handler(const vector_t *strvec)
 {
-	garp_delay_t *delay = LIST_TAIL_DATA(garp_delay);
+	garp_delay_t *delay = list_last_entry(garp_delay, garp_delay_t, e_list);
 	double val;
 
 	if (!read_double_strvec(strvec, 1, &val, 0, (int)(INT_MAX / 1000000), true)) {
@@ -1611,17 +1611,16 @@ garp_group_interface_handler(const vector_t *strvec)
 		return;
 	}
 #endif
-	ifp->garp_delay = LIST_TAIL_DATA(garp_delay);
+	ifp->garp_delay = list_last_entry(garp_delay, garp_delay_t, e_list);
 }
 static void
 garp_group_interfaces_handler(const vector_t *strvec)
 {
-	garp_delay_t *delay = LIST_TAIL_DATA(garp_delay);
+	garp_delay_t *delay = list_last_entry(garp_delay, garp_delay_t, e_list);
 	interface_t *ifp;
 	const vector_t *interface_vec = read_value_block(strvec);
-	size_t i;
 	garp_delay_t *gd;
-	element e;
+	size_t i;
 
 	/* Handle the interfaces block being empty */
 	if (!interface_vec) {
@@ -1631,8 +1630,7 @@ garp_group_interfaces_handler(const vector_t *strvec)
 
 	/* First set the next aggregation group number */
 	delay->aggregation_group = 1;
-	for (e = LIST_HEAD(garp_delay); e; ELEMENT_NEXT(e)) {
-		gd = ELEMENT_DATA(e);
+	list_for_each_entry(gd, garp_delay, e_list) {
 		if (gd->aggregation_group && gd != delay)
 			delay->aggregation_group++;
 	}
@@ -1666,20 +1664,21 @@ garp_group_interfaces_handler(const vector_t *strvec)
 static void
 garp_group_end_handler(void)
 {
-	garp_delay_t *delay = LIST_TAIL_DATA(garp_delay);
-	element e, next;
-	interface_t *ifp;
+	garp_delay_t *delay = list_last_entry(garp_delay, garp_delay_t, e_list);
+	interface_t *ifp, *ifp_tmp;
+	list_head_t *ifq;
 
 	if (!delay->have_garp_interval && !delay->have_gna_interval) {
 		report_config_error(CONFIG_GENERAL_ERROR, "garp group %d does not have any delay set - removing", delay->aggregation_group);
 
 		/* Remove the garp_delay from any interfaces that are using it */
-		LIST_FOREACH_NEXT(get_if_list(), ifp, e, next) {
+		ifq = get_interface_queue();
+		list_for_each_entry_safe(ifp, ifp_tmp, ifq, e_list) {
 			if (ifp->garp_delay == delay)
 				ifp->garp_delay = NULL;
 		}
 
-		free_list_element(garp_delay, garp_delay->tail);
+		free_garp_delay(delay);
 	}
 }
 

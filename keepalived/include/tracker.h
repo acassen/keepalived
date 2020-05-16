@@ -24,7 +24,7 @@
 #define _TRACKER_H
 
 /* local includes */
-#include "list.h"
+#include "list_head.h"
 #ifdef _WITH_VRRP_
 #include "vrrp.h"
 #endif
@@ -48,10 +48,10 @@ typedef enum {
 typedef union {
 	void *obj;
 #ifdef _WITH_VRRP_
-	struct _vrrp_t *vrrp;			/* vrrp instance */
+	struct _vrrp_t	*vrrp;			/* vrrp instance */
 #endif
 #ifdef _WITH_LVS_
-	checker_t *checker;			/* checker instance */
+	checker_t	*checker;		/* checker instance */
 #endif
 } tracking_obj_p;
 
@@ -61,6 +61,9 @@ typedef struct _tracking_obj {
 	int			weight_multiplier; /* Which direction is weight applied */
 	tracking_obj_p		obj;		/* The object tracking this */
 	track_t			type;		/* Type of object being tracked */
+
+	/* linked list member */
+	list_head_t		e_list;
 } tracking_obj_t;
 
 static inline void

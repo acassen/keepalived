@@ -2112,12 +2112,11 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 void
 add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool reverse, bool log_addr, track_t type)
 {
-	tracking_obj_t *etop = NULL;
-	element e;
 	char addr_str[INET6_ADDRSTRLEN];
+	tracking_obj_t *top = NULL;
 
-	if (!LIST_EXISTS(ifp->tracking_vrrp)) {
-		ifp->tracking_vrrp = alloc_list(free_tracking_obj, dump_tracking_vrrp);
+	if (!ifp->tracking_vrrp) {
+		ifp->tracking_vrrp = if_tracking_vrrp_alloc_list();
 
 		if (log_addr && __test_bit(LOG_DETAIL_BIT, &debug)) {
 			if (ifp->sin_addr.s_addr) {
@@ -2134,21 +2133,21 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool reverse, 
 	}
 	else if (type != TRACK_VRRP_DYNAMIC) {
 		/* Check if this is already in the list, and adjust the weight appropriately */
-		LIST_FOREACH(ifp->tracking_vrrp, etop, e) {
-			if (etop->obj.vrrp == vrrp) {
-				if (etop->type & (TRACK_VRRP | TRACK_IF | TRACK_SG) &&
+		list_for_each_entry(top, ifp->tracking_vrrp, e_list) {
+			if (top->obj.vrrp == vrrp) {
+				if (top->type & (TRACK_VRRP | TRACK_IF | TRACK_SG) &&
 				    type & (TRACK_VRRP | TRACK_IF | TRACK_SG))
 					log_message(LOG_INFO, "(%s) track_interface %s is configured on VRRP instance and sync group. Remove vrrp instance or sync group config",
 							vrrp->iname, ifp->ifname);
 
 				/* Update the weight appropriately. We will use the sync group's
 				 * weight unless the vrrp setting is unweighted. */
-				if (etop->weight && weight != VRRP_NOT_TRACK_IF) {
-					etop->weight = weight;
-					etop->weight_multiplier = reverse ? -1 : 1;
+				if (top->weight && weight != VRRP_NOT_TRACK_IF) {
+					top->weight = weight;
+					top->weight_multiplier = reverse ? -1 : 1;
 				}
 
-				etop->type |= type;
+				top->type |= type;
 
 				return;
 			}
@@ -2156,18 +2155,19 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool reverse, 
 	}
 
 	/* Not in list so add */
-	etop = MALLOC(sizeof *etop);
-	etop->obj.vrrp = vrrp;
-	etop->weight = weight;
-	etop->weight_multiplier = reverse ? -1 : 1;
-	etop->type = type;
+	top = MALLOC(sizeof(*top));
+	INIT_LIST_HEAD(&top->e_list);
+	top->obj.vrrp = vrrp;
+	top->weight = weight;
+	top->weight_multiplier = reverse ? -1 : 1;
+	top->type = type;
 
 	/* We want the dynamic entries at the start of the list, so that it
 	 * will be processed before a weighted track */
 	if (type == TRACK_VRRP_DYNAMIC)
-		list_add_head(ifp->tracking_vrrp, etop);
+		list_head_add(&top->e_list, ifp->tracking_vrrp);
 	else
-		list_add(ifp->tracking_vrrp, etop);
+		list_add_tail(&top->e_list, ifp->tracking_vrrp);
 
 	/* if vrrp->num_if_script_fault needs incrementing, it will be
 	 * done in initialise_tracking_priorities() */
@@ -2176,14 +2176,16 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool reverse, 
 void
 del_vrrp_from_interface(vrrp_t *vrrp, interface_t *ifp)
 {
-	tracking_obj_t *top;
-	element e, next;
+	tracking_obj_t *top, *top_tmp;
 
-	LIST_FOREACH_NEXT(ifp->tracking_vrrp, top, e, next) {
+	if (!ifp->tracking_vrrp)
+		return;
+
+	list_for_each_entry_safe(top, top_tmp, ifp->tracking_vrrp, e_list) {
 		if (top->obj.vrrp == vrrp && top->type == TRACK_VRRP_DYNAMIC) {
 			if (!IF_ISUP(ifp) && !vrrp->dont_track_primary)
 				vrrp->num_script_if_fault--;
-			list_remove(ifp->tracking_vrrp, e);
+			if_tracking_vrrp_free(top);
 			break;
 		}
 
@@ -2195,7 +2197,7 @@ del_vrrp_from_interface(vrrp_t *vrrp, interface_t *ifp)
 
 /* check for minimum configuration requirements */
 static bool
-chk_min_cfg(vrrp_t * vrrp)
+chk_min_cfg(vrrp_t *vrrp)
 {
 	if (vrrp->vrid == 0) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) the virtual router id must be set", vrrp->iname);
@@ -2902,9 +2904,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			  "VMAC";
 
 		/* Look to see if an existing interface matches. If so, use that name */
-		list if_list = get_if_list();
-		if (!LIST_ISEMPTY(if_list)) {		/* If the list were empty we would have a real problem! */
-			LIST_FOREACH(if_list, ifp, e) {
+		list_head_t *ifq = get_interface_queue();
+		if (!list_empty(ifq)) {		/* If the list were empty we would have a real problem! */
+			list_for_each_entry(ifp, ifq, e_list) {
 				/* Check if this interface could be the macvlan/ipvlan for this vrrp */
 				if (ifp->ifindex &&
 				    (ifp->base_ifp == vrrp->configured_ifp->base_ifp
@@ -2960,11 +2962,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			     ifp->ifindex) {
 				/* An interface with the same name exists, but it doesn't match */
 				if (IS_MAC_IP_VLAN(ifp))
-					log_message(LOG_INFO, "(%s) %s %s already exists but is incompatible. It will be deleted", vrrp->iname,
-							if_type, vrrp->vmac_ifname);
+					log_message(LOG_INFO, "(%s) %s %s already exists but is incompatible. It will be deleted"
+							    , vrrp->iname, if_type, vrrp->vmac_ifname);
 				else {
-					report_config_error(CONFIG_GENERAL_ERROR, "(%s) %s interface name %s already exists as a non %s interface - ignoring configured name",
-						    vrrp->iname, if_type, vrrp->vmac_ifname, if_type);
+					report_config_error(CONFIG_GENERAL_ERROR, "(%s) %s interface name %s already exists as a non %s interface - ignoring configured name"
+										, vrrp->iname, if_type, vrrp->vmac_ifname, if_type);
 					vrrp->vmac_ifname[0] = 0;
 				}
 			}
@@ -3471,14 +3473,14 @@ process_static_entries(void)
 static void
 remove_residual_vips(void)
 {
-	element e, e1, e2, n2;
+	element e1;
 	vrrp_t *vrrp;
 	ip_address_t *ip_addr;
-	struct in_addr *ip_addr4;
-	struct in6_addr *ip_addr6;
+	list_head_t *ifq;
 	list *vip_list;
 	interface_t *ifp;
-
+	sin_addr_t *saddr;
+	
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		if (vrrp->vipset) {
 			/* Remove any addresses configured on interfaces if they match any
@@ -3490,13 +3492,15 @@ remove_residual_vips(void)
 				LIST_FOREACH(*vip_list, ip_addr, e1) {
 					/* Check primary address for family, then check list */
 					if (ip_addr->ifa.ifa_family == AF_INET) {
-						if (inaddr_equal(AF_INET, &ip_addr->ifp->sin_addr, &ip_addr->u.sin.sin_addr)) {
+						if (inaddr_equal(AF_INET, &ip_addr->ifp->sin_addr,
+								 &ip_addr->u.sin.sin_addr)) {
 							ip_addr->ifp->sin_addr.s_addr = 0;
 							continue;
 						}
-						LIST_FOREACH_NEXT(ip_addr->ifp->sin_addr_l, ip_addr4, e2, n2) {
-							if (inaddr_equal(AF_INET, &ip_addr->u.sin.sin_addr, ip_addr4)) {
-								list_remove(ip_addr->ifp->sin_addr_l, e2);
+						list_for_each_entry(saddr, &ip_addr->ifp->sin_addr_l, e_list) {
+							if (inaddr_equal(AF_INET, &ip_addr->u.sin.sin_addr,
+									 &saddr->u.sin_addr)) {
+								if_extra_ipaddress_free(saddr);
 								break;
 							}
 						}
@@ -3504,13 +3508,15 @@ remove_residual_vips(void)
 						if (!IN6_IS_ADDR_LINKLOCAL(&ip_addr->u.sin6_addr))
 							continue;
 
-						if (inaddr_equal(AF_INET6, &ip_addr->ifp->sin6_addr, &ip_addr->u.sin6_addr)) {
+						if (inaddr_equal(AF_INET6, &ip_addr->ifp->sin6_addr,
+								 &ip_addr->u.sin6_addr)) {
 							ip_addr->ifp->sin6_addr.s6_addr32[0] = 0;
 							continue;
 						}
-						LIST_FOREACH_NEXT(ip_addr->ifp->sin6_addr_l, ip_addr6, e2, n2) {
-							if (inaddr_equal(AF_INET6, &ip_addr->u.sin6_addr, ip_addr6)) {
-								list_remove(ip_addr->ifp->sin6_addr_l, e2);
+						list_for_each_entry(saddr, &ip_addr->ifp->sin6_addr_l, e_list) {
+							if (inaddr_equal(AF_INET6, &ip_addr->u.sin6_addr,
+									 &saddr->u.sin6_addr)) {
+								if_extra_ipaddress_free(saddr);
 								break;
 							}
 						}
@@ -3522,18 +3528,17 @@ remove_residual_vips(void)
 	}
 
 	/* Promote address from list to i/f if none on i/f */
-	LIST_FOREACH(get_if_list(), ifp, e) {
-		if (ifp->sin_addr.s_addr == 0 && !LIST_ISEMPTY(ifp->sin_addr_l)) {
-			if (ELEMENT_DATA(LIST_HEAD(ifp->sin_addr_l))) {
-				ifp->sin_addr = *(struct in_addr *)ELEMENT_DATA(LIST_HEAD(ifp->sin_addr_l));
-				list_remove(ifp->sin_addr_l, LIST_HEAD(ifp->sin_addr_l));
-			}
+	ifq = get_interface_queue();
+	list_for_each_entry(ifp, ifq, e_list) {
+		if (ifp->sin_addr.s_addr == 0 && !list_empty(&ifp->sin_addr_l)) {
+			saddr = list_first_entry(&ifp->sin_addr_l, sin_addr_t, e_list);
+			ifp->sin_addr = saddr->u.sin_addr;
+			if_extra_ipaddress_free(saddr);
 		}
-		if (ifp->sin6_addr.s6_addr32[0] == 0 && !LIST_ISEMPTY(ifp->sin6_addr_l)) {
-			if (ELEMENT_DATA(LIST_HEAD(ifp->sin6_addr_l))) {
-				ifp->sin6_addr = *(struct in6_addr *)ELEMENT_DATA(LIST_HEAD(ifp->sin6_addr_l));
-				list_remove(ifp->sin6_addr_l, LIST_HEAD(ifp->sin6_addr_l));
-			}
+		if (ifp->sin6_addr.s6_addr32[0] == 0 && !list_empty(&ifp->sin6_addr_l)) {
+			saddr = list_first_entry(&ifp->sin6_addr_l, sin_addr_t, e_list);
+			ifp->sin6_addr = saddr->u.sin6_addr;
+			if_extra_ipaddress_free(saddr);
 		}
 	}
 }

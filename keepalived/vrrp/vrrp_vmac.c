@@ -695,11 +695,13 @@ netlink_update_vrf(vrrp_t *vrrp)
 void
 update_vmac_vrfs(interface_t *ifp)
 {
-	vrrp_t *vrrp;
         tracking_obj_t *top;
-        element e;
+	vrrp_t *vrrp;
 
-        LIST_FOREACH(ifp->tracking_vrrp, top, e) {
+	if (!ifp->tracking_vrrp)
+		return;
+
+        list_for_each_entry(top, ifp->tracking_vrrp, e_list) {
                 vrrp = top->obj.vrrp;
 
                 /* We only need to look for vmacs we created that
