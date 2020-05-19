@@ -163,6 +163,20 @@
 #include <stdio.h>
 #include <sys/mount.h>
 #include <stdbool.h>
+#include <limits.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+
+#ifdef LIBIPVS_USE_NL
+#include <netlink/socket.h>
+#include <netlink/genl/genl.h>
+#ifdef _HAVE_LIBNL1_
+#define nl_sock		nl_handle
+#endif
+#ifdef _LIBNL_DYNAMIC_
+#include "libnl_link.h"
+#endif
+#endif
 
 #ifndef HAVE_SETNS
 //#include "linux/unistd.h"
@@ -197,6 +211,8 @@ setns(int fd, int nstype)
 /* Local data */
 static const char *netns_dir = RUN_DIR "netns/";
 static char *mount_dirname;
+static int default_namespace = -1;
+int ipvs_namespace = -1;
 
 void
 free_dirname(void)
@@ -300,3 +316,89 @@ clear_namespaces(void)
 {
 	unmount_run();
 }
+
+/* get default namespace file descriptor to be able to place fd in a given
+ * namespace
+ */
+static int init_default_namespace(void)
+{
+	char netns_path[PATH_MAX];
+	pid_t pid;
+
+	pid = getpid();
+	if (snprintf(netns_path, sizeof(netns_path), "/proc/%d/ns/net", pid) < 0)
+		return -1;
+
+	default_namespace = open(netns_path, O_RDONLY | O_CLOEXEC);
+	return default_namespace;
+}
+
+/* opens a socket in the <nsfd> namespace with the parameters <domain>,
+ * <type> and <protocol> and returns the FD or -1 in case of error (check errno).
+ */
+int socket_netns(int nsfd, int domain, int type, int protocol)
+{
+	int sock;
+
+	if (default_namespace >= 0 && nsfd && setns(nsfd, CLONE_NEWNET) == -1)
+		return -1;
+
+	sock = socket(domain, type, protocol);
+
+	if (default_namespace >= 0 && nsfd && setns(default_namespace, CLONE_NEWNET) == -1) {
+		if (sock >= 0)
+			close(sock);
+		return -1;
+	}
+	return sock;
+}
+
+/* opens namespace for ipvs communication */
+static int open_ipvs_namespace(const char *ns_name)
+{
+	char netns_path[PATH_MAX];
+
+	if (snprintf(netns_path, sizeof(netns_path), "/var/run/netns/%s", ns_name) < 0)
+		return -1;
+
+	ipvs_namespace = open(netns_path, O_RDONLY | O_CLOEXEC);
+	return ipvs_namespace;
+}
+
+/* init default and ipvs namespaces */
+int init_ipvs_namespaces(const char *ns_name)
+{
+	if (init_default_namespace() < 0)
+		return -1;
+	if (open_ipvs_namespace(ns_name) < 0)
+		return -1;
+	return 0;
+}
+
+/* close default and ipvs namespaces */
+int close_ipvs_namespaces(void)
+{
+	int ret = 0;
+
+	ret = close(default_namespace);
+	if (ret)
+		return ret;
+	ret = close(ipvs_namespace);
+	return ret;
+}
+
+#ifdef LIBIPVS_USE_NL
+/* netlink connect within ipvs namespace */
+int nl_ipvs_connect(struct nl_sock *sock)
+{
+	if (default_namespace >= 0 && ipvs_namespace && setns(ipvs_namespace, CLONE_NEWNET) == -1)
+		return -1;
+
+	if (genl_connect(sock) < 0)
+		return -1;
+
+	if (default_namespace >= 0 && ipvs_namespace && setns(default_namespace, CLONE_NEWNET) == -1)
+		return -1;
+	return 0;
+}
+#endif

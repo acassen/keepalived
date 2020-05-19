@@ -231,6 +231,10 @@ init_global_data(data_t * data, data_t *prev_global_data, bool copy_unchangeable
 			data->network_namespace = prev_global_data->network_namespace;
 			prev_global_data->network_namespace = NULL;
 
+			FREE_CONST_PTR(data->network_namespace_ipvs);
+			data->network_namespace_ipvs = prev_global_data->network_namespace_ipvs;
+			prev_global_data->network_namespace_ipvs = NULL;
+
 			FREE_CONST_PTR(data->instance_name);
 			data->instance_name = prev_global_data->instance_name;
 			prev_global_data->instance_name = NULL;
@@ -321,6 +325,7 @@ free_global_data(data_t * data)
 	free_list(&data->email);
 #if HAVE_DECL_CLONE_NEWNET
 	FREE_CONST_PTR(data->network_namespace);
+	FREE_CONST_PTR(data->network_namespace_ipvs);
 #endif
 	FREE_CONST_PTR(data->instance_name);
 	FREE_CONST_PTR(data->process_name);
@@ -402,6 +407,7 @@ dump_global_data(FILE *fp, data_t * data)
 
 #if HAVE_DECL_CLONE_NEWNET
 	conf_write(fp, " Network namespace = %s", data->network_namespace ? data->network_namespace : "(default)");
+	conf_write(fp, " Network namespace ipvs = %s", data->network_namespace_ipvs ? data->network_namespace_ipvs : "(default)");
 #endif
 	if (data->instance_name)
 		conf_write(fp, " Instance name = %s", data->instance_name);

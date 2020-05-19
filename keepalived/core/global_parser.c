@@ -1427,6 +1427,23 @@ net_namespace_handler(const vector_t *strvec)
 }
 
 static void
+net_namespace_ipvs_handler(const vector_t *strvec)
+{
+	if (!strvec)
+		return;
+
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "net_namespace_ipvs name missing - ignoring");
+		return;
+	}
+
+	if (!global_data->network_namespace_ipvs)
+		global_data->network_namespace_ipvs = set_value(strvec);
+	else
+		report_config_error(CONFIG_GENERAL_ERROR, "Duplicate net_namespace_ipvs definition %s - ignoring", strvec_slot(strvec, 1));
+}
+
+static void
 namespace_ipsets_handler(const vector_t *strvec)
 {
 	if (!strvec)
@@ -1950,6 +1967,7 @@ init_global_keywords(bool global_active)
 #endif
 #if HAVE_DECL_CLONE_NEWNET
 	install_keyword_root("net_namespace", &net_namespace_handler, global_active);
+	install_keyword_root("net_namespace_ipvs", &net_namespace_ipvs_handler, global_active);
 	install_keyword_root("namespace_with_ipsets", &namespace_ipsets_handler, global_active);
 #endif
 	install_keyword_root("use_pid_dir", &use_pid_dir_handler, global_active);

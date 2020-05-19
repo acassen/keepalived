@@ -42,6 +42,9 @@
 #include "logger.h"
 #include "libipvs.h"
 #include "main.h"
+#if HAVE_DECL_CLONE_NEWNET
+#include "namespaces.h"
+#endif
 
 static bool no_ipvs = false;
 
@@ -94,6 +97,12 @@ ipvs_start(void)
 			return IPVS_ERROR;
 		}
 	}
+#if HAVE_DECL_CLONE_NEWNET
+	if (global_data->network_namespace_ipvs && init_ipvs_namespaces(global_data->network_namespace_ipvs) < 0) {
+		log_message(LOG_ERR, "Unable to set network namespace for ipvs %s - exiting", global_data->network_namespace_ipvs);
+		return IPVS_ERROR;
+	}
+#endif
 
 	return IPVS_SUCCESS;
 }
@@ -105,6 +114,10 @@ ipvs_stop(void)
 		return;
 
 	ipvs_close();
+#if HAVE_DECL_CLONE_NEWNET
+	if (global_data->network_namespace_ipvs)
+		close_ipvs_namespaces();
+#endif
 }
 
 void
