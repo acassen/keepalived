@@ -47,7 +47,7 @@
 #define INFINITY_LIFE_TIME      0xFFFFFFFF
 
 const char *
-ipaddresstos(char *buf, const ip_address_t *ipaddress)
+ipaddresstos(char *buf, const ip_address_t *ip_addr)
 {
 	static char addr_str[IPADDRESSTOS_BUF_LEN];
 	char *end;
@@ -55,14 +55,14 @@ ipaddresstos(char *buf, const ip_address_t *ipaddress)
 	if (!buf)
 		buf = addr_str;
 
-	if (IP_IS6(ipaddress))
-		inet_ntop(AF_INET6, &ipaddress->u.sin6_addr, buf, INET6_ADDRSTRLEN);
+	if (IP_IS6(ip_addr))
+		inet_ntop(AF_INET6, &ip_addr->u.sin6_addr, buf, INET6_ADDRSTRLEN);
 	else
-		inet_ntop(AF_INET, &ipaddress->u.sin.sin_addr, buf, INET_ADDRSTRLEN);
-	if ((ipaddress->ifa.ifa_family == AF_INET && ipaddress->ifa.ifa_prefixlen != 32 ) ||
-	    (ipaddress->ifa.ifa_family == AF_INET6 && ipaddress->ifa.ifa_prefixlen != 128 )) {
+		inet_ntop(AF_INET, &ip_addr->u.sin.sin_addr, buf, INET_ADDRSTRLEN);
+	if ((ip_addr->ifa.ifa_family == AF_INET && ip_addr->ifa.ifa_prefixlen != 32 ) ||
+	    (ip_addr->ifa.ifa_family == AF_INET6 && ip_addr->ifa.ifa_prefixlen != 128 )) {
 		end = buf + strlen(buf);
-		snprintf(end, buf + IPADDRESSTOS_BUF_LEN - end, "/%u", ipaddress->ifa.ifa_prefixlen);
+		snprintf(end, buf + IPADDRESSTOS_BUF_LEN - end, "/%u", ip_addr->ifa.ifa_prefixlen);
 	}
 
 	return buf;
@@ -70,7 +70,7 @@ ipaddresstos(char *buf, const ip_address_t *ipaddress)
 
 /* Add/Delete IP address to a specific interface_t */
 int
-netlink_ipaddress(ip_address_t *ipaddress, int cmd)
+netlink_ipaddress(ip_address_t *ip_addr, int cmd)
 {
 	struct ifa_cacheinfo cinfo;
 	int status = 1;
@@ -87,39 +87,40 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 
 	if (cmd == IPADDRESS_ADD) {
 		/* We can't add the address if the interface doesn't exist */
-		if (!ipaddress->ifp->ifindex) {
-			log_message(LOG_INFO, "Not adding address %s to %s since interface doesn't exist", ipaddresstos(NULL, ipaddress), ipaddress->ifp->ifname);
+		if (!ip_addr->ifp->ifindex) {
+			log_message(LOG_INFO, "Not adding address %s to %s since interface doesn't exist"
+					    , ipaddresstos(NULL, ip_addr), ip_addr->ifp->ifname);
 			return -1;
 		}
 
 		/* Make sure the ifindex for the address is current */
-		ipaddress->ifa.ifa_index = ipaddress->ifp->ifindex;
+		ip_addr->ifa.ifa_index = ip_addr->ifp->ifindex;
 	}
-	else if (!ipaddress->ifp->ifindex) {
+	else if (!ip_addr->ifp->ifindex) {
 		/* The interface has been deleted, so there is no point deleting the address */
 		return 0;
 	}
-	else if (!ipaddress->ifa.ifa_index)
-		ipaddress->ifa.ifa_index = ipaddress->ifp->ifindex;
+	else if (!ip_addr->ifa.ifa_index)
+		ip_addr->ifa.ifa_index = ip_addr->ifp->ifindex;
 
 	memset(&req, 0, sizeof (req));
 
 	req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifaddrmsg));
 	req.n.nlmsg_flags = NLM_F_REQUEST;
 	req.n.nlmsg_type = (cmd == IPADDRESS_DEL) ? RTM_DELADDR : RTM_NEWADDR;
-	req.ifa = ipaddress->ifa;
+	req.ifa = ip_addr->ifa;
 
 	if (cmd == IPADDRESS_ADD)
-		ifa_flags = ipaddress->flags;
+		ifa_flags = ip_addr->flags;
 
-	if (IP_IS6(ipaddress)) {
+	if (IP_IS6(ip_addr)) {
 		if (cmd == IPADDRESS_ADD) {
 			/* A preferred_lft of 0 marks an IPv6 address as deprecated (rfc3484)
 			 * in order to prevent using VRRP VIP as source address in
 			 * healthchecking use cases. */
-			if (ipaddress->preferred_lft != INFINITY_LIFE_TIME) {
+			if (ip_addr->preferred_lft != INFINITY_LIFE_TIME) {
 				memset(&cinfo, 0, sizeof(cinfo));
-				cinfo.ifa_prefered = ipaddress->preferred_lft;
+				cinfo.ifa_prefered = ip_addr->preferred_lft;
 				cinfo.ifa_valid = INFINITY_LIFE_TIME;
 
 				addattr_l(&req.n, sizeof(req), IFA_CACHEINFO, &cinfo, sizeof(cinfo));
@@ -137,26 +138,26 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 			 *     functionality, so it's not really needed from the IPv6 stack.
 			 */
 #ifdef IFA_F_NODAD	/* Since Linux 2.6.19 */
-			if (!(ipaddress->flagmask & IFA_F_NODAD))
+			if (!(ip_addr->flagmask & IFA_F_NODAD))
 				ifa_flags |= IFA_F_NODAD;
 #endif
 		}
 
 		addattr_l(&req.n, sizeof(req), IFA_LOCAL,
-			  &ipaddress->u.sin6_addr, sizeof(ipaddress->u.sin6_addr));
+			  &ip_addr->u.sin6_addr, sizeof(ip_addr->u.sin6_addr));
 	} else {
 		addattr_l(&req.n, sizeof(req), IFA_LOCAL,
-			  &ipaddress->u.sin.sin_addr, sizeof(ipaddress->u.sin.sin_addr));
+			  &ip_addr->u.sin.sin_addr, sizeof(ip_addr->u.sin.sin_addr));
 
 		if (cmd == IPADDRESS_ADD) {
-			if (ipaddress->u.sin.sin_brd.s_addr)
+			if (ip_addr->u.sin.sin_brd.s_addr)
 				addattr_l(&req.n, sizeof(req), IFA_BROADCAST,
-					  &ipaddress->u.sin.sin_brd, sizeof(ipaddress->u.sin.sin_brd));
+					  &ip_addr->u.sin.sin_brd, sizeof(ip_addr->u.sin.sin_brd));
 		}
 		else {
 			/* IPADDRESS_DEL */
 			addattr_l(&req.n, sizeof(req), IFA_ADDRESS,
-				  &ipaddress->u.sin.sin_addr, sizeof(ipaddress->u.sin.sin_addr));
+				  &ip_addr->u.sin.sin_addr, sizeof(ip_addr->u.sin.sin_addr));
 		}
 	}
 
@@ -167,20 +168,20 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 #else
 		req.ifa.ifa_flags = ifa_flags;
 #endif
-		if (ipaddress->label)
+		if (ip_addr->label)
 			addattr_l(&req.n, sizeof (req), IFA_LABEL,
-				  ipaddress->label, strlen(ipaddress->label) + 1);
+				  ip_addr->label, strlen(ip_addr->label) + 1);
 
-		if (ipaddress->have_peer)
-                        addattr_l(&req.n, sizeof(req), IFA_ADDRESS, &ipaddress->peer, req.ifa.ifa_family == AF_INET6 ? 16 : 4);
+		if (ip_addr->have_peer)
+                        addattr_l(&req.n, sizeof(req), IFA_ADDRESS, &ip_addr->peer, req.ifa.ifa_family == AF_INET6 ? 16 : 4);
 	}
 
 	/* If the state of the interface or its parent is down, it might be because the interface
 	 * has been deleted, but we get the link status change message before the RTM_DELLINK message */
 	if (cmd == IPADDRESS_DEL &&
-	    (((ipaddress->ifp->ifi_flags & (IFF_UP | IFF_RUNNING)) != (IFF_UP | IFF_RUNNING))
+	    (((ip_addr->ifp->ifi_flags & (IFF_UP | IFF_RUNNING)) != (IFF_UP | IFF_RUNNING))
 #ifdef _HAVE_VRRP_VMAC_
-	     || ((IF_BASE_IFP(ipaddress->ifp)->ifi_flags & (IFF_UP | IFF_RUNNING)) != (IFF_UP | IFF_RUNNING))
+	     || ((IF_BASE_IFP(ip_addr->ifp)->ifi_flags & (IFF_UP | IFF_RUNNING)) != (IFF_UP | IFF_RUNNING))
 #endif
 													     ))
 		netlink_error_ignore = ENODEV;
@@ -193,35 +194,30 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 
 /* Add/Delete a list of IP addresses */
 bool
-netlink_iplist(list ip_list, int cmd, bool force)
+netlink_iplist(list_head_t *ip_list, int cmd, bool force)
 {
-	ip_address_t *ipaddr;
-	element e;
+	ip_address_t *ip_addr;
 	bool changed_entries = false;
-
-	/* No addresses in this list */
-	if (LIST_ISEMPTY(ip_list))
-		return false;
 
 	/*
 	 * If "--dont-release-vrrp" is set then try to release addresses
 	 * that may be there, even if we didn't set them.
 	 */
-	LIST_FOREACH (ip_list, ipaddr, e) {
-		if ((cmd == IPADDRESS_ADD && !ipaddr->set) ||
+	list_for_each_entry(ip_addr, ip_list, e_list) {
+		if ((cmd == IPADDRESS_ADD && !ip_addr->set) ||
 		    (cmd == IPADDRESS_DEL &&
-		     (force || ipaddr->set || __test_bit(DONT_RELEASE_VRRP_BIT, &debug)))) {
+		     (force || ip_addr->set || __test_bit(DONT_RELEASE_VRRP_BIT, &debug)))) {
 			/* If we are removing addresses left over from previous run
 			 * and they don't exist, don't report an error */
 			if (force)
 				netlink_error_ignore = ENODEV;
 
-			if (netlink_ipaddress(ipaddr, cmd) > 0) {
-				ipaddr->set = (cmd == IPADDRESS_ADD);
+			if (netlink_ipaddress(ip_addr, cmd) > 0) {
+				ip_addr->set = (cmd == IPADDRESS_ADD);
 				changed_entries = true;
 			}
 			else
-				ipaddr->set = false;
+				ip_addr->set = false;
 		}
 	}
 
@@ -230,97 +226,114 @@ netlink_iplist(list ip_list, int cmd, bool force)
 
 /* IP address dump/allocation */
 void
-free_ipaddress(void *if_data)
+free_ipaddress(ip_address_t *ip_addr)
 {
-	ip_address_t *ipaddr = if_data;
-
-	FREE_PTR(ipaddr->label);
-	FREE(ipaddr);
+	FREE_PTR(ip_addr->label);
+	list_head_del(&ip_addr->e_list);
+	FREE(ip_addr);
 }
 
 void
-format_ipaddress(const ip_address_t *ipaddr, char *buf, size_t buf_len)
+free_ipaddress_list(list_head_t *l)
+{
+	ip_address_t *ip_addr, *ip_addr_tmp;
+
+	list_for_each_entry_safe(ip_addr, ip_addr_tmp, l, e_list)
+		free_ipaddress(ip_addr);
+}
+
+void
+format_ipaddress(const ip_address_t *ip_addr, char *buf, size_t buf_len)
 {
 	char peer[INET6_ADDRSTRLEN + 4];	/* allow for subnet */
 	char *buf_p = buf;
 	char *buf_end = buf + buf_len;
 
-	buf_p += snprintf(buf_p, buf_end - buf_p, "%s", ipaddresstos(NULL, ipaddr));
-	if (!IP_IS6(ipaddr) && ipaddr->u.sin.sin_brd.s_addr) {
+	buf_p += snprintf(buf_p, buf_end - buf_p, "%s", ipaddresstos(NULL, ip_addr));
+	if (!IP_IS6(ip_addr) && ip_addr->u.sin.sin_brd.s_addr) {
 		buf_p += snprintf(buf_p, buf_end - buf_p, " brd %s",
-			 inet_ntop2(ipaddr->u.sin.sin_brd.s_addr));
+			 inet_ntop2(ip_addr->u.sin.sin_brd.s_addr));
 	}
-	buf_p += snprintf(buf_p, buf_end - buf_p, " dev %s scope %s",
-			    IF_NAME(ipaddr->ifp),
-			    get_rttables_scope(ipaddr->ifa.ifa_scope));
-	if (ipaddr->label)
-		buf_p += snprintf(buf_p, buf_end - buf_p, " label %s", ipaddr->label);
-	if (ipaddr->have_peer) {
-		inet_ntop(ipaddr->ifa.ifa_family, &ipaddr->peer, peer, sizeof(peer));
-		buf_p += snprintf(buf_p, buf_end - buf_p, " peer %s/%d" , peer , ipaddr->ifa.ifa_prefixlen);
+	buf_p += snprintf(buf_p, buf_end - buf_p, " dev %s scope %s"
+			       , IF_NAME(ip_addr->ifp)
+			       , get_rttables_scope(ip_addr->ifa.ifa_scope));
+	if (ip_addr->label)
+		buf_p += snprintf(buf_p, buf_end - buf_p, " label %s", ip_addr->label);
+	if (ip_addr->have_peer) {
+		inet_ntop(ip_addr->ifa.ifa_family, &ip_addr->peer, peer, sizeof(peer));
+		buf_p += snprintf(buf_p, buf_end - buf_p, " peer %s/%d"
+				       , peer, ip_addr->ifa.ifa_prefixlen);
 	}
 #ifdef IFA_F_HOMEADDRESS		/* Linux 2.6.19 */
-	if (ipaddr->flags & IFA_F_HOMEADDRESS)
+	if (ip_addr->flags & IFA_F_HOMEADDRESS)
 		buf_p += snprintf(buf_p, buf_end - buf_p, " home");
 #endif
 #ifdef IFA_F_NODAD			/* Linux 2.6.19 */
-	if (ipaddr->flagmask & IFA_F_NODAD)
+	if (ip_addr->flagmask & IFA_F_NODAD)
 		buf_p += snprintf(buf_p, buf_end - buf_p, " -nodad");
 #endif
 #ifdef IFA_F_MANAGETEMPADDR		/* Linux 3.14 */
-	if (ipaddr->flags & IFA_F_MANAGETEMPADDR)
+	if (ip_addr->flags & IFA_F_MANAGETEMPADDR)
 		buf_p += snprintf(buf_p, buf_end - buf_p, " mngtmpaddr");
 #endif
 #ifdef IFA_F_NOPREFIXROUTE		/* Linux 3.14 */
-	if (ipaddr->flags & IFA_F_NOPREFIXROUTE)
+	if (ip_addr->flags & IFA_F_NOPREFIXROUTE)
 		buf_p += snprintf(buf_p, buf_end - buf_p, " noprefixroute");
 #endif
 #ifdef IFA_F_MCAUTOJOIN			/* Linux 4.1 */
-	if (ipaddr->flags & IFA_F_MCAUTOJOIN)
+	if (ip_addr->flags & IFA_F_MCAUTOJOIN)
 		buf_p += snprintf(buf_p, buf_end - buf_p, " autojoin");
 #endif
-	if (ipaddr->dont_track)
+	if (ip_addr->dont_track)
 		buf_p += snprintf(buf_p, buf_end - buf_p, "%s", " no_track");
 
-	if (ipaddr->track_group)
-		buf_p += snprintf(buf_p, buf_end - buf_p, " track_group %s", ipaddr->track_group->gname);
+	if (ip_addr->track_group)
+		buf_p += snprintf(buf_p, buf_end - buf_p, " track_group %s", ip_addr->track_group->gname);
 
-	if (IP_IS6(ipaddr)) {
-		if (ipaddr->preferred_lft == 0)
+	if (IP_IS6(ip_addr)) {
+		if (ip_addr->preferred_lft == 0)
 			buf_p += snprintf(buf_p, buf_end - buf_p, " deprecated");
-		else if (ipaddr->preferred_lft == INFINITY_LIFE_TIME)
+		else if (ip_addr->preferred_lft == INFINITY_LIFE_TIME)
 			buf_p += snprintf(buf_p, buf_end - buf_p, " preferred_lft forever");
 		else
-			buf_p += snprintf(buf_p, buf_end - buf_p, " preferred_lft %" PRIu32, ipaddr->preferred_lft);
+			buf_p += snprintf(buf_p, buf_end - buf_p, " preferred_lft %" PRIu32, ip_addr->preferred_lft);
 	}
 
-	if (ipaddr->set)
+	if (ip_addr->set)
 		buf_p += snprintf(buf_p, buf_end - buf_p, " set");
 #ifdef _WITH_IPTABLES_
-	if (ipaddr->iptable_rule_set)
+	if (ip_addr->iptable_rule_set)
 		buf_p += snprintf(buf_p, buf_end - buf_p, " iptable_set");
 #endif
 #ifdef _WITH_NFTABLES_
-	if (ipaddr->nftable_rule_set)
+	if (ip_addr->nftable_rule_set)
 		buf_p += snprintf(buf_p, buf_end - buf_p, " nftable_set");
 #endif
 }
 
 void
-dump_ipaddress(FILE *fp, const void *if_data)
+dump_ipaddress(FILE *fp, const ip_address_t *ip_addr)
 {
-	const ip_address_t *ipaddr = if_data;
 	char buf[256];
 
-	format_ipaddress(ipaddr, buf, sizeof(buf));
+	format_ipaddress(ip_addr, buf, sizeof(buf));
 
 	conf_write(fp, "     %s", buf);
 }
 
-ip_address_t *
-parse_ipaddress(ip_address_t *ip_address, const char *str, bool allow_subnet_mask)
+void
+dump_ipaddress_list(FILE *fp, const list_head_t *l)
 {
-	ip_address_t *new = ip_address;
+	ip_address_t *ip_addr;
+
+	list_for_each_entry(ip_addr, l, e_list)
+		dump_ipaddress(fp, ip_addr);
+}
+
+ip_address_t *
+parse_ipaddress(ip_address_t *ip_addr, const char *str, bool allow_subnet_mask)
+{
+	ip_address_t *new = ip_addr;
 	void *addr;
 	const char *p;
 	unsigned prefixlen;
@@ -352,7 +365,7 @@ parse_ipaddress(ip_address_t *ip_address, const char *str, bool allow_subnet_mas
 			       (void *) &new->u.sin.sin_addr;
 	if (!inet_pton(IP_FAMILY(new), str_dup ? str_dup : str, addr)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "VRRP parsed invalid IP %s. skipping IP...", str);
-		if (!ip_address)
+		if (!ip_addr)
 			FREE(new);
 		new = NULL;
 	}
@@ -391,7 +404,7 @@ parse_route(const char *str)
 }
 
 void
-alloc_ipaddress(list ip_list, const vector_t *strvec, const interface_t *ifp, bool allow_track_group)
+alloc_ipaddress(list_head_t *ip_list, const vector_t *strvec, const interface_t *ifp, bool allow_track_group)
 {
 /* The way this works is slightly strange.
  *
@@ -420,9 +433,14 @@ alloc_ipaddress(list ip_list, const vector_t *strvec, const interface_t *ifp, bo
 	bool preferred_lft_set = false;
 
 	new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
+	if (!new) {
+		log_message(LOG_INFO, "Unable to allocate new ip_address");
+		return;
+	}
+	INIT_LIST_HEAD(&new->e_list);
 
 	/* We expect the address first */
-	if (!parse_ipaddress(new, strvec_slot(strvec,0), true)) {
+	if (!parse_ipaddress(new, strvec_slot(strvec, 0), true)) {
 		FREE(new);
 		return;
 	}
@@ -646,97 +664,98 @@ alloc_ipaddress(list ip_list, const vector_t *strvec, const interface_t *ifp, bo
 		new->track_group = NULL;
 	}
 
-	list_add(ip_list, new);
+	list_add_tail(&new->e_list, ip_list);
 }
 
 /* Find an address in a list */
 static bool
-address_exist(vrrp_t *vrrp, ip_address_t *ipaddress)
+address_exist(vrrp_t *vrrp, ip_address_t *ip_addr)
 {
 	ip_address_t *ipaddr;
-	element e;
 	char addr_str[INET6_ADDRSTRLEN];
 	void *addr;
 
 	/* If the following check isn't made, we get lots of compiler warnings */
-	if (!ipaddress)
+	if (!ip_addr)
 		return true;
 
 
-	LIST_FOREACH(vrrp->vip, ipaddr, e) {
-		if (IP_ISEQ(ipaddr, ipaddress)) {
-			ipaddr->set = ipaddress->set;
+	list_for_each_entry(ipaddr, &vrrp->vip, e_list) {
+		if (IP_ISEQ(ipaddr, ip_addr)) {
+			ipaddr->set = ip_addr->set;
 #ifdef _WITH_IPTABLES_
-			ipaddr->iptable_rule_set = ipaddress->iptable_rule_set;
+			ipaddr->iptable_rule_set = ip_addr->iptable_rule_set;
 #endif
 #ifdef _WITH_NFTABLES_
-			ipaddr->nftable_rule_set = ipaddress->nftable_rule_set;
+			ipaddr->nftable_rule_set = ip_addr->nftable_rule_set;
 #endif
-			ipaddr->ifa.ifa_index = ipaddress->ifa.ifa_index;
+			ipaddr->ifa.ifa_index = ip_addr->ifa.ifa_index;
 			return true;
 		}
 	}
 
-	LIST_FOREACH(vrrp->evip, ipaddr, e) {
-		if (IP_ISEQ(ipaddr, ipaddress)) {
-			ipaddr->set = ipaddress->set;
+	list_for_each_entry(ipaddr, &vrrp->evip, e_list) {
+		if (IP_ISEQ(ipaddr, ip_addr)) {
+			ipaddr->set = ip_addr->set;
 #ifdef _WITH_IPTABLES_
-			ipaddr->iptable_rule_set = ipaddress->iptable_rule_set;
+			ipaddr->iptable_rule_set = ip_addr->iptable_rule_set;
 #endif
 #ifdef _WITH_NFTABLES_
-			ipaddr->nftable_rule_set = ipaddress->nftable_rule_set;
+			ipaddr->nftable_rule_set = ip_addr->nftable_rule_set;
 #endif
-			ipaddr->ifa.ifa_index = ipaddress->ifa.ifa_index;
+			ipaddr->ifa.ifa_index = ip_addr->ifa.ifa_index;
 			return true;
 		}
 	}
 
-	addr = (IP_IS6(ipaddress)) ? (void *) &ipaddress->u.sin6_addr :
-				  (void *) &ipaddress->u.sin.sin_addr;
-	inet_ntop(IP_FAMILY(ipaddress), addr, addr_str, INET6_ADDRSTRLEN);
+	addr = (IP_IS6(ip_addr)) ? (void *) &ip_addr->u.sin6_addr :
+				  (void *) &ip_addr->u.sin.sin_addr;
+	inet_ntop(IP_FAMILY(ip_addr), addr, addr_str, INET6_ADDRSTRLEN);
 
 	log_message(LOG_INFO, "(%s) ip address %s/%d dev %s, no longer exist"
 			    , vrrp->iname
 			    , addr_str
-			    , ipaddress->ifa.ifa_prefixlen
-			    , ipaddress->ifp->ifname);
+			    , ip_addr->ifa.ifa_prefixlen
+			    , ip_addr->ifp->ifname);
 
 	return false;
 }
 
 /* Clear diff addresses */
 void
-get_diff_address(vrrp_t *old, vrrp_t *new, list old_addr)
+get_diff_address(vrrp_t *old, vrrp_t *new, list_head_t *old_addr)
 {
-	ip_address_t *ipaddr;
-	element e;
+	ip_address_t *ip_addr;
 
 	/* No addresses in previous conf */
-	if (LIST_ISEMPTY(old->vip) && LIST_ISEMPTY(old->evip))
+	if (list_empty(&old->vip) && list_empty(&old->evip))
 		return;
 
-	LIST_FOREACH(old->vip, ipaddr, e) {
-		if (ipaddr->set && !address_exist(new, ipaddr))
-			list_add(old_addr, ipaddr);
+	list_for_each_entry(ip_addr, &old->vip, e_list) {
+		if (ip_addr->set && !address_exist(new, ip_addr)) {
+			list_del_init(&ip_addr->e_list);
+			list_add_tail(&ip_addr->e_list, old_addr);
+		}
 	}
 
-	LIST_FOREACH(old->evip, ipaddr, e) {
-		if (ipaddr->set && !address_exist(new, ipaddr))
-			list_add(old_addr, ipaddr);
+	list_for_each_entry(ip_addr, &old->evip, e_list) {
+		if (ip_addr->set && !address_exist(new, ip_addr)) {
+			list_del_init(&ip_addr->e_list);
+			list_add_tail(&ip_addr->e_list, old_addr);
+		}
 	}
 }
 
 /* Clear diff addresses */
 void
-clear_address_list(list delete_addr,
+clear_address_list(list_head_t *delete_addr,
 #ifndef _WITH_FIREWALL_
 				     __attribute__((unused))
 #endif
-							     bool remove_from_firewall
-				   			      )
+							     bool remove_from_firewall)
 {
 	/* No addresses to delete */
-	if (LIST_ISEMPTY(delete_addr))
+	if (list_empty(delete_addr))
 		return;
 
 	/* All addresses removed */
@@ -749,23 +768,23 @@ clear_address_list(list delete_addr,
 
 /* Clear static ip address */
 void
-clear_diff_saddresses(void)
+clear_diff_static_addresses(void)
 {
-	list remove_addr = alloc_list(NULL, NULL);
 	vrrp_t old = { .vip = old_vrrp_data->static_addresses };
 	vrrp_t new = { .vip = vrrp_data->static_addresses };
+	list_head_t remove_addr;
 
-	get_diff_address(&old, &new, remove_addr);
-	clear_address_list(remove_addr, false);
-
-	free_list(&remove_addr);
+	INIT_LIST_HEAD(&remove_addr);
+	get_diff_address(&old, &new, &remove_addr);
+	clear_address_list(&remove_addr, false);
+	free_ipaddress_list(&remove_addr);
 }
 
-void reinstate_static_address(ip_address_t *ipaddr)
+void reinstate_static_address(ip_address_t *ip_addr)
 {
 	char buf[256];
 
-	ipaddr->set = (netlink_ipaddress(ipaddr, IPADDRESS_ADD) > 0);
-	format_ipaddress(ipaddr, buf, sizeof(buf));
+	ip_addr->set = (netlink_ipaddress(ip_addr, IPADDRESS_ADD) > 0);
+	format_ipaddress(ip_addr, buf, sizeof(buf));
 	log_message(LOG_INFO, "Restoring deleted static address %s", buf);
 }

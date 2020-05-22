@@ -50,6 +50,7 @@
 #include "track_process.h"
 #include "global_data.h"
 #include "list.h"
+#include "list_head.h"
 #if !HAVE_DECL_SOCK_NONBLOCK
 #include "old_socket.h"
 #endif
@@ -79,7 +80,8 @@ static void
 set_rcv_buf(unsigned buf_size, bool force)
 {
 	if (setsockopt(nl_sock, SOL_SOCKET, force ? SO_RCVBUFFORCE : SO_RCVBUF, &buf_size, sizeof(buf_size)) < 0)
-		log_message(LOG_INFO, "Cannot set process monitor SO_RCVBUF%s option. errno=%d (%m)", force ? "FORCE" : "", errno);
+		log_message(LOG_INFO, "Cannot set process monitor SO_RCVBUF%s option. errno=%d (%m)"
+				    , force ? "FORCE" : "", errno);
 }
 
 static int
@@ -173,7 +175,7 @@ check_params(vrrp_tracked_process_t *tpr, const char *params, size_t params_len)
 }
 
 static void
-read_procs(list processes)
+read_procs(list_head_t *processes)
 {
 	/* /proc/PID/status has line State: which can be Z for zombie process (but cmdline is empty then)
 	 * /proc/PID/stat has cmd name as 2nd field in (), and state as third field. For states see
@@ -194,7 +196,6 @@ read_procs(list processes)
 	ssize_t cmdline_len = 0;
 	char *proc_name;
 	vrrp_tracked_process_t *tpr;
-	element e;
 	const char *param_start;
 
 	cmd_buf_len = vrrp_data->vrrp_max_process_name_len + 2;
@@ -253,7 +254,7 @@ read_procs(list processes)
 		else
 			comm = NULL;	/* Avoid compiler warning */
 
-		LIST_FOREACH(processes, tpr, e) {
+		list_for_each_entry(tpr, processes, e_list) {
 			if (tpr->full_command)
 				proc_name = cmd_buf;
 			else if (comm)
@@ -331,7 +332,6 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 	char *proc_name;
 	const char *param_start;
 	vrrp_tracked_process_t *tpr;
-	element e;
 	bool had_process;
 	tracked_process_instance_t tp = { .pid = pid };
 	bool have_comm = !!comm;
@@ -414,7 +414,7 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 		log_message(LOG_INFO, "check_process %s (cmdline %s)", comm, cmd_buf ? cmd_buf : "[none]");
 #endif
 
-	LIST_FOREACH(vrrp_data->vrrp_track_processes, tpr, e) {
+	list_for_each_entry(tpr, &vrrp_data->vrrp_track_processes, e_list) {
 		if (tpr->full_command) {
 			/* If this is a PROC_EVENT_COMM, we aren't dealing with the command line */
 			if (have_comm)
@@ -762,7 +762,6 @@ reinitialise_track_processes(void)
 	socklen_t buf_size_len = sizeof(buf_size);
 	unsigned i;
 	vrrp_tracked_process_t *tpr;
-	element e;
 	tracked_process_instance_t *tpi, *next;
 
 	need_reinitialise = false;
@@ -775,7 +774,9 @@ reinitialise_track_processes(void)
 	buf_size *= 2;
 	set_rcv_buf(buf_size, global_data->process_monitor_rcv_bufs_force);
 
-	log_message(LOG_INFO, "Setting global_def process_monitor_rcv_bufs to %u - recommend updating configuration file", buf_size);
+	log_message(LOG_INFO, "Setting global_def process_monitor_rcv_bufs to %u"
+			      " - recommend updating configuration file"
+			    , buf_size);
 
 	/* Reset the sequence numbers */
 	for (i = 0; i < num_cpus; i++)
@@ -789,7 +790,7 @@ reinitialise_track_processes(void)
 	}
 
 	/* Save process counters, and clear any down timers */
-	LIST_FOREACH(vrrp_data->vrrp_track_processes, tpr, e) {
+	list_for_each_entry(tpr, &vrrp_data->vrrp_track_processes, e_list) {
 		tpr->sav_num_cur_proc = tpr->num_cur_proc;
 		tpr->num_cur_proc = 0;
 		if (tpr->fork_timer_thread) {
@@ -803,27 +804,39 @@ reinitialise_track_processes(void)
 	}
 
 	/* Re read processes */
-	read_procs(vrrp_data->vrrp_track_processes);
+	read_procs(&vrrp_data->vrrp_track_processes);
 
 	/* See if anything changed */
-	LIST_FOREACH(vrrp_data->vrrp_track_processes, tpr, e) {
+	list_for_each_entry(tpr, &vrrp_data->vrrp_track_processes, e_list) {
 		if (tpr->sav_num_cur_proc != tpr->num_cur_proc) {
 			if ((tpr->sav_num_cur_proc < tpr->quorum) == (tpr->num_cur_proc < tpr->quorum) &&
 			    (tpr->sav_num_cur_proc > tpr->quorum_max) == (tpr->num_cur_proc > tpr->quorum_max)) {
 				if (__test_bit(LOG_DETAIL_BIT, &debug))
-					log_message(LOG_INFO, "Process %s, number of current processes changed from %u to %u", tpr->pname, tpr->sav_num_cur_proc, tpr->num_cur_proc);
+					log_message(LOG_INFO, "Process %s, number of current processes changed"
+							      " from %u to %u"
+							    , tpr->pname
+							    , tpr->sav_num_cur_proc
+							    , tpr->num_cur_proc);
 				continue;
 			}
 			if (tpr->num_cur_proc >= tpr->quorum &&
 			    tpr->num_cur_proc <= tpr->quorum_max) {
 				if (__test_bit(LOG_DETAIL_BIT, &debug))
-					log_message(LOG_INFO, "Process %s, number of current processes changed from %u to %u, quorum up", tpr->pname, tpr->sav_num_cur_proc, tpr->num_cur_proc);
+					log_message(LOG_INFO, "Process %s, number of current processes changed"
+							      " from %u to %u, quorum up"
+							    , tpr->pname
+							    , tpr->sav_num_cur_proc
+							    , tpr->num_cur_proc);
 				if (tpr->fork_delay)
 					tpr->fork_timer_thread = thread_add_timer(master, process_gained_quorum_timer_thread, tpr, tpr->terminate_delay);
 				process_update_track_process_status(tpr, true);
 			} else {
 				if (__test_bit(LOG_DETAIL_BIT, &debug))
-					log_message(LOG_INFO, "Process %s, number of current processes changed from %u to %u, quorum down", tpr->pname, tpr->sav_num_cur_proc, tpr->num_cur_proc);
+					log_message(LOG_INFO, "Process %s, number of current processes changed"
+							      " from %u to %u, quorum down"
+							    , tpr->pname
+							    , tpr->sav_num_cur_proc
+							    , tpr->num_cur_proc);
 				if (tpr->terminate_delay)
 					tpr->terminate_timer_thread = thread_add_timer(master, process_lost_quorum_timer_thread, tpr, tpr->terminate_delay);
 				else
@@ -846,7 +859,8 @@ process_lost_messages_timer_thread(__attribute__((unused)) thread_ref_t thread)
 /*
  * handle a single process event
  */
-static int handle_proc_ev(int nl_sd)
+static int
+handle_proc_ev(int nl_sd)
 {
 	struct nlmsghdr *nlmsghdr;
 	ssize_t len;
@@ -1083,7 +1097,7 @@ close_track_processes(void)
 }
 
 bool
-init_track_processes(list processes)
+init_track_processes(list_head_t *processes)
 {
 	int rc = EXIT_SUCCESS;
 	unsigned i;
@@ -1108,7 +1122,9 @@ init_track_processes(list processes)
 				cpu_seq[i] = -1;
 		}
 		else
-			log_message(LOG_INFO, "sysconf returned %ld CPUs - ignoring and won't track process event sequence numbers", num);
+			log_message(LOG_INFO, "sysconf returned %ld CPUs"
+					      " - ignoring and won't track process event sequence numbers"
+					    , num);
 	}
 
 	read_procs(processes);
@@ -1131,7 +1147,7 @@ reload_track_processes(void)
 	}
 
 	/* Re read processes */
-	read_procs(vrrp_data->vrrp_track_processes);
+	read_procs(&vrrp_data->vrrp_track_processes);
 
 	/* Add read thread */
 	read_thread = thread_add_read(master, read_process_update, NULL, nl_sock, TIMER_NEVER, false);
@@ -1143,7 +1159,6 @@ void
 end_process_monitor(void)
 {
 	vrrp_tracked_process_t *tpr;
-	element e;
 	tracked_process_instance_t *tpi, *next;
 
 	if (!cpu_seq)
@@ -1164,7 +1179,7 @@ end_process_monitor(void)
 	FREE_PTR(cpu_seq);
 
 	/* Cancel any timer threads */
-	LIST_FOREACH(vrrp_data->vrrp_track_processes, tpr, e) {
+	list_for_each_entry(tpr, &vrrp_data->vrrp_track_processes, e_list) {
 		if (tpr->fork_timer_thread) {
 			thread_cancel(tpr->fork_timer_thread);
 			tpr->fork_timer_thread = NULL;

@@ -339,7 +339,6 @@ send_instance_priority_notifies(vrrp_t *vrrp)
 void
 notify_shutdown(void)
 {
-	element e;
 	vrrp_t *vrrp;
 	vrrp_sgroup_t *vgroup;
 
@@ -348,7 +347,7 @@ notify_shutdown(void)
 		send_instance_notifies(vrrp);
 	}
 
-	LIST_FOREACH(vrrp_data->vrrp_sync_group, vgroup, e) {
+	list_for_each_entry(vgroup, &vrrp_data->vrrp_sync_group, e_list) {
 		vgroup->state = VRRP_STATE_STOP;
 		send_group_notifies(vgroup);
 	}

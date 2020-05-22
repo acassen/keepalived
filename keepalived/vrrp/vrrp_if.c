@@ -1306,7 +1306,6 @@ interface_up(interface_t *ifp)
 void
 interface_down(interface_t *ifp)
 {
-	element e, e1;
 	vrrp_t *vrrp;
 	ip_route_t *route;
 	bool route_found;
@@ -1320,7 +1319,7 @@ interface_down(interface_t *ifp)
 
 		route_found = false;
 
-		LIST_FOREACH(vrrp->vroutes, route, e1) {
+		list_for_each_entry(route, &vrrp->vroutes, e_list) {
 			if (!route->set)
 				continue;
 
@@ -1348,7 +1347,7 @@ interface_down(interface_t *ifp)
 
 #ifdef _HAVE_FIB_ROUTING_
 	/* Now check the static routes */
-	LIST_FOREACH(vrrp_data->static_routes, route, e) {
+	list_for_each_entry(route, &vrrp_data->static_routes, e_list) {
 		if (route->set && route->oif == ifp) {
 			/* This route will have been deleted */
 			route->set = false;

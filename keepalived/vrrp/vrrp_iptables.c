@@ -507,13 +507,12 @@ iptables_fini(void)
 
 /* add/remove iptable drop rules to iplist */
 static void
-handle_iptable_vip_list(struct ipt_handle *h, list ip_list, int cmd, bool force)
+handle_iptable_vip_list(struct ipt_handle *h, list_head_t *ip_list, int cmd, bool force)
 {
 	ip_address_t *ipaddr;
-	element e;
 	uint8_t family;
 
-	LIST_FOREACH(ip_list, ipaddr, e) {
+	list_for_each_entry(ipaddr, ip_list, e_list) {
 		family = ipaddr->ifa.ifa_family;
 		if (vips_setup[family != AF_INET] == NOT_INIT) {
 			if (setup[family != AF_INET] == NOT_INIT)
@@ -543,22 +542,22 @@ handle_iptable_vip_list(struct ipt_handle *h, list ip_list, int cmd, bool force)
 }
 
 void
-handle_iptable_rule_to_iplist(list ip_list1, list ip_list2, int cmd, bool force)
+handle_iptable_rule_to_iplist(list_head_t *ip_list1, list_head_t *ip_list2, int cmd, bool force)
 {
 	struct ipt_handle *h;
 	int tries = 0;
 	int res = 0;
 
 	/* No addresses in this list */
-	if (LIST_ISEMPTY(ip_list1) && LIST_ISEMPTY(ip_list2))
+	if (list_empty(ip_list1) && list_empty(ip_list2))
 		return;
 
         do {
 		h = iptables_open(cmd);
 
-		if (!LIST_ISEMPTY(ip_list1))
+		if (!list_empty(ip_list1))
 			handle_iptable_vip_list(h, ip_list1, cmd, force);
-		if (!LIST_ISEMPTY(ip_list2))
+		if (!list_empty(ip_list2))
 			handle_iptable_vip_list(h, ip_list2, cmd, force);
 
 		res = iptables_close(h);
@@ -568,7 +567,7 @@ handle_iptable_rule_to_iplist(list ip_list1, list ip_list2, int cmd, bool force)
 void
 handle_iptables_accept_mode(vrrp_t *vrrp, int cmd, bool force)
 {
-	handle_iptable_rule_to_iplist(vrrp->vip, vrrp->evip, cmd, force);
+	handle_iptable_rule_to_iplist(&vrrp->vip, &vrrp->evip, cmd, force);
 }
 
 #ifdef _HAVE_VRRP_VMAC_

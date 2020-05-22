@@ -142,16 +142,16 @@ firewall_handle_accept_mode(vrrp_t *vrrp, int cmd,
 }
 
 void
-firewall_remove_rule_to_iplist(list ip_list)
+firewall_remove_rule_to_iplist(list_head_t *l)
 {
 #ifdef _WITH_IPTABLES_
 	if (global_data->vrrp_iptables_inchain)
-		handle_iptable_rule_to_iplist(ip_list, NULL, IPADDRESS_DEL, false);
+		handle_iptable_rule_to_iplist(l, NULL, IPADDRESS_DEL, false);
 #endif
 
 #ifdef _WITH_NFTABLES_
 	if (global_data->vrrp_nf_table_name)
-		nft_remove_addresses_iplist(ip_list);
+		nft_remove_addresses_iplist(l);
 #endif
 }
 

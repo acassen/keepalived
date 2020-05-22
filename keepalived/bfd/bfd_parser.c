@@ -281,8 +281,10 @@ bfd_maxhops_handler(const vector_t *strvec)
 static void
 bfd_vrrp_end_handler(void)
 {
+	vrrp_tracked_bfd_t *tbfd = list_last_entry(&vrrp_data->vrrp_track_bfds, vrrp_tracked_bfd_t, e_list);
+
 	if (specified_event_processes && !__test_bit(DAEMON_VRRP, &specified_event_processes))
-		list_del(vrrp_data->vrrp_track_bfds, LIST_TAIL_DATA(vrrp_data->vrrp_track_bfds));
+		free_vrrp_tracked_bfd(tbfd);
 }
 #endif
 
@@ -370,35 +372,13 @@ bfd_end_handler(void)
 static void
 bfd_vrrp_handler(const vector_t *strvec)
 {
-	vrrp_tracked_bfd_t *tbfd;
 	const char *name;
-	element e;
 
 	if (!strvec)
 		return;
 
 	name = strvec_slot(strvec, 1);
-
-	if (strlen(name) >= sizeof tbfd->bname) {
-		report_config_error(CONFIG_GENERAL_ERROR, "BFD name %s too long", name);
-		skip_block(true);
-		return;
-	}
-
-	LIST_FOREACH(vrrp_data->vrrp_track_bfds, tbfd, e) {
-		if (!strcmp(name, tbfd->bname)) {
-			report_config_error(CONFIG_GENERAL_ERROR, "BFD %s already specified", name);
-			skip_block(true);
-			return;
-		}
-	}
-
-	PMALLOC(tbfd);
-	strcpy(tbfd->bname, name);
-	tbfd->weight = 0;
-	tbfd->weight_reverse = false;
-	tbfd->bfd_up = false;
-	list_add(vrrp_data->vrrp_track_bfds, tbfd);
+	alloc_vrrp_tracked_bfd(name, &vrrp_data->vrrp_track_bfds);
 }
 #endif
 
@@ -411,7 +391,7 @@ bfd_vrrp_weight_handler(const vector_t *strvec)
 	assert(strvec);
 	assert(vrrp_data);
 
-	tbfd = LIST_TAIL_DATA(vrrp_data->vrrp_track_bfds);
+	tbfd = list_last_entry(&vrrp_data->vrrp_track_bfds, vrrp_tracked_bfd_t, e_list);
 	assert(tbfd);
 
 	if (!read_int_strvec(strvec, 1, &value, -253, 253, true)) {
@@ -462,8 +442,6 @@ bfd_checker_handler(const vector_t *strvec)
 
 	PMALLOC(tbfd);
 	tbfd->bname = STRDUP(name);
-//	tbfd->weight = 0;
-
 	list_add(check_data->track_bfds, tbfd);
 }
 #endif

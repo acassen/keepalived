@@ -35,6 +35,7 @@
 #include "vrrp.h"
 #include "vrrp_if.h"
 #include "list.h"
+#include "list_head.h"
 #include "vector.h"
 #include "vrrp_static_track.h"
 
@@ -77,6 +78,9 @@ typedef struct _ip_address {
 #endif
 	bool			garp_gna_pending;	/* Is a gratuitous ARP/NA message still to be sent */
 	uint32_t		preferred_lft;		/* IPv6 preferred_lft (0 means address deprecated) */
+
+	/* linked list member */
+	list_head_t		e_list;
 } ip_address_t;
 
 #define IPADDRESS_DEL 0
@@ -115,16 +119,18 @@ struct ipt_handle;
 /* prototypes */
 extern const char *ipaddresstos(char *, const ip_address_t *);
 extern int netlink_ipaddress(ip_address_t *, int);
-extern bool netlink_iplist(list, int, bool);
-extern void free_ipaddress(void *);
+extern bool netlink_iplist(list_head_t *, int, bool);
+extern void free_ipaddress(ip_address_t *);
+extern void free_ipaddress_list(list_head_t *);
 extern void format_ipaddress(const ip_address_t *, char *, size_t);
-extern void dump_ipaddress(FILE *, const void *);
+extern void dump_ipaddress(FILE *, const ip_address_t *);
+extern void dump_ipaddress_list(FILE *, const list_head_t *);
 extern ip_address_t *parse_ipaddress(ip_address_t *, const char *, bool);
 extern ip_address_t *parse_route(const char *);
-extern void alloc_ipaddress(list, const vector_t *, const interface_t *, bool);
-extern void get_diff_address(vrrp_t *, vrrp_t *, list);
-extern void clear_address_list(list, bool);
-extern void clear_diff_saddresses(void);
+extern void alloc_ipaddress(list_head_t *, const vector_t *, const interface_t *, bool);
+extern void get_diff_address(vrrp_t *, vrrp_t *, list_head_t *);
+extern void clear_address_list(list_head_t *, bool);
+extern void clear_diff_static_addresses(void);
 extern void reinstate_static_address(ip_address_t *);
 
 #endif

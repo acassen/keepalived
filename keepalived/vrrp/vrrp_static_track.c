@@ -23,13 +23,13 @@
 #include "config.h"
 
 /* local include */
+#include "vrrp_track.h"
 #include "vrrp_data.h"
 #include "vrrp.h"
 #include "vrrp_sync.h"
 #include "logger.h"
 #include "vrrp_static_track.h"
 #include "vrrp_ipaddress.h"
-#include "vrrp_track.h"
 #ifdef _HAVE_FIB_ROUTING_
 #include "vrrp_iproute.h"
 #include "vrrp_iprule.h"
@@ -114,7 +114,7 @@ static_track_group_init(void)
 	ip_route_t *route;
 	ip_rule_t *rule;
 #endif
-	element e, e1;
+	element e;
 
 	list_for_each_entry_safe(tgroup, tgroup_tmp, &vrrp_data->static_track_groups, e_list) {
 		if (!tgroup->iname) {
@@ -135,7 +135,7 @@ static_track_group_init(void)
 	}
 
 	/* Add the tracking vrrps to track the interface of each tracked address */
-	LIST_FOREACH(vrrp_data->static_addresses, addr, e) {
+	list_for_each_entry(addr, &vrrp_data->static_addresses, e_list) {
 		if (!addr->track_group)
 			continue;
 		if (addr->dont_track) {
@@ -143,13 +143,13 @@ static_track_group_init(void)
 			continue;
 		}
 
-		LIST_FOREACH(addr->track_group->vrrp_instances, vrrp, e1)
+		LIST_FOREACH(addr->track_group->vrrp_instances, vrrp, e)
 			add_vrrp_to_interface(vrrp, addr->ifp, 0, false, false, TRACK_SADDR);
 	}
 
 #ifdef _HAVE_FIB_ROUTING_
 	/* Add the tracking vrrps to track the interface of each tracked address */
-	LIST_FOREACH(vrrp_data->static_routes, route, e) {
+	list_for_each_entry(route, &vrrp_data->static_routes, e_list) {
 		if (!route->track_group)
 			continue;
 		if (route->dont_track) {
@@ -157,13 +157,13 @@ static_track_group_init(void)
 			continue;
 		}
 
-		LIST_FOREACH(route->track_group->vrrp_instances, vrrp, e1) {
+		LIST_FOREACH(route->track_group->vrrp_instances, vrrp, e) {
 			if (route->oif)
 				add_vrrp_to_interface(vrrp, route->oif, 0, false, false, TRACK_SROUTE);
 		}
 	}
 
-	LIST_FOREACH(vrrp_data->static_rules, rule, e) {
+	list_for_each_entry(rule, &vrrp_data->static_rules, e_list) {
 		if (!rule->track_group)
 			continue;
 		if (rule->dont_track) {
@@ -171,7 +171,7 @@ static_track_group_init(void)
 			continue;
 		}
 
-		LIST_FOREACH(rule->track_group->vrrp_instances, vrrp, e1) {
+		LIST_FOREACH(rule->track_group->vrrp_instances, vrrp, e) {
 			if (rule->iif)
 				add_vrrp_to_interface(vrrp, rule->iif, 0, false, false, TRACK_SRULE);
 		}
@@ -187,9 +187,8 @@ static_track_group_reinstate_config(interface_t *ifp)
 	ip_route_t *route;
 /*	ip_rule_t *rule; */
 #endif
-	element e;
 
-	LIST_FOREACH(vrrp_data->static_addresses, addr, e) {
+	list_for_each_entry(addr, &vrrp_data->static_addresses, e_list) {
 		if (addr->dont_track)
 			continue;
 		if (addr->ifp != ifp)
@@ -199,7 +198,7 @@ static_track_group_reinstate_config(interface_t *ifp)
 
 #ifdef _HAVE_FIB_ROUTING_
 	/* Add the tracking vrrps to track the interface of each tracked address */
-	LIST_FOREACH(vrrp_data->static_routes, route, e) {
+	list_for_each_entry(route, &vrrp_data->static_routes, e_list) {
 		if (route->dont_track)
 			continue;
 		if (route->oif != ifp)
@@ -208,7 +207,7 @@ static_track_group_reinstate_config(interface_t *ifp)
 	}
 
 	/* Rules don't get deleted on interface deletion, so we don't need to do anything for them
-	LIST_FOREACH(vrrp_data->static_rules, rule, e) {
+	list_for_each_entry(rule, &vrrp_data->static_rules, e_list) {
 		if (rule->dont_track)
 			continue;
 		if (rule->iif != ifp)

@@ -31,6 +31,7 @@
 /* local includes */
 #include "scheduler.h"
 #include "timer.h"
+#include "vrrp_track.h"
 #include "vrrp_data.h"
 #include "vrrp.h"
 

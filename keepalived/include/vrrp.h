@@ -40,6 +40,7 @@
 #include "list.h"
 #include "timer.h"
 #include "notify.h"
+#include "tracker.h"
 #if defined _WITH_VRRP_AUTH_
 #include "vrrp_ipsecah.h"
 #endif
@@ -116,14 +117,14 @@ typedef struct _vrrp_sgroup {
 	bool			sgroup_tracking_weight;	/* Use floating priority and scripts
 							 * Used if need different priorities needed on a track object in a sync group.
 							 * It probably won't work properly. */
-	list			track_ifp;		/* Interface state we monitor */
-	list			track_script;		/* Script state we monitor */
-	list			track_file;		/* Files whose value we monitor (list of tracked_file_monitor_t) */
+	list_head_t		track_ifp;		/* tracked_if_t - Interface state we monitor */
+	list_head_t		track_script;		/* Script state we monitor */
+	list_head_t		track_file;		/* tracked_file_monitor_t - Files whose value we monitor */
 #ifdef _WITH_CN_PROC_
-	list			track_process;		/* Processes we monitor (list of tracked_process_t) */
+	list_head_t		track_process;		/* tracked_process_t - Processes we monitor */
 #endif
 #ifdef _WITH_BFD_
-	list			track_bfd;		/* List of tracked_bfd_t */
+	list_head_t		track_bfd;		/* tracked_bfd_t - BFD instances we monitor */
 #endif
 
 	/* State transition notification */
@@ -135,6 +136,9 @@ typedef struct _vrrp_sgroup {
 	notify_script_t		*script;
 	int			smtp_alert;
 	int			last_email_state;
+
+	/* linked list member */
+	list_head_t		e_list;
 } vrrp_sgroup_t;
 
 /* Statistics */
@@ -225,14 +229,14 @@ typedef struct _vrrp_t {
 #endif
 #endif
 	interface_t		*configured_ifp;	/* Interface the configuration says we are on */
-	list			track_ifp;		/* Interface state we monitor */
-	list			track_script;		/* Script state we monitor */
-	list			track_file;		/* list of tracked_file_monitor_t - Files whose value we monitor */
+	list_head_t		track_ifp;		/* tracked_if_t - Interface state we monitor */
+	list_head_t		track_script;		/* tracked_sc_t - Script state we monitor */
+	list_head_t		track_file;		/* tracked_file_monitor_t - Files whose value we monitor */
 #ifdef _WITH_CN_PROC_
-	list			track_process;		/* list of tracked_process_t - Processes we monitor */
+	list_head_t		track_process;		/* tracked_process_t - Processes we monitor */
 #endif
 #ifdef _WITH_BFD_
-	list			track_bfd;		/* List of tracked_bfd_t */
+	list_head_t		track_bfd;		/* tracked_bfd_t - BFD instance state we monitor */
 #endif
 	unsigned		num_script_if_fault;	/* Number of scripts and interfaces in fault state */
 	unsigned		num_script_init;	/* Number of scripts in init state */
@@ -274,15 +278,16 @@ typedef struct _vrrp_t {
 	int			total_priority;		/* base_priority +/- track_script, track_interface and track_file weights.
 							   effective_priority is this within the range [1,254]. */
 	bool			vipset;			/* All the vips are set ? */
-	list			vip;			/* list of virtual ip addresses */
-	list			evip;			/* list of protocol excluded VIPs.
+	list_head_t		vip;			/* ip_address_t - list of virtual ip addresses */
+	unsigned		vip_cnt;		/* size of vip list */
+	list_head_t		evip;			/* ip_address_t - list of protocol excluded VIPs.
 							 * Those VIPs will not be presents into the
 							 * VRRP adverts
 							 */
 	bool			promote_secondaries;	/* Set promote_secondaries option on interface */
 	bool			evip_other_family;	/* There are eVIPs of the different address family from the vrrp family */
-	list			vroutes;		/* list of virtual routes */
-	list			vrules;			/* list of virtual rules */
+	list_head_t		vroutes;		/* ip_route_t - list of virtual routes */
+	list_head_t		vrules;			/* ip_rule_t - list of virtual rules */
 	unsigned		adver_int;		/* locally configured delay between advertisements*/
 	unsigned		master_adver_int;	/* In v3, when we become BACKUP, we use the MASTER's
 							 * adver_int. If we become MASTER again, we use the

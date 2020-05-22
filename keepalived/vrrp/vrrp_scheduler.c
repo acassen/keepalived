@@ -173,7 +173,6 @@ vrrp_init_state(list_head_t *l)
 {
 	vrrp_t *vrrp;
 	vrrp_sgroup_t *vgroup;
-	element e;
 	bool is_up;
 	int new_state;
 
@@ -181,7 +180,7 @@ vrrp_init_state(list_head_t *l)
 	set_time_now();
 
 	/* Do notifications for any sync groups in fault or backup state */
-	LIST_FOREACH(vrrp_data->vrrp_sync_group, vgroup, e) {
+	list_for_each_entry(vgroup, &vrrp_data->vrrp_sync_group, e_list) {
 		/* Init group if needed  */
 		if (vgroup->state == VRRP_STATE_FAULT ||
 		    vgroup->state == VRRP_STATE_BACK)
@@ -318,12 +317,11 @@ vrrp_init_sands(list_head_t *l)
 }
 
 static void
-vrrp_init_script(list l)
+vrrp_init_script(list_head_t *l)
 {
 	vrrp_script_t *vscript;
-	element e;
 
-	LIST_FOREACH(l, vscript, e) {
+	list_for_each_entry(vscript, l, e_list) {
 		if (vscript->init_state == SCRIPT_INIT_STATE_INIT)
 			vscript->result = vscript->rise - 1; /* one success is enough */
 		else if (vscript->init_state == SCRIPT_INIT_STATE_FAILED)
@@ -369,8 +367,8 @@ vrrp_register_workers(list l)
 	vrrp_init_sands(&vrrp_data->vrrp);
 
 	/* Init VRRP tracking scripts */
-	if (!LIST_ISEMPTY(vrrp_data->vrrp_script))
-		vrrp_init_script(vrrp_data->vrrp_script);
+	if (!list_empty(&vrrp_data->vrrp_script))
+		vrrp_init_script(&vrrp_data->vrrp_script);
 
 #ifdef _WITH_BFD_
 	if (!list_empty(&vrrp_data->vrrp)) {
@@ -616,7 +614,7 @@ void
 try_up_instance(vrrp_t *vrrp, bool leaving_init)
 {
 	int wantstate;
-	ip_address_t ipaddress = {};
+	ip_address_t ip_addr = {};
 
 	if (leaving_init) {
 		if (vrrp->num_script_if_fault)
@@ -680,15 +678,15 @@ try_up_instance(vrrp_t *vrrp, bool leaving_init)
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
 			log_message(LOG_INFO, "%s: sending gratuitous %s for %s", vrrp->iname, vrrp->family == AF_INET ? "ARP" : "NA", inet_sockaddrtos(&vrrp->saddr));
 
-		ipaddress.ifp = IF_BASE_IFP(vrrp->ifp);
+		ip_addr.ifp = IF_BASE_IFP(vrrp->ifp);
 
 		if (vrrp->saddr.ss_family == AF_INET) {
-			ipaddress.u.sin.sin_addr.s_addr = ((struct sockaddr_in *)&vrrp->saddr)->sin_addr.s_addr;
-			send_gratuitous_arp_immediate(ipaddress.ifp, &ipaddress);
+			ip_addr.u.sin.sin_addr.s_addr = ((struct sockaddr_in *)&vrrp->saddr)->sin_addr.s_addr;
+			send_gratuitous_arp_immediate(ip_addr.ifp, &ip_addr);
 		} else {
 			/* IPv6 */
-			ipaddress.u.sin6_addr = ((struct sockaddr_in6 *)&vrrp->saddr)->sin6_addr;
-			ndisc_send_unsolicited_na_immediate(ipaddress.ifp, &ipaddress);
+			ip_addr.u.sin6_addr = ((struct sockaddr_in6 *)&vrrp->saddr)->sin6_addr;
+			ndisc_send_unsolicited_na_immediate(ip_addr.ifp, &ip_addr);
 		}
 	}
 
@@ -712,7 +710,6 @@ vrrp_handle_bfd_event(bfd_event_t * evt)
 	vrrp_tracked_bfd_t *vbfd;
 	tracking_obj_t *tbfd;
 	vrrp_t * vrrp;
-	element e, e1;
 	struct timeval cur_time;
 	struct timeval timer_tmp;
 	uint32_t delivery_time;
@@ -726,7 +723,7 @@ vrrp_handle_bfd_event(bfd_event_t * evt)
 			    evt->iname, BFD_STATE_STR(evt->state), delivery_time);
 	}
 
-	LIST_FOREACH(vrrp_data->vrrp_track_bfds, vbfd, e) {
+	list_for_each_entry(vbfd, &vrrp_data->vrrp_track_bfds, e_list) {
 		if (strcmp(vbfd->bname, evt->iname))
 			continue;
 
@@ -736,7 +733,7 @@ vrrp_handle_bfd_event(bfd_event_t * evt)
 
 		vbfd->bfd_up = (evt->state == BFD_STATE_UP);
 
-		LIST_FOREACH(vbfd->tracking_vrrp, tbfd, e1) {
+		list_for_each_entry(tbfd, &vbfd->tracking_vrrp, e_list) {
 			vrrp = tbfd->obj.vrrp;
 
 			log_message(LOG_INFO, "VRRP_Instance(%s) Tracked BFD"
@@ -1246,37 +1243,33 @@ vrrp_script_child_thread(thread_ref_t thread)
 
 /* Delayed ARP/NA thread */
 static int
-vrrp_arpna_send(vrrp_t *vrrp, list l, timeval_t *n)
+vrrp_arpna_send(vrrp_t *vrrp, list_head_t *l, timeval_t *n)
 {
-	ip_address_t *ipaddress;
+	ip_address_t *ip_addr;
 	interface_t *ifp;
-	element e;
 
-	if (LIST_ISEMPTY(l))
-		return -1;
-
-	LIST_FOREACH(l, ipaddress, e) {
-		if (!ipaddress->garp_gna_pending)
+	list_for_each_entry(ip_addr, l, e_list) {
+		if (!ip_addr->garp_gna_pending)
 			continue;
 
-		if (!ipaddress->set) {
-			ipaddress->garp_gna_pending = false;
+		if (!ip_addr->set) {
+			ip_addr->garp_gna_pending = false;
 			continue;
 		}
 
-		ifp = IF_BASE_IFP(ipaddress->ifp);
+		ifp = IF_BASE_IFP(ip_addr->ifp);
 
 		/* This should never happen */
 		if (!ifp->garp_delay) {
-			ipaddress->garp_gna_pending = false;
+			ip_addr->garp_gna_pending = false;
 			continue;
 		}
 
 		/* IPv4 handling */
-		if (!IP_IS6(ipaddress)) {
+		if (!IP_IS6(ip_addr)) {
 			if (timercmp(&time_now, &ifp->garp_delay->garp_next_time, >=)) {
-				send_gratuitous_arp_immediate(ifp, ipaddress);
-				ipaddress->garp_gna_pending = false;
+				send_gratuitous_arp_immediate(ifp, ip_addr);
+				ip_addr->garp_gna_pending = false;
 			} else {
 				vrrp->garp_pending = true;
 				if (timercmp(&ifp->garp_delay->garp_next_time, n, <))
@@ -1287,8 +1280,8 @@ vrrp_arpna_send(vrrp_t *vrrp, list l, timeval_t *n)
 
 		/* IPv6 handling */
 		if (timercmp(&time_now, &ifp->garp_delay->gna_next_time, >=)) {
-			ndisc_send_unsolicited_na_immediate(ifp, ipaddress);
-			ipaddress->garp_gna_pending = false;
+			ndisc_send_unsolicited_na_immediate(ifp, ip_addr);
+			ip_addr->garp_gna_pending = false;
 		} else {
 			vrrp->gna_pending = true;
 			if (timercmp(&ifp->garp_delay->gna_next_time, n, <))
@@ -1319,8 +1312,8 @@ vrrp_arp_thread(thread_ref_t thread)
 		if (vrrp->state != VRRP_STATE_MAST || !vrrp->vipset)
 			continue;
 
-		vrrp_arpna_send(vrrp, vrrp->vip, &next_time);
-		vrrp_arpna_send(vrrp, vrrp->evip, &next_time);
+		vrrp_arpna_send(vrrp, &vrrp->vip, &next_time);
+		vrrp_arpna_send(vrrp, &vrrp->evip, &next_time);
 	}
 
 	if (next_time.tv_sec != INT_MAX) {

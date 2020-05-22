@@ -374,15 +374,15 @@ vrrp_terminate_phase1(bool schedule_next_thread)
 		report_and_clear_netlink_timers("Restored interfaces");
 #endif
 
-	if (vrrp_data->vrrp_track_files)
+	if (!list_empty(&vrrp_data->vrrp_track_files))
 		stop_track_files();
 
 	/* Clear static entries */
 #ifdef _HAVE_FIB_ROUTING_
-	netlink_rulelist(vrrp_data->static_rules, IPRULE_DEL, false);
-	netlink_rtlist(vrrp_data->static_routes, IPROUTE_DEL);
+	netlink_rulelist(&vrrp_data->static_rules, IPRULE_DEL, false);
+	netlink_rtlist(&vrrp_data->static_routes, IPROUTE_DEL);
 #endif
-	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_DEL, false);
+	netlink_iplist(&vrrp_data->static_addresses, IPADDRESS_DEL, false);
 
 #ifdef _NETLINK_TIMERS_
 	if (do_netlink_timers)
@@ -539,10 +539,10 @@ start_vrrp(data_t *prev_global_data)
 			kernel_netlink_set_recv_bufs();
 
 #ifdef _HAVE_FIB_ROUTING_
-			clear_diff_srules();
-			clear_diff_sroutes();
+			clear_diff_static_rules();
+			clear_diff_static_routes();
 #endif
-			clear_diff_saddresses();
+			clear_diff_static_addresses();
 			clear_diff_script();
 #ifdef _WITH_BFD_
 			clear_diff_bfd();
@@ -550,11 +550,11 @@ start_vrrp(data_t *prev_global_data)
 		}
 		else {
 			/* Clear leftover static entries */
-			netlink_iplist(vrrp_data->static_addresses, IPADDRESS_DEL, false);
+			netlink_iplist(&vrrp_data->static_addresses, IPADDRESS_DEL, false);
 #ifdef _HAVE_FIB_ROUTING_
-			netlink_rtlist(vrrp_data->static_routes, IPROUTE_DEL);
+			netlink_rtlist(&vrrp_data->static_routes, IPROUTE_DEL);
 			netlink_error_ignore = ENOENT;
-			netlink_rulelist(vrrp_data->static_rules, IPRULE_DEL, true);
+			netlink_rulelist(&vrrp_data->static_rules, IPRULE_DEL, true);
 			netlink_error_ignore = 0;
 #endif
 		}
@@ -616,10 +616,10 @@ start_vrrp(data_t *prev_global_data)
 #endif
 
 	/* Set static entries */
-	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_ADD, false);
+	netlink_iplist(&vrrp_data->static_addresses, IPADDRESS_ADD, false);
 #ifdef _HAVE_FIB_ROUTING_
-	netlink_rtlist(vrrp_data->static_routes, IPROUTE_ADD);
-	netlink_rulelist(vrrp_data->static_rules, IPRULE_ADD, false);
+	netlink_rtlist(&vrrp_data->static_routes, IPROUTE_ADD);
+	netlink_rulelist(&vrrp_data->static_rules, IPRULE_ADD, false);
 #endif
 
 	/* Dump configuration */
@@ -777,7 +777,7 @@ reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 	/* Terminate all script process */
 	script_killall(master, SIGTERM, false);
 
-	if (vrrp_data->vrrp_track_files)
+	if (!list_empty(&vrrp_data->vrrp_track_files))
 		stop_track_files();
 
 	vrrp_initialised = false;

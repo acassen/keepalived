@@ -1644,7 +1644,6 @@ nft_update_addresses(vrrp_t *vrrp, int cmd)
 	struct mnl_nlmsg_batch *batch;
 	struct nlmsghdr *nlh;
 	ip_address_t *ip_addr;
-	element e;
 	struct nftnl_set *ipv4_set = NULL;
 	struct nftnl_set *ipv6_set = NULL;
 	struct nftnl_set *ipv6_ll_index_set = NULL;
@@ -1654,7 +1653,7 @@ nft_update_addresses(vrrp_t *vrrp, int cmd)
 
 	batch = nft_start_batch();
 
-	LIST_FOREACH(vrrp->vip, ip_addr, e) {
+	list_for_each_entry(ip_addr, &vrrp->vip, e_list) {
 		if (set_rule == ip_addr->nftable_rule_set)
 			continue;
 
@@ -1667,7 +1666,7 @@ nft_update_addresses(vrrp_t *vrrp, int cmd)
 		ip_addr->nftable_rule_set = set_rule;
 	}
 
-	LIST_FOREACH(vrrp->evip, ip_addr, e) {
+	list_for_each_entry(ip_addre, &vrrp->evip, e_list) {
 		if (set_rule == ip_addr->nftable_rule_set)
 			continue;
 

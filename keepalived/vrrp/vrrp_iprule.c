@@ -292,13 +292,12 @@ reinstate_static_rule(ip_rule_t *rule)
 }
 
 void
-netlink_rulelist(list rule_list, int cmd, bool force)
+netlink_rulelist(list_head_t *l, int cmd, bool force)
 {
-	ip_rule_t *iprule;
-	element e;
+	ip_rule_t *rule;
 
 	/* No rules to add */
-	if (LIST_ISEMPTY(rule_list))
+	if (list_empty(l))
 		return;
 
 	/* If force is set, we try to remove all the rules, but the
@@ -307,15 +306,14 @@ netlink_rulelist(list rule_list, int cmd, bool force)
 	if (force && cmd == IPRULE_DEL)
 		netlink_error_ignore = ENOENT;
 
-	for (e = LIST_HEAD(rule_list); e; ELEMENT_NEXT(e)) {
-		iprule = ELEMENT_DATA(e);
+	list_for_each_entry(rule, l, e_list) {
 		if (force ||
-		    (cmd == IPRULE_ADD && !iprule->set) ||
-		    (cmd == IPRULE_DEL && iprule->set)) {
-			if (netlink_rule(iprule, cmd) > 0)
-				iprule->set = (cmd == IPRULE_ADD);
+		    (cmd == IPRULE_ADD && !rule->set) ||
+		    (cmd == IPRULE_DEL && rule->set)) {
+			if (netlink_rule(rule, cmd) > 0)
+				rule->set = (cmd == IPRULE_ADD);
 			else
-				iprule->set = false;
+				rule->set = false;
 		}
 	}
 
@@ -324,13 +322,21 @@ netlink_rulelist(list rule_list, int cmd, bool force)
 
 /* Rule dump/allocation */
 void
-free_iprule(void *rule_data)
+free_iprule(ip_rule_t *rule)
 {
-	ip_rule_t *rule = rule_data;
-
+	list_head_del(&rule->e_list);
 	FREE_PTR(rule->from_addr);
 	FREE_PTR(rule->to_addr);
-	FREE(rule_data);
+	FREE(rule);
+}
+
+void
+free_iprule_list(list_head_t *l)
+{
+	ip_rule_t *rule, *rule_tmp;
+
+	list_for_each_entry_safe(rule, rule_tmp, l, e_list)
+		free_iprule(rule);
 }
 
 void
@@ -440,9 +446,8 @@ format_iprule(const ip_rule_t *rule, char *buf, size_t buf_len)
 }
 
 void
-dump_iprule(FILE *fp, const void *rule_data)
+dump_iprule(FILE *fp, const ip_rule_t *rule)
 {
-	const ip_rule_t *rule = rule_data;
 	char *buf = MALLOC(RULE_BUF_SIZE);
 
 	format_iprule(rule, buf, RULE_BUF_SIZE);
@@ -453,7 +458,16 @@ dump_iprule(FILE *fp, const void *rule_data)
 }
 
 void
-alloc_rule(list rule_list, const vector_t *strvec, __attribute__((unused)) bool allow_track_group)
+dump_iprule_list(FILE *fp, const list_head_t *l)
+{
+	ip_rule_t *rule;
+
+	list_for_each_entry(rule, l, e_list)
+		dump_iprule(fp, rule);
+}
+
+void
+alloc_rule(list_head_t *rule_list, const vector_t *strvec, __attribute__((unused)) bool allow_track_group)
 {
 	ip_rule_t *new;
 	const char *str;
@@ -469,9 +483,10 @@ alloc_rule(list rule_list, const vector_t *strvec, __attribute__((unused)) bool 
 
 	new = (ip_rule_t *)MALLOC(sizeof(ip_rule_t));
 	if (!new) {
-		log_message(LOG_INFO, "Unable to allocate new rule");
-		goto err;
+		log_message(LOG_INFO, "Unable to allocate new ip_rule");
+		return;
 	}
+	INIT_LIST_HEAD(&new->e_list);
 
 	new->action = FR_ACT_UNSPEC;
 #if HAVE_DECL_FRA_SUPPRESS_PREFIXLEN
@@ -860,7 +875,7 @@ fwmark_err:
 		report_config_error(CONFIG_GENERAL_ERROR, "Rule has no preference specified - setting to %u. This is probably not what you want.", new->priority);
 	}
 
-	list_add(rule_list, new);
+	list_add_tail(&new->e_list, rule_list);
 	return;
 
 err:
@@ -870,64 +885,63 @@ err:
 }
 
 /* Try to find a rule in a list */
-static int
-rule_exist(list l, ip_rule_t *iprule)
+static bool
+rule_exist(list_head_t *l, ip_rule_t *rule)
 {
-	ip_rule_t *ipr;
-	element e;
+	ip_rule_t *ip_rule;
 
-	LIST_FOREACH(l, ipr, e) {
-		if (rule_is_equal(ipr, iprule)) {
-			ipr->set = iprule->set;
-			return 1;
+	list_for_each_entry(ip_rule, l, e_list) {
+		if (rule_is_equal(ip_rule, rule)) {
+			ip_rule->set = rule->set;
+			return true;
 		}
 	}
-	return 0;
+
+	return false;
 }
 
 /* Clear diff rules */
 void
-clear_diff_rules(list l, list n)
+clear_diff_rules(list_head_t *l, list_head_t *n)
 {
-	ip_rule_t *iprule;
-	element e;
+	ip_rule_t *rule;
 	char from_addr[IPADDRESSTOS_BUF_LEN];
 	char to_addr[IPADDRESSTOS_BUF_LEN];
 
 	/* No rule in previous conf */
-	if (LIST_ISEMPTY(l))
+	if (list_empty(l))
 		return;
 
 	/* All rules removed */
-	if (LIST_ISEMPTY(n)) {
+	if (list_empty(n)) {
 		log_message(LOG_INFO, "Removing a VirtualRule block");
 		netlink_rulelist(l, IPRULE_DEL, false);
 		return;
 	}
 
-	LIST_FOREACH(l, iprule, e) {
-		if (!rule_exist(n, iprule) && iprule->set) {
+	list_for_each_entry(rule, l, e_list) {
+		if (!rule_exist(n, rule) && rule->set) {
 			if (__test_bit(LOG_DETAIL_BIT, &debug)) {
-				if (iprule->from_addr)
-					ipaddresstos(from_addr, iprule->from_addr);
-				if (iprule->to_addr)
-					ipaddresstos(to_addr, iprule->to_addr);
+				if (rule->from_addr)
+					ipaddresstos(from_addr, rule->from_addr);
+				if (rule->to_addr)
+					ipaddresstos(to_addr, rule->to_addr);
 				log_message(LOG_INFO, "ip rule from %s%s%s removed",
-					    iprule->from_addr ? from_addr : "all",
-					    iprule->to_addr ? " to " : "",
-					    iprule->to_addr ? to_addr : "");
+					    rule->from_addr ? from_addr : "all",
+					    rule->to_addr ? " to " : "",
+					    rule->to_addr ? to_addr : "");
 			}
 
-			netlink_rule(iprule, IPRULE_DEL);
+			netlink_rule(rule, IPRULE_DEL);
 		}
 	}
 }
 
 /* Diff conf handler */
 void
-clear_diff_srules(void)
+clear_diff_static_rules(void)
 {
-	clear_diff_rules(old_vrrp_data->static_rules, vrrp_data->static_rules);
+	clear_diff_rules(&old_vrrp_data->static_rules, &vrrp_data->static_rules);
 }
 
 void

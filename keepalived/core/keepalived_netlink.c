@@ -178,10 +178,9 @@ addr_is_equal(struct ifaddrmsg* ifa, void* addr, ip_address_t* vip_addr, interfa
 static vrrp_t * __attribute__ ((pure))
 address_is_ours(struct ifaddrmsg *ifa, struct in_addr *addr, interface_t *ifp)
 {
-	element e;
-	tracking_obj_t* top;
-	vrrp_t* vrrp;
-	ip_address_t* vaddr;
+	tracking_obj_t *top;
+	vrrp_t *vrrp;
+	ip_address_t *ip_addr;
 
 	if (!ifp->tracking_vrrp)
 		return NULL;
@@ -194,15 +193,15 @@ address_is_ours(struct ifaddrmsg *ifa, struct in_addr *addr, interface_t *ifp)
 			continue;
 
 		if (ifa->ifa_family == vrrp->family) {
-			LIST_FOREACH(vrrp->vip, vaddr, e) {
-				if (addr_is_equal(ifa, addr, vaddr, ifp))
-					return vaddr->dont_track ? NULL : vrrp;
+			list_for_each_entry(ip_addr, &vrrp->vip, e_list) {
+				if (addr_is_equal(ifa, addr, ip_addr, ifp))
+					return ip_addr->dont_track ? NULL : vrrp;
 			}
 		}
 
-		LIST_FOREACH(vrrp->evip, vaddr, e) {
-			if (addr_is_equal(ifa, addr, vaddr, ifp))
-				return vaddr->dont_track ? NULL : vrrp;
+		list_for_each_entry(ip_addr, &vrrp->evip, e_list) {
+			if (addr_is_equal(ifa, addr, ip_addr, ifp))
+				return ip_addr->dont_track ? NULL : vrrp;
 		}
 	}
 
@@ -210,12 +209,11 @@ address_is_ours(struct ifaddrmsg *ifa, struct in_addr *addr, interface_t *ifp)
 }
 
 static bool __attribute__ ((pure))
-ignore_address_if_ours_or_link_local(struct ifaddrmsg* ifa, struct in_addr* addr, interface_t* ifp)
+ignore_address_if_ours_or_link_local(struct ifaddrmsg *ifa, struct in_addr *addr, interface_t *ifp)
 {
-	element e;
-	tracking_obj_t* top;
-	vrrp_t* vrrp;
-	ip_address_t* vaddr;
+	tracking_obj_t *top;
+	vrrp_t *vrrp;
+	ip_address_t *ip_addr;
 
 	/* We are only interested in link local for IPv6 */
 	if (ifa->ifa_family == AF_INET6 &&
@@ -229,14 +227,14 @@ ignore_address_if_ours_or_link_local(struct ifaddrmsg* ifa, struct in_addr* addr
 		vrrp = top->obj.vrrp;
 
 		if (ifa->ifa_family == vrrp->family) {
-			LIST_FOREACH(vrrp->vip, vaddr, e) {
-				if (addr_is_equal2(ifa, addr, vaddr, ifp, vrrp))
+			list_for_each_entry(ip_addr, &vrrp->vip, e_list) {
+				if (addr_is_equal2(ifa, addr, ip_addr, ifp, vrrp))
 					return true;
 			}
 		}
 
-		LIST_FOREACH(vrrp->evip, vaddr, e) {
-			if (addr_is_equal2(ifa, addr, vaddr, ifp, vrrp))
+		list_for_each_entry(ip_addr, &vrrp->evip, e_list) {
+			if (addr_is_equal2(ifa, addr, ip_addr, ifp, vrrp))
 				return true;
 		}
 	}
@@ -270,7 +268,6 @@ route_is_ours(struct rtmsg* rt, struct rtattr *tb[RTA_MAX + 1], vrrp_t** ret_vrr
 	int mask_len = rt->rtm_dst_len;
 	uint32_t priority = 0;
 	uint8_t tos = rt->rtm_tos;
-	element e, e1;
 	vrrp_t *vrrp;
 	ip_route_t *route;
 	union {
@@ -286,7 +283,7 @@ route_is_ours(struct rtmsg* rt, struct rtattr *tb[RTA_MAX + 1], vrrp_t** ret_vrr
 		priority = *(uint32_t *)RTA_DATA(tb[RTA_PRIORITY]);
 
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
-		LIST_FOREACH(vrrp->vroutes, route, e1) {
+		list_for_each_entry(route, &vrrp->vroutes, e_list) {
 			if (table != route->table ||
 			    family != route->family ||
 			    mask_len != route->dst->ifa.ifa_prefixlen ||
@@ -315,7 +312,7 @@ route_is_ours(struct rtmsg* rt, struct rtattr *tb[RTA_MAX + 1], vrrp_t** ret_vrr
 	}
 
 	/* Now check the static routes */
-	LIST_FOREACH(vrrp_data->static_routes, route, e) {
+	list_for_each_entry(route, &vrrp_data->static_routes, e_list) {
 		if (table != route->table ||
 		    family != route->family ||
 		    mask_len != route->dst->ifa.ifa_prefixlen ||
@@ -492,14 +489,13 @@ compare_rule(struct fib_rule_hdr *frh, struct rtattr *tb[FRA_MAX + 1], ip_rule_t
 static ip_rule_t *
 rule_is_ours(struct fib_rule_hdr* frh, struct rtattr *tb[FRA_MAX + 1], vrrp_t **ret_vrrp)
 {
-	element e, e1;
 	vrrp_t *vrrp;
 	ip_rule_t *rule;
 
 	*ret_vrrp = NULL;
 
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
-		LIST_FOREACH(vrrp->vrules, rule, e1) {
+		list_for_each_entry(rule, &vrrp->vrules, e_list) {
 			if (compare_rule(frh, tb, rule)) {
 				*ret_vrrp = vrrp;
 				return rule;
@@ -507,7 +503,7 @@ rule_is_ours(struct fib_rule_hdr* frh, struct rtattr *tb[FRA_MAX + 1], vrrp_t **
 		}
 	}
 
-	LIST_FOREACH(vrrp_data->static_rules, rule, e) {
+	list_for_each_entry(rule, &vrrp_data->static_rules, e_list) {
 		if (compare_rule(frh, tb, rule))
 			return rule;
 	}
@@ -884,7 +880,6 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 	vrrp_t *address_vrrp;
 	tracking_obj_t *top;
 	bool is_tracking_saddr;
-	element e;
 #endif
 
 	if (h->nlmsg_type != RTM_NEWADDR && h->nlmsg_type != RTM_DELADDR)
@@ -1174,7 +1169,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 
 		if (h->nlmsg_type == RTM_DELADDR) {
 			/* Check if a static address has been deleted */
-			LIST_FOREACH(vrrp_data->static_addresses, ipaddr, e) {
+			list_for_each_entry(ipaddr, &vrrp_data->static_addresses, e_list) {
 				if (!ipaddr->dont_track && addr_is_equal(ifa, addr.addr, ipaddr, ifp)) {
 					reinstate_static_address(ipaddr);
 					break;

@@ -133,7 +133,8 @@ set_iface(char *vianame, unsigned char *mask, const char *iface)
 }
 
 /* Initializes a new iptables instance and returns an iptables resource associated with the new iptables table */
-struct iptc_handle* ip4tables_open ( const char* tablename )
+struct iptc_handle *
+ip4tables_open(const char* tablename)
 {
 	struct iptc_handle *h ;
 
@@ -143,7 +144,8 @@ struct iptc_handle* ip4tables_open ( const char* tablename )
 	return h ;
 }
 
-int ip4tables_close ( struct iptc_handle* handle, int updated )
+int
+ip4tables_close(struct iptc_handle* handle, int updated)
 {
 	int res = 1;
 	int sav_errno ;
@@ -164,12 +166,17 @@ int ip4tables_close ( struct iptc_handle* handle, int updated )
 		return ( sav_errno ) ;
 }
 
-int ip4tables_is_chain(struct iptc_handle* handle, const char* chain_name)
+int
+ip4tables_is_chain(struct iptc_handle* handle, const char* chain_name)
 {
 	return iptc_is_chain(chain_name, handle);
 }
 
-int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name, unsigned int rulenum, const char* target_name, const ip_address_t* src_ip_address, const ip_address_t* dst_ip_address, const char* in_iface, const char* out_iface, uint16_t protocol, uint8_t type, int cmd, uint8_t flags, bool force)
+int
+ip4tables_process_entry(struct iptc_handle *handle, const char *chain_name, unsigned int rulenum,
+			const char *target_name, const ip_address_t *src_ip_address,
+			const ip_address_t *dst_ip_address, const char *in_iface, const char *out_iface,
+			uint16_t protocol, uint8_t type, int cmd, uint8_t flags, bool force)
 {
 	size_t size;
 	struct ipt_entry *fw;
@@ -267,7 +274,8 @@ int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name,
 }
 
 /* Initializes a new iptables instance and returns an iptables resource associated with the new iptables table */
-struct ip6tc_handle* ip6tables_open ( const char* tablename )
+struct ip6tc_handle *
+ip6tables_open(const char* tablename)
 {
 	struct ip6tc_handle *h ;
 
@@ -277,7 +285,8 @@ struct ip6tc_handle* ip6tables_open ( const char* tablename )
 	return h ;
 }
 
-int ip6tables_close ( struct ip6tc_handle* handle, int updated )
+int
+ip6tables_close(struct ip6tc_handle* handle, int updated)
 {
 	int res = 1;
 	int sav_errno ;
@@ -298,12 +307,17 @@ int ip6tables_close ( struct ip6tc_handle* handle, int updated )
 		return ( sav_errno ) ;
 }
 
-int ip6tables_is_chain(struct ip6tc_handle* handle, const char* chain_name)
+int
+ip6tables_is_chain(struct ip6tc_handle *handle, const char *chain_name)
 {
 	return ip6tc_is_chain(chain_name, handle);
 }
 
-int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name, unsigned int rulenum, const char* target_name, const ip_address_t* src_ip_address, const ip_address_t* dst_ip_address, const char* in_iface, const char* out_iface, uint16_t protocol, uint8_t type, int cmd, uint8_t flags, bool force)
+int
+ip6tables_process_entry(struct ip6tc_handle *handle, const char *chain_name, unsigned int rulenum,
+			const char *target_name, const ip_address_t *src_ip_address,
+			const ip_address_t *dst_ip_address, const char *in_iface, const char* out_iface,
+			uint16_t protocol, uint8_t type, int cmd, uint8_t flags, bool force)
 {
 	size_t size;
 	struct ip6t_entry *fw;
@@ -552,7 +566,11 @@ get_set_byname(const char *setname, struct xt_set_info *info, unsigned family, b
 #endif
 }
 
-int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, unsigned int rulenum, uint8_t dim, uint8_t src_dst, const char* target_name, const ip_address_t *src_ip_address, const ip_address_t *dst_ip_address, const char* set_name, uint16_t protocol, uint8_t param, int cmd, bool ignore_errors)
+int
+ip4tables_add_rules(struct iptc_handle *handle, const char *chain_name, unsigned int rulenum,
+		    uint8_t dim, uint8_t src_dst, const char* target_name,
+		    const ip_address_t *src_ip_address, const ip_address_t *dst_ip_address, const char *set_name,
+		    uint16_t protocol, uint8_t param, int cmd, bool ignore_errors)
 {
 	size_t size;
 	struct ipt_entry *fw;
@@ -686,7 +704,11 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, unsi
 	return 0;
 }
 
-int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, unsigned int rulenum, uint8_t dim, uint8_t src_dst, const char* target_name, const ip_address_t *src_ip_address, const ip_address_t *dst_ip_address, const char* set_name, uint16_t protocol, uint8_t param, int cmd, bool ignore_errors)
+int
+ip6tables_add_rules(struct ip6tc_handle *handle, const char *chain_name, unsigned int rulenum, uint8_t dim,
+		    uint8_t src_dst, const char *target_name, const ip_address_t *src_ip_address,
+		    const ip_address_t *dst_ip_address, const char *set_name, uint16_t protocol,
+		    uint8_t param, int cmd, bool ignore_errors)
 {
 	size_t size;
 	struct ip6t_entry *fw;

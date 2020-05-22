@@ -27,7 +27,7 @@
 #include <stdbool.h>
 
 /* local includes */
-#include "list.h"
+#include "list_head.h"
 #include "vrrp.h"
 
 #ifdef _TRACK_PROCESS_DEBUG_
@@ -40,7 +40,7 @@ extern bool proc_events_not_supported;
 extern void reload_track_processes(void);
 extern bool open_track_processes(void);
 extern bool close_track_processes(void);
-extern bool init_track_processes(list);
+extern bool init_track_processes(list_head_t *);
 extern void end_process_monitor(void);
 #ifdef THREAD_DUMP
 extern void register_process_monitor_addresses(void);

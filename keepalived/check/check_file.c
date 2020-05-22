@@ -186,7 +186,7 @@ add_rs_to_track_files(void)
 				 * checked the file, so mark it as run. */
 				new_checker->has_run = true;
 
-				add_obj_to_track_file(new_checker, tfl, FMT_RS(rs, vs), dump_tracking_rs);
+				add_obj_to_track_file(new_checker, tfl, FMT_RS(rs, vs));
 			}
 		}
 	}

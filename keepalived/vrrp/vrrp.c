@@ -136,13 +136,13 @@ clear_summary_flags(void)
 
 /* add/remove Virtual IP addresses */
 static bool
-vrrp_handle_ipaddress(vrrp_t * vrrp, int cmd, int type, bool force)
+vrrp_handle_ipaddress(vrrp_t *vrrp, int cmd, int type, bool force)
 {
 	if (__test_bit(LOG_DETAIL_BIT, &debug))
 		log_message(LOG_INFO, "(%s) %s %s", vrrp->iname,
 		       (cmd == IPADDRESS_ADD) ? "setting" : "removing",
 		       (type == VRRP_VIP_TYPE) ? "VIPs." : "E-VIPs.");
-	return netlink_iplist((type == VRRP_VIP_TYPE) ? vrrp->vip : vrrp->evip, cmd, force);
+	return netlink_iplist((type == VRRP_VIP_TYPE) ? &vrrp->vip : &vrrp->evip, cmd, force);
 }
 
 #ifdef _HAVE_FIB_ROUTING_
@@ -154,7 +154,7 @@ vrrp_handle_iproutes(vrrp_t * vrrp, int cmd)
 		log_message(LOG_INFO, "(%s) %s Virtual Routes",
 		       vrrp->iname,
 		       (cmd == IPROUTE_ADD) ? "setting" : "removing");
-	netlink_rtlist(vrrp->vroutes, cmd);
+	netlink_rtlist(&vrrp->vroutes, cmd);
 }
 
 /* add/remove Virtual rules */
@@ -165,7 +165,7 @@ vrrp_handle_iprules(vrrp_t * vrrp, int cmd, bool force)
 		log_message(LOG_INFO, "(%s) %s Virtual Rules",
 		       vrrp->iname,
 		       (cmd == IPRULE_ADD) ? "setting" : "removing");
-	netlink_rulelist(vrrp->vrules, cmd, force);
+	netlink_rulelist(&vrrp->vrules, cmd, force);
 }
 #endif
 
@@ -213,11 +213,10 @@ check_track_script_secure(vrrp_script_t *script, magic_t magic)
 static void
 check_vrrp_script_security(void)
 {
-	element e, e1, next;
 	vrrp_t *vrrp;
 	vrrp_sgroup_t *sg;
-	tracked_sc_t *track_script;
-	vrrp_script_t *vscript;
+	tracked_sc_t *track_script, *track_script_tmp;
+	vrrp_script_t *vscript, *vscript_tmp;
 	unsigned script_flags = 0;
 	magic_t magic;
 
@@ -227,10 +226,8 @@ check_vrrp_script_security(void)
 	magic = ka_magic_open();
 
 	/* Set the insecure flag of any insecure scripts */
-	if (!LIST_ISEMPTY(vrrp_data->vrrp_script)) {
-		LIST_FOREACH(vrrp_data->vrrp_script, vscript, e)
-			script_flags |= check_track_script_secure(vscript, magic);
-	}
+	list_for_each_entry(vscript, &vrrp_data->vrrp_script, e_list)
+		script_flags |= check_track_script_secure(vscript, magic);
 
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		script_flags |= check_notify_script_secure(&vrrp->script_backup, magic);
@@ -240,25 +237,25 @@ check_vrrp_script_security(void)
 		script_flags |= check_notify_script_secure(&vrrp->script, magic);
 		script_flags |= check_notify_script_secure(&vrrp->script_master_rx_lower_pri, magic);
 
-		LIST_FOREACH_NEXT(vrrp->track_script, track_script, e1, next) {
+		list_for_each_entry_safe(track_script, track_script_tmp, &vrrp->track_script, e_list) {
 			if (track_script->scr->insecure) {
 				/* Remove it from the vrrp instance's queue */
-				free_list_element(vrrp->track_script, e1);
+				free_track_script(track_script);
 			}
 		}
 	}
 
-	LIST_FOREACH(vrrp_data->vrrp_sync_group, sg, e) {
+	list_for_each_entry(sg, &vrrp_data->vrrp_sync_group, e_list) {
 		script_flags |= check_notify_script_secure(&sg->script_backup, magic);
 		script_flags |= check_notify_script_secure(&sg->script_master, magic);
 		script_flags |= check_notify_script_secure(&sg->script_fault, magic);
 		script_flags |= check_notify_script_secure(&sg->script_stop, magic);
 		script_flags |= check_notify_script_secure(&sg->script, magic);
 
-		LIST_FOREACH_NEXT(sg->track_script, track_script, e1, next) {
+		list_for_each_entry_safe(track_script, track_script_tmp, &sg->track_script, e_list) {
 			if (track_script->scr->insecure) {
 				/* Remove it from the vrrp sync group's queue */
-				free_list_element(sg->track_script, e1);
+				free_track_script(track_script);
 			}
 		}
 	}
@@ -277,9 +274,10 @@ check_vrrp_script_security(void)
 		ka_magic_close(magic);
 
 	/* Now walk through the vrrp_script list, removing any that aren't used */
-	LIST_FOREACH_NEXT(vrrp_data->vrrp_script, vscript, e, next) {
-		if (vscript->insecure)
-			free_list_element(vrrp_data->vrrp_script, e);
+	list_for_each_entry_safe(vscript, vscript_tmp, &vrrp_data->vrrp_script, e_list) {
+		if (vscript->insecure) {
+			free_vscript(vscript);
+		}
 	}
 }
 
@@ -292,10 +290,10 @@ vrrp_pkt_len(const vrrp_t *vrrp)
 	if (vrrp->family == AF_INET) {
 		if (vrrp->version == VRRP_VERSION_2)
 			len += VRRP_AUTH_LEN;
-		len += ((!LIST_ISEMPTY(vrrp->vip)) ? LIST_SIZE(vrrp->vip) * sizeof(struct in_addr) : 0);
+		len += ((!list_empty(&vrrp->vip)) ? vrrp->vip_cnt * sizeof(struct in_addr) : 0);
 	}
 	else if (vrrp->family == AF_INET6)
-		len += ((!LIST_ISEMPTY(vrrp->vip)) ? LIST_SIZE(vrrp->vip) * sizeof(struct in6_addr) : 0);
+		len += ((!list_empty(&vrrp->vip)) ? vrrp->vip_cnt * sizeof(struct in6_addr) : 0);
 
 	return len;
 }
@@ -499,7 +497,9 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage* addr)
 				   -- rfc2402.3.3.3.1.1.1 & rfc2401.5
 				 */
 				memset(&ah->auth_data, 0, sizeof(ah->auth_data));
-				hmac_md5((const unsigned char *)&iph, sizeof iph, (const unsigned char *)ah, vrrp->send_buffer_size - sizeof (struct iphdr), vrrp->auth_data, sizeof (vrrp->auth_data), digest);
+				hmac_md5((const unsigned char *)&iph, sizeof iph, (const unsigned char *)ah,
+					 vrrp->send_buffer_size - sizeof(struct iphdr), vrrp->auth_data,
+					 sizeof(vrrp->auth_data), digest);
 				memcpy(ah->auth_data, digest, HMAC_MD5_TRUNC);
 			}
 		}
@@ -609,12 +609,12 @@ vrrp_in_chk_vips(const vrrp_t *vrrp, const ip_address_t *ipaddress, const unsign
 	size_t i;
 
 	if (vrrp->family == AF_INET) {
-		for (i = 0; i < LIST_SIZE(vrrp->vip); i++) {
+		for (i = 0; i < vrrp->vip_cnt; i++) {
 			if (!memcmp(&ipaddress->u.sin.sin_addr.s_addr, buffer + i * sizeof(struct in_addr), sizeof (struct in_addr)))
 				return 1;
 		}
 	} else if (vrrp->family == AF_INET6) {
-		for (i = 0; i < LIST_SIZE(vrrp->vip); i++) {
+		for (i = 0; i < vrrp->vip_cnt; i++) {
 			if (!memcmp(&ipaddress->u.sin6_addr, buffer + i * sizeof(struct in6_addr), sizeof (struct in6_addr)))
 				return 1;
 		}
@@ -977,9 +977,9 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 	}
 
 	/* Check the number of VIPs matches what we expect */
-	if (check_vip_addr && hd->naddr != LIST_SIZE(vrrp->vip)) {
+	if (check_vip_addr && hd->naddr != vrrp->vip_cnt) {
 		log_message(LOG_INFO, "(%s) received an unexpected ip number count %u, expected %u!",
-			vrrp->iname, hd->naddr, LIST_SIZE(vrrp->vip));
+			vrrp->iname, hd->naddr, vrrp->vip_cnt);
 		++vrrp->stats->addr_list_err;
 		return VRRP_PACKET_KO;
 	}
@@ -1098,18 +1098,18 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 		 * MAY verify that the IP address(es) associated with the
 		 * VRID are valid
 		 */
-		if (hd->naddr != LIST_SIZE(vrrp->vip)) {
-			log_message(LOG_INFO, "(%s) expected %u VIPs but received %u", vrrp->iname, LIST_SIZE(vrrp->vip), hd->naddr);
+		if (hd->naddr != vrrp->vip_cnt) {
+			log_message(LOG_INFO, "(%s) expected %u VIPs but received %u"
+					    , vrrp->iname, vrrp->vip_cnt, hd->naddr);
 			return VRRP_PACKET_KO;
 		}
 
-		LIST_FOREACH(vrrp->vip, ipaddress, e) {
+		list_for_each_entry(ipaddress, &vrrp->vip, e_list) {
 			if (!vrrp_in_chk_vips(vrrp, ipaddress, vips)) {
 				log_message(LOG_INFO, "(%s) ip address associated with VRID %d"
-					    " not present in MASTER advert : %s",
-					    vrrp->iname, vrrp->vrid,
-					    inet_ntop(vrrp->family,
-						      vrrp->family == AF_INET6 ? &ipaddress->u.sin6_addr : (void *)&ipaddress->u.sin.sin_addr.s_addr,
+						      " not present in MASTER advert : %s"
+						    , vrrp->iname, vrrp->vrid
+						    , inet_ntop(vrrp->family, vrrp->family == AF_INET6 ? &ipaddress->u.sin6_addr : (void *)&ipaddress->u.sin.sin_addr.s_addr,
 						      addr_str, sizeof(addr_str)));
 				++vrrp->stats->addr_list_err;
 				return VRRP_PACKET_KO;
@@ -1248,14 +1248,13 @@ vrrp_build_vrrp_v2(vrrp_t *vrrp, char *buffer)
 	vrrphdr_t *hd = (vrrphdr_t *) buffer;
 	struct in_addr *iparr;
 	struct in6_addr *ip6arr;
-	element e;
 	ip_address_t *ip_addr;
 
 	/* Family independant */
 	hd->vers_type = (VRRP_VERSION_2 << 4) | VRRP_PKT_ADVERT;
 	hd->vrid = vrrp->vrid;
 	hd->priority = vrrp->effective_priority;
-	hd->naddr = (uint8_t)((!LIST_ISEMPTY(vrrp->vip)) ? (uint8_t)LIST_SIZE(vrrp->vip) : 0);
+	hd->naddr = (uint8_t)((!list_empty(&vrrp->vip)) ? (uint8_t)vrrp->vip_cnt : 0);
 #ifdef _WITH_VRRP_AUTH_
 	hd->v2.auth_type = vrrp->auth_type;
 #else
@@ -1267,17 +1266,13 @@ vrrp_build_vrrp_v2(vrrp_t *vrrp, char *buffer)
 	if (vrrp->family == AF_INET) {
 		/* copy the ip addresses */
 		iparr = (struct in_addr *) ((char *) hd + sizeof (*hd));
-		if (!LIST_ISEMPTY(vrrp->vip)) {
-			for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
-				ip_addr = ELEMENT_DATA(e);
-				iparr[i++] = ip_addr->u.sin.sin_addr;
-			}
-		}
+		list_for_each_entry(ip_addr, &vrrp->vip, e_list)
+			iparr[i++] = ip_addr->u.sin.sin_addr;
 
 #ifdef _WITH_VRRP_AUTH_
 		/* copy the passwd if the authentication is VRRP_AH_PASS */
 		if (vrrp->auth_type == VRRP_AUTH_PASS) {
-			unsigned vip_count = (!LIST_ISEMPTY(vrrp->vip)) ? LIST_SIZE(vrrp->vip) : 0;
+			unsigned vip_count = (!list_empty(&vrrp->vip)) ? vrrp->vip_cnt : 0;
 			char *pw = (char *) hd + sizeof (*hd) + vip_count * 4;
 			memcpy(pw, vrrp->auth_data, sizeof (vrrp->auth_data));
 		}
@@ -1288,12 +1283,9 @@ vrrp_build_vrrp_v2(vrrp_t *vrrp, char *buffer)
 		hd->chksum = in_csum((uint16_t *)hd, vrrp_pkt_len(vrrp), 0, NULL);
 	} else if (vrrp->family == AF_INET6) {
 		ip6arr = (struct in6_addr *)((char *) hd + sizeof(*hd));
-		if (!LIST_ISEMPTY(vrrp->vip)) {
-			for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
-				ip_addr = ELEMENT_DATA(e);
-				ip6arr[i++] = ip_addr->u.sin6_addr;
-			}
-		}
+		list_for_each_entry(ip_addr, &vrrp->vip, e_list)
+			ip6arr[i++] = ip_addr->u.sin6_addr;
+
 		/* Kernel will update checksum field. let it be 0 now. */
 		hd->chksum = 0;
 	}
@@ -1307,7 +1299,6 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, char *buffer, struct iphdr *ip)
 	vrrphdr_t *hd = (vrrphdr_t *) buffer;
 	struct in_addr *iparr;
 	struct in6_addr *ip6arr;
-	element e;
 	ip_address_t *ip_addr;
 	ipv4_phdr_t ipv4_phdr;
 
@@ -1315,7 +1306,7 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, char *buffer, struct iphdr *ip)
 	hd->vers_type = (VRRP_VERSION_3 << 4) | VRRP_PKT_ADVERT;
 	hd->vrid = vrrp->vrid;
 	hd->priority = vrrp->effective_priority;
-	hd->naddr = (uint8_t)((!LIST_ISEMPTY(vrrp->vip)) ? LIST_SIZE(vrrp->vip) : 0);
+	hd->naddr = (uint8_t)((!list_empty(&vrrp->vip)) ? vrrp->vip_cnt : 0);
 	hd->v3.adver_int  = htons((vrrp->adver_int / TIMER_CENTI_HZ) & 0x0FFF); /* interval in centiseconds, reserved bits zero */
 
 	/* For IPv4 to calculate the checksum, the value must start as 0.
@@ -1326,7 +1317,7 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, char *buffer, struct iphdr *ip)
 	if (vrrp->family == AF_INET) {
 		/* copy the ip addresses */
 		iparr = (struct in_addr *) ((char *) hd + sizeof(*hd));
-		LIST_FOREACH(vrrp->vip, ip_addr, e)
+		list_for_each_entry(ip_addr, &vrrp->vip, e_list)
 			iparr[i++] = ip_addr->u.sin.sin_addr;
 
 		/* Create IPv4 pseudo-header */
@@ -1346,7 +1337,7 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, char *buffer, struct iphdr *ip)
 		hd->chksum = in_csum((uint16_t *) hd, vrrp_pkt_len(vrrp), vrrp->ipv4_csum, NULL);
 	} else if (vrrp->family == AF_INET6) {
 		ip6arr = (struct in6_addr *)((char *) hd + sizeof(*hd));
-		LIST_FOREACH(vrrp->vip, ip_addr, e)
+		list_for_each_entry(ip_addr, &vrrp->vip, e_list)
 			ip6arr[i++] = ip_addr->u.sin6_addr;
 	}
 }
@@ -1550,8 +1541,7 @@ void
 vrrp_send_link_update(vrrp_t * vrrp, unsigned rep)
 {
 	unsigned j;
-	ip_address_t *ipaddress;
-	element e;
+	ip_address_t *ip_addr;
 
 	/* Only send gratuitous ARP if VIP are set */
 	if (!VRRP_VIP_ISSET(vrrp))
@@ -1564,40 +1554,25 @@ vrrp_send_link_update(vrrp_t * vrrp, unsigned rep)
 
 	/* send gratuitous arp for each virtual ip */
 	for (j = 0; j < rep; j++) {
-		if (!LIST_ISEMPTY(vrrp->vip)) {
-			for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
-				ipaddress = ELEMENT_DATA(e);
-				vrrp_send_update(vrrp, ipaddress, !j);
-			}
-		}
+		list_for_each_entry(ip_addr, &vrrp->vip, e_list)
+			vrrp_send_update(vrrp, ip_addr, !j);
 
-		if (!LIST_ISEMPTY(vrrp->evip)) {
-			for (e = LIST_HEAD(vrrp->evip); e; ELEMENT_NEXT(e)) {
-				ipaddress = ELEMENT_DATA(e);
-				vrrp_send_update(vrrp, ipaddress, !j);
-			}
-		}
+		list_for_each_entry(ip_addr, &vrrp->evip, e_list)
+			vrrp_send_update(vrrp, ip_addr, !j);
 	}
 }
 
 static void
 vrrp_remove_delayed_arp(vrrp_t *vrrp)
 {
-	ip_address_t *ipaddress;
-	element e;
+	ip_address_t *ip_addr;
 
-	if (!LIST_ISEMPTY(vrrp->vip)) {
-		for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
-			ipaddress = ELEMENT_DATA(e);
-			ipaddress->garp_gna_pending = false;
-		}
+	list_for_each_entry(ip_addr, &vrrp->vip, e_list) {
+		ip_addr->garp_gna_pending = false;
 	}
 
-	if (!LIST_ISEMPTY(vrrp->evip)) {
-		for (e = LIST_HEAD(vrrp->evip); e; ELEMENT_NEXT(e)) {
-			ipaddress = ELEMENT_DATA(e);
-			ipaddress->garp_gna_pending = false;
-		}
+	list_for_each_entry(ip_addr, &vrrp->evip, e_list) {
+		ip_addr->garp_gna_pending = false;
 	}
 	vrrp->garp_pending = false;
 	vrrp->gna_pending = false;
@@ -1618,19 +1593,19 @@ vrrp_state_become_master(vrrp_t * vrrp)
 #ifdef _WITH_FIREWALL_
 	vrrp_handle_accept_mode(vrrp, IPADDRESS_ADD, false);
 #endif
-	if (!LIST_ISEMPTY(vrrp->vip))
+	if (!list_empty(&vrrp->vip))
 		vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_VIP_TYPE, false);
-	if (!LIST_ISEMPTY(vrrp->evip))
+	if (!list_empty(&vrrp->evip))
 		vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE, false);
 	vrrp->vipset = true;
 
 #ifdef _HAVE_FIB_ROUTING_
 	/* add virtual routes */
-	if (!LIST_ISEMPTY(vrrp->vroutes))
+	if (!list_empty(&vrrp->vroutes))
 		vrrp_handle_iproutes(vrrp, IPROUTE_ADD);
 
 	/* add virtual rules */
-	if (!LIST_ISEMPTY(vrrp->vrules))
+	if (!list_empty(&vrrp->vrules))
 		vrrp_handle_iprules(vrrp, IPRULE_ADD, false);
 #endif
 
@@ -1693,11 +1668,11 @@ vrrp_restore_interface(vrrp_t * vrrp, bool advF, bool force)
 
 #ifdef _HAVE_FIB_ROUTING_
 	/* remove virtual rules */
-	if (!LIST_ISEMPTY(vrrp->vrules))
+	if (!list_empty(&vrrp->vrules))
 		vrrp_handle_iprules(vrrp, IPRULE_DEL, force);
 
 	/* remove virtual routes */
-	if (!LIST_ISEMPTY(vrrp->vroutes))
+	if (!list_empty(&vrrp->vroutes))
 		vrrp_handle_iproutes(vrrp, IPROUTE_DEL);
 #endif
 
@@ -1720,9 +1695,9 @@ vrrp_restore_interface(vrrp_t * vrrp, bool advF, bool force)
 	    VRRP_VIP_ISSET(vrrp) ||
 	    __test_bit(DONT_RELEASE_VRRP_BIT, &debug) ||
 	    __test_bit(RELEASE_VIPS_BIT, &debug)) {
-		if (!LIST_ISEMPTY(vrrp->vip))
+		if (!list_empty(&vrrp->vip))
 			vrrp_handle_ipaddress(vrrp, IPADDRESS_DEL, VRRP_VIP_TYPE, force);
-		if (!LIST_ISEMPTY(vrrp->evip))
+		if (!list_empty(&vrrp->evip))
 			vrrp_handle_ipaddress(vrrp, IPADDRESS_DEL, VRRP_EVIP_TYPE, force);
 #ifdef _WITH_FIREWALL_
 		vrrp_handle_accept_mode(vrrp, IPADDRESS_DEL, force);
@@ -2442,70 +2417,62 @@ shutdown_vrrp_instances(void)
 static void
 add_vrrp_to_track_script(vrrp_t *vrrp, tracked_sc_t *sc)
 {
-	tracking_obj_t *top, *etop;
-	element e;
+	vrrp_script_t *scr = sc->scr;
+	tracking_obj_t *top;
 
-	if (!LIST_EXISTS(sc->scr->tracking_vrrp))
-		sc->scr->tracking_vrrp = alloc_list(free_tracking_obj, dump_tracking_vrrp);
-	else {
-		/* Is this script already tracking the vrrp instance directly?
-		 * For this to be the case, the script was added directly on the vrrp instance,
-		 * and now we are adding it for a sync group. */
-		LIST_FOREACH(sc->scr->tracking_vrrp, etop, e) {
-			if (etop->obj.vrrp == vrrp) {
-				/* Update the weight appropriately. We will use the sync group's
-				 * weight unless the vrrp setting is unweighted. */
-				log_message(LOG_INFO, "(%s) track_script %s is configured on VRRP instance and sync group. Remove vrrp instance config",
-						vrrp->iname, sc->scr->sname);
-
-				if (etop->weight) {
-					etop->weight = sc->weight;
-					etop->weight_multiplier = sc->weight_reverse ? -1 : 1;
-				}
-				return;
+	/* Is this script already tracking the vrrp instance directly?
+	 * For this to be the case, the script was added directly on the vrrp instance,
+	 * and now we are adding it for a sync group. */
+	list_for_each_entry(top, &scr->tracking_vrrp, e_list) {
+		if (top->obj.vrrp == vrrp) {
+			/* Update the weight appropriately. We will use the sync group's
+			 * weight unless the vrrp setting is unweighted. */
+			log_message(LOG_INFO, "(%s) track_script %s is configured on VRRP instance"
+					      " and sync group. Remove vrrp instance config"
+					    , vrrp->iname, scr->sname);
+			if (top->weight) {
+				top->weight = sc->weight;
+				top->weight_multiplier = sc->weight_reverse ? -1 : 1;
 			}
+			return;
 		}
 	}
 
-	top = MALLOC(sizeof(tracking_obj_t));
+	PMALLOC(top);
 	top->obj.vrrp = vrrp;
 	top->weight = sc->weight;
 	top->weight_multiplier = sc->weight_reverse ? -1 : 1;
-	list_add(sc->scr->tracking_vrrp, top);
+	list_add_tail(&top->e_list, &scr->tracking_vrrp);
 }
 
 #ifdef _WITH_CN_PROC_
 static void
 add_vrrp_to_track_process(vrrp_t *vrrp, tracked_process_t *tpr)
 {
-	tracking_obj_t *top, *etop;
-	element e;
+	vrrp_tracked_process_t *proc = tpr->process;
+	tracking_obj_t *top;
 
-	if (!LIST_EXISTS(tpr->process->tracking_vrrp))
-		tpr->process->tracking_vrrp = alloc_list(free_tracking_obj, dump_tracking_vrrp);
-	else {
-		/* Is this process already tracking the vrrp instance directly?
-		 * For this to be the case, the file was added directly on the vrrp instance,
-		 * and now we are adding it for a sync group. */
-		LIST_FOREACH(tpr->process->tracking_vrrp, etop, e) {
-			if (etop->obj.vrrp == vrrp) {
-				/* Update the weight appropriately. We will use the sync group's
-				 * weight unless the vrrp setting is unweighted. */
-				log_message(LOG_INFO, "(%s) track_process %s is configured on VRRP instance and sync group. Remove vrrp instance config",
-						vrrp->iname, tpr->process->pname);
-
-				if (etop->weight)
-					etop->weight = tpr->weight;
-				return;
-			}
+	/* Is this process already tracking the vrrp instance directly?
+	 * For this to be the case, the file was added directly on the vrrp instance,
+	 * and now we are adding it for a sync group. */
+	list_for_each_entry(top, &proc->tracking_vrrp, e_list) {
+		if (top->obj.vrrp == vrrp) {
+			/* Update the weight appropriately. We will use the sync group's
+			 * weight unless the vrrp setting is unweighted. */
+				log_message(LOG_INFO, "(%s) track_process %s is configured on VRRP instance"
+						      " and sync group. Remove vrrp instance config"
+						    , vrrp->iname, proc->pname);
+			if (top->weight)
+				top->weight = tpr->weight;
+			return;
 		}
 	}
 
-	top = MALLOC(sizeof(tracking_obj_t));
+	PMALLOC(top);
 	top->obj.vrrp = vrrp;
 	top->weight = tpr->weight;
 	top->weight_multiplier = tpr->weight_reverse ? -1 : 1;
-	list_add(tpr->process->tracking_vrrp, top);
+	list_add_tail(&top->e_list, &proc->tracking_vrrp);
 }
 #endif
 
@@ -2513,28 +2480,24 @@ add_vrrp_to_track_process(vrrp_t *vrrp, tracked_process_t *tpr)
 static void
 add_vrrp_to_track_bfd(vrrp_t *vrrp, tracked_bfd_t *tbfd)
 {
-	tracking_obj_t *top, *etop;
-	element e;
+	vrrp_tracked_bfd_t *bfd = tbfd->bfd;
+	tracking_obj_t *top;
 
-	if (!LIST_EXISTS(tbfd->bfd->tracking_vrrp))
-		tbfd->bfd->tracking_vrrp = alloc_list(free_tracking_obj, dump_tracking_vrrp);
-	else {
-		/* Is this bfd already tracking the vrrp instance directly?
-		 * For this to be the case, the bfd was added directly on the vrrp instance,
-		 * and now we are adding it for a sync group. */
-		LIST_FOREACH(tbfd->bfd->tracking_vrrp, etop, e) {
-			if (etop->obj.vrrp == vrrp) {
-				/* Update the weight appropriately. We will use the sync group's
-				 * weight unless the vrrp setting is unweighted. */
-				log_message(LOG_INFO, "(%s) track_bfd %s is configured on VRRP instance and sync group. Remove vrrp instance config",
-						vrrp->iname, tbfd->bfd->bname);
-
-				if (etop->weight) {
-					etop->weight = tbfd->weight;
-					etop->weight_multiplier = tbfd->weight_reverse ? -1 : 1;
-				}
-				return;
+	/* Is this bfd already tracking the vrrp instance directly?
+	 * For this to be the case, the bfd was added directly on the vrrp instance,
+	 * and now we are adding it for a sync group. */
+	list_for_each_entry(top, &bfd->tracking_vrrp, e_list) {
+		if (top->obj.vrrp == vrrp) {
+			/* Update the weight appropriately. We will use the sync group's
+			 * weight unless the vrrp setting is unweighted. */
+			log_message(LOG_INFO, "(%s) track_bfd %s is configured on VRRP instance"
+					      " and sync group. Remove vrrp instance config"
+					    , vrrp->iname, bfd->bname);
+			if (top->weight) {
+				top->weight = tbfd->weight;
+				top->weight_multiplier = tbfd->weight_reverse ? -1 : 1;
 			}
+			return;
 		}
 	}
 
@@ -2542,7 +2505,7 @@ add_vrrp_to_track_bfd(vrrp_t *vrrp, tracked_bfd_t *tbfd)
 	top->obj.vrrp = vrrp;
 	top->weight = tbfd->weight;
 	top->weight_multiplier = tbfd->weight_reverse ? -1 : 1;
-	list_add(tbfd->bfd->tracking_vrrp, top);
+	list_add_tail(&top->e_list, &bfd->tracking_vrrp);
 }
 #endif
 
@@ -2552,28 +2515,26 @@ vrrp_complete_instance(vrrp_t * vrrp)
 {
 #ifdef _HAVE_VRRP_VMAC_
 	char ifname[IFNAMSIZ];
-	interface_t *ifp;
+	interface_t *ifp = NULL;
 	const char *if_type;
 #endif
-	element e;
-	ip_address_t *vip;
+	ip_address_t *ip_addr, *ip_addr_tmp;
 	size_t hdr_len;
 	size_t max_addr;
 	size_t i;
-	element next;
 	bool interface_already_existed = false;
-	tracked_sc_t *sc;
-	tracked_if_t *tip;
-	tracked_file_monitor_t *tfl;
+	tracked_sc_t *sc, *sc_tmp;
+	tracked_if_t *tip, *tip_tmp;
+	tracked_file_monitor_t *tfl, *tfl_tmp;
 #ifdef _WITH_CN_PROC_
 	tracked_process_t *tpr;
 #endif
 #ifdef _WITH_BFD_
-	tracked_bfd_t *tbfd;
+	tracked_bfd_t *tbfd, *tbfd_tmp;
 #endif
 #ifdef _HAVE_FIB_ROUTING_
-	ip_route_t *vroute;
-	ip_rule_t *vrule;
+	ip_route_t *route;
+	ip_rule_t *rule;
 #endif
 
 	if (vrrp->strict_mode == PARAMETER_UNSET)
@@ -2581,7 +2542,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	if (vrrp->family == AF_INET6) {
 		if (vrrp->version == VRRP_VERSION_2 && vrrp->strict_mode) {
-			report_config_error(CONFIG_GENERAL_ERROR,"(%s) cannot use IPv6 with VRRP version 2; setting version 3", vrrp->iname);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) cannot use IPv6 with VRRP version 2;"
+								  " setting version 3"
+								, vrrp->iname);
 			vrrp->version = VRRP_VERSION_3;
 		}
 		else if (!vrrp->version)
@@ -2604,8 +2567,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			vrrp->version = global_data->vrrp_version;
 	}
 
-	if (LIST_ISEMPTY(vrrp->vip) && (vrrp->version == VRRP_VERSION_3 || vrrp->family == AF_INET6 || vrrp->strict_mode)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) No VIP specified; at least one is required", vrrp->iname);
+	if (list_empty(&vrrp->vip) &&
+	    (vrrp->version == VRRP_VERSION_3 || vrrp->family == AF_INET6 || vrrp->strict_mode)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) No VIP specified; at least one is required"
+							, vrrp->iname);
 		return false;
 	}
 
@@ -2622,30 +2587,43 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		vrrp->wantstate = (vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST : VRRP_STATE_BACK);
 	else if (vrrp->strict_mode &&
 		 ((vrrp->wantstate == VRRP_STATE_MAST) != (vrrp->base_priority == VRRP_PRIO_OWNER))) {
-			report_config_error(CONFIG_GENERAL_ERROR,"(%s) State MASTER must match being address owner", vrrp->iname);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) State MASTER must match being address owner"
+								, vrrp->iname);
 			vrrp->wantstate = (vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST : VRRP_STATE_BACK);
 	}
 
 #ifdef _WITH_VRRP_AUTH_
 	if (vrrp->strict_mode && vrrp->auth_type != VRRP_AUTH_NONE) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Strict mode does not support authentication. Ignoring.", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Strict mode does not support authentication."
+							  " Ignoring."
+							, vrrp->iname);
 		vrrp->auth_type = VRRP_AUTH_NONE;
 	}
 	else if (vrrp->version == VRRP_VERSION_3 && vrrp->auth_type != VRRP_AUTH_NONE) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRP version 3 does not support authentication. Ignoring.", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRP version 3 does not support authentication."
+							  " Ignoring."
+							, vrrp->iname);
 		vrrp->auth_type = VRRP_AUTH_NONE;
 	}
 	else if (vrrp->auth_type != VRRP_AUTH_NONE && !vrrp->auth_data[0]) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Authentication specified but no password given. Ignoring", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Authentication specified but no password given."
+							  " Ignoring"
+							, vrrp->iname);
 		vrrp->auth_type = VRRP_AUTH_NONE;
 	}
 	else if (vrrp->family == AF_INET6 && vrrp->auth_type == VRRP_AUTH_AH) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot use AH authentication with IPv6 - ignoring", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot use AH authentication with IPv6."
+							  " ignoring"
+							, vrrp->iname);
 		vrrp->auth_type = VRRP_AUTH_NONE;
 	}
-	else if (vrrp->auth_type == VRRP_AUTH_AH && vrrp->wantstate == VRRP_STATE_MAST && vrrp->base_priority != VRRP_PRIO_OWNER) {
+	else if (vrrp->auth_type == VRRP_AUTH_AH &&
+		 vrrp->wantstate == VRRP_STATE_MAST &&
+		 vrrp->base_priority != VRRP_PRIO_OWNER) {
 		/* We need to have received an advert to get the AH sequence no before taking over, if possible */
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Initial state master is incompatible with AH authentication - clearing", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Initial state master is incompatible with AH"
+							  " authentication - clearing"
+							, vrrp->iname);
 		vrrp->wantstate = VRRP_STATE_BACK;
 	}
 #endif
@@ -2654,8 +2632,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		return false;
 
 	/* unicast peers aren't allowed in strict mode if the interface supports multicast */
-	if (vrrp->strict_mode && vrrp->ifp->ifindex && (vrrp->ifp->ifi_flags & IFF_MULTICAST) && !LIST_ISEMPTY(vrrp->unicast_peer)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Unicast peers are not supported in strict mode", vrrp->iname);
+	if (vrrp->strict_mode && vrrp->ifp->ifindex &&
+	    (vrrp->ifp->ifi_flags & IFF_MULTICAST) &&
+	    !LIST_ISEMPTY(vrrp->unicast_peer)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Unicast peers are not supported in strict mode"
+							, vrrp->iname);
 		return false;
 	}
 
@@ -2668,14 +2649,17 @@ vrrp_complete_instance(vrrp_t * vrrp)
 							      ) &&
 	    vrrp->ifp->ifindex && vrrp->ifp->hw_type != ARPHRD_ETHER) {
 		__clear_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags);
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s): vmacs are only supported on Ethernet type interfaces", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s): vmacs are only supported on Ethernet type interfaces"
+							, vrrp->iname);
 		vrrp->num_script_if_fault++;	/* Stop the vrrp instance running */
 	}
 #endif
 
 	/* If the interface doesn't support multicast, then we need to use unicast */
 	if (vrrp->ifp->ifindex && !(vrrp->ifp->ifi_flags & IFF_MULTICAST) && LIST_ISEMPTY(vrrp->unicast_peer)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) interface %s does not support multicast, specify unicast peers - disabling", vrrp->iname, vrrp->ifp->ifname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) interface %s does not support multicast,"
+							  " specify unicast peers - disabling"
+							, vrrp->iname, vrrp->ifp->ifname);
 		vrrp->num_script_if_fault++;	/* Stop the vrrp instance running */
 	}
 
@@ -2684,14 +2668,15 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	    vrrp->ifp->ifindex &&
 	    (vrrp->ifp->ifi_flags & IFF_NOARP) &&
 	    !(vrrp->ifp->ifi_flags & IFF_POINTOPOINT))
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) disabling ARP since interface does not support it", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) disabling ARP since interface does not support it"
+							, vrrp->iname);
 
 	/* If the addresses are IPv6, then the first one must be link local */
-	if (vrrp->family == AF_INET6 && LIST_ISEMPTY(vrrp->unicast_peer) &&
-		  !LIST_ISEMPTY(vrrp->vip) &&
-		  LIST_HEAD(vrrp->vip)->data &&
-		  !IN6_IS_ADDR_LINKLOCAL(&((ip_address_t *)LIST_HEAD(vrrp->vip)->data)->u.sin6_addr)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) the first IPv6 VIP address must be link local", vrrp->iname);
+	if (vrrp->family == AF_INET6 && LIST_ISEMPTY(vrrp->unicast_peer) && !list_empty(&vrrp->vip)) {
+		ip_addr = list_first_entry(&vrrp->vip, ip_address_t, e_list);
+		if (!IN6_IS_ADDR_LINKLOCAL(&ip_addr->u.sin6_addr))
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) the first IPv6 VIP address must be link local"
+							        , vrrp->iname);
 	}
 
 	/* Check we can fit the VIPs into a packet */
@@ -2718,21 +2703,25 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		max_addr = VRRP_MAX_ADDR;
 
 	/* Move any extra addresses to be evips. We won't advertise them, but at least we can respond to them */
-	if (!LIST_ISEMPTY(vrrp->vip) && LIST_SIZE(vrrp->vip) > max_addr) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Number of VIPs (%u) exceeds maximum/space available in packet (max %zu addresses) - excess moved to eVIPs",
-				vrrp->iname, LIST_SIZE(vrrp->vip), max_addr);
-		for (i = 0, e = LIST_HEAD(vrrp->vip); e; i++, e = next) {
-			next = e->next;
-			if (i < max_addr)
+	if (!list_empty(&vrrp->vip) && vrrp->vip_cnt > max_addr) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Number of VIPs (%u) exceeds maximum/space"
+							  " available in packet (max %zu addresses)"
+							  " - excess moved to eVIPs"
+							, vrrp->iname
+							, vrrp->vip_cnt, max_addr);
+		i = 0;
+		list_for_each_entry_safe(ip_addr, ip_addr_tmp, &vrrp->vip, e_list) {
+			if (++i < max_addr)
 				continue;
-			if (!LIST_EXISTS(vrrp->evip))
-				vrrp->evip = alloc_list(free_ipaddress, dump_ipaddress);
-			list_transfer(e, vrrp->vip, vrrp->evip);
+			list_del_init(&ip_addr->e_list);
+			list_add_tail(&ip_addr->e_list, &vrrp->evip);
 		}
 	}
 
 	if (vrrp->base_priority == VRRP_PRIO_OWNER && vrrp->nopreempt) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) nopreempt is incompatible with priority %d - resetting nopreempt", vrrp->iname, VRRP_PRIO_OWNER);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) nopreempt is incompatible with priority %d."
+							  " resetting nopreempt"
+							, vrrp->iname, VRRP_PRIO_OWNER);
 		vrrp->nopreempt = false;
 	}
 
@@ -2741,21 +2730,29 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	if (vrrp->wantstate == VRRP_STATE_MAST) {
 		if (vrrp->nopreempt) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Warning - nopreempt will not work with initial state MASTER - clearing", vrrp->iname);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Warning - nopreempt will not work"
+								  " with initial state MASTER - clearing"
+								, vrrp->iname);
 			vrrp->nopreempt = false;
 		}
 		if (vrrp->preempt_delay) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Warning - preempt delay will not work with initial state MASTER - clearing", vrrp->iname);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Warning - preempt delay will not work"
+								  " with initial state MASTER - clearing"
+								, vrrp->iname);
 			vrrp->preempt_delay = false;
 		}
 	}
 	if (vrrp->preempt_delay) {
 		if (vrrp->strict_mode) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) preempt_delay is incompatible with strict mode - resetting", vrrp->iname);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) preempt_delay is incompatible with"
+								  " strict mode - resetting"
+								, vrrp->iname);
 			vrrp->preempt_delay = 0;
 		}
 		if (vrrp->nopreempt) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) preempt_delay is incompatible with nopreempt mode - resetting", vrrp->iname);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) preempt_delay is incompatible with"
+								  " nopreempt mode - resetting"
+								, vrrp->iname);
 			vrrp->preempt_delay = 0;
 		}
 	}
@@ -2778,7 +2775,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	    vrrp->base_priority != VRRP_PRIO_OWNER &&
 	    vrrp->strict_mode &&
 	    vrrp->version == VRRP_VERSION_2) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) warning - accept mode for VRRP version 2 does not comply with RFC3768 - resetting", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) warning - accept mode for VRRP version 2"
+							  " does not comply with RFC3768 - resetting"
+							, vrrp->iname);
 		vrrp->accept = false;
 	}
 
@@ -2792,10 +2791,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #endif
 		{
 #ifndef _WITH_NFTABLES_
-			log_message(LOG_INFO, "Warning - firewall needed due to use_vmac or no_accept/strict but not configured");
+			log_message(LOG_INFO, "Warning - firewall needed due to use_vmac or no_accept/strict"
+					      " but not configured");
 #else
 			if (!global_data->vrrp_nf_table_name) {
-				log_message(LOG_INFO, "use_vmac or no_accept/strict specified, but no firewall configured - using nftables");
+				log_message(LOG_INFO, "use_vmac or no_accept/strict specified,"
+						      " but no firewall configured - using nftables");
 				global_data->vrrp_nf_table_name = STRDUP(DEFAULT_NFTABLES_TABLE);
 			}
 #endif
@@ -2806,25 +2807,33 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	if (vrrp->garp_lower_prio_rep == PARAMETER_UNSET)
 		vrrp->garp_lower_prio_rep = vrrp->strict_mode ? 0 : global_data->vrrp_garp_lower_prio_rep;
 	else if (vrrp->strict_mode && vrrp->garp_lower_prio_rep) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Strict mode requires no repeat garps - resetting", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Strict mode requires no repeat garps."
+							  " resetting"
+							, vrrp->iname);
 		vrrp->garp_lower_prio_rep = 0;
 	}
 	if (vrrp->garp_lower_prio_delay == PARAMETER_UNSET)
 		vrrp->garp_lower_prio_delay = vrrp->strict_mode ? 0 : global_data->vrrp_garp_lower_prio_delay;
 	else if (vrrp->strict_mode && vrrp->garp_lower_prio_delay) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Strict mode requires no repeat garp delay - resetting", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Strict mode requires no repeat garp delay."
+							  " resetting"
+							, vrrp->iname);
 		vrrp->garp_lower_prio_delay = 0;
 	}
 	if (vrrp->lower_prio_no_advert == PARAMETER_UNSET)
 		vrrp->lower_prio_no_advert = vrrp->strict_mode ? true : global_data->vrrp_lower_prio_no_advert;
 	else if (vrrp->strict_mode && !vrrp->lower_prio_no_advert) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Strict mode requires no lower priority advert - resetting", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Strict mode requires no lower priority advert."
+							  " resetting"
+							, vrrp->iname);
 		vrrp->lower_prio_no_advert = true;
 	}
 	if (vrrp->higher_prio_send_advert == PARAMETER_UNSET)
 		vrrp->higher_prio_send_advert = vrrp->strict_mode ? false : global_data->vrrp_higher_prio_send_advert;
 	else if (vrrp->strict_mode && vrrp->higher_prio_send_advert) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) strict mode requires higher_prio_send_advert to be clear - resetting", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) strict mode requires higher_prio_send_advert"
+							  " to be clear. resetting"
+							, vrrp->iname);
 		vrrp->higher_prio_send_advert = false;
 	}
 
@@ -2845,13 +2854,19 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		vrrp->adver_int = VRRP_ADVER_DFL * TIMER_HZ;
 	if (vrrp->version == VRRP_VERSION_2) {
 		if (vrrp->adver_int >= (1<<8) * TIMER_HZ) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRPv2 advertisement interval %.2fs is out of range. Must be less than %ds. Setting to %ds",
-					vrrp->iname, vrrp->adver_int / TIMER_HZ_DOUBLE, 1<<8, (1<<8) - 1);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRPv2 advertisement interval %.2fs"
+								  " is out of range. Must be less than %ds."
+								  " Setting to %ds"
+								, vrrp->iname
+								, vrrp->adver_int / TIMER_HZ_DOUBLE
+								, 1<<8, (1<<8) - 1);
 			vrrp->adver_int = ((1<<8) - 1) * TIMER_HZ;
 		}
 		else if (vrrp->adver_int % TIMER_HZ) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRPv2 advertisement interval %fs must be an integer - rounding",
-					vrrp->iname, vrrp->adver_int / TIMER_HZ_DOUBLE);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRPv2 advertisement interval %fs"
+								  " must be an integer. rounding"
+								, vrrp->iname
+								, vrrp->adver_int / TIMER_HZ_DOUBLE);
 			vrrp->adver_int = vrrp->adver_int + (TIMER_HZ / 2);
 			vrrp->adver_int -= vrrp->adver_int % TIMER_HZ;
 			if (vrrp->adver_int == 0)
@@ -2861,13 +2876,19 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	else
 	{
 		if (vrrp->adver_int >= (1<<12) * TIMER_CENTI_HZ) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRPv3 advertisement interval %.2fs is out of range. Must be less than %.2fs. Setting to %.2fs",
-					vrrp->iname, vrrp->adver_int / TIMER_HZ_DOUBLE, (double)(1<<12) / 100, (double)((1<<12) - 1) / 100);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRPv3 advertisement interval %.2fs"
+								  " is out of range. Must be less than %.2fs."
+								  " Setting to %.2fs"
+								, vrrp->iname
+								, vrrp->adver_int / TIMER_HZ_DOUBLE
+								, (double)(1<<12) / 100, (double)((1<<12) - 1) / 100);
 			vrrp->adver_int = ((1<<12) - 1) * TIMER_CENTI_HZ;
 		}
 		else if (vrrp->adver_int % TIMER_CENTI_HZ) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRPv3 advertisement interval %fs must be in units of 10ms - rounding",
-					vrrp->iname, vrrp->adver_int / TIMER_HZ_DOUBLE);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRPv3 advertisement interval %fs"
+								  " must be in units of 10ms - rounding"
+								, vrrp->iname
+								, vrrp->adver_int / TIMER_HZ_DOUBLE);
 			vrrp->adver_int = vrrp->adver_int + (TIMER_CENTI_HZ / 2);
 			vrrp->adver_int -= vrrp->adver_int % TIMER_CENTI_HZ;
 
@@ -2905,70 +2926,76 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 		/* Look to see if an existing interface matches. If so, use that name */
 		list_head_t *ifq = get_interface_queue();
-		if (!list_empty(ifq)) {		/* If the list were empty we would have a real problem! */
-			list_for_each_entry(ifp, ifq, e_list) {
-				/* Check if this interface could be the macvlan/ipvlan for this vrrp */
-				if (ifp->ifindex &&
-				    (ifp->base_ifp == vrrp->configured_ifp->base_ifp
+		list_for_each_entry(ifp, ifq, e_list) {
+			/* Check if this interface could be the macvlan/ipvlan for this vrrp */
+			if (ifp->ifindex &&
+			    (ifp->base_ifp == vrrp->configured_ifp->base_ifp
 #ifdef HAVE_IFLA_LINK_NETNSID
-				     || (ifp == ifp->base_ifp &&
-					 ifp->base_netns_id != -1 &&
-					 vrrp->configured_ifp->base_netns_id == ifp->base_netns_id &&
-					 vrrp->configured_ifp->base_ifindex == ifp->base_ifindex)
+			     || (ifp == ifp->base_ifp &&
+				 ifp->base_netns_id != -1 &&
+				 vrrp->configured_ifp->base_netns_id == ifp->base_netns_id &&
+				 vrrp->configured_ifp->base_ifindex == ifp->base_ifindex)
 #endif
-															   ) &&
-				    ((__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
-				      ifp->vmac_type == MACVLAN_MODE_PRIVATE &&
-				      !memcmp(ifp->hw_addr, ll_addr, sizeof(ll_addr) - 2) &&
-				      ((vrrp->family == AF_INET && ifp->hw_addr[sizeof(ll_addr) - 2] == 0x01) ||
-				       (vrrp->family == AF_INET6 && ifp->hw_addr[sizeof(ll_addr) - 2] == 0x02)) &&
-				      ifp->hw_addr[sizeof(ll_addr) - 1] == vrrp->vrid)
+														   ) &&
+			    ((__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
+			      ifp->vmac_type == MACVLAN_MODE_PRIVATE &&
+			      !memcmp(ifp->hw_addr, ll_addr, sizeof(ll_addr) - 2) &&
+			      ((vrrp->family == AF_INET && ifp->hw_addr[sizeof(ll_addr) - 2] == 0x01) ||
+			       (vrrp->family == AF_INET6 && ifp->hw_addr[sizeof(ll_addr) - 2] == 0x02)) &&
+			      ifp->hw_addr[sizeof(ll_addr) - 1] == vrrp->vrid)
 #ifdef _HAVE_VRRP_IPVLAN_
-				     ||  /* We should probably check if any VIPs match for IPv6 when no i/f name or address configured */
-				     (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags) &&
-				      ifp->if_type == IF_TYPE_IPVLAN &&
-				      /* coverity[mixed_enums] */
-				      ifp->vmac_type == IPVLAN_MODE_L2 &&
-				      !(vrrp->family == AF_INET6 && !vrrp->vmac_ifname[0] && !vrrp->ipvlan_addr) &&
-				      (!vrrp->vmac_ifname[0] || !strcmp(vrrp->vmac_ifname, ifp->ifname)) &&
-				      (!vrrp->ipvlan_addr ||
-				       (vrrp->ipvlan_addr->ifa.ifa_family == AF_INET &&
-					!inet_inaddrcmp(AF_INET, &vrrp->ipvlan_addr->u.sin.sin_addr.s_addr, &ifp->sin_addr.s_addr)) ||
-				       (vrrp->ipvlan_addr->ifa.ifa_family == AF_INET6 &&
-					!inet_inaddrcmp(AF_INET6, &vrrp->ipvlan_addr->u.sin6_addr, &ifp->sin6_addr))))
+			     ||  /* We should probably check if any VIPs match for IPv6 when no i/f name or address configured */
+			     (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags) &&
+			      ifp->if_type == IF_TYPE_IPVLAN &&
+			      /* coverity[mixed_enums] */
+			      ifp->vmac_type == IPVLAN_MODE_L2 &&
+			      !(vrrp->family == AF_INET6 && !vrrp->vmac_ifname[0] && !vrrp->ipvlan_addr) &&
+			      (!vrrp->vmac_ifname[0] || !strcmp(vrrp->vmac_ifname, ifp->ifname)) &&
+			      (!vrrp->ipvlan_addr ||
+			       (vrrp->ipvlan_addr->ifa.ifa_family == AF_INET &&
+				!inet_inaddrcmp(AF_INET, &vrrp->ipvlan_addr->u.sin.sin_addr.s_addr, &ifp->sin_addr.s_addr)) ||
+			       (vrrp->ipvlan_addr->ifa.ifa_family == AF_INET6 &&
+				!inet_inaddrcmp(AF_INET6, &vrrp->ipvlan_addr->u.sin6_addr, &ifp->sin6_addr))))
 #endif
-					    ))
-				{
-					log_message(LOG_INFO, "(%s) Found matching interface %s", vrrp->iname, ifp->ifname);
-					if (vrrp->vmac_ifname[0] &&
-					    strcmp(vrrp->vmac_ifname, ifp->ifname))
-						log_message(LOG_INFO, "(%s) vmac name mismatch %s <=> %s; changing to %s.", vrrp->iname, vrrp->vmac_ifname, ifp->ifname, ifp->ifname);
+				    ))
+			{
+				log_message(LOG_INFO, "(%s) Found matching interface %s", vrrp->iname, ifp->ifname);
+				if (vrrp->vmac_ifname[0] &&
+				    strcmp(vrrp->vmac_ifname, ifp->ifname))
+					log_message(LOG_INFO, "(%s) vmac name mismatch %s <=> %s."
+							      " changing to %s."
+							    , vrrp->iname
+							    , vrrp->vmac_ifname
+							    , ifp->ifname, ifp->ifname);
 
-					strcpy(vrrp->vmac_ifname, ifp->ifname);
-					vrrp->ifp = ifp;
-					__set_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
-					ifp->is_ours = true;
+				strcpy(vrrp->vmac_ifname, ifp->ifname);
+				vrrp->ifp = ifp;
+				__set_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
+				ifp->is_ours = true;
 
-					/* The interface existed, so it may have config set on it */
-					interface_already_existed = true;
+				/* The interface existed, so it may have config set on it */
+				interface_already_existed = true;
 
-					break;
-				}
+				break;
 			}
+		}
 
-			if (!interface_already_existed &&
-			    vrrp->vmac_ifname[0] &&
-			    (ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_NO_CREATE)) &&
-			     ifp->ifindex) {
-				/* An interface with the same name exists, but it doesn't match */
-				if (IS_MAC_IP_VLAN(ifp))
-					log_message(LOG_INFO, "(%s) %s %s already exists but is incompatible. It will be deleted"
-							    , vrrp->iname, if_type, vrrp->vmac_ifname);
-				else {
-					report_config_error(CONFIG_GENERAL_ERROR, "(%s) %s interface name %s already exists as a non %s interface - ignoring configured name"
-										, vrrp->iname, if_type, vrrp->vmac_ifname, if_type);
-					vrrp->vmac_ifname[0] = 0;
-				}
+		if (!interface_already_existed &&
+		    vrrp->vmac_ifname[0] &&
+		    (ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_NO_CREATE)) &&
+		     ifp->ifindex) {
+			/* An interface with the same name exists, but it doesn't match */
+			if (IS_MAC_IP_VLAN(ifp))
+				log_message(LOG_INFO, "(%s) %s %s already exists but is incompatible."
+						      " It will be deleted"
+						    , vrrp->iname, if_type, vrrp->vmac_ifname);
+			else {
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) %s interface name %s"
+									  " already exists as a non %s"
+									  " interface. ignoring configured name"
+									, vrrp->iname
+									, if_type, vrrp->vmac_ifname, if_type);
+				vrrp->vmac_ifname[0] = 0;
 			}
 		}
 
@@ -2983,7 +3010,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				 * It we are using dynamic interfaces, the interface entry
 				 * may have been created by the configuration, but in that
 				 * case the ifindex will be 0. */
-				if (!e && (!(ifp = if_get_by_ifname(ifname, IF_NO_CREATE)) || !ifp->ifindex))
+				if (!ifp && (!(ifp = if_get_by_ifname(ifname, IF_NO_CREATE)) || !ifp->ifindex))
 					break;
 
 				/* For IPv6 try vrrp6 as second attempt */
@@ -3013,7 +3040,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
 			if (vrrp->strict_mode && __test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) {
-				report_config_error(CONFIG_GENERAL_ERROR, "(%s) xmit_base is incompatible with strict mode - resetting", vrrp->iname);
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) xmit_base is incompatible"
+									  " with strict mode - resetting"
+									, vrrp->iname);
 				__clear_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags);
 			}
 		}
@@ -3024,7 +3053,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		    || __test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags)
 #endif
 		    )) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) promote_secondaries is automatically set for vmacs - ignoring", vrrp->iname);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) promote_secondaries is automatically"
+								  " set for vmacs - ignoring"
+								, vrrp->iname);
 			vrrp->promote_secondaries = false;
 		}
 	}
@@ -3039,13 +3070,16 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #ifdef _HAVE_VRRP_IPVLAN_
 	if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags)) {
 		if (vrrp->family == AF_INET && !vrrp->ipvlan_addr) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) IPv4 ipvlan requires a source ip address to be configured - setting instance to fault state",
-								  vrrp->iname);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) IPv4 ipvlan requires a source ip address"
+								  " to be configured. setting instance to fault state"
+								, vrrp->iname);
 			vrrp->num_script_if_fault++;
 		} else if (vrrp->ipvlan_addr) {
 			if (vrrp->family != vrrp->ipvlan_addr->ifa.ifa_family) {
-				report_config_error(CONFIG_GENERAL_ERROR, "(%s) IPv4 ipvlan address family does not match instance - setting instance to fault state",
-									  vrrp->iname);
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) IPv4 ipvlan address family"
+									  " does not match instance."
+									  " setting instance to fault state"
+									, vrrp->iname);
 				vrrp->num_script_if_fault++;
 			} else
 				vrrp->ipvlan_addr->ifp = vrrp->ifp;
@@ -3054,11 +3088,14 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #endif
 
 	/* Add us to the interfaces we are tracking */
-	LIST_FOREACH_NEXT(vrrp->track_ifp, tip, e, next) {
+	list_for_each_entry_safe(tip, tip_tmp, &vrrp->track_ifp, e_list) {
 		/* Check the configuration doesn't explicitly state to track our own interface */
 		if (tip->ifp == IF_BASE_IFP(vrrp->ifp)) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Ignoring track_interface %s since own interface", vrrp->iname, IF_BASE_IFP(vrrp->ifp)->ifname);
-			free_list_element(vrrp->track_ifp, e);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Ignoring track_interface %s"
+								  " since own interface"
+								, vrrp->iname
+								, IF_BASE_IFP(vrrp->ifp)->ifname);
+			free_track_if(tip);
 		}
 		else
 			add_vrrp_to_interface(vrrp, tip->ifp, tip->weight, tip->weight_reverse, false, TRACK_IF);
@@ -3075,7 +3112,8 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&
 	    !__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) vmac_xmit_base is only valid with a vmac", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) vmac_xmit_base is only valid with a vmac"
+							, vrrp->iname);
 		__clear_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags);
 	}
 
@@ -3086,8 +3124,8 @@ vrrp_complete_instance(vrrp_t * vrrp)
 							     )
 	{
 		/* We need to know if we have eVIPs of the other address family */
-		LIST_FOREACH(vrrp->evip, vip, e) {
-			if (vip->ifa.ifa_family != vrrp->family) {
+		list_for_each_entry(ip_addr, &vrrp->evip, e_list) {
+			if (ip_addr->ifa.ifa_family != vrrp->family) {
 				vrrp->evip_other_family = true;
 				break;
 			}
@@ -3154,37 +3192,38 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	/* Add each VIP/eVIP's interface to the interface list, unless we aren't tracking it.
 	 * If the interface goes down, then we will not be able to re-add the address, and so
 	 * we should go to fault state. */
-	LIST_FOREACH(vrrp->vip, vip, e) {
-		if (!vip->ifp)
-			vip->ifp = vrrp->ifp;
+	list_for_each_entry(ip_addr, &vrrp->vip, e_list) {
+		if (!ip_addr->ifp)
+			ip_addr->ifp = vrrp->ifp;
 
 		/* If the vrrp instance doesn't track its primary interface,
 		 * ensure that VIPs don't cause it to be tracked. */
-		if (!vip->dont_track &&
+		if (!ip_addr->dont_track &&
 		    (!vrrp->dont_track_primary ||
-		     (vip->ifp != vrrp->ifp
+		     (ip_addr->ifp != vrrp->ifp
 #ifdef _HAVE_VRRP_VMAC_
-		      && vip->ifp != IF_BASE_IFP(vrrp->ifp)
+		      && ip_addr->ifp != IF_BASE_IFP(vrrp->ifp)
 #endif
 							   )))
-			add_vrrp_to_interface(vrrp, vip->ifp, 0, false, false, TRACK_ADDR);
+			add_vrrp_to_interface(vrrp, ip_addr->ifp, 0, false, false, TRACK_ADDR);
 	}
-	LIST_FOREACH(vrrp->evip, vip, e) {
-		if (!vip->ifp)
-			vip->ifp = vrrp->ifp;
+
+	list_for_each_entry(ip_addr, &vrrp->evip, e_list) {
+		if (!ip_addr->ifp)
+			ip_addr->ifp = vrrp->ifp;
 
 		/* If the vrrp instance doesn't track its primary interface,
 		 * ensure that eVIPs don't cause it to be tracked. */
-		if (!vip->dont_track &&
+		if (!ip_addr->dont_track &&
 		    (!vrrp->dont_track_primary ||
-		     (vip->ifp != vrrp->ifp
+		     (ip_addr->ifp != vrrp->ifp
 #ifdef _HAVE_VRRP_VMAC_
-		      && vip->ifp != IF_BASE_IFP(vrrp->ifp)
+		      && ip_addr->ifp != IF_BASE_IFP(vrrp->ifp)
 #endif
 							   )))
-			add_vrrp_to_interface(vrrp, vip->ifp, 0, false, false, TRACK_ADDR);
+			add_vrrp_to_interface(vrrp, ip_addr->ifp, 0, false, false, TRACK_ADDR);
 
-		if (vip->ifa.ifa_family == AF_INET)
+		if (ip_addr->ifa.ifa_family == AF_INET)
 			have_ipv4_instance = true;
 		else
 			have_ipv6_instance = true;
@@ -3201,80 +3240,93 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 		/* Set weight to 0 of any interface we are tracking,
 		 * unless we are the address owner, in which case stop tracking it */
-		LIST_FOREACH_NEXT(vrrp->track_ifp, tip, e, next) {
+		list_for_each_entry_safe(tip, tip_tmp, &vrrp->track_ifp, e_list) {
 			if (tip->weight && tip->weight != VRRP_NOT_TRACK_IF) {
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) ignoring %s"
-						 " tracked interface %sdue to %s",
-						 vrrp->iname, tip->ifp->ifname,
-						 sync_no_tracking_weight ? "weight " : "",
-						 sync_no_tracking_weight ? "SYNC group" : "address owner");
+						 			  " tracked interface %sdue to %s"
+									, vrrp->iname
+									, tip->ifp->ifname
+									, sync_no_tracking_weight ? "weight " : ""
+									, sync_no_tracking_weight ? 
+									  "SYNC group" : "address owner");
 				if (sync_no_tracking_weight)
 					tip->weight = 0;
 				else
-					free_list_element(vrrp->track_ifp, e);
+					free_track_if(tip);
 			}
 		}
-		if (LIST_ISEMPTY(vrrp->track_ifp))
-			free_list(&vrrp->track_ifp);
+		free_track_if_list(&vrrp->track_ifp);
 
 		/* Ignore any weighted script */
-		LIST_FOREACH_NEXT(vrrp->track_script, sc, e, next) {
+		list_for_each_entry_safe(sc, sc_tmp, &vrrp->track_script,e_list) {
 			if (sc->weight) {
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) ignoring "
-						 "tracked script %s with weights due to %s",
-						 vrrp->iname, sc->scr->sname,
-						 sync_no_tracking_weight ? "SYNC group" : "address_owner");
-				free_list_element(vrrp->track_script, e);
+						 			  "tracked script %s with weights due to %s"
+									, vrrp->iname
+									, sc->scr->sname
+									, sync_no_tracking_weight ? 
+									  "SYNC group" : "address_owner");
+				free_track_script(sc);
 			}
 		}
-		if (LIST_ISEMPTY(vrrp->track_script))
-			free_list(&vrrp->track_script);
+		free_track_script_list(&vrrp->track_script);
 
 		/* Set tracking files to unweighted if weight not explicitly set, otherwise ignore */
-		LIST_FOREACH_NEXT(vrrp->track_file, tfl, e, next) {
+		list_for_each_entry_safe(tfl, tfl_tmp, &vrrp->track_file, e_list) {
 			if (tfl->weight == 1) {		/* weight == 1 is the default */
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) ignoring weight from "
-						 "tracked file %s due to %s - specify weight 0",
-						 vrrp->iname, tfl->file->fname,
-						 sync_no_tracking_weight ? "SYNC group" : "address_owner");
+						 			  "tracked file %s due to %s."
+									  " specify weight 0"
+									, vrrp->iname
+									, tfl->file->fname
+									, sync_no_tracking_weight ?
+									  "SYNC group" : "address_owner");
 				tfl->weight = 0;
 			}
 			else if (tfl->weight) {
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) ignoring "
-						 "tracked file %s with weight %d due to %s",
-						 vrrp->iname, tfl->file->fname, tfl->weight,
-						 sync_no_tracking_weight ? "SYNC group" : "address_owner");
-				free_list_element(vrrp->track_file, e);
+						 			  "tracked file %s with weight %d due to %s"
+									, vrrp->iname
+									, tfl->file->fname
+									, tfl->weight
+									, sync_no_tracking_weight ?
+									  "SYNC group" : "address_owner");
+				free_track_file_monitor(tfl);
 			}
 		}
-		if (LIST_ISEMPTY(vrrp->track_file))
-			free_list(&vrrp->track_file);
+		free_track_file_monitor_list(&vrrp->track_file);
 
 #ifdef _WITH_BFD_
 		/* Ignore any weighted tracked bfd */
-		LIST_FOREACH_NEXT(vrrp->track_bfd, tbfd, e, next) {
+		list_for_each_entry_safe(tbfd, tbfd_tmp, &vrrp->track_bfd, e_list) {
 			if (tbfd->weight) {
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) ignoring "
-						 "tracked bfd %s with weight %d due to %s",
-						 vrrp->iname, tbfd->bfd->bname, tbfd->weight,
-						 sync_no_tracking_weight ? "SYNC group" : "address_owner");
-				free_list_element(vrrp->track_bfd, e);
+						 			  "tracked bfd %s with weight %d due to %s"
+									, vrrp->iname
+									, tbfd->bfd->bname
+									, tbfd->weight
+									, sync_no_tracking_weight ?
+									  "SYNC group" : "address_owner");
+				free_track_bfd(tbfd);
 			}
 		}
-		if (LIST_ISEMPTY(vrrp->track_bfd))
-			free_list(&vrrp->track_bfd);
+		free_track_bfd_list(&vrrp->track_bfd);
 #endif
 	}
 
 	/* Add us to the vrrp list of the script, and update
 	 * effective_priority and num_script_if_fault */
-	LIST_FOREACH_NEXT(vrrp->track_script, sc, e, next) {
+	list_for_each_entry_safe(sc, sc_tmp, &vrrp->track_script, e_list) {
 		vrrp_script_t *vsc = sc->scr;
 
 		if (vrrp->base_priority == VRRP_PRIO_OWNER && sc->weight) {
 			/* Is this duplicating the code with comment "Ignore any weighted script"? */
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot have weighted track script '%s' with priority %d", vrrp->iname, vsc->sname, VRRP_PRIO_OWNER);
-			list_del(vrrp->track_script, sc);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot have weighted track script"
+								  " '%s' with priority %d"
+								, vrrp->iname
+								, vsc->sname
+								, VRRP_PRIO_OWNER);
+			free_track_script(sc);
 			continue;
 		}
 
@@ -3282,18 +3334,18 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 	/* Add our track files to the tracking file tracking_obj list */
-	LIST_FOREACH(vrrp->track_file, tfl, e)
-		add_obj_to_track_file(vrrp, tfl, vrrp->iname, dump_tracking_vrrp);
+	list_for_each_entry(tfl, &vrrp->track_file, e_list)
+		add_obj_to_track_file(vrrp, tfl, vrrp->iname);
 
 #ifdef _WITH_CN_PROC_
 	/* Add our track processes to the tracking process tracking_vrrp list */
-	LIST_FOREACH(vrrp->track_process, tpr, e)
+	list_for_each_entry(tpr, &vrrp->track_process, e_list)
 		add_vrrp_to_track_process(vrrp, tpr);
 #endif
 
 #ifdef _WITH_BFD_
 	/* Add our track bfd to the tracking bfd tracking_vrrp list */
-	LIST_FOREACH(vrrp->track_bfd, tbfd, e)
+	list_for_each_entry(tbfd, &vrrp->track_bfd, e_list)
 		add_vrrp_to_track_bfd(vrrp, tbfd);
 #endif
 
@@ -3311,31 +3363,32 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 #ifdef _HAVE_FIB_ROUTING_
 	/* Check if there are any route/rules we need to monitor */
-	LIST_FOREACH(vrrp->vroutes, vroute, e) {
-		if (!vroute->dont_track) {
-			if (vroute->family == AF_INET)
+	list_for_each_entry(route, &vrrp->vroutes, e_list) {
+		if (!route->dont_track) {
+			if (route->family == AF_INET)
 				monitor_ipv4_routes = true;
 			else
 				monitor_ipv6_routes = true;
 
 			/* If the route specifies an interface, this vrrp instance should track the interface */
-			if (vroute->oif)
-				add_vrrp_to_interface(vrrp, vroute->oif, 0, false, false, TRACK_ROUTE);
+			if (route->oif)
+				add_vrrp_to_interface(vrrp, route->oif, 0, false, false, TRACK_ROUTE);
 		}
 	}
-	LIST_FOREACH(vrrp->vrules, vrule, e) {
-		if (!vrule->dont_track) {
-			if (vrule->family == AF_INET)
+
+	list_for_each_entry(rule, &vrrp->vrules, e_list) {
+		if (!rule->dont_track) {
+			if (rule->family == AF_INET)
 				monitor_ipv4_rules = true;
 			else
 				monitor_ipv6_rules = true;
 
 			/* If the rule specifies an interface, this vrrp instance should track the interface */
-			if (vrule->iif)
-				add_vrrp_to_interface(vrrp, vrule->iif, 0, false, false, TRACK_RULE);
+			if (rule->iif)
+				add_vrrp_to_interface(vrrp, rule->iif, 0, false, false, TRACK_RULE);
 #if HAVE_DECL_FRA_OIFNAME
-			if (vrule->oif)
-				add_vrrp_to_interface(vrrp, vrule->oif, 0, false, false, TRACK_RULE);
+			if (rule->oif)
+				add_vrrp_to_interface(vrrp, rule->oif, 0, false, false, TRACK_RULE);
 #endif
 		}
 	}
@@ -3351,7 +3404,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 static void
 sync_group_tracking_init(void)
 {
-	element e, e1, e2;
+	element e, e2;
 	vrrp_sgroup_t *sgroup;
 	tracked_sc_t *sc;
 	vrrp_script_t *vsc;
@@ -3363,30 +3416,32 @@ sync_group_tracking_init(void)
 	vrrp_t *vrrp;
 	bool sgroup_has_prio_owner;
 
-	if (LIST_ISEMPTY(vrrp_data->vrrp_sync_group))
-		return;
-
 	/* Add sync group members to the vrrp list of the script, file, i/f,
 	 * and update effective_priority and num_script_if_fault */
-	LIST_FOREACH(vrrp_data->vrrp_sync_group, sgroup, e) {
+	list_for_each_entry(sgroup, &vrrp_data->vrrp_sync_group, e_list) {
 		if (LIST_ISEMPTY(sgroup->vrrp_instances))
 			continue;
 
 		/* Find out if any of the sync group members are address owners, since then
 		 * we cannot have weights */
 		sgroup_has_prio_owner = false;
-		LIST_FOREACH(sgroup->vrrp_instances, vrrp, e1) {
+		LIST_FOREACH(sgroup->vrrp_instances, vrrp, e) {
 			if (vrrp->base_priority == VRRP_PRIO_OWNER) {
 				sgroup_has_prio_owner = true;
 				break;
 			}
 		}
 
-		LIST_FOREACH(sgroup->track_script, sc, e1) {
+		list_for_each_entry(sc, &sgroup->track_script, e_list) {
 			vsc = sc->scr;
 
 			if (sgroup_has_prio_owner && sc->weight) {
-				report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot have weighted track script '%s' with member having priority %d - clearing weight", sgroup->gname, vsc->sname, VRRP_PRIO_OWNER);
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot have weighted track"
+									  " script '%s' with member having"
+									  " priority %d - clearing weight"
+									, sgroup->gname
+									, vsc->sname
+									, VRRP_PRIO_OWNER);
 				sc->weight = 0;
 			}
 
@@ -3395,21 +3450,31 @@ sync_group_tracking_init(void)
 		}
 
 		/* tracked files */
-		LIST_FOREACH(sgroup->track_file, tfl, e1) {
+		list_for_each_entry(tfl, &sgroup->track_file, e_list) {
 			if (sgroup_has_prio_owner && tfl->weight) {
-				report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot have weighted track file '%s' with member having priority %d - setting weight 0", sgroup->gname, tfl->file->fname, VRRP_PRIO_OWNER);
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot have weighted track"
+									  " file '%s' with member having"
+									  " priority %d - setting weight 0"
+									, sgroup->gname
+									, tfl->file->fname
+									, VRRP_PRIO_OWNER);
 				tfl->weight = 0;
 			}
 
 			LIST_FOREACH(sgroup->vrrp_instances, vrrp, e2)
-				add_obj_to_track_file(vrrp, tfl, vrrp->iname, dump_tracking_vrrp);
+				add_obj_to_track_file(vrrp, tfl, vrrp->iname);
 		}
 
 #ifdef _WITH_BFD_
 		/* tracked files */
-		LIST_FOREACH(sgroup->track_bfd, tbfd, e1) {
+		list_for_each_entry(tbfd, &sgroup->track_bfd, e_list) {
 			if (sgroup_has_prio_owner && tbfd->weight) {
-				report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot have weighted track bfd '%s' with member having priority %d - setting weight 0", sgroup->gname, tbfd->bfd->bname, VRRP_PRIO_OWNER);
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot have weighted track"
+									  " bfd '%s' with member having"
+									  " priority %d - setting weight 0"
+									, sgroup->gname
+									, tbfd->bfd->bname
+									, VRRP_PRIO_OWNER);
 				tbfd->weight = 0;
 			}
 
@@ -3419,9 +3484,14 @@ sync_group_tracking_init(void)
 #endif
 
 		/* tracked interfaces */
-		LIST_FOREACH(sgroup->track_ifp, tif, e1) {
+		list_for_each_entry(tif, &sgroup->track_ifp, e_list) {
 			if (sgroup_has_prio_owner && tif->weight) {
-				report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot have weighted track interface '%s' with member having priority %d - clearing weight", sgroup->gname, tif->ifp->ifname, VRRP_PRIO_OWNER);
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot have weighted track"
+									  " interface '%s' with member having"
+									  " priority %d - clearing weight"
+									, sgroup->gname
+									, tif->ifp->ifname
+									, VRRP_PRIO_OWNER);
 				tif->weight = 0;
 			}
 
@@ -3445,24 +3515,24 @@ sync_group_tracking_init(void)
 static void
 process_static_entries(void)
 {
-	element e;
-	ip_route_t *sroute;
-	ip_rule_t *srule;
+	ip_route_t *route;
+	ip_rule_t *rule;
 
-	LIST_FOREACH(vrrp_data->static_routes, sroute, e) {
-		if (!sroute->track_group)
+	list_for_each_entry(route, &vrrp_data->static_routes, e_list) {
+		if (!route->track_group)
 			continue;
 
-		if (sroute->family == AF_INET)
+		if (route->family == AF_INET)
 			monitor_ipv4_routes = true;
 		else
 			monitor_ipv6_routes = true;
 	}
-	LIST_FOREACH(vrrp_data->static_rules, srule, e) {
-		if (!srule->track_group)
+
+	list_for_each_entry(rule, &vrrp_data->static_rules, e_list) {
+		if (!rule->track_group)
 			continue;
 
-		if (srule->family == AF_INET)
+		if (rule->family == AF_INET)
 			monitor_ipv4_rules = true;
 		else
 			monitor_ipv6_rules = true;
@@ -3473,11 +3543,10 @@ process_static_entries(void)
 static void
 remove_residual_vips(void)
 {
-	element e1;
 	vrrp_t *vrrp;
 	ip_address_t *ip_addr;
 	list_head_t *ifq;
-	list *vip_list;
+	list_head_t *vip_list;
 	interface_t *ifp;
 	sin_addr_t *saddr;
 	
@@ -3489,7 +3558,7 @@ remove_residual_vips(void)
 			 * it ran and it wasn't able to clean up. */
 			vip_list = &vrrp->vip;
 			do {
-				LIST_FOREACH(*vip_list, ip_addr, e1) {
+				list_for_each_entry(ip_addr, vip_list, e_list) {
 					/* Check primary address for family, then check list */
 					if (ip_addr->ifa.ifa_family == AF_INET) {
 						if (inaddr_equal(AF_INET, &ip_addr->ifp->sin_addr,
@@ -3605,12 +3674,11 @@ vrrp_complete_init(void)
 	 */
 	element e, e1;
 	vrrp_t *vrrp, *old_vrrp;
-	vrrp_sgroup_t *sgroup;
-	element next;
+	vrrp_sgroup_t *sgroup, *sgroup_tmp;
 	vrrp_t *vrrp1;
 	size_t max_mtu_len = 0;
 	bool have_master, have_backup;
-	vrrp_script_t *scr;
+	vrrp_script_t *scr, *scr_tmp;
 
 	/* Set defaults if not specified, depending on strict mode */
 	if (global_data->vrrp_garp_lower_prio_rep == PARAMETER_UNSET)
@@ -3705,14 +3773,23 @@ vrrp_complete_init(void)
 						vrrp1->num_script_if_fault++;
 						vrrp1->duplicate_vrid_fault = true;
 					}
-					log_message(LOG_INFO, "(%s) - warning, VRID %d for IPv%d is currently duplicated on %s",
-							vrrp->iname, vrrp->vrid, vrrp->family == AF_INET ? 4 : 6, vrrp1->iname);
+					log_message(LOG_INFO, "(%s) - warning, VRID %d for IPv%d"
+							      " is currently duplicated on %s"
+							    , vrrp->iname
+							    , vrrp->vrid
+							    , vrrp->family == AF_INET ? 4 : 6
+							    , vrrp1->iname);
 				}
 				else
 #endif
 				     if (VRRP_CONFIGURED_IFP(vrrp)->ifindex) {
-					report_config_error(CONFIG_GENERAL_ERROR, "%s and %s both use VRID %d with IPv%d on interface %s",
-								vrrp->iname, vrrp1->iname, vrrp->vrid, vrrp->family == AF_INET ? 4 : 6, IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp))->ifname);
+					report_config_error(CONFIG_GENERAL_ERROR, "%s and %s both use VRID %d"
+										  " with IPv%d on interface %s"
+										, vrrp->iname
+										, vrrp1->iname
+										, vrrp->vrid
+										, vrrp->family == AF_INET ? 4 : 6
+										, IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp))->ifname);
 					return false;
 				}
 			}
@@ -3726,17 +3803,19 @@ vrrp_complete_init(void)
 
 	/* Build synchronization group index, and remove any
 	 * empty groups */
-	LIST_FOREACH_NEXT(vrrp_data->vrrp_sync_group, sgroup, e, next) {
+	list_for_each_entry_safe(sgroup, sgroup_tmp, &vrrp_data->vrrp_sync_group, e_list) {
 		if (!sgroup->iname) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Sync group %s has no virtual router(s) - removing", sgroup->gname);
-			free_list_element(vrrp_data->vrrp_sync_group, e);
+			report_config_error(CONFIG_GENERAL_ERROR, "Sync group %s has no virtual router(s)."
+								  " removing"
+								, sgroup->gname);
+			free_sync_group(sgroup);
 			continue;
 		}
 
 		vrrp_sync_set_group(sgroup);
 
 		if (!sgroup->vrrp_instances) {
-			free_list_element(vrrp_data->vrrp_sync_group, e);
+			free_sync_group(sgroup);
 			continue;
 		}
 	}
@@ -3774,7 +3853,8 @@ vrrp_complete_init(void)
 		return true;
 
 	/* Create a notify FIFO if needed, and open it */
-	notify_fifo_open(&global_data->notify_fifo, &global_data->vrrp_notify_fifo, vrrp_notify_fifo_script_exit, "vrrp_");
+	notify_fifo_open(&global_data->notify_fifo, &global_data->vrrp_notify_fifo,
+			 vrrp_notify_fifo_script_exit, "vrrp_");
 
 	/* If we have a global garp_delay add it to any interfaces without a garp_delay */
 	if (global_data->vrrp_garp_interval || global_data->vrrp_gna_interval)
@@ -3794,16 +3874,15 @@ vrrp_complete_init(void)
 #endif
 
 	/* Initialise any tracking files */
-	if (!LIST_ISEMPTY(vrrp_data->vrrp_track_files))
-		init_track_files(vrrp_data->vrrp_track_files);
+	init_track_files(&vrrp_data->vrrp_track_files);
 
 #ifdef _WITH_CN_PROC_
 	/* Initialise any process tracking */
-	if (!LIST_ISEMPTY(vrrp_data->vrrp_track_processes)) {
+	if (!list_empty(&vrrp_data->vrrp_track_processes)) {
 		if (reload)
 			reload_track_processes();
 		else
-			init_track_processes(vrrp_data->vrrp_track_processes);
+			init_track_processes(&vrrp_data->vrrp_track_processes);
 	}
 #endif
 
@@ -3812,7 +3891,7 @@ vrrp_complete_init(void)
 
 	/* Make sure that if any sync group has member wanting to start in
 	 * master state, then all can start in master state. */
-	LIST_FOREACH(vrrp_data->vrrp_sync_group, sgroup, e1) {
+	list_for_each_entry(sgroup, &vrrp_data->vrrp_sync_group, e_list) {
 		have_backup = false;
 		have_master = false;
 		LIST_FOREACH(sgroup->vrrp_instances, vrrp, e) {
@@ -3877,7 +3956,7 @@ vrrp_complete_init(void)
 		}
 
 		/* Now see if any sync groups should be master */
-		LIST_FOREACH(vrrp_data->vrrp_sync_group, sgroup, e) {
+		list_for_each_entry(sgroup, &vrrp_data->vrrp_sync_group, e_list) {
 			if (sgroup->num_member_fault || sgroup->num_member_init)
 				continue;
 
@@ -3905,7 +3984,9 @@ vrrp_complete_init(void)
 		}
 
 		if (!global_data->lvs_syncd.vrrp) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Unable to find vrrp instance %s for lvs_syncd - clearing lvs_syncd config", global_data->lvs_syncd.vrrp_name);
+			report_config_error(CONFIG_GENERAL_ERROR, "Unable to find vrrp instance %s"
+								  " for lvs_syncd - clearing lvs_syncd config"
+								, global_data->lvs_syncd.vrrp_name);
 			FREE_CONST_PTR(global_data->lvs_syncd.ifname);
 			global_data->lvs_syncd.ifname = NULL;
 			global_data->lvs_syncd.syncid = PARAMETER_UNSET;
@@ -3924,10 +4005,10 @@ vrrp_complete_init(void)
 #endif
 
 	/* Identify and remove any unused tracking scripts */
-	LIST_FOREACH_NEXT(vrrp_data->vrrp_script, scr, e, next) {
-		if (LIST_ISEMPTY(scr->tracking_vrrp)) {
+	list_for_each_entry_safe(scr, scr_tmp, &vrrp_data->vrrp_script, e_list) {
+		if (list_empty(&scr->tracking_vrrp)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Warning - script %s is not used", scr->sname);
-			free_list_element(vrrp_data->vrrp_script, e);
+			free_vscript(scr);
 		}
 	}
 
@@ -3953,23 +4034,22 @@ void vrrp_restore_interfaces_startup(void)
 static void
 clear_diff_vrrp_vip(vrrp_t *old_vrrp, vrrp_t *vrrp)
 {
-	list addr_list;
+	list_head_t addr_list;
 	bool fw_set = false;
 
 // !!!! TODO need to handle accept_mode changing - either remove all or add all. Do new entries get added for new VIPs?
 	if (!old_vrrp->vipset)
 		return;
 
-	addr_list = alloc_list(NULL, NULL);
-	get_diff_address(old_vrrp, vrrp, addr_list);
+	INIT_LIST_HEAD(&addr_list);
+	get_diff_address(old_vrrp, vrrp, &addr_list);
 
 #ifdef _WITH_FIREWALL_
 	fw_set = (old_vrrp->base_priority != VRRP_PRIO_OWNER && !old_vrrp->accept);
 	vrrp->firewall_rules_set = fw_set;
 #endif
-	clear_address_list(addr_list, fw_set);
-
-	free_list(&addr_list);
+	clear_address_list(&addr_list, fw_set);
+	free_ipaddress_list(&addr_list);
 }
 
 #ifdef _HAVE_FIB_ROUTING_
@@ -3977,14 +4057,14 @@ clear_diff_vrrp_vip(vrrp_t *old_vrrp, vrrp_t *vrrp)
 static void
 clear_diff_vrrp_vroutes(vrrp_t *old_vrrp, vrrp_t *vrrp)
 {
-	clear_diff_routes(old_vrrp->vroutes, vrrp->vroutes);
+	clear_diff_routes(&old_vrrp->vroutes, &vrrp->vroutes);
 }
 
 /* Clear virtual rules not present in the new data */
 static void
 clear_diff_vrrp_vrules(vrrp_t *old_vrrp, vrrp_t *vrrp)
 {
-	clear_diff_rules(old_vrrp->vrules, vrrp->vrules);
+	clear_diff_rules(&old_vrrp->vrules, &vrrp->vrules);
 }
 #endif
 
@@ -4011,16 +4091,16 @@ restore_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 #ifdef _WITH_FIREWALL_
 		vrrp_handle_accept_mode(vrrp, IPADDRESS_ADD, false);
 #endif
-		if (!LIST_ISEMPTY(vrrp->vip))
+		if (!list_empty(&vrrp->vip))
 			added_ip_addr = vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_VIP_TYPE, false);
-		if (!LIST_ISEMPTY(vrrp->evip)) {
+		if (!list_empty(&vrrp->evip)) {
 			if (vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE, false))
 				added_ip_addr = true;
 		}
 #ifdef _HAVE_FIB_ROUTING_
-		if (!LIST_ISEMPTY(vrrp->vroutes))
+		if (!list_empty(&vrrp->vroutes))
 			vrrp_handle_iproutes(vrrp, IPROUTE_ADD);
-		if (!LIST_ISEMPTY(vrrp->vrules))
+		if (!list_empty(&vrrp->vrules))
 			vrrp_handle_iprules(vrrp, IPRULE_ADD, false);
 #endif
 	}
@@ -4120,10 +4200,9 @@ clear_diff_vrrp(void)
 void
 clear_diff_script(void)
 {
-	element e;
 	vrrp_script_t *vscript, *nvscript;
 
-	LIST_FOREACH(old_vrrp_data->vrrp_script, vscript, e) {
+	list_for_each_entry(vscript, &old_vrrp_data->vrrp_script, e_list) {
 		nvscript = find_script_by_name(vscript->sname);
 		if (nvscript) {
 			/* Set the script result to match the previous result */
@@ -4135,7 +4214,8 @@ clear_diff_script(void)
 					if (nvscript->result < 0)
 						nvscript->result = 0;
 				}
-				log_message(LOG_INFO, "VRRP_Script(%s) considered unsuccessful on reload", nvscript->sname);
+				log_message(LOG_INFO, "VRRP_Script(%s) considered unsuccessful on reload"
+						    , nvscript->sname);
 			} else {
 				if (vscript->result == vscript->rise + vscript->fall - 1)
 					nvscript->result = nvscript->rise + nvscript->fall - 1;
@@ -4144,7 +4224,8 @@ clear_diff_script(void)
 					if (nvscript->result >= nvscript->rise + nvscript->fall)
 						nvscript->result = nvscript->rise + nvscript->fall - 1;
 				}
-				log_message(LOG_INFO, "VRRP_Script(%s) considered successful on reload", nvscript->sname);
+				log_message(LOG_INFO, "VRRP_Script(%s) considered successful on reload"
+						    , nvscript->sname);
 			}
 			nvscript->last_status = vscript->last_status;
 			nvscript->init_state = SCRIPT_INIT_STATE_DONE;
@@ -4157,10 +4238,9 @@ clear_diff_script(void)
 void
 clear_diff_bfd(void)
 {
-	element e;
 	vrrp_tracked_bfd_t *vbfd, *nvbfd;
 
-	LIST_FOREACH(old_vrrp_data->vrrp_track_bfds, vbfd, e) {
+	list_for_each_entry(vbfd, &old_vrrp_data->vrrp_track_bfds, e_list) {
 		nvbfd = find_vrrp_tracked_bfd_by_name(vbfd->bname);
 		if (nvbfd)
 			nvbfd->bfd_up = vbfd->bfd_up;

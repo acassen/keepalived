@@ -29,12 +29,14 @@
 
 /* local includes */
 #include "list.h"
+#include "list_head.h"
 #ifdef _WITH_VRRP_
 #include "vrrp.h"
 #endif
 #include "tracker.h"
 
 /* external file we read to track local processes */
+typedef void (*obj_dump_func_t) (FILE *, const void *);
 typedef struct _tracked_file {
 	const char		*fname;		/* File name */
 	const char		*file_path;	/* Path to file */
@@ -42,8 +44,11 @@ typedef struct _tracked_file {
 	int			weight;		/* Default weight */
 	bool			weight_reverse;	/* which direction is the weight applied */
 	int			wd;		/* Watch descriptor */
-	list			tracking_obj;	/* List of tracking_obj_t for vrrp instances/real servers tracking this file */
+	list_head_t		tracking_obj;	/* tracking_obj_t - for vrrp instances/real servers tracking this file */
 	int			last_status;	/* Last status returned by file. Used to report changes */
+
+	/* linked list member */
+	list_head_t		e_list;
 } tracked_file_t;
 
 /* Tracked file structure definition */
@@ -51,19 +56,28 @@ typedef struct _tracked_file_monitor {
 	tracked_file_t		*file;		/* track file pointer, cannot be NULL */
 	int			weight;		/* Multiplier for file value */
 	bool			weight_reverse;	/* which direction is the weight applied */
+
+	/* linked list member */
+	list_head_t		e_list;
 } tracked_file_monitor_t;
 
-extern list alloc_track_file_list(void);
-extern tracked_file_t * __attribute__ ((pure)) find_tracked_file_by_name(const char *, list);
-extern void vrrp_alloc_track_file(const char *, list, list, const vector_t *);
+extern void dump_track_file_monitor_list(FILE *, const list_head_t *);
+extern void free_track_file_monitor(tracked_file_monitor_t *);
+extern void free_track_file_monitor_list(list_head_t *);
+
+extern tracked_file_t * __attribute__ ((pure)) find_tracked_file_by_name(const char *, list_head_t *);
+extern void vrrp_alloc_track_file(const char *, list_head_t *, list_head_t *, const vector_t *);
 extern void add_track_file_keywords(bool active);
 
-extern void free_track_file_list(void *);
-extern void dump_track_file_list(FILE *, const void *);
+extern void free_tracking_obj_list(list_head_t *);
+extern void dump_tracking_obj_list(FILE *fp, const list_head_t *, obj_dump_func_t);
 
-extern void add_obj_to_track_file(void *, tracked_file_monitor_t *, const char *, void (*)(FILE *, const void *));
+extern void free_track_file_list(list_head_t *);
+extern void dump_track_file_list(FILE *, const list_head_t *);
 
-extern void init_track_files(list);
+extern void add_obj_to_track_file(void *, tracked_file_monitor_t *, const char *);
+
+extern void init_track_files(list_head_t *);
 extern void stop_track_files(void);
 
 #ifdef THREAD_DUMP

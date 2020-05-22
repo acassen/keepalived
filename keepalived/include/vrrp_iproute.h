@@ -38,6 +38,7 @@
 
 /* local includes */
 #include "list.h"
+#include "list_head.h"
 #include "vector.h"
 #include "vrrp_ipaddress.h"
 #include "vrrp_if.h"
@@ -117,18 +118,20 @@ typedef struct _encap {
 #endif
 
 typedef struct _nexthop {
-	uint32_t mask;
-	ip_address_t *addr;
-	interface_t *ifp;
-	uint8_t weight;
-	uint8_t flags;
-	uint32_t realms;
+	uint32_t	mask;
+	ip_address_t	*addr;
+	interface_t	*ifp;
+	uint8_t		weight;
+	uint8_t		flags;
+	uint32_t	realms;
 #if HAVE_DECL_RTA_ENCAP
-	encap_t encap;
+	encap_t		encap;
 #endif
 //#if HAVE_DECL_RTA_NEWDST
 //	ip_address_t *as_to;
 //#endif
+	/* linked list member */
+	list_head_t	e_list;
 } nexthop_t;
 
 enum ip_route {
@@ -235,12 +238,15 @@ typedef struct _ip_route {
 #if HAVE_DECL_RTA_ENCAP
 	encap_t			encap;
 #endif
-	list			nhs;
+	list_head_t		nhs;		/* nexthop_t */
 	uint32_t		mask;
 	bool			dont_track;	/* used for virtual routes */
 	static_track_group_t	*track_group;	/* used for static routes */
 	bool			set;
 	uint32_t		configured_ifindex;	/* Index of interface route is configured on */
+
+	/* linked list member */
+	list_head_t		e_list;
 } ip_route_t;
 
 #define IPROUTE_DEL	0
@@ -249,13 +255,15 @@ typedef struct _ip_route {
 
 /* prototypes */
 extern unsigned short add_addr2req(struct nlmsghdr *, size_t, unsigned short, ip_address_t *);
-extern void netlink_rtlist(list, int);
-extern void free_iproute(void *);
+extern bool netlink_rtlist(list_head_t *, int);
+extern void free_iproute(ip_route_t *);
+extern void free_iproute_list(list_head_t *);
 extern void format_iproute(const ip_route_t *, char *, size_t);
-extern void dump_iproute(FILE *, const void *);
-extern void alloc_route(list, const vector_t *, bool);
-extern void clear_diff_routes(list, list);
-extern void clear_diff_sroutes(void);
+extern void dump_iproute(FILE *, const ip_route_t *);
+extern void dump_iproute_list(FILE *, const list_head_t *);
+extern void alloc_route(list_head_t *, const vector_t *, bool);
+extern void clear_diff_routes(list_head_t *, list_head_t *);
+extern void clear_diff_static_routes(void);
 extern void reinstate_static_route(ip_route_t *);
 
 #endif

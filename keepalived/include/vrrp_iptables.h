@@ -42,7 +42,7 @@
 #define DEFAULT_IPTABLES_CHAIN_OUT	"OUTPUT"
 
 /* prototypes */
-extern void handle_iptable_rule_to_iplist(list, list, int, bool force);
+extern void handle_iptable_rule_to_iplist(list_head_t *, list_head_t *, int, bool force);
 extern void handle_iptables_accept_mode(vrrp_t *, int, bool);
 #ifdef _HAVE_VRRP_VMAC_
 extern void iptables_add_vmac(const vrrp_t *);

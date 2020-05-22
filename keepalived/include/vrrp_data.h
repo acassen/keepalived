@@ -29,31 +29,30 @@
 #include <stdbool.h>
 
 /* local includes */
-#include "list.h"
 #include "list_head.h"
 #include "vector.h"
 
 /* Configuration data root */
 typedef struct _vrrp_data {
 	list_head_t		static_track_groups;	/* static_track_group_t */
-	list			static_addresses;
+	list_head_t		static_addresses;	/* ip_address_t */
 #ifdef _HAVE_FIB_ROUTING_
-	list			static_routes;
-	list			static_rules;
+	list_head_t		static_routes;		/* ip_route_t */
+	list_head_t		static_rules;		/* ip_rule_t */
 #endif
-	list			vrrp_sync_group;
+	list_head_t		vrrp_sync_group;	/* vrrp_sgroup_t */
 	list_head_t		vrrp;			/* vrrp_t */
 	list			vrrp_socket_pool;
-	list			vrrp_script;		/* vrrp_script_t */
-	list			vrrp_track_files;	/* tracked_file_t */
+	list_head_t		vrrp_script;		/* vrrp_script_t */
+	list_head_t		vrrp_track_files;	/* tracked_file_t */
 #ifdef _WITH_CN_PROC_
-	list			vrrp_track_processes;	/* vrrp_tracked_process_t */
+	list_head_t		vrrp_track_processes;	/* vrrp_tracked_process_t */
 	size_t			vrrp_max_process_name_len;
 	bool			vrrp_use_process_cmdline;
 	bool			vrrp_use_process_comm;
 #endif
 #ifdef _WITH_BFD_
-	list			vrrp_track_bfds;	/* vrrp_tracked_bfd_t */
+	list_head_t		vrrp_track_bfds;	/* vrrp_tracked_bfd_t */
 #endif
 	unsigned		num_smtp_alert;		/* No of smtp_alerts configured */
 } vrrp_data_t;
@@ -74,13 +73,16 @@ extern void alloc_vrrp(const char *);
 extern void alloc_vrrp_unicast_peer(const vector_t *);
 extern void alloc_vrrp_track_if(const vector_t *);
 extern void alloc_vrrp_script(const char *);
+extern void free_vscript(vrrp_script_t *);
 extern void alloc_vrrp_track_script(const vector_t *);
 extern void alloc_vrrp_track_file(const vector_t *);
 #ifdef _WITH_CN_PROC_
 extern void alloc_vrrp_process(const char *);
+extern void free_vprocess(vrrp_tracked_process_t *);
 extern void alloc_vrrp_track_process(const vector_t *);
 #endif
 #ifdef _WITH_BFD_
+extern void free_vrrp_tracked_bfd(vrrp_tracked_bfd_t *);
 extern void alloc_vrrp_track_bfd(const vector_t *);
 #endif
 extern void alloc_vrrp_group_track_if(const vector_t *);
@@ -100,7 +102,9 @@ extern void alloc_vrrp_buffer(size_t);
 extern void free_vrrp_buffer(void);
 extern vrrp_data_t *alloc_vrrp_data(void);
 extern void free_vrrp_data(vrrp_data_t *);
+extern void free_sync_group(vrrp_sgroup_t *);
 extern void dump_tracking_vrrp(FILE *, const void *);
+extern void dump_tracking_vrrp_list(FILE *, const list_head_t *);
 extern void dump_data_vrrp(FILE *);
 
 #endif

@@ -177,6 +177,9 @@ typedef struct _tracked_if {
 	int			weight;		/* tracking weight when non-zero */
 	bool			weight_reverse; /* which direction is the weight applied */
 	interface_t		*ifp;		/* interface backpointer, cannot be NULL */
+
+	/* linked list member */
+	list_head_t		e_list;
 } tracked_if_t;
 
 /* Macros */

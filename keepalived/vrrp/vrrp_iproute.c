@@ -274,15 +274,12 @@ add_nexthops(ip_route_t *route, struct nlmsghdr *nlh, struct rtmsg *rtm)
 	struct rtattr *rta = (void *)buf;
 	struct rtnexthop *rtnh;
 	nexthop_t *nh;
-	element e;
 
 	rta->rta_type = RTA_MULTIPATH;
 	rta->rta_len = RTA_LENGTH(0);
 	rtnh = RTA_DATA(rta);
 
-	for (e = LIST_HEAD(route->nhs); e; ELEMENT_NEXT(e)) {
-		nh = ELEMENT_DATA(e);
-
+	list_for_each_entry(nh, &route->nhs, e_list) {
 		memset(rtnh, 0, sizeof(*rtnh));
 		rtnh->rtnh_len = sizeof(*rtnh);
 		rta->rta_len = (unsigned short)(rta->rta_len + rtnh->rtnh_len);
@@ -479,7 +476,7 @@ netlink_route(ip_route_t *iproute, int cmd)
 		addattr_l(&req.n, sizeof(req), RTA_METRICS, RTA_DATA(rta), RTA_PAYLOAD(rta));
 	}
 
-	if (!LIST_ISEMPTY(iproute->nhs))
+	if (!list_empty(&iproute->nhs))
 		add_nexthops(iproute, &req.n, &req.r);
 
 #ifdef DEBUG_NETLINK_MSG
@@ -518,53 +515,68 @@ netlink_route(ip_route_t *iproute, int cmd)
 }
 
 /* Add/Delete a list of IP routes */
-void
-netlink_rtlist(list rt_list, int cmd)
+bool
+netlink_rtlist(list_head_t *rt_list, int cmd)
 {
-	ip_route_t *iproute;
-	element e;
+	ip_route_t *ip_route;
 
 	/* No routes to add */
-	if (LIST_ISEMPTY(rt_list))
-		return;
+	if (list_empty(rt_list))
+		return false;
 
-	LIST_FOREACH(rt_list, iproute, e) {
-		if ((cmd == IPROUTE_DEL) == iproute->set) {
-			if (!netlink_route(iproute, cmd))
-				iproute->set = (cmd == IPROUTE_ADD);
+	list_for_each_entry(ip_route, rt_list, e_list) {
+		if ((cmd == IPROUTE_DEL) == ip_route->set) {
+			if (!netlink_route(ip_route, cmd))
+				ip_route->set = (cmd == IPROUTE_ADD);
 			else
-				iproute->set = false;
+				ip_route->set = false;
 		}
 	}
+
+	return true;
 }
 
 /* Route dump/allocation */
 static void
-free_nh(void *rt_data)
+free_nh(nexthop_t *nh)
 {
-	nexthop_t *nh = rt_data;
-
 	FREE_PTR(nh->addr);
 //#if HAVE_DECL_RTA_NEWDST
 //	FREE_PTR(nh->as_to);
 //#endif
-	FREE(rt_data);
+	FREE(nh);
+}
+
+static void
+free_nh_list(list_head_t *l)
+{
+	nexthop_t *nh, *nh_tmp;
+
+	list_for_each_entry_safe(nh, nh_tmp, l, e_list)
+		free_nh(nh);
 }
 
 void
-free_iproute(void *rt_data)
+free_iproute(ip_route_t *route)
 {
-	ip_route_t *route = rt_data;
-
 	FREE_PTR(route->dst);
 	FREE_PTR(route->src);
 	FREE_PTR(route->pref_src);
 	FREE_PTR(route->via);
-	free_list(&route->nhs);
+	free_nh_list(&route->nhs);
 #if HAVE_DECL_RTAX_CC_ALGO
 	FREE_PTR(route->congctl);
 #endif
-	FREE(rt_data);
+	FREE(route);
+}
+
+void
+free_iproute_list(list_head_t *l)
+{
+	ip_route_t *route, *route_tmp;
+
+	list_for_each_entry_safe(route, route_tmp, l, e_list)
+		free_iproute(route);
 }
 
 #if HAVE_DECL_RTA_ENCAP
@@ -669,7 +681,6 @@ format_iproute(const ip_route_t *route, char *buf, size_t buf_len)
 	const char *buf_end = buf + buf_len;
 	nexthop_t *nh;
 	interface_t *ifp;
-	element e;
 
 	if (route->type != RTN_UNICAST)
 		op += (size_t)snprintf(op, (size_t)(buf_end - op), "%s ", get_rttables_rtntype(route->type));
@@ -832,37 +843,30 @@ format_iproute(const ip_route_t *route, char *buf, size_t buf_len)
 		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s %sabled", "ttl-propagate", route->ttl_propagate ? "en" : "dis");
 #endif
 
-	if (!LIST_ISEMPTY(route->nhs)) {
-		for (e = LIST_HEAD(route->nhs); e; ELEMENT_NEXT(e)) {
-			nh = ELEMENT_DATA(e);
-
-			op += (size_t)snprintf(op, (size_t)(buf_end - op), " nexthop");
-
-			if (nh->addr)
-				op += (size_t)snprintf(op, (size_t)(buf_end - op), " via inet%s %s",
-					nh->addr->ifa.ifa_family == AF_INET ? "" : "6",
-					ipaddresstos(NULL,nh->addr));
-			if (nh->ifp)
-				op += (size_t)snprintf(op, (size_t)(buf_end - op), " dev %s", nh->ifp->ifname);
-
-			if (nh->mask & IPROUTE_BIT_WEIGHT)
-				op += (size_t)snprintf(op, (size_t)(buf_end - op), " weight %d", nh->weight + 1);
-
-			if (nh->flags & RTNH_F_ONLINK)
-				op += (size_t)snprintf(op, (size_t)(buf_end - op), " onlink");
-
-			if (nh->realms) {
-				if (route->realms & 0xFFFF0000)
-					op += (size_t)snprintf(op, (size_t)(buf_end - op), " realms %" PRIu32 "/", nh->realms >> 16);
-				else
-					op += (size_t)snprintf(op, (size_t)(buf_end - op), " realm ");
-				op += (size_t)snprintf(op, (size_t)(buf_end - op), "%" PRIu32, nh->realms & 0xFFFF);
-			}
-#if HAVE_DECL_RTA_ENCAP
-			if (nh->encap.type != LWTUNNEL_ENCAP_NONE)
-				op += print_encap(op, (size_t)(buf_end - op), &nh->encap);
-#endif
+	list_for_each_entry(nh, &route->nhs, e_list) {
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " nexthop");
+		if (nh->addr)
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), " via inet%s %s"
+						 , nh->addr->ifa.ifa_family == AF_INET ? "" : "6"
+						 , ipaddresstos(NULL,nh->addr));
+		if (nh->ifp)
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), " dev %s", nh->ifp->ifname);
+		if (nh->mask & IPROUTE_BIT_WEIGHT)
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), " weight %d", nh->weight + 1);
+		if (nh->flags & RTNH_F_ONLINK)
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), " onlink");
+		if (nh->realms) {
+			if (route->realms & 0xFFFF0000)
+				op += (size_t)snprintf(op, (size_t)(buf_end - op)
+							 , " realms %" PRIu32 "/", nh->realms >> 16);
+			else
+				op += (size_t)snprintf(op, (size_t)(buf_end - op), " realm ");
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%" PRIu32, nh->realms & 0xFFFF);
 		}
+#if HAVE_DECL_RTA_ENCAP
+		if (nh->encap.type != LWTUNNEL_ENCAP_NONE)
+			op += print_encap(op, (size_t)(buf_end - op), &nh->encap);
+#endif
 	}
 
 	if (route->dont_track)
@@ -882,9 +886,8 @@ format_iproute(const ip_route_t *route, char *buf, size_t buf_len)
 }
 
 void
-dump_iproute(FILE *fp, const void *rt_data)
+dump_iproute(FILE *fp, const ip_route_t *route)
 {
-	const ip_route_t *route = rt_data;
 	char *buf = MALLOC(ROUTE_BUF_SIZE);
 	size_t len;
 	size_t i;
@@ -899,6 +902,15 @@ dump_iproute(FILE *fp, const void *rt_data)
 	}
 
 	FREE(buf);
+}
+
+void
+dump_iproute_list(FILE *fp, const list_head_t *l)
+{
+	ip_route_t *route;
+
+	list_for_each_entry(route, l, e_list)
+		dump_iproute(fp, route);
 }
 
 #if HAVE_DECL_RTA_ENCAP
@@ -1155,12 +1167,10 @@ parse_nexthops(const vector_t *strvec, unsigned int i, ip_route_t *route)
 	const char *str;
 	uint32_t val;
 
-	if (!LIST_EXISTS(route->nhs))
-		route->nhs = alloc_list(free_nh, NULL);
-
 	while (i < vector_size(strvec) && !strcmp("nexthop", strvec_slot(strvec, i))) {
 		i++;
 		new = MALLOC(sizeof(nexthop_t));
+		INIT_LIST_HEAD(&new->e_list);
 
 		while (i < vector_size(strvec)) {
 			str = strvec_slot(strvec, i);
@@ -1250,7 +1260,8 @@ parse_nexthops(const vector_t *strvec, unsigned int i, ip_route_t *route)
 
 			i++;
 		}
-		list_add(route->nhs, new);
+
+		list_add_tail(&new->e_list, &route->nhs);
 		new = NULL;
 	}
 
@@ -1266,7 +1277,7 @@ err:
 }
 
 void
-alloc_route(list rt_list, const vector_t *strvec, bool allow_track_group)
+alloc_route(list_head_t *rt_list, const vector_t *strvec, bool allow_track_group)
 {
 	ip_route_t *new;
 	interface_t *ifp;
@@ -1280,6 +1291,12 @@ alloc_route(list rt_list, const vector_t *strvec, bool allow_track_group)
 	const char *dest = NULL;
 
 	new = (ip_route_t *) MALLOC(sizeof(ip_route_t));
+	if (!new) {
+		log_message(LOG_INFO, "Unable to allocate new ip_route");
+		return;
+	}
+	INIT_LIST_HEAD(&new->e_list);
+	INIT_LIST_HEAD(&new->nhs);
 
 	new->table = RT_TABLE_MAIN;
 	new->scope = RT_SCOPE_UNIVERSE;
@@ -1670,32 +1687,33 @@ alloc_route(list rt_list, const vector_t *strvec, bool allow_track_group)
 		else if (!strcmp(str, "or")) {
 			report_config_error(CONFIG_GENERAL_ERROR, "\"or\" for routes is deprecated. Please use \"nexthop\"");
 
-			if (new->nhs) {
+			if (!list_empty(&new->nhs)) {
 				report_config_error(CONFIG_GENERAL_ERROR, "\"or\" route already specified - ignoring subsequent");
 				i += 2;
 				continue;
 			}
 
-			new->nhs = alloc_list(free_nh, NULL);
-
 			/* Transfer the via address to the first nexthop */
 			nexthop_t *nh = MALLOC(sizeof(nexthop_t));
+			INIT_LIST_HEAD(&nh->e_list);
 			nh->addr = new->via;
 			new->via = NULL;
-			list_add(new->nhs, nh);
+			list_add_tail(&nh->e_list, &new->nhs);
 
 			/* Now handle the "or" address */
 			nh = MALLOC(sizeof(nexthop_t));
+			INIT_LIST_HEAD(&nh->e_list);
 			nh->addr = parse_ipaddress(NULL, strvec_slot(strvec, ++i), false);
 			if (!nh->addr) {
-				report_config_error(CONFIG_GENERAL_ERROR, "Invalid \"or\" address %s", strvec_slot(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid \"or\" address %s"
+									, strvec_slot(strvec, i));
 				FREE(nh);
 				goto err;
 			}
-			list_add(new->nhs, nh);
+			list_add_tail(&nh->e_list, &new->nhs);
 		}
 		else if (!strcmp(str, "nexthop")) {
-			if (new->nhs)
+			if (!list_empty(&new->nhs))
 				report_config_error(CONFIG_GENERAL_ERROR, "Cannot specify nexthops with \"or\" route");
 			else
 				do_nexthop = true;
@@ -1786,8 +1804,7 @@ alloc_route(list rt_list, const vector_t *strvec, bool allow_track_group)
 	if (new->src && new->src->ifa.ifa_family == AF_UNSPEC)
 		new->src->ifa.ifa_family = new->family;
 
-	list_add(rt_list, new);
-
+	list_add_tail(&new->e_list, rt_list);
 	return;
 
 err:
@@ -1796,21 +1813,20 @@ err:
 
 /* Try to find a route in a list */
 static ip_route_t *
-route_exist(list l, ip_route_t *iproute)
+route_exist(list_head_t *l, ip_route_t *route)
 {
-	ip_route_t *ipr;
-	element e;
+	ip_route_t *ip_route;
 
-	LIST_FOREACH(l, ipr, e) {
+	list_for_each_entry(ip_route, l, e_list) {
 		/* The kernel's key to a route is (to, tos, preference, table) */
-		if (IP_ISEQ(ipr->dst, iproute->dst) &&
-		    ipr->dst->ifa.ifa_prefixlen == iproute->dst->ifa.ifa_prefixlen &&
-		    (!((ipr->mask ^ iproute->mask) & IPROUTE_BIT_METRIC)) &&
-		    (!(ipr->mask & IPROUTE_BIT_METRIC) ||
-		     ipr->metric == iproute->metric) &&
-		    ipr->table == iproute->table) {
-			ipr->set = iproute->set;
-			return ipr;
+		if (IP_ISEQ(ip_route->dst, route->dst) &&
+		    ip_route->dst->ifa.ifa_prefixlen == route->dst->ifa.ifa_prefixlen &&
+		    (!((ip_route->mask ^ route->mask) & IPROUTE_BIT_METRIC)) &&
+		    (!(ip_route->mask & IPROUTE_BIT_METRIC) ||
+		     ip_route->metric == route->metric) &&
+		    ip_route->table == route->table) {
+			ip_route->set = route->set;
+			return ip_route;
 		}
 	}
 	return NULL;
@@ -1818,55 +1834,54 @@ route_exist(list l, ip_route_t *iproute)
 
 /* Clear diff routes */
 void
-clear_diff_routes(list l, list n)
+clear_diff_routes(list_head_t *l, list_head_t *n)
 {
-	ip_route_t *iproute, *new_iproute;
-	element e;
+	ip_route_t *route, *new_route;
 
 	/* No route in previous conf */
-	if (LIST_ISEMPTY(l))
+	if (list_empty(l))
 		return;
 
 	/* All routes removed */
-	if (LIST_ISEMPTY(n)) {
+	if (list_empty(n)) {
 		log_message(LOG_INFO, "Removing a VirtualRoute block");
 		netlink_rtlist(l, IPROUTE_DEL);
 		return;
 	}
 
-	LIST_FOREACH(l, iproute, e) {
-		if (iproute->set) {
-			if (!(new_iproute = route_exist(n, iproute))) {
+	list_for_each_entry(route, l, e_list) {
+		if (route->set) {
+			if (!(new_route = route_exist(n, route))) {
 				log_message(LOG_INFO, "ip route %s/%d ... , no longer exist"
-						    , ipaddresstos(NULL, iproute->dst), iproute->dst->ifa.ifa_prefixlen);
-				netlink_route(iproute, IPROUTE_DEL);
+						    , ipaddresstos(NULL, route->dst), route->dst->ifa.ifa_prefixlen);
+				netlink_route(route, IPROUTE_DEL);
+				continue;
 			}
-			else {
-				/* There are too many route options to compare to see if the
-				 * routes are the same or not, so just replace the existing route
-				 * with the new one.
-				 * We try replacing the route, but if, for example, it has a src
-				 * address that is a new VIP, then the route won't be able to be
-				 * added (replaced) now. In this case delete the old route, mark
-				 * it as not set, and then it will be added later when any new
-				 * routes are added. */
-				netlink_error_ignore = EINVAL;
-				if (netlink_route(new_iproute, IPROUTE_REPLACE)) {
-					netlink_error_ignore = 0;
-					netlink_route(iproute, IPROUTE_DEL);
-					new_iproute->set = false;
-				} else
-					netlink_error_ignore = 0;
-			}
+
+			/* There are too many route options to compare to see if the
+			 * routes are the same or not, so just replace the existing route
+			 * with the new one.
+			 * We try replacing the route, but if, for example, it has a src
+			 * address that is a new VIP, then the route won't be able to be
+			 * added (replaced) now. In this case delete the old route, mark
+			 * it as not set, and then it will be added later when any new
+			 * routes are added. */
+			netlink_error_ignore = EINVAL;
+			if (netlink_route(new_route, IPROUTE_REPLACE)) {
+				netlink_error_ignore = 0;
+				netlink_route(route, IPROUTE_DEL);
+				new_route->set = false;
+			} else
+				netlink_error_ignore = 0;
 		}
 	}
 }
 
 /* Diff conf handler */
 void
-clear_diff_sroutes(void)
+clear_diff_static_routes(void)
 {
-	clear_diff_routes(old_vrrp_data->static_routes, vrrp_data->static_routes);
+	clear_diff_routes(&old_vrrp_data->static_routes, &vrrp_data->static_routes);
 }
 
 void
