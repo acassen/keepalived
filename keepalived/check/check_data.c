@@ -534,7 +534,7 @@ free_rs(void *data)
 
 	free_notify_script(&rs->notify_up);
 	free_notify_script(&rs->notify_down);
-	free_list(&rs->track_files);
+	free_track_file_monitor_list(&rs->track_files);
 #ifdef _WITH_BFD_
 	free_list(&rs->tracked_bfds);
 #endif
@@ -598,9 +598,9 @@ dump_rs(FILE *fp, const void *data)
 	conf_write(fp, "   RS set = %d", rs->set);
 	conf_write(fp, "   reloaded = %d", rs->reloaded);
 
-	if (!LIST_ISEMPTY(rs->track_files)) {
+	if (!list_empty(&rs->track_files)) {
 		conf_write(fp, "=== Tracked Files ===");
-		dump_list(fp, rs->track_files);
+		dump_track_file_monitor_list(fp, &rs->track_files);
 	}
 
 #ifdef _WITH_BFD_
@@ -622,7 +622,8 @@ alloc_rs(const char *ip, const char *port)
 	/* inet_stosockaddr rejects port 0 */
 	port_str = (port && port[strspn(port, "0")]) ? port : NULL;
 
-	new = (real_server_t *) MALLOC(sizeof(real_server_t));
+	PMALLOC(new);
+	INIT_LIST_HEAD(&new->track_files);
 	if (inet_stosockaddr(ip, port_str, &new->addr)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid real server ip address/port %s/%s - skipping", ip, port);
 		skip_block(true);
@@ -709,7 +710,7 @@ alloc_check_data(void)
 	new = (check_data_t *) MALLOC(sizeof(check_data_t));
 	new->vs = alloc_list(free_vs, dump_vs);
 	new->vs_group = alloc_list(free_vsg, dump_vsg);
-	new->track_files = alloc_list(free_track_file_list, dump_track_file_list);
+	INIT_LIST_HEAD(&new->track_files);
 #ifdef _WITH_BFD_
 	new->track_bfds = alloc_list(free_checker_bfd, dump_checker_bfd);
 #endif
@@ -722,7 +723,7 @@ free_check_data(check_data_t *data)
 {
 	free_list(&data->vs);
 	free_list(&data->vs_group);
-	free_list(&data->track_files);
+	free_track_file_list(&data->track_files);
 #ifdef _WITH_BFD_
 	free_list(&data->track_bfds);
 #endif
@@ -746,9 +747,9 @@ dump_check_data(FILE *fp, const check_data_t *data)
 	}
 	dump_checkers_queue(fp);
 
-	if (!LIST_ISEMPTY(data->track_files)) {
+	if (!list_empty(&data->track_files)) {
 		conf_write(fp, "------< Checker track files >------");
-		dump_list(fp, data->track_files);
+		dump_track_file_list(fp, &data->track_files);
 	}
 
 #ifdef _WITH_BFD_

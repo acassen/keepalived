@@ -820,7 +820,7 @@ close_interface_linkbeat(void)
 #endif
 
 /* Interface queue helpers*/
-void __attribute__ ((const))
+void
 free_interface_queue(void)
 {
 	interface_t *ifp, *ifp_tmp;
@@ -856,7 +856,7 @@ dump_interface_queue(FILE *fp, list_head_t *l)
 		dump_if(fp, ifp);
 }
 
-list_head_t *__attribute__ ((const))
+list_head_t *
 get_interface_queue(void)
 {
 	return &if_queue;

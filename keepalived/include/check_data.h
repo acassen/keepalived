@@ -36,6 +36,7 @@
 
 /* local includes */
 #include "ip_vs.h"
+#include "list_head.h"
 #include "list.h"
 #include "vector.h"
 #include "notify.h"
@@ -102,7 +103,7 @@ typedef struct _real_server {
 	struct ip_vs_stats64		stats;
 #endif
 #endif
-	list				track_files;	/* list of tracked_file_monitor_t - Files whose value we monitor */
+	list_head_t			track_files;	/* tracked_file_monitor_t - Files whose value we monitor */
 #ifdef _WITH_BFD_
 	list				tracked_bfds;	/* list of bfd_checker_t */
 #endif
@@ -203,9 +204,9 @@ typedef struct _check_data {
 	ssl_data_t			*ssl;
 	list				vs_group;
 	list				vs;
-	list				track_files;	/* list of tracked_file_t */
+	list_head_t			track_files;	/* tracked_file_t */
 #ifdef _WITH_BFD_
-	list				track_bfds;	/* list of checker_tracked_bfd_t */
+	list				track_bfds;	/* checker_tracked_bfd_t */
 #endif
 	unsigned			num_checker_fd_required;
 	unsigned			num_smtp_alert;

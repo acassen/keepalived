@@ -45,6 +45,7 @@ typedef struct _tracked_file {
 	bool			weight_reverse;	/* which direction is the weight applied */
 	int			wd;		/* Watch descriptor */
 	list_head_t		tracking_obj;	/* tracking_obj_t - for vrrp instances/real servers tracking this file */
+	obj_dump_func_t		tracking_obj_dump; /* Dump helper for tracking_obj list */
 	int			last_status;	/* Last status returned by file. Used to report changes */
 
 	/* linked list member */
@@ -75,7 +76,7 @@ extern void dump_tracking_obj_list(FILE *fp, const list_head_t *, obj_dump_func_
 extern void free_track_file_list(list_head_t *);
 extern void dump_track_file_list(FILE *, const list_head_t *);
 
-extern void add_obj_to_track_file(void *, tracked_file_monitor_t *, const char *);
+extern void add_obj_to_track_file(void *, tracked_file_monitor_t *, const char *, obj_dump_func_t);
 
 extern void init_track_files(list_head_t *);
 extern void stop_track_files(void);

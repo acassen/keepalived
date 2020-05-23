@@ -3335,7 +3335,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	/* Add our track files to the tracking file tracking_obj list */
 	list_for_each_entry(tfl, &vrrp->track_file, e_list)
-		add_obj_to_track_file(vrrp, tfl, vrrp->iname);
+		add_obj_to_track_file(vrrp, tfl, vrrp->iname, dump_tracking_vrrp);
 
 #ifdef _WITH_CN_PROC_
 	/* Add our track processes to the tracking process tracking_vrrp list */
@@ -3462,7 +3462,7 @@ sync_group_tracking_init(void)
 			}
 
 			LIST_FOREACH(sgroup->vrrp_instances, vrrp, e2)
-				add_obj_to_track_file(vrrp, tfl, vrrp->iname);
+				add_obj_to_track_file(vrrp, tfl, vrrp->iname, dump_tracking_vrrp);
 		}
 
 #ifdef _WITH_BFD_

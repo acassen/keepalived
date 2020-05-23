@@ -224,7 +224,7 @@ checker_terminate_phase1(bool schedule_next_thread)
 		script_killall(master, SIGTERM, true);
 
 	/* Stop monitoring files */
-	if (check_data->track_files)
+	if (!list_empty(&check_data->track_files))
 		stop_track_files();
 
 	/* Send shutdown messages */
@@ -371,7 +371,7 @@ start_check(list old_checkers_queue, data_t *prev_global_data)
 
 	/* Set up the track files */
 	add_rs_to_track_files();
-	init_track_files(check_data->track_files);
+	init_track_files(&check_data->track_files);
 	set_track_file_checkers_down();
 
 	/* Initialize IPVS topology */
@@ -423,7 +423,7 @@ reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 	/* Terminate all script process */
 	script_killall(master, SIGTERM, false);
 
-	if (check_data->track_files)
+	if (!list_empty(&check_data->track_files))
 		stop_track_files();
 
 	/* Remove the notify fifo - we don't know if it will be the same after a reload */

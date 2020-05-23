@@ -337,7 +337,7 @@ track_file_end_handler(void)
 			track_file = dup_track_file;
 		}
 #endif
-		list_add(check_data->track_files, track_file);
+		list_add_tail(&track_file->e_list, &check_data->track_files);
 	}
 #endif
 
@@ -443,7 +443,7 @@ dump_track_file(FILE *fp, const tracked_file_t *file)
 	conf_write(fp, "   File = %s", file->file_path);
 	conf_write(fp, "   Status = %d", file->last_status);
 	conf_write(fp, "   Weight = %d%s", file->weight, file->weight_reverse ? " reverse" : "");
-	dump_tracking_obj_list(fp, &file->tracking_obj, dump_tracking_vrrp);
+	dump_tracking_obj_list(fp, &file->tracking_obj, file->tracking_obj_dump);
 }
 void
 dump_track_file_list(FILE *fp, const list_head_t *l)
@@ -455,13 +455,16 @@ dump_track_file_list(FILE *fp, const list_head_t *l)
 }
 
 void
-add_obj_to_track_file(void *obj, tracked_file_monitor_t *tfl, const char *name)
+add_obj_to_track_file(void *obj, tracked_file_monitor_t *tfl, const char *name, obj_dump_func_t dump)
 {
 	tracked_file_t *file = tfl->file;
 	tracking_obj_t *top;
 
 	if (!file)
 		return;
+
+	if (!file->tracking_obj_dump)
+		file->tracking_obj_dump = dump;
 
 	/* Is this file already tracking the vrrp instance directly?
 	 * For this to be the case, the file was added directly on the vrrp instance,

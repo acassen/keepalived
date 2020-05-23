@@ -59,7 +59,7 @@
 #include "vrrp.h"
 #include "vrrp_ipaddress.h"
 #include "global_data.h"
-#include "list.h"
+#include "list_head.h"
 #include "utils.h"
 
 

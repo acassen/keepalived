@@ -457,7 +457,7 @@ iptables_init(int family)
 	return setup[family != AF_INET] == INIT_SUCCESS;
 }
 
-void __attribute__ ((const))
+void
 iptables_fini(void)
 {
 #ifdef _HAVE_LIBIPSET_

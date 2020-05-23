@@ -64,9 +64,9 @@ track_file_handler(const vector_t *strvec)
 
 	vs = LIST_TAIL_DATA(check_data->vs);
 	rs = LIST_TAIL_DATA(vs->rs);
-	tfile = LIST_TAIL_DATA(rs->track_files);
+	tfile = list_last_entry(&rs->track_files, tracked_file_monitor_t, e_list);
 
-	vsf = find_tracked_file_by_name(strvec_slot(strvec, 1), check_data->track_files);
+	vsf = find_tracked_file_by_name(strvec_slot(strvec, 1), &check_data->track_files);
 	if (!vsf) {
 		report_config_error(CONFIG_GENERAL_ERROR, "track_file %s not found", strvec_slot(strvec, 1));
 		return;
@@ -85,11 +85,9 @@ file_check_handler(__attribute__((unused)) const vector_t *strvec)
 	vs = LIST_TAIL_DATA(check_data->vs);
 	rs = LIST_TAIL_DATA(vs->rs);
 
-	if (!LIST_EXISTS(rs->track_files))
-		rs->track_files = alloc_track_file_list();
-
 	PMALLOC(tfile);
-	list_add(rs->track_files, tfile);
+	INIT_LIST_HEAD(&tfile->e_list);
+	list_add_tail(&tfile->e_list, &rs->track_files);
 }
 
 static void
@@ -103,7 +101,7 @@ track_file_weight_handler(const vector_t *strvec)
 
 	vs = LIST_TAIL_DATA(check_data->vs);
 	rs = LIST_TAIL_DATA(vs->rs);
-	tfile = LIST_TAIL_DATA(rs->track_files);
+	tfile = list_last_entry(&rs->track_files, tracked_file_monitor_t, e_list);
 
 	if (vector_size(strvec) < 2) {
 		report_config_error(CONFIG_GENERAL_ERROR, "track file weight missing");
@@ -141,11 +139,11 @@ file_end_handler(void)
 
 	vs = LIST_TAIL_DATA(check_data->vs);
 	rs = LIST_TAIL_DATA(vs->rs);
-	tfile = LIST_TAIL_DATA(rs->track_files);
+	tfile = list_last_entry(&rs->track_files, tracked_file_monitor_t, e_list);
 
 	if (!tfile->file) {
 		report_config_error(CONFIG_GENERAL_ERROR, "FILE_CHECK has no track_file specified - ignoring");
-		list_remove(rs->track_files, LIST_TAIL(rs->track_files));
+		free_track_file_monitor(tfile);
 	}
 
 	if (!tfile->weight) {
@@ -170,13 +168,13 @@ add_rs_to_track_files(void)
 {
 	virtual_server_t *vs;
 	real_server_t *rs;
-	element e, e1, e2;
+	element e, e1;
 	tracked_file_monitor_t *tfl;
 	checker_t *new_checker;
 
 	LIST_FOREACH(check_data->vs, vs, e) {
 		LIST_FOREACH(vs->rs, rs, e1) {
-			LIST_FOREACH(rs->track_files, tfl, e2) {
+			list_for_each_entry(tfl, &rs->track_files, e_list) {
 				/* queue new checker */
 				new_checker = queue_checker(free_file_check, dump_file_check, NULL, file_check_compare, tfl->file, NULL, false);
 				new_checker->vs = vs;
@@ -186,7 +184,7 @@ add_rs_to_track_files(void)
 				 * checked the file, so mark it as run. */
 				new_checker->has_run = true;
 
-				add_obj_to_track_file(new_checker, tfl, FMT_RS(rs, vs));
+				add_obj_to_track_file(new_checker, tfl, FMT_RS(rs, vs), dump_tracking_rs);
 			}
 		}
 	}
@@ -195,13 +193,12 @@ add_rs_to_track_files(void)
 void
 set_track_file_checkers_down(void)
 {
-	element e, e1;
 	tracked_file_t *tfl;
 	tracking_obj_t *top;
 
-	LIST_FOREACH(check_data->track_files, tfl, e) {
+	list_for_each_entry(tfl, &check_data->track_files, e_list) {
 		if (tfl->last_status) {
-			LIST_FOREACH(tfl->tracking_obj, top, e1) {
+			list_for_each_entry(top, &tfl->tracking_obj, e_list) {
 				checker_t *checker = top->obj.checker;
 
 				if (!top->weight)

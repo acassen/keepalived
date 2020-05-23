@@ -346,9 +346,9 @@ clear_services(void)
 static bool
 init_service_rs(virtual_server_t * vs)
 {
-	element e, e1;
 	real_server_t *rs;
 	tracked_file_monitor_t *tfm;
+	element e;
 	long weight;
 
 	LIST_FOREACH(vs->rs, rs, e) {
@@ -363,7 +363,7 @@ init_service_rs(virtual_server_t * vs)
 		rs->effective_weight = rs->weight;
 
 		if (!rs->reloaded) {
-			LIST_FOREACH(rs->track_files, tfm, e1) {
+			list_for_each_entry(tfm, &rs->track_files, e_list) {
 				if (tfm->weight) {
 					weight = tfm->file->last_status * tfm->weight * tfm->weight_reverse;
 					if (weight <= -IPVS_WEIGHT_MAX) {
