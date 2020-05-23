@@ -1666,7 +1666,7 @@ nft_update_addresses(vrrp_t *vrrp, int cmd)
 		ip_addr->nftable_rule_set = set_rule;
 	}
 
-	list_for_each_entry(ip_addre, &vrrp->evip, e_list) {
+	list_for_each_entry(ip_addr, &vrrp->evip, e_list) {
 		if (set_rule == ip_addr->nftable_rule_set)
 			continue;
 
@@ -1731,14 +1731,14 @@ nft_add_addresses(vrrp_t *vrrp)
 void
 nft_remove_addresses(vrrp_t *vrrp)
 {
-if (!nl) return;	// Should delete tables
+	if (!nl) return;	// Should delete tables
 	nft_update_addresses(vrrp, NFT_MSG_DELSETELEM);
 }
 
 void
-nft_remove_addresses_iplist(list l)
+nft_remove_addresses_iplist(list_head_t *l)
 {
-	vrrp_t vrrp = { .vip = l };
+	vrrp_t vrrp = { .vip = *l };
 
 	nft_update_addresses(&vrrp, NFT_MSG_DELSETELEM);
 }
