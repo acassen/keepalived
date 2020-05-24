@@ -73,9 +73,8 @@ free_static_track_groups_list(list_head_t *l)
 {
 	static_track_group_t *tgroup, *tgroup_tmp;
 
-	list_for_each_entry_safe(tgroup, tgroup_tmp, l, e_list) {
+	list_for_each_entry_safe(tgroup, tgroup_tmp, l, e_list)
 		free_static_track_group(tgroup);
-	}
 }
 
 static void
@@ -501,8 +500,10 @@ free_vrrp(vrrp_t *vrrp)
 	free_list(&vrrp->unicast_peer);
 	free_ipaddress_list(&vrrp->vip);
 	free_ipaddress_list(&vrrp->evip);
+#ifdef _HAVE_FIB_ROUTING_
 	free_iproute_list(&vrrp->vroutes);
 	free_iprule_list(&vrrp->vrules);
+#endif
 	FREE(vrrp);
 }
 static void
