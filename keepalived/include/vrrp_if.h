@@ -235,7 +235,7 @@ extern void init_interface_queue(void);
 extern void init_interface_linkbeat(void);
 extern void close_interface_linkbeat(void);
 #endif
-extern list_head_t *get_interface_queue(void) __attribute__ ((pure));
+extern list_head_t *get_interface_queue(void) __attribute__ ((const));
 extern void free_interface_queue(void);
 extern void free_old_interface_queue(void);
 extern void dump_interface_queue(FILE *, list_head_t *);

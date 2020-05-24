@@ -375,16 +375,11 @@ enum snmp_next_hop_magic {
 };
 #endif
 
-#define HEADER_STATE_STATIC_ADDRESS 1
-#define HEADER_STATE_VIRTUAL_ADDRESS 2
-#define HEADER_STATE_EXCLUDED_VIRTUAL_ADDRESS 3
-#ifdef _HAVE_FIB_ROUTING_
-#define HEADER_STATE_STATIC_ROUTE 4
-#define HEADER_STATE_VIRTUAL_ROUTE 5
-#define HEADER_STATE_STATIC_RULE 6
-#define HEADER_STATE_VIRTUAL_RULE 7
-#endif
-#define HEADER_STATE_END 12
+enum iter_type {
+        ITER_ADDRESSES,
+        ITER_ROUTES,
+        ITER_RULES
+};
 
 #endif
 
@@ -764,21 +759,17 @@ vrrp_snmp_process(struct variable *vp, oid *name, size_t *length,
 }
 #endif
 
-/* Header function using a FSM. `state' is the initial state, either
- * HEADER_STATE_STATIC_ADDRESS, HEADER_STATE_STATIC_ROUTE or
- * HEADER_STATE_STATIC_RULE. We return the matching address, route or rule. */
 static list_head_t *
 vrrp_header_ar_table(struct variable *vp, oid *name, size_t *length,
 		     int exact, size_t *var_len, WriteMethod **write_method,
-		     int *state)
+		     enum iter_type type, int *adv)
 {
-	oid *target, current[2], best[2];
-	size_t target_len;
-	list_head_t *l2, *e, *bel = NULL;
-	unsigned curinstance = 0;
-	int curstate, nextstate;
-	vrrp_t *vrrp = NULL;
+	oid *target, current[2];
 	int result;
+	size_t target_len;
+	list_head_t *l2;
+	list_head_t *e;
+	vrrp_t *vrrp;
 
 	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
 		memcpy(name, vp->name, sizeof(oid) * vp->namelen);
@@ -788,147 +779,92 @@ vrrp_header_ar_table(struct variable *vp, oid *name, size_t *length,
 	*write_method = 0;
 	*var_len = sizeof(unsigned long);
 
-	/* We search the best match: equal if exact, the lower OID in
+	/* We search the best match: equal if exact, the lowest OID in
 	   the set of the OID strictly superior to the target
 	   otherwise. */
-	best[0] = best[1] = MAX_SUBID; /* Our best match */
 	target = &name[vp->namelen];   /* Our target match */
 	target_len = *length - vp->namelen;
 
-	nextstate = *state;
-	while (nextstate != HEADER_STATE_END) {
-		curstate = nextstate;
-		switch (curstate) {
-		case HEADER_STATE_STATIC_ADDRESS:
-			/* Try static addresses */
-			l2 = &vrrp_data->static_addresses;
-			current[1] = 0;
-			nextstate = HEADER_STATE_VIRTUAL_ADDRESS;
-			break;
-		case HEADER_STATE_VIRTUAL_ADDRESS:
-			/* Try virtual addresses */
-			if (list_empty(&vrrp_data->vrrp)) {
-				nextstate = HEADER_STATE_END;
-				continue;
-			}
-			curinstance++;
-			if (vrrp == NULL)
-				vrrp = list_first_entry(&vrrp_data->vrrp, vrrp_t, e_list);
-			else {
-				if (list_is_last(&vrrp->e_list, &vrrp_data->vrrp)) {
-					nextstate = HEADER_STATE_END;
-					continue;
-				}
-				vrrp = list_entry(vrrp->e_list.next, vrrp_t, e_list);
-			}
-			l2 = &vrrp->vip;
-			current[1] = 0;
-			nextstate = HEADER_STATE_EXCLUDED_VIRTUAL_ADDRESS;
-			break;
-		case HEADER_STATE_EXCLUDED_VIRTUAL_ADDRESS:
-			/* Try excluded virtual addresses */
-			/* coverity[var_deref_op] */
-			l2 = &vrrp->evip;
-			nextstate = HEADER_STATE_VIRTUAL_ADDRESS;
-			break;
+	l2 = NULL;
+	vrrp = NULL;
+	current[0] = 0;
+	current[1] = 0;
+	while (true) {
+		/* Start with static addresses, then for each vrrp instance the VIPs then the eVIPs */
+		if (!l2) {
+			if (type == ITER_ADDRESSES)
+				l2 = &vrrp_data->static_addresses;
 #ifdef _HAVE_FIB_ROUTING_
-		case HEADER_STATE_STATIC_ROUTE:
-			/* Try static routes */
-			l2 = &vrrp_data->static_routes;
-			current[1] = 0;
-			nextstate = HEADER_STATE_VIRTUAL_ROUTE;
-			break;
-		case HEADER_STATE_VIRTUAL_ROUTE:
-			/* Try virtual routes */
-			if (list_empty(&vrrp_data->vrrp)) {
-				nextstate = HEADER_STATE_END;
-				continue;
-			}
-			curinstance++;
-			if (vrrp == NULL)
-				vrrp = list_first_entry(&vrrp_data->vrrp, vrrp_t, e_list);
-			else {
-				if (list_is_last(&vrrp->e_list, &vrrp_data->vrrp)) {
-					nextstate = HEADER_STATE_END;
-					continue;
-				}
-				vrrp = list_entry(vrrp->e_list.next, vrrp_t, e_list);
-			}
-			l2 = &vrrp->vroutes;
-			current[1] = 0;
-			nextstate = HEADER_STATE_VIRTUAL_ROUTE;
-			break;
-		case HEADER_STATE_STATIC_RULE:
-			/* Try static routes */
-			l2 = &vrrp_data->static_rules;
-			current[1] = 0;
-			nextstate = HEADER_STATE_VIRTUAL_RULE;
-			break;
-		case HEADER_STATE_VIRTUAL_RULE:
-			/* Try virtual rules */
-			if (list_empty(&vrrp_data->vrrp)) {
-				nextstate = HEADER_STATE_END;
-				continue;
-			}
-			curinstance++;
-			if (vrrp == NULL)
-				vrrp = list_first_entry(&vrrp_data->vrrp, vrrp_t, e_list);
-			else {
-				if (list_is_last(&vrrp->e_list, &vrrp_data->vrrp)) {
-					nextstate = HEADER_STATE_END;
-					continue;
-				}
-				vrrp = list_entry(vrrp->e_list.next, vrrp_t, e_list);
-			}
-			l2 = &vrrp->vrules;
-			current[1] = 0;
-			nextstate = HEADER_STATE_VIRTUAL_RULE;
-			break;
+			else if (type == ITER_ROUTES)
+				l2 = &vrrp_data->static_routes;
+			else /* if (type == ITER_RULES) */
+				l2 = &vrrp_data->static_rules;
 #endif
-		default:
-			return NULL; /* Big problem! */
+		} else if (!vrrp) {
+			if (list_empty(&vrrp_data->vrrp))
+				break;
+			vrrp = list_first_entry(&vrrp_data->vrrp, vrrp_t, e_list);
+			if (type == ITER_ADDRESSES)
+				l2 = &vrrp->vip;
+#ifdef _HAVE_FIB_ROUTING_
+			else if (type == ITER_ROUTES)
+				l2 = &vrrp->vroutes;
+			else /* if (type == ITER_RULES) */
+				l2 = &vrrp->vrules;
+#endif
+			current[0]++;
+			current[1] = 0;
+			*adv = 1;
+		} else if (type == ITER_ADDRESSES && l2 == &vrrp->vip) {
+			l2 = &vrrp->evip;
+			*adv = 0;
+		} else {		/* if ITER_ADDRESSES, l2 == vrrp->evip */
+			if (list_is_last(&vrrp->e_list, &vrrp_data->vrrp))
+				break;
+			vrrp = list_entry(vrrp->e_list.next, vrrp_t, e_list);
+			if (type == ITER_ADDRESSES)
+				l2 = &vrrp->vip;
+#ifdef _HAVE_FIB_ROUTING_
+			else if (type == ITER_ROUTES)
+				l2 = &vrrp->vroutes;
+			else /* if (type == ITER_RULES) */
+				l2 = &vrrp->vrules;
+#endif
+			current[0]++;
+			current[1] = 0;
 		}
-		if (target_len && (curinstance < target[0]))
-			continue; /* Optimization: cannot be part of our set */
-		if (list_empty(l2))
+			
+		if (target_len && current[0] < target[0])
 			continue;
+
+		/* Should not happen... */
+		if (!l2)
+			return NULL;
+
 		list_for_each(e, l2) {
-			current[0] = curinstance;
 			current[1]++;
-			if ((result = snmp_oid_compare(current, 2, target,
-						       target_len)) < 0)
-				continue;
-			if ((result == 0) && !exact)
+			result = snmp_oid_compare(current, 2, target, target_len);
+			if (result < 0)
 				continue;
 			if (result == 0) {
-				return e;
+				if (!exact)
+					continue;
+			} else if (result > 0 && exact)
+				return NULL;
+
+			/* This is our best match */
+			if (!exact) {
+				memcpy(target, current, sizeof(oid) * 2);
+				*length = (unsigned)vp->namelen + 2;
 			}
-			if (snmp_oid_compare(current, 2, best, 2) < 0) {
-				/* This is our best match */
-				memcpy(best, current, sizeof(oid) * 2);
-				bel = e;
-				*state = curstate;
-				/* Optimization: (e1,e2) is strictly
-				   increasing, this is the lower
-				   element of our target set. */
-				nextstate = HEADER_STATE_END;
-				break;
-			}
+
+			return e;
 		}
 	}
 
-	if (bel == NULL)
-		/* No best match */
-		return NULL;
-	if (exact)
-		/* No exact match */
-		return NULL;
-	/* Let's use our best match */
-	memcpy(target, best, sizeof(oid) * 2);
-	*length = (unsigned)vp->namelen + 2;
-
-	return bel;
+	return NULL;
 }
+	
 
 #ifdef _HAVE_FIB_ROUTING_
 #define MAX_PTR ((void*)((char *)NULL - 1))
@@ -1011,17 +947,17 @@ vrrp_header_nh_table(struct variable *vp, oid *name, size_t *length,
 }
 #endif
 
-static u_char*
+static u_char *
 vrrp_snmp_address(struct variable *vp, oid *name, size_t *length,
 		 int exact, size_t *var_len, WriteMethod **write_method)
 {
 	ip_address_t *addr;
 	list_head_t *e;
-	int state = HEADER_STATE_STATIC_ADDRESS;
+	int adv = 0;
 
 	if ((e = vrrp_header_ar_table(vp, name, length, exact,
 				      var_len, write_method,
-				      &state)) == NULL)
+				      ITER_ADDRESSES, &adv)) == NULL)
 		return NULL;
 	addr = list_entry(e, ip_address_t, e_list);
 
@@ -1064,7 +1000,7 @@ vrrp_snmp_address(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = (addr->set)?1:2;
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_ADDRESS_ISADVERTISED:
-		long_ret.u = (state == HEADER_STATE_VIRTUAL_ADDRESS)?1:2;
+		long_ret.u = (adv)?1:2;
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_ADDRESS_PEER:
 		if (!addr->have_peer)
@@ -1095,13 +1031,12 @@ vrrp_snmp_route(struct variable *vp, oid *name, size_t *length,
 {
 	ip_route_t *route;
 	list_head_t *e;
-	int state = HEADER_STATE_STATIC_ROUTE;
 	nexthop_t *gw2;
-	int gw2_cnt = 0;
+	int gw2_cnt = 0, adv;
 
 	if ((e = vrrp_header_ar_table(vp, name, length, exact,
 				      var_len, write_method,
-				      &state)) == NULL)
+				      ITER_ROUTES, &adv)) == NULL)
 		return NULL;
 	route = list_entry(e, ip_route_t, e_list);
 
@@ -1416,7 +1351,7 @@ vrrp_snmp_encap(struct variable *vp, oid *name, size_t *length,
 	list_head_t *e;
 	nexthop_t *nh;
 	encap_t *encap;
-	int state = HEADER_STATE_STATIC_ROUTE;
+	int adv = 0;
 	static struct counter64 c64;
 #if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
 	static char labels[11*MAX_MPLS_LABELS];
@@ -1427,7 +1362,7 @@ vrrp_snmp_encap(struct variable *vp, oid *name, size_t *length,
 	if (vp->name[vp->namelen - 3] == 7) {
 		if ((e = vrrp_header_ar_table(vp, name, length, exact,
 					      var_len, write_method,
-					      &state)) == NULL)
+					      ITER_ROUTES, &adv)) == NULL)
 			return NULL;
 		route = list_entry(e, ip_route_t, e_list);
 		encap = &route->encap;
@@ -1591,13 +1526,13 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 {
 	ip_rule_t *rule;
 	list_head_t *e;
-	int state = HEADER_STATE_STATIC_RULE;
+	int adv = 0;
 	const char *str;
 	ip_address_t *addr;
 
 	if ((e = vrrp_header_ar_table(vp, name, length, exact,
 				      var_len, write_method,
-				      &state)) == NULL)
+				      ITER_RULES, &adv)) == NULL)
 		return NULL;
 	rule = list_entry(e, ip_rule_t, e_list);
 
@@ -1933,10 +1868,10 @@ vrrp_snmp_syncgroupmember(struct variable *vp, oid *name, size_t *length,
 	vrrp_t *vrrp;
 	element e;
 
-	e = snmp_find_elem(vp, name, length, exact, var_len, write_method,
-			   &vrrp_data->vrrp_sync_group,
-			   sizeof(vrrp_sgroup_t),
-			   offsetof(vrrp_sgroup_t, vrrp_instances));
+	e = snmp_find_element(vp, name, length, exact, var_len, write_method,
+			      &vrrp_data->vrrp_sync_group,
+			      sizeof(vrrp_sgroup_t),
+			      offsetof(vrrp_sgroup_t, vrrp_instances));
 	if (!e)
 		return NULL;
 
@@ -2288,10 +2223,10 @@ vrrp_snmp_trackedinterface(struct variable *vp, oid *name, size_t *length,
 {
 	const tracked_if_t *bifp;
 	snmp_ret_t ret;
-	const element e = snmp_find_elem(vp, name, length, exact, var_len, write_method,
-					 &vrrp_data->vrrp,
-					 sizeof(vrrp_t),
-					 offsetof(vrrp_t, track_ifp));
+	const element e = snmp_find_element(vp, name, length, exact, var_len, write_method,
+					    &vrrp_data->vrrp,
+					    sizeof(vrrp_t),
+					    offsetof(vrrp_t, track_ifp));
 
 	if (!e)
 		return NULL;
@@ -2319,10 +2254,10 @@ vrrp_snmp_trackedscript(struct variable *vp, oid *name, size_t *length,
 {
 	const tracked_sc_t *bscr;
 	snmp_ret_t ret;
-	const element e = snmp_find_elem(vp, name, length, exact, var_len, write_method,
-					 &vrrp_data->vrrp,
-					 sizeof(vrrp_t),
-					 offsetof(vrrp_t, track_script));
+	const element e = snmp_find_element(vp, name, length, exact, var_len, write_method,
+					    &vrrp_data->vrrp,
+					    sizeof(vrrp_t),
+					    offsetof(vrrp_t, track_script));
 
 	if (!e)
 		return NULL;
@@ -2350,10 +2285,10 @@ vrrp_snmp_trackedfile(struct variable *vp, oid *name, size_t *length,
 {
 	const tracked_file_monitor_t *bfile;
 	snmp_ret_t ret;
-	const element e = snmp_find_elem(vp, name, length, exact, var_len, write_method,
-					 &vrrp_data->vrrp,
-					 sizeof(vrrp_t),
-					 offsetof(vrrp_t, track_file));
+	const element e = snmp_find_element(vp, name, length, exact, var_len, write_method,
+					    &vrrp_data->vrrp,
+					    sizeof(vrrp_t),
+					    offsetof(vrrp_t, track_file));
 
 	if (!e)
 		return NULL;
@@ -2383,10 +2318,10 @@ vrrp_snmp_trackedbfd(struct variable *vp, oid *name, size_t *length,
 {
 	const tracked_bfd_t *bbfd;
 	snmp_ret_t ret;
-	const element e = snmp_find_elem(vp, name, length, exact, var_len, write_method,
-					 &vrrp_data->vrrp,
-					 sizeof(vrrp_t),
-					 offsetof(vrrp_t, track_bfd));
+	const element e = snmp_find_element(vp, name, length, exact, var_len, write_method,
+					    &vrrp_data->vrrp,
+					    sizeof(vrrp_t),
+					    offsetof(vrrp_t, track_bfd));
 
 	if (!e)
 		return NULL;
@@ -2417,10 +2352,10 @@ vrrp_snmp_trackedprocess(struct variable *vp, oid *name, size_t *length,
 {
 	const tracked_process_t *bproc;
 	snmp_ret_t ret;
-	const element e = snmp_find_elem(vp, name, length, exact, var_len, write_method,
-					 &vrrp_data->vrrp,
-					 sizeof(vrrp_t),
-					 offsetof(vrrp_t, track_process));
+	const element e = snmp_find_element(vp, name, length, exact, var_len, write_method,
+					    &vrrp_data->vrrp,
+					    sizeof(vrrp_t),
+					    offsetof(vrrp_t, track_process));
 
 	if (!e)
 		return NULL;
@@ -2450,10 +2385,10 @@ vrrp_snmp_group_trackedinterface(struct variable *vp, oid *name, size_t *length,
 {
 	const tracked_if_t *bifp;
 	snmp_ret_t ret;
-	const element e = snmp_find_elem(vp, name, length, exact, var_len, write_method,
-					 &vrrp_data->vrrp_sync_group,
-					 sizeof(vrrp_sgroup_t),
-					 offsetof(vrrp_sgroup_t, track_ifp));
+	const element e = snmp_find_element(vp, name, length, exact, var_len, write_method,
+					    &vrrp_data->vrrp_sync_group,
+					    sizeof(vrrp_sgroup_t),
+					    offsetof(vrrp_sgroup_t, track_ifp));
 
 	if (!e)
 		return NULL;
@@ -2481,10 +2416,10 @@ vrrp_snmp_group_trackedscript(struct variable *vp, oid *name, size_t *length,
 {
 	const tracked_sc_t *bscr;
 	snmp_ret_t ret;
-	const element e = snmp_find_elem(vp, name, length, exact, var_len, write_method,
-					 &vrrp_data->vrrp_sync_group,
-					 sizeof(vrrp_sgroup_t),
-					 offsetof(vrrp_sgroup_t, track_script));
+	const element e = snmp_find_element(vp, name, length, exact, var_len, write_method,
+					    &vrrp_data->vrrp_sync_group,
+					    sizeof(vrrp_sgroup_t),
+					    offsetof(vrrp_sgroup_t, track_script));
 
 	if (!e)
 		return NULL;
@@ -2512,10 +2447,10 @@ vrrp_snmp_group_trackedfile(struct variable *vp, oid *name, size_t *length,
 {
 	const tracked_file_monitor_t *bfile;
 	snmp_ret_t ret;
-	const element e = snmp_find_elem(vp, name, length, exact, var_len, write_method,
-					 &vrrp_data->vrrp_sync_group,
-					 sizeof(vrrp_sgroup_t),
-					 offsetof(vrrp_sgroup_t, track_file));
+	const element e = snmp_find_element(vp, name, length, exact, var_len, write_method,
+					    &vrrp_data->vrrp_sync_group,
+					    sizeof(vrrp_sgroup_t),
+					    offsetof(vrrp_sgroup_t, track_file));
 
 	if (!e)
 		return NULL;
@@ -2545,10 +2480,10 @@ vrrp_snmp_group_trackedbfd(struct variable *vp, oid *name, size_t *length,
 {
 	const tracked_bfd_t *bbfd;
 	snmp_ret_t ret;
-	const element e = snmp_find_elem(vp, name, length, exact, var_len, write_method,
-					 &vrrp_data->vrrp_sync_group,
-					 sizeof(vrrp_sgroup_t),
-					 offsetof(vrrp_sgroup_t, track_bfd));
+	const element e = snmp_find_element(vp, name, length, exact, var_len, write_method,
+					    &vrrp_data->vrrp_sync_group,
+					    sizeof(vrrp_sgroup_t),
+					    offsetof(vrrp_sgroup_t, track_bfd));
 
 	if (!e)
 		return NULL;
@@ -2579,10 +2514,10 @@ vrrp_snmp_group_trackedprocess(struct variable *vp, oid *name, size_t *length,
 {
 	const tracked_process_t *bproc;
 	snmp_ret_t ret;
-	const element e = snmp_find_elem(vp, name, length, exact, var_len, write_method,
-					 &vrrp_data->vrrp_sync_group,
-					 sizeof(vrrp_sgroup_t),
-					 offsetof(vrrp_sgroup_t, track_process));
+	const element e = snmp_find_element(vp, name, length, exact, var_len, write_method,
+					    &vrrp_data->vrrp_sync_group,
+					    sizeof(vrrp_sgroup_t),
+					    offsetof(vrrp_sgroup_t, track_process));
 
 	if (!e)
 		return NULL;
