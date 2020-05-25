@@ -30,6 +30,7 @@
 #include "track_file.h"
 #include "parser.h"
 #include "check_data.h"
+#include "logger.h"
 
 
 static void
