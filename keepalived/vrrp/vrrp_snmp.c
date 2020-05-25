@@ -901,11 +901,11 @@ vrrp_header_nh_table(struct variable *vp, oid *name, size_t *length,
 	/* Perform static routes */
 	
 
-	for (vrrp = MAX_PTR, curinstance[0] = 0;
-	     vrrp && !list_is_last(&vrrp->e_list, &vrrp_data->vrrp);
+	for (vrrp = MAX_PTR, curinstance[0] = 0; vrrp;
 	     vrrp = ((vrrp == MAX_PTR) ? (list_empty(&vrrp_data->vrrp) ? NULL :
 	       list_first_entry(&vrrp_data->vrrp, vrrp_t, e_list)) :
-	         list_entry(vrrp->e_list.next, vrrp_t, e_list)), curinstance[0]++) {
+	         list_is_last(&vrrp->e_list, &vrrp_data->vrrp) ? NULL :
+	           list_entry(vrrp->e_list.next, vrrp_t, e_list)), curinstance[0]++) {
 		if (exact && curinstance[0] > target[0])
 			return NULL;
 		if (target_len && curinstance[0] < target[0])
