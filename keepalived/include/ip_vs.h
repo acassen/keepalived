@@ -101,7 +101,7 @@ struct ip_vs_get_dests_app {
 	unsigned int		num_dests;
 
 	/* the real servers */
-	struct ip_vs_dest_entry_app	entrytable[0];
+	struct ip_vs_dest_entry_app	entrytable[];
 	} user;
 };
 
