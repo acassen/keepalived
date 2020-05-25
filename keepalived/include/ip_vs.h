@@ -87,7 +87,10 @@ struct ip_vs_dest_entry_app {
 };
 
 struct ip_vs_get_dests_app {
-	struct {	// Can we avoid this duplication of definition?
+	uint16_t		af;
+	union nf_inet_addr	nf_addr;
+
+	struct {
 	/* which service: user fills in these */
 	__u16			protocol;
 	__be32			addr;		/* virtual address */
@@ -100,9 +103,6 @@ struct ip_vs_get_dests_app {
 	/* the real servers */
 	struct ip_vs_dest_entry_app	entrytable[0];
 	} user;
-
-	uint16_t		af;
-	union nf_inet_addr	nf_addr;
 };
 
 /* The argument to IP_VS_SO_GET_SERVICES */
