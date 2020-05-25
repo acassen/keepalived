@@ -490,7 +490,7 @@ out_err:
 	return -1;
 }
 
-
+#ifdef _INCLUDE_UNUSED_CODE_
 int ipvs_zero_service(ipvs_service_t *svc)
 {
 	ipvs_func = ipvs_zero_service;
@@ -516,6 +516,7 @@ int ipvs_zero_service(ipvs_service_t *svc)
 out_err:
 	return -1;
 }
+#endif
 
 #ifdef LIBIPVS_USE_NL
 static int ipvs_nl_fill_dest_attr(struct nl_msg *msg, ipvs_dest_t *dst)
@@ -1190,7 +1191,9 @@ const char *ipvs_strerror(int err)
 		{ ipvs_update_service, ESRCH, "No such service" },
 		{ ipvs_update_service, ENOENT, "Scheduler or persistence engine not found" },
 		{ ipvs_del_service, ESRCH, "No such service" },
+#ifdef _INCLUDE_UNUSED_CODE_
 		{ ipvs_zero_service, ESRCH, "No such service" },
+#endif
 		{ ipvs_add_dest, ESRCH, "Service not defined" },
 		{ ipvs_add_dest, EEXIST, "Destination already exists" },
 		{ ipvs_update_dest, ESRCH, "Service not defined" },
