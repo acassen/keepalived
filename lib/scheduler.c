@@ -1602,8 +1602,8 @@ snmp_epoll_info(thread_master_t *m)
 /* If a file descriptor was registered with epoll, but it has been closed, the registration
  * will have been lost, even though the new fd value is the same. We therefore need to
  * unregister all the fds we had registered, and reregister them. */
-void
-snmp_epoll_reset(thread_master_t *m)
+static void
+snmp_epoll_update(thread_master_t *m, bool reset)
 {
 	fd_set snmp_fdset;
 	int fdsetsize = 0;
@@ -1637,26 +1637,43 @@ snmp_epoll_reset(thread_master_t *m)
 		} while (bits);
 	}
 
-	/* Add the file descriptors that are now in use */
-	set_words = fdsetsize ? (fdsetsize - 1) / (sizeof(*old_set) * CHAR_BIT) + 1 : 0;
+	if (reset) {
+		/* Add the file descriptors that are now in use */
+		set_words = fdsetsize ? (fdsetsize - 1) / (sizeof(*old_set) * CHAR_BIT) + 1 : 0;
 
-	for (i = 0, new_set = (unsigned long *)&snmp_fdset; i < set_words; i++, new_set++) {
-		bits = *new_set;
-		fd = i * sizeof(*new_set) * CHAR_BIT - 1;
-		do {
-			bit = ffsl(bits);
-			bits >>= bit;
-			fd += bit;
+		for (i = 0, new_set = (unsigned long *)&snmp_fdset; i < set_words; i++, new_set++) {
+			bits = *new_set;
+			fd = i * sizeof(*new_set) * CHAR_BIT - 1;
+			do {
+				bit = ffsl(bits);
+				bits >>= bit;
+				fd += bit;
 
-			/* Add the fd */
-			thread_add_read(m, snmp_read_thread, 0, fd, TIMER_NEVER, false);
-			FD_SET(fd, &m->snmp_fdset);
-		} while (bits);
-	}
+				/* Add the fd */
+				thread_add_read(m, snmp_read_thread, 0, fd, TIMER_NEVER, false);
+				FD_SET(fd, &m->snmp_fdset);
+			} while (bits);
+		}
+	} else
+		fdsetsize = 0;
 
 	m->snmp_fdsetsize = fdsetsize;
 }
 #endif
+
+void
+snmp_epoll_reset(thread_master_t *m)
+{
+	snmp_epoll_update(m, true);
+}
+
+void
+snmp_epoll_clear(thread_master_t *m)
+{
+	snmp_epoll_update(m, false);
+	thread_cancel(m->snmp_timer_thread);
+	m->snmp_timer_thread = NULL;
+}
 
 /* Fetch next ready thread. */
 static list_head_t *

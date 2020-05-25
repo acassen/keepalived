@@ -503,11 +503,11 @@ snmp_agent_close(bool base_mib)
 	if (!snmp_running)
 		return;
 
+	snmp_epoll_clear(master);
+
 	if (base_mib)
 		snmp_unregister_mib(global_oid, OID_LENGTH(global_oid));
 	snmp_shutdown(global_name);
-
-	snmp_epoll_reset(master);
 
 	snmp_running = false;
 }
