@@ -99,9 +99,14 @@ static void (*extra_threads_debug)(void);
 bool do_script_debug;
 #endif
 
-
 /* Function that returns prog_name if pid is a known child */
 static char const * (*child_finder_name)(pid_t);
+
+/* Function forward references */
+#ifdef _WITH_SNMP_
+static void snmp_epoll_reset(thread_master_t *);
+#endif
+
 
 #ifdef THREAD_DUMP
 static const char *
@@ -1655,9 +1660,8 @@ snmp_epoll_update(thread_master_t *m, bool reset)
 
 	m->snmp_fdsetsize = fdsetsize;
 }
-#endif
 
-void
+static void
 snmp_epoll_reset(thread_master_t *m)
 {
 	snmp_epoll_update(m, true);
@@ -1670,6 +1674,7 @@ snmp_epoll_clear(thread_master_t *m)
 	thread_cancel(m->snmp_timer_thread);
 	m->snmp_timer_thread = NULL;
 }
+#endif
 
 /* Fetch next ready thread. */
 static list_head_t *

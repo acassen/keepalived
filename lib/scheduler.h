@@ -252,7 +252,6 @@ extern void thread_cancel_read(thread_master_t *, int);
 #ifdef _WITH_SNMP_
 extern int snmp_timeout_thread(thread_ref_t);
 extern void snmp_epoll_info(thread_master_t *);
-extern void snmp_epoll_reset(thread_master_t *);
 extern void snmp_epoll_clear(thread_master_t *);
 #endif
 extern void process_threads(thread_master_t *);
