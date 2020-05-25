@@ -452,7 +452,7 @@ vrrp_create_sockpool(list l)
 	LIST_FOREACH(vrrp_data->vrrp, vrrp, e) {
 		ifp =
 #ifdef _HAVE_VRRP_VMAC_
-			  (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? vrrp->ifp->base_ifp :
+			  (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? vrrp->configured_ifp :
 #endif
 										    vrrp->ifp;
 		unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
