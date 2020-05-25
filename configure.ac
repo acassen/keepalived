@@ -699,6 +699,10 @@ if test "$enable_hardening" != no; then
   SAV_CFLAGS="$CFLAGS"
   SAV_LDFLAGS="$LDFLAGS"
   CFLAGS="$CFLAGS -fPIE"
+  if test "${enable_profile}" = yes; then
+    # RHEL 7 and others have a problem with profiling with PIE
+    CFLAGS="$CFLAGS -pg"
+  fi
   LDFLAGS="$LDFLAGS -pie"
   AC_LINK_IFELSE([AC_LANG_SOURCE([[
     int main(int argc, char **argv)
