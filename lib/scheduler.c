@@ -589,7 +589,7 @@ thread_event_set(const thread_t *thread)
 		op = EPOLL_CTL_ADD;
 
 	if (epoll_ctl(m->epoll_fd, op, event->fd, &ev) < 0) {
-		log_message(LOG_INFO, "scheduler: Error performing control on EPOLL instance (%m)");
+		log_message(LOG_INFO, "scheduler: Error %d performing control on EPOLL instance for fd %d (%m)", errno, event->fd);
 		return -1;
 	}
 
@@ -614,7 +614,7 @@ thread_event_cancel(const thread_t *thread_cp)
 	if (m->epoll_fd != -1 &&
 	    epoll_ctl(m->epoll_fd, EPOLL_CTL_DEL, event->fd, NULL) < 0 &&
 #ifdef _WITH_SNMP_
-	    !FD_ISSET(event->fd, &m->snmp_fdset) &&
+	    (!snmp_running || !FD_ISSET(event->fd, &m->snmp_fdset)) &&
 #endif
 	    errno != EBADF)
 		log_message(LOG_INFO, "scheduler: Error performing epoll_ctl DEL op for fd:%d (%m)", event->fd);
@@ -1490,14 +1490,33 @@ static int
 snmp_read_thread(thread_ref_t thread)
 {
 	fd_set snmp_fdset;
+	thread_event_t *event;
 
 	FD_ZERO(&snmp_fdset);
 	FD_SET(thread->u.f.fd, &snmp_fdset);
 
+	if (thread->type == THREAD_READ_ERROR) {
+		/* We need to remove the epoll entry for this fd since the snmp
+		 * code may close it. If it remains open, snmp_epoll_reset will
+		 * sort it out. */
+		thread_event_del(thread, THREAD_FL_EPOLL_READ_BIT);
+		FD_CLR(thread->u.f.fd, &master->snmp_fdset);
+	}
+
 	snmp_read(&snmp_fdset);
 	netsnmp_check_outstanding_agent_requests();
 
-	thread_add_read(thread->master, snmp_read_thread, thread->arg, thread->u.f.fd, TIMER_NEVER, false);
+	if (thread->type == THREAD_READ_ERROR) 
+		snmp_epoll_reset(thread->master);
+	else {
+		snmp_epoll_info(thread->master);
+
+		if (FD_ISSET(thread->u.f.fd, &master->snmp_fdset)) {
+			event = thread_event_get(thread->master, thread->u.f.fd);
+			if (!event || !event->read)
+				thread_add_read(thread->master, snmp_read_thread, thread->arg, thread->u.f.fd, TIMER_NEVER, false);
+		}
+	}
 
 	return 0;
 }
@@ -1511,11 +1530,13 @@ snmp_timeout_thread(thread_ref_t thread)
 
 	thread->master->snmp_timer_thread = thread_add_timer(thread->master, snmp_timeout_thread, thread->arg, TIMER_NEVER);
 
+	snmp_epoll_info(thread->master);
+
 	return 0;
 }
 
 // See https://vincent.bernat.im/en/blog/2012-snmp-event-loop
-static void
+void
 snmp_epoll_info(thread_master_t *m)
 {
 	fd_set snmp_fdset;
@@ -1540,9 +1561,9 @@ snmp_epoll_info(thread_master_t *m)
 	FD_ZERO(&snmp_fdset);
 
 	/* When SNMP is enabled, we may have to select() on additional
-	 * FD. snmp_select_info() will add them to `readfd'. The trick
+	 * FDs. snmp_select_info() will add them to `readfd'. The trick
 	 * with this function is its last argument. We need to set it
-	 * true to set its own timer that we then compare against ours. */
+	 * true to set its own timer we update * the snmp timer thread timeout */
 	snmp_select_info(&fdsetsize, &snmp_fdset, &snmp_timer_wait, &snmpblock);
 
 	if (snmpblock)
@@ -1586,13 +1607,12 @@ snmp_epoll_reset(thread_master_t *m)
 {
 	fd_set snmp_fdset;
 	int fdsetsize = 0;
-	int set_words;
-	int max_fdsetsize;
+	unsigned set_words;
 	struct timeval snmp_timer_wait = { .tv_sec = TIMER_DISABLED };
 	int snmpblock = true;
 	unsigned long *old_set, *new_set;	// Must be unsigned for ffsl() to work for us
 	unsigned long bits;
-	int i;
+	unsigned i;
 	int fd;
 	int bit;
 
@@ -1600,11 +1620,7 @@ snmp_epoll_reset(thread_master_t *m)
 
 	snmp_select_info(&fdsetsize, &snmp_fdset, &snmp_timer_wait, &snmpblock);
 
-	max_fdsetsize = m->snmp_fdsetsize > fdsetsize ? m->snmp_fdsetsize : fdsetsize;
-	if (!max_fdsetsize)
-		return;
-
-	set_words = (max_fdsetsize - 1) / (sizeof(*old_set) * CHAR_BIT) + 1;
+	set_words = m->snmp_fdsetsize ? (m->snmp_fdsetsize - 1) / (sizeof(*old_set) * CHAR_BIT) + 1 : 0;
 
 	/* Clear all the fds that were registered with epoll */
 	for (i = 0, old_set = (unsigned long *)&m->snmp_fdset; i < set_words; i++, old_set++) {
@@ -1622,6 +1638,8 @@ snmp_epoll_reset(thread_master_t *m)
 	}
 
 	/* Add the file descriptors that are now in use */
+	set_words = fdsetsize ? (fdsetsize - 1) / (sizeof(*old_set) * CHAR_BIT) + 1 : 0;
+
 	for (i = 0, new_set = (unsigned long *)&snmp_fdset; i < set_words; i++, new_set++) {
 		bits = *new_set;
 		fd = i * sizeof(*new_set) * CHAR_BIT - 1;
@@ -1635,6 +1653,7 @@ snmp_epoll_reset(thread_master_t *m)
 			FD_SET(fd, &m->snmp_fdset);
 		} while (bits);
 	}
+
 	m->snmp_fdsetsize = fdsetsize;
 }
 #endif
@@ -1659,11 +1678,6 @@ thread_fetch_next_queue(thread_master_t *m)
 		return &m->ready;
 
 	do {
-#ifdef _WITH_SNMP_
-		if (snmp_running)
-			snmp_epoll_info(m);
-#endif
-
 		/* Calculate and set wait timer. Take care of timeouted fd.  */
 		earliest_timer = thread_set_timer(m);
 
@@ -1756,7 +1770,6 @@ thread_fetch_next_queue(thread_master_t *m)
 			ev = ep_ev->data.ptr;
 
 			/* Error */
-// TODO - no thread processing function handles THREAD_READ_ERROR/THREAD_WRITE_ERROR yet
 			if (ep_ev->events & (EPOLLHUP | EPOLLERR | EPOLLRDHUP)) {
 				if (ev->read) {
 					thread_move_ready(m, &m->read, ev->read, THREAD_READ_ERROR);
@@ -1866,11 +1879,13 @@ process_threads(thread_master_t *m)
 
 		if (!shutting_down ||
 		    ((thread->type == THREAD_READY_READ_FD ||
-		      thread->type == THREAD_READY_WRITE_FD) &&
+		      thread->type == THREAD_READY_WRITE_FD ||
+		      thread->type == THREAD_READ_ERROR ||
+		      thread->type == THREAD_WRITE_ERROR) &&
 		     (thread->u.f.fd == m->timer_fd ||
 		      thread->u.f.fd == m->signal_fd
 #ifdef _WITH_SNMP_
-		      || FD_ISSET(thread->u.f.fd, &m->snmp_fdset)
+		      || (snmp_running && FD_ISSET(thread->u.f.fd, &m->snmp_fdset))
 #endif
 							       )) ||
 		    thread->type == THREAD_CHILD ||
