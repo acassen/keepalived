@@ -1188,31 +1188,20 @@ const char *ipvs_strerror(int err)
 	} table [] = {
 		{ ipvs_add_service, EEXIST, "Service already exists" },
 		{ ipvs_add_service, ENOENT, "Scheduler or persistence engine not found" },
-		{ ipvs_update_service, ESRCH, "No such service" },
 		{ ipvs_update_service, ENOENT, "Scheduler or persistence engine not found" },
-		{ ipvs_del_service, ESRCH, "No such service" },
-#ifdef _INCLUDE_UNUSED_CODE_
-		{ ipvs_zero_service, ESRCH, "No such service" },
-#endif
-		{ ipvs_add_dest, ESRCH, "Service not defined" },
 		{ ipvs_add_dest, EEXIST, "Destination already exists" },
-		{ ipvs_update_dest, ESRCH, "Service not defined" },
 		{ ipvs_update_dest, ENOENT, "No such destination" },
-		{ ipvs_del_dest, ESRCH, "Service not defined" },
 		{ ipvs_del_dest, ENOENT, "No such destination" },
 		{ ipvs_start_daemon, EEXIST, "Daemon has already run" },
 		{ ipvs_stop_daemon, ESRCH, "No daemon is running" },
-#ifdef _WITH_SNMP_CHECKER_
-		{ ipvs_get_dests, ESRCH, "No such service" },
-		{ ipvs_get_service, ESRCH, "No such service" },
-#endif
-		{ 0, EPERM, "Permission denied (you must be root)" },
-		{ 0, EINVAL, "Invalid operation.  Possibly wrong module version, address not unicast, ..." },
-		{ 0, ENOPROTOOPT, "Protocol not available" },
-		{ 0, ENOMEM, "Memory allocation problem" },
-		{ 0, EOPNOTSUPP, "Operation not supported with IPv6" },
-		{ 0, EAFNOSUPPORT, "Operation not supported with specified address family" },
-		{ 0, EMSGSIZE, "Module is wrong version" },
+		{ NULL, ESRCH, "No such service" },
+		{ NULL, EPERM, "Permission denied (you must be root)" },
+		{ NULL, EINVAL, "Invalid operation.  Possibly wrong module version, address not unicast, ..." },
+		{ NULL, ENOPROTOOPT, "Protocol not available" },
+		{ NULL, ENOMEM, "Memory allocation problem" },
+		{ NULL, EOPNOTSUPP, "Operation not supported with IPv6" },
+		{ NULL, EAFNOSUPPORT, "Operation not supported with specified address family" },
+		{ NULL, EMSGSIZE, "Module is wrong version" },
 	};
 
 	for (i = 0; i < sizeof(table)/sizeof(struct table_struct); i++) {
