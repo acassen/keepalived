@@ -612,11 +612,7 @@ thread_event_cancel(const thread_t *thread_cp)
 	/* Ignore error if it was an SNMP fd, since we don't know
 	 * if they have been closed */
 	if (m->epoll_fd != -1 &&
-	    epoll_ctl(m->epoll_fd, EPOLL_CTL_DEL, event->fd, NULL) < 0 &&
-#ifdef _WITH_SNMP_
-	    (!snmp_running || !FD_ISSET(event->fd, &m->snmp_fdset)) &&
-#endif
-	    errno != EBADF)
+	    epoll_ctl(m->epoll_fd, EPOLL_CTL_DEL, event->fd, NULL) < 0)
 		log_message(LOG_INFO, "scheduler: Error performing epoll_ctl DEL op for fd:%d (%m)", event->fd);
 
 	rb_erase(&event->n, &m->io_events);
