@@ -59,6 +59,7 @@
 #include "bitops.h"
 #include "parser.h"
 #include "logger.h"
+#include "process.h"
 
 /* global vars */
 unsigned long debug = 0;
@@ -274,7 +275,7 @@ run_perf(const char *process, const char *network_namespace, const char *instanc
 
 		/* Child */
 		if (!pid) {
-			char buf[9];
+			char buf[PID_MAX_DIGITS + 1];
 
 			snprintf(buf, sizeof buf, "%d", getppid());
 			execlp("perf", "perf", "record", "-p", buf, "-q", "-g", "--call-graph", "fp", NULL);

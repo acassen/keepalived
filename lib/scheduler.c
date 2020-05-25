@@ -438,7 +438,7 @@ bool
 report_child_status(int status, pid_t pid, char const *prog_name)
 {
 	char const *prog_id = NULL;
-	char pid_buf[12];	/* "pid 4194303" + '\0' - see definition of PID_MAX_LIMIT in include/linux/threads.h */
+	char pid_buf[4 + PID_MAX_DIGITS + 1];	/* "pid 4194303" + '\0' */
 	int exit_status ;
 
 	if (prog_name)
