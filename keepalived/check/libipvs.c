@@ -62,9 +62,9 @@ typedef struct ipvs_servicedest_s {
 static int sockfd = -1;
 static void* ipvs_func = NULL;
 
-
 #ifdef LIBIPVS_USE_NL
 static struct nl_sock *sock = NULL;
+static nl_recvmsg_msg_cb_t cur_nl_sock_cb_func;
 static int family;
 static bool try_nl = true;
 
@@ -241,33 +241,40 @@ static int ipvs_nl_noop_cb(__attribute__((unused)) struct nl_msg *msg, __attribu
 	return NL_OK;
 }
 
+static int
+open_nl_sock(void)
+{
+	if (!(sock = nl_socket_alloc()))
+		return -1;
+
+	if (genl_connect(sock) < 0 ||
+	    (family = genl_ctrl_resolve(sock, IPVS_GENL_NAME)) < 0) {
+		nl_socket_free(sock);
+		sock = NULL;
+
+		return -1;
+	}
+
+	return 0;
+}
+
 static int ipvs_nl_send_message(struct nl_msg *msg, nl_recvmsg_msg_cb_t func, void *arg)
 {
 	int err = EINVAL;
 
-	sock = nl_socket_alloc();
-	if (!sock) {
-		if (msg)
-			nlmsg_free(msg);
+	if (!sock && open_nl_sock()) {
+		nlmsg_free(msg);
 		return -1;
 	}
 
-	if (genl_connect(sock) < 0)
-		goto fail_genl;
-
-	family = genl_ctrl_resolve(sock, IPVS_GENL_NAME);
-	if (family < 0)
-		goto fail_genl;
-
-	/* To test connections and set the family */
-	if (msg == NULL) {
-		nl_socket_free(sock);
-		sock = NULL;
+	if (!msg)
 		return 0;
-	}
 
-	if (nl_socket_modify_cb(sock, NL_CB_VALID, NL_CB_CUSTOM, func, arg) != 0)
-		goto fail_genl;
+	if (func != cur_nl_sock_cb_func) {
+		if (nl_socket_modify_cb(sock, NL_CB_VALID, NL_CB_CUSTOM, func, arg) != 0)
+			goto fail_genl;
+		cur_nl_sock_cb_func = func;
+	}
 
 	if (nl_send_auto_complete(sock, msg) < 0)
 		goto fail_genl;
@@ -277,11 +284,10 @@ static int ipvs_nl_send_message(struct nl_msg *msg, nl_recvmsg_msg_cb_t func, vo
 
 	nlmsg_free(msg);
 
-	nl_socket_free(sock);
-
 	return 0;
 
 fail_genl:
+log_message(LOG_INFO, "ipvs_nl_send_message failed, err %d", err);
 	nl_socket_free(sock);
 	sock = NULL;
 	nlmsg_free(msg);
@@ -319,10 +325,10 @@ static int ipvs_getinfo(void)
 
 	if (try_nl) {
 		struct nl_msg *msg;
-		msg = ipvs_nl_message(IPVS_CMD_GET_INFO, 0);
-		if (msg)
-			return ipvs_nl_send_message(msg, ipvs_getinfo_parse_cb, NULL);
-		return -1;
+		if (!(msg = ipvs_nl_message(IPVS_CMD_GET_INFO, 0)))
+			return -1;
+
+		return ipvs_nl_send_message(msg, ipvs_getinfo_parse_cb, NULL);
 	}
 
 	len = sizeof(ipvs_info);
@@ -1169,8 +1175,13 @@ out_err:
 void ipvs_close(void)
 {
 #ifdef LIBIPVS_USE_NL
-	if (try_nl)
+	if (try_nl) {
+		if (sock) {
+			nl_socket_free(sock);
+			sock = NULL;
+		}
 		return;
+	}
 #endif
 	if (sockfd != -1) {
 		close(sockfd);
