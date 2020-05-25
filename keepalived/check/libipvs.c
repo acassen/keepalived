@@ -365,6 +365,7 @@ int ipvs_init(void)
 #if !HAVE_DECL_SOCK_CLOEXEC
 	if (set_sock_flags(sockfd, F_SETFD, FD_CLOEXEC)) {
 		close(sockfd);
+		sockfd = -1;
 		return -1;
 	}
 #endif
@@ -372,6 +373,7 @@ int ipvs_init(void)
 	len = sizeof(ipvs_info);
 	if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO, (char *)&ipvs_info, &len)) {
 		close(sockfd);
+		sockfd = -1;
 		return -1;
 	}
 
@@ -725,9 +727,9 @@ nla_put_failure:
 	}
 #endif
 	memset(&dmk, 0, sizeof(dmk));
-	dmk.state = (int)dm->state;
+	dmk.state = dm->state;
 	strcpy(dmk.mcast_ifn, dm->mcast_ifn);
-	dmk.syncid = (int)dm->syncid;
+	dmk.syncid = dm->syncid;
 	return setsockopt(sockfd, IPPROTO_IP, IP_VS_SO_SET_STARTDAEMON,
 			  (char *)&dmk, sizeof(dmk));
 }
@@ -761,7 +763,7 @@ nla_put_failure:
 	}
 #endif
 	memset(&dmk, 0, sizeof(dmk));
-	dmk.state = (int)dm->state;
+	dmk.state = dm->state;
 	return setsockopt(sockfd, IPPROTO_IP, IP_VS_SO_SET_STOPDAEMON,
 			  (char *)&dmk, sizeof(dmk));
 }
