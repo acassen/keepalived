@@ -758,8 +758,10 @@ static int
 reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 {
 	bool with_snmp = false;
+#ifdef _WITH_LVS_
 	bool start_daemon, stop_daemon;
 	bool start_extra, start_backup, stop_extra, stop_backup;
+#endif
 
 	log_message(LOG_INFO, "Reloading");
 
