@@ -49,7 +49,7 @@ struct ip_vs_service_app {
 	uint16_t		af;
 	union nf_inet_addr	nf_addr;
 #ifdef _HAVE_PE_NAME_
-	char			pe_name[IP_VS_PENAME_MAXLEN];
+	char			pe_name[IP_VS_PENAME_MAXLEN + 1];
 #endif
 };
 
@@ -73,7 +73,7 @@ struct ip_vs_service_entry_app {
 	uint16_t		af;
 	union nf_inet_addr	nf_addr;
 #ifdef _HAVE_PE_NAME_
-	char			pe_name[IP_VS_PENAME_MAXLEN];
+	char			pe_name[IP_VS_PENAME_MAXLEN + 1];
 #endif
 
 };

@@ -87,7 +87,7 @@ static struct nla_policy ipvs_service_policy[IPVS_SVC_ATTR_MAX + 1] = {
 	[IPVS_SVC_ATTR_PORT]		= { .type = NLA_U16 },
 	[IPVS_SVC_ATTR_FWMARK]		= { .type = NLA_U32 },
 	[IPVS_SVC_ATTR_SCHED_NAME]	= { .type = NLA_STRING,
-					    .maxlen = IP_VS_SCHEDNAME_MAXLEN },
+					    .maxlen = IP_VS_SCHEDNAME_MAXLEN - 1 },
 	[IPVS_SVC_ATTR_FLAGS]		= { .type = NLA_UNSPEC,
 					    .minlen = sizeof(struct ip_vs_flags),
 					    .maxlen = sizeof(struct ip_vs_flags) },
