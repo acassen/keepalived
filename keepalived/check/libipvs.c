@@ -62,9 +62,9 @@ typedef struct ipvs_servicedest_s {
 static int sockfd = -1;
 static void* ipvs_func = NULL;
 
-
 #ifdef LIBIPVS_USE_NL
 static struct nl_sock *sock = NULL;
+static nl_recvmsg_msg_cb_t cur_nl_sock_cb_func;
 static int family;
 static bool try_nl = true;
 
@@ -87,7 +87,7 @@ static struct nla_policy ipvs_service_policy[IPVS_SVC_ATTR_MAX + 1] = {
 	[IPVS_SVC_ATTR_PORT]		= { .type = NLA_U16 },
 	[IPVS_SVC_ATTR_FWMARK]		= { .type = NLA_U32 },
 	[IPVS_SVC_ATTR_SCHED_NAME]	= { .type = NLA_STRING,
-					    .maxlen = IP_VS_SCHEDNAME_MAXLEN },
+					    .maxlen = IP_VS_SCHEDNAME_MAXLEN - 1 },
 	[IPVS_SVC_ATTR_FLAGS]		= { .type = NLA_UNSPEC,
 					    .minlen = sizeof(struct ip_vs_flags),
 					    .maxlen = sizeof(struct ip_vs_flags) },
@@ -241,33 +241,40 @@ static int ipvs_nl_noop_cb(__attribute__((unused)) struct nl_msg *msg, __attribu
 	return NL_OK;
 }
 
+static int
+open_nl_sock(void)
+{
+	if (!(sock = nl_socket_alloc()))
+		return -1;
+
+	if (genl_connect(sock) < 0 ||
+	    (family = genl_ctrl_resolve(sock, IPVS_GENL_NAME)) < 0) {
+		nl_socket_free(sock);
+		sock = NULL;
+
+		return -1;
+	}
+
+	return 0;
+}
+
 static int ipvs_nl_send_message(struct nl_msg *msg, nl_recvmsg_msg_cb_t func, void *arg)
 {
 	int err = EINVAL;
 
-	sock = nl_socket_alloc();
-	if (!sock) {
-		if (msg)
-			nlmsg_free(msg);
+	if (!sock && open_nl_sock()) {
+		nlmsg_free(msg);
 		return -1;
 	}
 
-	if (genl_connect(sock) < 0)
-		goto fail_genl;
-
-	family = genl_ctrl_resolve(sock, IPVS_GENL_NAME);
-	if (family < 0)
-		goto fail_genl;
-
-	/* To test connections and set the family */
-	if (msg == NULL) {
-		nl_socket_free(sock);
-		sock = NULL;
+	if (!msg)
 		return 0;
-	}
 
-	if (nl_socket_modify_cb(sock, NL_CB_VALID, NL_CB_CUSTOM, func, arg) != 0)
-		goto fail_genl;
+	if (func != cur_nl_sock_cb_func) {
+		if (nl_socket_modify_cb(sock, NL_CB_VALID, NL_CB_CUSTOM, func, arg) != 0)
+			goto fail_genl;
+		cur_nl_sock_cb_func = func;
+	}
 
 	if (nl_send_auto_complete(sock, msg) < 0)
 		goto fail_genl;
@@ -277,11 +284,10 @@ static int ipvs_nl_send_message(struct nl_msg *msg, nl_recvmsg_msg_cb_t func, vo
 
 	nlmsg_free(msg);
 
-	nl_socket_free(sock);
-
 	return 0;
 
 fail_genl:
+log_message(LOG_INFO, "ipvs_nl_send_message failed, err %d", err);
 	nl_socket_free(sock);
 	sock = NULL;
 	nlmsg_free(msg);
@@ -319,10 +325,10 @@ static int ipvs_getinfo(void)
 
 	if (try_nl) {
 		struct nl_msg *msg;
-		msg = ipvs_nl_message(IPVS_CMD_GET_INFO, 0);
-		if (msg)
-			return ipvs_nl_send_message(msg, ipvs_getinfo_parse_cb, NULL);
-		return -1;
+		if (!(msg = ipvs_nl_message(IPVS_CMD_GET_INFO, 0)))
+			return -1;
+
+		return ipvs_nl_send_message(msg, ipvs_getinfo_parse_cb, NULL);
 	}
 
 	len = sizeof(ipvs_info);
@@ -359,6 +365,7 @@ int ipvs_init(void)
 #if !HAVE_DECL_SOCK_CLOEXEC
 	if (set_sock_flags(sockfd, F_SETFD, FD_CLOEXEC)) {
 		close(sockfd);
+		sockfd = -1;
 		return -1;
 	}
 #endif
@@ -366,6 +373,7 @@ int ipvs_init(void)
 	len = sizeof(ipvs_info);
 	if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO, (char *)&ipvs_info, &len)) {
 		close(sockfd);
+		sockfd = -1;
 		return -1;
 	}
 
@@ -490,7 +498,7 @@ out_err:
 	return -1;
 }
 
-
+#ifdef _INCLUDE_UNUSED_CODE_
 int ipvs_zero_service(ipvs_service_t *svc)
 {
 	ipvs_func = ipvs_zero_service;
@@ -516,6 +524,7 @@ int ipvs_zero_service(ipvs_service_t *svc)
 out_err:
 	return -1;
 }
+#endif
 
 #ifdef LIBIPVS_USE_NL
 static int ipvs_nl_fill_dest_attr(struct nl_msg *msg, ipvs_dest_t *dst)
@@ -718,9 +727,9 @@ nla_put_failure:
 	}
 #endif
 	memset(&dmk, 0, sizeof(dmk));
-	dmk.state = (int)dm->state;
+	dmk.state = dm->state;
 	strcpy(dmk.mcast_ifn, dm->mcast_ifn);
-	dmk.syncid = (int)dm->syncid;
+	dmk.syncid = dm->syncid;
 	return setsockopt(sockfd, IPPROTO_IP, IP_VS_SO_SET_STARTDAEMON,
 			  (char *)&dmk, sizeof(dmk));
 }
@@ -754,7 +763,7 @@ nla_put_failure:
 	}
 #endif
 	memset(&dmk, 0, sizeof(dmk));
-	dmk.state = (int)dm->state;
+	dmk.state = dm->state;
 	return setsockopt(sockfd, IPPROTO_IP, IP_VS_SO_SET_STOPDAEMON,
 			  (char *)&dmk, sizeof(dmk));
 }
@@ -1168,8 +1177,13 @@ out_err:
 void ipvs_close(void)
 {
 #ifdef LIBIPVS_USE_NL
-	if (try_nl)
+	if (try_nl) {
+		if (sock) {
+			nl_socket_free(sock);
+			sock = NULL;
+		}
 		return;
+	}
 #endif
 	if (sockfd != -1) {
 		close(sockfd);
@@ -1187,29 +1201,20 @@ const char *ipvs_strerror(int err)
 	} table [] = {
 		{ ipvs_add_service, EEXIST, "Service already exists" },
 		{ ipvs_add_service, ENOENT, "Scheduler or persistence engine not found" },
-		{ ipvs_update_service, ESRCH, "No such service" },
 		{ ipvs_update_service, ENOENT, "Scheduler or persistence engine not found" },
-		{ ipvs_del_service, ESRCH, "No such service" },
-		{ ipvs_zero_service, ESRCH, "No such service" },
-		{ ipvs_add_dest, ESRCH, "Service not defined" },
 		{ ipvs_add_dest, EEXIST, "Destination already exists" },
-		{ ipvs_update_dest, ESRCH, "Service not defined" },
 		{ ipvs_update_dest, ENOENT, "No such destination" },
-		{ ipvs_del_dest, ESRCH, "Service not defined" },
 		{ ipvs_del_dest, ENOENT, "No such destination" },
 		{ ipvs_start_daemon, EEXIST, "Daemon has already run" },
 		{ ipvs_stop_daemon, ESRCH, "No daemon is running" },
-#ifdef _WITH_SNMP_CHECKER_
-		{ ipvs_get_dests, ESRCH, "No such service" },
-		{ ipvs_get_service, ESRCH, "No such service" },
-#endif
-		{ 0, EPERM, "Permission denied (you must be root)" },
-		{ 0, EINVAL, "Invalid operation.  Possibly wrong module version, address not unicast, ..." },
-		{ 0, ENOPROTOOPT, "Protocol not available" },
-		{ 0, ENOMEM, "Memory allocation problem" },
-		{ 0, EOPNOTSUPP, "Operation not supported with IPv6" },
-		{ 0, EAFNOSUPPORT, "Operation not supported with specified address family" },
-		{ 0, EMSGSIZE, "Module is wrong version" },
+		{ NULL, ESRCH, "No such service" },
+		{ NULL, EPERM, "Permission denied (you must be root)" },
+		{ NULL, EINVAL, "Invalid operation.  Possibly wrong module version, address not unicast, ..." },
+		{ NULL, ENOPROTOOPT, "Protocol not available" },
+		{ NULL, ENOMEM, "Memory allocation problem" },
+		{ NULL, EOPNOTSUPP, "Operation not supported with IPv6" },
+		{ NULL, EAFNOSUPPORT, "Operation not supported with specified address family" },
+		{ NULL, EMSGSIZE, "Module is wrong version" },
 	};
 
 	for (i = 0; i < sizeof(table)/sizeof(struct table_struct); i++) {

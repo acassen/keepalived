@@ -60,6 +60,7 @@
 #include "bitops.h"
 #include "logger.h"
 #include "main.h"
+#include "process.h"
 
 
 static thread_ref_t read_thread;
@@ -185,7 +186,7 @@ read_procs(list_head_t *processes)
 	 * To change comm for a process, use prctl(PR_SET_NAME). */
 	DIR *proc_dir = opendir("/proc");
 	struct dirent *ent;
-	char cmdline[22];	/* "/proc/xxxxxxx/cmdline" */
+	char cmdline[1 + 4 + 1 + PID_MAX_DIGITS + 1 + 7 + 1];	/* "/proc/xxxxxxx/cmdline" */
 	int fd;
 	char *cmd_buf;
 	size_t cmd_buf_len;
@@ -211,7 +212,7 @@ read_procs(list_head_t *processes)
 		 * address space, and if the process is swapped out, then it will have to be
 		 * swapped in to read it. */
 		if (vrrp_data->vrrp_use_process_cmdline) {
-			snprintf(cmdline, sizeof(cmdline), "/proc/%.7s/cmdline", ent->d_name);
+			snprintf(cmdline, sizeof(cmdline), "/proc/%.*s/cmdline", PID_MAX_DIGITS, ent->d_name);
 
 			if ((fd = open(cmdline, O_RDONLY)) == -1)
 				continue;
@@ -225,7 +226,7 @@ read_procs(list_head_t *processes)
 		}
 
 		if (vrrp_data->vrrp_use_process_comm) {
-			snprintf(cmdline, sizeof(cmdline), "/proc/%.7s/stat", ent->d_name);
+			snprintf(cmdline, sizeof(cmdline), "/proc/%.*s/stat", PID_MAX_DIGITS, ent->d_name);
 
 			if ((fd = open(cmdline, O_RDONLY)) == -1)
 				continue;
@@ -322,7 +323,7 @@ remove_process_from_track(tracked_process_instance_t *tpi, vrrp_tracked_process_
 static void
 check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 {
-	char cmdline[22];	/* "/proc/xxxxxxx/cmdline" */
+	char cmdline[1 + 4 + 1 + PID_MAX_DIGITS + 1 + 7 + 1];	/* "/proc/xxxxxxx/{cmdline,comm}" */
 	int fd;
 	char *cmd_buf = NULL;
 	size_t cmd_buf_len;

@@ -750,11 +750,15 @@ static bool
 sync_daemon_changed(const struct lvs_syncd_config *old, const struct lvs_syncd_config *new)
 {
 	return (old->syncid != new->syncid ||
-		strcmp(old->ifname, new->ifname) ||
+		strcmp(old->ifname, new->ifname)
+#ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
+						 ||
 		old->sync_maxlen != new->sync_maxlen ||
 		old->mcast_port != new->mcast_port ||
 		old->mcast_ttl != new->mcast_ttl ||
-		!sockstorage_equal(&old->mcast_group, &new->mcast_group));
+		!sockstorage_equal(&old->mcast_group, &new->mcast_group)
+#endif
+						);
 }
 #endif
 
@@ -763,8 +767,10 @@ static int
 reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 {
 	bool with_snmp = false;
+#ifdef _WITH_LVS_
 	bool start_daemon, stop_daemon;
 	bool start_extra, start_backup, stop_extra, stop_backup;
+#endif
 
 	log_message(LOG_INFO, "Reloading");
 

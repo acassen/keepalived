@@ -59,6 +59,7 @@
 #include "bitops.h"
 #include "parser.h"
 #include "logger.h"
+#include "process.h"
 
 /* global vars */
 unsigned long debug = 0;
@@ -274,7 +275,7 @@ run_perf(const char *process, const char *network_namespace, const char *instanc
 
 		/* Child */
 		if (!pid) {
-			char buf[9];
+			char buf[PID_MAX_DIGITS + 1];
 
 			snprintf(buf, sizeof buf, "%d", getppid());
 			execlp("perf", "perf", "record", "-p", buf, "-q", "-g", "--call-graph", "fp", NULL);
@@ -851,6 +852,12 @@ format_mac_buf(char *op, size_t op_len, const unsigned char *addr, size_t addr_l
 {
 	size_t i;
 	char *buf_end = op + op_len;
+
+	/* If there is no address, clear the op buffer */
+	if (!addr_len && op_len) {
+		op[0] = '\0';
+		return;
+	}
 
 	for (i = 0; i < addr_len; i++)
 		op += snprintf(op, buf_end - op, "%.2x%s",

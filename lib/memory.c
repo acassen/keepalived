@@ -42,6 +42,7 @@
 #include "bitops.h"
 #include "logger.h"
 #include "scheduler.h"
+#include "process.h"
 
 #ifdef _MEM_CHECK_
 #include "timer.h"
@@ -669,7 +670,7 @@ mem_log_init(const char* prog_name, const char *banner)
 	if (log_op)
 		fclose(log_op);
 
-	log_name_len = 5 + strlen(prog_name) + 5 + 7 + 4 + 1;	/* "/tmp/" + prog_name + "_mem." + PID + ".log" + '\0" */
+	log_name_len = 5 + strlen(prog_name) + 5 + PID_MAX_DIGITS + 4 + 1;	/* "/tmp/" + prog_name + "_mem." + PID + ".log" + '\0" */
 	log_name = malloc(log_name_len);
 	if (!log_name) {
 		log_message(LOG_INFO, "Unable to malloc log file name");

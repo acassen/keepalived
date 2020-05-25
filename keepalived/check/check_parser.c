@@ -503,6 +503,8 @@ pengine_handler(const vector_t *strvec)
 	const char *str = strvec_slot(strvec, 1);
 	size_t size = sizeof (vs->pe_name);
 
+	if (strlen(str) > size - 1)
+		report_config_error(CONFIG_GENERAL_ERROR, "persistence_name too long, truncating - %s", strvec_slot(strvec, 1));
 	strncpy(vs->pe_name, str, size - 1);
 	vs->pe_name[size - 1] = '\0';
 }

@@ -1992,8 +1992,12 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 							    "MAC %s for %s is too large: %zu",
 							    get_mac_string(IFLA_ADDRESS), ifp->ifname, hw_addr_len);
 					} else {
-						if (__test_bit(LOG_DETAIL_BIT, &debug))
-							format_mac_buf(old_mac_buf, sizeof old_mac_buf, ifp->hw_addr, ifp->hw_addr_len);
+						if (__test_bit(LOG_DETAIL_BIT, &debug)) {
+							if (!ifp->hw_addr_len)
+								strcpy(old_mac_buf, "none");
+							else
+								format_mac_buf(old_mac_buf, sizeof old_mac_buf, ifp->hw_addr, ifp->hw_addr_len);
+						}
 						ifp->hw_addr_len = hw_addr_len;
 						memcpy(ifp->hw_addr, RTA_DATA(tb[IFLA_ADDRESS]), hw_addr_len);
 						if (__test_bit(LOG_DETAIL_BIT, &debug)) {

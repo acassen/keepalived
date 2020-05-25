@@ -51,6 +51,7 @@
 #include "list.h"
 #include "bitops.h"
 #include "utils.h"
+#include "process.h"
 
 
 #define DEF_LINE_END	"\n"
@@ -494,7 +495,7 @@ dump_keywords(vector_t *keydump, int level, FILE *fp)
 {
 	unsigned int i;
 	keyword_t *keyword_vec;
-	char file_name[22];
+	char file_name[1 + 3 + 1 + 8 + 1 + PID_MAX_DIGITS + 1];
 
 	if (!level) {
 		snprintf(file_name, sizeof(file_name), "/tmp/keywords.%d", getpid());
