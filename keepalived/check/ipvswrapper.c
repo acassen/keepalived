@@ -151,9 +151,11 @@ ipvs_talk(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, ipvs_daemon_t *dae
 		case IP_VS_SO_SET_EDIT:
 			result = ipvs_update_service(srule);
 			break;
+#ifdef _INCLUDE_UNUSED_CODE_
 		case IP_VS_SO_SET_ZERO:
 			result = ipvs_zero_service(srule);
 			break;
+#endif
 		case IP_VS_SO_SET_ADDDEST:
 			result = ipvs_add_dest(srule, drule);
 			break;
@@ -167,6 +169,8 @@ ipvs_talk(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, ipvs_daemon_t *dae
 				result = ipvs_add_dest(srule, drule);
 			}
 			break;
+		default:
+			log_message(LOG_INFO, "ipvs_talk() called with unknown command %d", cmd);
 	}
 
 	if (ignore_error)

@@ -154,7 +154,7 @@ typedef struct _virtual_server {
 	uint32_t			flags;
 	uint32_t			persistence_timeout;
 #ifdef _HAVE_PE_NAME_
-	char				pe_name[IP_VS_PENAME_MAXLEN];
+	char				pe_name[IP_VS_PENAME_MAXLEN + 1];
 #endif
 	unsigned			forwarding_method;
 #ifdef _HAVE_IPVS_TUN_TYPE_

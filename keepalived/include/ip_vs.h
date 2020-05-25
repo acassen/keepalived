@@ -49,7 +49,7 @@ struct ip_vs_service_app {
 	uint16_t		af;
 	union nf_inet_addr	nf_addr;
 #ifdef _HAVE_PE_NAME_
-	char			pe_name[IP_VS_PENAME_MAXLEN];
+	char			pe_name[IP_VS_PENAME_MAXLEN + 1];
 #endif
 };
 
@@ -73,7 +73,7 @@ struct ip_vs_service_entry_app {
 	uint16_t		af;
 	union nf_inet_addr	nf_addr;
 #ifdef _HAVE_PE_NAME_
-	char			pe_name[IP_VS_PENAME_MAXLEN];
+	char			pe_name[IP_VS_PENAME_MAXLEN + 1];
 #endif
 
 };
@@ -87,7 +87,10 @@ struct ip_vs_dest_entry_app {
 };
 
 struct ip_vs_get_dests_app {
-	struct {	// Can we avoid this duplication of definition?
+	uint16_t		af;
+	union nf_inet_addr	nf_addr;
+
+	struct {
 	/* which service: user fills in these */
 	__u16			protocol;
 	__be32			addr;		/* virtual address */
@@ -98,11 +101,8 @@ struct ip_vs_get_dests_app {
 	unsigned int		num_dests;
 
 	/* the real servers */
-	struct ip_vs_dest_entry_app	entrytable[0];
+	struct ip_vs_dest_entry_app	entrytable[];
 	} user;
-
-	uint16_t		af;
-	union nf_inet_addr	nf_addr;
 };
 
 /* The argument to IP_VS_SO_GET_SERVICES */

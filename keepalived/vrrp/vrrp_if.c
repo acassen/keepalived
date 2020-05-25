@@ -1448,7 +1448,6 @@ cleanup_lost_interface(interface_t *ifp)
 static void
 setup_interface(vrrp_t *vrrp)
 {
-	interface_t *ifp;
 	vrrp_t *vrrp_l;
 
 #ifdef _HAVE_VRRP_VMAC_
@@ -1464,12 +1463,7 @@ setup_interface(vrrp_t *vrrp)
 			return;
 #endif
 	}
-
-	if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags))
-		ifp = vrrp->ifp->base_ifp;
-	else
 #endif
-		ifp = vrrp->ifp;
 
 	/* Find the sockpool entry. If none, then we open the socket */
 	if (vrrp->sockets->fd_in == -1) {
@@ -1485,14 +1479,12 @@ setup_interface(vrrp_t *vrrp)
 		}
 
 		vrrp->sockets->fd_in = open_vrrp_read_socket(vrrp->sockets->family, vrrp->sockets->proto,
-							ifp, vrrp->sockets->unicast, vrrp->sockets->rx_buf_size);
+							vrrp->sockets->ifp, vrrp->sockets->unicast, vrrp->sockets->rx_buf_size);
 		if (vrrp->sockets->fd_in == -1)
 			vrrp->sockets->fd_out = -1;
 		else
 			vrrp->sockets->fd_out = open_vrrp_send_socket(vrrp->sockets->family, vrrp->sockets->proto,
-							ifp, vrrp->sockets->unicast);
-
-		vrrp->sockets->ifp = vrrp->ifp;
+							vrrp->sockets->ifp, vrrp->sockets->unicast);
 
 		if (vrrp_initialised) {
 			vrrp->state = vrrp->num_script_if_fault ? VRRP_STATE_FAULT : VRRP_STATE_BACK;

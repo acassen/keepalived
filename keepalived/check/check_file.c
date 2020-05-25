@@ -31,6 +31,7 @@
 #include "parser.h"
 #include "logger.h"
 #include "check_data.h"
+#include "logger.h"
 
 
 static void

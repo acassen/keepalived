@@ -43,11 +43,6 @@ snmp_keepalived_log(__attribute__((unused)) int major, __attribute__((unused)) i
 		slm_len--;
 	log_message(slm->priority, "%.*s", slm_len, slm->msg);
 
-	/* If we get an AgentX subagent connected message when we think
-	 * we are connected, we need to re-register the fds for epoll */
-	if (master->snmp_fdsetsize && slm->priority == 6)
-		snmp_epoll_reset(master);
-
 	return 0;
 }
 
@@ -624,6 +619,9 @@ snmp_agent_init(const char *snmp_socket_name, bool base_mib)
 
 	master->snmp_timer_thread = thread_add_timer(master, snmp_timeout_thread, 0, TIMER_NEVER);
 
+	/* Set up the fd threads */
+	snmp_epoll_info(master);
+
 	snmp_running = true;
 }
 
@@ -632,6 +630,8 @@ snmp_agent_close(bool base_mib)
 {
 	if (!snmp_running)
 		return;
+
+	snmp_epoll_clear(master);
 
 	if (base_mib)
 		snmp_unregister_mib(global_oid, OID_LENGTH(global_oid));
