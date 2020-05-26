@@ -55,6 +55,9 @@
 #include "logger.h"
 #include "utils.h"
 
+#if HAVE_DECL_CLONE_NEWNET
+#include "namespaces.h"
+#endif
 
 typedef struct ipvs_servicedest_s {
 	struct ip_vs_service_user	svc;
@@ -300,7 +303,7 @@ open_nl_sock(void)
 	if (!(sock = nl_socket_alloc()))
 		return -1;
 
-	if (genl_connect(sock) < 0 ||
+	if (nl_ipvs_connect(sock) < 0 ||
 	    (family = genl_ctrl_resolve(sock, IPVS_GENL_NAME)) < 0) {
 		nl_socket_free(sock);
 		sock = NULL;
@@ -425,7 +428,8 @@ int ipvs_init(void)
 	try_nl = false;
 #endif
 
-	if ((sockfd = socket(AF_INET, SOCK_RAW | SOCK_CLOEXEC, IPPROTO_RAW)) == -1)
+	sockfd = socket_netns(ipvs_namespace, AF_INET, SOCK_RAW | SOCK_CLOEXEC, IPPROTO_RAW);
+	if (sockfd == -1)
 		return -1;
 
 #if !HAVE_DECL_SOCK_CLOEXEC
