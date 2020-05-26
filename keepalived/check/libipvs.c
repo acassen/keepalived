@@ -31,6 +31,8 @@
 #include <netlink/genl/genl.h>
 #include <netlink/genl/ctrl.h>
 
+//#define LIBNL_DEBUG
+
 #ifdef _HAVE_LIBNL1_
 #define nl_sock		nl_handle
 #ifndef _LIBNL_DYNAMIC_
@@ -67,6 +69,7 @@ static struct nl_sock *sock = NULL;
 static nl_recvmsg_msg_cb_t cur_nl_sock_cb_func;
 static int family;
 static bool try_nl = true;
+static int nl_ack_flag;
 
 /* Policy definitions */
 #ifdef _WITH_SNMP_CHECKER_
@@ -236,9 +239,59 @@ static struct nl_msg *ipvs_nl_message(uint8_t cmd, int flags)
 	return msg;
 }
 
+#ifdef LIBNL_DEBUG
+static void
+dump_nl_msg(const char *msg, struct nl_msg *nlmsg)
+{
+	FILE *fp;
+
+	fp = fopen("/tmp/nlmsg.dmp", "a");
+	fprintf(fp, "\n%s\n\n", msg);
+	if (nlmsg)
+		nl_msg_dump(nlmsg, fp);
+	fclose(fp);
+}
+#endif
+
 static int ipvs_nl_noop_cb(__attribute__((unused)) struct nl_msg *msg, __attribute__((unused)) void *arg)
 {
 	return NL_OK;
+}
+
+#ifdef LIBNL_DEBUG
+static int recv_cb(struct nl_msg *msg, __attribute__((unused)) void *arg)
+{
+	dump_nl_msg("Receive message", msg);
+
+	return NL_OK;
+}
+#endif
+
+static int recv_ack_cb(__attribute__((unused)) struct nl_msg *msg, void *arg)
+{
+	int *ack_flag = arg;
+
+#ifdef LIBNL_DEBUG
+	dump_nl_msg("That was an ACK message", NULL);
+#endif
+
+	*ack_flag = 1;
+
+	return NL_STOP;
+}
+
+static int
+ipvs_nl_err_cb(__attribute__((unused)) struct sockaddr_nl *nla, __attribute__((unused)) struct nlmsgerr *nlerr, void *arg)
+{
+	int *ack_flag = arg;
+
+#ifdef LIBNL_DEBUG
+	dump_nl_msg("That was an ERROR message", NULL);
+#endif
+
+	*ack_flag = 1;
+
+	return NL_STOP;
 }
 
 static int
@@ -255,12 +308,23 @@ open_nl_sock(void)
 		return -1;
 	}
 
+	if (nl_socket_modify_err_cb(sock, NL_CB_CUSTOM, ipvs_nl_err_cb,
+				    &nl_ack_flag) != 0)
+		log_message(LOG_INFO, "Setting err_cb failed");
+
+	nl_socket_modify_cb(sock, NL_CB_ACK, NL_CB_CUSTOM, recv_ack_cb, &nl_ack_flag);
+
+#ifdef LIBNL_DEBUG
+	nl_socket_modify_cb(sock, NL_CB_MSG_IN, NL_CB_CUSTOM, recv_cb, 0);
+#endif
+
 	return 0;
 }
 
 static int ipvs_nl_send_message(struct nl_msg *msg, nl_recvmsg_msg_cb_t func, void *arg)
 {
 	int err = EINVAL;
+	int ret = 0;
 
 	if (!sock && open_nl_sock()) {
 		nlmsg_free(msg);
@@ -271,32 +335,34 @@ static int ipvs_nl_send_message(struct nl_msg *msg, nl_recvmsg_msg_cb_t func, vo
 		return 0;
 
 	if (func != cur_nl_sock_cb_func) {
-		if (nl_socket_modify_cb(sock, NL_CB_VALID, NL_CB_CUSTOM, func, arg) != 0)
-			goto fail_genl;
-		cur_nl_sock_cb_func = func;
+		if (!nl_socket_modify_cb(sock, NL_CB_VALID, NL_CB_CUSTOM, func, arg))
+			cur_nl_sock_cb_func = func;
+		else
+			log_message(LOG_INFO, "Setting libnl callback function failed");
 	}
 
-	if (nl_send_auto_complete(sock, msg) < 0)
-		goto fail_genl;
-
-	if ((err = -nl_recvmsgs_default(sock)) > 0)
-		goto fail_genl;
-
-	nlmsg_free(msg);
-
-	return 0;
-
-fail_genl:
-log_message(LOG_INFO, "ipvs_nl_send_message failed, err %d", err);
-	nl_socket_free(sock);
-	sock = NULL;
-	nlmsg_free(msg);
-#ifdef _HAVE_LIBNL1_
-	errno = err;
-#else
-	errno = nlerr2syserr(err);
+#ifdef LIBNL_DEBUG
+	dump_nl_msg("Sending message", msg);
 #endif
-	return -1;
+
+	if (nl_send_auto(sock, msg) >= 0) {
+		nl_ack_flag = 0;
+		do {
+			if ((err = -nl_recvmsgs_default(sock)) > 0) {
+#ifdef _HAVE_LIBNL1_
+				errno = err;
+#else
+				errno = nlerr2syserr(err);
+#endif
+
+				ret = -1;
+			}
+		} while (!nl_ack_flag);
+	}
+
+	nlmsg_free(msg);
+
+	return ret;
 }
 #endif
 
@@ -307,11 +373,11 @@ static int ipvs_getinfo_parse_cb(struct nl_msg *msg, __attribute__((unused)) voi
 	struct nlattr *attrs[IPVS_INFO_ATTR_MAX + 1];
 
 	if (genlmsg_parse(nlh, 0, attrs, IPVS_INFO_ATTR_MAX, ipvs_info_policy) != 0)
-		return -1;
+		return NL_STOP;
 
 	if (!(attrs[IPVS_INFO_ATTR_VERSION] &&
 	      attrs[IPVS_INFO_ATTR_CONN_TAB_SIZE]))
-		return -1;
+		return NL_STOP;
 
 	return NL_OK;
 }
