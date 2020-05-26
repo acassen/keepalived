@@ -233,12 +233,12 @@ snmp_find_elem(struct variable *vp, oid *name, size_t *length,
 list_head_t *
 snmp_find_element(struct variable *vp, oid *name, size_t *length,
 		  int exact, size_t *var_len, WriteMethod **write_method,
-		  list_head_t *l, size_t ssize, size_t loffset)
+		  list_head_t *l, size_t offset_outer, size_t offset_inner)
 {
 	oid *target, current[2];
 	size_t target_len;
-	list_head_t *e, *e2;
-	list_head_t *l2;
+	list_head_t *e, *e1;
+	list_head_t *l1;
 	int result;
 
 	*write_method = 0;
@@ -256,8 +256,8 @@ snmp_find_element(struct variable *vp, oid *name, size_t *length,
 	}
 
 	/* We search the best match: equal if exact, the lower OID in
-	   the set of the OID strictly superior to the target
-	   otherwise. */
+	 * the set of the OID strictly superior to the target
+	 * otherwise. */
 	target = &name[vp->namelen];   /* Our target match */
 	target_len = *length - vp->namelen;
 	current[0] = 0;
@@ -272,12 +272,11 @@ snmp_find_element(struct variable *vp, oid *name, size_t *length,
 				return NULL;
 		}
 
-		/* This trick only works if list_head element is the last one
-		 * in data structure */
-		l2 = (list_head_t *) ((char *)e - ssize - sizeof(list_head_t) + loffset);
+		/* Find the list head of the inner list in the outer entry */ 
+		l1 = (list_head_t *) ((char *)e - offset_outer + offset_inner);
 
 		current[1] = 0;
-		list_for_each(e2, l2) {
+		list_for_each(e1, l1) {
 			current[1]++;
 
 			/* Compare to our target match */
@@ -291,7 +290,7 @@ snmp_find_element(struct variable *vp, oid *name, size_t *length,
 						continue;
 
 					/* Got an exact match and asked for it */
-					return e2;
+					return e1;
 				}
 
 				if (exact) {
@@ -303,7 +302,7 @@ snmp_find_element(struct variable *vp, oid *name, size_t *length,
 			/* This is our best match */
 			memcpy(target, current, sizeof(oid) * 2);
 			*length = (unsigned)vp->namelen + 2;
-			return e2;
+			return e1;
 		}
 	}
 

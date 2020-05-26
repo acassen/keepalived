@@ -2227,7 +2227,7 @@ vrrp_snmp_trackedinterface(struct variable *vp, oid *name, size_t *length,
 
 	e = snmp_find_element(vp, name, length, exact, var_len, write_method,
 			      &vrrp_data->vrrp,
-			      sizeof(vrrp_t),
+			      offsetof(vrrp_t, e_list),
 			      offsetof(vrrp_t, track_ifp));
 	if (!e)
 		return NULL;
@@ -2259,7 +2259,7 @@ vrrp_snmp_trackedscript(struct variable *vp, oid *name, size_t *length,
 
 	e = snmp_find_element(vp, name, length, exact, var_len, write_method,
 			      &vrrp_data->vrrp,
-			      sizeof(vrrp_t),
+			      offsetof(vrrp_t, e_list),
 			      offsetof(vrrp_t, track_script));
 	if (!e)
 		return NULL;
@@ -2291,7 +2291,7 @@ vrrp_snmp_trackedfile(struct variable *vp, oid *name, size_t *length,
 
 	e = snmp_find_element(vp, name, length, exact, var_len, write_method,
 			      &vrrp_data->vrrp,
-			      sizeof(vrrp_t),
+			      offsetof(vrrp_t, e_list),
 			      offsetof(vrrp_t, track_file));
 	if (!e)
 		return NULL;
@@ -2325,7 +2325,7 @@ vrrp_snmp_trackedbfd(struct variable *vp, oid *name, size_t *length,
 
 	e = snmp_find_element(vp, name, length, exact, var_len, write_method,
 			      &vrrp_data->vrrp,
-			      sizeof(vrrp_t),
+			      offsetof(vrrp_t, e_list),
 			      offsetof(vrrp_t, track_bfd));
 	if (!e)
 		return NULL;
@@ -2360,7 +2360,7 @@ vrrp_snmp_trackedprocess(struct variable *vp, oid *name, size_t *length,
 
 	e = snmp_find_element(vp, name, length, exact, var_len, write_method,
 			      &vrrp_data->vrrp,
-			      sizeof(vrrp_t),
+			      offsetof(vrrp_t, e_list),
 			      offsetof(vrrp_t, track_process));
 	if (!e)
 		return NULL;
@@ -2394,7 +2394,7 @@ vrrp_snmp_group_trackedinterface(struct variable *vp, oid *name, size_t *length,
 
 	e = snmp_find_element(vp, name, length, exact, var_len, write_method,
 			      &vrrp_data->vrrp_sync_group,
-			      sizeof(vrrp_sgroup_t),
+			      offsetof(vrrp_sgroup_t, e_list),
 			      offsetof(vrrp_sgroup_t, track_ifp));
 	if (!e)
 		return NULL;
@@ -2426,7 +2426,7 @@ vrrp_snmp_group_trackedscript(struct variable *vp, oid *name, size_t *length,
 
 	e = snmp_find_element(vp, name, length, exact, var_len, write_method,
 			      &vrrp_data->vrrp_sync_group,
-			      sizeof(vrrp_sgroup_t),
+			      offsetof(vrrp_sgroup_t, e_list),
 			      offsetof(vrrp_sgroup_t, track_script));
 	if (!e)
 		return NULL;
@@ -2458,7 +2458,7 @@ vrrp_snmp_group_trackedfile(struct variable *vp, oid *name, size_t *length,
 
 	e = snmp_find_element(vp, name, length, exact, var_len, write_method,
 			      &vrrp_data->vrrp_sync_group,
-			      sizeof(vrrp_sgroup_t),
+			      offsetof(vrrp_sgroup_t, e_list),
 			      offsetof(vrrp_sgroup_t, track_file));
 	if (!e)
 		return NULL;
@@ -2492,7 +2492,7 @@ vrrp_snmp_group_trackedbfd(struct variable *vp, oid *name, size_t *length,
 
 	e = snmp_find_element(vp, name, length, exact, var_len, write_method,
 			      &vrrp_data->vrrp_sync_group,
-			      sizeof(vrrp_sgroup_t),
+			      offsetof(vrrp_sgroup_t, e_list),
 			      offsetof(vrrp_sgroup_t, track_bfd));
 	if (!e)
 		return NULL;
@@ -2527,7 +2527,7 @@ vrrp_snmp_group_trackedprocess(struct variable *vp, oid *name, size_t *length,
 
 	e = snmp_find_element(vp, name, length, exact, var_len, write_method,
 			      &vrrp_data->vrrp_sync_group,
-			      sizeof(vrrp_sgroup_t),
+			      offsetof(vrrp_sgroup_t, e_list),
 			      offsetof(vrrp_sgroup_t, track_process));
 	if (!e)
 		return NULL;
