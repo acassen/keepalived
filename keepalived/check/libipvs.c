@@ -57,6 +57,7 @@
 
 #if HAVE_DECL_CLONE_NEWNET
 #include "namespaces.h"
+#include "global_data.h"
 #endif
 
 typedef struct ipvs_servicedest_s {
@@ -303,7 +304,13 @@ open_nl_sock(void)
 	if (!(sock = nl_socket_alloc()))
 		return -1;
 
-	if (nl_ipvs_connect(sock) < 0 ||
+	if (
+#if HAVE_DECL_CLONE_NEWNET
+	    nl_ipvs_connect(global_data->network_namespace_ipvs, sock)
+#else
+	    genl_connect(sock)
+#endif
+				    < 0 ||
 	    (family = genl_ctrl_resolve(sock, IPVS_GENL_NAME)) < 0) {
 		nl_socket_free(sock);
 		sock = NULL;
@@ -428,7 +435,11 @@ int ipvs_init(void)
 	try_nl = false;
 #endif
 
-	sockfd = socket_netns(ipvs_namespace, AF_INET, SOCK_RAW | SOCK_CLOEXEC, IPPROTO_RAW);
+#if HAVE_DECL_CLONE_NEWNET
+	sockfd = socket_netns_name(global_data->network_namespace_ipvs, AF_INET, SOCK_RAW | SOCK_CLOEXEC, IPPROTO_RAW);
+#else
+	sockfd = socket(AF_INET, SOCK_RAW | SOCK_CLOEXEC, IPPROTO_RAW);
+#endif
 	if (sockfd == -1)
 		return -1;
 
