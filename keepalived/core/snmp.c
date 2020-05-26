@@ -142,9 +142,9 @@ snmp_header_list_head_table(struct variable *vp, oid *name, size_t *length,
 /* This is the equivalent of snmp_header_list_table where each element of the first
  * list has a list itself for which each element in turn needs to be returned. */
 element
-snmp_find_element(struct variable *vp, oid *name, size_t *length,
-	          int exact, size_t *var_len, WriteMethod **write_method,
-	          list_head_t *l, size_t ssize, size_t loffset)
+snmp_find_elem(struct variable *vp, oid *name, size_t *length,
+	       int exact, size_t *var_len, WriteMethod **write_method,
+	       list_head_t *l, size_t ssize, size_t loffset)
 {
 	oid *target, current[2];
 	int result;
@@ -223,6 +223,87 @@ snmp_find_element(struct variable *vp, oid *name, size_t *length,
 			memcpy(target, current, sizeof(oid) * 2);
 			*length = (unsigned)vp->namelen + 2;
 			return e1;
+		}
+	}
+
+	/* No match at all */
+	return NULL;
+}
+
+list_head_t *
+snmp_find_element(struct variable *vp, oid *name, size_t *length,
+		  int exact, size_t *var_len, WriteMethod **write_method,
+		  list_head_t *l, size_t ssize, size_t loffset)
+{
+	oid *target, current[2];
+	size_t target_len;
+	list_head_t *e, *e2;
+	list_head_t *l2;
+	int result;
+
+	*write_method = 0;
+	*var_len = sizeof(long);
+
+	if (list_empty(l))
+		return NULL;
+
+	if (exact && *length != (size_t)vp->namelen + 2)
+		return NULL;
+
+	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
+		memcpy(name, vp->name, sizeof(oid) * vp->namelen);
+		*length = vp->namelen;
+	}
+
+	/* We search the best match: equal if exact, the lower OID in
+	   the set of the OID strictly superior to the target
+	   otherwise. */
+	target = &name[vp->namelen];   /* Our target match */
+	target_len = *length - vp->namelen;
+	current[0] = 0;
+
+	list_for_each(e, l) {
+		current[0]++;
+
+		if (target_len) {
+			if (current[0] < target[0])
+				continue; /* Optimization: cannot be part of our set */
+			if (exact && current[0] > target[0])
+				return NULL;
+		}
+
+		/* This trick only works if list_head element is the last one
+		 * in data structure */
+		l2 = (list_head_t *) ((char *)e - ssize - sizeof(list_head_t) + loffset);
+
+		current[1] = 0;
+		list_for_each(e2, l2) {
+			current[1]++;
+
+			/* Compare to our target match */
+			if (target_len) {
+				if ((result = snmp_oid_compare(current, 2, target,
+							       target_len)) < 0)
+					continue;
+
+				if (result == 0) {
+					if (!exact)
+						continue;
+
+					/* Got an exact match and asked for it */
+					return e2;
+				}
+
+				if (exact) {
+					/* result > 0, so no match */
+					return NULL;
+				}
+			}
+
+			/* This is our best match */
+			memcpy(target, current, sizeof(oid) * 2);
+			*length = (unsigned)vp->namelen + 2;
+			return e2;
 		}
 	}
 

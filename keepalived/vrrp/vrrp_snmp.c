@@ -1868,10 +1868,10 @@ vrrp_snmp_syncgroupmember(struct variable *vp, oid *name, size_t *length,
 	vrrp_t *vrrp;
 	element e;
 
-	e = snmp_find_element(vp, name, length, exact, var_len, write_method,
-			      &vrrp_data->vrrp_sync_group,
-			      sizeof(vrrp_sgroup_t),
-			      offsetof(vrrp_sgroup_t, vrrp_instances));
+	e = snmp_find_elem(vp, name, length, exact, var_len, write_method,
+			   &vrrp_data->vrrp_sync_group,
+			   sizeof(vrrp_sgroup_t),
+			   offsetof(vrrp_sgroup_t, vrrp_instances));
 	if (!e)
 		return NULL;
 
@@ -2217,21 +2217,22 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 	return NULL;
 }
 
-static u_char*
+static u_char *
 vrrp_snmp_trackedinterface(struct variable *vp, oid *name, size_t *length,
 			   int exact, size_t *var_len, WriteMethod **write_method)
 {
 	const tracked_if_t *bifp;
+	list_head_t *e;
 	snmp_ret_t ret;
-	const element e = snmp_find_element(vp, name, length, exact, var_len, write_method,
-					    &vrrp_data->vrrp,
-					    sizeof(vrrp_t),
-					    offsetof(vrrp_t, track_ifp));
 
+	e = snmp_find_element(vp, name, length, exact, var_len, write_method,
+			      &vrrp_data->vrrp,
+			      sizeof(vrrp_t),
+			      offsetof(vrrp_t, track_ifp));
 	if (!e)
 		return NULL;
 
-	bifp = ELEMENT_DATA(e);
+	bifp = list_entry(e, tracked_if_t, e_list);
 
 	switch (vp->magic) {
 	case VRRP_SNMP_TRACKEDINTERFACE_NAME:
@@ -2253,16 +2254,17 @@ vrrp_snmp_trackedscript(struct variable *vp, oid *name, size_t *length,
 			int exact, size_t *var_len, WriteMethod **write_method)
 {
 	const tracked_sc_t *bscr;
+	list_head_t *e;
 	snmp_ret_t ret;
-	const element e = snmp_find_element(vp, name, length, exact, var_len, write_method,
-					    &vrrp_data->vrrp,
-					    sizeof(vrrp_t),
-					    offsetof(vrrp_t, track_script));
 
+	e = snmp_find_element(vp, name, length, exact, var_len, write_method,
+			      &vrrp_data->vrrp,
+			      sizeof(vrrp_t),
+			      offsetof(vrrp_t, track_script));
 	if (!e)
 		return NULL;
 
-	bscr = ELEMENT_DATA(e);
+	bscr = list_entry(e, tracked_sc_t, e_list);
 
 	switch (vp->magic) {
 	case VRRP_SNMP_TRACKEDSCRIPT_NAME:
@@ -2284,16 +2286,17 @@ vrrp_snmp_trackedfile(struct variable *vp, oid *name, size_t *length,
 			int exact, size_t *var_len, WriteMethod **write_method)
 {
 	const tracked_file_monitor_t *bfile;
+	list_head_t *e;
 	snmp_ret_t ret;
-	const element e = snmp_find_element(vp, name, length, exact, var_len, write_method,
-					    &vrrp_data->vrrp,
-					    sizeof(vrrp_t),
-					    offsetof(vrrp_t, track_file));
 
+	e = snmp_find_element(vp, name, length, exact, var_len, write_method,
+			      &vrrp_data->vrrp,
+			      sizeof(vrrp_t),
+			      offsetof(vrrp_t, track_file));
 	if (!e)
 		return NULL;
 
-	bfile = ELEMENT_DATA(e);
+	bfile = list_entry(e, tracked_file_monitor_t, e_list);
 
 	switch(vp->magic) {
 	case VRRP_SNMP_TRACKEDFILE_NAME:
@@ -2317,16 +2320,17 @@ vrrp_snmp_trackedbfd(struct variable *vp, oid *name, size_t *length,
 			int exact, size_t *var_len, WriteMethod **write_method)
 {
 	const tracked_bfd_t *bbfd;
+	list_head_t *e;
 	snmp_ret_t ret;
-	const element e = snmp_find_element(vp, name, length, exact, var_len, write_method,
-					    &vrrp_data->vrrp,
-					    sizeof(vrrp_t),
-					    offsetof(vrrp_t, track_bfd));
 
+	e = snmp_find_element(vp, name, length, exact, var_len, write_method,
+			      &vrrp_data->vrrp,
+			      sizeof(vrrp_t),
+			      offsetof(vrrp_t, track_bfd));
 	if (!e)
 		return NULL;
 
-	bbfd = ELEMENT_DATA(e);
+	bbfd = list_entry(e, tracked_bfd_t, e_list);
 
 	switch(vp->magic) {
 	case VRRP_SNMP_TRACKEDBFD_NAME:
@@ -2351,16 +2355,17 @@ vrrp_snmp_trackedprocess(struct variable *vp, oid *name, size_t *length,
 			int exact, size_t *var_len, WriteMethod **write_method)
 {
 	const tracked_process_t *bproc;
+	list_head_t *e;
 	snmp_ret_t ret;
-	const element e = snmp_find_element(vp, name, length, exact, var_len, write_method,
-					    &vrrp_data->vrrp,
-					    sizeof(vrrp_t),
-					    offsetof(vrrp_t, track_process));
 
+	e = snmp_find_element(vp, name, length, exact, var_len, write_method,
+			      &vrrp_data->vrrp,
+			      sizeof(vrrp_t),
+			      offsetof(vrrp_t, track_process));
 	if (!e)
 		return NULL;
 
-	bproc = ELEMENT_DATA(e);
+	bproc = list_entry(e, tracked_process_t, e_list);
 
 	switch(vp->magic) {
 	case VRRP_SNMP_TRACKEDPROCESS_NAME:
@@ -2384,16 +2389,17 @@ vrrp_snmp_group_trackedinterface(struct variable *vp, oid *name, size_t *length,
 			   int exact, size_t *var_len, WriteMethod **write_method)
 {
 	const tracked_if_t *bifp;
+	list_head_t *e;
 	snmp_ret_t ret;
-	const element e = snmp_find_element(vp, name, length, exact, var_len, write_method,
-					    &vrrp_data->vrrp_sync_group,
-					    sizeof(vrrp_sgroup_t),
-					    offsetof(vrrp_sgroup_t, track_ifp));
 
+	e = snmp_find_element(vp, name, length, exact, var_len, write_method,
+			      &vrrp_data->vrrp_sync_group,
+			      sizeof(vrrp_sgroup_t),
+			      offsetof(vrrp_sgroup_t, track_ifp));
 	if (!e)
 		return NULL;
 
-	bifp = ELEMENT_DATA(e);
+	bifp = list_entry(e, tracked_if_t, e_list);
 
 	switch (vp->magic) {
 	case VRRP_SNMP_SGROUPTRACKEDINTERFACE_NAME:
@@ -2415,16 +2421,17 @@ vrrp_snmp_group_trackedscript(struct variable *vp, oid *name, size_t *length,
 			int exact, size_t *var_len, WriteMethod **write_method)
 {
 	const tracked_sc_t *bscr;
+	list_head_t *e;
 	snmp_ret_t ret;
-	const element e = snmp_find_element(vp, name, length, exact, var_len, write_method,
-					    &vrrp_data->vrrp_sync_group,
-					    sizeof(vrrp_sgroup_t),
-					    offsetof(vrrp_sgroup_t, track_script));
 
+	e = snmp_find_element(vp, name, length, exact, var_len, write_method,
+			      &vrrp_data->vrrp_sync_group,
+			      sizeof(vrrp_sgroup_t),
+			      offsetof(vrrp_sgroup_t, track_script));
 	if (!e)
 		return NULL;
 
-	bscr = ELEMENT_DATA(e);
+	bscr = list_entry(e, tracked_sc_t, e_list);
 
 	switch (vp->magic) {
 	case VRRP_SNMP_SGROUPTRACKEDSCRIPT_NAME:
@@ -2446,16 +2453,17 @@ vrrp_snmp_group_trackedfile(struct variable *vp, oid *name, size_t *length,
 			int exact, size_t *var_len, WriteMethod **write_method)
 {
 	const tracked_file_monitor_t *bfile;
+	list_head_t *e;
 	snmp_ret_t ret;
-	const element e = snmp_find_element(vp, name, length, exact, var_len, write_method,
-					    &vrrp_data->vrrp_sync_group,
-					    sizeof(vrrp_sgroup_t),
-					    offsetof(vrrp_sgroup_t, track_file));
 
+	e = snmp_find_element(vp, name, length, exact, var_len, write_method,
+			      &vrrp_data->vrrp_sync_group,
+			      sizeof(vrrp_sgroup_t),
+			      offsetof(vrrp_sgroup_t, track_file));
 	if (!e)
 		return NULL;
 
-	bfile = ELEMENT_DATA(e);
+	bfile = list_entry(e, tracked_file_monitor_t, e_list);
 
 	switch(vp->magic) {
 	case VRRP_SNMP_SGROUPTRACKEDFILE_NAME:
@@ -2479,16 +2487,17 @@ vrrp_snmp_group_trackedbfd(struct variable *vp, oid *name, size_t *length,
 			int exact, size_t *var_len, WriteMethod **write_method)
 {
 	const tracked_bfd_t *bbfd;
+	list_head_t *e;
 	snmp_ret_t ret;
-	const element e = snmp_find_element(vp, name, length, exact, var_len, write_method,
-					    &vrrp_data->vrrp_sync_group,
-					    sizeof(vrrp_sgroup_t),
-					    offsetof(vrrp_sgroup_t, track_bfd));
 
+	e = snmp_find_element(vp, name, length, exact, var_len, write_method,
+			      &vrrp_data->vrrp_sync_group,
+			      sizeof(vrrp_sgroup_t),
+			      offsetof(vrrp_sgroup_t, track_bfd));
 	if (!e)
 		return NULL;
 
-	bbfd = ELEMENT_DATA(e);
+	bbfd = list_entry(e, tracked_bfd_t, e_list);
 
 	switch(vp->magic) {
 	case VRRP_SNMP_SGROUPTRACKEDBFD_NAME:
@@ -2513,16 +2522,17 @@ vrrp_snmp_group_trackedprocess(struct variable *vp, oid *name, size_t *length,
 			int exact, size_t *var_len, WriteMethod **write_method)
 {
 	const tracked_process_t *bproc;
+	list_head_t *e;
 	snmp_ret_t ret;
-	const element e = snmp_find_element(vp, name, length, exact, var_len, write_method,
-					    &vrrp_data->vrrp_sync_group,
-					    sizeof(vrrp_sgroup_t),
-					    offsetof(vrrp_sgroup_t, track_process));
 
+	e = snmp_find_element(vp, name, length, exact, var_len, write_method,
+			      &vrrp_data->vrrp_sync_group,
+			      sizeof(vrrp_sgroup_t),
+			      offsetof(vrrp_sgroup_t, track_process));
 	if (!e)
 		return NULL;
 
-	bproc = ELEMENT_DATA(e);
+	bproc = list_entry(e, tracked_process_t, e_list);
 
 	switch(vp->magic) {
 	case VRRP_SNMP_SGROUPTRACKEDPROCESS_NAME:
