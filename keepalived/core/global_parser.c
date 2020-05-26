@@ -1432,15 +1432,16 @@ net_namespace_ipvs_handler(const vector_t *strvec)
 	if (!strvec)
 		return;
 
-	if (vector_size(strvec) < 2) {
-		report_config_error(CONFIG_GENERAL_ERROR, "net_namespace_ipvs name missing - ignoring");
+	if (global_data->network_namespace_ipvs) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Duplicate net_namespace_ipvs definition %s - ignoring", strvec_slot(strvec, 1));
 		return;
 	}
 
-	if (!global_data->network_namespace_ipvs)
-		global_data->network_namespace_ipvs = set_value(strvec);
+	/* No namespace name means default namespace */
+	if (vector_size(strvec) < 2)
+		global_data->network_namespace_ipvs = STRDUP("");
 	else
-		report_config_error(CONFIG_GENERAL_ERROR, "Duplicate net_namespace_ipvs definition %s - ignoring", strvec_slot(strvec, 1));
+		global_data->network_namespace_ipvs = set_value(strvec);
 }
 
 static void

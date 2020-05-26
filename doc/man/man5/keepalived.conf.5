@@ -128,10 +128,11 @@ and
 # Note: the namespace cannot be changed on a configuration reload.
 \fBnet_namespace \fRNAME
 
-# run all ipvs operations within the mentioned namespace. It allows to easily
+# Add the IPVS configuration in the specified net namespace. It allows to easily
 # split the VIP traffic on a given namespace and keep the healthchecks traffic
-# in another namespace (such as the root namespace).
-\fBnet_namespace_ipvs\fR
+# in another namespace. If NAME is not specified, then the default namespace
+# will be used.
+\fBnet_namespace_ipvs\fRNAME
 
 # ipsets wasn't network namespace aware until Linux 3.13, and so
 # if running with # an earlier version of the kernel, by default

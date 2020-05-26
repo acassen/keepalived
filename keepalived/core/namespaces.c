@@ -328,11 +328,16 @@ open_current_namespace(void)
 static int open_ipvs_namespace(const char *ns_name)
 {
 	char netns_path[PATH_MAX];
+	const char *path;
 
-	if (snprintf(netns_path, sizeof(netns_path), "/var/run/netns/%s", ns_name) < 0)
-		return -1;
+	if (ns_name[0]) {
+		if (snprintf(netns_path, sizeof(netns_path), "/var/run/netns/%s", ns_name) < 0)
+			return -1;
+		path = netns_path;
+	} else
+		path = "/proc/1/ns/net";
 
-	return open(netns_path, O_RDONLY | O_CLOEXEC);
+	return open(path, O_RDONLY | O_CLOEXEC);
 }
 
 #ifdef _INCLUDE_UNUSED_CODE_

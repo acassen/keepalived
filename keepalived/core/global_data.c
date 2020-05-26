@@ -409,7 +409,7 @@ dump_global_data(FILE *fp, data_t * data)
 
 #if HAVE_DECL_CLONE_NEWNET
 	conf_write(fp, " Network namespace = %s", data->network_namespace ? data->network_namespace : "(default)");
-	conf_write(fp, " Network namespace ipvs = %s", data->network_namespace_ipvs ? data->network_namespace_ipvs : "(default)");
+	conf_write(fp, " Network namespace ipvs = %s", data->network_namespace_ipvs ? data->network_namespace_ipvs[0] ? data->network_namespace_ipvs : "(default)" : "(main namespace)");
 #endif
 	if (data->instance_name)
 		conf_write(fp, " Instance name = %s", data->instance_name);
