@@ -691,9 +691,8 @@ process_inotify(thread_ref_t thread)
 	ssize_t len;
 	struct inotify_event* event;
 	tracked_file_t *tfile;
-	element e;
 	int fd = thread->u.f.fd;
-	list track_files = thread->arg;
+	list_head_t *track_files = thread->arg;
 
 	inotify_thread = thread_add_read(master, process_inotify, track_files, fd, TIMER_NEVER, false);
 
@@ -731,7 +730,7 @@ process_inotify(thread_ref_t thread)
 				continue;
 			}
 
-			LIST_FOREACH(track_files, tfile, e) {
+			list_for_each_entry(tfile, track_files, e_list) {
 				/* Is this event for our file */
 				if (tfile->wd != event->wd ||
 				    strcmp(tfile->file_part, event->name))
