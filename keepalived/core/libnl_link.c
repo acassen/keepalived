@@ -45,8 +45,9 @@ struct nl_msg * (*nlmsg_alloc_addr)(void);
 void (*nlmsg_free_addr)(struct nl_msg *);
 struct nlmsghdr * (*nlmsg_hdr_addr)(struct nl_msg *);
 int (*nl_recvmsgs_default_addr)(struct nl_sock *);
-int (*nl_send_auto_complete_addr)(struct nl_sock *,  struct nl_msg *);
+int (*nl_send_auto_addr)(struct nl_sock *,  struct nl_msg *);
 int (*nl_socket_modify_cb_addr)(struct nl_sock *, enum nl_cb_type, enum nl_cb_kind, nl_recvmsg_msg_cb_t, void *);
+int (*nl_socket_modify_err_cb_addr)(struct nl_sock *, enum nl_cb_kind, nl_recvmsg_err_cb_t, void *);
 #ifdef _HAVE_LIBNL3_
 void * (*nla_data_addr)(const struct nlattr *);
 int32_t (*nla_get_s32_addr)(const struct nlattr *);
@@ -116,8 +117,9 @@ libnl_init(void)
 	    !(nlmsg_free_addr = dlsym(libnl_handle, "nlmsg_free")) ||
 	    !(nlmsg_hdr_addr = dlsym(libnl_handle, "nlmsg_hdr")) ||
 	    !(nl_recvmsgs_default_addr = dlsym(libnl_handle, "nl_recvmsgs_default")) ||
-	    !(nl_send_auto_complete_addr = dlsym(libnl_handle, "nl_send_auto_complete")) ||
+	    !(nl_send_auto_addr = dlsym(libnl_handle, "nl_send_auto")) ||
 	    !(nl_socket_modify_cb_addr = dlsym(libnl_handle, "nl_socket_modify_cb")) ||
+	    !(nl_socket_modify_err_cb_addr = dlsym(libnl_handle, "nl_socket_modify_err_cb")) ||
 #ifdef _HAVE_LIBNL3_
 	    !(nla_data_addr = dlsym(libnl_handle, "nla_data")) ||
 	    !(nla_get_s32_addr = dlsym(libnl_handle, "nla_get_s32")) ||

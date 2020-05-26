@@ -42,6 +42,9 @@
 #include "logger.h"
 #include "libipvs.h"
 #include "main.h"
+#if HAVE_DECL_CLONE_NEWNET
+#include "namespaces.h"
+#endif
 
 static bool no_ipvs = false;
 

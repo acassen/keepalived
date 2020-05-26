@@ -25,8 +25,21 @@
 
 #include <stdbool.h>
 
+#ifdef LIBIPVS_USE_NL
+#include <netlink/socket.h>
+#ifdef _LIBNL_DYNAMIC_
+#include "libnl_link.h"
+#endif
+#endif
+
 extern void free_dirname(void);
 extern bool set_namespaces(const char*);
 extern void clear_namespaces(void);
+extern int socket_netns_name(const char *, int, int, int);
+
+/* ipvs namespaces */
+#ifdef LIBIPVS_USE_NL
+extern int nl_ipvs_connect(const char *, struct nl_sock *);
+#endif
 
 #endif

@@ -137,6 +137,11 @@ checker_terminate_phase2(void)
 	/* Remove the notify fifo */
 	notify_fifo_close(&global_data->notify_fifo, &global_data->lvs_notify_fifo);
 
+#ifdef _WITH_SNMP_CHECKER_
+	if (global_data && global_data->enable_snmp_checker)
+		check_snmp_agent_close();
+#endif
+
 	/* Destroy master thread */
 	checker_dispatcher_release();
 	thread_destroy_master(master);
@@ -146,10 +151,6 @@ checker_terminate_phase2(void)
 	set_ping_group_range(false);
 
 	ipvs_stop();
-#ifdef _WITH_SNMP_CHECKER_
-	if (global_data && global_data->enable_snmp_checker)
-		check_snmp_agent_close();
-#endif
 
 	/* Stop daemon */
 	pidfile_rm(checkers_pidfile);

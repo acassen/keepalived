@@ -40,8 +40,9 @@ extern struct nl_msg * (*nlmsg_alloc_addr)(void);
 extern void (*nlmsg_free_addr)(struct nl_msg *);
 extern struct nlmsghdr * (*nlmsg_hdr_addr)(struct nl_msg *);
 extern int (*nl_recvmsgs_default_addr)(struct nl_sock *);
-extern int (*nl_send_auto_complete_addr)(struct nl_sock *,  struct nl_msg *);
+extern int (*nl_send_auto_addr)(struct nl_sock *,  struct nl_msg *);
 extern int (*nl_socket_modify_cb_addr)(struct nl_sock *, enum nl_cb_type, enum nl_cb_kind, nl_recvmsg_msg_cb_t, void *);
+extern int (*nl_socket_modify_err_cb_addr)(struct nl_sock *, enum nl_cb_kind, nl_recvmsg_err_cb_t, void *);
 #ifdef _HAVE_LIBNL3_
 extern void * (*nla_data_addr)(const struct nlattr *);
 #ifdef NLA_PUT_S32
@@ -71,8 +72,9 @@ extern int (*nla_parse_nested_addr)(struct nlattr **, int, struct nlattr *, stru
 #define nlmsg_free (*nlmsg_free_addr)
 #define nlmsg_hdr (*nlmsg_hdr_addr)
 #define nl_recvmsgs_default (*nl_recvmsgs_default_addr)
-#define nl_send_auto_complete (*nl_send_auto_complete_addr)
+#define nl_send_auto (*nl_send_auto_addr)
 #define nl_socket_modify_cb (*nl_socket_modify_cb_addr)
+#define nl_socket_modify_err_cb (*nl_socket_modify_err_cb_addr)
 #ifdef _HAVE_LIBNL3_
 #define nla_data (*nla_data_addr)
 #ifdef NLA_PUT_S32
