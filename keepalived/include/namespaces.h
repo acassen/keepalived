@@ -35,14 +35,11 @@
 extern void free_dirname(void);
 extern bool set_namespaces(const char*);
 extern void clear_namespaces(void);
-extern int socket_netns(int, int, int, int);
+extern int socket_netns_name(const char *, int, int, int);
 
 /* ipvs namespaces */
-extern int init_ipvs_namespaces(const char *);
-extern int close_ipvs_namespaces(void);
 #ifdef LIBIPVS_USE_NL
-extern int nl_ipvs_connect(struct nl_sock *);
+extern int nl_ipvs_connect(const char *, struct nl_sock *);
 #endif
-extern int ipvs_namespace;
 
 #endif
