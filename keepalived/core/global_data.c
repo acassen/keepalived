@@ -227,6 +227,7 @@ init_global_data(data_t * data, data_t *prev_global_data, bool copy_unchangeable
 		prev_global_data->local_name = NULL;
 
 		if (copy_unchangeable_config) {
+#if HAVE_DECL_CLONE_NEWNET
 			FREE_CONST_PTR(data->network_namespace);
 			data->network_namespace = prev_global_data->network_namespace;
 			prev_global_data->network_namespace = NULL;
@@ -234,6 +235,7 @@ init_global_data(data_t * data, data_t *prev_global_data, bool copy_unchangeable
 			FREE_CONST_PTR(data->network_namespace_ipvs);
 			data->network_namespace_ipvs = prev_global_data->network_namespace_ipvs;
 			prev_global_data->network_namespace_ipvs = NULL;
+#endif
 
 			FREE_CONST_PTR(data->instance_name);
 			data->instance_name = prev_global_data->instance_name;
