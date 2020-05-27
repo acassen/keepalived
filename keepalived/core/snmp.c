@@ -144,7 +144,7 @@ snmp_header_list_head_table(struct variable *vp, oid *name, size_t *length,
 element
 snmp_find_elem(struct variable *vp, oid *name, size_t *length,
 	       int exact, size_t *var_len, WriteMethod **write_method,
-	       list_head_t *l, size_t ssize, size_t loffset)
+	       list_head_t *l, size_t offset_outer, size_t offset_inner)
 {
 	oid *target, current[2];
 	int result;
@@ -187,13 +187,7 @@ snmp_find_elem(struct variable *vp, oid *name, size_t *length,
 
 		/* This trick only works if list_head element is the last one
 		 * in data structure */
-		list2 = *(list *)((char *)e - ssize - sizeof(list_head_t) + loffset);
-
-		if (target_len && LIST_SIZE(list2) < target[1]) {
-			if (exact)
-				return NULL;
-			continue;
-		}
+		list2 = *(list *) ((char *)e - offset_outer + offset_inner);
 
 		current[1] = 0;
 		LIST_FOREACH(list2, dummy, e1) {

@@ -49,11 +49,11 @@ typedef struct list_head {
 	struct list_head *next, *prev;
 } list_head_t;
 
-#define LIST_HEAD_INIT(name) { &(name), &(name) }
+#define LIST_HEAD_INITIALIZER(name) { &(name), &(name) }
 
 // TODO
 #define LH_LIST_HEAD(name) \
-	struct list_head name = LIST_HEAD_INIT(name)
+	struct list_head name = LIST_HEAD_INITIALIZER(name)
 
 #define INIT_LIST_HEAD(ptr) do { \
 	(ptr)->next = (ptr); (ptr)->prev = (ptr); \

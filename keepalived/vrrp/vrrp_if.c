@@ -74,7 +74,7 @@
 
 
 /* Local vars */
-static list_head_t if_queue;
+static list_head_t if_queue = LIST_HEAD_INITIALIZER(if_queue);
 #ifdef _WITH_LINKBEAT_
 static struct ifreq ifr;
 static int linkbeat_fd = -1;
@@ -882,7 +882,6 @@ reset_interface_queue(void)
 void
 init_interface_queue(void)
 {
-	INIT_LIST_HEAD(&if_queue);
 	netlink_interface_lookup(NULL);
 #ifdef _HAVE_VRRP_VMAC_
 	/* Since we are reading all the interfaces, we might have received details of

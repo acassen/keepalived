@@ -1783,9 +1783,9 @@ RELAX_CAST_QUAL_END
 }
 #endif	// _HAVE_FIB_ROUTING_
 
-static u_char*
+static u_char *
 vrrp_snmp_syncgroup(struct variable *vp, oid *name, size_t *length,
-		 int exact, size_t *var_len, WriteMethod **write_method)
+		    int exact, size_t *var_len, WriteMethod **write_method)
 {
 	vrrp_sgroup_t *group;
 	list_head_t *e;
@@ -1860,7 +1860,7 @@ vrrp_snmp_syncgroup(struct variable *vp, oid *name, size_t *length,
 	return NULL;
 }
 
-static u_char*
+static u_char *
 vrrp_snmp_syncgroupmember(struct variable *vp, oid *name, size_t *length,
 			  int exact, size_t *var_len, WriteMethod **write_method)
 {
@@ -1870,7 +1870,7 @@ vrrp_snmp_syncgroupmember(struct variable *vp, oid *name, size_t *length,
 
 	e = snmp_find_elem(vp, name, length, exact, var_len, write_method,
 			   &vrrp_data->vrrp_sync_group,
-			   sizeof(vrrp_sgroup_t),
+			   offsetof(vrrp_sgroup_t, e_list),
 			   offsetof(vrrp_sgroup_t, vrrp_instances));
 	if (!e)
 		return NULL;

@@ -630,7 +630,7 @@ alloc_ipaddress(list_head_t *ip_list, const vector_t *strvec, const interface_t 
 		if (!global_data->default_ifp) {
 			global_data->default_ifp = if_get_by_ifname(DFLT_INT, IF_CREATE_IF_DYNAMIC);
 			if (!global_data->default_ifp) {
-				report_config_error(CONFIG_FATAL, "Address %s requires either an interface"
+				report_config_error(CONFIG_FATAL, "Static address %s requires either an interface"
 								  " or default interface %s must exist"
 								, strvec_slot(strvec, addr_idx), DFLT_INT);
 				FREE(new);
