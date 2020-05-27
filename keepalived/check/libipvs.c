@@ -1013,7 +1013,7 @@ static int ipvs_services_parse_cb(struct nl_msg *msg, void *arg)
 	i++;
 
 	get->user.num_services = i;
-	get = realloc(get, sizeof(*get)
+	get = REALLOC(get, sizeof(*get)
 	      + sizeof(ipvs_service_entry_t) * (get->user.num_services + 1));
 	*getp = get;
 	return 0;
@@ -1089,7 +1089,7 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg)
 	i++;
 
 	d->user.num_dests = i;
-	d = realloc(d, sizeof(*d) + sizeof(ipvs_dest_entry_t) * (d->user.num_dests + 1));
+	d = REALLOC(d, sizeof(*d) + sizeof(ipvs_dest_entry_t) * (d->user.num_dests + 1));
 	*dp = d;
 	return 0;
 }
@@ -1113,7 +1113,7 @@ struct ip_vs_get_dests_app *ipvs_get_dests(ipvs_service_entry_t *svc)
 		struct nl_msg *msg;
 		struct nlattr *nl_service;
 		if (svc->user.num_dests == 0)
-			d = realloc(d,sizeof(*d) + sizeof(ipvs_dest_entry_t));
+			d = REALLOC(d,sizeof(*d) + sizeof(ipvs_dest_entry_t));
 		d->user.fwmark = svc->user.fwmark;
 		d->user.protocol = svc->user.protocol;
 		d->nf_addr = svc->nf_addr;
@@ -1214,6 +1214,7 @@ ipvs_get_service(__u32 fwmark, __u16 af, __u16 protocol, union nf_inet_addr *add
 		tsvc.user.fwmark = fwmark;
 		tsvc.af = af;
 		tsvc.user.protocol= protocol;
+// ?IPv6
 		tsvc.nf_addr = *addr;
 		tsvc.user.port = port;
 
