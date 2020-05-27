@@ -2628,9 +2628,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 #endif
 
-	if (!chk_min_cfg(vrrp))
-		return false;
-
 	/* unicast peers aren't allowed in strict mode if the interface supports multicast */
 	if (vrrp->strict_mode && vrrp->ifp->ifindex &&
 	    (vrrp->ifp->ifi_flags & IFF_MULTICAST) &&
@@ -3740,6 +3737,12 @@ vrrp_complete_init(void)
 	if (running_checker())
 		free_notify_script(&global_data->notify_fifo.script);
 #endif
+
+	/* Make sure minimal instance configuration as been done */
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
+		if (!chk_min_cfg(vrrp))
+			return false;
+	}
 
 	/* Make sure don't have same vrid on same interface with the same address family */
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
