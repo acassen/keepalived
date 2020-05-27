@@ -259,6 +259,10 @@ dump_nl_msg(const char *msg, struct nl_msg *nlmsg)
 
 static int ipvs_nl_noop_cb(__attribute__((unused)) struct nl_msg *msg, __attribute__((unused)) void *arg)
 {
+#ifdef LIBNL_DEBUG
+	dump_nl_msg("Noop CB", msg);
+#endif
+
 	return NL_OK;
 }
 
@@ -277,6 +281,19 @@ static int recv_ack_cb(__attribute__((unused)) struct nl_msg *msg, void *arg)
 
 #ifdef LIBNL_DEBUG
 	dump_nl_msg("That was an ACK message", NULL);
+#endif
+
+	*ack_flag = 1;
+
+	return NL_STOP;
+}
+
+static int finish_cb(__attribute__((unused)) struct nl_msg *msg, void *arg)
+{
+	int *ack_flag = arg;
+
+#ifdef LIBNL_DEBUG
+	dump_nl_msg("That was a multi done message", NULL);
 #endif
 
 	*ack_flag = 1;
@@ -318,11 +335,12 @@ open_nl_sock(void)
 		return -1;
 	}
 
-	if (nl_socket_modify_err_cb(sock, NL_CB_CUSTOM, ipvs_nl_err_cb,
-				    &nl_ack_flag) != 0)
+	/* We finish receiving if we get an error, an ACK, or a DONE for a multipart message */
+	if (nl_socket_modify_err_cb(sock, NL_CB_CUSTOM, ipvs_nl_err_cb, &nl_ack_flag) != 0)
 		log_message(LOG_INFO, "Setting err_cb failed");
 
 	nl_socket_modify_cb(sock, NL_CB_ACK, NL_CB_CUSTOM, recv_ack_cb, &nl_ack_flag);
+	nl_socket_modify_cb(sock, NL_CB_FINISH, NL_CB_CUSTOM, finish_cb, &nl_ack_flag);
 
 #ifdef LIBNL_DEBUG
 	nl_socket_modify_cb(sock, NL_CB_MSG_IN, NL_CB_CUSTOM, recv_cb, 0);
