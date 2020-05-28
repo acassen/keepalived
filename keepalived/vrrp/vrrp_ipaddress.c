@@ -771,11 +771,15 @@ clear_address_list(list_head_t *delete_addr,
 void
 clear_diff_static_addresses(void)
 {
-	vrrp_t old = { .vip = old_vrrp_data->static_addresses };
-	vrrp_t new = { .vip = vrrp_data->static_addresses };
-	list_head_t remove_addr;
+	LIST_HEAD_INITIALIZE(remove_addr);
+	vrrp_t old = {};
+	vrrp_t new = {};
 
-	INIT_LIST_HEAD(&remove_addr);
+	list_copy(&old.vip, &old_vrrp_data->static_addresses);
+	list_copy(&new.vip, &vrrp_data->static_addresses);
+	INIT_LIST_HEAD(&old.evip);
+	INIT_LIST_HEAD(&new.evip);
+
 	get_diff_address(&old, &new, &remove_addr);
 	clear_address_list(&remove_addr, false);
 	free_ipaddress_list(&remove_addr);
