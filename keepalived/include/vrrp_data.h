@@ -42,7 +42,7 @@ typedef struct _vrrp_data {
 #endif
 	list_head_t		vrrp_sync_group;	/* vrrp_sgroup_t */
 	list_head_t		vrrp;			/* vrrp_t */
-	list			vrrp_socket_pool;
+	list_head_t		vrrp_socket_pool;	/* sock_t */
 	list_head_t		vrrp_script;		/* vrrp_script_t */
 	list_head_t		vrrp_track_files;	/* tracked_file_t */
 #ifdef _WITH_CN_PROC_
@@ -103,6 +103,8 @@ extern void free_vrrp_buffer(void);
 extern vrrp_data_t *alloc_vrrp_data(void);
 extern void free_vrrp_data(vrrp_data_t *);
 extern void free_sync_group(vrrp_sgroup_t *);
+extern void free_sock_list(list_head_t *);
+extern void dump_sock_list(FILE *, const list_head_t *);
 extern void dump_tracking_vrrp(FILE *, const void *);
 extern void dump_tracking_vrrp_list(FILE *, const list_head_t *);
 extern void dump_data_vrrp(FILE *);

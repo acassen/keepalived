@@ -279,7 +279,7 @@ RB_TIMER_CMP(vrrp);
 
 /* Compute the new instance sands */
 void
-vrrp_init_instance_sands(vrrp_t * vrrp)
+vrrp_init_instance_sands(vrrp_t *vrrp)
 {
 	set_time_now();
 
@@ -351,11 +351,10 @@ vrrp_thread_requeue_read(vrrp_t *vrrp)
 
 /* Thread functions */
 static void
-vrrp_register_workers(list l)
+vrrp_register_workers(list_head_t *l)
 {
 	sock_t *sock;
 	timeval_t timer;
-	element e;
 
 	/* Init compute timer */
 	memset(&timer, 0, sizeof(timer));
@@ -380,7 +379,7 @@ vrrp_register_workers(list l)
 #endif
 
 	/* Register VRRP workers threads */
-	LIST_FOREACH(l, sock, e) {
+	list_for_each_entry(sock, l, e_list) {
 		/* Register a timer thread if interface exists */
 		if (sock->fd_in != -1)
 			sock->thread = thread_add_read_sands(master, vrrp_read_dispatcher_thread,
@@ -397,12 +396,11 @@ vrrp_thread_add_read(vrrp_t *vrrp)
 
 /* VRRP dispatcher functions */
 static sock_t * __attribute__ ((pure))
-already_exist_sock(list l, sa_family_t family, int proto, interface_t *ifp, bool unicast)
+already_exist_sock(list_head_t *l, sa_family_t family, int proto, interface_t *ifp, bool unicast)
 {
 	sock_t *sock;
-	element e;
 
-	LIST_FOREACH(l, sock, e) {
+	list_for_each_entry(sock, l, e_list) {
 		if ((sock->family == family)	&&
 		    (sock->proto == proto)	&&
 		    (sock->ifp == ifp)		&&
@@ -414,11 +412,12 @@ already_exist_sock(list l, sa_family_t family, int proto, interface_t *ifp, bool
 }
 
 static sock_t *
-alloc_sock(sa_family_t family, list l, int proto, interface_t *ifp, bool unicast)
+alloc_sock(sa_family_t family, list_head_t *l, int proto, interface_t *ifp, bool unicast)
 {
 	sock_t *new;
 
-	new = (sock_t *)MALLOC(sizeof (sock_t));
+	PMALLOC(new);
+	INIT_LIST_HEAD(&new->e_list);
 	new->family = family;
 	new->proto = proto;
 	new->ifp = ifp;
@@ -426,7 +425,7 @@ alloc_sock(sa_family_t family, list l, int proto, interface_t *ifp, bool unicast
 	new->rb_vrid = RB_ROOT;
 	new->rb_sands = RB_ROOT_CACHED;
 
-	list_add(l, new);
+	list_add_tail(&new->e_list, l);
 
 	return new;
 }
@@ -438,7 +437,7 @@ vrrp_vrid_cmp(const vrrp_t *v1, const vrrp_t *v2)
 }
 
 static void
-vrrp_create_sockpool(list l)
+vrrp_create_sockpool(list_head_t *l)
 {
 	vrrp_t *vrrp;
 	interface_t *ifp;
@@ -478,12 +477,11 @@ vrrp_create_sockpool(list l)
 }
 
 static void
-vrrp_open_sockpool(list l)
+vrrp_open_sockpool(list_head_t *l)
 {
 	sock_t *sock;
-	element e;
 
-	LIST_FOREACH(l, sock, e) {
+	list_for_each_entry(sock, l, e_list) {
 		if (!sock->ifp->ifindex) {
 			sock->fd_in = sock->fd_out = -1;
 			continue;
@@ -499,13 +497,12 @@ vrrp_open_sockpool(list l)
 }
 
 static void
-vrrp_set_fds(list l)
+vrrp_set_fds(list_head_t *l)
 {
 	sock_t *sock;
 	vrrp_t *vrrp;
-	element e;
 
-	LIST_FOREACH(l, sock, e) {
+	list_for_each_entry(sock, l, e_list) {
 		rb_for_each_entry(vrrp, &sock->rb_vrid, rb_vrid)
 			vrrp->sockets = sock;
 	}
@@ -529,21 +526,21 @@ vrrp_set_fds(list l)
 int
 vrrp_dispatcher_init(__attribute__((unused)) thread_ref_t thread)
 {
-	vrrp_create_sockpool(vrrp_data->vrrp_socket_pool);
+	vrrp_create_sockpool(&vrrp_data->vrrp_socket_pool);
 
 	/* open the VRRP socket pool */
-	vrrp_open_sockpool(vrrp_data->vrrp_socket_pool);
+	vrrp_open_sockpool(&vrrp_data->vrrp_socket_pool);
 
 	/* set VRRP instance fds to sockpool */
-	vrrp_set_fds(vrrp_data->vrrp_socket_pool);
+	vrrp_set_fds(&vrrp_data->vrrp_socket_pool);
 
 	/* create the VRRP socket pool list */
 	/* register read dispatcher worker thread */
-	vrrp_register_workers(vrrp_data->vrrp_socket_pool);
+	vrrp_register_workers(&vrrp_data->vrrp_socket_pool);
 
 	/* Dump socket pool */
 	if (__test_bit(LOG_DETAIL_BIT, &debug))
-		dump_list(NULL, vrrp_data->vrrp_socket_pool);
+		dump_sock_list(NULL, &vrrp_data->vrrp_socket_pool);
 
 	vrrp_initialised = true;
 
@@ -564,7 +561,7 @@ cancel_vrrp_threads(void)
 void
 vrrp_dispatcher_release(vrrp_data_t *data)
 {
-	free_list(&data->vrrp_socket_pool);
+	free_sock_list(&data->vrrp_socket_pool);
 
 #ifdef _WITH_BFD_
 	cancel_vrrp_threads();

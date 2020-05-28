@@ -406,10 +406,8 @@ dump_vrrp_tracked_bfd_list(FILE *fp, const list_head_t *l)
 
 /* Socket pool functions */
 static void
-free_sock(void *sock_data)
+free_sock(sock_t *sock)
 {
-	sock_t *sock = sock_data;
-
 	/* First of all cancel pending thread. If we are reloading
 	 * thread_cleanup_master() has already been called, and so
 	 * the thread already will have been cancelled. */
@@ -421,13 +419,19 @@ free_sock(void *sock_data)
 		close(sock->fd_in);
 	if (sock->fd_out > 0)
 		close(sock->fd_out);
-	FREE(sock_data);
+	FREE(sock);
+}
+void
+free_sock_list(list_head_t *l)
+{
+	sock_t *sock, *sock_tmp;
+
+	list_for_each_entry_safe(sock, sock_tmp, l, e_list)
+		free_sock(sock);
 }
 static void
-dump_sock(FILE *fp, const void *sock_data)
+dump_sock(FILE *fp, const sock_t *sock)
 {
-	const sock_t *sock = sock_data;
-
 	conf_write(fp, "VRRP sockpool: [ifindex(%u), family(%s), proto(%d), unicast(%d), fd(%d,%d)]"
 			    , sock->ifp->ifindex
 			    , sock->family == AF_INET ? "IPv4" : sock->family == AF_INET6 ? "IPv6" : "unknown"
@@ -436,14 +440,22 @@ dump_sock(FILE *fp, const void *sock_data)
 			    , sock->fd_in
 			    , sock->fd_out);
 }
-static void
-dump_sock_pool(FILE *fp, const list sock_pool)
+void
+dump_sock_list(FILE *fp, const list_head_t *l)
 {
-	const sock_t *sock;
-	element e;
+	sock_t *sock;
+
+	list_for_each_entry(sock, l, e_list)
+		dump_sock(fp, sock);
+}
+
+static void
+dump_sock_pool(FILE *fp, const list_head_t *l)
+{
+	sock_t *sock;
 	const vrrp_t *vrrp;
 
-	LIST_FOREACH(sock_pool, sock, e) {
+	list_for_each_entry(sock, l, e_list) {
 		conf_write(fp, " fd_in %d fd_out = %d", sock->fd_in, sock->fd_out);
 		conf_write(fp, "   Interface = %s", sock->ifp->ifname);
 		conf_write(fp, "   Family = %s", sock->family == AF_INET ? "IPv4" : sock->family == AF_INET6 ? "IPv6" : "unknown");
@@ -1109,7 +1121,7 @@ alloc_vrrp_data(void)
 #ifdef _WITH_BFD_
 	INIT_LIST_HEAD(&new->vrrp_track_bfds);
 #endif
-	new->vrrp_socket_pool = alloc_list(free_sock, dump_sock);
+	INIT_LIST_HEAD(&new->vrrp_socket_pool);
 
 	return new;
 }
@@ -1161,9 +1173,9 @@ dump_vrrp_data(FILE *fp, const vrrp_data_t * data)
 		conf_write(fp, "------< VRRP Topology >------");
 		dump_vrrp_list(fp, &data->vrrp);
 	}
-	if (!LIST_ISEMPTY(data->vrrp_socket_pool)) {
+	if (!list_empty(&data->vrrp_socket_pool)) {
 		conf_write(fp, "------< VRRP Sockpool >------");
-		dump_sock_pool(fp, data->vrrp_socket_pool);
+		dump_sock_pool(fp, &data->vrrp_socket_pool);
 	}
 	if (!list_empty(&data->vrrp_sync_group)) {
 		conf_write(fp, "------< VRRP Sync groups >------");

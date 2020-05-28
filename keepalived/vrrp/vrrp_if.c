@@ -74,7 +74,7 @@
 
 
 /* Local vars */
-static list_head_t if_queue = LIST_HEAD_INITIALIZER(if_queue);
+LIST_HEAD_INITIALIZE(if_queue);
 #ifdef _WITH_LINKBEAT_
 static struct ifreq ifr;
 static int linkbeat_fd = -1;
@@ -104,7 +104,7 @@ if_extra_ipaddress_alloc(interface_t *ifp, void *addr, unsigned char family)
 {
 	sin_addr_t *saddr;
 
-	saddr = MALLOC(sizeof(*saddr));
+	PMALLOC(saddr);
 	INIT_LIST_HEAD(&saddr->e_list);
 
 	if (family == AF_INET) {
@@ -1538,11 +1538,10 @@ recreate_vmac_thread(thread_ref_t thread)
 void update_mtu(interface_t *ifp)
 {
 	sock_t *sock;
-	element e;
 	bool updated_vrrp_buffer = false;
 	vrrp_t *vrrp;
 
-	LIST_FOREACH(vrrp_data->vrrp_socket_pool, sock, e) {
+	list_for_each_entry(sock, &vrrp_data->vrrp_socket_pool, e_list) {
 		if (sock->ifp != ifp ||
 		    sock->fd_in == -1)
 			continue;

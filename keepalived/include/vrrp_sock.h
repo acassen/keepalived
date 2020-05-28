@@ -48,6 +48,9 @@ typedef struct _sock {
 	thread_ref_t		thread;
 	rb_root_t		rb_vrid;
 	rb_root_cached_t	rb_sands;
+
+	/* Linked list member */
+	list_head_t		e_list;
 } sock_t;
 
 #endif
