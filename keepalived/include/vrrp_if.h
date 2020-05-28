@@ -166,7 +166,7 @@ typedef struct _interface {
 	bool			gna_router;		/* Router flag for NA messages */
 	bool			promote_secondaries;	/* Original value of promote_secondaries to be restored */
 	uint32_t		reset_promote_secondaries; /* Count of how many vrrps have changed promote_secondaries on interface */
-	list_head_t		*tracking_vrrp;		/* List of tracking_obj_t for vrrp instances tracking this interface */
+	list_head_t		tracking_vrrp;		/* List of tracking_obj_t for vrrp instances tracking this interface */
 
 	/* linked list member */
 	list_head_t		e_list;
@@ -223,9 +223,6 @@ extern interface_t *if_get_by_ifname(const char *, if_lookup_t);
 extern sin_addr_t *if_extra_ipaddress_alloc(interface_t *, void *, unsigned char);
 extern void if_extra_ipaddress_free(sin_addr_t *);
 extern void if_extra_ipaddress_free_list(list_head_t *);
-extern list_head_t *if_tracking_vrrp_alloc_list(void);
-extern void if_tracking_vrrp_free(void *);
-extern void if_tracking_vrrp_free_list(list_head_t *);
 extern void dump_garp_delay_list(FILE *, list_head_t *);
 extern void free_garp_delay(garp_delay_t *);
 extern garp_delay_t *alloc_garp_delay(void);

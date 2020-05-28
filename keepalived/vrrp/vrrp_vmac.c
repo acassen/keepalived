@@ -698,10 +698,7 @@ update_vmac_vrfs(interface_t *ifp)
         tracking_obj_t *top;
 	vrrp_t *vrrp;
 
-	if (!ifp->tracking_vrrp)
-		return;
-
-        list_for_each_entry(top, ifp->tracking_vrrp, e_list) {
+        list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
                 vrrp = top->obj.vrrp;
 
                 /* We only need to look for vmacs we created that

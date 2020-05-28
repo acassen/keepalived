@@ -726,20 +726,20 @@ address_exist(vrrp_t *vrrp, ip_address_t *ip_addr)
 void
 get_diff_address(vrrp_t *old, vrrp_t *new, list_head_t *old_addr)
 {
-	ip_address_t *ip_addr;
+	ip_address_t *ip_addr, *ip_addr_tmp;
 
 	/* No addresses in previous conf */
 	if (list_empty(&old->vip) && list_empty(&old->evip))
 		return;
 
-	list_for_each_entry(ip_addr, &old->vip, e_list) {
+	list_for_each_entry_safe(ip_addr, ip_addr_tmp, &old->vip, e_list) {
 		if (ip_addr->set && !address_exist(new, ip_addr)) {
 			list_del_init(&ip_addr->e_list);
 			list_add_tail(&ip_addr->e_list, old_addr);
 		}
 	}
 
-	list_for_each_entry(ip_addr, &old->evip, e_list) {
+	list_for_each_entry_safe(ip_addr, ip_addr_tmp, &old->evip, e_list) {
 		if (ip_addr->set && !address_exist(new, ip_addr)) {
 			list_del_init(&ip_addr->e_list);
 			list_add_tail(&ip_addr->e_list, old_addr);
@@ -781,6 +781,10 @@ clear_diff_static_addresses(void)
 	INIT_LIST_HEAD(&new.evip);
 
 	get_diff_address(&old, &new, &remove_addr);
+
+	list_copy(&old_vrrp_data->static_addresses, &old.vip);
+	list_copy(&vrrp_data->static_addresses, &new.vip);
+
 	clear_address_list(&remove_addr, false);
 	free_ipaddress_list(&remove_addr);
 }

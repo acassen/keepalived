@@ -62,6 +62,7 @@
 #include "vrrp_vmac.h"
 #include "bitops.h"
 #endif
+#include "track_file.h"
 #include "vrrp_track.h"
 #include "vrrp_scheduler.h"
 #include "vrrp_iproute.h"
@@ -139,38 +140,8 @@ if_extra_ipaddress_free_list(list_head_t *l)
 		if_extra_ipaddress_free(addr);
 }
 
-list_head_t *
-if_tracking_vrrp_alloc_list(void)
-{
-	list_head_t *l = MALLOC(sizeof(list_head_t));
-	INIT_LIST_HEAD(l);
-
-	return l;
-}
-
-void
-if_tracking_vrrp_free(void *to)
-{
-	tracking_obj_t *top = (tracking_obj_t *) to;
-	list_head_del(&top->e_list);
-	FREE(to);
-}
-
-void
-if_tracking_vrrp_free_list(list_head_t *l)
-{
-	tracking_obj_t *top, *top_tmp;
-
-	if (!l)
-		return;
-
-	list_for_each_entry_safe(top, top_tmp, l, e_list)
-		if_tracking_vrrp_free(top);
-	INIT_LIST_HEAD(l);
-}
-
 static void
-if_tracking_vrrp_dump_list(FILE *fp, list_head_t *l)
+if_tracking_vrrp_dump_list(FILE *fp, const list_head_t *l)
 {
 	tracking_obj_t *top;
 
@@ -205,6 +176,7 @@ if_get_by_ifname(const char *ifname, if_lookup_t create)
 #endif
 	INIT_LIST_HEAD(&ifp->sin_addr_l);
 	INIT_LIST_HEAD(&ifp->sin6_addr_l);
+	INIT_LIST_HEAD(&ifp->tracking_vrrp);
 	INIT_LIST_HEAD(&ifp->e_list);
 	list_add_tail(&ifp->e_list, &if_queue);
 
@@ -479,10 +451,7 @@ set_default_garp_delay(void)
 static void
 free_if(interface_t *ifp)
 {
-	if (ifp->tracking_vrrp) {
-		if_tracking_vrrp_free_list(ifp->tracking_vrrp);
-		FREE(ifp->tracking_vrrp);
-	}
+	free_tracking_obj_list(&ifp->tracking_vrrp);
 	if_extra_ipaddress_free_list(&ifp->sin_addr_l);
 	if_extra_ipaddress_free_list(&ifp->sin6_addr_l);
 	FREE(ifp);
@@ -648,9 +617,9 @@ dump_if(FILE *fp, const interface_t *ifp)
 
 	}
 
-	if (ifp->tracking_vrrp) {
+	if (!list_empty(&ifp->tracking_vrrp)) {
 		conf_write(fp, "   Tracking VRRP instances :");
-		if_tracking_vrrp_dump_list(fp, ifp->tracking_vrrp);
+		if_tracking_vrrp_dump_list(fp, &ifp->tracking_vrrp);
 	}
 }
 
@@ -759,7 +728,7 @@ init_interface_linkbeat(void)
 			continue;
 
 		/* Don't poll an interface that we aren't using */
-		if (!ifp->tracking_vrrp) {
+		if (list_empty(&ifp->tracking_vrrp)) {
 			log_message(LOG_INFO, "Turning off linkbeat for %s since not used for tracking", ifp->ifname);
 			ifp->linkbeat_use_polling = false;
 			ifp->lb_type = 0;
@@ -859,7 +828,7 @@ reset_interface_queue(void)
 		ifp->linkbeat_use_polling = false;
 #endif
 		ifp->garp_delay = NULL;
-		if_tracking_vrrp_free_list(ifp->tracking_vrrp);
+		free_tracking_obj_list(&ifp->tracking_vrrp);
 	}
 }
 
@@ -1345,10 +1314,7 @@ cleanup_lost_interface(interface_t *ifp)
 	tracking_obj_t *top;
 	vrrp_t *vrrp;
 
-	if (!ifp->tracking_vrrp)
-		goto if_down;
-
-	list_for_each_entry(top, ifp->tracking_vrrp, e_list) {
+	list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
 		vrrp = top->obj.vrrp;
 
 		/* If this is just a tracking interface, we don't need to do anything */
@@ -1412,7 +1378,6 @@ cleanup_lost_interface(interface_t *ifp)
 			down_instance(vrrp);
 	}
 
-  if_down:
 	interface_down(ifp);
 
 	ifp->ifindex = 0;
@@ -1486,10 +1451,7 @@ recreate_vmac_thread(thread_ref_t thread)
 	tracking_obj_t *top;
 	vrrp_t *vrrp;
 
-	if (!ifp->tracking_vrrp)
-		return 0;
-
-	list_for_each_entry(top, ifp->tracking_vrrp, e_list) {
+	list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
 		vrrp = top->obj.vrrp;
 
 		/* If this isn't the vrrp's interface, skip */
@@ -1561,10 +1523,7 @@ update_added_interface(interface_t *ifp)
 	tracking_obj_t *top1;
 #endif
 
-	if (!ifp->tracking_vrrp || list_empty(ifp->tracking_vrrp))
-		return;
-
-	list_for_each_entry(top, ifp->tracking_vrrp, e_list) {
+	list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
 		vrrp = top->obj.vrrp;
 
 #ifdef _HAVE_VRRP_VMAC_
@@ -1574,8 +1533,8 @@ update_added_interface(interface_t *ifp)
 		 * conflict. */
 		if (!ifp->is_ours &&
 		    (global_data->allow_if_changes || !ifp->seen_interface) &&
-		    ifp->base_ifp->tracking_vrrp) {
-			list_for_each_entry(top1, ifp->base_ifp->tracking_vrrp, e_list) {
+		    !list_empty(&ifp->base_ifp->tracking_vrrp)) {
+			list_for_each_entry(top1, &ifp->base_ifp->tracking_vrrp, e_list) {
 				vrrp1 = top1->obj.vrrp;
 				if (vrrp == vrrp1)
 					continue;

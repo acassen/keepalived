@@ -182,10 +182,7 @@ address_is_ours(struct ifaddrmsg *ifa, struct in_addr *addr, interface_t *ifp)
 	vrrp_t *vrrp;
 	ip_address_t *ip_addr;
 
-	if (!ifp->tracking_vrrp)
-		return NULL;
-
-	list_for_each_entry(top, ifp->tracking_vrrp, e_list) {
+	list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
 		vrrp = top->obj.vrrp;
 
 		/* If we are not master, then we won't have the address configured */
@@ -220,10 +217,7 @@ ignore_address_if_ours_or_link_local(struct ifaddrmsg *ifa, struct in_addr *addr
 	    ifa->ifa_scope != RT_SCOPE_LINK)
 		return true;
 
-	if (!ifp->tracking_vrrp)
-		return false;
-
-	list_for_each_entry(top, ifp->tracking_vrrp, e_list) {
+	list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
 		vrrp = top->obj.vrrp;
 
 		if (ifa->ifa_family == vrrp->family) {
@@ -932,7 +926,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 				if (ifa->ifa_family == AF_INET) {
 					if (!ifp->sin_addr.s_addr) {
 						ifp->sin_addr = *addr.in;
-						if (ifp->tracking_vrrp && !list_empty(ifp->tracking_vrrp))
+						if (!list_empty(&ifp->tracking_vrrp))
 							addr_chg = true;
 					} else {
 						if_extra_ipaddress_alloc(ifp, addr.in, AF_INET);
@@ -940,7 +934,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 				} else {
 					if (!ifp->sin6_addr.s6_addr32[0]) {
 						ifp->sin6_addr = *addr.in6;
-						if (ifp->tracking_vrrp && !list_empty(ifp->tracking_vrrp))
+						if (!list_empty(&ifp->tracking_vrrp))
 							addr_chg = true;
 					}
 #if defined _HAVE_VRRP_VMAC_ && !HAVE_DECL_IFLA_INET6_ADDR_GEN_MODE
@@ -965,7 +959,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 
 					/* Now see if any vrrp instances were missing an interface address
 					 * and see if they can be brought up */
-					list_for_each_entry(top, ifp->tracking_vrrp, e_list) {
+					list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
 						vrrp = top->obj.vrrp;
 
 						if (vrrp->track_saddr && vrrp->family == ifa->ifa_family)
@@ -1020,15 +1014,13 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 						ifp->sin_addr = saddr->u.sin_addr;
 						if_extra_ipaddress_free(saddr);
 
-						if (ifp->tracking_vrrp) {
-							list_for_each_entry(top, ifp->tracking_vrrp, e_list) {
-								vrrp = top->obj.vrrp;
-								if (VRRP_CONFIGURED_IFP(vrrp) != ifp)
-									continue;
-								if (vrrp->family != AF_INET || vrrp->saddr_from_config)
-									continue;
-								inet_ip4tosockaddr(&ifp->sin_addr, &vrrp->saddr);
-							}
+						list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
+							vrrp = top->obj.vrrp;
+							if (VRRP_CONFIGURED_IFP(vrrp) != ifp)
+								continue;
+							if (vrrp->family != AF_INET || vrrp->saddr_from_config)
+								continue;
+							inet_ip4tosockaddr(&ifp->sin_addr, &vrrp->saddr);
 						}
 					}
 				} else {
@@ -1049,15 +1041,13 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 						ifp->sin6_addr = saddr->u.sin6_addr;
 						if_extra_ipaddress_free(saddr);
 
-						if (ifp->tracking_vrrp) {
-							list_for_each_entry(top, ifp->tracking_vrrp, e_list) {
-								vrrp = top->obj.vrrp;
-								if (vrrp->ifp != ifp)
-									continue;
-								if (vrrp->family != AF_INET6 || vrrp->saddr_from_config)
-									continue;
-								inet_ip6tosockaddr(&ifp->sin6_addr, &vrrp->saddr);
-							}
+						list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
+							vrrp = top->obj.vrrp;
+							if (vrrp->ifp != ifp)
+								continue;
+							if (vrrp->family != AF_INET6 || vrrp->saddr_from_config)
+								continue;
+							inet_ip6tosockaddr(&ifp->sin6_addr, &vrrp->saddr);
 						}
 					}
 				} else {
@@ -1070,7 +1060,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 				}
 			}
 
-			if (addr_chg && ifp->tracking_vrrp && !list_empty(ifp->tracking_vrrp)) {
+			if (addr_chg && !list_empty(&ifp->tracking_vrrp)) {
 				if (__test_bit(LOG_DETAIL_BIT, &debug)) {
 					inet_ntop(ifa->ifa_family, addr.addr, addr_str, sizeof(addr_str));
 					log_message(LOG_INFO, "Deassigned address %s from interface %s"
@@ -1082,7 +1072,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 					ifp->sin6_addr.s6_addr32[0] = 0;
 
 				/* See if any vrrp instances need to be downed */
-				list_for_each_entry(top, ifp->tracking_vrrp, e_list) {
+				list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
 					vrrp = top->obj.vrrp;
 
 					if (ifp != vrrp->ifp
@@ -1144,7 +1134,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 			}
 		}
 
-		if (!addr_chg || !ifp->tracking_vrrp || list_empty(ifp->tracking_vrrp)) {
+		if (!addr_chg || list_empty(&ifp->tracking_vrrp)) {
 			if (h->nlmsg_type == RTM_DELADDR)
 				address_vrrp = address_is_ours(ifa, addr.addr, ifp);
 			else
@@ -1502,12 +1492,9 @@ process_if_status_change(interface_t *ifp)
 	tracking_obj_t *top;
 	bool now_up = FLAGS_UP(ifp->ifi_flags);
 
-	if (!ifp->tracking_vrrp)
-		return;
-
 	/* The state of the interface has changed from up to down or vice versa.
 	 * Find which vrrp instances are affected */
-	list_for_each_entry(top, ifp->tracking_vrrp, e_list) {
+	list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
 		vrrp = top->obj.vrrp;
 
 		if (top->weight == VRRP_NOT_TRACK_IF) {
@@ -1554,7 +1541,7 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 	if (was_up == now_up)
 		return;
 
-	if (ifp->tracking_vrrp) {
+	if (list_empty(&ifp->tracking_vrrp)) {
 		log_message(LOG_INFO, "Netlink reports %s %s", ifp->ifname, now_up ? "up" : "down");
 
 		process_if_status_change(ifp);
@@ -1931,7 +1918,7 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 	size_t hw_addr_len;
 	char mac_buf[3 * sizeof(ifp->hw_addr)];
 	char old_mac_buf[3 * sizeof(ifp->hw_addr)];
-	list_head_t *sav_tracking_vrrp;
+	list_head_t sav_tracking_vrrp;
 	garp_delay_t *sav_garp_delay;
 
 	if (!(h->nlmsg_type == RTM_NEWLINK || h->nlmsg_type == RTM_DELLINK))
@@ -1962,7 +1949,7 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 
 	if (ifp) {
 		if (h->nlmsg_type == RTM_DELLINK) {
-			if ((ifp->tracking_vrrp && !list_empty(ifp->tracking_vrrp)) ||
+			if ((!list_empty(&ifp->tracking_vrrp)) ||
 			    __test_bit(LOG_DETAIL_BIT, &debug))
 				log_message(LOG_INFO, "Interface %s deleted", ifp->ifname);
 #ifndef _ONE_PROCESS_DEBUG_
@@ -2082,7 +2069,7 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 				    tb[IFLA_MTU]) {
 					old_mtu = ifp->mtu;
 					ifp->mtu = *(uint32_t *)RTA_DATA(tb[IFLA_MTU]);
-					if (ifp->tracking_vrrp && !list_empty(ifp->tracking_vrrp))
+					if (!list_empty(&ifp->tracking_vrrp))
 						update_mtu(ifp);
 				}
 
@@ -2109,7 +2096,7 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 			 * it is reasonable to preserve them.
 			 * If what is created is a vmac, we could end up in a complete mess. */
 			sav_garp_delay = ifp->garp_delay;
-			sav_tracking_vrrp = ifp->tracking_vrrp;
+			list_copy(&sav_tracking_vrrp, &ifp->tracking_vrrp);
 			old_mtu = ifp->mtu;
 			if_extra_ipaddress_free_list(&ifp->sin_addr_l);
 			if_extra_ipaddress_free_list(&ifp->sin6_addr_l);
@@ -2119,7 +2106,7 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 			/* Re-establish lists */
 			INIT_LIST_HEAD(&ifp->sin_addr_l);
 			INIT_LIST_HEAD(&ifp->sin6_addr_l);			
-			ifp->tracking_vrrp = sav_tracking_vrrp;
+			list_copy(&ifp->tracking_vrrp, &sav_tracking_vrrp);
 			ifp->garp_delay = sav_garp_delay;
 
 			if (!netlink_if_link_populate(ifp, tb, ifi))

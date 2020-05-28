@@ -2090,9 +2090,7 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool reverse, 
 	char addr_str[INET6_ADDRSTRLEN];
 	tracking_obj_t *top = NULL;
 
-	if (!ifp->tracking_vrrp) {
-		ifp->tracking_vrrp = if_tracking_vrrp_alloc_list();
-
+	if (list_empty(&ifp->tracking_vrrp)) {
 		if (log_addr && __test_bit(LOG_DETAIL_BIT, &debug)) {
 			if (ifp->sin_addr.s_addr) {
 				inet_ntop(AF_INET, &ifp->sin_addr, addr_str, sizeof(addr_str));
@@ -2108,7 +2106,7 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool reverse, 
 	}
 	else if (type != TRACK_VRRP_DYNAMIC) {
 		/* Check if this is already in the list, and adjust the weight appropriately */
-		list_for_each_entry(top, ifp->tracking_vrrp, e_list) {
+		list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
 			if (top->obj.vrrp == vrrp) {
 				if (top->type & (TRACK_VRRP | TRACK_IF | TRACK_SG) &&
 				    type & (TRACK_VRRP | TRACK_IF | TRACK_SG))
@@ -2140,9 +2138,9 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool reverse, 
 	/* We want the dynamic entries at the start of the list, so that it
 	 * will be processed before a weighted track */
 	if (type == TRACK_VRRP_DYNAMIC)
-		list_head_add(&top->e_list, ifp->tracking_vrrp);
+		list_head_add(&top->e_list, &ifp->tracking_vrrp);
 	else
-		list_add_tail(&top->e_list, ifp->tracking_vrrp);
+		list_add_tail(&top->e_list, &ifp->tracking_vrrp);
 
 	/* if vrrp->num_if_script_fault needs incrementing, it will be
 	 * done in initialise_tracking_priorities() */
@@ -2153,14 +2151,11 @@ del_vrrp_from_interface(vrrp_t *vrrp, interface_t *ifp)
 {
 	tracking_obj_t *top, *top_tmp;
 
-	if (!ifp->tracking_vrrp)
-		return;
-
-	list_for_each_entry_safe(top, top_tmp, ifp->tracking_vrrp, e_list) {
+	list_for_each_entry_safe(top, top_tmp, &ifp->tracking_vrrp, e_list) {
 		if (top->obj.vrrp == vrrp && top->type == TRACK_VRRP_DYNAMIC) {
 			if (!IF_ISUP(ifp) && !vrrp->dont_track_primary)
 				vrrp->num_script_if_fault--;
-			if_tracking_vrrp_free(top);
+			free_tracking_obj(top);
 			break;
 		}
 

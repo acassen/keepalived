@@ -718,10 +718,7 @@ initialise_interface_tracking_priorities(void)
 
 	ifq = get_interface_queue();
 	list_for_each_entry(ifp, ifq, e_list) {
-		if (!ifp->tracking_vrrp)
-			continue;
-
-		list_for_each_entry(top, ifp->tracking_vrrp, e_list) {
+		list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
 			vrrp = top->obj.vrrp;
 			if (top->weight == VRRP_NOT_TRACK_IF)
 				continue;

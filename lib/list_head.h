@@ -198,11 +198,10 @@ static inline int list_empty(const struct list_head *head)
  */
 static inline void list_copy(struct list_head *dst, struct list_head *src)
 {
-	*dst = *src;
-
-	if (dst->next == src)
+	if (list_empty(src))
 		INIT_LIST_HEAD(dst);
 	else {
+		*dst = *src;
 		dst->next->prev = dst;
 		dst->prev->next = dst;
 	}

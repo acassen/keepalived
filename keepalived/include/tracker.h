@@ -67,9 +67,10 @@ typedef struct _tracking_obj {
 } tracking_obj_t;
 
 static inline void
-free_tracking_obj(void *data)
+free_tracking_obj(tracking_obj_t *obj)
 {
-	FREE(data);
+	list_head_del(&obj->e_list);
+	FREE(obj);
 }
 
 #endif
