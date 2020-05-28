@@ -830,8 +830,10 @@ alloc_vrrp(const char *iname)
 #endif
 	INIT_LIST_HEAD(&new->vip);
 	INIT_LIST_HEAD(&new->evip);
+#ifdef _HAVE_FIB_ROUTING_
 	INIT_LIST_HEAD(&new->vroutes);
 	INIT_LIST_HEAD(&new->vrules);
+#endif
 
 	/* Set default values */
 	new->family = AF_UNSPEC;
