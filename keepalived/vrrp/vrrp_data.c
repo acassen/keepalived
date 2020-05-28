@@ -1210,9 +1210,9 @@ dump_data_vrrp(FILE *fp)
 
 	dump_global_data(fp, global_data);
 
-	if (garp_delay) {
+	if (!list_empty(&garp_delay)) {
 		conf_write(fp, "------< Gratuitous ARP delays >------");
-		dump_garp_delay_list(fp, garp_delay);
+		dump_garp_delay_list(fp, &garp_delay);
 	}
 
 	dump_vrrp_data(fp, vrrp_data);

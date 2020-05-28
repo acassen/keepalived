@@ -191,6 +191,20 @@ static inline int list_empty(const struct list_head *head)
 	return head->next == head;
 }
 
+/**
+ * list_copy - copy one list to another
+ * @dst: the destination list
+ * @src: the source list
+ */
+static inline void list_copy(struct list_head *dst, struct list_head *src)
+{
+	if (!list_empty(src)) {
+		*dst = *src;
+		dst->next->prev = dst;
+		dst->prev->next = dst;
+	}
+}
+
 static inline void __list_splice(struct list_head *lst,
 				 struct list_head *head)
 {

@@ -74,16 +74,16 @@
 
 
 /* Local vars */
-LIST_HEAD_INITIALIZE(if_queue);
+static LIST_HEAD_INITIALIZE(if_queue);
 #ifdef _WITH_LINKBEAT_
 static struct ifreq ifr;
 static int linkbeat_fd = -1;
 #endif
 
-static list_head_t *old_garp_delay = NULL;
+static LIST_HEAD_INITIALIZE(old_garp_delay);
 
 /* Global vars */
-list_head_t *garp_delay = NULL;
+LIST_HEAD_INITIALIZE(garp_delay);
 
 /* Helper functions */
 interface_t * __attribute__ ((pure))
@@ -385,7 +385,6 @@ free_garp_delay(garp_delay_t *gd)
 	list_head_del(&gd->e_list);
 	FREE(gd);
 }
-
 static void
 free_garp_delay_list(list_head_t *l)
 {
@@ -425,7 +424,6 @@ dump_garp_delay(FILE *fp, const garp_delay_t *gd)
 			conf_write(fp, "  %s", ifp->ifname);
 	}
 }
-
 void
 dump_garp_delay_list(FILE *fp, list_head_t *l)
 {
@@ -440,14 +438,10 @@ alloc_garp_delay(void)
 {
 	garp_delay_t *gd;
 
-	if (!garp_delay) {
-		garp_delay = MALLOC(sizeof(list_head_t));
-		INIT_LIST_HEAD(garp_delay);
-	}
-	gd = MALLOC(sizeof(garp_delay_t));
+	PMALLOC(gd);
 	INIT_LIST_HEAD(&gd->e_list);
 
-	list_add_tail(&gd->e_list, garp_delay);
+	list_add_tail(&gd->e_list, &garp_delay);
 	return gd;
 }
 
@@ -828,23 +822,13 @@ free_interface_queue(void)
 	list_for_each_entry_safe(ifp, ifp_tmp, &if_queue, e_list)
 		free_if(ifp);
 	
-	if (!garp_delay)
-		return;
-
-	free_garp_delay_list(garp_delay);
-	FREE(garp_delay);
-	garp_delay = NULL;
+	free_garp_delay_list(&garp_delay);
 }
 
 void
 free_old_interface_queue(void)
 {
-	if (!old_garp_delay)
-		return;
-
-	free_garp_delay_list(old_garp_delay);
-	FREE(old_garp_delay);
-	old_garp_delay = NULL;
+	free_garp_delay_list(&old_garp_delay);
 }
 
 void
@@ -865,10 +849,10 @@ get_interface_queue(void)
 void
 reset_interface_queue(void)
 {
-	old_garp_delay = garp_delay;
 	interface_t *ifp;
 
-	garp_delay = NULL;
+	list_copy(&old_garp_delay, &garp_delay);
+	INIT_LIST_HEAD(&garp_delay);
 
 	list_for_each_entry(ifp, &if_queue, e_list) {
 #ifdef _WITH_LINKBEAT_

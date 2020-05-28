@@ -164,12 +164,12 @@ typedef struct {
 } MEMCHECK;
 
 /* Last free pointers */
-static LH_LIST_HEAD(free_list);
+static LIST_HEAD_INITIALIZE(free_list);
 static unsigned free_list_size;
 
 /* alloc_list entries used for 1000 VRRP instance each with VMAC interfaces is 33589 */
 static rb_root_t alloc_list = RB_ROOT;
-static LH_LIST_HEAD(bad_list);
+static LIST_HEAD_INITIALIZE(bad_list);
 
 static unsigned number_alloc_list;	/* number of alloc_list allocation entries */
 static unsigned max_alloc_list;

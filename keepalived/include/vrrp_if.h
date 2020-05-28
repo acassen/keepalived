@@ -215,7 +215,7 @@ typedef enum if_lookup {
 } if_lookup_t;
 
 /* Global data */
-extern list_head_t *garp_delay;
+extern list_head_t garp_delay;
 
 /* prototypes */
 extern interface_t *if_get_by_ifindex(ifindex_t) __attribute__ ((pure));

@@ -1561,7 +1561,7 @@ garp_group_handler(const vector_t *strvec)
 static void
 garp_group_garp_interval_handler(const vector_t *strvec)
 {
-	garp_delay_t *delay = list_last_entry(garp_delay, garp_delay_t, e_list);
+	garp_delay_t *delay = list_last_entry(&garp_delay, garp_delay_t, e_list);
 	double val;
 
 	if (!read_double_strvec(strvec, 1, &val, 0, (int)(INT_MAX / 1000000), true)) {
@@ -1579,7 +1579,7 @@ garp_group_garp_interval_handler(const vector_t *strvec)
 static void
 garp_group_gna_interval_handler(const vector_t *strvec)
 {
-	garp_delay_t *delay = list_last_entry(garp_delay, garp_delay_t, e_list);
+	garp_delay_t *delay = list_last_entry(&garp_delay, garp_delay_t, e_list);
 	double val;
 
 	if (!read_double_strvec(strvec, 1, &val, 0, (int)(INT_MAX / 1000000), true)) {
@@ -1615,12 +1615,12 @@ garp_group_interface_handler(const vector_t *strvec)
 		return;
 	}
 #endif
-	ifp->garp_delay = list_last_entry(garp_delay, garp_delay_t, e_list);
+	ifp->garp_delay = list_last_entry(&garp_delay, garp_delay_t, e_list);
 }
 static void
 garp_group_interfaces_handler(const vector_t *strvec)
 {
-	garp_delay_t *delay = list_last_entry(garp_delay, garp_delay_t, e_list);
+	garp_delay_t *delay = list_last_entry(&garp_delay, garp_delay_t, e_list);
 	interface_t *ifp;
 	const vector_t *interface_vec = read_value_block(strvec);
 	garp_delay_t *gd;
@@ -1634,7 +1634,7 @@ garp_group_interfaces_handler(const vector_t *strvec)
 
 	/* First set the next aggregation group number */
 	delay->aggregation_group = 1;
-	list_for_each_entry(gd, garp_delay, e_list) {
+	list_for_each_entry(gd, &garp_delay, e_list) {
 		if (gd->aggregation_group && gd != delay)
 			delay->aggregation_group++;
 	}
@@ -1668,7 +1668,7 @@ garp_group_interfaces_handler(const vector_t *strvec)
 static void
 garp_group_end_handler(void)
 {
-	garp_delay_t *delay = list_last_entry(garp_delay, garp_delay_t, e_list);
+	garp_delay_t *delay = list_last_entry(&garp_delay, garp_delay_t, e_list);
 	interface_t *ifp, *ifp_tmp;
 	list_head_t *ifq;
 

@@ -2010,7 +2010,8 @@ alloc_value_block(void (*alloc_func) (const vector_t *), const vector_t *strvec)
 				first_vec = vector_compact(first_vec);
 			}
 		} else
-			report_config_error(CONFIG_GENERAL_ERROR, "Block %s has extra parameters %s ...", strvec_slot(strvec, 0), strvec_slot(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "Block %s has extra parameters %s ..."
+								, strvec_slot(strvec, 0), strvec_slot(strvec, 1));
 	}
 
 	buf = (char *) MALLOC(MAXBUF);
