@@ -200,11 +200,13 @@ typedef struct {
 } checksum_check_t;
 #endif
 
-typedef struct {
+typedef struct _unicast_peer_t {
 	struct sockaddr_storage	address;
 #ifdef _CHECKSUM_DEBUG_
 	checksum_check_t	chk;
 #endif
+	/* Linked list member */
+	list_head_t		e_list;
 } unicast_peer_t;
 
 /* parameters per virtual router -- rfc2338.6.1.2 */
@@ -251,7 +253,7 @@ typedef struct _vrrp_t {
 #ifdef IPV6_RECVPKTINFO
 	bool			multicast_pkt;		/* Last IPv6 packet received was multicast */
 #endif
-	list			unicast_peer;		/* List of Unicast peer to send advert to */
+	list_head_t		unicast_peer;		/* unicast_peer_t - peers to send unicast advert to */
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 	chksum_compatibility_t	unicast_chksum_compat;	/* Whether v1.3.6 and earlier chksum is used */
 #endif

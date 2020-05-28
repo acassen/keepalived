@@ -379,19 +379,22 @@ expected_vrrp_pkt_len(const vrrphdr_t *vh, int family)
 }
 
 static void
-vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage* addr)
+vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage *addr)
 {
 	char *bufptr = vrrp->send_buffer;
 	vrrphdr_t *hd;
 #ifdef _WITH_VRRP_AUTH_
 	bool final_update;
+	unicast_peer_t *peer = NULL;
 #endif
 	uint32_t new_saddr = 0;
 	uint32_t new_daddr;
 
 #ifdef _WITH_VRRP_AUTH_
 	/* We will need to be called again if there is more than one unicast peer, so don't calculate checksums */
-	final_update = (LIST_ISEMPTY(vrrp->unicast_peer) || !LIST_HEAD(vrrp->unicast_peer)->next || addr);
+	if (!list_empty(&vrrp->unicast_peer))
+		peer = list_first_entry(&vrrp->unicast_peer, unicast_peer_t, e_list);
+	final_update = (!peer || list_is_last(&peer->e_list, &vrrp->unicast_peer) || addr);
 #endif
 
 	if (vrrp->family == AF_INET) {
@@ -490,7 +493,7 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage* addr)
 				/* zero the ip mutable fields */
 				iph.tos = 0;
 				iph.frag_off = 0;
-				if (!LIST_ISEMPTY(vrrp->unicast_peer))
+				if (!list_empty(&vrrp->unicast_peer))
 					iph.ttl = 0;
 				/* Compute the ICV & trunc the digest to 96bits
 				   => No padding needed.
@@ -559,7 +562,7 @@ vrrp_in_chk_ipsecah(vrrp_t *vrrp, const struct iphdr *ip, const ipsec_ah_t *ah, 
 	ip_tmp->tos = 0;
 	ip_tmp->frag_off = 0;
 	ip_tmp->check = 0;
-	if (!LIST_ISEMPTY(vrrp->unicast_peer))
+	if (!list_empty(&vrrp->unicast_peer))
 		ip_tmp->ttl = 0;
 	memset(ah_tmp->auth_data, 0, sizeof (ah_tmp->auth_data));
 	memset(digest, 0, MD5_DIGEST_LENGTH);
@@ -711,12 +714,11 @@ check_rx_checksum(vrrp_t *vrrp, const ipv4_phdr_t *ipv4_phdr, const struct iphdr
 	unicast_peer_t *peer = NULL;
 	struct in_addr *saddr4;
 	struct sockaddr_storage addr;
-	element e;
 	checksum_check_t *chk;
 
 	/* If unicast, find the sending peer */
 	saddr4 = &((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr;
-	LIST_FOREACH(vrrp->unicast_peer, peer, e) {
+	list_for_each_entry(peer, &vrrp->unicast_peer, e_list) {
 		if (saddr4->s_addr == ((struct sockaddr_in *)&peer->address)->sin_addr.s_addr)
 			break;
 	}
@@ -790,11 +792,10 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 #endif
 	const unsigned char *vips;
 	ip_address_t *ipaddress;
-	element e;
 	char addr_str[INET6_ADDRSTRLEN];
 	ipv4_phdr_t ipv4_phdr;
 	uint32_t acc_csum = 0;
-	unicast_peer_t *up_addr;
+	unicast_peer_t *up_addr = NULL;
 	size_t buflen, expected_len;
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 	bool chksum_error;
@@ -851,7 +852,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 	}
 
 	/* MUST verify that the IPv4 TTL/IPv6 HL is 255 (but not if unicast) */
-	if (LIST_ISEMPTY(vrrp->unicast_peer)) {
+	if (list_empty(&vrrp->unicast_peer)) {
 		if ((vrrp->family == AF_INET && ip->ttl != VRRP_IP_TTL)
 #ifdef IPV6_RECVHOPLIMIT
 		    || (vrrp->family == AF_INET6 && vrrp->hop_limit != -1 && vrrp->hop_limit != VRRP_IP_TTL)
@@ -1013,7 +1014,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 			if ((csum_calc = in_csum((const uint16_t *) hd, vrrppkt_len, acc_csum, &acc_csum))) {
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 				chksum_error = true;
-				if (!LIST_ISEMPTY(vrrp->unicast_peer) &&
+				if (!list_empty(&vrrp->unicast_peer) &&
 				    vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_NONE &&
 				    ipv4_phdr.dst != global_data->vrrp_mcast_group4.sin_addr.s_addr) {
 					ipv4_phdr.dst = global_data->vrrp_mcast_group4.sin_addr.s_addr;
@@ -1078,11 +1079,11 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 #ifdef IPV6_RECVPKTINFO
 	     || (vrrp->family == AF_INET6 && vrrp->multicast_pkt)
 #endif
-								 ) != LIST_ISEMPTY(vrrp->unicast_peer)) {
+								 ) != list_empty(&vrrp->unicast_peer)) {
 		log_message(LOG_INFO, "(%s) Expected %sicast packet but received %sicast packet",
 				vrrp->iname,
-				LIST_ISEMPTY(vrrp->unicast_peer) ? "mult" : "un",
-				LIST_ISEMPTY(vrrp->unicast_peer) ? "un" : "mult");
+				list_empty(&vrrp->unicast_peer) ? "mult" : "un",
+				list_empty(&vrrp->unicast_peer) ? "un" : "mult");
 		++vrrp->stats->addr_list_err;
 		return VRRP_PACKET_KO;
 	}
@@ -1117,24 +1118,25 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 		}
 
 		/* check a unicast source address is in the unicast_peer list */
-		if (global_data->vrrp_check_unicast_src && !LIST_ISEMPTY(vrrp->unicast_peer)) {
+		if (global_data->vrrp_check_unicast_src && !list_empty(&vrrp->unicast_peer)) {
 			struct in_addr *saddr4;
 			struct in6_addr *saddr6;
 
 			if (vrrp->family == AF_INET6) {
 				saddr6 = &((struct sockaddr_in6 *)&vrrp->pkt_saddr)->sin6_addr;
-				LIST_FOREACH(vrrp->unicast_peer, up_addr, e) {
+				list_for_each_entry(up_addr, &vrrp->unicast_peer, e_list) {
 					if (IN6_ARE_ADDR_EQUAL(saddr6, &((struct sockaddr_in6 *)&up_addr->address)->sin6_addr))
 						break;
 				}
 			} else {
 				saddr4 = &((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr;
-				LIST_FOREACH(vrrp->unicast_peer, up_addr, e) {
+				list_for_each_entry(up_addr, &vrrp->unicast_peer, e_list) {
 					if (saddr4->s_addr == ((struct sockaddr_in *)&up_addr->address)->sin_addr.s_addr)
 						break;
 				}
 			}
-			if (!e) {
+
+			if (!up_addr) {
 				log_message(LOG_INFO, "(%s) unicast source address %s not a unicast peer",
 					vrrp->iname,
 					inet_ntop(vrrp->family,
@@ -1188,8 +1190,8 @@ vrrp_build_ip4(vrrp_t *vrrp, char *buffer)
 	ip->saddr = VRRP_PKT_SADDR(vrrp);
 
 	/* If using unicast peers, pick the first one */
-	if (!LIST_ISEMPTY(vrrp->unicast_peer)) {
-		unicast_peer_t* peer = ELEMENT_DATA(LIST_HEAD(vrrp->unicast_peer));
+	if (!list_empty(&vrrp->unicast_peer)) {
+		unicast_peer_t *peer = list_first_entry(&vrrp->unicast_peer, unicast_peer_t, e_list);
 		ip->daddr = inet_sockaddrip4(&peer->address);
 	}
 	else
@@ -1470,7 +1472,6 @@ void
 vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 {
 	unicast_peer_t *peer;
-	element e;
 
 #ifdef _HAVE_VRRP_IPVLAN_
 	if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags) &&
@@ -1492,13 +1493,13 @@ vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 
 	/* Send the packet, but don't log an error if it is a prio 0 message
 	 * and the interface is down. */
-	if (LIST_ISEMPTY(vrrp->unicast_peer)) {
+	if (list_empty(&vrrp->unicast_peer)) {
 		if (vrrp_send_pkt(vrrp, NULL) == -1 &&
 		    (prio != VRRP_PRIO_STOP || errno != ENETUNREACH || IF_FLAGS_UP(vrrp->ifp)))
 			log_message(LOG_INFO, "(%s): send advert error %d (%m)", vrrp->iname, errno);
 	}
 	else {
-		LIST_FOREACH(vrrp->unicast_peer, peer, e) {
+		list_for_each_entry(peer, &vrrp->unicast_peer, e_list) {
 			if (vrrp->family == AF_INET)
 				vrrp_update_pkt(vrrp, prio, &peer->address);
 			if (vrrp_send_pkt(vrrp, peer) == -1 &&
@@ -2128,7 +2129,7 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool reverse, 
 	}
 
 	/* Not in list so add */
-	top = MALLOC(sizeof(*top));
+	PMALLOC(top);
 	INIT_LIST_HEAD(&top->e_list);
 	top->obj.vrrp = vrrp;
 	top->weight = weight;
@@ -2626,7 +2627,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	/* unicast peers aren't allowed in strict mode if the interface supports multicast */
 	if (vrrp->strict_mode && vrrp->ifp->ifindex &&
 	    (vrrp->ifp->ifi_flags & IFF_MULTICAST) &&
-	    !LIST_ISEMPTY(vrrp->unicast_peer)) {
+	    !list_empty(&vrrp->unicast_peer)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Unicast peers are not supported in strict mode"
 							, vrrp->iname);
 		return false;
@@ -2648,7 +2649,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #endif
 
 	/* If the interface doesn't support multicast, then we need to use unicast */
-	if (vrrp->ifp->ifindex && !(vrrp->ifp->ifi_flags & IFF_MULTICAST) && LIST_ISEMPTY(vrrp->unicast_peer)) {
+	if (vrrp->ifp->ifindex && !(vrrp->ifp->ifi_flags & IFF_MULTICAST) && list_empty(&vrrp->unicast_peer)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) interface %s does not support multicast,"
 							  " specify unicast peers - disabling"
 							, vrrp->iname, vrrp->ifp->ifname);
@@ -2664,7 +2665,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 							, vrrp->iname);
 
 	/* If the addresses are IPv6, then the first one must be link local */
-	if (vrrp->family == AF_INET6 && LIST_ISEMPTY(vrrp->unicast_peer) && !list_empty(&vrrp->vip)) {
+	if (vrrp->family == AF_INET6 && list_empty(&vrrp->unicast_peer) && !list_empty(&vrrp->vip)) {
 		ip_addr = list_first_entry(&vrrp->vip, ip_address_t, e_list);
 		if (!IN6_IS_ADDR_LINKLOCAL(&ip_addr->u.sin6_addr))
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) the first IPv6 VIP address must be link local"

@@ -451,7 +451,7 @@ vrrp_create_sockpool(list_head_t *l)
 			  (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? vrrp->configured_ifp :
 #endif
 										    vrrp->ifp;
-		unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
+		unicast = !list_empty(&vrrp->unicast_peer);
 		proto = IPPROTO_VRRP;
 #if defined _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH)
@@ -670,7 +670,7 @@ try_up_instance(vrrp_t *vrrp, bool leaving_init)
 	 * and we respond. If we don't do this, we can time out and transition to master
 	 * before the master renews its ARP entry, since the master cannot send us adverts
 	 * until it has done so. */
-	if (!LIST_ISEMPTY(vrrp->unicast_peer) &&
+	if (!list_empty(&vrrp->unicast_peer) &&
 	    vrrp->saddr.ss_family != AF_UNSPEC) {
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
 			log_message(LOG_INFO, "%s: sending gratuitous %s for %s", vrrp->iname, vrrp->family == AF_INET ? "ARP" : "NA", inet_sockaddrtos(&vrrp->saddr));

@@ -468,9 +468,19 @@ dump_sock_pool(FILE *fp, const list_head_t *l)
 	}
 }
 static void
-free_unicast_peer(void *data)
+free_unicast_peer(unicast_peer_t *peer)
 {
-	FREE(data);
+	list_head_del(&peer->e_list);
+	FREE(peer);
+}
+static void
+free_unicast_peer_list(list_head_t *l)
+{
+	unicast_peer_t *peer, *peer_tmp;
+
+	list_for_each_entry_safe(peer, peer_tmp, l, e_list)
+		free_unicast_peer(peer);
+
 }
 static void
 dump_unicast_peer(FILE *fp, const void *data)
@@ -482,6 +492,14 @@ dump_unicast_peer(FILE *fp, const void *data)
 	conf_write(fp, "       last rx checksum = 0x%4.4x, priority %d", peer->chk.last_rx_checksum, peer->chk.last_rx_priority);
 	conf_write(fp, "       last tx checksum = 0x%4.4x, priority %d", peer->chk.last_tx_checksum, peer->chk.last_tx_priority);
 #endif
+}
+static void
+dump_unicast_peer_list(FILE *fp, const list_head_t *l)
+{
+	unicast_peer_t *peer;
+
+	list_for_each_entry(peer, l, e_list)
+		dump_unicast_peer(fp, peer);
 }
 
 static void
@@ -509,7 +527,7 @@ free_vrrp(vrrp_t *vrrp)
 #ifdef _WITH_BFD_
 	free_track_bfd_list(&vrrp->track_bfd);
 #endif
-	free_list(&vrrp->unicast_peer);
+	free_unicast_peer_list(&vrrp->unicast_peer);
 	free_ipaddress_list(&vrrp->vip);
 	free_ipaddress_list(&vrrp->evip);
 #ifdef _HAVE_FIB_ROUTING_
@@ -677,10 +695,9 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 		conf_write(fp, "   Virtual IP Excluded :");
 		dump_ipaddress_list(fp, &vrrp->evip);
 	}
-	if (!LIST_ISEMPTY(vrrp->unicast_peer)) {
-		conf_write(fp, "   Unicast Peer = %u",
-			LIST_SIZE(vrrp->unicast_peer));
-		dump_list(fp, vrrp->unicast_peer);
+	if (!list_empty(&vrrp->unicast_peer)) {
+		conf_write(fp, "   Unicast Peer :");
+		dump_unicast_peer_list(fp, &vrrp->unicast_peer);
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 		conf_write(fp, "   Unicast checksum compatibility = %s",
 				vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_NONE ? "no" :
@@ -760,7 +777,7 @@ alloc_vrrp_sync_group(const char *gname)
 	vrrp_sgroup_t *new;
 
 	/* Allocate new VRRP group structure */
-	new = (vrrp_sgroup_t *) MALLOC(sizeof(vrrp_sgroup_t));
+	PMALLOC(new);
 	INIT_LIST_HEAD(&new->e_list);
 	INIT_LIST_HEAD(&new->track_ifp);
 	INIT_LIST_HEAD(&new->track_script);
@@ -784,7 +801,8 @@ static vrrp_stats *
 alloc_vrrp_stats(void)
 {
 	vrrp_stats *new;
-	new = (vrrp_stats *) MALLOC(sizeof (vrrp_stats));
+
+	PMALLOC(new);
 	new->become_master = 0;
 	new->release_master = 0;
 	new->invalid_authtype = 0;
@@ -814,7 +832,7 @@ alloc_vrrp(const char *iname)
 	vrrp_t *new;
 
 	/* Allocate new VRRP structure */
-	new = (vrrp_t *) MALLOC(sizeof(vrrp_t));
+	PMALLOC(new);
 	INIT_LIST_HEAD(&new->e_list);
 	INIT_LIST_HEAD(&new->track_ifp);
 	INIT_LIST_HEAD(&new->track_script);
@@ -869,11 +887,8 @@ alloc_vrrp_unicast_peer(const vector_t *strvec)
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 	unicast_peer_t *peer;
 
-	if (!LIST_EXISTS(vrrp->unicast_peer))
-		vrrp->unicast_peer = alloc_list(free_unicast_peer, dump_unicast_peer);
-
 	/* Allocate new unicast peer */
-	peer = (unicast_peer_t *) MALLOC(sizeof(unicast_peer_t));
+	PMALLOC(peer);
 	if (inet_stosockaddr(strvec_slot(strvec, 0), NULL, &peer->address)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: VRRP instance[%s] malformed unicast"
 				     " peer address[%s]. Skipping..."
@@ -892,7 +907,7 @@ alloc_vrrp_unicast_peer(const vector_t *strvec)
 		return;
 	}
 
-	list_add(vrrp->unicast_peer, peer);
+	list_add_tail(&peer->e_list, &vrrp->unicast_peer);
 }
 
 void
