@@ -1643,14 +1643,14 @@ garp_group_interfaces_handler(const vector_t *strvec)
 		ifp = if_get_by_ifname(vector_slot(interface_vec, i), IF_CREATE_IF_DYNAMIC);
 		if (!ifp) {
 			if (global_data->dynamic_interfaces)
-				log_message(LOG_INFO, "WARNING - interface %s specified for garp_group doesn't exist", strvec_slot(strvec, i));
+				log_message(LOG_INFO, "WARNING - interface %s specified for garp_group doesn't exist", strvec_slot(interface_vec, i));
 			else
-				report_config_error(CONFIG_GENERAL_ERROR, "WARNING - interface %s specified for garp_group doesn't exist", strvec_slot(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "WARNING - interface %s specified for garp_group doesn't exist", strvec_slot(interface_vec, i));
 			continue;
 		}
 
 		if (ifp->garp_delay) {
-			report_config_error(CONFIG_GENERAL_ERROR, "garp_group already specified for %s - ignoring", strvec_slot(strvec, 1));
+			report_config_error(CONFIG_GENERAL_ERROR, "garp_group already specified for %s - ignoring", strvec_slot(interface_vec, 1));
 			continue;
 		}
 
