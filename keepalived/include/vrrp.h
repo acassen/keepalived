@@ -227,8 +227,8 @@ typedef struct _vrrp_t {
 	struct _ip_address	*ipvlan_addr;		/* Address to configure on an ipvlan interface */
 	int			ipvlan_type;		/* Bridge, private or VEPA mode */
 #endif
-#endif
 	interface_t		*configured_ifp;	/* Interface the configuration says we are on */
+#endif
 	list_head_t		track_ifp;		/* tracked_if_t - Interface state we monitor */
 	list_head_t		track_script;		/* tracked_sc_t - Script state we monitor */
 	list_head_t		track_file;		/* tracked_file_monitor_t - Files whose value we monitor */
