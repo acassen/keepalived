@@ -116,14 +116,13 @@ bool do_vrrp_fd_debug;
 static void
 dump_vrrp_fd(void)
 {
-	element e;
 	sock_t *sock;
 	vrrp_t *vrrp;
 	timeval_t time_diff;
 
 	log_message(LOG_INFO, "----[ Begin VRRP fd dump ]----");
 
-	LIST_FOREACH(vrrp_data->vrrp_socket_pool, sock, e) {
+	list_for_each_entry(sock, &vrrp_data->vrrp_socket_pool, e_list) {
 		log_message(LOG_INFO, "  Sockets %d, %d", sock->fd_in, sock->fd_out);
 
 		rb_for_each_entry_cached(vrrp, &sock->rb_sands, rb_sands) {
