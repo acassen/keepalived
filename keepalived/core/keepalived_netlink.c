@@ -1541,7 +1541,7 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 	if (was_up == now_up)
 		return;
 
-	if (list_empty(&ifp->tracking_vrrp)) {
+	if (!list_empty(&ifp->tracking_vrrp)) {
 		log_message(LOG_INFO, "Netlink reports %s %s", ifp->ifname, now_up ? "up" : "down");
 
 		process_if_status_change(ifp);
