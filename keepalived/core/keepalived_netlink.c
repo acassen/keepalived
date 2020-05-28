@@ -846,6 +846,25 @@ set_vrrp_backup(vrrp_t *vrrp)
 }
 #endif
 
+/* Check if we already have the address on the interface */
+static bool
+have_address(void *addr_p, const interface_t *ifp, int family)
+{
+	sin_addr_t *addr;
+	const list_head_t *addr_l;
+
+	if (!inet_inaddrcmp(family, addr_p, family == AF_INET ? (const void *)&ifp->sin_addr : (const void *)&ifp->sin6_addr))
+		return true;
+
+	addr_l = family == AF_INET ? &ifp->sin_addr_l : &ifp->sin6_addr_l;
+	list_for_each_entry(addr, addr_l, e_list) {
+		if (!inet_inaddrcmp(family, addr_p, addr))
+		       return true;
+	}
+
+	return false;
+}
+
 /*
  * Netlink interface address lookup filter
  * We need to handle multiple primary address and
@@ -929,7 +948,10 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 						if (!list_empty(&ifp->tracking_vrrp))
 							addr_chg = true;
 					} else {
-						if_extra_ipaddress_alloc(ifp, addr.in, AF_INET);
+						/* Check we don't already have the address -
+						 * it might be being promoted from secondary to primary */
+						if (!have_address(addr.in, ifp, AF_INET))
+							if_extra_ipaddress_alloc(ifp, addr.in, AF_INET);
 					}
 				} else {
 					if (!ifp->sin6_addr.s6_addr32[0]) {
@@ -946,7 +968,10 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 					}
 #endif
 					else {
-						if_extra_ipaddress_alloc(ifp, addr.in6, AF_INET6);
+						/* Check we don't already have the address -
+						 * it might be being promoted from secondary to primary */
+						if (!have_address(addr.in6, ifp, AF_INET6))
+							if_extra_ipaddress_alloc(ifp, addr.in6, AF_INET6);
 					}
 				}
 
@@ -2381,7 +2406,7 @@ kernel_netlink_init(void)
 
 	/* If the netlink kernel fd is already open, just register a read thread.
 	 * This will happen at reload. */
-	if (nl_kernel.fd > 0) {
+	if (nl_kernel.fd >= 0) {
 		nl_kernel.thread = thread_add_read(master, kernel_netlink, &nl_kernel, nl_kernel.fd, TIMER_NEVER, false);
 		return;
 	}
