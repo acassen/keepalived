@@ -854,6 +854,7 @@ alloc_vrrp(const char *iname)
 	INIT_LIST_HEAD(&new->track_ifp);
 	INIT_LIST_HEAD(&new->track_script);
 	INIT_LIST_HEAD(&new->track_file);
+	INIT_LIST_HEAD(&new->unicast_peer);
 #ifdef _WITH_CN_PROC_
 	INIT_LIST_HEAD(&new->track_process);
 #endif
