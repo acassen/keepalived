@@ -46,8 +46,8 @@ vrrp_get_instance(char *iname)
 }
 
 /* Set instances group pointer */
-void
-vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
+bool
+vrrp_sync_set_group(vrrp_sgroup_t *sgroup)
 {
 	vrrp_t *vrrp;
 	char *str;
@@ -55,33 +55,32 @@ vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
 	bool group_member_down = false;
 
 	/* Can't handle no members of the group */
-	if (!vgroup->iname)
-		return;
+	if (!sgroup->iname)
+		return false;
 
-	vgroup->vrrp_instances = alloc_list(NULL, NULL);
-
-	for (i = 0; i < vector_size(vgroup->iname); i++) {
-		str = vector_slot(vgroup->iname, i);
+	for (i = 0; i < vector_size(sgroup->iname); i++) {
+		str = vector_slot(sgroup->iname, i);
 		vrrp = vrrp_get_instance(str);
 		if (!vrrp) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Virtual router %s specified in sync group %s doesn't exist - ignoring", str, vgroup->gname);
+			report_config_error(CONFIG_GENERAL_ERROR, "Virtual router %s specified in sync group %s doesn't exist - ignoring", str, sgroup->gname);
 			continue;
 		}
 
 		if (vrrp->sync) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Virtual router %s cannot exist in more than one sync group; ignoring %s", str, vgroup->gname);
+			report_config_error(CONFIG_GENERAL_ERROR, "Virtual router %s cannot exist in more than one sync group; ignoring %s", str, sgroup->gname);
 			continue;
 		}
 
-		list_add(vgroup->vrrp_instances, vrrp);
-		vrrp->sync = vgroup;
+		INIT_LIST_HEAD(&vrrp->s_list);
+		list_add_tail(&vrrp->s_list, &sgroup->vrrp_instances);
+		vrrp->sync = sgroup;
 
 		/* set eventual sync group state. Unless all members are master and address owner,
 		 * then we must be backup */
-		if (vgroup->state == VRRP_STATE_MAST && vrrp->wantstate == VRRP_STATE_BACK)
-			report_config_error(CONFIG_GENERAL_ERROR, "Sync group %s has some member(s) as address owner and some not as address owner. This won't work.", vgroup->gname);
-		if (vgroup->state != VRRP_STATE_BACK)
-			vgroup->state = (vrrp->wantstate == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER) ? VRRP_STATE_MAST : VRRP_STATE_BACK;
+		if (sgroup->state == VRRP_STATE_MAST && vrrp->wantstate == VRRP_STATE_BACK)
+			report_config_error(CONFIG_GENERAL_ERROR, "Sync group %s has some member(s) as address owner and some not as address owner. This won't work.", sgroup->gname);
+		if (sgroup->state != VRRP_STATE_BACK)
+			sgroup->state = (vrrp->wantstate == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER) ? VRRP_STATE_MAST : VRRP_STATE_BACK;
 
 // TODO - what about track scripts down?
 		if (vrrp->state == VRRP_STATE_FAULT)
@@ -89,36 +88,44 @@ vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
 	}
 
 	if (group_member_down)
-		vgroup->state = VRRP_STATE_FAULT;
+		sgroup->state = VRRP_STATE_FAULT;
 
-	if (LIST_SIZE(vgroup->vrrp_instances) <= 1) {
-		/* The sync group will be removed by the calling function if it has no members */
-		report_config_error(CONFIG_GENERAL_ERROR, "Sync group %s has %s virtual router(s) - %s", vgroup->gname, LIST_SIZE(vgroup->vrrp_instances) ? "only 1" : "no",
-				LIST_SIZE(vgroup->vrrp_instances) ? "this probably isn't what you want" : "removing");
+	/* The sync group will be removed by the calling function if it has no members */
+	if (list_empty(&sgroup->vrrp_instances)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Sync group %s, no matching virtual router found"
+							  " in group declaration - removing"
+							, sgroup->gname);
+		return false;
+	}
 
-		if (!LIST_SIZE(vgroup->vrrp_instances))
-			free_list(&vgroup->vrrp_instances);
+	/* The sync group will be removed by the calling function if it has only one member */
+	vrrp = list_first_entry(&sgroup->vrrp_instances, vrrp_t, s_list);
+	if (list_is_last(&vrrp->s_list, &sgroup->vrrp_instances)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Sync group %s has only 1 virtual router(s) -"
+							  " this probably isn't what you want"
+							, sgroup->gname);
+		return false;
 	}
 
 	/* The iname vector is only used for us to set up the sync groups, so delete it */
-	free_strvec(vgroup->iname);
-	vgroup->iname = NULL;
+	free_strvec(sgroup->iname);
+	sgroup->iname = NULL;
+	return true;
 }
 
 /* Check transition to master state */
 bool
-vrrp_sync_can_goto_master(vrrp_t * vrrp)
+vrrp_sync_can_goto_master(vrrp_t *vrrp)
 {
+	vrrp_sgroup_t *sgroup = vrrp->sync;
 	vrrp_t *isync;
-	vrrp_sgroup_t *vgroup = vrrp->sync;
-	element e;
 
-	if (GROUP_STATE(vgroup) == VRRP_STATE_MAST)
+	if (GROUP_STATE(sgroup) == VRRP_STATE_MAST)
 		return true;
 
 	/* Only sync to master if everyone wants to
 	 * i.e. prefer backup state to avoid thrashing */
-	LIST_FOREACH(vgroup->vrrp_instances, isync, e) {
+	list_for_each_entry(isync, &sgroup->vrrp_instances, s_list) {
 		if (isync != vrrp && isync->wantstate != VRRP_STATE_MAST) {
 			/* Make sure we give time for other instances to be
 			 * ready to become master. The timer here doesn't
@@ -129,24 +136,24 @@ vrrp_sync_can_goto_master(vrrp_t * vrrp)
 			return false;
 		}
 	}
+
 	return true;
 }
 
 void
-vrrp_sync_backup(vrrp_t * vrrp)
+vrrp_sync_backup(vrrp_t *vrrp)
 {
+	vrrp_sgroup_t *sgroup = vrrp->sync;
 	vrrp_t *isync;
-	vrrp_sgroup_t *vgroup = vrrp->sync;
-	element e;
 
-	if (GROUP_STATE(vgroup) == VRRP_STATE_BACK)
+	if (GROUP_STATE(sgroup) == VRRP_STATE_BACK)
 		return;
 
-	log_message(LOG_INFO, "VRRP_Group(%s) Syncing instances to BACKUP state",
-	       GROUP_NAME(vgroup));
+	log_message(LOG_INFO, "VRRP_Group(%s) Syncing instances to BACKUP state"
+			    , GROUP_NAME(sgroup));
 
 	/* Perform sync index */
-	LIST_FOREACH(vgroup->vrrp_instances, isync, e) {
+	list_for_each_entry(isync, &sgroup->vrrp_instances, s_list) {
 		if (isync == vrrp || isync->state == VRRP_STATE_BACK)
 			continue;
 
@@ -162,28 +169,26 @@ vrrp_sync_backup(vrrp_t * vrrp)
 		vrrp_thread_requeue_read(isync);
 	}
 
-	vgroup->state = VRRP_STATE_BACK;
-	send_group_notifies(vgroup);
+	sgroup->state = VRRP_STATE_BACK;
+	send_group_notifies(sgroup);
 }
 
 void
-vrrp_sync_master(vrrp_t * vrrp)
+vrrp_sync_master(vrrp_t *vrrp)
 {
+	vrrp_sgroup_t *sgroup = vrrp->sync;
 	vrrp_t *isync;
-	vrrp_sgroup_t *vgroup = vrrp->sync;
-	list l = vgroup->vrrp_instances;
-	element e;
 
-	if (GROUP_STATE(vgroup) == VRRP_STATE_MAST)
+	if (GROUP_STATE(sgroup) == VRRP_STATE_MAST)
 		return;
 	if (!vrrp_sync_can_goto_master(vrrp))
 		return;
 
-	log_message(LOG_INFO, "VRRP_Group(%s) Syncing instances to MASTER state", GROUP_NAME(vgroup));
+	log_message(LOG_INFO, "VRRP_Group(%s) Syncing instances to MASTER state"
+			    , GROUP_NAME(sgroup));
 
 	/* Perform sync index */
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		isync = ELEMENT_DATA(e);
+	list_for_each_entry(isync, &sgroup->vrrp_instances, s_list) {
 
 // TODO		/* Send the higher priority advert on all synced instances */
 		if (isync != vrrp && isync->state != VRRP_STATE_MAST) {
@@ -201,30 +206,26 @@ vrrp_sync_master(vrrp_t * vrrp)
 //			}
 		}
 	}
-	vgroup->state = VRRP_STATE_MAST;
-	send_group_notifies(vgroup);
+
+	sgroup->state = VRRP_STATE_MAST;
+	send_group_notifies(sgroup);
 }
 
 void
-vrrp_sync_fault(vrrp_t * vrrp)
+vrrp_sync_fault(vrrp_t *vrrp)
 {
+	vrrp_sgroup_t *sgroup = vrrp->sync;
 	vrrp_t *isync;
-	vrrp_sgroup_t *vgroup = vrrp->sync;
-	list l = vgroup->vrrp_instances;
-	element e;
 
-	if (GROUP_STATE(vgroup) == VRRP_STATE_FAULT)
+	if (GROUP_STATE(sgroup) == VRRP_STATE_FAULT)
 		return;
 
-	log_message(LOG_INFO, "VRRP_Group(%s) Syncing instances to FAULT state",
-	       GROUP_NAME(vgroup));
+	log_message(LOG_INFO, "VRRP_Group(%s) Syncing instances to FAULT state"
+			    , GROUP_NAME(sgroup));
 
 	/* Perform sync index */
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		isync = ELEMENT_DATA(e);
-
-		/*
-		 * We force sync instance to backup mode.
+	list_for_each_entry(isync, &sgroup->vrrp_instances, s_list) {
+		/* We force sync instance to backup mode.
 		 * This reduce instance takeover to less than ms_down_timer.
 		 * => by default ms_down_timer is set to 3secs.
 		 * => Takeover will be less than 3secs !
@@ -240,6 +241,7 @@ vrrp_sync_fault(vrrp_t * vrrp)
 			}
 		}
 	}
-	vgroup->state = VRRP_STATE_FAULT;
-	send_group_notifies(vgroup);
+
+	sgroup->state = VRRP_STATE_FAULT;
+	send_group_notifies(sgroup);
 }

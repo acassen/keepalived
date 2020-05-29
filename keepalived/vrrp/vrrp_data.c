@@ -122,6 +122,22 @@ alloc_srule(const vector_t *strvec)
 }
 #endif
 
+/* VRRP Reference list functions */
+static void
+free_vrrp_sync_group_list(__attribute__((unused)) list_head_t *l)
+{
+	/* Just do nothing */
+}
+
+static void
+dump_vrrp_sync_group_list(FILE *fp, const list_head_t *l)
+{
+	vrrp_t *vrrp;
+
+	list_for_each_entry(vrrp, l, s_list)
+		conf_write(fp, "     %s", vrrp->iname);
+}
+
 /* VRRP facility functions */
 void
 free_sync_group(vrrp_sgroup_t *sgroup)
@@ -132,7 +148,7 @@ free_sync_group(vrrp_sgroup_t *sgroup)
 		free_strvec(sgroup->iname);
 	}
 	FREE_CONST(sgroup->gname);
-	free_list(&sgroup->vrrp_instances);
+	free_vrrp_sync_group_list(&sgroup->vrrp_instances);
 	free_track_if_list(&sgroup->track_ifp);
 	free_track_script_list(&sgroup->track_script);
 	free_track_file_monitor_list(&sgroup->track_file);
@@ -171,15 +187,11 @@ dump_notify_script(FILE *fp, const notify_script_t *script, const char *type)
 static void
 dump_sync_group(FILE *fp, const vrrp_sgroup_t *sgroup)
 {
-	const vrrp_t *vrrp;
-	element e;
-
 	conf_write(fp, " VRRP Sync Group = %s, %s", sgroup->gname, get_state_str(sgroup->state));
 	conf_write(fp, "   Num member fault %u, num member init %u", sgroup->num_member_fault, sgroup->num_member_init);
-	if (sgroup->vrrp_instances) {
-		conf_write(fp, "   VRRP member instances = %u", LIST_SIZE(sgroup->vrrp_instances));
-		LIST_FOREACH(sgroup->vrrp_instances, vrrp, e)
-			conf_write(fp, "     %s", vrrp->iname);
+	if (!list_empty(&sgroup->vrrp_instances)) {
+		conf_write(fp, "   VRRP member instances :");
+		dump_vrrp_sync_group_list(fp, &sgroup->vrrp_instances);
 	}
 	if (sgroup->sgroup_tracking_weight)
 		conf_write(fp, "   sync group tracking weight set");
@@ -779,6 +791,7 @@ alloc_vrrp_sync_group(const char *gname)
 	/* Allocate new VRRP group structure */
 	PMALLOC(new);
 	INIT_LIST_HEAD(&new->e_list);
+	INIT_LIST_HEAD(&new->vrrp_instances);
 	INIT_LIST_HEAD(&new->track_ifp);
 	INIT_LIST_HEAD(&new->track_script);
 	INIT_LIST_HEAD(&new->track_file);

@@ -110,7 +110,7 @@ typedef struct {
 typedef struct _vrrp_sgroup {
 	const char		*gname;			/* Group name */
 	const vector_t		*iname;			/* Set of VRRP instances in this group, only used during initialisation */
-	list			vrrp_instances;		/* List of VRRP instances */
+	list_head_t		vrrp_instances;		/* vrrp_t - VRRP instances */
 	unsigned		num_member_fault;	/* Number of members of group in fault state */
 	unsigned		num_member_init;	/* Number of members of group in pending state */
 	int			state;			/* current stable state */
@@ -365,6 +365,9 @@ typedef struct _vrrp_t {
 
 	/* RB tree on a sock_t for vrrp sands */
 	rb_node_t		rb_sands;
+
+	/* Sync group list member */
+	list_head_t		s_list;			/* vrrp_sgroup_t->vrrp_instances */
 
 	/* Linked list member */
 	list_head_t		e_list;

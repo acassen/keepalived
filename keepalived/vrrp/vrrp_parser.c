@@ -209,7 +209,7 @@ linkbeat_interfaces_handler(const vector_t *strvec)
 static void
 vrrp_sync_group_handler(const vector_t *strvec)
 {
-	vrrp_sgroup_t *sg;
+	vrrp_sgroup_t *sgroup;
 	const char *gname;
 
 	if (!strvec)
@@ -224,8 +224,8 @@ vrrp_sync_group_handler(const vector_t *strvec)
 	gname = strvec_slot(strvec, 1);
 
 	/* check group doesn't already exist */
-	list_for_each_entry(sg, &vrrp_data->vrrp_sync_group, e_list) {
-		if (!strcmp(gname,sg->gname)) {
+	list_for_each_entry(sgroup, &vrrp_data->vrrp_sync_group, e_list) {
+		if (!strcmp(gname, sgroup->gname)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "vrrp sync group %s already defined", gname);
 			skip_block(true);
 			return;
@@ -238,18 +238,20 @@ vrrp_sync_group_handler(const vector_t *strvec)
 static void
 vrrp_group_handler(const vector_t *strvec)
 {
-	vrrp_sgroup_t *vgroup = list_last_entry(&vrrp_data->vrrp_sync_group, vrrp_sgroup_t, e_list);
+	vrrp_sgroup_t *sgroup = list_last_entry(&vrrp_data->vrrp_sync_group, vrrp_sgroup_t, e_list);
 
-	if (vgroup->iname) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Group list already specified for sync group %s", vgroup->gname);
+	if (sgroup->iname) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Group list already specified for sync group %s"
+							, sgroup->gname);
 		skip_block(true);
 		return;
 	}
 
-	vgroup->iname = read_value_block(strvec);
+	sgroup->iname = read_value_block(strvec);
 
-	if (!vgroup->iname)
-		report_config_error(CONFIG_GENERAL_ERROR, "Warning - sync group %s has empty group block", vgroup->gname);
+	if (!sgroup->iname)
+		report_config_error(CONFIG_GENERAL_ERROR, "Warning - sync group %s has empty group block"
+							, sgroup->gname);
 }
 
 static void
@@ -1719,6 +1721,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("global_tracking", &vrrp_gglobal_tracking_handler);
 	install_keyword("sync_group_tracking_weight", &vrrp_sg_tracking_weight_handler);
 
+	/* Garp declarations */
 	install_keyword_root("garp_group", &garp_group_handler, active);
 	install_keyword("garp_interval", &garp_group_garp_interval_handler);
 	install_keyword("gna_interval", &garp_group_gna_interval_handler);
@@ -1731,7 +1734,7 @@ init_vrrp_keywords(bool active)
 	install_keyword_root("linkbeat_interfaces", &linkbeat_interfaces_handler, active);
 #endif
 
-	/* VRRP Instance mapping */
+	/* VRRP Instance declarations */
 	install_keyword_root("vrrp_instance", &vrrp_handler, active);
 #ifdef _HAVE_VRRP_VMAC_
 	install_keyword("use_vmac", &vrrp_vmac_handler);
@@ -1811,6 +1814,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("auth_pass", &vrrp_auth_pass_handler);
 	install_sublevel_end();
 #endif
+	/* Script declarations */
 	install_keyword_root("vrrp_script", &vrrp_script_handler, active);
 	install_keyword("script", &vrrp_vscript_script_handler);
 	install_keyword("interval", &vrrp_vscript_interval_handler);

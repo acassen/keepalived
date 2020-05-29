@@ -819,21 +819,20 @@ parse_rtattr_nested(struct rtattr **tb, int max, struct rtattr *rta)
 static void
 set_vrrp_backup(vrrp_t *vrrp)
 {
-	vrrp_t *sync_vrrp;
-	element e;
+	vrrp_t *isync;
 
 	vrrp->wantstate = VRRP_STATE_BACK;
 	vrrp_state_leave_master(vrrp, true);
 	if (vrrp->sync) {
-		LIST_FOREACH(vrrp->sync->vrrp_instances, sync_vrrp, e) {
-			if (sync_vrrp->state == VRRP_STATE_MAST) {
-				sync_vrrp->wantstate = VRRP_STATE_BACK;
-				vrrp_state_leave_master(sync_vrrp, true);
+		list_for_each_entry(isync, &vrrp->sync->vrrp_instances, s_list) {
+			if (isync->state == VRRP_STATE_MAST) {
+				isync->wantstate = VRRP_STATE_BACK;
+				vrrp_state_leave_master(isync, true);
 
 				/* We want a quick transition back to master */
-				sync_vrrp->ms_down_timer = VRRP_TIMER_SKEW(sync_vrrp);
-				vrrp_init_instance_sands(sync_vrrp);
-				vrrp_thread_requeue_read(sync_vrrp);
+				isync->ms_down_timer = VRRP_TIMER_SKEW(isync);
+				vrrp_init_instance_sands(isync);
+				vrrp_thread_requeue_read(isync);
 			}
 		}
 		vrrp->sync->state = VRRP_STATE_BACK;

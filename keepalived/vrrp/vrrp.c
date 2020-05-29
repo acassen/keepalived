@@ -1938,8 +1938,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 #endif
 	unsigned master_adver_int;
 	int addr_cmp;
-	vrrp_t *gvrrp;
-	element e;
+	vrrp_t *isync;
 
 // TODO - could we get here with wantstate == FAULT and STATE != FAULT?
 	/* return on link failure */
@@ -2020,16 +2019,16 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 		 * for any other member of the group that has
 		 * garp_lower_prio_rep set */
 		if (vrrp->sync) {
-			LIST_FOREACH(vrrp->sync->vrrp_instances, gvrrp, e) {
-				if (gvrrp == vrrp)
+			list_for_each_entry(isync, &vrrp->sync->vrrp_instances, s_list) {
+				if (isync == vrrp)
 					continue;
-				if (!gvrrp->garp_lower_prio_rep)
+				if (!isync->garp_lower_prio_rep)
 					continue;
 
-				vrrp_send_link_update(gvrrp, gvrrp->garp_lower_prio_rep);
-				if (gvrrp->garp_lower_prio_delay)
+				vrrp_send_link_update(isync, isync->garp_lower_prio_rep);
+				if (isync->garp_lower_prio_delay)
 					thread_add_timer(master, vrrp_lower_prio_gratuitous_arp_thread,
-							 gvrrp, gvrrp->garp_lower_prio_delay);
+							 isync, isync->garp_lower_prio_delay);
 			}
 		}
 
@@ -3397,7 +3396,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 static void
 sync_group_tracking_init(void)
 {
-	element e, e2;
 	vrrp_sgroup_t *sgroup;
 	tracked_sc_t *sc;
 	vrrp_script_t *vsc;
@@ -3412,13 +3410,13 @@ sync_group_tracking_init(void)
 	/* Add sync group members to the vrrp list of the script, file, i/f,
 	 * and update effective_priority and num_script_if_fault */
 	list_for_each_entry(sgroup, &vrrp_data->vrrp_sync_group, e_list) {
-		if (LIST_ISEMPTY(sgroup->vrrp_instances))
+		if (list_empty(&sgroup->vrrp_instances))
 			continue;
 
 		/* Find out if any of the sync group members are address owners, since then
 		 * we cannot have weights */
 		sgroup_has_prio_owner = false;
-		LIST_FOREACH(sgroup->vrrp_instances, vrrp, e) {
+		list_for_each_entry(vrrp, &sgroup->vrrp_instances, s_list) {
 			if (vrrp->base_priority == VRRP_PRIO_OWNER) {
 				sgroup_has_prio_owner = true;
 				break;
@@ -3438,7 +3436,7 @@ sync_group_tracking_init(void)
 				sc->weight = 0;
 			}
 
-			LIST_FOREACH(sgroup->vrrp_instances, vrrp, e2)
+			list_for_each_entry(vrrp, &sgroup->vrrp_instances, s_list)
 				add_vrrp_to_track_script(vrrp, sc);
 		}
 
@@ -3454,7 +3452,7 @@ sync_group_tracking_init(void)
 				tfl->weight = 0;
 			}
 
-			LIST_FOREACH(sgroup->vrrp_instances, vrrp, e2)
+			list_for_each_entry(vrrp, &sgroup->vrrp_instances, s_list)
 				add_obj_to_track_file(vrrp, tfl, vrrp->iname, dump_tracking_vrrp);
 		}
 
@@ -3471,7 +3469,7 @@ sync_group_tracking_init(void)
 				tbfd->weight = 0;
 			}
 
-			LIST_FOREACH(sgroup->vrrp_instances, vrrp, e2)
+			list_for_each_entry(vrrp, &sgroup->vrrp_instances, s_list)
 				add_vrrp_to_track_bfd(vrrp, tbfd);
 		}
 #endif
@@ -3488,7 +3486,7 @@ sync_group_tracking_init(void)
 				tif->weight = 0;
 			}
 
-			LIST_FOREACH(sgroup->vrrp_instances, vrrp, e2)
+			list_for_each_entry(vrrp, &sgroup->vrrp_instances, s_list)
 				add_vrrp_to_interface(vrrp, tif->ifp, tif->weight, tif->weight_reverse, true, TRACK_SG);
 		}
 
@@ -3665,7 +3663,6 @@ vrrp_complete_init(void)
 	 * e - Element equal to a specific VRRP instance
 	 * eo- Element equal to a specific group within old global group list
 	 */
-	element e, e1;
 	vrrp_t *vrrp, *old_vrrp;
 	vrrp_sgroup_t *sgroup, *sgroup_tmp;
 	vrrp_t *vrrp1;
@@ -3811,12 +3808,8 @@ vrrp_complete_init(void)
 			continue;
 		}
 
-		vrrp_sync_set_group(sgroup);
-
-		if (!sgroup->vrrp_instances) {
+		if (!vrrp_sync_set_group(sgroup))
 			free_sync_group(sgroup);
-			continue;
-		}
 	}
 
 	/* Complete VRRP instance initialization */
@@ -3893,7 +3886,7 @@ vrrp_complete_init(void)
 	list_for_each_entry(sgroup, &vrrp_data->vrrp_sync_group, e_list) {
 		have_backup = false;
 		have_master = false;
-		LIST_FOREACH(sgroup->vrrp_instances, vrrp, e) {
+		list_for_each_entry(vrrp, &sgroup->vrrp_instances, s_list) {
 			if (vrrp->wantstate == VRRP_STATE_BACK || vrrp->base_priority != VRRP_PRIO_OWNER)
 				have_backup = true;
 			if (vrrp->wantstate == VRRP_STATE_MAST)
@@ -3901,7 +3894,7 @@ vrrp_complete_init(void)
 			if (have_master && have_backup) {
 				/* This looks wrong using the same loop variables as a containing
 				 * loop, but we break out of the outer loop after this loop */
-				LIST_FOREACH(sgroup->vrrp_instances, vrrp, e) {
+				list_for_each_entry(vrrp, &sgroup->vrrp_instances, s_list) {
 					if (vrrp->wantstate == VRRP_STATE_MAST)
 						vrrp->wantstate = VRRP_STATE_BACK;
 				}
@@ -3960,7 +3953,7 @@ vrrp_complete_init(void)
 				continue;
 
 			have_master = true;
-			LIST_FOREACH(sgroup->vrrp_instances, vrrp, e1) {
+			list_for_each_entry(vrrp, &sgroup->vrrp_instances, s_list) {
 				if (vrrp->state != VRRP_STATE_MAST) {
 					have_master = false;
 					break;
