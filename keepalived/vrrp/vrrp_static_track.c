@@ -39,7 +39,10 @@ void
 free_static_track_group(static_track_group_t *tgroup)
 {
 	if (tgroup->iname) {
-		log_message(LOG_INFO, "track group %s - iname vector exists when freeing group", tgroup->gname);
+		/* If we are terminating at init time, tgroup->vrrp may not be initialised yet, in
+		 * which case tgroup->iname will still be set */
+		if (!LIST_ISEMPTY(tgroup->vrrp_instances))
+			log_message(LOG_INFO, "track group %s - iname vector exists when freeing group", tgroup->gname);
 		free_strvec(tgroup->iname);
 	}
 	list_head_del(&tgroup->e_list);

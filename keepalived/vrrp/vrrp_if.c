@@ -1256,8 +1256,13 @@ interface_up(interface_t *ifp)
 }
 
 void
-interface_down(interface_t *ifp)
+interface_down(
+#ifndef _HAVE_FIB_ROUTING_
+	       __attribute__((unused))
+#endif
+				       interface_t *ifp)
 {
+#ifdef _HAVE_FIB_ROUTING_
 	vrrp_t *vrrp;
 	ip_route_t *route;
 	bool route_found;
@@ -1297,7 +1302,6 @@ interface_down(interface_t *ifp)
 		}
 	}
 
-#ifdef _HAVE_FIB_ROUTING_
 	/* Now check the static routes */
 	list_for_each_entry(route, &vrrp_data->static_routes, e_list) {
 		if (route->set && route->oif == ifp) {
