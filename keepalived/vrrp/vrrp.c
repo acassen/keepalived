@@ -2642,7 +2642,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #endif
 							      ) &&
 	    vrrp->ifp->ifindex && vrrp->ifp->hw_type != ARPHRD_ETHER) {
-		__clear_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags);
+		vrrp->vmac_flags = 0;
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s): vmacs are only supported on Ethernet type interfaces"
 							, vrrp->iname);
 		vrrp->num_script_if_fault++;	/* Stop the vrrp instance running */
