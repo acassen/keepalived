@@ -196,6 +196,7 @@ track_file_handler(const vector_t *strvec)
 	track_file_init = TRACK_FILE_NO_INIT;
 }
 
+#ifdef _WITH_VRRP_
 static void
 vrrp_track_file_handler(const vector_t *strvec)
 {
@@ -206,6 +207,7 @@ vrrp_track_file_handler(const vector_t *strvec)
 
 	track_file_handler(strvec);
 }
+#endif
 
 static void
 track_file_file_handler(const vector_t *strvec)

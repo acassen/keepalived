@@ -844,7 +844,6 @@ set_vrrp_backup(vrrp_t *vrrp)
 	vrrp_init_instance_sands(vrrp);
 	vrrp_thread_requeue_read(vrrp);
 }
-#endif
 
 /* Check if we already have the address on the interface */
 static bool
@@ -864,6 +863,7 @@ have_address(void *addr_p, const interface_t *ifp, int family)
 
 	return false;
 }
+#endif
 
 /*
  * Netlink interface address lookup filter
@@ -883,8 +883,8 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 		struct in_addr *in;
 		struct in6_addr *in6;
 	} addr;
-	sin_addr_t *saddr;
 #ifdef _WITH_VRRP_
+	sin_addr_t *saddr;
 	char addr_str[INET6_ADDRSTRLEN];
 	bool addr_chg = false;
 	vrrp_t *vrrp;
