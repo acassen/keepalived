@@ -361,19 +361,19 @@ start_check(list old_checkers_queue, data_t *prev_global_data)
 	if (check_data->ssl_required && !init_ssl_ctx())
 		stop_check(KEEPALIVED_EXIT_FATAL);
 
-	/* Processing differential configuration parsing */
-	if (reload) {
-		clear_diff_services(old_checkers_queue);
-		check_new_rs_state();
-	}
-
 	/* We can send SMTP messages from here so set the time */
 	set_time_now();
 
 	/* Set up the track files */
 	add_rs_to_track_files();
 	init_track_files(&check_data->track_files);
-	set_track_file_checkers_down();
+
+	/* Processing differential configuration parsing */
+	if (reload) {
+		clear_diff_services(old_checkers_queue);
+		check_new_rs_state();
+	} else
+		set_track_file_checkers_down();
 
 	/* Initialize IPVS topology */
 	if (!init_services())

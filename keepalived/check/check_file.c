@@ -52,7 +52,17 @@ dump_file_check(FILE *fp, const checker_t *checker)
 static bool
 file_check_compare(const checker_t *a, const checker_t *b)
 {
-	return a->data == b->data;
+	const tracked_file_t *old = a->data;
+	const tracked_file_t *new = b->data;
+
+	if (strcmp(old->file_path, new->file_path))
+		return false;
+	if (old->weight != new->weight)
+		return false;
+	if (old->weight_reverse != new->weight_reverse)
+		return false;
+
+	return true;
 }
 
 static void
