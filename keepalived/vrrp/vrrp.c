@@ -2568,7 +2568,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 								, vrrp->iname);
 			return false;
 		}
-		report_config_error(CONFIG_WARNING, "(%s) No VIP specified; at least one is sensible", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) No VIP specified; at least one is sensible", vrrp->iname);
 	}
 
 	/* If no priority has been set, derive it from the initial state */
