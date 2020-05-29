@@ -599,13 +599,13 @@ dump_rs(FILE *fp, const void *data)
 	conf_write(fp, "   reloaded = %d", rs->reloaded);
 
 	if (!list_empty(&rs->track_files)) {
-		conf_write(fp, "=== Tracked Files ===");
+		conf_write(fp, "   Tracked Files");
 		dump_track_file_monitor_list(fp, &rs->track_files);
 	}
 
 #ifdef _WITH_BFD_
 	if (!LIST_ISEMPTY(rs->tracked_bfds)) {
-		conf_write(fp, "=== Tracked BFDs ===");
+		conf_write(fp, "   Tracked BFDs");
 		LIST_FOREACH(rs->tracked_bfds, cbfd, e)
 			conf_write(fp, "     %s", cbfd->bfd->bname);
 	}
