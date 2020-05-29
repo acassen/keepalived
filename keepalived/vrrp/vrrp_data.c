@@ -146,8 +146,9 @@ free_sync_group(vrrp_sgroup_t *sgroup)
 	if (sgroup->iname) {
 		/* If we are terminating at init time, sgroup->vrrp may not be initialised yet, in
 		 * which case sgroup->iname will still be set */
-		if (!LIST_ISEMPTY(sgroup->vrrp_instances))
-			log_message(LOG_INFO, "sync group %s - iname vector exists when freeing group", sgroup->gname);
+		if (!list_empty(&sgroup->vrrp_instances))
+			log_message(LOG_INFO, "sync group %s - iname vector exists when freeing group"
+					    , sgroup->gname);
 		free_strvec(sgroup->iname);
 	}
 	FREE_CONST(sgroup->gname);
