@@ -2562,11 +2562,13 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			vrrp->version = global_data->vrrp_version;
 	}
 
-	if (list_empty(&vrrp->vip) &&
-	    (vrrp->version == VRRP_VERSION_3 || vrrp->family == AF_INET6 || vrrp->strict_mode)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) No VIP specified; at least one is required"
-							, vrrp->iname);
-		return false;
+	if (list_empty(&vrrp->vip)) {
+		if (vrrp->version == VRRP_VERSION_3 || vrrp->family == AF_INET6 || vrrp->strict_mode) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) No VIP specified; at least one is required"
+								, vrrp->iname);
+			return false;
+		}
+		report_config_error(CONFIG_WARNING, "(%s) No VIP specified; at least one is sensible", vrrp->iname);
 	}
 
 	/* If no priority has been set, derive it from the initial state */
