@@ -410,21 +410,43 @@ vrrp_handler(const vector_t *strvec)
 	alloc_vrrp(iname);
 }
 #ifdef _HAVE_VRRP_VMAC_
+/* The following function is copied from kernel net/core/dev.c */
+static bool __attribute__ ((pure))
+dev_name_valid(const char *name)
+{
+	if (*name == '\0')
+		return false;
+	if (strnlen(name, IFNAMSIZ) == IFNAMSIZ)
+		return false;
+	if (!strcmp(name, ".") || !strcmp(name, ".."))
+		return false;
+
+	while (*name) {
+		if (*name == '/' || *name == ':' || isspace(*name))
+			return false;
+		name++;
+	}
+	return true;
+}
+
 static void
 vrrp_vmac_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 	interface_t *ifp;
+	const char *name;
 
 	__set_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags);
 
 	if (vector_size(strvec) >= 2) {
-		if (strlen(strvec_slot(strvec, 1)) >= IFNAMSIZ) {
-			report_config_error(CONFIG_GENERAL_ERROR, "VMAC interface name '%s' too long - ignoring", strvec_slot(strvec, 1));
+		name = strvec_slot(strvec, 1);
+
+		if (!dev_name_valid(name)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "VMAC interface name '%s' too long or invalid characters - ignoring", name);
 			return;
 		}
 
-		strcpy(vrrp->vmac_ifname, strvec_slot(strvec, 1));
+		strcpy(vrrp->vmac_ifname, name);
 
 		/* Check if the interface exists and is a macvlan we can use */
 		if ((ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_NO_CREATE)) &&
