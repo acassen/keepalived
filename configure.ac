@@ -175,6 +175,8 @@ AC_ARG_ENABLE(sha1,
   [AS_HELP_STRING([--enable-sha1], [compile with SHA1 support])])
 AC_ARG_ENABLE(regex,
   [AS_HELP_STRING([--enable-regex], [build with HTTP_GET regex checking])])
+AC_ARG_ENABLE(vmac,
+  [AS_HELP_STRING([--disable-vmac], [build without VMAC support])])
 AC_ARG_ENABLE(regex-timers,
   [AS_HELP_STRING([--enable-regex-timers], [build with HTTP_GET regex timers])])
 AC_ARG_ENABLE(json,
@@ -1929,18 +1931,21 @@ if test "$enable_vrrp" != no; then
   dnl ----[ Checks for kernel VMAC support ]----
   SAV_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$CPPFLAGS $kernelinc"
-  MACVLAN_SUPPORT=Yes
-  dnl -- Since Linux 2.6.33
-  AC_CHECK_DECLS([
-      IFLA_MACVLAN_MODE,
-      MACVLAN_MODE_PRIVATE], [],
-    [
-      MACVLAN_SUPPORT=No
-      break
-    ], [[
-      #include <sys/socket.h>
-      #include <linux/if_link.h>
-    ]])
+  MACVLAN_SUPPORT=No
+  if test "${enable_vmac}" != no; then
+    MACVLAN_SUPPORT=Yes
+    dnl -- Since Linux 2.6.33
+    AC_CHECK_DECLS([
+	IFLA_MACVLAN_MODE,
+	MACVLAN_MODE_PRIVATE], [],
+      [
+	MACVLAN_SUPPORT=No
+	break
+      ], [[
+	#include <sys/socket.h>
+	#include <linux/if_link.h>
+      ]])
+    fi
   if test $MACVLAN_SUPPORT = Yes; then
     AC_DEFINE([_HAVE_VRRP_VMAC_], [ 1 ], [Define to 1 if have MAC VLAN support])
     add_system_opt([VRRP_VMAC])

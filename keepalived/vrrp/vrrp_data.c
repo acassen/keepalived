@@ -128,7 +128,10 @@ free_sync_group(vrrp_sgroup_t *sgroup)
 {
 	list_head_del(&sgroup->e_list);
 	if (sgroup->iname) {
-		log_message(LOG_INFO, "sync group %s - iname vector exists when freeing group", sgroup->gname);
+		/* If we are terminating at init time, sgroup->vrrp may not be initialised yet, in
+		 * which case sgroup->iname will still be set */
+		if (!LIST_ISEMPTY(sgroup->vrrp_instances))
+			log_message(LOG_INFO, "sync group %s - iname vector exists when freeing group", sgroup->gname);
 		free_strvec(sgroup->iname);
 	}
 	FREE_CONST(sgroup->gname);
@@ -845,8 +848,10 @@ alloc_vrrp(const char *iname)
 #endif
 	INIT_LIST_HEAD(&new->vip);
 	INIT_LIST_HEAD(&new->evip);
+#ifdef _HAVE_FIB_ROUTING_
 	INIT_LIST_HEAD(&new->vroutes);
 	INIT_LIST_HEAD(&new->vrules);
+#endif
 
 	/* Set default values */
 	new->family = AF_UNSPEC;

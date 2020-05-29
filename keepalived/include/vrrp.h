@@ -229,8 +229,8 @@ typedef struct _vrrp_t {
 	struct _ip_address	*ipvlan_addr;		/* Address to configure on an ipvlan interface */
 	int			ipvlan_type;		/* Bridge, private or VEPA mode */
 #endif
-#endif
 	interface_t		*configured_ifp;	/* Interface the configuration says we are on */
+#endif
 	list_head_t		track_ifp;		/* tracked_if_t - Interface state we monitor */
 	list_head_t		track_script;		/* tracked_sc_t - Script state we monitor */
 	list_head_t		track_file;		/* tracked_file_monitor_t - Files whose value we monitor */
@@ -288,8 +288,10 @@ typedef struct _vrrp_t {
 							 */
 	bool			promote_secondaries;	/* Set promote_secondaries option on interface */
 	bool			evip_other_family;	/* There are eVIPs of the different address family from the vrrp family */
+#ifdef _HAVE_FIB_ROUTING_
 	list_head_t		vroutes;		/* ip_route_t - list of virtual routes */
 	list_head_t		vrules;			/* ip_rule_t - list of virtual rules */
+#endif
 	unsigned		adver_int;		/* locally configured delay between advertisements*/
 	unsigned		master_adver_int;	/* In v3, when we become BACKUP, we use the MASTER's
 							 * adver_int. If we become MASTER again, we use the
