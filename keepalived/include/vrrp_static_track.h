@@ -35,7 +35,7 @@
 typedef struct _static_track_group {
 	const char		*gname;			/* Group name */
 	const vector_t		*iname;			/* Set of VRRP instances in this group, only used during initialisation */
-	list			vrrp_instances;		/* List of VRRP instances */
+	list_head_t		vrrp_instances;		/* tracking_obj_t - List of VRRP instances */
 
 	/* linked list member */
 	list_head_t		e_list;

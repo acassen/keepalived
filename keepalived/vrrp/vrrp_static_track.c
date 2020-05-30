@@ -35,33 +35,43 @@
 #include "vrrp_iprule.h"
 #endif
 
+
+static void
+free_static_track_group_vrrp_list(list_head_t *l)
+{
+	tracking_obj_t *top, *top_tmp;
+
+	list_for_each_entry_safe(top, top_tmp, l, e_list)
+		FREE(top);
+}
+
 void
 free_static_track_group(static_track_group_t *tgroup)
 {
 	if (tgroup->iname) {
 		/* If we are terminating at init time, tgroup->vrrp may not be initialised yet, in
 		 * which case tgroup->iname will still be set */
-		if (!LIST_ISEMPTY(tgroup->vrrp_instances))
-			log_message(LOG_INFO, "track group %s - iname vector exists when freeing group", tgroup->gname);
+		if (!list_empty(&tgroup->vrrp_instances))
+			log_message(LOG_INFO, "track group %s - iname vector exists when freeing group"
+					    , tgroup->gname);
 		free_strvec(tgroup->iname);
 	}
 	list_head_del(&tgroup->e_list);
 	FREE_CONST(tgroup->gname);
-	free_list(&tgroup->vrrp_instances);
+	free_static_track_group_vrrp_list(&tgroup->vrrp_instances);
 	FREE(tgroup);
 }
 
 void
 dump_static_track_group(FILE *fp, const static_track_group_t *tgroup)
 {
-	vrrp_t *vrrp;
-	element e;
+	tracking_obj_t *top;
 
 	conf_write(fp, " Static Track Group = %s", tgroup->gname);
-	if (tgroup->vrrp_instances) {
-		conf_write(fp, "   VRRP member instances = %u", LIST_SIZE(tgroup->vrrp_instances));
-		LIST_FOREACH(tgroup->vrrp_instances, vrrp, e)
-			conf_write(fp, "     %s", vrrp->iname);
+	if (!list_empty(&tgroup->vrrp_instances)) {
+		conf_write(fp, "   VRRP member instances :");
+		list_for_each_entry(top, &tgroup->vrrp_instances, e_list)
+			conf_write(fp, "     %s", top->obj.vrrp->iname);
 	}
 }
 
@@ -77,18 +87,20 @@ static_track_group_find(const char *gname)
 	return NULL;
 }
 
-static void
+static bool
 static_track_group_set(static_track_group_t *tgroup)
 {
+	tracking_obj_t *top;
 	vrrp_t *vrrp;
 	char *str;
 	unsigned int i;
 
 	/* Can't handle no members of the group */
-	if (!tgroup->iname)
-		return;
-
-	tgroup->vrrp_instances = alloc_list(NULL, NULL);
+	if (!tgroup->iname) {
+		log_message(LOG_INFO, "Static track group %s has no virtual router(s)"
+				    , tgroup->gname);
+		return false;
+	}
 
 	for (i = 0; i < vector_size(tgroup->iname); i++) {
 		str = vector_slot(tgroup->iname, i);
@@ -99,41 +111,44 @@ static_track_group_set(static_track_group_t *tgroup)
 			continue;
 		}
 
-		list_add(tgroup->vrrp_instances, vrrp);
+		/* Create tracking object */
+		PMALLOC(top);
+		INIT_LIST_HEAD(&top->e_list);
+		top->obj.vrrp = vrrp;
+		top->type = TRACK_VRRP;
+
+		list_add_tail(&top->e_list, &tgroup->vrrp_instances);
 	}
 
 	/* The iname vector is only used for us to set up the sync groups, so delete it */
 	free_strvec(tgroup->iname);
 	tgroup->iname = NULL;
+
+	if (list_empty(&tgroup->vrrp_instances)) {
+		log_message(LOG_INFO, "Static track group %s has no VRRP instance(s)"
+				    , tgroup->gname);
+		return false;
+	}
+
+	return true;
 }
 
 void
 static_track_group_init(void)
 {
 	static_track_group_t *tgroup, *tgroup_tmp;
-	vrrp_t *vrrp;
+	tracking_obj_t *top;
 	ip_address_t *addr;
 #ifdef _HAVE_FIB_ROUTING_
 	ip_route_t *route;
 	ip_rule_t *rule;
 #endif
-	element e;
 
 	list_for_each_entry_safe(tgroup, tgroup_tmp, &vrrp_data->static_track_groups, e_list) {
-		if (!tgroup->iname) {
-			log_message(LOG_INFO, "Static track group %s has no virtual router(s) - removing"
+		if (!static_track_group_set(tgroup)) {
+			log_message(LOG_INFO, "Static track group %s init fails - removing"
 					    , tgroup->gname);
 			free_static_track_group(tgroup);
-			continue;
-		}
-
-		static_track_group_set(tgroup);
-
-		if (!tgroup->vrrp_instances) {
-			log_message(LOG_INFO, "Static track group %s has no VRRP instance(s) - removing"
-					    , tgroup->gname);
-			free_static_track_group(tgroup);
-			continue;
 		}
 	}
 
@@ -146,8 +161,8 @@ static_track_group_init(void)
 			continue;
 		}
 
-		LIST_FOREACH(addr->track_group->vrrp_instances, vrrp, e)
-			add_vrrp_to_interface(vrrp, addr->ifp, 0, false, false, TRACK_SADDR);
+		list_for_each_entry(top, &addr->track_group->vrrp_instances, e_list)
+			add_vrrp_to_interface(top->obj.vrrp, addr->ifp, 0, false, false, TRACK_SADDR);
 	}
 
 #ifdef _HAVE_FIB_ROUTING_
@@ -160,9 +175,9 @@ static_track_group_init(void)
 			continue;
 		}
 
-		LIST_FOREACH(route->track_group->vrrp_instances, vrrp, e) {
+		list_for_each_entry(top, &route->track_group->vrrp_instances, e_list) {
 			if (route->oif)
-				add_vrrp_to_interface(vrrp, route->oif, 0, false, false, TRACK_SROUTE);
+				add_vrrp_to_interface(top->obj.vrrp, route->oif, 0, false, false, TRACK_SROUTE);
 		}
 	}
 
@@ -174,9 +189,9 @@ static_track_group_init(void)
 			continue;
 		}
 
-		LIST_FOREACH(rule->track_group->vrrp_instances, vrrp, e) {
+		list_for_each_entry(top, &rule->track_group->vrrp_instances, e_list) {
 			if (rule->iif)
-				add_vrrp_to_interface(vrrp, rule->iif, 0, false, false, TRACK_SRULE);
+				add_vrrp_to_interface(top->obj.vrrp, rule->iif, 0, false, false, TRACK_SRULE);
 		}
 	}
 #endif
