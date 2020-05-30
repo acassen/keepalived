@@ -82,7 +82,7 @@ dump_bfds_rs(FILE *fp, const void *data)
 }
 
 static bool
-bfd_check_compare(const checker_t *old_c, const checker_t *new_c)
+bfd_check_compare(const checker_t *old_c, checker_t *new_c)
 {
 	const bfd_checker_t *old = old_c->data;
 	const bfd_checker_t *new = new_c->data;

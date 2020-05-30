@@ -466,7 +466,7 @@ dns_dump(FILE *fp, const checker_t *checker)
 }
 
 static bool
-dns_check_compare(const checker_t *old_c, const checker_t *new_c)
+dns_check_compare(const checker_t *old_c, checker_t *new_c)
 {
 	const dns_check_t *old = old_c->data;
 	const dns_check_t *new = new_c->data;

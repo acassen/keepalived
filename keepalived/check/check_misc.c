@@ -83,7 +83,7 @@ dump_misc_check(FILE *fp, const checker_t *checker)
 }
 
 static bool
-misc_check_compare(const checker_t *old_c, const checker_t *new_c)
+misc_check_compare(const checker_t *old_c, checker_t *new_c)
 {
 	const misc_checker_t *old = old_c->data;
 	const misc_checker_t *new = new_c->data;

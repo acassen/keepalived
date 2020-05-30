@@ -622,7 +622,7 @@ process_update_checker_track_file_status(const tracked_file_t *tfile, int new_st
 }
 #endif
 
-static void
+void
 update_track_file_status(tracked_file_t *tfile, int new_status)
 {
 	tracking_obj_t *top;
