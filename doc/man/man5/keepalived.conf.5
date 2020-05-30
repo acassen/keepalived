@@ -1,4 +1,4 @@
-.TH keepalived.conf 5 2019-03-24 "Keepalived" "Keepalived Configuration's Manual"
+.TH keepalived.conf 5 2020-05-31 "Keepalived" "Keepalived Configuration's Manual"
 .SH NAME
 keepalived.conf - configuration file for Keepalived
 .br
@@ -2417,6 +2417,12 @@ There can be multiple ~SEQ elements on a line, so for example:
     will produce 65024 vrrp instances with names from vrrp4.0.0.1 through to
     vrrp4.7.31.254.
 .fi
+.PP
+.SH KERNEL SETTINGS
+It has been identified that if \fBproxy_arp\fR and \fBproxy_arp_pvlan\fR are enabled
+on an interface that has VIPs or eVIPs configured on it, it can cause incorrect replies
+to ARP requests due to the proxy replying to the ARP request as well as the keepalived
+host. Both need to be set to 0 to function properly.
 .PP
 .SH AUTHORS
 .br
