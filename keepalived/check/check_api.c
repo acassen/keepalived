@@ -139,7 +139,7 @@ dump_checker_opts(FILE *fp, const void *data)
 checker_t *
 queue_checker(void (*free_func) (checker_t *), void (*dump_func) (FILE *, const checker_t *)
 	      , thread_func_t launch
-	      , bool (*compare) (const checker_t *, const checker_t *)
+	      , bool (*compare) (const checker_t *, checker_t *)
 	      , void *data
 	      , conn_opts_t *co
 	      , bool fd_required)

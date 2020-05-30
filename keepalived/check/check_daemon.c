@@ -369,11 +369,11 @@ start_check(list old_checkers_queue, data_t *prev_global_data)
 	init_track_files(&check_data->track_files);
 
 	/* Processing differential configuration parsing */
-	if (reload) {
+	if (reload)
 		clear_diff_services(old_checkers_queue);
+	set_track_file_checkers_down();
+	if (reload)
 		check_new_rs_state();
-	} else
-		set_track_file_checkers_down();
 
 	/* Initialize IPVS topology */
 	if (!init_services())

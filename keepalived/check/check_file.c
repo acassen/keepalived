@@ -32,6 +32,7 @@
 #include "logger.h"
 #include "check_data.h"
 #include "logger.h"
+#include "main.h"
 
 
 static void
@@ -47,13 +48,14 @@ dump_file_check(FILE *fp, const checker_t *checker)
 
 	conf_write(fp, "   Keepalive method = FILE_CHECK");
 	conf_write(fp, "     Tracked file = %s", tfp->fname);
+	conf_write(fp, "     Reloaded = %s", tfp->reloaded ? "Yes" : "No");
 }
 
 static bool
-file_check_compare(const checker_t *a, const checker_t *b)
+file_check_compare(const checker_t *old_c, checker_t *new_c)
 {
-	const tracked_file_t *old = a->data;
-	const tracked_file_t *new = b->data;
+	const tracked_file_t *old = old_c->data;
+	tracked_file_t *new = new_c->data;
 
 	if (strcmp(old->file_path, new->file_path))
 		return false;
@@ -61,6 +63,8 @@ file_check_compare(const checker_t *a, const checker_t *b)
 		return false;
 	if (old->weight_reverse != new->weight_reverse)
 		return false;
+
+	new->reloaded = true;
 
 	return true;
 }
@@ -206,14 +210,26 @@ set_track_file_checkers_down(void)
 {
 	tracked_file_t *tfl;
 	tracking_obj_t *top;
+	int status;
 
 	list_for_each_entry(tfl, &check_data->track_files, e_list) {
 		if (tfl->last_status) {
 			list_for_each_entry(top, &tfl->tracking_obj, e_list) {
 				checker_t *checker = top->obj.checker;
 
-				if (!top->weight)
-					checker->is_up = false;
+				if (!top->weight) {
+					if (reload && !tfl->reloaded) {
+						/* This is pretty horrible. At some stage this should
+						 * be tidied up so that it works without having to
+						 * fudge the values to make update_track_file_status()
+						 * work for us. */
+						status = tfl->last_status;
+						tfl->last_status = 0;
+						update_track_file_status(tfl, status);
+						tfl->last_status = status;
+					} else
+						checker->is_up = false;
+				}
 			}
 		}
 	}

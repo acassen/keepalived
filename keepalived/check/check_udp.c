@@ -63,7 +63,7 @@ dump_udp_check(FILE *fp, const checker_t *checker)
 }
 
 static bool
-udp_check_compare(const checker_t *a, const checker_t *b)
+udp_check_compare(const checker_t *a, checker_t *b)
 {
 	return compare_conn_opts(a->co, b->co);
 }

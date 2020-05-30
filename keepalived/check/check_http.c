@@ -347,7 +347,7 @@ alloc_http_get(const char *proto)
 }
 
 static bool __attribute__((pure))
-http_get_check_compare(const checker_t *old_c, const checker_t *new_c)
+http_get_check_compare(const checker_t *old_c, checker_t *new_c)
 {
 	const http_checker_t *old = old_c->data;
 	const http_checker_t *new = new_c->data;
