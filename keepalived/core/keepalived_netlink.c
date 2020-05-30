@@ -1943,6 +1943,7 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 	char mac_buf[3 * sizeof(ifp->hw_addr)];
 	char old_mac_buf[3 * sizeof(ifp->hw_addr)];
 	list_head_t sav_tracking_vrrp;
+	list_head_t sav_e_list;
 	garp_delay_t *sav_garp_delay;
 
 	if (!(h->nlmsg_type == RTM_NEWLINK || h->nlmsg_type == RTM_DELLINK))
@@ -2125,7 +2126,13 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 			if_extra_ipaddress_free_list(&ifp->sin_addr_l);
 			if_extra_ipaddress_free_list(&ifp->sin6_addr_l);
 
+			/* Save the list_head entry itself */
+			sav_e_list = ifp->e_list;
+
 			memset(ifp, 0, sizeof(interface_t));
+
+			/* Restore the list_head entry */
+			ifp->e_list = sav_e_list;
 
 			/* Re-establish lists */
 			INIT_LIST_HEAD(&ifp->sin_addr_l);
