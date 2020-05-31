@@ -74,9 +74,6 @@ extern void *snmp_header_list_table(struct variable *, oid *, size_t *,
 extern list_head_t *snmp_header_list_head_table(struct variable *, oid *, size_t *,
 						int, size_t *, WriteMethod **,
 						list_head_t *);
-extern element snmp_find_elem(struct variable *, oid *, size_t *,
-			      int, size_t *, WriteMethod **,
-			      list_head_t *, size_t, size_t);
 extern list_head_t *snmp_find_element(struct variable *, oid *, size_t *,
 				      int, size_t *, WriteMethod **,
 				      list_head_t *, size_t, size_t);
