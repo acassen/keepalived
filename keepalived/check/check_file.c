@@ -72,12 +72,11 @@ file_check_compare(const checker_t *old_c, checker_t *new_c)
 static void
 track_file_handler(const vector_t *strvec)
 {
-	virtual_server_t *vs;
+	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
 	real_server_t *rs;
 	tracked_file_monitor_t *tfile;
 	tracked_file_t *vsf;
 
-	vs = LIST_TAIL_DATA(check_data->vs);
 	rs = LIST_TAIL_DATA(vs->rs);
 	tfile = list_last_entry(&rs->track_files, tracked_file_monitor_t, e_list);
 
@@ -93,11 +92,10 @@ track_file_handler(const vector_t *strvec)
 static void
 file_check_handler(__attribute__((unused)) const vector_t *strvec)
 {
-	tracked_file_monitor_t *tfile;
-	virtual_server_t *vs;
+	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
 	real_server_t *rs;
+	tracked_file_monitor_t *tfile;
 
-	vs = LIST_TAIL_DATA(check_data->vs);
 	rs = LIST_TAIL_DATA(vs->rs);
 
 	PMALLOC(tfile);
@@ -108,13 +106,12 @@ file_check_handler(__attribute__((unused)) const vector_t *strvec)
 static void
 track_file_weight_handler(const vector_t *strvec)
 {
-	virtual_server_t *vs;
+	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
 	real_server_t *rs;
 	tracked_file_monitor_t *tfile;
 	int weight;
 	bool reverse = false;
 
-	vs = LIST_TAIL_DATA(check_data->vs);
 	rs = LIST_TAIL_DATA(vs->rs);
 	tfile = list_last_entry(&rs->track_files, tracked_file_monitor_t, e_list);
 
@@ -148,11 +145,10 @@ track_file_weight_handler(const vector_t *strvec)
 static void
 file_end_handler(void)
 {
-	virtual_server_t *vs;
+	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
 	real_server_t *rs;
 	tracked_file_monitor_t *tfile;
 
-	vs = LIST_TAIL_DATA(check_data->vs);
 	rs = LIST_TAIL_DATA(vs->rs);
 	tfile = list_last_entry(&rs->track_files, tracked_file_monitor_t, e_list);
 
@@ -183,11 +179,11 @@ add_rs_to_track_files(void)
 {
 	virtual_server_t *vs;
 	real_server_t *rs;
-	element e, e1;
+	element e1;
 	tracked_file_monitor_t *tfl;
 	checker_t *new_checker;
 
-	LIST_FOREACH(check_data->vs, vs, e) {
+	list_for_each_entry(vs, &check_data->vs, e_list) {
 		LIST_FOREACH(vs->rs, rs, e1) {
 			list_for_each_entry(tfl, &rs->track_files, e_list) {
 				/* queue new checker */

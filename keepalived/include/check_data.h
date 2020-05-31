@@ -196,6 +196,8 @@ typedef struct _virtual_server {
 	struct ip_vs_stats64		stats;
 #endif
 #endif
+	/* Linked list member */
+	list_head_t			e_list;
 } virtual_server_t;
 
 /* Configuration data root */
@@ -203,7 +205,7 @@ typedef struct _check_data {
 	bool				ssl_required;
 	ssl_data_t			*ssl;
 	list				vs_group;
-	list				vs;
+	list_head_t			vs;		/* virtual_server_t */
 	list_head_t			track_files;	/* tracked_file_t */
 #ifdef _WITH_BFD_
 	list				track_bfds;	/* checker_tracked_bfd_t */
@@ -236,6 +238,7 @@ extern void free_ssl(void);
 extern void alloc_vsg(const char *);
 extern void alloc_vsg_entry(const vector_t *);
 extern void alloc_vs(const char *, const char *);
+extern void free_vs(virtual_server_t *);
 extern void dump_tracking_rs(FILE *, const void *);
 extern void alloc_rs(const char *, const char *);
 extern void alloc_ssvr(const char *, const char *);

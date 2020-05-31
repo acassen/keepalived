@@ -327,7 +327,7 @@ start_check(list old_checkers_queue, data_t *prev_global_data)
 		return;
 
 	/* Initialize sub-system if any virtual servers are configured */
-	if ((!LIST_ISEMPTY(check_data->vs) || (reload && !LIST_ISEMPTY(old_check_data->vs))) &&
+	if ((!list_empty(&check_data->vs) || (reload && !list_empty(&old_check_data->vs))) &&
 	    ipvs_start() != IPVS_SUCCESS) {
 		stop_check(KEEPALIVED_EXIT_FATAL);
 		return;

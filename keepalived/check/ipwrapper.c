@@ -328,13 +328,12 @@ clear_service_vs(virtual_server_t * vs, bool stopping)
 void
 clear_services(void)
 {
-	element e;
 	virtual_server_t *vs;
 
-	if (!check_data || !check_data->vs)
+	if (!check_data || list_empty(&check_data->vs))
 		return;
 
-	LIST_FOREACH(check_data->vs, vs, e) {
+	list_for_each_entry(vs, &check_data->vs, e_list) {
 		/* Remove the real servers, and clear the vs unless it is
 		 * using a VS group and it is not the last vs of the same
 		 * protocol or address family using the group. */
@@ -461,14 +460,8 @@ void
 set_quorum_states(void)
 {
 	virtual_server_t *vs;
-	element e;
 
-	if (LIST_ISEMPTY(check_data->vs))
-		return;
-
-	for (e = LIST_HEAD(check_data->vs); e; ELEMENT_NEXT(e)) {
-		vs = ELEMENT_DATA(e);
-
+	list_for_each_entry(vs, &check_data->vs, e_list) {
 		vs->quorum_state_up = (weigh_live_realservers(vs) >= vs->quorum + vs->hysteresis);
 	}
 }
@@ -629,10 +622,9 @@ init_service_vs(virtual_server_t * vs)
 bool
 init_services(void)
 {
-	element e;
 	virtual_server_t *vs;
 
-	LIST_FOREACH(check_data->vs, vs, e) {
+	list_for_each_entry(vs, &check_data->vs, e_list) {
 		if (!init_service_vs(vs))
 			return false;
 	}
@@ -817,10 +809,9 @@ clear_diff_vsg(virtual_server_t * old_vs, virtual_server_t * new_vs)
 static virtual_server_t* __attribute__ ((pure))
 vs_exist(virtual_server_t * old_vs)
 {
-	element e;
 	virtual_server_t *vs;
 
-	LIST_FOREACH(check_data->vs, vs, e) {
+	list_for_each_entry(vs, &check_data->vs, e_list) {
 		if (vs_iseq(old_vs, vs))
 			return vs;
 	}
@@ -1018,11 +1009,10 @@ clear_diff_s_srv(virtual_server_t *old_vs, real_server_t *new_rs)
 void
 clear_diff_services(list old_checkers_queue)
 {
-	element e;
 	virtual_server_t *vs, *new_vs;
 
 	/* Remove diff entries from previous IPVS rules */
-	LIST_FOREACH(old_check_data->vs, vs, e) {
+	list_for_each_entry(vs, &old_check_data->vs, e_list) {
 		/*
 		 * Try to find this vs into the new conf data
 		 * reloaded.
@@ -1090,55 +1080,65 @@ check_new_rs_state(void)
 void
 link_vsg_to_vs(void)
 {
-	element e, e1, next;
-	virtual_server_t *vs;
+	element e;
+	virtual_server_t *vs, *vs_tmp;
 	int vsg_af;
 	virtual_server_group_t *vsg;
 	virtual_server_group_entry_t *vsge;
 	unsigned vsg_member_no;
 
-	if (LIST_ISEMPTY(check_data->vs))
+	if (list_empty(&check_data->vs))
 		return;
 
-	LIST_FOREACH_NEXT(check_data->vs, vs, e, next) {
-		if (vs->vsgname) {
-			vs->vsg = ipvs_get_group_by_name(vs->vsgname, check_data->vs_group);
-			if (!vs->vsg) {
-				log_message(LOG_INFO, "Virtual server group %s specified but not configured - ignoring virtual server %s", vs->vsgname, FMT_VS(vs));
-				free_list_element(check_data->vs, e);
-				continue;
-			}
+	list_for_each_entry_safe(vs, vs_tmp, &check_data->vs, e_list) {
+		if (!vs->vsgname)
+			continue;
 
-			/* Check the vs and vsg address families match */
-			if (!LIST_ISEMPTY(vs->vsg->addr_range)) {
-				vsge = ELEMENT_DATA(LIST_HEAD(vs->vsg->addr_range));
-				vsg_af = vsge->addr.ss_family;
-			}
-			else {
-				/* fwmark only */
-				vsg_af = AF_UNSPEC;
-			}
+		vs->vsg = ipvs_get_group_by_name(vs->vsgname, check_data->vs_group);
+		if (!vs->vsg) {
+			log_message(LOG_INFO, "Virtual server group %s specified but not configured"
+					      " - ignoring virtual erver %s"
+					    , vs->vsgname, FMT_VS(vs));
+			free_vs(vs);
+			continue;
+		}
 
-			/* We can have mixed IPv4 and IPv6 in a vsg only if all fwmarks have a family,
-			 * and also all the real/sorry servers of the virtual server are tunnelled. */
-			if (vs->vsg->have_ipv4 && vs->vsg->have_ipv6 && vs->af != AF_UNSPEC) {
-				log_message(LOG_INFO, "Virtual server group %s with IPv4 & IPv6 doesn't match virtual server %s - ignoring", vs->vsgname, FMT_VS(vs));
-				free_list_element(check_data->vs, e);
+		/* Check the vs and vsg address families match */
+		if (!LIST_ISEMPTY(vs->vsg->addr_range)) {
+			vsge = ELEMENT_DATA(LIST_HEAD(vs->vsg->addr_range));
+			vsg_af = vsge->addr.ss_family;
+		} else {
+			/* fwmark only */
+			vsg_af = AF_UNSPEC;
+		}
 
-			} else if ((vs->vsg->have_ipv4 && vs->af == AF_INET6) || (vs->vsg->have_ipv6 && vs->af == AF_INET)) {
-				log_message(LOG_INFO, "Virtual server group %s address family doesn't match virtual server %s - ignoring", vs->vsgname, FMT_VS(vs));
-				free_list_element(check_data->vs, e);
-			} else if (vsg_af != AF_UNSPEC) {
-				if (vs->af == AF_UNSPEC)
-					vs->af = vsg_af;
-				else if (vsg_af != vs->af) {
-					log_message(LOG_INFO, "Virtual server group %s address family doesn't match virtual server %s - ignoring", vs->vsgname, FMT_VS(vs));
-					free_list_element(check_data->vs, e);
-				}
-			} else if (vs->af == AF_UNSPEC) {
-				log_message(LOG_INFO, "Virtual server %s address family cannot be determined, defaulting to IPv4", FMT_VS(vs));
-				vs->af = AF_INET;
+		/* We can have mixed IPv4 and IPv6 in a vsg only if all fwmarks have a family,
+		 * and also all the real/sorry servers of the virtual server are tunnelled. */
+		if (vs->vsg->have_ipv4 && vs->vsg->have_ipv6 && vs->af != AF_UNSPEC) {
+			log_message(LOG_INFO, "Virtual server group %s with IPv4 & IPv6 doesn't"
+					      " match virtual server %s - ignoring"
+					    , vs->vsgname, FMT_VS(vs));
+			free_vs(vs);
+		} else if ((vs->vsg->have_ipv4 && vs->af == AF_INET6) ||
+			   (vs->vsg->have_ipv6 && vs->af == AF_INET)) {
+			log_message(LOG_INFO, "Virtual server group %s address family doesn't match"
+					      " virtual server %s - ignoring"
+					    , vs->vsgname, FMT_VS(vs));
+			free_vs(vs);
+		} else if (vsg_af != AF_UNSPEC) {
+			if (vs->af == AF_UNSPEC)
+				vs->af = vsg_af;
+			else if (vsg_af != vs->af) {
+				log_message(LOG_INFO, "Virtual server group %s address family doesn't"
+						      " match virtual server %s - ignoring"
+						    , vs->vsgname, FMT_VS(vs));
+				free_vs(vs);
 			}
+		} else if (vs->af == AF_UNSPEC) {
+			log_message(LOG_INFO, "Virtual server %s address family cannot be determined,"
+					      " defaulting to IPv4"
+					    , FMT_VS(vs));
+			vs->af = AF_INET;
 		}
 	}
 
@@ -1146,7 +1146,7 @@ link_vsg_to_vs(void)
 	LIST_FOREACH(check_data->vs_group, vsg, e) {
 		vsg_member_no = 0;
 
-		LIST_FOREACH(check_data->vs, vs, e1) {
+		list_for_each_entry(vs, &check_data->vs, e_list) {
 			if (!vs->vsgname)
 				continue;
 

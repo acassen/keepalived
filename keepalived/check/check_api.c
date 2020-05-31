@@ -144,7 +144,7 @@ queue_checker(void (*free_func) (checker_t *), void (*dump_func) (FILE *, const 
 	      , conn_opts_t *co
 	      , bool fd_required)
 {
-	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	checker_t *checker = (checker_t *) MALLOC(sizeof (checker_t));
 
@@ -648,7 +648,7 @@ update_checker_activity(sa_family_t family, void *address, bool enable)
 {
 	checker_t *checker;
 	virtual_server_t *vs;
-	element e, e1;
+	element e1;
 	char addr_str[INET6_ADDRSTRLEN];
 	bool address_logged = false;
 
@@ -666,7 +666,7 @@ update_checker_activity(sa_family_t family, void *address, bool enable)
 		return;
 
 	/* Check if any of the virtual servers are using this address, and have ha_suspend */
-	LIST_FOREACH(check_data->vs, vs, e) {
+	list_for_each_entry(vs, &check_data->vs, e_list) {
 		if (!vs->ha_suspend)
 			continue;
 

@@ -402,7 +402,7 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 	return NULL;
 }
 
-static u_char*
+static u_char *
 check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 			 int exact, size_t *var_len, WriteMethod **write_method)
 {
@@ -412,9 +412,9 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 	snmp_ret_t ret;
 
 	if ((v = (virtual_server_t *)
-	     snmp_header_list_table(vp, name, length, exact,
-				    var_len, write_method,
-				    check_data->vs)) == NULL)
+	     snmp_header_list_head_table(vp, name, length, exact,
+					 var_len, write_method,
+					 &check_data->vs)) == NULL)
 		return NULL;
 
 	switch (vp->magic) {
@@ -770,7 +770,7 @@ check_snmp_realserver_weight(int action,
 			     u_char *var_val, u_char var_val_type, size_t var_val_len,
 			     __attribute__((unused)) u_char *statP, oid *name, size_t name_len)
 {
-	element e1, e2;
+	element e2;
 	virtual_server_t *vs = NULL;
 	real_server_t *rs = NULL;
 	oid ivs, irs;
@@ -788,9 +788,9 @@ check_snmp_realserver_weight(int action,
 		if (name_len < 2) return SNMP_ERR_NOSUCHNAME;
 		irs = name[name_len - 1];
 		ivs = name[name_len - 2];
-		if (LIST_ISEMPTY(check_data->vs)) return SNMP_ERR_NOSUCHNAME;
-		for (e1 = LIST_HEAD(check_data->vs); e1; ELEMENT_NEXT(e1)) {
-			vs = ELEMENT_DATA(e1);
+		if (list_empty(&check_data->vs))
+			return SNMP_ERR_NOSUCHNAME;
+		list_for_each_entry(vs, &check_data->vs, e_list) {
 			if (--ivs == 0) {
 				if (vs->s_svr) {
 					/* We don't want to set weight
@@ -805,11 +805,14 @@ check_snmp_realserver_weight(int action,
 				break;
 			}
 		}
+
 		/* Did not find a RS or this is a sorry server (this
 		   should not happen) */
-		if (!rs) return SNMP_ERR_NOSUCHNAME;
+		if (!rs)
+			return SNMP_ERR_NOSUCHNAME;
 		if (action == RESERVE2)
 			break;
+
 		/* Commit: change values. There is no way to fail. */
 		update_svr_wgt((unsigned)(*var_val), vs, rs, true);
 		break;
@@ -827,7 +830,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	size_t target_len;
 	unsigned curvirtual = 0, curreal;
 	real_server_t *e = NULL, *be = NULL;
-	element e1, e2 = NULL;
+	element e2 = NULL;
 	virtual_server_t *vs, *bvs = NULL;
 	int state;
 	int type, btype;
@@ -841,7 +844,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	*write_method = 0;
 	*var_len = sizeof(long);
 
-	if (LIST_ISEMPTY(check_data->vs))
+	if (list_empty(&check_data->vs))
 		return NULL;
 
 	/* We search the best match: equal if exact, the lower OID in
@@ -850,8 +853,8 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	best[0] = best[1] = MAX_SUBID; /* Our best match */
 	target = &name[vp->namelen];   /* Our target match */
 	target_len = *length - vp->namelen;
-	for (e1 = LIST_HEAD(check_data->vs); e1; ELEMENT_NEXT(e1)) {
-		vs = ELEMENT_DATA(e1);
+
+	list_for_each_entry(vs, &check_data->vs, e_list) {
 		curvirtual++;
 		curreal = 0;
 		if (target_len && (curvirtual < target[0]))

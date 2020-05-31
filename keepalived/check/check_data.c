@@ -259,10 +259,10 @@ alloc_vsg_entry(const vector_t *strvec)
 }
 
 /* Virtual server facility functions */
-static void
-free_vs(void *data)
+void
+free_vs(virtual_server_t *vs)
 {
-	virtual_server_t *vs = data;
+	list_head_del(&vs->e_list);
 	FREE_CONST_PTR(vs->vsgname);
 	FREE_CONST_PTR(vs->virtualhost);
 	FREE_PTR(vs->s_svr);
@@ -270,8 +270,16 @@ free_vs(void *data)
 	free_notify_script(&vs->notify_quorum_up);
 	free_notify_script(&vs->notify_quorum_down);
 	free_vs_checkers(vs);
-
 	FREE(vs);
+}
+
+static void
+free_vs_list(list_head_t *l)
+{
+	virtual_server_t *vs, *vs_tmp;
+
+	list_for_each_entry_safe(vs, vs_tmp, l, e_list)
+		free_vs(vs);
 }
 
 static void
@@ -319,10 +327,8 @@ dump_forwarding_method(FILE *fp, const char *prefix, const real_server_t *rs)
 }
 
 static void
-dump_vs(FILE *fp, const void *data)
+dump_vs(FILE *fp, const virtual_server_t *vs)
 {
-	const virtual_server_t *vs = data;
-
 	conf_write(fp, " ------< Virtual server >------");
 	if (vs->vsgname)
 		conf_write(fp, " VS GROUP = %s", FMT_VS(vs));
@@ -431,6 +437,15 @@ dump_vs(FILE *fp, const void *data)
 	dump_list(fp, vs->rs);
 }
 
+static void
+dump_vs_list(FILE *fp, const list_head_t *l)
+{
+	virtual_server_t *vs;
+
+	list_for_each_entry(vs, l, e_list)
+		dump_vs(fp, vs);
+}
+
 void
 alloc_vs(const char *param1, const char *param2)
 {
@@ -438,7 +453,8 @@ alloc_vs(const char *param1, const char *param2)
 	const char *port_str;
 	unsigned fwmark;
 
-	new = (virtual_server_t *) MALLOC(sizeof(virtual_server_t));
+	PMALLOC(new);
+	INIT_LIST_HEAD(&new->e_list);
 
 	new->af = AF_UNSPEC;
 
@@ -494,36 +510,38 @@ alloc_vs(const char *param1, const char *param2)
 	new->smtp_alert = -1;
 	new->persistence_granularity = 0xffffffff;
 
-	list_add(check_data->vs, new);
+	list_add_tail(&new->e_list, &check_data->vs);
 }
 
 /* Sorry server facility functions */
 void
 alloc_ssvr(const char *ip, const char *port)
 {
-	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
+	real_server_t *new;
 	const char *port_str;
 
 	/* inet_stosockaddr rejects port 0 */
 	port_str = (port && port[strspn(port, "0")]) ? port : NULL;
 
-	vs->s_svr = (real_server_t *) MALLOC(sizeof(real_server_t));
-	vs->s_svr->weight = 1;
-	vs->s_svr->iweight = 1;
-	vs->s_svr->forwarding_method = vs->forwarding_method;
+	PMALLOC(new);
+	new->weight = 1;
+	new->iweight = 1;
+	new->forwarding_method = vs->forwarding_method;
 #ifdef _HAVE_IPVS_TUN_TYPE_
-	vs->s_svr->tun_type = vs->tun_type;
-	vs->s_svr->tun_port = vs->tun_port;
+	new->tun_type = vs->tun_type;
+	new->tun_port = vs->tun_port;
 #ifdef _HAVE_IPVS_TUN_CSUM_
-	vs->s_svr->tun_flags = vs->tun_flags;
+	new->tun_flags = vs->tun_flags;
 #endif
 #endif
-	if (inet_stosockaddr(ip, port_str, &vs->s_svr->addr)) {
+	if (inet_stosockaddr(ip, port_str, &new->addr)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid sorry server IP address %s - skipping", ip);
-		FREE(vs->s_svr);
-		vs->s_svr = NULL;
+		FREE(new);
 		return;
 	}
+
+	vs->s_svr = new;
 }
 
 /* Real server facility functions */
@@ -615,7 +633,7 @@ dump_rs(FILE *fp, const void *data)
 void
 alloc_rs(const char *ip, const char *port)
 {
-	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
 	real_server_t *new;
 	const char *port_str;
 
@@ -707,8 +725,8 @@ alloc_check_data(void)
 {
 	check_data_t *new;
 
-	new = (check_data_t *) MALLOC(sizeof(check_data_t));
-	new->vs = alloc_list(free_vs, dump_vs);
+	PMALLOC(new);
+	INIT_LIST_HEAD(&new->vs);
 	new->vs_group = alloc_list(free_vsg, dump_vsg);
 	INIT_LIST_HEAD(&new->track_files);
 #ifdef _WITH_BFD_
@@ -721,7 +739,7 @@ alloc_check_data(void)
 void
 free_check_data(check_data_t *data)
 {
-	free_list(&data->vs);
+	free_vs_list(&data->vs);
 	free_list(&data->vs_group);
 	free_track_file_list(&data->track_files);
 #ifdef _WITH_BFD_
@@ -737,13 +755,14 @@ dump_check_data(FILE *fp, const check_data_t *data)
 		conf_write(fp, "------< SSL definitions >------");
 		dump_ssl(fp);
 	}
-	if (!LIST_ISEMPTY(data->vs)) {
+
+	if (!list_empty(&data->vs)) {
 		conf_write(fp, "------< LVS Topology >------");
-		conf_write(fp, " System is compiled with LVS v%d.%d.%d",
-		       NVERSION(IP_VS_VERSION_CODE));
+		conf_write(fp, " System is compiled with LVS v%d.%d.%d"
+			     , NVERSION(IP_VS_VERSION_CODE));
 		if (!LIST_ISEMPTY(data->vs_group))
 			dump_list(fp, data->vs_group);
-		dump_list(fp, data->vs);
+		dump_vs_list(fp, &data->vs);
 	}
 	dump_checkers_queue(fp);
 
@@ -825,22 +844,20 @@ format_rs(const real_server_t *rs, const virtual_server_t *vs)
 static void
 check_check_script_security(void)
 {
-	element e, e1;
+	element e1;
 	virtual_server_t *vs;
 	real_server_t *rs;
 	unsigned script_flags;
 	magic_t magic;
 
-	if (LIST_ISEMPTY(check_data->vs))
+	if (list_empty(&check_data->vs))
 		return;
 
 	magic = ka_magic_open();
 
 	script_flags = check_misc_script_security(magic);
 
-	for (e = LIST_HEAD(check_data->vs); e; ELEMENT_NEXT(e)) {
-		vs = ELEMENT_DATA(e);
-
+	list_for_each_entry(vs, &check_data->vs, e_list) {
 		script_flags |= check_notify_script_secure(&vs->notify_quorum_up, magic);
 		script_flags |= check_notify_script_secure(&vs->notify_quorum_down, magic);
 
@@ -866,22 +883,23 @@ check_check_script_security(void)
 		ka_magic_close(magic);
 }
 
-bool validate_check_config(void)
+bool
+validate_check_config(void)
 {
 	element e, e1, e2;
-	virtual_server_t *vs;
+	virtual_server_t *vs, *vs_tmp;
 	virtual_server_group_entry_t *vsge;
 	real_server_t *rs, *rs1;
 	checker_t *checker;
-	element next_vs, next_rs;
+	element next_rs;
 	unsigned weight_sum;
 	bool rs_removed;
 
 	using_ha_suspend = false;
-	LIST_FOREACH_NEXT(check_data->vs, vs, e, next_vs) {
+	list_for_each_entry_safe(vs, vs_tmp, &check_data->vs, e_list) {
 		if (!vs->rs || LIST_ISEMPTY(vs->rs)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s has no real servers - ignoring", FMT_VS(vs));
-			free_list_element(check_data->vs, e);
+			free_vs(vs);
 			continue;
 		}
 
@@ -1138,8 +1156,7 @@ bool validate_check_config(void)
 		}
 	}
 
-	LIST_FOREACH(checkers_queue, checker, e)
-	{
+	LIST_FOREACH(checkers_queue, checker, e) {
 		/* Ensure any checkers that don't have ha_suspend set are enabled */
 		if (!checker->vs->ha_suspend)
 			checker->enabled = true;
