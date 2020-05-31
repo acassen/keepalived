@@ -135,13 +135,16 @@ vsg_handler(const vector_t *strvec)
 	alloc_value_block(alloc_vsg_entry, strvec);
 
 	/* Ensure the virtual server group has some configuration */
-	vsg = LIST_TAIL_DATA(check_data->vs_group);
-	if (LIST_ISEMPTY(vsg->vfwmark) && LIST_ISEMPTY(vsg->addr_range)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "virtual server group %s has no entries - removing", vsg->gname);
-		free_list_element(check_data->vs_group, check_data->vs_group->tail);
+	vsg = list_last_entry(&check_data->vs_group, virtual_server_group_t, e_list);
+	if (list_empty(&vsg->vfwmark) && list_empty(&vsg->addr_range)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "virtual server group %s has no entries - removing"
+							, vsg->gname);
+		free_vsg(vsg);
 	} else if (vsg->have_ipv4 && vsg->have_ipv6 && vsg->fwmark_no_family) {
-		report_config_error(CONFIG_GENERAL_ERROR, "virtual server group %s cannot have IPv4, IPv6 and fwmark without family - removing", vsg->gname);
-		free_list_element(check_data->vs_group, check_data->vs_group->tail);
+		report_config_error(CONFIG_GENERAL_ERROR, "virtual server group %s cannot have IPv4, IPv6"
+							  " and fwmark without family - removing"
+							, vsg->gname);
+		free_vsg(vsg);
 	}
 }
 static void

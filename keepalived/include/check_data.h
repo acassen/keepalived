@@ -128,15 +128,21 @@ typedef struct _virtual_server_group_entry {
 		};
 	};
 	bool				reloaded;
+
+	/* Linked list member */
+	list_head_t			e_list;
 } virtual_server_group_entry_t;
 
 typedef struct _virtual_server_group {
 	char				*gname;
-	list				addr_range;
-	list				vfwmark;
+	list_head_t			addr_range;
+	list_head_t			vfwmark;
 	bool				have_ipv4;
 	bool				have_ipv6;
 	bool				fwmark_no_family;
+
+	/* Linked list member */
+	list_head_t			e_list;
 } virtual_server_group_t;
 
 /* Virtual Server definition */
@@ -204,7 +210,7 @@ typedef struct _virtual_server {
 typedef struct _check_data {
 	bool				ssl_required;
 	ssl_data_t			*ssl;
-	list				vs_group;
+	list_head_t			vs_group;	/* virtual_server_group_t */
 	list_head_t			vs;		/* virtual_server_t */
 	list_head_t			track_files;	/* tracked_file_t */
 #ifdef _WITH_BFD_
@@ -236,6 +242,7 @@ extern check_data_t *old_check_data;
 extern ssl_data_t *alloc_ssl(void) __attribute((malloc));
 extern void free_ssl(void);
 extern void alloc_vsg(const char *);
+extern void free_vsg(virtual_server_group_t *);
 extern void alloc_vsg_entry(const vector_t *);
 extern void alloc_vs(const char *, const char *);
 extern void free_vs(virtual_server_t *);

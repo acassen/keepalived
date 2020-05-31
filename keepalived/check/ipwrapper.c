@@ -343,7 +343,7 @@ clear_services(void)
 
 /* Set a realserver IPVS rules */
 static bool
-init_service_rs(virtual_server_t * vs)
+init_service_rs(virtual_server_t *vs)
 {
 	real_server_t *rs;
 	tracked_file_monitor_t *tfm;
@@ -404,35 +404,31 @@ init_service_rs(virtual_server_t * vs)
 }
 
 static void
-sync_service_vsg(virtual_server_t * vs)
+sync_service_vsg_entry(virtual_server_t *vs, const list_head_t *l)
 {
-	virtual_server_group_t *vsg;
 	virtual_server_group_entry_t *vsge;
-	list *l;
-	element e;
 
-	vsg = vs->vsg;
-	list ll[] = {
-		vsg->addr_range,
-		vsg->vfwmark,
-		NULL,
-	};
-
-	for (l = ll; *l; l++) {
-		LIST_FOREACH(*l, vsge, e) {
-			if (!vsge->reloaded) {
-				log_message(LOG_INFO, "VS [%s:%" PRIu32 ":%u] added into group %s"
+	list_for_each_entry(vsge, l, e_list) {
+		if (!vsge->reloaded) {
+			log_message(LOG_INFO, "VS [%s:%" PRIu32 ":%u] added into group %s"
 // Does this work with no address?
-						    , inet_sockaddrtotrio(&vsge->addr, vs->service_type)
-						    , vsge->range
-						    , vsge->vfwmark
-						    , vs->vsgname);
-				/* add all reloaded and alive/inhibit-set dests
-				 * to the newly created vsg item */
-				ipvs_group_sync_entry(vs, vsge);
-			}
+					    , inet_sockaddrtotrio(&vsge->addr, vs->service_type)
+					    , vsge->range
+					    , vsge->vfwmark
+					    , vs->vsgname);
+			/* add all reloaded and alive/inhibit-set dests
+			 * to the newly created vsg item */
+			ipvs_group_sync_entry(vs, vsge);
 		}
 	}
+}
+static void
+sync_service_vsg(virtual_server_t *vs)
+{
+	virtual_server_group_t *vsg = vs->vsg;
+
+	sync_service_vsg_entry(vs, &vsg->addr_range);
+	sync_service_vsg_entry(vs, &vsg->vfwmark);
 }
 
 /* add or remove _alive_ real servers from a virtual server */
@@ -716,12 +712,11 @@ update_svr_checker_state(bool alive, checker_t *checker)
 
 /* Check if a vsg entry is in new data */
 static virtual_server_group_entry_t * __attribute__ ((pure))
-vsge_exist(virtual_server_group_entry_t *vsg_entry, list l)
+vsge_exist(virtual_server_group_entry_t *vsg_entry, list_head_t *l)
 {
-	element e;
 	virtual_server_group_entry_t *vsge;
 
-	LIST_FOREACH(l, vsge, e) {
+	list_for_each_entry(vsge, l, e_list) {
 		if (vsge_iseq(vsg_entry, vsge))
 			return vsge;
 	}
@@ -731,78 +726,71 @@ vsge_exist(virtual_server_group_entry_t *vsg_entry, list l)
 
 /* Clear the diff vsge of old group */
 static void
-clear_diff_vsge(list old, list new, virtual_server_t * old_vs)
+clear_diff_vsge(list_head_t *old, list_head_t *new, virtual_server_t *old_vs)
 {
 	virtual_server_group_entry_t *vsge, *new_vsge;
-	element e;
 
-	LIST_FOREACH(old, vsge, e) {
+	list_for_each_entry(vsge, old, e_list) {
 		new_vsge = vsge_exist(vsge, new);
-		if (new_vsge)
+		if (new_vsge) {
 			new_vsge->reloaded = true;
-		else {
-			if (vsge->is_fwmark)
-				log_message(LOG_INFO, "VS [%u] in group %s no longer exists",
-						      vsge->vfwmark, old_vs->vsgname);
-			else
-				log_message(LOG_INFO, "VS [%s:%" PRIu32 "] in group %s no longer exists"
-						    , inet_sockaddrtotrio(&vsge->addr, old_vs->service_type)
-						    , vsge->range
-						    , old_vs->vsgname);
-
-			ipvs_group_remove_entry(old_vs, vsge);
+			continue;
 		}
+
+		if (vsge->is_fwmark)
+			log_message(LOG_INFO, "VS [%u] in group %s no longer exists",
+					      vsge->vfwmark, old_vs->vsgname);
+		else
+			log_message(LOG_INFO, "VS [%s:%" PRIu32 "] in group %s no longer exists"
+					    , inet_sockaddrtotrio(&vsge->addr, old_vs->service_type)
+					    , vsge->range
+					    , old_vs->vsgname);
+
+		ipvs_group_remove_entry(old_vs, vsge);
 	}
 }
 
 static void
-update_alive_counts(virtual_server_t *old, virtual_server_t *new)
+update_alive_counts_vsge(list_head_t *old, list_head_t *new)
 {
-	virtual_server_group_entry_t *vsge, *new_vsge;
-	list *old_l, *new_l;
-	element e;
+	virtual_server_group_entry_t *old_vsge, *new_vsge;
 
-	if (!old->vsg || !new->vsg)
-	 	return ;
+	list_for_each_entry(old_vsge, old, e_list) {
+		new_vsge = vsge_exist(old_vsge, new);
+		if (!new_vsge)
+			continue;
 
-	list old_ll[] = {
-		old->vsg->addr_range,
-		old->vsg->vfwmark,
-		NULL,
-	};
-	list new_ll[] = {
-		new->vsg->addr_range,
-		new->vsg->vfwmark,
-		NULL,
-	};
-
-	for (old_l = old_ll, new_l = new_ll; *old_l; old_l++, new_l++) {
-		LIST_FOREACH(*old_l, vsge, e) {
-			new_vsge = vsge_exist(vsge, *new_l);
-			if (new_vsge) {
-				if (vsge->is_fwmark) {
-					new_vsge->fwm4_alive = vsge->fwm4_alive;
-					new_vsge->fwm6_alive = vsge->fwm6_alive;
-				} else {
-					new_vsge->tcp_alive = vsge->tcp_alive;
-					new_vsge->udp_alive = vsge->udp_alive;
-					new_vsge->sctp_alive = vsge->sctp_alive;
-				}
-			}
+		if (old_vsge->is_fwmark) {
+			new_vsge->fwm4_alive = old_vsge->fwm4_alive;
+			new_vsge->fwm6_alive = old_vsge->fwm6_alive;
+		} else {
+			new_vsge->tcp_alive = old_vsge->tcp_alive;
+			new_vsge->udp_alive = old_vsge->udp_alive;
+			new_vsge->sctp_alive = old_vsge->sctp_alive;
 		}
 	}
+
+}
+static void
+update_alive_counts(virtual_server_t *old, virtual_server_t *new)
+{
+	if (!old->vsg || !new->vsg)
+		return;
+
+	update_alive_counts_vsge(&old->vsg->addr_range, &new->vsg->addr_range);
+	update_alive_counts_vsge(&old->vsg->vfwmark, &new->vsg->vfwmark);
 }
 
 /* Clear the diff vsg of the old vs */
 static void
-clear_diff_vsg(virtual_server_t * old_vs, virtual_server_t * new_vs)
+clear_diff_vsg(virtual_server_t *old_vs, virtual_server_t *new_vs)
 {
 	virtual_server_group_t *old = old_vs->vsg;
 	virtual_server_group_t *new = new_vs->vsg;
 
 	/* Diff the group entries */
-	clear_diff_vsge(old->addr_range, new->addr_range, old_vs);
-	clear_diff_vsge(old->vfwmark, new->vfwmark, old_vs);
+	clear_diff_vsge(&old->addr_range, &new->addr_range, old_vs);
+	clear_diff_vsge(&old->vfwmark, &new->vfwmark, old_vs);
 }
 
 /* Check if a vs exist in new data and returns pointer to it */
@@ -1080,12 +1068,11 @@ check_new_rs_state(void)
 void
 link_vsg_to_vs(void)
 {
-	element e;
 	virtual_server_t *vs, *vs_tmp;
-	int vsg_af;
 	virtual_server_group_t *vsg;
 	virtual_server_group_entry_t *vsge;
 	unsigned vsg_member_no;
+	int vsg_af;
 
 	if (list_empty(&check_data->vs))
 		return;
@@ -1094,7 +1081,7 @@ link_vsg_to_vs(void)
 		if (!vs->vsgname)
 			continue;
 
-		vs->vsg = ipvs_get_group_by_name(vs->vsgname, check_data->vs_group);
+		vs->vsg = ipvs_get_group_by_name(vs->vsgname, &check_data->vs_group);
 		if (!vs->vsg) {
 			log_message(LOG_INFO, "Virtual server group %s specified but not configured"
 					      " - ignoring virtual erver %s"
@@ -1104,8 +1091,8 @@ link_vsg_to_vs(void)
 		}
 
 		/* Check the vs and vsg address families match */
-		if (!LIST_ISEMPTY(vs->vsg->addr_range)) {
-			vsge = ELEMENT_DATA(LIST_HEAD(vs->vsg->addr_range));
+		if (!list_empty(&vs->vsg->addr_range)) {
+			vsge = list_first_entry(&vs->vsg->addr_range, virtual_server_group_entry_t, e_list);
 			vsg_af = vsge->addr.ss_family;
 		} else {
 			/* fwmark only */
@@ -1143,7 +1130,7 @@ link_vsg_to_vs(void)
 	}
 
 	/* The virtual server port number is used to identify the sequence number of the virtual server in the group */
-	LIST_FOREACH(check_data->vs_group, vsg, e) {
+	list_for_each_entry(vsg, &check_data->vs_group, e_list) {
 		vsg_member_no = 0;
 
 		list_for_each_entry(vs, &check_data->vs, e_list) {

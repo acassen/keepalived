@@ -562,8 +562,11 @@ register_checkers_thread(void)
 static bool __attribute__ ((pure))
 addr_matches(const virtual_server_t *vs, void *address)
 {
-	const void *addr;
 	virtual_server_group_entry_t *vsg_entry;
+	struct in_addr mask_addr = {0};
+	struct in6_addr mask_addr6 = {{{0}}};
+	unsigned addr_base;
+	const void *addr;
 
 	if (vs->addr.ss_family != AF_UNSPEC) {
 		if (vs->addr.ss_family == AF_INET6)
@@ -574,70 +577,60 @@ addr_matches(const virtual_server_t *vs, void *address)
 		return inaddr_equal(vs->addr.ss_family, addr, address);
 	}
 
-	if (!vs->vsg)
+	if (!vs->vsg || list_empty(&vs->vsg->addr_range))
 		return false;
 
-	if (vs->vsg->addr_range) {
-		element e;
-		struct in_addr mask_addr = {0};
-		struct in6_addr mask_addr6 = {{{0}}};
-		unsigned addr_base;
+	if (vs->af == AF_INET) {
+		mask_addr = *(struct in_addr*)address;
+		addr_base = ntohl(mask_addr.s_addr) & 0xFF;
+		mask_addr.s_addr &= htonl(0xFFFFFF00);
+	} else {
+		mask_addr6 = *(struct in6_addr*)address;
+		addr_base = ntohs(mask_addr6.s6_addr16[7]);
+		mask_addr6.s6_addr16[7] = 0;
+	}
 
-		if (vs->af == AF_INET) {
-			mask_addr = *(struct in_addr*)address;
-			addr_base = ntohl(mask_addr.s_addr) & 0xFF;
-			mask_addr.s_addr &= htonl(0xFFFFFF00);
-		}
-		else {
-			mask_addr6 = *(struct in6_addr*)address;
-			addr_base = ntohs(mask_addr6.s6_addr16[7]);
-			mask_addr6.s6_addr16[7] = 0;
-		}
+	list_for_each_entry(vsg_entry, &vs->vsg->addr_range, e_list) {
+		struct sockaddr_storage range_addr = vsg_entry->addr;
+		uint32_t ra_base;
 
-		for (e = LIST_HEAD(vs->vsg->addr_range); e; ELEMENT_NEXT(e)) {
-			vsg_entry = ELEMENT_DATA(e);
-			struct sockaddr_storage range_addr = vsg_entry->addr;
-			uint32_t ra_base;
+		if (!vsg_entry->range) {
+			if (vsg_entry->addr.ss_family == AF_INET6)
+				addr = (void *) &((struct sockaddr_in6 *)&vsg_entry->addr)->sin6_addr;
+			else
+				addr = (void *) &((struct sockaddr_in *)&vsg_entry->addr)->sin_addr;
 
-			if (!vsg_entry->range) {
-				if (vsg_entry->addr.ss_family == AF_INET6)
-					addr = (void *) &((struct sockaddr_in6 *)&vsg_entry->addr)->sin6_addr;
-				else
-					addr = (void *) &((struct sockaddr_in *)&vsg_entry->addr)->sin_addr;
-
-				if (inaddr_equal(vsg_entry->addr.ss_family, addr, address))
-					return true;
-			}
-			else {
-				if (range_addr.ss_family == AF_INET) {
-					struct in_addr ra;
-
-					ra = ((struct sockaddr_in *)&range_addr)->sin_addr;
-					ra_base = ntohl(ra.s_addr) & 0xFF;
-
-					if (addr_base < ra_base || addr_base > ra_base + vsg_entry->range)
-						continue;
-
-					ra.s_addr &= htonl(0xFFFFFF00);
-					if (ra.s_addr != mask_addr.s_addr)
-						continue;
-				}
-				else
-				{
-					struct in6_addr ra = ((struct sockaddr_in6 *)&range_addr)->sin6_addr;
-					ra_base = ntohs(ra.s6_addr16[7]);
-
-					if (addr_base < ra_base || addr_base > ra_base + vsg_entry->range)
-						continue;
-
-					ra.s6_addr16[7] = 0;
-					if (!inaddr_equal(AF_INET6, &ra, &mask_addr6))
-						continue;
-				}
-
+			if (inaddr_equal(vsg_entry->addr.ss_family, addr, address))
 				return true;
-			}
+
+			continue;
 		}
+
+		if (range_addr.ss_family == AF_INET) {
+			struct in_addr ra;
+
+			ra = ((struct sockaddr_in *)&range_addr)->sin_addr;
+			ra_base = ntohl(ra.s_addr) & 0xFF;
+
+			if (addr_base < ra_base || addr_base > ra_base + vsg_entry->range)
+				continue;
+
+			ra.s_addr &= htonl(0xFFFFFF00);
+			if (ra.s_addr != mask_addr.s_addr)
+				continue;
+		} else {
+			struct in6_addr ra = ((struct sockaddr_in6 *)&range_addr)->sin6_addr;
+			ra_base = ntohs(ra.s6_addr16[7]);
+
+			if (addr_base < ra_base || addr_base > ra_base + vsg_entry->range)
+				continue;
+
+			ra.s6_addr16[7] = 0;
+			if (!inaddr_equal(AF_INET6, &ra, &mask_addr6))
+				continue;
+		}
+
+		return true;
 	}
 
 	return false;

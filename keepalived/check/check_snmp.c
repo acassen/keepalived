@@ -244,9 +244,9 @@ check_snmp_vsgroup(struct variable *vp, oid *name, size_t *length,
 	virtual_server_group_t *g;
 
 	if ((g = (virtual_server_group_t *)
-	     snmp_header_list_table(vp, name, length, exact,
-				    var_len, write_method,
-				    check_data->vs_group)) == NULL)
+	     snmp_header_list_head_table(vp, name, length, exact,
+					 var_len, write_method,
+					 &check_data->vs_group)) == NULL)
 		return NULL;
 
 	switch (vp->magic) {
@@ -269,11 +269,10 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 	int result;
 	size_t target_len;
 	unsigned curgroup = 0, curentry;
-	element e1, e2;
 	virtual_server_group_t *group;
-	virtual_server_group_entry_t *e, *be = NULL;
+	virtual_server_group_entry_t *vsge, *be = NULL;
 	int state;
-	list l;
+	list_head_t *l;
 
 
 	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
@@ -284,7 +283,7 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 	*write_method = 0;
 	*var_len = sizeof(long);
 
-	if (LIST_ISEMPTY(check_data->vs_group))
+	if (list_empty(&check_data->vs_group))
 		return NULL;
 
 	/* We search the best match: equal if exact, the lower OID in
@@ -293,7 +292,7 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 	best[0] = best[1] = MAX_SUBID; /* Our best match */
 	target = &name[vp->namelen];   /* Our target match */
 	target_len = *length - vp->namelen;
-	LIST_FOREACH(check_data->vs_group, group, e1) {
+	list_for_each_entry(group, &check_data->vs_group, e_list) {
 		curgroup++;
 		curentry = 0;
 		if (target_len && (curgroup < target[0]))
@@ -302,17 +301,17 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 		while (state < STATE_VSGM_END) {
 			switch (state) {
 			case STATE_VSGM_FWMARK:
-				l = group->vfwmark;
+				l = &group->vfwmark;
 				break;
 			case STATE_VSGM_ADDRESS_RANGE:
-				l = group->addr_range;
+				l = &group->addr_range;
 				break;
 			default:
 				/* Dunno? */
 				return NULL;
 			}
 			state++;
-			LIST_FOREACH(l, e, e2) {
+			list_for_each_entry(vsge, l, e_list) {
 				curentry++;
 				/* We build our current match */
 				current[0] = curgroup;
@@ -325,13 +324,13 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 					continue;
 				if (result == 0) {
 					/* Got an exact match and asked for it */
-					be = e;
+					be = vsge;
 					goto vsgmember_found;
 				}
 				if (snmp_oid_compare(current, 2, best, 2) < 0) {
 					/* This is our best match */
 					memcpy(best, current, sizeof(oid) * 2);
-					be = e;
+					be = vsge;
 					goto vsgmember_be_found;
 				}
 			}

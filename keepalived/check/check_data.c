@@ -94,33 +94,16 @@ dump_ssl(FILE *fp)
 
 /* Virtual server group facility functions */
 static void
-free_vsg(void *data)
+free_vsg_entry_list(list_head_t *l)
 {
-	virtual_server_group_t *vsg = data;
-	FREE_PTR(vsg->gname);
-	free_list(&vsg->addr_range);
-	free_list(&vsg->vfwmark);
-	FREE(vsg);
-}
-static void
-dump_vsg(FILE *fp, const void *data)
-{
-	const virtual_server_group_t *vsg = data;
+	virtual_server_group_entry_t *vsge, *vsge_tmp;
 
-	conf_write(fp, " ------< Virtual server group >------");
-	conf_write(fp, " Virtual Server Group = %s, IPv4 = %s, IPv6 = %s", vsg->gname, vsg->have_ipv4 ? "yes" : "no", vsg->have_ipv6 ? "yes" : "no");
-	dump_list(fp, vsg->addr_range);
-	dump_list(fp, vsg->vfwmark);
+	list_for_each_entry_safe(vsge, vsge_tmp, l, e_list)
+		FREE(vsge);
 }
 static void
-free_vsg_entry(void *data)
+dump_vsg_entry(FILE *fp, const virtual_server_group_entry_t *vsg_entry)
 {
-	FREE(data);
-}
-static void
-dump_vsg_entry(FILE *fp, const void *data)
-{
-	const virtual_server_group_entry_t *vsg_entry = data;
 	uint16_t start;
 
 	if (vsg_entry->is_fwmark) {
@@ -148,22 +131,64 @@ dump_vsg_entry(FILE *fp, const void *data)
 	}
 	conf_write(fp, "     reloaded = %s", vsg_entry->reloaded ? "True" : "False");
 }
+static void
+dump_vsg_entry_list(FILE *fp, const list_head_t *l)
+{
+	virtual_server_group_entry_t *vsge;
+
+	list_for_each_entry(vsge, l, e_list)
+		dump_vsg_entry(fp, vsge);
+}
+void
+free_vsg(virtual_server_group_t *vsg)
+{
+	list_head_del(&vsg->e_list);
+	FREE_PTR(vsg->gname);
+	free_vsg_entry_list(&vsg->addr_range);
+	free_vsg_entry_list(&vsg->vfwmark);
+	FREE(vsg);
+}
+static void
+free_vsg_list(list_head_t *l)
+{
+	virtual_server_group_t *vsg, *vsg_tmp;
+
+	list_for_each_entry_safe(vsg, vsg_tmp, l, e_list)
+		free_vsg(vsg);
+}
+static void
+dump_vsg(FILE *fp, const virtual_server_group_t *vsg)
+{
+	conf_write(fp, " ------< Virtual server group >------");
+	conf_write(fp, " Virtual Server Group = %s, IPv4 = %s, IPv6 = %s", vsg->gname, vsg->have_ipv4 ? "yes" : "no", vsg->have_ipv6 ? "yes" : "no");
+	dump_vsg_entry_list(fp, &vsg->addr_range);
+	dump_vsg_entry_list(fp, &vsg->vfwmark);
+}
+static void
+dump_vsg_list(FILE *fp, const list_head_t *l)
+{
+	virtual_server_group_t *vsg;
+
+	list_for_each_entry(vsg, l, e_list)
+		dump_vsg(fp, vsg);
+}
 void
 alloc_vsg(const char *gname)
 {
 	virtual_server_group_t *new;
 
-	new = (virtual_server_group_t *) MALLOC(sizeof(virtual_server_group_t));
+	PMALLOC(new);
+	INIT_LIST_HEAD(&new->e_list);
+	INIT_LIST_HEAD(&new->addr_range);
+	INIT_LIST_HEAD(&new->vfwmark);
 	new->gname = STRDUP(gname);
-	new->addr_range = alloc_list(free_vsg_entry, dump_vsg_entry);
-	new->vfwmark = alloc_list(free_vsg_entry, dump_vsg_entry);
 
-	list_add(check_data->vs_group, new);
+	list_add_tail(&new->e_list, &check_data->vs_group);
 }
 void
 alloc_vsg_entry(const vector_t *strvec)
 {
-	virtual_server_group_t *vsg = LIST_TAIL_DATA(check_data->vs_group);
+	virtual_server_group_t *vsg = list_last_entry(&check_data->vs_group, virtual_server_group_t, e_list);
 	virtual_server_group_entry_t *new;
 	uint32_t start;
 	const char *port_str;
@@ -171,7 +196,8 @@ alloc_vsg_entry(const vector_t *strvec)
 	unsigned fwmark;
 	const char *family_str;
 
-	new = (virtual_server_group_entry_t *) MALLOC(sizeof(virtual_server_group_entry_t));
+	PMALLOC(new);
+	INIT_LIST_HEAD(&new->e_list);
 
 	if (!strcmp(strvec_slot(strvec, 0), "fwmark")) {
 		if (!read_unsigned_strvec(strvec, 1, &fwmark, 0, UINT32_MAX, true)) {
@@ -199,7 +225,7 @@ alloc_vsg_entry(const vector_t *strvec)
 
 		new->vfwmark = fwmark;
 		new->is_fwmark = true;
-		list_add(vsg->vfwmark, new);
+		list_add_tail(&new->e_list, &vsg->vfwmark);
 	} else {
 		if (!inet_stor(strvec_slot(strvec, 0), &range)) {
 			FREE(new);
@@ -249,7 +275,7 @@ alloc_vsg_entry(const vector_t *strvec)
 		}
 
 		new->is_fwmark = false;
-		list_add(vsg->addr_range, new);
+		list_add_tail(&new->e_list, &vsg->addr_range);
 
 		if (new->addr.ss_family == AF_INET)
 			vsg->have_ipv4 = true;
@@ -727,7 +753,8 @@ alloc_check_data(void)
 
 	PMALLOC(new);
 	INIT_LIST_HEAD(&new->vs);
-	new->vs_group = alloc_list(free_vsg, dump_vsg);
+	INIT_LIST_HEAD(&new->vs_group);
+//	new->vs_group = alloc_list(free_vsg, dump_vsg);
 	INIT_LIST_HEAD(&new->track_files);
 #ifdef _WITH_BFD_
 	new->track_bfds = alloc_list(free_checker_bfd, dump_checker_bfd);
@@ -740,7 +767,7 @@ void
 free_check_data(check_data_t *data)
 {
 	free_vs_list(&data->vs);
-	free_list(&data->vs_group);
+	free_vsg_list(&data->vs_group);
 	free_track_file_list(&data->track_files);
 #ifdef _WITH_BFD_
 	free_list(&data->track_bfds);
@@ -760,8 +787,8 @@ dump_check_data(FILE *fp, const check_data_t *data)
 		conf_write(fp, "------< LVS Topology >------");
 		conf_write(fp, " System is compiled with LVS v%d.%d.%d"
 			     , NVERSION(IP_VS_VERSION_CODE));
-		if (!LIST_ISEMPTY(data->vs_group))
-			dump_list(fp, data->vs_group);
+		if (!list_empty(&data->vs_group))
+			dump_vsg_list(fp, &data->vs_group);
 		dump_vs_list(fp, &data->vs);
 	}
 	dump_checkers_queue(fp);
@@ -905,7 +932,7 @@ validate_check_config(void)
 
 		/* Ensure that ha_suspend is not set for any virtual server using fwmarks */
 		if (vs->ha_suspend &&
-		    (vs->vfwmark || (vs->vsg && !LIST_ISEMPTY(vs->vsg->vfwmark)))) {
+		    (vs->vfwmark || (vs->vsg && !list_empty(&vs->vsg->vfwmark)))) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: cannot use ha_suspend with fwmarks - clearing ha_suspend", FMT_VS(vs));
 			vs->ha_suspend = false;
 		}
@@ -914,7 +941,7 @@ validate_check_config(void)
 			using_ha_suspend = true;
 
 		/* If the virtual server is specified by address (rather than fwmark), make some further checks */
-		if ((vs->vsg && !LIST_ISEMPTY(vs->vsg->addr_range)) ||
+		if ((vs->vsg && !list_empty(&vs->vsg->addr_range)) ||
 		    (!vs->vsg && !vs->vfwmark)) {
 			/* Check protocol set */
 			if (!vs->service_type) {
@@ -946,7 +973,7 @@ validate_check_config(void)
 		 * make sure all the address blocks have a port, otherwise set
 		 * persistence. */
 		if (!vs->persistence_timeout && vs->vsg) {
-			LIST_FOREACH(vs->vsg->addr_range, vsge, e1) {
+			list_for_each_entry(vsge, &vs->vsg->addr_range, e_list) {
 				if (!inet_sockaddrport(&vsge->addr)) {
 					report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: zero port only valid for persistent services - setting", FMT_VS(vs));
 					vs->persistence_timeout = IPVS_SVC_PERSISTENT_TIMEOUT;
@@ -957,7 +984,7 @@ validate_check_config(void)
 
 		/* A virtual server using fwmarks will ignore any protocol setting, so warn if one is set */
 		if (vs->service_type &&
-		    ((vs->vsg && LIST_ISEMPTY(vs->vsg->addr_range) && !LIST_ISEMPTY(vs->vsg->vfwmark)) ||
+		    ((vs->vsg && list_empty(&vs->vsg->addr_range) && !list_empty(&vs->vsg->vfwmark)) ||
 		     (!vs->vsg && vs->vfwmark)))
 			report_config_error(CONFIG_GENERAL_ERROR, "Warning: Virtual server %s: protocol specified for fwmark - protocol will be ignored", FMT_VS(vs));
 
@@ -1089,7 +1116,7 @@ validate_check_config(void)
 		/* Now check that, unless using NAT, real and virtual servers have the same port.
 		 * Also if a fwmark is used, ensure that unless NAT, the real server port is 0. */
 		if (vs->vsg) {
-			if (!LIST_ISEMPTY(vs->vsg->vfwmark)) {
+			if (!list_empty(&vs->vsg->vfwmark)) {
 				LIST_FOREACH(vs->rs, rs, e1) {
 					if (rs->forwarding_method == IP_VS_CONN_F_MASQ)
 						continue;
@@ -1100,7 +1127,7 @@ validate_check_config(void)
 				    inet_sockaddrport(&vs->s_svr->addr))
 					report_config_error(CONFIG_GENERAL_ERROR, "WARNING - fwmark virtual server %s, sorry server has port specified - port will be ignored", FMT_VS(vs));
 			}
-			LIST_FOREACH(vs->vsg->addr_range, vsge, e1) {
+			list_for_each_entry(vsge, &vs->vsg->addr_range, e_list) {
 				LIST_FOREACH(vs->rs, rs, e2) {
 					if (rs->forwarding_method == IP_VS_CONN_F_MASQ)
 						continue;

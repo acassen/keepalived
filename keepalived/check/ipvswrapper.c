@@ -71,15 +71,15 @@ ipvs_cmd_str(int cmd)
 
 /* fetch virtual server group from group name */
 virtual_server_group_t * __attribute__ ((pure))
-ipvs_get_group_by_name(const char *gname, list l)
+ipvs_get_group_by_name(const char *gname, list_head_t *l)
 {
-	element e;
 	virtual_server_group_t *vsg;
 
-	LIST_FOREACH(l, vsg, e) {
+	list_for_each_entry(vsg, l, e_list) {
 		if (!strcmp(vsg->gname, gname))
 			return vsg;
 	}
+
 	return NULL;
 }
 
@@ -365,16 +365,16 @@ ipvs_group_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_serve
 {
 	virtual_server_group_t *vsg = vs->vsg;
 	virtual_server_group_entry_t *vsg_entry;
-	element e;
 
 	/* return if jointure fails */
 	if (!vsg)
 		return 0;
 
 	/* visit addr_range list */
-	LIST_FOREACH(vsg->addr_range, vsg_entry, e) {
+	list_for_each_entry(vsg_entry, &vsg->addr_range, e_list) {
 		if (cmd == IP_VS_SO_SET_ADD && reload && vsg_entry->reloaded)
 			continue;
+
 		if (ipvs_change_needed(cmd, vsg_entry, vs, rs)) {
 			srule->user.port = inet_sockaddrport(&vsg_entry->addr);
 			if (rs) {
@@ -401,7 +401,8 @@ ipvs_group_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_serve
 		else
 			drule->user.port = inet_sockaddrport(&rs->addr);
 	}
-	LIST_FOREACH(vsg->vfwmark, vsg_entry, e) {
+
+	list_for_each_entry(vsg_entry, &vsg->vfwmark, e_list) {
 		if (cmd == IP_VS_SO_SET_ADD && reload && vsg_entry->reloaded)
 			continue;
 
@@ -417,6 +418,7 @@ ipvs_group_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_serve
 			if (ipvs_talk(cmd, srule, drule, NULL, false))
 				return -1;
 		}
+
 		ipvs_set_vsge_alive_state(cmd, vsg_entry, vs);
 	}
 
@@ -702,7 +704,7 @@ ipvs_update_vs_stats(virtual_server_t *vs, uint32_t fwmark, union nf_inet_addr *
 void
 ipvs_update_stats(virtual_server_t *vs)
 {
-	element e, ge;
+	element e;
 	virtual_server_group_entry_t *vsg_entry;
 	uint32_t addr_ip;
 	uint16_t port;
@@ -730,12 +732,10 @@ ipvs_update_stats(virtual_server_t *vs)
 
 	/* Update the stats */
 	if (vs->vsg) {
-		for (ge = LIST_HEAD(vs->vsg->vfwmark); ge; ELEMENT_NEXT(ge)) {
-			vsg_entry = ELEMENT_DATA(ge);
+		list_for_each_entry(vsg_entry, &vs->vsg->vfwmark, e_list)
 			ipvs_update_vs_stats(vs, vsg_entry->vfwmark, &nfaddr, 0);
-		}
-		for (ge = LIST_HEAD(vs->vsg->addr_range); ge; ELEMENT_NEXT(ge)) {
-			vsg_entry = ELEMENT_DATA(ge);
+
+		list_for_each_entry(vsg_entry, &vs->vsg->addr_range, e_list) {
 			addr_ip = (vsg_entry->addr.ss_family == AF_INET6) ?
 				    ntohs(((struct sockaddr_in6 *)&vsg_entry->addr)->sin6_addr.s6_addr16[7]) :
 				    ntohl(((struct sockaddr_in *)&vsg_entry->addr)->sin_addr.s_addr);
