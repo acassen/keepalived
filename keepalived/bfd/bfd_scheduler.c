@@ -43,14 +43,11 @@
 #include "signals.h"
 #include "assert_debug.h"
 
-/* RFC5881 section 4 */
-#define	BFD_MIN_PORT	49152
-#define	BFD_MAX_PORT	65535
-
+/* Locals */
 static int bfd_send_packet(int, bfdpkt_t *, bool);
 static void bfd_sender_schedule(bfd_t *);
 
-static void bfd_state_down(bfd_t *, u_char diag);
+static void bfd_state_down(bfd_t *, uint8_t diag);
 static void bfd_state_admindown(bfd_t *);
 static void bfd_state_up(bfd_t *);
 static void bfd_dump_timers(FILE *fp, bfd_t *);
@@ -485,7 +482,7 @@ bfd_state_fall(bfd_t *bfd, bool send_event)
 
 /* Runs when BFD session state goes Down */
 static void
-bfd_state_down(bfd_t *bfd, u_char diag)
+bfd_state_down(bfd_t *bfd, uint8_t diag)
 {
 	assert(bfd);
 	assert(BFD_VALID_DIAG(diag));
@@ -1095,10 +1092,8 @@ static int
 bfd_open_fds(bfd_data_t *data)
 {
 	bfd_t *bfd;
-	element e;
 
 	assert(data);
-	assert(data->bfd);
 
 	/* Do not reopen input socket on reload */
 	if (bfd_data->fd_in == -1) {
@@ -1110,10 +1105,7 @@ bfd_open_fds(bfd_data_t *data)
 		}
 	}
 
-	for (e = LIST_HEAD(data->bfd); e; ELEMENT_NEXT(e)) {
-		bfd = ELEMENT_DATA(e);
-		assert(bfd);
-
+	list_for_each_entry(bfd, &data->bfd, e_list) {
 		if (bfd_open_fd_out(bfd)) {
 			log_message(LOG_ERR, "BFD_Instance(%s) Unable to"
 				    " open output socket, disabling instance",
@@ -1130,7 +1122,6 @@ static void
 bfd_register_workers(bfd_data_t *data)
 {
 	bfd_t *bfd;
-	element e;
 
 	assert(data);
 	assert(!data->thread_in);
@@ -1140,9 +1131,7 @@ bfd_register_workers(bfd_data_t *data)
 					  data, data->fd_in, TIMER_NEVER, false);
 
 	/* Resume or schedule threads */
-	for (e = LIST_HEAD(data->bfd); e; ELEMENT_NEXT(e)) {
-		bfd = ELEMENT_DATA(e);
-
+	list_for_each_entry(bfd, &data->bfd, e_list) {
 		/* Do not start anything if instance is in AdminDown state.
 		   Discard saved state if any */
 		if (bfd_sender_suspended(bfd)) {
@@ -1181,7 +1170,6 @@ void
 bfd_dispatcher_release(bfd_data_t *data)
 {
 	bfd_t *bfd;
-	element e;
 
 	assert(data);
 
@@ -1203,9 +1191,7 @@ bfd_dispatcher_release(bfd_data_t *data)
 
 	/* Suspend threads for possible resuming after reconfiguration */
 	set_time_now();
-	for (e = LIST_HEAD(data->bfd); e; ELEMENT_NEXT(e)) {
-		bfd = ELEMENT_DATA(e);
-
+	list_for_each_entry(bfd, &data->bfd, e_list) {
 		if (bfd_sender_scheduled(bfd))
 			bfd_sender_suspend(bfd);
 

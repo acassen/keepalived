@@ -30,14 +30,17 @@
 #include "timer.h"
 
 /*
- * RFC5881
+ *	RFC5881
  */
 #define BFD_CONTROL_PORT	"3784"
 #define BFD_CONTROL_TTL		255
 #define BFD_CONTROL_HOPLIMIT	64
 
+#define	BFD_MIN_PORT		49152
+#define	BFD_MAX_PORT		65535
+
 /*
- * Default parameters and limits
+ *	Default parameters and limits
  */
 #define BFD_MINRX_MIN		1U
 #define BFD_MINRX_MAX_SENSIBLE	1000U
@@ -66,61 +69,64 @@
 #define BFD_TTL_MAX		255
 
 /*
- * BFD Session
+ *	BFD Session
  */
 /* Maximum instance name length including \0 */
 #define BFD_INAME_MAX 32
 
 typedef struct _bfd {
 	/* Configuration parameters */
-	char iname[BFD_INAME_MAX];	/* Instance name */
-	struct sockaddr_storage nbr_addr;	/* Neighbor address */
-	struct sockaddr_storage src_addr;	/* Source address */
-	uint32_t local_min_rx_intv;	/* Required min RX interval */
-	uint32_t local_min_tx_intv;	/* Desired min TX interval */
-	uint32_t local_idle_tx_intv;	/* Desired idle TX interval */
-	uint8_t local_detect_mult;	/* Local detection multiplier */
-	uint8_t ttl;			/* TTL/hopcount to send */
-	uint8_t max_hops;		/* Maximum number of hops allowed to be traversed by received packet */
-	bool passive;			/* Operate in passive mode */
+	char			iname[BFD_INAME_MAX];	/* Instance name */
+	struct sockaddr_storage	nbr_addr;		/* Neighbor address */
+	struct sockaddr_storage	src_addr;		/* Source address */
+	uint32_t		local_min_rx_intv;	/* Required min RX interval */
+	uint32_t		local_min_tx_intv;	/* Desired min TX interval */
+	uint32_t		local_idle_tx_intv;	/* Desired idle TX interval */
+	uint8_t			local_detect_mult;	/* Local detection multiplier */
+	uint8_t			ttl;			/* TTL/hopcount to send */
+	uint8_t			max_hops;		/* Maximum number of hops allowed to be traversed by received packet */
+	bool			passive;		/* Operate in passive mode */
 #ifdef _WITH_VRRP_
-	bool vrrp;			/* Only send events to VRRP process */
+	bool			vrrp;			/* Only send events to VRRP process */
 #endif
 #ifdef _WITH_LVS_
-	bool checker;			/* Only send events to checker process */
+	bool			checker;		/* Only send events to checker process */
 #endif
 
 	/* Internal variables */
-	int fd_out;		/* Output socket fd */
-	thread_ref_t thread_out; /* Output socket thread */
-	unsigned long sands_out; /* Output thread sands, used for suspend/resume */
-	thread_ref_t thread_exp; /* Expire thread */
-	unsigned long sands_exp; /* Expire thread sands, used for suspend/resume */
-	thread_ref_t thread_rst; /* Reset thread */
-	unsigned long sands_rst; /* Reset thread sands, used for suspend/resume */
-	bool send_error;	/* Set if last send had an error */
+	int			fd_out;			/* Output socket fd */
+	thread_ref_t		thread_out;		/* Output socket thread */
+	unsigned long		sands_out;		/* Output thread sands, used for suspend/resume */
+	thread_ref_t		thread_exp;		/* Expire thread */
+	unsigned long		sands_exp;		/* Expire thread sands, used for suspend/resume */
+	thread_ref_t		thread_rst;		/* Reset thread */
+	unsigned long		sands_rst;		/* Reset thread sands, used for suspend/resume */
+	bool			send_error;		/* Set if last send had an error */
 
 	/* State variables */
-	u_char local_state:2;	/* Local state */
-	u_char remote_state:2;	/* Remote state */
-	uint32_t local_discr;	/* Local discriminator */
-	uint32_t remote_discr;	/* Remote discriminator */
-	u_char local_diag:5;	/* Local diagnostic code */
-	u_char remote_diag:5;	/* Local diagnostic code */
-	uint32_t remote_min_tx_intv;	/* Remote min TX interval */
-	uint32_t remote_min_rx_intv;	/* Remote min RX interval */
-	uint8_t local_demand;	/* Local demand mode */
-	uint8_t remote_demand;	/* Remote demand mode */
-	uint8_t remote_detect_mult;	/* Remote detection multiplier */
-	bool poll;		/* Poll sequence flag */
-	bool final;		/* Final flag */
+	uint8_t			local_state:2;		/* Local state */
+	uint8_t			remote_state:2;		/* Remote state */
+	uint32_t		local_discr;		/* Local discriminator */
+	uint32_t		remote_discr;		/* Remote discriminator */
+	uint8_t			local_diag:5;		/* Local diagnostic code */
+	uint8_t			remote_diag:5;		/* Local diagnostic code */
+	uint32_t		remote_min_tx_intv;	/* Remote min TX interval */
+	uint32_t		remote_min_rx_intv;	/* Remote min RX interval */
+	uint8_t			local_demand;		/* Local demand mode */
+	uint8_t			remote_demand;		/* Remote demand mode */
+	uint8_t			remote_detect_mult;	/* Remote detection multiplier */
+	bool			poll;			/* Poll sequence flag */
+	bool			final;			/* Final flag */
 
 	/* Calculated values */
-	uint32_t local_tx_intv;	/* Local transmit interval */
-	uint32_t remote_tx_intv;	/* Remote transmit interval */
-	uint64_t local_detect_time;	/* Local detection time */
-	uint64_t remote_detect_time;	/* Remote detection time */
-	timeval_t last_seen;	/* Time of the last packet received */
+	uint32_t		local_tx_intv;		/* Local transmit interval */
+	uint32_t		remote_tx_intv;		/* Remote transmit interval */
+	uint64_t		local_detect_time;	/* Local detection time */
+	uint64_t		remote_detect_time;	/* Remote detection time */
+	timeval_t		last_seen;		/* Time of the last packet received */
+
+	/* Linked list member */
+	list_head_t		e_list;
 } bfd_t;
 
 /*
@@ -128,34 +134,34 @@ typedef struct _bfd {
  */
 typedef struct _bfdhdr {
 #if __BYTE_ORDER == __LITTLE_ENDIAN
-	u_char diag:5;
-	u_char version:3;
+	uint8_t diag:5;
+	uint8_t version:3;
 
 	/* flags */
-	u_char multipoint:1;
-	u_char demand:1;
-	u_char auth:1;
-	u_char cplane:1;
-	u_char final:1;
-	u_char poll:1;
-	u_char state:2;
+	uint8_t multipoint:1;
+	uint8_t demand:1;
+	uint8_t auth:1;
+	uint8_t cplane:1;
+	uint8_t final:1;
+	uint8_t poll:1;
+	uint8_t state:2;
 #elif __BYTE_ORDER == __BIG_ENDIAN
-	u_char version:3;
-	u_char diag:5;
+	uint8_t version:3;
+	uint8_t diag:5;
 
 	/* flags */
-	u_char state:2;
-	u_char poll:1;
-	u_char final:1;
-	u_char cplane:1;
-	u_char auth:1;
-	u_char demand:1;
-	u_char multipoint:1;
+	uint8_t state:2;
+	uint8_t poll:1;
+	uint8_t final:1;
+	uint8_t cplane:1;
+	uint8_t auth:1;
+	uint8_t demand:1;
+	uint8_t multipoint:1;
 #else
 #error "Unsupported byte order"
 #endif
-	u_char detect_mult;
-	u_char len;
+	uint8_t detect_mult;
+	uint8_t len;
 
 	uint32_t local_discr;
 	uint32_t remote_discr;

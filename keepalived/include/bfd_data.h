@@ -30,9 +30,9 @@
 #include "bfd.h"
 
 typedef struct _bfd_data {
-	list bfd;		/* List of BFD instances */
-	int fd_in;		/* Input socket fd */
-	thread_ref_t thread_in;	/* Input socket thread */
+	list_head_t	bfd;		/* bfd_t - BFD instances */
+	int		fd_in;		/* Input socket fd */
+	thread_ref_t	thread_in;	/* Input socket thread */
 } bfd_data_t;
 
 #define BFD_BUFFER_SIZE 32
@@ -43,6 +43,7 @@ extern bfd_data_t *old_bfd_data;
 extern char *bfd_buffer;
 
 extern bool alloc_bfd(const char *);
+extern void free_bfd(bfd_t *);
 extern bfd_data_t *alloc_bfd_data(void);
 extern void dump_bfd_data(FILE *, const bfd_data_t *);
 extern void bfd_print_data(void);

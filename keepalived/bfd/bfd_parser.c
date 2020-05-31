@@ -83,7 +83,7 @@ bfd_nbrip_handler(const vector_t *strvec)
 	assert(strvec);
 	assert(bfd_data);
 
-	bfd = LIST_TAIL_DATA(bfd_data->bfd);
+	bfd = list_last_entry(&bfd_data->bfd, bfd_t, e_list);
 	assert(bfd);
 
 	if (!strcmp(vector_slot(strvec, 1), "neighbour_ip"))
@@ -94,7 +94,7 @@ bfd_nbrip_handler(const vector_t *strvec)
 			    "Configuration error: BFD instance %s has"
 			    " malformed %s address %s, ignoring instance",
 			    bfd->iname, neighbor_str, strvec_slot(strvec, 1));
-		list_del(bfd_data->bfd, bfd);
+		free_bfd(bfd);
 		skip_block(false);
 		return;
 	} else
@@ -110,7 +110,7 @@ bfd_srcip_handler(const vector_t *strvec)
 	assert(strvec);
 	assert(bfd_data);
 
-	bfd = LIST_TAIL_DATA(bfd_data->bfd);
+	bfd = list_last_entry(&bfd_data->bfd, bfd_t, e_list);
 	assert(bfd);
 
 	if (inet_stosockaddr(strvec_slot(strvec, 1), NULL, &src_addr)) {
@@ -131,7 +131,7 @@ bfd_minrx_handler(const vector_t *strvec)
 	assert(strvec);
 	assert(bfd_data);
 
-	bfd = LIST_TAIL_DATA(bfd_data->bfd);
+	bfd = list_last_entry(&bfd_data->bfd, bfd_t, e_list);
 	assert(bfd);
 
 	if (!read_unsigned_strvec(strvec, 1, &value, BFD_MINRX_MIN, BFD_MINRX_MAX, false))
@@ -157,7 +157,7 @@ bfd_mintx_handler(const vector_t *strvec)
 	assert(strvec);
 	assert(bfd_data);
 
-	bfd = LIST_TAIL_DATA(bfd_data->bfd);
+	bfd = list_last_entry(&bfd_data->bfd, bfd_t, e_list);
 	assert(bfd);
 
 	if (!read_unsigned_strvec(strvec, 1, &value, BFD_MINTX_MIN, BFD_MINTX_MAX, false))
@@ -183,7 +183,7 @@ bfd_idletx_handler(const vector_t *strvec)
 	assert(strvec);
 	assert(bfd_data);
 
-	bfd = LIST_TAIL_DATA(bfd_data->bfd);
+	bfd = list_last_entry(&bfd_data->bfd, bfd_t, e_list);
 	assert(bfd);
 
 	if (!read_unsigned_strvec(strvec, 1, &value,BFD_IDLETX_MIN, BFD_IDLETX_MAX, false))
@@ -209,7 +209,7 @@ bfd_multiplier_handler(const vector_t *strvec)
 	assert(strvec);
 	assert(bfd_data);
 
-	bfd = LIST_TAIL_DATA(bfd_data->bfd);
+	bfd = list_last_entry(&bfd_data->bfd, bfd_t, e_list);
 	assert(bfd);
 
 	if (!read_unsigned_strvec(strvec, 1, &value, BFD_MULTIPLIER_MIN, BFD_MULTIPLIER_MAX, false))
@@ -228,7 +228,7 @@ bfd_passive_handler(__attribute__((unused)) const vector_t *strvec)
 
 	assert(bfd_data);
 
-	bfd = LIST_TAIL_DATA(bfd_data->bfd);
+	bfd = list_last_entry(&bfd_data->bfd, bfd_t, e_list);
 	assert(bfd);
 
 	bfd->passive = true;
@@ -243,7 +243,7 @@ bfd_ttl_handler(const vector_t *strvec)
 	assert(strvec);
 	assert(bfd_data);
 
-	bfd = LIST_TAIL_DATA(bfd_data->bfd);
+	bfd = list_last_entry(&bfd_data->bfd, bfd_t, e_list);
 	assert(bfd);
 
 	if (!read_unsigned_strvec(strvec, 1, &value, 1, BFD_TTL_MAX, false))
@@ -264,7 +264,7 @@ bfd_maxhops_handler(const vector_t *strvec)
 	assert(strvec);
 	assert(bfd_data);
 
-	bfd = LIST_TAIL_DATA(bfd_data->bfd);
+	bfd = list_last_entry(&bfd_data->bfd, bfd_t, e_list);
 	assert(bfd);
 
 	if (!read_int_strvec(strvec, 1, &value, -1, BFD_TTL_MAX, false))
@@ -300,7 +300,7 @@ bfd_checker_end_handler(void)
 static void
 bfd_end_handler(void)
 {
-	bfd_t *bfd = LIST_TAIL_DATA(bfd_data->bfd);
+	bfd_t *bfd = list_last_entry(&bfd_data->bfd, bfd_t, e_list);
 
 	assert(bfd);
 
@@ -309,7 +309,7 @@ bfd_end_handler(void)
 			    "Configuration error: BFD instance %s has"
 			    " no %s address set, disabling instance",
 			    bfd->iname, neighbor_str);
-		list_del(bfd_data->bfd, bfd);
+		free_bfd(bfd);
 		return;
 	}
 
@@ -321,7 +321,7 @@ bfd_end_handler(void)
 			    " are not of the same family, disabling instance",
 			    bfd->iname, inet_sockaddrtos(&bfd->src_addr),
 			    neighbor_str, inet_sockaddrtos(&bfd->nbr_addr));
-		list_del(bfd_data->bfd, bfd);
+		free_bfd(bfd);
 		return;
 	}
 
@@ -338,7 +338,7 @@ bfd_end_handler(void)
 				    "Configuration error: BFD instance %s has"
 				    " duplicate %s address %s, ignoring instance",
 				    bfd->iname, neighbor_str, inet_sockaddrtos(&bfd->nbr_addr));
-		list_del(bfd_data->bfd, bfd);
+		free_bfd(bfd);
 		return;
 	}
 

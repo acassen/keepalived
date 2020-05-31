@@ -26,9 +26,9 @@
 #include "bfd.h"
 
 typedef struct _bfd_event {
-	char iname[BFD_INAME_MAX];
-	u_char state;
-	timeval_t sent_time;
+	char		iname[BFD_INAME_MAX];
+	uint8_t		state;
+	timeval_t	sent_time;
 } bfd_event_t;
 
 extern void bfd_event_send(bfd_t *);

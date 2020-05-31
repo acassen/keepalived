@@ -41,7 +41,7 @@ char *bfd_buffer;
 static const char *dump_file = "/tmp/keepalived_bfd.data";
 
 /*
- * bfd_t functions
+ *	bfd_t functions
  */
 /* Initialize bfd_t */
 bool
@@ -66,7 +66,8 @@ alloc_bfd(const char *name)
 		return false;
 	}
 
-	bfd = (bfd_t *) MALLOC(sizeof (bfd_t));
+	PMALLOC(bfd);
+	INIT_LIST_HEAD(&bfd->e_list);
 	strcpy(bfd->iname, name);
 
 	/* Set defaults */
@@ -87,16 +88,25 @@ alloc_bfd(const char *name)
 	bfd->sands_exp = TIMER_NEVER;
 	bfd->sands_rst = TIMER_NEVER;
 
-	list_add(bfd_data->bfd, bfd);
+	list_add_tail(&bfd->e_list, &bfd_data->bfd);
 
 	return true;
 }
 
-static void
-free_bfd(void *data)
+void
+free_bfd(bfd_t *bfd)
 {
-	assert(data);
-	FREE(data);
+	list_head_del(&bfd->e_list);
+	FREE(bfd);
+
+}
+static void
+free_bfd_list(list_head_t *l)
+{
+	bfd_t *bfd, *bfd_tmp;
+
+	list_for_each_entry_safe(bfd, bfd_tmp, l, e_list)
+		free_bfd(bfd);
 }
 
 static void
@@ -118,13 +128,9 @@ conf_write_sands(FILE *fp, const char *text, unsigned long sands)
 
 /* Dump BFD instance configuration parameters */
 static void
-dump_bfd(FILE *fp, const void *data)
+dump_bfd(FILE *fp, const bfd_t *bfd)
 {
-	const bfd_t *bfd;
 	char time_str[26];
-
-	assert(data);
-	bfd = (const bfd_t *)data;
 
 	conf_write(fp, " BFD Instance = %s", bfd->iname);
 	conf_write(fp, "   Neighbor IP = %s",
@@ -190,23 +196,27 @@ dump_bfd(FILE *fp, const void *data)
 		}
 	}
 }
+static void
+dump_bfd_list(FILE *fp, const list_head_t *l)
+{
+	bfd_t *bfd;
 
-/* Looks up bfd instance by name */
+	list_for_each_entry(bfd, l, e_list)
+		dump_bfd(fp, bfd);
+}
+
+/*
+ *	Looks up bfd instance by name
+ */
 static bfd_t * __attribute__ ((pure))
 find_bfd_by_name2(const char *name, const bfd_data_t *data)
 {
-	element e;
 	bfd_t *bfd;
 
 	assert(name);
 	assert(data);
-	assert(data->bfd);
 
-	if (LIST_ISEMPTY(data->bfd))
-		return NULL;
-
-	for (e = LIST_HEAD(data->bfd); e; ELEMENT_NEXT(e)) {
-		bfd = ELEMENT_DATA(e);
+	list_for_each_entry(bfd, &data->bfd, e_list) {
 		if (!strcmp(name, bfd->iname))
 			return bfd;
 	}
@@ -229,15 +239,15 @@ bfd_cmp_timers(bfd_t * old_bfd, bfd_t * bfd)
 }
 
 /*
- * bfd_data_t functions
+ *	bfd_data_t functions
  */
 bfd_data_t *
 alloc_bfd_data(void)
 {
 	bfd_data_t *data;
 
-	data = (bfd_data_t *) MALLOC(sizeof (bfd_data_t));
-	data->bfd = alloc_list(free_bfd, dump_bfd);
+	PMALLOC(data);
+	INIT_LIST_HEAD(&data->bfd);
 
 	/* Initialize internal variables */
 	data->thread_in = NULL;
@@ -247,11 +257,11 @@ alloc_bfd_data(void)
 }
 
 void
-free_bfd_data(bfd_data_t * data)
+free_bfd_data(bfd_data_t *data)
 {
 	assert(data);
 
-	free_list(&data->bfd);
+	free_bfd_list(&data->bfd);
 	FREE(data);
 }
 
@@ -268,9 +278,9 @@ dump_bfd_data(FILE *fp, const bfd_data_t *data)
 		conf_write(fp, " thread_in = 0x%p", data->thread_in);
 	}
 
-	if (!LIST_ISEMPTY(data->bfd)) {
+	if (!list_empty(&data->bfd)) {
 		conf_write(fp, "------< BFD Topology >------");
-		dump_list(fp, data->bfd);
+		dump_bfd_list(fp, &data->bfd);
 	}
 }
 
@@ -280,8 +290,7 @@ bfd_print_data(void)
 	FILE *file = fopen_safe(dump_file, "w");
 
 	if (!file) {
-		log_message(LOG_INFO, "Can't open %s (%d: %s)",
-			dump_file, errno, strerror(errno));
+		log_message(LOG_INFO, "Can't open %s (%d: %m)", dump_file, errno);
 		return;
 	}
 
@@ -294,13 +303,11 @@ void
 bfd_complete_init(void)
 {
 	bfd_t *bfd, *bfd_old;
-	element e;
 
 	assert(bfd_data);
-	assert(bfd_data->bfd);
 
 	/* Build configuration */
-	LIST_FOREACH(bfd_data->bfd, bfd, e) {
+	list_for_each_entry(bfd, &bfd_data->bfd, e_list) {
 		/* If there was an old instance with the same name
 		   copy its state and thread sands during reload */
 		if (reload && (bfd_old = find_bfd_by_name2(bfd->iname, old_bfd_data))) {
@@ -318,7 +325,7 @@ bfd_complete_init(void)
 }
 
 /*
- * bfd_buffer functions
+ *	bfd_buffer functions
  */
 void
 alloc_bfd_buffer(void)
@@ -335,7 +342,7 @@ free_bfd_buffer(void)
 }
 
 /*
- * Lookup functions
+ *	Lookup functions
  */
 /* Looks up bfd instance by neighbor address, and optional local address.
  * If local address is not set, then it is a configuration time check and
@@ -343,13 +350,12 @@ free_bfd_buffer(void)
 bfd_t * __attribute__ ((pure))
 find_bfd_by_addr(const struct sockaddr_storage *nbr_addr, const struct sockaddr_storage *local_addr)
 {
-	element e;
 	bfd_t *bfd;
 	assert(nbr_addr);
 	assert(local_addr);
 	assert(bfd_data);
 
-	LIST_FOREACH(bfd_data->bfd, bfd, e) {
+	list_for_each_entry(bfd, &bfd_data->bfd, e_list) {
 		if (&bfd->nbr_addr == nbr_addr)
 			continue;
 
@@ -376,14 +382,9 @@ find_bfd_by_addr(const struct sockaddr_storage *nbr_addr, const struct sockaddr_
 bfd_t * __attribute__ ((pure))
 find_bfd_by_discr(const uint32_t discr)
 {
-	element e;
 	bfd_t *bfd;
 
-	if (LIST_ISEMPTY(bfd_data->bfd))
-		return NULL;
-
-	for (e = LIST_HEAD(bfd_data->bfd); e; ELEMENT_NEXT(e)) {
-		bfd = ELEMENT_DATA(e);
+	list_for_each_entry(bfd, &bfd_data->bfd, e_list) {
 		if (bfd->local_discr == discr)
 			return bfd;
 	}
@@ -392,7 +393,7 @@ find_bfd_by_discr(const uint32_t discr)
 }
 
 /*
- * Utility functions
+ *	Utility functions
  */
 
 /* Check if uint64_t is large enough to hold uint32_t * int */
@@ -418,7 +419,6 @@ bfd_get_random_discr(bfd_data_t *data)
 {
 	bfd_t *bfd;
 	uint32_t discr;
-	element e;
 
 	assert(data);
 
@@ -428,7 +428,7 @@ bfd_get_random_discr(bfd_data_t *data)
 		discr = (rand_intv(1, UINT32_MAX) & ~1) | (time_now.tv_sec & 1);
 
 		/* Check for collisions */
-		LIST_FOREACH(data->bfd, bfd, e) {
+		list_for_each_entry(bfd, &data->bfd, e_list) {
 			if (bfd->local_discr == discr) {
 				discr = 0;
 				break;
