@@ -3004,7 +3004,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				 * It we are using dynamic interfaces, the interface entry
 				 * may have been created by the configuration, but in that
 				 * case the ifindex will be 0. */
-				if (!ifp && (!(ifp = if_get_by_ifname(ifname, IF_NO_CREATE)) || !ifp->ifindex))
+				if ((!(ifp = if_get_by_ifname(ifname, IF_NO_CREATE)) || !ifp->ifindex))
 					break;
 
 				/* For IPv6 try vrrp6 as second attempt */
