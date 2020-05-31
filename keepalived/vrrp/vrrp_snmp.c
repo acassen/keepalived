@@ -1866,16 +1866,16 @@ vrrp_snmp_syncgroupmember(struct variable *vp, oid *name, size_t *length,
 {
 	snmp_ret_t ret;
 	vrrp_t *vrrp;
-	element e;
+	list_head_t *e;
 
-	e = snmp_find_elem(vp, name, length, exact, var_len, write_method,
-			   &vrrp_data->vrrp_sync_group,
-			   offsetof(vrrp_sgroup_t, e_list),
-			   offsetof(vrrp_sgroup_t, vrrp_instances));
+	e = snmp_find_element(vp, name, length, exact, var_len, write_method,
+			      &vrrp_data->vrrp_sync_group,
+			      offsetof(vrrp_sgroup_t, e_list),
+			      offsetof(vrrp_sgroup_t, vrrp_instances));
 	if (!e)
 		return NULL;
 
-	vrrp = ELEMENT_DATA(e);
+	vrrp = list_entry(e, vrrp_t, s_list);
 	ret.cp = vrrp->iname;
 	*var_len = strlen(ret.cp);
 	return ret.p;

@@ -92,8 +92,9 @@ alloc_static_track_group(const char *gname)
 	static_track_group_t *new;
 
 	/* Allocate new VRRP group structure */
-	new = (static_track_group_t *) MALLOC(sizeof(*new));
+	PMALLOC(new);
 	INIT_LIST_HEAD(&new->e_list);
+	INIT_LIST_HEAD(&new->vrrp_instances);
 	new->gname = STRDUP(gname);
 
 	list_add_tail(&new->e_list, &vrrp_data->static_track_groups);

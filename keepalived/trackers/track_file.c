@@ -403,7 +403,6 @@ free_tracking_obj_list(list_head_t *l)
 
 	list_for_each_entry_safe(top, top_tmp, l, e_list)
 		free_tracking_obj(top);
-	INIT_LIST_HEAD(l); /* Is it really needed ? */
 }
 
 static void

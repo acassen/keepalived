@@ -166,7 +166,7 @@ typedef struct _interface {
 	bool			gna_router;		/* Router flag for NA messages */
 	bool			promote_secondaries;	/* Original value of promote_secondaries to be restored */
 	uint32_t		reset_promote_secondaries; /* Count of how many vrrps have changed promote_secondaries on interface */
-	list_head_t		tracking_vrrp;		/* List of tracking_obj_t for vrrp instances tracking this interface */
+	list_head_t		tracking_vrrp;		/* tracking_obj_t - vrrp instances tracking this interface */
 
 	/* linked list member */
 	list_head_t		e_list;

@@ -1713,9 +1713,11 @@ garp_group_end_handler(void)
 void
 init_vrrp_keywords(bool active)
 {
-	/* Static addresses/routes/rules */
+	/* Track group declarations */
 	install_keyword_root("track_group", &static_track_group_handler, active);
 	install_keyword("group", &static_track_group_group_handler);
+
+	/* Static addresses/routes/rules declarations */
 	install_keyword_root("static_ipaddress", &static_addresses_handler, active);
 #ifdef _HAVE_FIB_ROUTING_
 	install_keyword_root("static_routes", &static_routes_handler, active);
