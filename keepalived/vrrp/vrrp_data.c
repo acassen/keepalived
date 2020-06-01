@@ -125,9 +125,15 @@ alloc_srule(const vector_t *strvec)
 
 /* VRRP Reference list functions */
 static void
-free_vrrp_sync_group_list(__attribute__((unused)) list_head_t *l)
+free_vrrp_sync_group_list(list_head_t *l)
 {
-	/* Just do nothing */
+	vrrp_t *vrrp, *vrrp_tmp;
+
+	/* Remove the vrrp instances from the sync group */
+	list_for_each_entry_safe(vrrp, vrrp_tmp, l, s_list) {
+		vrrp->sync = NULL;
+		list_del_init(&vrrp->s_list);
+	}
 }
 
 static void
@@ -145,13 +151,14 @@ free_sync_group(vrrp_sgroup_t *sgroup)
 {
 	list_head_del(&sgroup->e_list);
 	if (sgroup->iname) {
-		/* If we are terminating at init time, sgroup->vrrp may not be initialised yet, in
-		 * which case sgroup->iname will still be set */
-		if (!list_empty(&sgroup->vrrp_instances))
+		/* If we are terminating at init time, sgroup->vrrp_instances may not be initialised
+		 * yet, or it may have only one member, in which case sgroup->iname will still be set */
+		if (sgroup->vrrp_instances.prev != sgroup->vrrp_instances.next)
 			log_message(LOG_INFO, "sync group %s - iname vector exists when freeing group"
 					    , sgroup->gname);
 		free_strvec(sgroup->iname);
 	}
+
 	FREE_CONST(sgroup->gname);
 	free_vrrp_sync_group_list(&sgroup->vrrp_instances);
 	free_track_if_list(&sgroup->track_ifp);
@@ -852,6 +859,7 @@ alloc_vrrp(const char *iname)
 	/* Allocate new VRRP structure */
 	PMALLOC(new);
 	INIT_LIST_HEAD(&new->e_list);
+	INIT_LIST_HEAD(&new->s_list);
 	INIT_LIST_HEAD(&new->track_ifp);
 	INIT_LIST_HEAD(&new->track_script);
 	INIT_LIST_HEAD(&new->track_file);
