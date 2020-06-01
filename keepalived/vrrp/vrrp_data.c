@@ -125,9 +125,15 @@ alloc_srule(const vector_t *strvec)
 
 /* VRRP Reference list functions */
 static void
-free_vrrp_sync_group_list(__attribute__((unused)) list_head_t *l)
+free_vrrp_sync_group_list(list_head_t *l)
 {
-	/* Just do nothing */
+	vrrp_t *vrrp, *vrrp_tmp;
+
+	/* Remove the vrrp instances from the sync group */
+	list_for_each_entry_safe(vrrp, vrrp_tmp, l, s_list) {
+		vrrp->sync = NULL;
+		list_del_init(&vrrp->s_list);
+	}
 }
 
 static void
