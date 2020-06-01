@@ -73,11 +73,10 @@ static void
 track_file_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
-	real_server_t *rs;
+	real_server_t *rs = list_last_entry(&vs->rs, real_server_t, e_list);
 	tracked_file_monitor_t *tfile;
 	tracked_file_t *vsf;
 
-	rs = LIST_TAIL_DATA(vs->rs);
 	tfile = list_last_entry(&rs->track_files, tracked_file_monitor_t, e_list);
 
 	vsf = find_tracked_file_by_name(strvec_slot(strvec, 1), &check_data->track_files);
@@ -93,10 +92,8 @@ static void
 file_check_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
-	real_server_t *rs;
+	real_server_t *rs = list_last_entry(&vs->rs, real_server_t, e_list);
 	tracked_file_monitor_t *tfile;
-
-	rs = LIST_TAIL_DATA(vs->rs);
 
 	PMALLOC(tfile);
 	INIT_LIST_HEAD(&tfile->e_list);
@@ -107,12 +104,11 @@ static void
 track_file_weight_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
-	real_server_t *rs;
+	real_server_t *rs = list_last_entry(&vs->rs, real_server_t, e_list);
 	tracked_file_monitor_t *tfile;
 	int weight;
 	bool reverse = false;
 
-	rs = LIST_TAIL_DATA(vs->rs);
 	tfile = list_last_entry(&rs->track_files, tracked_file_monitor_t, e_list);
 
 	if (vector_size(strvec) < 2) {
@@ -146,10 +142,9 @@ static void
 file_end_handler(void)
 {
 	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
-	real_server_t *rs;
+	real_server_t *rs = list_last_entry(&vs->rs, real_server_t, e_list);
 	tracked_file_monitor_t *tfile;
 
-	rs = LIST_TAIL_DATA(vs->rs);
 	tfile = list_last_entry(&rs->track_files, tracked_file_monitor_t, e_list);
 
 	if (!tfile->file) {
@@ -179,12 +174,11 @@ add_rs_to_track_files(void)
 {
 	virtual_server_t *vs;
 	real_server_t *rs;
-	element e1;
 	tracked_file_monitor_t *tfl;
 	checker_t *new_checker;
 
 	list_for_each_entry(vs, &check_data->vs, e_list) {
-		LIST_FOREACH(vs->rs, rs, e1) {
+		list_for_each_entry(rs, &vs->rs, e_list) {
 			list_for_each_entry(tfl, &rs->track_files, e_list) {
 				/* queue new checker */
 				new_checker = queue_checker(free_file_check, dump_file_check, NULL, file_check_compare, tfl->file, NULL, false);

@@ -186,7 +186,7 @@ smtp_check_end_handler(void)
 
 	/* Set the conection timeout if not set */
 	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
-	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	real_server_t *rs = list_last_entry(&vs->rs, real_server_t, e_list);
 	unsigned conn_to = rs->connection_to;
 	if (conn_to == UINT_MAX)
 		conn_to = vs->connection_to;

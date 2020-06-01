@@ -163,7 +163,6 @@ vs_end_handler(void)
 {
 	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
 	real_server_t *rs;
-	element e;
 	bool mixed_af;
 
 	/* If the real (sorry) server uses tunnel forwarding, the address family
@@ -199,7 +198,7 @@ vs_end_handler(void)
 		if (vs->s_svr)
 			vs->af = vs->s_svr->addr.ss_family;
 
-		LIST_FOREACH(vs->rs, rs, e) {
+		list_for_each_entry(rs, &vs->rs, e_list) {
 			if (vs->af == AF_UNSPEC)
 				vs->af = rs->addr.ss_family;
 			else if (vs->af != rs->addr.ss_family) {
@@ -652,10 +651,10 @@ rs_end_handler(void)
 
 	vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
 
-	if (LIST_ISEMPTY(vs->rs))
+	if (list_empty(&vs->rs))
 		return;
 
-	rs = LIST_TAIL_DATA(vs->rs);
+	rs = list_last_entry(&vs->rs, real_server_t, e_list);
 
 	/* For tunnelled forwarding, the address families don't have to be the same, so
 	 * long as the kernel supports IPVS_DEST_ATTR_ADDR_FAMILY */
@@ -667,7 +666,7 @@ rs_end_handler(void)
 			vs->af = rs->addr.ss_family;
 		else if (vs->af != rs->addr.ss_family) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Address family of virtual server and real server %s don't match - skipping real server.", inet_sockaddrtos(&rs->addr));
-			free_list_element(vs->rs, vs->rs->tail);
+			free(rs);
 		}
 	}
 }
@@ -675,7 +674,7 @@ static void
 rs_weight_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
-	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	real_server_t *rs = list_last_entry(&vs->rs, real_server_t, e_list);
 	unsigned weight;
 
 	if (!read_unsigned_strvec(strvec, 1, &weight, 0, IPVS_WEIGHT_MAX, true)) {
@@ -689,7 +688,7 @@ static void
 rs_forwarding_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
-	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	real_server_t *rs = list_last_entry(&vs->rs, real_server_t, e_list);
 
 	svr_forwarding_handler(rs, strvec, "real");
 }
@@ -697,7 +696,7 @@ static void
 uthreshold_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
-	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	real_server_t *rs = list_last_entry(&vs->rs, real_server_t, e_list);
 	unsigned threshold;
 
 	if (!read_unsigned_strvec(strvec, 1, &threshold, 0, UINT_MAX, true)) {
@@ -710,7 +709,7 @@ static void
 lthreshold_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
-	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	real_server_t *rs = list_last_entry(&vs->rs, real_server_t, e_list);
 	unsigned threshold;
 
 	if (!read_unsigned_strvec(strvec, 1, &threshold, 0, UINT_MAX, true)) {
@@ -734,7 +733,7 @@ static void
 notify_up_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
-	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	real_server_t *rs = list_last_entry(&vs->rs, real_server_t, e_list);
 	if (rs->notify_up) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) notify_up script already specified - ignoring %s", vs->vsgname, strvec_slot(strvec,1));
 		return;
@@ -745,7 +744,7 @@ static void
 notify_down_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
-	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	real_server_t *rs = list_last_entry(&vs->rs, real_server_t, e_list);
 	if (rs->notify_down) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) notify_down script already specified - ignoring %s", vs->vsgname, strvec_slot(strvec,1));
 		return;
@@ -756,7 +755,7 @@ static void
 rs_co_timeout_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
-	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	real_server_t *rs = list_last_entry(&vs->rs, real_server_t, e_list);
 	unsigned long timer;
 
 	if (!read_timer(strvec, 1, &timer, 1, UINT_MAX, true)) {
@@ -769,7 +768,7 @@ static void
 rs_delay_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
-	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	real_server_t *rs = list_last_entry(&vs->rs, real_server_t, e_list);
 	unsigned long delay;
 
 	if (read_timer(strvec, 1, &delay, 1, 0, true))
@@ -781,7 +780,7 @@ static void
 rs_delay_before_retry_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
-	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	real_server_t *rs = list_last_entry(&vs->rs, real_server_t, e_list);
 	unsigned long delay;
 
 	if (read_timer(strvec, 1, &delay, 0, 0, true))
@@ -793,7 +792,7 @@ static void
 rs_retry_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
-	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	real_server_t *rs = list_last_entry(&vs->rs, real_server_t, e_list);
 	unsigned retry;
 
 	if (!read_unsigned_strvec(strvec, 1, &retry, 1, UINT32_MAX, false)) {
@@ -806,7 +805,7 @@ static void
 rs_warmup_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
-	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	real_server_t *rs = list_last_entry(&vs->rs, real_server_t, e_list);
 	unsigned long delay;
 
 	if (read_timer(strvec, 1, &delay, 0, 0, true))
@@ -818,7 +817,7 @@ static void
 rs_inhibit_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
-	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	real_server_t *rs = list_last_entry(&vs->rs, real_server_t, e_list);
 	int res = true;
 
 	if (vector_size(strvec) >= 2) {
@@ -834,7 +833,7 @@ static void
 rs_alpha_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
-	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	real_server_t *rs = list_last_entry(&vs->rs, real_server_t, e_list);
 	int res = true;
 
 	if (vector_size(strvec) >= 2) {
@@ -850,7 +849,7 @@ static void
 rs_smtp_alert_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
-	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	real_server_t *rs = list_last_entry(&vs->rs, real_server_t, e_list);
 	int res = true;
 
 	if (vector_size(strvec) >= 2) {
@@ -867,7 +866,7 @@ static void
 rs_virtualhost_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
-	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	real_server_t *rs = list_last_entry(&vs->rs, real_server_t, e_list);
 
 	if (vector_size(strvec) < 2) {
 		report_config_error(CONFIG_GENERAL_ERROR, "real server virtualhost missing");

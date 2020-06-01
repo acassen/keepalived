@@ -107,6 +107,9 @@ typedef struct _real_server {
 #ifdef _WITH_BFD_
 	list				tracked_bfds;	/* list of bfd_checker_t */
 #endif
+
+	/* Linked list member */
+	list_head_t			e_list;
 } real_server_t;
 
 /* Virtual Server group definition */
@@ -175,7 +178,8 @@ typedef struct _virtual_server {
 	const char			*virtualhost;	/* Default virtualhost for HTTP and SSL healthcheckers
 							   if not set on real servers */
 	int				weight;
-	list				rs;
+	list_head_t			rs;		/* real_server_t */
+	unsigned			rs_cnt;		/* Number of real_server in list */
 	int				alive;
 	bool				alpha;		/* Set if alpha mode is default. */
 	bool				omega;		/* Omega mode enabled. */
@@ -244,10 +248,11 @@ extern void free_ssl(void);
 extern void alloc_vsg(const char *);
 extern void free_vsg(virtual_server_group_t *);
 extern void alloc_vsg_entry(const vector_t *);
+extern void alloc_rs(const char *, const char *);
+extern void free_rs(real_server_t *);
 extern void alloc_vs(const char *, const char *);
 extern void free_vs(virtual_server_t *);
 extern void dump_tracking_rs(FILE *, const void *);
-extern void alloc_rs(const char *, const char *);
 extern void alloc_ssvr(const char *, const char *);
 extern check_data_t *alloc_check_data(void);
 extern void free_check_data(check_data_t *);

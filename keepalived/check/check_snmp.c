@@ -407,7 +407,7 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 {
 	static struct counter64 counter64_ret;
 	virtual_server_t *v;
-	element e;
+	real_server_t *rs;
 	snmp_ret_t ret;
 
 	if ((v = (virtual_server_t *)
@@ -556,17 +556,13 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = v->hysteresis;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSREALTOTAL:
-		if (LIST_ISEMPTY(v->rs))
-			long_ret.u = 0;
-		else
-			long_ret.u = LIST_SIZE(v->rs);
+		long_ret.u = v->rs_cnt;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSREALUP:
 		long_ret.u = 0;
-		if (!LIST_ISEMPTY(v->rs))
-			for (e = LIST_HEAD(v->rs); e; ELEMENT_NEXT(e))
-				if (((real_server_t *)ELEMENT_DATA(e))->alive)
-					long_ret.u++;
+		list_for_each_entry(rs, &v->rs, e_list)
+			if (rs->alive)
+				long_ret.u++;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSSTATSCONNS:
 		ipvs_update_stats(v);
@@ -769,7 +765,6 @@ check_snmp_realserver_weight(int action,
 			     u_char *var_val, u_char var_val_type, size_t var_val_len,
 			     __attribute__((unused)) u_char *statP, oid *name, size_t name_len)
 {
-	element e2;
 	virtual_server_t *vs = NULL;
 	real_server_t *rs = NULL;
 	oid ivs, irs;
@@ -797,9 +792,9 @@ check_snmp_realserver_weight(int action,
 					rs = NULL;
 					if (--irs == 0) break;
 				}
-				for (e2 = LIST_HEAD(vs->rs); e2; ELEMENT_NEXT(e2)) {
-					rs = ELEMENT_DATA(e2);
-					if (--irs == 0) break;
+				list_for_each_entry(rs, &vs->rs, e_list) {
+					if (--irs == 0)
+						break;
 				}
 				break;
 			}
@@ -819,7 +814,7 @@ check_snmp_realserver_weight(int action,
 	return SNMP_ERR_NOERROR;
 }
 
-static u_char*
+static u_char *
 check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		      int exact, size_t *var_len, WriteMethod **write_method)
 {
@@ -829,7 +824,6 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	size_t target_len;
 	unsigned curvirtual = 0, curreal;
 	real_server_t *e = NULL, *be = NULL;
-	element e2 = NULL;
 	virtual_server_t *vs, *bvs = NULL;
 	int state;
 	int type, btype;
@@ -868,24 +862,22 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 				type = state++;
 				break;
 			case STATE_RS_REGULAR_FIRST:
-				e2 = LIST_HEAD(vs->rs);
-				if (!e2) {
+				if (list_empty(&vs->rs)) {
 					e = NULL;
 					state = STATE_RS_END;
 					break;
 				}
-				e = ELEMENT_DATA(e2);
+				e = list_first_entry(&vs->rs, real_server_t, e_list);
 				type = state++;
 				break;
 			case STATE_RS_REGULAR_NEXT:
 				type = state;
-				ELEMENT_NEXT(e2);
-				if (!e2) {
+				e = list_entry(e->e_list.next, real_server_t, e_list);
+				if (list_is_last(&e->e_list, &vs->rs)) {
 					e = NULL;
 					state++;
 					break;
 				}
-				e = ELEMENT_DATA(e2);
 				break;
 			default:
 				/* Dunno? */
@@ -1633,7 +1625,7 @@ check_snmp_agent_close(void)
 void
 check_snmp_rs_trap(real_server_t *rs, virtual_server_t *vs, bool stopping)
 {
-	element e;
+	real_server_t *r;
 	snmp_ret_t ptr_conv;
 
 	/* OID of the notification */
@@ -1696,10 +1688,10 @@ check_snmp_rs_trap(real_server_t *rs, virtual_server_t *vs, bool stopping)
 		notification_oid[notification_oid_len - 1] = 2;
 
 	/* Initialize data */
-	realtotal = LIST_SIZE(vs->rs);
+	realtotal = vs->rs_cnt;
 	realup = 0;
-	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e))
-		if (((real_server_t *)ELEMENT_DATA(e))->alive)
+	list_for_each_entry(r, &vs->rs, e_list)
+		if (r->alive)
 			realup++;
 
 	/* snmpTrapOID */

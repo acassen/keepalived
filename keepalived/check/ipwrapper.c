@@ -82,21 +82,20 @@ vsge_iseq(const virtual_server_group_entry_t *vsge_a, const virtual_server_group
 
 /* Returns the sum of all alive RS weight in a virtual server. */
 static unsigned long __attribute__ ((pure))
-weigh_live_realservers(virtual_server_t * vs)
+weigh_live_realservers(virtual_server_t *vs)
 {
-	element e;
-	real_server_t *svr;
+	real_server_t *rs;
 	long count = 0;
 
-	LIST_FOREACH(vs->rs, svr, e) {
-		if (ISALIVE(svr))
-			count += svr->weight;
+	list_for_each_entry(rs, &vs->rs, e_list) {
+		if (ISALIVE(rs))
+			count += rs->weight;
 	}
 	return count;
 }
 
 static void
-notify_fifo_vs(virtual_server_t* vs)
+notify_fifo_vs(virtual_server_t *vs)
 {
 	const char *state = vs->quorum_state_up ? "UP" : "DOWN";
 	size_t size;
@@ -220,58 +219,10 @@ do_rs_notifies(virtual_server_t* vs, real_server_t* rs, bool stopping)
 
 /* Remove a realserver IPVS rule */
 static void
-clear_service_rs(virtual_server_t * vs, list l, bool stopping)
+update_vs_notifies(virtual_server_t *vs, bool stopping)
 {
-	element e;
-	real_server_t *rs;
-	long weight_sum;
 	long threshold = vs->quorum - vs->hysteresis;
-	bool sav_inhibit;
-	smtp_rs rs_info = { .vs = vs };
-
-	LIST_FOREACH(l, rs, e) {
-		if (rs->set || stopping)
-			log_message(LOG_INFO, "%s %sservice %s from VS %s",
-					stopping ? "Shutting down" : "Removing",
-					rs->inhibit && !rs->alive ? "(inhibited) " : "",
-					FMT_RS(rs, vs),
-					FMT_VS(vs));
-
-		if (!rs->set)
-			continue;
-
-		/* Force removal of real servers with inhibit_on_failure set */
-		sav_inhibit = rs->inhibit;
-		rs->inhibit = false;
-
-		ipvs_cmd(LVS_CMD_DEL_DEST, vs, rs);
-
-		rs->inhibit = sav_inhibit;	/* Restore inhibit flag */
-
-		if (!rs->alive)
-			continue;
-
-		UNSET_ALIVE(rs);
-
-		/* We always want to send SNMP messages on shutdown */
-		if (!vs->omega && stopping) {
-#ifdef _WITH_SNMP_CHECKER_
-			check_snmp_rs_trap(rs, vs, true);
-#endif
-			continue;
-		}
-
-		/* In Omega mode we call VS and RS down notifiers
-		 * all the way down the exit, as necessary.
-		 */
-		do_rs_notifies(vs, rs, stopping);
-
-		/* Send SMTP alert */
-		if (rs->smtp_alert) {
-			rs_info.rs = rs;
-			smtp_alert(SMTP_MSG_RS_SHUT, &rs_info, "DOWN", stopping ? "=> Shutting down <=" : "=> Removing <=");
-		}
-	}
+	long weight_sum;
 
 	/* Sooner or later VS will lose the quorum (if any). However,
 	 * we don't push in a sorry server then, hence the regression
@@ -284,6 +235,67 @@ clear_service_rs(virtual_server_t * vs, list l, bool stopping)
 		vs->quorum_state_up = false;
 		do_vs_notifies(vs, false, threshold, weight_sum, stopping);
 	}
+}
+
+static void
+clear_service_rs(virtual_server_t *vs, real_server_t *rs, bool stopping)
+{
+	smtp_rs rs_info = { .vs = vs };
+	bool sav_inhibit;
+
+	if (rs->set || stopping)
+		log_message(LOG_INFO, "%s %sservice %s from VS %s",
+				stopping ? "Shutting down" : "Removing",
+				rs->inhibit && !rs->alive ? "(inhibited) " : "",
+				FMT_RS(rs, vs),
+				FMT_VS(vs));
+
+	if (!rs->set)
+		return;
+
+	/* Force removal of real servers with inhibit_on_failure set */
+	sav_inhibit = rs->inhibit;
+	rs->inhibit = false;
+
+	ipvs_cmd(LVS_CMD_DEL_DEST, vs, rs);
+
+	rs->inhibit = sav_inhibit;	/* Restore inhibit flag */
+
+	if (!rs->alive)
+		return;
+
+	UNSET_ALIVE(rs);
+
+	/* We always want to send SNMP messages on shutdown */
+	if (!vs->omega && stopping) {
+#ifdef _WITH_SNMP_CHECKER_
+		check_snmp_rs_trap(rs, vs, true);
+#endif
+		return;
+	}
+
+	/* In Omega mode we call VS and RS down notifiers
+	 * all the way down the exit, as necessary.
+	 */
+	do_rs_notifies(vs, rs, stopping);
+
+	/* Send SMTP alert */
+	if (rs->smtp_alert) {
+		rs_info.rs = rs;
+		smtp_alert(SMTP_MSG_RS_SHUT, &rs_info, "DOWN", stopping ? "=> Shutting down <=" : "=> Removing <=");
+	}
+
+}
+
+static void
+clear_service_rs_list(virtual_server_t *vs, list_head_t *l, bool stopping)
+{
+	real_server_t *rs;
+
+	list_for_each_entry(rs, l, e_list)
+		clear_service_rs(vs, rs, stopping);
+
+	update_vs_notifies(vs, stopping);
 }
 
 /* Remove a virtualserver IPVS rule */
@@ -312,7 +324,7 @@ clear_service_vs(virtual_server_t * vs, bool stopping)
 
 		/* Even if the sorry server was configured, if we are using
 		 * inhibit_on_failure, then real servers may be configured. */
-		clear_service_rs(vs, vs->rs, stopping);
+		clear_service_rs_list(vs, &vs->rs, stopping);
 	}
 	else if (vs->s_svr && vs->s_svr->set)
 		UNSET_ALIVE(vs->s_svr);
@@ -347,10 +359,9 @@ init_service_rs(virtual_server_t *vs)
 {
 	real_server_t *rs;
 	tracked_file_monitor_t *tfm;
-	element e;
 	long weight;
 
-	LIST_FOREACH(vs->rs, rs, e) {
+	list_for_each_entry(rs, &vs->rs, e_list) {
 		if (rs->reloaded) {
 			if (rs->iweight != rs->pweight)
 				update_svr_wgt(rs->iweight, vs, rs, false);
@@ -435,13 +446,12 @@ sync_service_vsg(virtual_server_t *vs)
 static void
 perform_quorum_state(virtual_server_t *vs, bool add)
 {
-	element e;
 	real_server_t *rs;
 
 	log_message(LOG_INFO, "%s the pool for VS %s"
 			    , add?"Adding alive servers to":"Removing alive servers from"
 			    , FMT_VS(vs));
-	LIST_FOREACH(vs->rs, rs, e) {
+	list_for_each_entry(rs, &vs->rs, e_list) {
 		if (!ISALIVE(rs)) /* We only handle alive servers */
 			continue;
 // ??? The following seems unnecessary
@@ -809,15 +819,11 @@ vs_exist(virtual_server_t * old_vs)
 
 /* Check if rs is in new vs data */
 static real_server_t * __attribute__ ((pure))
-rs_exist(real_server_t * old_rs, list l)
+rs_exist(real_server_t *old_rs, list_head_t *l)
 {
-	element e;
 	real_server_t *rs;
 
-	if (LIST_ISEMPTY(l))
-		return NULL;
-
-	LIST_FOREACH(l, rs, e) {
+	list_for_each_entry(rs, l, e_list) {
 		if (rs_iseq(rs, old_rs))
 			return rs;
 	}
@@ -902,61 +908,59 @@ migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new
 static void
 clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs, list old_checkers_queue)
 {
-	element e;
 	real_server_t *rs, *new_rs;
-	list rs_to_remove;
 
 	/* If old vs didn't own rs then nothing return */
-	if (LIST_ISEMPTY(old_vs->rs))
+	if (list_empty(&old_vs->rs))
 		return;
 
 	/* remove RS from old vs which are not found in new vs */
-	rs_to_remove = alloc_list (NULL, NULL);
-	LIST_FOREACH(old_vs->rs, rs, e) {
-		new_rs = rs_exist(rs, new_vs->rs);
+	list_for_each_entry(rs, &old_vs->rs, e_list) {
+		new_rs = rs_exist(rs, &new_vs->rs);
 		if (!new_rs) {
 			log_message(LOG_INFO, "service %s no longer exist"
 					    , FMT_RS(rs, old_vs));
 
-			list_add (rs_to_remove, rs);
-		} else {
-			/*
-			 * We reflect the previous alive
-			 * flag value to not try to set
-			 * already set IPVS rule.
-			 */
-			new_rs->alive = rs->alive;
-			new_rs->set = rs->set;
-			new_rs->weight = rs->weight;
-			new_rs->pweight = rs->iweight;
-			new_rs->reloaded = true;
-
-			/*
-			 * We must migrate the state of the old checkers.
-			 * If we do not, the new RS is in a state where it’s reported
-			 * as down with no check failed. As a result, the server will never
-			 * be put back up when it’s alive again in check_tcp.c#83 because
-			 * of the check that put a rs up only if it was not previously up.
-			 * For alpha mode checkers, if it was up, we don't need another
-			 * success to say it is now up.
-			 */
-			migrate_checkers(new_vs, rs, new_rs, old_checkers_queue);
-
-			/* Do we need to update the RS configuration? */
-			if (false ||
-#ifdef _HAVE_IPVS_TUN_TYPE_
-			    rs->tun_type != new_rs->tun_type ||
-			    rs->tun_port != new_rs->tun_port ||
-#ifdef _HAVE_IPVS_TUN_CSUM_
-			    rs->tun_flags != new_rs->tun_flags ||
-#endif
-#endif
-			    rs->forwarding_method != new_rs->forwarding_method)
-				ipvs_cmd(LVS_CMD_EDIT_DEST, new_vs, new_rs);
+			clear_service_rs(old_vs, rs, false);
+			continue;
 		}
+
+		/*
+		 * We reflect the previous alive
+		 * flag value to not try to set
+		 * already set IPVS rule.
+		 */
+		new_rs->alive = rs->alive;
+		new_rs->set = rs->set;
+		new_rs->weight = rs->weight;
+		new_rs->pweight = rs->iweight;
+		new_rs->reloaded = true;
+
+		/*
+		 * We must migrate the state of the old checkers.
+		 * If we do not, the new RS is in a state where it’s reported
+		 * as down with no check failed. As a result, the server will never
+		 * be put back up when it’s alive again in check_tcp.c#83 because
+		 * of the check that put a rs up only if it was not previously up.
+		 * For alpha mode checkers, if it was up, we don't need another
+		 * success to say it is now up.
+		 */
+		migrate_checkers(new_vs, rs, new_rs, old_checkers_queue);
+
+		/* Do we need to update the RS configuration? */
+		if (false ||
+#ifdef _HAVE_IPVS_TUN_TYPE_
+		    rs->tun_type != new_rs->tun_type ||
+		    rs->tun_port != new_rs->tun_port ||
+#ifdef _HAVE_IPVS_TUN_CSUM_
+		    rs->tun_flags != new_rs->tun_flags ||
+#endif
+#endif
+		    rs->forwarding_method != new_rs->forwarding_method)
+			ipvs_cmd(LVS_CMD_EDIT_DEST, new_vs, new_rs);
 	}
-	clear_service_rs(old_vs, rs_to_remove, false);
-	free_list(&rs_to_remove);
+
+	update_vs_notifies(old_vs, false);
 }
 
 /* clear sorry server, but only if changed */

@@ -540,7 +540,6 @@ void
 ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge)
 {
 	real_server_t *rs;
-	element e;
 	ipvs_service_t srule;
 	ipvs_dest_t drule;
 
@@ -551,7 +550,7 @@ ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge)
 		srule.user.port = inet_sockaddrport(&vsge->addr);
 
 	/* Process realserver queue */
-	LIST_FOREACH(vs->rs, rs, e) {
+	list_for_each_entry(rs, &vs->rs, e_list) {
 // ??? What if !quorum_state_up?
 		if (rs->reloaded && (rs->alive || (rs->inhibit && rs->set))) {
 			/* Prepare the IPVS drule */
@@ -574,7 +573,6 @@ void
 ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge)
 {
 	real_server_t *rs;
-	element e;
 	ipvs_service_t srule;
 	ipvs_dest_t drule;
 
@@ -586,7 +584,7 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 		srule.user.port = inet_sockaddrport(&vsge->addr);
 
 	/* Process realserver queue */
-	LIST_FOREACH(vs->rs, rs, e) {
+	list_for_each_entry(rs, &vs->rs, e_list) {
 		if (rs->alive) {
 			/* Setting IPVS drule */
 			ipvs_set_drule(IP_VS_SO_SET_DELDEST, &drule, rs);
@@ -635,9 +633,8 @@ vsd_equal(real_server_t *rs, struct ip_vs_dest_entry_app *entry)
 static void
 ipvs_update_vs_stats(virtual_server_t *vs, uint32_t fwmark, union nf_inet_addr *nfaddr, uint16_t port)
 {
-	element e;
 	struct ip_vs_get_dests_app *dests = NULL;
-	real_server_t *rs;
+	real_server_t *rs, *rs_match;
 	unsigned int i;
 	ipvs_service_entry_t *serv;
 
@@ -664,18 +661,20 @@ ipvs_update_vs_stats(virtual_server_t *vs, uint32_t fwmark, union nf_inet_addr *
 
 	for (i = 0; i < dests->user.num_dests; i++) {
 		rs = NULL;
+		rs_match = NULL;
 
 		/* Is it the sorry server? */
 		if (vs->s_svr && vsd_equal(vs->s_svr, &dests->user.entrytable[i]))
 			rs = vs->s_svr;
 		else {
 			/* Search for a match in the list of real servers */
-			for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
-				rs = ELEMENT_DATA(e);
-				if (vsd_equal(rs, &dests->user.entrytable[i]))
+			list_for_each_entry(rs, &vs->rs, e_list) {
+				if (vsd_equal(rs, &dests->user.entrytable[i])) {
+					rs_match = rs;
 					break;
+				}
 			}
-			if (!e)
+			if (!rs_match)
 				rs = NULL;
 		}
 
@@ -704,7 +703,6 @@ ipvs_update_vs_stats(virtual_server_t *vs, uint32_t fwmark, union nf_inet_addr *
 void
 ipvs_update_stats(virtual_server_t *vs)
 {
-	element e;
 	virtual_server_group_entry_t *vsg_entry;
 	uint32_t addr_ip;
 	uint16_t port;
@@ -724,8 +722,7 @@ ipvs_update_stats(virtual_server_t *vs)
 		vs->s_svr->activeconns =
 			vs->s_svr->inactconns = vs->s_svr->persistconns = 0;
 	}
-	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
-		rs = ELEMENT_DATA(e);
+	list_for_each_entry(rs, &vs->rs, e_list) {
 		memset(&rs->stats, 0, sizeof(rs->stats));
 		rs->activeconns = rs->inactconns = rs->persistconns = 0;
 	}

@@ -145,7 +145,7 @@ queue_checker(void (*free_func) (checker_t *), void (*dump_func) (FILE *, const 
 	      , bool fd_required)
 {
 	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
-	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	real_server_t *rs = list_last_entry(&vs->rs, real_server_t, e_list);
 	checker_t *checker = (checker_t *) MALLOC(sizeof (checker_t));
 
 	/* Set default dst = RS, timeout = default */
