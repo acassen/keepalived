@@ -98,10 +98,9 @@ vrrp_sync_set_group(vrrp_sgroup_t *sgroup)
 	}
 
 	/* The sync group will be removed by the calling function if it has only one member */
-	vrrp = list_first_entry(&sgroup->vrrp_instances, vrrp_t, s_list);
-	if (list_is_last(&vrrp->s_list, &sgroup->vrrp_instances)) {
+	if (sgroup->vrrp_instances.prev == sgroup->vrrp_instances.next) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Sync group %s has only 1 virtual router(s) -"
-							  " this probably isn't what you want"
+							  " this probably isn't what you want - removing"
 							, sgroup->gname);
 		return false;
 	}
