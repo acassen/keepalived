@@ -71,7 +71,6 @@ vrrp_sync_set_group(vrrp_sgroup_t *sgroup)
 			continue;
 		}
 
-		INIT_LIST_HEAD(&vrrp->s_list);
 		list_add_tail(&vrrp->s_list, &sgroup->vrrp_instances);
 		vrrp->sync = sgroup;
 

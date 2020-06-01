@@ -852,6 +852,7 @@ alloc_vrrp(const char *iname)
 	/* Allocate new VRRP structure */
 	PMALLOC(new);
 	INIT_LIST_HEAD(&new->e_list);
+	INIT_LIST_HEAD(&new->s_list);
 	INIT_LIST_HEAD(&new->track_ifp);
 	INIT_LIST_HEAD(&new->track_script);
 	INIT_LIST_HEAD(&new->track_file);
