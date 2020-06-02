@@ -336,7 +336,6 @@ signal_run_callback(thread_ref_t thread)
 		list_for_each_entry_safe(t, t_tmp, &m->signal, next) {
 			if (t->u.val == sig) {
 				list_del_init(&t->next);
-				INIT_LIST_HEAD(&t->next);
 				list_add_tail(&t->next, &m->ready);
 				t->type = THREAD_READY;
 			}
