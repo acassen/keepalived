@@ -96,7 +96,7 @@ alloc_bfd(const char *name)
 void
 free_bfd(bfd_t *bfd)
 {
-	list_head_del(&bfd->e_list);
+	list_del_init(&bfd->e_list);
 	FREE(bfd);
 
 }

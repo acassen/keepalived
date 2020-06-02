@@ -68,7 +68,7 @@ dump_track_if_list(FILE *fp, const list_head_t *l)
 void
 free_track_if(tracked_if_t *tip)
 {
-	list_head_del(&tip->e_list);
+	list_del_init(&tip->e_list);
 	FREE(tip);
 }
 void
@@ -183,7 +183,7 @@ dump_track_script_list(FILE *fp, const list_head_t *l)
 void
 free_track_script(tracked_sc_t *tsc)
 {
-	list_head_del(&tsc->e_list);
+	list_del_init(&tsc->e_list);
 	FREE(tsc);
 }
 void
@@ -450,7 +450,7 @@ dump_tracked_bfd_list(FILE *fp, const list_head_t *l)
 void
 free_track_bfd(tracked_bfd_t *tbfd)
 {
-	list_head_del(&tbfd->e_list);
+	list_del_init(&tbfd->e_list);
 	FREE(tbfd);
 }
 void

@@ -229,7 +229,7 @@ void
 free_ipaddress(ip_address_t *ip_addr)
 {
 	FREE_PTR(ip_addr->label);
-	list_head_del(&ip_addr->e_list);
+	list_del_init(&ip_addr->e_list);
 	FREE(ip_addr);
 }
 

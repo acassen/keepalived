@@ -827,7 +827,7 @@ thread_clean_unuse(thread_master_t * m)
 	list_head_t *l = &m->unuse;
 
 	list_for_each_entry_safe(thread, thread_tmp, l, e_list) {
-		list_head_del(&thread->e_list);
+		list_del_init(&thread->e_list);
 
 		/* free the thread */
 		FREE(thread);
@@ -860,7 +860,7 @@ thread_destroy_list(thread_master_t *m, list_head_t *l)
 			thread_del_read(thread);
 			thread_del_write(thread);
 		}
-		list_head_del(&thread->e_list);
+		list_del_init(&thread->e_list);
 		thread_add_unuse(m, thread);
 	}
 }
@@ -1435,13 +1435,13 @@ thread_cancel(thread_ref_t thread_cp)
 	case THREAD_READ_TIMEOUT:
 		if (thread->event)
 			thread_event_del(thread, THREAD_FL_EPOLL_READ_BIT);
-		list_head_del(&thread->e_list);
+		list_del_init(&thread->e_list);
 		break;
 	case THREAD_READY_WRITE_FD:
 	case THREAD_WRITE_TIMEOUT:
 		if (thread->event)
 			thread_event_del(thread, THREAD_FL_EPOLL_WRITE_BIT);
-		list_head_del(&thread->e_list);
+		list_del_init(&thread->e_list);
 		break;
 	case THREAD_EVENT:
 	case THREAD_READY:
@@ -1450,7 +1450,7 @@ thread_cancel(thread_ref_t thread_cp)
 #endif
 	case THREAD_CHILD_TIMEOUT:
 	case THREAD_CHILD_TERMINATED:
-		list_head_del(&thread->e_list);
+		list_del_init(&thread->e_list);
 		break;
 	default:
 		break;
@@ -1487,7 +1487,7 @@ thread_cancel_event(thread_master_t *m, void *arg)
 // Why doesn't this use thread_cancel() above
 	list_for_each_entry_safe(thread, thread_tmp, l, e_list) {
 		if (thread->arg == arg) {
-			list_head_del(&thread->e_list);
+			list_del_init(&thread->e_list);
 			thread_add_unuse(m, thread);
 		}
 	}

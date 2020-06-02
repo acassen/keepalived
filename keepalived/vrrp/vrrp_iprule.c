@@ -324,7 +324,7 @@ netlink_rulelist(list_head_t *l, int cmd, bool force)
 void
 free_iprule(ip_rule_t *rule)
 {
-	list_head_del(&rule->e_list);
+	list_del_init(&rule->e_list);
 	FREE_PTR(rule->from_addr);
 	FREE_PTR(rule->to_addr);
 	FREE(rule);

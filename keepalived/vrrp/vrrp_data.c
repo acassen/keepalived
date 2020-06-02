@@ -149,7 +149,7 @@ dump_vrrp_sync_group_list(FILE *fp, const list_head_t *l)
 void
 free_sync_group(vrrp_sgroup_t *sgroup)
 {
-	list_head_del(&sgroup->e_list);
+	list_del_init(&sgroup->e_list);
 	if (sgroup->iname) {
 		/* If we are terminating at init time, sgroup->vrrp_instances may not be initialised
 		 * yet, or it may have only one member, in which case sgroup->iname will still be set */
@@ -270,7 +270,7 @@ dump_tracking_vrrp_list(FILE *fp, const list_head_t *l)
 void
 free_vscript(vrrp_script_t *vscript)
 {
-	list_head_del(&vscript->e_list);
+	list_del_init(&vscript->e_list);
 	free_tracking_obj_list(&vscript->tracking_vrrp);
 	FREE_CONST(vscript->sname);
 	FREE_PTR(vscript->script.args);
@@ -329,7 +329,7 @@ dump_vscript_list(FILE *fp, const list_head_t *l)
 void
 free_vprocess(vrrp_tracked_process_t *vprocess)
 {
-	list_head_del(&vprocess->e_list);
+	list_del_init(&vprocess->e_list);
 	free_tracking_obj_list(&vprocess->tracking_vrrp);
 	FREE_CONST(vprocess->pname);
 	FREE_CONST(vprocess->process_path);
@@ -396,7 +396,7 @@ dump_vprocess_list(FILE *fp, const list_head_t *l)
 void
 free_vrrp_tracked_bfd(vrrp_tracked_bfd_t *vbfd)
 {
-	list_head_del(&vbfd->e_list);
+	list_del_init(&vbfd->e_list);
 	free_tracking_obj_list(&vbfd->tracking_vrrp);
 	FREE(vbfd);
 }
@@ -494,7 +494,7 @@ dump_sock_pool(FILE *fp, const list_head_t *l)
 static void
 free_unicast_peer(unicast_peer_t *peer)
 {
-	list_head_del(&peer->e_list);
+	list_del_init(&peer->e_list);
 	FREE(peer);
 }
 static void

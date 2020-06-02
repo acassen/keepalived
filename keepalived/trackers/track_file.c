@@ -84,7 +84,7 @@ dump_track_file_monitor_list(FILE *fp, const list_head_t *l)
 void
 free_track_file_monitor(tracked_file_monitor_t *tfile)
 {
-	list_head_del(&tfile->e_list);
+	list_del_init(&tfile->e_list);
 	FREE(tfile);
 }
 void
@@ -408,7 +408,7 @@ free_tracking_obj_list(list_head_t *l)
 static void
 free_track_file(tracked_file_t *file)
 {
-	list_head_del(&file->e_list);
+	list_del_init(&file->e_list);
 	free_tracking_obj_list(&file->tracking_obj);
 	FREE_CONST(file->fname);
 	FREE_CONST(file->file_path);

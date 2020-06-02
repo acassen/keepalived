@@ -335,7 +335,7 @@ signal_run_callback(thread_ref_t thread)
 		 * do a thread_add_signal() to reinstate itself. */
 		list_for_each_entry_safe(t, t_tmp, &m->signal, next) {
 			if (t->u.val == sig) {
-				list_head_del(&t->next);
+				list_del_init(&t->next);
 				INIT_LIST_HEAD(&t->next);
 				list_add_tail(&t->next, &m->ready);
 				t->type = THREAD_READY;

@@ -56,7 +56,7 @@ free_static_track_group(static_track_group_t *tgroup)
 					    , tgroup->gname);
 		free_strvec(tgroup->iname);
 	}
-	list_head_del(&tgroup->e_list);
+	list_del_init(&tgroup->e_list);
 	FREE_CONST(tgroup->gname);
 	free_static_track_group_vrrp_list(&tgroup->vrrp_instances);
 	FREE(tgroup);

@@ -142,7 +142,7 @@ dump_vsg_entry_list(FILE *fp, const list_head_t *l)
 void
 free_vsg(virtual_server_group_t *vsg)
 {
-	list_head_del(&vsg->e_list);
+	list_del_init(&vsg->e_list);
 	FREE_PTR(vsg->gname);
 	free_vsg_entry_list(&vsg->addr_range);
 	free_vsg_entry_list(&vsg->vfwmark);
@@ -334,7 +334,7 @@ dump_forwarding_method(FILE *fp, const char *prefix, const real_server_t *rs)
 void
 free_rs(real_server_t *rs)
 {
-	list_head_del(&rs->e_list);
+	list_del_init(&rs->e_list);
 	free_notify_script(&rs->notify_up);
 	free_notify_script(&rs->notify_down);
 	free_track_file_monitor_list(&rs->track_files);
@@ -498,7 +498,7 @@ alloc_rs(const char *ip, const char *port)
 void
 free_vs(virtual_server_t *vs)
 {
-	list_head_del(&vs->e_list);
+	list_del_init(&vs->e_list);
 	FREE_CONST_PTR(vs->vsgname);
 	FREE_CONST_PTR(vs->virtualhost);
 	FREE_PTR(vs->s_svr);

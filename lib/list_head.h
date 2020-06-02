@@ -432,8 +432,9 @@ typedef struct hlist_node {
 	struct hlist_node *next, **pprev;
 } hlist_node_t;
 
-#define HLIST_HEAD_INIT { .first = NULL }
-#define HLIST_HEAD(name) struct hlist_head name = {  .first = NULL }
+#define HLIST_HEAD_INITIALIZER { .first = NULL }
+#define HLIST_HEAD_INITIALIZE(name) \
+	hlist_head_t name = { .first = NULL }
 #define INIT_HLIST_HEAD(ptr) ((ptr)->first = NULL)
 #define INIT_HLIST_NODE(ptr) ((ptr)->next = NULL, (ptr)->pprev = NULL)
 

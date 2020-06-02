@@ -127,7 +127,7 @@ if_extra_ipaddress_alloc(interface_t *ifp, void *addr, unsigned char family)
 void
 if_extra_ipaddress_free(sin_addr_t *addr)
 {
-	list_head_del(&addr->e_list);
+	list_del_init(&addr->e_list);
 	FREE(addr);
 }
 
@@ -354,7 +354,7 @@ if_ioctl_flags(const int fd, interface_t *ifp)
 void
 free_garp_delay(garp_delay_t *gd)
 {
-	list_head_del(&gd->e_list);
+	list_del_init(&gd->e_list);
 	FREE(gd);
 }
 static void
