@@ -24,26 +24,30 @@
 #define _CHECK_BFD_H
 
 #include "scheduler.h"
-#include "check_data.h"
 
 /* external bfd we read to track forwarding to remote systems */
-typedef struct _checker_bfd {
+typedef struct _checker_tracked_bfd {
 	char			*bname;		/* bfd name */
 //	int			weight;		/* Default weight */
 	list			tracking_rs;	/* List of checker_t */
+
+	/* Linked list member */
+	list_head_t		e_list;
 } checker_tracked_bfd_t;
 
-///* List structure from bfds to tracking rs */
-//typedef struct _tracking_checker_bfd {
-////	int			weight;		/* Tracking weight, or zero for down instance */
-//	checker_t		*checker;	/* The real server */
-//} tracking_rs_t;
+#if 0
+/* List structure from bfds to tracking rs */
+typedef struct _tracking_checker_bfd {
+	checker_t		*checker;	/* The real server */
+//	int			weight;		/* Tracking weight, or zero for down instance */
+} tracking_rs_t;
 
-///* Tracked bfd structure definition */
-//typedef struct _tracked_bfd {
-//	checker_tracked_bfd_t	*bfd;		/* track bfd pointer, cannot be NULL */
-////	int			weight;		/* Weight for bfd */
-//} tracked_bfd_t;
+/* Tracked bfd structure definition */
+typedef struct _tracked_bfd {
+	checker_tracked_bfd_t	*bfd;		/* track bfd pointer, cannot be NULL */
+//	int			weight;		/* Weight for bfd */
+} tracked_bfd_t;
+#endif
 
 /* bfd_checker structure */
 typedef struct _bfd_checker {

@@ -739,26 +739,41 @@ alloc_ssvr(const char *ip, const char *port)
 #ifdef _WITH_BFD_
 /* Track bfd dump */
 static void
-dump_checker_bfd(FILE *fp, const void *track_data)
+dump_checker_bfd(FILE *fp, const checker_tracked_bfd_t *cbfd)
 {
-	const checker_tracked_bfd_t *cbfd = track_data;
-
 	conf_write(fp, " Checker Track BFD = %s", cbfd->bname);
 //	conf_write(fp, "   Weight = %d", cbfd->weight);
 	conf_write(fp, "   Tracking RS = %u", cbfd->tracking_rs ? LIST_SIZE(cbfd->tracking_rs) : 0);
 	if (cbfd->tracking_rs)
 		dump_list(fp, cbfd->tracking_rs);
 }
-
 static void
-free_checker_bfd(void *track_data)
+dump_checker_bfd_list(FILE *fp, const list_head_t *l)
 {
-	checker_tracked_bfd_t *cbfd = track_data;
+	checker_tracked_bfd_t *cbfd;
 
+	list_for_each_entry(cbfd, l, e_list)
+		dump_checker_bfd(fp, cbfd);
+
+}
+
+void
+free_checker_bfd(checker_tracked_bfd_t *cbfd)
+{
+	list_del_init(&cbfd->e_list);
 	FREE(cbfd->bname);
 	free_list(&cbfd->tracking_rs);
-	FREE(track_data);
+	FREE(cbfd);
 }
+static void
+free_checker_bfd_list(list_head_t *l)
+{
+	checker_tracked_bfd_t *cbfd, *cbfd_tmp;
+
+	list_for_each_entry_safe(cbfd, cbfd_tmp, l, e_list)
+		free_checker_bfd(cbfd);
+}
+
 #endif
 
 /* data facility functions */
@@ -770,10 +785,9 @@ alloc_check_data(void)
 	PMALLOC(new);
 	INIT_LIST_HEAD(&new->vs);
 	INIT_LIST_HEAD(&new->vs_group);
-//	new->vs_group = alloc_list(free_vsg, dump_vsg);
 	INIT_LIST_HEAD(&new->track_files);
 #ifdef _WITH_BFD_
-	new->track_bfds = alloc_list(free_checker_bfd, dump_checker_bfd);
+	INIT_LIST_HEAD(&new->track_bfds);
 #endif
 
 	return new;
@@ -786,7 +800,7 @@ free_check_data(check_data_t *data)
 	free_vsg_list(&data->vs_group);
 	free_track_file_list(&data->track_files);
 #ifdef _WITH_BFD_
-	free_list(&data->track_bfds);
+	free_checker_bfd_list(&data->track_bfds);
 #endif
 	FREE(data);
 }
@@ -815,9 +829,9 @@ dump_check_data(FILE *fp, const check_data_t *data)
 	}
 
 #ifdef _WITH_BFD_
-	if (!LIST_ISEMPTY(data->track_bfds)) {
+	if (!list_empty(&data->track_bfds)) {
 		conf_write(fp, "------< Checker track BFDs >------");
-		dump_list(fp, data->track_bfds);
+		dump_checker_bfd_list(fp, &data->track_bfds);
 	}
 #endif
 }

@@ -28,7 +28,6 @@
 #include <inttypes.h>
 
 #include "main.h"
-#include "check_bfd.h"
 #include "check_api.h"
 #include "ipwrapper.h"
 #include "logger.h"
@@ -96,12 +95,11 @@ bfd_check_compare(const checker_t *old_c, checker_t *new_c)
 static checker_tracked_bfd_t * __attribute__ ((pure))
 find_checker_tracked_bfd_by_name(char *name)
 {
-	element e;
-	checker_tracked_bfd_t *bfd;
+	checker_tracked_bfd_t *cbfd;
 
-	LIST_FOREACH(check_data->track_bfds, bfd, e) {
-		if (!strcmp(bfd->bname, name))
-			return bfd;
+	list_for_each_entry(cbfd, &check_data->track_bfds, e_list) {
+		if (!strcmp(cbfd->bname, name))
+			return cbfd;
 	}
 
 	return NULL;
@@ -234,7 +232,7 @@ install_bfd_check_keyword(void)
 static void
 bfd_check_handle_event(bfd_event_t * evt)
 {
-	element e, e1;
+	element e1;
 	struct timeval cur_time;
 	struct timeval timer_tmp;
 	uint32_t delivery_time;
@@ -253,7 +251,7 @@ bfd_check_handle_event(bfd_event_t * evt)
 			    evt->iname, BFD_STATE_STR(evt->state), delivery_time);
 	}
 
-	LIST_FOREACH(check_data->track_bfds, cbfd, e) {
+	list_for_each_entry(cbfd, &check_data->track_bfds, e_list) {
 		if (strcmp(cbfd->bname, evt->iname))
 			continue;
 

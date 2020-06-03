@@ -292,8 +292,10 @@ bfd_vrrp_end_handler(void)
 static void
 bfd_checker_end_handler(void)
 {
+	checker_tracked_bfd_t *cbfd = list_last_entry(&check_data->track_bfds, checker_tracked_bfd_t, e_list);
+
 	if (specified_event_processes && !__test_bit(DAEMON_CHECKERS, &specified_event_processes))
-		list_del(check_data->track_bfds, LIST_TAIL_DATA(check_data->track_bfds));
+		free_checker_bfd(cbfd);
 }
 #endif
 
@@ -423,26 +425,26 @@ bfd_event_vrrp_handler(__attribute__((unused)) const vector_t *strvec)
 static void
 bfd_checker_handler(const vector_t *strvec)
 {
-	checker_tracked_bfd_t *tbfd;
+	checker_tracked_bfd_t *cbfd;
 	char *name;
-	element e;
 
 	if (!strvec)
 		return;
 
 	name = vector_slot(strvec, 1);
 
-	LIST_FOREACH(check_data->track_bfds, tbfd, e) {
-		if (!strcmp(name, tbfd->bname)) {
+	list_for_each_entry(cbfd, &check_data->track_bfds, e_list) {
+		if (!strcmp(name, cbfd->bname)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "BFD %s already specified", name);
 			skip_block(true);
 			return;
 		}
 	}
 
-	PMALLOC(tbfd);
-	tbfd->bname = STRDUP(name);
-	list_add(check_data->track_bfds, tbfd);
+	PMALLOC(cbfd);
+	INIT_LIST_HEAD(&cbfd->e_list);
+	cbfd->bname = STRDUP(name);
+	list_add_tail(&cbfd->e_list, &check_data->track_bfds);
 }
 #endif
 

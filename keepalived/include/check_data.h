@@ -41,6 +41,9 @@
 #include "vector.h"
 #include "notify.h"
 #include "utils.h"
+#ifdef _WITH_BFD_
+#include "check_bfd.h"
+#endif
 
 /* Daemon dynamic data structure definition */
 #define KEEPALIVED_DEFAULT_DELAY	(60 * TIMER_HZ)
@@ -218,7 +221,7 @@ typedef struct _check_data {
 	list_head_t			vs;		/* virtual_server_t */
 	list_head_t			track_files;	/* tracked_file_t */
 #ifdef _WITH_BFD_
-	list				track_bfds;	/* checker_tracked_bfd_t */
+	list_head_t			track_bfds;	/* checker_tracked_bfd_t */
 #endif
 	unsigned			num_checker_fd_required;
 	unsigned			num_smtp_alert;
@@ -254,6 +257,9 @@ extern void alloc_vs(const char *, const char *);
 extern void free_vs(virtual_server_t *);
 extern void dump_tracking_rs(FILE *, const void *);
 extern void alloc_ssvr(const char *, const char *);
+#ifdef _WITH_BFD_
+extern void free_checker_bfd(checker_tracked_bfd_t *);
+#endif
 extern check_data_t *alloc_check_data(void);
 extern void free_check_data(check_data_t *);
 extern void dump_data_check(FILE *);
