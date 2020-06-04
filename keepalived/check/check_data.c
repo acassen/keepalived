@@ -947,7 +947,6 @@ validate_check_config(void)
 	checker_t *checker;
 	unsigned weight_sum;
 	bool rs_removed;
-	element e;
 
 	using_ha_suspend = false;
 	list_for_each_entry_safe(vs, vs_tmp, &check_data->vs, e_list) {
@@ -1211,7 +1210,7 @@ validate_check_config(void)
 		}
 	}
 
-	LIST_FOREACH(checkers_queue, checker, e) {
+	list_for_each_entry(checker, &checkers_queue, e_list) {
 		/* Ensure any checkers that don't have ha_suspend set are enabled */
 		if (!checker->vs->ha_suspend)
 			checker->enabled = true;

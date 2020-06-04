@@ -222,14 +222,13 @@ install_misc_check_keyword(void)
 unsigned
 check_misc_script_security(magic_t magic)
 {
-	element e, next;
-	checker_t *checker;
+	checker_t *checker, *checker_tmp;
 	misc_checker_t *misc_script;
 	unsigned script_flags = 0;
 	unsigned flags;
 	bool insecure;
 
-	LIST_FOREACH_NEXT(checkers_queue, checker, e, next) {
+	list_for_each_entry_safe(checker, checker_tmp, &checkers_queue, e_list) {
 		if (checker->launch != misc_check_thread)
 			continue;
 
@@ -252,7 +251,7 @@ check_misc_script_security(magic_t magic)
 
 		if (insecure) {
 			/* Remove the script */
-			free_list_element(checkers_queue, e);
+			free_checker(checker);
 		}
 	}
 

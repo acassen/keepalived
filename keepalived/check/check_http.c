@@ -419,7 +419,7 @@ http_get_handler(const vector_t *strvec)
 static void
 http_get_retry_handler(const vector_t *strvec)
 {
-	checker_t *checker = LIST_TAIL_DATA(checkers_queue);
+	checker_t *checker = CHECKER_GET_CURRENT();
 	unsigned retry;
 
 	report_config_error(CONFIG_GENERAL_ERROR, "nb_get_retry is deprecated - please use 'retry'");

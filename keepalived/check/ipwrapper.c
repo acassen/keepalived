@@ -832,25 +832,30 @@ rs_exist(real_server_t *old_rs, list_head_t *l)
 }
 
 static void
-migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new_rs, list old_checkers_queue)
+migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new_rs,
+		 list_head_t *old_checkers_queue)
 {
-	list l;
-	element e, e1;
 	checker_t *old_c, *new_c;
+	checker_ref_t *ref, *ref_tmp;
 	checker_t dummy_checker;
 	bool a_checker_has_run = false;
+	LIST_HEAD_INITIALIZE(l);
 
-	l = alloc_list(NULL, NULL);
-	LIST_FOREACH(old_checkers_queue, old_c, e) {
-		if (old_c->rs == old_rs)
-			list_add(l, old_c);
+	list_for_each_entry(old_c, old_checkers_queue, e_list) {
+		if (old_c->rs == old_rs) {
+			PMALLOC(ref);
+			INIT_LIST_HEAD(&ref->e_list);
+			ref->checker = old_c;
+			list_add_tail(&old_c->e_list, &l);
+		}
 	}
 
-	if (!LIST_ISEMPTY(l)) {
-		LIST_FOREACH(checkers_queue, new_c, e) {
+	if (!list_empty(&l)) {
+		list_for_each_entry(new_c, &checkers_queue, e_list) {
 			if (new_c->rs != new_rs || !new_c->compare)
 				continue;
-			LIST_FOREACH(l, old_c, e1) {
+			list_for_each_entry(ref, &l, e_list) {
+				old_c = ref->checker;
 				if (old_c->compare == new_c->compare && new_c->compare(old_c, new_c)) {
 					/* Update status if different */
 					if (old_c->has_run && old_c->is_up != new_c->is_up)
@@ -869,7 +874,7 @@ migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new
 
 	/* Find out how many checkers are really failed */
 	new_rs->num_failed_checkers = 0;
-	LIST_FOREACH(checkers_queue, new_c, e) {
+	list_for_each_entry(new_c, &checkers_queue, e_list) {
 		if (new_c->rs != new_rs)
 			continue;
 		if (new_c->has_run && !new_c->is_up)
@@ -881,7 +886,7 @@ migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new
 	/* If a checker has failed, set new alpha checkers to be down until
 	 * they have run. */
 	if (new_rs->num_failed_checkers || (!new_rs->alive && !a_checker_has_run)) {
-		LIST_FOREACH(checkers_queue, new_c, e) {
+		list_for_each_entry(new_c, &checkers_queue, e_list) {
 			if (new_c->rs != new_rs)
 				continue;
 			if (!new_c->has_run) {
@@ -901,12 +906,14 @@ migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new
 	} else if (new_rs->num_failed_checkers && new_rs->set != new_rs->inhibit)
 		ipvs_cmd(new_rs->inhibit ? IP_VS_SO_SET_ADDDEST : IP_VS_SO_SET_DELDEST, vs, new_rs);
 
-	free_list(&l);
+	/* Release checkers reference list */
+	list_for_each_entry_safe(ref, ref_tmp, &l, e_list)
+		FREE(ref);
 }
 
 /* Clear the diff rs of the old vs */
 static void
-clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs, list old_checkers_queue)
+clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs, list_head_t *old_checkers_queue)
 {
 	real_server_t *rs, *new_rs;
 
@@ -999,7 +1006,7 @@ clear_diff_s_srv(virtual_server_t *old_vs, real_server_t *new_rs)
 /* When reloading configuration, remove negative diff entries
  * and copy status of existing entries to the new ones */
 void
-clear_diff_services(list old_checkers_queue)
+clear_diff_services(list_head_t *old_checkers_queue)
 {
 	virtual_server_t *vs, *new_vs;
 
@@ -1056,10 +1063,9 @@ clear_diff_services(list old_checkers_queue)
 void
 check_new_rs_state(void)
 {
-	element e;
 	checker_t *checker;
 
-	LIST_FOREACH(checkers_queue, checker, e) {
+	list_for_each_entry(checker, &checkers_queue, e_list) {
 		if (checker->rs->reloaded)
 			continue;
 		if (!checker->alpha)

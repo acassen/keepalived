@@ -280,7 +280,7 @@ stop_check(int status)
 
 /* Daemon init sequence */
 static void
-start_check(list old_checkers_queue, data_t *prev_global_data)
+start_check(list_head_t *old_checkers_queue, data_t *prev_global_data)
 {
 	init_checkers_queue();
 
@@ -408,7 +408,7 @@ check_validate_config(void)
 static int
 reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 {
-	list old_checkers_queue;
+	list_head_t old_checkers_queue;
 	bool with_snmp = false;
 
 	log_message(LOG_INFO, "Reloading");
@@ -441,8 +441,8 @@ reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 	thread_add_base_threads(master, with_snmp);
 
 	/* Save previous checker data */
-	old_checkers_queue = checkers_queue;
-	checkers_queue = NULL;
+	list_copy(&old_checkers_queue, &checkers_queue);
+	init_checkers_queue();
 
 	free_ssl();
 	ipvs_stop();
@@ -454,12 +454,12 @@ reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 	global_data = NULL;
 
 	/* Reload the conf */
-	start_check(old_checkers_queue, old_global_data);
+	start_check(&old_checkers_queue, old_global_data);
 
 	/* free backup data */
 	free_check_data(old_check_data);
 	free_global_data(old_global_data);
-	free_list(&old_checkers_queue);
+	free_checker_list(&old_checkers_queue);
 	UNSET_RELOAD;
 
 	return 0;

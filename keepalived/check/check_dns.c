@@ -485,8 +485,9 @@ static void
 dns_check_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	checker_t *checker;
+	dns_check_t *dns_check;
 
-	dns_check_t *dns_check = (dns_check_t *) MALLOC(sizeof (dns_check_t));
+	PMALLOC(dns_check);
 	dns_check->type = DNS_DEFAULT_TYPE;
 	dns_check->name = DNS_DEFAULT_NAME;
 	checker = queue_checker(dns_free, dns_dump, dns_connect_thread,
