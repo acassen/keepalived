@@ -743,9 +743,8 @@ dump_checker_bfd(FILE *fp, const checker_tracked_bfd_t *cbfd)
 {
 	conf_write(fp, " Checker Track BFD = %s", cbfd->bname);
 //	conf_write(fp, "   Weight = %d", cbfd->weight);
-	conf_write(fp, "   Tracking RS = %u", cbfd->tracking_rs ? LIST_SIZE(cbfd->tracking_rs) : 0);
-	if (cbfd->tracking_rs)
-		dump_list(fp, cbfd->tracking_rs);
+	conf_write(fp, "   Tracking RS :");
+	dump_bfds_rs_list(fp, &cbfd->tracking_rs);
 }
 static void
 dump_checker_bfd_list(FILE *fp, const list_head_t *l)
@@ -762,7 +761,7 @@ free_checker_bfd(checker_tracked_bfd_t *cbfd)
 {
 	list_del_init(&cbfd->e_list);
 	FREE(cbfd->bname);
-	free_list(&cbfd->tracking_rs);
+	free_bfds_rs_list(&cbfd->tracking_rs);
 	FREE(cbfd);
 }
 static void

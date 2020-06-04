@@ -29,19 +29,13 @@
 typedef struct _checker_tracked_bfd {
 	char			*bname;		/* bfd name */
 //	int			weight;		/* Default weight */
-	list			tracking_rs;	/* List of checker_t */
+	list_head_t		tracking_rs;	/* tracking_checker_bfd_t */
 
 	/* Linked list member */
 	list_head_t		e_list;
 } checker_tracked_bfd_t;
 
 #if 0
-/* List structure from bfds to tracking rs */
-typedef struct _tracking_checker_bfd {
-	checker_t		*checker;	/* The real server */
-//	int			weight;		/* Tracking weight, or zero for down instance */
-} tracking_rs_t;
-
 /* Tracked bfd structure definition */
 typedef struct _tracked_bfd {
 	checker_tracked_bfd_t	*bfd;		/* track bfd pointer, cannot be NULL */
@@ -56,6 +50,8 @@ typedef struct _bfd_checker {
 } bfd_checker_t;
 
 /* Prototypes defs */
+extern void free_bfds_rs_list(list_head_t *);
+extern void dump_bfds_rs_list(FILE *, const list_head_t *);
 extern void install_bfd_check_keyword(void);
 extern void start_bfd_monitoring(thread_master_t *);
 extern void checker_bfd_dispatcher_release(void);

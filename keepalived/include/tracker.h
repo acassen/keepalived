@@ -43,6 +43,7 @@ typedef enum {
 	TRACK_SROUTE = 0x80,
 	TRACK_SRULE = 0x100,
 	TRACK_VRRP_DYNAMIC = 0x200,
+	TRACK_CHECKER = 0x400,
 } track_t;
 
 typedef union {

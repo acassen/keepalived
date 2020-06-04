@@ -443,6 +443,7 @@ bfd_checker_handler(const vector_t *strvec)
 
 	PMALLOC(cbfd);
 	INIT_LIST_HEAD(&cbfd->e_list);
+	INIT_LIST_HEAD(&cbfd->tracking_rs);
 	cbfd->bname = STRDUP(name);
 	list_add_tail(&cbfd->e_list, &check_data->track_bfds);
 }
