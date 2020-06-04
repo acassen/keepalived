@@ -339,7 +339,7 @@ free_rs(real_server_t *rs)
 	free_notify_script(&rs->notify_down);
 	free_track_file_monitor_list(&rs->track_files);
 #ifdef _WITH_BFD_
-	free_list(&rs->tracked_bfds);
+	free_checker_tracked_bfd_list(&rs->tracked_bfds);
 #endif
 	FREE_CONST_PTR(rs->virtualhost);
 	free_rs_checkers(rs);
@@ -367,8 +367,7 @@ static void
 dump_rs(FILE *fp, const real_server_t *rs)
 {
 #ifdef _WITH_BFD_
-	bfd_checker_t *cbfd;
-	element e;
+	cref_tracked_bfd_t *tbfd;
 #endif
 
 	conf_write(fp, "   ------< Real server >------");
@@ -413,10 +412,10 @@ dump_rs(FILE *fp, const real_server_t *rs)
 	}
 
 #ifdef _WITH_BFD_
-	if (!LIST_ISEMPTY(rs->tracked_bfds)) {
+	if (!list_empty(&rs->tracked_bfds)) {
 		conf_write(fp, "   Tracked BFDs");
-		LIST_FOREACH(rs->tracked_bfds, cbfd, e)
-			conf_write(fp, "     %s", cbfd->bfd->bname);
+		list_for_each_entry(tbfd, &rs->tracked_bfds, e_list)
+			conf_write(fp, "     %s", tbfd->bfd->bname);
 	}
 #endif
 }
@@ -442,6 +441,9 @@ alloc_rs(const char *ip, const char *port)
 	PMALLOC(new);
 	INIT_LIST_HEAD(&new->e_list);
 	INIT_LIST_HEAD(&new->track_files);
+#ifdef _WITH_BFD_
+	INIT_LIST_HEAD(&new->tracked_bfds);
+#endif
 	if (inet_stosockaddr(ip, port_str, &new->addr)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid real server ip address/port %s/%s - skipping", ip, port);
 		skip_block(true);

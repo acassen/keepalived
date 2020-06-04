@@ -108,7 +108,7 @@ typedef struct _real_server {
 #endif
 	list_head_t			track_files;	/* tracked_file_monitor_t - Files whose value we monitor */
 #ifdef _WITH_BFD_
-	list				tracked_bfds;	/* list of bfd_checker_t */
+	list_head_t			tracked_bfds;	/* cref_tracked_bfd_t */
 #endif
 
 	/* Linked list member */
