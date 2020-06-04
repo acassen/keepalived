@@ -846,7 +846,7 @@ migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new
 			PMALLOC(ref);
 			INIT_LIST_HEAD(&ref->e_list);
 			ref->checker = old_c;
-			list_add_tail(&old_c->e_list, &l);
+			list_add_tail(&ref->e_list, &l);
 		}
 	}
 
