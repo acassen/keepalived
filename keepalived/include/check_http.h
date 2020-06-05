@@ -84,12 +84,14 @@ typedef struct _regex {
 	pcre2_code			*pcre2_reCompiled;
 	pcre2_match_data		*pcre2_match_data;
 	uint32_t			pcre2_max_lookbehind;
-	unsigned			use_count;
+	unsigned			refcnt;
 #ifdef _WITH_REGEX_TIMERS_
 	struct timespec			regex_time;
 	unsigned			num_match_calls;
 	unsigned			num_regex_urls;
 #endif
+	/* Linked list member */
+	list_head_t			e_list;
 } regex_t;
 #endif
 
@@ -108,14 +110,16 @@ typedef struct _url {
 	bool				regex_use_stack;
 #endif
 #endif
+	/* Linked list member */
+	list_head_t			e_list;
 } url_t;
 
 typedef struct _http_checker {
 	unsigned			proto;
-	element				url_it;		/* current url checked list element */
+	url_t				*url_it;	/* current url checked list entry */
 	url_t				*failed_url;	/* the url that is currently failing, if any */
 	request_t			*req;		/* GET buffer and SSL args */
-	list				url;
+	list_head_t			url;		/* url_t */
 	http_protocol_t			http_protocol;
 	const char			*virtualhost;
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_

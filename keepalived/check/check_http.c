@@ -107,7 +107,7 @@ static pcre2_match_context *mcontext;
 static pcre2_jit_stack *jit_stack;
 #endif
 
-static list regexs;	/* list of regex_t */
+static LIST_HEAD_INITIALIZE(regexs);	/* regex_t */
 
 #ifdef _WITH_REGEX_TIMERS_
 struct timespec total_regex_times;
@@ -138,11 +138,10 @@ static int http_connect_thread(thread_ref_t);
 
 #ifdef _WITH_REGEX_CHECK_
 static void
-free_regex(void *data)
+free_regex(regex_t *regex)
 {
-	regex_t *regex = data;
-
-	// Free up the regular expression.
+	list_del_init(&regex->e_list);
+	/* Free up the regular expression. */
 	FREE_CONST_PTR(regex->pattern);
 	pcre2_code_free(regex->pcre2_reCompiled);
 	pcre2_match_data_free(regex->pcre2_match_data);
@@ -163,22 +162,18 @@ free_regex(void *data)
 #endif
 
 static void
-free_url(void *data)
+free_url(url_t *url)
 {
-	url_t *url = data;
-
+	list_del_init(&url->e_list);
 	FREE_CONST_PTR(url->path);
 	FREE_CONST_PTR(url->digest);
 	FREE_CONST_PTR(url->virtualhost);
 #ifdef _WITH_REGEX_CHECK_
 	if (url->regex) {
-		if (!--url->regex->use_count) {
-			free_list_data(regexs, url->regex);
+		if (!--url->regex->refcnt) {
+			free_regex(url->regex);
 
-			if (LIST_ISEMPTY(regexs)) {
-				/* This is the last regex to be freed, so free up one-off resources */
-				free_list(&regexs);
-
+			if (list_empty(&regexs)) {
 #ifndef PCRE2_DONT_USE_JIT
 				if (mcontext) {
 					pcre2_match_context_free(mcontext);
@@ -200,6 +195,14 @@ free_url(void *data)
 #endif
 	FREE(url);
 }
+static void
+free_url_list(list_head_t *l)
+{
+	url_t *url, *url_tmp;
+
+	list_for_each_entry_safe(url, url_tmp, l, e_list)
+		free_url(url);
+}
 
 static char *
 format_digest(const uint8_t *digest, char *buf)
@@ -213,9 +216,8 @@ format_digest(const uint8_t *digest, char *buf)
 }
 
 static void
-dump_url(FILE *fp, const void *data)
+dump_url(FILE *fp, const url_t *url)
 {
-	const url_t *url = data;
 	char digest_buf[2 * MD5_DIGEST_LENGTH + 1];
 	unsigned int i = 0;
 	unsigned min = 0;
@@ -274,13 +276,21 @@ dump_url(FILE *fp, const void *data)
 		else
 			options_buf[0] = '\0';
 		conf_write(fp, "     Regex options:%s", options_buf);
-		conf_write(fp, "     Regex use count = %u", url->regex->use_count);
+		conf_write(fp, "     Regex ref count = %u", url->regex->refcnt);
 #ifndef PCRE2_DONT_USE_JIT
 		if (url->regex_use_stack)
 			conf_write(fp, "     Regex stack start %zu, max %zu", jit_stack_start, jit_stack_max);
 #endif
 	}
 #endif
+}
+static void
+dump_url_list(FILE *fp, const list_head_t *l)
+{
+	url_t *url;
+
+	list_for_each_entry(url, l, e_list)
+		dump_url(fp, url);
 }
 
 static void
@@ -290,8 +300,7 @@ free_http_request(request_t *req)
 		return;
 	if (req->ssl)
 		SSL_free(req->ssl);
-	if (req->buffer)
-		FREE(req->buffer);
+	FREE_PTR(req->buffer);
 	FREE(req);
 }
 
@@ -300,7 +309,7 @@ free_http_get_check(checker_t *checker)
 {
 	http_checker_t *http_get_chk = checker->data;
 
-	free_list(&http_get_chk->url);
+	free_url_list(&http_get_chk->url);
 	free_http_request(http_get_chk->req);
 	FREE_CONST_PTR(http_get_chk->virtualhost);
 	FREE_PTR(http_get_chk);
@@ -324,26 +333,36 @@ dump_http_get_check(FILE *fp, const checker_t *checker)
 	conf_write(fp, "   Enable SNI %sset", http_get_chk->enable_sni ? "" : "un");
 #endif
  	conf_write(fp, "   Fast recovery %sset", http_get_chk->fast_recovery ? "" : "un");
-	dump_list(fp, http_get_chk->url);
+	dump_url_list(fp, &http_get_chk->url);
 	if (http_get_chk->failed_url)
 		conf_write(fp, "   Failed URL = %s", http_get_chk->failed_url->path);
 }
 static http_checker_t *
 alloc_http_get(const char *proto)
 {
-	http_checker_t *http_get_chk;
+	http_checker_t *new;
 
-	http_get_chk = (http_checker_t *) MALLOC(sizeof (http_checker_t));
-	http_get_chk->proto =
-	    (!strcmp(proto, "HTTP_GET")) ? PROTO_HTTP : PROTO_SSL;
-	http_get_chk->http_protocol = HTTP_PROTOCOL_1_0;
-	http_get_chk->url = alloc_list(free_url, dump_url);
-	http_get_chk->virtualhost = NULL;
+	PMALLOC(new);
+	INIT_LIST_HEAD(&new->url);
+	new->proto = (!strcmp(proto, "HTTP_GET")) ? PROTO_HTTP : PROTO_SSL;
+	new->http_protocol = HTTP_PROTOCOL_1_0;
+	new->virtualhost = NULL;
 
-	if (http_get_chk->proto == PROTO_SSL)
+	if (new->proto == PROTO_SSL)
 		check_data->ssl_required = true;
 
-	return http_get_chk;
+	return new;
+}
+
+static size_t __attribute__ ((pure))
+url_list_size(const list_head_t *l)
+{
+	size_t cnt = 0;
+	list_head_t *e;
+
+	list_for_each(e, l)
+		cnt++;
+	return cnt;
 }
 
 static bool __attribute__((pure))
@@ -351,21 +370,21 @@ http_get_check_compare(const checker_t *old_c, checker_t *new_c)
 {
 	const http_checker_t *old = old_c->data;
 	const http_checker_t *new = new_c->data;
-	size_t n;
-	const url_t *u1, *u2;
+	url_t *u1, *u2 = NULL;
 	unsigned i;
 
 	if (!compare_conn_opts(old_c->co, new_c->co))
 		return false;
-	if (LIST_SIZE(old->url) != LIST_SIZE(new->url))
+	if (url_list_size(&old->url) != url_list_size(&new->url))
 		return false;
 	if (!old->virtualhost != !new->virtualhost)
 		return false;
 	if (old->virtualhost && strcmp(old->virtualhost, new->virtualhost))
 		return false;
-	for (n = 0; n < LIST_SIZE(new->url); n++) {
-		u1 = (const url_t *)list_element(old->url, n);
-		u2 = (const url_t *)list_element(new->url, n);
+
+	list_for_each_entry(u1, &old->url, e_list) {
+		u2 = (!u2) ? list_first_entry(&new->url, url_t, e_list) :
+			     list_entry(u2->e_list.next, url_t, e_list);
 		if (strcmp(u1->path, u2->path))
 			return false;
 		if (!u1->digest != !u2->digest)
@@ -411,8 +430,8 @@ http_get_handler(const vector_t *strvec)
 	/* queue new checker */
 	http_get_chk = alloc_http_get(str);
 	checker = queue_checker(free_http_get_check, dump_http_get_check,
-		      http_connect_thread, http_get_check_compare,
-		      http_get_chk, CHECKER_NEW_CO(), true);
+				http_connect_thread, http_get_check_compare,
+				http_get_chk, CHECKER_NEW_CO(), true);
 	checker->default_delay_before_retry = 3 * TIMER_HZ;
 }
 
@@ -450,7 +469,7 @@ http_get_check_end(void)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 
-	if (LIST_ISEMPTY(http_get_chk->url)) {
+	if (list_empty(&http_get_chk->url)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "HTTP/SSL_GET checker has no urls specified - ignoring");
 		dequeue_new_checker();
 	}
@@ -467,22 +486,22 @@ url_handler(__attribute__((unused)) const vector_t *strvec)
 	url_t *new;
 
 	/* allocate the new URL */
-	new = (url_t *) MALLOC(sizeof (url_t));
-
-	list_add(http_get_chk->url, new);
+	PMALLOC(new);
+	INIT_LIST_HEAD(&new->e_list);
+	list_add_tail(&new->e_list, &http_get_chk->url);
 
 #ifdef _WITH_REGEX_CHECK_
 	conf_regex_options = 0;
 #endif
 
-	http_get_chk->url_it = LIST_HEAD(http_get_chk->url);
+	http_get_chk->url_it = list_first_entry(&http_get_chk->url, url_t, e_list);
 }
 
 static void
 path_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
-	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
+	url_t *url = list_last_entry(&http_get_chk->url, url_t, e_list);
 
 	url->path = set_value(strvec);
 }
@@ -491,7 +510,7 @@ static void
 digest_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
-	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
+	url_t *url = list_last_entry(&http_get_chk->url, url_t, e_list);
 	char *digest;
 	char *endptr;
 	int i;
@@ -533,7 +552,7 @@ static void
 status_code_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
-	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
+	url_t *url = list_last_entry(&http_get_chk->url, url_t, e_list);
 	const char *str;
 	unsigned int i, j;
 	char *endptr;
@@ -564,7 +583,7 @@ static void
 url_virtualhost_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
-	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
+	url_t *url = list_last_entry(&http_get_chk->url, url_t, e_list);
 
 	if (vector_size(strvec) < 2) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Missing HTTP_GET virtualhost name");
@@ -617,7 +636,7 @@ static void
 regex_no_match_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
-	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
+	url_t *url = list_last_entry(&http_get_chk->url, url_t, e_list);
 
 	url->regex_no_match = true;
 }
@@ -664,7 +683,7 @@ static void
 regex_min_offset_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
-	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
+	url_t *url = list_last_entry(&http_get_chk->url, url_t, e_list);
 
 	url->regex_min_offset = regex_offset_handler(strvec, "min");
 }
@@ -673,7 +692,7 @@ static void
 regex_max_offset_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
-	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
+	url_t *url = list_last_entry(&http_get_chk->url, url_t, e_list);
 
 	/* regex_max_offset is one beyond last acceptable position */
 	url->regex_max_offset = regex_offset_handler(strvec, "max") + 1;
@@ -684,7 +703,7 @@ static void
 regex_stack_handler(const vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
-	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
+	url_t *url = list_last_entry(&http_get_chk->url, url_t, e_list);
 	unsigned long stack_start, stack_max;
 	char *endptr;
 
@@ -725,57 +744,56 @@ prepare_regex(url_t *url)
 	PCRE2_SIZE pcreErrorOffset;
 	PCRE2_UCHAR buffer[256];
 	regex_t *r;
-	element e;
-
-	if (!LIST_EXISTS(regexs))
-		regexs = alloc_list(free_regex, NULL);
 
 	/* See if this regex has already been specified */
-	LIST_FOREACH(regexs, r, e) {
+	list_for_each_entry(r, &regexs, e_list) {
 		if (r->pcre2_options == conf_regex_options &&
 		    !strcmp((const char *)r->pattern, (const char *)conf_regex_pattern)) {
 			url->regex = r;
 			FREE_CONST_PTR(conf_regex_pattern);
-
-			url->regex->use_count++;
+			url->regex->refcnt++;
 
 			return;
 		}
 	}
 
 	/* This is a new regex */
-	url->regex = MALLOC(sizeof *r);
-	url->regex->pattern = conf_regex_pattern;
-	url->regex->pcre2_options = conf_regex_options;
+	PMALLOC(r);
+	INIT_LIST_HEAD(&r->e_list);
+	r->pattern = conf_regex_pattern;
+	r->pcre2_options = conf_regex_options;
 	conf_regex_pattern = NULL;
-	url->regex->use_count = 1;
-
-	url->regex->pcre2_reCompiled = pcre2_compile(url->regex->pattern, PCRE2_ZERO_TERMINATED, url->regex->pcre2_options, &pcreErrorNumber, &pcreErrorOffset, NULL);
+	r->refcnt = 1;
+	r->pcre2_reCompiled = pcre2_compile(r->pattern, PCRE2_ZERO_TERMINATED, r->pcre2_options,
+					    &pcreErrorNumber, &pcreErrorOffset, NULL);
+	url->regex = r;
 
 	/* pcre_compile returns NULL on error, and sets pcreErrorOffset & pcreErrorStr */
-	if(url->regex->pcre2_reCompiled == NULL) {
+	if(r->pcre2_reCompiled == NULL) {
 		pcre2_get_error_message(pcreErrorNumber, buffer, sizeof buffer);
-		log_message(LOG_INFO, "Invalid regex: '%s' at offset %zu: %s\n", url->regex->pattern, pcreErrorOffset, (char *)buffer);
+		log_message(LOG_INFO, "Invalid regex: '%s' at offset %zu: %s\n"
+				    , r->pattern, pcreErrorOffset, (char *)buffer);
 
-		FREE_CONST_PTR(url->regex->pattern);
-		FREE_PTR(url->regex);
+		FREE_CONST_PTR(r->pattern);
+		FREE(r);
 
 		return;
 	}
 
-	url->regex->pcre2_match_data = pcre2_match_data_create_from_pattern(url->regex->pcre2_reCompiled, NULL);
-	pcre2_pattern_info(url->regex->pcre2_reCompiled, PCRE2_INFO_MAXLOOKBEHIND, &url->regex->pcre2_max_lookbehind);
+	r->pcre2_match_data = pcre2_match_data_create_from_pattern(r->pcre2_reCompiled, NULL);
+	pcre2_pattern_info(r->pcre2_reCompiled, PCRE2_INFO_MAXLOOKBEHIND, &r->pcre2_max_lookbehind);
 
 #ifndef PCRE2_DONT_USE_JIT
-	if ((pcreErrorNumber = pcre2_jit_compile(url->regex->pcre2_reCompiled, PCRE2_JIT_PARTIAL_HARD /* | PCRE2_JIT_COMPLETE */))) {
+	if ((pcreErrorNumber = pcre2_jit_compile(r->pcre2_reCompiled, PCRE2_JIT_PARTIAL_HARD /* | PCRE2_JIT_COMPLETE */))) {
 		pcre2_get_error_message(pcreErrorNumber, buffer, sizeof buffer);
-		log_message(LOG_INFO, "Regex JIT compilation failed: '%s': %s\n", url->regex->pattern, (char *)buffer);
+		log_message(LOG_INFO, "Regex JIT compilation failed: '%s': %s\n"
+				    , r->pattern, (char *)buffer);
 
 		return;
 	}
 #endif
 
-	list_add(regexs, url->regex);
+	list_add_tail(&r->e_list, &regexs);
 }
 #endif
 
@@ -817,12 +835,12 @@ static void
 url_check(void)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
-	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
+	url_t *url = list_last_entry(&http_get_chk->url, url_t, e_list);
 	unsigned i;
 
 	if (!url->path) {
 		report_config_error(CONFIG_GENERAL_ERROR, "HTTP/SSL_GET checker url has no path - ignoring");
-		free_list_element(http_get_chk->url, http_get_chk->url->tail);
+		free_url(url);
 		return;
 	}
 
@@ -955,7 +973,10 @@ epilog(thread_ref_t thread, register_checker_t method)
 	bool rs_was_alive;
 
 	if (method == REGISTER_CHECKER_NEW) {
-		ELEMENT_NEXT(http_get_check->url_it);
+		if (list_is_last(&http_get_check->url_it->e_list, &http_get_check->url))
+			http_get_check->url_it = NULL;
+		else
+			http_get_check->url_it = list_entry(http_get_check->url_it->e_list.next, url_t, e_list);
 		checker->retry_it = 0;
 	} else if (method == REGISTER_CHECKER_RETRY)
 		checker->retry_it++;
@@ -980,7 +1001,7 @@ epilog(thread_ref_t thread, register_checker_t method)
 		}
 
 		/* Reset it counters */
-		http_get_check->url_it = LIST_HEAD(http_get_check->url);
+		http_get_check->url_it = list_first_entry(&http_get_check->url, url_t, e_list);
 		checker->retry_it = 0;
 	}
 	/*
@@ -1011,12 +1032,12 @@ epilog(thread_ref_t thread, register_checker_t method)
 		}
 
 		/* Mark we have a failed URL */
-		http_get_check->failed_url = ELEMENT_DATA(http_get_check->url_it);
+		http_get_check->failed_url = http_get_check->url_it;
 	}
 	else if (method == REGISTER_CHECKER_NEW && http_get_check->failed_url) {
 		/* If the failed URL is now up, check all the URLs */
 		http_get_check->failed_url = NULL;
-		http_get_check->url_it = LIST_HEAD(http_get_check->url);
+		http_get_check->url_it = list_first_entry(&http_get_check->url, url_t, e_list);
 		checker->retry_it = 0;
 	}
 
@@ -1074,7 +1095,7 @@ timeout_epilog(thread_ref_t thread, const char *debug_msg)
 static inline url_t *
 fetch_next_url(http_checker_t * http_get_check)
 {
-	return ELEMENT_DATA(http_get_check->url_it);
+	return http_get_check->url_it;
 }
 
 #ifdef _WITH_REGEX_CHECK_
