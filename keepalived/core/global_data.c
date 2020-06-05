@@ -461,7 +461,7 @@ dump_global_data(FILE *fp, data_t * data)
 		if (data->reload_time) {
 			localtime_r(&data->reload_time, &tm);
 			strftime(date_time_str, sizeof(date_time_str), "%Y-%m-%d %H:%M:%S", &tm);
-			conf_write(fp, " Reload scheduled for %s", date_time_str);
+			conf_write(fp, " Reload scheduled for %s%s", date_time_str, global_data->reload_date_specified ? " (date specified" : "");
 		} else
 			conf_write(fp, " No reload scheduled");
 	}

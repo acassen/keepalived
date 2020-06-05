@@ -118,6 +118,7 @@ typedef struct _data {
 	const char			*reload_time_file;
 	bool				reload_repeat;
 	time_t				reload_time;
+	bool				reload_date_specified;
 #endif
 #ifdef _WITH_VRRP_
 	bool				dynamic_interfaces;

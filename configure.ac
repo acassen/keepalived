@@ -2047,6 +2047,25 @@ CPPFLAGS="$SAV_CPPFLAGS"
 dnl ----[ Check for GLOB_BRACE support ]----
 AC_CHECK_DECLS([GLOB_BRACE], [add_system_opt([GLOB_BRACE])], [], [[#include <glob.h>]])
 
+dnl ----[ Check for timegm() support ]----
+AC_MSG_CHECKING([for timegm()])
+SAV_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$KA_CPPFLAGS"
+AC_LINK_IFELSE([AC_LANG_SOURCE([[
+    #include <time.h>
+    int main(void)
+    {
+      timegm(NULL);
+      return 0;
+    }
+  ]])], [
+    AC_MSG_RESULT(yes)
+    AC_DEFINE([HAVE_TIMEGM], [ 1 ], [Define to 1 if have timegm()])
+  ],[
+    AC_MSG_RESULT(no)
+  ])
+CPPFLAGS="$SAV_CPPFLAGS"
+
 dnl ----[ Do we want v1.3.6 and earlier VRRPv3 unicast checksum compatibility support ]----
 UNICAST_CHKSUM_COMPAT_SUPPORT=No
 if test .$enable_checksum_compat != .no; then

@@ -703,6 +703,7 @@ alloc_vs(const char *param1, const char *param2)
 	new->weight = 1;
 	new->smtp_alert = -1;
 	new->persistence_granularity = 0xffffffff;
+	INIT_LIST_HEAD(&new->rs);
 
 	list_add_tail(&new->e_list, &check_data->vs);
 }

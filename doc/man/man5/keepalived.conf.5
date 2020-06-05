@@ -689,11 +689,18 @@ and
     # directory is removed or renamed, then no future scheduled reloads will occur until
     # a manual (SIGHUP) reload is done or keepalived restarts.
     # The permitted formats of the entry in the timer file are precisely:
-    # HH:MM:SS
-    # YY-MM-DD HH:MM:SS
-    # YYYY-MM-DD HH:MM:SS
+    #   HH:MM:SS
+    #   YY-MM-DD HH:MM:SS
+    #   YYYY-MM-DD HH:MM:SS
+    # each with an optional 'Z' at the end.
     # There must be no leading or trailing whitespace, and only one space between the date
     # and the time.
+    # If there is a 'Z' at the end of the time, the time is parsed as UTC, otherwise the
+    # time is the localtime for the environment in which keepalived is running. If the
+    # systems which are being reloaded are in different timezones, it is probably safer to
+    # use UTC.
+    # If using local time with daylight savings, beware that some times don't exist and
+    # some times are duplicated and hence ambiguous.
     reload_time_file ABSOLUTE-PATHNAME-OF-FILE
     reload_repeat
 }

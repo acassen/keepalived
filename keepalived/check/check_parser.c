@@ -126,13 +126,29 @@ static void
 vsg_handler(const vector_t *strvec)
 {
 	virtual_server_group_t *vsg;
+	vector_t *my_strvec;
+	ptr_hack_t word;
+	unsigned i;
 
 	if (!strvec)
 		return;
 
 	/* Fetch queued vsg */
 	alloc_vsg(strvec_slot(strvec, 1));
-	alloc_value_block(alloc_vsg_entry, strvec);
+
+	/* alloc_value_block() does not expect a name after the first word,
+	 * so contruct another vector omitting the VSG name */
+	my_strvec = vector_alloc();
+	vector_alloc_slot(my_strvec);
+	vector_set_slot(my_strvec, 0);
+	for (i = 2; i < vector_size(strvec); i++) {
+		vector_alloc_slot(my_strvec);
+		word.cp = strvec_slot(strvec, i);
+		vector_set_slot(my_strvec, word.p);
+	}
+
+	alloc_value_block(alloc_vsg_entry, my_strvec);
+	vector_free(my_strvec);
 
 	/* Ensure the virtual server group has some configuration */
 	vsg = list_last_entry(&check_data->vs_group, virtual_server_group_t, e_list);

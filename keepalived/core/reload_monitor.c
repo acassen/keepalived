@@ -48,6 +48,11 @@ static thread_ref_t reload_timer_thread_p;
 
 static const char *file_name;
 
+#ifndef HAVE_TIMEGM
+static char tz_utc[] = "TZ=UTC";
+static char *utc_env[] = { tz_utc, NULL};
+#endif
+
 // #define RELOAD_DEBUG
 
 static int
@@ -63,7 +68,8 @@ reload_timer_thread(__attribute__((unused)) thread_ref_t thread)
 
 	close(inotify_fd);
 
-	if (!global_data->reload_repeat)
+	if (!global_data->reload_repeat ||
+	    global_data->reload_date_specified)
 		unlink(global_data->reload_time_file);
 
 	kill(getpid(), SIGHUP);
@@ -86,6 +92,25 @@ format_time_t(char *str, size_t len, time_t t)
 	return str;
 }
 
+#ifndef HAVE_TIMEGM
+static time_t
+timegm(struct tm *tm)
+{
+	char **sav_env = environ;
+	time_t t;
+
+	environ = utc_env;
+
+	t = mktime(tm);
+
+	/* Restore previous settings */
+	environ = sav_env;
+	tzset();
+
+	return t;
+}
+#endif
+
 inline static void
 cancel_reload(bool log)
 {
@@ -104,30 +129,38 @@ cancel_reload(bool log)
 }
 
 static time_t
-parse_datetime(const char *timestr)
+parse_datetime(const char *timestr, bool *date_specified)
 {
-char buf[128];
+#ifdef RELOAD_DEBUG
+	char buf[128];
+#endif
 	time_t now = time(NULL);
 	time_t t;
 	struct tm tm, tm1;
 	size_t len;
 	char *end;
+	bool utc = false;
 
 	len = strlen(timestr);
+
+	if (len && timestr[len - 1] == 'Z') {
+		utc = true;
+		len--;
+	}
+
 	if (len != 8 && len != 17 && len != 19) {
-#ifdef RELOAD_DEBUG
-		log_message(LOG_INFO, "Unsupported length %zu", len);
-#endif
+		log_message(LOG_INFO, "Reload time %s format is incorrect - ignoring", timestr);
 		return -1;
 	}
-	
-	localtime_r(&now, &tm);
+
+	if (utc)
+		gmtime_r(&now, &tm);
+	else
+		localtime_r(&now, &tm);
 
 	end = strptime(timestr, len == 8 ? "%H:%M:%S" : len == 17 ? "%y-%m-%d %H:%M:%S" : "%Y-%m-%d %H:%M:%S", &tm);
-	if (!end || *end) {
-#ifdef RELOAD_DEBUG
-		log_message(LOG_INFO, "Date/time invalid");
-#endif
+	if (!end || end[utc ? 1 : 0]) {
+		log_message(LOG_INFO, "Reload date/time %s invalid - ignoring", timestr);
 		return -1;
 	}
 
@@ -149,26 +182,31 @@ char buf[128];
 	    tm.tm_hour != tm1.tm_hour ||
 	    tm.tm_min != tm1.tm_min ||
 	    tm.tm_sec != tm1.tm_sec) {
-#ifdef RELOAD_DEBUG
-		log_message(LOG_INFO, "*** mismatch ***");
-#endif
+		log_message(LOG_INFO, "Reload time %s is not valid - ignoring", timestr);
 		return -1;
 	}
+
+	if (utc)
+		t = timegm(&tm1);
+
 	if (t <= now) {
 		if (len == 8) {
 			tm1.tm_mday++;
-			t = mktime(&tm1);
+			t = utc ? timegm(&tm1) : mktime(&tm1);
 #ifdef RELOAD_DEBUG
 			log_message(LOG_INFO, "Going to tomorrow");
 #endif
 		} else {
+			log_message(LOG_INFO, "Reload time %s is in the past - ignoring", timestr);
 			return -2;
 		}
 	}
 
+	*date_specified = (len >= 17);
+
+#ifdef RELOAD_DEBUG
 	localtime_r(&t, &tm1);
 	strftime(buf, sizeof(buf), "%c", &tm1);
-#ifdef RELOAD_DEBUG
 	log_message(LOG_INFO, "mktime - %s%s - %s", buf, tm1.tm_isdst ? " DST" : "", *tzname);
 #endif
 
@@ -203,7 +241,7 @@ read_file(void)
 		return;
 	}
 
-	reload_time = parse_datetime(time_buf);
+	reload_time = parse_datetime(time_buf, &global_data->reload_date_specified);
 
 	if (reload_time <= -1) {
 		if (reload_time == -1)
