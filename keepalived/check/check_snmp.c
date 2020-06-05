@@ -242,12 +242,14 @@ check_snmp_vsgroup(struct variable *vp, oid *name, size_t *length,
 		   int exact, size_t *var_len, WriteMethod **write_method)
 {
 	virtual_server_group_t *g;
+	list_head_t *e;
 
-	if ((g = (virtual_server_group_t *)
-	     snmp_header_list_head_table(vp, name, length, exact,
+	if ((e = snmp_header_list_head_table(vp, name, length, exact,
 					 var_len, write_method,
 					 &check_data->vs_group)) == NULL)
 		return NULL;
+
+	g = list_entry(e, virtual_server_group_t, e_list);
 
 	switch (vp->magic) {
 	case CHECK_SNMP_VSGROUPNAME:
@@ -409,12 +411,14 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 	virtual_server_t *v;
 	real_server_t *rs;
 	snmp_ret_t ret;
+	list_head_t *e;
 
-	if ((v = (virtual_server_t *)
-	     snmp_header_list_head_table(vp, name, length, exact,
+	if ((e = snmp_header_list_head_table(vp, name, length, exact,
 					 var_len, write_method,
 					 &check_data->vs)) == NULL)
 		return NULL;
+
+	v = list_entry(e, virtual_server_t, e_list);
 
 	switch (vp->magic) {
 	case CHECK_SNMP_VSTYPE:
