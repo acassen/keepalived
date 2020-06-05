@@ -353,8 +353,12 @@ start_check(list_head_t *old_checkers_queue, data_t *prev_global_data)
 		ipvs_flush_cmd();
 
 #ifdef _WITH_SNMP_CHECKER_
-	if (!reload && global_data->enable_snmp_checker)
-		check_snmp_agent_init(global_data->snmp_socket);
+	if (global_data->enable_snmp_checker) {
+		if (reload)
+			snmp_epoll_info(master);
+		else
+			check_snmp_agent_init(global_data->snmp_socket);
+	}
 #endif
 
 	/* SSL load static data & initialize common ctx context */
