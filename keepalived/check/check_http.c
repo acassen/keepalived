@@ -789,6 +789,9 @@ prepare_regex(url_t *url)
 		log_message(LOG_INFO, "Regex JIT compilation failed: '%s': %s\n"
 				    , r->pattern, (char *)buffer);
 
+		FREE_CONST_PTR(r->pattern);
+		FREE(r);
+
 		return;
 	}
 #endif
