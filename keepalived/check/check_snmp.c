@@ -863,7 +863,8 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 			switch (state) {
 			case STATE_RS_SORRY:
 				e = vs->s_svr;
-				type = state++;
+				type = STATE_RS_SORRY;
+				state = STATE_RS_REGULAR_FIRST;
 				break;
 			case STATE_RS_REGULAR_FIRST:
 				if (list_empty(&vs->rs)) {
@@ -872,16 +873,17 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 					break;
 				}
 				e = list_first_entry(&vs->rs, real_server_t, e_list);
-				type = state++;
+				type = STATE_RS_REGULAR_FIRST;
+				state = STATE_RS_REGULAR_NEXT;
 				break;
 			case STATE_RS_REGULAR_NEXT:
-				type = state;
-				e = list_entry(e->e_list.next, real_server_t, e_list);
+				type = STATE_RS_REGULAR_NEXT;
 				if (list_is_last(&e->e_list, &vs->rs)) {
 					e = NULL;
-					state++;
+					state = STATE_RS_END;
 					break;
 				}
+				e = list_entry(e->e_list.next, real_server_t, e_list);
 				break;
 			default:
 				/* Dunno? */
