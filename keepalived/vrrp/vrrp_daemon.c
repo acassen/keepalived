@@ -492,7 +492,7 @@ start_vrrp(data_t *prev_global_data)
 
 	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
 #if defined _WITH_SNMP_RFC_ || defined _WITH_SNMP_VRRP_
-		if (!reload && (
+		if ((
 #ifdef _WITH_SNMP_VRRP_
 		     global_data->enable_snmp_vrrp ||
 #endif
@@ -503,7 +503,10 @@ start_vrrp(data_t *prev_global_data)
 		     global_data->enable_snmp_rfcv3 ||
 #endif
 		     snmp_option)) {
-			vrrp_snmp_agent_init(global_data->snmp_socket);
+			if (reload)
+				snmp_epoll_info(master);
+			else
+				vrrp_snmp_agent_init(global_data->snmp_socket);
 #ifdef _WITH_SNMP_RFC_
 			vrrp_start_time = time_now;
 #endif
