@@ -27,7 +27,7 @@
 #include <sched.h>
 
 #include "global_data.h"
-#include "list.h"
+#include "list_head.h"
 #include "logger.h"
 #include "parser.h"
 #include "utils.h"
@@ -119,21 +119,34 @@ set_vrrp_defaults(data_t * data)
 
 /* email facility functions */
 static void
-free_email(void *data)
+free_email_list(list_head_t *l)
 {
-	FREE(data);
+	email_t *email, *email_tmp;
+
+	list_for_each_entry_safe(email, email_tmp, l, e_list) {
+		FREE(email->addr);
+		FREE(email);
+	}
 }
 static void
-dump_email(FILE *fp, const void *data)
+dump_email_list(FILE *fp, const list_head_t *l)
 {
-	const char *addr = data;
-	conf_write(fp, "   %s", addr);
+	email_t *email;
+
+	list_for_each_entry(email, l, e_list)
+		conf_write(fp, "   %s", email->addr);
 }
 
 void
 alloc_email(const char *addr)
 {
-	list_add(global_data->email, STRDUP(addr));
+	email_t *email;
+
+	PMALLOC(email);
+	INIT_LIST_HEAD(&email->e_list);
+	email->addr = STRDUP(addr);
+
+	list_add_tail(&email->e_list, &global_data->email);
 }
 
 /* data facility functions */
@@ -145,8 +158,8 @@ alloc_global_data(void)
 	if (global_data)
 		return global_data;
 
-	new = MALLOC(sizeof(data_t));
-	new->email = alloc_list(free_email, dump_email);
+	PMALLOC(new);
+	INIT_LIST_HEAD(&new->email);
 	new->smtp_alert = -1;
 #ifdef _WITH_VRRP_
 	new->smtp_alert_vrrp = -1;
@@ -324,7 +337,7 @@ free_global_data(data_t * data)
 	if (!data)
 		return;
 
-	free_list(&data->email);
+	free_email_list(&data->email);
 #if HAVE_DECL_CLONE_NEWNET
 	FREE_CONST_PTR(data->network_namespace);
 	FREE_CONST_PTR(data->network_namespace_ipvs);
@@ -442,7 +455,7 @@ dump_global_data(FILE *fp, data_t * data)
 		conf_write(fp, " Email notification from = %s"
 				    , data->email_from);
 		conf_write(fp, " Email notification to:");
-		dump_list(fp, data->email);
+		dump_email_list(fp, &data->email);
 	}
 	conf_write(fp, " Default smtp_alert = %s",
 			data->smtp_alert == -1 ? "unset" : data->smtp_alert ? "on" : "off");

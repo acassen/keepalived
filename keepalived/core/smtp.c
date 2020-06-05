@@ -391,17 +391,16 @@ static int
 rcpt_cmd(thread_ref_t thread)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
+	email_t *email = smtp->next_email_element;
 	char *buffer;
-	char *fetched_email;
 
 	buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
 	/* We send RCPT TO command multiple time to add all our email receivers.
 	 * --rfc821.3.1
 	 */
-	fetched_email = ELEMENT_DATA(smtp->next_email_element);
-	ELEMENT_NEXT(smtp->next_email_element);
+	smtp->next_email_element = list_entry(email->e_list.next, email_t, e_list);
 
-	snprintf(buffer, SMTP_BUFFER_MAX, SMTP_RCPT_CMD, fetched_email);
+	snprintf(buffer, SMTP_BUFFER_MAX, SMTP_RCPT_CMD, email->addr);
 	if (send(thread->u.f.fd, buffer, strlen(buffer), 0) == -1)
 		smtp->stage = ERROR;
 	FREE(buffer);
@@ -544,7 +543,7 @@ smtp_connect(smtp_t *smtp)
 {
 	enum connect_result status;
 
-	smtp->next_email_element = LIST_HEAD(global_data->email);
+	smtp->next_email_element = list_first_entry(&global_data->email, email_t, e_list);
 
 	if ((smtp->fd = socket(global_data->smtp_server.ss_family, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, IPPROTO_TCP)) == -1) {
 #ifdef _SMTP_CONNECT_DEBUG_
@@ -605,20 +604,19 @@ smtp_log_to_file(smtp_t *smtp)
 static void
 build_to_header_rcpt_addrs(smtp_t *smtp)
 {
-	const char *fetched_email;
 	char *email_to_addrs;
 	size_t bytes_available = SMTP_BUFFER_MAX - 1;
 	size_t bytes_to_write;
 	bool done_addr = false;
-	element e;
+	email_t *email;
 
 	if (smtp == NULL)
 		return;
 
 	email_to_addrs = smtp->email_to;
 
-	LIST_FOREACH(global_data->email, fetched_email, e) {
-		bytes_to_write = strlen(fetched_email);
+	list_for_each_entry(email, &global_data->email, e_list) {
+		bytes_to_write = strlen(email->addr);
 		if (done_addr) {
 			if (bytes_available < 2)
 				break;
@@ -634,7 +632,7 @@ build_to_header_rcpt_addrs(smtp_t *smtp)
 		if (bytes_available < bytes_to_write)
 			break;
 
-		strcpy(email_to_addrs, fetched_email);
+		strcpy(email_to_addrs, email->addr);
 
 		email_to_addrs += bytes_to_write;
 		bytes_available -= bytes_to_write;
@@ -657,11 +655,11 @@ smtp_alert(smtp_msg_t msg_type, void* data, const char *subject, const char *bod
 #endif
 
 	/* Only send mail if email specified */
-	if (LIST_ISEMPTY(global_data->email) || !global_data->smtp_server.ss_family)
+	if (list_empty(&global_data->email) || !global_data->smtp_server.ss_family)
 		return;
 
 	/* allocate & initialize smtp argument data structure */
-	smtp = (smtp_t *) MALLOC(sizeof(smtp_t));
+	PMALLOC(smtp);
 	smtp->subject = (char *) MALLOC(MAX_HEADERS_LENGTH);
 	smtp->body = (char *) MALLOC(MAX_BODY_LENGTH);
 	smtp->buffer = (char *) MALLOC(SMTP_BUFFER_MAX);

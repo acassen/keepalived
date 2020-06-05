@@ -40,7 +40,6 @@
 
 /* local includes */
 #include "scheduler.h"
-#include "list.h"
 
 typedef enum {
         HTTP_PROTOCOL_1_0,

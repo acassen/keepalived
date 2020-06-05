@@ -48,7 +48,7 @@
 #endif
 
 /* local includes */
-#include "list.h"
+#include "list_head.h"
 #include "vrrp_if.h"
 #include "timer.h"
 #ifdef _WITH_VRRP_
@@ -71,6 +71,9 @@
 /* email link list */
 typedef struct _email {
 	char				*addr;
+
+	/* Linked list member */
+	list_head_t			e_list;
 } email_t;
 
 #ifdef _WITH_LVS_
@@ -108,7 +111,7 @@ typedef struct _data {
 	struct sockaddr_storage		smtp_server;
 	const char			*smtp_helo_name;
 	unsigned long			smtp_connection_to;
-	list				email;
+	list_head_t			email;
 	int				smtp_alert;
 	notify_script_t			*startup_script;
 	unsigned			startup_script_timeout;

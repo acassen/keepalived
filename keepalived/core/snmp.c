@@ -61,48 +61,6 @@ snmp_scope(int scope)
 	return 0;
 }
 
-
-void *
-snmp_header_list_table(struct variable *vp, oid *name, size_t *length,
-		       int exact, size_t *var_len, WriteMethod **write_method,
-		       list dlist)
-{
-	element e;
-	void *scr;
-	oid target, current;
-
-	if (header_simple_table(vp, name, length, exact, var_len, write_method, -1) != MATCH_SUCCEEDED)
-		return NULL;
-
-	if (LIST_ISEMPTY(dlist))
-		return NULL;
-
-	target = name[*length - 1];
-	current = 0;
-
-	/* If there are insufficent entries in the list, just return no match */
-	if (LIST_SIZE(dlist) < target)
-		return NULL;
-
-	LIST_FOREACH(dlist, scr, e) {
-		if (++current < target)
-			/* No match found yet */
-			continue;
-		if (current == target)
-			/* Exact match */
-			return scr;
-		if (exact)
-			/* No exact match found */
-			return NULL;
-		/* current is the best match */
-		name[*length - 1] = current;
-		return scr;
-	}
-
-	/* No match found at end */
-	return NULL;
-}
-
 list_head_t *
 snmp_header_list_head_table(struct variable *vp, oid *name, size_t *length,
 			    int exact, size_t *var_len, WriteMethod **write_method,
@@ -359,20 +317,24 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 	return NULL;
 }
 
-static u_char*
+static u_char *
 snmp_mail(struct variable *vp, oid *name, size_t *length,
-		 int exact, size_t *var_len, WriteMethod **write_method)
+	  int exact, size_t *var_len, WriteMethod **write_method)
 {
-	char *m;
-	if ((m = (char *)snmp_header_list_table(vp, name, length, exact,
-						 var_len, write_method,
-						 global_data->email)) == NULL)
+	email_t *email;
+	list_head_t *e;
+
+	if ((e = snmp_header_list_head_table(vp, name, length, exact,
+					     var_len, write_method,
+					     &global_data->email)) == NULL)
 		return NULL;
+
+	email = list_entry(e, email_t, e_list);
 
 	switch (vp->magic) {
 	case SNMP_MAIL_EMAILADDRESS:
-		*var_len = strlen(m);
-		return (u_char *)m;
+		*var_len = strlen(email->addr);
+		return (u_char *)email->addr;
 	default:
 		break;
 	}
