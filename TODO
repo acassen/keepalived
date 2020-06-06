@@ -3,6 +3,10 @@ interface isn't tracked and so we do nothing if the interface is deleted.
 
 Fix building on CentOS 6.10
 
+Remove definitions that simply access structure fields, e.g. VRRP_ISUP
+
+Stop making structure fields such as base_ifp and configured_ifp conditional.
+
 In parsers, using LIST_TAIL to find object to configure doesn't work
 if error in first line means not created. TAIL could be null, or previous
 object.
@@ -13,7 +17,16 @@ connect timeout. Causes memory leak!)
 
 Test LVS forwarding via VIP if no_accept set
 
-Fix warnings on Rpi builds
+Fix warnings on Rpi and plug builds and on Cain
+
+For unicast, allow to specify TTL range per peer for receipt, and value to send for IPv6
+	(socket option IPV6_UNICAST_HOPS - need to have a current value for the socket
+	 and change it before sending if needed). Stevens p645 etc
+
+If interface is deleted and recreated, then index changes - does that cause OIDs to change? Is the RFC flawed? How do we deal with it?
+	We could have our own ifindex incremented as we create interface_t's
+
+Add track_route, track_address
 
 PKG_CONFIG_* autoconf options - see man pkg.m4
 
