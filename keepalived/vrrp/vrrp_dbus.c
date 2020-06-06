@@ -879,7 +879,7 @@ dbus_reload(const list_head_t *o, const list_head_t *n)
 
 				/* Check if the old instance name we found still exists
 				 * (but has a different vrid/family/interface) */
-				LIST_FOREACH(n, vrrp_n3, e3) {
+				list_for_each_entry(vrrp_n3, n, e_list) {
 					if (!strcmp(vrrp_o->iname, vrrp_n3->iname)) {
 						match_found = true;
 						break;

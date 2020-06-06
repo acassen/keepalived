@@ -1107,7 +1107,7 @@ alloc_vrrp_process(const char *pname)
 	vrrp_tracked_process_t *new;
 
 	/* Allocate new VRRP file structure */
-	new = (vrrp_tracked_process_t *) MALLOC(sizeof(vrrp_tracked_process_t));
+	PMALLOC(new);
 	INIT_LIST_HEAD(&new->e_list);
 	new->pname = STRDUP(pname);
 	new->quorum = 1;

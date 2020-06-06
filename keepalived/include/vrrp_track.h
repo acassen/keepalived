@@ -135,14 +135,21 @@ typedef struct _tracked_process {
 	list_head_t		e_list;
 } tracked_process_t;
 
+/* A reference to tracked process */
+typedef struct _ref_tracked_process {
+	vrrp_tracked_process_t	*process;	/* track process pointer, cannot be NULL */
+
+	/* Linked list member */
+	list_head_t		e_list;
+} ref_tracked_process_t;
+
 /* A monitored process instance */
 typedef struct _tracked_process_instance {
 	pid_t			pid;
-	rb_node_t		pid_tree;
-	list			processes;	/* vrrp_tracked_process_t */
+	list_head_t		processes;	/* ref_tracked_process_t */
 
-	/* linked list member */
-	list_head_t		e_list;
+	/* rbtree member */
+	rb_node_t		pid_tree;
 } tracked_process_instance_t;
 #endif
 

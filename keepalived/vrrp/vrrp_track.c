@@ -318,9 +318,8 @@ void
 alloc_track_process(const char *name, list_head_t *l, const vector_t *strvec)
 {
 	vrrp_tracked_process_t *vsp;
-	tracked_process_t *tprocess;
 	const char *tracked = strvec_slot(strvec, 0);
-	tracked_process_t *etprocess;
+	tracked_process_t *tprocess;
 	int weight;
 	bool reverse;
 
@@ -338,8 +337,8 @@ alloc_track_process(const char *name, list_head_t *l, const vector_t *strvec)
 	}
 
 	/* Check this vrrp isn't already tracking the process */
-	list_for_each_entry(etprocess, l, e_list) {
-		if (etprocess->process == vsp) {
+	list_for_each_entry(tprocess, l, e_list) {
+		if (tprocess->process == vsp) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) duplicate track_process %s - ignoring"
 								, name, tracked);
 			return;
