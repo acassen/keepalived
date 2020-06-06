@@ -2156,33 +2156,9 @@ if test "$enable_snmp" = yes -o \
   if test "$NETSNMP_CONFIG" = no; then
     AC_MSG_ERROR([*** unable to find net-snmp-config])
   fi
-  NETSNMP_LIBS_AGENT=`${NETSNMP_CONFIG} --netsnmp-agent-libs`
-  NETSNMP_LIBS_EXT=`${NETSNMP_CONFIG} --external-libs`
-  NETSNMP_LIBS="$NETSNMP_LIBS_AGENT $NETSNMP_LIBS_EXT"
+  NETSNMP_LIBS=`${NETSNMP_CONFIG} --agent-libs`
   NETSNMP_CFLAGS="`${NETSNMP_CONFIG} --base-cflags`"
   NETSNMP_CPPFLAGS="-DNETSNMP_NO_INLINE"
-
-  # net-snmp-config adds compiler and linker options that were set at the time
-  # net-snmp was built, and this can include spec files that may not exist
-  # on the system building keepalived. We need to check if any spec files
-  # are specified, and if they do not exist on this system, then remove them
-  # from NETSNMP_LIBS or NETSNMP_CFLAGS.
-  # For further information, see https://bugzilla.redhat.com/show_bug.cgi?id=1544527
-  # and the other bugs referred to in it.
-  for spec in `echo $NETSNMP_LIBS | sed -e "s? ?\n?g" | grep "^-specs="`; do
-    SPEC_FILE=`echo $spec | sed -e "s?^-specs=??"`
-    if test ! -f $SPEC_FILE; then
-      NETSNMP_LIBS=`echo $NETSNMP_LIBS | sed -e "s? *$spec *? ?"`
-      AC_MSG_WARN([Removing $spec from NETSNMP_LIBS since spec file not installed])
-    fi
-  done
-  for spec in `echo $NETSNMP_CFLAGS | sed -e "s? ?\n?g" | grep "^-specs="`; do
-    SPEC_FILE=`echo $spec | sed -e "s?^-specs=??"`
-    if test ! -f $SPEC_FILE; then
-      NETSNMP_CFLAGS=`echo $NETSNMP_CFLAGS | sed -e "s? *$spec *? ?"`
-      AC_MSG_WARN([Removing $spec from NETSNMP_CFLAGS since spec file not installed])
-    fi
-  done
 
   SAV_CFLAGS="$CFLAGS"
   CFLAGS="$CFLAGS ${NETSNMP_CFLAGS}"
@@ -2218,16 +2194,9 @@ if test "$enable_snmp" = yes -o \
 
   SNMP_SUPPORT=Yes
 
-  # NETSNMP_CFLAGS can have CPPFLAGS options, so separate them
-  NETSNMP_CPPFLAGS_XTRA=`echo " $NETSNMP_CFLAGS " | sed -e "s/ /  /g" -e "s/ -[[^IDU]] *-/ -/g" -e "s/ -[[^IDU]] *[[^-]][[^ ]]* / /g" -e "s/  */ /g"`
-  NETSNMP_CFLAGS=`echo " $NETSNMP_CFLAGS " | sed -e "s/ /  /g" -e "s/ -[[IDU]] *[[^ ]]* / /g" -e "s/  */ /g"`
   add_to_var([KA_CFLAGS], [$NETSNMP_CFLAGS])
-  add_to_var([KA_CPPFLAGS], [$NETSNMP_CPPFLAGS $NETSNMP_CPPFLAGS_XTRA])
-
-  # NETSNMP_LIBS may have some LDFLAGS options, so separate them
-  NETSNMP_LDFLAGS_XTRA=`echo " $NETSNMP_LIBS " | sed -e "s/ /  /g" -e "s/ -l *[[^ ]]* /  /g" -e "s/  */ /g" -e "s/ -/ @-/g" | tr "@" "\n" | sed -e "s/^  *//" -e "s/  *$//" | sort -u | tr "\n" " "`
-  NETSNMP_LIBS=`echo " $NETSNMP_LIBS " | sed -e "s/ /  /g" -e "s/ \(-l *[[^ ]]*\) /@\1@/g" | tr "@" "\n" | grep  "^-l" | tr "\n" " " | sed -e "s/  */ /g"`
-  add_to_var([KA_LDFLAGS], [$NETSNMP_LDFLAGS $NETSNMP_LDFLAGS_XTRA])
+  add_to_var([KA_CPPFLAGS], [$NETSNMP_CPPFLAGS])
+  add_to_var([KA_LDFLAGS], [$NETSNMP_LDFLAGS])
   add_to_var([KA_LIBS], [$NETSNMP_LIBS])
 
   if test "$enable_snmp_rfc" = yes; then
