@@ -28,7 +28,7 @@
 #include <sys/socket.h>
 #include <linux/rtnetlink.h>
 
-#include "list.h"
+#include "list_head.h"
 #include "memory.h"
 #include "logger.h"
 #include "parser.h"
@@ -47,85 +47,135 @@
 #endif
 #define	RT_SCOPES_FILE	IPROUTE2_DIR "rt_scopes"
 
-struct rt_entry {
-	unsigned int id;
-	const char *name;
-} ;
-typedef struct rt_entry rt_entry_t;
+typedef struct _rt_entry {
+	unsigned int	id;
+	const char	*name;
+
+	/* Linked list member */
+	list_head_t	e_list;
+} rt_entry_t;
 
 #ifdef _HAVE_FIB_ROUTING_
 static rt_entry_t const rtntypes[] = {
-	{ RTN_LOCAL, "local"},
-	{ RTN_NAT, "nat"},
-	{ RTN_BROADCAST, "broadcast"},
-	{ RTN_BROADCAST, "brd"},
-	{ RTN_ANYCAST, "anycast"},
-	{ RTN_MULTICAST, "multicast"},
-	{ RTN_PROHIBIT, "prohibit"},
-	{ RTN_UNREACHABLE, "unreachable"},
-	{ RTN_BLACKHOLE, "blackhole"},
-	{ RTN_XRESOLVE, "xresolve"},
-	{ RTN_UNICAST, "unicast"},
-	{ RTN_THROW, "throw"},
-	{ 0, NULL},
+	{ RTN_LOCAL, "local", {}},
+	{ RTN_NAT, "nat", {}},
+	{ RTN_BROADCAST, "broadcast", {}},
+	{ RTN_BROADCAST, "brd", {}},
+	{ RTN_ANYCAST, "anycast", {}},
+	{ RTN_MULTICAST, "multicast", {}},
+	{ RTN_PROHIBIT, "prohibit", {}},
+	{ RTN_UNREACHABLE, "unreachable", {}},
+	{ RTN_BLACKHOLE, "blackhole", {}},
+	{ RTN_XRESOLVE, "xresolve", {}},
+	{ RTN_UNICAST, "unicast", {}},
+	{ RTN_THROW, "throw", {}},
+	{ 0, NULL, {}},
 };
 
 static rt_entry_t const rtprot_default[] = {
-	{ RTPROT_UNSPEC, "none"},
-	{ RTPROT_REDIRECT, "redirect"},
-	{ RTPROT_KERNEL, "kernel"},
-	{ RTPROT_BOOT, "boot"},
-	{ RTPROT_STATIC, "static"},
+	{ RTPROT_UNSPEC, "none", {}},
+	{ RTPROT_REDIRECT, "redirect", {}},
+	{ RTPROT_KERNEL, "kernel", {}},
+	{ RTPROT_BOOT, "boot", {}},
+	{ RTPROT_STATIC, "static", {}},
 
-	{ RTPROT_GATED, "gated"},
-	{ RTPROT_RA, "ra"},
-	{ RTPROT_MRT, "mrt"},
-	{ RTPROT_ZEBRA, "zebra"},
-	{ RTPROT_BIRD, "bird"},
+	{ RTPROT_GATED, "gated", {}},
+	{ RTPROT_RA, "ra", {}},
+	{ RTPROT_MRT, "mrt", {}},
+	{ RTPROT_ZEBRA, "zebra", {}},
+	{ RTPROT_BIRD, "bird", {}},
 #ifdef RTPROT_BABEL		/* Since Linux 3.19 */
-	{ RTPROT_BABEL, "babel"},
+	{ RTPROT_BABEL, "babel", {}},
 #endif
-	{ RTPROT_DNROUTED, "dnrouted"},
-	{ RTPROT_XORP, "xorp"},
-	{ RTPROT_NTK, "ntk"},
-	{ RTPROT_DHCP, "dhcp"},
-	{ 0, NULL},
+	{ RTPROT_DNROUTED, "dnrouted", {}},
+	{ RTPROT_XORP, "xorp", {}},
+	{ RTPROT_NTK, "ntk", {}},
+	{ RTPROT_DHCP, "dhcp", {}},
+	{ 0, NULL, {}},
 };
 
 static rt_entry_t const rttable_default[] = {
-	{ RT_TABLE_DEFAULT, "default"},
-	{ RT_TABLE_MAIN, "main"},
-	{ RT_TABLE_LOCAL, "local"},
-	{ 0, NULL},
+	{ RT_TABLE_DEFAULT, "default", {}},
+	{ RT_TABLE_MAIN, "main", {}},
+	{ RT_TABLE_LOCAL, "local", {}},
+	{ 0, NULL, {}},
 };
 #endif
 
 static rt_entry_t const rtscope_default[] = {
-	{ RT_SCOPE_UNIVERSE, "global"},
-	{ RT_SCOPE_NOWHERE, "nowhere"},
-	{ RT_SCOPE_HOST, "host"},
-	{ RT_SCOPE_LINK, "link"},
-	{ RT_SCOPE_SITE, "site"},
-	{ 0, NULL},
+	{ RT_SCOPE_UNIVERSE, "global", {}},
+	{ RT_SCOPE_NOWHERE, "nowhere", {}},
+	{ RT_SCOPE_HOST, "host", {}},
+	{ RT_SCOPE_LINK, "link", {}},
+	{ RT_SCOPE_SITE, "site", {}},
+	{ 0, NULL, {}},
 };
 
 #define	MAX_RT_BUF	128
 
 #ifdef _HAVE_FIB_ROUTING_
-static list rt_tables;
-static list rt_dsfields;
+static LIST_HEAD_INITIALIZE(rt_tables);
+static LIST_HEAD_INITIALIZE(rt_dsfields);
 #if HAVE_DECL_FRA_SUPPRESS_IFGROUP
-static list rt_groups;
+static LIST_HEAD_INITIALIZE(rt_groups);
 #endif
-static list rt_realms;
-static list rt_protos;
+static LIST_HEAD_INITIALIZE(rt_realms);
+static LIST_HEAD_INITIALIZE(rt_protos);
 #endif
-static list rt_scopes;
+static LIST_HEAD_INITIALIZE(rt_scopes);
 
 static char ret_buf[11];	/* uint32_t in decimal */
 
 static void
-read_file(const char* file_name, list *l, uint32_t max)
+free_rt_entry(rt_entry_t *rte)
+{
+	list_del_init(&rte->e_list);
+	if (rte->name)
+		FREE_CONST(rte->name);
+	FREE(rte);
+}
+static void
+free_rt_entry_list(list_head_t *l)
+{
+	rt_entry_t *rte, *rte_tmp;
+
+	list_for_each_entry_safe(rte, rte_tmp, l, e_list)
+		free_rt_entry(rte);
+}
+
+#if 0
+static void
+dump_rt_entry(FILE *fp, const rt_entry_t *rte)
+{
+	conf_write(fp, "rt_table %u, name %s", rte->id, rte->name);
+}
+static void
+dump_rt_entry_list(FILE *fp, const list_head_t *l)
+{
+	rt_entry_t *rte;
+
+	list_for_each_entry(rte, l, e_list)
+		dump_rt_entry(fp, rte);
+}
+#endif
+
+void
+clear_rt_names(void)
+{
+#ifdef _HAVE_FIB_ROUTING_
+	free_rt_entry_list(&rt_tables);
+	free_rt_entry_list(&rt_dsfields);
+#if HAVE_DECL_FRA_SUPPRESS_IFGROUP
+	free_rt_entry_list(&rt_groups);
+#endif
+	free_rt_entry_list(&rt_realms);
+	free_rt_entry_list(&rt_protos);
+#endif
+	free_rt_entry_list(&rt_scopes);
+}
+
+static void
+read_file(const char *file_name, list_head_t *l, uint32_t max)
 {
 	FILE *fp;
 	rt_entry_t *rte;
@@ -150,7 +200,8 @@ read_file(const char* file_name, list *l, uint32_t max)
 			continue;
 		}
 
-		rte = MALLOC(sizeof(rt_entry_t));
+		PMALLOC(rte);
+		INIT_LIST_HEAD(&rte->e_list);
 		if (!rte) {
 			free_strvec(strvec);
 			goto err;
@@ -173,7 +224,7 @@ read_file(const char* file_name, list *l, uint32_t max)
 			goto err;
 		}
 
-		list_add(*l, rte);
+		list_add_tail(&rte->e_list, l);
 
 		free_strvec(strvec);
 	}
@@ -187,55 +238,20 @@ err:
 	if (strvec)
 		free_strvec(strvec);
 
-	free_list(l);
+	free_rt_entry_list(l);
 
 	return;
 }
 
-void
-clear_rt_names(void)
-{
-#ifdef _HAVE_FIB_ROUTING_
-	free_list(&rt_tables);
-	free_list(&rt_dsfields);
-#if HAVE_DECL_FRA_SUPPRESS_IFGROUP
-	free_list(&rt_groups);
-#endif
-	free_list(&rt_realms);
-	free_list(&rt_protos);
-#endif
-	free_list(&rt_scopes);
-}
-
 static void
-free_rt_entry(void *e)
+add_default(list_head_t *l, const rt_entry_t *default_list)
 {
-	rt_entry_t *rte = (rt_entry_t*)e;
-
-	if (rte->name)
-		FREE_CONST(rte->name);
-	FREE(rte);
-}
-
-static void
-dump_rt_entry(FILE *fp, const void *e)
-{
-	const rt_entry_t *rte = (const rt_entry_t *)e;
-
-	conf_write(fp, "rt_table %u, name %s", rte->id, rte->name);
-}
-
-static void
-add_default(list *l, const struct rt_entry* default_list)
-{
-	bool found;
 	rt_entry_t *rte;
-	element e;
+	bool found;
 
-	for (;default_list->name; default_list++) {
-		for (e = LIST_HEAD(*l), found = false; e; ELEMENT_NEXT(e)) {
-			rte = ELEMENT_DATA(e);
-
+	for (; default_list->name; default_list++) {
+		found = false;
+		list_for_each_entry(rte, l, e_list) {
 			if (rte->id == default_list->id) {
 				found = true;
 				break;
@@ -245,7 +261,8 @@ add_default(list *l, const struct rt_entry* default_list)
 		if (found)
 			continue;
 
-		rte = MALLOC(sizeof(rt_entry_t));
+		PMALLOC(rte);
+		INIT_LIST_HEAD(&rte->e_list);
 		rte->name = STRDUP(default_list->name);
 		if (!rte->name) {
 			FREE(rte);
@@ -254,19 +271,15 @@ add_default(list *l, const struct rt_entry* default_list)
 
 		rte->id = default_list->id;
 
-		list_add(*l, rte);
+		list_add_tail(&rte->e_list, l);
 	}
 }
 
 static void
-initialise_list(list *l, const char *file_name, const struct rt_entry *default_list, uint32_t max)
+initialise_list(list_head_t *l, const char *file_name, const rt_entry_t *default_list, uint32_t max)
 {
 
-	if (*l)
-		return;
-
-	*l = alloc_list(free_rt_entry, dump_rt_entry);
-	if (!*l)
+	if (!list_empty(l))
 		return;
 
 	read_file(file_name, l, max);
@@ -276,31 +289,26 @@ initialise_list(list *l, const char *file_name, const struct rt_entry *default_l
 }
 
 static bool
-find_entry(const char *name, unsigned int *id, list *l, const char* file_name, const struct rt_entry* default_list, uint32_t max)
+find_entry(const char *name, unsigned int *id, list_head_t *l, const char* file_name, const rt_entry_t *default_list, uint32_t max)
 {
-	element e;
-	char	*endptr;
+	char *endptr;
 	unsigned long l_id;
+	rt_entry_t *rte;
 
 	l_id = strtoul(name, &endptr, 0);
 	*id = (unsigned int)l_id;
 	if (endptr != name && *endptr == '\0')
 		return (*id <= max);
 
-	if (!(*l))
-		initialise_list(l, file_name, default_list, max);
+	initialise_list(l, file_name, default_list, max);
 
-	if (LIST_ISEMPTY(*l))
-		return false;
-
-	for (e = LIST_HEAD(*l); e; ELEMENT_NEXT(e)) {
-		rt_entry_t *rte = ELEMENT_DATA(e);
-
+	list_for_each_entry(rte, l, e_list) {
 		if (!strcmp(rte->name, name)) {
 			*id = rte->id;
 			return true;
 		}
 	}
+
 	return false;
 }
 
@@ -373,20 +381,15 @@ find_rttables_rtntype(const char *str, uint8_t *id)
 #endif
 
 static const char *
-get_entry(unsigned int id, list* l, const char* file_name, const struct rt_entry* default_list, uint32_t max)
+get_entry(unsigned int id, list_head_t *l, const char* file_name, const rt_entry_t *default_list, uint32_t max)
 {
-	element e;
-	const rt_entry_t *rte;
+	rt_entry_t *rte;
 
+	initialise_list(l, file_name, default_list, max);
 
-	if (!(*l))
-		initialise_list(l, file_name, default_list, max);
-
-	if (!LIST_ISEMPTY(*l)) {
-		LIST_FOREACH(*l, rte, e) {
-			if (rte->id == id)
-				return rte->name;
-		}
+	list_for_each_entry(rte, l, e_list) {
+		if (rte->id == id)
+			return rte->name;
 	}
 
 	snprintf(ret_buf, sizeof(ret_buf), "%u", id);
