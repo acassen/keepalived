@@ -711,19 +711,22 @@ check_tx_checksum(vrrp_t *vrrp, unicast_peer_t *peer)
 static void
 check_rx_checksum(vrrp_t *vrrp, const ipv4_phdr_t *ipv4_phdr, const struct iphdr *iph, size_t pkt_len, const vrrphdr_t *vrrp_pkt, uint16_t calc_chksum, uint32_t acc_csum)
 {
-	unicast_peer_t *peer = NULL;
+	unicast_peer_t *peer;
 	struct in_addr *saddr4;
 	struct sockaddr_storage addr;
 	checksum_check_t *chk;
+	bool peer_found = false;
 
 	/* If unicast, find the sending peer */
 	saddr4 = &((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr;
 	list_for_each_entry(peer, &vrrp->unicast_peer, e_list) {
-		if (saddr4->s_addr == ((struct sockaddr_in *)&peer->address)->sin_addr.s_addr)
+		peer_found = true;
+		if (saddr4->s_addr == ((struct sockaddr_in *)&peer->address)->sin_addr.s_addr) {
 			break;
+		}
 	}
 
-	chk = peer ? &peer->chk : &vrrp->chk;
+	chk = peer_found ? &peer->chk : &vrrp->chk;
 	if (calc_chksum ||
 	    !chk->received_from ||
 	    chk->last_rx_checksum != vrrp_pkt->chksum ||
@@ -1080,6 +1083,10 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 	     || (vrrp->family == AF_INET6 && vrrp->multicast_pkt)
 #endif
 								 ) != list_empty(&vrrp->unicast_peer)) {
+		/* So far as I can see, with IPv6 if multicasts are enabled on an interface, we will receive them
+		 * on a socket even if we haven't registered the multicast address on the socket.
+		 * If anyone know how to stop receiving them, please raise a github issue with the details.
+		 */
 		log_message(LOG_INFO, "(%s) Expected %sicast packet but received %sicast packet",
 				vrrp->iname,
 				list_empty(&vrrp->unicast_peer) ? "mult" : "un",
@@ -1121,22 +1128,27 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 		if (global_data->vrrp_check_unicast_src && !list_empty(&vrrp->unicast_peer)) {
 			struct in_addr *saddr4;
 			struct in6_addr *saddr6;
+			bool found_match = false;
 
 			if (vrrp->family == AF_INET6) {
 				saddr6 = &((struct sockaddr_in6 *)&vrrp->pkt_saddr)->sin6_addr;
 				list_for_each_entry(up_addr, &vrrp->unicast_peer, e_list) {
-					if (IN6_ARE_ADDR_EQUAL(saddr6, &((struct sockaddr_in6 *)&up_addr->address)->sin6_addr))
+					if (IN6_ARE_ADDR_EQUAL(saddr6, &((struct sockaddr_in6 *)&up_addr->address)->sin6_addr)) {
+						found_match = true;
 						break;
+					}
 				}
 			} else {
 				saddr4 = &((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr;
 				list_for_each_entry(up_addr, &vrrp->unicast_peer, e_list) {
-					if (saddr4->s_addr == ((struct sockaddr_in *)&up_addr->address)->sin_addr.s_addr)
+					if (saddr4->s_addr == ((struct sockaddr_in *)&up_addr->address)->sin_addr.s_addr) {
+						found_match = true;
 						break;
+					}
 				}
 			}
 
-			if (!up_addr) {
+			if (!found_match) {
 				log_message(LOG_INFO, "(%s) unicast source address %s not a unicast peer",
 					vrrp->iname,
 					inet_ntop(vrrp->family,
@@ -1407,12 +1419,14 @@ vrrp_build_ancillary_data(struct msghdr *msg, char *cbuf, struct sockaddr_storag
 	pkt = (struct in6_pktinfo *) CMSG_DATA(cmsg);
 	memset(pkt, 0, sizeof(struct in6_pktinfo));
 	pkt->ipi6_addr = ((struct sockaddr_in6 *) src)->sin6_addr;
+	if (vrrp->ifp) {
 #ifdef _HAVE_VRRP_VMAC_
-	if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags))
-		pkt->ipi6_ifindex = vrrp->ifp->base_ifp->ifindex;
-	else
+		if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags))
+			pkt->ipi6_ifindex = vrrp->ifp->base_ifp->ifindex;
+		else
 #endif
-		pkt->ipi6_ifindex = vrrp->ifp->ifindex;
+			pkt->ipi6_ifindex = vrrp->ifp->ifindex;
+	}
 
 	return 0;
 }
@@ -1494,8 +1508,9 @@ vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 	/* Send the packet, but don't log an error if it is a prio 0 message
 	 * and the interface is down. */
 	if (list_empty(&vrrp->unicast_peer)) {
+// What if mcast_src_ip is configured?
 		if (vrrp_send_pkt(vrrp, NULL) == -1 &&
-		    (prio != VRRP_PRIO_STOP || errno != ENETUNREACH || IF_FLAGS_UP(vrrp->ifp)))
+		    (prio != VRRP_PRIO_STOP || errno != ENETUNREACH || (vrrp->ifp && IF_FLAGS_UP(vrrp->ifp))))
 			log_message(LOG_INFO, "(%s): send advert error %d (%m)", vrrp->iname, errno);
 	}
 	else {
@@ -1503,7 +1518,7 @@ vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 			if (vrrp->family == AF_INET)
 				vrrp_update_pkt(vrrp, prio, &peer->address);
 			if (vrrp_send_pkt(vrrp, peer) == -1 &&
-			    (prio != VRRP_PRIO_STOP || errno != ENETUNREACH || IF_FLAGS_UP(vrrp->ifp)))
+			    (prio != VRRP_PRIO_STOP || errno != ENETUNREACH || (vrrp->ifp && IF_FLAGS_UP(vrrp->ifp))))
 				log_message(LOG_INFO, "(%s) Cant send advert to %s (%m)"
 						    , vrrp->iname, inet_sockaddrtos(&peer->address));
 		}
@@ -1546,11 +1561,6 @@ vrrp_send_link_update(vrrp_t * vrrp, unsigned rep)
 
 	/* Only send gratuitous ARP if VIP are set */
 	if (!VRRP_VIP_ISSET(vrrp))
-		return;
-
-	/* If the interface doesn't support ARP, then don't send
-	 * any ARP messages. */
-	if (vrrp->ifp->ifi_flags & IFF_NOARP)
 		return;
 
 	/* send gratuitous arp for each virtual ip */
@@ -1911,6 +1921,9 @@ vrrp_saddr_cmp(struct sockaddr_storage *addr, vrrp_t *vrrp)
 	if (vrrp->saddr.ss_family)
 		return inet_sockaddrcmp(addr, &vrrp->saddr);
 
+	if (!ifp)
+		return 0;
+
 	/* Default interface source IP address */
 	if (addr->ss_family == AF_INET)
 		return inet_inaddrcmp(addr->ss_family,
@@ -2173,7 +2186,7 @@ chk_min_cfg(vrrp_t *vrrp)
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) the virtual router id must be set", vrrp->iname);
 		return false;
 	}
-	if (!vrrp->ifp) {
+	if (!vrrp->ifp && list_empty(&vrrp->unicast_peer)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Unknown interface!", vrrp->iname);
 		return false;
 	}
@@ -2182,8 +2195,8 @@ chk_min_cfg(vrrp_t *vrrp)
 }
 
 /* open a VRRP sending socket */
-int
-open_vrrp_send_socket(sa_family_t family, int proto, interface_t *ifp, bool unicast)
+static int
+open_vrrp_send_socket(sa_family_t family, int proto, const interface_t *ifp, const struct sockaddr_storage *unicast_src)
 {
 	int fd = -1;
 	int val = 0;
@@ -2220,22 +2233,25 @@ open_vrrp_send_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 		 * since we set a BPF filter to stop any packet being received
 		 * on the send socket */
 #if HAVE_DECL_IP_MULTICAST_ALL  /* Since Linux 2.6.31 */
-		if_setsockopt_mcast_all(family, &fd);
+		if_setsockopt_mcast_all(AF_INET, &fd);
 #endif
 		if_setsockopt_hdrincl(&fd);
-		if (unicast)
-			if_setsockopt_bindtodevice(&fd, ifp);
 	} else if (family == AF_INET6) {
 		/* Set v6 related */
 		if_setsockopt_ipv6_checksum(&fd);
-		if (!unicast)
+		if (!unicast_src)
 			if_setsockopt_mcast_hops(family, &fd);
 	}
 
-	if (!unicast) {
-		if_setsockopt_mcast_if(family, &fd, ifp);
-		if_setsockopt_mcast_loop(family, &fd);
+	if (ifp) {
+		if_setsockopt_bindtodevice(&fd, ifp);
+
+		if (!unicast_src) {
+			if_setsockopt_mcast_if(family, &fd, ifp);
+			if_setsockopt_mcast_loop(family, &fd);
+		}
 	}
+// TODO - do we want one send socket for all unicast, or per local unicast address to match recv socket. We could use the same socket for send and receive
 
 	if_setsockopt_priority(&fd, family);
 
@@ -2248,13 +2264,14 @@ open_vrrp_send_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 }
 
 /* open a VRRP socket and join the multicast group. */
-int
-open_vrrp_read_socket(sa_family_t family, int proto, interface_t *ifp, bool unicast, int rx_buf_size)
+static int
+open_vrrp_read_socket(sa_family_t family, int proto, const interface_t *ifp, const struct sockaddr_storage *unicast_src, int rx_buf_size)
 {
 	int fd = -1;
 	int val = rx_buf_size;
 	socklen_t len = sizeof(val);
 	int on = 1;
+	struct sockaddr_in6 loopback6 = { .sin6_family = AF_INET6, .sin6_addr = IN6ADDR_LOOPBACK_INIT };	// ::1
 
 	/* open the socket */
 	fd = socket(family, SOCK_RAW | SOCK_CLOEXEC | SOCK_NONBLOCK, proto);
@@ -2281,8 +2298,12 @@ open_vrrp_read_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 		if_setsockopt_mcast_all(family, &fd);
 #endif
 
-	if (!unicast) {
+	if (!unicast_src) {
 		/* Join the VRRP multicast group */
+// TODO - allow different mcast per vrrp instance - VRID  check then needs to include mcast group
+// could have different socket per mcast addr, or not
+// OR just say use different keepalived instances
+		/* coverity[forward_null] - ifp cannot be NULL if not unicast */
 		if_join_vrrp_group(family, &fd, ifp);
 
 #ifdef IPV6_RECVHOPLIMIT	/* Since Linux 2.6.14 */
@@ -2292,6 +2313,22 @@ open_vrrp_read_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 				log_message(LOG_INFO, "fd %d - set IPV6_RECVHOPLIMIT error %d (%m)", fd, errno);
 		}
 #endif
+
+		/* Binding to, for IPv4 the multicast address and for IPv6 the loopback address,
+		 * stops us receiving unicast pkts when we are only interested in multicast.
+		 * Binding to a multicast address appears to fail for IPv6, so if we allow different
+		 * mcast addresses we only need one socket per interface.
+		 */
+		if ((family == AF_INET && bind(fd, (const struct sockaddr *)&global_data->vrrp_mcast_group4, sizeof(struct sockaddr_in))) ||
+		    (family == AF_INET6 && bind(fd, (const struct sockaddr *)&loopback6, sizeof(struct sockaddr_in6))))
+			log_message(LOG_INFO, "bind for multicast failed %d - %m", errno);
+	} else {
+		/* Bind to the local unicast address */
+		if (bind(fd, (const struct sockaddr *)unicast_src, unicast_src->ss_family == AF_INET ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6))) {
+			log_message(LOG_INFO, "bind unicast_src %s failed %d - %m", inet_sockaddrtos(unicast_src), errno);
+			close(fd);
+			return -2;
+		}
 	}
 
 #ifdef IPV6_RECVPKTINFO		/* Since Linux 2.6.14 */
@@ -2322,7 +2359,8 @@ open_vrrp_read_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 	 * This is applicable for both unicast and multicast operation as well as
 	 * IPv4 and IPv6.
 	 */
-	if_setsockopt_bindtodevice(&fd, ifp);
+	if (ifp)
+		if_setsockopt_bindtodevice(&fd, ifp);
 
 	if (fd < 0)
 		return -1;
@@ -2333,6 +2371,32 @@ open_vrrp_read_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 	}
 
 	return fd;
+}
+
+void
+open_sockpool_socket(sock_t *sock)
+{
+	vrrp_t *vrrp;
+
+	sock->fd_in = open_vrrp_read_socket(sock->family, sock->proto,
+				       sock->ifp, sock->unicast_src, sock->rx_buf_size);
+
+	if (sock->fd_in == -2) {
+		rb_for_each_entry(vrrp, &sock->rb_vrid, rb_vrid) {
+			if (vrrp->state != VRRP_STATE_FAULT)
+				log_message(LOG_INFO, "(%s): entering FAULT state (src address not configured)", vrrp->iname);
+			down_instance(vrrp);
+			if (vrrp->num_script_if_fault == 1)
+				send_instance_notifies(vrrp);
+		}
+		sock->fd_in = -1;
+	}
+
+	if (sock->fd_in == -1)
+		sock->fd_out = -1;
+	else
+		sock->fd_out = open_vrrp_send_socket(sock->family, sock->proto,
+						     sock->ifp, sock->unicast_src);
 }
 
 /* Try to find a VRRP instance */
@@ -2346,19 +2410,39 @@ vrrp_exist(vrrp_t *old_vrrp, list_head_t *l)
 		    vrrp->family != old_vrrp->family)
 			continue;
 
+		/* Check for unicast match */
+		if (list_empty(&vrrp->unicast_peer) != list_empty(&old_vrrp->unicast_peer))
+			continue;
+
+		if (!list_empty(&vrrp->unicast_peer)) {
+			if (!vrrp->ifp != !old_vrrp->ifp)
+				continue;
+
+			if (inet_sockaddrcmp(&old_vrrp->saddr, &vrrp->saddr))
+				continue;
+
+			if (!vrrp->ifp)
+				return vrrp;
+
+			if (vrrp->ifp == old_vrrp->ifp)
+				return vrrp;
+
+			continue;
+		}
+
 #ifndef _HAVE_VRRP_VMAC_
-		if (vrrp->ifp->ifindex == old_vrrp->ifp->ifindex)
+		if (vrrp->ifp == old_vrrp->ifp)
 			return vrrp;
 #else
 		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) != __test_bit(VRRP_VMAC_BIT, &old_vrrp->vmac_flags))
 			continue;
 		if (!__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
-			if (vrrp->ifp->ifindex == old_vrrp->ifp->ifindex)
+			if (vrrp->ifp == old_vrrp->ifp)
 				return vrrp;
 			continue;
 		}
 
-		if (vrrp->ifp->base_ifp->ifindex == old_vrrp->ifp->base_ifp->ifindex)
+		if (vrrp->configured_ifp == old_vrrp->configured_ifp)
 			return vrrp;
 #endif
 	}
@@ -2393,7 +2477,7 @@ shutdown_vrrp_instances(void)
 #endif
 
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
-		/* We may not have an ifp if we are aborting at startup */
+		/* We may not have an ifp if we are aborting at startup or are a unicast instance */
 		if (vrrp->ifp) {
 #ifdef _HAVE_VRRP_VMAC_
 			/* Remove VMAC. If we are shutting down due to a configuration
@@ -2563,7 +2647,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 	if (list_empty(&vrrp->vip)) {
-		if (vrrp->version == VRRP_VERSION_3 || vrrp->family == AF_INET6 || vrrp->strict_mode) {
+		if (vrrp->version == VRRP_VERSION_3 || vrrp->strict_mode) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) No VIP specified; at least one is required"
 								, vrrp->iname);
 			return false;
@@ -2626,12 +2710,26 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #endif
 
 	/* unicast peers aren't allowed in strict mode if the interface supports multicast */
-	if (vrrp->strict_mode && vrrp->ifp->ifindex &&
-	    (vrrp->ifp->ifi_flags & IFF_MULTICAST) &&
-	    !list_empty(&vrrp->unicast_peer)) {
+	if (vrrp->strict_mode && !list_empty(&vrrp->unicast_peer) &&
+	    vrrp->ifp && vrrp->ifp->ifindex && (vrrp->ifp->ifi_flags & IFF_MULTICAST)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Unicast peers are not supported in strict mode"
 							, vrrp->iname);
 		return false;
+	}
+
+	if (!vrrp->ifp) {
+		if (!vrrp->saddr_from_config) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s): Unicast instances must have unicast_src_ip or interface", vrrp->iname);
+			return false;
+		}
+
+		/* For IPv6 unicast, we cannot have no interface and a link local or no src ip address */
+		if (vrrp->family == AF_INET6 &&
+		    IN6_IS_ADDR_LINKLOCAL(&(((struct sockaddr_in6 *)&vrrp->saddr)->sin6_addr))) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Non link-local address required if interface omitted"
+								, vrrp->iname);
+			return false;
+		}
 	}
 
 #ifdef _HAVE_VRRP_VMAC_
@@ -2641,7 +2739,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	     || __test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags)
 #endif
 							      ) &&
-	    vrrp->ifp->ifindex && vrrp->ifp->hw_type != ARPHRD_ETHER) {
+	    vrrp->ifp && vrrp->ifp->ifindex && vrrp->ifp->hw_type != ARPHRD_ETHER) {
 		vrrp->vmac_flags = 0;
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s): vmacs are only supported on Ethernet type interfaces"
 							, vrrp->iname);
@@ -2650,7 +2748,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #endif
 
 	/* If the interface doesn't support multicast, then we need to use unicast */
-	if (vrrp->ifp->ifindex && !(vrrp->ifp->ifi_flags & IFF_MULTICAST) && list_empty(&vrrp->unicast_peer)) {
+	if (vrrp->ifp && vrrp->ifp->ifindex && !(vrrp->ifp->ifi_flags & IFF_MULTICAST) && list_empty(&vrrp->unicast_peer)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) interface %s does not support multicast,"
 							  " specify unicast peers - disabling"
 							, vrrp->iname, vrrp->ifp->ifname);
@@ -2659,6 +2757,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	/* Warn if ARP not supported on interface */
 	if (__test_bit(LOG_DETAIL_BIT, &debug) &&
+	    vrrp->ifp &&
 	    vrrp->ifp->ifindex &&
 	    (vrrp->ifp->ifi_flags & IFF_NOARP) &&
 	    !(vrrp->ifp->ifi_flags & IFF_POINTOPOINT))
@@ -2686,10 +2785,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #endif
 		}
 
-		max_addr = (vrrp->ifp->mtu - hdr_len) / sizeof(struct in_addr);
+		max_addr = ((vrrp->ifp ? vrrp->ifp->mtu : DEFAULT_MTU) - hdr_len) / sizeof(struct in_addr);
 	} else {
 		hdr_len = sizeof(struct ether_header) + sizeof(struct ip6_hdr) + sizeof(vrrphdr_t);
-		max_addr = (vrrp->ifp->mtu - hdr_len) / sizeof(struct in6_addr);
+		max_addr = ((vrrp->ifp ? vrrp->ifp->mtu : DEFAULT_MTU) - hdr_len) / sizeof(struct in6_addr);
 	}
 
 	/* Count IP addrs field is 8 bits wide, giving a maximum address count of 255 */
@@ -2894,7 +2993,8 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 #ifdef _WITH_LINKBEAT_
 	/* Set linkbeat polling on interface if wanted */
-	if (vrrp->linkbeat_use_polling || global_data->linkbeat_use_polling)
+	if (vrrp->ifp &&
+	    (vrrp->linkbeat_use_polling || global_data->linkbeat_use_polling))
 		vrrp->ifp->linkbeat_use_polling = true;
 #endif
 
@@ -3023,7 +3123,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			}
 
 			/* We've found a unique name */
-			strncpy(vrrp->vmac_ifname, ifname, IFNAMSIZ);
+			strcpy_safe(vrrp->vmac_ifname, ifname);
 		}
 
 		if (!interface_already_existed) {
@@ -3082,26 +3182,27 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #endif
 
 	/* Add us to the interfaces we are tracking */
-	list_for_each_entry_safe(tip, tip_tmp, &vrrp->track_ifp, e_list) {
-		/* Check the configuration doesn't explicitly state to track our own interface */
-		if (tip->ifp == IF_BASE_IFP(vrrp->ifp)) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Ignoring track_interface %s"
-								  " since own interface"
-								, vrrp->iname
-								, IF_BASE_IFP(vrrp->ifp)->ifname);
-			free_track_if(tip);
+	if (vrrp->ifp) {
+		list_for_each_entry_safe(tip, tip_tmp, &vrrp->track_ifp, e_list) {
+			/* Check the configuration doesn't explicitly state to track our own interface */
+			if (tip->ifp == IF_BASE_IFP(vrrp->ifp)) {
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) Ignoring track_interface %s"
+									  " since own interface"
+									, vrrp->iname
+									, IF_BASE_IFP(vrrp->ifp)->ifname);
+				free_track_if(tip);
+			} else
+				add_vrrp_to_interface(vrrp, tip->ifp, tip->weight, tip->weight_reverse, false, TRACK_IF);
 		}
-		else
-			add_vrrp_to_interface(vrrp, tip->ifp, tip->weight, tip->weight_reverse, false, TRACK_IF);
-	}
 
-	/* Add this instance to the physical interface and vice versa */
-	add_vrrp_to_interface(vrrp, VRRP_CONFIGURED_IFP(vrrp), vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, false, true, TRACK_VRRP);
+		/* Add this instance to the physical interface and vice versa */
+		add_vrrp_to_interface(vrrp, VRRP_CONFIGURED_IFP(vrrp), vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, false, true, TRACK_VRRP);
+	}
 
 #ifdef _HAVE_VRRP_VMAC_
 	/* If the interface is configured onto a VMAC/IPVLAN interface, we want to track
 	 * the underlying interface too */
-	if (vrrp->configured_ifp != vrrp->configured_ifp->base_ifp && vrrp->configured_ifp->base_ifp)
+	if (vrrp->configured_ifp && vrrp->configured_ifp != vrrp->configured_ifp->base_ifp && vrrp->configured_ifp->base_ifp)
 		add_vrrp_to_interface(vrrp, vrrp->configured_ifp->base_ifp, vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, false, true, TRACK_VRRP_DYNAMIC);
 
 	if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&
@@ -3185,10 +3286,20 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	/* Add each VIP/eVIP's interface to the interface list, unless we aren't tracking it.
 	 * If the interface goes down, then we will not be able to re-add the address, and so
-	 * we should go to fault state. */
-	list_for_each_entry(ip_addr, &vrrp->vip, e_list) {
-		if (!ip_addr->ifp)
-			ip_addr->ifp = vrrp->ifp;
+	 * we should go to fault state.
+	 * If the vip hasn't specified an interface, default to the vrrp instance's i/f
+	 * or if it hasn't got one, the global default_interface. If we still haven't got
+	 * an interface, remove the address. */
+	list_for_each_entry_safe(ip_addr, ip_addr_tmp, &vrrp->vip, e_list) {
+		if (!ip_addr->ifp) {
+			ip_addr->ifp = vrrp->ifp ? vrrp->ifp : get_default_if();
+
+			if (!ip_addr->ifp) {
+				log_message(LOG_INFO, "(%s): no interface for vip %s - removing", vrrp->iname, ipaddresstos(NULL, ip_addr));
+				free_ipaddress(ip_addr);
+				continue;
+			}
+		}
 
 		/* If the vrrp instance doesn't track its primary interface,
 		 * ensure that VIPs don't cause it to be tracked. */
@@ -3196,15 +3307,22 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		    (!vrrp->dont_track_primary ||
 		     (ip_addr->ifp != vrrp->ifp
 #ifdef _HAVE_VRRP_VMAC_
-		      && ip_addr->ifp != IF_BASE_IFP(vrrp->ifp)
+		      && ip_addr->ifp && ip_addr->ifp != IF_BASE_IFP(vrrp->ifp)
 #endif
 							   )))
 			add_vrrp_to_interface(vrrp, ip_addr->ifp, 0, false, false, TRACK_ADDR);
 	}
 
-	list_for_each_entry(ip_addr, &vrrp->evip, e_list) {
-		if (!ip_addr->ifp)
-			ip_addr->ifp = vrrp->ifp;
+	list_for_each_entry_safe(ip_addr, ip_addr_tmp, &vrrp->evip, e_list) {
+		if (!ip_addr->ifp) {
+			ip_addr->ifp = vrrp->ifp ? vrrp->ifp : get_default_if();
+
+			if (!ip_addr->ifp) {
+				log_message(LOG_INFO, "(%s): no interface for evip %s - removing", vrrp->iname, ipaddresstos(NULL, ip_addr));
+				free_ipaddress(ip_addr);
+				continue;
+			}
+		}
 
 		/* If the vrrp instance doesn't track its primary interface,
 		 * ensure that eVIPs don't cause it to be tracked. */
@@ -3221,6 +3339,15 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			have_ipv4_instance = true;
 		else
 			have_ipv6_instance = true;
+	}
+
+	if (list_empty(&vrrp->vip)) {
+		if (vrrp->version == VRRP_VERSION_3 || vrrp->family == AF_INET6 || vrrp->strict_mode) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) No VIP specified; at least one is required", vrrp->iname);
+			return false;
+		}
+
+		report_config_error(CONFIG_WARNING, "(%s) No VIP specified; at least one is sensible", vrrp->iname);
 	}
 
 	/* In case of VRRP SYNC, we have to carefully check that we are
@@ -3343,13 +3470,14 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		add_vrrp_to_track_bfd(vrrp, tbfd);
 #endif
 
-	if (vrrp->ifp->ifindex) {
+	if (!vrrp->ifp || vrrp->ifp->ifindex) {
 		if (!reload && interface_already_existed) {
 			vrrp->vipset = true;	/* Set to force address removal */
 		}
 
 		/* See if we need to set promote_secondaries */
-		if (vrrp->promote_secondaries &&
+		if (vrrp->ifp &&
+		    vrrp->promote_secondaries &&
 		    !vrrp->ifp->promote_secondaries &&
 		    !__test_bit(CONFIG_TEST_BIT, &debug))
 			set_promote_secondaries(vrrp->ifp);
@@ -3611,7 +3739,7 @@ set_vrrp_src_addr(void)
 	vrrp_t *vrrp;
 
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
-		if (vrrp->saddr_from_config)
+		if (vrrp->saddr_from_config || !vrrp->ifp)
 			continue;
 
 		/* Make sure we have an IP address as needed */
@@ -3658,6 +3786,116 @@ set_vrrp_src_addr(void)
 	}
 }
 
+static bool
+check_vrid_conflicts(void)
+{
+	vrrp_t *vrrp;
+	vrrp_t *vrrp1;
+	void *vrrp_saddr, *vrrp1_saddr;
+
+	/* NOTE: The following isn't perfect, since macvlan interfaces may be deleted and
+	 * recreated on a different interface. However, it is checking the current situation. */
+
+	/* Make sure don't have same vrid on same interface with the same address family */
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
+		/* Check none of the rest of the entries conflict */
+		vrrp1 = list_entry(vrrp->e_list.next, vrrp_t, e_list);
+		list_for_each_entry_from(vrrp1, &vrrp_data->vrrp, e_list) {
+			/* Address family or VRID don't match? */
+			if (vrrp->family != vrrp1->family ||
+			    vrrp->vrid != vrrp1->vrid)
+				continue;
+
+			/* Unicast and multicast are separate VRID spaces */
+			if (list_empty(&vrrp->unicast_peer) != list_empty(&vrrp1->unicast_peer))
+				continue;
+
+			if (!list_empty(&vrrp->unicast_peer)) {
+				/* They are both unicasting */
+
+				/* If they are configured on different interfaces, no match */
+				if (vrrp->ifp && vrrp1->ifp &&
+				    vrrp->ifp != vrrp1->ifp)
+					continue;
+
+				/* Check if the local addresses match */
+				if (vrrp->family == AF_INET) {
+					/* Check if both vrrp and vrrp1 have known addresses at the moment */
+					if ((!vrrp->saddr_from_config && !(vrrp->ifp && vrrp->ifp->sin_addr.s_addr)) ||
+					    (!vrrp1->saddr_from_config && !(vrrp1->ifp && vrrp1->ifp->sin_addr.s_addr)))
+						continue;
+
+					vrrp_saddr = vrrp->saddr.ss_family == AF_INET ? &((struct sockaddr_in *)&vrrp->saddr)->sin_addr : &vrrp->ifp->sin_addr;
+					vrrp1_saddr = vrrp1->saddr.ss_family == AF_INET ? &((struct sockaddr_in *)&vrrp1->saddr)->sin_addr : &vrrp1->ifp->sin_addr;
+				} else {
+					/* Check if both vrrp and vrrp1 have known addresses at the moment */
+					if ((!vrrp->saddr_from_config && !(vrrp->ifp && vrrp->ifp->sin6_addr.s6_addr32[0])) ||
+					    (!vrrp1->saddr_from_config && !(vrrp1->ifp && vrrp1->ifp->sin6_addr.s6_addr32[0])))
+						continue;
+
+					vrrp_saddr = vrrp->saddr.ss_family == AF_INET6 ? &((struct sockaddr_in6 *)&vrrp->saddr)->sin6_addr : &vrrp->ifp->sin6_addr;
+					vrrp1_saddr = vrrp1->saddr.ss_family == AF_INET6 ? &((struct sockaddr_in6 *)&vrrp1->saddr)->sin6_addr : &vrrp1->ifp->sin6_addr;
+				}
+
+				if (vrrp_saddr && vrrp1_saddr && inet_inaddrcmp(vrrp->family, vrrp_saddr, vrrp1_saddr))
+					continue;
+
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) duplicate VRID conflict with %s VRID %d", vrrp->iname, vrrp1->iname, vrrp->vrid);
+				return true;
+			}
+
+			/* The vrrp instances are using multicasting */
+			if ((IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp)) != IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp1))
+#if defined _HAVE_VRRP_VMAC_ && defined HAVE_IFLA_LINK_NETNSID
+			     && (vrrp->configured_ifp->base_netns_id == -1 ||
+				 vrrp->configured_ifp->base_netns_id != vrrp1->configured_ifp->base_netns_id ||
+				 vrrp->configured_ifp->base_ifindex != vrrp1->configured_ifp->base_ifindex)
+#endif
+			     ))
+				continue;
+
+			/* Will need to check multicast address matches when allow multicast address per vrrp instance */
+#ifdef _HAVE_VRRP_VMAC_
+			if (global_data->allow_if_changes &&
+			    (VRRP_CONFIGURED_IFP(vrrp)->changeable_type ||
+			     VRRP_CONFIGURED_IFP(vrrp1)->changeable_type)) {
+				if (VRRP_CONFIGURED_IFP(vrrp)->changeable_type) {
+					vrrp->num_script_if_fault++;
+					vrrp->duplicate_vrid_fault = true;
+				} else {
+					vrrp1->num_script_if_fault++;
+					vrrp1->duplicate_vrid_fault = true;
+				}
+				log_message(LOG_INFO, "(%s) - warning, VRID %d for IPv%d"
+						      " is currently duplicated on %s"
+						    , vrrp->iname
+						    , vrrp->vrid
+						    , vrrp->family == AF_INET ? 4 : 6
+						    , vrrp1->iname);
+			}
+			else
+#endif
+			     if (VRRP_CONFIGURED_IFP(vrrp)->ifindex) {
+				report_config_error(CONFIG_GENERAL_ERROR, "%s and %s both use VRID %d"
+									  " with IPv%d on interface %s"
+									, vrrp->iname
+									, vrrp1->iname
+									, vrrp->vrid
+									, vrrp->family == AF_INET ? 4 : 6
+									, IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp))->ifname);
+				return true;
+			}
+
+#ifdef _HAVE_VRRP_VMAC_
+			VRRP_CONFIGURED_IFP(vrrp)->seen_interface = true;
+			IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp))->seen_interface = true;
+#endif
+		}
+	}
+
+	return false;
+}
+
 bool
 vrrp_complete_init(void)
 {
@@ -3667,7 +3905,6 @@ vrrp_complete_init(void)
 	 */
 	vrrp_t *vrrp, *old_vrrp;
 	vrrp_sgroup_t *sgroup, *sgroup_tmp;
-	vrrp_t *vrrp1;
 	size_t max_mtu_len = 0;
 	bool have_master, have_backup;
 	vrrp_script_t *scr, *scr_tmp;
@@ -3739,65 +3976,9 @@ vrrp_complete_init(void)
 			return false;
 	}
 
-	/* Make sure don't have same vrid on same interface with the same address family */
-	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
-		/* If we don't know about the interface this is on, skip */
-		if (!vrrp->ifp || !IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp))->ifindex)
-			continue;
-		/* Check none of the rest of the entries conflict */
-		vrrp1 = list_entry(vrrp->e_list.next, vrrp_t, e_list);
-		list_for_each_entry_from(vrrp1, &vrrp_data->vrrp, e_list) {
-			/* If we don't know about the interface this is on, skip */
-			if (!IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp1))->ifindex)
-				continue;
-
-			if (vrrp->family == vrrp1->family &&
-			    vrrp->vrid == vrrp1->vrid &&
-			    (IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp)) == IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp1))
-#if defined _HAVE_VRRP_VMAC_ && defined HAVE_IFLA_LINK_NETNSID
-			     || (vrrp->configured_ifp->base_netns_id != -1 &&
-				 vrrp->configured_ifp->base_netns_id == vrrp1->configured_ifp->base_netns_id &&
-				 vrrp->configured_ifp->base_ifindex == vrrp1->configured_ifp->base_ifindex)
-#endif
-			     )) {
-#ifdef _HAVE_VRRP_VMAC_
-				if (global_data->allow_if_changes &&
-				    (VRRP_CONFIGURED_IFP(vrrp)->changeable_type ||
-				     VRRP_CONFIGURED_IFP(vrrp1)->changeable_type)) {
-					if (VRRP_CONFIGURED_IFP(vrrp)->changeable_type) {
-						vrrp->num_script_if_fault++;
-						vrrp->duplicate_vrid_fault = true;
-					} else {
-						vrrp1->num_script_if_fault++;
-						vrrp1->duplicate_vrid_fault = true;
-					}
-					log_message(LOG_INFO, "(%s) - warning, VRID %d for IPv%d"
-							      " is currently duplicated on %s"
-							    , vrrp->iname
-							    , vrrp->vrid
-							    , vrrp->family == AF_INET ? 4 : 6
-							    , vrrp1->iname);
-				}
-				else
-#endif
-				     if (VRRP_CONFIGURED_IFP(vrrp)->ifindex) {
-					report_config_error(CONFIG_GENERAL_ERROR, "%s and %s both use VRID %d"
-										  " with IPv%d on interface %s"
-										, vrrp->iname
-										, vrrp1->iname
-										, vrrp->vrid
-										, vrrp->family == AF_INET ? 4 : 6
-										, IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp))->ifname);
-					return false;
-				}
-			}
-
-#ifdef _HAVE_VRRP_VMAC_
-			VRRP_CONFIGURED_IFP(vrrp)->seen_interface = true;
-			IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp))->seen_interface = true;
-#endif
-		}
-	}
+	/* Make sure we don't have duplicate VRIDs */
+	if (check_vrid_conflicts())
+		return false;
 
 	/* Build synchronization group index, and remove any
 	 * empty groups */
@@ -3819,7 +4000,7 @@ vrrp_complete_init(void)
 		if (!vrrp_complete_instance(vrrp))
 			return false;
 
-		if (vrrp->ifp->mtu > max_mtu_len)
+		if (vrrp->ifp && vrrp->ifp->mtu > max_mtu_len)
 			max_mtu_len = vrrp->ifp->mtu;
 	}
 
@@ -4006,7 +4187,7 @@ vrrp_complete_init(void)
 		}
 	}
 
-	alloc_vrrp_buffer(max_mtu_len);
+	alloc_vrrp_buffer(max_mtu_len ? max_mtu_len : DEFAULT_MTU);
 
 	return true;
 }
@@ -4131,7 +4312,7 @@ clear_diff_vrrp(void)
 #ifdef _HAVE_VRRP_VMAC_
 // TODO - the vmac may be being used by another instance
 			/* Remove VMAC if one was created */
-			if (vrrp->ifp->is_ours /*__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)*/)
+			if (vrrp->ifp && vrrp->ifp->is_ours /*__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)*/)
 				netlink_link_del_vmac(vrrp);
 #endif
 #ifdef _WITH_DBUS_
@@ -4159,7 +4340,8 @@ clear_diff_vrrp(void)
 			 * Remove VMAC/IPVLAN if it existed in old vrrp instance,
 			 * but not the new one.
 			 */
-			if (vrrp->ifp->is_ours &&
+			if (vrrp->ifp &&
+			    vrrp->ifp->is_ours &&
 			    ((__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
 			      !__test_bit(VRRP_VMAC_BIT, &new_vrrp->vmac_flags))
 #ifdef _HAVE_VRRP_IPVLAN_

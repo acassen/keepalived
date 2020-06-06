@@ -1328,7 +1328,13 @@ The syntax for vrrp_instance is :
     # So the entry here doesn't matter a whole lot.
     \fBstate \fRMASTER
 
-    # interface for inside_network, bound by vrrp
+    # interface for inside_network, bound by vrrp.
+    # Note: if using unicasting, the interface can be omitted as long
+    #   as the unicast addresses are not IPv6 link local addresses (this is
+    #   necessary, for example, if using asymmetric routing).
+    #   If the interface is omitted, then all VIPs and eVIPs should specify
+    #   the interface they are to be configured on, otherwise they will be
+    #   added to the default interface.
     \fBinterface \fReth0
 
     # Use VRRP Virtual MAC.

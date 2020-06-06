@@ -404,16 +404,12 @@ parse_route(const char *str)
 }
 
 void
-alloc_ipaddress(list_head_t *ip_list, const vector_t *strvec, const interface_t *ifp, bool allow_track_group)
+alloc_ipaddress(list_head_t *ip_list, const vector_t *strvec, bool static_addr)
 {
 /* The way this works is slightly strange.
  *
- * If !ifp, then this is being called for a static address, in which
- * case either dev DEVNAME must be specified, or we will attempt to
- * add the address to DFTL_INT.
- * Otherwise, we are being called for a VIP/eVIP. We don't set the
- * interface for the address unless dev DEVNAME is specified, in case
- * a VMAC is added later. When the complete configuration is checked,
+ * We don't set the interface for the address unless dev DEVNAME is specified,
+ * in case a VMAC is added later. When the complete configuration is checked,
  * if the ifindex is 0, then it will be set to the interface of the
  * vrrp_instance (VMAC or physical interface).
  */
@@ -585,7 +581,7 @@ alloc_ipaddress(list_head_t *ip_list, const vector_t *strvec, const interface_t 
 				preferred_lft_set = true;
 			} else
 				report_config_error(CONFIG_GENERAL_ERROR, "preferred_lft %s is invalid", strvec_slot(strvec, i));
-		} else if (allow_track_group && !strcmp(str, "track_group")) {
+		} else if (static_addr && !strcmp(str, "track_group")) {
 			if (!param_avail) {
 				param_missing = true;
 				break;
@@ -626,18 +622,15 @@ alloc_ipaddress(list_head_t *ip_list, const vector_t *strvec, const interface_t 
 	else if (brd_len < 0)
 		report_config_error(CONFIG_GENERAL_ERROR, "Address prefix length %d too long for broadcast", new->ifa.ifa_prefixlen);
 
-	if (!ifp && !new->ifp) {
-		if (!global_data->default_ifp) {
-			global_data->default_ifp = if_get_by_ifname(DFLT_INT, IF_CREATE_IF_DYNAMIC);
-			if (!global_data->default_ifp) {
-				report_config_error(CONFIG_FATAL, "Static address %s requires either an interface"
-								  " or default interface %s must exist"
-								, strvec_slot(strvec, addr_idx), DFLT_INT);
-				FREE(new);
-				return;
-			}
+	if (static_addr && !new->ifp) {
+		new->ifp = get_default_if();
+		if (!new->ifp) {
+			report_config_error(CONFIG_FATAL, "Static address %s requires either an interface"
+							  " or default interface must exist"
+							, strvec_slot(strvec, addr_idx));
+			FREE(new);
+			return;
 		}
-		new->ifp = global_data->default_ifp;
 	}
 
 	if (new->ifa.ifa_family == AF_INET6) {
@@ -661,7 +654,7 @@ alloc_ipaddress(list_head_t *ip_list, const vector_t *strvec, const interface_t 
 	}
 
 	if (new->track_group && !new->ifp) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Static route have track_group if interface not specified");
+		report_config_error(CONFIG_GENERAL_ERROR, "Static route cannot have track_group if interface not specified");
 		new->track_group = NULL;
 	}
 

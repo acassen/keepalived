@@ -41,7 +41,7 @@ typedef struct _sock {
 	sa_family_t		family;
 	int			proto;
 	interface_t		*ifp;
-	bool			unicast;
+	const struct sockaddr_storage	*unicast_src;
 	int			fd_in;
 	int			fd_out;
 	int			rx_buf_size;

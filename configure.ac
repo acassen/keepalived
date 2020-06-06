@@ -2162,6 +2162,9 @@ if test "$enable_snmp" = yes -o \
   NETSNMP_CFLAGS="`${NETSNMP_CONFIG} --base-cflags`"
   NETSNMP_CPPFLAGS="-DNETSNMP_NO_INLINE"
 
+  # net-snmp-config can add -I/usr/include, so remove it
+  NETSNMP_CFLAGS=`echo $NETSNMP_CFLAGS " " | sed -e "s:-I */usr/include ::"`
+
   # net-snmp-config adds compiler and linker options that were set at the time
   # net-snmp was built, and this can include spec files that may not exist
   # on the system building keepalived. We need to check if any spec files

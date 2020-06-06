@@ -2093,6 +2093,8 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = rt->vipset?1:2;
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_INSTANCE_PRIMARYINTERFACE:
+		if (!rt->ifp)
+			return NULL;
 		*var_len = strlen(rt->ifp->ifname);
 		return (u_char *)&rt->ifp->ifname;
 	case VRRP_SNMP_INSTANCE_TRACKPRIMARYIF:
@@ -3250,7 +3252,7 @@ vrrp_rfcv2_header_ar_table(struct variable *vp, oid *name, size_t *length,
 		if (!suitable_for_rfc2787(vrrp))
 			continue;
 
-		current[0] = IF_BASE_INDEX(vrrp->ifp);
+		current[0] = vrrp->ifp ? IF_BASE_INDEX(vrrp->ifp) : 0;
 		current[1] = vrrp->vrid;
 
 		if ((result = snmp_oid_compare(current, 2, target, target_len)) < 0)
@@ -3375,10 +3377,10 @@ snmp_rfcv2_header_list_table(struct variable *vp, oid *name, size_t *length,
 		if (!suitable_for_rfc2787(vrrp))
 			continue;
 
-		if (target_len && (IF_BASE_INDEX(vrrp->ifp) < target[0]))
+		if (target_len && (vrrp->ifp ? IF_BASE_INDEX(vrrp->ifp) : 0 < target[0]))
 			continue; /* Optimization: cannot be part of our set */
 
-		current[0] = IF_BASE_INDEX(vrrp->ifp);
+		current[0] = vrrp->ifp ? IF_BASE_INDEX(vrrp->ifp) : 0;
 		current[1] = vrrp->vrid;
 		if ((result = snmp_oid_compare(current, 2, target, target_len)) < 0)
 			continue;
@@ -3422,6 +3424,8 @@ vrrp_rfcv2_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 
 	switch (vp->magic) {
 	case VRRP_RFC_SNMP_OPER_VMAC:
+		if (!rt->ifp)
+			return NULL;
 		*var_len = rt->ifp->hw_addr_len;
 		return (u_char*)&rt->ifp->hw_addr;
 	case VRRP_RFC_SNMP_OPER_STATE:
@@ -3441,6 +3445,8 @@ vrrp_rfcv2_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 		*var_len = sizeof ((struct sockaddr_in *)&rt->master_saddr)->sin_addr.s_addr;
 		return (u_char*)&((struct sockaddr_in *)&rt->master_saddr)->sin_addr.s_addr;
 	case VRRP_RFC_SNMP_OPER_PIP:
+		if (!rt->ifp)
+			return NULL;
 #ifdef _HAVE_VRRP_VMAC_
 		if (IS_MAC_IP_VLAN(rt->ifp))
 			ifp = rt->ifp->base_ifp;
@@ -3711,7 +3717,7 @@ vrrp_rfcv2_snmp_new_master_trap(vrrp_t *vrrp)
 	oid objid_snmptrap[] = { SNMPTRAP_OID };
 	size_t objid_snmptrap_len = OID_LENGTH(objid_snmptrap);
 	/* OID for trap data vrrpOperMasterIPAddr */
-	oid masterip_oid[] = { VRRP_RFC_OID, 1, 3, 1, 7, IF_BASE_INDEX(vrrp->ifp), vrrp->vrid };
+	oid masterip_oid[] = { VRRP_RFC_OID, 1, 3, 1, 7, vrrp->ifp ? IF_BASE_INDEX(vrrp->ifp) : 0, vrrp->vrid };
 	size_t masterip_oid_len = OID_LENGTH(masterip_oid);
 
 	netsnmp_variable_list *notification_vars = NULL;
@@ -3751,10 +3757,10 @@ vrrp_rfcv2_snmp_auth_err_trap(vrrp_t *vrrp, struct in_addr src, enum rfcv2_trap_
 	oid objid_snmptrap[] = { SNMPTRAP_OID };
 	size_t objid_snmptrap_len = OID_LENGTH(objid_snmptrap);
 	/* OID for trap data vrrpTrapPacketSrc */
-	oid packet_src_oid[] = { VRRP_RFC_OID, 1, 5, IF_INDEX(vrrp->ifp), vrrp->vrid };
+	oid packet_src_oid[] = { VRRP_RFC_OID, 1, 5, vrrp->ifp ? IF_INDEX(vrrp->ifp) : 0, vrrp->vrid };
 	size_t packet_src_oid_len = OID_LENGTH(packet_src_oid);
 	/* OID for trap data vrrpTrapAuthErrorType */
-	oid err_type_oid[] = { VRRP_RFC_OID, 1, 6, IF_INDEX(vrrp->ifp), vrrp->vrid };
+	oid err_type_oid[] = { VRRP_RFC_OID, 1, 6, vrrp->ifp ? IF_INDEX(vrrp->ifp) : 0, vrrp->vrid };
 	size_t err_type_oid_len = OID_LENGTH(err_type_oid);
 
 	netsnmp_variable_list *notification_vars = NULL;
@@ -3879,7 +3885,7 @@ vrrp_rfcv3_header_ar_table(struct variable *vp, oid *name, size_t *length,
 		if (!suitable_for_rfc6527(vrrp))
 			continue;
 
-		current[0] = IF_BASE_INDEX(vrrp->ifp);
+		current[0] = vrrp->ifp ? IF_BASE_INDEX(vrrp->ifp) : 0;
 		current[1] = vrrp->vrid;
 		current[2] = vrrp->family == AF_INET ? 1 : 2;
 
@@ -4018,12 +4024,12 @@ snmp_rfcv3_header_list_table(struct variable *vp, oid *name, size_t *length,
 		if (!suitable_for_rfc6527(vrrp))
 			continue;
 
-		if (target_len && (IF_BASE_INDEX(vrrp->ifp) < target[0] ||
-				   (IF_BASE_INDEX(vrrp->ifp) == target[0] &&
+		if (target_len && ((vrrp->ifp ? IF_BASE_INDEX(vrrp->ifp) : 0) < target[0] ||
+				   ((vrrp->ifp ? IF_BASE_INDEX(vrrp->ifp) : 0) == target[0] &&
 				    vrrp->vrid < target[1])))
 			continue; /* Optimization: cannot be part of our set */
 
-		current[0] = IF_BASE_INDEX(vrrp->ifp);
+		current[0] = vrrp->ifp ? IF_BASE_INDEX(vrrp->ifp) : 0;
 		current[1] = vrrp->vrid;
 		current[2] = vrrp->family == AF_INET ? 1 : 2;
 		if ((result = snmp_oid_compare(current, 3, target, target_len)) < 0)
@@ -4079,6 +4085,8 @@ vrrp_rfcv3_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 		/* If we are master, we want to return the Primary IP address */
 		/* Falls through. */
 	case VRRP_RFCv3_SNMP_OPER_PIP:
+		if (!rt->ifp)
+			return NULL;
 #ifdef _HAVE_VRRP_VMAC_
 		if (IS_MAC_IP_VLAN(rt->ifp))
 			ifp = rt->ifp->base_ifp;
@@ -4092,6 +4100,8 @@ vrrp_rfcv3_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 		*var_len = sizeof(struct in6_addr);
 		return (u_char*)&ifp->sin6_addr;
 	case VRRP_RFCv3_SNMP_OPER_VMAC:
+		if (!rt->ifp)
+			return NULL;
 		*var_len = rt->ifp->hw_addr_len;
 		return (u_char*)&rt->ifp->hw_addr;
 	case VRRP_RFCv3_SNMP_OPER_STATE:
@@ -4373,9 +4383,9 @@ vrrp_rfcv3_snmp_new_master_notify(vrrp_t *vrrp)
 	oid objid_snmptrap[] = { SNMPTRAP_OID };
 	size_t objid_snmptrap_len = OID_LENGTH(objid_snmptrap);
 	/* OID for trap data vrrpOperMasterIPAddr */
-	oid masterip_oid[] = { VRRP_RFCv3_OID, 1, 1, 1, 1, 3, IF_BASE_INDEX(vrrp->ifp), vrrp->vrid, vrrp->family == AF_INET ? 1 : 2 };
+	oid masterip_oid[] = { VRRP_RFCv3_OID, 1, 1, 1, 1, 3, vrrp->ifp ? IF_BASE_INDEX(vrrp->ifp) : 0, vrrp->vrid, vrrp->family == AF_INET ? 1 : 2 };
 	size_t masterip_oid_len = OID_LENGTH(masterip_oid);
-	oid master_reason_oid[] = { VRRP_RFCv3_OID, 1, 2, 5, 1, 2, IF_BASE_INDEX(vrrp->ifp), vrrp->vrid, vrrp->family == AF_INET ? 1 : 2 };
+	oid master_reason_oid[] = { VRRP_RFCv3_OID, 1, 2, 5, 1, 2, vrrp->ifp ? IF_BASE_INDEX(vrrp->ifp) : 0, vrrp->vrid, vrrp->family == AF_INET ? 1 : 2 };
 	size_t master_reason_oid_len = OID_LENGTH(master_reason_oid);
 	uint32_t reason = vrrp->stats->master_reason;
 
@@ -4429,7 +4439,7 @@ vrrp_rfcv3_snmp_proto_err_notify(vrrp_t *vrrp)
 	oid objid_snmptrap[] = { SNMPTRAP_OID };
 	size_t objid_snmptrap_len = OID_LENGTH(objid_snmptrap);
 	/* OID for notify data vrrpTrapProtoErrorType */
-	oid err_type_oid[] = { VRRP_RFCv3_OID, 1, 2, 5, 1, 6, IF_INDEX(vrrp->ifp), vrrp->vrid, vrrp->family == AF_INET ? 1 : 2 };
+	oid err_type_oid[] = { VRRP_RFCv3_OID, 1, 2, 5, 1, 6, vrrp->ifp ? IF_INDEX(vrrp->ifp) : 0, vrrp->vrid, vrrp->family == AF_INET ? 1 : 2 };
 	size_t err_type_oid_len = OID_LENGTH(err_type_oid);
 
 	netsnmp_variable_list *notification_vars = NULL;

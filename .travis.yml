@@ -25,6 +25,18 @@ addons:
     - libnftnl-dev
     update: true
 
+  coverity_scan:
+    project:
+      name: "pqarmitage/keepalived"
+      description: "Keepalived: : Loadbalancing & High-Availability"
+    notification_email: quentin@armitage.org.uk
+    build_command_prepend: "./configure --enable-bfd --enable-snmp --enable-snmp-rfc --enable-dbus --enable-sha1 --enable-regex --enable-json --enable-debug --disable-eintr-debug --with-fixed-if-type=veth"
+    build_command: "make"
+    branch_pattern: coverity_scan
+
+before_install:
+  - echo -n | openssl s_client -connect https://scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
+
 install:
   - autoreconf -W portability -visf
 
@@ -32,9 +44,14 @@ before_script:
   - ./test/ci/setup.sh
 
 script:
-  - ./test/ci/build.sh
+  - if [ ${COVERITY_SCAN_BRANCH} != 1 ]; then ./test/ci/build.sh; fi
 
 env:
+  global:
+   # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
+   #   via the "travis encrypt" command using the project repo's public key
+   - secure: "dTIix/hoX+ch5ZLHNl9Jxc80A6MTsd0T6GQX3Pe7/J3UOmwmOV1IZROJ/2skUAgvFb/H9HAfhKWy5ey2wRiIcQeWf2goUTFs6ub2X/pmtKKd2QfEMo3ho1I1Ln2+mvwlP6mQPkT7NGLNepM+wNU24YBd4us99zzyeOZyzgCjOEMfMqeKZOC3b/DIZXa8Bq/uQHa2CYumlaLzZgjfPD/3pd1xw6pGTa6t5FrB0TH3TYvBb7zbvYnODkNu3+xW/7qJ4AvGIrr3GBINqfmNYqYJ53uhwEI8jgDToTjg5m75NqO/FxCq7CjHUr0/TcKwjCUcHfjYITxBftQ4/VJ5P/0T1Jb3t9smusFB7tks45JHRAO/Oyo8CRbJsqMWY31ve+X/xe7ryV5LRJ0lbZFCyTO8H0cY069P0/lb2XsMBGv3bibgE5Zh47Jf0q3oCjUQOGvAKiPXPsS7BFuUY6X5g7jGds2PqUED28WuoPixYKTQq6E0+Z+h/8OTtCZ/aUeV+tw4aOR27wyyD/91K+ETpnxvKicEnyLVWfRSO1ejsNxzitMx1mW5nn08D3hb1+NcdZQRWYO8zZXVTWgA4PBS/pSVl8P97jdV2mnSX8shTHmMmzEnKjnDpgxNHu9Fq1HgNHhXX7zmYgwCV2elia2n8B6GujPJUjntZGZTmj3WOcTBe8E="
+
   matrix:
     - KEEPALIVED_CONFIG_ARGS=""
     - KEEPALIVED_CONFIG_ARGS="--enable-snmp --enable-snmp-rfc --enable-json --enable-dbus --disable-checksum-compat --enable-bfd --enable-asserts"

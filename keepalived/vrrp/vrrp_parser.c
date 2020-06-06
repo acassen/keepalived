@@ -409,6 +409,23 @@ vrrp_handler(const vector_t *strvec)
 
 	alloc_vrrp(iname);
 }
+static void
+vrrp_end_handler(void)
+{
+#ifdef _HAVE_VRRP_VMAC_
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
+
+	if (!list_empty(&vrrp->unicast_peer) && vrrp->vmac_flags) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s): Cannot use VMAC/ipvlan with unicast peers - clearing use_vmac", vrrp->iname);
+		vrrp->vmac_flags = 0;
+		vrrp->vmac_ifname[0] = '\0';
+	}
+#endif
+
+	if (!vrrp->ifp) {
+		vrrp->linkbeat_use_polling = false;
+	}
+}
 #ifdef _HAVE_VRRP_VMAC_
 /* The following function is copied from kernel net/core/dev.c */
 static bool __attribute__ ((pure))
@@ -1693,7 +1710,7 @@ static void
 garp_group_end_handler(void)
 {
 	garp_delay_t *delay = list_last_entry(&garp_delay, garp_delay_t, e_list);
-	interface_t *ifp, *ifp_tmp;
+	interface_t *ifp;
 	list_head_t *ifq;
 
 	if (!delay->have_garp_interval && !delay->have_gna_interval) {
@@ -1701,7 +1718,7 @@ garp_group_end_handler(void)
 
 		/* Remove the garp_delay from any interfaces that are using it */
 		ifq = get_interface_queue();
-		list_for_each_entry_safe(ifp, ifp_tmp, ifq, e_list) {
+		list_for_each_entry(ifp, ifq, e_list) {
 			if (ifp->garp_delay == delay)
 				ifp->garp_delay = NULL;
 		}
@@ -1760,6 +1777,7 @@ init_vrrp_keywords(bool active)
 
 	/* VRRP Instance declarations */
 	install_keyword_root("vrrp_instance", &vrrp_handler, active);
+	install_root_end_handler(&vrrp_end_handler);
 #ifdef _HAVE_VRRP_VMAC_
 	install_keyword("use_vmac", &vrrp_vmac_handler);
 	install_keyword("vmac_xmit_base", &vrrp_vmac_xmit_base_handler);

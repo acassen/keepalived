@@ -150,6 +150,7 @@ file_end_handler(void)
 	if (!tfile->file) {
 		report_config_error(CONFIG_GENERAL_ERROR, "FILE_CHECK has no track_file specified - ignoring");
 		free_track_file_monitor(tfile);
+		return;
 	}
 
 	if (!tfile->weight) {

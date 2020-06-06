@@ -154,7 +154,7 @@ addr_is_equal2(struct ifaddrmsg* ifa, void* addr, ip_address_t* vip_addr, interf
 	if (vip_addr->ifa.ifa_family != ifa->ifa_family)
 		return false;
 	if (vip_addr->ifp != ifp &&
-	    !(vrrp && vip_addr->ifp == vrrp->ifp && VRRP_CONFIGURED_IFP(vrrp) == ifp))
+	    !(vrrp && vrrp->ifp && vip_addr->ifp == vrrp->ifp && VRRP_CONFIGURED_IFP(vrrp) == ifp))
 		return false;
 	if (vip_addr->ifa.ifa_family == AF_INET) {
 		sin_addr = (struct in_addr *)addr;
@@ -1010,6 +1010,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 #ifdef _HAVE_VRRP_VMAC_
 						/* If IPv6 link local and vmac doesn't have an address, add it to the vmac */
 						else if (vrrp->family == AF_INET6 &&
+							 vrrp->ifp &&
 							 ifp == vrrp->ifp->base_ifp &&
 							 IS_MAC_IP_VLAN(vrrp->ifp) &&
 							 !__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&
@@ -1098,6 +1099,9 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 				/* See if any vrrp instances need to be downed */
 				list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
 					vrrp = top->obj.vrrp;
+
+					if (!vrrp->ifp)
+						continue;
 
 					if (ifp != vrrp->ifp
 #ifdef _HAVE_VRRP_VMAC_
