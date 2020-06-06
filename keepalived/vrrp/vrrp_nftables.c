@@ -1571,6 +1571,7 @@ nft_update_ipv6_address(struct mnl_nlmsg_batch *batch, ip_address_t *addr, bool 
 		set_name = "vips";
 	} else if (!global_data->vrrp_nf_ifindex &&
 		   dont_track_primary &&
+// TODO - why the ifp check ?
 		   (addr->ifp == ifp || addr->dont_track)) {
 		s = set_ll_ifname;
 		set_name = "vips_link_local_name";

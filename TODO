@@ -1,3 +1,8 @@
+BUG - If have VIP on a different interface from the VRRP instance, the
+interface isn't tracked and so we do nothing if the interface is deleted.
+
+Fix building on CentOS 6.10
+
 In parsers, using LIST_TAIL to find object to configure doesn't work
 if error in first line means not created. TAIL could be null, or previous
 object.

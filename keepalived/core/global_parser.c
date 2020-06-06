@@ -431,16 +431,6 @@ default_interface_handler(const vector_t *strvec)
 	}
 	FREE_CONST_PTR(global_data->default_ifname);
 	global_data->default_ifname = set_value(strvec);
-
-	/* On a reload, the VRRP process needs the default_ifp */
-#ifndef _ONE_PROCESS_DEBUG_
-	if (prog_type == PROG_TYPE_VRRP)
-#endif
-	{
-		global_data->default_ifp = if_get_by_ifname(global_data->default_ifname, IF_CREATE_IF_DYNAMIC);
-		if (!global_data->default_ifp)
-			report_config_error(CONFIG_GENERAL_ERROR, "WARNING - default interface %s doesn't exist", global_data->default_ifname);
-	}
 }
 #endif
 #ifdef _WITH_LVS_
