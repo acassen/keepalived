@@ -393,7 +393,8 @@ icmp_connect_thread(thread_ref_t thread)
 		log_message(LOG_INFO, "Unable to set CLOEXEC on icmp_connect socket - %s (%d)", strerror(errno), errno);
 #endif
 
-	setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
+	if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size)))
+		log_message(LOG_INFO, "setsockopt SO_RCVBUF for socket %d failed (%d) - %m", fd, errno);
 
 	/*
 	 * OK if setsockopt fails

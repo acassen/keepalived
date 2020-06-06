@@ -711,19 +711,22 @@ check_tx_checksum(vrrp_t *vrrp, unicast_peer_t *peer)
 static void
 check_rx_checksum(vrrp_t *vrrp, const ipv4_phdr_t *ipv4_phdr, const struct iphdr *iph, size_t pkt_len, const vrrphdr_t *vrrp_pkt, uint16_t calc_chksum, uint32_t acc_csum)
 {
-	unicast_peer_t *peer = NULL;
+	unicast_peer_t *peer;
 	struct in_addr *saddr4;
 	struct sockaddr_storage addr;
 	checksum_check_t *chk;
+	bool peer_found = false;
 
 	/* If unicast, find the sending peer */
 	saddr4 = &((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr;
 	list_for_each_entry(peer, &vrrp->unicast_peer, e_list) {
-		if (saddr4->s_addr == ((struct sockaddr_in *)&peer->address)->sin_addr.s_addr)
+		peer_found = true;
+		if (saddr4->s_addr == ((struct sockaddr_in *)&peer->address)->sin_addr.s_addr) {
 			break;
+		}
 	}
 
-	chk = peer ? &peer->chk : &vrrp->chk;
+	chk = peer_found ? &peer->chk : &vrrp->chk;
 	if (calc_chksum ||
 	    !chk->received_from ||
 	    chk->last_rx_checksum != vrrp_pkt->chksum ||
@@ -1125,22 +1128,27 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 		if (global_data->vrrp_check_unicast_src && !list_empty(&vrrp->unicast_peer)) {
 			struct in_addr *saddr4;
 			struct in6_addr *saddr6;
+			bool found_match = false;
 
 			if (vrrp->family == AF_INET6) {
 				saddr6 = &((struct sockaddr_in6 *)&vrrp->pkt_saddr)->sin6_addr;
 				list_for_each_entry(up_addr, &vrrp->unicast_peer, e_list) {
-					if (IN6_ARE_ADDR_EQUAL(saddr6, &((struct sockaddr_in6 *)&up_addr->address)->sin6_addr))
+					if (IN6_ARE_ADDR_EQUAL(saddr6, &((struct sockaddr_in6 *)&up_addr->address)->sin6_addr)) {
+						found_match = true;
 						break;
+					}
 				}
 			} else {
 				saddr4 = &((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr;
 				list_for_each_entry(up_addr, &vrrp->unicast_peer, e_list) {
-					if (saddr4->s_addr == ((struct sockaddr_in *)&up_addr->address)->sin_addr.s_addr)
+					if (saddr4->s_addr == ((struct sockaddr_in *)&up_addr->address)->sin_addr.s_addr) {
+						found_match = true;
 						break;
+					}
 				}
 			}
 
-			if (!up_addr) {
+			if (!found_match) {
 				log_message(LOG_INFO, "(%s) unicast source address %s not a unicast peer",
 					vrrp->iname,
 					inet_ntop(vrrp->family,
@@ -2235,12 +2243,13 @@ open_vrrp_send_socket(sa_family_t family, int proto, const interface_t *ifp, con
 			if_setsockopt_mcast_hops(family, &fd);
 	}
 
-	if (ifp)
+	if (ifp) {
 		if_setsockopt_bindtodevice(&fd, ifp);
 
-	if (!unicast_src) {
-		if_setsockopt_mcast_if(family, &fd, ifp);
-		if_setsockopt_mcast_loop(family, &fd);
+		if (!unicast_src) {
+			if_setsockopt_mcast_if(family, &fd, ifp);
+			if_setsockopt_mcast_loop(family, &fd);
+		}
 	}
 // TODO - do we want one send socket for all unicast, or per local unicast address to match recv socket. We could use the same socket for send and receive
 
@@ -2294,6 +2303,7 @@ open_vrrp_read_socket(sa_family_t family, int proto, const interface_t *ifp, con
 // TODO - allow different mcast per vrrp instance - VRID  check then needs to include mcast group
 // could have different socket per mcast addr, or not
 // OR just say use different keepalived instances
+		/* coverity[forward_null] - ifp cannot be NULL if not unicast */
 		if_join_vrrp_group(family, &fd, ifp);
 
 #ifdef IPV6_RECVHOPLIMIT	/* Since Linux 2.6.14 */
@@ -2729,7 +2739,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	     || __test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags)
 #endif
 							      ) &&
-	    vrrp->ifp->ifindex && vrrp->ifp->hw_type != ARPHRD_ETHER) {
+	    vrrp->ifp && vrrp->ifp->ifindex && vrrp->ifp->hw_type != ARPHRD_ETHER) {
 		vrrp->vmac_flags = 0;
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s): vmacs are only supported on Ethernet type interfaces"
 							, vrrp->iname);
@@ -3113,7 +3123,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			}
 
 			/* We've found a unique name */
-			strncpy(vrrp->vmac_ifname, ifname, IFNAMSIZ);
+			strcpy_safe(vrrp->vmac_ifname, ifname);
 		}
 
 		if (!interface_already_existed) {
@@ -3297,7 +3307,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		    (!vrrp->dont_track_primary ||
 		     (ip_addr->ifp != vrrp->ifp
 #ifdef _HAVE_VRRP_VMAC_
-		      && ip_addr->ifp != IF_BASE_IFP(vrrp->ifp)
+		      && ip_addr->ifp && ip_addr->ifp != IF_BASE_IFP(vrrp->ifp)
 #endif
 							   )))
 			add_vrrp_to_interface(vrrp, ip_addr->ifp, 0, false, false, TRACK_ADDR);
@@ -3811,23 +3821,23 @@ check_vrid_conflicts(void)
 				/* Check if the local addresses match */
 				if (vrrp->family == AF_INET) {
 					/* Check if both vrrp and vrrp1 have known addresses at the moment */
-					if ((!vrrp->saddr_from_config && !vrrp->ifp->sin_addr.s_addr) ||
-					    (!vrrp1->saddr_from_config && !vrrp1->ifp->sin_addr.s_addr))
+					if ((!vrrp->saddr_from_config && !(vrrp->ifp && vrrp->ifp->sin_addr.s_addr)) ||
+					    (!vrrp1->saddr_from_config && !(vrrp1->ifp && vrrp1->ifp->sin_addr.s_addr)))
 						continue;
 
 					vrrp_saddr = vrrp->saddr.ss_family == AF_INET ? &((struct sockaddr_in *)&vrrp->saddr)->sin_addr : &vrrp->ifp->sin_addr;
 					vrrp1_saddr = vrrp1->saddr.ss_family == AF_INET ? &((struct sockaddr_in *)&vrrp1->saddr)->sin_addr : &vrrp1->ifp->sin_addr;
 				} else {
 					/* Check if both vrrp and vrrp1 have known addresses at the moment */
-					if ((!vrrp->saddr_from_config && !vrrp->ifp->sin6_addr.s6_addr32[0]) ||
-					    (!vrrp1->saddr_from_config && !vrrp1->ifp->sin6_addr.s6_addr32[0]))
+					if ((!vrrp->saddr_from_config && !(vrrp->ifp && vrrp->ifp->sin6_addr.s6_addr32[0])) ||
+					    (!vrrp1->saddr_from_config && !(vrrp1->ifp && vrrp1->ifp->sin6_addr.s6_addr32[0])))
 						continue;
 
 					vrrp_saddr = vrrp->saddr.ss_family == AF_INET6 ? &((struct sockaddr_in6 *)&vrrp->saddr)->sin6_addr : &vrrp->ifp->sin6_addr;
 					vrrp1_saddr = vrrp1->saddr.ss_family == AF_INET6 ? &((struct sockaddr_in6 *)&vrrp1->saddr)->sin6_addr : &vrrp1->ifp->sin6_addr;
 				}
 
-				if (inet_inaddrcmp(vrrp->family, vrrp_saddr, vrrp1_saddr))
+				if (vrrp_saddr && vrrp1_saddr && inet_inaddrcmp(vrrp->family, vrrp_saddr, vrrp1_saddr))
 					continue;
 
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) duplicate VRID conflict with %s VRID %d", vrrp->iname, vrrp1->iname, vrrp->vrid);

@@ -374,8 +374,11 @@ inotify_event_thread(thread_ref_t thread)
 
 					return 0;
 				}
-				
-				if (event->len && !strcmp(event->name, file_name)) {
+
+ 				/* coverity[string_null] */
+				if (event->mask & (IN_CREATE | IN_MOVED_TO | IN_DELETE | IN_MOVED_FROM) &&
+				    event->len &&
+				    !strcmp(event->name, file_name)) {
 					if (event->mask & (IN_CREATE | IN_MOVED_TO)) {
 						file_wd = watch_file(thread->u.f.fd);
 #ifdef RELOAD_DEBUG

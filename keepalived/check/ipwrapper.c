@@ -648,8 +648,10 @@ update_svr_wgt(int weight, virtual_server_t * vs, real_server_t * rs
 /* TODO - handle weight = 0 - ? affects quorum */
 	if (weight <= 0)
 		weight = 1;
+#if IPVS_WEIGHT_MAX != INT_MAX
 	else if (weight > IPVS_WEIGHT_MAX)
 		weight = IPVS_WEIGHT_MAX;
+#endif
 
 	if (weight != rs->weight) {
 		log_message(LOG_INFO, "Changing weight from %d to %d for %sactive service %s of VS %s"

@@ -961,6 +961,7 @@ if_join_vrrp_group(sa_family_t family, int *sd, const interface_t *ifp)
 	return *sd;
 }
 
+#ifdef _INCLUDE_UNUSED_CODE_
 int
 if_leave_vrrp_group(sa_family_t family, int sd, const interface_t *ifp)
 {
@@ -1008,6 +1009,7 @@ if_leave_vrrp_group(sa_family_t family, int sd, const interface_t *ifp)
 	}
 
 	if (ret < 0) {
+		/* coverity[deadcode] */
 		log_message(LOG_INFO, "(%s) cant do IP%s_DROP_MEMBERSHIP errno=%s (%d)",
 			    ifp->ifname, (family == AF_INET) ? "" : "V6", strerror(errno), errno);
 		return -1;
@@ -1015,6 +1017,7 @@ if_leave_vrrp_group(sa_family_t family, int sd, const interface_t *ifp)
 
 	return 0;
 }
+#endif
 
 int
 if_setsockopt_bindtodevice(int *sd, const interface_t *ifp)

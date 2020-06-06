@@ -418,7 +418,7 @@ socket_netns_name(const char *netns_name, int domain, int type, int protocol)
 	int sock;
 
 	if (netns_name &&
-	    (cur_net_namespace = set_netns_name(netns_name)) <= 0)
+	    (cur_net_namespace = set_netns_name(netns_name)) < 0)
 		return -1;
 
 	sock = socket(domain, type, protocol);
@@ -438,7 +438,7 @@ nl_ipvs_connect(const char *netns_name, struct nl_sock *sock)
 	int ret;
 
 	if (netns_name &&
-	    (cur_net_namespace = set_netns_name(netns_name)) <= 0)
+	    (cur_net_namespace = set_netns_name(netns_name)) < 0)
 		return -1;
 
 	ret = genl_connect(sock);

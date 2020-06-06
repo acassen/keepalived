@@ -239,15 +239,18 @@ udp_bind_connect(int fd, conn_opts_t *co)
 	const struct sockaddr_storage *bind_addr = &co->bindto;
 	char buf[UDP_BUFSIZE];
 	int on = 1;
+	int err;
 
 	/* Ensure we don't leak our stack */
 	set_buf(buf, sizeof(buf));
 
 	/* We want to be able to receive ICMP error responses */
 	if (co->dst.ss_family == AF_INET)
-		setsockopt(fd, SOL_IP, IP_RECVERR, (char *)&on, sizeof(on));
+		err = setsockopt(fd, SOL_IP, IP_RECVERR, (char *)&on, sizeof(on));
 	else
-		setsockopt(fd, SOL_IPV6, IPV6_RECVERR, (char *)&on, sizeof(on));
+		err = setsockopt(fd, SOL_IPV6, IPV6_RECVERR, (char *)&on, sizeof(on));
+	if (err)
+		log_message(LOG_INFO, "Error %d setting IP%s_RECVERR for socket %d - %m", errno, co->dst.ss_family == AF_INET ? "" : "V6", fd);
 
 #ifdef _WITH_SO_MARK_
 	if (co->fwmark) {

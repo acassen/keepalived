@@ -823,14 +823,14 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		      int exact, size_t *var_len, WriteMethod **write_method)
 {
 	static struct counter64 counter64_ret;
-	oid *target, current[2], best[2];
+	oid *target, current[2];
 	int result;
 	size_t target_len;
 	unsigned curvirtual = 0, curreal;
 	real_server_t *e = NULL, *be = NULL;
 	virtual_server_t *vs, *bvs = NULL;
 	int state;
-	int type, btype;
+	int type;
 	snmp_ret_t ret;
 
 	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
@@ -847,17 +847,15 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	/* We search the best match: equal if exact, the lower OID in
 	   the set of the OID strictly superior to the target
 	   otherwise. */
-	best[0] = best[1] = MAX_SUBID; /* Our best match */
 	target = &name[vp->namelen];   /* Our target match */
 	target_len = *length - vp->namelen;
 
 	list_for_each_entry(vs, &check_data->vs, e_list) {
 		curvirtual++;
+		current[0] = curvirtual;
 		curreal = 0;
 		if (target_len && (curvirtual < target[0]))
 			continue; /* Optimization: cannot be part of our set */
-		if (be)
-			break; /* Optimization: cannot be the lower anymore */
 		state = STATE_RS_SORRY;
 		while (state != STATE_RS_END) {
 			switch (state) {
@@ -892,49 +890,40 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 			if (!e)
 				continue;
 			curreal++;
+
 			/* We build our current match */
-			current[0] = curvirtual;
 			current[1] = curreal;
+
 			/* And compare it to our target match */
 			if ((result = snmp_oid_compare(current, 2, target,
 						       target_len)) < 0)
 				continue;
 			if (result == 0) {
+				/* Got an exact match. Were we asked for it? */
 				if (!exact)
 					continue;
+			} else {
+				memcpy(target, current, sizeof(oid) * 2);
+				*length = (unsigned)vp->namelen + 2;
+			}
 
-				/* Got an exact match and asked for it */
-				be = e;
-				bvs = vs;
-				btype = type;
-				goto real_found;
-			}
-			if (snmp_oid_compare(current, 2, best, 2) < 0) {
-				/* This is our best match */
-				memcpy(best, current, sizeof(oid) * 2);
-				be = e;
-				bvs = vs;
-				btype = type;
-				goto real_be_found;
-			}
+			bvs = vs;
+			be = e;
+			break;
 		}
+
+		if (be)
+			break;
 	}
-	if (be == NULL)
-		/* No best match */
-		return NULL;
-	if (exact)
-		/* No exact match */
-		return NULL;
 
- real_be_found:
-	/* Let's use our best match */
-	memcpy(target, best, sizeof(oid) * 2);
-	*length = (unsigned)vp->namelen + 2;
+	if (be == NULL) {
+		/* No match */
+		return NULL;
+	}
 
- real_found:
 	switch (vp->magic) {
 	case CHECK_SNMP_RSTYPE:
-		long_ret.u = (btype == STATE_RS_SORRY)?2:1;
+		long_ret.u = (type == STATE_RS_SORRY)?2:1;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSADDRTYPE:
 		long_ret.u = (be->addr.ss_family == AF_INET6) ? 2:1;
@@ -961,36 +950,36 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		if (!long_ret.u) break;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSSTATUS:
-		if (btype == STATE_RS_SORRY) break;
+		if (type == STATE_RS_SORRY) break;
 		long_ret.u = be->alive?1:2;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSWEIGHT:
-		if (btype == STATE_RS_SORRY) break;
+		if (type == STATE_RS_SORRY) break;
 		long_ret.s = be->weight;
 		*write_method = check_snmp_realserver_weight;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSUPPERCONNECTIONLIMIT:
-		if (btype == STATE_RS_SORRY) break;
+		if (type == STATE_RS_SORRY) break;
 		if (!be->u_threshold) break;
 		long_ret.u = be->u_threshold;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSLOWERCONNECTIONLIMIT:
-		if (btype == STATE_RS_SORRY) break;
+		if (type == STATE_RS_SORRY) break;
 		if (!be->l_threshold) break;
 		long_ret.u = be->l_threshold;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSACTIONWHENDOWN:
-		if (btype == STATE_RS_SORRY) break;
+		if (type == STATE_RS_SORRY) break;
 		long_ret.u = be->inhibit?2:1;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSNOTIFYUP:
-		if (btype == STATE_RS_SORRY) break;
+		if (type == STATE_RS_SORRY) break;
 		if (!be->notify_up) break;
 		cmd_str_r(be->notify_up, buf, sizeof(buf));
 		*var_len = strlen(buf);
 		return (u_char*)buf;
 	case CHECK_SNMP_RSNOTIFYDOWN:
-		if (btype == STATE_RS_SORRY) break;
+		if (type == STATE_RS_SORRY) break;
 		if (!be->notify_down) break;
 		cmd_str_r(be->notify_down, buf, sizeof(buf));
 		*var_len = strlen(buf);
@@ -1001,7 +990,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		ret.cp = be->virtualhost;
 		return ret.p;
 	case CHECK_SNMP_RSFAILEDCHECKS:
-		if (btype == STATE_RS_SORRY) break;
+		if (type == STATE_RS_SORRY) break;
 		long_ret.u = be->num_failed_checkers;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSSTATSCONNS:

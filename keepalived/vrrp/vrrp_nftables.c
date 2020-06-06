@@ -2033,8 +2033,9 @@ set_nf_ifname_type(void)
 
 	fp = popen("nft -v 2>/dev/null", "r");
 	if (fp) {
-		if (fgets(nft_ver_buf, sizeof(nft_ver_buf) - 1, fp)) {
-			p = strchr(nft_ver_buf, ' ');
+		if (fgets(nft_ver_buf, sizeof(nft_ver_buf), fp)) {
+			if (!(p = strchr(nft_ver_buf, ' ')))
+				p = nft_ver_buf;
 			while (*p == ' ')
 				p++;
 			if (*p == 'v')
