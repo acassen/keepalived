@@ -4,7 +4,8 @@
 #
 # Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
 
-AM_CPPFLAGS		= $(KA_CPPFLAGS) $(DEBUG_CPPFLAGS)
+AM_CPPFLAGS		= -I$(srcdir)/include -I $(top_srcdir)/lib
+AM_CPPFLAGS		+= $(KA_CPPFLAGS) $(DEBUG_CPPFLAGS)
 AM_CFLAGS		= $(KA_CFLAGS) $(DEBUG_CFLAGS)
 AM_LDFLAGS		= $(KA_LDFLAGS) $(DEBUG_LDFLAGS)
 # AM_LIBTOOLFLAGS	= $(KA_LIBTOOLFLAGS)
@@ -21,8 +22,6 @@ sbin_PROGRAMS		= keepalived
 keepalived_SOURCES	= main.c
 
 noinst_HEADERS		= $(srcdir)/include/*.h
-
-AM_CPPFLAGS		+= -I$(srcdir)/include -I $(top_srcdir)/lib
 
 TRACKER_SUBDIR		= trackers
 TRACKER_LIB		= trackers/libtracker.a
