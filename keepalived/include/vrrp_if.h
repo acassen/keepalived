@@ -58,6 +58,9 @@
 #define LB_ETHTOOL 0x4
 #endif
 
+/* We need a default MTU in case a vrrp instance using usicast doesn't specify an interface */
+#define	DEFAULT_MTU	1500
+
 /* I don't know what the correct type is.
  * The kernel has ifindex in the range [1, INT_MAX], but IFLA_LINK is defined
  * to be __u32. See dev_new_index() in net/core/dev.c and net/core/rtnetlink.c.
@@ -219,6 +222,7 @@ extern list_head_t garp_delay;
 
 /* prototypes */
 extern interface_t *if_get_by_ifindex(ifindex_t) __attribute__ ((pure));
+extern interface_t *get_default_if(void);
 extern interface_t *if_get_by_ifname(const char *, if_lookup_t);
 extern sin_addr_t *if_extra_ipaddress_alloc(interface_t *, void *, unsigned char);
 extern void if_extra_ipaddress_free(sin_addr_t *);
@@ -237,9 +241,8 @@ extern void free_interface_queue(void);
 extern void free_old_interface_queue(void);
 extern void dump_interface_queue(FILE *, list_head_t *);
 extern void reset_interface_queue(void);
-extern int if_join_vrrp_group(sa_family_t, int *, interface_t *);
-extern int if_leave_vrrp_group(sa_family_t, int, interface_t *);
-extern int if_setsockopt_bindtodevice(int *, interface_t *);
+extern int if_join_vrrp_group(sa_family_t, int *, const interface_t *);
+extern int if_setsockopt_bindtodevice(int *, const interface_t *);
 extern int if_setsockopt_hdrincl(int *);
 extern int if_setsockopt_ipv6_checksum(int *);
 #if HAVE_DECL_IP_MULTICAST_ALL  /* Since Linux 2.6.31 */
@@ -247,7 +250,7 @@ extern int if_setsockopt_mcast_all(sa_family_t, int *);
 #endif
 extern int if_setsockopt_mcast_loop(sa_family_t, int *);
 extern int if_setsockopt_mcast_hops(sa_family_t, int *);
-extern int if_setsockopt_mcast_if(sa_family_t, int *, interface_t *);
+extern int if_setsockopt_mcast_if(sa_family_t, int *, const interface_t *);
 extern int if_setsockopt_priority(int *, int);
 extern int if_setsockopt_rcvbuf(int *, int);
 extern int if_setsockopt_no_receive(int *);

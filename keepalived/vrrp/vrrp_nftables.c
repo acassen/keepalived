@@ -1571,6 +1571,7 @@ nft_update_ipv6_address(struct mnl_nlmsg_batch *batch, ip_address_t *addr, bool 
 		set_name = "vips";
 	} else if (!global_data->vrrp_nf_ifindex &&
 		   dont_track_primary &&
+// TODO - why the ifp check ?
 		   (addr->ifp == ifp || addr->dont_track)) {
 		s = set_ll_ifname;
 		set_name = "vips_link_local_name";
@@ -2032,8 +2033,9 @@ set_nf_ifname_type(void)
 
 	fp = popen("nft -v 2>/dev/null", "r");
 	if (fp) {
-		if (fgets(nft_ver_buf, sizeof(nft_ver_buf) - 1, fp)) {
-			p = strchr(nft_ver_buf, ' ');
+		if (fgets(nft_ver_buf, sizeof(nft_ver_buf), fp)) {
+			if (!(p = strchr(nft_ver_buf, ' ')))
+				p = nft_ver_buf;
 			while (*p == ' ')
 				p++;
 			if (*p == 'v')

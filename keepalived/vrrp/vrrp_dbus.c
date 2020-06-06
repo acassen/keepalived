@@ -117,6 +117,7 @@ typedef struct dbus_queue_ent {
 static bool dbus_running;
 
 /* Global file variables */
+static const char * const no_interface = "none";
 static GDBusNodeInfo *vrrp_introspection_data = NULL;
 static GDBusNodeInfo *vrrp_instance_introspection_data = NULL;
 static GDBusConnection *global_connection;
@@ -194,7 +195,8 @@ get_vrrp_instance(const char *ifname, int vrid, int family)
 	vrrp_t *vrrp;
 
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
-		if (vrrp->vrid == vrid &&
+		if (vrrp->ifp &&
+		    vrrp->vrid == vrid &&
 		    vrrp->family == family &&
 		    !valid_path_cmp(VRRP_CONFIGURED_IFP(vrrp)->ifname, ifname))
 			return vrrp;
@@ -510,7 +512,7 @@ dbus_create_object_params(const char *instance_name, const char *interface_name,
 static void
 dbus_create_object(vrrp_t *vrrp)
 {
-	dbus_create_object_params(vrrp->iname, IF_NAME(VRRP_CONFIGURED_IFP(vrrp)), vrrp->vrid, vrrp->family, false);
+	dbus_create_object_params(vrrp->iname, vrrp->ifp ? IF_NAME(VRRP_CONFIGURED_IFP(vrrp)) : no_interface, vrrp->vrid, vrrp->family, false);
 }
 
 static bool
@@ -716,7 +718,7 @@ dbus_send_state_signal(vrrp_t *vrrp)
 	if (global_connection == NULL)
 		return;
 
-	object_path = dbus_object_create_path_instance(IF_NAME(VRRP_CONFIGURED_IFP(vrrp)), vrrp->vrid, vrrp->family);
+	object_path = dbus_object_create_path_instance(vrrp->ifp ? IF_NAME(VRRP_CONFIGURED_IFP(vrrp)) : no_interface, vrrp->vrid, vrrp->family);
 
 	args = g_variant_new("(u)", vrrp->state);
 	dbus_emit_signal(global_connection, object_path, DBUS_VRRP_INSTANCE_INTERFACE, "VrrpStatusChange", args);
@@ -846,16 +848,17 @@ dbus_reload(const list_head_t *o, const list_head_t *n)
 		return;
 
 	list_for_each_entry(vrrp_n, n, e_list) {
-		char *n_name;
+		const char *n_name;
 		bool match_found;
 
-		n_name = VRRP_CONFIGURED_IFP(vrrp_n)->ifname;
+		n_name = vrrp_n->ifp ? VRRP_CONFIGURED_IFP(vrrp_n)->ifname : no_interface;
 
 		/* Try and find an instance with same vrid/family/interface that existed before and now */
 		match_found = false;
 		list_for_each_entry(vrrp_o, o, e_list) {
 			if (vrrp_n->vrid == vrrp_o->vrid &&
 			    vrrp_n->family == vrrp_o->family &&
+// TODO - need to match on unicast_src if no interface
 			    !strcmp(n_name, VRRP_CONFIGURED_IFP(vrrp_o)->ifname)) {
 				/* If the old instance exists in the new config,
 				 * then the dbus object will exist */

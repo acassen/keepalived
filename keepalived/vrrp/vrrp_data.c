@@ -104,7 +104,7 @@ alloc_static_track_group(const char *gname)
 void
 alloc_saddress(const vector_t *strvec)
 {
-	alloc_ipaddress(&vrrp_data->static_addresses, strvec, NULL, true);
+	alloc_ipaddress(&vrrp_data->static_addresses, strvec, true);
 }
 
 #ifdef _HAVE_FIB_ROUTING_
@@ -456,13 +456,17 @@ free_sock_list(list_head_t *l)
 static void
 dump_sock(FILE *fp, const sock_t *sock)
 {
-	conf_write(fp, "VRRP sockpool: [ifindex(%u), family(%s), proto(%d), unicast(%d), fd(%d,%d)]"
-			    , sock->ifp->ifindex
+	conf_write(fp, "VRRP sockpool: [ifindex(%3u), family(%s), proto(%d), fd(%d,%d)%s%s%s%s]"
+			    , sock->ifp ? sock->ifp->ifindex : 0
 			    , sock->family == AF_INET ? "IPv4" : sock->family == AF_INET6 ? "IPv6" : "unknown"
 			    , sock->proto
-			    , sock->unicast
 			    , sock->fd_in
-			    , sock->fd_out);
+			    , sock->fd_out
+			    , !!sock->unicast_src ? ", unicast" : ""
+			    , sock->unicast_src ? ", address(" : ""
+			    , sock->unicast_src ? inet_sockaddrtos(sock->unicast_src) : ""
+			    , sock->unicast_src ? ")" : ""
+			    );
 }
 void
 dump_sock_list(FILE *fp, const list_head_t *l)
@@ -484,7 +488,9 @@ dump_sock_pool(FILE *fp, const list_head_t *l)
 		conf_write(fp, "   Interface = %s", sock->ifp->ifname);
 		conf_write(fp, "   Family = %s", sock->family == AF_INET ? "IPv4" : sock->family == AF_INET6 ? "IPv6" : "unknown");
 		conf_write(fp, "   Protocol = %s", sock->proto == IPPROTO_AH ? "AH" : sock->proto == IPPROTO_VRRP ? "VRRP" : "unknown");
-		conf_write(fp, "   Type = %scast", sock->unicast ? "Uni" : "Multi");
+		conf_write(fp, "   Type = %sicast", sock->unicast_src ? "Un" : "Mult");
+		if (sock->unicast_src)	// Also for mcast once can specify
+			conf_write(fp, "   Address = %s", inet_sockaddrtos(sock->unicast_src));
 		conf_write(fp, "   Rx buf size = %d", sock->rx_buf_size);
 		conf_write(fp, "   VRRP instances");
 		rb_for_each_entry_const(vrrp, &sock->rb_vrid, rb_vrid)
@@ -633,16 +639,16 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 #endif
 					);
 #endif
-	if (vrrp->ifp->is_ours) {
+	if (vrrp->ifp && vrrp->ifp->is_ours) {
 		conf_write(fp, "   Interface = %s, %s on %s%s", IF_NAME(vrrp->ifp),
 				__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) ? "vmac" : "ipvlan",
 				vrrp->ifp != vrrp->ifp->base_ifp ? vrrp->ifp->base_ifp->ifname : "(unknown)",
 				__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) ? ", xmit base i/f" : "");
 	} else
 #endif
-		conf_write(fp, "   Interface = %s", IF_NAME(vrrp->ifp));
+		conf_write(fp, "   Interface = %s", vrrp->ifp ? IF_NAME(vrrp->ifp) : "not configured");
 #ifdef _HAVE_VRRP_VMAC_
-	if (vrrp->configured_ifp != vrrp->ifp->base_ifp && vrrp->ifp->is_ours)
+	if (vrrp->ifp && vrrp->configured_ifp && vrrp->configured_ifp != vrrp->ifp->base_ifp && vrrp->ifp->is_ours)
 		conf_write(fp, "   Configured interface = %s", vrrp->configured_ifp->ifname);
 #endif
 	if (vrrp->dont_track_primary)
@@ -1037,7 +1043,7 @@ alloc_vrrp_vip(const vector_t *strvec)
 	if (!list_empty(&vrrp->vip))
 		last_ipaddr = list_last_entry(&vrrp->vip, ip_address_t, e_list);
 
-	alloc_ipaddress(&vrrp->vip, strvec, vrrp->ifp, false);
+	alloc_ipaddress(&vrrp->vip, strvec, false);
 	vrrp->vip_cnt++;
 
 	tail_ipaddr = list_last_entry(&vrrp->vip, ip_address_t, e_list);
@@ -1058,7 +1064,7 @@ alloc_vrrp_evip(const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 
-	alloc_ipaddress(&vrrp->evip, strvec, vrrp->ifp, false);
+	alloc_ipaddress(&vrrp->evip, strvec, false);
 }
 
 #ifdef _HAVE_FIB_ROUTING_

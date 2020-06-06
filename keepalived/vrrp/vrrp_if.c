@@ -100,6 +100,17 @@ if_get_by_ifindex(ifindex_t ifindex)
 	return NULL;
 }
 
+interface_t *
+get_default_if(void)
+{
+	const char *ifname = global_data->default_ifname ? global_data->default_ifname : DFLT_INT;
+
+	if (!global_data->default_ifp)
+		global_data->default_ifp = if_get_by_ifname(ifname, IF_CREATE_IF_DYNAMIC);
+
+	return global_data->default_ifp;
+}
+
 sin_addr_t *
 if_extra_ipaddress_alloc(interface_t *ifp, void *addr, unsigned char family)
 {
@@ -439,6 +450,8 @@ set_default_garp_delay(void)
 	/* Allocate a delay structure to each physical interface that doesn't have one and
 	 * is being used by a VRRP instance */
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
+		if (!vrrp->ifp)
+			continue;
 		ifp = IF_BASE_IFP(vrrp->ifp);
 		if (!ifp->garp_delay) {
 			delay = alloc_garp_delay();
@@ -846,7 +859,7 @@ init_interface_queue(void)
 }
 
 int
-if_join_vrrp_group(sa_family_t family, int *sd, interface_t *ifp)
+if_join_vrrp_group(sa_family_t family, int *sd, const interface_t *ifp)
 {
 	struct ip_mreqn imr;
 	struct ipv6_mreq imr6;
@@ -948,8 +961,9 @@ if_join_vrrp_group(sa_family_t family, int *sd, interface_t *ifp)
 	return *sd;
 }
 
+#ifdef _INCLUDE_UNUSED_CODE_
 int
-if_leave_vrrp_group(sa_family_t family, int sd, interface_t *ifp)
+if_leave_vrrp_group(sa_family_t family, int sd, const interface_t *ifp)
 {
 	struct ip_mreqn imr;
 	struct ipv6_mreq imr6;
@@ -995,6 +1009,7 @@ if_leave_vrrp_group(sa_family_t family, int sd, interface_t *ifp)
 	}
 
 	if (ret < 0) {
+		/* coverity[deadcode] */
 		log_message(LOG_INFO, "(%s) cant do IP%s_DROP_MEMBERSHIP errno=%s (%d)",
 			    ifp->ifname, (family == AF_INET) ? "" : "V6", strerror(errno), errno);
 		return -1;
@@ -1002,9 +1017,10 @@ if_leave_vrrp_group(sa_family_t family, int sd, interface_t *ifp)
 
 	return 0;
 }
+#endif
 
 int
-if_setsockopt_bindtodevice(int *sd, interface_t *ifp)
+if_setsockopt_bindtodevice(int *sd, const interface_t *ifp)
 {
 	int ret;
 
@@ -1145,7 +1161,7 @@ if_setsockopt_mcast_hops(sa_family_t family, int *sd)
 }
 
 int
-if_setsockopt_mcast_if(sa_family_t family, int *sd, interface_t *ifp)
+if_setsockopt_mcast_if(sa_family_t family, int *sd, const interface_t *ifp)
 {
 	int ret;
 	ifindex_t ifindex;
@@ -1322,6 +1338,8 @@ cleanup_lost_interface(interface_t *ifp)
 		vrrp = top->obj.vrrp;
 
 		/* If this is just a tracking interface, we don't need to do anything */
+		if (!vrrp->ifp)
+			continue;
 		if (vrrp->ifp != ifp
 #ifdef _HAVE_VRRP_VMAC_
 		    && IF_BASE_IFP(vrrp->ifp) != ifp && VRRP_CONFIGURED_IFP(vrrp) != ifp
@@ -1429,13 +1447,7 @@ setup_interface(vrrp_t *vrrp)
 			}
 		}
 
-		vrrp->sockets->fd_in = open_vrrp_read_socket(vrrp->sockets->family, vrrp->sockets->proto,
-							vrrp->sockets->ifp, vrrp->sockets->unicast, vrrp->sockets->rx_buf_size);
-		if (vrrp->sockets->fd_in == -1)
-			vrrp->sockets->fd_out = -1;
-		else
-			vrrp->sockets->fd_out = open_vrrp_send_socket(vrrp->sockets->family, vrrp->sockets->proto,
-							vrrp->sockets->ifp, vrrp->sockets->unicast);
+		open_sockpool_socket(vrrp->sockets);
 
 		if (vrrp_initialised) {
 			vrrp->state = vrrp->num_script_if_fault ? VRRP_STATE_FAULT : VRRP_STATE_BACK;
@@ -1533,14 +1545,18 @@ update_added_interface(interface_t *ifp)
 #ifdef _HAVE_VRRP_VMAC_
 		/* If this interface is a macvlan that we haven't created,
 		 * and the interface type can be changed or we haven't checked
-		 * this interface before, make sure that there is not VRID
+		 * this interface before, make sure that there is no VRID
 		 * conflict. */
 		if (!ifp->is_ours &&
 		    (global_data->allow_if_changes || !ifp->seen_interface) &&
 		    !list_empty(&ifp->base_ifp->tracking_vrrp)) {
+// TODO - handle unicast - see check_vrrp_conflicts() - in fact, can we use it?
 			list_for_each_entry(top1, &ifp->base_ifp->tracking_vrrp, e_list) {
 				vrrp1 = top1->obj.vrrp;
 				if (vrrp == vrrp1)
+					continue;
+
+				if (!vrrp1->ifp)
 					continue;
 
 				if (!VRRP_CONFIGURED_IFP(vrrp1)->ifindex)
@@ -1570,11 +1586,14 @@ update_added_interface(interface_t *ifp)
 
 			/* We might be the configured interface for a vrrp instance that itself uses
 			 * a macvlan. If so, we can create the macvlans */
-			if ( vrrp->configured_ifp == ifp &&
+			if (vrrp->configured_ifp == ifp &&
 			    !vrrp->ifp->ifindex)
 				thread_add_event(master, recreate_vmac_thread, vrrp->ifp, 0);
 		}
 #endif
+
+		if (!vrrp->ifp)
+			continue;
 
 		/* If this is just a tracking interface, we don't need to do anything */
 		if (vrrp->ifp != ifp

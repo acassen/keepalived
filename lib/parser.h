@@ -62,6 +62,7 @@ typedef enum {
 	CONFIG_MISSING_PARAMETER,
 	CONFIG_INVALID_NUMBER,
 	CONFIG_GENERAL_ERROR,
+	CONFIG_WARNING,
 
 	/* The following is for script security not enabled when needed */
 	CONFIG_SECURITY_ERROR,
