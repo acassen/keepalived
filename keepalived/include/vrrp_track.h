@@ -30,7 +30,6 @@
 
 /* local includes */
 #include "vector.h"
-#include "list.h"
 #include "list_head.h"
 #include "vrrp_if.h"
 #include "vrrp.h"

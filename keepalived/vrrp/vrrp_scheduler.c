@@ -45,7 +45,6 @@
 #include "vrrp_if.h"
 #include "global_data.h"
 #include "memory.h"
-#include "list.h"
 #include "list_head.h"
 #include "logger.h"
 #include "main.h"

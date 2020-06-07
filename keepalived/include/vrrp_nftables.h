@@ -28,7 +28,6 @@
 /* Include to check NFT_TABLE_MAXNAMELEN defined */
 #include <linux/netfilter/nf_tables.h>
 
-#include "list.h"
 #include "vrrp.h"
 #include "vrrp_ipaddress.h"
 

@@ -29,7 +29,6 @@
 #include <stdbool.h>
 
 /* local includes */
-#include "list.h"
 #include "vrrp.h"
 #ifdef _HAVE_LIBIPSET_
 #include "vrrp_ipset.h"

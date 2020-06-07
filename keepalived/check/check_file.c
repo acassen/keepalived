@@ -25,7 +25,6 @@
 #include <stdio.h>
 
 #include "check_file.h"
-#include "list.h"
 #include "check_data.h"
 #include "track_file.h"
 #include "parser.h"

@@ -30,7 +30,6 @@
 
 /* local includes */
 #include "vrrp.h"
-#include "list.h"
 
 #ifdef _WITH_IPTABLES_
 #include "vrrp_iptables.h"

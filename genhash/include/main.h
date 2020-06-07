@@ -40,7 +40,6 @@
 #include "timer.h"
 #include "http.h"
 #include "ssl.h"
-#include "list.h"
 #include "sock.h"
 
 /* Build version */

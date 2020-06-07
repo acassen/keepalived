@@ -62,7 +62,6 @@
 #if defined _WITH_SNMP_RFC_ || defined _WITH_SNMP_VRRP_
 #include "vrrp_snmp.h"
 #endif
-#include "list.h"
 #include "list_head.h"
 #include "logger.h"
 #include "main.h"

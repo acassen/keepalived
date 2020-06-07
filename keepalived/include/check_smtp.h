@@ -29,7 +29,6 @@
 
 /* local includes */
 #include "scheduler.h"
-#include "list.h"
 #include "check_api.h"
 
 #define SMTP_BUFF_MAX		512U

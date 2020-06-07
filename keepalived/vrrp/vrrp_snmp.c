@@ -124,7 +124,6 @@
 #include "vrrp_scheduler.h"
 #include "track_file.h"
 #include "config.h"
-#include "list.h"
 #include "logger.h"
 #include "global_data.h"
 #include "bitops.h"

@@ -65,7 +65,6 @@
 #ifdef _WITH_DBUS_
   #include "vrrp_dbus.h"
 #endif
-#include "list.h"
 #include "list_head.h"
 #include "main.h"
 #include "parser.h"

@@ -28,7 +28,6 @@
 
 /* local includes */
 #include "vector.h"
-#include "list.h"
 #include "vrrp_if.h"
 
 /* Parameters for static track groups */

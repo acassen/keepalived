@@ -30,7 +30,6 @@
 
 #include "vrrp.h"
 #include "vrrp_track.h"
-#include "list.h"
 #include "list_head.h"
 #include "vrrp_data.h"
 #include "vrrp_ipaddress.h"

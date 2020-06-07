@@ -34,7 +34,6 @@
 /* local includes */
 #include "vrrp.h"
 #include "vrrp_if.h"
-#include "list.h"
 #include "list_head.h"
 #include "vector.h"
 #include "vrrp_static_track.h"
