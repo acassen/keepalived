@@ -22,6 +22,7 @@
 
 #include "config.h"
 
+#include <stdio.h>
 #include "scheduler.h"
 #include "snmp.h"
 #include "logger.h"

@@ -23,6 +23,7 @@
 #include "config.h"
 
 /* system includes */
+#include <stdio.h>
 #include <unistd.h>
 
 /* local includes */
