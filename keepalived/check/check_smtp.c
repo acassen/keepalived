@@ -48,8 +48,14 @@
 #define WITH_HOST_ENTRIES
 
 #ifdef WITH_HOST_ENTRIES
-static list host_list;
+static LIST_HEAD_INITIALIZE(host_list); /* ref_co_t */
 static conn_opts_t *sav_co;	/* Saved conn_opts while host{} block processed */
+typedef struct _ref_co {
+	conn_opts_t	*co;
+
+	/* Linked list member */
+	list_head_t	e_list;
+} ref_co_t;
 #endif
 //*** default_co is pointless
 static conn_opts_t* default_co;	/* Default conn_opts for SMTP_CHECK */
@@ -107,15 +113,11 @@ smtp_check_compare(const checker_t *old_c, checker_t *new_c)
 static void
 smtp_check_handler(__attribute__((unused)) const vector_t *strvec)
 {
-	smtp_checker_t *smtp_checker = (smtp_checker_t *)MALLOC(sizeof(smtp_checker_t));
+	smtp_checker_t *smtp_checker;
 	conn_opts_t *co;
 
-#ifdef WITH_HOST_ENTRIES
-	/* We keep a copy of the default settings for completing incomplete settings */
-	host_list = alloc_list(free_list_element_simple, NULL);
-#endif
-
-	co = MALLOC(sizeof(conn_opts_t));
+	PMALLOC(smtp_checker);
+	PMALLOC(co);
 	co->connection_to = UINT_MAX;
 
 	/* Have the checker queue code put our checker into the checkers_queue list. */
@@ -130,8 +132,8 @@ smtp_check_end_handler(void)
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
 	checker_t *new_checker;
 	smtp_checker_t *new_smtp_checker;
-	element e, n;
 	conn_opts_t *co;
+	ref_co_t *rco, *rco_tmp;
 
 	if (!smtp_checker->helo_name)
 		smtp_checker->helo_name = STRDUP(SMTP_DEFAULT_HELO);
@@ -168,7 +170,7 @@ smtp_check_end_handler(void)
 	/* If there was no host{} section, add a single host to the list */
 	if (!checker->co
 #ifdef WITH_HOST_ENTRIES
-			 && LIST_ISEMPTY(host_list)
+			 && list_empty(&host_list)
 #endif
 						   ) {
 		checker->co = default_co;
@@ -176,8 +178,10 @@ smtp_check_end_handler(void)
 	} else {
 #ifdef WITH_HOST_ENTRIES
 		if (!checker->co) {
-			checker->co = LIST_HEAD_DATA(host_list);
-			list_extract(host_list, LIST_HEAD(host_list));
+			rco = list_first_entry(&host_list, ref_co_t, e_list);
+			checker->co = rco->co;
+			list_del_init(&rco->e_list);
+			FREE(rco);
 		}
 #endif
 
@@ -196,8 +200,9 @@ smtp_check_end_handler(void)
 
 #ifdef WITH_HOST_ENTRIES
 	/* Create a new checker for each host on the host list */
-	LIST_FOREACH_NEXT(host_list, co, e, n) {
-		new_smtp_checker = MALLOC(sizeof(smtp_checker_t));
+	list_for_each_entry_safe(rco, rco_tmp, &host_list, e_list) {
+		co = rco->co;
+		PMALLOC(new_smtp_checker);
 		*new_smtp_checker = *smtp_checker;
 
 		if (co->connection_to == UINT_MAX)
@@ -213,11 +218,13 @@ smtp_check_end_handler(void)
 		new_checker->co = co;
 		new_checker->data = new_smtp_checker;
 
-		list_extract(host_list, e);
+		list_del_init(&rco->e_list);
+		FREE(rco);
 	}
 
 	/* The list is now empty */
-	free_list(&host_list);
+	list_for_each_entry_safe(rco, rco_tmp, &host_list, e_list)
+		FREE(rco);
 #endif
 }
 
@@ -240,11 +247,17 @@ static void
 smtp_host_end_handler(void)
 {
 	checker_t *checker = CHECKER_GET_CURRENT();
+	ref_co_t *rco;
 
 	if (!check_conn_opts(checker->co))
 		FREE(checker->co);
-	else
-		list_add(host_list, checker->co);
+	else {
+		PMALLOC(rco);
+		INIT_LIST_HEAD(&rco->e_list);
+		rco->co = checker->co;
+
+		list_add_tail(&rco->e_list, &host_list);
+	}
 
 	checker->co = sav_co;
 }
