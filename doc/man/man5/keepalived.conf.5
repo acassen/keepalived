@@ -1453,16 +1453,27 @@ The syntax for vrrp_instance is :
     #  always use version 3.
     \fBversion \fR<2 or 3>
 
+    # The following enables checking that when in unicast mode, the
+    # source address of a VRRP packet is one of our unicast peers.
+    \fBcheck_unicast_src\fR
+
     # Do not send VRRP adverts over a VRRP multicast group.
     # Instead it sends adverts to the following list of
     # ip addresses using unicast. It can be cool to use
     # the VRRP FSM and features in a networking
     # environment where multicast is not supported!
     # IP addresses specified can be IPv4 as well as IPv6.
+    # If min_ttl and/or max_ttl are specified, the TTL/hop limit
+    # of any received packet is checked against the specified
+    # TTL range, and is discarded if it is outside the range.
+    # Specifying min_ttl or max_ttl turns on check_unicast_src.
     \fBunicast_peer \fR{
-        <IPADDR>
+        <IPADDR> [min_ttl {0..255}] [max_ttl {0..255}]
         ...
     }
+
+    # Specify the unicast TTL/HLIM for sending unicast adverts
+    \fBunicast_ttl\fR {0..255}
 
     # The checksum calculation when using VRRPv3 changed after v1.3.6.
     #  Setting this flag forces the old checksum algorithm to be used
