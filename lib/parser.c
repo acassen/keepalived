@@ -800,9 +800,8 @@ static void
 dump_seqs(void)
 {
 	seq_t *seq;
-	element e;
 
-	LIST_FOREACH(seq_list, seq, e) {
+	list_for_each_entry(seq, &seq_list, e_list) {
 		if (seq->hex)
 			log_message(LOG_INFO, "SEQ: %s => 0x%lx -> 0x%lx step %ld: '%s'", seq->var, (unsigned long)seq->next, (unsigned long)seq->last, seq->step, seq->text);
 		else
@@ -962,9 +961,8 @@ static void
 dump_definitions(void)
 {
 	const def_t *def;
-	element e;
 
-	LIST_FOREACH(defs, def, e)
+	list_for_each_entry(def, &defs, e_list)
 		log_message(LOG_INFO, "Defn %s = '%s'", def->name, def->value);
 	log_message(LOG_INFO, "%s", "");
 }
