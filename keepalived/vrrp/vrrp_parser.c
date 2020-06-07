@@ -422,6 +422,11 @@ vrrp_end_handler(void)
 	}
 #endif
 
+	if (list_empty(&vrrp->unicast_peer) && vrrp->ttl != -1) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s): Cannot use unicast_ttl without unicast peers - resetting", vrrp->iname);
+		vrrp->ttl = 0;
+	}
+
 	if (!vrrp->ifp) {
 		vrrp->linkbeat_use_polling = false;
 	}
@@ -599,6 +604,13 @@ vrrp_unicast_peer_handler(const vector_t *strvec)
 {
 	alloc_value_block(alloc_vrrp_unicast_peer, strvec);
 }
+static void
+vrrp_check_unicast_src_handler(__attribute__((unused)) const vector_t *strvec)
+{
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
+
+	vrrp->check_unicast_src = true;
+}
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 static void
 vrrp_unicast_chksum_handler(const vector_t *strvec)
@@ -760,6 +772,19 @@ vrrp_vrid_handler(const vector_t *strvec)
 	}
 
 	vrrp->vrid = (uint8_t)vrid;
+}
+static void
+vrrp_ttl_handler(const vector_t *strvec)
+{
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
+	unsigned ttl;
+
+	if (!read_unsigned_strvec(strvec, 1, &ttl, 0, 255, false)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s): TTL '%s' not valid - must be between 0 & 255", vrrp->iname, strvec_slot(strvec, 1));
+		return;
+	}
+
+	vrrp->ttl = (uint8_t)ttl;
 }
 static void
 vrrp_prio_handler(const vector_t *strvec)
@@ -1786,6 +1811,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("use_ipvlan", &vrrp_ipvlan_handler);
 #endif
 	install_keyword("unicast_peer", &vrrp_unicast_peer_handler);
+	install_keyword("check_unicast_src", &vrrp_check_unicast_src_handler);
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 	install_keyword("old_unicast_checksum", &vrrp_unicast_chksum_handler);
 #endif
@@ -1806,6 +1832,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("unicast_src_ip", &vrrp_srcip_handler);
 	install_keyword("track_src_ip", &vrrp_track_srcip_handler);
 	install_keyword("virtual_router_id", &vrrp_vrid_handler);
+	install_keyword("unicast_ttl", &vrrp_ttl_handler);
 	install_keyword("version", &vrrp_version_handler);
 	install_keyword("priority", &vrrp_prio_handler);
 	install_keyword("advert_int", &vrrp_adv_handler);

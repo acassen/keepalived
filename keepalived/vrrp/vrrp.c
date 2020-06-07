@@ -854,27 +854,16 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 	}
 
 	/* MUST verify that the IPv4 TTL/IPv6 HL is 255 (but not if unicast) */
-	if (list_empty(&vrrp->unicast_peer)) {
-		if ((vrrp->family == AF_INET && ip->ttl != VRRP_IP_TTL)
-#ifdef IPV6_RECVHOPLIMIT
-		    || (vrrp->family == AF_INET6 && vrrp->hop_limit != -1 && vrrp->hop_limit != VRRP_IP_TTL)
-#endif
-													    ) {
-			log_message(LOG_INFO, "(%s) invalid TTL/HL. Received %d and expect %d",
-				vrrp->iname,
-#ifdef IPV6_RECVHOPLIMIT
-				vrrp->family == AF_INET ? ip->ttl : vrrp->hop_limit,
-#else
-				ip->ttl,
-#endif
-				VRRP_IP_TTL);
-			++vrrp->stats->ip_ttl_err;
+	if (list_empty(&vrrp->unicast_peer) &&
+	    vrrp->rx_ttl_hop_limit != -1 && vrrp->rx_ttl_hop_limit != VRRP_IP_TTL) {
+		log_message(LOG_INFO, "(%s) invalid TTL/HL. Received %d and expect %d",
+			vrrp->iname, vrrp->rx_ttl_hop_limit, VRRP_IP_TTL);
+		++vrrp->stats->ip_ttl_err;
 #ifdef _WITH_SNMP_RFCV3_
-			vrrp->stats->proto_err_reason = ipTtlError;
-			vrrp_rfcv3_snmp_proto_err_notify(vrrp);
+		vrrp->stats->proto_err_reason = ipTtlError;
+		vrrp_rfcv3_snmp_proto_err_notify(vrrp);
 #endif
-			return VRRP_PACKET_KO;
-		}
+		return VRRP_PACKET_KO;
 	}
 
 	/* MUST verify the VRRP version */
@@ -1124,7 +1113,9 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 		}
 
 		/* check a unicast source address is in the unicast_peer list */
-		if (global_data->vrrp_check_unicast_src && !list_empty(&vrrp->unicast_peer)) {
+		if (!list_empty(&vrrp->unicast_peer) &&
+		    (global_data->vrrp_check_unicast_src ||
+		     vrrp->check_unicast_src)) {
 			struct in_addr *saddr4;
 			struct in6_addr *saddr6;
 			bool found_match = false;
@@ -1153,6 +1144,19 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 					inet_ntop(vrrp->family,
 						  vrrp->family == AF_INET6 ? saddr6 : (void *)saddr4,
 						  addr_str, sizeof(addr_str)));
+				return VRRP_PACKET_KO;
+			}
+
+			if (vrrp->rx_ttl_hop_limit != -1 &&
+			    (vrrp->rx_ttl_hop_limit < up_addr->min_ttl ||
+			     vrrp->rx_ttl_hop_limit > up_addr->max_ttl)) {
+				++vrrp->stats->ip_ttl_err;
+#ifdef _WITH_SNMP_RFCV3_
+				vrrp->stats->proto_err_reason = ipTtlError;
+				vrrp_rfcv3_snmp_proto_err_notify(vrrp);
+#endif
+				log_message(LOG_INFO, "(%s) TTL/HL %d not in range %d - %d",
+					vrrp->iname, vrrp->rx_ttl_hop_limit, up_addr->min_ttl, up_addr->max_ttl);
 				return VRRP_PACKET_KO;
 			}
 		}
@@ -1189,7 +1193,7 @@ vrrp_build_ip4(vrrp_t *vrrp, char *buffer)
 	ip->tot_len = htons(ip->tot_len);
 	ip->id = 0;
 	ip->frag_off = 0;
-	ip->ttl = VRRP_IP_TTL;
+	ip->ttl = vrrp->ttl;
 
 	/* fill protocol type --rfc2402.2 */
 #ifdef _WITH_VRRP_AUTH_
@@ -1403,6 +1407,7 @@ vrrp_build_ancillary_data(struct msghdr *msg, char *cbuf, struct sockaddr_storag
 {
 	struct cmsghdr *cmsg;
 	struct in6_pktinfo *pkt;
+	unsigned *hlim;
 
 	if (src->ss_family != AF_INET6)
 		return -1;
@@ -1427,6 +1432,18 @@ vrrp_build_ancillary_data(struct msghdr *msg, char *cbuf, struct sockaddr_storag
 			pkt->ipi6_ifindex = vrrp->ifp->ifindex;
 	}
 
+	if (vrrp->ttl != -1 && !list_empty(&vrrp->unicast_peer)) {
+		msg->msg_controllen += CMSG_SPACE(sizeof(*hlim));
+		if ((cmsg = CMSG_NXTHDR(msg, cmsg))) {
+			cmsg->cmsg_level = IPPROTO_IPV6;
+			cmsg->cmsg_type = IPV6_HOPLIMIT;
+			cmsg->cmsg_len = CMSG_LEN(sizeof(*hlim));
+			hlim = (unsigned *)CMSG_DATA(cmsg);
+			*hlim = vrrp->ttl;
+		} else
+			msg->msg_controllen -= CMSG_SPACE(sizeof(*hlim));
+	}
+
 	return 0;
 }
 
@@ -1444,6 +1461,10 @@ vrrp_send_pkt(vrrp_t * vrrp, unicast_peer_t *peer)
 	msg.msg_iovlen = 1;
 	iov.iov_base = vrrp->send_buffer;
 	iov.iov_len = vrrp->send_buffer_size;
+
+	/* glibc's CMSG_NXTHDR requires the buffer to have been initialised to all 0s */
+	if (vrrp->family == AF_INET6)
+		memset(cbuf, 0, sizeof(cbuf));
 
 	/* Unicast sending path */
 	if (peer && peer->address.ss_family == AF_INET) {
@@ -2305,14 +2326,6 @@ open_vrrp_read_socket(sa_family_t family, int proto, const interface_t *ifp, con
 		/* coverity[forward_null] - ifp cannot be NULL if not unicast */
 		if_join_vrrp_group(family, &fd, ifp);
 
-#ifdef IPV6_RECVHOPLIMIT	/* Since Linux 2.6.14 */
-		/* IPv6 we need to receive the hop count as ancillary data */
-		if (family == AF_INET6) {
-			if (setsockopt(fd, IPPROTO_IPV6, IPV6_RECVHOPLIMIT, &on, sizeof on))
-				log_message(LOG_INFO, "fd %d - set IPV6_RECVHOPLIMIT error %d (%m)", fd, errno);
-		}
-#endif
-
 		/* Binding to, for IPv4 the multicast address and for IPv6 the loopback address,
 		 * stops us receiving unicast pkts when we are only interested in multicast.
 		 * Binding to a multicast address appears to fail for IPv6, so if we allow different
@@ -2329,6 +2342,14 @@ open_vrrp_read_socket(sa_family_t family, int proto, const interface_t *ifp, con
 			return -2;
 		}
 	}
+
+#ifdef IPV6_RECVHOPLIMIT	/* Since Linux 2.6.14 */
+	/* IPv6 we need to receive the hop count as ancillary data */
+	if (family == AF_INET6) {
+		if (setsockopt(fd, IPPROTO_IPV6, IPV6_RECVHOPLIMIT, &on, sizeof on))
+			log_message(LOG_INFO, "fd %d - set IPV6_RECVHOPLIMIT error %d (%m)", fd, errno);
+	}
+#endif
 
 #ifdef IPV6_RECVPKTINFO		/* Since Linux 2.6.14 */
 	/* Receive the destination address as ancillary data to determine if packet multicast */
@@ -2644,6 +2665,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		else
 			vrrp->version = global_data->vrrp_version;
 	}
+
+	/* If necessary, set the default TTL value. For IPv6 the default
+	 * is to let the kernel set the default value. */
+	if (vrrp->family == AF_INET && vrrp->ttl == -1)
+		vrrp->ttl = VRRP_IP_TTL;
 
 	if (list_empty(&vrrp->vip)) {
 		if (vrrp->version == VRRP_VERSION_3 || vrrp->strict_mode) {

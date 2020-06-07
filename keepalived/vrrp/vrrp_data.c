@@ -517,7 +517,7 @@ dump_unicast_peer(FILE *fp, const void *data)
 {
 	const unicast_peer_t *peer = data;
 
-	conf_write(fp, "     %s", inet_sockaddrtos(&peer->address));
+	conf_write(fp, "     %s min_ttl %u max_ttl %u", inet_sockaddrtos(&peer->address), peer->min_ttl, peer->max_ttl);
 #ifdef _CHECKSUM_DEBUG_
 	conf_write(fp, "       last rx checksum = 0x%4.4x, priority %d", peer->chk.last_rx_checksum, peer->chk.last_rx_priority);
 	conf_write(fp, "       last tx checksum = 0x%4.4x, priority %d", peer->chk.last_tx_checksum, peer->chk.last_tx_priority);
@@ -726,6 +726,9 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 		dump_ipaddress_list(fp, &vrrp->evip);
 	}
 	if (!list_empty(&vrrp->unicast_peer)) {
+		if (vrrp->ttl != -1)
+			conf_write(fp, "   Unicast TTL = %d", vrrp->ttl);
+		conf_write(fp, "   Check unicast src : %s", vrrp->check_unicast_src ? "yes" : "no");
 		conf_write(fp, "   Unicast Peer :");
 		dump_unicast_peer_list(fp, &vrrp->unicast_peer);
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
@@ -893,6 +896,7 @@ alloc_vrrp(const char *iname)
 	new->last_transition = timer_now();
 	new->iname = STRDUP(iname);
 	new->stats = alloc_vrrp_stats();
+	new->ttl = -1;
 #ifdef _WITH_FIREWALL_
 	new->accept = PARAMETER_UNSET;
 #endif
@@ -921,9 +925,14 @@ alloc_vrrp_unicast_peer(const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 	unicast_peer_t *peer;
+	unsigned ttl;
+	unsigned i;
 
 	/* Allocate new unicast peer */
 	PMALLOC(peer);
+	peer->min_ttl = 0;
+	peer->max_ttl = 255;
+
 	if (inet_stosockaddr(strvec_slot(strvec, 0), NULL, &peer->address)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: VRRP instance[%s] malformed unicast"
 				     " peer address[%s]. Skipping..."
@@ -941,6 +950,27 @@ alloc_vrrp_unicast_peer(const vector_t *strvec)
 		FREE(peer);
 		return;
 	}
+
+	for (i = 1; i < vector_size(strvec); i += 2) {
+		if (i + 1 >= vector_size(strvec)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) %s is missing a value", vrrp->iname, strvec_slot(strvec, i));
+			break;
+		}
+		if (read_unsigned(strvec_slot(strvec, i + 1), &ttl, 0, 255, false)) {
+			if (!strcmp(strvec_slot(strvec, i), "min_ttl"))
+				peer->min_ttl = ttl;
+			else if (!strcmp(strvec_slot(strvec, i), "max_ttl"))
+				peer->max_ttl = ttl;
+			else {
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown unicast_peer option %s", vrrp->iname, strvec_slot(strvec, i));
+				break;
+			}
+			vrrp->check_unicast_src = true;
+		}
+	}
+
+	if (peer->min_ttl > peer->max_ttl)
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) min_ttl %u > max_ttl %u - all packets will be discarded", vrrp->iname, peer->min_ttl, peer->max_ttl);
 
 	list_add_tail(&peer->e_list, &vrrp->unicast_peer);
 }

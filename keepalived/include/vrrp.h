@@ -204,6 +204,9 @@ typedef struct _unicast_peer_t {
 #ifdef _CHECKSUM_DEBUG_
 	checksum_check_t	chk;
 #endif
+	unsigned char		min_ttl;
+	unsigned char		max_ttl;
+
 	/* Linked list member */
 	list_head_t		e_list;
 } unicast_peer_t;
@@ -246,13 +249,13 @@ typedef struct _vrrp_t {
 	bool			saddr_from_config;	/* Set if the source address is from configuration */
 	bool			track_saddr;		/* Fault state if configured saddr is missing */
 	struct sockaddr_storage	pkt_saddr;		/* Src IP address received in VRRP IP header */
-#ifdef IPV6_RECVHOPLIMIT
-	int			hop_limit;		/* IPv6 hop limit returned via ancillary data */
-#endif
+	int			rx_ttl_hop_limit;	/* Received TTL/hop limit returned */
 #ifdef IPV6_RECVPKTINFO
 	bool			multicast_pkt;		/* Last IPv6 packet received was multicast */
 #endif
 	list_head_t		unicast_peer;		/* unicast_peer_t - peers to send unicast advert to */
+	int			ttl;			/* TTL to send packet with if unicasting */
+	bool			check_unicast_src;	/* It set, check the source address of a unicast advert */
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 	chksum_compatibility_t	unicast_chksum_compat;	/* Whether v1.3.6 and earlier chksum is used */
 #endif
