@@ -37,7 +37,6 @@
 #include <linux/rtnetlink.h>
 
 /* local includes */
-#include "list.h"
 #include "list_head.h"
 #include "vector.h"
 #include "vrrp_ipaddress.h"

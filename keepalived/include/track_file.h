@@ -28,7 +28,6 @@
 #include <stdio.h>
 
 /* local includes */
-#include "list.h"
 #include "list_head.h"
 #ifdef _WITH_VRRP_
 #include "vrrp.h"

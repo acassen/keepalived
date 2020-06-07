@@ -43,7 +43,6 @@
 
 /* local includes */
 #include "scheduler.h"
-#include "list.h"
 #include "list_head.h"
 #include "timer.h"
 

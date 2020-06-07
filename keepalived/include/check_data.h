@@ -37,7 +37,6 @@
 /* local includes */
 #include "ip_vs.h"
 #include "list_head.h"
-#include "list.h"
 #include "vector.h"
 #include "notify.h"
 #include "utils.h"

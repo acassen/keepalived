@@ -33,7 +33,6 @@
 #endif
 
 #include "timer.h"
-#include "list.h"
 #include "list_head.h"
 #include "rbtree.h"
 

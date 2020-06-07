@@ -37,7 +37,6 @@
 
 #include "ipvswrapper.h"
 #include "global_data.h"
-#include "list.h"
 #include "utils.h"
 #include "logger.h"
 #include "libipvs.h"

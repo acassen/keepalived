@@ -26,7 +26,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-#include "list.h"
 #include "bfd.h"
 
 typedef struct _bfd_data {

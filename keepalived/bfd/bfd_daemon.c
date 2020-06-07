@@ -39,7 +39,6 @@
 #include "pidfile.h"
 #include "logger.h"
 #include "signals.h"
-#include "list.h"
 #include "main.h"
 #include "parser.h"
 #include "time.h"

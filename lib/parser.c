@@ -70,11 +70,17 @@ typedef struct _defs {
 	unsigned max_params;
 	const char *params;
 	const char *params_end;
+
+	/* Linked list member */
+	list_head_t e_list;
 } def_t;
 
 typedef struct _multiline_stack_ent {
 	const char *ptr;
 	size_t seq_depth;
+
+	/* Linked list member */
+	list_head_t e_list;
 } multiline_stack_ent;
 
 typedef struct _seq {
@@ -84,6 +90,9 @@ typedef struct _seq {
 	long step;
 	bool hex;
 	const char *text;
+
+	/* Linked list member */
+	list_head_t e_list;
 } seq_t;
 
 
@@ -105,16 +114,17 @@ static const char *current_file_name;
 static size_t current_file_line_no;
 static int sublevel = 0;
 static int skip_sublevel = 0;
-static list multiline_stack;
+static LIST_HEAD_INITIALIZE(multiline_stack); /* multiline_stack_ent */
 static size_t multiline_seq_depth = 0;
 static char *buf_extern;
 static config_err_t config_err = CONFIG_OK; /* Highest level of config error for --config-test */
 static unsigned int random_seed;
 static bool random_seed_configured;
-static list seq_list;	/* List of seq_t */
+static LIST_HEAD_INITIALIZE(seq_list);	/* seq_t */
+static unsigned seq_list_count = 0;
 
 /* Parameter definitions */
-static list defs;
+static LIST_HEAD_INITIALIZE(defs); /* def_t */
 
 /* Forward declarations for recursion */
 static bool read_line(char *, size_t);
@@ -790,9 +800,8 @@ static void
 dump_seqs(void)
 {
 	seq_t *seq;
-	element e;
 
-	LIST_FOREACH(seq_list, seq, e) {
+	list_for_each_entry(seq, &seq_list, e_list) {
 		if (seq->hex)
 			log_message(LOG_INFO, "SEQ: %s => 0x%lx -> 0x%lx step %ld: '%s'", seq->var, (unsigned long)seq->next, (unsigned long)seq->last, seq->step, seq->text);
 		else
@@ -803,13 +812,20 @@ dump_seqs(void)
 #endif
 
 static void
-free_seq(void *s)
+free_seq(seq_t *seq)
 {
-	seq_t *seq = s;
-
+	list_del_init(&seq->e_list);
 	FREE_CONST(seq->var);
 	FREE_CONST(seq->text);
 	FREE(seq);
+}
+static void
+free_seq_list(list_head_t *l)
+{
+	seq_t *seq, *seq_tmp;
+
+	list_for_each_entry_safe(seq, seq_tmp, l, e_list)
+		free_seq(seq);
 }
 
 static bool
@@ -926,6 +942,7 @@ add_seq(char *buf)
 	p += strspn(p + 1, " \t") + 1;
 
 	PMALLOC(seq_ent);
+	INIT_LIST_HEAD(&seq_ent->e_list);
 	seq_ent->var = STRNDUP(var, var_end - var);
 	seq_ent->next = start;
 	seq_ent->step = step;
@@ -933,9 +950,8 @@ add_seq(char *buf)
 	seq_ent->hex = hex;
 	seq_ent->text = STRDUP(p);
 
-	if (!seq_list)
-		seq_list = alloc_list(free_seq, NULL);
-	list_add(seq_list, seq_ent);
+	list_add_tail(&seq_ent->e_list, &seq_list);
+	seq_list_count++;
 
 	return true;
 }
@@ -945,9 +961,8 @@ static void
 dump_definitions(void)
 {
 	const def_t *def;
-	element e;
 
-	LIST_FOREACH(defs, def, e)
+	list_for_each_entry(def, &defs, e_list)
 		log_message(LOG_INFO, "Defn %s = '%s'", def->name, def->value);
 	log_message(LOG_INFO, "%s", "");
 }
@@ -1178,7 +1193,7 @@ read_conf_file(const char *conf_file)
 		process_stream(current_keywords, 0);
 		fclose(stream);
 
-		free_list(&seq_list);
+		free_seq_list(&seq_list);
 
 		/* If we changed directory, restore the previous directory */
 		if (curdir_fd != -1) {
@@ -1295,7 +1310,6 @@ check_include(const char *buf)
 static def_t * __attribute__ ((pure))
 find_definition(const char *name, size_t len, bool definition)
 {
-	element e;
 	def_t *def;
 	const char *p;
 	bool using_braces = false;
@@ -1303,7 +1317,7 @@ find_definition(const char *name, size_t len, bool definition)
 	const char *param_start = NULL;
 	const char *param_end = NULL;
 
-	if (LIST_ISEMPTY(defs))
+	if (list_empty(&defs))
 		return NULL;
 
 	if (!definition && *name == BOB[0]) {
@@ -1346,7 +1360,7 @@ find_definition(const char *name, size_t len, bool definition)
 	else
 		allow_multiline = false;
 
-	LIST_FOREACH(defs, def, e) {
+	list_for_each_entry(def, &defs, e_list) {
 		if (def->name_len == len &&
 		    (allow_multiline || !def->multiline) &&
 		    !strncmp(def->name, name, len)) {
@@ -1366,18 +1380,27 @@ find_definition(const char *name, size_t len, bool definition)
 }
 
 static void
+free_multiline_stack_list(list_head_t *l)
+{
+	multiline_stack_ent *stack, *stack_tmp;
+
+	list_for_each_entry_safe(stack, stack_tmp, l, e_list) {
+		list_del_init(&stack->e_list);
+		FREE(stack);
+	}
+}
+
+static void
 multiline_stack_push(const char *ptr)
 {
 	multiline_stack_ent *stack_ent;
 
-	if (!LIST_EXISTS(multiline_stack))
-		multiline_stack = alloc_list(free_list_element_simple, NULL);
-
 	PMALLOC(stack_ent);
+	INIT_LIST_HEAD(&stack_ent->e_list);
 	stack_ent->ptr = ptr;
 	stack_ent->seq_depth = multiline_seq_depth;
 
-	list_add(multiline_stack, stack_ent);
+	list_add_tail(&stack_ent->e_list, &multiline_stack);
 }
 
 static const char *
@@ -1386,14 +1409,15 @@ multiline_stack_pop(void)
 	multiline_stack_ent *stack_ent;
 	const char *next_ptr;
 
-	if (!LIST_EXISTS(multiline_stack) || LIST_ISEMPTY(multiline_stack))
+	if (list_empty(&multiline_stack))
 		return NULL;
 
-	stack_ent = LIST_TAIL_DATA(multiline_stack);
+	stack_ent = list_last_entry(&multiline_stack, multiline_stack_ent, e_list);
 	next_ptr = stack_ent->ptr;
 	multiline_seq_depth = stack_ent->seq_depth;
 
-	list_remove(multiline_stack, multiline_stack->tail);
+	list_del_init(&stack_ent->e_list);
+	FREE(stack_ent);
 
 	return next_ptr;
 }
@@ -1426,7 +1450,7 @@ replace_param(char *buf, size_t max_len, char const **multiline_ptr_ptr)
 				multiline_stack_push(multiline_ptr);
 
 			if (def->multiline)
-				multiline_seq_depth = LIST_EXISTS(seq_list) ? seq_list->count : 0;
+				multiline_seq_depth = seq_list_count;
 
 			if (def->fn) {
 				/* This is a standard definition that uses a function for the replacement text */
@@ -1501,13 +1525,20 @@ replace_param(char *buf, size_t max_len, char const **multiline_ptr_ptr)
 }
 
 static void
-free_definition(void *d)
+free_def(def_t *def)
 {
-	def_t *def = d;
-
+	list_del_init(&def->e_list);
 	FREE_CONST(def->name);
 	FREE_CONST_PTR(def->value);
 	FREE(def);
+}
+static void
+free_def_list(list_head_t *l)
+{
+	def_t *def, *def_tmp;
+
+	list_for_each_entry_safe(def, def_tmp, l, e_list)
+		free_def(def);
 }
 
 static def_t*
@@ -1521,13 +1552,12 @@ set_definition(const char *name, const char *value)
 		def->fn = NULL;		/* Allow a standard definition to be overridden */
 	}
 	else {
-		def = MALLOC(sizeof(*def));
+		PMALLOC(def);
+		INIT_LIST_HEAD(&def->e_list);
 		def->name_len = name_len;
 		def->name = STRNDUP(name, def->name_len);
 
-		if (!LIST_EXISTS(defs))
-			defs = alloc_list(free_definition, NULL);
-		list_add(defs, def);
+		list_add_tail(&def->e_list, &defs);
 	}
 	def->value_len = strlen(value);
 	def->value = STRNDUP(value, def->value_len);
@@ -1575,13 +1605,12 @@ check_definition(const char *buf)
 		def->fn = NULL;		/* Allow a standard definition to be overridden */
 	}
 	else {
-		def = MALLOC(sizeof(*def));
+		PMALLOC(def);
+		INIT_LIST_HEAD(&def->e_list);
 		def->name_len = def_name_len;
 		def->name = STRNDUP(buf + 1, def->name_len);
 
-		if (!LIST_EXISTS(defs))
-			defs = alloc_list(free_definition, NULL);
-		list_add(defs, def);
+		list_add_tail(&def->e_list, &defs);
 	}
 
 	/* Skip leading whitespace */
@@ -1620,7 +1649,8 @@ add_std_definition(const char *name, const char *value, const char *(*fn)(const 
 {
 	def_t* def;
 
-	def = MALLOC(sizeof(*def));
+	PMALLOC(def);
+	INIT_LIST_HEAD(&def->e_list);
 	def->name_len = strlen(name);
 	def->name = STRNDUP(name, def->name_len);
 	if (value) {
@@ -1630,9 +1660,7 @@ add_std_definition(const char *name, const char *value, const char *(*fn)(const 
 	def->fn = fn;
 	def->max_params = max_params;
 
-	if (!LIST_EXISTS(defs))
-		defs = alloc_list(free_definition, NULL);
-	list_add(defs, def);
+	list_add_tail(&def->e_list, &defs);
 }
 
 static void
@@ -1656,11 +1684,8 @@ set_std_definitions(void)
 static void
 free_parser_data(void)
 {
-	if (LIST_EXISTS(defs))
-		free_list(&defs);
-
-	if (LIST_EXISTS(multiline_stack))
-		free_list(&multiline_stack);
+	free_def_list(&defs);
+	free_multiline_stack_list(&multiline_stack);
 }
 
 /* decomment() removes comments, the escaping of comment start characters,
@@ -1746,9 +1771,9 @@ read_line(char *buf, size_t size)
 			FREE(line_residue);
 			line_residue = NULL;
 		}
-		else if (!LIST_ISEMPTY(seq_list) &&
-			seq_list->count > multiline_seq_depth) {
-			seq_t *seq = LIST_TAIL_DATA(seq_list);
+		else if (!list_empty(&seq_list) &&
+			seq_list_count > multiline_seq_depth) {
+			seq_t *seq = list_last_entry(&seq_list, seq_t, e_list);
 			char val[21];
 			if (seq->hex)
 				snprintf(val, sizeof(val), "%lx", (unsigned long)seq->next);
@@ -1767,7 +1792,7 @@ read_line(char *buf, size_t size)
 				if (do_parser_debug)
 					log_message(LOG_INFO, "Removing seq %s for '%s'", seq->var, seq->text);
 #endif
-				list_remove(seq_list, seq_list->tail);
+				free_seq(seq);
 			}
 		}
 		else if (next_ptr) {
@@ -1775,7 +1800,7 @@ read_line(char *buf, size_t size)
 			end = strchr(next_ptr, DEF_LINE_END[0]);
 			if (!end) {
 				strcpy(buf, next_ptr);
-				if (!LIST_ISEMPTY(multiline_stack))
+				if (!list_empty(&multiline_stack))
 					next_ptr = multiline_stack_pop();
 				else {
 					next_ptr = NULL;
@@ -1913,7 +1938,7 @@ read_line(char *buf, size_t size)
 			if (buf[0] == '~')
 				break;
 
-			if (!LIST_ISEMPTY(defs) && (p = strchr(buf, '$'))) {
+			if (!list_empty(&defs) && (p = strchr(buf, '$'))) {
 				if (!replace_param(buf, size, &next_ptr)) {
 					/* If nothing has changed, we don't need to do any more processing */
 					break;
@@ -2173,7 +2198,8 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void))
 
 	/* Report if there are missing '}'s. If there are missing '{'s it will already have been reported */
 	if (block_depth > 0)
-		report_config_error(CONFIG_MISSING_EOB, "There are %d missing '%s's or extra '%s's", block_depth, EOB, BOB);
+		report_config_error(CONFIG_MISSING_EOB, "There are %d missing '%s's or extra '%s's"
+						      , block_depth, EOB, BOB);
 
 	/* We have finished reading the configuration files, so any configuration
 	 * errors report from now mustn't include a reference to the config file name */

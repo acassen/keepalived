@@ -37,7 +37,6 @@
 
 /* local include */
 #include "vector.h"
-#include "list.h"
 #include "timer.h"
 #include "notify.h"
 #include "tracker.h"
