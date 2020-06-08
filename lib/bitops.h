@@ -36,17 +36,17 @@
 /* Helpers */
 static inline void __set_bit(unsigned idx, unsigned long *bmap)
 {
-	bmap[BIT_WORD(idx)] |= BIT_MASK(idx);
+	*(bmap + BIT_WORD(idx)) |= BIT_MASK(idx);
 }
 
 static inline void __clear_bit(unsigned idx, unsigned long *bmap)
 {
-	bmap[BIT_WORD(idx)] &= ~BIT_MASK(idx);
+	*(bmap + BIT_WORD(idx)) &= ~BIT_MASK(idx);
 }
 
 static inline bool __test_bit(unsigned idx, const unsigned long *bmap)
 {
-	return !!(bmap[BIT_WORD(idx)] & BIT_MASK(idx));
+	return !!(*(bmap + BIT_WORD(idx)) & BIT_MASK(idx));
 }
 
 static inline bool __test_and_set_bit(unsigned idx, unsigned long *bmap)
