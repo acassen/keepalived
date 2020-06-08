@@ -31,6 +31,9 @@
 #ifdef _WITH_SNMP_
 #include <sys/select.h>
 #endif
+#ifdef THREAD_DUMP
+#include <stdio.h>
+#endif
 
 #include "timer.h"
 #include "list_head.h"
