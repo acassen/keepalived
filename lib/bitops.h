@@ -36,17 +36,17 @@
 /* Helpers */
 static inline void __set_bit(unsigned idx, unsigned long *bmap)
 {
-	bmap[BIT_WORD(idx)] |= BIT_MASK(idx);
+	*bmap |= BIT_MASK(idx);
 }
 
 static inline void __clear_bit(unsigned idx, unsigned long *bmap)
 {
-	bmap[BIT_WORD(idx)] &= ~BIT_MASK(idx);
+	*bmap &= ~BIT_MASK(idx);
 }
 
 static inline bool __test_bit(unsigned idx, const unsigned long *bmap)
 {
-	return !!(bmap[BIT_WORD(idx)] & BIT_MASK(idx));
+	return !!(*bmap & BIT_MASK(idx));
 }
 
 static inline bool __test_and_set_bit(unsigned idx, unsigned long *bmap)
@@ -55,6 +55,31 @@ static inline bool __test_and_set_bit(unsigned idx, unsigned long *bmap)
 		return true;
 
 	__set_bit(idx, bmap);
+
+	return false;
+}
+
+static inline void __set_bit_array(unsigned idx, unsigned long bmap[])
+{
+	bmap[BIT_WORD(idx)] |= BIT_MASK(idx);
+}
+
+static inline void __clear_bit_array(unsigned idx, unsigned long bmap[])
+{
+	bmap[BIT_WORD(idx)] &= ~BIT_MASK(idx);
+}
+
+static inline bool __test_bit_array(unsigned idx, const unsigned long bmap[])
+{
+	return !!(bmap[BIT_WORD(idx)] & BIT_MASK(idx));
+}
+
+static inline bool __test_and_set_bit_array(unsigned idx, unsigned long bmap[])
+{
+	if (__test_bit_array(idx, bmap))
+		return true;
+
+	__set_bit_array(idx, bmap);
 
 	return false;
 }
