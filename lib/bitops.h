@@ -34,22 +34,22 @@
 #define BIT_WORD(idx)	((idx) / BIT_PER_LONG)
 
 /* Helpers */
-static inline void __set_bit(unsigned idx, unsigned long bmap[])
+static inline void __set_bit(unsigned idx, unsigned long *bmap)
 {
 	bmap[BIT_WORD(idx)] |= BIT_MASK(idx);
 }
 
-static inline void __clear_bit(unsigned idx, unsigned long bmap[])
+static inline void __clear_bit(unsigned idx, unsigned long *bmap)
 {
 	bmap[BIT_WORD(idx)] &= ~BIT_MASK(idx);
 }
 
-static inline bool __test_bit(unsigned idx, const unsigned long bmap[])
+static inline bool __test_bit(unsigned idx, const unsigned long *bmap)
 {
 	return !!(bmap[BIT_WORD(idx)] & BIT_MASK(idx));
 }
 
-static inline bool __test_and_set_bit(unsigned idx, unsigned long bmap[])
+static inline bool __test_and_set_bit(unsigned idx, unsigned long *bmap)
 {
 	if (__test_bit(idx, bmap))
 		return true;

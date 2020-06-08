@@ -960,7 +960,7 @@ add_seq(char *buf)
 static void
 dump_definitions(void)
 {
-	def_t *def;
+	const def_t *def;
 
 	list_for_each_entry(def, &defs, e_list)
 		log_message(LOG_INFO, "Defn %s = '%s'", def->name, def->value);
