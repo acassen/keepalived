@@ -17,7 +17,7 @@ Global Definitions Synopsis
         **notification_email_from** email
         **smtp_server** host
         **smtp_connect_timeout** num
-        **lvs_id** string
+        **router_id** string
     }
 
 ========================    ======================================================  =========
@@ -28,7 +28,7 @@ notification_email          email accounts that will receive the notification ma
 notification_email_from     email to use when processing “MAIL FROM:” SMTP command  List
 smtp_server remote SMTP     server to use for sending mail notifications            alphanum
 smtp_connect_timeout        specify a timeout for SMTP stream processing            numerical
-lvs_id                      specify the name of the LVS director                    alphanum
+router_id                   specify the name of the LVS director                    string
 ========================    ======================================================  =========
 
 Email type: Is a string using charset as specified into the SMTP RFC eg: “user@domain.com”
