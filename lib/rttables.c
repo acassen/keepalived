@@ -201,11 +201,11 @@ read_file(const char *file_name, list_head_t *l, uint32_t max)
 		}
 
 		PMALLOC(rte);
-		INIT_LIST_HEAD(&rte->e_list);
 		if (!rte) {
 			free_strvec(strvec);
 			goto err;
 		}
+		INIT_LIST_HEAD(&rte->e_list);
 
 		number = strvec_slot(strvec, 0);
 		number += strspn(number, " \t");

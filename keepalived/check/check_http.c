@@ -228,7 +228,7 @@ dump_url(FILE *fp, const url_t *url)
 
 	conf_write(fp, "     HTTP Status Code(s)");
 	for (i = HTTP_STATUS_CODE_MIN; i <= HTTP_STATUS_CODE_MAX; i++) {
-		if (__test_bit(i - HTTP_STATUS_CODE_MIN, url->status_code)) {
+		if (__test_bit_array(i - HTTP_STATUS_CODE_MIN, url->status_code)) {
 			if (!min)
 				min = i;
 		} else {
@@ -575,7 +575,7 @@ status_code_handler(const vector_t *strvec)
 		}
 
 		for (j = min; j <= max; j++)
-			__set_bit(j - HTTP_STATUS_CODE_MIN, url->status_code);
+			__set_bit_array(j - HTTP_STATUS_CODE_MIN, url->status_code);
 	}
 }
 
@@ -854,7 +854,7 @@ url_check(void)
 	}
 	if (i >= sizeof(url->status_code) / sizeof(url->status_code[0])) {
 		for (i = HTTP_DEFAULT_STATUS_CODE_MIN; i <= HTTP_DEFAULT_STATUS_CODE_MAX; i++)
-			__set_bit(i - HTTP_STATUS_CODE_MIN, url->status_code);
+			__set_bit_array(i - HTTP_STATUS_CODE_MIN, url->status_code);
 	}
 
 #ifdef _WITH_REGEX_CHECK_
@@ -1295,7 +1295,7 @@ http_handle_response(thread_ref_t thread, unsigned char digest[MD5_DIGEST_LENGTH
 	/* Next check the HTTP status code */
 	if (req->status_code < HTTP_STATUS_CODE_MIN ||
 		req->status_code > HTTP_STATUS_CODE_MAX ||
-		!__test_bit(req->status_code - HTTP_STATUS_CODE_MIN, url->status_code))
+		!__test_bit_array(req->status_code - HTTP_STATUS_CODE_MIN, url->status_code))
 		return timeout_epilog(thread, "HTTP status code error to");
 
 	/* Report a length mismatch the first time we get the specific difference */

@@ -910,7 +910,7 @@ vrrp_dispatcher_read(sock_t *sock)
 		/* Defense strategy here is to handle no more than one advert
 		 * per VRID in order to flush socket rcvq...
 		 * This is a best effort mitigation */
-		if (__test_and_set_bit(hd->vrid, rx_vrid_map))
+		if (__test_and_set_bit_array(hd->vrid, rx_vrid_map))
 			terminate_receiving = true;
 
 		vrrp_lookup.vrid = hd->vrid;
