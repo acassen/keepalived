@@ -27,7 +27,7 @@ global_defs                 identify the global def configuration block
 notification_email          email accounts that will receive the notification mail  List
 notification_email_from     email to use when processing “MAIL FROM:” SMTP command  List
 smtp_server remote SMTP     server to use for sending mail notifications            alphanum
-smtp_connection_timeout     specify a timeout for SMTP stream processing            numerical
+smtp_connect_timeout        specify a timeout for SMTP stream processing            numerical
 lvs_id                      specify the name of the LVS director                    alphanum
 ========================    ======================================================  =========
 
