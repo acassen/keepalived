@@ -83,13 +83,33 @@ typedef struct _multiline_stack_ent {
 	list_head_t e_list;
 } multiline_stack_ent;
 
+/* Structures used for ~LST */
+typedef struct param {
+	const char	*name;
+	list_head_t	e_list;
+} param_t;
+
+typedef struct value {
+	const char	*val;
+	list_head_t	e_list;
+} value_t;
+
+typedef struct value_set {
+	list_head_t	values;		/* value_t */
+	list_head_t	e_list;
+} value_set_t;
+
+/* Structure for ~SEQ or ~LST */
 typedef struct _seq {
 	const char *var;
 	long next;
+	value_set_t *next_var;
 	long last;
 	long step;
 	bool hex;
 	const char *text;
+	list_head_t lst_params;		/* param_t */
+	list_head_t lst_values;		/* value_set_t */
 
 	/* Linked list member */
 	list_head_t e_list;
@@ -797,12 +817,42 @@ alloc_strvec_r(const char *string)
 
 #ifdef _PARSER_DEBUG_
 static void
+dump_seq_lst(const seq_t *seq)
+{
+	param_t *param;
+	value_set_t *value_set;
+	value_t *value;
+	char *buf = MALLOC(1024);
+	char *p;
+
+	/* List the parameters */
+	p = buf;
+	list_for_each_entry(param, &seq->lst_params, e_list)
+		p += snprintf(p, buf + 1024 - p, "%s%s", p == buf ? "" : ", ", param->name);
+	log_message(LOG_INFO, "LST parameters: %s", buf);
+
+	/* List the values */
+	list_for_each_entry(value_set, &seq->lst_values, e_list) {
+		/* List the values in the value set */
+		buf[0] = '\0';
+		p = buf;
+		list_for_each_entry(value, &value_set->values, e_list)
+			p += snprintf(p, buf + 1024 - p, "%s%s", p == buf ? "" : ", ", value->val);
+		log_message(LOG_INFO, "    values:     %s", buf);
+	}
+
+	FREE(buf);
+}
+
+static void
 dump_seqs(void)
 {
 	seq_t *seq;
 
 	list_for_each_entry(seq, &seq_list, e_list) {
-		if (seq->hex)
+		if (!list_empty(&seq->lst_params)) {
+			dump_seq_lst(seq);
+		} else if (seq->hex)
 			log_message(LOG_INFO, "SEQ: %s => 0x%lx -> 0x%lx step %ld: '%s'", seq->var, (unsigned long)seq->next, (unsigned long)seq->last, seq->step, seq->text);
 		else
 			log_message(LOG_INFO, "SEQ: %s => %ld -> %ld step %ld: '%s'", seq->var, seq->next, seq->last, seq->step, seq->text);
@@ -819,13 +869,50 @@ free_seq(seq_t *seq)
 	FREE_CONST(seq->text);
 	FREE(seq);
 }
+
+static void
+free_seq_lst(seq_t *seq)
+{
+	param_t *param, *param_tmp;
+	value_set_t *value_set, *value_set_tmp;
+	value_t *value, *value_tmp;
+
+	list_del_init(&seq->e_list);
+
+	/* Free the parameters */
+	list_for_each_entry_safe(param, param_tmp, &seq->lst_params, e_list) {
+		list_del_init(&param->e_list);
+		FREE_CONST(param->name);
+		FREE(param);
+	}
+
+	/* Free the values */
+	list_for_each_entry_safe(value_set, value_set_tmp, &seq->lst_values, e_list) {
+		/* Free the values in a value set */
+		list_for_each_entry_safe(value, value_tmp, &value_set->values, e_list) {
+			list_del_init(&value->e_list);
+			FREE_CONST(value->val);
+			FREE(value);
+		}
+		list_del_init(&value_set->e_list);
+		FREE(value_set);
+	}
+
+	FREE_CONST(seq->text);
+	FREE(seq);
+}
+
 static void
 free_seq_list(list_head_t *l)
 {
 	seq_t *seq, *seq_tmp;
 
-	list_for_each_entry_safe(seq, seq_tmp, l, e_list)
-		free_seq(seq);
+	list_for_each_entry_safe(seq, seq_tmp, l, e_list) {
+		if (list_empty(&seq->lst_params))
+			free_seq(seq);
+		else
+			free_seq_lst(seq);
+	}
 }
 
 static bool
@@ -943,6 +1030,8 @@ add_seq(char *buf)
 
 	PMALLOC(seq_ent);
 	INIT_LIST_HEAD(&seq_ent->e_list);
+	INIT_LIST_HEAD(&seq_ent->lst_params);
+	INIT_LIST_HEAD(&seq_ent->lst_values);
 	seq_ent->var = STRNDUP(var, var_end - var);
 	seq_ent->next = start;
 	seq_ent->step = step;
@@ -950,6 +1039,144 @@ add_seq(char *buf)
 	seq_ent->hex = hex;
 	seq_ent->text = STRDUP(p);
 
+	list_add_tail(&seq_ent->e_list, &seq_list);
+	seq_list_count++;
+
+	return true;
+}
+
+static bool
+add_lst(char *buf)
+{
+	char *p = buf + 4;	/* Skip ~LST */
+	seq_t *seq_ent;
+	const char *var;
+	const char *var_end;
+	param_t *param;
+	value_set_t *value_set;
+	value_t *value;
+	unsigned num_vars = 0;
+	unsigned num_values;
+	char end_char;
+
+	PMALLOC(seq_ent);
+	INIT_LIST_HEAD(&seq_ent->e_list);
+	INIT_LIST_HEAD(&seq_ent->lst_params);
+	INIT_LIST_HEAD(&seq_ent->lst_values);
+
+	p += strspn(p, " \t");
+	if (*p++ != '(') {
+		free_seq_lst(seq_ent);
+		return false;
+	}
+
+	p += strspn(p, " \t");
+
+	if (*p == '{') {
+		end_char = '}';
+		p++;
+		p += strspn(p, " \t");
+	} else
+		end_char = ',';
+
+	while (true) {
+		var = p;
+		var_end = p += strcspn(p, " \t,}");
+		PMALLOC(param);
+		INIT_LIST_HEAD(&param->e_list);
+
+		param->name = STRNDUP(var, var_end - var);
+		list_add_tail(&param->e_list, &seq_ent->lst_params);
+
+		p += strspn(p, " \t");
+		if (*p == end_char)
+			break;
+		if (*p != ',') {
+			free_seq_lst(seq_ent);
+			return false;
+		}
+		p += strspn(p + 1, " \t") + 1;
+		num_vars++;
+	}
+	if (*p == '}')
+		p += strspn(p + 1, " \t") + 1;
+	if (*p++ != ',') {
+		free_seq_lst(seq_ent);
+		return false;
+	}
+
+	/* Read the values */
+	p += strspn(p, " \t");
+
+	while (true) {
+		PMALLOC(value_set);
+		INIT_LIST_HEAD(&value_set->e_list);
+		INIT_LIST_HEAD(&value_set->values);
+
+		if (*p == '{') {
+			end_char = '}';
+			p++;
+			p += strspn(p, " \t");
+		} else
+			end_char = ',';
+
+		/* Read one set of values */
+		num_values = 0;
+		while (true) {
+			var = p;
+			var_end = p += strcspn(p, " \t,})");
+			PMALLOC(value);
+			INIT_LIST_HEAD(&value->e_list);
+
+			value->val = STRNDUP(var, var_end - var);
+			list_add_tail(&value->e_list, &value_set->values);
+
+			p += strspn(p, " \t");
+			if (*p == end_char || (*p == ')' && end_char == ','))
+				break;
+			if (*p != ',') {
+				free_seq_lst(seq_ent);
+				return false;
+			}
+			p += strspn(p + 1, " \t") + 1;
+
+			if (++num_values > num_vars) {
+				report_config_error(CONFIG_GENERAL_ERROR, "~LST specification has too many values '%s'", buf);
+				free_seq_lst(seq_ent);
+				return false;
+			}
+		}
+
+		/* Any missing parameters are blank */
+		for (; num_values < num_vars; num_values++) {
+			PMALLOC(value);
+			value->val = STRDUP("");
+			INIT_LIST_HEAD(&value->e_list);
+		}
+
+		/* Add the value_set to the list of value_sets */
+		list_add_tail(&value_set->e_list, &seq_ent->lst_values);
+
+		if (*p == '}' && end_char == '}')
+			p += strspn(p + 1, " \t") + 1;
+		if (*p == ')')
+			break;
+		if (*p != ',') {
+			free_seq_lst(seq_ent);
+			return false;
+		}
+
+		p += strspn(p + 1, " \t") + 1;
+	}
+
+	if (list_empty(&seq_ent->lst_params) || list_empty(&seq_ent->lst_values)) {
+		free_seq_lst(seq_ent);
+		return false;
+	}
+
+	p += strspn(p + 1, " \t") + 1;
+	seq_ent->next_var = list_first_entry(&seq_ent->lst_values, value_set_t, e_list);
+	seq_ent->text = STRDUP(p);
 	list_add_tail(&seq_ent->e_list, &seq_list);
 	seq_list_count++;
 
@@ -1763,6 +1990,9 @@ read_line(char *buf, size_t size)
 	char *end;
 	size_t skip;
 	char *p;
+	list_head_t *next_value;
+	value_t *value;
+	param_t *param;
 
 	config_id_len = config_id ? strlen(config_id) : 0;
 	do {
@@ -1774,25 +2004,47 @@ read_line(char *buf, size_t size)
 		else if (!list_empty(&seq_list) &&
 			seq_list_count > multiline_seq_depth) {
 			seq_t *seq = list_last_entry(&seq_list, seq_t, e_list);
-			char val[21];
-			if (seq->hex)
-				snprintf(val, sizeof(val), "%lx", (unsigned long)seq->next);
-			else
-				snprintf(val, sizeof(val), "%ld", seq->next);
-#ifdef _PARSER_DEBUG_
-			if (do_parser_debug)
-				log_message(LOG_INFO, "Processing seq %ld of %s for '%s'",  seq->next, seq->var, seq->text);
-#endif
-			set_definition(seq->var, val);
-			strcpy(buf, seq->text);
-			seq->next += seq->step;
-			if ((seq->step > 0 && seq->next > seq->last) ||
-			    (seq->step < 0 && seq->next < seq->last)) {
+			if (list_empty(&seq->lst_params)) {
+				char val[21];
+				if (seq->hex)
+					snprintf(val, sizeof(val), "%lx", (unsigned long)seq->next);
+				else
+					snprintf(val, sizeof(val), "%ld", seq->next);
 #ifdef _PARSER_DEBUG_
 				if (do_parser_debug)
-					log_message(LOG_INFO, "Removing seq %s for '%s'", seq->var, seq->text);
+					log_message(LOG_INFO, "Processing seq %ld of %s for '%s'",  seq->next, seq->var, seq->text);
 #endif
-				free_seq(seq);
+				set_definition(seq->var, val);
+				strcpy(buf, seq->text);
+				seq->next += seq->step;
+				if ((seq->step > 0 && seq->next > seq->last) ||
+				    (seq->step < 0 && seq->next < seq->last)) {
+#ifdef _PARSER_DEBUG_
+					if (do_parser_debug)
+						log_message(LOG_INFO, "Removing seq %s for '%s'", seq->var, seq->text);
+#endif
+					free_seq(seq);
+				}
+			} else {
+				next_value = seq->next_var->values.next;
+				list_for_each_entry(param, &seq->lst_params, e_list) {
+					value = list_entry(next_value, value_t, e_list);
+#ifdef _PARSER_DEBUG_
+					if (do_parser_debug)
+						log_message(LOG_INFO, "Processing lst %s = '%s'",  param->name, value->val);
+#endif
+					set_definition(param->name, value->val);
+					strcpy(buf, seq->text);
+					next_value = next_value->next;
+				}
+				if (list_is_last(&seq->next_var->e_list, &seq->lst_values)) {
+#ifdef _PARSER_DEBUG_
+					if (do_parser_debug)
+						log_message(LOG_INFO, "Removing lst");
+#endif
+					free_seq_lst(seq);
+				} else
+					seq->next_var = list_entry(seq->next_var->e_list.next, value_set_t, e_list);
 			}
 		}
 		else if (next_ptr) {
@@ -1922,9 +2174,16 @@ read_line(char *buf, size_t size)
 				break;
 			}
 
-			if (!strncmp(buf, "~SEQ", 4)) {
-				if (!add_seq(buf))
-					report_config_error(CONFIG_GENERAL_ERROR, "Invalid ~SEQ specification '%s'", buf);
+// TODO TODO TODO - how do we deal with multiple ~SEQ on one line?
+// Do we need to find closing ) and process rest of line?
+			if (!strncmp(buf, "~SEQ", 4) || !strncmp(buf, "~LST", 4)) {
+				if (buf[1] == 'S') {
+					if (!add_seq(buf))
+						report_config_error(CONFIG_GENERAL_ERROR, "Invalid ~SEQ specification '%s'", buf);
+				} else {
+					if (!add_lst(buf))
+						report_config_error(CONFIG_GENERAL_ERROR, "Invalid ~LST specification '%s'", buf);
+				}
 #ifdef _PARSER_DEBUG_
 				if (do_parser_debug) {
 					dump_definitions();

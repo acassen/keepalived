@@ -2162,7 +2162,7 @@ The syntax for virtual_server is :
 .PP
 Configuration parser has been extended to support advanced features such as
 conditional configuration and parameter substitution. These features are
-very usefull for any scripted env where configuration template are
+very useful for any scripted environment where configuration templates are
 generated (datacenters).
 .PP
 .SH Conditional configuration and configuration id
@@ -2441,6 +2441,64 @@ There can be multiple ~SEQ elements on a line, so for example:
     will produce 65024 vrrp instances with names from vrrp4.0.0.1 through to
     vrrp4.7.31.254.
 .fi
+.SH List blocks
+.PP
+List blocks are similar to sequence blocks, except that the values to substitute into
+the variable are listed in the ~LST specification.
+
+A line starting \fB~LST(var, val1, val2, val3)\fR will cause the remainder of the
+line to be processed multiple times, with the variable \fB$var\fR set initially to
+\fBval1\fR, and then \fBval2\fR, and finally \fBval3\fR. Any number of values can be
+specified, as long as at least one value is (although only one value would be pointless).
+
+If it is desired to substitute more than one variable at a time, the variables and values
+need to be enclosed in {...} blocks. For example:
+
+    ~LST({IP, IP1}, {10,1},{20,4},{5,6},{12,8}) 192.168.${IP}.${IP1}
+
+would first set IP=10 and IP1=1, then IP=20 and IP1=4, etc, and produces:
+
+    192.168.10.1
+    192.168.20.4
+    192.168.5.6
+    192.168.12.8
+
+List blocks can be nested, so:
+
+    ~LST(IP, 1, 2, 3, 4) ~LST(IP1, 5,6,7) 192.169.${IP}.${IP1}
+
+produces:
+    192.169.1.5
+    192.169.1.6
+    192.169.1.7
+    192.169.2.5
+    192.169.2.6
+    192.169.2.7
+    192.169.3.5
+    192.169.3.6
+    192.169.3.7
+    192.169.4.5
+    192.169.4.6
+    192.169.4.7
+
+Finally, list blocks and sequence blocks can be combined, so:
+
+    ~LST({IP, IP1}, {10,1},{20,4},{5,6},{12,8}) ~SEQ(IP2,168,2,172) 192.${IP2}.${IP}.${IP1}
+
+produces:
+
+    192.168.10.1
+    192.170.10.1
+    192.172.10.1
+    192.168.20.4
+    192.170.20.4
+    192.172.20.4
+    192.168.5.6
+    192.170.5.6
+    192.172.5.6
+    192.168.12.8
+    192.170.12.8
+    192.172.12.8
 .PP
 .SH KERNEL SETTINGS
 It has been identified that if \fBproxy_arp\fR and \fBproxy_arp_pvlan\fR are enabled
