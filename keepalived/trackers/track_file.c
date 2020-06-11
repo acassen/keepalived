@@ -578,7 +578,7 @@ process_update_vrrp_track_file_status(const tracked_file_t *tfile, int new_statu
 #endif
 
 #ifdef _WITH_LVS_
-static void
+void
 process_update_checker_track_file_status(const tracked_file_t *tfile, int new_status, const tracking_obj_t *top)
 {
 	int previous_status;
