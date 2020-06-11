@@ -78,6 +78,7 @@ extern void dump_track_file_list(FILE *, const list_head_t *);
 
 extern void add_obj_to_track_file(void *, tracked_file_monitor_t *, const char *, obj_dump_func_t);
 
+extern void process_update_checker_track_file_status(const tracked_file_t *, int, const tracking_obj_t *);
 extern void update_track_file_status(tracked_file_t *, int);
 
 extern void init_track_files(list_head_t *);

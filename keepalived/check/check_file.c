@@ -215,7 +215,7 @@ set_track_file_checkers_down(void)
 						 * work for us. */
 						status = tfl->last_status;
 						tfl->last_status = 0;
-						update_track_file_status(tfl, status);
+						process_update_checker_track_file_status(tfl, !!status == (top->weight_multiplier == 1) ? INT_MIN : 0, top);
 						tfl->last_status = status;
 					} else
 						checker->is_up = false;
