@@ -1230,6 +1230,12 @@ The syntax for vrrp_sync_group is :
     # executed when stopping vrrp
     \fBnotify_stop \fR<STRING>|<QUOTED-STRING> [username [groupname]]
 
+    # notify_deleted causes DELETED to be sent to notifies rather
+    # than the default FAULT after a vrrp instance is deleted during a
+    # reload. If a script is specified, that script will be executed
+    # as well.
+    \fBnotify_deleted [\fR<STRING>|<QUOTED-STRING> [username [groupname]]]
+
     # for ANY state transition.
     # "notify" script is called AFTER the notify_* script(s) and
     # is executed with 4 additional arguments after the configured
@@ -1237,12 +1243,12 @@ The syntax for vrrp_sync_group is :
     #   $(n-3) = "GROUP"|"INSTANCE"
     #   $(n-2) = name of the group or instance
     #   $(n-1) = target state of transition (stop only applies to instances)
-    #            ("MASTER"|"BACKUP"|"FAULT"|"STOP")
+    #            ("MASTER"|"BACKUP"|"FAULT"|"STOP"|"DELETED")
     #   $(n)   = priority value
     #   $(n-3) and $(n-1) are ALWAYS sent in uppercase, and the possible
     # strings sent are the same ones listed above
-    #   ("GROUP"/"INSTANCE", "MASTER"/"BACKUP"/"FAULT"/"STOP")
-    # (note: STOP is only applicable to instances)
+    #   ("GROUP"/"INSTANCE", "MASTER"/"BACKUP"/"FAULT"/"STOP"/"DELETED")
+    # (note: STOP and DELETED are only applicable to instances)
     \fBnotify \fR<STRING>|<QUOTED-STRING> [username [groupname]]
 
     # The notify fifo output is the same as the last 4 parameters for the "notify"

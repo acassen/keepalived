@@ -223,6 +223,8 @@ enum snmp_vrrp_magic {
 	VRRP_SNMP_INSTANCE_USE_LINKBEAT,
 	VRRP_SNMP_INSTANCE_VRRP_VERSION,
 	VRRP_SNMP_INSTANCE_SCRIPTMASTER_RX_LOWER_PRI,
+	VRRP_SNMP_INSTANCE_SCRIPTDELETED,
+	VRRP_SNMP_INSTANCE_NOTIFY_DELETED,
 	VRRP_SNMP_TRACKEDINTERFACE_NAME,
 	VRRP_SNMP_TRACKEDINTERFACE_WEIGHT,
 	VRRP_SNMP_TRACKEDINTERFACE_WEIGHT_REVERSE,
@@ -2175,6 +2177,13 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 			return (u_char *)buf;
 		}
 		break;
+	case VRRP_SNMP_INSTANCE_SCRIPTDELETED:
+		if (rt->script_deleted) {
+			cmd_str_r(rt->script_deleted, buf, sizeof(buf));
+			*var_len = strlen(buf);
+			return (u_char *)buf;
+		}
+		break;
 	case VRRP_SNMP_INSTANCE_SCRIPTMASTER_RX_LOWER_PRI:
 		if (rt->script_master_rx_lower_pri) {
 			cmd_str_r(rt->script_master_rx_lower_pri, buf, sizeof(buf));
@@ -2206,6 +2215,9 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_INSTANCE_VRRP_VERSION:
 		long_ret.u = rt->version;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_INSTANCE_NOTIFY_DELETED:
+		long_ret.u = rt->notify_deleted ? 1 : 2;
 		return (u_char *)&long_ret;
 	default:
 		return NULL;
@@ -2632,15 +2644,19 @@ static struct variable8 vrrp_vars[] = {
 	{VRRP_SNMP_INSTANCE_SCRIPT, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_instance, 3, {3, 1, 26}},
 	{VRRP_SNMP_INSTANCE_ACCEPT, ASN_INTEGER, RWRITE,
-	 vrrp_snmp_instance, 3, {3, 1, 27} },
+	 vrrp_snmp_instance, 3, {3, 1, 27}},
 	{VRRP_SNMP_INSTANCE_PROMOTE_SECONDARIES, ASN_INTEGER, RWRITE,
-	 vrrp_snmp_instance, 3, {3, 1, 28} },
+	 vrrp_snmp_instance, 3, {3, 1, 28}},
 	{VRRP_SNMP_INSTANCE_USE_LINKBEAT, ASN_INTEGER, RWRITE,
-	 vrrp_snmp_instance, 3, {3, 1, 29} },
+	 vrrp_snmp_instance, 3, {3, 1, 29}},
 	{VRRP_SNMP_INSTANCE_VRRP_VERSION, ASN_INTEGER, RONLY,
-	 vrrp_snmp_instance, 3, {3, 1, 30} },
+	 vrrp_snmp_instance, 3, {3, 1, 30}},
 	{VRRP_SNMP_INSTANCE_SCRIPTMASTER_RX_LOWER_PRI, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_instance, 3, {3, 1, 31}},
+	{VRRP_SNMP_INSTANCE_SCRIPTDELETED, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_instance, 3, {3, 1, 32}},
+	{VRRP_SNMP_INSTANCE_NOTIFY_DELETED, ASN_INTEGER, RONLY,
+	 vrrp_snmp_instance, 3, {3, 1, 33}},
 
 	/* vrrpTrackedInterfaceTable */
 	{VRRP_SNMP_TRACKEDINTERFACE_NAME, ASN_OCTET_STR, RONLY,
@@ -3060,6 +3076,8 @@ vrrp_snmp_instance_trap(vrrp_t *vrrp)
 		state = vrrp->state;
 	else if (vrrp->state == VRRP_STATE_STOP)
 		state = 5;
+	else if (vrrp->state == VRRP_STATE_DELETED)
+		state = 6;
 
 	/* snmpTrapOID */
 	snmp_varlist_add_variable(&notification_vars,

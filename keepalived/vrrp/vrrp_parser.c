@@ -929,6 +929,21 @@ vrrp_notify_stop_handler(const vector_t *strvec)
 	vrrp->notify_exec = true;
 }
 static void
+vrrp_notify_deleted_handler(const vector_t *strvec)
+{
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
+	if (vrrp->notify_deleted) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) notify_deleted already specified - ignoring %s", vrrp->iname, vector_size(strvec) > 1 ? strvec_slot(strvec,1) : "");
+		return;
+	}
+
+	if (vector_size(strvec) > 1) {
+		vrrp->script_deleted = set_vrrp_notify_script(strvec, 0);
+		vrrp->notify_exec = true;
+	}
+	vrrp->notify_deleted = true;
+}
+static void
 vrrp_notify_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
@@ -1860,6 +1875,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("notify_master", &vrrp_notify_master_handler);
 	install_keyword("notify_fault", &vrrp_notify_fault_handler);
 	install_keyword("notify_stop", &vrrp_notify_stop_handler);
+	install_keyword("notify_deleted", &vrrp_notify_deleted_handler);
 	install_keyword("notify", &vrrp_notify_handler);
 	install_keyword("notify_master_rx_lower_pri", vrrp_notify_master_rx_lower_pri);
 	install_keyword("smtp_alert", &vrrp_smtp_handler);

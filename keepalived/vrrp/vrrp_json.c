@@ -186,12 +186,14 @@ vrrp_json_data_dump(json_writer_t *wr, vrrp_t *vrrp)
 	jsonw_uint_field(wr, "wantstate", vrrp->wantstate);
 	jsonw_uint_field(wr, "version", vrrp->version);
 	jsonw_bool_field(wr, "smtp_alert", vrrp->smtp_alert);
+	jsonw_bool_field(wr, "notify_deleted", vrrp->notify_deleted);
 
 	/* Script related */
 	vrrp_json_script_dump(wr, "script_backup", vrrp->script_backup);
 	vrrp_json_script_dump(wr, "script_master", vrrp->script_master);
 	vrrp_json_script_dump(wr, "script_fault", vrrp->script_fault);
 	vrrp_json_script_dump(wr, "script_stop", vrrp->script_stop);
+	vrrp_json_script_dump(wr, "script_deleted", vrrp->script_deleted);
 	vrrp_json_script_dump(wr, "script", vrrp->script);
 	vrrp_json_script_dump(wr, "script_master_rx_lower_pri"
 				, vrrp->script_master_rx_lower_pri);

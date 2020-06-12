@@ -185,6 +185,10 @@ state_str(int state)
 		return "Master";
 	case VRRP_STATE_FAULT:
 		return "Fault";
+	case VRRP_STATE_STOP:
+		return "Stop";
+	case VRRP_STATE_DELETED:
+		return "Deleted";
 	}
 	return "Unknown";
 }

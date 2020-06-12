@@ -54,6 +54,8 @@ get_iscript(vrrp_t * vrrp)
 		return vrrp->script_fault;
 	if (vrrp->state == VRRP_STATE_STOP)
 		return vrrp->script_stop;
+	if (vrrp->state == VRRP_STATE_DELETED)
+		return vrrp->script_deleted;
 	return NULL;
 }
 
@@ -110,6 +112,9 @@ notify_fifo(const char *name, int state_num, bool group, uint8_t priority)
 	case VRRP_STATE_STOP:
 		state = "STOP";
 		break;
+	case VRRP_STATE_DELETED:
+		state = "DELETED";
+		break;
 	case VRRP_EVENT_MASTER_RX_LOWER_PRI:
 		state = "MASTER_RX_LOWER_PRI";
 		break;
@@ -158,7 +163,7 @@ notify_script_exec(notify_script_t* script, const char *type, int state_num, con
 	char prio_buf[4];
 
 	/*
-	 * script {GROUP|INSTANCE} NAME {MASTER|BACKUP|FAULT|STOP} PRIO
+	 * script {GROUP|INSTANCE} NAME {MASTER|BACKUP|FAULT|STOP|DELETED} PRIO
 	 *
 	 * Note that the prio will be indicated as zero for a group.
 	 *
@@ -166,10 +171,11 @@ notify_script_exec(notify_script_t* script, const char *type, int state_num, con
 	script->args[script->num_args] = type;
 	script->args[script->num_args+1] = name;
 	switch (state_num) {
-		case VRRP_STATE_MAST  : script->args[script->num_args+2] = "MASTER" ; break;
-		case VRRP_STATE_BACK  : script->args[script->num_args+2] = "BACKUP" ; break;
-		case VRRP_STATE_FAULT : script->args[script->num_args+2] = "FAULT" ; break;
-		case VRRP_STATE_STOP  : script->args[script->num_args+2] = "STOP" ; break;
+		case VRRP_STATE_MAST   : script->args[script->num_args+2] = "MASTER" ; break;
+		case VRRP_STATE_BACK   : script->args[script->num_args+2] = "BACKUP" ; break;
+		case VRRP_STATE_FAULT  : script->args[script->num_args+2] = "FAULT" ; break;
+		case VRRP_STATE_STOP   : script->args[script->num_args+2] = "STOP" ; break;
+		case VRRP_STATE_DELETED: script->args[script->num_args+2] = "DELETED" ; break;
 		default:		script->args[script->num_args+2] = "{UNKNOWN}"; break;
 	}
 	snprintf(prio_buf, sizeof(prio_buf), "%d", prio);
@@ -207,6 +213,10 @@ vrrp_smtp_notifier(vrrp_t * vrrp)
 			smtp_alert(SMTP_MSG_VRRP, vrrp,
 				   "Stopping",
 				   "=> VRRP Instance stopping <=");
+		else if (vrrp->state == VRRP_STATE_DELETED)
+			smtp_alert(SMTP_MSG_VRRP, vrrp,
+				   "Deleted",
+				   "=> VRRP Deleted at reload <=");
 		else
 			return;
 
@@ -267,6 +277,11 @@ send_instance_notifies(vrrp_t *vrrp)
 		 * so don't send further notifies. */
 		return;
 	}
+
+	/* The old way to notify an instance being deleted was to send FAULT,
+	 * and that is maintained as the default for backward compatibility. */
+	if (!vrrp->notify_deleted && vrrp->state == VRRP_STATE_DELETED)
+		vrrp->state = VRRP_STATE_FAULT;
 
 	vrrp->notifies_sent = true;
 

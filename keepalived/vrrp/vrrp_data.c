@@ -544,6 +544,7 @@ free_vrrp(vrrp_t *vrrp)
 	free_notify_script(&vrrp->script_master);
 	free_notify_script(&vrrp->script_fault);
 	free_notify_script(&vrrp->script_stop);
+	free_notify_script(&vrrp->script_deleted);
 	free_notify_script(&vrrp->script);
 	free_notify_script(&vrrp->script_master_rx_lower_pri);
 	FREE_PTR(vrrp->stats);
@@ -781,6 +782,8 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 
 	conf_write(fp, "   Using smtp notification = %s", vrrp->smtp_alert ? "yes" : "no");
 
+	conf_write(fp, "   Notify deleted = %s", vrrp->notify_deleted ? "Deleted" : "Fault");
+
 	if (vrrp->script_backup)
 		dump_notify_script(fp, vrrp->script_backup, "Backup");
 	if (vrrp->script_master)
@@ -789,6 +792,8 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 		dump_notify_script(fp, vrrp->script_fault, "Fault");
 	if (vrrp->script_stop)
 		dump_notify_script(fp, vrrp->script_stop, "Stop");
+	if (vrrp->script_deleted)
+		dump_notify_script(fp, vrrp->script_deleted, "Deleted");
 	if (vrrp->script)
 		dump_notify_script(fp, vrrp->script, "Generic");
 	if (vrrp->script_master_rx_lower_pri)
