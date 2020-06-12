@@ -80,7 +80,11 @@ bool using_ha_suspend;
 
 /* local variables */
 static const char *check_syslog_ident;
+#ifndef __ONE_PROCESS_DEBUG_
 static bool two_phase_terminate;
+static timeval_t check_start_time;
+static unsigned check_next_restart_delay;
+#endif
 
 /* set fd ulimits  */
 static void
@@ -512,10 +516,21 @@ check_signal_init(void)
 	signal_ignore(SIGPIPE);
 }
 
+/* This function runs in the parent process. */
+static int
+delayed_restart_check_child_thread(__attribute__((unused)) thread_ref_t thread)
+{
+	start_check_child();
+
+	return 0;
+}
+
 /* CHECK Child respawning thread. This function runs in the parent process. */
 static int
 check_respawn_thread(thread_ref_t thread)
 {
+	unsigned restart_delay;
+
 	/* We catch a SIGCHLD, handle it */
 	checkers_child = 0;
 
@@ -523,7 +538,11 @@ check_respawn_thread(thread_ref_t thread)
 		thread_add_terminate_event(thread->master);
 	else if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
 		log_message(LOG_ALERT, "Healthcheck child process(%d) died: Respawning", thread->u.c.pid);
-		start_check_child();
+		restart_delay = calc_restart_delay(&check_start_time, &check_next_restart_delay, "Healthcheck");
+		if (!restart_delay)
+			start_check_child();
+		else
+			thread_add_timer(thread->master, delayed_restart_check_child_thread, NULL, restart_delay * TIMER_HZ);
 	} else {
 		log_message(LOG_ALERT, "Healthcheck child process(%d) died: Exiting", thread->u.c.pid);
 		raise(SIGTERM);
@@ -598,6 +617,8 @@ start_check_child(void)
 		return -1;
 	} else if (pid) {
 		checkers_child = pid;
+		check_start_time = time_now;
+
 		log_message(LOG_INFO, "Starting Healthcheck child process, pid=%d"
 			       , pid);
 
@@ -607,6 +628,7 @@ start_check_child(void)
 
 		return 0;
 	}
+
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
 	prog_type = PROG_TYPE_CHECKER;
@@ -718,6 +740,7 @@ register_check_parent_addresses(void)
 #ifndef _ONE_PROCESS_DEBUG_
 	register_thread_address("print_check_data", print_check_data);
 	register_thread_address("check_respawn_thread", check_respawn_thread);
+	register_thread_address("delayed_restart_check_child_thread", delayed_restart_check_child_thread);
 #endif
 }
 #endif
