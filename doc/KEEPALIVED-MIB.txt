@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "202005070001Z"
+     LAST-UPDATED "202006120001Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "202006120001Z"
+     DESCRIPTION "add script_deleted"
      REVISION "202005070001Z"
      DESCRIPTION "Comment that lvsSyncDaemonVrrpInstance may not be set even with sync daemon"
      REVISION "201907120003Z"
@@ -161,7 +163,8 @@ VrrpState ::= TEXTUAL-CONVENTION
         master(2),
         fault(3),
         unknown(4),
-        shutdown(5)
+        shutdown(5),
+        deleted(6)
     }
 
 RouteType ::= TEXTUAL-CONVENTION
@@ -913,7 +916,9 @@ VrrpInstanceEntry ::= SEQUENCE {
     vrrpInstancePromoteSecondaries INTEGER,
     vrrpInstanceUseLinkbeat INTEGER,
     vrrpInstanceVrrpVersion INTEGER,
-    vrrpInstanceScriptMstrRxLowerPri DisplayString
+    vrrpInstanceScriptMstrRxLowerPri DisplayString,
+    vrrpInstanceScriptDeleted DisplayString,
+    vrrpInstanceNotifyDeleted INTEGER
 }
 
 vrrpInstanceIndex OBJECT-TYPE
@@ -1180,6 +1185,22 @@ vrrpInstanceScriptMstrRxLowerPri OBJECT-TYPE
     DESCRIPTION
         "Script to execute when master instance receives lower priority advert."
     ::= { vrrpInstanceEntry 31 }
+
+vrrpInstanceScriptDeleted OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Script to execute when the instance is deleted on reload."
+    ::= { vrrpInstanceEntry 32 }
+
+vrrpInstanceNotifyDeleted OBJECT-TYPE
+    SYNTAX INTEGER { true(1), false(2) }
+    MAX-ACCESS read-write
+    STATUS current
+    DESCRIPTION
+        "Send Deleted rather than Fault notifications if instance is deleted on config reload."
+    ::= { vrrpInstanceEntry 33 }
 
 vrrpTrackedInterfaceTable OBJECT-TYPE
     SYNTAX SEQUENCE OF VrrpTrackedInterfaceEntry
@@ -4842,6 +4863,8 @@ vrrpInstanceGroup OBJECT-GROUP
     vrrpInstanceUseLinkbeat,
     vrrpInstanceVrrpVersion,
     vrrpInstanceScriptMstrRxLowerPri,
+    vrrpInstanceScriptDeleted,
+    vrrpInstanceNotifyDeleted,
     vrrpTrackedInterfaceName,
     vrrpTrackedInterfaceWeight,
     vrrpTrackedInterfaceWgtRev,

@@ -233,6 +233,7 @@ check_vrrp_script_security(void)
 		script_flags |= check_notify_script_secure(&vrrp->script_master, magic);
 		script_flags |= check_notify_script_secure(&vrrp->script_fault, magic);
 		script_flags |= check_notify_script_secure(&vrrp->script_stop, magic);
+		script_flags |= check_notify_script_secure(&vrrp->script_deleted, magic);
 		script_flags |= check_notify_script_secure(&vrrp->script, magic);
 		script_flags |= check_notify_script_secure(&vrrp->script_master_rx_lower_pri, magic);
 
@@ -4323,15 +4324,14 @@ clear_diff_vrrp(void)
 		 */
 		new_vrrp = vrrp_exist(vrrp, &vrrp_data->vrrp);
 		if (!new_vrrp) {
-			if (vrrp->state != VRRP_STATE_FAULT) {
-				if (vrrp->state == VRRP_STATE_MAST)
-					vrrp_restore_interface(vrrp, true, false);
+			if (vrrp->state == VRRP_STATE_MAST)
+				vrrp_restore_interface(vrrp, true, false);
 
-				/* We don't have a way of saying that an instance is deleted;
-				 * the nearest thing is to say the instance is in fault state,
-				 * i.e. it cannot run, which it certainly can't if it is
-				 * deleted. */
-				vrrp->state = VRRP_STATE_FAULT;
+			/* We used to send FAULT if an instance was deleted, so that
+			 * needs to continue as the default. If vrrp->notify_deleted
+			 * is set, we now send DELETED instead. */
+			if (vrrp->notify_deleted || vrrp->state != VRRP_STATE_FAULT) {
+				vrrp->state = VRRP_STATE_DELETED;
 				send_instance_notifies(vrrp);
 			}
 #ifdef _HAVE_VRRP_VMAC_

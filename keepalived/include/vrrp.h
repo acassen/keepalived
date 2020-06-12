@@ -329,10 +329,12 @@ typedef struct _vrrp_t {
 	int			smtp_alert;
 	int			last_email_state;
 	bool			notify_exec;
+	bool			notify_deleted;
 	notify_script_t		*script_backup;
 	notify_script_t		*script_master;
 	notify_script_t		*script_fault;
 	notify_script_t		*script_stop;
+	notify_script_t		*script_deleted;
 	notify_script_t		*script_master_rx_lower_pri;
 	notify_script_t		*script;
 	int			notify_priority_changes;
@@ -382,6 +384,7 @@ typedef struct _vrrp_t {
 #define VRRP_STATE_BACK			1	/* rfc2338.6.4.2 */
 #define VRRP_STATE_MAST			2	/* rfc2338.6.4.3 */
 #define VRRP_STATE_FAULT		3	/* internal */
+#define VRRP_STATE_DELETED		97	/* internal */
 #define VRRP_STATE_STOP			98	/* internal */
 #define VRRP_EVENT_MASTER_RX_LOWER_PRI	1000	/* Dummy state for sending event notify */
 #define VRRP_EVENT_MASTER_PRIORITY_CHANGE 1001	/* Dummy state for sending event notify */
