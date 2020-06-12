@@ -69,7 +69,7 @@ enum rfcv3_master_reason_type {
 
 #ifdef _WITH_SNMP_RFC_
 /* Global vars */
-extern timeval_t vrrp_start_time;
+extern timeval_t snmp_vrrp_start_time;
 #endif
 
 /* Prototypes */

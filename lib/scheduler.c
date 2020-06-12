@@ -438,6 +438,34 @@ RELAX_STRICT_OVERFLOW_END
 }
 
 #ifndef _ONE_PROCESS_DEBUG_
+unsigned
+calc_restart_delay(const timeval_t *last_start_time, unsigned *next_restart_delay, const char *name)
+{
+	unsigned restart_delay = *next_restart_delay;
+
+	/* If it had been running for more than a minute,
+	 * we can restart the process immediately. */
+	if (time_now.tv_sec - last_start_time->tv_sec > 60 ||
+	    (time_now.tv_sec - last_start_time->tv_sec == 60 &&
+	     time_now.tv_usec >= last_start_time->tv_usec)) {
+		*next_restart_delay = 0;
+		return 0;
+	}
+
+	/* next restart delay starts at 1, double each subsequent time,
+	 * up to a limit of 1 minute. */
+	if (!restart_delay)
+		*next_restart_delay = 1;
+	else if (*next_restart_delay > 30)
+		*next_restart_delay = 60;
+	else
+		*next_restart_delay *= 2;
+
+	log_message(LOG_INFO, "Restart of %s process delayed %u seconds to limit respawn rate", name, restart_delay);
+
+	return restart_delay;
+}
+
 /* report_child_status returns true if the exit is a hard error, so unable to continue */
 bool
 report_child_status(int status, pid_t pid, char const *prog_name)

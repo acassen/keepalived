@@ -226,6 +226,7 @@ extern void set_child_finder_name(char const * (*)(pid_t));
 extern void save_cmd_line_options(int, char * const *);
 extern void log_command_line(unsigned);
 #ifndef _ONE_PROCESS_DEBUG_
+extern unsigned calc_restart_delay(const timeval_t *, unsigned *, const char *);
 extern bool report_child_status(int, pid_t, const char *);
 #endif
 extern thread_master_t *thread_make_master(void);

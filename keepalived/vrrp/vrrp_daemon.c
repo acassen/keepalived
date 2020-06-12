@@ -102,8 +102,10 @@ perf_t perf_run = PERF_NONE;
 
 /* local variables */
 static const char *vrrp_syslog_ident;
-#ifndef __ONE_PROCESSDEBUG_
+#ifndef __ONE_PROCESS_DEBUG_
 static bool two_phase_terminate;
+static timeval_t vrrp_start_time;
+static unsigned vrrp_next_restart_delay;
 #endif
 
 #ifdef _VRRP_FD_DEBUG_
@@ -500,7 +502,7 @@ start_vrrp(data_t *prev_global_data)
 			else
 				vrrp_snmp_agent_init(global_data->snmp_socket);
 #ifdef _WITH_SNMP_RFC_
-			vrrp_start_time = time_now;
+			snmp_vrrp_start_time = time_now;
 #endif
 		}
 #endif
@@ -920,10 +922,21 @@ print_vrrp_json(__attribute__((unused)) thread_ref_t thread)
 }
 #endif
 
+/* This function runs in the parent process. */
+static int
+delayed_restart_vrrp_child_thread(__attribute__((unused)) thread_ref_t thread)
+{
+	start_vrrp_child();
+
+	return 0;
+}
+
 /* VRRP Child respawning thread. This function runs in the parent process. */
 static int
 vrrp_respawn_thread(thread_ref_t thread)
 {
+	unsigned restart_delay;
+
 	/* We catch a SIGCHLD, handle it */
 	vrrp_child = 0;
 
@@ -931,11 +944,16 @@ vrrp_respawn_thread(thread_ref_t thread)
 		thread_add_terminate_event(thread->master);
 	else if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
 		log_message(LOG_ALERT, "VRRP child process(%d) died: Respawning", thread->u.c.pid);
-		start_vrrp_child();
+		restart_delay = calc_restart_delay(&vrrp_start_time, &vrrp_next_restart_delay, "VRRP");
+		if (!restart_delay)
+			start_vrrp_child();
+		else
+			thread_add_timer(thread->master, delayed_restart_vrrp_child_thread, NULL, restart_delay * TIMER_HZ);
 	} else {
 		log_message(LOG_ALERT, "VRRP child process(%d) died: Exiting", thread->u.c.pid);
 		raise(SIGTERM);
 	}
+
 	return 0;
 }
 #endif
@@ -1012,6 +1030,8 @@ start_vrrp_child(void)
 		return -1;
 	} else if (pid) {
 		vrrp_child = pid;
+		vrrp_start_time = time_now;
+
 		log_message(LOG_INFO, "Starting VRRP child process, pid=%d"
 			       , pid);
 
@@ -1147,6 +1167,7 @@ register_vrrp_parent_addresses(void)
 {
 #ifndef _ONE_PROCESS_DEBUG_
 	register_thread_address("vrrp_respawn_thread", vrrp_respawn_thread);
+	register_thread_address("delayed_restart_vrrp_child_thread", delayed_restart_vrrp_child_thread);
 #endif
 }
 #endif

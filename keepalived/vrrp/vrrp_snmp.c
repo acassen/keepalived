@@ -508,7 +508,7 @@ static char buf[MAXBUF];
 
 /* global variable */
 #ifdef _WITH_SNMP_RFC_
-timeval_t vrrp_start_time;
+timeval_t snmp_vrrp_start_time;
 #endif
 
 
@@ -3473,7 +3473,7 @@ vrrp_rfcv2_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 	case VRRP_RFC_SNMP_OPER_VR_UPTIME:
 		if (rt->state == VRRP_STATE_BACK ||
 		    rt->state == VRRP_STATE_MAST) {
-			timersub(&rt->stats->uptime, &vrrp_start_time, &uptime);
+			timersub(&rt->stats->uptime, &snmp_vrrp_start_time, &uptime);
 			long_ret.s = uptime.tv_sec * 100 + uptime.tv_usec / 10000;	// unit is centi-seconds
 		}
 		else
