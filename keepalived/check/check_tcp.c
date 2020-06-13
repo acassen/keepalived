@@ -166,7 +166,7 @@ tcp_check_thread(thread_ref_t thread)
 	case connect_timeout:
 		if (checker->is_up &&
 		    (global_data->checker_log_all_failures || checker->log_all_failures))
-			log_message(LOG_INFO, "TCP connection to %s timedout."
+			log_message(LOG_INFO, "TCP connection to %s timeout."
 					, FMT_CHK(checker));
 		tcp_epilog(thread, false);
 		break;
