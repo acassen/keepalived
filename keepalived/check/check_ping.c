@@ -328,7 +328,7 @@ icmp_check_thread(thread_ref_t thread)
 	if (thread->type == THREAD_READ_TIMEOUT) {
 		if (checker->is_up &&
 		    (global_data->checker_log_all_failures || checker->log_all_failures))
-			log_message(LOG_INFO, "ICMP connection to address %s Timeout.", FMT_CHK(checker));
+			log_message(LOG_INFO, "ICMP connection to address %s timeout.", FMT_CHK(checker));
 		status = connect_error;
 	} else
 		status = checker->co->dst.ss_family == AF_INET ?
