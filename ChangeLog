@@ -1,3 +1,13 @@
+2020-06-13 Alexandre Cassen <acassen@keepalived.org>
+
+	This file is now deprecated and wil no longer get updated.
+	To have detailed informations about new Keepalived release
+	please refers to :
+
+		https://www.keepalived.org/release-notes
+
+
+
 2020-01-22 Alexandre Cassen <acassen@keepalived.org>
 	* keepalived-2.0.20
 	* Add DBus interface and config files to snap
