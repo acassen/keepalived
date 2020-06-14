@@ -78,6 +78,8 @@ $(GIT_COMMIT_FILE): FORCE
 			if [ "`git status --porcelain | \
 			       grep -v '^??' | \
 			       grep -v "^ D snap/snapcraft.yaml" | \
+			       grep -v "^ D snap/hooks/install" | \
+			       grep -v "^ D snap/hooks/post-refresh" | \
 			       wc -l`" -ne 0 ]; then \
 				EXTRA="+"; \
 			else \
