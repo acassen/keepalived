@@ -134,7 +134,7 @@ static const char *request_template_ipv6 =
 			"%s"
 			"Host: [%s]%s\r\n\r\n";
 
-static int http_connect_thread(thread_ref_t);
+static void http_connect_thread(thread_ref_t);
 
 #ifdef _WITH_REGEX_CHECK_
 static void
@@ -1403,7 +1403,7 @@ http_process_response(request_t *req, size_t r, url_t *url)
 }
 
 /* Asynchronous HTTP stream reader */
-static int
+static void
 http_read_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -1417,7 +1417,7 @@ http_read_thread(thread_ref_t thread)
 	/* Handle read timeout */
 	if (thread->type == THREAD_READ_TIMEOUT) {
 		timeout_epilog(thread, "Timeout HTTP read");
-		return 0;
+		return;
 	}
 
 	/* read the HTTP stream */
@@ -1431,7 +1431,7 @@ http_read_thread(thread_ref_t thread)
 				    , strerror(errno));
 		thread_add_read(thread->master, http_read_thread, checker,
 				thread->u.f.fd, timeout, true);
-		return 0;
+		return;
 	}
 
 	if (r <= 0) {	/* -1:error , 0:EOF */
@@ -1442,7 +1442,7 @@ http_read_thread(thread_ref_t thread)
 		if (r == -1) {
 			/* We have encountered a real read error */
 			timeout_epilog(thread, "Read error with");
-			return 0;
+			return;
 		}
 
 		/* Handle response stream */
@@ -1458,15 +1458,13 @@ http_read_thread(thread_ref_t thread)
 		thread_add_read(thread->master, http_read_thread, checker,
 				thread->u.f.fd, timeout, true);
 	}
-
-	return 0;
 }
 
 /*
  * Read get result from the remote web server.
  * Apply trigger check to this result.
  */
-static int
+static void
 http_response_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -1478,7 +1476,7 @@ http_response_thread(thread_ref_t thread)
 	/* Handle read timeout */
 	if (thread->type == THREAD_READ_TIMEOUT) {
 		timeout_epilog(thread, "Timeout WEB read");
-		return 0;
+		return;
 	}
 
 	/* Allocate & clean the get buffer */
@@ -1503,11 +1501,10 @@ http_response_thread(thread_ref_t thread)
 	else
 		thread_add_read(thread->master, http_read_thread, checker,
 				thread->u.f.fd, timeout, true);
-	return 0;
 }
 
 /* remote Web server is connected, send it the get url query.  */
-static int
+static void
 http_request_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -1525,7 +1522,7 @@ http_request_thread(thread_ref_t thread)
 	/* Handle write timeout */
 	if (thread->type == THREAD_WRITE_TIMEOUT) {
 		timeout_epilog(thread, "Timeout WEB write");
-		return 0;
+		return;
 	}
 
 	/* Allocate & clean the GET string */
@@ -1577,18 +1574,18 @@ http_request_thread(thread_ref_t thread)
 
 	if (!ret) {
 		timeout_epilog(thread, "Cannot send get request to");
-		return 0;
+		return;
 	}
 
 	/* Register read timeouted thread */
 	thread_add_read(thread->master, http_response_thread, checker,
 			thread->u.f.fd, timeout, true);
 	thread_del_write(thread);
-	return 1;
+	return;
 }
 
 /* WEB checkers threads */
-static int
+static void
 http_check_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -1603,17 +1600,17 @@ http_check_thread(thread_ref_t thread)
 	switch (status) {
 	case connect_error:
 		timeout_epilog(thread, "Error connecting");
-		return 0;
+		return;
 		break;
 
 	case connect_timeout:
 		timeout_epilog(thread, "Timeout connecting");
-		return 0;
+		return;
 		break;
 
 	case connect_fail:
 		timeout_epilog(thread, "Connection failed");
-		return 0;
+		return;
 		break;
 
 	case connect_success:
@@ -1630,7 +1627,7 @@ http_check_thread(thread_ref_t thread)
 				ret = ssl_connect(thread, new_req);
 			else {
 				timeout_epilog(thread, "Timeout connecting");
-				return 0;
+				return;
 			}
 
 			if (ret == -1) {
@@ -1683,15 +1680,13 @@ http_check_thread(thread_ref_t thread)
 #endif
 			timeout_epilog(thread, "SSL handshake/communication error"
 						 " connecting to");
-			return 0;
+			return;
 		}
 		break;
 	}
-
-	return 0;
 }
 
-static int
+static void
 http_connect_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -1708,14 +1703,14 @@ http_connect_thread(thread_ref_t thread)
 	if (!checker->enabled) {
 		thread_add_timer(thread->master, http_connect_thread, checker,
 				 checker->delay_loop);
-		return 0;
+		return;
 	}
 
 	/* if there are no URLs in list, enable server w/o checking */
 	fetched_url = fetch_next_url(http_get_check);
 	if (!fetched_url) {
 		epilog(thread, REGISTER_CHECKER_NEW);
-		return 0;
+		return;
 	}
 
 	/* Create the socket */
@@ -1724,7 +1719,7 @@ http_connect_thread(thread_ref_t thread)
 		thread_add_timer(thread->master, http_connect_thread, checker,
 				checker->delay_loop);
 
-		return 0;
+		return;
 	}
 
 #if !HAVE_DECL_SOCK_NONBLOCK
@@ -1751,8 +1746,6 @@ http_connect_thread(thread_ref_t thread)
 					checker->delay_loop);
 		}
 	}
-
-	return 0;
 }
 
 #ifdef THREAD_DUMP

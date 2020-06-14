@@ -263,7 +263,7 @@ http_process_stream(SOCK * sock_obj, int r)
 }
 
 /* Asynchronous HTTP stream reader */
-static int
+static void
 http_read_thread(thread_ref_t thread)
 {
 	SOCK *sock_obj = THREAD_ARG(thread);
@@ -272,7 +272,8 @@ http_read_thread(thread_ref_t thread)
 	/* Handle read timeout */
 	if (thread->type == THREAD_READ_TIMEOUT) {
 		exit_code = 1;
-		return epilog(thread);
+		epilog(thread);
+		return;
 	}
 
 	/* read the HTTP stream */
@@ -300,7 +301,8 @@ http_read_thread(thread_ref_t thread)
 		    strerror(errno));
 #endif
 		exit_code = 1;
-		return epilog(thread);
+		epilog(thread);
+		return;
 	} else {
 		/* Handle the response stream */
 		http_process_stream(sock_obj, (int)r);
@@ -312,12 +314,10 @@ http_read_thread(thread_ref_t thread)
 		thread_add_read(thread->master, http_read_thread, sock_obj,
 				thread->u.f.fd, req->timeout, true);
 	}
-
-	return 0;
 }
 
 /* remote Web server is connected, send it the get url query.  */
-int
+void
 http_request_thread(thread_ref_t thread)
 {
 	SOCK *sock_obj = THREAD_ARG(thread);
@@ -330,7 +330,8 @@ http_request_thread(thread_ref_t thread)
 	/* Handle read timeout */
 	if (thread->type == THREAD_WRITE_TIMEOUT) {
 		exit_code = 1;
-		return epilog(thread);
+		epilog(thread);
+		return;
 	}
 
 	/* Allocate & clean the GET string */
@@ -377,7 +378,8 @@ http_request_thread(thread_ref_t thread)
 			req->ipaddress,
 			ntohs(req->addr_port));
 		exit_code = 1;
-		return epilog(thread);
+		epilog(thread);
+		return;
 	}
 
 	/* Allocate & clean the get buffer */
@@ -396,6 +398,4 @@ http_request_thread(thread_ref_t thread)
 	else
 		thread_add_read(thread->master, http_read_thread, sock_obj,
 				sock_obj->fd, req->timeout, true);
-
-	return 1;
 }

@@ -60,7 +60,7 @@ int bfd_checker_event_pipe[2] = { -1, -1};
 static const char *bfd_syslog_ident;
 
 #ifndef _ONE_PROCESS_DEBUG_
-static int reload_bfd_thread(thread_ref_t);
+static void reload_bfd_thread(thread_ref_t);
 static timeval_t bfd_start_time;
 static unsigned bfd_next_restart_delay;
 #endif
@@ -197,11 +197,10 @@ bfd_validate_config(void)
 }
 
 #ifndef _ONE_PROCESS_DEBUG_
-static int
+static void
 print_bfd_thread(__attribute__((unused)) thread_ref_t thread)
 {
         bfd_print_data();
-        return 0;
 }
 
 /* Reload handler */
@@ -244,7 +243,7 @@ bfd_signal_init(void)
 }
 
 /* Reload thread */
-static int
+static void
 reload_bfd_thread(__attribute__((unused)) thread_ref_t thread)
 {
 	timeval_t timer;
@@ -279,21 +278,17 @@ reload_bfd_thread(__attribute__((unused)) thread_ref_t thread)
 
 	set_time_now();
 	log_message(LOG_INFO, "Reload finished in %lu usec", -timer_long(timer_sub_now(timer)));
-
-	return 0;
 }
 
 /* This function runs in the parent process. */
-static int
+static void
 delayed_restart_bfd_child_thread(__attribute__((unused)) thread_ref_t thread)
 {
 	start_bfd_child();
-
-	return 0;
 }
 
 /* BFD Child respawning thread. This function runs in the parent process. */
-static int
+static void
 bfd_respawn_thread(thread_ref_t thread)
 {
 	unsigned restart_delay;
@@ -314,7 +309,6 @@ bfd_respawn_thread(thread_ref_t thread)
 		log_message(LOG_ALERT, "BFD child process(%d) died: Exiting", thread->u.c.pid);
 		raise(SIGTERM);
 	}
-	return 0;
 }
 
 #ifdef THREAD_DUMP

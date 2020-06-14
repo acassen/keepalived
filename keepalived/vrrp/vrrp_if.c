@@ -686,7 +686,7 @@ init_linkbeat_status(int fd, interface_t *ifp)
 	return if_up;
 }
 
-static int
+static void
 if_linkbeat_refresh_thread(thread_ref_t thread)
 {
 	interface_t *ifp = THREAD_ARG(thread);
@@ -725,8 +725,6 @@ if_linkbeat_refresh_thread(thread_ref_t thread)
 
 	/* Register next polling thread */
 	thread_add_timer(master, if_linkbeat_refresh_thread, ifp, POLLING_DELAY);
-
-	return 0;
 }
 
 void
@@ -1460,7 +1458,7 @@ setup_interface(vrrp_t *vrrp)
 }
 
 #ifdef _HAVE_VRRP_VMAC_
-int
+void
 recreate_vmac_thread(thread_ref_t thread)
 {
 	interface_t *ifp = THREAD_ARG(thread);
@@ -1492,8 +1490,6 @@ recreate_vmac_thread(thread_ref_t thread)
 
 		break;
 	}
-
-	return 0;
 }
 #endif
 

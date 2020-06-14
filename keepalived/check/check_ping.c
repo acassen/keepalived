@@ -48,7 +48,7 @@ static bool checked_ping_group_range;
 
 static uint16_t seq_no;
 
-static int icmp_connect_thread(thread_ref_t);
+static void icmp_connect_thread(thread_ref_t);
 
 bool
 set_ping_group_range(bool set)
@@ -319,7 +319,7 @@ icmp_epilog(thread_ref_t thread, bool is_success)
 	thread_add_timer(thread->master, icmp_connect_thread, checker, delay);
 }
 
-static int
+static void
 icmp_check_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -352,10 +352,10 @@ icmp_check_thread(thread_ref_t thread)
 		icmp_epilog(thread, 0);
 	}
 
-	return 0;
+	return;
 }
 
-static int
+static void
 icmp_connect_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -367,7 +367,7 @@ icmp_connect_thread(thread_ref_t thread)
 	if (!checker->enabled) {
 		thread_add_timer(thread->master, icmp_connect_thread, checker,
 				checker->delay_loop);
-		return 0;
+		return;
 	}
 
 	 /*
@@ -380,7 +380,7 @@ icmp_connect_thread(thread_ref_t thread)
 				co->dst.ss_family == AF_INET ? "" : "v6");
 		thread_add_timer(thread->master, icmp_connect_thread, checker,
 				checker->delay_loop);
-		return 0;
+		return;
 	}
 
 #if !HAVE_DECL_SOCK_NONBLOCK
@@ -411,7 +411,7 @@ icmp_connect_thread(thread_ref_t thread)
 		close(fd);
 		icmp_epilog(thread, false);
 	}
-	return 0;
+	return;
 }
 
 #ifdef THREAD_DUMP

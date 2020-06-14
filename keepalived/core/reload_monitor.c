@@ -55,7 +55,7 @@ static char *utc_env[] = { tz_utc, NULL};
 
 // #define RELOAD_DEBUG
 
-static int
+static void
 reload_timer_thread(__attribute__((unused)) thread_ref_t thread)
 {
 	int inotify_fd = inotify_thread->u.f.fd;
@@ -78,7 +78,7 @@ reload_timer_thread(__attribute__((unused)) thread_ref_t thread)
 	reload_config();
 	*/
 
-	return 0;
+	return;
 }
 
 static char *
@@ -302,7 +302,7 @@ watch_file(int fd)
 	return wd;
 }
 
-static int
+static void
 inotify_event_thread(thread_ref_t thread)
 {
 	char buf[256];
@@ -372,7 +372,7 @@ inotify_event_thread(thread_ref_t thread)
 					close(thread->u.f.fd);
 					log_message(LOG_INFO, "Directory of reload timer file has disappeared. Monitoring stopped.");
 
-					return 0;
+					return;
 				}
 
  				/* coverity[string_null] */
@@ -399,8 +399,6 @@ inotify_event_thread(thread_ref_t thread)
 	}
 
 	inotify_thread = thread_add_read(master, inotify_event_thread, NULL, thread->u.f.fd, TIMER_NEVER, false);
-
-	return 0;
 }
 
 void

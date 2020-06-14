@@ -75,7 +75,7 @@ thread_time_to_wakeup(thread_ref_t thread)
 }
 
 /* Sends one BFD control packet and reschedules itself if needed */
-static int
+static void
 bfd_sender_thread(thread_ref_t thread)
 {
 	bfd_t *bfd;
@@ -104,8 +104,6 @@ bfd_sender_thread(thread_ref_t thread)
 	/* Schedule next run if not called as an event thread */
 	if (thread->type != THREAD_EVENT)
 		bfd_sender_schedule(bfd);
-
-	return 0;
 }
 
 /* Schedules bfd_sender_thread to run in local_tx_intv minus applied jitter */
@@ -227,7 +225,7 @@ bfd_sender_discard(bfd_t *bfd)
  */
 
 /* Marks session as down because of Control Detection Time Expiration */
-static int
+static void
 bfd_expire_thread(thread_ref_t thread)
 {
 	bfd_t *bfd;
@@ -265,8 +263,6 @@ bfd_expire_thread(thread_ref_t thread)
 	 */
 	bfd->remote_discr = 0;
 	bfd_state_down(bfd, BFD_DIAG_EXPIRED);
-
-	return 0;
 }
 
 /* Schedules bfd_expire_thread to run in local_detect_time */
@@ -362,7 +358,7 @@ bfd_expire_discard(bfd_t *bfd)
  */
 
 /* Resets BFD session to initial state */
-static int
+static void
 bfd_reset_thread(thread_ref_t thread)
 {
 	bfd_t *bfd;
@@ -376,8 +372,6 @@ bfd_reset_thread(thread_ref_t thread)
 	bfd->thread_rst = NULL;
 
 	bfd_reset_state(bfd);
-
-	return 0;
 }
 
 /* Schedules bfd_reset_thread to run in local_detect_time */
@@ -892,7 +886,7 @@ bfd_receive_packet(bfdpkt_t *pkt, int fd, char *buf, ssize_t bufsz)
  */
 
 /* Runs when data is available in listening socket */
-static int
+static void
 bfd_receiver_thread(thread_ref_t thread)
 {
 	bfd_data_t *data;
@@ -918,8 +912,6 @@ bfd_receiver_thread(thread_ref_t thread)
 	data->thread_in =
 	    thread_add_read(thread->master, bfd_receiver_thread, data,
 			    fd, TIMER_NEVER, false);
-
-	return 0;
 }
 
 /*
@@ -1211,7 +1203,7 @@ bfd_dispatcher_release(bfd_data_t *data)
 }
 
 /* Starts BFD dispatcher */
-int
+void
 bfd_dispatcher_init(thread_ref_t thread)
 {
 	bfd_data_t *data;
@@ -1223,8 +1215,6 @@ bfd_dispatcher_init(thread_ref_t thread)
 		exit(EXIT_FAILURE);
 
 	bfd_register_workers(data);
-
-	return 0;
 }
 
 
