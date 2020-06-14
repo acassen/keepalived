@@ -398,7 +398,10 @@ rcpt_cmd(thread_ref_t thread)
 	/* We send RCPT TO command multiple time to add all our email receivers.
 	 * --rfc821.3.1
 	 */
-	smtp->next_email_element = list_entry(email->e_list.next, email_t, e_list);
+	if (list_is_last(&smtp->next_email_element->e_list, &global_data->email))
+		smtp->next_email_element = NULL;
+	else
+		smtp->next_email_element = list_entry(email->e_list.next, email_t, e_list);
 
 	snprintf(buffer, SMTP_BUFFER_MAX, SMTP_RCPT_CMD, email->addr);
 	if (send(thread->u.f.fd, buffer, strlen(buffer), 0) == -1)
