@@ -75,10 +75,11 @@ $(GIT_COMMIT_FILE): FORCE
 				GIT_DATE=`git log -1 --date=iso | grep Date: | sed -e "s/^[^ ]* *\(....\)-\(..\)-\(..\).*/\2\/\3,\1/"`; \
 				GIT_YEAR=`echo $${GIT_DATE} | sed -e "s/.*,//"`; \
 			fi; \
-			git status --porcelain; \
 			if [ "`git status --porcelain | \
 			       grep -v '^??' | \
 			       grep -v "^ D snap/snapcraft.yaml" | \
+			       grep -v "^ D snap/hooks/install" | \
+			       grep -v "^ D snap/hooks/post-refresh" | \
 			       wc -l`" -ne 0 ]; then \
 				EXTRA="+"; \
 			else \
