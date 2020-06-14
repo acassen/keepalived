@@ -3825,6 +3825,9 @@ check_vrid_conflicts(void)
 	/* Make sure don't have same vrid on same interface with the same address family */
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		/* Check none of the rest of the entries conflict */
+		if (list_is_last(&vrrp->e_list, &vrrp_data->vrrp))
+			break;
+
 		vrrp1 = list_entry(vrrp->e_list.next, vrrp_t, e_list);
 		list_for_each_entry_from(vrrp1, &vrrp_data->vrrp, e_list) {
 			/* Address family or VRID don't match? */
