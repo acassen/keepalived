@@ -701,8 +701,8 @@ and
     # use UTC.
     # If using local time with daylight savings, beware that some times don't exist and
     # some times are duplicated and hence ambiguous.
-    reload_time_file ABSOLUTE-PATHNAME-OF-FILE
-    reload_repeat
+    \fBreload_time_file\fR ABSOLUTE-PATHNAME-OF-FILE
+    \fBreload_repeat\fR
 }
 .fi
 .SH Linkbeat interfaces
@@ -934,7 +934,7 @@ The configuration block looks like:
         #   parameters are specified.
         #   This option forces matching the full command line
         \fBfull_command\fR
-   }
+    }
 .fi
 .PP
 To avoid having to frequently run a track_script to monitor the existance
@@ -1905,7 +1905,7 @@ The syntax for virtual_server is :
         \fBweight \fR<INTEGER>
         # LVS forwarding method
         # For details of tunnel type, see virtual_server details. The default
-	# setting is taken from the virtual_server's setting.
+        # setting is taken from the virtual_server's setting.
         \fBlvs_method \fRNAT|DR
         or
         \fBlvs_method \fRTUN [type {ipip|gue port NUM|gre} [nocsum|csum|remcsum]]
@@ -1945,7 +1945,7 @@ The syntax for virtual_server is :
         # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|DNS_CHECK|MISC_CHECK|BFD_CHECK|UDP_CHECK|PING_CHECK|FILE_CHECK
 
         # All checkers have the following options, except MISC_CHECK which only
-	# has options alpha onwards, and BFD_CHECK and FILE_CHECK which have none
+        # has options alpha onwards, and BFD_CHECK and FILE_CHECK which have none
         # of the standard options:
         CHECKER_TYPE {
             # ======== generic connection options
@@ -2003,48 +2003,48 @@ The syntax for virtual_server is :
             # An url to test
             # can have multiple entries here
             \fBurl \fR{
-              #eg path / , or path /mrtg2/
-              \fBpath \fR<STRING>
-              # healthcheck needs digest
-              # or status_code and digest
-              # Digest computed with genhash
-              # eg digest 9b3a0c85a887a256d6939da88aabd8cd
-              \fBdigest \fR<STRING>
-              # status code returned in the HTTP header
-              # eg status_code 200 or status_code 200-299 400-499 503 505
-              # Default is 200-299
-              \fBstatus_code \fR<INTEGER|RANGE> [<INTEGER|RANGE>] ...
-              # VirtualHost string. eg virtualhost www.firewall.loc
-              # If not set, uses virtualhost from real or virtual server
-              \fBvirtualhost \fR<STRING>
-              # Regular expression to search returned data against.
-              # A failure to match causes the check to fail.
-              \fBregex \fR<STRING>
-              # Reverse the sense of the match, so a match of the
-              # returned text causes the check to fail.
-              \fBregex_no_match\fR
-              # Space separated list of options for regex.
-              #  See man pcre2api for a description of the options.
-              #  The following option are supported:
-              #   allow_empty_class alt_bsux auto_callout caseless
-              #   dollar_endonly dotall dupnames extended firstline
-              #   match_unset_backref multiline never_ucp never_utf
-              #   no_auto_capture no_auto_possess no_dotstar_anchor
-              #   no_start_optimize ucp ungreedy utf never_backslash_c
-              #   alt_circumflex alt_verbnames use_offset_limit
-              \fBregex_options \fR<OPTIONS>
-              # For complicated regular expressions a larger stack
-              #   may be needed, and this allows the start and maximum
-              #   sizes in bytes to be specified. For more details see
-              #   the documentation for pcre2_jit_stack_create()
-              \fBregex_stack \fR<START> <MAX>
-              # The minimum offset into the returned data to start
-              #   checking for the regex pattern match. This can save
-              #   processing time if the returned data is large.
-              \fBregex_min_offset \fR<OFFSET>
-              # The maximum offset into the returned data for the
-              #   start of the subject match.
-              \fBregex_max_offset \fR<OFFSET>
+                #eg path / , or path /mrtg2/
+                \fBpath \fR<STRING>
+                # healthcheck needs digest
+                # or status_code and digest
+                # Digest computed with genhash
+                # eg digest 9b3a0c85a887a256d6939da88aabd8cd
+                \fBdigest \fR<STRING>
+                # status code returned in the HTTP header
+                # eg status_code 200 or status_code 200-299 400-499 503 505
+                # Default is 200-299
+                \fBstatus_code \fR<INTEGER|RANGE> [<INTEGER|RANGE>] ...
+                # VirtualHost string. eg virtualhost www.firewall.loc
+                # If not set, uses virtualhost from real or virtual server
+                \fBvirtualhost \fR<STRING>
+                # Regular expression to search returned data against.
+                # A failure to match causes the check to fail.
+                \fBregex \fR<STRING>
+                # Reverse the sense of the match, so a match of the
+                # returned text causes the check to fail.
+                \fBregex_no_match\fR
+                # Space separated list of options for regex.
+                #  See man pcre2api for a description of the options.
+                #  The following option are supported:
+                #   allow_empty_class alt_bsux auto_callout caseless
+                #   dollar_endonly dotall dupnames extended firstline
+                #   match_unset_backref multiline never_ucp never_utf
+                #   no_auto_capture no_auto_possess no_dotstar_anchor
+                #   no_start_optimize ucp ungreedy utf never_backslash_c
+                #   alt_circumflex alt_verbnames use_offset_limit
+                \fBregex_options \fR<OPTIONS>
+                # For complicated regular expressions a larger stack
+                #   may be needed, and this allows the start and maximum
+                #   sizes in bytes to be specified. For more details see
+                #   the documentation for pcre2_jit_stack_create()
+                \fBregex_stack \fR<START> <MAX>
+                # The minimum offset into the returned data to start
+                #   checking for the regex pattern match. This can save
+                #   processing time if the returned data is large.
+                \fBregex_min_offset \fR<OFFSET>
+                # The maximum offset into the returned data for the
+                #   start of the subject match.
+                \fBregex_max_offset \fR<OFFSET>
             }
         }
 
@@ -2112,38 +2112,38 @@ The syntax for virtual_server is :
         }
 
         # PING healthchecker
-	# Note: using this checker may cause /proc/sys/net/ipv4/ping_group_range to be
-	# updated to allow root to use an IPPROTO_ICMP socket.
+        # Note: using this checker may cause /proc/sys/net/ipv4/ping_group_range to be
+        # updated to allow root to use an IPPROTO_ICMP socket.
         \fBPING_CHECK \fR{
             # No additional options
         }
 
         # UDP healthchecker
-	# Note: for this checker to work properly, it relies on ICMP error messages such as
-	#   HOST_UNREACH, NET_UNREACH, PORT_UNREACH. HOST_UNREACH relies on ARP requests
-	#   timing out, and so connect_timeout should be long enough to allow for this (e.g.
-	#   at least 4 seconds).
-	# It may be that you will want to use PING_CHECK to the same server as well.
+        # Note: for this checker to work properly, it relies on ICMP error messages such as
+        #   HOST_UNREACH, NET_UNREACH, PORT_UNREACH. HOST_UNREACH relies on ARP requests
+        #   timing out, and so connect_timeout should be long enough to allow for this (e.g.
+        #   at least 4 seconds).
+        # It may be that you will want to use PING_CHECK to the same server as well.
         \fBUDP_CHECK \fR{
-	    \fBrequire_reply\fR		# Require a reply packet for check to be successful
+	        \fBrequire_reply\fR		# Require a reply packet for check to be successful
         }
 
-	# File checker
-	# This reads and monitors the contents of a file, where STRING is the name specified
-	# in the track_file configuration block (see above).
-	# NOTE: weights for track_file for real servers are not fully implemented yet. In
-	# particular allowing weight 0, handling negative calculated values and reloading.
-	\fBFILE_CHECK \fR{
-	    \fBtrack_file \fR<STRING>
+        # File checker
+        # This reads and monitors the contents of a file, where STRING is the name specified
+        # in the track_file configuration block (see above).
+        # NOTE: weights for track_file for real servers are not fully implemented yet. In
+        # particular allowing weight 0, handling negative calculated values and reloading.
+        \fBFILE_CHECK \fR{
+            \fBtrack_file \fR<STRING>
 
-	    # If dynamic is set, the value from the file is used
-	    # to dynamically adjust the weight by adding the weight
-	    # to the quorum and the LVS weight
-	    dynamic
+            # If dynamic is set, the value from the file is used
+            # to dynamically adjust the weight by adding the weight
+            # to the quorum and the LVS weight
+            \fBdynamic\fR
 
-	    # The weight multiplier to apply to the value read from the file
-	    weight <-2147483647..2147483647> [reverse]
-	}
+            # The weight multiplier to apply to the value read from the file
+            \fBweight\fR <-2147483647..2147483647> [reverse]
+        }
     }
 }
 .fi
