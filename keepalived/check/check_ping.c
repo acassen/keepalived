@@ -75,16 +75,20 @@ set_ping_group_range(bool set)
 	buf[len] = '\0';
 
 	val[0] = strtoul(buf, &endptr, 10);
+#if ULONG_MAX >= 1UL << 32
 	if (val[0] >= 1UL << 32 || (*endptr != '\t' && *endptr != ' ')) {
 		close(fd);
 		return false;
 	}
+#endif
 
 	val[1] = strtol(endptr + 1, &endptr, 10);
+#if ULONG_MAX >= 1UL << 32
 	if (val[1] >= 1UL << 32 || *endptr != '\n') {
 		close(fd);
 		return false;
 	}
+#endif
 
 	checked_ping_group_range = set;
 
