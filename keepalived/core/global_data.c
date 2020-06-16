@@ -626,7 +626,7 @@ dump_global_data(FILE *fp, data_t * data)
 		conf_write(fp, " Max auto priority = Disabled");
 	else
 		conf_write(fp, " Max auto priority = %d", data->max_auto_priority);
-	conf_write(fp, " Min auto priority delay = %lu usecs", data->min_auto_priority_delay);
+	conf_write(fp, " Min auto priority delay = %ld usecs", data->min_auto_priority_delay);
 	conf_write(fp, " VRRP process priority = %d", data->vrrp_process_priority);
 	conf_write(fp, " VRRP don't swap = %s", data->vrrp_no_swap ? "true" : "false");
 	conf_write(fp, " VRRP realtime priority = %u", data->vrrp_realtime_priority);
