@@ -41,7 +41,7 @@
 #include "scheduler.h"
 #endif
 
-static int tcp_connect_thread(thread_ref_t);
+static void tcp_connect_thread(thread_ref_t);
 
 /* Configuration stream handling */
 static void
@@ -144,7 +144,7 @@ tcp_epilog(thread_ref_t thread, bool is_success)
 	thread_add_timer(thread->master, tcp_connect_thread, checker, delay);
 }
 
-static int
+static void
 tcp_check_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -177,11 +177,9 @@ tcp_check_thread(thread_ref_t thread)
 					, FMT_CHK(checker));
 		tcp_epilog(thread, false);
 	}
-
-	return 0;
 }
 
-static int
+static void
 tcp_connect_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -196,7 +194,7 @@ tcp_connect_thread(thread_ref_t thread)
 	if (!checker->enabled) {
 		thread_add_timer(thread->master, tcp_connect_thread, checker,
 				 checker->delay_loop);
-		return 0;
+		return;
 	}
 
 	if ((fd = socket(co->dst.ss_family, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, IPPROTO_TCP)) == -1) {
@@ -204,7 +202,7 @@ tcp_connect_thread(thread_ref_t thread)
 		thread_add_timer(thread->master, tcp_connect_thread, checker,
 				checker->delay_loop);
 
-		return 0;
+		return;
 	}
 
 #if !HAVE_DECL_SOCK_NONBLOCK
@@ -232,8 +230,6 @@ tcp_connect_thread(thread_ref_t thread)
 					checker->delay_loop);
 		}
 	}
-
-	return 0;
 }
 
 #ifdef THREAD_DUMP

@@ -60,9 +60,9 @@ typedef struct _ref_co {
 //*** default_co is pointless
 static conn_opts_t* default_co;	/* Default conn_opts for SMTP_CHECK */
 
-static int smtp_connect_thread(thread_ref_t);
-static int smtp_start_check_thread(thread_ref_t);
-static int smtp_engine_thread(thread_ref_t);
+static void smtp_connect_thread(thread_ref_t);
+static void smtp_start_check_thread(thread_ref_t);
+static void smtp_engine_thread(thread_ref_t);
 
 /* Used as a callback from the checker api, queue_checker(),
  * to free up a checker entry and all its associated data.
@@ -429,7 +429,7 @@ smtp_final(thread_ref_t thread, const char *format, ...)
  * single packet, but we don't care. We are only looking at the
  * SMTP response codes at the beginning anyway.
  */
-static int
+static void
 smtp_get_line_cb(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -442,7 +442,7 @@ smtp_get_line_cb(thread_ref_t thread)
 	if (thread->type == THREAD_READ_TIMEOUT) {
 		smtp_final(thread, "Read timeout from server %s"
 				    , FMT_SMTP_RS(smtp_host));
-		return 0;
+		return;
 	}
 
 	/* wrap the buffer, if full, by clearing it */
@@ -460,7 +460,7 @@ smtp_get_line_cb(thread_ref_t thread)
 	if (r == -1 && (check_EAGAIN(errno) || check_EINTR(errno))) {
 		thread_add_read(thread->master, smtp_get_line_cb, checker,
 				thread->u.f.fd, smtp_host->connection_to, true);
-		return 0;
+		return;
 	}
 
 	/*
@@ -470,7 +470,7 @@ smtp_get_line_cb(thread_ref_t thread)
 	if (r <= 0) {
 		smtp_final(thread, "Read failure from server %s"
 				     , FMT_SMTP_RS(smtp_host));
-		return 0;
+		return;
 	}
 
 	smtp_checker->buff_ctr += (size_t)r;
@@ -487,7 +487,7 @@ smtp_get_line_cb(thread_ref_t thread)
 
 		smtp_engine_thread(thread);
 
-		return 0;
+		return;
 	}
 
 	/*
@@ -497,7 +497,6 @@ smtp_get_line_cb(thread_ref_t thread)
 	 */
 	thread_add_read(thread->master, smtp_get_line_cb, checker,
 			thread->u.f.fd, smtp_host->connection_to, true);
-	return 0;
 }
 
 /*
@@ -523,7 +522,6 @@ smtp_get_line(thread_ref_t thread)
 	thread_add_read(thread->master, smtp_get_line_cb, checker,
 		thread->u.f.fd, smtp_host->connection_to, true);
 	thread_del_write(thread);
-	return;
 }
 
 /*
@@ -532,7 +530,7 @@ smtp_get_line(thread_ref_t thread)
  * the current write would block or not. If it wants to block,
  * we'll return to the scheduler and try again later.
  */
-static int
+static void
 smtp_put_line_cb(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -544,7 +542,7 @@ smtp_put_line_cb(thread_ref_t thread)
 	if (thread->type == THREAD_WRITE_TIMEOUT) {
 		smtp_final(thread, "Write timeout to server %s"
 				     , FMT_SMTP_RS(smtp_host));
-		return 0;
+		return;
 	}
 
 	/* write the data */
@@ -553,7 +551,7 @@ smtp_put_line_cb(thread_ref_t thread)
 	if (w == -1 && (check_EAGAIN(errno) || check_EINTR(errno))) {
 		thread_add_write(thread->master, smtp_put_line_cb, checker,
 				 thread->u.f.fd, smtp_host->connection_to, true);
-		return 0;
+		return;
 	}
 
 #ifdef _CHECKER_DEBUG_
@@ -568,12 +566,11 @@ smtp_put_line_cb(thread_ref_t thread)
 	if (w <= 0) {
 		smtp_final(thread, "Write failure to server %s"
 				     , FMT_SMTP_RS(smtp_host));
-		return 0;
+		return;
 	}
 
 	/* Execute the callback */
 	smtp_engine_thread(thread);
-	return 0;
 }
 
 /*
@@ -621,7 +618,7 @@ smtp_get_status(smtp_checker_t *smtp_checker)
  * smtp_checker->state. Upon first calling, smtp_checker->state
  * should be set to SMTP_START.
  */
-static int
+static void
 smtp_engine_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -694,15 +691,13 @@ smtp_engine_thread(thread_ref_t thread)
 			smtp_final(thread, "Unknown smtp engine state encountered");
 			break;
 	}
-
-	return 0;
 }
 
 /*
  * Second step in the process. Here we'll see if the connection
  * to the host we're checking was successful or not.
  */
-static int
+static void
 smtp_check_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -745,8 +740,6 @@ smtp_check_thread(thread_ref_t thread)
 					     , FMT_SMTP_RS(smtp_host));
 			break;
 	}
-
-	return 0;
 }
 
 /*
@@ -759,7 +752,7 @@ smtp_check_thread(thread_ref_t thread)
  * ourselves to run again. It doesn't have to be right here,
  * but eventually has to happen.
  */
-static int
+static void
 smtp_connect_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -797,7 +790,7 @@ smtp_connect_thread(thread_ref_t thread)
 	if (!checker->enabled) {
 		thread_add_timer(thread->master, smtp_start_check_thread, checker,
 				 checker->delay_loop);
-		return 0;
+		return;
 	}
 
 	smtp_host = checker->co;
@@ -807,7 +800,7 @@ smtp_connect_thread(thread_ref_t thread)
 		log_message(LOG_INFO, "SMTP_CHECK connection failed to create socket. Rescheduling.");
 		thread_add_timer(thread->master, smtp_start_check_thread, checker,
 				 checker->delay_loop);
-		return 0;
+		return;
 	}
 
 #if !HAVE_DECL_SOCK_NONBLOCK
@@ -836,11 +829,9 @@ smtp_connect_thread(thread_ref_t thread)
 				checker->delay_loop);
 		}
 	}
-
-	return 0;
 }
 
-static int
+static void
 smtp_start_check_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -848,8 +839,6 @@ smtp_start_check_thread(thread_ref_t thread)
 	checker->retry_it = 0;
 
 	smtp_connect_thread(thread);
-
-	return 0;
 }
 
 #ifdef THREAD_DUMP

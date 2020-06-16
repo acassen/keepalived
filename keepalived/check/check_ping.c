@@ -48,7 +48,7 @@ static bool checked_ping_group_range;
 
 static uint16_t seq_no;
 
-static int icmp_connect_thread(thread_ref_t);
+static void icmp_connect_thread(thread_ref_t);
 
 bool
 set_ping_group_range(bool set)
@@ -75,16 +75,20 @@ set_ping_group_range(bool set)
 	buf[len] = '\0';
 
 	val[0] = strtoul(buf, &endptr, 10);
+#if ULONG_MAX >= 1UL << 32
 	if (val[0] >= 1UL << 32 || (*endptr != '\t' && *endptr != ' ')) {
 		close(fd);
 		return false;
 	}
+#endif
 
 	val[1] = strtol(endptr + 1, &endptr, 10);
+#if ULONG_MAX >= 1UL << 32
 	if (val[1] >= 1UL << 32 || *endptr != '\n') {
 		close(fd);
 		return false;
 	}
+#endif
 
 	checked_ping_group_range = set;
 
@@ -319,7 +323,7 @@ icmp_epilog(thread_ref_t thread, bool is_success)
 	thread_add_timer(thread->master, icmp_connect_thread, checker, delay);
 }
 
-static int
+static void
 icmp_check_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -352,10 +356,10 @@ icmp_check_thread(thread_ref_t thread)
 		icmp_epilog(thread, 0);
 	}
 
-	return 0;
+	return;
 }
 
-static int
+static void
 icmp_connect_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -367,7 +371,7 @@ icmp_connect_thread(thread_ref_t thread)
 	if (!checker->enabled) {
 		thread_add_timer(thread->master, icmp_connect_thread, checker,
 				checker->delay_loop);
-		return 0;
+		return;
 	}
 
 	 /*
@@ -380,7 +384,7 @@ icmp_connect_thread(thread_ref_t thread)
 				co->dst.ss_family == AF_INET ? "" : "v6");
 		thread_add_timer(thread->master, icmp_connect_thread, checker,
 				checker->delay_loop);
-		return 0;
+		return;
 	}
 
 #if !HAVE_DECL_SOCK_NONBLOCK
@@ -411,7 +415,7 @@ icmp_connect_thread(thread_ref_t thread)
 		close(fd);
 		icmp_epilog(thread, false);
 	}
-	return 0;
+	return;
 }
 
 #ifdef THREAD_DUMP

@@ -47,7 +47,7 @@
 static thread_ref_t bfd_thread;
 static checker_t *new_checker;
 
-static int bfd_check_thread(thread_ref_t);
+static void bfd_check_thread(thread_ref_t);
 
 /* Configuration stream handling */
 static void
@@ -321,7 +321,7 @@ bfd_check_handle_event(bfd_event_t * evt)
 	}
 }
 
-static int
+static void
 bfd_check_thread(thread_ref_t thread)
 {
 	bfd_event_t evt;
@@ -330,12 +330,10 @@ bfd_check_thread(thread_ref_t thread)
 				     thread->u.f.fd, TIMER_NEVER, false);
 
 	if (thread->type != THREAD_READY_READ_FD)
-		return 0;
+		return;
 
 	while (read(thread->u.f.fd, &evt, sizeof(bfd_event_t)) != -1)
 		bfd_check_handle_event(&evt);
-
-	return 0;
 }
 
 void

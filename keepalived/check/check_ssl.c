@@ -278,7 +278,7 @@ ssl_send_request(SSL * ssl, const char *str_request, int request_len)
 }
 
 /* Asynchronous SSL stream reader */
-int
+void
 ssl_read_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -290,8 +290,10 @@ ssl_read_thread(thread_ref_t thread)
 	int r = 0;
 
 	/* Handle read timeout */
-	if (thread->type == THREAD_READ_TIMEOUT && !req->extracted)
-		return timeout_epilog(thread, "Timeout SSL read");
+	if (thread->type == THREAD_READ_TIMEOUT && !req->extracted) {
+		timeout_epilog(thread, "Timeout SSL read");
+		return;
+	}
 
 	/* read the SSL stream - allow for terminating the data with '\0 */
 	r = SSL_read(req->ssl, req->buffer + req->len, (int)(MAX_BUFFER_LENGTH - 1 - req->len));
@@ -321,14 +323,14 @@ ssl_read_thread(thread_ref_t thread)
 
 		r = (req->error == SSL_ERROR_ZERO_RETURN) ? SSL_shutdown(req->ssl) : 0;
 
-		if (r && !req->extracted)
-			return timeout_epilog(thread, "SSL read error from");
+		if (r && !req->extracted) {
+			timeout_epilog(thread, "SSL read error from");
+			return;
+		}
 
 		/* Handle response stream */
 		http_handle_response(thread, digest, !req->extracted);
 	}
-
-	return 0;
 }
 
 #ifdef THREAD_DUMP

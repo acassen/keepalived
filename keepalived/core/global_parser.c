@@ -1025,7 +1025,7 @@ vrrp_ipsets_handler(const vector_t *strvec)
 	else {
 		/* No second set specified, copy first name and add "_igmp" */
 		strcpy_safe(set_name, global_data->vrrp_ipset_address);
-		set_name[sizeof(global_data->vrrp_ipset_igmp) - 6] = '\0';
+		set_name[sizeof(set_name) - 6] = '\0';
 		strcat(set_name, "_igmp");
 		global_data->vrrp_ipset_igmp = STRDUP(set_name);
 	}
@@ -1039,7 +1039,7 @@ vrrp_ipsets_handler(const vector_t *strvec)
 	else {
 		/* No second set specified, copy first name and add "_mld" */
 		strcpy_safe(set_name, global_data->vrrp_ipset_address);
-		set_name[sizeof(global_data->vrrp_ipset_mld) - 5] = '\0';
+		set_name[sizeof(set_name) - 5] = '\0';
 		strcat(set_name, "_mld");
 		global_data->vrrp_ipset_mld = STRDUP(set_name);
 	}

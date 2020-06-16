@@ -126,7 +126,7 @@ log_buffer(const char *msg, const void *buff, size_t count)
 
 	while (offs < count) {
 		ptr = op_buf;
-		ptr += snprintf(ptr, op_buf + sizeof(op_buf) - ptr, "%4.4lx ", offs);
+		ptr += snprintf(ptr, op_buf + sizeof(op_buf) - ptr, "%4.4zx ", offs);
 
 		for (i = 0; i < 16 && offs < count; i++) {
 			if (i == 8)

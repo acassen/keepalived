@@ -56,8 +56,8 @@ const dns_type_t DNS_TYPE[] = {
 	{0, NULL}
 };
 
-static int dns_connect_thread(thread_ref_t);
-static int dns_send_thread(thread_ref_t);
+static void dns_connect_thread(thread_ref_t);
+static void dns_send_thread(thread_ref_t);
 
 static uint16_t __attribute__ ((pure))
 dns_type_lookup(const char *label)
@@ -168,7 +168,7 @@ dns_final(thread_ref_t thread, bool error, const char *fmt, ...)
 	return 0;
 }
 
-static int
+static void
 dns_recv_thread(thread_ref_t thread)
 {
 	unsigned long timeout;
@@ -182,7 +182,7 @@ dns_recv_thread(thread_ref_t thread)
 
 	if (thread->type == THREAD_READ_TIMEOUT) {
 		dns_final(thread, true, "read timeout from socket");
-		return 0;
+		return;
 	}
 
 	timeout = timer_long(thread->sands) - timer_long(time_now);
@@ -192,10 +192,10 @@ dns_recv_thread(thread_ref_t thread)
 		if (check_EAGAIN(errno) || check_EINTR(errno)) {
 			thread_add_read(thread->master, dns_recv_thread,
 					checker, thread->u.f.fd, timeout, true);
-			return 0;
+			return;
 		}
 		dns_final(thread, true, "failed to read socket; errno %d (%s)", errno, strerror(errno));
-		return 0;
+		return;
 	}
 
 	if (ret < (ssize_t) sizeof (r_header)) {
@@ -205,7 +205,7 @@ dns_recv_thread(thread_ref_t thread)
 #endif
 		thread_add_read(thread->master, dns_recv_thread, checker,
 				thread->u.f.fd, timeout, true);
-		return 0;
+		return;
 	}
 
 	s_header = (dns_header_t *) dns_check->sbuf;
@@ -219,7 +219,7 @@ dns_recv_thread(thread_ref_t thread)
 #endif
 		thread_add_read(thread->master, dns_recv_thread, checker,
 				thread->u.f.fd, timeout, true);
-		return 0;
+		return;
 	}
 
 	flags = ntohs(r_header->flags);
@@ -231,18 +231,16 @@ dns_recv_thread(thread_ref_t thread)
 #endif
 		thread_add_read(thread->master, dns_recv_thread, checker,
 				thread->u.f.fd, timeout, true);
-		return 0;
+		return;
 	}
 
 	if ((rcode = DNS_RC(flags)) != 0) {
 		dns_final(thread, true, "read error occurred. (rcode = %d)", rcode);
-		return 0;
+		return;
 	}
 
 	/* success */
 	dns_final(thread, false, NULL);
-
-	return 0;
 }
 
 #define APPEND16(x, y) do { \
@@ -250,7 +248,7 @@ dns_recv_thread(thread_ref_t thread)
 		(x) = (uint8_t *) (x) + 2; \
 	} while(0)
 
-static int
+static void
 dns_make_query(thread_ref_t thread)
 {
 	uint16_t flags = 0;
@@ -289,8 +287,6 @@ dns_make_query(thread_ref_t thread)
 	APPEND16(p, 1);		/* IN */
 
 	dns_check->slen = (size_t)(p - (uint8_t *)header);
-
-	return 0;
 }
 
 static void
@@ -324,27 +320,25 @@ dns_send(thread_ref_t thread)
 	return;
 }
 
-static int
+static void
 dns_send_thread(thread_ref_t thread)
 {
 	if (thread->type == THREAD_WRITE_TIMEOUT) {
 		dns_final(thread, true, "write timeout to socket.");
-		return 0;
+		return;
 	}
 
 	dns_send(thread);
-
-	return 0;
 }
 
-static int
+static void
 dns_check_thread(thread_ref_t thread)
 {
 	int status;
 
 	if (thread->type == THREAD_WRITE_TIMEOUT) {
 		dns_final(thread, true, "write timeout to socket.");
-		return 0;
+		return;
 	}
 
 	status = socket_state(thread, dns_check_thread);
@@ -372,11 +366,9 @@ dns_check_thread(thread_ref_t thread)
 		thread_del_write(thread);
 		break;
 	}
-
-	return 0;
 }
 
-static int
+static void
 dns_connect_thread(thread_ref_t thread)
 {
 	int fd, status;
@@ -388,7 +380,7 @@ dns_connect_thread(thread_ref_t thread)
 	if (!checker->enabled) {
 		thread_add_timer(thread->master, dns_connect_thread, checker,
 				 checker->delay_loop);
-		return 0;
+		return;
 	}
 
 	if ((fd = socket(co->dst.ss_family, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, IPPROTO_UDP)) == -1) {
@@ -396,7 +388,7 @@ dns_connect_thread(thread_ref_t thread)
 				"failed to create socket. Rescheduling.");
 		thread_add_timer(thread->master, dns_connect_thread, checker,
 				 checker->delay_loop);
-		return 0;
+		return;
 	}
 
 #if !HAVE_DECL_SOCK_NONBLOCK
@@ -421,14 +413,14 @@ dns_connect_thread(thread_ref_t thread)
 		dns_make_query(&thread_fd);
 		dns_send(&thread_fd);
 
-		return 0;
+		return;
 	}
 
 	if (status == connect_fail) {
 		close(fd);
 		dns_final(thread, true, "network unreachable for %s", inet_sockaddrtopair(&co->dst));
 
-		return 0;
+		return;
 	}
 
 	/* handle connection status & register check worker thread */
@@ -439,8 +431,6 @@ dns_connect_thread(thread_ref_t thread)
 		thread_add_timer(thread->master, dns_connect_thread, checker,
 				 checker->delay_loop);
 	}
-
-	return 0;
 }
 
 static void

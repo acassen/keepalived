@@ -42,7 +42,7 @@
 #include "old_socket.h"
 #endif
 
-static int udp_connect_thread(thread_ref_t);
+static void udp_connect_thread(thread_ref_t);
 
 /* Configuration stream handling */
 static void
@@ -158,7 +158,7 @@ udp_epilog(thread_ref_t thread, bool is_success)
 	thread_add_timer(thread->master, udp_connect_thread, checker, delay);
 }
 
-static int
+static void
 udp_check_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -179,10 +179,10 @@ udp_check_thread(thread_ref_t thread)
 		udp_epilog(thread, false);
 	}
 
-	return 0;
+	return;
 }
 
-static int
+static void
 udp_connect_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -197,7 +197,7 @@ udp_connect_thread(thread_ref_t thread)
 	if (!checker->enabled) {
 		thread_add_timer(thread->master, udp_connect_thread, checker,
 				 checker->delay_loop);
-		return 0;
+		return;
 	}
 
 	if ((fd = socket(co->dst.ss_family, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, IPPROTO_UDP)) == -1) {
@@ -205,7 +205,7 @@ udp_connect_thread(thread_ref_t thread)
 		thread_add_timer(thread->master, udp_connect_thread, checker,
 				checker->delay_loop);
 
-		return 0;
+		return;
 	}
 #if !HAVE_DECL_SOCK_NONBLOCK
 	if (set_sock_flags(fd, F_SETFL, O_NONBLOCK))
@@ -223,7 +223,7 @@ udp_connect_thread(thread_ref_t thread)
 	if (udp_icmp_check_state(fd, status, thread, udp_check_thread, co->connection_to))
 		udp_epilog(thread, false);
 
-	return 0;
+	return;
 }
 
 #ifdef THREAD_DUMP

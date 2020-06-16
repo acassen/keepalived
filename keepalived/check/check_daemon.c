@@ -113,12 +113,10 @@ set_checker_max_fds(void)
 	set_max_file_limit(14 + check_data->num_checker_fd_required + check_data->num_smtp_alert + 10);
 }
 
-static int
+static void
 lvs_notify_fifo_script_exit(__attribute__((unused)) thread_ref_t thread)
 {
 	log_message(LOG_INFO, "lvs notify fifo script terminated");
-
-	return 0;
 }
 
 static void
@@ -194,7 +192,7 @@ checker_terminate_phase2(void)
 	return 0;
 }
 
-static int
+static void
 checker_shutdown_backstop_thread(thread_ref_t thread)
 {
 	int count = 0;
@@ -214,8 +212,6 @@ checker_shutdown_backstop_thread(thread_ref_t thread)
 		thread_add_timer_shutdown(thread->master, checker_shutdown_backstop_thread, NULL, TIMER_HZ / 10);
 	else
 		thread_add_terminate_event(thread->master);
-
-	return 0;
 }
 
 static void
@@ -254,15 +250,13 @@ checker_terminate_phase1(bool schedule_next_thread)
 }
 
 #ifndef _ONE_PROCESS_DEBUG_
-static int
+static void
 start_checker_termination_thread(__attribute__((unused)) thread_ref_t thread)
 {
 	/* This runs in the context of a thread */
 	two_phase_terminate = true;
 
 	checker_terminate_phase1(true);
-
-	return 0;
 }
 #endif
 
@@ -413,7 +407,7 @@ check_validate_config(void)
 
 #ifndef _ONE_PROCESS_DEBUG_
 /* Reload thread */
-static int
+static void
 reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 {
 	list_head_t old_checkers_queue;
@@ -469,15 +463,12 @@ reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 	free_global_data(old_global_data);
 	free_checker_list(&old_checkers_queue);
 	UNSET_RELOAD;
-
-	return 0;
 }
 
-static int
+static void
 print_check_data(__attribute__((unused)) thread_ref_t thread)
 {
-        check_print_data();
-        return 0;
+	check_print_data();
 }
 
 static void
@@ -517,16 +508,14 @@ check_signal_init(void)
 }
 
 /* This function runs in the parent process. */
-static int
+static void
 delayed_restart_check_child_thread(__attribute__((unused)) thread_ref_t thread)
 {
 	start_check_child();
-
-	return 0;
 }
 
 /* CHECK Child respawning thread. This function runs in the parent process. */
-static int
+static void
 check_respawn_thread(thread_ref_t thread)
 {
 	unsigned restart_delay;
@@ -547,7 +536,6 @@ check_respawn_thread(thread_ref_t thread)
 		log_message(LOG_ALERT, "Healthcheck child process(%d) died: Exiting", thread->u.c.pid);
 		raise(SIGTERM);
 	}
-	return 0;
 }
 #endif
 

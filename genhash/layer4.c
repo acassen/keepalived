@@ -174,7 +174,7 @@ tcp_connection_state(int fd, enum connect_result status, thread_ref_t thread
 	}
 }
 
-static int
+static void
 tcp_check_thread(thread_ref_t thread)
 {
 	SOCK *sock_obj = THREAD_ARG(thread);
@@ -188,7 +188,7 @@ tcp_check_thread(thread_ref_t thread)
 		    req->ipaddress, ntohs(req->addr_port));
 #endif
 		thread_add_terminate_event(thread->master);
-		return -1;
+		return;
 		break;
 
 	case connect_timeout:
@@ -197,7 +197,7 @@ tcp_check_thread(thread_ref_t thread)
 		    req->ipaddress, ntohs(req->addr_port));
 #endif
 		thread_add_terminate_event(thread->master);
-		return -1;
+		return;
 		break;
 
 	case connect_success:{
@@ -207,7 +207,7 @@ tcp_check_thread(thread_ref_t thread)
 			if (ret) {
 				/* SSL connections manage their own threads for SSL_connect */
 				if (req->ssl)
-					return 1;
+					return;
 
 				/* Remote WEB server is connected.
 				 * Unlock eventual locked socket.
@@ -224,16 +224,14 @@ tcp_check_thread(thread_ref_t thread)
 #endif
 				sock_obj->status = connect_error;
 				thread_add_terminate_event(thread->master);
-				return -1;
+				return;
 			}
 		}
 		break;
 	}
-
-	return 1;
 }
 
-int
+void
 tcp_connect_thread(thread_ref_t thread)
 {
 	SOCK *sock_obj = THREAD_ARG(thread);
@@ -247,7 +245,7 @@ tcp_connect_thread(thread_ref_t thread)
 #ifdef _GENHASH_DEBUG_
 		fprintf(stderr, "WEB connection fail to create socket.\n");
 #endif
-		return 0;
+		return;
 	}
 
 #if !HAVE_DECL_SOCK_NONBLOCK
@@ -260,5 +258,4 @@ tcp_connect_thread(thread_ref_t thread)
 	/* handle tcp connection status & register check worker thread */
 	tcp_connection_state(sock_obj->fd, sock_obj->status, thread, tcp_check_thread,
 			     req->timeout);
-	return 0;
 }

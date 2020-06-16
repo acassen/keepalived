@@ -504,7 +504,7 @@ stop_keepalived(void)
 }
 
 /* Daemon init sequence */
-static int
+static void
 start_keepalived(__attribute__((unused)) thread_ref_t thread)
 {
 	bool have_child = false;
@@ -513,7 +513,7 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 	/* must be opened before vrrp and bfd start */
 	if (!open_bfd_pipes()) {
 		thread_add_terminate_event(thread->master);
-		return 0;
+		return;
 	}
 #endif
 
@@ -547,8 +547,6 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 
 	if (!have_child)
 		log_message(LOG_INFO, "Warning - keepalived has no configuration to run");
-
-	return 0;
 }
 
 static bool
@@ -633,25 +631,21 @@ startup_shutdown_script_completed(thread_ref_t thread, bool startup)
 	return true;
 }
 
-static int
+static void
 startup_script_completed(thread_ref_t thread)
 {
 	if (startup_shutdown_script_completed(thread, true))
 		thread_add_event(thread->master, start_keepalived, NULL, 0);
-
-	return 0;
 }
 
-static int
+static void
 shutdown_script_completed(thread_ref_t thread)
 {
 	if (startup_shutdown_script_completed(thread, false))
 		thread_add_terminate_event(thread->master);
-
-	return 0;
 }
 
-static int
+static void
 run_startup_script(thread_ref_t thread)
 {
 	if (__test_bit(LOG_DETAIL_BIT, &debug))
@@ -659,8 +653,6 @@ run_startup_script(thread_ref_t thread)
 
 	if (system_call_script(thread->master, startup_script_completed, NULL, global_data->startup_script_timeout * TIMER_HZ, global_data->startup_script) == -1)
 		log_message(LOG_INFO, "Call of startup script %s failed", global_data->startup_script->args[0]);
-
-	return 0;
 }
 
 static void
@@ -781,7 +773,7 @@ static bool reload_config(void)
 	return !unsupported_change;
 }
 
-static int
+static void
 print_parent_data(__attribute__((unused)) thread_ref_t thread)
 {
 	FILE *fp;
@@ -793,14 +785,14 @@ print_parent_data(__attribute__((unused)) thread_ref_t thread)
 	if (!fp) {
 		log_message(LOG_INFO, "Can't open %s (%d: %s)",
 			dump_file, errno, strerror(errno));
-		return 0;
+		return;
 	}
 
 	dump_global_data(fp, global_data);
 
 	fclose(fp);
 
-	return 0;
+	return;
 }
 
 /* SIGHUP/USR1/USR2/STATS_CLEAR handler */
