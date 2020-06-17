@@ -359,13 +359,13 @@ max_auto_priority_handler(const vector_t *strvec)
 static void
 min_auto_priority_delay_handler(const vector_t *strvec)
 {
-	unsigned delay;
+	int delay;
 
 	if (vector_size(strvec) < 2) {
 		report_config_error(CONFIG_GENERAL_ERROR, "min_auto_priority_delay requires delay time");
 		return;
 	}
-	if (!read_unsigned_strvec(strvec, 1, &delay, 1, 10000000, true)) {
+	if (!read_int_strvec(strvec, 1, &delay, 1, 10000000, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "min_auto_priority_delay '%s' must be in [1, 10000000] - ignoring", strvec_slot(strvec, 1));
 		return;
 	}
