@@ -116,19 +116,8 @@ parts:
       dpkg -x ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb ${SNAPCRAFT_PART_INSTALL}
       printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${SNAPCRAFT_PART_INSTALL}/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
       rm -f ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
-      echo Running as $id
-      echo Pull SNAPCRAFT_PART_INSTALL=${SNAPCRAFT_PART_INSTALL}
-      echo Pull dirs = $(find ${SNAPCRAFT_PART_INSTALL} -type d)
-      ARCH_DIR=$(ls -d ${SNAMCRAFT_PART_INSTALL}/usr/include/*/asm)
-      ARCH_DIR1=$(ls -d ${SNAMCRAFT_PART_INSTALL}/usr/include/*/asm | sed -e "s:/asm$::" -e "s:.*/::")
-      echo $ARCH_DIR $ARCH_DIR1
     override-build: |
       snapcraftctl build
-      echo Build Running as $id
-      echo Build SNAPCRAFT_PART_INSTALL=${SNAPCRAFT_PART_INSTALL}
-      echo Build dirs = $(find ${SNAPCRAFT_PART_INSTALL} -type d)
-      ls -ld /usr/include/linux
-      exit 1  # Force build failure
       # Move the headers on the host out of the way
       HEADER_DIRS={linux,asm-generic}
       rm -rf /usr/include/${HEADER_DIRS} || true
