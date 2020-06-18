@@ -173,7 +173,7 @@ netlink_ipaddress(ip_address_t *ip_addr, int cmd)
 				  ip_addr->label, strlen(ip_addr->label) + 1);
 
 		if (ip_addr->have_peer)
-                        addattr_l(&req.n, sizeof(req), IFA_ADDRESS, &ip_addr->peer, req.ifa.ifa_family == AF_INET6 ? 16 : 4);
+			addattr_l(&req.n, sizeof(req), IFA_ADDRESS, &ip_addr->peer, req.ifa.ifa_family == AF_INET6 ? 16 : 4);
 	}
 
 	/* If the state of the interface or its parent is down, it might be because the interface
@@ -592,7 +592,7 @@ alloc_ipaddress(list_head_t *ip_list, const vector_t *strvec, bool static_addr)
 				break;
 			}
 			if (!(new->track_group = static_track_group_find(strvec_slot(strvec, i))))
-                                report_config_error(CONFIG_GENERAL_ERROR, "track_group %s not found", strvec_slot(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "track_group %s not found", strvec_slot(strvec, i));
 		} else
 			report_config_error(CONFIG_GENERAL_ERROR, "Unknown configuration entry '%s' for ip address - ignoring", str);
 		i++;

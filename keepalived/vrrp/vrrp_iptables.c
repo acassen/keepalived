@@ -552,7 +552,7 @@ handle_iptable_rule_to_iplist(list_head_t *ip_list1, list_head_t *ip_list2, int 
 	if (list_empty(ip_list1) && list_empty(ip_list2))
 		return;
 
-        do {
+	do {
 		h = iptables_open(cmd);
 
 		if (!list_empty(ip_list1))
@@ -561,7 +561,7 @@ handle_iptable_rule_to_iplist(list_head_t *ip_list1, list_head_t *ip_list2, int 
 			handle_iptable_vip_list(h, ip_list2, cmd, force);
 
 		res = iptables_close(h);
-        } while (res == EAGAIN && ++tries < IPTABLES_MAX_TRIES);
+	} while (res == EAGAIN && ++tries < IPTABLES_MAX_TRIES);
 }
 
 void
@@ -634,7 +634,7 @@ iptables_update_vmac(const vrrp_t *vrrp, int cmd)
 	int tries = 0;
 	int res = 0;
 
-        do {
+	do {
 		h = iptables_open(cmd);
 
 		handle_iptable_rule_for_igmp(vrrp->ifp->ifname, cmd, vrrp->family, h);
@@ -642,7 +642,7 @@ iptables_update_vmac(const vrrp_t *vrrp, int cmd)
 		if (vrrp->evip_other_family)
 			handle_iptable_rule_for_igmp(vrrp->ifp->ifname, cmd, vrrp->family == AF_INET ? AF_INET6 : AF_INET, h);
 		res = iptables_close(h);
-        } while (res == EAGAIN && ++tries < IPTABLES_MAX_TRIES);
+	} while (res == EAGAIN && ++tries < IPTABLES_MAX_TRIES);
 }
 
 void

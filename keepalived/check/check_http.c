@@ -332,7 +332,7 @@ dump_http_get_check(FILE *fp, const checker_t *checker)
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 	conf_write(fp, "   Enable SNI %sset", http_get_chk->enable_sni ? "" : "un");
 #endif
- 	conf_write(fp, "   Fast recovery %sset", http_get_chk->fast_recovery ? "" : "un");
+	conf_write(fp, "   Fast recovery %sset", http_get_chk->fast_recovery ? "" : "un");
 	dump_url_list(fp, &http_get_chk->url);
 	if (http_get_chk->failed_url)
 		conf_write(fp, "   Failed URL = %s", http_get_chk->failed_url->path);

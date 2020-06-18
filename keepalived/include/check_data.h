@@ -116,7 +116,7 @@ typedef struct _real_server {
 
 /* Virtual Server group definition */
 typedef struct _virtual_server_group_entry {
-	bool 				is_fwmark;
+	bool				is_fwmark;
 	union {
 		struct {
 			struct sockaddr_storage	addr;

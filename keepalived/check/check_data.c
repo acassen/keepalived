@@ -357,10 +357,10 @@ free_rs_list(list_head_t *l)
 void
 dump_tracking_rs(FILE *fp, const void *data)
 {
-        const tracking_obj_t *top = (const tracking_obj_t *)data;
-        const checker_t *checker = top->obj.checker;
+	const tracking_obj_t *top = (const tracking_obj_t *)data;
+	const checker_t *checker = top->obj.checker;
 
-        conf_write(fp, "     %s -> %s, weight %d%s", FMT_VS(checker->vs), FMT_RS(checker->rs, checker->vs), top->weight, top->weight_multiplier == -1 ? " reverse" : "");
+	conf_write(fp, "     %s -> %s, weight %d%s", FMT_VS(checker->vs), FMT_RS(checker->rs, checker->vs), top->weight, top->weight_multiplier == -1 ? " reverse" : "");
 }
 
 static void

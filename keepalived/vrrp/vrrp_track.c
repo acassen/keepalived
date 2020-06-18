@@ -507,7 +507,7 @@ alloc_track_bfd(const char *name, list_head_t *l, const vector_t *strvec)
 
 		if (!read_int_strvec(strvec, 2, &weight, -253, 253, true)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) weight for track bfd %s must be in "
-					 			  "[-253..253] inclusive. Ignoring..."
+								  "[-253..253] inclusive. Ignoring..."
 								, name, tracked);
 			weight = vtb->weight;
 		}

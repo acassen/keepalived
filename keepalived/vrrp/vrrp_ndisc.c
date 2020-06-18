@@ -235,8 +235,8 @@ ndisc_send_unsolicited_na(vrrp_t *vrrp, ip_address_t *ipaddress)
 	interface_t *ifp = IF_BASE_IFP(ipaddress->ifp);
 
 	/* If the interface doesn't support NDISC, don't try sending */
-        if (ifp->ifi_flags & IFF_NOARP)
-                return;
+	if (ifp->ifi_flags & IFF_NOARP)
+		return;
 
 	set_time_now();
 

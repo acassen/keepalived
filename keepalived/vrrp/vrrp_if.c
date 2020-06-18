@@ -388,14 +388,14 @@ dump_garp_delay(FILE *fp, const garp_delay_t *gd)
 	if (gd->have_garp_interval) {
 		conf_write(fp, " GARP interval = %g", gd->garp_interval.tv_sec + ((double)gd->garp_interval.tv_usec) / 1000000);
 		if (!ctime_r(&gd->garp_next_time.tv_sec, time_str))
-                        strcpy(time_str, "invalid time ");
+			strcpy(time_str, "invalid time ");
 		conf_write(fp, " GARP next time %ld.%6.6ld (%.19s.%6.6ld)", gd->garp_next_time.tv_sec, gd->garp_next_time.tv_usec, time_str, gd->garp_next_time.tv_usec);
 	}
 
 	if (gd->have_gna_interval) {
 		conf_write(fp, " GNA interval = %g", gd->gna_interval.tv_sec + ((double)gd->gna_interval.tv_usec) / 1000000);
 		if (!ctime_r(&gd->gna_next_time.tv_sec, time_str))
-                        strcpy(time_str, "invalid time ");
+			strcpy(time_str, "invalid time ");
 		conf_write(fp, " GNA next time %ld.%6.6ld (%.19s.%6.6ld)", gd->gna_next_time.tv_sec, gd->gna_next_time.tv_usec, time_str, gd->gna_next_time.tv_usec);
 	}
 	else if (!gd->have_garp_interval)
@@ -525,7 +525,7 @@ dump_if(FILE *fp, const interface_t *ifp)
 	if (IS_MAC_IP_VLAN(ifp)) {
 		const char *if_type =
 #ifdef _HAVE_VRRP_IPVLAN
-				      ifp->if_type == IF_TYPE_IPVLAN ? "IPVLAN" : 
+				      ifp->if_type == IF_TYPE_IPVLAN ? "IPVLAN" :
 #endif
 										  "VMAC";
 		const char *vlan_type =
@@ -801,7 +801,7 @@ free_interface_queue(void)
 
 	list_for_each_entry_safe(ifp, ifp_tmp, &if_queue, e_list)
 		free_if(ifp);
-	
+
 	free_garp_delay_list(&garp_delay);
 }
 
@@ -1476,7 +1476,7 @@ recreate_vmac_thread(thread_ref_t thread)
 #ifdef _HAVE_VRRP_IPVLAN_
 		    && !__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags)
 #endif
-		    						      )
+								      )
 			continue;
 
 		/* Don't attempt to create the VMAC if the configured

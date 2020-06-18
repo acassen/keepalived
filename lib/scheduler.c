@@ -725,7 +725,7 @@ thread_make_master(void)
 	/* Register timerfd thread */
 	new->timer_fd = timerfd_create(CLOCK_MONOTONIC,
 #ifdef TFD_NONBLOCK				/* Since Linux 2.6.27 */
-						        TFD_NONBLOCK | TFD_CLOEXEC
+							TFD_NONBLOCK | TFD_CLOEXEC
 #else
 							0
 #endif
@@ -1285,7 +1285,7 @@ thread_add_timer_shutdown(thread_master_t *m, thread_func_t func, void *arg, uns
 		thread_t *p;
 		const thread_t *cp;
 	} thread;
-       
+
 	thread.cp = thread_add_timer(m, func, arg, timer);
 
 	thread.p->type = THREAD_TIMER_SHUTDOWN;
@@ -1535,7 +1535,7 @@ snmp_read_thread(thread_ref_t thread)
 	snmp_read(&snmp_fdset);
 	netsnmp_check_outstanding_agent_requests();
 
-	if (thread->type == THREAD_READ_ERROR) 
+	if (thread->type == THREAD_READ_ERROR)
 		snmp_epoll_reset(thread->master);
 	else {
 		snmp_epoll_info(thread->master);

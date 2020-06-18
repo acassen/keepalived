@@ -60,7 +60,7 @@ extern bool do_eintr_debug;
 /* Some library functions that take pointer parameters should have them
  * specified as const pointers, but don't. We need to cast away the constness,
  * but also want to avoid compiler warnings for doing so. The following "trick"
- * achieves that. */ 
+ * achieves that. */
 #define no_const(type, var_cp) \
 ({ union { type *p; const type *cp; } ps = { .cp = var_cp }; \
  ps.p;})

@@ -250,7 +250,7 @@ track_file_weight_handler(const vector_t *strvec)
 
 	if (!read_int_strvec(strvec, 1, &weight, -254, 254, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Weight (%s) for track_file %s must be between "
-				 			  "[-254..254] inclusive. Ignoring..."
+							  "[-254..254] inclusive. Ignoring..."
 							, strvec_slot(strvec, 1), cur_track_file->fname);
 		weight = 1;
 	}

@@ -194,7 +194,7 @@ int main(int argc, char **argv)
 			else
 				family = AF_INET;
 		}
-			
+
 		if (inet_pton(family, addr_str, addr_buf) != 1) {
 			printf("Invalid IPv%d address - %s\n", family == AF_INET ? 4 : 6, addr_str);
 			exit (1);
@@ -202,7 +202,7 @@ int main(int argc, char **argv)
 	}
 	else if (family == AF_UNSPEC)
 		family = AF_INET6;
- 
+
 	if ((listenfd = socket(family, sock_type, 0)) == -1) {
 		printf ("Unable to create socket, errno %d (%m)\n", errno);
 		exit(1);

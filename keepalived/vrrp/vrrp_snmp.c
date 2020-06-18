@@ -834,7 +834,7 @@ vrrp_header_ar_table(struct variable *vp, oid *name, size_t *length,
 			current[0]++;
 			current[1] = 0;
 		}
-			
+
 		if (target_len && current[0] < target[0])
 			continue;
 
@@ -865,7 +865,7 @@ vrrp_header_ar_table(struct variable *vp, oid *name, size_t *length,
 
 	return NULL;
 }
-	
+
 
 #ifdef _HAVE_FIB_ROUTING_
 #define MAX_PTR ((void*)((char *)NULL - 1))
@@ -900,13 +900,12 @@ vrrp_header_nh_table(struct variable *vp, oid *name, size_t *length,
 		return NULL;
 
 	/* Perform static routes */
-	
 
 	for (vrrp = MAX_PTR, curinstance[0] = 0; vrrp;
 	     vrrp = ((vrrp == MAX_PTR) ? (list_empty(&vrrp_data->vrrp) ? NULL :
 	       list_first_entry(&vrrp_data->vrrp, vrrp_t, e_list)) :
-	         list_is_last(&vrrp->e_list, &vrrp_data->vrrp) ? NULL :
-	           list_entry(vrrp->e_list.next, vrrp_t, e_list)), curinstance[0]++) {
+		 list_is_last(&vrrp->e_list, &vrrp_data->vrrp) ? NULL :
+		   list_entry(vrrp->e_list.next, vrrp_t, e_list)), curinstance[0]++) {
 		if (exact && curinstance[0] > target[0])
 			return NULL;
 		if (target_len && curinstance[0] < target[0])
@@ -1517,7 +1516,7 @@ vrrp_snmp_next_hop(struct variable *vp, oid *name, size_t *length,
 	   next one. */
 	if (!exact && (name[*length-1] < MAX_SUBID))
 		return vrrp_snmp_next_hop(vp, name, length,
-				          exact, var_len, write_method);
+					  exact, var_len, write_method);
 	return NULL;
 }
 
@@ -1793,8 +1792,8 @@ vrrp_snmp_syncgroup(struct variable *vp, oid *name, size_t *length,
 	snmp_ret_t ret;
 
 	if ((e = snmp_header_list_head_table(vp, name, length, exact,
-				    	     var_len, write_method,
-				    	     &vrrp_data->vrrp_sync_group)) == NULL)
+					     var_len, write_method,
+					     &vrrp_data->vrrp_sync_group)) == NULL)
 		return NULL;
 	group = list_entry(e, vrrp_sgroup_t, e_list);
 
@@ -3851,7 +3850,7 @@ inet6_addr_compare(const struct in6_addr* l, const struct in6_addr* r)
 
 static ip_address_t*
 vrrp_rfcv3_header_ar_table(struct variable *vp, oid *name, size_t *length,
-		           int exact, size_t *var_len, WriteMethod **write_method)
+			   int exact, size_t *var_len, WriteMethod **write_method)
 {
 	ip_address_t *vip;
 	vrrp_t *vrrp;

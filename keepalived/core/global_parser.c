@@ -761,10 +761,10 @@ vrrp_garp_delay_handler(const vector_t *strvec)
 {
 	unsigned timeout;
 
-        if (!read_unsigned_strvec(strvec, 1, &timeout, 0, UINT_MAX / TIMER_HZ, true)) {
+	if (!read_unsigned_strvec(strvec, 1, &timeout, 0, UINT_MAX / TIMER_HZ, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_garp_master_delay '%s' invalid - ignoring", strvec_slot(strvec, 1));
-                return;
-        }
+		return;
+	}
 
 	global_data->vrrp_garp_delay = timeout * TIMER_HZ;
 }
@@ -791,33 +791,33 @@ vrrp_garp_rep_handler(const vector_t *strvec)
 static void
 vrrp_garp_refresh_handler(const vector_t *strvec)
 {
-        unsigned refresh;
+	unsigned refresh;
 
-        if (!read_unsigned_strvec(strvec, 1, &refresh, 0, UINT_MAX, true)) {
-                report_config_error(CONFIG_GENERAL_ERROR, "Invalid vrrp_garp_master_refresh '%s' - ignoring", strvec_slot(strvec, 1));
-                global_data->vrrp_garp_refresh.tv_sec = 0;
-        }
-        else
+	if (!read_unsigned_strvec(strvec, 1, &refresh, 0, UINT_MAX, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid vrrp_garp_master_refresh '%s' - ignoring", strvec_slot(strvec, 1));
+		global_data->vrrp_garp_refresh.tv_sec = 0;
+	}
+	else
 		global_data->vrrp_garp_refresh.tv_sec = refresh;
 
-        global_data->vrrp_garp_refresh.tv_usec = 0;
+	global_data->vrrp_garp_refresh.tv_usec = 0;
 }
 static void
 vrrp_garp_refresh_rep_handler(const vector_t *strvec)
 {
-        unsigned repeats;
+	unsigned repeats;
 
-        /* The min value should be 1, but allow 0 to maintain backward compatibility
-         * with pre v2.0.7 */
-        if (!read_unsigned_strvec(strvec, 1, &repeats, 0, UINT_MAX, true)) {
-                report_config_error(CONFIG_GENERAL_ERROR, "vrrp_garp_master_refresh_repeat '%s' invalid - ignoring", strvec_slot(strvec, 1));
-                return;
-        }
+	/* The min value should be 1, but allow 0 to maintain backward compatibility
+	 * with pre v2.0.7 */
+	if (!read_unsigned_strvec(strvec, 1, &repeats, 0, UINT_MAX, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_garp_master_refresh_repeat '%s' invalid - ignoring", strvec_slot(strvec, 1));
+		return;
+	}
 
-        if (repeats == 0) {
-                report_config_error(CONFIG_GENERAL_ERROR, "vrrp_garp_master_refresh_repeat must be greater than 0, setting to 1");
-                repeats = 1;
-        }
+	if (repeats == 0) {
+		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_garp_master_refresh_repeat must be greater than 0, setting to 1");
+		repeats = 1;
+	}
 
 	global_data->vrrp_garp_refresh_rep = repeats;
 
@@ -825,12 +825,12 @@ vrrp_garp_refresh_rep_handler(const vector_t *strvec)
 static void
 vrrp_garp_lower_prio_delay_handler(const vector_t *strvec)
 {
-        unsigned delay;
+	unsigned delay;
 
-        if (!read_unsigned_strvec(strvec, 1, &delay, 0, UINT_MAX / TIMER_HZ, true)) {
-                report_config_error(CONFIG_GENERAL_ERROR, "vrrp_garp_lower_prio_delay '%s' invalid - ignoring", strvec_slot(strvec, 1));
-                return;
-        }
+	if (!read_unsigned_strvec(strvec, 1, &delay, 0, UINT_MAX / TIMER_HZ, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_garp_lower_prio_delay '%s' invalid - ignoring", strvec_slot(strvec, 1));
+		return;
+	}
 
 	global_data->vrrp_garp_lower_prio_delay = delay * TIMER_HZ;
 }
@@ -839,10 +839,10 @@ vrrp_garp_lower_prio_rep_handler(const vector_t *strvec)
 {
 	unsigned garp_lower_prio_rep;
 
-        if (!read_unsigned_strvec(strvec, 1, &garp_lower_prio_rep, 0, INT_MAX, true)) {
-                report_config_error(CONFIG_GENERAL_ERROR, "Invalid vrrp_garp_lower_prio_repeat '%s'", strvec_slot(strvec, 1));
-                return;
-        }
+	if (!read_unsigned_strvec(strvec, 1, &garp_lower_prio_rep, 0, INT_MAX, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid vrrp_garp_lower_prio_repeat '%s'", strvec_slot(strvec, 1));
+		return;
+	}
 
 	global_data->vrrp_garp_lower_prio_rep = garp_lower_prio_rep;
 }

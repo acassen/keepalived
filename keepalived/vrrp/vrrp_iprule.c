@@ -775,7 +775,7 @@ fwmark_err:
 				break;
 			}
 			if (!(new->track_group = static_track_group_find(strvec_slot(strvec, i))))
-                                report_config_error(CONFIG_GENERAL_ERROR, "track_group %s not found", strvec_slot(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "track_group %s not found", strvec_slot(strvec, i));
 		}
 #endif
 		else {

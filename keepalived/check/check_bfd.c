@@ -228,7 +228,7 @@ bfd_end_handler(void)
 	bfd_checker_t *bfdc;
 	tracking_obj_t *top;
 	cref_tracked_bfd_t *tbfd;
-       
+
 	if (!new_checker)
 		return;
 
