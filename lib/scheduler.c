@@ -649,6 +649,7 @@ thread_event_cancel(const thread_t *thread_cp)
 	rb_erase(&event->n, &m->io_events);
 	if (event == m->current_event)
 		m->current_event = NULL;
+	thread_events_resize(m, -1);
 	FREE(thread->event);
 	return 0;
 }
