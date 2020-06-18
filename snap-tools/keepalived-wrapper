@@ -25,4 +25,7 @@ else
 exit 1
 fi
 
+# The magic file must be the one in the snap
+export MAGIC=${SNAP}/usr/share/misc/magic
+
 exec ${SNAP}/usr/sbin/${BINARY} "$@"

@@ -93,6 +93,17 @@ parts:
       - libsnmp30
     organize:
       'usr/sbin/keepalived': usr/sbin/keepalived-404
+      'usr/etc/dbus-1/system.d/org.keepalived.Vrrp1.conf': etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
+    stage:
+      - usr/sbin/keepalived-404
+      - etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
+      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml
+      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
+    prime:
+      - usr/sbin/keepalived-404
+      - etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
+      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml
+      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
 
   linux-headers-504:
     plugin: nil
@@ -149,17 +160,10 @@ parts:
       - --disable-libipset-dynamic
     organize:
       'usr/sbin/keepalived': usr/sbin/keepalived-504
-      'usr/etc/dbus-1/system.d/org.keepalived.Vrrp1.conf': etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
     stage:
       - usr/sbin/keepalived-504
-      - etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
     prime:
       - usr/sbin/keepalived-504
-      - etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
 
   linux-headers-503:
     plugin: nil
@@ -216,17 +220,10 @@ parts:
       - --disable-libipset-dynamic
     organize:
       'usr/sbin/keepalived': usr/sbin/keepalived-503
-      'usr/etc/dbus-1/system.d/org.keepalived.Vrrp1.conf': etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
     stage:
       - usr/sbin/keepalived-503
-      - etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
     prime:
       - usr/sbin/keepalived-503
-      - etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
 
   linux-headers-500:
     plugin: nil
@@ -290,17 +287,10 @@ parts:
       - --disable-libipset-dynamic
     organize:
       'usr/sbin/keepalived': usr/sbin/keepalived-500
-      'usr/etc/dbus-1/system.d/org.keepalived.Vrrp1.conf': etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
     stage:
       - usr/sbin/keepalived-500
-      - etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
     prime:
       - usr/sbin/keepalived-500
-      - etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
 
   linux-headers-418:
     plugin: nil
