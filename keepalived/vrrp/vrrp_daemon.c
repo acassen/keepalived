@@ -350,13 +350,13 @@ vrrp_terminate_phase1(bool schedule_next_thread)
 #endif
 
 #ifdef _WITH_LVS_
-        if (global_data->lvs_syncd.ifname) {
-                /* Stop syncd if controlled by this vrrp process. */
-                ipvs_syncd_cmd(IPVS_STOPDAEMON, &global_data->lvs_syncd,
+	if (global_data->lvs_syncd.ifname) {
+		/* Stop syncd if controlled by this vrrp process. */
+		ipvs_syncd_cmd(IPVS_STOPDAEMON, &global_data->lvs_syncd,
 			       !global_data->lvs_syncd.vrrp ? IPVS_MASTER_BACKUP :
-                               global_data->lvs_syncd.vrrp->state == VRRP_STATE_MAST ? IPVS_MASTER: IPVS_BACKUP,
-                               false);
-        }
+			       global_data->lvs_syncd.vrrp->state == VRRP_STATE_MAST ? IPVS_MASTER: IPVS_BACKUP,
+			       false);
+	}
 #endif
 
 	/* Ensure any interfaces are in backup mode,

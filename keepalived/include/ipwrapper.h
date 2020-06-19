@@ -45,7 +45,7 @@
 static inline bool __attribute((pure))
 rs_iseq(const real_server_t *rs_a, const real_server_t *rs_b)
 {
-        return sockstorage_equal(&rs_a->addr, &rs_b->addr);
+	return sockstorage_equal(&rs_a->addr, &rs_b->addr);
 }
 
 /* prototypes */

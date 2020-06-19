@@ -130,7 +130,7 @@ typedef struct _thread_master {
 	rb_root_cached_t	child;
 	list_head_t		event;
 #ifdef USE_SIGNAL_THREADS
-	list_head_t 		signal;
+	list_head_t		signal;
 #endif
 	list_head_t		ready;
 	list_head_t		unuse;

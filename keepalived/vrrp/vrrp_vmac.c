@@ -449,14 +449,14 @@ typedef struct {
 static void
 dump_bufn(const char *msg, req_t *req)
 {
-        size_t i;
+	size_t i;
 	char buf[3 * req->n.nlmsg_len + 3];
 	char *ptr = buf;
 
-        log_message(LOG_INFO, "%s: message length is %d\n", msg, req->n.nlmsg_len);
-        for (i = 0; i < req->n.nlmsg_len; i++)
-                ptr += snprintf(ptr, buf + sizeof buf - ptr, "%2.2x ", ((unsigned char *)&req->n)[i]);
-        log_message(LOG_INFO, "%s", buf);
+	log_message(LOG_INFO, "%s: message length is %d\n", msg, req->n.nlmsg_len);
+	for (i = 0; i < req->n.nlmsg_len; i++)
+		ptr += snprintf(ptr, buf + sizeof buf - ptr, "%2.2x ", ((unsigned char *)&req->n)[i]);
+	log_message(LOG_INFO, "%s", buf);
 }
 #endif
 
@@ -695,17 +695,17 @@ netlink_update_vrf(vrrp_t *vrrp)
 void
 update_vmac_vrfs(interface_t *ifp)
 {
-        tracking_obj_t *top;
+	tracking_obj_t *top;
 	vrrp_t *vrrp;
 
-        list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
-                vrrp = top->obj.vrrp;
+	list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
+		vrrp = top->obj.vrrp;
 
-                /* We only need to look for vmacs we created that
+		/* We only need to look for vmacs we created that
 		 * are configured on the interface which has changed
 		 * VRF */
-                if (vrrp->configured_ifp != ifp ||
-                    !vrrp->ifp->is_ours)
+		if (vrrp->configured_ifp != ifp ||
+		    !vrrp->ifp->is_ours)
 			continue;
 
 		vrrp->ifp->vrf_master_ifp = ifp->vrf_master_ifp;

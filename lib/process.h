@@ -38,7 +38,7 @@ extern long min_auto_priority_delay;
 
 extern void set_process_priorities(int, int, long,
 #if HAVE_DECL_RLIMIT_RTTIME == 1
-			           int,
+				   int,
 #endif
 				   int, int);
 extern void reset_process_priorities(void);

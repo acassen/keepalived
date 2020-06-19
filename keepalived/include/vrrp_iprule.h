@@ -102,7 +102,7 @@ typedef struct _ip_rule {
 	uint8_t				ip_proto;
 #endif
 #if HAVE_DECL_FRA_SPORT_RANGE
-	struct fib_rule_port_range 	src_port;
+	struct fib_rule_port_range	src_port;
 #endif
 #if HAVE_DECL_FRA_DPORT_RANGE
 	struct fib_rule_port_range	dst_port;

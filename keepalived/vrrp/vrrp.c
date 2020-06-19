@@ -170,12 +170,12 @@ vrrp_handle_iprules(vrrp_t * vrrp, int cmd, bool force)
 static void
 vrrp_handle_accept_mode(vrrp_t *vrrp, int cmd, bool force)
 {
-        if (vrrp->base_priority == VRRP_PRIO_OWNER || vrrp->accept)
-                return;
+	if (vrrp->base_priority == VRRP_PRIO_OWNER || vrrp->accept)
+		return;
 
-        if (__test_bit(LOG_DETAIL_BIT, &debug))
-                log_message(LOG_INFO, "(%s) %s%s", vrrp->iname,
-                        (cmd == IPADDRESS_ADD) ? "sett" : "remov", "ing firewall drop rule");
+	if (__test_bit(LOG_DETAIL_BIT, &debug))
+		log_message(LOG_INFO, "(%s) %s%s", vrrp->iname,
+			(cmd == IPADDRESS_ADD) ? "sett" : "remov", "ing firewall drop rule");
 
 	firewall_handle_accept_mode(vrrp, cmd, force);
 }
@@ -2793,7 +2793,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		ip_addr = list_first_entry(&vrrp->vip, ip_address_t, e_list);
 		if (!IN6_IS_ADDR_LINKLOCAL(&ip_addr->u.sin6_addr))
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) the first IPv6 VIP address must be link local"
-							        , vrrp->iname);
+								, vrrp->iname);
 	}
 
 	/* Check we can fit the VIPs into a packet */
@@ -3388,11 +3388,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		list_for_each_entry_safe(tip, tip_tmp, &vrrp->track_ifp, e_list) {
 			if (tip->weight && tip->weight != VRRP_NOT_TRACK_IF) {
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) ignoring %s"
-						 			  " tracked interface %sdue to %s"
+									  " tracked interface %sdue to %s"
 									, vrrp->iname
 									, tip->ifp->ifname
 									, sync_no_tracking_weight ? "weight " : ""
-									, sync_no_tracking_weight ? 
+									, sync_no_tracking_weight ?
 									  "SYNC group" : "address owner");
 				if (sync_no_tracking_weight)
 					tip->weight = 0;
@@ -3406,10 +3406,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		list_for_each_entry_safe(sc, sc_tmp, &vrrp->track_script,e_list) {
 			if (sc->weight) {
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) ignoring "
-						 			  "tracked script %s with weights due to %s"
+									  "tracked script %s with weights due to %s"
 									, vrrp->iname
 									, sc->scr->sname
-									, sync_no_tracking_weight ? 
+									, sync_no_tracking_weight ?
 									  "SYNC group" : "address_owner");
 				free_track_script(sc);
 			}
@@ -3420,7 +3420,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		list_for_each_entry_safe(tfl, tfl_tmp, &vrrp->track_file, e_list) {
 			if (tfl->weight == 1) {		/* weight == 1 is the default */
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) ignoring weight from "
-						 			  "tracked file %s due to %s."
+									  "tracked file %s due to %s."
 									  " specify weight 0"
 									, vrrp->iname
 									, tfl->file->fname
@@ -3430,7 +3430,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			}
 			else if (tfl->weight) {
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) ignoring "
-						 			  "tracked file %s with weight %d due to %s"
+									  "tracked file %s with weight %d due to %s"
 									, vrrp->iname
 									, tfl->file->fname
 									, tfl->weight
@@ -3446,7 +3446,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		list_for_each_entry_safe(tbfd, tbfd_tmp, &vrrp->track_bfd, e_list) {
 			if (tbfd->weight) {
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) ignoring "
-						 			  "tracked bfd %s with weight %d due to %s"
+									  "tracked bfd %s with weight %d due to %s"
 									, vrrp->iname
 									, tbfd->bfd->bname
 									, tbfd->weight
@@ -3694,7 +3694,7 @@ remove_residual_vips(void)
 	list_head_t *vip_list;
 	interface_t *ifp;
 	sin_addr_t *saddr;
-	
+
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		if (vrrp->vipset) {
 			/* Remove any addresses configured on interfaces if they match any

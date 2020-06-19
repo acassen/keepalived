@@ -351,7 +351,7 @@ inotify_event_thread(thread_ref_t thread)
 
 			if (file_wd != -1 && event->wd == file_wd) {
 #if 0
-			       	if (event->mask & (IN_DELETE_SELF | IN_MOVE_SELF)) {
+				if (event->mask & (IN_DELETE_SELF | IN_MOVE_SELF)) {
 					inotify_rm_watch(thread->u.f.fd, file_wd);
 #ifdef RELOAD_DEBUG
 					log_message(LOG_INFO, "Removed watch %d", file_wd);
@@ -375,7 +375,7 @@ inotify_event_thread(thread_ref_t thread)
 					return;
 				}
 
- 				/* coverity[string_null] */
+				/* coverity[string_null] */
 				if (event->mask & (IN_CREATE | IN_MOVED_TO | IN_DELETE | IN_MOVED_FROM) &&
 				    event->len &&
 				    !strcmp(event->name, file_name)) {
@@ -413,11 +413,11 @@ start_reload_monitor(void)
 #ifdef HAVE_INOTIFY_INIT1
 	inotify_fd = inotify_init1(IN_CLOEXEC | IN_NONBLOCK);
 #else
-        inotify_fd = inotify_init();
-        if (inotify_fd != -1) {
-                fcntl(inotify_fd, F_SETFD, FD_CLOEXEC);
-                fcntl(inotify_fd, F_SETFL, O_NONBLOCK);
-        }
+	inotify_fd = inotify_init();
+	if (inotify_fd != -1) {
+		fcntl(inotify_fd, F_SETFD, FD_CLOEXEC);
+		fcntl(inotify_fd, F_SETFL, O_NONBLOCK);
+	}
 #endif
 
 	file_name = strrchr(global_data->reload_time_file, '/');
@@ -476,7 +476,7 @@ stop_reload_monitor(void)
 void
 register_reload_addresses(void)
 {
-        register_thread_address("inotify_event_thread", inotify_event_thread);
-        register_thread_address("reload_timer_thread", reload_timer_thread);
+	register_thread_address("inotify_event_thread", inotify_event_thread);
+	register_thread_address("reload_timer_thread", reload_timer_thread);
 }
 #endif

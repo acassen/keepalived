@@ -86,7 +86,7 @@ typedef enum {
 
 /* Configuration data root */
 typedef struct _data {
-	const char 			*process_name;
+	const char			*process_name;
 #ifdef _WITH_VRRP_
 	const char			*vrrp_process_name;
 #endif

@@ -92,12 +92,12 @@ extern bool do_dump_keywords;
 static inline const char * __attribute__((malloc))
 set_value_r(const vector_t *strvec)
 {
-        return STRDUP(strvec_slot(strvec, 1));
+	return STRDUP(strvec_slot(strvec, 1));
 }
 
 #ifdef _MEM_CHECK_
 #define alloc_strvec(str)	(memcheck_log("alloc_strvec", str, (__FILE__), (__func__), (__LINE__)), \
-                                 alloc_strvec_r(str))
+				 alloc_strvec_r(str))
 
 #define set_value(str)		(memcheck_log("set_value", strvec_slot(str,1), (__FILE__), (__func__), (__LINE__)), \
 				 set_value_r(str))

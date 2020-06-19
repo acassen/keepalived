@@ -289,19 +289,19 @@ static inline void rb_link_node_rcu(struct rb_node *node, struct rb_node *parent
  */
 #define rb_insert_sort_cached(root, new, member, compar)		\
 ({									\
-        rb_node_t **__n = &(root)->rb_root.rb_node, *__parent = NULL;	\
-        typeof(new) __data;						\
+	rb_node_t **__n = &(root)->rb_root.rb_node, *__parent = NULL;	\
+	typeof(new) __data;						\
 									\
-        while (*__n) {							\
-                __data = rb_entry(*__n, typeof(*new), member);		\
-                int __cmp = compar(new, __data);			\
+	while (*__n) {							\
+		__data = rb_entry(*__n, typeof(*new), member);		\
+		int __cmp = compar(new, __data);			\
 									\
-                __parent = *__n;					\
-                if (__cmp <= 0)						\
-                        __n = &((*__n)->rb_left);			\
-                else if (__cmp > 0)					\
-                        __n = &((*__n)->rb_right);			\
-        }								\
+		__parent = *__n;					\
+		if (__cmp <= 0)						\
+			__n = &((*__n)->rb_left);			\
+		else if (__cmp > 0)					\
+			__n = &((*__n)->rb_right);			\
+	}								\
 	/* Add new node and rebalance tree. */				\
 	rb_link_node(&((new)->member), __parent, __n);			\
 	rb_insert_color_cached(&((new)->member), root,			\
@@ -322,7 +322,7 @@ static inline void rb_link_node_rcu(struct rb_node *node, struct rb_node *parent
 	     pos; pos = rb_entry_safe_const(rb_next(&pos->member), typeof(*pos), member))
 
 /**
- * rb_for_each_entry_safe - 	Iterate over rbtree of given type safe against removal
+ * rb_for_each_entry_safe -	Iterate over rbtree of given type safe against removal
  * @pos:			the type * to use as a loop cursor.
  * @root:			the rbtree root.
  * @member:			the name of the rb_node within the struct.

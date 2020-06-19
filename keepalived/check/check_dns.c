@@ -262,7 +262,7 @@ dns_make_query(thread_ref_t thread)
 	DNS_SET_RD(flags, 1);	/* Recursion Desired */
 
 	/* coverity[dont_call] */
-	header->id = htons(random());
+	header->id = random();
 	header->flags = htons(flags);
 	header->qdcount = htons(1);
 	header->ancount = htons(0);
@@ -298,6 +298,10 @@ dns_send(thread_ref_t thread)
 	ssize_t ret;
 
 	timeout = timer_long(thread->sands) - timer_long(time_now);
+
+	/* Handle time_now > thread->sands */
+	if (timeout > checker->co->connection_to)
+		timeout = 0;
 
 	ret = send(thread->u.f.fd, dns_check->sbuf, dns_check->slen, 0);
 	if (ret == -1) {
@@ -410,6 +414,7 @@ dns_connect_thread(thread_ref_t thread)
 	if (status == connect_success) {
 		thread_fd = *thread;
 		thread_fd.u.f.fd = fd;
+		thread_fd.sands = timer_add_long(time_now, co->connection_to);
 		dns_make_query(&thread_fd);
 		dns_send(&thread_fd);
 

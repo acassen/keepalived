@@ -128,19 +128,19 @@ static const char *
 get_nl_msg_type(unsigned type)
 {
 	switch (type) {
-                switch_define_str(RTM_NEWLINK);
-                switch_define_str(RTM_DELLINK);
-                switch_define_str(RTM_NEWADDR);
-                switch_define_str(RTM_DELADDR);
-                switch_define_str(RTM_NEWROUTE);
-                switch_define_str(RTM_DELROUTE);
-                switch_define_str(RTM_NEWRULE);
-                switch_define_str(RTM_DELRULE);
-                switch_define_str(RTM_GETLINK);
-                switch_define_str(RTM_GETADDR);
-        };
+		switch_define_str(RTM_NEWLINK);
+		switch_define_str(RTM_DELLINK);
+		switch_define_str(RTM_NEWADDR);
+		switch_define_str(RTM_DELADDR);
+		switch_define_str(RTM_NEWROUTE);
+		switch_define_str(RTM_DELROUTE);
+		switch_define_str(RTM_NEWRULE);
+		switch_define_str(RTM_DELRULE);
+		switch_define_str(RTM_GETLINK);
+		switch_define_str(RTM_GETADDR);
+	};
 
-        return "";
+	return "";
 }
 
 static inline bool
@@ -2141,7 +2141,7 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 
 			/* Re-establish lists */
 			INIT_LIST_HEAD(&ifp->sin_addr_l);
-			INIT_LIST_HEAD(&ifp->sin6_addr_l);			
+			INIT_LIST_HEAD(&ifp->sin6_addr_l);
 			list_copy(&ifp->tracking_vrrp, &sav_tracking_vrrp);
 			ifp->garp_delay = sav_garp_delay;
 

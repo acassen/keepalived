@@ -114,7 +114,7 @@ tcp_epilog(thread_ref_t thread, bool is_success)
 			    (rs_was_alive != checker->rs->alive || !global_data->no_checker_emails))
 				smtp_alert(SMTP_MSG_RS, checker, NULL,
 					   "=> TCP CHECK succeed on service <=");
-		} else if (!is_success && 
+		} else if (!is_success &&
 			   (checker->is_up || !checker->has_run)) {
 			if (checker->retry && checker->has_run)
 				log_message(LOG_INFO

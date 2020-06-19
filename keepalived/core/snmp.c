@@ -140,7 +140,7 @@ snmp_find_element(struct variable *vp, oid *name, size_t *length,
 				return NULL;
 		}
 
-		/* Find the list head of the inner list in the outer entry */ 
+		/* Find the list head of the inner list in the outer entry */
 		l1 = (list_head_t *) ((char *)e - offset_outer + offset_inner);
 
 		current[1] = 0;

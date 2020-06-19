@@ -817,12 +817,12 @@ smtp_connect_thread(thread_ref_t thread)
 
 	/* handle tcp connection status & register callback the next step in the process */
 	if(tcp_connection_state(sd, status, thread, smtp_check_thread, smtp_host->connection_to)) {
-                if (status == connect_fail) {
-                        close(sd);
-                        smtp_final(thread, "Network unreachable for server %s - real server %s",
-                                           inet_sockaddrtos(&checker->co->dst),
-                                           inet_sockaddrtopair(&checker->rs->addr));
-                } else {
+		if (status == connect_fail) {
+			close(sd);
+			smtp_final(thread, "Network unreachable for server %s - real server %s",
+					   inet_sockaddrtos(&checker->co->dst),
+					   inet_sockaddrtopair(&checker->rs->addr));
+		} else {
 			close(sd);
 			log_message(LOG_INFO, "SMTP_CHECK socket bind failed. Rescheduling.");
 			thread_add_timer(thread->master, smtp_start_check_thread, checker,

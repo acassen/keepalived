@@ -899,7 +899,7 @@ check_script_secure(notify_script_t *script,
 		}
 
 		if (strcmp(script->args[0], new_path)) {
-	 		/* We need to set up all the args again */
+			/* We need to set up all the args again */
 			replace_cmd_name(script, new_path);
 		}
 	}

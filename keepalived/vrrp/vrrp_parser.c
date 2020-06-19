@@ -985,17 +985,17 @@ static void
 vrrp_notify_priority_changes_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
-        int res = true;
+	int res = true;
 
-        if (vector_size(strvec) >= 2) {
-                res = check_true_false(strvec_slot(strvec,1));
-                if (res < 0) {
-                        report_config_error(CONFIG_GENERAL_ERROR, "(%s) Invalid value '%s' for notify_priority_changes specified", vrrp->iname, strvec_slot(strvec, 1));
-                        return;
-                }
-        }
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Invalid value '%s' for notify_priority_changes specified", vrrp->iname, strvec_slot(strvec, 1));
+			return;
+		}
+	}
 
-        vrrp->notify_priority_changes = res;
+	vrrp->notify_priority_changes = res;
 }
 #ifdef _WITH_LVS_
 static void
@@ -1525,10 +1525,10 @@ vrrp_tprocess_delay_general(const vector_t *strvec, enum process_delay delay_typ
 
 	if (!read_double_strvec(strvec, 1, &delay, 0.000001F, 3600.F, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "%sdelay (%s) for vrrp_track_process %s must be between "
-						 	  "[0.000001..3600] inclusive. Ignoring..."
+							  "[0.000001..3600] inclusive. Ignoring..."
 							, delay_type == PROCESS_TERMINATE_DELAY ? "terminate_" :
 							   delay_type == PROCESS_FORK_DELAY ? "fork_" : ""
-				 			, strvec_slot(strvec, 1), tprocess->pname);
+							, strvec_slot(strvec, 1), tprocess->pname);
 		return;
 	}
 

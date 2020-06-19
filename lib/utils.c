@@ -464,9 +464,9 @@ inet_stor(const char *addr, uint32_t *range_end)
 		return true;
 
 #ifdef _STRICT_CONFIG_
-        return false;
+	return false;
 #else
-        return !__test_bit(CONFIG_TEST_BIT, &debug);
+	return !__test_bit(CONFIG_TEST_BIT, &debug);
 #endif
 }
 

@@ -200,7 +200,7 @@ bfd_validate_config(void)
 static void
 print_bfd_thread(__attribute__((unused)) thread_ref_t thread)
 {
-        bfd_print_data();
+	bfd_print_data();
 }
 
 /* Reload handler */
@@ -214,9 +214,9 @@ sigreload_bfd(__attribute__ ((unused)) void *v,
 static void
 sigdump_bfd(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
-        log_message(LOG_INFO, "Printing BFD data for process(%d) on signal",
-                    getpid());
-        thread_add_event(master, print_bfd_thread, NULL, 0);
+	log_message(LOG_INFO, "Printing BFD data for process(%d) on signal",
+		    getpid());
+	thread_add_event(master, print_bfd_thread, NULL, 0);
 }
 
 /* Terminate handler */

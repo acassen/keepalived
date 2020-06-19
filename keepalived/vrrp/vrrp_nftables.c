@@ -81,9 +81,9 @@
 #ifdef HAVE_LIBNFTNL_UDATA_H
 /* This should be declared in /usr/include/libnftnl/udata.h */
 enum byteorder {
-        BYTEORDER_INVALID,
-        BYTEORDER_HOST_ENDIAN,
-        BYTEORDER_BIG_ENDIAN,
+	BYTEORDER_INVALID,
+	BYTEORDER_HOST_ENDIAN,
+	BYTEORDER_BIG_ENDIAN,
 };
 
 #ifndef NFTNL_UDATA_SET_MAX
@@ -243,7 +243,7 @@ table_cb(__attribute__((unused)) const struct nlmsghdr *nlh, void *data)
 {
 	*(bool *)data = true;
 
-        return MNL_CB_OK;
+	return MNL_CB_OK;
 }
 
 static void
@@ -503,7 +503,7 @@ nftnl_chain *chain_add_parse(const char *table, const char *name)
 }
 
 /* For an anonymous set use set name "__set%d", and retrieve set_id with:
-        set_id = nftnl_set_get_u32(s, NFTNL_SET_ID);
+	set_id = nftnl_set_get_u32(s, NFTNL_SET_ID);
  *
  * To add a rule referencing the set, setname is "__set%d", and set set_id:
 	if (set_id)
@@ -674,7 +674,7 @@ nftnl_rule *setup_rule(uint8_t family, const char *table,
 	    |00012|--|00001|	|len |flags| type|	NFTA_EXPR_NAME	(see netlink_gen_payload)
 	    | 70 61 79 6c  |	|      data      |	 p a y l
 	    | 6f 61 64 00  |	|      data      |	 o a d
-	    |00036|N-|00002|	|len |flags| type| 	NFTA_EXPR_DATA | NEST
+	    |00036|N-|00002|	|len |flags| type|	NFTA_EXPR_DATA | NEST
 	      |00008|--|00001|	|len |flags| type|	NFTNL_EXPR_PAYLOAD_DREG
 	      | 00 00 00 01  |	|      data      |	  NFT_REG_1
 	      |00008|--|00002|	|len |flags| type|	NFTNL_EXPR_PAYLOAD_BASE
@@ -682,8 +682,8 @@ nftnl_rule *setup_rule(uint8_t family, const char *table,
 	      |00008|--|00003|	|len |flags| type|	NFTNL_EXPR_PAYLOAD_OFFSET
 	      | 00 00 00 10  |	|      data      |	  offset 16
 	      |00008|--|00004|	|len |flags| type|	NFTNL_EXPR_PAYLOAD_LEN
-	      | 00 00 00 04  |	|      data      | 	  length 4
-	  |00052|N-|00001|	|len |flags| type| 		NFTA_LIST_ELEM | NEST (netlink_gen_set_stmt)
+	      | 00 00 00 04  |	|      data      |	  length 4
+	  |00052|N-|00001|	|len |flags| type|		NFTA_LIST_ELEM | NEST (netlink_gen_set_stmt)
 	    |00011|--|00001|	|len |flags| type|	NFTA_EXPR_NAME	(see netlink_gen_lookup)
 	    | 6c 6f 6f 6b  |	|      data      |	 l o o k
 	    | 75 70 00 00  |	|      data      |	 u p
@@ -705,9 +705,9 @@ nftnl_rule *setup_rule(uint8_t family, const char *table,
 	      |00008|--|00001|	|len |flags| type| NFTNL_EXPR_IMM_DREG = NFTA_IMMEDIATE_DREG
 	      | 00 00 00 00  |	|      data      |  NFT_REG_VERDICT
 	      |00016|N-|00002|	|len |flags| type| NFTNL_EXPR_IMM_VERDICT = NFTA_IMMEDIATE_DATA
-	        |00012|N-|00002|	|len |flags| type|  NFTA_DATA_VERDICT
-	          |00008|--|00001|	|len |flags| type|  NFTA_VERDICT_CODE
-	          | 00 00 00 00  |	|      data      |  NF_DROP
+		|00012|N-|00002|	|len |flags| type|  NFTA_DATA_VERDICT
+		  |00008|--|00001|	|len |flags| type|  NFTA_VERDICT_CODE
+		  | 00 00 00 00  |	|      data      |  NF_DROP
 	----------------	------------------
 	----------------	------------------
 	|  0000000020  |	| message length |
@@ -808,9 +808,9 @@ nftnl_rule *setup_rule_if(uint8_t family, const char *table,
 	      |00008|--|00001|	|len |flags| type| NFTA_IMMEDIATE_DREG
 	      | 00 00 00 00  |	|      data      | NFT_REG_VERDICT
 	      |00016|N-|00002|	|len |flags| type| NFTA_IMMEDIATE_DATA
-	        |00012|N-|00002|	|len |flags| type| NFTA_DATA_VERDICT
-	          |00008|--|00001|	|len |flags| type| NFTA_VERDICT_CODE
-	          | 00 00 00 00  |	|      data      | NF_DROP
+		|00012|N-|00002|	|len |flags| type| NFTA_DATA_VERDICT
+		  |00008|--|00001|	|len |flags| type| NFTA_VERDICT_CODE
+		  | 00 00 00 00  |	|      data      | NF_DROP
 	----------------	------------------
 	*/
 	r = nftnl_rule_alloc();
@@ -920,17 +920,17 @@ static struct nftnl_rule
 	      |00008|--|00003|	|len |flags| type|
 	      | 00 00 00 10  |	|      data      |	 NFTA_BITWISE_LEN = 16
 	      |00024|N-|00004|	|len |flags| type|	 NFTA_BITWISE_MASK = ffc0::
-	        |00020|--|00001|	|len |flags| type|
-	          | ff c0 00 00  |	|      data      |
-	          | 00 00 00 00  |	|      data      |
-	          | 00 00 00 00  |	|      data      |
-	          | 00 00 00 00  |	|      data      |
+		|00020|--|00001|	|len |flags| type|
+		  | ff c0 00 00  |	|      data      |
+		  | 00 00 00 00  |	|      data      |
+		  | 00 00 00 00  |	|      data      |
+		  | 00 00 00 00  |	|      data      |
 	      |00024|N-|00005|	|len |flags| type|	 NFTA_BITWISE_xor = ::
-	        |00020|--|00001|	|len |flags| type|
-	          | 00 00 00 00  |	|      data      |
-	          | 00 00 00 00  |	|      data      |
-	          | 00 00 00 00  |	|      data      |
-	          | 00 00 00 00  |	|      data      |
+		|00020|--|00001|	|len |flags| type|
+		  | 00 00 00 00  |	|      data      |
+		  | 00 00 00 00  |	|      data      |
+		  | 00 00 00 00  |	|      data      |
+		  | 00 00 00 00  |	|      data      |
 	  |00056|N-|00001|	|len |flags| type| NFTA_LIST_ELEM
 	    |00008|--|00001|	|len |flags| type|
 	    | 63 6d 70 00  |	|      data      |	 c m p
@@ -940,11 +940,11 @@ static struct nftnl_rule
 	      |00008|--|00002|	|len |flags| type|
 	      | 00 00 00 00  |	|      data      |	 NFT_CMP_OP = NFT_CMP_EQ
 	      |00024|N-|00003|	|len |flags| type|	 NFT_CMP_DATA
-	        |00020|--|00001|	|len |flags| type| fe80::
-	          | fe 80 00 00  |	|      data      |
-	          | 00 00 00 00  |	|      data      |
-	          | 00 00 00 00  |	|      data      |
-	          | 00 00 00 00  |	|      data      |
+		|00020|--|00001|	|len |flags| type| fe80::
+		  | fe 80 00 00  |	|      data      |
+		  | 00 00 00 00  |	|      data      |
+		  | 00 00 00 00  |	|      data      |
+		  | 00 00 00 00  |	|      data      |
 	|00072|N-|00001|	|len |flags| type| NFTA_LIST_ELEM
 	    |00014|--|00001|	|len |flags| type|	NFTA_EXPR_NAME
 	    | 69 6d 6d 65  |	|      data      |	 i m m e
@@ -956,15 +956,15 @@ static struct nftnl_rule
 	      | 00 00 00 00  |	|      data      | NFT_REG_VERDICT
 
 	      |00040|N-|00002|	|len |flags| type| NFTNL_EXPR_IMM_VERDICT
-	        |00036|N-|00002|	|len |flags| type| NFTA_DATA_VERDICT
-	          |00008|--|00001|	|len |flags| type| NFTA_VERDICT_CODE
-	          | ff ff ff fc  |	|      data      | NFT_GOTO
-	          |00021|--|00002|	|len |flags| type| NFTA_VERDICT_DATA
-	          | 6b 65 65 70  |	|      data      |	 k e e p
-	          | 61 6c 69 76  |	|      data      |	 a l i v
-	          | 65 64 5f 69  |	|      data      |	 e d _ i
-	          | 6e 5f 6c 6c  |	|      data      |	 n _ l l
-	          | 00 00 00 00  |	|      data      |
+		|00036|N-|00002|	|len |flags| type| NFTA_DATA_VERDICT
+		  |00008|--|00001|	|len |flags| type| NFTA_VERDICT_CODE
+		  | ff ff ff fc  |	|      data      | NFT_GOTO
+		  |00021|--|00002|	|len |flags| type| NFTA_VERDICT_DATA
+		  | 6b 65 65 70  |	|      data      |	 k e e p
+		  | 61 6c 69 76  |	|      data      |	 a l i v
+		  | 65 64 5f 69  |	|      data      |	 e d _ i
+		  | 6e 5f 6c 6c  |	|      data      |	 n _ l l
+		  | 00 00 00 00  |	|      data      |
 	----------------	------------------
 	----------------	------------------
 	|  0000000020  |	| message length |

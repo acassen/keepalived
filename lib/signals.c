@@ -590,6 +590,6 @@ void signal_fd_close(int min_fd)
 void
 register_signal_thread_addresses(void)
 {
-        register_thread_address("signal_run_callback", signal_run_callback);
+	register_thread_address("signal_run_callback", signal_run_callback);
 }
 #endif
