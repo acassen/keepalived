@@ -173,7 +173,7 @@ dns_recv_thread(thread_ref_t thread)
 {
 	unsigned long timeout;
 	ssize_t ret;
-	char rbuf[DNS_BUFFER_SIZE];
+	char rbuf[DNS_BUFFER_SIZE] __attribute__((aligned(__alignof(dns_header_t))));
 	dns_header_t *s_header, *r_header;
 	int flags, rcode;
 
@@ -208,8 +208,8 @@ dns_recv_thread(thread_ref_t thread)
 		return;
 	}
 
-	s_header = (dns_header_t *) dns_check->sbuf;
-	r_header = (dns_header_t *) rbuf;
+	s_header = (dns_header_t *) NO_ALIGN_WARN dns_check->sbuf;
+	r_header = (dns_header_t *) NO_ALIGN_WARN rbuf;
 
 	if (s_header->id != r_header->id) {
 #ifdef _CHECKER_DEBUG
@@ -244,7 +244,7 @@ dns_recv_thread(thread_ref_t thread)
 }
 
 #define APPEND16(x, y) do { \
-		*(uint16_t *) (x) = htons(y); \
+		*(uint16_t *) NO_ALIGN_WARN (x) = htons(y); \
 		(x) = (uint8_t *) (x) + 2; \
 	} while(0)
 
@@ -257,7 +257,7 @@ dns_make_query(thread_ref_t thread)
 	size_t n;
 	checker_t *checker = THREAD_ARG(thread);
 	dns_check_t *dns_check = CHECKER_ARG(checker);
-	dns_header_t *header = (dns_header_t *) dns_check->sbuf;
+	dns_header_t *header = (dns_header_t *) NO_ALIGN_WARN dns_check->sbuf;
 
 	DNS_SET_RD(flags, 1);	/* Recursion Desired */
 
@@ -305,7 +305,6 @@ dns_send(thread_ref_t thread)
 
 	ret = send(thread->u.f.fd, dns_check->sbuf, dns_check->slen, 0);
 	if (ret == -1) {
-	{
 		if (check_EAGAIN(errno) || check_EINTR(errno)) {
 			thread_add_write(thread->master, dns_send_thread,
 					 checker, thread->u.f.fd, timeout, true);
