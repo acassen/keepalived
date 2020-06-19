@@ -305,7 +305,6 @@ dns_send(thread_ref_t thread)
 
 	ret = send(thread->u.f.fd, dns_check->sbuf, dns_check->slen, 0);
 	if (ret == -1) {
-	{
 		if (check_EAGAIN(errno) || check_EINTR(errno)) {
 			thread_add_write(thread->master, dns_send_thread,
 					 checker, thread->u.f.fd, timeout, true);
