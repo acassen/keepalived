@@ -297,7 +297,7 @@ dns_send(thread_ref_t thread)
 	unsigned long timeout;
 	ssize_t ret;
 
-	timeout = timer_long(thread->sands) - timer_long(time_now);
+	timeout = checker->co->connection_to;
 
 	ret = send(thread->u.f.fd, dns_check->sbuf, dns_check->slen, 0);
 	if (ret == -1) {
