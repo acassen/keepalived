@@ -506,7 +506,7 @@ pto_handler(const vector_t *strvec)
 		return;
 	}
 
-	if (!read_unsigned_strvec(strvec, 1, &timeout, 1, UINT32_MAX, false)) {
+	if (!read_unsigned_strvec(strvec, 1, &timeout, 1, LVS_MAX_TIMEOUT, false)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "persistence_timeout invalid");
 		return;
 	}
