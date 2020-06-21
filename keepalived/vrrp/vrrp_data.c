@@ -1153,6 +1153,7 @@ alloc_vrrp_process(const char *pname)
 	new->pname = STRDUP(pname);
 	new->quorum = 1;
 	new->quorum_max = UINT_MAX;
+	INIT_LIST_HEAD(&new->tracking_vrrp);
 	list_add_tail(&new->e_list, &vrrp_data->vrrp_track_processes);
 }
 #endif
