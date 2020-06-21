@@ -428,6 +428,7 @@ alloc_vrrp_tracked_bfd(const char *name, list_head_t *l)
 	tbfd->weight = 0;
 	tbfd->weight_reverse = false;
 	tbfd->bfd_up = false;
+	INIT_LIST_HEAD(&tbfd->tracking_vrrp);
 	list_add_tail(&tbfd->e_list, l);
 }
 
