@@ -77,7 +77,7 @@ free_track_if_list(list_head_t *l)
 	tracked_if_t *tip, *tip_tmp;
 
 	list_for_each_entry_safe(tip, tip_tmp, l, e_list)
-		FREE(tip);
+		free_track_if(tip);
 }
 
 void
