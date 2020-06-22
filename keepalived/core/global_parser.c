@@ -533,7 +533,7 @@ lvs_syncd_handler(const vector_t *strvec)
 				report_config_error(CONFIG_GENERAL_ERROR, "No value specified for lvs_sync_daemon maxlen - ignoring");
 				continue;
 			}
-			if (!read_unsigned_strvec(strvec, i + 1, &val, 0, 65535 - 20 - 8, false))
+			if (!read_unsigned_strvec(strvec, i + 1, &val, 1, 65535 - 20 - 8, false))
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_sync_daemon maxlen (%s) - ignoring", strvec_slot(strvec, i+1));
 			else
 				global_data->lvs_syncd.sync_maxlen = (uint16_t)val;
