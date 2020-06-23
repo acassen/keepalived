@@ -45,6 +45,7 @@
 #include "process.h"
 
 #ifdef _MEM_CHECK_
+#include "align.h"
 #include "timer.h"
 #include "rbtree.h"
 #include "list_head.h"
@@ -241,7 +242,7 @@ keepalived_malloc_common(size_t size, const char *file, const char *function, in
 	buf = zalloc(size + sizeof (unsigned long));
 
 #ifndef _NO_UNALIGNED_ACCESS_
-	*(unsigned long *) ((char *) buf + size) = size + CHECK_VAL;
+	*(unsigned long *) PTR_CAST_ASSIGN((char *) buf + size) = size + CHECK_VAL;
 #else
 	unsigned long check_val = CHECK_VAL;
 
@@ -395,7 +396,7 @@ keepalived_free_realloc_common(void *buffer, size_t size, const char *file, cons
 
 	check = entry->size + CHECK_VAL;
 #ifndef _NO_UNALIGNED_ACCESS_
-	if (*(unsigned long *)((char *)buffer + entry->size) != check) {
+	if (*(unsigned long *) PTR_CAST_ASSIGN((char *)buffer + entry->size) != check) {
 #else
 	if (memcmp((unsigned char *)buffer + entry->size, (unsigned char *)&check_val, sizeof(check_val))) {
 #endif
@@ -494,7 +495,7 @@ keepalived_free_realloc_common(void *buffer, size_t size, const char *file, cons
 #endif
 
 #ifndef _NO_UNALIGNED_ACCESS_
-	*(unsigned long *) ((char *) buffer + size) = size + CHECK_VAL;
+	*(unsigned long *) PTR_CAST_ASSIGN((char *) buffer + size) = size + CHECK_VAL;
 #else
 	memcpy((unsigned char *)buffer + size, (unsigned char *)&check_val, sizeof(check_val));
 #endif

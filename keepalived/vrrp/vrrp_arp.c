@@ -66,7 +66,7 @@ struct sockaddr_large_ll {
 };
 
 /* static vars */
-static char *garp_buffer;
+static char *garp_buffer __attribute__((aligned(__alignof__(struct arphdr))));
 static int garp_fd = -1;
 
 /* Send the gratuitous ARP message */
@@ -121,10 +121,10 @@ ssize_t send_gratuitous_arp_immediate(interface_t *ifp, ip_address_t *ipaddress)
 
 		/*  Add ipoib link layer header MAC + proto */
 		memcpy(garp_buffer, ifp->hw_addr_bcast, ifp->hw_addr_len);
-		ipoib = (struct ipoib_hdr *) (garp_buffer + ifp->hw_addr_len);
+		ipoib = PTR_CAST(struct ipoib_hdr, (garp_buffer + ifp->hw_addr_len));
 		ipoib->proto = htons(ETHERTYPE_ARP);
 		ipoib->reserved = 0;
-		arph = (struct arphdr *) (garp_buffer + ifp->hw_addr_len +
+		arph = PTR_CAST(struct arphdr, garp_buffer + ifp->hw_addr_len +
 					 sizeof(*ipoib));
 	} else {
 		struct ether_header *eth;
@@ -133,7 +133,7 @@ ssize_t send_gratuitous_arp_immediate(interface_t *ifp, ip_address_t *ipaddress)
 		memcpy(eth->ether_dhost, ifp->hw_addr_bcast, ETH_ALEN < ifp->hw_addr_len ? ETH_ALEN : ifp->hw_addr_len);
 		memcpy(eth->ether_shost, hwaddr, ETH_ALEN < ifp->hw_addr_len ? ETH_ALEN : ifp->hw_addr_len);
 		eth->ether_type = htons(ETHERTYPE_ARP);
-		arph = (struct arphdr *) (garp_buffer + ETHER_HDR_LEN);
+		arph = PTR_CAST(struct arphdr, (garp_buffer + ETHER_HDR_LEN));
 	}
 
 	/* ARP payload */
@@ -142,7 +142,7 @@ ssize_t send_gratuitous_arp_immediate(interface_t *ifp, ip_address_t *ipaddress)
 	arph->ar_hln = ifp->hw_addr_len;
 	arph->ar_pln = sizeof(struct in_addr);
 	arph->ar_op = htons(ARPOP_REQUEST);
-	arp_ptr = (char *) (arph + 1);
+	arp_ptr = PTR_CAST(char, (arph + 1));
 	memcpy(arp_ptr, hwaddr, ifp->hw_addr_len);
 	arp_ptr += ifp->hw_addr_len;
 	memcpy(arp_ptr, &ipaddress->u.sin.sin_addr.s_addr,

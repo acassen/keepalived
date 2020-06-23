@@ -491,16 +491,17 @@ domain_stosockaddr(const char *domain, const char *port, struct sockaddr_storage
 
 	addr->ss_family = (sa_family_t)res->ai_family;
 
-	if (addr->ss_family == AF_INET6) {
-		struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)addr;
-		*addr6 = *(struct sockaddr_in6 *)res->ai_addr;
-		if (port)
-			addr6->sin6_port = htons(port_num);
-	} else {
-		struct sockaddr_in *addr4 = (struct sockaddr_in *)addr;
-		*addr4 = *(struct sockaddr_in *)res->ai_addr;
-		if (port)
-			addr4->sin_port = htons(port_num);
+	/* Tempting as it is to do something like:
+		*(struct sockaddr_in6 *)addr = *(struct sockaddr_in6 *)res->ai_addr;
+	   the alignment of struct sockaddr (short int) is less than the alignment of
+	   struct sockaddr_storage (long). */
+	memcpy(addr, res->ai_addr, res->ai_addrlen);
+
+	if (port) {
+		if (addr->ss_family == AF_INET6)
+			((struct sockaddr_in6 *)addr)->sin6_port = htons(port_num);
+		else
+			((struct sockaddr_in *)addr)->sin_port = htons(port_num);
 	}
 
 	freeaddrinfo(res);

@@ -141,7 +141,7 @@ snmp_find_element(struct variable *vp, oid *name, size_t *length,
 		}
 
 		/* Find the list head of the inner list in the outer entry */
-		l1 = (list_head_t *) ((char *)e - offset_outer + offset_inner);
+		l1 = PTR_CAST(list_head_t, ((char *)e - offset_outer + offset_inner));
 
 		current[1] = 0;
 		list_for_each(e1, l1) {

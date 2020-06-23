@@ -23,6 +23,8 @@
 #ifndef _CONTAINER_H
 #define _CONTAINER_H
 
+#include "align.h"
+
 /* Copy from linux kernel 2.6 source (kernel.h, stddef.h) */
 
 #ifndef offsetof
@@ -40,13 +42,13 @@
 #ifndef container_of
 # define container_of(ptr, type, member) ({	\
 	 typeof( ((type *)0)->member ) *__mptr = (ptr);  \
-	 (type *)( (char *)__mptr - offsetof(type,member) );})
+	 PTR_CAST(type, (char *)__mptr - offsetof(type,member) );})
 #endif
 
 #ifndef container_of_const
 # define container_of_const(ptr, type, member) ({	\
 	 const typeof( ((type *)0)->member ) *__mptr = (ptr);  \
-	 (type *)( (const char *)__mptr - offsetof(type,member) );})
+	 PTR_CAST_CONST(type, (const char *)__mptr - offsetof(type,member) );})
 #endif
 
 #endif

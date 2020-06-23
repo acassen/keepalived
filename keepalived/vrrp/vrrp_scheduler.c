@@ -817,9 +817,9 @@ vrrp_dispatcher_read(sock_t *sock)
 	struct sockaddr_storage src_addr = { .ss_family = AF_UNSPEC };
 	vrrp_t vrrp_lookup;
 #ifdef _NETWORK_TIMESTAMP_
-	char control_buf[128];
+	char control_buf[128] __attribute__((aligned(__alignof(struct cmsghdr))));
 #else
-	char control_buf[64];
+	char control_buf[64] __attribute__((aligned(__alignof(struct cmsghdr))));
 #endif
 	struct iovec iovec = { .iov_base = vrrp_buffer, .iov_len = vrrp_buffer_len };
 	struct msghdr msghdr = { .msg_name = &src_addr, .msg_namelen = sizeof(src_addr),
@@ -939,13 +939,13 @@ vrrp_dispatcher_read(sock_t *sock)
 #ifdef IPV6_RECVHOPLIMIT
 				if (cmsg->cmsg_type == IPV6_HOPLIMIT &&
 				    cmsg->cmsg_len - sizeof(struct cmsghdr) == sizeof(unsigned int))
-					vrrp->rx_ttl_hop_limit = *(unsigned int *)CMSG_DATA(cmsg);
+					vrrp->rx_ttl_hop_limit = *PTR_CAST(unsigned int, CMSG_DATA(cmsg));
 				else
 #endif
 #ifdef IPV6_RECVPKTINFO
 				if (cmsg->cmsg_type == IPV6_PKTINFO &&
 				    cmsg->cmsg_len - sizeof(struct cmsghdr) == sizeof(struct in6_pktinfo))
-					vrrp->multicast_pkt = IN6_IS_ADDR_MULTICAST(&((struct in6_pktinfo *)CMSG_DATA(cmsg))->ipi6_addr);
+					vrrp->multicast_pkt = IN6_IS_ADDR_MULTICAST(&(PTR_CAST(struct in6_pktinfo, CMSG_DATA(cmsg)))->ipi6_addr);
 				else
 #endif
 					expected_cmsg = false;
