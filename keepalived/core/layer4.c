@@ -43,7 +43,6 @@
 #endif
 #include "bitops.h"
 #include "utils.h"
-#include "align.h"
 
 // #define ICMP_DEBUG	1
 
@@ -313,7 +312,7 @@ udp_socket_error(int fd)
 	struct msghdr msg;
 	char name_buf[128];
 	struct iovec iov;
-	char control[2560] __attribute__((aligned (__alignof__(struct cmsghdr))));
+	char control[2560];
 	struct icmphdr icmph;
 	struct cmsghdr *cmsg;                   /* Control related data */
 	struct sock_extended_err *sock_err;
@@ -337,7 +336,7 @@ udp_socket_error(int fd)
 	}
 
 	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
-		sock_err = PTR_CAST(struct sock_extended_err, CMSG_DATA(cmsg));
+		sock_err = (struct sock_extended_err *)CMSG_DATA(cmsg);
 		if (cmsg->cmsg_level == SOL_IP && cmsg->cmsg_type == IP_RECVERR) {
 			if (sock_err) {
 				/* We are interested in ICMP errors */

@@ -86,7 +86,7 @@ typedef struct _dns_header {
 typedef struct _dns_check {
 	uint16_t type;
 	const char *name;
-	uint8_t sbuf[DNS_BUFFER_SIZE] __attribute__((aligned(__alignof__(dns_header_t))));
+	uint8_t sbuf[DNS_BUFFER_SIZE];
 	size_t slen;
 } dns_check_t;
 

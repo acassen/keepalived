@@ -226,7 +226,7 @@ ip4tables_process_entry(struct iptc_handle *handle, const char *chain_name, unsi
 
 		if ( protocol == IPPROTO_ICMP )
 		{
-			match = PTR_CAST(struct xt_entry_match, ((char*)fw + fw->target_offset));
+			match = (struct xt_entry_match*)((char*)fw + fw->target_offset);
 			match->u.match_size = XT_ALIGN(sizeof (struct xt_entry_match)) + XT_ALIGN(sizeof(struct ipt_icmp));
 			match->u.user.revision = 0;
 			fw->target_offset = (uint16_t)(fw->target_offset + match->u.match_size);
@@ -365,7 +365,7 @@ ip6tables_process_entry(struct ip6tc_handle *handle, const char *chain_name, uns
 
 		if ( protocol == IPPROTO_ICMPV6 )
 		{
-			match = PTR_CAST(struct xt_entry_match, ((char*)fw + fw->target_offset));
+			match = (struct xt_entry_match*)((char*)fw + fw->target_offset);
 			match->u.match_size = XT_ALIGN ( sizeof (struct xt_entry_match) ) + XT_ALIGN ( sizeof (struct ip6t_icmp) ) ;
 			match->u.user.revision = 0;
 			fw->target_offset = (uint16_t)(fw->target_offset + match->u.match_size);
@@ -615,7 +615,7 @@ ip4tables_add_rules(struct iptc_handle *handle, const char *chain_name, unsigned
 	}
 
 	// set
-	match = PTR_CAST(struct xt_entry_match, ((char*)fw + fw->target_offset));
+	match = (struct xt_entry_match*)((char*)fw + fw->target_offset);
 	match->u.match_size = XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(*setinfo));
 #ifdef HAVE_XT_SET_INFO_MATCH_V4
 	match->u.user.revision = 4;
@@ -630,13 +630,13 @@ ip4tables_add_rules(struct iptc_handle *handle, const char *chain_name, unsigned
 	strcpy(match->u.user.name, "set");
 
 #ifdef HAVE_XT_SET_INFO_MATCH_V4
-	setinfo = PTR_CAST(struct xt_set_info_match_v4, match->data);
+	setinfo = (struct xt_set_info_match_v4 *)match->data;
 #elif defined HAVE_XT_SET_INFO_MATCH_V3
-	setinfo = PTR_CAST(struct xt_set_info_match_v3, match->data);
+	setinfo = (struct xt_set_info_match_v3 *)match->data;
 #elif defined HAVE_XT_SET_INFO_MATCH_V1
-	setinfo = PTR_CAST(struct xt_set_info_match_v1, match->data);
+	setinfo = (struct xt_set_info_match_v1 *)match->data;
 #else
-	setinfo = PTR_CAST(struct xt_set_info_match, match->data);
+	setinfo = (struct xt_set_info_match *)match->data;
 #endif
 
 	get_set_byname(set_name, &setinfo->match_set, NFPROTO_IPV4, ignore_errors);
@@ -655,7 +655,7 @@ ip4tables_add_rules(struct iptc_handle *handle, const char *chain_name, unsigned
 
 		if (protocol == IPPROTO_ICMP)
 		{
-			match = PTR_CAST(struct xt_entry_match, ((char*)fw + fw->target_offset));
+			match = (struct xt_entry_match*)((char*)fw + fw->target_offset);
 			match->u.match_size = XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(struct ipt_icmp));
 			match->u.user.revision = 0;
 			fw->target_offset = (uint16_t)(fw->target_offset + match->u.match_size);
@@ -756,7 +756,7 @@ ip6tables_add_rules(struct ip6tc_handle *handle, const char *chain_name, unsigne
 	fw->target_offset = XT_ALIGN(sizeof(struct ip6t_entry));
 
 	// set
-	match = PTR_CAST(struct xt_entry_match, ((char*)fw + fw->target_offset));
+	match = (struct xt_entry_match*)((char*)fw + fw->target_offset);
 	match->u.match_size = XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(*setinfo));
 #ifdef HAVE_XT_SET_INFO_MATCH_V4
 	match->u.user.revision = 4;
@@ -771,13 +771,13 @@ ip6tables_add_rules(struct ip6tc_handle *handle, const char *chain_name, unsigne
 	strcpy(match->u.user.name, "set");
 
 #ifdef HAVE_XT_SET_INFO_MATCH_V4
-	setinfo = PTR_CAST(struct xt_set_info_match_v4, match->data);
+	setinfo = (struct xt_set_info_match_v4 *)match->data;
 #elif defined HAVE_XT_SET_INFO_MATCH_V3
-	setinfo = PTR_CAST(struct xt_set_info_match_v3, match->data);
+	setinfo = (struct xt_set_info_match_v3 *)match->data;
 #elif defined HAVE_XT_SET_INFO_MATCH_V1
-	setinfo = PTR_CAST(struct xt_set_info_match_v1, match->data);
+	setinfo = (struct xt_set_info_match_v1 *)match->data;
 #else
-	setinfo = PTR_CAST(struct xt_set_info_match, match->data);
+	setinfo = (struct xt_set_info_match *)match->data;
 #endif
 
 	get_set_byname (set_name, &setinfo->match_set, NFPROTO_IPV6, ignore_errors);
@@ -796,7 +796,7 @@ ip6tables_add_rules(struct ip6tc_handle *handle, const char *chain_name, unsigne
 
 		if (protocol == IPPROTO_ICMPV6)
 		{
-			match = PTR_CAST(struct xt_entry_match, ((char*)fw + fw->target_offset));
+			match = (struct xt_entry_match*)((char*)fw + fw->target_offset);
 			match->u.match_size = XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(struct ip6t_icmp));
 			match->u.user.revision = 0;
 			fw->target_offset = (uint16_t)(fw->target_offset + match->u.match_size);

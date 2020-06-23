@@ -54,7 +54,7 @@
 /* global vars */
 vrrp_data_t *vrrp_data = NULL;
 vrrp_data_t *old_vrrp_data = NULL;
-void *vrrp_buffer;
+char *vrrp_buffer;
 size_t vrrp_buffer_len;
 
 static const char *
@@ -1168,7 +1168,7 @@ alloc_vrrp_buffer(size_t len)
 	if (vrrp_buffer)
 		FREE(vrrp_buffer);
 
-	vrrp_buffer = MALLOC(len);
+	vrrp_buffer = (char *) MALLOC(len);
 	vrrp_buffer_len = (vrrp_buffer) ? len : 0;
 }
 

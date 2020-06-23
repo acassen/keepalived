@@ -41,7 +41,6 @@
 #ifdef _WITH_FIREWALL_
 #include "vrrp_firewall.h"
 #endif
-#include "align.h"
 
 /* global vars */
 data_t *global_data = NULL;
@@ -89,9 +88,9 @@ static void
 set_default_mcast_group(data_t * data)
 {
 	/* coverity[check_return] */
-	inet_stosockaddr(INADDR_VRRP_GROUP, 0, PTR_CAST(struct sockaddr_storage, &data->vrrp_mcast_group4));
+	inet_stosockaddr(INADDR_VRRP_GROUP, 0, (struct sockaddr_storage *)&data->vrrp_mcast_group4);
 	/* coverity[check_return] */
-	inet_stosockaddr(INADDR6_VRRP_GROUP, 0, PTR_CAST(struct sockaddr_storage, &data->vrrp_mcast_group6));
+	inet_stosockaddr(INADDR6_VRRP_GROUP, 0, (struct sockaddr_storage *)&data->vrrp_mcast_group6);
 }
 
 static void
@@ -567,11 +566,11 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " VRRP notify priority changes = %s", data->vrrp_notify_priority_changes ? "true" : "false");
 	if (data->vrrp_mcast_group4.sin_family) {
 		conf_write(fp, " VRRP IPv4 mcast group = %s"
-				    , inet_sockaddrtos(PTR_CAST(struct sockaddr_storage, &data->vrrp_mcast_group4)));
+				    , inet_sockaddrtos((struct sockaddr_storage *)&data->vrrp_mcast_group4));
 	}
 	if (data->vrrp_mcast_group6.sin6_family) {
 		conf_write(fp, " VRRP IPv6 mcast group = %s"
-				    , inet_sockaddrtos(PTR_CAST(struct sockaddr_storage, &data->vrrp_mcast_group6)));
+				    , inet_sockaddrtos((struct sockaddr_storage *)&data->vrrp_mcast_group6));
 	}
 	conf_write(fp, " Gratuitous ARP delay = %u",
 		       data->vrrp_garp_delay/TIMER_HZ);

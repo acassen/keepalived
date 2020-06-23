@@ -175,11 +175,11 @@ static enum connect_result
 ping_it(int fd, conn_opts_t* co)
 {
 	struct icmphdr *icmp_hdr;
-	char send_buf[sizeof(*icmp_hdr) + ICMP_BUFSIZE] __attribute__((aligned(__alignof(struct icmphdr))));
+	char send_buf[sizeof(*icmp_hdr) + ICMP_BUFSIZE];
 
 	set_buf(send_buf + sizeof(*icmp_hdr), ICMP_BUFSIZE);
 
-	icmp_hdr = PTR_CAST(struct icmphdr, send_buf);
+	icmp_hdr = (struct icmphdr *)send_buf;
 
 	memset(icmp_hdr, 0, sizeof(*icmp_hdr));
 	icmp_hdr->type = ICMP_ECHO;
@@ -197,7 +197,7 @@ recv_it(int fd)
 {
 	ssize_t len;
 	const struct icmphdr *icmp_hdr;
-	char recv_buf[sizeof(*icmp_hdr) + ICMP_BUFSIZE] __attribute__((aligned(__alignof__(struct icmphdr))));
+	char recv_buf[sizeof(*icmp_hdr) + ICMP_BUFSIZE];
 
 	len = recv(fd, recv_buf, sizeof(recv_buf), 0);
 
@@ -211,7 +211,7 @@ recv_it(int fd)
 		return connect_error;
 	}
 
-	icmp_hdr = PTR_CAST_CONST(struct icmphdr, recv_buf);
+	icmp_hdr = (const struct icmphdr *)recv_buf;
 	if (icmp_hdr->type != ICMP_ECHOREPLY) {
 		log_message(LOG_INFO, "Got ICMP packet with type 0x%x", icmp_hdr->type);
 		return connect_error;
@@ -224,11 +224,11 @@ static enum connect_result
 ping6_it(int fd, conn_opts_t* co)
 {
 	struct icmp6_hdr* icmp6_hdr;
-	char send_buf[sizeof(*icmp6_hdr) + ICMP_BUFSIZE] __attribute__((aligned(__alignof(struct icmp6_hdr))));
+	char send_buf[sizeof(*icmp6_hdr) + ICMP_BUFSIZE];
 
 	set_buf(send_buf + sizeof(*icmp6_hdr), ICMP_BUFSIZE);
 
-	icmp6_hdr = PTR_CAST(struct icmp6_hdr, &send_buf);
+	icmp6_hdr = (struct icmp6_hdr *)&send_buf;
 
 	memset(icmp6_hdr, 0, sizeof(*icmp6_hdr));
 	icmp6_hdr->icmp6_type = ICMP6_ECHO_REQUEST;
@@ -247,7 +247,7 @@ recv6_it(int fd)
 {
 	ssize_t len;
 	const struct icmp6_hdr* icmp6_hdr;
-	char recv_buf[sizeof (*icmp6_hdr) + ICMP_BUFSIZE] __attribute((aligned(__alignof__(struct icmp6_hdr))));
+	char recv_buf[sizeof (*icmp6_hdr) + ICMP_BUFSIZE];
 
 	len = recv(fd, recv_buf, sizeof(recv_buf), 0);
 
@@ -261,7 +261,7 @@ recv6_it(int fd)
 		return connect_error;
 	}
 
-	icmp6_hdr = PTR_CAST_CONST(struct icmp6_hdr, recv_buf);
+	icmp6_hdr = (const struct icmp6_hdr*)recv_buf;
 	if (icmp6_hdr->icmp6_type != ICMP6_ECHO_REPLY) {
 		log_message(LOG_INFO, "Got ICMPv6 packet with type 0x%x", icmp6_hdr->icmp6_type);
 		return connect_error;
