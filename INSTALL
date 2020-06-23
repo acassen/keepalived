@@ -31,8 +31,6 @@ For SNMP support:
 	net-snmp-devel
 For DBUS support:
 	glib2-devel
-For JSON support:
-	json-c-devel
 For PCRE support
 	pcre2-devel
 For nftables support
@@ -57,8 +55,6 @@ For SNMP support:
 	libsnmp-dev
 For DBUS support:
 	libglib2.0-dev
-For JSON support:
-	libjson-c-dev
 For PCRE support:
 	libpcre2-dev
 For nftables support
