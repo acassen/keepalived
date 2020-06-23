@@ -17,8 +17,6 @@ connect timeout. Causes memory leak!)
 
 Test LVS forwarding via VIP if no_accept set
 
-Fix warnings on Rpi and plug builds and on Cain
-
 If interface is deleted and recreated, then index changes - does that cause OIDs to change? Is the RFC flawed? How do we deal with it?
 	We could have our own ifindex incremented as we create interface_t's
 
