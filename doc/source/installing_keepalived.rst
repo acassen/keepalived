@@ -66,6 +66,10 @@ For DBUS support::
 
     dnf install libglib2.0-dev
 
+For JSON support::
+
+    dnf install libjson-c-dev
+
 Install Prerequisites on Alpine Linux
 =====================================
 

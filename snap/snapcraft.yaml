@@ -70,6 +70,7 @@ parts:
     build-packages:
       - iptables-dev
       - libipset-dev
+      - libjson-c-dev
       - libglib2.0-dev
       - libmagic-dev
       - libmnl-dev
@@ -83,6 +84,7 @@ parts:
     stage-packages:
       - libnfnetlink0
       - libipset3
+      - libjson-c2
       - libglib2.0-0
       - libmagic1
       - libmnl0
