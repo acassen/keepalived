@@ -1,74 +1,229 @@
 #!/bin/bash
 
+declare -A ip
+
 ECHO=
 IP_BASE_ADDR=10.1
 IP6_BASE_ADDR=fd00:0:1
 
-CMD=$1
-LOW=$2
-HIGH=$3
-SIDE=$4
+ROOT_NS=default
+BRIDGE_NS=
+NS_LIST=
+ROUTES=
+IF_NAME=eth
+BR_NAME=br
+CHAINS=
+DEFAULT_CHAINS="TESTIN TESTOUT"
+SCRIPT=
+
+CMD=add
+LOW=0
+HIGH=10
+SIDE=
+
+
+show_help()
+{
+        cat <<EOF
+$0 - Usage: $0 CMD [OPTIONS]
+
+	CMD = add | del | remake
+
+	Options:
+        -h		Show this!
+        -f NUM		Database user name
+        -l NUM		Database password
+	-n "NS NS .."	List of namespaces (default high medium low default)
+	-b NS		Specify namespace for bridge (default medium)
+	-r NS		Specify root namespace (default default)
+	-R		no root ns
+        -N NS		Refresh namespace NS
+	-c BRIDGE	Set connecting bridge name (default br)
+	-i NAME		Set interface name (default eth)
+	-4 IP_ADDR	First two octets of IPv4 address (default 10.1)
+	-6 IP6_ADDR	Prefix of IPv6 address (default fd00:0:1)
+	-q ROUTE@IF	Add route via IF num
+	-Q IF		Add default route via IF num
+	-I CHAIN	Add iptables chain(s) to create
+	-s SCRIPT	Additional script to run
+        -e		Diagnostic mode - echo commands
+EOF
+}
+
+while getopts ":hf:l:n:b:r:N:eb:r:Rc:i:4:6:q:Q:I:s:" opt; do
+	case $opt in
+	h)
+		show_help
+		exit 0
+		;;
+	e)
+		ECHO=echo
+		;;
+	f)
+		LOW=$OPTARG
+		;;
+	l)
+		HIGH=$OPTARG
+		;;
+	n)
+		NS_LIST=$OPTARG
+		;;
+	b)
+		BRIDGE_NS=$OPTARG
+		[[ -z $BRIDGE_NS ]] && echo Bridge namespace cannot be blank && exit 1
+		;;
+	r)
+		ROOT_NS=$OPTARG
+		;;
+	R)
+		ROOT_NS=
+		;;
+	N)
+		SIDE=$OPTARG
+		;;
+	c)
+		BR_NAME=$OPTARG
+		;;
+	i)
+		IF_NAME=$OPTARG
+		;;
+	4)
+		IP_BASE_ADDR=$OPTARG
+		;;
+	6)
+		IP6_BASE_ADDR=$OPTARG
+		;;
+	q)
+		ROUTES="$ROUTES $OPTARG"
+		;;
+	Q)
+		ROUTES="$ROUTES @$OPTARG"
+		;;
+	I)
+		CHAINS="$CHAINS $OPTARG"
+		;;
+	s)
+		SCRIPT=$OPTARG
+		;;
+	?)
+		echo Unknown option -$OPTARG
+		show_help
+		exit 1
+		;;
+	:)
+		echo Missing argument -$OPTARG
+		show_help
+		exit 1
+		;;
+	esac
+done
+
+CMD=${!OPTIND}
+
+if [[ -z $NS_LIST ]]; then
+	[[ -z $BRIDGE_NS ]] && BRIDGE_NS=medium
+	NS_LIST="high low $BRIDGE_NS $ROOT_NS"
+
+	ip=([high]=1 [low]=3 [$BRIDGE_NS]=2 [$ROOT_NS]=254)
+else
+	if [[ -z $BRIDGE_NS ]]; then
+		set $NS_LIST
+		BRIDGE_NS=$1
+	else
+		[[ ! " $NS_LIST " =~ " $BRIDGE_NS " ]] && NS_LIST="$NS_LIST $BRIDGE_NS"
+		[[ -n $ROOT_NS && ! " $NS_LIST " =~ " $ROOT_NS " ]] && NS_LIST="$NS_LIST $ROOT_NS"
+	fi
+
+	set $NS_LIST
+	for IP in $(seq 1 $#); do
+		ip[$1]=$IP
+		shift
+	done
+fi
 
 if [[ $CMD = add ]]; then
-	for n in high medium low; do
-		unshare -n ip netns add $n
-		ip netns exec $n ip link set up lo
+	for n in $NS_LIST; do
+		[[ .$n = .$ROOT_NS ]] && continue
+
+		$ECHO unshare -n ip netns add $n
+		$ECHO ip netns exec $n ip link set up lo
 	done
 
-	for n in high medium low; do
+	for n in $NS_LIST; do
+		[[ $n = $ROOT_NS ]] && NETNS_CMD= || NETNS_CMD="ip netns exec $p"
 		for v in "" 6; do
-			for d in IN OUT; do
-				ip netns exec $n ip${v}tables -N TEST$d
+			for c in $CHAINS; do
+				$ECHO $NETNS_CMD ip${v}tables -N $c
 			done
 		done
 	done
 fi
 
 for n in $(seq $LOW $HIGH); do
-	if [[ $CMD = add ]]; then
-		$ECHO ip netns exec medium ip link add br${n} type bridge
-		$ECHO ip netns exec medium ip link set br${n} up
-		$ECHO ip netns exec medium ip addr add ${IP_BASE_ADDR}.${n}.2/24 broadcast ${IP_BASE_ADDR}.${n}.255 dev br${n}
-		$ECHO ip netns exec medium ip addr add ${IP6_BASE_ADDR}:$((100 + $n))::2/64 dev br${n}
+	if [[ $CMD = add || $CMD = remake ]]; then
+		if [[ $CMD = add ]]; then
+			$ECHO ip netns exec $BRIDGE_NS ip link add ${BR_NAME}${n} type bridge
+			$ECHO ip netns exec $BRIDGE_NS ip link set ${BR_NAME}${n} up
+			$ECHO ip netns exec $BRIDGE_NS ip addr add ${IP_BASE_ADDR}.${n}.${ip[medium]}/24 broadcast + dev ${BR_NAME}${n}
+			$ECHO ip netns exec $BRIDGE_NS ip addr add ${IP6_BASE_ADDR}:$((100 + $n))::${ip[medium]}/64 dev ${BR_NAME}${n}
+			NS=$NS_LIST
+		else
+			NS=$SIDE
+		fi
 
-		ip=1
-		for p in high low; do
-			$ECHO ip netns exec medium ip link add eth${n}.$p type veth peer name eth${n}
-			$ECHO ip netns exec medium ip link set eth${n}.$p master br${n}
-			$ECHO ip netns exec medium ip link set eth${n}.$p up
+		for p in $NS; do
+			[[ $p = $BRIDGE_NS ]] && continue
 
-			$ECHO ip netns exec medium ip link set eth${n} netns $p
+			$ECHO ip netns exec $BRIDGE_NS ip link add ${IF_NAME}${n}.$p type veth peer name ${IF_NAME}${n}
+			$ECHO ip netns exec $BRIDGE_NS ip link set ${IF_NAME}${n}.$p master ${BR_NAME}${n}
+			$ECHO ip netns exec $BRIDGE_NS ip link set ${IF_NAME}${n}.$p up
 
-			$ECHO ip netns exec $p ip link set eth${n} up
-			$ECHO ip netns exec $p ip addr add ${IP_BASE_ADDR}.${n}.${ip}/24 broadcast ${IP_BASE_ADDR}.${n}.255 dev eth${n}
-			$ECHO ip netns exec $p ip addr add ${IP6_BASE_ADDR}:$((100 + $n))::${ip}/64 dev eth${n}
+			$ECHO ip netns exec $BRIDGE_NS ip link set ${IF_NAME}${n} netns ${p/$ROOT_NS/1}
 
-			((ip += 2))
+			[[ $p = $ROOT_NS ]] && NETNS_CMD= || NETNS_CMD="ip netns exec $p"
+			$ECHO $NETNS_CMD ip link set ${IF_NAME}${n} up
+			$ECHO $NETNS_CMD ip addr add ${IP_BASE_ADDR}.${n}.${ip[$p]}/24 broadcast + dev ${IF_NAME}${n}
+			$ECHO $NETNS_CMD ip addr add ${IP6_BASE_ADDR}:$((100 + $n))::${ip[$p]}/64 dev ${IF_NAME}${n}
 		done
 
-		$ECHO ip netns exec medium ip link add eth${n} type dummy
-		$ECHO ip netns exec medium ip link set eth${n} master br${n}
-		$ECHO ip netns exec medium ip link set up eth${n}
+		$ECHO ip netns exec $BRIDGE_NS ip link add ${IF_NAME}${n} type dummy
+		$ECHO ip netns exec $BRIDGE_NS ip link set ${IF_NAME}${n} master ${BR_NAME}${n}
+		$ECHO ip netns exec $BRIDGE_NS ip link set up ${IF_NAME}${n}
 	elif [[ $CMD = del ]]; then
-		$ECHO ip netns exec medium ip link del eth${n}.low
-		$ECHO ip netns exec medium ip link del eth${n}.high
-		$ECHO ip netns exec medium ip link del eth${n}
-		$ECHO ip netns exec medium ip link del br${n}
-	elif [[ $CMD = remake ]]; then
-		p=$SIDE
-		[[ $p = low ]] && ip=3 || ip=1
+		for p in $NS_LIST; do
+			[[ $p = $BRIDGE_NS ]] && continue
 
-		$ECHO ip netns exec medium ip link add eth${n}.$p type veth peer name eth${n}
-		$ECHO ip netns exec medium ip link set eth${n}.$p master br${n}
-		$ECHO ip netns exec medium ip link set eth${n}.$p up
-
-		$ECHO ip netns exec medium ip link set eth${n} netns $p
-
-		$ECHO ip netns exec $p ip addr add ${IP_BASE_ADDR}.${n}.${ip}/24 broadcast ${IP_BASE_ADDR}.${n}.255 dev eth${n}
-		$ECHO ip netns exec $p ip addr add ${IP6_BASE_ADDR}:$((100 + $n))::${ip}/64 dev eth${n}
-
-		$ECHO ip netns exec $p ip link set eth${n} up
+			$ECHO ip netns exec $BRIDGE_NS ip link del ${IF_NAME}${n}.$p
+		done
+		$ECHO ip netns exec $BRIDGE_NS ip link del ${IF_NAME}${n}
+		$ECHO ip netns exec $BRIDGE_NS ip link del ${BR_NAME}${n}
 	else
 		echo Unknown command $CMD
 	fi
 done
+
+# We have already deleted the interfaces, so the routes will have been deleted
+if [[ -n $ROUTES && -n $ROOT_NS  && $CMD != del ]]; then
+	for n in $NS_LIST; do
+		[[ $n = $ROOT_NS ]] && continue
+
+		[[ $n = $BRIDGE_NS ]] && IFN=$BR_NAME || IFN=$IF_NAME
+		for r in $ROUTES; do
+			set ${r/@/ }
+			[[ $# -eq 1 ]] && set "" $1
+
+			[[ $1 =~ : ]] && VIA=${IP6_BASE_ADDR}:$((100 + $2))::${ip[$ROOT_NS]} || VIA=${IP_BASE_ADDR}.$2.${ip[$ROOT_NS]}
+			$ECHO ip netns exec $n ip route add ${1:-default} via $VIA dev ${IFN}$2
+			[[ -z $1 ]] && $ECHO ip netns exec $n ip -6 route add default via ${IP6_BASE_ADDR}:$((100 + $2))::${ip[$ROOT_NS]} dev ${IFN}$2
+		done
+	done
+fi
+
+if [[ $CMD = del ]]; then
+	for n in $NS_LIST; do
+		[[ $n = $ROOT_NS ]] && continue
+		$ECHO ip netns del $n
+	done
+fi
+
+[[ -n $SCRIPT ]] && $SCRIPT $CMD $IP_BASE_ADDR $IP6_BASE_ADDR $IF_NAME $ECHO
