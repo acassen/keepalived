@@ -141,6 +141,8 @@ else
 	done
 fi
 
+[[ -z $CHAINS ]] && CHAINS=$DEFAULT_CHAINS
+
 if [[ $CMD = add ]]; then
 	for n in $NS_LIST; do
 		[[ .$n = .$ROOT_NS ]] && continue
@@ -148,16 +150,18 @@ if [[ $CMD = add ]]; then
 		$ECHO unshare -n ip netns add $n
 		$ECHO ip netns exec $n ip link set up lo
 	done
+fi
 
-	for n in $NS_LIST; do
-		[[ $n = $ROOT_NS ]] && NETNS_CMD= || NETNS_CMD="ip netns exec $p"
-		for v in "" 6; do
-			for c in $CHAINS; do
-				$ECHO $NETNS_CMD ip${v}tables -N $c
-			done
+for n in $NS_LIST; do
+	[[ $CMD = del ]] && IPT_CMD=X || IPT_CMD=N
+
+	[[ $n = $ROOT_NS ]] && NETNS_CMD= || NETNS_CMD="ip netns exec $n"
+	for v in "" 6; do
+		for c in $CHAINS; do
+			$ECHO $NETNS_CMD ip${v}tables -$IPT_CMD $c
 		done
 	done
-fi
+done
 
 for n in $(seq $LOW $HIGH); do
 	if [[ $CMD = add || $CMD = remake ]]; then
