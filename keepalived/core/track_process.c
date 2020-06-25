@@ -76,6 +76,22 @@ bool do_track_process_debug;
 bool do_track_process_debug_detail;
 #endif
 
+#ifdef _INCLUDE_UNUSED_CODE_
+static void
+dump_process_tree(const char *str)
+{
+	tracked_process_instance_t *tpi;
+	ref_tracked_process_t *rtpr;
+
+	log_message(LOG_INFO, "Process tree - %s", str);
+	rb_for_each_entry(tpi, &process_tree, pid_tree) {
+		log_message(LOG_INFO, "Pid %d", tpi->pid);
+		list_for_each_entry(rtpr, &tpi->processes, e_list)
+			log_message(LOG_INFO, "  %s", rtpr->process->pname);
+	}
+}
+#endif
+
 static void
 set_rcv_buf(unsigned buf_size, bool force)
 {
@@ -531,7 +547,8 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 
 	/* If we were monitoring the process, and are no longer,
 	 * remove it */
-	free_tracked_process_instance(tpi);
+	if (list_empty(&tpi->processes))
+		free_tracked_process_instance(tpi);
 }
 
 static void
