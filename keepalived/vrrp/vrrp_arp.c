@@ -23,6 +23,7 @@
 #include "config.h"
 
 /* system includes */
+#include <netinet/in.h>
 #include <unistd.h>
 #include <net/ethernet.h>
 #include <net/if_arp.h>

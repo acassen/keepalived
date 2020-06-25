@@ -23,11 +23,11 @@
 #include "config.h"
 
 /* system includes */
+#include <netinet/in.h>
 #include <unistd.h>
 #include <net/ethernet.h>
 #include <linux/if_packet.h>
 #include <netinet/icmp6.h>
-#include <netinet/in.h>
 #include <stdint.h>
 #include <errno.h>
 

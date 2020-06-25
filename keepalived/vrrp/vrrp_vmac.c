@@ -23,6 +23,7 @@
 #include "config.h"
 
 /* global include */
+#include <netinet/in.h>
 #ifdef NETLINK_H_NEEDS_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
