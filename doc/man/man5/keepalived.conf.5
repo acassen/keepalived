@@ -132,7 +132,7 @@ and
 # split the VIP traffic on a given namespace and keep the healthchecks traffic
 # in another namespace. If NAME is not specified, then the default namespace
 # will be used.
-\fBnet_namespace_ipvs\fRNAME
+\fBnet_namespace_ipvs \fRNAME
 
 # ipsets wasn't network namespace aware until Linux 3.13, and so
 # if running with # an earlier version of the kernel, by default
@@ -221,7 +221,7 @@ and
     # Sets default state for checker smtp_alerts
     \fBsmtp_alert_checker \fR<BOOL>
 
-    # Sets logging all checker failes while checker up
+    # Sets logging all checker failures while checker up
     \fBchecker_log_all_failures \fR<BOOL>
 
     # Don't send smtp alerts for fault conditions
@@ -2371,6 +2371,10 @@ The following pre-defined definitions are defined:
 .br
 \fB${_RANDOM [MIN [MAX]]} : \fRThis is replaced by a random integer in the range [MIN, MAX],
 where MIN and MAX are optional non-negative integers. Defaults are MIN=0 and MAX=32767.
+.br
+\fB${_HASH} : \fR This is replaced by a '#' character, which would otherwise start a comment
+.br
+\fB${_BANG} : \fR This is replaced by a '!' character, which would otherwise start a comment
 .PP
 Additional pre-defined definitions will be added as their need is identified.
 It will normally be quite straightforward to add additional pre-defined
