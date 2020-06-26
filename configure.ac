@@ -1179,7 +1179,7 @@ IPV4_DEVCONF=No
 if test .$enable_vrrp != .no; then
   dnl ----[Check have IPV4_DEVCONF defines - since Linux 3.11]----
   SAV_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$CPPFLAGS $kernelinc"
+  CPPFLAGS="$CPP_FLAGS $kernelinc"
   IPV4_DEVCONF=Yes
   AC_CHECK_DECLS([
     IPV4_DEVCONF_ARP_IGNORE,
@@ -1273,7 +1273,7 @@ if test .$enable_lvs != .no -a .${enable_libnl} != .no; then
 
   if test $NETLINK_VER -ne 0; then
     SAV_CPPFLAGS="$CPPFLAGS"
-    CPPFLAGS="$CPPFLAGS $kernel_inc $NL3_CPPFLAGS"
+    CPPFLAGS="$SAV_CPPFLAGS $NL3_CPPFLAGS"
     AC_CHECK_HEADERS([netlink/netlink.h], [], [AC_MSG_ERROR([netlink headers missing])])
     AC_CHECK_HEADERS([netlink/genl/ctrl.h netlink/genl/genl.h], [], [AC_MSG_ERROR([netlink genl headers missing])])
     CPPFLAGS="$SAV_CPPFLAGS"
@@ -2037,7 +2037,7 @@ AC_CHECK_DECL([IPVS_SVC_ATTR_PE_NAME],
 dnl ----[ Checks for O_PATH support ]----
 # Introduced in Linux 2.6.39
 SAV_CPPFLAGS="$CPPFLAGS"
-CPPFLAGS="$CPPFLAGS $kernel_inc -D_GNU_SOURCE"
+CPPFLAGS="$CPPFLAGS -D_GNU_SOURCE"
 AC_CHECK_DECLS([O_PATH],
   [
     add_system_opt([O_PATH])
@@ -2050,7 +2050,7 @@ AC_CHECK_DECLS([GLOB_BRACE], [add_system_opt([GLOB_BRACE])], [], [[#include <glo
 dnl ----[ Check for timegm() support ]----
 AC_MSG_CHECKING([for timegm()])
 SAV_CPPFLAGS="$CPPFLAGS"
-CPPFLAGS="$KA_CPPFLAGS $kernel_inc"
+CPPFLAGS="$KA_CPPFLAGS"
 AC_LINK_IFELSE([AC_LANG_SOURCE([[
     #include <time.h>
     int main(void)
@@ -2211,7 +2211,7 @@ if test "$enable_snmp" = yes -o \
   # check for net-snmp headers
   # Some ancient distributions may miss <net-snmp/agent/util_funcs.h> header
   SAV_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$CPPFLAGS $kernel_inc $NETSNMP_CFLAGS"
+  CPPFLAGS="$CPPFLAGS $NETSNMP_CFLAGS"
   AC_CHECK_HEADERS(net-snmp/agent/agent_sysORTable.h net-snmp/agent/snmp_vars.h net-snmp/agent/util_funcs.h,[],
     [AC_MSG_ERROR([missing net-snmp headers])],[[
       #include <net-snmp/net-snmp-config.h>

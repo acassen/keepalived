@@ -1898,8 +1898,6 @@ set_std_definitions(void)
 	add_std_definition("_PWD", NULL, get_cwd, 0);
 	add_std_definition("_INSTANCE", NULL, get_instance, 0);
 	add_std_definition("_RANDOM", NULL, get_random, 2);
-	add_std_definition("_HASH", "#", NULL, 0);
-	add_std_definition("_BANG", ";", NULL, 0);
 
 	/* In case $_RANDOM is used, seed the pseudo RNG */
 	if (random_seed_configured)
@@ -2269,7 +2267,6 @@ read_line(char *buf, size_t size)
 		log_message(LOG_INFO, "read_line(%d): '%s'", block_depth, buf);
 #endif
 
-	decomment(buf);
 	return !eof;
 }
 
