@@ -221,7 +221,9 @@ and
     # Sets default state for checker smtp_alerts
     \fBsmtp_alert_checker \fR<BOOL>
 
-    # Sets logging all checker failes while checker up
+    # Logs every failed real server check in syslog
+    # (nevertheless, SMTP alert is only sent when all retry checks failed
+    # and real server transitions to DOWN state)
     \fBchecker_log_all_failures \fR<BOOL>
 
     # Don't send smtp alerts for fault conditions
