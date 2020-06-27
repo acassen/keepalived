@@ -1737,6 +1737,26 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   ])
 CPPFLAGS="$SAV_CPPFLAGS"
 
+dnl ----[Check if linux/if_ether.h then netinet/in.h then linux/if.h namespace collision]----
+# This issue was resolved in Linux 4.15.7/4.16
+AC_MSG_CHECKING([for linux/if_ether.h then netinet/in.h then linux/if.h namespace collision])
+SAV_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $kernelinc"
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+    #include <linux/if_ether.h>
+    #include <netinet/in.h>
+    #include <linux/in.h>
+  ]])],
+  [
+    AC_MSG_RESULT([no])
+  ],
+  [
+    AC_MSG_RESULT([yes])
+    AC_DEFINE([_HAVE_LINUX_IF_ETHER_H_COLLISION_], [ 1 ], [Define to 1 if have linux/if_ether.h then netinet/in.h then linux/in.h namespace collision])
+    add_system_opt([NET_LINUX_IF_ETHER_H_COLLISION])
+  ])
+CPPFLAGS="$SAV_CPPFLAGS"
+
 dnl ----[Check if have linux/if_ether.h and netinet/if_ether.h namespace collision]----
 # Including <linux/if_ether.h> and <netinet/if_ether.h> causes a namespace collision
 # with musl libc, but the collision only occurs if linux/ip_ether.h is included

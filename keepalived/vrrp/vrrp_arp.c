@@ -24,6 +24,9 @@
 
 /* system includes */
 #include <unistd.h>
+#ifdef _HAVE_LINUX_IF_ETHER_H_COLLISION_
+#include <netinet/in.h>
+#endif
 #include <net/ethernet.h>
 #include <net/if_arp.h>
 #include <linux/if_packet.h>
