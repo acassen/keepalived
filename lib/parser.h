@@ -135,5 +135,6 @@ extern bool read_timer(const vector_t *, size_t, unsigned long *, unsigned long,
 extern int check_true_false(const char *) __attribute__ ((pure));
 extern void skip_block(bool);
 extern void init_data(const char *, const vector_t * (*init_keywords) (void));
-
+extern bool get_config_misssing_flag(void);
+extern void set_config_misssing_flag(bool flag);
 #endif

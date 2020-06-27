@@ -293,6 +293,15 @@ start_check(list_head_t *old_checkers_queue, data_t *prev_global_data)
 
 	init_data(conf_file, check_init_keywords);
 
+	if (get_config_misssing_flag() && global_data->reload_enable_rollback && reload) {
+		return;
+	}
+
+	if (get_config_misssing_flag()) {
+		set_config_misssing_flag(false);
+		exit(KEEPALIVED_EXIT_CONFIG);
+	}
+		
 	if (reload)
 		init_global_data(global_data, prev_global_data, true);
 
@@ -412,6 +421,8 @@ reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 {
 	list_head_t old_checkers_queue;
 	bool with_snmp = false;
+	timeval_t timer;
+	timer = timer_now();
 
 	log_message(LOG_INFO, "Reloading");
 
@@ -458,11 +469,29 @@ reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 	/* Reload the conf */
 	start_check(&old_checkers_queue, old_global_data);
 
+	if (get_config_misssing_flag() && global_data->reload_enable_rollback ) {
+		log_message(LOG_INFO, "Got SIGHUP, check new conf failed! Rollback to prev configuration!");
+		set_config_misssing_flag(false);
+		free_check_data(check_data);
+		free_global_data(global_data);
+		free_checkers_queue();
+		check_data = old_check_data;
+		global_data = old_global_data;
+		list_copy(&checkers_queue,&old_checkers_queue);
+		notify_fifo_open(&global_data->notify_fifo, &global_data->lvs_notify_fifo, lvs_notify_fifo_script_exit, "lvs_");
+		UNSET_RELOAD;
+		set_time_now();
+		log_message(LOG_INFO, "Reload finished in %lu usec", -timer_long(timer_sub_now(timer)));
+		return ;
+	}
+
 	/* free backup data */
 	free_check_data(old_check_data);
 	free_global_data(old_global_data);
 	free_checker_list(&old_checkers_queue);
 	UNSET_RELOAD;
+	set_time_now();
+	log_message(LOG_INFO, "Reload finished in %lu usec", -timer_long(timer_sub_now(timer)));
 }
 
 static void

@@ -152,6 +152,15 @@ start_bfd(__attribute__((unused)) data_t *prev_global_data)
 	alloc_bfd_buffer();
 
 	init_data(conf_file, bfd_init_keywords);
+
+	if (get_config_misssing_flag() && global_data->reload_enable_rollback && reload) {
+		return;
+	}
+
+	if (get_config_misssing_flag()) {
+		set_config_misssing_flag(false);
+		exit(KEEPALIVED_EXIT_CONFIG);
+	}
 	if (reload)
 		init_global_data(global_data, prev_global_data, true);
 
@@ -270,6 +279,19 @@ reload_bfd_thread(__attribute__((unused)) thread_ref_t thread)
 	/* Reload the conf */
 	signal_set(SIGCHLD, thread_child_handler, master);
 	start_bfd(old_global_data);
+
+	if (get_config_misssing_flag() && global_data->reload_enable_rollback ) {
+		log_message(LOG_INFO, "Got SIGHUP, bfd new conf failed! Rollback to prev configuration!");
+		set_config_misssing_flag(false);
+		free_bfd_data(bfd_data);
+		free_global_data(global_data);
+		bfd_data = old_bfd_data;
+		global_data = old_global_data;
+		UNSET_RELOAD;
+		set_time_now();
+		log_message(LOG_INFO, "Reload finished in %lu usec", -timer_long(timer_sub_now(timer)));
+		return 0;
+	}
 
 	free_bfd_data(old_bfd_data);
 	free_global_data(old_global_data);
