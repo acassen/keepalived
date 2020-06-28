@@ -234,7 +234,8 @@ and
     \fBrouter_id \fR<STRING>
 
     # Multicast Group to use for IPv4 VRRP adverts
-    # (default: 224.0.0.18)
+    # Defaults to the RFC5798 IANA assigned VRRP multicast address 224.0.0.18
+    # which You typically do not want to change.
     \fBvrrp_mcast_group4 \fR224.0.0.18
 
     # Multicast Group to use for IPv6 VRRP adverts
