@@ -281,7 +281,9 @@ dns_make_query(thread_ref_t thread)
 		memcpy(p, s, n);
 		p += n;
 	}
-	*(p++) = 0;	/* Terminate the name */
+	
+	if (dns_check->name[0] != '.' || dns_check->name[1] != '\0')
+		*(p++) = 0;
 
 	APPEND16(p, dns_check->type);
 	APPEND16(p, 1);		/* IN */
