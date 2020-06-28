@@ -106,7 +106,7 @@ stop_bfd(int status)
 	FREE_CONST_PTR(bfd_syslog_ident);
 #else
 	if (bfd_syslog_ident)
-		free(no_const_char_p(bfd_syslog_ident));
+		free(no_const_char_p(bfd_syslog_ident));	/* malloc'd by make_syslog_ident() */
 #endif
 	close_std_fd();
 

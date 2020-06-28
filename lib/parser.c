@@ -1410,11 +1410,11 @@ read_conf_file(const char *conf_file)
 #endif
 									     );
 
-			char *confpath = strdup(globbuf.gl_pathv[i]);
+			char *confpath = STRDUP(globbuf.gl_pathv[i]);
 			dirname(confpath);
 			if (chdir(confpath) < 0)
 				log_message(LOG_INFO, "chdir(%s) error (%s)", confpath, strerror(errno));
-			free(confpath);
+			FREE(confpath);
 		}
 
 		process_stream(current_keywords, 0);

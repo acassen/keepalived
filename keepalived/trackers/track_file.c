@@ -811,7 +811,7 @@ init_track_files(list_head_t *track_files)
 				if (resolved_path &&
 				    (stat(resolved_path, &stat_buf) ||
 				     !S_ISDIR(stat_buf.st_mode))) {
-					free(resolved_path);
+					free(resolved_path);	/* malloc'd by realpath() */
 					resolved_path = NULL;
 				}
 			}
@@ -844,7 +844,7 @@ init_track_files(list_head_t *track_files)
 		}
 
 		if (resolved_path)
-			free(resolved_path);
+			free(resolved_path);	/* malloc'd by realpath() */
 
 		tfile->file_part = strrchr(tfile->file_path, '/') + 1;
 		new_path = STRNDUP(tfile->file_path, tfile->file_part - tfile->file_path);

@@ -811,6 +811,7 @@ check_script_secure(notify_script_t *script,
 	uid_t old_uid = 0;
 	gid_t old_gid = 0;
 	char *new_path;
+	char *sav_path;
 	int sav_errno;
 	char *real_file_path;
 	char *orig_file_part, *new_file_part;
@@ -868,6 +869,12 @@ check_script_secure(notify_script_t *script,
 		return SC_NOTFOUND;
 	}
 
+	/* It is much easier to ensure that new_path is part of
+	 * keepalived's malloc handling. */
+	sav_path = new_path;
+	new_path = STRDUP(new_path);
+	free(sav_path);	/* malloc'd returned by realpath() */
+
 	real_file_path = NULL;
 
 	orig_file_part = strrchr(script->args[0], '/');
@@ -904,10 +911,7 @@ check_script_secure(notify_script_t *script,
 		}
 	}
 
-	if (!real_file_path)
-		free(new_path);
-	else
-		FREE(new_path);
+	FREE(new_path);
 
 	/* Get the permissions for the file itself */
 	if (stat(real_file_path ? real_file_path : script->args[0], &file_buf)) {
@@ -942,7 +946,7 @@ check_script_secure(notify_script_t *script,
 
 	if (!need_script_protection) {
 		if (real_file_path)
-			free(real_file_path);
+			FREE(real_file_path);
 
 		return flags;
 	}
@@ -952,7 +956,7 @@ check_script_secure(notify_script_t *script,
 
 	if (real_file_path) {
 		flags |= check_security(real_file_path, script_security);
-		free(real_file_path);
+		FREE(real_file_path);
 	}
 
 	return flags;

@@ -208,10 +208,10 @@ read_procs(const char *name)
 
 	for (ent_p = namelist, ent = *namelist; ret--; ent = *++ent_p) {
 		log_message(LOG_INFO, "0x%p: %s\n", ent, ent->d_name);
-		free(ent);
+		free(ent);	/* malloc'd by scandir() */
 	}
 
-	free(namelist);
+	free(namelist);	/* malloc'd by scandir() */
 }
 #endif
 
