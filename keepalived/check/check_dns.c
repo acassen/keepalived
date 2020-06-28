@@ -281,8 +281,12 @@ dns_make_query(thread_ref_t thread)
 		memcpy(p, s, n);
 		p += n;
 	}
-	*(p++) = 0;	/* Terminate the name */
 
+	n = strlen(dns_check->name);
+	if ( n != 1 || dns_check->name[--n] != '.') {
+		*(p++) = 0;
+	}
+	
 	APPEND16(p, dns_check->type);
 	APPEND16(p, 1);		/* IN */
 
