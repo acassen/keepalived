@@ -565,6 +565,7 @@ free_vrrp(vrrp_t *vrrp)
 	free_iproute_list(&vrrp->vroutes);
 	free_iprule_list(&vrrp->vrules);
 #endif
+	list_del_init(&vrrp->e_list);
 	FREE(vrrp);
 }
 static void
