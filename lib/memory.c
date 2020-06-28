@@ -720,4 +720,15 @@ update_mem_check_log_perms(mode_t umask_bits)
 	if (log_op)
 		fchmod(fileno(log_op), (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH) & ~umask_bits);
 }
+
+void
+log_mem_check_message(const char *format, ...)
+{
+	va_list args;
+
+	va_start(args, format);
+	vfprintf(log_op, format, args);
+	va_end(args);
+	fprintf(log_op, "\n");
+}
 #endif
