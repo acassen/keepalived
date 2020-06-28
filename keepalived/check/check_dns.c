@@ -510,13 +510,34 @@ static void
 dns_name_handler(const vector_t *strvec)
 {
 	dns_check_t *dns_check = CHECKER_GET();
+	const char *name;
+	bool name_invalid = false;
+	const char *p;
 
 	if (dns_check->name) {
 		report_config_error(CONFIG_GENERAL_ERROR, "DNS_CHECK name already specified - ignoring");
 		return;
 	}
 
-	dns_check->name = set_value(strvec);
+	/* Check name does not have an empty label */
+	name = strvec_slot(strvec, 1);
+	if (name[0] == '.' && name[1] != '\0')
+		name_invalid = true;
+	else {
+		for (p = name; p; p = strchr(p + 1, '.')) {
+			if (p[1] == '.') {
+				name_invalid = true;
+				break;
+			}
+		}
+	}
+
+	if (name_invalid) {
+		report_config_error(CONFIG_GENERAL_ERROR, "DNS_CHECK name '%s' has empty label - ignoring", name);
+		return;
+	}
+
+	dns_check->name = STRDUP(name);
 }
 
 static void
