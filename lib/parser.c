@@ -2272,7 +2272,7 @@ read_line(char *buf, size_t size)
 		log_message(LOG_INFO, "read_line(%d): '%s'", block_depth, buf);
 #endif
 
-#ifdef _MEM_CHECK_ && 0
+#if defined _MEM_CHECK_ && 0
 	log_mem_check_message("read_line returns (eof %d) '%s'", eof, buf);
 #endif
 
