@@ -484,7 +484,6 @@ dns_check_handler(__attribute__((unused)) const vector_t *strvec)
 
 	PMALLOC(dns_check);
 	dns_check->type = DNS_DEFAULT_TYPE;
-	dns_check->name = DNS_DEFAULT_NAME;
 	checker = queue_checker(dns_free, dns_dump, dns_connect_thread,
 				dns_check_compare, dns_check, CHECKER_NEW_CO(), true);
 
@@ -511,16 +510,28 @@ static void
 dns_name_handler(const vector_t *strvec)
 {
 	dns_check_t *dns_check = CHECKER_GET();
+
+	if (dns_check->name) {
+		report_config_error(CONFIG_GENERAL_ERROR, "DNS_CHECK name already specified - ignoring");
+		return;
+	}
+
 	dns_check->name = set_value(strvec);
 }
 
 static void
 dns_check_end(void)
 {
+	dns_check_t *dns_check;
+
 	if (!check_conn_opts(CHECKER_GET_CO())) {
 		dequeue_new_checker();
+		return;
 	}
-// Is name needed?
+
+	dns_check = CHECKER_GET();
+	if (!dns_check->name)
+		dns_check->name = STRDUP(DNS_DEFAULT_NAME);
 }
 
 void

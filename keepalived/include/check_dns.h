@@ -30,7 +30,7 @@
 
 #define DNS_DEFAULT_RETRY    3
 #define DNS_DEFAULT_TYPE  DNS_TYPE_SOA
-#define DNS_DEFAULT_NAME    "."
+#define DNS_DEFAULT_NAME    ""
 #define DNS_BUFFER_SIZE    768
 
 #define DNS_QR(flags) ((flags >> 15) & 0x0001)
