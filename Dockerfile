@@ -12,22 +12,22 @@ RUN addgroup -S keepalived_script && adduser -D -S -G keepalived_script keepaliv
 # 2. compile and install keepalived
 # 3. remove keepalived sources and unnecessary libraries and tools
 RUN apk --no-cache add \
-       gcc \
-       ipset \
-       ipset-dev \
-       iptables \
-       iptables-dev \
-       libnfnetlink \
-       libnfnetlink-dev \
-       libnl3 \
-       libnl3-dev \
-       libnftnl-dev \
-       make \
-       musl-dev \
-       openssl \
-       openssl-dev \
-       autoconf \
-       automake \
+	gcc \
+	ipset \
+	ipset-dev \
+	iptables \
+	iptables-dev \
+	libnfnetlink \
+	libnfnetlink-dev \
+	libnl3 \
+	libnl3-dev \
+	libnftnl-dev \
+	make \
+	musl-dev \
+	openssl \
+	openssl-dev \
+	autoconf \
+	automake \
 
     && cd /tmp/keepalived-sources \
     && ./build_setup \
@@ -42,7 +42,7 @@ RUN apk --no-cache add \
 	iptables-dev \
 	libnfnetlink-dev \
 	libnl3-dev \
-       libnftnl-dev \
+	libnftnl-dev \
 	make \
 	musl-dev \
 	openssl-dev \
