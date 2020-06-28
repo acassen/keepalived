@@ -1627,8 +1627,7 @@ alloc_route(list_head_t *rt_list, const vector_t *strvec, bool allow_track_group
 				i++;
 			}
 			str = strvec_slot(strvec, i);
-			new->congctl = malloc(strlen(str) + 1);
-			strcpy(new->congctl, str);
+			new->congctl = STRDUP(str);
 #else
 			report_config_error(CONFIG_GENERAL_ERROR, "%s not supported by kernel", "congctl for route");
 #endif
