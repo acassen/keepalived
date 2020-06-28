@@ -843,12 +843,6 @@ reset_interface_queue(void)
 	}
 }
 
-void recovery_garp_delay(void)
-{
-	free_garp_delay_list(&garp_delay);
-	list_copy(&garp_delay,&old_garp_delay);
-}
-
 void
 init_interface_queue(void)
 {

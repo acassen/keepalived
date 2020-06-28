@@ -259,7 +259,6 @@ extern void cleanup_lost_interface(interface_t *);
 extern void recreate_vmac_thread(thread_ref_t);
 void update_mtu(interface_t *);
 extern void update_added_interface(interface_t *);
-extern void recovery_garp_delay(void);
 #ifdef THREAD_DUMP
 extern void register_vrrp_if_addresses(void);
 #endif

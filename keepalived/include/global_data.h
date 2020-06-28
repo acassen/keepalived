@@ -140,8 +140,7 @@ typedef struct _data {
 	int				lvs_tcpfin_timeout;
 	int				lvs_udp_timeout;
 	int				smtp_alert_checker;
-	bool			checker_log_all_failures;
-	bool			reload_enable_rollback;  /* rollback necessary configuration items are missing in the reload process*/	
+	bool				checker_log_all_failures;
 #ifdef _WITH_VRRP_
 	struct lvs_syncd_config		lvs_syncd;
 #endif

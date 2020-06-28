@@ -459,15 +459,6 @@ start_vrrp(data_t *prev_global_data)
 
 	init_data(conf_file, vrrp_init_keywords);
 
-	if (get_config_misssing_flag() && global_data->reload_enable_rollback && reload) {
-		return;
-	}
-
-	if (get_config_misssing_flag()) {
-		set_config_misssing_flag(false);
-		exit(KEEPALIVED_EXIT_CONFIG);
-	}
-
 	/* Update process name if necessary */
 	if ((!reload && global_data->vrrp_process_name) ||
 	    (reload &&
@@ -768,8 +759,6 @@ reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 	bool start_daemon, stop_daemon;
 	bool start_extra, start_backup, stop_extra, stop_backup;
 #endif
-	timeval_t timer;
-	timer = timer_now();
 
 	log_message(LOG_INFO, "Reloading");
 
@@ -832,21 +821,6 @@ reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 
 	/* Reload the conf */
 	start_vrrp(old_global_data);
-
-	if (get_config_misssing_flag() && global_data->reload_enable_rollback ) {
-		log_message(LOG_INFO, "Got SIGHUP, vrrp new conf failed! Rollback to prev configuration!");
-		set_config_misssing_flag(false);
-		free_vrrp_data(old_vrrp_data);
-		free_global_data(old_global_data);
-		vrrp_data = old_vrrp_data;
-		global_data = old_global_data;
-		recovery_garp_delay();
-		notify_fifo_open(&global_data->notify_fifo, &global_data->vrrp_notify_fifo, vrrp_notify_fifo_script_exit, "vrrp_");
-		UNSET_RELOAD;
-		set_time_now();
-		log_message(LOG_INFO, "Reload finished in %lu usec", -timer_long(timer_sub_now(timer)));
-		return 0;
-	}
 
 #ifdef _WITH_LVS_
 	/* We don't want to stop and start the IPVS sync daemon unnecessarily, so
@@ -913,8 +887,6 @@ reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 	free_old_interface_queue();
 
 	UNSET_RELOAD;
-	set_time_now();
-	log_message(LOG_INFO, "Reload finished in %lu usec", -timer_long(timer_sub_now(timer)));
 }
 
 static void
