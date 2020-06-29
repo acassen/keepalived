@@ -172,7 +172,7 @@ write_stacktrace(const char *file_name, const char *str)
 		nptrs -= 2;
 		for (i = 1; i < nptrs; i++)
 			log_message(LOG_INFO, "  %s", strs[i]);
-		free(strs);
+		free(strs);	/* malloc'd by backtrace_symbols */
 	}
 }
 #endif
@@ -548,7 +548,7 @@ inet_stosockaddr(const char *ip, const char *port, struct sockaddr_storage *addr
 	res = inet_pton(addr->ss_family, ip_str ? ip_str : ip, addr_ip);
 
 	if (ip_str)
-		free(ip_str);
+		FREE(ip_str);
 
 	if (!res) {
 		addr->ss_family = AF_UNSPEC;

@@ -952,9 +952,13 @@ AC_C_CONST
 
 # Checks for library functions.
 AC_FUNC_FORK
-AC_FUNC_MALLOC
-AC_FUNC_REALLOC
-AC_CHECK_FUNCS([dup2 getcwd gettimeofday memmove memset select setenv socket strcasecmp strchr strdup strerror strpbrk strstr strtol strtoul uname])
+# We don't want the following two, since autoconf, if malloc(0) returns NULL, refines malloc as rpl_malloc
+# and we have to provide our own rpl_malloc() and likewise rpl_realloc() functions.
+# keepalived doesn't do 0 length malloc()s so it is not an issue.
+# We add malloc and realloc to AC_CHECK_FUNCS instead.
+#AC_FUNC_MALLOC
+#AC_FUNC_REALLOC
+AC_CHECK_FUNCS([dup2 getcwd gettimeofday malloc memmove memset realloc select setenv socket strcasecmp strchr strdup strerror strpbrk strstr strtol strtoul uname])
 dnl - pipe2() since Linux 2.6.27 and glibc 2.9.
 AC_CHECK_FUNCS([pipe2], [add_system_opt([PIPE2])])
 dnl - signalfd() since Linux 2.6.22 and glibc 2.8

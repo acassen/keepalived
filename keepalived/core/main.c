@@ -296,10 +296,10 @@ free_parent_mallocs_startup(bool am_child)
 #if HAVE_DECL_CLONE_NEWNET
 		free_dirname();
 #endif
-#ifndef _MEM_CHECK_LOG_
-		FREE_CONST_PTR(syslog_ident);
+#ifdef _MEM_CHECK_LOG_
+		free(no_const_char_p(syslog_ident));	/* malloc'd in make_syslog_ident */
 #else
-		free(no_const_char_p(syslog_ident));
+		FREE_CONST_PTR(syslog_ident);
 #endif
 		syslog_ident = NULL;
 
@@ -346,10 +346,10 @@ make_syslog_ident(const char* name)
 
 	/* If we are writing MALLOC/FREE info to the log, we have
 	 * trouble FREEing the syslog_ident */
-#ifndef _MEM_CHECK_LOG_
-	ident = MALLOC(ident_len);
+#ifdef _MEM_CHECK_LOG_
+	ident = malloc(ident_len);	/* Required to stop loop */
 #else
-	ident = malloc(ident_len);
+	ident = MALLOC(ident_len);
 #endif
 
 	if (!ident)
@@ -2430,11 +2430,11 @@ end:
 
 	closelog();
 
-#ifndef _MEM_CHECK_LOG_
-	FREE_CONST_PTR(syslog_ident);
-#else
+#ifdef _MEM_CHECK_LOG_
 	if (syslog_ident)
-		free(no_const_char_p(syslog_ident));
+		free(no_const_char_p(syslog_ident));	/* malloc'd in make_syslog_ident */
+#else
+	FREE_CONST_PTR(syslog_ident);
 #endif
 	close_std_fd();
 

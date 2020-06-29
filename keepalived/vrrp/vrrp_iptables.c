@@ -571,7 +571,7 @@ handle_iptables_accept_mode(vrrp_t *vrrp, int cmd, bool force)
 }
 
 #ifdef _HAVE_VRRP_VMAC_
-static inline void
+static void
 handle_iptable_rule_for_igmp(const char *ifname, int cmd, int family, struct ipt_handle *h)
 {
 	ip_address_t igmp_addr;

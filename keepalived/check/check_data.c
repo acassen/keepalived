@@ -98,8 +98,10 @@ free_vsg_entry_list(list_head_t *l)
 {
 	virtual_server_group_entry_t *vsge, *vsge_tmp;
 
-	list_for_each_entry_safe(vsge, vsge_tmp, l, e_list)
+	list_for_each_entry_safe(vsge, vsge_tmp, l, e_list) {
+		list_del_init(&vsge->e_list);
 		FREE(vsge);
+	}
 }
 static void
 dump_vsg_entry(FILE *fp, const virtual_server_group_entry_t *vsg_entry)

@@ -77,6 +77,8 @@ extern void skip_mem_dump(void);
 extern void enable_mem_log_termination(void);
 
 extern void update_mem_check_log_perms(mode_t);
+extern void log_mem_check_message(const char* format, ...)
+        __attribute__ ((format (printf, 1, 2)));
 #else
 
 extern void *zalloc(unsigned long size);

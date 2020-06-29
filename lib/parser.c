@@ -1410,11 +1410,11 @@ read_conf_file(const char *conf_file)
 #endif
 									     );
 
-			char *confpath = strdup(globbuf.gl_pathv[i]);
+			char *confpath = STRDUP(globbuf.gl_pathv[i]);
 			dirname(confpath);
 			if (chdir(confpath) < 0)
 				log_message(LOG_INFO, "chdir(%s) error (%s)", confpath, strerror(errno));
-			free(confpath);
+			FREE(confpath);
 		}
 
 		process_stream(current_keywords, 0);
@@ -1898,6 +1898,8 @@ set_std_definitions(void)
 	add_std_definition("_PWD", NULL, get_cwd, 0);
 	add_std_definition("_INSTANCE", NULL, get_instance, 0);
 	add_std_definition("_RANDOM", NULL, get_random, 2);
+	add_std_definition("_HASH", "#", NULL, 0);
+	add_std_definition("_BANG", "!", NULL, 0);
 
 	/* In case $_RANDOM is used, seed the pseudo RNG */
 	if (random_seed_configured)
@@ -2000,8 +2002,7 @@ read_line(char *buf, size_t size)
 			strcpy(buf, line_residue);
 			FREE(line_residue);
 			line_residue = NULL;
-		}
-		else if (!list_empty(&seq_list) &&
+		} else if (!list_empty(&seq_list) &&
 			seq_list_count > multiline_seq_depth) {
 			seq_t *seq = list_last_entry(&seq_list, seq_t, e_list);
 			if (list_empty(&seq->lst_params)) {
@@ -2046,8 +2047,7 @@ read_line(char *buf, size_t size)
 				} else
 					seq->next_var = list_entry(seq->next_var->e_list.next, value_set_t, e_list);
 			}
-		}
-		else if (next_ptr) {
+		} else if (next_ptr) {
 			/* We are expanding a multiline parameter, so copy next line */
 			end = strchr(next_ptr, DEF_LINE_END[0]);
 			if (!end) {
@@ -2063,21 +2063,23 @@ read_line(char *buf, size_t size)
 				buf[end - next_ptr] = '\0';
 				next_ptr = end + 1;
 			}
-		}
-		else {
+		} else {
 			/* Get the next non-blank line */
 			do {
 				if (!fgets(buf, (int)size, current_stream))
 				{
 					eof = true;
+					buf[0] = '\0';
 					len = 0;
 					break;
 				}
 
 				/* Check if we have read the end of a line */
 				len = strlen(buf);
-				if (buf[0] && buf[len-1] == '\n')
+				if (len && buf[len-1] == '\n') {
 					current_file_line_no++;
+					len--;
+				}
 
 				/* Remove end of line chars */
 				while (len && (buf[len-1] == '\n' || buf[len-1] == '\r'))
@@ -2088,12 +2090,13 @@ read_line(char *buf, size_t size)
 					if (!def->value_len)
 						def->multiline = false;
 				}
-			} while (!len);
 
-			buf[len] = '\0';
+				if (!len)
+					continue;
 
-			if (len)
+				buf[len] = '\0';
 				decomment(buf);
+			} while (!len || !buf[0]);
 
 			if (!buf[0])
 				break;
@@ -2203,6 +2206,8 @@ read_line(char *buf, size_t size)
 					break;
 				}
 
+				decomment(buf);
+
 				if (buf[0] == '@')
 					recheck = true;
 				if (strchr(buf, '$'))
@@ -2265,6 +2270,10 @@ read_line(char *buf, size_t size)
 #ifdef _PARSER_DEBUG_
 	if (do_parser_debug)
 		log_message(LOG_INFO, "read_line(%d): '%s'", block_depth, buf);
+#endif
+
+#if defined _MEM_CHECK_ && 0
+	log_mem_check_message("read_line returns (eof %d) '%s'", eof, buf);
 #endif
 
 	return !eof;

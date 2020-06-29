@@ -284,7 +284,7 @@ vrrp_terminate_phase2(int exit_status)
 	FREE_CONST_PTR(vrrp_syslog_ident);
 #else
 	if (vrrp_syslog_ident)
-		free(no_const_char_p(vrrp_syslog_ident));
+		free(no_const_char_p(vrrp_syslog_ident));	/* malloc'd by make_syslog_ident() */
 #endif
 	close_std_fd();
 

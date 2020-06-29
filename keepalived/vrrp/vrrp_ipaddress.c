@@ -601,7 +601,7 @@ alloc_ipaddress(list_head_t *ip_list, const vector_t *strvec, bool static_addr)
 	/* Check if there was a missing parameter for a keyword */
 	if (param_missing) {
 		report_config_error(CONFIG_GENERAL_ERROR, "No %s parameter specified for %s", str, strvec_slot(strvec, addr_idx));
-		free(new);
+		FREE(new);
 		return;
 	}
 

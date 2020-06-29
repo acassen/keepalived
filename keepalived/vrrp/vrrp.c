@@ -1115,8 +1115,8 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 		if (!list_empty(&vrrp->unicast_peer) &&
 		    (global_data->vrrp_check_unicast_src ||
 		     vrrp->check_unicast_src)) {
-			struct in_addr *saddr4;
-			struct in6_addr *saddr6;
+			struct in_addr *saddr4 = NULL;	/* Avoid compiler warnings */
+			struct in6_addr *saddr6 = NULL;
 			bool found_match = false;
 
 			if (vrrp->family == AF_INET6) {
@@ -1141,7 +1141,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 				log_message(LOG_INFO, "(%s) unicast source address %s not a unicast peer",
 					vrrp->iname,
 					inet_ntop(vrrp->family,
-						  vrrp->family == AF_INET6 ? saddr6 : (void *)saddr4,
+						  vrrp->family == AF_INET6 ? (void *)saddr6 : (void *)saddr4,
 						  addr_str, sizeof(addr_str)));
 				return VRRP_PACKET_KO;
 			}
