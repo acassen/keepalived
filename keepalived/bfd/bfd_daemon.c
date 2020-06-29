@@ -163,8 +163,10 @@ start_bfd(__attribute__((unused)) data_t *prev_global_data)
 		set_process_name(global_data->bfd_process_name);
 
 	/* If we are just testing the configuration, then we terminate now */
-	if (__test_bit(CONFIG_TEST_BIT, &debug))
+	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
+		free_bfd_data(bfd_data);
 		return;
+	}
 	bfd_complete_init();
 
 	/* Post initializations */

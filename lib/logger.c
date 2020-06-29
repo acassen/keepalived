@@ -144,7 +144,7 @@ vlog_message(int facility, const char* format, va_list args)
 #endif
 
 	/* Don't write syslog if testing configuration */
-	if (__test_bit(CONFIG_TEST_BIT, &debug))
+	if (__test_bit(CONFIG_TEST_BIT, &debug) && __test_bit(NO_SYSLOG_BIT, &debug))
 		return;
 
 #if !HAVE_VSYSLOG

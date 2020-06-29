@@ -770,6 +770,22 @@ static bool reload_config(void)
 		start_reload_monitor();
 #endif
 
+	if (!unsupported_change) {
+		__set_bit(CONFIG_TEST_BIT, &debug);
+		__set_bit(DONT_RESPAWN_BIT, &debug);
+		__set_bit(DONT_FORK_BIT, &debug);
+		
+		validate_config();
+		if (get_config_misssing_flag()) {
+			unsupported_change = true;
+			clear_config_misssing_flag();
+		}
+		
+		__clear_bit(CONFIG_TEST_BIT, &debug);
+		__clear_bit(DONT_RESPAWN_BIT, &debug);
+		__clear_bit(DONT_FORK_BIT, &debug);
+	}		
+
 	return !unsupported_change;
 }
 

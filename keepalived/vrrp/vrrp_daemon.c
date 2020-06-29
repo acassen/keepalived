@@ -557,8 +557,10 @@ start_vrrp(data_t *prev_global_data)
 	}
 
 	/* If we are just testing the configuration, then we terminate now */
-	if (__test_bit(CONFIG_TEST_BIT, &debug))
+	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
+		free_vrrp_data(vrrp_data);
 		return;
+	}
 
 #ifdef _WITH_LVS_
 	if (!reload && vrrp_ipvs_needed() && !global_data->lvs_syncd.vrrp) {

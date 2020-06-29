@@ -142,6 +142,7 @@ static unsigned int random_seed;
 static bool random_seed_configured;
 static LIST_HEAD_INITIALIZE(seq_list);	/* seq_t */
 static unsigned seq_list_count = 0;
+static bool config_missing_flag = false;
 
 /* Parameter definitions */
 static LIST_HEAD_INITIALIZE(defs); /* def_t */
@@ -170,7 +171,7 @@ report_config_error(config_err_t err, const char *format, ...)
 
 	va_start(args, format);
 
-	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
+	if (__test_bit(CONFIG_TEST_BIT, &debug) && __test_bit(NO_SYSLOG_BIT, &debug)) {
 		vfprintf(stderr, format_buf ? format_buf : format, args);
 		fputc('\n', stderr);
 
@@ -200,7 +201,10 @@ null_strvec(const vector_t *strvec, size_t index)
 	else
 		report_config_error(CONFIG_MISSING_PARAMETER, "*** Configuration line starting `%s` is missing a parameter at word position %zu", vector_slot(strvec, 0) ? (char *)vector_slot(strvec, 0) : "***MISSING ***", index + 1);
 
-	exit(KEEPALIVED_EXIT_CONFIG);
+	if (__test_bit(CONFIG_TEST_BIT, &debug)) 
+		config_missing_flag = true;
+	else
+		exit(KEEPALIVED_EXIT_CONFIG);
 }
 
 static bool
@@ -2483,3 +2487,16 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void))
 #endif
 	notify_resource_release();
 }
+
+bool get_config_misssing_flag(void)
+{
+	return config_missing_flag;
+}
+
+void clear_config_misssing_flag(void)
+{
+	config_missing_flag = false;
+}
+
+
+

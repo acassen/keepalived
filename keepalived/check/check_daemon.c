@@ -321,8 +321,11 @@ start_check(list_head_t *old_checkers_queue, data_t *prev_global_data)
 #endif
 
 	/* If we are just testing the configuration, then we terminate now */
-	if (__test_bit(CONFIG_TEST_BIT, &debug))
+	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
+		free_check_data(check_data);
+		free_checkers_queue();
 		return;
+	}
 
 	/* Initialize sub-system if any virtual servers are configured */
 	if ((!list_empty(&check_data->vs) || (reload && !list_empty(&old_check_data->vs))) &&
