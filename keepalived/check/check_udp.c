@@ -220,8 +220,10 @@ udp_connect_thread(thread_ref_t thread)
 	status = udp_bind_connect(fd, co);
 
 	/* handle udp connection status & register check worker thread */
-	if (udp_icmp_check_state(fd, status, thread, udp_check_thread, co->connection_to))
+	if (udp_icmp_check_state(fd, status, thread, udp_check_thread, co->connection_to)) {
+		close(fd);
 		udp_epilog(thread, false);
+	}
 
 	return;
 }
