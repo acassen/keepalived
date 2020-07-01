@@ -115,6 +115,20 @@ typedef struct _seq {
 	list_head_t e_list;
 } seq_t;
 
+/* Structure for include file stack */
+typedef struct _include_file {
+	glob_t globbuf;
+	unsigned glob_next;
+	const char *file_name;
+	int curdir_fd;
+	FILE *stream;
+	unsigned num_matches;
+	const char *current_file_name;  //can be derived from globbuf_gl_pathv[glob_next-1]
+	size_t current_line_no;
+
+	list_head_t e_list;
+} include_file_t;
+
 
 /* global vars */
 vector_t *keywords;
@@ -129,9 +143,6 @@ bool do_dump_keywords;
 
 /* local vars */
 static vector_t *current_keywords;
-static FILE *current_stream;
-static const char *current_file_name;
-static size_t current_file_line_no;
 static int sublevel = 0;
 static int skip_sublevel = 0;
 static LIST_HEAD_INITIALIZE(multiline_stack); /* multiline_stack_ent */
@@ -143,29 +154,42 @@ static bool random_seed_configured;
 static LIST_HEAD_INITIALIZE(seq_list);	/* seq_t */
 static unsigned seq_list_count = 0;
 
+/* recursive configuration stream handler */
+static int kw_level;
+static int block_depth;
+
 /* Parameter definitions */
 static LIST_HEAD_INITIALIZE(defs); /* def_t */
 
 /* Forward declarations for recursion */
-static bool read_line(char *, size_t);
 static bool replace_param(char *, size_t, char const **);
+
+/* Stack of include files */
+LIST_HEAD_INITIALIZE(include_stack);
+
 
 void
 report_config_error(config_err_t err, const char *format, ...)
 {
 	va_list args;
 	char *format_buf = NULL;
+	include_file_t *file = NULL;
+	
+	if (!list_empty(&include_stack))
+		file = list_first_entry(&include_stack, include_file_t, e_list);
 
 	/* current_file_name will be set if there is more than one config file, in which
 	 * case we need to specify the file name. */
-	if (current_file_name) {
-		/* "(file_name:line_no) format" + '\0' */
-		format_buf = MALLOC(1 + strlen(current_file_name) + 1 + 10 + 1 + 1 + strlen(format) + 1);
-		sprintf(format_buf, "(%s:%zu) %s", current_file_name, current_file_line_no, format);
-	} else if (current_file_line_no) {	/* Set while reading from config files */
-		/* "(Line line_no) format" + '\0' */
-		format_buf = MALLOC(1 + 5 + 10 + 1 + 1 + strlen(format) + 1);
-		sprintf(format_buf, "(%s %zu) %s", "Line", current_file_line_no, format);
+	if (file) {
+	       	if (file->current_file_name) {
+			/* "(file_name: Line line_no) format" + '\0' */
+			format_buf = MALLOC(1 + strlen(file->current_file_name) + 1 + 6 + 10 + 1 + 1 + strlen(format) + 1);
+			sprintf(format_buf, "(%s: Line %zu) %s", file->current_file_name, file->current_line_no, format);
+		} else if (file->current_line_no) {	/* Set while reading from config files */
+			/* "(Line line_no) format" + '\0' */
+			format_buf = MALLOC(1 + 5 + 10 + 1 + 1 + strlen(format) + 1);
+			sprintf(format_buf, "(%s %zu) %s", "Line", file->current_line_no, format);
+		}
 	}
 
 	va_start(args, format);
@@ -1195,252 +1219,8 @@ dump_definitions(void)
 }
 #endif
 
-/* recursive configuration stream handler */
-static int kw_level;
-static int block_depth;
-
-static bool
-process_stream(vector_t *keywords_vec, int need_bob)
-{
-	unsigned int i;
-	keyword_t *keyword_vec;
-	const char *str;
-	char *buf;
-	vector_t *strvec;
-	vector_t *prev_keywords = current_keywords;
-	current_keywords = keywords_vec;
-	int bob_needed = 0;
-	bool ret_err = false;
-	bool ret;
-
-	buf = MALLOC(MAXBUF);
-	while (read_line(buf, MAXBUF)) {
-		strvec = alloc_strvec(buf);
-
-		if (!strvec)
-			continue;
-
-		str = vector_slot(strvec, 0);
-
-		if (skip_sublevel == -1) {
-			/* There wasn't a '{' on the keyword line */
-			if (!strcmp(str, BOB)) {
-				/* We've got the opening '{' now */
-				skip_sublevel = 1;
-				need_bob = 0;
-				free_strvec(strvec);
-				continue;
-			}
-
-			/* The skipped keyword doesn't have a {} block, so we no longer want to skip */
-			skip_sublevel = 0;
-		}
-		if (skip_sublevel) {
-			for (i = 0; i < vector_size(strvec); i++) {
-				str = vector_slot(strvec,i);
-				if (!strcmp(str,BOB))
-					skip_sublevel++;
-				else if (!strcmp(str,EOB)) {
-					if (--skip_sublevel == 0)
-						break;
-				}
-			}
-
-			/* If we have reached the outer level of the block and we have
-			 * nested keyword level, then we need to return to restore the
-			 * next level up of keywords. */
-			if (!strcmp(str, EOB) && skip_sublevel == 0 && kw_level > 0) {
-				ret_err = true;
-				free_strvec(strvec);
-				break;
-			}
-
-			free_strvec(strvec);
-			continue;
-		}
-
-		if (need_bob) {
-			need_bob = 0;
-			if (!strcmp(str, BOB) && kw_level > 0) {
-				free_strvec(strvec);
-				continue;
-			}
-			else
-				report_config_error(CONFIG_MISSING_BOB, "Missing '%s' at beginning of configuration block", BOB);
-		}
-		else if (!strcmp(str, BOB)) {
-			report_config_error(CONFIG_UNEXPECTED_BOB, "Unexpected '%s' - ignoring", BOB);
-			free_strvec(strvec);
-			continue;
-		}
-
-		if (!strcmp(str, EOB) && kw_level > 0) {
-			free_strvec(strvec);
-			break;
-		}
-
-		for (i = 0; i < vector_size(keywords_vec); i++) {
-			keyword_vec = vector_slot(keywords_vec, i);
-
-			if (!strcmp(keyword_vec->string, str)) {
-				if (!keyword_vec->active) {
-					if (!strcmp(vector_slot(strvec, vector_size(strvec)-1), BOB))
-						skip_sublevel = 1;
-					else
-						skip_sublevel = -1;
-
-					/* Sometimes a process wants to know if another process
-					 * has any of a type of configuration. For example, there
-					 * is no point starting the VRRP process of there are no
-					 * vrrp instances, and so the parent process would be
-					 * interested in that. */
-					if (keyword_vec->handler)
-						(*keyword_vec->handler)(NULL);
-				}
-
-				/* There is an inconsistency here. 'static_ipaddress' for example
-				 * does not have sub levels, but needs a '{' */
-				if (keyword_vec->sub) {
-					/* Remove a trailing '{' */
-					char *bob = vector_slot(strvec, vector_size(strvec)-1) ;
-					if (!strcmp(bob, BOB)) {
-						vector_unset(strvec, vector_size(strvec)-1);
-						FREE(bob);
-						bob_needed = 0;
-					}
-					else
-						bob_needed = 1;
-				}
-
-				if (keyword_vec->active && keyword_vec->handler) {
-					buf_extern = buf;	/* In case the raw line wants to be accessed */
-					(*keyword_vec->handler) (strvec);
-				}
-
-				if (keyword_vec->sub) {
-					kw_level++;
-					ret = process_stream(keyword_vec->sub, bob_needed);
-					kw_level--;
-
-					/* We mustn't run any close handler if the block was skipped */
-					if (!ret && keyword_vec->active && keyword_vec->sub_close_handler)
-						(*keyword_vec->sub_close_handler) ();
-				}
-				break;
-			}
-		}
-
-		if (i >= vector_size(keywords_vec))
-			report_config_error(CONFIG_UNKNOWN_KEYWORD, "Unknown keyword '%s'", str);
-
-		free_strvec(strvec);
-	}
-
-	current_keywords = prev_keywords;
-	FREE(buf);
-	return ret_err;
-}
-
-static bool
-read_conf_file(const char *conf_file)
-{
-	FILE *stream;
-	glob_t globbuf;
-	size_t i;
-	int	res;
-	struct stat stb;
-	unsigned num_matches = 0;
-
-	globbuf.gl_offs = 0;
-	res = glob(conf_file, GLOB_MARK
-#if HAVE_DECL_GLOB_BRACE
-					| GLOB_BRACE
-#endif
-						    , NULL, &globbuf);
-
-	if (res) {
-		if (res == GLOB_NOMATCH)
-			log_message(LOG_INFO, "No config files matched '%s'.", conf_file);
-		else
-			log_message(LOG_INFO, "Error reading config file(s): glob(\"%s\") returned %d, skipping.", conf_file, res);
-		return true;
-	}
-
-	for (i = 0; i < globbuf.gl_pathc; i++) {
-		if (globbuf.gl_pathv[i][strlen(globbuf.gl_pathv[i])-1] == '/') {
-			/* This is a directory - so skip */
-			continue;
-		}
-
-		log_message(LOG_INFO, "Opening file '%s'.", globbuf.gl_pathv[i]);
-		stream = fopen(globbuf.gl_pathv[i], "r");
-		if (!stream) {
-			log_message(LOG_INFO, "Configuration file '%s' open problem (%s) - skipping"
-				       , globbuf.gl_pathv[i], strerror(errno));
-			continue;
-		}
-
-		/* Make sure what we have opened is a regular file, and not for example a directory or executable */
-		if (fstat(fileno(stream), &stb) ||
-		    !S_ISREG(stb.st_mode) ||
-		    (stb.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
-			log_message(LOG_INFO, "Configuration file '%s' is not a regular non-executable file - skipping", globbuf.gl_pathv[i]);
-			fclose(stream);
-			continue;
-		}
-
-		num_matches++;
-
-		current_stream = stream;
-
-		/* We only want to report the file name if there is more than one file used */
-		if (current_file_name || globbuf.gl_pathc > 1)
-			current_file_name = globbuf.gl_pathv[i];
-		current_file_line_no = 0;
-
-		int curdir_fd = -1;
-		if (strchr(globbuf.gl_pathv[i], '/')) {
-			/* If the filename contains a directory element, change to that directory.
-			   The man page open(2) states that fchdir() didn't support O_PATH until Linux 3.5,
-			   even though testing on Linux 3.1 shows it appears to work. To be safe, don't
-			   use it until Linux 3.5. */
-			curdir_fd = open(".", O_RDONLY | O_DIRECTORY
-#if HAVE_DECL_O_PATH && LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
-								     | O_PATH
-#endif
-									     );
-
-			char *confpath = STRDUP(globbuf.gl_pathv[i]);
-			dirname(confpath);
-			if (chdir(confpath) < 0)
-				log_message(LOG_INFO, "chdir(%s) error (%s)", confpath, strerror(errno));
-			FREE(confpath);
-		}
-
-		process_stream(current_keywords, 0);
-		fclose(stream);
-
-		free_seq_list(&seq_list);
-
-		/* If we changed directory, restore the previous directory */
-		if (curdir_fd != -1) {
-			if ((res = fchdir(curdir_fd)))
-				log_message(LOG_INFO, "Failed to restore previous directory after include");
-			close(curdir_fd);
-			if (res)
-				return true;
-		}
-	}
-
-	globfree(&globbuf);
-
-	if (!num_matches)
-		log_message(LOG_INFO, "No config files matched '%s'.", conf_file);
-
-	return false;
-}
-
-bool check_conf_file(const char *conf_file)
+bool
+check_conf_file(const char *conf_file)
 {
 	glob_t globbuf;
 	size_t i;
@@ -1495,42 +1275,6 @@ bool check_conf_file(const char *conf_file)
 
 	globfree(&globbuf);
 
-	return ret;
-}
-
-static bool
-check_include(const char *buf)
-{
-	const vector_t *strvec;
-	bool ret = false;
-	FILE *prev_stream;
-	const char *prev_file_name;
-	size_t prev_file_line_no;
-
-	/* Simple check first for include */
-	if (!strstr(buf, "include"))
-		return false;
-
-	strvec = alloc_strvec(buf);
-
-	if (!strvec)
-		return false;
-
-	if(!strcmp("include", vector_slot(strvec, 0)) && vector_size(strvec) == 2) {
-		prev_stream = current_stream;
-		prev_file_name = current_file_name;
-		prev_file_line_no = current_file_line_no;
-
-		read_conf_file(vector_slot(strvec, 1));
-
-		current_stream = prev_stream;
-		current_file_name = prev_file_name;
-		current_file_line_no = prev_file_line_no;
-
-		ret = true;
-	}
-
-	free_strvec(strvec);
 	return ret;
 }
 
@@ -1975,6 +1719,248 @@ decomment(char *str)
 	}
 }
 
+static vector_t *read_value_block_vec;
+static void
+read_value_block_line(const vector_t *strvec)
+{
+	size_t word;
+	const char *str;
+
+	if (!read_value_block_vec)
+		read_value_block_vec = vector_alloc();
+
+	vector_foreach_slot(strvec, str, word) {
+		vector_alloc_slot(read_value_block_vec);
+		vector_set_slot(read_value_block_vec, STRDUP(str));
+	}
+}
+
+const vector_t *
+read_value_block(const vector_t *strvec)
+{
+	vector_t *ret_vec;
+
+	alloc_value_block(read_value_block_line, strvec);
+
+	ret_vec = read_value_block_vec;
+	read_value_block_vec = NULL;
+
+	return ret_vec;
+}
+
+/* min_time and max_time are in micro-seconds. The returned value is also in micro-seconds */
+bool
+read_timer(const vector_t *strvec, size_t index, unsigned long *res, unsigned long min_time, unsigned long max_time, bool ignore_error)
+{
+	double timer;
+	bool ret;
+	double fmin_time, fmax_time;
+
+	fmin_time = (double)min_time / TIMER_HZ;
+	fmax_time = (double)((max_time) ? max_time : TIMER_MAXIMUM) / TIMER_HZ;
+
+	ret = read_double_strvec(strvec, index, &timer, fmin_time, fmax_time, ignore_error);
+	*res = timer * TIMER_HZ > TIMER_MAXIMUM ? TIMER_MAXIMUM : (unsigned long)(timer * TIMER_HZ);
+
+	return ret;
+}
+
+/* Checks for on/true/yes or off/false/no */
+int __attribute__ ((pure))
+check_true_false(const char *str)
+{
+	if (!strcmp(str, "true") || !strcmp(str, "on") || !strcmp(str, "yes"))
+		return true;
+	if (!strcmp(str, "false") || !strcmp(str, "off") || !strcmp(str, "no"))
+		return false;
+
+	return -1;	/* error */
+}
+
+void skip_block(bool need_block_start)
+{
+	/* Don't process the rest of the configuration block */
+	if (need_block_start)
+		skip_sublevel = -1;
+	else
+		skip_sublevel = 1;
+}
+
+static bool
+open_conf_file(include_file_t *file)
+{
+	struct stat stb;
+	unsigned i;
+	FILE *stream;
+
+	while (file->glob_next < file->globbuf.gl_pathc) {
+		i = file->glob_next++;
+
+		if (file->globbuf.gl_pathv[i][strlen(file->globbuf.gl_pathv[i])-1] == '/') {
+			/* This is a directory - so skip */
+			continue;
+		}
+
+		log_message(LOG_INFO, "Opening file '%s'.", file->globbuf.gl_pathv[i]);
+		stream = fopen(file->globbuf.gl_pathv[i], "r");
+		if (!stream) {
+			log_message(LOG_INFO, "Configuration file '%s' open problem (%s) - skipping"
+				       , file->globbuf.gl_pathv[i], strerror(errno));
+			continue;
+		}
+
+		/* Make sure what we have opened is a regular file, and not for example a directory or executable */
+		if (fstat(fileno(stream), &stb) ||
+		    !S_ISREG(stb.st_mode) ||
+		    (stb.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
+			log_message(LOG_INFO, "Configuration file '%s' is not a regular non-executable file - skipping", file->globbuf.gl_pathv[i]);
+			fclose(stream);
+			continue;
+		}
+
+		file->stream = stream;
+		file->num_matches++;
+
+		/* We only want to report the file name if there is more than one file used */
+		if (!list_is_last(&include_stack, &file->e_list) || file->globbuf.gl_pathc > 1)
+			file->current_file_name = file->globbuf.gl_pathv[i];
+		file->current_line_no = 0;
+
+		if (strchr(file->globbuf.gl_pathv[i], '/')) {
+			/* If the filename contains a directory element, change to that directory.
+			   The man page open(2) states that fchdir() didn't support O_PATH until Linux 3.5,
+			   even though testing on Linux 3.1 shows it appears to work. To be safe, don't
+			   use it until Linux 3.5. */
+			file->curdir_fd = open(".", O_RDONLY | O_DIRECTORY
+#if HAVE_DECL_O_PATH && LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
+								     | O_PATH
+#endif
+									     );
+
+			char *confpath = STRDUP(file->globbuf.gl_pathv[i]);
+			dirname(confpath);
+			if (chdir(confpath) < 0)
+				log_message(LOG_INFO, "chdir(%s) error (%s)", confpath, strerror(errno));
+			FREE(confpath);
+		} else
+			file->curdir_fd = -1;
+
+		return true;
+	}
+
+	return false;
+}
+
+static bool
+open_glob_file(const char *conf_file)
+{
+	int	res;
+	include_file_t *file;
+
+	PMALLOC(file);
+	INIT_LIST_HEAD(&file->e_list);
+
+	file->globbuf.gl_offs = 0;
+	res = glob(conf_file, GLOB_MARK
+#if HAVE_DECL_GLOB_BRACE
+					| GLOB_BRACE
+#endif
+						    , NULL, &file->globbuf);
+
+	if (res) {
+		if (res == GLOB_NOMATCH)
+			log_message(LOG_INFO, "No config files matched '%s'.", conf_file);
+		else
+			log_message(LOG_INFO, "Error reading config file(s): glob(\"%s\") returned %d, skipping.", conf_file, res);
+		FREE(file);
+		return false;
+	}
+
+	if (!open_conf_file(file)) {
+		log_message(LOG_INFO, "%s - no matching file", conf_file);
+
+		globfree(&file->globbuf);
+		FREE(file);
+		return false;
+	}
+
+	file->file_name = STRDUP(conf_file);
+	list_head_add(&file->e_list, &include_stack);
+
+	return true;
+}
+
+static bool
+end_file(include_file_t *file)
+{
+	int res;
+
+	fclose(file->stream);
+
+// WHY??
+//	free_seq_list(&seq_list);
+
+	/* If we changed directory, restore the previous directory */
+	if (file->curdir_fd != -1) {
+		if ((res = fchdir(file->curdir_fd)))
+			log_message(LOG_INFO, "Failed to restore previous directory after include");
+		close(file->curdir_fd);
+		if (res)
+			return false;
+	}
+
+	return true;
+}
+
+static void
+end_glob(include_file_t *file)
+{
+	if (!file->num_matches)
+		log_message(LOG_INFO, "No config files matched '%s'.", file->file_name);
+
+	globfree(&file->globbuf);
+	FREE_CONST_PTR(file->file_name);
+
+	list_del_init(&file->e_list);
+	FREE(file);
+}
+
+static bool
+get_next_file(void)
+{
+	include_file_t *file = list_first_entry(&include_stack, include_file_t, e_list);
+
+	end_file(file);
+
+	if (open_conf_file(file))
+		return true;
+
+	end_glob(file);
+
+	if (list_empty(&include_stack))
+		return false;
+
+	file = list_first_entry(&include_stack, include_file_t, e_list);
+
+	return true;
+}
+
+static bool
+check_include(const char *buf)
+{
+	const char *p;
+
+	if (strncmp(buf, "include ", 8))
+		return false;
+
+	p = buf + 8;
+	p += strspn(p, " ");
+
+	open_glob_file(p);
+
+	return true;
+}
+
 static bool
 read_line(char *buf, size_t size)
 {
@@ -1995,6 +1981,7 @@ read_line(char *buf, size_t size)
 	list_head_t *next_value;
 	value_t *value;
 	param_t *param;
+	include_file_t *file;
 
 	config_id_len = config_id ? strlen(config_id) : 0;
 	do {
@@ -2065,19 +2052,25 @@ read_line(char *buf, size_t size)
 			}
 		} else {
 			/* Get the next non-blank line */
+			file = list_first_entry(&include_stack, include_file_t, e_list);
+
 			do {
-				if (!fgets(buf, (int)size, current_stream))
+				if (!fgets(buf, (int)size, file->stream))
 				{
+					if (get_next_file()) {
+						file = list_first_entry(&include_stack, include_file_t, e_list);
+						continue;
+					}
+
 					eof = true;
 					buf[0] = '\0';
-					len = 0;
 					break;
 				}
 
 				/* Check if we have read the end of a line */
 				len = strlen(buf);
 				if (len && buf[len-1] == '\n') {
-					current_file_line_no++;
+					file->current_line_no++;
 					len--;
 				}
 
@@ -2096,7 +2089,7 @@ read_line(char *buf, size_t size)
 
 				buf[len] = '\0';
 				decomment(buf);
-			} while (!len || !buf[0]);
+			} while (!buf[0]);
 
 			if (!buf[0])
 				break;
@@ -2359,71 +2352,146 @@ alloc_value_block(void (*alloc_func) (const vector_t *), const vector_t *strvec)
 	FREE(buf);
 }
 
-static vector_t *read_value_block_vec;
-static void
-read_value_block_line(const vector_t *strvec)
+static bool
+process_stream(vector_t *keywords_vec, int need_bob)
 {
-	size_t word;
+	unsigned int i;
+	keyword_t *keyword_vec;
 	const char *str;
-
-	if (!read_value_block_vec)
-		read_value_block_vec = vector_alloc();
-
-	vector_foreach_slot(strvec, str, word) {
-		vector_alloc_slot(read_value_block_vec);
-		vector_set_slot(read_value_block_vec, STRDUP(str));
-	}
-}
-
-const vector_t *
-read_value_block(const vector_t *strvec)
-{
-	vector_t *ret_vec;
-
-	alloc_value_block(read_value_block_line, strvec);
-
-	ret_vec = read_value_block_vec;
-	read_value_block_vec = NULL;
-
-	return ret_vec;
-}
-
-/* min_time and max_time are in micro-seconds. The returned value is also in micro-seconds */
-bool
-read_timer(const vector_t *strvec, size_t index, unsigned long *res, unsigned long min_time, unsigned long max_time, bool ignore_error)
-{
-	double timer;
+	char *buf;
+	vector_t *strvec;
+	vector_t *prev_keywords = current_keywords;
+	current_keywords = keywords_vec;
+	int bob_needed = 0;
+	bool ret_err = false;
 	bool ret;
-	double fmin_time, fmax_time;
 
-	fmin_time = (double)min_time / TIMER_HZ;
-	fmax_time = (double)((max_time) ? max_time : TIMER_MAXIMUM) / TIMER_HZ;
+	buf = MALLOC(MAXBUF);
+	while (read_line(buf, MAXBUF)) {
+		strvec = alloc_strvec(buf);
 
-	ret = read_double_strvec(strvec, index, &timer, fmin_time, fmax_time, ignore_error);
-	*res = timer * TIMER_HZ > TIMER_MAXIMUM ? TIMER_MAXIMUM : (unsigned long)(timer * TIMER_HZ);
+		if (!strvec)
+			continue;
 
-	return ret;
-}
+		str = vector_slot(strvec, 0);
 
-/* Checks for on/true/yes or off/false/no */
-int __attribute__ ((pure))
-check_true_false(const char *str)
-{
-	if (!strcmp(str, "true") || !strcmp(str, "on") || !strcmp(str, "yes"))
-		return true;
-	if (!strcmp(str, "false") || !strcmp(str, "off") || !strcmp(str, "no"))
-		return false;
+		if (skip_sublevel == -1) {
+			/* There wasn't a '{' on the keyword line */
+			if (!strcmp(str, BOB)) {
+				/* We've got the opening '{' now */
+				skip_sublevel = 1;
+				need_bob = 0;
+				free_strvec(strvec);
+				continue;
+			}
 
-	return -1;	/* error */
-}
+			/* The skipped keyword doesn't have a {} block, so we no longer want to skip */
+			skip_sublevel = 0;
+		}
+		if (skip_sublevel) {
+			for (i = 0; i < vector_size(strvec); i++) {
+				str = vector_slot(strvec,i);
+				if (!strcmp(str,BOB))
+					skip_sublevel++;
+				else if (!strcmp(str,EOB)) {
+					if (--skip_sublevel == 0)
+						break;
+				}
+			}
 
-void skip_block(bool need_block_start)
-{
-	/* Don't process the rest of the configuration block */
-	if (need_block_start)
-		skip_sublevel = -1;
-	else
-		skip_sublevel = 1;
+			/* If we have reached the outer level of the block and we have
+			 * nested keyword level, then we need to return to restore the
+			 * next level up of keywords. */
+			if (!strcmp(str, EOB) && skip_sublevel == 0 && kw_level > 0) {
+				ret_err = true;
+				free_strvec(strvec);
+				break;
+			}
+
+			free_strvec(strvec);
+			continue;
+		}
+
+		if (need_bob) {
+			need_bob = 0;
+			if (!strcmp(str, BOB) && kw_level > 0) {
+				free_strvec(strvec);
+				continue;
+			}
+			else
+				report_config_error(CONFIG_MISSING_BOB, "Missing '%s' at beginning of configuration block", BOB);
+		}
+		else if (!strcmp(str, BOB)) {
+			report_config_error(CONFIG_UNEXPECTED_BOB, "Unexpected '%s' - ignoring", BOB);
+			free_strvec(strvec);
+			continue;
+		}
+
+		if (!strcmp(str, EOB) && kw_level > 0) {
+			free_strvec(strvec);
+			break;
+		}
+
+		for (i = 0; i < vector_size(keywords_vec); i++) {
+			keyword_vec = vector_slot(keywords_vec, i);
+
+			if (!strcmp(keyword_vec->string, str)) {
+				if (!keyword_vec->active) {
+					if (!strcmp(vector_slot(strvec, vector_size(strvec)-1), BOB))
+						skip_sublevel = 1;
+					else
+						skip_sublevel = -1;
+
+					/* Sometimes a process wants to know if another process
+					 * has any of a type of configuration. For example, there
+					 * is no point starting the VRRP process of there are no
+					 * vrrp instances, and so the parent process would be
+					 * interested in that. */
+					if (keyword_vec->handler)
+						(*keyword_vec->handler)(NULL);
+				}
+
+				/* There is an inconsistency here. 'static_ipaddress' for example
+				 * does not have sub levels, but needs a '{' */
+				if (keyword_vec->sub) {
+					/* Remove a trailing '{' */
+					char *bob = vector_slot(strvec, vector_size(strvec)-1) ;
+					if (!strcmp(bob, BOB)) {
+						vector_unset(strvec, vector_size(strvec)-1);
+						FREE(bob);
+						bob_needed = 0;
+					}
+					else
+						bob_needed = 1;
+				}
+
+				if (keyword_vec->active && keyword_vec->handler) {
+					buf_extern = buf;	/* In case the raw line wants to be accessed */
+					(*keyword_vec->handler) (strvec);
+				}
+
+				if (keyword_vec->sub) {
+					kw_level++;
+					ret = process_stream(keyword_vec->sub, bob_needed);
+					kw_level--;
+
+					/* We mustn't run any close handler if the block was skipped */
+					if (!ret && keyword_vec->active && keyword_vec->sub_close_handler)
+						(*keyword_vec->sub_close_handler) ();
+				}
+				break;
+			}
+		}
+
+		if (i >= vector_size(keywords_vec))
+			report_config_error(CONFIG_UNKNOWN_KEYWORD, "Unknown keyword '%s'", str);
+
+		free_strvec(strvec);
+	}
+
+	current_keywords = prev_keywords;
+	FREE(buf);
+	return ret_err;
 }
 
 /* Data initialization */
@@ -2457,21 +2525,21 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void))
 	/* Stream handling */
 	current_keywords = keywords;
 
-	current_file_name = NULL;
-	current_file_line_no = 0;
+	/* Open the first file */
+	if (open_glob_file(conf_file)) {
 
-	register_null_strvec_handler(null_strvec);
-	read_conf_file(conf_file);
-	unregister_null_strvec_handler();
+		register_null_strvec_handler(null_strvec);
+		process_stream(current_keywords, 0);
+		unregister_null_strvec_handler();
 
-	/* Report if there are missing '}'s. If there are missing '{'s it will already have been reported */
-	if (block_depth > 0)
-		report_config_error(CONFIG_MISSING_EOB, "There are %d missing '%s's or extra '%s's"
+/* Is this right - the seq_list should be empty ???? */
+		free_seq_list(&seq_list);
+
+		/* Report if there are missing '}'s. If there are missing '{'s it will already have been reported */
+		if (block_depth > 0)
+			report_config_error(CONFIG_MISSING_EOB, "There are %d missing '%s's or extra '%s's"
 						      , block_depth, EOB, BOB);
-
-	/* We have finished reading the configuration files, so any configuration
-	 * errors report from now mustn't include a reference to the config file name */
-	current_file_line_no = 0;
+	}
 
 	/* Close the password database if it was opened */
 	endpwent();
