@@ -226,6 +226,7 @@ tcp_connect_thread(thread_ref_t thread)
 			tcp_epilog(thread, false);
 		} else {
 			log_message(LOG_INFO, "TCP socket bind failed. Rescheduling.");
+			tcp_epilog(thread, false);
 			thread_add_timer(thread->master, tcp_connect_thread, checker,
 					checker->delay_loop);
 		}
