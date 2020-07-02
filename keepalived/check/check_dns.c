@@ -433,10 +433,7 @@ dns_connect_thread(thread_ref_t thread)
 	/* handle connection status & register check worker thread */
 	if (socket_connection_state(fd, status, thread, dns_check_thread, co->connection_to)) {
 		close(fd);
-		dns_log_message(thread, LOG_INFO,
-				"UDP socket bind failed. Rescheduling.");
-		thread_add_timer(thread->master, dns_connect_thread, checker,
-				 checker->delay_loop);
+		dns_final(thread, true, "UDP socket bind failed. Rescheduling.");
 	}
 }
 
