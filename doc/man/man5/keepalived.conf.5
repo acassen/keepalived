@@ -1885,7 +1885,8 @@ The syntax for virtual_server is :
     # of an alive server fails. Default: 1 unless specified below
     \fBretry \fR<INTEGER>
 
-    # delay before retry after failure. Defaults to delay_loop
+    # delay before retry after failure. Defaults to delay_loop for DNS_CHECK,
+    # 3 seconds for HTTP_CHECK and SSL_CHECK, and 1 second otherwise.
     \fBdelay_before_retry \fR<TIMER>
 
     # Optional random delay to start the initial check
@@ -1895,7 +1896,7 @@ The syntax for virtual_server is :
     # the maximum at delay_loop. Specify 0 to disable
     \fBwarmup \fR<TIMER>
 
-    # delay timer for checker polling
+    # delay timer for checker polling (60 seconds if not specified)
     \fBdelay_loop \fR<TIMER>
 
     # Set weight to 0 when healthchecker detects failure
