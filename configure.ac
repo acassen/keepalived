@@ -1691,25 +1691,25 @@ if test .${enable_nftables} != .no; then
       AC_CHECK_DECLS([NFTA_DUP_MAX], [], [],
         [#include <linux/netfilter/nf_tables.h>])
 
-      AC_CHECK_HEADERS([libnftnl/udata.h],
+      # NFT_USERDATA_MAXLEN since Linux 3.15. Check nftnl_udata_buf_alloc for libnftnl support of userdata
+      USE_NFT_USERDATA=Yes
+      AC_CHECK_DECLS([NFT_USERDATA_MAXLEN, nftnl_udata_buf_alloc],
+	[], [USE_NFT_USERDATA=No],
 	[
-          AC_MSG_CHECKING([for nftnl_udata_put_u32])
-          SAV_LIBS="$LIBS"
-          LIBS="$LIBS `$PKG_CONFIG --libs libnftnl`"
-          AC_LINK_IFELSE([AC_LANG_SOURCE([[
+	  #include <linux/netfilter/nf_tables.h>
+	  #include <libnftnl/udata.h>
+	]
+      )
+
+      AS_IF([test $USE_NFT_USERDATA = Yes],
+	[
+	  AC_DEFINE([HAVE_NFTNL_UDATA], [ 1 ], [Define to 1 if have nftnl udata support])
+          AC_CHECK_DECLS([nftnl_udata_put_u32],
+	    [], [],
+	    [
+	      #include <linux/netfilter/nf_tables.h>
 	      #include <libnftnl/udata.h>
-	      int main(void)
-	      {
-	        nftnl_udata_put_u32(NULL, 0, 0);
-	        return 0;
-	      }
-	    ]])], [
-	      AC_MSG_RESULT(yes)
-	      AC_DEFINE([HAVE_NFTNL_UDATA_PUT_U32], [ 1 ], [Define to 1 if nftnl_udata_put_u32 declared])
-	    ],[
-	      AC_MSG_RESULT(no)
 	    ])
-          LIBS="$SAV_LIBS"
 	])
     fi
   fi
