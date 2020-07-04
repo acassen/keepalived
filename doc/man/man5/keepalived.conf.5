@@ -1885,7 +1885,8 @@ The syntax for virtual_server is :
     # of an alive server fails. Default: 1 unless specified below
     \fBretry \fR<INTEGER>
 
-    # delay before retry after failure. Defaults to delay_loop
+    # delay before retry after failure. Defaults to delay_loop for DNS_CHECK,
+    # 3 seconds for HTTP_CHECK and SSL_CHECK, and 1 second otherwise.
     \fBdelay_before_retry \fR<TIMER>
 
     # Optional random delay to start the initial check
@@ -1895,7 +1896,7 @@ The syntax for virtual_server is :
     # the maximum at delay_loop. Specify 0 to disable
     \fBwarmup \fR<TIMER>
 
-    # delay timer for checker polling
+    # delay timer for checker polling (60 seconds if not specified)
     \fBdelay_loop \fR<TIMER>
 
     # Set weight to 0 when healthchecker detects failure
@@ -1941,7 +1942,6 @@ The syntax for virtual_server is :
         \fBwarmup \fR<TIMER>                  # see above
         \fBdelay_loop \fR<TIMER>              # see above
         \fBinhibit_on_failure \fR<BOOL>       # see above
-        \fBlog_all_failures \fR<BOOL>         # log all failures when checker up
 
         # healthcheckers. Can be multiple of each type
         # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|DNS_CHECK|MISC_CHECK|BFD_CHECK|UDP_CHECK|PING_CHECK|FILE_CHECK
@@ -1981,6 +1981,7 @@ The syntax for virtual_server is :
             \fBdelay_before_retry \fR<TIMER>      # see above
             \fBwarmup \fR<TIMER>                  # see above
             \fBdelay_loop \fR<TIMER>              # see above
+            \fBlog_all_failures \fR<BOOL>         # log all failures when checker up
         }
 
         # The following options are additional checker specific
