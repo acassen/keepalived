@@ -129,7 +129,7 @@ dns_final(thread_ref_t thread, bool error, const char *fmt, ...)
 				va_start(args, fmt);
 				len = vsnprintf(buf, sizeof (buf), fmt, args);
 				va_end(args);
-				if (checker->has_run && checker->retry_it >= checker->retry && !checker->has_run)
+				if (checker->has_run && checker->retry_it >= checker->retry )
 					snprintf(buf + len, sizeof(buf) - len, " after %u retries", checker->retry);
 				dns_log_message(thread, LOG_INFO, "%s", buf);
 			}
@@ -281,7 +281,9 @@ dns_make_query(thread_ref_t thread)
 		memcpy(p, s, n);
 		p += n;
 	}
-	*(p++) = 0;	/* Terminate the name */
+	
+	if (dns_check->name[0] != '.' || dns_check->name[1] != '\0')
+		*(p++) = 0;
 
 	APPEND16(p, dns_check->type);
 	APPEND16(p, 1);		/* IN */
