@@ -1942,7 +1942,6 @@ The syntax for virtual_server is :
         \fBwarmup \fR<TIMER>                  # see above
         \fBdelay_loop \fR<TIMER>              # see above
         \fBinhibit_on_failure \fR<BOOL>       # see above
-        \fBlog_all_failures \fR<BOOL>         # log all failures when checker up
 
         # healthcheckers. Can be multiple of each type
         # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|DNS_CHECK|MISC_CHECK|BFD_CHECK|UDP_CHECK|PING_CHECK|FILE_CHECK
@@ -1982,6 +1981,7 @@ The syntax for virtual_server is :
             \fBdelay_before_retry \fR<TIMER>      # see above
             \fBwarmup \fR<TIMER>                  # see above
             \fBdelay_loop \fR<TIMER>              # see above
+            \fBlog_all_failures \fR<BOOL>         # log all failures when checker up
         }
 
         # The following options are additional checker specific
