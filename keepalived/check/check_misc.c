@@ -392,7 +392,7 @@ misc_check_child_thread(thread_ref_t thread)
 				if (global_data->checker_log_all_failures || checker->log_all_failures)
 					message_only = true;
 				else
-					script_exit_type = NULL;
+					script_exit_type = NULL; /* this disables all message handling */
 			} else {
 				checker->retry_it = 0;
 				misck_checker->last_exit_code = status;
@@ -426,33 +426,30 @@ misc_check_child_thread(thread_ref_t thread)
 				if (global_data->checker_log_all_failures || checker->log_all_failures)
 					message_only = true;
 				else
-					script_exit_type = NULL;
+					script_exit_type = NULL; /* this disables all message handling */
 			} else
 				checker->retry_it = 0;
 		}
 	}
 
-	if (script_exit_type) {
+	if (script_exit_type) { /* not the case if retry check will follow and log_all_failures unset */
 		char message[40];
 
 		if (!script_success) {
-			if (!checker->log_all_failures) {
-				if (checker->retry)
-					snprintf(message, sizeof(message), " after %u retries", checker->retry);
-			} else {
-				/*
-				 * retry is always the fixed value of config parameter retry
-				 * If retry > 0 then on the regular scheduled check fail retry_it is 1, on the first retry check fail retry_it is 2 and so on
-				 * but on the last retry check fail, retry_it is 0
-				 */
-				if (checker->retry)
-					if (checker->retry_it == 1) /* fail on regulary scheduled check */
-						snprintf(message, sizeof(message), ", will do %u %s", checker->retry, checker->retry > 1 ? "retries" : "retry");
-					else /* fail on retry check */
-						snprintf(message, sizeof(message), " on retry %u/%u", checker->retry_it ? checker->retry_it - 1 : checker->retry, checker->retry);
-				else
-					snprintf(message, sizeof(message), " with retry disabled");
-			}
+			/*
+			 * retry is always the fixed value of config parameter retry
+			 * If retry > 0 then on the regulary scheduled check fail retry_it is 1, on the first retry check fail retry_it is 2 and so on
+			 * but on the last retry check fail, retry_it is 0
+			 */
+			if (checker->retry) {
+				if (checker->retry_it == 1) /* failed regulary scheduled check */
+					snprintf(message, sizeof(message), ", will do %u %s", checker->retry, checker->retry == 1 ? "retry" : "retries");
+				else if (checker->retry_it > 1) /* failed retry check, but not the last */
+					snprintf(message, sizeof(message), " on retry %u/%u", checker->retry_it - 1, checker->retry);
+				else /* failed last retry check */
+					snprintf(message, sizeof(message), " after %u %s", checker->retry, checker->retry == 1 ? "retry" : "retries" );
+			} else /* retry 0 */
+				snprintf(message, sizeof(message), " with retry disabled");
 		} else
 			message[0] = '\0';
 
