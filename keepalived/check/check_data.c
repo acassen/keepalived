@@ -249,7 +249,7 @@ alloc_vsg_entry(const vector_t *strvec)
 			port_str = NULL;
 
 		if (inet_stosockaddr(strvec_slot(strvec, 0), port_str, &new->addr)) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Invalid virtual server group IP address%s %s%s%s - skipping", strvec_slot(strvec, 0),
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid virtual server group IP address %s %s%s%s - skipping", strvec_slot(strvec, 0),
 						port_str ? "/port" : "", port_str ? "/" : "", port_str ? port_str : "");
 			FREE(new);
 			return;
