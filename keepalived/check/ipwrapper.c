@@ -1151,7 +1151,7 @@ link_vsg_to_vs(void)
 
 			if (!strcmp(vs->vsgname, vsg->gname)) {
 				/* We use the IPv4 port since there is no address family */
-				((struct sockaddr_in *)&vs->addr)->sin_port = htons(vsg_member_no);
+				PTR_CAST(struct sockaddr_in, &vs->addr)->sin_port = htons(vsg_member_no);
 				vsg_member_no++;
 			}
 		}

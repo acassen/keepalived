@@ -481,7 +481,7 @@ alloc_rule(list_head_t *rule_list, const vector_t *strvec, __attribute__((unused
 	char *end;
 	bool table_option = false;
 
-	new = (ip_rule_t *)MALLOC(sizeof(ip_rule_t));
+	PMALLOC(new);
 	if (!new) {
 		log_message(LOG_INFO, "Unable to allocate new ip_rule");
 		return;

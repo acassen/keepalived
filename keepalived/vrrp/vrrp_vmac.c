@@ -264,10 +264,10 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		req.ifi.ifi_family = AF_UNSPEC;
 
 		/* macvlan settings */
-		linkinfo = NLMSG_TAIL(&req.n);
+		linkinfo = PTR_CAST(struct rtattr, NLMSG_TAIL(&req.n));
 		addattr_l(&req.n, sizeof(req), IFLA_LINKINFO, NULL, 0);
 		addattr_l(&req.n, sizeof(req), IFLA_INFO_KIND, (const void *)macvlan_ll_kind, strlen(macvlan_ll_kind));
-		data = NLMSG_TAIL(&req.n);
+		data = PTR_CAST(struct rtattr, NLMSG_TAIL(&req.n));
 		addattr_l(&req.n, sizeof(req), IFLA_INFO_DATA, NULL, 0);
 
 		/*
@@ -363,9 +363,9 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 
 		struct rtattr* spec;
 
-		spec = NLMSG_TAIL(&req.n);
+		spec = PTR_CAST(struct rtattr, NLMSG_TAIL(&req.n));
 		addattr_l(&req.n, sizeof(req), IFLA_AF_SPEC, NULL,0);
-		data = NLMSG_TAIL(&req.n);
+		data = PTR_CAST(struct rtattr, NLMSG_TAIL(&req.n));
 		addattr_l(&req.n, sizeof(req), AF_INET6, NULL,0);
 		addattr8(&req.n, sizeof(req), IFLA_INET6_ADDR_GEN_MODE, IN6_ADDR_GEN_MODE_NONE);
 		data->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)data);
@@ -389,7 +389,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 
 			ipaddress.ifp = ifp;
 			if (vrrp->saddr.ss_family == AF_INET6)
-				ipaddress.u.sin6_addr = ((struct sockaddr_in6*)&vrrp->saddr)->sin6_addr;
+				ipaddress.u.sin6_addr = PTR_CAST(struct sockaddr_in6, &vrrp->saddr)->sin6_addr;
 			else if (vrrp->configured_ifp->sin6_addr.s6_addr32[0])
 				ipaddress.u.sin6_addr = vrrp->configured_ifp->sin6_addr;
 			else
@@ -458,7 +458,7 @@ dump_bufn(const char *msg, req_t *req)
 
 	log_message(LOG_INFO, "%s: message length is %d\n", msg, req->n.nlmsg_len);
 	for (i = 0; i < req->n.nlmsg_len; i++)
-		ptr += snprintf(ptr, buf + sizeof buf - ptr, "%2.2x ", ((unsigned char *)&req->n)[i]);
+		ptr += snprintf(ptr, buf + sizeof buf - ptr, "%2.2x ", PTR_CAST(unsigned char, &req->n)[i]);
 	log_message(LOG_INFO, "%s", buf);
 }
 #endif
@@ -505,10 +505,10 @@ netlink_link_add_ipvlan(vrrp_t *vrrp)
 		 * interface only the underlying interface of the ipvlan */
 		addattr32(&req.n, sizeof(req), IFLA_LINK, vrrp->configured_ifp->ifindex);
 		addattr_l(&req.n, sizeof(req), IFLA_IFNAME, vrrp->vmac_ifname, strlen(vrrp->vmac_ifname));
-		linkinfo = NLMSG_TAIL(&req.n);
+		linkinfo = PTR_CAST(struct rtattr, NLMSG_TAIL(&req.n));
 		addattr_l(&req.n, sizeof(req), IFLA_LINKINFO, NULL, 0);
 		addattr_l(&req.n, sizeof(req), IFLA_INFO_KIND, (const void *)ipvlan_ll_kind, strlen(ipvlan_ll_kind));
-		data = NLMSG_TAIL(&req.n);
+		data = PTR_CAST(struct rtattr, NLMSG_TAIL(&req.n));
 		addattr_l(&req.n, sizeof(req), IFLA_INFO_DATA, NULL, 0);
 
 		/*

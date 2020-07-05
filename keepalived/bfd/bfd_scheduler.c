@@ -810,9 +810,9 @@ bfd_receive_packet(bfdpkt_t *pkt, int fd, char *buf, ssize_t bufsz)
 	unsigned int ttl = 0;
 	struct msghdr msg;
 	struct cmsghdr *cmsg = NULL;
-	char cbuf[CMSG_SPACE(sizeof (struct in6_pktinfo)) + CMSG_SPACE(sizeof(ttl))];
+	char cbuf[CMSG_SPACE(sizeof (struct in6_pktinfo)) + CMSG_SPACE(sizeof(ttl))] __attribute__((aligned(__alignof(struct cmsghdr))));
 	struct iovec iov[1];
-	struct in6_pktinfo *pktinfo;
+	const struct in6_pktinfo *pktinfo;
 
 	assert(pkt);
 	assert(fd >= 0);
@@ -850,7 +850,7 @@ bfd_receive_packet(bfdpkt_t *pkt, int fd, char *buf, ssize_t bufsz)
 		    (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_HOPLIMIT))
 			ttl = *CMSG_DATA(cmsg);
 		else if (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO) {
-			pktinfo = (struct in6_pktinfo *)CMSG_DATA(cmsg);
+			pktinfo = PTR_CAST_CONST(struct in6_pktinfo, CMSG_DATA(cmsg));
 			if (IN6_IS_ADDR_V4MAPPED(&pktinfo->ipi6_addr)) {
 				((struct sockaddr_in *)&pkt->dst_addr)->sin_addr.s_addr = pktinfo->ipi6_addr.s6_addr32[3];
 				pkt->dst_addr.ss_family = AF_INET;
@@ -868,7 +868,7 @@ bfd_receive_packet(bfdpkt_t *pkt, int fd, char *buf, ssize_t bufsz)
 	if (!ttl)
 		log_message(LOG_WARNING, "recvmsg() returned no TTL control message");
 
-	pkt->hdr = (bfdhdr_t *) buf;
+	pkt->hdr = PTR_CAST(bfdhdr_t, buf);
 	pkt->len = len;
 	pkt->ttl = ttl;
 

@@ -150,8 +150,8 @@ typedef struct _data {
 	int				max_auto_priority;
 	long				min_auto_priority_delay;
 #ifdef _WITH_VRRP_
-	struct sockaddr_in		vrrp_mcast_group4;
-	struct sockaddr_in6		vrrp_mcast_group6;
+	struct sockaddr_in6		vrrp_mcast_group6 __attribute__((aligned(__alignof__(struct sockaddr_storage))));
+	struct sockaddr_in		vrrp_mcast_group4 __attribute__((aligned(__alignof__(struct sockaddr_storage))));
 	unsigned			vrrp_garp_delay;
 	timeval_t			vrrp_garp_refresh;
 	unsigned			vrrp_garp_rep;

@@ -140,9 +140,9 @@ smtp_check_end_handler(void)
 
 	/* If any connection component has been configured, we want to add it to the host list */
 	if (checker->co->dst.ss_family != AF_UNSPEC ||
-	    ((struct sockaddr_in *)&checker->co->dst)->sin_port ||
+	    PTR_CAST(struct sockaddr_in, &checker->co->dst)->sin_port ||
 	    checker->co->bindto.ss_family != AF_UNSPEC ||
-	    ((struct sockaddr_in *)&checker->co->bindto)->sin_port ||
+	    PTR_CAST(struct sockaddr_in, &checker->co->bindto)->sin_port ||
 	    checker->co->bind_if[0] ||
 #ifdef _WITH_SO_MARK_
 	    checker->co->fwmark ||
@@ -150,8 +150,8 @@ smtp_check_end_handler(void)
 	    checker->co->connection_to) {
 		/* Set any necessary defaults */
 		if (checker->co->dst.ss_family == AF_UNSPEC) {
-			if (((struct sockaddr_in *)&checker->co->dst)->sin_port) {
-				uint16_t saved_port = ((struct sockaddr_in *)&checker->co->dst)->sin_port;
+			if (PTR_CAST(struct sockaddr_in, &checker->co->dst)->sin_port) {
+				uint16_t saved_port = PTR_CAST(struct sockaddr_in, &checker->co->dst)->sin_port;
 				checker->co->dst = default_co->dst;
 				checker_set_dst_port(&checker->co->dst, saved_port);
 			}
@@ -237,7 +237,7 @@ smtp_host_handler(__attribute__((unused)) const vector_t *strvec)
 
 	/* save the main conn_opts_t and set a new default for the host */
 	sav_co = checker->co;
-	checker->co = (conn_opts_t*)MALLOC(sizeof(conn_opts_t));
+	PMALLOC(checker->co);
 	*checker->co = *sav_co;
 
 	log_message(LOG_INFO, "The SMTP_CHECK host block is deprecated. Please define additional checkers.");

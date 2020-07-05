@@ -28,6 +28,7 @@
 /* keepalived includes */
 #include "utils.h"
 #include "html.h"
+#include "align.h"
 
 /* genhash includes */
 #include "include/http.h"
@@ -153,7 +154,7 @@ finalize(thread_ref_t thread)
 	if (req->verbose) {
 		printf("\n");
 		printf(HTML_HASH);
-		dump_buffer((char *) digest, digest_length, stdout, 0);
+		dump_buffer(PTR_CAST(char, digest), digest_length, stdout, 0);
 
 		printf(HTML_HASH_FINAL);
 	}
@@ -335,19 +336,19 @@ http_request_thread(thread_ref_t thread)
 	}
 
 	/* Allocate & clean the GET string */
-	str_request = (char *) MALLOC(GET_BUFFER_LENGTH);
+	str_request = PTR_CAST(char, MALLOC(GET_BUFFER_LENGTH));
 
 	if (req->vhost) {
 		/* If vhost was defined we don't need to override it's port */
 		request_host = req->vhost;
-		str = (char*) MALLOC(1);
+		str = PTR_CAST(char, MALLOC(1));
 		*str = '\0';
 		request_host_port = str;
 	} else {
 		request_host = req->ipaddress;
 
 		/* Allocate a buffer for the port string ( ":" [0-9][0-9][0-9][0-9][0-9] "\0" ) */
-		str = (char*) MALLOC(7);
+		str = PTR_CAST(char, MALLOC(7));
 		snprintf(str, 7, ":%d", ntohs(req->addr_port));
 		request_host_port = str;
 	}
@@ -383,7 +384,7 @@ http_request_thread(thread_ref_t thread)
 	}
 
 	/* Allocate & clean the get buffer */
-	sock_obj->buffer = (char *) MALLOC(MAX_BUFFER_LENGTH);
+	sock_obj->buffer = PTR_CAST(char, MALLOC(MAX_BUFFER_LENGTH));
 
 	/* Initalize the hash context */
 	sock_obj->hash = &hashes[req->hash];

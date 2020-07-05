@@ -76,6 +76,7 @@
 #endif
 #include "vrrp_ipaddress.h"
 #include "global_data.h"
+#include "align.h"
 
 /* This seems a nasty hack, but it's what iproute2 does */
 #ifndef SOL_NETLINK
@@ -695,7 +696,7 @@ addattr_l(struct nlmsghdr *n, size_t maxlen, unsigned short type, const void *da
 	if (n->nlmsg_len + align_len > maxlen)
 		return -1;
 
-	rta = (struct rtattr *) (((char *) n) + n->nlmsg_len);
+	rta = PTR_CAST(struct rtattr, (((char *) n) + n->nlmsg_len));
 	rta->rta_type = type;
 	rta->rta_len = (unsigned short)len;
 	memcpy(RTA_DATA(rta), data, alen);
@@ -715,7 +716,7 @@ addattr_l2(struct nlmsghdr *n, size_t maxlen, unsigned short type, const void *d
 	if (n->nlmsg_len + align_len > maxlen)
 		return -1;
 
-	rta = (struct rtattr *) (((char *) n) + n->nlmsg_len);
+	rta = PTR_CAST(struct rtattr, (((char *) n) + n->nlmsg_len));
 	rta->rta_type = type;
 	rta->rta_len = (unsigned short)len;
 	memcpy(RTA_DATA(rta), data, alen);
@@ -734,7 +735,8 @@ addraw_l(struct nlmsghdr *n, size_t maxlen, const void *data, size_t len)
 		return -1;
 
 	memcpy(NLMSG_TAIL(n), data, len);
-	memset((char *) NLMSG_TAIL(n) + len, 0, align_len - len);
+	if (align_len > len)
+		memset(PTR_CAST(char, NLMSG_TAIL(n)) + len, 0, align_len - len);
 	n->nlmsg_len += (uint32_t)align_len;
 	return 0;
 }
@@ -750,7 +752,7 @@ rta_addattr_l(struct rtattr *rta, size_t maxlen, unsigned short type,
 	if (rta->rta_len + align_len > maxlen)
 		return 0;
 
-	subrta = (struct rtattr*)(((char *)rta) + rta->rta_len);
+	subrta = PTR_CAST(struct rtattr, (char *)rta + rta->rta_len);
 	subrta->rta_type = type;
 	subrta->rta_len = (unsigned short)len;
 	memcpy(RTA_DATA(subrta), data, alen);
@@ -770,7 +772,7 @@ rta_addattr_l2(struct rtattr *rta, size_t maxlen, unsigned short type,
 	if (rta->rta_len + align_len > maxlen)
 		return 0;
 
-	subrta = (struct rtattr*)(((char*)rta) + rta->rta_len);
+	subrta = PTR_CAST(struct rtattr, (((char*)rta) + rta->rta_len));
 	subrta->rta_type = type;
 	subrta->rta_len = (unsigned short)len;
 	memcpy(RTA_DATA(subrta), data, alen);
@@ -1220,7 +1222,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 	ssize_t len;
 	int ret = 0;
 	int error;
-	char *nlmsg_buf = NULL;
+	char *nlmsg_buf __attribute__((aligned(__alignof(struct nlmsghdr)))) = NULL;
 	int nlmsg_buf_size = 0;
 
 	while (true) {
@@ -1291,7 +1293,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 			break;
 		}
 
-		for (h = (struct nlmsghdr *) nlmsg_buf; NLMSG_OK(h, (size_t)len); h = NLMSG_NEXT(h, len)) {
+		for (h = PTR_CAST(struct nlmsghdr, nlmsg_buf); NLMSG_OK(h, (size_t)len); h = NLMSG_NEXT(h, len)) {
 			/* Finish off reading. */
 			if (h->nlmsg_type == NLMSG_DONE) {
 				FREE(nlmsg_buf);

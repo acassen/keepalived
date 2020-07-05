@@ -687,7 +687,7 @@ process_track_file(tracked_file_t *tfile, bool init)
 static void
 process_inotify(thread_ref_t thread)
 {
-	char buf[sizeof(struct inotify_event) + NAME_MAX + 1];
+	char buf[sizeof(struct inotify_event) + NAME_MAX + 1] __attribute__((aligned(__alignof__(struct inotify_event))));
 	char *buf_ptr;
 	ssize_t len;
 	struct inotify_event* event;
@@ -720,7 +720,7 @@ process_inotify(thread_ref_t thread)
 
 		/* The following line causes a strict-overflow=4 warning on gcc 5.4.0 */
 		for (buf_ptr = buf; buf_ptr < buf + len; buf_ptr += event->len + sizeof(struct inotify_event)) {
-			event = (struct inotify_event*)buf_ptr;
+			event = PTR_CAST(struct inotify_event, buf_ptr);
 
 			/* We are not interested in directories */
 			if (event->mask & IN_ISDIR)

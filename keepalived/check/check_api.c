@@ -213,7 +213,7 @@ bool
 check_conn_opts(conn_opts_t *co)
 {
 	if (co->dst.ss_family == AF_INET6 &&
-	    IN6_IS_ADDR_LINKLOCAL(&((struct sockaddr_in6*)&co->dst)->sin6_addr) &&
+	    IN6_IS_ADDR_LINKLOCAL(&PTR_CAST(struct sockaddr_in6, &co->dst)->sin6_addr) &&
 	    !co->bind_if[0]) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Checker link local address %s requires a bind_if", inet_sockaddrtos(&co->dst));
 		return false;
@@ -252,10 +252,10 @@ checker_set_dst_port(struct sockaddr_storage *dst, uint16_t port)
 	/* NOTE: we are relying on the offset of sin_port and sin6_port being
 	 * the same if an IPv6 address is specified after the port */
 	if (dst->ss_family == AF_INET6) {
-		struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) dst;
+		struct sockaddr_in6 *addr6 = PTR_CAST(struct sockaddr_in6, dst);
 		addr6->sin6_port = port;
 	} else {
-		struct sockaddr_in *addr4 = (struct sockaddr_in *) dst;
+		struct sockaddr_in *addr4 = PTR_CAST(struct sockaddr_in, dst);
 		addr4->sin_port = port;
 	}
 }
@@ -575,9 +575,9 @@ addr_matches(const virtual_server_t *vs, void *address)
 
 	if (vs->addr.ss_family != AF_UNSPEC) {
 		if (vs->addr.ss_family == AF_INET6)
-			addr = (const void *) &((const struct sockaddr_in6 *)&vs->addr)->sin6_addr;
+			addr = (const void *)&PTR_CAST_CONST(struct sockaddr_in6, &vs->addr)->sin6_addr;
 		else
-			addr = (const void *) &((const struct sockaddr_in *)&vs->addr)->sin_addr;
+			addr = (const void *)&PTR_CAST_CONST(struct sockaddr_in, &vs->addr)->sin_addr;
 
 		return inaddr_equal(vs->addr.ss_family, addr, address);
 	}
@@ -586,11 +586,11 @@ addr_matches(const virtual_server_t *vs, void *address)
 		return false;
 
 	if (vs->af == AF_INET) {
-		mask_addr = *(struct in_addr*)address;
+		mask_addr = *PTR_CAST(struct in_addr, address);
 		addr_base = ntohl(mask_addr.s_addr) & 0xFF;
 		mask_addr.s_addr &= htonl(0xFFFFFF00);
 	} else {
-		mask_addr6 = *(struct in6_addr*)address;
+		mask_addr6 = *PTR_CAST(struct in6_addr, address);
 		addr_base = ntohs(mask_addr6.s6_addr16[7]);
 		mask_addr6.s6_addr16[7] = 0;
 	}
@@ -601,9 +601,9 @@ addr_matches(const virtual_server_t *vs, void *address)
 
 		if (!vsg_entry->range) {
 			if (vsg_entry->addr.ss_family == AF_INET6)
-				addr = (void *) &((struct sockaddr_in6 *)&vsg_entry->addr)->sin6_addr;
+				addr = (void *)&PTR_CAST(struct sockaddr_in6, &vsg_entry->addr)->sin6_addr;
 			else
-				addr = (void *) &((struct sockaddr_in *)&vsg_entry->addr)->sin_addr;
+				addr = (void *)&PTR_CAST(struct sockaddr_in, &vsg_entry->addr)->sin_addr;
 
 			if (inaddr_equal(vsg_entry->addr.ss_family, addr, address))
 				return true;
@@ -614,7 +614,7 @@ addr_matches(const virtual_server_t *vs, void *address)
 		if (range_addr.ss_family == AF_INET) {
 			struct in_addr ra;
 
-			ra = ((struct sockaddr_in *)&range_addr)->sin_addr;
+			ra = PTR_CAST(struct sockaddr_in, &range_addr)->sin_addr;
 			ra_base = ntohl(ra.s_addr) & 0xFF;
 
 			if (addr_base < ra_base || addr_base > ra_base + vsg_entry->range)
@@ -624,7 +624,7 @@ addr_matches(const virtual_server_t *vs, void *address)
 			if (ra.s_addr != mask_addr.s_addr)
 				continue;
 		} else {
-			struct in6_addr ra = ((struct sockaddr_in6 *)&range_addr)->sin6_addr;
+			struct in6_addr ra = PTR_CAST(struct sockaddr_in6, &range_addr)->sin6_addr;
 			ra_base = ntohs(ra.s6_addr16[7]);
 
 			if (addr_base < ra_base || addr_base > ra_base + vsg_entry->range)

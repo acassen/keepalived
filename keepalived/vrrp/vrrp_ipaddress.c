@@ -341,7 +341,7 @@ parse_ipaddress(ip_address_t *ip_addr, const char *str, bool allow_subnet_mask)
 
 	/* No ip address, allocate a brand new one */
 	if (!new)
-		new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
+		PMALLOC(new);
 
 	/* Parse ip address */
 	new->ifa.ifa_family = (strchr(str, ':')) ? AF_INET6 : AF_INET;
@@ -380,7 +380,9 @@ parse_ipaddress(ip_address_t *ip_addr, const char *str, bool allow_subnet_mask)
 ip_address_t *
 parse_route(const char *str)
 {
-	ip_address_t *new = (ip_address_t *)MALLOC(sizeof(ip_address_t));
+	ip_address_t *new;
+
+	PMALLOC(new);
 
 	/* Handle the specials */
 	if (!strcmp(str, "default") || !strcmp(str, "any") || !strcmp(str, "all")) {
@@ -428,7 +430,7 @@ alloc_ipaddress(list_head_t *ip_list, const vector_t *strvec, bool static_addr)
 	unsigned preferred_lft;
 	bool preferred_lft_set = false;
 
-	new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
+	PMALLOC(new);
 	if (!new) {
 		log_message(LOG_INFO, "Unable to allocate new ip_address");
 		return;
