@@ -1001,6 +1001,7 @@ bfd_open_fd_out(bfd_t *bfd)
 	int ret;
 	uint32_t port_limits[2];
 	uint16_t orig_port, port;
+	socklen_t sockaddr_len;
 
 	assert(bfd);
 	assert(bfd->fd_out == -1);
@@ -1029,6 +1030,7 @@ bfd_open_fd_out(bfd_t *bfd)
 		}
 
 		orig_port = port = rand_intv(port_limits[0], port_limits[1]);
+		sockaddr_len = bfd->src_addr.ss_family == AF_INET ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6);
 		do {
 			/* Try binding socket to the address until we find one available */
 			if (bfd->src_addr.ss_family == AF_INET)
@@ -1036,8 +1038,7 @@ bfd_open_fd_out(bfd_t *bfd)
 			else
 				((struct sockaddr_in6 *)&bfd->src_addr)->sin6_port = htons(port);
 
-			ret = bind(bfd->fd_out, (struct sockaddr *) &bfd->src_addr,
-				   sizeof (struct sockaddr));
+			ret = bind(bfd->fd_out, (struct sockaddr *) &bfd->src_addr, sockaddr_len);
 
 			if (ret == -1 && errno == EADDRINUSE) {
 				/* Port already in use, try next */
