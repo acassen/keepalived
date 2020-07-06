@@ -52,10 +52,7 @@ check_data_t *old_check_data = NULL;
 ssl_data_t *
 alloc_ssl(void)
 {
-	ssl_data_t *ssl_data;
-
-	PMALLOC(ssl_data);
-	return ssl_data;
+	return (ssl_data_t *) MALLOC(sizeof(ssl_data_t));
 }
 void
 free_ssl(void)
@@ -118,8 +115,8 @@ dump_vsg_entry(FILE *fp, const virtual_server_group_entry_t *vsg_entry)
 	} else {
 		if (vsg_entry->range) {
 			start = vsg_entry->addr.ss_family == AF_INET ?
-				  ntohl(PTR_CAST_CONST(struct sockaddr_in, &vsg_entry->addr)->sin_addr.s_addr) & 0xFF :
-				  ntohs(PTR_CAST_CONST(struct sockaddr_in6, &vsg_entry->addr)->sin6_addr.s6_addr16[7]);
+				  ntohl(((const struct sockaddr_in*)&vsg_entry->addr)->sin_addr.s_addr) & 0xFF :
+				  ntohs(((const struct sockaddr_in6*)&vsg_entry->addr)->sin6_addr.s6_addr16[7]);
 			conf_write(fp,
 				    vsg_entry->addr.ss_family == AF_INET ?
 					"   VIP Range = %s-%u, VPORT = %d" :
@@ -267,9 +264,9 @@ alloc_vsg_entry(const vector_t *strvec)
 			new->range = 0;
 		else {
 			if (new->addr.ss_family == AF_INET)
-				start = ntohl(PTR_CAST(struct sockaddr_in, &new->addr)->sin_addr.s_addr) & 0xFF;
+				start = ntohl(((struct sockaddr_in *)&new->addr)->sin_addr.s_addr) & 0xFF;
 			else
-				start = ntohs(PTR_CAST(struct sockaddr_in6, &new->addr)->sin6_addr.s6_addr16[7]);
+				start = ntohs(((struct sockaddr_in6 *)&new->addr)->sin6_addr.s6_addr16[7]);
 
 			if (start >= new->range) {
 				report_config_error(CONFIG_GENERAL_ERROR, "Address range end is not greater than address range start - %s - skipping", strvec_slot(strvec, 0));
@@ -362,7 +359,7 @@ free_rs_list(list_head_t *l)
 void
 dump_tracking_rs(FILE *fp, const void *data)
 {
-	const tracking_obj_t *top = PTR_CAST_CONST(tracking_obj_t, data);
+	const tracking_obj_t *top = (const tracking_obj_t *)data;
 	const checker_t *checker = top->obj.checker;
 
 	conf_write(fp, "     %s -> %s, weight %d%s", FMT_VS(checker->vs), FMT_RS(checker->rs, checker->vs), top->weight, top->weight_multiplier == -1 ? " reverse" : "");
@@ -881,8 +878,8 @@ format_vsge(const virtual_server_group_entry_t *vsge)
 		snprintf(ret, sizeof(ret), "FWM %u", vsge->vfwmark);
 	else if (vsge->range) {
 		start = vsge->addr.ss_family == AF_INET ?
-			  ntohl(PTR_CAST_CONST(struct sockaddr_in, &vsge->addr)->sin_addr.s_addr) & 0xFF :
-			  ntohs(PTR_CAST_CONST(struct sockaddr_in6, &vsge->addr)->sin6_addr.s6_addr16[7]);
+			  ntohl(((const struct sockaddr_in*)&vsge->addr)->sin_addr.s_addr) & 0xFF :
+			  ntohs(((const struct sockaddr_in6*)&vsge->addr)->sin6_addr.s6_addr16[7]);
 		snprintf(ret, sizeof(ret),
 			    vsge->addr.ss_family == AF_INET ?  "%s-%u,%d" : "%s-%x,%d",
 			    inet_sockaddrtos(&vsge->addr),

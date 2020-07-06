@@ -69,10 +69,7 @@ strvec_slot(const vector_t *strvec, size_t index)
 vector_t *
 vector_alloc_r(void)
 {
-	vector_t *v;
-
-	PMALLOC(v);
-
+	vector_t *v = (vector_t *) MALLOC(sizeof(vector_t));
 	return v;
 }
 
@@ -88,7 +85,7 @@ vector_init(unsigned int size)
 
 	v->allocated = size;
 	v->active = 0;
-	v->slot = MALLOC(sizeof(void *) * size);
+	v->slot = (void *) MALLOC(sizeof(void *) * size);
 	return v;
 }
 #endif
@@ -101,7 +98,7 @@ vector_alloc_slot_r(vector_t *v)
 	if (v->slot)
 		v->slot = REALLOC(v->slot, sizeof (void *) * v->allocated);
 	else
-		v->slot = MALLOC(sizeof (void *) * v->allocated);
+		v->slot = (void *) MALLOC(sizeof (void *) * v->allocated);
 }
 
 /* Copy / dup a vector */

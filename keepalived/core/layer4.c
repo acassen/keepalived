@@ -43,7 +43,6 @@
 #endif
 #include "bitops.h"
 #include "utils.h"
-#include "align.h"
 
 // #define ICMP_DEBUG	1
 
@@ -88,7 +87,7 @@ socket_bind_connect(int fd, conn_opts_t *co)
 	const struct sockaddr_storage *bind_addr = &co->bindto;
 
 	optlen = sizeof(opt);
-	if (getsockopt(fd, SOL_SOCKET, SO_TYPE, (void *)&opt, &optlen) < 0) {
+	if (getsockopt(fd, SOL_SOCKET, SO_TYPE, (void *) &opt, &optlen) < 0) {
 		log_message(LOG_ERR, "Can't get socket type: %s", strerror(errno));
 		return connect_error;
 	}
@@ -97,7 +96,7 @@ socket_bind_connect(int fd, conn_opts_t *co)
 		 * allow time for a proper shutdown. */
 		li.l_onoff = 1;
 		li.l_linger = 5;
-		if (setsockopt(fd, SOL_SOCKET, SO_LINGER, PTR_CAST(char, &li), sizeof (struct linger)))
+		if (setsockopt(fd, SOL_SOCKET, SO_LINGER, (char *) &li, sizeof (struct linger)))
 			log_message(LOG_INFO, "Failed to set SO_LINGER for socket %d - errno %d (%m)", fd, errno);
 	}
 
@@ -118,9 +117,9 @@ socket_bind_connect(int fd, conn_opts_t *co)
 	}
 
 	/* Bind socket */
-	if (PTR_CAST_CONST(struct sockaddr, bind_addr)->sa_family != AF_UNSPEC) {
+	if (((const struct sockaddr *) bind_addr)->sa_family != AF_UNSPEC) {
 		addrlen = sizeof(*bind_addr);
-		if (bind(fd, PTR_CAST_CONST(struct sockaddr, bind_addr), addrlen) != 0) {
+		if (bind(fd, (const struct sockaddr *) bind_addr, addrlen) != 0) {
 			log_message(LOG_INFO, "Checker bind failed: %s", strerror(errno));
 			return connect_error;
 		}
@@ -128,7 +127,7 @@ socket_bind_connect(int fd, conn_opts_t *co)
 
 	/* Set remote IP and connect */
 	addrlen = sizeof(*addr);
-	ret = connect(fd, PTR_CAST_CONST(struct sockaddr, addr), addrlen);
+	ret = connect(fd, (const struct sockaddr *) addr, addrlen);
 
 	/* Immediate success */
 	if (ret == 0)
@@ -248,9 +247,9 @@ udp_bind_connect(int fd, conn_opts_t *co)
 
 	/* We want to be able to receive ICMP error responses */
 	if (co->dst.ss_family == AF_INET)
-		err = setsockopt(fd, SOL_IP, IP_RECVERR, PTR_CAST(char, &on), sizeof(on));
+		err = setsockopt(fd, SOL_IP, IP_RECVERR, (char *)&on, sizeof(on));
 	else
-		err = setsockopt(fd, SOL_IPV6, IPV6_RECVERR, PTR_CAST(char, &on), sizeof(on));
+		err = setsockopt(fd, SOL_IPV6, IPV6_RECVERR, (char *)&on, sizeof(on));
 	if (err)
 		log_message(LOG_INFO, "Error %d setting IP%s_RECVERR for socket %d - %m", errno, co->dst.ss_family == AF_INET ? "" : "V6", fd);
 
@@ -264,9 +263,9 @@ udp_bind_connect(int fd, conn_opts_t *co)
 #endif
 
 	/* Bind socket */
-	if (PTR_CAST_CONST(struct sockaddr, bind_addr)->sa_family != AF_UNSPEC) {
+	if (((const struct sockaddr *) bind_addr)->sa_family != AF_UNSPEC) {
 		addrlen = sizeof(*bind_addr);
-		if (bind(fd, PTR_CAST_CONST(struct sockaddr, bind_addr), addrlen) != 0) {
+		if (bind(fd, (const struct sockaddr *) bind_addr, addrlen) != 0) {
 			log_message(LOG_INFO, "bind failed. errno: %d, error: %s", errno, strerror(errno));
 			return connect_error;
 		}
@@ -274,7 +273,7 @@ udp_bind_connect(int fd, conn_opts_t *co)
 
 	/* Set remote IP and connect */
 	addrlen = sizeof(*addr);
-	ret = connect(fd, PTR_CAST_CONST(struct sockaddr, addr), addrlen);
+	ret = connect(fd, (const struct sockaddr *) addr, addrlen);
 
 	if (ret < 0) {
 		/* We want to know about the error, but not repeatedly */
@@ -313,7 +312,7 @@ udp_socket_error(int fd)
 	struct msghdr msg;
 	char name_buf[128];
 	struct iovec iov;
-	char control[2560] __attribute__((aligned (__alignof__(struct cmsghdr))));
+	char control[2560];
 	struct icmphdr icmph;
 	struct cmsghdr *cmsg;                   /* Control related data */
 	struct sock_extended_err *sock_err;
@@ -337,7 +336,7 @@ udp_socket_error(int fd)
 	}
 
 	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
-		sock_err = PTR_CAST(struct sock_extended_err, CMSG_DATA(cmsg));
+		sock_err = (struct sock_extended_err *)CMSG_DATA(cmsg);
 		if (cmsg->cmsg_level == SOL_IP && cmsg->cmsg_type == IP_RECVERR) {
 			if (sock_err) {
 				/* We are interested in ICMP errors */

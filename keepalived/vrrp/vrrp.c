@@ -323,7 +323,7 @@ vrrp_get_header(sa_family_t family, const char *buf, size_t len)
 	 * IPv4 and IPPROTO_AH. */
 
 	if (family == AF_INET) {
-		iph = PTR_CAST_CONST(const struct iphdr, buf);
+		iph = (const struct iphdr *)buf;
 
 		/* Ensure we have received the full vrrp header */
 		if (len < sizeof(struct iphdr) ||
@@ -341,10 +341,10 @@ vrrp_get_header(sa_family_t family, const char *buf, size_t len)
 				return NULL;
 			}
 
-			return PTR_CAST_CONST(vrrphdr_t, (const char *) iph + (iph->ihl << 2) + sizeof(ipsec_ah_t));
+			return (const vrrphdr_t *)((const char *) iph + (iph->ihl << 2) + sizeof(ipsec_ah_t));
 		}
 #endif
-		return PTR_CAST_CONST(vrrphdr_t, (const char *) iph + (iph->ihl << 2));
+		return (const vrrphdr_t *)((const char *) iph + (iph->ihl << 2));
 	}
 
 	if (family == AF_INET6) {
@@ -354,7 +354,7 @@ vrrp_get_header(sa_family_t family, const char *buf, size_t len)
 			return NULL;
 		}
 
-		return PTR_CAST_CONST(vrrphdr_t, buf);
+		return (const vrrphdr_t *)buf;
 	}
 
 	return NULL;
@@ -404,11 +404,11 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage *addr)
 #endif
 	}
 
-	hd = PTR_CAST(vrrphdr_t, bufptr);
+	hd = (vrrphdr_t *)bufptr;
 	if (hd->priority != prio) {
 		if (vrrp->family == AF_INET) {
 			/* HC' = ~(~HC + ~m + m') */
-			uint16_t *prio_addr = PTR_CAST(uint16_t, ((char *)&hd->priority - (((char *)hd -(char *)&hd->priority) & 1)));
+			uint16_t *prio_addr = (uint16_t *)((char *)&hd->priority - (((char *)hd -(char *)&hd->priority) & 1));
 			uint16_t old_val = *prio_addr;
 
 			hd->priority = prio;
@@ -419,7 +419,7 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage *addr)
 	}
 
 	if (vrrp->family == AF_INET) {
-		struct iphdr *ip = PTR_CAST(struct iphdr, (vrrp->send_buffer));
+		struct iphdr *ip = (struct iphdr *) (vrrp->send_buffer);
 		if (!addr) {
 			/* kernel will fill in ID if left to 0, so we overflow to 1 */
 			if (!++vrrp->ip_id)
@@ -458,7 +458,7 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage *addr)
 #ifdef _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH) {
 			unsigned char digest[MD5_DIGEST_LENGTH];
-			ipsec_ah_t *ah = PTR_CAST(ipsec_ah_t, (vrrp->send_buffer + sizeof (struct iphdr)));
+			ipsec_ah_t *ah = (ipsec_ah_t *) (vrrp->send_buffer + sizeof (struct iphdr));
 
 			if (new_saddr)
 				ah->spi = new_saddr;
@@ -522,9 +522,9 @@ vrrp_csum_mcast(vrrp_t *vrrp)
 		bufptr += sizeof(ipsec_ah_t);
 #endif
 
-	hd = PTR_CAST(vrrphdr_t, bufptr);
+	hd = (vrrphdr_t *)bufptr;
 
-	struct iphdr *ip = PTR_CAST(struct iphdr, (vrrp->send_buffer));
+	struct iphdr *ip = (struct iphdr *) (vrrp->send_buffer);
 	if (vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_AUTO &&
 	    ip->daddr != global_data->vrrp_mcast_group4.sin_addr.s_addr) {
 		/* The checksum is calculated using the standard multicast address */
@@ -543,9 +543,9 @@ vrrp_in_chk_ipsecah(vrrp_t *vrrp, const struct iphdr *ip, const ipsec_ah_t *ah, 
 {
 	size_t hdr_len = (const char *)ah - (const char *)ip;
 	unsigned char digest[MD5_DIGEST_LENGTH];
-	unsigned char tmp_buf[(15 << 2) + sizeof(ipsec_ah_t)] __attribute__((aligned(__alignof(struct iphdr)))); /* Allow for max ip header size */
-	struct iphdr *ip_tmp = PTR_CAST(struct iphdr, tmp_buf);
-	ipsec_ah_t *ah_tmp = PTR_CAST(ipsec_ah_t, ((char *)ip_tmp + hdr_len));
+	unsigned char tmp_buf[(15 << 2) + sizeof(ipsec_ah_t)]; /* Allow for max ip header size */
+	struct iphdr *ip_tmp = (struct iphdr *)tmp_buf;
+	ipsec_ah_t *ah_tmp = (ipsec_ah_t *)((char *)ip_tmp + hdr_len);
 
 	/*
 	 * First compute an ICV to compare with the one present in AH pkt.
@@ -628,8 +628,8 @@ vrrp_in_chk_vips(const vrrp_t *vrrp, const ip_address_t *ipaddress, const unsign
 static void
 check_tx_checksum(vrrp_t *vrrp, unicast_peer_t *peer)
 {
-	struct iphdr *ip = PTR_CAST(struct iphdr, vrrp->send_buffer);
-	vrrphdr_t *hd = PTR_CAST(vrrphdr_t, ((char *)vrrp->send_buffer + sizeof(struct iphdr)));
+	struct iphdr *ip = (struct iphdr *)vrrp->send_buffer;
+	vrrphdr_t *hd = (vrrphdr_t *)((char *)vrrp->send_buffer + sizeof(struct iphdr));
 	size_t vrrppkt_len;
 	uint32_t acc_csum;
 	ipv4_phdr_t ipv4_phdr;
@@ -639,7 +639,7 @@ check_tx_checksum(vrrp_t *vrrp, unicast_peer_t *peer)
 
 #ifdef _WITH_VRRP_AUTH_
 	if (ip->protocol == IPPROTO_AH)
-		hd = PTR_CAST(vrrphdr_t, ((char *)hd + sizeof(ipsec_ah_t)));
+		hd = (vrrphdr_t *)((char *)hd + sizeof(ipsec_ah_t));
 #endif
 	vrrppkt_len = sizeof(vrrphdr_t) + hd->naddr * sizeof(struct in_addr);
 
@@ -783,7 +783,7 @@ check_rx_checksum(vrrp_t *vrrp, const ipv4_phdr_t *ipv4_phdr, const struct iphdr
 static int
 vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t buflen_ret, bool check_vip_addr)
 {
-	const struct iphdr *ip = PTR_CAST_CONST(struct iphdr, buffer);
+	const struct iphdr *ip = (const struct iphdr *)buffer;
 					/* Stop coverity issuing NULL pointer dereference warning */
 	int ihl = 0;	/* Stop compiler issuing possibly uninitialised warning */
 	size_t vrrppkt_len;
@@ -923,7 +923,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 			}
 		}
 		else if (vrrp->auth_type == VRRP_AUTH_AH) {
-			ah = PTR_CAST_CONST(ipsec_ah_t, buffer + ihl);
+			ah = (const ipsec_ah_t *) (buffer + ihl);
 
 			/* Check that the next header is vrrphdr_t */
 			if (ah->next_header != IPPROTO_VRRP) {
@@ -1182,7 +1182,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 static void
 vrrp_build_ip4(vrrp_t *vrrp, char *buffer)
 {
-	struct iphdr *ip = PTR_CAST(struct iphdr, (buffer));
+	struct iphdr *ip = (struct iphdr *) (buffer);
 
 	ip->ihl = sizeof(struct iphdr) >> 2;
 	ip->version = 4;
@@ -1220,8 +1220,8 @@ static void
 vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, size_t buflen)
 {
 	unsigned char digest[MD5_DIGEST_LENGTH];
-	struct iphdr *ip = PTR_CAST(struct iphdr, (buffer));
-	ipsec_ah_t *ah = PTR_CAST(ipsec_ah_t, (buffer + sizeof (struct iphdr)));
+	struct iphdr *ip = (struct iphdr *) (buffer);
+	ipsec_ah_t *ah = (ipsec_ah_t *) (buffer + sizeof (struct iphdr));
 
 	/* fill in next header filed --rfc2402.2.1 */
 	ah->next_header = IPPROTO_VRRP;
@@ -1261,7 +1261,7 @@ static void
 vrrp_build_vrrp_v2(vrrp_t *vrrp, char *buffer)
 {
 	int i = 0;
-	vrrphdr_t *hd = PTR_CAST(vrrphdr_t, buffer);
+	vrrphdr_t *hd = (vrrphdr_t *) buffer;
 	struct in_addr *iparr;
 	struct in6_addr *ip6arr;
 	ip_address_t *ip_addr;
@@ -1281,7 +1281,7 @@ vrrp_build_vrrp_v2(vrrp_t *vrrp, char *buffer)
 	/* Family specific */
 	if (vrrp->family == AF_INET) {
 		/* copy the ip addresses */
-		iparr = PTR_CAST(struct in_addr, ((char *) hd + sizeof (*hd)));
+		iparr = (struct in_addr *) ((char *) hd + sizeof (*hd));
 		list_for_each_entry(ip_addr, &vrrp->vip, e_list)
 			iparr[i++] = ip_addr->u.sin.sin_addr;
 
@@ -1298,7 +1298,7 @@ vrrp_build_vrrp_v2(vrrp_t *vrrp, char *buffer)
 		hd->chksum = 0;
 		hd->chksum = in_csum((uint16_t *)hd, vrrp_pkt_len(vrrp), 0, NULL);
 	} else if (vrrp->family == AF_INET6) {
-		ip6arr = PTR_CAST(struct in6_addr, ((char *) hd + sizeof(*hd)));
+		ip6arr = (struct in6_addr *)((char *) hd + sizeof(*hd));
 		list_for_each_entry(ip_addr, &vrrp->vip, e_list)
 			ip6arr[i++] = ip_addr->u.sin6_addr;
 
@@ -1312,7 +1312,7 @@ static void
 vrrp_build_vrrp_v3(vrrp_t *vrrp, char *buffer, struct iphdr *ip)
 {
 	int i = 0;
-	vrrphdr_t *hd = PTR_CAST(vrrphdr_t, buffer);
+	vrrphdr_t *hd = (vrrphdr_t *) buffer;
 	struct in_addr *iparr;
 	struct in6_addr *ip6arr;
 	ip_address_t *ip_addr;
@@ -1332,7 +1332,7 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, char *buffer, struct iphdr *ip)
 	/* Family specific */
 	if (vrrp->family == AF_INET) {
 		/* copy the ip addresses */
-		iparr = PTR_CAST(struct in_addr, ((char *) hd + sizeof(*hd)));
+		iparr = (struct in_addr *) ((char *) hd + sizeof(*hd));
 		list_for_each_entry(ip_addr, &vrrp->vip, e_list)
 			iparr[i++] = ip_addr->u.sin.sin_addr;
 
@@ -1352,7 +1352,7 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, char *buffer, struct iphdr *ip)
 		in_csum((uint16_t *)&ipv4_phdr, sizeof(ipv4_phdr), 0, &vrrp->ipv4_csum);
 		hd->chksum = in_csum((uint16_t *) hd, vrrp_pkt_len(vrrp), vrrp->ipv4_csum, NULL);
 	} else if (vrrp->family == AF_INET6) {
-		ip6arr = PTR_CAST(struct in6_addr, ((char *) hd + sizeof(*hd)));
+		ip6arr = (struct in6_addr *)((char *) hd + sizeof(*hd));
 		list_for_each_entry(ip_addr, &vrrp->vip, e_list)
 			ip6arr[i++] = ip_addr->u.sin6_addr;
 	}
@@ -1388,7 +1388,7 @@ vrrp_build_pkt(vrrp_t * vrrp)
 		if (vrrp->auth_type == VRRP_AUTH_AH)
 			bufptr += sizeof(ipsec_ah_t);
 #endif
-		vrrp_build_vrrp(vrrp, bufptr, PTR_CAST(struct iphdr, vrrp->send_buffer));
+		vrrp_build_vrrp(vrrp, bufptr, (struct iphdr *)vrrp->send_buffer);
 
 #ifdef _WITH_VRRP_AUTH_
 		/* build the IPSEC AH header */
@@ -1419,7 +1419,7 @@ vrrp_build_ancillary_data(struct msghdr *msg, char *cbuf, struct sockaddr_storag
 	cmsg->cmsg_type = IPV6_PKTINFO;
 	cmsg->cmsg_len = CMSG_LEN(sizeof(struct in6_pktinfo));
 
-	pkt = PTR_CAST(struct in6_pktinfo, CMSG_DATA(cmsg));
+	pkt = (struct in6_pktinfo *) CMSG_DATA(cmsg);
 	memset(pkt, 0, sizeof(struct in6_pktinfo));
 	pkt->ipi6_addr = ((struct sockaddr_in6 *) src)->sin6_addr;
 	if (vrrp->ifp) {
@@ -1437,7 +1437,7 @@ vrrp_build_ancillary_data(struct msghdr *msg, char *cbuf, struct sockaddr_storag
 			cmsg->cmsg_level = IPPROTO_IPV6;
 			cmsg->cmsg_type = IPV6_HOPLIMIT;
 			cmsg->cmsg_len = CMSG_LEN(sizeof(*hlim));
-			hlim = PTR_CAST(unsigned, CMSG_DATA(cmsg));
+			hlim = (unsigned *)CMSG_DATA(cmsg);
 			*hlim = vrrp->ttl;
 		} else
 			msg->msg_controllen -= CMSG_SPACE(sizeof(*hlim));
@@ -1452,7 +1452,7 @@ vrrp_send_pkt(vrrp_t * vrrp, unicast_peer_t *peer)
 	struct sockaddr_storage *src = &vrrp->saddr;
 	struct msghdr msg;
 	struct iovec iov;
-	char cbuf[256] __attribute__((aligned(__alignof__(struct cmsghdr))));
+	char cbuf[256];
 
 	/* Build the message data */
 	memset(&msg, 0, sizeof(msg));
@@ -2029,7 +2029,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 					!vrrp->lower_prio_no_advert ? ", forcing new election" : "");
 #ifdef _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH) {
-			ah = PTR_CAST_CONST(ipsec_ah_t, buf + sizeof(struct iphdr));
+			ah = (const ipsec_ah_t *) (buf + sizeof(struct iphdr));
 			log_message(LOG_INFO, "(%s) IPSEC-AH : Syncing seq_num"
 					      " - Increment seq"
 					    , vrrp->iname);

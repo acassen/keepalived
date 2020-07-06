@@ -403,7 +403,7 @@ http_get_check_compare(const checker_t *old_c, checker_t *new_c)
 		if (!u1->regex != !u2->regex)
 			return false;
 		if (u1->regex) {
-			if (strcmp(PTR_CAST_CONST(char, u1->regex->pattern), PTR_CAST_CONST(char, u2->regex->pattern)))
+			if (strcmp((const char *)u1->regex->pattern, (const char *)u2->regex->pattern))
 				return false;
 			if (u1->regex->pcre2_options != u2->regex->pcre2_options)
 				return false;
@@ -628,7 +628,7 @@ regex_handler(__attribute__((unused)) const vector_t *strvec)
 		return;
 	}
 
-	conf_regex_pattern = PTR_CAST_CONST(unsigned char, set_value(strvec_qe));
+	conf_regex_pattern = (const unsigned char *)set_value(strvec_qe);
 	free_strvec(strvec_qe);
 }
 
@@ -748,7 +748,7 @@ prepare_regex(url_t *url)
 	/* See if this regex has already been specified */
 	list_for_each_entry(r, &regexs, e_list) {
 		if (r->pcre2_options == conf_regex_options &&
-		    !strcmp(PTR_CAST_CONST(char, r->pattern), PTR_CAST_CONST(char, conf_regex_pattern))) {
+		    !strcmp((const char *)r->pattern, (const char *)conf_regex_pattern)) {
 			url->regex = r;
 			FREE_CONST_PTR(conf_regex_pattern);
 			url->regex->refcnt++;
@@ -772,7 +772,7 @@ prepare_regex(url_t *url)
 	if(r->pcre2_reCompiled == NULL) {
 		pcre2_get_error_message(pcreErrorNumber, buffer, sizeof buffer);
 		log_message(LOG_INFO, "Invalid regex: '%s' at offset %zu: %s\n"
-				    , r->pattern, pcreErrorOffset, PTR_CAST(char, buffer));
+				    , r->pattern, pcreErrorOffset, (char *)buffer);
 
 		FREE_CONST_PTR(r->pattern);
 		FREE(r);
@@ -787,7 +787,7 @@ prepare_regex(url_t *url)
 	if ((pcreErrorNumber = pcre2_jit_compile(r->pcre2_reCompiled, PCRE2_JIT_PARTIAL_HARD /* | PCRE2_JIT_COMPLETE */))) {
 		pcre2_get_error_message(pcreErrorNumber, buffer, sizeof buffer);
 		log_message(LOG_INFO, "Regex JIT compilation failed: '%s': %s\n"
-				    , r->pattern, PTR_CAST(char, buffer));
+				    , r->pattern, (char *)buffer);
 
 		FREE_CONST_PTR(r->pattern);
 		FREE(r);
@@ -1173,7 +1173,7 @@ check_regex(url_t *url, request_t *req)
 	pcreExecRet = pcre2_match
 #endif
 				(url->regex->pcre2_reCompiled,
-				 PTR_CAST(unsigned char, req->buffer),
+				 (unsigned char *)req->buffer,
 				 req->len,
 				 start_offset,
 				 PCRE2_PARTIAL_HARD,
@@ -1480,7 +1480,7 @@ http_response_thread(thread_ref_t thread)
 	}
 
 	/* Allocate & clean the get buffer */
-	req->buffer = PTR_CAST(char, MALLOC(MAX_BUFFER_LENGTH));
+	req->buffer = (char *) MALLOC(MAX_BUFFER_LENGTH);
 	req->extracted = NULL;
 	req->len = 0;
 	req->error = 0;
@@ -1526,7 +1526,7 @@ http_request_thread(thread_ref_t thread)
 	}
 
 	/* Allocate & clean the GET string */
-	str_request = PTR_CAST(char, MALLOC(GET_BUFFER_LENGTH));
+	str_request = (char *) MALLOC(GET_BUFFER_LENGTH);
 
 	fetched_url = fetch_next_url(http_get_check);
 
@@ -1615,7 +1615,7 @@ http_check_thread(thread_ref_t thread)
 
 	case connect_success:
 		if (!http_get_check->req) {
-			PMALLOC(http_get_check->req);
+			http_get_check->req = (request_t *) MALLOC(sizeof (request_t));
 			new_req = true;
 		} else
 			new_req = false;

@@ -568,9 +568,9 @@ vrrp_ipvlan_handler(const vector_t *strvec)
 			if (vrrp->saddr.ss_family == AF_UNSPEC) {
 				vrrp->saddr.ss_family = vrrp->ipvlan_addr->ifa.ifa_family;
 				if (vrrp->saddr.ss_family == AF_INET)
-					PTR_CAST(struct sockaddr_in, &vrrp->saddr)->sin_addr = vrrp->ipvlan_addr->u.sin.sin_addr;
+					((struct sockaddr_in *)&vrrp->saddr)->sin_addr = vrrp->ipvlan_addr->u.sin.sin_addr;
 				else
-					PTR_CAST(struct sockaddr_in6, &vrrp->saddr)->sin6_addr = vrrp->ipvlan_addr->u.sin6_addr;
+					((struct sockaddr_in6 *)&vrrp->saddr)->sin6_addr = vrrp->ipvlan_addr->u.sin6_addr;
 				vrrp->saddr_from_config = true;
 			}
 

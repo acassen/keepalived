@@ -29,7 +29,6 @@
 
 #include <stdlib.h>
 #include "rbtree_augmented.h"
-#include"align.h"
 
 /*
  * red-black trees properties:  http://en.wikipedia.org/wiki/Rbtree
@@ -82,7 +81,7 @@ static inline void rb_set_black(struct rb_node *rb)
 
 static inline struct rb_node *rb_red_parent(struct rb_node *red)
 {
-	return PTR_CAST(struct rb_node, (void *)red->__rb_parent_color);
+	return (struct rb_node *)red->__rb_parent_color;
 }
 
 /*

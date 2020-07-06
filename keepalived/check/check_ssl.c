@@ -51,7 +51,7 @@ clear_ssl(ssl_data_t *ssl)
 static int
 password_cb(char *buf, int num, __attribute__((unused)) int rwflag, void *userdata)
 {
-	ssl_data_t *ssl = PTR_CAST(ssl_data_t, userdata);
+	ssl_data_t *ssl = (ssl_data_t *) userdata;
 	size_t plen = strlen(ssl->password);
 
 	if ((unsigned)num < plen + 1)
@@ -82,9 +82,9 @@ build_ssl_ctx(void)
 	SSL_load_error_strings();
 #endif
 
-	if (!check_data->ssl) {
-		PMALLOC(ssl);
-	} else
+	if (!check_data->ssl)
+		ssl = (ssl_data_t *) MALLOC(sizeof(ssl_data_t));
+	else
 		ssl = check_data->ssl;
 
 	/* Initialize SSL context */

@@ -181,7 +181,7 @@ bfd_build_packet(bfdpkt_t *pkt, bfd_t *bfd, char *buf,
 	ssize_t len = sizeof (bfdhdr_t);
 
 	memset(buf, 0, bufsz);
-	pkt->hdr = PTR_CAST(bfdhdr_t, buf);
+	pkt->hdr = (bfdhdr_t *) buf;
 
 	/* If we are responding to a poll, but also wanted
 	 * to send a poll, we can send the parameters now */

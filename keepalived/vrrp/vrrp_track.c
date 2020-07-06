@@ -144,7 +144,7 @@ alloc_track_if(const char *name, list_head_t *l, const vector_t *strvec)
 		}
 	}
 
-	PMALLOC(tip);
+	tip	    = (tracked_if_t *) MALLOC(sizeof(tracked_if_t));
 	INIT_LIST_HEAD(&tip->e_list);
 	tip->ifp    = ifp;
 	tip->weight = weight;
@@ -267,7 +267,7 @@ alloc_track_script(const char *name, list_head_t *l, const vector_t *strvec)
 		}
 	}
 
-	PMALLOC(tsc);
+	tsc	    = (tracked_sc_t *) MALLOC(sizeof(tracked_sc_t));
 	INIT_LIST_HEAD(&tsc->e_list);
 	tsc->scr    = vsc;
 	tsc->weight = weight;

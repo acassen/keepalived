@@ -25,9 +25,6 @@
 #include <stdio.h>
 #include <fcntl.h>
 
-/* keepalived includes */
-#include "align.h"
-
 /* genhash includes */
 #include "include/layer4.h"
 
@@ -44,7 +41,7 @@ tcp_connect(int fd, REQ * req_obj)
 	 * time for a proper shutdown. */
 	li.l_onoff = 1;
 	li.l_linger = 5;
-	if (setsockopt(fd, SOL_SOCKET, SO_LINGER, PTR_CAST(char, &li), sizeof (struct linger)))
+	if (setsockopt(fd, SOL_SOCKET, SO_LINGER, (char *) &li, sizeof (struct linger)))
 		fprintf(stderr, "Error setting SO_LINGER on socket %d\n", fd);
 
 #ifdef _WITH_SO_MARK_
@@ -65,7 +62,7 @@ tcp_connect(int fd, REQ * req_obj)
 		inet_pton(AF_INET6, req_obj->ipaddress, &adr_serv6.sin6_addr);
 
 		/* Call connect function. */
-		ret = connect(fd, PTR_CAST(struct sockaddr, &adr_serv6), long_inet);
+		ret = connect(fd, (struct sockaddr *) &adr_serv6, long_inet);
 	} else {
 		long_inet = sizeof (struct sockaddr_in);
 		memset(&adr_serv, 0, long_inet);
@@ -74,7 +71,7 @@ tcp_connect(int fd, REQ * req_obj)
 		inet_pton(AF_INET, req_obj->ipaddress, &adr_serv.sin_addr);
 
 		/* Call connect function. */
-		ret = connect(fd, PTR_CAST(struct sockaddr, &adr_serv), long_inet);
+		ret = connect(fd, (struct sockaddr *) &adr_serv, long_inet);
 	}
 
 	/* Immediate success */
