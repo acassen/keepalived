@@ -756,7 +756,7 @@ moved by vrrpd, they stay on the machine.
 If you already have IPs and routes on your machines and
 your machines can ping each other, you don't need this section.
 The syntax for rules and routes is that same as for ip rule add/ip route add
-(except shorted option names aren't supported due to ambiguities).
+(except shortened option names are not supported due to ambiguities).
 The track_group specification refers to a named track_group which lists
 the vrrp instances which will track the address, i.e. if the address is
 deleted the vrrp instances will transition to backup.
@@ -1501,8 +1501,6 @@ The syntax for vrrp_instance is :
     \fBgarp_lower_prio_repeat \fR1
     \fBgarp_master_refresh \fR60
     \fBgarp_master_refresh_repeat \fR2
-    \fBgarp_interval \fR100
-    \fBgna_interval \fR100
 
     # If a lower priority advert is received, don't send another advert.
     # This causes adherence to the RFCs (defaults to global
