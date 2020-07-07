@@ -254,6 +254,9 @@ checker_set_dst_port(struct sockaddr_storage *dst, uint16_t port)
 	if (dst->ss_family == AF_INET6) {
 		struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) dst;
 		addr6->sin6_port = port;
+	} else if (dst->ss_family == AF_UNSPEC &&
+		   offsetof(struct sockaddr_in6, sin6_port) != offsetof(struct sockaddr_in, sin_port)) {
+		log_message(LOG_INFO, "BUG: checker_set_dst_port() in/in6 port offsets differ");
 	} else {
 		struct sockaddr_in *addr4 = (struct sockaddr_in *) dst;
 		addr4->sin_port = port;

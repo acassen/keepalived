@@ -57,8 +57,6 @@ typedef struct _ref_co {
 	list_head_t	e_list;
 } ref_co_t;
 #endif
-//*** default_co is pointless
-static conn_opts_t* default_co;	/* Default conn_opts for SMTP_CHECK */
 
 static void smtp_connect_thread(thread_ref_t);
 static void smtp_start_check_thread(thread_ref_t);
@@ -123,6 +121,10 @@ smtp_check_handler(__attribute__((unused)) const vector_t *strvec)
 	/* Have the checker queue code put our checker into the checkers_queue list. */
 	queue_checker(free_smtp_check, dump_smtp_check, smtp_start_check_thread,
 		      smtp_check_compare, smtp_checker, co, true);
+
+	/* We need to be able to check if anything has been set */
+	co->dst.ss_family = AF_UNSPEC;
+	((struct sockaddr_in *)&co->dst)->sin_port = 0;
 }
 
 static void
@@ -130,70 +132,69 @@ smtp_check_end_handler(void)
 {
 	checker_t *checker = CHECKER_GET_CURRENT();
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
+#ifdef WITH_HOST_ENTRIES
 	checker_t *new_checker;
 	smtp_checker_t *new_smtp_checker;
 	conn_opts_t *co;
 	ref_co_t *rco, *rco_tmp;
+	list_head_t sav_e_list;
+#endif
 
 	if (!smtp_checker->helo_name)
 		smtp_checker->helo_name = STRDUP(SMTP_DEFAULT_HELO);
 
-	/* If any connection component has been configured, we want to add it to the host list */
+#ifdef WITH_HOST_ENTRIES
+	if (!list_empty(&host_list))
+		log_message(LOG_INFO, "The SMTP_CHECK host block is deprecated. Please define additional checkers.");
+#endif
+
+	/* If any connection component has been configured, or there are no (deprecated) host entries,
+	 * we want to use any information provided, using defaults as necessary. */
+#ifdef WITH_HOST_ENTRIES
+	/* Have any of the connection parameters been set, or are there no hosts? */
 	if (checker->co->dst.ss_family != AF_UNSPEC ||
 	    ((struct sockaddr_in *)&checker->co->dst)->sin_port ||
 	    checker->co->bindto.ss_family != AF_UNSPEC ||
 	    ((struct sockaddr_in *)&checker->co->bindto)->sin_port ||
 	    checker->co->bind_if[0] ||
+	    list_empty(&host_list) ||
 #ifdef _WITH_SO_MARK_
 	    checker->co->fwmark ||
 #endif
-	    checker->co->connection_to) {
-		/* Set any necessary defaults */
+	    checker->co->connection_to != UINT_MAX)
+#endif
+	{
+		/* Set any necessary defaults. NOTE: we are relying on
+		 * struct sockaddr_in and sockaddr_in6 port offsets being the same. */
+		uint16_t saved_port = ((struct sockaddr_in*)&checker->co->dst)->sin_port;
 		if (checker->co->dst.ss_family == AF_UNSPEC) {
-			if (((struct sockaddr_in *)&checker->co->dst)->sin_port) {
-				uint16_t saved_port = ((struct sockaddr_in *)&checker->co->dst)->sin_port;
-				checker->co->dst = default_co->dst;
+			checker->co->dst = checker->rs->addr;
+			if (saved_port)
 				checker_set_dst_port(&checker->co->dst, saved_port);
-			}
-			else
-				checker->co->dst = default_co->dst;
 		}
+		if (!saved_port)
+			checker_set_dst_port(&checker->co->dst, ((struct sockaddr_in*)&checker->rs->addr)->sin_port);
 
 		if (!check_conn_opts(checker->co)) {
 			dequeue_new_checker();
 			return;
 		}
 	}
-	else
+#ifdef WITH_HOST_ENTRIES
+	else {
 		FREE(checker->co);
 
-	/* If there was no host{} section, add a single host to the list */
-	if (!checker->co
-#ifdef WITH_HOST_ENTRIES
-			 && list_empty(&host_list)
-#endif
-						   ) {
-		checker->co = default_co;
-		default_co = NULL;
-	} else {
-#ifdef WITH_HOST_ENTRIES
-		if (!checker->co) {
-			rco = list_first_entry(&host_list, ref_co_t, e_list);
-			checker->co = rco->co;
-			list_del_init(&rco->e_list);
-			FREE(rco);
-		}
-#endif
-
-		FREE(default_co);
+		rco = list_first_entry(&host_list, ref_co_t, e_list);
+		checker->co = rco->co;
+		list_del_init(&rco->e_list);
+		FREE(rco);
 	}
+#endif
 
-	/* Set the conection timeout if not set */
-	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
-	real_server_t *rs = list_last_entry(&vs->rs, real_server_t, e_list);
-	unsigned conn_to = rs->connection_to;
+	/* Set the connection timeout if not set */
+	unsigned conn_to = checker->rs->connection_to;
 	if (conn_to == UINT_MAX)
-		conn_to = vs->connection_to;
+		conn_to = checker->vs->connection_to;
 
 	if (checker->co->connection_to == UINT_MAX)
 		checker->co->connection_to = conn_to;
@@ -210,11 +211,12 @@ smtp_check_end_handler(void)
 
 		new_smtp_checker->helo_name = STRDUP(smtp_checker->helo_name);
 
-		queue_checker(free_smtp_check, dump_smtp_check, smtp_start_check_thread,
-			      smtp_check_compare, new_smtp_checker, NULL, true);
+		new_checker = queue_checker(free_smtp_check, dump_smtp_check, smtp_start_check_thread,
+				      smtp_check_compare, new_smtp_checker, NULL, true);
 
-		new_checker = CHECKER_GET_CURRENT();
+		sav_e_list = new_checker->e_list;
 		*new_checker = *checker;
+		new_checker->e_list = sav_e_list;
 		new_checker->co = co;
 		new_checker->data = new_smtp_checker;
 
@@ -237,10 +239,10 @@ smtp_host_handler(__attribute__((unused)) const vector_t *strvec)
 
 	/* save the main conn_opts_t and set a new default for the host */
 	sav_co = checker->co;
-	checker->co = (conn_opts_t*)MALLOC(sizeof(conn_opts_t));
-	*checker->co = *sav_co;
+	PMALLOC(checker->co);
 
-	log_message(LOG_INFO, "The SMTP_CHECK host block is deprecated. Please define additional checkers.");
+	/* Default to the RS */
+	checker->co->dst = checker->rs->addr;
 }
 
 static void
@@ -302,11 +304,13 @@ install_smtp_check_keyword(void)
 	 * So these keywords below are kept for compatibility with users'
 	 * existing configs.
 	 */
+#ifdef WITH_HOST_ENTRIES
 	install_keyword("host", &smtp_host_handler);
 	install_sublevel();
 	install_checker_common_keywords(true);
 	install_sublevel_end_handler(smtp_host_end_handler);
 	install_sublevel_end();
+#endif
 
 	install_sublevel_end_handler(&smtp_check_end_handler);
 	install_sublevel_end();

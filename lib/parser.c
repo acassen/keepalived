@@ -892,6 +892,7 @@ free_seq(seq_t *seq)
 	FREE_CONST(seq->var);
 	FREE_CONST(seq->text);
 	FREE(seq);
+	seq_list_count--;
 }
 
 static void
@@ -924,6 +925,7 @@ free_seq_lst(seq_t *seq)
 
 	FREE_CONST(seq->text);
 	FREE(seq);
+	seq_list_count--;
 }
 
 static void
