@@ -455,7 +455,11 @@ set_default_garp_delay(void)
 		ifp = IF_BASE_IFP(vrrp->ifp);
 		if (!ifp->garp_delay) {
 			delay = alloc_garp_delay();
-			*delay = default_delay;
+			delay->garp_interval = default_delay.garp_interval;
+			delay->have_garp_interval = default_delay.have_garp_interval;
+			delay->gna_interval = default_delay.gna_interval;
+			delay->have_gna_interval = default_delay.have_gna_interval;
+
 			ifp->garp_delay = delay;
 		}
 	}
