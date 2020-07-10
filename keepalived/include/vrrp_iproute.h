@@ -43,9 +43,9 @@
 #include "vrrp_if.h"
 #include "vrrp_static_track.h"
 
-/* We hope to get an official definion for this, but until then make a private one */
+/* RTPROT_KEEPALIVED added in Linux 5.8 */
 #ifndef RTPROT_KEEPALIVED
-#define RTPROT_KEEPALIVED       112     /* Keepalived daemon */
+#define RTPROT_KEEPALIVED       18     /* Keepalived daemon */
 #endif
 
 /* Buffer sizes for printing */
