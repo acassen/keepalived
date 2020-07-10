@@ -128,7 +128,7 @@ get_signum(const char *sigfunc)
 static void
 log_sigxcpu(__attribute__((unused)) void * ptr, __attribute__((unused)) int signum)
 {
-	log_message(LOG_INFO, "%s process has used too much CPU time, %s_rlimit_rtime may need to be increased",
+	log_message(LOG_INFO, "%s process has used too much CPU time, %s_rlimit_rttime may need to be increased",
 #ifdef _ONE_PROCESS_DEBUG_
 		    "Main debug",
 #else

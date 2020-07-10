@@ -89,6 +89,9 @@
 #ifdef _WITH_CN_PROC_
 #include "track_process.h"
 #endif
+#ifdef _WITH_LVS_
+#include "ipvswrapper.h"
+#endif
 
 /* If we don't have certain configuration, then we can optimise the
  * resources that keepalived uses. These are cleared by start_vrrp()

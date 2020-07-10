@@ -56,6 +56,7 @@
 #endif
 #ifdef _WITH_LVS_
 #include "ipvswrapper.h"
+#include "libipvs.h"
 #endif
 #include "notify.h"
 
@@ -136,14 +137,10 @@ typedef struct _data {
 	interface_t			*default_ifp;		/* Default interface for static addresses */
 #endif
 #ifdef _WITH_LVS_
-	int				lvs_tcp_timeout;
-	int				lvs_tcpfin_timeout;
-	int				lvs_udp_timeout;
+	ipvs_timeout_t			lvs_timeouts;
 	int				smtp_alert_checker;
 	bool				checker_log_all_failures;
-#ifdef _WITH_VRRP_
 	struct lvs_syncd_config		lvs_syncd;
-#endif
 	bool				lvs_flush;		/* flush any residual LVS config at startup */
 	lvs_flush_t			lvs_flush_onstop;	/* flush any LVS config at shutdown */
 #endif

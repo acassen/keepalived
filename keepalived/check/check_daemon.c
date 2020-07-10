@@ -129,6 +129,16 @@ checker_dispatcher_release(void)
 	cancel_kernel_netlink_threads();
 }
 
+static bool
+checker_ipvs_syncd_needed(void)
+{
+#ifdef _WITH_VRRP_
+	if (global_data->lvs_syncd.vrrp_name)
+		return false;
+#endif
+
+        return !!global_data->lvs_syncd.ifname;
+}
 
 /* Daemon stop sequence */
 static int
@@ -152,6 +162,11 @@ checker_terminate_phase2(void)
 	free_ssl();
 	set_ping_group_range(false);
 
+	/* If we are running both master and backup, stop them now */
+	if (checker_ipvs_syncd_needed()) {
+		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_MASTER, true);
+		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_BACKUP, true);
+	}
 	ipvs_stop();
 
 	/* Stop daemon */
@@ -329,6 +344,32 @@ start_check(list_head_t *old_checkers_queue, data_t *prev_global_data)
 	    ipvs_start() != IPVS_SUCCESS) {
 		stop_check(KEEPALIVED_EXIT_FATAL);
 		return;
+	}
+
+	/* Set LVS timeouts */
+	if (global_data->lvs_timeouts.tcp_timeout ||
+	    global_data->lvs_timeouts.tcp_fin_timeout ||
+	    global_data->lvs_timeouts.udp_timeout)
+		ipvs_set_timeouts(&global_data->lvs_timeouts);
+	else if (reload)
+		ipvs_set_timeouts(NULL);
+
+	/* If we are managing the sync daemon, then stop any
+	 * instances of it that may have been running if
+	 * we terminated abnormally */
+	if (checker_ipvs_syncd_needed() &&
+	    (!reload ||
+	     ipvs_syncd_changed(&prev_global_data->lvs_syncd, &global_data->lvs_syncd))) {
+		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_MASTER, true);
+		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_BACKUP, true);
+	}
+
+	if (checker_ipvs_syncd_needed()) {
+		/* If we are running both master and backup, start them now */
+		if (global_data->lvs_syncd.syncid == PARAMETER_UNSET)
+			global_data->lvs_syncd.syncid = 0;
+
+		ipvs_syncd_cmd(IPVS_STARTDAEMON, &global_data->lvs_syncd, IPVS_MASTER_BACKUP, false);
 	}
 
 	/* Ensure we can open sufficient file descriptors */

@@ -42,6 +42,9 @@
 /* Maximum time read_timer can read - in micro-seconds */
 #define TIMER_MAXIMUM (ULONG_MAX)
 
+/* Special value for parameters when we want to know they haven't been set */
+#define	PARAMETER_UNSET		UINT_MAX
+
 /* Configuration test errors. These should be in decreasing order of severity */
 typedef enum {
 	CONFIG_OK,

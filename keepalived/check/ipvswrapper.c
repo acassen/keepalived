@@ -106,22 +106,19 @@ ipvs_stop(void)
 	if (no_ipvs)
 		return;
 
+	/* Restore any timeout values we updated */
+	ipvs_set_timeout(NULL);
+
 	ipvs_close();
 }
 
 void
-ipvs_set_timeouts(int tcp_timeout, int tcpfin_timeout, int udp_timeout)
+ipvs_set_timeouts(const ipvs_timeout_t *timeouts)
 {
-	ipvs_timeout_t to;
-
-	if (!tcp_timeout && !tcpfin_timeout && !udp_timeout)
+	if (timeouts && !timeouts->tcp_timeout && !timeouts->tcp_fin_timeout && !timeouts->udp_timeout)
 		return;
 
-	to.tcp_timeout = tcp_timeout;
-	to.tcp_fin_timeout = tcpfin_timeout;
-	to.udp_timeout = udp_timeout;
-
-	if (ipvs_set_timeout(&to))
+	if (ipvs_set_timeout(timeouts))
 		log_message(LOG_INFO, "Failed to set ipvs timeouts");
 }
 
@@ -189,8 +186,7 @@ ipvs_talk(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, ipvs_daemon_t *dae
 	return result;
 }
 
-#ifdef _WITH_VRRP_
-/* Note: This function is called in the context of the vrrp child process, not the checker process */
+/* Note: This function may be called in the context of the vrrp child process */
 void
 ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool ignore_error)
 {
@@ -237,7 +233,6 @@ ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool i
 		ipvs_talk(cmd, NULL, NULL, &daemonrule, ignore_error);
 	}
 }
-#endif
 
 void
 ipvs_flush_cmd(void)
@@ -760,6 +755,21 @@ ipvs_update_stats(virtual_server_t *vs)
 	}
 }
 #endif /* _WITH_SNMP_CHECKER_ */
+
+bool
+ipvs_syncd_changed(const struct lvs_syncd_config *old, const struct lvs_syncd_config *new)
+{
+	return (old->syncid != new->syncid ||
+		strcmp(old->ifname, new->ifname)
+#ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
+						 ||
+		old->sync_maxlen != new->sync_maxlen ||
+		old->mcast_port != new->mcast_port ||
+		old->mcast_ttl != new->mcast_ttl ||
+		!sockstorage_equal(&old->mcast_group, &new->mcast_group)
+#endif
+						);
+}
 
 #ifdef _WITH_VRRP_
 /*

@@ -166,11 +166,20 @@ vlog_message(int facility, const char* format, va_list args)
 #endif
 
 		/* timestamp setup */
+#ifdef ENABLE_LOG_TO_FILE
+		struct timespec ts;
+		time_t t;
+		char *p;
+
+		clock_gettime(CLOCK_REALTIME, &ts);
+		t = ts.tv_sec;
+#else
 		time_t t = time(NULL);
+#endif
 		struct tm tm;
-		localtime_r(&t, &tm);
 		char timestamp[64];
-		strftime(timestamp, sizeof(timestamp), "%c", &tm);
+
+		localtime_r(&t, &tm);
 
 		if (log_console && __test_bit(DONT_FORK_BIT, &debug)) {
 #ifndef HAVE_SIGNALFD
@@ -178,10 +187,15 @@ vlog_message(int facility, const char* format, va_list args)
 				restore_signals = true;
 #endif
 
+			strftime(timestamp, sizeof(timestamp), "%c", &tm);
 			fprintf(stderr, "%s: %s\n", timestamp, buf);
 		}
 #ifdef ENABLE_LOG_TO_FILE
 		if (log_file) {
+			p = timestamp;
+			p += strftime(timestamp, sizeof(timestamp), "%a %b %T", &tm);
+			p += snprintf(p, timestamp + sizeof(timestamp) - p, ".%9.9ld", ts.tv_nsec);
+			strftime(p, timestamp + sizeof(timestamp) - p, " %Y", &tm);
 #ifndef HAVE_SIGNALFD
 			if (!restore_signals && !block_signals(&cur_set))
 				restore_signals = true;

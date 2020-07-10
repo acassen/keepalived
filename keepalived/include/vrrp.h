@@ -47,9 +47,6 @@
 #include "vrrp_sock.h"
 #include "vrrp_track.h"
 
-/* Special value for parameters when we want to know they haven't been set */
-#define	PARAMETER_UNSET		UINT_MAX
-
 struct _ip_address;
 
 typedef struct _vrrphdr {			/* rfc2338.5.1 */
