@@ -270,6 +270,11 @@ and
     \fBlvs_sync_daemon \fR<INTERFACE> [[inst] <VRRP_INSTANCE>] [id <SYNC_ID>] \e
                     [maxlen <LEN>] [port <PORT>] [ttl <TTL>] [group <IP ADDR>]
 
+    # lvs_timeouts specifies the tcp, tcp_fin and udp connection tracking timeouts
+    # in seconds. At least one value must be specified; not setting a value leaves
+    # it unchanged from when keepalived started.
+    \fBlvs_timeouts\fR [tcp SECS] [tcpfin SECS] [udp SECS]
+
     # flush any existing LVS configuration at startup
     \fBlvs_flush\fR
 
