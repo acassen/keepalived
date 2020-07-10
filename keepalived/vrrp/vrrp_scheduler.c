@@ -62,6 +62,9 @@
 #ifdef THREAD_DUMP
 #include "scheduler.h"
 #endif
+#ifdef _WITH_LVS_
+#include "ipvswrapper.h"
+#endif
 
 /* For load testing recvmsg() */
 /* #define DEBUG_RECVMSG */

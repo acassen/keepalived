@@ -37,7 +37,7 @@ typedef struct ip_vs_dest_entry_app	ipvs_dest_entry_t;
 extern int ipvs_init(void);
 
 /* Set timeout parameters */
-extern int ipvs_set_timeout(ipvs_timeout_t *to);
+extern int ipvs_set_timeout(const ipvs_timeout_t *to);
 
 /* flush all the rules */
 extern int ipvs_flush(void);
@@ -62,11 +62,6 @@ extern int ipvs_update_dest(ipvs_service_t *svc, ipvs_dest_t *dest);
 
 /* remove a destination server from a service */
 extern int ipvs_del_dest(ipvs_service_t *svc, ipvs_dest_t *dest);
-
-#ifdef _INCLUDE_UNUSED_CODE_
-/* set timeout */
-extern int ipvs_set_timeout(ipvs_timeout_t *to);
-#endif
 
 /* start a connection synchronizaiton daemon (master/backup) */
 extern int ipvs_start_daemon(ipvs_daemon_t *dm);

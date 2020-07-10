@@ -499,12 +499,12 @@ dump_global_data(FILE *fp, data_t * data)
 		conf_write(fp, " Send emails for fault transitions = off");
 #endif
 #ifdef _WITH_LVS_
-	if (data->lvs_tcp_timeout)
-		conf_write(fp, " LVS TCP timeout = %d", data->lvs_tcp_timeout);
-	if (data->lvs_tcpfin_timeout)
-		conf_write(fp, " LVS TCP FIN timeout = %d", data->lvs_tcpfin_timeout);
-	if (data->lvs_udp_timeout)
-		conf_write(fp, " LVS TCP timeout = %d", data->lvs_udp_timeout);
+	if (data->lvs_timeouts.tcp_timeout)
+		conf_write(fp, " LVS TCP timeout = %d", data->lvs_timeouts.tcp_timeout);
+	if (data->lvs_timeouts.tcp_fin_timeout)
+		conf_write(fp, " LVS TCP FIN timeout = %d", data->lvs_timeouts.tcp_fin_timeout);
+	if (data->lvs_timeouts.udp_timeout)
+		conf_write(fp, " LVS TCP timeout = %d", data->lvs_timeouts.udp_timeout);
 #ifdef _WITH_VRRP_
 #ifndef _ONE_PROCESS_DEBUG_
 	if (prog_type == PROG_TYPE_VRRP)
@@ -514,6 +514,9 @@ dump_global_data(FILE *fp, data_t * data)
 		if (data->lvs_syncd.vrrp)
 			conf_write(fp, " LVS syncd vrrp instance = %s"
 				     , data->lvs_syncd.vrrp->iname);
+		else if (data->lvs_syncd.vrrp_name)
+			conf_write(fp, " LVS syncd vrrp name = %s"
+				     , data->lvs_syncd.vrrp_name);
 		conf_write(fp, " LVS syncd interface = %s"
 			     , data->lvs_syncd.ifname);
 		conf_write(fp, " LVS syncd syncid = %u"

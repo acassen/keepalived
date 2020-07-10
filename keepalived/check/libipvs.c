@@ -67,6 +67,7 @@ typedef struct ipvs_servicedest_s {
 
 static int sockfd = -1;
 static void* ipvs_func = NULL;
+static ipvs_timeout_t orig_ipvs_timeouts;
 
 #ifdef LIBIPVS_USE_NL
 static struct nl_sock *sock = NULL;
@@ -76,7 +77,6 @@ static bool try_nl = true;
 static int nl_ack_flag;
 
 /* Policy definitions */
-#ifdef _WITH_SNMP_CHECKER_
 static struct nla_policy ipvs_cmd_policy[IPVS_CMD_ATTR_MAX + 1] = {
 	[IPVS_CMD_ATTR_SERVICE]		= { .type = NLA_NESTED },
 	[IPVS_CMD_ATTR_DEST]		= { .type = NLA_NESTED },
@@ -86,6 +86,7 @@ static struct nla_policy ipvs_cmd_policy[IPVS_CMD_ATTR_MAX + 1] = {
 	[IPVS_CMD_ATTR_TIMEOUT_UDP]	= { .type = NLA_U32 },
 };
 
+#ifdef _WITH_SNMP_CHECKER_
 static struct nla_policy ipvs_service_policy[IPVS_SVC_ATTR_MAX + 1] = {
 	[IPVS_SVC_ATTR_AF]		= { .type = NLA_U16 },
 	[IPVS_SVC_ATTR_PROTOCOL]	= { .type = NLA_U16 },
@@ -758,21 +759,72 @@ out_err:
 	return -1;
 }
 
+#ifdef LIBIPVS_USE_NL
+static int ipvs_timeout_parse_cb(struct nl_msg *msg, void *arg)
+{
+	struct nlmsghdr *nlh = nlmsg_hdr(msg);
+	struct nlattr *attrs[IPVS_CMD_ATTR_MAX + 1];
+	ipvs_timeout_t *u = (ipvs_timeout_t *)arg;
 
-int ipvs_set_timeout(ipvs_timeout_t *to)
+	if (genlmsg_parse(nlh, 0, attrs, IPVS_CMD_ATTR_MAX, ipvs_cmd_policy) != 0)
+		return -1;
+
+	if (attrs[IPVS_CMD_ATTR_TIMEOUT_TCP])
+		u->tcp_timeout = nla_get_u32(attrs[IPVS_CMD_ATTR_TIMEOUT_TCP]);
+	if (attrs[IPVS_CMD_ATTR_TIMEOUT_TCP_FIN])
+		u->tcp_fin_timeout = nla_get_u32(attrs[IPVS_CMD_ATTR_TIMEOUT_TCP_FIN]);
+	if (attrs[IPVS_CMD_ATTR_TIMEOUT_UDP])
+		u->udp_timeout = nla_get_u32(attrs[IPVS_CMD_ATTR_TIMEOUT_UDP]);
+
+	return NL_OK;
+}
+#endif
+
+static void
+ipvs_get_timeout(void)
+{
+	socklen_t len;
+
+	ipvs_func = ipvs_get_timeout;
+#ifdef LIBIPVS_USE_NL
+	if (try_nl) {
+		struct nl_msg *msg;
+		msg = ipvs_nl_message(IPVS_CMD_GET_CONFIG, 0);
+		if (!msg || ipvs_nl_send_message(msg, ipvs_timeout_parse_cb, &orig_ipvs_timeouts))
+			log_message(LOG_INFO, "Failed to get IPVS timeouts");
+
+		return;
+	}
+#endif
+
+	len = sizeof(orig_ipvs_timeouts);
+	if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_TIMEOUT,
+		       (char *)&orig_ipvs_timeouts, &len)) {
+		log_message(LOG_INFO, "Failed to get IPVS timeouts");
+		return;
+	}
+}
+
+int ipvs_set_timeout(const ipvs_timeout_t *to)
 {
 	ipvs_func = ipvs_set_timeout;
+
+	/* If we are altering the timeouts, ensure we can restore the original values */
+	if (!orig_ipvs_timeouts.tcp_timeout) {
+		if (!to)
+			return 0;
+
+		ipvs_get_timeout();
+	}
+
 #ifdef LIBIPVS_USE_NL
 	if (try_nl) {
 		struct nl_msg *msg = ipvs_nl_message(IPVS_CMD_SET_CONFIG, 0);
 		if (!msg) return -1;
 
-		if (to->tcp_timeout)
-			NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_TCP, (uint32_t)to->tcp_timeout);
-		if (to->tcp_fin_timeout)
-			NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_TCP_FIN, (uint32_t)to->tcp_fin_timeout);
-		if (to->udp_timeout)
-			NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_UDP, (uint32_t)to->udp_timeout);
+		NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_TCP, to && to->tcp_timeout ? (uint32_t)to->tcp_timeout : (uint32_t)orig_ipvs_timeouts.tcp_timeout);
+		NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_TCP_FIN, to && to->tcp_fin_timeout ? (uint32_t)to->tcp_fin_timeout : (uint32_t)orig_ipvs_timeouts.tcp_fin_timeout);
+		NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_UDP, to && to->udp_timeout ? (uint32_t)to->udp_timeout : (uint32_t)orig_ipvs_timeouts.udp_timeout);
 		return ipvs_nl_send_message(msg, ipvs_nl_noop_cb, NULL);
 
 nla_put_failure:
@@ -780,7 +832,7 @@ nla_put_failure:
 		return -1;
 	}
 #endif
-	return setsockopt(sockfd, IPPROTO_IP, IP_VS_SO_SET_TIMEOUT, (char *)to,
+	return setsockopt(sockfd, IPPROTO_IP, IP_VS_SO_SET_TIMEOUT, (const char *)to,
 			  sizeof(*to));
 }
 

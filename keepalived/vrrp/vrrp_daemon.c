@@ -83,6 +83,9 @@
 #ifdef _WITH_CN_PROC_
 #include "track_process.h"
 #endif
+#ifdef _WITH_LVS_
+#include "ipvswrapper.h"
+#endif
 
 /* Global variables */
 bool non_existent_interface_specified;
@@ -192,7 +195,8 @@ set_vrrp_max_fds(void)
 static bool
 vrrp_ipvs_needed(void)
 {
-	return !!(global_data->lvs_syncd.ifname);
+	return global_data->lvs_syncd.ifname &&
+	       (global_data->lvs_syncd.vrrp || global_data->lvs_syncd.vrrp_name);
 }
 #endif
 
@@ -350,10 +354,9 @@ vrrp_terminate_phase1(bool schedule_next_thread)
 #endif
 
 #ifdef _WITH_LVS_
-	if (global_data->lvs_syncd.ifname) {
+	if (vrrp_ipvs_needed()) {
 		/* Stop syncd if controlled by this vrrp process. */
 		ipvs_syncd_cmd(IPVS_STOPDAEMON, &global_data->lvs_syncd,
-			       !global_data->lvs_syncd.vrrp ? IPVS_MASTER_BACKUP :
 			       global_data->lvs_syncd.vrrp->state == VRRP_STATE_MAST ? IPVS_MASTER: IPVS_BACKUP,
 			       false);
 	}
@@ -508,20 +511,6 @@ start_vrrp(data_t *prev_global_data)
 				stop_vrrp(KEEPALIVED_EXIT_FATAL);
 				return;
 			}
-
-			/* Set LVS timeouts */
-			if (global_data->lvs_tcp_timeout ||
-			    global_data->lvs_tcpfin_timeout ||
-			    global_data->lvs_udp_timeout)
-				ipvs_set_timeouts(global_data->lvs_tcp_timeout, global_data->lvs_tcpfin_timeout, global_data->lvs_udp_timeout);
-
-			/* If we are managing the sync daemon, then stop any
-			 * instances of it that may have been running if
-			 * we terminated abnormally */
-			if (!reload) {
-				ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_MASTER, true);
-				ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_BACKUP, true);
-			}
 		}
 #endif
 
@@ -559,13 +548,6 @@ start_vrrp(data_t *prev_global_data)
 	/* If we are just testing the configuration, then we terminate now */
 	if (__test_bit(CONFIG_TEST_BIT, &debug))
 		return;
-
-#ifdef _WITH_LVS_
-	if (!reload && vrrp_ipvs_needed() && !global_data->lvs_syncd.vrrp) {
-		/* If we are running both master and backup, start them now */
-		ipvs_syncd_cmd(IPVS_STARTDAEMON, &global_data->lvs_syncd, IPVS_MASTER_BACKUP, false);
-	}
-#endif
 
 	/* Start or stop gratuitous arp/ndisc as appropriate */
 	if (have_ipv4_instance)
@@ -733,31 +715,13 @@ vrrp_signal_init(void)
 	signal_ignore(SIGPIPE);
 }
 
-#ifdef _WITH_LVS_
-static bool
-sync_daemon_changed(const struct lvs_syncd_config *old, const struct lvs_syncd_config *new)
-{
-	return (old->syncid != new->syncid ||
-		strcmp(old->ifname, new->ifname)
-#ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
-						 ||
-		old->sync_maxlen != new->sync_maxlen ||
-		old->mcast_port != new->mcast_port ||
-		old->mcast_ttl != new->mcast_ttl ||
-		!sockstorage_equal(&old->mcast_group, &new->mcast_group)
-#endif
-						);
-}
-#endif
-
 /* Reload thread */
 static void
 reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 {
 	bool with_snmp = false;
 #ifdef _WITH_LVS_
-	bool start_daemon, stop_daemon;
-	bool start_extra, start_backup, stop_extra, stop_backup;
+	bool want_syncd_master;
 #endif
 
 	log_message(LOG_INFO, "Reloading");
@@ -823,60 +787,12 @@ reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 	start_vrrp(old_global_data);
 
 #ifdef _WITH_LVS_
-	/* We don't want to stop and start the IPVS sync daemon unnecessarily, so
-	 * sync messages may be lost
-	 * If the IPVS sync daemon configuration has changed, or a vrrp instance in
-	 * a different state is now tracked, we need to reconfigure the sync daemons
-	 * by stopping and restarting them. */
-	if (old_global_data->lvs_syncd.ifname || global_data->lvs_syncd.ifname) {
-		stop_daemon = false;
-		start_daemon = false;
-		stop_extra = false;
-		start_extra = false;
-
-		/* Are we changing from having a sync daemon to not, or vice versa,
-		 * then start or stop it */
-		if (!old_global_data->lvs_syncd.ifname != !global_data->lvs_syncd.ifname) {
-			if (old_global_data->lvs_syncd.ifname)
-				stop_daemon = true;
-			else
-				start_daemon = true;
-		} else if (sync_daemon_changed(&old_global_data->lvs_syncd, &global_data->lvs_syncd) ||
-			   ((old_global_data->lvs_syncd.vrrp && global_data->lvs_syncd.vrrp) &&
-			    ((old_global_data->lvs_syncd.vrrp->state == VRRP_STATE_MAST) !=
-				(global_data->lvs_syncd.vrrp->state == VRRP_STATE_MAST)))) {
-			/* The sync daemon configuration has changed, or we are tracking a VRRP instance
-			 * and the instance state has changed. */
-			stop_daemon = true;
-			start_daemon = true;
-		} else if (!old_global_data->lvs_syncd.vrrp != !global_data->lvs_syncd.vrrp) {
-			/* We are moving from running both daemons to being vrrp based, or vice versa */
-			if (old_global_data->lvs_syncd.vrrp) {
-				start_extra = true;
-				start_backup = (old_global_data->lvs_syncd.vrrp->state == VRRP_STATE_MAST);
-			} else {
-				stop_extra = true;
-				stop_backup = (global_data->lvs_syncd.vrrp->state == VRRP_STATE_MAST);
-			}
-		}
-
-		if (stop_daemon || stop_extra)
-			ipvs_syncd_cmd(IPVS_STOPDAEMON, &old_global_data->lvs_syncd,
-				       stop_extra ? (stop_backup ? IPVS_BACKUP : IPVS_MASTER)
-						  : !old_global_data->lvs_syncd.vrrp
-						      ? IPVS_MASTER_BACKUP
-						      : old_global_data->lvs_syncd.vrrp->state == VRRP_STATE_MAST ? IPVS_MASTER : IPVS_BACKUP,
-				       false);
-
-		if (start_daemon || start_extra)
-			ipvs_syncd_cmd(IPVS_STARTDAEMON, &global_data->lvs_syncd,
-				       start_extra ? (start_backup ? IPVS_BACKUP : IPVS_MASTER)
-						   : !global_data->lvs_syncd.vrrp
-						       ? IPVS_MASTER_BACKUP
-						       : (global_data->lvs_syncd.vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER : IPVS_BACKUP,
-				       false);
-
-		global_data->lvs_syncd.daemon_set_reload = !!global_data->lvs_syncd.ifname;
+	if (vrrp_ipvs_needed()) {
+		want_syncd_master = (global_data->lvs_syncd.vrrp->state == VRRP_STATE_MAST);
+		if (ipvs_syncd_changed(&old_global_data->lvs_syncd, &global_data->lvs_syncd))
+			ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, want_syncd_master ? IPVS_MASTER : IPVS_BACKUP, true);
+		ipvs_syncd_cmd(IPVS_STARTDAEMON, NULL, want_syncd_master ? IPVS_MASTER : IPVS_BACKUP, true);
+		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, want_syncd_master ? IPVS_BACKUP : IPVS_MASTER, true);
 	}
 #endif
 

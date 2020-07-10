@@ -450,7 +450,7 @@ lvs_timeouts(const vector_t *strvec)
 			if (!read_unsigned_strvec(strvec, i + 1, &val, 0, LVS_MAX_TIMEOUT, false))
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_timeout tcp (%s) - ignoring", strvec_slot(strvec, i+1));
 			else
-				global_data->lvs_tcp_timeout = val;
+				global_data->lvs_timeouts.tcp_timeout = val;
 			i++;	/* skip over value */
 			continue;
 		}
@@ -462,7 +462,7 @@ lvs_timeouts(const vector_t *strvec)
 			if (!read_unsigned_strvec(strvec, i + 1, &val, 0, LVS_MAX_TIMEOUT, false))
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_timeout tcpfin (%s) - ignoring", strvec_slot(strvec, i+1));
 			else
-				global_data->lvs_tcpfin_timeout = val;
+				global_data->lvs_timeouts.tcp_fin_timeout = val;
 			i++;	/* skip over value */
 			continue;
 		}
@@ -474,7 +474,7 @@ lvs_timeouts(const vector_t *strvec)
 			if (!read_unsigned_strvec(strvec, i + 1, &val, 0, LVS_MAX_TIMEOUT, false))
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_timeout udp (%s) - ignoring", strvec_slot(strvec, i+1));
 			else
-				global_data->lvs_udp_timeout = val;
+				global_data->lvs_timeouts.udp_timeout = val;
 			i++;	/* skip over value */
 			continue;
 		}
@@ -506,6 +506,7 @@ lvs_syncd_handler(const vector_t *strvec)
 	global_data->lvs_syncd.ifname = set_value(strvec);
 
 	for (i = 2; i < vector_size(strvec); i++) {
+#ifdef _WITH_VRRP_
 		if (!strcmp(strvec_slot(strvec, i), "inst")) {
 			if (global_data->lvs_syncd.vrrp_name)
 				report_config_error(CONFIG_GENERAL_ERROR, "lvs_sync_daemon vrrp instance has already been specified as %s - ignoring", global_data->lvs_syncd.vrrp_name);
@@ -515,6 +516,7 @@ lvs_syncd_handler(const vector_t *strvec)
 			i++;	/* skip over value */
 			continue;
 		}
+#endif
 		if (!strcmp(strvec_slot(strvec, i), "id")) {
 			if (i == vector_size(strvec) - 1) {
 				report_config_error(CONFIG_GENERAL_ERROR, "No value specified for lvs_sync_daemon id, defaulting to vrid");

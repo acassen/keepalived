@@ -1263,19 +1263,19 @@ check_snmp_lvs_timeouts(struct variable *vp, oid *name, size_t *length,
 
 	switch (vp->magic) {
 	case CHECK_SNMP_LVSTIMEOUTTCP:
-		if (!global_data->lvs_tcp_timeout)
+		if (!global_data->lvs_timeouts.tcp_timeout)
 			return NULL;
-		long_ret.s = global_data->lvs_tcp_timeout;
+		long_ret.s = global_data->lvs_timeouts.tcp_timeout;
 		return (u_char *)&long_ret;
 	case CHECK_SNMP_LVSTIMEOUTTCPFIN:
-		if (!global_data->lvs_tcpfin_timeout)
+		if (!global_data->lvs_timeouts.tcp_fin_timeout)
 			return NULL;
-		long_ret.s = global_data->lvs_tcpfin_timeout;
+		long_ret.s = global_data->lvs_timeouts.tcp_fin_timeout;
 		return (u_char *)&long_ret;
 	case CHECK_SNMP_LVSTIMEOUTUDP:
-		if (!global_data->lvs_udp_timeout)
+		if (!global_data->lvs_timeouts.udp_timeout)
 			return NULL;
-		long_ret.s = global_data->lvs_udp_timeout;
+		long_ret.s = global_data->lvs_timeouts.udp_timeout;
 		return (u_char *)&long_ret;
 	}
 	return NULL;
