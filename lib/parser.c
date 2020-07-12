@@ -1952,11 +1952,12 @@ check_include(const char *buf)
 {
 	const char *p;
 
-	if (strncmp(buf, "include ", 8))
+	if (strncmp(buf, "include", 7) ||
+	    (buf[7] != ' ' && buf[7] != '\t'))
 		return false;
 
 	p = buf + 8;
-	p += strspn(p, " ");
+	p += strspn(p, " \t");
 
 	open_glob_file(p);
 
