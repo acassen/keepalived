@@ -558,7 +558,7 @@ dump_if(FILE *fp, const interface_t *ifp)
 #ifdef HAVE_IFLA_LINK_NETNSID
 			conf_write(fp, "   %s type %s, underlying ifindex = %u, netns id = %d", if_type, vlan_type, ifp->base_ifindex, ifp->base_netns_id);
 #else
-			conf_write(fp, "   %s type %s, underlying ifindex = %d", if_type, vlan_type, ifp->base_ifindex);
+			conf_write(fp, "   %s type %s, underlying ifindex = %u", if_type, vlan_type, ifp->base_ifindex);
 #endif
 		}
 		else
