@@ -2432,21 +2432,28 @@ if test "${enable_fwmark}" != no; then
 fi
 
 dnl ---[ check for setns() ]----
-dnl -- CLONE_NEWNET defined from Linux 3.0
 SAV_CFLAGS="$CFLAGS"
-AC_CHECK_DECLS([CLONE_NEWNET], [], [], [[#include <sched.h>]])
-dnl -- From glibc 2.14. Otherwise use setns syscall, since Linux 2.4.x
-AC_CHECK_FUNCS([setns])
-dnl -- When building a RedHat RPM with hardening enabled, -pie is specified,
-dnl -- and for setns this requires -fPIC
-AS_IF([test $ac_cv_func_setns = no],
+AC_CHECK_DECLS([__NR_setns],
+  [
+    dnl -- CLONE_NEWNET defined from Linux 3.0
+    AC_CHECK_DECLS([CLONE_NEWNET], [], [], [[#include <sched.h>]])
+    dnl -- From glibc 2.14. Otherwise use setns syscall, since Linux 2.4.x
+    AC_CHECK_FUNCS([setns])
+    dnl -- When building a RedHat RPM with hardening enabled, -pie is specified,
+    dnl -- and for setns this requires -fPIC
+    AS_IF([test $ac_cv_func_setns = no],
       [
 	AS_UNSET([ac_cv_func_setns])
 	CFLAGS="$CFLAGS -fPIC"
 	AC_CHECK_FUNCS([setns])
       ])
+  ],
+  [
+    AC_DEFINE([HAVE_DECL_CLONE_NEWNET], [ 0 ], [__NR_setns is not defined so cannot use CLONE_NEWNET])
+  ],
+  [[#include <linux/unistd.h>]])
 CFLAGS="$SAV_CFLAGS"
-AM_CONDITIONAL([WITH_NAMESPACES], [test $ac_cv_have_decl_CLONE_NEWNET = yes])
+AM_CONDITIONAL([WITH_NAMESPACES], [test .$ac_cv_have_decl_CLONE_NEWNET = .yes])
 
 dnl -- RLIMIT_RTTIME since Linux 2.6.25 - not supported with musl libc
 AC_CHECK_DECLS([RLIMIT_RTTIME], [], [], [[#include <sys/resource.h>]])
