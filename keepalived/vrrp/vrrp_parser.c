@@ -412,9 +412,9 @@ vrrp_handler(const vector_t *strvec)
 static void
 vrrp_end_handler(void)
 {
-#ifdef _HAVE_VRRP_VMAC_
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 
+#ifdef _HAVE_VRRP_VMAC_
 	if (!list_empty(&vrrp->unicast_peer) && vrrp->vmac_flags) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s): Cannot use VMAC/ipvlan with unicast peers - clearing use_vmac", vrrp->iname);
 		vrrp->vmac_flags = 0;
