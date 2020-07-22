@@ -30,6 +30,9 @@
 #ifdef _LIBNL_DYNAMIC_
 #include "libnl_link.h"
 #endif
+#ifdef _HAVE_LIBNL1_
+#define nl_sock         nl_handle
+#endif
 #endif
 
 extern void free_dirname(void);

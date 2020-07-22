@@ -168,11 +168,12 @@
 #include <sys/socket.h>
 
 #ifdef LIBIPVS_USE_NL
+#ifdef _HAVE_LIBNL1_
+#include <linux/types.h>
+#endif
+#include <linux/netlink.h>	/* Required for netlink/headers.h prior to libnl v3.3.0 */
 #include <netlink/socket.h>
 #include <netlink/genl/genl.h>
-#ifdef _HAVE_LIBNL1_
-#define nl_sock		nl_handle
-#endif
 #ifdef _LIBNL_DYNAMIC_
 #include "libnl_link.h"
 #endif

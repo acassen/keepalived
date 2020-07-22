@@ -34,7 +34,6 @@
 //#define LIBNL_DEBUG
 
 #ifdef _HAVE_LIBNL1_
-#define nl_sock		nl_handle
 #ifndef _LIBNL_DYNAMIC_
 #define nl_socket_alloc	nl_handle_alloc
 #define nl_socket_free	nl_handle_destroy
@@ -337,7 +336,11 @@ open_nl_sock(void)
 	}
 
 	/* We finish receiving if we get an error, an ACK, or a DONE for a multipart message */
-	if (nl_socket_modify_err_cb(sock, NL_CB_CUSTOM, ipvs_nl_err_cb, &nl_ack_flag) != 0)
+#ifndef _HAVE_LIBNL1_
+	if (nl_socket_modify_err_cb(sock, NL_CB_CUSTOM, ipvs_nl_err_cb, &nl_ack_flag))
+#else
+	if (nl_cb_err(nl_socket_get_cb(sock), NL_CB_CUSTOM, ipvs_nl_err_cb, &nl_ack_flag))
+#endif
 		log_message(LOG_INFO, "Setting err_cb failed");
 
 	nl_socket_modify_cb(sock, NL_CB_ACK, NL_CB_CUSTOM, recv_ack_cb, &nl_ack_flag);
@@ -374,7 +377,11 @@ static int ipvs_nl_send_message(struct nl_msg *msg, nl_recvmsg_msg_cb_t func, vo
 	dump_nl_msg("Sending message", msg);
 #endif
 
+#ifndef _HAVE_LIBNL1_
 	if (nl_send_auto(sock, msg) >= 0) {
+#else
+	if (nl_send_auto_complete(sock, msg) >= 0) {
+#endif
 		nl_ack_flag = 0;
 		do {
 			if ((err = -nl_recvmsgs_default(sock)) > 0) {
