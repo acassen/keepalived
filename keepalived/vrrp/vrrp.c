@@ -3406,7 +3406,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		free_track_if_list(&vrrp->track_ifp);
 
 		/* Ignore any weighted script */
-		list_for_each_entry_safe(sc, sc_tmp, &vrrp->track_script,e_list) {
+		list_for_each_entry_safe(sc, sc_tmp, &vrrp->track_script, e_list) {
 			if (sc->weight) {
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) ignoring "
 									  "tracked script %s with weights due to %s"
@@ -3417,7 +3417,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				free_track_script(sc);
 			}
 		}
-		free_track_script_list(&vrrp->track_script);
 
 		/* Set tracking files to unweighted if weight not explicitly set, otherwise ignore */
 		list_for_each_entry_safe(tfl, tfl_tmp, &vrrp->track_file, e_list) {
