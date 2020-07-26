@@ -1,7 +1,10 @@
 keepalived: Loadbalancing & High-Availability
 =============================================
 
-[![Build Status](https://travis-ci.org/acassen/keepalived.svg?branch=master)](https://travis-ci.org/acassen/keepalived) [![Coverity Status](https://scan.coverity.com/projects/18496/badge.svg)](https://scan.coverity.com/projects/pqarmitage-keepalived) [![keepalived](https://snapcraft.io/keepalived/badge.svg)](https://snapcraft.io/keepalived)
+[![Build Status](https://travis-ci.org/acassen/keepalived.svg?branch=master)](https://travis-ci.org/acassen/keepalived)
+[![Coverity Status](https://scan.coverity.com/projects/18496/badge.svg)](https://scan.coverity.com/projects/pqarmitage-keepalived)
+[![keepalived](https://snapcraft.io/keepalived/badge.svg)](https://snapcraft.io/keepalived)
+[![Twitter Follow](https://img.shields.io/twitter/url/http/shields.io.svg?style=social&label=Follow)](https://twitter.com/keepalived)
 
 The main goal of this project is to provide simple and robust facilities
 for loadbalancing and high-availability to Linux system and Linux based
