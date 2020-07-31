@@ -115,6 +115,7 @@
 #include "reload_monitor.h"
 #endif
 #include "warnings.h"
+#include <sys/prctl.h>
 
 /* musl libc doesn't define the following */
 #ifndef	W_EXITCODE
@@ -795,6 +796,99 @@ print_parent_data(__attribute__((unused)) thread_ref_t thread)
 	return;
 }
 
+
+static void reload_validate_fin(thread_ref_t thread)
+{
+	bool validate_is_fail = report_child_status(thread->u.c.status, thread->u.c.pid, NULL);
+
+	/* if validate ok , then , reload the new configure, else , do nothing*/
+	if (!validate_is_fail) {
+	#ifdef _WITH_VRRP_
+		if (vrrp_child > 0)
+			kill(vrrp_child, SIGHUP);
+	#endif
+
+	#ifdef _WITH_LVS_
+		if (checkers_child > 0)
+			kill(checkers_child, SIGHUP);
+	#endif
+
+	#ifdef _WITH_BFD_
+		if (bfd_child > 0)
+			kill(bfd_child, SIGHUP);
+	#endif
+	}
+
+	return ;
+}
+
+void start_validate_reload_conf_child() 
+{
+	pid_t pid;
+	int argc = 0;
+	char **argv;
+	int sav_argc;
+	char ** sav_argv;
+	pid = fork();
+
+	if (pid < 0) {
+		log_message(LOG_INFO, "Reload validate conf child process: fork error(%s)" , strerror(errno));
+		return;
+	} else if (pid) {
+		log_message(LOG_INFO, "Starting Reload validate conf child process, pid=%d" , pid);
+
+		/* add reload_validate_fin to thread */
+		thread_add_child(master, reload_validate_fin, NULL, pid, TIMER_NEVER);
+		return ;
+	}
+
+	prctl(PR_SET_PDEATHSIG, SIGTERM);
+
+	/* Inherits the previous parameter and adds new parameter "--config-test" */
+	sav_argv = get_cmd_line_options(&sav_argc);
+	argv = malloc((sav_argc + 1) * sizeof(char *));
+	/*If each previous process uses a different process name, the new process also uses a different name */
+	if(
+#ifdef _WITH_VRRP_		
+		global_data->vrrp_process_name ||
+#endif
+#ifdef _WITH_LVS_	
+		global_data->lvs_process_name || 
+#endif
+#ifdef _WITH_BFD_
+		global_data->lvs_process_name || 
+#endif
+		0)
+		argv[0] = STRDUP("keepalived_reload_test");
+	else
+		argv[0] = STRDUP("keepalived");
+
+	/* copy old parameter */
+	for (int i = 1; i < sav_argc; i++)
+		argv[i] = sav_argv[i];
+
+	/* add -config-test */
+	argv[sav_argc] = MALLOC(512);
+	memset(argv[sav_argc],0,sizeof(char)*512);
+	snprintf(argv[sav_argc],512,"--config-test=%s",global_data->reload_check_log_path);
+	argc = sav_argc + 1;
+
+	/*set default optind to parse cmd line*/
+	optind = 1;  
+
+	prctl(PR_SET_NAME, argv[0]);
+
+	/*release old data in child process*/
+	free_global_data (global_data);
+	global_data =  NULL;
+	thread_destroy_master(master);
+	master = NULL;
+
+	keepalived_main(argc,argv);
+
+	exit(KEEPALIVED_EXIT_OK);
+}
+
 /* SIGHUP/USR1/USR2/STATS_CLEAR handler */
 static void
 propagate_signal(__attribute__((unused)) void *v, int sig)
@@ -802,6 +896,13 @@ propagate_signal(__attribute__((unused)) void *v, int sig)
 	if (sig == SIGHUP) {
 		if (!reload_config())
 			return;
+
+		/* if test_config_before_reload is configured, valid the new config before reload */
+		if (global_data->test_config_before_reload) {
+			log_message(LOG_INFO, "validate conf before Reload");
+			start_validate_reload_conf_child();
+			return;
+		}
 	}
 
 	/* Signal child processes */

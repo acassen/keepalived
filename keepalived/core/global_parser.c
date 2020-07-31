@@ -416,6 +416,37 @@ checker_log_all_failures_handler(const vector_t *strvec)
 
 	global_data->checker_log_all_failures = res;
 }
+
+static void
+test_config_before_reload_handler(const vector_t *strvec)
+{
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value for test_config_before_reload specified");
+			return;
+		}
+	}
+
+	global_data->test_config_before_reload = res;
+	if (!global_data->reload_check_log_path)
+		global_data->reload_check_log_path = STRDUP("/dev/null");
+}
+
+
+static void
+reload_check_log_path_handler(const vector_t *strvec)
+{
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "default reload_check_log_path  /dev/null");
+		return;
+	}
+	FREE_CONST_PTR(global_data->reload_check_log_path);
+	global_data->reload_check_log_path = set_value(strvec);
+}
+
 #endif
 #ifdef _WITH_VRRP_
 static void
@@ -1993,6 +2024,8 @@ init_global_keywords(bool global_active)
 #ifdef _WITH_LVS_
 	install_keyword("smtp_alert_checker", &smtp_alert_checker_handler);
 	install_keyword("checker_log_all_failures", &checker_log_all_failures_handler);
+	install_keyword("test_config_before_reload",   &test_config_before_reload_handler);
+	install_keyword("reload_check_log_path",   &reload_check_log_path_handler);
 #endif
 #ifdef _WITH_VRRP_
 	install_keyword("dynamic_interfaces", &dynamic_interfaces_handler);

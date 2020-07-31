@@ -143,6 +143,8 @@ typedef struct _data {
 	struct lvs_syncd_config		lvs_syncd;
 	bool				lvs_flush;		/* flush any residual LVS config at startup */
 	lvs_flush_t			lvs_flush_onstop;	/* flush any LVS config at shutdown */
+	bool			    test_config_before_reload;  /* rollback necessary configuration items are missing in the reload process*/	
+	const char			*reload_check_log_path;
 #endif
 	int				max_auto_priority;
 	long				min_auto_priority_delay;
