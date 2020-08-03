@@ -1017,7 +1017,7 @@ epilog(thread_ref_t thread, register_checker_t method)
 		if (checker->is_up || !checker->has_run) {
 			if (checker->has_run && checker->retry)
 				log_message(LOG_INFO
-				   , "HTTP_CHECK on service %s failed after %u retry."
+				   , "HTTP_CHECK on service %s failed after %u retries."
 				   , FMT_CHK(checker)
 				   , checker->retry_it - 1);
 			else
