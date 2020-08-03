@@ -70,6 +70,7 @@ static unsigned num_cpus;
 static int64_t *cpu_seq;
 static bool need_reinitialise;
 bool proc_events_not_supported;
+bool proc_events_responded;
 
 #ifdef _TRACK_PROCESS_DEBUG_
 bool do_track_process_debug;
@@ -964,14 +965,17 @@ handle_proc_ev(int nl_sd)
 
 			cn_msg = NLMSG_DATA(nlmsghdr);
 			if (cn_msg->id.idx != CN_IDX_PROC ||
-			    cn_msg->id.val != CN_VAL_PROC ||
-			    cn_msg->ack)
+			    cn_msg->id.val != CN_VAL_PROC)
 				continue;
 
 			proc_ev = (struct proc_event *)cn_msg->data;
 
 			/* On 3.10 kernel, proc_ev->cpu can be UINT32_MAX */
 			if (proc_ev->cpu >= num_cpus)
+				continue;
+
+			/* PROC_EVENT_NONE is an ack, otherwise not an ack */
+			if ((proc_ev->what == PROC_EVENT_NONE) != cn_msg->ack)
 				continue;
 
 			if (cpu_seq) {
@@ -1065,6 +1069,11 @@ handle_proc_ev(int nl_sd)
 
 			switch (proc_ev->what)
 			{
+			case PROC_EVENT_NONE:
+				proc_events_responded = true;
+				if (__test_bit(LOG_DETAIL_BIT, &debug))
+					log_message(LOG_INFO, "proc_events has confirmed it is configured");
+				break;
 			case PROC_EVENT_FORK:
 				/* See if we have parent pid, in which case this is a new process.
 				 * For a process fork, child_pid == child_tgid.
@@ -1126,6 +1135,13 @@ read_process_update(thread_ref_t thread)
 	read_thread = thread_add_read(thread->master, read_process_update, NULL, thread->u.f.fd, TIMER_NEVER, false);
 }
 
+static void
+proc_events_ack_timer_thread(__attribute__((unused)) thread_ref_t thread)
+{
+	if (!proc_events_responded)
+		log_message(LOG_INFO, "WARNING - the kernel does not support proc events - track_process will not work");
+}
+
 bool
 open_track_processes(void)
 {
@@ -1165,6 +1181,12 @@ init_track_processes(list_head_t *processes)
 		nl_sock = -1;
 		return EXIT_FAILURE;
 	}
+
+	/* We get a PROC_EVENT_NONE if the proc_events_connector is built
+	 * into the kernel. We have to timeout not receiving a message to
+	 * know that proc evnets are not available. */
+	if (!proc_events_responded)
+		thread_add_timer(master, proc_events_ack_timer_thread, NULL, TIMER_HZ / 10);
 
 	if (!cpu_seq) {
 		/* should we consider only ONLINE CPU ? */
@@ -1247,6 +1269,7 @@ register_process_monitor_addresses(void)
 {
 	register_thread_address("process_lost_quorum", process_lost_quorum_timer_thread);
 	register_thread_address("process_lost_messages", process_lost_messages_timer_thread);
-	register_thread_address("monitor_processes", read_process_update);
+	register_thread_address("read_process_update", read_process_update);
+	register_thread_address("proc_events_ack_timer", proc_events_ack_timer_thread);
 }
 #endif
