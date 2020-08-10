@@ -122,7 +122,7 @@ AC_CONFIG_FILES([Makefile keepalived/Makefile lib/Makefile keepalived/core/Makef
 		 genhash/Makefile keepalived/check/Makefile keepalived/vrrp/Makefile \
 		 keepalived/bfd/Makefile doc/Makefile bin_install/Makefile keepalived/dbus/Makefile \
 		 keepalived/etc/Makefile keepalived/etc/init/Makefile keepalived/etc/init.d/Makefile \
-		 keepalived/trackers/Makefile \
+		 keepalived/etc/keepalived/Makefile keepalived/trackers/Makefile \
 		 doc/man/man8/Makefile])
 
 
@@ -2842,9 +2842,18 @@ AS_IF([test $default_config_file],
     CONFIG_FILE=$default_config_file
     add_config_opt([DEFAULT_CONFIG_FILE=${default_config_file}])
   ],
-  [default_config_file="/etc/$PACKAGE/$PACKAGE.conf"])
-AC_DEFINE_UNQUOTED([DEFAULT_CONFIG_FILE], ["$default_config_file"], [The default configuration file])
+  [default_config_file="\$(sysconfdir)/$PACKAGE/$PACKAGE.conf"])
+dir=`echo $default_config_file | $SED -e "s|/[[^/]]*$||"`
+name=`echo $default_config_file | $SED -e "s|.*/||"`
 AC_SUBST([DEFAULT_CONFIG_FILE], [$default_config_file])
+AC_SUBST([DEFAULT_CONFIG_DIR], [${dir}])
+AC_SUBST([DEFAULT_CONFIG_FILENAME], [${name}])
+# Change any make $(...) variable to the matching shell variable and substitute
+default_config_file=`echo $default_config_file | $SED -e "s|\\\$(\(.*\))|\\\${\1}|"`
+eval dcf=`echo $default_config_file`
+# Remove a leading ${prefix} since that is not part of the real file name
+dcf=`echo $dcf | $SED -e "s|^\\\${prefix}||"`
+AC_DEFINE_UNQUOTED([DEFAULT_CONFIG_FILE], ["$dcf"], [The default configuration file])
 
 if test -z "$INIT_TYPE"; then
   INIT_TYPE=undetected

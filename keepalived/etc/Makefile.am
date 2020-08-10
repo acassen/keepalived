@@ -4,6 +4,6 @@
 #
 # Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
 
-EXTRA_DIST	= keepalived openrc sysconfig
+EXTRA_DIST	= openrc sysconfig
 
-SUBDIRS		= init init.d
+SUBDIRS		= init init.d keepalived

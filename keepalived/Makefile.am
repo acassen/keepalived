@@ -64,9 +64,6 @@ MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@
 sysconfigdir		= $(sysconfdir)/sysconfig
 sysconfig_DATA		= etc/sysconfig/keepalived
 
-configdir		= $(sysconfdir)/@PACKAGE@
-config_DATA		= etc/keepalived/keepalived.conf
-
 if INIT_SYSTEMD
 systemdsystemunit_DATA	= keepalived.service
 endif
