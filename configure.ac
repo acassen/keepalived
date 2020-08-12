@@ -290,6 +290,13 @@ AC_ARG_WITH(default-config-file,
   [default_config_file="$withval"], [default_config_file=""])
 AC_ARG_ENABLE(profile,
   [AS_HELP_STRING([--enable-profile], [compile with profiling flags])])
+AC_ARG_ENABLE(strict-cast-align,
+  [AS_HELP_STRING([--enable-strict-cast-align], [compile with strict cast alignment warnings])])
+AC_ARG_ENABLE(cast-align-checks,
+  [AS_HELP_STRING([--enable-cast-align-checks], [runtime cast alignment checks])])
+AC_ARG_ENABLE(cast-via-void,
+  [AS_HELP_STRING([--enable-cast-via-void], [enable pointer cast via void * (default if warns without)])]
+[AS_HELP_STRING([--disable-cast-via-void], [disable pointer cast via void * (default if does not warn without)])])
 AC_ARG_ENABLE(conversion-checks,
   [AS_HELP_STRING([--enable-conversion-checks], [compile with conversion warnings if sensible])])
 AC_ARG_ENABLE(force-conversion-checks,
@@ -472,6 +479,10 @@ AS_IF([test .$enable_debug = .yes],
 	AS_IF([test .$enable_mem_err_debug = .], [enable_mem_err_debug=yes])
       ])
   ])
+
+dnl -- Do we want -Wcast-align=strict?
+AS_IF([test .$enable_strict_cast_align = .yes],
+      [WARNINGS_STD=$(<<<$WARNINGS_STD sed -e "s/cast-align /cast-align=strict /")])
 
 dnl -- ulibc/glibc differences
 AC_MSG_CHECKING([msghdr.msg_controllen is size_t])
@@ -843,6 +854,47 @@ AC_RUN_IFELSE(
     AC_MSG_WARN([Cannot determine if unaligned access supported. Assuming yes.])
   ]
  )
+
+# Check if unaligned memory access creates warnings
+AC_MSG_CHECKING([for unaligned memory access causes warnings])
+UNALIGNED_ACCESS_WARNED=0
+SAV_CFLAGS="$CFLAGS"
+CFLAGS=$(<<<$KA_CFLAGS sed -e "s/.*\(-Wcast-align[[^ ]]*\) .*/\1/")
+CFLAGS="$CFLAGS -Werror"
+AC_COMPILE_IFELSE(
+  [
+    AC_LANG_PROGRAM(
+      [],
+      [[
+        char c;
+	int i = *(int *)&c;
+      ]]
+    )
+  ],
+  [AC_MSG_RESULT([no])],
+  [
+    AC_MSG_RESULT([yes])
+    UNALIGNED_ACCESS_WARNED=1
+  ],
+  [
+    AC_MSG_RESULT([unknown])
+    AC_MSG_WARN([Cannot determine if unaligned access supported. Assuming yes.])
+  ]
+ )
+CFLAGS="$SAV_CFLAGS"
+
+dnl - Do we want/need to cat via a void *?
+AS_IF([test .$enable_cast_via_void = .no],
+  [],
+  [
+    AS_IF([test .$enable_cast_via_void = .yes -o $UNALIGNED_ACCESS_WARNED -eq 1],
+      AC_DEFINE([CAST_VIA_VOID], [ 1 ], [Define to 1 to cast via void *]))
+  ]
+)
+
+dnl -- Runtime check cast alignments?
+AS_IF([test .$enable_cast_align_checks = .yes],
+      AC_DEFINE([CHECK_CAST_ALIGN], [ 1 ], [Define to 1 to do runtime cast alignment checks]))
 
 # Checks for libraries.
 dnl clock_gettime() required -lt before glibc 2.17
