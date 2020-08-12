@@ -2088,10 +2088,10 @@ read_line(char *buf, size_t size)
 						def->multiline = false;
 				}
 
+				buf[len] = '\0';
 				if (!len)
 					continue;
 
-				buf[len] = '\0';
 				decomment(buf);
 			} while (!buf[0]);
 
