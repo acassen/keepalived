@@ -110,7 +110,7 @@ dump_vsg_entry(FILE *fp, const virtual_server_group_entry_t *vsg_entry)
 
 	if (vsg_entry->is_fwmark) {
 		conf_write(fp, "   FWMARK = %u%s", vsg_entry->vfwmark, vsg_entry->fwm_family == AF_INET ? " IPv4" : vsg_entry->fwm_family == AF_INET6 ? " IPv6" : "");
-		conf_write(fp, "   Alive: %u IPv4, %u IPv6",
+		conf_write(fp, "     Alive: %u IPv4, %u IPv6",
 				vsg_entry->fwm4_alive, vsg_entry->fwm6_alive);
 	} else {
 		if (vsg_entry->range) {
