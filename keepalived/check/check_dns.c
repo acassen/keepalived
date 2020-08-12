@@ -208,8 +208,8 @@ dns_recv_thread(thread_ref_t thread)
 		return;
 	}
 
-	s_header = (dns_header_t *) dns_check->sbuf;
-	r_header = (dns_header_t *) rbuf;
+	s_header = PTR_CAST(dns_header_t , dns_check->sbuf);
+	r_header = PTR_CAST(dns_header_t , rbuf);
 
 	if (s_header->id != r_header->id) {
 #ifdef _CHECKER_DEBUG
@@ -244,7 +244,7 @@ dns_recv_thread(thread_ref_t thread)
 }
 
 #define APPEND16(x, y) do { \
-		*(uint16_t *) (x) = htons(y); \
+		*PTR_CAST(uint16_t, (x)) = htons(y); \
 		(x) = (uint8_t *) (x) + 2; \
 	} while(0)
 
@@ -257,7 +257,7 @@ dns_make_query(thread_ref_t thread)
 	size_t n;
 	checker_t *checker = THREAD_ARG(thread);
 	dns_check_t *dns_check = CHECKER_ARG(checker);
-	dns_header_t *header = (dns_header_t *) dns_check->sbuf;
+	dns_header_t *header = PTR_CAST(dns_header_t, dns_check->sbuf);
 
 	DNS_SET_RD(flags, 1);	/* Recursion Desired */
 
@@ -269,7 +269,7 @@ dns_make_query(thread_ref_t thread)
 	header->nscount = htons(0);
 	header->arcount = htons(0);
 
-	p = (uint8_t *) (header + 1);
+	p = PTR_CAST(uint8_t, header + 1);
 
 	/* QNAME */
 	for (s = dns_check->name; *s; s = *e ? ++e : e) {
@@ -288,7 +288,7 @@ dns_make_query(thread_ref_t thread)
 	APPEND16(p, dns_check->type);
 	APPEND16(p, 1);		/* IN */
 
-	dns_check->slen = (size_t)(p - (uint8_t *)header);
+	dns_check->slen = (size_t)(p - PTR_CAST(uint8_t, header));
 }
 
 static void

@@ -620,7 +620,7 @@ bfd_send_packet(int fd, bfdpkt_t *pkt, bool log_error)
 
 	ret =
 	    sendto(fd, pkt->buf, pkt->len, 0,
-		   (struct sockaddr *) &pkt->dst_addr, dstlen);
+		   PTR_CAST(struct sockaddr, &pkt->dst_addr), dstlen);
 	if (ret == -1 && log_error)
 		log_message(LOG_ERR, "sendto() error (%m)");
 
@@ -850,12 +850,12 @@ bfd_receive_packet(bfdpkt_t *pkt, int fd, char *buf, ssize_t bufsz)
 		    (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_HOPLIMIT))
 			ttl = *CMSG_DATA(cmsg);
 		else if (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO) {
-			pktinfo = (struct in6_pktinfo *)CMSG_DATA(cmsg);
+			pktinfo = PTR_CAST_CONST(struct in6_pktinfo, CMSG_DATA(cmsg));
 			if (IN6_IS_ADDR_V4MAPPED(&pktinfo->ipi6_addr)) {
-				((struct sockaddr_in *)&pkt->dst_addr)->sin_addr.s_addr = pktinfo->ipi6_addr.s6_addr32[3];
+				PTR_CAST(struct sockaddr_in, &pkt->dst_addr)->sin_addr.s_addr = pktinfo->ipi6_addr.s6_addr32[3];
 				pkt->dst_addr.ss_family = AF_INET;
 			} else {
-				memcpy(&((struct sockaddr_in6 *)&pkt->dst_addr)->sin6_addr, &pktinfo->ipi6_addr, sizeof(pktinfo->ipi6_addr));
+				memcpy(&PTR_CAST(struct sockaddr_in6, &pkt->dst_addr)->sin6_addr, &pktinfo->ipi6_addr, sizeof(pktinfo->ipi6_addr));
 				pkt->dst_addr.ss_family = AF_INET6;
 			}
 		}
@@ -868,13 +868,13 @@ bfd_receive_packet(bfdpkt_t *pkt, int fd, char *buf, ssize_t bufsz)
 	if (!ttl)
 		log_message(LOG_WARNING, "recvmsg() returned no TTL control message");
 
-	pkt->hdr = (bfdhdr_t *) buf;
+	pkt->hdr = PTR_CAST(bfdhdr_t, buf);
 	pkt->len = len;
 	pkt->ttl = ttl;
 
 	/* Convert an IPv4-mapped IPv6 address to a real IPv4 address */
-	if (IN6_IS_ADDR_V4MAPPED(&((struct sockaddr_in6 *)&pkt->src_addr)->sin6_addr)) {
-		((struct sockaddr_in *)&pkt->src_addr)->sin_addr.s_addr = ((struct sockaddr_in6 *)&pkt->src_addr)->sin6_addr.s6_addr32[3];
+	if (IN6_IS_ADDR_V4MAPPED(&PTR_CAST(struct sockaddr_in6, &pkt->src_addr)->sin6_addr)) {
+		PTR_CAST(struct sockaddr_in, &pkt->src_addr)->sin_addr.s_addr = PTR_CAST(struct sockaddr_in6, &pkt->src_addr)->sin6_addr.s6_addr32[3];
 		pkt->src_addr.ss_family = AF_INET;
 	}
 
@@ -1034,11 +1034,11 @@ bfd_open_fd_out(bfd_t *bfd)
 		do {
 			/* Try binding socket to the address until we find one available */
 			if (bfd->src_addr.ss_family == AF_INET)
-				((struct sockaddr_in *)&bfd->src_addr)->sin_port = htons(port);
+				PTR_CAST(struct sockaddr_in, &bfd->src_addr)->sin_port = htons(port);
 			else
-				((struct sockaddr_in6 *)&bfd->src_addr)->sin6_port = htons(port);
+				PTR_CAST(struct sockaddr_in6, &bfd->src_addr)->sin6_port = htons(port);
 
-			ret = bind(bfd->fd_out, (struct sockaddr *) &bfd->src_addr, sockaddr_len);
+			ret = bind(bfd->fd_out, PTR_CAST(struct sockaddr, &bfd->src_addr), sockaddr_len);
 
 			if (ret == -1 && errno == EADDRINUSE) {
 				/* Port already in use, try next */

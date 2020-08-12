@@ -60,6 +60,7 @@
 #include "logger.h"
 #include "main.h"
 #include "process.h"
+#include "align.h"
 
 
 static thread_ref_t read_thread;
@@ -775,7 +776,7 @@ nl_connect(void)
 	sa_nl.nl_groups = CN_IDX_PROC;
 	sa_nl.nl_pid = getpid();
 
-	rc = bind(nl_sd, (struct sockaddr *)&sa_nl, sizeof(sa_nl));
+	rc = bind(nl_sd, PTR_CAST(struct sockaddr, &sa_nl), sizeof(sa_nl));
 	if (rc == -1) {
 		log_message(LOG_INFO, "Failed to bind to process monitoring socket - errno %d - %m", errno);
 		close(nl_sd);
@@ -955,7 +956,7 @@ handle_proc_ev(int nl_sd)
 			return -1;
 		}
 
-		for (nlmsghdr = (struct nlmsghdr *)buf;
+		for (nlmsghdr = PTR_CAST(struct nlmsghdr, buf);
 			NLMSG_OK (nlmsghdr, len);
 			nlmsghdr = NLMSG_NEXT (nlmsghdr, len)) {
 
@@ -968,7 +969,7 @@ handle_proc_ev(int nl_sd)
 			    cn_msg->id.val != CN_VAL_PROC)
 				continue;
 
-			proc_ev = (struct proc_event *)cn_msg->data;
+			proc_ev = PTR_CAST(struct proc_event, cn_msg->data);
 
 			/* On 3.10 kernel, proc_ev->cpu can be UINT32_MAX */
 			if (proc_ev->cpu >= num_cpus)

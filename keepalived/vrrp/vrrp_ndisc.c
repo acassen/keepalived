@@ -127,7 +127,7 @@ ndisc_icmp6_cksum(const struct ip6hdr *ip6, const struct icmp6_hdr *icp, uint32_
 		sum += *sp++;
 
 	if (len & 1)
-		sum += htons((*(const uint8_t *)sp) << 8);
+		sum += htons((*PTR_CAST_CONST(uint8_t, sp)) << 8);
 
 	while (sum > 0xffff)
 		sum = (sum & 0xffff) + (sum >> 16);
@@ -145,12 +145,12 @@ void
 ndisc_send_unsolicited_na_immediate(interface_t *ifp, ip_address_t *ipaddress)
 {
 	struct ether_header *eth = (struct ether_header *) ndisc_buffer;
-	struct ip6hdr *ip6h = (struct ip6hdr *) ((char *)eth + ETHER_HDR_LEN);
-	struct nd_neighbor_advert *ndh = (struct nd_neighbor_advert*) ((char *)ip6h + sizeof(struct ip6hdr));
+	struct ip6hdr *ip6h = PTR_CAST(struct ip6hdr, ((char *)eth + ETHER_HDR_LEN));
+	struct nd_neighbor_advert *ndh = PTR_CAST(struct nd_neighbor_advert, ((char *)ip6h + sizeof(struct ip6hdr)));
 	struct icmp6_hdr *icmp6h = &ndh->nd_na_hdr;
 	struct nd_opt_hdr *nd_opt_h = (struct nd_opt_hdr *) ((char *)ndh + sizeof(struct nd_neighbor_advert));
 	char *nd_opt_lladdr = (char *) ((char *)nd_opt_h + sizeof(struct nd_opt_hdr));
-	char *lladdr = (char *) IF_HWADDR(ipaddress->ifp);
+	char *lladdr = PTR_CAST(char, IF_HWADDR(ipaddress->ifp));
 
 	/* This needs updating to support IPv6 over Infiniband
 	 * (see vrrp_arp.c) */

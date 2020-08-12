@@ -677,11 +677,11 @@ try_up_instance(vrrp_t *vrrp, bool leaving_init)
 		ip_addr.ifp = IF_BASE_IFP(vrrp->ifp);
 
 		if (vrrp->saddr.ss_family == AF_INET) {
-			ip_addr.u.sin.sin_addr.s_addr = ((struct sockaddr_in *)&vrrp->saddr)->sin_addr.s_addr;
+			ip_addr.u.sin.sin_addr.s_addr = PTR_CAST(struct sockaddr_in, &vrrp->saddr)->sin_addr.s_addr;
 			send_gratuitous_arp_immediate(ip_addr.ifp, &ip_addr);
 		} else {
 			/* IPv6 */
-			ip_addr.u.sin6_addr = ((struct sockaddr_in6 *)&vrrp->saddr)->sin6_addr;
+			ip_addr.u.sin6_addr = PTR_CAST(struct sockaddr_in6, &vrrp->saddr)->sin6_addr;
 			ndisc_send_unsolicited_na_immediate(ip_addr.ifp, &ip_addr);
 		}
 	}
@@ -929,7 +929,7 @@ vrrp_dispatcher_read(sock_t *sock)
 		vrrp->pkt_saddr = src_addr;
 		vrrp->rx_ttl_hop_limit = -1;           /* Default to not received */
 		if (sock->family == AF_INET) {
-			iph = (const struct iphdr *)vrrp_buffer;
+			iph = PTR_CAST_CONST(struct iphdr, vrrp_buffer);
 			vrrp->multicast_pkt = IN_MULTICAST(htonl(iph->daddr));
 			vrrp->rx_ttl_hop_limit = iph->ttl;
 		} else
@@ -942,13 +942,13 @@ vrrp_dispatcher_read(sock_t *sock)
 #ifdef IPV6_RECVHOPLIMIT
 				if (cmsg->cmsg_type == IPV6_HOPLIMIT &&
 				    cmsg->cmsg_len - sizeof(struct cmsghdr) == sizeof(unsigned int))
-					vrrp->rx_ttl_hop_limit = *(unsigned int *)CMSG_DATA(cmsg);
+					vrrp->rx_ttl_hop_limit = *PTR_CAST(unsigned int, CMSG_DATA(cmsg));
 				else
 #endif
 #ifdef IPV6_RECVPKTINFO
 				if (cmsg->cmsg_type == IPV6_PKTINFO &&
 				    cmsg->cmsg_len - sizeof(struct cmsghdr) == sizeof(struct in6_pktinfo))
-					vrrp->multicast_pkt = IN6_IS_ADDR_MULTICAST(&((struct in6_pktinfo *)CMSG_DATA(cmsg))->ipi6_addr);
+					vrrp->multicast_pkt = IN6_IS_ADDR_MULTICAST(&(PTR_CAST(struct in6_pktinfo, CMSG_DATA(cmsg)))->ipi6_addr);
 				else
 #endif
 					expected_cmsg = false;

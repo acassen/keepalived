@@ -170,7 +170,7 @@ vrrp_alloc_track_file(const char *name, list_head_t *tracked_files, list_head_t 
 		}
 	}
 
-	tfile = (tracked_file_monitor_t *) MALLOC(sizeof(tracked_file_monitor_t));
+	PMALLOC(tfile);
 	INIT_LIST_HEAD(&tfile->e_list);
 	tfile->file = vsf;
 	tfile->weight = weight;
@@ -720,7 +720,7 @@ process_inotify(thread_ref_t thread)
 
 		/* The following line causes a strict-overflow=4 warning on gcc 5.4.0 */
 		for (buf_ptr = buf; buf_ptr < buf + len; buf_ptr += event->len + sizeof(struct inotify_event)) {
-			event = (struct inotify_event*)buf_ptr;
+			event = PTR_CAST(struct inotify_event, buf_ptr);
 
 			/* We are not interested in directories */
 			if (event->mask & IN_ISDIR)

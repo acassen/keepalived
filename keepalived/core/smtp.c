@@ -359,7 +359,7 @@ helo_cmd(thread_ref_t thread)
 	smtp_t *smtp = THREAD_ARG(thread);
 	char *buffer;
 
-	buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
+	buffer = (char *)MALLOC(SMTP_BUFFER_MAX);
 	snprintf(buffer, SMTP_BUFFER_MAX, SMTP_HELO_CMD, (global_data->smtp_helo_name) ? global_data->smtp_helo_name : "localhost");
 	if (send(thread->u.f.fd, buffer, strlen(buffer), 0) == -1)
 		smtp->stage = ERROR;
@@ -390,7 +390,7 @@ mail_cmd(thread_ref_t thread)
 	smtp_t *smtp = THREAD_ARG(thread);
 	char *buffer;
 
-	buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
+	buffer = (char *)MALLOC(SMTP_BUFFER_MAX);
 	snprintf(buffer, SMTP_BUFFER_MAX, SMTP_MAIL_CMD, global_data->email_from);
 	if (send(thread->u.f.fd, buffer, strlen(buffer), 0) == -1)
 		smtp->stage = ERROR;
@@ -422,7 +422,7 @@ rcpt_cmd(thread_ref_t thread)
 	email_t *email = smtp->next_email_element;
 	char *buffer;
 
-	buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
+	buffer = (char *)MALLOC(SMTP_BUFFER_MAX);
 	/* We send RCPT TO command multiple time to add all our email receivers.
 	 * --rfc821.3.1
 	 */
@@ -495,7 +495,7 @@ body_cmd(thread_ref_t thread)
 	time_t now;
 	struct tm *t;
 
-	buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
+	buffer = (char *)MALLOC(SMTP_BUFFER_MAX);
 
 	time(&now);
 	t = localtime(&now);
@@ -692,7 +692,7 @@ smtp_alert(smtp_msg_t msg_type, void* data, const char *subject, const char *bod
 	/* format subject if rserver is specified */
 #ifdef _WITH_LVS_
 	if (msg_type == SMTP_MSG_RS) {
-		checker = (checker_t *)data;
+		checker = PTR_CAST(checker_t, data);
 		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Realserver %s of virtual server %s - %s",
 					global_data->router_id,
 					FMT_RS(checker->rs, checker->vs),
@@ -700,14 +700,14 @@ smtp_alert(smtp_msg_t msg_type, void* data, const char *subject, const char *bod
 					checker->rs->alive ? "UP" : "DOWN");
 	}
 	else if (msg_type == SMTP_MSG_VS) {
-		vs = (virtual_server_t *)data;
+		vs = PTR_CAST(virtual_server_t, data);
 		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Virtualserver %s - %s",
 					global_data->router_id,
 					FMT_VS(vs),
 					subject);
 	}
 	else if (msg_type == SMTP_MSG_RS_SHUT) {
-		rs_info = (smtp_rs *)data;
+		rs_info = PTR_CAST(smtp_rs, data);
 		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Realserver %s of virtual server %s - %s",
 					global_data->router_id,
 					FMT_RS(rs_info->rs, rs_info->vs),
@@ -718,13 +718,13 @@ smtp_alert(smtp_msg_t msg_type, void* data, const char *subject, const char *bod
 #endif
 #ifdef _WITH_VRRP_
 	if (msg_type == SMTP_MSG_VRRP) {
-		vrrp = (vrrp_t *)data;
+		vrrp = PTR_CAST(vrrp_t, data);
 		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] VRRP Instance %s - %s",
 					global_data->router_id,
 					vrrp->iname,
 					subject);
 	} else if (msg_type == SMTP_MSG_VGROUP) {
-		vgroup = (vrrp_sgroup_t *)data;
+		vgroup = PTR_CAST(vrrp_sgroup_t, data);
 		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] VRRP Group %s - %s",
 					global_data->router_id,
 					vgroup->gname,

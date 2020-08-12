@@ -179,7 +179,7 @@ register_thread_address(const char *func_name, thread_func_t func)
 {
 	func_det_t *func_det;
 
-	func_det = (func_det_t *) MALLOC(sizeof(func_det_t));
+	PMALLOC(func_det);
 	if (!func_det)
 		return;
 
@@ -576,7 +576,7 @@ thread_event_new(thread_master_t *m, int fd)
 {
 	thread_event_t *event;
 
-	event = (thread_event_t *) MALLOC(sizeof(thread_event_t));
+	PMALLOC(event);
 	if (!event)
 		return NULL;
 
@@ -692,7 +692,7 @@ thread_make_master(void)
 {
 	thread_master_t *new;
 
-	new = (thread_master_t *) MALLOC(sizeof (thread_master_t));
+	PMALLOC(new);
 
 #if HAVE_EPOLL_CREATE1
 	new->epoll_fd = epoll_create1(EPOLL_CLOEXEC);
@@ -1012,7 +1012,7 @@ thread_new(thread_master_t *m)
 	/* If one thread is already allocated return it */
 	new = thread_trim_head(&m->unuse);
 	if (!new) {
-		new = (thread_t *)MALLOC(sizeof(thread_t));
+		PMALLOC(new);
 		m->alloc++;
 	}
 
@@ -1602,7 +1602,7 @@ snmp_epoll_info(thread_master_t *m)
 		return;
 	set_words = (max_fdsetsize - 1) / (sizeof(*old_set) * CHAR_BIT) + 1;
 
-	for (i = 0, old_set = (unsigned long *)&m->snmp_fdset, new_set = (unsigned long *)&snmp_fdset; i < set_words; i++, old_set++, new_set++) {
+	for (i = 0, old_set = PTR_CAST(unsigned long, &m->snmp_fdset), new_set = PTR_CAST(unsigned long, &snmp_fdset); i < set_words; i++, old_set++, new_set++) {
 		if (*old_set == *new_set)
 			continue;
 
@@ -1650,7 +1650,7 @@ snmp_epoll_update(thread_master_t *m, bool reset)
 	set_words = m->snmp_fdsetsize ? (m->snmp_fdsetsize - 1) / (sizeof(*old_set) * CHAR_BIT) + 1 : 0;
 
 	/* Clear all the fds that were registered with epoll */
-	for (i = 0, old_set = (unsigned long *)&m->snmp_fdset; i < set_words; i++, old_set++) {
+	for (i = 0, old_set = PTR_CAST(unsigned long, &m->snmp_fdset); i < set_words; i++, old_set++) {
 		bits = *old_set;
 		fd = i * sizeof(*old_set) * CHAR_BIT - 1;
 		do {
@@ -1668,7 +1668,7 @@ snmp_epoll_update(thread_master_t *m, bool reset)
 		/* Add the file descriptors that are now in use */
 		set_words = fdsetsize ? (fdsetsize - 1) / (sizeof(*old_set) * CHAR_BIT) + 1 : 0;
 
-		for (i = 0, new_set = (unsigned long *)&snmp_fdset; i < set_words; i++, new_set++) {
+		for (i = 0, new_set = PTR_CAST(unsigned long, &snmp_fdset); i < set_words; i++, new_set++) {
 			bits = *new_set;
 			fd = i * sizeof(*new_set) * CHAR_BIT - 1;
 			do {

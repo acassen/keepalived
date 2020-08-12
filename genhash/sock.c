@@ -61,7 +61,7 @@ free_sock(SOCK * sock_obj)
 void
 init_sock(void)
 {
-	sock = (SOCK *) MALLOC(sizeof (SOCK));
+	PMALLOC(sock);
 	memset(sock, 0, sizeof (SOCK));
 	thread_add_event(master, tcp_connect_thread, sock, 0);
 }

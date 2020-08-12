@@ -120,13 +120,13 @@ if_extra_ipaddress_alloc(interface_t *ifp, void *addr, unsigned char family)
 	INIT_LIST_HEAD(&saddr->e_list);
 
 	if (family == AF_INET) {
-		saddr->u.sin_addr = *(struct in_addr *) addr;
+		saddr->u.sin_addr = *PTR_CAST(struct in_addr, addr);
 		list_add_tail(&saddr->e_list, &ifp->sin_addr_l);
 		return saddr;
 	}
 
 	if (family == AF_INET6) {
-		saddr->u.sin6_addr = *(struct in6_addr *) addr;
+		saddr->u.sin6_addr = *PTR_CAST(struct in6_addr, addr);
 		list_add_tail(&saddr->e_list, &ifp->sin6_addr_l);
 		return saddr;
 	}
@@ -243,7 +243,7 @@ set_base_ifp(void)
 static uint16_t
 if_mii_read(int fd, uint16_t phy_id, uint16_t reg_num)
 {
-	struct mii_ioctl_data *data = (struct mii_ioctl_data *)&ifr.ifr_data;
+	struct mii_ioctl_data *data = PTR_CAST(struct mii_ioctl_data, &ifr.ifr_data);
 
 	data->phy_id = phy_id;
 	data->reg_num = reg_num;
@@ -270,7 +270,7 @@ static void if_mii_dump(const uint16_t *mii_regs, size_t num_regs, unsigned phy_
 static int
 if_mii_status(const int fd)
 {
-	struct mii_ioctl_data *data = (struct mii_ioctl_data *)&ifr.ifr_data;
+	struct mii_ioctl_data *data = PTR_CAST(struct mii_ioctl_data, &ifr.ifr_data);
 	uint16_t phy_id = data->phy_id;
 	uint16_t bmsr, new_bmsr;
 
@@ -301,7 +301,7 @@ if_mii_status(const int fd)
 static int
 if_mii_probe(const int fd, const char *ifname)
 {
-	struct mii_ioctl_data *data = (struct mii_ioctl_data *)&ifr.ifr_data;
+	struct mii_ioctl_data *data = PTR_CAST(struct mii_ioctl_data, &ifr.ifr_data);
 	uint16_t phy_id;
 
 	memset(&ifr, 0, sizeof (struct ifreq));
@@ -930,13 +930,13 @@ if_join_vrrp_group(sa_family_t family, int *sd, const interface_t *ifp)
 		{
 			imr.imr_ifindex = IF_INDEX(IF_BASE_IFP(ifp));
 			if (setsockopt(*sd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-					 (char *) &imr, (socklen_t)sizeof(struct ip_mreqn)) < 0)
+					 PTR_CAST(char, &imr), (socklen_t)sizeof(struct ip_mreqn)) < 0)
 				log_message(LOG_INFO, "Failed to set GARP on base if - errno %d (%m)", errno);
 		}
 #endif
 		imr.imr_ifindex = (int)IF_INDEX(ifp);
 		ret = setsockopt(*sd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-				 (char *) &imr, (socklen_t)sizeof(struct ip_mreqn));
+				 PTR_CAST(char, &imr), (socklen_t)sizeof(struct ip_mreqn));
 	} else {
 		memset(&imr6, 0, sizeof(imr6));
 		imr6.ipv6mr_multiaddr = global_data->vrrp_mcast_group6.sin6_addr;
@@ -944,13 +944,13 @@ if_join_vrrp_group(sa_family_t family, int *sd, const interface_t *ifp)
 		if (send_on_base_if) {
 			imr6.ipv6mr_interface = IF_INDEX(IF_BASE_IFP(ifp));
 			if (setsockopt(*sd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP,
-					 (char *) &imr6, (socklen_t)sizeof(struct ipv6_mreq)) < 0)
+					 PTR_CAST(char, &imr6), (socklen_t)sizeof(struct ipv6_mreq)) < 0)
 				log_message(LOG_INFO, "Failed to set MLD on base if - errno %d (%m)", errno);
 		}
 #endif
 		imr6.ipv6mr_interface = IF_INDEX(ifp);
 		ret = setsockopt(*sd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP,
-				 (char *) &imr6, (socklen_t)sizeof(struct ipv6_mreq));
+				 PTR_CAST(char, &imr6), (socklen_t)sizeof(struct ipv6_mreq));
 	}
 
 	if (ret < 0) {
@@ -986,11 +986,11 @@ if_leave_vrrp_group(sa_family_t family, int sd, const interface_t *ifp)
 		    ifp->is_ours) {
 			imr.imr_ifindex = IF_INDEX(IF_BASE_IFP(ifp));
 			setsockopt(sd, IPPROTO_IP, IP_DROP_MEMBERSHIP,
-					 (char *) &imr, sizeof(imr));
+					 PTR_CAST(char, &imr), sizeof(imr));
 		}
 		imr.imr_ifindex = (int)IF_INDEX(ifp);
 		ret = setsockopt(sd, IPPROTO_IP, IP_DROP_MEMBERSHIP,
-				 (char *) &imr, sizeof(imr));
+				 PTR_CAST(char, &imr), sizeof(imr));
 #endif
 	} else {
 		memset(&imr6, 0, sizeof(imr6));
@@ -1002,12 +1002,12 @@ if_leave_vrrp_group(sa_family_t family, int sd, const interface_t *ifp)
 		    ifp->is_ours) {
 			imr6.ipv6mr_interface = IF_INDEX(IF_BASE_IFP(ifp));
 			setsockopt(sd, IPPROTO_IPV6, IPV6_DROP_MEMBERSHIP,
-					 (char *) &imr6, sizeof(struct ipv6_mreq));
+					 PTR_CAST(char, &imr6), sizeof(struct ipv6_mreq));
 		}
 #endif
 		imr6.ipv6mr_interface = IF_INDEX(ifp);
 		ret = setsockopt(sd, IPPROTO_IPV6, IPV6_DROP_MEMBERSHIP,
-				 (char *) &imr6, sizeof(struct ipv6_mreq));
+				 PTR_CAST(char, &imr6), sizeof(struct ipv6_mreq));
 	}
 
 	if (ret < 0) {

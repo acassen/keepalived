@@ -54,7 +54,7 @@
 /* global vars */
 vrrp_data_t *vrrp_data = NULL;
 vrrp_data_t *old_vrrp_data = NULL;
-char *vrrp_buffer;
+void *vrrp_buffer;
 size_t vrrp_buffer_len;
 
 static const char *
@@ -1127,7 +1127,7 @@ alloc_vrrp_script(const char *sname)
 	vrrp_script_t *new;
 
 	/* Allocate new VRRP script structure */
-	new = (vrrp_script_t *) MALLOC(sizeof(vrrp_script_t));
+	PMALLOC(new);
 	INIT_LIST_HEAD(&new->e_list);
 	INIT_LIST_HEAD(&new->tracking_vrrp);
 	new->sname = STRDUP(sname);
@@ -1169,7 +1169,7 @@ alloc_vrrp_buffer(size_t len)
 	if (vrrp_buffer)
 		FREE(vrrp_buffer);
 
-	vrrp_buffer = (char *) MALLOC(len);
+	vrrp_buffer = MALLOC(len);
 	vrrp_buffer_len = (vrrp_buffer) ? len : 0;
 }
 
@@ -1191,7 +1191,7 @@ alloc_vrrp_data(void)
 {
 	vrrp_data_t *new;
 
-	new = (vrrp_data_t *) MALLOC(sizeof(vrrp_data_t));
+	PMALLOC(new);
 	INIT_LIST_HEAD(&new->static_track_groups);
 	INIT_LIST_HEAD(&new->static_addresses);
 #ifdef _HAVE_FIB_ROUTING_

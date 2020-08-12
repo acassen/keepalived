@@ -326,7 +326,7 @@ vrrp_get_header(sa_family_t family, const char *buf, size_t len)
 	 * IPv4 and IPPROTO_AH. */
 
 	if (family == AF_INET) {
-		iph = (const struct iphdr *)buf;
+		iph = PTR_CAST_CONST(const struct iphdr, buf);
 
 		/* Ensure we have received the full vrrp header */
 		if (len < sizeof(struct iphdr) ||
@@ -344,10 +344,10 @@ vrrp_get_header(sa_family_t family, const char *buf, size_t len)
 				return NULL;
 			}
 
-			return (const vrrphdr_t *)((const char *) iph + (iph->ihl << 2) + sizeof(ipsec_ah_t));
+			return PTR_CAST_CONST(vrrphdr_t, (const char *)iph + (iph->ihl << 2) + sizeof(ipsec_ah_t));
 		}
 #endif
-		return (const vrrphdr_t *)((const char *) iph + (iph->ihl << 2));
+		return PTR_CAST_CONST(vrrphdr_t, (const char *)iph + (iph->ihl << 2));
 	}
 
 	if (family == AF_INET6) {
@@ -357,7 +357,7 @@ vrrp_get_header(sa_family_t family, const char *buf, size_t len)
 			return NULL;
 		}
 
-		return (const vrrphdr_t *)buf;
+		return PTR_CAST_CONST(vrrphdr_t, buf);
 	}
 
 	return NULL;
@@ -407,11 +407,11 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage *addr)
 #endif
 	}
 
-	hd = (vrrphdr_t *)bufptr;
+	hd = PTR_CAST(vrrphdr_t, bufptr);
 	if (hd->priority != prio) {
 		if (vrrp->family == AF_INET) {
 			/* HC' = ~(~HC + ~m + m') */
-			uint16_t *prio_addr = (uint16_t *)((char *)&hd->priority - (((char *)hd -(char *)&hd->priority) & 1));
+			uint16_t *prio_addr = PTR_CAST(uint16_t, ((char *)&hd->priority - (((char *)hd -(char *)&hd->priority) & 1)));
 			uint16_t old_val = *prio_addr;
 
 			hd->priority = prio;
@@ -422,7 +422,7 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage *addr)
 	}
 
 	if (vrrp->family == AF_INET) {
-		struct iphdr *ip = (struct iphdr *) (vrrp->send_buffer);
+		struct iphdr *ip = PTR_CAST(struct iphdr, (vrrp->send_buffer));
 		if (!addr) {
 			/* kernel will fill in ID if left to 0, so we overflow to 1 */
 			if (!++vrrp->ip_id)
@@ -448,11 +448,11 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage *addr)
 
 		/* Has the source address changed? */
 		if (!vrrp->saddr_from_config &&
-		    ip->saddr != ((struct sockaddr_in *)&vrrp->saddr)->sin_addr.s_addr) {
+		    ip->saddr != PTR_CAST(struct sockaddr_in, &vrrp->saddr)->sin_addr.s_addr) {
 			if (vrrp->version == VRRP_VERSION_2)
-				ip->saddr = ((struct sockaddr_in *)&vrrp->saddr)->sin_addr.s_addr;
+				ip->saddr = PTR_CAST(struct sockaddr_in, &vrrp->saddr)->sin_addr.s_addr;
 			else {
-				new_saddr = ((struct sockaddr_in *)&vrrp->saddr)->sin_addr.s_addr;
+				new_saddr = PTR_CAST(struct sockaddr_in, &vrrp->saddr)->sin_addr.s_addr;
 				hd->chksum = csum_incremental_update32(hd->chksum, ip->saddr, new_saddr);
 				ip->saddr = new_saddr;
 			}
@@ -461,7 +461,7 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage *addr)
 #ifdef _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH) {
 			unsigned char digest[MD5_DIGEST_LENGTH];
-			ipsec_ah_t *ah = (ipsec_ah_t *) (vrrp->send_buffer + sizeof (struct iphdr));
+			ipsec_ah_t *ah = PTR_CAST(ipsec_ah_t, (vrrp->send_buffer + sizeof (struct iphdr)));
 
 			if (new_saddr)
 				ah->spi = new_saddr;
@@ -501,7 +501,7 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage *addr)
 				   -- rfc2402.3.3.3.1.1.1 & rfc2401.5
 				 */
 				memset(&ah->auth_data, 0, sizeof(ah->auth_data));
-				hmac_md5((const unsigned char *)&iph, sizeof iph, (const unsigned char *)ah,
+				hmac_md5(PTR_CAST_CONST(unsigned char, &iph), sizeof iph, PTR_CAST_CONST(unsigned char, ah),
 					 vrrp->send_buffer_size - sizeof(struct iphdr), vrrp->auth_data,
 					 sizeof(vrrp->auth_data), digest);
 				memcpy(ah->auth_data, digest, HMAC_MD5_TRUNC);
@@ -525,9 +525,9 @@ vrrp_csum_mcast(vrrp_t *vrrp)
 		bufptr += sizeof(ipsec_ah_t);
 #endif
 
-	hd = (vrrphdr_t *)bufptr;
+	hd = PTR_CAST(vrrphdr_t, bufptr);
 
-	struct iphdr *ip = (struct iphdr *) (vrrp->send_buffer);
+	struct iphdr *ip = PTR_CAST(struct iphdr, (vrrp->send_buffer));
 	if (vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_AUTO &&
 	    ip->daddr != global_data->vrrp_mcast_group4.sin_addr.s_addr) {
 		/* The checksum is calculated using the standard multicast address */
@@ -547,8 +547,8 @@ vrrp_in_chk_ipsecah(vrrp_t *vrrp, const struct iphdr *ip, const ipsec_ah_t *ah, 
 	size_t hdr_len = (const char *)ah - (const char *)ip;
 	unsigned char digest[MD5_DIGEST_LENGTH];
 	unsigned char tmp_buf[(15 << 2) + sizeof(ipsec_ah_t)]; /* Allow for max ip header size */
-	struct iphdr *ip_tmp = (struct iphdr *)tmp_buf;
-	ipsec_ah_t *ah_tmp = (ipsec_ah_t *)((char *)ip_tmp + hdr_len);
+	struct iphdr *ip_tmp = PTR_CAST(struct iphdr, tmp_buf);
+	ipsec_ah_t *ah_tmp = PTR_CAST(ipsec_ah_t, ((char *)ip_tmp + hdr_len));
 
 	/*
 	 * First compute an ICV to compare with the one present in AH pkt.
@@ -631,8 +631,8 @@ vrrp_in_chk_vips(const vrrp_t *vrrp, const ip_address_t *ipaddress, const unsign
 static void
 check_tx_checksum(vrrp_t *vrrp, unicast_peer_t *peer)
 {
-	struct iphdr *ip = (struct iphdr *)vrrp->send_buffer;
-	vrrphdr_t *hd = (vrrphdr_t *)((char *)vrrp->send_buffer + sizeof(struct iphdr));
+	struct iphdr *ip = PTR_CAST(struct iphdr, vrrp->send_buffer);
+	vrrphdr_t *hd = PTR_CAST(vrrphdr_t, ((char *)vrrp->send_buffer + sizeof(struct iphdr)));
 	size_t vrrppkt_len;
 	uint32_t acc_csum;
 	ipv4_phdr_t ipv4_phdr;
@@ -642,7 +642,7 @@ check_tx_checksum(vrrp_t *vrrp, unicast_peer_t *peer)
 
 #ifdef _WITH_VRRP_AUTH_
 	if (ip->protocol == IPPROTO_AH)
-		hd = (vrrphdr_t *)((char *)hd + sizeof(ipsec_ah_t));
+		hd = PTR_CAST(vrrphdr_t, ((char *)hd + sizeof(ipsec_ah_t)));
 #endif
 	vrrppkt_len = sizeof(vrrphdr_t) + hd->naddr * sizeof(struct in_addr);
 
@@ -659,7 +659,7 @@ check_tx_checksum(vrrp_t *vrrp, unicast_peer_t *peer)
 		ipv4_phdr.proto = IPPROTO_VRRP;
 		ipv4_phdr.len   = htons(vrrppkt_len);
 
-		in_csum((uint16_t *) &ipv4_phdr, sizeof(ipv4_phdr), 0, &acc_csum);
+		in_csum(PTR_CAST(uint16_t, &ipv4_phdr), sizeof(ipv4_phdr), 0, &acc_csum);
 	} else {
 		vrrppkt_len += VRRP_AUTH_LEN;
 		acc_csum = 0;
@@ -667,7 +667,7 @@ check_tx_checksum(vrrp_t *vrrp, unicast_peer_t *peer)
 
 	pkt_chksum = hd->chksum;
 	hd->chksum = 0;
-	calc_chksum = in_csum((uint16_t *) hd, vrrppkt_len, acc_csum, &acc_csum);
+	calc_chksum = in_csum(PTR_CAST(uint16_t, hd), vrrppkt_len, acc_csum, &acc_csum);
 	hd->chksum = pkt_chksum;
 
 	if (calc_chksum != pkt_chksum ||
@@ -719,10 +719,10 @@ check_rx_checksum(vrrp_t *vrrp, const ipv4_phdr_t *ipv4_phdr, const struct iphdr
 	bool peer_found = false;
 
 	/* If unicast, find the sending peer */
-	saddr4 = &((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr;
+	saddr4 = &PTR_CAST(struct sockaddr_in, &vrrp->pkt_saddr)->sin_addr;
 	list_for_each_entry(peer, &vrrp->unicast_peer, e_list) {
 		peer_found = true;
-		if (saddr4->s_addr == ((struct sockaddr_in *)&peer->address)->sin_addr.s_addr) {
+		if (saddr4->s_addr == PTR_CAST(struct sockaddr_in, &peer->address)->sin_addr.s_addr) {
 			break;
 		}
 	}
@@ -786,7 +786,7 @@ check_rx_checksum(vrrp_t *vrrp, const ipv4_phdr_t *ipv4_phdr, const struct iphdr
 static int
 vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t buflen_ret, bool check_vip_addr)
 {
-	const struct iphdr *ip = (const struct iphdr *)buffer;
+	const struct iphdr *ip = PTR_CAST_CONST(struct iphdr, buffer);
 					/* Stop coverity issuing NULL pointer dereference warning */
 	int ihl = 0;	/* Stop compiler issuing possibly uninitialised warning */
 	size_t vrrppkt_len;
@@ -824,7 +824,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 				log_message(LOG_INFO, "(%s) No AH header but auth type is AH", vrrp->iname);
 			++vrrp->stats->authtype_mismatch;
 #ifdef _WITH_SNMP_RFCV2_
-			vrrp_rfcv2_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, authTypeMismatch);
+			vrrp_rfcv2_snmp_auth_err_trap(vrrp, PTR_CAST(struct sockaddr_in, &vrrp->pkt_saddr)->sin_addr, authTypeMismatch);
 #endif
 			return VRRP_PACKET_KO;
 		}
@@ -893,7 +893,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 			log_message(LOG_INFO, "(%s) Invalid auth type: %d", vrrp->iname, hd->v2.auth_type);
 			++vrrp->stats->invalid_authtype;
 #ifdef _WITH_SNMP_RFCV2_
-			vrrp_rfcv2_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, invalidAuthType);
+			vrrp_rfcv2_snmp_auth_err_trap(vrrp, PTR_CAST(struct sockaddr_in, &vrrp->pkt_saddr)->sin_addr, invalidAuthType);
 #endif
 			return VRRP_PACKET_KO;
 		}
@@ -908,7 +908,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 			       vrrp->iname, hd->v2.auth_type, vrrp->auth_type);
 			++vrrp->stats->authtype_mismatch;
 #ifdef _WITH_SNMP_RFCV2_
-			vrrp_rfcv2_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, authTypeMismatch);
+			vrrp_rfcv2_snmp_auth_err_trap(vrrp, PTR_CAST(struct sockaddr_in, &vrrp->pkt_saddr)->sin_addr, authTypeMismatch);
 #endif
 			return VRRP_PACKET_KO;
 		}
@@ -920,13 +920,13 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 				log_message(LOG_INFO, "(%s) received an invalid passwd!", vrrp->iname);
 				++vrrp->stats->auth_failure;
 #ifdef _WITH_SNMP_RFCV2_
-				vrrp_rfcv2_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, authFailure);
+				vrrp_rfcv2_snmp_auth_err_trap(vrrp, PTR_CAST(struct sockaddr_in, &vrrp->pkt_saddr)->sin_addr, authFailure);
 #endif
 				return VRRP_PACKET_KO;
 			}
 		}
 		else if (vrrp->auth_type == VRRP_AUTH_AH) {
-			ah = (const ipsec_ah_t *) (buffer + ihl);
+			ah = PTR_CAST_CONST(ipsec_ah_t, buffer + ihl);
 
 			/* Check that the next header is vrrphdr_t */
 			if (ah->next_header != IPPROTO_VRRP) {
@@ -938,7 +938,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 			if (vrrp_in_chk_ipsecah(vrrp, ip, ah, hd, buflen)) {
 				++vrrp->stats->auth_failure;
 #ifdef _WITH_SNMP_RFCV2_
-				vrrp_rfcv2_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, authFailure);
+				vrrp_rfcv2_snmp_auth_err_trap(vrrp, PTR_CAST(struct sockaddr_in, &vrrp->pkt_saddr)->sin_addr, authFailure);
 #endif
 				return VRRP_PACKET_KO;
 			}
@@ -1003,16 +1003,16 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 			ipv4_phdr.proto = IPPROTO_VRRP;
 			ipv4_phdr.len   = htons(vrrppkt_len);
 
-			in_csum((uint16_t *) &ipv4_phdr, sizeof(ipv4_phdr), 0, &acc_csum);
-			if ((csum_calc = in_csum((const uint16_t *) hd, vrrppkt_len, acc_csum, &acc_csum))) {
+			in_csum(PTR_CAST(uint16_t, &ipv4_phdr), sizeof(ipv4_phdr), 0, &acc_csum);
+			if ((csum_calc = in_csum(PTR_CAST_CONST(uint16_t, hd), vrrppkt_len, acc_csum, &acc_csum))) {
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 				chksum_error = true;
 				if (!list_empty(&vrrp->unicast_peer) &&
 				    vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_NONE &&
 				    ipv4_phdr.dst != global_data->vrrp_mcast_group4.sin_addr.s_addr) {
 					ipv4_phdr.dst = global_data->vrrp_mcast_group4.sin_addr.s_addr;
-					in_csum((uint16_t *) &ipv4_phdr, sizeof(ipv4_phdr), 0, &acc_csum);
-					if (!(csum_calc = in_csum((const uint16_t *)hd, vrrppkt_len, acc_csum, &acc_csum))) {
+					in_csum(PTR_CAST(uint16_t, &ipv4_phdr), sizeof(ipv4_phdr), 0, &acc_csum);
+					if (!(csum_calc = in_csum(PTR_CAST_CONST(uint16_t, hd), vrrppkt_len, acc_csum, &acc_csum))) {
 						/* Update the checksum for the pseudo header IP address */
 						vrrp_csum_mcast(vrrp);
 
@@ -1045,7 +1045,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 #endif
 		} else {
 			vrrppkt_len += VRRP_AUTH_LEN;
-			csum_calc = in_csum((const uint16_t *) hd, vrrppkt_len, 0, &acc_csum);
+			csum_calc = in_csum(PTR_CAST_CONST(uint16_t, hd), vrrppkt_len, 0, &acc_csum);
 
 #ifdef _CHECKSUM_DEBUG_
 			if (do_checksum_debug)
@@ -1089,7 +1089,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 	++vrrp->stats->advert_rcvd;
 
 	/* pointer to vrrp vips pkt zone */
-	vips = (const unsigned char *) ((const char *) hd + sizeof(vrrphdr_t));
+	vips = PTR_CAST_CONST(const unsigned char, ((const char *) hd + sizeof(vrrphdr_t)));
 
 	if (check_vip_addr) {
 		/*
@@ -1123,17 +1123,17 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 			bool found_match = false;
 
 			if (vrrp->family == AF_INET6) {
-				saddr6 = &((struct sockaddr_in6 *)&vrrp->pkt_saddr)->sin6_addr;
+				saddr6 = &PTR_CAST(struct sockaddr_in6, &vrrp->pkt_saddr)->sin6_addr;
 				list_for_each_entry(up_addr, &vrrp->unicast_peer, e_list) {
-					if (IN6_ARE_ADDR_EQUAL(saddr6, &((struct sockaddr_in6 *)&up_addr->address)->sin6_addr)) {
+					if (IN6_ARE_ADDR_EQUAL(saddr6, &PTR_CAST(struct sockaddr_in6, &up_addr->address)->sin6_addr)) {
 						found_match = true;
 						break;
 					}
 				}
 			} else {
-				saddr4 = &((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr;
+				saddr4 = &PTR_CAST(struct sockaddr_in, &vrrp->pkt_saddr)->sin_addr;
 				list_for_each_entry(up_addr, &vrrp->unicast_peer, e_list) {
-					if (saddr4->s_addr == ((struct sockaddr_in *)&up_addr->address)->sin_addr.s_addr) {
+					if (saddr4->s_addr == PTR_CAST(struct sockaddr_in, &up_addr->address)->sin_addr.s_addr) {
 						found_match = true;
 						break;
 					}
@@ -1185,7 +1185,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 static void
 vrrp_build_ip4(vrrp_t *vrrp, char *buffer)
 {
-	struct iphdr *ip = (struct iphdr *) (buffer);
+	struct iphdr *ip = PTR_CAST(struct iphdr, (buffer));
 
 	ip->ihl = sizeof(struct iphdr) >> 2;
 	ip->version = 4;
@@ -1223,8 +1223,8 @@ static void
 vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, size_t buflen)
 {
 	unsigned char digest[MD5_DIGEST_LENGTH];
-	struct iphdr *ip = (struct iphdr *) (buffer);
-	ipsec_ah_t *ah = (ipsec_ah_t *) (buffer + sizeof (struct iphdr));
+	struct iphdr *ip = PTR_CAST(struct iphdr, (buffer));
+	ipsec_ah_t *ah = PTR_CAST(ipsec_ah_t, (buffer + sizeof (struct iphdr)));
 
 	/* fill in next header filed --rfc2402.2.1 */
 	ah->next_header = IPPROTO_VRRP;
@@ -1254,7 +1254,7 @@ vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, size_t buflen)
 	   => No padding needed.
 	   -- rfc2402.3.3.3.1.1.1 & rfc2401.5
 	 */
-	hmac_md5((unsigned char *) buffer, buflen, NULL, 0, vrrp->auth_data, sizeof (vrrp->auth_data), digest);
+	hmac_md5(PTR_CAST(unsigned char, buffer), buflen, NULL, 0, vrrp->auth_data, sizeof (vrrp->auth_data), digest);
 	memcpy(ah->auth_data, digest, HMAC_MD5_TRUNC);
 }
 #endif
@@ -1264,7 +1264,7 @@ static void
 vrrp_build_vrrp_v2(vrrp_t *vrrp, char *buffer)
 {
 	int i = 0;
-	vrrphdr_t *hd = (vrrphdr_t *) buffer;
+	vrrphdr_t *hd = PTR_CAST(vrrphdr_t, buffer);
 	struct in_addr *iparr;
 	struct in6_addr *ip6arr;
 	ip_address_t *ip_addr;
@@ -1284,7 +1284,7 @@ vrrp_build_vrrp_v2(vrrp_t *vrrp, char *buffer)
 	/* Family specific */
 	if (vrrp->family == AF_INET) {
 		/* copy the ip addresses */
-		iparr = (struct in_addr *) ((char *) hd + sizeof (*hd));
+		iparr = PTR_CAST(struct in_addr, ((char *)hd + sizeof (*hd)));
 		list_for_each_entry(ip_addr, &vrrp->vip, e_list)
 			iparr[i++] = ip_addr->u.sin.sin_addr;
 
@@ -1292,16 +1292,16 @@ vrrp_build_vrrp_v2(vrrp_t *vrrp, char *buffer)
 		/* copy the passwd if the authentication is VRRP_AH_PASS */
 		if (vrrp->auth_type == VRRP_AUTH_PASS) {
 			unsigned vip_count = (!list_empty(&vrrp->vip)) ? vrrp->vip_cnt : 0;
-			char *pw = (char *) hd + sizeof (*hd) + vip_count * 4;
+			char *pw = (char *)hd + sizeof (*hd) + vip_count * 4;
 			memcpy(pw, vrrp->auth_data, sizeof (vrrp->auth_data));
 		}
 #endif
 
 		/* finally compute vrrp checksum */
 		hd->chksum = 0;
-		hd->chksum = in_csum((uint16_t *)hd, vrrp_pkt_len(vrrp), 0, NULL);
+		hd->chksum = in_csum(PTR_CAST(uint16_t, hd), vrrp_pkt_len(vrrp), 0, NULL);
 	} else if (vrrp->family == AF_INET6) {
-		ip6arr = (struct in6_addr *)((char *) hd + sizeof(*hd));
+		ip6arr = PTR_CAST(struct in6_addr, ((char *)hd + sizeof(*hd)));
 		list_for_each_entry(ip_addr, &vrrp->vip, e_list)
 			ip6arr[i++] = ip_addr->u.sin6_addr;
 
@@ -1315,7 +1315,7 @@ static void
 vrrp_build_vrrp_v3(vrrp_t *vrrp, char *buffer, struct iphdr *ip)
 {
 	int i = 0;
-	vrrphdr_t *hd = (vrrphdr_t *) buffer;
+	vrrphdr_t *hd = PTR_CAST(vrrphdr_t, buffer);
 	struct in_addr *iparr;
 	struct in6_addr *ip6arr;
 	ip_address_t *ip_addr;
@@ -1335,7 +1335,7 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, char *buffer, struct iphdr *ip)
 	/* Family specific */
 	if (vrrp->family == AF_INET) {
 		/* copy the ip addresses */
-		iparr = (struct in_addr *) ((char *) hd + sizeof(*hd));
+		iparr = PTR_CAST(struct in_addr, ((char *)hd + sizeof(*hd)));
 		list_for_each_entry(ip_addr, &vrrp->vip, e_list)
 			iparr[i++] = ip_addr->u.sin.sin_addr;
 
@@ -1352,10 +1352,10 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, char *buffer, struct iphdr *ip)
 		ipv4_phdr.len   = htons(vrrp_pkt_len(vrrp));
 
 		/* finally compute vrrp checksum */
-		in_csum((uint16_t *)&ipv4_phdr, sizeof(ipv4_phdr), 0, &vrrp->ipv4_csum);
-		hd->chksum = in_csum((uint16_t *) hd, vrrp_pkt_len(vrrp), vrrp->ipv4_csum, NULL);
+		in_csum(PTR_CAST(uint16_t, &ipv4_phdr), sizeof(ipv4_phdr), 0, &vrrp->ipv4_csum);
+		hd->chksum = in_csum(PTR_CAST(uint16_t, hd), vrrp_pkt_len(vrrp), vrrp->ipv4_csum, NULL);
 	} else if (vrrp->family == AF_INET6) {
-		ip6arr = (struct in6_addr *)((char *) hd + sizeof(*hd));
+		ip6arr = PTR_CAST(struct in6_addr, ((char *)hd + sizeof(*hd)));
 		list_for_each_entry(ip_addr, &vrrp->vip, e_list)
 			ip6arr[i++] = ip_addr->u.sin6_addr;
 	}
@@ -1391,7 +1391,7 @@ vrrp_build_pkt(vrrp_t * vrrp)
 		if (vrrp->auth_type == VRRP_AUTH_AH)
 			bufptr += sizeof(ipsec_ah_t);
 #endif
-		vrrp_build_vrrp(vrrp, bufptr, (struct iphdr *)vrrp->send_buffer);
+		vrrp_build_vrrp(vrrp, bufptr, PTR_CAST(struct iphdr, vrrp->send_buffer));
 
 #ifdef _WITH_VRRP_AUTH_
 		/* build the IPSEC AH header */
@@ -1422,9 +1422,9 @@ vrrp_build_ancillary_data(struct msghdr *msg, char *cbuf, struct sockaddr_storag
 	cmsg->cmsg_type = IPV6_PKTINFO;
 	cmsg->cmsg_len = CMSG_LEN(sizeof(struct in6_pktinfo));
 
-	pkt = (struct in6_pktinfo *) CMSG_DATA(cmsg);
+	pkt = PTR_CAST(struct in6_pktinfo, CMSG_DATA(cmsg));
 	memset(pkt, 0, sizeof(struct in6_pktinfo));
-	pkt->ipi6_addr = ((struct sockaddr_in6 *) src)->sin6_addr;
+	pkt->ipi6_addr = PTR_CAST(struct sockaddr_in6, src)->sin6_addr;
 	if (vrrp->ifp) {
 #ifdef _HAVE_VRRP_VMAC_
 		if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags))
@@ -1440,7 +1440,7 @@ vrrp_build_ancillary_data(struct msghdr *msg, char *cbuf, struct sockaddr_storag
 			cmsg->cmsg_level = IPPROTO_IPV6;
 			cmsg->cmsg_type = IPV6_HOPLIMIT;
 			cmsg->cmsg_len = CMSG_LEN(sizeof(*hlim));
-			hlim = (unsigned *)CMSG_DATA(cmsg);
+			hlim = PTR_CAST(unsigned, CMSG_DATA(cmsg));
 			*hlim = vrrp->ttl;
 		} else
 			msg->msg_controllen -= CMSG_SPACE(sizeof(*hlim));
@@ -1823,10 +1823,10 @@ vrrp_state_backup(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buf, ssize_t bu
 	else {
 		/* Check if the addresses are different */
 		if (vrrp->pkt_saddr.ss_family == AF_INET) {
-			if (((struct sockaddr_in*)&vrrp->pkt_saddr)->sin_addr.s_addr != ((struct sockaddr_in*)&vrrp->master_saddr)->sin_addr.s_addr)
+			if (PTR_CAST(struct sockaddr_in, &vrrp->pkt_saddr)->sin_addr.s_addr != PTR_CAST(struct sockaddr_in, &vrrp->master_saddr)->sin_addr.s_addr)
 				check_addr = true ;
 		} else {
-			if (!IN6_ARE_ADDR_EQUAL(&((struct sockaddr_in6*)&vrrp->pkt_saddr)->sin6_addr, &((struct sockaddr_in6*)&vrrp->master_saddr)->sin6_addr))
+			if (!IN6_ARE_ADDR_EQUAL(&PTR_CAST(struct sockaddr_in6, &vrrp->pkt_saddr)->sin6_addr, &PTR_CAST(struct sockaddr_in6, &vrrp->master_saddr)->sin6_addr))
 				check_addr = true;
 		}
 	}
@@ -1949,11 +1949,11 @@ vrrp_saddr_cmp(struct sockaddr_storage *addr, vrrp_t *vrrp)
 	/* Default interface source IP address */
 	if (addr->ss_family == AF_INET)
 		return inet_inaddrcmp(addr->ss_family,
-				      &((struct sockaddr_in *) addr)->sin_addr,
+				      &PTR_CAST(struct sockaddr_in, addr)->sin_addr,
 				      &ifp->sin_addr);
 	if (addr->ss_family == AF_INET6)
 		return inet_inaddrcmp(addr->ss_family,
-				      &((struct sockaddr_in6 *) addr)->sin6_addr,
+				      &PTR_CAST(struct sockaddr_in6, addr)->sin6_addr,
 				      &ifp->sin6_addr);
 	return 0;
 }
@@ -2032,7 +2032,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 					!vrrp->lower_prio_no_advert ? ", forcing new election" : "");
 #ifdef _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH) {
-			ah = (const ipsec_ah_t *) (buf + sizeof(struct iphdr));
+			ah = PTR_CAST_CONST(ipsec_ah_t, buf + sizeof(struct iphdr));
 			log_message(LOG_INFO, "(%s) IPSEC-AH : Syncing seq_num"
 					      " - Increment seq"
 					    , vrrp->iname);
@@ -2333,12 +2333,12 @@ open_vrrp_read_socket(sa_family_t family, int proto, const interface_t *ifp, con
 		 * Binding to a multicast address appears to fail for IPv6, so if we allow different
 		 * mcast addresses we only need one socket per interface.
 		 */
-		if ((family == AF_INET && bind(fd, (const struct sockaddr *)&global_data->vrrp_mcast_group4, sizeof(struct sockaddr_in))) ||
-		    (family == AF_INET6 && bind(fd, (const struct sockaddr *)&loopback6, sizeof(struct sockaddr_in6))))
+		if ((family == AF_INET && bind(fd, PTR_CAST_CONST(struct sockaddr, &global_data->vrrp_mcast_group4), sizeof(struct sockaddr_in))) ||
+		    (family == AF_INET6 && bind(fd, PTR_CAST_CONST(struct sockaddr, &loopback6), sizeof(struct sockaddr_in6))))
 			log_message(LOG_INFO, "bind for multicast failed %d - %m", errno);
 	} else {
 		/* Bind to the local unicast address */
-		if (bind(fd, (const struct sockaddr *)unicast_src, unicast_src->ss_family == AF_INET ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6))) {
+		if (bind(fd, PTR_CAST_CONST(struct sockaddr, unicast_src), unicast_src->ss_family == AF_INET ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6))) {
 			log_message(LOG_INFO, "bind unicast_src %s failed %d - %m", inet_sockaddrtos(unicast_src), errno);
 			close(fd);
 			return -2;
@@ -2752,7 +2752,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 		/* For IPv6 unicast, we cannot have no interface and a link local or no src ip address */
 		if (vrrp->family == AF_INET6 &&
-		    IN6_IS_ADDR_LINKLOCAL(&(((struct sockaddr_in6 *)&vrrp->saddr)->sin6_addr))) {
+		    IN6_IS_ADDR_LINKLOCAL(&(PTR_CAST_CONST(struct sockaddr_in6, &vrrp->saddr)->sin6_addr))) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Non link-local address required if interface omitted"
 								, vrrp->iname);
 			return false;
@@ -3854,16 +3854,16 @@ check_vrid_conflicts(void)
 					    (!vrrp1->saddr_from_config && !(vrrp1->ifp && vrrp1->ifp->sin_addr.s_addr)))
 						continue;
 
-					vrrp_saddr = vrrp->saddr.ss_family == AF_INET ? &((struct sockaddr_in *)&vrrp->saddr)->sin_addr : &vrrp->ifp->sin_addr;
-					vrrp1_saddr = vrrp1->saddr.ss_family == AF_INET ? &((struct sockaddr_in *)&vrrp1->saddr)->sin_addr : &vrrp1->ifp->sin_addr;
+					vrrp_saddr = vrrp->saddr.ss_family == AF_INET ? &PTR_CAST(struct sockaddr_in, &vrrp->saddr)->sin_addr : &vrrp->ifp->sin_addr;
+					vrrp1_saddr = vrrp1->saddr.ss_family == AF_INET ? &PTR_CAST(struct sockaddr_in, &vrrp1->saddr)->sin_addr : &vrrp1->ifp->sin_addr;
 				} else {
 					/* Check if both vrrp and vrrp1 have known addresses at the moment */
 					if ((!vrrp->saddr_from_config && !(vrrp->ifp && vrrp->ifp->sin6_addr.s6_addr32[0])) ||
 					    (!vrrp1->saddr_from_config && !(vrrp1->ifp && vrrp1->ifp->sin6_addr.s6_addr32[0])))
 						continue;
 
-					vrrp_saddr = vrrp->saddr.ss_family == AF_INET6 ? &((struct sockaddr_in6 *)&vrrp->saddr)->sin6_addr : &vrrp->ifp->sin6_addr;
-					vrrp1_saddr = vrrp1->saddr.ss_family == AF_INET6 ? &((struct sockaddr_in6 *)&vrrp1->saddr)->sin6_addr : &vrrp1->ifp->sin6_addr;
+					vrrp_saddr = vrrp->saddr.ss_family == AF_INET6 ? &PTR_CAST(struct sockaddr_in6, &vrrp->saddr)->sin6_addr : &vrrp->ifp->sin6_addr;
+					vrrp1_saddr = vrrp1->saddr.ss_family == AF_INET6 ? &PTR_CAST(struct sockaddr_in6, &vrrp1->saddr)->sin6_addr : &vrrp1->ifp->sin6_addr;
 				}
 
 				if (vrrp_saddr && vrrp1_saddr && inet_inaddrcmp(vrrp->family, vrrp_saddr, vrrp1_saddr))

@@ -112,7 +112,7 @@ ipset_printf(__attribute ((__unused__)) struct ipset_session *session, void *p, 
 	va_list args;
 
 #ifndef LIBIPSET_PRE_V7_COMPAT
-	log_message(LOG_INFO, "libipset message from %s", (const char *)p);
+	log_message(LOG_INFO, "libipset message from %s", PTR_CAST_CONST(char, p));
 #endif
 
 	va_start(args, fmt);

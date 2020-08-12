@@ -179,13 +179,13 @@ ping_it(int fd, conn_opts_t* co)
 
 	set_buf(send_buf + sizeof(*icmp_hdr), ICMP_BUFSIZE);
 
-	icmp_hdr = (struct icmphdr *)send_buf;
+	icmp_hdr = PTR_CAST(struct icmphdr, send_buf);
 
 	memset(icmp_hdr, 0, sizeof(*icmp_hdr));
 	icmp_hdr->type = ICMP_ECHO;
 	icmp_hdr->un.echo.sequence = seq_no++;
 
-	if (sendto(fd, send_buf, sizeof(send_buf), 0, (struct sockaddr*)&co->dst, sizeof(struct sockaddr)) < 0) {
+	if (sendto(fd, send_buf, sizeof(send_buf), 0, PTR_CAST(struct sockaddr, &co->dst), sizeof(struct sockaddr)) < 0) {
 		log_message(LOG_INFO, "send ICMP packet fail");
 		return connect_error;
 	}
@@ -211,7 +211,7 @@ recv_it(int fd)
 		return connect_error;
 	}
 
-	icmp_hdr = (const struct icmphdr *)recv_buf;
+	icmp_hdr = PTR_CAST_CONST(struct icmphdr, recv_buf);
 	if (icmp_hdr->type != ICMP_ECHOREPLY) {
 		log_message(LOG_INFO, "Got ICMP packet with type 0x%x", icmp_hdr->type);
 		return connect_error;
@@ -228,13 +228,13 @@ ping6_it(int fd, conn_opts_t* co)
 
 	set_buf(send_buf + sizeof(*icmp6_hdr), ICMP_BUFSIZE);
 
-	icmp6_hdr = (struct icmp6_hdr *)&send_buf;
+	icmp6_hdr = PTR_CAST(struct icmp6_hdr, &send_buf);
 
 	memset(icmp6_hdr, 0, sizeof(*icmp6_hdr));
 	icmp6_hdr->icmp6_type = ICMP6_ECHO_REQUEST;
 	icmp6_hdr->icmp6_seq = seq_no++;
 
-	if (sendto(fd, send_buf, sizeof(send_buf), 0, (struct sockaddr_in6 *)&co->dst, sizeof(struct sockaddr_in6)) < 0) {
+	if (sendto(fd, send_buf, sizeof(send_buf), 0, PTR_CAST(struct sockaddr_in6, &co->dst), sizeof(struct sockaddr_in6)) < 0) {
 		log_message(LOG_INFO, "send ICMPv6 packet fail - errno %d", errno);
 		return connect_error;
 	}
@@ -261,7 +261,7 @@ recv6_it(int fd)
 		return connect_error;
 	}
 
-	icmp6_hdr = (const struct icmp6_hdr*)recv_buf;
+	icmp6_hdr = PTR_CAST_CONST(struct icmp6_hdr, recv_buf);
 	if (icmp6_hdr->icmp6_type != ICMP6_ECHO_REPLY) {
 		log_message(LOG_INFO, "Got ICMPv6 packet with type 0x%x", icmp6_hdr->icmp6_type);
 		return connect_error;
