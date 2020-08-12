@@ -725,11 +725,6 @@ static bool reload_config(void)
 
 	init_global_data(global_data, old_global_data, false);
 
-	/* Update process name if necessary */
-	if (!global_data->process_name != !old_global_data->process_name ||
-	    (global_data->process_name && strcmp(global_data->process_name, old_global_data->process_name)))
-		set_process_name(global_data->process_name);
-
 #if HAVE_DECL_CLONE_NEWNET
 	if (override_namespace) {
 		FREE_CONST_PTR(global_data->network_namespace);
@@ -762,8 +757,14 @@ static bool reload_config(void)
 		free_global_data (global_data);
 		global_data = old_global_data;
 	}
-	else
+	else {
+		/* Update process name if necessary */
+		if (!global_data->process_name != !old_global_data->process_name ||
+		    (global_data->process_name && strcmp(global_data->process_name, old_global_data->process_name)))
+			set_process_name(global_data->process_name);
+
 		free_global_data (old_global_data);
+	}
 
 #ifndef _ONE_PROCESS_DEBUG_
 	if (global_data->reload_time_file)
