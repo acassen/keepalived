@@ -1222,7 +1222,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 	ssize_t len;
 	int ret = 0;
 	int error;
-	char *nlmsg_buf = NULL;
+	char *nlmsg_buf __attribute__((aligned(__alignof__(struct nlmsghdr)))) = NULL;
 	int nlmsg_buf_size = 0;
 
 	while (true) {

@@ -270,7 +270,7 @@ add_nexthop(nexthop_t *nh, struct rtmsg *rtm, struct rtattr *rta, size_t len, st
 static void
 add_nexthops(ip_route_t *route, struct nlmsghdr *nlh, struct rtmsg *rtm)
 {
-	char buf[ENCAP_RTA_SIZE];
+	char buf[ENCAP_RTA_SIZE] __attribute__((aligned(__alignof__(struct rtattr))));
 	struct rtattr *rta = PTR_CAST(struct rtattr, buf);
 	struct rtnexthop *rtnh;
 	nexthop_t *nh;
@@ -300,7 +300,7 @@ netlink_route(ip_route_t *iproute, int cmd)
 		struct rtmsg r;
 		char buf[RTM_SIZE];
 	} req;
-	char buf[RTA_SIZE];
+	char buf[RTA_SIZE] __attribute__((aligned(__alignof__(struct rtattr))));
 	struct rtattr *rta = PTR_CAST(struct rtattr, buf);
 
 	memset(&req, 0, sizeof (req));
@@ -375,7 +375,7 @@ netlink_route(ip_route_t *iproute, int cmd)
 
 #if HAVE_DECL_RTA_ENCAP
 	if (iproute->encap.type != LWTUNNEL_ENCAP_NONE) {
-		char encap_buf[ENCAP_RTA_SIZE];
+		char encap_buf[ENCAP_RTA_SIZE] __attribute__((aligned(__alignof__(struct rtattr))));
 		struct rtattr *encap_rta = PTR_CAST(struct rtattr, encap_buf);
 
 		encap_rta->rta_type = RTA_ENCAP;

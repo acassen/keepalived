@@ -546,7 +546,7 @@ vrrp_in_chk_ipsecah(vrrp_t *vrrp, const struct iphdr *ip, const ipsec_ah_t *ah, 
 {
 	size_t hdr_len = (const char *)ah - (const char *)ip;
 	unsigned char digest[MD5_DIGEST_LENGTH];
-	unsigned char tmp_buf[(15 << 2) + sizeof(ipsec_ah_t)]; /* Allow for max ip header size */
+	unsigned char tmp_buf[(15 << 2) + sizeof(ipsec_ah_t)] __attribute__((aligned(__alignof__(struct iphdr)))); /* Allow for max ip header size */
 	struct iphdr *ip_tmp = PTR_CAST(struct iphdr, tmp_buf);
 	ipsec_ah_t *ah_tmp = PTR_CAST(ipsec_ah_t, ((char *)ip_tmp + hdr_len));
 
@@ -1455,7 +1455,7 @@ vrrp_send_pkt(vrrp_t * vrrp, unicast_peer_t *peer)
 	struct sockaddr_storage *src = &vrrp->saddr;
 	struct msghdr msg;
 	struct iovec iov;
-	char cbuf[256];
+	char cbuf[256] __attribute__((aligned(__alignof__(struct cmsghdr))));
 
 	/* Build the message data */
 	memset(&msg, 0, sizeof(msg));

@@ -313,7 +313,7 @@ udp_socket_error(int fd)
 	struct msghdr msg;
 	char name_buf[128];
 	struct iovec iov;
-	char control[2560];
+	char control[2560] __attribute__((aligned(__alignof__(struct cmsghdr))));
 	struct icmphdr icmph;
 	struct cmsghdr *cmsg;                   /* Control related data */
 	struct sock_extended_err *sock_err;

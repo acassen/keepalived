@@ -175,7 +175,7 @@ static enum connect_result
 ping_it(int fd, conn_opts_t* co)
 {
 	struct icmphdr *icmp_hdr;
-	char send_buf[sizeof(*icmp_hdr) + ICMP_BUFSIZE];
+	char send_buf[sizeof(*icmp_hdr) + ICMP_BUFSIZE] __attribute__((aligned(__alignof__(struct icmphdr))));
 
 	set_buf(send_buf + sizeof(*icmp_hdr), ICMP_BUFSIZE);
 
@@ -197,7 +197,7 @@ recv_it(int fd)
 {
 	ssize_t len;
 	const struct icmphdr *icmp_hdr;
-	char recv_buf[sizeof(*icmp_hdr) + ICMP_BUFSIZE];
+	char recv_buf[sizeof(*icmp_hdr) + ICMP_BUFSIZE] __attribute__((aligned(__alignof__(struct icmphdr))));
 
 	len = recv(fd, recv_buf, sizeof(recv_buf), 0);
 
@@ -224,7 +224,7 @@ static enum connect_result
 ping6_it(int fd, conn_opts_t* co)
 {
 	struct icmp6_hdr* icmp6_hdr;
-	char send_buf[sizeof(*icmp6_hdr) + ICMP_BUFSIZE];
+	char send_buf[sizeof(*icmp6_hdr) + ICMP_BUFSIZE] __attribute__((aligned(__alignof__(struct icmp6_hdr))));
 
 	set_buf(send_buf + sizeof(*icmp6_hdr), ICMP_BUFSIZE);
 
@@ -247,7 +247,7 @@ recv6_it(int fd)
 {
 	ssize_t len;
 	const struct icmp6_hdr* icmp6_hdr;
-	char recv_buf[sizeof (*icmp6_hdr) + ICMP_BUFSIZE];
+	char recv_buf[sizeof (*icmp6_hdr) + ICMP_BUFSIZE] __attribute__((aligned(__alignof__(struct icmp6_hdr))));
 
 	len = recv(fd, recv_buf, sizeof(recv_buf), 0);
 

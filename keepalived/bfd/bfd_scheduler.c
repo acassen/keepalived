@@ -810,9 +810,9 @@ bfd_receive_packet(bfdpkt_t *pkt, int fd, char *buf, ssize_t bufsz)
 	unsigned int ttl = 0;
 	struct msghdr msg;
 	struct cmsghdr *cmsg = NULL;
-	char cbuf[CMSG_SPACE(sizeof (struct in6_pktinfo)) + CMSG_SPACE(sizeof(ttl))];
+	char cbuf[CMSG_SPACE(sizeof (struct in6_pktinfo)) + CMSG_SPACE(sizeof(ttl))] __attribute__((aligned(__alignof__(struct cmsghdr))));
 	struct iovec iov[1];
-	struct in6_pktinfo *pktinfo;
+	const struct in6_pktinfo *pktinfo;
 
 	assert(pkt);
 	assert(fd >= 0);

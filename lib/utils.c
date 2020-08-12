@@ -283,7 +283,7 @@ run_perf(const char *process, const char *network_namespace, const char *instanc
 		}
 
 		/* Parent */
-		char buf[sizeof(struct inotify_event) + NAME_MAX + 1];
+		char buf[sizeof(struct inotify_event) + NAME_MAX + 1] __attribute__((aligned(__alignof__(struct inotify_event))));
 		struct inotify_event *ie = PTR_CAST(struct inotify_event, buf);
 		struct epoll_event ee = { .events = EPOLLIN, .data.fd = in };
 

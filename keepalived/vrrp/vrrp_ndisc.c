@@ -46,7 +46,7 @@
 #include "bitops.h"
 
 /* static vars */
-static char *ndisc_buffer;
+static char *ndisc_buffer __attribute__((aligned(__alignof__(struct ip6hdr))));
 static int ndisc_fd = -1;
 
 /*

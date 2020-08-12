@@ -305,7 +305,7 @@ watch_file(int fd)
 static void
 inotify_event_thread(thread_ref_t thread)
 {
-	char buf[256];
+	char buf[256] __attribute__((aligned(__alignof__(struct inotify_event))));
 	char *buf_ptr;
 	struct inotify_event* event;
 	ssize_t len;

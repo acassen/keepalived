@@ -173,7 +173,7 @@ dns_recv_thread(thread_ref_t thread)
 {
 	unsigned long timeout;
 	ssize_t ret;
-	char rbuf[DNS_BUFFER_SIZE];
+	char rbuf[DNS_BUFFER_SIZE] __attribute__((aligned(__alignof__(dns_header_t))));
 	dns_header_t *s_header, *r_header;
 	int flags, rcode;
 

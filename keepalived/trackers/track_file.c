@@ -687,7 +687,7 @@ process_track_file(tracked_file_t *tfile, bool init)
 static void
 process_inotify(thread_ref_t thread)
 {
-	char buf[sizeof(struct inotify_event) + NAME_MAX + 1];
+	char buf[sizeof(struct inotify_event) + NAME_MAX + 1] __attribute__((aligned(__alignof__(struct inotify_event))));
 	char *buf_ptr;
 	ssize_t len;
 	struct inotify_event* event;

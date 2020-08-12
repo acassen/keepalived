@@ -820,9 +820,9 @@ vrrp_dispatcher_read(sock_t *sock)
 	struct sockaddr_storage src_addr = { .ss_family = AF_UNSPEC };
 	vrrp_t vrrp_lookup;
 #ifdef _NETWORK_TIMESTAMP_
-	char control_buf[128];
+	char control_buf[128] __attribute__((aligned(__alignof__(struct cmsghdr))));
 #else
-	char control_buf[64];
+	char control_buf[64] __attribute__((aligned(__alignof__(struct cmsghdr))));
 #endif
 	struct iovec iovec = { .iov_base = vrrp_buffer, .iov_len = vrrp_buffer_len };
 	struct msghdr msghdr = { .msg_name = &src_addr, .msg_namelen = sizeof(src_addr),
