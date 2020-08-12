@@ -121,9 +121,17 @@ vrrp_process_name_handler(const vector_t *strvec)
 #endif
 #ifdef _WITH_LVS_
 static void
-lvs_process_name_handler(const vector_t *strvec)
+checker_process_name_handler(const vector_t *strvec)
 {
 	save_process_name(&global_data->lvs_process_name, strvec_slot(strvec, 1));
+}
+static void
+lvs_process_name_handler(const vector_t *strvec)
+{
+	/* Deprecated since 12/07/20 */
+	log_message(LOG_INFO, "'lvs_process_name' is deprecated - please use 'checker_process_name'");
+
+	checker_process_name_handler(strvec);
 }
 #endif
 #ifdef _WITH_BFD_
@@ -1969,7 +1977,8 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_process_name", &vrrp_process_name_handler);
 #endif
 #ifdef _WITH_LVS_
-	install_keyword("lvs_process_name", &lvs_process_name_handler);
+	install_keyword("checker_process_name", &checker_process_name_handler);
+	install_keyword("lvs_process_name", &lvs_process_name_handler);		/* Deprecated since 12/07/20 */
 #endif
 #ifdef _WITH_BFD_
 	install_keyword("bfd_process_name", &bfd_process_name_handler);
