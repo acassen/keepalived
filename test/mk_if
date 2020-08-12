@@ -24,20 +24,20 @@ SIDE=
 
 show_help()
 {
-        cat <<EOF
+	cat <<EOF
 $0 - Usage: $0 CMD [OPTIONS]
 
 	CMD = add | del | remake
 
 	Options:
-        -h		Show this!
-        -f NUM		Database user name
-        -l NUM		Database password
+	-h		Show this!
+	-f NUM		First interface number
+	-l NUM		Last interface number
 	-n "NS NS .."	List of namespaces (default high medium low default)
 	-b NS		Specify namespace for bridge (default medium)
 	-r NS		Specify root namespace (default default)
 	-R		no root ns
-        -N NS		Refresh namespace NS
+	-N NS		Refresh namespace NS
 	-c BRIDGE	Set connecting bridge name (default br)
 	-i NAME		Set interface name (default eth)
 	-4 IP_ADDR	First two octets of IPv4 address (default 10.1)
@@ -46,7 +46,7 @@ $0 - Usage: $0 CMD [OPTIONS]
 	-Q IF		Add default route via IF num
 	-I CHAIN	Add iptables chain(s) to create
 	-s SCRIPT	Additional script to run
-        -e		Diagnostic mode - echo commands
+	-e		Diagnostic mode - echo commands
 EOF
 }
 
