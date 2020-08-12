@@ -528,7 +528,8 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 //				segv_termination = true;
 		}
 		else
-			log_message(LOG_INFO, "%s exited due to signal %d (%s)", prog_id, WTERMSIG(status), strsignal(WTERMSIG(status)));
+			log_message(LOG_INFO, "%s exited due to signal %d (%s)%s", prog_id, WTERMSIG(status), strsignal(WTERMSIG(status)),
+					WTERMSIG(status) == SIGKILL ? " - has rlimit_rttime been exceeded?" : "");
 	}
 
 	return false;
