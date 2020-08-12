@@ -298,6 +298,23 @@ clear_service_rs_list(virtual_server_t *vs, list_head_t *l, bool stopping)
 	update_vs_notifies(vs, stopping);
 }
 
+static void
+clear_vsg_rs_counts(virtual_server_t *vs)
+{
+	virtual_server_group_entry_t *vsg_entry;
+	real_server_t *rs;
+
+	list_for_each_entry(vsg_entry, &vs->vsg->addr_range, e_list) {
+		list_for_each_entry(rs, &vs->rs, e_list)
+			unset_vsge_alive(vsg_entry, vs);
+	}
+
+	list_for_each_entry(vsg_entry, &vs->vsg->vfwmark, e_list) {
+		list_for_each_entry(rs, &vs->rs, e_list)
+			unset_vsge_alive(vsg_entry, vs);
+	}
+}
+
 /* Remove a virtualserver IPVS rule */
 static void
 clear_service_vs(virtual_server_t * vs, bool stopping)
@@ -325,9 +342,13 @@ clear_service_vs(virtual_server_t * vs, bool stopping)
 		/* Even if the sorry server was configured, if we are using
 		 * inhibit_on_failure, then real servers may be configured. */
 		clear_service_rs_list(vs, &vs->rs, stopping);
+	} else {
+		if (global_data->lvs_flush_onstop == LVS_FLUSH_VS && vs->vsg)
+			clear_vsg_rs_counts(vs);
+
+		if (vs->s_svr && vs->s_svr->set)
+			UNSET_ALIVE(vs->s_svr);
 	}
-	else if (vs->s_svr && vs->s_svr->set)
-		UNSET_ALIVE(vs->s_svr);
 
 	/* The above will handle Omega case for VS as well. */
 

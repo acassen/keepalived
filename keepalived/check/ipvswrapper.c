@@ -317,7 +317,7 @@ set_vsge_alive(virtual_server_group_entry_t *vsge, const virtual_server_t *vs)
 	update_vsge_alive_count(vsge, vs, true);
 }
 
-static void
+void
 unset_vsge_alive(virtual_server_group_entry_t *vsge, const virtual_server_t *vs)
 {
 	update_vsge_alive_count(vsge, vs, false);
