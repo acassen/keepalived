@@ -223,7 +223,7 @@ signal_set(int signo, void (*func) (void *, int), void *v)
 	else
 		sigdelset(&dfl_sig, signo);
 
-	if (func == (void*)SIG_IGN || func == (void*)SIG_DFL) {
+	if (func == (void *)SIG_IGN || func == (void *)SIG_DFL) {
 		/* We are no longer handling the signal, so
 		 * clear our handlers */
 		func = NULL;
@@ -263,7 +263,7 @@ signal_set(int signo, void (*func) (void *, int), void *v)
 	if (func)
 		sig.sa_handler = signal_handler;
 	else
-		sig.sa_handler = (void*)func;
+		sig.sa_handler = (void *)func;
 
 	sigemptyset(&sig.sa_mask);
 	sig.sa_flags = 0;

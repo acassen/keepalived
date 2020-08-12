@@ -515,10 +515,10 @@ replace_cmd_name(notify_script_t *script, const char *new_path)
 	len = strlen(new_path) + 1;
 	while (*wp)
 		len += strlen(*wp++) + 1;
-	num_words = (script->args[0] - (const char *)&script->args[0]) - 1;
+	num_words = (script->args[0] - PTR_CAST_CONST(char, &script->args[0])) - 1;
 
 	params = word_ptrs = MALLOC((num_words + 1) * sizeof(char *) + len);
-	words = (char *)&params[num_words + 1];
+	words = PTR_CAST(char, &params[num_words + 1]);
 
 	strcpy(words, new_path);
 	*(word_ptrs++) = words;
@@ -1119,7 +1119,7 @@ set_script_params_array(const vector_t *strvec, notify_script_t *script, unsigne
 
 	/* Allocate memory for pointers to words and words themselves */
 	word_ptrs = MALLOC((num_words + extra_params + 1) * sizeof(char *) + len);
-	words = (char *)word_ptrs + (num_words + extra_params + 1) * sizeof(char *);
+	words = PTR_CAST(char, word_ptrs) + (num_words + extra_params + 1) * sizeof(char *);
 	args.params = word_ptrs;
 	script->args = args.cparams;
 

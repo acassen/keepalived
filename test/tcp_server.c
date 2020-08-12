@@ -102,7 +102,7 @@ int main(int argc, char **argv)
 	struct sigaction sa;
 	bool silent = false;
 	char *addr_str = NULL;
-	char addr_buf[sizeof (struct in6_addr)];
+	char addr_buf[sizeof (struct in6_addr)] __attribute__((align(__alignof__(struct in6_addr))));
 	bool echo_data = false;
 	char *endptr;
 	long port_num;

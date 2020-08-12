@@ -771,7 +771,7 @@ static int ipvs_timeout_parse_cb(struct nl_msg *msg, void *arg)
 {
 	struct nlmsghdr *nlh = nlmsg_hdr(msg);
 	struct nlattr *attrs[IPVS_CMD_ATTR_MAX + 1];
-	ipvs_timeout_t *u = (ipvs_timeout_t *)arg;
+	ipvs_timeout_t *u = PTR_CAST(ipvs_timeout_t, arg);
 
 	if (genlmsg_parse(nlh, 0, attrs, IPVS_CMD_ATTR_MAX, ipvs_cmd_policy) != 0)
 		return -1;
@@ -1002,8 +1002,8 @@ static int ipvs_services_parse_cb(struct nl_msg *msg, void *arg)
 	struct nlmsghdr *nlh = nlmsg_hdr(msg);
 	struct nlattr *attrs[IPVS_CMD_ATTR_MAX + 1];
 	struct nlattr *svc_attrs[IPVS_SVC_ATTR_MAX + 1];
-	struct ip_vs_get_services_app **getp = (struct ip_vs_get_services_app **)arg;
-	struct ip_vs_get_services_app *get = (struct ip_vs_get_services_app *)*getp;
+	struct ip_vs_get_services_app **getp = PTR_CAST(struct ip_vs_get_services_app *, arg);
+	struct ip_vs_get_services_app *get = PTR_CAST(struct ip_vs_get_services_app, *getp);
 	struct ip_vs_flags flags;
 	unsigned i = get->user.num_services;
 
@@ -1087,8 +1087,8 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg)
 #if HAVE_DECL_IPVS_DEST_ATTR_ADDR_FAMILY
 	struct nlattr *attr_addr_family = NULL;
 #endif
-	struct ip_vs_get_dests_app **dp = (struct ip_vs_get_dests_app **)arg;
-	struct ip_vs_get_dests_app *d = (struct ip_vs_get_dests_app *)*dp;
+	struct ip_vs_get_dests_app **dp = PTR_CAST(struct ip_vs_get_dests_app *, arg);
+	struct ip_vs_get_dests_app *d = PTR_CAST(struct ip_vs_get_dests_app, *dp);
 	unsigned i = d->user.num_dests;
 
 	if (genlmsg_parse(nlh, 0, attrs, IPVS_CMD_ATTR_MAX, ipvs_cmd_policy) != 0)

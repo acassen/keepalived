@@ -124,7 +124,7 @@ smtp_check_handler(__attribute__((unused)) const vector_t *strvec)
 
 	/* We need to be able to check if anything has been set */
 	co->dst.ss_family = AF_UNSPEC;
-	((struct sockaddr_in *)&co->dst)->sin_port = 0;
+	PTR_CAST(struct sockaddr_in, &co->dst)->sin_port = 0;
 }
 
 static void
@@ -153,9 +153,9 @@ smtp_check_end_handler(void)
 #ifdef WITH_HOST_ENTRIES
 	/* Have any of the connection parameters been set, or are there no hosts? */
 	if (checker->co->dst.ss_family != AF_UNSPEC ||
-	    ((struct sockaddr_in *)&checker->co->dst)->sin_port ||
+	    PTR_CAST(struct sockaddr_in, &checker->co->dst)->sin_port ||
 	    checker->co->bindto.ss_family != AF_UNSPEC ||
-	    ((struct sockaddr_in *)&checker->co->bindto)->sin_port ||
+	    PTR_CAST(struct sockaddr_in, &checker->co->bindto)->sin_port ||
 	    checker->co->bind_if[0] ||
 	    list_empty(&host_list) ||
 #ifdef _WITH_SO_MARK_
@@ -166,14 +166,14 @@ smtp_check_end_handler(void)
 	{
 		/* Set any necessary defaults. NOTE: we are relying on
 		 * struct sockaddr_in and sockaddr_in6 port offsets being the same. */
-		uint16_t saved_port = ((struct sockaddr_in*)&checker->co->dst)->sin_port;
+		uint16_t saved_port = PTR_CAST(struct sockaddr_in, &checker->co->dst)->sin_port;
 		if (checker->co->dst.ss_family == AF_UNSPEC) {
 			checker->co->dst = checker->rs->addr;
 			if (saved_port)
 				checker_set_dst_port(&checker->co->dst, saved_port);
 		}
 		if (!saved_port)
-			checker_set_dst_port(&checker->co->dst, ((struct sockaddr_in*)&checker->rs->addr)->sin_port);
+			checker_set_dst_port(&checker->co->dst, PTR_CAST(struct sockaddr_in, &checker->rs->addr)->sin_port);
 
 		if (!check_conn_opts(checker->co)) {
 			dequeue_new_checker();

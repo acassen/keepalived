@@ -159,7 +159,7 @@ get_sysctl(const char* prefix, const char* iface, const char* parameter)
 static struct nlattr *
 nest_start(struct nlmsghdr *nlh, unsigned short type)
 {
-	struct nlattr *nest = NLMSG_TAIL(nlh);
+	struct nlattr *nest = PTR_CAST(struct nlattr, NLMSG_TAIL(nlh));
 
 	nest->nla_type = type;
 	nlh->nlmsg_len += sizeof(struct nlattr);
@@ -204,9 +204,9 @@ netlink_set_interface_flags(int ifindex, const sysctl_opts_t *sys_opts)
 	for (so = sys_opts; so->param; so++)
 		addattr32(&req.n, sizeof req, so->param, so->value);
 
-	nest_end(NLMSG_TAIL(&req.n), conf_start);
-	nest_end(NLMSG_TAIL(&req.n), inet_start);
-	nest_end(NLMSG_TAIL(&req.n), start);
+	nest_end(PTR_CAST(struct nlattr, NLMSG_TAIL(&req.n)), conf_start);
+	nest_end(PTR_CAST(struct nlattr, NLMSG_TAIL(&req.n)), inet_start);
+	nest_end(PTR_CAST(struct nlattr, NLMSG_TAIL(&req.n)), start);
 
 	if (netlink_talk(&nl_cmd, &req.n) < 0)
 		status = 1;

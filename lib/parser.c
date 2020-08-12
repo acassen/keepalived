@@ -451,7 +451,7 @@ keyword_alloc(vector_t *keywords_vec, const char *string, void (*handler) (const
 
 	vector_alloc_slot(keywords_vec);
 
-	keyword = (keyword_t *) MALLOC(sizeof(keyword_t));
+	PMALLOC(keyword);
 	keyword->string = string;
 	keyword->handler = handler;
 	keyword->active = active;
@@ -2088,10 +2088,10 @@ read_line(char *buf, size_t size)
 						def->multiline = false;
 				}
 
+				buf[len] = '\0';
 				if (!len)
 					continue;
 
-				buf[len] = '\0';
 				decomment(buf);
 			} while (!buf[0]);
 
@@ -2304,7 +2304,7 @@ alloc_value_block(void (*alloc_func) (const vector_t *), const vector_t *strvec)
 								, strvec_slot(strvec, 0), strvec_slot(strvec, 1));
 	}
 
-	buf = (char *) MALLOC(MAXBUF);
+	buf = (char *)MALLOC(MAXBUF);
 	while (first_vec || read_line(buf, MAXBUF)) {
 		if (first_vec)
 			vec = first_vec;

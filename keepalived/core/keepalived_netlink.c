@@ -76,6 +76,7 @@
 #endif
 #include "vrrp_ipaddress.h"
 #include "global_data.h"
+#include "align.h"
 
 /* This seems a nasty hack, but it's what iproute2 does */
 #ifndef SOL_NETLINK
@@ -158,11 +159,11 @@ addr_is_equal2(struct ifaddrmsg* ifa, void* addr, ip_address_t* vip_addr, interf
 	    !(vrrp && vrrp->ifp && vip_addr->ifp == vrrp->ifp && VRRP_CONFIGURED_IFP(vrrp) == ifp))
 		return false;
 	if (vip_addr->ifa.ifa_family == AF_INET) {
-		sin_addr = (struct in_addr *)addr;
+		sin_addr = PTR_CAST(struct in_addr, addr);
 		return vip_addr->u.sin.sin_addr.s_addr == sin_addr->s_addr;
 	}
 
-	sin6_addr = (struct in6_addr*)addr;
+	sin6_addr = PTR_CAST(struct in6_addr, addr);
 	return vip_addr->u.sin6_addr.s6_addr32[0] == sin6_addr->s6_addr32[0] &&
 	       vip_addr->u.sin6_addr.s6_addr32[1] == sin6_addr->s6_addr32[1] &&
 	       vip_addr->u.sin6_addr.s6_addr32[2] == sin6_addr->s6_addr32[2] &&
@@ -272,10 +273,10 @@ route_is_ours(struct rtmsg* rt, struct rtattr *tb[RTA_MAX + 1], vrrp_t** ret_vrr
 
 	*ret_vrrp = NULL;
 
-	table = tb[RTA_TABLE] ? *(uint32_t *)RTA_DATA(tb[RTA_TABLE]) : rt->rtm_table;
+	table = tb[RTA_TABLE] ? *PTR_CAST(uint32_t, RTA_DATA(tb[RTA_TABLE])) : rt->rtm_table;
 	family = rt->rtm_family;
 	if (tb[RTA_PRIORITY])
-		priority = *(uint32_t *)RTA_DATA(tb[RTA_PRIORITY]);
+		priority = *PTR_CAST(uint32_t, RTA_DATA(tb[RTA_PRIORITY]));
 
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		list_for_each_entry(route, &vrrp->vroutes, e_list) {
@@ -287,11 +288,11 @@ route_is_ours(struct rtmsg* rt, struct rtattr *tb[RTA_MAX + 1], vrrp_t** ret_vrr
 				continue;
 
 			if (route->oif) {
-				if (!tb[RTA_OIF] || route->oif->ifindex != *(uint32_t *)RTA_DATA(tb[RTA_OIF]))
+				if (!tb[RTA_OIF] || route->oif->ifindex != *PTR_CAST(uint32_t, RTA_DATA(tb[RTA_OIF])))
 					continue;
 			} else {
 				if (route->set && route->configured_ifindex &&
-				    (!tb[RTA_OIF] || route->configured_ifindex != *(uint32_t *)RTA_DATA(tb[RTA_OIF])))
+				    (!tb[RTA_OIF] || route->configured_ifindex != *PTR_CAST(uint32_t, RTA_DATA(tb[RTA_OIF]))))
 					continue;
 			}
 
@@ -334,7 +335,7 @@ compare_rule(struct fib_rule_hdr *frh, struct rtattr *tb[FRA_MAX + 1], ip_rule_t
 
 	/* This is a very good descriminator, since our rules will always have a priority */
 	if (!tb[FRA_PRIORITY] ||
-	    rule->priority != *(uint32_t*)RTA_DATA(tb[FRA_PRIORITY]))
+	    rule->priority != *PTR_CAST(uint32_t, RTA_DATA(tb[FRA_PRIORITY])))
 		return false;
 
 	if (frh->action != rule->action)
@@ -342,10 +343,10 @@ compare_rule(struct fib_rule_hdr *frh, struct rtattr *tb[FRA_MAX + 1], ip_rule_t
 
 	if (frh->action == FR_ACT_GOTO &&
 	    (!tb[FRA_GOTO] ||
-	     *(uint32_t *)RTA_DATA(tb[FRA_GOTO]) != rule->goto_target))
+	     *PTR_CAST(uint32_t, RTA_DATA(tb[FRA_GOTO])) != rule->goto_target))
 		return false;
 
-	if (tb[FRA_TABLE] && rule->table != *(uint32_t *)RTA_DATA(tb[FRA_TABLE]))
+	if (tb[FRA_TABLE] && rule->table != *PTR_CAST(uint32_t, RTA_DATA(tb[FRA_TABLE])))
 		return false;
 	if (!tb[FRA_TABLE] && rule->table != frh->table)
 		return false;
@@ -377,31 +378,31 @@ compare_rule(struct fib_rule_hdr *frh, struct rtattr *tb[FRA_MAX + 1], ip_rule_t
 	if (!tb[FRA_FWMARK] != !(rule->mask & IPRULE_BIT_FWMARK))
 		return false;
 	if (rule->mask & IPRULE_BIT_FWMARK &&
-	    *(uint32_t*)RTA_DATA(tb[FRA_FWMARK]) != rule->fwmark)
+	    *PTR_CAST(uint32_t, RTA_DATA(tb[FRA_FWMARK])) != rule->fwmark)
 		return false;
 
 	if (!tb[FRA_FWMASK] && (rule->mask & IPRULE_BIT_FWMASK))
 		return false;
 	if (rule->mask & IPRULE_BIT_FWMASK) {
-		if (*(uint32_t*)RTA_DATA(tb[FRA_FWMASK]) != rule->fwmask)
+		if (*PTR_CAST(uint32_t, RTA_DATA(tb[FRA_FWMASK])) != rule->fwmask)
 			return false;
 	}
 	else if (tb[FRA_FWMASK]) {
-		if (*(uint32_t *)RTA_DATA(tb[FRA_FWMASK]) != 0xffffffff)
+		if (*PTR_CAST(uint32_t, RTA_DATA(tb[FRA_FWMASK])) != 0xffffffff)
 			return false;
 	}
 
 	if (!tb[FRA_FLOW] != !rule->realms)
 		return false;
 	if (rule->realms &&
-	    *(uint32_t*)RTA_DATA(tb[FRA_FLOW]) != rule->realms)
+	    *PTR_CAST(uint32_t, RTA_DATA(tb[FRA_FLOW])) != rule->realms)
 		return false;
 
 #if HAVE_DECL_FRA_SUPPRESS_PREFIXLEN
 	if (!tb[FRA_SUPPRESS_PREFIXLEN]) {
 		if (rule->suppress_prefix_len != -1)
 			return false;
-	} else if (*(int32_t*)RTA_DATA(tb[FRA_SUPPRESS_PREFIXLEN]) != rule->suppress_prefix_len)
+	} else if (*PTR_CAST(int32_t, RTA_DATA(tb[FRA_SUPPRESS_PREFIXLEN])) != rule->suppress_prefix_len)
 		return false;
 #endif
 
@@ -409,7 +410,7 @@ compare_rule(struct fib_rule_hdr *frh, struct rtattr *tb[FRA_MAX + 1], ip_rule_t
 	if (!tb[FRA_SUPPRESS_IFGROUP] != !(rule->mask & IPRULE_BIT_SUP_GROUP))
 		return false;
 	if (rule->mask & IPRULE_BIT_SUP_GROUP &&
-	    *(uint32_t*)RTA_DATA(tb[FRA_SUPPRESS_IFGROUP]) != rule->suppress_group)
+	    *PTR_CAST(uint32_t, RTA_DATA(tb[FRA_SUPPRESS_IFGROUP])) != rule->suppress_group)
 		return false;
 #endif
 
@@ -432,7 +433,7 @@ compare_rule(struct fib_rule_hdr *frh, struct rtattr *tb[FRA_MAX + 1], ip_rule_t
 	if (!tb[FRA_TUN_ID] != !(rule->tunnel_id))
 		return false;
 	if (rule->tunnel_id) {
-		tunnel_id = be64toh(*(uint64_t *)RTA_DATA(tb[FRA_TUN_ID]));
+		tunnel_id = be64toh(*PTR_CAST(uint64_t, RTA_DATA(tb[FRA_TUN_ID])));
 		if (tunnel_id != rule->tunnel_id)
 			return false;
 	}
@@ -450,7 +451,7 @@ compare_rule(struct fib_rule_hdr *frh, struct rtattr *tb[FRA_MAX + 1], ip_rule_t
 	if (!tb[FRA_L3MDEV] && rule->l3mdev)
 		return false;
 	if (tb[FRA_L3MDEV] &&
-	    *(uint8_t *)RTA_DATA(tb[FRA_L3MDEV]) != rule->l3mdev)
+	    *PTR_CAST(uint8_t, RTA_DATA(tb[FRA_L3MDEV])) != rule->l3mdev)
 		return false;
 #endif
 
@@ -458,7 +459,7 @@ compare_rule(struct fib_rule_hdr *frh, struct rtattr *tb[FRA_MAX + 1], ip_rule_t
 	if (!tb[FRA_IP_PROTO] != !(rule->mask & IPRULE_BIT_IP_PROTO))
 		return false;
 	if (rule->mask & IPRULE_BIT_IP_PROTO &&
-	    *(uint8_t *)RTA_DATA(tb[FRA_IP_PROTO]) != rule->ip_proto)
+	    *PTR_CAST(uint8_t, RTA_DATA(tb[FRA_IP_PROTO])) != rule->ip_proto)
 		return false;
 #endif
 
@@ -580,7 +581,7 @@ netlink_socket(nl_handle_t *nl, unsigned rcvbuf_size, bool force, int flags, uns
 	memset(&snl, 0, sizeof (snl));
 	snl.nl_family = AF_NETLINK;
 
-	ret = bind(nl->fd, (struct sockaddr *) &snl, sizeof (snl));
+	ret = bind(nl->fd, PTR_CAST(struct sockaddr, &snl), sizeof (snl));
 	if (ret < 0) {
 		log_message(LOG_INFO, "Netlink: Cannot bind netlink socket : (%s)",
 		       strerror(errno));
@@ -602,7 +603,7 @@ netlink_socket(nl_handle_t *nl, unsigned rcvbuf_size, bool force, int flags, uns
 	va_end(gp);
 
 	addr_len = sizeof (snl);
-	ret = getsockname(nl->fd, (struct sockaddr *) &snl, &addr_len);
+	ret = getsockname(nl->fd, PTR_CAST(struct sockaddr, &snl), &addr_len);
 	if (ret < 0 || addr_len != sizeof (snl)) {
 		log_message(LOG_INFO, "Netlink: Cannot getsockname : (%s)",
 		       strerror(errno));
@@ -695,7 +696,7 @@ addattr_l(struct nlmsghdr *n, size_t maxlen, unsigned short type, const void *da
 	if (n->nlmsg_len + align_len > maxlen)
 		return -1;
 
-	rta = (struct rtattr *) (((char *) n) + n->nlmsg_len);
+	rta = PTR_CAST(struct rtattr, (((char *)n) + n->nlmsg_len));
 	rta->rta_type = type;
 	rta->rta_len = (unsigned short)len;
 	memcpy(RTA_DATA(rta), data, alen);
@@ -715,7 +716,7 @@ addattr_l2(struct nlmsghdr *n, size_t maxlen, unsigned short type, const void *d
 	if (n->nlmsg_len + align_len > maxlen)
 		return -1;
 
-	rta = (struct rtattr *) (((char *) n) + n->nlmsg_len);
+	rta = PTR_CAST(struct rtattr, (((char *)n) + n->nlmsg_len));
 	rta->rta_type = type;
 	rta->rta_len = (unsigned short)len;
 	memcpy(RTA_DATA(rta), data, alen);
@@ -734,7 +735,8 @@ addraw_l(struct nlmsghdr *n, size_t maxlen, const void *data, size_t len)
 		return -1;
 
 	memcpy(NLMSG_TAIL(n), data, len);
-	memset((char *) NLMSG_TAIL(n) + len, 0, align_len - len);
+	if (align_len > len)
+		memset(PTR_CAST(char, NLMSG_TAIL(n)) + len, 0, align_len - len);
 	n->nlmsg_len += (uint32_t)align_len;
 	return 0;
 }
@@ -750,7 +752,7 @@ rta_addattr_l(struct rtattr *rta, size_t maxlen, unsigned short type,
 	if (rta->rta_len + align_len > maxlen)
 		return 0;
 
-	subrta = (struct rtattr*)(((char *)rta) + rta->rta_len);
+	subrta = PTR_CAST(struct rtattr, (char *)rta + rta->rta_len);
 	subrta->rta_type = type;
 	subrta->rta_len = (unsigned short)len;
 	memcpy(RTA_DATA(subrta), data, alen);
@@ -770,7 +772,7 @@ rta_addattr_l2(struct rtattr *rta, size_t maxlen, unsigned short type,
 	if (rta->rta_len + align_len > maxlen)
 		return 0;
 
-	subrta = (struct rtattr*)(((char*)rta) + rta->rta_len);
+	subrta = PTR_CAST(struct rtattr, (((char*)rta) + rta->rta_len));
 	subrta->rta_type = type;
 	subrta->rta_len = (unsigned short)len;
 	memcpy(RTA_DATA(subrta), data, alen);
@@ -1112,7 +1114,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 						continue;
 					if (vrrp->family != ifa->ifa_family)
 						continue;
-					if (!inaddr_equal(ifa->ifa_family, vrrp->family == AF_INET ? &((struct sockaddr_in *)&vrrp->saddr)->sin_addr : (void *)&((struct sockaddr_in6 *)&vrrp->saddr)->sin6_addr, addr.addr))
+					if (!inaddr_equal(ifa->ifa_family, vrrp->family == AF_INET ? &(PTR_CAST(struct sockaddr_in, &vrrp->saddr))->sin_addr : (void *)&(PTR_CAST(struct sockaddr_in6, &vrrp->saddr))->sin6_addr, addr.addr))
 						continue;
 
 					is_tracking_saddr = vrrp->track_saddr &&
@@ -1220,7 +1222,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 	ssize_t len;
 	int ret = 0;
 	int error;
-	char *nlmsg_buf = NULL;
+	char *nlmsg_buf __attribute__((aligned(__alignof__(struct nlmsghdr)))) = NULL;
 	int nlmsg_buf_size = 0;
 
 	while (true) {
@@ -1291,7 +1293,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 			break;
 		}
 
-		for (h = (struct nlmsghdr *) nlmsg_buf; NLMSG_OK(h, (size_t)len); h = NLMSG_NEXT(h, len)) {
+		for (h = PTR_CAST(struct nlmsghdr, nlmsg_buf); NLMSG_OK(h, (size_t)len); h = NLMSG_NEXT(h, len)) {
 			/* Finish off reading. */
 			if (h->nlmsg_type == NLMSG_DONE) {
 				FREE(nlmsg_buf);
@@ -1300,7 +1302,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 
 			/* Error handling. */
 			if (h->nlmsg_type == NLMSG_ERROR) {
-				struct nlmsgerr *err = (struct nlmsgerr *) NLMSG_DATA(h);
+				struct nlmsgerr *err = PTR_CAST(struct nlmsgerr, NLMSG_DATA(h));
 
 				/*
 				 * If error == 0 then this is a netlink ACK.
@@ -1504,7 +1506,7 @@ netlink_request(nl_handle_t *nl,
 #endif
 
 	status = sendto(nl->fd, (void *) &req, sizeof (req)
-			, 0, (struct sockaddr *) &snl, sizeof (snl));
+			, 0, PTR_CAST(struct sockaddr, &snl), sizeof (snl));
 	if (status < 0) {
 		log_message(LOG_INFO, "Netlink: sendto() failed: %s",
 		       strerror(errno));
@@ -1749,12 +1751,12 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 
 		/* If a macvlan, check the underlying interface hasn't changed */
 		if (IS_MAC_IP_VLAN(ifp) &&
-		    (!tb[IFLA_LINK] || ifp->base_ifp->ifindex != *(uint32_t *)RTA_DATA(tb[IFLA_LINK])))
+		    (!tb[IFLA_LINK] || ifp->base_ifp->ifindex != *PTR_CAST(uint32_t, RTA_DATA(tb[IFLA_LINK]))))
 			return false;
 	}
 #endif
 
-	ifp->mtu = *(uint32_t *)RTA_DATA(tb[IFLA_MTU]);
+	ifp->mtu = *PTR_CAST(uint32_t, RTA_DATA(tb[IFLA_MTU]));
 	ifp->hw_type = ifi->ifi_type;
 
 	if (!netlink_if_get_ll_addr(ifp, tb, IFLA_ADDRESS, name))
@@ -1777,15 +1779,15 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 												      )	&&
 				    tb[IFLA_LINK]) {
 					if (ifp->if_type == IF_TYPE_MACVLAN)
-						ifp->vmac_type = *(uint32_t*)RTA_DATA(linkattr[IFLA_MACVLAN_MODE]);
+						ifp->vmac_type = *PTR_CAST(uint32_t, RTA_DATA(linkattr[IFLA_MACVLAN_MODE]));
 #ifdef _HAVE_VRRP_IPVLAN_
 					else
-						ifp->vmac_type = *(uint32_t*)RTA_DATA(linkattr[IFLA_IPVLAN_MODE]);
+						ifp->vmac_type = *PTR_CAST(uint32_t, RTA_DATA(linkattr[IFLA_IPVLAN_MODE]));
 #endif
-					ifp->base_ifindex = *(uint32_t *)RTA_DATA(tb[IFLA_LINK]);
+					ifp->base_ifindex = *PTR_CAST(uint32_t, RTA_DATA(tb[IFLA_LINK]));
 #ifdef HAVE_IFLA_LINK_NETNSID						/* from Linux v4.0 */
 					if (tb[IFLA_LINK_NETNSID])	/* Only use link details if in same network namespace */
-						ifp->base_netns_id = *(int32_t *)RTA_DATA(tb[IFLA_LINK_NETNSID]);
+						ifp->base_netns_id = *PTR_CAST(int32_t,  RTA_DATA(tb[IFLA_LINK_NETNSID]));
 					else
 #endif
 					{
@@ -1819,7 +1821,7 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	 * if the master is a VRF master, but we sort that out later */
 	if (!is_vrf_master) {
 		if (tb[IFLA_MASTER]) {
-			new_vrf_master_index = *(uint32_t*)RTA_DATA(tb[IFLA_MASTER]);
+			new_vrf_master_index = *PTR_CAST(uint32_t, RTA_DATA(tb[IFLA_MASTER]));
 			if (!ifp->vrf_master_ifp ||
 			    new_vrf_master_index != ifp->vrf_master_ifp->ifindex) {
 				ifp->vrf_master_ifindex = new_vrf_master_index;
@@ -1875,7 +1877,7 @@ netlink_if_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 
 	if (tb[IFLA_IFNAME] == NULL)
 		return -1;
-	name = (char *) RTA_DATA(tb[IFLA_IFNAME]);
+	name = (char *)RTA_DATA(tb[IFLA_IFNAME]);
 
 	/* Skip it if already exists */
 	ifp = if_get_by_ifname(name, IF_CREATE_NETLINK);
@@ -2081,7 +2083,7 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 #ifdef _HAVE_VRF_
 				/* Now check if the VRF info is changed */
 				if (tb[IFLA_MASTER]) {
-					new_master_index = *(uint32_t *)RTA_DATA(tb[IFLA_MASTER]);
+					new_master_index = *PTR_CAST(uint32_t, RTA_DATA(tb[IFLA_MASTER]));
 					new_master_ifp = if_get_by_ifindex(new_master_index);
 				} else
 					new_master_ifp = NULL;
@@ -2098,7 +2100,7 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 #endif
 				    tb[IFLA_MTU]) {
 					old_mtu = ifp->mtu;
-					ifp->mtu = *(uint32_t *)RTA_DATA(tb[IFLA_MTU]);
+					ifp->mtu = *PTR_CAST(uint32_t, RTA_DATA(tb[IFLA_MTU]));
 					if (!list_empty(&ifp->tracking_vrrp))
 						update_mtu(ifp);
 				}
@@ -2215,7 +2217,7 @@ netlink_route_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlm
 		/* If we haven't specified a dev for the route, save the link the route
 		 * has been added to. */
 		if (tb[RTA_OIF]) {
-			route->configured_ifindex = *(uint32_t*)RTA_DATA(tb[RTA_OIF]);
+			route->configured_ifindex = *PTR_CAST(uint32_t, RTA_DATA(tb[RTA_OIF]));
 			if (route->oif && route->oif->ifindex != route->configured_ifindex)
 				log_message(LOG_INFO, "route added index %" PRIu32 " != config index %u", route->configured_ifindex, route->oif->ifindex);
 		}
@@ -2269,7 +2271,7 @@ netlink_rule_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 
 #if HAVE_DECL_FRA_PROTOCOL
 	if (tb[FRA_PROTOCOL] &&
-	    *(uint8_t *)RTA_DATA(tb[FRA_PROTOCOL]) != RTPROT_KEEPALIVED) {
+	    *PTR_CAST(uint8_t, RTA_DATA(tb[FRA_PROTOCOL])) != RTPROT_KEEPALIVED) {
 		/* It is not a rule we are monitoring - ignore it */
 		return 0;
 	}

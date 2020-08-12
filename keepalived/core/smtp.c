@@ -42,6 +42,14 @@
 #ifdef THREAD_DUMP
 #include "scheduler.h"
 #endif
+
+/* If it suspected that one of subject, body, buffer or email_to
+ * is overflowing in the smtp_t structure, defining SMTP_MSG_ALLOC_DEBUG
+ * when using --enable-mem-check should help identity the issue
+ */
+//#define SMTP_MSG_ALLOC_DEBUG
+
+
 #ifdef _SMTP_ALERT_DEBUG_
 bool do_smtp_alert_debug;
 #endif
@@ -91,14 +99,43 @@ struct {
 	[QUIT]			= {quit_cmd,			quit_code}
 };
 
-static void
-free_smtp_all(smtp_t * smtp)
+static inline void
+free_smtp_msg_data(smtp_t * smtp)
 {
+#ifdef SMTP_MSG_ALLOC_DEBUG
 	FREE(smtp->buffer);
 	FREE(smtp->subject);
 	FREE(smtp->body);
 	FREE(smtp->email_to);
+#endif
 	FREE(smtp);
+}
+
+static smtp_t *
+alloc_smtp_msg_data(void)
+{
+	smtp_t *smtp;
+
+	/* allocate & initialize smtp argument data structure.
+	 * NOTE: this MALLOC may not have been freed when
+	 * keepalived terminates, if keepalived is unable to
+	 * connect to the SMTP server, since it is waiting for
+	 * the connection attempt to time out. */
+#ifdef SMTP_MSG_ALLOC_DEBUG
+	PMALLOC(smtp);
+	smtp->subject = (char *)MALLOC(MAX_HEADERS_LENGTH);
+	smtp->body = (char *)MALLOC(MAX_BODY_LENGTH);
+	smtp->buffer = (char *)MALLOC(SMTP_BUFFER_MAX);
+	smtp->email_to = (char *)MALLOC(SMTP_BUFFER_MAX);
+#else
+	smtp = MALLOC(sizeof(smtp_t) + MAX_HEADERS_LENGTH + MAX_BODY_LENGTH + SMTP_BUFFER_MAX + SMTP_BUFFER_MAX);
+	smtp->subject = (char *)smtp + sizeof(smtp_t);
+	smtp->body = smtp->subject + MAX_HEADERS_LENGTH;
+	smtp->buffer = smtp->body + MAX_BODY_LENGTH;
+	smtp->email_to = smtp->buffer + SMTP_BUFFER_MAX;
+#endif
+
+	return smtp;
 }
 
 /* layer4 connection handlers */
@@ -109,7 +146,7 @@ connection_error(thread_ref_t thread)
 
 	log_message(LOG_INFO, "SMTP connection ERROR to %s."
 			    , FMT_SMTP_HOST());
-	free_smtp_all(smtp);
+	free_smtp_msg_data(smtp);
 }
 static void
 connection_timeout(thread_ref_t thread)
@@ -118,7 +155,7 @@ connection_timeout(thread_ref_t thread)
 
 	log_message(LOG_INFO, "Timeout connecting SMTP server %s."
 			    , FMT_SMTP_HOST());
-	free_smtp_all(smtp);
+	free_smtp_msg_data(smtp);
 }
 static void
 connection_in_progress(thread_ref_t thread)
@@ -322,7 +359,7 @@ helo_cmd(thread_ref_t thread)
 	smtp_t *smtp = THREAD_ARG(thread);
 	char *buffer;
 
-	buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
+	buffer = (char *)MALLOC(SMTP_BUFFER_MAX);
 	snprintf(buffer, SMTP_BUFFER_MAX, SMTP_HELO_CMD, (global_data->smtp_helo_name) ? global_data->smtp_helo_name : "localhost");
 	if (send(thread->u.f.fd, buffer, strlen(buffer), 0) == -1)
 		smtp->stage = ERROR;
@@ -353,7 +390,7 @@ mail_cmd(thread_ref_t thread)
 	smtp_t *smtp = THREAD_ARG(thread);
 	char *buffer;
 
-	buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
+	buffer = (char *)MALLOC(SMTP_BUFFER_MAX);
 	snprintf(buffer, SMTP_BUFFER_MAX, SMTP_MAIL_CMD, global_data->email_from);
 	if (send(thread->u.f.fd, buffer, strlen(buffer), 0) == -1)
 		smtp->stage = ERROR;
@@ -385,7 +422,7 @@ rcpt_cmd(thread_ref_t thread)
 	email_t *email = smtp->next_email_element;
 	char *buffer;
 
-	buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
+	buffer = (char *)MALLOC(SMTP_BUFFER_MAX);
 	/* We send RCPT TO command multiple time to add all our email receivers.
 	 * --rfc821.3.1
 	 */
@@ -458,7 +495,7 @@ body_cmd(thread_ref_t thread)
 	time_t now;
 	struct tm *t;
 
-	buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
+	buffer = (char *)MALLOC(SMTP_BUFFER_MAX);
 
 	time(&now);
 	t = localtime(&now);
@@ -521,7 +558,7 @@ quit_code(thread_ref_t thread, __attribute__((unused)) int status)
 	smtp_t *smtp = THREAD_ARG(thread);
 
 	/* final state, we are disconnected from the remote host */
-	free_smtp_all(smtp);
+	free_smtp_msg_data(smtp);
 	thread_close_fd(thread);
 	return 0;
 }
@@ -539,7 +576,7 @@ smtp_connect(smtp_t *smtp)
 		if (do_smtp_connect_debug)
 			log_message(LOG_DEBUG, "SMTP connect fail to create socket.");
 #endif
-		free_smtp_all(smtp);
+		free_smtp_msg_data(smtp);
 		return;
 	}
 
@@ -584,7 +621,7 @@ smtp_log_to_file(smtp_t *smtp)
 		fclose(fp);
 	}
 
-	free_smtp_all(smtp);
+	free_smtp_msg_data(smtp);
 }
 #endif
 
@@ -650,16 +687,12 @@ smtp_alert(smtp_msg_t msg_type, void* data, const char *subject, const char *bod
 		return;
 
 	/* allocate & initialize smtp argument data structure */
-	PMALLOC(smtp);
-	smtp->subject = (char *) MALLOC(MAX_HEADERS_LENGTH);
-	smtp->body = (char *) MALLOC(MAX_BODY_LENGTH);
-	smtp->buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
-	smtp->email_to = (char *) MALLOC(SMTP_BUFFER_MAX);
+	smtp = alloc_smtp_msg_data();
 
 	/* format subject if rserver is specified */
 #ifdef _WITH_LVS_
 	if (msg_type == SMTP_MSG_RS) {
-		checker = (checker_t *)data;
+		checker = PTR_CAST(checker_t, data);
 		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Realserver %s of virtual server %s - %s",
 					global_data->router_id,
 					FMT_RS(checker->rs, checker->vs),
@@ -667,14 +700,14 @@ smtp_alert(smtp_msg_t msg_type, void* data, const char *subject, const char *bod
 					checker->rs->alive ? "UP" : "DOWN");
 	}
 	else if (msg_type == SMTP_MSG_VS) {
-		vs = (virtual_server_t *)data;
+		vs = PTR_CAST(virtual_server_t, data);
 		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Virtualserver %s - %s",
 					global_data->router_id,
 					FMT_VS(vs),
 					subject);
 	}
 	else if (msg_type == SMTP_MSG_RS_SHUT) {
-		rs_info = (smtp_rs *)data;
+		rs_info = PTR_CAST(smtp_rs, data);
 		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Realserver %s of virtual server %s - %s",
 					global_data->router_id,
 					FMT_RS(rs_info->rs, rs_info->vs),
@@ -685,13 +718,13 @@ smtp_alert(smtp_msg_t msg_type, void* data, const char *subject, const char *bod
 #endif
 #ifdef _WITH_VRRP_
 	if (msg_type == SMTP_MSG_VRRP) {
-		vrrp = (vrrp_t *)data;
+		vrrp = PTR_CAST(vrrp_t, data);
 		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] VRRP Instance %s - %s",
 					global_data->router_id,
 					vrrp->iname,
 					subject);
 	} else if (msg_type == SMTP_MSG_VGROUP) {
-		vgroup = (vrrp_sgroup_t *)data;
+		vgroup = PTR_CAST(vrrp_sgroup_t, data);
 		snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] VRRP Group %s - %s",
 					global_data->router_id,
 					vgroup->gname,

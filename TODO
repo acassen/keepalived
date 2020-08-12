@@ -1,7 +1,13 @@
 BUG - If have VIP on a different interface from the VRRP instance, the
 interface isn't tracked and so we do nothing if the interface is deleted.
 
+Add INTERFACE_CHECK and ADDRESS_CHECK checkers - see issue#1679 and pull request
+#1680.
+
 Fix building on CentOS 6.10
+
+Add a TCP_KEEPALIVE_CHECK that established a TCP connection and uses keepalives
+like hg635_config to check the remote end is there.
 
 Remove definitions that simply access structure fields, e.g. VRRP_ISUP
 

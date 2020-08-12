@@ -121,9 +121,17 @@ vrrp_process_name_handler(const vector_t *strvec)
 #endif
 #ifdef _WITH_LVS_
 static void
-lvs_process_name_handler(const vector_t *strvec)
+checker_process_name_handler(const vector_t *strvec)
 {
 	save_process_name(&global_data->lvs_process_name, strvec_slot(strvec, 1));
+}
+static void
+lvs_process_name_handler(const vector_t *strvec)
+{
+	/* Deprecated since 12/07/20 */
+	log_message(LOG_INFO, "'lvs_process_name' is deprecated - please use 'checker_process_name'");
+
+	checker_process_name_handler(strvec);
 }
 #endif
 #ifdef _WITH_BFD_
@@ -575,8 +583,8 @@ lvs_syncd_handler(const vector_t *strvec)
 			if (inet_stosockaddr(strvec_slot(strvec, i+1), NULL, &global_data->lvs_syncd.mcast_group))
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid lvs_sync_daemon group (%s) - ignoring", strvec_slot(strvec, i+1));
 
-			if ((global_data->lvs_syncd.mcast_group.ss_family == AF_INET  && !IN_MULTICAST(htonl(((struct sockaddr_in *)&global_data->lvs_syncd.mcast_group)->sin_addr.s_addr))) ||
-			    (global_data->lvs_syncd.mcast_group.ss_family == AF_INET6 && !IN6_IS_ADDR_MULTICAST(&((struct sockaddr_in6 *)&global_data->lvs_syncd.mcast_group)->sin6_addr))) {
+			if ((global_data->lvs_syncd.mcast_group.ss_family == AF_INET  && !IN_MULTICAST(htonl(PTR_CAST(struct sockaddr_in, &global_data->lvs_syncd.mcast_group)->sin_addr.s_addr))) ||
+			    (global_data->lvs_syncd.mcast_group.ss_family == AF_INET6 && !IN6_IS_ADDR_MULTICAST(&PTR_CAST(struct sockaddr_in6, &global_data->lvs_syncd.mcast_group)->sin6_addr))) {
 				report_config_error(CONFIG_GENERAL_ERROR, "lvs_sync_daemon group address %s is not multicast - ignoring", strvec_slot(strvec, i+1));
 				global_data->lvs_syncd.mcast_group.ss_family = AF_UNSPEC;
 			}
@@ -741,7 +749,7 @@ vrrp_mcast_group4_handler(const vector_t *strvec)
 {
 	struct sockaddr_in *mcast = &global_data->vrrp_mcast_group4;
 
-	if (inet_stosockaddr(strvec_slot(strvec, 1), 0, (struct sockaddr_storage *)mcast))
+	if (inet_stosockaddr(strvec_slot(strvec, 1), 0, PTR_CAST(struct sockaddr_storage, mcast)))
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: Cant parse vrrp_mcast_group4 [%s]. Skipping"
 				   , strvec_slot(strvec, 1));
 }
@@ -750,7 +758,7 @@ vrrp_mcast_group6_handler(const vector_t *strvec)
 {
 	struct sockaddr_in6 *mcast = &global_data->vrrp_mcast_group6;
 
-	if (inet_stosockaddr(strvec_slot(strvec, 1), 0, (struct sockaddr_storage *)mcast))
+	if (inet_stosockaddr(strvec_slot(strvec, 1), 0, PTR_CAST(struct sockaddr_storage, mcast)))
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: Cant parse vrrp_mcast_group6 [%s]. Skipping"
 				   , strvec_slot(strvec, 1));
 }
@@ -1969,7 +1977,8 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_process_name", &vrrp_process_name_handler);
 #endif
 #ifdef _WITH_LVS_
-	install_keyword("lvs_process_name", &lvs_process_name_handler);
+	install_keyword("checker_process_name", &checker_process_name_handler);
+	install_keyword("lvs_process_name", &lvs_process_name_handler);		/* Deprecated since 12/07/20 */
 #endif
 #ifdef _WITH_BFD_
 	install_keyword("bfd_process_name", &bfd_process_name_handler);

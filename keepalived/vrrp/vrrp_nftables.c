@@ -126,7 +126,7 @@ static bool ipv6_igmp_setup;
 static int
 table_cb(const struct nlattr *attr, void *data)
 {
-	const struct nlattr **tb = (const struct nlattr **)data;
+	const struct nlattr **tb = PTR_CAST_CONST(struct nlattr *, data);
 
 	tb[attr->nla_type & NLA_TYPE_MASK] = attr;
 	return MNL_CB_OK;
@@ -207,7 +207,7 @@ exchange_nl_msg(struct mnl_nlmsg_batch *batch)
 
 #if 0
 	FILE *fp = fopen("/tmp/nftrace", "a");
-	mnl_nlmsg_fprintf(fp, (char *)mnl_nlmsg_batch_head(batch), mnl_nlmsg_batch_size(batch), sizeof( struct nfgenmsg));
+	mnl_nlmsg_fprintf(fp, PTR_CAST(char, mnl_nlmsg_batch_head(batch)), mnl_nlmsg_batch_size(batch), sizeof( struct nfgenmsg));
 	fclose(fp);
 #endif
 	if (!nl && !nl_socket_open())
@@ -240,20 +240,20 @@ exchange_nl_msg(struct mnl_nlmsg_batch *batch)
 static int
 table_cb(__attribute__((unused)) const struct nlmsghdr *nlh, void *data)
 {
-	*(bool *)data = true;
+	*PTR_CAST(bool, data) = true;
 
 	return MNL_CB_OK;
 }
 
 static void
-exchange_nl_msg_single(struct nlmsghdr *nlm, int (*cb_func)(const struct nlmsghdr *, void*), bool *success)
+exchange_nl_msg_single(struct nlmsghdr *nlm, int (*cb_func)(const struct nlmsghdr *, void *), bool *success)
 {
 	int ret;
 	char buf[256];
 
 #if 0
 	FILE *fp = fopen("/tmp/nftrace", "a");
-	mnl_nlmsg_fprintf(fp, (char *)nlm, nlm->nlmsg_len, 0);
+	mnl_nlmsg_fprintf(fp, PTR_CAST(char, nlm), nlm->nlmsg_len, 0);
 	fclose(fp);
 #endif
 

@@ -305,7 +305,7 @@ watch_file(int fd)
 static void
 inotify_event_thread(thread_ref_t thread)
 {
-	char buf[256];
+	char buf[256] __attribute__((aligned(__alignof__(struct inotify_event))));
 	char *buf_ptr;
 	struct inotify_event* event;
 	ssize_t len;
@@ -327,7 +327,7 @@ inotify_event_thread(thread_ref_t thread)
 #endif
 
 		for (buf_ptr = buf; buf_ptr < buf + len; buf_ptr += event->len + sizeof(struct inotify_event)) {
-			event = (struct inotify_event*)buf_ptr;
+			event = PTR_CAST(struct inotify_event, buf_ptr);
 
 #ifdef RELOAD_DEBUG
 			log_message(LOG_INFO, "File %s, wd %d, cookie %" PRIu32, event->len ? event->name : "[NONE]", event->wd, event->cookie);

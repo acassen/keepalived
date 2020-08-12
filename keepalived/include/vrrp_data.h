@@ -60,7 +60,7 @@ typedef struct _vrrp_data {
 /* Global Vars exported */
 extern vrrp_data_t *vrrp_data;
 extern vrrp_data_t *old_vrrp_data;
-extern char *vrrp_buffer;
+extern void *vrrp_buffer;
 extern size_t vrrp_buffer_len;
 
 /* prototypes */

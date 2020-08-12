@@ -331,7 +331,7 @@ void
 alloc_bfd_buffer(void)
 {
 	if (!bfd_buffer)
-		bfd_buffer = (char *) MALLOC(BFD_BUFFER_SIZE);
+		bfd_buffer = (char *)MALLOC(BFD_BUFFER_SIZE);
 }
 
 void

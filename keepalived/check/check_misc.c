@@ -96,7 +96,7 @@ misc_check_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	checker_t *checker;
 
-	new_misck_checker = (misc_checker_t *) MALLOC(sizeof (misc_checker_t));
+	PMALLOC(new_misck_checker);
 	new_misck_checker->state = SCRIPT_STATE_IDLE;
 
 	script_user_set = false;
