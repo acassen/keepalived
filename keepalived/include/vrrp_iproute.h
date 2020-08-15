@@ -254,7 +254,7 @@ typedef struct _ip_route {
 
 /* prototypes */
 extern unsigned short add_addr2req(struct nlmsghdr *, size_t, unsigned short, ip_address_t *);
-extern bool netlink_rtlist(list_head_t *, int);
+extern bool netlink_rtlist(list_head_t *, int, bool);
 extern void free_iproute(ip_route_t *);
 extern void free_iproute_list(list_head_t *);
 extern void format_iproute(const ip_route_t *, char *, size_t);

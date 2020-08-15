@@ -139,22 +139,23 @@ static bool
 vrrp_handle_ipaddress(vrrp_t *vrrp, int cmd, int type, bool force)
 {
 	if (__test_bit(LOG_DETAIL_BIT, &debug))
-		log_message(LOG_INFO, "(%s) %s %s", vrrp->iname,
-		       (cmd == IPADDRESS_ADD) ? "setting" : "removing",
-		       (type == VRRP_VIP_TYPE) ? "VIPs." : "E-VIPs.");
+		log_message(LOG_INFO, "(%s) %sing %sVIPs.", vrrp->iname,
+		       (cmd == IPADDRESS_ADD) ? "sett" : "remov",
+		       (type == VRRP_VIP_TYPE) ? "" : "E-");
 	return netlink_iplist((type == VRRP_VIP_TYPE) ? &vrrp->vip : &vrrp->evip, cmd, force);
 }
 
 #ifdef _HAVE_FIB_ROUTING_
 /* add/remove Virtual routes */
 static void
-vrrp_handle_iproutes(vrrp_t * vrrp, int cmd)
+vrrp_handle_iproutes(vrrp_t * vrrp, int cmd, bool force)
 {
 	if (__test_bit(LOG_DETAIL_BIT, &debug))
-		log_message(LOG_INFO, "(%s) %s Virtual Routes",
+		log_message(LOG_INFO, "(%s) %sing Virtual Routes",
 		       vrrp->iname,
-		       (cmd == IPROUTE_ADD) ? "setting" : "removing");
-	netlink_rtlist(&vrrp->vroutes, cmd);
+		       (cmd == IPROUTE_ADD) ? "sett" : "remov");
+	log_message(LOG_INFO, "Reloading: %d", reload);
+	netlink_rtlist(&vrrp->vroutes, cmd, force);
 }
 
 /* add/remove Virtual rules */
@@ -162,9 +163,9 @@ static void
 vrrp_handle_iprules(vrrp_t * vrrp, int cmd, bool force)
 {
 	if (__test_bit(LOG_DETAIL_BIT, &debug))
-		log_message(LOG_INFO, "(%s) %s Virtual Rules",
+		log_message(LOG_INFO, "(%s) %sing Virtual Rules",
 		       vrrp->iname,
-		       (cmd == IPRULE_ADD) ? "setting" : "removing");
+		       (cmd == IPRULE_ADD) ? "sett" : "remov");
 	netlink_rulelist(&vrrp->vrules, cmd, force);
 }
 #endif
@@ -1635,7 +1636,7 @@ vrrp_state_become_master(vrrp_t * vrrp)
 #ifdef _HAVE_FIB_ROUTING_
 	/* add virtual routes */
 	if (!list_empty(&vrrp->vroutes))
-		vrrp_handle_iproutes(vrrp, IPROUTE_ADD);
+		vrrp_handle_iproutes(vrrp, IPROUTE_ADD, false);
 
 	/* add virtual rules */
 	if (!list_empty(&vrrp->vrules))
@@ -1706,7 +1707,7 @@ vrrp_restore_interface(vrrp_t * vrrp, bool advF, bool force)
 
 	/* remove virtual routes */
 	if (!list_empty(&vrrp->vroutes))
-		vrrp_handle_iproutes(vrrp, IPROUTE_DEL);
+		vrrp_handle_iproutes(vrrp, IPROUTE_DEL, false);
 #endif
 
 	/* empty the delayed arp list */
@@ -4302,8 +4303,14 @@ restore_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 				added_ip_addr = true;
 		}
 #ifdef _HAVE_FIB_ROUTING_
-		if (!list_empty(&vrrp->vroutes))
-			vrrp_handle_iproutes(vrrp, IPROUTE_ADD);
+		if (!list_empty(&vrrp->vroutes)) {
+			/* It is possible that some routes may have been deleted
+			 * by the kernel if, for example, they depended on a VIP
+			 * that has been removed, and in this case the kernel doesn't
+			 * notify us that the route has been deleted. We therefore
+			 * need to attempt to re-add all the virtual routes. */
+			vrrp_handle_iproutes(vrrp, IPROUTE_ADD, true);
+		}
 		if (!list_empty(&vrrp->vrules))
 			vrrp_handle_iprules(vrrp, IPRULE_ADD, false);
 #endif
