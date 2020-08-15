@@ -516,7 +516,7 @@ netlink_route(ip_route_t *iproute, int cmd)
 
 /* Add/Delete a list of IP routes */
 bool
-netlink_rtlist(list_head_t *rt_list, int cmd)
+netlink_rtlist(list_head_t *rt_list, int cmd, bool force)
 {
 	ip_route_t *ip_route;
 
@@ -525,10 +525,10 @@ netlink_rtlist(list_head_t *rt_list, int cmd)
 		return false;
 
 	list_for_each_entry(ip_route, rt_list, e_list) {
-		if ((cmd == IPROUTE_DEL) == ip_route->set) {
+		if ((cmd == IPROUTE_DEL) == ip_route->set || force) {
 			if (!netlink_route(ip_route, cmd))
 				ip_route->set = (cmd == IPROUTE_ADD);
-			else
+			else if (cmd != IPROUTE_ADD)
 				ip_route->set = false;
 		}
 	}
@@ -1844,7 +1844,7 @@ clear_diff_routes(list_head_t *l, list_head_t *n)
 	/* All routes removed */
 	if (list_empty(n)) {
 		log_message(LOG_INFO, "Removing a VirtualRoute block");
-		netlink_rtlist(l, IPROUTE_DEL);
+		netlink_rtlist(l, IPROUTE_DEL, false);
 		return;
 	}
 

@@ -379,7 +379,7 @@ vrrp_terminate_phase1(bool schedule_next_thread)
 	/* Clear static entries */
 #ifdef _HAVE_FIB_ROUTING_
 	netlink_rulelist(&vrrp_data->static_rules, IPRULE_DEL, false);
-	netlink_rtlist(&vrrp_data->static_routes, IPROUTE_DEL);
+	netlink_rtlist(&vrrp_data->static_routes, IPROUTE_DEL, false);
 #endif
 	netlink_iplist(&vrrp_data->static_addresses, IPADDRESS_DEL, false);
 
@@ -531,7 +531,7 @@ start_vrrp(data_t *prev_global_data)
 			/* Clear leftover static entries */
 			netlink_iplist(&vrrp_data->static_addresses, IPADDRESS_DEL, false);
 #ifdef _HAVE_FIB_ROUTING_
-			netlink_rtlist(&vrrp_data->static_routes, IPROUTE_DEL);
+			netlink_rtlist(&vrrp_data->static_routes, IPROUTE_DEL, false);
 			netlink_error_ignore = ENOENT;
 			netlink_rulelist(&vrrp_data->static_rules, IPRULE_DEL, true);
 			netlink_error_ignore = 0;
@@ -590,7 +590,7 @@ start_vrrp(data_t *prev_global_data)
 	/* Set static entries */
 	netlink_iplist(&vrrp_data->static_addresses, IPADDRESS_ADD, false);
 #ifdef _HAVE_FIB_ROUTING_
-	netlink_rtlist(&vrrp_data->static_routes, IPROUTE_ADD);
+	netlink_rtlist(&vrrp_data->static_routes, IPROUTE_ADD, false);
 	netlink_rulelist(&vrrp_data->static_rules, IPRULE_ADD, false);
 #endif
 
