@@ -23,10 +23,7 @@
 #ifndef _DAEMON_H
 #define _DAEMON_H
 
-/* System includes */
-#include <stdbool.h>
-
 /* prototype */
-extern pid_t xdaemon(bool, bool, bool);
+extern pid_t xdaemon(void);
 
 #endif
