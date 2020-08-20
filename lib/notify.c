@@ -67,7 +67,7 @@ static bool path_is_malloced;
 static char cmd_str_buf[MAXBUF];
 
 static bool
-set_privileges(uid_t uid, gid_t gid)
+set_script_env(uid_t uid, gid_t gid)
 {
 	if (gid) {
 		if (setgid(gid) < 0) {
@@ -188,7 +188,7 @@ system_call_script(thread_master_t *m, thread_func_t func, void * arg, unsigned 
 	skip_mem_dump();
 #endif
 
-	if (set_privileges(script->uid, script->gid))
+	if (set_script_env(script->uid, script->gid))
 		exit(0);
 
 	/* Move us into our own process group, so if the script needs to be killed
