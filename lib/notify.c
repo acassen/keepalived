@@ -164,35 +164,20 @@ cmd_str(const notify_script_t *script)
 	return cmd_str_r(script, cmd_str_buf, sizeof cmd_str_buf);
 }
 
-/* Execute external script/program to process FIFO */
-static pid_t
-notify_fifo_exec(thread_master_t *m, thread_func_t func, void *arg, notify_script_t *script)
+/* perform a system call */
+static void __attribute__ ((noreturn))
+system_call(const notify_script_t* script)
 {
-	pid_t pid;
+	const char *str;
 	int retval;
-	const char *scr;
 	union non_const_args args;
 
-	pid = local_fork();
+	if (set_privileges(script->uid, script->gid))
+		exit(0);
 
-	/* In case of fork is error. */
-	if (pid < 0) {
-		log_message(LOG_INFO, "Failed fork process");
-		return -1;
-	}
-
-	/* In case of this is parent process */
-	if (pid) {
-		thread_add_child(m, func, arg, pid, TIMER_NEVER);
-		return 0;
-	}
-
-#ifdef _MEM_CHECK_
-	skip_mem_dump();
-#endif
-
+	/* Move us into our own process group, so if the script needs to be killed
+	 * all its child processes will also be killed. */
 	setpgid(0, 0);
-	set_privileges(script->uid, script->gid);
 
 	if (script->flags & SC_EXECABLE) {
 		/* If keepalived dies, we want the script to die */
@@ -201,26 +186,85 @@ notify_fifo_exec(thread_master_t *m, thread_func_t func, void *arg, notify_scrip
 		args.args = script->args;	/* Note: we are casting away constness, since execve parameter type is wrong */
 		execve(script->args[0], args.execve_args, environ);
 
-		if (errno == EACCES)
-			log_message(LOG_INFO, "FIFO notify script %s is not executable", script->args[0]);
-		else
-			log_message(LOG_INFO, "Unable to execute FIFO notify script %s - errno %d - %m", script->args[0], errno);
-	}
-	else {
-		retval = system(scr = cmd_str(script));
+		/* error */
+		log_message(LOG_ALERT, "Error exec-ing command '%s', error %d: %m", script->args[0], errno);
+	} else {
+		retval = system(str = cmd_str(script));
 
-		if (retval == 127) {
-			/* couldn't exec command */
-			log_message(LOG_ALERT, "Couldn't exec FIFO command: %s", scr);
+		if (retval == -1) {
+			log_message(LOG_ALERT, "Error exec-ing command: %s", str);
+			exit(0);
 		}
-		else if (retval == -1)
-			log_message(LOG_ALERT, "Error exec-ing FIFO command: %s", scr);
 
-		exit(0);
+		if (WIFEXITED(retval)) {
+			if (WEXITSTATUS(retval) == 127) {
+				/* couldn't find command */
+				log_message(LOG_ALERT, "Couldn't find command: %s", str);
+			}
+			else if (WEXITSTATUS(retval) == 126) {
+				/* couldn't find command */
+				log_message(LOG_ALERT, "Couldn't execute command: %s", str);
+			}
+			else
+				exit(WEXITSTATUS(retval));
+
+			exit(0);
+		}
+
+		if (WIFSIGNALED(retval))
+			kill(getpid(), WTERMSIG(retval));
 	}
 
-	/* unreached unless error */
 	exit(0);
+}
+
+int
+system_call_script(thread_master_t *m, thread_func_t func, void * arg, unsigned long timer, const notify_script_t* script)
+{
+	pid_t pid;
+
+	/* Daemonization to not degrade our scheduling timer */
+#ifdef ENABLE_LOG_TO_FILE
+	if (log_file_name)
+		flush_log_file();
+#endif
+
+	pid = local_fork();
+
+	if (pid < 0) {
+		/* fork error */
+		log_message(LOG_INFO, "Failed fork process");
+		return -1;
+	}
+
+	if (pid) {
+		/* parent process */
+		if (func) {
+			thread_add_child(m, func, arg, pid, timer);
+#ifdef _SCRIPT_DEBUG_
+			if (do_script_debug)
+				log_message(LOG_INFO, "Running script %s with pid %d, timer %lu.%6.6lu", script->args[0], pid, timer / TIMER_HZ, timer % TIMER_HZ);
+#endif
+		}
+
+		return 0;
+	}
+
+	/* Child process */
+#ifdef _MEM_CHECK_
+	skip_mem_dump();
+#endif
+
+	system_call(script);
+
+	exit(0); /* Script errors aren't server errors */
+}
+
+/* Execute external script/program */
+int
+notify_exec(const notify_script_t *script)
+{
+	return system_call_script(NULL, NULL, NULL, 0, script);
 }
 
 static void
@@ -247,7 +291,7 @@ fifo_open(notify_fifo_t* fifo, thread_func_t script_exit, const char *type)
 		if (!sav_errno || sav_errno == EEXIST) {
 			/* Run the notify script if there is one */
 			if (fifo->script)
-				notify_fifo_exec(master, script_exit, fifo, fifo->script);
+				system_call_script(master, script_exit, fifo, TIMER_NEVER, fifo->script);
 
 			/* Now open the fifo */
 			if ((fifo->fd = open(fifo->name, O_RDWR | O_CLOEXEC | O_NONBLOCK | O_NOFOLLOW)) == -1) {
@@ -296,113 +340,6 @@ notify_fifo_close(notify_fifo_t* global_fifo, notify_fifo_t* fifo)
 		fifo_close(global_fifo);
 
 	fifo_close(fifo);
-}
-
-/* perform a system call */
-static void __attribute__ ((noreturn))
-system_call(const notify_script_t* script)
-{
-	char *command_line = NULL;
-	const char *str;
-	int retval;
-	union non_const_args args;
-
-	if (set_privileges(script->uid, script->gid))
-		exit(0);
-
-	/* Move us into our own process group, so if the script needs to be killed
-	 * all its child processes will also be killed. */
-	setpgid(0, 0);
-
-	if (script->flags & SC_EXECABLE) {
-		/* If keepalived dies, we want the script to die */
-		prctl(PR_SET_PDEATHSIG, SIGTERM);
-
-		args.args = script->args;	/* Note: we are casting away constness, since execve parameter type is wrong */
-		execve(script->args[0], args.execve_args, environ);
-
-		/* error */
-		log_message(LOG_ALERT, "Error exec-ing command '%s', error %d: %m", script->args[0], errno);
-	}
-	else {
-		retval = system(str = cmd_str(script));
-
-		if (retval == -1)
-			log_message(LOG_ALERT, "Error exec-ing command: %s", str);
-		else if (WIFEXITED(retval)) {
-			if (WEXITSTATUS(retval) == 127) {
-				/* couldn't find command */
-				log_message(LOG_ALERT, "Couldn't find command: %s", str);
-			}
-			else if (WEXITSTATUS(retval) == 126) {
-				/* couldn't find command */
-				log_message(LOG_ALERT, "Couldn't execute command: %s", str);
-			}
-		}
-
-		if (command_line)
-			FREE(command_line);
-
-		if (retval == -1 ||
-		    (WIFEXITED(retval) && (WEXITSTATUS(retval) == 126 || WEXITSTATUS(retval) == 127)))
-			exit(0);
-		if (WIFEXITED(retval))
-			exit(WEXITSTATUS(retval));
-		if (WIFSIGNALED(retval))
-			kill(getpid(), WTERMSIG(retval));
-		exit(0);
-	}
-
-	exit(0);
-}
-
-int
-system_call_script(thread_master_t *m, thread_func_t func, void * arg, unsigned long timer, const notify_script_t* script)
-{
-	pid_t pid;
-
-	/* Daemonization to not degrade our scheduling timer */
-#ifdef ENABLE_LOG_TO_FILE
-	if (log_file_name)
-		flush_log_file();
-#endif
-
-	pid = local_fork();
-
-	if (pid < 0) {
-		/* fork error */
-		log_message(LOG_INFO, "Failed fork process");
-		return -1;
-	}
-
-	if (pid) {
-		/* parent process */
-		if (func) {
-			thread_add_child(m, func, arg, pid, timer);
-#ifdef _SCRIPT_DEBUG_
-			if (do_script_debug)
-				log_message(LOG_INFO, "Running script with pid %d, timer %lu.%6.6lu", pid, timer / TIMER_HZ, timer % TIMER_HZ);
-#endif
-		}
-
-		return 0;
-	}
-
-	/* Child process */
-#ifdef _MEM_CHECK_
-	skip_mem_dump();
-#endif
-
-	system_call(script);
-
-	exit(0); /* Script errors aren't server errors */
-}
-
-/* Execute external script/program */
-int
-notify_exec(const notify_script_t *script)
-{
-	return system_call_script(NULL, NULL, NULL, 0, script);
 }
 
 void
