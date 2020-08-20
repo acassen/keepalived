@@ -178,7 +178,7 @@ system_call_script(thread_master_t *m, thread_func_t func, void * arg, unsigned 
 		flush_log_file();
 #endif
 
-	pid = local_fork();
+	pid = fork();
 
 	if (pid < 0) {
 		/* fork error */
@@ -200,6 +200,8 @@ system_call_script(thread_master_t *m, thread_func_t func, void * arg, unsigned 
 	}
 
 	/* Child process */
+	reset_process_priorities();
+
 #ifdef _MEM_CHECK_
 	skip_mem_dump();
 #endif
