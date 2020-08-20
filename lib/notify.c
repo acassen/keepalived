@@ -164,13 +164,45 @@ cmd_str(const notify_script_t *script)
 	return cmd_str_r(script, cmd_str_buf, sizeof cmd_str_buf);
 }
 
-/* perform a system call */
-static void __attribute__ ((noreturn))
-system_call(const notify_script_t* script)
+int
+system_call_script(thread_master_t *m, thread_func_t func, void * arg, unsigned long timer, const notify_script_t* script)
 {
+	pid_t pid;
 	const char *str;
 	int retval;
 	union non_const_args args;
+
+	/* Daemonization to not degrade our scheduling timer */
+#ifdef ENABLE_LOG_TO_FILE
+	if (log_file_name)
+		flush_log_file();
+#endif
+
+	pid = local_fork();
+
+	if (pid < 0) {
+		/* fork error */
+		log_message(LOG_INFO, "Failed fork process");
+		return -1;
+	}
+
+	if (pid) {
+		/* parent process */
+		if (func) {
+			thread_add_child(m, func, arg, pid, timer);
+#ifdef _SCRIPT_DEBUG_
+			if (do_script_debug)
+				log_message(LOG_INFO, "Running script %s with pid %d, timer %lu.%6.6lu", script->args[0], pid, timer / TIMER_HZ, timer % TIMER_HZ);
+#endif
+		}
+
+		return 0;
+	}
+
+	/* Child process */
+#ifdef _MEM_CHECK_
+	skip_mem_dump();
+#endif
 
 	if (set_privileges(script->uid, script->gid))
 		exit(0);
@@ -214,48 +246,6 @@ system_call(const notify_script_t* script)
 		if (WIFSIGNALED(retval))
 			kill(getpid(), WTERMSIG(retval));
 	}
-
-	exit(0);
-}
-
-int
-system_call_script(thread_master_t *m, thread_func_t func, void * arg, unsigned long timer, const notify_script_t* script)
-{
-	pid_t pid;
-
-	/* Daemonization to not degrade our scheduling timer */
-#ifdef ENABLE_LOG_TO_FILE
-	if (log_file_name)
-		flush_log_file();
-#endif
-
-	pid = local_fork();
-
-	if (pid < 0) {
-		/* fork error */
-		log_message(LOG_INFO, "Failed fork process");
-		return -1;
-	}
-
-	if (pid) {
-		/* parent process */
-		if (func) {
-			thread_add_child(m, func, arg, pid, timer);
-#ifdef _SCRIPT_DEBUG_
-			if (do_script_debug)
-				log_message(LOG_INFO, "Running script %s with pid %d, timer %lu.%6.6lu", script->args[0], pid, timer / TIMER_HZ, timer % TIMER_HZ);
-#endif
-		}
-
-		return 0;
-	}
-
-	/* Child process */
-#ifdef _MEM_CHECK_
-	skip_mem_dump();
-#endif
-
-	system_call(script);
 
 	exit(0); /* Script errors aren't server errors */
 }
