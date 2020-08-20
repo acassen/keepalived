@@ -53,7 +53,7 @@ xdaemon(void)
 		return pid;
 
 	/* Become session leader and get pid. */
-	if (setsid() < -1) {
+	if (setsid() < 0) {
 		log_message(LOG_INFO, "xdaemon: setsid error");
 		return -1;
 	}
