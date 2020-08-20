@@ -63,45 +63,27 @@ static size_t getpwnam_buf_len;
 static char *path;
 static bool path_is_malloced;
 
-/* The priority this process is running at */
-static int cur_prio = INT_MAX;
-
 /* Buffer for expanding notify script commands */
 static char cmd_str_buf[MAXBUF];
 
 static bool
 set_privileges(uid_t uid, gid_t gid)
 {
-	int retval;
-
-	/* Ensure we receive SIGTERM if our parent process dies */
-	prctl(PR_SET_PDEATHSIG, SIGTERM);
-
-	/* If we have increased our priority, set it to default for the script */
-	if (cur_prio != INT_MAX)
-		cur_prio = getpriority(PRIO_PROCESS, 0);
-	if (cur_prio < 0)
-		setpriority(PRIO_PROCESS, 0, 0);
-
-	/* Drop our privileges if configured */
 	if (gid) {
-		retval = setgid(gid);
-		if (retval < 0) {
+		if (setgid(gid) < 0) {
 			log_message(LOG_ALERT, "Couldn't setgid: %u (%m)", gid);
 			return true;
 		}
 
 		/* Clear any extra supplementary groups */
-		retval = setgroups(1, &gid);
-		if (retval < 0) {
+		if (setgroups(1, &gid) < 0) {
 			log_message(LOG_ALERT, "Couldn't setgroups: %u (%m)", gid);
 			return true;
 		}
 	}
 
 	if (uid) {
-		retval = setuid(uid);
-		if (retval < 0) {
+		if (setuid(uid) < 0) {
 			log_message(LOG_ALERT, "Couldn't setuid: %u (%m)", uid);
 			return true;
 		}
