@@ -356,42 +356,8 @@ system_call(const notify_script_t* script)
 	exit(0);
 }
 
-/* Execute external script/program */
 int
-notify_exec(const notify_script_t *script)
-{
-	pid_t pid;
-
-#ifdef ENABLE_LOG_TO_FILE
-	if (log_file_name)
-		flush_log_file();
-#endif
-
-	pid = local_fork();
-
-	if (pid < 0) {
-		/* fork error */
-		log_message(LOG_INFO, "Failed fork process");
-		return -1;
-	}
-
-	if (pid) {
-		/* parent process */
-		return 0;
-	}
-
-#ifdef _MEM_CHECK_
-	skip_mem_dump();
-#endif
-
-	system_call(script);
-
-	/* We should never get here */
-	exit(0);
-}
-
-int
-system_call_script(thread_master_t *m, thread_func_t func, void * arg, unsigned long timer, notify_script_t* script)
+system_call_script(thread_master_t *m, thread_func_t func, void * arg, unsigned long timer, const notify_script_t* script)
 {
 	pid_t pid;
 
@@ -411,11 +377,14 @@ system_call_script(thread_master_t *m, thread_func_t func, void * arg, unsigned 
 
 	if (pid) {
 		/* parent process */
-		thread_add_child(m, func, arg, pid, timer);
+		if (func) {
+			thread_add_child(m, func, arg, pid, timer);
 #ifdef _SCRIPT_DEBUG_
-		if (do_script_debug)
-			log_message(LOG_INFO, "Running script with pid %d, timer %lu.%6.6lu", pid, timer / TIMER_HZ, timer % TIMER_HZ);
+			if (do_script_debug)
+				log_message(LOG_INFO, "Running script with pid %d, timer %lu.%6.6lu", pid, timer / TIMER_HZ, timer % TIMER_HZ);
 #endif
+		}
+
 		return 0;
 	}
 
@@ -427,6 +396,13 @@ system_call_script(thread_master_t *m, thread_func_t func, void * arg, unsigned 
 	system_call(script);
 
 	exit(0); /* Script errors aren't server errors */
+}
+
+/* Execute external script/program */
+int
+notify_exec(const notify_script_t *script)
+{
+	return system_call_script(NULL, NULL, NULL, 0, script);
 }
 
 void

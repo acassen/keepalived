@@ -96,7 +96,7 @@ extern const char *cmd_str_r(const notify_script_t *, char *, size_t);
 extern const char *cmd_str(const notify_script_t *);
 extern void notify_fifo_open(notify_fifo_t*, notify_fifo_t*, thread_func_t, const char *);
 extern void notify_fifo_close(notify_fifo_t*, notify_fifo_t*);
-extern int system_call_script(thread_master_t *, thread_func_t, void *, unsigned long, notify_script_t *);
+extern int system_call_script(thread_master_t *, thread_func_t, void *, unsigned long, const notify_script_t *);
 extern int notify_exec(const notify_script_t *);
 extern void child_killed_thread(thread_ref_t);
 extern void script_killall(thread_master_t *, int, bool);
