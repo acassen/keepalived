@@ -32,10 +32,9 @@
 
 /* Daemonization function coming from zebra source code */
 pid_t
-xdaemon(bool nochdir, bool noclose, bool exitflag)
+xdaemon(void)
 {
 	pid_t pid;
-	int ret;
 
 #ifdef ENABLE_LOG_TO_FILE
 	if (log_file_name)
@@ -50,31 +49,21 @@ xdaemon(bool nochdir, bool noclose, bool exitflag)
 	}
 
 	/* In case of this is parent process. */
-	if (pid != 0) {
-		if (!exitflag)
-			exit(0);
-		else
-			return pid;
-	}
+	if (pid != 0)
+		return pid;
 
 	/* Become session leader and get pid. */
-	pid = setsid();
-	if (pid < -1) {
+	if (setsid() < 0) {
 		log_message(LOG_INFO, "xdaemon: setsid error");
 		return -1;
 	}
 
 	/* Change directory to root. */
-	if (!nochdir) {
-		ret = chdir("/");
-		if (ret < 0) {
-			log_message(LOG_INFO, "xdaemon: chdir error");
-		}
-	}
+	if (chdir("/") < 0)
+		log_message(LOG_INFO, "xdaemon: chdir error");
 
 	/* File descriptor close. */
-	if (!noclose)
-		set_std_fd(true);
+	set_std_fd(true);
 
 	return 0;
 }

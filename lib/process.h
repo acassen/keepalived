@@ -50,7 +50,6 @@ extern unsigned get_cur_rlimit_rttime(void) __attribute__((pure));
 extern int set_process_cpu_affinity(cpu_set_t *, const char *);
 extern int get_process_cpu_affinity_string(cpu_set_t *, char *, size_t);
 extern void set_child_rlimit(int, const struct rlimit *);
-extern pid_t local_fork(void);
 
 extern void set_max_file_limit(unsigned);
 #endif

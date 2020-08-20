@@ -534,11 +534,6 @@ signal_handler_script(void)
 	int sig;
 #ifdef HAVE_SIGNALFD
 	sigset_t sset;
-
-	if (signal_fd != -1){
-		close(signal_fd);
-		signal_fd = -1;
-	}
 #endif
 
 	dfl.sa_handler = SIG_DFL;
@@ -566,25 +561,6 @@ set_sigxcpu_handler(void)
 #endif
 }
 #endif
-
-void signal_fd_close(int min_fd)
-{
-#ifdef HAVE_SIGNALFD
-	if (signal_fd >= min_fd) {
-		close(signal_fd);
-		signal_fd = -1;
-	}
-#else
-	if (signal_pipe[0] >= min_fd) {
-		close(signal_pipe[0]);
-		signal_pipe[0] = -1;
-	}
-	if (signal_pipe[1] >= min_fd) {
-		close(signal_pipe[1]);
-		signal_pipe[1] = -1;
-	}
-#endif
-}
 
 #ifdef THREAD_DUMP
 void

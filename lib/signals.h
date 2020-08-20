@@ -59,8 +59,6 @@ extern void cancel_signal_read_thread(void);
 extern void set_sigxcpu_handler(void);
 #endif
 
-extern void signal_fd_close(int);
-
 #ifdef THREAD_DUMP
 extern void register_signal_thread_addresses(void);
 #endif

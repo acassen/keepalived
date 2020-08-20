@@ -1048,8 +1048,6 @@ set_std_fd(bool force)
 		}
 	}
 
-	signal_fd_close(STDERR_FILENO+1);
-
 	/* coverity[leaked_handle] */
 }
 

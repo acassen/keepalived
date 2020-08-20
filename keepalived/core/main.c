@@ -2319,7 +2319,7 @@ keepalived_main(int argc, char **argv)
 
 	/* daemonize process */
 	if (!__test_bit(DONT_FORK_BIT, &debug) &&
-	    xdaemon(false, false, true) > 0) {
+	    xdaemon() > 0) {
 		closelog();
 		FREE_CONST_PTR(config_id);
 		FREE_PTR(orig_core_dump_pattern);

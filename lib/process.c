@@ -302,20 +302,6 @@ set_child_rlimit(int resource, const struct rlimit *rlim)
 		log_message(LOG_INFO, "Unknown rlimit resource %d", resource);
 }
 
-pid_t
-local_fork(void)
-{
-	pid_t pid;
-
-	pid = fork();
-
-	/* If we are the child process, reset all elevated priorities */
-	if (pid == 0)
-		reset_process_priorities();
-
-	return pid;
-}
-
 void
 set_max_file_limit(unsigned fd_required)
 {
