@@ -956,7 +956,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 							if_extra_ipaddress_alloc(ifp, addr.in, AF_INET);
 					}
 				} else {
-					if (!ifp->sin6_addr.s6_addr32[0]) {
+					if (!IS_IP6_ADDR(&ifp->sin6_addr)) {
 						ifp->sin6_addr = *addr.in6;
 						if (!list_empty(&ifp->tracking_vrrp))
 							addr_chg = true;
@@ -1097,7 +1097,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 				if (ifa->ifa_family == AF_INET)
 					ifp->sin_addr.s_addr = 0;
 				else
-					ifp->sin6_addr.s6_addr32[0] = 0;
+					CLEAR_IP6_ADDR(&ifp->sin6_addr);
 
 				/* See if any vrrp instances need to be downed */
 				list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {

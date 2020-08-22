@@ -110,6 +110,9 @@ typedef struct _ip_address {
 
 #define IP_ISEQ(X,Y)    (!(X) && !(Y) ? true : !(X) != !(Y) ? false : (IP_FAMILY(X) != IP_FAMILY(Y) ? false : IP_IS6(X) ? IP6_ISEQ(X, Y) : IP4_ISEQ(X, Y)))
 
+#define IS_IP6_ADDR(X)	((X)->s6_addr32[0] || (X)->s6_addr32[1] || (X)->s6_addr32[2] || (X)->s6_addr32[3])
+#define CLEAR_IP6_ADDR(X) ((X)->s6_addr32[0] = (X)->s6_addr32[1] = (X)->s6_addr32[2] = (X)->s6_addr32[3] = 0)
+
 #define	IPADDRESSTOS_BUF_LEN	(INET6_ADDRSTRLEN + 4)     /* allow for subnet */
 
 /* Forward reference */

@@ -491,7 +491,7 @@ dump_if(FILE *fp, const interface_t *ifp)
 		list_for_each_entry(saddr, &ifp->sin_addr_l, e_list)
 			conf_write(fp, "     %s", inet_ntop2(saddr->u.sin_addr.s_addr));
 	}
-	if (ifp->sin6_addr.s6_addr32[0]) {
+	if (IS_IP6_ADDR(&ifp->sin6_addr)) {
 		inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, sizeof(addr_str));
 		conf_write(fp, "   IPv6 address = %s", addr_str);
 	} else
