@@ -99,7 +99,7 @@
 #if defined _NETWORK_TIMESTAMP_ || defined _CHECKSUM_DEBUG_
 #include "vrrp.h"
 #endif
-#if defined _TSM_DEBUG_ || defined _SCRIPT_DEBUG_
+#if defined _TSM_DEBUG_ || defined _SCRIPT_DEBUG_ || defined _RECVMSG_DEBUG_
 #include "vrrp_scheduler.h"
 #endif
 #if defined _PARSER_DEBUG_ || defined _DUMP_KEYWORDS_
@@ -225,6 +225,7 @@ static const char *dump_file = "/tmp/keepalived_parent.data";
     defined _DUMP_KEYWORDS_ || \
     defined _CHECKER_DEBUG_ || \
     defined _MEM_ERR_DEBUG_ || \
+    defined _RECVMSG_DEBUG_ || \
     defined _EINTR_DEBUG_ || \
     defined _SCRIPT_DEBUG_
 #define WITH_DEBUG_OPTIONS 1
@@ -278,6 +279,10 @@ static char checker_debug;
 #endif
 #ifdef _MEM_ERR_DEBUG_
 static char mem_err_debug;
+#endif
+#ifdef _RECVMSG_DEBUG_
+static char recvmsg_debug;
+static char recvmsg_debug_dump;
 #endif
 #ifdef _EINTR_DEBUG_
 static char eintr_debug;
@@ -1240,6 +1245,10 @@ initialise_debug_options(void)
 #ifdef _MEM_ERR_DEBUG_
 	do_mem_err_debug = !!(mem_err_debug & mask);
 #endif
+#ifdef _RECVMSG_DEBUG_
+	do_recvmsg_debug = !!(recvmsg_debug & mask);
+	do_recvmsg_debug_dump = !!(recvmsg_debug_dump & mask);
+#endif
 #ifdef _EINTR_DEBUG_
 	do_eintr_debug = !!(eintr_debug & mask);
 #endif
@@ -1326,6 +1335,10 @@ set_debug_options(const char *options)
 #ifdef _MEM_ERR_DEBUG_
 		mem_err_debug = all_processes;
 #endif
+#ifdef _RECVMSG_DEBUG_
+		recvmsg_debug = all_processes;
+		recvmsg_debug_dump = all_processes;
+#endif
 #ifdef _EINTR_DEBUG_
 		eintr_debug = all_processes;
 #endif
@@ -1383,7 +1396,7 @@ set_debug_options(const char *options)
 		}
 #endif
 
-		/* Letters used - ABCDEFIHKMNOPRSTUVXZ */
+		/* Letters used - ABCDEFGHIJKMNOPRSTUVXZ */
 		switch (opt) {
 #ifdef _TIMER_CHECK_
 		case 'T':
@@ -1466,6 +1479,14 @@ set_debug_options(const char *options)
 #ifdef _MEM_ERR_DEBUG_
 		case 'Z':
 			mem_err_debug = processes;
+			break;
+#endif
+#ifdef _RECVMSG_DEBUG_
+		case 'G':
+			recvmsg_debug = processes;
+			break;
+		case 'J':
+			recvmsg_debug_dump = processes;
 			break;
 #endif
 #ifdef _EINTR_DEBUG_
@@ -1614,6 +1635,10 @@ usage(const char *prog)
 #endif
 #ifdef _MEM_ERR_DEBUG_
 	fprintf(stderr, "                                   Z - memory alloc/free error debug\n");
+#endif
+#ifdef _RECVMSG_DEBUG_
+	fprintf(stderr, "                                   G - VRRP recvmsg() debug\n");
+	fprintf(stderr, "                                   J - VRRP recvmsg() log rx data\n");
 #endif
 #ifdef _EINTR_DEBUG_
 	fprintf(stderr, "                                   I - EINTR debugging\n");

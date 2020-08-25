@@ -51,6 +51,10 @@ do {						\
 #ifdef _TSM_DEBUG_
 extern bool do_tsm_debug;
 #endif
+#ifdef _RECVMSG_DEBUG_
+extern bool do_recvmsg_debug;
+extern bool do_recvmsg_debug_dump;
+#endif
 
 /* extern prototypes */
 extern void vrrp_init_instance_sands(vrrp_t *);
