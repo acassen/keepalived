@@ -69,6 +69,11 @@
 /* For load testing recvmsg() */
 /* #define DEBUG_RECVMSG */
 
+/* For _RECVMSG_DEBUG_ we want load testing code as well */
+#ifdef _RECVMSG_DEBUG_
+#define DEBUG_RECVMSG	1
+#endif
+
 /* global vars */
 timeval_t garp_next_time;
 thread_ref_t garp_thread;
@@ -76,6 +81,10 @@ bool vrrp_initialised;
 
 #ifdef _TSM_DEBUG_
 bool do_tsm_debug;
+#endif
+#ifdef _RECVMSG_DEBUG_
+bool do_recvmsg_debug;
+bool do_recvmsg_debug_dump;
 #endif
 
 /* local variables */
@@ -849,27 +858,49 @@ vrrp_dispatcher_read(sock_t *sock)
 		       check_EINTR(errno) && eintr_count++ < 10);
 		if (len < 0) {
 #ifdef DEBUG_RECVMSG
-			if (check_EINTR(errno))
-				log_message(LOG_INFO, "recvmsg(%d) looped %u times due to EINTR before terminating loop"
-						    , sock->fd_in, eintr_count);
+#ifdef _RECVMSG_DEBUG_
+			if (do_recvmsg_debug && (!recv_data_count || !check_EAGAIN(errno)))
+				log_message(LOG_INFO, "recvmsg(%d) returned errno %d, %u eintr", sock->fd_in, errno, eintr_count);
+#endif
+
+#ifdef _RECVMSG_DEBUG_
+			if (do_recvmsg_debug)
+#endif
+			{
+				if (check_EINTR(errno))
+					log_message(LOG_INFO, "recvmsg(%d) looped %u times due to EINTR before terminating loop"
+							    , sock->fd_in, eintr_count);
+			}
 #endif
 
 			if (!check_EAGAIN(errno))
 				log_message(LOG_INFO, "recvmsg(%d) returned %d (%m)"
 						    , sock->fd_in, errno);
 #ifdef DEBUG_RECVMSG
-			else if (recv_data_count == 0)
+			else if (
+#ifdef _RECVMSG_DEBUG_
+				 do_recvmsg_debug &&
+#endif
+				 recv_data_count == 0)
 				log_message(LOG_INFO, "recvmsg(%d) returned EAGAIN without any data being received"
 						    , sock->fd_in);
 
-			if (recv_data_count != 1)
-				log_message(LOG_INFO, "recvmsg(%d) loop received %u packets"
-						    , sock->fd_in, recv_data_count);
+#ifdef _RECVMSG_DEBUG_
+			if (do_recvmsg_debug)
+#endif
+			{
+				if (recv_data_count != 1)
+					log_message(LOG_INFO, "recvmsg(%d) loop received %u packets"
+							    , sock->fd_in, recv_data_count);
+			}
 #endif
 			break;
 		}
-
-#ifdef DEBUG_RECVMSG
+#ifdef _RECVMSG_DEBUG_
+		else if (do_recvmsg_debug)
+			log_message(LOG_INFO, "recvmsg(%d) looped %u times due to EINTR before returning %ld bytes from %s"
+					    , sock->fd_in, eintr_count, len, inet_sockaddrtos(&src_addr));
+#elif defined DEBUG_RECVMSG
 		if (eintr_count)
 			log_message(LOG_INFO, "recvmsg(%d) looped %u times due to EINTR before returning %ld"
 					    , sock->fd_in, eintr_count, len);
@@ -880,6 +911,12 @@ vrrp_dispatcher_read(sock_t *sock)
 			log_message(LOG_INFO, "recvmsg(%d) returned data length 0", sock->fd_in);
 			continue;
 		}
+
+#ifdef _RECVMSG_DEBUG_
+		if (do_recvmsg_debug_dump) {
+			log_buffer("Received data", vrrp_buffer, len);
+		}
+#endif
 
 #ifdef DEBUG_RECVMSG
 		recv_data_count++;

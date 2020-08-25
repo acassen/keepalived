@@ -257,6 +257,8 @@ AC_ARG_ENABLE(tsm-debug,
   [AS_HELP_STRING([--enable-tsm-debug], [compile with TSM debugging support])])
 AC_ARG_ENABLE(vrrp-fd-debug,
   [AS_HELP_STRING([--enable-vrrp-fd-debug], [compile with vrrp fd debugging support])])
+AC_ARG_ENABLE(recvmsg-debug,
+  [AS_HELP_STRING([--enable-recvmsg-debug], [compile with recvmsg() debugging support])])
 AC_ARG_ENABLE(eintr-debug,
   [AS_HELP_STRING([--enable-eintr-debug], [compile with EINTR debugging support, set to check/not check for EINTR])])
 AC_ARG_ENABLE(track-process-debug,
@@ -446,6 +448,7 @@ AS_IF([test .$enable_debug = .yes],
     AS_IF([test .$enable_asserts = .], [enable_asserts=yes])
     AS_IF([test .$enable_epoll_debug = .], [enable_epoll_debug=yes])
     AS_IF([test .$enable_epoll_thread_dump = .], [enable_epoll_thread_dump=yes])
+    AS_IF([test .$enable_recvmsg_debug = .], [enable_recvmsg_debug=yes])
     AS_IF([test .$enable_eintr_debug = .], [enable_eintr_debug=yes])
     AS_IF([test .$enable_parser_debug = .], [enable_parser_debug=yes])
     AS_IF([test .$enable_timer_check = .], [enable_timer_check=yes])
@@ -2733,6 +2736,15 @@ if test "${ENABLE_LOG_FILE_APPEND}" = Yes; then
   add_config_opt([LOG_FILE_APPEND])
 fi
 
+dnl ----[ Do we want RECVMSG debugging code]----
+ENABLE_RECVMSG_DEBUG=No
+AS_IF([test .$enable_recvmsg_debug = .yes],
+  [
+    AC_DEFINE([_RECVMSG_DEBUG_], [ 1 ], [Define to add VRRP recvmsg() debugging code])
+    add_config_opt([RECVMSG_DEBUG])
+    ENABLE_RECVMSG_DEBUG=Yes
+  ])
+
 dnl ----[ Do we need to check for EINTR, or enable EINTR debugging code]----
 ENABLE_EINTR_DEBUG=No
 AS_IF([test .$enable_eintr_debug = .yes],
@@ -3049,6 +3061,9 @@ if test ${ENABLE_NETLINK_TIMERS} = Yes; then
 fi
 if test ${ENABLE_SMTP_ALERT_DEBUG} = Yes; then
   echo "smtp-alert debugging     : Yes"
+fi
+if test ${ENABLE_RECVMSG_DEBUG} = Yes; then
+  echo "RECVMSG debugging        : Yes"
 fi
 if test ${ENABLE_EINTR_DEBUG} = Yes; then
   echo "EINTR debugging          : Yes"

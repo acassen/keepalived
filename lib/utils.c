@@ -112,7 +112,7 @@ dump_buffer(const char *buff, size_t count, FILE* fp, int indent)
 	}
 }
 
-#ifdef _CHECKSUM_DEBUG_
+#if defined _CHECKSUM_DEBUG_ || defined _RECVMSG_DEBUG_
 void
 log_buffer(const char *msg, const void *buff, size_t count)
 {
