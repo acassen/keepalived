@@ -1161,7 +1161,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 				if (ifa->ifa_family == AF_INET)
 					ifp->sin_addr.s_addr = 0;
 				else
-					ifp->sin6_addr.s6_addr32[0] = 0;
+					CLEAR_IP6_ADDR(&ifp->sin6_addr);
 			}
 		}
 
