@@ -176,12 +176,19 @@ int
 ip4tables_process_entry(struct iptc_handle *handle, const char *chain_name, unsigned int rulenum,
 			const char *target_name, const ip_address_t *src_ip_address,
 			const ip_address_t *dst_ip_address, const char *in_iface, const char *out_iface,
-			uint16_t protocol, uint8_t type, int cmd, uint8_t flags, bool force)
+#ifdef _INCLUDE_UNUSED_CODE_
+			uint16_t protocol, uint8_t type,
+#else
+			__attribute__((unused)) uint16_t protocol, __attribute__((unused)) uint8_t type,
+#endif
+			int cmd, uint8_t flags, bool force)
 {
 	size_t size;
 	struct ipt_entry *fw;
 	struct xt_entry_target *target;
+#ifdef _INCLUDE_UNUSED_CODE_
 	struct xt_entry_match *match ;
+#endif
 	ipt_chainlabel chain;
 	int res;
 	int sav_errno;
@@ -574,7 +581,12 @@ int
 ip4tables_add_rules(struct iptc_handle *handle, const char *chain_name, unsigned int rulenum,
 		    uint8_t dim, uint8_t src_dst, const char* target_name,
 		    const ip_address_t *src_ip_address, const ip_address_t *dst_ip_address, const char *set_name,
-		    uint16_t protocol, uint8_t param, int cmd, bool ignore_errors)
+#ifdef _INCLUDE_UNUSED_CODE_
+		    uint16_t protocol, uint8_t param,
+#else
+		    __attribute__((unused)) uint16_t protocol, __attribute__((unused)) uint8_t param,
+#endif
+		    int cmd, bool ignore_errors)
 {
 	size_t size;
 	struct ipt_entry *fw;
