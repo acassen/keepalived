@@ -196,7 +196,7 @@ ip4tables_process_entry(struct iptc_handle *handle, const char *chain_name, unsi
 	if ( protocol == IPPROTO_ICMP )
 		size += XT_ALIGN ( sizeof(struct xt_entry_match) ) + XT_ALIGN ( sizeof(struct ipt_icmp) ) ;
 
-	PMALLOC(fw);
+	fw = PTR_CAST(struct ipt_entry, MALLOC(size));
 
 	fw->target_offset = XT_ALIGN ( sizeof ( struct ipt_entry ) ) ;
 
@@ -337,7 +337,7 @@ ip6tables_process_entry(struct ip6tc_handle *handle, const char *chain_name, uns
 	if ( protocol == IPPROTO_ICMPV6 )
 		size += XT_ALIGN ( sizeof(struct xt_entry_match) ) + XT_ALIGN ( sizeof(struct ip6t_icmp) ) ;
 
-	PMALLOC(fw);
+	fw = PTR_CAST(struct ip6t_entry, MALLOC(size));
 
 	fw->target_offset = XT_ALIGN ( sizeof ( struct ip6t_entry ) ) ;
 
@@ -598,7 +598,7 @@ ip4tables_add_rules(struct iptc_handle *handle, const char *chain_name, unsigned
 	if (protocol == IPPROTO_ICMP)
 		size += XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(struct ipt_icmp));
 
-	PMALLOC(fw);
+	fw = PTR_CAST(struct ipt_entry, MALLOC(size));
 
 	fw->target_offset = XT_ALIGN(sizeof(struct ipt_entry));
 
@@ -739,7 +739,7 @@ ip6tables_add_rules(struct ip6tc_handle *handle, const char *chain_name, unsigne
 	if (protocol == IPPROTO_ICMPV6)
 		size += XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(struct ip6t_icmp));
 
-	PMALLOC(fw);
+	fw = PTR_CAST(struct ip6t_entry, MALLOC(size));
 
 	if (src_ip_address && src_ip_address->ifa.ifa_family != AF_UNSPEC) {
 //		memcpy(&fw->ipv6.src, &src_ip_address->u.sin6_addr, sizeof(src_ip_address->u.sin6_addr));
