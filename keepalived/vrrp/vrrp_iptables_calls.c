@@ -193,8 +193,10 @@ ip4tables_process_entry(struct iptc_handle *handle, const char *chain_name, unsi
 	size = XT_ALIGN (sizeof (struct ipt_entry)) +
 			XT_ALIGN (sizeof (struct xt_entry_target) + 1);
 
+#ifdef _INCLUDE_UNUSED_CODE_
 	if ( protocol == IPPROTO_ICMP )
 		size += XT_ALIGN ( sizeof(struct xt_entry_match) ) + XT_ALIGN ( sizeof(struct ipt_icmp) ) ;
+#endif
 
 	fw = PTR_CAST(struct ipt_entry, MALLOC(size));
 
@@ -219,6 +221,7 @@ ip4tables_process_entry(struct iptc_handle *handle, const char *chain_name, unsi
 	if (out_iface)
 		set_iface(fw->ip.outiface, fw->ip.outiface_mask, out_iface);
 
+#ifdef _INCLUDE_UNUSED_CODE_
 	if ( protocol != IPPROTO_NONE ) {
 		fw->ip.proto = protocol ;
 
@@ -239,6 +242,7 @@ ip4tables_process_entry(struct iptc_handle *handle, const char *chain_name, unsi
 			icmpinfo->invflags = 0 ;	// don't invert
 		}
 	}
+#endif
 
 // target is XTC_LABEL_DROP/XTC_LABEL_ACCEPT
 	fw->next_offset = (uint16_t)size;
@@ -595,8 +599,10 @@ ip4tables_add_rules(struct iptc_handle *handle, const char *chain_name, unsigned
 			XT_ALIGN(sizeof(struct xt_entry_target) + 1) +
 			XT_ALIGN(sizeof(*setinfo));
 
+#ifdef _INCLUDE_UNUSED_CODE_
 	if (protocol == IPPROTO_ICMP)
 		size += XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(struct ipt_icmp));
+#endif
 
 	fw = PTR_CAST(struct ipt_entry, MALLOC(size));
 
@@ -648,6 +654,7 @@ ip4tables_add_rules(struct iptc_handle *handle, const char *chain_name, unsigned
 	setinfo->match_set.dim = dim;
 	setinfo->match_set.flags = src_dst;
 
+#ifdef _INCLUDE_UNUSED_CODE_
 	if (protocol != IPPROTO_NONE) {
 		fw->ip.proto = protocol;
 
@@ -668,6 +675,7 @@ ip4tables_add_rules(struct iptc_handle *handle, const char *chain_name, unsigned
 			icmpinfo->invflags = 0;		// don't invert
 		}
 	}
+#endif
 
 // target is XTC_LABEL_DROP/XTC_LABEL_ACCEPT
 	fw->next_offset = (uint16_t)size;
