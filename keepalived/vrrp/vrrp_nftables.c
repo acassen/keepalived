@@ -65,6 +65,11 @@
 
 /* nft supports ifnames in sets from commit 8c61fa7 (release v0.8.3, libnftnl v1.0.9 (but 0.8.2 also uses that, 0.8.4 uses v1.1.0)) */
 
+/* The following is defined in linux/icmpv6.h, but both it and
+ * netinet/icmp6.h define struct icmp6_filter
+ */
+#define ICMPV6_MLD2_REPORT 143
+
 /* The following are from nftables source code (include/datatype.h)
  * and are used for it to determine how to display the entries in
  * the set. */
@@ -102,7 +107,11 @@ enum udata_set_type {
 #define NO_REG (NFT_REG_MAX+1)
 
 #ifdef _HAVE_VRRP_VMAC_
+#if HAVE_DECL_NFTA_DUP_MAX
 static const char vmac_map_name[] = "vmac_map";
+#else
+static const char vmac_map_name[] = "vmac_set";
+#endif
 #endif
 
 static struct mnl_socket *nl;
@@ -371,7 +380,7 @@ add_dup(struct nftnl_rule *r, uint32_t addr_reg, uint32_t dev_reg)
 }
 #endif
 
-/* verdict shoud be NF_DROP, NF_ACCEPT, NFT_RETURN, ... */
+/* verdict should be NF_DROP, NF_ACCEPT, NFT_RETURN, ... */
 /* "The nf_tables verdicts share their numeric space with the netfilter verdicts." */
 static void
 add_immediate_verdict(struct nftnl_rule *r, uint32_t verdict, const char *chain)
@@ -392,7 +401,7 @@ add_immediate_verdict(struct nftnl_rule *r, uint32_t verdict, const char *chain)
 	nftnl_rule_add_expr(r, e);
 }
 
-#if HAVE_DECL_NFTA_DUP_MAX && defined _HAVE_VRRP_VMAC_
+#ifdef _INCLUDE_UNUSED_CODE_
 static void
 add_immediate_data(struct nftnl_rule *r, uint32_t reg, const void *data, uint32_t data_len)
 {
@@ -1750,14 +1759,16 @@ static struct nftnl_rule
 				   const char *set_map)
 {
 	/* If have nft dup statement:
-	     nft add rule ip keepalived out ip daddr 224.0.0.22 dup to 224.0.0.22 device oifname map @imap drop
+	     nft add rule ip keepalived out ip protocol igmp dup to ip daddr device oif map @vmac_map drop
+	     nft add rule ip6 keepalived out icmpv6 type mld2-listener-report dup to ip6 daddr device oif map @vmac_map drop
 	   otherwise:
-	     nft add rule ip keepalived out ip daddr 224.0.0.22 oifname @imap drop
+	     nft add rule ip keepalived out ip protocol igmp oif @vmac_set drop
+	     nft add rule ip6 keepalived out icmpv6 type mld2-listener-report oif @vmac_set drop
 	 */
 	struct nftnl_rule *r = NULL;
-	struct in_addr ip;
-	struct in6_addr ip6;
 	uint64_t handle_num;
+	uint8_t protocol;
+	struct icmp6_hdr icmp6;
 
 	r = nftnl_rule_alloc();
 	if (r == NULL) {
@@ -1776,23 +1787,25 @@ static struct nftnl_rule
 
 	if (family == NFPROTO_IPV4) {
 		add_payload(r, NFT_PAYLOAD_NETWORK_HEADER, NFT_REG_1,
-			    offsetof(struct iphdr, daddr), sizeof(struct in_addr));
+			    offsetof(struct iphdr, protocol), sizeof(uint8_t));
 
-		ip.s_addr = htonl(0xe0000016);
-		add_cmp(r, NFT_REG_1, NFT_CMP_EQ, &ip, sizeof(ip));
+		protocol = IPPROTO_IGMP;
+		add_cmp(r, NFT_REG_1, NFT_CMP_EQ, &protocol, sizeof(protocol));
 #if HAVE_DECL_NFTA_DUP_MAX
-		add_immediate_data(r, NFT_REG_1, &ip, sizeof(ip));
+		add_payload(r, NFT_PAYLOAD_NETWORK_HEADER, NFT_REG_1,
+			    offsetof(struct iphdr, daddr), sizeof(struct in_addr));
 #endif
 	} else {
+		add_meta(r, NFT_META_L4PROTO, NFT_REG_1);
+		protocol = IPPROTO_ICMPV6;
+		add_cmp(r, NFT_REG_1, NFT_CMP_EQ, &protocol, sizeof(protocol));
+		add_payload(r, NFT_PAYLOAD_TRANSPORT_HEADER, NFT_REG_1,
+			    offsetof(struct icmp6_hdr, icmp6_type), sizeof(icmp6.icmp6_type));
+		icmp6.icmp6_type = ICMPV6_MLD2_REPORT;
+		add_cmp(r, NFT_REG_1, NFT_CMP_EQ, &icmp6.icmp6_type, sizeof(icmp6.icmp6_type));
+#if HAVE_DECL_NFTA_DUP_MAX
 		add_payload(r, NFT_PAYLOAD_NETWORK_HEADER, NFT_REG_1,
 			    offsetof(struct ip6_hdr, ip6_dst), sizeof(struct in6_addr));
-
-		ip6.s6_addr32[0] = htonl(0xff020000);
-		ip6.s6_addr32[1] = ip6.s6_addr32[2] = 0;
-		ip6.s6_addr32[3] = htonl(0x00000016);
-		add_cmp(r, NFT_REG_1, NFT_CMP_EQ, &ip6, sizeof(ip6));
-#if HAVE_DECL_NFTA_DUP_MAX
-		add_immediate_data(r, NFT_REG_1, &ip6, sizeof(ip6));
 #endif
 	}
 
@@ -1863,7 +1876,7 @@ nft_update_vmac_element(struct mnl_nlmsg_batch *batch, struct nftnl_set *s, ifin
 	struct nftnl_set_elem *e;
 	uint16_t type = cmd == NFT_MSG_NEWSETELEM ? NLM_F_CREATE | NLM_F_ACK : NLM_F_ACK;
 
-	/* nft add element ip keepalived imap { "vrrp.253", "eth0" } */
+	/* nft add element ip keepalived vmac_map { "vrrp.253", "eth0" } */
 	nlh = nftnl_set_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 				      cmd, nfproto,
 				      type, seq++);
