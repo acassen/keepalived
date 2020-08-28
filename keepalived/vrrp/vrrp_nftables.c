@@ -603,20 +603,19 @@ nftnl_set *setup_set(uint8_t family, const char *table,
 	nftnl_set_set_u32(s, NFTNL_SET_ID, ++set_id);
 
 #ifdef HAVE_NFTNL_UDATA
-	if (set_type & NFT_SET_MAP) {
-		udbuf = nftnl_udata_buf_alloc(NFT_USERDATA_MAXLEN);
-		if (!udbuf) {
-			log_message(LOG_INFO, "OOM error - %d", errno);
-			return NULL;
-		}
+	udbuf = nftnl_udata_buf_alloc(NFT_USERDATA_MAXLEN);
+	if (!udbuf) {
+		log_message(LOG_INFO, "OOM error - %d", errno);
+		return NULL;
+	}
 
-		nftnl_udata_put_u32(udbuf, NFTNL_UDATA_SET_KEYBYTEORDER, BYTEORDER_HOST_ENDIAN);
+	nftnl_udata_put_u32(udbuf, NFTNL_UDATA_SET_KEYBYTEORDER, type == TYPE_IPADDR || type == TYPE_IP6ADDR ? BYTEORDER_BIG_ENDIAN : BYTEORDER_HOST_ENDIAN);
+	if (set_type & NFT_SET_MAP)
 		nftnl_udata_put_u32(udbuf, NFTNL_UDATA_SET_DATABYTEORDER, BYTEORDER_HOST_ENDIAN);
 
-		nftnl_set_set_data(s, NFTNL_SET_USERDATA, nftnl_udata_buf_data(udbuf),
-				   nftnl_udata_buf_len(udbuf));
-		nftnl_udata_buf_free(udbuf);
-	}
+	nftnl_set_set_data(s, NFTNL_SET_USERDATA, nftnl_udata_buf_data(udbuf),
+			   nftnl_udata_buf_len(udbuf));
+	nftnl_udata_buf_free(udbuf);
 #endif
 
 	return s;
