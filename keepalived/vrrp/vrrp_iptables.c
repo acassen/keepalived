@@ -221,41 +221,22 @@ add_del_vip_rules(struct ipt_handle *h, int cmd, uint8_t family)
 static void
 add_del_igmp_rules(struct ipt_handle *h, int cmd, uint8_t family)
 {
-	ip_address_t igmp_addr;
-
-	if (!global_data->vrrp_iptables_outchain)
+	if (!global_data->vrrp_iptables_outchain || !global_data->using_ipsets)
 		return;
 
 	if (family == AF_INET) {
-		igmp_addr.ifa.ifa_family = AF_INET;
-		igmp_addr.u.sin.sin_addr.s_addr = htonl(0xe0000016);
-	} else {
-		igmp_addr.ifa.ifa_family = AF_INET6;
-		igmp_addr.u.sin6_addr.s6_addr32[0] = htonl(0xff020000);
-		igmp_addr.u.sin6_addr.s6_addr32[1] = 0;
-		igmp_addr.u.sin6_addr.s6_addr32[2] = 0;
-		igmp_addr.u.sin6_addr.s6_addr32[3] = htonl(0x16);
-	}
-
-#ifdef HAVE_IPSET_ATTR_IFACE
-	if (global_data->using_ipsets) {
-		if (family == AF_INET) {
-			if (h->h4 || (h->h4 = ip4tables_open("filter"))) {
-				ip4tables_add_rules(h->h4, global_data->vrrp_iptables_outchain, APPEND_RULE, IPSET_DIM_TWO, 0, XTC_LABEL_DROP, NULL, &igmp_addr, global_data->vrrp_ipset_igmp, IPPROTO_NONE, 0, cmd, false);
-				h->updated_v4 = true;
-			}
-
-			return;
-		}
-
-		if (h->h6 || (h->h6 = ip6tables_open("filter"))) {
-			ip6tables_add_rules(h->h6, global_data->vrrp_iptables_outchain, APPEND_RULE, IPSET_DIM_TWO, 0, XTC_LABEL_DROP, NULL, &igmp_addr, global_data->vrrp_ipset_mld, IPPROTO_NONE, 0, cmd, false);
-			h->updated_v6 = true;
+		if (h->h4 || (h->h4 = ip4tables_open("filter"))) {
+			ip4tables_add_rules(h->h4, global_data->vrrp_iptables_outchain, APPEND_RULE, IPSET_DIM_TWO, 0, XTC_LABEL_DROP, NULL, NULL, global_data->vrrp_ipset_igmp, IPPROTO_IGMP, 0, cmd, false);
+			h->updated_v4 = true;
 		}
 
 		return;
 	}
-#endif
+
+	if (h->h6 || (h->h6 = ip6tables_open("filter"))) {
+		ip6tables_add_rules(h->h6, global_data->vrrp_iptables_outchain, APPEND_RULE, IPSET_DIM_TWO, 0, XTC_LABEL_DROP, NULL, NULL, global_data->vrrp_ipset_mld, IPPROTO_ICMPV6, ICMPV6_MLD2_REPORT, cmd, false);
+		h->updated_v6 = true;
+	}
 }
 #endif
 #endif
@@ -582,8 +563,6 @@ handle_iptables_accept_mode(vrrp_t *vrrp, int cmd, bool force)
 static void
 handle_iptable_rule_for_igmp(const char *ifname, int cmd, int family, struct ipt_handle *h)
 {
-	ip_address_t igmp_addr;
-
 	if (!global_data->vrrp_iptables_outchain ||
 	    igmp_setup[family != AF_INET] == INIT_FAILED)
 		return;
@@ -619,20 +598,10 @@ handle_iptable_rule_for_igmp(const char *ifname, int cmd, int family, struct ipt
 	}
 #endif
 
-	if (family == AF_INET) {
-		igmp_addr.ifa.ifa_family = AF_INET;
-		igmp_addr.u.sin.sin_addr.s_addr = htonl(0xe0000016);
-	} else {
-		igmp_addr.ifa.ifa_family = AF_INET6;
-		igmp_addr.u.sin6_addr.s6_addr32[0] = htonl(0xff020000);
-		igmp_addr.u.sin6_addr.s6_addr32[1] = 0;
-		igmp_addr.u.sin6_addr.s6_addr32[2] = 0;
-		igmp_addr.u.sin6_addr.s6_addr32[3] = htonl(0x16);
-	}
-
 	iptables_entry(h, family, global_data->vrrp_iptables_outchain, APPEND_RULE,
-			XTC_LABEL_DROP, NULL, &igmp_addr, NULL, ifname,
-			IPPROTO_NONE, 0, cmd, 0, false);
+			XTC_LABEL_DROP, NULL, NULL, NULL, ifname,
+			family == AF_INET ? IPPROTO_IGMP : IPPROTO_ICMPV6, family == AF_INET ? 0 : ICMPV6_MLD2_REPORT,
+			cmd, 0, false);
 }
 
 static void

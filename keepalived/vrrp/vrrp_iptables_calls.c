@@ -188,6 +188,7 @@ ip4tables_process_entry(struct iptc_handle *handle, const char *chain_name, unsi
 	struct xt_entry_target *target;
 #ifdef _INCLUDE_UNUSED_CODE_
 	struct xt_entry_match *match ;
+	struct ipt_icmp *icmpinfo;
 #endif
 	ipt_chainlabel chain;
 	int res;
@@ -228,12 +229,12 @@ ip4tables_process_entry(struct iptc_handle *handle, const char *chain_name, unsi
 	if (out_iface)
 		set_iface(fw->ip.outiface, fw->ip.outiface_mask, out_iface);
 
-#ifdef _INCLUDE_UNUSED_CODE_
 	if ( protocol != IPPROTO_NONE ) {
 		fw->ip.proto = protocol ;
 
 //		fw->ip.flags |= IP6T_F_PROTO ;		// IPv6 only
 
+#ifdef _INCLUDE_UNUSED_CODE_
 		if ( protocol == IPPROTO_ICMP )
 		{
 			match = PTR_CAST(struct xt_entry_match, ((char*)fw + fw->target_offset));
@@ -242,14 +243,14 @@ ip4tables_process_entry(struct iptc_handle *handle, const char *chain_name, unsi
 			fw->target_offset = (uint16_t)(fw->target_offset + match->u.match_size);
 			strcpy ( match->u.user.name, "icmp" ) ;
 
-			struct ipt_icmp *icmpinfo = PTR_CAST(struct ipt_icmp, match->data);
+			icmpinfo = PTR_CAST(struct ipt_icmp, match->data);
 			icmpinfo->type = type ;		// type to match
 			icmpinfo->code[0] = 0 ;		// code lower
 			icmpinfo->code[1] = 0xff ;	// code upper
 			icmpinfo->invflags = 0 ;	// don't invert
 		}
-	}
 #endif
+	}
 
 // target is XTC_LABEL_DROP/XTC_LABEL_ACCEPT
 	fw->next_offset = (uint16_t)size;
@@ -334,6 +335,7 @@ ip6tables_process_entry(struct ip6tc_handle *handle, const char *chain_name, uns
 	struct ip6t_entry *fw;
 	struct xt_entry_target *target;
 	struct xt_entry_match *match ;
+	struct ip6t_icmp *icmpinfo;
 	ip6t_chainlabel chain;
 	int res;
 	int sav_errno;
@@ -382,7 +384,7 @@ ip6tables_process_entry(struct ip6tc_handle *handle, const char *chain_name, uns
 			fw->target_offset = (uint16_t)(fw->target_offset + match->u.match_size);
 			strcpy ( match->u.user.name, "icmp6" ) ;
 
-			struct ip6t_icmp *icmpinfo = PTR_CAST(struct ip6t_icmp, match->data);
+			icmpinfo = PTR_CAST(struct ip6t_icmp, match->data);
 			icmpinfo->type = type ;		// type to match
 			icmpinfo->code[0] = 0 ;		// code lower
 			icmpinfo->code[1] = 0xff ;	// code upper
@@ -666,9 +668,9 @@ ip4tables_add_rules(struct iptc_handle *handle, const char *chain_name, unsigned
 	setinfo->match_set.dim = dim;
 	setinfo->match_set.flags = src_dst;
 
-#ifdef _INCLUDE_UNUSED_CODE_
 	if (protocol != IPPROTO_NONE) {
 		fw->ip.proto = protocol;
+#ifdef _INCLUDE_UNUSED_CODE_
 
 //		fw->ip.flags |= IP6T_F_PROTO ;		// IPv6 only
 
@@ -686,8 +688,8 @@ ip4tables_add_rules(struct iptc_handle *handle, const char *chain_name, unsigned
 			icmpinfo->code[1] = 0xff;	// code upper
 			icmpinfo->invflags = 0;		// don't invert
 		}
-	}
 #endif
+	}
 
 // target is XTC_LABEL_DROP/XTC_LABEL_ACCEPT
 	fw->next_offset = (uint16_t)size;
