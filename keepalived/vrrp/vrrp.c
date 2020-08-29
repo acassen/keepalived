@@ -1428,9 +1428,13 @@ vrrp_build_ancillary_data(struct msghdr *msg, char *cbuf, struct sockaddr_storag
 	pkt->ipi6_addr = PTR_CAST(struct sockaddr_in6, src)->sin6_addr;
 	if (vrrp->ifp) {
 #ifdef _HAVE_VRRP_VMAC_
-		if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags))
-			pkt->ipi6_ifindex = vrrp->ifp->base_ifp->ifindex;
-		else
+		if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) {
+			if (vrrp->ifp == vrrp->ifp->base_ifp) {
+				/* The base interface is in another netns */
+				pkt->ipi6_ifindex = vrrp->configured_ifp->ifindex;
+			} else
+				pkt->ipi6_ifindex = vrrp->ifp->base_ifp->ifindex;
+		} else
 #endif
 			pkt->ipi6_ifindex = vrrp->ifp->ifindex;
 	}
