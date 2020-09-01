@@ -2401,9 +2401,14 @@ void
 open_sockpool_socket(sock_t *sock)
 {
 	vrrp_t *vrrp;
+	struct sockaddr_storage unicast_src = *sock->unicast_src;
+
+	if (unicast_src.ss_family == AF_INET6 &&
+	    IN6_IS_ADDR_LINKLOCAL(&PTR_CAST(struct sockaddr_in6, &unicast_src)->sin6_addr))
+		PTR_CAST(struct sockaddr_in6, &unicast_src)->sin6_scope_id = sock->ifp->ifindex;
 
 	sock->fd_in = open_vrrp_read_socket(sock->family, sock->proto,
-				       sock->ifp, sock->unicast_src, sock->rx_buf_size);
+				       sock->ifp, &unicast_src, sock->rx_buf_size);
 
 	if (sock->fd_in == -2) {
 		rb_for_each_entry(vrrp, &sock->rb_vrid, rb_vrid) {
@@ -2420,7 +2425,7 @@ open_sockpool_socket(sock_t *sock)
 		sock->fd_out = -1;
 	else
 		sock->fd_out = open_vrrp_send_socket(sock->family, sock->proto,
-						     sock->ifp, sock->unicast_src);
+						     sock->ifp, &unicast_src);
 }
 
 /* Try to find a VRRP instance */
