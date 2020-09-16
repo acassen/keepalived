@@ -1617,7 +1617,6 @@ vrrp_remove_delayed_arp(vrrp_t *vrrp)
 static void
 vrrp_state_become_master(vrrp_t * vrrp)
 {
-
 	++vrrp->stats->become_master;
 
 	if (vrrp->version == VRRP_VERSION_3)
@@ -1912,6 +1911,12 @@ vrrp_state_backup(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buf, ssize_t bu
 void
 vrrp_state_master_tx(vrrp_t * vrrp)
 {
+	/* If we are transitioning to master the old master needs to
+	 * remove the VIPs before we send the gratuitous ARPs, so send
+	 * the advert first.
+	 */
+	vrrp_send_adv(vrrp, vrrp->effective_priority);
+
 	if (!VRRP_VIP_ISSET(vrrp)) {
 		log_message(LOG_INFO, "(%s) Entering MASTER STATE"
 				    , vrrp->iname);
@@ -1928,8 +1933,6 @@ vrrp_state_master_tx(vrrp_t * vrrp)
 		vrrp_send_link_update(vrrp, vrrp->garp_refresh_rep);
 		vrrp->garp_refresh_timer = timer_add_now(vrrp->garp_refresh);
 	}
-
-	vrrp_send_adv(vrrp, vrrp->effective_priority);
 }
 
 static int
