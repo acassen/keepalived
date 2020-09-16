@@ -459,17 +459,17 @@ vrrp_create_sockpool(list_head_t *l)
 	struct sockaddr_storage *unicast_src;
 
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
-		if (list_empty(&vrrp->unicast_peer)) {
-			ifp =
-#ifdef _HAVE_VRRP_VMAC_
-			      (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? vrrp->configured_ifp :
-#endif
-											vrrp->ifp;
+		if (list_empty(&vrrp->unicast_peer))
 			unicast_src = NULL;
-		} else {
+		else
 			unicast_src = &vrrp->saddr;
-			ifp = vrrp->ifp;
-		}
+
+		ifp =
+#ifdef _HAVE_VRRP_VMAC_
+		      (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? vrrp->configured_ifp :
+#endif
+										vrrp->ifp;
+
 		proto = IPPROTO_VRRP;
 #if defined _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH)
@@ -605,13 +605,6 @@ vrrp_lower_prio_gratuitous_arp_thread(thread_ref_t thread)
 
 	/* Simply broadcast the gratuitous ARP */
 	vrrp_send_link_update(vrrp, vrrp->garp_lower_prio_rep);
-}
-
-static void
-vrrp_master(vrrp_t * vrrp)
-{
-	/* Send the VRRP advert */
-	vrrp_state_master_tx(vrrp);
 }
 
 void
@@ -802,7 +795,7 @@ vrrp_dispatcher_read_timeout(sock_t *sock)
 			vrrp_goto_master(vrrp);
 		}
 		else if (vrrp->state == VRRP_STATE_MAST)
-			vrrp_master(vrrp);
+			vrrp_state_master_tx(vrrp);
 
 		/* handle instance synchronization */
 #ifdef _TSM_DEBUG_

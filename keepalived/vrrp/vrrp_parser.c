@@ -416,9 +416,14 @@ vrrp_end_handler(void)
 
 #ifdef _HAVE_VRRP_VMAC_
 	if (!list_empty(&vrrp->unicast_peer) && vrrp->vmac_flags) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s): Cannot use VMAC/ipvlan with unicast peers - clearing use_vmac", vrrp->iname);
-		vrrp->vmac_flags = 0;
-		vrrp->vmac_ifname[0] = '\0';
+		if (!vrrp->ifp) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s): Cannot use VMAC/ipvlan with unicast peers and no interface - clearing use_vmac", vrrp->iname);
+			vrrp->vmac_flags = 0;
+			vrrp->vmac_ifname[0] = '\0';
+		} else if (!__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unicast with use_vmac requires vmac_xmit_base - setting", vrrp->iname);
+			__set_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags);
+		}
 	}
 #endif
 
