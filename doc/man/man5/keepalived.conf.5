@@ -1359,6 +1359,8 @@ The syntax for vrrp_instance is :
     # all.rp_filter, as will default.rp_filter, and all.rp_filter
     # will be set to 0.
     # The original settings are restored on termination.
+    # \fBNOTE 2\fR: If using use_vmac with unicast peers,
+    # vmac_xmit_base must be set.
     \fBuse_vmac \fR[<VMAC_INTERFACE>]
 
     # Send/Recv VRRP messages from base interface instead of
