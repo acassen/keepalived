@@ -2171,14 +2171,14 @@ keepalived_main(int argc, char **argv)
 
 	if (os_major) {
 		if (KERNEL_VERSION(os_major, os_minor, os_release) < LINUX_VERSION_CODE) {
-			/* keepalived was build for a later kernel version */
-			log_message(LOG_INFO, "WARNING - keepalived was build for newer Linux %d.%d.%d, running on %s %s %s",
+			/* keepalived was built for a later kernel version */
+			log_message(LOG_INFO, "WARNING - keepalived was built for newer Linux %d.%d.%d, running on %s %s %s",
 					(LINUX_VERSION_CODE >> 16) & 0xff,
 					(LINUX_VERSION_CODE >>  8) & 0xff,
 					(LINUX_VERSION_CODE      ) & 0xff,
 					uname_buf.sysname, uname_buf.release, uname_buf.version);
 		} else {
-			/* keepalived was build for a later kernel version */
+			/* keepalived was built for a later kernel version */
 			log_message(LOG_INFO, "Running on %s %s %s (built for Linux %d.%d.%d)",
 					uname_buf.sysname, uname_buf.release, uname_buf.version,
 					(LINUX_VERSION_CODE >> 16) & 0xff,
