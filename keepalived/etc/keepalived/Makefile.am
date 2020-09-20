@@ -7,8 +7,8 @@
 cp = echo "  CP       $@"; \
       cp
 
-@DEFAULT_CONFIG_FILENAME@: keepalived.conf.in
-	@$(cp)  '$(srcdir)/$<' $@
+@DEFAULT_CONFIG_FILENAME@: $(srcdir)/keepalived.conf.in
+	@$(cp)  '$<' $@
 
 EXTRA_DIST		= keepalived.conf.in
 
