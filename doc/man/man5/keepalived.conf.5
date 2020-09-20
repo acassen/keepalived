@@ -122,7 +122,7 @@ and
 # keepalived in a separate network namespace:
 # --
 # Set the network namespace to run in.
-# The directory /var/run/keepalived will be created as an
+# The directory /run/keepalived will be created as an
 # unshared mount point, for example for pid files.
 # syslog entries will have _NAME appended to the ident.
 # Note: the namespace cannot be changed on a configuration reload.
@@ -143,11 +143,11 @@ and
 
 # If multiple instances of keepalived are run in the same namespace,
 # this will create pid files with NAME as part of the file names,
-# in /var/run/keepalived.
+# in /run/keepalived.
 # Note: the instance name cannot be changed on a configuration reload
 \fBinstance \fRNAME
 
-# Create pid files in /var/run/keepalived
+# Create pid files in /run/keepalived
 \fBuse_pid_dir\fR
 
 # Poll to detect media link failure using ETHTOOL, MII or ioctl interface
