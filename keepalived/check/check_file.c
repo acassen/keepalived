@@ -50,24 +50,6 @@ dump_file_check(FILE *fp, const checker_t *checker)
 	conf_write(fp, "     Reloaded = %s", tfp->reloaded ? "Yes" : "No");
 }
 
-static bool
-file_check_compare(const checker_t *old_c, checker_t *new_c)
-{
-	const tracked_file_t *old = old_c->data;
-	tracked_file_t *new = new_c->data;
-
-	if (strcmp(old->file_path, new->file_path))
-		return false;
-	if (old->weight != new->weight)
-		return false;
-	if (old->weight_reverse != new->weight_reverse)
-		return false;
-
-	new->reloaded = true;
-
-	return true;
-}
-
 static void
 track_file_handler(const vector_t *strvec)
 {
@@ -180,14 +162,18 @@ add_rs_to_track_files(void)
 	list_for_each_entry(vs, &check_data->vs, e_list) {
 		list_for_each_entry(rs, &vs->rs, e_list) {
 			list_for_each_entry(tfl, &rs->track_files, e_list) {
-				/* queue new checker */
-				new_checker = queue_checker(free_file_check, dump_file_check, NULL, file_check_compare, tfl->file, NULL, false);
+				/* queue new checker - we don't have a compare function since we don't
+				 * update file checkers that way on a reload. */
+				new_checker = queue_checker(free_file_check, dump_file_check, NULL, NULL, tfl->file, NULL, false);
 				new_checker->vs = vs;
 				new_checker->rs = rs;
 
 				/* There is no concept of the checker running, but we will have
 				 * checked the file, so mark it as run. */
 				new_checker->has_run = true;
+
+				/* Clear Alpha mode - we know the state of the checker immediately */
+				new_checker->alpha = false;
 
 				add_obj_to_track_file(new_checker, tfl, FMT_RS(rs, vs), dump_tracking_rs);
 			}
@@ -208,7 +194,7 @@ set_track_file_checkers_down(void)
 				checker_t *checker = top->obj.checker;
 
 				if (!top->weight) {
-					if (reload && !tfl->reloaded) {
+					if (reload) {
 						/* This is pretty horrible. At some stage this should
 						 * be tidied up so that it works without having to
 						 * fudge the values to make update_track_file_status()

@@ -676,12 +676,12 @@ process_track_file(tracked_file_t *tfile, bool init)
 	if (!init)
 		update_track_file_status(tfile, (int)new_status);
 
-	tfile->last_status = new_status;
-
 #ifdef TMP_TRACK_FILE_DEBUG
 	log_message(LOG_INFO, "Read %s: long val %ld, val %d, new last status %d"
 			    , tfile->file_path, new_status, (int)new_status, tfile->last_status);
 #endif
+
+	tfile->last_status = new_status;
 }
 
 static void
