@@ -393,7 +393,8 @@ init_service_rs(virtual_server_t *vs)
 		/* TODO - is this copied on reload? */
 		rs->effective_weight = rs->weight;
 
-		if (!rs->reloaded) {
+		/* On a reload with a new RS the num_failed_checkers is updated in set_track_file_checkers_down() */
+		if (!reload) {
 			list_for_each_entry(tfm, &rs->track_files, e_list) {
 				if (tfm->weight) {
 					weight = tfm->file->last_status * tfm->weight * tfm->weight_reverse;
