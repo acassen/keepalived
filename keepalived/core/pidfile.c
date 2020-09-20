@@ -29,6 +29,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <stdbool.h>
 
 #include "logger.h"
 #include "pidfile.h"
@@ -42,10 +43,20 @@ const char *pid_directory = KEEPALIVED_PID_DIR;
 void
 create_pid_dir(void)
 {
-	if (mkdir(pid_directory, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) && errno != EEXIST) {
+	bool error;
+
+	/* We want to create the PID directory with permissions rwxr-xr-x */
+	if (umask_val & (S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH))
+		umask(umask_val & ~(S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH));
+
+	error = mkdir(pid_directory, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) && errno != EEXIST;
+
+	/* Restore the default umask */
+	if (umask_val & (S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH))
+		umask(umask_val);
+
+	if (error)
 		log_message(LOG_INFO, "Unable to create directory %s", pid_directory);
-		return;
-	}
 }
 
 void
@@ -56,27 +67,35 @@ remove_pid_dir(void)
 }
 
 /* Create the running daemon pidfile */
-int
+bool
 pidfile_write(const char *pid_file, int pid)
 {
 	FILE *pidfile = NULL;
-	int pidfd = open(pid_file, O_NOFOLLOW | O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+	int pidfd;
 
-	if (pidfd != -1) pidfile = fdopen(pidfd, "w");
+	/* We want to create the file with permissions rx-r--r-- */
+	if (umask_val & (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))
+		umask(umask_val & ~(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH));
+
+	pidfd = open(pid_file, O_NOFOLLOW | O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+
+	/* Restore the default umask */
+	if (umask_val & (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))
+		umask(umask_val);
+
+	if (pidfd != -1)
+		pidfile = fdopen(pidfd, "w");
 
 	if (!pidfile) {
 		log_message(LOG_INFO, "pidfile_write : Cannot open %s pidfile",
 		       pid_file);
-		return 0;
+		return false;
 	}
-
-	/* Override the umask setting to force the permission bits above */
-	if (umask_val & (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))
-		fchmod(pidfd, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
 	fprintf(pidfile, "%d\n", pid);
 	fclose(pidfile);
-	return 1;
+
+	return true;
 }
 
 /* Remove the running daemon pidfile */
@@ -87,7 +106,7 @@ pidfile_rm(const char *pid_file)
 }
 
 /* return the daemon running state */
-static int
+static bool
 process_running(const char *pid_file)
 {
 	FILE *pidfile = fopen(pid_file, "r");
@@ -96,7 +115,7 @@ process_running(const char *pid_file)
 
 	/* No pidfile */
 	if (!pidfile)
-		return 0;
+		return false;
 
 	ret = fscanf(pidfile, "%d", &pid);
 	fclose(pidfile);
@@ -108,16 +127,16 @@ process_running(const char *pid_file)
 
 	/* What should we return - we don't know if it is running or not. */
 	if (!pid)
-		return 1;
+		return true;
 
 	/* If no process is attached to pidfile, remove it */
 	if (kill(pid, 0)) {
 		log_message(LOG_INFO, "Remove a zombie pid file %s", pid_file);
 		pidfile_rm(pid_file);
-		return 0;
+		return false;
 	}
 
-	return 1;
+	return true;
 }
 
 /* Return parent process daemon state */
