@@ -89,7 +89,7 @@ void
 bfd_set_poll(bfd_t *bfd)
 {
 	if (__test_bit(LOG_DETAIL_BIT, &debug))
-		log_message(LOG_INFO, "BFD_Instance(%s) Starting poll sequence",
+		log_message(LOG_INFO, "(%s) Starting poll sequence",
 			    bfd->iname);
 	/*
 	 * RFC5880:
