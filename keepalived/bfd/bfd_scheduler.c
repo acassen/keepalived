@@ -48,9 +48,6 @@ static int bfd_send_packet(int, bfdpkt_t *, bool);
 static void bfd_sender_schedule(bfd_t *);
 
 static void bfd_state_down(bfd_t *, uint8_t diag);
-static void bfd_state_admindown(bfd_t *);
-static void bfd_state_up(bfd_t *);
-static void bfd_dump_timers(FILE *fp, bfd_t *);
 
 /*
  * Session sender thread
