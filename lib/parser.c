@@ -437,6 +437,60 @@ read_unsigned_base_strvec(const vector_t *strvec, size_t index, int base, unsign
 	return read_unsigned_func(strvec_slot(strvec, index), base, res, min_val, max_val, ignore_error);
 }
 
+/* Read a fractional decimal with up to shift decimal places. Return value * 10^shift. For example to read 3.312 as milliseconds, but
+ * return 3312, as micro-seconds, specify a shift value of 3 (i.e. 10^3 = 1000). The min_val and max_val are in the units of the returned value.
+ */
+bool
+read_decimal_unsigned_strvec(const vector_t *strvec, size_t index, unsigned *res, unsigned min_val, unsigned max_val, unsigned shift, bool ignore_error)
+{
+	const char *param = strvec_slot(strvec, index);
+	size_t param_len = strlen(param);
+	char *updated_param;
+	const char *dp;
+	unsigned num_dp;
+	const char *warn = "";
+	bool ret;
+	unsigned i;
+	bool round_up = false;
+
+#ifndef _STRICT_CONFIG_
+	if (ignore_error && !__test_bit(CONFIG_TEST_BIT, &debug))
+		warn = "WARNING - ";
+#endif
+
+	/* Make sure we don't have too many decimal places */
+	dp = strchr(param, '.');
+	num_dp = dp ? param_len - (dp - param) - 1 : 0;
+	if (num_dp > shift) {
+		report_config_error(CONFIG_INVALID_NUMBER, "%snumber '%s' has too many decimal places", warn, param);
+		round_up = dp[shift + 1] >= '5';
+		num_dp = shift;
+	}
+
+	updated_param = MALLOC(param_len + shift + 1);	/* Allow to add shift trailing 0's and '\0' */
+
+	if (dp) {
+		strncpy(updated_param, param, dp - param);
+		strncpy(updated_param + (dp - param), dp + 1, num_dp);
+		updated_param[dp - param + num_dp] = '\0';
+	} else
+		strcpy(updated_param, param);
+
+	/* Add any necessary trailing 0s */
+	num_dp = shift - num_dp;
+	for (i = 0; i < num_dp; i++)
+		strcat(updated_param, "0");
+
+	ret = read_unsigned_func(updated_param, 10, res, min_val, max_val, ignore_error);
+
+	FREE(updated_param);
+
+	if (round_up)
+		*res += 1;
+
+	return ret;
+}
+
 void
 set_random_seed(unsigned int seed)
 {

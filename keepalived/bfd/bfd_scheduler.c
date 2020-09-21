@@ -580,22 +580,22 @@ bfd_dump_timers(FILE *fp, bfd_t *bfd)
 	assert(bfd);
 
 	conf_write(fp, "BFD_Instance(%s)"
-		    " --------------< Session parameters >-------------",
+		    " ---------------< Session parameters >--------------",
 		    bfd->iname);
 	conf_write(fp, "BFD_Instance(%s)"
-		    "        min_tx  min_rx  tx_intv  mult  detect_time",
+		    "          min_tx  min_rx  tx_intv  mult  detect_time",
 		    bfd->iname);
 	conf_write(fp, "BFD_Instance(%s)"
-		    " local %7u %7u %8u %5u %12" PRIu64,
-		    bfd->iname, (bfd->local_state == BFD_STATE_UP ? bfd->local_min_tx_intv : bfd->local_idle_tx_intv) / 1000,
-		    bfd->local_min_rx_intv / 1000,
-		    bfd->local_tx_intv / 1000, bfd->local_detect_mult,
-		    bfd->local_detect_time / 1000);
-	conf_write(fp, "BFD_Instance(%s)" " remote %6u %7u %8u %5u %12" PRIu64,
-		    bfd->iname, bfd->remote_min_tx_intv / 1000,
-		    bfd->remote_min_rx_intv / 1000,
-		    bfd->remote_tx_intv / 1000, bfd->remote_detect_mult,
-		    bfd->remote_detect_time / 1000);
+		    " local  %8u %7u %8u %5u %12" PRIu64,
+		    bfd->iname, (bfd->local_state == BFD_STATE_UP ? bfd->local_min_tx_intv : bfd->local_idle_tx_intv),
+		    bfd->local_min_rx_intv,
+		    bfd->local_tx_intv, bfd->local_detect_mult,
+		    bfd->local_detect_time);
+	conf_write(fp, "BFD_Instance(%s)" " remote %8u %7u %8u %5u %12" PRIu64,
+		    bfd->iname, bfd->remote_min_tx_intv,
+		    bfd->remote_min_rx_intv,
+		    bfd->remote_tx_intv, bfd->remote_detect_mult,
+		    bfd->remote_detect_time);
 }
 
 /*
