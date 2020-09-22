@@ -485,7 +485,7 @@ AS_IF([test .$enable_debug = .yes],
 
 dnl -- Do we want -Wcast-align=strict?
 AS_IF([test .$enable_strict_cast_align = .yes],
-      [WARNINGS_STD=$(<<<$WARNINGS_STD sed -e "s/cast-align /cast-align=strict /")])
+      [WARNINGS_STD=$(echo $WARNINGS_STD | sed -e "s/cast-align /cast-align=strict /")])
 
 dnl -- ulibc/glibc differences
 AC_MSG_CHECKING([msghdr.msg_controllen is size_t])
@@ -862,7 +862,7 @@ AC_RUN_IFELSE(
 AC_MSG_CHECKING([for unaligned memory access causes warnings])
 UNALIGNED_ACCESS_WARNED=0
 SAV_CFLAGS="$CFLAGS"
-CFLAGS=$(<<<$KA_CFLAGS sed -e "s/.*\(-Wcast-align[[^ ]]*\) .*/\1/")
+CFLAGS=$(echo $KA_CFLAGS | sed -e "s/.*\(-Wcast-align[[^ ]]*\) .*/\1/")
 CFLAGS="$CFLAGS -Werror"
 AC_COMPILE_IFELSE(
   [

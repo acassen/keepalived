@@ -48,9 +48,6 @@ static int bfd_send_packet(int, bfdpkt_t *, bool);
 static void bfd_sender_schedule(bfd_t *);
 
 static void bfd_state_down(bfd_t *, uint8_t diag);
-static void bfd_state_admindown(bfd_t *);
-static void bfd_state_up(bfd_t *);
-static void bfd_dump_timers(FILE *fp, bfd_t *);
 
 /*
  * Session sender thread
@@ -92,7 +89,7 @@ bfd_sender_thread(thread_ref_t thread)
 	bfd_build_packet(&pkt, bfd, bfd_buffer, BFD_BUFFER_SIZE);
 	if (bfd_send_packet(bfd->fd_out, &pkt, !bfd->send_error) == -1) {
 		if (!bfd->send_error) {
-			log_message(LOG_ERR, "BFD_Instance(%s) Error sending packet", bfd->iname);
+			log_message(LOG_ERR, "(%s) Error sending packet", bfd->iname);
 			bfd->send_error = true;
 		}
 	} else
@@ -251,7 +248,7 @@ bfd_expire_thread(thread_ref_t thread)
 
 	if (bfd->local_state == BFD_STATE_UP ||
 	    __test_bit(LOG_EXTRA_DETAIL_BIT, &debug))
-		log_message(LOG_WARNING, "BFD_Instance(%s) Expired after"
+		log_message(LOG_WARNING, "(%s) Expired after"
 			    " %" PRIu32 " ms (%" PRIu32 " usec overdue)",
 			    bfd->iname, dead_time / 1000, overdue_time);
 
@@ -487,7 +484,7 @@ bfd_state_down(bfd_t *bfd, uint8_t diag)
 
 	if (bfd->local_state == BFD_STATE_UP ||
 	    __test_bit(LOG_EXTRA_DETAIL_BIT, &debug))
-		log_message(LOG_WARNING, "BFD_Instance(%s) Entering %s state"
+		log_message(LOG_WARNING, "(%s) Entering %s state"
 			    " (Local diagnostic - %s, Remote diagnostic - %s)",
 			    bfd->iname, BFD_STATE_STR(BFD_STATE_DOWN),
 			    BFD_DIAG_STR(diag),
@@ -516,7 +513,7 @@ bfd_state_admindown(bfd_t *bfd)
 	if (bfd_sender_scheduled(bfd))
 		bfd_sender_cancel(bfd);
 
-	log_message(LOG_WARNING, "BFD_Instance(%s) Entering %s state",
+	log_message(LOG_WARNING, "(%s) Entering %s state",
 		    bfd->iname, BFD_STATE_STR(bfd->local_state));
 
 	bfd_state_fall(bfd, false);
@@ -531,7 +528,7 @@ bfd_state_rise(bfd_t *bfd)
 
 	if (bfd->local_state == BFD_STATE_UP ||
 	    __test_bit(LOG_EXTRA_DETAIL_BIT, &debug))
-		log_message(LOG_INFO, "BFD_Instance(%s) Entering %s state",
+		log_message(LOG_INFO, "(%s) Entering %s state",
 			    bfd->iname, BFD_STATE_STR(bfd->local_state));
 
 	if (bfd_reset_scheduled(bfd))
@@ -577,25 +574,28 @@ bfd_state_init(bfd_t *bfd)
 static void
 bfd_dump_timers(FILE *fp, bfd_t *bfd)
 {
+	int indent;
+
 	assert(bfd);
 
-	conf_write(fp, "BFD_Instance(%s)"
-		    " --------------< Session parameters >-------------",
+	indent = 2 + strlen(bfd->iname);
+	conf_write(fp, "(%s)"
+		    " ---------------< Session parameters >--------------",
 		    bfd->iname);
-	conf_write(fp, "BFD_Instance(%s)"
-		    "        min_tx  min_rx  tx_intv  mult  detect_time",
-		    bfd->iname);
-	conf_write(fp, "BFD_Instance(%s)"
-		    " local %7u %7u %8u %5u %12" PRIu64,
-		    bfd->iname, (bfd->local_state == BFD_STATE_UP ? bfd->local_min_tx_intv : bfd->local_idle_tx_intv) / 1000,
-		    bfd->local_min_rx_intv / 1000,
-		    bfd->local_tx_intv / 1000, bfd->local_detect_mult,
-		    bfd->local_detect_time / 1000);
-	conf_write(fp, "BFD_Instance(%s)" " remote %6u %7u %8u %5u %12" PRIu64,
-		    bfd->iname, bfd->remote_min_tx_intv / 1000,
-		    bfd->remote_min_rx_intv / 1000,
-		    bfd->remote_tx_intv / 1000, bfd->remote_detect_mult,
-		    bfd->remote_detect_time / 1000);
+	conf_write(fp, "%*s"
+		    "          min_tx  min_rx  tx_intv  mult  detect_time",
+		    indent, "");
+	conf_write(fp, "%*s"
+		    " local  %8u %7u %8u %5u %12" PRIu64,
+		    indent, "", (bfd->local_state == BFD_STATE_UP ? bfd->local_min_tx_intv : bfd->local_idle_tx_intv),
+		    bfd->local_min_rx_intv,
+		    bfd->local_tx_intv, bfd->local_detect_mult,
+		    bfd->local_detect_time);
+	conf_write(fp, "%*s" " remote %8u %7u %8u %5u %12" PRIu64,
+		    indent, "", bfd->remote_min_tx_intv,
+		    bfd->remote_min_rx_intv,
+		    bfd->remote_tx_intv, bfd->remote_detect_mult,
+		    bfd->remote_detect_time);
 }
 
 /*
@@ -751,11 +751,13 @@ bfd_handle_packet(bfdpkt_t *pkt)
 		bfd_sender_reschedule(bfd);
 
 	/* Report detection time changes */
-	if (bfd->local_detect_time != old_local_detect_time)
-		log_message(LOG_INFO, "BFD_Instance(%s) Detection time"
-			    " is %" PRIu64 " ms (was %" PRIu64 " ms)", bfd->iname,
-			    bfd->local_detect_time / 1000,
-			    old_local_detect_time / 1000);
+	if (bfd->local_detect_time != old_local_detect_time) {
+		int len = strlen(bfd->iname) + 2;
+		log_message(LOG_INFO, "%*s Detection time"
+			    " is %" PRIu64 " us (was %" PRIu64 " us)", len, "",
+			    bfd->local_detect_time,
+			    old_local_detect_time);
+	}
 
 	/* BFD state machine */
 	if (bfd->remote_state == BFD_STATE_ADMINDOWN &&
@@ -1008,7 +1010,7 @@ bfd_open_fd_out(bfd_t *bfd)
 
 	bfd->fd_out = socket(bfd->nbr_addr.ss_family, SOCK_DGRAM, IPPROTO_UDP);
 	if (bfd->fd_out == -1) {
-		log_message(LOG_ERR, "BFD_Instance(%s) socket() error (%m)",
+		log_message(LOG_ERR, "(%s) socket() error (%m)",
 			    bfd->iname);
 		return 1;
 	}
@@ -1054,7 +1056,7 @@ bfd_open_fd_out(bfd_t *bfd)
 
 		if (ret == -1) {
 			log_message(LOG_ERR,
-				    "BFD_Instance(%s) bind() error (%m)",
+				    "(%s) bind() error (%m)",
 				    bfd->iname);
 			return 1;
 		}
@@ -1072,7 +1074,7 @@ bfd_open_fd_out(bfd_t *bfd)
 		ret = setsockopt(bfd->fd_out, IPPROTO_IPV6, IPV6_UNICAST_HOPS, &ttl, sizeof (ttl));
 
 	if (ret == -1) {
-		log_message(LOG_ERR, "BFD_Instance(%s) setsockopt() "
+		log_message(LOG_ERR, "(%s) setsockopt() "
 			    " error (%m)", bfd->iname);
 		return 1;
 	}
@@ -1100,7 +1102,7 @@ bfd_open_fds(bfd_data_t *data)
 
 	list_for_each_entry(bfd, &data->bfd, e_list) {
 		if (bfd_open_fd_out(bfd)) {
-			log_message(LOG_ERR, "BFD_Instance(%s) Unable to"
+			log_message(LOG_ERR, "(%s) Unable to"
 				    " open output socket, disabling instance",
 				    bfd->iname);
 			bfd_state_admindown(bfd);

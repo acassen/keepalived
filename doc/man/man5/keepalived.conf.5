@@ -1028,17 +1028,17 @@ The syntax for bfd instance is :
     # local port is valid, it is required)
     \fBsource_ip \fR<IP ADDRESS>
 
-    # Required min RX interval, in ms
+    # Required min RX interval, in ms (resolution is micro-seconds e.g. 3.312)
     # (default is 10 ms)
-    \fBmin_rx \fR<INTEGER>
+    \fBmin_rx \fR<DECIMAL>
 
-    # Desired min TX interval, in ms
+    # Desired min TX interval, in ms (resolution is micro-seconds)
     # (default is 10 ms)
-    \fBmin_tx \fR<INTEGER>
+    \fBmin_tx \fR<DECIMAL>
 
-    # Desired idle TX interval, in ms
+    # Desired idle TX interval, in ms (resolution is micro-seconds)
     # (default is 1000 ms)
-    \fBidle_tx \fR<INTEGER>
+    \fBidle_tx \fR<DECIMAL>
 
     # Number of missed packets after
     # which the session is declared down

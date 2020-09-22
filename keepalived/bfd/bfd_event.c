@@ -69,7 +69,7 @@ bfd_event_send(bfd_t *bfd)
 	if (vrrp_running && bfd->vrrp) {
 		ret = write(bfd_vrrp_event_pipe[1], &evt, sizeof evt);
 		if (ret == -1 && __test_bit(LOG_DETAIL_BIT, &debug))
-			log_message(LOG_ERR, "BFD_Instance(%s) vrrp pipe write() error %m",
+			log_message(LOG_ERR, "(%s) vrrp pipe write() error %m",
 				    bfd->iname);
 	}
 #endif
@@ -78,7 +78,7 @@ bfd_event_send(bfd_t *bfd)
 	if (checker_running && bfd->checker) {
 		ret = write(bfd_checker_event_pipe[1], &evt, sizeof evt);
 		if (ret == -1 && __test_bit(LOG_DETAIL_BIT, &debug))
-			log_message(LOG_ERR, "BFD_Instance(%s) checker pipe write() error %m",
+			log_message(LOG_ERR, "(%s) checker pipe write() error %m",
 				    bfd->iname);
 	}
 #endif
