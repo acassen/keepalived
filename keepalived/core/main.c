@@ -721,6 +721,9 @@ static bool reload_config(void)
 		stop_reload_monitor();
 #endif
 
+	/* Clear any config errors from previous loads */
+	clear_config_status();
+
 	/* Make sure there isn't an attempt to change the network namespace or instance name */
 	old_global_data = global_data;
 	global_data = NULL;
@@ -805,11 +808,6 @@ print_parent_data(__attribute__((unused)) thread_ref_t thread)
 static void
 propagate_signal(__attribute__((unused)) void *v, int sig)
 {
-	if (sig == SIGHUP) {
-		if (!reload_config())
-			return;
-	}
-
 	/* Signal child processes */
 #ifdef _WITH_VRRP_
 	if (vrrp_child > 0)
@@ -842,6 +840,101 @@ propagate_signal(__attribute__((unused)) void *v, int sig)
 	if (sig == SIGUSR1)
 		thread_add_event(master, print_parent_data, NULL, 0);
 }
+
+#ifndef _ONE_PROCESS_DEBUG_
+static void
+do_reload(void)
+{
+	if (!reload_config())
+		return;
+
+	propagate_signal(NULL, SIGHUP);
+}
+
+static void
+reload_check_child_thread(thread_ref_t thread)
+{
+	if (WIFEXITED(thread->u.c.status)) {
+		if (WEXITSTATUS(thread->u.c.status)) {
+			log_message(LOG_INFO, "New config failed validation, see %s for details", global_data->reload_check_config);
+			return;
+		}
+
+		do_reload();
+	} else
+		report_child_status(thread->u.c.status, thread->u.c.pid, "reload_check");
+}
+
+static void
+start_validate_reload_conf_child(void)
+{
+	notify_script_t script;
+	int i;
+	int ret;
+	int argc;
+	const char * * argv;
+	char * const *sav_argv;
+	char *config_test_str;
+	char exe_buf[128];
+
+	/* Inherits the original parameters and adds new parameter "--config-test" */
+	sav_argv = get_cmd_line_options(&argc);
+	argv = MALLOC((argc + 2) * sizeof(char *));
+
+	exe_buf[sizeof(exe_buf) - 1] = '\0';
+	ret = readlink("/proc/self/exe", exe_buf, sizeof(exe_buf));
+	if (ret == sizeof(exe_buf))
+		strcpy(exe_buf, "/proc/self/exe");
+	else
+		exe_buf[ret] = '\0';
+	argv[0] = exe_buf;
+
+	/* copy old parameters */
+	for (i = 1; i < argc; i++)
+		argv[i] = sav_argv[i];
+
+	/* add --config-test */
+	config_test_str = MALLOC(14 + strlen(global_data->reload_check_config) + 1);
+	strcpy(config_test_str, "--config-test=");
+	strcat(config_test_str, global_data->reload_check_config);
+	argv[argc++] = config_test_str;
+	argv[argc] = NULL;
+
+	script.args = argv;
+	script.num_args = argc;
+	script.flags = SC_EXECABLE;
+	script.uid = 0;
+	script.gid = 0;
+
+	unlink(global_data->reload_check_config);
+
+	/* Execute the script in a child process. Parent returns, child doesn't */
+	ret = system_call_script(master, reload_check_child_thread,
+				  NULL, TIMER_HZ, &script);
+
+	if (ret)
+		log_message(LOG_INFO, "Could not run config_test");
+
+	FREE(argv);
+	FREE(config_test_str);
+}
+
+static void
+process_reload_signal(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
+{
+
+	/* if reload_check_config is configured, valid the new config before reload */
+	if (!global_data->reload_check_config) {
+		do_reload();
+		return;
+	}
+
+	if (__test_bit(LOG_DETAIL_BIT, &debug))
+		log_message(LOG_INFO, "validate conf before Reload");
+
+	start_validate_reload_conf_child();
+}
+#endif
 
 #ifdef THREAD_DUMP
 void
@@ -1047,7 +1140,7 @@ static void
 signal_init(void)
 {
 #ifndef _ONE_PROCESS_DEBUG_
-	signal_set(SIGHUP, propagate_signal, NULL);
+	signal_set(SIGHUP, process_reload_signal, NULL);
 	signal_set(SIGUSR1, propagate_signal, NULL);
 	signal_set(SIGUSR2, propagate_signal, NULL);
 	signal_set(SIGSTATS_CLEAR, propagate_signal, NULL);
@@ -2265,13 +2358,13 @@ keepalived_main(int argc, char **argv)
 			/* Create the directory for pid files */
 			create_pid_dir();
 		}
-	}
 
-	/* If we want to monitor processes, we have to do it before calling
-	 * setns() */
+		/* If we want to monitor processes, we have to do it before calling
+		 * setns() */
 #ifdef _WITH_CN_PROC_
-	open_track_processes();
+		open_track_processes();
 #endif
+	}
 
 #if HAVE_DECL_CLONE_NEWNET
 	if (global_data->network_namespace) {

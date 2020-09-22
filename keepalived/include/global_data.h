@@ -123,6 +123,7 @@ typedef struct _data {
 	notify_script_t			*shutdown_script;
 	unsigned			shutdown_script_timeout;
 #ifndef _ONE_PROCESS_DEBUG_
+	const char *			reload_check_config;	/* log file name for validating new configuration before reloading */
 	const char			*reload_time_file;
 	bool				reload_repeat;
 	time_t				reload_time;

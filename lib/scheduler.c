@@ -364,6 +364,14 @@ save_cmd_line_options(int argc, char * const *argv)
 	sav_argv = argv;
 }
 
+char * const *
+get_cmd_line_options(int *argc)
+{
+	*argc = sav_argc;
+	return sav_argv;
+}
+
+
 static const char *
 get_end(const char *str, size_t max_len)
 {

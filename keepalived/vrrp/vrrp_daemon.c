@@ -1057,6 +1057,7 @@ start_vrrp_child(void)
 void
 vrrp_validate_config(void)
 {
+log_message(LOG_INFO, "In vrrp_validate_config pid %d", getpid());
 	start_vrrp(NULL);
 }
 
