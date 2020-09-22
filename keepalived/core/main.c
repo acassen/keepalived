@@ -1658,6 +1658,9 @@ usage(const char *prog)
 #endif
 	fprintf(stderr, "  -m, --core-dump              Produce core dump if terminate abnormally\n");
 	fprintf(stderr, "  -M, --core-dump-pattern=PATN Also set /proc/sys/kernel/core_pattern to PATN (default 'core')\n");
+#ifdef _MEM_CHECK_
+	fprintf(stderr, "      --no-mem-check           disable malloc() etc mem-checks\n");
+#endif
 #ifdef _MEM_CHECK_LOG_
 	fprintf(stderr, "  -L, --mem-check-log          Log malloc/frees to syslog\n");
 #endif
@@ -1808,6 +1811,9 @@ parse_cmdline(int argc, char **argv)
 #endif
 		{"core-dump",		no_argument,		NULL, 'm'},
 		{"core-dump-pattern",	optional_argument,	NULL, 'M'},
+#ifdef _MEM_CHECK_
+		{"no-mem-check",	no_argument,		NULL,  7 },
+#endif
 #ifdef _MEM_CHECK_LOG_
 		{"mem-check-log",	no_argument,		NULL, 'L'},
 #endif
@@ -2079,6 +2085,11 @@ parse_cmdline(int argc, char **argv)
 			set_debug_options(optarg && optarg[0] ? optarg : NULL);
 			break;
 #endif
+#ifdef _MEM_CHECK_
+		case 7:
+			__clear_bit(MEM_CHECK_BIT, &debug);
+			break;
+#endif
 		case '?':
 			if (optopt && argv[curind][1] != '-')
 				fprintf(stderr, "Unknown option -%c\n", optopt);
@@ -2109,6 +2120,11 @@ parse_cmdline(int argc, char **argv)
 
 	if (bad_option)
 		exit(1);
+
+#ifdef _MEM_CHECK_
+	if (__test_bit(CONFIG_TEST_BIT, &debug))
+		__clear_bit(MEM_CHECK_BIT, &debug);
+#endif
 
 	return reopen_log;
 }
@@ -2173,6 +2189,10 @@ keepalived_main(int argc, char **argv)
 	struct rusage usage;
 	struct rusage child_usage;
 
+#ifdef _MEM_CHECK_
+	__set_bit(MEM_CHECK_BIT, &debug);
+#endif
+
 	/* Ignore reloading signals till signal_init call */
 	signals_ignore();
 
@@ -2182,9 +2202,6 @@ keepalived_main(int argc, char **argv)
 
 	/* Save command line options in case need to log them later */
 	save_cmd_line_options(argc, argv);
-
-	/* Init debugging level */
-	debug = 0;
 
 	/* We are the parent process */
 #ifndef _ONE_PROCESS_DEBUG_
