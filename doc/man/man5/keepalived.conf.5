@@ -673,6 +673,13 @@ and
     # will be generated).
     \fBrandom_seed \fRUNSIGNED_INT
 
+    # If a configuration reload is attempted with an updated configuration file that has
+    # errors, keepalived may terminate, and possibly enter a loop indefinitely restarting
+    # and terminating. If reload_check_config is set, then keepalived will attempt to
+    # validate the configuration before initiating a reload, and only initiate the reload
+    # if the configuration is valid.
+    \fBreload_check_config \fR[LOG_FILE]
+
     # reload_time_file allows a reload of keepalived to be scheduled in the future. This is
     # particularly useful if there is a master keepalived and one or more backup keepalived
     # instances and the new configuration is incompatible with the previous configuration,

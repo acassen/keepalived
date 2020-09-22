@@ -224,6 +224,7 @@ extern bool do_script_debug;
 /* Prototypes. */
 extern void set_child_finder_name(char const * (*)(pid_t));
 extern void save_cmd_line_options(int, char * const *);
+extern char * const * get_cmd_line_options(int *);
 extern void log_command_line(unsigned);
 #ifndef _ONE_PROCESS_DEBUG_
 extern unsigned calc_restart_delay(const timeval_t *, unsigned *, const char *);

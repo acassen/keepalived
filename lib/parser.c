@@ -210,6 +210,12 @@ report_config_error(config_err_t err, const char *format, ...)
 		FREE(format_buf);
 }
 
+void
+clear_config_status(void)
+{
+	config_err = CONFIG_OK;
+}
+
 config_err_t __attribute__ ((pure))
 get_config_status(void)
 {
@@ -1303,7 +1309,7 @@ check_conf_file(const char *conf_file)
 		}
 
 		if (access(globbuf.gl_pathv[i], R_OK)) {
-			log_message(LOG_INFO, "Unable to read configuration file %s", globbuf.gl_pathv[i]);
+			report_config_error(CONFIG_FILE_NOT_FOUND, "Unable to read configuration file %s", globbuf.gl_pathv[i]);
 			ret = false;
 			break;
 		}
@@ -1312,7 +1318,7 @@ check_conf_file(const char *conf_file)
 		if (stat(globbuf.gl_pathv[i], &stb) ||
 		    !S_ISREG(stb.st_mode) ||
 		     (stb.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
-			log_message(LOG_INFO, "Configuration file '%s' is not a regular non-executable file", globbuf.gl_pathv[i]);
+			report_config_error(CONFIG_FILE_NOT_FOUND, "Configuration file '%s' is not a regular non-executable file", globbuf.gl_pathv[i]);
 			ret = false;
 			break;
 		}
@@ -2562,7 +2568,6 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void))
 	sublevel = 0;
 	skip_sublevel = 0;
 	multiline_seq_depth = 0;
-	config_err = CONFIG_OK;
 	random_seed = 0;
 	random_seed_configured = false;
 

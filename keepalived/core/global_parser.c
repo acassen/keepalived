@@ -74,6 +74,7 @@ use_polling_handler(const vector_t *strvec)
 	global_data->linkbeat_use_polling = true;
 }
 #endif
+
 static void
 save_process_name(char const **dest, const char *src)
 {
@@ -425,6 +426,7 @@ checker_log_all_failures_handler(const vector_t *strvec)
 	global_data->checker_log_all_failures = res;
 }
 #endif
+
 #ifdef _WITH_VRRP_
 static void
 default_interface_handler(const vector_t *strvec)
@@ -1936,6 +1938,18 @@ random_seed_handler(const vector_t *strvec)
 
 #ifndef _ONE_PROCESS_DEBUG_
 static void
+reload_check_config_handler(const vector_t *strvec)
+{
+	if (vector_size(strvec) >= 2) {
+		FREE_CONST_PTR(global_data->reload_check_config);
+		global_data->reload_check_config = set_value(strvec);
+
+		/* Check file can be written */
+	} else
+		global_data->reload_check_config = STRDUP("/dev/null");
+}
+
+static void
 reload_time_file_handler(const vector_t *strvec)
 {
 	char *str;
@@ -2139,6 +2153,7 @@ init_global_keywords(bool global_active)
 	install_keyword("umask", &umask_handler);
 	install_keyword("random_seed", &random_seed_handler);
 #ifndef _ONE_PROCESS_DEBUG_
+	install_keyword("reload_check_config", &reload_check_config_handler);
 	install_keyword("reload_time_file", &reload_time_file_handler);
 	install_keyword("reload_repeat", &reload_repeat_handler);
 #endif

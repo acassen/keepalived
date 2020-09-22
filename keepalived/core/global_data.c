@@ -400,6 +400,7 @@ free_global_data(data_t * data)
 #ifdef _WITH_DBUS_
 	FREE_CONST_PTR(data->dbus_service_name);
 #endif
+	FREE_CONST_PTR(data->reload_check_config);
 	FREE(data);
 }
 
@@ -470,6 +471,10 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " Checkers log all failures = %s", data->checker_log_all_failures ? "true" : "false");
 #endif
 #ifndef _ONE_PROCESS_DEBUG_
+	if (data->reload_check_config)
+		conf_write(fp, " Test config before reload, log to %s", data->reload_check_config);
+	else
+		conf_write(fp, " No test config before reload");
 	if (data->reload_time_file) {
 		conf_write(fp, " Reload time file = %s%s", data->reload_time_file, data->reload_repeat ? " (repeat)" : "");
 		if (data->reload_time) {
