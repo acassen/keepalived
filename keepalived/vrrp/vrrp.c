@@ -3573,6 +3573,9 @@ sync_group_tracking_init(void)
 	vrrp_script_t *vsc;
 	tracked_if_t *tif;
 	tracked_file_monitor_t *tfl;
+#ifdef _WITH_CN_PROC_
+	tracked_process_t *tpr;
+#endif
 #ifdef _WITH_BFD_
 	tracked_bfd_t *tbfd;
 #endif
@@ -3627,6 +3630,24 @@ sync_group_tracking_init(void)
 			list_for_each_entry(vrrp, &sgroup->vrrp_instances, s_list)
 				add_obj_to_track_file(vrrp, tfl, vrrp->iname, dump_tracking_vrrp);
 		}
+
+#ifdef _WITH_CN_PROC_
+		/* tracked processes */
+		list_for_each_entry(tpr, &sgroup->track_process, e_list) {
+			if (sgroup_has_prio_owner && tpr->weight) {
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot have weighted track"
+									  " process '%s' with member having"
+									  " priority %d - setting weight 0"
+									, sgroup->gname
+									, tpr->process->pname
+									, VRRP_PRIO_OWNER);
+				tpr->weight = 0;
+			}
+
+			list_for_each_entry(vrrp, &sgroup->vrrp_instances, s_list)
+				add_vrrp_to_track_process(vrrp, tpr);
+		}
+#endif
 
 #ifdef _WITH_BFD_
 		/* tracked files */
