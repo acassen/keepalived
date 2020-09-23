@@ -154,7 +154,6 @@ vrrp_handle_iproutes(vrrp_t * vrrp, int cmd, bool force)
 		log_message(LOG_INFO, "(%s) %sing Virtual Routes",
 		       vrrp->iname,
 		       (cmd == IPROUTE_ADD) ? "sett" : "remov");
-	log_message(LOG_INFO, "Reloading: %d", reload);
 	netlink_rtlist(&vrrp->vroutes, cmd, force);
 }
 
