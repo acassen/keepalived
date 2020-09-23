@@ -381,7 +381,6 @@ dump_vprocess(FILE *fp, const vrrp_tracked_process_t *vprocess)
 		conf_write(fp, "   Terminate delay timer %srunning", vprocess->terminate_timer_thread ? "" : "not ");
 	}
 	conf_write(fp, "   Full command = %s", vprocess->full_command ? "true" : "false");
-	conf_write(fp, "   Tracking VRRP instances :");
 	dump_tracking_obj_list(fp, &vprocess->tracking_vrrp, dump_tracking_vrrp);
 }
 static void

@@ -1785,7 +1785,8 @@ vrrp_state_leave_fault(vrrp_t * vrrp)
 	if (vrrp->wantstate == VRRP_STATE_MAST)
 		vrrp_state_goto_master(vrrp);
 	else {
-		log_message(LOG_INFO, "(%s) Entering %s STATE", vrrp->iname, vrrp->wantstate == VRRP_STATE_BACK ? "BACKUP" : "FAULT");
+		if (vrrp->state != vrrp->wantstate)
+			log_message(LOG_INFO, "(%s) Entering %s STATE", vrrp->iname, vrrp->wantstate == VRRP_STATE_BACK ? "BACKUP" : "FAULT");
 		if (vrrp->wantstate == VRRP_STATE_FAULT && vrrp->state == VRRP_STATE_MAST) {
 			vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
 			vrrp_restore_interface(vrrp, false, false);
