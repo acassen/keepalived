@@ -2984,8 +2984,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			vrrp->smtp_alert = false;
 	}
 
-	if (vrrp->notify_priority_changes == -1)
-		vrrp->notify_priority_changes = global_data->vrrp_notify_priority_changes;
+	if (vrrp->notify_priority_changes == -1) {
+		if (vrrp->sync->notify_priority_changes != -1)
+			vrrp->notify_priority_changes = vrrp->sync->notify_priority_changes;
+		else
+			vrrp->notify_priority_changes = global_data->vrrp_notify_priority_changes;
+	}
 
 	/* Check that the advertisement interval is valid */
 	if (!vrrp->adver_int)

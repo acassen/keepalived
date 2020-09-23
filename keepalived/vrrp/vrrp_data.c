@@ -208,6 +208,8 @@ dump_sync_group(FILE *fp, const vrrp_sgroup_t *sgroup)
 	if (sgroup->sgroup_tracking_weight)
 		conf_write(fp, "   sync group tracking weight set");
 	conf_write(fp, "   Using smtp notification = %s", sgroup->smtp_alert ? "yes" : "no");
+	if (sgroup->notify_priority_changes != -1)
+		conf_write(fp, "   Notify priority changes = %s", sgroup->notify_priority_changes ? "yes" : "no");
 	if (!list_empty(&sgroup->track_ifp)) {
 		conf_write(fp, "   Tracked interfaces :");
 		dump_track_if_list(fp, &sgroup->track_ifp);
@@ -833,6 +835,7 @@ alloc_vrrp_sync_group(const char *gname)
 	new->gname = STRDUP(gname);
 	new->sgroup_tracking_weight = false;
 	new->smtp_alert = -1;
+	new->notify_priority_changes = -1;
 
 	list_add_tail(&new->e_list, &vrrp_data->vrrp_sync_group);
 }

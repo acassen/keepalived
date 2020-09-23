@@ -380,6 +380,22 @@ vrrp_sg_tracking_weight_handler(__attribute__((unused)) const vector_t *strvec)
 	vgroup->sgroup_tracking_weight = true;
 }
 static void
+vrrp_sg_notify_priority_changes_handler(const vector_t *strvec)
+{
+	vrrp_sgroup_t *vgroup = list_last_entry(&vrrp_data->vrrp_sync_group, vrrp_sgroup_t, e_list);
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Invalid value '%s' for sync group notify_priority_changes specified", vgroup->gname, strvec_slot(strvec, 1));
+			return;
+		}
+	}
+
+	vgroup->notify_priority_changes = res;
+}
+static void
 vrrp_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp;
@@ -1806,6 +1822,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("smtp_alert", &vrrp_gsmtp_handler);
 	install_keyword("global_tracking", &vrrp_gglobal_tracking_handler);
 	install_keyword("sync_group_tracking_weight", &vrrp_sg_tracking_weight_handler);
+	install_keyword("notify_priority_changes", &vrrp_sg_notify_priority_changes_handler);
 
 	/* Garp declarations */
 	install_keyword_root("garp_group", &garp_group_handler, active);
