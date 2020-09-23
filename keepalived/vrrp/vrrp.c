@@ -2148,9 +2148,11 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool reverse, 
 		list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
 			if (top->obj.vrrp == vrrp) {
 				if (top->type & (TRACK_VRRP | TRACK_IF | TRACK_SG) &&
-				    type & (TRACK_VRRP | TRACK_IF | TRACK_SG))
-					log_message(LOG_INFO, "(%s) track_interface %s is configured on VRRP instance and sync group. Remove vrrp instance or sync group config",
-							vrrp->iname, ifp->ifname);
+				    type & (TRACK_VRRP | TRACK_IF | TRACK_SG) &&
+				    top->weight != VRRP_NOT_TRACK_IF &&
+				    weight != VRRP_NOT_TRACK_IF)
+					report_config_error(CONFIG_GENERAL_ERROR, "(%s) track_interface %s is configured on VRRP instance and sync group. Remove vrrp instance or sync group config",
+							    vrrp->iname, ifp->ifname);
 
 				/* Update the weight appropriately. We will use the sync group's
 				 * weight unless the vrrp setting is unweighted. */
