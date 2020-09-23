@@ -132,6 +132,7 @@ typedef struct _vrrp_sgroup {
 	notify_script_t		*script;
 	int			smtp_alert;
 	int			last_email_state;
+	int			notify_priority_changes;
 
 	/* linked list member */
 	list_head_t		e_list;

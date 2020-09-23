@@ -154,7 +154,6 @@ vrrp_handle_iproutes(vrrp_t * vrrp, int cmd, bool force)
 		log_message(LOG_INFO, "(%s) %sing Virtual Routes",
 		       vrrp->iname,
 		       (cmd == IPROUTE_ADD) ? "sett" : "remov");
-	log_message(LOG_INFO, "Reloading: %d", reload);
 	netlink_rtlist(&vrrp->vroutes, cmd, force);
 }
 
@@ -1786,7 +1785,8 @@ vrrp_state_leave_fault(vrrp_t * vrrp)
 	if (vrrp->wantstate == VRRP_STATE_MAST)
 		vrrp_state_goto_master(vrrp);
 	else {
-		log_message(LOG_INFO, "(%s) Entering %s STATE", vrrp->iname, vrrp->wantstate == VRRP_STATE_BACK ? "BACKUP" : "FAULT");
+		if (vrrp->state != vrrp->wantstate)
+			log_message(LOG_INFO, "(%s) Entering %s STATE", vrrp->iname, vrrp->wantstate == VRRP_STATE_BACK ? "BACKUP" : "FAULT");
 		if (vrrp->wantstate == VRRP_STATE_FAULT && vrrp->state == VRRP_STATE_MAST) {
 			vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
 			vrrp_restore_interface(vrrp, false, false);
@@ -2149,9 +2149,11 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool reverse, 
 		list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
 			if (top->obj.vrrp == vrrp) {
 				if (top->type & (TRACK_VRRP | TRACK_IF | TRACK_SG) &&
-				    type & (TRACK_VRRP | TRACK_IF | TRACK_SG))
-					log_message(LOG_INFO, "(%s) track_interface %s is configured on VRRP instance and sync group. Remove vrrp instance or sync group config",
-							vrrp->iname, ifp->ifname);
+				    type & (TRACK_VRRP | TRACK_IF | TRACK_SG) &&
+				    top->weight != VRRP_NOT_TRACK_IF &&
+				    weight != VRRP_NOT_TRACK_IF)
+					report_config_error(CONFIG_GENERAL_ERROR, "(%s) track_interface %s is configured on VRRP instance and sync group. Remove vrrp instance or sync group config",
+							    vrrp->iname, ifp->ifname);
 
 				/* Update the weight appropriately. We will use the sync group's
 				 * weight unless the vrrp setting is unweighted. */
@@ -2983,8 +2985,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			vrrp->smtp_alert = false;
 	}
 
-	if (vrrp->notify_priority_changes == -1)
-		vrrp->notify_priority_changes = global_data->vrrp_notify_priority_changes;
+	if (vrrp->notify_priority_changes == -1) {
+		if (vrrp->sync->notify_priority_changes != -1)
+			vrrp->notify_priority_changes = vrrp->sync->notify_priority_changes;
+		else
+			vrrp->notify_priority_changes = global_data->vrrp_notify_priority_changes;
+	}
 
 	/* Check that the advertisement interval is valid */
 	if (!vrrp->adver_int)
@@ -3574,6 +3580,9 @@ sync_group_tracking_init(void)
 	vrrp_script_t *vsc;
 	tracked_if_t *tif;
 	tracked_file_monitor_t *tfl;
+#ifdef _WITH_CN_PROC_
+	tracked_process_t *tpr;
+#endif
 #ifdef _WITH_BFD_
 	tracked_bfd_t *tbfd;
 #endif
@@ -3628,6 +3637,24 @@ sync_group_tracking_init(void)
 			list_for_each_entry(vrrp, &sgroup->vrrp_instances, s_list)
 				add_obj_to_track_file(vrrp, tfl, vrrp->iname, dump_tracking_vrrp);
 		}
+
+#ifdef _WITH_CN_PROC_
+		/* tracked processes */
+		list_for_each_entry(tpr, &sgroup->track_process, e_list) {
+			if (sgroup_has_prio_owner && tpr->weight) {
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot have weighted track"
+									  " process '%s' with member having"
+									  " priority %d - setting weight 0"
+									, sgroup->gname
+									, tpr->process->pname
+									, VRRP_PRIO_OWNER);
+				tpr->weight = 0;
+			}
+
+			list_for_each_entry(vrrp, &sgroup->vrrp_instances, s_list)
+				add_vrrp_to_track_process(vrrp, tpr);
+		}
+#endif
 
 #ifdef _WITH_BFD_
 		/* tracked files */
