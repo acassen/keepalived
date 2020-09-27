@@ -497,6 +497,116 @@ read_decimal_unsigned_strvec(const vector_t *strvec, size_t index, unsigned *res
 	return ret;
 }
 
+/* read_hex_str() reads a hex string, which can include spaces, and saves the string in
+ * MALLOC'd memory at data.
+ * Hex characters 0-9, A-F and a-f are valid.
+ * The string can include wildcard characters, x or X, in which
+ * case mask will be allocated and used to indicate the wildcard half octets (nibbles)
+ */
+static uint8_t
+hex_val(char p, bool allow_wildcard)
+{
+	if (p >= '0' && p <= '9')
+		return p - '0';
+	if (p >= 'a')
+		p -= ('a' - 'A');
+	if (p >= 'A' && p <= 'F')
+		return p - 'A' + 10;
+
+	if (allow_wildcard && p == 'X')
+		return 0xfe;
+
+	return 0xff;
+}
+
+uint16_t
+read_hex_str(const char *str, uint8_t **data, uint8_t **data_mask)
+{
+	size_t str_len;
+	uint8_t *buf;
+	uint8_t *mask;
+	const char *p = str;
+	uint8_t val = 0;
+	uint8_t val1;
+	uint8_t mask_val;
+	bool using_mask = false;
+	uint16_t len;
+
+	/* The output octet string cannot be longer than (strlen(str) + 1)/2 */
+	str_len = (strlen(str) + 1) / 2;
+	buf = MALLOC(str_len);
+	mask = MALLOC(str_len);
+
+	len = 0;
+	while (true) {
+		/* Skip spaces */
+		while (*p == ' ' || *p == '\t')
+			p++;
+
+		if (!*p)
+			break;
+
+		val = hex_val(*p++, !!data_mask);
+		if (val == 0xff)
+			break;
+		if (val == 0xfe) {
+			mask_val = 0x0f;
+			val = 0;
+			using_mask = true;
+		} else
+			mask_val = 0;
+
+		if (*p && *p != ' ') {
+			val1 = val << 4;
+			mask_val <<= 4;
+			val = hex_val(*p++, !!data_mask);
+			if (val == 0xff)
+				break;
+			if (val == 0xfe) {
+				mask_val |= 0x0f;
+				val = 0;
+				using_mask = true;
+			}
+			val |= val1;
+		}
+
+		buf[len] = val;
+		mask[len] = mask_val;
+		len++;
+	}
+
+	if (val == 0xff || !len) {
+		FREE_ONLY(buf);
+		FREE_ONLY(mask);
+		return 0;
+	}
+
+	/* Reduce the buffer size of appropriate */
+	if (len < str_len) {
+		buf = REALLOC(buf, len);
+		if (using_mask)
+			mask = REALLOC(mask, len);
+	}
+
+	*data = buf;
+	if (using_mask)
+		*data_mask = mask;
+	else
+		FREE_ONLY(mask);
+
+#if 0
+	for (int i = 0;  i < len; i++)
+		printf("%2.2X ", buf[i]);
+	printf("\n");
+
+	for (i = 0;  i < len; i++)
+		printf("%2.2X ", mask[i]);
+	printf("\n");
+#endif
+
+	return len;
+}
+
 void
 set_random_seed(unsigned int seed)
 {

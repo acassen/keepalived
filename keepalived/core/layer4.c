@@ -233,7 +233,7 @@ socket_connection_state(int fd, enum connect_result status, thread_ref_t thread,
 
 #ifdef _WITH_LVS_
 enum connect_result
-udp_bind_connect(int fd, conn_opts_t *co)
+udp_bind_connect(int fd, conn_opts_t *co, uint8_t *payload, uint16_t payload_len)
 {
 	socklen_t addrlen;
 	ssize_t ret;
@@ -244,7 +244,11 @@ udp_bind_connect(int fd, conn_opts_t *co)
 	int err;
 
 	/* Ensure we don't leak our stack */
-	set_buf(buf, sizeof(buf));
+	if (!payload) {
+		set_buf(buf, sizeof(buf));
+		payload = PTR_CAST(uint8_t, buf);
+		payload_len = sizeof(buf);
+	}
 
 	/* We want to be able to receive ICMP error responses */
 	if (co->dst.ss_family == AF_INET)
@@ -288,9 +292,9 @@ udp_bind_connect(int fd, conn_opts_t *co)
 	}
 
 	/* Send udp packet */
-	ret = send(fd, buf, sizeof(buf), 0);
+	ret = send(fd, payload, payload_len, 0);
 
-	if (ret == (ssize_t)sizeof(buf))
+	if (ret == payload_len)
 		return connect_success;
 
 	if (ret == -1) {
@@ -418,19 +422,18 @@ udp_socket_error(int fd)
 }
 
 enum connect_result
-udp_socket_state(int fd, thread_ref_t thread, bool require_reply)
+udp_socket_state(int fd, thread_ref_t thread, uint8_t *recv_buf, size_t *len)
 {
 	int ret;
-	char recv_buf[UDP_BUFSIZE];
 
 	/* Handle Read timeout, we consider it success unless require_reply is set */
 	if (thread->type == THREAD_READ_TIMEOUT)
-		return require_reply ? connect_error : connect_success;
+		return recv_buf ? connect_error : connect_success;
 
 	if (thread->type == THREAD_READ_ERROR)
 		return udp_socket_error(fd);
 
-	ret = recv(fd, recv_buf, sizeof(recv_buf), 0);
+	ret = recv(fd, recv_buf, *len, 0);
 
 	/* Ret less than 0 means the port is unreachable.
 	 * Otherwise, we consider it success.
@@ -439,6 +442,7 @@ udp_socket_state(int fd, thread_ref_t thread, bool require_reply)
 	if (ret < 0)
 		return connect_error;
 
+	*len = ret;
 	return connect_success;
 }
 

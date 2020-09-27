@@ -25,9 +25,18 @@
 
 #include "config.h"
 
+#include <inttypes.h>
+
 
 typedef struct _udp_check {
-	bool	require_reply;
+	uint16_t	payload_len;
+	uint8_t		*payload;
+	bool		require_reply;
+	uint16_t	reply_len;
+	uint8_t		*reply_data;
+	uint8_t		*reply_mask;
+	uint16_t	min_reply_len;
+	uint16_t	max_reply_len;
 } udp_check_t;
 
 /* Prototypes defs */

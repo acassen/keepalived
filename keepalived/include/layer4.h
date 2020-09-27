@@ -27,6 +27,7 @@
 #include <sys/socket.h>
 #include <net/if.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 /* local includes */
 #include "scheduler.h"
@@ -102,8 +103,8 @@ tcp_connection_state(int fd, enum connect_result status, thread_ref_t thread,
 	return socket_connection_state(fd, status, thread, func, timeout);
 }
 
-extern enum connect_result udp_bind_connect(int, conn_opts_t *);
-extern enum connect_result udp_socket_state(int, thread_ref_t, bool);
+extern enum connect_result udp_bind_connect(int, conn_opts_t *, uint8_t *, uint16_t);
+extern enum connect_result udp_socket_state(int, thread_ref_t, uint8_t *, size_t *);
 extern bool udp_icmp_check_state(int, enum connect_result, thread_ref_t, thread_func_t, unsigned long);
 #endif
 

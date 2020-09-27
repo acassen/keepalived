@@ -2137,9 +2137,28 @@ The syntax for virtual_server is :
         #   HOST_UNREACH, NET_UNREACH, PORT_UNREACH. HOST_UNREACH relies on ARP requests
         #   timing out, and so connect_timeout should be long enough to allow for this (e.g.
         #   at least 4 seconds).
+	# If payload is specified, the HEX_STR will be sent as the UDP data, otherwise a
+	# random payload will be sent.
+	# If require_reply is specified, the received data length is checked to ensure that it
+	# lies between min_reply_length and max_reply_length.
+	# If require_reply without a hex string is specified, udp reply data must be received
+	# but the data content is not checked.
+	# If a require_reply HEX_STR is specified, the reply data will be checked against the
+	# HEX_STR, which must match up to the minimum of the received data length and the length
+	# of the require_reply HEX_STR.
+	# The format of HEX_STR is quite free format, for example:
+	#   Ab12f 3 456 546443123
+	# would be interpreted as:
+	#   AB 12 0F 03 45 06 54 64 43 12 03
+	# For the require_reply HEX_STR, a character can be specified as X or x, in which case
+	# the value of those 4 bits in the reply is ignored. This allows, for example, for
+	# some form of counter or otherwise.
         # It may be that you will want to use PING_CHECK to the same server as well.
         \fBUDP_CHECK \fR{
-	        \fBrequire_reply\fR		# Require a reply packet for check to be successful
+		\fBpayload\fR <HEX_STR>
+	        \fBrequire_reply\fR [<HEX_STR>]	# Require a reply packet for check to be successful
+		min_reply_length <INT>		# default 0
+		max_reply_length <INT>		# default is 255
         }
 
         # File checker
