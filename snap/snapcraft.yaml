@@ -32,6 +32,8 @@ apps:
     command: bin/keepalived-wrapper
   keepalived:
     command: bin/keepalived-wrapper
+  "508":        # Ubuntu 20.10 and Fedora 31
+    command: usr/sbin/keepalived-508
   "504":        # Ubuntu 20.04 and Fedora 31
     command: usr/sbin/keepalived-504
   "503":        # Ubuntu 19.10 and Fedora 31
@@ -99,7 +101,7 @@ parts:
     organize:
       'usr/sbin/keepalived': usr/sbin/keepalived-415
 
-  linux-headers-504:
+  linux-headers-508:
     plugin: nil
     build-packages:
       - dpkg
@@ -107,6 +109,73 @@ parts:
       - wget
     after:
       - keepalived
+    override-pull: |
+      KERNEL_VER="5.8.0"
+      ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
+      if [ $ARCH = amd64 ] || [ $ARCH = i386 ]; then
+        ARCHIVE_URL="http://security.ubuntu.com/ubuntu/pool/main/l/linux/"
+      else
+        ARCHIVE_URL="http://ports.ubuntu.com/pool/main/l/linux/"
+      fi
+      DEB_SUFFIX=$(wget ${ARCHIVE_URL} -O - | grep linux-libc-dev | cut -d'_' -f2-3 | cut -d'"' -f1 | grep ${ARCH} | grep ${KERNEL_VER} | tail -n1)
+      wget --quiet ${ARCHIVE_URL}/linux-libc-dev_${DEB_SUFFIX} -O ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
+      echo -n "Unpacking kernel headers..."
+      dpkg -x ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb ${SNAPCRAFT_PART_INSTALL}
+      printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${SNAPCRAFT_PART_INSTALL}/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
+      rm -f ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
+    override-build: |
+      snapcraftctl build
+      # Move header from the part to the host
+      ARCH_DIR=$(ls -d ${SNAPCRAFT_PART_INSTALL}/usr/include/*/asm | sed -e "s:/asm$::" -e "s:.*/::")
+      for d in linux asm-generic $ARCH_DIR/asm; do
+        dest=/usr/include/$d
+        rm -rf $dest
+        mv ${SNAPCRAFT_PART_INSTALL}/usr/include/$d ${dest%/*}
+      done
+      echo -n "Build kernel:"
+      printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
+    stage:
+      - -*
+    prime:
+      - -*
+
+  keepalived-508:
+    plugin: autotools
+    source: .
+    source-type: git
+    after:
+      - linux-headers-508
+    configflags:
+      - --prefix=/usr
+      - --enable-bfd
+      - --enable-dbus
+      - --enable-json
+      - --enable-regex
+      - --enable-snmp
+      - --enable-snmp-rfc
+      - --disable-libipset-dynamic
+    organize:
+      'usr/sbin/keepalived': usr/sbin/keepalived-508
+      'usr/etc/dbus-1/system.d/org.keepalived.Vrrp1.conf': etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
+    stage:
+      - usr/sbin/keepalived-508
+      - etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
+      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml
+      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
+    prime:
+      - usr/sbin/keepalived-508
+      - etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
+      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml
+      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
+
+  linux-headers-504:
+    plugin: nil
+    build-packages:
+      - dpkg
+      - dpkg-dev
+      - wget
+    after:
+      - keepalived-508
     override-pull: |
       KERNEL_VER="5.4.0"
       ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
@@ -154,17 +223,10 @@ parts:
       - --disable-libipset-dynamic
     organize:
       'usr/sbin/keepalived': usr/sbin/keepalived-504
-      'usr/etc/dbus-1/system.d/org.keepalived.Vrrp1.conf': etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
     stage:
       - usr/sbin/keepalived-504
-      - etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
     prime:
       - usr/sbin/keepalived-504
-      - etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
 
   linux-headers-503:
     plugin: nil
@@ -221,17 +283,10 @@ parts:
       - --disable-libipset-dynamic
     organize:
       'usr/sbin/keepalived': usr/sbin/keepalived-503
-      'usr/etc/dbus-1/system.d/org.keepalived.Vrrp1.conf': etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
     stage:
       - usr/sbin/keepalived-503
-      - etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
     prime:
       - usr/sbin/keepalived-503
-      - etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
 
   linux-headers-500:
     plugin: nil
@@ -295,17 +350,10 @@ parts:
       - --disable-libipset-dynamic
     organize:
       'usr/sbin/keepalived': usr/sbin/keepalived-500
-      'usr/etc/dbus-1/system.d/org.keepalived.Vrrp1.conf': etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
     stage:
       - usr/sbin/keepalived-500
-      - etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
     prime:
       - usr/sbin/keepalived-500
-      - etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
 
   linux-headers-418:
     plugin: nil
