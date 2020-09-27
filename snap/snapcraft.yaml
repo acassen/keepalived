@@ -9,6 +9,8 @@ description: |
 grade: stable
 confinement: classic
 
+base: core18
+
 # linux-libc-dev for 5.0, 4.18 and 3.10 are no longer available via
 #    http://security.ubuntu.com/ubuntu/pool/main/l/linux/
 # or
@@ -95,7 +97,7 @@ parts:
       - libpcre2-8-0
       - libsnmp30
     organize:
-      'usr/sbin/keepalived': usr/sbin/keepalived-404
+      'usr/sbin/keepalived': usr/sbin/keepalived-415
 
   linux-headers-504:
     plugin: nil
@@ -368,7 +370,7 @@ parts:
     prime:
       - usr/sbin/keepalived-418
 
-  linux-headers-415:
+  linux-headers-404:
     plugin: nil
     build-packages:
       - dpkg
@@ -377,7 +379,7 @@ parts:
     after:
       - keepalived-418
     override-pull: |
-      KERNEL_VER="4.15.0"
+      KERNEL_VER="4.4.0"
       ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
       if [ $ARCH = amd64 ] || [ $ARCH = i386 ]; then
         ARCHIVE_URL="http://security.ubuntu.com/ubuntu/pool/main/l/linux/"
@@ -406,12 +408,12 @@ parts:
     prime:
       - -*
 
-  keepalived-415:
+  keepalived-404:
     plugin: autotools
     source: .
     source-type: git
     after:
-      - linux-headers-415
+      - linux-headers-404
     configflags:
       - --prefix=/usr
       - --enable-bfd
@@ -422,11 +424,11 @@ parts:
       - --enable-snmp-rfc
       - --disable-libipset-dynamic
     organize:
-      'usr/sbin/keepalived': usr/sbin/keepalived-415
+      'usr/sbin/keepalived': usr/sbin/keepalived-404
     stage:
-      - usr/sbin/keepalived-415
+      - usr/sbin/keepalived-404
     prime:
-      - usr/sbin/keepalived-415
+      - usr/sbin/keepalived-404
 
   linux-headers-310:
     plugin: nil
@@ -435,7 +437,7 @@ parts:
       - dpkg-dev
       - wget
     after:
-      - keepalived-415
+      - keepalived-404
     override-pull: |
       ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
       if [ $ARCH = amd64 ] || [ $ARCH = ppc64el ] ||  [ $ARCH = arm64 ]; then
