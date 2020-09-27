@@ -4,13 +4,15 @@ git:
 language: c
 compiler: gcc
 os: linux
-dist: xenial
+dist: focal
 
 addons:
   apt:
     packages:
     - libsnmp-dev
-    - iptables-dev
+    - libxtables-dev
+    - libip4tc-dev
+    - libip6tc-dev
     - libipset-dev
     - libnfnetlink-dev
     - libnl-3-dev

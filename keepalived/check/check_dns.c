@@ -32,6 +32,7 @@
 #include "check_dns.h"
 #include "check_api.h"
 #include "memory.h"
+#include "global_data.h"
 #include "ipwrapper.h"
 #include "logger.h"
 #include "smtp.h"

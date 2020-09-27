@@ -53,6 +53,8 @@ For building packages:
 	build-essential pkg-config, and to build from git repo automake autoconf
 The following libraries need to be installed:
 	iptables-dev libipset-dev libnl-3-dev libnl-genl-3-dev libssl-dev
+  or for more recent versions of the distros (e.g. Ubuntu Focal):
+	libxtables-dev libip4tc-dev libip6tc-dev libipset-dev libnl-3-dev libnl-genl-3-dev libssl-dev
 For magic file identification support:
 	libmagic-dev
 For SNMP support:

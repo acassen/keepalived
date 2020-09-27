@@ -81,6 +81,7 @@ extern vector_t *vector_compact_r(const vector_t *);
 #ifdef _INCLUDE_UNUSED_CODE_
 extern void vector_dump(FILE *, const vector_t *);
 #endif
+extern char *make_strvec_str(const vector_t *, unsigned);
 extern void free_strvec(const vector_t *);
 extern vector_t *strvec_remove_slot(vector_t *, unsigned);
 

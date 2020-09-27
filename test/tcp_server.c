@@ -12,6 +12,13 @@
 #include <errno.h>
 #include <time.h>
 
+/*
+ * NOTE:
+ *
+ * This may be completely unnecessary, since ncat probably provides the
+ * functionality provided here.
+ */
+
 struct cmd_resp {
 	struct cmd_resp *next;
 	char *cmd;
