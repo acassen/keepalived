@@ -387,6 +387,7 @@ AS_IF([test .$enable_vrrp = .no],
     AS_IF([test $with_fixed_if_type], [AC_MSG_ERROR([with-fixed-if-type requires vrrp])])
     AS_IF([test .$enable_vrrp_fd_debug != .], [AC_MSG_ERROR([enable-vrrp-fd-debug requires vrrp])])
     AS_IF([test .$enable_tsm_debug != .], [AC_MSG_ERROR([enable-tsm-debug requires vrrp])])
+    AS_IF([test .$enable_recvmsg_debug != .], [AC_MSG_ERROR([enable-recvmsg-debug requires vrrp])])
     AS_IF([test .$enable_json != .], [AC_MSG_ERROR([enable-json requires vrrp])])
     AS_IF([test .$enable_snmp_vrrp != .], [AC_MSG_ERROR([enable-snmp-vrrp requires vrrp])])
     AS_IF([test .$enable_snmp_keepalived != .], [AC_MSG_ERROR([enable-snmp-keepalived requires vrrp])])
@@ -448,7 +449,6 @@ AS_IF([test .$enable_debug = .yes],
     AS_IF([test .$enable_asserts = .], [enable_asserts=yes])
     AS_IF([test .$enable_epoll_debug = .], [enable_epoll_debug=yes])
     AS_IF([test .$enable_epoll_thread_dump = .], [enable_epoll_thread_dump=yes])
-    AS_IF([test .$enable_recvmsg_debug = .], [enable_recvmsg_debug=yes])
     AS_IF([test .$enable_eintr_debug = .], [enable_eintr_debug=yes])
     AS_IF([test .$enable_parser_debug = .], [enable_parser_debug=yes])
     AS_IF([test .$enable_timer_check = .], [enable_timer_check=yes])
@@ -461,6 +461,7 @@ AS_IF([test .$enable_debug = .yes],
       [
 	AS_IF([test .$enable_vrrp_fd_debug = .], [enable_vrrp_fd_debug=yes])
 	AS_IF([test .$enable_tsm_debug = .], [enable_tsm_debug=yes])
+	AS_IF([test .$enable_recvmsg_debug = .], [enable_recvmsg_debug=yes])
 	AS_IF([test .$enable_track_process_debug = .], [enable_track_process_debug=yes])
 	AS_IF([test .$enable_checksum_debug = .], [enable_checksum_debug=yes])
 	AS_IF([test .$enable_netlink_timers = .], [enable_netlink_timers=yes])
