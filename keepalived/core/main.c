@@ -83,7 +83,7 @@
 #include "scheduler.h"
 #include "keepalived_netlink.h"
 #include "git-commit.h"
-#if defined THREAD_DUMP || defined _EPOLL_DEBUG_ || defined _EPOLL_THREAD_DUMP_
+#if defined THREAD_DUMP || defined _EPOLL_DEBUG_ || defined _EPOLL_THREAD_DUMP_ || defined _SCRIPT_DEBUG_
 #include "scheduler.h"
 #endif
 #include "process.h"
@@ -99,7 +99,7 @@
 #if defined _NETWORK_TIMESTAMP_ || defined _CHECKSUM_DEBUG_
 #include "vrrp.h"
 #endif
-#if defined _TSM_DEBUG_ || defined _SCRIPT_DEBUG_ || defined _RECVMSG_DEBUG_
+#if defined _TSM_DEBUG_ || defined _RECVMSG_DEBUG_
 #include "vrrp_scheduler.h"
 #endif
 #if defined _PARSER_DEBUG_ || defined _DUMP_KEYWORDS_
