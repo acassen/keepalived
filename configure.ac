@@ -2977,7 +2977,7 @@ cat <<EOF;
 Keepalived configuration
 ------------------------
 Keepalived version       : ${VERSION}
-Compiler                 : ${CC}
+Compiler                 : ${CC} `${CC} --version | head -1`
 Preprocessor flags       : ${KA_CPPFLAGS}
 Compiler flags           : ${KA_CFLAGS}
 EOF
