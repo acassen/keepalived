@@ -22,6 +22,8 @@ IPV6_RECVHOPLIMIT & IPV6_RECVPKTINFO		Since Linux 2.6.14
 ./keepalived/core/namespaces.c:#ifndef MS_SLAVE	/* Since glibc 2.12, but Linux since 2.6.15 */
 ./keepalived/core/namespaces.c:#ifdef MS_SLAVE		/* Since Linux 2.6.15. Prior to that mounts weren't shared */
 
+CN_PROC process events connector		Since Linux 2.6.15
+
 dnl -- linux/netfilter/x_tables.h since Linux 2.6.16
 
 dnl ----[ Checks for FIB routing support ]----
@@ -243,3 +245,4 @@ NETFILTER_XTABLES - if strict_mode or no_accept.
 IP_ADVANCED_ROUTER and various associated options if static/dynamic routes specified
 FIB_RULES if static or dynamic rules are specified
 NFTABLES
+CN_PROC for vrrp track_process

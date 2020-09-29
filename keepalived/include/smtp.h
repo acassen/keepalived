@@ -120,10 +120,6 @@ typedef struct _smtp_rs {
 #else
 typedef void real_server_t;
 #endif
-#ifndef _WITH_VRRP_
-typedef void vrrp_t;
-typedef void vrrp_sgroup_t;
-#endif
 
 #ifdef _SMTP_ALERT_DEBUG_
 extern bool do_smtp_alert_debug;
