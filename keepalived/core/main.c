@@ -954,7 +954,7 @@ static void
 sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
 	int ret;
-	int wait_count = 0;
+	unsigned int wait_count = 0;
 	struct timeval start_time, now;
 	size_t i;
 	int wstatus;
