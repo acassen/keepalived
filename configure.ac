@@ -2075,14 +2075,23 @@ if test "$enable_vrrp" != no; then
   dnl -- Check for process events connector - Linux v2.6.15
   AS_IF([test .$enable_track_process != .no],
     [
-      add_system_opt([CN_PROC])
-      HAVE_CN_PROC=Yes
-      AC_DEFINE([_WITH_CN_PROC_], [ 1 ], [Define to 1 if have linux/cn_proc.h and track-process not disabled])
-      dnl -- PROC_EVENT_SID since Linux v2.6.32
-      dnl -- PROC_EVENT_PTRACE since Linux v3.1
-      dnl -- PROC_EVENT_COMM since Linux v3.2
-      dnl -- PROC_EVENT_COREDUMP since Linux v3.10
-      AC_CHECK_DECLS([PROC_EVENT_SID, PROC_EVENT_PTRACE, PROC_EVENT_COMM, PROC_EVENT_COREDUMP], [], [], [[#include <linux/cn_proc.h>]])
+      AC_CHECK_HEADERS([linux/cn_proc.h],
+	[
+	  add_system_opt([CN_PROC])
+	  HAVE_CN_PROC=Yes
+	  AC_DEFINE([_WITH_CN_PROC_], [ 1 ], [Define to 1 if have linux/cn_proc.h and track-process not disabled])
+	  dnl -- PROC_EVENT_SID since Linux v2.6.32
+	  dnl -- PROC_EVENT_PTRACE since Linux v3.1
+	  dnl -- PROC_EVENT_COMM since Linux v3.2
+	  dnl -- PROC_EVENT_COREDUMP since Linux v3.10
+	  AC_CHECK_DECLS([PROC_EVENT_SID, PROC_EVENT_PTRACE, PROC_EVENT_COMM, PROC_EVENT_COREDUMP], [], [], [[#include <linux/cn_proc.h>]])
+	],
+	[
+	  AS_IF([test .$enable_track_process = .yes],
+	    [
+	      AC_MSG_ERROR([--enable-track-process specified but process events connector not supported])
+	    ])
+	])
     ],
     [add_config_opt([DISABLE_TRACK_PROCESS])])
 fi
@@ -2774,11 +2783,14 @@ AS_IF([test .$enable_script_debug = .yes],
 
 dnl ----[ Do we want to enable track process debugging code]----
 ENABLE_TRACK_PROCESS_DEBUG=No
-AS_IF([test .$enable_track_process_debug = .yes],
+AS_IF([test $HAVE_CN_PROC = Yes],
   [
-    AC_DEFINE([_TRACK_PROCESS_DEBUG_], [ 1 ], [Define to enable logging all process connector events])
-    add_config_opt([TRACK_PROCESS_DEBUG])
-    ENABLE_TRACK_PROCESS_DEBUG=Yes
+    AS_IF([test .$enable_track_process_debug = .yes],
+      [
+	AC_DEFINE([_TRACK_PROCESS_DEBUG_], [ 1 ], [Define to enable logging all process connector events])
+	add_config_opt([TRACK_PROCESS_DEBUG])
+	ENABLE_TRACK_PROCESS_DEBUG=Yes
+      ])
   ])
 
 dnl ----[ Do we want to enable parser debugging code]----
