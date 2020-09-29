@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Create a default (emtpy) configuration file
+# Create a default (empty) configuration file
 if [ ! -f /etc/keepalived/keepalived.conf ]; then
   mkdir -p /etc/keepalived
   touch /etc/keepalived/keepalived.conf
