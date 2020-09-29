@@ -448,14 +448,12 @@ AS_IF([test .$enable_debug = .yes],
     AS_IF([test .$enable_asserts = .], [enable_asserts=yes])
     AS_IF([test .$enable_epoll_debug = .], [enable_epoll_debug=yes])
     AS_IF([test .$enable_epoll_thread_dump = .], [enable_epoll_thread_dump=yes])
-    AS_IF([test .$enable_recvmsg_debug = .], [enable_recvmsg_debug=yes])
     AS_IF([test .$enable_eintr_debug = .], [enable_eintr_debug=yes])
     AS_IF([test .$enable_parser_debug = .], [enable_parser_debug=yes])
     AS_IF([test .$enable_timer_check = .], [enable_timer_check=yes])
     AS_IF([test .$enable_smtp_alert_debug = .], [enable_smtp_alert_debug=yes])
     AS_IF([test .$enable_smtp_connect_debug = .], [enable_smtp_connect_debug=yes])
     AS_IF([test .$enable_dump_keywords = .], [enable_dump_keywords=yes])
-    AS_IF([test .$enable_script_debug = .], [enable_script_debug=yes])
 
     AS_IF([test .$enable_vrrp != .no],
       [
@@ -465,6 +463,8 @@ AS_IF([test .$enable_debug = .yes],
 	AS_IF([test .$enable_checksum_debug = .], [enable_checksum_debug=yes])
 	AS_IF([test .$enable_netlink_timers = .], [enable_netlink_timers=yes])
 	AS_IF([test .$enable_network_timestamp = .], [enable_network_timestamp=yes])
+    	AS_IF([test .$enable_recvmsg_debug = .], [enable_recvmsg_debug=yes])
+    	AS_IF([test .$enable_script_debug = .], [enable_script_debug=yes])
       ])
 
     AS_IF([test .$enable_lvs != .no],
