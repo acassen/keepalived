@@ -2986,7 +2986,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 	if (vrrp->notify_priority_changes == -1) {
-		if (vrrp->sync->notify_priority_changes != -1)
+		if (vrrp->sync && vrrp->sync->notify_priority_changes != -1)
 			vrrp->notify_priority_changes = vrrp->sync->notify_priority_changes;
 		else
 			vrrp->notify_priority_changes = global_data->vrrp_notify_priority_changes;
