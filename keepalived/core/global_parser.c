@@ -1986,6 +1986,12 @@ random_seed_handler(const vector_t *strvec)
 
 #ifndef _ONE_PROCESS_DEBUG_
 static void
+glob_strict_handler(__attribute__((unused)) const vector_t *strvec)
+{
+	glob_strict_set();
+}
+
+static void
 reload_check_config_handler(const vector_t *strvec)
 {
 	if (vector_size(strvec) >= 2) {
@@ -2223,5 +2229,6 @@ init_global_keywords(bool global_active)
 	install_keyword("reload_time_file", &reload_time_file_handler);
 	install_keyword("reload_repeat", &reload_repeat_handler);
 	install_keyword("reload_file", &reload_file_handler);
+	install_keyword("glob_strict", &glob_strict_handler);
 #endif
 }
