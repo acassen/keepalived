@@ -3859,6 +3859,7 @@ check_vrid_conflicts(void)
 	vrrp_t *vrrp;
 	vrrp_t *vrrp1;
 	void *vrrp_saddr, *vrrp1_saddr;
+	bool had_error = false;
 
 	/* NOTE: The following isn't perfect, since macvlan interfaces may be deleted and
 	 * recreated on a different interface. However, it is checking the current situation. */
@@ -3911,7 +3912,8 @@ check_vrid_conflicts(void)
 					continue;
 
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) duplicate VRID conflict with %s VRID %d", vrrp->iname, vrrp1->iname, vrrp->vrid);
-				return true;
+				had_error = true;
+				continue;
 			}
 
 			/* The vrrp instances are using multicasting */
@@ -3953,7 +3955,8 @@ check_vrid_conflicts(void)
 									, vrrp->vrid
 									, vrrp->family == AF_INET ? 4 : 6
 									, IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp))->ifname);
-				return true;
+				had_error = true;
+				continue;
 			}
 
 #ifdef _HAVE_VRRP_VMAC_
@@ -3963,7 +3966,7 @@ check_vrid_conflicts(void)
 		}
 	}
 
-	return false;
+	return had_error;
 }
 
 bool
