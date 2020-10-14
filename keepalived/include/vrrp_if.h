@@ -151,7 +151,9 @@ typedef struct _interface {
 #endif
 	struct _interface	*base_ifp;		/* Base interface (if interface is a VMAC interface),
 							   otherwise the physical interface */
+#ifdef _HAVE_VRRP_VMAC_
 	bool			is_ours;		/* keepalived created the interface */
+#endif
 	bool			seen_interface;		/* The interface has existed at some point since we started */
 	bool			changeable_type;	/* The interface type or underlying interface can be changed */
 #ifdef _HAVE_VRF_
