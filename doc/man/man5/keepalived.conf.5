@@ -296,14 +296,16 @@ and
 
     # delay for second set of gratuitous ARPs after lower priority
     # advert received when MASTER.
+    # (default: vrrp_garp_master_delay)
     \fBvrrp_garp_lower_prio_delay \fR10
 
     # number of gratuitous ARP messages to send at a time after
     # lower priority advert received when MASTER.
+    # (default: vrrp_garp_master_repeat)
     \fBvrrp_garp_lower_prio_repeat \fR1
 
     # minimum time interval for refreshing gratuitous ARPs while MASTER.
-    # in seconds.
+    # in seconds (resolution seconds).
     # (default: 0 (no refreshing))
     \fBvrrp_garp_master_refresh \fR60
 
