@@ -215,7 +215,8 @@ typedef enum if_lookup {
 	IF_NO_CREATE,
 	IF_CREATE_IF_DYNAMIC,
 	IF_CREATE_ALWAYS,
-	IF_CREATE_NETLINK
+	IF_CREATE_NETLINK,
+	IF_CREATE_NOT_EXIST,
 } if_lookup_t;
 
 /* Global data */
@@ -223,6 +224,9 @@ extern list_head_t garp_delay;
 
 /* prototypes */
 extern interface_t *if_get_by_ifindex(ifindex_t) __attribute__ ((pure));
+#ifdef _HAVE_VRRP_VMAC_
+extern interface_t * if_get_by_vmac(uint8_t, int, const interface_t *) __attribute__ ((pure));
+#endif
 extern interface_t *get_default_if(void);
 extern interface_t *if_get_by_ifname(const char *, if_lookup_t);
 extern sin_addr_t *if_extra_ipaddress_alloc(interface_t *, void *, unsigned char);

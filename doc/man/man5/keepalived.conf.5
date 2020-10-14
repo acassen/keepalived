@@ -331,6 +331,17 @@ and
     # later.
     \fBvrrp_min_garp \fR[<BOOL>]
 
+    # The following option causes periodic GARP/NA messages to be sent on
+    # interfaces of VIPs/eVIPs that are not the interface of the VRRP
+    # instance, in order to ensure that switch MAC caches are maintained
+    # (specified in seconds).
+    # Many switches have a default cache timeout of 300 seconds, and so
+    # a garp repeat rate of 1/3rd of that would be sensible. The maximum
+    # permitted value is 1 day (86400 seconds);
+    # By default, it will only send on VMAC interfaces; specifying \fBall\fR
+    # will cause it to send GARP/NA on each interface used by the VRRP instance.
+    \fBvrrp_garp_extra_if [all] \fR100
+
     # If a lower priority advert is received, don't send another advert.
     # This causes adherence to the RFCs. Defaults to false, unless
     # strict_mode is set.
@@ -669,6 +680,13 @@ and
     # The following will cause logging of receipt of VRRP adverts for VRIDs not configured
     # on the interface on which they are received.
     \fBlog_unknown_vrids\fR
+
+    # Specify the prefix for generated VMAC names (default "vrrp")
+    \fBvmac_prefix \fRSTRING
+
+    # Specify the prefix for generated VMAC names for VIPs which use a VMAC but are not
+    # on the VRRP instance's interface (default vmac_prefix value)
+    \fBvmac_addr_prefix \fRSTRING
 
     # Specify random seed for ${_RANDOM}, to make configurations repeatable (default
     # is to use a seed based on the time, so that each time a different configuration
@@ -1360,7 +1378,13 @@ The syntax for vrrp_instance is :
     #   added to the default interface.
     \fBinterface \fReth0
 
-    # Use VRRP Virtual MAC.
+    # Use VRRP Virtual MAC (macvlan).
+    # The macvlan will be created on the configured interface for
+    # the VRRP instance, and the VIPs, and eVIPs of the matching address
+    # family, which do not specify a different interface will be configured
+    # on the macvlan.
+    # The VRRP adverts will also be sent and received on the macvlan
+    # interface, unless vmac_xmit_base is configured.
     # \fBNOTE\fR: If sysctl net.ipv4.conf.all.rp_filter is set,
     # and this vrrp_instance is an IPv4 instance, using
     # this option will cause the individual interfaces to be
@@ -1371,6 +1395,19 @@ The syntax for vrrp_instance is :
     # \fBNOTE 2\fR: If using use_vmac with unicast peers,
     # vmac_xmit_base must be set.
     \fBuse_vmac \fR[<VMAC_INTERFACE>]
+
+    # use_vmac_addr is used to create VMAC (macvlan) interfaces for
+    # each interface that is used by a VIP or eVIP where the interface
+    # is not the same as the interface on which the VRRP instance is
+    # configured or the eVIP's address family does not match the VRRP
+    # instance's. Alternatively, use_vmac can be specified against each
+    # VIP/eVIP that specifies an interface (dev).
+    # NOTE: if use_vmac is specfied and an eVIP is not the same address
+    # family as the vrrp instance, unless use_vmac_addr is specified, or
+    # use_vmac is specified for the eVIP, the eVIP will be configured on
+    # the vrrp instance's VMAC, which will have the wrong MAC address for
+    # the address family of the eVIP.
+    \fBuse_vmac_addr\fR
 
     # Send/Recv VRRP messages from base interface instead of
     # VMAC interface
@@ -1517,6 +1554,7 @@ The syntax for vrrp_instance is :
     \fBgarp_lower_prio_repeat \fR1
     \fBgarp_master_refresh \fR60
     \fBgarp_master_refresh_repeat \fR2
+    \fBgarp_extra_if [all] \fR100	# specifiying 0 disable feature
 
     # If a lower priority advert is received, don't send another advert.
     # This causes adherence to the RFCs (defaults to global
@@ -1579,8 +1617,20 @@ The syntax for vrrp_instance is :
     # preferred_lft is set to 0 to deprecate IPv6 addresses (this is the
     # default if the address mask is /128). Use "preferred_lft forever"
     # to specify that a /128 address should not be deprecated.
+    # NOTE: care needs to be taken if dev is specified for an address and
+    # your network uses MAC learning switches. The VRRP protocol ensures
+    # that the source MAC address of the interface sending adverts is
+    # maintained in the MAC cache of switches; however by default this
+    # will not work for the MACs of any VIPs/eVIPs that are configured on
+    # different interfaces from the interface on which the VRRP instance is
+    # configured, since the interface, especially if it is a VMAC interface,
+    # will only send using the MAC address of the interface in response to
+    # ARP requests. This may mean that the interface MAC addresses may
+    # time out in the MAC caches of switches. In order to avoid this, use
+    # the garp_extra_if or garp_extra_if_vmac options to send periodic
+    # GARP/ND messages on those interfaces.
     \fBvirtual_ipaddress \fR{
-        <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>]
+        <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [use_vmac] [scope <SCOPE>]
                           [label <LABEL>] [peer <IPADDR>] [home]
                           [-nodad] [mngtmpaddr] [noprefixroute]
                           [autojoin] [no_track] [preferred_lft nn|forever]

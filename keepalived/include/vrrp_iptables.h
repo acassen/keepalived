@@ -44,8 +44,8 @@
 extern void handle_iptable_rule_to_iplist(list_head_t *, list_head_t *, int, bool force);
 extern void handle_iptables_accept_mode(vrrp_t *, int, bool);
 #ifdef _HAVE_VRRP_VMAC_
-extern void iptables_add_vmac(const vrrp_t *);
-extern void iptables_remove_vmac(const vrrp_t *);
+extern void iptables_add_vmac(const interface_t *, int, bool);
+extern void iptables_remove_vmac(const interface_t *, int, bool);
 #endif
 extern void iptables_fini(void);
 

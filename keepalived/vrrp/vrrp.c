@@ -1584,6 +1584,62 @@ vrrp_send_link_update(vrrp_t * vrrp, unsigned rep)
 	}
 }
 
+#ifdef _HAVE_VRRP_VMAC_
+static void
+vrrp_send_vmac_update(vrrp_t *vrrp)
+{
+	struct ifs {
+		ifindex_t ifindex;
+		list_head_t e_list;
+	};
+	ip_address_t *ip_addr;
+	list_head_t *vip_list;
+	LIST_HEAD_INITIALIZE(if_list);
+	struct ifs *if_entry, *next_if_entry;
+	bool already_done;
+
+	/* Only send gratuitous ARP if VIP are set */
+	if (!VRRP_VIP_ISSET(vrrp))
+		return;
+
+	/* send a gratuitous arp for each VMAC interface that is not sending adverts */
+	for (vip_list = &vrrp->vip; vip_list; vip_list = vip_list == &vrrp->vip ? &vrrp->evip : NULL) {
+		list_for_each_entry(ip_addr, vip_list, e_list) {
+			/* Don't send for non VMAC i/fs unless specified */
+			if (!ip_addr->ifp->is_ours && !vrrp->vmac_garp_all_if)
+				continue;
+
+			/* Don't send for our own interface unless xmit_base */
+			if (ip_addr->ifp == vrrp->ifp && !__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags))
+				continue;
+
+			/* Check we haven't already sent on this interface */
+			already_done = false;
+			list_for_each_entry_reverse(if_entry, &if_list, e_list) {
+				if (ip_addr->ifp->ifindex == if_entry->ifindex) {
+					already_done = true;
+					break;
+				}
+			}
+			if (already_done)
+				continue;
+
+			vrrp_send_update(vrrp, ip_addr, true);
+
+			/* Save if ifindex to avoid sending on that interface again */
+			PMALLOC(if_entry);
+			INIT_LIST_HEAD(&if_entry->e_list);
+			if_entry->ifindex = ip_addr->ifp->ifindex;
+			list_add_tail(&if_entry->e_list, &if_list);
+		}
+	}
+
+	/* Free the list of ifindices we have sent on */
+	list_for_each_entry_safe(if_entry, next_if_entry, &if_list, e_list)
+		FREE(if_entry);
+}
+#endif
+
 static void
 vrrp_remove_delayed_arp(vrrp_t *vrrp)
 {
@@ -1638,10 +1694,14 @@ vrrp_state_become_master(vrrp_t * vrrp)
 
 	vrrp_send_link_update(vrrp, vrrp->garp_rep);
 
-	/* set refresh timer */
-	if (timerisset(&vrrp->garp_refresh)) {
+	/* set GARP/NA refresh timer */
+	if (timerisset(&vrrp->garp_refresh))
 		vrrp->garp_refresh_timer = timer_add_now(vrrp->garp_refresh);
-	}
+
+#ifdef _HAVE_VRRP_VMAC_
+	if (timerisset(&vrrp->vmac_garp_intvl))
+		vrrp->vmac_garp_timer = timer_add_now(vrrp->vmac_garp_intvl);
+#endif
 
 	/* Check if notify is needed */
 	send_instance_notifies(vrrp);
@@ -1919,10 +1979,20 @@ vrrp_state_master_tx(vrrp_t * vrrp)
 		if (vrrp->garp_delay)
 			thread_add_timer(master, vrrp_gratuitous_arp_thread,
 					 vrrp, vrrp->garp_delay);
-	} else if (timerisset(&vrrp->garp_refresh) &&
-		   timercmp(&time_now, &vrrp->garp_refresh_timer, >)) {
-		vrrp_send_link_update(vrrp, vrrp->garp_refresh_rep);
-		vrrp->garp_refresh_timer = timer_add_now(vrrp->garp_refresh);
+	} else {
+		if (timerisset(&vrrp->garp_refresh) &&
+		    timercmp(&time_now, &vrrp->garp_refresh_timer, >)) {
+			vrrp_send_link_update(vrrp, vrrp->garp_refresh_rep);
+			vrrp->garp_refresh_timer = timer_add_now(vrrp->garp_refresh);
+		}
+
+#ifdef _HAVE_VRRP_VMAC_
+		if (timerisset(&vrrp->vmac_garp_intvl) &&
+		    timercmp(&time_now, &vrrp->vmac_garp_timer, >)) {
+			vrrp_send_vmac_update(vrrp);
+			vrrp->vmac_garp_timer = timer_add_now(vrrp->vmac_garp_intvl);
+		}
+#endif
 	}
 }
 
@@ -2440,7 +2510,13 @@ vrrp_exist(vrrp_t *old_vrrp, list_head_t *l)
 
 	list_for_each_entry(vrrp, l, e_list) {
 		if (vrrp->vrid != old_vrrp->vrid ||
-		    vrrp->family != old_vrrp->family)
+		    vrrp->family != old_vrrp->family ||
+#ifdef _HAVE_VRRP_VMAC_
+		    vrrp->configured_ifp != old_vrrp->configured_ifp
+#else
+		    vrrp->ifp != old_vrrp->ifp
+#endif
+								)
 			continue;
 
 		/* Check for unicast match */
@@ -2448,36 +2524,20 @@ vrrp_exist(vrrp_t *old_vrrp, list_head_t *l)
 			continue;
 
 		if (!list_empty(&vrrp->unicast_peer)) {
-			if (!vrrp->ifp != !old_vrrp->ifp)
-				continue;
-
 			if (inet_sockaddrcmp(&old_vrrp->saddr, &vrrp->saddr))
 				continue;
 
-			if (!vrrp->ifp)
-				return vrrp;
-
-			if (vrrp->ifp == old_vrrp->ifp)
-				return vrrp;
-
-			continue;
+			return vrrp;
 		}
 
-#ifndef _HAVE_VRRP_VMAC_
-		if (vrrp->ifp == old_vrrp->ifp)
-			return vrrp;
-#else
+#ifdef _HAVE_VRRP_VMAC_
 		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) != __test_bit(VRRP_VMAC_BIT, &old_vrrp->vmac_flags))
-			continue;
-		if (!__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
-			if (vrrp->ifp == old_vrrp->ifp)
-				return vrrp;
-			continue;
-		}
-
-		if (vrrp->configured_ifp == old_vrrp->configured_ifp)
-			return vrrp;
+			return NULL;
+		if (__test_bit(VRRP_VMAC_ADDR_BIT, &vrrp->vmac_flags) != __test_bit(VRRP_VMAC_ADDR_BIT, &old_vrrp->vmac_flags))
+			return NULL;
 #endif
+
+		return vrrp;
 	}
 
 	return NULL;
@@ -2504,6 +2564,10 @@ void
 shutdown_vrrp_instances(void)
 {
 	vrrp_t *vrrp;
+#ifdef _HAVE_VRRP_VMAC_
+	list_head_t *vip_list;
+	ip_address_t *vip;
+#endif
 
 #ifdef _HAVE_VRRP_VMAC_
 	restore_rp_filter();
@@ -2518,6 +2582,29 @@ shutdown_vrrp_instances(void)
 			 * still point to the physical interface. */
 			if (vrrp->ifp->is_ours)
 				netlink_link_del_vmac(vrrp);
+
+			for (vip_list = &vrrp->vip; vip_list; vip_list = vip_list == &vrrp->vip ? &vrrp->evip : NULL) {
+				list_for_each_entry(vip, vip_list, e_list) {
+					if (vrrp->ifp == vip->ifp)
+						continue;
+
+					if (!vip->ifp->is_ours)
+						continue;
+
+					if (!vip->ifp->ifindex)
+						continue;
+
+					/* For now create a dummy vrrp_instance to delete the VMAC i/f */
+					vrrp_t addr_vrrp = { .ifp = vip->ifp };
+					addr_vrrp.family = vip->ifa.ifa_family;
+					addr_vrrp.iname = vrrp->iname;
+					strcpy(addr_vrrp.vmac_ifname, vip->ifp->ifname);
+					__set_bit(VRRP_VMAC_BIT, &addr_vrrp.vmac_flags);	// This should be superfluous
+					netlink_link_del_vmac(&addr_vrrp);
+
+					vip->ifp->ifindex = 0;		/* We are no longer running the kernel_netlink_monitor */
+				}
+			}
 #endif
 
 			if (vrrp->ifp->promote_secondaries)
@@ -2621,15 +2708,61 @@ add_vrrp_to_track_bfd(vrrp_t *vrrp, tracked_bfd_t *tbfd)
 }
 #endif
 
+#ifdef _HAVE_VRRP_VMAC_
+static interface_t *
+create_vmac_name(const char *prefix, uint8_t vrid, int family)
+{
+	char ifname[IFNAMSIZ];
+	interface_t *ifp;
+	unsigned short num=0;
+	int len;
+
+	len = snprintf(ifname, IFNAMSIZ, "%s.%d", prefix, vrid);
+	if (len >= IFNAMSIZ)
+		snprintf(ifname, IFNAMSIZ, "%.*s.%d", (int)strlen(prefix) - (len - IFNAMSIZ) - 1, prefix, vrid);
+
+	while (true) {
+		/* If there is no VMAC with the name and no existing
+		 * interface with the name, we can use it.
+		 * It we are using dynamic interfaces, the interface entry
+		 * may have been created by the configuration, but in that
+		 * case the ifindex will be 0. */
+// This was wrong if dynamic interfaces and an interface has already been specified but it doesn't exist
+		if ((ifp = if_get_by_ifname(ifname, IF_CREATE_NOT_EXIST)))
+			return ifp;
+
+		/* For IPv6 try vrrp6 as second attempt */
+		if (family == AF_INET6) {
+			if (num == 0)
+				num = 6;
+			else if (num == 6)
+				num = 1;
+			else if (++num == 6)
+				num++;
+		}
+		else
+			num++;
+
+		len = snprintf(ifname, IFNAMSIZ, "%s%d.%d", prefix, num, vrid);
+		if (len >= IFNAMSIZ)
+			snprintf(ifname, IFNAMSIZ, "%.*s%d.%d", (int)strlen(prefix) - (len - IFNAMSIZ) - 1, prefix, num, vrid);
+	}
+}
+#endif
+
 /* complete vrrp structure */
 static bool
 vrrp_complete_instance(vrrp_t * vrrp)
 {
 #ifdef _HAVE_VRRP_VMAC_
-	char ifname[IFNAMSIZ];
 	interface_t *ifp = NULL;
 	const char *if_type;
+	interface_t *base_ifp;
+	bool if_sorted;
+	bool use_extra_if = false;
+	bool use_extra_vmac = false;
 #endif
+	list_head_t *vip_list;
 	ip_address_t *ip_addr, *ip_addr_tmp;
 	size_t hdr_len;
 	size_t max_addr;
@@ -3137,39 +3270,14 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 		/* No interface found, find an unused name */
 		if (!vrrp->vmac_ifname[0]) {
-			unsigned short num=0;
-			snprintf(ifname, IFNAMSIZ, "vrrp.%d", vrrp->vrid);
-
-			while (true) {
-				/* If there is no VMAC with the name and no existing
-				 * interface with the name, we can use it.
-				 * It we are using dynamic interfaces, the interface entry
-				 * may have been created by the configuration, but in that
-				 * case the ifindex will be 0. */
-				if ((!(ifp = if_get_by_ifname(ifname, IF_NO_CREATE)) || !ifp->ifindex))
-					break;
-
-				/* For IPv6 try vrrp6 as second attempt */
-				if (vrrp->family == AF_INET6) {
-					if (num == 0)
-						num = 6;
-					else if (num == 6)
-						num = 1;
-					else if (++num == 6)
-						num++;
-				}
-				else
-					num++;
-
-				snprintf(ifname, IFNAMSIZ, "vrrp%d.%d", num, vrrp->vrid);
-			}
+			ifp = create_vmac_name(global_data->vmac_prefix ? global_data->vmac_prefix : "vrrp", vrrp->vrid, vrrp->family);
 
 			/* We've found a unique name */
-			strcpy_safe(vrrp->vmac_ifname, ifname);
-		}
+			strcpy_safe(vrrp->vmac_ifname, ifp->ifname);
+		} else if (!interface_already_existed)
+			ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_CREATE_ALWAYS);
 
 		if (!interface_already_existed) {
-			ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_CREATE_ALWAYS);
 			ifp->base_ifp = vrrp->ifp;
 			vrrp->ifp = ifp;
 		}
@@ -3281,6 +3389,32 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				netlink_link_add_vmac(vrrp);
 		}
 
+		if (vrrp->ifp->base_ifp->ifindex &&
+		    !__test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags) &&
+		    __test_bit(CONFIG_TEST_BIT, &debug)) {
+#ifdef _HAVE_VRRP_IPVLAN_
+			if (!__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags))
+#endif
+			{
+				ifp = if_get_by_vmac(vrrp->vrid, vrrp->family, vrrp->ifp->base_ifp);
+				if (ifp)
+					vrrp->ifp = ifp;
+				else {
+					ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_CREATE_ALWAYS);
+					ifp->is_ours = true;
+					ifp->if_type = IF_TYPE_MACVLAN;
+					ifp->base_ifp = vrrp->ifp;
+					ifp->hw_addr[0] = ll_addr[0];
+					ifp->hw_addr[1] = ll_addr[1];
+					ifp->hw_addr[2] = ll_addr[2];
+					ifp->hw_addr[3] = ll_addr[3];
+					ifp->hw_addr[4] = vrrp->family == AF_INET ?  0x01 : 0x02;
+					ifp->hw_addr[5] = vrrp->vrid;
+					vrrp->ifp = ifp;
+				}
+			}
+		}
+
 		/* Add this instance to the vmac interface */
 		add_vrrp_to_interface(vrrp, vrrp->ifp, vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, false, true, TRACK_VRRP);
 	}
@@ -3334,15 +3468,97 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	 * an interface, remove the address. */
 	for (vip_list = &vrrp->vip; vip_list; vip_list = vip_list == &vrrp->vip ? &vrrp->evip : NULL) {
 		list_for_each_entry_safe(ip_addr, ip_addr_tmp, vip_list, e_list) {
-			if (!ip_addr->ifp) {
-				ip_addr->ifp = vrrp->ifp ? vrrp->ifp : get_default_if();
-
-				if (!ip_addr->ifp) {
-					log_message(LOG_INFO, "(%s): no interface for %svip %s - removing", vrrp->iname, vip_list == &vrrp->vip ? "" : "e", ipaddresstos(NULL, ip_addr));
-					free_ipaddress(ip_addr);
-					continue;
-				}
+#ifdef _HAVE_VRRP_VMAC_
+			/* Check sanity regarding use_vmac.
+			 * use_vmac applies if (no interface specified or interface == vrrp_interface) AND address families match
+			 * use_vmac_addr applies otherwise. */
+			if (ip_addr->use_vmac) {
+				ip_addr->use_vmac = false;	/* It will be set true if needed */
+				if ((!ip_addr->ifp || ip_addr->ifp == vrrp->configured_ifp) &&
+				     __test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
+				     ip_addr->ifa.ifa_family == vrrp->family) {
+					report_config_error(CONFIG_GENERAL_ERROR, "(%s) use_vmac specified for VIP/eVIP %s and vrrp instance", vrrp->iname, ipaddresstos(NULL, ip_addr));
+					ip_addr->ifp = vrrp->ifp;
+				} else if (((ip_addr->ifp && ip_addr->ifp != vrrp->configured_ifp) ||
+					     ip_addr->ifa.ifa_family != vrrp->family) &&
+					    __test_bit(VRRP_VMAC_ADDR_BIT, &vrrp->vmac_flags))
+					report_config_error(CONFIG_GENERAL_ERROR, "(%s) use_vmac_addr specified and use_vmac specified for VIP/eVIP %s", vrrp->iname, ipaddresstos(NULL, ip_addr));
+				else
+					ip_addr->use_vmac = true;
 			}
+
+			if (!ip_addr->ifp || ip_addr->ifp == vrrp->configured_ifp) {
+				if_sorted = true;
+				if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
+				    vrrp->family == ip_addr->ifa.ifa_family)
+					ip_addr->ifp = vrrp->ifp;
+				else {
+					ip_addr->ifp = vrrp->configured_ifp;
+
+					if (ip_addr->use_vmac ||
+					    (__test_bit(VRRP_VMAC_ADDR_BIT, &vrrp->vmac_flags) &&
+					     ip_addr->ifa.ifa_family != vrrp->family))
+						if_sorted = false;
+				}
+			} else
+				if_sorted = !(ip_addr->use_vmac || __test_bit(VRRP_VMAC_ADDR_BIT, &vrrp->vmac_flags));
+
+			if (!if_sorted) {
+				/* Now add VMACs for any addresses */
+				base_ifp = ip_addr->ifp;
+
+				ifp = if_get_by_vmac(vrrp->vrid, ip_addr->ifa.ifa_family, ip_addr->ifp);
+
+				if (!ifp) {
+					ifp = create_vmac_name(global_data->vmac_addr_prefix ? global_data->vmac_addr_prefix :
+							       global_data->vmac_prefix ? global_data->vmac_prefix : "vrrp",
+							       vrrp->vrid, ip_addr->ifa.ifa_family);
+
+					if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
+						/* For now create a dummy vrrp_instance to add the VMAC i/f */
+						vrrp_t addr_vrrp = { .vrid = vrrp->vrid };
+						addr_vrrp.ifp = ifp;
+						addr_vrrp.family = ip_addr->ifa.ifa_family;
+						strcpy(addr_vrrp.vmac_ifname, ifp->ifname);
+						addr_vrrp.iname = vrrp->iname;
+						addr_vrrp.configured_ifp = base_ifp;
+						addr_vrrp.saddr.ss_family = AF_UNSPEC;
+						netlink_link_add_vmac(&addr_vrrp);
+					} else {
+						ifp->is_ours = true;
+						ifp->if_type = IF_TYPE_MACVLAN;
+						ifp->base_ifp = ip_addr->ifp;
+						ifp->hw_addr[0] = ll_addr[0];
+						ifp->hw_addr[1] = ll_addr[1];
+						ifp->hw_addr[2] = ll_addr[2];
+						ifp->hw_addr[3] = ll_addr[3];
+						ifp->hw_addr[4] = ip_addr->ifa.ifa_family == AF_INET ?  0x01 : 0x02;
+						ifp->hw_addr[5] = vrrp->vrid;
+					}
+
+					if (!ip_addr->dont_track)
+						add_vrrp_to_interface(vrrp, ifp, 0, false, false, TRACK_ADDR);
+				}
+				ip_addr->ifp = ifp;
+			}
+#else
+			ip_addr->ifp = vrrp->ifp;
+#endif
+
+			if (!ip_addr->ifp) {
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s): no interface for %svip %s - removing", vrrp->iname, vip_list == &vrrp->vip ? "" : "e", ipaddresstos(NULL, ip_addr));
+				free_ipaddress(ip_addr);
+				continue;
+			}
+
+#ifdef _HAVE_VRRP_VMAC_
+			if (ip_addr->ifp != vrrp->ifp) {
+				if (ip_addr->ifp->is_ours)
+					use_extra_vmac = true;
+				else
+					use_extra_if = true;
+			}
+#endif
 
 			/* If the vrrp instance doesn't track its primary interface,
 			 * ensure that VIPs/eVIPs don't cause it to be tracked. */
@@ -3361,6 +3577,20 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				have_ipv6_instance = true;
 		}
 	}
+
+#ifdef _HAVE_VRRP_VMAC_
+	if (vrrp->vmac_garp_intvl.tv_sec == PARAMETER_UNSET) {
+		vrrp->vmac_garp_intvl.tv_sec = global_data->vrrp_vmac_garp_intvl;
+		vrrp->vmac_garp_all_if = global_data->vrrp_vmac_garp_all_if;
+	}
+
+	/* If there are no extra interfaces, disable vmac_garp_intvl */
+	if (vrrp->vmac_garp_intvl.tv_sec) {
+		if ((!use_extra_if && !use_extra_vmac) ||
+		    (!use_extra_vmac && !vrrp->vmac_garp_all_if))
+			vrrp->vmac_garp_intvl.tv_sec = 0;
+	}
+#endif
 
 	if (list_empty(&vrrp->vip)) {
 		if (vrrp->version == VRRP_VERSION_3 || vrrp->family == AF_INET6 || vrrp->strict_mode) {
@@ -3940,6 +4170,80 @@ check_vrid_conflicts(void)
 	return had_error;
 }
 
+#ifdef _HAVE_VRRP_VMAC_
+static void
+check_vmac_conflicts(void)
+{
+	vrrp_t *vrrp, *vrrp1;
+	ip_address_t *vip, *vip1;
+	list_head_t *vip_list, *vip_list1;
+
+	/* Now check that independant vrrp instances (i.e. not in a sync group)
+	 * are not trying to use the same VMAC (macvlan) interface. */
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
+		list_for_each_entry(vrrp1, &vrrp_data->vrrp, e_list) {
+			if (vrrp == vrrp1)
+				break;
+
+			/* If the VRIDs are different, there cannot be a conflict */
+			if (vrrp->vrid != vrrp1->vrid)
+				continue;
+
+			/* If they are in the same sync group, they can use the same VMAC */
+			if (vrrp->sync && vrrp->sync == vrrp1->sync)
+				continue;
+
+			if (vrrp->family != vrrp1->family &&
+			    !vrrp->evip_other_family &&
+			    !vrrp1->evip_other_family)
+				continue;
+
+			/* Check vrrp's vmac against vrrp1 VIPs */
+			if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
+			    (vrrp->family == vrrp1->family || vrrp1->evip_other_family)) {
+				/* Only check if vrrp families match, or evips if have evips from other family */
+				for (vip_list = vrrp->family == vrrp1->family ? &vrrp1->vip : &vrrp1->evip; vip_list; vip_list = vip_list == &vrrp1->vip ? &vrrp1->evip : NULL) {
+					list_for_each_entry(vip, vip_list, e_list) {
+						if (vrrp->ifp == vip->ifp) {
+							report_config_error(CONFIG_GENERAL_ERROR, "(%s) VIP/eVIP %s uses same VMAC as VRRP instance %s, disabling %s", vrrp1->iname, ipaddresstos(NULL, vip), vrrp->iname, vrrp->iname);
+							vrrp->num_script_if_fault++;
+						}
+					}
+				}
+			}
+
+			/* Check vrrp's VIP's i/fs against vrrp1's VIP's i/fs */
+			for (vip_list = &vrrp->vip; vip_list; vip_list = vip_list == &vrrp->vip ? &vrrp->evip : NULL) {
+				for (vip_list1 = &vrrp1->vip; vip_list1; vip_list1 = vip_list1 == &vrrp1->vip ? &vrrp1->evip : NULL) {
+					if (vrrp->family != vrrp1->family) {
+						if (vip_list == &vrrp->vip && vip_list1 == &vrrp1->vip)
+							continue;
+						if (vip_list == &vrrp->vip && vip_list1 == &vrrp1->evip && !vrrp1->evip_other_family)
+							continue;
+						if (vip_list == &vrrp->evip && !vrrp->evip_other_family && vip_list1 == &vrrp1->vip)
+							continue;
+						if (vip_list == &vrrp->evip && !vrrp->evip_other_family && vip_list1 == &vrrp1->evip && !vrrp1->evip_other_family)
+							continue;
+					}
+
+					list_for_each_entry(vip, vip_list, e_list) {
+						list_for_each_entry(vip1, vip_list1, e_list) {
+							if (vip->ifp->is_ours && vip->ifp == vip1->ifp) {
+								char vip1_str[IPADDRESSTOS_BUF_LEN];
+
+								ipaddresstos(vip1_str, vip1);
+								report_config_error(CONFIG_GENERAL_ERROR, "(%s) VIP/eVIP %s uses same VMAC as VRRP instance %s VIP/eVIP %s, disabling %s", vrrp1->iname, ipaddresstos(NULL, vip), vrrp->iname, vip1_str, vrrp->iname);
+								vrrp->num_script_if_fault++;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+#endif
+
 bool
 vrrp_complete_init(void)
 {
@@ -4047,6 +4351,10 @@ vrrp_complete_init(void)
 		if (vrrp->ifp && vrrp->ifp->mtu > max_mtu_len)
 			max_mtu_len = vrrp->ifp->mtu;
 	}
+
+#ifdef _HAVE_VRRP_VMAC_
+	check_vmac_conflicts();
+#endif
 
 	/* Remove any VIPs from the list of default addresses for interfaces */
 	if (!reload)
@@ -4338,10 +4646,9 @@ void
 clear_diff_vrrp(void)
 {
 	vrrp_t *vrrp;
+	vrrp_t *new_vrrp;
 
 	list_for_each_entry(vrrp, &old_vrrp_data->vrrp, e_list) {
-		vrrp_t *new_vrrp;
-
 		/*
 		 * Try to find this vrrp in the new conf data
 		 * reloaded.
@@ -4361,8 +4668,10 @@ clear_diff_vrrp(void)
 #ifdef _HAVE_VRRP_VMAC_
 // TODO - the vmac may be being used by another instance
 			/* Remove VMAC if one was created */
-			if (vrrp->ifp && vrrp->ifp->is_ours /*__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)*/)
+			if (vrrp->ifp && vrrp->ifp->is_ours /*__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)*/) {
 				netlink_link_del_vmac(vrrp);
+				/* Need to delete ADDR VMACs */
+			}
 #endif
 #ifdef _WITH_DBUS_
 			/* Remove DBus object */
@@ -4374,6 +4683,7 @@ clear_diff_vrrp(void)
 			 * If this vrrp instance exist in new
 			 * data, then perform a VIP|EVIP diff.
 			 */
+// !!!! Isn't this only necessary if MASTER ???? TODO
 #ifdef _HAVE_FIB_ROUTING_
 			/* virtual rules diff */
 			clear_diff_vrrp_vrules(vrrp, new_vrrp);
@@ -4416,8 +4726,44 @@ clear_diff_vrrp(void)
 		}
 	}
 
-#ifdef _WITH_FIREWALL_
-//XXX	firewall_close();
+#ifdef _HAVE_VRRP_VMAC_
+	/* Remove any address VMACs that we had, but are no longer being used */
+interface_t *ifp;
+bool found;
+list_head_t *vip_list;
+ip_address_t *vip;
+list_head_t *if_queue = get_interface_queue();
+
+	list_for_each_entry(ifp, if_queue, e_list) {
+		if (!ifp->is_ours)
+			continue;
+		found = false;
+		list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
+			if (vrrp->ifp == ifp) {
+				found = true;
+				break;
+			}
+			for (vip_list = &vrrp->vip; vip_list && !found; vip_list = vip_list == &vrrp->vip ? &vrrp->evip : NULL) {
+				list_for_each_entry(vip, vip_list, e_list) {
+					if (vip->ifp == ifp) {
+						found = true;
+						break;
+					}
+				}
+			}
+		}
+
+		if (!found) {
+log_message(LOG_INFO, "Removing %s", ifp->ifname);
+			/* For now create a dummy vrrp_instance to delete the VMAC i/f */
+			vrrp_t addr_vrrp = { .ifp = ifp };
+			addr_vrrp.family = ifp->hw_addr[sizeof(ll_addr) - 2] == 0x01 ? AF_INET : AF_INET6;
+			addr_vrrp.iname = vrrp->iname;
+			strcpy(addr_vrrp.vmac_ifname, ifp->ifname);
+			__set_bit(VRRP_VMAC_BIT, &addr_vrrp.vmac_flags);        // This should be superfluous
+			netlink_link_del_vmac(&addr_vrrp);
+		}
+	}
 #endif
 }
 

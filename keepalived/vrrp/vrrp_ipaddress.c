@@ -254,8 +254,14 @@ format_ipaddress(const ip_address_t *ip_addr, char *buf, size_t buf_len)
 		buf_p += snprintf(buf_p, buf_end - buf_p, " brd %s",
 			 inet_ntop2(ip_addr->u.sin.sin_brd.s_addr));
 	}
-	buf_p += snprintf(buf_p, buf_end - buf_p, " dev %s scope %s"
-			       , IF_NAME(ip_addr->ifp)
+	buf_p += snprintf(buf_p, buf_end - buf_p, " dev %s", IF_NAME(ip_addr->ifp));
+#ifdef _HAVE_VRRP_VMAC_
+	if (ip_addr->ifp != ip_addr->ifp->base_ifp)
+		buf_p += snprintf(buf_p, buf_end - buf_p, "@%s", ip_addr->ifp->base_ifp->ifname);
+	if (ip_addr->use_vmac)
+		buf_p += snprintf(buf_p, buf_end - buf_p, "%s" , " use_vmac");
+#endif
+	buf_p += snprintf(buf_p, buf_end - buf_p, " scope %s"
 			       , get_rttables_scope(ip_addr->ifa.ifa_scope));
 	if (ip_addr->label)
 		buf_p += snprintf(buf_p, buf_end - buf_p, " label %s", ip_addr->label);
@@ -459,7 +465,7 @@ alloc_ipaddress(list_head_t *ip_list, const vector_t *strvec, bool static_addr)
 			}
 
 			if (new->ifp) {
-				report_config_error(CONFIG_GENERAL_ERROR, "Cannot specify static ipaddress device more than once for %s", strvec_slot(strvec, addr_idx));
+				report_config_error(CONFIG_GENERAL_ERROR, "Cannot specify ipaddress device more than once for %s", strvec_slot(strvec, addr_idx));
 				FREE(new);
 				return;
 			}
@@ -595,6 +601,8 @@ alloc_ipaddress(list_head_t *ip_list, const vector_t *strvec, bool static_addr)
 			}
 			if (!(new->track_group = static_track_group_find(strvec_slot(strvec, i))))
 				report_config_error(CONFIG_GENERAL_ERROR, "track_group %s not found", strvec_slot(strvec, i));
+		} else if (!static_addr && !strcmp(str, "use_vmac")) {
+			new->use_vmac = true;
 		} else
 			report_config_error(CONFIG_GENERAL_ERROR, "Unknown configuration entry '%s' for ip address - ignoring", str);
 		i++;
@@ -659,6 +667,13 @@ alloc_ipaddress(list_head_t *ip_list, const vector_t *strvec, bool static_addr)
 		report_config_error(CONFIG_GENERAL_ERROR, "Static route cannot have track_group if interface not specified");
 		new->track_group = NULL;
 	}
+
+#if 0
+	if (!new->ifp && new->use_vmac) {
+		report_config_error(CONFIG_GENERAL_ERROR, "use_vmac for a address requires an interface");
+		new->use_vmac = false;
+	}
+#endif
 
 	list_add_tail(&new->e_list, ip_list);
 }

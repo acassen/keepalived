@@ -412,7 +412,7 @@ add_immediate_data(struct nftnl_rule *r, uint32_t reg, const void *data, uint32_
 	}
 
 	nftnl_expr_set_u32(e, NFTNL_EXPR_IMM_DREG, reg);
-	nftnl_expr_set(e, NFTNL_EXPR_IMM_DATA, data, data_len);
+	nftnl_expr_set_data(e, NFTNL_EXPR_IMM_DATA, data, data_len);
 
 	nftnl_rule_add_expr(r, e);
 }
@@ -432,7 +432,7 @@ add_cmp(struct nftnl_rule *r, uint32_t sreg, uint32_t op,
 
 	nftnl_expr_set_u32(e, NFTNL_EXPR_CMP_SREG, sreg);
 	nftnl_expr_set_u32(e, NFTNL_EXPR_CMP_OP, op);
-	nftnl_expr_set(e, NFTNL_EXPR_CMP_DATA, data, data_len);
+	nftnl_expr_set_data(e, NFTNL_EXPR_CMP_DATA, data, data_len);
 
 	nftnl_rule_add_expr(r, e);
 }
@@ -452,8 +452,8 @@ add_bitwise(struct nftnl_rule *r, uint32_t sreg, uint32_t dreg,
 	nftnl_expr_set_u32(e, NFTA_BITWISE_SREG, sreg);
 	nftnl_expr_set_u32(e, NFTA_BITWISE_DREG, dreg);
 	nftnl_expr_set_u32(e, NFTA_BITWISE_LEN, len);
-	nftnl_expr_set(e, NFTA_BITWISE_MASK, mask, len);
-	nftnl_expr_set(e, NFTA_BITWISE_XOR, xor, len);
+	nftnl_expr_set_data(e, NFTA_BITWISE_MASK, mask, len);
+	nftnl_expr_set_data(e, NFTA_BITWISE_XOR, xor, len);
 
 	nftnl_rule_add_expr(r, e);
 }
@@ -1866,7 +1866,7 @@ nft_update_vmac_element(struct mnl_nlmsg_batch *batch, struct nftnl_set *s, ifin
 }
 
 static void
-nft_update_vmac_family(struct mnl_nlmsg_batch *batch, const vrrp_t *vrrp, uint8_t nfproto, int cmd)
+nft_update_vmac_family(struct mnl_nlmsg_batch *batch, const interface_t *ifp, uint8_t nfproto, int cmd)
 {
 	struct nftnl_set *s;
 
@@ -1884,37 +1884,37 @@ nft_update_vmac_family(struct mnl_nlmsg_batch *batch, const vrrp_t *vrrp, uint8_
 		nftnl_set_set_str(s, NFTNL_SET_NAME, vmac_map_name);
 	}
 
-	nft_update_vmac_element(batch, s, vrrp->ifp->ifindex, vrrp->ifp->base_ifp->ifindex, cmd, nfproto);
+	nft_update_vmac_element(batch, s, ifp->ifindex, ifp->base_ifp->ifindex, cmd, nfproto);
 
 	nftnl_set_free(s);
 }
 
 static void
-nft_update_vmac(const vrrp_t *vrrp, int cmd)
+nft_update_vmac(const interface_t *ifp, int family, bool other_family, int cmd)
 {
 	struct mnl_nlmsg_batch *batch;
-	uint8_t nfproto = vrrp->family == AF_INET ? NFPROTO_IPV4 : NFPROTO_IPV6;
+	uint8_t nfproto = family == AF_INET ? NFPROTO_IPV4 : NFPROTO_IPV6;
 
 	batch = nft_start_batch();
 
-	nft_update_vmac_family(batch, vrrp, nfproto, cmd);
+	nft_update_vmac_family(batch, ifp, nfproto, cmd);
 
-	if (vrrp->evip_other_family)
-		nft_update_vmac_family(batch, vrrp, nfproto == NFPROTO_IPV4 ? NFPROTO_IPV6 : NFPROTO_IPV4, cmd);
+	if (other_family)
+		nft_update_vmac_family(batch, ifp, nfproto == NFPROTO_IPV4 ? NFPROTO_IPV6 : NFPROTO_IPV4, cmd);
 
 	nft_end_batch(batch, false);
 }
 
 void
-nft_add_vmac(const vrrp_t *vrrp)
+nft_add_vmac(const interface_t *ifp, int family, bool other_family)
 {
-	nft_update_vmac(vrrp, NFT_MSG_NEWSETELEM);
+	nft_update_vmac(ifp, family, other_family, NFT_MSG_NEWSETELEM);
 }
 
 void
-nft_remove_vmac(const vrrp_t *vrrp)
+nft_remove_vmac(const interface_t *ifp, int family, bool other_family)
 {
-	nft_update_vmac(vrrp, NFT_MSG_DELSETELEM);
+	nft_update_vmac(ifp, family, other_family, NFT_MSG_DELSETELEM);
 }
 #endif
 

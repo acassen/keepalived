@@ -603,7 +603,7 @@ handle_iptable_rule_for_igmp(const char *ifname, int cmd, int family, struct ipt
 }
 
 static void
-iptables_update_vmac(const vrrp_t *vrrp, int cmd)
+iptables_update_vmac(const interface_t *ifp, int family, bool other_family, int cmd)
 {
 	struct ipt_handle *h;
 	int tries = 0;
@@ -612,23 +612,23 @@ iptables_update_vmac(const vrrp_t *vrrp, int cmd)
 	do {
 		h = iptables_open(cmd);
 
-		handle_iptable_rule_for_igmp(vrrp->ifp->ifname, cmd, vrrp->family, h);
+		handle_iptable_rule_for_igmp(ifp->ifname, cmd, family, h);
 
-		if (vrrp->evip_other_family)
-			handle_iptable_rule_for_igmp(vrrp->ifp->ifname, cmd, vrrp->family == AF_INET ? AF_INET6 : AF_INET, h);
+		if (other_family)
+			handle_iptable_rule_for_igmp(ifp->ifname, cmd, family == AF_INET ? AF_INET6 : AF_INET, h);
 		res = iptables_close(h);
 	} while (res == EAGAIN && ++tries < IPTABLES_MAX_TRIES);
 }
 
 void
-iptables_add_vmac(const vrrp_t *vrrp)
+iptables_add_vmac(const interface_t *ifp, int family, bool other_family)
 {
-	iptables_update_vmac(vrrp, IPADDRESS_ADD);
+	iptables_update_vmac(ifp, family, other_family, IPADDRESS_ADD);
 }
 
 void
-iptables_remove_vmac(const vrrp_t *vrrp)
+iptables_remove_vmac(const interface_t *ifp, int family, bool other_family)
 {
-	iptables_update_vmac(vrrp, IPADDRESS_DEL);
+	iptables_update_vmac(ifp, family, other_family, IPADDRESS_DEL);
 }
 #endif
