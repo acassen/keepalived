@@ -3332,55 +3332,34 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	 * If the vip hasn't specified an interface, default to the vrrp instance's i/f
 	 * or if it hasn't got one, the global default_interface. If we still haven't got
 	 * an interface, remove the address. */
-	list_for_each_entry_safe(ip_addr, ip_addr_tmp, &vrrp->vip, e_list) {
-		if (!ip_addr->ifp) {
-			ip_addr->ifp = vrrp->ifp ? vrrp->ifp : get_default_if();
-
+	for (vip_list = &vrrp->vip; vip_list; vip_list = vip_list == &vrrp->vip ? &vrrp->evip : NULL) {
+		list_for_each_entry_safe(ip_addr, ip_addr_tmp, vip_list, e_list) {
 			if (!ip_addr->ifp) {
-				log_message(LOG_INFO, "(%s): no interface for vip %s - removing", vrrp->iname, ipaddresstos(NULL, ip_addr));
-				free_ipaddress(ip_addr);
-				continue;
+				ip_addr->ifp = vrrp->ifp ? vrrp->ifp : get_default_if();
+
+				if (!ip_addr->ifp) {
+					log_message(LOG_INFO, "(%s): no interface for %svip %s - removing", vrrp->iname, vip_list == &vrrp->vip ? "" : "e", ipaddresstos(NULL, ip_addr));
+					free_ipaddress(ip_addr);
+					continue;
+				}
 			}
-		}
 
-		/* If the vrrp instance doesn't track its primary interface,
-		 * ensure that VIPs don't cause it to be tracked. */
-		if (!ip_addr->dont_track &&
-		    (!vrrp->dont_track_primary ||
-		     (ip_addr->ifp != vrrp->ifp
+			/* If the vrrp instance doesn't track its primary interface,
+			 * ensure that VIPs/eVIPs don't cause it to be tracked. */
+			if (!ip_addr->dont_track &&
+			    (!vrrp->dont_track_primary ||
+			     (ip_addr->ifp != vrrp->ifp
 #ifdef _HAVE_VRRP_VMAC_
-		      && ip_addr->ifp && ip_addr->ifp != IF_BASE_IFP(vrrp->ifp)
+			      && ip_addr->ifp != IF_BASE_IFP(vrrp->ifp)
 #endif
-							   )))
-			add_vrrp_to_interface(vrrp, ip_addr->ifp, 0, false, false, TRACK_ADDR);
-	}
+								   )))
+				add_vrrp_to_interface(vrrp, ip_addr->ifp, 0, false, false, TRACK_ADDR);
 
-	list_for_each_entry_safe(ip_addr, ip_addr_tmp, &vrrp->evip, e_list) {
-		if (!ip_addr->ifp) {
-			ip_addr->ifp = vrrp->ifp ? vrrp->ifp : get_default_if();
-
-			if (!ip_addr->ifp) {
-				log_message(LOG_INFO, "(%s): no interface for evip %s - removing", vrrp->iname, ipaddresstos(NULL, ip_addr));
-				free_ipaddress(ip_addr);
-				continue;
-			}
+			if (ip_addr->ifa.ifa_family == AF_INET)
+				have_ipv4_instance = true;
+			else
+				have_ipv6_instance = true;
 		}
-
-		/* If the vrrp instance doesn't track its primary interface,
-		 * ensure that eVIPs don't cause it to be tracked. */
-		if (!ip_addr->dont_track &&
-		    (!vrrp->dont_track_primary ||
-		     (ip_addr->ifp != vrrp->ifp
-#ifdef _HAVE_VRRP_VMAC_
-		      && ip_addr->ifp != IF_BASE_IFP(vrrp->ifp)
-#endif
-							   )))
-			add_vrrp_to_interface(vrrp, ip_addr->ifp, 0, false, false, TRACK_ADDR);
-
-		if (ip_addr->ifa.ifa_family == AF_INET)
-			have_ipv4_instance = true;
-		else
-			have_ipv6_instance = true;
 	}
 
 	if (list_empty(&vrrp->vip)) {

@@ -1654,75 +1654,45 @@ nft_update_addresses(const vrrp_t *vrrp, int cmd)
 	struct nftnl_set *ipv6_set = NULL;
 	struct nftnl_set *ipv6_ll_index_set = NULL;
 	struct nftnl_set *ipv6_ll_name_set = NULL;
+	struct nftnl_set *ip_set;
 	bool set_rule = (cmd == NFT_MSG_NEWSETELEM);
 	uint16_t type = (cmd == NFT_MSG_NEWSETELEM) ? NLM_F_CREATE | NLM_F_EXCL | NLM_F_ACK : NLM_F_ACK;
+	const list_head_t *vip_list;
+	int proto;
 
 	batch = nft_start_batch();
 
-	list_for_each_entry(ip_addr, &vrrp->vip, e_list) {
-		if (set_rule == ip_addr->nftable_rule_set)
-			continue;
+	for (vip_list = &vrrp->vip; vip_list; vip_list = vip_list == &vrrp->vip ? &vrrp->evip : NULL) {
+		list_for_each_entry(ip_addr, vip_list, e_list) {
+			if (set_rule == ip_addr->nftable_rule_set)
+				continue;
 
-		if (ip_addr->ifa.ifa_family == AF_INET)
-			nft_update_ipv4_address(batch, ip_addr, &ipv4_set);
-		else
-			nft_update_ipv6_address(batch, ip_addr, vrrp->dont_track_primary, vrrp->ifp,
-					&ipv6_set, &ipv6_ll_index_set, &ipv6_ll_name_set);
+			if (ip_addr->ifa.ifa_family == AF_INET)
+				nft_update_ipv4_address(batch, ip_addr, &ipv4_set);
+			else
+				nft_update_ipv6_address(batch, ip_addr, vrrp->dont_track_primary, vrrp->ifp,
+						&ipv6_set, &ipv6_ll_index_set, &ipv6_ll_name_set);
 
-		ip_addr->nftable_rule_set = set_rule;
+			ip_addr->nftable_rule_set = set_rule;
+		}
 	}
 
-	list_for_each_entry(ip_addr, &vrrp->evip, e_list) {
-		if (set_rule == ip_addr->nftable_rule_set)
-			continue;
+	for (ip_set = ipv4_set, proto = NFPROTO_IPV4; ip_set;
+	     ip_set = 
+		ip_set == ipv4_set ? ipv6_set :
+		ip_set == ipv6_set ? ipv6_ll_index_set :
+		ip_set == ipv6_ll_index_set ? ipv6_ll_name_set : NULL) {
+		if (ip_set) {
+			nlh = nftnl_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
+						    cmd, proto,
+						    type,
+						    seq++);
+			nftnl_set_elems_nlmsg_build_payload(nlh, ip_set);
+			nftnl_set_free(ip_set);
+			my_mnl_nlmsg_batch_next(batch);
+		}
 
-		if (ip_addr->ifa.ifa_family == AF_INET)
-			nft_update_ipv4_address(batch, ip_addr, &ipv4_set);
-		else
-			nft_update_ipv6_address(batch, ip_addr, vrrp->dont_track_primary, vrrp->ifp,
-					&ipv6_set, &ipv6_ll_index_set, &ipv6_ll_name_set);
-
-		ip_addr->nftable_rule_set = set_rule;
-	}
-
-	if (ipv4_set) {
-		nlh = nftnl_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
-					    cmd, NFPROTO_IPV4,
-					    type,
-					    seq++);
-		nftnl_set_elems_nlmsg_build_payload(nlh, ipv4_set);
-		nftnl_set_free(ipv4_set);
-		my_mnl_nlmsg_batch_next(batch);
-	}
-
-	if (ipv6_set) {
-		nlh = nftnl_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
-					    cmd, NFPROTO_IPV6,
-					    type,
-					    seq++);
-		nftnl_set_elems_nlmsg_build_payload(nlh, ipv6_set);
-		nftnl_set_free(ipv6_set);
-		my_mnl_nlmsg_batch_next(batch);
-	}
-
-	if (ipv6_ll_index_set) {
-		nlh = nftnl_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
-					    cmd, NFPROTO_IPV6,
-					    type,
-					    seq++);
-		nftnl_set_elems_nlmsg_build_payload(nlh, ipv6_ll_index_set);
-		nftnl_set_free(ipv6_ll_index_set);
-		my_mnl_nlmsg_batch_next(batch);
-	}
-
-	if (ipv6_ll_name_set) {
-		nlh = nftnl_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
-					    cmd, NFPROTO_IPV6,
-					    type,
-					    seq++);
-		nftnl_set_elems_nlmsg_build_payload(nlh, ipv6_ll_name_set);
-		nftnl_set_free(ipv6_ll_name_set);
-		my_mnl_nlmsg_batch_next(batch);
+		proto = NFPROTO_IPV6;
 	}
 
 	nft_end_batch(batch, false);

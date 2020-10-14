@@ -670,37 +670,25 @@ address_exist(vrrp_t *vrrp, ip_address_t *ip_addr)
 	ip_address_t *ipaddr;
 	char addr_str[INET6_ADDRSTRLEN];
 	void *addr;
+	list_head_t *vip_list;
 
 	/* If the following check isn't made, we get lots of compiler warnings */
 	if (!ip_addr)
 		return true;
 
-
-	list_for_each_entry(ipaddr, &vrrp->vip, e_list) {
-		if (IP_ISEQ(ipaddr, ip_addr)) {
-			ipaddr->set = ip_addr->set;
+	for (vip_list = &vrrp->vip; vip_list; vip_list = vip_list == &vrrp->vip ? &vrrp->evip : NULL ) {
+		list_for_each_entry(ipaddr, vip_list, e_list) {
+			if (IP_ISEQ(ipaddr, ip_addr)) {
+				ipaddr->set = ip_addr->set;
 #ifdef _WITH_IPTABLES_
-			ipaddr->iptable_rule_set = ip_addr->iptable_rule_set;
+				ipaddr->iptable_rule_set = ip_addr->iptable_rule_set;
 #endif
 #ifdef _WITH_NFTABLES_
-			ipaddr->nftable_rule_set = ip_addr->nftable_rule_set;
+				ipaddr->nftable_rule_set = ip_addr->nftable_rule_set;
 #endif
-			ipaddr->ifa.ifa_index = ip_addr->ifa.ifa_index;
-			return true;
-		}
-	}
-
-	list_for_each_entry(ipaddr, &vrrp->evip, e_list) {
-		if (IP_ISEQ(ipaddr, ip_addr)) {
-			ipaddr->set = ip_addr->set;
-#ifdef _WITH_IPTABLES_
-			ipaddr->iptable_rule_set = ip_addr->iptable_rule_set;
-#endif
-#ifdef _WITH_NFTABLES_
-			ipaddr->nftable_rule_set = ip_addr->nftable_rule_set;
-#endif
-			ipaddr->ifa.ifa_index = ip_addr->ifa.ifa_index;
-			return true;
+				ipaddr->ifa.ifa_index = ip_addr->ifa.ifa_index;
+				return true;
+			}
 		}
 	}
 
@@ -722,22 +710,18 @@ void
 get_diff_address(vrrp_t *old, vrrp_t *new, list_head_t *old_addr)
 {
 	ip_address_t *ip_addr, *ip_addr_tmp;
+	list_head_t *vip_list;
 
 	/* No addresses in previous conf */
 	if (list_empty(&old->vip) && list_empty(&old->evip))
 		return;
 
-	list_for_each_entry_safe(ip_addr, ip_addr_tmp, &old->vip, e_list) {
-		if (ip_addr->set && !address_exist(new, ip_addr)) {
-			list_del_init(&ip_addr->e_list);
-			list_add_tail(&ip_addr->e_list, old_addr);
-		}
-	}
-
-	list_for_each_entry_safe(ip_addr, ip_addr_tmp, &old->evip, e_list) {
-		if (ip_addr->set && !address_exist(new, ip_addr)) {
-			list_del_init(&ip_addr->e_list);
-			list_add_tail(&ip_addr->e_list, old_addr);
+	for (vip_list = &old->vip; vip_list; vip_list = vip_list == &old->vip ? &old->evip : NULL ) {
+		list_for_each_entry_safe(ip_addr, ip_addr_tmp, vip_list, e_list) {
+			if (ip_addr->set && !address_exist(new, ip_addr)) {
+				list_del_init(&ip_addr->e_list);
+				list_add_tail(&ip_addr->e_list, old_addr);
+			}
 		}
 	}
 }
