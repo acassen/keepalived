@@ -1311,6 +1311,4 @@ dump_data_vrrp(FILE *fp)
 		conf_write(fp, "------< Interfaces >------");
 		dump_interface_queue(fp, ifq);
 	}
-
-	clear_rt_names();
 }
