@@ -790,7 +790,6 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 					/* Stop coverity issuing NULL pointer dereference warning */
 	int ihl = 0;	/* Stop compiler issuing possibly uninitialised warning */
 	size_t vrrppkt_len;
-	unsigned adver_int;
 #ifdef _WITH_VRRP_AUTH_
 	const ipsec_ah_t *ah;
 #endif
@@ -1166,17 +1165,6 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 
 	if (hd->priority == 0)
 		++vrrp->stats->pri_zero_rcvd;
-
-	if (vrrp->version == VRRP_VERSION_3 && vrrp->state == VRRP_STATE_BACK) {
-// TODO - is this the right place to do this? - Probably not, do it below
-		/* In v3 when we are in BACKUP state, we set our
-		 * advertisement interval to match the MASTER's. */
-		adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_CENTI_HZ;
-		if (vrrp->master_adver_int != adver_int) {
-			log_message(LOG_INFO, "(%s) advertisement interval changed: mine=%u milli-sec, rcved=%u milli-sec",
-				vrrp->iname, vrrp->master_adver_int / (TIMER_HZ / 1000), adver_int / (TIMER_HZ / 1000));
-		}
-	}
 
 	return VRRP_PACKET_OK;
 }
@@ -1618,9 +1606,13 @@ vrrp_state_become_master(vrrp_t * vrrp)
 {
 	++vrrp->stats->become_master;
 
-	if (vrrp->version == VRRP_VERSION_3)
-		log_message(LOG_INFO, "(%s) using locally configured advertisement interval (%u milli-sec)",
-					vrrp->iname, vrrp->adver_int / (TIMER_HZ / 1000));
+	if (vrrp->version == VRRP_VERSION_3 &&
+	    __test_bit(LOG_DETAIL_BIT, &debug) &&
+	    vrrp->master_adver_int != vrrp->adver_int) {
+		log_message(LOG_INFO, "(%s) changing advert interval from %ums to locally configured %ums",
+					vrrp->iname, vrrp->master_adver_int / (TIMER_HZ / 1000), vrrp->adver_int / (TIMER_HZ / 1000));
+		vrrp->master_adver_int = vrrp->adver_int;
+	}
 
 	/* add the ip addresses */
 #ifdef _WITH_FIREWALL_
@@ -1754,8 +1746,6 @@ vrrp_state_leave_master(vrrp_t * vrrp, bool advF)
 	if (vrrp->wantstate == VRRP_STATE_BACK) {
 		log_message(LOG_INFO, "(%s) Entering BACKUP STATE", vrrp->iname);
 		vrrp->preempt_time.tv_sec = 0;
-// TODO - if we are called due to receiving a higher priority advert, do we overwrite master adver int ?
-		vrrp->master_adver_int = vrrp->adver_int;
 	}
 	else if (vrrp->wantstate == VRRP_STATE_FAULT) {
 		log_message(LOG_INFO, "(%s) Entering FAULT STATE", vrrp->iname);
@@ -1852,8 +1842,9 @@ vrrp_state_backup(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buf, ssize_t bu
 			 * in the ADVERTISEMENT
 			 */
 			if (vrrp->master_adver_int != master_adver_int) {
-				log_message(LOG_INFO, "(%s) advertisement interval updated to %u milli-sec from %u milli-sec",
-						vrrp->iname, master_adver_int / (TIMER_HZ / 1000), vrrp->master_adver_int / (TIMER_HZ / 1000));
+				if (__test_bit(LOG_DETAIL_BIT, &debug))
+					log_message(LOG_INFO, "(%s) advertisement interval updated from %ums to %ums by master",
+							vrrp->iname, vrrp->master_adver_int / (TIMER_HZ / 1000), master_adver_int / (TIMER_HZ / 1000));
 				vrrp->master_adver_int = master_adver_int;
 			}
 		}
@@ -2109,8 +2100,9 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 			 * in the ADVERTISEMENT
 			 */
 			if (vrrp->master_adver_int != master_adver_int) {
-				log_message(LOG_INFO, "(%s) advertisement interval updated from %u to %u milli-sec from higher priority master",
-						vrrp->iname, vrrp->master_adver_int / (TIMER_HZ / 1000), master_adver_int / (TIMER_HZ / 1000));
+				if (__test_bit(LOG_DETAIL_BIT, &debug))
+					log_message(LOG_INFO, "(%s) advertisement interval updated from %ums to %ums by new master",
+							vrrp->iname, vrrp->master_adver_int / (TIMER_HZ / 1000), master_adver_int / (TIMER_HZ / 1000));
 				vrrp->master_adver_int = master_adver_int;
 			}
 		}
