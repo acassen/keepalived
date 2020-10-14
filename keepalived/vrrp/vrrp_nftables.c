@@ -1647,7 +1647,7 @@ nft_update_ipv6_address(struct mnl_nlmsg_batch *batch, ip_address_t *addr, bool 
 }
 
 static void
-nft_update_addresses(vrrp_t *vrrp, int cmd)
+nft_update_addresses(const vrrp_t *vrrp, int cmd)
 {
 	struct mnl_nlmsg_batch *batch;
 	struct nlmsghdr *nlh;
@@ -1746,9 +1746,16 @@ nft_remove_addresses(vrrp_t *vrrp)
 void
 nft_remove_addresses_iplist(list_head_t *l)
 {
-	vrrp_t vrrp = { .vip = *l };
+	vrrp_t vrrp = {};
+
+	/* "Borrow" the list of addresses */
+	list_copy(&vrrp.vip, l);
+	INIT_LIST_HEAD(&vrrp.evip);
 
 	nft_update_addresses(&vrrp, NFT_MSG_DELSETELEM);
+
+	/* Restore the list of addresses */
+	list_copy(l, &vrrp.vip);
 }
 
 #ifdef _HAVE_VRRP_VMAC_
