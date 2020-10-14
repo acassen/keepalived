@@ -271,9 +271,10 @@ ndisc_init(void)
 	/* Create the socket descriptor */
 	ndisc_fd = socket(PF_PACKET, SOCK_RAW | SOCK_CLOEXEC | SOCK_NONBLOCK, htons(ETH_P_IPV6));
 
-	if (ndisc_fd >= 0)
-		log_message(LOG_INFO, "Registering gratuitous NDISC shared channel");
-	else {
+	if (ndisc_fd >= 0) {
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "Registering gratuitous NDISC shared channel");
+	} else {
 		log_message(LOG_INFO, "Error %d while registering gratuitous NDISC shared channel", errno);
 		return;
 	}

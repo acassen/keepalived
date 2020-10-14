@@ -226,9 +226,9 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 			/* Be safe here - we don't want to remove a physical interface */
 			if (ifp->vmac_type) {
 				/* We have found a VIF but the vmac or type do not match */
-				log_message(LOG_INFO, "vmac: Removing old VMAC interface %s due to conflicting "
-						      "interface or MAC for vrrp_instance %s!!!"
-						    , vrrp->vmac_ifname, vrrp->iname);
+				log_message(LOG_INFO, "(%s) Removing old VMAC interface %s due to conflicting "
+						      "interface or MAC"
+						    , vrrp->iname, vrrp->vmac_ifname);
 
 				/* Request that NETLINK remove the VIF interface first */
 				memset(&req, 0, sizeof (req));
@@ -239,9 +239,8 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 				req.ifi.ifi_index = (int)IF_INDEX(ifp);
 
 				if (netlink_talk(&nl_cmd, &req.n) < 0) {
-					log_message(LOG_INFO, "vmac: Error removing VMAC interface %s for "
-							      "vrrp_instance %s!!!"
-							    , vrrp->vmac_ifname, vrrp->iname);
+					log_message(LOG_INFO, "(%s) Error removing VMAC interface %s"
+							    , vrrp->iname, vrrp->vmac_ifname);
 					return false;
 				}
 
@@ -299,8 +298,9 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 			return false;
 		}
 
-		log_message(LOG_INFO, "(%s): Success creating VMAC interface %s"
-				    , vrrp->iname, vrrp->vmac_ifname);
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "(%s): Success creating VMAC interface %s"
+					    , vrrp->iname, vrrp->vmac_ifname);
 
 		/*
 		 * Update interface queue and vrrp instance interface binding.
@@ -330,6 +330,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 
 	if (vrrp->family == AF_INET) {
 		/* Set the necessary kernel parameters to make macvlans work for us */
+// If this saves current base_ifp's settings, we need to be careful if multiple VMACs on same i/f
 		if (create_interface)
 			set_interface_parameters(ifp, ifp->base_ifp);
 
@@ -372,7 +373,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		spec->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)spec);
 
 		if (netlink_talk(&nl_cmd, &req.n) < 0)
-			log_message(LOG_INFO, "vmac: Error setting ADDR_GEN_MODE to NONE");
+			log_message(LOG_INFO, "(%s) Error setting ADDR_GEN_MODE to NONE on %s", vrrp->iname, vrrp->ifp->ifname);
 #endif
 
 		if (vrrp->family == AF_INET6 &&
@@ -399,14 +400,17 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 			ipaddress.ifa.ifa_index = vrrp->ifp->ifindex;
 
 			if (netlink_ipaddress(&ipaddress, IPADDRESS_ADD) != 1 && create_interface)
-				log_message(LOG_INFO, "Adding link-local address to vmac failed");
+				log_message(LOG_INFO, "(%s) adding link-local address to %s failed", vrrp->iname, vrrp->ifp->ifname);
 		}
 	}
+
+#ifdef _WITH_FIREWALL_
+	firewall_add_vmac(vrrp);
+#endif
 
 	/* bring it UP ! */
 	__set_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
 	netlink_link_up(vrrp);
-	kernel_netlink_poll();
 
 #if !HAVE_DECL_IFLA_INET6_ADDR_GEN_MODE
 	if (vrrp->family == AF_INET6 || vrrp->evip_other_family) {
@@ -437,9 +441,6 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	 * as we progress */
 	kernel_netlink_poll();
 
-#ifdef _WITH_FIREWALL_
-	firewall_add_vmac(vrrp);
-#endif
 	return true;
 }
 
@@ -535,8 +536,9 @@ netlink_link_add_ipvlan(vrrp_t *vrrp)
 			return false;
 		}
 
-		log_message(LOG_INFO, "(%s): Success creating ipvlan interface %s"
-				    , vrrp->iname, vrrp->vmac_ifname);
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "(%s): Success creating ipvlan interface %s"
+					    , vrrp->iname, vrrp->vmac_ifname);
 
 		/*
 		 * Update interface queue and vrrp instance interface binding.
@@ -634,18 +636,23 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 	req.ifi.ifi_index = (int)vrrp->ifp->ifindex;
 
 	if (netlink_talk(&nl_cmd, &req.n) < 0) {
-		log_message(LOG_INFO, "vmac: Error removing VMAC interface %s for vrrp_instance %s!!!"
-				    , vrrp->vmac_ifname, vrrp->iname);
+		log_message(LOG_INFO, "(%s) Error removing VMAC interface %s"
+				    , vrrp->iname, vrrp->vmac_ifname);
 		return;
 	}
 
 #ifdef _WITH_FIREWALL_
+// Why do we need this test?
+// PROBLEM !!! We have deleted the link, but firewall_remove_vmac uses the ifindex.
 	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
 		firewall_remove_vmac(vrrp);
 #endif
 
-	log_message(LOG_INFO, "vmac: Success removing VMAC interface %s for vrrp_instance %s"
-			    , vrrp->vmac_ifname, vrrp->iname);
+	if (__test_bit(LOG_DETAIL_BIT, &debug))
+		log_message(LOG_INFO, "(%s) Success removing VMAC interface %s"
+				    , vrrp->iname, vrrp->vmac_ifname);
+
+	kernel_netlink_poll();
 
 	return;
 }
@@ -688,7 +695,8 @@ netlink_update_vrf(vrrp_t *vrrp)
 		return;
 	}
 
-	log_message(LOG_INFO, "vmac: Success changing VRF of VMAC interface %s for vrrp_instance %s", vrrp->ifp->ifname, vrrp->iname);
+	if (__test_bit(LOG_DETAIL_BIT, &debug))
+		log_message(LOG_INFO, "vmac: Success changing VRF of VMAC interface %s for vrrp_instance %s", vrrp->ifp->ifname, vrrp->iname);
 
 	kernel_netlink_poll();
 

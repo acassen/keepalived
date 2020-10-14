@@ -158,6 +158,10 @@ typedef struct _data {
 	unsigned			vrrp_garp_lower_prio_rep;
 	unsigned			vrrp_garp_interval;
 	unsigned			vrrp_gna_interval;
+#ifdef _HAVE_VRRP_VMAC_
+	unsigned			vrrp_vmac_garp_intvl;
+	bool				vrrp_vmac_garp_all_if;
+#endif
 	bool				vrrp_lower_prio_no_advert;
 	bool				vrrp_higher_prio_send_advert;
 	int				vrrp_version;		/* VRRP version (2 or 3) */
@@ -271,6 +275,10 @@ typedef struct _data {
 	int				vrrp_rx_bufs_multiples;
 	unsigned			vrrp_startup_delay;
 	bool				log_unknown_vrids;
+#ifdef _HAVE_VRRP_VMAC_
+	const char			*vmac_prefix;
+	const char			*vmac_addr_prefix;
+#endif
 #endif
 } data_t;
 

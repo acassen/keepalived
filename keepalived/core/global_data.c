@@ -103,6 +103,9 @@ set_vrrp_defaults(data_t * data)
 	data->vrrp_garp_delay = VRRP_GARP_DELAY;
 	data->vrrp_garp_lower_prio_delay = PARAMETER_UNSET;
 	data->vrrp_garp_lower_prio_rep = PARAMETER_UNSET;
+#ifdef _HAVE_VRRP_VMAC_
+	data->vrrp_vmac_garp_intvl = 0;
+#endif
 	data->vrrp_lower_prio_no_advert = false;
 	data->vrrp_higher_prio_send_advert = false;
 	data->vrrp_version = VRRP_VERSION_2;
@@ -376,6 +379,10 @@ free_global_data(data_t * data)
 	FREE_CONST_PTR(data->default_ifname);
 	FREE_CONST_PTR(data->vrrp_notify_fifo.name);
 	free_notify_script(&data->vrrp_notify_fifo.script);
+#ifdef _HAVE_VRRP_VMAC_
+	FREE_CONST_PTR(data->vmac_prefix);
+	FREE_CONST_PTR(data->vmac_addr_prefix);
+#endif
 #ifdef _WITH_IPTABLES_
 	FREE_CONST_PTR(data->vrrp_iptables_inchain);
 	FREE_CONST_PTR(data->vrrp_iptables_outchain);
@@ -588,6 +595,10 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " Gratuitous ARP refresh repeat = %u", data->vrrp_garp_refresh_rep);
 	conf_write(fp, " Gratuitous ARP lower priority delay = %u", data->vrrp_garp_lower_prio_delay == PARAMETER_UNSET ? PARAMETER_UNSET : data->vrrp_garp_lower_prio_delay / TIMER_HZ);
 	conf_write(fp, " Gratuitous ARP lower priority repeat = %u", data->vrrp_garp_lower_prio_rep);
+#ifdef _HAVE_VRRP_VMAC_
+	if (data->vrrp_vmac_garp_intvl != PARAMETER_UNSET)
+		conf_write(fp, " Gratuitous ARP for each secondary %s = %us", data->vrrp_vmac_garp_all_if ? "i/f" : "VMAC", data->vrrp_vmac_garp_intvl);
+#endif
 	conf_write(fp, " Send advert after receive lower priority advert = %s", data->vrrp_lower_prio_no_advert ? "false" : "true");
 	conf_write(fp, " Send advert after receive higher priority advert = %s", data->vrrp_higher_prio_send_advert ? "true" : "false");
 	conf_write(fp, " Gratuitous ARP interval = %f", data->vrrp_garp_interval / TIMER_HZ_DOUBLE);
@@ -727,6 +738,12 @@ dump_global_data(FILE *fp, data_t * data)
 		conf_write(fp, " vrrp_startup_delay = %g", global_data->vrrp_startup_delay / TIMER_HZ_DOUBLE);
 	if (global_data->log_unknown_vrids)
 		conf_write(fp, " log_unknown_vrids");
+#ifdef _HAVE_VRRP_VMAC_
+	if (global_data->vmac_prefix)
+		conf_write(fp, " VMAC prefix = %s", global_data->vmac_prefix);
+	if (global_data->vmac_addr_prefix)
+		conf_write(fp, " VMAC address prefix = %s", global_data->vmac_addr_prefix);
+#endif
 #endif
 	if ((val = get_cur_priority()))
 		conf_write(fp, " current realtime priority = %u", val);

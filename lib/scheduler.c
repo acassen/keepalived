@@ -1821,6 +1821,11 @@ thread_fetch_next_queue(thread_master_t *m)
 			ep_ev = &m->epoll_events[i];
 			ev = ep_ev->data.ptr;
 
+#ifdef _EPOLL_DEBUG_
+			if (do_epoll_debug)
+				log_message(LOG_INFO, "Handling event 0x%x for fd %d", ep_ev->events, ev->fd);
+#endif
+
 			/* Error */
 			if (ep_ev->events & (EPOLLHUP | EPOLLERR | EPOLLRDHUP)) {
 				if (ev->read) {

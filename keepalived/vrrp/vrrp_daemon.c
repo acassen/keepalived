@@ -258,6 +258,8 @@ vrrp_terminate_phase2(int exit_status)
 		dbus_stop();
 #endif
 
+	clear_rt_names();
+
 	if (global_data->vrrp_notify_fifo.fd != -1)
 		notify_fifo_close(&global_data->notify_fifo, &global_data->vrrp_notify_fifo);
 

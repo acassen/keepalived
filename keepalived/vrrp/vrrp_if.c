@@ -100,6 +100,34 @@ if_get_by_ifindex(ifindex_t ifindex)
 	return NULL;
 }
 
+#ifdef _HAVE_VRRP_VMAC_
+interface_t * __attribute__ ((pure))
+if_get_by_vmac(uint8_t vrid, int family, const interface_t *base_ifp)
+{
+	interface_t *ifp;
+
+	list_for_each_entry(ifp, &if_queue, e_list) {
+		if (ifp->if_type != IF_TYPE_MACVLAN || ifp->vmac_type !=  MACVLAN_MODE_PRIVATE)
+			continue;
+		if (ifp->base_ifp != base_ifp)
+			continue;
+		if (ifp->hw_addr[0] || ifp->hw_addr[1] || ifp->hw_addr[2] != 0x5e || ifp->hw_addr[3])
+			continue;
+		if ((family == AF_INET && ifp->hw_addr[4] != 0x01) ||
+		    (family == AF_INET6 && ifp->hw_addr[4] != 0x02))
+			continue;
+		if (ifp->hw_addr[5] != vrid)
+			continue;
+
+		ifp->is_ours = true;
+
+		return ifp;
+	}
+
+	return NULL;
+}
+#endif
+
 interface_t *
 get_default_if(void)
 {
@@ -167,7 +195,7 @@ if_get_by_ifname(const char *ifname, if_lookup_t create)
 
 	list_for_each_entry(ifp, &if_queue, e_list) {
 		if (!strcmp(ifp->ifname, ifname))
-			return ifp;
+			return create == IF_CREATE_NOT_EXIST ? NULL : ifp;
 	}
 
 	if (create == IF_NO_CREATE ||
@@ -428,13 +456,25 @@ alloc_garp_delay(void)
 	return gd;
 }
 
+static void
+set_garp_delay(interface_t *ifp, const garp_delay_t *delay)
+{
+	ifp->garp_delay = alloc_garp_delay();
+
+	ifp->garp_delay->garp_interval = delay->garp_interval;
+	ifp->garp_delay->have_garp_interval = delay->have_garp_interval;
+	ifp->garp_delay->gna_interval = delay->gna_interval;
+	ifp->garp_delay->have_gna_interval = delay->have_gna_interval;
+}
+
 void
 set_default_garp_delay(void)
 {
 	garp_delay_t default_delay = {};
 	interface_t *ifp;
-	garp_delay_t *delay;
 	vrrp_t *vrrp;
+	list_head_t *vip_list;
+	ip_address_t *vip;
 
 	if (global_data->vrrp_garp_interval) {
 		default_delay.garp_interval.tv_sec = global_data->vrrp_garp_interval / 1000000;
@@ -453,14 +493,16 @@ set_default_garp_delay(void)
 		if (!vrrp->ifp)
 			continue;
 		ifp = IF_BASE_IFP(vrrp->ifp);
-		if (!ifp->garp_delay) {
-			delay = alloc_garp_delay();
-			delay->garp_interval = default_delay.garp_interval;
-			delay->have_garp_interval = default_delay.have_garp_interval;
-			delay->gna_interval = default_delay.gna_interval;
-			delay->have_gna_interval = default_delay.have_gna_interval;
+		if (!ifp->garp_delay)
+			set_garp_delay(ifp, &default_delay);
 
-			ifp->garp_delay = delay;
+		/* We also need delays for any i/fs used by VIPs/eVIPs */
+		for (vip_list = &vrrp->vip; vip_list; vip_list = vip_list == &vrrp->vip ? &vrrp->evip : NULL) {
+			list_for_each_entry(vip, vip_list, e_list) {
+				ifp = IF_BASE_IFP(vip->ifp);
+				if (!ifp->garp_delay)
+					set_garp_delay(ifp, &default_delay);
+			}
 		}
 	}
 }
@@ -608,13 +650,13 @@ dump_if(FILE *fp, const interface_t *ifp)
 	if (ifp->garp_delay) {
 		if (ifp->garp_delay->have_garp_interval)
 			conf_write(fp, "   Gratuitous ARP interval %ldms",
-				    ifp->garp_delay->garp_interval.tv_sec * 100 +
-				     ifp->garp_delay->garp_interval.tv_usec / (TIMER_HZ / 100));
+				    ifp->garp_delay->garp_interval.tv_sec * 1000 +
+				     ifp->garp_delay->garp_interval.tv_usec / (TIMER_HZ / 1000));
 
 		if (ifp->garp_delay->have_gna_interval)
 			conf_write(fp, "   Gratuitous NA interval %ldms",
-				    ifp->garp_delay->gna_interval.tv_sec * 100 +
-				     ifp->garp_delay->gna_interval.tv_usec / (TIMER_HZ / 100));
+				    ifp->garp_delay->gna_interval.tv_sec * 1000 +
+				     ifp->garp_delay->gna_interval.tv_usec / (TIMER_HZ / 1000));
 		if (ifp->garp_delay->aggregation_group)
 			conf_write(fp, "   Gratuitous ARP aggregation group %d", ifp->garp_delay->aggregation_group);
 	}
@@ -1368,6 +1410,7 @@ cleanup_lost_interface(interface_t *ifp)
 			/* This is a changeable interface that the vrrp instance
 			 * was configured on. Delete the macvlan/ipvlan we created */
 			netlink_link_del_vmac(vrrp);
+// HERE
 		}
 
 		if (vrrp->configured_ifp == ifp &&

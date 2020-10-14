@@ -254,8 +254,14 @@ format_ipaddress(const ip_address_t *ip_addr, char *buf, size_t buf_len)
 		buf_p += snprintf(buf_p, buf_end - buf_p, " brd %s",
 			 inet_ntop2(ip_addr->u.sin.sin_brd.s_addr));
 	}
-	buf_p += snprintf(buf_p, buf_end - buf_p, " dev %s scope %s"
-			       , IF_NAME(ip_addr->ifp)
+	buf_p += snprintf(buf_p, buf_end - buf_p, " dev %s", IF_NAME(ip_addr->ifp));
+#ifdef _HAVE_VRRP_VMAC_
+	if (ip_addr->ifp != ip_addr->ifp->base_ifp)
+		buf_p += snprintf(buf_p, buf_end - buf_p, "@%s", ip_addr->ifp->base_ifp->ifname);
+	if (ip_addr->use_vmac)
+		buf_p += snprintf(buf_p, buf_end - buf_p, "%s" , " use_vmac");
+#endif
+	buf_p += snprintf(buf_p, buf_end - buf_p, " scope %s"
 			       , get_rttables_scope(ip_addr->ifa.ifa_scope));
 	if (ip_addr->label)
 		buf_p += snprintf(buf_p, buf_end - buf_p, " label %s", ip_addr->label);
@@ -459,7 +465,7 @@ alloc_ipaddress(list_head_t *ip_list, const vector_t *strvec, bool static_addr)
 			}
 
 			if (new->ifp) {
-				report_config_error(CONFIG_GENERAL_ERROR, "Cannot specify static ipaddress device more than once for %s", strvec_slot(strvec, addr_idx));
+				report_config_error(CONFIG_GENERAL_ERROR, "Cannot specify ipaddress device more than once for %s", strvec_slot(strvec, addr_idx));
 				FREE(new);
 				return;
 			}
@@ -595,6 +601,8 @@ alloc_ipaddress(list_head_t *ip_list, const vector_t *strvec, bool static_addr)
 			}
 			if (!(new->track_group = static_track_group_find(strvec_slot(strvec, i))))
 				report_config_error(CONFIG_GENERAL_ERROR, "track_group %s not found", strvec_slot(strvec, i));
+		} else if (!static_addr && !strcmp(str, "use_vmac")) {
+			new->use_vmac = true;
 		} else
 			report_config_error(CONFIG_GENERAL_ERROR, "Unknown configuration entry '%s' for ip address - ignoring", str);
 		i++;
@@ -660,6 +668,13 @@ alloc_ipaddress(list_head_t *ip_list, const vector_t *strvec, bool static_addr)
 		new->track_group = NULL;
 	}
 
+#if 0
+	if (!new->ifp && new->use_vmac) {
+		report_config_error(CONFIG_GENERAL_ERROR, "use_vmac for a address requires an interface");
+		new->use_vmac = false;
+	}
+#endif
+
 	list_add_tail(&new->e_list, ip_list);
 }
 
@@ -670,37 +685,25 @@ address_exist(vrrp_t *vrrp, ip_address_t *ip_addr)
 	ip_address_t *ipaddr;
 	char addr_str[INET6_ADDRSTRLEN];
 	void *addr;
+	list_head_t *vip_list;
 
 	/* If the following check isn't made, we get lots of compiler warnings */
 	if (!ip_addr)
 		return true;
 
-
-	list_for_each_entry(ipaddr, &vrrp->vip, e_list) {
-		if (IP_ISEQ(ipaddr, ip_addr)) {
-			ipaddr->set = ip_addr->set;
+	for (vip_list = &vrrp->vip; vip_list; vip_list = vip_list == &vrrp->vip ? &vrrp->evip : NULL ) {
+		list_for_each_entry(ipaddr, vip_list, e_list) {
+			if (IP_ISEQ(ipaddr, ip_addr)) {
+				ipaddr->set = ip_addr->set;
 #ifdef _WITH_IPTABLES_
-			ipaddr->iptable_rule_set = ip_addr->iptable_rule_set;
+				ipaddr->iptable_rule_set = ip_addr->iptable_rule_set;
 #endif
 #ifdef _WITH_NFTABLES_
-			ipaddr->nftable_rule_set = ip_addr->nftable_rule_set;
+				ipaddr->nftable_rule_set = ip_addr->nftable_rule_set;
 #endif
-			ipaddr->ifa.ifa_index = ip_addr->ifa.ifa_index;
-			return true;
-		}
-	}
-
-	list_for_each_entry(ipaddr, &vrrp->evip, e_list) {
-		if (IP_ISEQ(ipaddr, ip_addr)) {
-			ipaddr->set = ip_addr->set;
-#ifdef _WITH_IPTABLES_
-			ipaddr->iptable_rule_set = ip_addr->iptable_rule_set;
-#endif
-#ifdef _WITH_NFTABLES_
-			ipaddr->nftable_rule_set = ip_addr->nftable_rule_set;
-#endif
-			ipaddr->ifa.ifa_index = ip_addr->ifa.ifa_index;
-			return true;
+				ipaddr->ifa.ifa_index = ip_addr->ifa.ifa_index;
+				return true;
+			}
 		}
 	}
 
@@ -722,22 +725,18 @@ void
 get_diff_address(vrrp_t *old, vrrp_t *new, list_head_t *old_addr)
 {
 	ip_address_t *ip_addr, *ip_addr_tmp;
+	list_head_t *vip_list;
 
 	/* No addresses in previous conf */
 	if (list_empty(&old->vip) && list_empty(&old->evip))
 		return;
 
-	list_for_each_entry_safe(ip_addr, ip_addr_tmp, &old->vip, e_list) {
-		if (ip_addr->set && !address_exist(new, ip_addr)) {
-			list_del_init(&ip_addr->e_list);
-			list_add_tail(&ip_addr->e_list, old_addr);
-		}
-	}
-
-	list_for_each_entry_safe(ip_addr, ip_addr_tmp, &old->evip, e_list) {
-		if (ip_addr->set && !address_exist(new, ip_addr)) {
-			list_del_init(&ip_addr->e_list);
-			list_add_tail(&ip_addr->e_list, old_addr);
+	for (vip_list = &old->vip; vip_list; vip_list = vip_list == &old->vip ? &old->evip : NULL ) {
+		list_for_each_entry_safe(ip_addr, ip_addr_tmp, vip_list, e_list) {
+			if (ip_addr->set && !address_exist(new, ip_addr)) {
+				list_del_init(&ip_addr->e_list);
+				list_add_tail(&ip_addr->e_list, old_addr);
+			}
 		}
 	}
 }

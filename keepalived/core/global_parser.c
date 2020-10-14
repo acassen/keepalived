@@ -907,6 +907,30 @@ vrrp_min_garp_handler(const vector_t *strvec)
 	if (global_data->vrrp_garp_delay == VRRP_GARP_DELAY)
 		global_data->vrrp_garp_delay = 0;
 }
+#ifdef _HAVE_VRRP_VMAC_
+static void
+vrrp_vmac_garp_intvl_handler(const vector_t *strvec)
+{
+	unsigned delay = 0;
+	unsigned index;
+
+	for (index = 1; index < vector_size(strvec); index++) {
+		if (!strcmp(strvec_slot(strvec, index), "all"))
+			global_data->vrrp_vmac_garp_all_if = true;
+		else if (!read_unsigned_strvec(strvec, index, &delay, 1, 86400, true)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "vrrp_vmac_garp_intvl '%s' invalid - ignoring", strvec_slot(strvec, index));
+			return;
+		}
+	}
+
+	if (!delay) {
+		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_vmac_garp_intvl specified without time - ignoring");
+		return;
+	}
+
+	global_data->vrrp_vmac_garp_intvl = delay;
+}
+#endif
 static void
 vrrp_lower_prio_no_advert_handler(const vector_t *strvec)
 {
@@ -1921,6 +1945,30 @@ vrrp_log_unknown_vrids_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	global_data->log_unknown_vrids = true;
 }
+
+#ifdef _HAVE_VRRP_VMAC_
+static void
+vrrp_vmac_prefix_handler(const vector_t *strvec)
+{
+	if (global_data->vmac_prefix) {
+		report_config_error(CONFIG_GENERAL_ERROR, "vmac prefix has already been specified - ignoring %s", strvec_slot(strvec, 1));
+		return;
+	}
+
+	global_data->vmac_prefix = STRDUP(strvec_slot(strvec, 1));
+}
+
+static void
+vrrp_vmac_addr_prefix_handler(const vector_t *strvec)
+{
+	if (global_data->vmac_addr_prefix) {
+		report_config_error(CONFIG_GENERAL_ERROR, "vmac_addr prefix has already been specified - ignoring %s", strvec_slot(strvec, 1));
+		return;
+	}
+
+	global_data->vmac_addr_prefix = STRDUP(strvec_slot(strvec, 1));
+}
+#endif
 #endif
 
 static void
@@ -2042,6 +2090,9 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_garp_interval", &vrrp_garp_interval_handler);
 	install_keyword("vrrp_gna_interval", &vrrp_gna_interval_handler);
 	install_keyword("vrrp_min_garp", &vrrp_min_garp_handler);
+#ifdef _HAVE_VRRP_VMAC_
+	install_keyword("vrrp_vmac_garp_intvl", &vrrp_vmac_garp_intvl_handler);
+#endif
 	install_keyword("vrrp_lower_prio_no_advert", &vrrp_lower_prio_no_advert_handler);
 	install_keyword("vrrp_higher_prio_send_advert", &vrrp_higher_prio_send_advert_handler);
 	install_keyword("vrrp_version", &vrrp_version_handler);
@@ -2149,6 +2200,10 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_rx_bufs_multiplier", &vrrp_rx_bufs_multiplier_handler);
 	install_keyword("vrrp_startup_delay", &vrrp_startup_delay_handler);
 	install_keyword("log_unknown_vrids", &vrrp_log_unknown_vrids_handler);
+#ifdef _HAVE_VRRP_VMAC_
+	install_keyword("vmac_prefix", &vrrp_vmac_prefix_handler);
+	install_keyword("vmac_addr_prefix", &vrrp_vmac_addr_prefix_handler);
+#endif
 #endif
 	install_keyword("umask", &umask_handler);
 	install_keyword("random_seed", &random_seed_handler);

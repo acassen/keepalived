@@ -183,6 +183,7 @@ address_is_ours(struct ifaddrmsg *ifa, struct in_addr *addr, interface_t *ifp)
 	tracking_obj_t *top;
 	vrrp_t *vrrp;
 	ip_address_t *ip_addr;
+	list_head_t *vip_list;
 
 	list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
 		vrrp = top->obj.vrrp;
@@ -191,16 +192,13 @@ address_is_ours(struct ifaddrmsg *ifa, struct in_addr *addr, interface_t *ifp)
 		if (vrrp->state != VRRP_STATE_MAST)
 			continue;
 
-		if (ifa->ifa_family == vrrp->family) {
-			list_for_each_entry(ip_addr, &vrrp->vip, e_list) {
+		for (vip_list = ifa->ifa_family == vrrp->family ? &vrrp->vip : &vrrp->evip;
+		     vip_list;
+		     vip_list = vip_list == &vrrp->vip ? &vrrp->evip : NULL) {
+			list_for_each_entry(ip_addr, vip_list, e_list) {
 				if (addr_is_equal(ifa, addr, ip_addr, ifp))
 					return ip_addr->dont_track ? NULL : vrrp;
 			}
-		}
-
-		list_for_each_entry(ip_addr, &vrrp->evip, e_list) {
-			if (addr_is_equal(ifa, addr, ip_addr, ifp))
-				return ip_addr->dont_track ? NULL : vrrp;
 		}
 	}
 
@@ -2354,7 +2352,7 @@ kernel_netlink(thread_ref_t thread)
 void
 kernel_netlink_poll(void)
 {
-	if (!nl_kernel.fd)
+	if (nl_kernel.fd < 0)
 		return;
 
 	netlink_parse_info(netlink_broadcast_filter, &nl_kernel, NULL, true);
@@ -2445,7 +2443,8 @@ kernel_netlink_init(void)
 #endif
 
 	if (nl_kernel.fd >= 0) {
-		log_message(LOG_INFO, "Registering Kernel netlink reflector");
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "Registering Kernel netlink reflector");
 		nl_kernel.thread = thread_add_read(master, kernel_netlink, &nl_kernel, nl_kernel.fd,
 						   TIMER_NEVER, false);
 	} else
@@ -2468,9 +2467,10 @@ kernel_netlink_init(void)
 		netlink_socket(&nl_cmd, global_data->lvs_netlink_cmd_rcv_bufs, global_data->lvs_netlink_cmd_rcv_bufs_force, 0, 0);
 #endif
 #endif
-	if (nl_cmd.fd >= 0)
-		log_message(LOG_INFO, "Registering Kernel netlink command channel");
-	else
+	if (nl_cmd.fd >= 0) {
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "Registering Kernel netlink command channel");
+	} else
 		log_message(LOG_INFO, "Error while registering Kernel netlink cmd channel");
 
 	/* Start with netlink interface and address lookup */

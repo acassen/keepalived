@@ -37,6 +37,7 @@
 #include "list_head.h"
 #include "vector.h"
 #include "vrrp_static_track.h"
+#include "utils.h"
 
 /* types definition */
 typedef struct _ip_address {
@@ -60,6 +61,7 @@ typedef struct _ip_address {
 	uint8_t			flagmask;		/* Bitmaps of flags set */
 #endif
 	bool			have_peer;
+	bool			use_vmac;
 	union {
 		struct in_addr sin_addr;
 		struct in6_addr sin6_addr;
@@ -88,27 +90,47 @@ typedef struct _ip_address {
 
 /* Macro definition */
 #define IP_FAMILY(X)	(X)->ifa.ifa_family
-#define IP_IS6(X)	((X)->ifa.ifa_family == AF_INET6)
-#define IP_IS4(X)	((X)->ifa.ifa_family == AF_INET)
+#define	IP_IS6(X)	((X)->ifa.ifa_family == AF_INET6)
 
-#define IPcommon_ISEQ(X,Y) \
-			((X)->ifa.ifa_prefixlen     == (Y)->ifa.ifa_prefixlen		&& \
-			 !(X)->ifp                  == !(Y)->ifp                        && \
-			 (!(X)->ifp                                                     || \
-			  (X)->ifp->ifindex	    == (Y)->ifp->ifindex)		&& \
-			 (X)->ifa.ifa_scope	    == (Y)->ifa.ifa_scope		&& \
-			 string_equal((X)->label, (Y)->label))
+static inline bool
+IP_ISEQ(ip_address_t *X, const ip_address_t *Y)
+{
+	if (!X && !Y)
+		return true;
 
-#define IP4_ISEQ(X,Y)   ((X)->u.sin.sin_addr.s_addr == (Y)->u.sin.sin_addr.s_addr	&& \
-			 IPcommon_ISEQ((X),(Y)))
+	if (!X != !Y ||
+	    X->ifa.ifa_family != Y->ifa.ifa_family)
+		return false;
 
-#define IP6_ISEQ(X,Y)   ((X)->u.sin6_addr.s6_addr32[0] == (Y)->u.sin6_addr.s6_addr32[0]	&& \
-			 (X)->u.sin6_addr.s6_addr32[1] == (Y)->u.sin6_addr.s6_addr32[1]	&& \
-			 (X)->u.sin6_addr.s6_addr32[2] == (Y)->u.sin6_addr.s6_addr32[2]	&& \
-			 (X)->u.sin6_addr.s6_addr32[3] == (Y)->u.sin6_addr.s6_addr32[3]	&& \
-			 IPcommon_ISEQ((X),(Y)))
+	if (X->ifa.ifa_prefixlen != Y->ifa.ifa_prefixlen ||
+// We can't check ifp here and later. On a reload, has ifp been set up by now?
+//	    !X->ifp != !Y->ifp ||
+#ifdef _HAVE_VRRP_VMAC_
+	    X->use_vmac != Y->use_vmac ||
+#endif
+	    X->ifa.ifa_scope != Y->ifa.ifa_scope)
+		return false;
 
-#define IP_ISEQ(X,Y)    (!(X) && !(Y) ? true : !(X) != !(Y) ? false : (IP_FAMILY(X) != IP_FAMILY(Y) ? false : IP_IS6(X) ? IP6_ISEQ(X, Y) : IP4_ISEQ(X, Y)))
+	if (X->ifp &&
+#ifdef _HAVE_VRRP_VMAC_
+	    X->ifp->base_ifp != Y->ifp->base_ifp
+#else
+	    X->ifp != Y->ifp
+#endif
+				)
+		return false;
+
+	if (!string_equal(X->label, Y->label))
+		return false;
+
+	if (X->ifa.ifa_family == AF_INET6)
+		return X->u.sin6_addr.s6_addr32[0] == Y->u.sin6_addr.s6_addr32[0] &&
+			X->u.sin6_addr.s6_addr32[1] == Y->u.sin6_addr.s6_addr32[1] &&
+			X->u.sin6_addr.s6_addr32[2] == Y->u.sin6_addr.s6_addr32[2] &&
+			X->u.sin6_addr.s6_addr32[3] == Y->u.sin6_addr.s6_addr32[3];
+
+	return X->u.sin.sin_addr.s_addr == Y->u.sin.sin_addr.s_addr;
+}
 
 #define IS_IP6_ADDR(X)	((X)->s6_addr32[0] || (X)->s6_addr32[1] || (X)->s6_addr32[2] || (X)->s6_addr32[3])
 #define CLEAR_IP6_ADDR(X) ((X)->s6_addr32[0] = (X)->s6_addr32[1] = (X)->s6_addr32[2] = (X)->s6_addr32[3] = 0)
