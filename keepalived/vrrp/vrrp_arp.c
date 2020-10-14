@@ -223,9 +223,10 @@ void gratuitous_arp_init(void)
 	/* Create the socket descriptor */
 	garp_fd = socket(PF_PACKET, SOCK_RAW | SOCK_CLOEXEC | SOCK_NONBLOCK, htons(ETH_P_RARP));
 
-	if (garp_fd >= 0)
-		log_message(LOG_INFO, "Registering gratuitous ARP shared channel");
-	else {
+	if (garp_fd >= 0) {
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "Registering gratuitous ARP shared channel");
+	} else {
 		log_message(LOG_INFO, "Error %d while registering gratuitous ARP shared channel", errno);
 		return;
 	}

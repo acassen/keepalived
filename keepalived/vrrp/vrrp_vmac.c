@@ -299,8 +299,9 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 			return false;
 		}
 
-		log_message(LOG_INFO, "(%s): Success creating VMAC interface %s"
-				    , vrrp->iname, vrrp->vmac_ifname);
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "(%s): Success creating VMAC interface %s"
+					    , vrrp->iname, vrrp->vmac_ifname);
 
 		/*
 		 * Update interface queue and vrrp instance interface binding.
@@ -535,8 +536,9 @@ netlink_link_add_ipvlan(vrrp_t *vrrp)
 			return false;
 		}
 
-		log_message(LOG_INFO, "(%s): Success creating ipvlan interface %s"
-				    , vrrp->iname, vrrp->vmac_ifname);
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "(%s): Success creating ipvlan interface %s"
+					    , vrrp->iname, vrrp->vmac_ifname);
 
 		/*
 		 * Update interface queue and vrrp instance interface binding.
@@ -644,8 +646,9 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 		firewall_remove_vmac(vrrp);
 #endif
 
-	log_message(LOG_INFO, "vmac: Success removing VMAC interface %s for vrrp_instance %s"
-			    , vrrp->vmac_ifname, vrrp->iname);
+	if (__test_bit(LOG_DETAIL_BIT, &debug))
+		log_message(LOG_INFO, "vmac: Success removing VMAC interface %s for vrrp_instance %s"
+				    , vrrp->vmac_ifname, vrrp->iname);
 
 	return;
 }
@@ -688,7 +691,8 @@ netlink_update_vrf(vrrp_t *vrrp)
 		return;
 	}
 
-	log_message(LOG_INFO, "vmac: Success changing VRF of VMAC interface %s for vrrp_instance %s", vrrp->ifp->ifname, vrrp->iname);
+	if (__test_bit(LOG_DETAIL_BIT, &debug))
+		log_message(LOG_INFO, "vmac: Success changing VRF of VMAC interface %s for vrrp_instance %s", vrrp->ifp->ifname, vrrp->iname);
 
 	kernel_netlink_poll();
 

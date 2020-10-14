@@ -2443,7 +2443,8 @@ kernel_netlink_init(void)
 #endif
 
 	if (nl_kernel.fd >= 0) {
-		log_message(LOG_INFO, "Registering Kernel netlink reflector");
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "Registering Kernel netlink reflector");
 		nl_kernel.thread = thread_add_read(master, kernel_netlink, &nl_kernel, nl_kernel.fd,
 						   TIMER_NEVER, false);
 	} else
@@ -2466,9 +2467,10 @@ kernel_netlink_init(void)
 		netlink_socket(&nl_cmd, global_data->lvs_netlink_cmd_rcv_bufs, global_data->lvs_netlink_cmd_rcv_bufs_force, 0, 0);
 #endif
 #endif
-	if (nl_cmd.fd >= 0)
-		log_message(LOG_INFO, "Registering Kernel netlink command channel");
-	else
+	if (nl_cmd.fd >= 0) {
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "Registering Kernel netlink command channel");
+	} else
 		log_message(LOG_INFO, "Error while registering Kernel netlink cmd channel");
 
 	/* Start with netlink interface and address lookup */
