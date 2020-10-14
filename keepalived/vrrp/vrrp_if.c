@@ -608,13 +608,13 @@ dump_if(FILE *fp, const interface_t *ifp)
 	if (ifp->garp_delay) {
 		if (ifp->garp_delay->have_garp_interval)
 			conf_write(fp, "   Gratuitous ARP interval %ldms",
-				    ifp->garp_delay->garp_interval.tv_sec * 100 +
-				     ifp->garp_delay->garp_interval.tv_usec / (TIMER_HZ / 100));
+				    ifp->garp_delay->garp_interval.tv_sec * 1000 +
+				     ifp->garp_delay->garp_interval.tv_usec / (TIMER_HZ / 1000));
 
 		if (ifp->garp_delay->have_gna_interval)
 			conf_write(fp, "   Gratuitous NA interval %ldms",
-				    ifp->garp_delay->gna_interval.tv_sec * 100 +
-				     ifp->garp_delay->gna_interval.tv_usec / (TIMER_HZ / 100));
+				    ifp->garp_delay->gna_interval.tv_sec * 1000 +
+				     ifp->garp_delay->gna_interval.tv_usec / (TIMER_HZ / 1000));
 		if (ifp->garp_delay->aggregation_group)
 			conf_write(fp, "   Gratuitous ARP aggregation group %d", ifp->garp_delay->aggregation_group);
 	}
