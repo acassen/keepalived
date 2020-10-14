@@ -37,6 +37,7 @@
 #include "list_head.h"
 #include "vector.h"
 #include "vrrp_static_track.h"
+#include "utils.h"
 
 /* types definition */
 typedef struct _ip_address {
