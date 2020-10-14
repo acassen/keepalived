@@ -2354,7 +2354,7 @@ kernel_netlink(thread_ref_t thread)
 void
 kernel_netlink_poll(void)
 {
-	if (!nl_kernel.fd)
+	if (nl_kernel.fd < 0)
 		return;
 
 	netlink_parse_info(netlink_broadcast_filter, &nl_kernel, NULL, true);
