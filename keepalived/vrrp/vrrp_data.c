@@ -1082,7 +1082,6 @@ alloc_vrrp_vip(const vector_t *strvec)
 		last_ipaddr = list_last_entry(&vrrp->vip, ip_address_t, e_list);
 
 	alloc_ipaddress(&vrrp->vip, strvec, false);
-	vrrp->vip_cnt++;
 
 	tail_ipaddr = list_last_entry(&vrrp->vip, ip_address_t, e_list);
 	if (!list_empty(&vrrp->vip) && tail_ipaddr != last_ipaddr) {
@@ -1093,7 +1092,10 @@ alloc_vrrp_vip(const vector_t *strvec)
 		else if (address_family != vrrp->family) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s): address family must match VRRP instance [%s] - ignoring", vrrp->iname, strvec_slot(strvec, 0));
 			free_ipaddress(tail_ipaddr);
+			return;
 		}
+
+		vrrp->vip_cnt++;
 	}
 }
 
