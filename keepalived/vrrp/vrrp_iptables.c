@@ -52,10 +52,6 @@
 #include <stdbool.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <netinet/icmp6.h>
-/* linux/icmpv6.h defines ICMPV6_MLD2_REPORT, but both it and netinet/icmp6.h
- * define struct icmp6_filter
-#include <linux/icmpv6.h>
-*/
 
 #include "vrrp_iptables.h"
 
@@ -69,9 +65,10 @@
 #endif
 #include "logger.h"
 #include "memory.h"
+#ifdef _HAVE_VRRP_VMAC_
+#include "vrrp_firewall.h"
+#endif
 
-/* The following is defined in linux/icmpv6.h, but see above */
-#define ICMPV6_MLD2_REPORT 143
 
 #define IPTABLES_MAX_TRIES      3       /* How many times to try adding/deleting when get EAGAIN */
 

@@ -61,14 +61,12 @@
 #include "global_data.h"
 #include "list_head.h"
 #include "utils.h"
+#ifdef _HAVE_VRRP_VMAC_
+#include "vrrp_firewall.h"
+#endif
 
 
 /* nft supports ifnames in sets from commit 8c61fa7 (release v0.8.3, libnftnl v1.0.9 (but 0.8.2 also uses that, 0.8.4 uses v1.1.0)) */
-
-/* The following is defined in linux/icmpv6.h, but both it and
- * netinet/icmp6.h define struct icmp6_filter
- */
-#define ICMPV6_MLD2_REPORT 143
 
 /* The following are from nftables source code (include/datatype.h)
  * and are used for it to determine how to display the entries in
