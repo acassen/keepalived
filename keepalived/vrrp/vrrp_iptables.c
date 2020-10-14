@@ -538,15 +538,16 @@ handle_iptable_rule_to_iplist(list_head_t *ip_list1, list_head_t *ip_list2, int 
 	int res = 0;
 
 	/* No addresses in this list */
-	if (list_empty(ip_list1) && list_empty(ip_list2))
+	if ((!ip_list1 || list_empty(ip_list1)) &&
+	    (!ip_list2 || list_empty(ip_list2)))
 		return;
 
 	do {
 		h = iptables_open(cmd);
 
-		if (!list_empty(ip_list1))
+		if (ip_list1 && !list_empty(ip_list1))
 			handle_iptable_vip_list(h, ip_list1, cmd, force);
-		if (!list_empty(ip_list2))
+		if (ip_list2 && !list_empty(ip_list2))
 			handle_iptable_vip_list(h, ip_list2, cmd, force);
 
 		res = iptables_close(h);
