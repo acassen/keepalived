@@ -288,10 +288,13 @@ track_file_init_handler(const vector_t *strvec)
 									, cur_track_file->fname, word);
 				value = 0;
 			}
-			else if (value < -254 || value > 254)
+			else if (value < -254 || value > 254) {
+// This is not valid for checker process
 				report_config_error(CONFIG_GENERAL_ERROR, "Track file %s init value %d is"
 									  " outside sensible range [%d, %d]"
 									, cur_track_file->fname, value, -254, 254);
+			}
+
 			track_file_init_value = value;
 		}
 		else if (!strcmp(word, "overwrite"))
@@ -603,19 +606,22 @@ process_update_checker_track_file_status(const tracked_file_t *tfile, int new_st
 			log_message(LOG_INFO, "(%s): tracked file %s now FAULT state"
 					    , FMT_RS(checker->rs, checker->vs), tfile->fname);
 		update_svr_checker_state(DOWN, checker);
+		checker->cur_weight = 0;
 	} else if (previous_status == -IPVS_WEIGHT_MAX) {
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
 			log_message(LOG_INFO, "(%s): tracked file %s leaving FAULT state"
 					    , FMT_RS(checker->rs, checker->vs), tfile->fname);
 		update_svr_checker_state(UP, checker);
+		checker->cur_weight = 0;
 	}
 	else {
 #ifdef TMP_TRACK_FILE_DEBUG
 		log_message(LOG_INFO, "Updated weight to %d (weight %d, new_status %d previous_status %d)"
 				    , checker->rs->effective_weight + new_status - previous_status
-				    , checker->rs->weight, new_status, previous_status);
+				    , real_weight(checker->rs->effective_weight), new_status, previous_status);
 #endif
 		update_svr_wgt(checker->rs->effective_weight + new_status - previous_status, checker->vs, checker->rs, true);
+		checker->cur_weight = new_status;
 	}
 }
 #endif

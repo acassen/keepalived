@@ -89,7 +89,7 @@ weigh_live_realservers(virtual_server_t *vs)
 
 	list_for_each_entry(rs, &vs->rs, e_list) {
 		if (ISALIVE(rs))
-			count += rs->weight;
+			count += real_weight(rs->effective_weight);
 	}
 	return count;
 }
@@ -391,7 +391,7 @@ init_service_rs(virtual_server_t *vs)
 		}
 
 		/* TODO - is this copied on reload? */
-		rs->effective_weight = rs->weight;
+//		rs->effective_weight = rs->weight;
 
 		/* On a reload with a new RS the num_failed_checkers is updated in set_track_file_checkers_down() */
 		if (!reload) {
@@ -409,13 +409,6 @@ init_service_rs(virtual_server_t *vs)
 				else if (tfm->file->last_status)
 					rs->num_failed_checkers++;
 			}
-
-			if (rs->effective_weight < 0)
-				rs->weight = 0;
-			else if (rs->effective_weight > IPVS_WEIGHT_MAX - 1)
-				rs->weight = IPVS_WEIGHT_MAX - 1;
-			else
-				rs->weight = rs->effective_weight;
 		}
 
 		/* In alpha mode, be pessimistic (or realistic?) and don't
@@ -665,23 +658,21 @@ void
 update_svr_wgt(int weight, virtual_server_t * vs, real_server_t * rs
 		, bool update_quorum)
 {
+	int old_weight, new_weight;
+
+
+	new_weight = real_weight(weight);
+	old_weight = real_weight(rs->effective_weight);
+
 	rs->effective_weight = weight;
 
-	if (weight < 0)
-		weight = 0;
-#if IPVS_WEIGHT_MAX != INT_MAX
-	else if (weight > IPVS_WEIGHT_MAX)
-		weight = IPVS_WEIGHT_MAX;
-#endif
-
-	if (weight != rs->weight) {
+	if (new_weight != old_weight) {
 		log_message(LOG_INFO, "Changing weight from %d to %d for %sactive service %s of VS %s"
-				    , rs->weight
-				    , weight
+				    , old_weight
+				    , new_weight
 				    , ISALIVE(rs) ? "" : "in"
 				    , FMT_RS(rs, vs)
 				    , FMT_VS(vs));
-		rs->weight = weight;
 		/*
 		 * Have weight change take effect now only if rs is in
 		 * the pool and alive and the quorum is met (or if
@@ -962,7 +953,7 @@ clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs, list_head_t *o
 		 */
 		new_rs->alive = rs->alive;
 		new_rs->set = rs->set;
-		new_rs->weight = rs->weight;
+		new_rs->effective_weight = rs->effective_weight;
 		new_rs->pweight = rs->iweight;
 		new_rs->reloaded = true;
 
@@ -1006,7 +997,7 @@ clear_diff_s_srv(virtual_server_t *old_vs, real_server_t *new_rs)
 		/* which fields are really used on s_svr? */
 		new_rs->alive = old_rs->alive;
 		new_rs->set = old_rs->set;
-		new_rs->weight = old_rs->weight;
+		new_rs->effective_weight = old_rs->effective_weight;
 		new_rs->pweight = old_rs->iweight;
 		new_rs->reloaded = true;
 	}

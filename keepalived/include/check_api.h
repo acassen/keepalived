@@ -71,6 +71,7 @@ typedef struct _checker {
 	bool				enabled;		/* Activation flag */
 	bool				is_up;			/* Set if checker is up */
 	bool				has_run;		/* Set if the checker has completed at least once */
+	int				cur_weight;		/* Current weight of checker */
 	conn_opts_t			*co;			/* connection options */
 	int				alpha;			/* Alpha mode enabled */
 	unsigned long			delay_loop;		/* Interval between running checker */

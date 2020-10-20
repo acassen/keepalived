@@ -697,7 +697,7 @@ rs_weight_handler(const vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR, "Real server weight %s is outside range 0-%d", strvec_slot(strvec, 1), IPVS_WEIGHT_MAX);
 		return;
 	}
-	rs->weight = weight;
+	rs->effective_weight = weight;
 	rs->iweight = weight;
 }
 static void

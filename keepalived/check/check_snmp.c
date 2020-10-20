@@ -955,7 +955,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_RSWEIGHT:
 		if (type == STATE_RS_SORRY) break;
-		long_ret.s = be->weight;
+		long_ret.s = real_weight(be->effective_weight);
 		*write_method = check_snmp_realserver_weight;
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_RSUPPERCONNECTIONLIMIT:

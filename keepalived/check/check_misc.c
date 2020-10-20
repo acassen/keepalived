@@ -359,9 +359,10 @@ misc_check_child_thread(thread_ref_t thread)
 			 * Catch legacy case of status being 0 but misc_dynamic being set.
 			 */
 			if (status != misck_checker->last_exit_code) {
-				effective_weight = checker->rs->effective_weight + (status ? (int64_t)status - 2 : 0) - (misck_checker->last_exit_code ? (int64_t)misck_checker->last_exit_code - 2 : 0) - checker->rs->iweight;
-				update_svr_wgt(effective_weight, checker->vs,
-					       checker->rs, true);
+				effective_weight = checker->rs->effective_weight - checker->cur_weight;
+				checker->cur_weight = status ? status - 2 - checker->rs->iweight : 0;
+				effective_weight += checker->cur_weight;
+				update_svr_wgt(effective_weight, checker->vs, checker->rs, true);
 				misck_checker->last_exit_code = status;
 			}
 
@@ -385,7 +386,8 @@ misc_check_child_thread(thread_ref_t thread)
 					script_exit_type = NULL; /* this disables all message handling */
 			} else {
 				checker->retry_it = 0;
-				checker->rs->effective_weight += ((int64_t)1 - 2) - (misck_checker->last_exit_code ? (int64_t)misck_checker->last_exit_code - 2 : 0) - checker->rs->iweight;
+				checker->rs->effective_weight -= checker->cur_weight;
+				checker->cur_weight = 0;
 				misck_checker->last_exit_code = status;
 			}
 		}
@@ -464,6 +466,8 @@ misc_check_child_thread(thread_ref_t thread)
 		if (!message_only) {
 			rs_was_alive = checker->rs->alive;
 			update_svr_checker_state(script_success ? UP : DOWN, checker);
+			if (!script_success)
+				checker->cur_weight = 0;
 
 			if (checker->rs->smtp_alert &&
 			    (rs_was_alive != checker->rs->alive || !global_data->no_checker_emails)) {
