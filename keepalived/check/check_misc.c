@@ -95,7 +95,6 @@ migrate_misc_check(checker_t *new_c, const checker_t *old_c)
 {
 	const misc_checker_t *old = old_c->data;
 	misc_checker_t *new = new_c->data;
-	unsigned new_weight, old_weight;
 
 	new->last_exit_code = old->last_exit_code;
 	new->last_ran = old->last_ran;
@@ -103,14 +102,7 @@ migrate_misc_check(checker_t *new_c, const checker_t *old_c)
 	if (!new->dynamic || old->last_exit_code == 1)
 		return;
 
-	old_weight = old->last_exit_code;
-	if (old_weight)
-		old_weight -= 2;
-	new_weight = old_weight - new_c->rs->iweight;
-	old_weight -= old_c->rs->iweight;
-
-	if (new_weight != old_weight)
-		new_c->rs->effective_weight += new_weight - old_weight;
+	new_c->cur_weight = new->last_exit_code - (new->last_exit_code ? 2 : 0) - new_c->rs->iweight;
 }
 
 static const checker_funcs_t misc_checker_funcs = { CHECKER_MISC, free_misc_check, dump_misc_check, compare_misc_check, migrate_misc_check };

@@ -891,6 +891,7 @@ Likewise, if the vrrp instance is the address owner, weight 0 must also be set.
 For real servers monitoring the file, the limits of values read from the track
 file are 2147483646 to -2147483647. The value, once multiplied by the weight, will
 be added to the real server's IPVS weight.
+
 NOTE: weights for track_file for real servers are not fully implemented yet. In
 particular allowing weight 0, handling negative calculated values and reloading.
 .PP
@@ -2223,8 +2224,6 @@ The syntax for virtual_server is :
         # File checker
         # This reads and monitors the contents of a file, where STRING is the name specified
         # in the track_file configuration block (see above).
-        # NOTE: weights for track_file for real servers are not fully implemented yet. In
-        # particular allowing weight 0, handling negative calculated values and reloading.
         \fBFILE_CHECK \fR{
             \fBtrack_file \fR<STRING>
 

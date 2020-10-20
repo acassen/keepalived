@@ -380,31 +380,21 @@ init_service_rs(virtual_server_t *vs)
 {
 	real_server_t *rs;
 	tracked_file_monitor_t *tfm;
-	int64_t weight;
 
 	list_for_each_entry(rs, &vs->rs, e_list) {
 		if (rs->reloaded) {
-			if (rs->iweight != rs->pweight)
-				update_svr_wgt(rs->iweight, vs, rs, false);
+			if (rs->effective_weight != rs->peffective_weight)
+				update_svr_wgt(rs->effective_weight, vs, rs, false);
 			/* Do not re-add failed RS instantly on reload */
 			continue;
 		}
-
-		/* TODO - is this copied on reload? */
-//		rs->effective_weight = rs->weight;
 
 		/* On a reload with a new RS the num_failed_checkers is updated in set_track_file_checkers_down() */
 		if (!reload) {
 			list_for_each_entry(tfm, &rs->track_files, e_list) {
 				if (tfm->weight) {
-					weight = tfm->file->last_status * tfm->weight * tfm->weight_reverse;
-					if (weight <= -IPVS_WEIGHT_MAX) {
+					if ((int64_t)tfm->file->last_status * tfm->weight * (tfm->weight_reverse ? -1 : 1) <= -IPVS_WEIGHT_MAX)
 						rs->num_failed_checkers++;
-						weight = 0;
-					}
-					else if (weight > IPVS_WEIGHT_MAX - 1)
-						weight = IPVS_WEIGHT_MAX - 1;
-					rs->effective_weight += weight;
 				}
 				else if (tfm->file->last_status)
 					rs->num_failed_checkers++;
@@ -968,7 +958,7 @@ clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs, list_head_t *o
 		new_rs->alive = rs->alive;
 		new_rs->set = rs->set;
 		new_rs->effective_weight = rs->effective_weight;
-		new_rs->pweight = rs->iweight;
+		new_rs->peffective_weight = rs->effective_weight;
 		new_rs->reloaded = true;
 
 		/*
@@ -983,7 +973,7 @@ clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs, list_head_t *o
 		migrate_checkers(new_vs, rs, new_rs, old_checkers_queue);
 
 		/* Do we need to update the RS configuration? */
-		if (false ||
+		if ((new_rs->alive && new_rs->effective_weight != rs->effective_weight) ||
 #ifdef _HAVE_IPVS_TUN_TYPE_
 		    rs->tun_type != new_rs->tun_type ||
 		    rs->tun_port != new_rs->tun_port ||
@@ -1011,15 +1001,14 @@ clear_diff_s_srv(virtual_server_t *old_vs, real_server_t *new_rs)
 		/* which fields are really used on s_svr? */
 		new_rs->alive = old_rs->alive;
 		new_rs->set = old_rs->set;
-		new_rs->effective_weight = old_rs->effective_weight;
-		new_rs->pweight = old_rs->iweight;
+		new_rs->effective_weight = new_rs->iweight;
 		new_rs->reloaded = true;
 	}
 	else {
 		if (old_rs->inhibit) {
 			if (!ISALIVE(old_rs) && old_rs->set)
 				SET_ALIVE(old_rs);
-			old_rs->inhibit = 0;
+			old_rs->inhibit = false;
 		}
 		if (ISALIVE(old_rs)) {
 			log_message(LOG_INFO, "Removing sorry server %s from VS %s"
@@ -1028,7 +1017,6 @@ clear_diff_s_srv(virtual_server_t *old_vs, real_server_t *new_rs)
 			ipvs_cmd(LVS_CMD_DEL_DEST, old_vs, old_rs);
 		}
 	}
-
 }
 
 /* When reloading configuration, remove negative diff entries

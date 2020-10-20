@@ -107,6 +107,7 @@ find_tracked_file_by_name(const char *name, list_head_t *l)
 	return NULL;
 }
 
+// Some of the following code is VRRP specific, and so should be in vrrp_track_file.c
 void
 vrrp_alloc_track_file(const char *name, list_head_t *tracked_files, list_head_t *track_file, const vector_t *strvec)
 {
@@ -593,7 +594,7 @@ process_update_checker_track_file_status(const tracked_file_t *tfile, int new_st
 	else if (new_status > IPVS_WEIGHT_MAX - 1)
 		new_status = IPVS_WEIGHT_MAX - 1;
 
-	previous_status64 = !top->weight ? (!!tfile->last_status == (top->weight_multiplier == 1) ? -IPVS_WEIGHT_MAX : 0 ) : (int64_t)tfile->last_status * top->weight * top->weight_multiplier;
+	previous_status64 = !top->weight ? (!tfile->last_status != (top->weight_multiplier == 1) ? -IPVS_WEIGHT_MAX : 0 ) : (int64_t)tfile->last_status * top->weight * top->weight_multiplier;
 	if (previous_status64 < -IPVS_WEIGHT_MAX)
 		previous_status = -IPVS_WEIGHT_MAX;
 	else if (previous_status64 > IPVS_WEIGHT_MAX - 1)
@@ -609,13 +610,15 @@ process_update_checker_track_file_status(const tracked_file_t *tfile, int new_st
 			log_message(LOG_INFO, "(%s): tracked file %s now FAULT state"
 					    , FMT_RS(checker->rs, checker->vs), tfile->fname);
 		update_svr_checker_state(DOWN, checker);
+		checker->rs->effective_weight -= checker->cur_weight;
 		checker->cur_weight = 0;
 	} else if (previous_status == -IPVS_WEIGHT_MAX) {
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
 			log_message(LOG_INFO, "(%s): tracked file %s leaving FAULT state"
 					    , FMT_RS(checker->rs, checker->vs), tfile->fname);
+		checker->cur_weight = new_status;
+		checker->rs->effective_weight += new_status;
 		update_svr_checker_state(UP, checker);
-		checker->cur_weight = 0;
 	}
 	else {
 #ifdef TMP_TRACK_FILE_DEBUG

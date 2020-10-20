@@ -77,6 +77,7 @@ file_check_handler(__attribute__((unused)) const vector_t *strvec)
 	tracked_file_monitor_t *tfile;
 
 	PMALLOC(tfile);
+	tfile->weight = -IPVS_WEIGHT_MAX - 1;
 	INIT_LIST_HEAD(&tfile->e_list);
 	list_add_tail(&tfile->e_list, &rs->track_files);
 }
@@ -134,7 +135,7 @@ file_end_handler(void)
 		return;
 	}
 
-	if (!tfile->weight) {
+	if (tfile->weight == -IPVS_WEIGHT_MAX - 1) {
 		tfile->weight = tfile->file->weight;
 		tfile->weight_reverse = tfile->file->weight_reverse;
 	}
@@ -195,7 +196,8 @@ set_track_file_checkers_down(void)
 			list_for_each_entry(top, &tfl->tracking_obj, e_list) {
 				checker_t *checker = top->obj.checker;
 
-				if (!top->weight) {
+				if (!top->weight ||
+				    (int64_t)tfl->last_status * top->weight * top->weight_multiplier <= -IPVS_WEIGHT_MAX) {
 					if (reload) {
 						/* This is pretty horrible. At some stage this should
 						 * be tidied up so that it works without having to
@@ -203,11 +205,30 @@ set_track_file_checkers_down(void)
 						 * work for us. */
 						status = tfl->last_status;
 						tfl->last_status = 0;
-						process_update_checker_track_file_status(tfl, !!status == (top->weight_multiplier == 1) ? INT_MIN : 0, top);
+						process_update_checker_track_file_status(tfl, !status != (top->weight_multiplier == 1) ? -IPVS_WEIGHT_MAX - 1 : 0, top);
 						tfl->last_status = status;
 					} else
 						checker->is_up = false;
-				}
+				} else if ((int64_t)tfl->last_status * top->weight * top->weight_multiplier <= -IPVS_WEIGHT_MAX && !reload)
+					checker->is_up = false;
+			}
+		}
+	}
+}
+
+void
+set_track_file_weights(void)
+{
+	tracked_file_t *tfl;
+	tracking_obj_t *top;
+
+	list_for_each_entry(tfl, &check_data->track_files, e_list) {
+		if (tfl->last_status) {
+			list_for_each_entry(top, &tfl->tracking_obj, e_list) {
+				checker_t *checker = top->obj.checker;
+
+				if (top->weight)
+					checker->cur_weight = (int64_t)tfl->last_status * top->weight * top->weight_multiplier;
 			}
 		}
 	}

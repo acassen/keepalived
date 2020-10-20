@@ -405,8 +405,8 @@ dump_rs(FILE *fp, const real_server_t *rs)
 	conf_write(fp, "   Using smtp notification = %s", rs->smtp_alert ? "yes" : "no");
 
 	conf_write(fp, "   initial weight = %d", rs->iweight);
-	conf_write(fp, "   previous weight = %d", rs->pweight);
 	conf_write(fp, "   effective weight = %" PRIi64, rs->effective_weight);
+	conf_write(fp, "   previous effective_weight = %" PRIi64, rs->peffective_weight);
 	conf_write(fp, "   alive = %d", rs->alive);
 	conf_write(fp, "   num failed checkers = %u", rs->num_failed_checkers);
 	conf_write(fp, "   RS set = %d", rs->set);

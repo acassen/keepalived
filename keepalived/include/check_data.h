@@ -62,11 +62,10 @@ typedef struct _ssl_data {
 /* Real Server definition */
 typedef struct _real_server {
 	struct sockaddr_storage		addr;
-//	int				weight;
 	int64_t				effective_weight;
+	int64_t				peffective_weight; /* previous weight
+							    * used for reloading */
 	int				iweight;	/* Initial weight */
-	int				pweight;	/* previous weight
-							 * used for reloading */
 	unsigned			forwarding_method; /* NAT/TUN/DR */
 #ifdef _HAVE_IPVS_TUN_TYPE_
 	int				tun_type;	/* tunnel type */

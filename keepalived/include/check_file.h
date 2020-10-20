@@ -26,6 +26,7 @@
 extern void install_file_check_keyword(void);
 extern void add_rs_to_track_files(void);
 extern void set_track_file_checkers_down(void);
+extern void set_track_file_weights(void);
 
 #ifdef THREAD_DUMP
 extern void register_check_file_addresses(void);
