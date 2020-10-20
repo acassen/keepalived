@@ -50,13 +50,6 @@ static void misc_check_child_thread(thread_ref_t);
 
 static bool script_user_set;
 static misc_checker_t *new_misck_checker;
-static bool have_dynamic_misc_checker;
-
-void
-clear_dynamic_misc_check_flag(void)
-{
-	have_dynamic_misc_checker = false;
-}
 
 /* Configuration stream handling */
 static void
@@ -149,11 +142,6 @@ misc_dynamic_handler(__attribute__((unused)) const vector_t *strvec)
 		return;
 
 	new_misck_checker->dynamic = true;
-
-	if (have_dynamic_misc_checker)
-		report_config_error(CONFIG_GENERAL_ERROR, "Warning - more than one dynamic misc checker per real server will cause problems");
-	else
-		have_dynamic_misc_checker = true;
 }
 
 static void
@@ -358,7 +346,7 @@ misc_check_child_thread(thread_ref_t thread)
 
 	if (WIFEXITED(wait_status)) {
 		unsigned status = WEXITSTATUS(wait_status);
-		unsigned effective_weight;
+		int64_t effective_weight;
 
 		if (status == 0 ||
 		    (misck_checker->dynamic && status >= 2 && status <= 255)) {
@@ -367,11 +355,8 @@ misc_check_child_thread(thread_ref_t thread)
 			 * the exit status returned.  Effective range is 0..253.
 			 * Catch legacy case of status being 0 but misc_dynamic being set.
 			 */
-			if (status >= 2)
-				effective_weight = status - 2;
-			else
-				effective_weight = checker->rs->iweight;
 			if (status != misck_checker->last_exit_code) {
+				effective_weight = checker->rs->effective_weight + (status ? (int64_t)status - 2 : 0) - (misck_checker->last_exit_code ? (int64_t)misck_checker->last_exit_code - 2 : 0) - checker->rs->iweight;
 				update_svr_wgt(effective_weight, checker->vs,
 					       checker->rs, true);
 				misck_checker->last_exit_code = status;
@@ -397,6 +382,7 @@ misc_check_child_thread(thread_ref_t thread)
 					script_exit_type = NULL; /* this disables all message handling */
 			} else {
 				checker->retry_it = 0;
+				checker->rs->effective_weight += ((int64_t)1 - 2) - (misck_checker->last_exit_code ? (int64_t)misck_checker->last_exit_code - 2 : 0) - checker->rs->iweight;
 				misck_checker->last_exit_code = status;
 			}
 		}

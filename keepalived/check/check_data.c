@@ -497,8 +497,6 @@ alloc_rs(const char *ip, const char *port)
 
 	list_add_tail(&new->e_list, &vs->rs);
 	vs->rs_cnt++;
-
-	clear_dynamic_misc_check_flag();
 }
 
 /*

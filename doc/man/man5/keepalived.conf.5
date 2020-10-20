@@ -2153,16 +2153,23 @@ The syntax for virtual_server is :
             # Script execution timeout
             \fBmisc_timeout \fR<INTEGER>
 
-            # If set, the exit code from healthchecker is used
-            # to dynamically adjust the weight as follows:
+            # If misc_dynamic is set, the exit code from healthchecker
+            # is used to dynamically adjust the weight as follows:
             #   exit status 0: svc check success, weight
             #     unchanged.
             #   exit status 1: svc check failed.
-            #   exit status 2-255: svc check success, weight
-            #     changed to 2 less than exit status.
-            #   (for example: exit status of 255 would set
-            #     weight to 253)
-            # NOTE: do not have more than one dynamic MISC_CHECK per real_server.
+            #   exit status 2-255: svc check success,
+            #     then the RS weight is increased by
+            #     (exit status - 2 - rs configured weight).
+            #     An exit status of 10 will set the RS weight to 10. If
+            #       the exit status subsequently changes to 20, the RS
+            #       weight will become 20.
+            #     If there is only one MISC_CHECK and no FILE_CHECKers
+            #       the effect is to set the RS weight to two less than
+            #       the exit status.
+            #     (for example: an exit status of 255 would set
+            #       weight to 253 if no other MISC_CHECKers or
+            #       FILE_CHECKers where configured on the RS)
             \fBmisc_dynamic\fR
 
             # Specify the username/groupname that the script should
