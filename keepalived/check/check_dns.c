@@ -458,7 +458,6 @@ dump_dns_check(FILE *fp, const checker_t *checker)
 	const dns_check_t *dns_check = checker->data;
 
 	conf_write(fp, "   Keepalive method = DNS_CHECK");
-	dump_checker_opts(fp, checker);
 	conf_write(fp, "   Type = %s", dns_type_name(dns_check->type));
 	conf_write(fp, "   Name = %s", dns_check->name);
 }

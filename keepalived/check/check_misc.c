@@ -66,13 +66,16 @@ static void
 dump_misc_check(FILE *fp, const checker_t *checker)
 {
 	const misc_checker_t *misck_checker = checker->data;
+	char time_str[26];
 
 	conf_write(fp, "   Keepalive method = MISC_CHECK");
 	conf_write(fp, "   script = %s", cmd_str(&misck_checker->script));
 	conf_write(fp, "   timeout = %lu", misck_checker->timeout/TIMER_HZ);
 	conf_write(fp, "   dynamic = %s", misck_checker->dynamic ? "YES" : "NO");
 	conf_write(fp, "   uid:gid = %u:%u", misck_checker->script.uid, misck_checker->script.gid);
-	dump_checker_opts(fp, checker);
+	ctime_r(&misck_checker->last_ran.tv_sec, time_str);
+	conf_write(fp, "   Last ran = %ld.%6.6ld (%.24s.%6.6ld)", misck_checker->last_ran.tv_sec, misck_checker->last_ran.tv_usec, time_str, misck_checker->last_ran.tv_usec);
+	conf_write(fp, "   Last status = %u", misck_checker->last_exit_code);
 }
 
 static bool

@@ -326,7 +326,6 @@ dump_http_check(FILE *fp, const checker_t *checker)
 			http_get_chk->proto == PROTO_HTTP ? "HTTP" : "SSL",
 			http_get_chk->http_protocol == HTTP_PROTOCOL_1_0C ? "1.0C" :
 			  http_get_chk->http_protocol == HTTP_PROTOCOL_1_1 ? "1.1" : "1.0");
-	dump_checker_opts(fp, checker);
 	if (http_get_chk->virtualhost)
 		conf_write(fp, "   Virtualhost = %s", http_get_chk->virtualhost);
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_

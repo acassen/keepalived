@@ -52,10 +52,9 @@ free_tcp_check(checker_t *checker)
 }
 
 static void
-dump_tcp_check(FILE *fp, const checker_t *checker)
+dump_tcp_check(FILE *fp, __attribute__((unused)) const checker_t *checker)
 {
 	conf_write(fp, "   Keepalive method = TCP_CHECK");
-	dump_checker_opts(fp, checker);
 }
 
 static bool

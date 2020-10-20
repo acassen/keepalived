@@ -87,7 +87,6 @@ dump_smtp_check(FILE *fp, const checker_t *checker)
 
 	conf_write(fp, "   Keepalive method = SMTP_CHECK");
 	conf_write(fp, "   helo = %s", smtp_checker->helo_name);
-	dump_checker_opts(fp, checker);
 }
 
 static bool

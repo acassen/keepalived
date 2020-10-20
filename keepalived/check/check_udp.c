@@ -64,7 +64,6 @@ dump_udp_check(FILE *fp, const checker_t *checker)
 	udp_check_t *udp_check = CHECKER_ARG(checker);
 
 	conf_write(fp, "   Keepalive method = UDP_CHECK");
-	dump_checker_opts(fp, checker);
 
 	if (udp_check->payload)
 		conf_write(fp, "   Payload len = %u", udp_check->payload_len);

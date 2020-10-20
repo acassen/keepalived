@@ -118,7 +118,6 @@ extern void init_checkers_queue(void);
 extern void free_vs_checkers(const virtual_server_t *);
 extern void free_rs_checkers(const real_server_t *);
 extern void dump_connection_opts(FILE *, const void *);
-extern void dump_checker_opts(FILE *, const void *);
 extern checker_t *queue_checker(const checker_funcs_t *
 			  , thread_func_t
 			  , void *
