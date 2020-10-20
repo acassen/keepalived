@@ -589,18 +589,8 @@ process_update_checker_track_file_status(const tracked_file_t *tfile, int new_st
 	int64_t previous_status64;
 	checker_t *checker = top->obj.checker;
 
-	if (new_status < IPVS_WEIGHT_FAULT)
-		new_status = IPVS_WEIGHT_FAULT;
-	else if (new_status > IPVS_WEIGHT_LIMIT)
-		new_status = IPVS_WEIGHT_LIMIT;
-
 	previous_status64 = !top->weight ? (!tfile->last_status != (top->weight_multiplier == 1) ? IPVS_WEIGHT_FAULT : 0 ) : (int64_t)tfile->last_status * top->weight * top->weight_multiplier;
-	if (previous_status64 < IPVS_WEIGHT_FAULT)
-		previous_status = IPVS_WEIGHT_FAULT;
-	else if (previous_status64 > IPVS_WEIGHT_LIMIT)
-		previous_status = IPVS_WEIGHT_LIMIT;
-	else
-		previous_status = previous_status64;
+	previous_status = weight_range(previous_status64);
 
 	if (previous_status == new_status)
 		return;
@@ -636,7 +626,6 @@ static void
 update_track_file_status(tracked_file_t *tfile, int64_t new_status)
 {
 	tracking_obj_t *top;
-	int64_t status64;
 	int status;
 
 	if (new_status == tfile->last_status)
@@ -648,15 +637,8 @@ update_track_file_status(tracked_file_t *tfile, int64_t new_status)
 		 * failure, a 0 status means success */
 		if (!top->weight)
 			status = !new_status != (top->weight_multiplier == 1) ? IPVS_WEIGHT_FAULT : 0;
-		else {
-			status64 = (int64_t)new_status * top->weight * top->weight_multiplier;
-			if (status64 < IPVS_WEIGHT_FAULT)
-				status = IPVS_WEIGHT_FAULT;
-			else if (status64 > IPVS_WEIGHT_LIMIT)
-				status = IPVS_WEIGHT_LIMIT;
-			else
-				status = status64;
-		}
+		else
+			status = weight_range((int64_t)new_status * top->weight * top->weight_multiplier);
 
 #ifdef _WITH_VRRP_
 		if (vrrp_data)
