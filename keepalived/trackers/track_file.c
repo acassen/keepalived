@@ -863,6 +863,7 @@ init_track_files(list_head_t *track_files)
 		if (resolved_path)
 			free(resolved_path);	/* malloc'd by realpath() */
 
+// We need to do the add_watch before process_track_file() is called
 		tfile->file_part = strrchr(tfile->file_path, '/') + 1;
 		new_path = STRNDUP(tfile->file_path, tfile->file_part - tfile->file_path);
 		tfile->wd = inotify_add_watch(inotify_fd, new_path, IN_CLOSE_WRITE | IN_DELETE | IN_MOVE);

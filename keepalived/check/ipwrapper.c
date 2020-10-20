@@ -877,8 +877,22 @@ migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new
 
 					/* Transfer some other state flags */
 					new_c->has_run = old_c->has_run;
-// retry_it needs fixing -  if retry changes, we may already have exceeded count
-					new_c->retry_it = old_c->retry_it;
+
+					/* If we have already had sufficient retries for the new retry value,
+					 * we hadn't already failed, so just require one more failure to trigger
+					 * failed state.
+					 * If we no longer have any retries, one more failure should trigger
+					 * failed state.
+					 */
+					if (old_c->retry_it && new_c->retry) {
+						if (old_c->retry_it >= new_c->retry)
+							new_c->retry_it = new_c->retry - 1;
+						else
+							new_c->retry_it = old_c->retry_it;
+					}
+
+					if (new_c->checker_funcs->migrate)
+						new_c->checker_funcs->migrate(new_c, old_c);
 
 					break;
 				}
