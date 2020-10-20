@@ -244,8 +244,8 @@ real_weight(int64_t effective_weight)
 {
 	if (effective_weight < 0)
 		return 0;
-	if (effective_weight > IPVS_WEIGHT_MAX)
-		return IPVS_WEIGHT_MAX;
+	if (effective_weight > IPVS_WEIGHT_LIMIT)
+		return IPVS_WEIGHT_LIMIT;
 	return effective_weight;
 }
 

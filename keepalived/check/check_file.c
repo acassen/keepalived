@@ -77,7 +77,7 @@ file_check_handler(__attribute__((unused)) const vector_t *strvec)
 	tracked_file_monitor_t *tfile;
 
 	PMALLOC(tfile);
-	tfile->weight = -IPVS_WEIGHT_MAX - 1;
+	tfile->weight = IPVS_WEIGHT_FAULT - 1;
 	INIT_LIST_HEAD(&tfile->e_list);
 	list_add_tail(&tfile->e_list, &rs->track_files);
 }
@@ -98,9 +98,9 @@ track_file_weight_handler(const vector_t *strvec)
 		return;
 	}
 
-	if (!read_int_strvec(strvec, 1, &weight, -IPVS_WEIGHT_MAX, IPVS_WEIGHT_MAX, true)) {
+	if (!read_int_strvec(strvec, 1, &weight, -IPVS_WEIGHT_LIMIT, IPVS_WEIGHT_LIMIT, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "weight for track file must be in "
-				 "[-IPVS_WEIGHT_MAX..IPVS_WEIGHT_MAX] inclusive. Ignoring...");
+				 "[%d..%d] inclusive. Ignoring...", -IPVS_WEIGHT_LIMIT, IPVS_WEIGHT_LIMIT);
 		return;
 	}
 
@@ -135,7 +135,7 @@ file_end_handler(void)
 		return;
 	}
 
-	if (tfile->weight == -IPVS_WEIGHT_MAX - 1) {
+	if (tfile->weight == IPVS_WEIGHT_FAULT - 1) {
 		tfile->weight = tfile->file->weight;
 		tfile->weight_reverse = tfile->file->weight_reverse;
 	}
@@ -197,7 +197,7 @@ set_track_file_checkers_down(void)
 				checker_t *checker = top->obj.checker;
 
 				if (!top->weight ||
-				    (int64_t)tfl->last_status * top->weight * top->weight_multiplier <= -IPVS_WEIGHT_MAX) {
+				    (int64_t)tfl->last_status * top->weight * top->weight_multiplier <= IPVS_WEIGHT_FAULT) {
 					if (reload) {
 						/* This is pretty horrible. At some stage this should
 						 * be tidied up so that it works without having to
@@ -205,11 +205,11 @@ set_track_file_checkers_down(void)
 						 * work for us. */
 						status = tfl->last_status;
 						tfl->last_status = 0;
-						process_update_checker_track_file_status(tfl, !status != (top->weight_multiplier == 1) ? -IPVS_WEIGHT_MAX - 1 : 0, top);
+						process_update_checker_track_file_status(tfl, !status != (top->weight_multiplier == 1) ? IPVS_WEIGHT_FAULT: 0, top);
 						tfl->last_status = status;
 					} else
 						checker->is_up = false;
-				} else if ((int64_t)tfl->last_status * top->weight * top->weight_multiplier <= -IPVS_WEIGHT_MAX && !reload)
+				} else if ((int64_t)tfl->last_status * top->weight * top->weight_multiplier <= IPVS_WEIGHT_FAULT && !reload)
 					checker->is_up = false;
 			}
 		}

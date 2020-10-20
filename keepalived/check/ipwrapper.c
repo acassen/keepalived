@@ -393,7 +393,7 @@ init_service_rs(virtual_server_t *vs)
 		if (!reload) {
 			list_for_each_entry(tfm, &rs->track_files, e_list) {
 				if (tfm->weight) {
-					if ((int64_t)tfm->file->last_status * tfm->weight * (tfm->weight_reverse ? -1 : 1) <= -IPVS_WEIGHT_MAX)
+					if ((int64_t)tfm->file->last_status * tfm->weight * (tfm->weight_reverse ? -1 : 1) <= IPVS_WEIGHT_FAULT)
 						rs->num_failed_checkers++;
 				}
 				else if (tfm->file->last_status)
