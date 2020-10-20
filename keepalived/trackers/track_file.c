@@ -768,12 +768,74 @@ init_track_files(list_head_t *track_files)
 	char *dir_end = NULL;
 	char *new_path;
 	struct stat stat_buf;
+	char *realpath_buf;
+	bool file_exists;
 
-	inotify_fd = -1;
+	if (inotify_fd != -1) {
+		/* This should not happen */
+		close(inotify_fd);
+		inotify_fd = -1;
+	}
+
+	realpath_buf = MALLOC(PATH_MAX);
 
 	list_for_each_entry_safe(tfile, tfile_tmp, track_files, e_list) {
 		if (list_empty(&tfile->tracking_obj)) {
 			/* Nothing is tracking this file, so forget it */
+			remove_track_file(tfile);
+			continue;
+		}
+
+		file_exists = false;
+
+		resolved_path = realpath(tfile->file_path, realpath_buf);
+		if (resolved_path) {
+			if (strcmp(tfile->file_path, resolved_path)) {
+				FREE_CONST(tfile->file_path);
+				tfile->file_path = STRDUP(resolved_path);
+			}
+
+			file_exists = true;
+		}
+		else if (errno == ENOENT) {
+			/* Resolve the directory */
+			if (!(dir_end = strrchr(tfile->file_path, '/')))
+				resolved_path = realpath(".", realpath_buf);
+			else {
+				*dir_end = '\0';
+				resolved_path = realpath(tfile->file_path, realpath_buf);
+
+				/* Check it is a directory */
+				if (resolved_path &&
+				    (stat(resolved_path, &stat_buf) ||
+				     !S_ISDIR(stat_buf.st_mode))) {
+					resolved_path = NULL;
+				}
+			}
+
+			if (!resolved_path) {
+				report_config_error(CONFIG_GENERAL_ERROR, "Track file directory for %s "
+									  "does not exist - removing"
+									, tfile->fname);
+				remove_track_file(tfile);
+				continue;
+			}
+
+			/* Make the file name with the resolved directory path */
+			if (strcmp(tfile->file_path, resolved_path)) {
+				new_path = MALLOC(strlen(resolved_path) + strlen((!dir_end) ? tfile->file_path : dir_end + 1) + 2);
+				strcpy(new_path, resolved_path);
+				strcat(new_path, "/");
+				strcat(new_path, dir_end ? dir_end + 1 : tfile->file_path);
+				FREE_CONST(tfile->file_path);
+				tfile->file_path = new_path;
+			}
+			else if (dir_end)
+				*dir_end = '/';
+		}
+		else {
+			report_config_error(CONFIG_GENERAL_ERROR, "track file %s is not accessible"
+								  " - ignoring", tfile->fname);
 			remove_track_file(tfile);
 			continue;
 		}
@@ -791,73 +853,21 @@ init_track_files(list_head_t *track_files)
 
 			if (inotify_fd == -1) {
 				log_message(LOG_INFO, "Unable to monitor track files");
-				return ;
+				break;
 			}
 		}
 
-		resolved_path = realpath(tfile->file_path, NULL);
-		if (resolved_path) {
-			if (strcmp(tfile->file_path, resolved_path)) {
-				FREE_CONST(tfile->file_path);
-				tfile->file_path = STRDUP(resolved_path);
-			}
-
-			/* The file exists, so read it now */
-			process_track_file(tfile, true);
-		}
-		else if (errno == ENOENT) {
-			/* Resolve the directory */
-			if (!(dir_end = strrchr(tfile->file_path, '/')))
-				resolved_path = realpath(".", NULL);
-			else {
-				*dir_end = '\0';
-				resolved_path = realpath(tfile->file_path, NULL);
-
-				/* Check it is a directory */
-				if (resolved_path &&
-				    (stat(resolved_path, &stat_buf) ||
-				     !S_ISDIR(stat_buf.st_mode))) {
-					free(resolved_path);	/* malloc'd by realpath() */
-					resolved_path = NULL;
-				}
-			}
-
-			if (!resolved_path) {
-				report_config_error(CONFIG_GENERAL_ERROR, "Track file directory for %s "
-									  "does not exist - removing"
-									, tfile->fname);
-				remove_track_file(tfile);
-				continue;
-			}
-
-			if (strcmp(tfile->file_path, resolved_path)) {
-				new_path = MALLOC(strlen(resolved_path) + strlen((!dir_end) ? tfile->file_path : dir_end + 1) + 2);
-				strcpy(new_path, resolved_path);
-				strcat(new_path, "/");
-				strcat(new_path, dir_end ? dir_end + 1 : tfile->file_path);
-				FREE_CONST(tfile->file_path);
-				tfile->file_path = new_path;
-			}
-			else if (dir_end)
-				*dir_end = '/';
-		}
-		else {
-			report_config_error(CONFIG_GENERAL_ERROR, "track file %s is not accessible"
-								  " - ignoring"
-								, tfile->fname);
-			remove_track_file(tfile);
-			continue;
-		}
-
-		if (resolved_path)
-			free(resolved_path);	/* malloc'd by realpath() */
-
-// We need to do the add_watch before process_track_file() is called
 		tfile->file_part = strrchr(tfile->file_path, '/') + 1;
 		new_path = STRNDUP(tfile->file_path, tfile->file_part - tfile->file_path);
 		tfile->wd = inotify_add_watch(inotify_fd, new_path, IN_CLOSE_WRITE | IN_DELETE | IN_MOVE);
 		FREE(new_path);
+
+		/* If the file exists, read it now */
+		if (file_exists)
+			process_track_file(tfile, true);
 	}
+
+	FREE(realpath_buf);
 
 	if (inotify_fd != -1)
 		inotify_thread = thread_add_read(master, process_inotify, track_files, inotify_fd, TIMER_NEVER, false);
