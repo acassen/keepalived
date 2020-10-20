@@ -410,8 +410,8 @@ init_service_rs(virtual_server_t *vs)
 					rs->num_failed_checkers++;
 			}
 
-			if (rs->effective_weight < 1)
-				rs->weight = 1;
+			if (rs->effective_weight < 0)
+				rs->weight = 0;
 			else if (rs->effective_weight > IPVS_WEIGHT_MAX - 1)
 				rs->weight = IPVS_WEIGHT_MAX - 1;
 			else
@@ -667,9 +667,8 @@ update_svr_wgt(int weight, virtual_server_t * vs, real_server_t * rs
 {
 	rs->effective_weight = weight;
 
-/* TODO - handle weight = 0 - ? affects quorum */
-	if (weight <= 0)
-		weight = 1;
+	if (weight < 0)
+		weight = 0;
 #if IPVS_WEIGHT_MAX != INT_MAX
 	else if (weight > IPVS_WEIGHT_MAX)
 		weight = IPVS_WEIGHT_MAX;
