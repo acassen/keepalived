@@ -585,18 +585,21 @@ void
 process_update_checker_track_file_status(const tracked_file_t *tfile, int new_status, const tracking_obj_t *top)
 {
 	int previous_status;
+	int64_t previous_status64;
 	checker_t *checker = top->obj.checker;
 
 	if (new_status < -IPVS_WEIGHT_MAX)
 		new_status = -IPVS_WEIGHT_MAX;
-	else if (new_status > IPVS_WEIGHT_MAX -1)
+	else if (new_status > IPVS_WEIGHT_MAX - 1)
 		new_status = IPVS_WEIGHT_MAX - 1;
 
-	previous_status = !top->weight ? (!!tfile->last_status == (top->weight_multiplier == 1) ? -IPVS_WEIGHT_MAX : 0 ) : tfile->last_status * top->weight * top->weight_multiplier;
-	if (previous_status < -IPVS_WEIGHT_MAX)
+	previous_status64 = !top->weight ? (!!tfile->last_status == (top->weight_multiplier == 1) ? -IPVS_WEIGHT_MAX : 0 ) : (int64_t)tfile->last_status * top->weight * top->weight_multiplier;
+	if (previous_status64 < -IPVS_WEIGHT_MAX)
 		previous_status = -IPVS_WEIGHT_MAX;
-	else if (previous_status > IPVS_WEIGHT_MAX - 1)
+	else if (previous_status64 > IPVS_WEIGHT_MAX - 1)
 		previous_status = IPVS_WEIGHT_MAX - 1;
+	else
+		previous_status = previous_status64;
 
 	if (previous_status == new_status)
 		return;
@@ -616,7 +619,7 @@ process_update_checker_track_file_status(const tracked_file_t *tfile, int new_st
 	}
 	else {
 #ifdef TMP_TRACK_FILE_DEBUG
-		log_message(LOG_INFO, "Updated weight to %d (weight %d, new_status %d previous_status %d)"
+		log_message(LOG_INFO, "Updated weight to %" PRIi64 " (weight %d, new_status %d previous_status %d)"
 				    , checker->rs->effective_weight + new_status - previous_status
 				    , real_weight(checker->rs->effective_weight), new_status, previous_status);
 #endif
@@ -630,6 +633,7 @@ void
 update_track_file_status(tracked_file_t *tfile, int new_status)
 {
 	tracking_obj_t *top;
+	int64_t status64;
 	int status;
 
 	if (new_status == tfile->last_status)
@@ -640,9 +644,16 @@ update_track_file_status(tracked_file_t *tfile, int new_status)
 		/* If the tracking weight is 0, a non-zero value means
 		 * failure, a 0 status means success */
 		if (!top->weight)
-			status = !!new_status == (top->weight_multiplier == 1) ? INT_MIN : 0;
-		else
-			status = new_status * top->weight * top->weight_multiplier;
+			status = !!new_status == (top->weight_multiplier == 1) ? -IPVS_WEIGHT_MAX - 1 : 0;
+		else {
+			status64 = (int64_t)new_status * top->weight * top->weight_multiplier;
+			if (status64 < -IPVS_WEIGHT_MAX - 1)
+				status = -IPVS_WEIGHT_MAX - 1;
+			else if (status64 >= IPVS_WEIGHT_MAX)
+				status = IPVS_WEIGHT_MAX - 1;
+			else
+				status = status64;
+		}
 
 #ifdef _WITH_VRRP_
 		if (vrrp_data)

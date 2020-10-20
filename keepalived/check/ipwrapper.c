@@ -380,7 +380,7 @@ init_service_rs(virtual_server_t *vs)
 {
 	real_server_t *rs;
 	tracked_file_monitor_t *tfm;
-	long weight;
+	int64_t weight;
 
 	list_for_each_entry(rs, &vs->rs, e_list) {
 		if (rs->reloaded) {
@@ -403,7 +403,7 @@ init_service_rs(virtual_server_t *vs)
 						weight = 0;
 					}
 					else if (weight > IPVS_WEIGHT_MAX - 1)
-						weight = IPVS_WEIGHT_MAX -1;
+						weight = IPVS_WEIGHT_MAX - 1;
 					rs->effective_weight += weight;
 				}
 				else if (tfm->file->last_status)
@@ -655,7 +655,7 @@ init_services(void)
 
 /* Store new weight in real_server struct and then update kernel. */
 void
-update_svr_wgt(int weight, virtual_server_t * vs, real_server_t * rs
+update_svr_wgt(int64_t weight, virtual_server_t * vs, real_server_t * rs
 		, bool update_quorum)
 {
 	int old_weight, new_weight;

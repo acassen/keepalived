@@ -25,6 +25,7 @@
 
 /* system includes */
 #include <stdbool.h>
+#include <stdint.h>
 
 /* local includes */
 #include "check_data.h"
@@ -49,7 +50,7 @@ rs_iseq(const real_server_t *rs_a, const real_server_t *rs_b)
 }
 
 /* prototypes */
-extern void update_svr_wgt(int, virtual_server_t *, real_server_t *, bool);
+extern void update_svr_wgt(int64_t, virtual_server_t *, real_server_t *, bool);
 extern void set_checker_state(checker_t *, bool);
 extern void update_svr_checker_state(bool, checker_t *);
 extern bool init_services(void);
