@@ -83,13 +83,15 @@ dump_misc_check(FILE *fp, const checker_t *checker)
 }
 
 static bool
-misc_check_compare(const checker_t *old_c, checker_t *new_c)
+compare_misc_check(const checker_t *old_c, checker_t *new_c)
 {
 	const misc_checker_t *old = old_c->data;
 	const misc_checker_t *new = new_c->data;
 
 	return notify_script_compare(&old->script, &new->script);
 }
+
+static const checker_funcs_t misc_checker_funcs = { CHECKER_MISC, free_misc_check, dump_misc_check, compare_misc_check, NULL };
 
 static void
 misc_check_handler(__attribute__((unused)) const vector_t *strvec)
@@ -102,7 +104,7 @@ misc_check_handler(__attribute__((unused)) const vector_t *strvec)
 	script_user_set = false;
 
 	/* queue new checker */
-	checker = queue_checker(free_misc_check, dump_misc_check, misc_check_thread, misc_check_compare, new_misck_checker, NULL, false);
+	checker = queue_checker(&misc_checker_funcs, misc_check_thread, new_misck_checker, NULL, false);
 
 	/* Set non-standard default value */
 	checker->default_retry = 0;

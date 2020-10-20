@@ -305,7 +305,7 @@ free_http_request(request_t *req)
 }
 
 static void
-free_http_get_check(checker_t *checker)
+free_http_check(checker_t *checker)
 {
 	http_checker_t *http_get_chk = checker->data;
 
@@ -318,7 +318,7 @@ free_http_get_check(checker_t *checker)
 }
 
 static void
-dump_http_get_check(FILE *fp, const checker_t *checker)
+dump_http_check(FILE *fp, const checker_t *checker)
 {
 	const http_checker_t *http_get_chk = checker->data;
 
@@ -366,7 +366,7 @@ url_list_size(const list_head_t *l)
 }
 
 static bool __attribute__((pure))
-http_get_check_compare(const checker_t *old_c, checker_t *new_c)
+compare_http_check(const checker_t *old_c, checker_t *new_c)
 {
 	const http_checker_t *old = old_c->data;
 	const http_checker_t *new = new_c->data;
@@ -419,6 +419,8 @@ http_get_check_compare(const checker_t *old_c, checker_t *new_c)
 	return true;
 }
 
+static const checker_funcs_t http_checker_funcs = { CHECKER_HTTP, free_http_check, dump_http_check, compare_http_check, NULL };
+
 /* Configuration stream handling */
 static void
 http_get_handler(const vector_t *strvec)
@@ -429,9 +431,7 @@ http_get_handler(const vector_t *strvec)
 
 	/* queue new checker */
 	http_get_chk = alloc_http_get(str);
-	checker = queue_checker(free_http_get_check, dump_http_get_check,
-				http_connect_thread, http_get_check_compare,
-				http_get_chk, CHECKER_NEW_CO(), true);
+	checker = queue_checker(&http_checker_funcs, http_connect_thread, http_get_chk, CHECKER_NEW_CO(), true);
 	checker->default_delay_before_retry = 3 * TIMER_HZ;
 }
 

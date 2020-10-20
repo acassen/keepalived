@@ -151,6 +151,8 @@ install_file_check_keyword(void)
 	install_sublevel_end();
 }
 
+static const checker_funcs_t file_checker_funcs = { CHECKER_FILE, free_file_check, dump_file_check, NULL, NULL };
+
 void
 add_rs_to_track_files(void)
 {
@@ -164,7 +166,7 @@ add_rs_to_track_files(void)
 			list_for_each_entry(tfl, &rs->track_files, e_list) {
 				/* queue new checker - we don't have a compare function since we don't
 				 * update file checkers that way on a reload. */
-				new_checker = queue_checker(free_file_check, dump_file_check, NULL, NULL, tfl->file, NULL, false);
+				new_checker = queue_checker(&file_checker_funcs, NULL, tfl->file, NULL, false);
 				new_checker->vs = vs;
 				new_checker->rs = rs;
 

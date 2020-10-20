@@ -36,12 +36,35 @@
 #include "vector.h"
 #include "layer4.h"
 
-/* Checkers structure definition */
-typedef struct _checker {
+typedef enum _checker_type {
+	CHECKER_MISC,
+	CHECKER_TCP,
+	CHECKER_UDP,
+	CHECKER_DNS,
+	CHECKER_HTTP,
+	CHECKER_SSL,
+	CHECKER_SMTP,
+	CHECKER_BFD,
+	CHECKER_PING,
+	CHECKER_FILE
+} checker_type_t;
+
+
+/* Forward reference */
+struct _checker;
+
+typedef struct _checker_funcs {
+	checker_type_t			type;
 	void				(*free_func) (struct _checker *);
 	void				(*dump_func) (FILE *, const struct _checker *);
-	thread_func_t			launch;
 	bool				(*compare) (const struct _checker *, struct _checker *);
+	void				(*migrate) (struct _checker *, const struct _checker *);
+} checker_funcs_t;
+
+/* Checkers structure definition */
+typedef struct _checker {
+	const checker_funcs_t		*checker_funcs;
+	thread_func_t			launch;
 	virtual_server_t		*vs;			/* pointer to the checker thread virtualserver */
 	real_server_t			*rs;			/* pointer to the checker thread realserver */
 	void				*data;
@@ -96,9 +119,8 @@ extern void free_vs_checkers(const virtual_server_t *);
 extern void free_rs_checkers(const real_server_t *);
 extern void dump_connection_opts(FILE *, const void *);
 extern void dump_checker_opts(FILE *, const void *);
-extern checker_t *queue_checker(void (*) (checker_t *), void (*) (FILE *, const checker_t *)
+extern checker_t *queue_checker(const checker_funcs_t *
 			  , thread_func_t
-			  , bool (*) (const checker_t *, checker_t *)
 			  , void *
 			  , conn_opts_t *
 			  , bool);

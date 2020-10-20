@@ -82,10 +82,12 @@ dump_udp_check(FILE *fp, const checker_t *checker)
 }
 
 static bool
-udp_check_compare(const checker_t *a, checker_t *b)
+compare_udp_check(const checker_t *a, checker_t *b)
 {
 	return compare_conn_opts(a->co, b->co);
 }
+
+static const checker_funcs_t udp_checker_funcs = { CHECKER_UDP, free_udp_check, dump_udp_check, compare_udp_check, NULL };
 
 static void
 udp_check_handler(__attribute__((unused)) const vector_t *strvec)
@@ -96,8 +98,7 @@ udp_check_handler(__attribute__((unused)) const vector_t *strvec)
 	udp_check->max_reply_len = UINT8_MAX;
 
 	/* queue new checker */
-	queue_checker(free_udp_check, dump_udp_check, udp_connect_thread,
-		      udp_check_compare, udp_check, CHECKER_NEW_CO(), true);
+	queue_checker(&udp_checker_funcs, udp_connect_thread, udp_check, CHECKER_NEW_CO(), true);
 }
 
 static void

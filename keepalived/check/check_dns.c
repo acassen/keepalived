@@ -442,7 +442,7 @@ dns_connect_thread(thread_ref_t thread)
 }
 
 static void
-dns_free(checker_t *checker)
+free_dns_check(checker_t *checker)
 {
 	dns_check_t *dns_check = checker->data;
 
@@ -453,7 +453,7 @@ dns_free(checker_t *checker)
 }
 
 static void
-dns_dump(FILE *fp, const checker_t *checker)
+dump_dns_check(FILE *fp, const checker_t *checker)
 {
 	const dns_check_t *dns_check = checker->data;
 
@@ -464,7 +464,7 @@ dns_dump(FILE *fp, const checker_t *checker)
 }
 
 static bool
-dns_check_compare(const checker_t *old_c, checker_t *new_c)
+compare_dns_check(const checker_t *old_c, checker_t *new_c)
 {
 	const dns_check_t *old = old_c->data;
 	const dns_check_t *new = new_c->data;
@@ -479,6 +479,8 @@ dns_check_compare(const checker_t *old_c, checker_t *new_c)
 	return true;
 }
 
+static const checker_funcs_t dns_checker_funcs = { CHECKER_DNS, free_dns_check, dump_dns_check, compare_dns_check, NULL };
+
 static void
 dns_check_handler(__attribute__((unused)) const vector_t *strvec)
 {
@@ -487,8 +489,8 @@ dns_check_handler(__attribute__((unused)) const vector_t *strvec)
 
 	PMALLOC(dns_check);
 	dns_check->type = DNS_DEFAULT_TYPE;
-	checker = queue_checker(dns_free, dns_dump, dns_connect_thread,
-				dns_check_compare, dns_check, CHECKER_NEW_CO(), true);
+	checker = queue_checker(&dns_checker_funcs, dns_connect_thread,
+				dns_check, CHECKER_NEW_CO(), true);
 
 	/* Set the non-standard retry time */
 	checker->default_retry = DNS_DEFAULT_RETRY;

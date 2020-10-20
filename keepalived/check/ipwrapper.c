@@ -875,11 +875,11 @@ migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new
 
 	if (!list_empty(&l)) {
 		list_for_each_entry(new_c, &checkers_queue, e_list) {
-			if (new_c->rs != new_rs || !new_c->compare)
+			if (new_c->rs != new_rs || !new_c->checker_funcs->compare)
 				continue;
 			list_for_each_entry(ref, &l, e_list) {
 				old_c = ref->checker;
-				if (old_c->compare == new_c->compare && new_c->compare(old_c, new_c)) {
+				if (old_c->checker_funcs->type == new_c->checker_funcs->type && new_c->checker_funcs->compare(old_c, new_c)) {
 					/* Update status if different */
 					if (old_c->has_run && old_c->is_up != new_c->is_up)
 						set_checker_state(new_c, old_c->is_up);

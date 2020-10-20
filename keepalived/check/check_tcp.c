@@ -59,17 +59,18 @@ dump_tcp_check(FILE *fp, const checker_t *checker)
 }
 
 static bool
-tcp_check_compare(const checker_t *old_c, checker_t *new_c)
+compare_tcp_check(const checker_t *old_c, checker_t *new_c)
 {
 	return compare_conn_opts(old_c->co, new_c->co);
 }
+
+static const checker_funcs_t tcp_checker_funcs = { CHECKER_TCP, free_tcp_check, dump_tcp_check, compare_tcp_check, NULL };
 
 static void
 tcp_check_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	/* queue new checker */
-	queue_checker(free_tcp_check, dump_tcp_check, tcp_connect_thread,
-		      tcp_check_compare, NULL, CHECKER_NEW_CO(), true);
+	queue_checker(&tcp_checker_funcs, tcp_connect_thread, NULL, CHECKER_NEW_CO(), true);
 }
 
 static void
