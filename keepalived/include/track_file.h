@@ -26,6 +26,7 @@
 /* global includes */
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdint.h>
 
 /* local includes */
 #include "list_head.h"
@@ -61,6 +62,16 @@ typedef struct _tracked_file_monitor {
 	/* linked list member */
 	list_head_t		e_list;
 } tracked_file_monitor_t;
+
+static inline int
+weight_range(int64_t weight_long)
+{
+	if (weight_long < INT_MIN)
+		return INT_MIN;
+	if (weight_long > INT_MAX)
+		return INT_MAX;
+	return weight_long;
+}
 
 extern void dump_track_file_monitor_list(FILE *, const list_head_t *);
 extern void free_track_file_monitor(tracked_file_monitor_t *);

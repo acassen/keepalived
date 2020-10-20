@@ -28,6 +28,7 @@
 #include <sys/inotify.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdint.h>
 
 #include "track_file.h"
 #include "tracker.h"
@@ -636,7 +637,7 @@ update_track_file_status(tracked_file_t *tfile, int64_t new_status)
 		/* If the tracking weight is 0, a non-zero value means
 		 * failure, a 0 status means success */
 		if (!top->weight)
-			status = !new_status != (top->weight_multiplier == 1) ? IPVS_WEIGHT_FAULT : 0;
+			status = !new_status != (top->weight_multiplier == 1) ? INT_MIN : 0;
 		else
 			status = weight_range((int64_t)new_status * top->weight * top->weight_multiplier);
 

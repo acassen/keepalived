@@ -249,16 +249,6 @@ real_weight(int64_t effective_weight)
 	return effective_weight;
 }
 
-static inline int
-weight_range(int64_t weight_long)
-{
-	if (weight_long < IPVS_WEIGHT_FAULT)
-		return IPVS_WEIGHT_FAULT;
-	if (weight_long > IPVS_WEIGHT_LIMIT)
-		return IPVS_WEIGHT_LIMIT;
-	return weight_long;
-}
-
 /* Global vars exported */
 extern check_data_t *check_data;
 extern check_data_t *old_check_data;
