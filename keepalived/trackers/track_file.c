@@ -446,7 +446,7 @@ dump_track_file(FILE *fp, const tracked_file_t *file)
 {
 	conf_write(fp, " Track file = %s", file->fname);
 	conf_write(fp, "   File = %s", file->file_path);
-	conf_write(fp, "   Status = %d", file->last_status);
+	conf_write(fp, "   Status = %" PRIi64, file->last_status);
 	conf_write(fp, "   Weight = %d%s", file->weight, file->weight_reverse ? " reverse" : "");
 	dump_tracking_obj_list(fp, &file->tracking_obj, file->tracking_obj_dump);
 }
@@ -543,7 +543,7 @@ process_update_vrrp_track_file_status(const tracked_file_t *tfile, int new_statu
 
 	previous_status = !top->weight ? (!!tfile->last_status == (top->weight_multiplier == 1) ? -254 : 0 ) : tfile->last_status * top->weight * top->weight_multiplier;
 #ifdef TMP_TRACK_FILE_DEBUG
-	log_message(LOG_INFO, "top->weight %d, mult %d tfile->last_status %d, previous_status %d new_status %d"
+	log_message(LOG_INFO, "top->weight %d, mult %d tfile->last_status %" PRIi64 ", previous_status %d new_status %d"
 			    , top->weight, top->weight_multiplier, tfile->last_status, previous_status, new_status);
 #endif
 	if (previous_status < -254)
@@ -632,8 +632,8 @@ process_update_checker_track_file_status(const tracked_file_t *tfile, int new_st
 }
 #endif
 
-void
-update_track_file_status(tracked_file_t *tfile, int new_status)
+static void
+update_track_file_status(tracked_file_t *tfile, int64_t new_status)
 {
 	tracking_obj_t *top;
 	int64_t status64;
@@ -647,7 +647,7 @@ update_track_file_status(tracked_file_t *tfile, int new_status)
 		/* If the tracking weight is 0, a non-zero value means
 		 * failure, a 0 status means success */
 		if (!top->weight)
-			status = !!new_status == (top->weight_multiplier == 1) ? IPVS_WEIGHT_FAULT - 1 : 0;
+			status = !new_status != (top->weight_multiplier == 1) ? IPVS_WEIGHT_FAULT : 0;
 		else {
 			status64 = (int64_t)new_status * top->weight * top->weight_multiplier;
 			if (status64 < IPVS_WEIGHT_FAULT)
@@ -672,7 +672,7 @@ update_track_file_status(tracked_file_t *tfile, int new_status)
 static void
 process_track_file(tracked_file_t *tfile, bool init)
 {
-	long new_status = 0;
+	int64_t new_status = 0;
 	char buf[128];
 	int fd;
 	ssize_t len;
@@ -685,8 +685,12 @@ process_track_file(tracked_file_t *tfile, bool init)
 			/* If there is an error, we want to use 0,
 			 * so we don't really mind if there is an error */
 			errno = 0;
+#if LONG_MAX > INT32_MAX
 			new_status = strtol(buf, NULL, 0);
-			if (errno || new_status < INT_MIN || new_status > INT_MAX) {
+#else
+			new_status = strtoll(buf, NULL, 0);
+#endif
+			if (errno || new_status < (int64_t)INT32_MIN || new_status > (int64_t)INT32_MAX + 1) {
 				log_message(LOG_INFO, "Invalid number %ld read from %s - ignoring",  new_status, tfile->file_path);
 				return;
 			}
@@ -694,10 +698,10 @@ process_track_file(tracked_file_t *tfile, bool init)
 	}
 
 	if (!init)
-		update_track_file_status(tfile, (int)new_status);
+		update_track_file_status(tfile, new_status);
 
 #ifdef TMP_TRACK_FILE_DEBUG
-	log_message(LOG_INFO, "Read %s: long val %ld, val %d, new last status %d"
+	log_message(LOG_INFO, "Read %s: long val %ld, val %d, last status %" PRIi64
 			    , tfile->file_path, new_status, (int)new_status, tfile->last_status);
 #endif
 

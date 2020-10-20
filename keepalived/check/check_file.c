@@ -77,7 +77,7 @@ file_check_handler(__attribute__((unused)) const vector_t *strvec)
 	tracked_file_monitor_t *tfile;
 
 	PMALLOC(tfile);
-	tfile->weight = IPVS_WEIGHT_FAULT - 1;
+	tfile->weight = IPVS_WEIGHT_FAULT;
 	INIT_LIST_HEAD(&tfile->e_list);
 	list_add_tail(&tfile->e_list, &rs->track_files);
 }
@@ -135,7 +135,7 @@ file_end_handler(void)
 		return;
 	}
 
-	if (tfile->weight == IPVS_WEIGHT_FAULT - 1) {
+	if (tfile->weight == IPVS_WEIGHT_FAULT) {
 		tfile->weight = tfile->file->weight;
 		tfile->weight_reverse = tfile->file->weight_reverse;
 	}
