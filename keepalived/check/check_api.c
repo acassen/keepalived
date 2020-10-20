@@ -83,6 +83,7 @@ dump_checker(FILE *fp, const checker_t *checker)
 	conf_write(fp, "   Enabled = %s", checker->enabled ? "yes" : "no");
 	conf_write(fp, "   Up = %s", checker->is_up ? "yes" : "no");
 	conf_write(fp, "   Has run = %s", checker->has_run ? "yes" : "no");
+	conf_write(fp, "   Current weight = %d", checker->cur_weight);
 	if (checker->checker_funcs->type != CHECKER_FILE) {
 		conf_write(fp, "   Alpha = %s", checker->alpha ? "yes" : "no");
 		conf_write(fp, "   Delay loop = %lu us", checker->delay_loop);
