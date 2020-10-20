@@ -291,6 +291,24 @@ stop_check(int status)
 	exit(status);
 }
 
+static void
+set_effective_weights(void)
+{
+	virtual_server_t *vs;
+	real_server_t *rs;
+	checker_t *checker;
+
+	list_for_each_entry(vs, &check_data->vs, e_list) {
+		list_for_each_entry(rs, &vs->rs, e_list) {
+			rs->effective_weight = rs->iweight;
+		}
+        }
+
+	list_for_each_entry(checker, &checkers_queue, e_list) {
+		checker->rs->effective_weight += checker->cur_weight;
+	}
+}
+
 /* Daemon init sequence */
 static void
 start_check(list_head_t *old_checkers_queue, data_t *prev_global_data)
@@ -412,9 +430,11 @@ start_check(list_head_t *old_checkers_queue, data_t *prev_global_data)
 	init_track_files(&check_data->track_files);
 
 	/* Processing differential configuration parsing */
+	set_track_file_weights();
 	if (reload)
 		clear_diff_services(old_checkers_queue);
 	set_track_file_checkers_down();
+	set_effective_weights();
 	if (reload)
 		check_new_rs_state();
 

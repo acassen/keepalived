@@ -128,17 +128,18 @@ free_ping_check(checker_t *checker)
 }
 
 static void
-dump_ping_check(FILE *fp, const checker_t *checker)
+dump_ping_check(FILE *fp, __attribute__((unused)) const checker_t *checker)
 {
 	conf_write(fp, "   Keepalive method = PING_CHECK");
-	dump_checker_opts(fp, checker);
 }
 
 static bool
-ping_check_compare(const checker_t *a, checker_t *b)
+compare_ping_check(const checker_t *a, checker_t *b)
 {
 	return compare_conn_opts(a->co, b->co);
 }
+
+static const checker_funcs_t ping_checker_funcs = { CHECKER_PING, free_ping_check, dump_ping_check, compare_ping_check, NULL };
 
 static void
 ping_check_handler(__attribute__((unused)) const vector_t *strvec)
@@ -146,8 +147,7 @@ ping_check_handler(__attribute__((unused)) const vector_t *strvec)
 	ping_check_t *ping_check = sizeof(ping_check_t) ? MALLOC(sizeof (ping_check_t)) : NULL;
 
 	/* queue new checker */
-	queue_checker(free_ping_check, dump_ping_check, icmp_connect_thread,
-		      ping_check_compare, ping_check, CHECKER_NEW_CO(), true);
+	queue_checker(&ping_checker_funcs, icmp_connect_thread, ping_check, CHECKER_NEW_CO(), true);
 
 	if (!checked_ping_group_range)
 		set_ping_group_range(true);

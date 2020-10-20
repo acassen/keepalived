@@ -376,10 +376,10 @@ dump_rs(FILE *fp, const real_server_t *rs)
 #endif
 
 	conf_write(fp, "   ------< Real server >------");
-	conf_write(fp, "   RIP = %s, RPORT = %d, WEIGHT = %d EFF WEIGHT = %d"
+	conf_write(fp, "   RIP = %s, RPORT = %d, WEIGHT = %d EFF WEIGHT = %" PRIi64
 			    , inet_sockaddrtos(&rs->addr)
 			    , ntohs(inet_sockaddrport(&rs->addr))
-			    , rs->weight, rs->effective_weight);
+			    , real_weight(rs->effective_weight), rs->effective_weight);
 	dump_forwarding_method(fp, "", rs);
 
 	conf_write(fp, "   Alpha is %s", rs->alpha ? "ON" : "OFF");
@@ -405,7 +405,8 @@ dump_rs(FILE *fp, const real_server_t *rs)
 	conf_write(fp, "   Using smtp notification = %s", rs->smtp_alert ? "yes" : "no");
 
 	conf_write(fp, "   initial weight = %d", rs->iweight);
-	conf_write(fp, "   previous weight = %d", rs->pweight);
+	conf_write(fp, "   effective weight = %" PRIi64, rs->effective_weight);
+	conf_write(fp, "   previous effective_weight = %" PRIi64, rs->peffective_weight);
 	conf_write(fp, "   alive = %d", rs->alive);
 	conf_write(fp, "   num failed checkers = %u", rs->num_failed_checkers);
 	conf_write(fp, "   RS set = %d", rs->set);
@@ -474,7 +475,7 @@ alloc_rs(const char *ip, const char *port)
 #endif
 #endif
 
-	new->weight = INT_MAX;
+	new->effective_weight = INT64_MAX;
 	new->forwarding_method = vs->forwarding_method;
 #ifdef _HAVE_IPVS_TUN_TYPE_
 	new->tun_type = vs->tun_type;
@@ -495,8 +496,6 @@ alloc_rs(const char *ip, const char *port)
 
 	list_add_tail(&new->e_list, &vs->rs);
 	vs->rs_cnt++;
-
-	clear_dynamic_misc_check_flag();
 }
 
 /*
@@ -725,7 +724,7 @@ alloc_ssvr(const char *ip, const char *port)
 	port_str = (port && port[strspn(port, "0")]) ? port : NULL;
 
 	PMALLOC(new);
-	new->weight = 1;
+	new->effective_weight = 1;
 	new->iweight = 1;
 	new->forwarding_method = vs->forwarding_method;
 #ifdef _HAVE_IPVS_TUN_TYPE_
@@ -1086,9 +1085,9 @@ validate_check_config(void)
 				rs->warmup = vs->warmup;
 			if (rs->delay_before_retry == ULONG_MAX)
 				rs->delay_before_retry = vs->delay_before_retry;
-			if (rs->weight == INT_MAX) {
-				rs->weight = vs->weight;
-				rs->iweight = rs->weight;
+			if (rs->effective_weight == INT64_MAX) {
+				rs->effective_weight = vs->weight;
+				rs->iweight = rs->effective_weight;
 			}
 
 			if (rs->smtp_alert == -1) {
@@ -1102,7 +1101,7 @@ validate_check_config(void)
 					rs->smtp_alert = true;
 				}
 			}
-			weight_sum += rs->weight;
+			weight_sum += rs->effective_weight;
 
 			/* Check if the real server is the same as the sorry server,
 			 * and if so the inhibit on failure settings must match. */
@@ -1134,6 +1133,7 @@ validate_check_config(void)
 
 		/* Check that the quorum isn't higher than the total weight of
 		 * the real servers, otherwise we will never be able to come up. */
+// TODO - Allow 253 * multiplier per MISC_CHECK if !reverse and ignore this if FILE_CHECK
 		if (vs->quorum > weight_sum) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Warning - quorum %u for %s exceeds total weight of real servers %u, reducing quorum to %u", vs->quorum, FMT_VS(vs), weight_sum, weight_sum);
 			vs->quorum = weight_sum;

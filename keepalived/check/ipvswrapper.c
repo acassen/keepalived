@@ -465,7 +465,7 @@ ipvs_set_drule(int cmd, ipvs_dest_t *drule, real_server_t * rs)
 		drule->nf_addr.ip = inet_sockaddrip4(&rs->addr);
 	drule->user.port = inet_sockaddrport(&rs->addr);
 	drule->user.conn_flags = rs->forwarding_method;
-	drule->user.weight = rs->weight;
+	drule->user.weight = real_weight(rs->effective_weight);
 	drule->user.u_threshold = rs->u_threshold;
 	drule->user.l_threshold = rs->l_threshold;
 #ifdef _HAVE_IPVS_TUN_TYPE_
@@ -549,7 +549,7 @@ ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge)
 		if (rs->reloaded && (rs->alive || (rs->inhibit && rs->set))) {
 			/* Prepare the IPVS drule */
 			ipvs_set_drule(IP_VS_SO_SET_ADDDEST, &drule, rs);
-			drule.user.weight = rs->inhibit && !rs->alive ? 0 : rs->weight;
+			drule.user.weight = rs->inhibit && !rs->alive ? 0 : real_weight(rs->effective_weight);
 
 			/* Set vs rule */
 			if (vsge->is_fwmark) {

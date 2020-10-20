@@ -4754,7 +4754,6 @@ list_head_t *if_queue = get_interface_queue();
 		}
 
 		if (!found) {
-log_message(LOG_INFO, "Removing %s", ifp->ifname);
 			/* For now create a dummy vrrp_instance to delete the VMAC i/f */
 			vrrp_t addr_vrrp = { .ifp = ifp };
 			addr_vrrp.family = ifp->hw_addr[sizeof(ll_addr) - 2] == 0x01 ? AF_INET : AF_INET6;

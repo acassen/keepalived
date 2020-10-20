@@ -50,13 +50,6 @@ static void misc_check_child_thread(thread_ref_t);
 
 static bool script_user_set;
 static misc_checker_t *new_misck_checker;
-static bool have_dynamic_misc_checker;
-
-void
-clear_dynamic_misc_check_flag(void)
-{
-	have_dynamic_misc_checker = false;
-}
 
 /* Configuration stream handling */
 static void
@@ -73,23 +66,46 @@ static void
 dump_misc_check(FILE *fp, const checker_t *checker)
 {
 	const misc_checker_t *misck_checker = checker->data;
+	char time_str[26];
 
 	conf_write(fp, "   Keepalive method = MISC_CHECK");
 	conf_write(fp, "   script = %s", cmd_str(&misck_checker->script));
 	conf_write(fp, "   timeout = %lu", misck_checker->timeout/TIMER_HZ);
 	conf_write(fp, "   dynamic = %s", misck_checker->dynamic ? "YES" : "NO");
 	conf_write(fp, "   uid:gid = %u:%u", misck_checker->script.uid, misck_checker->script.gid);
-	dump_checker_opts(fp, checker);
+	ctime_r(&misck_checker->last_ran.tv_sec, time_str);
+	conf_write(fp, "   Last ran = %ld.%6.6ld (%.24s.%6.6ld)", misck_checker->last_ran.tv_sec, misck_checker->last_ran.tv_usec, time_str, misck_checker->last_ran.tv_usec);
+	conf_write(fp, "   Last status = %u", misck_checker->last_exit_code);
 }
 
 static bool
-misc_check_compare(const checker_t *old_c, checker_t *new_c)
+compare_misc_check(const checker_t *old_c, checker_t *new_c)
 {
 	const misc_checker_t *old = old_c->data;
 	const misc_checker_t *new = new_c->data;
 
+	if (new->dynamic != old->dynamic)
+		return false;
+
 	return notify_script_compare(&old->script, &new->script);
 }
+
+static void
+migrate_misc_check(checker_t *new_c, const checker_t *old_c)
+{
+	const misc_checker_t *old = old_c->data;
+	misc_checker_t *new = new_c->data;
+
+	new->last_exit_code = old->last_exit_code;
+	new->last_ran = old->last_ran;
+
+	if (!new->dynamic || old->last_exit_code == 1)
+		return;
+
+	new_c->cur_weight = new->last_exit_code - (new->last_exit_code ? 2 : 0) - new_c->rs->iweight;
+}
+
+static const checker_funcs_t misc_checker_funcs = { CHECKER_MISC, free_misc_check, dump_misc_check, compare_misc_check, migrate_misc_check };
 
 static void
 misc_check_handler(__attribute__((unused)) const vector_t *strvec)
@@ -102,7 +118,7 @@ misc_check_handler(__attribute__((unused)) const vector_t *strvec)
 	script_user_set = false;
 
 	/* queue new checker */
-	checker = queue_checker(free_misc_check, dump_misc_check, misc_check_thread, misc_check_compare, new_misck_checker, NULL, false);
+	checker = queue_checker(&misc_checker_funcs, misc_check_thread, new_misck_checker, NULL, false);
 
 	/* Set non-standard default value */
 	checker->default_retry = 0;
@@ -147,11 +163,6 @@ misc_dynamic_handler(__attribute__((unused)) const vector_t *strvec)
 		return;
 
 	new_misck_checker->dynamic = true;
-
-	if (have_dynamic_misc_checker)
-		report_config_error(CONFIG_GENERAL_ERROR, "Warning - more than one dynamic misc checker per real server will cause problems");
-	else
-		have_dynamic_misc_checker = true;
 }
 
 static void
@@ -356,7 +367,7 @@ misc_check_child_thread(thread_ref_t thread)
 
 	if (WIFEXITED(wait_status)) {
 		unsigned status = WEXITSTATUS(wait_status);
-		unsigned effective_weight;
+		int64_t effective_weight;
 
 		if (status == 0 ||
 		    (misck_checker->dynamic && status >= 2 && status <= 255)) {
@@ -365,13 +376,11 @@ misc_check_child_thread(thread_ref_t thread)
 			 * the exit status returned.  Effective range is 0..253.
 			 * Catch legacy case of status being 0 but misc_dynamic being set.
 			 */
-			if (status >= 2)
-				effective_weight = status - 2;
-			else
-				effective_weight = checker->rs->iweight;
 			if (status != misck_checker->last_exit_code) {
-				update_svr_wgt(effective_weight, checker->vs,
-					       checker->rs, true);
+				effective_weight = checker->rs->effective_weight - checker->cur_weight;
+				checker->cur_weight = status ? status - 2 - checker->rs->iweight : 0;
+				effective_weight += checker->cur_weight;
+				update_svr_wgt(effective_weight, checker->vs, checker->rs, true);
 				misck_checker->last_exit_code = status;
 			}
 
@@ -395,6 +404,8 @@ misc_check_child_thread(thread_ref_t thread)
 					script_exit_type = NULL; /* this disables all message handling */
 			} else {
 				checker->retry_it = 0;
+				checker->rs->effective_weight -= checker->cur_weight;
+				checker->cur_weight = 0;
 				misck_checker->last_exit_code = status;
 			}
 		}
@@ -473,6 +484,8 @@ misc_check_child_thread(thread_ref_t thread)
 		if (!message_only) {
 			rs_was_alive = checker->rs->alive;
 			update_svr_checker_state(script_success ? UP : DOWN, checker);
+			if (!script_success)
+				checker->cur_weight = 0;
 
 			if (checker->rs->smtp_alert &&
 			    (rs_was_alive != checker->rs->alive || !global_data->no_checker_emails)) {

@@ -105,7 +105,7 @@ dump_bfds_rs_list(FILE *fp, const list_head_t *l)
 }
 
 static bool
-bfd_check_compare(const checker_t *old_c, checker_t *new_c)
+compare_bfd_check(const checker_t *old_c, checker_t *new_c)
 {
 	const bfd_checker_t *old = old_c->data;
 	const bfd_checker_t *new = new_c->data;
@@ -129,6 +129,8 @@ find_checker_tracked_bfd_by_name(char *name)
 	return NULL;
 }
 
+static const checker_funcs_t bfd_checker_funcs = { CHECKER_BFD, free_bfd_check, dump_bfd_check, compare_bfd_check, NULL };
+
 static void
 bfd_check_handler(__attribute__((unused)) const vector_t *strvec)
 {
@@ -138,8 +140,7 @@ bfd_check_handler(__attribute__((unused)) const vector_t *strvec)
 	INIT_LIST_HEAD(&new_bfd_checker->e_list);
 
 	/* queue new checker */
-	new_checker = queue_checker(free_bfd_check, dump_bfd_check, NULL, bfd_check_compare, new_bfd_checker,
-				    NULL, false);
+	new_checker = queue_checker(&bfd_checker_funcs, NULL, new_bfd_checker, NULL, false);
 }
 
 static void

@@ -22,7 +22,12 @@
 #include <linux/netfilter.h>	/* For nf_inet_addr */
 #include <stdint.h>
 
+/* The kernel's valid values for a real server weight are 0..INT32_MAX
+ * We reserve +/- INT32_MAX for fault state. */
 #define IPVS_WEIGHT_MAX		INT32_MAX
+#define IPVS_WEIGHT_LIMIT	(IPVS_WEIGHT_MAX)
+#define IPVS_WEIGHT_FAULT	(-IPVS_WEIGHT_MAX - 1)
+
 #define IPVS_FWMARK_MAX		UINT32_MAX
 
 #ifdef _WITH_LVS_64BIT_STATS_

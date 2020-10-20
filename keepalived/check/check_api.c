@@ -64,7 +64,7 @@ void
 free_checker(checker_t *checker)
 {
 	list_del_init(&checker->e_list);
-	(*checker->free_func) (checker);
+	(*checker->checker_funcs->free_func) (checker);
 }
 void
 free_checker_list(list_head_t *l)
@@ -83,16 +83,26 @@ dump_checker(FILE *fp, const checker_t *checker)
 	conf_write(fp, "   Enabled = %s", checker->enabled ? "yes" : "no");
 	conf_write(fp, "   Up = %s", checker->is_up ? "yes" : "no");
 	conf_write(fp, "   Has run = %s", checker->has_run ? "yes" : "no");
-	conf_write(fp, "   Alpha = %s", checker->alpha ? "yes" : "no");
-	conf_write(fp, "   Delay loop = %lu us", checker->delay_loop);
-	conf_write(fp, "   Warmup = %lu us", checker->warmup);
-	conf_write(fp, "   Retries = %u", checker->retry);
-	conf_write(fp, "   Delay before retry = %lu us", checker->delay_before_retry);
-	conf_write(fp, "   Retries iterations = %u", checker->retry_it);
-	conf_write(fp, "   Default delay before retry = %lu us", checker->default_delay_before_retry);
+	conf_write(fp, "   Current weight = %d", checker->cur_weight);
+	if (checker->checker_funcs->type != CHECKER_FILE) {
+		conf_write(fp, "   Alpha = %s", checker->alpha ? "yes" : "no");
+		conf_write(fp, "   Delay loop = %lu us", checker->delay_loop);
+		conf_write(fp, "   Warmup = %lu us", checker->warmup);
+		conf_write(fp, "   Retries = %u", checker->retry);
+		if (checker->retry) {
+			conf_write(fp, "   Delay before retry = %lu us", checker->delay_before_retry);
+			conf_write(fp, "   Retries iterations = %u", checker->retry_it);
+		}
+		conf_write(fp, "   Default delay before retry = %lu us", checker->default_delay_before_retry);
+	}
 	conf_write(fp, "   Log all failures = %s", checker->log_all_failures ? "yes" : "no");
 
-	(*checker->dump_func) (fp, checker);
+	if (checker->co) {
+		conf_write(fp, "   Connection");
+		dump_connection_opts(fp, checker->co);
+	}
+
+	(*checker->checker_funcs->dump_func) (fp, checker);
 }
 static void
 dump_checker_list(FILE *fp, const list_head_t *l)
@@ -122,38 +132,10 @@ dump_connection_opts(FILE *fp, const void *data)
 		conf_write(fp, "     Last errno = %d", conn->last_errno);
 }
 
-void
-dump_checker_opts(FILE *fp, const void *data)
-{
-	const checker_t *checker = data;
-	const conn_opts_t *conn = checker->co;
-
-	if (conn) {
-		conf_write(fp, "   Connection");
-		dump_connection_opts(fp, conn);
-	}
-
-	conf_write(fp, "   Alpha is %s", checker->alpha ? "ON" : "OFF");
-	conf_write(fp, "   Log all failures %s", checker->log_all_failures ? "ON" : "OFF");
-	conf_write(fp, "   Delay loop = %f" , (double)checker->delay_loop / TIMER_HZ);
-	if (checker->retry) {
-		conf_write(fp, "   Retry count = %u" , checker->retry);
-		conf_write(fp, "   Retry delay = %f" , (double)checker->delay_before_retry / TIMER_HZ);
-	}
-	conf_write(fp, "   Warmup = %f", (double)checker->warmup / TIMER_HZ);
-
-	conf_write(fp, "   Enabled = %d", checker->enabled);
-	conf_write(fp, "   Is up = %d", checker->is_up);
-	conf_write(fp, "   Has run = %d", checker->has_run);
-	conf_write(fp, "   Retries left before fail = %u", checker->retry_it);
-	conf_write(fp, "   Delay before retry = %f", (double)checker->default_delay_before_retry / TIMER_HZ);
-}
-
 /* Queue a checker into the checkers_queue */
 checker_t *
-queue_checker(void (*free_func) (checker_t *), void (*dump_func) (FILE *, const checker_t *)
+queue_checker(const checker_funcs_t *funcs
 	      , thread_func_t launch
-	      , bool (*compare) (const checker_t *, checker_t *)
 	      , void *data
 	      , conn_opts_t *co
 	      , bool fd_required)
@@ -170,10 +152,8 @@ queue_checker(void (*free_func) (checker_t *), void (*dump_func) (FILE *, const 
 
 	PMALLOC(checker);
 	INIT_LIST_HEAD(&checker->e_list);
-	checker->free_func = free_func;
-	checker->dump_func = dump_func;
+	checker->checker_funcs = funcs;
 	checker->launch = launch;
-	checker->compare = compare;
 	checker->vs = vs;
 	checker->rs = rs;
 	checker->data = data;

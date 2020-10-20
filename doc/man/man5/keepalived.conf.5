@@ -889,8 +889,10 @@ sync_group_tracking_weight is set on the group weight 0 must be set.
 Likewise, if the vrrp instance is the address owner, weight 0 must also be set.
 
 For real servers monitoring the file, the limits of values read from the track
-file are 2147483646 to -2147483647. The value, once multiplied by the weight, will
-be added to the real server's IPVS weight.
+file are 2147483648 to -2147483648. The value, once multiplied by the weight, will
+be added to the real server's IPVS weight. If the result is <= than 2147483648
+then the checker will be in the FAULT state.
+
 NOTE: weights for track_file for real servers are not fully implemented yet. In
 particular allowing weight 0, handling negative calculated values and reloading.
 .PP
@@ -2153,16 +2155,23 @@ The syntax for virtual_server is :
             # Script execution timeout
             \fBmisc_timeout \fR<INTEGER>
 
-            # If set, the exit code from healthchecker is used
-            # to dynamically adjust the weight as follows:
+            # If misc_dynamic is set, the exit code from healthchecker
+            # is used to dynamically adjust the weight as follows:
             #   exit status 0: svc check success, weight
             #     unchanged.
             #   exit status 1: svc check failed.
-            #   exit status 2-255: svc check success, weight
-            #     changed to 2 less than exit status.
-            #   (for example: exit status of 255 would set
-            #     weight to 253)
-            # NOTE: do not have more than one dynamic MISC_CHECK per real_server.
+            #   exit status 2-255: svc check success,
+            #     then the RS weight is increased by
+            #     (exit status - 2 - rs configured weight).
+            #     An exit status of 10 will set the RS weight to 10. If
+            #       the exit status subsequently changes to 20, the RS
+            #       weight will become 20.
+            #     If there is only one MISC_CHECK and no FILE_CHECKers
+            #       the effect is to set the RS weight to two less than
+            #       the exit status.
+            #     (for example: an exit status of 255 would set
+            #       weight to 253 if no other MISC_CHECKers or
+            #       FILE_CHECKers where configured on the RS)
             \fBmisc_dynamic\fR
 
             # Specify the username/groupname that the script should
@@ -2216,8 +2225,6 @@ The syntax for virtual_server is :
         # File checker
         # This reads and monitors the contents of a file, where STRING is the name specified
         # in the track_file configuration block (see above).
-        # NOTE: weights for track_file for real servers are not fully implemented yet. In
-        # particular allowing weight 0, handling negative calculated values and reloading.
         \fBFILE_CHECK \fR{
             \fBtrack_file \fR<STRING>
 

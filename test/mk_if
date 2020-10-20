@@ -33,9 +33,9 @@ $0 - Usage: $0 CMD [OPTIONS]
 	-h		Show this!
 	-f NUM		First interface number
 	-l NUM		Last interface number
-	-n "NS NS .."	List of namespaces (default high medium low default)
-	-b NS		Specify namespace for bridge (default medium)
-	-r NS		Specify root namespace (default default)
+	-n "NS NS .."	List of namespaces (default: high medium low default)
+	-b NS		Specify namespace for bridge (default: medium)
+	-r NS		Specify root namespace (default: default)
 	-R		no root ns
 	-N NS		Refresh namespace NS
 	-c BRIDGE	Set connecting bridge name (default br)

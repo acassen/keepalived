@@ -693,11 +693,11 @@ rs_weight_handler(const vector_t *strvec)
 	real_server_t *rs = list_last_entry(&vs->rs, real_server_t, e_list);
 	unsigned weight;
 
-	if (!read_unsigned_strvec(strvec, 1, &weight, 0, IPVS_WEIGHT_MAX, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Real server weight %s is outside range 0-%d", strvec_slot(strvec, 1), IPVS_WEIGHT_MAX);
+	if (!read_unsigned_strvec(strvec, 1, &weight, 0, IPVS_WEIGHT_LIMIT, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Real server weight %s is outside range 0-%d", strvec_slot(strvec, 1), IPVS_WEIGHT_LIMIT);
 		return;
 	}
-	rs->weight = weight;
+	rs->effective_weight = weight;
 	rs->iweight = weight;
 }
 static void
@@ -955,8 +955,8 @@ vs_weight_handler(const vector_t *strvec)
 	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
 	unsigned weight;
 
-	if (!read_unsigned_strvec(strvec, 1, &weight, 1, IPVS_WEIGHT_MAX, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Virtual server weight %s is outside range 1-%d", strvec_slot(strvec, 1), IPVS_WEIGHT_MAX);
+	if (!read_unsigned_strvec(strvec, 1, &weight, 1, IPVS_WEIGHT_LIMIT, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Virtual server weight %s is outside range 1-%d", strvec_slot(strvec, 1), IPVS_WEIGHT_LIMIT);
 		return;
 	}
 	vs->weight = weight;

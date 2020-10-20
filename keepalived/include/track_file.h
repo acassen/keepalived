@@ -26,6 +26,7 @@
 /* global includes */
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdint.h>
 
 /* local includes */
 #include "list_head.h"
@@ -45,7 +46,7 @@ typedef struct _tracked_file {
 	int			wd;		/* Watch descriptor */
 	list_head_t		tracking_obj;	/* tracking_obj_t - for vrrp instances/real servers tracking this file */
 	obj_dump_func_t		tracking_obj_dump; /* Dump helper for tracking_obj list */
-	int			last_status;	/* Last status returned by file. Used to report changes */
+	int64_t			last_status;	/* Last status returned by file. Used to report changes */
 	bool			reloaded;	/* Set if this track_file existing in previous config */
 
 	/* linked list member */
@@ -61,6 +62,16 @@ typedef struct _tracked_file_monitor {
 	/* linked list member */
 	list_head_t		e_list;
 } tracked_file_monitor_t;
+
+static inline int
+weight_range(int64_t weight_long)
+{
+	if (weight_long < INT_MIN)
+		return INT_MIN;
+	if (weight_long > INT_MAX)
+		return INT_MAX;
+	return weight_long;
+}
 
 extern void dump_track_file_monitor_list(FILE *, const list_head_t *);
 extern void free_track_file_monitor(tracked_file_monitor_t *);
@@ -79,7 +90,6 @@ extern void dump_track_file_list(FILE *, const list_head_t *);
 extern void add_obj_to_track_file(void *, tracked_file_monitor_t *, const char *, obj_dump_func_t);
 
 extern void process_update_checker_track_file_status(const tracked_file_t *, int, const tracking_obj_t *);
-extern void update_track_file_status(tracked_file_t *, int);
 
 extern void init_track_files(list_head_t *);
 extern void stop_track_files(void);

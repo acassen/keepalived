@@ -46,7 +46,7 @@ before_script:
   - ./test/ci/setup.sh
 
 script:
-  - if [ ${COVERITY_SCAN_BRANCH} != 1 ]; then ./test/ci/build.sh; fi
+  - if [ "${COVERITY_SCAN_BRANCH}" != 1 ]; then ./test/ci/build.sh; fi
 
 env:
   global:
