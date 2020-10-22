@@ -923,12 +923,9 @@ log_message(LOG_INFO, "BFD process completed reload, %d remaining", num_reloadin
 			log_message(LOG_INFO, "Unknown process %d indicates completed reload with %d remaining", pid, num_reloading);
 #endif
 
-		if (!num_reloading) {
-log_message(LOG_INFO, "All children reloaded");
+		if (!num_reloading)
 			truncate_config_copy();
-		}
 	}
-log_message(LOG_INFO, "Num reloading now %u", num_reloading);
 }
 
 static void

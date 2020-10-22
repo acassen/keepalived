@@ -173,7 +173,6 @@ static bool replace_param(char *, size_t, char const **);
 /* Stack of include files */
 LIST_HEAD_INITIALIZE(include_stack);
 
-#define LEAVE_FILE
 void
 report_config_error(config_err_t err, const char *format, ...)
 {
