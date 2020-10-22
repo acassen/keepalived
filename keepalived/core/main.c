@@ -2405,7 +2405,7 @@ keepalived_main(int argc, char **argv)
 				free_vrrp_pidfile = true;
 #endif
 #ifdef _WITH_BFD_
-			if (!bfd_pidfile && (bfd_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, global_data->instance_name, PID_EXTENSION)))
+			if (!bfd_pidfile && (bfd_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR BFD_PID_FILE, global_data->instance_name, PID_EXTENSION)))
 				free_bfd_pidfile = true;
 #endif
 		}
