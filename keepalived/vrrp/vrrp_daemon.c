@@ -462,7 +462,7 @@ start_vrrp(data_t *prev_global_data)
 		return;
 	}
 
-	init_data(conf_file, vrrp_init_keywords);
+	init_data(conf_file, vrrp_init_keywords, false);
 
 	/* Update process name if necessary */
 	if ((!reload && global_data->vrrp_process_name) ||

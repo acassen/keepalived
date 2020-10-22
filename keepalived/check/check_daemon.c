@@ -324,7 +324,7 @@ start_check(list_head_t *old_checkers_queue, data_t *prev_global_data)
 		return;
 	}
 
-	init_data(conf_file, check_init_keywords);
+	init_data(conf_file, check_init_keywords, false);
 
 	if (reload)
 		init_global_data(global_data, prev_global_data, true);

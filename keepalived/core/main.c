@@ -199,6 +199,9 @@ static struct {
 /* umask settings */
 bool umask_cmdline;
 
+/* Reload control */
+static unsigned num_reloading;
+
 /* Control producing core dumps */
 static bool set_core_dump_pattern = false;
 static bool create_core_dump = false;
@@ -476,9 +479,12 @@ global_init_keywords(void)
 }
 
 static void
-read_config_file(void)
+read_config_file(bool write_config_copy)
 {
-	init_data(conf_file, global_init_keywords);
+#ifdef _ONE_PROCESS_DEBUG_
+	write_config_copy = false;
+#endif
+	init_data(conf_file, global_init_keywords, write_config_copy);
 }
 
 /* Daemon stop sequence */
@@ -527,6 +533,7 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 	if (running_checker()) {
 		start_check_child();
 		have_child = true;
+		num_reloading++;
 	}
 #endif
 #ifdef _WITH_VRRP_
@@ -534,6 +541,7 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 	if (running_vrrp()) {
 		start_vrrp_child();
 		have_child = true;
+		num_reloading++;
 	}
 #endif
 #ifdef _WITH_BFD_
@@ -541,6 +549,7 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 	if (running_bfd()) {
 		start_bfd_child();
 		have_child = true;
+		num_reloading++;
 	}
 #endif
 
@@ -736,7 +745,9 @@ static bool reload_config(void)
 	global_data = NULL;
 	global_data = alloc_global_data();
 
-	read_config_file();
+	/* If reload_check_config the process checking the config will read the config files,
+	 * otherwise this process needs to. */
+	read_config_file(!old_global_data->reload_check_config);
 
 	init_global_data(global_data, old_global_data, false);
 
@@ -850,12 +861,60 @@ propagate_signal(__attribute__((unused)) void *v, int sig)
 
 #ifndef _ONE_PROCESS_DEBUG_
 static void
+child_reloaded(__attribute__((unused)) void *one, __attribute__((unused)) int sig_num)
+{
+	if (num_reloading) {
+		num_reloading--;
+#if 0
+#ifdef _WITH_VRRP_
+		if (pid == vrrp_child) {
+			num_reloading--;
+log_message(LOG_INFO, "VRRP process completed reload, %d remaining", num_reloading);
+		} else
+#endif
+#ifdef _WITH_LVS_
+		if (pid == checkers_child) {
+			num_reloading--;
+log_message(LOG_INFO, "Checker process completed reload, %d remaining", num_reloading);
+		} else
+#endif
+#ifdef _WITH_BFD_
+		if (pid == bfd_child) {
+			num_reloading--;
+log_message(LOG_INFO, "BFD process completed reload, %d remaining", num_reloading);
+		} else
+#endif
+			log_message(LOG_INFO, "Unknown process %d indicates completed reload with %d remaining", pid, num_reloading);
+#endif
+
+		if (!num_reloading) {
+log_message(LOG_INFO, "All children reloaded");
+			truncate_config_copy();
+		}
+	}
+log_message(LOG_INFO, "Num reloading now %u", num_reloading);
+}
+
+static void
 do_reload(void)
 {
 	if (!reload_config())
 		return;
 
 	propagate_signal(NULL, SIGHUP);
+
+#ifdef _WITH_VRRP_
+	if (vrrp_child > 0)
+		num_reloading++;
+#endif
+#ifdef _WITH_LVS_
+	if (checkers_child > 0)
+		num_reloading++;
+#endif
+#ifdef _WITH_BFD_
+	if (bfd_child > 0)
+		num_reloading++;
+#endif
 }
 
 static void
@@ -884,21 +943,30 @@ start_validate_reload_conf_child(void)
 	int i;
 	int ret;
 	int argc;
-	const char * * argv;
+	const char **argv;
 	char * const *sav_argv;
 	char *config_test_str;
+	char *config_fd_str = NULL;
+	int fd;
+	int len;
 	char exe_buf[128];
 
-	/* Inherits the original parameters and adds new parameter "--config-test" */
+	/* Inherits the original parameters and adds new parameters "--config-test and --config-fd" */
 	sav_argv = get_cmd_line_options(&argc);
-	argv = MALLOC((argc + 2) * sizeof(char *));
+	argv = MALLOC((argc + 3) * sizeof(char *));
 
 	exe_buf[sizeof(exe_buf) - 1] = '\0';
 	ret = readlink("/proc/self/exe", exe_buf, sizeof(exe_buf));
 	if (ret == sizeof(exe_buf))
 		strcpy(exe_buf, "/proc/self/exe");
-	else
+	else {
 		exe_buf[ret] = '\0';
+		len = strlen(exe_buf);
+		/* If keepalived has been recompiled, the original file will
+		 * be marked as deleted, but we can use the new one. */
+		if (len > 10 && !strcmp(exe_buf + len - 10, " (deleted)"))
+			exe_buf[len - 10] = '\0';
+	}
 	argv[0] = exe_buf;
 
 	/* copy old parameters */
@@ -910,6 +978,18 @@ start_validate_reload_conf_child(void)
 	strcpy(config_test_str, "--config-test=");
 	strcat(config_test_str, global_data->reload_check_config);
 	argv[argc++] = config_test_str;
+
+	/* add --config-fd */
+	if ((fd = get_config_fd()) != -1) {
+		len = 13 + 6 + 1;	/* --config-fd=XXXXXX */
+		config_fd_str = MALLOC(len);
+		snprintf(config_fd_str, len, "--config-fd=%d", fd);
+		argv[argc++] = config_fd_str;
+
+		/* Allow fd to be inherited by exec'd process */
+		fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) & ~FD_CLOEXEC);
+	}
+
 	argv[argc] = NULL;
 
 	script.args = argv;
@@ -918,7 +998,8 @@ start_validate_reload_conf_child(void)
 	script.uid = 0;
 	script.gid = 0;
 
-	unlink(global_data->reload_check_config);
+	if (!truncate(global_data->reload_check_config, 0))
+		log_message(LOG_INFO, "truncate of config check log %s failed (%d) - %m", global_data->reload_check_config, errno);
 
 	/* Execute the script in a child process. Parent returns, child doesn't */
 	ret = system_call_script(master, reload_check_child_thread,
@@ -927,8 +1008,12 @@ start_validate_reload_conf_child(void)
 	if (ret)
 		log_message(LOG_INFO, "Could not run config_test");
 
+	/* Restore CLOEXEC on config_copy fd */
+	fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC);
+
 	FREE(argv);
 	FREE(config_test_str);
+	FREE_PTR(config_fd_str);
 }
 
 static void
@@ -1156,6 +1241,7 @@ signal_init(void)
 	signal_set(SIGUSR1, propagate_signal, NULL);
 	signal_set(SIGUSR2, propagate_signal, NULL);
 	signal_set(SIGSTATS_CLEAR, propagate_signal, NULL);
+	signal_set(SIGPWR, child_reloaded, NULL);
 #ifdef _WITH_JSON_
 	signal_set(SIGJSON, propagate_signal, NULL);
 #endif
@@ -1175,6 +1261,7 @@ signals_ignore(void) {
 	signal_ignore(SIGUSR1);
 	signal_ignore(SIGUSR2);
 	signal_ignore(SIGSTATS_CLEAR);
+	signal_ignore(SIGPWR);
 #ifdef _WITH_JSON_
 	signal_ignore(SIGJSON);
 #endif
@@ -1689,6 +1776,7 @@ usage(const char *prog)
 								"\n");
 	fprintf(stderr, "  -t, --config-test[=LOG_FILE] Check the configuration for obvious errors, output to\n"
 			"                                stderr by default\n");
+/*	fprintf(stderr, "      --config-fd=fd_num       File descriptor to write consolidated config to\n");	*/ // Internal use only
 #ifdef _WITH_PERF_
 	fprintf(stderr, "      --perf[=PERF_TYPE]       Collect perf data, PERF_TYPE=all, run(default) or end\n");
 #endif
@@ -1835,6 +1923,7 @@ parse_cmdline(int argc, char **argv)
 		{"config-id",		required_argument,	NULL, 'i'},
 		{"signum",		required_argument,	NULL,  4 },
 		{"config-test",		optional_argument,	NULL, 't'},
+		{"config-fd",		required_argument,	NULL,  8 },
 #ifdef _WITH_PERF_
 		{"perf",		optional_argument,	NULL,  5 },
 #endif
@@ -1978,7 +2067,7 @@ parse_cmdline(int argc, char **argv)
 			if (optarg && optarg[0]) {
 				int fd = open(optarg, O_WRONLY | O_APPEND | O_CREAT | O_NOFOLLOW, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 				if (fd == -1) {
-					fprintf(stderr, "Unable to open config-test log file %s\n", optarg);
+					fprintf(stderr, "Unable to open config-test log file %s %d - %m\n", optarg, errno);
 					exit(EXIT_FAILURE);
 				}
 				dup2(fd, STDERR_FILENO);
@@ -2102,6 +2191,9 @@ parse_cmdline(int argc, char **argv)
 			__clear_bit(MEM_CHECK_BIT, &debug);
 			break;
 #endif
+		case 8:
+			set_config_fd(atoi(optarg));
+			break;
 		case '?':
 			if (optopt && argv[curind][1] != '-')
 				fprintf(stderr, "Unknown option -%c\n", optopt);
@@ -2328,7 +2420,7 @@ keepalived_main(int argc, char **argv)
 
 	global_data = alloc_global_data();
 
-	read_config_file();
+	read_config_file(true);
 
 	init_global_data(global_data, NULL, false);
 

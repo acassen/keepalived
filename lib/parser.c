@@ -41,6 +41,8 @@
 #include <stdarg.h>
 #include <math.h>
 #include <inttypes.h>
+#include <signal.h>
+#include <sys/mman.h>
 
 #include "parser.h"
 #include "memory.h"
@@ -158,6 +160,10 @@ static unsigned seq_list_count = 0;
 static int kw_level;
 static int block_depth;
 
+static FILE *conf_copy;
+static bool write_conf_copy;
+static bool read_conf_copy;
+
 /* Parameter definitions */
 static LIST_HEAD_INITIALIZE(defs); /* def_t */
 
@@ -167,7 +173,7 @@ static bool replace_param(char *, size_t, char const **);
 /* Stack of include files */
 LIST_HEAD_INITIALIZE(include_stack);
 
-
+#define LEAVE_FILE
 void
 report_config_error(config_err_t err, const char *format, ...)
 {
@@ -1990,6 +1996,10 @@ open_conf_file(include_file_t *file)
 			continue;
 		}
 
+		/* Allow tracking of file names/numbers */
+		if (write_conf_copy)
+			fprintf(conf_copy, "# %s\n", file->globbuf.gl_pathv[i]);
+
 		file->stream = stream;
 		file->num_matches++;
 
@@ -2057,6 +2067,7 @@ open_glob_file(const char *conf_file)
 	}
 
 	file->file_name = STRDUP(conf_file);
+
 	list_head_add(&file->e_list, &include_stack);
 
 	return true;
@@ -2067,7 +2078,8 @@ end_file(include_file_t *file)
 {
 	int res;
 
-	fclose(file->stream);
+	if (file->stream != conf_copy)
+		fclose(file->stream);
 
 // WHY??
 //	free_seq_list(&seq_list);
@@ -2114,6 +2126,12 @@ get_next_file(void)
 
 	file = list_first_entry(&include_stack, include_file_t, e_list);
 
+	if (write_conf_copy) {
+		/* Indicate a file is being closed */
+		fprintf(conf_copy, "!\n");
+//		fprintf(conf_copy, "! Resume %s line %lu\n", file->file_name, file->current_line_no);
+	}
+
 	return true;
 }
 
@@ -2122,8 +2140,7 @@ check_include(const char *buf)
 {
 	const char *p;
 
-	if (strncmp(buf, "include", 7) ||
-	    (buf[7] != ' ' && buf[7] != '\t'))
+	if (strncmp(buf, "include", 7) || !isspace(buf[7]))
 		return false;
 
 	p = buf + 8;
@@ -2241,6 +2258,59 @@ read_line(char *buf, size_t size)
 					break;
 				}
 
+				if (read_conf_copy) {
+					if (buf[0] == '#') {
+						FILE *fps = file->stream;
+
+						PMALLOC(file);
+						INIT_LIST_HEAD(&file->e_list);
+
+						file->stream = fps;
+						file->globbuf.gl_offs = 0;
+						file->num_matches = 1;
+						buf[strlen(buf) - 1] = '\0';
+						file->file_name = STRDUP(buf + 2);
+						file->current_file_name = file->file_name;
+						list_head_add(&file->e_list, &include_stack);
+						if (strchr(file->current_file_name, '/')) {
+							/* If the filename contains a directory element, change to that directory.
+							   The man page open(2) states that fchdir() didn't support O_PATH until Linux 3.5,
+							   even though testing on Linux 3.1 shows it appears to work. To be safe, don't
+							   use it until Linux 3.5. */
+							file->curdir_fd = open(".", O_RDONLY | O_DIRECTORY
+#if HAVE_DECL_O_PATH && LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
+												     | O_PATH
+#endif
+													     );
+
+							char *confpath = STRDUP(buf + 2);
+							dirname(confpath);
+							if (chdir(confpath) < 0)
+								log_message(LOG_INFO, "chdir(%s) error (%s)", confpath, strerror(errno));
+							FREE(confpath);
+						} else
+							file->curdir_fd = -1;
+
+						buf[0] = '\0';
+						continue;
+					} else if (buf[0] == '!') {
+						if (file->curdir_fd != -1) {
+							if (fchdir(file->curdir_fd))
+								log_message(LOG_INFO, "Failed to restore previous directory after include");
+							close(file->curdir_fd);
+						}
+						file = list_first_entry(&include_stack, include_file_t, e_list);
+						FREE_CONST_PTR(file->current_file_name);
+
+						list_del_init(&file->e_list);
+						FREE(file);
+						file = list_first_entry(&include_stack, include_file_t, e_list);
+
+						buf[0] = '\0';
+						continue;
+					}
+				}
+
 				/* Check if we have read the end of a line */
 				len = strlen(buf);
 				if (len && buf[len-1] == '\n') {
@@ -2259,10 +2329,23 @@ read_line(char *buf, size_t size)
 				}
 
 				buf[len] = '\0';
-				if (!len)
+				if (!len) {
+					/* We need to preserve line numbers */
+					if (write_conf_copy)
+						fprintf(conf_copy, "\n");
 					continue;
+				}
 
 				decomment(buf);
+
+				if (write_conf_copy) {
+					if (strncmp(buf, "include", 7) || !isspace(buf[7]))
+						fprintf(conf_copy, "%s\n", buf);
+					else {
+						/* We need to preserve line numbers */
+						fprintf(conf_copy, "\n");
+					}
+				}
 			} while (!buf[0]);
 
 			if (!buf[0])
@@ -2670,8 +2753,10 @@ process_stream(vector_t *keywords_vec, int need_bob)
 
 /* Data initialization */
 void
-init_data(const char *conf_file, const vector_t * (*init_keywords) (void))
+init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool copy_config)
 {
+	bool file_opened = false;
+
 	/* A parent process or previous config load may have left these set */
 	block_depth = 0;
 	kw_level = 0;
@@ -2698,9 +2783,70 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void))
 	/* Stream handling */
 	current_keywords = keywords;
 
-	/* Open the first file */
-	if (open_glob_file(conf_file)) {
+	if (copy_config) {
+		if (!conf_copy) {
+#if 1
+#if 1
+			int fd = memfd_create("/keepalived/consolidated_configuration", MFD_CLOEXEC);
+#else
+			int fd = open("/etc", O_TMPFILE | O_RDWR, S_IRUSR | S_IWUSR);
+#endif
+			if (fd == -1)
+				log_message(LOG_INFO, "memfd_create error %d - %m", errno);
+			else {
+				conf_copy = fdopen(fd, "w+");
+				if (!conf_copy)
+					log_message(LOG_INFO, "fdopen of memfd_create error %d - %m", errno);
+			}
+#else
+			conf_copy = fopen("/tmp/config.dump", "w+");
+#endif
+#if 0
+			int fd;
+			fd = fcntl(fileno(conf_copy), F_DUPFD_CLOEXEC, fileno(conf_copy));
+			fcntl(fd, O_RDONLY);
+			conf_copy_read = fdopen(fd);
+#endif
+		}
+		else  {
+#ifdef LEAVE_FILE
+			if (ftruncate(fileno(conf_copy), 0))
+				log_message(LOG_INFO, "Failed to truncate config copy file (%d) - %m", errno);
+#endif
 
+			rewind(conf_copy);
+		}
+// fprintf(conf_copy, " # Writing config copy pid %d ppid %d\n", getpid(), getppid());
+		write_conf_copy = true;
+	}
+
+	if (!copy_config && conf_copy) {
+		include_file_t *file;
+
+		PMALLOC(file);
+		INIT_LIST_HEAD(&file->e_list);
+
+		file->globbuf.gl_offs = 0;
+		file->stream = conf_copy;
+		file->num_matches = 1;
+		file->curdir_fd = -1;
+		errno = 0;
+		rewind(conf_copy);
+		if (errno)
+			log_message(LOG_INFO, "rewind config file failed (%d) - %m", errno);
+		file->file_name = STRDUP(conf_file);
+		file->current_file_name = file->file_name;
+
+		list_head_add(&file->e_list, &include_stack);
+
+		read_conf_copy = true;
+		file_opened = true;
+	} else if (open_glob_file(conf_file)) {
+		/* Opened the first file */
+		file_opened = true;
+	}
+
+	if (file_opened) {
 		register_null_strvec_handler(null_strvec);
 		process_stream(current_keywords, 0);
 		unregister_null_strvec_handler();
@@ -2714,6 +2860,17 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void))
 						      , block_depth, EOB, BOB);
 	}
 
+	if (write_conf_copy) {
+		fflush(conf_copy);
+		write_conf_copy = false;
+
+		/* Set file offset to beginning ready for next write */
+		rewind(conf_copy);
+	}
+
+	if (prog_type != PROG_TYPE_PARENT && !__test_bit(CONFIG_TEST_BIT, &debug))
+		kill(getppid(), SIGPWR);
+
 	/* Close the password database if it was opened */
 	endpwent();
 
@@ -2721,4 +2878,33 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void))
 	free_parser_data();
 
 	notify_resource_release();
+}
+
+void
+truncate_config_copy(void)
+{
+#ifndef LEAVE_FILE
+	if (conf_copy && ftruncate(fileno(conf_copy), 0))
+		log_message(LOG_INFO, "Failed to truncate config copy file (%d) - %m", errno);
+#endif
+}
+
+int
+get_config_fd(void)
+{
+	if (!conf_copy)
+		return -1;
+
+	return fileno(conf_copy);
+}
+
+void
+set_config_fd(int fd)
+{
+	conf_copy = fdopen(fd, "w");
+	if (conf_copy) {
+		write_conf_copy = true;
+		rewind(conf_copy);
+	} else
+		log_message(LOG_INFO, "Unable to open config copy file (%d) - %m", errno);
 }
