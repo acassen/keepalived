@@ -479,12 +479,48 @@ global_init_keywords(void)
 }
 
 static void
+create_reload_file(void)
+{
+	int fd;
+
+	if (!global_data->reload_file || __test_bit(CONFIG_TEST_BIT, &debug))
+		return;
+
+	/* We want to create the reloading file with permissions rw-r--r-- */
+	if (umask_val & (S_IRGRP | S_IROTH))
+		umask(umask_val & ~(S_IRGRP | S_IROTH));
+
+	if ((fd = creat(global_data->reload_file, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) != -1)
+		close(fd);
+	else
+		log_message(LOG_INFO, "Failed to create reload file %d - %m", errno);
+
+	/* Restore the default umask */
+	if (umask_val & (S_IRGRP | S_IROTH))
+		umask(umask_val);
+}
+
+static inline  void
+remove_reload_file(void)
+{
+	if (global_data->reload_file && !__test_bit(CONFIG_TEST_BIT, &debug))
+		unlink(global_data->reload_file);
+}
+
+static void
 read_config_file(bool write_config_copy)
 {
 #ifdef _ONE_PROCESS_DEBUG_
 	write_config_copy = false;
 #endif
+
+	if (write_config_copy)
+		create_reload_file();
+
 	init_data(conf_file, global_init_keywords, write_config_copy);
+
+	if (write_config_copy)
+		remove_reload_file();
 }
 
 /* Daemon stop sequence */
@@ -925,6 +961,9 @@ reload_check_child_thread(thread_ref_t thread)
 		return;
 	}
 
+	/* The config files have been read now */
+	remove_reload_file();
+
 	if (WIFEXITED(thread->u.c.status)) {
 		if (WEXITSTATUS(thread->u.c.status)) {
 			log_message(LOG_INFO, "New config failed validation, see %s for details", global_data->reload_check_config);
@@ -1000,6 +1039,8 @@ start_validate_reload_conf_child(void)
 
 	if (!truncate(global_data->reload_check_config, 0))
 		log_message(LOG_INFO, "truncate of config check log %s failed (%d) - %m", global_data->reload_check_config, errno);
+
+	create_reload_file();
 
 	/* Execute the script in a child process. Parent returns, child doesn't */
 	ret = system_call_script(master, reload_check_child_thread,
@@ -1940,6 +1981,7 @@ parse_cmdline(int argc, char **argv)
 	 * of longindex, so we need to ensure that before calling getopt_long(), longindex
 	 * is set to a known invalid value */
 	curind = optind;
+	/* Used short options: ABCDGILMPRSVXabcdfghilmnprstuvx */
 	while (longindex = -1, (c = getopt_long(argc, argv, ":vhlndu:DRS:f:p:i:mM::g::Gt::"
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 					    "PC"
@@ -2547,6 +2589,19 @@ keepalived_main(int argc, char **argv)
 				bfd_pidfile = RUN_DIR BFD_PID_FILE PID_EXTENSION;
 #endif
 		}
+
+		/* If wanted, create the default reload file */
+		if (global_data->reload_file == DEFAULT_RELOAD_FILE) {
+			if (global_data->instance_name)
+				global_data->reload_file = make_pidfile_name(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE, global_data->instance_name, RELOAD_EXTENSION);
+			else if (use_pid_dir)
+				global_data->reload_file = STRDUP(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE RELOAD_EXTENSION);
+			else
+				global_data->reload_file = STRDUP(RUN_DIR KEEPALIVED_PID_FILE RELOAD_EXTENSION);
+		}
+
+		/* We have set the namespaces, so we can do this now */
+		remove_reload_file();
 
 		/* Check if keepalived is already running */
 		if (keepalived_running(daemon_mode)) {

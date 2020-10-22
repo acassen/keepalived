@@ -408,6 +408,7 @@ free_global_data(data_t * data)
 	FREE_CONST_PTR(data->dbus_service_name);
 #endif
 	FREE_CONST_PTR(data->reload_check_config);
+	FREE_CONST_PTR(data->reload_file);
 	FREE(data);
 }
 
@@ -491,6 +492,8 @@ dump_global_data(FILE *fp, data_t * data)
 		} else
 			conf_write(fp, " No reload scheduled");
 	}
+	if (data->reload_file)
+		conf_write(fp, " Reload_file = %s", data->reload_file);
 #endif
 	if (data->startup_script)
 		conf_write(fp, " Startup script = %s, uid:gid %u:%u, timeout %u",
