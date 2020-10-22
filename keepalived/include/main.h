@@ -47,6 +47,9 @@ enum daemon_bits {
 #define SET_RELOAD      (reload = 1)
 #define UNSET_RELOAD    (reload = 0)
 
+/* Special pseudo-pointer to indicate default reload file */
+#define DEFAULT_RELOAD_FILE		((void *)1)
+
 /* Global vars exported */
 extern const char *version_string;	/* keepalived version */
 extern unsigned long daemon_mode;	/* Which child processes are run */

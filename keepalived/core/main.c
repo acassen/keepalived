@@ -199,6 +199,9 @@ static struct {
 /* umask settings */
 bool umask_cmdline;
 
+/* Reload control */
+static unsigned num_reloading;
+
 /* Control producing core dumps */
 static bool set_core_dump_pattern = false;
 static bool create_core_dump = false;
@@ -476,9 +479,48 @@ global_init_keywords(void)
 }
 
 static void
-read_config_file(void)
+create_reload_file(void)
 {
-	init_data(conf_file, global_init_keywords);
+	int fd;
+
+	if (!global_data->reload_file || __test_bit(CONFIG_TEST_BIT, &debug))
+		return;
+
+	/* We want to create the reloading file with permissions rw-r--r-- */
+	if (umask_val & (S_IRGRP | S_IROTH))
+		umask(umask_val & ~(S_IRGRP | S_IROTH));
+
+	if ((fd = creat(global_data->reload_file, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) != -1)
+		close(fd);
+	else
+		log_message(LOG_INFO, "Failed to create reload file %d - %m", errno);
+
+	/* Restore the default umask */
+	if (umask_val & (S_IRGRP | S_IROTH))
+		umask(umask_val);
+}
+
+static inline  void
+remove_reload_file(void)
+{
+	if (global_data->reload_file && !__test_bit(CONFIG_TEST_BIT, &debug))
+		unlink(global_data->reload_file);
+}
+
+static void
+read_config_file(bool write_config_copy)
+{
+#ifdef _ONE_PROCESS_DEBUG_
+	write_config_copy = false;
+#endif
+
+	if (write_config_copy)
+		create_reload_file();
+
+	init_data(conf_file, global_init_keywords, write_config_copy);
+
+	if (write_config_copy)
+		remove_reload_file();
 }
 
 /* Daemon stop sequence */
@@ -527,6 +569,7 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 	if (running_checker()) {
 		start_check_child();
 		have_child = true;
+		num_reloading++;
 	}
 #endif
 #ifdef _WITH_VRRP_
@@ -534,6 +577,7 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 	if (running_vrrp()) {
 		start_vrrp_child();
 		have_child = true;
+		num_reloading++;
 	}
 #endif
 #ifdef _WITH_BFD_
@@ -541,6 +585,7 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 	if (running_bfd()) {
 		start_bfd_child();
 		have_child = true;
+		num_reloading++;
 	}
 #endif
 
@@ -555,63 +600,70 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 }
 
 static bool
-startup_shutdown_script_completed(thread_ref_t thread, bool startup)
+handle_child_timeout(thread_ref_t thread, const char *type)
 {
-	const char *type = startup ? "startup" : "shutdown";
-	int wait_status;
 	pid_t pid;
 	int sig_num;
-	unsigned timeout = 0;
 	void *next_arg;
+	unsigned timeout = 0;
 
-	if (thread->type == THREAD_CHILD_TIMEOUT) {
-		pid = THREAD_CHILD_PID(thread);
+	pid = THREAD_CHILD_PID(thread);
 
-		if (thread->arg == (void *)0) {
-			next_arg = (void *)1;
-			sig_num = SIGTERM;
-			timeout = 2;
-			log_message(LOG_INFO, "%s script timed out", type);
-		} else if (thread->arg == (void *)1) {
-			next_arg = (void *)2;
-			sig_num = SIGKILL;
-			timeout = 2;
-		} else if (thread->arg == (void *)2) {
-			log_message(LOG_INFO, "%s script (PID %d) failed to terminate after kill", type, pid);
-			next_arg = (void *)3;
-			sig_num = SIGKILL;
-			timeout = 10;	/* Give it longer to terminate */
-		} else if (thread->arg == (void *)3) {
-			/* We give up trying to kill the script */
-			return true;
-		}
-
-		if (timeout) {
-			/* If kill returns an error, we can't kill the process since either the process has terminated,
-			 * or we don't have permission. If we can't kill it, there is no point trying again. */
-			if (kill(-pid, sig_num)) {
-				if (errno == ESRCH) {
-					/* The process does not exist, and we should
-					 * have reaped its exit status, otherwise it
-					 * would exist as a zombie process. */
-					log_message(LOG_INFO, "%s script (PID %d) lost", type, pid);
-					timeout = 0;
-				} else {
-					log_message(LOG_INFO, "kill -%d of %s script (%d) with new state %p failed with errno %d", sig_num, type, pid, next_arg, errno);
-					timeout = 1000;
-				}
-			}
-		} else {
-			log_message(LOG_INFO, "%s script %d timeout with unknown script state %p", type, pid, thread->arg);
-			next_arg = thread->arg;
-			timeout = 10;	/* We need some timeout */
-		}
-
-		if (timeout)
-			thread_add_child(thread->master, thread->func, next_arg, pid, timeout * TIMER_HZ);
-
-		return false;
+	if (thread->arg == (void *)0) {
+		next_arg = (void *)1;
+		sig_num = SIGTERM;
+		timeout = 2;
+		log_message(LOG_INFO, "%s timed out", type);
+	} else if (thread->arg == (void *)1) {
+		next_arg = (void *)2;
+		sig_num = SIGKILL;
+		timeout = 2;
+	} else if (thread->arg == (void *)2) {
+		log_message(LOG_INFO, "%s (PID %d) failed to terminate after kill", type, pid);
+		next_arg = (void *)3;
+		sig_num = SIGKILL;
+		timeout = 10;	/* Give it longer to terminate */
+	} else if (thread->arg == (void *)3) {
+		/* We give up trying to kill the script */
+		return true;
 	}
+
+	if (timeout) {
+		/* If kill returns an error, we can't kill the process since either the process has terminated,
+		 * or we don't have permission. If we can't kill it, there is no point trying again. */
+		if (kill(-pid, sig_num)) {
+			if (errno == ESRCH) {
+				/* The process does not exist, and we should
+				 * have reaped its exit status, otherwise it
+				 * would exist as a zombie process. */
+				log_message(LOG_INFO, "%s (PID %d) lost", type, pid);
+				timeout = 0;
+			} else {
+				log_message(LOG_INFO, "kill -%d of %s (%d) with new state %p failed with errno %d", sig_num, type, pid, next_arg, errno);
+				timeout = 1000;
+			}
+		}
+	} else {
+		log_message(LOG_INFO, "%s %d timeout with unknown script state %p", type, pid, thread->arg);
+		next_arg = thread->arg;
+		timeout = 10;	/* We need some timeout */
+	}
+
+	if (timeout)
+		thread_add_child(thread->master, thread->func, next_arg, pid, timeout * TIMER_HZ);
+
+	return false;
+}
+
+static bool
+startup_shutdown_script_completed(thread_ref_t thread, bool startup)
+{
+	const char *type = startup ? "startup script" : "shutdown script";
+	int wait_status;
+	pid_t pid;
+
+	if (thread->type == THREAD_CHILD_TIMEOUT)
+		return handle_child_timeout(thread, type);
 
 	wait_status = THREAD_CHILD_STATUS(thread);
 
@@ -729,7 +781,9 @@ static bool reload_config(void)
 	global_data = NULL;
 	global_data = alloc_global_data();
 
-	read_config_file();
+	/* If reload_check_config the process checking the config will read the config files,
+	 * otherwise this process needs to. */
+	read_config_file(!old_global_data->reload_check_config);
 
 	init_global_data(global_data, old_global_data, false);
 
@@ -843,17 +897,73 @@ propagate_signal(__attribute__((unused)) void *v, int sig)
 
 #ifndef _ONE_PROCESS_DEBUG_
 static void
+child_reloaded(__attribute__((unused)) void *one, __attribute__((unused)) int sig_num)
+{
+	if (num_reloading) {
+		num_reloading--;
+#if 0
+#ifdef _WITH_VRRP_
+		if (pid == vrrp_child) {
+			num_reloading--;
+log_message(LOG_INFO, "VRRP process completed reload, %d remaining", num_reloading);
+		} else
+#endif
+#ifdef _WITH_LVS_
+		if (pid == checkers_child) {
+			num_reloading--;
+log_message(LOG_INFO, "Checker process completed reload, %d remaining", num_reloading);
+		} else
+#endif
+#ifdef _WITH_BFD_
+		if (pid == bfd_child) {
+			num_reloading--;
+log_message(LOG_INFO, "BFD process completed reload, %d remaining", num_reloading);
+		} else
+#endif
+			log_message(LOG_INFO, "Unknown process %d indicates completed reload with %d remaining", pid, num_reloading);
+#endif
+
+		if (!num_reloading) {
+log_message(LOG_INFO, "All children reloaded");
+			truncate_config_copy();
+		}
+	}
+log_message(LOG_INFO, "Num reloading now %u", num_reloading);
+}
+
+static void
 do_reload(void)
 {
 	if (!reload_config())
 		return;
 
 	propagate_signal(NULL, SIGHUP);
+
+#ifdef _WITH_VRRP_
+	if (vrrp_child > 0)
+		num_reloading++;
+#endif
+#ifdef _WITH_LVS_
+	if (checkers_child > 0)
+		num_reloading++;
+#endif
+#ifdef _WITH_BFD_
+	if (bfd_child > 0)
+		num_reloading++;
+#endif
 }
 
 static void
 reload_check_child_thread(thread_ref_t thread)
 {
+	if (thread->type == THREAD_CHILD_TIMEOUT) {
+		handle_child_timeout(thread, "config check");
+		return;
+	}
+
+	/* The config files have been read now */
+	remove_reload_file();
+
 	if (WIFEXITED(thread->u.c.status)) {
 		if (WEXITSTATUS(thread->u.c.status)) {
 			log_message(LOG_INFO, "New config failed validation, see %s for details", global_data->reload_check_config);
@@ -872,21 +982,30 @@ start_validate_reload_conf_child(void)
 	int i;
 	int ret;
 	int argc;
-	const char * * argv;
+	const char **argv;
 	char * const *sav_argv;
 	char *config_test_str;
+	char *config_fd_str = NULL;
+	int fd;
+	int len;
 	char exe_buf[128];
 
-	/* Inherits the original parameters and adds new parameter "--config-test" */
+	/* Inherits the original parameters and adds new parameters "--config-test and --config-fd" */
 	sav_argv = get_cmd_line_options(&argc);
-	argv = MALLOC((argc + 2) * sizeof(char *));
+	argv = MALLOC((argc + 3) * sizeof(char *));
 
 	exe_buf[sizeof(exe_buf) - 1] = '\0';
 	ret = readlink("/proc/self/exe", exe_buf, sizeof(exe_buf));
 	if (ret == sizeof(exe_buf))
 		strcpy(exe_buf, "/proc/self/exe");
-	else
+	else {
 		exe_buf[ret] = '\0';
+		len = strlen(exe_buf);
+		/* If keepalived has been recompiled, the original file will
+		 * be marked as deleted, but we can use the new one. */
+		if (len > 10 && !strcmp(exe_buf + len - 10, " (deleted)"))
+			exe_buf[len - 10] = '\0';
+	}
 	argv[0] = exe_buf;
 
 	/* copy old parameters */
@@ -898,6 +1017,18 @@ start_validate_reload_conf_child(void)
 	strcpy(config_test_str, "--config-test=");
 	strcat(config_test_str, global_data->reload_check_config);
 	argv[argc++] = config_test_str;
+
+	/* add --config-fd */
+	if ((fd = get_config_fd()) != -1) {
+		len = 13 + 6 + 1;	/* --config-fd=XXXXXX */
+		config_fd_str = MALLOC(len);
+		snprintf(config_fd_str, len, "--config-fd=%d", fd);
+		argv[argc++] = config_fd_str;
+
+		/* Allow fd to be inherited by exec'd process */
+		fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) & ~FD_CLOEXEC);
+	}
+
 	argv[argc] = NULL;
 
 	script.args = argv;
@@ -906,17 +1037,24 @@ start_validate_reload_conf_child(void)
 	script.uid = 0;
 	script.gid = 0;
 
-	unlink(global_data->reload_check_config);
+	if (!truncate(global_data->reload_check_config, 0))
+		log_message(LOG_INFO, "truncate of config check log %s failed (%d) - %m", global_data->reload_check_config, errno);
+
+	create_reload_file();
 
 	/* Execute the script in a child process. Parent returns, child doesn't */
 	ret = system_call_script(master, reload_check_child_thread,
-				  NULL, TIMER_HZ, &script);
+				  NULL, 5 * TIMER_HZ, &script);
 
 	if (ret)
 		log_message(LOG_INFO, "Could not run config_test");
 
+	/* Restore CLOEXEC on config_copy fd */
+	fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC);
+
 	FREE(argv);
 	FREE(config_test_str);
+	FREE_PTR(config_fd_str);
 }
 
 static void
@@ -1144,6 +1282,7 @@ signal_init(void)
 	signal_set(SIGUSR1, propagate_signal, NULL);
 	signal_set(SIGUSR2, propagate_signal, NULL);
 	signal_set(SIGSTATS_CLEAR, propagate_signal, NULL);
+	signal_set(SIGPWR, child_reloaded, NULL);
 #ifdef _WITH_JSON_
 	signal_set(SIGJSON, propagate_signal, NULL);
 #endif
@@ -1163,6 +1302,7 @@ signals_ignore(void) {
 	signal_ignore(SIGUSR1);
 	signal_ignore(SIGUSR2);
 	signal_ignore(SIGSTATS_CLEAR);
+	signal_ignore(SIGPWR);
 #ifdef _WITH_JSON_
 	signal_ignore(SIGJSON);
 #endif
@@ -1677,6 +1817,7 @@ usage(const char *prog)
 								"\n");
 	fprintf(stderr, "  -t, --config-test[=LOG_FILE] Check the configuration for obvious errors, output to\n"
 			"                                stderr by default\n");
+/*	fprintf(stderr, "      --config-fd=fd_num       File descriptor to write consolidated config to\n");	*/ // Internal use only
 #ifdef _WITH_PERF_
 	fprintf(stderr, "      --perf[=PERF_TYPE]       Collect perf data, PERF_TYPE=all, run(default) or end\n");
 #endif
@@ -1823,6 +1964,7 @@ parse_cmdline(int argc, char **argv)
 		{"config-id",		required_argument,	NULL, 'i'},
 		{"signum",		required_argument,	NULL,  4 },
 		{"config-test",		optional_argument,	NULL, 't'},
+		{"config-fd",		required_argument,	NULL,  8 },
 #ifdef _WITH_PERF_
 		{"perf",		optional_argument,	NULL,  5 },
 #endif
@@ -1839,6 +1981,7 @@ parse_cmdline(int argc, char **argv)
 	 * of longindex, so we need to ensure that before calling getopt_long(), longindex
 	 * is set to a known invalid value */
 	curind = optind;
+	/* Used short options: ABCDGILMPRSVXabcdfghilmnprstuvx */
 	while (longindex = -1, (c = getopt_long(argc, argv, ":vhlndu:DRS:f:p:i:mM::g::Gt::"
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 					    "PC"
@@ -1966,7 +2109,7 @@ parse_cmdline(int argc, char **argv)
 			if (optarg && optarg[0]) {
 				int fd = open(optarg, O_WRONLY | O_APPEND | O_CREAT | O_NOFOLLOW, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 				if (fd == -1) {
-					fprintf(stderr, "Unable to open config-test log file %s\n", optarg);
+					fprintf(stderr, "Unable to open config-test log file %s %d - %m\n", optarg, errno);
 					exit(EXIT_FAILURE);
 				}
 				dup2(fd, STDERR_FILENO);
@@ -2090,6 +2233,9 @@ parse_cmdline(int argc, char **argv)
 			__clear_bit(MEM_CHECK_BIT, &debug);
 			break;
 #endif
+		case 8:
+			set_config_fd(atoi(optarg));
+			break;
 		case '?':
 			if (optopt && argv[curind][1] != '-')
 				fprintf(stderr, "Unknown option -%c\n", optopt);
@@ -2316,7 +2462,7 @@ keepalived_main(int argc, char **argv)
 
 	global_data = alloc_global_data();
 
-	read_config_file();
+	read_config_file(true);
 
 	init_global_data(global_data, NULL, false);
 
@@ -2405,7 +2551,7 @@ keepalived_main(int argc, char **argv)
 				free_vrrp_pidfile = true;
 #endif
 #ifdef _WITH_BFD_
-			if (!bfd_pidfile && (bfd_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, global_data->instance_name, PID_EXTENSION)))
+			if (!bfd_pidfile && (bfd_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR BFD_PID_FILE, global_data->instance_name, PID_EXTENSION)))
 				free_bfd_pidfile = true;
 #endif
 		}
@@ -2443,6 +2589,19 @@ keepalived_main(int argc, char **argv)
 				bfd_pidfile = RUN_DIR BFD_PID_FILE PID_EXTENSION;
 #endif
 		}
+
+		/* If wanted, create the default reload file */
+		if (global_data->reload_file == DEFAULT_RELOAD_FILE) {
+			if (global_data->instance_name)
+				global_data->reload_file = make_pidfile_name(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE, global_data->instance_name, RELOAD_EXTENSION);
+			else if (use_pid_dir)
+				global_data->reload_file = STRDUP(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE RELOAD_EXTENSION);
+			else
+				global_data->reload_file = STRDUP(RUN_DIR KEEPALIVED_PID_FILE RELOAD_EXTENSION);
+		}
+
+		/* We have set the namespaces, so we can do this now */
+		remove_reload_file();
 
 		/* Check if keepalived is already running */
 		if (keepalived_running(daemon_mode)) {

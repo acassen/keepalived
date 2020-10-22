@@ -151,7 +151,7 @@ start_bfd(__attribute__((unused)) data_t *prev_global_data)
 
 	alloc_bfd_buffer();
 
-	init_data(conf_file, bfd_init_keywords);
+	init_data(conf_file, bfd_init_keywords, false);
 	if (reload)
 		init_global_data(global_data, prev_global_data, true);
 

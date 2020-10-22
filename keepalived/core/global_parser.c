@@ -2000,20 +2000,31 @@ reload_check_config_handler(const vector_t *strvec)
 static void
 reload_time_file_handler(const vector_t *strvec)
 {
-	char *str;
-
 	if (vector_size(strvec) != 2) {
 		report_config_error(CONFIG_GENERAL_ERROR, "reload_time_file invalid");
 		return;
 	}
-	global_data->reload_time_file = str = MALLOC(strlen(strvec_slot(strvec, 1)) + 1);
-	strcpy(str, strvec_slot(strvec, 1));
+	global_data->reload_time_file = STRDUP(strvec_slot(strvec, 1));
 }
 
 static void
 reload_repeat_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	global_data->reload_repeat = true;
+}
+
+static void
+reload_file_handler(const vector_t *strvec)
+{
+	if (global_data->reload_file && global_data->reload_file != DEFAULT_RELOAD_FILE)
+		FREE_CONST_PTR(global_data->reload_file);
+
+	if (vector_size(strvec) >= 2)
+		global_data->reload_file = STRDUP(strvec_slot(strvec, 1));
+	else
+		global_data->reload_file = DEFAULT_RELOAD_FILE;
+
+log_message(LOG_INFO, "Reload file set to %p, %s", global_data->reload_file, global_data->reload_file != DEFAULT_RELOAD_FILE ? global_data->reload_file : "(default)");
 }
 #endif
 
@@ -2211,5 +2222,6 @@ init_global_keywords(bool global_active)
 	install_keyword("reload_check_config", &reload_check_config_handler);
 	install_keyword("reload_time_file", &reload_time_file_handler);
 	install_keyword("reload_repeat", &reload_repeat_handler);
+	install_keyword("reload_file", &reload_file_handler);
 #endif
 }

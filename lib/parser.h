@@ -140,6 +140,9 @@ extern void alloc_value_block(void (*alloc_func) (const vector_t *), const vecto
 extern bool read_timer(const vector_t *, size_t, unsigned long *, unsigned long, unsigned long, bool);
 extern int check_true_false(const char *) __attribute__ ((pure));
 extern void skip_block(bool);
-extern void init_data(const char *, const vector_t * (*init_keywords) (void));
+extern void init_data(const char *, const vector_t * (*init_keywords) (void), bool);
+extern void truncate_config_copy(void);
+extern int get_config_fd(void);
+extern void set_config_fd(int);
 
 #endif

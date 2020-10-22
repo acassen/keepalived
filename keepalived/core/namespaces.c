@@ -209,6 +209,8 @@ setns(int fd, int nstype)
 #include "logger.h"
 #include "pidfile.h"
 #include "utils.h"
+#include "bitops.h"
+
 
 /* Local data */
 static const char *netns_dir = RUN_DIR "netns/";
@@ -307,7 +309,8 @@ set_namespaces(const char* net_namespace)
 
 	close(fd);
 
-	set_run_mount(net_namespace);
+	if (!__test_bit(CONFIG_TEST_BIT, &debug))
+		set_run_mount(net_namespace);
 
 	FREE_PTR(netns_path);
 	netns_path = NULL;

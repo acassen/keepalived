@@ -738,6 +738,22 @@ and
     # some times are duplicated and hence ambiguous.
     \fBreload_time_file\fR ABSOLUTE-PATHNAME-OF-FILE
     \fBreload_repeat\fR
+
+    # Some users frequently update their configurations and reload keepalived. reload_file
+    # provides a mechanism that allows the configuration update processes not to update the
+    # configuration files while keepalived is reading them.
+    # The reload file will be created be keepalived before it starts reading configuration
+    # files, unless the file exists. If the file already exists, it will be truncated. Once
+    # keepalived has completed reading the files it will remove the reload file.
+    # If reload_file with no file name is specified, the default filename keepalived.reload
+    # in the PID directory will be used.
+    # The best way to use the reload file is for the configuration update process to touch
+    # the reload file before it signals keepalived to reload, and then wait for the file
+    # to be deleted, which indicates that keepalived has finished reading the config files.
+    # When keepalived starts reading the configuration files, since it truncates the reload
+    # file, if update process creates the reload_file with non-zero size, it can detect
+    # the reloading starting by the reload_file becoming zero length.
+    \fBreload_file\fR [ABSOLUTE-PATHNAME-OF-FILE]
 }
 .fi
 .SH Linkbeat interfaces
