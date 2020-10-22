@@ -555,63 +555,70 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 }
 
 static bool
-startup_shutdown_script_completed(thread_ref_t thread, bool startup)
+handle_child_timeout(thread_ref_t thread, const char *type)
 {
-	const char *type = startup ? "startup" : "shutdown";
-	int wait_status;
 	pid_t pid;
 	int sig_num;
-	unsigned timeout = 0;
 	void *next_arg;
+	unsigned timeout = 0;
 
-	if (thread->type == THREAD_CHILD_TIMEOUT) {
-		pid = THREAD_CHILD_PID(thread);
+	pid = THREAD_CHILD_PID(thread);
 
-		if (thread->arg == (void *)0) {
-			next_arg = (void *)1;
-			sig_num = SIGTERM;
-			timeout = 2;
-			log_message(LOG_INFO, "%s script timed out", type);
-		} else if (thread->arg == (void *)1) {
-			next_arg = (void *)2;
-			sig_num = SIGKILL;
-			timeout = 2;
-		} else if (thread->arg == (void *)2) {
-			log_message(LOG_INFO, "%s script (PID %d) failed to terminate after kill", type, pid);
-			next_arg = (void *)3;
-			sig_num = SIGKILL;
-			timeout = 10;	/* Give it longer to terminate */
-		} else if (thread->arg == (void *)3) {
-			/* We give up trying to kill the script */
-			return true;
-		}
-
-		if (timeout) {
-			/* If kill returns an error, we can't kill the process since either the process has terminated,
-			 * or we don't have permission. If we can't kill it, there is no point trying again. */
-			if (kill(-pid, sig_num)) {
-				if (errno == ESRCH) {
-					/* The process does not exist, and we should
-					 * have reaped its exit status, otherwise it
-					 * would exist as a zombie process. */
-					log_message(LOG_INFO, "%s script (PID %d) lost", type, pid);
-					timeout = 0;
-				} else {
-					log_message(LOG_INFO, "kill -%d of %s script (%d) with new state %p failed with errno %d", sig_num, type, pid, next_arg, errno);
-					timeout = 1000;
-				}
-			}
-		} else {
-			log_message(LOG_INFO, "%s script %d timeout with unknown script state %p", type, pid, thread->arg);
-			next_arg = thread->arg;
-			timeout = 10;	/* We need some timeout */
-		}
-
-		if (timeout)
-			thread_add_child(thread->master, thread->func, next_arg, pid, timeout * TIMER_HZ);
-
-		return false;
+	if (thread->arg == (void *)0) {
+		next_arg = (void *)1;
+		sig_num = SIGTERM;
+		timeout = 2;
+		log_message(LOG_INFO, "%s timed out", type);
+	} else if (thread->arg == (void *)1) {
+		next_arg = (void *)2;
+		sig_num = SIGKILL;
+		timeout = 2;
+	} else if (thread->arg == (void *)2) {
+		log_message(LOG_INFO, "%s (PID %d) failed to terminate after kill", type, pid);
+		next_arg = (void *)3;
+		sig_num = SIGKILL;
+		timeout = 10;	/* Give it longer to terminate */
+	} else if (thread->arg == (void *)3) {
+		/* We give up trying to kill the script */
+		return true;
 	}
+
+	if (timeout) {
+		/* If kill returns an error, we can't kill the process since either the process has terminated,
+		 * or we don't have permission. If we can't kill it, there is no point trying again. */
+		if (kill(-pid, sig_num)) {
+			if (errno == ESRCH) {
+				/* The process does not exist, and we should
+				 * have reaped its exit status, otherwise it
+				 * would exist as a zombie process. */
+				log_message(LOG_INFO, "%s (PID %d) lost", type, pid);
+				timeout = 0;
+			} else {
+				log_message(LOG_INFO, "kill -%d of %s (%d) with new state %p failed with errno %d", sig_num, type, pid, next_arg, errno);
+				timeout = 1000;
+			}
+		}
+	} else {
+		log_message(LOG_INFO, "%s %d timeout with unknown script state %p", type, pid, thread->arg);
+		next_arg = thread->arg;
+		timeout = 10;	/* We need some timeout */
+	}
+
+	if (timeout)
+		thread_add_child(thread->master, thread->func, next_arg, pid, timeout * TIMER_HZ);
+
+	return false;
+}
+
+static bool
+startup_shutdown_script_completed(thread_ref_t thread, bool startup)
+{
+	const char *type = startup ? "startup script" : "shutdown script";
+	int wait_status;
+	pid_t pid;
+
+	if (thread->type == THREAD_CHILD_TIMEOUT)
+		return handle_child_timeout(thread, type);
 
 	wait_status = THREAD_CHILD_STATUS(thread);
 
@@ -854,6 +861,11 @@ do_reload(void)
 static void
 reload_check_child_thread(thread_ref_t thread)
 {
+	if (thread->type == THREAD_CHILD_TIMEOUT) {
+		handle_child_timeout(thread, "config check");
+		return;
+	}
+
 	if (WIFEXITED(thread->u.c.status)) {
 		if (WEXITSTATUS(thread->u.c.status)) {
 			log_message(LOG_INFO, "New config failed validation, see %s for details", global_data->reload_check_config);
@@ -910,7 +922,7 @@ start_validate_reload_conf_child(void)
 
 	/* Execute the script in a child process. Parent returns, child doesn't */
 	ret = system_call_script(master, reload_check_child_thread,
-				  NULL, TIMER_HZ, &script);
+				  NULL, 5 * TIMER_HZ, &script);
 
 	if (ret)
 		log_message(LOG_INFO, "Could not run config_test");
