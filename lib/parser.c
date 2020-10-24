@@ -2245,6 +2245,14 @@ read_line(char *buf, size_t size)
 			}
 		} else {
 			/* Get the next non-blank line */
+
+			/* Check we haven't completed all the files */
+			if (list_empty(&include_stack)) {
+				eof = true;
+				buf[0] = '\0';
+				break;
+			}
+
 			file = list_first_entry(&include_stack, include_file_t, e_list);
 
 			do {
