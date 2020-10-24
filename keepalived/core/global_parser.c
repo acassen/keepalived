@@ -47,6 +47,7 @@
 #include "smtp.h"
 #include "utils.h"
 #include "logger.h"
+#include "bitops.h"
 #ifdef _WITH_FIREWALL_
 #include "vrrp_firewall.h"
 #endif
@@ -2023,10 +2024,26 @@ reload_file_handler(const vector_t *strvec)
 		global_data->reload_file = STRDUP(strvec_slot(strvec, 1));
 	else
 		global_data->reload_file = DEFAULT_RELOAD_FILE;
-
-log_message(LOG_INFO, "Reload file set to %p, %s", global_data->reload_file, global_data->reload_file != DEFAULT_RELOAD_FILE ? global_data->reload_file : "(default)");
 }
 #endif
+
+static void
+config_copy_directory_handler(const vector_t *strvec)
+{
+	if (global_data->config_directory) {
+		report_config_error(CONFIG_GENERAL_ERROR, "%s already specified - ignoring", strvec_slot(strvec, 0));
+		return;
+	}
+
+	if (vector_size(strvec) >= 2) {
+		global_data->config_directory = STRDUP(strvec_slot(strvec, 1));
+
+		/* Copy the configuration read so far to the new location */
+		if (!reload && !__test_bit(CONFIG_TEST_BIT, &debug))
+			use_disk_copy_for_config(global_data->config_directory);
+	} else
+		report_config_error(CONFIG_GENERAL_ERROR, "%s missing directory name", strvec_slot(strvec, 0));
+}
 
 void
 init_global_keywords(bool global_active)
@@ -2224,4 +2241,5 @@ init_global_keywords(bool global_active)
 	install_keyword("reload_repeat", &reload_repeat_handler);
 	install_keyword("reload_file", &reload_file_handler);
 #endif
+	install_keyword("config_directory", &config_copy_directory_handler);
 }

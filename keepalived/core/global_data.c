@@ -381,9 +381,6 @@ free_global_data(data_t * data)
 	FREE_CONST_PTR(data->lvs_syncd.vrrp_name);
 #endif
 	FREE_CONST_PTR(data->notify_fifo.name);
-#ifndef _ONE_PROCESS_DEBUG_
-	FREE_CONST_PTR(data->reload_time_file);
-#endif
 	free_notify_script(&data->notify_fifo.script);
 #ifdef _WITH_VRRP_
 	FREE_CONST_PTR(data->default_ifname);
@@ -417,8 +414,12 @@ free_global_data(data_t * data)
 #ifdef _WITH_DBUS_
 	FREE_CONST_PTR(data->dbus_service_name);
 #endif
+#ifndef _ONE_PROCESS_DEBUG_
 	FREE_CONST_PTR(data->reload_check_config);
 	FREE_CONST_PTR(data->reload_file);
+	FREE_CONST_PTR(data->reload_time_file);
+#endif
+	FREE_CONST_PTR(data->config_directory);
 	FREE(data);
 }
 
@@ -505,6 +506,8 @@ dump_global_data(FILE *fp, data_t * data)
 	if (data->reload_file)
 		conf_write(fp, " Reload_file = %s", data->reload_file);
 #endif
+	if (data->config_directory)
+		conf_write(fp, " config save directory = %s", data->config_directory);
 	if (data->startup_script)
 		conf_write(fp, " Startup script = %s, uid:gid %u:%u, timeout %u",
 			    cmd_str(data->startup_script),

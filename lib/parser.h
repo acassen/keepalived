@@ -112,6 +112,7 @@ set_value_r(const vector_t *strvec)
 /* Prototypes */
 extern void report_config_error(config_err_t, const char *format, ...)
 	__attribute__((format (printf, 2, 3)));
+extern void use_disk_copy_for_config(const char *);
 extern void clear_config_status(void);
 extern config_err_t get_config_status(void) __attribute__ ((pure));
 extern bool read_int(const char *, int *, int, int, bool);
