@@ -56,6 +56,7 @@ extern const char *pid_directory;
 /* Prototypes */
 extern void create_pid_dir(void);
 extern void remove_pid_dir(void);
+extern char *make_pidfile_name(const char *, const char *, const char *);
 extern bool pidfile_write(const char *, int);
 extern void pidfile_rm(const char *);
 extern bool keepalived_running(unsigned long);

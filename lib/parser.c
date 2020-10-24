@@ -62,6 +62,11 @@
 #define EOB "}"
 #define WHITE_SPACE_STR " \t\f\n\r\v"
 
+/* Some development/test options */
+/* #define USE_ANON_FILE */
+/* #define LEAVE_FILE */
+
+
 typedef struct _defs {
 	const char *name;
 	size_t name_len;
@@ -2128,7 +2133,6 @@ get_next_file(void)
 	if (write_conf_copy) {
 		/* Indicate a file is being closed */
 		fprintf(conf_copy, "!\n");
-//		fprintf(conf_copy, "! Resume %s line %lu\n", file->file_name, file->current_line_no);
 	}
 
 	return true;
@@ -2241,6 +2245,14 @@ read_line(char *buf, size_t size)
 			}
 		} else {
 			/* Get the next non-blank line */
+
+			/* Check we haven't completed all the files */
+			if (list_empty(&include_stack)) {
+				eof = true;
+				buf[0] = '\0';
+				break;
+			}
+
 			file = list_first_entry(&include_stack, include_file_t, e_list);
 
 			do {
@@ -2755,6 +2767,7 @@ void
 init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool copy_config)
 {
 	bool file_opened = false;
+	int fd;
 
 	/* A parent process or previous config load may have left these set */
 	block_depth = 0;
@@ -2784,11 +2797,10 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 
 	if (copy_config) {
 		if (!conf_copy) {
-#if 1
-#if 1
-			int fd = memfd_create("/keepalived/consolidated_configuration", MFD_CLOEXEC);
+#ifndef USE_ANON_FILE
+			fd = memfd_create("/keepalived/consolidated_configuration", MFD_CLOEXEC);
 #else
-			int fd = open("/etc", O_TMPFILE | O_RDWR, S_IRUSR | S_IWUSR);
+			fd = open("/etc", O_RDWR | O_TMPFILE | O_EXCL | O_CLOEXEC, S_IRUSR | S_IWUSR);
 #endif
 			if (fd == -1)
 				log_message(LOG_INFO, "memfd_create error %d - %m", errno);
@@ -2797,15 +2809,6 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 				if (!conf_copy)
 					log_message(LOG_INFO, "fdopen of memfd_create error %d - %m", errno);
 			}
-#else
-			conf_copy = fopen("/tmp/config.dump", "w+");
-#endif
-#if 0
-			int fd;
-			fd = fcntl(fileno(conf_copy), F_DUPFD_CLOEXEC, fileno(conf_copy));
-			fcntl(fd, O_RDONLY);
-			conf_copy_read = fdopen(fd);
-#endif
 		}
 		else  {
 #ifdef LEAVE_FILE
@@ -2815,7 +2818,6 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 
 			rewind(conf_copy);
 		}
-// fprintf(conf_copy, " # Writing config copy pid %d ppid %d\n", getpid(), getppid());
 		write_conf_copy = true;
 	}
 

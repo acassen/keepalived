@@ -378,35 +378,6 @@ make_syslog_ident(const char* name)
 	return ident;
 }
 
-static char *
-make_pidfile_name(const char* start, const char* instance, const char* extn)
-{
-	size_t len;
-	char *name;
-
-	len = strlen(start) + 1;
-	if (instance)
-		len += strlen(instance) + 1;
-	if (extn)
-		len += strlen(extn);
-
-	name = MALLOC(len);
-	if (!name) {
-		log_message(LOG_INFO, "Unable to make pidfile name for %s", start);
-		return NULL;
-	}
-
-	strcpy(name, start);
-	if (instance) {
-		strcat(name, "_");
-		strcat(name, instance);
-	}
-	if (extn)
-		strcat(name, extn);
-
-	return name;
-}
-
 #ifdef _WITH_VRRP_
 bool __attribute__ ((pure))
 running_vrrp(void)
@@ -493,7 +464,7 @@ create_reload_file(void)
 	if ((fd = creat(global_data->reload_file, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) != -1)
 		close(fd);
 	else
-		log_message(LOG_INFO, "Failed to create reload file %d - %m", errno);
+		log_message(LOG_INFO, "Failed to create reload file (%s) %d - %m", global_data->reload_file, errno);
 
 	/* Restore the default umask */
 	if (umask_val & (S_IRGRP | S_IROTH))
@@ -1034,7 +1005,7 @@ start_validate_reload_conf_child(void)
 	script.uid = 0;
 	script.gid = 0;
 
-	if (!truncate(global_data->reload_check_config, 0))
+	if (truncate(global_data->reload_check_config, 0) && errno != ENOENT)
 		log_message(LOG_INFO, "truncate of config check log %s failed (%d) - %m", global_data->reload_check_config, errno);
 
 	create_reload_file();
@@ -2585,16 +2556,6 @@ keepalived_main(int argc, char **argv)
 			if (!bfd_pidfile)
 				bfd_pidfile = RUN_DIR BFD_PID_FILE PID_EXTENSION;
 #endif
-		}
-
-		/* If wanted, create the default reload file */
-		if (global_data->reload_file == DEFAULT_RELOAD_FILE) {
-			if (global_data->instance_name)
-				global_data->reload_file = make_pidfile_name(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE, global_data->instance_name, RELOAD_EXTENSION);
-			else if (use_pid_dir)
-				global_data->reload_file = STRDUP(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE RELOAD_EXTENSION);
-			else
-				global_data->reload_file = STRDUP(RUN_DIR KEEPALIVED_PID_FILE RELOAD_EXTENSION);
 		}
 
 		/* We have set the namespaces, so we can do this now */
