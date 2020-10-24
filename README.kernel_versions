@@ -146,6 +146,8 @@ AC_CHECK_DECLS([IFA_FLAGS], [], [], [[#include <linux/if_addr.h>]])
 dnl ----[ Checks for kernel IFLA_INET6_ADDR_GEN_MODE support ]----
   # Introduced in Linux 3.17
 
+memfd_create - introduced in Linux 3.17 and glibc 2.27
+
 dnl -- Since Linux 3.18
 AC_CHECK_DECLS([IPVS_DEST_ATTR_ADDR_FAMILY], [add_system_opt([IPVS_DEST_ATTR_ADDR_FAMILY])], [], [#include <linux/ip_vs.h>])
 

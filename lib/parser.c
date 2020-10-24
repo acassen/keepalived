@@ -63,7 +63,6 @@
 #define WHITE_SPACE_STR " \t\f\n\r\v"
 
 /* Some development/test options */
-/* #define USE_ANON_FILE */
 /* #define LEAVE_FILE */
 
 
@@ -218,6 +217,51 @@ report_config_error(config_err_t err, const char *format, ...)
 
 	if (format_buf)
 		FREE(format_buf);
+}
+
+void
+use_disk_copy_for_config(const char *dir_name)
+{
+	int fd;
+	int fd_mem;
+	char buf[512];
+	ssize_t len;
+	FILE *new_conf_copy;
+
+	if (!write_conf_copy)
+		return;
+
+	fd = open(dir_name, O_RDWR | O_TMPFILE | O_EXCL | O_CLOEXEC, S_IRUSR | S_IWUSR);
+	if (fd == -1) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Cannot open config directory %s for writing, errno %d - %m", dir_name, errno);
+		return;
+	}
+
+	/* Copy what we have already written to the disk based file */
+	rewind(conf_copy);
+	fd_mem = fileno(conf_copy);
+	lseek(fd_mem, 0L, SEEK_SET);
+
+	while ((len = read(fd_mem, buf, sizeof(buf))) > 0) {
+		if (write(fd, buf, len) != len)
+			break;
+	}
+
+	if (len) {
+		log_message(LOG_INFO, "Unable to config to new disk file on %s", dir_name);
+		close(fd);
+		return;
+	}
+
+	new_conf_copy = fdopen(fd, "a+");
+	if (!new_conf_copy) {
+		log_message(LOG_INFO, "fdopen of disk file error %d - %m", errno);
+		close(fd);
+		return;
+	}
+
+	fclose(conf_copy);
+	conf_copy = new_conf_copy;
 }
 
 void
@@ -2797,10 +2841,10 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 
 	if (copy_config) {
 		if (!conf_copy) {
-#ifndef USE_ANON_FILE
+#ifdef HAVE_MEMFD_CREATE
 			fd = memfd_create("/keepalived/consolidated_configuration", MFD_CLOEXEC);
 #else
-			fd = open("/etc", O_RDWR | O_TMPFILE | O_EXCL | O_CLOEXEC, S_IRUSR | S_IWUSR);
+			fd = open("/tmp", O_RDWR | O_TMPFILE | O_EXCL | O_CLOEXEC, S_IRUSR | S_IWUSR);
 #endif
 			if (fd == -1)
 				log_message(LOG_INFO, "memfd_create error %d - %m", errno);

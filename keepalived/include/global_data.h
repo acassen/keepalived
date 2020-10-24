@@ -130,6 +130,7 @@ typedef struct _data {
 	bool				reload_date_specified;
 	const char			*reload_file;
 #endif
+	const char 			*config_directory;
 #ifdef _WITH_VRRP_
 	bool				dynamic_interfaces;
 	bool				allow_if_changes;

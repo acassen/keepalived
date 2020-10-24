@@ -785,6 +785,12 @@ static bool reload_config(void)
 	}
 #endif
 
+	if (!!old_global_data->config_directory != !!global_data->config_directory ||
+	    (global_data->config_directory && strcmp(old_global_data->config_directory, global_data->config_directory))) {
+		log_message(LOG_INFO, "Cannot change config_directory at a reload - please restart %s", PACKAGE);
+		unsupported_change = true;
+	}
+
 	if (unsupported_change) {
 		/* We cannot reload the configuration, so continue with the old config */
 		free_global_data (global_data);
