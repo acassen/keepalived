@@ -1034,7 +1034,7 @@ start_validate_reload_conf_child(void)
 	script.uid = 0;
 	script.gid = 0;
 
-	if (!truncate(global_data->reload_check_config, 0))
+	if (truncate(global_data->reload_check_config, 0) && errno != ENOENT)
 		log_message(LOG_INFO, "truncate of config check log %s failed (%d) - %m", global_data->reload_check_config, errno);
 
 	create_reload_file();
