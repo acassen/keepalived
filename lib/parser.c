@@ -2053,7 +2053,7 @@ open_conf_file(include_file_t *file)
 		file->num_matches++;
 
 		/* We only want to report the file name if there is more than one file used */
-		if (!list_is_last(&include_stack, &file->e_list) || file->globbuf.gl_pathc > 1)
+		if (!list_is_last(&file->e_list, &include_stack) || file->globbuf.gl_pathc > 1)
 			file->current_file_name = file->globbuf.gl_pathv[i];
 		file->current_line_no = 0;
 
