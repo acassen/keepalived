@@ -1402,6 +1402,7 @@ add_lst(char *buf)
 			PMALLOC(value);
 			value->val = STRDUP("");
 			INIT_LIST_HEAD(&value->e_list);
+			list_add_tail(&value->e_list, &value_set->values);
 		}
 
 		/* Add the value_set to the list of value_sets */
