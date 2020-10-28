@@ -56,6 +56,30 @@
 #include "process.h"
 
 
+/* In order to ensure that all processes read the same configuration, the first
+ * process that reads the configuration writes it to a temporary file, and all
+ * the other processes read that temporary file.
+ *
+ * For simplicity, the temporary file is by default, and if memfd_create() is
+ * supported, a memfd type file, otherwise it will be an anonymous file in the
+ * filesystem that includes /tmp. The default can be overridden by the global_defs
+ * tmp_config_directory option.
+ *
+ * The temporary file contains all the lines of the original configuration file(s)
+ * stripped of leading and training whitespace and comments, with the following
+ * exceptions:
+ * 1. include statements are passed as blank lines.
+ * 2. When an included file is opened, a line starting "# " followed by the file
+ *    name is written.
+ * 3. When an included file is closed, a single character line "!" is written.
+ * 4. Any include file processing errors are written to the file preceeded by "#! ".
+ *
+ * The reasons for 2 and 3 are so that configuration errors can be logged with the
+ * correct file name and line number.
+ * The reason for 4 is so that include file processing errors can be written to the
+ * log files of all processes.
+ */
+
 #define DEF_LINE_END	"\n"
 
 #define BOB "{"
