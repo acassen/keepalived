@@ -2241,5 +2241,5 @@ init_global_keywords(bool global_active)
 	install_keyword("reload_repeat", &reload_repeat_handler);
 	install_keyword("reload_file", &reload_file_handler);
 #endif
-	install_keyword("config_directory", &config_copy_directory_handler);
+	install_keyword("tmp_config_directory", &config_copy_directory_handler);
 }

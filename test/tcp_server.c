@@ -11,6 +11,9 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <time.h>
+#include <fcntl.h>
+
+#include "tcp_server_html.h"
 
 /*
  * NOTE:
@@ -19,10 +22,30 @@
  * functionality provided here.
  */
 
+const char *html_hdr =
+	"HTTP/%s 200 OK\r\n"
+	"Date: %s\r\n"		// Mon, 26 Oct 2020 22:18:55 GMT
+	"Server: Apache/2.4.46 (Fedora) OpenSSL/1.1.1g\r\n"
+	"Last-Modified: Sat, 14 Oct 2017 12:43:39 GMT\r\n"
+	"ETag: \"17c3-55b811f6254c0\"\r\n"
+	"Accept-Ranges: bytes\r\n"
+	"Content-Length: %zu\r\n"
+	"Connection: close\r\n"
+	"Content-Type: text/html\r\n"
+	"\r\n";
+
+typedef enum {
+	TYPE_STD,
+	TYPE_HTML
+} cr_t;
+
 struct cmd_resp {
 	struct cmd_resp *next;
+	cr_t type;
 	char *cmd;
 	char *resp;
+	const char *html_version;
+	bool close_conn;
 };
 
 static struct cmd_resp *cmd_resp_list;
@@ -31,6 +54,32 @@ static struct timespec rep_delay;
 static bool random_delay;
 static int random_seed = 0;
 
+static bool debug;
+static bool debug_data;
+
+static unsigned long connection_num;
+static unsigned long connection_mod = 1;
+
+static void
+send_html_resp(int fd, struct cmd_resp *p)
+{
+	char time_buf[30];	// Mon, 26 Oct 2020 22:18:55 GMT
+	char header_buf[strlen(html_hdr) + 6 + 30];
+	time_t t;
+	struct tm *tm_p;
+
+	t = time(NULL);
+	tm_p = localtime(&t);
+
+	strftime(time_buf, sizeof(time_buf), "%a, %e %b %Y %T %Z", tm_p);
+	sprintf(header_buf, html_hdr, p->html_version, time_buf, strlen(p->resp));
+
+	if (debug)
+		printf("(%d) Sending HTML header\n'%s'", getpid(),  header_buf);
+
+	write(fd, header_buf, strlen(header_buf));
+}
+
 static void find_resp(int fd, const char *cmd)
 {
 	struct cmd_resp *p;
@@ -38,28 +87,45 @@ static void find_resp(int fd, const char *cmd)
 	size_t len;
 	const char *resp;
 	struct timespec delay;
+	bool use_p = false;
 
-//printf("Processing: '%s', end = %d\n", cmd, cmd[strlen(cmd)-1]);
+	if (debug)
+		printf("(%d) Processing: '%s', end = %d\n", getpid(),  cmd, cmd[strlen(cmd)-1]);
+
 	s = cmd;
 	for (s = cmd; *s; s = *e ? e + 1 : e) {
 		e = strchr(s, EOL);
 		if (!e)
 			e = s + strlen(s);
 		len = e - s;
-//printf("Looking for '%.*s'\n", len, s);
+//printf("(%d) Looking at %p, len 0x%x (%d)\n", getpid(), s, len, len);
+
+		if (debug)
+			printf("(%d) Looking at '%.*s'\n", getpid(), (int)len, s);
 
 		resp = s;
 		for (p = cmd_resp_list; p; p = p->next) {
 			if (len == strlen(p->cmd) &&
 			    !strncmp(p->cmd, s, len)) {
-//printf("Found %s -> %s\n", p->cmd, p->resp);
+				if (debug)
+					printf("(%d) Found %s -> %s\n", getpid(),  p->cmd, p->resp);
+
 				resp = p->resp;
 				len = strlen(resp);
 				if (!len)
+{
+printf("(%d) Exit for !len\n", getpid());
 					exit(0);
+}
+				use_p = true;
+
+				if (debug)
+					printf("(%d) Found match, close after %d\n", getpid(),  p->close_conn);
+
 				break;
 			}
 		}
+
 		if (rep_delay.tv_nsec || rep_delay.tv_sec) {
 			if (random_delay) {
 				delay.tv_nsec = (rep_delay.tv_sec * 1000000000 + rep_delay.tv_nsec) * random();
@@ -70,9 +136,56 @@ static void find_resp(int fd, const char *cmd)
 			nanosleep(&delay, NULL);
 		}
 
-printf("Replying '%.*s'\n", len, resp);
+		if (use_p && p->type == TYPE_HTML)
+			send_html_resp(fd, p);
+
+		if (debug_data)
+			printf("(%d) Replying '%.*s'\n", getpid(), (int)len, resp);
+
 		write(fd, resp, len);
+
+		if (use_p && p->close_conn) {
+			char buf[1024];
+
+			/* Strip any remaining received data, otherwise RST gets sent instead of FIN */
+			fcntl(fd, F_SETFL, O_NONBLOCK);
+			while (read(fd, buf, 1024) > 0);
+
+			close(fd);
+//printf("(%d) Exiting\n", getpid());
+			exit(0);
+		}
+		return;
 	}
+}
+
+static struct cmd_resp *
+new_cr(const char *cmd, const char *resp, bool close_after_send, cr_t type)
+{
+	struct cmd_resp *cr;
+
+	cr = malloc(sizeof(struct cmd_resp));
+	cr->next = cmd_resp_list;
+	cmd_resp_list = cr;
+	cr->cmd = strdup(cmd);
+	cr->resp = strdup(resp);
+	cr->type = type;
+
+	cr->close_conn = close_after_send;
+
+	return cr;
+}
+
+static void
+new_html_cr(const char *url, const char *resp, const char *html_version, bool close_after_send)
+{
+	char *cmd = malloc(14 + strlen(url));	// GET %s HTTP/1.1";
+	struct cmd_resp *cr;
+
+	sprintf(cmd, "GET %s HTTP/%s", url, html_version);
+
+	cr = new_cr(cmd, resp, close_after_send, TYPE_HTML);
+	cr->html_version = strdup(html_version);
 }
 
 static void
@@ -82,15 +195,48 @@ process_data(int fd)
 	int len;
 
 	while ((len = read(fd, buf, sizeof(buf) - 1)) > 0) {
+//printf("(%d) Read %d bytes\n", getpid(),  len);
+		buf[len] = '\0';
+
 		/* Exit if receive ^D */
 		if (len == 1 && buf[0] == 4)
+//{
+//printf("(%d) Got <CNTL>-D\n", getpid());
 			return;
-		if (cmd_resp_list) {
-			buf[len] = '\0';
+//}
+		if (cmd_resp_list)
 			find_resp(fd, buf);
-		} else
+		else
 			write(fd, buf, len);
+//printf("(%d) Going to read again\n", getpid());
 	}
+//printf("(%d) Process_data returning, len = %d, errno %d - %m\n", getpid(),  len, errno);
+}
+
+static void
+print_usage(FILE *fp, const char *name)
+{
+	fprintf(fp, "Usage: %s [options]\n", name);
+	fprintf(fp, "\t-4\t\tUse IPv4\n");
+	fprintf(fp, "\t-6\t\tUse IPv6\n");
+	fprintf(fp, "\t-a addr\t\tbind to addr\n");
+	fprintf(fp, "\t-p port\t\tlist on port\n");
+	fprintf(fp, "\t-s\t\tsilent\n");
+	fprintf(fp, "\t-u\t\tuse UDP\n");
+	fprintf(fp, "\t-e\t\techo\n");
+	fprintf(fp, "\t-b len\t\tbacklog length\n");
+	fprintf(fp, "\t-c cmd resp\tsend resp if receive cmd\n");
+	fprintf(fp, "\t-v ver\t\tset HTML version to use (default 1.1)\n");
+	fprintf(fp, "\t-w url resp\tsend HTTP response for url\n");
+	fprintf(fp, "\t-W\t\tsend a pre-build HTTP response for GET /\n");
+	fprintf(fp, "\t-l val\t\tASCII value to use for EOL char\n");
+	fprintf(fp, "\t-d delay\tdelay in ms before replying\n");
+	fprintf(fp, "\t-r\t\tuse random delay\n");
+	fprintf(fp, "\t-m mod\t\tOnly report every mod'th connection\n");
+	fprintf(fp, "\t-Z\t\ttoggle close on send (default off)\n");
+	fprintf(fp, "\t-g\t\tdebug data\n");
+	fprintf(fp, "\t-G\t\tdebug\n");
+	fprintf(fp, "\t-h\t\tprint this\n");
 }
 
 int main(int argc, char **argv)
@@ -114,9 +260,10 @@ int main(int argc, char **argv)
 	char *endptr;
 	long port_num;
 	unsigned backlog = 4;
-	struct cmd_resp *cr;
+	bool close_after_send = false;
+	char *html_version = "1.1";
 
-	while ((opt = getopt(argc, argv, ":46a:p:sueb:c:l:d:r")) != -1) {
+	while ((opt = getopt(argc, argv, ":h46a:p:sueb:c:l:d:rm:v:Ww:ZDgG")) != -1) {
 		switch (opt) {
 		case '4':
 			family = AF_INET;
@@ -153,17 +300,25 @@ int main(int argc, char **argv)
 			break;
 		case 'c':
 			if (optind >= argc) {
-				fprintf(stderr, "-c '%s' missing response\n", optarg);
+				fprintf(stderr, "-%c '%s' missing response\n", optind, optarg);
 				exit(EXIT_FAILURE);
 			}
 
-			cr = malloc(sizeof(struct cmd_resp));
-			cr->next = cmd_resp_list;
-			cmd_resp_list = cr;
-			cr->cmd = malloc(strlen(optarg)+1);
-			cr->resp = malloc(strlen(argv[optind]) + 1);
-			strcpy(cr->cmd, optarg);
-			strcpy(cr->resp, argv[optind++]);
+			new_cr(optarg, argv[optind++], close_after_send, TYPE_STD);
+			break;
+		case 'v':
+			html_version = optarg;
+			break;
+		case 'W':
+			new_html_cr("/", html_resp, html_version, close_after_send);
+			break;
+		case 'w':
+			if (optind >= argc) {
+				fprintf(stderr, "-%c '%s' missing response\n", optind, optarg);
+				exit(EXIT_FAILURE);
+			}
+
+			new_html_cr(optarg, argv[optind++], html_version, close_after_send);
 			break;
 		case 'l':
 			EOL = strtoul(optarg, &endptr, 10);
@@ -179,11 +334,26 @@ int main(int argc, char **argv)
 			if (optind < argc && argv[optind][0] != '-')
 				random_seed = strtoul(argv[optind++], &endptr, 10);
 			break;
+		case 'm':
+			connection_mod = strtoul(optarg, NULL, 0);
+			break;
+		case 'Z':
+			close_after_send = !close_after_send;
+			break;
+		case 'g':
+			debug_data = true;
+			break;
+		case 'G':
+			debug= true;
+			break;
+		case 'h':
+			print_usage(stdout, argv[0]);
+			exit(0);
 		case ':':
 			fprintf(stderr, "Option '%c' is missing an argument\n", optopt);
 			break;
 		default: /* '?' */
-			fprintf(stderr, "Usage: %s [-a bind address] [-p port] [-4] [-6] [-s(ilent)] [-u(dp)] [-e(cho)] [-b(acklog) n][-c cmd resp] [-l EOL char value] [-d reply-delay [-r]]\n", argv[0]);
+			print_usage(stderr, argv[0]);
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -203,7 +373,7 @@ int main(int argc, char **argv)
 		}
 
 		if (inet_pton(family, addr_str, addr_buf) != 1) {
-			printf("Invalid IPv%d address - %s\n", family == AF_INET ? 4 : 6, addr_str);
+			printf("(%d) Invalid IPv%d address - %s\n", getpid(),  family == AF_INET ? 4 : 6, addr_str);
 			exit (1);
 		}
 	}
@@ -212,6 +382,17 @@ int main(int argc, char **argv)
 
 	if ((listenfd = socket(family, sock_type, 0)) == -1) {
 		printf ("Unable to create socket, errno %d (%m)\n", errno);
+		exit(1);
+	}
+
+	struct linger li = { .l_onoff = 1, .l_linger = 1 };
+	if (setsockopt(listenfd, SOL_SOCKET, SO_LINGER, (char *)&li, sizeof (struct linger))) {
+		printf("(%d) Set SO_LINGER failed, errno %d (%m)\n", getpid(),  errno);
+		exit(1);
+	}
+
+	if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &li.l_onoff, sizeof (li.l_onoff))) {
+		printf("(%d) Set SO_REUSEADDR failed, errno %d (%m)\n", getpid(),  errno);
 		exit(1);
 	}
 
@@ -255,8 +436,8 @@ int main(int argc, char **argv)
 				connfd = accept(listenfd, (struct sockaddr *)&cliaddr6, &clilen);
 			}
 
-			if (!silent)
-				printf("Received connection\n");
+			if (!silent && (!(++connection_num % connection_mod) || connection_num == 1))
+				printf("(%d) Received connection %lu\n", getpid(), connection_num);
 			if ((childpid = fork()) == 0) {
 				close(listenfd);
 				if (echo_data || cmd_resp_list)
@@ -285,7 +466,7 @@ int main(int argc, char **argv)
 					sendto(listenfd, buf, n, 0, (struct sockaddr *)&cliaddr6, clilen);
 			}
 			if (!silent)
-				printf("Received %d bytes\n", n);
+				printf("(%d) Received %d bytes\n", getpid(),  n);
 		}
 	}
 }

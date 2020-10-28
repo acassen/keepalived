@@ -56,6 +56,30 @@
 #include "process.h"
 
 
+/* In order to ensure that all processes read the same configuration, the first
+ * process that reads the configuration writes it to a temporary file, and all
+ * the other processes read that temporary file.
+ *
+ * For simplicity, the temporary file is by default, and if memfd_create() is
+ * supported, a memfd type file, otherwise it will be an anonymous file in the
+ * filesystem that includes /tmp. The default can be overridden by the global_defs
+ * tmp_config_directory option.
+ *
+ * The temporary file contains all the lines of the original configuration file(s)
+ * stripped of leading and training whitespace and comments, with the following
+ * exceptions:
+ * 1. include statements are passed as blank lines.
+ * 2. When an included file is opened, a line starting "# " followed by the file
+ *    name is written.
+ * 3. When an included file is closed, a single character line "!" is written.
+ * 4. Any include file processing errors are written to the file preceeded by "#! ".
+ *
+ * The reasons for 2 and 3 are so that configuration errors can be logged with the
+ * correct file name and line number.
+ * The reason for 4 is so that include file processing errors can be written to the
+ * log files of all processes.
+ */
+
 #define DEF_LINE_END	"\n"
 
 #define BOB "{"
@@ -1402,6 +1426,7 @@ add_lst(char *buf)
 			PMALLOC(value);
 			value->val = STRDUP("");
 			INIT_LIST_HEAD(&value->e_list);
+			list_add_tail(&value->e_list, &value_set->values);
 		}
 
 		/* Add the value_set to the list of value_sets */
@@ -2052,7 +2077,7 @@ open_conf_file(include_file_t *file)
 		file->num_matches++;
 
 		/* We only want to report the file name if there is more than one file used */
-		if (!list_is_last(&include_stack, &file->e_list) || file->globbuf.gl_pathc > 1)
+		if (!list_is_last(&file->e_list, &include_stack) || file->globbuf.gl_pathc > 1)
 			file->current_file_name = file->globbuf.gl_pathv[i];
 		file->current_line_no = 0;
 
