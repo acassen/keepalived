@@ -45,7 +45,7 @@ size_t extract_content_length(const char *buffer, size_t size)
 
 	/* Content-Length extraction */
 	len = strtoul(clen + strlen(CONTENT_LENGTH), &end, 10);
-	if (*end)
+	if (*end && (*end != '\r' && *end != '\n'))
 		return SIZE_MAX;
 
 	return len;

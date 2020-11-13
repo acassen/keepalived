@@ -1619,6 +1619,7 @@ snmp_epoll_info(thread_master_t *m)
 		return;
 	set_words = (max_fdsetsize - 1) / (sizeof(*old_set) * CHAR_BIT) + 1;
 
+	/* coverity[ptr_arith] */
 	for (i = 0, old_set = PTR_CAST(unsigned long, &m->snmp_fdset), new_set = PTR_CAST(unsigned long, &snmp_fdset); i < set_words; i++, old_set++, new_set++) {
 		if (*old_set == *new_set)
 			continue;
