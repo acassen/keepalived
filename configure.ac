@@ -123,7 +123,7 @@ AC_CONFIG_FILES([Makefile keepalived/Makefile lib/Makefile keepalived/core/Makef
 		 keepalived/bfd/Makefile doc/Makefile bin_install/Makefile keepalived/dbus/Makefile \
 		 keepalived/etc/Makefile keepalived/etc/init/Makefile keepalived/etc/init.d/Makefile \
 		 keepalived/etc/keepalived/Makefile keepalived/trackers/Makefile \
-		 doc/man/man8/Makefile])
+		 doc/man/man8/Makefile doc/man/man5/Makefile doc/man/man1/Makefile])
 
 
 MAINTAINERCLEANFILES="*~ *.orig *.rej core core.*"
