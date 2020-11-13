@@ -1719,6 +1719,40 @@ set_debug_options(const char *options)
 }
 #endif
 
+static void
+report_distro(void)
+{
+	FILE *fp = fopen("/etc/os-release", "r");
+	char buf[128];
+	const char * const var = "PRETTY_NAME=";
+	const size_t var_len = strlen(var);
+	char *distro_name;
+	size_t distro_len;
+
+	if (!fp)
+		return;
+
+	while (fgets(buf, sizeof(buf), fp)) {
+		if (!strncmp(buf, var, var_len)) {
+			distro_name = buf + var_len;
+
+			/* Remove "'s and trailing \n */
+			if (*distro_name == '"')
+				distro_name++;
+			distro_len = strlen(distro_name);
+			if (distro_len && distro_name[distro_len - 1] == '\n')
+				distro_name[--distro_len] = '\0';
+			if (distro_len && distro_name[distro_len - 1] == '"')
+				distro_name[--distro_len] = '\0';
+
+			fprintf(stderr, "Distro: %s\n", distro_name);
+			break;
+		}
+	}
+
+	fclose(fp);
+}
+
 /* Usage function */
 static void
 usage(const char *prog)
@@ -1997,7 +2031,9 @@ parse_cmdline(int argc, char **argv)
 						(LINUX_VERSION_CODE >>  8) & 0xff,
 						(LINUX_VERSION_CODE      ) & 0xff);
 			uname(&uname_buf);
-			fprintf(stderr, "Running on %s %s %s\n\n", uname_buf.sysname, uname_buf.release, uname_buf.version);
+			fprintf(stderr, "Running on %s %s %s\n", uname_buf.sysname, uname_buf.release, uname_buf.version);
+			report_distro();
+			fprintf(stderr, "\n");
 			fprintf(stderr, "configure options: %s\n\n", KEEPALIVED_CONFIGURE_OPTIONS);
 			fprintf(stderr, "Config options: %s\n\n", CONFIGURATION_OPTIONS);
 			fprintf(stderr, "System options: %s\n", SYSTEM_OPTIONS);
