@@ -64,61 +64,41 @@ ssl_handler(const vector_t *strvec)
 	}
 	check_data->ssl = alloc_ssl();
 }
+
 static void
-sslpass_handler(const vector_t *strvec)
+handle_ssl_file(const vector_t *strvec, const char **file_name, const char *type)
 {
 	if (vector_size(strvec) < 2) {
-		report_config_error(CONFIG_GENERAL_ERROR, "SSL password missing");
+		report_config_error(CONFIG_GENERAL_ERROR, "SSL %s missing", type);
 		return;
 	}
 
-	if (check_data->ssl->password) {
-		report_config_error(CONFIG_GENERAL_ERROR, "SSL password already specified - replacing");
-		FREE_CONST(check_data->ssl->password);
+	if (*file_name) {
+		report_config_error(CONFIG_GENERAL_ERROR, "SSL %s already specified - replacing", type);
+		FREE_CONST(*file_name);
 	}
-	check_data->ssl->password = set_value(strvec);
+	*file_name = set_value(strvec);
+}
+
+static void
+sslpass_handler(const vector_t *strvec)
+{
+	handle_ssl_file(strvec, &check_data->ssl->password, "password");
 }
 static void
 sslca_handler(const vector_t *strvec)
 {
-	if (vector_size(strvec) < 2) {
-		report_config_error(CONFIG_GENERAL_ERROR, "SSL cafile missing");
-		return;
-	}
-
-	if (check_data->ssl->cafile) {
-		report_config_error(CONFIG_GENERAL_ERROR, "SSL cafile already specified - replacing");
-		FREE_CONST(check_data->ssl->cafile);
-	}
-	check_data->ssl->cafile = set_value(strvec);
+	handle_ssl_file(strvec, &check_data->ssl->cafile, "cafile");
 }
 static void
 sslcert_handler(const vector_t *strvec)
 {
-	if (vector_size(strvec) < 2) {
-		report_config_error(CONFIG_GENERAL_ERROR, "SSL certfile missing");
-		return;
-	}
-
-	if (check_data->ssl->certfile) {
-		report_config_error(CONFIG_GENERAL_ERROR, "SSL certfile already specified - replacing");
-		FREE_CONST(check_data->ssl->certfile);
-	}
-	check_data->ssl->certfile = set_value(strvec);
+	handle_ssl_file(strvec, &check_data->ssl->certfile, "certfile");
 }
 static void
 sslkey_handler(const vector_t *strvec)
 {
-	if (vector_size(strvec) < 2) {
-		report_config_error(CONFIG_GENERAL_ERROR, "SSL keyfile missing");
-		return;
-	}
-
-	if (check_data->ssl->keyfile) {
-		report_config_error(CONFIG_GENERAL_ERROR, "SSL keyfile already specified - replacing");
-		FREE_CONST(check_data->ssl->keyfile);
-	}
-	check_data->ssl->keyfile = set_value(strvec);
+	handle_ssl_file(strvec, &check_data->ssl->keyfile, "keyfile");
 }
 
 /* Virtual Servers handlers */
