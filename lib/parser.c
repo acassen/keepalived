@@ -170,7 +170,9 @@ bool do_parser_debug;
 #ifdef _DUMP_KEYWORDS_
 bool do_dump_keywords;
 #endif
-bool glob_strict = false;
+
+/* Error handling functions */
+static bool glob_strict;
 
 /* local vars */
 static vector_t *current_keywords;
@@ -202,10 +204,11 @@ static bool replace_param(char *, size_t, char const **);
 /* Stack of include files */
 LIST_HEAD_INITIALIZE(include_stack);
 
-void
-report_config_error(config_err_t err, const char *format, ...)
+static void vreport_config_error(config_err_t, const char *, va_list) __attribute__ ((format (printf, 2, 0 )));
+
+static void
+vreport_config_error(config_err_t err, const char *format, va_list args)
 {
-	va_list args;
 	char *format_buf = NULL;
 	include_file_t *file = NULL;
 	
@@ -215,7 +218,7 @@ report_config_error(config_err_t err, const char *format, ...)
 	/* current_file_name will be set if there is more than one config file, in which
 	 * case we need to specify the file name. */
 	if (file) {
-	       	if (file->current_file_name) {
+		if (file->current_file_name) {
 			/* "(file_name: Line line_no) format" + '\0' */
 			format_buf = MALLOC(1 + strlen(file->current_file_name) + 1 + 6 + 10 + 1 + 1 + strlen(format) + 1);
 			sprintf(format_buf, "(%s: Line %zu) %s", file->current_file_name, file->current_line_no, format);
@@ -225,8 +228,6 @@ report_config_error(config_err_t err, const char *format, ...)
 			sprintf(format_buf, "(%s %zu) %s", "Line", file->current_line_no, format);
 		}
 	}
-
-	va_start(args, format);
 
 	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
 		vfprintf(stderr, format_buf ? format_buf : format, args);
@@ -238,10 +239,39 @@ report_config_error(config_err_t err, const char *format, ...)
 	else
 		vlog_message(LOG_INFO, format_buf ? format_buf : format, args);
 
-	va_end(args);
-
 	if (format_buf)
 		FREE(format_buf);
+}
+
+void
+report_config_error(config_err_t err, const char *format, ...)
+{
+	va_list args;
+
+	va_start(args, format);
+	vreport_config_error(err, format, args);
+	va_end(args);
+}
+
+static void __attribute__ ((format (printf, 1, 2)))
+file_config_error(const char *format, ...)
+{
+	va_list args;
+
+	va_start(args, format);
+
+	if (glob_strict)
+		vreport_config_error(CONFIG_FILE_NOT_FOUND, format, args);
+	else
+		vlog_message(LOG_INFO, format, args);
+
+	if (write_conf_copy) {
+		fprintf(conf_copy, "#! ");
+		vfprintf(conf_copy, format, args);
+		fprintf(conf_copy, "\n");
+	}
+
+	va_end(args);
 }
 
 void
@@ -2050,21 +2080,16 @@ open_conf_file(include_file_t *file)
 
 		if (file->globbuf.gl_pathv[i][strlen(file->globbuf.gl_pathv[i])-1] == '/') {
 			/* This is a directory - so skip */
-			if (glob_strict)
-				report_config_error(CONFIG_GENERAL_ERROR, "Configuration file '%s' is a directory - skipping"
-						, file->globbuf.gl_pathv[i]);
+			file_config_error("Configuration file '%s' is a directory - skipping"
+					, file->globbuf.gl_pathv[i]);
 			continue;
 		}
 
 		log_message(LOG_INFO, "Opening file '%s'.", file->globbuf.gl_pathv[i]);
 		stream = fopen(file->globbuf.gl_pathv[i], "r");
 		if (!stream) {
-			if (!glob_strict)
-				log_message(LOG_INFO, "Configuration file '%s' open problem (%s) - skipping"
+			file_config_error("Configuration file '%s' open problem (%s) - skipping"
 					       , file->globbuf.gl_pathv[i], strerror(errno));
-			else
-				report_config_error(CONFIG_GENERAL_ERROR, "Configuration file '%s' open problem (%s) - skipping"
-						, file->globbuf.gl_pathv[i], strerror(errno));
 			continue;
 		}
 
@@ -2072,11 +2097,8 @@ open_conf_file(include_file_t *file)
 		if (fstat(fileno(stream), &stb) ||
 		    !S_ISREG(stb.st_mode) ||
 		    (stb.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
-			if (!glob_strict)
-				log_message(LOG_INFO, "Configuration file '%s' is not a regular non-executable file - skipping", file->globbuf.gl_pathv[i]);
-			else
-				report_config_error(CONFIG_GENERAL_ERROR, "Configuration file '%s' is not a regular non-executable file - skipping", file->globbuf.gl_pathv[i]);
 			fclose(stream);
+			file_config_error("Configuration file '%s' is not a regular non-executable file - skipping", file->globbuf.gl_pathv[i]);
 			continue;
 		}
 
@@ -2105,12 +2127,8 @@ open_conf_file(include_file_t *file)
 
 			char *confpath = STRDUP(file->globbuf.gl_pathv[i]);
 			dirname(confpath);
-			if (chdir(confpath) < 0) {
-				if (!glob_strict)
-					log_message(LOG_INFO, "chdir(%s) error (%s)", confpath, strerror(errno));
-				else
-					report_config_error(CONFIG_GENERAL_ERROR, "chdir(%s) error (%s)", confpath, strerror(errno));
-			}
+			if (chdir(confpath) < 0)
+				file_config_error("chdir(%s) error (%s)", confpath, strerror(errno));
 			FREE(confpath);
 		} else
 			file->curdir_fd = -1;
@@ -2138,26 +2156,17 @@ open_glob_file(const char *conf_file)
 						    , NULL, &file->globbuf);
 
 	if (res) {
-		if (res == GLOB_NOMATCH) {
-			if (!glob_strict)
-				log_message(LOG_INFO, "No config files matched '%s'.", conf_file);
-			else
-				report_config_error(CONFIG_GENERAL_ERROR, "No config files matched '%s'.", conf_file);
-		} else {
-			if (!glob_strict)
-				log_message(LOG_INFO, "Error reading config file(s): glob(\"%s\") returned %d, skipping.", conf_file, res);
-			else
-				report_config_error(CONFIG_GENERAL_ERROR, "Error reading config file(s): glob(\"%s\") returned %d, skipping.", conf_file, res);
-		}
+		if (res == GLOB_NOMATCH)
+			file_config_error("No config files matched '%s'.", conf_file);
+		else
+			file_config_error("Error reading config file(s): glob(\"%s\") returned %d, skipping.", conf_file, res);
+
 		FREE(file);
 		return false;
 	}
 
 	if (!open_conf_file(file)) {
-		if (!glob_strict)
-			log_message(LOG_INFO, "%s - no matching file", conf_file);
-		else
-			report_config_error(CONFIG_GENERAL_ERROR, "%s - no matching file", conf_file);
+		file_config_error("%s - no matching file", conf_file);
 
 		globfree(&file->globbuf);
 		FREE(file);
@@ -2365,6 +2374,12 @@ read_line(char *buf, size_t size)
 
 				if (read_conf_copy) {
 					if (buf[0] == '#') {
+						if (buf[1] == '!') {
+							log_message(LOG_INFO, "%.*s", (int)strlen(buf + 3) - 1, buf + 3);
+							buf[0] = '\0';
+							continue;
+						}
+
 						FILE *fps = file->stream;
 
 						PMALLOC(file);
