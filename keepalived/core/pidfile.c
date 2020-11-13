@@ -40,6 +40,8 @@
 
 const char *pid_directory = KEEPALIVED_PID_DIR;
 
+static bool pid_dir_created;
+
 /* Create the directory for non-standard pid files */
 void
 create_pid_dir(void)
@@ -58,11 +60,16 @@ create_pid_dir(void)
 
 	if (error)
 		log_message(LOG_INFO, "Unable to create directory %s", pid_directory);
+	else
+		pid_dir_created = true;
 }
 
 void
 remove_pid_dir(void)
 {
+	if (!pid_dir_created)
+		return;
+
 	if (rmdir(pid_directory) && errno != ENOTEMPTY && errno != EBUSY)
 		log_message(LOG_INFO, "unlink of %s failed - error (%d) '%s'", pid_directory, errno, strerror(errno));
 }

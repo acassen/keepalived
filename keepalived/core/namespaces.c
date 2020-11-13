@@ -215,6 +215,7 @@ setns(int fd, int nstype)
 /* Local data */
 static const char *netns_dir = RUN_DIR "netns/";
 static char *mount_dirname;
+static bool run_mount_set;
 
 void
 free_dirname(void)
@@ -267,11 +268,16 @@ set_run_mount(const char *net_namespace)
 
 	if (mount(mount_dirname, pid_directory, NULL, MS_BIND, NULL))
 		log_message(LOG_INFO, "Mount failed, error (%d) '%s'", errno, strerror(errno));
+
+	run_mount_set = true;
 }
 
 static void
 unmount_run(void)
 {
+	if (!run_mount_set)
+		return;
+
 	if (umount(pid_directory))
 		log_message(LOG_INFO, "unmount of %s failed - errno %d", pid_directory, errno);
 	if (mount_dirname) {
