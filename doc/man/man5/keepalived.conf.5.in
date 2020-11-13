@@ -711,6 +711,9 @@ and
     # if the configuration is valid.
     \fBreload_check_config \fR[LOG_FILE]
 
+    # Treat each all globals config issues as config errors
+    \fBglob_strict \fR[LOG_FILE]
+
     # reload_time_file allows a reload of keepalived to be scheduled in the future. This is
     # particularly useful if there is a master keepalived and one or more backup keepalived
     # instances and the new configuration is incompatible with the previous configuration,
