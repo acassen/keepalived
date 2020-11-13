@@ -31,6 +31,7 @@ keepalived \- load\-balancing and high\-availability service
 [\fB\-a\fP|\fB\-\-address-monitoring\fP]
 [\fB\-b\fP|\fB\-\-bfd_pid\fP=FILE]
 [\fB\-s\fP|\fB\-\-namespace\fP=NAME]
+[\fB\-e\fP|\fB\-\-all-config\fP]
 [\fB\-i\fP|\fB\-\-config-id\fP id]
 [\fB\-x\fP|\fB\-\-snmp\fP]
 [\fB\-A\fP|\fB\-\-snmp-agent-socket\fP=FILE]
@@ -149,6 +150,9 @@ a network namespace is being used.
 Run keepalived in network namespace NAME. See
 .B NAMESPACES
 below for more details.
+.TP
+\fB -e, --all-config
+Don't load if any configuration file is missing or cannot be read.
 .TP
 \fB -i, --config-id ID
 Use configuration id ID, for conditional configuration (defaults to

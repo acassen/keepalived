@@ -86,6 +86,9 @@
 #ifdef _WITH_LVS_
 #include "ipvswrapper.h"
 #endif
+#ifdef _USE_SYSTEMD_
+#include "systemd.h"
+#endif
 
 /* Global variables */
 bool non_existent_interface_specified;
@@ -1006,6 +1009,10 @@ start_vrrp_child(void)
 		log_message(LOG_INFO, "VRRP child process: cannot write pidfile");
 		exit(0);
 	}
+
+#ifdef _USE_SYSTEMD_
+	systemd_unset_notify();
+#endif
 
 #ifdef _VRRP_FD_DEBUG_
 	if (do_vrrp_fd_debug)

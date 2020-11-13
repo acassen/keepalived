@@ -4,7 +4,7 @@ After=network-online.target syslog.target @SNMP_SERVICE@
 Wants=network-online.target @SNMP_SERVICE@
 
 [Service]
-Type=forking
+Type=notify
 PIDFile=@RUN_DIR@/run/keepalived.pid
 KillMode=process
 EnvironmentFile=-@sysconfdir@/sysconfig/keepalived

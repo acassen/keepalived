@@ -65,6 +65,7 @@ parts:
       - --enable-snmp
       - --enable-snmp-rfc
       - --disable-libipset-dynamic
+      - --disable-systemd
     override-build: |
       snapcraftctl build
       VER=$(grep GIT_COMMIT lib/git-commit.h | cut -d'"' -f2)

@@ -74,6 +74,9 @@
 #ifdef _WITH_CN_PROC_
 #include "track_process.h"
 #endif
+#ifdef _USE_SYSTEMD_
+#include "systemd.h"
+#endif
 
 /* Global variables */
 bool using_ha_suspend;
@@ -738,6 +741,10 @@ start_check_child(void)
 		log_message(LOG_INFO, "Healthcheck child process: cannot write pidfile");
 		exit(KEEPALIVED_EXIT_FATAL);
 	}
+
+#ifdef _USE_SYSTEMD_
+	systemd_unset_notify();
+#endif
 
 	/* Create the new master thread */
 	thread_destroy_master(master);	/* This destroys any residual settings from the parent */

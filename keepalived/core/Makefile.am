@@ -2,7 +2,7 @@
 #
 # Keepalived OpenSource project.
 #
-# Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
+# Copyright (C) 2001-2020 Alexandre Cassen, <acassen@gmail.com>
 
 AM_CPPFLAGS		= -I $(top_srcdir)/keepalived/include -I $(top_srcdir)/lib
 AM_CPPFLAGS		+= $(KA_CPPFLAGS) $(DEBUG_CPPFLAGS) -DLOCAL_STATE_DIR=\"@localstatedir@\"
@@ -42,6 +42,11 @@ endif
 if !ONE_PROCESS_DEBUG
   libcore_a_LIBADD	+= reload_monitor.o
   EXTRA_libcore_a_SOURCES += reload_monitor.c
+endif
+
+if WITH_SYSTEMD
+  libcore_a_LIBADD	+= systemd.o
+  EXTRA_libcore_a_SOURCES += systemd.c
 endif
 
 MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@

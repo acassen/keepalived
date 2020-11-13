@@ -1987,6 +1987,12 @@ random_seed_handler(const vector_t *strvec)
 
 #ifndef _ONE_PROCESS_DEBUG_
 static void
+include_check_handler(const vector_t *strvec)
+{
+	include_check_set(strvec);
+}
+
+static void
 reload_check_config_handler(const vector_t *strvec)
 {
 	if (vector_size(strvec) >= 2) {
@@ -2240,6 +2246,7 @@ init_global_keywords(bool global_active)
 	install_keyword("reload_time_file", &reload_time_file_handler);
 	install_keyword("reload_repeat", &reload_repeat_handler);
 	install_keyword("reload_file", &reload_file_handler);
+	install_keyword("include_check", &include_check_handler);
 #endif
 	install_keyword("tmp_config_directory", &config_copy_directory_handler);
 }
