@@ -43,6 +43,7 @@
 #include <inttypes.h>
 #include <signal.h>
 #include <sys/mman.h>
+#include <dirent.h>
 
 #include "parser.h"
 #include "memory.h"
@@ -85,6 +86,20 @@
 #define BOB "{"
 #define EOB "}"
 #define WHITE_SPACE_STR " \t\f\n\r\v"
+
+/* INCLUDE_R will error if a returned entry is:
+ *   not readable
+ *   a directory
+ *   not a regular, non executable, file
+ *   cannot chdir() to the directory of the file
+ */
+typedef enum _include {
+	INCLUDE = 0,		/* No error if no files match etc */
+	INCLUDE_R = 0x01,	/* Error if directory, not readable, etc */
+	INCLUDE_M = 0x02,	/* Error if no files match unless wildcard specified */
+	INCLUDE_W = 0x04,	/* Error if no files match even if wildcard used */
+	INCLUDE_B = 0x08,	/* All glob brace specifiers must match */
+} include_t;
 
 /* Some development/test options */
 /* #define LEAVE_FILE */
@@ -147,16 +162,18 @@ typedef struct _seq {
 
 /* Structure for include file stack */
 typedef struct _include_file {
-	glob_t globbuf;
-	unsigned glob_next;
-	const char *file_name;
-	int curdir_fd;
-	FILE *stream;
-	unsigned num_matches;
-	const char *current_file_name;  //can be derived from globbuf_gl_pathv[glob_next-1]
-	size_t current_line_no;
+	glob_t		globbuf;
+	unsigned	glob_next;
+	const char	*file_name;
+	int		curdir_fd;
+	FILE		*stream;
+	unsigned	num_matches;
+	const char	*current_file_name;  //can be derived from globbuf_gl_pathv[glob_next-1]
+	size_t		current_line_no;
+	include_t	include_type;
+	unsigned	sav_include_check;
 
-	list_head_t e_list;
+	list_head_t	e_list;
 } include_file_t;
 
 
@@ -171,8 +188,14 @@ bool do_parser_debug;
 bool do_dump_keywords;
 #endif
 
-/* Error handling functions */
-static bool glob_strict;
+/* Error handling variables */
+static unsigned include_check;
+
+/* The following 3 variables should be static, but that causes an optimiser bug in GCC */
+unsigned missing_directories;
+unsigned missing_files;
+bool have_wildcards;
+static bool config_file_error;
 
 /* local vars */
 static vector_t *current_keywords;
@@ -204,16 +227,18 @@ static bool replace_param(char *, size_t, char const **);
 /* Stack of include files */
 LIST_HEAD_INITIALIZE(include_stack);
 
-static void vreport_config_error(config_err_t, const char *, va_list) __attribute__ ((format (printf, 2, 0 )));
 
-static void
+static void __attribute__ ((format (printf, 2, 0 )))
 vreport_config_error(config_err_t err, const char *format, va_list args)
 {
 	char *format_buf = NULL;
 	include_file_t *file = NULL;
-	
-	if (!list_empty(&include_stack))
+
+	if (!list_empty(&include_stack)) {
 		file = list_first_entry(&include_stack, include_file_t, e_list);
+		if (!file->current_file_name && !list_is_last(&file->e_list, &include_stack))
+			file = list_first_entry(&file->e_list, include_file_t, e_list);
+	}
 
 	/* current_file_name will be set if there is more than one config file, in which
 	 * case we need to specify the file name. */
@@ -253,19 +278,28 @@ report_config_error(config_err_t err, const char *format, ...)
 	va_end(args);
 }
 
-static void __attribute__ ((format (printf, 1, 2)))
-file_config_error(const char *format, ...)
+static void __attribute__ ((format (printf, 2, 3)))
+file_config_error(include_t error_type, const char *format, ...)
 {
 	va_list args;
+	include_file_t *file = NULL;
+
+	if (!list_empty(&include_stack))
+		file = list_first_entry(&include_stack, include_file_t, e_list);
 
 	va_start(args, format);
 
-	if (glob_strict)
-		vreport_config_error(CONFIG_FILE_NOT_FOUND, format, args);
-	else
-		vlog_message(LOG_INFO, format, args);
+	vreport_config_error(((include_check | (file ? file->include_type : 0)) & error_type)
+			      ? CONFIG_FILE_NOT_FOUND : CONFIG_OK, format, args);
+	if ((include_check | (file ? file->include_type : 0)) & error_type)
+		config_file_error = true;
 
+	/* If there is an error and we are writing the config,
+	 * write the error to the file so the processes reading
+	 * it can log the error. */
 	if (write_conf_copy) {
+		va_end(args);
+		va_start(args, format);
 		fprintf(conf_copy, "#! ");
 		vfprintf(conf_copy, format, args);
 		fprintf(conf_copy, "\n");
@@ -1501,30 +1535,147 @@ dump_definitions(void)
 }
 #endif
 
+static DIR *
+gl_opendir(const char *name)
+{
+	DIR *dirp;
+
+	have_wildcards = true;
+
+	dirp = opendir(name);
+
+	if (!dirp)
+		missing_directories++;
+
+	return dirp;
+}
+
+static int
+gl_lstat(const char *pathname, struct stat *statbuf)
+{
+	int ret;
+
+	ret = lstat(pathname, statbuf);
+
+	if (ret)
+		missing_files++;
+
+	return ret;
+}
+
+static bool __attribute__((pure))
+have_brace(const char *conf_file)
+{
+	const char *p = conf_file;
+
+	if (!*p)
+		return false;
+
+	do {
+		if (*p == '\\')
+			p++;
+		else if (*p == '{')
+			return true;
+	} while (*++p);
+
+	return false;
+}
+
+static bool
+open_and_check_glob(glob_t *globbuf, const char *conf_file, include_t include_type)
+{
+	int	res;
+
+	globbuf->gl_offs = 0;
+
+	globbuf->gl_closedir = (void *)closedir;
+	globbuf->gl_readdir = (void *)readdir;
+	globbuf->gl_opendir = (void *)gl_opendir;
+	globbuf->gl_lstat = (void *)gl_lstat;
+	globbuf->gl_stat = (void *)stat;
+
+	/* NOTE: the following three variables are not declared static, since otherwise GCC (at least v9.3.0,
+	 * 9.3.1 and 10.2.1) -O1 optimisation assumes that they cannot be altered by the call to glob(), if
+	 * they have static scope. Declaring them static volatile also solves the problem, as does not
+	 * initialising the values in this function (which just wouldn't work).
+	 * This is an optimisation error of course, since the gl_opendir() and gl_lstat() functions can modify
+	 * the values, and pointers to these functions are passed to glob().
+	 * What makes this even more difficult is that if the values of missing_directories and missing_files
+	 * are printed in a log_message() after the return from glob(), then everything works OK.
+	 *
+	 * See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=97783 for more details.
+	 */
+	missing_files = 0;
+	missing_directories = 0;
+	have_wildcards = false;
+
+	res = glob(conf_file, GLOB_MARK | GLOB_ALTDIRFUNC
+#if HAVE_DECL_GLOB_BRACE
+					| GLOB_BRACE
+#endif
+						    , NULL, globbuf);
+
+	if (res) {
+		if (res == GLOB_NOMATCH) {
+			if (missing_files || missing_directories)
+				file_config_error(have_brace(conf_file) ? INCLUDE_B : INCLUDE_M, "Config files missing '%s'.", conf_file);
+			else if (have_wildcards && ((include_check | include_type) & INCLUDE_W))
+				file_config_error(INCLUDE_W, "No config files matched '%s'.", conf_file);
+		} else
+			file_config_error(INCLUDE_R, "Error reading config file(s): glob(\"%s\") returned %d, skipping.", conf_file, res);
+
+		return false;
+	}
+
+	if (missing_directories || missing_files) {
+		file_config_error(INCLUDE_B, "Some config files missing: \"%s\".", conf_file);
+
+		if ((include_check | include_type) & INCLUDE_B) {
+			globfree(globbuf);
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static bool
+check_glob_file(const char *file_name)
+{
+	struct stat stb;
+
+	if (file_name[0] && file_name[strlen(file_name)-1] == '/') {
+		/* This is a directory - so skip */
+		file_config_error(INCLUDE_R, "Configuration file '%s' is a directory - skipping"
+				, file_name);
+		return false;
+	}
+
+	/* Make sure what we have opened is a regular file, and not for example a directory or executable */
+	if (stat(file_name, &stb) ||
+	    !S_ISREG(stb.st_mode) ||
+	    (stb.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
+		file_config_error(INCLUDE_R, "Configuration file '%s' is not a regular non-executable file - skipping", file_name);
+		return false;
+	}
+
+	return true;
+}
+
 bool
 check_conf_file(const char *conf_file)
 {
 	glob_t globbuf;
 	size_t i;
 	bool ret = true;
-	int res;
-	struct stat stb;
 	unsigned num_matches = 0;
 
-	globbuf.gl_offs = 0;
-	res = glob(conf_file, GLOB_MARK
-#if HAVE_DECL_GLOB_BRACE
-					| GLOB_BRACE
-#endif
-						    , NULL, &globbuf);
-	if (res) {
-		report_config_error(CONFIG_FILE_NOT_FOUND, "Unable to find configuration file %s (glob returned %d)", conf_file, res);
+	if (!open_and_check_glob(&globbuf, conf_file, INCLUDE))
 		return false;
-	}
 
 	for (i = 0; i < globbuf.gl_pathc; i++) {
-		if (globbuf.gl_pathv[i][strlen(globbuf.gl_pathv[i])-1] == '/') {
-			/* This is a directory - so skip */
+		if (!check_glob_file(globbuf.gl_pathv[i])) {
+			ret = false;
 			continue;
 		}
 
@@ -1534,21 +1685,12 @@ check_conf_file(const char *conf_file)
 			break;
 		}
 
-		/* Make sure that the file is a regular file, and not for example a directory or executable */
-		if (stat(globbuf.gl_pathv[i], &stb) ||
-		    !S_ISREG(stb.st_mode) ||
-		     (stb.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
-			report_config_error(CONFIG_FILE_NOT_FOUND, "Configuration file '%s' is not a regular non-executable file", globbuf.gl_pathv[i]);
-			ret = false;
-			break;
-		}
-
 		num_matches++;
 	}
 
 	if (ret) {
 		if (num_matches > 1)
-			report_config_error(CONFIG_MULTIPLE_FILES, "WARNING, more than one file matches configuration file %s, using %s", conf_file, globbuf.gl_pathv[0]);
+			report_config_error(CONFIG_MULTIPLE_FILES, "WARNING, multiple configuration file matches of %s, starting with %s", conf_file, globbuf.gl_pathv[0]);
 		else if (num_matches == 0) {
 			report_config_error(CONFIG_FILE_NOT_FOUND, "Unable to find configuration file %s", conf_file);
 			ret = false;
@@ -2071,36 +2213,24 @@ void skip_block(bool need_block_start)
 static bool
 open_conf_file(include_file_t *file)
 {
-	struct stat stb;
 	unsigned i;
 	FILE *stream;
 
 	while (file->glob_next < file->globbuf.gl_pathc) {
 		i = file->glob_next++;
 
-		if (file->globbuf.gl_pathv[i][strlen(file->globbuf.gl_pathv[i])-1] == '/') {
-			/* This is a directory - so skip */
-			file_config_error("Configuration file '%s' is a directory - skipping"
-					, file->globbuf.gl_pathv[i]);
+		if (!check_glob_file(file->globbuf.gl_pathv[i]))
 			continue;
-		}
 
-		log_message(LOG_INFO, "Opening file '%s'.", file->globbuf.gl_pathv[i]);
 		stream = fopen(file->globbuf.gl_pathv[i], "r");
 		if (!stream) {
-			file_config_error("Configuration file '%s' open problem (%s) - skipping"
+			file_config_error(INCLUDE_R, "Configuration file '%s' open problem (%s) - skipping"
 					       , file->globbuf.gl_pathv[i], strerror(errno));
 			continue;
 		}
 
-		/* Make sure what we have opened is a regular file, and not for example a directory or executable */
-		if (fstat(fileno(stream), &stb) ||
-		    !S_ISREG(stb.st_mode) ||
-		    (stb.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
-			fclose(stream);
-			file_config_error("Configuration file '%s' is not a regular non-executable file - skipping", file->globbuf.gl_pathv[i]);
-			continue;
-		}
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "Opening file '%s'.", file->globbuf.gl_pathv[i]);
 
 		/* Allow tracking of file names/numbers */
 		if (write_conf_copy)
@@ -2128,7 +2258,7 @@ open_conf_file(include_file_t *file)
 			char *confpath = STRDUP(file->globbuf.gl_pathv[i]);
 			dirname(confpath);
 			if (chdir(confpath) < 0)
-				file_config_error("chdir(%s) error (%s)", confpath, strerror(errno));
+				file_config_error(INCLUDE_R, "chdir(%s) error (%s)", confpath, strerror(errno));
 			FREE(confpath);
 		} else
 			file->curdir_fd = -1;
@@ -2140,42 +2270,34 @@ open_conf_file(include_file_t *file)
 }
 
 static bool
-open_glob_file(const char *conf_file)
+open_glob_file(const char *conf_file, include_t include_type)
 {
-	int	res;
 	include_file_t *file;
 
 	PMALLOC(file);
 	INIT_LIST_HEAD(&file->e_list);
 
-	file->globbuf.gl_offs = 0;
-	res = glob(conf_file, GLOB_MARK
-#if HAVE_DECL_GLOB_BRACE
-					| GLOB_BRACE
-#endif
-						    , NULL, &file->globbuf);
+	file->include_type = include_type;
+	file->sav_include_check = include_check;
+	list_head_add(&file->e_list, &include_stack);
 
-	if (res) {
-		if (res == GLOB_NOMATCH)
-			file_config_error("No config files matched '%s'.", conf_file);
-		else
-			file_config_error("Error reading config file(s): glob(\"%s\") returned %d, skipping.", conf_file, res);
-
+	if (!open_and_check_glob(&file->globbuf, conf_file, include_type)) {
+		list_head_del(&file->e_list);
 		FREE(file);
 		return false;
 	}
 
 	if (!open_conf_file(file)) {
-		file_config_error("%s - no matching file", conf_file);
+		if (!file->globbuf.gl_pathc)
+			file_config_error(INCLUDE_R, "%s - no matching file", conf_file);
 
 		globfree(&file->globbuf);
+		list_head_del(&file->e_list);
 		FREE(file);
 		return false;
 	}
 
 	file->file_name = STRDUP(conf_file);
-
-	list_head_add(&file->e_list, &include_stack);
 
 	return true;
 }
@@ -2188,8 +2310,16 @@ end_file(include_file_t *file)
 	if (file->stream != conf_copy)
 		fclose(file->stream);
 
+	if (write_conf_copy) {
+		/* Indicate a file is being closed */
+		fprintf(conf_copy, "!\n");
+	}
+
 // WHY??
 //	free_seq_list(&seq_list);
+
+	/* Restore the include_check value from when this glob was opened */
+	include_check = file->sav_include_check;
 
 	/* If we changed directory, restore the previous directory */
 	if (file->curdir_fd != -1) {
@@ -2233,26 +2363,57 @@ get_next_file(void)
 
 	file = list_first_entry(&include_stack, include_file_t, e_list);
 
-	if (write_conf_copy) {
-		/* Indicate a file is being closed */
-		fprintf(conf_copy, "!\n");
-	}
-
 	return true;
+}
+
+static bool
+is_include(const char *buf)
+{
+	if (strncmp(buf, "include", 7))
+		return false;
+
+	if (!buf[7])
+		return false;
+
+	if (isspace(buf[7]))
+		return true;
+
+	/* Is "include" followed by one of the value include types? */
+	if (isspace(buf[8]) && strchr("rmwba", buf[7]))
+		return true;
+
+	return false;
 }
 
 static bool
 check_include(const char *buf)
 {
 	const char *p;
+	include_t include_type;
 
-	if (strncmp(buf, "include", 7) || !isspace(buf[7]))
+	if (!is_include(buf))
 		return false;
 
-	p = buf + 8;
+	if (isspace(buf[7])) {
+		p = buf + 8;
+		include_type = INCLUDE;
+	} else {
+		p = buf + 9;
+		if (buf[7] == 'r')
+			include_type = INCLUDE_R;
+		else if (buf[7] == 'm')
+			include_type = INCLUDE_R | INCLUDE_M;
+		else if (buf[7] == 'w')
+			include_type = INCLUDE_R | INCLUDE_M | INCLUDE_W;
+		else if (buf[7] == 'b')
+			include_type = INCLUDE_R | INCLUDE_B;
+		else /* if (buf[7] == 'a') */
+			include_type = INCLUDE_R | INCLUDE_M | INCLUDE_B | INCLUDE_W;
+	}
+
 	p += strspn(p, " \t");
 
-	open_glob_file(p);
+	open_glob_file(p, include_type);
 
 	return true;
 }
@@ -2375,7 +2536,10 @@ read_line(char *buf, size_t size)
 				if (read_conf_copy) {
 					if (buf[0] == '#') {
 						if (buf[1] == '!') {
-							log_message(LOG_INFO, "%.*s", (int)strlen(buf + 3) - 1, buf + 3);
+#ifndef _ONE_PROCESS_DEBUG_
+							if (prog_type == PROG_TYPE_PARENT)
+#endif
+								report_config_error(CONFIG_FILE_NOT_FOUND, "%.*s", (int)strlen(buf + 3) - 1, buf + 3);
 							buf[0] = '\0';
 							continue;
 						}
@@ -2459,12 +2623,11 @@ read_line(char *buf, size_t size)
 				decomment(buf);
 
 				if (write_conf_copy) {
-					if (strncmp(buf, "include", 7) || !isspace(buf[7]))
-						fprintf(conf_copy, "%s\n", buf);
-					else {
+					if (is_include(buf)) {
 						/* We need to preserve line numbers */
 						fprintf(conf_copy, "\n");
-					}
+					} else
+						fprintf(conf_copy, "%s\n", buf);
 				}
 			} while (!buf[0]);
 
@@ -2918,8 +3081,7 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 				if (!conf_copy)
 					log_message(LOG_INFO, "fdopen of memfd_create error %d - %m", errno);
 			}
-		}
-		else  {
+		} else {
 #ifdef LEAVE_FILE
 			if (ftruncate(fileno(conf_copy), 0))
 				log_message(LOG_INFO, "Failed to truncate config copy file (%d) - %m", errno);
@@ -2951,10 +3113,13 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 
 		read_conf_copy = true;
 		file_opened = true;
-	} else if (open_glob_file(conf_file)) {
+	} else if (open_glob_file(conf_file, INCLUDE_R | INCLUDE_M | INCLUDE_W)) {
 		/* Opened the first file */
 		file_opened = true;
-	}
+
+		log_message(LOG_INFO, "Configuration file %s", conf_file);
+	} else
+		file_config_error(INCLUDE_R, "Failed to open configuration file");
 
 	if (file_opened) {
 		register_null_strvec_handler(null_strvec);
@@ -2978,6 +3143,7 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 		rewind(conf_copy);
 	}
 
+	/* If we are not the parent, tell it we have completed reading the configuration */
 	if (prog_type != PROG_TYPE_PARENT && !__test_bit(CONFIG_TEST_BIT, &debug))
 		kill(getppid(), SIGPWR);
 
@@ -3019,7 +3185,62 @@ set_config_fd(int fd)
 		log_message(LOG_INFO, "Unable to open config copy file (%d) - %m", errno);
 }
 
-void glob_strict_set(void)
+void include_check_set(const vector_t *strvec)
 {
-	glob_strict = true;
+	const char *word;
+	unsigned int i;
+	int add_remove = 0;	/* -1 = remove, +1 = add, 0 = set */
+	unsigned new_flag;
+	int offset;
+
+	if (strvec && vector_size(strvec) > 1) {
+		for (i = 1; i < vector_size(strvec); i++) {
+			word = strvec_slot(strvec, i);
+
+			/* Are we adding or removing bits, or setting? */
+			add_remove = 0;
+			offset = 1;
+			if (word[0] == '-')
+				add_remove = -1;
+			else if (word[0] == '+')
+				add_remove = +1;
+			else {
+				offset = 0;
+				if (i == 1)
+					include_check = 0;
+				else {
+					report_config_error(CONFIG_GENERAL_ERROR, "Duplicate include_check '%s' specified - ignoring", word);
+					continue;
+				}
+			}
+
+			new_flag = 0;
+			if (!strcmp(word + offset, "read"))
+				new_flag = INCLUDE_R;
+			else if (!strcmp(word + offset, "match"))
+				new_flag = INCLUDE_M;
+			else if (!strcmp(word + offset, "wildcard_match"))
+				new_flag = INCLUDE_W;
+			else if (!strcmp(word + offset, "brace_match"))
+				new_flag = INCLUDE_B;
+			else
+				report_config_error(CONFIG_GENERAL_ERROR, "Unknown include_check type '%s' - ignoring", word + offset);
+
+			if (new_flag) {
+				if (!add_remove)
+					include_check = INCLUDE_R | new_flag;
+				else if (add_remove == 1)
+					include_check |= new_flag;
+				else /* if (add_remove == -1) */
+					include_check &= ~new_flag;
+			}
+		}
+	} else
+		include_check = INCLUDE_R | INCLUDE_M | INCLUDE_W | INCLUDE_B;
+}
+
+bool
+had_config_file_error(void)
+{
+	return config_file_error;
 }

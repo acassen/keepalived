@@ -2,6 +2,12 @@
 .SH NAME
 keepalived.conf - configuration file for Keepalived
 .br
+.PP
+.SH Note:
+This documentation MUST be considered as THE exhaustive source of information in
+order to configure Keepalived. This documenation is supported and maintained by
+Keepalived Core-Team.
+.PP
 .SH DESCRIPTION
 \fBkeepalived.conf\fR is the configuration file which describes all the
 Keepalived keywords. Keywords are placed in hierarchies of blocks and
@@ -10,8 +16,8 @@ subblocks, each layer being delimited by '{' and '}' pairs.
 Comments start with '#' or '!' to the end of the line and can start
 anywhere in a line.
 .PP
-The keyword 'include' allows inclusion of other configuration files from within
-the main configuration file, or from subsequently included files.
+The keyword 'include' and variants allow inclusion of other configuration files
+from within the main configuration file, or from subsequently included files.
 .PP
 The format of the include directive is:
 
@@ -24,11 +30,31 @@ supports them.
 After opening an included file, the current directory is set to the directory of
 the file itself, so any relative paths included from a file are relative to the
 directory of the including file itself.
+
+The include variants add additional include checks to the current include_check level (see below)
+The variants are:
+.br
+\fBincluder\fR FILENAME - same as include_check readable
+.br
+\fBincludem\fR FILENAME - same as include_check match
+.br
+\fBincludew\fR FILENAME - same as include_check wildcard_match
+.br
+\fBincludeb\fR FILENAME - same as include_check brace_match
+.br
+\fBincludea\fR FILENAME - all include_check checks
 .PP
-\fBNote:\fR
-This documentation MUST be considered as THE exhaustive source of information in
-order to configure Keepalived. This documenation is supported and maintained by
-Keepalived Core-Team.
+Why do we want to allow errors? Suppose a configuration has optional files in /etc/keepalived/conf.d,
+then \fIinclude_/etc/keepalived/conf.d/*\fR could be specified, but it should not
+error if there are no files in the directory; in this case \fIincluder\fR should be used. Otherwise it
+is sensible to use \fIincludet\fR.
+
+include handling will not work with if the include line uses conditional configuration or
+parameter substitution, since the detection of the include keywords is done before the
+processing on conditional configuration and parameter substitution.
+
+The basic \fIinclude\fR keyword is retained for backward compatibility, since it does not
+produce config errors if files could not be opened etc.
 .PP
 .SH PARAMETER SYNTAX
 \fB<BOOL>\fR
@@ -711,8 +737,24 @@ and
     # if the configuration is valid.
     \fBreload_check_config \fR[LOG_FILE]
 
-    # Treat any missing include file as an error
-    \fBglob_strict \fR
+    # Treat any missing include file as an error. The OPTIONS can be any combination of
+    #   readable	- error if a match is not a readable file
+    #   match		- error if no file matches (unless wildcard specified)
+    #   wildcard_match	- error if no file matches (even if wildcard specified)
+    #   brace_match	- error if a brace expansion does not match a file
+    # Note: match, wildcard_match and brace_match include the readable check.
+    # The setting of include_check is saved when a new include file is opened, and restored
+    # when the file is closed. This means that the include_check setting when reading a
+    # file cannot be changed by a subsequently included file. To change the setting for all
+    # included files, include_check should be set at the beginning of the configuration file
+    # specified in the command line (default /etc/keepalived/keepalived.conf).
+    # It is possible to add or remove individual settings; '+' means add the following
+    # checks, '-' means remove the following checks. For example
+    #   \fIinclude_check +match -wildcard_match\fR
+    # adds the requirement that there is a matching file, and removes the requirement for
+    # wildcard matches.
+    # If no option is specified, it is the same as specifying all options.
+    \fBinclude_check \fR[OPTIONS]
 
     # reload_time_file allows a reload of keepalived to be scheduled in the future. This is
     # particularly useful if there is a master keepalived and one or more backup keepalived

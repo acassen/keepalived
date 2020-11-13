@@ -145,6 +145,7 @@ extern void init_data(const char *, const vector_t * (*init_keywords) (void), bo
 extern void truncate_config_copy(void);
 extern int get_config_fd(void);
 extern void set_config_fd(int);
-void glob_strict_set(void);
+void include_check_set(const vector_t *);
+bool had_config_file_error(void) __attribute__((pure));
 
 #endif

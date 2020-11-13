@@ -1791,6 +1791,7 @@ usage(const char *prog)
 #ifdef _MEM_CHECK_LOG_
 	fprintf(stderr, "  -L, --mem-check-log          Log malloc/frees to syslog\n");
 #endif
+	fprintf(stderr, "  -e, --all-config             Error if any configuration file missing (same as includet)\n");
 	fprintf(stderr, "  -i, --config-id id           Skip any configuration lines beginning '@' that don't match id\n"
 			"                                or any lines beginning @^ that do match.\n"
 			"                                The config-id defaults to the node name if option not used\n");
@@ -1907,6 +1908,7 @@ parse_cmdline(int argc, char **argv)
 		{"log-detail",		no_argument,		NULL, 'D'},
 		{"log-facility",	required_argument,	NULL, 'S'},
 		{"log-file",		optional_argument,	NULL, 'g'},
+		{"all-config",		no_argument,		NULL, 'e'},
 #ifdef ENABLE_LOG_TO_FILE
 		{"flush-log-file",	no_argument,		NULL,  2 },
 #endif
@@ -1968,8 +1970,8 @@ parse_cmdline(int argc, char **argv)
 	 * of longindex, so we need to ensure that before calling getopt_long(), longindex
 	 * is set to a known invalid value */
 	curind = optind;
-	/* Used short options: ABCDGILMPRSVXabcdfghilmnprstuvx */
-	while (longindex = -1, (c = getopt_long(argc, argv, ":vhlndu:DRS:f:p:i:mM::g::Gt::"
+	/* Used short options: ABCDGILMPRSVXabcdefghilmnprstuvx */
+	while (longindex = -1, (c = getopt_long(argc, argv, ":vhlndu:DRS:f:p:i:emM::g::Gt::"
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 					    "PC"
 #endif
@@ -2168,6 +2170,9 @@ parse_cmdline(int argc, char **argv)
 			override_namespace = optarg;
 			break;
 #endif
+		case 'e':
+			include_check_set(NULL);
+			break;
 		case 'i':
 			FREE_CONST_PTR(config_id);
 			config_id = STRDUP(optarg);
@@ -2451,7 +2456,13 @@ keepalived_main(int argc, char **argv)
 
 	global_data = alloc_global_data();
 
+// Change here so don't need check_conf_file()
 	read_config_file(true);
+
+	if (had_config_file_error()) {
+		exit_code = KEEPALIVED_EXIT_NO_CONFIG;
+		goto end;
+	}
 
 	init_global_data(global_data, NULL, false);
 
