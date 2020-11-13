@@ -1340,6 +1340,7 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, char *buffer, struct iphdr *ip)
 		ipv4_phdr.len   = htons(vrrp_pkt_len(vrrp));
 
 		/* finally compute vrrp checksum */
+		/* coverity[callee_ptr_arith] */
 		in_csum(PTR_CAST(uint16_t, &ipv4_phdr), sizeof(ipv4_phdr), 0, &vrrp->ipv4_csum);
 		hd->chksum = in_csum(PTR_CAST(uint16_t, hd), vrrp_pkt_len(vrrp), vrrp->ipv4_csum, NULL);
 	} else if (vrrp->family == AF_INET6) {
@@ -2478,6 +2479,7 @@ open_sockpool_socket(sock_t *sock)
 		unicast_src = *sock->unicast_src;
 		unicast_src_p = &unicast_src;
 
+		/* coverity[var_deref_model] - since the address is IPv6 link local, sock-ifp != NULL */
 		PTR_CAST(struct sockaddr_in6, &unicast_src)->sin6_scope_id = sock->ifp->ifindex;
 	}
 
