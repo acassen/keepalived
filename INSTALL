@@ -24,11 +24,9 @@ The following build packages are needed:
 	make
 	autoconf automake (to build from git source tree rather than tarball)
 The following libraries need to be installed:
-	openssl-devel libnl3-devel ipset-devel
+	openssl-devel libnl3-devel
 For iptables support:
-	libxtables-dev libip6tc-dev libip4tc-dev
-	  or on older installations:
-	iptables-devel
+	iptables-devel ipset-devel
 For magic file identification support:
 	file-devel
 For SNMP support:
@@ -39,6 +37,8 @@ For PCRE support
 	pcre2-devel
 For nftables support
 	libnftnl-devel libmnl-devel
+For systemd integration
+	libsystemd-devel
 
 For building the documentation, the following packages need to be installed:
 	Fedora: python-sphinx (will pull in: python2-sphinx_rtd_theme)
@@ -65,6 +65,8 @@ For PCRE support:
 	libpcre2-dev
 For nftables support
 	libnftnl-dev libmnl-dev
+For systemd integration
+	libsystemd-dev
 
 For building the documentation, the following packages need to be installed:
 	python-sphinx python-sphinx-rtd-theme

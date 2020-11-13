@@ -214,6 +214,8 @@ AC_ARG_ENABLE(libnl,
   [AS_HELP_STRING([--disable-libnl], [compile without libnl])])
 AC_ARG_ENABLE(track-process,
   [AS_HELP_STRING([--disable-track-process], [build without track-process functionality])])
+AC_ARG_ENABLE(systemd,
+  [AS_HELP_STRING([--disable-systemd], [build without systemd integration])])
 AC_ARG_WITH(run-dir,
   [AS_HELP_STRING([--with-run-dir=PATH_TO_RUN], [specify directory where /run is located])],
   [RUN_DIR_SPECIFIED=Y], [RUN_DIR_SPECIFIED=N])
@@ -1779,6 +1781,24 @@ unset LIBS
 AS_IF([test $USE_IPTABLES = Yes -o $USE_NFTABLES = Yes], [AC_DEFINE([_WITH_FIREWALL_], [ 1 ], [Define to 1 if using iptables or nftables])])
 AM_CONDITIONAL([FIREWALL], [test $USE_IPTABLES = Yes -o $USE_NFTABLES = Yes])
 
+dnl ----[Check for systemd libraries]----
+USE_SYSTEMD=No
+AS_IF([test .${enable_systemd} != .no],
+ [
+  $PKG_CONFIG --exists libsystemd
+  AS_IF([test $? -eq 0],
+   [
+    USE_SYSTEMD=Yes
+    add_pkg_config([libsystemd])
+    AC_DEFINE([_USE_SYSTEMD_], [ 1 ], [Define to 1 if want systemd support])
+    add_config_opt([SYSTEMD])
+   ],
+   [
+    AS_IF([test .${enable_systemd} = .yes], [AC_MSG_WARN([libsystemd missing])])
+   ])
+ ])
+AM_CONDITIONAL([WITH_SYSTEMD], [test $USE_SYSTEMD = Yes])
+
 dnl ----[Check if have linux/if.h and net/if.h namespace collision]----
 # Including <linux/if.h> and <net/if.h> can cause a namespace collision.
 # Later versions of the headers are OK if linux/if.h is included second
@@ -3027,6 +3047,7 @@ if test .$USE_IPTABLES = .Yes; then
   echo "Use libipset             : ${USE_LIBIPSET}"
 fi
 echo "Use nftables             : ${USE_NFTABLES}"
+echo "systemd integration      : ${USE_SYSTEMD}"
 echo "init type                : ${INIT_TYPE}"
 echo "Strict config checks     : ${STRICT_CONFIG}"
 echo "Build genhash            : ${BUILD_GENHASH}"

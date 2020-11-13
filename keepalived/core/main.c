@@ -114,6 +114,9 @@
 #ifndef _ONE_PROCESS_DEBUG_
 #include "reload_monitor.h"
 #endif
+#ifdef _USE_SYSTEMD_
+#include "systemd.h"
+#endif
 #include "warnings.h"
 
 /* musl libc doesn't define the following */
@@ -879,8 +882,12 @@ child_reloaded(__attribute__((unused)) void *one, __attribute__((unused)) int si
 	if (num_reloading) {
 		num_reloading--;
 
-		if (!num_reloading)
+		if (!num_reloading) {
 			truncate_config_copy();
+#ifdef _USE_SYSTEMD_
+			systemd_notify_running();
+#endif
+		}
 	}
 }
 
@@ -889,6 +896,10 @@ do_reload(void)
 {
 	if (!reload_config())
 		return;
+
+#ifdef _USE_SYSTEMD_
+	systemd_notify_reloading();
+#endif
 
 	propagate_signal(NULL, SIGHUP);
 
@@ -1014,7 +1025,7 @@ static void
 process_reload_signal(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
 
-	/* if reload_check_config is configured, valid the new config before reload */
+	/* if reload_check_config is configured, validate the new config before reload */
 	if (!global_data->reload_check_config) {
 		do_reload();
 		return;
@@ -1065,6 +1076,10 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 #endif
 
 	log_message(LOG_INFO, "Stopping");
+
+#ifdef _USE_SYSTEMD_
+	systemd_notify_stopping();
+#endif
 
 #ifndef _ONE_PROCESSS_DEBUG_
 	if (global_data->reload_time_file)
@@ -2342,6 +2357,10 @@ keepalived_main(int argc, char **argv)
 
 	/* Save command line options in case need to log them later */
 	save_cmd_line_options(argc, argv);
+
+#ifdef _USE_SYSTEMD_
+	check_parent_systemd();
+#endif
 
 	/* We are the parent process */
 #ifndef _ONE_PROCESS_DEBUG_
