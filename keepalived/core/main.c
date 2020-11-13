@@ -878,27 +878,6 @@ child_reloaded(__attribute__((unused)) void *one, __attribute__((unused)) int si
 {
 	if (num_reloading) {
 		num_reloading--;
-#if 0
-#ifdef _WITH_VRRP_
-		if (pid == vrrp_child) {
-			num_reloading--;
-log_message(LOG_INFO, "VRRP process completed reload, %d remaining", num_reloading);
-		} else
-#endif
-#ifdef _WITH_LVS_
-		if (pid == checkers_child) {
-			num_reloading--;
-log_message(LOG_INFO, "Checker process completed reload, %d remaining", num_reloading);
-		} else
-#endif
-#ifdef _WITH_BFD_
-		if (pid == bfd_child) {
-			num_reloading--;
-log_message(LOG_INFO, "BFD process completed reload, %d remaining", num_reloading);
-		} else
-#endif
-			log_message(LOG_INFO, "Unknown process %d indicates completed reload with %d remaining", pid, num_reloading);
-#endif
 
 		if (!num_reloading)
 			truncate_config_copy();
