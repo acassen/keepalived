@@ -170,6 +170,7 @@ bool do_parser_debug;
 #ifdef _DUMP_KEYWORDS_
 bool do_dump_keywords;
 #endif
+bool glob_strict = false;
 
 /* local vars */
 static vector_t *current_keywords;
@@ -2049,14 +2050,21 @@ open_conf_file(include_file_t *file)
 
 		if (file->globbuf.gl_pathv[i][strlen(file->globbuf.gl_pathv[i])-1] == '/') {
 			/* This is a directory - so skip */
+			if (glob_strict)
+				report_config_error(CONFIG_GENERAL_ERROR, "Configuration file '%s' is a directory - skipping"
+						, file->globbuf.gl_pathv[i]);
 			continue;
 		}
 
 		log_message(LOG_INFO, "Opening file '%s'.", file->globbuf.gl_pathv[i]);
 		stream = fopen(file->globbuf.gl_pathv[i], "r");
 		if (!stream) {
-			log_message(LOG_INFO, "Configuration file '%s' open problem (%s) - skipping"
-				       , file->globbuf.gl_pathv[i], strerror(errno));
+			if (!glob_strict)
+				log_message(LOG_INFO, "Configuration file '%s' open problem (%s) - skipping"
+					       , file->globbuf.gl_pathv[i], strerror(errno));
+			else
+				report_config_error(CONFIG_GENERAL_ERROR, "Configuration file '%s' open problem (%s) - skipping"
+						, file->globbuf.gl_pathv[i], strerror(errno));
 			continue;
 		}
 
@@ -2064,7 +2072,10 @@ open_conf_file(include_file_t *file)
 		if (fstat(fileno(stream), &stb) ||
 		    !S_ISREG(stb.st_mode) ||
 		    (stb.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
-			log_message(LOG_INFO, "Configuration file '%s' is not a regular non-executable file - skipping", file->globbuf.gl_pathv[i]);
+			if (!glob_strict)
+				log_message(LOG_INFO, "Configuration file '%s' is not a regular non-executable file - skipping", file->globbuf.gl_pathv[i]);
+			else
+				report_config_error(CONFIG_GENERAL_ERROR, "Configuration file '%s' is not a regular non-executable file - skipping", file->globbuf.gl_pathv[i]);
 			fclose(stream);
 			continue;
 		}
@@ -2094,8 +2105,12 @@ open_conf_file(include_file_t *file)
 
 			char *confpath = STRDUP(file->globbuf.gl_pathv[i]);
 			dirname(confpath);
-			if (chdir(confpath) < 0)
-				log_message(LOG_INFO, "chdir(%s) error (%s)", confpath, strerror(errno));
+			if (chdir(confpath) < 0) {
+				if (!glob_strict)
+					log_message(LOG_INFO, "chdir(%s) error (%s)", confpath, strerror(errno));
+				else
+					report_config_error(CONFIG_GENERAL_ERROR, "chdir(%s) error (%s)", confpath, strerror(errno));
+			}
 			FREE(confpath);
 		} else
 			file->curdir_fd = -1;
@@ -2123,16 +2138,26 @@ open_glob_file(const char *conf_file)
 						    , NULL, &file->globbuf);
 
 	if (res) {
-		if (res == GLOB_NOMATCH)
-			log_message(LOG_INFO, "No config files matched '%s'.", conf_file);
-		else
-			log_message(LOG_INFO, "Error reading config file(s): glob(\"%s\") returned %d, skipping.", conf_file, res);
+		if (res == GLOB_NOMATCH) {
+			if (!glob_strict)
+				log_message(LOG_INFO, "No config files matched '%s'.", conf_file);
+			else
+				report_config_error(CONFIG_GENERAL_ERROR, "No config files matched '%s'.", conf_file);
+		} else {
+			if (!glob_strict)
+				log_message(LOG_INFO, "Error reading config file(s): glob(\"%s\") returned %d, skipping.", conf_file, res);
+			else
+				report_config_error(CONFIG_GENERAL_ERROR, "Error reading config file(s): glob(\"%s\") returned %d, skipping.", conf_file, res);
+		}
 		FREE(file);
 		return false;
 	}
 
 	if (!open_conf_file(file)) {
-		log_message(LOG_INFO, "%s - no matching file", conf_file);
+		if (!glob_strict)
+			log_message(LOG_INFO, "%s - no matching file", conf_file);
+		else
+			report_config_error(CONFIG_GENERAL_ERROR, "%s - no matching file", conf_file);
 
 		globfree(&file->globbuf);
 		FREE(file);
@@ -2977,4 +3002,9 @@ set_config_fd(int fd)
 		rewind(conf_copy);
 	} else
 		log_message(LOG_INFO, "Unable to open config copy file (%d) - %m", errno);
+}
+
+void glob_strict_set(void)
+{
+	glob_strict = true;
 }
