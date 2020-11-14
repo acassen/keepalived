@@ -1607,7 +1607,7 @@ snmp_epoll_info(thread_master_t *m)
 	/* When SNMP is enabled, we may have to select() on additional
 	 * FDs. snmp_select_info() will add them to `readfd'. The trick
 	 * with this function is its last argument. We need to set it
-	 * true to set its own timer we update * the snmp timer thread timeout */
+	 * true to set its own timer, we then update the snmp timer thread timeout */
 	snmp_select_info(&fdsetsize, &snmp_fdset, &snmp_timer_wait, &snmpblock);
 
 	if (snmpblock)
@@ -1626,9 +1626,12 @@ snmp_epoll_info(thread_master_t *m)
 
 		diff = *old_set ^ *new_set;
 		fd = i * sizeof(*old_set) * CHAR_BIT - 1;
-		do {
+		while (diff) {
 			bit = ffsl(diff);
-			diff >>= bit;
+			if (bit == sizeof(diff) * CHAR_BIT)
+				diff = 0;
+			else
+				diff >>= bit;
 			fd += bit;
 			if (FD_ISSET(fd, &snmp_fdset)) {
 				/* Add the fd */
@@ -1639,7 +1642,7 @@ snmp_epoll_info(thread_master_t *m)
 				thread_del_read_fd(m, fd);
 				FD_CLR(fd, &m->snmp_fdset);
 			}
-		} while (diff);
+		}
 	}
 	m->snmp_fdsetsize = fdsetsize;
 }
@@ -1671,33 +1674,39 @@ snmp_epoll_update(thread_master_t *m, bool reset)
 	for (i = 0, old_set = PTR_CAST(unsigned long, &m->snmp_fdset); i < set_words; i++, old_set++) {
 		bits = *old_set;
 		fd = i * sizeof(*old_set) * CHAR_BIT - 1;
-		do {
+		while (bits) {
 			bit = ffsl(bits);
-			bits >>= bit;
+			if (bit == sizeof(bits) * CHAR_BIT)
+				bits = 0;
+			else
+				bits >>= bit;
 			fd += bit;
 
 			/* Remove the fd */
 			thread_del_read_fd(m, fd);
 			FD_CLR(fd, &m->snmp_fdset);
-		} while (bits);
+		}
 	}
 
 	if (reset) {
 		/* Add the file descriptors that are now in use */
-		set_words = fdsetsize ? (fdsetsize - 1) / (sizeof(*old_set) * CHAR_BIT) + 1 : 0;
+		set_words = fdsetsize ? (fdsetsize - 1) / (sizeof(*new_set) * CHAR_BIT) + 1 : 0;
 
 		for (i = 0, new_set = PTR_CAST(unsigned long, &snmp_fdset); i < set_words; i++, new_set++) {
 			bits = *new_set;
 			fd = i * sizeof(*new_set) * CHAR_BIT - 1;
-			do {
+			while (bits) {
 				bit = ffsl(bits);
-				bits >>= bit;
+				if (bit == sizeof(bits) * CHAR_BIT)
+					bits = 0;
+				else
+					bits >>= bit;
 				fd += bit;
 
 				/* Add the fd */
 				thread_add_read(m, snmp_read_thread, 0, fd, TIMER_NEVER, false);
 				FD_SET(fd, &m->snmp_fdset);
-			} while (bits);
+			}
 		}
 	} else
 		fdsetsize = 0;
