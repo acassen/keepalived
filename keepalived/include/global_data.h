@@ -145,7 +145,7 @@ typedef struct _data {
 	bool				checker_log_all_failures;
 	struct lvs_syncd_config		lvs_syncd;
 	bool				lvs_flush;		/* flush any residual LVS config at startup */
-	lvs_flush_t			lvs_flush_onstop;	/* flush any LVS config at shutdown */
+	lvs_flush_t			lvs_flush_on_stop;	/* flush any LVS config at shutdown */
 #endif
 	int				max_auto_priority;
 	long				min_auto_priority_delay;

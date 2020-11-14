@@ -321,7 +321,7 @@ clear_service_vs(virtual_server_t * vs, bool stopping)
 {
 	bool sav_inhibit;
 
-	if (global_data->lvs_flush_onstop == LVS_NO_FLUSH) {
+	if (global_data->lvs_flush_on_stop == LVS_NO_FLUSH) {
 		/* Processing real server queue */
 		if (vs->s_svr && vs->s_svr->set) {
 			if (vs->s_svr_duplicates_rs)
@@ -343,7 +343,9 @@ clear_service_vs(virtual_server_t * vs, bool stopping)
 		 * inhibit_on_failure, then real servers may be configured. */
 		clear_service_rs_list(vs, &vs->rs, stopping);
 	} else {
-		if (global_data->lvs_flush_onstop == LVS_FLUSH_VS && vs->vsg)
+		update_vs_notifies(vs, stopping);
+
+		if (global_data->lvs_flush_on_stop == LVS_FLUSH_VS && vs->vsg)
 			clear_vsg_rs_counts(vs);
 
 		if (vs->s_svr && vs->s_svr->set)
@@ -366,11 +368,18 @@ clear_services(void)
 	if (!check_data || list_empty(&check_data->vs))
 		return;
 
-	list_for_each_entry(vs, &check_data->vs, e_list) {
-		/* Remove the real servers, and clear the vs unless it is
-		 * using a VS group and it is not the last vs of the same
-		 * protocol or address family using the group. */
-		clear_service_vs(vs, true);
+	if (global_data->lvs_flush_on_stop == LVS_FLUSH_FULL) {
+		ipvs_flush_cmd();
+
+		list_for_each_entry(vs, &check_data->vs, e_list)
+			update_vs_notifies(vs, true);
+	} else {
+		list_for_each_entry(vs, &check_data->vs, e_list) {
+			/* Remove the real servers, and clear the vs unless it is
+			 * using a VS group and it is not the last vs of the same
+			 * protocol or address family using the group. */
+			clear_service_vs(vs, true);
+		}
 	}
 }
 
