@@ -264,8 +264,8 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 		long_ret = global_data->lvs_flush?1:2;
 		return PTR_CAST(u_char, &long_ret);
 	case SNMP_LVSFLUSH_ONSTOP:
-		long_ret = global_data->lvs_flush_onstop == LVS_FLUSH_FULL ? 1 :
-			   global_data->lvs_flush_onstop == LVS_FLUSH_VS ? 3 : 2;
+		long_ret = global_data->lvs_flush_on_stop == LVS_FLUSH_FULL ? 1 :
+			   global_data->lvs_flush_on_stop == LVS_FLUSH_VS ? 3 : 2;
 		return PTR_CAST(u_char, &long_ret);
 #endif
 	case SNMP_IPVS_64BIT_STATS:

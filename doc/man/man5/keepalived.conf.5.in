@@ -315,11 +315,13 @@ and
     # flush any existing LVS configuration at startup
     \fBlvs_flush\fR
 
-    # flush remaining LVS configuration at shutdown
+    # flush remaining LVS configuration at shutdown (for large configurations
+    # this is much faster than the default approach of deleting each RS and
+    # each VS individually).
     # If VS is specified, remove each keepalived managed virtual
     # server without explicitly removing the real servers (the kernel will
     # remove them).
-    \fBlvs_flush_onstop [VS]\fR
+    \fBlvs_flush_on_stop [VS]\fR
 
     # delay for second set of gratuitous ARPs after transition to MASTER.
     # in seconds, 0 for no second set.

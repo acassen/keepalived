@@ -321,7 +321,7 @@ clear_service_vs(virtual_server_t * vs, bool stopping)
 {
 	bool sav_inhibit;
 
-	if (global_data->lvs_flush_onstop == LVS_NO_FLUSH) {
+	if (global_data->lvs_flush_on_stop == LVS_NO_FLUSH) {
 		/* Processing real server queue */
 		if (vs->s_svr && vs->s_svr->set) {
 			if (vs->s_svr_duplicates_rs)
@@ -345,7 +345,7 @@ clear_service_vs(virtual_server_t * vs, bool stopping)
 	} else {
 		update_vs_notifies(vs, stopping);
 
-		if (global_data->lvs_flush_onstop == LVS_FLUSH_VS && vs->vsg)
+		if (global_data->lvs_flush_on_stop == LVS_FLUSH_VS && vs->vsg)
 			clear_vsg_rs_counts(vs);
 
 		if (vs->s_svr && vs->s_svr->set)
@@ -368,7 +368,7 @@ clear_services(void)
 	if (!check_data || list_empty(&check_data->vs))
 		return;
 
-	if (global_data->lvs_flush_onstop == LVS_FLUSH_FULL) {
+	if (global_data->lvs_flush_on_stop == LVS_FLUSH_FULL) {
 		ipvs_flush_cmd();
 
 		list_for_each_entry(vs, &check_data->vs, e_list)

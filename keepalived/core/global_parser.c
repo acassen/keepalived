@@ -626,14 +626,14 @@ lvs_flush_handler(__attribute__((unused)) const vector_t *strvec)
 }
 
 static void
-lvs_flush_onstop_handler(const vector_t *strvec)
+lvs_flush_on_stop_handler(const vector_t *strvec)
 {
 	if (vector_size(strvec) == 1)
-		global_data->lvs_flush_onstop = LVS_FLUSH_FULL;
+		global_data->lvs_flush_on_stop = LVS_FLUSH_FULL;
 	else if (!strcmp(strvec_slot(strvec, 1), "VS"))
-		global_data->lvs_flush_onstop = LVS_FLUSH_VS;
+		global_data->lvs_flush_on_stop = LVS_FLUSH_VS;
 	else
-		report_config_error(CONFIG_GENERAL_ERROR, "Unknown lvs_flush_onstop type %s", strvec_slot(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "Unknown lvs_flush_on_stop type %s", strvec_slot(strvec, 1));
 }
 #endif
 
@@ -2107,7 +2107,8 @@ init_global_keywords(bool global_active)
 #ifdef _WITH_LVS_
 	install_keyword("lvs_timeouts", &lvs_timeouts);
 	install_keyword("lvs_flush", &lvs_flush_handler);
-	install_keyword("lvs_flush_onstop", &lvs_flush_onstop_handler);
+	install_keyword("lvs_flush_on_stop", &lvs_flush_on_stop_handler);
+	install_keyword("lvs_flush_onstop", &lvs_flush_on_stop_handler);		/* Deprecated after v2.1.5 */
 #ifdef _WITH_VRRP_
 	install_keyword("lvs_sync_daemon", &lvs_syncd_handler);
 #endif
