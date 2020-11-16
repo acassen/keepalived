@@ -1670,7 +1670,7 @@ nft_update_addresses(const vrrp_t *vrrp, int cmd)
 	struct nftnl_set *ipv6_set = NULL;
 	struct nftnl_set *ipv6_ll_index_set = NULL;
 	struct nftnl_set *ipv6_ll_name_set = NULL;
-	struct nftnl_set *ip_set;
+	struct nftnl_set **ip_set;
 	bool set_rule = (cmd == NFT_MSG_NEWSETELEM);
 	uint16_t type = (cmd == NFT_MSG_NEWSETELEM) ? NLM_F_CREATE | NLM_F_EXCL | NLM_F_ACK : NLM_F_ACK;
 	const list_head_t *vip_list;
@@ -1693,18 +1693,18 @@ nft_update_addresses(const vrrp_t *vrrp, int cmd)
 		}
 	}
 
-	for (ip_set = ipv4_set, proto = NFPROTO_IPV4; ip_set;
+	for (ip_set = &ipv4_set, proto = NFPROTO_IPV4; ip_set;
 	     ip_set = 
-		ip_set == ipv4_set ? ipv6_set :
-		ip_set == ipv6_set ? ipv6_ll_index_set :
-		ip_set == ipv6_ll_index_set ? ipv6_ll_name_set : NULL) {
-		if (ip_set) {
+		ip_set == &ipv4_set ? &ipv6_set :
+		ip_set == &ipv6_set ? &ipv6_ll_index_set :
+		ip_set == &ipv6_ll_index_set ? &ipv6_ll_name_set : NULL) {
+		if (*ip_set) {
 			nlh = nftnl_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 						    cmd, proto,
 						    type,
 						    seq++);
-			nftnl_set_elems_nlmsg_build_payload(nlh, ip_set);
-			nftnl_set_free(ip_set);
+			nftnl_set_elems_nlmsg_build_payload(nlh, *ip_set);
+			nftnl_set_free(*ip_set);
 			my_mnl_nlmsg_batch_next(batch);
 		}
 
