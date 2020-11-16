@@ -214,9 +214,25 @@ exchange_nl_msg(struct mnl_nlmsg_batch *batch)
 
 #if 0
 	FILE *fp = fopen("/tmp/nftrace", "a");
+	unsigned char *p = mnl_nlmsg_batch_head(batch);
+	size_t i;
+
+	fprintf(fp, "mnl_nlmsg_batch_size %zu\n", mnl_nlmsg_batch_size(batch));
+	for (i = 0; i < mnl_nlmsg_batch_size(batch); i++, p++) {
+		if (!(i % 16))
+			fprintf(fp, "%4.4zx:  ", i);
+		fprintf(fp, " %2.2x", *p);
+		if (i % 16 == 15)
+			fprintf(fp, "\n");
+	}
+
+	if (!(i % 16))
+		fprintf(fp, "\n");
+
 	mnl_nlmsg_fprintf(fp, PTR_CAST(char, mnl_nlmsg_batch_head(batch)), mnl_nlmsg_batch_size(batch), sizeof( struct nfgenmsg));
 	fclose(fp);
 #endif
+
 	if (!nl && !nl_socket_open())
 		return;
 
