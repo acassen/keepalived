@@ -148,6 +148,7 @@ write_stacktrace(const char *file_name, const char *str)
 	unsigned int nptrs;
 	unsigned int i;
 	char **strs;
+	char cmd[40];
 
 	nptrs = backtrace(buffer, 100);
 	if (file_name) {
@@ -174,6 +175,10 @@ write_stacktrace(const char *file_name, const char *str)
 			log_message(LOG_INFO, "  %s", strs[i]);
 		free(strs);	/* malloc'd by backtrace_symbols */
 	}
+
+	/* gstack() gives a more detailed stacktrace, using gdb and the bt command */
+	sprintf(cmd, "gstack %d >>%s", getpid(), file_name ? file_name : "/tmp/keepalived.stack");
+	system(cmd);
 }
 #endif
 

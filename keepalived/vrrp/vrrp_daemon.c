@@ -544,6 +544,14 @@ start_vrrp(data_t *prev_global_data)
 		}
 	}
 
+	/* Init & start the VRRP packet dispatcher */
+	if (!reload && global_data->vrrp_startup_delay) {
+		log_message(LOG_INFO, "Delaying startup for %g seconds", global_data->vrrp_startup_delay / TIMER_HZ_DOUBLE);
+		thread_add_timer(master, vrrp_dispatcher_init, NULL,
+				 global_data->vrrp_startup_delay);
+	} else
+		thread_add_event(master, vrrp_dispatcher_init, NULL, 0);
+
 	/* Complete VRRP initialization */
 	if (!vrrp_complete_init()) {
 		stop_vrrp(KEEPALIVED_EXIT_CONFIG);
@@ -602,14 +610,6 @@ start_vrrp(data_t *prev_global_data)
 	/* Dump configuration */
 	if (__test_bit(DUMP_CONF_BIT, &debug))
 		dump_data_vrrp(NULL);
-
-	/* Init & start the VRRP packet dispatcher */
-	if (!reload && global_data->vrrp_startup_delay) {
-		log_message(LOG_INFO, "Delaying startup for %g seconds", global_data->vrrp_startup_delay / TIMER_HZ_DOUBLE);
-		thread_add_timer(master, vrrp_dispatcher_init, NULL,
-				 global_data->vrrp_startup_delay);
-	} else
-		thread_add_event(master, vrrp_dispatcher_init, NULL, 0);
 
 	/* Set the process priority and non swappable if configured */
 	set_process_priorities(global_data->vrrp_realtime_priority, global_data->max_auto_priority, global_data->min_auto_priority_delay,

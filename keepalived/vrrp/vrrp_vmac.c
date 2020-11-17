@@ -652,7 +652,12 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 		log_message(LOG_INFO, "(%s) Success removing VMAC interface %s"
 				    , vrrp->iname, vrrp->vmac_ifname);
 
+	/* Ensure we don't try and recreate the interface */
+	vrrp->ifp->deleting = true;
+
 	kernel_netlink_poll();
+
+	vrrp->ifp->deleting = false;
 
 	return;
 }
