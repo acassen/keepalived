@@ -16,7 +16,8 @@ edit = echo "  EDIT     $@"; \
 	 -e 's|@localstatedir[@]|$(localstatedir)|g' \
 	 -e 's|@sysconfdir[@]|$(sysconfdir)|g' \
 	 -e 's|@RUN_DIR[@]|$(RUN_DIR)|g' \
-	 -e 's|@SNMP_SERVICE[@]|$(SNMP_SERVICE)|g'
+	 -e 's|@SNMP_SERVICE[@]|$(SNMP_SERVICE)|g' \
+	 -e 's|@SYSTEMD_SERVICE_TYPE[@]|$(SYSTEMD_SERVICE_TYPE)|g'
 
 sbin_PROGRAMS		= keepalived
 keepalived_SOURCES	= main.c
