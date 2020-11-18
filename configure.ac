@@ -1783,6 +1783,7 @@ AM_CONDITIONAL([FIREWALL], [test $USE_IPTABLES = Yes -o $USE_NFTABLES = Yes])
 
 dnl ----[Check for systemd libraries]----
 USE_SYSTEMD=No
+SYSTEMD_SERVICE_TYPE=forking
 AS_IF([test .${enable_systemd} != .no],
  [
   $PKG_CONFIG --exists libsystemd
@@ -1792,12 +1793,14 @@ AS_IF([test .${enable_systemd} != .no],
     add_pkg_config([libsystemd])
     AC_DEFINE([_USE_SYSTEMD_], [ 1 ], [Define to 1 if want systemd support])
     add_config_opt([SYSTEMD])
+    SYSTEMD_SERVICE_TYPE=notify
    ],
    [
     AS_IF([test .${enable_systemd} = .yes], [AC_MSG_WARN([libsystemd missing])])
    ])
  ])
 AM_CONDITIONAL([WITH_SYSTEMD], [test $USE_SYSTEMD = Yes])
+AC_SUBST([SYSTEMD_SERVICE_TYPE])
 
 dnl ----[Check if have linux/if.h and net/if.h namespace collision]----
 # Including <linux/if.h> and <net/if.h> can cause a namespace collision.
