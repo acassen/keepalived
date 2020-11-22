@@ -3177,7 +3177,7 @@ get_config_fd(void)
 void
 set_config_fd(int fd)
 {
-	conf_copy = fdopen(fd, "w");
+	conf_copy = fdopen(fd, "w+");
 	if (conf_copy) {
 		write_conf_copy = true;
 		rewind(conf_copy);
