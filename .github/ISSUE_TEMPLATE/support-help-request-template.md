@@ -7,7 +7,7 @@ assignees: ''
 
 ---
 
-_Support requests should be sent to_ keepalived-devel@lists.sourceforge.net
+_Support requests should be sent via_ https://groups.io/g/keepalived-users
 
 **Describe why you are unable to send the support request to the above email list**
 Understanding why you cannot use the email list should help us improve it.
