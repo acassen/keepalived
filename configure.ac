@@ -1793,7 +1793,7 @@ AS_IF([test .${enable_systemd} != .no],
     add_pkg_config([libsystemd])
     AC_DEFINE([_USE_SYSTEMD_], [ 1 ], [Define to 1 if want systemd support])
     add_config_opt([SYSTEMD])
-    SYSTEMD_SERVICE_TYPE=notify
+    SYSTEMD_SERVICE_TYPE="notify\\nNotifyAccess=all"
    ],
    [
     AS_IF([test .${enable_systemd} = .yes], [AC_MSG_WARN([libsystemd missing])])
