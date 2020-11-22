@@ -169,7 +169,14 @@ start_bfd(__attribute__((unused)) data_t *prev_global_data)
 	/* If we are just testing the configuration, then we terminate now */
 	if (__test_bit(CONFIG_TEST_BIT, &debug))
 		return;
+
 	bfd_complete_init();
+
+	if (global_data->reload_check_config && get_config_status() != CONFIG_OK) {
+		stop_bfd(KEEPALIVED_EXIT_CONFIG);
+		return;
+	}
+
 
 	/* Post initializations */
 #ifdef _MEM_CHECK_
