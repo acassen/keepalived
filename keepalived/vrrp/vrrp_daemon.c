@@ -555,7 +555,8 @@ start_vrrp(data_t *prev_global_data)
 	}
 
 	/* Complete VRRP initialization */
-	if (!vrrp_complete_init()) {
+	if (!vrrp_complete_init() ||
+	    (global_data->reload_check_config && get_config_status() != CONFIG_OK)) {
 		stop_vrrp(KEEPALIVED_EXIT_CONFIG);
 		return;
 	}

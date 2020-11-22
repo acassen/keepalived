@@ -467,6 +467,7 @@ and
     #   0 VIPs
     #   unicast peers
     #   IPv6 addresses in VRRP version 2
+    #   First IPv6 VIP is not link local
     \fBvrrp_strict\fR
 
     # Send vrrp instance priority notifications on notify FIFOs.

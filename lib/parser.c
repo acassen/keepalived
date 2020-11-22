@@ -254,12 +254,12 @@ vreport_config_error(config_err_t err, const char *format, va_list args)
 		}
 	}
 
+	if (config_err == CONFIG_OK || config_err < err)
+		config_err = err;
+
 	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
 		vfprintf(stderr, format_buf ? format_buf : format, args);
 		fputc('\n', stderr);
-
-		if (config_err == CONFIG_OK || config_err < err)
-			config_err = err;
 	}
 	else
 		vlog_message(LOG_INFO, format_buf ? format_buf : format, args);

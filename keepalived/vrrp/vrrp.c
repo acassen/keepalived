@@ -2940,9 +2940,13 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	/* If the addresses are IPv6, then the first one must be link local */
 	if (vrrp->family == AF_INET6 && list_empty(&vrrp->unicast_peer) && !list_empty(&vrrp->vip)) {
 		ip_addr = list_first_entry(&vrrp->vip, ip_address_t, e_list);
-		if (!IN6_IS_ADDR_LINKLOCAL(&ip_addr->u.sin6_addr))
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) the first IPv6 VIP address must be link local"
-								, vrrp->iname);
+		if (!IN6_IS_ADDR_LINKLOCAL(&ip_addr->u.sin6_addr)) {
+			if (vrrp->strict_mode)
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) the first IPv6 VIP address must be link local"
+									, vrrp->iname);
+			else
+				log_message(LOG_INFO, "(%s) the first IPv6 VIP address should be link local" , vrrp->iname);
+		}
 	}
 
 	/* Check we can fit the VIPs into a packet */

@@ -342,7 +342,8 @@ start_check(list_head_t *old_checkers_queue, data_t *prev_global_data)
 	link_vsg_to_vs();
 
 	/* Post initializations */
-	if (!validate_check_config()) {
+	if (!validate_check_config() ||
+	    (global_data->reload_check_config && get_config_status() != CONFIG_OK)) {
 		stop_check(KEEPALIVED_EXIT_CONFIG);
 		return;
 	}
