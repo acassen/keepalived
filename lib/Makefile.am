@@ -58,9 +58,12 @@ FORCE:
 # since in a snapcraft build that file is deleted
 # (see https://bugs.launchpad.net/snapcraft/+bug/1662388).
 $(GIT_COMMIT_FILE): FORCE
-	@if [ ! -f $(srcdir)/$@ -a ! -f $@ ]; then \
-		echo '#define GIT_DATE	"unknown"' >$@; \
-		echo "#define GIT_YEAR	\"`date +%Y`\"" >>$@; \
+	@if [ ! -f $(srcdir)/$@ ]; then \
+		LATEST_FILE=`ls -t \`find $(srcdir)/.. -type f -name Makefile.am -o -name configure.ac -o -name '*.[ch]' | grep -v "lib/config.h" | grep -v "lib/config_warnings.h" | grep -v "lib/git-commit.h" | grep -v "/test/"\` | head -1`; \
+		LATEST_FILE_DATE=`date -u --reference=$${LATEST_FILE} "+%m/%d,%Y"`; \
+		echo "/* Dates are UTC */" >$(abs_builddir)/$@; \
+		echo "#define GIT_DATE	\"$${LATEST_FILE_DATE}\"" >>$(abs_builddir)/$@; \
+		echo "#define GIT_YEAR	\"`echo $${LATEST_FILE_DATE} | sed -e "s/.*,//"`\"" >>$(abs_builddir)/$@; \
 	fi; \
 	if [ -x `type -p git` ]; then \
 		cd $(srcdir); \
@@ -68,9 +71,9 @@ $(GIT_COMMIT_FILE): FORCE
 		if [ $$? -eq 0 ]; then \
 			GIT_REV=`git describe --tags`; \
 			GIT_TIMESTAMP=`git log -1 --format=%ct`; \
-			GIT_DATE=`date -d "1970-01-01 UTC $${GIT_TIMESTAMP} seconds" +"%m/%d,%Y"`; \
+			GIT_DATE=`date -u -d "1970-01-01 UTC $${GIT_TIMESTAMP} seconds" +"%m/%d,%Y"`; \
 			if test -n "$${GIT_DATE}"; then \
-				GIT_YEAR=`date -d "1970-01-01 UTC $${GIT_TIMESTAMP} seconds" +"%Y"`; \
+				GIT_YEAR=`date -u -d "1970-01-01 UTC $${GIT_TIMESTAMP} seconds" +"%Y"`; \
 			else \
 				GIT_DATE=`git log -1 --date=iso | grep Date: | sed -e "s/^[^ ]* *\(....\)-\(..\)-\(..\).*/\2\/\3,\1/"`; \
 				GIT_YEAR=`echo $${GIT_DATE} | sed -e "s/.*,//"`; \
@@ -85,9 +88,10 @@ $(GIT_COMMIT_FILE): FORCE
 			else \
 				EXTRA=""; \
 			fi; \
+			echo "/* Dates are UTC */" >$(abs_builddir)/$@.new; \
 			echo $${GIT_REV} | grep -qE -- "-[1-9][0-9]*-g[0-9a-f]{7,}$$"; \
 			if [ $$? -eq 0 -o -n "$${EXTRA}" ]; then \
-				echo "#define GIT_COMMIT \"$${GIT_REV}$${EXTRA}\"" >$(abs_builddir)/$@.new; \
+				echo "#define GIT_COMMIT \"$${GIT_REV}$${EXTRA}\"" >>$(abs_builddir)/$@.new; \
 			fi; \
 			echo "#define GIT_DATE \"$${GIT_DATE}\"" >>$(abs_builddir)/$@.new; \
 			echo "#define GIT_YEAR \"$${GIT_YEAR}\"" >>$(abs_builddir)/$@.new; \
