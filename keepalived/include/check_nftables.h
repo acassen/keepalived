@@ -3,7 +3,7 @@
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
  *
- * Part:        vrrp_nftables.c include file.
+ * Part:        check_nftables.c include file.
  *
  * Author:      Quentin Armitage, <quentin@armitage.org.uk>
  *
@@ -17,30 +17,27 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2020 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2020-2020 Alexandre Cassen, <acassen@gmail.com>
  */
 
-#ifndef _VRRP_NFTABLES_H
-#define _VRRP_NFTABLES_H
+#ifndef _CHECK_NFTABLES_H
+#define _CHECK_NFTABLES_H
 
 #include "config.h"
 
-#include <stdbool.h>
-
-#include "list_head.h"
 #include "nftables.h"
-#include "vrrp.h"
-#include "vrrp_ipaddress.h"
+#include "check_data.h"
 
-#define	DEFAULT_NFTABLES_TABLE		"keepalived"
+#define	DEFAULT_NFTABLES_IPVS_TABLE	"keepalived_ipvs"
+#define DEFAULT_IPVS_NF_START_FWMARK    1000
 
-extern void nft_add_addresses(vrrp_t *);
-extern void nft_remove_addresses(vrrp_t *);
-extern void nft_remove_addresses_iplist(list_head_t *);
-#ifdef _HAVE_VRRP_VMAC_
-extern void nft_add_vmac(const interface_t *, int, bool);
-extern void nft_remove_vmac(const interface_t *, int, bool);
+#ifdef _INCLUDE_UNUSED_CODE_
+extern void nft_add_ipvs_entry(const struct sockaddr_storage *, uint16_t, uint32_t);
+extern void nft_remove_ipvs_entry(const struct sockaddr_storage *, uint16_t, uint32_t);
 #endif
-extern void nft_end(void);
+extern void nft_ipvs_end(void);
+extern unsigned set_vs_fwmark(virtual_server_t *);
+extern void clear_vs_fwmark(virtual_server_t *);
+extern void remove_vs_fwmark_entry(virtual_server_t *, virtual_server_group_entry_t *);
 
 #endif

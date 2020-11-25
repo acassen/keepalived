@@ -37,6 +37,9 @@
 #include "smtp.h"
 #include "check_daemon.h"
 #include "track_file.h"
+#ifdef _WITH_NFTABLES_
+#include "check_nftables.h"
+#endif
 
 static bool __attribute((pure))
 vs_iseq(const virtual_server_t *vs_a, const virtual_server_t *vs_b)
@@ -74,7 +77,7 @@ vsge_iseq(const virtual_server_group_entry_t *vsge_a, const virtual_server_group
 		return vsge_a->vfwmark == vsge_b->vfwmark;
 
 	if (!sockstorage_equal(&vsge_a->addr, &vsge_b->addr) ||
-	    vsge_a->range != vsge_b->range)
+	    !sockstorage_equal(&vsge_a->addr_end, &vsge_b->addr_end))
 		return false;
 
 	return true;
@@ -354,6 +357,11 @@ clear_service_vs(virtual_server_t * vs, bool stopping)
 
 	/* The above will handle Omega case for VS as well. */
 
+#ifdef _WITH_NFTABLES_
+	if (vs->vsg && vs->vsg->auto_fwmark)
+		clear_vs_fwmark(vs);
+#endif
+
 	ipvs_cmd(LVS_CMD_DEL, vs, NULL);
 
 	UNSET_ALIVE(vs);
@@ -381,10 +389,15 @@ clear_services(void)
 			clear_service_vs(vs, true);
 		}
 	}
+
+#ifdef _WITH_NFTABLES_
+	if (global_data->ipvs_nf_table_name)
+		nft_ipvs_end();
+#endif
 }
 
 /* Set a realserver IPVS rules */
-static bool
+static void
 init_service_rs(virtual_server_t *vs)
 {
 	real_server_t *rs;
@@ -424,8 +437,6 @@ init_service_rs(virtual_server_t *vs)
 			}
 		}
 	}
-
-	return true;
 }
 
 static void
@@ -435,12 +446,19 @@ sync_service_vsg_entry(virtual_server_t *vs, const list_head_t *l)
 
 	list_for_each_entry(vsge, l, e_list) {
 		if (!vsge->reloaded) {
-			log_message(LOG_INFO, "VS [%s:%" PRIu32 ":%u] added into group %s"
-// Does this work with no address?
-					    , inet_sockaddrtotrio(&vsge->addr, vs->service_type)
-					    , vsge->range
-					    , vsge->vfwmark
-					    , vs->vsgname);
+			if (vsge->is_fwmark)
+				log_message(LOG_INFO, "VS [FWM %u] added into group %s"
+						    , vsge->vfwmark
+						    , vs->vsgname);
+			else if (!inet_sockaddrcmp(&vsge->addr, &vsge->addr_end))
+				log_message(LOG_INFO, "VS [%s] added into group %s"
+						    , inet_sockaddrtotrio(&vsge->addr, vs->service_type)
+						    , vs->vsgname);
+			else
+				log_message(LOG_INFO, "VS [%s-%s] added into group %s"
+						    , inet_sockaddrtotrio(&vsge->addr, vs->service_type)
+						    , inet_sockaddrtos(&vsge->addr_end)
+						    , vs->vsgname);
 			/* add all reloaded and alive/inhibit-set dests
 			 * to the newly created vsg item */
 			ipvs_group_sync_entry(vs, vsge);
@@ -604,15 +622,21 @@ init_service_vs(virtual_server_t * vs)
 {
 	/* Init the VS root */
 	if (!ISALIVE(vs) || vs->vsg) {
-		ipvs_cmd(LVS_CMD_ADD, vs, NULL);
-		SET_ALIVE(vs);
+#ifdef _WITH_NFTABLES_
+		if (ISALIVE(vs) && vs->vsg && vs->vsg->auto_fwmark)
+			set_vs_fwmark(vs);
+		else
+#endif
+		{
+			ipvs_cmd(LVS_CMD_ADD, vs, NULL);
+			SET_ALIVE(vs);
+		}
 	}
 
 	/* Processing real server queue */
-	if (!init_service_rs(vs))
-		return false;
+	init_service_rs(vs);
 
-	if (vs->reloaded && vs->vsgname) {
+	if (vs->reloaded && vs->vsgname && !vs->vsg->auto_fwmark) {
 		/* add reloaded dests into new vsg entries */
 		sync_service_vsg(vs);
 	}
@@ -649,6 +673,7 @@ init_services(void)
 			return false;
 	}
 
+log_message(LOG_INFO, "ivpsadm setup complete");
 	return true;
 }
 
@@ -763,10 +788,14 @@ clear_diff_vsge(list_head_t *old, list_head_t *new, virtual_server_t *old_vs)
 		if (vsge->is_fwmark)
 			log_message(LOG_INFO, "VS [%u] in group %s no longer exists",
 					      vsge->vfwmark, old_vs->vsgname);
-		else
-			log_message(LOG_INFO, "VS [%s:%" PRIu32 "] in group %s no longer exists"
+		else if (!inet_sockaddrcmp(&vsge->addr, &vsge->addr_end))
+			log_message(LOG_INFO, "VS [%s] in group %s no longer exists"
 					    , inet_sockaddrtotrio(&vsge->addr, old_vs->service_type)
-					    , vsge->range
+					    , old_vs->vsgname);
+		else
+			log_message(LOG_INFO, "VS [%s-%s] in group %s no longer exists"
+					    , inet_sockaddrtotrio(&vsge->addr, old_vs->service_type)
+					    , inet_sockaddrtos(&vsge->addr_end)
 					    , old_vs->vsgname);
 
 		ipvs_group_remove_entry(old_vs, vsge);
@@ -810,6 +839,13 @@ clear_diff_vsg(virtual_server_t *old_vs, virtual_server_t *new_vs)
 {
 	virtual_server_group_t *old = old_vs->vsg;
 	virtual_server_group_t *new = new_vs->vsg;
+
+	if (new_vs->vsg->auto_fwmark) {
+		/* We have already updated this vsg */
+		return;
+	}
+
+	new_vs->vsg->auto_fwmark = old_vs->vsg->auto_fwmark;
 
 	/* Diff the group entries */
 	clear_diff_vsge(&old->addr_range, &new->addr_range, old_vs);

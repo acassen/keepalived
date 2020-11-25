@@ -405,6 +405,7 @@ free_global_data(data_t * data)
 #endif
 #ifdef _WITH_NFTABLES_
 	FREE_CONST_PTR(data->vrrp_nf_table_name);
+	FREE_CONST_PTR(data->ipvs_nf_table_name);
 #endif
 #endif
 #ifdef _WITH_LVS_
@@ -645,14 +646,24 @@ dump_global_data(FILE *fp, data_t * data)
 	}
 #endif
 #ifdef _WITH_NFTABLES_
+#ifdef _WITH_VRRP_
 	if (data->vrrp_nf_table_name) {
 		conf_write(fp," nftables table name = %s", data->vrrp_nf_table_name);
 		conf_write(fp," nftables base chain priority = %d", data->vrrp_nf_chain_priority);
-		conf_write(fp," nftables with%s counters", data->vrrp_nf_counters ? "" : "out");
 		conf_write(fp," nftables %sforce use ifindex for link local IPv6", data->vrrp_nf_ifindex ? "" : "don't ");
-		conf_write(fp," libnftnl version %u.%u.%u", LIBNFTNL_VERSION >> 16,
-			       (LIBNFTNL_VERSION >> 8) & 0xff, LIBNFTNL_VERSION & 0xff);
 	}
+#endif
+
+#ifdef _WITH_LVS_
+	if (data->ipvs_nf_table_name) {
+		conf_write(fp," ipvs nftables table name = %s", data->ipvs_nf_table_name);
+		conf_write(fp," ipvs nftables base chain priority = %d", data->ipvs_nf_chain_priority);
+		conf_write(fp," ipvs nftables start fwmark = %u", data->ipvs_nftables_start_fwmark);
+	}
+#endif
+	conf_write(fp," nftables with%s counters", data->nf_counters ? "" : "out");
+	conf_write(fp," libnftnl version %u.%u.%u", LIBNFTNL_VERSION >> 16,
+		       (LIBNFTNL_VERSION >> 8) & 0xff, LIBNFTNL_VERSION & 0xff);
 #endif
 
 	conf_write(fp, " VRRP check unicast_src = %s", data->vrrp_check_unicast_src ? "true" : "false");

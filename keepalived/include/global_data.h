@@ -182,10 +182,17 @@ typedef struct _data {
 #endif
 #endif
 #ifdef _WITH_NFTABLES_
+#ifdef _WITH_VRRP_
 	const char			*vrrp_nf_table_name;
 	int				vrrp_nf_chain_priority;
-	bool				vrrp_nf_counters;
 	bool				vrrp_nf_ifindex;
+#endif
+#ifdef _WITH_LVS_
+	const char			*ipvs_nf_table_name;
+	int				ipvs_nf_chain_priority;
+	uint32_t			ipvs_nftables_start_fwmark;
+#endif
+	bool				nf_counters;
 #endif
 	bool				vrrp_check_unicast_src;
 	bool				vrrp_skip_check_adv_addr;

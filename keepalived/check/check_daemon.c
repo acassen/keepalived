@@ -430,16 +430,39 @@ start_check(list_head_t *old_checkers_queue, data_t *prev_global_data)
 
 	/* Processing differential configuration parsing */
 	set_track_file_weights();
+log_message(LOG_INFO, "Clear diff services");
 	if (reload)
 		clear_diff_services(old_checkers_queue);
+log_message(LOG_INFO, "Clear diff services done");
 	set_track_file_checkers_down();
 	set_effective_weights();
 	if (reload)
 		check_new_rs_state();
+#if 0
+struct sockaddr_in add;
+add.sin_family = AF_INET;
+add.sin_addr.s_addr = 0x01020304;
+add.sin_port = 80;
+nft_add_ipvs_entry(&add, IPPROTO_TCP, 456);
+nft_add_ipvs_entry(&add, IPPROTO_UDP, 456);
+nft_add_ipvs_entry(&add, IPPROTO_SCTP, 456);
+struct sockaddr_in6 add6;
+add6.sin6_family = AF_INET6;
+add6.sin6_addr.s6_addr32[0] = 0x00010002;
+add6.sin6_addr.s6_addr32[1] = 0x00030004;
+add6.sin6_addr.s6_addr32[2] = 0x00050006;
+add6.sin6_addr.s6_addr32[3] = 0x00070008;
+add6.sin6_port = 80;
+nft_add_ipvs_entry(&add6, IPPROTO_TCP, 456);
+nft_add_ipvs_entry(&add6, IPPROTO_UDP, 456);
+nft_add_ipvs_entry(&add6, IPPROTO_SCTP, 456);
+#endif
 
 	/* Initialize IPVS topology */
+log_message(LOG_INFO, "About to init_services");
 	if (!init_services())
 		stop_check(KEEPALIVED_EXIT_FATAL);
+log_message(LOG_INFO, "Done init_services");
 
 	/* Dump configuration */
 	if (__test_bit(DUMP_CONF_BIT, &debug))

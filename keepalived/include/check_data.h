@@ -119,7 +119,7 @@ typedef struct _virtual_server_group_entry {
 	union {
 		struct {
 			struct sockaddr_storage	addr;
-			uint32_t	range;
+			struct sockaddr_storage	addr_end;
 			unsigned	tcp_alive;
 			unsigned	udp_alive;
 			unsigned	sctp_alive;
@@ -144,6 +144,9 @@ typedef struct _virtual_server_group {
 	bool				have_ipv4;
 	bool				have_ipv6;
 	bool				fwmark_no_family;
+#ifdef _WITH_NFTABLES_
+	unsigned			auto_fwmark;
+#endif
 
 	/* Linked list member */
 	list_head_t			e_list;
