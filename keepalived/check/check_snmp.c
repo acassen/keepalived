@@ -265,6 +265,8 @@ static u_char*
 check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 			 int exact, size_t *var_len, WriteMethod **write_method)
 {
+	static uint32_t ip;
+	static struct in6_addr ip6;
 	oid *target, current[2], best[2];
 	int result;
 	size_t target_len;
@@ -349,7 +351,7 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 	case CHECK_SNMP_VSGROUPMEMBERTYPE:
 		if (be->is_fwmark)
 			long_ret.u = 1;
-		else if (inet_sockaddrcmp(&be->addr, &be->addr_end))
+		else if (be->range)
 			long_ret.u = 3;
 		else
 			long_ret.u = 2;
@@ -363,23 +365,27 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = (be->addr.ss_family == AF_INET6) ? 2:1;
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSGROUPMEMBERADDRESS:
-		if (be->is_fwmark || inet_sockaddrcmp(&be->addr, &be->addr_end)) break;
+		if (be->is_fwmark || be->range) break;
 		RETURN_IP46ADDRESS(be);
 		break;
 	case CHECK_SNMP_VSGROUPMEMBERADDR1:
-		if (be->is_fwmark || !inet_sockaddrcmp(&be->addr, &be->addr_end)) break;
+		if (be->is_fwmark || !be->range) break;
 		RETURN_IP46ADDRESS(be);
 		break;
 	case CHECK_SNMP_VSGROUPMEMBERADDR2:
-		if (!inet_sockaddrcmp(&be->addr, &be->addr_end) || be->is_fwmark) break;
+		if (!be->range || be->is_fwmark) break;
 		if (be->addr.ss_family == AF_INET6) {
-			struct sockaddr_in6 *addr6 = PTR_CAST(struct sockaddr_in6, &be->addr_end);
+			struct sockaddr_in6 *addr6 = PTR_CAST(struct sockaddr_in6, &be->addr);
 			*var_len = 16;
-			return PTR_CAST(u_char, &addr6->sin6_addr);
+			memcpy(&ip6, &addr6->sin6_addr, sizeof(ip6));
+			ip6.s6_addr16[7] = htons(ntohs(ip6.s6_addr16[7]) + be->range);
+			return PTR_CAST(u_char, &ip6);
 		} else {
-			struct sockaddr_in *addr4 = PTR_CAST(struct sockaddr_in, &be->addr_end);
+			struct sockaddr_in *addr4 = PTR_CAST(struct sockaddr_in, &be->addr);
 			*var_len = 4;
-			return PTR_CAST(u_char, &addr4->sin_addr);
+			ip = *PTR_CAST(uint32_t, &addr4->sin_addr);
+			ip += htonl(be->range);
+			return PTR_CAST(u_char, &ip);
 		}
 		break;
 	case CHECK_SNMP_VSGROUPMEMBERPORT:

@@ -17,7 +17,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2020 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2001-2018 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #ifndef _VRRP_NFTABLES_H
@@ -25,14 +25,19 @@
 
 #include "config.h"
 
+/* Include to check NFT_TABLE_MAXNAMELEN defined */
+#include <linux/netfilter/nf_tables.h>
 #include <stdbool.h>
 
-#include "list_head.h"
-#include "nftables.h"
 #include "vrrp.h"
 #include "vrrp_ipaddress.h"
 
-#define	DEFAULT_NFTABLES_TABLE		"keepalived"
+#define	DEFAULT_NFTABLES_TABLE	"keepalived"
+
+/* For kernels < 4.1 */
+#ifndef NFT_TABLE_MAXNAMELEN
+#define NFT_TABLE_MAXNAMELEN 32
+#endif
 
 extern void nft_add_addresses(vrrp_t *);
 extern void nft_remove_addresses(vrrp_t *);
@@ -41,6 +46,7 @@ extern void nft_remove_addresses_iplist(list_head_t *);
 extern void nft_add_vmac(const interface_t *, int, bool);
 extern void nft_remove_vmac(const interface_t *, int, bool);
 #endif
+extern void nft_cleanup(void);
 extern void nft_end(void);
-
+extern void set_nf_ifname_type(void);
 #endif

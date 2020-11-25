@@ -1771,16 +1771,6 @@ if test .${enable_nftables} != .no; then
 	      #include <libnftnl/udata.h>
 	    ])
 	])
-
-      # NFTNL_SET_DESC_CONCAT since Linux 5.6 and libnftnl 1.1.6, nft 0.9.4 - ranges in concatenations
-      # NFTNL_SET_ELEM_KEY_END since Linux 5.6 and libnftnl 1.1.6, nft 0.9.4
-      NFT_RANGE_CONCATS_OK=1
-      AC_CHECK_DECLS([NFTNL_SET_DESC_CONCAT, NFTNL_SET_ELEM_KEY_END], [], [NFT_RANGE_CONCATS_OK=0], [[#include <libnftnl/set.h>]])
-      AS_IF([test $NFT_RANGE_CONCATS_OK -eq 1],
-	    [AC_DEFINE([NFT_RANGE_CONCATS], [ 1 ], [Define to 1 if can use concats with ranges in nftables])])
-
-      # NFTA_SET_EXPR since Linux 5.7, libnftnl 1.1.7, nft 0.9.5 - counters on set elements
-      AC_CHECK_DECLS([NFTNL_SET_EXPR], [], [], [[#include <libnftnl/set.h>]])
     fi
   fi
   CPPFLAGS="$SAV_CPPFLAGS"
@@ -2945,7 +2935,6 @@ AS_IF(
       ])
   ])
 AS_IF([test \( .$INIT_TYPE = .systemd -a -z "$with_systemdsystemunitdir" \)], [with_systemdsystemunitdir=$($PKG_CONFIG --variable=systemdsystemunitdir systemd)])
-AS_IF([test \( .$INIT_TYPE = .systemd -a $USE_SYSTEMD = No -a .${enable_systemd} != .no \)], [AC_WARN(systemd detected but libsystemd-dev(el) package not installed)])
 
 dnl ----[Default keepalived configuration file]----
 AS_IF([test $default_config_file],
