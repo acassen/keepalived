@@ -29,6 +29,7 @@
 #define PROG_VRRP	"Keepalived_vrrp"
 
 extern bool non_existent_interface_specified;
+extern const char * const igmp_link_local_mcast_reports;
 
 #ifdef _VRRP_FD_DEBUG_
 extern bool do_vrrp_fd_debug;

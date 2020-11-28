@@ -794,6 +794,13 @@ static bool reload_config(void)
 		unsupported_change = true;
 	}
 
+#ifdef _WITH_VRRP_
+	if (old_global_data->disable_local_igmp != global_data->disable_local_igmp) {
+		log_message(LOG_INFO, "Cannot change disable_local_igmp at a reload - please restart %s", PACKAGE);
+		unsupported_change = true;
+	}
+#endif
+
 	if (unsupported_change) {
 		/* We cannot reload the configuration, so continue with the old config */
 		free_global_data (global_data);
