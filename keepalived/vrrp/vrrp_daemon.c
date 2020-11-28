@@ -30,6 +30,7 @@
 #include <sys/prctl.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <fcntl.h>
 
 #ifdef THREAD_DUMP
 #ifdef _WITH_SNMP_
@@ -92,6 +93,7 @@
 
 /* Global variables */
 bool non_existent_interface_specified;
+const char * const igmp_link_local_mcast_reports = "/proc/sys/net/ipv4/igmp_link_local_mcast_reports";
 
 /* Forward declarations */
 #ifndef _ONE_PROCESS_DEBUG_
@@ -108,6 +110,7 @@ perf_t perf_run = PERF_NONE;
 
 /* local variables */
 static const char *vrrp_syslog_ident;
+static char sav_igmp_link_local_mcast_reports;
 #ifndef __ONE_PROCESS_DEBUG_
 static bool two_phase_terminate;
 static timeval_t vrrp_start_time;
@@ -203,6 +206,53 @@ vrrp_ipvs_needed(void)
 }
 #endif
 
+static void
+set_disable_local_igmp(void)
+{
+	char buf;
+	int fd;
+	ssize_t len;
+
+	if ((fd = open(igmp_link_local_mcast_reports, O_RDWR)) == -1) {
+		log_message(LOG_INFO, "Unable to open %s - errno %d", igmp_link_local_mcast_reports, errno);
+		global_data->disable_local_igmp = false;
+		return;
+	}
+
+	if ((len = read(fd, &sav_igmp_link_local_mcast_reports, 1)) != 1) {
+		log_message(LOG_INFO, "Unable to read %s - errno %d", igmp_link_local_mcast_reports, errno);
+		global_data->disable_local_igmp = false;
+		close(fd);
+		return;
+	}
+
+	if (sav_igmp_link_local_mcast_reports == '1') {
+		buf = '0';
+		lseek(fd, 0, SEEK_SET);
+		if (write(fd, &buf, 1) != 1) {
+			log_message(LOG_INFO, "Unable to write %s - errno %d", igmp_link_local_mcast_reports, errno);
+			global_data->disable_local_igmp = false;
+			close(fd);
+			return;
+		}
+	}
+
+	close(fd);
+}
+
+static void
+reset_disable_local_igmp(void)
+{
+	int fd;
+
+	if (sav_igmp_link_local_mcast_reports == '1') {
+		fd = open(igmp_link_local_mcast_reports, O_RDWR);
+		if (write(fd, &sav_igmp_link_local_mcast_reports, 1) != -1)
+			log_message(LOG_INFO, "Unable to write %s - errno %d", igmp_link_local_mcast_reports, errno);
+		close(fd);
+	}
+}
+
 static int
 vrrp_terminate_phase2(int exit_status)
 {
@@ -265,6 +315,9 @@ vrrp_terminate_phase2(int exit_status)
 
 	if (global_data->vrrp_notify_fifo.fd != -1)
 		notify_fifo_close(&global_data->notify_fifo, &global_data->vrrp_notify_fifo);
+
+	if (global_data->disable_local_igmp)
+		reset_disable_local_igmp();
 
 	free_global_data(global_data);
 	free_vrrp_data(vrrp_data);
@@ -552,6 +605,9 @@ start_vrrp(data_t *prev_global_data)
 					 global_data->vrrp_startup_delay);
 		} else
 			thread_add_event(master, vrrp_dispatcher_init, NULL, 0);
+
+		if (!reload && global_data->disable_local_igmp)
+			set_disable_local_igmp();
 	}
 
 	/* Complete VRRP initialization */

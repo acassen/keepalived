@@ -452,6 +452,14 @@ and
     # and/or "6" and _igmp/_mld to previously specified names.
     \fBvrrp_ipsets \fR[keepalived [keepalived6 [keepalived_if6 [keepalived_igmp [keepalived_mld]]]]]
 
+    # An alternative to moving IGMP messages from VMACs to their parent interfaces
+    # is to disable them altogether in the kernel by setting
+    # igmp_link_local_mcast_reports false.
+    # This stops IGMP join etc messages for 224.0.0.0/24, since they should
+    # always be forwarded to all interfaces (see RFC4541).
+    # This is available from Linux 4.3 onwards.
+    disable_local_igmp
+
     # The following enables checking that when in unicast mode, the
     # source address of a VRRP packet is one of our unicast peers.
     \fBvrrp_check_unicast_src\fR

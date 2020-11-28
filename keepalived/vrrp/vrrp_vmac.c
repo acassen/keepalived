@@ -41,6 +41,7 @@
 #include "vrrp_if_config.h"
 #include "vrrp_ipaddress.h"
 #include "vrrp_firewall.h"
+#include "global_data.h"
 
 const char * const macvlan_ll_kind = "macvlan";
 #ifdef _HAVE_VRRP_IPVLAN_
@@ -405,7 +406,8 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	}
 
 #ifdef _WITH_FIREWALL_
-	firewall_add_vmac(vrrp);
+	if (vrrp->family == AF_INET6 || !global_data->disable_local_igmp)
+		firewall_add_vmac(vrrp);
 #endif
 
 	/* bring it UP ! */
@@ -644,7 +646,8 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 #ifdef _WITH_FIREWALL_
 // Why do we need this test?
 // PROBLEM !!! We have deleted the link, but firewall_remove_vmac uses the ifindex.
-	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
+	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
+	    (vrrp->family == AF_INET6 || !global_data->disable_local_igmp))
 		firewall_remove_vmac(vrrp);
 #endif
 

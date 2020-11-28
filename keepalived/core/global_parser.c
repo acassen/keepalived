@@ -52,6 +52,9 @@
 #include "vrrp_firewall.h"
 #endif
 #include "memory.h"
+#ifdef _WITH_VRRP_
+#include "vrrp_daemon.h"
+#endif
 
 #if HAVE_DECL_CLONE_NEWNET
 #include "namespaces.h"
@@ -438,6 +441,16 @@ default_interface_handler(const vector_t *strvec)
 	}
 	FREE_CONST_PTR(global_data->default_ifname);
 	global_data->default_ifname = set_value(strvec);
+}
+static void
+disable_local_igmp_handler(__attribute__((unused)) const vector_t *strvec)
+{
+	if (access(igmp_link_local_mcast_reports, W_OK)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "kernel does not support %s", igmp_link_local_mcast_reports);
+		return;
+	}
+
+	global_data->disable_local_igmp = true;
 }
 #endif
 #ifdef _WITH_LVS_
@@ -2103,6 +2116,7 @@ init_global_keywords(bool global_active)
 	install_keyword("dynamic_interfaces", &dynamic_interfaces_handler);
 	install_keyword("no_email_faults", &no_email_faults_handler);
 	install_keyword("default_interface", &default_interface_handler);
+	install_keyword("disable_local_igmp", &disable_local_igmp_handler);
 #endif
 #ifdef _WITH_LVS_
 	install_keyword("lvs_timeouts", &lvs_timeouts);

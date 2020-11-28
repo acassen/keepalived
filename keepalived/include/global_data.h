@@ -138,6 +138,7 @@ typedef struct _data {
 	int				smtp_alert_vrrp;
 	const char			*default_ifname;	/* Name of default interface */
 	interface_t			*default_ifp;		/* Default interface for static addresses */
+	bool				disable_local_igmp;
 #endif
 #ifdef _WITH_LVS_
 	ipvs_timeout_t			lvs_timeouts;
