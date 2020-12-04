@@ -2768,6 +2768,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	size_t max_addr;
 	size_t i;
 	bool interface_already_existed = false;
+	bool interface_renamed = false;
 	tracked_sc_t *sc, *sc_tmp;
 	tracked_if_t *tip, *tip_tmp;
 	tracked_file_monitor_t *tfl, *tfl_tmp;
@@ -3230,13 +3231,29 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			{
 				log_message(LOG_INFO, "(%s) Found matching interface %s", vrrp->iname, ifp->ifname);
 				if (vrrp->vmac_ifname[0] &&
-				    strcmp(vrrp->vmac_ifname, ifp->ifname))
-					log_message(LOG_INFO, "(%s) vmac name mismatch %s <=> %s."
-							      " changing to %s."
-							    , vrrp->iname
-							    , vrrp->vmac_ifname
-							    , ifp->ifname, ifp->ifname);
+				    strcmp(vrrp->vmac_ifname, ifp->ifname)) {
+					if (old_vrrp_data) {
+						vrrp_t * old_vrrp;
+						old_vrrp = NULL;
+						list_for_each_entry(old_vrrp, &old_vrrp_data->vrrp, e_list) {
+							if (old_vrrp->vmac_ifname[0] &&
+								!strcmp(old_vrrp->vmac_ifname, ifp->ifname)) {
+								log_message(LOG_INFO, "Deleting previous interface %s", old_vrrp->vmac_ifname);
+								netlink_link_del_vmac(old_vrrp);
+								interface_renamed = true;
+							}
+						}
+					}
+					if (!interface_renamed)
+						log_message(LOG_INFO, "(%s) vmac name mismatch %s <=> %s."
+									  " changing to %s."
+									, vrrp->iname
+									, vrrp->vmac_ifname
+									, ifp->ifname, ifp->ifname);
+				}
 
+				if (interface_renamed)
+					break;
 				strcpy(vrrp->vmac_ifname, ifp->ifname);
 				vrrp->ifp = ifp;
 				__set_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
