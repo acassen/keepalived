@@ -2204,7 +2204,7 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool reverse, 
 				log_message(LOG_INFO, "Assigned address %s for interface %s"
 						    , addr_str, ifp->ifname);
 			}
-			if (!IN6_IS_ADDR_UNSPECIFIED(&ifp->sin6_addr)) {
+			if (IS_IP6_ADDR(&ifp->sin6_addr)) {
 				inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, sizeof(addr_str));
 				log_message(LOG_INFO, "Assigned address %s for interface %s"
 						    , addr_str, ifp->ifname);
@@ -4054,7 +4054,7 @@ set_vrrp_src_addr(void)
 			else if (vrrp->family == AF_INET6) {
 #ifdef _HAVE_VRRP_IPVLAN_
 				if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags)) {
-					if (!IN6_IS_ADDR_UNSPECIFIED(&vrrp->ifp->sin6_addr))
+					if (IS_IP6_ADDR(&vrrp->ifp->sin6_addr))
 						inet_ip6tosockaddr(&vrrp->ifp->sin6_addr, &vrrp->saddr);
 				} else
 #endif
@@ -4112,8 +4112,8 @@ check_vrid_conflicts(void)
 					vrrp1_saddr = vrrp1->saddr.ss_family == AF_INET ? &PTR_CAST(struct sockaddr_in, &vrrp1->saddr)->sin_addr : &vrrp1->ifp->sin_addr;
 				} else {
 					/* Check if both vrrp and vrrp1 have known addresses at the moment */
-					if ((!vrrp->saddr_from_config && !(vrrp->ifp && !IN6_IS_ADDR_UNSPECIFIED(&vrrp->ifp->sin6_addr))) ||
-					    (!vrrp1->saddr_from_config && !(vrrp1->ifp && !IN6_IS_ADDR_UNSPECIFIED(&vrrp1->ifp->sin6_addr))))
+					if ((!vrrp->saddr_from_config && !(vrrp->ifp && IS_IP6_ADDR(&vrrp->ifp->sin6_addr))) ||
+					    (!vrrp1->saddr_from_config && !(vrrp1->ifp && IS_IP6_ADDR(&vrrp1->ifp->sin6_addr))))
 						continue;
 
 					vrrp_saddr = vrrp->saddr.ss_family == AF_INET6 ? &PTR_CAST(struct sockaddr_in6, &vrrp->saddr)->sin6_addr : &vrrp->ifp->sin6_addr;
