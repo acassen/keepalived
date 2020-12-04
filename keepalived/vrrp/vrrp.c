@@ -1502,11 +1502,15 @@ vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 {
 	unicast_peer_t *peer;
 
+#ifdef _HAVE_VRRP_VMAC_
+	if (vrrp->saddr.ss_family == AF_UNSPEC &&
+	    vrrp->family == AF_INET6 &&
+	    (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)
 #ifdef _HAVE_VRRP_IPVLAN_
-	if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags) &&
-	    vrrp->saddr.ss_family == AF_UNSPEC &&
-	    vrrp->family == AF_INET6) {
-		if (!IS_IP6_ADDR(&vrrp->ifp->sin6_addr)) {
+	     || __test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags)
+#endif
+	     						      )) {
+		if (IN6_IS_ADDR_UNSPECIFIED(&vrrp->ifp->sin6_addr)) {
 			log_message(LOG_INFO, "No address yet for %s", vrrp->ifp->ifname);
 			return;
 		}
@@ -4054,7 +4058,8 @@ set_vrrp_src_addr(void)
 						inet_ip6tosockaddr(&vrrp->ifp->sin6_addr, &vrrp->saddr);
 				} else
 #endif
-					inet_ip6tosockaddr(&VRRP_CONFIGURED_IFP(vrrp)->sin6_addr, &vrrp->saddr);
+					if (!IN6_IS_ADDR_UNSPECIFIED(&VRRP_CONFIGURED_IFP(vrrp)->sin6_addr))
+						inet_ip6tosockaddr(&VRRP_CONFIGURED_IFP(vrrp)->sin6_addr, &vrrp->saddr);
 			}
 		}
 	}
