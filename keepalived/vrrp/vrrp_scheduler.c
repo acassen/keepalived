@@ -357,7 +357,8 @@ vrrp_compute_timer(const sock_t *sock)
 void
 vrrp_thread_requeue_read(vrrp_t *vrrp)
 {
-	thread_requeue_read(master, vrrp->sockets->fd_in, vrrp_compute_timer(vrrp->sockets));
+	if (vrrp->sockets)
+		thread_requeue_read(master, vrrp->sockets->fd_in, vrrp_compute_timer(vrrp->sockets));
 }
 
 /* Thread functions */
@@ -688,8 +689,10 @@ try_up_instance(vrrp_t *vrrp, bool leaving_init)
 		}
 	}
 
-	vrrp_init_instance_sands(vrrp);
-	vrrp_thread_requeue_read(vrrp);
+	if (vrrp->sockets) {
+		vrrp_init_instance_sands(vrrp);
+		vrrp_thread_requeue_read(vrrp);
+	}
 
 	vrrp->wantstate = wantstate;
 
