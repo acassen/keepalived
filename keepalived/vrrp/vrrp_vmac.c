@@ -392,7 +392,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 			ipaddress.ifp = ifp;
 			if (vrrp->saddr.ss_family == AF_INET6)
 				ipaddress.u.sin6_addr = PTR_CAST(struct sockaddr_in6, &vrrp->saddr)->sin6_addr;
-			else if (IS_IP6_ADDR(&vrrp->configured_ifp->sin6_addr))
+			else if (!IN6_IS_ADDR_UNSPECIFIED(&vrrp->configured_ifp->sin6_addr))
 				ipaddress.u.sin6_addr = vrrp->configured_ifp->sin6_addr;
 			else
 				make_link_local_address(&ipaddress.u.sin6_addr, ifp->base_ifp->hw_addr);

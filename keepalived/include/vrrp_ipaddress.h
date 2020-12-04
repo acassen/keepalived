@@ -132,7 +132,6 @@ IP_ISEQ(ip_address_t *X, const ip_address_t *Y)
 	return X->u.sin.sin_addr.s_addr == Y->u.sin.sin_addr.s_addr;
 }
 
-#define IS_IP6_ADDR(X)	((X)->s6_addr32[0] || (X)->s6_addr32[1] || (X)->s6_addr32[2] || (X)->s6_addr32[3])
 #define CLEAR_IP6_ADDR(X) ((X)->s6_addr32[0] = (X)->s6_addr32[1] = (X)->s6_addr32[2] = (X)->s6_addr32[3] = 0)
 
 #define	IPADDRESSTOS_BUF_LEN	(INET6_ADDRSTRLEN + 4)     /* allow for subnet */

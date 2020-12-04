@@ -164,11 +164,13 @@ vrrp_sync_backup(vrrp_t *vrrp)
 		}
 		else
 			vrrp_state_leave_master(isync, false);
-		vrrp_thread_requeue_read(isync);
+		if (isync->sockets)
+			vrrp_thread_requeue_read(isync);
 	}
 
 	sgroup->state = VRRP_STATE_BACK;
-	send_group_notifies(sgroup);
+	if (vrrp->sockets)
+		send_group_notifies(sgroup);
 }
 
 void

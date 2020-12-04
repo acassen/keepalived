@@ -954,7 +954,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 							if_extra_ipaddress_alloc(ifp, addr.in, AF_INET);
 					}
 				} else {
-					if (!IS_IP6_ADDR(&ifp->sin6_addr)) {
+					if (IN6_IS_ADDR_UNSPECIFIED(&ifp->sin6_addr)) {
 						ifp->sin6_addr = *addr.in6;
 						if (!list_empty(&ifp->tracking_vrrp))
 							addr_chg = true;
