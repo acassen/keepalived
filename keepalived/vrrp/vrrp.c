@@ -2722,6 +2722,8 @@ create_vmac_name(const char *prefix, uint8_t vrid, int family)
 	interface_t *ifp;
 	unsigned short num=0;
 	int len;
+	bool name_in_use;
+	vrrp_t *vrrp;
 
 	len = snprintf(ifname, IFNAMSIZ, "%s.%d", prefix, vrid);
 	if (len >= IFNAMSIZ)
@@ -2734,7 +2736,17 @@ create_vmac_name(const char *prefix, uint8_t vrid, int family)
 		 * may have been created by the configuration, but in that
 		 * case the ifindex will be 0. */
 // This was wrong if dynamic interfaces and an interface has already been specified but it doesn't exist
-		if ((ifp = if_get_by_ifname(ifname, IF_CREATE_NOT_EXIST)))
+
+		/* Check no vrrp instance is using this name for a VMAC */
+		name_in_use = false;
+		list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
+			if (!strcmp(ifname, vrrp->vmac_ifname)) {
+				name_in_use = true;
+				break;
+			}
+		}
+
+		if (!name_in_use && (ifp = if_get_by_ifname(ifname, IF_CREATE_NOT_EXIST)))
 			return ifp;
 
 		/* For IPv6 try vrrp6 as second attempt */
