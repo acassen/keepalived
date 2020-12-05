@@ -4693,9 +4693,8 @@ clear_diff_vrrp(void)
 				send_instance_notifies(vrrp);
 			}
 #ifdef _HAVE_VRRP_VMAC_
-// TODO - the vmac may be being used by another instance
-			/* Remove VMAC if one was created */
-			if (vrrp->ifp && vrrp->ifp->is_ours /*__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)*/) {
+			/* Remove VMAC if one was created so long as no new VRRP instance is using it */
+			if (vrrp->ifp && vrrp->ifp->is_ours && list_empty(&vrrp->ifp->tracking_vrrp)) {
 				netlink_link_del_vmac(vrrp);
 				/* Need to delete ADDR VMACs */
 			}
