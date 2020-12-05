@@ -2767,6 +2767,8 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	bool if_sorted;
 	bool use_extra_if = false;
 	bool use_extra_vmac = false;
+	bool old_vmac_deleted = false;
+	vrrp_t *old_vrrp;
 #endif
 	list_head_t *vip_list;
 	ip_address_t *ip_addr, *ip_addr_tmp;
@@ -3240,20 +3242,34 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			{
 				log_message(LOG_INFO, "(%s) Found matching interface %s", vrrp->iname, ifp->ifname);
 				if (vrrp->vmac_ifname[0] &&
-				    strcmp(vrrp->vmac_ifname, ifp->ifname))
-					log_message(LOG_INFO, "(%s) vmac name mismatch %s <=> %s."
-							      " changing to %s."
-							    , vrrp->iname
-							    , vrrp->vmac_ifname
-							    , ifp->ifname, ifp->ifname);
+				    strcmp(vrrp->vmac_ifname, ifp->ifname)) {
+					if (reload && ifp->is_ours) {
+						list_for_each_entry(old_vrrp, &old_vrrp_data->vrrp, e_list) {
+							if (old_vrrp->ifp->ifindex == ifp->ifindex) {
+								log_message(LOG_INFO, "(%s) Deleting old VMAC interface %s", vrrp->iname, ifp->ifname);
+								netlink_link_del_vmac(old_vrrp);
+								old_vmac_deleted = true;
+								break;
+							}
+						}
+					}
+					if (!old_vmac_deleted)
+						log_message(LOG_INFO, "(%s) vmac name mismatch %s <=> %s."
+									  " changing to %s."
+									, vrrp->iname
+									, vrrp->vmac_ifname
+									, ifp->ifname, ifp->ifname);
+				}
 
-				strcpy(vrrp->vmac_ifname, ifp->ifname);
-				vrrp->ifp = ifp;
-				__set_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
-				ifp->is_ours = true;
+				if (!old_vmac_deleted) {
+					strcpy(vrrp->vmac_ifname, ifp->ifname);
+					vrrp->ifp = ifp;
+					__set_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
+					ifp->is_ours = true;
 
-				/* The interface existed, so it may have config set on it */
-				interface_already_existed = true;
+					/* The interface existed, so it may have config set on it */
+					interface_already_existed = true;
+				}
 
 				break;
 			}
