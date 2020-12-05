@@ -2722,6 +2722,8 @@ create_vmac_name(const char *prefix, uint8_t vrid, int family)
 	interface_t *ifp;
 	unsigned short num=0;
 	int len;
+	bool name_in_use;
+	vrrp_t *vrrp;
 
 	len = snprintf(ifname, IFNAMSIZ, "%s.%d", prefix, vrid);
 	if (len >= IFNAMSIZ)
@@ -2734,7 +2736,17 @@ create_vmac_name(const char *prefix, uint8_t vrid, int family)
 		 * may have been created by the configuration, but in that
 		 * case the ifindex will be 0. */
 // This was wrong if dynamic interfaces and an interface has already been specified but it doesn't exist
-		if ((ifp = if_get_by_ifname(ifname, IF_CREATE_NOT_EXIST)))
+
+		/* Check no vrrp instance is using this name for a VMAC */
+		name_in_use = false;
+		list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
+			if (!strcmp(ifname, vrrp->vmac_ifname)) {
+				name_in_use = true;
+				break;
+			}
+		}
+
+		if (!name_in_use && (ifp = if_get_by_ifname(ifname, IF_CREATE_NOT_EXIST)))
 			return ifp;
 
 		/* For IPv6 try vrrp6 as second attempt */
@@ -2767,6 +2779,8 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	bool if_sorted;
 	bool use_extra_if = false;
 	bool use_extra_vmac = false;
+	bool old_vmac_deleted = false;
+	vrrp_t *old_vrrp;
 #endif
 	list_head_t *vip_list;
 	ip_address_t *ip_addr, *ip_addr_tmp;
@@ -3240,20 +3254,34 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			{
 				log_message(LOG_INFO, "(%s) Found matching interface %s", vrrp->iname, ifp->ifname);
 				if (vrrp->vmac_ifname[0] &&
-				    strcmp(vrrp->vmac_ifname, ifp->ifname))
-					log_message(LOG_INFO, "(%s) vmac name mismatch %s <=> %s."
-							      " changing to %s."
-							    , vrrp->iname
-							    , vrrp->vmac_ifname
-							    , ifp->ifname, ifp->ifname);
+				    strcmp(vrrp->vmac_ifname, ifp->ifname)) {
+					if (reload && ifp->is_ours) {
+						list_for_each_entry(old_vrrp, &old_vrrp_data->vrrp, e_list) {
+							if (old_vrrp->ifp->ifindex == ifp->ifindex) {
+								log_message(LOG_INFO, "(%s) Deleting old VMAC interface %s", vrrp->iname, ifp->ifname);
+								netlink_link_del_vmac(old_vrrp);
+								old_vmac_deleted = true;
+								break;
+							}
+						}
+					}
+					if (!old_vmac_deleted)
+						log_message(LOG_INFO, "(%s) vmac name mismatch %s <=> %s."
+									  " changing to %s."
+									, vrrp->iname
+									, vrrp->vmac_ifname
+									, ifp->ifname, ifp->ifname);
+				}
 
-				strcpy(vrrp->vmac_ifname, ifp->ifname);
-				vrrp->ifp = ifp;
-				__set_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
-				ifp->is_ours = true;
+				if (!old_vmac_deleted) {
+					strcpy(vrrp->vmac_ifname, ifp->ifname);
+					vrrp->ifp = ifp;
+					__set_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
+					ifp->is_ours = true;
 
-				/* The interface existed, so it may have config set on it */
-				interface_already_existed = true;
+					/* The interface existed, so it may have config set on it */
+					interface_already_existed = true;
+				}
 
 				break;
 			}
@@ -4677,9 +4705,8 @@ clear_diff_vrrp(void)
 				send_instance_notifies(vrrp);
 			}
 #ifdef _HAVE_VRRP_VMAC_
-// TODO - the vmac may be being used by another instance
-			/* Remove VMAC if one was created */
-			if (vrrp->ifp && vrrp->ifp->is_ours /*__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)*/) {
+			/* Remove VMAC if one was created so long as no new VRRP instance is using it */
+			if (vrrp->ifp && vrrp->ifp->is_ours && list_empty(&vrrp->ifp->tracking_vrrp)) {
 				netlink_link_del_vmac(vrrp);
 				/* Need to delete ADDR VMACs */
 			}

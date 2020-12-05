@@ -662,6 +662,8 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 
 	vrrp->ifp->deleting = false;
 
+	vrrp->ifp->is_ours = false;
+
 	return;
 }
 
