@@ -478,6 +478,7 @@ vrrp_vmac_handler(const vector_t *strvec)
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 	interface_t *ifp;
 	const char *name;
+	vrrp_t *ovrrp;
 
 	__set_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags);
 
@@ -487,6 +488,14 @@ vrrp_vmac_handler(const vector_t *strvec)
 		if (!dev_name_valid(name)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "VMAC interface name '%s' too long or invalid characters - ignoring", name);
 			return;
+		}
+
+		/* Check another vrrp instance isn't using this name */
+		list_for_each_entry(ovrrp, &vrrp_data->vrrp, e_list) {
+			if (!strcmp(name, ovrrp->vmac_ifname)) {
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRP instance %s is already using %s - ignoring name", vrrp->iname, ovrrp->iname, name);
+				return;
+			}
 		}
 
 		strcpy(vrrp->vmac_ifname, name);
@@ -520,10 +529,12 @@ static void
 vrrp_ipvlan_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
+	vrrp_t *ovrrp;
 	interface_t *ifp;
 	bool had_flags = false;
 	ip_address_t addr = {};
 	size_t i;
+	const char *ifname;
 
 	if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) use_ipvlan already specified", vrrp->iname);
@@ -611,12 +622,21 @@ vrrp_ipvlan_handler(const vector_t *strvec)
 			continue;
 		}
 
-		if (strlen(strvec_slot(strvec, i)) >= IFNAMSIZ) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) IPVLAN interface name '%s' too long - ignoring", vrrp->iname, strvec_slot(strvec, i));
+		ifname = strvec_slot(strvec, i);
+		if (strlen(ifname) >= IFNAMSIZ) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) IPVLAN interface name '%s' too long - ignoring", vrrp->iname, ifname);
 			continue;
 		}
 
-		strcpy(vrrp->vmac_ifname, strvec_slot(strvec, i));
+		/* Check another vrrp instance isn't using this name */
+		list_for_each_entry(ovrrp, &vrrp_data->vrrp, e_list) {
+			if (!strcmp(ifname, ovrrp->vmac_ifname)) {
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRP instance %s is already using %s - ignoring name", vrrp->iname, ovrrp->iname, ifname);
+				continue;
+			}
+		}
+
+		strcpy(vrrp->vmac_ifname, ifname);
 
 		/* Check if the interface exists and is ipvlan we can use */
 		if ((ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_NO_CREATE)) &&
