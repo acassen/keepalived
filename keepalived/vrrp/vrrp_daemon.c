@@ -600,11 +600,10 @@ start_vrrp(data_t *prev_global_data)
 	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
 		/* Init & start the VRRP packet dispatcher */
 		if (!reload && global_data->vrrp_startup_delay) {
+			vrrp_delayed_start_time = timer_add_long(time_now, global_data->vrrp_startup_delay);
 			log_message(LOG_INFO, "Delaying startup for %g seconds", global_data->vrrp_startup_delay / TIMER_HZ_DOUBLE);
-			thread_add_timer(master, vrrp_dispatcher_init, NULL,
-					 global_data->vrrp_startup_delay);
-		} else
-			thread_add_event(master, vrrp_dispatcher_init, NULL, 0);
+		}
+		thread_add_event(master, vrrp_dispatcher_init, NULL, 0);
 
 		if (!reload && global_data->disable_local_igmp)
 			set_disable_local_igmp();
