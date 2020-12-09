@@ -1440,18 +1440,18 @@ The syntax for garp_group is :
 .SH VRRP instance(s)
 .PP
 A VRRP Instance is the VRRP protocol key feature. It defines and configures
-VRRP behaviour to run on a specific interface. Each VRRP Instances are related
-to a uniq interface.
+VRRP behaviour to run on a specific interface. Each VRRP Instance is related
+to a unique interface.
 .PP
 .nf
 The syntax for vrrp_instance is :
 
 \fBvrrp_instance \fR<STRING> {
     # Initial state, MASTER|BACKUP
-    # As soon as the other machine(s) come up,
-    # an election will be held and the machine
-    # with the highest priority will become MASTER.
-    # So the entry here doesn't matter a whole lot.
+    # If the priority is 255, then the instance will transition immediately
+    # to MASTER if state MASTER is specified; otherwise the instance will
+    # wait between 3 and 4 advert intervals before it can transition,
+    # depending on the priority.
     \fBstate \fRMASTER
 
     # interface for inside_network, bound by vrrp.
@@ -1656,7 +1656,15 @@ The syntax for vrrp_instance is :
 
     # arbitrary unique number from 1 to 255
     # used to differentiate multiple instances of vrrpd
-    # running on the same NIC (and hence same socket).
+    # running on the same network interface and address
+    # family (and hence same socket).
+    # Note: using the same virtual_router_id with the same
+    # address family on different interfaces has been known
+    # to cause problems with some network switches; if you
+    # are experiencing problems with using the same
+    # virtual_router_id on different interfaces, but the problems
+    # are resolved by not duplicating virtual_router_ids, the
+    # your network switches are probably not functioning correctly.
     \fBvirtual_router_id \fR51
 
     # for electing MASTER, highest priority wins.

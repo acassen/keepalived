@@ -3,9 +3,9 @@
 # To use this script, copy it to directory /etc/keepalived/scripts
 # and add one or more of the following to the keepalived configuration
 # file in the global_defs section:
-#     notify_fifo /tmp/notify_fifo
-#     vrrp_notify_fifo /tmp/vrrp_notify_fifo
-#     lvs_notify_fifo /tmp/lvs_notify_fifo
+#     notify_fifo /etc/keepalived/scripts/notify_fifo
+#     vrrp_notify_fifo /etc/keepalived/scripts/vrrp_notify_fifo
+#     lvs_notify_fifo /etc/keepalived/scripts/lvs_notify_fifo
 # This script will then need to be executed, passing it the name of the
 # fifo.
 #
