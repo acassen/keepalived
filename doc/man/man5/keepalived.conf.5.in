@@ -1656,7 +1656,15 @@ The syntax for vrrp_instance is :
 
     # arbitrary unique number from 1 to 255
     # used to differentiate multiple instances of vrrpd
-    # running on the same NIC (and hence same socket).
+    # running on the same network interface and address
+    # family (and hence same socket).
+    # Note: using the same virtual_router_id with the same
+    # address family on different interfaces has been known
+    # to cause problems with some network switches; if you
+    # are experiencing problems with using the same
+    # virtual_router_id on different interfaces, but the problems
+    # are resolved by not duplicating virtual_router_ids, the
+    # your network switches are probably not functioning correctly.
     \fBvirtual_router_id \fR51
 
     # for electing MASTER, highest priority wins.
