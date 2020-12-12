@@ -78,25 +78,28 @@ prog_type_t prog_type;		/* Parent/VRRP/Checker process */
 #ifdef _WITH_SNMP_
 bool snmp_running;		/* True if this process is running SNMP */
 #endif
-
-/* local variables */
-static bool shutting_down;
-static int sav_argc;
-static char * const *sav_argv;
 #ifdef _EPOLL_DEBUG_
 bool do_epoll_debug;
 #endif
 #ifdef _EPOLL_THREAD_DUMP_
 bool do_epoll_thread_dump;
 #endif
+#ifdef _SCRIPT_DEBUG_
+bool do_script_debug;
+#endif
+
+/* local variables */
+static bool shutting_down;
+static int sav_argc;
+static char * const *sav_argv;
 #ifdef THREAD_DUMP
 static rb_root_t funcs = RB_ROOT;
 #endif
 #ifdef _VRRP_FD_DEBUG_
 static void (*extra_threads_debug)(void);
 #endif
-#ifdef _SCRIPT_DEBUG_
-bool do_script_debug;
+#ifndef _ONE_PROCESS_DEBUG_
+static void (*shutdown_function)(int);
 #endif
 
 /* Function that returns prog_name if pid is a known child */
@@ -173,6 +176,22 @@ get_signal_function_name(void (*func)(void *, int))
 	 * it to compare function addresses, what we cast it do doesn't really matter */
 	return get_function_name((void *)func);
 }
+
+#ifndef _ONE_PROCESS_DEBUG_
+/* The shutdown function is called if the scheduler gets repeated errors calling
+ * epoll_wait() and so is unable to continue.
+ * github issue 1809 reported the healthchecker process getting error EINVAL with
+ * a particular configuration; this looks as though it was memory corruption but
+ * we have no way of tracking down how that happened. This provides a way to escape
+ * the error if it happens again, by the process terminating, and it will then be
+ * restarted by the parent process. */
+void
+register_shutdown_function(void (*func)(int))
+{
+	/* The function passed here must not use the scheduler to shutdown */
+	shutdown_function = func;
+}
+#endif
 
 void
 register_thread_address(const char *func_name, thread_func_t func)
@@ -458,6 +477,18 @@ calc_restart_delay(const timeval_t *last_start_time, unsigned *next_restart_dela
 		return 0;
 	}
 
+#if 0
+	/* If it ran for longer than the last restart delay, we can start
+	 * again immediately. */
+	if (restart_delay &&
+	    (time_now.tv_sec - last_start_time->tv_sec > restart_delay ||
+	     (time_now.tv_sec - last_start_time->tv_sec == restart_delay &&
+	      time_now.tv_usec >= last_start_time->tv_usec))) {
+		*next_restart_delay = 0;
+		return 0;
+	}
+#endif
+
 	/* next restart delay starts at 1, double each subsequent time,
 	 * up to a limit of 1 minute. */
 	if (!restart_delay)
@@ -470,6 +501,15 @@ calc_restart_delay(const timeval_t *last_start_time, unsigned *next_restart_dela
 	log_message(LOG_INFO, "Restart of %s process delayed %u seconds to limit respawn rate", name, restart_delay);
 
 	return restart_delay;
+}
+
+void
+log_child_died(const char *process, pid_t pid)
+{
+	log_message(LOG_ALERT, "%s child process(%d) died: Respawning", process, pid);
+	log_message(LOG_INFO, "  Please log an issue at https://github.com/acassen/keepalived/issues/");
+	log_message(LOG_INFO, "  and include a full copy of your keepalived configuration files, and");
+	log_message(LOG_INFO, "  copies of the keepalived system log entries around the time this happened");
 }
 
 /* report_child_status returns true if the exit is a hard error, so unable to continue */
@@ -1734,6 +1774,7 @@ static list_head_t *
 thread_fetch_next_queue(thread_master_t *m)
 {
 	int last_epoll_errno = 0;
+	unsigned last_epoll_errno_count = 0;
 	int ret;
 	int i;
 	timeval_t earliest_timer;
@@ -1793,6 +1834,12 @@ thread_fetch_next_queue(thread_master_t *m)
 
 				/* Log the error first time only */
 				log_message(LOG_INFO, "scheduler: epoll_wait error: %d (%m)", errno);
+
+				last_epoll_errno_count = 1;
+			} else if (++last_epoll_errno_count == 5 && shutdown_function) {
+				/* We aren't goint to be able to recover, so exit and let our parent restart us */
+				log_message(LOG_INFO, "scheduler: epoll_wait has returned errno %d for 5 successive calls - terminating", last_epoll_errno);
+				shutdown_function(KEEPALIVED_EXIT_PROGRAM_ERROR);
 			}
 
 			/* Make sure we don't sit it a tight loop */
@@ -1800,7 +1847,8 @@ thread_fetch_next_queue(thread_master_t *m)
 				sleep(1);
 
 			continue;
-		}
+		} else
+			last_epoll_errno = 0;
 
 		/* Check to see if we are long overdue. This can happen on a very heavily loaded system */
 		if (min_auto_priority_delay && timerisset(&earliest_timer)) {
