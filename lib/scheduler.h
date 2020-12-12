@@ -196,6 +196,7 @@ typedef enum {
 enum exit_code {
 	KEEPALIVED_EXIT_OK = EXIT_SUCCESS,
 	KEEPALIVED_EXIT_NO_MEMORY = EXIT_FAILURE,
+	KEEPALIVED_EXIT_PROGRAM_ERROR,
 	KEEPALIVED_EXIT_FATAL,
 	KEEPALIVED_EXIT_CONFIG,
 	KEEPALIVED_EXIT_CONFIG_TEST,
@@ -230,6 +231,7 @@ extern char * const * get_cmd_line_options(int *);
 extern void log_command_line(unsigned);
 #ifndef _ONE_PROCESS_DEBUG_
 extern unsigned calc_restart_delay(const timeval_t *, unsigned *, const char *);
+extern void log_child_died(const char *, pid_t);
 extern bool report_child_status(int, pid_t, const char *);
 #endif
 extern thread_master_t *thread_make_master(void);
@@ -264,6 +266,9 @@ extern void process_threads(thread_master_t *);
 extern void thread_child_handler(void *, int);
 extern void thread_add_base_threads(thread_master_t *, bool);
 extern void launch_thread_scheduler(thread_master_t *);
+#ifndef _ONE_PROCESS_DEBUG
+extern void register_shutdown_function(void (*)(int));
+#endif
 #ifdef THREAD_DUMP
 extern const char *get_signal_function_name(void (*)(void *, int));
 extern void register_signal_handler_address(const char *, void (*)(void *, int));

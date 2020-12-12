@@ -310,7 +310,8 @@ bfd_respawn_thread(thread_ref_t thread)
 	if (report_child_status(thread->u.c.status, thread->u.c.pid, NULL))
 		thread_add_terminate_event(thread->master);
 	else if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
-		log_message(LOG_ALERT, "BFD child process(%d) died: Respawning", thread->u.c.pid);
+		log_child_died("BFD", thread->u.c.pid);
+
 		restart_delay = calc_restart_delay(&bfd_start_time, &bfd_next_restart_delay, "BFD");
 		if (!restart_delay)
 			start_bfd_child();
@@ -462,6 +463,9 @@ start_bfd_child(void)
 #ifndef _ONE_PROCESS_DEBUG_
 	/* Signal handling initialization */
 	bfd_signal_init();
+
+	/* Register emergency shutdown function */
+	register_shutdown_function(stop_bfd);
 #endif
 
 	/* Start BFD daemon */
