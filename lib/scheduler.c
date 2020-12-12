@@ -177,22 +177,6 @@ get_signal_function_name(void (*func)(void *, int))
 	return get_function_name((void *)func);
 }
 
-#ifndef _ONE_PROCESS_DEBUG_
-/* The shutdown function is called if the scheduler gets repeated errors calling
- * epoll_wait() and so is unable to continue.
- * github issue 1809 reported the healthchecker process getting error EINVAL with
- * a particular configuration; this looks as though it was memory corruption but
- * we have no way of tracking down how that happened. This provides a way to escape
- * the error if it happens again, by the process terminating, and it will then be
- * restarted by the parent process. */
-void
-register_shutdown_function(void (*func)(int))
-{
-	/* The function passed here must not use the scheduler to shutdown */
-	shutdown_function = func;
-}
-#endif
-
 void
 register_thread_address(const char *func_name, thread_func_t func)
 {
@@ -235,6 +219,22 @@ void
 set_extra_threads_debug(void (*func)(void))
 {
 	extra_threads_debug = func;
+}
+#endif
+
+#ifndef _ONE_PROCESS_DEBUG_
+/* The shutdown function is called if the scheduler gets repeated errors calling
+ * epoll_wait() and so is unable to continue.
+ * github issue 1809 reported the healthchecker process getting error EINVAL with
+ * a particular configuration; this looks as though it was memory corruption but
+ * we have no way of tracking down how that happened. This provides a way to escape
+ * the error if it happens again, by the process terminating, and it will then be
+ * restarted by the parent process. */
+void
+register_shutdown_function(void (*func)(int))
+{
+	/* The function passed here must not use the scheduler to shutdown */
+	shutdown_function = func;
 }
 #endif
 
