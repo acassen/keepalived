@@ -102,8 +102,7 @@ typedef enum _include {
 } include_t;
 
 /* Some development/test options */
-/* #define LEAVE_FILE */
-
+#define TRUNCATE_FILE_AFTER_READ
 
 typedef struct _defs {
 	const char *name;
@@ -3082,7 +3081,7 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 					log_message(LOG_INFO, "fdopen of memfd_create error %d - %m", errno);
 			}
 		} else {
-#ifdef LEAVE_FILE
+#ifndef TRUNCATE_FILE_AFTER_READ
 			if (ftruncate(fileno(conf_copy), 0))
 				log_message(LOG_INFO, "Failed to truncate config copy file (%d) - %m", errno);
 #endif
@@ -3159,7 +3158,7 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 void
 truncate_config_copy(void)
 {
-#ifndef LEAVE_FILE
+#ifdef TRUNCATE_FILE_AFTER_READ
 	if (conf_copy && ftruncate(fileno(conf_copy), 0))
 		log_message(LOG_INFO, "Failed to truncate config copy file (%d) - %m", errno);
 #endif
