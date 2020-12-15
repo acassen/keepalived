@@ -110,6 +110,7 @@ typedef struct _vrrp_sgroup {
 	unsigned		num_member_fault;	/* Number of members of group in fault state */
 	unsigned		num_member_init;	/* Number of members of group in pending state */
 	int			state;			/* current stable state */
+	bool			state_same_at_reload;	/* State prior to reload */
 	bool			sgroup_tracking_weight;	/* Use floating priority and scripts
 							 * Used if need different priorities needed on a track object in a sync group.
 							 * It probably won't work properly. */
@@ -457,7 +458,10 @@ extern void restore_vrrp_interfaces(void);
 extern void shutdown_vrrp_instances(void);
 extern void clear_diff_vrrp(void);
 extern void clear_diff_script(void);
+extern void set_previous_sync_group_states(void);
+#ifdef _WITH_BFD_
 extern void clear_diff_bfd(void);
+#endif
 extern void vrrp_restore_interface(vrrp_t *, bool, bool);
 #ifdef THREAD_DUMP
 extern void register_vrrp_fifo_addresses(void);
