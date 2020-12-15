@@ -864,7 +864,9 @@ reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 
 	/* free backup data */
 	free_vrrp_data(old_vrrp_data);
+	old_vrrp_data = NULL;
 	free_global_data(old_global_data);
+	old_global_data = NULL;
 
 	free_old_interface_queue();
 
