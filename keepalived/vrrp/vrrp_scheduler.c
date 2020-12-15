@@ -194,9 +194,11 @@ vrrp_init_state(list_head_t *l)
 	/* Do notifications for any sync groups in fault or backup state */
 	list_for_each_entry(vgroup, &vrrp_data->vrrp_sync_group, e_list) {
 		/* Init group if needed  */
-		if (vgroup->state == VRRP_STATE_FAULT ||
-		    vgroup->state == VRRP_STATE_BACK)
+		if ((vgroup->state == VRRP_STATE_FAULT ||
+		     vgroup->state == VRRP_STATE_BACK) &&
+		     !vgroup->state_same_at_reload)
 			send_group_notifies(vgroup);
+		vgroup->state_same_at_reload = false;
 	}
 
 	list_for_each_entry(vrrp, l, e_list) {

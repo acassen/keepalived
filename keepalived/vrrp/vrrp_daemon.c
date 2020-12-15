@@ -638,6 +638,9 @@ start_vrrp(data_t *prev_global_data)
 	if (reload) {
 		clear_diff_vrrp();
 		vrrp_dispatcher_release(old_vrrp_data);
+
+		/* Set previous sync group states to suppress duplicate notifies */
+		set_previous_sync_group_states();
 	}
 
 #ifdef _WITH_DBUS_

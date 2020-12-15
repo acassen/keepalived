@@ -4848,6 +4848,22 @@ clear_diff_script(void)
 	}
 }
 
+void
+set_previous_sync_group_states(void)
+{
+	vrrp_sgroup_t *ogroup, *ngroup;
+
+	list_for_each_entry(ngroup, &vrrp_data->vrrp_sync_group, e_list) {
+		list_for_each_entry(ogroup, &old_vrrp_data->vrrp_sync_group, e_list) {
+			if (!strcmp(ngroup->gname, ogroup->gname)) {
+				if (ngroup->state == ogroup->state)
+					ngroup->state_same_at_reload = true;
+				break;
+			}
+		}
+	}
+}
+
 #ifdef _WITH_BFD_
 /* Set bfd status to match old instance */
 void
