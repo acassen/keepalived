@@ -240,13 +240,20 @@ parts:
     override-pull: |
       KERNEL_VER="5.3.0"
       ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
-      if [ $ARCH = amd64 ] || [ $ARCH = i386 ]; then
-        ARCHIVE_URL="http://security.ubuntu.com/ubuntu/pool/main/l/linux/"
-      else
-        ARCHIVE_URL="http://ports.ubuntu.com/pool/main/l/linux/"
+      if [ $ARCH = amd64 ]; then
+        DEB_URL="http://launchpadlibrarian.net/454268434/linux-libc-dev_5.3.0-25.27_amd64.deb"
+      elif [ $ARCH = ppc64el ]; then
+        DEB_URL="http://launchpadlibrarian.net/454264280/linux-libc-dev_5.3.0-25.27_ppc64el.deb"
+      elif [ $ARCH = arm64 ]; then
+        DEB_URL="http://launchpadlibrarian.net/454304376/linux-libc-dev_5.3.0-25.27_arm64.deb"
+      elif [ $ARCH = i386 ]; then
+        DEB_URL="http://launchpadlibrarian.net/454251979/linux-libc-dev_5.3.0-25.27_i386.deb"
+      elif [ $ARCH = armhf ]; then
+        DEB_URL="http://launchpadlibrarian.net/454299142/linux-libc-dev_5.3.0-25.27_armhf.deb"
+      elif [ $ARCH = s390x ]; then
+        DEB_URL="http://launchpadlibrarian.net/454259771/linux-libc-dev_5.3.0-25.27_s390x.deb"
       fi
-      DEB_SUFFIX=$(wget ${ARCHIVE_URL} -O - | grep linux-libc-dev | cut -d'_' -f2-3 | cut -d'"' -f1 | grep ${ARCH} | grep ${KERNEL_VER} | tail -n1)
-      wget --quiet ${ARCHIVE_URL}/linux-libc-dev_${DEB_SUFFIX} -O ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
+      wget --quiet ${DEB_URL} -O ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb
       echo -n "Unpacking kernel headers..."
       dpkg -x ${SNAPCRAFT_PART_INSTALL}/linux-libc-dev.deb ${SNAPCRAFT_PART_INSTALL}
       printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${SNAPCRAFT_PART_INSTALL}/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
