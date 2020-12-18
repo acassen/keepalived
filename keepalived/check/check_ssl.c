@@ -285,12 +285,17 @@ ssl_read_thread(thread_ref_t thread)
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
 	request_t *req = http_get_check->req;
 	url_t *url = http_get_check->url_it;
-	unsigned timeout = checker->co->connection_to;
+	unsigned long timeout;
 	unsigned char digest[MD5_DIGEST_LENGTH];
 	int r = 0;
 
+	timeout = timer_long(thread->sands) - timer_long(time_now);
+
 	/* Handle read timeout */
-	if (thread->type == THREAD_READ_TIMEOUT && !req->extracted) {
+	if (thread->type == THREAD_READ_TIMEOUT) {
+		SSL_set_quiet_shutdown(req->ssl, 1);
+		SSL_shutdown(req->ssl);
+
 		timeout_epilog(thread, "Timeout SSL read");
 		return;
 	}
