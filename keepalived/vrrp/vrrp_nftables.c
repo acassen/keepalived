@@ -213,7 +213,7 @@ exchange_nl_msg(struct mnl_nlmsg_batch *batch)
 		return;
 
 #if 0
-	FILE *fp = fopen("/tmp/nftrace", "a");
+	FILE *fp = fopen(KA_TMP_DIR "/nftrace", "a");
 	unsigned char *p = mnl_nlmsg_batch_head(batch);
 	size_t i;
 
@@ -275,7 +275,7 @@ exchange_nl_msg_single(struct nlmsghdr *nlm, int (*cb_func)(const struct nlmsghd
 	char buf[256];
 
 #if 0
-	FILE *fp = fopen("/tmp/nftrace", "a");
+	FILE *fp = fopen(KA_TMP_DIR "/nftrace", "a");
 	mnl_nlmsg_fprintf(fp, PTR_CAST(char, nlm), nlm->nlmsg_len, 0);
 	fclose(fp);
 #endif

@@ -35,8 +35,8 @@
 #include "vrrp_print.h"
 #include "utils.h"
 
-static const char *dump_file = "/tmp/keepalived.data";
-static const char *stats_file = "/tmp/keepalived.stats";
+static const char *dump_file = KA_TMP_DIR "/keepalived.data";
+static const char *stats_file = KA_TMP_DIR "/keepalived.stats";
 
 void
 vrrp_print_data(void)

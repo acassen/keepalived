@@ -284,9 +284,9 @@ vrrp_print_json(void)
 	if (list_empty(&vrrp_data->vrrp))
 		return;
 
-	fp = fopen_safe("/tmp/keepalived.json", "w");
+	fp = fopen_safe(KA_TMP_DIR "/keepalived.json", "w");
 	if (!fp) {
-		log_message(LOG_INFO, "Can't open /tmp/keepalived.json (%d: %m)", errno);
+		log_message(LOG_INFO, "Can't open " KA_TMP_DIR "/keepalived.json (%d: %m)", errno);
 		return;
 	}
 

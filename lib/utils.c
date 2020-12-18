@@ -177,7 +177,7 @@ write_stacktrace(const char *file_name, const char *str)
 	}
 
 	/* gstack() gives a more detailed stacktrace, using gdb and the bt command */
-	sprintf(cmd, "gstack %d >>%s", getpid(), file_name ? file_name : "/tmp/keepalived.stack");
+	sprintf(cmd, "gstack %d >>%s", getpid(), file_name ? file_name : KA_TMP_DIR "/keepalived.stack");
 	system(cmd);
 }
 #endif

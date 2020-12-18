@@ -31,7 +31,7 @@
 #include "check_data.h"
 #include "utils.h"
 
-static const char *dump_file = "/tmp/keepalived_check.data";
+static const char *dump_file = KA_TMP_DIR "/keepalived_check.data";
 
 void
 check_print_data(void)
