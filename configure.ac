@@ -219,6 +219,9 @@ AC_ARG_ENABLE(systemd,
 AC_ARG_WITH(run-dir,
   [AS_HELP_STRING([--with-run-dir=PATH_TO_RUN], [specify directory where /run is located])],
   [RUN_DIR_SPECIFIED=Y], [RUN_DIR_SPECIFIED=N])
+AC_ARG_WITH(tmp-dir,
+  [AS_HELP_STRING([--with-tmp-dir=PATH_TO_TMP], [specify directory where run-time temporary files are to be located])],
+  [TMP_DIR_SPECIFIED=Y], [TMP_DIR_SPECIFIED=N])
 AC_ARG_ENABLE(strict-config-checks,
   [AS_HELP_STRING([--enable-strict-config-checks], [build with strict configuration checking])])
 AC_ARG_ENABLE(hardening,
@@ -2560,7 +2563,7 @@ if test "${enable_gnu_std_paths}" = "yes"; then
   AC_DEFINE([GNU_STD_PATHS], [ 1 ], [set to enforce GNU standard paths, for .pid files etc])
   RUN_DIR=$localstatedir
 elif test $RUN_DIR_SPECIFIED = Y -a .${with_run_dir} != .no; then
-  RUN_DIR=`echo ${with_run_dir} | sed -e "s:/run/*$::"`	# Remove a trailing /run - somewill will include it sometime
+  RUN_DIR=`echo ${with_run_dir} | sed -e "s:/run/*$::" -e "s:/*$//"`	# Remove a trailing /run and / - somewill will include them sometime
 elif test -d /run; then
   RUN_DIR=
 else
@@ -2568,6 +2571,17 @@ else
 fi
 AC_DEFINE_UNQUOTED([RUN_DIR_ROOT], [ "${RUN_DIR}" ], [Parent directory of /run])
 AC_SUBST([RUN_DIR])
+
+if test $TMP_DIR_SPECIFIED = Y; then
+  AS_IF([test `expr substr ${with_tmp_dir} 1 1` != /], [AC_MSG_ERROR([tmp-dir must be absolute path])])
+  KA_TMP_DIR="${with_tmp_dir}"
+else
+  KA_TMP_DIR=/tmp
+fi
+KA_TMP_DIR_LEN=`expr length $KA_TMP_DIR`
+AC_DEFINE_UNQUOTED([KA_TMP_DIR], [ "${KA_TMP_DIR}" ], [Location for temporary files])
+AC_DEFINE_UNQUOTED([KA_TMP_DIR_LEN], [ ${KA_TMP_DIR_LEN} ], [Length of KA_TMP_DIR])
+AC_SUBST([KA_TMP_DIR], [${KA_TMP_DIR}])
 
 dnl - Check type of rlim_t for printf() - this check needs to be late on
 dnl - since _FILE_OFFSET_BITS (set when using netsnmp) alters sizeof(rlim_t)

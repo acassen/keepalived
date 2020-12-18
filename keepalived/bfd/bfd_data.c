@@ -38,7 +38,7 @@ bfd_data_t *old_bfd_data;
 char *bfd_buffer;
 
 /* Local vars */
-static const char *dump_file = "/tmp/keepalived_bfd.data";
+static const char *dump_file = KA_TMP_DIR "/keepalived_bfd.data";
 
 /*
  *	bfd_t functions

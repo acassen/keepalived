@@ -211,7 +211,7 @@ static bool create_core_dump = false;
 static const char *core_dump_pattern = "core";
 static char *orig_core_dump_pattern = NULL;
 
-static const char *dump_file = "/tmp/keepalived_parent.data";
+static const char *dump_file = KA_TMP_DIR "/keepalived_parent.data";
 
 /* debug flags */
 #if defined _TIMER_CHECK_ || \
@@ -1772,7 +1772,7 @@ usage(const char *prog)
 	fprintf(stderr, "  -D, --log-detail             Detailed log messages\n");
 	fprintf(stderr, "  -S, --log-facility=[0-7]     Set syslog facility to LOG_LOCAL[0-7]\n");
 #ifdef ENABLE_LOG_TO_FILE
-	fprintf(stderr, "  -g, --log-file=FILE          Also log to FILE (default /tmp/keepalived.log)\n");
+	fprintf(stderr, "  -g, --log-file=FILE          Also log to FILE (default " KA_TMP_DIR "/keepalived.log)\n");
 	fprintf(stderr, "      --flush-log-file         Flush log file on write\n");
 #endif
 	fprintf(stderr, "  -G, --no-syslog              Don't log via syslog\n");
@@ -2093,7 +2093,7 @@ parse_cmdline(int argc, char **argv)
 			if (optarg && optarg[0])
 				log_file_name = optarg;
 			else
-				log_file_name = "/tmp/keepalived.log";
+				log_file_name = KA_TMP_DIR "/keepalived.log";
 			open_log_file(log_file_name, NULL, NULL, NULL);
 #else
 			fprintf(stderr, "-g requires configure option --enable-log-file\n");

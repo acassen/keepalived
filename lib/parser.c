@@ -63,8 +63,8 @@
  *
  * For simplicity, the temporary file is by default, and if memfd_create() is
  * supported, a memfd type file, otherwise it will be an anonymous file in the
- * filesystem that includes /tmp. The default can be overridden by the global_defs
- * tmp_config_directory option.
+ * filesystem that includes KA_TMP_DIR (default /tmp). The default can be
+ * overridden by the global_defs tmp_config_directory option.
  *
  * The temporary file contains all the lines of the original configuration file(s)
  * stripped of leading and training whitespace and comments, with the following
@@ -861,10 +861,10 @@ dump_keywords(vector_t *keydump, int level, FILE *fp)
 {
 	unsigned int i;
 	keyword_t *keyword_vec;
-	char file_name[1 + 3 + 1 + 8 + 1 + PID_MAX_DIGITS + 1];
+	char file_name[KA_TMP_DIR_LEN + 1 + 8 + 1 + PID_MAX_DIGITS + 1];		/* KA_TMP_DIR/keywords.PID\0 */
 
 	if (!level) {
-		snprintf(file_name, sizeof(file_name), "/tmp/keywords.%d", getpid());
+		snprintf(file_name, sizeof(file_name), KA_TMP_DIR "/keywords.%d", getpid());
 		fp = fopen_safe(file_name, "w");
 		if (!fp)
 			return;
@@ -3071,7 +3071,7 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 #ifdef HAVE_MEMFD_CREATE
 			fd = memfd_create("/keepalived/consolidated_configuration", MFD_CLOEXEC);
 #else
-			fd = open("/tmp", O_RDWR | O_TMPFILE | O_EXCL | O_CLOEXEC, S_IRUSR | S_IWUSR);
+			fd = open(KA_TMP_DIR, O_RDWR | O_TMPFILE | O_EXCL | O_CLOEXEC, S_IRUSR | S_IWUSR);
 #endif
 			if (fd == -1)
 				log_message(LOG_INFO, "memfd_create error %d - %m", errno);

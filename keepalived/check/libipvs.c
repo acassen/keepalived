@@ -249,7 +249,7 @@ dump_nl_msg(const char *msg, struct nl_msg *nlmsg)
 {
 	FILE *fp;
 
-	fp = fopen("/tmp/nlmsg.dmp", "a");
+	fp = fopen(KA_TMP_DIR "/nlmsg.dmp", "a");
 	fprintf(fp, "\n%s\n\n", msg);
 	if (nlmsg)
 		nl_msg_dump(nlmsg, fp);
