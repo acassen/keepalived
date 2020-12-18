@@ -148,7 +148,7 @@ and
 # keepalived in a separate network namespace:
 # --
 # Set the network namespace to run in.
-# The directory /run/keepalived will be created as an
+# The directory @RUN_DIR_ROOT@/run/keepalived will be created as an
 # unshared mount point, for example for pid files.
 # syslog entries will have _NAME appended to the ident.
 # Note: the namespace cannot be changed on a configuration reload.
@@ -169,11 +169,11 @@ and
 
 # If multiple instances of keepalived are run in the same namespace,
 # this will create pid files with NAME as part of the file names,
-# in /run/keepalived.
+# in @RUN_DIR_ROOT@/run/keepalived.
 # Note: the instance name cannot be changed on a configuration reload
 \fBinstance \fRNAME
 
-# Create pid files in /run/keepalived
+# Create pid files in @RUN_DIR_ROOT@/run/keepalived
 \fBuse_pid_dir\fR
 
 # Poll to detect media link failure using ETHTOOL, MII or ioctl interface
@@ -189,7 +189,7 @@ and
 \fBglobal_defs \fR{
     # In order to ensure that all processes read exactly the same configuration,
     # while the config is first read it is written, by default, to a memory based
-    # file (or to an anonymous file in /tmp if memfd_create() is not supported.
+    # file (or to an anonymous file in @KA_TMP_DIR@/ if memfd_create() is not supported).
     # If your configuration is very large, you may not want the copy to be
     # held in memory, in which case specifing the \fItmp_config_directory\fR causes the
     # configuration to be written to an anonymous file on the filesystem on which
@@ -1009,8 +1009,8 @@ The configuration block looks like:
         # A quoted string is treated as a single element, so if the first item
         # after the process keyword is quoted, that will be the command name.
         # For example:
-        #  process "/tmp/a b" param1 "param 2"
-        # would mean a process named '/tmp/a b' (quotes removed) with 2 parameters
+        #  process "@KA_TMP_DIR@/a b" param1 "param 2"
+        # would mean a process named '@KA_TMP_DIR@/a b' (quotes removed) with 2 parameters
         #  'param1' and 'param 2'.
         \fBprocess\fR <STRING>|<QUOTED_STRING> [<STRING>|<QUOTED_STRING> ...]
 

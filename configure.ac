@@ -2563,18 +2563,21 @@ if test "${enable_gnu_std_paths}" = "yes"; then
   AC_DEFINE([GNU_STD_PATHS], [ 1 ], [set to enforce GNU standard paths, for .pid files etc])
   RUN_DIR=$localstatedir
 elif test $RUN_DIR_SPECIFIED = Y -a .${with_run_dir} != .no; then
-  RUN_DIR=`echo ${with_run_dir} | sed -e "s:/run/*$::" -e "s:/*$//"`	# Remove a trailing /run and / - somewill will include them sometime
+  AS_IF([test `expr substr ${with_run_dir} 1 1` != /], [AC_MSG_ERROR([run-dir must be absolute path])])
+  # Remove any trailing /run and / - someone will include then sometime
+  RUN_DIR=`echo ${with_run_dir} | sed -e "s:/run/*$::" -e "s:/*$::"`
 elif test -d /run; then
   RUN_DIR=
 else
   RUN_DIR=/var
 fi
 AC_DEFINE_UNQUOTED([RUN_DIR_ROOT], [ "${RUN_DIR}" ], [Parent directory of /run])
-AC_SUBST([RUN_DIR])
+AC_SUBST([RUN_DIR_ROOT], [${RUN_DIR}])
 
 if test $TMP_DIR_SPECIFIED = Y; then
   AS_IF([test `expr substr ${with_tmp_dir} 1 1` != /], [AC_MSG_ERROR([tmp-dir must be absolute path])])
-  KA_TMP_DIR="${with_tmp_dir}"
+  # Remove any trailing / - someone will include it sometime
+  KA_TMP_DIR=`echo ${with_tmp_dir} | sed -e "s:/*$::"`
 else
   KA_TMP_DIR=/tmp
 fi

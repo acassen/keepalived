@@ -8,7 +8,9 @@ DATE=`date --date=\"\`git log -n 1 -- $@.in | grep Date: | sed -e \"s/  */ /g\" 
 
 edit = echo "  EDIT     $@"; \
 	sed \
-	 -e "s|@DATE[@]|$(DATE)|g"
+	 -e "s|@DATE[@]|$(DATE)|g" \
+	 -e 's|@RUN_DIR_ROOT[@]|$(RUN_DIR_ROOT)|g' \
+	 -e 's|@KA_TMP_DIR[@]|$(KA_TMP_DIR)|g'
 
 dist_man5_MANS  = keepalived.conf.5
 
