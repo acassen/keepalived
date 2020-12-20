@@ -114,7 +114,7 @@ typedef enum _include {
 } include_t;
 
 /* Some development/test options */
-#define TRUNCATE_FILE_AFTER_READ
+// #define TRUNCATE_FILE_AFTER_READ
 
 typedef struct _defs {
 	const char *name;
