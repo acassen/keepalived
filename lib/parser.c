@@ -42,8 +42,14 @@
 #include <math.h>
 #include <inttypes.h>
 #include <signal.h>
-#include <sys/mman.h>
 #include <dirent.h>
+#ifdef HAVE_MEMFD_CREATE
+#include <sys/mman.h>
+#endif
+#ifdef USE_MEMFD_CREATE_SYSCALL
+#include <sys/syscall.h>
+#include <linux/memfd.h>
+#endif
 
 #include "parser.h"
 #include "memory.h"
@@ -56,6 +62,12 @@
 #include "utils.h"
 #include "process.h"
 
+
+#ifdef USE_MEMFD_CREATE_SYSCALL
+#ifndef SYS_memfd_create
+#define SYS_memfd_create __NR_memfd_create
+#endif
+#endif
 
 /* In order to ensure that all processes read the same configuration, the first
  * process that reads the configuration writes it to a temporary file, and all
@@ -307,6 +319,43 @@ file_config_error(include_t error_type, const char *format, ...)
 	va_end(args);
 }
 
+#ifdef USE_MEMFD_CREATE_SYSCALL
+static int
+memfd_create(const char *name, unsigned int flags)
+{
+        int ret;
+
+        ret = syscall(SYS_memfd_create, name, flags);
+
+        return ret;
+}
+#endif
+
+static inline int
+open_tmpfile(const char *dir, int flags, mode_t mode)
+{
+#if HAVE_DECL_O_TMPFILE
+	return open(dir, flags | O_TMPFILE, mode);
+#else
+	int fd;
+	char *filename;
+	int dir_len = strlen(dir);
+
+	filename = MALLOC(dir_len + 1 + 17 + 1);  /* dir / keepalived_XXXXXX \0 */
+	strcpy(filename, dir);
+	filename[dir_len] = '/';
+	strcpy(filename + dir_len + 1, "keepalived_XXXXXX");
+
+	fd = mkostemp(filename, flags);
+	unlink(filename);
+	fchmod(fd, mode);
+
+	FREE(filename);
+
+	return fd;
+#endif
+}
+
 void
 use_disk_copy_for_config(const char *dir_name)
 {
@@ -319,7 +368,7 @@ use_disk_copy_for_config(const char *dir_name)
 	if (!write_conf_copy)
 		return;
 
-	fd = open(dir_name, O_RDWR | O_TMPFILE | O_EXCL | O_CLOEXEC, S_IRUSR | S_IWUSR);
+	fd = open_tmpfile(dir_name, O_RDWR | O_EXCL | O_CLOEXEC, S_IRUSR | S_IWUSR);
 	if (fd == -1) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Cannot open config directory %s for writing, errno %d - %m", dir_name, errno);
 		return;
@@ -3068,10 +3117,14 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 
 	if (copy_config) {
 		if (!conf_copy) {
-#ifdef HAVE_MEMFD_CREATE
+#if defined HAVE_MEMFD_CREATE || defined USE_MEMFD_CREATE_SYSCALL
 			fd = memfd_create("/keepalived/consolidated_configuration", MFD_CLOEXEC);
-#else
-			fd = open(KA_TMP_DIR, O_RDWR | O_TMPFILE | O_EXCL | O_CLOEXEC, S_IRUSR | S_IWUSR);
+#endif
+#ifndef HAVE_MEMFD_CREATE
+#ifdef USE_MEMFD_CREATE_SYSCALL
+			if (fd == -1 && errno == ENOSYS)
+#endif
+				fd = open_tmpfile(KA_TMP_DIR, O_RDWR | O_EXCL | O_CLOEXEC, S_IRUSR | S_IWUSR);
 #endif
 			if (fd == -1)
 				log_message(LOG_INFO, "memfd_create error %d - %m", errno);

@@ -1030,8 +1030,20 @@ dnl - vsyslog() Not defined by Posix, but available in glibc and musl
 AC_CHECK_FUNCS([vsyslog], [add_system_opt([VSYSLOG])])
 dnl - epoll_create1() since Linux 2.6.27 and glibc 2.9
 AC_CHECK_FUNCS([epoll_create1], [add_system_opt([EPOLL_CREATE1])])
+
 dnl - memfd_create() - since Linux 3.17 and glibc 2.27
+dnl - memfd_create() appeared in the kernel long before it appeared in
+dnl -   glibc so we use the raw syscall if it is available
 AC_CHECK_FUNCS([memfd_create], [add_system_opt([MEMFD_CREATE])])
+AS_IF([test "x$ac_cv_func_memfd_create" != xyes],
+  [
+    AC_CHECK_DECLS([__NR_memfd_create],
+      [AC_DEFINE([USE_MEMFD_CREATE_SYSCALL], [ 1 ], [Use syscall for memfd_create])], [],
+      [[#include <sys/syscall.h>]])
+  ])
+
+dnl - Since Linux 3.17
+AC_CHECK_DECLS([O_TMPFILE], [], [], [[#include <fcntl.h>]])
 
 # glibc uses unsigned int as 3rd parameter to __assert_fail(), musl uses int.
 AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
