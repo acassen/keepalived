@@ -1381,15 +1381,26 @@ cleanup_lost_interface(interface_t *ifp)
 	list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
 		vrrp = top->obj.vrrp;
 
-		/* If this is just a tracking interface, we don't need to do anything */
+		/* If this instance does not have an interface, we don't need to do anything,
+		   but I don't this can ever be true */
 		if (!vrrp->ifp)
 			continue;
+
 		if (vrrp->ifp != ifp
 #ifdef _HAVE_VRRP_VMAC_
 		    && IF_BASE_IFP(vrrp->ifp) != ifp && VRRP_CONFIGURED_IFP(vrrp) != ifp
 #endif
-											)
+											) {
+			/* We must be a tracked interface */
+			if (IF_ISUP(ifp)) {
+				if (top->weight) {
+					vrrp->total_priority -= top->weight * top->weight_multiplier;
+					vrrp_set_effective_priority(vrrp);
+				} else
+					down_instance(vrrp);
+			}
 			continue;
+		}
 
 		/* If the vrrp instance's interface doesn't exist, skip it */
 		if (!vrrp->ifp->ifindex)
