@@ -302,7 +302,7 @@ dns_send(thread_ref_t thread)
 
 	timeout = timer_long(thread->sands) - timer_long(time_now);
 
-	/* Handle time_now > thread->sands */
+	/* Handle time_now > thread->sands (check for underflow) */
 	if (timeout > checker->co->connection_to)
 		timeout = 0;
 
