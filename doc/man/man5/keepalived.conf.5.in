@@ -44,10 +44,13 @@ The variants are:
 .br
 \fBincludea\fR FILENAME - all include_check checks
 .PP
+NOTE: If the libc glob() function does not support GLOB_ALTDIRFUNC (e.g. Musl libc as on Alpine Linux etc.),
+then only includea, includer and includew of the above options will work.
+.PP
 Why do we want to allow errors? Suppose a configuration has optional files in /etc/keepalived/conf.d,
 then \fIinclude_/etc/keepalived/conf.d/*\fR could be specified, but it should not
 error if there are no files in the directory; in this case \fIincluder\fR should be used. Otherwise it
-is sensible to use \fIincludet\fR.
+is sensible to use \fIincludea\fR.
 
 include handling will not work with if the include line uses conditional configuration or
 parameter substitution, since the detection of the include keywords is done before the
@@ -759,6 +762,8 @@ and
     # file cannot be changed by a subsequently included file. To change the setting for all
     # included files, include_check should be set at the beginning of the configuration file
     # specified in the command line (default /etc/keepalived/keepalived.conf).
+    # Note2: If the libc glob() function does not support GLOB_ALTDIRFUNC (e.g. Musl libc as
+    # on Alpine Linux etc.), then only readable and wildcard_match of the above options will work.
     # It is possible to add or remove individual settings; '+' means add the following
     # checks, '-' means remove the following checks. For example
     #   \fIinclude_check +match -wildcard_match\fR

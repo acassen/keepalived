@@ -62,7 +62,6 @@
 #include "utils.h"
 #include "process.h"
 
-
 #ifdef USE_MEMFD_CREATE_SYSCALL
 #ifndef SYS_memfd_create
 #define SYS_memfd_create __NR_memfd_create
@@ -203,9 +202,11 @@ bool do_dump_keywords;
 static unsigned include_check;
 
 /* The following 3 variables should be static, but that causes an optimiser bug in GCC */
+#if HAVE_DECL_GLOB_ALTDIRFUNC
 unsigned missing_directories;
 unsigned missing_files;
 bool have_wildcards;
+#endif
 static bool config_file_error;
 
 /* local vars */
@@ -1583,6 +1584,7 @@ dump_definitions(void)
 }
 #endif
 
+#if HAVE_DECL_GLOB_ALTDIRFUNC
 static DIR *
 gl_opendir(const char *name)
 {
@@ -1628,6 +1630,7 @@ have_brace(const char *conf_file)
 
 	return false;
 }
+#endif
 
 static bool
 open_and_check_glob(glob_t *globbuf, const char *conf_file, include_t include_type)
@@ -1636,11 +1639,13 @@ open_and_check_glob(glob_t *globbuf, const char *conf_file, include_t include_ty
 
 	globbuf->gl_offs = 0;
 
+#if HAVE_DECL_GLOB_ALTDIRFUNC
 	globbuf->gl_closedir = (void *)closedir;
 	globbuf->gl_readdir = (void *)readdir;
 	globbuf->gl_opendir = (void *)gl_opendir;
 	globbuf->gl_lstat = (void *)gl_lstat;
 	globbuf->gl_stat = (void *)stat;
+#endif
 
 	/* NOTE: the following three variables are not declared static, since otherwise GCC (at least v9.3.0,
 	 * 9.3.1 and 10.2.1) -O1 optimisation assumes that they cannot be altered by the call to glob(), if
@@ -1653,28 +1658,39 @@ open_and_check_glob(glob_t *globbuf, const char *conf_file, include_t include_ty
 	 *
 	 * See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=97783 for more details.
 	 */
+#if HAVE_DECL_GLOB_ALTDIRFUNC
 	missing_files = 0;
 	missing_directories = 0;
 	have_wildcards = false;
+#endif
 
-	res = glob(conf_file, GLOB_MARK | GLOB_ALTDIRFUNC
+	res = glob(conf_file, GLOB_MARK
 #if HAVE_DECL_GLOB_BRACE
 					| GLOB_BRACE
+#endif
+#if HAVE_DECL_GLOB_ALTDIRFUNC
+					| GLOB_ALTDIRFUNC
 #endif
 						    , NULL, globbuf);
 
 	if (res) {
 		if (res == GLOB_NOMATCH) {
+#if HAVE_DECL_GLOB_ALTDIRFUNC
 			if (missing_files || missing_directories)
 				file_config_error(have_brace(conf_file) ? INCLUDE_B : INCLUDE_M, "Config files missing '%s'.", conf_file);
 			else if (have_wildcards && ((include_check | include_type) & INCLUDE_W))
 				file_config_error(INCLUDE_W, "No config files matched '%s'.", conf_file);
+#else
+			if ((include_check | include_type) & INCLUDE_W)
+				file_config_error(INCLUDE_W, "No config files matched '%s'.", conf_file);
+#endif
 		} else
 			file_config_error(INCLUDE_R, "Error reading config file(s): glob(\"%s\") returned %d, skipping.", conf_file, res);
 
 		return false;
 	}
 
+#if HAVE_DECL_GLOB_ALTDIRFUNC
 	if (missing_directories || missing_files) {
 		file_config_error(INCLUDE_B, "Some config files missing: \"%s\".", conf_file);
 
@@ -1683,6 +1699,7 @@ open_and_check_glob(glob_t *globbuf, const char *conf_file, include_t include_ty
 			return false;
 		}
 	}
+#endif
 
 	return true;
 }
@@ -2449,14 +2466,21 @@ check_include(const char *buf)
 		p = buf + 9;
 		if (buf[7] == 'r')
 			include_type = INCLUDE_R;
-		else if (buf[7] == 'm')
-			include_type = INCLUDE_R | INCLUDE_M;
+		else if (buf[7] == 'a')
+			include_type = INCLUDE_R | INCLUDE_M | INCLUDE_B | INCLUDE_W;
 		else if (buf[7] == 'w')
 			include_type = INCLUDE_R | INCLUDE_M | INCLUDE_W;
-		else if (buf[7] == 'b')
+#if HAVE_DECL_GLOB_ALTDIRFUNC
+		else if (buf[7] == 'm')
+			include_type = INCLUDE_R | INCLUDE_M;
+		else /* if (buf[7] == 'b') */
 			include_type = INCLUDE_R | INCLUDE_B;
-		else /* if (buf[7] == 'a') */
-			include_type = INCLUDE_R | INCLUDE_M | INCLUDE_B | INCLUDE_W;
+#else
+		else {
+			report_config_error(CONFIG_WARNING, "include%c not supported - treating as includer", buf[7]);
+			include_type = INCLUDE_R;
+		}
+#endif
 	}
 
 	p += strspn(p, " \t");
@@ -3277,6 +3301,17 @@ void include_check_set(const vector_t *strvec)
 				new_flag = INCLUDE_B;
 			else
 				report_config_error(CONFIG_GENERAL_ERROR, "Unknown include_check type '%s' - ignoring", word + offset);
+#if !HAVE_DECL_GLOB_ALTDIRFUNC
+			if (new_flag & (INCLUDE_M | INCLUDE_B)) {
+				if (!add_remove) {
+					report_config_error(CONFIG_WARNING, "include_check type '%s' - not supported, treating as 'read'", word + offset);
+					new_flag = INCLUDE_R;
+				} else {
+					report_config_error(CONFIG_WARNING, "include_check type '%s' - not supported, ignoring", word + offset);
+					new_flag = 0;
+				}
+			}
+#endif
 
 			if (new_flag) {
 				if (!add_remove)
