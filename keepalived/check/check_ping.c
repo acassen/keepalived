@@ -234,7 +234,7 @@ ping6_it(int fd, conn_opts_t* co)
 	icmp6_hdr->icmp6_type = ICMP6_ECHO_REQUEST;
 	icmp6_hdr->icmp6_seq = seq_no++;
 
-	if (sendto(fd, send_buf, sizeof(send_buf), 0, PTR_CAST(struct sockaddr_in6, &co->dst), sizeof(struct sockaddr_in6)) < 0) {
+	if (sendto(fd, send_buf, sizeof(send_buf), 0, PTR_CAST(struct sockaddr, &co->dst), sizeof(struct sockaddr_in6)) < 0) {
 		log_message(LOG_INFO, "send ICMPv6 packet fail - errno %d", errno);
 		return connect_error;
 	}
