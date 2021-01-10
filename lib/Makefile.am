@@ -57,6 +57,9 @@ FORCE:
 # The one file that needs to be ignored is deletion of snap/snapcraft.yaml,
 # since in a snapcraft build that file is deleted
 # (see https://bugs.launchpad.net/snapcraft/+bug/1662388).
+#
+# Note: date -d "1970-01-01 UTC" fails using Busybox date
+#
 $(GIT_COMMIT_FILE): FORCE
 	@if [ ! -f $(srcdir)/$@ ]; then \
 		LATEST_FILE=`ls -t \`find $(srcdir)/.. -type f -name Makefile.am -o -name configure.ac -o -name '*.[ch]' | grep -v "lib/config.h" | grep -v "lib/config_warnings.h" | grep -v "lib/git-commit.h" | grep -v "/test/"\` | head -1`; \
@@ -71,9 +74,15 @@ $(GIT_COMMIT_FILE): FORCE
 		if [ $$? -eq 0 ]; then \
 			GIT_REV=`git describe --tags`; \
 			GIT_TIMESTAMP=`git log -1 --format=%ct`; \
-			GIT_DATE=`date -u -d "1970-01-01 UTC $${GIT_TIMESTAMP} seconds" +"%m/%d,%Y"`; \
+			date -d "1970-01-01 UTC" >/dev/null 2>&1 ; \
+			if test $$? -eq 0; then \
+				SECONDS_STR="UTC $${GIT_TIMESTAMP} seconds"; \
+			else \
+				SECONDS_STR="0:0:$${GIT_TIMESTAMP}"; \
+			fi; \
+			GIT_DATE=`date -u +"%m/%d,%Y" -d "1970-01-01 $${SECONDS_STR}"`; \
 			if test -n "$${GIT_DATE}"; then \
-				GIT_YEAR=`date -u -d "1970-01-01 UTC $${GIT_TIMESTAMP} seconds" +"%Y"`; \
+				GIT_YEAR=`date -u +"%Y" -d "1970-01-01 $${SECONDS_STR}"`; \
 			else \
 				GIT_DATE=`git log -1 --date=iso | grep Date: | sed -e "s/^[^ ]* *\(....\)-\(..\)-\(..\).*/\2\/\3,\1/"`; \
 				GIT_YEAR=`echo $${GIT_DATE} | sed -e "s/.*,//"`; \
