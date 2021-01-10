@@ -119,14 +119,6 @@
 #endif
 #include "warnings.h"
 
-/* musl libc doesn't define the following */
-#ifndef	W_EXITCODE
-#define	W_EXITCODE(ret, sig)	((ret) << 8 | (sig))
-#endif
-#ifndef	WCOREFLAG
-#define	WCOREFLAG		((int32_t)WCOREDUMP(0xffffffff))
-#endif
-
 #define CHILD_WAIT_SECS	5
 
 /* Structure used for handling termination of children */
