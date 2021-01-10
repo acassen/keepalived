@@ -2176,6 +2176,9 @@ CPPFLAGS="$SAV_CPPFLAGS"
 dnl ----[ Check for GLOB_BRACE support ]----
 AC_CHECK_DECLS([GLOB_BRACE], [add_system_opt([GLOB_BRACE])], [], [[#include <glob.h>]])
 
+dnl ----[ Check for GLOB_ALTDIRFUNC support ]----
+AC_CHECK_DECLS([GLOB_ALTDIRFUNC], [add_system_opt([GLOB_ALTDIRFUNC])], [], [[#include <glob.h>]])
+
 dnl ----[ Check for timegm() support ]----
 AC_MSG_CHECKING([for timegm()])
 SAV_CPPFLAGS="$CPPFLAGS"
