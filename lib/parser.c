@@ -3331,3 +3331,24 @@ had_config_file_error(void)
 {
 	return config_file_error;
 }
+
+void
+separate_config_file(void)
+{
+	char buf[32];	/* /proc/self/fd/2147483647\0 */
+	int fd_orig;
+	int fd;
+
+	if (!conf_copy) {
+		log_message(LOG_INFO, "No conf_copy");
+		return;
+	}
+
+	/* We need to open the config file on a different file descriptor so that
+	 * it can be read independantly from the other keepalived processes */
+	fd_orig = fileno(conf_copy);
+	snprintf(buf, sizeof(buf), "/proc/self/fd/%d", fd_orig);
+	fd = open(buf, O_RDONLY);
+	dup2(fd, fd_orig);
+	close(fd);
+}

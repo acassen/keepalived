@@ -147,5 +147,6 @@ extern int get_config_fd(void);
 extern void set_config_fd(int);
 void include_check_set(const vector_t *);
 bool had_config_file_error(void) __attribute__((pure));
+void separate_config_file(void);
 
 #endif

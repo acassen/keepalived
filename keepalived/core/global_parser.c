@@ -620,7 +620,7 @@ lvs_syncd_handler(const vector_t *strvec)
 			if (!read_unsigned_strvec(strvec, 3, &val, 0, 255, false))
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid syncid (%s) - defaulting to vrid", strvec_slot(strvec, 3));
 			else {
-				report_config_error(CONFIG_GENERAL_ERROR, "Please use keyword \"id\" before lvs_sync_daemon syncid value");
+				report_config_error(CONFIG_GENERAL_ERROR, "Please use keyword \"id\" before lvs_sync_daemon SYNCID");
 				global_data->lvs_syncd.syncid = val;
 			}
 
