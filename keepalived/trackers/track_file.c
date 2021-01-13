@@ -29,6 +29,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <inttypes.h>
 
 #include "track_file.h"
 #include "tracker.h"
