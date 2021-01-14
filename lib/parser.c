@@ -3349,6 +3349,11 @@ separate_config_file(void)
 	fd_orig = fileno(conf_copy);
 	snprintf(buf, sizeof(buf), "/proc/self/fd/%d", fd_orig);
 	fd = open(buf, O_RDONLY);
+#ifdef HAVE_DUP3
+	dup3(fd, fd_orig, O_CLOEXEC);
+#else
 	dup2(fd, fd_orig);
+	fcntl(fd_orig, F_SETFD, fcntl(fd_orig, F_GETFD) | FD_CLOEXEC);
+#endif
 	close(fd);
 }
