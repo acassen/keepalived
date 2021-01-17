@@ -644,7 +644,6 @@ try_up_instance(vrrp_t *vrrp, bool leaving_init)
 	}
 
 	if (vrrp->wantstate == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER) {
-		vrrp->wantstate = VRRP_STATE_MAST;
 #ifdef _WITH_SNMP_RFCV3_
 		vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
 #endif
