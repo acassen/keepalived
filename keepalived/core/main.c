@@ -190,6 +190,14 @@ static struct {
 };
 #define	LOG_FACILITY_MAX	((sizeof(LOG_FACILITY) / sizeof(LOG_FACILITY[0])) - 1)
 
+static struct {
+	const char *name;
+	int facility;
+} facility_names[] = {
+	{ "daemon", LOG_DAEMON },
+	{ "user", LOG_USER }
+};
+
 /* umask settings */
 bool umask_cmdline;
 
@@ -1906,6 +1914,7 @@ parse_cmdline(int argc, char **argv)
 	bool bad_option = false;
 	unsigned facility;
 	mode_t new_umask_val;
+	unsigned i;
 
 	struct option long_options[] = {
 		{"use-file",		required_argument,	NULL, 'f'},
@@ -2072,11 +2081,22 @@ parse_cmdline(int argc, char **argv)
 			break;
 #endif
 		case 'S':
-			if (!read_unsigned(optarg, &facility, 0, LOG_FACILITY_MAX, false))
-				fprintf(stderr, "Invalid log facility '%s'\n", optarg);
-			else {
+			if (read_unsigned(optarg, &facility, 0, LOG_FACILITY_MAX, false) ||
+			    (!strncmp(optarg, "local", 5) &&
+			     read_unsigned(&optarg[5], &facility, 0, LOG_FACILITY_MAX, false))) {
 				log_facility = LOG_FACILITY[facility].facility;
 				reopen_log = true;
+			} else {
+				for (i = 0; i < sizeof(facility_names) / sizeof(facility_names[0]); i++) {
+					if (!strcmp(optarg, facility_names[i].name)) {
+						log_facility = facility_names[i].facility;
+						reopen_log = true;
+						break;
+					}
+				}
+
+				if (!reopen_log)
+					fprintf(stderr, "Invalid log facility '%s'\n", optarg);
 			}
 			break;
 		case 'g':
