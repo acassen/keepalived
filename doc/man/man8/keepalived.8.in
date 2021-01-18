@@ -15,7 +15,7 @@ keepalived \- load\-balancing and high\-availability service
 [\fB\-\-all\fP]
 [\fB\-l\fP|\fB\-\-log\-console\fP]
 [\fB\-D\fP|\fB\-\-log\-detail\fP]
-[\fB\-S\fP|\fB\-\-log\-facility\fP={0-7}]
+[\fB\-S\fP|\fB\-\-log\-facility\fP={0\-7|local{0\-7}|user|daemon}]
 [\fB\-g\fP|\fB\-\-log\-file\fP=FILE]
 [\fB\-\-flush\-log\-file\fP]
 [\fB\-G\fP|\fB\-\-no\-syslog\fP]
@@ -83,8 +83,9 @@ messages to syslog.
 \fB -D, --log-detail\fP
 Detailed log messages.
 .TP
-\fB -S, --log-facility\fP=[0-7]
-Set syslog facility to LOG_LOCAL[0-7]. The default syslog facility is LOG_DAEMON.
+\fB \-S, \-\-log\-facility\fP={0\-7|local{0\-7}|user|daemon}
+Set syslog facility to LOG_LOCAL[0\-7], LOG_USER or LOG_DAEMON.
+The default syslog facility is LOG_DAEMON.
 .TP
 \fB -g, --log-file\fP=FILE
 Write log entries to FILE. FILE will have _vrrp, _healthcheckers, and _bfd

@@ -40,6 +40,8 @@
 /* Boolean flag - send messages to console as well as syslog */
 static bool log_console = false;
 
+int log_facility = LOG_DAEMON;				/* Optional logging facilities */
+
 #ifdef ENABLE_LOG_TO_FILE
 /* File to write log messages to */
 const char *log_file_name;
@@ -133,7 +135,7 @@ block_signals(sigset_t *cur_set)
 #endif
 
 void
-vlog_message(int facility, const char* format, va_list args)
+vlog_message(const int facility, const char* format, va_list args)
 {
 #ifndef HAVE_SIGNALFD
 	sigset_t cur_set;
@@ -212,9 +214,6 @@ vlog_message(int facility, const char* format, va_list args)
 		if (!restore_signals && !block_signals(&cur_set))
 			restore_signals = true;
 #endif
-
-		if (!(facility & LOG_FACMASK))
-			facility |= LOG_USER;
 
 #if HAVE_VSYSLOG
 		vsyslog(facility, format, args);

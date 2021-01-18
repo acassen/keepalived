@@ -709,8 +709,7 @@ start_check_child(void)
 
 	/* Opening local CHECK syslog channel */
 	if (!__test_bit(NO_SYSLOG_BIT, &debug))
-		openlog(syslog_ident, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)
-				    , (log_facility==LOG_DAEMON) ? LOG_LOCAL2 : log_facility);
+		open_syslog(syslog_ident);
 
 #ifdef ENABLE_LOG_TO_FILE
 	if (log_file_name)

@@ -144,7 +144,6 @@ static const struct child_term children_term[] = {
 /* global var */
 const char *version_string = VERSION_STRING;		/* keepalived version */
 const char *conf_file = KEEPALIVED_CONFIG_FILE;		/* Configuration file */
-int log_facility = LOG_DAEMON;				/* Optional logging facilities */
 bool reload;						/* Set during a reload */
 const char *main_pidfile;				/* overrule default pidfile */
 static bool free_main_pidfile;
@@ -190,6 +189,14 @@ static struct {
 	{LOG_LOCAL4}, {LOG_LOCAL5}, {LOG_LOCAL6}, {LOG_LOCAL7}
 };
 #define	LOG_FACILITY_MAX	((sizeof(LOG_FACILITY) / sizeof(LOG_FACILITY[0])) - 1)
+
+static struct {
+	const char *name;
+	int facility;
+} facility_names[] = {
+	{ "daemon", LOG_DAEMON },
+	{ "user", LOG_USER }
+};
 
 /* umask settings */
 bool umask_cmdline;
@@ -1907,6 +1914,7 @@ parse_cmdline(int argc, char **argv)
 	bool bad_option = false;
 	unsigned facility;
 	mode_t new_umask_val;
+	unsigned i;
 
 	struct option long_options[] = {
 		{"use-file",		required_argument,	NULL, 'f'},
@@ -2073,11 +2081,22 @@ parse_cmdline(int argc, char **argv)
 			break;
 #endif
 		case 'S':
-			if (!read_unsigned(optarg, &facility, 0, LOG_FACILITY_MAX, false))
-				fprintf(stderr, "Invalid log facility '%s'\n", optarg);
-			else {
+			if (read_unsigned(optarg, &facility, 0, LOG_FACILITY_MAX, false) ||
+			    (!strncmp(optarg, "local", 5) &&
+			     read_unsigned(&optarg[5], &facility, 0, LOG_FACILITY_MAX, false))) {
 				log_facility = LOG_FACILITY[facility].facility;
 				reopen_log = true;
+			} else {
+				for (i = 0; i < sizeof(facility_names) / sizeof(facility_names[0]); i++) {
+					if (!strcmp(optarg, facility_names[i].name)) {
+						log_facility = facility_names[i].facility;
+						reopen_log = true;
+						break;
+					}
+				}
+
+				if (!reopen_log)
+					fprintf(stderr, "Invalid log facility '%s'\n", optarg);
 			}
 			break;
 		case 'g':
@@ -2381,7 +2400,7 @@ keepalived_main(int argc, char **argv)
 	umask(umask_val);
 
 	/* Open log with default settings so we can log initially */
-	openlog(PACKAGE_NAME, LOG_PID, log_facility);
+	open_syslog(PACKAGE_NAME);
 
 #ifdef _MEM_CHECK_
 	mem_log_init(PACKAGE_NAME, "Parent process");
@@ -2422,7 +2441,7 @@ keepalived_main(int argc, char **argv)
 	if (parse_cmdline(argc, argv)) {
 		closelog();
 		if (!__test_bit(NO_SYSLOG_BIT, &debug))
-			openlog(PACKAGE_NAME, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0) , log_facility);
+			open_syslog(PACKAGE_NAME);
 	}
 
 	if (__test_bit(LOG_CONSOLE_BIT, &debug))
@@ -2512,7 +2531,7 @@ keepalived_main(int argc, char **argv)
 		if ((syslog_ident = make_syslog_ident(PACKAGE_NAME))) {
 			log_message(LOG_INFO, "Changing syslog ident to %s", syslog_ident);
 			closelog();
-			openlog(syslog_ident, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0), log_facility);
+			open_syslog(syslog_ident);
 		}
 		else
 			log_message(LOG_INFO, "Unable to change syslog ident");
