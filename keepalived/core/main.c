@@ -144,7 +144,6 @@ static const struct child_term children_term[] = {
 /* global var */
 const char *version_string = VERSION_STRING;		/* keepalived version */
 const char *conf_file = KEEPALIVED_CONFIG_FILE;		/* Configuration file */
-int log_facility = LOG_DAEMON;				/* Optional logging facilities */
 bool reload;						/* Set during a reload */
 const char *main_pidfile;				/* overrule default pidfile */
 static bool free_main_pidfile;
@@ -2381,7 +2380,7 @@ keepalived_main(int argc, char **argv)
 	umask(umask_val);
 
 	/* Open log with default settings so we can log initially */
-	openlog(PACKAGE_NAME, LOG_PID, log_facility);
+	open_syslog(PACKAGE_NAME);
 
 #ifdef _MEM_CHECK_
 	mem_log_init(PACKAGE_NAME, "Parent process");
@@ -2422,7 +2421,7 @@ keepalived_main(int argc, char **argv)
 	if (parse_cmdline(argc, argv)) {
 		closelog();
 		if (!__test_bit(NO_SYSLOG_BIT, &debug))
-			openlog(PACKAGE_NAME, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0) , log_facility);
+			open_syslog(PACKAGE_NAME);
 	}
 
 	if (__test_bit(LOG_CONSOLE_BIT, &debug))
@@ -2512,7 +2511,7 @@ keepalived_main(int argc, char **argv)
 		if ((syslog_ident = make_syslog_ident(PACKAGE_NAME))) {
 			log_message(LOG_INFO, "Changing syslog ident to %s", syslog_ident);
 			closelog();
-			openlog(syslog_ident, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0), log_facility);
+			open_syslog(syslog_ident);
 		}
 		else
 			log_message(LOG_INFO, "Unable to change syslog ident");

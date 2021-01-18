@@ -40,6 +40,8 @@
 /* Boolean flag - send messages to console as well as syslog */
 static bool log_console = false;
 
+int log_facility = LOG_DAEMON;				/* Optional logging facilities */
+
 #ifdef ENABLE_LOG_TO_FILE
 /* File to write log messages to */
 const char *log_file_name;

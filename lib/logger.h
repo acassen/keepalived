@@ -30,7 +30,12 @@
 #include <sys/stat.h>
 #endif
 
+#include "bitops.h"
+#include "utils.h"
+
 #define	MAX_LOG_MSG	255
+
+extern int log_facility;		/* Optional logging facilities */
 
 #ifdef ENABLE_LOG_TO_FILE
 extern const char *log_file_name;
@@ -51,4 +56,9 @@ extern void log_message(int priority, const char* format, ...)
 extern void conf_write(FILE *fp, const char *format, ...)
 	__attribute__ ((format (printf, 2, 3)));
 
+static inline void
+open_syslog(const char *ident)
+{
+	openlog(ident, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0), log_facility);
+}
 #endif
