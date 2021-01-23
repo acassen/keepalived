@@ -38,7 +38,7 @@ For PCRE support
 For nftables support
 	libnftnl-devel libmnl-devel
 For systemd integration
-	libsystemd-devel
+	systemd-devel
 
 For building the documentation, the following packages need to be installed:
 	Fedora: python-sphinx (will pull in: python2-sphinx_rtd_theme)
