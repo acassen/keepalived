@@ -65,3 +65,9 @@ env:
     - KEEPALIVED_CONFIG_ARGS="--disable-lvs --enable-snmp-vrrp --enable-snmp-rfc --enable-json --enable-sha1 --enable-dbus --disable-routes --enable-bfd --disable-iptables --disable-linkbeat"
     - KEEPALIVED_CONFIG_ARGS="--disable-vrrp --enable-snmp-checker --enable-sha1 --enable-regex"
     - KEEPALIVED_CONFIG_ARGS="--disable-hardening --enable-dump-threads --enable-epoll-debug --enable-snmp-rfcv3 --enable-log-file --disable-libipset"
+
+jobs:
+  include:
+  - name: Linux aarch64
+    arch: arm64
+    env: KEEPALIVED_CONFIG_ARGS=""
