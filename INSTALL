@@ -211,7 +211,7 @@ To update the keepalived source code, put a new tarball in the image
 directory (the Dockerfile may need updating with a new version).
 
 Useful docker commands are:
-docker logs keepalvied 2>&1 | less	# view system logs of container
+docker logs keepalived 2>&1 | less	# view system logs of container
 docker exec -it keepalived bash		# execute shell in container
 docker rm -f keepalived			# Remove the container
 
