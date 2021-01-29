@@ -4,7 +4,7 @@
 #
 # Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
 
-DATE=`date -u --date=@\"\`git log -n 1 --format=%ct -- $@.in 2>/dev/null | grep . || date --reference=$@.in +%s\`\" +\"%Y-%m-%d\"`
+DATE=`date -u --date=@\"\`git log -n 1 --format=%ct -- $@.in 2>/dev/null || date --reference=$@.in +%s\`\" +\"%Y-%m-%d\"`
 
 edit = echo "  EDIT     $@"; \
 	sed \
