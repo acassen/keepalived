@@ -12,7 +12,7 @@ edit = echo "  EDIT     $@"; \
 
 dist_man1_MANS  = genhash.1
 
-genhash.1: Makefile
+genhash.1: Makefile.am
 	@$(edit) '$(srcdir)/$@.in' >$@
 
 genhash.1: $(srcdir)/genhash.1.in
