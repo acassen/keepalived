@@ -14,7 +14,7 @@ edit = echo "  EDIT     $@"; \
 
 dist_man5_MANS  = keepalived.conf.5
 
-keepalived.conf.5: Makefile
+keepalived.conf.5: Makefile.am
 	@$(edit) '$(srcdir)/$@.in' >$@
 
 keepalived.conf.5: $(srcdir)/keepalived.conf.5.in
