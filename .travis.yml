@@ -74,3 +74,6 @@ jobs:
   - name: Linux s390x (for big endian)
     arch: s390x
     env: KEEPALIVED_CONFIG_ARGS="--enable-snmp --enable-snmp-rfc --enable-json --enable-dbus --enable-bfd --enable-sha1 --enable-regex"
+  - name: Linux ppc64le
+    arch: ppc64le
+    env: KEEPALIVED_CONFIG_ARGS="--enable-snmp --enable-snmp-rfc --enable-json --enable-dbus --enable-bfd --enable-sha1 --enable-regex"
