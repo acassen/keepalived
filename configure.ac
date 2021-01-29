@@ -2289,11 +2289,35 @@ if test "$enable_snmp" = yes -o \
   if test "$NETSNMP_CONFIG" = no; then
     AC_MSG_ERROR([*** unable to find net-snmp-config])
   fi
+
+  # Despite the net-snmp-config documentation for the --*-libs and --base-cflags
+  # options documention suggesting they provide the libraries and -I options
+  # respectively, they actually include all the other # LDFLAGS and CFLAGS options
+  # used when net-snmp was built. Since net-snmp is likely to have been built using
+  # the distro's package builder, this can include quite a large number of
+  # compiler/linker flags that we don't really want.
+  # RedHat has a patch that stops the additional compile options being emitted with
+  # --cflags and --base-cflags, however it doesn't have a patch to do similarly for
+  # the --*-libs options. This means that the --cflags options do not include the
+  # -specs=/usr/lib/rpm/redhat/redhat-hardened-cc1, whereas the --*-libs options
+  # do include -specs=/usr/lib/rpm/redhat/redhat-hardened-ld. The result of this is
+  # -pie is specified for the linker, but -fpie is not specified for the compiler.
+  # It turns out that this does not cause a problem on x86_64, but building on s390x
+  # fails to link due to this mismatch.
+  # See https://bugzilla.redhat.com/show_bug.cgi?id=1921988 for further details.
   NETSNMP_LIBS_AGENT=`${NETSNMP_CONFIG} --netsnmp-agent-libs`
   NETSNMP_LIBS_EXT=`${NETSNMP_CONFIG} --external-libs`
-  NETSNMP_LIBS="$NETSNMP_LIBS_AGENT $NETSNMP_LIBS_EXT"
-  NETSNMP_CFLAGS="`${NETSNMP_CONFIG} --base-cflags`"
+  NETSNMP_CFLAGS=`${NETSNMP_CONFIG} --base-cflags`
   NETSNMP_CPPFLAGS="-DNETSNMP_NO_INLINE"
+
+  echo $NETSNMP_LIBS_EXT | $GREP -q -- -specs=
+  AS_IF([ test $? -eq 0 ], [ HAVE_LD_SPECS=1 ], [ HAVE_LD_SPECS=0 ])
+  echo $NETSNMP_CFLAGS | $GREP -q -- -specs=
+  AS_IF([ test $? -eq 0 ], [ HAVE_CC_SPECS=1 ], [ HAVE_CC_SPECS=0 ])
+  AS_IF([ test \( $HAVE_LD_SPECS -eq 1 -a $HAVE_CC_SPECS -eq 0 \)],
+    [NETSNMP_LIBS_EXT=`echo $NETSNMP_LIBS_EXT | tr " " "\n" | grep "^-[lL]"`])
+
+  NETSNMP_LIBS="$NETSNMP_LIBS_AGENT $NETSNMP_LIBS_EXT"
 
   # net-snmp-config can add -I/usr/include, so remove it
   NETSNMP_CFLAGS=`echo $NETSNMP_CFLAGS " " | sed -e "s:-I */usr/include ::"`

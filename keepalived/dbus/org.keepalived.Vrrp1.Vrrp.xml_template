@@ -36,7 +36,7 @@
 	<!--
 	  ReloadConfig:
 
-	  Signals keepalvied process to reload its configuration
+	  Signals keepalived process to reload its configuration
 	-->
 	<method name='ReloadConfig'>
 	</method>

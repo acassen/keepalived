@@ -1905,7 +1905,7 @@
 	  introduced a compile warning, although the code would have worked OK.
 	* When opening files for write, ensure they aren't symbolic links.
 	  Issue #1048 identified that if, for example, a non privileged user
-	  created a symbolic link from /etc/keepalvied.data to /etc/passwd,
+	  created a symbolic link from /etc/keepalived.data to /etc/passwd,
 	  writing to /etc/keepalived.data (which could be invoked via DBus)
 	  would cause /etc/passwd to be overwritten.
 	  This commit stops keepalived writing to pathnames where the ultimate
@@ -4087,7 +4087,7 @@
 	* First stage of run-time linking to libnl-3.
 	* Dynamic/static linking options of libnl/libnl-3, libip[46]tc and
 	  libipset. libnl/libnl-3, libip[46]tc and libipset can all be dynamically
-	  linked at run-time, and if they are not available, keepalvied will use
+	  linked at run-time, and if they are not available, keepalived will use
 	  the alternative code which is used when the libraries cannot be linked
 	  a build time.
 	  This means that a single executable keepalived can be created that will
