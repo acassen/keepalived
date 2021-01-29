@@ -69,7 +69,9 @@ env:
 jobs:
   include:
   - name: Linux aarch64
-    arch: arm64
+    group: edge
+    arch: arm64-graviton2
+    virt: vm
     env: KEEPALIVED_CONFIG_ARGS="--enable-snmp --enable-snmp-rfc --enable-json --enable-dbus --enable-bfd --enable-sha1 --enable-regex"
   - name: Linux s390x (for big endian)
     arch: s390x
