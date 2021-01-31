@@ -675,7 +675,7 @@ process_track_file(tracked_file_t *tfile, bool init)
 			new_status = strtoll(buf, NULL, 0);
 #endif
 			if (errno || new_status < (int64_t)INT32_MIN || new_status > (int64_t)INT32_MAX + 1) {
-				log_message(LOG_INFO, "Invalid number %ld read from %s - ignoring",  new_status, tfile->file_path);
+				log_message(LOG_INFO, "Invalid number %" PRId64 " read from %s - ignoring",  new_status, tfile->file_path);
 				return;
 			}
 		}

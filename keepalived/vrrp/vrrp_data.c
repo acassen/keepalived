@@ -924,7 +924,7 @@ alloc_vrrp(const char *iname)
 	new->garp_lower_prio_delay = PARAMETER_UNSET;
 	new->garp_lower_prio_rep = PARAMETER_UNSET;
 #ifdef _HAVE_VRRP_VMAC_
-	new->vmac_garp_intvl.tv_sec = PARAMETER_UNSET;
+	new->vmac_garp_intvl.tv_sec = TIME_T_PARAMETER_UNSET;
 #endif
 	new->lower_prio_no_advert = PARAMETER_UNSET;
 	new->higher_prio_send_advert = PARAMETER_UNSET;

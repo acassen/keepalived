@@ -42,7 +42,8 @@
 /* Maximum time read_timer can read - in micro-seconds */
 #define TIMER_MAXIMUM (ULONG_MAX)
 
-/* Special value for parameters when we want to know they haven't been set */
+/* Special values for parameters when we want to know they haven't been set */
+#define	TIME_T_PARAMETER_UNSET	LONG_MAX
 #define	PARAMETER_UNSET		UINT_MAX
 
 /* Configuration test errors. These should be in decreasing order of severity */
