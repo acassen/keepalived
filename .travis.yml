@@ -66,13 +66,14 @@ env:
     - KEEPALIVED_CONFIG_ARGS="--disable-vrrp --enable-snmp-checker --enable-sha1 --enable-regex"
     - KEEPALIVED_CONFIG_ARGS="--disable-hardening --enable-dump-threads --enable-epoll-debug --enable-snmp-rfcv3 --enable-log-file --disable-libipset"
 
+# We only need one for arm64 and arm64-graviton2. It isn't consistent, so use arm64.
 jobs:
   include:
-  - name: Linux aarch64 - graviton2
-    group: edge
-    arch: arm64-graviton2
-    virt: vm
-    env: KEEPALIVED_CONFIG_ARGS="--enable-snmp --enable-snmp-rfc --enable-json --enable-dbus --enable-bfd --enable-sha1 --enable-regex"
+#  - name: Linux aarch64 - graviton2
+#    group: edge
+#    arch: arm64-graviton2
+#    virt: vm
+#    env: KEEPALIVED_CONFIG_ARGS="--enable-snmp --enable-snmp-rfc --enable-json --enable-dbus --enable-bfd --enable-sha1 --enable-regex"
   - name: Linux aarch64
     arch: arm64
     env: KEEPALIVED_CONFIG_ARGS="--enable-snmp --enable-snmp-rfc --enable-json --enable-dbus --enable-bfd --enable-sha1 --enable-regex"
