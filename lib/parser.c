@@ -61,6 +61,7 @@
 #include "bitops.h"
 #include "utils.h"
 #include "process.h"
+#include "signals.h"
 
 #ifdef USE_MEMFD_CREATE_SYSCALL
 #ifndef SYS_memfd_create
@@ -3219,9 +3220,11 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 		rewind(conf_copy);
 	}
 
+#ifndef _ONE_PROCESS_DEBUG_
 	/* If we are not the parent, tell it we have completed reading the configuration */
 	if (prog_type != PROG_TYPE_PARENT && !__test_bit(CONFIG_TEST_BIT, &debug))
-		kill(getppid(), SIGPWR);
+		kill(getppid(), prog_type == PROG_TYPE_VRRP ? SIGRELOADED_VRRP : prog_type == PROG_TYPE_CHECKER ? SIGRELOADED_CHECKER : SIGRELOADED_BFD);
+#endif
 
 	/* Close the password database if it was opened */
 	endpwent();

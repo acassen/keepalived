@@ -31,10 +31,16 @@
 
 #include "scheduler.h"
 
+#define SIGJSON 		(SIGRTMIN + 2)
 #ifdef THREAD_DUMP
-#define	SIGTDUMP	(SIGRTMAX)
+#define	SIGTDUMP		(SIGRTMAX)
 #endif
-#define	SIGSTATS_CLEAR	(SIGRTMAX - 1)
+#define	SIGSTATS_CLEAR		(SIGRTMAX - 1)
+#ifndef _ONE_PROCESS_DEBUG_
+#define	SIGRELOADED_VRRP	(SIGRTMAX - 2)
+#define	SIGRELOADED_CHECKER	(SIGRTMAX - 3)
+#define	SIGRELOADED_BFD		(SIGRTMAX - 4)
+#endif
 
 static inline int
 sigmask_func(int how, const sigset_t *set, sigset_t *oldset)

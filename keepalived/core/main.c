@@ -1256,7 +1256,9 @@ signal_init(void)
 	signal_set(SIGUSR1, propagate_signal, NULL);
 	signal_set(SIGUSR2, propagate_signal, NULL);
 	signal_set(SIGSTATS_CLEAR, propagate_signal, NULL);
-	signal_set(SIGPWR, child_reloaded, NULL);
+	signal_set(SIGRELOADED_VRRP, child_reloaded, NULL);
+	signal_set(SIGRELOADED_CHECKER, child_reloaded, NULL);
+	signal_set(SIGRELOADED_BFD, child_reloaded, NULL);
 #ifdef _WITH_JSON_
 	signal_set(SIGJSON, propagate_signal, NULL);
 #endif
@@ -1276,7 +1278,9 @@ signals_ignore(void) {
 	signal_ignore(SIGUSR1);
 	signal_ignore(SIGUSR2);
 	signal_ignore(SIGSTATS_CLEAR);
-	signal_ignore(SIGPWR);
+	signal_ignore(SIGRELOADED_VRRP);
+	signal_ignore(SIGRELOADED_CHECKER);
+	signal_ignore(SIGRELOADED_BFD);
 #ifdef _WITH_JSON_
 	signal_ignore(SIGJSON);
 #endif
