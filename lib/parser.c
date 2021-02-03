@@ -61,6 +61,7 @@
 #include "bitops.h"
 #include "utils.h"
 #include "process.h"
+#include "signals.h"
 
 #ifdef USE_MEMFD_CREATE_SYSCALL
 #ifndef SYS_memfd_create
@@ -3143,12 +3144,29 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 		if (!conf_copy) {
 #if defined HAVE_MEMFD_CREATE || defined USE_MEMFD_CREATE_SYSCALL
 			fd = memfd_create("/keepalived/consolidated_configuration", MFD_CLOEXEC);
+
+			/* SELinux can allow memfd_create() to succeed, but reads and writes fail.
+			 * Perversely the open does not log an SELinux error if keepalived has no
+			 * permissions for "tmpfs", but if it has read and write permissions but
+			 * not open permission, then the open fails. */
+			if (fd != -1) {
+				int read_byte;
+
+				if (read(fd, &read_byte, 1) == -1) {
+					if (errno == EACCES)
+						log_message(LOG_INFO, "SELinux permissions for memfd (tmpfs) appear to be missing for keepalived");
+					else
+						log_message(LOG_INFO, "read from memfd failed with errno %d - %m", errno);
+					close(fd);
+					fd = open_tmpfile(RUN_DIR, O_RDWR | O_EXCL | O_CLOEXEC, S_IRUSR | S_IWUSR);
+				}
+			}
 #endif
 #ifndef HAVE_MEMFD_CREATE
 #ifdef USE_MEMFD_CREATE_SYSCALL
 			if (fd == -1 && errno == ENOSYS)
 #endif
-				fd = open_tmpfile(KA_TMP_DIR, O_RDWR | O_EXCL | O_CLOEXEC, S_IRUSR | S_IWUSR);
+				fd = open_tmpfile(RUN_DIR, O_RDWR | O_EXCL | O_CLOEXEC, S_IRUSR | S_IWUSR);
 #endif
 			if (fd == -1)
 				log_message(LOG_INFO, "memfd_create error %d - %m", errno);
@@ -3219,9 +3237,21 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 		rewind(conf_copy);
 	}
 
+#ifndef _ONE_PROCESS_DEBUG_
 	/* If we are not the parent, tell it we have completed reading the configuration */
 	if (prog_type != PROG_TYPE_PARENT && !__test_bit(CONFIG_TEST_BIT, &debug))
-		kill(getppid(), SIGPWR);
+		kill(getppid(),
+#ifdef _WITH_VRRP_
+				prog_type == PROG_TYPE_VRRP ? SIGRELOADED_VRRP :
+#endif
+#ifdef _WITH_LVS_
+				prog_type == PROG_TYPE_CHECKER ? SIGRELOADED_CHECKER :
+#endif
+#ifdef _WITH_BFD_
+				prog_type == PROG_TYPE_BFD ? SIGRELOADED_BFD :
+#endif
+				0 /* This would be a bug, but it has no harmful effect */);
+#endif
 
 	/* Close the password database if it was opened */
 	endpwent();

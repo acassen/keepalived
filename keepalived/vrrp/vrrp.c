@@ -3617,7 +3617,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 #ifdef _HAVE_VRRP_VMAC_
-	if (vrrp->vmac_garp_intvl.tv_sec == PARAMETER_UNSET) {
+	if (vrrp->vmac_garp_intvl.tv_sec == TIME_T_PARAMETER_UNSET) {
 		vrrp->vmac_garp_intvl.tv_sec = global_data->vrrp_vmac_garp_intvl;
 		vrrp->vmac_garp_all_if = global_data->vrrp_vmac_garp_all_if;
 	}

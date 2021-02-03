@@ -481,8 +481,6 @@ reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 	/* set the reloading flag */
 	SET_RELOAD;
 
-	log_message(LOG_INFO, "Got SIGHUP, reloading checker configuration");
-
 	/* Terminate all script process */
 	script_killall(master, SIGTERM, false);
 

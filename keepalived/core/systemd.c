@@ -61,7 +61,7 @@ check_parent_systemd(void)
 		return false;
 
 	/* systemd sets $NOTIFY_SOCKET to allow returning of notify information,
-	 * but it is only set if the service file has "type=notify" */
+	 * but it is only set if the service file has "Type=notify" */
 	if (!getenv("NOTIFY_SOCKET"))
 		return false;
 
