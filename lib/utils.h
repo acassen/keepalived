@@ -44,6 +44,14 @@
 
 #define max(a,b) ((a) >= (b) ? (a) : (b))
 
+#if defined RUN_DIR_ROOT
+#define RUN_DIR			RUN_DIR_ROOT "/run/"
+#elif defined GNU_STD_PATHS
+#define RUN_DIR			LOCAL_STATE_DIR "/run/"
+#else
+#define RUN_DIR			_PATH_VARRUN
+#endif
+
 #ifdef _WITH_PERF_
 typedef enum {
 	PERF_NONE,

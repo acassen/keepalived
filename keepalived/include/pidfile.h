@@ -27,15 +27,9 @@
 #include <stdbool.h>
 #include <paths.h>
 
-/* lock pidfile */
-#if defined RUN_DIR_ROOT
-#define	RUN_DIR			RUN_DIR_ROOT "/run/"
-#elif defined GNU_STD_PATHS
-#define RUN_DIR			LOCAL_STATE_DIR "/run/"
-#else
-#define RUN_DIR			_PATH_VARRUN
-#endif
+#include "utils.h"
 
+/* lock pidfile */
 #define KEEPALIVED_PID_DIR	RUN_DIR PACKAGE "/"
 #define KEEPALIVED_PID_FILE	PACKAGE
 
