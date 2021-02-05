@@ -113,8 +113,6 @@ typedef enum _include {
 	INCLUDE_B = 0x08,	/* All glob brace specifiers must match */
 } include_t;
 
-/* Some development/test options */
-// #define TRUNCATE_FILE_AFTER_READ
 
 typedef struct _defs {
 	const char *name;
@@ -3176,10 +3174,8 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 					log_message(LOG_INFO, "fdopen of memfd_create error %d - %m", errno);
 			}
 		} else {
-#ifndef TRUNCATE_FILE_AFTER_READ
 			if (ftruncate(fileno(conf_copy), 0))
 				log_message(LOG_INFO, "Failed to truncate config copy file (%d) - %m", errno);
-#endif
 
 			rewind(conf_copy);
 		}
@@ -3260,15 +3256,6 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 	free_parser_data();
 
 	notify_resource_release();
-}
-
-void
-truncate_config_copy(void)
-{
-#ifdef TRUNCATE_FILE_AFTER_READ
-	if (conf_copy && ftruncate(fileno(conf_copy), 0))
-		log_message(LOG_INFO, "Failed to truncate config copy file (%d) - %m", errno);
-#endif
 }
 
 int

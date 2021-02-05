@@ -891,12 +891,10 @@ child_reloaded(__attribute__((unused)) void *one, __attribute__((unused)) int si
 	if (num_reloading) {
 		num_reloading--;
 
-		if (!num_reloading) {
-			truncate_config_copy();
 #ifdef _USE_SYSTEMD_
+		if (!num_reloading)
 			systemd_notify_running();
 #endif
-		}
 	}
 }
 
