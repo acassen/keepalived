@@ -40,13 +40,13 @@ if CN_PROC
 endif
 
 if !ONE_PROCESS_DEBUG
-  libcore_a_LIBADD	+= reload_monitor.o
-  EXTRA_libcore_a_SOURCES += reload_monitor.c
-endif
-
 if WITH_SYSTEMD
   libcore_a_LIBADD	+= systemd.o
   EXTRA_libcore_a_SOURCES += systemd.c
+endif
+
+  libcore_a_LIBADD	+= reload_monitor.o config_notify.o
+  EXTRA_libcore_a_SOURCES += reload_monitor.c config_notify.c
 endif
 
 MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@

@@ -3233,22 +3233,6 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 		rewind(conf_copy);
 	}
 
-#ifndef _ONE_PROCESS_DEBUG_
-	/* If we are not the parent, tell it we have completed reading the configuration */
-	if (prog_type != PROG_TYPE_PARENT && !__test_bit(CONFIG_TEST_BIT, &debug))
-		kill(getppid(),
-#ifdef _WITH_VRRP_
-				prog_type == PROG_TYPE_VRRP ? SIGRELOADED_VRRP :
-#endif
-#ifdef _WITH_LVS_
-				prog_type == PROG_TYPE_CHECKER ? SIGRELOADED_CHECKER :
-#endif
-#ifdef _WITH_BFD_
-				prog_type == PROG_TYPE_BFD ? SIGRELOADED_BFD :
-#endif
-				0 /* This would be a bug, but it has no harmful effect */);
-#endif
-
 	/* Close the password database if it was opened */
 	endpwent();
 

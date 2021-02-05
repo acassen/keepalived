@@ -77,6 +77,9 @@
 #ifdef _USE_SYSTEMD_
 #include "systemd.h"
 #endif
+#ifndef _ONE_PROCESS_DEBUG_
+#include "config_notify.h"
+#endif
 
 /* Global variables */
 bool using_ha_suspend;
@@ -323,6 +326,12 @@ start_check(list_head_t *old_checkers_queue, data_t *prev_global_data)
 	}
 
 	init_data(conf_file, check_init_keywords, false);
+
+#ifndef _ONE_PROCESS_DEBUG_
+	/* Notify parent config has been read if appropriate */
+	if (!__test_bit(CONFIG_TEST_BIT, &debug))
+		notify_config_read();
+#endif
 
 	if (reload)
 		init_global_data(global_data, prev_global_data, true);

@@ -37,15 +37,6 @@
 #endif
 #define	SIGSTATS_CLEAR		(SIGRTMAX - 1)
 #ifndef _ONE_PROCESS_DEBUG_
-#ifdef _WITH_VRRP_
-#define	SIGRELOADED_VRRP	(SIGRTMAX - 2)
-#endif
-#ifdef _WITH_LVS_
-#define	SIGRELOADED_CHECKER	(SIGRTMAX - 3)
-#endif
-#ifdef _WITH_BFD_
-#define	SIGRELOADED_BFD		(SIGRTMAX - 4)
-#endif
 #endif
 
 static inline int

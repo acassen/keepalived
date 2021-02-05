@@ -45,6 +45,9 @@
 #include "global_data.h"
 #include "daemon.h"
 #include "config.h"
+#ifndef _ONE_PROCESS_DEBUG_
+#include "config_notify.h"
+#endif
 #include "git-commit.h"
 #include "utils.h"
 #include "signals.h"
@@ -204,7 +207,7 @@ static struct {
 bool umask_cmdline;
 
 /* Reload control */
-static unsigned num_reloading;
+unsigned num_reloading;
 
 /* Control producing core dumps */
 static bool set_core_dump_pattern = false;
@@ -886,19 +889,6 @@ propagate_signal(__attribute__((unused)) void *v, int sig)
 }
 
 static void
-child_reloaded(__attribute__((unused)) void *one, __attribute__((unused)) int sig_num)
-{
-	if (num_reloading) {
-		num_reloading--;
-
-#ifdef _USE_SYSTEMD_
-		if (!num_reloading)
-			systemd_notify_running();
-#endif
-	}
-}
-
-static void
 do_reload(void)
 {
 	if (!reload_config())
@@ -1258,15 +1248,6 @@ signal_init(void)
 	signal_set(SIGUSR1, propagate_signal, NULL);
 	signal_set(SIGUSR2, propagate_signal, NULL);
 	signal_set(SIGSTATS_CLEAR, propagate_signal, NULL);
-#ifdef _WITH_VRRP_
-	signal_set(SIGRELOADED_VRRP, child_reloaded, NULL);
-#endif
-#ifdef _WITH_LVS_
-	signal_set(SIGRELOADED_CHECKER, child_reloaded, NULL);
-#endif
-#ifdef _WITH_BFD_
-	signal_set(SIGRELOADED_BFD, child_reloaded, NULL);
-#endif
 #ifdef _WITH_JSON_
 	signal_set(SIGJSON, propagate_signal, NULL);
 #endif
@@ -1286,15 +1267,6 @@ signals_ignore(void) {
 	signal_ignore(SIGUSR1);
 	signal_ignore(SIGUSR2);
 	signal_ignore(SIGSTATS_CLEAR);
-#ifdef _WITH_VRRP_
-	signal_ignore(SIGRELOADED_VRRP);
-#endif
-#ifdef _WITH_LVS_
-	signal_ignore(SIGRELOADED_CHECKER);
-#endif
-#ifdef _WITH_BFD_
-	signal_ignore(SIGRELOADED_BFD);
-#endif
 #ifdef _WITH_JSON_
 	signal_ignore(SIGJSON);
 #endif
@@ -2711,6 +2683,12 @@ keepalived_main(int argc, char **argv)
 
 	/* Signal handling initialization  */
 	signal_init();
+
+#ifndef _ONE_PROCESS_DEBUG_
+	/* Open eventfd for children notifying parent that they have read the configuration file */
+	if (!__test_bit(CONFIG_TEST_BIT, &debug))
+		open_config_read_fd();
+#endif
 
 	/* If we have a startup script, run it first */
 	if (global_data->startup_script) {

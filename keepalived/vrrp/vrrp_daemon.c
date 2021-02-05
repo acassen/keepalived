@@ -90,6 +90,10 @@
 #ifdef _USE_SYSTEMD_
 #include "systemd.h"
 #endif
+#ifndef _ONE_PROCESS_DEBUG_
+#include "config_notify.h"
+#endif
+
 
 /* Global variables */
 bool non_existent_interface_specified;
@@ -519,6 +523,12 @@ start_vrrp(data_t *prev_global_data)
 	}
 
 	init_data(conf_file, vrrp_init_keywords, false);
+
+#ifndef _ONE_PROCESS_DEBUG_
+	/* Notify parent config has been read if appropriate */
+	if (!__test_bit(CONFIG_TEST_BIT, &debug))
+		notify_config_read();
+#endif
 
 	/* Update process name if necessary */
 	if ((!reload && global_data->vrrp_process_name) ||

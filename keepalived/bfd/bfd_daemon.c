@@ -54,6 +54,9 @@
 #ifdef _USE_SYSTEMD_
 #include "systemd.h"
 #endif
+#ifndef _ONE_PROCESS_DEBUG_
+#include "config_notify.h"
+#endif
 
 
 /* Global variables */
@@ -156,6 +159,13 @@ start_bfd(__attribute__((unused)) data_t *prev_global_data)
 	alloc_bfd_buffer();
 
 	init_data(conf_file, bfd_init_keywords, false);
+
+#ifndef _ONE_PROCESS_DEBUG_
+	/* Notify parent config has been read if appropriate */
+	if (!__test_bit(CONFIG_TEST_BIT, &debug))
+		notify_config_read();
+#endif
+
 	if (reload)
 		init_global_data(global_data, prev_global_data, true);
 
