@@ -389,11 +389,17 @@ init_service_rs(virtual_server_t *vs)
 {
 	real_server_t *rs;
 	tracked_file_monitor_t *tfm;
+	int64_t new_weight;
 
 	list_for_each_entry(rs, &vs->rs, e_list) {
 		if (rs->reloaded) {
-			if (rs->effective_weight != rs->peffective_weight)
-				update_svr_wgt(rs->effective_weight, vs, rs, false);
+			if (rs->effective_weight != rs->peffective_weight) {
+				/* We need to force a change from the previous weight */
+				new_weight = rs->effective_weight;
+				rs->effective_weight = rs->peffective_weight;
+				update_svr_wgt(new_weight, vs, rs, false);
+			}
+
 			/* Do not re-add failed RS instantly on reload */
 			continue;
 		}
