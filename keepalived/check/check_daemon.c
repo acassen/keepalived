@@ -112,11 +112,13 @@ set_checker_max_fds(void)
 	 *   12	closed
 	 *   13	passwd file
 	 *   14	Unix domain socket
+	 *   15 memfd for config
+	 *   16 eventfd for notifying load/reload complete
 	 *   One per checker using UDP/TCP/PING
 	 *   One per SMTP alert
 	 *   qty 10 spare
 	 */
-	set_max_file_limit(14 + check_data->num_checker_fd_required + check_data->num_smtp_alert + 10);
+	set_max_file_limit(17 + check_data->num_checker_fd_required + check_data->num_smtp_alert + 10);
 }
 
 static void

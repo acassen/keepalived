@@ -193,12 +193,14 @@ set_vrrp_max_fds(void)
 	 * mem_check file
 	 * USR1/USR2/JSON data
 	 * smtp-alert file
+	 * memfd for config
+	 * eventfd for notifying load/reload complete
 	 *
 	 * plus:
 	 *
 	 * 20 spare (in case we have forgotten anything)
 	 */
-	set_max_file_limit(cnt * 2 + vrrp_data->num_smtp_alert + 21 + 20);
+	set_max_file_limit(cnt * 2 + vrrp_data->num_smtp_alert + 23 + 20);
 }
 
 #ifdef _WITH_LVS_
