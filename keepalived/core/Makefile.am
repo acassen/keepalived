@@ -40,7 +40,7 @@ if CN_PROC
 endif
 
 if !ONE_PROCESS_DEBUG
-if WITH_SYSTEMD
+if WITH_SYSTEMD_NOTIFY
   libcore_a_LIBADD	+= systemd.o
   EXTRA_libcore_a_SOURCES += systemd.c
 endif

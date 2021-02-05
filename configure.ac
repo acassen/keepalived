@@ -1797,27 +1797,6 @@ unset LIBS
 AS_IF([test $USE_IPTABLES = Yes -o $USE_NFTABLES = Yes], [AC_DEFINE([_WITH_FIREWALL_], [ 1 ], [Define to 1 if using iptables or nftables])])
 AM_CONDITIONAL([FIREWALL], [test $USE_IPTABLES = Yes -o $USE_NFTABLES = Yes])
 
-dnl ----[Check for systemd libraries]----
-USE_SYSTEMD=No
-SYSTEMD_SERVICE_TYPE=forking
-AS_IF([test .${enable_systemd} != .no],
- [
-  $PKG_CONFIG --exists libsystemd
-  AS_IF([test $? -eq 0],
-   [
-    USE_SYSTEMD=Yes
-    add_pkg_config([libsystemd])
-    AC_DEFINE([_USE_SYSTEMD_], [ 1 ], [Define to 1 if want systemd support])
-    add_config_opt([SYSTEMD])
-    SYSTEMD_SERVICE_TYPE="notify\\nNotifyAccess=all"
-   ],
-   [
-    AS_IF([test .${enable_systemd} = .yes], [AC_MSG_WARN([libsystemd missing])])
-   ])
- ])
-AM_CONDITIONAL([WITH_SYSTEMD], [test $USE_SYSTEMD = Yes])
-AC_SUBST([SYSTEMD_SERVICE_TYPE])
-
 dnl ----[Check if have linux/if.h and net/if.h namespace collision]----
 # Including <linux/if.h> and <net/if.h> can cause a namespace collision.
 # Later versions of the headers are OK if linux/if.h is included second
@@ -2968,6 +2947,7 @@ INIT_TYPE=
 AS_IF(
   [test -n "$init_type"], [INIT_TYPE=$init_type],
   [test -n "$with_systemdsystemunitdir"], [INIT_TYPE=systemd],
+  [test .${enable_systemd} != .no], [INIT_TYPE=systemd],
   [
     /sbin/init --version 2>/dev/null | grep -q upstart
     AS_IF(
@@ -2992,6 +2972,32 @@ AS_IF(
       ])
   ])
 AS_IF([test \( .$INIT_TYPE = .systemd -a -z "$with_systemdsystemunitdir" \)], [with_systemdsystemunitdir=$($PKG_CONFIG --variable=systemdsystemunitdir systemd)])
+AS_IF([test .$INIT_TYPE != .], [add_config_opt([INIT=$INIT_TYPE])])
+AM_CONDITIONAL([WITH_SYSTEMD], [test .$INIT_TYPE = .systemd])
+
+USE_SYSTEMD_NOTIFY=No
+SYSTEMD_SERVICE_TYPE=forking
+AS_IF([test .$INIT_TYPE = .systemd],
+  [
+    dnl ----[Check for systemd libraries]----
+    AS_IF([test .${enable_systemd} != .no],
+     [
+      $PKG_CONFIG --exists libsystemd
+      AS_IF([test $? -eq 0],
+       [
+	USE_SYSTEMD_NOTIFY=Yes
+	add_pkg_config([libsystemd])
+	AC_DEFINE([_USE_SYSTEMD_NOTIFY_], [ 1 ], [Define to 1 if want systemd notify support])
+	add_config_opt([SYSTEMD_NOTIFY])
+	SYSTEMD_SERVICE_TYPE="notify\\nNotifyAccess=all"
+       ],
+       [
+	AS_IF([test .${enable_systemd} = .yes], [AC_MSG_WARN([libsystemd missing])])
+       ])
+     ])
+    AC_SUBST([SYSTEMD_SERVICE_TYPE])
+  ])
+AM_CONDITIONAL([WITH_SYSTEMD_NOTIFY], [test $USE_SYSTEMD_NOTIFY = Yes])
 
 dnl ----[Default keepalived configuration file]----
 AS_IF([test $default_config_file],
@@ -3107,8 +3113,8 @@ if test .$USE_IPTABLES = .Yes; then
   echo "Use libipset             : ${USE_LIBIPSET}"
 fi
 echo "Use nftables             : ${USE_NFTABLES}"
-echo "systemd integration      : ${USE_SYSTEMD}"
 echo "init type                : ${INIT_TYPE}"
+echo "systemd notify           : ${USE_SYSTEMD_NOTIFY}"
 echo "Strict config checks     : ${STRICT_CONFIG}"
 echo "Build genhash            : ${BUILD_GENHASH}"
 echo "Build documentation      : ${HAVE_SPHINX_BUILD}"

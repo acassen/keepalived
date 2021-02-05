@@ -34,6 +34,7 @@
 #include "main.h"
 
 static int child_reloaded_event = -1;
+static bool loaded;
 
 
 static void
@@ -52,10 +53,13 @@ child_reloaded_thread(__attribute__((unused)) thread_ref_t thread)
 	if (num_reloading >= event_count) {
 		num_reloading -= event_count;
 
-#ifdef _USE_SYSTEMD_
-		if (!num_reloading)
+		if (!num_reloading) {
+			log_message(LOG_INFO, "%s complete", loaded ? "Reload" : "Startup");
+			loaded = true;
+#ifdef _USE_SYSTEMD_NOTIFY_
 			systemd_notify_running();
 #endif
+		}
 	} else
 		log_message(LOG_INFO, "read eventfd count %" PRIu64 ", num_reloading %u", event_count, num_reloading);
 

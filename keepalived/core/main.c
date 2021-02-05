@@ -117,7 +117,7 @@
 #ifndef _ONE_PROCESS_DEBUG_
 #include "reload_monitor.h"
 #endif
-#ifdef _USE_SYSTEMD_
+#ifdef _USE_SYSTEMD_NOTIFY_
 #include "systemd.h"
 #endif
 #include "warnings.h"
@@ -894,7 +894,7 @@ do_reload(void)
 	if (!reload_config())
 		return;
 
-#ifdef _USE_SYSTEMD_
+#ifdef _USE_SYSTEMD_NOTIFY_
 	systemd_notify_reloading();
 #endif
 
@@ -1075,7 +1075,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 
 	log_message(LOG_INFO, "Stopping");
 
-#ifdef _USE_SYSTEMD_
+#ifdef _USE_SYSTEMD_NOTIFY_
 	systemd_notify_stopping();
 #endif
 
@@ -2368,7 +2368,7 @@ keepalived_main(int argc, char **argv)
 	/* Save command line options in case need to log them later */
 	save_cmd_line_options(argc, argv);
 
-#ifdef _USE_SYSTEMD_
+#ifdef _USE_SYSTEMD_NOTIFY_
 #ifndef _ONE_PROCESS_DEBUG_
 	check_parent_systemd();
 #endif

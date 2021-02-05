@@ -46,11 +46,13 @@ if WITH_BFD
   BFD_LIB		= bfd/libbfd.a
 endif
 
-keepalived.service: Makefile
+if WITH_SYSTEMD
+keepalived.service: Makefile.am
 	@rm -f $@ $@.tmp
 	@$(edit) '$(srcdir)/$@.in' >$@
 
 keepalived.service: $(srcdir)/keepalived.service.in
+endif
 
 SUBDIRS			= core $(VRRP_SUBDIR) $(IPVS_SUBDIR) $(DBUS_SUBDIR) $(BFD_SUBDIR) $(TRACKER_SUBDIR) etc
 

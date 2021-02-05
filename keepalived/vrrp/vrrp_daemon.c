@@ -87,7 +87,7 @@
 #ifdef _WITH_LVS_
 #include "ipvswrapper.h"
 #endif
-#ifdef _USE_SYSTEMD_
+#ifdef _USE_SYSTEMD_NOTIFY_
 #include "systemd.h"
 #endif
 #ifndef _ONE_PROCESS_DEBUG_
@@ -1089,7 +1089,7 @@ start_vrrp_child(void)
 		exit(0);
 	}
 
-#ifdef _USE_SYSTEMD_
+#ifdef _USE_SYSTEMD_NOTIFY_
 	systemd_unset_notify();
 #endif
 
