@@ -1774,7 +1774,9 @@ static list_head_t *
 thread_fetch_next_queue(thread_master_t *m)
 {
 	int last_epoll_errno = 0;
+#ifndef _ONE_PROCESS_DEBUG_
 	unsigned last_epoll_errno_count = 0;
+#endif
 	int ret;
 	int i;
 	timeval_t earliest_timer;
@@ -1835,12 +1837,17 @@ thread_fetch_next_queue(thread_master_t *m)
 				/* Log the error first time only */
 				log_message(LOG_INFO, "scheduler: epoll_wait error: %d (%m)", errno);
 
+#ifndef _ONE_PROCESS_DEBUG_
 				last_epoll_errno_count = 1;
-			} else if (++last_epoll_errno_count == 5 && shutdown_function) {
+#endif
+			}
+#ifndef _ONE_PROCESS_DEBUG_
+			else if (++last_epoll_errno_count == 5 && shutdown_function) {
 				/* We aren't goint to be able to recover, so exit and let our parent restart us */
 				log_message(LOG_INFO, "scheduler: epoll_wait has returned errno %d for 5 successive calls - terminating", last_epoll_errno);
 				shutdown_function(KEEPALIVED_EXIT_PROGRAM_ERROR);
 			}
+#endif
 
 			/* Make sure we don't sit it a tight loop */
 			if (last_epoll_errno == EBADF || last_epoll_errno == EFAULT || last_epoll_errno == EINVAL)

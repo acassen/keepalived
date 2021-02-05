@@ -128,6 +128,7 @@ struct child_term {
 	const char * const short_name;
 };
 
+#ifndef _ONE_PROCESS_DEBUG_
 static const struct child_term children_term[] = {
 #ifdef _WITH_VRRP_
 	{ &vrrp_child, PROG_VRRP, "vrrp" },
@@ -140,6 +141,7 @@ static const struct child_term children_term[] = {
 #endif
 };
 #define NUM_CHILD_TERM	(sizeof children_term / sizeof children_term[0])
+#endif
 
 /* global var */
 const char *version_string = VERSION_STRING;		/* keepalived version */
@@ -210,7 +212,9 @@ static bool create_core_dump = false;
 static const char *core_dump_pattern = "core";
 static char *orig_core_dump_pattern = NULL;
 
+#ifndef _ONE_PROCESS_DEBUG_
 static const char *dump_file = KA_TMP_DIR "/keepalived_parent.data";
+#endif
 
 /* debug flags */
 #if defined _TIMER_CHECK_ || \
@@ -451,6 +455,7 @@ global_init_keywords(void)
 	return keywords;
 }
 
+#ifndef _ONE_PROCESS_DEBUG_
 static void
 create_reload_file(void)
 {
@@ -473,27 +478,30 @@ create_reload_file(void)
 		umask(umask_val);
 }
 
-static inline  void
+static inline void
 remove_reload_file(void)
 {
 	if (global_data->reload_file && !__test_bit(CONFIG_TEST_BIT, &debug))
 		unlink(global_data->reload_file);
 }
+#endif
 
 static void
 read_config_file(bool write_config_copy)
 {
-#ifdef _ONE_PROCESS_DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
+	if (write_config_copy)
+		create_reload_file();
+#else
 	write_config_copy = false;
 #endif
 
-	if (write_config_copy)
-		create_reload_file();
-
 	init_data(conf_file, global_init_keywords, write_config_copy);
 
+#ifndef _ONE_PROCESS_DEBUG_
 	if (write_config_copy)
 		remove_reload_file();
+#endif
 }
 
 /* Daemon stop sequence */
@@ -741,10 +749,8 @@ static bool reload_config(void)
 
 	log_message(LOG_INFO, "Reloading ...");
 
-#ifndef _ONE_PROCESS_DEBUG_
 	if (global_data->reload_time_file)
 		stop_reload_monitor();
-#endif
 
 	/* Clear any config errors from previous loads */
 	clear_config_status();
@@ -814,10 +820,8 @@ static bool reload_config(void)
 		free_global_data (old_global_data);
 	}
 
-#ifndef _ONE_PROCESS_DEBUG_
 	if (global_data->reload_time_file)
 		start_reload_monitor();
-#endif
 
 	return !unsupported_change;
 }
@@ -881,7 +885,6 @@ propagate_signal(__attribute__((unused)) void *v, int sig)
 		thread_add_event(master, print_parent_data, NULL, 0);
 }
 
-#ifndef _ONE_PROCESS_DEBUG_
 static void
 child_reloaded(__attribute__((unused)) void *one, __attribute__((unused)) int sig_num)
 {
@@ -1057,6 +1060,7 @@ thread_dump_signal(__attribute__((unused)) void *v, __attribute__((unused)) int 
 }
 #endif
 
+#ifndef _ONE_PROCESS_DEBUG_
 /* Terminate handler */
 static void
 sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
@@ -1087,7 +1091,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 	systemd_notify_stopping();
 #endif
 
-#ifndef _ONE_PROCESSS_DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 	if (global_data->reload_time_file)
 		stop_reload_monitor();
 #endif
@@ -2341,7 +2345,9 @@ register_parent_thread_addresses(void)
 	register_signal_handler_address("sigend", sigend);
 #endif
 	register_signal_handler_address("thread_child_handler", thread_child_handler);
+#ifdef THREAD_DUMP
 	register_signal_handler_address("thread_dump_signal", thread_dump_signal);
+#endif
 
 	register_thread_address("start_keepalived", start_keepalived);
 	register_thread_address("startup_script_completed", startup_script_completed);
@@ -2393,7 +2399,9 @@ keepalived_main(int argc, char **argv)
 	save_cmd_line_options(argc, argv);
 
 #ifdef _USE_SYSTEMD_
+#ifndef _ONE_PROCESS_DEBUG_
 	check_parent_systemd();
+#endif
 #endif
 
 	/* We are the parent process */
@@ -2643,8 +2651,10 @@ keepalived_main(int argc, char **argv)
 #endif
 		}
 
+#ifndef _ONE_PROCESS_DEBUG_
 		/* We have set the namespaces, so we can do this now */
 		remove_reload_file();
+#endif
 
 		/* Check if keepalived is already running */
 		if (keepalived_running(daemon_mode)) {

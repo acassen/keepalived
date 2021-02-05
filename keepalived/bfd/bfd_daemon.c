@@ -172,11 +172,12 @@ start_bfd(__attribute__((unused)) data_t *prev_global_data)
 
 	bfd_complete_init();
 
+#ifndef _ONE_PROCESS_DEBUG_
 	if (global_data->reload_check_config && get_config_status() != CONFIG_OK) {
 		stop_bfd(KEEPALIVED_EXIT_CONFIG);
 		return;
 	}
-
+#endif
 
 	/* Post initializations */
 #ifdef _MEM_CHECK_

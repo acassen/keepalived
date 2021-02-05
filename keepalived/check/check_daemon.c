@@ -83,7 +83,7 @@ bool using_ha_suspend;
 
 /* local variables */
 static const char *check_syslog_ident;
-#ifndef __ONE_PROCESS_DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 static bool two_phase_terminate;
 static timeval_t check_start_time;
 static unsigned check_next_restart_delay;
@@ -342,8 +342,11 @@ start_check(list_head_t *old_checkers_queue, data_t *prev_global_data)
 	link_vsg_to_vs();
 
 	/* Post initializations */
-	if (!validate_check_config() ||
-	    (global_data->reload_check_config && get_config_status() != CONFIG_OK)) {
+	if (!validate_check_config()
+#ifndef _ONE_PROCESS_DEBUG_
+	    || (global_data->reload_check_config && get_config_status() != CONFIG_OK)
+#endif
+				    ) {
 		stop_check(KEEPALIVED_EXIT_CONFIG);
 		return;
 	}
@@ -776,9 +779,11 @@ start_check_child(void)
 	launch_thread_scheduler(master);
 
 	/* Finish healthchecker daemon process */
+#ifndef _ONE_PROCESS_DEBUG_
 	if (two_phase_terminate)
 		checker_terminate_phase2();
 	else
+#endif
 		stop_check(KEEPALIVED_EXIT_OK);
 
 #ifdef THREAD_DUMP

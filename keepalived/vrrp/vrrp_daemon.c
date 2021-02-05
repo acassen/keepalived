@@ -111,7 +111,7 @@ perf_t perf_run = PERF_NONE;
 /* local variables */
 static const char *vrrp_syslog_ident;
 static char sav_igmp_link_local_mcast_reports;
-#ifndef __ONE_PROCESS_DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 static bool two_phase_terminate;
 static timeval_t vrrp_start_time;
 static unsigned vrrp_next_restart_delay;
@@ -610,8 +610,11 @@ start_vrrp(data_t *prev_global_data)
 	}
 
 	/* Complete VRRP initialization */
-	if (!vrrp_complete_init() ||
-	    (global_data->reload_check_config && get_config_status() != CONFIG_OK)) {
+	if (!vrrp_complete_init()
+#ifndef _ONE_PROCESS_DEBUG_
+	    || (global_data->reload_check_config && get_config_status() != CONFIG_OK)
+#endif
+	    			 ) {
 		stop_vrrp(KEEPALIVED_EXIT_CONFIG);
 		return;
 	}

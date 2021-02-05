@@ -261,6 +261,7 @@ init_global_data(data_t * data, data_t *prev_global_data, bool copy_unchangeable
 		}
 	}
 
+#ifndef _ONE_PROCESS_DEBUG_
 	if (data->reload_file == DEFAULT_RELOAD_FILE) {
 		if (data->instance_name)
 			data->reload_file = make_pidfile_name(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE, data->instance_name, RELOAD_EXTENSION);
@@ -269,6 +270,7 @@ init_global_data(data_t * data, data_t *prev_global_data, bool copy_unchangeable
 		else
 			data->reload_file = STRDUP(RUN_DIR KEEPALIVED_PID_FILE RELOAD_EXTENSION);
 	}
+#endif
 
 	if (!data->local_name &&
 	    (!data->router_id ||
