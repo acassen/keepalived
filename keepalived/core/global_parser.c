@@ -1092,7 +1092,20 @@ vrrp_ipsets_handler(const vector_t *strvec)
 #endif
 }
 #endif
+#elif defined _WITH_NFTABLES_
+
+/* Allow legacy vrrp_iptables/vrrp_ipsets global_defs config to use nftables */
+static void
+vrrp_iptables_handler(__attribute__((unused)) const vector_t *strvec)
+{
+	report_config_error(CONFIG_GENERAL_ERROR, "iptables not supported, using nftables instead. Please replace 'vrrp_iptables and 'vrrp_ipsets' with 'nftables' config option");
+
+	/* Table name defaults to "keepalived" */
+	global_data->vrrp_nf_table_name = STRDUP(DEFAULT_NFTABLES_TABLE);
+	global_data->vrrp_nf_chain_priority = -1;
+}
 #endif
+
 #ifdef _WITH_NFTABLES_
 static void
 vrrp_nftables_handler(__attribute__((unused)) const vector_t *strvec)
@@ -1112,7 +1125,7 @@ vrrp_nftables_handler(__attribute__((unused)) const vector_t *strvec)
 		name = strvec_slot(strvec, 1);
 	}
 	else {
-		/* Table named defaults to "keepalived" */
+		/* Table name defaults to "keepalived" */
 		name = DEFAULT_NFTABLES_TABLE;
 	}
 
@@ -2145,7 +2158,10 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_lower_prio_no_advert", &vrrp_lower_prio_no_advert_handler);
 	install_keyword("vrrp_higher_prio_send_advert", &vrrp_higher_prio_send_advert_handler);
 	install_keyword("vrrp_version", &vrrp_version_handler);
-#ifdef _WITH_IPTABLES_
+#if defined _WITH_IPTABLES_ || defined _WITH_NFTABLES_
+	/* We keep the vrrp_iptables command for legacy reasons, and
+	 * will use nftables instead if it is specified and keepalived
+	 * is not built with iptables support. */
 	install_keyword("vrrp_iptables", &vrrp_iptables_handler);
 #ifdef _HAVE_LIBIPSET_
 	install_keyword("vrrp_ipsets", &vrrp_ipsets_handler);
