@@ -54,6 +54,14 @@
 #include "memory.h"
 #ifdef _WITH_VRRP_
 #include "vrrp_daemon.h"
+#ifdef _WITH_NFTABLES_
+#include "vrrp_nftables.h"
+#endif
+#endif
+#ifdef _WITH_LVS_
+#ifdef _WITH_NFTABLES_
+#include "check_nftables.h"
+#endif
 #endif
 
 #if HAVE_DECL_CLONE_NEWNET
@@ -1107,6 +1115,7 @@ vrrp_iptables_handler(__attribute__((unused)) const vector_t *strvec)
 #endif
 
 #ifdef _WITH_NFTABLES_
+#ifdef _WITH_VRRP_
 static void
 vrrp_nftables_handler(__attribute__((unused)) const vector_t *strvec)
 {
@@ -1143,14 +1152,65 @@ vrrp_nftables_priority_handler(const vector_t *strvec)
 		report_config_error(CONFIG_INVALID_NUMBER, "invalid nftables chain priority '%s'", strvec_slot(strvec, 1));
 }
 static void
-vrrp_nftables_counters_handler(__attribute__((unused)) const vector_t *strvec)
-{
-	global_data->vrrp_nf_counters = true;
-}
-static void
 vrrp_nftables_ifindex_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	global_data->vrrp_nf_ifindex = true;
+}
+#endif
+
+#ifdef _WITH_LVS_
+static void
+ipvs_nftables_handler(__attribute__((unused)) const vector_t *strvec)
+{
+	const char *name;
+
+	if (global_data->ipvs_nf_table_name) {
+		report_config_error(CONFIG_GENERAL_ERROR, "ipvs nftables already specified - ignoring");
+		return;
+	}
+
+	if (vector_size(strvec) >= 2) {
+		if (strlen(strvec_slot(strvec, 1)) >= NFT_TABLE_MAXNAMELEN) {
+			report_config_error(CONFIG_GENERAL_ERROR, "ipvs nftables table name too long - ignoring");
+			return;
+		}
+		name = strvec_slot(strvec, 1);
+	}
+	else {
+		/* Table named defaults to "keepalived_ipvs" */
+		name = DEFAULT_NFTABLES_IPVS_TABLE;
+	}
+
+	global_data->ipvs_nf_table_name = STRDUP(name);
+	global_data->ipvs_nf_chain_priority = -1;
+	global_data->ipvs_nftables_start_fwmark = DEFAULT_IPVS_NF_START_FWMARK;
+}
+static void
+ipvs_nftables_priority_handler(const vector_t *strvec)
+{
+	int priority;
+
+	if (read_int_strvec(strvec, 1, &priority, INT32_MIN, INT32_MAX, false))
+		global_data->ipvs_nf_chain_priority = priority;
+	else
+		report_config_error(CONFIG_INVALID_NUMBER, "invalid ipvs nftables chain priority '%s'", strvec_slot(strvec, 1));
+}
+static void
+ipvs_nftables_start_fwmark_handler(const vector_t *strvec)
+{
+	unsigned fwmark;
+
+	if (read_unsigned_strvec(strvec, 1, &fwmark, 1, UINT32_MAX, false))
+		global_data->ipvs_nftables_start_fwmark = fwmark;
+	else
+		report_config_error(CONFIG_INVALID_NUMBER, "invalid ipvs nftables start_fwmark priority '%s'", strvec_slot(strvec, 1));
+}
+#endif
+
+static void
+nftables_counters_handler(__attribute__((unused)) const vector_t *strvec)
+{
+	global_data->nf_counters = true;
 }
 #endif
 static void
@@ -2168,10 +2228,17 @@ init_global_keywords(bool global_active)
 #endif
 #endif
 #ifdef _WITH_NFTABLES_
+#ifdef _WITH_VRRP_
 	install_keyword("nftables", &vrrp_nftables_handler);
 	install_keyword("nftables_priority", &vrrp_nftables_priority_handler);
-	install_keyword("nftables_counters", &vrrp_nftables_counters_handler);
 	install_keyword("nftables_ifindex", &vrrp_nftables_ifindex_handler);
+#endif
+#ifdef _WITH_LVS_
+	install_keyword("nftables_ipvs", &ipvs_nftables_handler);
+	install_keyword("nftables_ipvs_priority", &ipvs_nftables_priority_handler);
+	install_keyword("nftables_ipvs_start_fwmark", &ipvs_nftables_start_fwmark_handler);
+#endif
+	install_keyword("nftables_counters", &nftables_counters_handler);
 #endif
 	install_keyword("vrrp_check_unicast_src", &vrrp_check_unicast_src_handler);
 	install_keyword("vrrp_skip_check_adv_addr", &vrrp_check_adv_addr_handler);

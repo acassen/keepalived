@@ -789,11 +789,20 @@ static bool reload_config(void)
 	}
 
 #ifdef _WITH_NFTABLES_
+#ifdef _WITH_VRRP_
 	if (!!old_global_data->vrrp_nf_table_name != !!global_data->vrrp_nf_table_name ||
 	    (global_data->vrrp_nf_table_name && strcmp(old_global_data->vrrp_nf_table_name, global_data->vrrp_nf_table_name))) {
 		log_message(LOG_INFO, "Cannot change nftables table name at a reload - please restart %s", PACKAGE);
 		unsupported_change = true;
 	}
+#endif
+#ifdef _WITH_LVS_
+	if (!!old_global_data->ipvs_nf_table_name != !!global_data->ipvs_nf_table_name ||
+	    (global_data->ipvs_nf_table_name && strcmp(old_global_data->ipvs_nf_table_name, global_data->ipvs_nf_table_name))) {
+		log_message(LOG_INFO, "Cannot change IPVS nftables table name at a reload - please restart %s", PACKAGE);
+		unsupported_change = true;
+	}
+#endif
 #endif
 
 	if (!!old_global_data->config_directory != !!global_data->config_directory ||
@@ -2497,7 +2506,7 @@ keepalived_main(int argc, char **argv)
 
 	init_global_data(global_data, NULL, false);
 
-#ifdef _WITH_NFTABLES_
+#if defined _WITH_VRRP_ && defined  _WITH_NFTABLES_
 	if (global_data->vrrp_nf_table_name)
 		set_nf_ifname_type();
 #endif

@@ -550,8 +550,8 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 			log_message(LOG_INFO, "  %s", "Please report a bug at https://github.com/acassen/keepalived/issues");
 			log_message(LOG_INFO, "  %s", "and include this log from when keepalived started, a description");
 			log_message(LOG_INFO, "  %s", "of what happened before the crash, your configuration file and the details below.");
-			log_message(LOG_INFO, "  %s", "Also provide the output of keepalived -v, what Linux distro and version");
-			log_message(LOG_INFO, "  %s", "you are running on, and whether keepalived is being run in a container or VM.");
+			log_message(LOG_INFO, "  %s", "Also provide the output of keepalived -v, and whether keepalived is being");
+			log_message(LOG_INFO, "  %s", "run in a container or VM.");
 			log_message(LOG_INFO, "  %s", "A failure to provide all this information may mean the crash cannot be investigated.");
 			log_message(LOG_INFO, "  %s", "If you are able to provide a stack backtrace with gdb that would really help.");
 			log_message(LOG_INFO, "  Source version %s %s%s", PACKAGE_VERSION,

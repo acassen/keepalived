@@ -386,7 +386,6 @@ add_to_var([KA_LIBS], [-lm])
 # Some sanity checks on configure options
 AS_IF([test .$enable_vrrp = .no],
     AS_IF([test .$IPTABLES_SILENT == .Yes], [enable_iptables=no])
-    AS_IF([test .$NFTABLES_SILENT == .Yes], [enable_nftables=no])
 
     AS_IF([test .$enable_perf != .], [AC_MSG_ERROR([enable-perf requires vrrp])])
     AS_IF([test $with_fixed_if_type], [AC_MSG_ERROR([with-fixed-if-type requires vrrp])])
@@ -406,7 +405,6 @@ AS_IF([test .$enable_vrrp = .no],
     AS_IF([test .$enable_linkbeat != .], [AC_MSG_ERROR([disable-linkbeat requires vrrp])])
     AS_IF([test .$enable_bfd != .], [AC_MSG_ERROR([enable-bfd requires vrrp])])
     AS_IF([test .$enable_iptables != .no], [AC_MSG_ERROR([enable-iptables requires vrrp])])
-    AS_IF([test .$enable_nftables != .no], [AC_MSG_ERROR([enable-nftables requires vrrp])])
     AS_IF([test .$enable_track_process != .], [AC_MSG_ERROR([enable-track-process requires vrrp])])
     AS_IF([test .$enable_network_timestamp != .], [AC_MSG_ERROR([enable-network-timestamp requires vrrp])])
     AS_IF([test .$enable_netlink_timers != .], [AC_MSG_ERROR([enable-netlink-timers requires vrrp])])
@@ -1787,6 +1785,16 @@ if test .${enable_nftables} != .no; then
 	      #include <libnftnl/udata.h>
 	    ])
 	])
+
+      # NFTNL_SET_DESC_CONCAT since Linux 5.6 and libnftnl 1.1.6, nft 0.9.4 - ranges in concatenations
+      # NFTNL_SET_ELEM_KEY_END since Linux 5.6 and libnftnl 1.1.6, nft 0.9.4
+      NFT_RANGE_CONCATS_OK=1
+      AC_CHECK_DECLS([NFTNL_SET_DESC_CONCAT, NFTNL_SET_ELEM_KEY_END], [], [NFT_RANGE_CONCATS_OK=0], [[#include <libnftnl/set.h>]])
+      AS_IF([test $NFT_RANGE_CONCATS_OK -eq 1],
+	    [AC_DEFINE([NFT_RANGE_CONCATS], [ 1 ], [Define to 1 if can use concats with ranges in nftables])])
+
+      # NFTA_SET_EXPR since Linux 5.7, libnftnl 1.1.7, nft 0.9.5 - counters on set elements
+      AC_CHECK_DECLS([NFTNL_SET_EXPR], [], [], [[#include <libnftnl/set.h>]])
     fi
   fi
   CPPFLAGS="$SAV_CPPFLAGS"

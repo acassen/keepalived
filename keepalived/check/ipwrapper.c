@@ -37,6 +37,9 @@
 #include "smtp.h"
 #include "check_daemon.h"
 #include "track_file.h"
+#ifdef _WITH_NFTABLES_
+#include "check_nftables.h"
+#endif
 
 static bool __attribute((pure))
 vs_iseq(const virtual_server_t *vs_a, const virtual_server_t *vs_b)
@@ -74,7 +77,7 @@ vsge_iseq(const virtual_server_group_entry_t *vsge_a, const virtual_server_group
 		return vsge_a->vfwmark == vsge_b->vfwmark;
 
 	if (!sockstorage_equal(&vsge_a->addr, &vsge_b->addr) ||
-	    vsge_a->range != vsge_b->range)
+	    !sockstorage_equal(&vsge_a->addr_end, &vsge_b->addr_end))
 		return false;
 
 	return true;
@@ -354,6 +357,11 @@ clear_service_vs(virtual_server_t * vs, bool stopping)
 
 	/* The above will handle Omega case for VS as well. */
 
+#ifdef _WITH_NFTABLES_
+	if (vs->vsg && vs->vsg->auto_fwmark[protocol_to_index(vs->service_type)])
+		clear_vs_fwmark(vs);
+#endif
+
 	ipvs_cmd(LVS_CMD_DEL, vs, NULL);
 
 	UNSET_ALIVE(vs);
@@ -381,10 +389,15 @@ clear_services(void)
 			clear_service_vs(vs, true);
 		}
 	}
+
+#ifdef _WITH_NFTABLES_
+	if (global_data->ipvs_nf_table_name)
+		nft_ipvs_end();
+#endif
 }
 
 /* Set a realserver IPVS rules */
-static bool
+static void
 init_service_rs(virtual_server_t *vs)
 {
 	real_server_t *rs;
@@ -430,8 +443,6 @@ init_service_rs(virtual_server_t *vs)
 			}
 		}
 	}
-
-	return true;
 }
 
 static void
@@ -441,12 +452,19 @@ sync_service_vsg_entry(virtual_server_t *vs, const list_head_t *l)
 
 	list_for_each_entry(vsge, l, e_list) {
 		if (!vsge->reloaded) {
-			log_message(LOG_INFO, "VS [%s:%" PRIu32 ":%u] added into group %s"
-// Does this work with no address?
-					    , inet_sockaddrtotrio(&vsge->addr, vs->service_type)
-					    , vsge->range
-					    , vsge->vfwmark
-					    , vs->vsgname);
+			if (vsge->is_fwmark)
+				log_message(LOG_INFO, "VS [FWM %u] added into group %s"
+						    , vsge->vfwmark
+						    , vs->vsgname);
+			else if (!inet_sockaddrcmp(&vsge->addr, &vsge->addr_end))
+				log_message(LOG_INFO, "VS [%s] added into group %s"
+						    , inet_sockaddrtotrio(&vsge->addr, vs->service_type)
+						    , vs->vsgname);
+			else
+				log_message(LOG_INFO, "VS [%s-%s] added into group %s"
+						    , inet_sockaddrtotrio(&vsge->addr, vs->service_type)
+						    , inet_sockaddrtos(&vsge->addr_end)
+						    , vs->vsgname);
 			/* add all reloaded and alive/inhibit-set dests
 			 * to the newly created vsg item */
 			ipvs_group_sync_entry(vs, vsge);
@@ -608,17 +626,34 @@ perform_svr_state(bool alive, checker_t *checker)
 static bool
 init_service_vs(virtual_server_t * vs)
 {
+#ifdef _WITH_NFTABLES_
+	proto_index_t proto_index = 0;
+
+	if (vs->service_type != AF_UNSPEC)
+		proto_index = protocol_to_index(vs->service_type);
+#endif
+
 	/* Init the VS root */
 	if (!ISALIVE(vs) || vs->vsg) {
-		ipvs_cmd(LVS_CMD_ADD, vs, NULL);
-		SET_ALIVE(vs);
+#ifdef _WITH_NFTABLES_
+		if (ISALIVE(vs) && vs->vsg && (vs->service_type == AF_UNSPEC || vs->vsg->auto_fwmark[proto_index]))
+			set_vs_fwmark(vs);
+		else
+#endif
+		{
+			ipvs_cmd(LVS_CMD_ADD, vs, NULL);
+			SET_ALIVE(vs);
+		}
 	}
 
 	/* Processing real server queue */
-	if (!init_service_rs(vs))
-		return false;
+	init_service_rs(vs);
 
-	if (vs->reloaded && vs->vsgname) {
+	if (vs->reloaded && vs->vsgname
+#ifdef _WITH_NFTABLES_
+	    && !vs->vsg->auto_fwmark[proto_index]
+#endif
+				    ) {
 		/* add reloaded dests into new vsg entries */
 		sync_service_vsg(vs);
 	}
@@ -769,10 +804,14 @@ clear_diff_vsge(list_head_t *old, list_head_t *new, virtual_server_t *old_vs)
 		if (vsge->is_fwmark)
 			log_message(LOG_INFO, "VS [%u] in group %s no longer exists",
 					      vsge->vfwmark, old_vs->vsgname);
-		else
-			log_message(LOG_INFO, "VS [%s:%" PRIu32 "] in group %s no longer exists"
+		else if (!inet_sockaddrcmp(&vsge->addr, &vsge->addr_end))
+			log_message(LOG_INFO, "VS [%s] in group %s no longer exists"
 					    , inet_sockaddrtotrio(&vsge->addr, old_vs->service_type)
-					    , vsge->range
+					    , old_vs->vsgname);
+		else
+			log_message(LOG_INFO, "VS [%s-%s] in group %s no longer exists"
+					    , inet_sockaddrtotrio(&vsge->addr, old_vs->service_type)
+					    , inet_sockaddrtos(&vsge->addr_end)
 					    , old_vs->vsgname);
 
 		ipvs_group_remove_entry(old_vs, vsge);
@@ -810,12 +849,66 @@ update_alive_counts(virtual_server_t *old, virtual_server_t *new)
 	update_alive_counts_vsge(&old->vsg->vfwmark, &new->vsg->vfwmark);
 }
 
+#ifdef _WITH_NFTABLES_
+static void
+handle_vsg(int family, virtual_server_t *vs)
+{
+	bool old_val;
+	real_server_t *rs;
+
+	if ((family == AF_INET && !vs->vsg->have_ipv4) ||
+	    (family == AF_INET6 && !vs->vsg->have_ipv6))
+		remove_fwmark_vs(vs, family);
+	else {
+		add_fwmark_vs(vs, family);
+
+		/* Now add the RSs */
+		if (family == AF_INET) {
+			old_val = vs->vsg->have_ipv6;
+			vs->vsg->have_ipv6 = false;
+		} else {
+			old_val = vs->vsg->have_ipv4;
+			vs->vsg->have_ipv4 = false;
+		}
+
+		list_for_each_entry(rs, &vs->rs, e_list) {
+			if (!rs->num_failed_checkers || rs->inhibit)
+				ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs);
+		}
+
+		if (family == AF_INET)
+			vs->vsg->have_ipv6 = old_val;
+		else
+			vs->vsg->have_ipv4 = old_val;
+	}
+}
+#endif
+
 /* Clear the diff vsg of the old vs */
 static void
 clear_diff_vsg(virtual_server_t *old_vs, virtual_server_t *new_vs)
 {
 	virtual_server_group_t *old = old_vs->vsg;
 	virtual_server_group_t *new = new_vs->vsg;
+#ifdef _WITH_NFTABLES_
+	bool vsg_already_done;
+	proto_index_t proto_index = protocol_to_index(new_vs->service_type);
+
+	if (old_vs->vsg->auto_fwmark[proto_index]) {
+		vsg_already_done = !!new_vs->vsg->auto_fwmark[proto_index];
+
+		new_vs->vsg->auto_fwmark[proto_index] = old_vs->vsg->auto_fwmark[proto_index];
+
+		if (new_vs->vsg->have_ipv4 != old_vs->vsg->have_ipv4)
+			handle_vsg(AF_INET, new_vs);
+		if (new_vs->vsg->have_ipv6 != old_vs->vsg->have_ipv6)
+			handle_vsg(AF_INET6, new_vs);
+
+		/* We have already updated this vsg */
+		if (vsg_already_done)
+			return;
+	}
+#endif
 
 	/* Diff the group entries */
 	clear_diff_vsge(&old->addr_range, &new->addr_range, old_vs);
@@ -1111,7 +1204,6 @@ link_vsg_to_vs(void)
 {
 	virtual_server_t *vs, *vs_tmp;
 	virtual_server_group_t *vsg;
-	virtual_server_group_entry_t *vsge;
 	unsigned vsg_member_no;
 	int vsg_af;
 
@@ -1125,31 +1217,30 @@ link_vsg_to_vs(void)
 		vs->vsg = ipvs_get_group_by_name(vs->vsgname, &check_data->vs_group);
 		if (!vs->vsg) {
 			log_message(LOG_INFO, "Virtual server group %s specified but not configured"
-					      " - ignoring virtual erver %s"
+					      " - ignoring virtual server %s"
 					    , vs->vsgname, FMT_VS(vs));
 			free_vs(vs);
 			continue;
 		}
 
 		/* Check the vs and vsg address families match */
-		if (!list_empty(&vs->vsg->addr_range)) {
-			vsge = list_first_entry(&vs->vsg->addr_range, virtual_server_group_entry_t, e_list);
-			vsg_af = vsge->addr.ss_family;
-		} else {
-			/* fwmark only */
+		if (vs->vsg->have_ipv4 == vs->vsg->have_ipv6)
 			vsg_af = AF_UNSPEC;
-		}
+		else if (vs->vsg->have_ipv4)
+			vsg_af = AF_INET;
+		else
+			vsg_af = AF_INET6;
 
 		/* We can have mixed IPv4 and IPv6 in a vsg only if all fwmarks have a family,
 		 * and also all the real/sorry servers of the virtual server are tunnelled. */
 		if (vs->vsg->have_ipv4 && vs->vsg->have_ipv6 && vs->af != AF_UNSPEC) {
-			log_message(LOG_INFO, "Virtual server group %s with IPv4 & IPv6 doesn't"
+			log_message(LOG_INFO, "%s: virtual server group with IPv4 & IPv6 doesn't"
 					      " match virtual server %s - ignoring"
 					    , vs->vsgname, FMT_VS(vs));
 			free_vs(vs);
 		} else if ((vs->vsg->have_ipv4 && vs->af == AF_INET6) ||
 			   (vs->vsg->have_ipv6 && vs->af == AF_INET)) {
-			log_message(LOG_INFO, "Virtual server group %s address family doesn't match"
+			log_message(LOG_INFO, "%s: address family doesn't match"
 					      " virtual server %s - ignoring"
 					    , vs->vsgname, FMT_VS(vs));
 			free_vs(vs);
@@ -1157,16 +1248,15 @@ link_vsg_to_vs(void)
 			if (vs->af == AF_UNSPEC)
 				vs->af = vsg_af;
 			else if (vsg_af != vs->af) {
-				log_message(LOG_INFO, "Virtual server group %s address family doesn't"
+				log_message(LOG_INFO, "%s: address family doesn't"
 						      " match virtual server %s - ignoring"
 						    , vs->vsgname, FMT_VS(vs));
 				free_vs(vs);
 			}
-		} else if (vs->af == AF_UNSPEC) {
-			log_message(LOG_INFO, "Virtual server %s address family cannot be determined,"
+		} else if (vs->af == AF_UNSPEC && vs->vsg && vs->vsg->fwmark_no_family) {
+			log_message(LOG_INFO, "%s: Virtual server %s address family cannot be determined,"
 					      " defaulting to IPv4"
-					    , FMT_VS(vs));
-			vs->af = AF_INET;
+					    , vs->vsgname, FMT_VS(vs));
 		}
 	}
 

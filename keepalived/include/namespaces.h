@@ -38,6 +38,8 @@
 extern void free_dirname(void);
 extern bool set_namespaces(const char*);
 extern void clear_namespaces(void);
+extern int set_netns_name(const char *);
+extern void restore_net_namespace(int);
 extern int socket_netns_name(const char *, int, int, int);
 
 /* ipvs namespaces */

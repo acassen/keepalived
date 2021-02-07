@@ -137,6 +137,7 @@ vsg_handler(const vector_t *strvec)
 							, vsg->gname);
 		free_vsg(vsg);
 	} else if (vsg->have_ipv4 && vsg->have_ipv6 && vsg->fwmark_no_family) {
+/* The error here is fwmark_no_family && all rs tunnelled - but we only know that later */
 		report_config_error(CONFIG_GENERAL_ERROR, "virtual server group %s cannot have IPv4, IPv6"
 							  " and fwmark without family - removing"
 							, vsg->gname);

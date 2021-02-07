@@ -47,6 +47,14 @@
 /* Daemon dynamic data structure definition */
 #define KEEPALIVED_DEFAULT_DELAY	(60 * TIMER_HZ)
 
+/* Used for arrays of protocol entries */
+typedef enum {
+	TCP_INDEX,
+	UDP_INDEX,
+	SCTP_INDEX,
+	PROTO_INDEX_MAX
+} proto_index_t;
+
 /* SSL specific data */
 typedef struct _ssl_data {
 	int				enable;
@@ -119,7 +127,7 @@ typedef struct _virtual_server_group_entry {
 	union {
 		struct {
 			struct sockaddr_storage	addr;
-			uint32_t	range;
+			struct sockaddr_storage	addr_end;
 			unsigned	tcp_alive;
 			unsigned	udp_alive;
 			unsigned	sctp_alive;
@@ -144,6 +152,9 @@ typedef struct _virtual_server_group {
 	bool				have_ipv4;
 	bool				have_ipv6;
 	bool				fwmark_no_family;
+#ifdef _WITH_NFTABLES_
+	unsigned			auto_fwmark[PROTO_INDEX_MAX];
+#endif
 
 	/* Linked list member */
 	list_head_t			e_list;
@@ -247,6 +258,21 @@ real_weight(int64_t effective_weight)
 	if (effective_weight > IPVS_WEIGHT_LIMIT)
 		return IPVS_WEIGHT_LIMIT;
 	return effective_weight;
+}
+
+static inline proto_index_t
+protocol_to_index(int proto)
+{
+	if (proto == IPPROTO_TCP)
+		return TCP_INDEX;
+	if (proto == IPPROTO_UDP)
+		return UDP_INDEX;
+	if (proto == IPPROTO_SCTP)
+		return SCTP_INDEX;
+
+	log_message(LOG_INFO, "Unknown protocol %d at %s:%d in %s", proto, __func__, __LINE__, __FILE__);
+
+	return UDP_INDEX;
 }
 
 /* Global vars exported */
