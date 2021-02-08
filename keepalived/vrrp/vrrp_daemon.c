@@ -87,9 +87,13 @@
 #ifdef _WITH_LVS_
 #include "ipvswrapper.h"
 #endif
-#ifdef _USE_SYSTEMD_
+#ifdef _USE_SYSTEMD_NOTIFY_
 #include "systemd.h"
 #endif
+#ifndef _ONE_PROCESS_DEBUG_
+#include "config_notify.h"
+#endif
+
 
 /* Global variables */
 bool non_existent_interface_specified;
@@ -111,7 +115,7 @@ perf_t perf_run = PERF_NONE;
 /* local variables */
 static const char *vrrp_syslog_ident;
 static char sav_igmp_link_local_mcast_reports;
-#ifndef __ONE_PROCESS_DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 static bool two_phase_terminate;
 static timeval_t vrrp_start_time;
 static unsigned vrrp_next_restart_delay;
@@ -189,12 +193,14 @@ set_vrrp_max_fds(void)
 	 * mem_check file
 	 * USR1/USR2/JSON data
 	 * smtp-alert file
+	 * memfd for config
+	 * eventfd for notifying load/reload complete
 	 *
 	 * plus:
 	 *
 	 * 20 spare (in case we have forgotten anything)
 	 */
-	set_max_file_limit(cnt * 2 + vrrp_data->num_smtp_alert + 21 + 20);
+	set_max_file_limit(cnt * 2 + vrrp_data->num_smtp_alert + 23 + 20);
 }
 
 #ifdef _WITH_LVS_
@@ -520,6 +526,12 @@ start_vrrp(data_t *prev_global_data)
 
 	init_data(conf_file, vrrp_init_keywords, false);
 
+#ifndef _ONE_PROCESS_DEBUG_
+	/* Notify parent config has been read if appropriate */
+	if (!__test_bit(CONFIG_TEST_BIT, &debug))
+		notify_config_read();
+#endif
+
 	/* Update process name if necessary */
 	if ((!reload && global_data->vrrp_process_name) ||
 	    (reload &&
@@ -610,8 +622,11 @@ start_vrrp(data_t *prev_global_data)
 	}
 
 	/* Complete VRRP initialization */
-	if (!vrrp_complete_init() ||
-	    (global_data->reload_check_config && get_config_status() != CONFIG_OK)) {
+	if (!vrrp_complete_init()
+#ifndef _ONE_PROCESS_DEBUG_
+	    || (global_data->reload_check_config && get_config_status() != CONFIG_OK)
+#endif
+	    			 ) {
 		stop_vrrp(KEEPALIVED_EXIT_CONFIG);
 		return;
 	}
@@ -1076,7 +1091,7 @@ start_vrrp_child(void)
 		exit(0);
 	}
 
-#ifdef _USE_SYSTEMD_
+#ifdef _USE_SYSTEMD_NOTIFY_
 	systemd_unset_notify();
 #endif
 

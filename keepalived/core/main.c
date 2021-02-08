@@ -45,6 +45,9 @@
 #include "global_data.h"
 #include "daemon.h"
 #include "config.h"
+#ifndef _ONE_PROCESS_DEBUG_
+#include "config_notify.h"
+#endif
 #include "git-commit.h"
 #include "utils.h"
 #include "signals.h"
@@ -114,7 +117,7 @@
 #ifndef _ONE_PROCESS_DEBUG_
 #include "reload_monitor.h"
 #endif
-#ifdef _USE_SYSTEMD_
+#ifdef _USE_SYSTEMD_NOTIFY_
 #include "systemd.h"
 #endif
 #include "warnings.h"
@@ -128,6 +131,7 @@ struct child_term {
 	const char * const short_name;
 };
 
+#ifndef _ONE_PROCESS_DEBUG_
 static const struct child_term children_term[] = {
 #ifdef _WITH_VRRP_
 	{ &vrrp_child, PROG_VRRP, "vrrp" },
@@ -140,6 +144,7 @@ static const struct child_term children_term[] = {
 #endif
 };
 #define NUM_CHILD_TERM	(sizeof children_term / sizeof children_term[0])
+#endif
 
 /* global var */
 const char *version_string = VERSION_STRING;		/* keepalived version */
@@ -202,7 +207,7 @@ static struct {
 bool umask_cmdline;
 
 /* Reload control */
-static unsigned num_reloading;
+unsigned num_reloading;
 
 /* Control producing core dumps */
 static bool set_core_dump_pattern = false;
@@ -210,7 +215,9 @@ static bool create_core_dump = false;
 static const char *core_dump_pattern = "core";
 static char *orig_core_dump_pattern = NULL;
 
+#ifndef _ONE_PROCESS_DEBUG_
 static const char *dump_file = KA_TMP_DIR "/keepalived_parent.data";
+#endif
 
 /* debug flags */
 #if defined _TIMER_CHECK_ || \
@@ -451,6 +458,7 @@ global_init_keywords(void)
 	return keywords;
 }
 
+#ifndef _ONE_PROCESS_DEBUG_
 static void
 create_reload_file(void)
 {
@@ -473,27 +481,30 @@ create_reload_file(void)
 		umask(umask_val);
 }
 
-static inline  void
+static inline void
 remove_reload_file(void)
 {
 	if (global_data->reload_file && !__test_bit(CONFIG_TEST_BIT, &debug))
 		unlink(global_data->reload_file);
 }
+#endif
 
 static void
 read_config_file(bool write_config_copy)
 {
-#ifdef _ONE_PROCESS_DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
+	if (write_config_copy)
+		create_reload_file();
+#else
 	write_config_copy = false;
 #endif
 
-	if (write_config_copy)
-		create_reload_file();
-
 	init_data(conf_file, global_init_keywords, write_config_copy);
 
+#ifndef _ONE_PROCESS_DEBUG_
 	if (write_config_copy)
 		remove_reload_file();
+#endif
 }
 
 /* Daemon stop sequence */
@@ -741,10 +752,8 @@ static bool reload_config(void)
 
 	log_message(LOG_INFO, "Reloading ...");
 
-#ifndef _ONE_PROCESS_DEBUG_
 	if (global_data->reload_time_file)
 		stop_reload_monitor();
-#endif
 
 	/* Clear any config errors from previous loads */
 	clear_config_status();
@@ -780,11 +789,20 @@ static bool reload_config(void)
 	}
 
 #ifdef _WITH_NFTABLES_
+#ifdef _WITH_VRRP_
 	if (!!old_global_data->vrrp_nf_table_name != !!global_data->vrrp_nf_table_name ||
 	    (global_data->vrrp_nf_table_name && strcmp(old_global_data->vrrp_nf_table_name, global_data->vrrp_nf_table_name))) {
 		log_message(LOG_INFO, "Cannot change nftables table name at a reload - please restart %s", PACKAGE);
 		unsupported_change = true;
 	}
+#endif
+#ifdef _WITH_LVS_
+	if (!!old_global_data->ipvs_nf_table_name != !!global_data->ipvs_nf_table_name ||
+	    (global_data->ipvs_nf_table_name && strcmp(old_global_data->ipvs_nf_table_name, global_data->ipvs_nf_table_name))) {
+		log_message(LOG_INFO, "Cannot change IPVS nftables table name at a reload - please restart %s", PACKAGE);
+		unsupported_change = true;
+	}
+#endif
 #endif
 
 	if (!!old_global_data->config_directory != !!global_data->config_directory ||
@@ -814,10 +832,8 @@ static bool reload_config(void)
 		free_global_data (old_global_data);
 	}
 
-#ifndef _ONE_PROCESS_DEBUG_
 	if (global_data->reload_time_file)
 		start_reload_monitor();
-#endif
 
 	return !unsupported_change;
 }
@@ -881,29 +897,13 @@ propagate_signal(__attribute__((unused)) void *v, int sig)
 		thread_add_event(master, print_parent_data, NULL, 0);
 }
 
-#ifndef _ONE_PROCESS_DEBUG_
-static void
-child_reloaded(__attribute__((unused)) void *one, __attribute__((unused)) int sig_num)
-{
-	if (num_reloading) {
-		num_reloading--;
-
-		if (!num_reloading) {
-			truncate_config_copy();
-#ifdef _USE_SYSTEMD_
-			systemd_notify_running();
-#endif
-		}
-	}
-}
-
 static void
 do_reload(void)
 {
 	if (!reload_config())
 		return;
 
-#ifdef _USE_SYSTEMD_
+#ifdef _USE_SYSTEMD_NOTIFY_
 	systemd_notify_reloading();
 #endif
 
@@ -1057,6 +1057,7 @@ thread_dump_signal(__attribute__((unused)) void *v, __attribute__((unused)) int 
 }
 #endif
 
+#ifndef _ONE_PROCESS_DEBUG_
 /* Terminate handler */
 static void
 sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
@@ -1083,11 +1084,11 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 
 	log_message(LOG_INFO, "Stopping");
 
-#ifdef _USE_SYSTEMD_
+#ifdef _USE_SYSTEMD_NOTIFY_
 	systemd_notify_stopping();
 #endif
 
-#ifndef _ONE_PROCESSS_DEBUG_
+#ifndef _ONE_PROCESS_DEBUG_
 	if (global_data->reload_time_file)
 		stop_reload_monitor();
 #endif
@@ -1256,15 +1257,6 @@ signal_init(void)
 	signal_set(SIGUSR1, propagate_signal, NULL);
 	signal_set(SIGUSR2, propagate_signal, NULL);
 	signal_set(SIGSTATS_CLEAR, propagate_signal, NULL);
-#ifdef _WITH_VRRP_
-	signal_set(SIGRELOADED_VRRP, child_reloaded, NULL);
-#endif
-#ifdef _WITH_LVS_
-	signal_set(SIGRELOADED_CHECKER, child_reloaded, NULL);
-#endif
-#ifdef _WITH_BFD_
-	signal_set(SIGRELOADED_BFD, child_reloaded, NULL);
-#endif
 #ifdef _WITH_JSON_
 	signal_set(SIGJSON, propagate_signal, NULL);
 #endif
@@ -1284,15 +1276,6 @@ signals_ignore(void) {
 	signal_ignore(SIGUSR1);
 	signal_ignore(SIGUSR2);
 	signal_ignore(SIGSTATS_CLEAR);
-#ifdef _WITH_VRRP_
-	signal_ignore(SIGRELOADED_VRRP);
-#endif
-#ifdef _WITH_LVS_
-	signal_ignore(SIGRELOADED_CHECKER);
-#endif
-#ifdef _WITH_BFD_
-	signal_ignore(SIGRELOADED_BFD);
-#endif
 #ifdef _WITH_JSON_
 	signal_ignore(SIGJSON);
 #endif
@@ -2341,7 +2324,9 @@ register_parent_thread_addresses(void)
 	register_signal_handler_address("sigend", sigend);
 #endif
 	register_signal_handler_address("thread_child_handler", thread_child_handler);
+#ifdef THREAD_DUMP
 	register_signal_handler_address("thread_dump_signal", thread_dump_signal);
+#endif
 
 	register_thread_address("start_keepalived", start_keepalived);
 	register_thread_address("startup_script_completed", startup_script_completed);
@@ -2392,8 +2377,10 @@ keepalived_main(int argc, char **argv)
 	/* Save command line options in case need to log them later */
 	save_cmd_line_options(argc, argv);
 
-#ifdef _USE_SYSTEMD_
+#ifdef _USE_SYSTEMD_NOTIFY_
+#ifndef _ONE_PROCESS_DEBUG_
 	check_parent_systemd();
+#endif
 #endif
 
 	/* We are the parent process */
@@ -2519,7 +2506,7 @@ keepalived_main(int argc, char **argv)
 
 	init_global_data(global_data, NULL, false);
 
-#ifdef _WITH_NFTABLES_
+#if defined _WITH_VRRP_ && defined  _WITH_NFTABLES_
 	if (global_data->vrrp_nf_table_name)
 		set_nf_ifname_type();
 #endif
@@ -2643,8 +2630,10 @@ keepalived_main(int argc, char **argv)
 #endif
 		}
 
+#ifndef _ONE_PROCESS_DEBUG_
 		/* We have set the namespaces, so we can do this now */
 		remove_reload_file();
+#endif
 
 		/* Check if keepalived is already running */
 		if (keepalived_running(daemon_mode)) {
@@ -2703,6 +2692,12 @@ keepalived_main(int argc, char **argv)
 
 	/* Signal handling initialization  */
 	signal_init();
+
+#ifndef _ONE_PROCESS_DEBUG_
+	/* Open eventfd for children notifying parent that they have read the configuration file */
+	if (!__test_bit(CONFIG_TEST_BIT, &debug))
+		open_config_read_fd();
+#endif
 
 	/* If we have a startup script, run it first */
 	if (global_data->startup_script) {

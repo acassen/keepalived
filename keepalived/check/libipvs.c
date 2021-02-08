@@ -1003,7 +1003,7 @@ static int ipvs_services_parse_cb(struct nl_msg *msg, void *arg)
 	struct nlattr *attrs[IPVS_CMD_ATTR_MAX + 1];
 	struct nlattr *svc_attrs[IPVS_SVC_ATTR_MAX + 1];
 	struct ip_vs_get_services_app **getp = PTR_CAST(struct ip_vs_get_services_app *, arg);
-	struct ip_vs_get_services_app *get = PTR_CAST(struct ip_vs_get_services_app, *getp);
+	struct ip_vs_get_services_app *get = *getp;
 	struct ip_vs_flags flags;
 	unsigned i = get->user.num_services;
 
@@ -1273,7 +1273,6 @@ ipvs_get_service(__u32 fwmark, __u16 af, __u16 protocol, union nf_inet_addr *add
 		tsvc.user.fwmark = fwmark;
 		tsvc.af = af;
 		tsvc.user.protocol= protocol;
-// ?IPv6
 		tsvc.nf_addr = *addr;
 		tsvc.user.port = port;
 

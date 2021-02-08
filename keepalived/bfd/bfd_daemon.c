@@ -51,8 +51,11 @@
 #ifdef _WITH_CN_PROC_
 #include "track_process.h"
 #endif
-#ifdef _USE_SYSTEMD_
+#ifdef _USE_SYSTEMD_NOTIFY_
 #include "systemd.h"
+#endif
+#ifndef _ONE_PROCESS_DEBUG_
+#include "config_notify.h"
 #endif
 
 
@@ -156,6 +159,13 @@ start_bfd(__attribute__((unused)) data_t *prev_global_data)
 	alloc_bfd_buffer();
 
 	init_data(conf_file, bfd_init_keywords, false);
+
+#ifndef _ONE_PROCESS_DEBUG_
+	/* Notify parent config has been read if appropriate */
+	if (!__test_bit(CONFIG_TEST_BIT, &debug))
+		notify_config_read();
+#endif
+
 	if (reload)
 		init_global_data(global_data, prev_global_data, true);
 
@@ -172,11 +182,12 @@ start_bfd(__attribute__((unused)) data_t *prev_global_data)
 
 	bfd_complete_init();
 
+#ifndef _ONE_PROCESS_DEBUG_
 	if (global_data->reload_check_config && get_config_status() != CONFIG_OK) {
 		stop_bfd(KEEPALIVED_EXIT_CONFIG);
 		return;
 	}
-
+#endif
 
 	/* Post initializations */
 #ifdef _MEM_CHECK_
@@ -442,7 +453,7 @@ start_bfd_child(void)
 		exit(0);
 	}
 
-#ifdef _USE_SYSTEMD_
+#ifdef _USE_SYSTEMD_NOTIFY_
 	systemd_unset_notify();
 #endif
 

@@ -113,8 +113,6 @@ typedef enum _include {
 	INCLUDE_B = 0x08,	/* All glob brace specifiers must match */
 } include_t;
 
-/* Some development/test options */
-// #define TRUNCATE_FILE_AFTER_READ
 
 typedef struct _defs {
 	const char *name;
@@ -3176,10 +3174,8 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 					log_message(LOG_INFO, "fdopen of memfd_create error %d - %m", errno);
 			}
 		} else {
-#ifndef TRUNCATE_FILE_AFTER_READ
 			if (ftruncate(fileno(conf_copy), 0))
 				log_message(LOG_INFO, "Failed to truncate config copy file (%d) - %m", errno);
-#endif
 
 			rewind(conf_copy);
 		}
@@ -3237,22 +3233,6 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 		rewind(conf_copy);
 	}
 
-#ifndef _ONE_PROCESS_DEBUG_
-	/* If we are not the parent, tell it we have completed reading the configuration */
-	if (prog_type != PROG_TYPE_PARENT && !__test_bit(CONFIG_TEST_BIT, &debug))
-		kill(getppid(),
-#ifdef _WITH_VRRP_
-				prog_type == PROG_TYPE_VRRP ? SIGRELOADED_VRRP :
-#endif
-#ifdef _WITH_LVS_
-				prog_type == PROG_TYPE_CHECKER ? SIGRELOADED_CHECKER :
-#endif
-#ifdef _WITH_BFD_
-				prog_type == PROG_TYPE_BFD ? SIGRELOADED_BFD :
-#endif
-				0 /* This would be a bug, but it has no harmful effect */);
-#endif
-
 	/* Close the password database if it was opened */
 	endpwent();
 
@@ -3260,15 +3240,6 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 	free_parser_data();
 
 	notify_resource_release();
-}
-
-void
-truncate_config_copy(void)
-{
-#ifdef TRUNCATE_FILE_AFTER_READ
-	if (conf_copy && ftruncate(fileno(conf_copy), 0))
-		log_message(LOG_INFO, "Failed to truncate config copy file (%d) - %m", errno);
-#endif
 }
 
 int

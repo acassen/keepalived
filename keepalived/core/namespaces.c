@@ -386,7 +386,7 @@ socket_netns(int nsfd, int domain, int type, int protocol)
 }
 #endif
 
-static int
+int
 set_netns_name(const char *netns_name)
 {
 	int cur_net_namespace = -1;
@@ -420,7 +420,7 @@ set_netns_name(const char *netns_name)
 	return cur_net_namespace;
 }
 
-static void
+void
 restore_net_namespace(int cur_net_namespace)
 {
 	int ret;

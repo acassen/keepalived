@@ -109,24 +109,19 @@ free_vsg_entry_list(list_head_t *l)
 static void
 dump_vsg_entry(FILE *fp, const virtual_server_group_entry_t *vsg_entry)
 {
-	uint16_t start;
+	char start_addr[INET6_ADDRSTRLEN];
 
 	if (vsg_entry->is_fwmark) {
 		conf_write(fp, "   FWMARK = %u%s", vsg_entry->vfwmark, vsg_entry->fwm_family == AF_INET ? " IPv4" : vsg_entry->fwm_family == AF_INET6 ? " IPv6" : "");
 		conf_write(fp, "     Alive: %u IPv4, %u IPv6",
 				vsg_entry->fwm4_alive, vsg_entry->fwm6_alive);
 	} else {
-		if (vsg_entry->range) {
-			start = vsg_entry->addr.ss_family == AF_INET ?
-				  ntohl(PTR_CAST_CONST(struct sockaddr_in, &vsg_entry->addr)->sin_addr.s_addr) & 0xFF :
-				  ntohs(PTR_CAST_CONST(struct sockaddr_in6, &vsg_entry->addr)->sin6_addr.s6_addr16[7]);
-			conf_write(fp,
-				    vsg_entry->addr.ss_family == AF_INET ?
-					"   VIP Range = %s-%u, VPORT = %d" :
-					"   VIP Range = %s-%x, VPORT = %d",
-				    inet_sockaddrtos(&vsg_entry->addr),
-				    start + vsg_entry->range,
-				    ntohs(inet_sockaddrport(&vsg_entry->addr)));
+		if (inet_sockaddrcmp(&vsg_entry->addr, &vsg_entry->addr_end)) {
+			strcpy(start_addr, inet_sockaddrtos(&vsg_entry->addr));
+			conf_write(fp, "   VIP Range = %s-%s, VPORT = %d",
+				   start_addr,
+				   inet_sockaddrtos(&vsg_entry->addr_end),
+				   ntohs(inet_sockaddrport(&vsg_entry->addr)));
 		} else
 			conf_write(fp, "   VIP = %s, VPORT = %d"
 					    , inet_sockaddrtos(&vsg_entry->addr)
@@ -166,6 +161,13 @@ dump_vsg(FILE *fp, const virtual_server_group_t *vsg)
 {
 	conf_write(fp, " ------< Virtual server group >------");
 	conf_write(fp, " Virtual Server Group = %s, IPv4 = %s, IPv6 = %s", vsg->gname, vsg->have_ipv4 ? "yes" : "no", vsg->have_ipv6 ? "yes" : "no");
+#ifdef _WITH_NFTABLES_
+	if (global_data->ipvs_nf_table_name &&
+	    (vsg->auto_fwmark[TCP_INDEX] ||
+	     vsg->auto_fwmark[UDP_INDEX] ||
+	     vsg->auto_fwmark[SCTP_INDEX]))
+		conf_write(fp, "  Fwmark TCP: %u UDP: %u SCTP: %u", vsg->auto_fwmark[TCP_INDEX], vsg->auto_fwmark[UDP_INDEX], vsg->auto_fwmark[SCTP_INDEX]);
+#endif
 	dump_vsg_entry_list(fp, &vsg->addr_range);
 	dump_vsg_entry_list(fp, &vsg->vfwmark);
 }
@@ -200,11 +202,20 @@ alloc_vsg_entry(const vector_t *strvec)
 	uint32_t range;
 	unsigned fwmark;
 	const char *family_str;
+	const char *addr_str = strvec_slot(strvec, 0);
+	char *endptr;
+	const char *mask_str;
+	unsigned mask;
+	uint32_t mask_bit, mask_bits;
+	bool bad;
+	unsigned i;
+	const char *end_str;
+	int diff;
 
 	PMALLOC(new);
 	INIT_LIST_HEAD(&new->e_list);
 
-	if (!strcmp(strvec_slot(strvec, 0), "fwmark")) {
+	if (!strcmp(addr_str, "fwmark")) {
 		if (!read_unsigned_strvec(strvec, 1, &fwmark, 0, UINT32_MAX, true)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s): fwmark '%s' must be in [0, %u] - ignoring", vsg->gname, strvec_slot(strvec, 1), UINT32_MAX);
 			FREE(new);
@@ -232,12 +243,6 @@ alloc_vsg_entry(const vector_t *strvec)
 		new->is_fwmark = true;
 		list_add_tail(&new->e_list, &vsg->vfwmark);
 	} else {
-		if (!inet_stor(strvec_slot(strvec, 0), &range)) {
-			FREE(new);
-			return;
-		}
-		new->range = (uint32_t)range;
-
 		if (vector_size(strvec) >= 2) {
 			/* Don't pass a port number of 0. This was added v2.0.7 to support legacy
 			 * configuration since previously having no port wasn't allowed. */
@@ -248,7 +253,7 @@ alloc_vsg_entry(const vector_t *strvec)
 		else
 			port_str = NULL;
 
-		if (inet_stosockaddr(strvec_slot(strvec, 0), port_str, &new->addr)) {
+		if (inet_stosockaddr(addr_str, port_str, &new->addr)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Invalid virtual server group IP address %s %s%s%s - skipping", strvec_slot(strvec, 0),
 						port_str ? "/port" : "", port_str ? "/" : "", port_str ? port_str : "");
 			FREE(new);
@@ -256,27 +261,119 @@ alloc_vsg_entry(const vector_t *strvec)
 		}
 #ifndef LIBIPVS_USE_NL
 		if (new->addr.ss_family != AF_INET) {
-			report_config_error(CONFIG_GENERAL_ERROR, "IPVS does not support IPv6 in this build - skipping %s", strvec_slot(strvec, 0));
+			report_config_error(CONFIG_GENERAL_ERROR, "IPVS does not support IPv6 in this build - skipping %s", addr_str);
 			FREE(new);
 			return;
 		}
 #endif
 
-		/* If no range specified, new->range == UINT32_MAX */
-		if (new->range == UINT32_MAX)
-			new->range = 0;
-		else {
-			if (new->addr.ss_family == AF_INET)
-				start = ntohl(PTR_CAST(struct sockaddr_in, &new->addr)->sin_addr.s_addr) & 0xFF;
-			else
-				start = ntohs(PTR_CAST(struct sockaddr_in6, &new->addr)->sin6_addr.s6_addr16[7]);
-
-			if (start >= new->range) {
-				report_config_error(CONFIG_GENERAL_ERROR, "Address range end is not greater than address range start - %s - skipping", strvec_slot(strvec, 0));
+		if ((mask_str = strchr(addr_str, '/'))) {
+			mask = strtoul(mask_str + 1, &endptr, 10);
+			if (*endptr ||
+			    !mask ||
+			    (new->addr.ss_family == AF_INET && mask > 32) ||
+			    (new->addr.ss_family == AF_INET6 && mask > 128)) {
+				report_config_error(CONFIG_GENERAL_ERROR, "Invalid netmask - %s - skipping", addr_str);
 				FREE(new);
 				return;
 			}
-			new->range -= start;
+
+			new->addr_end = new->addr;
+			bad = false;
+
+			if (new->addr.ss_family == AF_INET && mask < 32) {
+				for (i = mask, mask_bit = 1, mask_bits = 0; i < 32; i++, mask_bit <<= 1)
+					mask_bits |= mask_bit;
+
+				if (PTR_CAST(struct sockaddr_in, &new->addr)->sin_addr.s_addr & htonl(mask_bits))
+					bad = true;
+				else
+					PTR_CAST(struct sockaddr_in, &new->addr_end)->sin_addr.s_addr |= htonl(mask_bits);
+			} else if (mask < 128) {
+				for (i = mask % 16, mask_bit = 1, mask_bits = 0; i < 16; i++, mask_bit <<= 1)
+					mask_bits |= mask_bit;
+
+				i = mask / 16;
+				if (PTR_CAST(struct sockaddr_in6, &new->addr)->sin6_addr.s6_addr16[i] & htons(mask_bits))
+					bad = true;
+				else {
+					PTR_CAST(struct sockaddr_in6, &new->addr_end)->sin6_addr.s6_addr16[i] |= htons(mask_bits);
+					for (i++; i < 8; i++) {
+						if (PTR_CAST(struct sockaddr_in6, &new->addr)->sin6_addr.s6_addr16[i])
+							bad = true;
+						else
+							PTR_CAST(struct sockaddr_in6, &new->addr_end)->sin6_addr.s6_addr16[i] = 0xffff;
+					}
+				}
+			}
+			if (bad) {
+				report_config_error(CONFIG_GENERAL_ERROR, "Address mask bits not empty - %s - skipping", addr_str);
+				FREE(new);
+				return;
+			}
+		} else {
+			if ((end_str = strchr(addr_str, '-')) &&
+			    ((new->addr.ss_family == AF_INET && strchr(end_str + 1, '.')) ||
+			     (new->addr.ss_family == AF_INET6 && strchr(end_str + 1, ':')))) {
+				if (inet_stosockaddr(++end_str, port_str, &new->addr_end)) {
+					report_config_error(CONFIG_GENERAL_ERROR, "Invalid range end %s - skipping", addr_str);
+					FREE(new);
+					return;
+				}
+				if (new->addr.ss_family != new->addr_end.ss_family) {
+					report_config_error(CONFIG_GENERAL_ERROR, "Range address families do not match %s - skipping", addr_str);
+					FREE(new);
+					return;
+				}
+
+				bad = false;
+				if (new->addr.ss_family == AF_INET) {
+					if (htonl(PTR_CAST(struct sockaddr_in, &new->addr)->sin_addr.s_addr) >
+					    htonl(PTR_CAST(struct sockaddr_in, &new->addr_end)->sin_addr.s_addr))
+						bad = true;
+				} else {
+					for (i = 0; i < 8; i++) {
+						diff = htons(PTR_CAST(struct sockaddr_in6, &new->addr_end)->sin6_addr.s6_addr16[i]) -
+							    htons(PTR_CAST(struct sockaddr_in6, &new->addr)->sin6_addr.s6_addr16[i]);
+						if (diff < 0) {
+							bad = true;
+							break;
+						}
+						if (diff > 0)
+							break;
+					}
+				}
+
+				if (bad) {
+					report_config_error(CONFIG_GENERAL_ERROR, "Address range end is less than address range start - %s - skipping", addr_str);
+					FREE(new);
+					return;
+				}
+			} else {
+				if (!inet_stor(addr_str, &range)) {
+					FREE(new);
+					return;
+				}
+
+				/* If no range specified, range == UINT32_MAX */
+				new->addr_end = new->addr;
+				if (range != UINT32_MAX) {
+					if (new->addr.ss_family == AF_INET) {
+						PTR_CAST(struct sockaddr_in, &new->addr_end)->sin_addr.s_addr &= htonl(~0xFF);
+						PTR_CAST(struct sockaddr_in, &new->addr_end)->sin_addr.s_addr |= htonl(range);
+						start = ntohl(PTR_CAST(struct sockaddr_in, &new->addr)->sin_addr.s_addr) & 0xFF;
+					} else {
+						PTR_CAST(struct sockaddr_in6, &new->addr_end)->sin6_addr.s6_addr16[7] = htons(range);
+						start = ntohs(PTR_CAST(struct sockaddr_in6, &new->addr)->sin6_addr.s6_addr16[7]);
+					}
+
+					if (start >= range) {
+						report_config_error(CONFIG_GENERAL_ERROR, "Address range end is not greater than address range start - %s - skipping", addr_str);
+						FREE(new);
+						return;
+					}
+				}
+			}
 		}
 
 		new->is_fwmark = false;
@@ -872,23 +969,19 @@ format_vs(const virtual_server_t *vs)
 const char *
 format_vsge(const virtual_server_group_entry_t *vsge)
 {
-	/* alloc large buffer because of unknown length of vs->vsgname */
-	static char ret[INET6_ADDRSTRLEN + 1 + 4 + 1 + 5]; /* IPv6 addr + -abcd:ppppp */
-	uint16_t start;
+	static char ret[INET6_ADDRSTRLEN + 1 + INET6_ADDRSTRLEN + 1 + 5 + 1]; /* IPv6 addr-IPv6 addr:ppppp */
+	unsigned offs;
 
 	if (vsge->is_fwmark)
 		snprintf(ret, sizeof(ret), "FWM %u", vsge->vfwmark);
-	else if (vsge->range) {
-		start = vsge->addr.ss_family == AF_INET ?
-			  ntohl(PTR_CAST_CONST(struct sockaddr_in, &vsge->addr)->sin_addr.s_addr) & 0xFF :
-			  ntohs(PTR_CAST_CONST(struct sockaddr_in6, &vsge->addr)->sin6_addr.s6_addr16[7]);
-		snprintf(ret, sizeof(ret),
-			    vsge->addr.ss_family == AF_INET ?  "%s-%u,%d" : "%s-%x,%d",
-			    inet_sockaddrtos(&vsge->addr),
-			    start + vsge->range,
-			    ntohs(inet_sockaddrport(&vsge->addr)));
+	else if (inet_sockaddrcmp(&vsge->addr, &vsge->addr_end)) {
+		offs = snprintf(ret, sizeof(ret), "%s-",
+				inet_sockaddrtos(&vsge->addr));
+		snprintf(ret + offs, sizeof(ret) - offs, "%s,%d",
+				inet_sockaddrtos(&vsge->addr_end),
+				ntohs(inet_sockaddrport(&vsge->addr)));
 	} else
-		snprintf(ret, sizeof(ret), "%s:%d",
+		snprintf(ret, sizeof(ret), "%s,%d",
 			    inet_sockaddrtos(&vsge->addr), ntohs(inet_sockaddrport(&vsge->addr)));
 
 	return ret;
@@ -994,6 +1087,7 @@ validate_check_config(void)
 			/* Check port specified for udp/tcp/sctp unless persistent */
 			if (!vs->persistence_timeout &&
 			    !vs->vsg &&
+			    !vs->vfwmark &&
 			    !inet_sockaddrport(&vs->addr)) {
 				report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: zero port only valid for persistent services - setting", FMT_VS(vs));
 				vs->persistence_timeout = IPVS_SVC_PERSISTENT_TIMEOUT;
@@ -1016,8 +1110,10 @@ validate_check_config(void)
 		/* A virtual server using fwmarks will ignore any protocol setting, so warn if one is set */
 		if (vs->service_type &&
 		    ((vs->vsg && list_empty(&vs->vsg->addr_range) && !list_empty(&vs->vsg->vfwmark)) ||
-		     (!vs->vsg && vs->vfwmark)))
+		     (!vs->vsg && vs->vfwmark))) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Warning: Virtual server %s: protocol specified for fwmark - protocol will be ignored", FMT_VS(vs));
+			vs->service_type = 0;
+		}
 
 		/* Check scheduler set */
 		if (!vs->sched[0]) {

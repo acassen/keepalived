@@ -98,5 +98,6 @@ extern int keepalived_main(int, char**); /* The "real" main function */
 
 extern unsigned child_wait_time;
 extern bool umask_cmdline;
+extern unsigned num_reloading;
 
 #endif

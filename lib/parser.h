@@ -143,7 +143,6 @@ extern bool read_timer(const vector_t *, size_t, unsigned long *, unsigned long,
 extern int check_true_false(const char *) __attribute__ ((pure));
 extern void skip_block(bool);
 extern void init_data(const char *, const vector_t * (*init_keywords) (void), bool);
-extern void truncate_config_copy(void);
 extern int get_config_fd(void);
 extern void set_config_fd(int);
 void include_check_set(const vector_t *);

@@ -29,6 +29,11 @@ if WITH_NAMESPACES
   EXTRA_libcore_a_SOURCES += namespaces.c
 endif
 
+if NFTABLES
+  libcore_a_LIBADD      += nftables.o
+  EXTRA_libcore_a_SOURCES += nftables.c
+endif
+
 if LIBNL_DYNAMIC
   libcore_a_LIBADD	+= libnl_link.o
   EXTRA_libcore_a_SOURCES += libnl_link.c
@@ -40,13 +45,13 @@ if CN_PROC
 endif
 
 if !ONE_PROCESS_DEBUG
-  libcore_a_LIBADD	+= reload_monitor.o
-  EXTRA_libcore_a_SOURCES += reload_monitor.c
-endif
-
-if WITH_SYSTEMD
+if WITH_SYSTEMD_NOTIFY
   libcore_a_LIBADD	+= systemd.o
   EXTRA_libcore_a_SOURCES += systemd.c
+endif
+
+  libcore_a_LIBADD	+= reload_monitor.o config_notify.o
+  EXTRA_libcore_a_SOURCES += reload_monitor.c config_notify.c
 endif
 
 MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@

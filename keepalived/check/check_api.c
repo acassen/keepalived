@@ -556,6 +556,9 @@ addr_matches(const virtual_server_t *vs, void *address)
 	unsigned addr_base;
 	const void *addr;
 
+	if (vs->vsg)
+		return false;
+
 	if (vs->addr.ss_family != AF_UNSPEC) {
 		if (vs->addr.ss_family == AF_INET6)
 			addr = (const void *)&PTR_CAST_CONST(struct sockaddr_in6, &vs->addr)->sin6_addr;
@@ -579,10 +582,9 @@ addr_matches(const virtual_server_t *vs, void *address)
 	}
 
 	list_for_each_entry(vsg_entry, &vs->vsg->addr_range, e_list) {
-		struct sockaddr_storage range_addr = vsg_entry->addr;
-		uint32_t ra_base;
+		uint32_t ra_base, ra_end;
 
-		if (!vsg_entry->range) {
+		if (!inet_sockaddrcmp(&vsg_entry->addr, &vsg_entry->addr_end)) {
 			if (vsg_entry->addr.ss_family == AF_INET6)
 				addr = (void *)&PTR_CAST(struct sockaddr_in6, &vsg_entry->addr)->sin6_addr;
 			else
@@ -594,25 +596,29 @@ addr_matches(const virtual_server_t *vs, void *address)
 			continue;
 		}
 
-		if (range_addr.ss_family == AF_INET) {
+		if (vsg_entry->addr.ss_family == AF_INET) {
 			struct in_addr ra;
 
-			ra = PTR_CAST(struct sockaddr_in, &range_addr)->sin_addr;
-			ra_base = ntohl(ra.s_addr) & 0xFF;
+			ra_base = ntohl(PTR_CAST(struct sockaddr_in, &vsg_entry->addr)->sin_addr.s_addr) & 0xFF;
+			ra_end = ntohl(PTR_CAST(struct sockaddr_in, &vsg_entry->addr_end)->sin_addr.s_addr) & 0xFF;
 
-			if (addr_base < ra_base || addr_base > ra_base + vsg_entry->range)
+			if (addr_base < ra_base || addr_base > ra_end)
 				continue;
 
+			ra = PTR_CAST(struct sockaddr_in, &vsg_entry->addr)->sin_addr;
 			ra.s_addr &= htonl(0xFFFFFF00);
 			if (ra.s_addr != mask_addr.s_addr)
 				continue;
 		} else {
-			struct in6_addr ra = PTR_CAST(struct sockaddr_in6, &range_addr)->sin6_addr;
-			ra_base = ntohs(ra.s6_addr16[7]);
+			struct in6_addr ra;
 
-			if (addr_base < ra_base || addr_base > ra_base + vsg_entry->range)
+			ra_base = ntohs(PTR_CAST(struct sockaddr_in6, &vsg_entry->addr)->sin6_addr.s6_addr16[7]);
+			ra_end = ntohs(PTR_CAST(struct sockaddr_in6, &vsg_entry->addr_end)->sin6_addr.s6_addr16[7]);
+
+			if (addr_base < ra_base || addr_base > ra_end)
 				continue;
 
+			ra = PTR_CAST(struct sockaddr_in6, &vsg_entry->addr)->sin6_addr;
 			ra.s6_addr16[7] = 0;
 			if (!inaddr_equal(AF_INET6, &ra, &mask_addr6))
 				continue;

@@ -550,8 +550,8 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 			log_message(LOG_INFO, "  %s", "Please report a bug at https://github.com/acassen/keepalived/issues");
 			log_message(LOG_INFO, "  %s", "and include this log from when keepalived started, a description");
 			log_message(LOG_INFO, "  %s", "of what happened before the crash, your configuration file and the details below.");
-			log_message(LOG_INFO, "  %s", "Also provide the output of keepalived -v, what Linux distro and version");
-			log_message(LOG_INFO, "  %s", "you are running on, and whether keepalived is being run in a container or VM.");
+			log_message(LOG_INFO, "  %s", "Also provide the output of keepalived -v, and whether keepalived is being");
+			log_message(LOG_INFO, "  %s", "run in a container or VM.");
 			log_message(LOG_INFO, "  %s", "A failure to provide all this information may mean the crash cannot be investigated.");
 			log_message(LOG_INFO, "  %s", "If you are able to provide a stack backtrace with gdb that would really help.");
 			log_message(LOG_INFO, "  Source version %s %s%s", PACKAGE_VERSION,
@@ -1774,7 +1774,9 @@ static list_head_t *
 thread_fetch_next_queue(thread_master_t *m)
 {
 	int last_epoll_errno = 0;
+#ifndef _ONE_PROCESS_DEBUG_
 	unsigned last_epoll_errno_count = 0;
+#endif
 	int ret;
 	int i;
 	timeval_t earliest_timer;
@@ -1835,12 +1837,17 @@ thread_fetch_next_queue(thread_master_t *m)
 				/* Log the error first time only */
 				log_message(LOG_INFO, "scheduler: epoll_wait error: %d (%m)", errno);
 
+#ifndef _ONE_PROCESS_DEBUG_
 				last_epoll_errno_count = 1;
-			} else if (++last_epoll_errno_count == 5 && shutdown_function) {
+#endif
+			}
+#ifndef _ONE_PROCESS_DEBUG_
+			else if (++last_epoll_errno_count == 5 && shutdown_function) {
 				/* We aren't goint to be able to recover, so exit and let our parent restart us */
 				log_message(LOG_INFO, "scheduler: epoll_wait has returned errno %d for 5 successive calls - terminating", last_epoll_errno);
 				shutdown_function(KEEPALIVED_EXIT_PROGRAM_ERROR);
 			}
+#endif
 
 			/* Make sure we don't sit it a tight loop */
 			if (last_epoll_errno == EBADF || last_epoll_errno == EFAULT || last_epoll_errno == EINVAL)

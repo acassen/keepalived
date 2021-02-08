@@ -266,7 +266,7 @@ extern void process_threads(thread_master_t *);
 extern void thread_child_handler(void *, int);
 extern void thread_add_base_threads(thread_master_t *, bool);
 extern void launch_thread_scheduler(thread_master_t *);
-#ifndef _ONE_PROCESS_DEBUG
+#ifndef _ONE_PROCESS_DEBUG_
 extern void register_shutdown_function(void (*)(int));
 #endif
 #ifdef THREAD_DUMP

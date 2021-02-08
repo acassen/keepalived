@@ -195,7 +195,7 @@ vlog_message(const int facility, const char* format, va_list args)
 #ifdef ENABLE_LOG_TO_FILE
 		if (log_file) {
 			p = timestamp;
-			p += strftime(timestamp, sizeof(timestamp), "%a %b %T", &tm);
+			p += strftime(timestamp, sizeof(timestamp), "%a %b %d %T", &tm);
 			p += snprintf(p, timestamp + sizeof(timestamp) - p, ".%9.9ld", ts.tv_nsec);
 			strftime(p, timestamp + sizeof(timestamp) - p, " %Y", &tm);
 #ifndef HAVE_SIGNALFD

@@ -76,6 +76,10 @@ extern void ipvs_syncd_cmd(int, const struct lvs_syncd_config *, int, bool);
 extern void ipvs_syncd_master(const struct lvs_syncd_config *);
 extern void ipvs_syncd_backup(const struct lvs_syncd_config *);
 #endif
+#ifdef _WITH_NFTABLES_
+extern void remove_fwmark_vs(virtual_server_t *, int);
+extern void add_fwmark_vs(virtual_server_t *, int);
+#endif
 
 /* Refresh statistics at most every 5 seconds */
 #define STATS_REFRESH 5

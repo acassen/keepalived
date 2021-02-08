@@ -185,7 +185,6 @@ typedef struct _data {
 #ifdef _WITH_NFTABLES_
 	const char			*vrrp_nf_table_name;
 	int				vrrp_nf_chain_priority;
-	bool				vrrp_nf_counters;
 	bool				vrrp_nf_ifindex;
 #endif
 	bool				vrrp_check_unicast_src;
@@ -209,6 +208,14 @@ typedef struct _data {
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 	rlim_t				checker_rlimit_rt;
 #endif
+#ifdef _WITH_NFTABLES_
+	const char			*ipvs_nf_table_name;
+	int				ipvs_nf_chain_priority;
+	uint32_t			ipvs_nftables_start_fwmark;
+#endif
+#endif
+#ifdef _WITH_NFTABLES_
+	bool				nf_counters;
 #endif
 #ifdef _WITH_BFD_
 	bool				have_bfd_config;

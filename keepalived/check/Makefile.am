@@ -28,6 +28,11 @@ if SNMP_CHECKER
   EXTRA_libcheck_a_SOURCES += check_snmp.c
 endif
 
+if NFTABLES
+  libcheck_a_LIBADD      += check_nftables.o
+  EXTRA_libcheck_a_SOURCES += check_nftables.c
+endif
+
 if WITH_BFD
   libcheck_a_LIBADD	+= check_bfd.o
   EXTRA_libcheck_a_SOURCES += check_bfd.c

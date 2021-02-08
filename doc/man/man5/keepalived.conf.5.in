@@ -429,6 +429,19 @@ and
     \fBnftables_counters\fR
     \fBnftables_ifindex\fR
 
+    # Similarly for IPVS iptables - used for setting fwmarks for virtual
+    # server groups. keepalived will allocate a fwmark for each virtual
+    # server group, so that only one virtual server for each group needs
+    # to be configured in IPVS, by using a fwmark, and nftables will be
+    # used to set the fwmark for each of the virtual server
+    # address/protocol/port combinations specified.
+    # nftables_ipvs_start_fwmark specifies the first fwmark for keepalived
+    # to use (default 1000). This will be incremented for each subsequent
+    # virtual server group.
+    \fBnftables_ipvs \fR[TABLENAME]
+    \fBnftables_ipvs_priority \fRPRIORITY
+    \fBnftables_ipvs_start_fwmark \fRNUMBER
+
     # Use iptables as the firewall.
     # Note: it is necessary for the specified chain to exist in
     # the iptables and/or ip6tables configuration, and for the chain
@@ -1901,9 +1914,10 @@ The port for the virtual server can only be omitted if the virtual service is pe
 .PP
 This feature offers a way to simplify your configuration by factorizing virtual server
 definitions. If you need to define a bunch of virtual servers with exactly the same
-real server topology then this feature will make your configuration much more readable
-and will optimize healthchecking task by only spawning one healthchecking where
-multiple virtual server declaration will spawn a dedicated healthchecker for every
+real server topology then this feature will make your configuration much more readable,
+optimize the duplication of IPVS virtual servers if \fInftables_ipvs\fR is used,
+and will optimize healthchecking task by only spawning one healthchecker where
+multiple virtual servers declaration would spawn a dedicated healthchecker for every
 real server which will waste system resources.
 .PP
 Any combination of IP addresses, IP address ranges and firewall marks can be used, provided
@@ -1912,8 +1926,19 @@ of all the real servers of any virtual server using the virtual server group. Th
 exception to this is that the virtual server group can be configured with both IPv4 and IPv6
 addresses and fwmarks provided that all the real servers (and sorry servers) of all virtual
 servers using the virtual server group use tunnel forwarding; if fwmarks are specified in
-this case, the address family must be specified.
-Use of this option is intended for very large LVSs.
+this case, the address family must be specified (the one exception to this is if the virtual
+server group has no IP addresses (i.e. fwmarks only) and all the real/sorry servers are
+tunnelled, it will default to IPv4; it is not good practice to rely on this and the address
+families of the fwmarks should be configured).
+Use of this option is intended for very large LVSs, but note, this can create a huge number
+of virtual servers unless \fInftables_ipvs\fR is used. The use of \fInftables_ipvs\fR is
+stringly recommended due to the very significant optimisations and efficiencies it provides.
+
+NOTE: do not configure more than one TCP, one UDP and one SCTP virtual server with the same
+IP address family using the same virtual server group (or to put it another way do not have
+two virtual servers with the same protocol and address family using the same virtual server
+group); if all the real servers are tunnelled, then you must not have both IPv4 and IPv6
+virtual servers with the same protocol.
 .PP
 .nf
 The syntax for virtual_server_group is :
@@ -1923,9 +1948,10 @@ The syntax for virtual_server_group is :
     <IPADDR> [<PORT>]
     <IPADDR> [<PORT>]
     ...
-    # <IPADDR RANGE> has the form
-    # XXX.YYY.ZZZ.WWW-VVV eg 192.168.200.1-10
-    # range includes both .1 and .10 address
+    # <IPADDR RANGE> is any of the following forms (or their IPv6 equivalents)
+    # XXX.YYY.ZZZ.WWW-VVV eg 192.168.200.1-10 (includes both .1 and .10)
+    # AAA.BBB.CCC.DDD-EEE.FFF.GGG.HHH eg 192.168.200.250-192.168.201.10
+    # III.JJJ.KKK.LLL/nn eg 192.168.202.8/29
     <IPADDR RANGE> [<PORT>] # VIP range [VPORT]
     <IPADDR RANGE> [<PORT>]
     ...
