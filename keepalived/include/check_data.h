@@ -47,6 +47,7 @@
 /* Daemon dynamic data structure definition */
 #define KEEPALIVED_DEFAULT_DELAY	(60 * TIMER_HZ)
 
+#ifdef _WITH_NFTABLES_
 /* Used for arrays of protocol entries */
 typedef enum {
 	TCP_INDEX,
@@ -54,6 +55,7 @@ typedef enum {
 	SCTP_INDEX,
 	PROTO_INDEX_MAX
 } proto_index_t;
+#endif
 
 /* SSL specific data */
 typedef struct _ssl_data {
@@ -260,6 +262,7 @@ real_weight(int64_t effective_weight)
 	return effective_weight;
 }
 
+#ifdef _WITH_NFTABLES_
 static inline proto_index_t
 protocol_to_index(int proto)
 {
@@ -274,6 +277,7 @@ protocol_to_index(int proto)
 
 	return UDP_INDEX;
 }
+#endif
 
 /* Global vars exported */
 extern check_data_t *check_data;

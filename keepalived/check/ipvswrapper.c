@@ -529,10 +529,12 @@ ipvs_cmd(int cmd, virtual_server_t *vs, real_server_t *rs)
 	}
 
 	/* Set vs rule and send to kernel */
+#ifdef _WITH_NFTABLES_
 	if (vs->service_type)
 		proto_index = protocol_to_index(vs->service_type);
 	else
 		proto_index = PROTO_INDEX_MAX;
+#endif
 
 	if (vs->vsg) {
 #ifdef _WITH_NFTABLES_

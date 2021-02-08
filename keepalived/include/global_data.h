@@ -216,8 +216,8 @@ typedef struct _data {
 #endif
 #ifdef _WITH_NFTABLES_
 	bool				nf_counters;
-#ifdef _WITH_BFD_
 #endif
+#ifdef _WITH_BFD_
 	bool				have_bfd_config;
 	char				bfd_process_priority;
 	bool				bfd_no_swap;

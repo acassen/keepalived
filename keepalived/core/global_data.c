@@ -407,12 +407,14 @@ free_global_data(data_t * data)
 #endif
 #ifdef _WITH_NFTABLES_
 	FREE_CONST_PTR(data->vrrp_nf_table_name);
-	FREE_CONST_PTR(data->ipvs_nf_table_name);
 #endif
 #endif
 #ifdef _WITH_LVS_
 	FREE_CONST_PTR(data->lvs_notify_fifo.name);
 	free_notify_script(&data->lvs_notify_fifo.script);
+#ifdef _WITH_NFTABLES_
+	FREE_CONST_PTR(data->ipvs_nf_table_name);
+#endif
 #endif
 #ifdef _WITH_DBUS_
 	FREE_CONST_PTR(data->dbus_service_name);
