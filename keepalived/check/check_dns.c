@@ -112,7 +112,7 @@ dns_final(thread_ref_t thread, bool error, const char *fmt, ...)
 
 	checker_t *checker = THREAD_ARG(thread);
 
-#ifdef _CHECKER_DEBUG
+#ifdef _CHECKER_DEBUG_
 	if (do_checker_debug)
 		dns_log_message(thread, LOG_DEBUG, "final error=%d attempts=%u retry=%u", error,
 				checker->retry_it, checker->retry);
@@ -200,7 +200,7 @@ dns_recv_thread(thread_ref_t thread)
 	}
 
 	if (ret < (ssize_t) sizeof (r_header)) {
-#ifdef _CHECKER_DEBUG
+#ifdef _CHECKER_DEBUG_
 		if (do_checker_debug)
 			dns_log_message(thread, LOG_DEBUG, "too small message. (%ld bytes)", ret);
 #endif
@@ -213,7 +213,7 @@ dns_recv_thread(thread_ref_t thread)
 	r_header = PTR_CAST(dns_header_t , rbuf);
 
 	if (s_header->id != r_header->id) {
-#ifdef _CHECKER_DEBUG
+#ifdef _CHECKER_DEBUG_
 		if (do_checker_debug)
 			dns_log_message(thread, LOG_DEBUG, "ID does not match. (%04x != %04x)",
 					ntohs(s_header->id), ntohs(r_header->id));
@@ -226,7 +226,7 @@ dns_recv_thread(thread_ref_t thread)
 	flags = ntohs(r_header->flags);
 
 	if (!DNS_QR(flags)) {
-#ifdef _CHECKER_DEBUG
+#ifdef _CHECKER_DEBUG_
 		if (do_checker_debug)
 			dns_log_message(thread, LOG_DEBUG, "receive query message?");
 #endif

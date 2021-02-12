@@ -139,7 +139,7 @@ static const struct child_term children_term[] = {
 #ifdef _WITH_LVS_
 	{ &checkers_child, PROG_CHECK, "checker" },
 #endif
-#ifdef _WITH_BFD
+#ifdef _WITH_BFD_
 	{ &bfd_child, PROG_BFD, "bfd" },
 #endif
 };

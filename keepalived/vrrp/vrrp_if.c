@@ -570,7 +570,7 @@ dump_if(FILE *fp, const interface_t *ifp)
 #ifdef _HAVE_VRRP_VMAC_
 	if (IS_MAC_IP_VLAN(ifp)) {
 		const char *if_type =
-#ifdef _HAVE_VRRP_IPVLAN
+#ifdef _HAVE_VRRP_IPVLAN_
 				      ifp->if_type == IF_TYPE_IPVLAN ? "IPVLAN" :
 #endif
 										  "VMAC";

@@ -1432,7 +1432,7 @@ static struct variable8 check_vars[] = {
 	 check_snmp_virtualserver, 3, {3, 1, 67}},
 	{CHECK_SNMP_VSTUNNELTYPE, ASN_INTEGER, RONLY,
 	 check_snmp_virtualserver, 3, {3, 1, 68}},
-#ifdef _HAVE_IPSV_TUN_TYPE_
+#ifdef _HAVE_IPVS_TUN_TYPE_
 	{CHECK_SNMP_VSTUNNELPORT, ASN_UNSIGNED, RONLY,
 	 check_snmp_virtualserver, 3, {3, 1, 69}},
 #endif
@@ -1546,7 +1546,7 @@ static struct variable8 check_vars[] = {
 	 check_snmp_realserver, 3, {4, 1, 51}},
 	{CHECK_SNMP_RSTUNNELTYPE, ASN_INTEGER, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 52}},
-#ifdef _HAVE_IPSV_TUN_TYPE_
+#ifdef _HAVE_IPVS_TUN_TYPE_
 	{CHECK_SNMP_RSTUNNELPORT, ASN_UNSIGNED, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 53}},
 #endif
