@@ -681,7 +681,6 @@ check_process_termination(pid_t pid)
 	free_tracked_process_instance(tpi);
 }
 
-#if HAVE_DECL_PROC_EVENT_COMM
 static void
 check_process_comm_change(pid_t pid, char *comm)
 {
@@ -735,7 +734,6 @@ check_process_comm_change(pid_t pid, char *comm)
 	/* Handle the new process name */
 	check_process(pid, comm, tpi);
 }
-#endif
 
 /*
  * connect to netlink
@@ -1054,14 +1052,12 @@ handle_proc_ev(int nl_sd)
 						proc_ev.event_data.ptrace.tracer_pid,
 						proc_ev.event_data.ptrace.tracer_tgid);
 				break;
-#if HAVE_DECL_PROC_EVENT_COMM		/* Since Linux v3.2 */
 			case PROC_EVENT_COMM:
 				log_message(LOG_INFO, "comm: tid=%d pid=%d comm %s",
 						proc_ev.event_data.comm.process_pid,
 						proc_ev.event_data.comm.process_tgid,
 						proc_ev.event_data.comm.comm);
 				break;
-#endif
 #if HAVE_DECL_PROC_EVENT_COREDUMP	/* Since Linux v3.10 */
 			case PROC_EVENT_COREDUMP:
 				log_message(LOG_INFO, "coredump: tid=%d pid=%d",
@@ -1111,9 +1107,6 @@ handle_proc_ev(int nl_sd)
 				log_message(LOG_INFO, "Ignoring exec of thread %d of pid %d", proc_ev.event_data.exec.process_tgid, proc_ev.event_data.exec.process_pid);
 #endif
 			break;
-#if HAVE_DECL_PROC_EVENT_COMM		/* Since Linux v3.2 */
-		/* NOTE: not having PROC_EVENT_COMM means that changes to /proc/PID/comm
-		 * will not be detected */
 		case PROC_EVENT_COMM:
 			if (proc_ev.event_data.comm.process_tgid == proc_ev.event_data.comm.process_pid)
 				check_process_comm_change(proc_ev.event_data.comm.process_tgid, proc_ev.event_data.comm.comm);
@@ -1122,7 +1115,6 @@ handle_proc_ev(int nl_sd)
 				log_message(LOG_INFO, "Ignoring COMM event of thread %d of pid %d", proc_ev.event_data.comm.process_tgid, proc_ev.event_data.comm.process_pid);
 #endif
 			break;
-#endif
 		case PROC_EVENT_EXIT:
 			/* We aren't interested in thread termination */
 			if (proc_ev.event_data.exit.process_tgid == proc_ev.event_data.exit.process_pid)
