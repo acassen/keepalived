@@ -14,8 +14,6 @@ functionality that keepalived uses.
 
 =============================================================================
 
-dnl -- xt_set_info_match_v3 declared since Linux 3.10
-
 dnl ----[Check have IPV4_DEVCONF defines - since Linux 3.11]----
 
 ./keepalived/check/check_parser.c:#ifdef IP_VS_SVC_F_SCHED1		/* From Linux 3.11 */

@@ -1502,9 +1502,6 @@ AS_IF([test .$enable_iptables != .no],
 		add_config_opt([LIBIPSET])
 	      fi
 
-	      dnl -- xt_set_info_match_v3 declared since Linux 3.10
-	      AC_CHECK_MEMBER([struct xt_set_info_match_v3.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V3], [ 1 ], [Define to 1 if have struct xt_set_info_match_v3])], [],
-		[#include <linux/netfilter/xt_set.h>])
 	      dnl -- xt_set_info_match_v4 declared since Linux 3.19
 	      AC_CHECK_MEMBER([struct xt_set_info_match_v4.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V4], [ 1 ], [Define to 1 if have struct xt_set_info_match_v4])], [],
 		[#include <linux/netfilter/xt_set.h>])

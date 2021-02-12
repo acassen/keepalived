@@ -560,10 +560,8 @@ ip4tables_add_rules(struct iptc_handle *handle, const char *chain_name, unsigned
 	struct xt_entry_match *match;
 #ifdef HAVE_XT_SET_INFO_MATCH_V4
 	struct xt_set_info_match_v4 *setinfo;
-#elif defined HAVE_XT_SET_INFO_MATCH_V3
-	struct xt_set_info_match_v3 *setinfo;
 #else
-	struct xt_set_info_match_v1 *setinfo;
+	struct xt_set_info_match_v3 *setinfo;
 #endif
 	ipt_chainlabel chain;
 	int res;
@@ -611,10 +609,8 @@ ip4tables_add_rules(struct iptc_handle *handle, const char *chain_name, unsigned
 
 #ifdef HAVE_XT_SET_INFO_MATCH_V4
 	setinfo = PTR_CAST(struct xt_set_info_match_v4, match->data);
-#elif defined HAVE_XT_SET_INFO_MATCH_V3
-	setinfo = PTR_CAST(struct xt_set_info_match_v3, match->data);
 #else
-	setinfo = PTR_CAST(struct xt_set_info_match_v1, match->data);
+	setinfo = PTR_CAST(struct xt_set_info_match_v3, match->data);
 #endif
 
 	get_set_byname(set_name, &setinfo->match_set, NFPROTO_IPV4, ignore_errors);
@@ -696,10 +692,8 @@ ip6tables_add_rules(struct ip6tc_handle *handle, const char *chain_name, unsigne
 	struct xt_entry_match *match;
 #ifdef HAVE_XT_SET_INFO_MATCH_V4
 	struct xt_set_info_match_v4 *setinfo;
-#elif defined HAVE_XT_SET_INFO_MATCH_V3
-	struct xt_set_info_match_v3 *setinfo;
 #else
-	struct xt_set_info_match_v1 *setinfo;
+	struct xt_set_info_match_v3 *setinfo;
 #endif
 	ip6t_chainlabel chain;
 	int res;
@@ -748,10 +742,8 @@ ip6tables_add_rules(struct ip6tc_handle *handle, const char *chain_name, unsigne
 
 #ifdef HAVE_XT_SET_INFO_MATCH_V4
 	setinfo = PTR_CAST(struct xt_set_info_match_v4, match->data);
-#elif defined HAVE_XT_SET_INFO_MATCH_V3
-	setinfo = PTR_CAST(struct xt_set_info_match_v3, match->data);
 #else
-	setinfo = PTR_CAST(struct xt_set_info_match_v1, match->data);
+	setinfo = PTR_CAST(struct xt_set_info_match_v3, match->data);
 #endif
 
 	get_set_byname (set_name, &setinfo->match_set, NFPROTO_IPV6, ignore_errors);
