@@ -662,11 +662,9 @@ dump_vs(FILE *fp, const virtual_server_t *vs)
 		conf_write(fp, "   flag-3 = %sabled", vs->flags & IP_VS_SVC_F_SCHED3 ? "en" : "dis");
 	}
 #endif
-#ifdef IP_VS_SVC_F_ONEPACKET
 	conf_write(fp, "   One packet scheduling = %sabled%s",
 			(vs->flags & IP_VS_SVC_F_ONEPACKET) ? "en" : "dis",
 			((vs->flags & IP_VS_SVC_F_ONEPACKET) && vs->service_type != IPPROTO_UDP) ? " (inactive due to not UDP)" : "");
-#endif
 
 	if (vs->persistence_timeout)
 		conf_write(fp, "   persistence timeout = %u", vs->persistence_timeout);
@@ -1074,7 +1072,6 @@ validate_check_config(void)
 				vs->service_type = IPPROTO_UDP;
 			}
 
-#ifdef IP_VS_SVC_F_ONEPACKET
 			/* Check OPS not set for TCP or SCTP */
 			if (vs->flags & IP_VS_SVC_F_ONEPACKET &&
 			    vs->service_type != IPPROTO_UDP) {
@@ -1082,7 +1079,6 @@ validate_check_config(void)
 				report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: one packet scheduling requires UDP - resetting", FMT_VS(vs));
 				vs->flags &= ~(unsigned)IP_VS_SVC_F_ONEPACKET;
 			}
-#endif
 
 			/* Check port specified for udp/tcp/sctp unless persistent */
 			if (!vs->persistence_timeout &&

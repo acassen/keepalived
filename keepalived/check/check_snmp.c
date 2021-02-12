@@ -523,11 +523,9 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 	case CHECK_SNMP_VSHASUSPEND:
 		long_ret.u = v->ha_suspend?1:2;
 		return PTR_CAST(u_char, &long_ret);
-#ifdef IP_VS_SVC_F_ONEPACKET
 	case CHECK_SNMP_VSOPS:
 		long_ret.u = v->flags & IP_VS_SVC_F_ONEPACKET?1:2;
 		return PTR_CAST(u_char, &long_ret);
-#endif
 	case CHECK_SNMP_VSALPHA:
 		long_ret.u = v->alpha?1:2;
 		return PTR_CAST(u_char, &long_ret);

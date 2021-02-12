@@ -1828,10 +1828,6 @@ if test "$enable_lvs" != no; then
   add_config_opt([LVS])
   AC_DEFINE([_WITH_LVS_], [ 1 ], [Define to 1 if have IPVS support])
 
-  dnl -- From Linux 2.6.35 (but CentOS has it in 2.6.32)
-  AC_CHECK_DECLS([IP_VS_SVC_F_ONEPACKET], [], [],
-    [[#include <linux/ip_vs.h>]])
-
   if test $IPVS_USE_NL = Yes; then
     AC_DEFINE([LIBIPVS_USE_NL], [ 1 ], [Define to 1 if libipvs can use netlink])
     add_system_opt([LIBIPVS_NETLINK])

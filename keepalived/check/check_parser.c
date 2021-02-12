@@ -321,11 +321,8 @@ lbflags_handler(const vector_t *strvec)
 	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
 	const char *str = strvec_slot(strvec, 0);
 
-	if (false) {}
-#ifdef IP_VS_SVC_F_ONEPACKET
-	else if (!strcmp(str, "ops"))
+	if (!strcmp(str, "ops"))
 		vs->flags |= IP_VS_SVC_F_ONEPACKET;
-#endif
 #ifdef IP_VS_SVC_F_SCHED1		/* From Linux 3.11 */
 	else if (!strcmp(str, "flag-1"))
 		vs->flags |= IP_VS_SVC_F_SCHED1;
@@ -968,9 +965,7 @@ init_check_keywords(bool active)
 	install_keyword("lvs_sched", &lbalgo_handler);
 
 	install_keyword("hashed", &lbflags_handler);
-#ifdef IP_VS_SVC_F_ONEPACKET
 	install_keyword("ops", &lbflags_handler);
-#endif
 #ifdef IP_VS_SVC_F_SCHED1
 	install_keyword("flag-1", &lbflags_handler);
 	install_keyword("flag-2", &lbflags_handler);
