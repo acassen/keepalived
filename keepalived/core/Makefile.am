@@ -35,7 +35,7 @@ if LIBNL_DYNAMIC
   EXTRA_libcore_a_SOURCES += libnl_link.c
 endif
 
-if CN_PROC
+if TRACK_PROCESS
   libcore_a_LIBADD	+= track_process.o
   EXTRA_libcore_a_SOURCES += track_process.c
 endif

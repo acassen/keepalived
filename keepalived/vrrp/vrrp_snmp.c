@@ -677,7 +677,7 @@ vrrp_snmp_bfd(struct variable *vp, oid *name, size_t *length,
 }
 #endif
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 static u_char*
 vrrp_snmp_process(struct variable *vp, oid *name, size_t *length,
 		 int exact, size_t *var_len, WriteMethod **write_method)
@@ -2361,7 +2361,7 @@ vrrp_snmp_trackedbfd(struct variable *vp, oid *name, size_t *length,
 }
 #endif
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 static u_char*
 vrrp_snmp_trackedprocess(struct variable *vp, oid *name, size_t *length,
 			int exact, size_t *var_len, WriteMethod **write_method)
@@ -2528,7 +2528,7 @@ vrrp_snmp_group_trackedbfd(struct variable *vp, oid *name, size_t *length,
 }
 #endif
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 static u_char*
 vrrp_snmp_group_trackedprocess(struct variable *vp, oid *name, size_t *length,
 			int exact, size_t *var_len, WriteMethod **write_method)
@@ -2970,7 +2970,7 @@ static struct variable8 vrrp_vars[] = {
 	{VRRP_SNMP_BFD_WEIGHT_REVERSE, ASN_INTEGER, RONLY, vrrp_snmp_bfd, 3, {18, 1, 5}},
 #endif
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	/* vrrpTrackedProcessTable */
 	{VRRP_SNMP_TRACKEDPROCESS_NAME, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_trackedprocess, 3, {20, 1, 2}},
@@ -3029,7 +3029,7 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_group_trackedbfd, 3, {19, 1, 4}},
 #endif
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	/* syncGroupTrackedProcessTable */
 	{VRRP_SNMP_SGROUPTRACKEDPROCESS_NAME, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_group_trackedprocess, 3, {22, 1, 2}},

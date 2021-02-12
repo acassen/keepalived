@@ -117,7 +117,7 @@ typedef struct _vrrp_sgroup {
 	list_head_t		track_ifp;		/* tracked_if_t - Interface state we monitor */
 	list_head_t		track_script;		/* Script state we monitor */
 	list_head_t		track_file;		/* tracked_file_monitor_t - Files whose value we monitor */
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	list_head_t		track_process;		/* tracked_process_t - Processes we monitor */
 #endif
 #ifdef _WITH_BFD_
@@ -235,7 +235,7 @@ typedef struct _vrrp_t {
 	list_head_t		track_ifp;		/* tracked_if_t - Interface state we monitor */
 	list_head_t		track_script;		/* tracked_sc_t - Script state we monitor */
 	list_head_t		track_file;		/* tracked_file_monitor_t - Files whose value we monitor */
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	list_head_t		track_process;		/* tracked_process_t - Processes we monitor */
 #endif
 #ifdef _WITH_BFD_

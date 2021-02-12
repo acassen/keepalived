@@ -1795,7 +1795,7 @@ vrrp_netlink_cmd_rcv_bufs_force_handler(const vector_t *strvec)
 	global_data->vrrp_netlink_cmd_rcv_bufs_force = res;
 }
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 static void
 process_monitor_rcv_bufs_handler(const vector_t *strvec)
 {
@@ -2306,7 +2306,7 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_netlink_cmd_rcv_bufs_force", &vrrp_netlink_cmd_rcv_bufs_force_handler);
 	install_keyword("vrrp_netlink_monitor_rcv_bufs", &vrrp_netlink_monitor_rcv_bufs_handler);
 	install_keyword("vrrp_netlink_monitor_rcv_bufs_force", &vrrp_netlink_monitor_rcv_bufs_force_handler);
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	install_keyword("process_monitor_rcv_bufs", &process_monitor_rcv_bufs_handler);
 	install_keyword("process_monitor_rcv_bufs_force", &process_monitor_rcv_bufs_force_handler);
 #endif

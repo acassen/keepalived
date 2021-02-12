@@ -81,7 +81,7 @@
 #ifdef _WITH_FIREWALL_
 #include "vrrp_firewall.h"
 #endif
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 #include "track_process.h"
 #endif
 #ifdef _WITH_LVS_
@@ -401,7 +401,7 @@ vrrp_terminate_phase1(bool schedule_next_thread)
 		run_perf("vrrp", global_data->network_namespace, global_data->instance_name);
 #endif
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	/* Stop monitoring process terminations */
 	end_process_monitor();
 #endif
@@ -965,7 +965,7 @@ register_vrrp_thread_addresses(void)
 #endif
 	register_vrrp_fifo_addresses();
 	register_track_file_inotify_addresses();
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	register_process_monitor_addresses();
 #endif
 

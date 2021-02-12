@@ -164,7 +164,7 @@ free_sync_group(vrrp_sgroup_t *sgroup)
 	free_track_if_list(&sgroup->track_ifp);
 	free_track_script_list(&sgroup->track_script);
 	free_track_file_monitor_list(&sgroup->track_file);
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	free_track_process_list(&sgroup->track_process);
 #endif
 #ifdef _WITH_BFD_
@@ -222,7 +222,7 @@ dump_sync_group(FILE *fp, const vrrp_sgroup_t *sgroup)
 		conf_write(fp, "   Tracked files :");
 		dump_track_file_monitor_list(fp, &sgroup->track_file);
 	}
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	if (!list_empty(&sgroup->track_process)) {
 		conf_write(fp, "   Tracked process :");
 		dump_track_process_list(fp, &sgroup->track_process);
@@ -327,7 +327,7 @@ dump_vscript_list(FILE *fp, const list_head_t *l)
 		dump_vscript(fp, script);
 }
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 void
 free_vprocess(vrrp_tracked_process_t *vprocess)
 {
@@ -553,7 +553,7 @@ free_vrrp(vrrp_t *vrrp)
 	free_track_if_list(&vrrp->track_ifp);
 	free_track_script_list(&vrrp->track_script);
 	free_track_file_monitor_list(&vrrp->track_file);
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	free_track_process_list(&vrrp->track_process);
 #endif
 #ifdef _WITH_BFD_
@@ -778,7 +778,7 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 		conf_write(fp, "   Tracked files :");
 		dump_track_file_monitor_list(fp, &vrrp->track_file);
 	}
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	if (!list_empty(&vrrp->track_process)) {
 		conf_write(fp, "   Tracked processes :");
 		dump_track_process_list(fp, &vrrp->track_process);
@@ -832,7 +832,7 @@ alloc_vrrp_sync_group(const char *gname)
 	INIT_LIST_HEAD(&new->track_ifp);
 	INIT_LIST_HEAD(&new->track_script);
 	INIT_LIST_HEAD(&new->track_file);
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	INIT_LIST_HEAD(&new->track_process);
 #endif
 #ifdef _WITH_BFD_
@@ -890,7 +890,7 @@ alloc_vrrp(const char *iname)
 	INIT_LIST_HEAD(&new->track_script);
 	INIT_LIST_HEAD(&new->track_file);
 	INIT_LIST_HEAD(&new->unicast_peer);
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	INIT_LIST_HEAD(&new->track_process);
 #endif
 #ifdef _WITH_BFD_
@@ -1019,7 +1019,7 @@ alloc_vrrp_track_file(const vector_t *strvec)
 	vrrp_alloc_track_file(vrrp->iname, &vrrp_data->vrrp_track_files, &vrrp->track_file, strvec);
 }
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 void
 alloc_vrrp_track_process(const vector_t *strvec)
 {
@@ -1063,7 +1063,7 @@ alloc_vrrp_group_track_file(const vector_t *strvec)
 	vrrp_alloc_track_file(sgroup->gname, &vrrp_data->vrrp_track_files, &sgroup->track_file, strvec);
 }
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 void
 alloc_vrrp_group_track_process(const vector_t *strvec)
 {
@@ -1158,7 +1158,7 @@ alloc_vrrp_script(const char *sname)
 	list_add_tail(&new->e_list, &vrrp_data->vrrp_script);
 }
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 void
 alloc_vrrp_process(const char *pname)
 {
@@ -1218,7 +1218,7 @@ alloc_vrrp_data(void)
 	INIT_LIST_HEAD(&new->vrrp);
 	INIT_LIST_HEAD(&new->vrrp_script);
 	INIT_LIST_HEAD(&new->vrrp_track_files);
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	INIT_LIST_HEAD(&new->vrrp_track_processes);
 #endif
 #ifdef _WITH_BFD_
@@ -1242,7 +1242,7 @@ free_vrrp_data(vrrp_data_t * data)
 	free_sync_group_list(&data->vrrp_sync_group);
 	free_vscript_list(&data->vrrp_script);
 	free_track_file_list(&data->vrrp_track_files);
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	free_vprocess_list(&data->vrrp_track_processes);
 #endif
 #ifdef _WITH_BFD_
@@ -1292,7 +1292,7 @@ dump_vrrp_data(FILE *fp, const vrrp_data_t * data)
 		conf_write(fp, "------< VRRP Track files >------");
 		dump_track_file_list(fp, &data->vrrp_track_files);
 	}
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	if (!list_empty(&data->vrrp_track_processes)) {
 		conf_write(fp, "------< VRRP Track processes >------");
 		dump_vprocess_list(fp, &data->vrrp_track_processes);

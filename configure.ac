@@ -2092,26 +2092,16 @@ if test "$enable_vrrp" != no; then
     add_config_opt([BFD])
   fi
 
-  dnl -- Check for process events connector - Linux v2.6.15
   AS_IF([test .$enable_track_process != .no],
     [
-      AC_CHECK_HEADERS([linux/cn_proc.h],
-	[
-	  add_system_opt([CN_PROC])
-	  HAVE_CN_PROC=Yes
-	  AC_DEFINE([_WITH_CN_PROC_], [ 1 ], [Define to 1 if have linux/cn_proc.h and track-process not disabled])
-	  dnl -- PROC_EVENT_SID since Linux v2.6.32
-	  dnl -- PROC_EVENT_PTRACE since Linux v3.1
-	  dnl -- PROC_EVENT_COMM since Linux v3.2
-	  dnl -- PROC_EVENT_COREDUMP since Linux v3.10
-	  AC_CHECK_DECLS([PROC_EVENT_SID, PROC_EVENT_PTRACE, PROC_EVENT_COMM, PROC_EVENT_COREDUMP], [], [], [[#include <linux/cn_proc.h>]])
-	],
-	[
-	  AS_IF([test .$enable_track_process = .yes],
-	    [
-	      AC_MSG_ERROR([--enable-track-process specified but process events connector not supported])
-	    ])
-	])
+      WITH_TRACK_PROCESS=Yes
+      AC_DEFINE([_WITH_TRACK_PROCESS_], [ 1 ], [Define to 1 if track-process not disabled])
+
+      dnl -- PROC_EVENT_SID since Linux v2.6.32
+      dnl -- PROC_EVENT_PTRACE since Linux v3.1
+      dnl -- PROC_EVENT_COMM since Linux v3.2
+      dnl -- PROC_EVENT_COREDUMP since Linux v3.10
+      AC_CHECK_DECLS([PROC_EVENT_SID, PROC_EVENT_PTRACE, PROC_EVENT_COMM, PROC_EVENT_COREDUMP], [], [], [[#include <linux/cn_proc.h>]])
     ],
     [add_config_opt([DISABLE_TRACK_PROCESS])])
 fi
@@ -2120,7 +2110,7 @@ AM_CONDITIONAL([VRRP_AUTH], [test $VRRP_AUTH_SUPPORT = Yes])
 AM_CONDITIONAL([VMAC], [test $MACVLAN_SUPPORT = Yes])
 AM_CONDITIONAL([WITH_JSON], [test $ENABLE_JSON = Yes])
 AM_CONDITIONAL([WITH_BFD], [test $BFD_SUPPORT = Yes])
-AM_CONDITIONAL([CN_PROC], [test $HAVE_CN_PROC = Yes])
+AM_CONDITIONAL([TRACK_PROCESS], [test $WITH_TRACK_PROCESS = Yes])
 
 if test ${IPVS_SUPPORT} = No -a ${VRRP_SUPPORT} = No; then
   AC_MSG_ERROR([keepalived MUST be compiled with at least one of LVS or VRRP framework])
@@ -2820,7 +2810,7 @@ AS_IF([test .$enable_script_debug = .yes],
 
 dnl ----[ Do we want to enable track process debugging code]----
 ENABLE_TRACK_PROCESS_DEBUG=No
-AS_IF([test $HAVE_CN_PROC = Yes],
+AS_IF([test .$enable_track_process != .no],
   [
     AS_IF([test .$enable_track_process_debug = .yes],
       [
@@ -3065,7 +3055,7 @@ if test ${VRRP_SUPPORT} = Yes; then
   echo "Use VRRP VMAC            : ${MACVLAN_SUPPORT}"
   echo "Use VRRP authentication  : ${VRRP_AUTH_SUPPORT}"
   echo "With ip rules/routes     : ${FIB_ROUTING_SUPPORT}"
-  echo "With track_process       : ${HAVE_CN_PROC}"
+  echo "With track_process       : ${WITH_TRACK_PROCESS}"
   echo "With linkbeat            : ${LINKBEAT_SUPPORT}"
 fi
 echo "Use BFD Framework        : ${BFD_SUPPORT}"

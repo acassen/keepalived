@@ -48,7 +48,7 @@
 #include "scheduler.h"
 #include "process.h"
 #include "utils.h"
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 #include "track_process.h"
 #endif
 #ifdef _USE_SYSTEMD_NOTIFY_
@@ -397,7 +397,7 @@ start_bfd_child(void)
 	/* Close the read end of the event notification pipes, and the track_process fd */
 #ifdef _WITH_VRRP_
 	close(bfd_vrrp_event_pipe[0]);
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	close_track_processes();
 #endif
 #endif

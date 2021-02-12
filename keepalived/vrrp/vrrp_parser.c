@@ -60,7 +60,7 @@
 #include "bfd_parser.h"
 #endif
 #include "track_file.h"
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 #include "track_process.h"
 #endif
 
@@ -272,7 +272,7 @@ vrrp_group_track_file_handler(const vector_t *strvec)
 	alloc_value_block(alloc_vrrp_group_track_file, strvec);
 }
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 static void
 vrrp_group_track_process_handler(const vector_t *strvec)
 {
@@ -757,7 +757,7 @@ vrrp_track_file_handler(const vector_t *strvec)
 {
 	alloc_value_block(alloc_vrrp_track_file, strvec);
 }
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 static void
 vrrp_track_process_handler(const vector_t *strvec)
 {
@@ -1448,7 +1448,7 @@ vrrp_vscript_end_handler(void)
 	vscript->script.gid = default_script_gid;
 }
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 static void
 vrrp_tprocess_handler(const vector_t *strvec)
 {
@@ -1862,7 +1862,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("track_interface", &vrrp_group_track_if_handler);
 	install_keyword("track_script", &vrrp_group_track_scr_handler);
 	install_keyword("track_file", &vrrp_group_track_file_handler);
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	install_keyword("track_process", &vrrp_group_track_process_handler);
 #endif
 #ifdef _WITH_BFD_
@@ -1914,7 +1914,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("track_interface", &vrrp_track_if_handler);
 	install_keyword("track_script", &vrrp_track_scr_handler);
 	install_keyword("track_file", &vrrp_track_file_handler);
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	install_keyword("track_process", &vrrp_track_process_handler);
 #endif
 #ifdef _WITH_BFD_
@@ -1991,7 +1991,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("init_fail", &vrrp_vscript_init_fail_handler);
 	install_sublevel_end_handler(&vrrp_vscript_end_handler);
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	/* Track process declarations */
 	install_keyword_root("vrrp_track_process", &vrrp_tprocess_handler, active);
 	install_keyword("process", &vrrp_tprocess_process_handler);

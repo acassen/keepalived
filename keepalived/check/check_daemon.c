@@ -71,7 +71,7 @@
 #endif
 #include "timer.h"
 #include "track_file.h"
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 #include "track_process.h"
 #endif
 #ifdef _USE_SYSTEMD_NOTIFY_
@@ -705,7 +705,7 @@ start_check_child(void)
 	close(bfd_vrrp_event_pipe[1]);
 #endif
 #endif
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	close_track_processes();
 #endif
 

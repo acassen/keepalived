@@ -17,8 +17,6 @@ functionality that keepalived uses.
 ./keepalived/core/namespaces.c:#ifndef MS_SLAVE	/* Since glibc 2.12, but Linux since 2.6.15 */
 ./keepalived/core/namespaces.c:#ifdef MS_SLAVE		/* Since Linux 2.6.15. Prior to that mounts weren't shared */
 
-CN_PROC process events connector		Since Linux 2.6.15
-
 dnl -- linux/netfilter/x_tables.h since Linux 2.6.16
 
 dnl ----[ Checks for FIB routing support ]----

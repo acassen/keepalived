@@ -86,7 +86,7 @@
 #endif
 #include "tracker.h"
 #include "track_file.h"
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 #include "track_process.h"
 #endif
 #ifdef _WITH_LVS_
@@ -2643,7 +2643,7 @@ add_vrrp_to_track_script(vrrp_t *vrrp, tracked_sc_t *sc)
 	list_add_tail(&top->e_list, &scr->tracking_vrrp);
 }
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 static void
 add_vrrp_to_track_process(vrrp_t *vrrp, tracked_process_t *tpr)
 {
@@ -2784,7 +2784,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	tracked_sc_t *sc, *sc_tmp;
 	tracked_if_t *tip, *tip_tmp;
 	tracked_file_monitor_t *tfl, *tfl_tmp;
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	tracked_process_t *tpr;
 #endif
 #ifdef _WITH_BFD_
@@ -3739,7 +3739,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	list_for_each_entry(tfl, &vrrp->track_file, e_list)
 		add_obj_to_track_file(vrrp, tfl, vrrp->iname, dump_tracking_vrrp);
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	/* Add our track processes to the tracking process tracking_vrrp list */
 	list_for_each_entry(tpr, &vrrp->track_process, e_list)
 		add_vrrp_to_track_process(vrrp, tpr);
@@ -3812,7 +3812,7 @@ sync_group_tracking_init(void)
 	vrrp_script_t *vsc;
 	tracked_if_t *tif;
 	tracked_file_monitor_t *tfl;
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	tracked_process_t *tpr;
 #endif
 #ifdef _WITH_BFD_
@@ -3870,7 +3870,7 @@ sync_group_tracking_init(void)
 				add_obj_to_track_file(vrrp, tfl, vrrp->iname, dump_tracking_vrrp);
 		}
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 		/* tracked processes */
 		list_for_each_entry(tpr, &sgroup->track_process, e_list) {
 			if (sgroup_has_prio_owner && tpr->weight) {
@@ -4442,7 +4442,7 @@ vrrp_complete_init(void)
 	/* Initialise any tracking files */
 	init_track_files(&vrrp_data->vrrp_track_files);
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	/* Initialise any process tracking */
 	if (!list_empty(&vrrp_data->vrrp_track_processes)) {
 		if (reload)

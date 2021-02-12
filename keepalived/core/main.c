@@ -65,7 +65,7 @@
 #include "vrrp_daemon.h"
 #include "vrrp_parser.h"
 #include "vrrp_if.h"
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 #include "track_process.h"
 #endif
 #ifdef _WITH_JSON_
@@ -1424,7 +1424,7 @@ initialise_debug_options(void)
 #ifdef _CHECKSUM_DEBUG_
 	do_checksum_debug = !!(checksum_debug & mask);
 #endif
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 #ifdef _TRACK_PROCESS_DEBUG_
 	do_track_process_debug_detail = !!(track_process_debug_detail & mask);
 	do_track_process_debug = !!(track_process_debug & mask) | do_track_process_debug_detail;
@@ -2535,7 +2535,7 @@ keepalived_main(int argc, char **argv)
 
 		/* If we want to monitor processes, we have to do it before calling
 		 * setns() */
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 		open_track_processes();
 #endif
 	}
