@@ -904,7 +904,7 @@ vrrp_dispatcher_read(sock_t *sock)
 		}
 #ifdef _RECVMSG_DEBUG_
 		else if (do_recvmsg_debug)
-			log_message(LOG_INFO, "recvmsg(%d) looped %u times due to EINTR before returning %ld bytes from %s"
+			log_message(LOG_INFO, "recvmsg(%d) looped %u times due to EINTR before returning %zd bytes from %s"
 					    , sock->fd_in, eintr_count, len, inet_sockaddrtos(&src_addr));
 #elif defined DEBUG_RECVMSG
 		if (eintr_count)

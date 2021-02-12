@@ -199,7 +199,7 @@ dns_recv_thread(thread_ref_t thread)
 	if (ret < (ssize_t) sizeof (r_header)) {
 #ifdef _CHECKER_DEBUG_
 		if (do_checker_debug)
-			dns_log_message(thread, LOG_DEBUG, "too small message. (%ld bytes)", ret);
+			dns_log_message(thread, LOG_DEBUG, "too small message. (%zd bytes)", ret);
 #endif
 		thread_add_read(thread->master, dns_recv_thread, checker,
 				thread->u.f.fd, timeout, true);
