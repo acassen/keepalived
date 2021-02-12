@@ -420,28 +420,6 @@ ip6tables_process_entry(struct ip6tc_handle *handle, const char *chain_name, uns
 }
 
 #ifdef _HAVE_LIBIPSET_
-#ifndef IP_SET_OP_VERSION	/* Exposed to userspace from Linux 3.4 */
-				/* Copied from <linux/netfilter/ipset/ip_set.h> */
-#define SO_IP_SET	83
-union ip_set_name_index {
- char name[IPSET_MAXNAMELEN];
- ip_set_id_t index;
-};
-
-#define IP_SET_OP_GET_BYNAME 0x00000006 /* Get set index by name */
-struct ip_set_req_get_set {
- unsigned op;
- unsigned version;
- union ip_set_name_index set;
-};
-
-#define IP_SET_OP_VERSION 0x00000100 /* Ask kernel version */
-struct ip_set_req_version {
- unsigned op;
- unsigned version;
-};
-#endif
-
 static int
 get_version(unsigned int* version)
 {
