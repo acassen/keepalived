@@ -22,8 +22,8 @@
  * Copyright (C) 2016-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
-#ifndef _CHECK_DNS_CHECK_H
-#define _CHECK_DNS_CHECK_H
+#ifndef _CHECK_DNS_H
+#define _CHECK_DNS_H
 
 #include <stdint.h>
 #include <sys/types.h>

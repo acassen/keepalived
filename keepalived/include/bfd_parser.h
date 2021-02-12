@@ -19,8 +19,8 @@
  *
  * Copyright (C) 2015-2017 Alexandre Cassen, <acassen@gmail.com>
  */
-#ifndef _BFD_PARSER_H_
-#define _BFD_PARSER_H_
+#ifndef _BFD_PARSER_H
+#define _BFD_PARSER_H
 
 #include <stdbool.h>
 
@@ -29,4 +29,4 @@
 extern void init_bfd_keywords(bool);
 extern const vector_t *bfd_init_keywords(void);
 
-#endif				/* _BFD_PARSER_H_ */
+#endif				/* _BFD_PARSER_H */

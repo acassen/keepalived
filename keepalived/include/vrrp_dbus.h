@@ -20,8 +20,8 @@
  * Copyright (C) 2016-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
-#ifndef VRRP_DBUS_H
-#define VRRP_DBUS_H
+#ifndef _VRRP_DBUS_H
+#define _VRRP_DBUS_H
 
 /* System includes */
 #include <stdbool.h>

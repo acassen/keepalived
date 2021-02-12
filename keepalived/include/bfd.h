@@ -19,8 +19,8 @@
  *
  * Copyright (C) 2015-2017 Alexandre Cassen, <acassen@gmail.com>
  */
-#ifndef _BFD_H_
-#define _BFD_H_
+#ifndef _BFD_H
+#define _BFD_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -247,4 +247,4 @@ extern bool bfd_check_packet_ttl(const bfdpkt_t *, const bfd_t *);
 extern void bfd_build_packet(bfdpkt_t * pkt, bfd_t *, char *,
 			     const ssize_t);
 
-#endif				/* _BFD_H_ */
+#endif				/* _BFD_H */

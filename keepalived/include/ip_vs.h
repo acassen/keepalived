@@ -3,8 +3,8 @@
  *      data structure and functionality definitions
  */
 
-#ifndef KEEPALIVED_IP_VS_H
-#define KEEPALIVED_IP_VS_H
+#ifndef _KEEPALIVED_IP_VS_H
+#define _KEEPALIVED_IP_VS_H
 
 #include "config.h"
 
@@ -166,4 +166,4 @@ struct ip_vs_daemon_app {
 #endif
 };
 
-#endif	/* KEEPALIVED_IP_VS_H */
+#endif	/* _KEEPALIVED_IP_VS_H */

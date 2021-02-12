@@ -20,8 +20,8 @@
  * Copyright (C) 2015-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
-#ifndef _BFD_EVENT_H_
-#define _BFD_EVENT_H_
+#ifndef _BFD_EVENT_H
+#define _BFD_EVENT_H
 
 #include "bfd.h"
 
@@ -33,4 +33,4 @@ typedef struct _bfd_event {
 
 extern void bfd_event_send(bfd_t *);
 
-#endif				/* _BFD_EVENT_H_ */
+#endif				/* _BFD_EVENT_H */

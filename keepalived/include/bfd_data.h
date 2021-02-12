@@ -20,8 +20,8 @@
  * Copyright (C) 2015-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
-#ifndef _BFD_DATA_H_
-#define _BFD_DATA_H_
+#ifndef _BFD_DATA_H
+#define _BFD_DATA_H
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -56,4 +56,4 @@ extern bfd_t *find_bfd_by_name(const char *) __attribute__ ((pure));
 extern uint32_t rand_intv(uint32_t, uint32_t);
 extern uint32_t bfd_get_random_discr(bfd_data_t *);
 
-#endif				/* _BFD_DATA_H_ */
+#endif				/* _BFD_DATA_H */

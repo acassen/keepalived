@@ -20,8 +20,8 @@
  * Copyright (C) 2016-2016 Alexandre Cassen, <acassen@gmail.com>
  */
 
-#ifndef _NAMESPACE_H_
-#define _NAMESPACE_H_
+#ifndef _NAMESPACE_H
+#define _NAMESPACE_H
 
 #include <stdbool.h>
 

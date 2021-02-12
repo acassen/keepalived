@@ -20,8 +20,8 @@
  * Copyright (C) 2015-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
-#ifndef _BFD_DAEMON_H_
-#define _BFD_DAEMON_H_
+#ifndef _BFD_DAEMON_H
+#define _BFD_DAEMON_H
 
 #define PROG_BFD "Keepalived_bfd"
 
@@ -39,4 +39,4 @@ extern void bfd_validate_config(void);
 extern void register_bfd_parent_addresses(void);
 #endif
 
-#endif				/* _BFD_DAEMON_H_ */
+#endif				/* _BFD_DAEMON_H */
