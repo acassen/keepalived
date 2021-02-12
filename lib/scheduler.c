@@ -51,7 +51,7 @@
 #include "bitops.h"
 #include "git-commit.h"
 #include "timer.h"
-#if !defined HAVE_EPOLL_CREATE1 || !HAVE_DECL_TFD_NONBLOCK
+#if !defined HAVE_EPOLL_CREATE1
 #include "old_socket.h"
 #endif
 #include "assert_debug.h"
@@ -771,26 +771,12 @@ thread_make_master(void)
 
 
 	/* Register timerfd thread */
-	new->timer_fd = timerfd_create(CLOCK_MONOTONIC,
-#ifdef TFD_NONBLOCK				/* Since Linux 2.6.27 */
-							TFD_NONBLOCK | TFD_CLOEXEC
-#else
-							0
-#endif
-										  );
+	new->timer_fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC);
 	if (new->timer_fd < 0) {
 		log_message(LOG_ERR, "scheduler: Cant create timerfd (%m)");
 		FREE(new);
 		return NULL;
 	}
-
-#ifndef TFD_NONBLOCK
-	if (set_sock_flags(new->timer_fd, F_SETFL, O_NONBLOCK))
-		log_message(LOG_INFO, "Unable to set NONBLOCK on timer_fd - %d (%m)", errno);
-
-	if (set_sock_flags(new->timer_fd, F_SETFD, FD_CLOEXEC))
-		log_message(LOG_INFO, "Unable to set CLOEXEC on timer_fd - %d (%m)", errno);
-#endif
 
 	new->signal_fd = signal_handler_init();
 

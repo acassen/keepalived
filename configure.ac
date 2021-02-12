@@ -2115,8 +2115,7 @@ fi
 
 dnl ----[ Checks for needing old_socket support ]----
 # Not needed from Linux 2.6.27 and glibc 2.9
-AC_CHECK_DECLS([TFD_NONBLOCK], [add_system_opt([TFD_NONBLOCK])], [],[[#include <sys/timerfd.h>]])
-AM_CONDITIONAL([NEED_OLD_SOCKET], [test .$ac_cv_have_decl_TFD_NONBLOCK != .yes -o .$ac_cv_func_epoll_create1 != .yes])
+AM_CONDITIONAL([NEED_OLD_SOCKET], [.$ac_cv_func_epoll_create1 != .yes])
 
 dnl ----[ Checks for pe support ]----
 # Introduced in Linux 2.6.37

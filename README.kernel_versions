@@ -14,8 +14,6 @@ functionality that keepalived uses.
 
 =============================================================================
 
-./lib/scheduler.c:#ifdef TFD_NONBLOCK				/* Since Linux 2.6.27 */
-
 dnl - pipe2() since Linux 2.6.27 and glibc 2.9.
 AC_CHECK_FUNCS([pipe2], [add_system_opt([PIPE2])])
 
