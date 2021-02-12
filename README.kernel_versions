@@ -14,11 +14,6 @@ functionality that keepalived uses.
 
 =============================================================================
 
-dnl -- From glibc 2.14. Otherwise use setns syscall, since Linux 2.4.x
-AC_CHECK_FUNCS([setns])
-
-IPV6_RECVHOPLIMIT & IPV6_RECVPKTINFO		Since Linux 2.6.14
-
 ./keepalived/core/namespaces.c:#ifndef MS_SLAVE	/* Since glibc 2.12, but Linux since 2.6.15 */
 ./keepalived/core/namespaces.c:#ifdef MS_SLAVE		/* Since Linux 2.6.15. Prior to that mounts weren't shared */
 
@@ -95,9 +90,6 @@ dnl ----[ Checks for O_PATH support ]----
 # Introduced in Linux 2.6.39
 
 dnl -- xt_set_info_match first introduced in Linux 2.6.39 (initial implementation of ipsets)
-
-dnl ---[ check for setns() ]----
-dnl -- CLONE_NEWNET defined from Linux 3.0
 
 dnl -- <linux/netlink.h> needed <sys/socket.h> until Linux 3.1
 

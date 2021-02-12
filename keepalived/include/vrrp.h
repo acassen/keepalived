@@ -249,9 +249,7 @@ typedef struct _vrrp_t {
 	bool			track_saddr;		/* Fault state if configured saddr is missing */
 	struct sockaddr_storage	pkt_saddr;		/* Src IP address received in VRRP IP header */
 	int			rx_ttl_hop_limit;	/* Received TTL/hop limit returned */
-#ifdef IPV6_RECVPKTINFO
 	bool			multicast_pkt;		/* Last IPv6 packet received was multicast */
-#endif
 	list_head_t		unicast_peer;		/* unicast_peer_t - peers to send unicast advert to */
 	int			ttl;			/* TTL to send packet with if unicasting */
 	bool			check_unicast_src;	/* It set, check the source address of a unicast advert */

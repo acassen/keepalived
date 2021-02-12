@@ -1067,11 +1067,8 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 
 	/* check that destination address is multicast if don't have any unicast peers
 	 * and vice versa */
-	if (((vrrp->family == AF_INET && IN_MULTICAST(ntohl(ip->daddr)))
-#ifdef IPV6_RECVPKTINFO
-	     || (vrrp->family == AF_INET6 && vrrp->multicast_pkt)
-#endif
-								 ) != list_empty(&vrrp->unicast_peer)) {
+	if (((vrrp->family == AF_INET && IN_MULTICAST(ntohl(ip->daddr))) ||
+	     (vrrp->family == AF_INET6 && vrrp->multicast_pkt)) != list_empty(&vrrp->unicast_peer)) {
 		/* So far as I can see, with IPv6 if multicasts are enabled on an interface, we will receive them
 		 * on a socket even if we haven't registered the multicast address on the socket.
 		 * If anyone know how to stop receiving them, please raise a github issue with the details.
@@ -2419,21 +2416,17 @@ open_vrrp_read_socket(sa_family_t family, int proto, const interface_t *ifp, con
 		}
 	}
 
-#ifdef IPV6_RECVHOPLIMIT	/* Since Linux 2.6.14 */
 	/* IPv6 we need to receive the hop count as ancillary data */
 	if (family == AF_INET6) {
 		if (setsockopt(fd, IPPROTO_IPV6, IPV6_RECVHOPLIMIT, &on, sizeof on))
 			log_message(LOG_INFO, "fd %d - set IPV6_RECVHOPLIMIT error %d (%m)", fd, errno);
 	}
-#endif
 
-#ifdef IPV6_RECVPKTINFO		/* Since Linux 2.6.14 */
 	/* Receive the destination address as ancillary data to determine if packet multicast */
 	if (family == AF_INET6) {
 		if (setsockopt(fd, IPPROTO_IPV6, IPV6_RECVPKTINFO, &on, sizeof on))
 			log_message(LOG_INFO, "fd %d - set IPV6_RECVPKTINFO error %d (%m)", fd, errno);
 	}
-#endif
 
 #ifdef _NETWORK_TIMESTAMP_
 	if (do_network_timestamp) {
