@@ -1019,8 +1019,6 @@ AC_FUNC_FORK
 #AC_FUNC_REALLOC
 dnl - dup3 since Linux 2.6.27 and glibc 2.9
 AC_CHECK_FUNCS([dup2 dup3 getcwd gettimeofday malloc memmove memset realloc select setenv socket strcasecmp strchr strdup strerror strpbrk strstr strtol strtoul uname])
-dnl - pipe2() since Linux 2.6.27 and glibc 2.9.
-AC_CHECK_FUNCS([pipe2], [add_system_opt([PIPE2])])
 dnl - inotify_init1() since Linux 2.6.27
 AC_CHECK_FUNCS([inotify_init1], [add_system_opt([INOTIFY_INIT1])])
 dnl - vsyslog() Not defined by Posix, but available in glibc and musl
