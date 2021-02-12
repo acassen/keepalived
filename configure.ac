@@ -1649,6 +1649,7 @@ AS_IF([test .$enable_iptables != .no],
 	      dnl - for the other, to stop it being included as well.
 	      dnl - This is reported as a bug against ipset at https://bugzilla.netfilter.org/show_bug.cgi?id=1139
 	      dnl - We will take the kernel version if there is an inclusion collision.
+	      dnl - This was resolved in ipset v6.34.
 	      AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
 		#include <linux/netfilter/ipset/ip_set.h>
 		#include <libipset/linux_ip_set.h>
