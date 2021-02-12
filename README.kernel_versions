@@ -14,10 +14,6 @@ functionality that keepalived uses.
 
 =============================================================================
 
-dnl - ipset type iface introduced in Linux 3.1
-
-./keepalived/vrrp/vrrp_ipset.c:			/* hash:net,iface was introduced in Linux 3.1 */
-
 dnl -- Need to use <libipset/linux_ip_set.h> for <linux/netfilter/xt_set.h> prior to Linux 3.4
 
 ./keepalived/vrrp/vrrp_iptables_calls.c:#ifndef IP_SET_OP_VERSION	/* Exposed to userspace from Linux 3.4 */

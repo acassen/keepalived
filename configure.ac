@@ -1532,13 +1532,6 @@ AS_IF([test .$enable_iptables != .no],
 		  #include <linux/netfilter/xt_set.h>
 		])
 
-	      dnl - ipset type iface introduced in Linux 3.1
-	      AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-		#include <linux/netfilter/ipset/ip_set.h>
-		int main(void) { int var = IPSET_ATTR_IFACE; }
-		]])],
-		[AC_DEFINE([HAVE_IPSET_ATTR_IFACE], [ 1 ], [Define to 1 if ipset supports iface type])])
-
 	      dnl - The include guard for <linux/netfilter/ipset/ip_set.h> has the leading _UAPI remove when
 	      dnl - the source code is processed to produce the actual header files.
 	      dnl - Unfortunately libipset provides a copy of the kernel headers, as <libipset/linux_ip_set*.h>,

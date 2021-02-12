@@ -1016,10 +1016,8 @@ vrrp_ipsets_handler(const vector_t *strvec)
 	FREE_CONST_PTR(global_data->vrrp_ipset_address);
 	FREE_CONST_PTR(global_data->vrrp_ipset_address6);
 	FREE_CONST_PTR(global_data->vrrp_ipset_address_iface6);
-#ifdef HAVE_IPSET_ATTR_IFACE
 	FREE_CONST_PTR(global_data->vrrp_ipset_igmp);
 	FREE_CONST_PTR(global_data->vrrp_ipset_mld);
-#endif
 
 	if (vector_size(strvec) < 2) {
 		global_data->using_ipsets = false;
@@ -1064,7 +1062,6 @@ vrrp_ipsets_handler(const vector_t *strvec)
 		global_data->vrrp_ipset_address_iface6 = STRDUP(set_name);
 	}
 
-#ifdef HAVE_IPSET_ATTR_IFACE
 	if (vector_size(strvec) >= 5) {
 		if (strlen(strvec_slot(strvec,4)) >= IPSET_MAXNAMELEN - 1) {
 			report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : ipset IGMP name too long - ignored");
@@ -1093,7 +1090,6 @@ vrrp_ipsets_handler(const vector_t *strvec)
 		strcat(set_name, "_mld");
 		global_data->vrrp_ipset_mld = STRDUP(set_name);
 	}
-#endif
 }
 #endif
 #elif defined _WITH_NFTABLES_

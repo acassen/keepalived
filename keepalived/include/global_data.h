@@ -169,10 +169,8 @@ typedef struct _data {
 	const char			*vrrp_ipset_address;
 	const char			*vrrp_ipset_address6;
 	const char			*vrrp_ipset_address_iface6;
-#ifdef HAVE_IPSET_ATTR_IFACE
 	const char			*vrrp_ipset_igmp;
 	const char			*vrrp_ipset_mld;
-#endif
 #endif
 #endif
 #ifdef _WITH_NFTABLES_
