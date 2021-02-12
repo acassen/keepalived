@@ -14,14 +14,10 @@ functionality that keepalived uses.
 
 =============================================================================
 
-dnl -- xt_set_info_match first introduced in Linux 2.6.39 (initial implementation of ipsets)
-
 dnl -- <linux/netlink.h> needed <sys/socket.h> until Linux 3.1
 
 dnl -- <linux/rtnetlink.h> needed <sys/socket.h> until ? Linux 3.1
 dnl -- using AC_CHECK_HEADER causes a horrible error message for the user
-
-dnl -- xt_set_info_match_v1 declared since Linux 3.1
 
 dnl - ipset type iface introduced in Linux 3.1
 

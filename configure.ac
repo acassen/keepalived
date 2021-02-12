@@ -1544,13 +1544,6 @@ AS_IF([test .$enable_iptables != .no],
 		add_config_opt([LIBIPSET])
 	      fi
 
-	      dnl -- xt_set_info_match first introduced in Linux 2.6.39 (initial implementation of ipsets)
-	      dnl -- xt_set_info_match_v1 declared since Linux 3.1
-	      AC_CHECK_MEMBER([struct xt_set_info_match_v1.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V1], [ 1 ], [Define to 1 if have struct xt_set_info_match_v1])], [],
-		[
-		  $EXTRA_INCLUDE
-		  #include <linux/netfilter/xt_set.h>
-		])
 	      dnl -- xt_set_info_match_v3 declared since Linux 3.10
 	      AC_CHECK_MEMBER([struct xt_set_info_match_v3.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V3], [ 1 ], [Define to 1 if have struct xt_set_info_match_v3])], [],
 		[

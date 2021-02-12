@@ -588,10 +588,8 @@ ip4tables_add_rules(struct iptc_handle *handle, const char *chain_name, unsigned
 	struct xt_set_info_match_v4 *setinfo;
 #elif defined HAVE_XT_SET_INFO_MATCH_V3
 	struct xt_set_info_match_v3 *setinfo;
-#elif defined HAVE_XT_SET_INFO_MATCH_V1
-	struct xt_set_info_match_v1 *setinfo;
 #else
-	struct xt_set_info_match *setinfo;
+	struct xt_set_info_match_v1 *setinfo;
 #endif
 	ipt_chainlabel chain;
 	int res;
@@ -631,10 +629,8 @@ ip4tables_add_rules(struct iptc_handle *handle, const char *chain_name, unsigned
 	match->u.user.revision = 4;
 #elif defined HAVE_XT_SET_INFO_MATCH_V3
 	match->u.user.revision = 3;
-#elif defined HAVE_XT_SET_INFO_MATCH_V1
-	match->u.user.revision = 1;
 #else
-	match->u.user.revision = 0;
+	match->u.user.revision = 1;
 #endif
 	fw->target_offset = (uint16_t)(fw->target_offset + match->u.match_size);
 	strcpy(match->u.user.name, "set");
@@ -643,10 +639,8 @@ ip4tables_add_rules(struct iptc_handle *handle, const char *chain_name, unsigned
 	setinfo = PTR_CAST(struct xt_set_info_match_v4, match->data);
 #elif defined HAVE_XT_SET_INFO_MATCH_V3
 	setinfo = PTR_CAST(struct xt_set_info_match_v3, match->data);
-#elif defined HAVE_XT_SET_INFO_MATCH_V1
-	setinfo = PTR_CAST(struct xt_set_info_match_v1, match->data);
 #else
-	setinfo = PTR_CAST(struct xt_set_info_match, match->data);
+	setinfo = PTR_CAST(struct xt_set_info_match_v1, match->data);
 #endif
 
 	get_set_byname(set_name, &setinfo->match_set, NFPROTO_IPV4, ignore_errors);
@@ -730,10 +724,8 @@ ip6tables_add_rules(struct ip6tc_handle *handle, const char *chain_name, unsigne
 	struct xt_set_info_match_v4 *setinfo;
 #elif defined HAVE_XT_SET_INFO_MATCH_V3
 	struct xt_set_info_match_v3 *setinfo;
-#elif defined HAVE_XT_SET_INFO_MATCH_V1
-	struct xt_set_info_match_v1 *setinfo;
 #else
-	struct xt_set_info_match *setinfo;
+	struct xt_set_info_match_v1 *setinfo;
 #endif
 	ip6t_chainlabel chain;
 	int res;
@@ -774,10 +766,8 @@ ip6tables_add_rules(struct ip6tc_handle *handle, const char *chain_name, unsigne
 	match->u.user.revision = 4;
 #elif defined HAVE_XT_SET_INFO_MATCH_V3
 	match->u.user.revision = 3;
-#elif defined HAVE_XT_SET_INFO_MATCH_V1
-	match->u.user.revision = 1;
 #else
-	match->u.user.revision = 0;
+	match->u.user.revision = 1;
 #endif
 	fw->target_offset = (uint16_t)(fw->target_offset + match->u.match_size);
 	strcpy(match->u.user.name, "set");
@@ -786,10 +776,8 @@ ip6tables_add_rules(struct ip6tc_handle *handle, const char *chain_name, unsigne
 	setinfo = PTR_CAST(struct xt_set_info_match_v4, match->data);
 #elif defined HAVE_XT_SET_INFO_MATCH_V3
 	setinfo = PTR_CAST(struct xt_set_info_match_v3, match->data);
-#elif defined HAVE_XT_SET_INFO_MATCH_V1
-	setinfo = PTR_CAST(struct xt_set_info_match_v1, match->data);
 #else
-	setinfo = PTR_CAST(struct xt_set_info_match, match->data);
+	setinfo = PTR_CAST(struct xt_set_info_match_v1, match->data);
 #endif
 
 	get_set_byname (set_name, &setinfo->match_set, NFPROTO_IPV6, ignore_errors);
