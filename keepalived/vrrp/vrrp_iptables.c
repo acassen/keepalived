@@ -556,14 +556,17 @@ handle_iptable_rule_for_igmp(const char *ifname, int cmd, int family, struct ipt
 			return;
 		}
 
+#ifdef _HAVE_LIBIPSET_
 		if (global_data->using_ipsets) {
 			add_del_igmp_sets(h, IPADDRESS_ADD, family);
 			add_del_igmp_rules(h, IPADDRESS_ADD, family);
 		}
+#endif
 
 		igmp_setup[family != AF_INET] = INIT_SUCCESS;
 	}
 
+#ifdef _HAVE_LIBIPSET_
 	if (global_data->using_ipsets)
 	{
 		if (!h->session)
@@ -573,6 +576,7 @@ handle_iptable_rule_for_igmp(const char *ifname, int cmd, int family, struct ipt
 
 		return;
 	}
+#endif
 
 	iptables_entry(h, family, global_data->vrrp_iptables_outchain, APPEND_RULE,
 			XTC_LABEL_DROP, NULL, NULL, NULL, ifname,
