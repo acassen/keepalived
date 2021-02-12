@@ -58,9 +58,7 @@ extern void signal_handler_destroy(void);
 extern void signal_handler_script(void);
 extern void add_signal_read_thread(thread_master_t *);
 extern void cancel_signal_read_thread(void);
-#if HAVE_DECL_RLIMIT_RTTIME == 1
 extern void set_sigxcpu_handler(void);
-#endif
 
 #ifdef THREAD_DUMP
 extern void register_signal_thread_addresses(void);

@@ -14,8 +14,6 @@ functionality that keepalived uses.
 
 =============================================================================
 
-dnl -- RLIMIT_RTTIME since Linux 2.6.25 - not supported with musl libc
-
 ./lib/signals.c:#ifdef SFD_NONBLOCK	/* From Linux 2.6.26 */
 
 ./lib/scheduler.c:#ifdef TFD_NONBLOCK				/* Since Linux 2.6.27 */
@@ -197,6 +195,13 @@ IP_VS_CONN_F_TUNNEL_TYPE_GRE
 
 dnl ----[ Is HTTP_GET regex checking wanted? ]----
 $PKG_CONFIG --exists libpcre2-8
+
+=============================================================================
+
+Package versions
+================
+
+dnl -- RLIMIT_RTTIME - not defined in musl libc until v1.2.0
 
 =============================================================================
 

@@ -27,26 +27,18 @@
 #include <sys/types.h>
 #include <sys/resource.h>
 
-#if HAVE_DECL_RLIMIT_RTTIME == 1
 #define	RT_RLIMIT_DEFAULT	10000
-#endif
 
 /* The maximum pid is 2^22 - see definition of PID_MAX_LIMIT in kernel source include/linux/threads.h */
 #define PID_MAX_DIGITS		7
 
 extern long min_auto_priority_delay;
 
-extern void set_process_priorities(int, int, long,
-#if HAVE_DECL_RLIMIT_RTTIME == 1
-				   int,
-#endif
-				   int, int);
+extern void set_process_priorities(int, int, long, int, int, int);
 extern void reset_process_priorities(void);
 extern void increment_process_priority(void);
 extern unsigned get_cur_priority(void) __attribute__((pure));
-#if HAVE_DECL_RLIMIT_RTTIME == 1
 extern unsigned get_cur_rlimit_rttime(void) __attribute__((pure));
-#endif
 extern int set_process_cpu_affinity(cpu_set_t *, const char *);
 extern int get_process_cpu_affinity_string(cpu_set_t *, char *, size_t);
 extern void set_child_rlimit(int, const struct rlimit *);

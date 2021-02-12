@@ -464,10 +464,7 @@ start_check(list_head_t *old_checkers_queue, data_t *prev_global_data)
 
 	/* Set the process priority and non swappable if configured */
 	set_process_priorities(global_data->checker_realtime_priority, global_data->max_auto_priority, global_data->min_auto_priority_delay,
-#if HAVE_DECL_RLIMIT_RTTIME == 1
-			       global_data->checker_rlimit_rt,
-#endif
-			       global_data->checker_process_priority, global_data->checker_no_swap ? 4096 : 0);
+			       global_data->checker_rlimit_rt, global_data->checker_process_priority, global_data->checker_no_swap ? 4096 : 0);
 
 	/* Set the process cpu affinity if configured */
 	set_process_cpu_affinity(&global_data->checker_cpu_mask, "checker");

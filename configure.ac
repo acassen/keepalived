@@ -2512,9 +2512,6 @@ if test "${enable_fwmark}" != no; then
     [[#include <sys/socket.h>]])
 fi
 
-dnl -- RLIMIT_RTTIME since Linux 2.6.25 - not supported with musl libc
-AC_CHECK_DECLS([RLIMIT_RTTIME], [], [], [[#include <sys/resource.h>]])
-
 dnl -- SCHED_RESET_ON_FORK since Linux 2.6.32
 AC_CHECK_DECLS([SCHED_RESET_ON_FORK],
   [add_system_opt([SCHED_RESET_ON_FORK])],

@@ -102,7 +102,6 @@ get_signum(const char *sigfunc)
 	return -1;
 }
 
-#if HAVE_DECL_RLIMIT_RTTIME == 1
 static void
 log_sigxcpu(__attribute__((unused)) void * ptr, __attribute__((unused)) int signum)
 {
@@ -137,7 +136,6 @@ log_sigxcpu(__attribute__((unused)) void * ptr, __attribute__((unused)) int sign
 #endif
 		    );
 }
-#endif
 
 #ifdef _INCLUDE_UNUSED_CODE_
 /* Local signal test */
@@ -398,9 +396,7 @@ signal_handlers_clear(void *state)
 	signal_set(SIGCHLD, state, NULL);
 	signal_set(SIGUSR1, state, NULL);
 	signal_set(SIGUSR2, state, NULL);
-#if HAVE_DECL_RLIMIT_RTTIME == 1
 	signal_set(SIGXCPU, state, NULL);
-#endif
 #ifdef _WITH_JSON_
 	signal_set(SIGJSON, state, NULL);
 #endif
@@ -445,7 +441,6 @@ signal_handler_script(void)
 	sigmask_func(SIG_SETMASK, &sset, NULL);
 }
 
-#if HAVE_DECL_RLIMIT_RTTIME == 1
 void
 set_sigxcpu_handler(void)
 {
@@ -454,7 +449,6 @@ set_sigxcpu_handler(void)
 	register_signal_handler_address("log_sigxcpu", log_sigxcpu);
 #endif
 }
-#endif
 
 #ifdef THREAD_DUMP
 void

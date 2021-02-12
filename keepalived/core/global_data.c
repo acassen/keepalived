@@ -182,20 +182,14 @@ alloc_global_data(void)
 	new->min_auto_priority_delay = 1000000;	/* 1 second */
 #ifdef _WITH_VRRP_
 	new->vrrp_notify_fifo.fd = -1;
-#if HAVE_DECL_RLIMIT_RTTIME == 1
 	new->vrrp_rlimit_rt = RT_RLIMIT_DEFAULT;
-#endif
 	new->vrrp_rx_bufs_multiples = 3;
 #endif
 #ifdef _WITH_LVS_
 	new->lvs_notify_fifo.fd = -1;
-#if HAVE_DECL_RLIMIT_RTTIME == 1
 	new->checker_rlimit_rt = RT_RLIMIT_DEFAULT;
-#endif
 #ifdef _WITH_BFD_
-#if HAVE_DECL_RLIMIT_RTTIME == 1
 	new->bfd_rlimit_rt = RT_RLIMIT_DEFAULT;
-#endif
 #endif
 #endif
 
@@ -680,9 +674,7 @@ dump_global_data(FILE *fp, data_t * data)
 		get_process_cpu_affinity_string(&data->vrrp_cpu_mask, cpu_str, 63);
 		conf_write(fp, " VRRP CPU Affinity = %s", cpu_str);
 	}
-#if HAVE_DECL_RLIMIT_RTTIME
 	conf_write(fp, " VRRP realtime limit = %" PRI_rlim_t, data->vrrp_rlimit_rt);
-#endif
 #endif
 #ifdef _WITH_LVS_
 	conf_write(fp, " Checker process priority = %d", data->checker_process_priority);
@@ -692,9 +684,7 @@ dump_global_data(FILE *fp, data_t * data)
 		get_process_cpu_affinity_string(&data->checker_cpu_mask, cpu_str, 63);
 		conf_write(fp, " Checker CPU Affinity = %s", cpu_str);
 	}
-#if HAVE_DECL_RLIMIT_RTTIME
 	conf_write(fp, " Checker realtime limit = %" PRI_rlim_t, data->checker_rlimit_rt);
-#endif
 #endif
 #ifdef _WITH_BFD_
 	conf_write(fp, " BFD process priority = %d", data->bfd_process_priority);
@@ -704,9 +694,7 @@ dump_global_data(FILE *fp, data_t * data)
 		get_process_cpu_affinity_string(&data->bfd_cpu_mask, cpu_str, 63);
 		conf_write(fp, " BFD CPU Affinity = %s", cpu_str);
 	}
-#if HAVE_DECL_RLIMIT_RTTIME
 	conf_write(fp, " BFD realtime limit = %" PRI_rlim_t, data->bfd_rlimit_rt);
-#endif
 #endif
 #ifdef _WITH_SNMP_VRRP_
 	conf_write(fp, " SNMP vrrp %s", data->enable_snmp_vrrp ? "enabled" : "disabled");
@@ -773,8 +761,6 @@ dump_global_data(FILE *fp, data_t * data)
 #endif
 	if ((val = get_cur_priority()))
 		conf_write(fp, " current realtime priority = %u", val);
-#if HAVE_DECL_RLIMIT_RTTIME
 	if ((val = get_cur_rlimit_rttime()))
 		conf_write(fp, " current realtime time limit = %u", val);
-#endif
 }

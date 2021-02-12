@@ -40,9 +40,7 @@
 #include <linux/netfilter/nf_tables.h>
 #endif
 
-#if HAVE_DECL_RLIMIT_RTTIME == 1
 #include <sys/resource.h>
-#endif
 
 /* local includes */
 #include "list_head.h"
@@ -190,9 +188,7 @@ typedef struct _data {
 	bool				vrrp_no_swap;
 	unsigned			vrrp_realtime_priority;
 	cpu_set_t			vrrp_cpu_mask;
-#if HAVE_DECL_RLIMIT_RTTIME == 1
 	rlim_t				vrrp_rlimit_rt;
-#endif
 #endif
 #ifdef _WITH_LVS_
 	bool				have_checker_config;
@@ -200,9 +196,7 @@ typedef struct _data {
 	bool				checker_no_swap;
 	unsigned			checker_realtime_priority;
 	cpu_set_t			checker_cpu_mask;
-#if HAVE_DECL_RLIMIT_RTTIME == 1
 	rlim_t				checker_rlimit_rt;
-#endif
 #ifdef _WITH_NFTABLES_
 	const char			*ipvs_nf_table_name;
 	int				ipvs_nf_chain_priority;
@@ -218,9 +212,7 @@ typedef struct _data {
 	bool				bfd_no_swap;
 	unsigned			bfd_realtime_priority;
 	cpu_set_t			bfd_cpu_mask;
-#if HAVE_DECL_RLIMIT_RTTIME == 1
 	rlim_t				bfd_rlimit_rt;
-#endif
 #endif
 	notify_fifo_t			notify_fifo;
 #ifdef _WITH_VRRP_
