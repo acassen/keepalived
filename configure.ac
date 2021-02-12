@@ -2030,16 +2030,6 @@ if test ${IPVS_SUPPORT} = No -a ${VRRP_SUPPORT} = No; then
   AC_MSG_ERROR([keepalived MUST be compiled with at least one of LVS or VRRP framework])
 fi
 
-dnl ----[ Checks for O_PATH support ]----
-# Introduced in Linux 2.6.39
-SAV_CPPFLAGS="$CPPFLAGS"
-CPPFLAGS="$CPPFLAGS $kernel_inc -D_GNU_SOURCE"
-AC_CHECK_DECLS([O_PATH],
-  [
-    add_system_opt([O_PATH])
-  ], [],[[#include <fcntl.h>]])
-CPPFLAGS="$SAV_CPPFLAGS"
-
 dnl ----[ Check for GLOB_BRACE support ]----
 AC_CHECK_DECLS([GLOB_BRACE], [add_system_opt([GLOB_BRACE])], [], [[#include <glob.h>]])
 

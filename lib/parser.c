@@ -2314,7 +2314,7 @@ open_conf_file(include_file_t *file)
 			   even though testing on Linux 3.1 shows it appears to work. To be safe, don't
 			   use it until Linux 3.5. */
 			file->curdir_fd = open(".", O_RDONLY | O_DIRECTORY
-#if HAVE_DECL_O_PATH && LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
 								     | O_PATH
 #endif
 									     );
@@ -2633,7 +2633,7 @@ read_line(char *buf, size_t size)
 							   even though testing on Linux 3.1 shows it appears to work. To be safe, don't
 							   use it until Linux 3.5. */
 							file->curdir_fd = open(".", O_RDONLY | O_DIRECTORY
-#if HAVE_DECL_O_PATH && LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
 												     | O_PATH
 #endif
 													     );

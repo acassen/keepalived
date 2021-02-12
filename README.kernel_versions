@@ -14,9 +14,6 @@ functionality that keepalived uses.
 
 =============================================================================
 
-dnl ----[ Checks for O_PATH support ]----
-# Introduced in Linux 2.6.39
-
 dnl -- xt_set_info_match first introduced in Linux 2.6.39 (initial implementation of ipsets)
 
 dnl -- <linux/netlink.h> needed <sys/socket.h> until Linux 3.1
