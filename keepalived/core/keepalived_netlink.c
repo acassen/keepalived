@@ -631,8 +631,6 @@ netlink_socket(nl_handle_t *nl, unsigned rcvbuf_size, bool force, int flags, uns
 	 * socket, then precisely the same messages are repeated (provided we have set the
 	 * vrrp_netlink_cmd_rcv_bufs global configuration option to 1048576 (1024k) to match what
 	 * ip monitor does).
-	 *
-	 * NETLINK_NO_ENOBUFS was introduced in Linux 2.6.30
 	 */
 	int one = 1;
 	if ((ret = setsockopt(nl->fd, SOL_NETLINK, NETLINK_NO_ENOBUFS, &one, sizeof(one))) < 0)
