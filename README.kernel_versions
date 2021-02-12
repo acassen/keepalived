@@ -14,8 +14,6 @@ functionality that keepalived uses.
 
 =============================================================================
 
-dnl -- linux/netfilter/x_tables.h since Linux 2.6.16
-
 dnl ----[ Checks for FIB routing support ]----
   # Introduced in Linux 2.6.19
 

@@ -1468,10 +1468,9 @@ USE_LIBIPSET=No
 AS_IF([test .$enable_iptables != .no],
   [
     USE_IPTABLES=Yes
-    dnl -- linux/netfilter/x_tables.h since Linux 2.6.16
     SAV_CPPFLAGS="$CPPFLAGS"
     CPPFLAGS="$CPPFLAGS $kernelinc"
-    AC_CHECK_HEADERS([linux/netfilter/x_tables.h libiptc/libip6tc.h libiptc/libiptc.h libiptc/libxtc.h], [],
+    AC_CHECK_HEADERS([libiptc/libip6tc.h libiptc/libiptc.h libiptc/libxtc.h], [],
       [
 	USE_IPTABLES=No
 	break

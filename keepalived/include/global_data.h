@@ -30,10 +30,7 @@
 #include <stdio.h>
 #include <sys/socket.h>
 #include <sched.h>
-
-#ifdef HAVE_LINUX_NETFILTER_X_TABLES_H
 #include <linux/netfilter/x_tables.h>
-#endif
 
 #ifdef _HAVE_LIBIPSET_
 #include <linux/netfilter/ipset/ip_set.h>
