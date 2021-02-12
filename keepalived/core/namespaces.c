@@ -235,11 +235,9 @@ set_run_mount(const char *net_namespace)
 		return;
 	}
 
-#ifdef MS_SLAVE		/* Since Linux 2.6.15. Prior to that mounts weren't shared */
 	/* Make all mounts unshared - systemd makes them shared by default */
 	if (mount("", "/", NULL, MS_REC | MS_SLAVE, NULL))
 		log_message(LOG_INFO, "Mount slave failed, error (%d) '%s'", errno, strerror(errno));
-#endif
 
 	if (mount(mount_dirname, pid_directory, NULL, MS_BIND, NULL))
 		log_message(LOG_INFO, "Mount failed, error (%d) '%s'", errno, strerror(errno));
