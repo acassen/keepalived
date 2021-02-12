@@ -51,9 +51,6 @@ typedef struct _nl_handle {
 #ifndef NLMSG_TAIL
 #define NLMSG_TAIL(nmsg) ((void *)(((char *) (nmsg)) + NLMSG_ALIGN((nmsg)->nlmsg_len)))
 #endif
-#if !defined SOL_NETLINK
-#define SOL_NETLINK 270
-#endif
 
 #define RTA_TAIL(rta)	PTR_CAST(struct rtattr, (char *)(rta) + RTA_ALIGN((rta)->rta_len))
 
