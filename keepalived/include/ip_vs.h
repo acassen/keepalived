@@ -12,11 +12,7 @@
 #include <net/if.h>	/* Force inclusion of net/if.h before linux/if.h */
 #include <sys/types.h>
 #include <netinet/in.h>
-#ifdef HAVE_LINUX_IP_VS_H
 #include <linux/ip_vs.h>
-#else
-#include <net/ip_vs.h>
-#endif
 /* Prior to Linux 4.2 have to include linux/in.h and linux/in6.h
  * or linux/netlink.h to include linux/netfilter.h */
 #include <linux/netfilter.h>	/* For nf_inet_addr */
