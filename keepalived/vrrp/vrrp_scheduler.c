@@ -904,7 +904,7 @@ vrrp_dispatcher_read(sock_t *sock)
 		}
 #ifdef _RECVMSG_DEBUG_
 		else if (do_recvmsg_debug)
-			log_message(LOG_INFO, "recvmsg(%d) looped %u times due to EINTR before returning %ld bytes from %s"
+			log_message(LOG_INFO, "recvmsg(%d) looped %u times due to EINTR before returning %zd bytes from %s"
 					    , sock->fd_in, eintr_count, len, inet_sockaddrtos(&src_addr));
 #elif defined DEBUG_RECVMSG
 		if (eintr_count)
@@ -982,18 +982,14 @@ vrrp_dispatcher_read(sock_t *sock)
 			if (cmsg->cmsg_level == IPPROTO_IPV6) {
 				expected_cmsg = true;
 
-#ifdef IPV6_RECVHOPLIMIT
 				if (cmsg->cmsg_type == IPV6_HOPLIMIT &&
 				    cmsg->cmsg_len - sizeof(struct cmsghdr) == sizeof(unsigned int))
 					vrrp->rx_ttl_hop_limit = *PTR_CAST(unsigned int, CMSG_DATA(cmsg));
 				else
-#endif
-#ifdef IPV6_RECVPKTINFO
 				if (cmsg->cmsg_type == IPV6_PKTINFO &&
 				    cmsg->cmsg_len - sizeof(struct cmsghdr) == sizeof(struct in6_pktinfo))
 					vrrp->multicast_pkt = IN6_IS_ADDR_MULTICAST(&(PTR_CAST(struct in6_pktinfo, CMSG_DATA(cmsg)))->ipi6_addr);
 				else
-#endif
 					expected_cmsg = false;
 			}
 #ifdef _NETWORK_TIMESTAMP_
@@ -1030,7 +1026,6 @@ vrrp_dispatcher_read(sock_t *sock)
 						    , cmsg->cmsg_level, cmsg->cmsg_type);
 		}
 
-#ifdef IPV6_RECVPKTINFO
 		/* For multicast, we attempt to bind the socket to ::1 to stop receiving any (non ::1)
 		 * unicast packets, but if that fails we will receive unicast packets on the multicast socket,
 		 * so just discard them here.
@@ -1041,7 +1036,6 @@ vrrp_dispatcher_read(sock_t *sock)
 				log_message(LOG_INFO, "(%s) discarding %sicast packet on %sicast instance", vrrp->iname, vrrp->multicast_pkt ? "mult" : "un", list_empty(&vrrp->unicast_peer) ? "mult" : "un");
 			continue;
 		}
-#endif
 
 		prev_state = vrrp->state;
 
@@ -1384,11 +1378,7 @@ dump_threads(void)
 
 	file_name = make_file_name(KA_TMP_DIR "/thread_dump.dat",
 					"vrrp",
-#if HAVE_DECL_CLONE_NEWNET
 					global_data->network_namespace,
-#else
-					NULL,
-#endif
 					global_data->instance_name);
 	fp = fopen_safe(file_name, "a");
 	FREE_CONST(file_name);

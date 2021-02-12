@@ -100,7 +100,7 @@ check_iptables_nft(void)
 
 	FREE_CONST_PTR(global_data->vrrp_iptables_inchain);
 	FREE_CONST_PTR(global_data->vrrp_iptables_outchain);
-#ifdef _HAVE_LIBISPET_
+#ifdef _HAVE_LIBIPSET_
 	if (global_data->using_ipsets)
 		disable_ipsets();
 #endif

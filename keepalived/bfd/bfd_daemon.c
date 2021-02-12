@@ -48,7 +48,7 @@
 #include "scheduler.h"
 #include "process.h"
 #include "utils.h"
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 #include "track_process.h"
 #endif
 #ifdef _USE_SYSTEMD_NOTIFY_
@@ -203,10 +203,7 @@ start_bfd(__attribute__((unused)) data_t *prev_global_data)
 // TODO - measure max stack usage
 	set_process_priorities(
 			global_data->bfd_realtime_priority, global_data->max_auto_priority, global_data->min_auto_priority_delay,
-#if HAVE_DECL_RLIMIT_RTTIME == 1
-			global_data->bfd_rlimit_rt,
-#endif
-			global_data->bfd_process_priority, global_data->bfd_no_swap ? 4096 : 0);
+			global_data->bfd_rlimit_rt, global_data->bfd_process_priority, global_data->bfd_no_swap ? 4096 : 0);
 
 	/* Set the process cpu affinity if configured */
 	set_process_cpu_affinity(&global_data->bfd_cpu_mask, "bfd");
@@ -397,7 +394,7 @@ start_bfd_child(void)
 	/* Close the read end of the event notification pipes, and the track_process fd */
 #ifdef _WITH_VRRP_
 	close(bfd_vrrp_event_pipe[0]);
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	close_track_processes();
 #endif
 #endif
@@ -407,11 +404,7 @@ start_bfd_child(void)
 
 	initialise_debug_options();
 
-	if ((global_data->instance_name
-#if HAVE_DECL_CLONE_NEWNET
-			   || global_data->network_namespace
-#endif
-					       ) &&
+	if ((global_data->instance_name || global_data->network_namespace) &&
 	     (bfd_syslog_ident = make_syslog_ident(PROG_BFD)))
 		syslog_ident = bfd_syslog_ident;
 	else
@@ -425,11 +418,7 @@ start_bfd_child(void)
 	if (log_file_name)
 		open_log_file(log_file_name,
 				"bfd",
-#if HAVE_DECL_CLONE_NEWNET
 				global_data->network_namespace,
-#else
-				NULL,
-#endif
 				global_data->instance_name);
 #endif
 

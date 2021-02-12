@@ -37,11 +37,7 @@
 #include <libiptc/libiptc.h>
 #include <libiptc/libip6tc.h>
 #ifdef _HAVE_LIBIPSET_
-#ifdef USE_LIBIPSET_LINUX_IP_SET_H
-#include <libipset/linux_ip_set.h>
-#else
 #include <linux/netfilter/ipset/ip_set.h>
-#endif
 #include <linux/netfilter/xt_set.h>
 #endif
 #include <unistd.h>
@@ -52,9 +48,6 @@
 #include "vrrp_iptables_calls.h"
 #include "memory.h"
 #include "logger.h"
-#if !HAVE_DECL_SOCK_CLOEXEC
-#include "old_socket.h"
-#endif
 #ifdef _LIBIPTC_DYNAMIC_
 #include "global_data.h"
 #endif
@@ -427,28 +420,6 @@ ip6tables_process_entry(struct ip6tc_handle *handle, const char *chain_name, uns
 }
 
 #ifdef _HAVE_LIBIPSET_
-#ifndef IP_SET_OP_VERSION	/* Exposed to userspace from Linux 3.4 */
-				/* Copied from <linux/netfilter/ipset/ip_set.h> */
-#define SO_IP_SET	83
-union ip_set_name_index {
- char name[IPSET_MAXNAMELEN];
- ip_set_id_t index;
-};
-
-#define IP_SET_OP_GET_BYNAME 0x00000006 /* Get set index by name */
-struct ip_set_req_get_set {
- unsigned op;
- unsigned version;
- union ip_set_name_index set;
-};
-
-#define IP_SET_OP_VERSION 0x00000100 /* Ask kernel version */
-struct ip_set_req_version {
- unsigned op;
- unsigned version;
-};
-#endif
-
 static int
 get_version(unsigned int* version)
 {
@@ -461,13 +432,6 @@ get_version(unsigned int* version)
 		log_message(LOG_INFO, "Can't open socket to ipset.");
 		return -1;
 	}
-
-#if !HAVE_DECL_SOCK_CLOEXEC
-	if (fcntl(sockfd, F_SETFD, FD_CLOEXEC) == -1) {
-		log_message(LOG_INFO, "Could not set close on exec: %s",
-			      strerror(errno));
-	}
-#endif
 
 	req_version.op = IP_SET_OP_VERSION;
 	res = getsockopt(sockfd, SOL_IP, SO_IP_SET, &req_version, &size);
@@ -596,12 +560,8 @@ ip4tables_add_rules(struct iptc_handle *handle, const char *chain_name, unsigned
 	struct xt_entry_match *match;
 #ifdef HAVE_XT_SET_INFO_MATCH_V4
 	struct xt_set_info_match_v4 *setinfo;
-#elif defined HAVE_XT_SET_INFO_MATCH_V3
-	struct xt_set_info_match_v3 *setinfo;
-#elif defined HAVE_XT_SET_INFO_MATCH_V1
-	struct xt_set_info_match_v1 *setinfo;
 #else
-	struct xt_set_info_match *setinfo;
+	struct xt_set_info_match_v3 *setinfo;
 #endif
 	ipt_chainlabel chain;
 	int res;
@@ -641,22 +601,16 @@ ip4tables_add_rules(struct iptc_handle *handle, const char *chain_name, unsigned
 	match->u.user.revision = 4;
 #elif defined HAVE_XT_SET_INFO_MATCH_V3
 	match->u.user.revision = 3;
-#elif defined HAVE_XT_SET_INFO_MATCH_V1
-	match->u.user.revision = 1;
 #else
-	match->u.user.revision = 0;
+	match->u.user.revision = 1;
 #endif
 	fw->target_offset = (uint16_t)(fw->target_offset + match->u.match_size);
 	strcpy(match->u.user.name, "set");
 
 #ifdef HAVE_XT_SET_INFO_MATCH_V4
 	setinfo = PTR_CAST(struct xt_set_info_match_v4, match->data);
-#elif defined HAVE_XT_SET_INFO_MATCH_V3
-	setinfo = PTR_CAST(struct xt_set_info_match_v3, match->data);
-#elif defined HAVE_XT_SET_INFO_MATCH_V1
-	setinfo = PTR_CAST(struct xt_set_info_match_v1, match->data);
 #else
-	setinfo = PTR_CAST(struct xt_set_info_match, match->data);
+	setinfo = PTR_CAST(struct xt_set_info_match_v3, match->data);
 #endif
 
 	get_set_byname(set_name, &setinfo->match_set, NFPROTO_IPV4, ignore_errors);
@@ -738,12 +692,8 @@ ip6tables_add_rules(struct ip6tc_handle *handle, const char *chain_name, unsigne
 	struct xt_entry_match *match;
 #ifdef HAVE_XT_SET_INFO_MATCH_V4
 	struct xt_set_info_match_v4 *setinfo;
-#elif defined HAVE_XT_SET_INFO_MATCH_V3
-	struct xt_set_info_match_v3 *setinfo;
-#elif defined HAVE_XT_SET_INFO_MATCH_V1
-	struct xt_set_info_match_v1 *setinfo;
 #else
-	struct xt_set_info_match *setinfo;
+	struct xt_set_info_match_v3 *setinfo;
 #endif
 	ip6t_chainlabel chain;
 	int res;
@@ -784,22 +734,16 @@ ip6tables_add_rules(struct ip6tc_handle *handle, const char *chain_name, unsigne
 	match->u.user.revision = 4;
 #elif defined HAVE_XT_SET_INFO_MATCH_V3
 	match->u.user.revision = 3;
-#elif defined HAVE_XT_SET_INFO_MATCH_V1
-	match->u.user.revision = 1;
 #else
-	match->u.user.revision = 0;
+	match->u.user.revision = 1;
 #endif
 	fw->target_offset = (uint16_t)(fw->target_offset + match->u.match_size);
 	strcpy(match->u.user.name, "set");
 
 #ifdef HAVE_XT_SET_INFO_MATCH_V4
 	setinfo = PTR_CAST(struct xt_set_info_match_v4, match->data);
-#elif defined HAVE_XT_SET_INFO_MATCH_V3
-	setinfo = PTR_CAST(struct xt_set_info_match_v3, match->data);
-#elif defined HAVE_XT_SET_INFO_MATCH_V1
-	setinfo = PTR_CAST(struct xt_set_info_match_v1, match->data);
 #else
-	setinfo = PTR_CAST(struct xt_set_info_match, match->data);
+	setinfo = PTR_CAST(struct xt_set_info_match_v3, match->data);
 #endif
 
 	get_set_byname (set_name, &setinfo->match_set, NFPROTO_IPV6, ignore_errors);

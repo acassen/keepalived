@@ -39,9 +39,6 @@
 #include "bitops.h"
 #include "vrrp_scheduler.h"
 #include "vrrp_arp.h"
-#if !HAVE_DECL_SOCK_CLOEXEC
-#include "old_socket.h"
-#endif
 
 /*
  * The size of the garp_buffer should be the large enough to hold
@@ -230,15 +227,6 @@ void gratuitous_arp_init(void)
 		log_message(LOG_INFO, "Error %d while registering gratuitous ARP shared channel", errno);
 		return;
 	}
-
-#if !HAVE_DECL_SOCK_CLOEXEC
-	if (set_sock_flags(garp_fd, F_SETFD, FD_CLOEXEC))
-		log_message(LOG_INFO, "Unable to set CLOEXEC on gratuitous ARP socket");
-#endif
-#if !HAVE_DECL_SOCK_NONBLOCK
-	if (set_sock_flags(garp_fd, F_SETFL, O_NONBLOCK))
-		log_message(LOG_INFO, "Unable to set NONBLOCK on gratuitous ARP socket");
-#endif
 
 	/* Initalize shared buffer */
 	garp_buffer = PTR_CAST(char, MALLOC(GARP_BUFFER_SIZE));

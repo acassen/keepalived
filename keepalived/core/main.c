@@ -26,10 +26,8 @@
 #include <sys/utsname.h>
 #include <sys/resource.h>
 #include <stdbool.h>
-#ifdef HAVE_SIGNALFD
 #include <sys/signalfd.h>
 #include <sys/epoll.h>
-#endif
 #include <errno.h>
 #include <signal.h>
 #include <fcntl.h>
@@ -65,7 +63,7 @@
 #include "vrrp_daemon.h"
 #include "vrrp_parser.h"
 #include "vrrp_if.h"
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 #include "track_process.h"
 #endif
 #ifdef _WITH_JSON_
@@ -80,9 +78,7 @@
 #include "bfd_parser.h"
 #endif
 #include "global_parser.h"
-#if HAVE_DECL_CLONE_NEWNET
 #include "namespaces.h"
-#endif
 #include "scheduler.h"
 #include "keepalived_netlink.h"
 #include "git-commit.h"
@@ -139,7 +135,7 @@ static const struct child_term children_term[] = {
 #ifdef _WITH_LVS_
 	{ &checkers_child, PROG_CHECK, "checker" },
 #endif
-#ifdef _WITH_BFD
+#ifdef _WITH_BFD_
 	{ &bfd_child, PROG_BFD, "bfd" },
 #endif
 };
@@ -180,9 +176,7 @@ unsigned os_minor;
 unsigned os_release;
 char *hostname;						/* Initial part of hostname */
 
-#if HAVE_DECL_CLONE_NEWNET
 static char *override_namespace;			/* If namespace specified on command line */
-#endif
 
 unsigned child_wait_time = CHILD_WAIT_SECS;		/* Time to wait for children to exit */
 
@@ -310,9 +304,7 @@ void
 free_parent_mallocs_startup(bool am_child)
 {
 	if (am_child) {
-#if HAVE_DECL_CLONE_NEWNET
 		free_dirname();
-#endif
 #ifdef _MEM_CHECK_LOG_
 		free(no_const_char_p(syslog_ident));	/* malloc'd in make_syslog_ident */
 #else
@@ -354,10 +346,8 @@ make_syslog_ident(const char* name)
 	size_t ident_len = strlen(name) + 1;
 	char *ident;
 
-#if HAVE_DECL_CLONE_NEWNET
 	if (global_data->network_namespace)
 		ident_len += strlen(global_data->network_namespace) + 1;
-#endif
 	if (global_data->instance_name)
 		ident_len += strlen(global_data->instance_name) + 1;
 
@@ -373,12 +363,10 @@ make_syslog_ident(const char* name)
 		return NULL;
 
 	strcpy(ident, name);
-#if HAVE_DECL_CLONE_NEWNET
 	if (global_data->network_namespace) {
 		strcat(ident, "_");
 		strcat(ident, global_data->network_namespace);
 	}
-#endif
 	if (global_data->instance_name) {
 		strcat(ident, "_");
 		strcat(ident, global_data->instance_name);
@@ -769,7 +757,6 @@ static bool reload_config(void)
 
 	init_global_data(global_data, old_global_data, false);
 
-#if HAVE_DECL_CLONE_NEWNET
 	if (override_namespace) {
 		FREE_CONST_PTR(global_data->network_namespace);
 		global_data->network_namespace = STRDUP(override_namespace);
@@ -780,7 +767,6 @@ static bool reload_config(void)
 		log_message(LOG_INFO, "Cannot change network namespace at a reload - please restart %s", PACKAGE);
 		unsupported_change = true;
 	}
-#endif
 
 	if (!!old_global_data->instance_name != !!global_data->instance_name ||
 	    (global_data->instance_name && strcmp(old_global_data->instance_name, global_data->instance_name))) {
@@ -1067,20 +1053,12 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 	struct timeval start_time, now;
 	size_t i;
 	int wstatus;
-#ifdef HAVE_SIGNALFD
 	int timeout = child_wait_time * 1000;
 	int signal_fd = master->signal_fd;
 	struct signalfd_siginfo siginfo;
 	sigset_t sigmask;
 	struct epoll_event ev = { .events = EPOLLIN, .data.fd = master->signal_fd };
 	int efd;
-#else
-	sigset_t old_set, child_wait;
-	struct timespec timeout = {
-		.tv_sec = child_wait_time,
-		.tv_nsec = 0
-	};
-#endif
 
 	log_message(LOG_INFO, "Stopping");
 
@@ -1093,19 +1071,10 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 		stop_reload_monitor();
 #endif
 
-#ifdef HAVE_SIGNALFD
 	/* We only want to receive SIGCHLD now */
 	sigemptyset(&sigmask);
 	sigaddset(&sigmask, SIGCHLD);
 	signalfd(signal_fd, &sigmask, 0);
-#else
-	sigmask_func(0, NULL, &old_set);
-	if (!sigismember(&old_set, SIGCHLD)) {
-		sigemptyset(&child_wait);
-		sigaddset(&child_wait, SIGCHLD);
-		sigmask_func(SIG_BLOCK, &child_wait, NULL);
-	}
-#endif
 
 	/* Signal our children to terminate */
 	for (i = 0; i < NUM_CHILD_TERM; i++) {
@@ -1120,14 +1089,11 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 		}
 	}
 
-#ifdef HAVE_SIGNALFD
 	efd = epoll_create(1);
 	epoll_ctl(efd, EPOLL_CTL_ADD, signal_fd, &ev);
-#endif
 
 	gettimeofday(&start_time, NULL);
 	while (wait_count) {
-#ifdef HAVE_SIGNALFD
 		ret = epoll_wait(efd, &ev, 1, timeout);
 		if (ret == 0)
 			break;
@@ -1181,45 +1147,15 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 				break;
 			}
 		}
-#else
-		ret = sigtimedwait(&child_wait, NULL, &timeout);
-		if (ret == -1) {
-			if (check_EINTR(errno))
-				continue;
-			if (check_EAGAIN(errno))
-				break;
-		}
-
-		for (i = 0; i < NUM_CHILD_TERM && wait_count; i++) {
-			if (*children_term[i].pid_p > 0 && *children_term[i].pid_p == waitpid(*children_term[i].pid_p, &wstatus, WNOHANG)) {
-				report_child_status(wstatus, *children_term[i].pid_p, children_term[i].name);
-				*children_term[i].pid_p = 0;
-				wait_count--;
-			}
-		}
-#endif
 
 		if (wait_count) {
 			gettimeofday(&now, NULL);
-#ifdef HAVE_SIGNALFD
 			timeout = (child_wait_time - (now.tv_sec - start_time.tv_sec)) * 1000 + (start_time.tv_usec - now.tv_usec) / 1000;
 			if (timeout < 0)
 				break;
-#else
-			timeout.tv_sec = child_wait_time - (now.tv_sec - start_time.tv_sec);
-			timeout.tv_nsec = (start_time.tv_usec - now.tv_usec) * 1000;
-			if (timeout.tv_nsec < 0) {
-				timeout.tv_nsec += 1000000000L;
-				timeout.tv_sec--;
-			}
-			if (timeout.tv_sec < 0)
-				break;
-#endif
 		}
 	}
-#ifdef HAVE_SIGNALFD
 	close(efd);
-#endif
 
 	/* A child may not have terminated, so force its termination */
 	for (i = 0; i < NUM_CHILD_TERM; i++) {
@@ -1232,11 +1168,6 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 	if (!global_data->shutdown_script) {
 		/* register the terminate thread */
 		thread_add_terminate_event(master);
-
-#ifndef HAVE_SIGNALFD
-		if (!sigismember(&old_set, SIGCHLD))
-			sigmask_func(SIG_UNBLOCK, &child_wait, NULL);
-#endif
 	} else {
 		/* If we have a shutdown script, run it now */
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
@@ -1436,7 +1367,7 @@ initialise_debug_options(void)
 #ifdef _CHECKSUM_DEBUG_
 	do_checksum_debug = !!(checksum_debug & mask);
 #endif
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 #ifdef _TRACK_PROCESS_DEBUG_
 	do_track_process_debug_detail = !!(track_process_debug_detail & mask);
 	do_track_process_debug = !!(track_process_debug & mask) | do_track_process_debug_detail;
@@ -1800,9 +1731,7 @@ usage(const char *prog)
 	fprintf(stderr, "  -x, --snmp                   Enable SNMP subsystem\n");
 	fprintf(stderr, "  -A, --snmp-agent-socket=FILE Use the specified socket for master agent\n");
 #endif
-#if HAVE_DECL_CLONE_NEWNET
 	fprintf(stderr, "  -s, --namespace=NAME         Run in network namespace NAME (overrides config)\n");
-#endif
 	fprintf(stderr, "  -m, --core-dump              Produce core dump if terminate abnormally\n");
 	fprintf(stderr, "  -M, --core-dump-pattern=PATN Also set /proc/sys/kernel/core_pattern to PATN (default 'core')\n");
 #ifdef _MEM_CHECK_
@@ -1968,9 +1897,7 @@ parse_cmdline(int argc, char **argv)
 #ifdef _MEM_CHECK_LOG_
 		{"mem-check-log",	no_argument,		NULL, 'L'},
 #endif
-#if HAVE_DECL_CLONE_NEWNET
 		{"namespace",		required_argument,	NULL, 's'},
-#endif
 		{"config-id",		required_argument,	NULL, 'i'},
 		{"signum",		required_argument,	NULL,  4 },
 		{"config-test",		optional_argument,	NULL, 't'},
@@ -1992,7 +1919,7 @@ parse_cmdline(int argc, char **argv)
 	 * is set to a known invalid value */
 	curind = optind;
 	/* Used short options: ABCDGILMPRSVXabcdefghilmnprstuvx */
-	while (longindex = -1, (c = getopt_long(argc, argv, ":vhlndu:DRS:f:p:i:emM::g::Gt::"
+	while (longindex = -1, (c = getopt_long(argc, argv, ":vhlndu:DRS:f:p:i:es:mM::g::Gt::"
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 					    "PC"
 #endif
@@ -2010,9 +1937,6 @@ parse_cmdline(int argc, char **argv)
 #endif
 #ifdef _MEM_CHECK_LOG_
 					    "L"
-#endif
-#if HAVE_DECL_CLONE_NEWNET
-					    "s:"
 #endif
 				, long_options, &longindex)) != -1) {
 
@@ -2197,11 +2121,9 @@ parse_cmdline(int argc, char **argv)
 			__set_bit(MEM_CHECK_LOG_BIT, &debug);
 			break;
 #endif
-#if HAVE_DECL_CLONE_NEWNET
 		case 's':
 			override_namespace = optarg;
 			break;
-#endif
 		case 'e':
 			include_check_set(NULL);
 			break;
@@ -2515,7 +2437,6 @@ keepalived_main(int argc, char **argv)
 	if (global_data->process_name)
 		set_process_name(global_data->process_name);
 
-#if HAVE_DECL_CLONE_NEWNET
 	if (override_namespace) {
 		if (global_data->network_namespace) {
 			log_message(LOG_INFO, "Overriding config net_namespace '%s' with command line namespace '%s'", global_data->network_namespace, override_namespace);
@@ -2523,13 +2444,10 @@ keepalived_main(int argc, char **argv)
 		}
 		global_data->network_namespace = STRDUP(override_namespace);
 	}
-#endif
 
 	if (!__test_bit(CONFIG_TEST_BIT, &debug) &&
 	    (global_data->instance_name
-#if HAVE_DECL_CLONE_NEWNET
 	     || global_data->network_namespace
-#endif
 					      )) {
 		if ((syslog_ident = make_syslog_ident(PACKAGE_NAME))) {
 			log_message(LOG_INFO, "Changing syslog ident to %s", syslog_ident);
@@ -2544,11 +2462,7 @@ keepalived_main(int argc, char **argv)
 #ifdef ENABLE_LOG_TO_FILE
 		open_log_file(log_file_name,
 				NULL,
-#if HAVE_DECL_CLONE_NEWNET
 				global_data->network_namespace,
-#else
-				NULL,
-#endif
 				global_data->instance_name);
 #endif
 	}
@@ -2564,19 +2478,17 @@ keepalived_main(int argc, char **argv)
 
 		/* If we want to monitor processes, we have to do it before calling
 		 * setns() */
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 		open_track_processes();
 #endif
 	}
 
-#if HAVE_DECL_CLONE_NEWNET
 	if (global_data->network_namespace) {
 		if (global_data->network_namespace && !set_namespaces(global_data->network_namespace)) {
 			log_message(LOG_ERR, "Unable to set network namespace %s - exiting", global_data->network_namespace);
 			goto end;
 		}
 	}
-#endif
 
 	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
 		if (global_data->instance_name) {
@@ -2745,10 +2657,8 @@ end:
 #endif
 	}
 
-#if HAVE_DECL_CLONE_NEWNET
 	if (global_data && global_data->network_namespace)
 		clear_namespaces();
-#endif
 
 	if (use_pid_dir)
 		remove_pid_dir();

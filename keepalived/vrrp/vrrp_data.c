@@ -38,10 +38,8 @@
 #include "vrrp_vmac.h"
 #endif
 #include "vrrp_ipaddress.h"
-#ifdef _HAVE_FIB_ROUTING_
 #include "vrrp_iprule.h"
 #include "vrrp_iproute.h"
-#endif
 #include "vrrp_track.h"
 #include "vrrp_sock.h"
 #ifdef _WITH_SNMP_RFCV3_
@@ -107,7 +105,6 @@ alloc_saddress(const vector_t *strvec)
 	alloc_ipaddress(&vrrp_data->static_addresses, strvec, true);
 }
 
-#ifdef _HAVE_FIB_ROUTING_
 /* Static routes facility function */
 void
 alloc_sroute(const vector_t *strvec)
@@ -121,7 +118,6 @@ alloc_srule(const vector_t *strvec)
 {
 	alloc_rule(&vrrp_data->static_rules, strvec, true);
 }
-#endif
 
 /* VRRP Reference list functions */
 static void
@@ -164,7 +160,7 @@ free_sync_group(vrrp_sgroup_t *sgroup)
 	free_track_if_list(&sgroup->track_ifp);
 	free_track_script_list(&sgroup->track_script);
 	free_track_file_monitor_list(&sgroup->track_file);
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	free_track_process_list(&sgroup->track_process);
 #endif
 #ifdef _WITH_BFD_
@@ -222,7 +218,7 @@ dump_sync_group(FILE *fp, const vrrp_sgroup_t *sgroup)
 		conf_write(fp, "   Tracked files :");
 		dump_track_file_monitor_list(fp, &sgroup->track_file);
 	}
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	if (!list_empty(&sgroup->track_process)) {
 		conf_write(fp, "   Tracked process :");
 		dump_track_process_list(fp, &sgroup->track_process);
@@ -327,7 +323,7 @@ dump_vscript_list(FILE *fp, const list_head_t *l)
 		dump_vscript(fp, script);
 }
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 void
 free_vprocess(vrrp_tracked_process_t *vprocess)
 {
@@ -553,7 +549,7 @@ free_vrrp(vrrp_t *vrrp)
 	free_track_if_list(&vrrp->track_ifp);
 	free_track_script_list(&vrrp->track_script);
 	free_track_file_monitor_list(&vrrp->track_file);
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	free_track_process_list(&vrrp->track_process);
 #endif
 #ifdef _WITH_BFD_
@@ -562,10 +558,8 @@ free_vrrp(vrrp_t *vrrp)
 	free_unicast_peer_list(&vrrp->unicast_peer);
 	free_ipaddress_list(&vrrp->vip);
 	free_ipaddress_list(&vrrp->evip);
-#ifdef _HAVE_FIB_ROUTING_
 	free_iproute_list(&vrrp->vroutes);
 	free_iprule_list(&vrrp->vrules);
-#endif
 	list_del_init(&vrrp->e_list);
 	FREE(vrrp);
 }
@@ -755,7 +749,6 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 		conf_write(fp, "   fd_in %d, fd_out %d", vrrp->sockets->fd_in, vrrp->sockets->fd_out);
 	else
 		conf_write(fp, "   No sockets allocated");
-#ifdef _HAVE_FIB_ROUTING_
 	if (!list_empty(&vrrp->vroutes)) {
 		conf_write(fp, "   Virtual Routes :");
 		dump_iproute_list(fp, &vrrp->vroutes);
@@ -764,7 +757,6 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 		conf_write(fp, "   Virtual Rules :");
 		dump_iprule_list(fp, &vrrp->vrules);
 	}
-#endif
 
 	if (!list_empty(&vrrp->track_ifp)) {
 		conf_write(fp, "   Tracked interfaces :");
@@ -778,7 +770,7 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 		conf_write(fp, "   Tracked files :");
 		dump_track_file_monitor_list(fp, &vrrp->track_file);
 	}
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	if (!list_empty(&vrrp->track_process)) {
 		conf_write(fp, "   Tracked processes :");
 		dump_track_process_list(fp, &vrrp->track_process);
@@ -832,7 +824,7 @@ alloc_vrrp_sync_group(const char *gname)
 	INIT_LIST_HEAD(&new->track_ifp);
 	INIT_LIST_HEAD(&new->track_script);
 	INIT_LIST_HEAD(&new->track_file);
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	INIT_LIST_HEAD(&new->track_process);
 #endif
 #ifdef _WITH_BFD_
@@ -890,7 +882,7 @@ alloc_vrrp(const char *iname)
 	INIT_LIST_HEAD(&new->track_script);
 	INIT_LIST_HEAD(&new->track_file);
 	INIT_LIST_HEAD(&new->unicast_peer);
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	INIT_LIST_HEAD(&new->track_process);
 #endif
 #ifdef _WITH_BFD_
@@ -898,10 +890,8 @@ alloc_vrrp(const char *iname)
 #endif
 	INIT_LIST_HEAD(&new->vip);
 	INIT_LIST_HEAD(&new->evip);
-#ifdef _HAVE_FIB_ROUTING_
 	INIT_LIST_HEAD(&new->vroutes);
 	INIT_LIST_HEAD(&new->vrules);
-#endif
 
 	/* Set default values */
 	new->family = AF_UNSPEC;
@@ -1019,7 +1009,7 @@ alloc_vrrp_track_file(const vector_t *strvec)
 	vrrp_alloc_track_file(vrrp->iname, &vrrp_data->vrrp_track_files, &vrrp->track_file, strvec);
 }
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 void
 alloc_vrrp_track_process(const vector_t *strvec)
 {
@@ -1063,7 +1053,7 @@ alloc_vrrp_group_track_file(const vector_t *strvec)
 	vrrp_alloc_track_file(sgroup->gname, &vrrp_data->vrrp_track_files, &sgroup->track_file, strvec);
 }
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 void
 alloc_vrrp_group_track_process(const vector_t *strvec)
 {
@@ -1119,7 +1109,6 @@ alloc_vrrp_evip(const vector_t *strvec)
 	alloc_ipaddress(&vrrp->evip, strvec, false);
 }
 
-#ifdef _HAVE_FIB_ROUTING_
 void
 alloc_vrrp_vroute(const vector_t *strvec)
 {
@@ -1135,7 +1124,6 @@ alloc_vrrp_vrule(const vector_t *strvec)
 
 	alloc_rule(&vrrp->vrules, strvec, false);
 }
-#endif
 
 void
 alloc_vrrp_script(const char *sname)
@@ -1158,7 +1146,7 @@ alloc_vrrp_script(const char *sname)
 	list_add_tail(&new->e_list, &vrrp_data->vrrp_script);
 }
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 void
 alloc_vrrp_process(const char *pname)
 {
@@ -1210,15 +1198,13 @@ alloc_vrrp_data(void)
 	PMALLOC(new);
 	INIT_LIST_HEAD(&new->static_track_groups);
 	INIT_LIST_HEAD(&new->static_addresses);
-#ifdef _HAVE_FIB_ROUTING_
 	INIT_LIST_HEAD(&new->static_routes);
 	INIT_LIST_HEAD(&new->static_rules);
-#endif
 	INIT_LIST_HEAD(&new->vrrp_sync_group);
 	INIT_LIST_HEAD(&new->vrrp);
 	INIT_LIST_HEAD(&new->vrrp_script);
 	INIT_LIST_HEAD(&new->vrrp_track_files);
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	INIT_LIST_HEAD(&new->vrrp_track_processes);
 #endif
 #ifdef _WITH_BFD_
@@ -1233,16 +1219,14 @@ void
 free_vrrp_data(vrrp_data_t * data)
 {
 	free_ipaddress_list(&data->static_addresses);
-#ifdef _HAVE_FIB_ROUTING_
 	free_iproute_list(&data->static_routes);
 	free_iprule_list(&data->static_rules);
-#endif
 	free_static_track_groups_list(&data->static_track_groups);
 	free_vrrp_list(&data->vrrp);
 	free_sync_group_list(&data->vrrp_sync_group);
 	free_vscript_list(&data->vrrp_script);
 	free_track_file_list(&data->vrrp_track_files);
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	free_vprocess_list(&data->vrrp_track_processes);
 #endif
 #ifdef _WITH_BFD_
@@ -1258,7 +1242,6 @@ dump_vrrp_data(FILE *fp, const vrrp_data_t * data)
 		conf_write(fp, "------< Static Addresses >------");
 		dump_ipaddress_list(fp, &data->static_addresses);
 	}
-#ifdef _HAVE_FIB_ROUTING_
 	if (!list_empty(&data->static_routes)) {
 		conf_write(fp, "------< Static Routes >------");
 		dump_iproute_list(fp, &data->static_routes);
@@ -1267,7 +1250,6 @@ dump_vrrp_data(FILE *fp, const vrrp_data_t * data)
 		conf_write(fp, "------< Static Rules >------");
 		dump_iprule_list(fp, &data->static_rules);
 	}
-#endif
 	if (!list_empty(&data->static_track_groups)) {
 		conf_write(fp, "------< Static Track groups >------");
 		dump_static_track_groups_list(fp, &data->static_track_groups);
@@ -1292,7 +1274,7 @@ dump_vrrp_data(FILE *fp, const vrrp_data_t * data)
 		conf_write(fp, "------< VRRP Track files >------");
 		dump_track_file_list(fp, &data->vrrp_track_files);
 	}
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	if (!list_empty(&data->vrrp_track_processes)) {
 		conf_write(fp, "------< VRRP Track processes >------");
 		dump_vprocess_list(fp, &data->vrrp_track_processes);

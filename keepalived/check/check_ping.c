@@ -387,16 +387,6 @@ icmp_connect_thread(thread_ref_t thread)
 		return;
 	}
 
-#if !HAVE_DECL_SOCK_NONBLOCK
-	if (set_sock_flags(fd, F_SETFL, O_NONBLOCK))
-		log_message(LOG_INFO, "Unable to set NONBLOCK on icmp_connect socket - %s (%d)", strerror(errno), errno);
-#endif
-
-#if !HAVE_DECL_SOCK_CLOEXEC
-	if (set_sock_flags(fd, F_SETFD, FD_CLOEXEC))
-		log_message(LOG_INFO, "Unable to set CLOEXEC on icmp_connect socket - %s (%d)", strerror(errno), errno);
-#endif
-
 	if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size)))
 		log_message(LOG_INFO, "setsockopt SO_RCVBUF for socket %d failed (%d) - %m", fd, errno);
 

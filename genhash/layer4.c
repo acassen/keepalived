@@ -240,21 +240,12 @@ tcp_connect_thread(thread_ref_t thread)
 	SOCK *sock_obj = THREAD_ARG(thread);
 
 	if ((sock_obj->fd = socket((req->dst && req->dst->ai_family == AF_INET6) ? AF_INET6 : AF_INET,
-				   SOCK_STREAM | SOCK_NONBLOCK
-#ifdef SOCK_CLOEXEC
-					       | SOCK_CLOEXEC
-#endif
-							     , IPPROTO_TCP)) == -1) {
+				   SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, IPPROTO_TCP)) == -1) {
 #ifdef _GENHASH_DEBUG_
 		fprintf(stderr, "WEB connection fail to create socket.\n");
 #endif
 		return;
 	}
-
-#if !HAVE_DECL_SOCK_NONBLOCK
-	if (fcntl(sock_obj->fd, F_SETFL, fcntl(sock_obj->fd, F_GETFL) | O_NONBLOCK))
-		fprintf(stderr, "Unable to set socket non blocking\n");
-#endif
 
 	sock->status = tcp_connect(sock_obj->fd, req);
 

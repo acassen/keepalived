@@ -35,7 +35,7 @@
 #include <time.h>
 #ifdef _WITH_VRRP_
 #include <linux/version.h>
-#ifdef _HAVE_FIB_ROUTING_
+#ifdef _WITH_VRRP_
 #include <linux/fib_rules.h>
 #endif
 #endif
@@ -61,7 +61,7 @@
 #ifdef _HAVE_VRRP_VMAC_
 #include "vrrp_vmac.h"
 #endif
-#ifdef _HAVE_FIB_ROUTING_
+#ifdef _WITH_VRRP_
 #include "vrrp_iproute.h"
 #include "vrrp_iprule.h"
 #endif
@@ -71,9 +71,6 @@
 #include "utils.h"
 #include "list_head.h"
 #include "bitops.h"
-#if !HAVE_DECL_SOCK_NONBLOCK
-#include "old_socket.h"
-#endif
 #include "vrrp_ipaddress.h"
 #include "global_data.h"
 #include "align.h"
@@ -236,7 +233,7 @@ ignore_address_if_ours_or_link_local(struct ifaddrmsg *ifa, struct in_addr *addr
 	return false;
 }
 
-#ifdef _HAVE_FIB_ROUTING_
+#ifdef _WITH_VRRP_
 static bool
 compare_addr(int family, void *addr1, ip_address_t *addr2)
 {
@@ -418,13 +415,11 @@ compare_rule(struct fib_rule_hdr *frh, struct rtattr *tb[FRA_MAX + 1], ip_rule_t
 	    strcmp(RTA_DATA(tb[FRA_IFNAME]), rule->iif->ifname))
 		return false;
 
-#if HAVE_DECL_FRA_OIFNAME
 	if (!tb[FRA_OIFNAME] != !(rule->oif))
 		return false;
 	if (rule->oif &&
 	    strcmp(RTA_DATA(tb[FRA_OIFNAME]), rule->oif->ifname))
 		return false;
-#endif
 
 #if HAVE_DECL_FRA_TUN_ID
 	uint64_t tunnel_id;
@@ -524,7 +519,7 @@ netlink_set_rx_buf_size(nl_handle_t *nl, unsigned rcvbuf_size, bool force)
 	}
 }
 
-#ifdef _HAVE_FIB_ROUTING_
+#ifdef _WITH_VRRP_
 static void
 kernel_netlink_set_membership(int group, bool add)
 {
@@ -555,9 +550,6 @@ netlink_socket(nl_handle_t *nl, unsigned rcvbuf_size, bool force, int flags, uns
 	socklen_t addr_len;
 	struct sockaddr_nl snl;
 	int sock_flags = flags;
-#if !HAVE_DECL_SOCK_NONBLOCK
-	sock_flags &= ~SOCK_NONBLOCK;
-#endif
 
 	nl->fd = socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC | sock_flags, NETLINK_ROUTE);
 	if (nl->fd < 0) {
@@ -565,16 +557,6 @@ netlink_socket(nl_handle_t *nl, unsigned rcvbuf_size, bool force, int flags, uns
 		       strerror(errno));
 		return;
 	}
-
-#if !HAVE_DECL_SOCK_NONBLOCK
-	if ((flags & SOCK_NONBLOCK) && set_sock_flags(nl->fd, F_SETFL, O_NONBLOCK))
-		log_message(LOG_INFO, "Unable to set NONBLOCK on netlink socket - %s (%d)", strerror(errno), errno);
-#endif
-
-#if !HAVE_DECL_SOCK_CLOEXEC
-	if (set_sock_flags(nl->fd, F_SETFD, FD_CLOEXEC))
-		log_message(LOG_INFO, "Unable to set CLOEXEC on netlink socket - %s (%d)", strerror(errno), errno);
-#endif
 
 	memset(&snl, 0, sizeof (snl));
 	snl.nl_family = AF_NETLINK;
@@ -647,8 +629,6 @@ netlink_socket(nl_handle_t *nl, unsigned rcvbuf_size, bool force, int flags, uns
 	 * socket, then precisely the same messages are repeated (provided we have set the
 	 * vrrp_netlink_cmd_rcv_bufs global configuration option to 1048576 (1024k) to match what
 	 * ip monitor does).
-	 *
-	 * NETLINK_NO_ENOBUFS was introduced in Linux 2.6.30
 	 */
 	int one = 1;
 	if ((ret = setsockopt(nl->fd, SOL_NETLINK, NETLINK_NO_ENOBUFS, &one, sizeof(one))) < 0)
@@ -1895,13 +1875,6 @@ int
 netlink_interface_lookup(char *name)
 {
 	/* Interface lookup */
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,33)
-	/* RTM_NETLINK didn't support selecting by
-	 * interface name until Linux v2.6.33 */
-	name = NULL;
-#endif
-
 	if (netlink_request(&nl_cmd, AF_PACKET, RTM_GETLINK, name) < 0)
 		return -1;
 
@@ -2175,7 +2148,7 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 	return 0;
 }
 
-#ifdef _HAVE_FIB_ROUTING_
+#ifdef _WITH_VRRP_
 static int
 netlink_route_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlmsghdr *h)
 {
@@ -2321,7 +2294,7 @@ netlink_broadcast_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	case RTM_DELADDR:
 		return netlink_if_address_filter(snl, h);
 		break;
-#ifdef _HAVE_FIB_ROUTING_
+#ifdef _WITH_VRRP_
 	case RTM_NEWROUTE:
 	case RTM_DELROUTE:
 		return netlink_route_filter(snl, h);

@@ -271,11 +271,11 @@ nft_update_ipvs_element(struct mnl_nlmsg_batch *batch,
 	e = nftnl_set_elem_alloc();
 	if (nfproto == NFPROTO_IPV4) {
 	       memcpy(buf, &ss.in->sin_addr, len = sizeof(ss.in->sin_addr));
-	       *(int32_t *)(buf + len) = ss.in->sin_port;
+	       memcpy(buf + len, &ss.in->sin_port, sizeof(ss.in->sin_port));
 	       len += sizeof(ss.in->sin_port);
 	} else {
 	       memcpy(buf, &ss.in6->sin6_addr, len = sizeof(ss.in6->sin6_addr));
-	       *(int32_t *)(buf + len) = ss.in6->sin6_port;
+	       memcpy(buf + len, &ss.in6->sin6_port, sizeof(ss.in6->sin6_port));
 	       len += sizeof(ss.in6->sin6_port);
 	}
 	len = NLMSG_ALIGN(len);
@@ -285,11 +285,11 @@ nft_update_ipvs_element(struct mnl_nlmsg_batch *batch,
 	ss.ss = addr_end;
 	if (nfproto == NFPROTO_IPV4) {
 	       memcpy(buf, &ss.in->sin_addr, len = sizeof(ss.in->sin_addr));
-	       *(int32_t *)(buf + len) = ss.in->sin_port;
+	       memcpy(buf + len, &ss.in->sin_port, sizeof(ss.in->sin_port));
 	       len += sizeof(ss.in->sin_port);
 	} else {
 	       memcpy(buf, &ss.in6->sin6_addr, len = sizeof(ss.in6->sin6_addr));
-	       *(int32_t *)(buf + len) = ss.in6->sin6_port;
+	       memcpy(buf + len, &ss.in6->sin6_port, sizeof(ss.in6->sin6_port));
 	       len += sizeof(ss.in6->sin6_port);
 	}
 	len = NLMSG_ALIGN(len);

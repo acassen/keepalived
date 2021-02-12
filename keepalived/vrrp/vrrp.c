@@ -68,13 +68,8 @@
 #include "utils.h"
 #include "bitops.h"
 #include "keepalived_netlink.h"
-#if !HAVE_DECL_SOCK_CLOEXEC
-#include "old_socket.h"
-#endif
-#ifdef _HAVE_FIB_ROUTING_
 #include "vrrp_iprule.h"
 #include "vrrp_iproute.h"
-#endif
 #ifdef _WITH_DBUS_
 #include "vrrp_dbus.h"
 #include "global_data.h"
@@ -86,7 +81,7 @@
 #endif
 #include "tracker.h"
 #include "track_file.h"
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 #include "track_process.h"
 #endif
 #ifdef _WITH_LVS_
@@ -100,12 +95,10 @@
 bool have_ipv4_instance;
 bool have_ipv6_instance;
 
-#ifdef _HAVE_FIB_ROUTING_
 static bool monitor_ipv4_routes;
 static bool monitor_ipv6_routes;
 static bool monitor_ipv4_rules;
 static bool monitor_ipv6_rules;
-#endif
 
 #ifdef _NETWORK_TIMESTAMP_
 bool do_network_timestamp;
@@ -126,12 +119,10 @@ clear_summary_flags(void)
 {
 	have_ipv4_instance = false;
 	have_ipv6_instance = false;
-#ifdef _HAVE_FIB_ROUTING_
 	monitor_ipv4_routes = false;
 	monitor_ipv6_routes = false;
 	monitor_ipv4_rules = false;
 	monitor_ipv6_rules = false;
-#endif
 }
 
 /* add/remove Virtual IP addresses */
@@ -145,7 +136,6 @@ vrrp_handle_ipaddress(vrrp_t *vrrp, int cmd, int type, bool force)
 	return netlink_iplist((type == VRRP_VIP_TYPE) ? &vrrp->vip : &vrrp->evip, cmd, force);
 }
 
-#ifdef _HAVE_FIB_ROUTING_
 /* add/remove Virtual routes */
 static void
 vrrp_handle_iproutes(vrrp_t * vrrp, int cmd, bool force)
@@ -167,7 +157,6 @@ vrrp_handle_iprules(vrrp_t * vrrp, int cmd, bool force)
 		       (cmd == IPRULE_ADD) ? "sett" : "remov");
 	netlink_rulelist(&vrrp->vrules, cmd, force);
 }
-#endif
 
 #ifdef _WITH_FIREWALL_
 static void
@@ -1067,11 +1056,8 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 
 	/* check that destination address is multicast if don't have any unicast peers
 	 * and vice versa */
-	if (((vrrp->family == AF_INET && IN_MULTICAST(ntohl(ip->daddr)))
-#ifdef IPV6_RECVPKTINFO
-	     || (vrrp->family == AF_INET6 && vrrp->multicast_pkt)
-#endif
-								 ) != list_empty(&vrrp->unicast_peer)) {
+	if (((vrrp->family == AF_INET && IN_MULTICAST(ntohl(ip->daddr))) ||
+	     (vrrp->family == AF_INET6 && vrrp->multicast_pkt)) != list_empty(&vrrp->unicast_peer)) {
 		/* So far as I can see, with IPv6 if multicasts are enabled on an interface, we will receive them
 		 * on a socket even if we haven't registered the multicast address on the socket.
 		 * If anyone know how to stop receiving them, please raise a github issue with the details.
@@ -1685,7 +1671,6 @@ vrrp_state_become_master(vrrp_t * vrrp)
 		vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE, false);
 	vrrp->vipset = true;
 
-#ifdef _HAVE_FIB_ROUTING_
 	/* add virtual routes */
 	if (!list_empty(&vrrp->vroutes))
 		vrrp_handle_iproutes(vrrp, IPROUTE_ADD, false);
@@ -1693,7 +1678,6 @@ vrrp_state_become_master(vrrp_t * vrrp)
 	/* add virtual rules */
 	if (!list_empty(&vrrp->vrules))
 		vrrp_handle_iprules(vrrp, IPRULE_ADD, false);
-#endif
 
 	kernel_netlink_poll();
 
@@ -1756,7 +1740,6 @@ vrrp_restore_interface(vrrp_t * vrrp, bool advF, bool force)
 		log_message(LOG_INFO, "(%s) sent 0 priority", vrrp->iname);
 	}
 
-#ifdef _HAVE_FIB_ROUTING_
 	/* remove virtual rules */
 	if (!list_empty(&vrrp->vrules))
 		vrrp_handle_iprules(vrrp, IPRULE_DEL, force);
@@ -1764,7 +1747,6 @@ vrrp_restore_interface(vrrp_t * vrrp, bool advF, bool force)
 	/* remove virtual routes */
 	if (!list_empty(&vrrp->vroutes))
 		vrrp_handle_iproutes(vrrp, IPROUTE_DEL, false);
-#endif
 
 	/* empty the delayed arp list */
 	vrrp_remove_delayed_arp(vrrp);
@@ -2310,12 +2292,6 @@ open_vrrp_send_socket(sa_family_t family, int proto, const interface_t *ifp, con
 		log_message(LOG_INFO, "cant open raw socket. errno=%d", errno);
 		return -1;
 	}
-#if !HAVE_DECL_SOCK_CLOEXEC
-	set_sock_flags(fd, F_SETFD, FD_CLOEXEC);
-#endif
-#if !HAVE_DECL_SOCK_NONBLOCK
-	set_sock_flags(fd, F_SETFL, O_NONBLOCK);
-#endif
 
 	/* We are not receiving on the send socket, there is no
 	 * point allocating any buffers to it */
@@ -2324,13 +2300,7 @@ open_vrrp_send_socket(sa_family_t family, int proto, const interface_t *ifp, con
 
 	if (family == AF_INET) {
 		/* Set v4 related */
-
-		/* It doesn't really matter if IP_MULTICAST_ALL is not supported
-		 * since we set a BPF filter to stop any packet being received
-		 * on the send socket */
-#if HAVE_DECL_IP_MULTICAST_ALL  /* Since Linux 2.6.31 */
 		if_setsockopt_mcast_all(AF_INET, &fd);
-#endif
 		if_setsockopt_hdrincl(&fd);
 	} else if (family == AF_INET6) {
 		/* Set v6 related */
@@ -2376,23 +2346,15 @@ open_vrrp_read_socket(sa_family_t family, int proto, const interface_t *ifp, con
 		log_message(LOG_INFO, "cant open raw socket. errno=%d", err);
 		return -1;
 	}
-#if !HAVE_DECL_SOCK_CLOEXEC
-	set_sock_flags(fd, F_SETFD, FD_CLOEXEC);
-#endif
-#if !HAVE_DECL_SOCK_NONBLOCK
-	set_sock_flags(fd, F_SETFL, O_NONBLOCK);
-#endif
 
 	if (rx_buf_size) {
 		if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &val, len))
 			log_message(LOG_INFO, "vrrp set receive socket buffer size error %d", errno);
 	}
 
-#if HAVE_DECL_IP_MULTICAST_ALL  /* Since Linux 2.6.31 */
 	/* Ensure no unwanted multicast packets are queued to this interface */
 	if (family == AF_INET)
 		if_setsockopt_mcast_all(family, &fd);
-#endif
 
 	if (!unicast_src) {
 		/* Join the VRRP multicast group */
@@ -2419,21 +2381,17 @@ open_vrrp_read_socket(sa_family_t family, int proto, const interface_t *ifp, con
 		}
 	}
 
-#ifdef IPV6_RECVHOPLIMIT	/* Since Linux 2.6.14 */
 	/* IPv6 we need to receive the hop count as ancillary data */
 	if (family == AF_INET6) {
 		if (setsockopt(fd, IPPROTO_IPV6, IPV6_RECVHOPLIMIT, &on, sizeof on))
 			log_message(LOG_INFO, "fd %d - set IPV6_RECVHOPLIMIT error %d (%m)", fd, errno);
 	}
-#endif
 
-#ifdef IPV6_RECVPKTINFO		/* Since Linux 2.6.14 */
 	/* Receive the destination address as ancillary data to determine if packet multicast */
 	if (family == AF_INET6) {
 		if (setsockopt(fd, IPPROTO_IPV6, IPV6_RECVPKTINFO, &on, sizeof on))
 			log_message(LOG_INFO, "fd %d - set IPV6_RECVPKTINFO error %d (%m)", fd, errno);
 	}
-#endif
 
 #ifdef _NETWORK_TIMESTAMP_
 	if (do_network_timestamp) {
@@ -2650,7 +2608,7 @@ add_vrrp_to_track_script(vrrp_t *vrrp, tracked_sc_t *sc)
 	list_add_tail(&top->e_list, &scr->tracking_vrrp);
 }
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 static void
 add_vrrp_to_track_process(vrrp_t *vrrp, tracked_process_t *tpr)
 {
@@ -2791,16 +2749,14 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	tracked_sc_t *sc, *sc_tmp;
 	tracked_if_t *tip, *tip_tmp;
 	tracked_file_monitor_t *tfl, *tfl_tmp;
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	tracked_process_t *tpr;
 #endif
 #ifdef _WITH_BFD_
 	tracked_bfd_t *tbfd, *tbfd_tmp;
 #endif
-#ifdef _HAVE_FIB_ROUTING_
 	ip_route_t *route;
 	ip_rule_t *rule;
-#endif
 
 	if (vrrp->strict_mode == PARAMETER_UNSET)
 		vrrp->strict_mode = global_data->vrrp_strict;
@@ -3746,7 +3702,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	list_for_each_entry(tfl, &vrrp->track_file, e_list)
 		add_obj_to_track_file(vrrp, tfl, vrrp->iname, dump_tracking_vrrp);
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	/* Add our track processes to the tracking process tracking_vrrp list */
 	list_for_each_entry(tpr, &vrrp->track_process, e_list)
 		add_vrrp_to_track_process(vrrp, tpr);
@@ -3771,7 +3727,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			set_promote_secondaries(vrrp->ifp);
 	}
 
-#ifdef _HAVE_FIB_ROUTING_
 	/* Check if there are any route/rules we need to monitor */
 	list_for_each_entry(route, &vrrp->vroutes, e_list) {
 		if (!route->dont_track) {
@@ -3796,13 +3751,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			/* If the rule specifies an interface, this vrrp instance should track the interface */
 			if (rule->iif)
 				add_vrrp_to_interface(vrrp, rule->iif, 0, false, false, TRACK_RULE);
-#if HAVE_DECL_FRA_OIFNAME
 			if (rule->oif)
 				add_vrrp_to_interface(vrrp, rule->oif, 0, false, false, TRACK_RULE);
-#endif
 		}
 	}
-#endif
 
 	/* alloc send buffer */
 	vrrp_alloc_send_buffer(vrrp);
@@ -3819,7 +3771,7 @@ sync_group_tracking_init(void)
 	vrrp_script_t *vsc;
 	tracked_if_t *tif;
 	tracked_file_monitor_t *tfl;
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	tracked_process_t *tpr;
 #endif
 #ifdef _WITH_BFD_
@@ -3877,7 +3829,7 @@ sync_group_tracking_init(void)
 				add_obj_to_track_file(vrrp, tfl, vrrp->iname, dump_tracking_vrrp);
 		}
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 		/* tracked processes */
 		list_for_each_entry(tpr, &sgroup->track_process, e_list) {
 			if (sgroup_has_prio_owner && tpr->weight) {
@@ -3941,7 +3893,6 @@ sync_group_tracking_init(void)
 	}
 }
 
-#ifdef _HAVE_FIB_ROUTING_
 static void
 process_static_entries(void)
 {
@@ -3968,7 +3919,6 @@ process_static_entries(void)
 			monitor_ipv6_rules = true;
 	}
 }
-#endif
 
 static void
 remove_residual_vips(void)
@@ -4433,13 +4383,11 @@ vrrp_complete_init(void)
 	if (global_data->vrrp_garp_interval || global_data->vrrp_gna_interval)
 		set_default_garp_delay();
 
-#ifdef _HAVE_FIB_ROUTING_
 	/* See if any static routes or rules need monitoring */
 	process_static_entries();
 
 	/* If we are tracking any routes/rules, ask netlink to monitor them */
 	set_extra_netlink_monitoring(monitor_ipv4_routes, monitor_ipv6_routes, monitor_ipv4_rules, monitor_ipv6_rules);
-#endif
 
 #ifdef _WITH_LINKBEAT_
 	/* We need to know the state of interfaces for the next loop */
@@ -4449,7 +4397,7 @@ vrrp_complete_init(void)
 	/* Initialise any tracking files */
 	init_track_files(&vrrp_data->vrrp_track_files);
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	/* Initialise any process tracking */
 	if (!list_empty(&vrrp_data->vrrp_track_processes)) {
 		if (reload)
@@ -4625,7 +4573,6 @@ clear_diff_vrrp_vip(vrrp_t *old_vrrp, vrrp_t *vrrp)
 	free_ipaddress_list(&addr_list);
 }
 
-#ifdef _HAVE_FIB_ROUTING_
 /* Clear virtual routes not present in the new data */
 static void
 clear_diff_vrrp_vroutes(vrrp_t *old_vrrp, vrrp_t *vrrp)
@@ -4639,7 +4586,6 @@ clear_diff_vrrp_vrules(vrrp_t *old_vrrp, vrrp_t *vrrp)
 {
 	clear_diff_rules(&old_vrrp->vrules, &vrrp->vrules);
 }
-#endif
 
 /* Keep the state from before reload */
 static bool
@@ -4670,7 +4616,6 @@ restore_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 			if (vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE, false))
 				added_ip_addr = true;
 		}
-#ifdef _HAVE_FIB_ROUTING_
 		if (!list_empty(&vrrp->vroutes)) {
 			/* It is possible that some routes may have been deleted
 			 * by the kernel if, for example, they depended on a VIP
@@ -4681,7 +4626,6 @@ restore_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 		}
 		if (!list_empty(&vrrp->vrules))
 			vrrp_handle_iprules(vrrp, IPRULE_ADD, false);
-#endif
 	}
 
 	return added_ip_addr;
@@ -4729,13 +4673,11 @@ clear_diff_vrrp(void)
 			 * data, then perform a VIP|EVIP diff.
 			 */
 // !!!! Isn't this only necessary if MASTER ???? TODO
-#ifdef _HAVE_FIB_ROUTING_
 			/* virtual rules diff */
 			clear_diff_vrrp_vrules(vrrp, new_vrrp);
 
 			/* virtual routes diff */
 			clear_diff_vrrp_vroutes(vrrp, new_vrrp);
-#endif
 
 			clear_diff_vrrp_vip(vrrp, new_vrrp);
 

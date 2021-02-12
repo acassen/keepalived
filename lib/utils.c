@@ -253,14 +253,7 @@ run_perf(const char *process, const char *network_namespace, const char *instanc
 			break;
 		}
 
-#ifdef IN_CLOEXEC
 		in = inotify_init1(IN_CLOEXEC | IN_NONBLOCK);
-#else
-		if ((in = inotify_init()) != -1) {
-			fcntl(in, F_SETFD, FD_CLOEXEC | fcntl(n, F_GETFD));
-			fcntl(in, F_SETFL, O_NONBLOCK | fcntl(n, F_GETFL));
-		}
-#endif
 		if (in == -1) {
 			log_message(LOG_INFO, "inotify_init failed %d - %m", errno);
 			break;
@@ -343,11 +336,7 @@ run_perf(const char *process, const char *network_namespace, const char *instanc
 			/* Rename the /perf.data file */
 			strcat(orig_name, perf_name);
 			new_name = make_file_name(orig_name, process,
-#if HAVE_DECL_CLONE_NEWNET
 							network_namespace,
-#else
-							NULL,
-#endif
 							instance_name);
 
 			if (rename(orig_name, new_name))
@@ -1068,20 +1057,8 @@ int
 open_pipe(int pipe_arr[2])
 {
 	/* Open pipe */
-#ifdef HAVE_PIPE2
 	if (pipe2(pipe_arr, O_CLOEXEC | O_NONBLOCK) == -1)
-#else
-	if (pipe(pipe_arr) == -1)
-#endif
 		return -1;
-
-#ifndef HAVE_PIPE2
-	fcntl(pipe_arr[0], F_SETFL, O_NONBLOCK | fcntl(pipe_arr[0], F_GETFL));
-	fcntl(pipe_arr[1], F_SETFL, O_NONBLOCK | fcntl(pipe_arr[1], F_GETFL));
-
-	fcntl(pipe_arr[0], F_SETFD, FD_CLOEXEC | fcntl(pipe_arr[0], F_GETFD));
-	fcntl(pipe_arr[1], F_SETFD, FD_CLOEXEC | fcntl(pipe_arr[1], F_GETFD));
-#endif
 
 	return 0;
 }

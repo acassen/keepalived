@@ -51,9 +51,6 @@ typedef struct _nl_handle {
 #ifndef NLMSG_TAIL
 #define NLMSG_TAIL(nmsg) ((void *)(((char *) (nmsg)) + NLMSG_ALIGN((nmsg)->nlmsg_len)))
 #endif
-#if !defined SOL_NETLINK
-#define SOL_NETLINK 270
-#endif
 
 #define RTA_TAIL(rta)	PTR_CAST(struct rtattr, (char *)(rta) + RTA_ALIGN((rta)->rta_len))
 
@@ -136,7 +133,7 @@ extern void kernel_netlink_poll(void);
 extern void process_if_status_change(interface_t *);
 #endif
 extern void kernel_netlink_set_recv_bufs(void);
-#ifdef _HAVE_FIB_ROUTING_
+#ifdef _WITH_VRRP_
 extern void set_extra_netlink_monitoring(bool, bool, bool, bool);
 #endif
 extern void kernel_netlink_init(void);

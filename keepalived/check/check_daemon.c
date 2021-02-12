@@ -71,7 +71,7 @@
 #endif
 #include "timer.h"
 #include "track_file.h"
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 #include "track_process.h"
 #endif
 #ifdef _USE_SYSTEMD_NOTIFY_
@@ -464,10 +464,7 @@ start_check(list_head_t *old_checkers_queue, data_t *prev_global_data)
 
 	/* Set the process priority and non swappable if configured */
 	set_process_priorities(global_data->checker_realtime_priority, global_data->max_auto_priority, global_data->min_auto_priority_delay,
-#if HAVE_DECL_RLIMIT_RTTIME == 1
-			       global_data->checker_rlimit_rt,
-#endif
-			       global_data->checker_process_priority, global_data->checker_no_swap ? 4096 : 0);
+			       global_data->checker_rlimit_rt, global_data->checker_process_priority, global_data->checker_no_swap ? 4096 : 0);
 
 	/* Set the process cpu affinity if configured */
 	set_process_cpu_affinity(&global_data->checker_cpu_mask, "checker");
@@ -705,15 +702,11 @@ start_check_child(void)
 	close(bfd_vrrp_event_pipe[1]);
 #endif
 #endif
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	close_track_processes();
 #endif
 
-	if ((global_data->instance_name
-#if HAVE_DECL_CLONE_NEWNET
-			   || global_data->network_namespace
-#endif
-					       ) &&
+	if ((global_data->instance_name || global_data->network_namespace) &&
 	     (check_syslog_ident = make_syslog_ident(PROG_CHECK)))
 		syslog_ident = check_syslog_ident;
 	else
@@ -727,11 +720,7 @@ start_check_child(void)
 	if (log_file_name)
 		open_log_file(log_file_name,
 				"check",
-#if HAVE_DECL_CLONE_NEWNET
 				global_data->network_namespace,
-#else
-				NULL,
-#endif
 				global_data->instance_name);
 #endif
 

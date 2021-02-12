@@ -80,9 +80,7 @@ typedef struct _ip_rule {
 	uint32_t			suppress_group;
 #endif
 	interface_t			*iif;
-#if HAVE_DECL_FRA_OIFNAME
 	interface_t			*oif;
-#endif
 	uint32_t			goto_target;
 	uint32_t			table;
 	uint8_t				action;

@@ -38,9 +38,6 @@
 #include "smtp.h"
 #include "utils.h"
 #include "parser.h"
-#if !HAVE_DECL_SOCK_CLOEXEC
-#include "old_socket.h"
-#endif
 #include "layer4.h"
 #include "scheduler.h"
 
@@ -112,7 +109,7 @@ dns_final(thread_ref_t thread, bool error, const char *fmt, ...)
 
 	checker_t *checker = THREAD_ARG(thread);
 
-#ifdef _CHECKER_DEBUG
+#ifdef _CHECKER_DEBUG_
 	if (do_checker_debug)
 		dns_log_message(thread, LOG_DEBUG, "final error=%d attempts=%u retry=%u", error,
 				checker->retry_it, checker->retry);
@@ -200,9 +197,9 @@ dns_recv_thread(thread_ref_t thread)
 	}
 
 	if (ret < (ssize_t) sizeof (r_header)) {
-#ifdef _CHECKER_DEBUG
+#ifdef _CHECKER_DEBUG_
 		if (do_checker_debug)
-			dns_log_message(thread, LOG_DEBUG, "too small message. (%ld bytes)", ret);
+			dns_log_message(thread, LOG_DEBUG, "too small message. (%zd bytes)", ret);
 #endif
 		thread_add_read(thread->master, dns_recv_thread, checker,
 				thread->u.f.fd, timeout, true);
@@ -213,7 +210,7 @@ dns_recv_thread(thread_ref_t thread)
 	r_header = PTR_CAST(dns_header_t , rbuf);
 
 	if (s_header->id != r_header->id) {
-#ifdef _CHECKER_DEBUG
+#ifdef _CHECKER_DEBUG_
 		if (do_checker_debug)
 			dns_log_message(thread, LOG_DEBUG, "ID does not match. (%04x != %04x)",
 					ntohs(s_header->id), ntohs(r_header->id));
@@ -226,7 +223,7 @@ dns_recv_thread(thread_ref_t thread)
 	flags = ntohs(r_header->flags);
 
 	if (!DNS_QR(flags)) {
-#ifdef _CHECKER_DEBUG
+#ifdef _CHECKER_DEBUG_
 		if (do_checker_debug)
 			dns_log_message(thread, LOG_DEBUG, "receive query message?");
 #endif
@@ -397,20 +394,6 @@ dns_connect_thread(thread_ref_t thread)
 				 checker->delay_loop);
 		return;
 	}
-
-#if !HAVE_DECL_SOCK_NONBLOCK
-	if (set_sock_flags(fd, F_SETFL, O_NONBLOCK))
-		dns_log_message(thread, LOG_INFO,
-				"unable to set NONBLOCK on socket - %s (%d)",
-				strerror(errno), errno);
-#endif
-
-#if !HAVE_DECL_SOCK_CLOEXEC
-	if (set_sock_flags(fd, F_SETFD, FD_CLOEXEC))
-		dns_log_message(thread, LOG_INFO,
-				"unable to set CLOEXEC on socket - %s (%d)",
-				strerror(errno), errno);
-#endif
 
 	status = socket_bind_connect(fd, co);
 

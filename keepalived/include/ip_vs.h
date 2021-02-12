@@ -3,8 +3,8 @@
  *      data structure and functionality definitions
  */
 
-#ifndef KEEPALIVED_IP_VS_H
-#define KEEPALIVED_IP_VS_H
+#ifndef _KEEPALIVED_IP_VS_H
+#define _KEEPALIVED_IP_VS_H
 
 #include "config.h"
 
@@ -12,11 +12,7 @@
 #include <net/if.h>	/* Force inclusion of net/if.h before linux/if.h */
 #include <sys/types.h>
 #include <netinet/in.h>
-#ifdef HAVE_LINUX_IP_VS_H
 #include <linux/ip_vs.h>
-#else
-#include <net/ip_vs.h>
-#endif
 /* Prior to Linux 4.2 have to include linux/in.h and linux/in6.h
  * or linux/netlink.h to include linux/netfilter.h */
 #include <linux/netfilter.h>	/* For nf_inet_addr */
@@ -53,9 +49,7 @@ struct ip_vs_service_app {
 	struct ip_vs_service_user user;
 	uint16_t		af;
 	union nf_inet_addr	nf_addr;
-#ifdef _HAVE_PE_NAME_
 	char			pe_name[IP_VS_PENAME_MAXLEN + 1];
-#endif
 };
 
 struct ip_vs_dest_app {
@@ -77,10 +71,7 @@ struct ip_vs_service_entry_app {
 	ip_vs_stats_t		stats;
 	uint16_t		af;
 	union nf_inet_addr	nf_addr;
-#ifdef _HAVE_PE_NAME_
 	char			pe_name[IP_VS_PENAME_MAXLEN + 1];
-#endif
-
 };
 
 struct ip_vs_dest_entry_app {
@@ -166,4 +157,4 @@ struct ip_vs_daemon_app {
 #endif
 };
 
-#endif	/* KEEPALIVED_IP_VS_H */
+#endif	/* _KEEPALIVED_IP_VS_H */

@@ -843,15 +843,7 @@ init_track_files(list_head_t *track_files)
 		}
 
 		if (inotify_fd == -1) {
-#ifdef HAVE_INOTIFY_INIT1
 			inotify_fd = inotify_init1(IN_CLOEXEC | IN_NONBLOCK);
-#else
-			inotify_fd = inotify_init();
-			if (inotify_fd != -1) {
-				fcntl(inotify_fd, F_SETFD, FD_CLOEXEC);
-				fcntl(inotify_fd, F_SETFL, O_NONBLOCK);
-			}
-#endif
 
 			if (inotify_fd == -1) {
 				log_message(LOG_INFO, "Unable to monitor track files");

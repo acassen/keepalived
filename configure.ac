@@ -943,33 +943,8 @@ AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdint.h std
 # check for kernel headers
 SAV_CPPFLAGS="$CPPFLAGS"
 CPPFLAGS="$CPPFLAGS $kernelinc"
-dnl -- <linux/netlink.h> needed <sys/socket.h> until Linux 3.1
-dnl -- using AC_CHECK_HEADER causes a horrible error message for the user
-NETLINK_EXTRA_INCLUDE=
-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-  #include <linux/netlink.h>
-  ]])], [],
-  [AC_CHECK_HEADER([linux/netlink.h],
-    [
-      AC_DEFINE([NETLINK_H_NEEDS_SYS_SOCKET_H], [ 1 ], [Define to 1 if <linux/netlink.h> needs <sys/socket.h>])
-      NETLINK_EXTRA_INCLUDE="#include <sys/socket.h>"
-    ], [AC_MSG_ERROR([Missing/unusable kernel header file <linux/netlink.h>])],
-    [[#include <sys/socket.h>]])])
 
-dnl -- <linux/rtnetlink.h> needed <sys/socket.h> until ? Linux 3.1
-dnl -- using AC_CHECK_HEADER causes a horrible error message for the user
-RTNETLINK_EXTRA_INCLUDE=
-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-  #include <linux/rtnetlink.h>
-  ]])], [],
-  [AC_CHECK_HEADER([linux/rtnetlink.h],
-    [
-      AC_DEFINE([RTNETLINK_H_NEEDS_SYS_SOCKET_H], [ 1 ], [Define to 1 if <linux/rtnetlink.h> needs <sys/socket.h>])
-      RTNETLINK_EXTRA_INCLUDE="#include <sys/socket.h>"
-    ], [AC_MSG_ERROR([Missing/unusable kernel header file <linux/rtnetlink.h>])],
-    [[#include <sys/socket.h>]])])
-
-dnl -- Does linux/errqueue.h need sys/time.h?
+dnl -- linux/errqueue.h need sys/time.h before Linux < v5.1
 AC_MSG_CHECKING([linux/errqueue.h needs sys/time.h])
 AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   #include <fcntl.h>
@@ -1019,16 +994,8 @@ AC_FUNC_FORK
 #AC_FUNC_REALLOC
 dnl - dup3 since Linux 2.6.27 and glibc 2.9
 AC_CHECK_FUNCS([dup2 dup3 getcwd gettimeofday malloc memmove memset realloc select setenv socket strcasecmp strchr strdup strerror strpbrk strstr strtol strtoul uname])
-dnl - pipe2() since Linux 2.6.27 and glibc 2.9.
-AC_CHECK_FUNCS([pipe2], [add_system_opt([PIPE2])])
-dnl - signalfd() since Linux 2.6.22 and glibc 2.8
-AC_CHECK_FUNCS([signalfd], [add_system_opt([SIGNALFD])])
-dnl - inotify_init1() since Linux 2.6.27
-AC_CHECK_FUNCS([inotify_init1], [add_system_opt([INOTIFY_INIT1])])
 dnl - vsyslog() Not defined by Posix, but available in glibc and musl
 AC_CHECK_FUNCS([vsyslog], [add_system_opt([VSYSLOG])])
-dnl - epoll_create1() since Linux 2.6.27 and glibc 2.9
-AC_CHECK_FUNCS([epoll_create1], [add_system_opt([EPOLL_CREATE1])])
 
 dnl - memfd_create() - since Linux 3.17 and glibc 2.27
 dnl - memfd_create() appeared in the kernel long before it appeared in
@@ -1278,16 +1245,6 @@ if test .$enable_vrrp != .no; then
   CPPFLAGS="$SAV_CPPFLAGS"
 fi
 
-dnl ----[ Check for IPv6 Advanced API (RFC3542) - since Linux 2.6.14 ]----
-IPV6_ADVANCED_API=No
-AC_CHECK_DECLS([
-  IPV6_RECVHOPLIMIT,
-  IPV6_RECVPKTINFO],
-  [IPV6_ADVANCED_API=Yes],
-  [],
-  [[#include <netinet/ip6.h>]])
-AS_IF([test $IPV6_ADVANCED_API = Yes], [add_system_opt([IPV6_ADVANCED_API])])
-
 dnl ----[ Checks for libraries ]----
 NETLINK_VER=0
 IPVS_USE_NL=No
@@ -1370,7 +1327,6 @@ AC_CHECK_LIB(magic, magic_open,
 unset LIBS
 
 dnl -- Check for the following variables introduced at various times into Linux
-dnl --FRA_OIFNAME		dnl -- Linux 2.6.33
 dnl --RTAX_QUICKACK		dnl -- Linux 3.11
 dnl --FRA_SUPPRESS_PREFIXLEN	dnl -- Linux 3.12
 dnl --FRA_SUPPRESS_IFGROUP	dnl -- Linux 3.12
@@ -1390,12 +1346,12 @@ dnl --FRA_IP_PROTO		dnl -- Linux 4.17
 dnl --FRA_SPORT_RANGE		dnl -- Linux 4.17
 dnl --FRA_DPORT_RANGE		dnl -- Linux 4.17
 dnl --RTA_TTL_PROPAGATE		dnl -- Linux 4.12
-AC_CHECK_DECLS([RTA_ENCAP, RTA_EXPIRES, RTA_NEWDST, RTA_PREF, FRA_SUPPRESS_PREFIXLEN, FRA_SUPPRESS_IFGROUP, FRA_TUN_ID, RTAX_CC_ALGO, RTAX_QUICKACK, RTEXT_FILTER_SKIP_STATS, FRA_L3MDEV, FRA_UID_RANGE, RTAX_FASTOPEN_NO_COOKIE, RTA_VIA, FRA_OIFNAME, FRA_PROTOCOL, FRA_IP_PROTO, FRA_SPORT_RANGE, FRA_DPORT_RANGE, RTA_TTL_PROPAGATE], [], [],
+AC_CHECK_DECLS([RTA_ENCAP, RTA_EXPIRES, RTA_NEWDST, RTA_PREF, FRA_SUPPRESS_PREFIXLEN, FRA_SUPPRESS_IFGROUP, FRA_TUN_ID, RTAX_CC_ALGO, RTAX_QUICKACK, RTEXT_FILTER_SKIP_STATS, FRA_L3MDEV, FRA_UID_RANGE, RTAX_FASTOPEN_NO_COOKIE, RTA_VIA, FRA_PROTOCOL, FRA_IP_PROTO, FRA_SPORT_RANGE, FRA_DPORT_RANGE, RTA_TTL_PROPAGATE], [], [],
   [[$RTNETLINK_EXTRA_INCLUDES
     #include <linux/rtnetlink.h>
     #include <sys/socket.h>
     #include <linux/fib_rules.h>]])
-for flag in RTA_ENCAP RTA_EXPIRES RTA_NEWDST RTA_PREF FRA_SUPPRESS_PREFIXLEN FRA_SUPPRESS_IFGROUP FRA_TUN_ID RTAX_CC_ALGO RTAX_QUICKACK RTEXT_FILTER_SKIP_STATS FRA_L3MDEV FRA_UID_RANGE RTAX_FASTOPEN_NO_COOKIE RTA_VIA FRA_OIFNAME FRA_PROTOCOL FRA_IP_PROTO FRA_SPORT_RANGE FRA_DPORT_RANGE RTA_TTL_PROPAGATE; do
+for flag in RTA_ENCAP RTA_EXPIRES RTA_NEWDST RTA_PREF FRA_SUPPRESS_PREFIXLEN FRA_SUPPRESS_IFGROUP FRA_TUN_ID RTAX_CC_ALGO RTAX_QUICKACK RTEXT_FILTER_SKIP_STATS FRA_L3MDEV FRA_UID_RANGE RTAX_FASTOPEN_NO_COOKIE RTA_VIA FRA_PROTOCOL FRA_IP_PROTO FRA_SPORT_RANGE FRA_DPORT_RANGE RTA_TTL_PROPAGATE; do
   AS_VAR_COPY([decl_var], [ac_cv_have_decl_$flag])
   if test ${decl_var} = yes; then
     add_system_opt[${flag}]
@@ -1410,54 +1366,6 @@ for flag in IFA_FLAGS; do
     add_system_opt[${flag}]
   fi
 done
-
-dnl - Introduced in Linux 2.6.31, but not until glibc 2.17
-AC_CHECK_DECLS([IP_MULTICAST_ALL],
-  [
-    add_system_opt[IP_MULTICAST_ALL]
-    # Check if definition is in netinet/in.h, since we can't include linux/in.h
-    # due to conflicting definitions
-    AC_LINK_IFELSE(
-      [
-	AC_LANG_SOURCE(
-	[[
-	    #include <netinet/in.h>
-	    int main(int argc, char **argv)
-	    {
-	      int i = IP_MULTICAST_ALL;
-	    }
-	]])
-      ],
-      [],
-      [
-	# No - netinet/in.h doesn't have IP_MULTICAST_ALL
-	# Build a program that will output the value of the kernel's IP_MULTICAST_ALL
-	AC_LINK_IFELSE(
-	  [
-	    AC_LANG_SOURCE(
-	      [[
-		#include <sys/socket.h>
-		#include <linux/in.h>
-		#include <stdio.h>
-		int main(int argc, char **argv)
-		{
-		  printf("%d\n", IP_MULTICAST_ALL);
-		}
-	      ]])
-	  ],
-	  [
-	    # Create local definition of IP_MULTICAST_ALL
-	    IMA=$(./conftest$EXEEXT)
-	    AC_DEFINE_UNQUOTED([IP_MULTICAST_ALL], [ $IMA ], [Defined to value in <linux/in.h> if not in <netinet/in.h>])
-	  ])
-      ]
-    )
-  ],
-  [],
-  [[
-    #include <sys/socket.h>
-    #include <linux/in.h>
-  ]])
 
 dnl -- RedHat backported ENCAP_IP and ENCAP_IP6 without MPLS and ILA
 AS_IF([test $ac_cv_have_decl_RTA_ENCAP = yes],
@@ -1478,10 +1386,9 @@ USE_LIBIPSET=No
 AS_IF([test .$enable_iptables != .no],
   [
     USE_IPTABLES=Yes
-    dnl -- linux/netfilter/x_tables.h since Linux 2.6.16
     SAV_CPPFLAGS="$CPPFLAGS"
     CPPFLAGS="$CPPFLAGS $kernelinc"
-    AC_CHECK_HEADERS([linux/netfilter/x_tables.h libiptc/libip6tc.h libiptc/libiptc.h libiptc/libxtc.h], [],
+    AC_CHECK_HEADERS([libiptc/libip6tc.h libiptc/libiptc.h libiptc/libxtc.h], [],
       [
 	USE_IPTABLES=No
 	break
@@ -1573,23 +1480,6 @@ AS_IF([test .$enable_iptables != .no],
 	      ])
 
 	    if test $USE_LIBIPSET = Yes; then
-	      dnl -- Need to use <libipset/linux_ip_set.h> for <linux/netfilter/xt_set.h> prior to Linux 3.4
-	      EXTRA_INCLUDE=
-	      AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-		#include <linux/netfilter/xt_set.h>
-		]])],
-		[AC_CHECK_HEADERS([linux/netfilter/xt_set.h], [], [USE_LIBIPSET=No], [])],
-		[AC_CHECK_HEADER([linux/netfilter/xt_set.h],
-		  [
-		    AC_DEFINE([USE_LIBIPSET_LINUX_IP_SET_H], [ 1 ], [Define to 1 if <linux/netfilter/xt_set.h> needs <libipset/linux_ip_set.h>])
-		    EXTRA_INCLUDE="#include <libipset/linux_ip_set.h>"
-		  ], [USE_LIBIPSET=No],
-		  [[#include <libipset/linux_ip_set.h>]])
-		]
-	      )
-	    fi
-
-	    if test $USE_LIBIPSET = Yes; then
 	      AC_DEFINE([_HAVE_LIBIPSET_], [ 1 ], [Define to 1 if have ipset library])
 	      $PKG_CONFIG --exists libipset
 	      if test $? -eq 0; then
@@ -1612,61 +1502,15 @@ AS_IF([test .$enable_iptables != .no],
 		add_config_opt([LIBIPSET])
 	      fi
 
-	      dnl -- xt_set_info_match first introduced in Linux 2.6.39 (initial implementation of ipsets)
-	      dnl -- xt_set_info_match_v1 declared since Linux 3.1
-	      AC_CHECK_MEMBER([struct xt_set_info_match_v1.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V1], [ 1 ], [Define to 1 if have struct xt_set_info_match_v1])], [],
-		[
-		  $EXTRA_INCLUDE
-		  #include <linux/netfilter/xt_set.h>
-		])
-	      dnl -- xt_set_info_match_v3 declared since Linux 3.10
-	      AC_CHECK_MEMBER([struct xt_set_info_match_v3.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V3], [ 1 ], [Define to 1 if have struct xt_set_info_match_v3])], [],
-		[
-		  $EXTRA_INCLUDE
-		  #include <linux/netfilter/xt_set.h>
-		])
 	      dnl -- xt_set_info_match_v4 declared since Linux 3.19
 	      AC_CHECK_MEMBER([struct xt_set_info_match_v4.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V4], [ 1 ], [Define to 1 if have struct xt_set_info_match_v4])], [],
-		[
-		  $EXTRA_INCLUDE
-		  #include <linux/netfilter/xt_set.h>
-		])
-
-	      dnl - ipset type iface introduced in Linux 3.1
-	      AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-		#include <linux/netfilter/ipset/ip_set.h>
-		int main(void) { int var = IPSET_ATTR_IFACE; }
-		]])],
-		[AC_DEFINE([HAVE_IPSET_ATTR_IFACE], [ 1 ], [Define to 1 if ipset supports iface type])])
-
-	      dnl - The include guard for <linux/netfilter/ipset/ip_set.h> has the leading _UAPI remove when
-	      dnl - the source code is processed to produce the actual header files.
-	      dnl - Unfortunately libipset provides a copy of the kernel headers, as <libipset/linux_ip_set*.h>,
-	      dnl - but it doesn't remove the _UAPI from the header files when installing them.
-	      dnl - Unfortunately we need to include some libipset header files, which include the
-	      dnl - libipset version, and also <linux/netfilter/xt_set.h> which includes the kernel version.
-	      dnl - To get around this problem, after include one of these we need to define the header guard
-	      dnl - for the other, to stop it being included as well.
-	      dnl - This is reported as a bug against ipset at https://bugzilla.netfilter.org/show_bug.cgi?id=1139
-	      dnl - We will take the kernel version if there is an inclusion collision.
-	      AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-		#include <linux/netfilter/ipset/ip_set.h>
-		#include <libipset/linux_ip_set.h>
-		int main(void) {}
-		]])], [],
-		[AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-		   #include <linux/netfilter/ipset/ip_set.h>
-		   #ifdef _UAPI_IP_SET_H
-		   #error _UAPI_IP_SET_H defined
-		   #endif
-		   int main(void) {}
-		   ]])],
-		   [AC_DEFINE([LIBIPSET_H_ADD_UAPI_IP_SET_H_GUARD], [1], [Define to add guard _UAPI_IP_SET_H before including <libipset/linux_ip_set.h>])],
-		   [AC_DEFINE([LIBIPSET_H_ADD_IP_SET_H_GUARD], [1], [Define to add guard _IP_SET_H before including <libipset/linux_ip_set.h>])])
-		])
+		[#include <linux/netfilter/xt_set.h>])
 	    fi
 
 	    if test $USE_LIBIPSET = Yes; then
+	      dnl -- Debian Buster has ipset v6.38, Bullseye v7.10.
+	      dnl -- Ubuntu 16.04 has ipset v6.29.
+	      dnl -- All other distros appear to have moved to ipset v7.
 	      AC_MSG_CHECKING([for libipset version 7 or later])
 	      AC_COMPILE_IFELSE([AC_LANG_SOURCE(
 		[[
@@ -1689,12 +1533,6 @@ AS_IF([test .$enable_iptables != .no],
 	  ])
 	LIBS="$SAV_LIBS"
       fi
-
-      dnl -- XT_EXTENSION_MAXNAMELEN not defined until Linux 2.6.35
-      AC_CHECK_DECL([XT_EXTENSION_MAXNAMELEN], [],
-	[AC_DEFINE([XT_EXTENSION_MAXNAMELEN], [ (XT_FUNCTION_MAXNAMELEN - 1) ], [Define if <linux/netfilter/x_tables.h> doesnt define it])],
-	[#include <linux/netfilter/x_tables.h>])
-
       CPPFLAGS="$SAV_CPPFLAGS"
     fi
     if test $USE_IPTABLES = Yes; then
@@ -1895,14 +1733,6 @@ if test "$enable_lvs" != no; then
   add_config_opt([LVS])
   AC_DEFINE([_WITH_LVS_], [ 1 ], [Define to 1 if have IPVS support])
 
-  dnl -- <linux/ip_vs.h> exists from Linux 2.6.27; prior to that <net/ip_vs.h> is used
-  AC_CHECK_HEADERS([linux/ip_vs.h],
-    [
-      dnl -- From Linux 2.6.35 (but CentOS has it in 2.6.32)
-      AC_CHECK_DECLS([IP_VS_SVC_F_ONEPACKET], [], [],
-	[[#include <linux/ip_vs.h>]])
-    ])
-
   if test $IPVS_USE_NL = Yes; then
     AC_DEFINE([LIBIPVS_USE_NL], [ 1 ], [Define to 1 if libipvs can use netlink])
     add_system_opt([LIBIPVS_NETLINK])
@@ -1982,9 +1812,10 @@ if test "$enable_lvs" != no; then
   dnl ----[ Is HTTP_GET regex checking wanted? ]----
   AS_IF([test "$enable_regex" = yes],
     [
+      dnl -- Check pcre library has 8-bit support
       $PKG_CONFIG --exists libpcre2-8
       HAVE_PCRE2=$?
-      AS_IF([test $HAVE_PCRE2 -ne 0], [AC_MSG_ERROR([cannot find pcre library])])
+      AS_IF([test $HAVE_PCRE2 -ne 0], [AC_MSG_ERROR([cannot find 8-bit pcre library])])
       AC_MSG_CHECKING([for pcre.h])
       AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
 	#define PCRE2_CODE_UNIT_WIDTH 8
@@ -2042,21 +1873,8 @@ if test "$enable_vrrp" != no; then
   MACVLAN_SUPPORT=No
   if test "${enable_vmac}" != no; then
     MACVLAN_SUPPORT=Yes
-    dnl -- Since Linux 2.6.33
-    AC_CHECK_DECLS([
-	IFLA_MACVLAN_MODE,
-	MACVLAN_MODE_PRIVATE], [],
-      [
-	MACVLAN_SUPPORT=No
-	break
-      ], [[
-	#include <sys/socket.h>
-	#include <linux/if_link.h>
-      ]])
-    fi
-  if test $MACVLAN_SUPPORT = Yes; then
     AC_DEFINE([_HAVE_VRRP_VMAC_], [ 1 ], [Define to 1 if have MAC VLAN support])
-    add_system_opt([VRRP_VMAC])
+    add_config_opt([VRRP_VMAC])
 
     dnl ----[ Checks for kernel IPVLAN support ]----
     IPVLAN_SUPPORT=Yes
@@ -2100,26 +1918,10 @@ if test "$enable_vrrp" != no; then
     add_config_opt([BFD])
   fi
 
-  dnl -- Check for process events connector - Linux v2.6.15
   AS_IF([test .$enable_track_process != .no],
     [
-      AC_CHECK_HEADERS([linux/cn_proc.h],
-	[
-	  add_system_opt([CN_PROC])
-	  HAVE_CN_PROC=Yes
-	  AC_DEFINE([_WITH_CN_PROC_], [ 1 ], [Define to 1 if have linux/cn_proc.h and track-process not disabled])
-	  dnl -- PROC_EVENT_SID since Linux v2.6.32
-	  dnl -- PROC_EVENT_PTRACE since Linux v3.1
-	  dnl -- PROC_EVENT_COMM since Linux v3.2
-	  dnl -- PROC_EVENT_COREDUMP since Linux v3.10
-	  AC_CHECK_DECLS([PROC_EVENT_SID, PROC_EVENT_PTRACE, PROC_EVENT_COMM, PROC_EVENT_COREDUMP], [], [], [[#include <linux/cn_proc.h>]])
-	],
-	[
-	  AS_IF([test .$enable_track_process = .yes],
-	    [
-	      AC_MSG_ERROR([--enable-track-process specified but process events connector not supported])
-	    ])
-	])
+      WITH_TRACK_PROCESS=Yes
+      AC_DEFINE([_WITH_TRACK_PROCESS_], [ 1 ], [Define to 1 if track-process not disabled])
     ],
     [add_config_opt([DISABLE_TRACK_PROCESS])])
 fi
@@ -2128,38 +1930,11 @@ AM_CONDITIONAL([VRRP_AUTH], [test $VRRP_AUTH_SUPPORT = Yes])
 AM_CONDITIONAL([VMAC], [test $MACVLAN_SUPPORT = Yes])
 AM_CONDITIONAL([WITH_JSON], [test $ENABLE_JSON = Yes])
 AM_CONDITIONAL([WITH_BFD], [test $BFD_SUPPORT = Yes])
-AM_CONDITIONAL([CN_PROC], [test $HAVE_CN_PROC = Yes])
+AM_CONDITIONAL([TRACK_PROCESS], [test $WITH_TRACK_PROCESS = Yes])
 
 if test ${IPVS_SUPPORT} = No -a ${VRRP_SUPPORT} = No; then
   AC_MSG_ERROR([keepalived MUST be compiled with at least one of LVS or VRRP framework])
 fi
-
-dnl ----[ Checks for glibc SOCK_NONBLOCK support ]----
-# Introduced in Linux 2.6.27 and glibc 2.9
-AC_CHECK_DECLS([SOCK_NONBLOCK], [add_system_opt([SOCK_NONBLOCK])], [],[[#include <sys/socket.h>]])
-AM_CONDITIONAL([SOCK_NONBLOCK], [test $ac_cv_have_decl_SOCK_NONBLOCK = yes])
-
-dnl ----[ Checks for glibc SOCK_CLOEXEC support ]----
-# Introduced in Linux 2.6.27 and glibc 2.9
-AC_CHECK_DECLS([SOCK_CLOEXEC], [add_system_opt([SOCK_CLOEXEC])], [],[[#include <sys/socket.h>]])
-
-dnl ----[ Checks for pe support ]----
-# Introduced in Linux 2.6.37
-AC_CHECK_DECL([IPVS_SVC_ATTR_PE_NAME],
-   [
-     AC_DEFINE([_HAVE_PE_NAME_], [ 1 ], [Define to 1 if have pe selection support])
-   ],
-   [], [[#include <linux/ip_vs.h>]])
-
-dnl ----[ Checks for O_PATH support ]----
-# Introduced in Linux 2.6.39
-SAV_CPPFLAGS="$CPPFLAGS"
-CPPFLAGS="$CPPFLAGS $kernel_inc -D_GNU_SOURCE"
-AC_CHECK_DECLS([O_PATH],
-  [
-    add_system_opt([O_PATH])
-  ], [],[[#include <fcntl.h>]])
-CPPFLAGS="$SAV_CPPFLAGS"
 
 dnl ----[ Check for GLOB_BRACE support ]----
 AC_CHECK_DECLS([GLOB_BRACE], [add_system_opt([GLOB_BRACE])], [], [[#include <glob.h>]])
@@ -2193,24 +1968,6 @@ if test .$enable_checksum_compat != .no; then
   AC_DEFINE([_WITH_UNICAST_CHKSUM_COMPAT_], [ 1 ], [Define to 1 to enable v1.3.6 and earlier VRRPv3 unicast checksum compatibility])
   add_config_opt([OLD_CHKSUM_COMPAT])
 fi
-
-dnl ----[ Checks for FIB routing support ]----
-FIB_ROUTING_SUPPORT=No
-if test .$enable_vrrp != .no -a .$enable_routes != .no; then
-  # Introduced in Linux 2.6.19
-  SAV_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$CPPFLAGS $kernelinc"
-  AC_CHECK_DECL([FRA_SRC],
-    [
-      FIB_ROUTING_SUPPORT=Yes
-      AC_DEFINE([_HAVE_FIB_ROUTING_], [ 1 ], [Define to 1 if have FIB routing support])
-      add_config_opt([FIB_ROUTING])
-    ], [],
-    [[#include <sys/socket.h>
-      #include <linux/fib_rules.h>]])
-  CPPFLAGS="$SAV_CPPFLAGS"
-fi
-AM_CONDITIONAL([FIB_ROUTING], [test $FIB_ROUTING_SUPPORT = Yes])
 
 dnl ----[ Check if linkbeat wanted ]----
 AS_IF([test .$enable_linkbeat = .no],
@@ -2551,39 +2308,6 @@ if test "${enable_fwmark}" != no; then
     [[#include <sys/socket.h>]])
 fi
 
-dnl ---[ check for setns() ]----
-SAV_CFLAGS="$CFLAGS"
-AC_CHECK_DECLS([__NR_setns],
-  [
-    dnl -- CLONE_NEWNET defined from Linux 3.0
-    AC_CHECK_DECLS([CLONE_NEWNET], [], [], [[#include <sched.h>]])
-    dnl -- From glibc 2.14. Otherwise use setns syscall, since Linux 2.4.x
-    AC_CHECK_FUNCS([setns])
-    dnl -- When building a RedHat RPM with hardening enabled, -pie is specified,
-    dnl -- and for setns this requires -fPIC
-    AS_IF([test $ac_cv_func_setns = no],
-      [
-	AS_UNSET([ac_cv_func_setns])
-	CFLAGS="$CFLAGS -fPIC"
-	AC_CHECK_FUNCS([setns])
-      ])
-  ],
-  [
-    AC_DEFINE([HAVE_DECL_CLONE_NEWNET], [ 0 ], [__NR_setns is not defined so cannot use CLONE_NEWNET])
-  ],
-  [[#include <linux/unistd.h>]])
-CFLAGS="$SAV_CFLAGS"
-AM_CONDITIONAL([WITH_NAMESPACES], [test .$ac_cv_have_decl_CLONE_NEWNET = .yes])
-
-dnl -- RLIMIT_RTTIME since Linux 2.6.25 - not supported with musl libc
-AC_CHECK_DECLS([RLIMIT_RTTIME], [], [], [[#include <sys/resource.h>]])
-
-dnl -- SCHED_RESET_ON_FORK since Linux 2.6.32
-AC_CHECK_DECLS([SCHED_RESET_ON_FORK],
-  [add_system_opt([SCHED_RESET_ON_FORK])],
-  [AC_DEFINE([SCHED_RESET_ON_FORK], [ 0 ], [Dummy definition if not defined in system headers])],
-  [[#include <sched.h>]])
-
 dnl -- Do we want GNU standard paths (moves .pid files)
 GNU_STD_PATHS=No
 if test "${enable_gnu_std_paths}" = "yes"; then
@@ -2833,11 +2557,10 @@ AS_IF([test .$enable_eintr_debug = .yes],
     ENABLE_EINTR_DEBUG=Yes
   ],
   [
-    dnl --- We need to check for EINTR if we are not using signalfd
-    AS_IF([test .$ac_cv_func_signalfd != .yes -o .$enable_eintr_debug = .check],
+    AS_IF([test .$enable_eintr_debug = .check],
       [
 	AC_DEFINE([CHECK_EINTR], [ 1 ], [Define if need to check for EINTR errno])
-	AS_IF([test .$ac_cv_func_signalfd = .yes], [add_config_opt([EINTR_CHECK])])
+	add_config_opt([EINTR_CHECK])
       ])
   ])
 
@@ -2852,7 +2575,7 @@ AS_IF([test .$enable_script_debug = .yes],
 
 dnl ----[ Do we want to enable track process debugging code]----
 ENABLE_TRACK_PROCESS_DEBUG=No
-AS_IF([test $HAVE_CN_PROC = Yes],
+AS_IF([test .$enable_track_process != .no],
   [
     AS_IF([test .$enable_track_process_debug = .yes],
       [
@@ -3096,8 +2819,7 @@ echo "Use VRRP Framework       : ${VRRP_SUPPORT}"
 if test ${VRRP_SUPPORT} = Yes; then
   echo "Use VRRP VMAC            : ${MACVLAN_SUPPORT}"
   echo "Use VRRP authentication  : ${VRRP_AUTH_SUPPORT}"
-  echo "With ip rules/routes     : ${FIB_ROUTING_SUPPORT}"
-  echo "With track_process       : ${HAVE_CN_PROC}"
+  echo "With track_process       : ${WITH_TRACK_PROCESS}"
   echo "With linkbeat            : ${LINKBEAT_SUPPORT}"
 fi
 echo "Use BFD Framework        : ${BFD_SUPPORT}"

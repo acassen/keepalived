@@ -31,19 +31,13 @@
 #include <stdbool.h>
 #include <sys/stat.h>
 
-#ifndef O_CLOEXEC	/* Since Linux 2.6.23 and glibc 2.7 */
-#define O_CLOEXEC 0	/* It doesn't really matter if O_CLOEXEC isn't set here */
-#endif
-
 #include "ipvswrapper.h"
 #include "global_data.h"
 #include "utils.h"
 #include "logger.h"
 #include "libipvs.h"
 #include "main.h"
-#if HAVE_DECL_CLONE_NEWNET
 #include "namespaces.h"
-#endif
 #ifdef _WITH_NFTABLES_
 #include "check_nftables.h"
 #endif
@@ -457,9 +451,7 @@ ipvs_set_srule(int cmd, ipvs_service_t *srule, virtual_server_t *vs)
 		if (vs->persistence_granularity != 0xffffffff)
 			srule->user.netmask = vs->persistence_granularity;
 
-#ifdef _HAVE_PE_NAME_
 		strcpy(srule->pe_name, vs->pe_name);
-#endif
 	}
 }
 

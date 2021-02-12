@@ -137,10 +137,8 @@ netlink_ipaddress(ip_address_t *ip_addr, int cmd)
 			 *     without service. HA/VRRP setups have their own "DAD"-like
 			 *     functionality, so it's not really needed from the IPv6 stack.
 			 */
-#ifdef IFA_F_NODAD	/* Since Linux 2.6.19 */
 			if (!(ip_addr->flagmask & IFA_F_NODAD))
 				ifa_flags |= IFA_F_NODAD;
-#endif
 		}
 
 		addattr_l(&req.n, sizeof(req), IFA_LOCAL,
@@ -270,14 +268,10 @@ format_ipaddress(const ip_address_t *ip_addr, char *buf, size_t buf_len)
 		buf_p += snprintf(buf_p, buf_end - buf_p, " peer %s/%d"
 				       , peer, ip_addr->ifa.ifa_prefixlen);
 	}
-#ifdef IFA_F_HOMEADDRESS		/* Linux 2.6.19 */
 	if (ip_addr->flags & IFA_F_HOMEADDRESS)
 		buf_p += snprintf(buf_p, buf_end - buf_p, " home");
-#endif
-#ifdef IFA_F_NODAD			/* Linux 2.6.19 */
 	if (ip_addr->flagmask & IFA_F_NODAD)
 		buf_p += snprintf(buf_p, buf_end - buf_p, " -nodad");
-#endif
 #ifdef IFA_F_MANAGETEMPADDR		/* Linux 3.14 */
 	if (ip_addr->flags & IFA_F_MANAGETEMPADDR)
 		buf_p += snprintf(buf_p, buf_end - buf_p, " mngtmpaddr");
@@ -548,15 +542,11 @@ alloc_ipaddress(list_head_t *ip_list, const vector_t *strvec, bool static_addr)
 				else
 					new->peer.sin_addr = peer.u.sin.sin_addr;
 			}
-#ifdef IFA_F_HOMEADDRESS		/* Linux 2.6.19 */
 		} else if (!strcmp(str, "home")) {
 			new->flags |= IFA_F_HOMEADDRESS;
 			new->flagmask |= IFA_F_HOMEADDRESS;
-#endif
-#ifdef IFA_F_NODAD			/* Linux 2.6.19 */
 		} else if (!strcmp(str, "-nodad")) {
 			new->flagmask |= IFA_F_NODAD;
-#endif
 #ifdef IFA_F_MANAGETEMPADDR		/* Linux 3.14 */
 		} else if (!strcmp(str, "mngtmpaddr")) {
 			new->flags |= IFA_F_MANAGETEMPADDR;

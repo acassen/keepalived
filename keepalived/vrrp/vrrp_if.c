@@ -41,9 +41,6 @@
  * so we stop <netinet/if_ether.h> being included if <linux/if_ether.h> has been included. */
 #define _NETINET_IF_ETHER_H
 #endif
-#if !HAVE_DECL_SOCK_CLOEXEC
-#include "old_socket.h"
-#endif
 #include <linux/sockios.h>	/* needed to get correct values for SIOC* */
 #include <linux/ethtool.h>
 #include <net/if_arp.h>
@@ -570,7 +567,7 @@ dump_if(FILE *fp, const interface_t *ifp)
 #ifdef _HAVE_VRRP_VMAC_
 	if (IS_MAC_IP_VLAN(ifp)) {
 		const char *if_type =
-#ifdef _HAVE_VRRP_IPVLAN
+#ifdef _HAVE_VRRP_IPVLAN_
 				      ifp->if_type == IF_TYPE_IPVLAN ? "IPVLAN" :
 #endif
 										  "VMAC";
@@ -806,9 +803,6 @@ init_interface_linkbeat(void)
 				log_message(LOG_INFO, "open linkbeat init socket failed - errno %d - %m\n", errno);
 				return;
 			}
-#if !HAVE_DECL_SOCK_CLOEXEC
-			set_sock_flags(linkbeat_fd, F_SETFD, FD_CLOEXEC);
-#endif
 		}
 
 		linkbeat_in_use = true;
@@ -1130,7 +1124,6 @@ if_setsockopt_ipv6_checksum(int *sd)
 	return *sd;
 }
 
-#if HAVE_DECL_IP_MULTICAST_ALL	/* Since Linux 2.6.31 */
 int
 if_setsockopt_mcast_all(sa_family_t family, int *sd)
 {
@@ -1155,7 +1148,6 @@ if_setsockopt_mcast_all(sa_family_t family, int *sd)
 
 	return *sd;
 }
-#endif
 
 int
 if_setsockopt_mcast_loop(sa_family_t family, int *sd)
@@ -1316,13 +1308,8 @@ interface_up(interface_t *ifp)
 }
 
 void
-interface_down(
-#ifndef _HAVE_FIB_ROUTING_
-	       __attribute__((unused))
-#endif
-				       interface_t *ifp)
+interface_down(interface_t *ifp)
 {
-#ifdef _HAVE_FIB_ROUTING_
 	vrrp_t *vrrp;
 	ip_route_t *route;
 	bool route_found;
@@ -1369,7 +1356,6 @@ interface_down(
 			route->set = false;
 		}
 	}
-#endif
 }
 
 void

@@ -17,7 +17,9 @@ libvrrp_a_SOURCES	= \
 	vrrp_daemon.c vrrp_print.c vrrp_data.c vrrp_parser.c \
 	vrrp.c vrrp_notify.c vrrp_scheduler.c vrrp_sync.c \
 	vrrp_arp.c vrrp_if.c vrrp_track.c vrrp_ipaddress.c \
-	vrrp_ndisc.c vrrp_if_config.c vrrp_static_track.c
+	vrrp_ndisc.c vrrp_if_config.c vrrp_static_track.c \
+	vrrp_iproute.c vrrp_iprule.c vrrp_ip_rule_route_parser.c
+
 libvrrp_a_SOURCES	+= ../include/vrrp_daemon.h
 
 libvrrp_a_LIBADD	=
@@ -36,11 +38,6 @@ endif
 if WITH_DBUS
   libvrrp_a_LIBADD	+= vrrp_dbus.o
   EXTRA_libvrrp_a_SOURCES += vrrp_dbus.c
-endif
-
-if FIB_ROUTING
-  libvrrp_a_LIBADD	+= vrrp_iproute.o vrrp_iprule.o vrrp_ip_rule_route_parser.o
-  EXTRA_libvrrp_a_SOURCES += vrrp_iproute.c vrrp_iprule.c vrrp_ip_rule_route_parser.c
 endif
 
 if FIREWALL

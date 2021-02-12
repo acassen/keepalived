@@ -30,10 +30,8 @@
 #include "logger.h"
 #include "vrrp_static_track.h"
 #include "vrrp_ipaddress.h"
-#ifdef _HAVE_FIB_ROUTING_
 #include "vrrp_iproute.h"
 #include "vrrp_iprule.h"
-#endif
 
 
 static void
@@ -139,10 +137,8 @@ static_track_group_init(void)
 	static_track_group_t *tgroup, *tgroup_tmp;
 	tracking_obj_t *top;
 	ip_address_t *addr;
-#ifdef _HAVE_FIB_ROUTING_
 	ip_route_t *route;
 	ip_rule_t *rule;
-#endif
 
 	list_for_each_entry_safe(tgroup, tgroup_tmp, &vrrp_data->static_track_groups, e_list) {
 		if (!static_track_group_set(tgroup)) {
@@ -165,7 +161,6 @@ static_track_group_init(void)
 			add_vrrp_to_interface(top->obj.vrrp, addr->ifp, 0, false, false, TRACK_SADDR);
 	}
 
-#ifdef _HAVE_FIB_ROUTING_
 	/* Add the tracking vrrps to track the interface of each tracked address */
 	list_for_each_entry(route, &vrrp_data->static_routes, e_list) {
 		if (!route->track_group)
@@ -194,17 +189,13 @@ static_track_group_init(void)
 				add_vrrp_to_interface(top->obj.vrrp, rule->iif, 0, false, false, TRACK_SRULE);
 		}
 	}
-#endif
 }
 
 void
 static_track_group_reinstate_config(interface_t *ifp)
 {
 	ip_address_t *addr;
-#ifdef _HAVE_FIB_ROUTING_
 	ip_route_t *route;
-/*	ip_rule_t *rule; */
-#endif
 
 	list_for_each_entry(addr, &vrrp_data->static_addresses, e_list) {
 		if (addr->dont_track)
@@ -214,7 +205,6 @@ static_track_group_reinstate_config(interface_t *ifp)
 		reinstate_static_address(addr);
 	}
 
-#ifdef _HAVE_FIB_ROUTING_
 	/* Add the tracking vrrps to track the interface of each tracked address */
 	list_for_each_entry(route, &vrrp_data->static_routes, e_list) {
 		if (route->dont_track)
@@ -233,5 +223,4 @@ static_track_group_reinstate_config(interface_t *ifp)
 		reinstate_static_route(route);
 	}
 	*/
-#endif
 }

@@ -68,7 +68,6 @@ vrrp_json_ip_dump(json_writer_t *wr, list_head_t *e)
 	return 0;
 }
 
-#ifdef _HAVE_FIB_ROUTING_
 static int
 vrrp_json_vroute_dump(json_writer_t *wr, list_head_t *e)
 {
@@ -90,7 +89,6 @@ vrrp_json_vrule_dump(json_writer_t *wr, list_head_t *e)
 	jsonw_string(wr, buf);
 	return 0;
 }
-#endif
 
 static int
 vrrp_json_track_ifp_dump(json_writer_t *wr, list_head_t *e)
@@ -201,10 +199,8 @@ vrrp_json_data_dump(json_writer_t *wr, vrrp_t *vrrp)
 	/* Virtual related */
 	vrrp_json_array_dump(wr, "vips", &vrrp->vip, vrrp_json_ip_dump);
 	vrrp_json_array_dump(wr, "evips", &vrrp->evip, vrrp_json_ip_dump);
-#ifdef _HAVE_FIB_ROUTING_
 	vrrp_json_array_dump(wr, "vroutes", &vrrp->vroutes, vrrp_json_vroute_dump);
 	vrrp_json_array_dump(wr, "vrules", &vrrp->vrules, vrrp_json_vrule_dump);
-#endif
 
 	/* Tracking related */
 	vrrp_json_array_dump(wr, "track_ifp", &vrrp->track_ifp, vrrp_json_track_ifp_dump);

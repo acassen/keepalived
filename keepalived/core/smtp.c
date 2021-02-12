@@ -33,9 +33,6 @@
 #include "layer4.h"
 #include "logger.h"
 #include "utils.h"
-#if !HAVE_DECL_SOCK_CLOEXEC
-#include "old_socket.h"
-#endif
 #ifdef _WITH_LVS_
 #include "check_api.h"
 #endif
@@ -579,16 +576,6 @@ smtp_connect(smtp_t *smtp)
 		free_smtp_msg_data(smtp);
 		return;
 	}
-
-#if !HAVE_DECL_SOCK_NONBLOCK
-	if (set_sock_flags(smtp->fd, F_SETFL, O_NONBLOCK))
-		log_message(LOG_INFO, "Unable to set NONBLOCK on smtp_connect socket - %s (%d)", strerror(errno), errno);
-#endif
-
-#if !HAVE_DECL_SOCK_CLOEXEC
-	if (set_sock_flags(smtp->fd, F_SETFD, FD_CLOEXEC))
-		log_message(LOG_INFO, "Unable to set CLOEXEC on smtp_connect socket - %s (%d)", strerror(errno), errno);
-#endif
 
 	status = tcp_connect(smtp->fd, &global_data->smtp_server);
 

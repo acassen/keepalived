@@ -32,14 +32,9 @@ if WITH_VRRP
   EXTRA_liblib_a_SOURCES += rttables.c rttables.h
 endif
 
-if ! SOCK_NONBLOCK
-  liblib_a_LIBADD	+= old_socket.o
-  EXTRA_liblib_a_SOURCES += old_socket.c old_socket.h
-endif
-
 if ASSERTS
   liblib_a_LIBADD	+= assert.o
-  EXTRA_liblib_a_SOURCES += assert.c old_socket.h
+  EXTRA_liblib_a_SOURCES += assert.c
 endif
 
 EXTRA_DIST		= $(GIT_COMMIT_FILE)

@@ -30,10 +30,7 @@
 #include <stdio.h>
 #include <sys/socket.h>
 #include <sched.h>
-
-#ifdef HAVE_LINUX_NETFILTER_X_TABLES_H
 #include <linux/netfilter/x_tables.h>
-#endif
 
 #ifdef _HAVE_LIBIPSET_
 #include <linux/netfilter/ipset/ip_set.h>
@@ -43,9 +40,7 @@
 #include <linux/netfilter/nf_tables.h>
 #endif
 
-#if HAVE_DECL_RLIMIT_RTTIME == 1
 #include <sys/resource.h>
-#endif
 
 /* local includes */
 #include "list_head.h"
@@ -101,11 +96,9 @@ typedef struct _data {
 #ifdef _WITH_BFD_
 	const char			*bfd_process_name;
 #endif
-#if HAVE_DECL_CLONE_NEWNET
 	const char			*network_namespace;		/* network namespace name */
 	const char			*network_namespace_ipvs;	/* network namespace name for ipvs */
 	bool				namespace_with_ipsets;		/* override for namespaces with ipsets on Linux < 3.13 */
-#endif
 	const char			*local_name;
 	const char			*instance_name;		/* keepalived instance name */
 #ifdef _WITH_LINKBEAT_
@@ -176,10 +169,8 @@ typedef struct _data {
 	const char			*vrrp_ipset_address;
 	const char			*vrrp_ipset_address6;
 	const char			*vrrp_ipset_address_iface6;
-#ifdef HAVE_IPSET_ATTR_IFACE
 	const char			*vrrp_ipset_igmp;
 	const char			*vrrp_ipset_mld;
-#endif
 #endif
 #endif
 #ifdef _WITH_NFTABLES_
@@ -195,9 +186,7 @@ typedef struct _data {
 	bool				vrrp_no_swap;
 	unsigned			vrrp_realtime_priority;
 	cpu_set_t			vrrp_cpu_mask;
-#if HAVE_DECL_RLIMIT_RTTIME == 1
 	rlim_t				vrrp_rlimit_rt;
-#endif
 #endif
 #ifdef _WITH_LVS_
 	bool				have_checker_config;
@@ -205,9 +194,7 @@ typedef struct _data {
 	bool				checker_no_swap;
 	unsigned			checker_realtime_priority;
 	cpu_set_t			checker_cpu_mask;
-#if HAVE_DECL_RLIMIT_RTTIME == 1
 	rlim_t				checker_rlimit_rt;
-#endif
 #ifdef _WITH_NFTABLES_
 	const char			*ipvs_nf_table_name;
 	int				ipvs_nf_chain_priority;
@@ -223,9 +210,7 @@ typedef struct _data {
 	bool				bfd_no_swap;
 	unsigned			bfd_realtime_priority;
 	cpu_set_t			bfd_cpu_mask;
-#if HAVE_DECL_RLIMIT_RTTIME == 1
 	rlim_t				bfd_rlimit_rt;
-#endif
 #endif
 	notify_fifo_t			notify_fifo;
 #ifdef _WITH_VRRP_
@@ -264,7 +249,7 @@ typedef struct _data {
 	bool				vrrp_netlink_cmd_rcv_bufs_force;
 	unsigned			vrrp_netlink_monitor_rcv_bufs;
 	bool				vrrp_netlink_monitor_rcv_bufs_force;
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	unsigned			process_monitor_rcv_bufs;
 	bool				process_monitor_rcv_bufs_force;
 #endif

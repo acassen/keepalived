@@ -37,7 +37,7 @@
 #ifdef _WITH_BFD_
 #include "bfd.h"
 #endif
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 #include "rbtree.h"
 #endif
 #include "tracker.h"
@@ -91,7 +91,7 @@ typedef struct _tracked_sc {
 	list_head_t		e_list;
 } tracked_sc_t;
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 typedef enum _param_match {
 	PARAM_MATCH_NONE,
 	PARAM_MATCH_EXACT,			/* All parameters must match */
@@ -189,7 +189,7 @@ extern void dump_track_script_list(FILE *, const list_head_t *);
 extern void free_track_script(tracked_sc_t *);
 extern void free_track_script_list(list_head_t *);
 extern void alloc_track_script(const char *, list_head_t *, const vector_t *);
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 extern void dump_track_process_list(FILE *, const list_head_t *);
 extern void free_track_process_list(list_head_t *);
 extern void alloc_track_process(const char *, list_head_t *, const vector_t *);
@@ -207,7 +207,7 @@ extern void update_script_priorities(vrrp_script_t *, bool);
 extern void down_instance(struct _vrrp_t *);
 extern void vrrp_set_effective_priority(struct _vrrp_t *);
 extern void initialise_tracking_priorities(void);
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 extern void process_update_track_process_status(vrrp_tracked_process_t *, bool);
 #endif
 

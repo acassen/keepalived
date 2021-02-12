@@ -19,8 +19,8 @@
  *
  * Copyright (C) 2015-2017 Alexandre Cassen, <acassen@gmail.com>
  */
-#ifndef _BFD_SCHEDULER_H_
-#define _BFD_SCHEDULER_H_
+#ifndef _BFD_SCHEDULER_H
+#define _BFD_SCHEDULER_H
 
 #include "scheduler.h"
 #include "bfd_data.h"
@@ -31,4 +31,4 @@ extern void bfd_dispatcher_release(bfd_data_t *);
 extern void register_bfd_scheduler_addresses(void);
 #endif
 
-#endif				/* _BFD_SCHEDULER_H_ */
+#endif				/* _BFD_SCHEDULER_H */

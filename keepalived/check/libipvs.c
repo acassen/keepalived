@@ -48,16 +48,10 @@
 #include "libipvs.h"
 
 #include "memory.h"
-#if !HAVE_DECL_SOCK_CLOEXEC
-#include "old_socket.h"
-#endif
 #include "logger.h"
 #include "utils.h"
-
-#if HAVE_DECL_CLONE_NEWNET
 #include "namespaces.h"
 #include "global_data.h"
-#endif
 
 typedef struct ipvs_servicedest_s {
 	struct ip_vs_service_user	svc;
@@ -101,10 +95,8 @@ static struct nla_policy ipvs_service_policy[IPVS_SVC_ATTR_MAX + 1] = {
 	[IPVS_SVC_ATTR_TIMEOUT]		= { .type = NLA_U32 },
 	[IPVS_SVC_ATTR_NETMASK]		= { .type = NLA_U32 },
 	[IPVS_SVC_ATTR_STATS]		= { .type = NLA_NESTED },
-#ifdef _HAVE_PE_NAME_
 	[IPVS_SVC_ATTR_PE_NAME]		= { .type = NLA_STRING,
 					    .maxlen = IP_VS_PENAME_MAXLEN },
-#endif
 #ifdef _WITH_LVS_64BIT_STATS_
 	[IPVS_SVC_ATTR_STATS64]		= { .type = NLA_NESTED },
 #endif
@@ -176,21 +168,14 @@ static struct nla_policy ipvs_info_policy[IPVS_INFO_ATTR_MAX + 1] = {
 	{ errno = EAFNOSUPPORT; goto out_err; }			\
 	s->user.addr = s->nf_addr.ip;				\
 
-#ifdef _HAVE_PE_NAME_
 #define CHECK_PE(s, ret) if (s->pe_name[0])			\
 	{ errno = EAFNOSUPPORT; goto out_err; }
-#endif
 
 #define CHECK_COMPAT_DEST(s, ret) CHECK_IPV4(s, ret)
 
-#ifdef _HAVE_PE_NAME_
 #define CHECK_COMPAT_SVC(s, ret)				\
 	CHECK_IPV4(s, ret);					\
 	CHECK_PE(s, ret);
-#else
-#define CHECK_COMPAT_SVC(s, ret)				\
-	CHECK_IPV4(s, ret);
-#endif
 
 #ifdef LIBIPVS_USE_NL
 #ifndef NLA_PUT_S32
@@ -322,12 +307,7 @@ open_nl_sock(void)
 		return -1;
 
 	if (
-#if HAVE_DECL_CLONE_NEWNET
-	    nl_ipvs_connect(global_data->network_namespace_ipvs, sock)
-#else
-	    genl_connect(sock)
-#endif
-				    < 0 ||
+	    nl_ipvs_connect(global_data->network_namespace_ipvs, sock) < 0 ||
 	    (family = genl_ctrl_resolve(sock, IPVS_GENL_NAME)) < 0) {
 		nl_socket_free(sock);
 		sock = NULL;
@@ -461,21 +441,9 @@ int ipvs_init(void)
 	try_nl = false;
 #endif
 
-#if HAVE_DECL_CLONE_NEWNET
 	sockfd = socket_netns_name(global_data->network_namespace_ipvs, AF_INET, SOCK_RAW | SOCK_CLOEXEC, IPPROTO_RAW);
-#else
-	sockfd = socket(AF_INET, SOCK_RAW | SOCK_CLOEXEC, IPPROTO_RAW);
-#endif
 	if (sockfd == -1)
 		return -1;
-
-#if !HAVE_DECL_SOCK_CLOEXEC
-	if (set_sock_flags(sockfd, F_SETFD, FD_CLOEXEC)) {
-		close(sockfd);
-		sockfd = -1;
-		return -1;
-	}
-#endif
 
 	len = sizeof(ipvs_info);
 	if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO, (char *)&ipvs_info, &len)) {
@@ -523,10 +491,8 @@ static int ipvs_nl_fill_service_attr(struct nl_msg *msg, ipvs_service_t *svc)
 	}
 
 	NLA_PUT_STRING(msg, IPVS_SVC_ATTR_SCHED_NAME, svc->user.sched_name);
-#ifdef _HAVE_PE_NAME_
 	if (svc->pe_name[0])
 		NLA_PUT_STRING(msg, IPVS_SVC_ATTR_PE_NAME, svc->pe_name);
-#endif
 	NLA_PUT(msg, IPVS_SVC_ATTR_FLAGS, sizeof(flags), &flags);
 	NLA_PUT_U32(msg, IPVS_SVC_ATTR_TIMEOUT, svc->user.timeout);
 	NLA_PUT_U32(msg, IPVS_SVC_ATTR_NETMASK, svc->user.netmask);
@@ -1043,11 +1009,9 @@ static int ipvs_services_parse_cb(struct nl_msg *msg, void *arg)
 	strcpy_safe(get->user.entrytable[i].user.sched_name,
 		nla_get_string(svc_attrs[IPVS_SVC_ATTR_SCHED_NAME]));
 
-#ifdef _HAVE_PE_NAME_
 	if (svc_attrs[IPVS_SVC_ATTR_PE_NAME])
 		strcpy_safe(get->user.entrytable[i].pe_name,
 			nla_get_string(svc_attrs[IPVS_SVC_ATTR_PE_NAME]));
-#endif
 
 	get->user.entrytable[i].user.netmask = nla_get_u32(svc_attrs[IPVS_SVC_ATTR_NETMASK]);
 	get->user.entrytable[i].user.timeout = nla_get_u32(svc_attrs[IPVS_SVC_ATTR_TIMEOUT]);
@@ -1322,9 +1286,8 @@ ipvs_get_service_err2:
 	}
 	svc->af = AF_INET;
 	svc->nf_addr.ip = svc->user.addr;
-#ifdef _HAVE_PE_NAME_
 	svc->pe_name[0] = '\0';
-#endif
+
 	return svc;
 out_err:
 	FREE(svc);

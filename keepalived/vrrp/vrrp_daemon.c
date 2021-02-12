@@ -45,10 +45,8 @@
 #include "vrrp_arp.h"
 #include "vrrp_ndisc.h"
 #include "keepalived_netlink.h"
-#ifdef _HAVE_FIB_ROUTING_
 #include "vrrp_iprule.h"
 #include "vrrp_iproute.h"
-#endif
 #include "vrrp_parser.h"
 #include "vrrp.h"
 #include "vrrp_print.h"
@@ -81,7 +79,7 @@
 #ifdef _WITH_FIREWALL_
 #include "vrrp_firewall.h"
 #endif
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 #include "track_process.h"
 #endif
 #ifdef _WITH_LVS_
@@ -401,7 +399,7 @@ vrrp_terminate_phase1(bool schedule_next_thread)
 		run_perf("vrrp", global_data->network_namespace, global_data->instance_name);
 #endif
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	/* Stop monitoring process terminations */
 	end_process_monitor();
 #endif
@@ -441,10 +439,8 @@ vrrp_terminate_phase1(bool schedule_next_thread)
 		stop_track_files();
 
 	/* Clear static entries */
-#ifdef _HAVE_FIB_ROUTING_
 	netlink_rulelist(&vrrp_data->static_rules, IPRULE_DEL, false);
 	netlink_rtlist(&vrrp_data->static_routes, IPROUTE_DEL, false);
-#endif
 	netlink_iplist(&vrrp_data->static_addresses, IPADDRESS_DEL, false);
 
 #ifdef _NETLINK_TIMERS_
@@ -587,10 +583,8 @@ start_vrrp(data_t *prev_global_data)
 		if (reload) {
 			kernel_netlink_set_recv_bufs();
 
-#ifdef _HAVE_FIB_ROUTING_
 			clear_diff_static_rules();
 			clear_diff_static_routes();
-#endif
 			clear_diff_static_addresses();
 			clear_diff_script();
 #ifdef _WITH_BFD_
@@ -600,12 +594,10 @@ start_vrrp(data_t *prev_global_data)
 		else {
 			/* Clear leftover static entries */
 			netlink_iplist(&vrrp_data->static_addresses, IPADDRESS_DEL, false);
-#ifdef _HAVE_FIB_ROUTING_
 			netlink_rtlist(&vrrp_data->static_routes, IPROUTE_DEL, false);
 			netlink_error_ignore = ENOENT;
 			netlink_rulelist(&vrrp_data->static_rules, IPRULE_DEL, true);
 			netlink_error_ignore = 0;
-#endif
 		}
 	}
 
@@ -678,10 +670,8 @@ start_vrrp(data_t *prev_global_data)
 
 	/* Set static entries */
 	netlink_iplist(&vrrp_data->static_addresses, IPADDRESS_ADD, false);
-#ifdef _HAVE_FIB_ROUTING_
 	netlink_rtlist(&vrrp_data->static_routes, IPROUTE_ADD, false);
 	netlink_rulelist(&vrrp_data->static_rules, IPRULE_ADD, false);
-#endif
 
 	/* Dump configuration */
 	if (__test_bit(DUMP_CONF_BIT, &debug))
@@ -689,10 +679,7 @@ start_vrrp(data_t *prev_global_data)
 
 	/* Set the process priority and non swappable if configured */
 	set_process_priorities(global_data->vrrp_realtime_priority, global_data->max_auto_priority, global_data->min_auto_priority_delay,
-#if HAVE_DECL_RLIMIT_RTTIME == 1
-			       global_data->vrrp_rlimit_rt,
-#endif
-			       global_data->vrrp_process_priority, global_data->vrrp_no_swap ? 4096 : 0);
+			       global_data->vrrp_rlimit_rt, global_data->vrrp_process_priority, global_data->vrrp_no_swap ? 4096 : 0);
 
 	/* Set the process cpu affinity if configured */
 	set_process_cpu_affinity(&global_data->vrrp_cpu_mask, "vrrp");
@@ -860,9 +847,7 @@ reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 	old_global_data = global_data;
 	global_data = NULL;
 	reset_interface_queue();
-#ifdef _HAVE_FIB_ROUTING_
 	reset_next_rule_priority();
-#endif
 
 	/* Reload the conf */
 	start_vrrp(old_global_data);
@@ -965,7 +950,7 @@ register_vrrp_thread_addresses(void)
 #endif
 	register_vrrp_fifo_addresses();
 	register_track_file_inotify_addresses();
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	register_process_monitor_addresses();
 #endif
 
@@ -1047,11 +1032,7 @@ start_vrrp_child(void)
 #endif
 
 	/* Opening local VRRP syslog channel */
-	if ((global_data->instance_name
-#if HAVE_DECL_CLONE_NEWNET
-			   || global_data->network_namespace
-#endif
-					       ) &&
+	if ((global_data->instance_name || global_data->network_namespace) &&
 	    (vrrp_syslog_ident = make_syslog_ident(PROG_VRRP)))
 			syslog_ident = vrrp_syslog_ident;
 	else
@@ -1064,11 +1045,7 @@ start_vrrp_child(void)
 	if (log_file_name)
 		open_log_file(log_file_name,
 				"vrrp",
-#if HAVE_DECL_CLONE_NEWNET
 				global_data->network_namespace,
-#else
-				NULL,
-#endif
 				global_data->instance_name);
 #endif
 

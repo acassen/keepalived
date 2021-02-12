@@ -20,8 +20,8 @@
  * Copyright (C) 2021-2021 Alexandre Cassen, <acassen@gmail.com>
  */
 
-#ifndef _CONFIG_READ_H
-#define _CONFIG_READ_H
+#ifndef _CONFIG_NOTIFY_H
+#define _CONFIG_NOTIFY_H
 
 #include "config.h"
 

@@ -12,8 +12,8 @@
  * Authors:	Stephen Hemminger <stephen@networkplumber.org>
  */
 
-#ifndef _JSON_WRITER_H_
-#define _JSON_WRITER_H_
+#ifndef _JSON_WRITER_H
+#define _JSON_WRITER_H
 
 #include <stdbool.h>
 #include <stdint.h>

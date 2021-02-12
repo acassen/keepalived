@@ -179,31 +179,6 @@
 #endif
 #endif
 
-#ifndef HAVE_SETNS
-//#include "linux/unistd.h"
-//_syscall2(int, setns, int, fd, int, nstype)
-#include <unistd.h>
-#ifndef SYS_setns
-#define SYS_setns __NR_setns
-#endif
-
-#include <sys/syscall.h>
-
-/* For some reason Centos 6.5 doesn't define SYS_setns */
-#ifndef SYS_setns
-#define SYS_setns __NR_setns
-#endif
-
-#ifndef MS_SLAVE	/* Since glibc 2.12, but Linux since 2.6.15 */
-#include <linux/fs.h>
-#endif
-static int
-setns(int fd, int nstype)
-{
-	return (int)syscall(SYS_setns, fd, nstype);
-}
-#endif
-
 #include "namespaces.h"
 #include "memory.h"
 #include "logger.h"
@@ -260,11 +235,9 @@ set_run_mount(const char *net_namespace)
 		return;
 	}
 
-#ifdef MS_SLAVE		/* Since Linux 2.6.15. Prior to that mounts weren't shared */
 	/* Make all mounts unshared - systemd makes them shared by default */
 	if (mount("", "/", NULL, MS_REC | MS_SLAVE, NULL))
 		log_message(LOG_INFO, "Mount slave failed, error (%d) '%s'", errno, strerror(errno));
-#endif
 
 	if (mount(mount_dirname, pid_directory, NULL, MS_BIND, NULL))
 		log_message(LOG_INFO, "Mount failed, error (%d) '%s'", errno, strerror(errno));

@@ -60,7 +60,7 @@
 #include "bfd_parser.h"
 #endif
 #include "track_file.h"
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 #include "track_process.h"
 #endif
 
@@ -134,7 +134,6 @@ static_addresses_handler(const vector_t *strvec)
 	alloc_value_block(alloc_saddress, strvec);
 }
 
-#ifdef _HAVE_FIB_ROUTING_
 /* Static routes handler */
 static void
 static_routes_handler(const vector_t *strvec)
@@ -158,7 +157,6 @@ static_rules_handler(const vector_t *strvec)
 
 	alloc_value_block(alloc_srule, strvec);
 }
-#endif
 
 #ifdef _WITH_LINKBEAT_
 static void
@@ -272,7 +270,7 @@ vrrp_group_track_file_handler(const vector_t *strvec)
 	alloc_value_block(alloc_vrrp_group_track_file, strvec);
 }
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 static void
 vrrp_group_track_process_handler(const vector_t *strvec)
 {
@@ -757,7 +755,7 @@ vrrp_track_file_handler(const vector_t *strvec)
 {
 	alloc_value_block(alloc_vrrp_track_file, strvec);
 }
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 static void
 vrrp_track_process_handler(const vector_t *strvec)
 {
@@ -1285,7 +1283,6 @@ vrrp_promote_secondaries_handler(__attribute__((unused)) const vector_t *strvec)
 
 	vrrp->promote_secondaries = true;
 }
-#ifdef _HAVE_FIB_ROUTING_
 static void
 vrrp_vroutes_handler(const vector_t *strvec)
 {
@@ -1296,7 +1293,6 @@ vrrp_vrules_handler(const vector_t *strvec)
 {
 	alloc_value_block(alloc_vrrp_vrule, strvec);
 }
-#endif
 static void
 vrrp_script_handler(const vector_t *strvec)
 {
@@ -1448,7 +1444,7 @@ vrrp_vscript_end_handler(void)
 	vscript->script.gid = default_script_gid;
 }
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 static void
 vrrp_tprocess_handler(const vector_t *strvec)
 {
@@ -1851,10 +1847,8 @@ init_vrrp_keywords(bool active)
 
 	/* Static addresses/routes/rules declarations */
 	install_keyword_root("static_ipaddress", &static_addresses_handler, active);
-#ifdef _HAVE_FIB_ROUTING_
 	install_keyword_root("static_routes", &static_routes_handler, active);
 	install_keyword_root("static_rules", &static_rules_handler, active);
-#endif
 
 	/* Sync group declarations */
 	install_keyword_root("vrrp_sync_group", &vrrp_sync_group_handler, active);
@@ -1862,7 +1856,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("track_interface", &vrrp_group_track_if_handler);
 	install_keyword("track_script", &vrrp_group_track_scr_handler);
 	install_keyword("track_file", &vrrp_group_track_file_handler);
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	install_keyword("track_process", &vrrp_group_track_process_handler);
 #endif
 #ifdef _WITH_BFD_
@@ -1914,7 +1908,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("track_interface", &vrrp_track_if_handler);
 	install_keyword("track_script", &vrrp_track_scr_handler);
 	install_keyword("track_file", &vrrp_track_file_handler);
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	install_keyword("track_process", &vrrp_track_process_handler);
 #endif
 #ifdef _WITH_BFD_
@@ -1934,10 +1928,8 @@ init_vrrp_keywords(bool active)
 #ifdef _WITH_LINKBEAT_
 	install_keyword("linkbeat_use_polling", &vrrp_linkbeat_handler);
 #endif
-#ifdef _HAVE_FIB_ROUTING_
 	install_keyword("virtual_routes", &vrrp_vroutes_handler);
 	install_keyword("virtual_rules", &vrrp_vrules_handler);
-#endif
 	install_keyword("accept", &vrrp_accept_handler);
 #ifdef _WITH_FIREWALL_
 	install_keyword("no_accept", &vrrp_no_accept_handler);
@@ -1991,7 +1983,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("init_fail", &vrrp_vscript_init_fail_handler);
 	install_sublevel_end_handler(&vrrp_vscript_end_handler);
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	/* Track process declarations */
 	install_keyword_root("vrrp_track_process", &vrrp_tprocess_handler, active);
 	install_keyword("process", &vrrp_tprocess_process_handler);

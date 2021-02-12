@@ -50,9 +50,6 @@
 #include "track_process.h"
 #include "global_data.h"
 #include "list_head.h"
-#if !HAVE_DECL_SOCK_NONBLOCK
-#include "old_socket.h"
-#endif
 #include "rbtree.h"
 #include "vrrp_data.h"
 #include "utils.h"
@@ -684,7 +681,6 @@ check_process_termination(pid_t pid)
 	free_tracked_process_instance(tpi);
 }
 
-#if HAVE_DECL_PROC_EVENT_COMM
 static void
 check_process_comm_change(pid_t pid, char *comm)
 {
@@ -738,7 +734,6 @@ check_process_comm_change(pid_t pid, char *comm)
 	/* Handle the new process name */
 	check_process(pid, comm, tpi);
 }
-#endif
 
 /*
  * connect to netlink
@@ -761,16 +756,6 @@ nl_connect(void)
 			log_message(LOG_INFO, "Failed to open process monitoring socket - errno %d - %m", errno);
 		return -1;
 	}
-
-#if !HAVE_DECL_SOCK_NONBLOCK
-	if (set_sock_flags(nl_sd, F_SETFL, O_NONBLOCK))
-		log_message(LOG_INFO, "Unable to set NONBLOCK on netlink process socket - %s (%d)", strerror(errno), errno);
-#endif
-
-#if !HAVE_DECL_SOCK_CLOEXEC
-	if (set_sock_flags(nl_sd, F_SETFD, FD_CLOEXEC))
-		log_message(LOG_INFO, "Unable to set CLOEXEC on netlink process socket - %s (%d)", strerror(errno), errno);
-#endif
 
 	sa_nl.nl_family = AF_NETLINK;
 	sa_nl.nl_groups = CN_IDX_PROC;
@@ -1055,14 +1040,11 @@ handle_proc_ev(int nl_sd)
 						proc_ev.event_data.id.r.rgid,
 						proc_ev.event_data.id.e.egid);
 				break;
-#if HAVE_DECL_PROC_EVENT_SID	/* Since Linux v2.6.32 */
 			case PROC_EVENT_SID:
 				log_message(LOG_INFO, "sid change: tid=%d pid=%d",
 						proc_ev.event_data.sid.process_pid,
 						proc_ev.event_data.sid.process_tgid);
 				break;
-#endif
-#if HAVE_DECL_PROC_EVENT_PTRACE	/* Since Linux v3.1 */
 			case PROC_EVENT_PTRACE:
 				log_message(LOG_INFO, "ptrace change: tid=%d pid=%d tracer tid=%d, pid=%d",
 						proc_ev.event_data.ptrace.process_pid,
@@ -1070,22 +1052,17 @@ handle_proc_ev(int nl_sd)
 						proc_ev.event_data.ptrace.tracer_pid,
 						proc_ev.event_data.ptrace.tracer_tgid);
 				break;
-#endif
-#if HAVE_DECL_PROC_EVENT_COMM		/* Since Linux v3.2 */
 			case PROC_EVENT_COMM:
 				log_message(LOG_INFO, "comm: tid=%d pid=%d comm %s",
 						proc_ev.event_data.comm.process_pid,
 						proc_ev.event_data.comm.process_tgid,
 						proc_ev.event_data.comm.comm);
 				break;
-#endif
-#if HAVE_DECL_PROC_EVENT_COREDUMP	/* Since Linux v3.10 */
 			case PROC_EVENT_COREDUMP:
 				log_message(LOG_INFO, "coredump: tid=%d pid=%d",
 						proc_ev.event_data.coredump.process_pid,
 						proc_ev.event_data.coredump.process_tgid);
 				break;
-#endif
 			case PROC_EVENT_EXIT:
 				log_message(LOG_INFO, "exit: tid=%d pid=%d exit_code=%u, signal=%u,",
 						proc_ev.event_data.exit.process_pid,
@@ -1128,9 +1105,6 @@ handle_proc_ev(int nl_sd)
 				log_message(LOG_INFO, "Ignoring exec of thread %d of pid %d", proc_ev.event_data.exec.process_tgid, proc_ev.event_data.exec.process_pid);
 #endif
 			break;
-#if HAVE_DECL_PROC_EVENT_COMM		/* Since Linux v3.2 */
-		/* NOTE: not having PROC_EVENT_COMM means that changes to /proc/PID/comm
-		 * will not be detected */
 		case PROC_EVENT_COMM:
 			if (proc_ev.event_data.comm.process_tgid == proc_ev.event_data.comm.process_pid)
 				check_process_comm_change(proc_ev.event_data.comm.process_tgid, proc_ev.event_data.comm.comm);
@@ -1139,7 +1113,6 @@ handle_proc_ev(int nl_sd)
 				log_message(LOG_INFO, "Ignoring COMM event of thread %d of pid %d", proc_ev.event_data.comm.process_tgid, proc_ev.event_data.comm.process_pid);
 #endif
 			break;
-#endif
 		case PROC_EVENT_EXIT:
 			/* We aren't interested in thread termination */
 			if (proc_ev.event_data.exit.process_tgid == proc_ev.event_data.exit.process_pid)

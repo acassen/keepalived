@@ -106,9 +106,6 @@
 #if HAVE_DECL_RTA_ENCAP
 #include <linux/lwtunnel.h>
 #endif
-#ifdef NETLINK_H_NEEDS_SYS_SOCKET_H
-#include <sys/socket.h>
-#endif
 #include <linux/fib_rules.h>
 #include <stdint.h>
 #include <inttypes.h>
@@ -117,10 +114,8 @@
 #include "vrrp_snmp.h"
 #include "vrrp_track.h"
 #include "vrrp_ipaddress.h"
-#ifdef _HAVE_FIB_ROUTING_
 #include "vrrp_iproute.h"
 #include "vrrp_iprule.h"
-#endif
 #include "vrrp_scheduler.h"
 #include "track_file.h"
 #include "config.h"
@@ -257,7 +252,6 @@ enum snmp_vrrp_magic {
 	VRRP_SNMP_SGROUPTRACKEDPROCESS_WEIGHT_REVERSE,
 };
 
-#ifdef _HAVE_FIB_ROUTING_
 enum snmp_rule_magic {
 	VRRP_SNMP_RULE_DIRECTION = 2,
 	VRRP_SNMP_RULE_ADDRESSTYPE,
@@ -374,7 +368,6 @@ enum snmp_next_hop_magic {
 	VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_FLAGS,
 	VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_ILA_LOCATOR,
 };
-#endif
 
 enum iter_type {
         ITER_ADDRESSES,
@@ -677,7 +670,7 @@ vrrp_snmp_bfd(struct variable *vp, oid *name, size_t *length,
 }
 #endif
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 static u_char*
 vrrp_snmp_process(struct variable *vp, oid *name, size_t *length,
 		 int exact, size_t *var_len, WriteMethod **write_method)
@@ -795,24 +788,20 @@ vrrp_header_ar_table(struct variable *vp, oid *name, size_t *length,
 		if (!l2) {
 			if (type == ITER_ADDRESSES)
 				l2 = &vrrp_data->static_addresses;
-#ifdef _HAVE_FIB_ROUTING_
 			else if (type == ITER_ROUTES)
 				l2 = &vrrp_data->static_routes;
 			else /* if (type == ITER_RULES) */
 				l2 = &vrrp_data->static_rules;
-#endif
 		} else if (!vrrp) {
 			if (list_empty(&vrrp_data->vrrp))
 				break;
 			vrrp = list_first_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 			if (type == ITER_ADDRESSES)
 				l2 = &vrrp->vip;
-#ifdef _HAVE_FIB_ROUTING_
 			else if (type == ITER_ROUTES)
 				l2 = &vrrp->vroutes;
 			else /* if (type == ITER_RULES) */
 				l2 = &vrrp->vrules;
-#endif
 			current[0]++;
 			current[1] = 0;
 			*adv = 1;
@@ -825,12 +814,10 @@ vrrp_header_ar_table(struct variable *vp, oid *name, size_t *length,
 			vrrp = list_entry(vrrp->e_list.next, vrrp_t, e_list);
 			if (type == ITER_ADDRESSES)
 				l2 = &vrrp->vip;
-#ifdef _HAVE_FIB_ROUTING_
 			else if (type == ITER_ROUTES)
 				l2 = &vrrp->vroutes;
 			else /* if (type == ITER_RULES) */
 				l2 = &vrrp->vrules;
-#endif
 			current[0]++;
 			current[1] = 0;
 		}
@@ -867,7 +854,6 @@ vrrp_header_ar_table(struct variable *vp, oid *name, size_t *length,
 }
 
 
-#ifdef _HAVE_FIB_ROUTING_
 #define MAX_PTR ((void*)((char *)NULL - 1))
 static nexthop_t *
 vrrp_header_nh_table(struct variable *vp, oid *name, size_t *length,
@@ -945,7 +931,6 @@ vrrp_header_nh_table(struct variable *vp, oid *name, size_t *length,
 	}
 	return NULL;
 }
-#endif
 
 static u_char *
 vrrp_snmp_address(struct variable *vp, oid *name, size_t *length,
@@ -1024,7 +1009,6 @@ vrrp_snmp_address(struct variable *vp, oid *name, size_t *length,
 	return NULL;
 }
 
-#ifdef _HAVE_FIB_ROUTING_
 static u_char*
 vrrp_snmp_route(struct variable *vp, oid *name, size_t *length,
 		 int exact, size_t *var_len, WriteMethod **write_method)
@@ -1642,13 +1626,11 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 			break;
 		*var_len = strlen(rule->iif->ifname);
 		return PTR_CAST(u_char, rule->iif->ifname);
-#if HAVE_DECL_FRA_OIFNAME
 	case VRRP_SNMP_RULE_OUTINTERFACE:
 		if (!rule->oif)
 			break;
 		*var_len = strlen(rule->oif->ifname);
 		return PTR_CAST(u_char, rule->oif->ifname);
-#endif
 	case VRRP_SNMP_RULE_TARGET:
 		if (!(rule->action == FR_ACT_GOTO))
 			break;
@@ -1781,7 +1763,6 @@ RELAX_CAST_QUAL_END
 				       exact, var_len, write_method);
 	return NULL;
 }
-#endif	// _HAVE_FIB_ROUTING_
 
 static u_char *
 vrrp_snmp_syncgroup(struct variable *vp, oid *name, size_t *length,
@@ -2361,7 +2342,7 @@ vrrp_snmp_trackedbfd(struct variable *vp, oid *name, size_t *length,
 }
 #endif
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 static u_char*
 vrrp_snmp_trackedprocess(struct variable *vp, oid *name, size_t *length,
 			int exact, size_t *var_len, WriteMethod **write_method)
@@ -2528,7 +2509,7 @@ vrrp_snmp_group_trackedbfd(struct variable *vp, oid *name, size_t *length,
 }
 #endif
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 static u_char*
 vrrp_snmp_group_trackedprocess(struct variable *vp, oid *name, size_t *length,
 			int exact, size_t *var_len, WriteMethod **write_method)
@@ -2697,7 +2678,6 @@ static struct variable8 vrrp_vars[] = {
 	{VRRP_SNMP_ADDRESS_PEER, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_address, 3, {6, 1, 12}},
 
-#ifdef _HAVE_FIB_ROUTING_
 	/* vrrpRouteTable */
 	{VRRP_SNMP_ROUTE_ADDRESSTYPE, ASN_INTEGER, RONLY,
 	 vrrp_snmp_route, 3, {7, 1, 2}},
@@ -2883,7 +2863,6 @@ static struct variable8 vrrp_vars[] = {
 	{VRRP_SNMP_RULE_L3MDEV, ASN_UNSIGNED, RONLY,
 	 vrrp_snmp_rule, 3, {8, 1, 32}},
 #endif
-#endif
 
 	/* vrrpScriptTable */
 	{VRRP_SNMP_SCRIPT_NAME, ASN_OCTET_STR, RONLY, vrrp_snmp_script, 3, {9, 1, 2}},
@@ -2895,7 +2874,6 @@ static struct variable8 vrrp_vars[] = {
 	{VRRP_SNMP_SCRIPT_FALL, ASN_UNSIGNED, RONLY, vrrp_snmp_script, 3, {9, 1, 8}},
 	{VRRP_SNMP_SCRIPT_WEIGHT_REVERSE, ASN_INTEGER, RONLY, vrrp_snmp_script, 3, {9, 1, 9}},
 
-#ifdef _HAVE_FIB_ROUTING_
 	/* vrrpRouteNextHopTable */
 	{VRRP_SNMP_ROUTE_NEXT_HOP_ADDRESS_TYPE, ASN_INTEGER, RONLY,
 	 vrrp_snmp_next_hop, 3, {11, 1, 2}},
@@ -2937,7 +2915,6 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_encap, 3, {11, 1, 18}},
 #endif
 #endif
-#endif
 
 	/* vrrpTrackedFileTable */
 	{VRRP_SNMP_TRACKEDFILE_NAME, ASN_OCTET_STR, RONLY,
@@ -2970,7 +2947,7 @@ static struct variable8 vrrp_vars[] = {
 	{VRRP_SNMP_BFD_WEIGHT_REVERSE, ASN_INTEGER, RONLY, vrrp_snmp_bfd, 3, {18, 1, 5}},
 #endif
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	/* vrrpTrackedProcessTable */
 	{VRRP_SNMP_TRACKEDPROCESS_NAME, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_trackedprocess, 3, {20, 1, 2}},
@@ -3029,7 +3006,7 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_group_trackedbfd, 3, {19, 1, 4}},
 #endif
 
-#ifdef _WITH_CN_PROC_
+#ifdef _WITH_TRACK_PROCESS_
 	/* syncGroupTrackedProcessTable */
 	{VRRP_SNMP_SGROUPTRACKEDPROCESS_NAME, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_group_trackedprocess, 3, {22, 1, 2}},
