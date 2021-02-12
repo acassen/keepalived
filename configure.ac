@@ -1505,33 +1505,6 @@ AS_IF([test .$enable_iptables != .no],
 	      dnl -- xt_set_info_match_v4 declared since Linux 3.19
 	      AC_CHECK_MEMBER([struct xt_set_info_match_v4.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V4], [ 1 ], [Define to 1 if have struct xt_set_info_match_v4])], [],
 		[#include <linux/netfilter/xt_set.h>])
-
-	      dnl - The include guard for <linux/netfilter/ipset/ip_set.h> has the leading _UAPI remove when
-	      dnl - the source code is processed to produce the actual header files.
-	      dnl - Unfortunately libipset provides a copy of the kernel headers, as <libipset/linux_ip_set*.h>,
-	      dnl - but it doesn't remove the _UAPI from the header files when installing them.
-	      dnl - Unfortunately we need to include some libipset header files, which include the
-	      dnl - libipset version, and also <linux/netfilter/xt_set.h> which includes the kernel version.
-	      dnl - To get around this problem, after include one of these we need to define the header guard
-	      dnl - for the other, to stop it being included as well.
-	      dnl - This is reported as a bug against ipset at https://bugzilla.netfilter.org/show_bug.cgi?id=1139
-	      dnl - We will take the kernel version if there is an inclusion collision.
-	      dnl - This was resolved in ipset v6.34.
-	      AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-		#include <linux/netfilter/ipset/ip_set.h>
-		#include <libipset/linux_ip_set.h>
-		int main(void) {}
-		]])], [],
-		[AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-		   #include <linux/netfilter/ipset/ip_set.h>
-		   #ifdef _UAPI_IP_SET_H
-		   #error _UAPI_IP_SET_H defined
-		   #endif
-		   int main(void) {}
-		   ]])],
-		   [AC_DEFINE([LIBIPSET_H_ADD_UAPI_IP_SET_H_GUARD], [1], [Define to add guard _UAPI_IP_SET_H before including <libipset/linux_ip_set.h>])],
-		   [AC_DEFINE([LIBIPSET_H_ADD_IP_SET_H_GUARD], [1], [Define to add guard _IP_SET_H before including <libipset/linux_ip_set.h>])])
-		])
 	    fi
 
 	    if test $USE_LIBIPSET = Yes; then

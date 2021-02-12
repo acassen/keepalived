@@ -33,14 +33,6 @@
 #include <net/if.h>		/* Force inclusion of net/if.h before linux/if.h */
 #define LIBIPSET_NFPROTO_H
 #define LIBIPSET_NF_INET_ADDR_H
-#if defined LIBIPSET_H_ADD_UAPI_IP_SET_H_GUARD || defined LIBIPSET_H_ADD_IP_SET_H_GUARD
-#include <linux/netfilter/ipset/ip_set.h>
-#if defined LIBIPSET_H_ADD_UAPI_IP_SET_H_GUARD
-#define _UAPI_IP_SET_H
-#else
-#define _IP_SET_H
-#endif
-#endif
 #include <libipset/session.h>
 #include <libipset/types.h>
 #ifndef LIBIPSET_PRE_V7_COMPAT
