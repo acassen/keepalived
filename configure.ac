@@ -1972,21 +1972,8 @@ if test "$enable_vrrp" != no; then
   MACVLAN_SUPPORT=No
   if test "${enable_vmac}" != no; then
     MACVLAN_SUPPORT=Yes
-    dnl -- Since Linux 2.6.33
-    AC_CHECK_DECLS([
-	IFLA_MACVLAN_MODE,
-	MACVLAN_MODE_PRIVATE], [],
-      [
-	MACVLAN_SUPPORT=No
-	break
-      ], [[
-	#include <sys/socket.h>
-	#include <linux/if_link.h>
-      ]])
-    fi
-  if test $MACVLAN_SUPPORT = Yes; then
     AC_DEFINE([_HAVE_VRRP_VMAC_], [ 1 ], [Define to 1 if have MAC VLAN support])
-    add_system_opt([VRRP_VMAC])
+    add_config_opt([VRRP_VMAC])
 
     dnl ----[ Checks for kernel IPVLAN support ]----
     IPVLAN_SUPPORT=Yes

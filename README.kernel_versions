@@ -17,10 +17,6 @@ functionality that keepalived uses.
 dnl -- From Linux 2.6.35 (but CentOS has it in 2.6.32)
 AC_CHECK_DECLS([IP_VS_SVC_F_ONEPACKET], [], [],
 
-dnl -- Since Linux 2.6.33
-IFLA_MACVLAN_MODE,
-MACVLAN_MODE_PRIVATE], [],
-
 dnl -- XT_EXTENSION_MAXNAMELEN not defined until Linux 2.6.35
 
 dnl ----[ Checks for pe support ]----
