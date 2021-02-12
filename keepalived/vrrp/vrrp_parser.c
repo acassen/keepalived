@@ -134,7 +134,6 @@ static_addresses_handler(const vector_t *strvec)
 	alloc_value_block(alloc_saddress, strvec);
 }
 
-#ifdef _HAVE_FIB_ROUTING_
 /* Static routes handler */
 static void
 static_routes_handler(const vector_t *strvec)
@@ -158,7 +157,6 @@ static_rules_handler(const vector_t *strvec)
 
 	alloc_value_block(alloc_srule, strvec);
 }
-#endif
 
 #ifdef _WITH_LINKBEAT_
 static void
@@ -1285,7 +1283,6 @@ vrrp_promote_secondaries_handler(__attribute__((unused)) const vector_t *strvec)
 
 	vrrp->promote_secondaries = true;
 }
-#ifdef _HAVE_FIB_ROUTING_
 static void
 vrrp_vroutes_handler(const vector_t *strvec)
 {
@@ -1296,7 +1293,6 @@ vrrp_vrules_handler(const vector_t *strvec)
 {
 	alloc_value_block(alloc_vrrp_vrule, strvec);
 }
-#endif
 static void
 vrrp_script_handler(const vector_t *strvec)
 {
@@ -1851,10 +1847,8 @@ init_vrrp_keywords(bool active)
 
 	/* Static addresses/routes/rules declarations */
 	install_keyword_root("static_ipaddress", &static_addresses_handler, active);
-#ifdef _HAVE_FIB_ROUTING_
 	install_keyword_root("static_routes", &static_routes_handler, active);
 	install_keyword_root("static_rules", &static_rules_handler, active);
-#endif
 
 	/* Sync group declarations */
 	install_keyword_root("vrrp_sync_group", &vrrp_sync_group_handler, active);
@@ -1934,10 +1928,8 @@ init_vrrp_keywords(bool active)
 #ifdef _WITH_LINKBEAT_
 	install_keyword("linkbeat_use_polling", &vrrp_linkbeat_handler);
 #endif
-#ifdef _HAVE_FIB_ROUTING_
 	install_keyword("virtual_routes", &vrrp_vroutes_handler);
 	install_keyword("virtual_rules", &vrrp_vrules_handler);
-#endif
 	install_keyword("accept", &vrrp_accept_handler);
 #ifdef _WITH_FIREWALL_
 	install_keyword("no_accept", &vrrp_no_accept_handler);

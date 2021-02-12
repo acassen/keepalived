@@ -36,14 +36,12 @@
 
 #define IPROUTE2_DIR	"/etc/iproute2/"
 
-#ifdef _HAVE_FIB_ROUTING_
 #define RT_TABLES_FILE	IPROUTE2_DIR "rt_tables"
 #define	RT_DSFIELD_FILE IPROUTE2_DIR "rt_dsfield"
 #define	RT_REALMS_FILE	IPROUTE2_DIR "rt_realms"
 #define	RT_PROTOS_FILE	IPROUTE2_DIR "rt_protos"
 #if HAVE_DECL_FRA_SUPPRESS_IFGROUP
 #define	RT_GROUPS_FILE	IPROUTE2_DIR "group"
-#endif
 #endif
 #define	RT_SCOPES_FILE	IPROUTE2_DIR "rt_scopes"
 
@@ -55,7 +53,6 @@ typedef struct _rt_entry {
 	list_head_t	e_list;
 } rt_entry_t;
 
-#ifdef _HAVE_FIB_ROUTING_
 static rt_entry_t const rtntypes[] = {
 	{ RTN_LOCAL, "local", {}},
 	{ RTN_NAT, "nat", {}},
@@ -100,7 +97,6 @@ static rt_entry_t const rttable_default[] = {
 	{ RT_TABLE_LOCAL, "local", {}},
 	{ 0, NULL, {}},
 };
-#endif
 
 static rt_entry_t const rtscope_default[] = {
 	{ RT_SCOPE_UNIVERSE, "global", {}},
@@ -113,7 +109,6 @@ static rt_entry_t const rtscope_default[] = {
 
 #define	MAX_RT_BUF	128
 
-#ifdef _HAVE_FIB_ROUTING_
 static LIST_HEAD_INITIALIZE(rt_tables);
 static LIST_HEAD_INITIALIZE(rt_dsfields);
 #if HAVE_DECL_FRA_SUPPRESS_IFGROUP
@@ -121,7 +116,6 @@ static LIST_HEAD_INITIALIZE(rt_groups);
 #endif
 static LIST_HEAD_INITIALIZE(rt_realms);
 static LIST_HEAD_INITIALIZE(rt_protos);
-#endif
 static LIST_HEAD_INITIALIZE(rt_scopes);
 
 static char ret_buf[11];	/* uint32_t in decimal */
@@ -162,7 +156,6 @@ dump_rt_entry_list(FILE *fp, const list_head_t *l)
 void
 clear_rt_names(void)
 {
-#ifdef _HAVE_FIB_ROUTING_
 	free_rt_entry_list(&rt_tables);
 	free_rt_entry_list(&rt_dsfields);
 #if HAVE_DECL_FRA_SUPPRESS_IFGROUP
@@ -170,7 +163,6 @@ clear_rt_names(void)
 #endif
 	free_rt_entry_list(&rt_realms);
 	free_rt_entry_list(&rt_protos);
-#endif
 	free_rt_entry_list(&rt_scopes);
 }
 
@@ -312,7 +304,6 @@ find_entry(const char *name, unsigned int *id, list_head_t *l, const char* file_
 	return false;
 }
 
-#ifdef _HAVE_FIB_ROUTING_
 bool
 find_rttables_table(const char *name, uint32_t *id)
 {
@@ -378,7 +369,6 @@ find_rttables_rtntype(const char *str, uint8_t *id)
 	*id = (uint8_t)res;
 	return true;
 }
-#endif
 
 static const char *
 get_entry(unsigned int id, list_head_t *l, const char* file_name, const rt_entry_t *default_list, uint32_t max)
@@ -396,7 +386,6 @@ get_entry(unsigned int id, list_head_t *l, const char* file_name, const rt_entry
 	return ret_buf;
 }
 
-#ifdef _HAVE_FIB_ROUTING_
 #if HAVE_DECL_FRA_SUPPRESS_IFGROUP
 const char *
 get_rttables_group(uint32_t id)
@@ -418,7 +407,6 @@ get_rttables_rtntype(uint8_t val)
 	snprintf(ret_buf, sizeof(ret_buf), "%u", val);
 	return ret_buf;
 }
-#endif
 
 bool
 find_rttables_scope(const char *name, uint8_t *id)

@@ -2175,24 +2175,6 @@ if test .$enable_checksum_compat != .no; then
   add_config_opt([OLD_CHKSUM_COMPAT])
 fi
 
-dnl ----[ Checks for FIB routing support ]----
-FIB_ROUTING_SUPPORT=No
-if test .$enable_vrrp != .no -a .$enable_routes != .no; then
-  # Introduced in Linux 2.6.19
-  SAV_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$CPPFLAGS $kernelinc"
-  AC_CHECK_DECL([FRA_SRC],
-    [
-      FIB_ROUTING_SUPPORT=Yes
-      AC_DEFINE([_HAVE_FIB_ROUTING_], [ 1 ], [Define to 1 if have FIB routing support])
-      add_config_opt([FIB_ROUTING])
-    ], [],
-    [[#include <sys/socket.h>
-      #include <linux/fib_rules.h>]])
-  CPPFLAGS="$SAV_CPPFLAGS"
-fi
-AM_CONDITIONAL([FIB_ROUTING], [test $FIB_ROUTING_SUPPORT = Yes])
-
 dnl ----[ Check if linkbeat wanted ]----
 AS_IF([test .$enable_linkbeat = .no],
   [
@@ -3053,7 +3035,6 @@ echo "Use VRRP Framework       : ${VRRP_SUPPORT}"
 if test ${VRRP_SUPPORT} = Yes; then
   echo "Use VRRP VMAC            : ${MACVLAN_SUPPORT}"
   echo "Use VRRP authentication  : ${VRRP_AUTH_SUPPORT}"
-  echo "With ip rules/routes     : ${FIB_ROUTING_SUPPORT}"
   echo "With track_process       : ${WITH_TRACK_PROCESS}"
   echo "With linkbeat            : ${LINKBEAT_SUPPORT}"
 fi

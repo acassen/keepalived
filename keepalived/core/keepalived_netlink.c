@@ -35,7 +35,7 @@
 #include <time.h>
 #ifdef _WITH_VRRP_
 #include <linux/version.h>
-#ifdef _HAVE_FIB_ROUTING_
+#ifdef _WITH_VRRP_
 #include <linux/fib_rules.h>
 #endif
 #endif
@@ -61,7 +61,7 @@
 #ifdef _HAVE_VRRP_VMAC_
 #include "vrrp_vmac.h"
 #endif
-#ifdef _HAVE_FIB_ROUTING_
+#ifdef _WITH_VRRP_
 #include "vrrp_iproute.h"
 #include "vrrp_iprule.h"
 #endif
@@ -236,7 +236,7 @@ ignore_address_if_ours_or_link_local(struct ifaddrmsg *ifa, struct in_addr *addr
 	return false;
 }
 
-#ifdef _HAVE_FIB_ROUTING_
+#ifdef _WITH_VRRP_
 static bool
 compare_addr(int family, void *addr1, ip_address_t *addr2)
 {
@@ -524,7 +524,7 @@ netlink_set_rx_buf_size(nl_handle_t *nl, unsigned rcvbuf_size, bool force)
 	}
 }
 
-#ifdef _HAVE_FIB_ROUTING_
+#ifdef _WITH_VRRP_
 static void
 kernel_netlink_set_membership(int group, bool add)
 {
@@ -2175,7 +2175,7 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 	return 0;
 }
 
-#ifdef _HAVE_FIB_ROUTING_
+#ifdef _WITH_VRRP_
 static int
 netlink_route_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlmsghdr *h)
 {
@@ -2321,7 +2321,7 @@ netlink_broadcast_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	case RTM_DELADDR:
 		return netlink_if_address_filter(snl, h);
 		break;
-#ifdef _HAVE_FIB_ROUTING_
+#ifdef _WITH_VRRP_
 	case RTM_NEWROUTE:
 	case RTM_DELROUTE:
 		return netlink_route_filter(snl, h);

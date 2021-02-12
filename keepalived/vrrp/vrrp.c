@@ -71,10 +71,8 @@
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif
-#ifdef _HAVE_FIB_ROUTING_
 #include "vrrp_iprule.h"
 #include "vrrp_iproute.h"
-#endif
 #ifdef _WITH_DBUS_
 #include "vrrp_dbus.h"
 #include "global_data.h"
@@ -100,12 +98,10 @@
 bool have_ipv4_instance;
 bool have_ipv6_instance;
 
-#ifdef _HAVE_FIB_ROUTING_
 static bool monitor_ipv4_routes;
 static bool monitor_ipv6_routes;
 static bool monitor_ipv4_rules;
 static bool monitor_ipv6_rules;
-#endif
 
 #ifdef _NETWORK_TIMESTAMP_
 bool do_network_timestamp;
@@ -126,12 +122,10 @@ clear_summary_flags(void)
 {
 	have_ipv4_instance = false;
 	have_ipv6_instance = false;
-#ifdef _HAVE_FIB_ROUTING_
 	monitor_ipv4_routes = false;
 	monitor_ipv6_routes = false;
 	monitor_ipv4_rules = false;
 	monitor_ipv6_rules = false;
-#endif
 }
 
 /* add/remove Virtual IP addresses */
@@ -145,7 +139,6 @@ vrrp_handle_ipaddress(vrrp_t *vrrp, int cmd, int type, bool force)
 	return netlink_iplist((type == VRRP_VIP_TYPE) ? &vrrp->vip : &vrrp->evip, cmd, force);
 }
 
-#ifdef _HAVE_FIB_ROUTING_
 /* add/remove Virtual routes */
 static void
 vrrp_handle_iproutes(vrrp_t * vrrp, int cmd, bool force)
@@ -167,7 +160,6 @@ vrrp_handle_iprules(vrrp_t * vrrp, int cmd, bool force)
 		       (cmd == IPRULE_ADD) ? "sett" : "remov");
 	netlink_rulelist(&vrrp->vrules, cmd, force);
 }
-#endif
 
 #ifdef _WITH_FIREWALL_
 static void
@@ -1682,7 +1674,6 @@ vrrp_state_become_master(vrrp_t * vrrp)
 		vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE, false);
 	vrrp->vipset = true;
 
-#ifdef _HAVE_FIB_ROUTING_
 	/* add virtual routes */
 	if (!list_empty(&vrrp->vroutes))
 		vrrp_handle_iproutes(vrrp, IPROUTE_ADD, false);
@@ -1690,7 +1681,6 @@ vrrp_state_become_master(vrrp_t * vrrp)
 	/* add virtual rules */
 	if (!list_empty(&vrrp->vrules))
 		vrrp_handle_iprules(vrrp, IPRULE_ADD, false);
-#endif
 
 	kernel_netlink_poll();
 
@@ -1753,7 +1743,6 @@ vrrp_restore_interface(vrrp_t * vrrp, bool advF, bool force)
 		log_message(LOG_INFO, "(%s) sent 0 priority", vrrp->iname);
 	}
 
-#ifdef _HAVE_FIB_ROUTING_
 	/* remove virtual rules */
 	if (!list_empty(&vrrp->vrules))
 		vrrp_handle_iprules(vrrp, IPRULE_DEL, force);
@@ -1761,7 +1750,6 @@ vrrp_restore_interface(vrrp_t * vrrp, bool advF, bool force)
 	/* remove virtual routes */
 	if (!list_empty(&vrrp->vroutes))
 		vrrp_handle_iproutes(vrrp, IPROUTE_DEL, false);
-#endif
 
 	/* empty the delayed arp list */
 	vrrp_remove_delayed_arp(vrrp);
@@ -2790,10 +2778,8 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #ifdef _WITH_BFD_
 	tracked_bfd_t *tbfd, *tbfd_tmp;
 #endif
-#ifdef _HAVE_FIB_ROUTING_
 	ip_route_t *route;
 	ip_rule_t *rule;
-#endif
 
 	if (vrrp->strict_mode == PARAMETER_UNSET)
 		vrrp->strict_mode = global_data->vrrp_strict;
@@ -3764,7 +3750,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			set_promote_secondaries(vrrp->ifp);
 	}
 
-#ifdef _HAVE_FIB_ROUTING_
 	/* Check if there are any route/rules we need to monitor */
 	list_for_each_entry(route, &vrrp->vroutes, e_list) {
 		if (!route->dont_track) {
@@ -3795,7 +3780,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #endif
 		}
 	}
-#endif
 
 	/* alloc send buffer */
 	vrrp_alloc_send_buffer(vrrp);
@@ -3934,7 +3918,6 @@ sync_group_tracking_init(void)
 	}
 }
 
-#ifdef _HAVE_FIB_ROUTING_
 static void
 process_static_entries(void)
 {
@@ -3961,7 +3944,6 @@ process_static_entries(void)
 			monitor_ipv6_rules = true;
 	}
 }
-#endif
 
 static void
 remove_residual_vips(void)
@@ -4426,13 +4408,11 @@ vrrp_complete_init(void)
 	if (global_data->vrrp_garp_interval || global_data->vrrp_gna_interval)
 		set_default_garp_delay();
 
-#ifdef _HAVE_FIB_ROUTING_
 	/* See if any static routes or rules need monitoring */
 	process_static_entries();
 
 	/* If we are tracking any routes/rules, ask netlink to monitor them */
 	set_extra_netlink_monitoring(monitor_ipv4_routes, monitor_ipv6_routes, monitor_ipv4_rules, monitor_ipv6_rules);
-#endif
 
 #ifdef _WITH_LINKBEAT_
 	/* We need to know the state of interfaces for the next loop */
@@ -4618,7 +4598,6 @@ clear_diff_vrrp_vip(vrrp_t *old_vrrp, vrrp_t *vrrp)
 	free_ipaddress_list(&addr_list);
 }
 
-#ifdef _HAVE_FIB_ROUTING_
 /* Clear virtual routes not present in the new data */
 static void
 clear_diff_vrrp_vroutes(vrrp_t *old_vrrp, vrrp_t *vrrp)
@@ -4632,7 +4611,6 @@ clear_diff_vrrp_vrules(vrrp_t *old_vrrp, vrrp_t *vrrp)
 {
 	clear_diff_rules(&old_vrrp->vrules, &vrrp->vrules);
 }
-#endif
 
 /* Keep the state from before reload */
 static bool
@@ -4663,7 +4641,6 @@ restore_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 			if (vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE, false))
 				added_ip_addr = true;
 		}
-#ifdef _HAVE_FIB_ROUTING_
 		if (!list_empty(&vrrp->vroutes)) {
 			/* It is possible that some routes may have been deleted
 			 * by the kernel if, for example, they depended on a VIP
@@ -4674,7 +4651,6 @@ restore_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 		}
 		if (!list_empty(&vrrp->vrules))
 			vrrp_handle_iprules(vrrp, IPRULE_ADD, false);
-#endif
 	}
 
 	return added_ip_addr;
@@ -4722,13 +4698,11 @@ clear_diff_vrrp(void)
 			 * data, then perform a VIP|EVIP diff.
 			 */
 // !!!! Isn't this only necessary if MASTER ???? TODO
-#ifdef _HAVE_FIB_ROUTING_
 			/* virtual rules diff */
 			clear_diff_vrrp_vrules(vrrp, new_vrrp);
 
 			/* virtual routes diff */
 			clear_diff_vrrp_vroutes(vrrp, new_vrrp);
-#endif
 
 			clear_diff_vrrp_vip(vrrp, new_vrrp);
 

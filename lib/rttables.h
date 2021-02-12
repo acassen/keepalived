@@ -28,7 +28,7 @@
 #include <stdint.h>
 
 extern void clear_rt_names(void);
-#ifdef _HAVE_FIB_ROUTING_
+#ifdef _WITH_VRRP_
 extern bool find_rttables_table(const char *, uint32_t *);
 extern bool find_rttables_dsfield(const char *, uint8_t *);
 extern bool find_rttables_realms(const char *, uint32_t *);
@@ -41,7 +41,7 @@ extern bool find_rttables_rtntype(const char *, uint8_t *);
 extern bool find_rttables_scope(const char *, uint8_t *);
 
 extern const char *get_rttables_scope(uint32_t);
-#ifdef _HAVE_FIB_ROUTING_
+#ifdef _WITH_VRRP_
 #if HAVE_DECL_FRA_SUPPRESS_IFGROUP
 extern const char *get_rttables_group(uint32_t);
 #endif

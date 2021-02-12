@@ -1316,13 +1316,8 @@ interface_up(interface_t *ifp)
 }
 
 void
-interface_down(
-#ifndef _HAVE_FIB_ROUTING_
-	       __attribute__((unused))
-#endif
-				       interface_t *ifp)
+interface_down(interface_t *ifp)
 {
-#ifdef _HAVE_FIB_ROUTING_
 	vrrp_t *vrrp;
 	ip_route_t *route;
 	bool route_found;
@@ -1369,7 +1364,6 @@ interface_down(
 			route->set = false;
 		}
 	}
-#endif
 }
 
 void

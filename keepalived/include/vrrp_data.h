@@ -36,10 +36,8 @@
 typedef struct _vrrp_data {
 	list_head_t		static_track_groups;	/* static_track_group_t */
 	list_head_t		static_addresses;	/* ip_address_t */
-#ifdef _HAVE_FIB_ROUTING_
 	list_head_t		static_routes;		/* ip_route_t */
 	list_head_t		static_rules;		/* ip_rule_t */
-#endif
 	list_head_t		vrrp_sync_group;	/* vrrp_sgroup_t */
 	list_head_t		vrrp;			/* vrrp_t */
 	list_head_t		vrrp_socket_pool;	/* sock_t */

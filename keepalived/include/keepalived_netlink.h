@@ -133,7 +133,7 @@ extern void kernel_netlink_poll(void);
 extern void process_if_status_change(interface_t *);
 #endif
 extern void kernel_netlink_set_recv_bufs(void);
-#ifdef _HAVE_FIB_ROUTING_
+#ifdef _WITH_VRRP_
 extern void set_extra_netlink_monitoring(bool, bool, bool, bool);
 #endif
 extern void kernel_netlink_init(void);

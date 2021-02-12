@@ -45,10 +45,8 @@
 #include "vrrp_arp.h"
 #include "vrrp_ndisc.h"
 #include "keepalived_netlink.h"
-#ifdef _HAVE_FIB_ROUTING_
 #include "vrrp_iprule.h"
 #include "vrrp_iproute.h"
-#endif
 #include "vrrp_parser.h"
 #include "vrrp.h"
 #include "vrrp_print.h"
@@ -441,10 +439,8 @@ vrrp_terminate_phase1(bool schedule_next_thread)
 		stop_track_files();
 
 	/* Clear static entries */
-#ifdef _HAVE_FIB_ROUTING_
 	netlink_rulelist(&vrrp_data->static_rules, IPRULE_DEL, false);
 	netlink_rtlist(&vrrp_data->static_routes, IPROUTE_DEL, false);
-#endif
 	netlink_iplist(&vrrp_data->static_addresses, IPADDRESS_DEL, false);
 
 #ifdef _NETLINK_TIMERS_
@@ -587,10 +583,8 @@ start_vrrp(data_t *prev_global_data)
 		if (reload) {
 			kernel_netlink_set_recv_bufs();
 
-#ifdef _HAVE_FIB_ROUTING_
 			clear_diff_static_rules();
 			clear_diff_static_routes();
-#endif
 			clear_diff_static_addresses();
 			clear_diff_script();
 #ifdef _WITH_BFD_
@@ -600,12 +594,10 @@ start_vrrp(data_t *prev_global_data)
 		else {
 			/* Clear leftover static entries */
 			netlink_iplist(&vrrp_data->static_addresses, IPADDRESS_DEL, false);
-#ifdef _HAVE_FIB_ROUTING_
 			netlink_rtlist(&vrrp_data->static_routes, IPROUTE_DEL, false);
 			netlink_error_ignore = ENOENT;
 			netlink_rulelist(&vrrp_data->static_rules, IPRULE_DEL, true);
 			netlink_error_ignore = 0;
-#endif
 		}
 	}
 
@@ -678,10 +670,8 @@ start_vrrp(data_t *prev_global_data)
 
 	/* Set static entries */
 	netlink_iplist(&vrrp_data->static_addresses, IPADDRESS_ADD, false);
-#ifdef _HAVE_FIB_ROUTING_
 	netlink_rtlist(&vrrp_data->static_routes, IPROUTE_ADD, false);
 	netlink_rulelist(&vrrp_data->static_rules, IPRULE_ADD, false);
-#endif
 
 	/* Dump configuration */
 	if (__test_bit(DUMP_CONF_BIT, &debug))
@@ -860,9 +850,7 @@ reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 	old_global_data = global_data;
 	global_data = NULL;
 	reset_interface_queue();
-#ifdef _HAVE_FIB_ROUTING_
 	reset_next_rule_priority();
-#endif
 
 	/* Reload the conf */
 	start_vrrp(old_global_data);
