@@ -17,9 +17,6 @@ functionality that keepalived uses.
 dnl ----[ Checks for FIB routing support ]----
   # Introduced in Linux 2.6.19
 
-./keepalived/vrrp/vrrp_ipaddress.c:#ifdef IFA_F_NODAD	/* Since Linux 2.6.19 */
-./keepalived/vrrp/vrrp_ipaddress.c:#ifdef IFA_F_HOMEADDRESS		/* Linux 2.6.19 */
-
 dnl - signalfd() since Linux 2.6.22 and glibc 2.8
 AC_CHECK_FUNCS([signalfd], [add_system_opt([SIGNALFD])])
 
