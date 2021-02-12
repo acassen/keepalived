@@ -106,9 +106,6 @@
 #if HAVE_DECL_RTA_ENCAP
 #include <linux/lwtunnel.h>
 #endif
-#ifdef NETLINK_H_NEEDS_SYS_SOCKET_H
-#include <sys/socket.h>
-#endif
 #include <linux/fib_rules.h>
 #include <stdint.h>
 #include <inttypes.h>

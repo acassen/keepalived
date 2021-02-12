@@ -23,9 +23,6 @@
 #include "config.h"
 
 /* global include */
-#ifdef NETLINK_H_NEEDS_SYS_SOCKET_H
-#include <sys/socket.h>
-#endif
 #ifdef _HAVE_LINUX_IF_ETHER_H_COLLISION_
 #include <netinet/in.h>
 #endif

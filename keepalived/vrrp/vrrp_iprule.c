@@ -25,9 +25,6 @@
 
 /* global includes */
 #include <errno.h>
-#ifdef NETLINK_H_NEEDS_SYS_SOCKET_H
-#include <sys/socket.h>
-#endif
 #include <linux/fib_rules.h>
 #include <inttypes.h>
 #include <stdlib.h>

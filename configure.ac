@@ -943,18 +943,6 @@ AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdint.h std
 # check for kernel headers
 SAV_CPPFLAGS="$CPPFLAGS"
 CPPFLAGS="$CPPFLAGS $kernelinc"
-dnl -- <linux/netlink.h> needed <sys/socket.h> until Linux 3.1
-dnl -- using AC_CHECK_HEADER causes a horrible error message for the user
-NETLINK_EXTRA_INCLUDE=
-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-  #include <linux/netlink.h>
-  ]])], [],
-  [AC_CHECK_HEADER([linux/netlink.h],
-    [
-      AC_DEFINE([NETLINK_H_NEEDS_SYS_SOCKET_H], [ 1 ], [Define to 1 if <linux/netlink.h> needs <sys/socket.h>])
-      NETLINK_EXTRA_INCLUDE="#include <sys/socket.h>"
-    ], [AC_MSG_ERROR([Missing/unusable kernel header file <linux/netlink.h>])],
-    [[#include <sys/socket.h>]])])
 
 dnl -- <linux/rtnetlink.h> needed <sys/socket.h> until ? Linux 3.1
 dnl -- using AC_CHECK_HEADER causes a horrible error message for the user
