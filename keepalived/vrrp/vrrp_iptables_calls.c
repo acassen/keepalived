@@ -52,9 +52,6 @@
 #include "vrrp_iptables_calls.h"
 #include "memory.h"
 #include "logger.h"
-#if !HAVE_DECL_SOCK_CLOEXEC
-#include "old_socket.h"
-#endif
 #ifdef _LIBIPTC_DYNAMIC_
 #include "global_data.h"
 #endif
@@ -461,13 +458,6 @@ get_version(unsigned int* version)
 		log_message(LOG_INFO, "Can't open socket to ipset.");
 		return -1;
 	}
-
-#if !HAVE_DECL_SOCK_CLOEXEC
-	if (fcntl(sockfd, F_SETFD, FD_CLOEXEC) == -1) {
-		log_message(LOG_INFO, "Could not set close on exec: %s",
-			      strerror(errno));
-	}
-#endif
 
 	req_version.op = IP_SET_OP_VERSION;
 	res = getsockopt(sockfd, SOL_IP, SO_IP_SET, &req_version, &size);

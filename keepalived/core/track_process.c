@@ -50,9 +50,6 @@
 #include "track_process.h"
 #include "global_data.h"
 #include "list_head.h"
-#if !HAVE_DECL_SOCK_NONBLOCK
-#include "old_socket.h"
-#endif
 #include "rbtree.h"
 #include "vrrp_data.h"
 #include "utils.h"
@@ -761,16 +758,6 @@ nl_connect(void)
 			log_message(LOG_INFO, "Failed to open process monitoring socket - errno %d - %m", errno);
 		return -1;
 	}
-
-#if !HAVE_DECL_SOCK_NONBLOCK
-	if (set_sock_flags(nl_sd, F_SETFL, O_NONBLOCK))
-		log_message(LOG_INFO, "Unable to set NONBLOCK on netlink process socket - %s (%d)", strerror(errno), errno);
-#endif
-
-#if !HAVE_DECL_SOCK_CLOEXEC
-	if (set_sock_flags(nl_sd, F_SETFD, FD_CLOEXEC))
-		log_message(LOG_INFO, "Unable to set CLOEXEC on netlink process socket - %s (%d)", strerror(errno), errno);
-#endif
 
 	sa_nl.nl_family = AF_NETLINK;
 	sa_nl.nl_groups = CN_IDX_PROC;

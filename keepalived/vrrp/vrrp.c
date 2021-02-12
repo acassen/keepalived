@@ -68,9 +68,6 @@
 #include "utils.h"
 #include "bitops.h"
 #include "keepalived_netlink.h"
-#if !HAVE_DECL_SOCK_CLOEXEC
-#include "old_socket.h"
-#endif
 #include "vrrp_iprule.h"
 #include "vrrp_iproute.h"
 #ifdef _WITH_DBUS_
@@ -2295,12 +2292,6 @@ open_vrrp_send_socket(sa_family_t family, int proto, const interface_t *ifp, con
 		log_message(LOG_INFO, "cant open raw socket. errno=%d", errno);
 		return -1;
 	}
-#if !HAVE_DECL_SOCK_CLOEXEC
-	set_sock_flags(fd, F_SETFD, FD_CLOEXEC);
-#endif
-#if !HAVE_DECL_SOCK_NONBLOCK
-	set_sock_flags(fd, F_SETFL, O_NONBLOCK);
-#endif
 
 	/* We are not receiving on the send socket, there is no
 	 * point allocating any buffers to it */
@@ -2361,12 +2352,6 @@ open_vrrp_read_socket(sa_family_t family, int proto, const interface_t *ifp, con
 		log_message(LOG_INFO, "cant open raw socket. errno=%d", err);
 		return -1;
 	}
-#if !HAVE_DECL_SOCK_CLOEXEC
-	set_sock_flags(fd, F_SETFD, FD_CLOEXEC);
-#endif
-#if !HAVE_DECL_SOCK_NONBLOCK
-	set_sock_flags(fd, F_SETFL, O_NONBLOCK);
-#endif
 
 	if (rx_buf_size) {
 		if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &val, len))

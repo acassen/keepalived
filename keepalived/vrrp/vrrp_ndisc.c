@@ -40,9 +40,6 @@
 #include "vrrp_if_config.h"
 #include "vrrp_scheduler.h"
 #include "vrrp_ndisc.h"
-#if !HAVE_DECL_SOCK_CLOEXEC
-#include "old_socket.h"
-#endif
 #include "bitops.h"
 
 /* static vars */
@@ -278,15 +275,6 @@ ndisc_init(void)
 		log_message(LOG_INFO, "Error %d while registering gratuitous NDISC shared channel", errno);
 		return;
 	}
-
-#if !HAVE_DECL_SOCK_CLOEXEC
-	if (set_sock_flags(ndisc_fd, F_SETFD, FD_CLOEXEC))
-		log_message(LOG_INFO, "Unable to set CLOEXEC on gratuitous NA socket");
-#endif
-#if !HAVE_DECL_SOCK_NONBLOCK
-	if (set_sock_flags(garp_fd, F_SETFL, O_NONBLOCK))
-		log_message(LOG_INFO, "Unable to set NONBLOCK on gratuitous NA socket");
-#endif
 }
 
 void

@@ -38,9 +38,6 @@
 #include "smtp.h"
 #include "utils.h"
 #include "parser.h"
-#if !HAVE_DECL_SOCK_CLOEXEC
-#include "old_socket.h"
-#endif
 #include "layer4.h"
 #include "scheduler.h"
 
@@ -397,20 +394,6 @@ dns_connect_thread(thread_ref_t thread)
 				 checker->delay_loop);
 		return;
 	}
-
-#if !HAVE_DECL_SOCK_NONBLOCK
-	if (set_sock_flags(fd, F_SETFL, O_NONBLOCK))
-		dns_log_message(thread, LOG_INFO,
-				"unable to set NONBLOCK on socket - %s (%d)",
-				strerror(errno), errno);
-#endif
-
-#if !HAVE_DECL_SOCK_CLOEXEC
-	if (set_sock_flags(fd, F_SETFD, FD_CLOEXEC))
-		dns_log_message(thread, LOG_INFO,
-				"unable to set CLOEXEC on socket - %s (%d)",
-				strerror(errno), errno);
-#endif
 
 	status = socket_bind_connect(fd, co);
 

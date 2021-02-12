@@ -33,9 +33,6 @@
 #include "ipwrapper.h"
 #include "utils.h"
 #include "parser.h"
-#if !HAVE_DECL_SOCK_CLOEXEC
-#include "old_socket.h"
-#endif
 #include "layer4.h"
 #include "smtp.h"
 #ifdef THREAD_DUMP
@@ -806,16 +803,6 @@ smtp_connect_thread(thread_ref_t thread)
 				 checker->delay_loop);
 		return;
 	}
-
-#if !HAVE_DECL_SOCK_NONBLOCK
-	if (set_sock_flags(sd, F_SETFL, O_NONBLOCK))
-		log_message(LOG_INFO, "Unable to set NONBLOCK on smtp socket - %s (%d)", strerror(errno), errno);
-#endif
-
-#if !HAVE_DECL_SOCK_CLOEXEC
-	if (set_sock_flags(sd, F_SETFD, FD_CLOEXEC))
-		log_message(LOG_INFO, "Unable to set CLOEXEC on smtp socket - %s (%d)", strerror(errno), errno);
-#endif
 
 	status = tcp_bind_connect(sd, smtp_host);
 

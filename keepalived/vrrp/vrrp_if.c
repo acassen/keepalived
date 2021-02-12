@@ -41,9 +41,6 @@
  * so we stop <netinet/if_ether.h> being included if <linux/if_ether.h> has been included. */
 #define _NETINET_IF_ETHER_H
 #endif
-#if !HAVE_DECL_SOCK_CLOEXEC
-#include "old_socket.h"
-#endif
 #include <linux/sockios.h>	/* needed to get correct values for SIOC* */
 #include <linux/ethtool.h>
 #include <net/if_arp.h>
@@ -806,9 +803,6 @@ init_interface_linkbeat(void)
 				log_message(LOG_INFO, "open linkbeat init socket failed - errno %d - %m\n", errno);
 				return;
 			}
-#if !HAVE_DECL_SOCK_CLOEXEC
-			set_sock_flags(linkbeat_fd, F_SETFD, FD_CLOEXEC);
-#endif
 		}
 
 		linkbeat_in_use = true;

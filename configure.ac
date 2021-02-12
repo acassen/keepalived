@@ -2113,14 +2113,10 @@ if test ${IPVS_SUPPORT} = No -a ${VRRP_SUPPORT} = No; then
   AC_MSG_ERROR([keepalived MUST be compiled with at least one of LVS or VRRP framework])
 fi
 
-dnl ----[ Checks for glibc SOCK_NONBLOCK support ]----
-# Introduced in Linux 2.6.27 and glibc 2.9
-AC_CHECK_DECLS([SOCK_NONBLOCK], [add_system_opt([SOCK_NONBLOCK])], [],[[#include <sys/socket.h>]])
-AM_CONDITIONAL([SOCK_NONBLOCK], [test $ac_cv_have_decl_SOCK_NONBLOCK = yes])
-
-dnl ----[ Checks for glibc SOCK_CLOEXEC support ]----
-# Introduced in Linux 2.6.27 and glibc 2.9
-AC_CHECK_DECLS([SOCK_CLOEXEC], [add_system_opt([SOCK_CLOEXEC])], [],[[#include <sys/socket.h>]])
+dnl ----[ Checks for needing old_socket support ]----
+# Not needed from Linux 2.6.27 and glibc 2.9
+AC_CHECK_DECLS([TFD_NONBLOCK], [add_system_opt([TFD_NONBLOCK])], [],[[#include <sys/timerfd.h>]])
+AM_CONDITIONAL([NEED_OLD_SOCKET], [test .$ac_cv_have_decl_TFD_NONBLOCK != .yes -o .$ac_cv_func_epoll_create1 != .yes])
 
 dnl ----[ Checks for pe support ]----
 # Introduced in Linux 2.6.37

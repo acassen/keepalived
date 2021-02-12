@@ -48,9 +48,6 @@
 #include "libipvs.h"
 
 #include "memory.h"
-#if !HAVE_DECL_SOCK_CLOEXEC
-#include "old_socket.h"
-#endif
 #include "logger.h"
 #include "utils.h"
 #include "namespaces.h"
@@ -456,14 +453,6 @@ int ipvs_init(void)
 	sockfd = socket_netns_name(global_data->network_namespace_ipvs, AF_INET, SOCK_RAW | SOCK_CLOEXEC, IPPROTO_RAW);
 	if (sockfd == -1)
 		return -1;
-
-#if !HAVE_DECL_SOCK_CLOEXEC
-	if (set_sock_flags(sockfd, F_SETFD, FD_CLOEXEC)) {
-		close(sockfd);
-		sockfd = -1;
-		return -1;
-	}
-#endif
 
 	len = sizeof(ipvs_info);
 	if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO, (char *)&ipvs_info, &len)) {

@@ -51,7 +51,7 @@
 #include "bitops.h"
 #include "git-commit.h"
 #include "timer.h"
-#if !HAVE_EPOLL_CREATE1 || !defined TFD_NONBLOCK
+#if !defined HAVE_EPOLL_CREATE1 || !HAVE_DECL_TFD_NONBLOCK
 #include "old_socket.h"
 #endif
 #include "assert_debug.h"
@@ -740,7 +740,7 @@ thread_make_master(void)
 
 	PMALLOC(new);
 
-#if HAVE_EPOLL_CREATE1
+#ifdef HAVE_EPOLL_CREATE1
 	new->epoll_fd = epoll_create1(EPOLL_CLOEXEC);
 #else
 	new->epoll_fd = epoll_create(1);
@@ -751,7 +751,7 @@ thread_make_master(void)
 		return NULL;
 	}
 
-#if !HAVE_EPOLL_CREATE1
+#ifndef HAVE_EPOLL_CREATE1
 	if (set_sock_flags(new->epoll_fd, F_SETFD, FD_CLOEXEC))
 		log_message(LOG_INFO, "Unable to set CLOEXEC on epoll_fd - %d (%m)", errno);
 #endif

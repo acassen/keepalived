@@ -32,7 +32,7 @@ if WITH_VRRP
   EXTRA_liblib_a_SOURCES += rttables.c rttables.h
 endif
 
-if ! SOCK_NONBLOCK
+if NEED_OLD_SOCKET
   liblib_a_LIBADD	+= old_socket.o
   EXTRA_liblib_a_SOURCES += old_socket.c old_socket.h
 endif
