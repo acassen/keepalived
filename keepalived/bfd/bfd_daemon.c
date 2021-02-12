@@ -407,11 +407,7 @@ start_bfd_child(void)
 
 	initialise_debug_options();
 
-	if ((global_data->instance_name
-#if HAVE_DECL_CLONE_NEWNET
-			   || global_data->network_namespace
-#endif
-					       ) &&
+	if ((global_data->instance_name || global_data->network_namespace) &&
 	     (bfd_syslog_ident = make_syslog_ident(PROG_BFD)))
 		syslog_ident = bfd_syslog_ident;
 	else
@@ -425,11 +421,7 @@ start_bfd_child(void)
 	if (log_file_name)
 		open_log_file(log_file_name,
 				"bfd",
-#if HAVE_DECL_CLONE_NEWNET
 				global_data->network_namespace,
-#else
-				NULL,
-#endif
 				global_data->instance_name);
 #endif
 

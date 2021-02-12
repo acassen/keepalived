@@ -1047,11 +1047,7 @@ start_vrrp_child(void)
 #endif
 
 	/* Opening local VRRP syslog channel */
-	if ((global_data->instance_name
-#if HAVE_DECL_CLONE_NEWNET
-			   || global_data->network_namespace
-#endif
-					       ) &&
+	if ((global_data->instance_name || global_data->network_namespace) &&
 	    (vrrp_syslog_ident = make_syslog_ident(PROG_VRRP)))
 			syslog_ident = vrrp_syslog_ident;
 	else
@@ -1064,11 +1060,7 @@ start_vrrp_child(void)
 	if (log_file_name)
 		open_log_file(log_file_name,
 				"vrrp",
-#if HAVE_DECL_CLONE_NEWNET
 				global_data->network_namespace,
-#else
-				NULL,
-#endif
 				global_data->instance_name);
 #endif
 

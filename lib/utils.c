@@ -343,11 +343,7 @@ run_perf(const char *process, const char *network_namespace, const char *instanc
 			/* Rename the /perf.data file */
 			strcat(orig_name, perf_name);
 			new_name = make_file_name(orig_name, process,
-#if HAVE_DECL_CLONE_NEWNET
 							network_namespace,
-#else
-							NULL,
-#endif
 							instance_name);
 
 			if (rename(orig_name, new_name))

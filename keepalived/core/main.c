@@ -80,9 +80,7 @@
 #include "bfd_parser.h"
 #endif
 #include "global_parser.h"
-#if HAVE_DECL_CLONE_NEWNET
 #include "namespaces.h"
-#endif
 #include "scheduler.h"
 #include "keepalived_netlink.h"
 #include "git-commit.h"
@@ -180,9 +178,7 @@ unsigned os_minor;
 unsigned os_release;
 char *hostname;						/* Initial part of hostname */
 
-#if HAVE_DECL_CLONE_NEWNET
 static char *override_namespace;			/* If namespace specified on command line */
-#endif
 
 unsigned child_wait_time = CHILD_WAIT_SECS;		/* Time to wait for children to exit */
 
@@ -310,9 +306,7 @@ void
 free_parent_mallocs_startup(bool am_child)
 {
 	if (am_child) {
-#if HAVE_DECL_CLONE_NEWNET
 		free_dirname();
-#endif
 #ifdef _MEM_CHECK_LOG_
 		free(no_const_char_p(syslog_ident));	/* malloc'd in make_syslog_ident */
 #else
@@ -354,10 +348,8 @@ make_syslog_ident(const char* name)
 	size_t ident_len = strlen(name) + 1;
 	char *ident;
 
-#if HAVE_DECL_CLONE_NEWNET
 	if (global_data->network_namespace)
 		ident_len += strlen(global_data->network_namespace) + 1;
-#endif
 	if (global_data->instance_name)
 		ident_len += strlen(global_data->instance_name) + 1;
 
@@ -373,12 +365,10 @@ make_syslog_ident(const char* name)
 		return NULL;
 
 	strcpy(ident, name);
-#if HAVE_DECL_CLONE_NEWNET
 	if (global_data->network_namespace) {
 		strcat(ident, "_");
 		strcat(ident, global_data->network_namespace);
 	}
-#endif
 	if (global_data->instance_name) {
 		strcat(ident, "_");
 		strcat(ident, global_data->instance_name);
@@ -769,7 +759,6 @@ static bool reload_config(void)
 
 	init_global_data(global_data, old_global_data, false);
 
-#if HAVE_DECL_CLONE_NEWNET
 	if (override_namespace) {
 		FREE_CONST_PTR(global_data->network_namespace);
 		global_data->network_namespace = STRDUP(override_namespace);
@@ -780,7 +769,6 @@ static bool reload_config(void)
 		log_message(LOG_INFO, "Cannot change network namespace at a reload - please restart %s", PACKAGE);
 		unsupported_change = true;
 	}
-#endif
 
 	if (!!old_global_data->instance_name != !!global_data->instance_name ||
 	    (global_data->instance_name && strcmp(old_global_data->instance_name, global_data->instance_name))) {
@@ -1800,9 +1788,7 @@ usage(const char *prog)
 	fprintf(stderr, "  -x, --snmp                   Enable SNMP subsystem\n");
 	fprintf(stderr, "  -A, --snmp-agent-socket=FILE Use the specified socket for master agent\n");
 #endif
-#if HAVE_DECL_CLONE_NEWNET
 	fprintf(stderr, "  -s, --namespace=NAME         Run in network namespace NAME (overrides config)\n");
-#endif
 	fprintf(stderr, "  -m, --core-dump              Produce core dump if terminate abnormally\n");
 	fprintf(stderr, "  -M, --core-dump-pattern=PATN Also set /proc/sys/kernel/core_pattern to PATN (default 'core')\n");
 #ifdef _MEM_CHECK_
@@ -1968,9 +1954,7 @@ parse_cmdline(int argc, char **argv)
 #ifdef _MEM_CHECK_LOG_
 		{"mem-check-log",	no_argument,		NULL, 'L'},
 #endif
-#if HAVE_DECL_CLONE_NEWNET
 		{"namespace",		required_argument,	NULL, 's'},
-#endif
 		{"config-id",		required_argument,	NULL, 'i'},
 		{"signum",		required_argument,	NULL,  4 },
 		{"config-test",		optional_argument,	NULL, 't'},
@@ -1992,7 +1976,7 @@ parse_cmdline(int argc, char **argv)
 	 * is set to a known invalid value */
 	curind = optind;
 	/* Used short options: ABCDGILMPRSVXabcdefghilmnprstuvx */
-	while (longindex = -1, (c = getopt_long(argc, argv, ":vhlndu:DRS:f:p:i:emM::g::Gt::"
+	while (longindex = -1, (c = getopt_long(argc, argv, ":vhlndu:DRS:f:p:i:es:mM::g::Gt::"
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 					    "PC"
 #endif
@@ -2010,9 +1994,6 @@ parse_cmdline(int argc, char **argv)
 #endif
 #ifdef _MEM_CHECK_LOG_
 					    "L"
-#endif
-#if HAVE_DECL_CLONE_NEWNET
-					    "s:"
 #endif
 				, long_options, &longindex)) != -1) {
 
@@ -2197,11 +2178,9 @@ parse_cmdline(int argc, char **argv)
 			__set_bit(MEM_CHECK_LOG_BIT, &debug);
 			break;
 #endif
-#if HAVE_DECL_CLONE_NEWNET
 		case 's':
 			override_namespace = optarg;
 			break;
-#endif
 		case 'e':
 			include_check_set(NULL);
 			break;
@@ -2515,7 +2494,6 @@ keepalived_main(int argc, char **argv)
 	if (global_data->process_name)
 		set_process_name(global_data->process_name);
 
-#if HAVE_DECL_CLONE_NEWNET
 	if (override_namespace) {
 		if (global_data->network_namespace) {
 			log_message(LOG_INFO, "Overriding config net_namespace '%s' with command line namespace '%s'", global_data->network_namespace, override_namespace);
@@ -2523,13 +2501,10 @@ keepalived_main(int argc, char **argv)
 		}
 		global_data->network_namespace = STRDUP(override_namespace);
 	}
-#endif
 
 	if (!__test_bit(CONFIG_TEST_BIT, &debug) &&
 	    (global_data->instance_name
-#if HAVE_DECL_CLONE_NEWNET
 	     || global_data->network_namespace
-#endif
 					      )) {
 		if ((syslog_ident = make_syslog_ident(PACKAGE_NAME))) {
 			log_message(LOG_INFO, "Changing syslog ident to %s", syslog_ident);
@@ -2544,11 +2519,7 @@ keepalived_main(int argc, char **argv)
 #ifdef ENABLE_LOG_TO_FILE
 		open_log_file(log_file_name,
 				NULL,
-#if HAVE_DECL_CLONE_NEWNET
 				global_data->network_namespace,
-#else
-				NULL,
-#endif
 				global_data->instance_name);
 #endif
 	}
@@ -2569,14 +2540,12 @@ keepalived_main(int argc, char **argv)
 #endif
 	}
 
-#if HAVE_DECL_CLONE_NEWNET
 	if (global_data->network_namespace) {
 		if (global_data->network_namespace && !set_namespaces(global_data->network_namespace)) {
 			log_message(LOG_ERR, "Unable to set network namespace %s - exiting", global_data->network_namespace);
 			goto end;
 		}
 	}
-#endif
 
 	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
 		if (global_data->instance_name) {
@@ -2745,10 +2714,8 @@ end:
 #endif
 	}
 
-#if HAVE_DECL_CLONE_NEWNET
 	if (global_data && global_data->network_namespace)
 		clear_namespaces();
-#endif
 
 	if (use_pid_dir)
 		remove_pid_dir();

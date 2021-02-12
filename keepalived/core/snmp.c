@@ -276,13 +276,11 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 #endif
 		return PTR_CAST(u_char, &long_ret);
 	case SNMP_NET_NAMESPACE:
-#if HAVE_DECL_CLONE_NEWNET
 		if (global_data->network_namespace) {
 			*var_len = strlen(global_data->network_namespace);
 			ret.cp = global_data->network_namespace;
 			return ret.p;
 		}
-#endif
 		*var_len = 0;
 		ret.cp = "";
 		return ret.p;

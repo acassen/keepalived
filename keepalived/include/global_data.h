@@ -101,11 +101,9 @@ typedef struct _data {
 #ifdef _WITH_BFD_
 	const char			*bfd_process_name;
 #endif
-#if HAVE_DECL_CLONE_NEWNET
 	const char			*network_namespace;		/* network namespace name */
 	const char			*network_namespace_ipvs;	/* network namespace name for ipvs */
 	bool				namespace_with_ipsets;		/* override for namespaces with ipsets on Linux < 3.13 */
-#endif
 	const char			*local_name;
 	const char			*instance_name;		/* keepalived instance name */
 #ifdef _WITH_LINKBEAT_

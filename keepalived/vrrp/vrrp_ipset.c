@@ -286,7 +286,6 @@ bool ipset_initialise(void)
 		return true;
 #endif
 
-#if HAVE_DECL_CLONE_NEWNET
 	/* Don't attempt to use ipsets if running in a namespace and the default
 	 * set names have not been overridden and the kernel version is less
 	 * than Linux 3.13, since ipsets didn't understand namespaces prior to that. */
@@ -298,7 +297,6 @@ bool ipset_initialise(void)
 		log_message(LOG_INFO, "Not using ipsets with network namespace since not supported with kernel version < 3.13");
 		return false;
 	}
-#endif
 
 #ifdef _LIBIPSET_DYNAMIC_
 	/* Attempt to open the ipset library */

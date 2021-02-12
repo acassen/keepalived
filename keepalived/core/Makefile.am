@@ -14,7 +14,8 @@ AM_LDFLAGS		= $(KA_LDFLAGS) $(DEBUG_LDFLAGS)
 noinst_LIBRARIES	= libcore.a
 
 libcore_a_SOURCES	= main.c daemon.c pidfile.c layer4.c smtp.c \
-			  global_data.c global_parser.c keepalived_netlink.c
+			  global_data.c global_parser.c keepalived_netlink.c \
+			  namespaces.c
 
 libcore_a_LIBADD =
 EXTRA_libcore_a_SOURCES =
@@ -22,11 +23,6 @@ EXTRA_libcore_a_SOURCES =
 if SNMP
   libcore_a_LIBADD	+= snmp.o
   EXTRA_libcore_a_SOURCES += snmp.c
-endif
-
-if WITH_NAMESPACES
-  libcore_a_LIBADD	+= namespaces.o
-  EXTRA_libcore_a_SOURCES += namespaces.c
 endif
 
 if NFTABLES

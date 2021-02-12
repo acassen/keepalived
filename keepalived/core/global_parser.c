@@ -63,10 +63,7 @@
 #include "check_nftables.h"
 #endif
 #endif
-
-#if HAVE_DECL_CLONE_NEWNET
 #include "namespaces.h"
-#endif
 
 /* Defined in kernel source file include/linux/sched.h but
  * not currently exposed to userspace */
@@ -1515,7 +1512,7 @@ snmp_checker_handler(__attribute__((unused)) const vector_t *strvec)
 }
 #endif
 #endif
-#if HAVE_DECL_CLONE_NEWNET
+
 static void
 net_namespace_handler(const vector_t *strvec)
 {
@@ -1561,7 +1558,6 @@ namespace_ipsets_handler(const vector_t *strvec)
 
 	global_data->namespace_with_ipsets = true;
 }
-#endif
 
 #ifdef _WITH_DBUS_
 static void
@@ -2144,11 +2140,9 @@ init_global_keywords(bool global_active)
 #ifdef _WITH_LINKBEAT_
 	install_keyword_root("linkbeat_use_polling", use_polling_handler, global_active);
 #endif
-#if HAVE_DECL_CLONE_NEWNET
 	install_keyword_root("net_namespace", &net_namespace_handler, global_active);
 	install_keyword_root("net_namespace_ipvs", &net_namespace_ipvs_handler, global_active);
 	install_keyword_root("namespace_with_ipsets", &namespace_ipsets_handler, global_active);
-#endif
 	install_keyword_root("use_pid_dir", &use_pid_dir_handler, global_active);
 	install_keyword_root("instance", &instance_handler, global_active);
 	install_keyword_root("child_wait_time", &child_wait_handler, global_active);

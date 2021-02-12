@@ -41,9 +41,7 @@
 #include "logger.h"
 #include "libipvs.h"
 #include "main.h"
-#if HAVE_DECL_CLONE_NEWNET
 #include "namespaces.h"
-#endif
 #ifdef _WITH_NFTABLES_
 #include "check_nftables.h"
 #endif

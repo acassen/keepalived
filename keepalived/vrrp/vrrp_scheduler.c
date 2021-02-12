@@ -1384,11 +1384,7 @@ dump_threads(void)
 
 	file_name = make_file_name(KA_TMP_DIR "/thread_dump.dat",
 					"vrrp",
-#if HAVE_DECL_CLONE_NEWNET
 					global_data->network_namespace,
-#else
-					NULL,
-#endif
 					global_data->instance_name);
 	fp = fopen_safe(file_name, "a");
 	FREE_CONST(file_name);
