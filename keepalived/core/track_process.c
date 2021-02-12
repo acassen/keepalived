@@ -1047,7 +1047,6 @@ handle_proc_ev(int nl_sd)
 						proc_ev.event_data.sid.process_pid,
 						proc_ev.event_data.sid.process_tgid);
 				break;
-#if HAVE_DECL_PROC_EVENT_PTRACE	/* Since Linux v3.1 */
 			case PROC_EVENT_PTRACE:
 				log_message(LOG_INFO, "ptrace change: tid=%d pid=%d tracer tid=%d, pid=%d",
 						proc_ev.event_data.ptrace.process_pid,
@@ -1055,7 +1054,6 @@ handle_proc_ev(int nl_sd)
 						proc_ev.event_data.ptrace.tracer_pid,
 						proc_ev.event_data.ptrace.tracer_tgid);
 				break;
-#endif
 #if HAVE_DECL_PROC_EVENT_COMM		/* Since Linux v3.2 */
 			case PROC_EVENT_COMM:
 				log_message(LOG_INFO, "comm: tid=%d pid=%d comm %s",
