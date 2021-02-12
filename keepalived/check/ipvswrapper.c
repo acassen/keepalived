@@ -31,10 +31,6 @@
 #include <stdbool.h>
 #include <sys/stat.h>
 
-#ifndef O_CLOEXEC	/* Since Linux 2.6.23 and glibc 2.7 */
-#define O_CLOEXEC 0	/* It doesn't really matter if O_CLOEXEC isn't set here */
-#endif
-
 #include "ipvswrapper.h"
 #include "global_data.h"
 #include "utils.h"

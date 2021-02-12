@@ -14,8 +14,6 @@ functionality that keepalived uses.
 
 =============================================================================
 
-./keepalived/check/ipvswrapper.c:#ifndef O_CLOEXEC	/* Since Linux 2.6.23 and glibc 2.7 */
-
 dnl -- RLIMIT_RTTIME since Linux 2.6.25 - not supported with musl libc
 
 ./lib/signals.c:#ifdef SFD_NONBLOCK	/* From Linux 2.6.26 */
