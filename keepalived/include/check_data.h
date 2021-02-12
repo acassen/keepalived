@@ -177,9 +177,7 @@ typedef struct _virtual_server {
 	char				sched[IP_VS_SCHEDNAME_MAXLEN];
 	uint32_t			flags;
 	uint32_t			persistence_timeout;
-#ifdef _HAVE_PE_NAME_
 	char				pe_name[IP_VS_PENAME_MAXLEN + 1];
-#endif
 	unsigned			forwarding_method;
 #ifdef _HAVE_IPVS_TUN_TYPE_
 	int				tun_type;	/* tunnel type */

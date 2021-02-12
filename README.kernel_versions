@@ -14,10 +14,6 @@ functionality that keepalived uses.
 
 =============================================================================
 
-dnl ----[ Checks for pe support ]----
-# Introduced in Linux 2.6.37
-AC_CHECK_DECL([IPVS_SVC_ATTR_PE_NAME],
-
 dnl ----[ Checks for O_PATH support ]----
 # Introduced in Linux 2.6.39
 

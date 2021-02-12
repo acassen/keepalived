@@ -490,7 +490,6 @@ pto_handler(const vector_t *strvec)
 
 	vs->persistence_timeout = (uint32_t)timeout;
 }
-#ifdef _HAVE_PE_NAME_
 static void
 pengine_handler(const vector_t *strvec)
 {
@@ -503,7 +502,6 @@ pengine_handler(const vector_t *strvec)
 	strncpy(vs->pe_name, str, size - 1);
 	vs->pe_name[size - 1] = '\0';
 }
-#endif
 static void
 pgr_handler(const vector_t *strvec)
 {
@@ -977,9 +975,7 @@ init_check_keywords(bool active)
 #endif
 	install_keyword("lb_kind", &vs_forwarding_handler);
 	install_keyword("lvs_method", &vs_forwarding_handler);
-#ifdef _HAVE_PE_NAME_
 	install_keyword("persistence_engine", &pengine_handler);
-#endif
 	install_keyword("persistence_timeout", &pto_handler);
 	install_keyword("persistence_granularity", &pgr_handler);
 	install_keyword("protocol", &proto_handler);

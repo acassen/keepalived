@@ -451,9 +451,7 @@ ipvs_set_srule(int cmd, ipvs_service_t *srule, virtual_server_t *vs)
 		if (vs->persistence_granularity != 0xffffffff)
 			srule->user.netmask = vs->persistence_granularity;
 
-#ifdef _HAVE_PE_NAME_
 		strcpy(srule->pe_name, vs->pe_name);
-#endif
 	}
 }
 

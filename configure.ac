@@ -2030,14 +2030,6 @@ if test ${IPVS_SUPPORT} = No -a ${VRRP_SUPPORT} = No; then
   AC_MSG_ERROR([keepalived MUST be compiled with at least one of LVS or VRRP framework])
 fi
 
-dnl ----[ Checks for pe support ]----
-# Introduced in Linux 2.6.37
-AC_CHECK_DECL([IPVS_SVC_ATTR_PE_NAME],
-   [
-     AC_DEFINE([_HAVE_PE_NAME_], [ 1 ], [Define to 1 if have pe selection support])
-   ],
-   [], [[#include <linux/ip_vs.h>]])
-
 dnl ----[ Checks for O_PATH support ]----
 # Introduced in Linux 2.6.39
 SAV_CPPFLAGS="$CPPFLAGS"
