@@ -1622,12 +1622,6 @@ AS_IF([test .$enable_iptables != .no],
 	  ])
 	LIBS="$SAV_LIBS"
       fi
-
-      dnl -- XT_EXTENSION_MAXNAMELEN not defined until Linux 2.6.35
-      AC_CHECK_DECL([XT_EXTENSION_MAXNAMELEN], [],
-	[AC_DEFINE([XT_EXTENSION_MAXNAMELEN], [ (XT_FUNCTION_MAXNAMELEN - 1) ], [Define if <linux/netfilter/x_tables.h> doesnt define it])],
-	[#include <linux/netfilter/x_tables.h>])
-
       CPPFLAGS="$SAV_CPPFLAGS"
     fi
     if test $USE_IPTABLES = Yes; then

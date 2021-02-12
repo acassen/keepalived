@@ -14,8 +14,6 @@ functionality that keepalived uses.
 
 =============================================================================
 
-dnl -- XT_EXTENSION_MAXNAMELEN not defined until Linux 2.6.35
-
 dnl ----[ Checks for pe support ]----
 # Introduced in Linux 2.6.37
 AC_CHECK_DECL([IPVS_SVC_ATTR_PE_NAME],
