@@ -26,10 +26,8 @@
 #include <sys/utsname.h>
 #include <sys/resource.h>
 #include <stdbool.h>
-#ifdef HAVE_SIGNALFD
 #include <sys/signalfd.h>
 #include <sys/epoll.h>
-#endif
 #include <errno.h>
 #include <signal.h>
 #include <fcntl.h>
@@ -1055,20 +1053,12 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 	struct timeval start_time, now;
 	size_t i;
 	int wstatus;
-#ifdef HAVE_SIGNALFD
 	int timeout = child_wait_time * 1000;
 	int signal_fd = master->signal_fd;
 	struct signalfd_siginfo siginfo;
 	sigset_t sigmask;
 	struct epoll_event ev = { .events = EPOLLIN, .data.fd = master->signal_fd };
 	int efd;
-#else
-	sigset_t old_set, child_wait;
-	struct timespec timeout = {
-		.tv_sec = child_wait_time,
-		.tv_nsec = 0
-	};
-#endif
 
 	log_message(LOG_INFO, "Stopping");
 
@@ -1081,19 +1071,10 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 		stop_reload_monitor();
 #endif
 
-#ifdef HAVE_SIGNALFD
 	/* We only want to receive SIGCHLD now */
 	sigemptyset(&sigmask);
 	sigaddset(&sigmask, SIGCHLD);
 	signalfd(signal_fd, &sigmask, 0);
-#else
-	sigmask_func(0, NULL, &old_set);
-	if (!sigismember(&old_set, SIGCHLD)) {
-		sigemptyset(&child_wait);
-		sigaddset(&child_wait, SIGCHLD);
-		sigmask_func(SIG_BLOCK, &child_wait, NULL);
-	}
-#endif
 
 	/* Signal our children to terminate */
 	for (i = 0; i < NUM_CHILD_TERM; i++) {
@@ -1108,14 +1089,11 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 		}
 	}
 
-#ifdef HAVE_SIGNALFD
 	efd = epoll_create(1);
 	epoll_ctl(efd, EPOLL_CTL_ADD, signal_fd, &ev);
-#endif
 
 	gettimeofday(&start_time, NULL);
 	while (wait_count) {
-#ifdef HAVE_SIGNALFD
 		ret = epoll_wait(efd, &ev, 1, timeout);
 		if (ret == 0)
 			break;
@@ -1169,45 +1147,15 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 				break;
 			}
 		}
-#else
-		ret = sigtimedwait(&child_wait, NULL, &timeout);
-		if (ret == -1) {
-			if (check_EINTR(errno))
-				continue;
-			if (check_EAGAIN(errno))
-				break;
-		}
-
-		for (i = 0; i < NUM_CHILD_TERM && wait_count; i++) {
-			if (*children_term[i].pid_p > 0 && *children_term[i].pid_p == waitpid(*children_term[i].pid_p, &wstatus, WNOHANG)) {
-				report_child_status(wstatus, *children_term[i].pid_p, children_term[i].name);
-				*children_term[i].pid_p = 0;
-				wait_count--;
-			}
-		}
-#endif
 
 		if (wait_count) {
 			gettimeofday(&now, NULL);
-#ifdef HAVE_SIGNALFD
 			timeout = (child_wait_time - (now.tv_sec - start_time.tv_sec)) * 1000 + (start_time.tv_usec - now.tv_usec) / 1000;
 			if (timeout < 0)
 				break;
-#else
-			timeout.tv_sec = child_wait_time - (now.tv_sec - start_time.tv_sec);
-			timeout.tv_nsec = (start_time.tv_usec - now.tv_usec) * 1000;
-			if (timeout.tv_nsec < 0) {
-				timeout.tv_nsec += 1000000000L;
-				timeout.tv_sec--;
-			}
-			if (timeout.tv_sec < 0)
-				break;
-#endif
 		}
 	}
-#ifdef HAVE_SIGNALFD
 	close(efd);
-#endif
 
 	/* A child may not have terminated, so force its termination */
 	for (i = 0; i < NUM_CHILD_TERM; i++) {
@@ -1220,11 +1168,6 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 	if (!global_data->shutdown_script) {
 		/* register the terminate thread */
 		thread_add_terminate_event(master);
-
-#ifndef HAVE_SIGNALFD
-		if (!sigismember(&old_set, SIGCHLD))
-			sigmask_func(SIG_UNBLOCK, &child_wait, NULL);
-#endif
 	} else {
 		/* If we have a shutdown script, run it now */
 		if (__test_bit(LOG_DETAIL_BIT, &debug))

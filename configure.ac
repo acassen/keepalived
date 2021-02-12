@@ -1021,8 +1021,6 @@ dnl - dup3 since Linux 2.6.27 and glibc 2.9
 AC_CHECK_FUNCS([dup2 dup3 getcwd gettimeofday malloc memmove memset realloc select setenv socket strcasecmp strchr strdup strerror strpbrk strstr strtol strtoul uname])
 dnl - pipe2() since Linux 2.6.27 and glibc 2.9.
 AC_CHECK_FUNCS([pipe2], [add_system_opt([PIPE2])])
-dnl - signalfd() since Linux 2.6.22 and glibc 2.8
-AC_CHECK_FUNCS([signalfd], [add_system_opt([SIGNALFD])])
 dnl - inotify_init1() since Linux 2.6.27
 AC_CHECK_FUNCS([inotify_init1], [add_system_opt([INOTIFY_INIT1])])
 dnl - vsyslog() Not defined by Posix, but available in glibc and musl
@@ -2772,11 +2770,10 @@ AS_IF([test .$enable_eintr_debug = .yes],
     ENABLE_EINTR_DEBUG=Yes
   ],
   [
-    dnl --- We need to check for EINTR if we are not using signalfd
-    AS_IF([test .$ac_cv_func_signalfd != .yes -o .$enable_eintr_debug = .check],
+    AS_IF([test .$enable_eintr_debug = .check],
       [
 	AC_DEFINE([CHECK_EINTR], [ 1 ], [Define if need to check for EINTR errno])
-	AS_IF([test .$ac_cv_func_signalfd = .yes], [add_config_opt([EINTR_CHECK])])
+	add_config_opt([EINTR_CHECK])
       ])
   ])
 

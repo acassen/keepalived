@@ -37,9 +37,7 @@
 #include <sys/timerfd.h>
 #include <sys/epoll.h>
 #include <unistd.h>
-#ifdef HAVE_SIGNALFD
 #include <sys/signalfd.h>
-#endif
 #include <sys/utsname.h>
 #include <linux/version.h>
 #include <sched.h>

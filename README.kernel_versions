@@ -14,9 +14,6 @@ functionality that keepalived uses.
 
 =============================================================================
 
-dnl - signalfd() since Linux 2.6.22 and glibc 2.8
-AC_CHECK_FUNCS([signalfd], [add_system_opt([SIGNALFD])])
-
 ./keepalived/check/ipvswrapper.c:#ifndef O_CLOEXEC	/* Since Linux 2.6.23 and glibc 2.7 */
 
 dnl -- RLIMIT_RTTIME since Linux 2.6.25 - not supported with musl libc
