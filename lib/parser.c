@@ -2309,15 +2309,8 @@ open_conf_file(include_file_t *file)
 		file->current_line_no = 0;
 
 		if (strchr(file->globbuf.gl_pathv[i], '/')) {
-			/* If the filename contains a directory element, change to that directory.
-			   The man page open(2) states that fchdir() didn't support O_PATH until Linux 3.5,
-			   even though testing on Linux 3.1 shows it appears to work. To be safe, don't
-			   use it until Linux 3.5. */
-			file->curdir_fd = open(".", O_RDONLY | O_DIRECTORY
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
-								     | O_PATH
-#endif
-									     );
+			/* If the filename contains a directory element, change to that directory. */
+			file->curdir_fd = open(".", O_RDONLY | O_DIRECTORY | O_PATH);
 
 			char *confpath = STRDUP(file->globbuf.gl_pathv[i]);
 			dirname(confpath);
@@ -2628,15 +2621,8 @@ read_line(char *buf, size_t size)
 						file->current_file_name = file->file_name;
 						list_head_add(&file->e_list, &include_stack);
 						if (strchr(file->current_file_name, '/')) {
-							/* If the filename contains a directory element, change to that directory.
-							   The man page open(2) states that fchdir() didn't support O_PATH until Linux 3.5,
-							   even though testing on Linux 3.1 shows it appears to work. To be safe, don't
-							   use it until Linux 3.5. */
-							file->curdir_fd = open(".", O_RDONLY | O_DIRECTORY
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
-												     | O_PATH
-#endif
-													     );
+							/* If the filename contains a directory element, change to that directory. */
+							file->curdir_fd = open(".", O_RDONLY | O_DIRECTORY | O_PATH);
 
 							char *confpath = STRDUP(buf + 2);
 							dirname(confpath);
