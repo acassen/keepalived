@@ -944,7 +944,7 @@ AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdint.h std
 SAV_CPPFLAGS="$CPPFLAGS"
 CPPFLAGS="$CPPFLAGS $kernelinc"
 
-dnl -- Does linux/errqueue.h need sys/time.h?
+dnl -- linux/errqueue.h need sys/time.h before Linux < v5.1
 AC_MSG_CHECKING([linux/errqueue.h needs sys/time.h])
 AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   #include <fcntl.h>

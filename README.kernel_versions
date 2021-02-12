@@ -106,6 +106,8 @@ dnl --FRA_DPORT_RANGE		dnl -- Linux 4.17
 
 ./lib/rbtree.c:/* This is updated to Linux v4.18.10 lib/rbtree.c
 
+dnl -- Linux/errqueue.h need sys/time.h before Linux < v5.1
+
 dnl -- Since Linux 5.2
 IPVS_DEST_ATTR_TUN_TYPE
 
