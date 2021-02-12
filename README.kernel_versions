@@ -120,6 +120,11 @@ IP_VS_CONN_F_TUNNEL_TYPE_GRE
 dnl ----[ Is HTTP_GET regex checking wanted? ]----
 $PKG_CONFIG --exists libpcre2-8
 
+/* Defined in kernel source file include/linux/sched.h but
+ * not currently (Linux v5.10.12) exposed to userspace.
+ * Also not currently exposed by glibc (v2.32). */
+#define TASK_COMM_LEN 16
+
 =============================================================================
 
 Package versions

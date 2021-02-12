@@ -66,7 +66,8 @@
 #include "namespaces.h"
 
 /* Defined in kernel source file include/linux/sched.h but
- * not currently exposed to userspace */
+ * not currently (Linux v5.10.12) exposed to userspace.
+ * Also not currently exposed by glibc (v2.32). */
 #ifndef TASK_COMM_LEN
 #define TASK_COMM_LEN	16
 #endif
