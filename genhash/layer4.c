@@ -241,7 +241,7 @@ tcp_connect_thread(thread_ref_t thread)
 
 	if ((sock_obj->fd = socket((req->dst && req->dst->ai_family == AF_INET6) ? AF_INET6 : AF_INET,
 				   SOCK_STREAM | SOCK_NONBLOCK
-#ifdef SOCK_CLOEXEC
+#if HAVE_DECL_SOCK_CLOEXEC
 					       | SOCK_CLOEXEC
 #endif
 							     , IPPROTO_TCP)) == -1) {
