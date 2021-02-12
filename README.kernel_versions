@@ -17,10 +17,6 @@ functionality that keepalived uses.
 dnl -- From Linux 2.6.35 (but CentOS has it in 2.6.32)
 AC_CHECK_DECLS([IP_VS_SVC_F_ONEPACKET], [], [],
 
-dnl --FRA_OIFNAME		dnl -- Linux 2.6.33
-
-./keepalived/core/keepalived_netlink.c:	 * interface name until Linux v2.6.33 */
-
 dnl -- Since Linux 2.6.33
 IFLA_MACVLAN_MODE,
 MACVLAN_MODE_PRIVATE], [],

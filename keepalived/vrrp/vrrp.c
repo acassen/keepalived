@@ -3751,10 +3751,8 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			/* If the rule specifies an interface, this vrrp instance should track the interface */
 			if (rule->iif)
 				add_vrrp_to_interface(vrrp, rule->iif, 0, false, false, TRACK_RULE);
-#if HAVE_DECL_FRA_OIFNAME
 			if (rule->oif)
 				add_vrrp_to_interface(vrrp, rule->oif, 0, false, false, TRACK_RULE);
-#endif
 		}
 	}
 

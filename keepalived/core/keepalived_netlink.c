@@ -415,13 +415,11 @@ compare_rule(struct fib_rule_hdr *frh, struct rtattr *tb[FRA_MAX + 1], ip_rule_t
 	    strcmp(RTA_DATA(tb[FRA_IFNAME]), rule->iif->ifname))
 		return false;
 
-#if HAVE_DECL_FRA_OIFNAME
 	if (!tb[FRA_OIFNAME] != !(rule->oif))
 		return false;
 	if (rule->oif &&
 	    strcmp(RTA_DATA(tb[FRA_OIFNAME]), rule->oif->ifname))
 		return false;
-#endif
 
 #if HAVE_DECL_FRA_TUN_ID
 	uint64_t tunnel_id;
