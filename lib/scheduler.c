@@ -51,9 +51,6 @@
 #include "bitops.h"
 #include "git-commit.h"
 #include "timer.h"
-#if !defined HAVE_EPOLL_CREATE1
-#include "old_socket.h"
-#endif
 #include "assert_debug.h"
 #include "warnings.h"
 #include "utils.h"
@@ -740,21 +737,12 @@ thread_make_master(void)
 
 	PMALLOC(new);
 
-#ifdef HAVE_EPOLL_CREATE1
 	new->epoll_fd = epoll_create1(EPOLL_CLOEXEC);
-#else
-	new->epoll_fd = epoll_create(1);
-#endif
 	if (new->epoll_fd < 0) {
 		log_message(LOG_INFO, "scheduler: Error creating EPOLL instance (%m)");
 		FREE(new);
 		return NULL;
 	}
-
-#ifndef HAVE_EPOLL_CREATE1
-	if (set_sock_flags(new->epoll_fd, F_SETFD, FD_CLOEXEC))
-		log_message(LOG_INFO, "Unable to set CLOEXEC on epoll_fd - %d (%m)", errno);
-#endif
 
 	new->read = RB_ROOT_CACHED;
 	new->write = RB_ROOT_CACHED;

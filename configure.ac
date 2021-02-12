@@ -1023,8 +1023,6 @@ dnl - inotify_init1() since Linux 2.6.27
 AC_CHECK_FUNCS([inotify_init1], [add_system_opt([INOTIFY_INIT1])])
 dnl - vsyslog() Not defined by Posix, but available in glibc and musl
 AC_CHECK_FUNCS([vsyslog], [add_system_opt([VSYSLOG])])
-dnl - epoll_create1() since Linux 2.6.27 and glibc 2.9
-AC_CHECK_FUNCS([epoll_create1], [add_system_opt([EPOLL_CREATE1])])
 
 dnl - memfd_create() - since Linux 3.17 and glibc 2.27
 dnl - memfd_create() appeared in the kernel long before it appeared in
@@ -2110,10 +2108,6 @@ AM_CONDITIONAL([TRACK_PROCESS], [test $WITH_TRACK_PROCESS = Yes])
 if test ${IPVS_SUPPORT} = No -a ${VRRP_SUPPORT} = No; then
   AC_MSG_ERROR([keepalived MUST be compiled with at least one of LVS or VRRP framework])
 fi
-
-dnl ----[ Checks for needing old_socket support ]----
-# Not needed from Linux 2.6.27 and glibc 2.9
-AM_CONDITIONAL([NEED_OLD_SOCKET], [.$ac_cv_func_epoll_create1 != .yes])
 
 dnl ----[ Checks for pe support ]----
 # Introduced in Linux 2.6.37
