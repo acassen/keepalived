@@ -944,19 +944,6 @@ AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdint.h std
 SAV_CPPFLAGS="$CPPFLAGS"
 CPPFLAGS="$CPPFLAGS $kernelinc"
 
-dnl -- <linux/rtnetlink.h> needed <sys/socket.h> until ? Linux 3.1
-dnl -- using AC_CHECK_HEADER causes a horrible error message for the user
-RTNETLINK_EXTRA_INCLUDE=
-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-  #include <linux/rtnetlink.h>
-  ]])], [],
-  [AC_CHECK_HEADER([linux/rtnetlink.h],
-    [
-      AC_DEFINE([RTNETLINK_H_NEEDS_SYS_SOCKET_H], [ 1 ], [Define to 1 if <linux/rtnetlink.h> needs <sys/socket.h>])
-      RTNETLINK_EXTRA_INCLUDE="#include <sys/socket.h>"
-    ], [AC_MSG_ERROR([Missing/unusable kernel header file <linux/rtnetlink.h>])],
-    [[#include <sys/socket.h>]])])
-
 dnl -- Does linux/errqueue.h need sys/time.h?
 AC_MSG_CHECKING([linux/errqueue.h needs sys/time.h])
 AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
