@@ -14,8 +14,6 @@ functionality that keepalived uses.
 
 =============================================================================
 
-dnl -- SCHED_RESET_ON_FORK since Linux 2.6.32
-
 dnl -- From Linux 2.6.35 (but CentOS has it in 2.6.32)
 AC_CHECK_DECLS([IP_VS_SVC_F_ONEPACKET], [], [],
 

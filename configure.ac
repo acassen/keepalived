@@ -2445,12 +2445,6 @@ if test "${enable_fwmark}" != no; then
     [[#include <sys/socket.h>]])
 fi
 
-dnl -- SCHED_RESET_ON_FORK since Linux 2.6.32
-AC_CHECK_DECLS([SCHED_RESET_ON_FORK],
-  [add_system_opt([SCHED_RESET_ON_FORK])],
-  [AC_DEFINE([SCHED_RESET_ON_FORK], [ 0 ], [Dummy definition if not defined in system headers])],
-  [[#include <sched.h>]])
-
 dnl -- Do we want GNU standard paths (moves .pid files)
 GNU_STD_PATHS=No
 if test "${enable_gnu_std_paths}" = "yes"; then
