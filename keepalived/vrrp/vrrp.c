@@ -2300,13 +2300,7 @@ open_vrrp_send_socket(sa_family_t family, int proto, const interface_t *ifp, con
 
 	if (family == AF_INET) {
 		/* Set v4 related */
-
-		/* It doesn't really matter if IP_MULTICAST_ALL is not supported
-		 * since we set a BPF filter to stop any packet being received
-		 * on the send socket */
-#if HAVE_DECL_IP_MULTICAST_ALL  /* Since Linux 2.6.31 */
 		if_setsockopt_mcast_all(AF_INET, &fd);
-#endif
 		if_setsockopt_hdrincl(&fd);
 	} else if (family == AF_INET6) {
 		/* Set v6 related */
@@ -2358,11 +2352,9 @@ open_vrrp_read_socket(sa_family_t family, int proto, const interface_t *ifp, con
 			log_message(LOG_INFO, "vrrp set receive socket buffer size error %d", errno);
 	}
 
-#if HAVE_DECL_IP_MULTICAST_ALL  /* Since Linux 2.6.31 */
 	/* Ensure no unwanted multicast packets are queued to this interface */
 	if (family == AF_INET)
 		if_setsockopt_mcast_all(family, &fd);
-#endif
 
 	if (!unicast_src) {
 		/* Join the VRRP multicast group */

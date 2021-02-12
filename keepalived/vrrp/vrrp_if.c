@@ -1124,7 +1124,6 @@ if_setsockopt_ipv6_checksum(int *sd)
 	return *sd;
 }
 
-#if HAVE_DECL_IP_MULTICAST_ALL	/* Since Linux 2.6.31 */
 int
 if_setsockopt_mcast_all(sa_family_t family, int *sd)
 {
@@ -1149,7 +1148,6 @@ if_setsockopt_mcast_all(sa_family_t family, int *sd)
 
 	return *sd;
 }
-#endif
 
 int
 if_setsockopt_mcast_loop(sa_family_t family, int *sd)
