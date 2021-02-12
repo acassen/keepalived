@@ -298,16 +298,7 @@ open_signal_fd(void)
 {
 	sigemptyset(&signal_fd_set);
 
-#ifdef SFD_NONBLOCK	/* From Linux 2.6.26 */
 	signal_fd = signalfd(signal_fd, &signal_fd_set, SFD_NONBLOCK | SFD_CLOEXEC);
-#else
-	signal_fd = signalfd(signal_fd, &signal_fd_set, 0);
-
-	if (signal_fd != -1) {
-		fcntl(signal_fd, F_SETFL, O_NONBLOCK | fcntl(signal_fd, F_GETFL));
-		fcntl(signal_fd, F_SETFD, FD_CLOEXEC | fcntl(signal_fd, F_GETFD));
-	}
-#endif
 	if (signal_fd == -1)
 		log_message(LOG_INFO, "BUG - signal_fd init failed - %d (%s), please report", errno, strerror(errno));
 
