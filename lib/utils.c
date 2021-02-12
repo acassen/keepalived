@@ -253,14 +253,7 @@ run_perf(const char *process, const char *network_namespace, const char *instanc
 			break;
 		}
 
-#ifdef IN_CLOEXEC
 		in = inotify_init1(IN_CLOEXEC | IN_NONBLOCK);
-#else
-		if ((in = inotify_init()) != -1) {
-			fcntl(in, F_SETFD, FD_CLOEXEC | fcntl(n, F_GETFD));
-			fcntl(in, F_SETFL, O_NONBLOCK | fcntl(n, F_GETFL));
-		}
-#endif
 		if (in == -1) {
 			log_message(LOG_INFO, "inotify_init failed %d - %m", errno);
 			break;

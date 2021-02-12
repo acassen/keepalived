@@ -14,9 +14,6 @@ functionality that keepalived uses.
 
 =============================================================================
 
-dnl - inotify_init1() since Linux 2.6.27
-AC_CHECK_FUNCS([inotify_init1], [add_system_opt([INOTIFY_INIT1])])
-
 dnl -- <linux/ip_vs.h> exists from Linux 2.6.27; prior to that <net/ip_vs.h> is used
 
 ./keepalived/core/keepalived_netlink.c:	 * NETLINK_NO_ENOBUFS was introduced in Linux 2.6.30
