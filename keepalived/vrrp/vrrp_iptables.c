@@ -43,11 +43,7 @@
 #include <libiptc/libxtc.h>
 #include <stdint.h>
 #ifdef _HAVE_LIBIPSET_
-#ifdef USE_LIBIPSET_LINUX_IP_SET_H
-#include <libipset/linux_ip_set.h>
-#else
 #include <linux/netfilter/ipset/ip_set.h>
-#endif
 #endif
 #include <stdbool.h>
 #include <linux/netfilter_ipv4/ip_tables.h>

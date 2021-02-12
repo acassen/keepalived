@@ -1480,23 +1480,6 @@ AS_IF([test .$enable_iptables != .no],
 	      ])
 
 	    if test $USE_LIBIPSET = Yes; then
-	      dnl -- Need to use <libipset/linux_ip_set.h> for <linux/netfilter/xt_set.h> prior to Linux 3.4
-	      EXTRA_INCLUDE=
-	      AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-		#include <linux/netfilter/xt_set.h>
-		]])],
-		[AC_CHECK_HEADERS([linux/netfilter/xt_set.h], [], [USE_LIBIPSET=No], [])],
-		[AC_CHECK_HEADER([linux/netfilter/xt_set.h],
-		  [
-		    AC_DEFINE([USE_LIBIPSET_LINUX_IP_SET_H], [ 1 ], [Define to 1 if <linux/netfilter/xt_set.h> needs <libipset/linux_ip_set.h>])
-		    EXTRA_INCLUDE="#include <libipset/linux_ip_set.h>"
-		  ], [USE_LIBIPSET=No],
-		  [[#include <libipset/linux_ip_set.h>]])
-		]
-	      )
-	    fi
-
-	    if test $USE_LIBIPSET = Yes; then
 	      AC_DEFINE([_HAVE_LIBIPSET_], [ 1 ], [Define to 1 if have ipset library])
 	      $PKG_CONFIG --exists libipset
 	      if test $? -eq 0; then
@@ -1521,16 +1504,10 @@ AS_IF([test .$enable_iptables != .no],
 
 	      dnl -- xt_set_info_match_v3 declared since Linux 3.10
 	      AC_CHECK_MEMBER([struct xt_set_info_match_v3.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V3], [ 1 ], [Define to 1 if have struct xt_set_info_match_v3])], [],
-		[
-		  $EXTRA_INCLUDE
-		  #include <linux/netfilter/xt_set.h>
-		])
+		[#include <linux/netfilter/xt_set.h>])
 	      dnl -- xt_set_info_match_v4 declared since Linux 3.19
 	      AC_CHECK_MEMBER([struct xt_set_info_match_v4.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V4], [ 1 ], [Define to 1 if have struct xt_set_info_match_v4])], [],
-		[
-		  $EXTRA_INCLUDE
-		  #include <linux/netfilter/xt_set.h>
-		])
+		[#include <linux/netfilter/xt_set.h>])
 
 	      dnl - The include guard for <linux/netfilter/ipset/ip_set.h> has the leading _UAPI remove when
 	      dnl - the source code is processed to produce the actual header files.
