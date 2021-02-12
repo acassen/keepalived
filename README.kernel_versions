@@ -125,6 +125,9 @@ Package versions
 
 dnl -- RLIMIT_RTTIME - not defined in musl libc until v1.2.0
 
+libipset v6.38	Used by Debian Buster, EOL ~2022
+	 v6.29	Used by Ubuntu 16.04, EOL 04/21
+
 =============================================================================
 
 Kernel configuration requirements

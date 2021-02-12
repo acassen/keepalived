@@ -1508,6 +1508,9 @@ AS_IF([test .$enable_iptables != .no],
 	    fi
 
 	    if test $USE_LIBIPSET = Yes; then
+	      dnl -- Debian Buster has ipset v6.38, Bullseye v7.10.
+	      dnl -- Ubuntu 16.04 has ipset v6.29.
+	      dnl -- All other distros appear to have moved to ipset v7.
 	      AC_MSG_CHECKING([for libipset version 7 or later])
 	      AC_COMPILE_IFELSE([AC_LANG_SOURCE(
 		[[
