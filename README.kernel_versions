@@ -154,3 +154,5 @@ IP_ADVANCED_ROUTER and various associated options if static/dynamic routes speci
 FIB_RULES if static or dynamic rules are specified
 NFTABLES
 CN_PROC for vrrp track_process
+MACVLAN
+IPVLAN
