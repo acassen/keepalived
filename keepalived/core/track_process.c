@@ -1058,13 +1058,11 @@ handle_proc_ev(int nl_sd)
 						proc_ev.event_data.comm.process_tgid,
 						proc_ev.event_data.comm.comm);
 				break;
-#if HAVE_DECL_PROC_EVENT_COREDUMP	/* Since Linux v3.10 */
 			case PROC_EVENT_COREDUMP:
 				log_message(LOG_INFO, "coredump: tid=%d pid=%d",
 						proc_ev.event_data.coredump.process_pid,
 						proc_ev.event_data.coredump.process_tgid);
 				break;
-#endif
 			case PROC_EVENT_EXIT:
 				log_message(LOG_INFO, "exit: tid=%d pid=%d exit_code=%u, signal=%u,",
 						proc_ev.event_data.exit.process_pid,

@@ -1946,9 +1946,6 @@ if test "$enable_vrrp" != no; then
     [
       WITH_TRACK_PROCESS=Yes
       AC_DEFINE([_WITH_TRACK_PROCESS_], [ 1 ], [Define to 1 if track-process not disabled])
-
-      dnl -- PROC_EVENT_COREDUMP since Linux v3.10
-      AC_CHECK_DECLS([PROC_EVENT_COREDUMP], [], [], [[#include <linux/cn_proc.h>]])
     ],
     [add_config_opt([DISABLE_TRACK_PROCESS])])
 fi
