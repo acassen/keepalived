@@ -1983,9 +1983,10 @@ if test "$enable_lvs" != no; then
   dnl ----[ Is HTTP_GET regex checking wanted? ]----
   AS_IF([test "$enable_regex" = yes],
     [
+      dnl -- Check pcre library has 8-bit support
       $PKG_CONFIG --exists libpcre2-8
       HAVE_PCRE2=$?
-      AS_IF([test $HAVE_PCRE2 -ne 0], [AC_MSG_ERROR([cannot find pcre library])])
+      AS_IF([test $HAVE_PCRE2 -ne 0], [AC_MSG_ERROR([cannot find 8-bit pcre library])])
       AC_MSG_CHECKING([for pcre.h])
       AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
 	#define PCRE2_CODE_UNIT_WIDTH 8
