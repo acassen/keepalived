@@ -4667,7 +4667,16 @@ clear_diff_vrrp(void)
 			if (global_data->enable_dbus)
 				dbus_remove_object(vrrp);
 #endif
-		} else {
+		}
+	}
+
+	list_for_each_entry(vrrp, &old_vrrp_data->vrrp, e_list) {
+		/*
+		 * Try to find this vrrp in the new conf data
+		 * reloaded.
+		 */
+		new_vrrp = vrrp_exist(vrrp, &vrrp_data->vrrp);
+		if (new_vrrp) {
 			/*
 			 * If this vrrp instance exist in new
 			 * data, then perform a VIP|EVIP diff.
