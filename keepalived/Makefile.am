@@ -47,7 +47,7 @@ if WITH_BFD
 endif
 
 if INIT_SYSTEMD
-keepalived.service: $(srcdir)Makefile.am
+keepalived.service: $(srcdir)/Makefile.am
 	@rm -f $@ $@.tmp
 	@$(edit) '$(srcdir)/$@.in' >$@
 

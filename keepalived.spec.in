@@ -99,7 +99,7 @@ autoreconf -f -i
 # Likewise remove README
 %{__rm} -f %{buildroot}%{_docdir}/%{name}/README
 # Copy the doc files we want, removing the .pem files
-%{__mkdir} doc_install doc_install/samples
+%{__mkdir} -p doc_install/samples
 %{__cp} doc/keepalived.conf.SYNOPSIS doc_install
 %{__cp} doc/samples/* doc_install/samples
 %{__rm} -f doc_install/samples/*.pem
@@ -119,6 +119,7 @@ fi
 
 %clean
 %{__rm} -rf %{buildroot}
+%{__rm} -rf doc_install
 
 
 %post
