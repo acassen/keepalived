@@ -46,8 +46,8 @@ if WITH_BFD
   BFD_LIB		= bfd/libbfd.a
 endif
 
-if WITH_SYSTEMD
-keepalived.service: Makefile.am
+if INIT_SYSTEMD
+keepalived.service: $(srcdir)Makefile.am
 	@rm -f $@ $@.tmp
 	@$(edit) '$(srcdir)/$@.in' >$@
 
