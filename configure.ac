@@ -2678,7 +2678,6 @@ INIT_TYPE=
 AS_IF(
   [test -n "$init_type"], [INIT_TYPE=$init_type],
   [test -n "$with_systemdsystemunitdir"], [INIT_TYPE=systemd],
-  [test .${enable_systemd} != .no], [INIT_TYPE=systemd],
   [
     /sbin/init --version 2>/dev/null | grep -q upstart
     AS_IF(
@@ -2699,12 +2698,17 @@ AS_IF(
 		AS_IF([test $? -eq 0], [INIT_TYPE=openrc])
 	      ])
 	  ])
-	AS_IF([test \( -z "$INIT_TYPE" -a -f /etc/init.d/cron -a ! -h /etc/init.d/cron \)], [INIT_TYPE=SYSV])
+	AS_IF([test -z "$INIT_TYPE"],
+	  [
+	    for f in /etc/init.d/cron* /etc/init.d/*syslog*; do
+	      INIT_TYPE=SYSV
+	      break
+	    done
+	  ])
       ])
   ])
 AS_IF([test \( .$INIT_TYPE = .systemd -a -z "$with_systemdsystemunitdir" \)], [with_systemdsystemunitdir=$($PKG_CONFIG --variable=systemdsystemunitdir systemd)])
 AS_IF([test .$INIT_TYPE != .], [add_config_opt([INIT=$INIT_TYPE])])
-AM_CONDITIONAL([WITH_SYSTEMD], [test .$INIT_TYPE = .systemd])
 
 USE_SYSTEMD_NOTIFY=No
 SYSTEMD_SERVICE_TYPE=forking

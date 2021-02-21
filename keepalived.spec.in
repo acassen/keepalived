@@ -98,6 +98,15 @@ autoreconf -f -i
 %{__rm} -rf %{buildroot}%{_sysconfdir}/keepalived/samples/
 # Likewise remove README
 %{__rm} -f %{buildroot}%{_docdir}/%{name}/README
+# Copy the doc files we want, removing the .pem files
+%{__mkdir} -p doc_install/samples
+%{__cp} doc/keepalived.conf.SYNOPSIS doc_install
+%{__cp} doc/samples/* doc_install/samples
+%{__rm} -f doc_install/samples/*.pem
+
+# Rename the SYSV init file if necessary
+@INIT_SUSE_TRUE@%{__mv} %{buildroot}%{_initrddir}/keepalived.suse.init %{buildroot}%{_initrddir}/keepalived
+@INIT_UPSTART_FALSE@%{__rm} -f %{buildroot}%{_sysconfdir}/init/keepalived.conf
 
 %check
 # A build could silently have LVS support disabled if the kernel includes can't
@@ -110,6 +119,7 @@ fi
 
 %clean
 %{__rm} -rf %{buildroot}
+%{__rm} -rf doc_install
 
 
 %post
@@ -144,12 +154,12 @@ fi
 %files
 %defattr(-, root, root, -)
 %doc AUTHOR ChangeLog CONTRIBUTORS COPYING README TODO
-%doc doc/keepalived.conf.SYNOPSIS doc/samples/
+%doc doc_install/*
 %dir %{_sysconfdir}/keepalived/
 %attr(0600,root,root) %config(noreplace) %{_sysconfdir}/keepalived/keepalived.conf
 %attr(0600,root,root) %config(noreplace) %{_sysconfdir}/sysconfig/keepalived
 @INIT_SYSTEMD_TRUE@%{_unitdir}/keepalived.service
-@INIT_SYSV_TRUE@%{_initdir}/keepalived
+@INIT_SYSV_TRUE@%{_initrddir}/keepalived
 @INIT_UPSTART_TRUE@%{_sysconfdir}/init/keepalived.conf
 @SNMP_TRUE@%{_datadir}/snmp/mibs/KEEPALIVED-MIB.txt
 @SNMP_RFCV2_TRUE@%{_datadir}/snmp/mibs/VRRP-MIB.txt
