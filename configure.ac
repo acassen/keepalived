@@ -2710,13 +2710,6 @@ AS_IF(
 AS_IF([test \( .$INIT_TYPE = .systemd -a -z "$with_systemdsystemunitdir" \)], [with_systemdsystemunitdir=$($PKG_CONFIG --variable=systemdsystemunitdir systemd)])
 AS_IF([test .$INIT_TYPE != .], [add_config_opt([INIT=$INIT_TYPE])])
 
-dnl ----[ Determine if a RedHat based system ]----
-IS_REDHAT=false
-AS_IF([test -f /etc/redhat-release -o -f /etc/centos-release], [IS_REDHAT=true],
-      [! test -f /etc/os-release], [],
-      [${EGREP} "^(CENTOS|REDHAT)" /etc/os-release], [IS_REDHAT=true])
-AM_CONDITIONAL([REDHAT], [test $IS_REDHAT = true])
-
 USE_SYSTEMD_NOTIFY=No
 SYSTEMD_SERVICE_TYPE=forking
 AS_IF([test .$INIT_TYPE = .systemd],
@@ -2761,9 +2754,6 @@ eval dcf=`echo $default_config_file`
 # Remove a leading ${prefix} since that is not part of the real file name
 dcf=`echo $dcf | $SED -e "s|^\\\${prefix}||"`
 AC_DEFINE_UNQUOTED([DEFAULT_CONFIG_FILE], ["$dcf"], [The default configuration file])
-
-# RHEL6 uses upstart, but files needed are the same as SYSV
-AS_IF([test .$INIT_TYPE = .upstart -a $IS_REDHAT = true], [INIT_TYPE=SYSV])
 
 if test -z "$INIT_TYPE"; then
   INIT_TYPE=undetected

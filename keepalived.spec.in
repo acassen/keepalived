@@ -105,10 +105,8 @@ autoreconf -f -i
 %{__rm} -f doc_install/samples/*.pem
 
 # Rename the SYSV init file if necessary
-@INIT_SYSV_TRUE@@REDHAT_TRUE@%{__mv} %{buildroot}%{_initrddir}/keepalived.rh.init %{buildroot}%{_initrddir}/keepalived
 @INIT_SUSE_TRUE@%{__mv} %{buildroot}%{_initrddir}/keepalived.suse.init %{buildroot}%{_initrddir}/keepalived
 @INIT_UPSTART_FALSE@%{__rm} -f %{buildroot}%{_sysconfdir}/init/keepalived.conf
-@REDHAT_TRUE@%{__rm} -f %{buildroot}%{_sysconfdir}/init/keepalived.conf
 
 %check
 # A build could silently have LVS support disabled if the kernel includes can't
