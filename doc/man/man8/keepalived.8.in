@@ -338,6 +338,20 @@ This causes
 .B keepalived
 to close down all interfaces, reload its configuration, and
 start up with the new configuration.
+.IP
+.B Note:
+If a virtual_ipaddress, virtual_route or virtual_rule is being moved from
+one VRRP instance to another one, two reloads will be necessary, the first
+to remove the virtual ipaddress/route/rule, and the second reload to add it
+to the VRRP instance it is now to be configured on. Failing to do this can
+result in the ipaddress/route/rule not being configured on the new instance
+if both the old and new instances are in master state.
+It will usually work with a single reload, however, if either of the VRRP
+instances is not in MASTER state or if the VRRP instance the
+ipaddress/route/rule the VRRP instance is being
+.B added to
+is later in the original configuration file than the instance it is being
+removed from.
 .TP
 .B TERM\fP, \fBINT\fP or \fBSIGFUNC=STOP
 .B keepalived

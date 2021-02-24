@@ -71,6 +71,7 @@ free_track_if(tracked_if_t *tip)
 	list_del_init(&tip->e_list);
 	FREE(tip);
 }
+
 void
 free_track_if_list(list_head_t *l)
 {

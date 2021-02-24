@@ -3621,7 +3621,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 					free_track_if(tip);
 			}
 		}
-		free_track_if_list(&vrrp->track_ifp);
 
 		/* Ignore any weighted script */
 		list_for_each_entry_safe(sc, sc_tmp, &vrrp->track_script, e_list) {
@@ -3659,7 +3658,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				free_track_file_monitor(tfl);
 			}
 		}
-		free_track_file_monitor_list(&vrrp->track_file);
 
 #ifdef _WITH_BFD_
 		/* Ignore any weighted tracked bfd */
@@ -3675,7 +3673,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				free_track_bfd(tbfd);
 			}
 		}
-		free_track_bfd_list(&vrrp->track_bfd);
 #endif
 	}
 
