@@ -19,7 +19,9 @@ jobs:
     - name: Install Dependencies
       run: sudo apt update && sudo apt install libsnmp-dev libxtables-dev libip4tc-dev libip6tc-dev libipset-dev libnfnetlink-dev libnl-3-dev libnl-genl-3-dev libnl-route-3-dev libssl-dev libmagic-dev libglib2.0-dev libpcre2-dev libmnl-dev libnftnl-dev libsystemd-dev
     - name: Configure
-      run: sh configure --enable-snmp --enable-snmp-rfc --enable-json --enable-dbus --disable-checksum-compat --enable-bfd --enable-asserts --disable-systemd
+      run: |
+        cd keepalived
+        ./configure --enable-snmp --enable-snmp-rfc --enable-json --enable-dbus --disable-checksum-compat --enable-bfd --enable-asserts --disable-systemd
     - name: Build
       run: make
 
