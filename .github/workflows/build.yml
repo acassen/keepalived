@@ -21,6 +21,7 @@ jobs:
     - name: Configure
       run: |
         cd keepalived
+        ./autogen.sh
         ./configure --enable-snmp --enable-snmp-rfc --enable-json --enable-dbus --disable-checksum-compat --enable-bfd --enable-asserts --disable-systemd
     - name: Build
       run: make
