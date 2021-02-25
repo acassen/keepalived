@@ -3,6 +3,8 @@ keepalived: Loadbalancing & High-Availability
 
 [![Build Status](https://travis-ci.org/acassen/keepalived.svg?branch=master)](https://travis-ci.org/acassen/keepalived)
 [![Coverity Status](https://scan.coverity.com/projects/18496/badge.svg)](https://scan.coverity.com/projects/pqarmitage-keepalived)
+[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/acassen/keepalived.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/acassen/keepalived/context:cpp)
+[![Total alerts](https://img.shields.io/lgtm/alerts/g/acassen/keepalived.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/acassen/keepalived/alerts/)
 [![keepalived](https://snapcraft.io/keepalived/badge.svg)](https://snapcraft.io/keepalived)
 [![Twitter Follow](https://img.shields.io/twitter/url/http/shields.io.svg?style=social&label=Follow)](https://twitter.com/keepalived)
 
