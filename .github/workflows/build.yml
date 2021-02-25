@@ -12,7 +12,7 @@ on:
     - 'tools/**'
 
 jobs:
-  job1:
+  build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
