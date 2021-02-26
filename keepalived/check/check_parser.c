@@ -225,6 +225,8 @@ ip_family_handler(const vector_t *strvec)
 		skip_block(false);
 		return;
 #endif
+
+		/* coverity[unreachable] */
 		af = AF_INET6;
 	}
 	else {

@@ -987,7 +987,8 @@ start_validate_reload_conf_child(void)
 		argv[argc++] = config_fd_str;
 
 		/* Allow fd to be inherited by exec'd process */
-		fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) & ~FD_CLOEXEC);
+		if (fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) & ~FD_CLOEXEC) == -1)
+			log_message(LOG_INFO, "fcntl() on config-test fd failed - errno %d", errno);
 	}
 
 	argv[argc] = NULL;
@@ -2050,6 +2051,7 @@ parse_cmdline(int argc, char **argv)
 			reopen_log = true;
 			break;
 		case 'u':
+			/* coverity[var_deref_model] */
 			new_umask_val = set_umask(optarg);
 			if (umask_cmdline)
 				umask_val = new_umask_val;

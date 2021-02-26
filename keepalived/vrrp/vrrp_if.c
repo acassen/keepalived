@@ -962,6 +962,7 @@ if_join_vrrp_group(sa_family_t family, int *sd, const interface_t *ifp)
 		 * We retry until multicast is available on the interface.
 		 */
 #if defined _HAVE_VRRP_VMAC_
+		/* coverity[dead_error_condition] */
 		if (send_on_base_if)
 		{
 			imr.imr_ifindex = IF_INDEX(IF_BASE_IFP(ifp));
@@ -977,6 +978,7 @@ if_join_vrrp_group(sa_family_t family, int *sd, const interface_t *ifp)
 		memset(&imr6, 0, sizeof(imr6));
 		imr6.ipv6mr_multiaddr = global_data->vrrp_mcast_group6.sin6_addr;
 #if defined _HAVE_VRRP_VMAC_
+		/* coverity[dead_error_condition] */
 		if (send_on_base_if) {
 			imr6.ipv6mr_interface = IF_INDEX(IF_BASE_IFP(ifp));
 			if (setsockopt(*sd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP,

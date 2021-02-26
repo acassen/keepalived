@@ -2441,7 +2441,7 @@ open_sockpool_socket(sock_t *sock)
 		unicast_src = *sock->unicast_src;
 		unicast_src_p = &unicast_src;
 
-		/* coverity[var_deref_model] - since the address is IPv6 link local, sock-ifp != NULL */
+		/* coverity[deref_param] - since the address is IPv6 link local, sock->ifp != NULL */
 		PTR_CAST(struct sockaddr_in6, &unicast_src)->sin6_scope_id = sock->ifp->ifindex;
 	}
 

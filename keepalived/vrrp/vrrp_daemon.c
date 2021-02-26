@@ -855,6 +855,7 @@ reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 
 #ifdef _WITH_LVS_
 	if (vrrp_ipvs_needed()) {
+		/* coverity[var_deref_op] */
 		want_syncd_master = (global_data->lvs_syncd.vrrp->state == VRRP_STATE_MAST);
 		if (ipvs_syncd_changed(&old_global_data->lvs_syncd, &global_data->lvs_syncd))
 			ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, want_syncd_master ? IPVS_MASTER : IPVS_BACKUP, true);
