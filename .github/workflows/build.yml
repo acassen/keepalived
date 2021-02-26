@@ -2,6 +2,7 @@ name: Keepalived CI
 
 on:
   push:
+  pull_request:
     paths-ignore:
     - 'doc/**'
     - 'docker/**'
