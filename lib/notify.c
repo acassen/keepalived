@@ -788,6 +788,9 @@ check_script_secure(notify_script_t *script,
 	/* Get the permissions for the file itself */
 	if (stat(real_file_path ? real_file_path : script->args[0], &file_buf)) {
 		log_message(LOG_INFO, "Unable to access script `%s` - disabling", script->args[0]);
+
+		FREE(real_file_path);
+
 		return SC_NOTFOUND;
 	}
 

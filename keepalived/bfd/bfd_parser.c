@@ -97,8 +97,10 @@ bfd_nbrip_handler(const vector_t *strvec)
 		free_bfd(bfd);
 		skip_block(false);
 		return;
-	} else
-		bfd->nbr_addr = nbr_addr;
+	}
+
+	/* coverity[uninit_use] */
+	bfd->nbr_addr = nbr_addr;
 }
 
 static void
@@ -118,8 +120,10 @@ bfd_srcip_handler(const vector_t *strvec)
 			    "Configuration error: BFD instance %s has"
 			    " malformed source address %s, ignoring",
 			    bfd->iname, strvec_slot(strvec, 1));
-	} else
+	} else {
+		/* coverity[uninit_use] */
 		bfd->src_addr = src_addr;
+	}
 }
 
 static void

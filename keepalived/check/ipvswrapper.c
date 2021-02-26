@@ -104,6 +104,7 @@ ipvs_stop(void)
 		return;
 
 	/* Restore any timeout values we updated */
+	/* coverity[check_return] - we can't do anything if this fails */
 	ipvs_set_timeout(NULL);
 
 	ipvs_close();
@@ -596,7 +597,7 @@ ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge)
 
 	ipvs_set_srule(IP_VS_SO_SET_ADDDEST, &srule, vs);
 #ifdef _WITH_NFTABLES_
-	if (vs->vsg->auto_fwmark)
+	if (vs->vsg->auto_fwmark[proto_index])
 		srule.user.fwmark = vs->vsg->auto_fwmark[proto_index];
 	else
 #endif

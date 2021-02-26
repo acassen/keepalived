@@ -291,6 +291,7 @@ udp_check_thread(thread_ref_t thread)
 	thread_close_fd(thread);
 
 	if (status == connect_success) {
+		/* coverity[var_deref_model] - udp_check->reply_data is only set if udp_check->require_reply is set */
 		if (udp_check->reply_data && check_udp_reply(recv_buf, len, udp_check)) {
 			if (checker->is_up &&
 			    (global_data->checker_log_all_failures || checker->log_all_failures))

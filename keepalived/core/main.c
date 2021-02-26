@@ -946,13 +946,13 @@ start_validate_reload_conf_child(void)
 	int len;
 	char exe_buf[128];
 
-	/* Inherits the original parameters and adds new parameters "--config-test and --config-fd" */
-	sav_argv = get_cmd_line_options(&argc);
-	argv = MALLOC((argc + 3) * sizeof(char *));
-
 	exe_buf[sizeof(exe_buf) - 1] = '\0';
 	ret = readlink("/proc/self/exe", exe_buf, sizeof(exe_buf));
-	if (ret == sizeof(exe_buf))
+	if (ret == -1) {
+		/* How can this happen? What can we do? */
+		log_message(LOG_INFO, "readlink(\"/proc/self/exe\" failed - errno %d - config-test aborted", errno);
+		return;
+	} else if (ret == sizeof(exe_buf))
 		strcpy(exe_buf, "/proc/self/exe");
 	else {
 		exe_buf[ret] = '\0';
@@ -962,6 +962,11 @@ start_validate_reload_conf_child(void)
 		if (len > 10 && !strcmp(exe_buf + len - 10, " (deleted)"))
 			exe_buf[len - 10] = '\0';
 	}
+
+	/* Inherits the original parameters and adds new parameters "--config-test and --config-fd" */
+	sav_argv = get_cmd_line_options(&argc);
+	argv = MALLOC((argc + 3) * sizeof(char *));
+
 	argv[0] = exe_buf;
 
 	/* copy old parameters */
@@ -1003,9 +1008,10 @@ start_validate_reload_conf_child(void)
 				  NULL, 5 * TIMER_HZ, &script);
 
 	if (ret)
-		log_message(LOG_INFO, "Could not run config_test");
+		log_message(LOG_INFO, "Could not run config-test");
 
 	/* Restore CLOEXEC on config_copy fd */
+	/* coverity[check_return] - what are we going to do if this fails? */
 	fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC);
 
 	FREE(argv);

@@ -251,9 +251,10 @@ reset_disable_local_igmp(void)
 
 	if (sav_igmp_link_local_mcast_reports == '1') {
 		fd = open(igmp_link_local_mcast_reports, O_RDWR);
-		if (write(fd, &sav_igmp_link_local_mcast_reports, 1) != -1)
+		if (fd == -1 || write(fd, &sav_igmp_link_local_mcast_reports, 1) == -1)
 			log_message(LOG_INFO, "Unable to write %s - errno %d", igmp_link_local_mcast_reports, errno);
-		close(fd);
+		if (fd != -1)
+			close(fd);
 	}
 }
 
