@@ -247,7 +247,7 @@ dump_url(FILE *fp, const url_t *url)
 
 #ifdef _WITH_REGEX_CHECK_
 	if (url->regex) {
-		char options_buf[512];
+		char options_buf[512] = "";
 		char *op;
 
 		conf_write(fp, "     Regex = \"%s\"", url->regex->pattern);
@@ -259,18 +259,17 @@ dump_url(FILE *fp, const url_t *url)
 			else
 				conf_write(fp, "     Regex min offset = %zu", url->regex_min_offset);
 		}
+
 		if (url->regex->pcre2_options) {
 			op = options_buf;
 			for (i = 0; regex_options[i].option; i++) {
-				if (url->regex->pcre2_options & regex_options[i].option_bit) {
+				if (regex_options[i].option_bit) {
 					*op++ = ' ';
 					strcpy(op, regex_options[i].option);
 					op += strlen(op);
 				}
 			}
 		}
-		else
-			options_buf[0] = '\0';
 		conf_write(fp, "     Regex options:%s", options_buf);
 		conf_write(fp, "     Regex ref count = %u", url->regex->refcnt);
 #ifndef PCRE2_DONT_USE_JIT

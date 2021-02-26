@@ -805,8 +805,8 @@ nla_put_failure:
 		return -1;
 	}
 #endif
-	return setsockopt(sockfd, IPPROTO_IP, IP_VS_SO_SET_TIMEOUT, (const char *)to,
-			  sizeof(*to));
+	return setsockopt(sockfd, IPPROTO_IP, IP_VS_SO_SET_TIMEOUT, (const char *)( to ? to : &orig_ipvs_timeouts),
+			  sizeof(ipvs_timeout_t));
 }
 
 

@@ -3134,7 +3134,7 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 			 * permissions for "tmpfs", but if it has read and write permissions but
 			 * not open permission, then the open fails. */
 			if (fd != -1) {
-				int read_byte;
+				char read_byte;		/* coverity[suspicious_sizeof] is generated if this is an int */
 
 				if (read(fd, &read_byte, 1) == -1) {
 					if (errno == EACCES)
@@ -3165,7 +3165,9 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 
 			rewind(conf_copy);
 		}
-		write_conf_copy = true;
+
+		if (conf_copy)
+			write_conf_copy = true;
 	}
 
 	if (!copy_config && conf_copy) {
@@ -3211,7 +3213,7 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 						      , block_depth, EOB, BOB);
 	}
 
-	if (write_conf_copy) {
+	if (conf_copy && write_conf_copy) {
 		fflush(conf_copy);
 		write_conf_copy = false;
 
@@ -3335,7 +3337,10 @@ separate_config_file(void)
 	 * it can be read independantly from the other keepalived processes */
 	fd_orig = fileno(conf_copy);
 	snprintf(buf, sizeof(buf), "/proc/self/fd/%d", fd_orig);
-	fd = open(buf, O_RDONLY);
+	if ((fd = open(buf, O_RDONLY)) == -1) {
+		log_message(LOG_INFO, "Failed to open %s for conf_copy", buf);
+		return;
+	}
 #ifdef HAVE_DUP3
 	dup3(fd, fd_orig, O_CLOEXEC);
 #else
