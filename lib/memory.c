@@ -484,6 +484,7 @@ keepalived_free_realloc_common(void *buffer, size_t size, const char *file, cons
 
 		number_alloc_list--;
 
+		/* coverity[leaked_storage] - entry2 is added to the bad_list */
 		return NULL;
 	}
 

@@ -2140,6 +2140,7 @@ parse_cmdline(int argc, char **argv)
 			config_id = STRDUP(optarg);
 			break;
 		case 4:			/* --signum */
+			/* coverity[var_deref_model] */
 			signum = get_signum(optarg);
 			if (signum == -1) {
 				fprintf(stderr, "Unknown sigfunc %s\n", optarg);
