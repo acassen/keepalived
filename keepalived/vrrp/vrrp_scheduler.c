@@ -519,6 +519,7 @@ vrrp_open_sockpool(list_head_t *l)
 			continue;
 		}
 
+		/* coverity[var_deref_model] */
 		open_sockpool_socket(sock);
 	}
 }

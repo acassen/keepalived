@@ -367,6 +367,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		data = PTR_CAST(struct rtattr, NLMSG_TAIL(&req.n));
 		addattr_l(&req.n, sizeof(req), AF_INET6, NULL,0);
 		addattr8(&req.n, sizeof(req), IFLA_INET6_ADDR_GEN_MODE, IN6_ADDR_GEN_MODE_NONE);
+		/* coverity[overrun-local] */
 		data->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)data);
 		spec->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)spec);
 
