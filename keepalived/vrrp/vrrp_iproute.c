@@ -917,12 +917,12 @@ format_iproute(const ip_route_t *route, char *buf, size_t buf_len)
 				}
 
 				if ((op += (size_t)snprintf(op, (size_t)(buf_end - op), "%" PRIu32, nh->realms & 0xFFFF)) >= buf_end - 1)
-						break;
+					break;
 			}
 #if HAVE_DECL_RTA_ENCAP
 			if (nh->encap.type != LWTUNNEL_ENCAP_NONE)
 				if ((op += print_encap(op, (size_t)(buf_end - op), &nh->encap)) >= buf_end - 1)
-						break;
+					break;
 #endif
 		}
 		if (op >= buf_end - 1)
