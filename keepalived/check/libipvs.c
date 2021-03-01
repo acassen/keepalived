@@ -25,6 +25,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <linux/version.h>
 
 #ifdef LIBIPVS_USE_NL
 #include <netlink/netlink.h>
@@ -52,6 +53,8 @@
 #include "utils.h"
 #include "namespaces.h"
 #include "global_data.h"
+
+#include "main.h"
 
 typedef struct ipvs_servicedest_s {
 	struct ip_vs_service_user	svc;
@@ -609,7 +612,9 @@ static int ipvs_nl_fill_dest_attr(struct nl_msg *msg, ipvs_dest_t *dst)
 		return -1;
 
 #if HAVE_DECL_IPVS_DEST_ATTR_ADDR_FAMILY
-	NLA_PUT_U16(msg, IPVS_DEST_ATTR_ADDR_FAMILY, dst->af);
+	if (KERNEL_VERSION(os_major, os_minor, os_release) >= KERNEL_VERSION(3, 18, 0)) {
+		NLA_PUT_U16(msg, IPVS_DEST_ATTR_ADDR_FAMILY, dst->af);
+	}
 #endif
 	NLA_PUT(msg, IPVS_DEST_ATTR_ADDR, sizeof(dst->nf_addr), &(dst->nf_addr));
 	NLA_PUT_U16(msg, IPVS_DEST_ATTR_PORT, dst->user.port);
