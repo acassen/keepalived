@@ -118,10 +118,10 @@ notify_fifo_vs(virtual_server_t *vs)
 	snprintf(line, size + 1, "VS %s %s\n", vs_str, state);
 
 	if (global_data->notify_fifo.fd != -1)
-		if (write(global_data->notify_fifo.fd, line, size) == -1) {}
+		if (write(global_data->notify_fifo.fd, line, size) == -1) { /* empty */ }
 
 	if (global_data->lvs_notify_fifo.fd != -1)
-		if (write(global_data->lvs_notify_fifo.fd, line, size) == -1) {}
+		if (write(global_data->lvs_notify_fifo.fd, line, size) == -1) { /* empty */ }
 
 	FREE(line);
 }
@@ -149,10 +149,10 @@ notify_fifo_rs(virtual_server_t* vs, real_server_t* rs)
 	snprintf(line, size + 1, "RS %s %s %s\n", rs_str, vs_str, state);
 
 	if (global_data->notify_fifo.fd != -1)
-		if (write(global_data->notify_fifo.fd, line, size) == - 1) {}
+		if (write(global_data->notify_fifo.fd, line, size) == - 1) { /* empty */ }
 
 	if (global_data->lvs_notify_fifo.fd != -1)
-		if (write(global_data->lvs_notify_fifo.fd, line, size) == -1) {}
+		if (write(global_data->lvs_notify_fifo.fd, line, size) == -1) { /* empty */ }
 
 	FREE(line);
 }

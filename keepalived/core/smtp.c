@@ -488,7 +488,7 @@ body_cmd(thread_ref_t thread)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
 	char *buffer;
-	char rfc822[80];
+	char rfc822[80];	/* Mon, 01 Mar 2021 09:44:08 +0000 */
 	time_t now;
 	struct tm *t;
 
@@ -496,7 +496,7 @@ body_cmd(thread_ref_t thread)
 
 	time(&now);
 	t = localtime(&now);
-	strftime(rfc822, sizeof(rfc822), "%a, %d %b %Y %H:%M:%S %z", t);
+	strftime(rfc822, sizeof(rfc822), "%a, %d %b %Y %H:%M:%S %z", t);	/* lgtm [cpp/potentially-dangerous-function] */
 
 	snprintf(buffer, SMTP_BUFFER_MAX, SMTP_HEADERS_CMD,
 		 rfc822, global_data->email_from, smtp->subject, smtp->email_to);
