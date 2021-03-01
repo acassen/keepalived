@@ -65,9 +65,9 @@
 /* nft supports ifnames in sets from commit 8c61fa7 (release v0.8.3, libnftnl v1.0.9 (but 0.8.2 also uses that, 0.8.4 uses v1.1.0)) */
 /* nft supports concatenated ranges from commit	8ac2f3b (release v0.9.4, libnftnl v1.1.6 and kernel 5.6) */
 
-struct mnl_socket *nl;
+struct mnl_socket *nl;	/* lgtm [cpp/short-global-name] */
 static unsigned int portid;
-uint32_t seq;
+uint32_t seq;		/* lgtm [cpp/short-global-name] */
 
 
 #ifdef _INCLUDE_UNUSED_CODE_

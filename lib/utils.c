@@ -854,9 +854,12 @@ format_mac_buf(char *op, size_t op_len, const unsigned char *addr, size_t addr_l
 		return;
 	}
 
-	for (i = 0; i < addr_len; i++)
+	for (i = 0; i < addr_len; i++) {
 		op += snprintf(op, buf_end - op, "%.2x%s",
 		      addr[i], i < addr_len -1 ? ":" : "");
+		if (op >= buf_end - 1)
+			break;
+	}
 }
 
 /* Getting localhost official canonical name */

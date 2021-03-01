@@ -601,8 +601,7 @@ alloc_rule(list_head_t *rule_list, const vector_t *strvec, __attribute__((unused
 			new->fwmask = (uint32_t)val1;
 			new->mask |= IPRULE_BIT_FWMARK;
 
-			if (true) {
-			} else {
+			if (false) {
 fwmark_err:
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid rule fwmark %s specified", str);
 				new->mask &= (uint32_t)~IPRULE_BIT_FWMASK;
