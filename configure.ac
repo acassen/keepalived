@@ -2712,6 +2712,7 @@ AS_IF([test .$INIT_TYPE != .], [add_config_opt([INIT=$INIT_TYPE])])
 
 USE_SYSTEMD_NOTIFY=No
 SYSTEMD_SERVICE_TYPE=forking
+SYSTEMD_EXEC_START_OPTIONS=
 AS_IF([test .$INIT_TYPE = .systemd],
   [
     dnl ----[Check for systemd libraries]----
@@ -2725,6 +2726,7 @@ AS_IF([test .$INIT_TYPE = .systemd],
 	AC_DEFINE([_USE_SYSTEMD_NOTIFY_], [ 1 ], [Define to 1 if want systemd notify support])
 	add_config_opt([SYSTEMD_NOTIFY])
 	SYSTEMD_SERVICE_TYPE="notify\\nNotifyAccess=all"
+	SYSTEMD_EXEC_START_OPTIONS+="--dont-fork"
        ],
        [
 	AS_IF([test .${enable_systemd} = .yes], [AC_MSG_WARN([libsystemd missing])])
@@ -2733,6 +2735,7 @@ AS_IF([test .$INIT_TYPE = .systemd],
     AC_SUBST([SYSTEMD_SERVICE_TYPE])
   ])
 AM_CONDITIONAL([WITH_SYSTEMD_NOTIFY], [test $USE_SYSTEMD_NOTIFY = Yes])
+AC_SUBST([SYSTEMD_EXEC_START_OPTIONS])
 
 dnl ----[Default keepalived configuration file]----
 AS_IF([test $default_config_file],
