@@ -586,8 +586,9 @@ print_encap_mpls(char *op, size_t len, const encap_t* encap)
 	unsigned i;
 
 	op += snprintf(op, (size_t)(buf_end - op), " encap mpls");
+	/* LGTM does not seem to be able to recognise the op < buf_end -1 in the loop control */
 	for (i = 0; i < encap->mpls.num_labels && op < buf_end - 1; i++)
-		op += snprintf(op, (size_t)(buf_end - op), "%s%x", i ? "/" : " ", ntohl(encap->mpls.addr[i].entry));
+		op += snprintf(op, (size_t)(buf_end - op), "%s%x", i ? "/" : " ", ntohl(encap->mpls.addr[i].entry));	/* lgtm [cpp/overflowing-snprintf] */
 
 	return (size_t)(op - buf);
 }
@@ -889,34 +890,35 @@ format_iproute(const ip_route_t *route, char *buf, size_t buf_len)
 				break;
 #endif
 
+		/* LGTM does not seem to be able to recognise the op < buf_end -1 break in the loop within a loop */
 		list_for_each_entry(nh, &route->nhs, e_list) {
-			if ((op += (size_t)snprintf(op, (size_t)(buf_end - op), " nexthop")) >= buf_end - 1)
+			if ((op += (size_t)snprintf(op, (size_t)(buf_end - op), " nexthop")) >= buf_end - 1)	/* lgtm [cpp/overflowing-snprintf] */
 				break;
 			if (nh->addr)
-				if ((op += (size_t)snprintf(op, (size_t)(buf_end - op), " via inet%s %s"
+				if ((op += (size_t)snprintf(op, (size_t)(buf_end - op), " via inet%s %s"	/* lgtm [cpp/overflowing-snprintf] */
 							    , nh->addr->ifa.ifa_family == AF_INET ? "" : "6"
 							    , ipaddresstos(NULL,nh->addr))) >= buf_end - 1)
 					break;
 			if (nh->ifp)
-				if ((op += (size_t)snprintf(op, (size_t)(buf_end - op), " dev %s", nh->ifp->ifname)) >= buf_end - 1)
+				if ((op += (size_t)snprintf(op, (size_t)(buf_end - op), " dev %s", nh->ifp->ifname)) >= buf_end - 1)	/* lgtm [cpp/overflowing-snprintf] */
 					break;
 			if (nh->mask & IPROUTE_BIT_WEIGHT)
-				if ((op += (size_t)snprintf(op, (size_t)(buf_end - op), " weight %d", nh->weight + 1)) >= buf_end - 1)
+				if ((op += (size_t)snprintf(op, (size_t)(buf_end - op), " weight %d", nh->weight + 1)) >= buf_end - 1)	/* lgtm [cpp/overflowing-snprintf] */
 					break;
 			if (nh->flags & RTNH_F_ONLINK)
-				if ((op += (size_t)snprintf(op, (size_t)(buf_end - op), " onlink")) >= buf_end - 1)
+				if ((op += (size_t)snprintf(op, (size_t)(buf_end - op), " onlink")) >= buf_end - 1)	/* lgtm [cpp/overflowing-snprintf] */
 					break;
 			if (nh->realms) {
 				if (route->realms & 0xFFFF0000) {
-					if ((op += (size_t)snprintf(op, (size_t)(buf_end - op)
+					if ((op += (size_t)snprintf(op, (size_t)(buf_end - op)	/* lgtm [cpp/overflowing-snprintf] */
 								 , " realms %" PRIu32 "/", nh->realms >> 16)) >= buf_end - 1)
 						break;
 				} else {
-					if ((op += (size_t)snprintf(op, (size_t)(buf_end - op), " realm ")) >= buf_end - 1)
+					if ((op += (size_t)snprintf(op, (size_t)(buf_end - op), " realm ")) >= buf_end - 1)	/* lgtm [cpp/overflowing-snprintf] */
 						break;
 				}
 
-				if ((op += (size_t)snprintf(op, (size_t)(buf_end - op), "%" PRIu32, nh->realms & 0xFFFF)) >= buf_end - 1)
+				if ((op += (size_t)snprintf(op, (size_t)(buf_end - op), "%" PRIu32, nh->realms & 0xFFFF)) >= buf_end - 1)	/* lgtm [cpp/overflowing-snprintf] */
 					break;
 			}
 #if HAVE_DECL_RTA_ENCAP

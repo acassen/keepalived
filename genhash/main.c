@@ -39,7 +39,7 @@
 
 
 /* global var */
-REQ *req = NULL;
+REQ *req = NULL;	/* lgtm [cpp/short-global-name] */
 int exit_code;
 
 /* Terminate handler */
