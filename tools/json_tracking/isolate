@@ -89,7 +89,7 @@ def getFreshData():
     try:
         with open(keepalived_json_file) as jsonfile:
             return json.load(jsonfile)
-    except:
+    except Exception:
         return {}
 
 
@@ -113,7 +113,7 @@ def updateOffset(instance, offset):
     try:
         with open(keepalived_offset_folder + str(instance), "r") as f:
             offset_cur = f.read()
-    except:
+    except Exception:
         offset_cur = 0
 
     try:
@@ -125,8 +125,7 @@ def updateOffset(instance, offset):
             # Notify that we changed something
             to_return = 1
     # Value does not exist in json file
-    except:
-        offset_cur = int(offset)
+    except Exception:
         if int(offset) == 0:
             # Notify that we did not change anything
             to_return = 0
@@ -152,7 +151,6 @@ def checkStatus():
                + str(master_count) + ", Slaves: " + str(slave_count), 'green'
         )
         time.sleep(check_delay)
-    return 0
 
 
 if __name__ == "__main__":

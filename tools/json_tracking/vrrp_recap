@@ -32,7 +32,7 @@ os.kill(keepalived_pid, 36)
 try:
     time.sleep(0.5)
     keepalived_data = json.load(open(keepalived_json_file))
-except:
+except Exception:
     sys.exit("Could not load json from file, please check that keepalived is running at a compatible version")
 
 data_table = PrettyTable([
