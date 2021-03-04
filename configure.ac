@@ -122,7 +122,8 @@ AC_CONFIG_FILES([Makefile keepalived/Makefile lib/Makefile keepalived/core/Makef
 		 genhash/Makefile keepalived/check/Makefile keepalived/vrrp/Makefile \
 		 keepalived/bfd/Makefile doc/Makefile bin_install/Makefile keepalived/dbus/Makefile \
 		 keepalived/etc/Makefile keepalived/etc/init/Makefile keepalived/etc/init.d/Makefile \
-		 keepalived/etc/keepalived/Makefile keepalived/trackers/Makefile \
+		 keepalived/etc/sysconfig/Makefile keepalived/etc/keepalived/Makefile \
+		 keepalived/trackers/Makefile \
 		 doc/man/man8/Makefile doc/man/man5/Makefile doc/man/man1/Makefile])
 
 
@@ -295,6 +296,9 @@ AC_ARG_WITH(fixed-if-type,
 AC_ARG_WITH(default-config-file,
   AS_HELP_STRING([--with-default-config-file=FILE], [Default configuration file]),
   [default_config_file="$withval"], [default_config_file=""])
+AC_ARG_WITH(default-runtime-options,
+  AS_HELP_STRING([--with-default-runtime-options=OPTIONS], [Default runtime options]),
+  [default_runtime_options="$withval"], [default_runtime_options="-D"])
 AC_ARG_ENABLE(profile,
   [AS_HELP_STRING([--enable-profile], [compile with profiling flags])])
 AC_ARG_ENABLE(strict-cast-align,
@@ -2737,6 +2741,9 @@ AS_IF([test .$INIT_TYPE = .systemd],
 AM_CONDITIONAL([WITH_SYSTEMD_NOTIFY], [test $USE_SYSTEMD_NOTIFY = Yes])
 AC_SUBST([SYSTEMD_EXEC_START_OPTIONS])
 
+dnl ----[Default runtime options (in /etc/sysconfig/keepalived)]----
+AC_SUBST([KEEPALIVED_RUNTIME_OPTIONS], ["$default_runtime_options"])
+
 dnl ----[Default keepalived configuration file]----
 AS_IF([test $default_config_file],
   [
@@ -2936,6 +2943,9 @@ if test "${FIXED_IF_TYPE}"; then
 fi
 if test "${CONFIG_FILE}"; then
   echo "Default config file      : ${CONFIG_FILE}"
+fi
+if test "${default_runtime_options}"; then
+  echo "Default runtime options  : ${default_runtime_options}"
 fi
 
 dnl ----[ end configure ]---

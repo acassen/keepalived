@@ -65,9 +65,6 @@ MOSTLYCLEANFILES	= keepalived.service
 
 MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@
 
-sysconfigdir		= $(sysconfdir)/sysconfig
-sysconfig_DATA		= etc/sysconfig/keepalived
-
 if INIT_SYSTEMD
 systemdsystemunit_DATA	= keepalived.service
 endif
