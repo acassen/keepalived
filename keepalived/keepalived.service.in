@@ -8,7 +8,7 @@ Type=@SYSTEMD_SERVICE_TYPE@
 PIDFile=@RUN_DIR@/run/keepalived.pid
 KillMode=process
 EnvironmentFile=-@sysconfdir@/sysconfig/keepalived
-ExecStart=@sbindir@/keepalived $KEEPALIVED_OPTIONS
+ExecStart=@sbindir@/keepalived @SYSTEMD_EXEC_START_OPTIONS@ $KEEPALIVED_OPTIONS
 ExecReload=/bin/kill -HUP $MAINPID
 
 [Install]

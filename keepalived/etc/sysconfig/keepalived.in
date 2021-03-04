@@ -11,5 +11,5 @@
 # --log-facility       -S    0-7 Set local syslog facility (default=LOG_DAEMON)
 #
 
-KEEPALIVED_OPTIONS="-D"
+KEEPALIVED_OPTIONS="@KEEPALIVED_RUNTIME_OPTIONS@"
 
