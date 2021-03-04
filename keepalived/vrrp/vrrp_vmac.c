@@ -92,6 +92,32 @@ add_link_local_address(interface_t *ifp, struct in6_addr* sin6_addr)
 }
 
 bool
+del_link_local_address(interface_t *ifp)
+{
+	ip_address_t ipaddress;
+
+	memset(&ipaddress, 0, sizeof(ipaddress));
+
+	/* Delete the old address */
+	ipaddress.ifp = ifp;
+	ipaddress.u.sin6_addr = ifp->sin6_addr;
+
+	ipaddress.ifa.ifa_family = AF_INET6;
+	ipaddress.ifa.ifa_prefixlen = 64;
+	ipaddress.ifa.ifa_index = ifp->ifindex;
+
+	if (netlink_ipaddress(&ipaddress, IPADDRESS_DEL) != 1) {
+		log_message(LOG_INFO, "Deleting link-local address from vmac failed");
+
+		return false;
+	}
+
+	CLEAR_IP6_ADDR(&ifp->sin6_addr);
+
+	return true;
+}
+
+bool
 replace_link_local_address(interface_t *ifp)
 {
 	ip_address_t ipaddress;
@@ -183,6 +209,29 @@ netlink_link_up(vrrp_t *vrrp)
 		status = -1;
 
 	return status;
+}
+
+bool
+set_link_local_address(const vrrp_t *vrrp)
+{
+	/* Add link-local address. If a source address has been specified, use it,
+	 * else use link-local address from underlying interface to vmac if there is one,
+	 * otherwise construct a link-local address based on underlying interface's
+	 * MAC address.
+	 * This is so that VRRP advertisements will be sent from a non-VIP address, but
+	 * using the VRRP MAC address */
+	struct in6_addr addr;
+
+log_message(LOG_INFO, "Adding link local address for %s, interface %u", vrrp->iname, vrrp->ifp->ifindex);
+
+	if (vrrp->saddr.ss_family == AF_INET6)
+		addr = PTR_CAST_CONST(struct sockaddr_in6, &vrrp->saddr)->sin6_addr;
+	else if (!IN6_IS_ADDR_UNSPECIFIED(&vrrp->configured_ifp->sin6_addr))
+		addr = vrrp->configured_ifp->sin6_addr;
+	else
+		make_link_local_address(&addr, vrrp->configured_ifp->base_ifp->hw_addr);
+
+	return add_link_local_address(vrrp->ifp, &addr);
 }
 
 bool
@@ -377,28 +426,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 
 		if (vrrp->family == AF_INET6 &&
 		    !__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) {
-			/* Add link-local address. If a source address has been specified, use it,
-			 * else use link-local address from underlying interface to vmac if there is one,
-			 * otherwise construct a link-local address based on underlying interface's
-			 * MAC address.
-			 * This is so that VRRP advertisements will be sent from a non-VIP address, but
-			 * using the VRRP MAC address */
-			ip_address_t ipaddress;
-
-			memset(&ipaddress, 0, sizeof(ipaddress));
-
-			ipaddress.ifp = ifp;
-			if (vrrp->saddr.ss_family == AF_INET6)
-				ipaddress.u.sin6_addr = PTR_CAST(struct sockaddr_in6, &vrrp->saddr)->sin6_addr;
-			else if (!IN6_IS_ADDR_UNSPECIFIED(&vrrp->configured_ifp->sin6_addr))
-				ipaddress.u.sin6_addr = vrrp->configured_ifp->sin6_addr;
-			else
-				make_link_local_address(&ipaddress.u.sin6_addr, ifp->base_ifp->hw_addr);
-			ipaddress.ifa.ifa_family = AF_INET6;
-			ipaddress.ifa.ifa_prefixlen = 64;
-			ipaddress.ifa.ifa_index = vrrp->ifp->ifindex;
-
-			if (netlink_ipaddress(&ipaddress, IPADDRESS_ADD) != 1 && create_interface)
+			if (!set_link_local_address(vrrp) && create_interface)
 				log_message(LOG_INFO, "(%s) adding link-local address to %s failed", vrrp->iname, vrrp->ifp->ifname);
 		}
 	}

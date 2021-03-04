@@ -3283,6 +3283,19 @@ vrrp_complete_instance(vrrp_t * vrrp)
 									, vrrp->iname);
 				__clear_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags);
 			}
+
+			/* If vmac_xmit_base is changing, add or remove the VMAC's
+			 * link local address as appropriate. */
+			if (interface_already_existed &&
+			    vrrp->family == AF_INET6) {
+				if (!__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&
+				    IN6_IS_ADDR_UNSPECIFIED(&ifp->sin6_addr)) {
+					set_link_local_address(vrrp);
+				} else if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&
+					   !IN6_IS_ADDR_UNSPECIFIED(&ifp->sin6_addr)) {
+					del_link_local_address(ifp);
+				}
+			}
 		}
 
 		if (vrrp->promote_secondaries &&
