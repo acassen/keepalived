@@ -662,9 +662,9 @@ bfd_handle_packet(bfdpkt_t *pkt)
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
 			log_message(LOG_ERR, "Discarding packet from %s"
 				    " (session is not found - your"
-				    " discriminator field is %u)",
+				    " discriminator field is 0x%8.8x)",
 				    inet_sockaddrtopair(&pkt->src_addr),
-				    pkt->hdr->remote_discr);
+				    ntohl(pkt->hdr->remote_discr));
 
 		return;
 	}
