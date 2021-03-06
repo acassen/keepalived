@@ -124,6 +124,7 @@ get_thread_type_str(thread_type_t id)
 	if (id == THREAD_CHILD_TERMINATED) return "CHILD_TERMINATED";
 	if (id == THREAD_TERMINATE_START) return "TERMINATE_START";
 	if (id == THREAD_TERMINATE) return "TERMINATE";
+	if (id == THREAD_READY_TIMER) return "READY_TIMER";
 	if (id == THREAD_READY_READ_FD) return "READY_READ_FD";
 	if (id == THREAD_READY_WRITE_FD) return "READY_WRITE_FD";
 	if (id == THREAD_READ_ERROR) return "READ_ERROR";
@@ -351,7 +352,7 @@ thread_timerfd_handler(thread_ref_t thread)
 	/* Read, Write, Timer, Child thread. */
 	thread_rb_move_ready(m, &m->read, THREAD_READ_TIMEOUT);
 	thread_rb_move_ready(m, &m->write, THREAD_WRITE_TIMEOUT);
-	thread_rb_move_ready(m, &m->timer, THREAD_READY);
+	thread_rb_move_ready(m, &m->timer, THREAD_READY_TIMER);
 	thread_rb_move_ready(m, &m->child, THREAD_CHILD_TIMEOUT);
 
 	/* Register next timerfd thread */

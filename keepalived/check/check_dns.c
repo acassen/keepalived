@@ -115,7 +115,7 @@ dns_final(thread_ref_t thread, bool error, const char *fmt, ...)
 				checker->retry_it, checker->retry);
 #endif
 
-	if (thread->type != THREAD_TIMER)
+	if (thread->type != THREAD_READY_TIMER)
 		thread_close_fd(thread);
 
 	if (error) {
