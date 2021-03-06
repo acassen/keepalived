@@ -329,7 +329,7 @@ smtp_final(thread_ref_t thread, const char *format, ...)
 	bool rs_was_alive;
 
 	/* Error or no error we should always have to close the socket */
-	if (thread->type != THREAD_TIMER)
+	if (thread->type != THREAD_READY_TIMER)
 		thread_close_fd(thread);
 
 	if (format) {
@@ -807,7 +807,7 @@ smtp_connect_thread(thread_ref_t thread)
 	status = tcp_bind_connect(sd, smtp_host);
 
 	/* handle tcp connection status & register callback the next step in the process */
-	if(tcp_connection_state(sd, status, thread, smtp_check_thread, smtp_host->connection_to)) {
+	if (tcp_connection_state(sd, status, thread, smtp_check_thread, smtp_host->connection_to)) {
 		if (status == connect_fail) {
 			close(sd);
 			smtp_final(thread, "Network unreachable for server %s - real server %s",

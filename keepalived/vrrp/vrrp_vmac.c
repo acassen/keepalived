@@ -222,8 +222,6 @@ set_link_local_address(const vrrp_t *vrrp)
 	 * using the VRRP MAC address */
 	struct in6_addr addr;
 
-log_message(LOG_INFO, "Adding link local address for %s, interface %u", vrrp->iname, vrrp->ifp->ifindex);
-
 	if (vrrp->saddr.ss_family == AF_INET6)
 		addr = PTR_CAST_CONST(struct sockaddr_in6, &vrrp->saddr)->sin6_addr;
 	else if (!IN6_IS_ADDR_UNSPECIFIED(&vrrp->configured_ifp->sin6_addr))
