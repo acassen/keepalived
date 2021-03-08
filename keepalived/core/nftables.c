@@ -169,9 +169,11 @@ static void
 exchange_nl_msg(struct mnl_nlmsg_batch *batch)
 {
 	int ret;
+	int ret_cb;
 	char *buf;
 	size_t buf_size;
 	long mnl_buf_size;
+	int sav_errno = errno;
 
 	if (mnl_nlmsg_batch_is_empty(batch))
 		return;
@@ -213,15 +215,18 @@ exchange_nl_msg(struct mnl_nlmsg_batch *batch)
 		buf_size = (size_t)mnl_buf_size;
 
 	buf = MALLOC(buf_size);
+	ret_cb = 1;
 	while ((ret = mnl_socket_recvfrom(nl, buf, buf_size)) > 0) {
-		ret = mnl_cb_run(buf, ret, 0, portid, NULL, NULL);
-		if (ret <= 0)
+		ret_cb = mnl_cb_run(buf, ret, 0, portid, NULL, NULL);
+		if (ret_cb <= 0)
 			break;
 	}
+	sav_errno = errno;
+
 	FREE(buf);
 
-	if (ret == -1)
-		log_message(LOG_INFO, "mnl_socket_recvfrom error - %d", errno);
+	if (ret == -1 || ret_cb < 0)
+		log_message(LOG_INFO, "mnl_socket_recvfrom error ret %d - errno %d, ret_cb %d,", ret, sav_errno, ret_cb);
 }
 
 #ifdef _WITH_VRRP_

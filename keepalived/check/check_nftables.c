@@ -256,7 +256,7 @@ nft_update_ipvs_element(struct mnl_nlmsg_batch *batch,
 	struct nftnl_set_elem *e;
 	uint16_t type = cmd == NFT_MSG_NEWSETELEM ? NLM_F_CREATE | NLM_F_ACK : NLM_F_ACK;
 	char buf[sizeof(struct in6_addr) + sizeof(uint32_t)];
-	int len = 0;
+	unsigned len = 0;
 	union {
 		const struct sockaddr_in *in;
 		const struct sockaddr_in6 *in6;
@@ -270,28 +270,32 @@ nft_update_ipvs_element(struct mnl_nlmsg_batch *batch,
 				      type, seq++);
 	e = nftnl_set_elem_alloc();
 	if (nfproto == NFPROTO_IPV4) {
-	       memcpy(buf, &ss.in->sin_addr, len = sizeof(ss.in->sin_addr));
-	       memcpy(buf + len, &ss.in->sin_port, sizeof(ss.in->sin_port));
-	       len += sizeof(ss.in->sin_port);
+		memcpy(buf, &ss.in->sin_addr, len = sizeof(ss.in->sin_addr));
+		memcpy(buf + len, &ss.in->sin_port, sizeof(ss.in->sin_port));
+		len += sizeof(ss.in->sin_port);
 	} else {
-	       memcpy(buf, &ss.in6->sin6_addr, len = sizeof(ss.in6->sin6_addr));
-	       memcpy(buf + len, &ss.in6->sin6_port, sizeof(ss.in6->sin6_port));
-	       len += sizeof(ss.in6->sin6_port);
+		memcpy(buf, &ss.in6->sin6_addr, len = sizeof(ss.in6->sin6_addr));
+		memcpy(buf + len, &ss.in6->sin6_port, sizeof(ss.in6->sin6_port));
+		len += sizeof(ss.in6->sin6_port);
 	}
+	if (NLMSG_ALIGN(len) > len)
+		memset(buf + len, 0, NLMSG_ALIGN(len) - len);
 	len = NLMSG_ALIGN(len);
 
 	nftnl_set_elem_set(e, NFTNL_SET_ELEM_KEY, buf, len);
 #ifdef NFT_RANGE_CONCATS
 	ss.ss = addr_end;
 	if (nfproto == NFPROTO_IPV4) {
-	       memcpy(buf, &ss.in->sin_addr, len = sizeof(ss.in->sin_addr));
-	       memcpy(buf + len, &ss.in->sin_port, sizeof(ss.in->sin_port));
-	       len += sizeof(ss.in->sin_port);
+		memcpy(buf, &ss.in->sin_addr, len = sizeof(ss.in->sin_addr));
+		memcpy(buf + len, &ss.in->sin_port, sizeof(ss.in->sin_port));
+		len += sizeof(ss.in->sin_port);
 	} else {
-	       memcpy(buf, &ss.in6->sin6_addr, len = sizeof(ss.in6->sin6_addr));
-	       memcpy(buf + len, &ss.in6->sin6_port, sizeof(ss.in6->sin6_port));
-	       len += sizeof(ss.in6->sin6_port);
+		memcpy(buf, &ss.in6->sin6_addr, len = sizeof(ss.in6->sin6_addr));
+		memcpy(buf + len, &ss.in6->sin6_port, sizeof(ss.in6->sin6_port));
+		len += sizeof(ss.in6->sin6_port);
 	}
+	if (NLMSG_ALIGN(len) > len)
+		memset(buf + len, 0, NLMSG_ALIGN(len) - len);
 	len = NLMSG_ALIGN(len);
 	nftnl_set_elem_set(e, NFTNL_SET_ELEM_KEY_END, buf, len);
 #endif
