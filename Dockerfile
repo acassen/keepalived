@@ -1,5 +1,5 @@
 FROM alpine:3.10
-MAINTAINER Bertrand Gouny <bertrand.gouny@osixia.net>
+LABEL maintainer="Bertrand Gouny <bertrand.gouny@osixia.net>"
 
 # add keepalived sources to /tmp/keepalived-sources
 ADD . /tmp/keepalived-sources
