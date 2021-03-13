@@ -110,11 +110,9 @@ build_ssl_ctx(void)
 
 	/* Load our keys and certificates */
 	if (check_data->ssl->certfile)
-		if (!
-		    (SSL_CTX_use_certificate_chain_file
-		     (ssl->ctx, check_data->ssl->certfile))) {
-			log_message(LOG_INFO,
-			       "SSL error : Cant load certificate file...");
+		if (!(SSL_CTX_use_certificate_chain_file(ssl->ctx,
+							 check_data->ssl->certfile))) {
+			log_message(LOG_INFO, "SSL error : Cant load certificate file...");
 			return false;
 		}
 
@@ -126,18 +124,17 @@ build_ssl_ctx(void)
 	}
 
 	if (check_data->ssl->keyfile)
-		if (!
-		    (SSL_CTX_use_PrivateKey_file
-		     (ssl->ctx, check_data->ssl->keyfile, SSL_FILETYPE_PEM))) {
+		if (!(SSL_CTX_use_PrivateKey_file(ssl->ctx,
+						  check_data->ssl->keyfile,
+						  SSL_FILETYPE_PEM))) {
 			log_message(LOG_INFO, "SSL error : Cant load key file...");
 			return false;
 		}
 
 	/* Load the CAs we trust */
 	if (check_data->ssl->cafile)
-		if (!
-		    (SSL_CTX_load_verify_locations
-		     (ssl->ctx, check_data->ssl->cafile, 0))) {
+		if (!(SSL_CTX_load_verify_locations(ssl->ctx,
+						    check_data->ssl->cafile, 0))) {
 			log_message(LOG_INFO, "SSL error : Cant load CA file...");
 			return false;
 		}

@@ -44,7 +44,9 @@
 typedef enum {
         HTTP_PROTOCOL_1_0,
         HTTP_PROTOCOL_1_0C,
+        HTTP_PROTOCOL_1_0K,
         HTTP_PROTOCOL_1_1,
+        HTTP_PROTOCOL_1_1K
 } http_protocol_t;
 
 #define HTTP_STATUS_CODE_MIN		100
@@ -125,6 +127,7 @@ typedef struct _http_checker {
 	bool				enable_sni;
 #endif
 	bool				fast_recovery;
+	bool				genhash;
 } http_checker_t;
 
 /* global defs */
@@ -141,10 +144,12 @@ extern bool do_regex_timers;
 #endif
 
 /* Define prototypes */
+extern void free_http_check(checker_t *);
 extern void install_http_check_keyword(void);
 extern void timeout_epilog(thread_ref_t, const char *);
 extern void http_process_response(request_t *, size_t, url_t *);
 extern void http_handle_response(thread_ref_t, unsigned char digest[16], bool);
+extern void http_connect_thread(thread_ref_t);
 #ifdef THREAD_DUMP
 extern void register_check_http_addresses(void);
 #endif

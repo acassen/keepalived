@@ -43,6 +43,9 @@
 #ifdef _WITH_BFD_
 #include "check_bfd.h"
 #endif
+#ifdef _WITH_NFTABLES_
+#include "logger.h"
+#endif
 
 /* Daemon dynamic data structure definition */
 #define KEEPALIVED_DEFAULT_DELAY	(60 * TIMER_HZ)

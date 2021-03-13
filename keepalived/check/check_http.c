@@ -35,8 +35,8 @@
 #include <pcre2.h>
 #endif
 
-#include "check_http.h"
 #include "check_api.h"
+#include "check_http.h"
 #include "check_ssl.h"
 #include "bitops.h"
 #include "logger.h"
@@ -129,8 +129,6 @@ static const char *request_template_ipv6 =
 			"User-Agent: KeepAliveClient\r\n"
 			"%s"
 			"Host: [%s]%s\r\n\r\n";
-
-static void http_connect_thread(thread_ref_t);
 
 #ifdef _WITH_REGEX_CHECK_
 static void
@@ -299,7 +297,7 @@ free_http_request(request_t *req)
 	FREE(req);
 }
 
-static void
+void
 free_http_check(checker_t *checker)
 {
 	http_checker_t *http_get_chk = checker->data;
@@ -1273,15 +1271,29 @@ check_regex(url_t *url, request_t *req)
 
 /* Handle response */
 void
-http_handle_response(thread_ref_t thread, unsigned char digest[MD5_DIGEST_LENGTH]
-		     , bool empty_buffer)
+http_handle_response(thread_ref_t thread, unsigned char digest[MD5_DIGEST_LENGTH],
+		     bool empty_buffer)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
 	request_t *req = http_get_check->req;
-	int r;
 	url_t *url = fetch_next_url(http_get_check);
 	const char *msg = "HTTP status code";
+	int r;
+
+	/* Genhash mode ? */
+	if (http_get_check->genhash) {
+		if (empty_buffer) {
+			fprintf(stderr, "no data received from remote webserver\n");
+		} else {
+			for (r = 0; r < MD5_DIGEST_LENGTH; r++)
+				printf("%02x", digest[r]);
+			printf("\n");
+		}
+
+		thread_add_terminate_event(thread->master);
+		return;
+	}
 
 	/* First check if remote webserver returned data */
 	if (empty_buffer) {
@@ -1300,13 +1312,15 @@ http_handle_response(thread_ref_t thread, unsigned char digest[MD5_DIGEST_LENGTH
 	/* Report a length mismatch the first time we get the specific difference */
 	if (req->content_len != SIZE_MAX && req->content_len != req->rx_bytes) {
 		if (url->len_mismatch != (ssize_t)req->content_len - (ssize_t)req->rx_bytes) {
-			log_message(LOG_INFO, "http_check for RS %s VS %s url %s%s: content_length (%zu) does not match received bytes (%zu)",
-				    FMT_RS(checker->rs, checker->vs), FMT_VS(checker->vs), url->virtualhost ? url->virtualhost : "",
-				    url->path, req->content_len, req->rx_bytes);
+			log_message(LOG_INFO, "http_check for RS %s VS %s url %s%s:"
+					      " content_length (%zu) does not match received bytes (%zu)"
+					    , FMT_RS(checker->rs, checker->vs)
+					    , FMT_VS(checker->vs)
+					    , url->virtualhost ? url->virtualhost : ""
+					    , url->path, req->content_len, req->rx_bytes);
 			url->len_mismatch = (ssize_t)req->content_len - (ssize_t)req->rx_bytes;
 		}
-	}
-	else
+	} else
 		url->len_mismatch = 0;
 
 	/* Continue with MD5SUM */
@@ -1441,17 +1455,18 @@ http_read_thread(thread_ref_t thread)
 
 		/* Handle response stream */
 		http_handle_response(thread, digest, !req->extracted);
-	} else {
-		/* Handle response stream */
-		http_process_response(req, (size_t)r, url);
-
-		/*
-		 * Register next http stream reader.
-		 * Register itself to not perturbe global I/O multiplexer.
-		 */
-		thread_add_read(thread->master, http_read_thread, checker,
-				thread->u.f.fd, timeout, true);
+		return;
 	}
+
+	/* Handle response stream */
+	http_process_response(req, (size_t)r, url);
+
+	/*
+	 * Register next http stream reader.
+	 * Register itself to not perturbe global I/O multiplexer.
+	 */
+	thread_add_read(thread->master, http_read_thread, checker,
+			thread->u.f.fd, timeout, true);
 }
 
 /*
@@ -1680,7 +1695,7 @@ http_check_thread(thread_ref_t thread)
 	}
 }
 
-static void
+void
 http_connect_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -1719,8 +1734,7 @@ http_connect_thread(thread_ref_t thread)
 	status = tcp_bind_connect(fd, co);
 
 	/* handle tcp connection status & register check worker thread */
-	if(tcp_connection_state(fd, status, thread, http_check_thread,
-			co->connection_to)) {
+	if (tcp_connection_state(fd, status, thread, http_check_thread, co->connection_to)) {
 		close(fd);
 		if (status == connect_fail) {
 			timeout_epilog(thread, "HTTP_CHECK - network unreachable");

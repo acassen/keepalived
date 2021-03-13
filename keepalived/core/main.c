@@ -56,6 +56,7 @@
 #include "notify.h"
 #include "track_file.h"
 #ifdef _WITH_LVS_
+#include "check_genhash.h"
 #include "check_parser.h"
 #include "check_daemon.h"
 #endif
@@ -1728,6 +1729,7 @@ usage(const char *prog)
 	fprintf(stderr, "  -r, --vrrp_pid=FILE          Use specified pidfile for VRRP child process\n");
 #endif
 #ifdef _WITH_LVS_
+	fprintf(stderr, "  -T, --genhash                Enter into genhash utility mode.\n");
 	fprintf(stderr, "  -c, --checkers_pid=FILE      Use specified pidfile for checkers child process\n");
 	fprintf(stderr, "  -a, --address-monitoring     Report all address additions/deletions notified via netlink\n");
 #endif
@@ -1886,6 +1888,7 @@ parse_cmdline(int argc, char **argv)
 		{"vrrp_pid",		required_argument,	NULL, 'r'},
 #endif
 #ifdef _WITH_LVS_
+		{"genhash",		required_argument,	NULL, 'T'},
 		{"checkers_pid",	required_argument,	NULL, 'c'},
 		{"address-monitoring",	no_argument,		NULL, 'a'},
 #endif
@@ -1934,7 +1937,7 @@ parse_cmdline(int argc, char **argv)
 					    "r:VX"
 #endif
 #ifdef _WITH_LVS_
-					    "ac:I"
+					    "ac:IT:"
 #endif
 #ifdef _WITH_BFD_
 					    "Bb:"
@@ -1995,6 +1998,9 @@ parse_cmdline(int argc, char **argv)
 		case 'I':
 			__set_bit(DONT_RELEASE_IPVS_BIT, &debug);
 			break;
+		case 'T':
+			check_genhash(argc, argv);
+			exit(0);
 #endif
 		case 'D':
 			if (__test_bit(LOG_DETAIL_BIT, &debug))

@@ -515,13 +515,14 @@ register_checkers_thread(void)
 	unsigned long warmup;
 
 	list_for_each_entry(checker, &checkers_queue, e_list) {
-		if (checker->launch)
-		{
+		if (checker->launch) {
 			if (checker->vs->ha_suspend && !checker->vs->ha_suspend_addr_count)
 				checker->enabled = false;
 
 			log_message(LOG_INFO, "%sctivating healthchecker for service %s for VS %s"
-					    , checker->enabled ? "A" : "Dea", FMT_RS(checker->rs, checker->vs), FMT_VS(checker->vs));
+					    , checker->enabled ? "A" : "Dea"
+					    , FMT_RS(checker->rs, checker->vs)
+					    , FMT_VS(checker->vs));
 
 			/* wait for a random timeout to begin checker thread.
 			   It helps avoiding multiple simultaneous checks to
