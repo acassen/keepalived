@@ -164,7 +164,6 @@ fi
 @SNMP_TRUE@%{_datadir}/snmp/mibs/KEEPALIVED-MIB.txt
 @SNMP_RFCV2_TRUE@%{_datadir}/snmp/mibs/VRRP-MIB.txt
 @SNMP_RFCV3_TRUE@%{_datadir}/snmp/mibs/VRRPv3-MIB.txt
-%{_bindir}/genhash
 %attr(0755,root,root) %{_sbindir}/keepalived
 %{_mandir}/man1/genhash.1*
 %{_mandir}/man5/keepalived.conf.5*

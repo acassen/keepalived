@@ -119,7 +119,7 @@ AH_BOTTOM(
 #endif])
 
 AC_CONFIG_FILES([Makefile keepalived/Makefile lib/Makefile keepalived/core/Makefile keepalived.spec \
-		 genhash/Makefile keepalived/check/Makefile keepalived/vrrp/Makefile \
+		 keepalived/check/Makefile keepalived/vrrp/Makefile \
 		 keepalived/bfd/Makefile doc/Makefile bin_install/Makefile keepalived/dbus/Makefile \
 		 keepalived/etc/Makefile keepalived/etc/init/Makefile keepalived/etc/init.d/Makefile \
 		 keepalived/etc/sysconfig/Makefile keepalived/etc/keepalived/Makefile \
@@ -273,8 +273,6 @@ AC_ARG_ENABLE(parser-debug,
   [AS_HELP_STRING([--enable-parser-debug], [compile with parser debugging support])])
 AC_ARG_ENABLE(checksum-debug,
   [AS_HELP_STRING([--enable-checksum-debug], [compile with checksum debugging support])])
-AC_ARG_ENABLE(genhash-debug,
-  [AS_HELP_STRING([--enable-genhash-debug], [compile with genhash debugging support])])
 AC_ARG_ENABLE(checker-debug,
   [AS_HELP_STRING([--enable-checker-debug], [compile with checker debugging support])])
 AC_ARG_ENABLE(smtp-connect-debug,
@@ -447,7 +445,7 @@ AS_IF([test .$enable_mem_check != .yes],
     AS_IF([test .$enable_mem_err_debug != .], [AC_MSG_ERROR([enable-mem-err-debug requires --enable-mem-check])])
   )
 
-# --enable-debug enables most debugging if not explicitly disabled, but NOT one-process-debug or genhash-debug
+# --enable-debug enables most debugging if not explicitly disabled, but NOT one-process-debug
 AS_IF([test .$enable_debug = .yes],
   [
     # If we are debugging, we want to be able to write logs to files
@@ -1088,7 +1086,6 @@ AC_CHECK_DECLS([ETHERTYPE_IPV6], [],
   ],
   [[#include <net/ethernet.h>]])
 
-BUILD_GENHASH=Yes
 dnl ----[ Checks for openssl ]----
 # check for openssl headers
 NEED_MD5=no
@@ -1108,7 +1105,6 @@ AC_CHECK_HEADERS([openssl/ssl.h openssl/err.h], [],
   !!! OpenSSL is not properly installed on your system. !!!
   !!! Can not include OpenSSL headers files.            !!!])
     fi
-    BUILD_GENHASH=No
     NEED_SSL=no
     break
   ])
@@ -1119,7 +1115,6 @@ AC_CHECK_HEADERS([openssl/md5.h], [],
   !!! OpenSSL is not properly installed on your system. !!!
   !!! Can not include OpenSSL MD5 headers files.        !!!])
     fi
-    BUILD_GENHASH=No
     NEED_MD5=no
     break
   ])
@@ -1138,12 +1133,10 @@ AC_CHECK_LIB(crypto, MD5_Init, [],
     if test $NEED_MD5 = yes; then
       AC_MSG_ERROR([OpenSSL MD5 libraries are required])
     fi
-    BUILD_GENHASH=No
   ], [$EXTRA_LIBS])
 if test $NEED_MD5 = yes; then
   add_to_var([KA_LIBS], [$LIBS])
 fi
-add_to_var([GENHASH_LIBS], [$LIBS])
 unset LIBS
 
 EXTRA_LIBS=`echo $OPENSSL_LIBS | sed -e "s/-lssl//"`
@@ -1152,12 +1145,10 @@ AC_CHECK_LIB(ssl, SSL_CTX_new, [],
     if test $NEED_SSL = yes; then
       AC_MSG_ERROR([OpenSSL libraries are required])
     fi
-    BUILD_GENHASH=No
   ], [$EXTRA_LIBS])
 if test $NEED_SSL = yes; then
   add_to_var([KA_LIBS], [$LIBS])
 fi
-add_to_var([GENHASH_LIBS], [$LIBS])
 unset LIBS
 
 # Introduced in OpenSSL ver 0.9.9
@@ -1215,13 +1206,6 @@ AS_IF([test .$ac_cv_func_OPENSSL_init_crypto = .yes],
 	      [AC_DEFINE([HAVE_OPENSSL_INIT_NO_LOAD_CONFIG_BUG], [ 1 ], [Define to 1 if OPENSSL_init_crypto(OPENSSL_INIT_NO_LOAD_CONFIG) bug)])])
       ])
 unset LIBS
-
-if test $BUILD_GENHASH = No; then
-  AC_MSG_NOTICE([Unable to build genhash due to missing openssl headers/libraries])
-  GENHASH_LIBS=
-fi
-AC_SUBST([GENHASH_LIBS])
-AM_CONDITIONAL([BUILD_GENHASH], [test $BUILD_GENHASH = Yes])
 
 dnl ----[ Check for IPv4 devconf netlink support ]----
 IPV4_DEVCONF=No
@@ -2607,15 +2591,6 @@ AS_IF([test .$enable_checksum_debug = .yes],
     ENABLE_CHECKSUM_DEBUG=Yes
   ])
 
-dnl ----[ Do we want to enable genhash debugging code]----
-ENABLE_GENHASH_DEBUG=No
-AS_IF([test .$enable_genhash_debug = .yes],
-  [
-    AC_DEFINE([_GENHASH_DEBUG_], [ 1 ], [Define to enable genhash debugging])
-    add_config_opt([GENHASH_DEBUG])
-    ENABLE_GENHASH_DEBUG=Yes
-  ])
-
 dnl ----[ Do we want to enable checker debugging code]----
 ENABLE_CHECKER_DEBUG=No
 AS_IF([test .$enable_checker_debug = .yes],
@@ -2860,7 +2835,6 @@ echo "Use nftables             : ${USE_NFTABLES}"
 echo "init type                : ${INIT_TYPE}"
 echo "systemd notify           : ${USE_SYSTEMD_NOTIFY}"
 echo "Strict config checks     : ${STRICT_CONFIG}"
-echo "Build genhash            : ${BUILD_GENHASH}"
 echo "Build documentation      : ${HAVE_SPHINX_BUILD}"
 if test ${ENABLE_STACKTRACE} = Yes; then
   echo "Stacktrace support       : Yes"
@@ -2925,9 +2899,6 @@ if test ${ENABLE_PARSER_DEBUG} = Yes; then
 fi
 if test ${ENABLE_CHECKSUM_DEBUG} = Yes; then
   echo "Checksum debugging       : Yes"
-fi
-if test ${ENABLE_GENHASH_DEBUG} = Yes; then
-  echo "genhash debugging        : Yes"
 fi
 if test ${ENABLE_CHECKER_DEBUG} = Yes; then
   echo "checker debugging        : Yes"
