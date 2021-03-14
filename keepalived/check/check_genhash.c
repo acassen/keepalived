@@ -118,9 +118,6 @@ check_genhash_parse_cmdline(int argc, char **argv, checker_t *checker)
 #endif
 				  , long_options, NULL)) != EOF) {
 		switch (c) {
-		case 'h':
-			genhash_usage(argv[0]);
-			break;
 		case 'v':
 			checker->enabled = true; /* reuse as Verbose */
 			break;
@@ -204,7 +201,6 @@ check_genhash_parse_cmdline(int argc, char **argv, checker_t *checker)
 			co->connection_to *= TIMER_HZ;
 			break;
 		default:
-			genhash_usage(argv[0]);
 			return -1;
 		}
 	}
