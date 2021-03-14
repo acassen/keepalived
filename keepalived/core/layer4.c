@@ -215,7 +215,7 @@ socket_state(thread_ref_t thread, thread_func_t func)
 #ifdef _WITH_LVS_
 bool
 socket_connection_state(int fd, enum connect_result status, thread_ref_t thread,
-		     thread_func_t func, unsigned long timeout)
+			thread_func_t func, unsigned long timeout)
 {
 	void *checker;
 
@@ -229,9 +229,7 @@ socket_connection_state(int fd, enum connect_result status, thread_ref_t thread,
 
 	return true;
 }
-#endif
 
-#ifdef _WITH_LVS_
 enum connect_result
 udp_bind_connect(int fd, conn_opts_t *co, uint8_t *payload, uint16_t payload_len)
 {

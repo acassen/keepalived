@@ -1741,7 +1741,7 @@ http_connect_thread(thread_ref_t thread)
 		} else {
 			log_message(LOG_INFO, "WEB socket bind failed. Rescheduling");
 			thread_add_timer(thread->master, http_connect_thread, checker,
-					checker->delay_loop);
+					 checker->delay_loop);
 		}
 	}
 }

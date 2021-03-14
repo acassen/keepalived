@@ -1125,13 +1125,20 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 
 		/* We are only expecting SIGCHLD */
 		if (siginfo.ssi_signo != SIGCHLD) {
-			log_message(LOG_INFO, "Received signal %u code %d status %d from pid %u while waiting for children to terminate", siginfo.ssi_signo, siginfo.ssi_code, siginfo.ssi_status, siginfo.ssi_pid);
+			log_message(LOG_INFO, "Received signal %u code %d status %d from pid %u"
+					      " while waiting for children to terminate"
+					    , siginfo.ssi_signo, siginfo.ssi_code
+					    , siginfo.ssi_status, siginfo.ssi_pid);
 			continue;
 		}
 
-		if (siginfo.ssi_code != CLD_EXITED && siginfo.ssi_code != CLD_KILLED && siginfo.ssi_code != CLD_DUMPED) {
+		if (siginfo.ssi_code != CLD_EXITED &&
+		    siginfo.ssi_code != CLD_KILLED &&
+		    siginfo.ssi_code != CLD_DUMPED) {
 			/* CLD_STOPPED, CLD_CONTINUED or CLD_TRAPPED */
-			log_message(LOG_INFO, "Received SIGCHLD code %d status %d from pid %u while waiting for children to terminate", siginfo.ssi_code, siginfo.ssi_status, siginfo.ssi_pid);
+			log_message(LOG_INFO, "Received SIGCHLD code %d status %d from pid %u"
+					      " while waiting for children to terminate"
+					    , siginfo.ssi_code, siginfo.ssi_status, siginfo.ssi_pid);
 			continue;
 		}
 
@@ -1142,7 +1149,8 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 					continue;
 				if (ret == -1) {
 					if (!check_EINTR(errno))
-						log_message(LOG_INFO, "Wait for %s child return errno %d", children_term[i].short_name, errno);
+						log_message(LOG_INFO, "Wait for %s child return errno %d"
+								    , children_term[i].short_name, errno);
 					continue;
 				}
 
@@ -1168,7 +1176,8 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 	/* A child may not have terminated, so force its termination */
 	for (i = 0; i < NUM_CHILD_TERM; i++) {
 		if (*children_term[i].pid_p) {
-			log_message(LOG_INFO, "%s process failed to die - forcing termination", children_term[i].short_name);
+			log_message(LOG_INFO, "%s process failed to die - forcing termination"
+					    , children_term[i].short_name);
 			kill(*children_term[i].pid_p, SIGKILL);
 		}
 	}
@@ -1179,10 +1188,14 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 	} else {
 		/* If we have a shutdown script, run it now */
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
-			log_message(LOG_INFO, "Running shutdown script %s", global_data->shutdown_script->args[0]);
+			log_message(LOG_INFO, "Running shutdown script %s"
+					    , global_data->shutdown_script->args[0]);
 
-		if (system_call_script(master, shutdown_script_completed, NULL, global_data->shutdown_script_timeout * TIMER_HZ, global_data->shutdown_script) == -1)
-			log_message(LOG_INFO, "Call of shutdown script %s failed", global_data->shutdown_script->args[0]);
+		if (system_call_script(master, shutdown_script_completed, NULL
+					     , global_data->shutdown_script_timeout * TIMER_HZ
+					     , global_data->shutdown_script) == -1)
+			log_message(LOG_INFO, "Call of shutdown script %s failed"
+					    , global_data->shutdown_script->args[0]);
 	}
 }
 #endif
@@ -1888,7 +1901,7 @@ parse_cmdline(int argc, char **argv)
 		{"vrrp_pid",		required_argument,	NULL, 'r'},
 #endif
 #ifdef _WITH_LVS_
-		{"genhash",		required_argument,	NULL, 'T'},
+		{"genhash",		optional_argument,	NULL, 'T'},
 		{"checkers_pid",	required_argument,	NULL, 'c'},
 		{"address-monitoring",	no_argument,		NULL, 'a'},
 #endif
@@ -2461,9 +2474,7 @@ keepalived_main(int argc, char **argv)
 	}
 
 	if (!__test_bit(CONFIG_TEST_BIT, &debug) &&
-	    (global_data->instance_name
-	     || global_data->network_namespace
-					      )) {
+	    (global_data->instance_name || global_data->network_namespace)) {
 		if ((syslog_ident = make_syslog_ident(PACKAGE_NAME))) {
 			log_message(LOG_INFO, "Changing syslog ident to %s", syslog_ident);
 			closelog();
@@ -2571,8 +2582,7 @@ keepalived_main(int argc, char **argv)
 	}
 
 	/* daemonize process */
-	if (!__test_bit(DONT_FORK_BIT, &debug) &&
-	    xdaemon() > 0) {
+	if (!__test_bit(DONT_FORK_BIT, &debug) && xdaemon() > 0) {
 		closelog();
 		FREE_CONST_PTR(config_id);
 		FREE_PTR(orig_core_dump_pattern);
@@ -2603,7 +2613,6 @@ keepalived_main(int argc, char **argv)
 
 	if (__test_bit(CONFIG_TEST_BIT, &debug)) {
 		validate_config();
-
 		config_test_exit();
 	}
 

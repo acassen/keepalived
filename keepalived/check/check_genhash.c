@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <getopt.h>
+#include <signal.h>
 
 #include "check_api.h"
 #include "check_http.h"
@@ -39,6 +40,7 @@
 #include "logger.h"
 #include "parser.h"
 #include "utils.h"
+#include "signals.h"
 #include "scheduler.h"
 
 
@@ -83,6 +85,7 @@ check_genhash_parse_cmdline(int argc, char **argv, checker_t *checker)
 	char *endptr;
 	long port_num;
 	url_t *url;
+	uint8_t mandatory_bits = 7;
 	int c;
 
 	struct option long_options[] = {
@@ -103,6 +106,10 @@ check_genhash_parse_cmdline(int argc, char **argv, checker_t *checker)
 		{"timeout",		required_argument, 0, 't'},
 		{0, 0, 0, 0}
 	};
+
+	/* Trivial sanity check */
+	if (argc <= 2)
+		return -1;
 
 	/* Parse the command line arguments */
 	while ((c = getopt_long(argc, argv, "hTvSs:H:V:p:u:m:P:t:"
@@ -134,6 +141,7 @@ check_genhash_parse_cmdline(int argc, char **argv, checker_t *checker)
 				fprintf(stderr, "server should be an IP, not %s\n", optarg);
 				return -1;
 			}
+			mandatory_bits &= ~1;
 			break;
 		case 'V':
 			http_get_check->virtualhost = optarg;
@@ -145,13 +153,16 @@ check_genhash_parse_cmdline(int argc, char **argv, checker_t *checker)
 				return -1;
 			}
 			checker_set_dst_port(&co->dst, htons(port_num));
+			mandatory_bits &= ~2;
 			break;
 		case 'u':
 			PMALLOC(url);
 			INIT_LIST_HEAD(&url->e_list);
-			url->path = optarg;
+			url->path = STRDUP(optarg);
 			url->digest = MALLOC(MD5_DIGEST_LENGTH);
 			list_add_tail(&url->e_list, &http_get_check->url);
+			http_get_check->url_it = url;
+			mandatory_bits &= ~4;
 			break;
 		case 'm':
 #ifdef _WITH_SO_MARK_
@@ -207,7 +218,16 @@ check_genhash_parse_cmdline(int argc, char **argv, checker_t *checker)
 		return -1;
 	}
 
-	return 0;
+	/* Minimum option required are: server, port & url */
+	return (mandatory_bits) ? -1 : 0;
+}
+
+/* Terminate handler */
+static void
+sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
+{
+	/* register the terminate thread */
+	thread_add_terminate_event(master);
 }
 
 void __attribute__ ((noreturn))
@@ -215,11 +235,18 @@ check_genhash(int argc, char **argv)
 {
 	checker_t *checker;
 	http_checker_t *http_get_check;
+	virtual_server_t *vs;
+	real_server_t *rs;
 	conn_opts_t *co;
+	int ret = 0;
 
 	/* Create a dummy checker */
 	PMALLOC(check_data);
 	PMALLOC(checker);
+	PMALLOC(vs);
+	PMALLOC(rs);
+	checker->vs = vs;
+	checker->rs = rs;
 	PMALLOC(co);
 	co->connection_to = UINT_MAX;
 	checker->co = co;
@@ -228,21 +255,28 @@ check_genhash(int argc, char **argv)
 	http_get_check->genhash = true;
 	http_get_check->proto = PROTO_HTTP;
 	checker->data = http_get_check;
+	checker->enabled = true;
 
 	/* Parse command line */
 	if (check_genhash_parse_cmdline(argc, argv, checker) < 0) {
-		free_http_check(checker);
-		exit(1);
+		genhash_usage(argv[0]);
+		ret = 1;
+		goto end;
 	}
 
 	/* Submit work to I/O MUX */
 	master = thread_make_master();
+	signal_set(SIGINT, sigend, NULL);
+	signal_set(SIGTERM, sigend, NULL);
 	thread_add_event(master, http_connect_thread, checker, 0);
 	launch_thread_scheduler(master);
 
 	/* Release memory */
 	thread_destroy_master(master);
+  end:
 	free_http_check(checker);
+	FREE(vs);
+	FREE(rs);
 	FREE(check_data);
-	exit(0);
+	exit(ret);
 }
