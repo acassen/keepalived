@@ -21,6 +21,7 @@ edit = echo "  EDIT     $@"; \
 	 -e 's|@SYSTEMD_EXEC_START_OPTIONS[@]|$(SYSTEMD_EXEC_START_OPTIONS)|g'
 
 sbin_PROGRAMS		= keepalived
+dist_bin_SCRIPTS	= $(top_srcdir)/tools/genhash
 keepalived_SOURCES	= main.c
 
 noinst_HEADERS		= $(srcdir)/include/*.h
