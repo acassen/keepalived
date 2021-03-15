@@ -24,6 +24,20 @@
 #ifndef _CHECK_GENHASH_H
 #define _CHECK_GENHASH_H
 
+/* options bits */
+enum genhash_option_bits {
+        GENHASH_SERVER_BIT,
+        GENHASH_PORT_BIT,
+        GENHASH_URL_BIT,
+        GENHASH_SSL_BIT,
+        GENHASH_SNI_BIT,
+        GENHASH_HASH_METHOD_BIT,
+        GENHASH_VHOST_BIT,
+        GENHASH_FWMARK_BIT,
+        GENHASH_PROTO_BIT,
+        GENHASH_TIMEOUT_BIT,
+};
+
 /* Define prototypes */
 extern void check_genhash(int, char **);
 

@@ -85,7 +85,7 @@ check_genhash_parse_cmdline(int argc, char **argv, checker_t *checker)
 	char *endptr;
 	long port_num;
 	url_t *url;
-	uint8_t mandatory_bits = 7;
+	unsigned long parsed_bits = 0;
 	int c;
 
 	struct option long_options[] = {
@@ -127,10 +127,12 @@ check_genhash_parse_cmdline(int argc, char **argv, checker_t *checker)
 				fprintf(stderr, "Cannot initialize SSL context.\n");
 				return -1;
 			}
+			__set_bit(GENHASH_SSL_BIT, &parsed_bits);
 			break;
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 		case 'I':
 			http_get_check->enable_sni = true;
+			__set_bit(GENHASH_SNI_BIT, &parsed_bits);
 			break;
 #endif
 		case 's':
@@ -138,10 +140,11 @@ check_genhash_parse_cmdline(int argc, char **argv, checker_t *checker)
 				fprintf(stderr, "server should be an IP, not %s\n", optarg);
 				return -1;
 			}
-			mandatory_bits &= ~1;
+			__set_bit(GENHASH_SERVER_BIT, &parsed_bits);
 			break;
 		case 'V':
-			http_get_check->virtualhost = optarg;
+			http_get_check->virtualhost = STRDUP(optarg);
+			__set_bit(GENHASH_VHOST_BIT, &parsed_bits);
 			break;
 		case 'p':
 			port_num = strtol(optarg, &endptr, 10);
@@ -150,7 +153,7 @@ check_genhash_parse_cmdline(int argc, char **argv, checker_t *checker)
 				return -1;
 			}
 			checker_set_dst_port(&co->dst, htons(port_num));
-			mandatory_bits &= ~2;
+			__set_bit(GENHASH_PORT_BIT, &parsed_bits);
 			break;
 		case 'u':
 			PMALLOC(url);
@@ -159,7 +162,7 @@ check_genhash_parse_cmdline(int argc, char **argv, checker_t *checker)
 			url->digest = MALLOC(MD5_DIGEST_LENGTH);
 			list_add_tail(&url->e_list, &http_get_check->url);
 			http_get_check->url_it = url;
-			mandatory_bits &= ~4;
+			__set_bit(GENHASH_URL_BIT, &parsed_bits);
 			break;
 		case 'm':
 #ifdef _WITH_SO_MARK_
@@ -169,6 +172,7 @@ check_genhash_parse_cmdline(int argc, char **argv, checker_t *checker)
 				fprintf(stderr, "invalid fwmark '%s'\n", optarg);
 				return -1;
 			}
+			__set_bit(GENHASH_FWMARK_BIT, &parsed_bits);
 #else
 			fprintf(stderr, "keepalived built without fwmark support\n");
 			return -1;
@@ -190,6 +194,7 @@ check_genhash_parse_cmdline(int argc, char **argv, checker_t *checker)
 				fprintf(stderr, "invalid HTTP protocol version '%s'\n", optarg);
 				return -1;
 			}
+			__set_bit(GENHASH_PROTO_BIT, &parsed_bits);
 			break;
 		case 't':
 			start = optarg + strspn(optarg, " \t");
@@ -199,6 +204,7 @@ check_genhash_parse_cmdline(int argc, char **argv, checker_t *checker)
 				return -1;
 			}
 			co->connection_to *= TIMER_HZ;
+			__set_bit(GENHASH_TIMEOUT_BIT, &parsed_bits);
 			break;
 		default:
 			return -1;
@@ -214,8 +220,10 @@ check_genhash_parse_cmdline(int argc, char **argv, checker_t *checker)
 		return -1;
 	}
 
-	/* Minimum option required are: server, port & url */
-	return (mandatory_bits) ? -1 : 0;
+	/* Mandatory options are: server, port & url */
+	return (__test_bit(GENHASH_SERVER_BIT, &parsed_bits) &&
+		__test_bit(GENHASH_PORT_BIT, &parsed_bits)   &&
+		__test_bit(GENHASH_URL_BIT, &parsed_bits)) ? 0 : -1;
 }
 
 /* Terminate handler */
