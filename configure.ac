@@ -1859,6 +1859,7 @@ MACVLAN_SUPPORT=No
 ENABLE_JSON=No
 BFD_SUPPORT=No
 HAVE_CN_PROC=No
+WITH_TRACK_PROCESS=No
 if test "$enable_vrrp" != no; then
   VRRP_SUPPORT=Yes
   AC_DEFINE([_WITH_VRRP_], [ 1 ], [Define to 1 if have VRRP support])
