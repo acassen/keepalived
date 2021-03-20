@@ -1,13 +1,12 @@
 .\"
 .\" genhash(1)
 .\"
-.\" Copyright (C) 2004 Andres Salomon
-.\" Copyright (C) 2010-2013 Alexandre Cassen, <acassen@gmail.com>
+.\" Copyright (C) 2010-2021 Alexandre Cassen, <acassen@gmail.com>
 .TH genhash 1 "@DATE@"
 .SH NAME
 genhash \- md5 hash generation tool for remote web pages
 .SH SYNOPSIS
-.B "genhash [options] [-s server-address] [-p port] [-u url]"
+.B "keepalived --genhash [options] [-s server-address] [-p port] [-u url]"
 .SH DESCRIPTION
 .B genhash
 is a tool used for generating md5sum hashes of remote web pages.

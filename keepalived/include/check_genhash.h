@@ -1,11 +1,12 @@
 /*
- * Soft:        Perform a GET query to a remote HTTP/HTTPS server.
- *              Set a timer to compute global remote server response
- *              time.
+ * Soft:        Keepalived is a failover program for the LVS project
+ *              <www.linuxvirtualserver.org>. It monitor & manipulate
+ *              a loadbalanced server pool using multi-layer checks.
  *
- * Part:        sock.c include file.
+ * Part:        check_genhash.c include file.
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
+ *              Jan Holmberg, <jan@artech.net>
  *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -20,37 +21,24 @@
  * Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
-#ifndef _SOCK_H
-#define _SOCK_H
+#ifndef _CHECK_GENHASH_H
+#define _CHECK_GENHASH_H
 
-/* system includes */
-#include <openssl/ssl.h>
+/* options bits */
+enum genhash_option_bits {
+        GENHASH_SERVER_BIT,
+        GENHASH_PORT_BIT,
+        GENHASH_URL_BIT,
+        GENHASH_SSL_BIT,
+        GENHASH_SNI_BIT,
+        GENHASH_HASH_METHOD_BIT,
+        GENHASH_VHOST_BIT,
+        GENHASH_FWMARK_BIT,
+        GENHASH_PROTO_BIT,
+        GENHASH_TIMEOUT_BIT,
+};
 
-/* local includes */
-#include "hash.h"
-
-/* Engine socket pool element structure */
-typedef struct {
-	int		fd;
-	SSL		*ssl;
-	BIO		*bio;
-	const		hash_t		*hash;
-	hash_context_t	context;
-	int		status;
-	int		lock;
-	char		*buffer;
-	const char	*extracted;
-	int		size;
-	int		total_size;
-	ssize_t		content_len;
-	ssize_t		rx_bytes;
-} SOCK;
-
-/* global vars exported */
-extern SOCK *sock;
-
-/* Prototypes */
-extern void free_sock(SOCK *);
-extern void init_sock(void);
+/* Define prototypes */
+extern void check_genhash(int, char **);
 
 #endif

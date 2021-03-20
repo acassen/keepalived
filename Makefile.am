@@ -13,10 +13,6 @@ edit = echo "  EDIT     $@"; \
 
 SUBDIRS			= lib keepalived doc
 
-if BUILD_GENHASH
-  SUBDIRS		+= genhash
-endif
-
 SUBDIRS			+= bin_install
 
 EXTRA_DIST		= AUTHOR CONTRIBUTORS snap README.md build_setup autogen.sh tools/timed_reload

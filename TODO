@@ -115,10 +115,6 @@ Change tcp_socket_state etc to socket_state etc
 
 Add noreturn function attribute on stop_vrrp/check
 
-bin/genhash -s 2001:470:69dd:35::188 --port 80 -u /Harriet/     # works, but
-bin/genhash -s 2001:470:69dd:35::188 --port 80 -u /Harriet/     # -S doesn't
-								# but -S is OK with IPv4 address
-
 in ipvswrapper.c, get rid of static srule etc and make them procedure local and pass as parameters
 
 Stop passing base_ifp to netlink3_set_interface_parameters() etc

@@ -1656,7 +1656,7 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	char *name;
 #ifdef _HAVE_VRRP_VMAC_
 	struct rtattr* linkinfo[IFLA_INFO_MAX+1];
-#if defined(_HAVE_VRRP_IPVLAN_) && defined(_HAVE_VRF_)
+#if defined _HAVE_VRRP_IPVLAN_ && defined _HAVE_VRF_
 	struct rtattr* linkattr[max(max(IFLA_MACVLAN_MAX, IFLA_IPVLAN_MAX), IFLA_VRF_MAX) + 1];
 #elif defined _HAVE_VRRP_IPVLAN_
 	struct rtattr* linkattr[max(IFLA_MACVLAN_MAX, IFLA_IPVLAN_MAX) + 1];

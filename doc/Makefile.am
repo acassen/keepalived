@@ -2,11 +2,7 @@
 #
 # Keepalived OpenSource project.
 
-SUBDIRS		= man/man8 man/man5
-
-if BUILD_GENHASH
-  SUBDIRS	+= man/man1
-endif
+SUBDIRS		= man/man1 man/man8 man/man5
 
 EXTRA_DIST	= source samples keepalived.conf.SYNOPSIS NOTE_vrrp_vmac.txt KEEPALIVED-MIB.txt VRRP-MIB.txt VRRPv3-MIB.txt
 
