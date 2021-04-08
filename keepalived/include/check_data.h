@@ -35,6 +35,7 @@
 
 
 /* local includes */
+#include "logger.h"
 #include "ip_vs.h"
 #include "list_head.h"
 #include "vector.h"
