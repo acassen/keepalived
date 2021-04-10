@@ -928,22 +928,28 @@ vrrp_min_garp_handler(const vector_t *strvec)
 }
 #ifdef _HAVE_VRRP_VMAC_
 static void
-vrrp_vmac_garp_intvl_handler(const vector_t *strvec)
+vrrp_vmac_garp_extra_if_handler(const vector_t *strvec)
 {
 	unsigned delay = 0;
 	unsigned index;
+	const char *cmd_name = strvec_slot(strvec, 0);
+
+	if (!strcmp(cmd_name, "vrrp_vmac_garp_intvl")) {
+		/* Deprecated after v2.2.2 */
+		report_config_error(CONFIG_DEPRECATED, "Keyword \"vrrp_vmac_garp_intvl\" is deprecated - please use \"vrrp_garp_extra_if\"");
+	}
 
 	for (index = 1; index < vector_size(strvec); index++) {
 		if (!strcmp(strvec_slot(strvec, index), "all"))
 			global_data->vrrp_vmac_garp_all_if = true;
 		else if (!read_unsigned_strvec(strvec, index, &delay, 1, 86400, true)) {
-			report_config_error(CONFIG_GENERAL_ERROR, "vrrp_vmac_garp_intvl '%s' invalid - ignoring", strvec_slot(strvec, index));
+			report_config_error(CONFIG_GENERAL_ERROR, "%s '%s' invalid - ignoring", cmd_name, strvec_slot(strvec, index));
 			return;
 		}
 	}
 
 	if (!delay) {
-		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_vmac_garp_intvl specified without time - ignoring");
+		report_config_error(CONFIG_GENERAL_ERROR, "%s specified without time - ignoring", cmd_name);
 		return;
 	}
 
@@ -2197,7 +2203,8 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_gna_interval", &vrrp_gna_interval_handler);
 	install_keyword("vrrp_min_garp", &vrrp_min_garp_handler);
 #ifdef _HAVE_VRRP_VMAC_
-	install_keyword("vrrp_vmac_garp_intvl", &vrrp_vmac_garp_intvl_handler);
+	install_keyword("vrrp_garp_extra_if", &vrrp_vmac_garp_extra_if_handler);
+	install_keyword("vrrp_vmac_garp_intvl", &vrrp_vmac_garp_extra_if_handler);	/* Deprecated after v2.2.2 - incorrect keyword in commit 3dcd13c */
 #endif
 	install_keyword("vrrp_lower_prio_no_advert", &vrrp_lower_prio_no_advert_handler);
 	install_keyword("vrrp_higher_prio_send_advert", &vrrp_higher_prio_send_advert_handler);

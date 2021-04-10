@@ -1683,7 +1683,7 @@ The syntax for vrrp_instance is :
     \fBgarp_lower_prio_repeat \fR1
     \fBgarp_master_refresh \fR60
     \fBgarp_master_refresh_repeat \fR2
-    \fBgarp_extra_if [all] \fR100	# specifiying 0 disable feature
+    \fBgarp_extra_if [all] \fR100	# specifying 0 disables feature
 
     # If a lower priority advert is received, don't send another advert.
     # This causes adherence to the RFCs (defaults to global
