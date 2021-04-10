@@ -688,6 +688,12 @@ nft_end_batch(struct mnl_nlmsg_batch *batch, bool more)
 	}
 }
 
+void
+nft_discard_batch(struct mnl_nlmsg_batch *batch)
+{
+	FREE(batch);
+}
+
 #ifdef _WITH_VRRP_
 int
 set_nf_ifname_type(void)

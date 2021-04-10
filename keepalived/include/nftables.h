@@ -142,5 +142,6 @@ extern struct nftnl_chain * chain_add_parse(const char *, const char *);
 extern struct nftnl_set *setup_set(uint8_t, const char *, const char *, int, int, int);
 extern struct mnl_nlmsg_batch * nft_start_batch(void);
 extern void nft_end_batch(struct mnl_nlmsg_batch *, bool);
+extern void nft_discard_batch(struct mnl_nlmsg_batch *);
 extern int set_nf_ifname_type(void);
 #endif
