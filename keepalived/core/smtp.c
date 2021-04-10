@@ -46,6 +46,8 @@
  */
 //#define SMTP_MSG_ALLOC_DEBUG
 
+#define SMTP_BUFFER_LENGTH      512U
+#define SMTP_BUFFER_MAX         1024U
 
 #ifdef _SMTP_ALERT_DEBUG_
 bool do_smtp_alert_debug;
@@ -53,6 +55,8 @@ bool do_smtp_alert_debug;
 #ifdef _SMTP_CONNECT_DEBUG_
 bool do_smtp_connect_debug;
 #endif
+
+static char smtp_send_buffer[SMTP_BUFFER_MAX];
 
 /* SMTP FSM definition */
 static void connection_error(thread_ref_t);
@@ -113,11 +117,7 @@ alloc_smtp_msg_data(void)
 {
 	smtp_t *smtp;
 
-	/* allocate & initialize smtp argument data structure.
-	 * NOTE: this MALLOC may not have been freed when
-	 * keepalived terminates, if keepalived is unable to
-	 * connect to the SMTP server, since it is waiting for
-	 * the connection attempt to time out. */
+	/* allocate & initialize smtp argument data structure */
 #ifdef SMTP_MSG_ALLOC_DEBUG
 	PMALLOC(smtp);
 	smtp->subject = (char *)MALLOC(MAX_HEADERS_LENGTH);
@@ -354,13 +354,10 @@ static void
 helo_cmd(thread_ref_t thread)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
-	char *buffer;
 
-	buffer = (char *)MALLOC(SMTP_BUFFER_MAX);
-	snprintf(buffer, SMTP_BUFFER_MAX, SMTP_HELO_CMD, (global_data->smtp_helo_name) ? global_data->smtp_helo_name : "localhost");
-	if (send(thread->u.f.fd, buffer, strlen(buffer), 0) == -1)
+	snprintf(smtp_send_buffer, sizeof(smtp_send_buffer), SMTP_HELO_CMD, (global_data->smtp_helo_name) ? global_data->smtp_helo_name : "localhost");
+	if (send(thread->u.f.fd, smtp_send_buffer, strlen(smtp_send_buffer), 0) == -1)
 		smtp->stage = ERROR;
-	FREE(buffer);
 }
 static int
 helo_code(thread_ref_t thread, int status)
@@ -385,13 +382,10 @@ static void
 mail_cmd(thread_ref_t thread)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
-	char *buffer;
 
-	buffer = (char *)MALLOC(SMTP_BUFFER_MAX);
-	snprintf(buffer, SMTP_BUFFER_MAX, SMTP_MAIL_CMD, global_data->email_from);
-	if (send(thread->u.f.fd, buffer, strlen(buffer), 0) == -1)
+	snprintf(smtp_send_buffer, sizeof(smtp_send_buffer), SMTP_MAIL_CMD, global_data->email_from);
+	if (send(thread->u.f.fd, smtp_send_buffer, strlen(smtp_send_buffer), 0) == -1)
 		smtp->stage = ERROR;
-	FREE(buffer);
 }
 static int
 mail_code(thread_ref_t thread, int status)
@@ -417,9 +411,7 @@ rcpt_cmd(thread_ref_t thread)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
 	email_t *email = smtp->next_email_element;
-	char *buffer;
 
-	buffer = (char *)MALLOC(SMTP_BUFFER_MAX);
 	/* We send RCPT TO command multiple time to add all our email receivers.
 	 * --rfc821.3.1
 	 */
@@ -428,10 +420,9 @@ rcpt_cmd(thread_ref_t thread)
 	else
 		smtp->next_email_element = list_entry(email->e_list.next, email_t, e_list);
 
-	snprintf(buffer, SMTP_BUFFER_MAX, SMTP_RCPT_CMD, email->addr);
-	if (send(thread->u.f.fd, buffer, strlen(buffer), 0) == -1)
+	snprintf(smtp_send_buffer, sizeof(smtp_send_buffer), SMTP_RCPT_CMD, email->addr);
+	if (send(thread->u.f.fd, smtp_send_buffer, strlen(smtp_send_buffer), 0) == -1)
 		smtp->stage = ERROR;
-	FREE(buffer);
 }
 static int
 rcpt_code(thread_ref_t thread, int status)
@@ -480,43 +471,35 @@ data_code(thread_ref_t thread, int status)
 }
 
 /* BODY command processing.
- * Do we need to use mutli-thread for multi-part body
- * handling ? Don t really think :)
+ * Do we need to use multi-thread for multi-part body
+ * handling? Don't really think so :)
  */
 static void
 body_cmd(thread_ref_t thread)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
-	char *buffer;
 	char rfc822[80];	/* Mon, 01 Mar 2021 09:44:08 +0000 */
 	time_t now;
 	struct tm t;
-
-	buffer = (char *)MALLOC(SMTP_BUFFER_MAX);
 
 	time(&now);
 	localtime_r(&now, &t);
 	strftime(rfc822, sizeof(rfc822), "%a, %d %b %Y %H:%M:%S %z", &t);
 
-	snprintf(buffer, SMTP_BUFFER_MAX, SMTP_HEADERS_CMD,
-		 rfc822, global_data->email_from, smtp->subject, smtp->email_to);
-
 	/* send the subject field */
-	if (send(thread->u.f.fd, buffer, strlen(buffer), 0) == -1)
+	snprintf(smtp_send_buffer, sizeof(smtp_send_buffer), SMTP_HEADERS_CMD,
+		 rfc822, global_data->email_from, smtp->subject, smtp->email_to);
+	if (send(thread->u.f.fd, smtp_send_buffer, strlen(smtp_send_buffer), 0) == -1)
 		smtp->stage = ERROR;
 
-	memset(buffer, 0, SMTP_BUFFER_MAX);
-	snprintf(buffer, SMTP_BUFFER_MAX, SMTP_BODY_CMD, smtp->body);
-
 	/* send the the body field */
-	if (send(thread->u.f.fd, buffer, strlen(buffer), 0) == -1)
+	snprintf(smtp_send_buffer, sizeof(smtp_send_buffer), SMTP_BODY_CMD, smtp->body);
+	if (send(thread->u.f.fd, smtp_send_buffer, strlen(smtp_send_buffer), 0) == -1)
 		smtp->stage = ERROR;
 
 	/* send the sending dot */
 	if (send(thread->u.f.fd, SMTP_SEND_CMD, strlen(SMTP_SEND_CMD), 0) == -1)
 		smtp->stage = ERROR;
-
-	FREE(buffer);
 }
 static int
 body_code(thread_ref_t thread, int status)
