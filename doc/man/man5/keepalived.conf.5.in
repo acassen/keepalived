@@ -449,6 +449,20 @@ and
     # It will probably be necessary to have this filtering after accepting
     # any ESTABLISHED,RELATED packets, because IPv4 might select the VIP as
     # the source address for outgoing connections.
+    # Note: although the default chains that are used are INPUT and OUTPUT,
+    # since those are the only chains that will always exist, it is not safe
+    # or sensible to use those chains and specific chains should be created
+    # and called from appropriate points in the iptables configuration. The
+    # chains used for keepalived should not be used for any other purpose, and
+    # should have no rules configured, other than the rules that keepalived
+    # manages.
+    # A startup_script (see above) can be used to create the chains and to
+    # add rules to call them. A shutdown_script can be used to remove the
+    # iptables configuration added by the startup_script.
+    # Note2: If using ipsets, the iptables VIP rules are appended to the end
+    # of the specified chains; if not using ipsets, the VIP rules are inserted
+    # at the beginning of the chains. Any IGMP rules are always appended to
+    # the end of the chains.
     # (default: INPUT)
     \fBvrrp_iptables \fRkeepalived
 
@@ -1669,7 +1683,7 @@ The syntax for vrrp_instance is :
     \fBgarp_lower_prio_repeat \fR1
     \fBgarp_master_refresh \fR60
     \fBgarp_master_refresh_repeat \fR2
-    \fBgarp_extra_if [all] \fR100	# specifiying 0 disable feature
+    \fBgarp_extra_if [all] \fR100	# specifying 0 disables feature
 
     # If a lower priority advert is received, don't send another advert.
     # This causes adherence to the RFCs (defaults to global

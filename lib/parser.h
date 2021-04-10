@@ -67,6 +67,7 @@ typedef enum {
 	CONFIG_INVALID_NUMBER,
 	CONFIG_GENERAL_ERROR,
 	CONFIG_WARNING,
+	CONFIG_DEPRECATED,
 
 	/* The following is for script security not enabled when needed */
 	CONFIG_SECURITY_ERROR,

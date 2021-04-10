@@ -1158,23 +1158,29 @@ vrrp_garp_lower_prio_rep_handler(const vector_t *strvec)
 }
 #ifdef _HAVE_VRRP_VMAC_
 static void
-vrrp_vmac_garp_intvl_handler(const vector_t *strvec)
+vrrp_garp_extra_if_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 	unsigned delay = UINT_MAX;
 	unsigned index;
+	const char *cmd_name = strvec_slot(strvec, 0);
+
+	if (!strcmp(cmd_name, "vmac_garp_intvl")) {
+		/* Deprecated after v2.2.2 */
+		report_config_error(CONFIG_DEPRECATED, "Keyword \"vmac_garp_intvl\" is deprecated - please use \"garp_extra_if\"");
+	}
 
 	for (index = 1; index < vector_size(strvec); index++) {
 		if (!strcmp(strvec_slot(strvec, index), "all"))
 			vrrp->vmac_garp_all_if = true;
 		else if (!read_unsigned_strvec(strvec, index, &delay, 0, 86400, true)) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s): vmac_garp_intvl '%s' invalid - ignoring", vrrp->iname, strvec_slot(strvec, index));
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s): %s '%s' invalid - ignoring", vrrp->iname, cmd_name, strvec_slot(strvec, index));
 			return;
 		}
 	}
 
 	if (delay == UINT_MAX) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s): vmac_garp_intvl specified without time - ignoring", vrrp->iname);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s): %s specified without time - ignoring", vrrp->iname, cmd_name);
 		return;
 	}
 
@@ -1959,7 +1965,8 @@ init_vrrp_keywords(bool active)
 	install_keyword("garp_lower_prio_delay", &vrrp_garp_lower_prio_delay_handler);
 	install_keyword("garp_lower_prio_repeat", &vrrp_garp_lower_prio_rep_handler);
 #ifdef _HAVE_VRRP_VMAC_
-	install_keyword("vmac_garp_intvl", &vrrp_vmac_garp_intvl_handler);
+	install_keyword("garp_extra_if", &vrrp_garp_extra_if_handler);
+	install_keyword("vmac_garp_intvl", &vrrp_garp_extra_if_handler);	/* Deprecated after v2.2.2 - incorrect keyword in commit 3dcd13c */
 #endif
 	install_keyword("lower_prio_no_advert", &vrrp_lower_prio_no_advert_handler);
 	install_keyword("higher_prio_send_advert", &vrrp_higher_prio_send_advert_handler);

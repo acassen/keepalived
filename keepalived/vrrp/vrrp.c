@@ -2549,6 +2549,9 @@ shutdown_vrrp_instances(void)
 
 			for (vip_list = &vrrp->vip; vip_list; vip_list = vip_list == &vrrp->vip ? &vrrp->evip : NULL) {
 				list_for_each_entry(vip, vip_list, e_list) {
+					if (!vip->ifp)
+						continue;
+
 					if (vrrp->ifp == vip->ifp)
 						continue;
 
