@@ -1412,7 +1412,7 @@ The syntax for vrrp_sync_group is :
     #   $(n-3) and $(n-1) are ALWAYS sent in uppercase, and the possible
     # strings sent are the same ones listed above
     #   ("GROUP"/"INSTANCE", "MASTER"/"BACKUP"/"FAULT"/"STOP"/"DELETED")
-    # (note: STOP and DELETED are only applicable to instances)
+    # (note: DELETED is only applicable to instances)
     \fBnotify \fR<STRING>|<QUOTED-STRING> [username [groupname]]
 
     # The notify fifo output is the same as the last 4 parameters for the "notify"
