@@ -183,7 +183,7 @@ connection_success(thread_ref_t thread)
 
 	smtp->stage = connect_success;
 	thread_add_read(thread->master, smtp_read_thread, smtp,
-			smtp->fd, global_data->smtp_connection_to, true);
+			smtp->fd, global_data->smtp_connection_to, THREAD_FD_CLOSE_ON_RELOAD | THREAD_FREE_ARG_ON_RELOAD);
 }
 
 /* SMTP protocol handlers */
@@ -213,7 +213,7 @@ smtp_read_thread(thread_ref_t thread)
 	if (rcv_buffer_size == -1) {
 		if (check_EAGAIN(errno)) {
 			thread_add_read(thread->master, smtp_read_thread, smtp,
-					thread->u.f.fd, global_data->smtp_connection_to, true);
+					thread->u.f.fd, global_data->smtp_connection_to, THREAD_FD_CLOSE_ON_RELOAD | THREAD_FREE_ARG_ON_RELOAD);
 			return;
 		}
 
@@ -256,7 +256,7 @@ smtp_read_thread(thread_ref_t thread)
 
 			thread_add_read(thread->master, smtp_read_thread,
 					smtp, thread->u.f.fd,
-					global_data->smtp_connection_to, true);
+					global_data->smtp_connection_to, THREAD_FD_CLOSE_ON_RELOAD | THREAD_FREE_ARG_ON_RELOAD);
 			return;
 		}
 
@@ -278,7 +278,7 @@ smtp_read_thread(thread_ref_t thread)
 
 	if (status == -1) {
 		thread_add_read(thread->master, smtp_read_thread, smtp,
-				thread->u.f.fd, global_data->smtp_connection_to, true);
+				thread->u.f.fd, global_data->smtp_connection_to, THREAD_FD_CLOSE_ON_RELOAD | THREAD_FREE_ARG_ON_RELOAD);
 		return;
 	}
 
@@ -287,7 +287,7 @@ smtp_read_thread(thread_ref_t thread)
 	/* Registering next smtp command processing thread */
 	if (smtp->stage != ERROR) {
 		thread_add_write(thread->master, smtp_send_thread, smtp,
-				 smtp->fd, global_data->smtp_connection_to, true);
+				 smtp->fd, global_data->smtp_connection_to, THREAD_FD_CLOSE_ON_RELOAD | THREAD_FREE_ARG_ON_RELOAD);
 	} else {
 		log_message(LOG_INFO, "Can not read data from remote SMTP server %s."
 				    , FMT_SMTP_HOST());
@@ -320,7 +320,7 @@ smtp_send_thread(thread_ref_t thread)
 	/* Registering next smtp command processing thread */
 	if (smtp->stage != ERROR) {
 		thread_add_read(thread->master, smtp_read_thread, smtp,
-				thread->u.f.fd, global_data->smtp_connection_to, true);
+				thread->u.f.fd, global_data->smtp_connection_to, THREAD_FD_CLOSE_ON_RELOAD | THREAD_FREE_ARG_ON_RELOAD);
 		thread_del_write(thread);
 	} else {
 		log_message(LOG_INFO, "Can not send data to remote SMTP server %s."

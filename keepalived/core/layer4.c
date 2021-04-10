@@ -198,7 +198,7 @@ socket_state(thread_ref_t thread, thread_func_t func)
 	if (status == EINPROGRESS) {
 		timer_min = timer_sub_now(thread->sands);
 		thread_add_write(thread->master, func, THREAD_ARG(thread),
-				 thread->u.f.fd, -timer_long(timer_min), true);
+				 thread->u.f.fd, -timer_long(timer_min), THREAD_FD_CLOSE_ON_RELOAD);
 		return connect_in_progress;
 	}
 
@@ -223,7 +223,7 @@ socket_connection_state(int fd, enum connect_result status, thread_ref_t thread,
 
 	if (status == connect_success ||
 	    status == connect_in_progress) {
-		thread_add_write(thread->master, func, checker, fd, timeout, true);
+		thread_add_write(thread->master, func, checker, fd, timeout, THREAD_FD_CLOSE_ON_RELOAD);
 		return false;
 	}
 
@@ -453,7 +453,7 @@ udp_icmp_check_state(int fd, enum connect_result status, thread_ref_t thread,
 	checker = THREAD_ARG(thread);
 
 	if (status == connect_success) {
-		thread_add_read(thread->master, func, checker, fd, timeout, true);
+		thread_add_read(thread->master, func, checker, fd, timeout, THREAD_FD_CLOSE_ON_RELOAD);
 		return false;
 	}
 

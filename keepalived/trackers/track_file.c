@@ -703,7 +703,7 @@ process_inotify(thread_ref_t thread)
 	int fd = thread->u.f.fd;
 	list_head_t *track_files = thread->arg;
 
-	inotify_thread = thread_add_read(master, process_inotify, track_files, fd, TIMER_NEVER, false);
+	inotify_thread = thread_add_read(master, process_inotify, track_files, fd, TIMER_NEVER, 0);
 
 	while (true) {
 		if ((len = read(fd, buf, sizeof(buf))) < (ssize_t)sizeof(struct inotify_event)) {
@@ -864,7 +864,7 @@ init_track_files(list_head_t *track_files)
 	FREE(realpath_buf);
 
 	if (inotify_fd != -1)
-		inotify_thread = thread_add_read(master, process_inotify, track_files, inotify_fd, TIMER_NEVER, false);
+		inotify_thread = thread_add_read(master, process_inotify, track_files, inotify_fd, TIMER_NEVER, 0);
 }
 
 void

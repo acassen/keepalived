@@ -305,7 +305,7 @@ ssl_read_thread(thread_ref_t thread)
 	if (req->error == SSL_ERROR_WANT_READ) {
 		 /* async read unfinished */
 		thread_add_read(thread->master, ssl_read_thread, checker,
-				thread->u.f.fd, timeout, true);
+				thread->u.f.fd, timeout, THREAD_FD_CLOSE_ON_RELOAD);
 	} else if (r > 0 && req->error == SSL_ERROR_NONE) {
 		/* Handle response stream */
 		http_process_response(req, (size_t)r, url);
@@ -315,7 +315,7 @@ ssl_read_thread(thread_ref_t thread)
 		 * Register itself to not perturbe global I/O multiplexer.
 		 */
 		thread_add_read(thread->master, ssl_read_thread, checker,
-				thread->u.f.fd, timeout, true);
+				thread->u.f.fd, timeout, THREAD_FD_CLOSE_ON_RELOAD);
 	} else if (req->error) {
 		/* All the SSL stream has been parsed */
 		if (url->digest)

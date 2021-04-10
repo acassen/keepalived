@@ -356,7 +356,7 @@ thread_timerfd_handler(thread_ref_t thread)
 	thread_rb_move_ready(m, &m->child, THREAD_CHILD_TIMEOUT);
 
 	/* Register next timerfd thread */
-	m->timer_thread = thread_add_read(m, thread_timerfd_handler, NULL, m->timer_fd, TIMER_NEVER, false);
+	m->timer_thread = thread_add_read(m, thread_timerfd_handler, NULL, m->timer_fd, TIMER_NEVER, 0);
 }
 
 /* Child PID cmp helper */
@@ -769,7 +769,7 @@ thread_make_master(void)
 
 	new->signal_fd = signal_handler_init();
 
-	new->timer_thread = thread_add_read(new, thread_timerfd_handler, NULL, new->timer_fd, TIMER_NEVER, false);
+	new->timer_thread = thread_add_read(new, thread_timerfd_handler, NULL, new->timer_fd, TIMER_NEVER, 0);
 
 	add_signal_read_thread(new);
 
@@ -808,10 +808,10 @@ thread_rb_dump(const rb_root_cached_t *root, const char *tree, FILE *fp)
 	conf_write(fp, "----[ Begin rb_dump %s ]----", tree);
 
 	rb_for_each_entry_cached(thread, root, n)
-		conf_write(fp, "#%.2d Thread:%p type %s, event_fd %d, val/fd/pid %d, fd_close %d, timer: %s, func %s(), id %lu"
+		conf_write(fp, "#%.2d Thread:%p type %s, event_fd %d, val/fd/pid %d, fd_flags %u, timer: %s, func %s(), id %lu"
 			     , i++, thread, get_thread_type_str(thread->type)
 			     , thread->event ? thread->event->fd: -2, thread->u.val
-			     , thread->u.f.close_on_reload, timer_delay(thread->sands)
+			     , thread->u.f.flags, timer_delay(thread->sands)
 			     , get_function_name(thread->func), thread->id);
 
 	conf_write(fp, "----[ End rb_dump ]----");
@@ -826,9 +826,9 @@ thread_list_dump(const list_head_t *l, const char *list_type, FILE *fp)
 	conf_write(fp, "----[ Begin list_dump %s ]----", list_type);
 
 	list_for_each_entry(thread, l, e_list)
-		conf_write(fp, "#%.2d Thread:%p type %s val/fd/pid %d, fd_close %d, timer: %s, func %s() id %lu"
+		conf_write(fp, "#%.2d Thread:%p type %s val/fd/pid %d, fd_flags %u, timer: %s, func %s() id %lu"
 			     , i++, thread, get_thread_type_str(thread->type), thread->u.val
-			     , thread->u.f.close_on_reload, timer_delay(thread->sands)
+			     , thread->u.f.flags, timer_delay(thread->sands)
 			     , get_function_name(thread->func), thread->id);
 
 	conf_write(fp, "----[ End list_dump ]----");
@@ -919,8 +919,12 @@ thread_destroy_list(thread_master_t *m, list_head_t *l)
 			}
 
 			/* Do we have a file descriptor that needs closing ? */
-			if (thread->u.f.close_on_reload)
+			if (thread->u.f.flags & THREAD_FD_CLOSE_ON_RELOAD)
 				thread_close_fd(thread);
+
+			/* Do we need to free arg? */
+			if (thread->u.f.flags & THREAD_FREE_ARG_ON_RELOAD)
+				FREE(thread->arg);
 		}
 
 		list_del_init(&thread->e_list);
@@ -946,8 +950,12 @@ thread_destroy_rb(thread_master_t *m, rb_root_cached_t *root)
 				thread_del_write(thread);
 
 			/* Do we have a file descriptor that needs closing ? */
-			if (thread->u.f.close_on_reload)
+			if (thread->u.f.flags & THREAD_FD_CLOSE_ON_RELOAD)
 				thread_close_fd(thread);
+
+			/* Do we need to free arg? */
+			if (thread->u.f.flags & THREAD_FREE_ARG_ON_RELOAD)
+				FREE(thread->arg);
 		}
 
 		thread_add_unuse(m, thread);
@@ -1053,7 +1061,7 @@ thread_new(thread_master_t *m)
 
 /* Add new read thread. */
 thread_ref_t
-thread_add_read_sands(thread_master_t *m, thread_func_t func, void *arg, int fd, const timeval_t *sands, bool close_on_reload)
+thread_add_read_sands(thread_master_t *m, thread_func_t func, void *arg, int fd, const timeval_t *sands, unsigned flags)
 {
 	thread_event_t *event;
 	thread_t *thread;
@@ -1083,7 +1091,7 @@ thread_add_read_sands(thread_master_t *m, thread_func_t func, void *arg, int fd,
 	thread->func = func;
 	thread->arg = arg;
 	thread->u.f.fd = fd;
-	thread->u.f.close_on_reload = close_on_reload;
+	thread->u.f.flags = flags;
 	thread->event = event;
 
 	/* Set & flag event */
@@ -1107,7 +1115,7 @@ thread_add_read_sands(thread_master_t *m, thread_func_t func, void *arg, int fd,
 }
 
 thread_ref_t
-thread_add_read(thread_master_t *m, thread_func_t func, void *arg, int fd, unsigned long timer, bool close_on_reload)
+thread_add_read(thread_master_t *m, thread_func_t func, void *arg, int fd, unsigned long timer, unsigned flags)
 {
 	timeval_t sands;
 
@@ -1120,7 +1128,7 @@ thread_add_read(thread_master_t *m, thread_func_t func, void *arg, int fd, unsig
 		sands = timer_add_long(time_now, timer);
 	}
 
-	return thread_add_read_sands(m, func, arg, fd, &sands, close_on_reload);
+	return thread_add_read_sands(m, func, arg, fd, &sands, flags);
 }
 
 void
@@ -1176,7 +1184,7 @@ thread_requeue_read(thread_master_t *m, int fd, const timeval_t *sands)
 
 /* Add new write thread. */
 thread_ref_t
-thread_add_write(thread_master_t *m, thread_func_t func, void *arg, int fd, unsigned long timer, bool close_on_reload)
+thread_add_write(thread_master_t *m, thread_func_t func, void *arg, int fd, unsigned long timer, unsigned flags)
 {
 	thread_event_t *event;
 	thread_t *thread;
@@ -1206,7 +1214,7 @@ thread_add_write(thread_master_t *m, thread_func_t func, void *arg, int fd, unsi
 	thread->func = func;
 	thread->arg = arg;
 	thread->u.f.fd = fd;
-	thread->u.f.close_on_reload = close_on_reload;
+	thread->u.f.flags = flags;
 	thread->event = event;
 
 	/* Set & flag event */
@@ -1575,7 +1583,7 @@ snmp_read_thread(thread_ref_t thread)
 		if (FD_ISSET(thread->u.f.fd, &master->snmp_fdset)) {
 			event = thread_event_get(thread->master, thread->u.f.fd);
 			if (!event || !event->read)
-				thread_add_read(thread->master, snmp_read_thread, thread->arg, thread->u.f.fd, TIMER_NEVER, false);
+				thread_add_read(thread->master, snmp_read_thread, thread->arg, thread->u.f.fd, TIMER_NEVER, 0);
 		}
 	}
 }
@@ -1648,7 +1656,7 @@ snmp_epoll_info(thread_master_t *m)
 			fd += bit;
 			if (FD_ISSET(fd, &snmp_fdset)) {
 				/* Add the fd */
-				thread_add_read(m, snmp_read_thread, 0, fd, TIMER_NEVER, false);
+				thread_add_read(m, snmp_read_thread, 0, fd, TIMER_NEVER, 0);
 				FD_SET(fd, &m->snmp_fdset);
 			} else {
 				/* Remove the fd */
@@ -1717,7 +1725,7 @@ snmp_epoll_update(thread_master_t *m, bool reset)
 				fd += bit;
 
 				/* Add the fd */
-				thread_add_read(m, snmp_read_thread, 0, fd, TIMER_NEVER, false);
+				thread_add_read(m, snmp_read_thread, 0, fd, TIMER_NEVER, 0);
 				FD_SET(fd, &m->snmp_fdset);
 			}
 		}
@@ -2090,7 +2098,7 @@ thread_add_base_threads(thread_master_t *m,
 #endif
 								     bool with_snmp)
 {
-	m->timer_thread = thread_add_read(m, thread_timerfd_handler, NULL, m->timer_fd, TIMER_NEVER, false);
+	m->timer_thread = thread_add_read(m, thread_timerfd_handler, NULL, m->timer_fd, TIMER_NEVER, 0);
 	add_signal_read_thread(m);
 #ifdef _WITH_SNMP_
 	if (with_snmp)

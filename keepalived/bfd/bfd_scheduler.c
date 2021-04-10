@@ -913,7 +913,7 @@ bfd_receiver_thread(thread_ref_t thread)
 
 	data->thread_in =
 	    thread_add_read(thread->master, bfd_receiver_thread, data,
-			    fd, TIMER_NEVER, false);
+			    fd, TIMER_NEVER, 0);
 }
 
 /*
@@ -1123,7 +1123,7 @@ bfd_register_workers(bfd_data_t *data)
 
 	/* Set timeout to not expire */
 	data->thread_in = thread_add_read(master, bfd_receiver_thread,
-					  data, data->fd_in, TIMER_NEVER, false);
+					  data, data->fd_in, TIMER_NEVER, 0);
 
 	/* Resume or schedule threads */
 	list_for_each_entry(bfd, &data->bfd, e_list) {
