@@ -1127,7 +1127,10 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 							 vrrp->ifp) &&
 						 vrrp->family == ifa->ifa_family &&
 						 vrrp->saddr.ss_family != AF_UNSPEC &&
-						 (!vrrp->saddr_from_config || is_tracking_saddr)) {
+						 (!vrrp->saddr_from_config || is_tracking_saddr) &&
+						 (vrrp->family == AF_INET ||
+						  !vrrp->dont_track_primary ||
+						  IF_ISUP(ifp))) {
 						down_instance(vrrp);
 						vrrp->saddr.ss_family = AF_UNSPEC;
 					}
