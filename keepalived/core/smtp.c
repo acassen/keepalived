@@ -579,9 +579,8 @@ smtp_connect(smtp_t *smtp)
 
 	status = tcp_connect(smtp->fd, &global_data->smtp_server);
 
-	thread_t thread = { .u.f.fd = smtp->fd, .master = master, .arg = smtp };
 	/* Handle connection status code */
-	SMTP_FSM_SEND(status, &thread);
+	thread_add_event(master, SMTP_FSM[status].send, smtp, smtp->fd);
 }
 
 #ifdef _SMTP_ALERT_DEBUG_
