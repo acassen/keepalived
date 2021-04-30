@@ -64,8 +64,8 @@ rule_is_equal(const ip_rule_t *x, const ip_rule_t *y)
 {
 	if (x->mask != y->mask ||
 	    x->invert != y->invert ||
-	    !IP_ISEQ(x->from_addr, y->from_addr) ||
-	    !IP_ISEQ(x->to_addr, y->to_addr) ||
+	    compare_ipaddress(x->from_addr, y->from_addr) ||
+	    compare_ipaddress(x->to_addr, y->to_addr) ||
 	    x->priority != y->priority ||
 	    x->tos != y->tos ||
 	    x->fwmark != y->fwmark ||

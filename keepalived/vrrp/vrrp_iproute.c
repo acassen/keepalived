@@ -288,7 +288,10 @@ add_nexthops(ip_route_t *route, struct nlmsghdr *nlh, struct rtmsg *rtm)
 		addattr_l(nlh, sizeof(buf), RTA_MULTIPATH, RTA_DATA(rta), RTA_PAYLOAD(rta));
 }
 
-/* Add/Delete IP route to/from a specific interface */
+/* Add/Delete IP route to/from a specific interface.
+ * Note: We do not set the NLM_F_EXCL flag, and so the equivalent ip route
+ * command to add a route is: ip route prepend ...
+ */
 static bool
 netlink_route(ip_route_t *iproute, int cmd)
 {
@@ -1877,6 +1880,88 @@ err:
 	free_iproute(new);
 }
 
+static bool __attribute__ ((pure))
+compare_nexthops(const list_head_t *a, const list_head_t *b)
+{
+	nexthop_t *nh_a;
+	nexthop_t *nh_b;
+
+	if (list_empty(a) != list_empty(b))
+		return false;
+
+	if (list_empty(a))
+		return true;
+
+	nh_b = list_first_entry(b, nexthop_t, e_list);
+	list_for_each_entry(nh_a, a, e_list) {
+		if (list_is_last(&nh_a->e_list, a) != list_is_last(&nh_b->e_list, b))
+			return false;
+
+		/* Do some comparisons */
+		if (nh_a->mask != nh_b->mask ||
+		    compare_ipaddress(nh_a->addr, nh_b->addr) ||
+		    nh_a->ifp != nh_b->ifp ||
+		    nh_a->weight != nh_b->weight ||
+		    nh_a->flags != nh_b->flags ||
+		    nh_a->realms != nh_b->realms)
+			return false;
+
+#if HAVE_DECL_RTA_ENCAP
+		if (nh_a->encap.type != nh_b->encap.type ||
+		    nh_a->encap.flags != nh_b->encap.flags)
+			return false;
+
+		if (nh_a->encap.type == LWTUNNEL_ENCAP_NONE) {
+			/* Don't keep checking encap type if none */
+		}
+		else if (nh_a->encap.type == LWTUNNEL_ENCAP_IP) {
+			if (nh_a->encap.ip.id != nh_b->encap.ip.id ||
+			    compare_ipaddress(nh_a->encap.ip.dst, nh_b->encap.ip.dst) ||
+			    compare_ipaddress(nh_a->encap.ip.src, nh_b->encap.ip.src) ||
+			    nh_a->encap.ip.tos != nh_b->encap.ip.tos ||
+			    nh_a->encap.ip.flags != nh_b->encap.ip.flags ||
+			    nh_a->encap.ip.ttl != nh_b->encap.ip.ttl)
+				return false;
+		}
+		else if (nh_a->encap.type == LWTUNNEL_ENCAP_IP6) {
+			if (nh_a->encap.ip6.id != nh_b->encap.ip6.id ||
+			    compare_ipaddress(nh_a->encap.ip6.dst, nh_b->encap.ip6.dst) ||
+			    compare_ipaddress(nh_a->encap.ip6.src, nh_b->encap.ip6.src) ||
+			    nh_a->encap.ip6.tc != nh_b->encap.ip6.tc ||
+			    nh_a->encap.ip6.flags != nh_b->encap.ip6.flags ||
+			    nh_a->encap.ip6.hoplimit != nh_b->encap.ip6.hoplimit)
+				return false;
+		}
+#if HAVE_DECL_LWTUNNEL_ENCAP_ILA
+		else if (nh_a->encap.type == LWTUNNEL_ENCAP_ILA) {
+			if (nh_a->encap.ila.locator |= nh_b->encap.ila.locator)
+				return false;
+		}
+#endif
+#if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
+		else if (nh_a->encap.type == LWTUNNEL_ENCAP_MPLS) {
+			size_t label;
+
+			if (nh_a->encap.mpls.num_labels != nh_b->encap.mpls.num_labels)
+				return false;
+			for (label = 0; label < nh_a->encap.mpls.num_labels; label++) {
+				if (nh_a->encap.mpls.addr[label].entry != nh_b->encap.mpls.addr[label].entry)
+					return false;
+			}
+		}
+#endif
+#endif
+
+		if (list_is_last(&nh_b->e_list, b))
+			return true;
+
+		nh_b = list_first_entry(&nh_b->e_list, nexthop_t, e_list);
+	}
+
+	/* NOT REACHED */
+	return false;
+}
+
 /* Try to find a route in a list */
 static ip_route_t *
 route_exist(list_head_t *l, ip_route_t *route)
@@ -1884,13 +1969,22 @@ route_exist(list_head_t *l, ip_route_t *route)
 	ip_route_t *ip_route;
 
 	list_for_each_entry(ip_route, l, e_list) {
-		/* The kernel's key to a route is (to, tos, preference, table) */
-		if (IP_ISEQ(ip_route->dst, route->dst) &&
+		/* The kernel's key to a route is (to, tos, preference, table),
+		 * but since we don't specify NLM_F_EXCL when adding a route we
+		 * also need to check via/nexthops, scope and type. */
+		if (!compare_ipaddress(ip_route->dst, route->dst) &&
 		    ip_route->dst->ifa.ifa_prefixlen == route->dst->ifa.ifa_prefixlen &&
+		    ip_route->tos == route->tos &&
 		    (!((ip_route->mask ^ route->mask) & IPROUTE_BIT_METRIC)) &&
 		    (!(ip_route->mask & IPROUTE_BIT_METRIC) ||
 		     ip_route->metric == route->metric) &&
-		    ip_route->table == route->table) {
+		    ip_route->table == route->table &&
+		    ip_route->scope == route->scope &&
+		    ip_route->type == route->type &&
+		    !ip_route->via == !route->via &&
+		    (!ip_route->via || !compare_ipaddress(ip_route->via, route->via)) &&
+		    ip_route->oif == route->oif &&
+		    compare_nexthops(&ip_route->nhs, &route->nhs)) {
 			ip_route->set = route->set;
 			return ip_route;
 		}
@@ -1910,7 +2004,8 @@ clear_diff_routes(list_head_t *l, list_head_t *n)
 
 	/* All routes removed */
 	if (list_empty(n)) {
-		log_message(LOG_INFO, "Removing a VirtualRoute block");
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "Removing a VirtualRoute block");
 		netlink_rtlist(l, IPROUTE_DEL, false);
 		return;
 	}
@@ -1918,8 +2013,9 @@ clear_diff_routes(list_head_t *l, list_head_t *n)
 	list_for_each_entry(route, l, e_list) {
 		if (route->set) {
 			if (!(new_route = route_exist(n, route))) {
-				log_message(LOG_INFO, "ip route %s/%d ... , no longer exist"
-						    , ipaddresstos(NULL, route->dst), route->dst->ifa.ifa_prefixlen);
+				if (__test_bit(LOG_DETAIL_BIT, &debug))
+					log_message(LOG_INFO, "Removing route %s"
+							    , ipaddresstos(NULL, route->dst));
 				netlink_route(route, IPROUTE_DEL);
 				continue;
 			}

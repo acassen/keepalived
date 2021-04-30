@@ -69,6 +69,9 @@ struct mnl_socket *nl;	/* lgtm [cpp/short-global-name] */
 static unsigned int portid;
 uint32_t seq;		/* lgtm [cpp/short-global-name] */
 
+#ifdef MNL_DEBUG
+unsigned msg_no;
+#endif
 
 #ifdef _INCLUDE_UNUSED_CODE_
 static int
@@ -178,25 +181,29 @@ exchange_nl_msg(struct mnl_nlmsg_batch *batch)
 	if (mnl_nlmsg_batch_is_empty(batch))
 		return;
 
-#if 0
-	FILE *fp = fopen(KA_TMP_DIR "/nftrace", "a");
-	unsigned char *p = mnl_nlmsg_batch_head(batch);
-	size_t i;
+#ifdef MNL_DEBUG
+	FILE *fp = NULL;
+	if (prog_type == PROG_TYPE_VRRP) {
+		fp = fopen(KA_TMP_DIR "/nftrace", "a");
+		unsigned char *p = mnl_nlmsg_batch_head(batch);
+		size_t i;
 
-	fprintf(fp, "mnl_nlmsg_batch_size %zu\n", mnl_nlmsg_batch_size(batch));
-	for (i = 0; i < mnl_nlmsg_batch_size(batch); i++, p++) {
-		if (!(i % 16))
-			fprintf(fp, "%4.4zx:  ", i);
-		fprintf(fp, " %2.2x", *p);
-		if (i % 16 == 15)
+		fprintf(fp, "mnl_nlmsg_batch_size (%u), %zu\n", msg_no, mnl_nlmsg_batch_size(batch));
+		log_message(LOG_INFO, "exchange_nl_msg (%u), len %zu", msg_no, mnl_nlmsg_batch_size(batch));
+		for (i = 0; i < mnl_nlmsg_batch_size(batch); i++, p++) {
+			if (!(i % 16))
+				fprintf(fp, "%4.4zx:  ", i);
+			fprintf(fp, " %2.2x", *p);
+			if (i % 16 == 15)
+				fprintf(fp, "\n");
+		}
+
+		if (i % 16)
 			fprintf(fp, "\n");
+
+		mnl_nlmsg_fprintf(fp, PTR_CAST(char, mnl_nlmsg_batch_head(batch)), mnl_nlmsg_batch_size(batch), sizeof( struct nfgenmsg));
+		fflush(fp);
 	}
-
-	if (i % 16)
-		fprintf(fp, "\n");
-
-	mnl_nlmsg_fprintf(fp, PTR_CAST(char, mnl_nlmsg_batch_head(batch)), mnl_nlmsg_batch_size(batch), sizeof( struct nfgenmsg));
-	fclose(fp);
 #endif
 
 	if (!nl && !nl_socket_open())
@@ -217,11 +224,25 @@ exchange_nl_msg(struct mnl_nlmsg_batch *batch)
 	buf = MALLOC(buf_size);
 	ret_cb = 1;
 	while ((ret = mnl_socket_recvfrom(nl, buf, buf_size)) > 0) {
+#ifdef MNL_DEBUG
+		if (fp) {
+			log_message(LOG_INFO, "mnl_socket_recvfrom (%u) returned %d", msg_no, ret);
+			fprintf(fp, "\n\nReply %u\n\n", msg_no++);
+			mnl_nlmsg_fprintf(fp, buf, ret, sizeof( struct nfgenmsg));
+			fflush(fp);
+		}
+#endif
+
 		ret_cb = mnl_cb_run(buf, ret, 0, portid, NULL, NULL);
 		if (ret_cb <= 0)
 			break;
 	}
 	sav_errno = errno;
+
+#ifdef MNL_DEBUG
+	if (fp)
+		fclose(fp);
+#endif
 
 	FREE(buf);
 
@@ -236,7 +257,7 @@ exchange_nl_msg_single(struct nlmsghdr *nlm, int (*cb_func)(const struct nlmsghd
 	int ret;
 	char buf[256];
 
-#if 0
+#ifdef MNL_DEBUG
 	FILE *fp = fopen(KA_TMP_DIR "/nftrace", "a");
 	mnl_nlmsg_fprintf(fp, PTR_CAST(char, nlm), nlm->nlmsg_len, 0);
 	fclose(fp);
@@ -665,6 +686,12 @@ nft_end_batch(struct mnl_nlmsg_batch *batch, bool more)
 		FREE(buf);
 		mnl_nlmsg_batch_stop(batch);
 	}
+}
+
+void
+nft_discard_batch(struct mnl_nlmsg_batch *batch)
+{
+	FREE(batch);
 }
 
 #ifdef _WITH_VRRP_

@@ -92,46 +92,6 @@ typedef struct _ip_address {
 #define IP_FAMILY(X)	(X)->ifa.ifa_family
 #define	IP_IS6(X)	((X)->ifa.ifa_family == AF_INET6)
 
-static inline bool
-IP_ISEQ(ip_address_t *X, const ip_address_t *Y)
-{
-	if (!X && !Y)
-		return true;
-
-	if (!X != !Y ||
-	    X->ifa.ifa_family != Y->ifa.ifa_family)
-		return false;
-
-	if (X->ifa.ifa_prefixlen != Y->ifa.ifa_prefixlen ||
-// We can't check ifp here and later. On a reload, has ifp been set up by now?
-//	    !X->ifp != !Y->ifp ||
-#ifdef _HAVE_VRRP_VMAC_
-	    X->use_vmac != Y->use_vmac ||
-#endif
-	    X->ifa.ifa_scope != Y->ifa.ifa_scope)
-		return false;
-
-	if (X->ifp &&
-#ifdef _HAVE_VRRP_VMAC_
-	    X->ifp->base_ifp != Y->ifp->base_ifp
-#else
-	    X->ifp != Y->ifp
-#endif
-				)
-		return false;
-
-	if (!string_equal(X->label, Y->label))
-		return false;
-
-	if (X->ifa.ifa_family == AF_INET6)
-		return X->u.sin6_addr.s6_addr32[0] == Y->u.sin6_addr.s6_addr32[0] &&
-			X->u.sin6_addr.s6_addr32[1] == Y->u.sin6_addr.s6_addr32[1] &&
-			X->u.sin6_addr.s6_addr32[2] == Y->u.sin6_addr.s6_addr32[2] &&
-			X->u.sin6_addr.s6_addr32[3] == Y->u.sin6_addr.s6_addr32[3];
-
-	return X->u.sin.sin_addr.s_addr == Y->u.sin.sin_addr.s_addr;
-}
-
 #define CLEAR_IP6_ADDR(X) ((X)->s6_addr32[0] = (X)->s6_addr32[1] = (X)->s6_addr32[2] = (X)->s6_addr32[3] = 0)
 
 #define	IPADDRESSTOS_BUF_LEN	(INET6_ADDRSTRLEN + 4)     /* allow for subnet */
@@ -141,6 +101,7 @@ struct ipt_handle;
 
 /* prototypes */
 extern const char *ipaddresstos(char *, const ip_address_t *);
+extern bool compare_ipaddress(const ip_address_t *, const ip_address_t *) __attribute__((pure));
 extern int netlink_ipaddress(ip_address_t *, int);
 extern bool netlink_iplist(list_head_t *, int, bool);
 extern void free_ipaddress(ip_address_t *);

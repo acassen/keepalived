@@ -20,6 +20,13 @@
  * Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
+/* To monitor netlink messages and decode them:
+ *   ip link add nlmon0 type nlmon
+ *   ip link set nlmon0 up
+ *   tcpdump -i nlmon0 -w OP_FILE
+ *   wireshare OP_FILE
+ */
+
 #include "config.h"
 
 /* global include */
