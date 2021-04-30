@@ -1899,7 +1899,7 @@ compare_nexthops(const list_head_t *a, const list_head_t *b)
 
 		/* Do some comparisons */
 		if (nh_a->mask != nh_b->mask ||
-		    !IP_ISEQ(nh_a->addr, nh_b->addr) ||
+		    compare_ipaddress(nh_a->addr, nh_b->addr) ||
 		    nh_a->ifp != nh_b->ifp ||
 		    nh_a->weight != nh_b->weight ||
 		    nh_a->flags != nh_b->flags ||
@@ -1916,8 +1916,8 @@ compare_nexthops(const list_head_t *a, const list_head_t *b)
 		}
 		else if (nh_a->encap.type == LWTUNNEL_ENCAP_IP) {
 			if (nh_a->encap.ip.id != nh_b->encap.ip.id ||
-			    !IP_ISEQ(nh_a->encap.ip.dst, nh_b->encap.ip.dst) ||
-			    !IP_ISEQ(nh_a->encap.ip.src, nh_b->encap.ip.src) ||
+			    compare_ipaddress(nh_a->encap.ip.dst, nh_b->encap.ip.dst) ||
+			    compare_ipaddress(nh_a->encap.ip.src, nh_b->encap.ip.src) ||
 			    nh_a->encap.ip.tos != nh_b->encap.ip.tos ||
 			    nh_a->encap.ip.flags != nh_b->encap.ip.flags ||
 			    nh_a->encap.ip.ttl != nh_b->encap.ip.ttl)
@@ -1925,8 +1925,8 @@ compare_nexthops(const list_head_t *a, const list_head_t *b)
 		}
 		else if (nh_a->encap.type == LWTUNNEL_ENCAP_IP6) {
 			if (nh_a->encap.ip6.id != nh_b->encap.ip6.id ||
-			    !IP_ISEQ(nh_a->encap.ip6.dst, nh_b->encap.ip6.dst) ||
-			    !IP_ISEQ(nh_a->encap.ip6.src, nh_b->encap.ip6.src) ||
+			    compare_ipaddress(nh_a->encap.ip6.dst, nh_b->encap.ip6.dst) ||
+			    compare_ipaddress(nh_a->encap.ip6.src, nh_b->encap.ip6.src) ||
 			    nh_a->encap.ip6.tc != nh_b->encap.ip6.tc ||
 			    nh_a->encap.ip6.flags != nh_b->encap.ip6.flags ||
 			    nh_a->encap.ip6.hoplimit != nh_b->encap.ip6.hoplimit)
@@ -1972,7 +1972,7 @@ route_exist(list_head_t *l, ip_route_t *route)
 		/* The kernel's key to a route is (to, tos, preference, table),
 		 * but since we don't specify NLM_F_EXCL when adding a route we
 		 * also need to check via/nexthops, scope and type. */
-		if (IP_ISEQ(ip_route->dst, route->dst) &&
+		if (!compare_ipaddress(ip_route->dst, route->dst) &&
 		    ip_route->dst->ifa.ifa_prefixlen == route->dst->ifa.ifa_prefixlen &&
 		    ip_route->tos == route->tos &&
 		    (!((ip_route->mask ^ route->mask) & IPROUTE_BIT_METRIC)) &&
@@ -1982,7 +1982,7 @@ route_exist(list_head_t *l, ip_route_t *route)
 		    ip_route->scope == route->scope &&
 		    ip_route->type == route->type &&
 		    !ip_route->via == !route->via &&
-		    (!ip_route->via || IP_ISEQ(ip_route->via, route->via)) &&
+		    (!ip_route->via || !compare_ipaddress(ip_route->via, route->via)) &&
 		    ip_route->oif == route->oif &&
 		    compare_nexthops(&ip_route->nhs, &route->nhs)) {
 			ip_route->set = route->set;
