@@ -1144,7 +1144,7 @@ read_process_update(thread_ref_t thread)
 {
 	handle_proc_ev(thread->u.f.fd);
 
-	read_thread = thread_add_read(thread->master, read_process_update, NULL, thread->u.f.fd, TIMER_NEVER, 0);
+	read_thread = thread_add_read(thread->master, read_process_update, NULL, thread->u.f.fd, TIMER_NEVER, false);
 }
 
 static void
@@ -1217,7 +1217,7 @@ init_track_processes(list_head_t *processes)
 
 	read_procs(processes);
 
-	read_thread = thread_add_read(master, read_process_update, NULL, nl_sock, TIMER_NEVER, 0);
+	read_thread = thread_add_read(master, read_process_update, NULL, nl_sock, TIMER_NEVER, false);
 
 	return rc;
 }
@@ -1232,7 +1232,7 @@ reload_track_processes(void)
 	read_procs(&vrrp_data->vrrp_track_processes);
 
 	/* Add read thread */
-	read_thread = thread_add_read(master, read_process_update, NULL, nl_sock, TIMER_NEVER, 0);
+	read_thread = thread_add_read(master, read_process_update, NULL, nl_sock, TIMER_NEVER, false);
 
 	return;
 }

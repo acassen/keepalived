@@ -460,7 +460,7 @@ smtp_get_line_cb(thread_ref_t thread)
 
 	if (r == -1 && (check_EAGAIN(errno) || check_EINTR(errno))) {
 		thread_add_read(thread->master, smtp_get_line_cb, checker,
-				thread->u.f.fd, smtp_host->connection_to, THREAD_FD_CLOSE_ON_RELOAD);
+				thread->u.f.fd, smtp_host->connection_to, true);
 		return;
 	}
 
@@ -497,7 +497,7 @@ smtp_get_line_cb(thread_ref_t thread)
 	 * another round.
 	 */
 	thread_add_read(thread->master, smtp_get_line_cb, checker,
-			thread->u.f.fd, smtp_host->connection_to, THREAD_FD_CLOSE_ON_RELOAD);
+			thread->u.f.fd, smtp_host->connection_to, true);
 }
 
 /*
@@ -521,7 +521,7 @@ smtp_get_line(thread_ref_t thread)
 
 	/* schedule the I/O with our helper function  */
 	thread_add_read(thread->master, smtp_get_line_cb, checker,
-		thread->u.f.fd, smtp_host->connection_to, THREAD_FD_CLOSE_ON_RELOAD);
+		thread->u.f.fd, smtp_host->connection_to, true);
 	thread_del_write(thread);
 }
 
@@ -551,7 +551,7 @@ smtp_put_line_cb(thread_ref_t thread)
 
 	if (w == -1 && (check_EAGAIN(errno) || check_EINTR(errno))) {
 		thread_add_write(thread->master, smtp_put_line_cb, checker,
-				 thread->u.f.fd, smtp_host->connection_to, THREAD_FD_CLOSE_ON_RELOAD);
+				 thread->u.f.fd, smtp_host->connection_to, true);
 		return;
 	}
 

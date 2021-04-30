@@ -1438,7 +1438,7 @@ http_read_thread(thread_ref_t thread)
 				    , FMT_CHK(checker)
 				    , strerror(errno));
 		thread_add_read(thread->master, http_read_thread, checker,
-				thread->u.f.fd, timeout, THREAD_FD_CLOSE_ON_RELOAD);
+				thread->u.f.fd, timeout, true);
 		return;
 	}
 
@@ -1466,7 +1466,7 @@ http_read_thread(thread_ref_t thread)
 	 * Register itself to not perturbe global I/O multiplexer.
 	 */
 	thread_add_read(thread->master, http_read_thread, checker,
-			thread->u.f.fd, timeout, THREAD_FD_CLOSE_ON_RELOAD);
+			thread->u.f.fd, timeout, true);
 }
 
 /*
@@ -1506,10 +1506,10 @@ http_response_thread(thread_ref_t thread)
 	/* Register asynchronous http/ssl read thread */
 	if (http_get_check->proto == PROTO_SSL)
 		thread_add_read(thread->master, ssl_read_thread, checker,
-				thread->u.f.fd, timeout, THREAD_FD_CLOSE_ON_RELOAD);
+				thread->u.f.fd, timeout, true);
 	else
 		thread_add_read(thread->master, http_read_thread, checker,
-				thread->u.f.fd, timeout, THREAD_FD_CLOSE_ON_RELOAD);
+				thread->u.f.fd, timeout, true);
 }
 
 /* remote Web server is connected, send it the get url query.  */
@@ -1588,7 +1588,7 @@ http_request_thread(thread_ref_t thread)
 
 	/* Register read timeouted thread */
 	thread_add_read(thread->master, http_response_thread, checker,
-			thread->u.f.fd, timeout, THREAD_FD_CLOSE_ON_RELOAD);
+			thread->u.f.fd, timeout, true);
 	thread_del_write(thread);
 	return;
 }
@@ -1646,14 +1646,14 @@ http_check_thread(thread_ref_t thread)
 					thread_add_read(thread->master,
 							http_check_thread,
 							THREAD_ARG(thread),
-							thread->u.f.fd, timeout, THREAD_FD_CLOSE_ON_RELOAD);
+							thread->u.f.fd, timeout, true);
 					thread_del_write(thread);
 					break;
 				case SSL_ERROR_WANT_WRITE:
 					thread_add_write(thread->master,
 							 http_check_thread,
 							 THREAD_ARG(thread),
-							 thread->u.f.fd, timeout, THREAD_FD_CLOSE_ON_RELOAD);
+							 thread->u.f.fd, timeout, true);
 					thread_del_read(thread);
 					break;
 				default:
@@ -1677,7 +1677,7 @@ http_check_thread(thread_ref_t thread)
 			thread_add_write(thread->master,
 					 http_request_thread, checker,
 					 thread->u.f.fd,
-					 checker->co->connection_to, THREAD_FD_CLOSE_ON_RELOAD);
+					 checker->co->connection_to, true);
 			thread_del_read(thread);
 		} else {
 #ifdef _CHECKER_DEBUG_
