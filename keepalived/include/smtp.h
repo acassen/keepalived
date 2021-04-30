@@ -40,6 +40,8 @@
 
 /* global defs */
 #define SMTP_PORT_STR		"25"
+#define SMTP_BUFFER_LENGTH	512U
+#define SMTP_BUFFER_MAX		1024U
 
 /* SMTP command stage. This values are used along with the enum connect_result
  * values in the SMTP FSM, and so need to follow them. */
