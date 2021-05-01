@@ -1844,7 +1844,19 @@ The syntax for vrrp_instance is :
     # for backwards compatibility
     \fBpreempt\fR
 
-    # Seconds after startup or seeing a lower priority master until preemption
+    # Seconds of delay until preemption after getting the advertisement timeout
+    # at startup or when seeing a lower priority master.
+    #
+    # Since it is a delay, it cannot speed up taking over as master.
+    # "preempt_delay" specifies the time in seconds to delay preempting compared
+    # to if "preempt_delay" is not specified. Advertisement timeout is
+    # 3 * advert_int + skew_time. Skew_time is defined by RFC3768 and RFC5798.
+    #
+    # So if "advert_int" is 1, and priority is 128, the instance would normally
+    # wait 3.5 seconds before taking over as master. If "preempt_delay 2" is
+    # specified, then the delay before taking over as master would be approximately
+    # 5.5 seconds.
+    #
     # (if not disabled by "nopreempt").
     # Range: 0 (default) to 1000 (e.g. 4.12)
     # NOTE: For this to work, the initial state must not be MASTER.
