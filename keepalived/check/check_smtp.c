@@ -460,7 +460,7 @@ smtp_get_line_cb(thread_ref_t thread)
 
 	if (r == -1 && (check_EAGAIN(errno) || check_EINTR(errno))) {
 		thread_add_read(thread->master, smtp_get_line_cb, checker,
-				thread->u.f.fd, smtp_host->connection_to, true);
+				thread->u.f.fd, smtp_host->connection_to, THREAD_DESTROY_CLOSE_FD);
 		return;
 	}
 
@@ -497,7 +497,7 @@ smtp_get_line_cb(thread_ref_t thread)
 	 * another round.
 	 */
 	thread_add_read(thread->master, smtp_get_line_cb, checker,
-			thread->u.f.fd, smtp_host->connection_to, true);
+			thread->u.f.fd, smtp_host->connection_to, THREAD_DESTROY_CLOSE_FD);
 }
 
 /*
@@ -521,7 +521,7 @@ smtp_get_line(thread_ref_t thread)
 
 	/* schedule the I/O with our helper function  */
 	thread_add_read(thread->master, smtp_get_line_cb, checker,
-		thread->u.f.fd, smtp_host->connection_to, true);
+		thread->u.f.fd, smtp_host->connection_to, THREAD_DESTROY_CLOSE_FD);
 	thread_del_write(thread);
 }
 
@@ -551,7 +551,7 @@ smtp_put_line_cb(thread_ref_t thread)
 
 	if (w == -1 && (check_EAGAIN(errno) || check_EINTR(errno))) {
 		thread_add_write(thread->master, smtp_put_line_cb, checker,
-				 thread->u.f.fd, smtp_host->connection_to, true);
+				 thread->u.f.fd, smtp_host->connection_to, THREAD_DESTROY_CLOSE_FD);
 		return;
 	}
 
@@ -706,7 +706,7 @@ smtp_check_thread(thread_ref_t thread)
 	conn_opts_t *smtp_host = checker->co;
 	int status;
 
-	status = tcp_socket_state(thread, smtp_check_thread);
+	status = tcp_socket_state(thread, smtp_check_thread, 0);
 	switch (status) {
 		case connect_error:
 			smtp_final(thread, "Error connecting to server %s"
@@ -807,7 +807,7 @@ smtp_connect_thread(thread_ref_t thread)
 	status = tcp_bind_connect(sd, smtp_host);
 
 	/* handle tcp connection status & register callback the next step in the process */
-	if (tcp_connection_state(sd, status, thread, smtp_check_thread, smtp_host->connection_to)) {
+	if (tcp_connection_state(sd, status, thread, smtp_check_thread, smtp_host->connection_to, 0)) {
 		if (status == connect_fail) {
 			close(sd);
 			smtp_final(thread, "Network unreachable for server %s - real server %s",

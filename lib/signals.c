@@ -265,7 +265,7 @@ signal_run_callback(thread_ref_t thread)
 #endif
 	}
 
-	signal_thread = thread_add_read(master, signal_run_callback, NULL, thread->u.f.fd, TIMER_NEVER, false);
+	signal_thread = thread_add_read(master, signal_run_callback, NULL, thread->u.f.fd, TIMER_NEVER, 0);
 }
 
 static void
@@ -281,7 +281,7 @@ clear_signal_handler_addresses(void)
 void
 add_signal_read_thread(thread_master_t *thread_master)
 {
-	signal_thread = thread_add_read(thread_master, signal_run_callback, NULL, thread_master->signal_fd, TIMER_NEVER, false);
+	signal_thread = thread_add_read(thread_master, signal_run_callback, NULL, thread_master->signal_fd, TIMER_NEVER, 0);
 }
 
 void

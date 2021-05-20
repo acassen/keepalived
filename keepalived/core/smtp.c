@@ -168,7 +168,7 @@ connection_in_progress(thread_ref_t thread)
 	 * Here we use the propriety of a union structure,
 	 * each element of the structure have the same value.
 	 */
-	status = tcp_socket_state(thread, connection_in_progress);
+	status = tcp_socket_state(thread, connection_in_progress, THREAD_DESTROY_FREE_ARG);
 
 	if (status != connect_in_progress)
 		SMTP_FSM_SEND(status, thread);
@@ -183,7 +183,7 @@ connection_success(thread_ref_t thread)
 
 	smtp->stage = connect_success;
 	thread_add_read(thread->master, smtp_read_thread, smtp,
-			smtp->fd, global_data->smtp_connection_to, true);
+			smtp->fd, global_data->smtp_connection_to, THREAD_DESTROY_CLOSE_FD);
 }
 
 /* SMTP protocol handlers */
@@ -213,7 +213,7 @@ smtp_read_thread(thread_ref_t thread)
 	if (rcv_buffer_size == -1) {
 		if (check_EAGAIN(errno)) {
 			thread_add_read(thread->master, smtp_read_thread, smtp,
-					thread->u.f.fd, global_data->smtp_connection_to, true);
+					thread->u.f.fd, global_data->smtp_connection_to, THREAD_DESTROY_CLOSE_FD);
 			return;
 		}
 
@@ -256,7 +256,7 @@ smtp_read_thread(thread_ref_t thread)
 
 			thread_add_read(thread->master, smtp_read_thread,
 					smtp, thread->u.f.fd,
-					global_data->smtp_connection_to, true);
+					global_data->smtp_connection_to, THREAD_DESTROY_CLOSE_FD);
 			return;
 		}
 
@@ -278,7 +278,7 @@ smtp_read_thread(thread_ref_t thread)
 
 	if (status == -1) {
 		thread_add_read(thread->master, smtp_read_thread, smtp,
-				thread->u.f.fd, global_data->smtp_connection_to, true);
+				thread->u.f.fd, global_data->smtp_connection_to, THREAD_DESTROY_CLOSE_FD);
 		return;
 	}
 
@@ -287,7 +287,7 @@ smtp_read_thread(thread_ref_t thread)
 	/* Registering next smtp command processing thread */
 	if (smtp->stage != ERROR) {
 		thread_add_write(thread->master, smtp_send_thread, smtp,
-				 smtp->fd, global_data->smtp_connection_to, true);
+				 smtp->fd, global_data->smtp_connection_to, THREAD_DESTROY_CLOSE_FD);
 	} else {
 		log_message(LOG_INFO, "Can not read data from remote SMTP server %s."
 				    , FMT_SMTP_HOST());
@@ -320,7 +320,7 @@ smtp_send_thread(thread_ref_t thread)
 	/* Registering next smtp command processing thread */
 	if (smtp->stage != ERROR) {
 		thread_add_read(thread->master, smtp_read_thread, smtp,
-				thread->u.f.fd, global_data->smtp_connection_to, true);
+				thread->u.f.fd, global_data->smtp_connection_to, THREAD_DESTROY_CLOSE_FD);
 		thread_del_write(thread);
 	} else {
 		log_message(LOG_INFO, "Can not send data to remote SMTP server %s."

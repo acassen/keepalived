@@ -189,7 +189,7 @@ dns_recv_thread(thread_ref_t thread)
 	if (ret == -1) {
 		if (check_EAGAIN(errno) || check_EINTR(errno)) {
 			thread_add_read(thread->master, dns_recv_thread,
-					checker, thread->u.f.fd, timeout, true);
+					checker, thread->u.f.fd, timeout, THREAD_DESTROY_CLOSE_FD);
 			return;
 		}
 		dns_final(thread, true, "failed to read socket; errno %d (%s)", errno, strerror(errno));
@@ -202,7 +202,7 @@ dns_recv_thread(thread_ref_t thread)
 			dns_log_message(thread, LOG_DEBUG, "too small message. (%zd bytes)", ret);
 #endif
 		thread_add_read(thread->master, dns_recv_thread, checker,
-				thread->u.f.fd, timeout, true);
+				thread->u.f.fd, timeout, THREAD_DESTROY_CLOSE_FD);
 		return;
 	}
 
@@ -216,7 +216,7 @@ dns_recv_thread(thread_ref_t thread)
 					ntohs(s_header->id), ntohs(r_header->id));
 #endif
 		thread_add_read(thread->master, dns_recv_thread, checker,
-				thread->u.f.fd, timeout, true);
+				thread->u.f.fd, timeout, THREAD_DESTROY_CLOSE_FD);
 		return;
 	}
 
@@ -228,7 +228,7 @@ dns_recv_thread(thread_ref_t thread)
 			dns_log_message(thread, LOG_DEBUG, "receive query message?");
 #endif
 		thread_add_read(thread->master, dns_recv_thread, checker,
-				thread->u.f.fd, timeout, true);
+				thread->u.f.fd, timeout, THREAD_DESTROY_CLOSE_FD);
 		return;
 	}
 
@@ -307,7 +307,7 @@ dns_send(thread_ref_t thread)
 	if (ret == -1) {
 		if (check_EAGAIN(errno) || check_EINTR(errno)) {
 			thread_add_write(thread->master, dns_send_thread,
-					 checker, thread->u.f.fd, timeout, true);
+					 checker, thread->u.f.fd, timeout, THREAD_DESTROY_CLOSE_FD);
 			return;
 		}
 		dns_final(thread, true, "failed to write socket.");
@@ -319,7 +319,7 @@ dns_send(thread_ref_t thread)
 		return;
 	}
 
-	thread_add_read(thread->master, dns_recv_thread, checker, thread->u.f.fd, timeout, true);
+	thread_add_read(thread->master, dns_recv_thread, checker, thread->u.f.fd, timeout, THREAD_DESTROY_CLOSE_FD);
 
 	return;
 }
@@ -345,7 +345,7 @@ dns_check_thread(thread_ref_t thread)
 		return;
 	}
 
-	status = socket_state(thread, dns_check_thread);
+	status = socket_state(thread, dns_check_thread, 0);
 
 	/* If status = connect_in_progress, next thread is already registered.
 	 * If it is connect_success, the fd is still open.
@@ -415,7 +415,7 @@ dns_connect_thread(thread_ref_t thread)
 	}
 
 	/* handle connection status & register check worker thread */
-	if (socket_connection_state(fd, status, thread, dns_check_thread, co->connection_to)) {
+	if (socket_connection_state(fd, status, thread, dns_check_thread, co->connection_to, 0)) {
 		close(fd);
 		dns_log_message(thread, LOG_INFO,
 				"UDP socket bind failed. Rescheduling.");

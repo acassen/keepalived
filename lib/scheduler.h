@@ -80,6 +80,9 @@ enum thread_flags {
 /* epoll def */
 #define THREAD_EPOLL_REALLOC_THRESH	64
 
+/* Thread flags for thread destruction */
+#define THREAD_DESTROY_CLOSE_FD	0x01
+
 typedef struct _thread thread_t;
 typedef const thread_t * thread_ref_t;
 typedef void (*thread_func_t)(thread_ref_t);
@@ -96,7 +99,7 @@ struct _thread {
 		int val;		/* second argument of the event. */
 		struct {
 			int fd;		/* file descriptor in case of read/write. */
-			bool close_on_reload;
+			unsigned flags;
 		} f;
 		struct {
 			pid_t pid;	/* process id a child thread is wanting. */
@@ -243,11 +246,11 @@ extern void dump_thread_data(const thread_master_t *, FILE *);
 #endif
 extern void thread_cleanup_master(thread_master_t *);
 extern void thread_destroy_master(thread_master_t *);
-extern thread_ref_t thread_add_read_sands(thread_master_t *, thread_func_t, void *, int, const timeval_t *, bool);
-extern thread_ref_t thread_add_read(thread_master_t *, thread_func_t, void *, int, unsigned long, bool);
+extern thread_ref_t thread_add_read_sands(thread_master_t *, thread_func_t, void *, int, const timeval_t *, unsigned);
+extern thread_ref_t thread_add_read(thread_master_t *, thread_func_t, void *, int, unsigned long, unsigned);
 extern void thread_del_read(thread_ref_t);
 extern void thread_requeue_read(thread_master_t *, int, const timeval_t *);
-extern thread_ref_t thread_add_write(thread_master_t *, thread_func_t, void *, int, unsigned long, bool);
+extern thread_ref_t thread_add_write(thread_master_t *, thread_func_t, void *, int, unsigned long, unsigned);
 extern void thread_del_write(thread_ref_t);
 extern void thread_close_fd(thread_ref_t);
 extern thread_ref_t thread_add_timer(thread_master_t *, thread_func_t, void *, unsigned long);
