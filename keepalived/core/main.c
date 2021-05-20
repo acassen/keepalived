@@ -885,6 +885,13 @@ print_parent_data(__attribute__((unused)) thread_ref_t thread)
 	return;
 }
 
+void
+reinitialise_global_vars(void)
+{
+	default_script_uid = 0;
+	default_script_gid = 0;
+}
+
 /* SIGHUP/USR1/USR2/STATS_CLEAR handler */
 static void
 propagate_signal(__attribute__((unused)) void *v, int sig)
@@ -925,6 +932,8 @@ propagate_signal(__attribute__((unused)) void *v, int sig)
 static void
 do_reload(void)
 {
+	reinitialise_global_vars();
+
 	if (!reload_config())
 		return;
 

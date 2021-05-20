@@ -485,6 +485,8 @@ reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 	/* Use standard scheduling while reloading */
 	reset_process_priorities();
 
+	reinitialise_global_vars();
+
 	/* set the reloading flag */
 	SET_RELOAD;
 

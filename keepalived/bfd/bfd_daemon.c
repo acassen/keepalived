@@ -281,6 +281,8 @@ reload_bfd_thread(__attribute__((unused)) thread_ref_t thread)
 	old_global_data = global_data;
 	global_data = NULL;
 
+	reinitialise_global_vars();
+
 	/* Reload the conf */
 	signal_set(SIGCHLD, thread_child_handler, master);
 	start_bfd(old_global_data);
