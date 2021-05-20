@@ -314,7 +314,7 @@ if_mii_status(const int fd)
 	 */
 	new_bmsr = if_mii_read(fd, phy_id, MII_BMSR);
 
-// printf(" \nBasic Mode Status Register 0x%4.4x ... 0x%4.4x\n", bmsr, new_bmsr);
+// log_message(LOG_INFO, " \nBasic Mode Status Register 0x%4.4x ... 0x%4.4x\n", bmsr, new_bmsr);
 
 	if (bmsr & BMSR_LSTATUS ||
 	    new_bmsr & BMSR_LSTATUS)
@@ -758,7 +758,10 @@ if_linkbeat_refresh_thread(thread_ref_t thread)
 		}
 	}
 
-	ifp->ifi_flags = if_up ? IFF_UP | IFF_RUNNING : 0;
+	if (if_up)
+		ifp->ifi_flags |= IFF_UP | IFF_RUNNING;
+	else
+		ifp->ifi_flags &= ~(IFF_UP | IFF_RUNNING);
 
 	if (if_up != was_up) {
 		log_message(LOG_INFO, "Linkbeat reports %s %s", ifp->ifname, if_up ? "up" : "down");
@@ -812,7 +815,10 @@ init_interface_linkbeat(void)
 		} else {
 			if_up = init_linkbeat_status(linkbeat_fd, ifp);
 
-			ifp->ifi_flags = if_up ? IFF_UP | IFF_RUNNING : 0;
+			if (if_up)
+				ifp->ifi_flags |= IFF_UP | IFF_RUNNING;
+			else
+				ifp->ifi_flags &= ~(IFF_UP | IFF_RUNNING);
 		}
 
 		/* Register new monitor thread */
