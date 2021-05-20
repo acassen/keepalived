@@ -1341,7 +1341,8 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 			}
 
 #ifdef _WITH_VRRP_
-			/* Skip unsolicited messages from cmd channel */
+			/* Skip messages on the kernel reflection channel
+			 * caused by commands from our cmd channel */
 			if (
 #ifndef _ONE_PROCESS_DEBUG_
 			    prog_type == PROG_TYPE_VRRP &&
@@ -1349,6 +1350,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 			    h->nlmsg_type != RTM_NEWLINK &&
 			    h->nlmsg_type != RTM_DELLINK &&
 			    h->nlmsg_type != RTM_NEWROUTE &&
+// Allow NEWADDR/DELADDR for ipvlans
 			    nl != &nl_cmd && h->nlmsg_pid == nl_cmd.nl_pid)
 				continue;
 #endif
@@ -1768,8 +1770,12 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 					if (ifp->if_type == IF_TYPE_MACVLAN)
 						ifp->vmac_type = *PTR_CAST(uint32_t, RTA_DATA(linkattr[IFLA_MACVLAN_MODE]));
 #ifdef _HAVE_VRRP_IPVLAN_
-					else
+					else {
 						ifp->vmac_type = *PTR_CAST(uint32_t, RTA_DATA(linkattr[IFLA_IPVLAN_MODE]));
+#if HAVE_DECL_IFLA_IPVLAN_FLAGS
+						ifp->ipvlan_flags = *PTR_CAST(uint32_t, RTA_DATA(linkattr[IFLA_IPVLAN_FLAGS]));
+#endif
+					}
 #endif
 					ifp->base_ifindex = *PTR_CAST(uint32_t, RTA_DATA(tb[IFLA_LINK]));
 #ifdef HAVE_IFLA_LINK_NETNSID						/* from Linux v4.0 */

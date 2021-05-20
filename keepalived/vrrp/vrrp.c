@@ -3201,6 +3201,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			      ifp->if_type == IF_TYPE_IPVLAN &&
 			      /* coverity[mixed_enums] */
 			      ifp->vmac_type == IPVLAN_MODE_L2 &&
+#if HAVE_DECL_IFLA_IPVLAN_FLAGS
+			      ifp->ipvlan_flags == vrrp->ipvlan_type &&
+#endif
 			      !(vrrp->family == AF_INET6 && !vrrp->vmac_ifname[0] && !vrrp->ipvlan_addr) &&
 			      (!vrrp->vmac_ifname[0] || !strcmp(vrrp->vmac_ifname, ifp->ifname)) &&
 			      (!vrrp->ipvlan_addr ||

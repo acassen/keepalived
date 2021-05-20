@@ -631,7 +631,7 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 				__test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags) ? "true" : "false",
 				vrrp->ipvlan_addr ? ", i/f address = " : "",
 				vrrp->ipvlan_addr ? ipaddresstos(NULL, vrrp->ipvlan_addr) : "",
-#ifdef IPVLAN_F_VEPA	/* Since Linux v4.15 */
+#if HAVE_DECL_IFLA_IPVLAN_FLAGS	/* Since Linux v4.15 */
 				!vrrp->ipvlan_type ? "bridge" : vrrp->ipvlan_type == IPVLAN_F_PRIVATE ? "private" : vrrp->ipvlan_type == IPVLAN_F_VEPA ? "vepa" : "unknown"
 #else
 				"bridge"
