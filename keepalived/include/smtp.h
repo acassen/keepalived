@@ -50,8 +50,7 @@ enum smtp_cmd_state {
 	DATA,
 	BODY,
 	QUIT,
-	END,
-	SEND_ERROR
+	END
 };
 #define SMTP_MAX_FSM_STATE	END
 
@@ -87,7 +86,6 @@ do {					\
 
 /* SMTP thread arguments */
 typedef struct _smtp {
-	int		fd;
 	int		stage;
 	email_t		*next_email_element;
 	char		*subject;

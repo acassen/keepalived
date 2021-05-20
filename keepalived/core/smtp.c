@@ -82,20 +82,21 @@ static void smtp_read_thread(thread_ref_t);
 struct {
 	void (*send) (thread_ref_t);
 	void (*read) (thread_ref_t, int);
+	int expected_code;
 } SMTP_FSM[SMTP_MAX_FSM_STATE] = {
 /*       Code			  Stream Write Handlers		Stream Read handlers *
  *------------------------------+----------------------------------------------------*/
-	[connect_error]		= {connection_error,		NULL},
-	[connect_in_progress]	= {connection_in_progress,	NULL},
-	[connect_timeout]	= {connection_timeout,		NULL},
-	[connect_fail]		= {connection_error,		NULL},
-	[connect_success]	= {connection_success,		connection_code},
-	[HELO]			= {helo_cmd,			helo_code},
-	[MAIL]			= {mail_cmd,			mail_code},
-	[RCPT]			= {rcpt_cmd,			rcpt_code},
-	[DATA]			= {data_cmd,			data_code},
-	[BODY]			= {body_cmd,			body_code},
-	[QUIT]			= {quit_cmd,			quit_code}
+	[connect_error]		= {connection_error,		NULL, -1},
+	[connect_in_progress]	= {connection_in_progress,	NULL, -1},
+	[connect_timeout]	= {connection_timeout,		NULL, -1},
+	[connect_fail]		= {connection_error,		NULL, -1},
+	[connect_success]	= {connection_success,		connection_code, 220},
+	[HELO]			= {helo_cmd,			helo_code, 250},
+	[MAIL]			= {mail_cmd,			mail_code, 250},
+	[RCPT]			= {rcpt_cmd,			rcpt_code, 250},
+	[DATA]			= {data_cmd,			data_code, 354},
+	[BODY]			= {body_cmd,			body_code, 250},
+	[QUIT]			= {quit_cmd,			quit_code, 221}
 };
 
 static inline void
@@ -133,6 +134,34 @@ alloc_smtp_msg_data(void)
 	return smtp;
 }
 
+static void
+smtp_send(thread_ref_t thread)
+{
+	smtp_t *smtp = THREAD_ARG(thread);
+
+	smtp_send_buffer[0] = '\0';
+	SMTP_FSM_SEND(smtp->stage, thread);
+
+	if (!smtp_send_buffer[0]) {
+		/* Nothing in send buffer means connection failed */
+		thread_close_fd(thread);
+		free_smtp_msg_data(smtp);
+		return;
+	}
+
+	if (send(thread->u.f.fd, smtp_send_buffer, strlen(smtp_send_buffer), 0) == -1) {
+		log_message(LOG_INFO, "Cannot send data to remote SMTP server %s."
+				    , FMT_SMTP_HOST());
+		thread_close_fd(thread);
+		free_smtp_msg_data(smtp);
+		return;
+	}
+
+	/* Registering next smtp command processing thread */
+	thread_add_read(thread->master, smtp_read_thread, smtp,
+			thread->u.f.fd, global_data->smtp_connection_to, THREAD_DESTROY_CLOSE_FD | THREAD_DESTROY_FREE_ARG);
+}
+
 /* layer4 connection handlers */
 static void
 connection_error(thread_ref_t thread)
@@ -155,56 +184,53 @@ connection_timeout(thread_ref_t thread)
 static void
 connection_in_progress(thread_ref_t thread)
 {
-	int status;
+	smtp_t *smtp = THREAD_ARG(thread);
 
 #ifdef _SMTP_CONNECT_DEBUG_
 	if (do_smtp_connect_debug)
 		log_message(LOG_DEBUG, "SMTP connection to %s now IN_PROGRESS.", FMT_SMTP_HOST());
 #endif
 
+	if (thread->type == THREAD_WRITE_TIMEOUT) {
+		log_message(LOG_INFO, "Timeout opening connection to remote SMTP server %s."
+				    , FMT_SMTP_HOST());
+
+		thread_close_fd(thread);
+		free_smtp_msg_data(smtp);
+		return;
+	} else if (thread->type == THREAD_WRITE_ERROR) {
+		log_message(LOG_INFO, "smtp fd %d returned write error", thread->u.f.fd);
+		thread_close_fd(thread);
+		free_smtp_msg_data(smtp);
+		return;
+	}
+
 	/*
 	 * Here we use the propriety of a union structure,
 	 * each element of the structure have the same value.
 	 */
-	status = tcp_socket_state(thread, connection_in_progress, THREAD_DESTROY_FREE_ARG);
+	smtp->stage = tcp_socket_state(thread, connection_in_progress, THREAD_DESTROY_FREE_ARG);
 
-	if (status != connect_in_progress)
-		SMTP_FSM_SEND(status, thread);
+	if (smtp->stage != connect_in_progress) {
+		thread_del_write(thread);
+		SMTP_FSM_SEND(smtp->stage, thread);
+	}
 }
 static void
 connection_success(thread_ref_t thread)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
 
-	log_message(LOG_INFO, "Remote SMTP server %s connected."
-			    , FMT_SMTP_HOST());
+	if (__test_bit(LOG_DETAIL_BIT, &debug))
+		log_message(LOG_INFO, "Remote SMTP server %s connected."
+				    , FMT_SMTP_HOST());
 
 	smtp->stage = connect_success;
-	thread_add_read(thread->master, smtp_read_thread, smtp,
-			smtp->fd, global_data->smtp_connection_to, THREAD_DESTROY_CLOSE_FD | THREAD_DESTROY_FREE_ARG);
-}
-
-/* SMTP protocol handlers */
-static void
-smtp_send(thread_ref_t thread)
-{
-	smtp_t *smtp = THREAD_ARG(thread);
-
-	SMTP_FSM_SEND(smtp->stage, thread);
-
-	if (smtp->stage == SEND_ERROR) {
-		log_message(LOG_INFO, "Cannot send data to remote SMTP server %s."
-				    , FMT_SMTP_HOST());
-		thread_close_fd(thread);
-		free_smtp_msg_data(smtp);
-		return;
-	}
-
-	/* Registering next smtp command processing thread */
 	thread_add_read(thread->master, smtp_read_thread, smtp,
 			thread->u.f.fd, global_data->smtp_connection_to, THREAD_DESTROY_CLOSE_FD | THREAD_DESTROY_FREE_ARG);
 }
 
+/* SMTP protocol handlers */
 static void
 smtp_read_thread(thread_ref_t thread)
 {
@@ -228,6 +254,11 @@ smtp_read_thread(thread_ref_t thread)
 			smtp_send(thread);
 		}
 
+		return;
+	} else if (thread->type == THREAD_READ_ERROR) {
+		log_message(LOG_INFO, "smtp fd %d returned read error", thread->u.f.fd);
+		thread_close_fd(thread);
+		free_smtp_msg_data(smtp);
 		return;
 	}
 
@@ -279,9 +310,12 @@ smtp_read_thread(thread_ref_t thread)
 
 		p = strstr(reply, "\r\n");
 		if (!p) {
-			memmove(smtp->buffer, reply,
-				smtp->buflen - (size_t)(reply - smtp->buffer) + 1);	/* Include terminating NUL byte */
-			smtp->buflen -= (size_t)(reply - smtp->buffer);
+// What is this doing?
+			if (reply != smtp->buffer) {
+				memmove(smtp->buffer, reply,
+					smtp->buflen - (size_t)(reply - smtp->buffer) + 1);	/* Include terminating NUL byte */
+				smtp->buflen -= (size_t)(reply - smtp->buffer);
+			}
 
 			thread_add_read(thread->master, smtp_read_thread,
 					smtp, thread->u.f.fd,
@@ -319,6 +353,7 @@ smtp_read_thread(thread_ref_t thread)
 
 	if (smtp->stage == END) {
 		/* We have finished */
+		thread_close_fd(thread);
 		free_smtp_msg_data(smtp);
 		return;
 	}
@@ -345,13 +380,9 @@ connection_code(thread_ref_t thread, int status)
 
 /* HELO command processing */
 static void
-helo_cmd(thread_ref_t thread)
+helo_cmd(__attribute__((unused)) thread_ref_t thread)
 {
-	smtp_t *smtp = THREAD_ARG(thread);
-
 	snprintf(smtp_send_buffer, sizeof(smtp_send_buffer), SMTP_HELO_CMD, (global_data->smtp_helo_name) ? global_data->smtp_helo_name : "localhost");
-	if (send(thread->u.f.fd, smtp_send_buffer, strlen(smtp_send_buffer), 0) == -1)
-		smtp->stage = SEND_ERROR;
 }
 static void
 helo_code(thread_ref_t thread, int status)
@@ -371,13 +402,9 @@ helo_code(thread_ref_t thread, int status)
 
 /* MAIL command processing */
 static void
-mail_cmd(thread_ref_t thread)
+mail_cmd(__attribute__((unused)) thread_ref_t thread)
 {
-	smtp_t *smtp = THREAD_ARG(thread);
-
 	snprintf(smtp_send_buffer, sizeof(smtp_send_buffer), SMTP_MAIL_CMD, global_data->email_from);
-	if (send(thread->u.f.fd, smtp_send_buffer, strlen(smtp_send_buffer), 0) == -1)
-		smtp->stage = SEND_ERROR;
 }
 static void
 mail_code(thread_ref_t thread, int status)
@@ -411,8 +438,6 @@ rcpt_cmd(thread_ref_t thread)
 		smtp->next_email_element = list_entry(email->e_list.next, email_t, e_list);
 
 	snprintf(smtp_send_buffer, sizeof(smtp_send_buffer), SMTP_RCPT_CMD, email->addr);
-	if (send(thread->u.f.fd, smtp_send_buffer, strlen(smtp_send_buffer), 0) == -1)
-		smtp->stage = SEND_ERROR;
 }
 static void
 rcpt_code(thread_ref_t thread, int status)
@@ -433,12 +458,9 @@ rcpt_code(thread_ref_t thread, int status)
 
 /* DATA command processing */
 static void
-data_cmd(thread_ref_t thread)
+data_cmd(__attribute__((unused)) thread_ref_t thread)
 {
-	smtp_t *smtp = THREAD_ARG(thread);
-
-	if (send(thread->u.f.fd, SMTP_DATA_CMD, strlen(SMTP_DATA_CMD), 0) == -1)
-		smtp->stage = SEND_ERROR;
+	strncpy(smtp_send_buffer, SMTP_DATA_CMD, sizeof(smtp_send_buffer));
 }
 static void
 data_code(thread_ref_t thread, int status)
@@ -475,8 +497,6 @@ body_cmd(thread_ref_t thread)
 	/* send the DATA fields */
 	snprintf(smtp_send_buffer, sizeof(smtp_send_buffer), SMTP_HEADERS_CMD SMTP_BODY_CMD "%s",
 		 rfc822, global_data->email_from, smtp->subject, smtp->email_to, smtp->body, SMTP_SEND_CMD);
-	if (send(thread->u.f.fd, smtp_send_buffer, strlen(smtp_send_buffer), 0) == -1)
-		smtp->stage = SEND_ERROR;
 }
 static void
 body_code(thread_ref_t thread, int status)
@@ -484,7 +504,8 @@ body_code(thread_ref_t thread, int status)
 	smtp_t *smtp = THREAD_ARG(thread);
 
 	if (status == 250) {
-		log_message(LOG_INFO, "SMTP alert successfully sent.");
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "SMTP alert successfully sent.");
 		smtp->stage++;
 	} else {
 		log_message(LOG_INFO, "Error processing DOT cmd on SMTP server %s."
@@ -497,12 +518,9 @@ body_code(thread_ref_t thread, int status)
 
 /* QUIT command processing */
 static void
-quit_cmd(thread_ref_t thread)
+quit_cmd(__attribute__((unused)) thread_ref_t thread)
 {
-	smtp_t *smtp = THREAD_ARG(thread);
-
-	if (send(thread->u.f.fd, SMTP_QUIT_CMD, strlen(SMTP_QUIT_CMD), 0) == -1)
-		smtp->stage = SEND_ERROR;
+	strncpy(smtp_send_buffer, SMTP_QUIT_CMD, sizeof(smtp_send_buffer));
 }
 
 static void
@@ -520,10 +538,11 @@ static void
 smtp_connect(smtp_t *smtp)
 {
 	enum connect_result status;
+	int fd;
 
 	smtp->next_email_element = list_first_entry(&global_data->email, email_t, e_list);
 
-	if ((smtp->fd = socket(global_data->smtp_server.ss_family, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, IPPROTO_TCP)) == -1) {
+	if ((fd = socket(global_data->smtp_server.ss_family, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, IPPROTO_TCP)) == -1) {
 #ifdef _SMTP_CONNECT_DEBUG_
 		if (do_smtp_connect_debug)
 			log_message(LOG_DEBUG, "SMTP connect fail to create socket.");
@@ -532,11 +551,24 @@ smtp_connect(smtp_t *smtp)
 		return;
 	}
 
-	status = tcp_connect(smtp->fd, &global_data->smtp_server);
+	status = tcp_connect(fd, &global_data->smtp_server);
 
 	/* Handle connection status code */
-	thread_t thread = { .u.f.fd = smtp->fd, .master = master, .arg = smtp };
-	SMTP_FSM_SEND(status, &thread);
+	if (status == connect_in_progress) {
+		thread_add_write(master, connection_in_progress, smtp,
+				 fd, global_data->smtp_connection_to, THREAD_DESTROY_CLOSE_FD | THREAD_DESTROY_FREE_ARG);
+		return;
+	}
+ 
+	if (status == connect_success) {
+		thread_t thread = { .u.f.fd = fd, .master = master, .arg = smtp };
+		connection_success(&thread);
+		return;
+	}
+ 
+	/* connect_fail, connect_error */
+	close(fd);
+	free_smtp_msg_data(smtp);
 }
 
 #ifdef _SMTP_ALERT_DEBUG_
