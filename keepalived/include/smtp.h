@@ -41,7 +41,7 @@
 /* global defs */
 #define SMTP_PORT_STR		"25"
 
-/* SMTP command stage. This values are used along with the enum connect_result
+/* SMTP command stage. These values are used along with the enum connect_result
  * values in the SMTP FSM, and so need to follow them. */
 enum smtp_cmd_state {
 	HELO = connect_result_next,
@@ -51,7 +51,7 @@ enum smtp_cmd_state {
 	BODY,
 	QUIT,
 	END,
-	ERROR
+	SEND_ERROR
 };
 #define SMTP_MAX_FSM_STATE	END
 
