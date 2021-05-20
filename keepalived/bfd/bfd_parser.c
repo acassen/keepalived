@@ -385,6 +385,8 @@ bfd_vrrp_handler(const vector_t *strvec)
 
 	name = strvec_slot(strvec, 1);
 	alloc_vrrp_tracked_bfd(name, &vrrp_data->vrrp_track_bfds);
+
+	specified_event_processes = 0;
 }
 #endif
 
@@ -450,6 +452,8 @@ bfd_checker_handler(const vector_t *strvec)
 	INIT_LIST_HEAD(&cbfd->tracking_rs);
 	cbfd->bname = STRDUP(name);
 	list_add_tail(&cbfd->e_list, &check_data->track_bfds);
+
+	specified_event_processes = 0;
 }
 #endif
 
@@ -477,8 +481,8 @@ init_bfd_keywords(bool active)
 {
 	bool bfd_handlers = false;
 
-	/* This will be called with active == false for parent and checker process,
-	 * for bfd, checker and vrrp process active will be true, but they are only interested
+	/* This will be called with active == false for parent process,
+	 * for bfd, checker and vrrp process active will be true, but they are interested
 	 * in different keywords. */
 #ifndef _ONE_PROCESS_DEBUG_
 	if (prog_type == PROG_TYPE_BFD || !active)
