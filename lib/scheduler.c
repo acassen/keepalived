@@ -2017,6 +2017,16 @@ process_threads(thread_master_t *m)
 
 			if (thread_type == THREAD_TERMINATE_START)
 				shutting_down = true;
+		} else if (thread->type == THREAD_READY_READ_FD ||
+			   thread->type == THREAD_READY_WRITE_FD ||
+			   thread->type == THREAD_READ_TIMEOUT ||
+			   thread->type == THREAD_WRITE_TIMEOUT ||
+			   thread->type == THREAD_READ_ERROR ||
+			   thread->type == THREAD_WRITE_ERROR) {
+			thread_close_fd(thread);
+
+			if (thread->u.f.flags & THREAD_DESTROY_FREE_ARG)
+				FREE(thread->arg);
 		}
 
 		if (thread) {

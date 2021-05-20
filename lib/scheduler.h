@@ -70,11 +70,11 @@ typedef enum {
 
 /* Thread Event flags */
 enum thread_flags {
-	THREAD_FL_READ_BIT,
-	THREAD_FL_WRITE_BIT,
-	THREAD_FL_EPOLL_BIT,
-	THREAD_FL_EPOLL_READ_BIT,
-	THREAD_FL_EPOLL_WRITE_BIT,
+	THREAD_FL_READ_BIT,		/* Want read set */
+	THREAD_FL_WRITE_BIT,		/* Want write set */
+	THREAD_FL_EPOLL_BIT,		/* fd is registered with epoll */
+	THREAD_FL_EPOLL_READ_BIT,	/* read is registered */
+	THREAD_FL_EPOLL_WRITE_BIT,	/* write is registered */
 };
 
 /* epoll def */
