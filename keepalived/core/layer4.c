@@ -217,13 +217,9 @@ bool
 socket_connection_state(int fd, enum connect_result status, thread_ref_t thread,
 			thread_func_t func, unsigned long timeout, unsigned extra_flags)
 {
-	void *checker;
-
-	checker = THREAD_ARG(thread);
-
 	if (status == connect_success ||
 	    status == connect_in_progress) {
-		thread_add_write(thread->master, func, checker, fd, timeout, THREAD_DESTROY_CLOSE_FD | extra_flags);
+		thread_add_write(thread->master, func, THREAD_ARG(thread), fd, timeout, THREAD_DESTROY_CLOSE_FD | extra_flags);
 		return false;
 	}
 
