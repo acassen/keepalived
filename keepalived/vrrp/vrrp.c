@@ -1737,7 +1737,8 @@ vrrp_restore_interface(vrrp_t * vrrp, bool advF, bool force)
 	if (advF) {
 		vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
 		++vrrp->stats->pri_zero_sent;
-		log_message(LOG_INFO, "(%s) sent 0 priority", vrrp->iname);
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "(%s) sent 0 priority", vrrp->iname);
 	}
 
 	/* remove virtual rules */
@@ -1873,7 +1874,8 @@ vrrp_state_backup(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buf, ssize_t bu
 	if (ret != VRRP_PACKET_OK)
 		ignore_advert = true;
 	else if (hd->priority == 0) {
-		log_message(LOG_INFO, "(%s) Backup received priority 0 advertisement", vrrp->iname);
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "(%s) Backup received priority 0 advertisement", vrrp->iname);
 		vrrp->ms_down_timer = VRRP_TIMER_SKEW(vrrp);
 #ifdef _WITH_SNMP_RFCV3_
 		vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_PRIORITY;
@@ -2055,7 +2057,8 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 		vrrp_send_adv(vrrp, vrrp->effective_priority);
 
 		if (hd->priority == 0) {
-			log_message(LOG_INFO, "(%s) Master received priority 0 message", vrrp->iname);
+			if (__test_bit(LOG_DETAIL_BIT, &debug))
+				log_message(LOG_INFO, "(%s) Master received priority 0 message", vrrp->iname);
 			return false;
 		}
 	}

@@ -3089,9 +3089,10 @@ vrrp_snmp_instance_trap(vrrp_t *vrrp)
 				  ptr_conv.p,
 				  strlen(global_data->router_id));
 
-	log_message(LOG_INFO,
-		    "(%s) Sending SNMP notification",
-		    vrrp->iname);
+	if (__test_bit(LOG_DETAIL_BIT, &debug))
+		log_message(LOG_INFO,
+			    "(%s) Sending SNMP notification",
+			    vrrp->iname);
 	send_v2trap(notification_vars);
 	snmp_free_varbind(notification_vars);
 }
@@ -3158,9 +3159,10 @@ vrrp_snmp_group_trap(vrrp_sgroup_t *group)
 				  ptr_conv.p,
 				  strlen(global_data->router_id));
 
-	log_message(LOG_INFO,
-		    "VRRP_Group(%s): Sending SNMP notification",
-		    group->gname);
+	if (__test_bit(LOG_DETAIL_BIT, &debug))
+		log_message(LOG_INFO,
+			    "VRRP_Group(%s): Sending SNMP notification",
+			    group->gname);
 	send_v2trap(notification_vars);
 	snmp_free_varbind(notification_vars);
 }
@@ -3733,9 +3735,10 @@ vrrp_rfcv2_snmp_new_master_trap(vrrp_t *vrrp)
 				  ASN_IPADDRESS,
 				  PTR_CAST2(u_char, struct sockaddr_in, &vrrp->saddr, sin_addr.s_addr),
 				  sizeof PTR_CAST(struct sockaddr_in, &vrrp->saddr)->sin_addr.s_addr);
-	log_message(LOG_INFO, "(%s) Sending SNMP notification"
-			      " vrrpTrapNewMaster"
-			    , vrrp->iname);
+	if (__test_bit(LOG_DETAIL_BIT, &debug))
+		log_message(LOG_INFO, "(%s) Sending SNMP notification"
+				      " vrrpTrapNewMaster"
+				    , vrrp->iname);
 	send_v2trap(notification_vars);
 	snmp_free_varbind(notification_vars);
 }
@@ -3782,9 +3785,10 @@ vrrp_rfcv2_snmp_auth_err_trap(vrrp_t *vrrp, struct in_addr src, enum rfcv2_trap_
 				  ASN_INTEGER,
 				  PTR_CAST(u_char, &auth_err),
 				  sizeof(auth_err));
-	log_message(LOG_INFO, "(%s) Sending SNMP notification"
-			      " vrrpTrapAuthFailure"
-			    , vrrp->iname);
+	if (__test_bit(LOG_DETAIL_BIT, &debug))
+		log_message(LOG_INFO, "(%s) Sending SNMP notification"
+				      " vrrpTrapAuthFailure"
+				    , vrrp->iname);
 	send_v2trap(notification_vars);
 	snmp_free_varbind(notification_vars);
 }
@@ -4415,9 +4419,10 @@ vrrp_rfcv3_snmp_new_master_notify(vrrp_t *vrrp)
 				  ASN_INTEGER,
 				  PTR_CAST(u_char, &reason),
 				  sizeof(reason));
-	log_message(LOG_INFO, "(%s) Sending SNMP notification"
-			      " vrrpv3NotifyNewMaster, reason %" PRIu32
-			    , vrrp->iname, reason);
+	if (__test_bit(LOG_DETAIL_BIT, &debug))
+		log_message(LOG_INFO, "(%s) Sending SNMP notification"
+				      " vrrpv3NotifyNewMaster, reason %" PRIu32
+				    , vrrp->iname, reason);
 	send_v2trap(notification_vars);
 	snmp_free_varbind(notification_vars);
 }
@@ -4455,9 +4460,10 @@ vrrp_rfcv3_snmp_proto_err_notify(vrrp_t *vrrp)
 				  ASN_INTEGER,
 				  PTR_CAST(u_char, &vrrp->stats->proto_err_reason),
 				  sizeof(vrrp->stats->proto_err_reason));
-	log_message(LOG_INFO, "(%s) Sending SNMP notification"
-			      " vrrpTrapProtoError"
-			    , vrrp->iname);
+	if (__test_bit(LOG_DETAIL_BIT, &debug))
+		log_message(LOG_INFO, "(%s) Sending SNMP notification"
+				      " vrrpTrapProtoError"
+				    , vrrp->iname);
 	send_v2trap(notification_vars);
 	snmp_free_varbind(notification_vars);
 }
