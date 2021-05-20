@@ -664,11 +664,6 @@ start_vrrp(data_t *prev_global_data)
 		dbus_stop();
 #endif
 
-	/* Post initializations */
-#ifdef _MEM_CHECK_
-	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);
-#endif
-
 	/* Set static entries */
 	netlink_iplist(&vrrp_data->static_addresses, IPADDRESS_ADD, false);
 	netlink_rtlist(&vrrp_data->static_routes, IPROUTE_ADD, false);
@@ -873,6 +868,11 @@ reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 	free_old_interface_queue();
 
 	UNSET_RELOAD;
+
+	/* Post initializations */
+#ifdef _MEM_CHECK_
+	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);
+#endif
 }
 
 static void
@@ -1106,6 +1106,14 @@ start_vrrp_child(void)
 
 #ifdef THREAD_DUMP
 	register_vrrp_thread_addresses();
+#endif
+
+	/* Post initializations */
+#ifdef _MEM_CHECK_
+	/* Note: there may be a proc_events_ack_timer thread which will not
+	 * exist when the same configuration is reloaded. This is a thread_t,
+	 * which currently adds 120 bytes to the allocated memory. */
+	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);
 #endif
 
 #ifdef _WITH_PERF_
