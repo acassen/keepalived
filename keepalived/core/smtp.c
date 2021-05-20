@@ -46,7 +46,6 @@
  */
 //#define SMTP_MSG_ALLOC_DEBUG
 
-#define SMTP_BUFFER_LENGTH      512U
 #define SMTP_BUFFER_MAX         1024U
 
 #ifdef _SMTP_ALERT_DEBUG_
@@ -80,6 +79,7 @@ static int quit_code(thread_ref_t , int);
 
 static void smtp_read_thread(thread_ref_t);
 static void smtp_send_thread(thread_ref_t);
+static void smtp_send(thread_ref_t);
 
 struct {
 	void (*send) (thread_ref_t);
@@ -191,7 +191,6 @@ static void
 smtp_read_thread(thread_ref_t thread)
 {
 	smtp_t *smtp;
-	char *buffer;
 	char *reply;
 	ssize_t rcv_buffer_size;
 	int status = -1;
@@ -205,10 +204,8 @@ smtp_read_thread(thread_ref_t thread)
 		return;
 	}
 
-	buffer = smtp->buffer;
-
-	rcv_buffer_size = read(thread->u.f.fd, buffer + smtp->buflen,
-			       SMTP_BUFFER_LENGTH - 1 - smtp->buflen);
+	rcv_buffer_size = read(thread->u.f.fd, smtp->buffer + smtp->buflen,
+			       SMTP_BUFFER_MAX - 1 - smtp->buflen);
 
 	if (rcv_buffer_size == -1) {
 		if (check_EAGAIN(errno)) {
@@ -231,7 +228,7 @@ smtp_read_thread(thread_ref_t thread)
 	}
 
 	/* received data overflow buffer size ? */
-	if (smtp->buflen >= SMTP_BUFFER_MAX) {
+	if (smtp->buflen + rcv_buffer_size >= SMTP_BUFFER_MAX) {
 		log_message(LOG_INFO, "Received buffer from remote SMTP server %s"
 				      " overflow our get read buffer length."
 				    , FMT_SMTP_HOST());
@@ -240,19 +237,18 @@ smtp_read_thread(thread_ref_t thread)
 	}
 
 	smtp->buflen += (size_t)rcv_buffer_size;
-	buffer[smtp->buflen] = 0;	/* NULL terminate */
+	smtp->buffer[smtp->buflen] = 0;	/* NULL terminate */
 
 	/* parse the buffer, finding the last line of the response for the code */
-	reply = buffer;
-	while (reply < buffer + smtp->buflen) {		// This line causes a strict-overflow=4 warning with gcc 5.4.0
+	reply = smtp->buffer;
+	while (reply < smtp->buffer + smtp->buflen) {		// This line causes a strict-overflow=4 warning with gcc 5.4.0
 		char *p;
 
 		p = strstr(reply, "\r\n");
 		if (!p) {
-			memmove(buffer, reply,
-				smtp->buflen - (size_t)(reply - buffer));
-			smtp->buflen -= (size_t)(reply - buffer);
-			buffer[smtp->buflen] = 0;
+			memmove(smtp->buffer, reply,
+				smtp->buflen - (size_t)(reply - smtp->buffer) + 1);	/* Include terminating NUL byte */
+			smtp->buflen -= (size_t)(reply - smtp->buffer);
 
 			thread_add_read(thread->master, smtp_read_thread,
 					smtp, thread->u.f.fd,
@@ -260,6 +256,7 @@ smtp_read_thread(thread_ref_t thread)
 			return;
 		}
 
+		/* Is it a multi-line reply? */
 		if (reply[3] == '-') {
 			/* Skip over the \r\n */
 			reply = p + 2;
@@ -272,9 +269,12 @@ smtp_read_thread(thread_ref_t thread)
 		break;
 	}
 
-	memmove(buffer, reply, smtp->buflen - (size_t)(reply - buffer));
-	smtp->buflen -= (size_t)(reply - buffer);
-	buffer[smtp->buflen] = 0;
+	if (reply >= smtp->buffer + smtp->buflen)
+		smtp->buflen = 0;
+	else {
+		memmove(smtp->buffer, reply, smtp->buflen - (size_t)(reply - smtp->buffer) + 1);
+		smtp->buflen -= (size_t)(reply - smtp->buffer);
+	}
 
 	if (status == -1) {
 		thread_add_read(thread->master, smtp_read_thread, smtp,
@@ -293,8 +293,6 @@ smtp_read_thread(thread_ref_t thread)
 				    , FMT_SMTP_HOST());
 		SMTP_FSM_READ(QUIT, thread, 0);
 	}
-
-	return;
 }
 
 static void
@@ -327,8 +325,30 @@ smtp_send_thread(thread_ref_t thread)
 				    , FMT_SMTP_HOST());
 		SMTP_FSM_READ(QUIT, thread, 0);
 	}
+}
 
-	return;
+static void
+smtp_send(thread_ref_t thread)
+{
+	smtp_t *smtp = THREAD_ARG(thread);
+
+	SMTP_FSM_SEND(smtp->stage, thread);
+
+	/* Handle END command */
+	if (smtp->stage == END) {
+		quit_cmd(thread);
+		return;
+	}
+
+	/* Registering next smtp command processing thread */
+	if (smtp->stage != ERROR) {
+		thread_add_read(thread->master, smtp_read_thread, smtp,
+				thread->u.f.fd, global_data->smtp_connection_to, THREAD_DESTROY_CLOSE_FD | THREAD_DESTROY_FREE_ARG);
+	} else {
+		log_message(LOG_INFO, "Can not send data to remote SMTP server %s."
+				    , FMT_SMTP_HOST());
+		quit_cmd(thread);
+	}
 }
 
 static int
