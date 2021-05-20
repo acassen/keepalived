@@ -649,10 +649,9 @@ thread_event_set(const thread_t *thread)
 {
 	thread_event_t *event = thread->event;
 	thread_master_t *m = thread->master;
-	struct epoll_event ev = { .events = 0 };
+	struct epoll_event ev = { .events = 0, .data.ptr = event };
 	int op;
 
-	ev.data.ptr = event;
 	if (__test_bit(THREAD_FL_READ_BIT, &event->flags))
 		ev.events |= EPOLLIN;
 
