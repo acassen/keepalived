@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# Before running this script, do:
+#  git bisect start new-rev old-rev
+# Then run
+#  git bisect run THIS_FILE
+
+# Need to put password in a file and set SUDO_ASKPASS to point to that file
+export SUDO_ASKPASS=/home/quentin/tmp/p
+
+k()
+{
+    SIG=${2:-TERM};
+    if [[ -z $1 ]]; then
+	sudo -A kill -$SIG $(sudo -A cat /run/keepalived.pid);
+    else
+	sudo -A kill -$SIG $(sudo -A cat /run/keepalived/$1/keepalived.pid);
+    fi
+}
+
+sudo -A rm /tmp/sched*.log
+
+# Build version
+[[ $(ls -1t configure | head -1) = configure.ac ]] && autoreconf && ../utils/do_config -demf veth
+make -j6
+
+# Run keepalived
+sudo -A keepalived/keepalived -DRM -mf /tmp/one.conf -g/tmp/sched.log -G --flush-log-file -i low
+sleep 5
+k low
+
+# THE FOLLOWING COMMAND WILL NEED MODIFYING DEPENDING WHAT IS BEING CHECKED FOR
+# Search log file to see if successful
+sudo -A grep -q "ARPs on eth0" /tmp/sched_vrrp_low.log
+
+# Return good/old
+[[ $? -eq 0 ]] && exit 0
+
+# Return bad/new
+exit 1
