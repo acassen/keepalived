@@ -60,6 +60,9 @@ static bool debug_data;
 static unsigned long connection_num;
 static unsigned long connection_mod = 1;
 
+static bool email_server = false;
+static const char *email_server_name = "keepalived.org";
+
 static void
 send_html_resp(int fd, struct cmd_resp *p)
 {
@@ -189,10 +192,46 @@ new_html_cr(const char *url, const char *resp, const char *html_version, bool cl
 }
 
 static void
+send_email_response(int fd, char *buf)
+{
+	char *reply;
+
+	if (debug_data && buf[0])
+		printf("Received: %s", buf);
+
+	if (!buf[0]) {
+		sprintf(buf, "220 %s ESMTP Keepalived Mail Server\r\n", email_server_name);
+		reply = buf;
+	} else if (!strncmp(buf, "HELO ", 5)) {
+		sprintf(buf, "250 %s\r\n", email_server_name);
+		reply = buf;
+	} else if (!strncmp(buf, "MAIL FROM:", 10))
+		reply = "250 2.1.0 Ok\r\n";
+	else if (!strncmp(buf, "RCPT TO:", 8))
+		reply = "250 2.1.5 Ok\r\n";
+	else if (!strncmp(buf, "DATA\r\n", 6))
+		reply = "354 End data with <CR><LF>.<CR><LF>\r\n";
+	else if (!strncmp(buf + strlen(buf) - 5, "\r\n.\r\n", 5))	// What if strlen(buf) < 5? Also handle buffer end
+		reply = "250 2.0.0 Ok: queued as AB8132E22C\r\n";
+	else if (!strncmp(buf, "QUIT\r\n", 6))
+		reply = "221 2.0.0 Bye\r\n";
+	else
+		return;
+
+printf("Replying: %s", reply);
+	write(fd, reply, strlen(reply));
+}
+
+static void
 process_data(int fd)
 {
-	char buf[129];
+	char buf[1024];
 	int len;
+
+	if (email_server) {
+		buf[0] = '\0';
+		send_email_response(fd, buf);
+	}
 
 	while ((len = read(fd, buf, sizeof(buf) - 1)) > 0) {
 //printf("(%d) Read %d bytes\n", getpid(),  len);
@@ -204,7 +243,9 @@ process_data(int fd)
 //printf("(%d) Got <CNTL>-D\n", getpid());
 			return;
 //}
-		if (cmd_resp_list)
+		if (email_server)
+			send_email_response(fd, buf);
+		else if (cmd_resp_list)
 			find_resp(fd, buf);
 		else
 			write(fd, buf, len);
@@ -220,7 +261,7 @@ print_usage(FILE *fp, const char *name)
 	fprintf(fp, "\t-4\t\tUse IPv4\n");
 	fprintf(fp, "\t-6\t\tUse IPv6\n");
 	fprintf(fp, "\t-a addr\t\tbind to addr\n");
-	fprintf(fp, "\t-p port\t\tlist on port\n");
+	fprintf(fp, "\t-p port\t\tlisten on port\n");
 	fprintf(fp, "\t-s\t\tsilent\n");
 	fprintf(fp, "\t-u\t\tuse UDP\n");
 	fprintf(fp, "\t-e\t\techo\n");
@@ -229,6 +270,7 @@ print_usage(FILE *fp, const char *name)
 	fprintf(fp, "\t-v ver\t\tset HTML version to use (default 1.1)\n");
 	fprintf(fp, "\t-w url resp\tsend HTTP response for url\n");
 	fprintf(fp, "\t-W\t\tsend a pre-build HTTP response for GET /\n");
+	fprintf(fp, "\t-M[mail server name]\t\tbe an email server\n");
 	fprintf(fp, "\t-l val\t\tASCII value to use for EOL char\n");
 	fprintf(fp, "\t-d delay\tdelay in ms before replying\n");
 	fprintf(fp, "\t-r\t\tuse random delay\n");
@@ -263,7 +305,7 @@ int main(int argc, char **argv)
 	bool close_after_send = false;
 	char *html_version = "1.1";
 
-	while ((opt = getopt(argc, argv, ":h46a:p:sueb:c:l:d:rm:v:Ww:ZDgG")) != -1) {
+	while ((opt = getopt(argc, argv, ":h46a:p:sueb:c:l:d:rm:v:WM::w:ZDgG")) != -1) {
 		switch (opt) {
 		case '4':
 			family = AF_INET;
@@ -311,6 +353,11 @@ int main(int argc, char **argv)
 			break;
 		case 'W':
 			new_html_cr("/", html_resp, html_version, close_after_send);
+			break;
+		case 'M':
+			email_server = true;
+			if (optarg)
+				email_server_name = optarg;
 			break;
 		case 'w':
 			if (optind >= argc) {
@@ -440,7 +487,7 @@ int main(int argc, char **argv)
 				printf("(%d) Received connection %lu\n", getpid(), connection_num);
 			if ((childpid = fork()) == 0) {
 				close(listenfd);
-				if (echo_data || cmd_resp_list)
+				if (echo_data || cmd_resp_list || email_server)
 					process_data(connfd);
 				else
 					sleep (1);
