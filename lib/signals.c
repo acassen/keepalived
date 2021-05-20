@@ -436,9 +436,6 @@ void
 set_sigxcpu_handler(void)
 {
 	signal_set(SIGXCPU, log_sigxcpu, NULL);
-#ifdef THREAD_DUMP
-	register_signal_handler_address("log_sigxcpu", log_sigxcpu);
-#endif
 }
 
 #ifdef THREAD_DUMP
@@ -446,5 +443,6 @@ void
 register_signal_thread_addresses(void)
 {
 	register_thread_address("signal_run_callback", signal_run_callback);
+	register_signal_handler_address("log_sigxcpu", log_sigxcpu);
 }
 #endif
