@@ -1496,12 +1496,14 @@ thread_cancel(thread_ref_t thread_cp)
 		break;
 	case THREAD_READY_READ_FD:
 	case THREAD_READ_TIMEOUT:
+	case THREAD_READ_ERROR:
 		if (thread->event)
 			thread_event_del(thread, THREAD_FL_EPOLL_READ_BIT);
 		list_del_init(&thread->e_list);
 		break;
 	case THREAD_READY_WRITE_FD:
 	case THREAD_WRITE_TIMEOUT:
+	case THREAD_WRITE_ERROR:
 		if (thread->event)
 			thread_event_del(thread, THREAD_FL_EPOLL_WRITE_BIT);
 		list_del_init(&thread->e_list);
