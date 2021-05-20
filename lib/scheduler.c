@@ -799,20 +799,26 @@ timer_delay(timeval_t sands)
 }
 
 /* Dump rbtree */
+static inline void
+write_thread_entry(FILE *fp, unsigned index, const thread_t *thread)
+{
+	conf_write(fp, "#%.2u Thread:%p type %s, event %p, val/fd/pid %d, fd_flags %x, timer: %s, func %s(), id %lu"
+		     , index, thread, get_thread_type_str(thread->type)
+		     , thread->event, thread->u.val
+		     , thread->u.f.flags, timer_delay(thread->sands)
+		     , get_function_name(thread->func), thread->id);
+}
+
 static void
 thread_rb_dump(const rb_root_cached_t *root, const char *tree, FILE *fp)
 {
 	thread_t *thread;
-	int i = 1;
+	unsigned i = 1;
 
 	conf_write(fp, "----[ Begin rb_dump %s ]----", tree);
 
 	rb_for_each_entry_cached(thread, root, n)
-		conf_write(fp, "#%.2d Thread:%p type %s, event_fd %d, val/fd/pid %d, fd_close %d, timer: %s, func %s(), id %lu"
-			     , i++, thread, get_thread_type_str(thread->type)
-			     , thread->event ? thread->event->fd: -2, thread->u.val
-			     , thread->u.f.close_on_reload, timer_delay(thread->sands)
-			     , get_function_name(thread->func), thread->id);
+		write_thread_entry(fp, i++, thread);
 
 	conf_write(fp, "----[ End rb_dump ]----");
 }
@@ -821,15 +827,12 @@ static void
 thread_list_dump(const list_head_t *l, const char *list_type, FILE *fp)
 {
 	thread_t *thread;
-	int i = 1;
+	unsigned i = 1;
 
 	conf_write(fp, "----[ Begin list_dump %s ]----", list_type);
 
 	list_for_each_entry(thread, l, e_list)
-		conf_write(fp, "#%.2d Thread:%p type %s val/fd/pid %d, fd_close %d, timer: %s, func %s() id %lu"
-			     , i++, thread, get_thread_type_str(thread->type), thread->u.val
-			     , thread->u.f.close_on_reload, timer_delay(thread->sands)
-			     , get_function_name(thread->func), thread->id);
+		write_thread_entry(fp, i++, thread);
 
 	conf_write(fp, "----[ End list_dump ]----");
 }
