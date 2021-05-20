@@ -1179,6 +1179,7 @@ thread_read_requeue(thread_master_t *m, int fd, const timeval_t *new_sands)
 	rb_move_cached(&thread->master->read, thread, n, thread_timer_cmp);
 }
 
+/* Adjust the timeout of a read thread */
 void
 thread_requeue_read(thread_master_t *m, int fd, const timeval_t *sands)
 {
@@ -1768,11 +1769,11 @@ thread_fetch_next_queue(thread_master_t *m)
 	assert(m != NULL);
 
 	/* If there is event process it first. */
-	if (m->event.next != &m->event)
+	if (!list_empty(&m->event))
 		return &m->event;
 
 	/* If there are ready threads process them */
-	if (m->ready.next != &m->ready)
+	if (!list_empty(&m->ready))
 		return &m->ready;
 
 	do {
@@ -1889,17 +1890,14 @@ thread_fetch_next_queue(thread_master_t *m)
 				if (ev->read) {
 					thread_move_ready(m, &m->read, ev->read, THREAD_READ_ERROR);
 					ev->read = NULL;
-				}
-
-				if (ev->write) {
+				} else if (ev->write) {
 					thread_move_ready(m, &m->write, ev->write, THREAD_WRITE_ERROR);
 					ev->write = NULL;
 				}
 
-				if (__test_bit(LOG_DETAIL_BIT, &debug)) {
-					if (ep_ev->events & EPOLLRDHUP)
-						log_message(LOG_INFO, "Received EPOLLRDHUP for fd %d", ev->fd);
-				}
+				if (__test_bit(LOG_DETAIL_BIT, &debug) &&
+				    ep_ev->events & EPOLLRDHUP)
+					log_message(LOG_INFO, "Received EPOLLRDHUP for fd %d", ev->fd);
 
 				continue;
 			}
@@ -1931,7 +1929,7 @@ thread_fetch_next_queue(thread_master_t *m)
 		set_time_now();
 
 		/* If there is a ready thread, return it. */
-		if (m->ready.next != &m->ready)
+		if (!list_empty(&m->ready))
 			return &m->ready;
 	} while (true);
 }
