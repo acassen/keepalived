@@ -423,6 +423,7 @@ enum connect_result
 udp_socket_state(int fd, thread_ref_t thread, uint8_t *recv_buf, size_t *len)
 {
 	int ret;
+ 	char local_recv_buf;
 
 	/* Handle Read timeout, we consider it success unless require_reply is set */
 	if (thread->type == THREAD_READ_TIMEOUT)
@@ -431,7 +432,12 @@ udp_socket_state(int fd, thread_ref_t thread, uint8_t *recv_buf, size_t *len)
 	if (thread->type == THREAD_READ_ERROR)
 		return udp_socket_error(fd);
 
-	ret = recv(fd, recv_buf, *len, 0);
+ 	if (recv_buf) {
+	    ret = recv(fd, recv_buf, *len, 0);
+	    *len = ret;
+	} else {
+            ret = recv(fd, &local_recv_buf, sizeof(local_recv_buf), 0);
+	}
 
 	/* Ret less than 0 means the port is unreachable.
 	 * Otherwise, we consider it success.
@@ -440,7 +446,6 @@ udp_socket_state(int fd, thread_ref_t thread, uint8_t *recv_buf, size_t *len)
 	if (ret < 0)
 		return connect_error;
 
-	*len = ret;
 	return connect_success;
 }
 
