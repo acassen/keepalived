@@ -398,7 +398,7 @@ inotify_event_thread(thread_ref_t thread)
 		}
 	}
 
-	inotify_thread = thread_add_read(master, inotify_event_thread, NULL, thread->u.f.fd, TIMER_NEVER, false);
+	inotify_thread = thread_add_read(master, inotify_event_thread, NULL, thread->u.f.fd, TIMER_NEVER, 0);
 }
 
 void
@@ -442,7 +442,7 @@ start_reload_monitor(void)
 		log_message(LOG_INFO, "Reload scheduled for %s", format_time_t(time_buf, sizeof(time_buf), global_data->reload_time));
 #endif
 
-	inotify_thread = thread_add_read(master, inotify_event_thread, NULL, inotify_fd, TIMER_NEVER, false);
+	inotify_thread = thread_add_read(master, inotify_event_thread, NULL, inotify_fd, TIMER_NEVER, 0);
 }
 
 void

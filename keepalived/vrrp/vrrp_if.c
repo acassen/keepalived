@@ -314,7 +314,7 @@ if_mii_status(const int fd)
 	 */
 	new_bmsr = if_mii_read(fd, phy_id, MII_BMSR);
 
-// printf(" \nBasic Mode Status Register 0x%4.4x ... 0x%4.4x\n", bmsr, new_bmsr);
+// log_message(LOG_INFO, " \nBasic Mode Status Register 0x%4.4x ... 0x%4.4x\n", bmsr, new_bmsr);
 
 	if (bmsr & BMSR_LSTATUS ||
 	    new_bmsr & BMSR_LSTATUS)
@@ -583,14 +583,24 @@ dump_if(FILE *fp, const interface_t *ifp)
 					ifp->vmac_type == MACVLAN_MODE_SOURCE ? "source" :
 #endif
 					"unknown" :
-#ifdef IFLA_IPVLAN_FLAGS
-					ifp->vmac_type == IPVLAN_MODE_PRIVATE ? "private" :
-					ifp->vmac_type == IPVLAN_MODE_VEPA ? "vepa" :
+#if HAVE_DECL_IFLA_IPVLAN_FLAGS
+					ifp->ipvlan_flags & IPVLAN_F_PRIVATE ? "private" :
+					ifp->ipvlan_flags & IPVLAN_F_VEPA ? "vepa" :
 #endif
 					"bridge";
+		const char *ipvlan_mode =
+#ifdef _HAVE_VRRP_IPVLAN_
+				ifp->if_type == IF_TYPE_IPVLAN ?
+						(ifp->vmac_type == IPVLAN_MODE_L2 ? "L2 " :
+						 ifp->vmac_type == IPVLAN_MODE_L3 ? "L3 " :
+#if HAVE_DECL_IPVLAN_MODE_L3S
+						 ifp->vmac_type == IPVLAN_MODE_L3S ? "L3S " :
+#endif
+#endif
+						 "unknown mode ") : "";
 		if (ifp != ifp->base_ifp)
-			conf_write(fp, "   %s type %s, underlying interface = %s, state = %sUP, %sRUNNING",
-					if_type, vlan_type,
+			conf_write(fp, "   %s type %s%s, underlying interface = %s, state = %sUP, %sRUNNING",
+					if_type, ipvlan_mode, vlan_type,
 					ifp->base_ifp->ifname,
 					ifp->base_ifp->ifi_flags & IFF_UP ? "" : "not ", ifp->base_ifp->ifi_flags & IFF_RUNNING ? "" : "not ");
 		else if (ifp->base_ifindex) {
@@ -758,7 +768,10 @@ if_linkbeat_refresh_thread(thread_ref_t thread)
 		}
 	}
 
-	ifp->ifi_flags = if_up ? IFF_UP | IFF_RUNNING : 0;
+	if (if_up)
+		ifp->ifi_flags |= IFF_UP | IFF_RUNNING;
+	else
+		ifp->ifi_flags &= ~(IFF_UP | IFF_RUNNING);
 
 	if (if_up != was_up) {
 		log_message(LOG_INFO, "Linkbeat reports %s %s", ifp->ifname, if_up ? "up" : "down");
@@ -812,7 +825,10 @@ init_interface_linkbeat(void)
 		} else {
 			if_up = init_linkbeat_status(linkbeat_fd, ifp);
 
-			ifp->ifi_flags = if_up ? IFF_UP | IFF_RUNNING : 0;
+			if (if_up)
+				ifp->ifi_flags |= IFF_UP | IFF_RUNNING;
+			else
+				ifp->ifi_flags &= ~(IFF_UP | IFF_RUNNING);
 		}
 
 		/* Register new monitor thread */

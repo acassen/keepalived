@@ -1438,7 +1438,7 @@ http_read_thread(thread_ref_t thread)
 				    , FMT_CHK(checker)
 				    , strerror(errno));
 		thread_add_read(thread->master, http_read_thread, checker,
-				thread->u.f.fd, timeout, true);
+				thread->u.f.fd, timeout, THREAD_DESTROY_CLOSE_FD);
 		return;
 	}
 
@@ -1466,7 +1466,7 @@ http_read_thread(thread_ref_t thread)
 	 * Register itself to not perturbe global I/O multiplexer.
 	 */
 	thread_add_read(thread->master, http_read_thread, checker,
-			thread->u.f.fd, timeout, true);
+			thread->u.f.fd, timeout, THREAD_DESTROY_CLOSE_FD);
 }
 
 /*
@@ -1506,10 +1506,10 @@ http_response_thread(thread_ref_t thread)
 	/* Register asynchronous http/ssl read thread */
 	if (http_get_check->proto == PROTO_SSL)
 		thread_add_read(thread->master, ssl_read_thread, checker,
-				thread->u.f.fd, timeout, true);
+				thread->u.f.fd, timeout, THREAD_DESTROY_CLOSE_FD);
 	else
 		thread_add_read(thread->master, http_read_thread, checker,
-				thread->u.f.fd, timeout, true);
+				thread->u.f.fd, timeout, THREAD_DESTROY_CLOSE_FD);
 }
 
 /* remote Web server is connected, send it the get url query.  */
@@ -1588,7 +1588,7 @@ http_request_thread(thread_ref_t thread)
 
 	/* Register read timeouted thread */
 	thread_add_read(thread->master, http_response_thread, checker,
-			thread->u.f.fd, timeout, true);
+			thread->u.f.fd, timeout, THREAD_DESTROY_CLOSE_FD);
 	thread_del_write(thread);
 	return;
 }
@@ -1605,7 +1605,7 @@ http_check_thread(thread_ref_t thread)
 	int ssl_err = 0;
 	bool new_req = false;
 
-	status = tcp_socket_state(thread, http_check_thread);
+	status = tcp_socket_state(thread, http_check_thread, 0);
 	switch (status) {
 	case connect_error:
 		timeout_epilog(thread, "Error connecting");
@@ -1646,14 +1646,14 @@ http_check_thread(thread_ref_t thread)
 					thread_add_read(thread->master,
 							http_check_thread,
 							THREAD_ARG(thread),
-							thread->u.f.fd, timeout, true);
+							thread->u.f.fd, timeout, THREAD_DESTROY_CLOSE_FD);
 					thread_del_write(thread);
 					break;
 				case SSL_ERROR_WANT_WRITE:
 					thread_add_write(thread->master,
 							 http_check_thread,
 							 THREAD_ARG(thread),
-							 thread->u.f.fd, timeout, true);
+							 thread->u.f.fd, timeout, THREAD_DESTROY_CLOSE_FD);
 					thread_del_read(thread);
 					break;
 				default:
@@ -1677,7 +1677,7 @@ http_check_thread(thread_ref_t thread)
 			thread_add_write(thread->master,
 					 http_request_thread, checker,
 					 thread->u.f.fd,
-					 checker->co->connection_to, true);
+					 checker->co->connection_to, THREAD_DESTROY_CLOSE_FD);
 			thread_del_read(thread);
 		} else {
 #ifdef _CHECKER_DEBUG_
@@ -1734,7 +1734,7 @@ http_connect_thread(thread_ref_t thread)
 	status = tcp_bind_connect(fd, co);
 
 	/* handle tcp connection status & register check worker thread */
-	if (tcp_connection_state(fd, status, thread, http_check_thread, co->connection_to)) {
+	if (tcp_connection_state(fd, status, thread, http_check_thread, co->connection_to, 0)) {
 		close(fd);
 		if (status == connect_fail) {
 			timeout_epilog(thread, "HTTP_CHECK - network unreachable");

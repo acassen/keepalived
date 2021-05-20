@@ -40,10 +40,8 @@
 
 /* global defs */
 #define SMTP_PORT_STR		"25"
-#define SMTP_BUFFER_LENGTH	512U
-#define SMTP_BUFFER_MAX		1024U
 
-/* SMTP command stage. This values are used along with the enum connect_result
+/* SMTP command stage. These values are used along with the enum connect_result
  * values in the SMTP FSM, and so need to follow them. */
 enum smtp_cmd_state {
 	HELO = connect_result_next,
@@ -52,8 +50,7 @@ enum smtp_cmd_state {
 	DATA,
 	BODY,
 	QUIT,
-	END,
-	ERROR
+	END
 };
 #define SMTP_MAX_FSM_STATE	END
 
@@ -81,15 +78,14 @@ do {				\
     (*(SMTP_FSM[S].send)) (T);	\
 } while (0)
 
-#define SMTP_FSM_READ(S, T, N)		\
+#define SMTP_FSM_READ(S, T)		\
 do {					\
   if ((*(SMTP_FSM[S].read)))		\
-    (*(SMTP_FSM[S].read)) (T, N);	\
+    (*(SMTP_FSM[S].read)) (T);	\
 } while (0)
 
 /* SMTP thread arguments */
 typedef struct _smtp {
-	int		fd;
 	int		stage;
 	email_t		*next_email_element;
 	char		*subject;

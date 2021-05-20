@@ -314,6 +314,9 @@ free_parent_mallocs_startup(bool am_child)
 		syslog_ident = NULL;
 
 		FREE_PTR(orig_core_dump_pattern);
+
+		free_notify_script(&global_data->startup_script);
+		free_notify_script(&global_data->shutdown_script);
 	}
 
 	if (free_main_pidfile) {
@@ -734,6 +737,21 @@ config_test_exit(void)
 	}
 }
 
+static unsigned
+check_start_stop_script_secure(notify_script_t **script, magic_t magic)
+{
+	unsigned flags;
+
+	flags = check_script_secure(*script, magic);
+
+	/* Mark not to run if needs inhibiting */
+	if (flags & (SC_INHIBIT | SC_NOTFOUND) ||
+	    !(flags & (SC_EXECUTABLE | SC_SYSTEM)))
+		free_notify_script(script);
+
+	return flags;
+}
+
 #ifndef _ONE_PROCESS_DEBUG_
 static bool reload_config(void)
 {
@@ -819,6 +837,26 @@ static bool reload_config(void)
 		free_global_data (old_global_data);
 	}
 
+	/* There is no point checking the script security of the
+	 * startup script, since we won't run it after a reload.
+	 */
+	if (global_data->shutdown_script) {
+		magic_t magic;
+		unsigned script_flags;
+
+		magic = ka_magic_open();
+
+		script_flags = check_start_stop_script_secure(&global_data->shutdown_script, magic);
+
+		if (magic)
+			ka_magic_close(magic);
+
+		if (!script_security && script_flags & SC_ISSCRIPT) {
+			report_config_error(CONFIG_SECURITY_ERROR, "SECURITY VIOLATION - start/shutdown scripts are being executed but script_security not enabled.%s",
+						script_flags & SC_INSECURE ? " There are insecure scripts." : "");
+		}
+	}
+
 	if (global_data->reload_time_file)
 		start_reload_monitor();
 
@@ -845,6 +883,13 @@ print_parent_data(__attribute__((unused)) thread_ref_t thread)
 	fclose(fp);
 
 	return;
+}
+
+void
+reinitialise_global_vars(void)
+{
+	default_script_uid = 0;
+	default_script_gid = 0;
 }
 
 /* SIGHUP/USR1/USR2/STATS_CLEAR handler */
@@ -887,6 +932,8 @@ propagate_signal(__attribute__((unused)) void *v, int sig)
 static void
 do_reload(void)
 {
+	reinitialise_global_vars();
+
 	if (!reload_config())
 		return;
 
@@ -2284,21 +2331,6 @@ register_parent_thread_addresses(void)
 	register_thread_address("run_startup_script", run_startup_script);
 }
 #endif
-
-static unsigned
-check_start_stop_script_secure(notify_script_t **script, magic_t magic)
-{
-	unsigned flags;
-
-	flags = check_notify_script_secure(script, magic);
-
-	/* Mark not to run if needs inhibiting */
-	if (flags & (SC_INHIBIT | SC_NOTFOUND) ||
-	    !(flags & (SC_EXECUTABLE | SC_SYSTEM)))
-		free_notify_script(script);
-
-	return flags;
-}
 
 /* Entry point */
 int

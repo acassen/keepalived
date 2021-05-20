@@ -93,11 +93,17 @@ dnl --RTA_EXPIRES		dnl -- Linux 4.5
 
 dnl --FRA_L3MDEV		dnl -- Linux 4.8
 
+dnl --IPVLAN_MODE_L3S		dnl -- Linux 4.9
+
 dnl --FRA_UID_RANGE		dnl -- Linux 4.10
 
-./keepalived/core/main.c:	 * fs/coredump.c. Currently (Linux 4.10) defines it to be 128, but the
+/* CORENAME_MAX_SIZE in kernel source include/linux/binfmts.h defines
+ * the maximum string length, * see core_pattern[CORENAME_MAX_SIZE] in
+ * fs/coredump.c. Currently (Linux 4.10) defines it to be 128, but the
+ * definition is not exposed to user-space. */
 
 dnl --RTA_TTL_PROPAGATE		dnl -- Linux 4.12
+IFLA_IPVLAN_FLAGS, IPVLAN_MODE_PRIVATE, IPVLAN_MODE_VEPA - Linux 4.15
 dnl --RTAX_FASTOPEN_NO_COOKIE	dnl -- Linux 4.15
 dnl --FRA_PROTOCOL		dnl -- Linux 4.17
 dnl --FRA_IP_PROTO		dnl -- Linux 4.17

@@ -63,7 +63,7 @@ child_reloaded_thread(__attribute__((unused)) thread_ref_t thread)
 	} else
 		log_message(LOG_INFO, "read eventfd count %" PRIu64 ", num_reloading %u", event_count, num_reloading);
 
-	thread_add_read(master, child_reloaded_thread, NULL, child_reloaded_event, TIMER_NEVER, false);
+	thread_add_read(master, child_reloaded_thread, NULL, child_reloaded_event, TIMER_NEVER, 0);
 }
 
 void
@@ -74,7 +74,7 @@ open_config_read_fd(void)
 #endif
 
 	child_reloaded_event = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
-	thread_add_read(master, child_reloaded_thread, NULL, child_reloaded_event, TIMER_NEVER, false);
+	thread_add_read(master, child_reloaded_thread, NULL, child_reloaded_event, TIMER_NEVER, 0);
 }
 
 void

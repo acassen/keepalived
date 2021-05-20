@@ -89,6 +89,7 @@ extern bool running_vrrp(void) __attribute__ ((pure));
 #ifdef _WITH_LVS_
 extern bool running_checker(void) __attribute__ ((pure));
 #endif
+extern void reinitialise_global_vars(void);
 
 #ifdef THREAD_DUMP
 extern void thread_dump_signal(void *, int);

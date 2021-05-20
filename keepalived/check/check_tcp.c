@@ -147,7 +147,7 @@ tcp_check_thread(thread_ref_t thread)
 	checker_t *checker = THREAD_ARG(thread);
 	int status;
 
-	status = tcp_socket_state(thread, tcp_check_thread);
+	status = tcp_socket_state(thread, tcp_check_thread, 0);
 
 	/* If status = connect_in_progress, next thread is already registered.
 	 * If it is connect_success, the fd is still open.
@@ -206,7 +206,7 @@ tcp_connect_thread(thread_ref_t thread)
 
 	/* handle tcp connection status & register check worker thread */
 	if(tcp_connection_state(fd, status, thread, tcp_check_thread,
-			co->connection_to)) {
+			co->connection_to, 0)) {
 		close(fd);
 
 		if (status == connect_fail) {

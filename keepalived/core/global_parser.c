@@ -284,6 +284,11 @@ startup_shutdown_script(const vector_t *strvec, notify_script_t **script, bool s
 {
 	const char *type = startup ? "startup" : "shutdown";
 
+#ifndef _ONE_PROCESS_DEBUG_
+	if (prog_type != PROG_TYPE_PARENT)
+		return;
+#endif
+
 	if (*script) {
 		report_config_error(CONFIG_GENERAL_ERROR, "%s script already specified", type);
 		return;
@@ -314,6 +319,11 @@ startup_shutdown_script_timeout_handler(const vector_t *strvec, bool startup)
 	const char *type = startup ? "startup" : "shutdown";
 	unsigned delay;
 
+#ifndef _ONE_PROCESS_DEBUG_
+	if (prog_type != PROG_TYPE_PARENT)
+		return;
+#endif
+
 	if (vector_size(strvec) < 2) {
 		report_config_error(CONFIG_GENERAL_ERROR, "%s_script_timeout requires value", type);
 		return;
@@ -332,12 +342,14 @@ startup_shutdown_script_timeout_handler(const vector_t *strvec, bool startup)
 static void
 startup_script_handler(const vector_t *strvec)
 {
+	/* Only applicable for the parent process */
 	startup_shutdown_script(strvec, &global_data->startup_script, true);
 }
 
 static void
 startup_script_timeout_handler(const vector_t *strvec)
 {
+	/* Only applicable for the parent process */
 	startup_shutdown_script_timeout_handler(strvec, true);
 }
 

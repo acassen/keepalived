@@ -265,7 +265,7 @@ signal_run_callback(thread_ref_t thread)
 #endif
 	}
 
-	signal_thread = thread_add_read(master, signal_run_callback, NULL, thread->u.f.fd, TIMER_NEVER, false);
+	signal_thread = thread_add_read(master, signal_run_callback, NULL, thread->u.f.fd, TIMER_NEVER, 0);
 }
 
 static void
@@ -281,7 +281,7 @@ clear_signal_handler_addresses(void)
 void
 add_signal_read_thread(thread_master_t *thread_master)
 {
-	signal_thread = thread_add_read(thread_master, signal_run_callback, NULL, thread_master->signal_fd, TIMER_NEVER, false);
+	signal_thread = thread_add_read(thread_master, signal_run_callback, NULL, thread_master->signal_fd, TIMER_NEVER, 0);
 }
 
 void
@@ -436,9 +436,6 @@ void
 set_sigxcpu_handler(void)
 {
 	signal_set(SIGXCPU, log_sigxcpu, NULL);
-#ifdef THREAD_DUMP
-	register_signal_handler_address("log_sigxcpu", log_sigxcpu);
-#endif
 }
 
 #ifdef THREAD_DUMP
@@ -446,5 +443,6 @@ void
 register_signal_thread_addresses(void)
 {
 	register_thread_address("signal_run_callback", signal_run_callback);
+	register_signal_handler_address("log_sigxcpu", log_sigxcpu);
 }
 #endif

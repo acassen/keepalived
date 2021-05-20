@@ -328,7 +328,7 @@ bfd_check_thread(thread_ref_t thread)
 	bfd_event_t evt;
 
 	bfd_thread = thread_add_read(master, bfd_check_thread, NULL,
-				     thread->u.f.fd, TIMER_NEVER, false);
+				     thread->u.f.fd, TIMER_NEVER, 0);
 
 	if (thread->type != THREAD_READY_READ_FD)
 		return;
@@ -340,7 +340,7 @@ bfd_check_thread(thread_ref_t thread)
 void
 start_bfd_monitoring(thread_master_t *thread_master)
 {
-	thread_add_read(thread_master, bfd_check_thread, NULL, bfd_checker_event_pipe[0], TIMER_NEVER, false);
+	thread_add_read(thread_master, bfd_check_thread, NULL, bfd_checker_event_pipe[0], TIMER_NEVER, 0);
 }
 
 void

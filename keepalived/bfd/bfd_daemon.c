@@ -189,11 +189,6 @@ start_bfd(__attribute__((unused)) data_t *prev_global_data)
 	}
 #endif
 
-	/* Post initializations */
-#ifdef _MEM_CHECK_
-	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);
-#endif
-
 	if (__test_bit(DUMP_CONF_BIT, &debug))
 		dump_bfd_data(NULL, bfd_data);
 
@@ -286,6 +281,8 @@ reload_bfd_thread(__attribute__((unused)) thread_ref_t thread)
 	old_global_data = global_data;
 	global_data = NULL;
 
+	reinitialise_global_vars();
+
 	/* Reload the conf */
 	signal_set(SIGCHLD, thread_child_handler, master);
 	start_bfd(old_global_data);
@@ -297,6 +294,11 @@ reload_bfd_thread(__attribute__((unused)) thread_ref_t thread)
 
 	set_time_now();
 	log_message(LOG_INFO, "Reload finished in %lu usec", -timer_long(timer_sub_now(timer)));
+
+	/* Post initializations */
+#ifdef _MEM_CHECK_
+	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);
+#endif
 }
 
 /* This function runs in the parent process. */
@@ -479,6 +481,11 @@ start_bfd_child(void)
 
 #ifdef THREAD_DUMP
 	register_bfd_thread_addresses();
+#endif
+
+	/* Post initializations */
+#ifdef _MEM_CHECK_
+	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);
 #endif
 
 	/* Launch the scheduling I/O multiplexer */

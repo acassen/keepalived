@@ -1558,7 +1558,13 @@ The syntax for vrrp_instance is :
     # the virtual ip addresses determine whether IPv4 or IPv6 is used).
     \fBnative_ipv6\fR
 
-    # Ignore VRRP interface faults (default unset)
+    # Ignore VRRP interface faults (default unset).
+    # Note: when using IPv6, setting the interface administratively down, e.g.
+    #   'ip link set IF down' will by default cause all IPv6 addresses to be
+    #   deleted from the interface, and consequently the VRRP instance will
+    #   go to fault state due to the addresses being deleted. Setting sysctl
+    #   net.ipv6.conf.IF.keep_addr_on_down to 1 will allow non link-local addresses
+    #   to remain when the interface is downed.
     \fBdont_track_primary\fR
 
     # optional, monitor these as well.

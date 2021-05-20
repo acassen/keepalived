@@ -167,7 +167,7 @@ socket_connect(int fd, const struct sockaddr_storage *addr)
 }
 
 enum connect_result
-socket_state(thread_ref_t thread, thread_func_t func)
+socket_state(thread_ref_t thread, thread_func_t func, unsigned extra_flags)
 {
 	int status;
 	socklen_t addrlen;
@@ -198,7 +198,7 @@ socket_state(thread_ref_t thread, thread_func_t func)
 	if (status == EINPROGRESS) {
 		timer_min = timer_sub_now(thread->sands);
 		thread_add_write(thread->master, func, THREAD_ARG(thread),
-				 thread->u.f.fd, -timer_long(timer_min), true);
+				 thread->u.f.fd, -timer_long(timer_min), THREAD_DESTROY_CLOSE_FD | extra_flags);
 		return connect_in_progress;
 	}
 
@@ -215,15 +215,11 @@ socket_state(thread_ref_t thread, thread_func_t func)
 #ifdef _WITH_LVS_
 bool
 socket_connection_state(int fd, enum connect_result status, thread_ref_t thread,
-			thread_func_t func, unsigned long timeout)
+			thread_func_t func, unsigned long timeout, unsigned extra_flags)
 {
-	void *checker;
-
-	checker = THREAD_ARG(thread);
-
 	if (status == connect_success ||
 	    status == connect_in_progress) {
-		thread_add_write(thread->master, func, checker, fd, timeout, true);
+		thread_add_write(thread->master, func, THREAD_ARG(thread), fd, timeout, THREAD_DESTROY_CLOSE_FD | extra_flags);
 		return false;
 	}
 
@@ -423,7 +419,7 @@ enum connect_result
 udp_socket_state(int fd, thread_ref_t thread, uint8_t *recv_buf, size_t *len)
 {
 	int ret;
- 	char local_recv_buf;
+	char local_recv_buf;
 
 	/* Handle Read timeout, we consider it success unless require_reply is set */
 	if (thread->type == THREAD_READ_TIMEOUT)
@@ -432,11 +428,11 @@ udp_socket_state(int fd, thread_ref_t thread, uint8_t *recv_buf, size_t *len)
 	if (thread->type == THREAD_READ_ERROR)
 		return udp_socket_error(fd);
 
- 	if (recv_buf) {
-	    ret = recv(fd, recv_buf, *len, 0);
-	    *len = ret;
+	if (recv_buf) {
+		ret = recv(fd, recv_buf, *len, 0);
+		*len = ret;
 	} else {
-            ret = recv(fd, &local_recv_buf, sizeof(local_recv_buf), 0);
+		ret = recv(fd, &local_recv_buf, sizeof(local_recv_buf), 0);
 	}
 
 	/* Ret less than 0 means the port is unreachable.
@@ -458,7 +454,7 @@ udp_icmp_check_state(int fd, enum connect_result status, thread_ref_t thread,
 	checker = THREAD_ARG(thread);
 
 	if (status == connect_success) {
-		thread_add_read(thread->master, func, checker, fd, timeout, true);
+		thread_add_read(thread->master, func, checker, fd, timeout, THREAD_DESTROY_CLOSE_FD);
 		return false;
 	}
 

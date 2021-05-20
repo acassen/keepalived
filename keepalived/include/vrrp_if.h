@@ -145,6 +145,9 @@ typedef struct _interface {
 #ifdef _HAVE_VRRP_VMAC_
 	if_type_t		if_type;		/* interface type */
 	int			vmac_type;		/* Type of macvlan or ipvlan */
+#ifdef HAVE_DECL_IFLA_IPVLAN_FLAGS
+	int			ipvlan_flags;		/* bridge/private/vepa */
+#endif
 	ifindex_t		base_ifindex;		/* Only used at startup if we find vmac i/f before base i/f */
 #ifdef HAVE_IFLA_LINK_NETNSID
 	int			base_netns_id;		/* Network namespace of the parent interface */

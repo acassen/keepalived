@@ -362,10 +362,6 @@ start_check(list_head_t *old_checkers_queue, data_t *prev_global_data)
 		return;
 	}
 
-#ifdef _MEM_CHECK_
-	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);
-#endif
-
 	/* If we are just testing the configuration, then we terminate now */
 	if (__test_bit(CONFIG_TEST_BIT, &debug))
 		return;
@@ -489,6 +485,8 @@ reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 	/* Use standard scheduling while reloading */
 	reset_process_priorities();
 
+	reinitialise_global_vars();
+
 	/* set the reloading flag */
 	SET_RELOAD;
 
@@ -532,6 +530,10 @@ reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 	free_global_data(old_global_data);
 	free_checker_list(&old_checkers_queue);
 	UNSET_RELOAD;
+
+#ifdef _MEM_CHECK_
+	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);
+#endif
 }
 
 static void
@@ -773,6 +775,10 @@ start_check_child(void)
 
 #ifdef THREAD_DUMP
 	register_check_thread_addresses();
+#endif
+
+#ifdef _MEM_CHECK_
+	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);
 #endif
 
 	/* Launch the scheduling I/O multiplexer */
