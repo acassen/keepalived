@@ -308,8 +308,9 @@ udp_check_thread(thread_ref_t thread)
 		udp_epilog(thread, false);
 	}
 
-        if (recv_buf)
-            FREE(recv_buf);
+	if (recv_buf)
+		FREE(recv_buf);
+
 	return;
 }
 
