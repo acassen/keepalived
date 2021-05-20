@@ -921,6 +921,10 @@ thread_destroy_list(thread_master_t *m, list_head_t *l)
 			/* Do we have a file descriptor that needs closing ? */
 			if (thread->u.f.flags & THREAD_DESTROY_CLOSE_FD)
 				thread_close_fd(thread);
+
+			/* Do we need to free arg? */
+			if (thread->u.f.flags & THREAD_DESTROY_FREE_ARG)
+				FREE(thread->arg);
 		}
 
 		list_del_init(&thread->e_list);
@@ -948,6 +952,10 @@ thread_destroy_rb(thread_master_t *m, rb_root_cached_t *root)
 			/* Do we have a file descriptor that needs closing ? */
 			if (thread->u.f.flags & THREAD_DESTROY_CLOSE_FD)
 				thread_close_fd(thread);
+
+			/* Do we need to free arg? */
+			if (thread->u.f.flags & THREAD_DESTROY_FREE_ARG)
+				FREE(thread->arg);
 		}
 
 		thread_add_unuse(m, thread);

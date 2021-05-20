@@ -82,6 +82,7 @@ enum thread_flags {
 
 /* Thread flags for thread destruction */
 #define THREAD_DESTROY_CLOSE_FD	0x01
+#define THREAD_DESTROY_FREE_ARG	0x02
 
 typedef struct _thread thread_t;
 typedef const thread_t * thread_ref_t;

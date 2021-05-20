@@ -65,13 +65,13 @@ extern enum connect_result
 socket_connect(int, const struct sockaddr_storage *);
 
 extern enum connect_result
-socket_state(thread_ref_t, thread_func_t);
+socket_state(thread_ref_t, thread_func_t, unsigned);
 
 #ifdef _WITH_LVS_
 extern bool
 socket_connection_state(int, enum connect_result
 		      , thread_ref_t, thread_func_t
-		      , unsigned long);
+		      , unsigned long, unsigned);
 #endif
 
 /* Backward compatibility */
@@ -90,17 +90,17 @@ tcp_connect(int fd, const struct sockaddr_storage *addr)
 }
 
 static inline enum connect_result
-tcp_socket_state(thread_ref_t thread, thread_func_t func)
+tcp_socket_state(thread_ref_t thread, thread_func_t func, unsigned extra_flags)
 {
-	return socket_state(thread, func);
+	return socket_state(thread, func, extra_flags);
 }
 
 #ifdef _WITH_LVS_
 static inline bool
 tcp_connection_state(int fd, enum connect_result status, thread_ref_t thread,
-		     thread_func_t func, unsigned long timeout)
+		     thread_func_t func, unsigned long timeout, unsigned flags)
 {
-	return socket_connection_state(fd, status, thread, func, timeout);
+	return socket_connection_state(fd, status, thread, func, timeout, flags);
 }
 
 extern enum connect_result udp_bind_connect(int, conn_opts_t *, uint8_t *, uint16_t);
