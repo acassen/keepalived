@@ -78,10 +78,10 @@ do {				\
     (*(SMTP_FSM[S].send)) (T);	\
 } while (0)
 
-#define SMTP_FSM_READ(S, T, N)		\
+#define SMTP_FSM_READ(S, T)		\
 do {					\
   if ((*(SMTP_FSM[S].read)))		\
-    (*(SMTP_FSM[S].read)) (T, N);	\
+    (*(SMTP_FSM[S].read)) (T);	\
 } while (0)
 
 /* SMTP thread arguments */
