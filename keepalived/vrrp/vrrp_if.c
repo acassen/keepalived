@@ -583,7 +583,7 @@ dump_if(FILE *fp, const interface_t *ifp)
 					ifp->vmac_type == MACVLAN_MODE_SOURCE ? "source" :
 #endif
 					"unknown" :
-#if HAVE_DECL_IFLA_IPVLAN_FLAGS
+#if defined _HAVE_VRRP_IPVLAN_ && HAVE_DECL_IFLA_IPVLAN_FLAGS
 					ifp->ipvlan_flags & IPVLAN_F_PRIVATE ? "private" :
 					ifp->ipvlan_flags & IPVLAN_F_VEPA ? "vepa" :
 #endif
@@ -596,8 +596,10 @@ dump_if(FILE *fp, const interface_t *ifp)
 #if HAVE_DECL_IPVLAN_MODE_L3S
 						 ifp->vmac_type == IPVLAN_MODE_L3S ? "L3S " :
 #endif
-#endif
 						 "unknown mode ") : "";
+#else
+					   "";
+#endif
 		if (ifp != ifp->base_ifp)
 			conf_write(fp, "   %s type %s%s, underlying interface = %s, state = %sUP, %sRUNNING",
 					if_type, ipvlan_mode, vlan_type,
