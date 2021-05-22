@@ -429,8 +429,8 @@ already_exist_sock(list_head_t *l, sa_family_t family, int proto, interface_t *i
 		if ((sock->family == family)	&&
 		    (sock->proto == proto)	&&
 		    (sock->ifp == ifp)		&&
-		    ((!unicast_src && !sock->unicast_src) ||
-		     (unicast_src && !inet_sockaddrcmp(sock->unicast_src, unicast_src))))
+		    (!unicast_src == !sock->unicast_src) &&
+		    (!unicast_src || !inet_sockaddrcmp(sock->unicast_src, unicast_src)))
 			return sock;
 	}
 
