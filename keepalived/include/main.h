@@ -29,6 +29,8 @@
 #include <stdbool.h>
 #include <sys/types.h>
 
+#include "scheduler.h"
+
 /* State flags */
 enum daemon_bits {
 #ifdef _WITH_VRRP_
@@ -90,6 +92,7 @@ extern bool running_vrrp(void) __attribute__ ((pure));
 extern bool running_checker(void) __attribute__ ((pure));
 #endif
 extern void reinitialise_global_vars(void);
+extern void start_reload(thread_ref_t);
 
 #ifdef THREAD_DUMP
 extern void thread_dump_signal(void *, int);

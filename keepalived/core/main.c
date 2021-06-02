@@ -1068,9 +1068,11 @@ start_validate_reload_conf_child(void)
 	FREE_PTR(config_fd_str);
 }
 
-static void
-process_reload_signal(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
+void
+start_reload(thread_ref_t thread)
 {
+	if (thread && __test_bit(LOG_DETAIL_BIT, &debug))
+		log_message(LOG_INFO, "Processing queued reload");
 
 	/* if reload_check_config is configured, validate the new config before reload */
 	if (!global_data->reload_check_config) {
@@ -1083,6 +1085,16 @@ process_reload_signal(__attribute__((unused)) void *v, __attribute__((unused)) i
 
 	start_validate_reload_conf_child();
 }
+
+static void
+process_reload_signal(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
+{
+	if (!num_reloading)
+		start_reload(NULL);
+	else
+		queue_reload();
+}
+
 #endif
 
 #ifdef THREAD_DUMP
@@ -2304,6 +2316,9 @@ register_parent_thread_addresses(void)
 {
 	register_scheduler_addresses();
 	register_signal_thread_addresses();
+#ifndef _ONE_PROCESS_DEBUG_
+	register_config_notify_addresses();
+#endif
 
 #ifdef _WITH_LVS_
 	register_check_parent_addresses();
