@@ -82,6 +82,7 @@ dnl --RTA_ENCAP			dnl -- Linux 4.3
 dnl ----[ Checks for kernel IFLA_VRF_... support ]----
   # Introduced in Linux 4.3
 
+MCL_ONFAULT			-- Linux 4.4
 dnl --RTEXT_FILTER_SKIP_STATS	dnl -- Linux 4.4
 dnl --RTA_EXPIRES		dnl -- Linux 4.5
 
