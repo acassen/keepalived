@@ -44,6 +44,10 @@
 
 #define max(a,b) ((a) >= (b) ? (a) : (b))
 
+/* Evaluates to -1, 0 or 1 as appropriate.
+ * Avoids a - b <= 0 producing "warning: assuming signed overflow does not occur when simplifying ‘X - Y <= 0’ to ‘X <= Y’ [-Wstrict-overflow]" */
+#define less_equal_greater_than(a,b)	({ typeof(a) _a = (a); typeof(b) _b = (b); (_a) < (_b) ? -1 : (_a) == (_b) ? 0 : 1; })
+
 #if defined RUN_DIR_ROOT
 #define RUN_DIR			RUN_DIR_ROOT "/run/"
 #elif defined GNU_STD_PATHS
