@@ -1489,6 +1489,8 @@ netlink_request(nl_handle_t *nl,
 #endif
 		req.nlh.nlmsg_flags |= NLM_F_DUMP;
 #if HAVE_DECL_RTEXT_FILTER_SKIP_STATS
+	/* The following produces a -Wstringop-overflow warning due to writing
+	 * 4 bytes into a region of size 0. This is, however, safe. */
 	addattr32(&req.nlh, sizeof req, IFLA_EXT_MASK, RTEXT_FILTER_SKIP_STATS);
 #endif
 

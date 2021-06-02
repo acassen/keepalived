@@ -222,7 +222,8 @@ static inline uint16_t csum_incremental_update16(const uint16_t old_csum, const 
 	return ~acc & 0xffff;
 }
 
-/* The following definition produces some warnings: (dst[0] = '\0', strncat(dst, src, sizeof(dst) - 1)) */
+/* The definition produces some warnings: (dst[0] = '\0', strncat(dst, src, sizeof(dst) - 1)).
+ * The following still produces warnings with at least gcc versions 9, 10, and 11. */
 #define strcpy_safe(dst, src) \
 	do { strncpy(dst, src, sizeof(dst) - 1); dst[sizeof(dst) - 1] = '\0'; } while (0)
 
