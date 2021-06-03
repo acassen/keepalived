@@ -73,3 +73,15 @@ AudioEngine::AudioEngine()
     , d_ptr( new AudioEnginePrivate( this ) )
 {
     Q_D( AudioEngine );
+	    
+	    
+	    AudioEngine::~AudioEngine()
+{
+    tDebug() << Q_FUNC_INFO;
+
+    TomahawkSettings::instance()->setVolume( volume() );
+    TomahawkSettings::instance()->setMuted( isMuted() );
+
+    delete d_ptr;
+}
+
