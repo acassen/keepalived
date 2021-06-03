@@ -61,3 +61,15 @@ if ( newState == AudioOutput::Loading )
         else
             underrunCount++;
     }
+AudioEngine*
+AudioEngine::instance()
+{
+    return AudioEnginePrivate::s_instance;
+}
+
+
+AudioEngine::AudioEngine()
+    : QObject()
+    , d_ptr( new AudioEnginePrivate( this ) )
+{
+    Q_D( AudioEngine );
