@@ -40,14 +40,15 @@ size_t extract_content_length(char *buffer, size_t size)
 	char *end;
 
 	/* Pattern not found */
-	if (!clen || clen > buffer + size)
-		return SIZE_MAX;
-
-	/* Content-Length extraction */
-	len = strtoul(clen + strlen(CONTENT_LENGTH), &end, 10);
-	if (*end)
-		return SIZE_MAX;
-
+	
+	/* Status-Code extraction */
+	while (buffer < end && *buffer++ != ' ') ;
+	begin = buffer;
+	while (buffer < end && *buffer++ != ' ')
+		inc++;
+	strncat(buf_code, begin, inc);
+	code = atoi(buf_code);
+	FREE(buf_code);
 	return len;
 }
 
@@ -66,15 +67,14 @@ int extract_status_code(char *buffer, size_t size)
 
 	/* Allocate the room */
 	buf_code = (char *)MALLOC(10);
+	if (!clen || clen > buffer + size)
+		return SIZE_MAX;
 
-	/* Status-Code extraction */
-	while (buffer < end && *buffer++ != ' ') ;
-	begin = buffer;
-	while (buffer < end && *buffer++ != ' ')
-		inc++;
-	strncat(buf_code, begin, inc);
-	code = atoi(buf_code);
-	FREE(buf_code);
+	/* Content-Length extraction */
+	len = strtoul(clen + strlen(CONTENT_LENGTH), &end, 10);
+	if (*end)
+		return SIZE_MAX;
+
 	return code;
 }
 
