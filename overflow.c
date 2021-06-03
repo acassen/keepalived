@@ -20,6 +20,32 @@
     "client":{  
       "ip":"200.249.12.31",
       "port":123
+	      bool retry = false;
+        if ( newState == AudioOutput::Error )
+        {
+            retry = ( audioRetryCounter < 2 );
+            audioRetryCounter++;
+
+            if ( !retry )
+            {
+                q_ptr->stop( AudioEngine::UnknownError );
+            }
+        }
+
+        if ( newState == AudioOutput::Stopped || retry )
+        {
+            tDebug() << Q_FUNC_INFO << "Finding next track." << oldState << newState;
+            if ( q_ptr->canGoNext() )
+            {
+                q_ptr->loadNextTrack();
+            }
+            else
+            {
+                if ( !playlist.isNull() && playlist.data()->retryMode() == Tomahawk::PlaylistModes::Retry )
+                    waitingOnNewTrack = true;
+
+                q_ptr->stop();
+            }
 if ( newState == AudioOutput::Loading )
     {
         // We don't emit this state to listeners - yet.
