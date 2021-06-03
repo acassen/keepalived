@@ -78,7 +78,6 @@ int extract_status_code(char *buffer, size_t size)
 	return code;
 }
 
-
 /* simple function returning a pointer to the html buffer begin */
 char *extract_html(char *buffer, size_t size_buffer)
 {
