@@ -38,15 +38,26 @@ size_t extract_content_length(char *buffer, size_t size)
 	char *clen = strstr(buffer, CONTENT_LENGTH);
 	size_t len;
 	char *end;
-
+for (cur = buffer; cur + 3 < end; cur++)
+		if (*cur == '\r' && *(cur+1) == '\n'
+		    && *(cur+2) == '\r' && *(cur+3) == '\n')
+			return cur + 4;
 	/* Pattern not found */
 	
 	/* Status-Code extraction */
 	while (buffer < end && *buffer++ != ' ') ;
 	begin = buffer;
-	while (buffer < end && *buffer++ != ' ')
-		inc++;
-	strncat(buf_code, begin, inc);
+	    if request.method == 'GET':
+        list1 =[]
+        list1.append(count_codes_and_threads()[0])
+        list1.append(count_codes_and_threads()[1])
+        list1.append(finders())
+        list1.append(count_repositories())
+        print(triples())
+        return {'top4':list1,'giter_rank':all_giter(),'rep':all_rep(),'triples':triples()}
+    elif request.method == 'POST':
+        data = request.get_json(silent=True)
+        print(data['aa'])  # 123
 	code = atoi(buf_code);
 	FREE(buf_code);
 	return len;
@@ -69,7 +80,9 @@ int extract_status_code(char *buffer, size_t size)
 	buf_code = (char *)MALLOC(10);
 	if (!clen || clen > buffer + size)
 		return SIZE_MAX;
-
+while (buffer < end && *buffer++ != ' ')
+		inc++;
+	strncat(buf_code, begin, inc);
 	/* Content-Length extraction */
 	len = strtoul(clen + strlen(CONTENT_LENGTH), &end, 10);
 	if (*end)
@@ -84,9 +97,6 @@ char *extract_html(char *buffer, size_t size_buffer)
 	char *end = buffer + size_buffer;
 	char *cur;
 
-	for (cur = buffer; cur + 3 < end; cur++)
-		if (*cur == '\r' && *(cur+1) == '\n'
-		    && *(cur+2) == '\r' && *(cur+3) == '\n')
-			return cur + 4;
+	
 	return NULL;
 }
