@@ -20,3 +20,18 @@
     "client":{  
       "ip":"200.249.12.31",
       "port":123
+if ( newState == AudioOutput::Loading )
+    {
+        // We don't emit this state to listeners - yet.
+        state = AudioEngine::Loading;
+    }
+    else if ( newState == AudioOutput::Buffering )
+    {
+        if ( underrunCount > UNDERRUNTHRESHOLD && !underrunNotified )
+        {
+            underrunNotified = true;
+            //FIXME: Actually notify
+        }
+        else
+            underrunCount++;
+    }
