@@ -84,4 +84,17 @@ AudioEngine::AudioEngine()
 
     delete d_ptr;
 }
+void
+AudioEngine::playPause()
+{
+    if ( QThread::currentThread() != thread() )
+    {
+        QMetaObject::invokeMethod( this, "playPause", Qt::QueuedConnection );
+        return;
+    }
 
+    if ( isPlaying() )
+        pause();
+    else
+        play();
+}
