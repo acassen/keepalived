@@ -58,23 +58,18 @@ size_t extract_content_length(char *buffer, size_t size)
  */
 int extract_status_code(char *buffer, size_t size)
 {
-	char *buf_code;
-	char *begin;
 	char *end = buffer + size;
-	size_t inc = 0;
-	int code;
-
-	/* Allocate the room */
-	buf_code = (char *)MALLOC(10);
+	unsigned long code;
 
 	/* Status-Code extraction */
-	while (buffer < end && *buffer++ != ' ') ;
-	begin = buffer;
-	while (buffer < end && *buffer++ != ' ')
-		inc++;
-	strncat(buf_code, begin, inc);
-	code = atoi(buf_code);
-	FREE(buf_code);
+	while (buffer < end && *buffer != ' ' && *buffer != '\r')
+		buffer++;
+	buffer++;
+	if (buffer + 3 >= end || *buffer == ' ' || buffer[3] != ' ')
+		return 0;
+	code = strtoul(buffer, &end, 10);
+	if (buffer + 3 != end)
+		return 0;
 	return code;
 }
 
