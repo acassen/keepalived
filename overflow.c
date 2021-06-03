@@ -1,9 +1,9 @@
 void
-AudioEngine::play()
+AudioEngine::pause()
 {
     if ( QThread::currentThread() != thread() )
     {
-        QMetaObject::invokeMethod( this, "play", Qt::QueuedConnection );
+        QMetaObject::invokeMethod( this, "pause", Qt::QueuedConnection );
         return;
     }
 
@@ -11,20 +11,8 @@ AudioEngine::play()
 
     tDebug( LOGEXTRA ) << Q_FUNC_INFO;
 
-    if ( isPaused() )
-    {
-        d->audioOutput->play();
-        emit resumed();
+    d->audioOutput->pause();
+    emit paused();
 
-        sendNowPlayingNotification( Tomahawk::InfoSystem::InfoNowResumed );
-    }
-    else
-    {
-        if ( !d->currentTrack && d->playlist && d->playlist->nextResult() )
-        {
-            loadNextTrack();
-        }
-        else
-            next();
-    }
+    Tomahawk::InfoSystem::InfoSystem::instance()->pushInfo( Tomahawk::InfoSystem::InfoPushData( s_aeInfoIdentifier, Tomahawk::InfoSystem::InfoNowPaused, QVariant(), Tomahawk::InfoSystem::PushNoFlag ) );
 }
