@@ -86,6 +86,10 @@ vrrp_sync_set_group(vrrp_sgroup_t *sgroup)
 			group_member_down = true;
 	}
 
+	/* The iname vector is only used for us to set up the sync groups, so delete it */
+	free_strvec(sgroup->iname);
+	sgroup->iname = NULL;
+
 	if (group_member_down)
 		sgroup->state = VRRP_STATE_FAULT;
 
@@ -97,17 +101,12 @@ vrrp_sync_set_group(vrrp_sgroup_t *sgroup)
 		return false;
 	}
 
-	/* The sync group will be removed by the calling function if it has only one member */
-	if (sgroup->vrrp_instances.prev == sgroup->vrrp_instances.next) {
+	/* For most users a sync group with only one member is a configuration error */
+	if (sgroup->vrrp_instances.prev == sgroup->vrrp_instances.next)
 		report_config_error(CONFIG_GENERAL_ERROR, "Sync group %s has only 1 virtual router(s) -"
-							  " this probably isn't what you want - removing"
+							  " this probably isn't what you want"
 							, sgroup->gname);
-		return false;
-	}
 
-	/* The iname vector is only used for us to set up the sync groups, so delete it */
-	free_strvec(sgroup->iname);
-	sgroup->iname = NULL;
 	return true;
 }
 

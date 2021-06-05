@@ -68,14 +68,19 @@ set_process_dont_swap(size_t stack_reserve)
 	char stack[stack_reserve];
 	size_t i;
 
-	stack[0] = 23;		/* A random number */
-	for (i = 0; i < stack_reserve; i += pagesize)
-		stack[i] = stack[0];
-
-	if (mlockall(MCL_FUTURE) == -1)
+	if (mlockall(MCL_CURRENT | MCL_FUTURE
+#ifdef MCL_ONFAULT
+					      | MCL_ONFAULT	/* Since Linux 4.4 */
+#endif
+							   ) == -1)
 		log_message(LOG_INFO, "Unable to lock process in memory - %s", strerror(errno));
 	else
 		process_locked_in_memory = true;
+
+	stack[0] = 23;		/* A random number */
+	for (i = 0; i < stack_reserve; i += pagesize)
+		stack[i] = stack[0];
+	stack[stack_reserve-1] = stack[0];
 }
 
 static void

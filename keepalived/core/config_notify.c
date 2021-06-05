@@ -35,7 +35,17 @@
 
 static int child_reloaded_event = -1;
 static bool loaded;
+static bool reload_queued;
 
+
+void
+queue_reload(void)
+{
+	if (__test_bit(LOG_DETAIL_BIT, &debug))
+		log_message(LOG_INFO, "Reload already in progress, request queued");
+
+	reload_queued = true;
+}
 
 static void
 child_reloaded_thread(__attribute__((unused)) thread_ref_t thread)
@@ -59,6 +69,11 @@ child_reloaded_thread(__attribute__((unused)) thread_ref_t thread)
 #ifdef _USE_SYSTEMD_NOTIFY_
 			systemd_notify_running();
 #endif
+
+			if (reload_queued) {
+				reload_queued = false;
+				thread_add_event(master, start_reload, NULL, 0);
+			}
 		}
 	} else
 		log_message(LOG_INFO, "read eventfd count %" PRIu64 ", num_reloading %u", event_count, num_reloading);
@@ -69,10 +84,6 @@ child_reloaded_thread(__attribute__((unused)) thread_ref_t thread)
 void
 open_config_read_fd(void)
 {
-#ifdef THREAD_DUMP
-	register_thread_address("child_reloaded_thread", child_reloaded_thread);
-#endif
-
 	child_reloaded_event = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
 	thread_add_read(master, child_reloaded_thread, NULL, child_reloaded_event, TIMER_NEVER, 0);
 }
@@ -86,3 +97,12 @@ notify_config_read(void)
 	if (write(child_reloaded_event, &one, sizeof(one)) <= 0)
 		log_message(LOG_INFO, "Write child_reloaded_event errno %d - %m", errno);
 }
+
+#ifdef THREAD_DUMP
+void
+register_config_notify_addresses(void)
+{
+	register_thread_address("child_reloaded_thread", child_reloaded_thread);
+	register_thread_address("start_reload", start_reload);
+}
+#endif

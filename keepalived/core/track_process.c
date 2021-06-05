@@ -147,7 +147,7 @@ free_process_tree(void)
 static int
 pid_compare(const tracked_process_instance_t *tpi1, const tracked_process_instance_t *tpi2)
 {
-	return tpi1->pid - tpi2->pid;
+	return less_equal_greater_than(tpi1->pid, tpi2->pid);
 }
 
 static inline tracked_process_instance_t *

@@ -460,7 +460,7 @@ alloc_sock(sa_family_t family, list_head_t *l, int proto, interface_t *ifp, cons
 static inline int
 vrrp_vrid_cmp(const vrrp_t *v1, const vrrp_t *v2)
 {
-	return v1->vrid - v2->vrid;
+	return less_equal_greater_than(v1->vrid, v2->vrid);
 }
 
 static void

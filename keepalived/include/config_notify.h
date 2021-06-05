@@ -25,7 +25,10 @@
 
 #include "config.h"
 
+extern void queue_reload(void);
 extern void open_config_read_fd(void);
 extern void notify_config_read(void);
-
+#ifdef THREAD_DUMP
+extern void register_config_notify_addresses(void);
+#endif
 #endif

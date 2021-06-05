@@ -363,7 +363,7 @@ thread_timerfd_handler(thread_ref_t thread)
 static inline int
 thread_child_pid_cmp(const thread_t *t1, const thread_t *t2)
 {
-	return t1->u.c.pid - t2->u.c.pid;
+	return less_equal_greater_than(t1->u.c.pid, t2->u.c.pid);
 }
 
 void
