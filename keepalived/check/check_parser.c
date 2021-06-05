@@ -601,6 +601,21 @@ vs_virtualhost_handler(const vector_t *strvec)
 	vs->virtualhost = set_value(strvec);
 }
 
+#ifdef _WITH_SNMP_CHECKER_
+static void
+vs_snmp_name_handler(const vector_t *strvec)
+{
+	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
+
+	if (vector_size(strvec) != 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "virtual server snmp_name missing or extra parameters");
+		return;
+	}
+
+	vs->snmp_name = set_value(strvec);
+}
+#endif
+
 /* Sorry Servers handlers */
 static void
 ssvr_handler(const vector_t *strvec)
@@ -869,6 +884,23 @@ rs_virtualhost_handler(const vector_t *strvec)
 
 	rs->virtualhost = set_value(strvec);
 }
+
+#ifdef _WITH_SNMP_CHECKER_
+static void
+rs_snmp_name_handler(const vector_t *strvec)
+{
+	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
+	real_server_t *rs = list_last_entry(&vs->rs, real_server_t, e_list);
+
+	if (vector_size(strvec) != 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "real server snmp_name missing or extra parameters");
+		return;
+	}
+
+	rs->snmp_name = set_value(strvec);
+}
+#endif
+
 static void
 vs_alpha_handler(__attribute__((unused)) const vector_t *strvec)
 {
@@ -984,6 +1016,9 @@ init_check_keywords(bool active)
 	install_keyword("ha_suspend", &hasuspend_handler);
 	install_keyword("smtp_alert", &vs_smtp_alert_handler);
 	install_keyword("virtualhost", &vs_virtualhost_handler);
+#ifdef _WITH_SNMP_CHECKER_
+	install_keyword("snmp_name", &vs_snmp_name_handler);
+#endif
 
 	/* Pool regression detection and handling. */
 	install_keyword("alpha", &vs_alpha_handler);
@@ -1015,6 +1050,9 @@ init_check_keywords(bool active)
 	install_keyword("delay_loop", &rs_delay_handler);
 	install_keyword("smtp_alert", &rs_smtp_alert_handler);
 	install_keyword("virtualhost", &rs_virtualhost_handler);
+#ifdef _WITH_SNMP_CHECKER_
+	install_keyword("snmp_name", &rs_snmp_name_handler);
+#endif
 
 	install_sublevel_end_handler(&rs_end_handler);
 

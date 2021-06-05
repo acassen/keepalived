@@ -66,7 +66,15 @@ $(GIT_COMMIT_FILE): FORCE
 	if [ -x `type -p git` ]; then \
 		cd $(srcdir); \
 		git rev-parse --is-inside-work-tree >/dev/null 2>&1; \
-		if [ $$? -eq 0 ]; then \
+		res=$$?; \
+		if [ $$res -eq 0 ]; then \
+			# Check the git root is our parent directory \
+			GIT_ROOT_REL=`git rev-parse --show-cdup`; \
+			if [ $$GIT_ROOT_REL != "../" ]; then \
+				res=1; \
+			fi; \
+		fi; \
+		if [ $$res -eq 0 ]; then \
 			GIT_REV=`git describe --tags`; \
 			GIT_TIMESTAMP=`git log -1 --format=%ct`; \
 			date -d "1970-01-01 UTC" >/dev/null 2>&1 ; \

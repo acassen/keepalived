@@ -2061,6 +2061,11 @@ The syntax for virtual_server is :
     # Overridden by virtualhost config of real server or checker
     \fBvirtualhost \fR<STRING>
 
+    # snmp_name is a text string that is returned as part of the snmp
+    # data for this virtual server. It can be used to help identify the
+    # virtual server when parsing SNMP output.
+    \fBsnmp_name \fR<STRING>
+
     # On daemon startup assume that all RSs are down
     # and healthchecks failed. This helps to prevent
     # false positives on startup. Alpha mode is
@@ -2165,6 +2170,11 @@ The syntax for virtual_server is :
         # eg virtualhost www.firewall.loc
         # Overridden by virtualhost config of a checker
         \fBvirtualhost \fR<STRING>
+
+	# snmp_name is a text string that is returned as part of the snmp
+	# data for this real server. It can be used to help identify the
+	# real server when parsing SNMP output.
+	\fBsnmp_name \fR<STRING>
 
         \fBalpha \fR<BOOL>                    # see above
         \fBconnect_timeout \fR<TIMER>         # see above

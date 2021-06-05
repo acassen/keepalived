@@ -124,6 +124,7 @@ enum check_snmp_virtualserver_magic {
 	CHECK_SNMP_VSTUNNELCSUM,
 #endif
 #endif
+	CHECK_SNMP_VSNAME,
 };
 
 enum check_snmp_realserver_magic {
@@ -186,6 +187,7 @@ enum check_snmp_realserver_magic {
 	CHECK_SNMP_RSTUNNELCSUM,
 #endif
 #endif
+	CHECK_SNMP_RSNAME,
 };
 
 #define STATE_VSGM_FWMARK 1
@@ -747,6 +749,11 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		return PTR_CAST(u_char, &long_ret);
 #endif
 #endif
+	case CHECK_SNMP_VSNAME:
+		if (!v->snmp_name) break;
+		*var_len = strlen(v->snmp_name);
+		ret.cp = v->snmp_name;
+		return ret.p;
 	default:
 		return NULL;
 	}
@@ -1164,6 +1171,11 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		return PTR_CAST(u_char, &long_ret);
 #endif
 #endif
+	case CHECK_SNMP_RSNAME:
+		if (!be->snmp_name) break;
+		*var_len = strlen(be->snmp_name);
+		ret.cp = be->snmp_name;
+		return ret.p;
 	default:
 		return NULL;
 	}
@@ -1438,6 +1450,8 @@ static struct variable8 check_vars[] = {
 	{CHECK_SNMP_VSTUNNELCSUM, ASN_INTEGER, RONLY,
 	 check_snmp_virtualserver, 3, {3, 1, 70}},
 #endif
+	{CHECK_SNMP_VSNAME, ASN_OCTET_STR, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 71}},
 
 	/* realServerTable */
 	{CHECK_SNMP_RSTYPE, ASN_INTEGER, RONLY,
@@ -1552,6 +1566,8 @@ static struct variable8 check_vars[] = {
 	{CHECK_SNMP_RSTUNNELCSUM, ASN_INTEGER, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 54}},
 #endif
+	{CHECK_SNMP_RSNAME, ASN_OCTET_STR, RONLY,
+	 check_snmp_realserver, 3, {4, 1, 55}},
 
 #ifdef _WITH_VRRP_
 	/* LVS sync daemon configuration */

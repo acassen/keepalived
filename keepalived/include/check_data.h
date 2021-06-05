@@ -88,6 +88,9 @@ typedef struct _real_server {
 	int				tun_flags;	/* tunnel checksum type for gue/gre tunnels */
 #endif
 #endif
+#ifdef _WITH_SNMP_CHECKER_
+	const char			*snmp_name;
+#endif
 	uint32_t			u_threshold;	/* Upper connection limit. */
 	uint32_t			l_threshold;	/* Lower connection limit. */
 	int				inhibit;	/* Set weight to 0 instead of removing
@@ -189,6 +192,9 @@ typedef struct _virtual_server {
 #ifdef _HAVE_IPVS_TUN_CSUM_
 	int				tun_flags;	/* tunnel checksum type for gue/gre tunnels */
 #endif
+#endif
+#ifdef _WITH_SNMP_CHECKER_
+	const char			*snmp_name;
 #endif
 	uint32_t			persistence_granularity;
 	const char			*virtualhost;	/* Default virtualhost for HTTP and SSL healthcheckers

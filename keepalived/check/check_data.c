@@ -444,6 +444,9 @@ free_rs(real_server_t *rs)
 	free_checker_tracked_bfd_list(&rs->tracked_bfds);
 #endif
 	FREE_CONST_PTR(rs->virtualhost);
+#ifdef _WITH_SNMP_CHECKER_
+	FREE_CONST_PTR(rs->snmp_name);
+#endif
 	free_rs_checkers(rs);
 	FREE(rs);
 }
@@ -498,7 +501,11 @@ dump_rs(FILE *fp, const real_server_t *rs)
 		conf_write(fp, "     RS down notify script = %s, uid:gid %u:%u",
 				cmd_str(rs->notify_down), rs->notify_down->uid, rs->notify_down->gid);
 	if (rs->virtualhost)
-		conf_write(fp, "    VirtualHost = %s", rs->virtualhost);
+		conf_write(fp, "    VirtualHost = '%s'", rs->virtualhost);
+#ifdef _WITH_SNMP_CHECKER_
+	if (rs->snmp_name)
+		conf_write(fp, "   SNMP name = %s", rs->snmp_name);
+#endif
 	conf_write(fp, "   Using smtp notification = %s", rs->smtp_alert ? "yes" : "no");
 
 	conf_write(fp, "   initial weight = %d", rs->iweight);
@@ -589,6 +596,9 @@ alloc_rs(const char *ip, const char *port)
 	new->retry = UINT_MAX;
 	new->delay_before_retry = ULONG_MAX;
 	new->virtualhost = NULL;
+#ifdef _WITH_SNMP_CHECKER_
+	new->snmp_name = NULL;
+#endif
 	new->smtp_alert = -1;
 
 	list_add_tail(&new->e_list, &vs->rs);
@@ -604,6 +614,9 @@ free_vs(virtual_server_t *vs)
 	list_del_init(&vs->e_list);
 	FREE_CONST_PTR(vs->vsgname);
 	FREE_CONST_PTR(vs->virtualhost);
+#ifdef _WITH_SNMP_CHECKER_
+	FREE_CONST_PTR(vs->snmp_name);
+#endif
 	FREE_PTR(vs->s_svr);
 	free_rs_list(&vs->rs);
 	free_notify_script(&vs->notify_quorum_up);
@@ -634,6 +647,10 @@ dump_vs(FILE *fp, const virtual_server_t *vs)
 				    , inet_sockaddrtos(&vs->addr), ntohs(inet_sockaddrport(&vs->addr)));
 	if (vs->virtualhost)
 		conf_write(fp, "   VirtualHost = %s", vs->virtualhost);
+#ifdef _WITH_SNMP_CHECKER_
+	if (vs->snmp_name)
+		conf_write(fp, "   SNMP name = '%s'", vs->snmp_name);
+#endif
 	if (vs->af != AF_UNSPEC)
 		conf_write(fp, "   Address family = inet%s", vs->af == AF_INET ? "" : "6");
 	else if (vs->vsg && vs->vsg->have_ipv4 && vs->vsg->have_ipv6)
@@ -785,6 +802,9 @@ alloc_vs(const char *param1, const char *param2)
 	}
 
 	new->virtualhost = NULL;
+#ifdef _WITH_SNMP_CHECKER_
+	new->snmp_name = NULL;
+#endif
 	new->alpha = false;
 	new->omega = false;
 	new->notify_quorum_up = NULL;
