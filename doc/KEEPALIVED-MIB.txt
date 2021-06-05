@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "202006120001Z"
+     LAST-UPDATED "202106050001Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "202106050001Z"
+     DESCRIPTION "add snmp_name for virtual and real servers"
      REVISION "202006120001Z"
      DESCRIPTION "add script_deleted"
      REVISION "202005070001Z"
@@ -3369,7 +3371,8 @@ VirtualServerEntry ::= SEQUENCE {
     virtualServerConnTimeoutUsec Unsigned32,
     virtualServerTunnelType INTEGER,
     virtualServerTunnelPort InetPortNumber,
-    virtualServerTunnelCsum INTEGER
+    virtualServerTunnelCsum INTEGER,
+    virtualServerName DisplayString
 }
 
 virtualServerIndex OBJECT-TYPE
@@ -4002,6 +4005,14 @@ virtualServerTunnelCsum OBJECT-TYPE
         "Default forwarding tunnel checksum type use for this virtual server."
     ::= { virtualServerEntry 70 }
 
+virtualServerName OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Optional SNMP name of this virtual server."
+    ::= { virtualServerEntry 71 }
+
 
 -- real servers
 
@@ -4076,7 +4087,8 @@ RealServerEntry ::= SEQUENCE {
     realServerConnTimeoutUsec Unsigned32,
     realServerTunnelType INTEGER,
     realServerTunnelPort InetPortNumber,
-    realServerTunnelCsum INTEGER
+    realServerTunnelCsum INTEGER,
+    realServerName DisplayString
 }
 
 realServerIndex OBJECT-TYPE
@@ -4556,6 +4568,14 @@ realServerTunnelCsum OBJECT-TYPE
     DESCRIPTION
         "Forwarding tunnel checksum type use for this real server."
     ::= { realServerEntry 54 }
+
+realServerName OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Optional SNMP name of this real server."
+    ::= { realServerEntry 55 }
 
 lvsSyncDaemon    OBJECT IDENTIFIER ::= { check 6 }
 
@@ -5182,7 +5202,8 @@ virtualServerGroup OBJECT-GROUP
     virtualServerConnTimeoutUsec,
     virtualServerTunnelType,
     virtualServerTunnelPort,
-    virtualServerTunnelCsum
+    virtualServerTunnelCsum,
+    virtualServerName
     }
     STATUS current
     DESCRIPTION
@@ -5243,7 +5264,8 @@ realServerGroup OBJECT-GROUP
     realServerConnTimeoutUsec,
     realServerTunnelType,
     realServerTunnelPort,
-    realServerTunnelCsum
+    realServerTunnelCsum,
+    realServerName
     }
     STATUS current
     DESCRIPTION
