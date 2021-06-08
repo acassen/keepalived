@@ -27,13 +27,14 @@
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <netinet/in.h>
+#include <net/if.h>
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>
 #ifdef ERRQUEUE_NEEDS_SYS_TIME
 #include <sys/time.h>
 #endif
 #include <linux/errqueue.h>
-#include <netinet/in.h>
 
 #include "layer4.h"
 #include "logger.h"
