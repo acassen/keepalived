@@ -12,19 +12,19 @@ produce a safe and secure code, ensuring production robustness and stability.
 To ensure robustness and stability, daemon is split into 3 distinct processes:
 
 * A minimalistic parent process in charge with forked children process monitoring.
-* Two children processes, one responsible for VRRP framework and the other for healthchecking.
+* Two child processes, one responsible for VRRP framework and the other for healthchecking.
 
-Each children process has its own scheduling I/O multiplexer, that way VRRP
+Each child process has its own scheduling I/O multiplexer, that way VRRP
 scheduling jitter is optimized since VRRP scheduling is more sensible/critical
 than healthcheckers. This split design minimalizes for healthchecking the usage
 of foreign libraries and minimalizes its own action down to an idle mainloop in
 order to avoid malfunctions caused by itself. 
 
 The parent process monitoring framework is called watchdog, the design is each
-children process opens an accept unix domain socket, then while daemon
+child process opens an accept unix domain socket, then while daemon
 bootstrap, parent process connect to those unix domain sockets and send periodic
 (5s) hello packets to children. If parent cannot send hello packet to remotely
-connected unix domain socket it simply restarts children process. 
+connected unix domain socket it simply restarts child process. 
 
 This watchdog design offers 2 benefits, first of all, hello packets sent from
 parent process to remotely connected children is done through I/O multiplexer
