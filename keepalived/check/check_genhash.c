@@ -23,6 +23,7 @@
 
 #include "config.h"
 
+#include <openssl/md5.h>
 #include <openssl/err.h>
 #include <unistd.h>
 #include <stdint.h>

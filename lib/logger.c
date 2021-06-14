@@ -29,6 +29,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <memory.h>
+#include <syslog.h>
 
 #include "logger.h"
 #include "bitops.h"
@@ -50,6 +51,12 @@ void
 enable_console_log(void)
 {
 	log_console = true;
+}
+
+void
+open_syslog(const char *ident)
+{
+	openlog(ident, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0), log_facility);
 }
 
 #ifdef ENABLE_LOG_TO_FILE
