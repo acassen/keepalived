@@ -473,7 +473,7 @@ create_reload_file(void)
 		umask(umask_val);
 }
 
-static inline void
+static void
 remove_reload_file(void)
 {
 	if (global_data->reload_file && !__test_bit(CONFIG_TEST_BIT, &debug))
