@@ -24,6 +24,7 @@
 #include "config.h"
 
 #include <openssl/err.h>
+#include <openssl/md5.h>
 #include <unistd.h>
 #include <stdint.h>
 #include <stdio.h>

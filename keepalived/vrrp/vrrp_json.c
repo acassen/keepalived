@@ -127,6 +127,7 @@ vrrp_json_array_dump(json_writer_t *wr, const char *prop, list_head_t *l,
 	return 0;
 }
 
+#if defined _WITH_VRRP_AUTH_
 static int
 vrrp_json_auth_dump(json_writer_t *wr, const char *prop, vrrp_t *vrrp)
 {
@@ -140,6 +141,7 @@ vrrp_json_auth_dump(json_writer_t *wr, const char *prop, vrrp_t *vrrp)
 	jsonw_string_field(wr, prop, buf);
 	return 0;
 }
+#endif
 
 static int
 vrrp_json_data_dump(json_writer_t *wr, vrrp_t *vrrp)
