@@ -1088,14 +1088,14 @@ AC_CHECK_DECLS([ETHERTYPE_IPV6], [],
 
 dnl ----[ Checks for openssl ]----
 # check for openssl headers
-NEED_MD5=no
+NEED_EVP=no
 NEED_SSL=no
 if test "$enable_vrrp" != no -a \
 	"$enable_vrrp_auth" != no; then
-  NEED_MD5=yes
+  NEED_EVP=yes
 fi
 if test "$enable_lvs" != no; then
-  NEED_MD5=yes
+  NEED_EVP=yes
   NEED_SSL=yes
 fi
 AC_CHECK_HEADERS([openssl/ssl.h openssl/err.h], [],
@@ -1108,14 +1108,14 @@ AC_CHECK_HEADERS([openssl/ssl.h openssl/err.h], [],
     NEED_SSL=no
     break
   ])
-AC_CHECK_HEADERS([openssl/md5.h], [],
+AC_CHECK_HEADERS([openssl/md5.h openssl/evp.h], [],
   [
-    if test $NEED_MD5 = yes; then
+    if test $NEED_EVP = yes; then
       AC_MSG_ERROR([
   !!! OpenSSL is not properly installed on your system. !!!
-  !!! Can not include OpenSSL MD5 headers files.        !!!])
+  !!! Can not include OpenSSL EVP headers files.        !!!])
     fi
-    NEED_MD5=no
+    NEED_EVP=no
     break
   ])
 unset LIBS
@@ -1128,13 +1128,13 @@ else
 fi
 
 EXTRA_LIBS=`echo $OPENSSL_LIBS | sed -e "s/-lcrypto//"`
-AC_CHECK_LIB(crypto, MD5_Init, [],
+AC_CHECK_LIB(crypto, EVP_DigestInit_ex, [],
   [
-    if test $NEED_MD5 = yes; then
-      AC_MSG_ERROR([OpenSSL MD5 libraries are required])
+    if test $NEED_EVP = yes; then
+      AC_MSG_ERROR([OpenSSL EVP libraries are required])
     fi
   ], [$EXTRA_LIBS])
-if test $NEED_MD5 = yes; then
+if test $NEED_EVP = yes; then
   add_to_var([KA_LIBS], [$LIBS])
 fi
 unset LIBS
