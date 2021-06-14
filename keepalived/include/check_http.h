@@ -27,7 +27,7 @@
 /* system includes */
 #include <sys/types.h>
 #include <stdbool.h>
-#include <openssl/md5.h>
+#include <openssl/evp.h>
 #include <openssl/ssl.h>
 #ifdef _WITH_REGEX_CHECK_
 #define PCRE2_CODE_UNIT_WIDTH 8
@@ -64,7 +64,7 @@ typedef struct _request {
 	size_t				len;
 	SSL				*ssl;
 	BIO				*bio;
-	MD5_CTX				context;
+	EVP_MD_CTX			*context;
 	size_t				content_len;
 	size_t				rx_bytes;
 #ifdef _WITH_REGEX_CHECK_

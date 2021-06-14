@@ -1385,7 +1385,7 @@ http_process_response(request_t *req, size_t r, url_t *url)
 			r = req->len - (size_t)(req->extracted - req->buffer);
 			if (r && url->digest) {
 				if (req->content_len == SIZE_MAX || req->content_len > req->rx_bytes)
-					MD5_Update(&req->context, req->extracted,
+					EVP_DigestUpdate(req->context, req->extracted,
 						   req->content_len == SIZE_MAX || req->content_len >= req->rx_bytes + r ? r : req->content_len - req->rx_bytes);
 			}
 
@@ -1398,7 +1398,7 @@ http_process_response(request_t *req, size_t r, url_t *url)
 	} else if (req->len) {
 		if (url->digest &&
 		    (req->content_len == SIZE_MAX || req->content_len > req->rx_bytes)) {
-			MD5_Update(&req->context, req->buffer + old_req_len,
+			EVP_DigestUpdate(req->context, req->buffer + old_req_len,
 				   req->content_len == SIZE_MAX || req->content_len >= req->rx_bytes + r ? r : req->content_len - req->rx_bytes);
 		}
 
@@ -1444,8 +1444,11 @@ http_read_thread(thread_ref_t thread)
 
 	if (r <= 0) {	/* -1:error , 0:EOF */
 		/* All the HTTP stream has been parsed */
-		if (url->digest)
-			MD5_Final(digest, &req->context);
+		if (url->digest) {
+			EVP_DigestFinal_ex(req->context, digest, NULL);
+			EVP_MD_CTX_free(req->context);
+			req->context = NULL;
+		}
 
 		if (r == -1) {
 			/* We have encountered a real read error */
@@ -1500,8 +1503,10 @@ http_response_thread(thread_ref_t thread)
 	req->num_match_calls = 0;
 #endif
 #endif
-	if (url->digest)
-		MD5_Init(&req->context);
+	if (url->digest) {
+		req->context = EVP_MD_CTX_new();
+		EVP_DigestInit_ex(req->context, EVP_md5(), NULL);
+	}
 
 	/* Register asynchronous http/ssl read thread */
 	if (http_get_check->proto == PROTO_SSL)

@@ -27,7 +27,9 @@
 
 /* System includes */
 #include <errno.h>
+#ifdef _WITH_VRRP_AUTH_
 #include <openssl/md5.h>
+#endif
 #include <unistd.h>
 #include <sys/time.h>
 #include <inttypes.h>
