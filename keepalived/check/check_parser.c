@@ -27,6 +27,7 @@
 #include <errno.h>
 #include <stdint.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 
 #include "check_parser.h"
 #include "check_data.h"
@@ -508,7 +509,6 @@ static void
 pgr_handler(const vector_t *strvec)
 {
 	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
-	struct in_addr addr;
 	uint16_t af = vs->af;
 	unsigned granularity;
 
@@ -522,7 +522,10 @@ pgr_handler(const vector_t *strvec)
 		}
 		vs->persistence_granularity = granularity;
 	} else {
-		if (!inet_aton(strvec_slot(strvec, 1), &addr)) {
+		struct addrinfo hints = { .ai_flags = AI_NUMERICHOST, .ai_family = AF_INET };
+		struct addrinfo *res;
+
+		if (getaddrinfo(strvec_slot(strvec, 1), NULL, &hints, &res)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Invalid IPv4 persistence_granularity specified - %s", strvec_slot(strvec, 1));
 			return;
 		}
@@ -540,7 +543,8 @@ pgr_handler(const vector_t *strvec)
 		}
 #endif
 
-		vs->persistence_granularity = addr.s_addr;
+		vs->persistence_granularity = ((struct sockaddr_in *)res->ai_addr)->sin_addr.s_addr;
+		freeaddrinfo(res);
 	}
 
 	if (vs->af == AF_UNSPEC)
