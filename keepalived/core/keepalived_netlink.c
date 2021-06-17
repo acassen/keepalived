@@ -833,8 +833,8 @@ set_vrrp_backup(vrrp_t *vrrp)
 }
 
 /* Check if we already have the address on the interface */
-static bool
-have_address(void *addr_p, const interface_t *ifp, int family)
+static bool __attribute__((pure))
+have_address(const void *addr_p, const interface_t *ifp, int family)
 {
 	sin_addr_t *addr;
 	const list_head_t *addr_l;
