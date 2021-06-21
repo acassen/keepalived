@@ -601,10 +601,11 @@ perform_svr_state(bool alive, checker_t *checker)
 	if (ISALIVE(rs) == alive)
 		return true;
 
-	log_message(LOG_INFO, "%sing service %s to VS %s"
+	log_message(LOG_INFO, "%sing service %s %s VS %s"
 			    , alive ? (rs->inhibit) ? "Enabl" : "Add" :
 				      (rs->inhibit) ? "Disabl" : "Remov"
 			    , FMT_RS(rs, vs)
+		    	    , alive ? "to" : "from"
 			    , FMT_VS(vs));
 
 	/* Change only if we have quorum or no sorry server */
