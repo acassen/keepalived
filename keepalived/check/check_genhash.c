@@ -84,7 +84,7 @@ genhash_usage(const char *prog, bool am_genhash)
 }
 
 static int
-check_genhash_parse_cmdline(bool am_genhash, int argc, char **argv, checker_t *checker)
+check_genhash_parse_cmdline(int argc, char **argv, checker_t *checker)
 {
 	http_checker_t *http_get_check = checker->data;
 	conn_opts_t *co = checker->co;
@@ -128,7 +128,7 @@ check_genhash_parse_cmdline(bool am_genhash, int argc, char **argv, checker_t *c
 				  , long_options, &longindex)) != EOF) {
 		switch (c) {
 		case 'h':
-			genhash_usage(argv[0], am_genhash);
+			bad_option = true;
 			break;
 		case 'v':
 			checker->enabled = true; /* reuse as Verbose */
@@ -289,7 +289,7 @@ check_genhash(bool am_genhash, int argc, char **argv)
 	checker->enabled = true;
 
 	/* Parse command line */
-	if (check_genhash_parse_cmdline(am_genhash, argc, argv, checker) < 0) {
+	if (check_genhash_parse_cmdline(argc, argv, checker) < 0) {
 		genhash_usage(argv[0], am_genhash);
 		ret = 1;
 		goto end;
