@@ -1075,6 +1075,11 @@ timeout_epilog(thread_ref_t thread, const char *debug_msg)
 
 	/* check if server is currently alive */
 	if (checker->is_up || !checker->has_run) {
+		if (((http_checker_t *)checker->data)->genhash_flags & GENHASH) {
+			printf("Connection timed out\n");
+			thread_add_terminate_event(thread->master);
+			return;
+		}
 		if (global_data->checker_log_all_failures || checker->log_all_failures)
 			log_message(LOG_INFO, "%s server %s."
 					    , debug_msg
