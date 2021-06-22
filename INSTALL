@@ -147,7 +147,7 @@ Installation
   5. 'make install'. This will install keepalived on your system,
      binaries and configuration file :
      * keepalived : The keepalived daemon program.
-     * genhash.sh : The MD5 url digest generator. You need it to
+     * genhash    : The MD5 url digest generator. You need it to
                     configure HTTP GET check and SSL GET check in
                     order to compute MD5SUM digest etalon.
      * /etc/keepalived/keepalived.conf

@@ -1,8 +1,0 @@
-#!/bin/bash
-# genhash tool is now part of keepalived mainline code.
-# hash generated is the same as the one you can get from
-# wget or curl :
-#  wget http://[url]/[path] -O - | md5um
-#  curl http://[url]/[path] | md5sum
-
-keepalived --genhash $@

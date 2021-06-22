@@ -21,6 +21,13 @@
  * Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
+/*
+ * The hash generated is the same as the one you can get from
+ * wget or curl:
+ *  wget http://[url]/[path] -O - | md5sum
+ *  curl http://[url]/[path] | md5sum
+ */
+
 #include "config.h"
 
 #include <openssl/md5.h>
@@ -49,14 +56,14 @@
  *	Genhash utility
  */
 static void
-genhash_usage(const char *prog)
+genhash_usage(const char *prog, bool am_genhash)
 {
 	fprintf(stderr,
-		"Usage: %s --genhash COMMAND [OPTIONS]\n"
+		"Usage: %s%s COMMAND [OPTIONS]\n"
 		"Commands:\n"
 		"   -s server-address -p port -u url\n"
 		"   -S -s server-address -p port -u url\n"
-		"   -h\n\n", prog);
+		"   -h\n\n", prog, am_genhash ? "" : " --genhash");
 	fprintf(stderr,
 		"Options:\n"
 		"Either long or short options are allowed.\n"
@@ -77,7 +84,7 @@ genhash_usage(const char *prog)
 }
 
 static int
-check_genhash_parse_cmdline(int argc, char **argv, checker_t *checker)
+check_genhash_parse_cmdline(bool am_genhash, int argc, char **argv, checker_t *checker)
 {
 	http_checker_t *http_get_check = checker->data;
 	conn_opts_t *co = checker->co;
@@ -121,7 +128,7 @@ check_genhash_parse_cmdline(int argc, char **argv, checker_t *checker)
 				  , long_options, &longindex)) != EOF) {
 		switch (c) {
 		case 'h':
-			genhash_usage(argv[0]);
+			genhash_usage(argv[0], am_genhash);
 			break;
 		case 'v':
 			checker->enabled = true; /* reuse as Verbose */
@@ -260,7 +267,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 }
 
 void __attribute__ ((noreturn))
-check_genhash(int argc, char **argv)
+check_genhash(bool am_genhash, int argc, char **argv)
 {
 	checker_t *checker;
 	http_checker_t *http_get_check;
@@ -287,8 +294,8 @@ check_genhash(int argc, char **argv)
 	checker->enabled = true;
 
 	/* Parse command line */
-	if (check_genhash_parse_cmdline(argc, argv, checker) < 0) {
-		genhash_usage(argv[0]);
+	if (check_genhash_parse_cmdline(am_genhash, argc, argv, checker) < 0) {
+		genhash_usage(argv[0], am_genhash);
 		ret = 1;
 		goto end;
 	}

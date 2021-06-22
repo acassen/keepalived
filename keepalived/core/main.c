@@ -2076,7 +2076,7 @@ parse_cmdline(int argc, char **argv)
 			if (!first_option)
 				fprintf(stderr, "Warning -- `%s` not used as first option, previous options ignored\n", longindex == -1 ? "-T" : long_options[longindex].name);
 
-			check_genhash(argc, argv);
+			check_genhash(false, argc, argv);
 			exit(0);
 #endif
 		case 'D':
@@ -2367,6 +2367,14 @@ keepalived_main(int argc, char **argv)
 	unsigned script_flags;
 	struct rusage usage;
 	struct rusage child_usage;
+
+#ifdef _WITH_LVS_
+	char *name = strrchr(argv[0], '/');
+	if (!strcmp(name ? name + 1 : argv[0], "genhash")) {
+		check_genhash(true, argc, argv);
+		/* Not reached */
+	}
+#endif
 
 #ifdef _MEM_CHECK_
 	__set_bit(MEM_CHECK_BIT, &debug);

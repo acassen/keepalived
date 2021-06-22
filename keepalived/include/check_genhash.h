@@ -24,6 +24,8 @@
 #ifndef _CHECK_GENHASH_H
 #define _CHECK_GENHASH_H
 
+#include <stdbool.h>
+
 /* options bits */
 enum genhash_option_bits {
         GENHASH_SERVER_BIT,
@@ -39,6 +41,6 @@ enum genhash_option_bits {
 };
 
 /* Define prototypes */
-extern void check_genhash(int, char **);
+extern void check_genhash(bool, int, char **);
 
 #endif
