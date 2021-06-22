@@ -44,9 +44,7 @@
 typedef enum {
         HTTP_PROTOCOL_1_0,
         HTTP_PROTOCOL_1_0C,
-        HTTP_PROTOCOL_1_0K,
         HTTP_PROTOCOL_1_1,
-        HTTP_PROTOCOL_1_1K
 } http_protocol_t;
 
 #define HTTP_STATUS_CODE_MIN		100

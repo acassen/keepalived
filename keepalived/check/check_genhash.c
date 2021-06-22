@@ -197,11 +197,6 @@ check_genhash_parse_cmdline(bool am_genhash, int argc, char **argv, checker_t *c
 				http_get_check->http_protocol = HTTP_PROTOCOL_1_0C;
 			else if (!strcmp(optarg, "1.1"))
 				http_get_check->http_protocol = HTTP_PROTOCOL_1_1;
-			/* 1.0k and 1.1k are for test purposes and are not expected to be used */
-			else if (!strcmp(optarg, "1.0k") || !strcmp(optarg, "1.0K"))
-				http_get_check->http_protocol = HTTP_PROTOCOL_1_0K;
-			else if (!strcmp(optarg, "1.1k") || !strcmp(optarg, "1.1K"))
-				http_get_check->http_protocol = HTTP_PROTOCOL_1_1K;
 			else {
 				fprintf(stderr, "invalid HTTP protocol version '%s'\n", optarg);
 				return -1;
