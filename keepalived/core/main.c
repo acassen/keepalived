@@ -1796,7 +1796,7 @@ usage(const char *prog)
 	fprintf(stderr, "  -r, --vrrp_pid=FILE          Use specified pidfile for VRRP child process\n");
 #endif
 #ifdef _WITH_LVS_
-	fprintf(stderr, "  -T, --genhash                Enter into genhash utility mode.\n");
+	fprintf(stderr, "  -T, --genhash                Enter into genhash utility mode (this should be the first option used).\n");
 	fprintf(stderr, "  -c, --checkers_pid=FILE      Use specified pidfile for checkers child process\n");
 	fprintf(stderr, "  -a, --address-monitoring     Report all address additions/deletions notified via netlink\n");
 #endif
@@ -1955,7 +1955,7 @@ parse_cmdline(int argc, char **argv)
 		{"vrrp_pid",		required_argument,	NULL, 'r'},
 #endif
 #ifdef _WITH_LVS_
-		{"genhash",		optional_argument,	NULL, 'T'},
+		{"genhash",		no_argument,		NULL, 'T'},
 		{"checkers_pid",	required_argument,	NULL, 'c'},
 		{"address-monitoring",	no_argument,		NULL, 'a'},
 #endif
@@ -2004,7 +2004,7 @@ parse_cmdline(int argc, char **argv)
 					    "r:VX"
 #endif
 #ifdef _WITH_LVS_
-					    "ac:IT:"
+					    "ac:IT"
 #endif
 #ifdef _WITH_BFD_
 					    "Bb:"

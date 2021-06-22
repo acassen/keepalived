@@ -20,6 +20,7 @@ $(top_builddir)/bin/keepalived: $(top_builddir)/keepalived/keepalived
 		rm -f $(top_builddir)/bin/keepalived; \
 	fi)
 
+if WITH_IPVS
 $(top_builddir)/bin/genhash: $(top_builddir)/tools/genhash
 	@$(MKDIR_P) $(top_builddir)/bin
 	@(if test -f $(top_builddir)/tools/genhash; then \
@@ -27,6 +28,7 @@ $(top_builddir)/bin/genhash: $(top_builddir)/tools/genhash
 	else \
 		rm -f $(top_builddir)/bin/genhash; \
 	fi)
+endif
 
 clean-local:
 	rm -f $(top_builddir)/bin/keepalived $(top_builddir)/bin/genhash

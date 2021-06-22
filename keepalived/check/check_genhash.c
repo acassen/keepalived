@@ -68,7 +68,6 @@ genhash_usage(const char *prog)
 		"   --port            -p       Use the specified remote server port.\n"
 		"   --url             -u       Use the specified remote server url.\n"
 		"   --use-virtualhost -V       Use the specified virtualhost in GET query.\n"
-		"   --hash            -H       Use the specified hash algorithm.\n"
 		"   --verbose         -v       Use verbose mode output.\n"
 		"   --help            -h       Display this short inlined help screen.\n"
 		"   --fwmark          -m       Use the specified FW mark.\n"
@@ -88,17 +87,18 @@ check_genhash_parse_cmdline(int argc, char **argv, checker_t *checker)
 	url_t *url;
 	unsigned long parsed_bits = 0;
 	int c;
+	bool bad_option = false;
+	int curind;
+	int longindex;
 
 	struct option long_options[] = {
 		{"help",		no_argument,       0, 'h'},
-		{"genhash",		no_argument,       0, 'T'},
 		{"verbose",		no_argument,       0, 'v'},
 		{"use-ssl",		no_argument,       0, 'S'},
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 		{"use-sni",		no_argument,       0, 'I'},
 #endif
 		{"server",		required_argument, 0, 's'},
-		{"hash",		required_argument, 0, 'H'},
 		{"use-virtualhost",	required_argument, 0, 'V'},
 		{"port",		required_argument, 0, 'p'},
 		{"url",			required_argument, 0, 'u'},
@@ -113,12 +113,16 @@ check_genhash_parse_cmdline(int argc, char **argv, checker_t *checker)
 		return -1;
 
 	/* Parse the command line arguments */
-	while ((c = getopt_long(argc, argv, "hTvSs:H:V:p:u:m:P:t:"
+	curind = optind;
+	while (longindex = -1, (c = getopt_long(argc, argv, ":hvSs:V:p:u:m:P:t:"
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 							       "I"
 #endif
-				  , long_options, NULL)) != EOF) {
+				  , long_options, &longindex)) != EOF) {
 		switch (c) {
+		case 'h':
+			genhash_usage(argv[0]);
+			break;
 		case 'v':
 			checker->enabled = true; /* reuse as Verbose */
 			break;
@@ -207,17 +211,37 @@ check_genhash_parse_cmdline(int argc, char **argv, checker_t *checker)
 			co->connection_to *= TIMER_HZ;
 			__set_bit(GENHASH_TIMEOUT_BIT, &parsed_bits);
 			break;
+		case '?':
+			if (optopt && argv[curind][1] != '-')
+				fprintf(stderr, "Unknown option -%c\n", optopt);
+			else
+				fprintf(stderr, "Unknown option %s\n", argv[curind]);
+			bad_option = true;
+			break;
+		case ':':
+			if (optopt && argv[curind][1] != '-')
+				fprintf(stderr, "Missing parameter for option -%c\n", optopt);
+			else
+				fprintf(stderr, "Missing parameter for option --%s\n", long_options[longindex].name);
+			bad_option = true;
+			break;
 		default:
+			fprintf(stderr, "Unknown option `-%c`\n", c);
 			return -1;
 		}
+
+		curind = optind;
 	}
+
+	if (bad_option)
+		return -1;
 
 	/* check unexpected arguments */
 	if (optind < argc) {
-		fprintf(stderr, "Unexpected argument(s): ");
+		fprintf(stderr, "Unexpected argument(s):");
 		while (optind < argc)
-			printf("%s ", argv[optind++]);
-		printf("\n");
+			fprintf(stderr, " %s", argv[optind++]);
+		fprintf(stderr, "\n");
 		return -1;
 	}
 
