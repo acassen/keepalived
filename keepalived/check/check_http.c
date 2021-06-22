@@ -131,6 +131,15 @@ static const char *request_template_ipv6 =
 			"%s"
 			"Host: [%s]%s\r\n\r\n";
 
+/* Output delimiters */
+#define DELIM_BEGIN             "-----------------------["
+#define DELIM_END               "]-----------------------\n"
+#define HTTP_HEADER_HEXA        DELIM_BEGIN"    HTTP Header Buffer    "DELIM_END
+#define HTTP_HEADER_ASCII       DELIM_BEGIN" HTTP Header Ascii Buffer "DELIM_END
+#define HTML_HEADER_HEXA        DELIM_BEGIN"        HTML Buffer        "DELIM_END
+#define HTML_HASH               DELIM_BEGIN"    HTML hash resulting    "DELIM_END
+#define HTML_HASH_FINAL         DELIM_BEGIN" HTML hash final resulting "DELIM_END
+
 #ifdef _WITH_REGEX_CHECK_
 static void
 free_regex(regex_t *regex)
@@ -1288,7 +1297,7 @@ http_handle_response(thread_ref_t thread, unsigned char digest[MD5_DIGEST_LENGTH
 	int r;
 
 	/* Genhash mode ? */
-	if (http_get_check->genhash) {
+	if (http_get_check->genhash_flags) {
 		if (empty_buffer) {
 			fprintf(stderr, "no data received from remote webserver\n");
 		} else {
@@ -1375,24 +1384,56 @@ http_handle_response(thread_ref_t thread, unsigned char digest[MD5_DIGEST_LENGTH
 	epilog(thread, REGISTER_CHECKER_NEW);
 }
 
+/* Dump HTTP header */
+static void
+http_dump_header(char *buffer, size_t size)
+{
+        dump_buffer(buffer, size, stdout, 0);
+        printf(HTTP_HEADER_ASCII);
+        printf("%.*s\n", (int)size, buffer);
+}
+
+void
+dump_digest(unsigned char *digest, unsigned len)
+{
+	printf("\n");
+	printf(HTML_HASH);
+	dump_buffer(PTR_CAST(char, digest), len, stdout, 0);
+
+	printf(HTML_HASH_FINAL);
+}
+
 /* Handle response stream performing MD5 updates */
 void
-http_process_response(request_t *req, size_t r, url_t *url)
+http_process_response(thread_ref_t thread, request_t *req, size_t r, url_t *url)
 {
 	size_t old_req_len = req->len;
+	checker_t *checker = THREAD_ARG(thread);
+	http_checker_t *http_get_check = CHECKER_ARG(checker);
 
 	req->len += r;
 	req->buffer[req->len] = '\0';	/* Terminate the received data since it is used as a string */
 
 	if (!req->extracted) {
+		if (http_get_check->genhash_flags & GENHASH_VERBOSE)
+			printf(HTTP_HEADER_HEXA);
 		if ((req->extracted = extract_html(req->buffer, req->len))) {
 			req->status_code = extract_status_code(req->buffer, req->len);
 			req->content_len = extract_content_length(req->buffer, req->len);
+
+			if (http_get_check->genhash_flags & GENHASH_VERBOSE)
+                                http_dump_header(req->buffer, req->extracted - req->buffer);
+
 			r = req->len - (size_t)(req->extracted - req->buffer);
 			if (r && url->digest) {
-				if (req->content_len == SIZE_MAX || req->content_len > req->rx_bytes)
+				if (req->content_len == SIZE_MAX || req->content_len > req->rx_bytes) {
 					EVP_DigestUpdate(req->context, req->extracted,
 						   req->content_len == SIZE_MAX || req->content_len >= req->rx_bytes + r ? r : req->content_len - req->rx_bytes);
+					if (http_get_check->genhash_flags & GENHASH_VERBOSE) {
+						printf(HTML_HEADER_HEXA);
+						dump_buffer(req->extracted, req->content_len == SIZE_MAX || req->content_len >= req->rx_bytes + r ? r : req->content_len - req->rx_bytes, stdout, 0);
+					}
+				}
 			}
 
 			req->rx_bytes = r;
@@ -1406,6 +1447,8 @@ http_process_response(request_t *req, size_t r, url_t *url)
 		    (req->content_len == SIZE_MAX || req->content_len > req->rx_bytes)) {
 			EVP_DigestUpdate(req->context, req->buffer + old_req_len,
 				   req->content_len == SIZE_MAX || req->content_len >= req->rx_bytes + r ? r : req->content_len - req->rx_bytes);
+			if (http_get_check->genhash_flags & GENHASH_VERBOSE)
+				dump_buffer(req->buffer + old_req_len, req->content_len == SIZE_MAX || req->content_len >= req->rx_bytes + r ? r : req->content_len - req->rx_bytes, stdout, 0);
 		}
 
 		req->rx_bytes += req->len;
@@ -1454,6 +1497,8 @@ http_read_thread(thread_ref_t thread)
 			EVP_DigestFinal_ex(req->context, digest, NULL);
 			EVP_MD_CTX_free(req->context);
 			req->context = NULL;
+			if (http_get_check->genhash_flags & GENHASH_VERBOSE)
+				dump_digest(digest, MD5_DIGEST_LENGTH);
 		}
 
 		if (r == -1) {
@@ -1468,7 +1513,7 @@ http_read_thread(thread_ref_t thread)
 	}
 
 	/* Handle response stream */
-	http_process_response(req, (size_t)r, url);
+	http_process_response(thread, req, (size_t)r, url);
 
 	/*
 	 * Register next http stream reader.

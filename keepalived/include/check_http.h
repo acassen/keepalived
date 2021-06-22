@@ -125,15 +125,18 @@ typedef struct _http_checker {
 	bool				enable_sni;
 #endif
 	bool				fast_recovery;
-	bool				genhash;
+	int				genhash_flags;
 } http_checker_t;
 
-/* global defs */
 #define GET_BUFFER_LENGTH 2048U
 #define MAX_BUFFER_LENGTH 4096U
 #define PROTO_HTTP	0x01
 #define PROTO_SSL	0x02
 
+#define GENHASH         0x01
+#define GENHASH_VERBOSE 0x02
+
+/* global defs */
 #ifdef _REGEX_DEBUG_
 extern bool do_regex_debug;
 #endif
@@ -145,7 +148,8 @@ extern bool do_regex_timers;
 extern void free_http_check(checker_t *);
 extern void install_http_check_keyword(void);
 extern void timeout_epilog(thread_ref_t, const char *);
-extern void http_process_response(request_t *, size_t, url_t *);
+extern void dump_digest(unsigned char *, unsigned);
+extern void http_process_response(thread_ref_t, request_t *, size_t, url_t *);
 extern void http_handle_response(thread_ref_t, unsigned char digest[16], bool);
 extern void http_connect_thread(thread_ref_t);
 #ifdef THREAD_DUMP

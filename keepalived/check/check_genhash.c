@@ -131,7 +131,7 @@ check_genhash_parse_cmdline(int argc, char **argv, checker_t *checker)
 			bad_option = true;
 			break;
 		case 'v':
-			checker->enabled = true; /* reuse as Verbose */
+			((http_checker_t *)checker->data)->genhash_flags |= GENHASH_VERBOSE;
 			break;
 		case 'S':
 			http_get_check->proto = PROTO_SSL;
@@ -270,6 +270,7 @@ check_genhash(bool am_genhash, int argc, char **argv)
 	real_server_t *rs;
 	conn_opts_t *co;
 	int ret = 0;
+	unsigned long ref_time = 0;
 
 	/* Create a dummy checker */
 	PMALLOC(check_data);
@@ -283,7 +284,7 @@ check_genhash(bool am_genhash, int argc, char **argv)
 	checker->co = co;
 	PMALLOC(http_get_check);
 	INIT_LIST_HEAD(&http_get_check->url);
-	http_get_check->genhash = true;
+	http_get_check->genhash_flags = GENHASH;
 	http_get_check->proto = PROTO_HTTP;
 	checker->data = http_get_check;
 	checker->enabled = true;
@@ -298,9 +299,14 @@ check_genhash(bool am_genhash, int argc, char **argv)
 	/* Submit work to I/O MUX */
 	master = thread_make_master();
 	signal_set(SIGINT, sigend, NULL);
+	if (http_get_check->genhash_flags & GENHASH_VERBOSE)
+		ref_time = timer_long(timer_now());
 	signal_set(SIGTERM, sigend, NULL);
 	thread_add_event(master, http_connect_thread, checker, 0);
 	launch_thread_scheduler(master);
+
+	if (http_get_check->genhash_flags & GENHASH_VERBOSE)
+		printf("\nGlobal response time for [%s] = %lu usecs\n", http_get_check->url_it->path, timer_long(timer_now()) - ref_time);
 
 	/* Release memory */
 	thread_destroy_master(master);
