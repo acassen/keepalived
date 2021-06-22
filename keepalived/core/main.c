@@ -38,6 +38,7 @@
 #include <getopt.h>
 #include <linux/version.h>
 #include <ctype.h>
+#include <sys/prctl.h>
 
 #include "main.h"
 #include "global_data.h"
@@ -2075,6 +2076,9 @@ parse_cmdline(int argc, char **argv)
 		case 'T':
 			if (!first_option)
 				fprintf(stderr, "Warning -- `%s` not used as first option, previous options ignored\n", longindex == -1 ? "-T" : long_options[longindex].name);
+
+			/* Set our process name */
+			prctl(PR_SET_NAME, "genhash");
 
 			check_genhash(false, argc, argv);
 			exit(0);
