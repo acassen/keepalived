@@ -1919,6 +1919,9 @@ parse_cmdline(int argc, char **argv)
 	unsigned facility;
 	mode_t new_umask_val;
 	unsigned i;
+#ifdef _WITH_LVS_
+	bool first_option;
+#endif
 
 	struct option long_options[] = {
 		{"use-file",		required_argument,	NULL, 'f'},
@@ -1995,6 +1998,10 @@ parse_cmdline(int argc, char **argv)
 	 * of longindex, so we need to ensure that before calling getopt_long(), longindex
 	 * is set to a known invalid value */
 	curind = optind;
+#ifdef _WITH_LVS_
+	first_option = true;
+#endif
+
 	/* Used short options: ABCDGILMPRSVXabcdefghilmnprstuvx */
 	while (longindex = -1, (c = getopt_long(argc, argv, ":vhlndu:DRS:f:p:i:es:mM::g::Gt::"
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
@@ -2066,6 +2073,9 @@ parse_cmdline(int argc, char **argv)
 			__set_bit(DONT_RELEASE_IPVS_BIT, &debug);
 			break;
 		case 'T':
+			if (!first_option)
+				fprintf(stderr, "Warning -- `%s` not used as first option, previous options ignored\n", longindex == -1 ? "-T" : long_options[longindex].name);
+
 			check_genhash(argc, argv);
 			exit(0);
 #endif
@@ -2285,6 +2295,9 @@ parse_cmdline(int argc, char **argv)
 			break;
 		}
 		curind = optind;
+#ifdef _WITH_LVS_
+		first_option = false;
+#endif
 	}
 
 	if (optind < argc) {
