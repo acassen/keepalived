@@ -1,5 +1,13 @@
 ! Configuration File for keepalived
 
+# Note: The "</dev/tcp/127.0.0.1/80" syntax for a script
+# requires that /bin/sh is Bash.
+# On systems where /bin/sh is not Bash (e.g. Debian, Ubuntu),
+# then the following alternatives should be used:
+#   script "bash -c '</dev/tcp/127.0.0.1/80'"
+# or
+#   script "nc -z 127.0.0.1 80"
+
 vrrp_script chk_sshd {
        script "killall -0 sshd"        # cheaper than pidof
        interval 2                      # check every 2 seconds
