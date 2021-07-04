@@ -164,7 +164,7 @@ and
 \fBnet_namespace_ipvs \fRNAME
 
 # ipsets wasn't network namespace aware until Linux 3.13, and so
-# if running with # an earlier version of the kernel, by default
+# if running with an earlier version of the kernel, by default
 # use of ipsets is disabled if using a namespace and vrrp_ipsets
 # has not been specified. This options overrides the default and
 # allows ipsets to be used with a namespace on kernels prior to 3.13.
