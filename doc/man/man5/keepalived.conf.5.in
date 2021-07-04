@@ -2631,7 +2631,7 @@ Example:
 The above will create 2 virtual servers, each with 3 real servers
 .SH Pre-defined definitions
 .PP
-The following pre-defined definitions are defined:
+The following definitions are pre-defined:
 .sp
 \fB${_PWD} : \fRThe directory of the current configuration file (this can be changed if using the include directive).
 .br
