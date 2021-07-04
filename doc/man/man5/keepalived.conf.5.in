@@ -186,7 +186,7 @@ and
 \fBnet_namespace_ipvs \fRNAME
 
 # ipsets wasn't network namespace aware until Linux 3.13, and so
-# if running with # an earlier version of the kernel, by default
+# if running with an earlier version of the kernel, by default
 # use of ipsets is disabled if using a namespace and vrrp_ipsets
 # has not been specified. This options overrides the default and
 # allows ipsets to be used with a namespace on kernels prior to 3.13.
@@ -717,11 +717,11 @@ possibly following any cleanup actions needed.
 
     # Allow configuration to include interfaces that don't exist at startup.
     # This allows keepalived to work with interfaces that may be deleted and restored
-    #   and also allows virtual and static routes and rules on VMAC interfaces.
-    #   allow_if_changes allows an interface to be deleted and recreated with a
-    #   different type or underlying interface, eg changing from vlan to macvlan
-    #   or changing a macvlan from eth1 to eth2. This is predominantly used for
-    #   reporting duplicate VRID errors at startup if allow_if_changes is not set.
+    # and also allows virtual and static routes and rules on VMAC interfaces.
+    # allow_if_changes allows an interface to be deleted and recreated with a
+    # different type or underlying interface, eg changing from vlan to macvlan
+    # or changing a macvlan from eth1 to eth2. This is predominantly used for
+    # reporting duplicate VRID errors at startup if allow_if_changes is not set.
     \fBdynamic_interfaces [allow_if_changes]\fR
 
     # The following options are only needed for large configurations, where either
@@ -2658,7 +2658,7 @@ Example:
 The above will create 2 virtual servers, each with 3 real servers
 .SH Pre-defined definitions
 .PP
-The following pre-defined definitions are defined:
+The following definitions are pre-defined:
 .sp
 \fB${_PWD} : \fRThe directory of the current configuration file (this can be changed if using the include directive).
 .br
