@@ -605,7 +605,7 @@ perform_svr_state(bool alive, checker_t *checker)
 			    , alive ? (rs->inhibit) ? "Enabl" : "Add" :
 				      (rs->inhibit) ? "Disabl" : "Remov"
 			    , FMT_RS(rs, vs)
-		    	    , (rs->inhibit) ? "of" : alive ? "to" : "from"
+			    , (rs->inhibit) ? "of" : alive ? "to" : "from"
 			    , FMT_VS(vs));
 
 	/* Change only if we have quorum or no sorry server */
