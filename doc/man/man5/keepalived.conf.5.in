@@ -91,19 +91,41 @@ a non root user.
 
 All scripts should be written so that they will terminate on receipt of a SIGTERM
 signal. Scripts will be sent SIGTERM if their parent terminates, or it is a script
-the keepalived is awaiting its exit status and it has run for too long.
+that keepalived is awaiting its exit status and it has run for too long.
 .PP
 .SH Quoted strings
-Quoted strings are specified between " characters; more specifically a string
-will only end after a quoted string if there is whitespace afterwards. For
-example:
+Quoted strings are specified between " or ' characters and strings are delimited by
+whitespace. In the examples below the \' characters are not part of the strings and should not be specified:
+
 .nf
 .RS
-"abcd" efg h jkl "mnop"
+\'abcd" efg h jkl "mnop\'
+.RE
+
+.fi
+will be the single string:
+
+.nf
+.RS
+\'abcd efg h jkl mnop\'
+.RE
+
+whereas:
+
+.nf
+.RS
+\'abcd "efg h jkl" mnop\'
 .RE
 .fi
-will be the single string "abcd efg h jkl mnop", i.e. the embedded " characters
-are removed.
+
+will be the three strings:
+
+.nf
+.RS
+\'abcd\', \'efg h jkl\' and \'mnop\'
+.RE
+
+i.e. the " and ' characters are removed and any intervening whitespace is retained.
 .PP
 Quoted strings can also have escaped characters, like the shell. \\a, \\b, \\E, \\f,
 \\n, \\r, \\t, \\v, \\nnn and \\xXX (where nnn is up to 3 octal digits, and XX is any
