@@ -870,19 +870,14 @@ print_parent_data(__attribute__((unused)) thread_ref_t thread)
 
 	log_message(LOG_INFO, "Printing parent data for process(%d) on signal", getpid());
 
-	fp = fopen_safe(dump_file, "w");
+	fp = open_dump_file(dump_file);
 
-	if (!fp) {
-		log_message(LOG_INFO, "Can't open %s (%d: %s)",
-			dump_file, errno, strerror(errno));
+	if (!fp)
 		return;
-	}
 
 	dump_global_data(fp, global_data);
 
 	fclose(fp);
-
-	return;
 }
 
 void
