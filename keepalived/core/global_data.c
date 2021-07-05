@@ -416,6 +416,46 @@ free_global_data(data_t * data)
 	FREE(data);
 }
 
+FILE *
+open_dump_file(const char *file_name)
+{
+	FILE *fp;
+	char *file_name_tmp = NULL;
+	const char *dot;
+	int len;
+
+	if (global_data->data_use_instance &&
+	    (global_data->instance_name || global_data->network_namespace)) {
+		len = strlen(file_name) + 1;
+		if (global_data->instance_name)
+			len += strlen(global_data->instance_name) + 1;
+		if (global_data->network_namespace)
+			len += strlen(global_data->network_namespace) + 1;
+
+		file_name_tmp = MALLOC(len);
+
+		dot = strrchr(file_name, '.');
+		sprintf(file_name_tmp, "%.*s.%s%s%s%s",
+				(int)(dot - file_name), file_name,
+				global_data->network_namespace ? global_data->network_namespace : "",
+				global_data->instance_name && global_data->network_namespace ? "_" : "",
+				global_data->instance_name ? global_data->instance_name : "",
+				dot);
+		file_name = file_name_tmp;
+	}
+
+	fp = fopen_safe(file_name, "w");
+
+	if (!fp)
+		log_message(LOG_INFO, "Can't open dump file %s (%d: %s)",
+			file_name, errno, strerror(errno));
+
+	if (file_name_tmp)
+		FREE(file_name_tmp);
+
+	return fp;
+}
+
 void
 dump_global_data(FILE *fp, data_t * data)
 {
@@ -499,6 +539,8 @@ dump_global_data(FILE *fp, data_t * data)
 #endif
 	if (data->config_directory)
 		conf_write(fp, " config save directory = %s", data->config_directory);
+	if (data->data_use_instance)
+		conf_write(fp, " Use instance name in data dumps");
 	if (data->startup_script)
 		conf_write(fp, " Startup script = %s, uid:gid %u:%u, timeout %u",
 			    cmd_str(data->startup_script),

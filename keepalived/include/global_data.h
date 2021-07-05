@@ -124,6 +124,7 @@ typedef struct _data {
 	const char			*reload_file;
 #endif
 	const char 			*config_directory;
+	bool				data_use_instance;
 #ifdef _WITH_VRRP_
 	bool				dynamic_interfaces;
 	bool				allow_if_changes;
@@ -286,6 +287,7 @@ extern void alloc_email(const char *);
 extern data_t *alloc_global_data(void);
 extern void init_global_data(data_t *, data_t *, bool);
 extern void free_global_data(data_t *);
+extern FILE *open_dump_file(const char *);
 extern void dump_global_data(FILE *, data_t *);
 
 #endif

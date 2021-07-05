@@ -892,6 +892,17 @@ possibly following any cleanup actions needed.
     # file, if update process creates the reload_file with non-zero size, it can detect
     # the reloading starting by the reload_file becoming zero length.
     \fBreload_file\fR [ABSOLUTE-PATHNAME-OF-FILE]
+
+    # Sending SIGUSR1 to keepalived causes it to dump its data structures
+    # for debugging purposes, although some users use this feature and
+    # process the output. Please note that the format of the .data files
+    # produced is not guaranteed to maintain backward compatibility.
+    # The standard file names are keepalived_parent.data, keepalived.data,
+    # keepalived_check.data and keepalived_bfd.data. This causes a problem
+    # if more than one keepalived instance is running on a system.
+    # In order to alleviate this, enabling data_use_instance includes the
+    # instance name and network namespace in the file name of the .data files.
+    \fBdata_use_instance \fR[<BOOL>]
 }
 .fi
 .SH Linkbeat interfaces

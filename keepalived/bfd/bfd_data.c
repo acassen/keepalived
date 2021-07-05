@@ -283,16 +283,16 @@ dump_bfd_data(FILE *fp, const bfd_data_t *data)
 void
 bfd_print_data(void)
 {
-	FILE *file = fopen_safe(dump_file, "w");
+	FILE *fp;
 
-	if (!file) {
-		log_message(LOG_INFO, "Can't open %s (%d: %m)", dump_file, errno);
+	fp = open_dump_file(dump_file);
+
+	if (!fp)
 		return;
-	}
 
-	dump_bfd_data(file, bfd_data);
+	dump_bfd_data(fp, bfd_data);
 
-	fclose(file);
+	fclose(fp);
 }
 
 void
