@@ -309,7 +309,7 @@ ssl_read_thread(thread_ref_t thread)
 				thread->u.f.fd, timeout, THREAD_DESTROY_CLOSE_FD);
 	} else if (r > 0 && req->error == SSL_ERROR_NONE) {
 		/* Handle response stream */
-		http_process_response(req, (size_t)r, url);
+		http_process_response(thread, req, (size_t)r, url);
 
 		/*
 		 * Register next ssl stream reader.
@@ -323,6 +323,8 @@ ssl_read_thread(thread_ref_t thread)
 			EVP_DigestFinal_ex(req->context, digest, NULL);
 			EVP_MD_CTX_free(req->context);
 			req->context = NULL;
+			if (http_get_check->genhash_flags & GENHASH_VERBOSE)
+				dump_digest(digest, MD5_DIGEST_LENGTH);
 		}
 		SSL_set_quiet_shutdown(req->ssl, 1);
 

@@ -38,6 +38,7 @@
 #include <getopt.h>
 #include <linux/version.h>
 #include <ctype.h>
+#include <sys/prctl.h>
 
 #include "main.h"
 #include "global_data.h"
@@ -1796,7 +1797,7 @@ usage(const char *prog)
 	fprintf(stderr, "  -r, --vrrp_pid=FILE          Use specified pidfile for VRRP child process\n");
 #endif
 #ifdef _WITH_LVS_
-	fprintf(stderr, "  -T, --genhash                Enter into genhash utility mode.\n");
+	fprintf(stderr, "  -T, --genhash                Enter into genhash utility mode (this should be the first option used).\n");
 	fprintf(stderr, "  -c, --checkers_pid=FILE      Use specified pidfile for checkers child process\n");
 	fprintf(stderr, "  -a, --address-monitoring     Report all address additions/deletions notified via netlink\n");
 #endif
@@ -1919,6 +1920,9 @@ parse_cmdline(int argc, char **argv)
 	unsigned facility;
 	mode_t new_umask_val;
 	unsigned i;
+#ifdef _WITH_LVS_
+	bool first_option;
+#endif
 
 	struct option long_options[] = {
 		{"use-file",		required_argument,	NULL, 'f'},
@@ -1955,7 +1959,7 @@ parse_cmdline(int argc, char **argv)
 		{"vrrp_pid",		required_argument,	NULL, 'r'},
 #endif
 #ifdef _WITH_LVS_
-		{"genhash",		optional_argument,	NULL, 'T'},
+		{"genhash",		no_argument,		NULL, 'T'},
 		{"checkers_pid",	required_argument,	NULL, 'c'},
 		{"address-monitoring",	no_argument,		NULL, 'a'},
 #endif
@@ -1995,6 +1999,10 @@ parse_cmdline(int argc, char **argv)
 	 * of longindex, so we need to ensure that before calling getopt_long(), longindex
 	 * is set to a known invalid value */
 	curind = optind;
+#ifdef _WITH_LVS_
+	first_option = true;
+#endif
+
 	/* Used short options: ABCDGILMPRSVXabcdefghilmnprstuvx */
 	while (longindex = -1, (c = getopt_long(argc, argv, ":vhlndu:DRS:f:p:i:es:mM::g::Gt::"
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
@@ -2004,7 +2012,7 @@ parse_cmdline(int argc, char **argv)
 					    "r:VX"
 #endif
 #ifdef _WITH_LVS_
-					    "ac:IT:"
+					    "ac:IT"
 #endif
 #ifdef _WITH_BFD_
 					    "Bb:"
@@ -2066,7 +2074,13 @@ parse_cmdline(int argc, char **argv)
 			__set_bit(DONT_RELEASE_IPVS_BIT, &debug);
 			break;
 		case 'T':
-			check_genhash(argc, argv);
+			if (!first_option)
+				fprintf(stderr, "Warning -- `%s` not used as first option, previous options ignored\n", longindex == -1 ? "-T" : long_options[longindex].name);
+
+			/* Set our process name */
+			prctl(PR_SET_NAME, "genhash");
+
+			check_genhash(false, argc, argv);
 			exit(0);
 #endif
 		case 'D':
@@ -2285,6 +2299,9 @@ parse_cmdline(int argc, char **argv)
 			break;
 		}
 		curind = optind;
+#ifdef _WITH_LVS_
+		first_option = false;
+#endif
 	}
 
 	if (optind < argc) {
@@ -2354,6 +2371,14 @@ keepalived_main(int argc, char **argv)
 	unsigned script_flags;
 	struct rusage usage;
 	struct rusage child_usage;
+
+#ifdef _WITH_LVS_
+	char *name = strrchr(argv[0], '/');
+	if (!strcmp(name ? name + 1 : argv[0], "genhash")) {
+		check_genhash(true, argc, argv);
+		/* Not reached */
+	}
+#endif
 
 #ifdef _MEM_CHECK_
 	__set_bit(MEM_CHECK_BIT, &debug);

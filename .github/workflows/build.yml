@@ -20,12 +20,12 @@ jobs:
         cmdline:
         - ""
         - "--enable-snmp --enable-snmp-rfc --enable-json --enable-dbus --disable-checksum-compat --enable-bfd --enable-asserts --disable-systemd"
-        - "--enable-sha1 --enable-dbus --enable-dbus-create-instance --disable-dynamic-linking --disable-fwmark --disable-lvs-syncd --enable-snmp-vrrp --enable-timer-check --disable-iptables --disable-nftables --disable-track-process"
+        - "--enable-dbus --enable-dbus-create-instance --disable-dynamic-linking --disable-fwmark --disable-lvs-syncd --enable-snmp-vrrp --enable-timer-check --disable-iptables --disable-nftables --disable-track-process"
         - "--enable-dynamic-linking --disable-vrrp-auth --enable-snmp-rfc --disable-snmp-reply-v3-for-v2 --disable-nftables"
         - "--disable-libnl --enable-snmp-checker"
         - "--enable-conversion-checks --enable-stacktrace --enable-mem-check --enable-mem-check-log --disable-lvs-64bit-stats --enable-snmp-rfcv2"
-        - "--disable-lvs --enable-snmp-vrrp --enable-snmp-rfc --enable-json --enable-sha1 --enable-dbus --disable-routes --enable-bfd --disable-iptables --disable-linkbeat"
-        - "--disable-vrrp --enable-snmp-checker --enable-sha1 --enable-regex"
+        - "--disable-lvs --enable-snmp-vrrp --enable-snmp-rfc --enable-json --enable-dbus --disable-routes --enable-bfd --disable-iptables --disable-linkbeat"
+        - "--disable-vrrp --enable-snmp-checker --enable-regex"
         - "--disable-hardening --enable-dump-threads --enable-epoll-debug --enable-snmp-rfcv3 --enable-log-file --disable-libipset"
     steps:
     - uses: actions/checkout@v2

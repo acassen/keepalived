@@ -74,7 +74,6 @@ CONFIG_OPTS=
 @SNMP_RFC_FALSE@@SNMP_RFCV2_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-snmp-rfcv2"
 @SNMP_RFC_FALSE@@SNMP_RFCV3_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-snmp-rfcv3"
 @SNMP_RFC_TRUE@@SNMP_REPLY_V3_FOR_V2_FALSE@CONFIG_OPTS="$CONFIG_OPTS --disable-snmp-reply-v3-for-v2"
-@WITH_SHA1_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-sha1"
 @WITH_DBUS_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-dbus"
 @WITH_JSON_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-json"
 @INIT_UPSTART_TRUE@CONFIG_OPTS="$CONFIG_OPTS --with-init=upstart"
@@ -164,9 +163,9 @@ fi
 @SNMP_TRUE@%{_datadir}/snmp/mibs/KEEPALIVED-MIB.txt
 @SNMP_RFCV2_TRUE@%{_datadir}/snmp/mibs/VRRP-MIB.txt
 @SNMP_RFCV3_TRUE@%{_datadir}/snmp/mibs/VRRPv3-MIB.txt
-%{_bindir}/genhash
+@WITH_IPVS_TRUE@%{_bindir}/genhash
 %attr(0755,root,root) %{_sbindir}/keepalived
-%{_mandir}/man1/genhash.1*
+@WITH_IPVS_TRUE@%{_mandir}/man1/genhash.1*
 %{_mandir}/man5/keepalived.conf.5*
 %{_mandir}/man8/keepalived.8*
 @WITH_DBUS_TRUE@%attr(0644,root,root) %{_sysconfdir}/dbus-1/system.d/org.keepalived.Vrrp1.conf

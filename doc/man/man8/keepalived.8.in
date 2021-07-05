@@ -136,10 +136,10 @@ for the VRRP child process is "@RUN_DIR_ROOT@/run/keepalived_vrrp.pid", unless a
 network namespace is being used.
 .TP
 \fB -T, --genhash\fP
-Enter genhash utility mode. Previous version of keepalived were shipped with a
-dedicated genhash utility. genhash is now part of mainline code. We keep
+Enter genhash utility mode. Previous versions of keepalived were shipped with a
+dedicated genhash utility. genhash is now part of the mainline code. We keep
 compatibility with previous genhash utility command line option. For more
-information please refer to genhash manpage.
+information please refer to the genhash(1) manpage.
 .TP
 \fB -c, --checkers_pid\fP=FILE
 Use the specified pidfile for checkers child process. The default pidfile
