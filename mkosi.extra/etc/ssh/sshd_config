@@ -1,0 +1,9 @@
+# just a sample entry for ssh snippet 
+# Needs to be adjusted to test user and
+# use keybased authentication in real life
+
+Subsystem sftp internal-sftp
+UseDNS no
+
+PermitRootLogin yes
+AllowUsers root

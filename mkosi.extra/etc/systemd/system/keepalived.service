@@ -1,0 +1,18 @@
+[Unit]
+Description=LVS and VRRP High Availability Monitor
+Documentation=man:keepalived(8)
+After=network-online.target
+Wants=network-online.target
+StartLimitBurst=3
+StartLimitIntervalSec=15
+
+[Service]
+Type=forking
+PIDFile=/run/keepalived.pid
+SyslogIdentifier=keepalived
+ExecStart=/usr/sbin/keepalived -D
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

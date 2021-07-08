@@ -1,0 +1,8 @@
+[Unit]
+Description=SSH Per-Connection Server for %I
+Wants=sshd-keygen.target
+After=sshd-keygen.target
+
+[Service]
+ExecStart=-/usr/sbin/sshd -i
+StandardInput=socket

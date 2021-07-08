@@ -1,0 +1,11 @@
+# Sample static entry for RFC1918 address
+[Match]
+Name=enp1s0
+
+[Network]
+DNS=192.168.122.1
+Address=192.168.122.20/24
+Gateway=192.168.122.1
+
+[Route]
+Gateway=192.168.122.1

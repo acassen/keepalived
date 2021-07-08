@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: GPLv2+
+#==================================================#
+#                                                  #
+# Make operating system image configuration file   #
+# for Keepalive and Fedora linux distribution      #
+#                                                  #
+#==================================================#
+
+[Distribution]
+Distribution=fedora
+Release=31
+
+[Output]
+Format=raw_gpt
+Bootable=yes
+Output=mkosi.output/fedora.raw
+
+[Partitions]
+ESPSize=256M
+RootSize=3G
+SwapSize=512M
+
+[Packages]
+BuildPackages=
+        gcc
+        make
+        autoconf
+        automake
+        openssl-devel
+        libnl3-devel
+        ipset-devel
+        iptables-devel
+        net-snmp-devel
+        glib2-devel
+        json-c-devel
+        pcre2-devel
+        libnfnetlink-devel
+        libmnl-devel
+
+Packages=
+         nftables
+         openssh-server
+         vim-enhanced
+         bash-completion
+         iproute
+         iputils
+         tcpdump
+         kbd
+
+BuildDirectory=mkosi.cache
+Cache=mkosi.cache
+# root password
+[Validation]
+Password=CHANGEME
