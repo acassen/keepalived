@@ -29,9 +29,9 @@ base: core18
 apps:
   daemon:
     daemon: forking
-    command: bin/keepalived-wrapper
+    command: /bin/bash $SNAP/bin/keepalived-wrapper
   keepalived:
-    command: bin/keepalived-wrapper
+    command: /bin/bash $SNAP/bin/keepalived-wrapper
   "508":        # Ubuntu 20.10 and Fedora 31
     command: usr/sbin/keepalived-508
   "504":        # Ubuntu 20.04 and Fedora 31
@@ -75,6 +75,8 @@ parts:
       snapcraftctl set-version $VER
       echo -n "Build kernel:"
       printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
+      rm ${SNAPCRAFT_PART_INSTALL}/usr/bin/genhash
+      ln -s ../sbin/keepalived-415 ${SNAPCRAFT_PART_INSTALL}/usr/bin/genhash
     build-packages:
       - iptables-dev
       - libipset-dev
