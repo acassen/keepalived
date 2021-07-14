@@ -81,6 +81,7 @@
 #include "vrrp_ipaddress.h"
 #include "global_data.h"
 #include "align.h"
+#include "warnings.h"
 
 /* This seems a nasty hack, but it's what iproute2 does */
 #ifndef SOL_NETLINK
@@ -671,7 +672,11 @@ netlink_close(nl_handle_t *nl)
 }
 
 /* iproute2 utility function */
-int
+/* GCC, at least up to v11.1.1, ignores the RELAX_STRINGOP_OVERFLOW below,
+ * and produces warnings when doing the LTO link of vrrp_vmac.o and vrrp_ipaddress.o.
+ * This should be tested periodically to see if specifying noinline can be removed.
+ */
+int LTO_NOINLINE
 addattr_l(struct nlmsghdr *n, size_t maxlen, unsigned short type, const void *data, size_t alen)
 {
 	size_t len = RTA_LENGTH(alen);
@@ -684,7 +689,9 @@ addattr_l(struct nlmsghdr *n, size_t maxlen, unsigned short type, const void *da
 	rta = PTR_CAST(struct rtattr, (((char *)n) + n->nlmsg_len));
 	rta->rta_type = type;
 	rta->rta_len = (unsigned short)len;
+RELAX_STRINGOP_OVERFLOW
 	memcpy(RTA_DATA(rta), data, alen);
+RELAX_END
 	n->nlmsg_len += (uint32_t)align_len;
 
 	return 0;

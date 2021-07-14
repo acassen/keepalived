@@ -416,7 +416,7 @@ free_global_data(data_t * data)
 	FREE(data);
 }
 
-FILE *
+FILE * __attribute__((malloc))
 open_dump_file(const char *file_name)
 {
 	FILE *fp;

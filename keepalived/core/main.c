@@ -1473,7 +1473,7 @@ initialise_debug_options(void)
 #endif
 #endif
 }
-RELAX_SUGGEST_ATTRIBUTE_CONST_END
+RELAX_END
 
 #ifdef  WITH_DEBUG_OPTIONS
 static void

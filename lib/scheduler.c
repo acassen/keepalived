@@ -449,7 +449,7 @@ log_command_line(unsigned indent)
 
 RELAX_STRICT_OVERFLOW_START
 	for (i = 0, p = log_str; i < sav_argc; i++) {
-RELAX_STRICT_OVERFLOW_END
+RELAX_END
 		p += sprintf(p, "%s'%s'", i ? " " : "", sav_argv[i]);
 	}
 

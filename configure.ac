@@ -491,6 +491,22 @@ dnl -- Do we want -Wcast-align=strict?
 AS_IF([test .$enable_strict_cast_align = .yes],
       [WARNINGS_STD=$(echo $WARNINGS_STD | sed -e "s/cast-align /cast-align=strict /")])
 
+dnl -- check if we are using LTO. There is a GCC bug which means that when addattr_l()
+dnl -- is inlined, GCC (up to at least v11.1.1) ignores RELAX_STRINGOP_OVERFLOW and issues
+dnl -- -Wstringop-overflow warnings
+dnl -- I haven't been able to produce a test case to demonstrate this GCC bug, so we can't
+dnl -- test it here, nor have I been able to report a bug upstream to GCC.
+AC_MSG_CHECKING([if using Link Time Optimisation])
+echo " $CFLAGS " | grep -q -- " -flto=auto "
+AS_IF([test $? -eq 0],
+  [
+    AC_MSG_RESULT([yes])
+    AC_DEFINE([LTO_NOINLINE], [ __attribute__((noinline)) ], [Define to not inline if using LTO])
+  ], [
+    AC_MSG_RESULT([no])
+    AC_DEFINE([LTO_NOINLINE], [], [Define to not inline if using LTO])
+  ])
+
 dnl -- ulibc/glibc differences
 AC_MSG_CHECKING([msghdr.msg_controllen is size_t])
 SAV_CFLAGS=$CFLAGS
@@ -1876,7 +1892,10 @@ if test "$enable_vrrp" != no; then
       ]])
     if test $IPVLAN_SUPPORT = Yes; then
       dnl - IPVLAN_MODE_L3S since Linux 4.9, IFLA_IPVLAN_FLAGS since Linux 4.15
-      AC_CHECK_DECLS([IPVLAN_MODE_L3S, IFLA_IPVLAN_FLAGS])
+      AC_CHECK_DECLS([IPVLAN_MODE_L3S, IFLA_IPVLAN_FLAGS], [], [],
+        [[
+          #include <linux/if_link.h>
+        ]])
       AC_DEFINE([_HAVE_VRRP_IPVLAN_], [ 1 ], [Define to 1 if have IP VLAN support])
       add_system_opt([VRRP_IPVLAN])
     fi
