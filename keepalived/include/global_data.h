@@ -287,7 +287,7 @@ extern void alloc_email(const char *);
 extern data_t *alloc_global_data(void);
 extern void init_global_data(data_t *, data_t *, bool);
 extern void free_global_data(data_t *);
-extern FILE *open_dump_file(const char *);
+extern FILE *open_dump_file(const char *) __attribute__((malloc));
 extern void dump_global_data(FILE *, data_t *);
 
 #endif
