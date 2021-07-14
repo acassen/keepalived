@@ -1876,7 +1876,10 @@ if test "$enable_vrrp" != no; then
       ]])
     if test $IPVLAN_SUPPORT = Yes; then
       dnl - IPVLAN_MODE_L3S since Linux 4.9, IFLA_IPVLAN_FLAGS since Linux 4.15
-      AC_CHECK_DECLS([IPVLAN_MODE_L3S, IFLA_IPVLAN_FLAGS])
+      AC_CHECK_DECLS([IPVLAN_MODE_L3S, IFLA_IPVLAN_FLAGS], [], [],
+        [[
+          #include <linux/if_link.h>
+        ]])
       AC_DEFINE([_HAVE_VRRP_IPVLAN_], [ 1 ], [Define to 1 if have IP VLAN support])
       add_system_opt([VRRP_IPVLAN])
     fi
