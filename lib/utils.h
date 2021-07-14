@@ -36,6 +36,7 @@
 #include <string.h>
 
 #include "vector.h"
+#include "warnings.h"
 
 #define STR(x)  #x
 
@@ -222,10 +223,22 @@ static inline uint16_t csum_incremental_update16(const uint16_t old_csum, const 
 	return ~acc & 0xffff;
 }
 
-/* The definition produces some warnings: (dst[0] = '\0', strncat(dst, src, sizeof(dst) - 1)).
- * The following still produces warnings with at least gcc versions 9, 10, and 11. */
-#define strcpy_safe(dst, src) \
-	do { strncpy(dst, src, sizeof(dst) - 1); dst[sizeof(dst) - 1] = '\0'; } while (0)
+/* The following produce -Wstringop-truncation warnings (not produced without the loop):
+ * 	do { strncpy(dst, src, sizeof(dst) - 1); dst[sizeof(dst) - 1] = '\0'; } while (0)
+	do { dst[0] = '\0'; strncat(dst, src, sizeof(dst) - 1); } while (0)
+   even if surrounded by RELAX_STRINGOP_TRUNCATION/RELAX_STRINGOP_TRUNCATION_END
+   See GCC BZ#101451
+ */
+#define strcpy_safe(dst, src)	strcpy_safe_impl(dst, src, sizeof(dst))
+
+static inline char *
+strcpy_safe_impl(char *dst, const char *src, size_t len)
+{
+	dst[0] = '\0';
+RELAX_STRINGOP_TRUNCATION
+	return strncat(dst, src, len - 1);
+RELAX_STRINGOP_TRUNCATION_END
+}
 
 /* global vars exported */
 extern unsigned long debug;

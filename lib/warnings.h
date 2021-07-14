@@ -107,4 +107,19 @@ _Pragma("GCC diagnostic pop")
 #define RELAX_SUGGEST_ATTRIBUTE_CONST_END
 #endif
 
+#ifdef _HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_
+#define RELAX_STRINGOP_TRUNCATION \
+_Pragma("GCC diagnostic push") \
+_Pragma("GCC diagnostic ignored \"-Wstringop-truncation\"")
+#else
+#define RELAX_STRINGOP_TRUNCATION
+#endif
+
+#ifdef _HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_
+#define RELAX_STRINGOP_TRUNCATION_END \
+_Pragma("GCC diagnostic pop")
+#else
+#define RELAX_STRINGOP_TRUNCATION_END
+#endif
+
 #endif
