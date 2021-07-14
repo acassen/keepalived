@@ -69,7 +69,7 @@ extern bool do_netlink_timers;
 extern void report_and_clear_netlink_timers(const char *);
 #endif
 
-extern int addattr_l(struct nlmsghdr *, size_t, unsigned short, const void *, size_t);
+extern int addattr_l(struct nlmsghdr *, size_t, unsigned short, const void *, size_t) LTO_NOINLINE;
 extern int addattr_l2(struct nlmsghdr *, size_t, unsigned short, const void *, size_t, const void *, size_t);
 extern int addraw_l(struct nlmsghdr *, size_t, const void *, size_t);
 
