@@ -226,7 +226,7 @@ static inline uint16_t csum_incremental_update16(const uint16_t old_csum, const 
 /* The following produce -Wstringop-truncation warnings (not produced without the loop):
  * 	do { strncpy(dst, src, sizeof(dst) - 1); dst[sizeof(dst) - 1] = '\0'; } while (0)
 	do { dst[0] = '\0'; strncat(dst, src, sizeof(dst) - 1); } while (0)
-   even if surrounded by RELAX_STRINGOP_TRUNCATION/RELAX_STRINGOP_TRUNCATION_END
+   even if surrounded by RELAX_STRINGOP_TRUNCATION/RELAX_END
    See GCC BZ#101451
  */
 #define strcpy_safe(dst, src)	strcpy_safe_impl(dst, src, sizeof(dst))
@@ -237,7 +237,7 @@ strcpy_safe_impl(char *dst, const char *src, size_t len)
 	dst[0] = '\0';
 RELAX_STRINGOP_TRUNCATION
 	return strncat(dst, src, len - 1);
-RELAX_STRINGOP_TRUNCATION_END
+RELAX_END
 }
 
 /* global vars exported */
