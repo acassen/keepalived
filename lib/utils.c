@@ -918,7 +918,8 @@ integer_to_string(const int value, char *str, size_t size)
 
 /* We need to use O_NOFOLLOW if opening a file for write, so that a non privileged user can't
  * create a symbolic link from the path to a system file and cause a system file to be overwritten. */
-FILE *fopen_safe(const char *path, const char *mode)
+FILE * __attribute__((malloc))
+fopen_safe(const char *path, const char *mode)
 {
 	int fd;
 	FILE *file;
