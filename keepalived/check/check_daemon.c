@@ -28,7 +28,6 @@
 #include <unistd.h>
 #include <sys/prctl.h>
 #include <sys/time.h>
-#include <sys/resource.h>
 
 #ifdef THREAD_DUMP
 #ifdef _WITH_SNMP_
@@ -152,8 +151,6 @@ checker_ipvs_syncd_needed(void)
 static int
 checker_terminate_phase2(void)
 {
-	struct rusage usage;
-
 	/* Remove the notify fifo */
 	notify_fifo_close(&global_data->notify_fifo, &global_data->lvs_notify_fifo);
 
@@ -191,12 +188,7 @@ checker_terminate_phase2(void)
 	 * Reached when terminate signal catched.
 	 * finally return to parent process.
 	 */
-	if (__test_bit(LOG_DETAIL_BIT, &debug)) {
-		getrusage(RUSAGE_SELF, &usage);
-		log_message(LOG_INFO, "Stopped - used %ld.%6.6ld user time, %ld.%6.6ld system time", usage.ru_utime.tv_sec, usage.ru_utime.tv_usec, usage.ru_stime.tv_sec, usage.ru_stime.tv_usec);
-	}
-	else
-		log_message(LOG_INFO, "Stopped");
+	log_stopping();
 
 #ifdef ENABLE_LOG_TO_FILE
 	if (log_file_name)

@@ -289,9 +289,9 @@ extern void close_std_fd(void);
 extern int open_pipe(int [2]);
 #endif
 extern int memcmp_constant_time(const void *, const void *, size_t);
-
 #if defined _WITH_LVS_ || defined _HAVE_LIBIPSET_
 extern bool keepalived_modprobe(const char *);
 #endif
+extern void log_stopping(void);
 
 #endif
