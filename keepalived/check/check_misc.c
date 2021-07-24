@@ -57,7 +57,8 @@ free_misc_check(checker_t *checker)
 {
 	misc_checker_t *misck_checker = checker->data;
 
-	FREE(misck_checker->script.args);
+	if (misck_checker->script.args)
+		FREE(misck_checker->script.args);
 	FREE(misck_checker);
 	FREE(checker);
 }
