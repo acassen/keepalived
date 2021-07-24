@@ -3869,7 +3869,7 @@ sync_group_tracking_init(void)
 #endif
 
 #ifdef _WITH_BFD_
-		/* tracked files */
+		/* tracked bfd */
 		list_for_each_entry(tbfd, &sgroup->track_bfd, e_list) {
 			if (sgroup_has_prio_owner && tbfd->weight) {
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot have weighted track"
