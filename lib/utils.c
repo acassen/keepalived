@@ -34,6 +34,7 @@
 #include <stdint.h>
 #include <errno.h>
 #include <sys/prctl.h>
+#include <sys/resource.h>
 #if defined _WITH_LVS_ || defined _HAVE_LIBIPSET_
 #include <sys/wait.h>
 #endif
@@ -1182,3 +1183,23 @@ keepalived_modprobe(const char *mod_name)
 	return false;
 }
 #endif
+
+void
+log_stopping(void)
+{
+	if (__test_bit(LOG_DETAIL_BIT, &debug)) {
+		struct rusage usage, child_usage;
+
+		getrusage(RUSAGE_SELF, &usage);
+		getrusage(RUSAGE_CHILDREN, &child_usage);
+
+		if (child_usage.ru_utime.tv_sec || child_usage.ru_utime.tv_usec)
+			log_message(LOG_INFO, "Stopped - used (self/children) %ld.%6.6ld/%ld.%6.6ld user time, %ld.%6.6ld/%ld.%6.6ld system time",
+					usage.ru_utime.tv_sec, usage.ru_utime.tv_usec, child_usage.ru_utime.tv_sec, child_usage.ru_utime.tv_usec,
+					usage.ru_stime.tv_sec, usage.ru_stime.tv_usec, child_usage.ru_stime.tv_sec, child_usage.ru_stime.tv_usec);
+		else
+			log_message(LOG_INFO, "Stopped - used %ld.%6.6ld user time, %ld.%6.6ld system time",
+					usage.ru_utime.tv_sec, usage.ru_utime.tv_usec, usage.ru_stime.tv_sec, usage.ru_stime.tv_usec);
+	} else
+		log_message(LOG_INFO, "Stopped");
+}

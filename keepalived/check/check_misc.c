@@ -57,7 +57,8 @@ free_misc_check(checker_t *checker)
 {
 	misc_checker_t *misck_checker = checker->data;
 
-	FREE(misck_checker->script.args);
+	if (misck_checker->script.args)
+		FREE(misck_checker->script.args);
 	FREE(misck_checker);
 	FREE(checker);
 }
@@ -179,7 +180,6 @@ misc_user_handler(const vector_t *strvec)
 	if (set_script_uid_gid(strvec, 1, &new_misck_checker->script.uid, &new_misck_checker->script.gid)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Failed to set uid/gid for misc checker script %s - removing", cmd_str(&new_misck_checker->script));
 		dequeue_new_checker();
-		FREE(new_misck_checker);
 		new_misck_checker = NULL;
 	}
 	else
@@ -203,7 +203,7 @@ misc_end_handler(void)
 	{
 		if (set_default_script_user(NULL, NULL)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Unable to set default user for misc script %s - removing", cmd_str(&new_misck_checker->script));
-			FREE(new_misck_checker);
+			dequeue_new_checker();
 			new_misck_checker = NULL;
 			return;
 		}
