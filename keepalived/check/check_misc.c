@@ -203,6 +203,7 @@ misc_end_handler(void)
 	{
 		if (set_default_script_user(NULL, NULL)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Unable to set default user for misc script %s - removing", cmd_str(&new_misck_checker->script));
+			dequeue_new_checker();
 			FREE(new_misck_checker);
 			new_misck_checker = NULL;
 			return;
