@@ -1447,6 +1447,10 @@ nft_cleanup(void)
 void
 nft_end(void)
 {
+
+	if (!nl)
+		return;
+
 	nft_cleanup();
 
 	mnl_socket_close(nl);
