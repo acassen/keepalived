@@ -837,6 +837,10 @@ initialise_vrrp_tracking_priorities(vrrp_t *vrrp)
 	if (vrrp->sync) {
 		list_for_each_entry(tsc, &vrrp->sync->track_script, e_list)
 			initialise_track_script_state(tsc, vrrp);
+#ifdef _WITH_BFD_
+		list_for_each_entry(tbfd, &vrrp->sync->track_bfd, e_list)
+			initialise_track_bfd_state(tbfd, vrrp);
+#endif
 	}
 
 	vrrp_set_effective_priority(vrrp);

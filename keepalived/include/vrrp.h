@@ -281,7 +281,7 @@ typedef struct _vrrp_t {
 	uint8_t			vrid;			/* virtual id. from 1(!) to 255 */
 	uint8_t			base_priority;		/* configured priority value */
 	uint8_t			effective_priority;	/* effective priority value */
-	int			total_priority;		/* base_priority +/- track_script, track_interface and track_file weights.
+	int			total_priority;		/* base_priority +/- track_script, track_interface, track_bfd and track_file weights.
 							   effective_priority is this within the range [1,254]. */
 	bool			vipset;			/* All the vips are set ? */
 	list_head_t		vip;			/* ip_address_t - list of virtual ip addresses */
