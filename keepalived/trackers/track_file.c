@@ -480,7 +480,7 @@ add_obj_to_track_file(void *obj, tracked_file_monitor_t *tfl, const char *name, 
 		if (top->obj.obj == obj) {
 			/* Update the weight appropriately. We will use the sync group's
 			 * weight unless the vrrp setting is unweighted. */
-			log_message(LOG_INFO, "(%s) track_file %s is configured on object"
+			log_message(LOG_INFO, "(%s) track_file %s is configured on VRRP instance and sync group. Remove vrrp instance config"
 					    , name, file->fname);
 			if (top->weight) {
 				top->weight = tfl->weight;

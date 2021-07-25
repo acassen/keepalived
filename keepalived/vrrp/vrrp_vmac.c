@@ -117,24 +117,16 @@ del_link_local_address(interface_t *ifp)
 	return true;
 }
 
-bool
-replace_link_local_address(interface_t *ifp)
+static bool
+change_link_local_address(interface_t *ifp, struct in6_addr *old_addr, struct in6_addr *new_addr)
 {
 	ip_address_t ipaddress;
-	struct in6_addr ipaddress_new;
 
 	memset(&ipaddress, 0, sizeof(ipaddress));
 
-	/* Create a new address */
-	make_link_local_address(&ipaddress_new, ifp->base_ifp->hw_addr);
-
-	/* There is no point in replacing the address with the same address */
-	if (inaddr_equal(AF_INET6, &ipaddress_new, &ifp->sin6_addr))
-		return true;
-
 	/* Delete the old address */
 	ipaddress.ifp = ifp;
-	ipaddress.u.sin6_addr = ifp->sin6_addr;
+	ipaddress.u.sin6_addr = *old_addr;
 
 	ipaddress.ifa.ifa_family = AF_INET6;
 	ipaddress.ifa.ifa_prefixlen = 64;
@@ -145,7 +137,7 @@ replace_link_local_address(interface_t *ifp)
 	else
 		CLEAR_IP6_ADDR(&ifp->sin6_addr);
 
-	ipaddress.u.sin6_addr = ipaddress_new;
+	ipaddress.u.sin6_addr = *new_addr;
 	if (netlink_ipaddress(&ipaddress, IPADDRESS_ADD) != 1) {
 		log_message(LOG_INFO, "Adding link-local address to vmac failed");
 		CLEAR_IP6_ADDR(&ifp->sin6_addr);
@@ -153,10 +145,34 @@ replace_link_local_address(interface_t *ifp)
 		return false;
 	}
 
+	return true;
+}
+
+bool
+replace_link_local_address(interface_t *ifp)
+{
+	struct in6_addr ipaddress_new;
+
+	/* Create a new address */
+	make_link_local_address(&ipaddress_new, ifp->base_ifp->hw_addr);
+
+	/* There is no point in replacing the address with the same address */
+	if (inaddr_equal(AF_INET6, &ipaddress_new, &ifp->sin6_addr))
+		return true;
+
+	if (!change_link_local_address(ifp, &ifp->sin6_addr, &ipaddress_new))
+		return false;
+
 	/* Save the new address */
-	ifp->sin6_addr = ipaddress.u.sin6_addr;
+	ifp->sin6_addr = ipaddress_new;
 
 	return true;
+}
+
+bool
+reset_link_local_address(struct in6_addr *old_addr, vrrp_t *vrrp)
+{
+	return change_link_local_address(vrrp->ifp, old_addr, &PTR_CAST(struct sockaddr_in6, &vrrp->saddr)->sin6_addr);
 }
 
 #if !HAVE_DECL_IFLA_INET6_ADDR_GEN_MODE
