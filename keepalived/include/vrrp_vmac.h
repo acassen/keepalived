@@ -55,6 +55,7 @@ extern u_char ll_addr[ETH_ALEN];
 extern bool add_link_local_address(interface_t *, struct in6_addr*);
 extern bool del_link_local_address(interface_t *);
 extern bool replace_link_local_address(interface_t *);
+extern bool reset_link_local_address(struct in6_addr*, vrrp_t *);
 #if !HAVE_DECL_IFLA_INET6_ADDR_GEN_MODE
 extern void remove_vmac_auto_gen_addr(interface_t *, struct in6_addr *);
 #endif

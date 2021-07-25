@@ -1003,20 +1003,31 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 							try_up_instance(vrrp, false);
 						}
 #ifdef _HAVE_VRRP_VMAC_
-						/* If IPv6 link local and vmac doesn't have an address, add it to the vmac */
+						/* If IPv6 link local and vmac doesn't have an address or we have
+						 * created one ourselves, add/replace the new address on the vmac */
 						else if (vrrp->family == AF_INET6 &&
 							 vrrp->ifp &&
 							 ifp == vrrp->ifp->base_ifp &&
 							 IS_MAC_IP_VLAN(vrrp->ifp) &&
 							 !__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&
-							 vrrp->num_script_if_fault &&
-							 vrrp->family == ifa->ifa_family &&
-							 vrrp->saddr.ss_family == AF_UNSPEC &&
-							 (!vrrp->saddr_from_config || is_tracking_saddr)) {
-							if (add_link_local_address(vrrp->ifp, addr.in6)) {
+							 ifa->ifa_family == AF_INET6 &&
+							 vrrp->ifp->is_ours) {
 								inet_ip6tosockaddr(addr.in6, &vrrp->saddr);
-								try_up_instance(vrrp, false);
-							}
+#if 0
+								if (IN6_IS_ADDR_UNSPECIFIED(&vrrp->ifp->sin6_addr)) {
+									/* This should never happen with the current code since we always
+									 * create a link local address on the VMAC interface.
+									 * However, if in future it is decided not to automatically create
+									 * a link local address on the VMAC interface if the parent interface
+									 * does not have one, then we will need the following code
+									 */
+									if (add_link_local_address(vrrp->ifp, addr.in6) &&
+									    vrrp->num_script_if_fault &&
+									    (!vrrp->saddr_from_config || is_tracking_saddr))
+										try_up_instance(vrrp, false);
+								} else
+#endif
+									reset_link_local_address(&vrrp->ifp->sin6_addr, vrrp);
 						}
 #endif
 					}
@@ -1063,11 +1074,16 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 
 						list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
 							vrrp = top->obj.vrrp;
-							if (vrrp->ifp != ifp)
+							if (vrrp->ifp != ifp && ifp != vrrp->ifp->base_ifp)
 								continue;
 							if (vrrp->family != AF_INET6 || vrrp->saddr_from_config)
 								continue;
 							inet_ip6tosockaddr(&ifp->sin6_addr, &vrrp->saddr);
+#ifdef _HAVE_VRRP_VMAC_
+							/* If vrrp->ifp is one of our VMACs, change its address */
+							if (ifp == vrrp->ifp->base_ifp && vrrp->ifp->is_ours)
+								reset_link_local_address(addr.in6, vrrp);
+#endif
 						}
 					}
 				} else {
