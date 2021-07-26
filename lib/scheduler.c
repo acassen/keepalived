@@ -1813,7 +1813,11 @@ thread_fetch_next_queue(thread_master_t *m)
 #endif
 
 		if (ret < 0) {
-			if (check_EINTR(errno))
+			/* epoll_wait() will return EINTR if the process is sent SIGSTOP
+			 * (see signal(7) man page for details.
+			 * Although we don't except to receive SIGSTOP, it can happen if,
+			 * for example, the system is hibernated. */
+			if (errno == EINTR)
 				continue;
 
 			/* Real error. */
