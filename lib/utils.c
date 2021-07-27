@@ -1072,8 +1072,16 @@ open_pipe(int pipe_arr[2])
 /*
  * memcmp time constant variant.
  * Need to ensure compiler doesnt get too smart by optimizing generated asm code.
+ * So long as LTO is not in use, the loop cannot be short-circuited since the
+ * compiler doesn't know how ret is used.
+ * If LTO is in use, there is a risk that the compiler/linker will work out
+ * that the return value is only checked for non-zero, and that since the loop
+ * can only set additional bits in ret, once ret becomes non-zero it can return
+ * a non-zero value. We there need to ensure that a local copy of the function,
+ * which can then be optimised, cannot be generated. Stopping inlining and cloning
+ * should force this.
  */
-__attribute__((optimize("O0"))) int
+__attribute__((pure, noinline, noclone)) int
 memcmp_constant_time(const void *s1, const void *s2, size_t n)
 {
 	const unsigned char *a, *b;
