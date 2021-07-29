@@ -553,8 +553,15 @@ alloc_ipaddress(list_head_t *ip_list, const vector_t *strvec, bool static_addr)
 				break;
 			}
 
-			new->label = MALLOC(IFNAMSIZ);
-			strncpy(new->label, strvec_slot(strvec, ++i), IFNAMSIZ);
+			param = strvec_slot(strvec, ++i);
+			if (strlen(param) >= IFNAMSIZ) {
+				report_config_error(CONFIG_GENERAL_ERROR, "Address label %s is longer than maximum length %d - removing address", param, IFNAMSIZ - 1);
+				FREE(new);
+				return;
+			}
+
+			new->label = MALLOC(strlen(param) + 1);
+			strcpy(new->label, param);
 		} else if (!strcmp(str, "peer")) {
 			if (!param_avail) {
 				param_missing = true;
