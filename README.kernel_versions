@@ -124,6 +124,14 @@ IP_VS_CONN_F_TUNNEL_TYPE_GRE
 
 ??? dnl -- RedHat backported ENCAP_IP and ENCAP_IP6 without MPLS and ILA
 
+dnl -- Since Linux 5.6 and libnftnl 1.1.6, nft 0.9.4
+NFTNL_SET_DESC_CONCAT
+NFTNL_SET_ELEM_KEY_END
+
+dnl -- Since Linux 5.7
+NFT_SET_CONCAT
+NFTA_SET_EXPR also libnftnl 1.1.7, nft 0.9.5
+
 dnl ----[ Is HTTP_GET regex checking wanted? ]----
 $PKG_CONFIG --exists libpcre2-8
 

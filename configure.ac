@@ -1628,8 +1628,12 @@ if test .${enable_nftables} != .no; then
 
       # NFTNL_SET_DESC_CONCAT since Linux 5.6 and libnftnl 1.1.6, nft 0.9.4 - ranges in concatenations
       # NFTNL_SET_ELEM_KEY_END since Linux 5.6 and libnftnl 1.1.6, nft 0.9.4
+      # NFT_SET_CONCAT since Linux 5.7
       NFT_RANGE_CONCATS_OK=1
-      AC_CHECK_DECLS([NFTNL_SET_DESC_CONCAT, NFTNL_SET_ELEM_KEY_END], [], [NFT_RANGE_CONCATS_OK=0], [[#include <libnftnl/set.h>]])
+      AC_CHECK_DECLS([NFTNL_SET_DESC_CONCAT, NFTNL_SET_ELEM_KEY_END, NFT_SET_CONCAT], [], [NFT_RANGE_CONCATS_OK=0], [
+	#include <linux/netfilter/nf_tables.h>
+	#include <libnftnl/set.h>
+      ])
       AS_IF([test $NFT_RANGE_CONCATS_OK -eq 1],
 	    [AC_DEFINE([NFT_RANGE_CONCATS], [ 1 ], [Define to 1 if can use concats with ranges in nftables])])
 
