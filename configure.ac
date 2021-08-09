@@ -180,6 +180,8 @@ AC_ARG_ENABLE(regex-timers,
   [AS_HELP_STRING([--enable-regex-timers], [build with HTTP_GET regex timers])])
 AC_ARG_ENABLE(json,
   [AS_HELP_STRING([--enable-json], [compile with signal to dump configuration and stats as json])])
+AC_ARG_ENABLE(clang,
+  [AS_HELP_STRING([--enable-clang], [use clang compiler])])
 AC_ARG_WITH(init,
   [AS_HELP_STRING([--with-init=(upstart|systemd|SYSV|SUSE|openrc)], [specify init type])],
   [init_type="$withval"], [init_type=""])
@@ -335,8 +337,18 @@ fi
 
 CPPFLAGS="$kernelinc $CPPFLAGS"
 
+AS_IF([test .$enable_clang = .yes ],
+  [
+    USE_CC=clang
+    AC_CHECK_TOOL([USE_LLD], [lld], [:])
+    AS_IF([test $USE_LLD != :], [LDFLAGS+=" -fuse-ld=lld -rtlib=compiler-rt"])
+  ],
+  [
+    USE_CC="gcc cc"
+  ])
+
 # Checks for programs.
-AC_PROG_CC
+AC_PROG_CC($USE_CC)
 AC_PROG_MAKE_SET
 AC_PROG_INSTALL
 AC_PROG_RANLIB
@@ -374,7 +386,7 @@ NEED_LIBDL=No
 dnl -- Unused warnings - traditional
 MAX_FRAME_SIZE=5120
 WARNINGS_BASIC="all extra unused strict-prototypes"
-WARNINGS_STD="absolute-value address-of-packed-member alloca alloc-zero array-bounds=2 attribute-alias bad-function-cast cast-align cast-qual chkp date-time disabled-optimization double-promotion duplicated-branches duplicated-cond float-conversion float-equal format-overflow format-security format-signedness format-truncation frame-larger-than=$MAX_FRAME_SIZE implicit-fallthrough=3 init-self inline jump-misses-init logical-op missing-declarations missing-field-initializers missing-prototypes nested-externs normalized null-dereference old-style-definition overlength-strings pointer-arith redundant-decls shadow shift-overflow=2 stack-protector strict-overflow=4 strict-prototypes stringop-overflow=2 suggest-attribute=cold suggest-attribute=const suggest-attribute=format suggest-attribute=malloc suggest-attribute=noreturn suggest-attribute=pure sync-nand trampolines undef uninitialized unknown-pragmas unsuffixed-float-constants unused-const-variable=2 unused-macros variadic-macros write-strings"
+WARNINGS_STD="absolute-value address-of-packed-member alloca alloc-zero array-bounds=2 attribute-alias bad-function-cast cast-align cast-qual chkp date-time disabled-optimization double-promotion duplicated-branches duplicated-cond float-conversion float-equal format-overflow format-security format-signedness format-truncation frame-larger-than=$MAX_FRAME_SIZE implicit-fallthrough=3 init-self inline jump-misses-init logical-op missing-declarations missing-field-initializers missing-prototypes nested-externs normalized null-dereference old-style-definition overlength-strings pointer-arith redundant-decls shadow shift-overflow=2 stack-protector strict-overflow=4 strict-prototypes stringop-overflow=2 stringop-truncation suggest-attribute=cold suggest-attribute=const suggest-attribute=format suggest-attribute=malloc suggest-attribute=noreturn suggest-attribute=pure sync-nand trampolines undef uninitialized unknown-pragmas unsuffixed-float-constants unused-const-variable=2 unused-macros variadic-macros write-strings"
 WARNINGS_EXTRA="aggregate-return cast-align=strict conversion format-nonliteral format-overflow=2 format-truncation=2 padded pedantic sign-conversion stack-usage=$MAX_FRAME_SIZE strict-overflow=5 stringop-overflow=3 stringop-overflow=4 switch-enum system-headers traditional-conversion"
 
 # We want _GNU_SOURCE defined always
@@ -491,21 +503,27 @@ dnl -- Do we want -Wcast-align=strict?
 AS_IF([test .$enable_strict_cast_align = .yes],
       [WARNINGS_STD=$(echo $WARNINGS_STD | sed -e "s/cast-align /cast-align=strict /")])
 
-dnl -- check if we are using LTO. There is a GCC bug which means that when addattr_l()
-dnl -- is inlined, GCC (up to at least v11.1.1) ignores RELAX_STRINGOP_OVERFLOW and issues
-dnl -- -Wstringop-overflow warnings
-dnl -- I haven't been able to produce a test case to demonstrate this GCC bug, so we can't
-dnl -- test it here, nor have I been able to report a bug upstream to GCC.
-AC_MSG_CHECKING([if using Link Time Optimisation])
-echo " $CFLAGS " | grep -q -- " -flto=auto "
-AS_IF([test $? -eq 0],
+GCC_LTO=no
+AS_IF([test $CC = gcc],
   [
-    AC_MSG_RESULT([yes])
-    AC_DEFINE([LTO_NOINLINE], [ __attribute__((noinline)) ], [Define to not inline if using LTO])
-  ], [
-    AC_MSG_RESULT([no])
-    AC_DEFINE([LTO_NOINLINE], [], [Define to not inline if using LTO])
+  dnl -- check if we are using LTO. There is a GCC bug which means that when addattr_l()
+  dnl -- is inlined, GCC (up to at least v11.1.1) ignores RELAX_STRINGOP_OVERFLOW and issues
+  dnl -- -Wstringop-overflow warnings
+  dnl -- I haven't been able to produce a test case to demonstrate this GCC bug, so we can't
+  dnl -- test it here, nor have I been able to report a bug upstream to GCC.
+  AC_MSG_CHECKING([if using GCC Link Time Optimisation])
+  echo " $CFLAGS " | grep -q -- " -flto=auto "
+  AS_IF([test $? -eq 0],
+    [
+      AC_MSG_RESULT([yes])
+      GCC_LTO=yes
+    ], [
+      AC_MSG_RESULT([no])
+    ])
   ])
+AS_IF([test $GCC_LTO = yes],
+  [AC_DEFINE([LTO_NOINLINE], [ __attribute__((noinline)) ], [Define to not inline if using GCC LTO])],
+  [AC_DEFINE([LTO_NOINLINE], [], [Define to not inline if using GCC LTO])])
 
 dnl -- ulibc/glibc differences
 AC_MSG_CHECKING([msghdr.msg_controllen is size_t])
@@ -652,7 +670,7 @@ SAV_CFLAGS="$CFLAGS"
 for WARN in $WARNINGS_ENABLED
 do
   AC_MSG_CHECKING([for -W$WARN])
-  CFLAGS="$SAV_CFLAGS -W$WARN"
+  CFLAGS="$SAV_CFLAGS -W$WARN -Werror"
 
   WARN_VAR=_HAVE_WARNING_`echo $WARN | tr "a-z=-" "A-Z__"`_
   LOCAL_WARN_VAR=HAVE_WARNING_`echo $WARN | sed -e "s/=.*//" | tr "a-z-" "A-Z_"`
