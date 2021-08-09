@@ -1934,7 +1934,7 @@ compare_nexthops(const list_head_t *a, const list_head_t *b)
 		}
 #if HAVE_DECL_LWTUNNEL_ENCAP_ILA
 		else if (nh_a->encap.type == LWTUNNEL_ENCAP_ILA) {
-			if (nh_a->encap.ila.locator |= nh_b->encap.ila.locator)
+			if (nh_a->encap.ila.locator != nh_b->encap.ila.locator)
 				return false;
 		}
 #endif
