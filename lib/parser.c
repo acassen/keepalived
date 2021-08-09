@@ -598,11 +598,13 @@ read_unsigned64(const char *str, uint64_t *res, uint64_t min_val, uint64_t max_v
 	return read_unsigned64_func(str, 10, res, min_val, max_val, ignore_error);
 }
 
+#ifdef _INCLUDE_UNUSED_CODE_
 bool
 read_double(const char *str, double *res, double min_val, double max_val, bool ignore_error)
 {
 	return read_double_func(str, res, min_val, max_val, ignore_error);
 }
+#endif
 
 bool
 read_int_strvec(const vector_t *strvec, size_t index, int *res, int min_val, int max_val, bool ignore_error)
