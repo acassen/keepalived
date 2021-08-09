@@ -533,7 +533,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   #include <sys/socket.h>
   #include <stdio.h>
 
-  int main(int argc, char**argv)
+  int main(void)
   {
     struct msghdr msgh = { .msg_controllen = 0 };
 
@@ -553,7 +553,7 @@ CFLAGS=$SAV_CFLAGS
 dnl -- Check for diagnostic pragmas in functions - GCC 4.6.0
 AC_MSG_CHECKING([diagnostic pragmas in functions])
 AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-  int main(int argc, char**argv)
+  int main(void)
   {
 _Pragma("GCC diagnostic warning \"-Wall\"")
   }
@@ -570,7 +570,7 @@ AM_CONDITIONAL([DEBUG], [test .$enable_debug = .yes])
 dnl -- Check for diagnostic push/pop pragmas - GCC 4.6.0
 AC_MSG_CHECKING([diagnostic push/pop pragmas])
 AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-  int main(int argc, char**argv)
+  int main(void)
   {
 _Pragma("GCC diagnostic push")
   }
@@ -616,7 +616,7 @@ if test "$enable_conversion_checks" = yes; then
     {
     }
 
-    int main(int argc, char**argv)
+    int main(void)
     {
       fd_set set;
       uint8_t	val = 42;
@@ -692,7 +692,7 @@ do
        )
 
   AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-    int main(int argc, char**argv)
+    int main(void)
     {
     }
     ]])],
@@ -729,7 +729,7 @@ AS_IF([test .$HAVE_WARNING_STRICT_OVERFLOW = .yes],
 	CFLAGS="$CFLAGS -Werror"
 	AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
 	  _Pragma("GCC diagnostic warning \"-Wstrict-overflow=1\"")
-	  int main(int argc, char**argv)
+	  int main(void)
 	  {
 	  }
 	  ]])],
@@ -759,7 +759,7 @@ if test "$enable_hardening" != no; then
   fi
   LDFLAGS="$LDFLAGS -pie"
   AC_LINK_IFELSE([AC_LANG_SOURCE([[
-    int main(int argc, char **argv)
+    int main(void)
     {
       int i = 0;
     }
@@ -798,7 +798,7 @@ if test "$enable_hardening" != no; then
     LDFLAGS="$LDFLAGS -Wl,$FLAG"
     AC_LINK_IFELSE(
       [AC_LANG_SOURCE([[
-      int main(int argc, char **argv)
+      int main(void)
       {
 	int i = 0;
       }
@@ -942,7 +942,7 @@ dnl clock_gettime() required -lt before glibc 2.17
 AC_MSG_CHECKING([for clock_gettime() requires -lrt])
 AC_LINK_IFELSE([AC_LANG_SOURCE([[
   #include <time.h>
-  int main(int argc, char **argv)
+  int main(void)
   {
     int i;
     struct timespec ts;
@@ -956,7 +956,7 @@ AC_LINK_IFELSE([AC_LANG_SOURCE([[
     LIBS="$LIBS -lrt"
     AC_LINK_IFELSE([AC_LANG_SOURCE([[
       #include <time.h>
-      int main(int argc, char **argv)
+      int main(void)
       {
 	int i;
 	struct timespec ts;
@@ -984,7 +984,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   #include <fcntl.h>
   #include <linux/errqueue.h>
 
-  int main(int argc, char**argv)
+  int main(void)
   {
   }
   ]])],
@@ -1071,7 +1071,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   }
 
   int
-  main(int argc, char **argv)
+  main(void)
   {
     int val = test_func(3);
     return val;
@@ -1086,7 +1086,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
     }
 
     int
-    main(int argc, char **argv)
+    main(void)
     {
       int val = test_func(3);
       return val;
