@@ -327,7 +327,7 @@ child_killed_thread(thread_ref_t thread)
 
 	/* If all children have died, we can now complete the
 	 * termination process */
-	if (!&m->child.rb_root.rb_node && !m->shutdown_timer_running)
+	if (!m->child.rb_root.rb_node && !m->shutdown_timer_running)
 		thread_add_terminate_event(m);
 }
 
