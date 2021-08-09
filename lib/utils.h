@@ -237,7 +237,7 @@ strcpy_safe_impl(char *dst, const char *src, size_t len)
 	dst[0] = '\0';
 RELAX_STRINGOP_TRUNCATION
 	return strncat(dst, src, len - 1);
-RELAX_END
+RELAX_STRINGOP_TRUNCATION_END
 }
 
 /* global vars exported */
@@ -288,7 +288,8 @@ extern void close_std_fd(void);
 #if defined _WITH_VRRP_ || defined _WITH_BFD_
 extern int open_pipe(int [2]);
 #endif
-extern int memcmp_constant_time(const void *, const void *, size_t) __attribute__((pure, noinline, noclone));
+#define ATTRIBUTE_NOCLONE
+extern int memcmp_constant_time(const void *, const void *, size_t) __attribute__((pure, noinline, ATTRIBUTE_NOCLONE));
 #if defined _WITH_LVS_ || defined _HAVE_LIBIPSET_
 extern bool keepalived_modprobe(const char *);
 #endif

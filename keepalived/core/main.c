@@ -1357,16 +1357,16 @@ core_dump_init(void)
 }
 
 static mode_t
-set_umask(const char *optarg)
+set_umask(const char *opt_arg)
 {
 	long umask_long;
 	mode_t umask_bits;
 	char *endptr;
 
-	umask_long = strtoll(optarg, &endptr, 0);
+	umask_long = strtoll(opt_arg, &endptr, 0);
 
 	if (*endptr || umask_long < 0 || umask_long & ~(S_IRWXU | S_IRWXG | S_IRWXO)) {
-		fprintf(stderr, "Invalid --umask option %s", optarg);
+		fprintf(stderr, "Invalid --umask option %s", opt_arg);
 		return 0;
 	}
 
@@ -1473,7 +1473,7 @@ initialise_debug_options(void)
 #endif
 #endif
 }
-RELAX_END
+RELAX_SUGGEST_ATTRIBUTE_CONST_END
 
 #ifdef  WITH_DEBUG_OPTIONS
 static void

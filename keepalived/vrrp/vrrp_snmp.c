@@ -854,7 +854,8 @@ vrrp_header_ar_table(struct variable *vp, oid *name, size_t *length,
 }
 
 
-#define MAX_PTR ((void*)((char *)NULL - 1))
+#define MAX_PTR ((void*)~0)
+
 static nexthop_t *
 vrrp_header_nh_table(struct variable *vp, oid *name, size_t *length,
 		     int exact, size_t *var_len, WriteMethod **write_method)

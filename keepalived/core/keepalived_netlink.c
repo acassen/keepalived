@@ -691,7 +691,7 @@ addattr_l(struct nlmsghdr *n, size_t maxlen, unsigned short type, const void *da
 	rta->rta_len = (unsigned short)len;
 RELAX_STRINGOP_OVERFLOW
 	memcpy(RTA_DATA(rta), data, alen);
-RELAX_END
+RELAX_STRINGOP_OVERFLOW_END
 	n->nlmsg_len += (uint32_t)align_len;
 
 	return 0;

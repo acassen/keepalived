@@ -71,28 +71,34 @@ _Pragma("GCC diagnostic ignored \"-Wcast-qual\"")
 #define RELAX_CAST_QUAL_START
 #endif
 
-#ifdef _HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_
+#if defined _HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_ && defined _HAVE_WARNING_SUGGEST_ATTRIBUTE_CONST_START_
 #define RELAX_SUGGEST_ATTRIBUTE_CONST_START \
 _Pragma("GCC diagnostic push") \
 _Pragma("GCC diagnostic ignored \"-Wsuggest-attribute=const\"")
+#define RELAX_SUGGEST_ATTRIBUTE_CONST_END RELAX_END
 #else
 #define RELAX_SUGGEST_ATTRIBUTE_CONST_START
+#define RELAX_SUGGEST_ATTRIBUTE_CONST_END
 #endif
 
-#ifdef _HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_
+#if defined _HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_ && defined _HAVE_WARNING_STRINGOP_TRUNCATION_
 #define RELAX_STRINGOP_TRUNCATION \
 _Pragma("GCC diagnostic push") \
 _Pragma("GCC diagnostic ignored \"-Wstringop-truncation\"")
+#define RELAX_STRINGOP_TRUNCATION_END RELAX_END
 #else
 #define RELAX_STRINGOP_TRUNCATION
+#define RELAX_STRINGOP_TRUNCATION_END
 #endif
 
-#ifdef _HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_
+#if defined _HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_ && defined _HAVE_WARNING_STRINGOP_OVERFLOW_
 #define RELAX_STRINGOP_OVERFLOW \
 _Pragma("GCC diagnostic push") \
 _Pragma("GCC diagnostic ignored \"-Wstringop-overflow\"")
+#define RELAX_STRINGOP_OVERFLOW_END RELAX_END
 #else
 #define RELAX_STRINGOP_OVERFLOW
+#define RELAX_STRINGOP_OVERFLOW_END
 #endif
 
 #ifdef _HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_
