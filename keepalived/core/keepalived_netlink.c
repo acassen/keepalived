@@ -803,6 +803,7 @@ parse_rtattr(struct rtattr **tb, int max, struct rtattr *rta, size_t len)
 		/* Note: clang issues a -Wcast-align warning for RTA_NEXT, whereas gcc does not.
 		 * gcc is more clever in it's analysis, and realises that RTA_NEXT is actually
 		 * forcing alignment.
+		 */
 		rta = RTA_NEXT(rta, len);
 	}
 }
