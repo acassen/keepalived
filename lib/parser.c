@@ -564,7 +564,7 @@ read_double_func(const char *number, double *res, double min_val, double max_val
 		else if (ftype == FP_NAN)	/* NaN */
 			report_config_error(CONFIG_INVALID_NUMBER, "not a number '%s'", number);
 		else if (ftype == FP_SUBNORMAL)	{ /* to small */
-			*res = 0.0F;
+			*res = 0.0;
 			return true;
 		}
 		else if (val < min_val || val > max_val)
@@ -624,7 +624,7 @@ read_unsigned64_strvec(const vector_t *strvec, size_t index, uint64_t *res, uint
 	return read_unsigned64_func(strvec_slot(strvec, index), 10, res, min_val, max_val, ignore_error);
 }
 
-bool
+static bool
 read_double_strvec(const vector_t *strvec, size_t index, double *res, double min_val, double max_val, bool ignore_error)
 {
 	return read_double_func(strvec_slot(strvec, index), res, min_val, max_val, ignore_error);
@@ -648,14 +648,22 @@ read_decimal_unsigned_strvec(const vector_t *strvec, size_t index, unsigned *res
 	const char *dp;
 	unsigned num_dp;
 	const char *warn = "";
-	bool ret;
 	unsigned i;
 	bool round_up = false;
+	bool valid_number;
+	unsigned long long val;
+	char *endptr;
+	int sav_errno;
 
 #ifndef _STRICT_CONFIG_
 	if (ignore_error && !__test_bit(CONFIG_TEST_BIT, &debug))
 		warn = "WARNING - ";
 #endif
+
+	if (param[0] == '-') {
+		report_config_error(CONFIG_INVALID_NUMBER, "%snegative number '%s'", warn, param);
+		return false;
+	}
 
 	/* Make sure we don't have too many decimal places */
 	dp = strchr(param, '.');
@@ -680,14 +688,30 @@ read_decimal_unsigned_strvec(const vector_t *strvec, size_t index, unsigned *res
 	for (i = 0; i < num_dp; i++)
 		strcat(updated_param, "0");
 
-	ret = read_unsigned_func(updated_param, 10, res, min_val, max_val, ignore_error);
+	errno = 0;
+	val = strtoull(updated_param, &endptr, 10);
+	if (round_up)
+		val++;
+	*res = (unsigned)val;
 
+	valid_number = !*endptr;
+	sav_errno = errno;
 	FREE(updated_param);
 
-	if (round_up)
-		*res += 1;
+	if (!valid_number)
+		report_config_error(CONFIG_INVALID_NUMBER, "%sinvalid number '%s'\n", warn, param);
+	else if (sav_errno == ERANGE || val > UINT_MAX)
+		report_config_error(CONFIG_INVALID_NUMBER, "%snumber '%s' outside unsigned decimal range\n", warn, param);
+	else if (val < min_val || val > max_val)
+		report_config_error(CONFIG_INVALID_NUMBER, "%snumber '%s' outside range [%f, %f]\n", warn, param, (double)min_val / (double)(10 ^ shift),(double)max_val / (double)(10 ^ shift));
+	else
+		return true;
 
-	return ret;
+#ifdef _STRICT_CONFIG_
+	return false;
+#else
+	return ignore_error && val >= min_val && val <= max_val;
+#endif
 }
 
 /* read_hex_str() reads a hex string, which can include spaces, and saves the string in

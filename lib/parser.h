@@ -124,7 +124,6 @@ extern bool read_int_strvec(const vector_t *, size_t, int *, int, int, bool);
 extern bool read_unsigned_strvec(const vector_t *, size_t, unsigned *, unsigned, unsigned, bool);
 extern bool read_unsigned64_strvec(const vector_t *, size_t, uint64_t *, uint64_t, uint64_t, bool);
 extern bool read_unsigned_base_strvec(const vector_t *, size_t, int, unsigned *, unsigned, unsigned, bool);
-extern bool read_double_strvec(const vector_t *, size_t, double *, double, double, bool);
 extern bool read_decimal_unsigned_strvec(const vector_t *, size_t, unsigned *, unsigned, unsigned, unsigned, bool);
 extern uint16_t read_hex_str(const char *, uint8_t **, uint8_t **);
 extern void set_random_seed(unsigned int);

@@ -888,12 +888,12 @@ vrrp_garp_lower_prio_rep_handler(const vector_t *strvec)
 static void
 vrrp_garp_interval_handler(const vector_t *strvec)
 {
-	double interval;
+	unsigned interval;
 
-	if (!read_double_strvec(strvec, 1, &interval, 1.0F / TIMER_HZ, (unsigned)(UINT_MAX / TIMER_HZ), true))
+	if (!read_decimal_unsigned_strvec(strvec, 1, &interval, 1, UINT_MAX, TIMER_HZ_DIGITS, true))
 		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_garp_interval '%s' is invalid", strvec_slot(strvec, 1));
 	else
-		global_data->vrrp_garp_interval = (unsigned)(interval * TIMER_HZ);
+		global_data->vrrp_garp_interval = interval;
 
 	if (global_data->vrrp_garp_interval >= 1 * TIMER_HZ)
 		log_message(LOG_INFO, "The vrrp_garp_interval is very large - %s seconds", strvec_slot(strvec, 1));
@@ -901,12 +901,12 @@ vrrp_garp_interval_handler(const vector_t *strvec)
 static void
 vrrp_gna_interval_handler(const vector_t *strvec)
 {
-	double interval;
+	unsigned interval;
 
-	if (!read_double_strvec(strvec, 1, &interval, 1.0F / TIMER_HZ, (unsigned)(UINT_MAX / TIMER_HZ), true))
+	if (!read_decimal_unsigned_strvec(strvec, 1, &interval, 1, UINT_MAX, TIMER_HZ_DIGITS, true))
 		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_gna_interval '%s' is invalid", strvec_slot(strvec, 1));
 	else
-		global_data->vrrp_gna_interval = (unsigned)(interval * TIMER_HZ);
+		global_data->vrrp_gna_interval = interval;
 
 	if (global_data->vrrp_gna_interval >= 1 * TIMER_HZ)
 		log_message(LOG_INFO, "The vrrp_gna_interval is very large - %s seconds", strvec_slot(strvec, 1));
@@ -2020,12 +2020,12 @@ umask_handler(const vector_t *strvec)
 static void
 vrrp_startup_delay_handler(const vector_t *strvec)
 {
-	double startup_delay;
+	unsigned startup_delay;
 
-	if (!read_double_strvec(strvec, 1, &startup_delay, 0.001F / TIMER_HZ, (unsigned)(UINT_MAX / TIMER_HZ), true))
+	if (!read_decimal_unsigned_strvec(strvec, 1, &startup_delay, TIMER_HZ / 1000, UINT_MAX, TIMER_HZ_DIGITS, true))
 		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_startup_delay '%s' is invalid", strvec_slot(strvec, 1));
 	else
-		global_data->vrrp_startup_delay = (unsigned)(startup_delay * TIMER_HZ);
+		global_data->vrrp_startup_delay = startup_delay;
 
 	if (global_data->vrrp_startup_delay >= 60 * TIMER_HZ)
 		log_message(LOG_INFO, "The vrrp_startup_delay is very large - %s seconds", strvec_slot(strvec, 1));

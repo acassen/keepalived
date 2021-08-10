@@ -39,6 +39,7 @@ extern bool do_timer_check;
 
 /* Some defines */
 #define TIMER_HZ		1000000
+#define	TIMER_HZ_DIGITS		6
 #define TIMER_HZ_FLOAT		1000000.0F
 #define TIMER_HZ_DOUBLE		((double)1000000.0F)
 #define TIMER_CENTI_HZ		10000
