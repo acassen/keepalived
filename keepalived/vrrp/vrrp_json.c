@@ -131,7 +131,7 @@ vrrp_json_array_dump(json_writer_t *wr, const char *prop, list_head_t *l,
 static int
 vrrp_json_auth_dump(json_writer_t *wr, const char *prop, vrrp_t *vrrp)
 {
-	char buf[256];
+	char buf[sizeof(vrrp->auth_data) + 1];
 
 	if (!vrrp->auth_type)
 		return -1;
