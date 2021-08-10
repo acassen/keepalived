@@ -182,6 +182,8 @@ AC_ARG_ENABLE(json,
   [AS_HELP_STRING([--enable-json], [compile with signal to dump configuration and stats as json])])
 AC_ARG_ENABLE(clang,
   [AS_HELP_STRING([--enable-clang], [use clang compiler])])
+AC_ARG_ENABLE(lto,
+  [AS_HELP_STRING([--enable-lto], [use Link Time Optimisation])])
 AC_ARG_WITH(init,
   [AS_HELP_STRING([--with-init=(upstart|systemd|SYSV|SUSE|openrc)], [specify init type])],
   [init_type="$withval"], [init_type=""])
@@ -372,6 +374,11 @@ ENABLE_LOG_FILE_APPEND=No
 #
 args=`echo $ac_configure_args | $SED -e "s/'//g"`
 AC_DEFINE_UNQUOTED(KEEPALIVED_CONFIGURE_OPTIONS,"$args", [configure options specified])
+
+AS_IF([test .$enable_lto = .yes],
+  [
+    AS_IF([test .$enable_clang = .yes], [CFLAGS+=" -flto"], [CFLAGS+=" -flto=auto -ffat-lto-objects"])
+  ])
 
 # Save the CPPFLAGS, CFLAGS, LDFLAGS and LDLIBS settings for make time
 KA_CPPFLAGS="$kernelinc -D_GNU_SOURCE $CPPFLAGS"
