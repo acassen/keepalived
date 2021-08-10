@@ -40,7 +40,7 @@
 #define MAXBUF	1024
 
 /* Maximum time read_timer can read - in micro-seconds */
-#define TIMER_MAXIMUM (ULONG_MAX)
+#define TIMER_MAXIMUM (ULONG_MAX - 1)
 
 /* Special values for parameters when we want to know they haven't been set */
 #define	TIME_T_PARAMETER_UNSET	LONG_MAX

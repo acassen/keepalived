@@ -489,7 +489,7 @@ dump_rs(FILE *fp, const real_server_t *rs)
 	if (rs->retry != UINT_MAX)
 		conf_write(fp, "   Retry count = %u" , rs->retry);
 	if (rs->delay_before_retry != ULONG_MAX)
-		conf_write(fp, "   Retry delay = %f" , (double)rs->delay_before_retry / TIMER_HZ);
+		conf_write(fp, "   Retry delay = %lu.%6.6lu" , rs->delay_before_retry / TIMER_HZ, rs->delay_before_retry % TIMER_HZ);
 	if (rs->warmup != ULONG_MAX)
 		conf_write(fp, "   Warmup = %f", (double)rs->warmup / TIMER_HZ);
 	conf_write(fp, "   Inhibit on failure is %s", rs->inhibit ? "ON" : "OFF");
@@ -708,7 +708,7 @@ dump_vs(FILE *fp, const virtual_server_t *vs)
 	if (vs->retry != UINT_MAX)
 		conf_write(fp, "   Retry count = %u" , vs->retry);
 	if (vs->delay_before_retry != ULONG_MAX)
-		conf_write(fp, "   Retry delay = %f" , (double)vs->delay_before_retry / TIMER_HZ);
+		conf_write(fp, "   Retry delay = %lu.%6.6lu" , vs->delay_before_retry / TIMER_HZ, vs->delay_before_retry % TIMER_HZ);
 	if (vs->warmup != ULONG_MAX)
 		conf_write(fp, "   Warmup = %f", (double)vs->warmup / TIMER_HZ);
 	conf_write(fp, "   Inhibit on failure is %s", vs->inhibit ? "ON" : "OFF");
