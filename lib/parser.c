@@ -536,124 +536,33 @@ read_unsigned64_func(const char *number, int base, uint64_t *res, uint64_t min_v
 #endif
 }
 
-static bool
-read_double_func(const char *number, double *res, double min_val, double max_val, __attribute__((unused)) bool ignore_error)
-{
-	double val;
-	char *endptr;
-	const char *warn = "";
-	int ftype;
-
-#ifndef _STRICT_CONFIG_
-	if (ignore_error && !__test_bit(CONFIG_TEST_BIT, &debug))
-		warn = "WARNING - ";
-#endif
-
-	errno = 0;
-	val = strtod(number, &endptr);
-	*res = val;
-
-	if (*endptr)
-		report_config_error(CONFIG_INVALID_NUMBER, "%sinvalid number '%s'", warn, number);
-	else if (errno == ERANGE)
-		report_config_error(CONFIG_INVALID_NUMBER, "%snumber '%s' out of range", warn, number);
-	else {
-		ftype = fpclassify(val);
-		if (ftype == FP_INFINITE)	/* +/- Inf */
-			report_config_error(CONFIG_INVALID_NUMBER, "infinite number '%s'", number);
-		else if (ftype == FP_NAN)	/* NaN */
-			report_config_error(CONFIG_INVALID_NUMBER, "not a number '%s'", number);
-		else if (ftype == FP_SUBNORMAL)	{ /* to small */
-			*res = 0.0F;
-			return true;
-		}
-		else if (val < min_val || val > max_val)
-			report_config_error(CONFIG_INVALID_NUMBER, "number '%s' outside range [%g, %g]", number, min_val, max_val);
-		else /* FP_NORMAL or FP_ZERO */
-			return true;
-	}
-
-#ifdef _STRICT_CONFIG_
-	return false;
-#else
-	return ignore_error && val >= min_val && val <= max_val && !__test_bit(CONFIG_TEST_BIT, &debug);
-#endif
-}
-
-bool
-read_int(const char *str, int *res, int min_val, int max_val, bool ignore_error)
-{
-	return read_int_func(str, 10, res, min_val, max_val, ignore_error);
-}
-
-bool
-read_unsigned(const char *str, unsigned *res, unsigned min_val, unsigned max_val, bool ignore_error)
-{
-	return read_unsigned_func(str, 10, res, min_val, max_val, ignore_error);
-}
-
-bool
-read_unsigned64(const char *str, uint64_t *res, uint64_t min_val, uint64_t max_val, bool ignore_error)
-{
-	return read_unsigned64_func(str, 10, res, min_val, max_val, ignore_error);
-}
-
-bool
-read_double(const char *str, double *res, double min_val, double max_val, bool ignore_error)
-{
-	return read_double_func(str, res, min_val, max_val, ignore_error);
-}
-
-bool
-read_int_strvec(const vector_t *strvec, size_t index, int *res, int min_val, int max_val, bool ignore_error)
-{
-	return read_int_func(strvec_slot(strvec, index), 10, res, min_val, max_val, ignore_error);
-}
-
-bool
-read_unsigned_strvec(const vector_t *strvec, size_t index, unsigned *res, unsigned min_val, unsigned max_val, bool ignore_error)
-{
-	return read_unsigned_func(strvec_slot(strvec, index), 10, res, min_val, max_val, ignore_error);
-}
-
-bool
-read_unsigned64_strvec(const vector_t *strvec, size_t index, uint64_t *res, uint64_t min_val, uint64_t max_val, bool ignore_error)
-{
-	return read_unsigned64_func(strvec_slot(strvec, index), 10, res, min_val, max_val, ignore_error);
-}
-
-bool
-read_double_strvec(const vector_t *strvec, size_t index, double *res, double min_val, double max_val, bool ignore_error)
-{
-	return read_double_func(strvec_slot(strvec, index), res, min_val, max_val, ignore_error);
-}
-
-bool
-read_unsigned_base_strvec(const vector_t *strvec, size_t index, int base, unsigned *res, unsigned min_val, unsigned max_val, bool ignore_error)
-{
-	return read_unsigned_func(strvec_slot(strvec, index), base, res, min_val, max_val, ignore_error);
-}
-
 /* Read a fractional decimal with up to shift decimal places. Return value * 10^shift. For example to read 3.312 as milliseconds, but
  * return 3312, as micro-seconds, specify a shift value of 3 (i.e. 10^3 = 1000). The min_val and max_val are in the units of the returned value.
  */
-bool
-read_decimal_unsigned_strvec(const vector_t *strvec, size_t index, unsigned *res, unsigned min_val, unsigned max_val, unsigned shift, bool ignore_error)
+static bool
+read_decimal_unsigned_long_func(const char *param, unsigned long *res, unsigned long min_val, unsigned long max_val, unsigned shift, bool ignore_error)
 {
-	const char *param = strvec_slot(strvec, index);
 	size_t param_len = strlen(param);
 	char *updated_param;
 	const char *dp;
 	unsigned num_dp;
 	const char *warn = "";
-	bool ret;
 	unsigned i;
 	bool round_up = false;
+	bool valid_number;
+	unsigned long long val;
+	char *endptr;
+	int sav_errno;
 
 #ifndef _STRICT_CONFIG_
 	if (ignore_error && !__test_bit(CONFIG_TEST_BIT, &debug))
 		warn = "WARNING - ";
 #endif
+
+	if (param[0] == '-') {
+		report_config_error(CONFIG_INVALID_NUMBER, "%snegative number '%s'", warn, param);
+		return false;
+	}
 
 	/* Make sure we don't have too many decimal places */
 	dp = strchr(param, '.');
@@ -678,14 +587,103 @@ read_decimal_unsigned_strvec(const vector_t *strvec, size_t index, unsigned *res
 	for (i = 0; i < num_dp; i++)
 		strcat(updated_param, "0");
 
-	ret = read_unsigned_func(updated_param, 10, res, min_val, max_val, ignore_error);
+	errno = 0;
+	val = strtoull(updated_param, &endptr, 10);
+	if (round_up)
+		val++;
+	*res = (unsigned long)val;
 
+	valid_number = !*endptr;
+	sav_errno = errno;
 	FREE(updated_param);
 
-	if (round_up)
-		*res += 1;
+	if (!valid_number)
+		report_config_error(CONFIG_INVALID_NUMBER, "%sinvalid number '%s'", warn, param);
+	else if (sav_errno == ERANGE || val > ULONG_MAX) {
+		report_config_error(CONFIG_INVALID_NUMBER, "%snumber '%s' outside unsigned decimal range", warn, param);
+		return false;
+	} else if (val < min_val || val > max_val) {
+		unsigned long dp_val = 1;
+		for (unsigned d = 0; d < shift; d++)
+			dp_val *= 10;
+		report_config_error(CONFIG_INVALID_NUMBER, "%snumber '%s' outside range [%lu.%*.*lu, %lu.%*.*lu]",
+			warn, param, min_val / dp_val, (int)shift, (int)shift, min_val % dp_val, max_val / dp_val, (int)shift, (int)shift, max_val % dp_val);
+	} else
+		return true;
+
+#ifdef _STRICT_CONFIG_
+	return false;
+#else
+	return ignore_error && val >= min_val && val <= max_val;
+#endif
+}
+
+static bool
+read_decimal_unsigned_func(const char *str, unsigned *res, unsigned min_val, unsigned max_val, unsigned shift, bool ignore_error)
+{
+	unsigned long resl;
+	int ret;
+
+	ret = read_decimal_unsigned_long_func(str, &resl, min_val, max_val, shift, ignore_error);
+	if (ret)
+		*res = (unsigned)resl;
 
 	return ret;
+}
+
+
+bool
+read_int(const char *str, int *res, int min_val, int max_val, bool ignore_error)
+{
+	return read_int_func(str, 10, res, min_val, max_val, ignore_error);
+}
+
+bool
+read_unsigned(const char *str, unsigned *res, unsigned min_val, unsigned max_val, bool ignore_error)
+{
+	return read_unsigned_func(str, 10, res, min_val, max_val, ignore_error);
+}
+
+bool
+read_unsigned64(const char *str, uint64_t *res, uint64_t min_val, uint64_t max_val, bool ignore_error)
+{
+	return read_unsigned64_func(str, 10, res, min_val, max_val, ignore_error);
+}
+
+bool
+read_decimal_unsigned(const char *str, unsigned *res, unsigned min_val, unsigned max_val, unsigned shift, bool ignore_error)
+{
+	return read_decimal_unsigned_func(str, res, min_val, max_val, shift, ignore_error);
+}
+
+bool
+read_int_strvec(const vector_t *strvec, size_t index, int *res, int min_val, int max_val, bool ignore_error)
+{
+	return read_int_func(strvec_slot(strvec, index), 10, res, min_val, max_val, ignore_error);
+}
+
+bool
+read_unsigned_strvec(const vector_t *strvec, size_t index, unsigned *res, unsigned min_val, unsigned max_val, bool ignore_error)
+{
+	return read_unsigned_func(strvec_slot(strvec, index), 10, res, min_val, max_val, ignore_error);
+}
+
+bool
+read_unsigned64_strvec(const vector_t *strvec, size_t index, uint64_t *res, uint64_t min_val, uint64_t max_val, bool ignore_error)
+{
+	return read_unsigned64_func(strvec_slot(strvec, index), 10, res, min_val, max_val, ignore_error);
+}
+
+bool
+read_unsigned_base_strvec(const vector_t *strvec, size_t index, int base, unsigned *res, unsigned min_val, unsigned max_val, bool ignore_error)
+{
+	return read_unsigned_func(strvec_slot(strvec, index), base, res, min_val, max_val, ignore_error);
+}
+
+bool
+read_decimal_unsigned_strvec(const vector_t *strvec, size_t index, unsigned *res, unsigned min_val, unsigned max_val, unsigned shift, bool ignore_error)
+{
+	return read_decimal_unsigned_func(strvec_slot(strvec, index), res, min_val, max_val, shift, ignore_error);
 }
 
 /* read_hex_str() reads a hex string, which can include spaces, and saves the string in
@@ -2240,15 +2238,16 @@ read_value_block(const vector_t *strvec)
 bool
 read_timer(const vector_t *strvec, size_t index, unsigned long *res, unsigned long min_time, unsigned long max_time, bool ignore_error)
 {
-	double timer;
+	unsigned long timer;
 	bool ret;
-	double fmin_time, fmax_time;
 
-	fmin_time = (double)min_time / TIMER_HZ;
-	fmax_time = (double)((max_time) ? max_time : TIMER_MAXIMUM) / TIMER_HZ;
+	if (!max_time)
+		max_time = TIMER_MAXIMUM;
 
-	ret = read_double_strvec(strvec, index, &timer, fmin_time, fmax_time, ignore_error);
-	*res = timer * TIMER_HZ > TIMER_MAXIMUM ? TIMER_MAXIMUM : (unsigned long)(timer * TIMER_HZ);
+	ret = read_decimal_unsigned_long_func(strvec_slot(strvec, index), &timer, min_time, max_time, TIMER_HZ_DIGITS, ignore_error);
+
+	if (ret)
+		*res = timer;
 
 	return ret;
 }

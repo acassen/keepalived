@@ -317,7 +317,7 @@ vrrp_get_header(sa_family_t family, const char *buf, size_t len)
 	 * IPv4 and IPPROTO_AH. */
 
 	if (family == AF_INET) {
-		iph = PTR_CAST_CONST(const struct iphdr, buf);
+		iph = PTR_CAST_CONST(struct iphdr, buf);
 
 		/* Ensure we have received the full vrrp header */
 		if (len < sizeof(struct iphdr) ||
@@ -1076,7 +1076,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 	++vrrp->stats->advert_rcvd;
 
 	/* pointer to vrrp vips pkt zone */
-	vips = PTR_CAST_CONST(const unsigned char, ((const char *) hd + sizeof(vrrphdr_t)));
+	vips = PTR_CAST_CONST(unsigned char, ((const char *) hd + sizeof(vrrphdr_t)));
 
 	if (check_vip_addr) {
 		/*

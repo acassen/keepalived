@@ -281,6 +281,7 @@ add_nexthops(ip_route_t *route, struct nlmsghdr *nlh, struct rtmsg *rtm)
 		rtnh->rtnh_len = sizeof(*rtnh);
 		rta->rta_len = (unsigned short)(rta->rta_len + rtnh->rtnh_len);
 		add_nexthop(nh, rtm, rta, sizeof(buf), rtnh);
+		/* See -Wcast-align comment in keepalived_netlink.c, also applies to RTNH_NEXT */
 		rtnh = RTNH_NEXT(rtnh);
 	}
 
@@ -781,7 +782,7 @@ format_iproute(const ip_route_t *route, char *buf, size_t buf_len)
 				if ((op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gs", route->rtt / (double)8000.0F)) >= buf_end - 1)
 					break;
 			} else {
-				if ((op += (size_t)snprintf(op, (size_t)(buf_end - op), "%ums", route->rtt / 8)) >= buf_end - 1)
+				if ((op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gms", route->rtt / (double)8.F)) >= buf_end - 1)
 					break;
 			}
 		}
@@ -793,7 +794,7 @@ format_iproute(const ip_route_t *route, char *buf, size_t buf_len)
 				if ((op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gs", route->rttvar / (double)4000.0F)) >= buf_end - 1)
 					break;
 			} else {
-				if ((op += (size_t)snprintf(op, (size_t)(buf_end - op), "%ums", route->rttvar / 4)) >= buf_end - 1)
+				if ((op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gms", route->rttvar / (double)4.F)) >= buf_end - 1)
 					break;
 			}
 		}
@@ -1356,7 +1357,6 @@ alloc_route(list_head_t *rt_list, const vector_t *strvec, bool allow_track_group
 	uint8_t val8;
 	unsigned int i = 0;
 	bool do_nexthop = false;
-	bool raw;
 	uint8_t family;
 	const char *dest = NULL;
 
@@ -1583,13 +1583,10 @@ alloc_route(list_head_t *rt_list, const vector_t *strvec, bool allow_track_group
 				new->lock |= 1 << RTAX_RTT;
 				i++;
 			}
-			if (get_time_rtt(&new->rtt, strvec_slot(strvec, i), &raw) ||
-			    (!raw && new->rtt >= UINT32_MAX / 8)) {
+			if (get_time_rtt(&new->rtt, strvec_slot(strvec, i), 8)) { /* Units are 1/8000 second */
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid rtt %s for route", strvec_slot(strvec,i));
 				goto err;
 			}
-			if (raw)
-				new->rtt *= 8;
 			new->mask |= IPROUTE_BIT_RTT;
 		}
 		else if (!strcmp(str, "rttvar")) {
@@ -1597,13 +1594,10 @@ alloc_route(list_head_t *rt_list, const vector_t *strvec, bool allow_track_group
 				new->lock |= 1 << RTAX_RTTVAR;
 				i++;
 			}
-			if (get_time_rtt(&new->rttvar, strvec_slot(strvec, i), &raw) ||
-			    (!raw && new->rttvar >= UINT32_MAX / 4)) {
+			if (get_time_rtt(&new->rttvar, strvec_slot(strvec, i), 4)) { /* Units are 1/4000 second */
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid rttvar %s for route", strvec_slot(strvec,i));
 				goto err;
 			}
-			if (raw)
-				new->rttvar *= 4;
 			new->mask |= IPROUTE_BIT_RTTVAR;
 		}
 		else if (!strcmp(str, "reordering")) {
@@ -1654,7 +1648,7 @@ alloc_route(list_head_t *rt_list, const vector_t *strvec, bool allow_track_group
 				new->lock |= 1 << RTAX_RTO_MIN;
 				i++;
 			}
-			if (get_time_rtt(&new->rto_min, strvec_slot(strvec, i), &raw)) {
+			if (get_time_rtt(&new->rto_min, strvec_slot(strvec, i), 1)) { /* Units are 1/1000 second */
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid rto_min value %s specified for route", strvec_slot(strvec, i));
 				goto err;
 			}
@@ -1934,7 +1928,7 @@ compare_nexthops(const list_head_t *a, const list_head_t *b)
 		}
 #if HAVE_DECL_LWTUNNEL_ENCAP_ILA
 		else if (nh_a->encap.type == LWTUNNEL_ENCAP_ILA) {
-			if (nh_a->encap.ila.locator |= nh_b->encap.ila.locator)
+			if (nh_a->encap.ila.locator != nh_b->encap.ila.locator)
 				return false;
 		}
 #endif

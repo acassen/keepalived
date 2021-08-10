@@ -53,8 +53,8 @@
 #include "timer.h"
 #include "assert_debug.h"
 #include "warnings.h"
-#include "utils.h"
 #include "process.h"
+#include "align.h"
 
 
 #ifdef THREAD_DUMP
@@ -139,9 +139,9 @@ get_thread_type_str(thread_type_t id)
 static inline int
 function_cmp(const func_det_t *func1, const func_det_t *func2)
 {
-	if (func1->func < func2->func)
+	if ((const void*)func1->func < (const void*)func2->func)
 		return -1;
-	if (func1->func > func2->func)
+	if ((const void*)func1->func > (const void *)func2->func)
 		return 1;
 	return 0;
 }

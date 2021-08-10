@@ -47,6 +47,9 @@ For building the documentation, the following packages need to be installed:
 	Fedora: latexmk python-sphinx-latex
 	CentOS-and-friends: latexmk texlive texlive-titlesec texlive-framed texlive-threeparttable texlive-wrapfig texlive-multirow
 
+To build using clang/llvm
+	clang compiler-rt lld
+
 Debian/Ubuntu
 -------------
 For building packages:

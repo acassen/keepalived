@@ -543,6 +543,11 @@ pgr_handler(const vector_t *strvec)
 		}
 #endif
 
+		/* Cast via void * to stop -Wcast-align warning.
+		 * Since alignment of struct addrinfo >= alignment of struct sockaddr_in and res->ai_addr is
+		 * aligned to a struct addrinfo, it is not a problem.
+		 *   e.g. vs->persistence_granularity = ((struct sockaddr_in *)((void *)res->ai_addr))->sin_addr.s_addr;
+		 */
 		vs->persistence_granularity = ((struct sockaddr_in *)res->ai_addr)->sin_addr.s_addr;
 		freeaddrinfo(res);
 	}

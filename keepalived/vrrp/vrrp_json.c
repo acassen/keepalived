@@ -131,7 +131,7 @@ vrrp_json_array_dump(json_writer_t *wr, const char *prop, list_head_t *l,
 static int
 vrrp_json_auth_dump(json_writer_t *wr, const char *prop, vrrp_t *vrrp)
 {
-	char buf[256];
+	char buf[sizeof(vrrp->auth_data) + 1];
 
 	if (!vrrp->auth_type)
 		return -1;
@@ -162,7 +162,7 @@ vrrp_json_data_dump(json_writer_t *wr, vrrp_t *vrrp)
 		jsonw_string_field(wr, "ifp_ifname", vrrp->ifp->ifname);
 	jsonw_uint_field(wr, "master_priority", vrrp->master_priority);
 	jsonw_float_field_fmt(wr, "last_transition", "%f", timeval_to_double(&vrrp->last_transition));
-	jsonw_float_field(wr, "garp_delay", vrrp->garp_delay / TIMER_HZ_FLOAT);
+	jsonw_float_field(wr, "garp_delay", vrrp->garp_delay / TIMER_HZ_DOUBLE);
 	jsonw_uint_field(wr, "garp_refresh", vrrp->garp_refresh.tv_sec);
 	jsonw_uint_field(wr, "garp_rep", vrrp->garp_rep);
 	jsonw_uint_field(wr, "garp_refresh_rep", vrrp->garp_refresh_rep);
@@ -175,8 +175,8 @@ vrrp_json_data_dump(json_writer_t *wr, vrrp_t *vrrp)
 	jsonw_uint_field(wr, "effective_priority", vrrp->effective_priority);
 	jsonw_bool_field(wr, "vipset", vrrp->vipset);
 	jsonw_bool_field(wr, "promote_secondaries", vrrp->promote_secondaries);
-	jsonw_float_field(wr, "adver_int", vrrp->adver_int / TIMER_HZ_FLOAT);
-	jsonw_float_field(wr, "master_adver_int", vrrp->master_adver_int / TIMER_HZ_FLOAT);
+	jsonw_float_field(wr, "adver_int", vrrp->adver_int / TIMER_HZ_DOUBLE);
+	jsonw_float_field(wr, "master_adver_int", vrrp->master_adver_int / TIMER_HZ_DOUBLE);
 #ifdef _WITH_FIREWALL_
 	jsonw_uint_field(wr, "accept", vrrp->accept);
 #endif

@@ -769,8 +769,8 @@ inet_sockaddrcmp(const struct sockaddr_storage *a, const struct sockaddr_storage
 				      &PTR_CAST_CONST(struct sockaddr_in, b)->sin_addr);
 	if (a->ss_family == AF_INET6)
 		return inet_inaddrcmp(a->ss_family,
-				      &PTR_CAST_CONST(const struct sockaddr_in6, a)->sin6_addr,
-				      &PTR_CAST_CONST(const struct sockaddr_in6, b)->sin6_addr);
+				      &PTR_CAST_CONST(struct sockaddr_in6, a)->sin6_addr,
+				      &PTR_CAST_CONST(struct sockaddr_in6, b)->sin6_addr);
 	return 0;
 }
 
@@ -1081,7 +1081,7 @@ open_pipe(int pipe_arr[2])
  * which can then be optimised, cannot be generated. Stopping inlining and cloning
  * should force this.
  */
-__attribute__((pure, noinline, noclone)) int
+__attribute__((pure, noinline, ATTRIBUTE_NOCLONE)) int
 memcmp_constant_time(const void *s1, const void *s2, size_t n)
 {
 	const unsigned char *a, *b;

@@ -40,7 +40,7 @@
 #define MAXBUF	1024
 
 /* Maximum time read_timer can read - in micro-seconds */
-#define TIMER_MAXIMUM (ULONG_MAX)
+#define TIMER_MAXIMUM (ULONG_MAX - 1)
 
 /* Special values for parameters when we want to know they haven't been set */
 #define	TIME_T_PARAMETER_UNSET	LONG_MAX
@@ -120,12 +120,11 @@ extern config_err_t get_config_status(void) __attribute__ ((pure));
 extern bool read_int(const char *, int *, int, int, bool);
 extern bool read_unsigned(const char *, unsigned *, unsigned, unsigned, bool);
 extern bool read_unsigned64(const char *, uint64_t *, uint64_t, uint64_t, bool);
-extern bool read_double(const char *, double *, double, double, bool);
+extern bool read_decimal_unsigned(const char *, unsigned *, unsigned, unsigned, unsigned, bool);
 extern bool read_int_strvec(const vector_t *, size_t, int *, int, int, bool);
 extern bool read_unsigned_strvec(const vector_t *, size_t, unsigned *, unsigned, unsigned, bool);
 extern bool read_unsigned64_strvec(const vector_t *, size_t, uint64_t *, uint64_t, uint64_t, bool);
 extern bool read_unsigned_base_strvec(const vector_t *, size_t, int, unsigned *, unsigned, unsigned, bool);
-extern bool read_double_strvec(const vector_t *, size_t, double *, double, double, bool);
 extern bool read_decimal_unsigned_strvec(const vector_t *, size_t, unsigned *, unsigned, unsigned, unsigned, bool);
 extern uint16_t read_hex_str(const char *, uint8_t **, uint8_t **);
 extern void set_random_seed(unsigned int);

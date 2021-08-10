@@ -130,83 +130,88 @@ get_u64(uint64_t *val, const char *str, uint64_t max, const char* errmsg)
 	return true;
 }
 
+/* The kernel has the following definitions in include/net/tcp.h:
+ *   #define TCP_RTO_MAX     ((unsigned)(120*HZ))
+ *   #define TCP_RTO_MIN     ((unsigned)(HZ/5))
+ * so rtt values must be between 0.2 and 120 seconds.
+ */
+#define RTT_MIN_MS	   200U
+#define RTT_MAX_MS	120000U
+
 bool
-get_time_rtt(uint32_t *val, const char *str, bool *raw)
+get_time_rtt(uint32_t *val, const char *str, unsigned unit_mult)
 {
-	float t;
-	unsigned long res;
-	char *end;
-	size_t offset;
-	int ftype;
+	unsigned res;
+	unsigned shift;
+	char *p;
+	char *str_cpy;
+	const char *str1;
+	bool ret;
+	bool raw;
 
-	errno = 0;
-	if (strchr(str, '.') ||
-	    (strpbrk(str, "Ee") && !strpbrk(str, "xX"))) {
-		t = strtof(str, &end);
 
-		/* no digits or extra characters */
-		if (end == str)
+	/* Skip leading whitespace */
+	str += strspn(str, WHITE_SPACE);
+
+	/* Have units been specified? */
+	raw = true;
+	if ((p = strpbrk(str, "sS"))) {
+		if (strcasecmp(p, "s") &&
+		    strcasecmp(p, "sec") &&
+		    strcasecmp(p, "secs"))
 			return true;
 
-		ftype = fpclassify(t);
-		if (ftype != FP_ZERO && ftype != FP_SUBNORMAL) {
-			if (errno == ERANGE) /* overflow */
-				return true;
-			if (ftype != FP_NORMAL) /* NaN, infinity */
-				return true;
-		}
-		else
-			t = 0.0F;	/* in case FP_SUBNORMAL */
+		raw = false;
+		if (p > str && tolower(p[-1]) == 'm') {
+			shift = 0;
+			p--;
+		} else
+			shift = 3;
 
-		if (t <= 0.0F)
+		if (p == str)
 			return true;
 
-		if (t >= UINT32_MAX)
-			return true;
+		str_cpy = MALLOC(p - str + 1);
+		memcpy(str_cpy, str, p - str);
+		str_cpy[p - str] = '\0';
+		str1 = str_cpy;
 	} else {
-		/* Skip whitespace */
-		offset = strspn(str, WHITE_SPACE);
-
-		/* strtoul does "nasty" things with negative numbers */
-		if (str[offset] == '-')
-			return true;
-
-		res = strtoul(str, &end, 0);
-
-		/* no digits? */
-		if (end == str)
-			return true;
-
-		/* overflow */
-		if (res == ULONG_MAX && errno == ERANGE)
-			return true;
-
-		if (res > UINT32_MAX)
-			return true;
-
-		t = (float)res;
+		str_cpy = NULL;
+		str1 = str;
+		shift = 0;
 	}
 
-	if (*end) {
-		*raw = false;
-		if (!strcasecmp(end, "s") ||
-		    !strcasecmp(end, "sec") ||
-		    !strcasecmp(end, "secs")) {
-			if (t * 1000U >= UINT32_MAX)
-				return false;
-			t *= 1000;
-		}
-		else if (strcasecmp(end, "ms") &&
-			 strcasecmp(end, "msec") &&
-			 strcasecmp(end, "msecs"))
-			return true;
+	/* We used to support exponential form to match ip route command, but that support was
+	 * accidental (e.g. "rtt 1e3" did not work, but "rtt 1.e3" did - exponential form in ip
+	 * command is only supported if a decimal point is specified).
+	 */
+	if (strpbrk(str1, "eE")) {
+		log_message(LOG_INFO, "rtt value exponential form %s no longer supported", str);
+		if (str_cpy)
+			FREE(str_cpy);
+		return true;
 	}
-	else
-		*raw = true;
 
-	*val = (uint32_t)t;
-	if (*val < t)
-		(*val)++;
+	ret = read_decimal_unsigned(str1, &res, 0, RTT_MAX_MS * unit_mult, shift, false);
+
+	if (str_cpy)
+		FREE(str_cpy);
+
+	if (!ret)
+		return true;
+
+	if (!raw)
+		res *= unit_mult;
+
+	if (res > RTT_MAX_MS * unit_mult) {
+		log_message(LOG_INFO, "rtt value %s exceeds maximum %us, resetting", str, RTT_MAX_MS / 1000U);
+		res = RTT_MAX_MS * unit_mult;
+	} else if (res < RTT_MIN_MS * unit_mult) {
+		log_message(LOG_INFO, "rtt value %s below minimum %ums, resetting", str, RTT_MIN_MS);
+		res = RTT_MIN_MS * unit_mult;
+	}
+
+	*val = res;
 
 	return false;
 }

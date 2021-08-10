@@ -850,16 +850,16 @@ static void
 vrrp_adv_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
-	double adver_int;
+	unsigned adver_int;
 	bool res;
 
-	res = read_double_strvec(strvec, 1, &adver_int, 0.01F, 255.0F, true);
+	res = read_decimal_unsigned_strvec(strvec, 1, &adver_int, TIMER_HZ / 100, 255 * TIMER_HZ, TIMER_HZ_DIGITS, true);
 
 	/* Simple check - just positive */
 	if (!res || adver_int <= 0)
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Advert interval (%s) not valid! Must be > 0 - ignoring", vrrp->iname, strvec_slot(strvec, 1));
 	else
-		vrrp->adver_int = (unsigned)(adver_int * TIMER_HZ);
+		vrrp->adver_int = adver_int;
 }
 static void
 vrrp_debug_handler(const vector_t *strvec)
@@ -922,14 +922,14 @@ static void
 vrrp_preempt_delay_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
-	double preempt_delay;
+	unsigned preempt_delay;
 
-	if (!read_double_strvec(strvec, 1, &preempt_delay, 0, TIMER_MAX_SEC, true)) {
+	if (!read_decimal_unsigned_strvec(strvec, 1, &preempt_delay, 0, TIMER_MAX_SEC * TIMER_HZ, TIMER_HZ_DIGITS, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Preempt_delay not valid! must be between 0-%u", vrrp->iname, TIMER_MAX_SEC);
 		vrrp->preempt_delay = 0;
 	}
 	else
-		vrrp->preempt_delay = (unsigned long)(preempt_delay * TIMER_HZ);
+		vrrp->preempt_delay = preempt_delay;
 }
 static void
 vrrp_notify_backup_handler(const vector_t *strvec)
@@ -1598,9 +1598,9 @@ static void
 vrrp_tprocess_delay_general(const vector_t *strvec, enum process_delay delay_type)
 {
 	vrrp_tracked_process_t *tprocess = list_last_entry(&vrrp_data->vrrp_track_processes, vrrp_tracked_process_t, e_list);
-	double delay;
+	unsigned delay;
 
-	if (!read_double_strvec(strvec, 1, &delay, 0.000001F, 3600.F, true)) {
+	if (!read_decimal_unsigned_strvec(strvec, 1, &delay, 1, 3600U * TIMER_HZ, TIMER_HZ_DIGITS, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "%sdelay (%s) for vrrp_track_process %s must be between "
 							  "[0.000001..3600] inclusive. Ignoring..."
 							, delay_type == PROCESS_TERMINATE_DELAY ? "terminate_" :
@@ -1610,9 +1610,9 @@ vrrp_tprocess_delay_general(const vector_t *strvec, enum process_delay delay_typ
 	}
 
 	if (delay_type != PROCESS_FORK_DELAY)
-		tprocess->terminate_delay = (unsigned)(delay * TIMER_HZ);
+		tprocess->terminate_delay = delay;
 	if (delay_type != PROCESS_TERMINATE_DELAY)
-		tprocess->fork_delay = (unsigned)(delay * TIMER_HZ);
+		tprocess->fork_delay = delay;
 }
 static void
 vrrp_tprocess_terminate_delay_handler(const vector_t *strvec)
@@ -1720,15 +1720,15 @@ static void
 garp_group_garp_interval_handler(const vector_t *strvec)
 {
 	garp_delay_t *delay = list_last_entry(&garp_delay, garp_delay_t, e_list);
-	double val;
+	unsigned val;
 
-	if (!read_double_strvec(strvec, 1, &val, 0, (int)(INT_MAX / 1000000), true)) {
+	if (!read_decimal_unsigned_strvec(strvec, 1, &val, 0, INT_MAX, TIMER_HZ_DIGITS, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "garp_group garp_interval '%s' invalid", strvec_slot(strvec, 1));
 		return;
 	}
 
-	delay->garp_interval.tv_sec = (time_t)val;
-	delay->garp_interval.tv_usec = (suseconds_t)((val - delay->garp_interval.tv_sec) * 1000000);
+	delay->garp_interval.tv_sec = (time_t)val / TIMER_HZ;
+	delay->garp_interval.tv_usec = (suseconds_t)(val % TIMER_HZ);
 	delay->have_garp_interval = true;
 
 	if (delay->garp_interval.tv_sec >= 1)
@@ -1738,15 +1738,15 @@ static void
 garp_group_gna_interval_handler(const vector_t *strvec)
 {
 	garp_delay_t *delay = list_last_entry(&garp_delay, garp_delay_t, e_list);
-	double val;
+	unsigned val;
 
-	if (!read_double_strvec(strvec, 1, &val, 0, (int)(INT_MAX / 1000000), true)) {
+	if (!read_decimal_unsigned_strvec(strvec, 1, &val, 0, INT_MAX, TIMER_HZ_DIGITS, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "garp_group gna_interval '%s' invalid", strvec_slot(strvec, 1));
 		return;
 	}
 
-	delay->gna_interval.tv_sec = (time_t)val;
-	delay->gna_interval.tv_usec = (suseconds_t)((val - delay->gna_interval.tv_sec) * 1000000);
+	delay->gna_interval.tv_sec = (time_t)val / TIMER_HZ;
+	delay->gna_interval.tv_usec = (suseconds_t)(val % TIMER_HZ);
 	delay->have_gna_interval = true;
 
 	if (delay->gna_interval.tv_sec >= 1)

@@ -138,13 +138,15 @@ bfd_minrx_handler(const vector_t *strvec)
 	bfd = list_last_entry(&bfd_data->bfd, bfd_t, e_list);
 	assert(bfd);
 
-	if (!read_decimal_unsigned_strvec(strvec, 1, &value, BFD_MINRX_MIN * 1000, BFD_MINRX_MAX * 1000, 3, false))
+	if (!read_decimal_unsigned_strvec(strvec, 1, &value, BFD_MINRX_MIN * 1000, BFD_MINRX_MAX * 1000, 3, false)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
 			    " min_rx value %s is not valid (must be in range"
 			    " [%u-%u]), ignoring", bfd->iname, strvec_slot(strvec, 1),
 			    BFD_MINRX_MIN, BFD_MINRX_MAX);
-	else
-		bfd->local_min_rx_intv = value;
+		return;
+	}
+
+	bfd->local_min_rx_intv = value;
 
 	if (value > BFD_MINRX_MAX_SENSIBLE * 1000)
 		log_message(LOG_INFO, "Configuration warning: BFD instance %s"
@@ -164,13 +166,15 @@ bfd_mintx_handler(const vector_t *strvec)
 	bfd = list_last_entry(&bfd_data->bfd, bfd_t, e_list);
 	assert(bfd);
 
-	if (!read_decimal_unsigned_strvec(strvec, 1, &value, BFD_MINTX_MIN * 1000, BFD_MINTX_MAX * 1000, 3, false))
+	if (!read_decimal_unsigned_strvec(strvec, 1, &value, BFD_MINTX_MIN * 1000, BFD_MINTX_MAX * 1000, 3, false)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
 			    " min_tx value %s is not valid (must be in range"
 			    " [%u-%u]), ignoring", bfd->iname, strvec_slot(strvec, 1),
 			    BFD_MINTX_MIN, BFD_MINTX_MAX);
-	else
-		bfd->local_min_tx_intv = value;
+		return;
+	}
+
+	bfd->local_min_tx_intv = value;
 
 	if (value > BFD_MINTX_MAX_SENSIBLE * 1000)
 		log_message(LOG_INFO, "Configuration warning: BFD instance %s"
@@ -190,13 +194,15 @@ bfd_idletx_handler(const vector_t *strvec)
 	bfd = list_last_entry(&bfd_data->bfd, bfd_t, e_list);
 	assert(bfd);
 
-	if (!read_decimal_unsigned_strvec(strvec, 1, &value, BFD_IDLETX_MIN * 1000, BFD_IDLETX_MAX * 1000, 3, false))
+	if (!read_decimal_unsigned_strvec(strvec, 1, &value, BFD_IDLETX_MIN * 1000, BFD_IDLETX_MAX * 1000, 3, false)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
 			    " idle_tx value %s is not valid (must be in range"
 			    " [%u-%u]), ignoring", bfd->iname, strvec_slot(strvec, 1),
 			    BFD_IDLETX_MIN, BFD_IDLETX_MAX);
-	else
-		bfd->local_idle_tx_intv = value;
+		return;
+	}
+
+	bfd->local_idle_tx_intv = value;
 
 	if (value > BFD_IDLETX_MAX_SENSIBLE * 1000)
 		log_message(LOG_INFO, "Configuration warning: BFD instance %s"

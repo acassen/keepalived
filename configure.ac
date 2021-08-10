@@ -180,6 +180,10 @@ AC_ARG_ENABLE(regex-timers,
   [AS_HELP_STRING([--enable-regex-timers], [build with HTTP_GET regex timers])])
 AC_ARG_ENABLE(json,
   [AS_HELP_STRING([--enable-json], [compile with signal to dump configuration and stats as json])])
+AC_ARG_ENABLE(clang,
+  [AS_HELP_STRING([--enable-clang], [use clang compiler])])
+AC_ARG_ENABLE(lto,
+  [AS_HELP_STRING([--enable-lto], [use Link Time Optimisation])])
 AC_ARG_WITH(init,
   [AS_HELP_STRING([--with-init=(upstart|systemd|SYSV|SUSE|openrc)], [specify init type])],
   [init_type="$withval"], [init_type=""])
@@ -335,8 +339,18 @@ fi
 
 CPPFLAGS="$kernelinc $CPPFLAGS"
 
+AS_IF([test .$enable_clang = .yes ],
+  [
+    USE_CC=clang
+    AC_CHECK_TOOL([USE_LLD], [lld], [:])
+    AS_IF([test $USE_LLD != :], [LDFLAGS+=" -fuse-ld=lld -rtlib=compiler-rt"])
+  ],
+  [
+    USE_CC="gcc cc"
+  ])
+
 # Checks for programs.
-AC_PROG_CC
+AC_PROG_CC($USE_CC)
 AC_PROG_MAKE_SET
 AC_PROG_INSTALL
 AC_PROG_RANLIB
@@ -361,6 +375,11 @@ ENABLE_LOG_FILE_APPEND=No
 args=`echo $ac_configure_args | $SED -e "s/'//g"`
 AC_DEFINE_UNQUOTED(KEEPALIVED_CONFIGURE_OPTIONS,"$args", [configure options specified])
 
+AS_IF([test .$enable_lto = .yes],
+  [
+    AS_IF([test .$enable_clang = .yes], [CFLAGS+=" -flto"], [CFLAGS+=" -flto=auto -ffat-lto-objects"])
+  ])
+
 # Save the CPPFLAGS, CFLAGS, LDFLAGS and LDLIBS settings for make time
 KA_CPPFLAGS="$kernelinc -D_GNU_SOURCE $CPPFLAGS"
 KA_CFLAGS="-g $CFLAGS"
@@ -371,10 +390,11 @@ NEED_LIBDL=No
 #KA_LIBTOOLFLAGS =
 
 # Set up the compiler warnings we want
-dnl -- Unused warnings - traditional
+dnl -- Unused warnings - traditional c90-c99-compat c99-c11-compat c++-compat larger-than=4096 long-long packed stringop-overflow switch-default vla vla-larger-than=ANY-SIZE
+dnl			 alloca-size-larger-than= (since alloca warning)
 MAX_FRAME_SIZE=5120
 WARNINGS_BASIC="all extra unused strict-prototypes"
-WARNINGS_STD="absolute-value address-of-packed-member alloca alloc-zero array-bounds=2 attribute-alias bad-function-cast cast-align cast-qual chkp date-time disabled-optimization double-promotion duplicated-branches duplicated-cond float-conversion float-equal format-overflow format-security format-signedness format-truncation frame-larger-than=$MAX_FRAME_SIZE implicit-fallthrough=3 init-self inline jump-misses-init logical-op missing-declarations missing-field-initializers missing-prototypes nested-externs normalized null-dereference old-style-definition overlength-strings pointer-arith redundant-decls shadow shift-overflow=2 stack-protector strict-overflow=4 strict-prototypes stringop-overflow=2 suggest-attribute=cold suggest-attribute=const suggest-attribute=format suggest-attribute=malloc suggest-attribute=noreturn suggest-attribute=pure sync-nand trampolines undef uninitialized unknown-pragmas unsuffixed-float-constants unused-const-variable=2 unused-macros variadic-macros write-strings"
+WARNINGS_STD="abi absolute-value address-of-packed-member alloca alloc-larger-than=4096 alloc-zero arith-conversion array-bounds=2 attribute-alias=2 bad-function-cast c11-c2x-compat cast-align cast-qual chkp date-time disabled-optimization double-promotion duplicated-branches duplicated-cond float-conversion float-equal format-overflow format-security format-signedness format-truncation frame-larger-than=$MAX_FRAME_SIZE implicit-fallthrough=3 init-self inline invalid-pch jump-misses-init logical-op missing-declarations missing-field-initializers missing-include-dirs missing-prototypes nested-externs normalized null-dereference old-style-definition overlength-strings pointer-arith redundant-decls shadow shift-overflow=2 stack-protector strict-overflow=4 stringop-overflow=2 stringop-truncation suggest-attribute=cold suggest-attribute=const suggest-attribute=format suggest-attribute=malloc suggest-attribute=noreturn suggest-attribute=pure sync-nand trampolines undef uninitialized unknown-pragmas unsafe-loop-optimizations unsuffixed-float-constants unused-const-variable=2 unused-macros variadic-macros write-strings"
 WARNINGS_EXTRA="aggregate-return cast-align=strict conversion format-nonliteral format-overflow=2 format-truncation=2 padded pedantic sign-conversion stack-usage=$MAX_FRAME_SIZE strict-overflow=5 stringop-overflow=3 stringop-overflow=4 switch-enum system-headers traditional-conversion"
 
 # We want _GNU_SOURCE defined always
@@ -491,21 +511,27 @@ dnl -- Do we want -Wcast-align=strict?
 AS_IF([test .$enable_strict_cast_align = .yes],
       [WARNINGS_STD=$(echo $WARNINGS_STD | sed -e "s/cast-align /cast-align=strict /")])
 
-dnl -- check if we are using LTO. There is a GCC bug which means that when addattr_l()
-dnl -- is inlined, GCC (up to at least v11.1.1) ignores RELAX_STRINGOP_OVERFLOW and issues
-dnl -- -Wstringop-overflow warnings
-dnl -- I haven't been able to produce a test case to demonstrate this GCC bug, so we can't
-dnl -- test it here, nor have I been able to report a bug upstream to GCC.
-AC_MSG_CHECKING([if using Link Time Optimisation])
-echo " $CFLAGS " | grep -q -- " -flto=auto "
-AS_IF([test $? -eq 0],
+GCC_LTO=no
+AS_IF([test $CC = gcc],
   [
-    AC_MSG_RESULT([yes])
-    AC_DEFINE([LTO_NOINLINE], [ __attribute__((noinline)) ], [Define to not inline if using LTO])
-  ], [
-    AC_MSG_RESULT([no])
-    AC_DEFINE([LTO_NOINLINE], [], [Define to not inline if using LTO])
+  dnl -- check if we are using LTO. There is a GCC bug which means that when addattr_l()
+  dnl -- is inlined, GCC (up to at least v11.1.1) ignores RELAX_STRINGOP_OVERFLOW and issues
+  dnl -- -Wstringop-overflow warnings
+  dnl -- I haven't been able to produce a test case to demonstrate this GCC bug, so we can't
+  dnl -- test it here, nor have I been able to report a bug upstream to GCC.
+  AC_MSG_CHECKING([if using GCC Link Time Optimisation])
+  echo " $CFLAGS " | grep -q -- " -flto=auto "
+  AS_IF([test $? -eq 0],
+    [
+      AC_MSG_RESULT([yes])
+      GCC_LTO=yes
+    ], [
+      AC_MSG_RESULT([no])
+    ])
   ])
+AS_IF([test $GCC_LTO = yes],
+  [AC_DEFINE([LTO_NOINLINE], [ __attribute__((noinline)) ], [Define to not inline if using GCC LTO])],
+  [AC_DEFINE([LTO_NOINLINE], [], [Define to not inline if using GCC LTO])])
 
 dnl -- ulibc/glibc differences
 AC_MSG_CHECKING([msghdr.msg_controllen is size_t])
@@ -515,7 +541,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   #include <sys/socket.h>
   #include <stdio.h>
 
-  int main(int argc, char**argv)
+  int main(void)
   {
     struct msghdr msgh = { .msg_controllen = 0 };
 
@@ -535,7 +561,7 @@ CFLAGS=$SAV_CFLAGS
 dnl -- Check for diagnostic pragmas in functions - GCC 4.6.0
 AC_MSG_CHECKING([diagnostic pragmas in functions])
 AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-  int main(int argc, char**argv)
+  int main(void)
   {
 _Pragma("GCC diagnostic warning \"-Wall\"")
   }
@@ -552,7 +578,7 @@ AM_CONDITIONAL([DEBUG], [test .$enable_debug = .yes])
 dnl -- Check for diagnostic push/pop pragmas - GCC 4.6.0
 AC_MSG_CHECKING([diagnostic push/pop pragmas])
 AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-  int main(int argc, char**argv)
+  int main(void)
   {
 _Pragma("GCC diagnostic push")
   }
@@ -598,7 +624,7 @@ if test "$enable_conversion_checks" = yes; then
     {
     }
 
-    int main(int argc, char**argv)
+    int main(void)
     {
       fd_set set;
       uint8_t	val = 42;
@@ -652,7 +678,7 @@ SAV_CFLAGS="$CFLAGS"
 for WARN in $WARNINGS_ENABLED
 do
   AC_MSG_CHECKING([for -W$WARN])
-  CFLAGS="$SAV_CFLAGS -W$WARN"
+  CFLAGS="$SAV_CFLAGS -W$WARN -Werror"
 
   WARN_VAR=_HAVE_WARNING_`echo $WARN | tr "a-z=-" "A-Z__"`_
   LOCAL_WARN_VAR=HAVE_WARNING_`echo $WARN | sed -e "s/=.*//" | tr "a-z-" "A-Z_"`
@@ -674,7 +700,7 @@ do
        )
 
   AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-    int main(int argc, char**argv)
+    int main(void)
     {
     }
     ]])],
@@ -711,7 +737,7 @@ AS_IF([test .$HAVE_WARNING_STRICT_OVERFLOW = .yes],
 	CFLAGS="$CFLAGS -Werror"
 	AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
 	  _Pragma("GCC diagnostic warning \"-Wstrict-overflow=1\"")
-	  int main(int argc, char**argv)
+	  int main(void)
 	  {
 	  }
 	  ]])],
@@ -741,7 +767,7 @@ if test "$enable_hardening" != no; then
   fi
   LDFLAGS="$LDFLAGS -pie"
   AC_LINK_IFELSE([AC_LANG_SOURCE([[
-    int main(int argc, char **argv)
+    int main(void)
     {
       int i = 0;
     }
@@ -780,7 +806,7 @@ if test "$enable_hardening" != no; then
     LDFLAGS="$LDFLAGS -Wl,$FLAG"
     AC_LINK_IFELSE(
       [AC_LANG_SOURCE([[
-      int main(int argc, char **argv)
+      int main(void)
       {
 	int i = 0;
       }
@@ -924,7 +950,7 @@ dnl clock_gettime() required -lt before glibc 2.17
 AC_MSG_CHECKING([for clock_gettime() requires -lrt])
 AC_LINK_IFELSE([AC_LANG_SOURCE([[
   #include <time.h>
-  int main(int argc, char **argv)
+  int main(void)
   {
     int i;
     struct timespec ts;
@@ -938,7 +964,7 @@ AC_LINK_IFELSE([AC_LANG_SOURCE([[
     LIBS="$LIBS -lrt"
     AC_LINK_IFELSE([AC_LANG_SOURCE([[
       #include <time.h>
-      int main(int argc, char **argv)
+      int main(void)
       {
 	int i;
 	struct timespec ts;
@@ -966,7 +992,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   #include <fcntl.h>
   #include <linux/errqueue.h>
 
-  int main(int argc, char**argv)
+  int main(void)
   {
   }
   ]])],
@@ -1053,7 +1079,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   }
 
   int
-  main(int argc, char **argv)
+  main(void)
   {
     int val = test_func(3);
     return val;
@@ -1068,7 +1094,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
     }
 
     int
-    main(int argc, char **argv)
+    main(void)
     {
       int val = test_func(3);
       return val;

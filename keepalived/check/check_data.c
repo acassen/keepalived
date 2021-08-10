@@ -468,6 +468,21 @@ dump_tracking_rs(FILE *fp, const void *data)
 	conf_write(fp, "     %s -> %s, weight %d%s", FMT_VS(checker->vs), FMT_RS(checker->rs, checker->vs), top->weight, top->weight_multiplier == -1 ? " reverse" : "");
 }
 
+static const char *
+format_decimal(unsigned long val, unsigned dp)
+{
+	static char buf[22];	/* Sufficient for 2^64 as decimal plus decimal point */
+	unsigned dp_factor = 1;
+	unsigned i;
+
+	for (i = 0; i < dp; i++)
+		dp_factor *= 10;
+
+	snprintf(buf, sizeof(buf), "%lu.%*.*lu", val / dp_factor, dp, dp, val % dp_factor);
+
+	return buf;
+}
+
 static void
 dump_rs(FILE *fp, const real_server_t *rs)
 {
@@ -483,15 +498,15 @@ dump_rs(FILE *fp, const real_server_t *rs)
 	dump_forwarding_method(fp, "", rs);
 
 	conf_write(fp, "   Alpha is %s", rs->alpha ? "ON" : "OFF");
-	conf_write(fp, "   connection timeout = %f", ((double)rs->connection_to) / TIMER_HZ);
+	conf_write(fp, "   connection timeout = %s", format_decimal(rs->connection_to, TIMER_HZ_DIGITS));
 	conf_write(fp, "   connection limit range = %" PRIu32 " -> %" PRIu32, rs->l_threshold, rs->u_threshold);
-	conf_write(fp, "   Delay loop = %f" , (double)rs->delay_loop / TIMER_HZ);
+	conf_write(fp, "   Delay loop = %s" , format_decimal(rs->delay_loop, TIMER_HZ_DIGITS));
 	if (rs->retry != UINT_MAX)
 		conf_write(fp, "   Retry count = %u" , rs->retry);
 	if (rs->delay_before_retry != ULONG_MAX)
-		conf_write(fp, "   Retry delay = %f" , (double)rs->delay_before_retry / TIMER_HZ);
+		conf_write(fp, "   Retry delay = %s" , format_decimal(rs->delay_before_retry, TIMER_HZ_DIGITS));
 	if (rs->warmup != ULONG_MAX)
-		conf_write(fp, "   Warmup = %f", (double)rs->warmup / TIMER_HZ);
+		conf_write(fp, "   Warmup = %s", format_decimal(rs->warmup, TIMER_HZ_DIGITS));
 	conf_write(fp, "   Inhibit on failure is %s", rs->inhibit ? "ON" : "OFF");
 
 	if (rs->notify_up)
@@ -529,6 +544,7 @@ dump_rs(FILE *fp, const real_server_t *rs)
 	}
 #endif
 }
+
 static void
 dump_rs_list(FILE *fp, const list_head_t *l)
 {
@@ -657,8 +673,8 @@ dump_vs(FILE *fp, const virtual_server_t *vs)
 		conf_write(fp, "   Address family = IPv4 & IPv6");
 	else
 		conf_write(fp, "   Address family = unknown");
-	conf_write(fp, "   connection timeout = %f", (double)vs->connection_to / TIMER_HZ);
-	conf_write(fp, "   delay_loop = %f", (double)vs->delay_loop / TIMER_HZ);
+	conf_write(fp, "   connection timeout = %s", format_decimal(vs->connection_to, TIMER_HZ_DIGITS));
+	conf_write(fp, "   delay_loop = %s", format_decimal(vs->delay_loop, TIMER_HZ_DIGITS));
 	conf_write(fp, "   lvs_sched = %s", vs->sched);
 	conf_write(fp, "   Hashed = %sabled", vs->flags & IP_VS_SVC_F_HASHED ? "en" : "dis");
 #ifdef IP_VS_SVC_F_SCHED1
@@ -708,9 +724,9 @@ dump_vs(FILE *fp, const virtual_server_t *vs)
 	if (vs->retry != UINT_MAX)
 		conf_write(fp, "   Retry count = %u" , vs->retry);
 	if (vs->delay_before_retry != ULONG_MAX)
-		conf_write(fp, "   Retry delay = %f" , (double)vs->delay_before_retry / TIMER_HZ);
+		conf_write(fp, "   Retry delay = %s" , format_decimal(vs->delay_before_retry, TIMER_HZ_DIGITS));
 	if (vs->warmup != ULONG_MAX)
-		conf_write(fp, "   Warmup = %f", (double)vs->warmup / TIMER_HZ);
+		conf_write(fp, "   Warmup = %s", format_decimal(vs->warmup, TIMER_HZ_DIGITS));
 	conf_write(fp, "   Inhibit on failure is %s", vs->inhibit ? "ON" : "OFF");
 	conf_write(fp, "   quorum = %u, hysteresis = %u", vs->quorum, vs->hysteresis);
 	if (vs->notify_quorum_up)
