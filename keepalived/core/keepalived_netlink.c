@@ -800,6 +800,9 @@ parse_rtattr(struct rtattr **tb, int max, struct rtattr *rta, size_t len)
 	while (RTA_OK(rta, len)) {
 		if (rta->rta_type <= max)
 			tb[rta->rta_type] = rta;
+		/* Note: clang issues a -Wcast-align warning for RTA_NEXT, whereas gcc does not.
+		 * gcc is more clever in it's analysis, and realises that RTA_NEXT is actually
+		 * forcing alignment.
 		rta = RTA_NEXT(rta, len);
 	}
 }
@@ -903,6 +906,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 
 	len = h->nlmsg_len - NLMSG_LENGTH(sizeof (struct ifaddrmsg));
 
+	/* See -Wcast-align comment above, also applies to IFA_RTA */
 	parse_rtattr(tb, IFA_MAX, IFA_RTA(ifa), len);
 
 	if (tb[IFA_LOCAL] == NULL)
@@ -1301,6 +1305,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 			break;
 		}
 
+		/* See -Wcast-align comment above, also applies to NLMSG_NEXT */
 		for (h = PTR_CAST(struct nlmsghdr, nlmsg_buf); NLMSG_OK(h, (size_t)len); h = NLMSG_NEXT(h, len)) {
 			/* Finish off reading. */
 			if (h->nlmsg_type == NLMSG_DONE) {
@@ -1890,6 +1895,7 @@ netlink_if_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 		return -1;
 	len = h->nlmsg_len - NLMSG_LENGTH(sizeof (struct ifinfomsg));
 
+	/* See -Wcast-align comment above, also applies to IFLA_RTA */
 	/* Interface name lookup */
 	parse_rtattr(tb, IFLA_MAX, IFLA_RTA(ifi), len);
 
@@ -1973,6 +1979,7 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 
 	/* Interface name lookup */
 	ifi = NLMSG_DATA(h);
+	/* See -Wcast-align comment above, also applies to IFLA_RTA */
 	parse_rtattr(tb, IFLA_MAX, IFLA_RTA(ifi), len);
 	if (tb[IFLA_IFNAME] == NULL)
 		return -1;
@@ -2217,6 +2224,7 @@ netlink_route_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlm
 
 	len = h->nlmsg_len - NLMSG_LENGTH(sizeof (struct rtmsg));
 
+	/* See -Wcast-align comment above, also applies to RTM_RTA */
 	parse_rtattr(tb, RTA_MAX, RTM_RTA(rt), len);
 
 	if (!(route = route_is_ours(rt, tb, &vrrp)))
@@ -2279,6 +2287,7 @@ netlink_rule_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 
 	len = h->nlmsg_len - NLMSG_LENGTH(sizeof (struct rtmsg));
 
+	/* See -Wcast-align comment above, also applies to RTM_RTA */
 	parse_rtattr(tb, FRA_MAX, RTM_RTA(frh), len);
 
 #if HAVE_DECL_FRA_PROTOCOL

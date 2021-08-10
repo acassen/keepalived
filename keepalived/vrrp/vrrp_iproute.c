@@ -281,6 +281,7 @@ add_nexthops(ip_route_t *route, struct nlmsghdr *nlh, struct rtmsg *rtm)
 		rtnh->rtnh_len = sizeof(*rtnh);
 		rta->rta_len = (unsigned short)(rta->rta_len + rtnh->rtnh_len);
 		add_nexthop(nh, rtm, rta, sizeof(buf), rtnh);
+		/* See -Wcast-align comment in keepalived_netlink.c, also applies to RTNH_NEXT */
 		rtnh = RTNH_NEXT(rtnh);
 	}
 
