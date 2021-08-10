@@ -81,16 +81,6 @@ _Pragma("GCC diagnostic ignored \"-Wsuggest-attribute=const\"")
 #define RELAX_SUGGEST_ATTRIBUTE_CONST_END
 #endif
 
-#if defined _HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_ && defined _HAVE_WARNING_STRINGOP_TRUNCATION_
-#define RELAX_STRINGOP_TRUNCATION \
-_Pragma("GCC diagnostic push") \
-_Pragma("GCC diagnostic ignored \"-Wstringop-truncation\"")
-#define RELAX_STRINGOP_TRUNCATION_END RELAX_END
-#else
-#define RELAX_STRINGOP_TRUNCATION
-#define RELAX_STRINGOP_TRUNCATION_END
-#endif
-
 #if defined _HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_ && defined _HAVE_WARNING_STRINGOP_OVERFLOW_
 #define RELAX_STRINGOP_OVERFLOW \
 _Pragma("GCC diagnostic push") \
