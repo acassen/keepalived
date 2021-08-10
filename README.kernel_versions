@@ -18,6 +18,8 @@ dnl ----[Check have IPV4_DEVCONF defines - since Linux 3.11]----
 
 ./keepalived/check/check_parser.c:#ifdef IP_VS_SVC_F_SCHED1		/* From Linux 3.11 */
 
+Support for open(..., O_TMPFILE,...) added	-- Linux 3.11	/* Backported into RHEL7 linux-3.10 somewhere between 3.10.0-229 and 3.10.0-1160 */
+
 dnl --RTAX_QUICKACK		dnl -- Linux 3.11
 dnl --FRA_SUPPRESS_PREFIXLEN	dnl -- Linux 3.12
 dnl --FRA_SUPPRESS_IFGROUP	dnl -- Linux 3.12
@@ -40,7 +42,7 @@ AC_CHECK_DECLS([IFA_FLAGS], [], [], [[#include <linux/if_addr.h>]])
 dnl ----[ Checks for kernel IFLA_INET6_ADDR_GEN_MODE support ]----
   # Introduced in Linux 3.17
 
-memfd_create - introduced in Linux 3.17 and glibc 2.27
+memfd_create - introduced in Linux 3.17 and glibc 2.27		/* Backported into RHEL7 linux-3.10 somewhere between 3.10.0-229 and 3.10.0-1160 */
 
 dnl -- Since Linux 3.18
 AC_CHECK_DECLS([IPVS_DEST_ATTR_ADDR_FAMILY], [add_system_opt([IPVS_DEST_ATTR_ADDR_FAMILY])], [], [#include <linux/ip_vs.h>])

@@ -3152,11 +3152,11 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 				fd = open_tmpfile(RUN_DIR, O_RDWR | O_EXCL | O_CLOEXEC, S_IRUSR | S_IWUSR);
 #endif
 			if (fd == -1)
-				log_message(LOG_INFO, "memfd_create error %d - %m", errno);
+				log_message(LOG_INFO, "conf_copy open error %d - %m", errno);
 			else {
 				conf_copy = fdopen(fd, "w+");
 				if (!conf_copy)
-					log_message(LOG_INFO, "fdopen of memfd_create error %d - %m", errno);
+					log_message(LOG_INFO, "fdopen of conf_copy fd error %d - %m", errno);
 			}
 		} else {
 			if (ftruncate(fileno(conf_copy), 0))
