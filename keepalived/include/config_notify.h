@@ -25,9 +25,15 @@
 
 #include "config.h"
 
+#include <stdbool.h>
+#include <stdio.h>
+
 extern void queue_reload(void);
 extern void open_config_read_fd(void);
 extern void notify_config_read(void);
+#ifndef _ONE_PROCESS_DEBUG_
+extern void save_config(bool, const char *, void(*)(FILE *));
+#endif
 #ifdef THREAD_DUMP
 extern void register_config_notify_addresses(void);
 #endif

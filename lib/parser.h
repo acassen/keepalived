@@ -93,6 +93,10 @@ extern bool do_parser_debug;
 #ifdef _DUMP_KEYWORDS_
 extern bool do_dump_keywords;
 #endif
+#ifndef _ONE_PROCESS_DEBUG_
+extern const char *config_save_dir;
+#endif
+
 
 static inline const char * __attribute__((malloc))
 set_value_r(const vector_t *strvec)

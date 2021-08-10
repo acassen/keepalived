@@ -785,6 +785,10 @@ reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 	/* Use standard scheduling while reloading */
 	reset_process_priorities();
 
+#ifndef _ONE_PROCESS_DEBUG_
+	save_config(false, "vrrp", dump_data_vrrp);
+#endif
+
 	reinitialise_global_vars();
 
 	/* set the reloading flag */
@@ -860,6 +864,10 @@ reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 	old_global_data = NULL;
 
 	free_old_interface_queue();
+
+#ifndef _ONE_PROCESS_DEBUG_
+	save_config(true, "vrrp", dump_data_vrrp);
+#endif
 
 	UNSET_RELOAD;
 

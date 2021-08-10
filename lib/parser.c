@@ -196,6 +196,9 @@ bool do_parser_debug;
 #ifdef _DUMP_KEYWORDS_
 bool do_dump_keywords;
 #endif
+#ifndef _ONE_PROCESS_DEBUG_
+const char *config_save_dir;
+#endif
 
 /* Error handling variables */
 static unsigned include_check;
@@ -3096,6 +3099,9 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 {
 	bool file_opened = false;
 	int fd;
+#ifndef _ONE_PROCESS_DEBUG_
+	static unsigned conf_num = 0;
+#endif
 
 	/* A parent process or previous config load may have left these set */
 	block_depth = 0;
@@ -3218,6 +3224,16 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 
 		/* Set file offset to beginning ready for next write */
 		rewind(conf_copy);
+
+#ifndef _ONE_PROCESS_DEBUG_
+		if (config_save_dir) {
+			char buf[128];
+			pid_t pid = getpid();
+
+			sprintf(buf, "cp /proc/%d/fd/%d %s/keepalived.conf.%d.%u", pid, fileno(conf_copy), config_save_dir, pid, conf_num++);
+			if (system(buf)) {};
+		}
+#endif
 	}
 
 	/* Close the password database if it was opened */

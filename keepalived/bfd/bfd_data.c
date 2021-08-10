@@ -280,6 +280,14 @@ dump_bfd_data(FILE *fp, const bfd_data_t *data)
 	}
 }
 
+#ifndef _ONE_PROCESS_DEBUG_
+void
+dump_bfd_data_global(FILE *fp)
+{
+	dump_bfd_data(fp, bfd_data);
+}
+#endif
+
 void
 bfd_print_data(void)
 {

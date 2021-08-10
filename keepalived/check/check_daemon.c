@@ -477,6 +477,10 @@ reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 	/* Use standard scheduling while reloading */
 	reset_process_priorities();
 
+#ifndef _ONE_PROCESS_DEBUG_
+	save_config(false, "check", dump_data_check);
+#endif
+
 	reinitialise_global_vars();
 
 	/* set the reloading flag */
@@ -521,6 +525,11 @@ reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 	free_check_data(old_check_data);
 	free_global_data(old_global_data);
 	free_checker_list(&old_checkers_queue);
+
+#ifndef _ONE_PROCESS_DEBUG_
+	save_config(true, "check", dump_data_check);
+#endif
+
 	UNSET_RELOAD;
 
 #ifdef _MEM_CHECK_
