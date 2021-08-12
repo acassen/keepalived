@@ -45,6 +45,9 @@ extern bool alloc_bfd(const char *);
 extern void free_bfd(bfd_t *);
 extern bfd_data_t *alloc_bfd_data(void);
 extern void dump_bfd_data(FILE *, const bfd_data_t *);
+#ifndef _ONE_PROCESS_DEBUG_
+extern void dump_bfd_data_global(FILE *);
+#endif
 extern void bfd_print_data(void);
 extern void free_bfd_data(bfd_data_t *);
 extern void bfd_complete_init(void);

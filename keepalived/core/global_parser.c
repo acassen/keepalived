@@ -35,6 +35,7 @@
 #include <strings.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <errno.h>
 
 #ifdef _WITH_SNMP_
 #include "snmp.h"
@@ -2082,6 +2083,57 @@ include_check_handler(const vector_t *strvec)
 	include_check_set(strvec);
 }
 
+static const char *
+set_dir(const char *dir_name)
+{
+	char *save_dir = STRDUP(dir_name);
+	size_t end;
+
+	/* Remove a trailing / */
+	end = strlen(save_dir);
+	if (end && save_dir[end-1] == '/')
+		save_dir[end-1] = '\0';
+
+	return save_dir;
+}
+
+static void
+config_save_dir_handler(const vector_t *strvec)
+{
+	struct stat statbuf;
+	const char *dir_name = strvec_slot(strvec, 1);
+	int ret;
+
+	ret = stat(dir_name, &statbuf);
+
+	if (!ret && statbuf.st_mode & S_IFDIR) {
+		/* dir_name exists and is a directory */
+		config_save_dir = set_dir(dir_name);
+
+		return;
+	}
+
+	if (prog_type != PROG_TYPE_PARENT) {
+		/* If we are not the parent, then the directory should exist */
+		if (ret)
+			report_config_error(CONFIG_GENERAL_ERROR, "Unable to find config_save_dir %s", dir_name);
+		else
+			report_config_error(CONFIG_GENERAL_ERROR, "config_save_dir %s is not a directory", dir_name);
+		return;
+	}
+
+	if (ret && errno == ENOENT) {
+		/* No matching entry exists - create the directory */
+		if (!mkdir(dir_name, S_IRWXU))
+			config_save_dir = set_dir(dir_name);
+		else 
+			report_config_error(CONFIG_GENERAL_ERROR, "Unable to create config_save_dir %s (error %d - %m)", dir_name, errno); 
+	} else if (ret)
+		report_config_error(CONFIG_GENERAL_ERROR, "config_save_dir %s error %d - %m", dir_name, errno);
+	else
+		report_config_error(CONFIG_GENERAL_ERROR, "config_save_dir %s exists and is not a directory", dir_name);
+}
+
 static void
 reload_check_config_handler(const vector_t *strvec)
 {
@@ -2357,6 +2409,7 @@ init_global_keywords(bool global_active)
 	install_keyword("reload_repeat", &reload_repeat_handler);
 	install_keyword("reload_file", &reload_file_handler);
 	install_keyword("include_check", &include_check_handler);
+	install_keyword("config_save_dir", &config_save_dir_handler);
 #endif
 	install_keyword("tmp_config_directory", &config_copy_directory_handler);
 	install_keyword("data_use_instance", &data_use_instance_handler);

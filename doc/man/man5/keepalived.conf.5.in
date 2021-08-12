@@ -228,6 +228,13 @@ possibly following any cleanup actions needed.
     # early as possible in the configuration.
     \fBtmp_config_directory\fR DIRECTORY
 
+    # config_save_dir causes keepalived to save configuration state and
+    # configuration files before and after each reload. This is used for debugging
+    # purposes if there appear to be problems related to repeated reloads.
+    # The directory will be created if it does not exist, but all parent
+    # directories must exist.
+    \fBconfig_save_dir\fR DIRECTORY
+
     # Set the process names of the keepalived processes to the default values:
     #   keepalived, keepalived_vrrp, keepalived_ipvs, keepalived_bfd
     \fBprocess_names\fR

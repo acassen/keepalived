@@ -260,6 +260,10 @@ reload_bfd_thread(__attribute__((unused)) thread_ref_t thread)
 	/* Use standard scheduling while reloading */
 	reset_process_priorities();
 
+#ifndef _ONE_PROCESS_DEBUG_
+	save_config(false, "bfd", dump_bfd_data_global);
+#endif
+
 	/* set the reloading flag */
 	SET_RELOAD;
 
@@ -281,6 +285,10 @@ reload_bfd_thread(__attribute__((unused)) thread_ref_t thread)
 
 	free_bfd_data(old_bfd_data);
 	free_global_data(old_global_data);
+
+#ifndef _ONE_PROCESS_DEBUG_
+	save_config(true, "bfd", dump_bfd_data_global);
+#endif
 
 	UNSET_RELOAD;
 

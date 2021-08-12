@@ -32,6 +32,8 @@
 #include "scheduler.h"
 #include "systemd.h"
 #include "main.h"
+#include "parser.h"
+
 
 static int child_reloaded_event = -1;
 static bool loaded;
@@ -97,6 +99,33 @@ notify_config_read(void)
 	if (write(child_reloaded_event, &one, sizeof(one)) <= 0)
 		log_message(LOG_INFO, "Write child_reloaded_event errno %d - %m", errno);
 }
+
+#ifndef _ONE_PROCESS_DEBUG_
+void
+save_config(bool post, const char *process, void(*func)(FILE *))
+{
+	static unsigned reload_num = 0;
+	FILE *file;
+	char buf[128];
+
+	if (!config_save_dir)
+		return;
+
+	if (!post)
+		reload_num++;
+
+	sprintf(buf, "%s/keepalived_%s.%d.%u.%s", config_save_dir, process, getpid(), reload_num, post ? "post" : "pre");
+
+	file = fopen_safe(buf, "w");
+	if (!file) {
+		log_message(LOG_INFO, "Failed to open config_save file %s", buf);
+		return;
+	}
+
+	(*func)(file);
+	fclose(file);
+}
+#endif
 
 #ifdef THREAD_DUMP
 void

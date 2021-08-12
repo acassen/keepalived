@@ -474,6 +474,11 @@ dump_global_data(FILE *fp, data_t * data)
 
 	conf_write(fp, "------< Global definitions >------");
 
+#ifndef _ONE_PROCESS_DEBUG_
+	if (config_save_dir)
+		conf_write(fp, " Config save dir = %s", config_save_dir);
+#endif
+
 	conf_write(fp, " Network namespace = %s", data->network_namespace ? data->network_namespace : "(default)");
 	conf_write(fp, " Network namespace ipvs = %s", data->network_namespace_ipvs ? data->network_namespace_ipvs[0] ? data->network_namespace_ipvs : "(default)" : "(main namespace)");
 	if (data->instance_name)
