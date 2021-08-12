@@ -3231,7 +3231,9 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 			pid_t pid = getpid();
 
 			sprintf(buf, "cp /proc/%d/fd/%d %s/keepalived.conf.%d.%u", pid, fileno(conf_copy), config_save_dir, pid, conf_num++);
-			if (system(buf)) {};
+			if (system(buf)) {
+				/* If it fails, there is nothing we can do about it */
+			};
 		}
 #endif
 	}
