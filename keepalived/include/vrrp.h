@@ -403,8 +403,11 @@ typedef struct _vrrp_t {
 #define VRRP_EVIP_TYPE		(1 << 1)
 
 /* We have to do some reduction of the calculation for VRRPv3 in order not to overflow a uint32; 625 / 16 == TIMER_CENTI_HZ / 256 */
-#define VRRP_TIMER_SKEW(svr)	((svr)->version == VRRP_VERSION_3 ? (((256U-(svr)->effective_priority) * ((svr)->master_adver_int / TIMER_CENTI_HZ) * 625U) / 16U) : ((256U-(svr)->effective_priority) * TIMER_HZ/256U))
-#define VRRP_TIMER_SKEW_MIN(svr)	((svr)->version == VRRP_VERSION_3 ? ((((svr)->master_adver_int / TIMER_CENTI_HZ) * 625U) / 16U) : (TIMER_HZ/256U))
+#define VRRP_TIMER_SKEW_CALC(svr, pri_val) ((svr)->version == VRRP_VERSION_3 ? (((pri_val) * ((svr)->master_adver_int / TIMER_CENTI_HZ) * 625U) / 16U) : ((pri_val) * TIMER_HZ/256U))
+#define VRRP_TIMER_SKEW(svr)		VRRP_TIMER_SKEW_CALC(svr, 256U - (svr)->effective_priority)
+#define VRRP_TIMER_SKEW_MIN(svr)	VRRP_TIMER_SKEW_CALC(svr, 1)
+#define VRRP_MS_DOWN_TIMER(XX)		(3 * (XX)->master_adver_int + VRRP_TIMER_SKEW(XX))
+
 #define VRRP_VIP_ISSET(V)	((V)->vipset)
 
 #define VRRP_MIN(a, b)	((a) < (b)?(a):(b))

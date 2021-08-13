@@ -1812,7 +1812,7 @@ vrrp_state_leave_master(vrrp_t * vrrp, bool advF)
 	send_instance_notifies(vrrp);
 
 	/* Set the down timer */
-	vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+	vrrp->ms_down_timer = VRRP_MS_DOWN_TIMER(vrrp);
 	vrrp_init_instance_sands(vrrp);
 	++vrrp->stats->release_master;
 	vrrp->last_transition = timer_now();
@@ -1842,7 +1842,7 @@ vrrp_state_leave_fault(vrrp_t * vrrp)
 
 	/* Set the down timer */
 	vrrp->master_adver_int = vrrp->adver_int;
-	vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+	vrrp->ms_down_timer = VRRP_MS_DOWN_TIMER(vrrp);
 	vrrp_init_instance_sands(vrrp);
 	vrrp->last_transition = timer_now();
 }
@@ -1899,7 +1899,7 @@ vrrp_state_backup(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buf, ssize_t bu
 				vrrp->master_adver_int = master_adver_int;
 			}
 		}
-		vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+		vrrp->ms_down_timer = VRRP_MS_DOWN_TIMER(vrrp);
 		vrrp->master_saddr = vrrp->pkt_saddr;
 		vrrp->master_priority = hd->priority;
 
@@ -2037,7 +2037,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 // TODO - not needed???
 	if (vrrp->wantstate == VRRP_STATE_FAULT) {
 		vrrp->master_adver_int = vrrp->adver_int;
-		vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+		vrrp->ms_down_timer = VRRP_MS_DOWN_TIMER(vrrp);
 		vrrp->state = VRRP_STATE_FAULT;
 		send_instance_notifies(vrrp);
 		vrrp->last_transition = timer_now();
@@ -2168,7 +2168,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 				vrrp->master_adver_int = master_adver_int;
 			}
 		}
-		vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+		vrrp->ms_down_timer = VRRP_MS_DOWN_TIMER(vrrp);
 		vrrp->master_priority = hd->priority;
 		vrrp->wantstate = VRRP_STATE_BACK;
 		vrrp->state = VRRP_STATE_BACK;

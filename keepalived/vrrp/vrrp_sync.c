@@ -128,7 +128,7 @@ vrrp_sync_can_goto_master(vrrp_t *vrrp)
 			 * ready to become master. The timer here doesn't
 			 * really matter, since we are waiting for other
 			 * instances to be ready. */
-			vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+			vrrp->ms_down_timer = VRRP_MS_DOWN_TIMER(vrrp);
 			vrrp_init_instance_sands(vrrp);
 			return false;
 		}
