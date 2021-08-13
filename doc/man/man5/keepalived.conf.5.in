@@ -375,6 +375,9 @@ possibly following any cleanup actions needed.
     # (default: vrrp_garp_master_delay)
     \fBvrrp_garp_lower_prio_delay \fR10
 
+    # Default value for vrrp down_timer_adverts.
+    \fBvrrp_down_timer_adverts \fR[1:100]
+
     # number of gratuitous ARP messages to send at a time after
     # lower priority advert received when MASTER.
     # (default: vrrp_garp_master_repeat)
@@ -1735,6 +1738,14 @@ The syntax for vrrp_instance is :
     \fBgarp_master_refresh \fR60
     \fBgarp_master_refresh_repeat \fR2
     \fBgarp_extra_if [all] \fR100	# specifying 0 disables feature
+
+    # The VRRP RFCs state that the master down timer is 3 advert intervals plus
+    # a skew time. Setting down_timer_adverts means the master down timer will be
+    # down_timer_adverts advert intervals.
+    # The default is 3, to conform with the VRRP RFCs. Setting this to any other
+    # value is a deviation from the VRRP protocol. All virtual routers for a given
+    # VRRP instance MUST use the same value.
+    \fBdown_timer_adverts \fR[1-100]
 
     # If a lower priority advert is received, don't send another advert.
     # This causes adherence to the RFCs (defaults to global

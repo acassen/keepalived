@@ -1156,6 +1156,19 @@ vrrp_garp_lower_prio_rep_handler(const vector_t *strvec)
 
 	vrrp->garp_lower_prio_rep = garp_lower_prio_rep;
 }
+static void
+vrrp_down_timer_adverts_handler(const vector_t *strvec)
+{
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
+	unsigned down_timer_adverts;
+
+	if (!read_unsigned_strvec(strvec, 1, &down_timer_adverts, 1, 100, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s): Invalid down_timer_adverts [1:100] '%s'", vrrp->iname, strvec_slot(strvec, 1));
+		return;
+	}
+
+	vrrp->down_timer_adverts = down_timer_adverts;
+}
 #ifdef _HAVE_VRRP_VMAC_
 static void
 vrrp_garp_extra_if_handler(const vector_t *strvec)
@@ -1964,6 +1977,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("garp_master_refresh_repeat", &vrrp_garp_refresh_rep_handler);
 	install_keyword("garp_lower_prio_delay", &vrrp_garp_lower_prio_delay_handler);
 	install_keyword("garp_lower_prio_repeat", &vrrp_garp_lower_prio_rep_handler);
+	install_keyword("down_timer_adverts", &vrrp_down_timer_adverts_handler);
 #ifdef _HAVE_VRRP_VMAC_
 	install_keyword("garp_extra_if", &vrrp_garp_extra_if_handler);
 	install_keyword("vmac_garp_intvl", &vrrp_garp_extra_if_handler);	/* Deprecated after v2.2.2 - incorrect keyword in commit 3dcd13c */

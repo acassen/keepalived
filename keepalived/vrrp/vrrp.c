@@ -3009,6 +3009,13 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		}
 	}
 
+	if (vrrp->down_timer_adverts != VRRP_DOWN_TIMER_ADVERTS && vrrp->strict_mode) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) down_timer_adverts is incompatible with"
+							  " strict mode - resetting"
+							, vrrp->iname);
+		vrrp->down_timer_adverts = VRRP_DOWN_TIMER_ADVERTS;
+	}
+
 	vrrp->state = VRRP_STATE_INIT;
 #ifdef _WITH_SNMP_VRRP_
 	vrrp->configured_state = vrrp->wantstate;
