@@ -155,6 +155,7 @@ typedef struct _data {
 	unsigned			vrrp_garp_lower_prio_rep;
 	unsigned			vrrp_garp_interval;
 	unsigned			vrrp_gna_interval;
+	unsigned			vrrp_down_timer_adverts;
 #ifdef _HAVE_VRRP_VMAC_
 	unsigned			vrrp_vmac_garp_intvl;
 	bool				vrrp_vmac_garp_all_if;

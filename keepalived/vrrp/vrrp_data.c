@@ -668,6 +668,7 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 	conf_write(fp, "   Gratuitous ARP refresh repeat = %u", vrrp->garp_refresh_rep);
 	conf_write(fp, "   Gratuitous ARP lower priority delay = %u", vrrp->garp_lower_prio_delay / TIMER_HZ);
 	conf_write(fp, "   Gratuitous ARP lower priority repeat = %u", vrrp->garp_lower_prio_rep);
+	conf_write(fp, "   Down timer adverts = %u", vrrp->down_timer_adverts);
 #ifdef _HAVE_VRRP_VMAC_
 	if (vrrp->vmac_garp_intvl.tv_sec) {
 		conf_write(fp, "   Gratuitous ARP for each secondary %s = %ld", vrrp->vmac_garp_all_if ? "i/f" : "VMAC", vrrp->vmac_garp_intvl.tv_sec);
@@ -913,6 +914,7 @@ alloc_vrrp(const char *iname)
 	new->garp_delay = global_data->vrrp_garp_delay;
 	new->garp_lower_prio_delay = PARAMETER_UNSET;
 	new->garp_lower_prio_rep = PARAMETER_UNSET;
+	new->down_timer_adverts = global_data->vrrp_down_timer_adverts;
 #ifdef _HAVE_VRRP_VMAC_
 	new->vmac_garp_intvl.tv_sec = TIME_T_PARAMETER_UNSET;
 #endif

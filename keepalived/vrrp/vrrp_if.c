@@ -563,6 +563,10 @@ dump_if(FILE *fp, const interface_t *ifp)
 			""
 #endif
 		  );
+	conf_write(fp, "   Seen up = %d", ifp->seen_up);
+	conf_write(fp, "   Delayed state change running = %s", ifp->flags_change_thread ? "true" : "false");
+	conf_write(fp, "   Up debounce timer = %uus", ifp->up_debounce_timer);
+	conf_write(fp, "   Down debounce timer = %uus", ifp->down_debounce_timer);
 
 #ifdef _HAVE_VRRP_VMAC_
 	if (IS_MAC_IP_VLAN(ifp)) {
@@ -1468,6 +1472,7 @@ cleanup_lost_interface(interface_t *ifp)
 
 	ifp->ifindex = 0;
 	ifp->ifi_flags = 0;
+	ifp->seen_up = false;
 #ifdef _HAVE_VRRP_VMAC_
 	if (!ifp->is_ours)
 		ifp->base_ifp = ifp;

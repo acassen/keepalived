@@ -578,7 +578,7 @@ vrrp_set_effective_priority(vrrp_t *vrrp)
 
 	vrrp->effective_priority = new_prio;
 	old_down_timer = vrrp->ms_down_timer;
-	vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+	vrrp->ms_down_timer = VRRP_MS_DOWN_TIMER(vrrp);
 
 	if (vrrp->state == VRRP_STATE_BACK) {
 		if (old_down_timer < vrrp->ms_down_timer)

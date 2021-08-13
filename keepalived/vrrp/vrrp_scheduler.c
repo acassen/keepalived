@@ -242,10 +242,11 @@ vrrp_init_state(list_head_t *l)
 // TODO Do we need ->	vrrp_restore_interface(vrrp, false, false);
 // It removes everything, so probably if !reload
 		} else {
-			if (new_state == VRRP_STATE_BACK && vrrp->wantstate == VRRP_STATE_MAST)
+			if (new_state == VRRP_STATE_BACK && vrrp->wantstate == VRRP_STATE_MAST) {
+				/* We need to allow one adver_int to pass to ensure there is no other master */
 				vrrp->ms_down_timer = vrrp->master_adver_int + VRRP_TIMER_SKEW_MIN(vrrp);
-			else
-				vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+			} else
+				vrrp->ms_down_timer = VRRP_MS_DOWN_TIMER(vrrp);
 
 #ifdef _WITH_SNMP_RFCV3_
 			vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_MASTER_NO_RESPONSE;
@@ -659,7 +660,7 @@ try_up_instance(vrrp_t *vrrp, bool leaving_init)
 	if (vrrp->wantstate == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER)
 		vrrp->ms_down_timer = vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 	else
-		vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+		vrrp->ms_down_timer = VRRP_MS_DOWN_TIMER(vrrp);
 
 	if (vrrp->sync) {
 		if (leaving_init) {

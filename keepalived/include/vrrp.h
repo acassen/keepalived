@@ -94,7 +94,8 @@ typedef struct {
 #define VRRP_AUTH_AH		2		/* AH(IPSec) authentification - rfc2338.5.3.6 */
 #endif
 #define VRRP_ADVER_DFL		1		/* advert. interval (in sec) -- rfc2338.5.3.7 */
-#define VRRP_GARP_DELAY		(5 * TIMER_HZ)	/* Default delay to launch gratuitous arp */
+#define VRRP_DOWN_TIMER_ADVERTS 3		/* number of adverts to miss before master down -- rfc5798.6.1 & rfc3768.6.1 */
+#define VRRP_GARP_DELAY	(5 * TIMER_HZ)	/* Default delay to launch gratuitous arp */
 #define VRRP_GARP_REP		5		/* Default repeat value for MASTER state gratuitous arp */
 #define VRRP_GARP_REFRESH	0		/* Default interval for refresh gratuitous arp (0 = none) */
 #define VRRP_GARP_REFRESH_REP	1		/* Default repeat value for refresh gratuitous arp */
@@ -271,6 +272,7 @@ typedef struct _vrrp_t {
 	bool			garp_pending;		/* Are there gratuitous ARP messages still to be sent */
 	bool			gna_pending;		/* Are there gratuitous NA messages still to be sent */
 	unsigned		garp_lower_prio_rep;	/* Number of ARP messages to send at a time */
+	unsigned		down_timer_adverts;	/* Number of adverts missed before backup takes over as master */
 	unsigned		lower_prio_no_advert;	/* Don't send advert after lower prio advert received */
 	unsigned		higher_prio_send_advert; /* Send advert after higher prio advert received */
 #ifdef _HAVE_VRRP_VMAC_
@@ -403,8 +405,11 @@ typedef struct _vrrp_t {
 #define VRRP_EVIP_TYPE		(1 << 1)
 
 /* We have to do some reduction of the calculation for VRRPv3 in order not to overflow a uint32; 625 / 16 == TIMER_CENTI_HZ / 256 */
-#define VRRP_TIMER_SKEW(svr)	((svr)->version == VRRP_VERSION_3 ? (((256U-(svr)->effective_priority) * ((svr)->master_adver_int / TIMER_CENTI_HZ) * 625U) / 16U) : ((256U-(svr)->effective_priority) * TIMER_HZ/256U))
-#define VRRP_TIMER_SKEW_MIN(svr)	((svr)->version == VRRP_VERSION_3 ? ((((svr)->master_adver_int / TIMER_CENTI_HZ) * 625U) / 16U) : (TIMER_HZ/256U))
+#define VRRP_TIMER_SKEW_CALC(svr, pri_val) ((svr)->version == VRRP_VERSION_3 ? (((pri_val) * ((svr)->master_adver_int / TIMER_CENTI_HZ) * 625U) / 16U) : ((pri_val) * TIMER_HZ/256U))
+#define VRRP_TIMER_SKEW(svr)		VRRP_TIMER_SKEW_CALC(svr, 256U - (svr)->effective_priority)
+#define VRRP_TIMER_SKEW_MIN(svr)	VRRP_TIMER_SKEW_CALC(svr, 1)
+#define VRRP_MS_DOWN_TIMER(XX)		((XX)->down_timer_adverts * (XX)->master_adver_int + VRRP_TIMER_SKEW(XX))
+
 #define VRRP_VIP_ISSET(V)	((V)->vipset)
 
 #define VRRP_MIN(a, b)	((a) < (b)?(a):(b))

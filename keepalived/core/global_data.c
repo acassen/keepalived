@@ -104,6 +104,7 @@ set_vrrp_defaults(data_t * data)
 	data->vrrp_garp_delay = VRRP_GARP_DELAY;
 	data->vrrp_garp_lower_prio_delay = PARAMETER_UNSET;
 	data->vrrp_garp_lower_prio_rep = PARAMETER_UNSET;
+	data->vrrp_down_timer_adverts = VRRP_DOWN_TIMER_ADVERTS;
 #ifdef _HAVE_VRRP_VMAC_
 	data->vrrp_vmac_garp_intvl = 0;
 #endif
@@ -650,6 +651,7 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " Gratuitous ARP refresh repeat = %u", data->vrrp_garp_refresh_rep);
 	conf_write(fp, " Gratuitous ARP lower priority delay = %u", data->vrrp_garp_lower_prio_delay == PARAMETER_UNSET ? PARAMETER_UNSET : data->vrrp_garp_lower_prio_delay / TIMER_HZ);
 	conf_write(fp, " Gratuitous ARP lower priority repeat = %u", data->vrrp_garp_lower_prio_rep);
+	conf_write(fp, " Num adverts before down = %u", data->vrrp_down_timer_adverts);
 #ifdef _HAVE_VRRP_VMAC_
 	if (data->vrrp_vmac_garp_intvl != PARAMETER_UNSET)
 		conf_write(fp, " Gratuitous ARP for each secondary %s = %us", data->vrrp_vmac_garp_all_if ? "i/f" : "VMAC", data->vrrp_vmac_garp_intvl);

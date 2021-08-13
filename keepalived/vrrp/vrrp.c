@@ -1812,7 +1812,7 @@ vrrp_state_leave_master(vrrp_t * vrrp, bool advF)
 	send_instance_notifies(vrrp);
 
 	/* Set the down timer */
-	vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+	vrrp->ms_down_timer = VRRP_MS_DOWN_TIMER(vrrp);
 	vrrp_init_instance_sands(vrrp);
 	++vrrp->stats->release_master;
 	vrrp->last_transition = timer_now();
@@ -1842,9 +1842,62 @@ vrrp_state_leave_fault(vrrp_t * vrrp)
 
 	/* Set the down timer */
 	vrrp->master_adver_int = vrrp->adver_int;
-	vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+	vrrp->ms_down_timer = VRRP_MS_DOWN_TIMER(vrrp);
 	vrrp_init_instance_sands(vrrp);
 	vrrp->last_transition = timer_now();
+}
+
+static bool
+check_debounce_timers(vrrp_t *vrrp, unsigned advert_int)
+{
+	bool changed = false;
+
+	if (vrrp->down_timer_adverts == 1) {
+		/* There can be no debounce timer */
+		return false;
+	}
+
+	if (IF_BASE_IFP(vrrp->ifp)->up_debounce_timer >= (vrrp->down_timer_adverts - 1) * advert_int ||
+	    IF_BASE_IFP(vrrp->ifp)->down_debounce_timer >= (vrrp->down_timer_adverts - 1) * advert_int) {
+		changed = true;
+		if (IF_BASE_IFP(vrrp->ifp)->up_debounce_timer >= (vrrp->down_timer_adverts - 1) * advert_int)
+			IF_BASE_IFP(vrrp->ifp)->up_debounce_timer = (vrrp->down_timer_adverts - 1) * advert_int - advert_int / 256;
+		if (IF_BASE_IFP(vrrp->ifp)->down_debounce_timer >= (vrrp->down_timer_adverts - 1) * advert_int)
+			IF_BASE_IFP(vrrp->ifp)->down_debounce_timer = (vrrp->down_timer_adverts - 1) * advert_int - advert_int / 256;
+	}
+
+#ifdef _HAVE_VRRP_VMAC_
+	if (vrrp->ifp != vrrp->ifp->base_ifp) {
+		if (vrrp->ifp->up_debounce_timer >= (vrrp->down_timer_adverts - 1) * advert_int ||
+		    vrrp->ifp->down_debounce_timer >= (vrrp->down_timer_adverts - 1) * advert_int) {
+			changed = true;
+			if (vrrp->ifp->down_debounce_timer >= (vrrp->down_timer_adverts - 1) * advert_int)
+				vrrp->ifp->down_debounce_timer = vrrp->ifp->base_ifp->down_debounce_timer;
+			if (vrrp->ifp->up_debounce_timer >= (vrrp->down_timer_adverts - 1) * advert_int)
+				vrrp->ifp->up_debounce_timer = vrrp->ifp->base_ifp->up_debounce_timer;
+		}
+	}
+#endif
+
+	return changed;
+}
+
+static void
+update_master_adver_int(vrrp_t *vrrp, unsigned master_adver_int)
+{
+	if (__test_bit(LOG_DETAIL_BIT, &debug))
+		log_message(LOG_INFO, "(%s) advertisement interval updated from %ums to %ums by master",
+				vrrp->iname, vrrp->master_adver_int / (TIMER_HZ / 1000), master_adver_int / (TIMER_HZ / 1000));
+
+	if (master_adver_int < vrrp->master_adver_int) {
+		/* Check that the interface up/down timers do not exceed twice the
+		 * advert interval. */
+		if (check_debounce_timers(vrrp, master_adver_int) &&
+		    __test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "%s: lower advert_int reducing interface %s debounce timer(s)", vrrp->iname, IF_BASE_IFP(vrrp->ifp)->ifname);
+	}
+
+	vrrp->master_adver_int = master_adver_int;
 }
 
 /* BACKUP state processing */
@@ -1892,14 +1945,10 @@ vrrp_state_backup(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buf, ssize_t bu
 			/* As per RFC5798, set Master_Adver_Interval to Adver Interval contained
 			 * in the ADVERTISEMENT
 			 */
-			if (vrrp->master_adver_int != master_adver_int) {
-				if (__test_bit(LOG_DETAIL_BIT, &debug))
-					log_message(LOG_INFO, "(%s) advertisement interval updated from %ums to %ums by master",
-							vrrp->iname, vrrp->master_adver_int / (TIMER_HZ / 1000), master_adver_int / (TIMER_HZ / 1000));
-				vrrp->master_adver_int = master_adver_int;
-			}
+			if (vrrp->master_adver_int != master_adver_int)
+				update_master_adver_int(vrrp, master_adver_int);
 		}
-		vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+		vrrp->ms_down_timer = VRRP_MS_DOWN_TIMER(vrrp);
 		vrrp->master_saddr = vrrp->pkt_saddr;
 		vrrp->master_priority = hd->priority;
 
@@ -2037,7 +2086,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 // TODO - not needed???
 	if (vrrp->wantstate == VRRP_STATE_FAULT) {
 		vrrp->master_adver_int = vrrp->adver_int;
-		vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+		vrrp->ms_down_timer = VRRP_MS_DOWN_TIMER(vrrp);
 		vrrp->state = VRRP_STATE_FAULT;
 		send_instance_notifies(vrrp);
 		vrrp->last_transition = timer_now();
@@ -2161,14 +2210,10 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 			/* As per RFC5798, set Master_Adver_Interval to Adver Interval contained
 			 * in the ADVERTISEMENT
 			 */
-			if (vrrp->master_adver_int != master_adver_int) {
-				if (__test_bit(LOG_DETAIL_BIT, &debug))
-					log_message(LOG_INFO, "(%s) advertisement interval updated from %ums to %ums by new master",
-							vrrp->iname, vrrp->master_adver_int / (TIMER_HZ / 1000), master_adver_int / (TIMER_HZ / 1000));
-				vrrp->master_adver_int = master_adver_int;
-			}
+			if (vrrp->master_adver_int != master_adver_int)
+				update_master_adver_int(vrrp, master_adver_int);
 		}
-		vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+		vrrp->ms_down_timer = VRRP_MS_DOWN_TIMER(vrrp);
 		vrrp->master_priority = hd->priority;
 		vrrp->wantstate = VRRP_STATE_BACK;
 		vrrp->state = VRRP_STATE_BACK;
@@ -3009,6 +3054,13 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		}
 	}
 
+	if (vrrp->down_timer_adverts != VRRP_DOWN_TIMER_ADVERTS && vrrp->strict_mode) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) down_timer_adverts is incompatible with"
+							  " strict mode - resetting"
+							, vrrp->iname);
+		vrrp->down_timer_adverts = VRRP_DOWN_TIMER_ADVERTS;
+	}
+
 	vrrp->state = VRRP_STATE_INIT;
 #ifdef _WITH_SNMP_VRRP_
 	vrrp->configured_state = vrrp->wantstate;
@@ -3160,6 +3212,26 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	    (vrrp->linkbeat_use_polling || global_data->linkbeat_use_polling))
 		vrrp->ifp->linkbeat_use_polling = true;
 #endif
+
+	/* Check that the interface up/down timers do not exceed twice, or
+	 * more strictly (vrrp->down_timer_adverts - 1) * the
+	 * advert interval. We also need to adjust these if another VRRPv3
+	 * master instance has a lower advert interval. */
+	if (vrrp->down_timer_adverts == 1) {
+		if (IF_BASE_IFP(vrrp->ifp)->up_debounce_timer ||
+		    IF_BASE_IFP(vrrp->ifp)->down_debounce_timer) {
+			log_message(LOG_INFO, "%s: cannot use debounce timers with down_timer_adverts = 1 - resetting", vrrp->iname);
+			IF_BASE_IFP(vrrp->ifp)->up_debounce_timer = 0;
+			IF_BASE_IFP(vrrp->ifp)->down_debounce_timer = 0;
+#ifdef _HAVE_VRRP_VMAC_
+			if (vrrp->ifp != vrrp->ifp->base_ifp) {
+				vrrp->ifp->up_debounce_timer = 0;
+				vrrp->ifp->down_debounce_timer = 0;
+			}
+#endif
+		}
+	} else	if (check_debounce_timers(vrrp, vrrp->adver_int))
+		log_message(LOG_INFO, "%s: interface %s debounce timer(s) not less that %u * advert_int - resetting", vrrp->iname, vrrp->ifp->ifname, vrrp->down_timer_adverts - 1);
 
 	/* Clear track_saddr if no saddr specified */
 	if (!vrrp->saddr_from_config)
@@ -3320,6 +3392,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 								, vrrp->iname);
 			vrrp->promote_secondaries = false;
 		}
+
+		/* The VMAC uses the same up/down debounce delays as its parent interface */
+		vrrp->ifp->down_debounce_timer = vrrp->ifp->base_ifp->down_debounce_timer;
+		vrrp->ifp->up_debounce_timer = vrrp->ifp->base_ifp->up_debounce_timer;
 	}
 	else
 #endif

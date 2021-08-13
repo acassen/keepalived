@@ -887,6 +887,18 @@ vrrp_garp_lower_prio_rep_handler(const vector_t *strvec)
 	global_data->vrrp_garp_lower_prio_rep = garp_lower_prio_rep;
 }
 static void
+vrrp_down_timer_adverts_handler(const vector_t *strvec)
+{
+	unsigned down_timer_adverts;
+
+	if (!read_unsigned_strvec(strvec, 1, &down_timer_adverts, 1, 100, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid vrrp_down_timer_adverts [1:100] '%s'", strvec_slot(strvec, 1));
+		return;
+	}
+
+	global_data->vrrp_down_timer_adverts = down_timer_adverts;
+}
+static void
 vrrp_garp_interval_handler(const vector_t *strvec)
 {
 	unsigned interval;
@@ -2278,6 +2290,7 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_garp_master_refresh_repeat", &vrrp_garp_refresh_rep_handler);
 	install_keyword("vrrp_garp_lower_prio_delay", &vrrp_garp_lower_prio_delay_handler);
 	install_keyword("vrrp_garp_lower_prio_repeat", &vrrp_garp_lower_prio_rep_handler);
+	install_keyword("vrrp_down_timer_adverts", &vrrp_down_timer_adverts_handler);
 	install_keyword("vrrp_garp_interval", &vrrp_garp_interval_handler);
 	install_keyword("vrrp_gna_interval", &vrrp_gna_interval_handler);
 	install_keyword("vrrp_min_garp", &vrrp_min_garp_handler);

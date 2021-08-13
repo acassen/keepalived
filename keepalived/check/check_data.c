@@ -469,11 +469,11 @@ dump_tracking_rs(FILE *fp, const void *data)
 }
 
 static const char *
-format_decimal(unsigned long val, unsigned dp)
+format_decimal(unsigned long val, int dp)
 {
 	static char buf[22];	/* Sufficient for 2^64 as decimal plus decimal point */
 	unsigned dp_factor = 1;
-	unsigned i;
+	int i;
 
 	for (i = 0; i < dp; i++)
 		dp_factor *= 10;
