@@ -1857,6 +1857,59 @@ garp_group_end_handler(void)
 	}
 }
 
+static void
+alloc_if_up_down_delay(const vector_t *strvec)
+{
+	unsigned down_delay = 0;
+	unsigned up_delay = 0;
+	int res;
+	unsigned long delay;
+	interface_t *ifp;
+
+	if (!(ifp = if_get_by_ifname(strvec_slot(strvec, 0), global_data->dynamic_interfaces))) {
+		report_config_error(CONFIG_FATAL, "unknown interface %s specified for up/down delay", strvec_slot(strvec, 0));
+		return;
+	}
+
+	if (vector_size(strvec) < 2) {
+		log_message(LOG_INFO, "No timeouts specified for %s up/down delays", ifp->ifname);
+		return;
+	}
+	if (vector_size(strvec) > 3)
+		log_message(LOG_INFO, "Too many parameters for %s up/down delays", ifp->ifname);
+
+	res = read_timer(strvec, 1, &delay, 0, 255 * TIMER_HZ, true);
+	if (!res) {
+		log_message(LOG_INFO, "Invalid down delay %s for %s", strvec_slot(strvec, 1), ifp->ifname);
+		return;
+	}
+	down_delay = (unsigned)delay;
+
+	if (vector_size(strvec) == 2)
+		up_delay = 0;
+	else {
+		res = read_timer(strvec, 2, &delay, 0, 255 * TIMER_HZ, true);
+		if (!res) {
+			log_message(LOG_INFO, "Invalid up delay %s for %s", strvec_slot(strvec, 2), ifp->ifname);
+			return;
+		}
+		up_delay = (unsigned)delay;
+	}
+
+	ifp->down_debounce_timer = down_delay;
+	ifp->up_debounce_timer = up_delay;
+}
+
+/* interface state change delays handler */
+static void
+interface_up_down_delays_handler(const vector_t *strvec)
+{
+	if (!strvec)
+		return;
+
+	alloc_value_block(alloc_if_up_down_delay, strvec);
+}
+
 void
 init_vrrp_keywords(bool active)
 {
@@ -2018,6 +2071,9 @@ init_vrrp_keywords(bool active)
 	install_keyword("full_command", &vrrp_tprocess_full_handler);
 	install_sublevel_end_handler(&vrrp_tprocess_end_handler);
 #endif
+
+	/* Interface up down delays */
+	install_keyword_root("interface_up_down_delays", &interface_up_down_delays_handler, active);
 }
 
 const vector_t *

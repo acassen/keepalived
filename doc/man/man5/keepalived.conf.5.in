@@ -160,6 +160,7 @@ are:
 contains subblocks of
 \fBGlobal definitions,
 Linkbeat interfaces,
+Interface up/down transition delays,
 Static track groups,
 Static addresses,
 Static routes,\fR
@@ -1963,6 +1964,41 @@ The syntax for vrrp_instance is :
     # deprecated - use linkbeat_interfaces block instead.
     \fBlinkbeat_use_polling\fR
 }
+.fi
+.SH Interface up/down status change debouncing
+.PP
+    If an interface that is being used (or tracked) by a VRRP instance goes to down state,
+    the VRRP instance(s) will, by default, immediately transition to FAULT state, and when
+    all relevant interfaces are back up again the VRRP instance(s) will immediately transition
+    to BACKUP state.
+
+    This can cause problems if interfaces are bouncing, and so delays can be specified
+    between the interface state change and the transition to FAULT/BACKUP state. If the
+    interface returns to its original state before the delay expires, no associated VRRP
+    instance state transition will occur.
+.PP
+.nf
+	interface_up_down_delays {
+	    ifname down_delay [up_delay]
+	    ifname2 down_delay [up_delay]
+	    ...
+	}
+.PP
+    The delays are specified in seconds, with a resolution of microseconds, e.g. a delay of
+    0.00001 means 10 usecs. A delay of 0 means no delay in state change. The maximum delay
+    that can be specified is 255 seconds.
+
+    If up_delay is omitted, it is set to be the same as the down delay.
+
+    The delay on an interface must be less than two (or more precisely one less than
+    down_timer_adverts (default 3)) times the advert interval of any VRRP instance
+    using that interface (otherwise a backup instance, while not receiving adverts
+    may time out and become master before this instance transitions to FAULT state).
+    Consequently the up/down delays can be dynamically reduced if another instance is
+    master with a shorter advert interval.
+
+    If the VRRP instance is using a VMAC, it will inherit the up/down debounce delays of
+    its parent interface.
 .fi
 .SH LVS CONFIGURATION
 contains subblocks of

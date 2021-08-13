@@ -1272,7 +1272,7 @@ thread_close_fd(thread_ref_t thread_cp)
 
 /* Add timer event thread. */
 thread_ref_t
-thread_add_timer(thread_master_t *m, thread_func_t func, void *arg, unsigned long timer)
+thread_add_timer_uval(thread_master_t *m, thread_func_t func, void *arg, unsigned val, unsigned long timer)
 {
 	thread_t *thread;
 
@@ -1283,7 +1283,7 @@ thread_add_timer(thread_master_t *m, thread_func_t func, void *arg, unsigned lon
 	thread->master = m;
 	thread->func = func;
 	thread->arg = arg;
-	thread->u.val = 0;
+	thread->u.uval = val;
 
 	/* Do we need jitter here? */
 	if (timer == TIMER_NEVER)
@@ -1297,6 +1297,20 @@ thread_add_timer(thread_master_t *m, thread_func_t func, void *arg, unsigned lon
 	rb_insert_sort_cached(&m->timer, thread, n, thread_timer_cmp);
 
 	return thread;
+}
+
+thread_ref_t
+thread_add_timer(thread_master_t *m, thread_func_t func, void *arg, unsigned long timer)
+{
+	return thread_add_timer_uval(m, func, arg, 0, timer);
+}
+
+void
+thread_update_arg2(thread_ref_t thread_cp, const thread_arg2 *u)
+{
+	thread_t *thread = no_const(thread_t, thread_cp);
+
+	thread->u = *u;
 }
 
 void
