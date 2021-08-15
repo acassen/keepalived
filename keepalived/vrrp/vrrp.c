@@ -1852,7 +1852,7 @@ check_debounce_timers(vrrp_t *vrrp, unsigned advert_int)
 {
 	bool changed = false;
 
-	if (vrrp->down_timer_adverts == 1) {
+	if (vrrp->down_timer_adverts == 1 || !vrrp->ifp) {
 		/* There can be no debounce timer */
 		return false;
 	}

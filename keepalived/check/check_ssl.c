@@ -323,9 +323,12 @@ ssl_read_thread(thread_ref_t thread)
 			EVP_DigestFinal_ex(req->context, digest, NULL);
 			EVP_MD_CTX_free(req->context);
 			req->context = NULL;
-			if (http_get_check->genhash_flags & GENHASH_VERBOSE)
+			if (req->error == SSL_ERROR_ZERO_RETURN &&
+			    http_get_check->genhash_flags & GENHASH_VERBOSE)
 				dump_digest(digest, MD5_DIGEST_LENGTH);
-		}
+		} else
+			digest[0] = 0;
+
 		SSL_set_quiet_shutdown(req->ssl, 1);
 
 		r = (req->error == SSL_ERROR_ZERO_RETURN) ? SSL_shutdown(req->ssl) : 0;
