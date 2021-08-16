@@ -77,24 +77,30 @@ endif
 if WITH_IPVS
 install-exec-hook:
 	@( \
-	d=`echo $(bindir) | sed -e "s:^/::"`; \
-	s=`echo $(sbindir) | sed -e "s:^/::"`; \
-	\
-	while [ 1 ]; do \
-		d1=`echo $$d | sed -e "s:/.*::"`; \
-		s1=`echo $$s | sed -e "s:/.*::"`; \
-		if [ $$d1 != $$s1 ]; then \
-			break; \
-		fi; \
-		d=`echo $$d | sed -e "s:^[^/]*/::"`; \
-		s=`echo $$s | sed -e "s:^[^/]*/::"`; \
-		if [ -z $$d ]; then break; fi; \
-		if [ -z $$s ]; then break; fi; \
-	done; \
-	\
-	d=`echo /$$d/ | sed -e "s:/[^/.]*/:/../:g" -e "s:/[^/.]*/:/../:g" -e "s:^/::"`; \
+	if [ $(bindir) = $(sbindir) ]; then \
+		d= ; \
+		s= ; \
+	else \
+		d=`echo $(bindir) | sed -e "s:^/::"`; \
+		s=`echo $(sbindir) | sed -e "s:^/::"`; \
+		\
+		while [ 1 ]; do \
+			d1=`echo $$d | sed -e "s:/.*::"`; \
+			s1=`echo $$s | sed -e "s:/.*::"`; \
+			if [ $$d1 != $$s1 ]; then \
+				break; \
+			fi; \
+			d=`echo $$d | sed -e "s:^[^/]*/::"`; \
+			s=`echo $$s | sed -e "s:^[^/]*/::"`; \
+			if [ -z $$d ]; then break; fi; \
+			if [ -z $$s ]; then break; fi; \
+		done; \
+		\
+		d=`echo /$$d/ | sed -e "s:/[^/.]*/:/../:g" -e "s:/[^/.]*/:/../:g" -e "s:^/::"`; \
+		s=$$s/ ; \
+	fi; \
 	\
 	$(MKDIR_P) $(DESTDIR)/$(bindir); \
-	$(LN_S) $$d$$s/keepalived $(DESTDIR)/$(bindir)/genhash; \
+	$(LN_S) $$d$${s}keepalived $(DESTDIR)/$(bindir)/genhash; \
 	)
 endif
