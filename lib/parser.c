@@ -602,7 +602,11 @@ read_decimal_unsigned_long_func(const char *param, unsigned long *res, unsigned 
 
 	if (!valid_number)
 		report_config_error(CONFIG_INVALID_NUMBER, "%sinvalid number '%s'", warn, param);
-	else if (sav_errno == ERANGE || val > ULONG_MAX) {
+	else if (sav_errno == ERANGE
+#if ULLONG_MAX > ULONG_MAX
+				     || val > ULONG_MAX
+#endif
+							) {
 		report_config_error(CONFIG_INVALID_NUMBER, "%snumber '%s' outside unsigned decimal range", warn, param);
 		return false;
 	} else if (val < min_val || val > max_val) {

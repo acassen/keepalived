@@ -2,6 +2,10 @@
 Description=LVS and VRRP High Availability Monitor
 After=network-online.target syslog.target @SNMP_SERVICE@
 Wants=network-online.target @SNMP_SERVICE@
+Documentation=man:keepalived(8)
+Documentation=man:keepalived.conf(5)
+Documentation=man:genhash(1)
+Documentation=https://keepalived.org
 
 [Service]
 Type=@SYSTEMD_SERVICE_TYPE@

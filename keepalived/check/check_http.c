@@ -1085,7 +1085,7 @@ timeout_epilog(thread_ref_t thread, const char *debug_msg)
 	/* check if server is currently alive */
 	if (checker->is_up || !checker->has_run) {
 		if (((http_checker_t *)checker->data)->genhash_flags & GENHASH) {
-			printf("Connection timed out\n");
+			printf("%s\n", debug_msg);
 			thread_add_terminate_event(thread->master);
 			return;
 		}
@@ -1497,9 +1497,10 @@ http_read_thread(thread_ref_t thread)
 			EVP_DigestFinal_ex(req->context, digest, NULL);
 			EVP_MD_CTX_free(req->context);
 			req->context = NULL;
-			if (http_get_check->genhash_flags & GENHASH_VERBOSE)
+			if (r == 0 && http_get_check->genhash_flags & GENHASH_VERBOSE)
 				dump_digest(digest, MD5_DIGEST_LENGTH);
-		}
+		} else
+			digest[0] = 0;
 
 		if (r == -1) {
 			/* We have encountered a real read error */

@@ -2104,6 +2104,10 @@ if test "$enable_snmp" = yes -o \
   # net-snmp-config can add -I/usr/include, so remove it
   NETSNMP_CFLAGS=`echo $NETSNMP_CFLAGS " " | sed -e "s:-I */usr/include ::"`
 
+  # net-snmp-config can specify LTO flags; remove them so they are only
+  # included if --enable-lto is specified
+  NETSNMP_CFLAGS=`echo " $NETSNMP_CFLAGS " | sed -e "s/-f[[^ ]]*lto[[^ ]]* //g"`
+
   # net-snmp-config adds compiler and linker options that were set at the time
   # net-snmp was built, and this can include spec files that may not exist
   # on the system building keepalived. We need to check if any spec files

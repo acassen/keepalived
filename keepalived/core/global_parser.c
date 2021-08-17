@@ -2116,6 +2116,10 @@ config_save_dir_handler(const vector_t *strvec)
 	const char *dir_name = strvec_slot(strvec, 1);
 	int ret;
 
+	/* We are checking the specified path is a directory on a best
+	 * efforts basis; we don't have a problem if we later try
+	 * creating a file in the directory and that fails. */
+	/* coverity[fs_check_call] */
 	ret = stat(dir_name, &statbuf);
 
 	if (!ret && statbuf.st_mode & S_IFDIR) {
