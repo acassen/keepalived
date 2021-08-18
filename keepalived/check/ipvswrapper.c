@@ -30,6 +30,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <sys/stat.h>
+#include <inttypes.h>
+#include <arpa/inet.h>
 
 #include "ipvswrapper.h"
 #include "global_data.h"

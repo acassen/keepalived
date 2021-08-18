@@ -611,7 +611,8 @@ read_decimal_unsigned_long_func(const char *param, unsigned long *res, unsigned 
 		return false;
 	} else if (val < min_val || val > max_val) {
 		unsigned long dp_val = 1;
-		for (unsigned d = 0; d < shift; d++)
+		unsigned d;
+		for (d = 0; d < shift; d++)
 			dp_val *= 10;
 		report_config_error(CONFIG_INVALID_NUMBER, "%snumber '%s' outside range [%lu.%*.*lu, %lu.%*.*lu]",
 			warn, param, min_val / dp_val, (int)shift, (int)shift, min_val % dp_val, max_val / dp_val, (int)shift, (int)shift, max_val % dp_val);
