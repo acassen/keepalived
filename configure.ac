@@ -1176,6 +1176,13 @@ AC_CHECK_LIB(crypto, EVP_DigestInit_ex, [],
   ], [$EXTRA_LIBS])
 if test $NEED_EVP = yes; then
   add_to_var([KA_LIBS], [$LIBS])
+  AC_CHECK_LIB(crypto, EVP_MD_CTX_new, [],
+    [
+      AC_DEFINE([EVP_MD_CTX_new()], [EVP_MD_CTX_create()], [Named changed in OpenSSL v1.1.0])
+      AC_DEFINE([EVP_MD_CTX_free(ctx)], [EVP_MD_CTX_destroy(ctx)], [Named changed in OpenSSL v1.1.0])
+      AC_DEFINE([EVP_MD_CTX_reset(ctx)], [EVP_MD_CTX_init(ctx)], [Named changed in OpenSSL v1.1.0])
+    ],
+    [$EXTRA_LIBS])
 fi
 unset LIBS
 
@@ -1188,13 +1195,6 @@ AC_CHECK_LIB(ssl, SSL_CTX_new, [],
   ], [$EXTRA_LIBS])
 if test $NEED_SSL = yes; then
   add_to_var([KA_LIBS], [$LIBS])
-  AC_CHECK_LIB(crypto, EVP_MD_CTX_new, [],
-    [
-      AC_DEFINE([EVP_MD_CTX_new()], [EVP_MD_CTX_create()], [Named changed in OpenSSL v1.1.0])
-      AC_DEFINE([EVP_MD_CTX_free(ctx)], [EVP_MD_CTX_destroy(ctx)], [Named changed in OpenSSL v1.1.0])
-      AC_DEFINE([EVP_MD_CTX_reset(ctx)], [EVP_MD_CTX_init(ctx)], [Named changed in OpenSSL v1.1.0])
-    ],
-    [$EXTRA_LIBS])
 fi
 unset LIBS
 
