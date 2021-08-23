@@ -2324,7 +2324,11 @@ chk_min_cfg(vrrp_t *vrrp)
 
 /* open a VRRP sending socket */
 static int
-open_vrrp_send_socket(sa_family_t family, int proto, const interface_t *ifp, const struct sockaddr_storage *unicast_src)
+open_vrrp_send_socket(sa_family_t family, int proto, const interface_t *ifp,
+#ifdef _HAVE_VRF_
+			const interface_t *vrf_ifp,
+#endif
+			const struct sockaddr_storage *unicast_src)
 {
 	int fd = -1;
 	int val = 0;
@@ -2367,6 +2371,11 @@ open_vrrp_send_socket(sa_family_t family, int proto, const interface_t *ifp, con
 			if_setsockopt_mcast_loop(family, &fd);
 		}
 	}
+#ifdef _HAVE_VRF_
+	else if (vrf_ifp)
+		if_setsockopt_bindtodevice(&fd, vrf_ifp);
+#endif
+
 // TODO - do we want one send socket for all unicast, or per local unicast address to match recv socket. We could use the same socket for send and receive
 
 	if_setsockopt_priority(&fd, family);
@@ -2381,7 +2390,11 @@ open_vrrp_send_socket(sa_family_t family, int proto, const interface_t *ifp, con
 
 /* open a VRRP socket and join the multicast group. */
 static int
-open_vrrp_read_socket(sa_family_t family, int proto, const interface_t *ifp, const struct sockaddr_storage *unicast_src, int rx_buf_size)
+open_vrrp_read_socket(sa_family_t family, int proto, const interface_t *ifp,
+#ifdef _HAVE_VRF_
+		const interface_t *vrf_ifp,
+#endif
+		const struct sockaddr_storage *unicast_src, int rx_buf_size)
 {
 	int fd = -1;
 	int val = rx_buf_size;
@@ -2423,6 +2436,18 @@ open_vrrp_read_socket(sa_family_t family, int proto, const interface_t *ifp, con
 		    (family == AF_INET6 && bind(fd, PTR_CAST_CONST(struct sockaddr, &loopback6), sizeof(struct sockaddr_in6))))
 			log_message(LOG_INFO, "bind for multicast failed %d - %m", errno);
 	} else {
+#ifdef _HAVE_VRF_
+		/* If the interface is in a VRF, we need to bind to the VRF device in order to bind to the address */
+		if (ifp && ifp->vrf_master_ifp)
+			vrf_ifp = ifp->vrf_master_ifp;
+		if (vrf_ifp &&
+		    setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, vrf_ifp->ifname, strlen(vrf_ifp->ifname) + 1)) {
+			log_message(LOG_INFO, "bind to VRF %s failed %d - %m", vrf_ifp->ifname, errno);
+			close(fd);
+			return -2;
+		}
+#endif
+
 		/* Bind to the local unicast address */
 		if (bind(fd, PTR_CAST_CONST(struct sockaddr, unicast_src), unicast_src->ss_family == AF_INET ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6))) {
 			log_message(LOG_INFO, "bind unicast_src %s failed %d - %m", inet_sockaddrtos(unicast_src), errno);
@@ -2431,14 +2456,12 @@ open_vrrp_read_socket(sa_family_t family, int proto, const interface_t *ifp, con
 		}
 	}
 
-	/* IPv6 we need to receive the hop count as ancillary data */
 	if (family == AF_INET6) {
+		/* IPv6 we need to receive the hop count as ancillary data */
 		if (setsockopt(fd, IPPROTO_IPV6, IPV6_RECVHOPLIMIT, &on, sizeof on))
 			log_message(LOG_INFO, "fd %d - set IPV6_RECVHOPLIMIT error %d (%m)", fd, errno);
-	}
 
-	/* Receive the destination address as ancillary data to determine if packet multicast */
-	if (family == AF_INET6) {
+		/* Receive the destination address as ancillary data to determine if packet multicast */
 		if (setsockopt(fd, IPPROTO_IPV6, IPV6_RECVPKTINFO, &on, sizeof on))
 			log_message(LOG_INFO, "fd %d - set IPV6_RECVPKTINFO error %d (%m)", fd, errno);
 	}
@@ -2465,6 +2488,10 @@ open_vrrp_read_socket(sa_family_t family, int proto, const interface_t *ifp, con
 	 */
 	if (ifp)
 		if_setsockopt_bindtodevice(&fd, ifp);
+#ifdef _HAVE_VRF_
+	else if (vrf_ifp)
+		if_setsockopt_bindtodevice(&fd, vrf_ifp);
+#endif
 
 	if (fd < 0)
 		return -1;
@@ -2495,8 +2522,11 @@ open_sockpool_socket(sock_t *sock)
 		PTR_CAST(struct sockaddr_in6, &unicast_src)->sin6_scope_id = sock->ifp->ifindex;
 	}
 
-	sock->fd_in = open_vrrp_read_socket(sock->family, sock->proto,
-				       sock->ifp, unicast_src_p, sock->rx_buf_size);
+	sock->fd_in = open_vrrp_read_socket(sock->family, sock->proto, sock->ifp,
+#ifdef _HAVE_VRF_
+					    sock->vrf_ifp,
+#endif
+					    unicast_src_p, sock->rx_buf_size);
 
 	if (sock->fd_in == -2) {
 		rb_for_each_entry(vrrp, &sock->rb_vrid, rb_vrid) {
@@ -2512,8 +2542,11 @@ open_sockpool_socket(sock_t *sock)
 	if (sock->fd_in == -1)
 		sock->fd_out = -1;
 	else
-		sock->fd_out = open_vrrp_send_socket(sock->family, sock->proto,
-						     sock->ifp, unicast_src_p);
+		sock->fd_out = open_vrrp_send_socket(sock->family, sock->proto, sock->ifp,
+#ifdef _HAVE_VRF_
+						     sock->vrf_ifp,
+#endif
+						     unicast_src_p);
 }
 
 /* Try to find a VRRP instance */
@@ -2975,6 +3008,15 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				log_message(LOG_INFO, "(%s) the first IPv6 VIP address should be link local" , vrrp->iname);
 		}
 	}
+
+#ifdef _HAVE_VRF_
+	/* Check that if vrf is specified, we are using unicast and no interface has been specified */
+	if (vrrp->vrf_ifp &&
+	    (vrrp->ifp || list_empty(&vrrp->unicast_peer))) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) vrf can only be specified with%s - clearing", vrrp->iname, vrrp->ifp ? "out interface" : " unicast");
+		vrrp->vrf_ifp = NULL;
+	}
+#endif
 
 	/* Check we can fit the VIPs into a packet */
 	if (vrrp->family == AF_INET) {
