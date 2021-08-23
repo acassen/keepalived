@@ -1556,6 +1556,10 @@ The syntax for vrrp_instance is :
     #   added to the default interface.
     \fBinterface \fReth0
 
+    # If using unicasting without specifying an interface, the VRF to operate
+    # in can be specified.
+    \fBvrf \fR VRF_IF
+
     # Use VRRP Virtual MAC (macvlan).
     # The macvlan will be created on the configured interface for
     # the VRRP instance, and the VIPs, and eVIPs of the matching address

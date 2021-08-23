@@ -483,6 +483,10 @@ dump_sock_pool(FILE *fp, const list_head_t *l)
 	list_for_each_entry(sock, l, e_list) {
 		conf_write(fp, " fd_in %d fd_out = %d", sock->fd_in, sock->fd_out);
 		conf_write(fp, "   Interface = %s", sock->ifp->ifname);
+#ifdef _HAVE_VRF_
+		if (sock->vrf_ifp)
+			conf_write(fp, "   VRF = %s", sock->vrf_ifp->ifname);
+#endif
 		conf_write(fp, "   Family = %s", sock->family == AF_INET ? "IPv4" : sock->family == AF_INET6 ? "IPv6" : "unknown");
 		conf_write(fp, "   Protocol = %s", sock->proto == IPPROTO_AH ? "AH" : sock->proto == IPPROTO_VRRP ? "VRRP" : "unknown");
 		conf_write(fp, "   Type = %sicast", sock->unicast_src ? "Un" : "Mult");
@@ -649,6 +653,10 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 #ifdef _HAVE_VRRP_VMAC_
 	if (vrrp->ifp && vrrp->configured_ifp && vrrp->configured_ifp != vrrp->ifp->base_ifp && vrrp->ifp->is_ours)
 		conf_write(fp, "   Configured interface = %s", vrrp->configured_ifp->ifname);
+#endif
+#ifdef _HAVE_VRF_
+	if (vrrp->vrf_ifp)
+		conf_write(fp, "   VRF = %s", vrrp->vrf_ifp->ifname);
 #endif
 	if (vrrp->dont_track_primary)
 		conf_write(fp, "   VRRP interface tracking disabled");

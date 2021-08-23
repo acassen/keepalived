@@ -730,6 +730,39 @@ vrrp_int_handler(const vector_t *strvec)
 	vrrp->configured_ifp = vrrp->ifp;
 #endif
 }
+
+#ifdef _HAVE_VRF_
+static void
+vrrp_vrf_handler(const vector_t *strvec)
+{
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
+	const char *name = strvec_slot(strvec, 1);
+
+	if (strlen(name) >= IFNAMSIZ) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRF interface name '%s' too long - ignoring", vrrp->iname, name);
+		return;
+	}
+
+	if (vrrp->ifp) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Cannot specify VRF interface and interface - ignoring", vrrp->iname);
+		return;
+	}
+
+	if (vrrp->vrf_ifp) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRF interface already specified as '%s' - ignoring", vrrp->iname, vrrp->vrf_ifp->ifname);
+		return;
+	}
+
+	vrrp->vrf_ifp = if_get_by_ifname(name, IF_CREATE_IF_DYNAMIC);
+	if (!vrrp->vrf_ifp)
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) WARNING - VRF interface %s doesn't exist", vrrp->iname, name);
+	else if (vrrp->vrf_ifp->hw_type == ARPHRD_LOOPBACK) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) cannot use a loopback interface (%s) for VRF - ignoring", vrrp->iname, name);
+		vrrp->vrf_ifp = NULL;
+	}
+}
+#endif
+
 #ifdef _WITH_LINKBEAT_
 static void
 vrrp_linkbeat_handler(__attribute__((unused)) const vector_t *strvec)
@@ -1976,6 +2009,9 @@ init_vrrp_keywords(bool active)
 	install_keyword("native_ipv6", &vrrp_native_ipv6_handler);
 	install_keyword("state", &vrrp_state_handler);
 	install_keyword("interface", &vrrp_int_handler);
+#ifdef _HAVE_VRF_
+	install_keyword("vrf", &vrrp_vrf_handler);
+#endif
 	install_keyword("dont_track_primary", &vrrp_dont_track_handler);
 	install_keyword("track_interface", &vrrp_track_if_handler);
 	install_keyword("track_script", &vrrp_track_scr_handler);

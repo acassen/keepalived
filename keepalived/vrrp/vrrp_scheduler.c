@@ -422,7 +422,11 @@ vrrp_thread_add_read(vrrp_t *vrrp)
 
 /* VRRP dispatcher functions */
 static sock_t * __attribute__ ((pure))
-already_exist_sock(list_head_t *l, sa_family_t family, int proto, interface_t *ifp, const struct sockaddr_storage *unicast_src)
+already_exist_sock(const list_head_t *l, sa_family_t family, int proto, const interface_t *ifp,
+#ifdef _HAVE_VRF_
+		   const interface_t *vrf_ifp,
+#endif
+		   const struct sockaddr_storage *unicast_src)
 {
 	sock_t *sock;
 
@@ -430,6 +434,9 @@ already_exist_sock(list_head_t *l, sa_family_t family, int proto, interface_t *i
 		if ((sock->family == family)	&&
 		    (sock->proto == proto)	&&
 		    (sock->ifp == ifp)		&&
+#ifdef _HAVE_VRF_
+		    (sock->vrf_ifp == vrf_ifp)	&&
+#endif
 		    (!unicast_src == !sock->unicast_src) &&
 		    (!unicast_src || !inet_sockaddrcmp(sock->unicast_src, unicast_src)))
 			return sock;
@@ -439,7 +446,11 @@ already_exist_sock(list_head_t *l, sa_family_t family, int proto, interface_t *i
 }
 
 static sock_t *
-alloc_sock(sa_family_t family, list_head_t *l, int proto, interface_t *ifp, const struct sockaddr_storage *unicast_src)
+alloc_sock(sa_family_t family, list_head_t *l, int proto, interface_t *ifp,
+#ifdef _HAVE_VRF_
+	   const interface_t *vrf_ifp,
+#endif
+	   const struct sockaddr_storage *unicast_src)
 {
 	sock_t *new;
 
@@ -450,6 +461,9 @@ alloc_sock(sa_family_t family, list_head_t *l, int proto, interface_t *ifp, cons
 	if (unicast_src)
 		new->unicast_src = unicast_src;
 	new->ifp = ifp;
+#ifdef _HAVE_VRF_
+	new->vrf_ifp = vrf_ifp;
+#endif
 	new->rb_vrid = RB_ROOT;
 	new->rb_sands = RB_ROOT_CACHED;
 
@@ -492,8 +506,16 @@ vrrp_create_sockpool(list_head_t *l)
 #endif
 
 		/* add the vrrp element if not exist */
-		if (!(sock = already_exist_sock(l, vrrp->family, proto, ifp, unicast_src)))
-			sock = alloc_sock(vrrp->family, l, proto, ifp, unicast_src);
+		if (!(sock = already_exist_sock(l, vrrp->family, proto, ifp,
+#ifdef _HAVE_VRF_
+						vrrp->vrf_ifp,
+#endif
+						unicast_src)))
+			sock = alloc_sock(vrrp->family, l, proto, ifp,
+#ifdef _HAVE_VRF_
+					  vrrp->vrf_ifp,
+#endif
+					  unicast_src);
 
 		/* Add the vrrp_t indexed by vrid to the socket */
 		rb_insert_sort(&sock->rb_vrid, vrrp, rb_vrid, vrrp_vrid_cmp);
@@ -515,7 +537,12 @@ vrrp_open_sockpool(list_head_t *l)
 	sock_t *sock;
 
 	list_for_each_entry(sock, l, e_list) {
-		if (sock->ifp && !sock->ifp->ifindex) {
+		if ((sock->ifp && !sock->ifp->ifindex)
+#ifdef _HAVE_VRF_
+		    || (sock->vrf_ifp && !sock->vrf_ifp->ifindex)
+#endif
+								   )
+		{
 			sock->fd_in = sock->fd_out = -1;
 			continue;
 		}

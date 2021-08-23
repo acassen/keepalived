@@ -41,6 +41,9 @@ typedef struct _sock {
 	sa_family_t		family;
 	int			proto;
 	interface_t		*ifp;
+#ifdef _HAVE_VRF_
+	const interface_t	*vrf_ifp;
+#endif
 	const struct sockaddr_storage	*unicast_src;
 	int			fd_in;
 	int			fd_out;
