@@ -214,6 +214,8 @@ void send_gratuitous_arp(vrrp_t *vrrp, ip_address_t *ipaddress)
  */
 void gratuitous_arp_init(void)
 {
+	int size = 0;
+
 	if (garp_buffer)
 		return;
 
@@ -227,6 +229,9 @@ void gratuitous_arp_init(void)
 		log_message(LOG_INFO, "Error %d while registering gratuitous ARP shared channel", errno);
 		return;
 	}
+
+	if (setsockopt(garp_fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size)))
+		log_message(LOG_INFO, "setsockopt SO_RCVBUF for garp socket %d failed (%d) - %m", garp_fd, errno);
 
 	/* Initalize shared buffer */
 	garp_buffer = PTR_CAST(char, MALLOC(GARP_BUFFER_SIZE));
