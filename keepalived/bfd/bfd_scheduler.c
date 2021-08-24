@@ -43,6 +43,7 @@
 #include "signals.h"
 #include "assert_debug.h"
 
+
 /* Locals */
 static int bfd_send_packet(int, bfdpkt_t *, bool);
 static void bfd_sender_schedule(bfd_t *);
@@ -812,7 +813,8 @@ bfd_receive_packet(bfdpkt_t *pkt, int fd, char *buf, ssize_t bufsz)
 	unsigned int ttl = 0;
 	struct msghdr msg;
 	struct cmsghdr *cmsg = NULL;
-	char cbuf[CMSG_SPACE(sizeof (struct in6_pktinfo)) + CMSG_SPACE(sizeof(ttl))] __attribute__((aligned(__alignof__(struct cmsghdr))));
+	char cbuf[CMSG_SPACE(max(sizeof(struct in6_pktinfo), sizeof(struct in_pktinfo)) + CMSG_SPACE(sizeof(ttl)))]
+	           __attribute__((aligned(__alignof__(struct cmsghdr))));
 	struct iovec iov[1];
 	const struct in6_pktinfo *pktinfo;
 
@@ -861,6 +863,10 @@ bfd_receive_packet(bfdpkt_t *pkt, int fd, char *buf, ssize_t bufsz)
 				pkt->dst_addr.ss_family = AF_INET6;
 			}
 		}
+		else if (cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_PKTINFO) {
+			PTR_CAST(struct sockaddr_in, &pkt->dst_addr)->sin_addr = PTR_CAST(struct in_pktinfo, CMSG_DATA(cmsg))->ipi_addr;
+			pkt->dst_addr.ss_family = AF_INET;
+		}
 		else
 			log_message(LOG_WARNING, "recvmsg() received"
 				    " unexpected control message (level %d type %d)",
@@ -875,7 +881,7 @@ bfd_receive_packet(bfdpkt_t *pkt, int fd, char *buf, ssize_t bufsz)
 	pkt->ttl = ttl;
 
 	/* Convert an IPv4-mapped IPv6 address to a real IPv4 address */
-	if (IN6_IS_ADDR_V4MAPPED(&PTR_CAST(struct sockaddr_in6, &pkt->src_addr)->sin6_addr)) {
+	if (pkt->src_addr.ss_family == AF_INET6 && IN6_IS_ADDR_V4MAPPED(&PTR_CAST(struct sockaddr_in6, &pkt->src_addr)->sin6_addr)) {
 		PTR_CAST(struct sockaddr_in, &pkt->src_addr)->sin_addr.s_addr = PTR_CAST(struct sockaddr_in6, &pkt->src_addr)->sin6_addr.s6_addr32[3];
 		pkt->src_addr.ss_family = AF_INET;
 	}
@@ -924,37 +930,54 @@ bfd_receiver_thread(thread_ref_t thread)
 static int
 bfd_open_fd_in(bfd_data_t *data)
 {
-	struct addrinfo hints;
-	struct addrinfo *ai_in;
+	struct addrinfo hints = { .ai_family = AF_INET6, .ai_flags = AI_NUMERICSERV | AI_PASSIVE, .ai_protocol = IPPROTO_UDP, .ai_socktype = SOCK_DGRAM };
+	struct addrinfo *ai_in = NULL;
 	int ret;
 	int yes = 1;
 
 	assert(data);
 	assert(data->fd_in == -1);
 
-	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_INET6;
-	hints.ai_flags = AI_NUMERICSERV | AI_PASSIVE;
-	hints.ai_protocol = IPPROTO_UDP;
-	hints.ai_socktype = SOCK_DGRAM;
-
 	if ((ret = getaddrinfo(NULL, BFD_CONTROL_PORT, &hints, &ai_in)))
 		log_message(LOG_ERR, "getaddrinfo() error %d (%s)", ret, gai_strerror(ret));
-	else if ((data->fd_in = socket(AF_INET6, ai_in->ai_socktype, ai_in->ai_protocol)) == -1)
-		log_message(LOG_ERR, "socket() error %d (%m)", errno);
+	else if ((data->fd_in = socket(AF_INET6, ai_in->ai_socktype, ai_in->ai_protocol)) == -1) {
+		if (errno == EAFNOSUPPORT) {
+			/* IPv6 is disabled on the system, so we need to try using IPv4 */
+			if (ai_in) {
+				freeaddrinfo(ai_in);
+				ai_in = NULL;
+			}
+			hints.ai_family = AF_INET;
+
+			if ((ret = getaddrinfo(NULL, BFD_CONTROL_PORT, &hints, &ai_in)))
+				log_message(LOG_ERR, "getaddrinfo(AF_INET) error %d (%s)", ret, gai_strerror(ret));
+			else if ((data->fd_in = socket(AF_INET, ai_in->ai_socktype, ai_in->ai_protocol)) == -1) {
+				log_message(LOG_ERR, "socket(AF_INET) error %d (%m)", errno);
+				ret = 1;
+			}
+		} else {
+			log_message(LOG_ERR, "socket() error %d (%m)", errno);
+			ret = 1;
+		}
+	}
+
+	if (ret) {
+		/* We have had an error, so don't do anything more */
+	}
 	else if ((ret = setsockopt(data->fd_in, IPPROTO_IP, IP_RECVTTL, &yes, sizeof (yes))) == -1)
 		log_message(LOG_ERR, "setsockopt(IP_RECVTTL) error %d (%m)", errno);
-	else if ((ret = setsockopt(data->fd_in, IPPROTO_IPV6, IPV6_RECVHOPLIMIT, &yes, sizeof (yes))) == -1)
+	else if (ai_in->ai_family == AF_INET6 && (ret = setsockopt(data->fd_in, IPPROTO_IPV6, IPV6_RECVHOPLIMIT, &yes, sizeof (yes))) == -1)
 		log_message(LOG_ERR, "setsockopt(IPV6_RECVHOPLIMIT) error %d (%m)", errno);
-	else if ((ret = setsockopt(data->fd_in, IPPROTO_IPV6, IPV6_RECVPKTINFO, &yes, sizeof (yes))) == -1)
+	else if (ai_in->ai_family == AF_INET6 && (ret = setsockopt(data->fd_in, IPPROTO_IPV6, IPV6_RECVPKTINFO, &yes, sizeof (yes))) == -1)
 		log_message(LOG_ERR, "setsockopt(IPV6_RECVPKTINFO) error %d (%m)", errno);
+	else if (ai_in->ai_family == AF_INET && (ret = setsockopt(data->fd_in, IPPROTO_IP, IP_PKTINFO, &yes, sizeof (yes))) == -1)
+		log_message(LOG_ERR, "setsockopt(IP_PKTINFO) error %d (%m)", errno);
 	else if ((ret = bind(data->fd_in, ai_in->ai_addr, ai_in->ai_addrlen)) == -1)
 		log_message(LOG_ERR, "bind() error %d (%m)", errno);
 
-	if (ret)
-		ret = 1;
+	if (ai_in)
+		freeaddrinfo(ai_in);
 
-	freeaddrinfo(ai_in);
 	return ret;
 }
 
