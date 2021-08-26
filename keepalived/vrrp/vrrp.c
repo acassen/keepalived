@@ -3050,10 +3050,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 							, vrrp->vip_cnt, max_addr);
 		i = 0;
 		list_for_each_entry_safe(ip_addr, ip_addr_tmp, &vrrp->vip, e_list) {
-			if (++i < max_addr)
+			if (++i <= max_addr)
 				continue;
 			list_del_init(&ip_addr->e_list);
 			list_add_tail(&ip_addr->e_list, &vrrp->evip);
+			vrrp->vip_cnt--;
 		}
 	}
 
