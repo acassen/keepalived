@@ -733,7 +733,7 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 #endif
 
 	if (!list_empty(&vrrp->vip)) {
-		conf_write(fp, "   Virtual IP :");
+		conf_write(fp, "   Virtual IP (%u):", vrrp->vip_cnt);
 		dump_ipaddress_list(fp, &vrrp->vip);
 	}
 	if (!list_empty(&vrrp->evip)) {
