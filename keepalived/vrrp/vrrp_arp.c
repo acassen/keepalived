@@ -218,7 +218,7 @@ void gratuitous_arp_init(void)
 		return;
 
 	/* Create the socket descriptor */
-	garp_fd = socket(PF_PACKET, SOCK_RAW | SOCK_CLOEXEC | SOCK_NONBLOCK, htons(ETH_P_RARP));
+	garp_fd = socket(PF_PACKET, SOCK_RAW | SOCK_CLOEXEC | SOCK_NONBLOCK, htons(ETH_P_ARP));
 
 	if (garp_fd >= 0) {
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
