@@ -228,6 +228,9 @@ void gratuitous_arp_init(void)
 		return;
 	}
 
+	/* We don't want to receive any data on this socket */
+	if_setsockopt_no_receive(&garp_fd);
+
 	/* Initalize shared buffer */
 	garp_buffer = PTR_CAST(char, MALLOC(GARP_BUFFER_SIZE));
 }

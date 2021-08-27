@@ -275,6 +275,9 @@ ndisc_init(void)
 		log_message(LOG_INFO, "Error %d while registering gratuitous NDISC shared channel", errno);
 		return;
 	}
+
+	/* We don't want to receive any data on this socket */
+	if_setsockopt_no_receive(&ndisc_fd);
 }
 
 void
