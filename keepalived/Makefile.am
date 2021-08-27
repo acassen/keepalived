@@ -79,6 +79,7 @@ if WITH_IPVS
 install-exec-hook:
 	$(MKDIR_P) $(DESTDIR)/$(bindir)
 	@( \
+	rm -f $(DESTDIR)/$(bindir)/genhash; \
 	realpath --relative-to=/ / >/dev/null 2>&1; \
 	if [ $$? -eq 0 ]; then \
 		$(LN_S) `realpath --relative-to="$(DESTDIR)/$(bindir)" "$(DESTDIR)/$(sbindir)/keepalived"` $(DESTDIR)/$(bindir)/genhash; \
