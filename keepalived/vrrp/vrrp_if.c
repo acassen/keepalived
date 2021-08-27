@@ -1307,9 +1307,9 @@ if_setsockopt_no_receive(int *sd)
 {
 	int ret;
 	struct sock_filter bpfcode[1] = {
-		{0x06, 0, 0, 0},	/* ret #0 - means that all packets will be filtered out */
+		BPF_STMT(BPF_RET | BPF_K, 0),	/* ret #0 - means that all packets will be filtered out */
 	};
-	struct sock_fprog bpf = {1, bpfcode};
+	struct sock_fprog bpf = { sizeof(bpfcode) / sizeof(bpfcode[0]), bpfcode };
 
 	if (*sd < 0)
 		return -1;
