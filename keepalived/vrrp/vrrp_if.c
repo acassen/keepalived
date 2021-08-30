@@ -99,7 +99,7 @@ if_get_by_ifindex(ifindex_t ifindex)
 
 #ifdef _HAVE_VRRP_VMAC_
 interface_t * __attribute__ ((pure))
-if_get_by_vmac(uint8_t vrid, int family, const interface_t *base_ifp)
+if_get_by_vmac(uint8_t vrid, int family, const interface_t *base_ifp, const u_char hw_addr[ETH_ALEN])
 {
 	interface_t *ifp;
 
@@ -108,13 +108,18 @@ if_get_by_vmac(uint8_t vrid, int family, const interface_t *base_ifp)
 			continue;
 		if (ifp->base_ifp != base_ifp)
 			continue;
-		if (ifp->hw_addr[0] || ifp->hw_addr[1] || ifp->hw_addr[2] != 0x5e || ifp->hw_addr[3])
-			continue;
-		if ((family == AF_INET && ifp->hw_addr[4] != 0x01) ||
-		    (family == AF_INET6 && ifp->hw_addr[4] != 0x02))
-			continue;
-		if (ifp->hw_addr[5] != vrid)
-			continue;
+		if (hw_addr) {
+		       if (memcmp(ifp->hw_addr, hw_addr, ETH_ALEN))
+			       continue;
+		} else {
+			if (ifp->hw_addr[0] || ifp->hw_addr[1] || ifp->hw_addr[2] != 0x5e || ifp->hw_addr[3])
+				continue;
+			if ((family == AF_INET && ifp->hw_addr[4] != 0x01) ||
+			    (family == AF_INET6 && ifp->hw_addr[4] != 0x02))
+				continue;
+			if (ifp->hw_addr[5] != vrid)
+				continue;
+		}
 
 		ifp->is_ours = true;
 

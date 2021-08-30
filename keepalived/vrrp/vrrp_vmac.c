@@ -44,7 +44,7 @@ const char * const macvlan_ll_kind = "macvlan";
 #ifdef _HAVE_VRRP_IPVLAN_
 const char * const ipvlan_ll_kind = "ipvlan";
 #endif
-u_char ll_addr[ETH_ALEN] = {0x00, 0x00, 0x5e, 0x00, 0x01, 0x00};
+const u_char ll_addr[ETH_ALEN] = {0x00, 0x00, 0x5e, 0x00, 0x01, 0x00};
 
 static void
 make_link_local_address(struct in6_addr* l3_addr, const u_char* if_ll_addr)
@@ -260,16 +260,22 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		struct ifinfomsg ifi;
 		char buf[256];
 	} req;
+	u_char if_ll_addr[ETH_ALEN];
 
 	if (!vrrp->ifp || __test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags) || !vrrp->vrid)
 		return false;
 
-	if (vrrp->family == AF_INET6)
-		ll_addr[ETH_ALEN-2] = 0x02;
-	else
-		ll_addr[ETH_ALEN-2] = 0x01;
+	if (__test_bit(VRRP_VMAC_MAC_SPECIFIED, &vrrp->vmac_flags))
+		memcpy(if_ll_addr, vrrp->ll_addr, sizeof(vrrp->ll_addr));
+	else {
+		memcpy(if_ll_addr, ll_addr, ETH_ALEN - 2);
+		if (vrrp->family == AF_INET6)
+			if_ll_addr[ETH_ALEN-2] = 0x02;
+		else
+			if_ll_addr[ETH_ALEN-2] = 0x01;
 
-	ll_addr[ETH_ALEN-1] = vrrp->vrid;
+		if_ll_addr[ETH_ALEN-1] = vrrp->vrid;
+	}
 
 	memset(&req, 0, sizeof (req));
 
@@ -281,7 +287,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 
 	if (ifp->ifindex) {
 		/* Check to see whether this interface has wrong mac ? */
-		if (memcmp((const void *)ifp->hw_addr, (const void *)ll_addr, ETH_ALEN) != 0 ||
+		if (memcmp((const void *)ifp->hw_addr, (const void *)if_ll_addr, ETH_ALEN) != 0 ||
 		     ifp->base_ifindex != vrrp->ifp->ifindex ||
 		     ifp->vmac_type != MACVLAN_MODE_PRIVATE) {
 			/* Be safe here - we don't want to remove a physical interface */
@@ -344,7 +350,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		 * interface only the underlying interface of the macvlan */
 		addattr32(&req.n, sizeof(req), IFLA_LINK, vrrp->configured_ifp->ifindex);
 		addattr_l(&req.n, sizeof(req), IFLA_IFNAME, vrrp->vmac_ifname, strlen(vrrp->vmac_ifname));
-		addattr_l(&req.n, sizeof(req), IFLA_ADDRESS, ll_addr, ETH_ALEN);
+		addattr_l(&req.n, sizeof(req), IFLA_ADDRESS, if_ll_addr, ETH_ALEN);
 
 #ifdef _HAVE_VRF_
 		/* If the underlying interface is enslaved to a VRF master, then this
@@ -467,7 +473,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		memset(&ipaddress, 0, sizeof(ipaddress));
 
 		ipaddress.u.sin6_addr = ifp->base_ifp->sin6_addr;
-		make_link_local_address(&ipaddress.u.sin6_addr, ll_addr);
+		make_link_local_address(&ipaddress.u.sin6_addr, if_ll_addr);
 		ipaddress.ifa.ifa_family = AF_INET6;
 		ipaddress.ifa.ifa_prefixlen = 64;
 		ipaddress.ifa.ifa_index = vrrp->ifp->ifindex;

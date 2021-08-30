@@ -621,11 +621,16 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 		conf_write(fp, "   Master down timer = %u usecs", vrrp->ms_down_timer);
 	}
 #ifdef _HAVE_VRRP_VMAC_
-	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
+	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
 		conf_write(fp, "   Use VMAC, i/f name %s, is_up = %s, xmit_base = %s",
 				vrrp->vmac_ifname,
 				__test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags) ? "true" : "false",
 				__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) ? "true" : "false");
+		if (__test_bit(VRRP_VMAC_MAC_SPECIFIED, &vrrp->vmac_flags))
+			conf_write(fp, "     MAC = %2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x%s",
+					vrrp->ll_addr[0], vrrp->ll_addr[1], vrrp->ll_addr[2], vrrp->ll_addr[3], vrrp->ll_addr[4], vrrp->ll_addr[5],
+					__test_bit(VRRP_VMAC_MAC_USE_VRID, &vrrp->vmac_flags) ? " (using VRID)" : "");
+	}
 	if (__test_bit(VRRP_VMAC_ADDR_BIT, &vrrp->vmac_flags))
 		conf_write(fp, "   Use VMAC for VIPs on other interfaces");
 #ifdef _HAVE_VRRP_IPVLAN_
