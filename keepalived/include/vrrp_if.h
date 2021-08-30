@@ -233,7 +233,7 @@ extern list_head_t garp_delay;
 /* prototypes */
 extern interface_t *if_get_by_ifindex(ifindex_t) __attribute__ ((pure));
 #ifdef _HAVE_VRRP_VMAC_
-extern interface_t * if_get_by_vmac(uint8_t, int, const interface_t *) __attribute__ ((pure));
+extern interface_t * if_get_by_vmac(uint8_t, int, const interface_t *, const u_char hw_addr[ETH_ALEN]) __attribute__ ((pure));
 #endif
 extern interface_t *get_default_if(void);
 extern interface_t *if_get_by_ifname(const char *, if_lookup_t);

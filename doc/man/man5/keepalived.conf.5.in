@@ -441,8 +441,8 @@ possibly following any cleanup actions needed.
 
     # keepalived uses a firewall (either nftables or iptables) for two purposes:
     #  i)  To implement no_accept mode
-    #  ii) To stop IGMP/MLD packets being sent on VMAC interfaces, and to move
-    #      them onto the underlying interface.
+    #  ii) To stop IGMP/MLD/Router-Solicit packets being sent on VMAC interfaces,
+    #      and to move IGMP/MLD messages onto the underlying interface.
     # If both vrrp_iptables and vrrp_nftables are specified, keepalived will use
     # nftables and not iptables. Similarly, if the iptables command is generating
     # nftables configuration, or there is no iptables command installed,
@@ -1576,7 +1576,9 @@ The syntax for vrrp_instance is :
     # The original settings are restored on termination.
     # \fBNOTE 2\fR: If using use_vmac with unicast peers,
     # vmac_xmit_base must be set.
-    \fBuse_vmac \fR[<VMAC_INTERFACE>]
+    # The MAC address can be specified with only 5 octets, in which case
+    # the virtual_router_id will be used as the last octet.
+    \fBuse_vmac \fR[<VMAC_INTERFACE_NAME>] [MAC_ADDRESS]
 
     # use_vmac_addr is used to create VMAC (macvlan) interfaces for
     # each interface that is used by a VIP or eVIP where the interface

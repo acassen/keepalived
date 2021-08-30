@@ -2966,6 +2966,15 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 #ifdef _HAVE_VRRP_VMAC_
+	if (vrrp->strict_mode && __test_bit(VRRP_VMAC_MAC_SPECIFIED, &vrrp->vmac_flags)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s): cannot specify MAC address with strict mode - clearing", vrrp->iname);
+		__clear_bit(VRRP_VMAC_MAC_SPECIFIED, &vrrp->vmac_flags);
+	}
+
+	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
+	    __test_bit(VRRP_VMAC_MAC_USE_VRID, &vrrp->vmac_flags))
+	    vrrp->ll_addr[ETH_ALEN - 1] = vrrp->vrid;
+
 	/* Check that the underlying interface type is Ethernet if using a VMAC */
 	if ((__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)
 #ifdef _HAVE_VRRP_IPVLAN_
@@ -3308,13 +3317,16 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				 vrrp->configured_ifp->base_netns_id == ifp->base_netns_id &&
 				 vrrp->configured_ifp->base_ifindex == ifp->base_ifindex)
 #endif
-														   ) &&
+											   ) &&
 			    ((__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
 			      ifp->vmac_type == MACVLAN_MODE_PRIVATE &&
-			      !memcmp(ifp->hw_addr, ll_addr, sizeof(ll_addr) - 2) &&
-			      ((vrrp->family == AF_INET && ifp->hw_addr[sizeof(ll_addr) - 2] == 0x01) ||
-			       (vrrp->family == AF_INET6 && ifp->hw_addr[sizeof(ll_addr) - 2] == 0x02)) &&
-			      ifp->hw_addr[sizeof(ll_addr) - 1] == vrrp->vrid)
+			      ((__test_bit(VRRP_VMAC_MAC_SPECIFIED, &vrrp->vmac_flags) &&
+			       !memcmp(ifp->hw_addr, vrrp->ll_addr, sizeof(ll_addr))) ||
+			       (!__test_bit(VRRP_VMAC_MAC_SPECIFIED, &vrrp->vmac_flags) &&
+			        !memcmp(ifp->hw_addr, ll_addr, sizeof(ll_addr) - 2) &&
+			        ((vrrp->family == AF_INET && ifp->hw_addr[sizeof(ll_addr) - 2] == 0x01) ||
+			         (vrrp->family == AF_INET6 && ifp->hw_addr[sizeof(ll_addr) - 2] == 0x02)) &&
+			        ifp->hw_addr[sizeof(ll_addr) - 1] == vrrp->vrid)))
 #ifdef _HAVE_VRRP_IPVLAN_
 			     ||  /* We should probably check if any VIPs match for IPv6 when no i/f name or address configured */
 			     (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags) &&
@@ -3533,7 +3545,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			if (!__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags))
 #endif
 			{
-				ifp = if_get_by_vmac(vrrp->vrid, vrrp->family, vrrp->ifp->base_ifp);
+				ifp = if_get_by_vmac(vrrp->vrid, vrrp->family, vrrp->ifp->base_ifp, __test_bit(VRRP_VMAC_MAC_SPECIFIED, &vrrp->vmac_flags) ? vrrp->ll_addr : NULL);
 				if (ifp)
 					vrrp->ifp = ifp;
 				else {
@@ -3541,12 +3553,16 @@ vrrp_complete_instance(vrrp_t * vrrp)
 					ifp->is_ours = true;
 					ifp->if_type = IF_TYPE_MACVLAN;
 					ifp->base_ifp = vrrp->ifp;
-					ifp->hw_addr[0] = ll_addr[0];
-					ifp->hw_addr[1] = ll_addr[1];
-					ifp->hw_addr[2] = ll_addr[2];
-					ifp->hw_addr[3] = ll_addr[3];
-					ifp->hw_addr[4] = vrrp->family == AF_INET ?  0x01 : 0x02;
-					ifp->hw_addr[5] = vrrp->vrid;
+					if (__test_bit(VRRP_VMAC_MAC_SPECIFIED, &vrrp->vmac_flags))
+						memcpy(ifp->hw_addr, vrrp->ll_addr, sizeof(vrrp->ll_addr));
+					else {
+						ifp->hw_addr[0] = ll_addr[0];
+						ifp->hw_addr[1] = ll_addr[1];
+						ifp->hw_addr[2] = ll_addr[2];
+						ifp->hw_addr[3] = ll_addr[3];
+						ifp->hw_addr[4] = vrrp->family == AF_INET ?  0x01 : 0x02;
+						ifp->hw_addr[5] = vrrp->vrid;
+					}
 					vrrp->ifp = ifp;
 				}
 			}
@@ -3644,7 +3660,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				/* Now add VMACs for any addresses */
 				base_ifp = ip_addr->ifp;
 
-				ifp = if_get_by_vmac(vrrp->vrid, ip_addr->ifa.ifa_family, ip_addr->ifp);
+				ifp = if_get_by_vmac(vrrp->vrid, ip_addr->ifa.ifa_family, ip_addr->ifp, __test_bit(VRRP_VMAC_MAC_SPECIFIED, &vrrp->vmac_flags) ? vrrp->ll_addr : NULL);
 
 				if (!ifp) {
 					ifp = create_vmac_name(global_data->vmac_addr_prefix ? global_data->vmac_addr_prefix :
@@ -3660,17 +3676,26 @@ vrrp_complete_instance(vrrp_t * vrrp)
 						addr_vrrp.iname = vrrp->iname;
 						addr_vrrp.configured_ifp = base_ifp;
 						addr_vrrp.saddr.ss_family = AF_UNSPEC;
+						if (__test_bit(VRRP_VMAC_MAC_SPECIFIED, &vrrp->vmac_flags)) {
+							__set_bit(VRRP_VMAC_MAC_SPECIFIED, &addr_vrrp.vmac_flags);
+							memcpy(addr_vrrp.ll_addr, vrrp->ll_addr, sizeof(vrrp->ll_addr));
+						}
+
 						netlink_link_add_vmac(&addr_vrrp);
 					} else {
 						ifp->is_ours = true;
 						ifp->if_type = IF_TYPE_MACVLAN;
 						ifp->base_ifp = ip_addr->ifp;
-						ifp->hw_addr[0] = ll_addr[0];
-						ifp->hw_addr[1] = ll_addr[1];
-						ifp->hw_addr[2] = ll_addr[2];
-						ifp->hw_addr[3] = ll_addr[3];
-						ifp->hw_addr[4] = ip_addr->ifa.ifa_family == AF_INET ?  0x01 : 0x02;
-						ifp->hw_addr[5] = vrrp->vrid;
+						if (__test_bit(VRRP_VMAC_MAC_SPECIFIED, &vrrp->vmac_flags))
+							memcpy(ifp->hw_addr, vrrp->ll_addr, sizeof(vrrp->ll_addr));
+						else {
+							ifp->hw_addr[0] = ll_addr[0];
+							ifp->hw_addr[1] = ll_addr[1];
+							ifp->hw_addr[2] = ll_addr[2];
+							ifp->hw_addr[3] = ll_addr[3];
+							ifp->hw_addr[4] = ip_addr->ifa.ifa_family == AF_INET ?  0x01 : 0x02;
+							ifp->hw_addr[5] = vrrp->vrid;
+						}
 					}
 
 					if (!ip_addr->dont_track)

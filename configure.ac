@@ -1638,6 +1638,10 @@ if test .${enable_nftables} != .no; then
       AC_CHECK_DECLS([NFTA_DUP_MAX], [], [],
         [#include <linux/netfilter/nf_tables.h>])
 
+      # nft meta oifkind from Linux 5.1
+      AC_CHECK_DECLS([NFT_META_OIFKIND], [], [],
+        [#include <linux/netfilter/nf_tables.h>])
+
       # NFT_USERDATA_MAXLEN since Linux 3.15. Check nftnl_udata_buf_alloc for libnftnl support of userdata
       USE_NFT_USERDATA=Yes
       AC_CHECK_DECLS([NFT_USERDATA_MAXLEN, nftnl_udata_buf_alloc],

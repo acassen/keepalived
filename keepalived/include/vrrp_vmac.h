@@ -46,10 +46,12 @@ enum vrrp_vmac_bits {
 #ifdef _HAVE_VRRP_IPVLAN_
 	VRRP_IPVLAN_BIT,
 #endif
+	VRRP_VMAC_MAC_SPECIFIED,
+	VRRP_VMAC_MAC_USE_VRID,
 };
 
 extern const char * const macvlan_ll_kind;
-extern u_char ll_addr[ETH_ALEN];
+extern const u_char ll_addr[ETH_ALEN];
 
 /* prototypes */
 extern bool add_link_local_address(interface_t *, struct in6_addr*);

@@ -229,6 +229,7 @@ typedef struct _vrrp_t {
 #ifdef _HAVE_VRRP_VMAC_
 	unsigned long		vmac_flags;		/* VRRP VMAC flags */
 	char			vmac_ifname[IFNAMSIZ];	/* Name of VRRP VMAC interface */
+	u_char			ll_addr[ETH_ALEN];	/* Override MAC address */
 	bool			duplicate_vrid_fault;	/* Set if we have a fault due to duplicate VRID */
 #ifdef _HAVE_VRRP_IPVLAN_
 	struct _ip_address	*ipvlan_addr;		/* Address to configure on an ipvlan interface */

@@ -99,7 +99,7 @@ if_get_by_ifindex(ifindex_t ifindex)
 
 #ifdef _HAVE_VRRP_VMAC_
 interface_t * __attribute__ ((pure))
-if_get_by_vmac(uint8_t vrid, int family, const interface_t *base_ifp)
+if_get_by_vmac(uint8_t vrid, int family, const interface_t *base_ifp, const u_char hw_addr[ETH_ALEN])
 {
 	interface_t *ifp;
 
@@ -108,13 +108,18 @@ if_get_by_vmac(uint8_t vrid, int family, const interface_t *base_ifp)
 			continue;
 		if (ifp->base_ifp != base_ifp)
 			continue;
-		if (ifp->hw_addr[0] || ifp->hw_addr[1] || ifp->hw_addr[2] != 0x5e || ifp->hw_addr[3])
-			continue;
-		if ((family == AF_INET && ifp->hw_addr[4] != 0x01) ||
-		    (family == AF_INET6 && ifp->hw_addr[4] != 0x02))
-			continue;
-		if (ifp->hw_addr[5] != vrid)
-			continue;
+		if (hw_addr) {
+		       if (memcmp(ifp->hw_addr, hw_addr, ETH_ALEN))
+			       continue;
+		} else {
+			if (ifp->hw_addr[0] || ifp->hw_addr[1] || ifp->hw_addr[2] != 0x5e || ifp->hw_addr[3])
+				continue;
+			if ((family == AF_INET && ifp->hw_addr[4] != 0x01) ||
+			    (family == AF_INET6 && ifp->hw_addr[4] != 0x02))
+				continue;
+			if (ifp->hw_addr[5] != vrid)
+				continue;
+		}
 
 		ifp->is_ours = true;
 
@@ -965,13 +970,8 @@ if_join_vrrp_group(sa_family_t family, int *sd, const interface_t *ifp)
 			send_on_base_if = true;
 #endif
 #ifdef _WITH_NFTABLES_
-		if (global_data->vrrp_nf_table_name) {
-#if HAVE_DECL_NFTA_DUP_MAX
-			send_on_base_if = false;
-#else
-			send_on_base_if = true;
-#endif
-		}
+		if (global_data->vrrp_nf_table_name)
+			send_on_base_if = !HAVE_DECL_NFTA_DUP_MAX;
 #endif
 	}
 #endif
@@ -1307,9 +1307,9 @@ if_setsockopt_no_receive(int *sd)
 {
 	int ret;
 	struct sock_filter bpfcode[1] = {
-		{0x06, 0, 0, 0},	/* ret #0 - means that all packets will be filtered out */
+		BPF_STMT(BPF_RET | BPF_K, 0),	/* ret #0 - means that all packets will be filtered out */
 	};
-	struct sock_fprog bpf = {1, bpfcode};
+	struct sock_fprog bpf = { sizeof(bpfcode) / sizeof(bpfcode[0]), bpfcode };
 
 	if (*sd < 0)
 		return -1;
