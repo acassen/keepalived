@@ -77,6 +77,7 @@ static const char vmac_map_name[] = "vmac_map";
 #else
 static const char vmac_map_name[] = "vmac_set";
 #endif
+static const char macvlan[16] = "macvlan";
 #endif
 
 static int ifname_type;
@@ -1178,11 +1179,11 @@ setup_rule_move_igmp(uint8_t family, const char *table,
 				   const char *set_map)
 {
 	/* If have nft dup statement:
-	     nft add rule ip keepalived out ip protocol igmp dup to ip daddr device oif map @vmac_map drop
-	     nft add rule ip6 keepalived out icmpv6 type mld2-listener-report dup to ip6 daddr device oif map @vmac_map drop
+	     nft add rule ip keepalived out ip protocol igmp [meta oifkind macvlan] dup to ip daddr device oif map @vmac_map drop
+	     nft add rule ip6 keepalived out icmpv6 type mld2-listener-report [meta oifkind macvlan] dup to ip6 daddr device oif map @vmac_map drop
 	   otherwise:
-	     nft add rule ip keepalived out ip protocol igmp oif @vmac_set drop
-	     nft add rule ip6 keepalived out icmpv6 type mld2-listener-report oif @vmac_set drop
+	     nft add rule ip keepalived out ip protocol igmp [meta oifkind macvlan] oif @vmac_set drop
+	     nft add rule ip6 keepalived out icmpv6 type mld2-listener-report [meta oifkind macvlan] oif @vmac_set drop
 	 */
 	struct nftnl_rule *r = NULL;
 	uint64_t handle_num;
@@ -1228,6 +1229,11 @@ setup_rule_move_igmp(uint8_t family, const char *table,
 #endif
 	}
 
+#ifdef HAVE_DECL_NFT_META_OIFKIND
+	add_meta(r, NFT_META_OIFKIND, NFT_REG_2);
+	add_cmp(r, NFT_REG_2, NFT_CMP_EQ, &macvlan, sizeof(macvlan));
+#endif
+
 	add_meta(r, NFT_META_OIF, NFT_REG_2);
 #if HAVE_DECL_NFTA_DUP_MAX
 	add_lookup(r, NFT_REG_2, NFT_REG_2, set_map, 1, false);
@@ -1255,10 +1261,11 @@ nft_setup_igmp(struct mnl_nlmsg_batch *batch, struct nftnl_set **s, uint8_t nfpr
 			nft_setup_ipv6(batch);
 	}
 
-	/* nft add map ip keepalived imap { type ifname : ifindex } */
 #if HAVE_DECL_NFTA_DUP_MAX
+	/* nft add map ip keepalived vmac_map { type ifname : ifindex } */
 	*s = setup_set(nfproto, global_data->vrrp_nf_table_name, vmac_map_name, NFT_TYPE_IFINDEX, NFT_SET_MAP, NFT_TYPE_IFINDEX);
 #else
+	/* nft add set ip keepalived vmac_set { type ifname } */
 	*s = setup_set(nfproto, global_data->vrrp_nf_table_name, vmac_map_name, NFT_TYPE_IFINDEX, 0, 0);
 #endif
 

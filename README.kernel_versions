@@ -117,6 +117,9 @@ dnl --FRA_DPORT_RANGE		dnl -- Linux 4.17
 
 dnl -- Linux/errqueue.h need sys/time.h before Linux < v5.1
 
+dnl -- Since Linux 5.1
+NFT_META_OIFKIND
+
 dnl -- Since Linux 5.2
 IPVS_DEST_ATTR_TUN_TYPE
 
