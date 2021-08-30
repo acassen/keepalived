@@ -965,13 +965,8 @@ if_join_vrrp_group(sa_family_t family, int *sd, const interface_t *ifp)
 			send_on_base_if = true;
 #endif
 #ifdef _WITH_NFTABLES_
-		if (global_data->vrrp_nf_table_name) {
-#if HAVE_DECL_NFTA_DUP_MAX
-			send_on_base_if = false;
-#else
-			send_on_base_if = true;
-#endif
-		}
+		if (global_data->vrrp_nf_table_name)
+			send_on_base_if = !HAVE_DECL_NFTA_DUP_MAX;
 #endif
 	}
 #endif
