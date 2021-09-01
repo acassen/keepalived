@@ -139,7 +139,9 @@ static inline int __ip6_addr_equal(const struct in6_addr *a1,
 		 (a1->s6_addr32[3] ^ a2->s6_addr32[3])) == 0);
 }
 
-static inline bool sockstorage_equal(const struct sockaddr_storage *s1,
+/* sockstorage_equal is similar to inet_sockaddcmp except the former also compares the port */
+static inline bool __attribute__((pure))
+sockstorage_equal(const struct sockaddr_storage *s1,
 				    const struct sockaddr_storage *s2)
 {
 	if (s1->ss_family != s2->ss_family)
@@ -149,7 +151,6 @@ static inline bool sockstorage_equal(const struct sockaddr_storage *s1,
 		const struct sockaddr_in6 *a1 = (const struct sockaddr_in6 *) s1;
 		const struct sockaddr_in6 *a2 = (const struct sockaddr_in6 *) s2;
 
-//		if (IN6_ARE_ADDR_EQUAL(a1, a2) && (a1->sin6_port == a2->sin6_port))
 		if (__ip6_addr_equal(&a1->sin6_addr, &a2->sin6_addr) &&
 		    (a1->sin6_port == a2->sin6_port))
 			return true;

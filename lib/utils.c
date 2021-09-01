@@ -757,6 +757,7 @@ inet_inaddrcmp(const int family, const void *a, const void *b)
 	return -2;
 }
 
+/* inet_sockaddcmp is similar to sockstorage_equal except the latter also compares the port */
 int  __attribute__ ((pure))
 inet_sockaddrcmp(const struct sockaddr_storage *a, const struct sockaddr_storage *b)
 {
