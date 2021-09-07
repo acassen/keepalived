@@ -781,20 +781,59 @@ get_priority(const vector_t *strvec, const char *process)
 static void
 vrrp_mcast_group4_handler(const vector_t *strvec)
 {
-	struct sockaddr_in *mcast = &global_data->vrrp_mcast_group4;
+	sockaddr_t mcast;
 
-	if (inet_stosockaddr(strvec_slot(strvec, 1), 0, PTR_CAST(sockaddr_t, mcast)))
-		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: Cant parse vrrp_mcast_group4 [%s]. Skipping"
+	if (inet_stosockaddr(strvec_slot(strvec, 1), 0, &mcast)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Can't parse vrrp_mcast_group4 [%s]. Skipping"
 				   , strvec_slot(strvec, 1));
+		return;
+	}
+
+	if (mcast.ss_family != AF_INET) {
+		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_mcast_group4 [%s] is not IPv4. Skipping"
+				   , strvec_slot(strvec, 1));
+		return;
+	}
+
+	/* Check the address is multicast */
+	if (!IN_MULTICAST(&PTR_CAST(struct sockaddr_in, &mcast)->sin_addr.s_addr)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_mcast_group4 [%s] is not multicast. Skipping"
+				   , strvec_slot(strvec, 1));
+		return;
+	}
+
+	global_data->vrrp_mcast_group4 = *PTR_CAST(struct sockaddr_in, &mcast);
 }
 static void
 vrrp_mcast_group6_handler(const vector_t *strvec)
 {
-	struct sockaddr_in6 *mcast = &global_data->vrrp_mcast_group6;
+	sockaddr_t mcast;
 
-	if (inet_stosockaddr(strvec_slot(strvec, 1), 0, PTR_CAST(sockaddr_t, mcast)))
-		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: Cant parse vrrp_mcast_group6 [%s]. Skipping"
+	if (inet_stosockaddr(strvec_slot(strvec, 1), 0, &mcast)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Can't parse vrrp_mcast_group6 [%s]. Skipping"
 				   , strvec_slot(strvec, 1));
+		return;
+	}
+
+	if (mcast.ss_family != AF_INET6) {
+		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_mcast_group6 [%s] is not IPv6. Skipping"
+				   , strvec_slot(strvec, 1));
+		return;
+	}
+
+	/* Check the address is multicast */
+	if (!IN6_IS_ADDR_MULTICAST(&PTR_CAST(struct sockaddr_in6, &mcast)->sin6_addr)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_mcast_group6 [%s] is not multicast. Skipping"
+				   , strvec_slot(strvec, 1));
+		return;
+	}
+
+	/* An IPv6 multicast address should be link local */
+	if (!IN6_IS_ADDR_MC_LINKLOCAL(&PTR_CAST(struct sockaddr_in6, &mcast)->sin6_addr))
+		report_config_error(CONFIG_WARNING, "vrrp_mcast_group6 [%s] should be link-local multicast."
+				   , strvec_slot(strvec, 1));
+
+	global_data->vrrp_mcast_group6 = *PTR_CAST(struct sockaddr_in6, &mcast);
 }
 static void
 vrrp_garp_delay_handler(const vector_t *strvec)
