@@ -2970,6 +2970,23 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		}
 	}
 
+	/* Strictly, specifying any "unicast" keyword and not having any unicast peers
+	 * is not valid. However, if no unicast peers are specified, then up to v2.2.4
+	 * this has always been treated as ignore unicast and use multicast. */
+	if (__test_bit(VRRP_FLAG_UNICAST_CONFIGURED, &vrrp->flags)) {
+		if (!list_empty(&vrrp->unicast_peer))
+			__set_bit(VRRP_FLAG_UNICAST, &vrrp->flags);
+		else if (__test_bit(VRRP_FLAG_UNICAST_FAULT_NO_PEERS, &vrrp->flags)) {
+			/* We go to fault state to stop defaulting to multicast. We
+			 * cannot operate in unicast mode without any peers. */
+			log_message(LOG_INFO, "(%s) Cannot use unicast without any peers - going to fault state", vrrp->iname);
+			vrrp->num_config_faults++;
+		} else {
+			/* Deprecated after v2.2.4 */
+			report_config_error(CONFIG_DEPRECATED, "(%s) A unicast keyword has been specified without any unicast peers. Defaulting to multicast. This usage is deprecated - please update your configuration.", vrrp->iname);
+		}
+	}
+
 #ifdef _HAVE_VRRP_VMAC_
 	if (vrrp->strict_mode && __test_bit(VRRP_VMAC_MAC_SPECIFIED, &vrrp->vmac_flags)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s): cannot specify MAC address with strict mode - clearing", vrrp->iname);

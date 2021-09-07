@@ -49,6 +49,12 @@
 
 struct _ip_address;
 
+enum vrrp_flags_bits {
+	VRRP_FLAG_UNICAST_CONFIGURED,
+	VRRP_FLAG_UNICAST,
+	VRRP_FLAG_UNICAST_FAULT_NO_PEERS,
+};
+
 typedef struct _vrrphdr {			/* rfc2338.5.1 */
 	uint8_t			vers_type;	/* 0-3=type, 4-7=version */
 	uint8_t			vrid;		/* virtual router id */
@@ -226,6 +232,7 @@ typedef struct _vrrp_t {
 	bool			skip_check_adv_addr;	/* If set, don't check the VIPs in subsequent
 							 * adverts from the same master */
 	unsigned		strict_mode;		/* Enforces strict VRRP compliance */
+	unsigned long		flags;
 #ifdef _HAVE_VRRP_VMAC_
 	unsigned long		vmac_flags;		/* VRRP VMAC flags */
 	char			vmac_ifname[IFNAMSIZ];	/* Name of VRRP VMAC interface */

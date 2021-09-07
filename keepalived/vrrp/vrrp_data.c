@@ -602,7 +602,19 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 				conf_write(fp, "   Master advert int = %.2f sec", vrrp->master_adver_int / TIMER_HZ_DOUBLE);
 		}
 	}
+	if (vrrp->flags) {
+		conf_write(fp, "   Flags:");
+		if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags))
+			conf_write(fp, "     Using unicast");
+		else if (__test_bit(VRRP_FLAG_UNICAST_CONFIGURED, &vrrp->flags))
+			conf_write(fp, "     Unicast config option specified but using multicast");
+		if (__test_bit(VRRP_FLAG_UNICAST_FAULT_NO_PEERS, &vrrp->flags))
+			conf_write(fp, "     If unicast go to fault state if no peers");
+	} else
+		conf_write(fp, "   Flags: none");
+
 	conf_write(fp, "   Wantstate = %s", get_state_str(vrrp->wantstate));
+	conf_write(fp, "   Number of config faults = %u", vrrp->num_config_faults);
 	if (fp) {
 		conf_write(fp, "   Number of interface and track script faults = %u", vrrp->num_script_if_fault);
 #ifdef _HAVE_VRRP_VMAC_

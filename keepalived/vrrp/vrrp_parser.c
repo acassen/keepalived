@@ -446,9 +446,8 @@ vrrp_end_handler(void)
 		vrrp->ttl = 0;
 	}
 
-	if (!vrrp->ifp) {
+	if (!vrrp->ifp)
 		vrrp->linkbeat_use_polling = false;
-	}
 }
 #ifdef _HAVE_VRRP_VMAC_
 /* The following function is copied from kernel net/core/dev.c */
@@ -708,12 +707,28 @@ vrrp_ipvlan_handler(const vector_t *strvec)
 static void
 vrrp_unicast_peer_handler(const vector_t *strvec)
 {
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
+
+	__set_bit(VRRP_FLAG_UNICAST_CONFIGURED, &vrrp->flags);
+
 	alloc_value_block(alloc_vrrp_unicast_peer, strvec);
 }
+
+static void
+vrrp_unicast_fault_no_peer(__attribute__((unused)) const vector_t *strvec)
+{
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
+
+	__set_bit(VRRP_FLAG_UNICAST_CONFIGURED, &vrrp->flags);
+	__set_bit(VRRP_FLAG_UNICAST_FAULT_NO_PEERS, &vrrp->flags);
+}
+
 static void
 vrrp_check_unicast_src_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
+
+	__set_bit(VRRP_FLAG_UNICAST_CONFIGURED, &vrrp->flags);
 
 	vrrp->check_unicast_src = true;
 }
@@ -722,6 +737,8 @@ static void
 vrrp_unicast_chksum_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
+
+	__set_bit(VRRP_FLAG_UNICAST_CONFIGURED, &vrrp->flags);
 
 	if (vector_size(strvec) >= 2) {
 		if (!strcmp(strvec_slot(strvec, 1), "never"))
@@ -892,6 +909,17 @@ vrrp_srcip_handler(const vector_t *strvec)
 		vrrp->saddr_from_config = false;
 	}
 }
+
+static void
+vrrp_unicast_srcip_handler(const vector_t *strvec)
+{
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
+
+	__set_bit(VRRP_FLAG_UNICAST_CONFIGURED, &vrrp->flags);
+
+	vrrp_srcip_handler(strvec);
+}
+
 static void
 vrrp_track_srcip_handler(__attribute__((unused)) const vector_t *strvec)
 {
@@ -2061,6 +2089,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("use_ipvlan", &vrrp_ipvlan_handler);
 #endif
 	install_keyword("unicast_peer", &vrrp_unicast_peer_handler);
+	install_keyword("unicast_fault_no_peer", &vrrp_unicast_fault_no_peer);
 	install_keyword("check_unicast_src", &vrrp_check_unicast_src_handler);
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 	install_keyword("old_unicast_checksum", &vrrp_unicast_chksum_handler);
@@ -2082,7 +2111,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("track_bfd", &vrrp_track_bfd_handler);
 #endif
 	install_keyword("mcast_src_ip", &vrrp_srcip_handler);
-	install_keyword("unicast_src_ip", &vrrp_srcip_handler);
+	install_keyword("unicast_src_ip", &vrrp_unicast_srcip_handler);
 	install_keyword("track_src_ip", &vrrp_track_srcip_handler);
 	install_keyword("virtual_router_id", &vrrp_vrid_handler);
 	install_keyword("unicast_ttl", &vrrp_ttl_handler);
