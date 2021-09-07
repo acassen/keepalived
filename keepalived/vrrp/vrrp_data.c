@@ -453,16 +453,14 @@ free_sock_list(list_head_t *l)
 static void
 dump_sock(FILE *fp, const sock_t *sock)
 {
-	conf_write(fp, "VRRP sockpool: [ifindex(%3u), family(%s), proto(%d), fd(%d,%d)%s%s%s%s]"
+	conf_write(fp, "VRRP sockpool: [ifindex(%3u), family(%s), proto(%d), fd(%d,%d) %sicast, address(%s)]"
 			    , sock->ifp ? sock->ifp->ifindex : 0
 			    , sock->family == AF_INET ? "IPv4" : sock->family == AF_INET6 ? "IPv6" : "unknown"
 			    , sock->proto
 			    , sock->fd_in
 			    , sock->fd_out
-			    , !!sock->unicast_src ? ", unicast" : ""
-			    , sock->unicast_src ? ", address(" : ""
-			    , sock->unicast_src ? inet_sockaddrtos(sock->unicast_src) : ""
-			    , sock->unicast_src ? ")" : ""
+			    , sock->unicast_src ? ", un" : "mult"
+			    , sock->unicast_src ? inet_sockaddrtos(sock->unicast_src) : inet_sockaddrtos(sock->mcast_daddr)
 			    );
 }
 void
@@ -685,6 +683,8 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 						    ? inet_sockaddrtos(&vrrp->saddr)
 						    : "(none)",
 						  __test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) ? " (from configuration)" : "");
+	if (!__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags))
+		conf_write(fp, "   Multicast address %s", inet_sockaddrtos(&vrrp->mcast_daddr));
 	conf_write(fp, "   Gratuitous ARP delay = %u",
 		       vrrp->garp_delay/TIMER_HZ);
 	conf_write(fp, "   Gratuitous ARP repeat = %u", vrrp->garp_rep);

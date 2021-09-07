@@ -426,7 +426,7 @@ already_exist_sock(const list_head_t *l, sa_family_t family, int proto, const in
 #ifdef _HAVE_VRF_
 		   const interface_t *vrf_ifp,
 #endif
-		   const sockaddr_t *unicast_src)
+		   const sockaddr_t *mcast_daddr, const sockaddr_t *unicast_src)
 {
 	sock_t *sock;
 
@@ -438,7 +438,8 @@ already_exist_sock(const list_head_t *l, sa_family_t family, int proto, const in
 		    (sock->vrf_ifp == vrf_ifp)	&&
 #endif
 		    (!unicast_src == !sock->unicast_src) &&
-		    (!unicast_src || !inet_sockaddrcmp(sock->unicast_src, unicast_src)))
+		    ((!unicast_src && !inet_sockaddrcmp(sock->mcast_daddr, mcast_daddr)) ||
+		     (unicast_src && !inet_sockaddrcmp(sock->unicast_src, unicast_src))))
 			return sock;
 	}
 
@@ -446,11 +447,11 @@ already_exist_sock(const list_head_t *l, sa_family_t family, int proto, const in
 }
 
 static sock_t *
-alloc_sock(sa_family_t family, list_head_t *l, int proto, interface_t *ifp,
+alloc_sock(list_head_t *l, sa_family_t family, int proto, interface_t *ifp,
 #ifdef _HAVE_VRF_
 	   const interface_t *vrf_ifp,
 #endif
-	   const sockaddr_t *unicast_src)
+	   const sockaddr_t *mcast_daddr, const sockaddr_t *unicast_src)
 {
 	sock_t *new;
 
@@ -460,6 +461,8 @@ alloc_sock(sa_family_t family, list_head_t *l, int proto, interface_t *ifp,
 	new->proto = proto;
 	if (unicast_src)
 		new->unicast_src = unicast_src;
+	else
+		new->mcast_daddr = mcast_daddr;
 	new->ifp = ifp;
 #ifdef _HAVE_VRF_
 	new->vrf_ifp = vrf_ifp;
@@ -510,12 +513,12 @@ vrrp_create_sockpool(list_head_t *l)
 #ifdef _HAVE_VRF_
 						vrrp->vrf_ifp,
 #endif
-						unicast_src)))
-			sock = alloc_sock(vrrp->family, l, proto, ifp,
+						&vrrp->mcast_daddr, unicast_src)))
+			sock = alloc_sock(l, vrrp->family, proto, ifp,
 #ifdef _HAVE_VRF_
 					  vrrp->vrf_ifp,
 #endif
-					  unicast_src);
+					  &vrrp->mcast_daddr, unicast_src);
 
 		/* Add the vrrp_t indexed by vrid to the socket */
 		rb_insert_sort(&sock->rb_vrid, vrrp, rb_vrid, vrrp_vrid_cmp);
@@ -1062,7 +1065,8 @@ vrrp_dispatcher_read(sock_t *sock)
 		 * will also receive the multicast packets, so also discard them here. */
 		if (sock->family == AF_INET6 && vrrp->multicast_pkt == __test_bit(VRRP_FLAG_UNICAST, &vrrp->flags)) {
 			if (__test_bit(LOG_DETAIL_BIT, &debug))
-				log_message(LOG_INFO, "(%s) discarding %sicast packet on %sicast instance", vrrp->iname, vrrp->multicast_pkt ? "mult" : "un", __test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) ? "un" : "mult");
+				log_message(LOG_INFO, "(%s) discarding %sicast packet on %sicast instance", vrrp->iname,
+						vrrp->multicast_pkt ? "mult" : "un", __test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) ? "un" : "mult");
 			continue;
 		}
 

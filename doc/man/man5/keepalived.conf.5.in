@@ -1696,6 +1696,14 @@ The syntax for vrrp_instance is :
     \fBmcast_src_ip \fR<IPADDR>
     \fBunicast_src_ip \fR<IPADDR>
 
+    # specify an alternative multicast address to use as the destination
+    # of VRRP adverts and for listening for adverts. Note, if you are using
+    # multiple VRRP instances with VMACs and different multicast addresses
+    # and the same VRID, you will have to specify alternative MAC addresses
+    # for at least all but one of the VMACs.
+    # IPv6 multicast addresses must be link-local, i.e. start ffX2:
+    \fBmcast_dst_ip \fR<MULTICAST_IPADDR>
+
     # if the configured src_ip doesn't exist or is removed put the
     # instance into fault state
     \fBtrack_src_ip\fR

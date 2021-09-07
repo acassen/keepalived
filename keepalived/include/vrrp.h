@@ -278,6 +278,7 @@ typedef struct _vrrp_t {
 	bool			multicast_pkt;		/* Last IPv6 packet received was multicast */
 	sockaddr_t		saddr;			/* Src IP address to use in VRRP IP header */
 	sockaddr_t		pkt_saddr;		/* Src IP address received in VRRP IP header */
+	sockaddr_t		mcast_daddr;		/* Multicast destination address */
 	int			rx_ttl_hop_limit;	/* Received TTL/hop limit returned */
 	list_head_t		unicast_peer;		/* unicast_peer_t - peers to send unicast advert to */
 	int			ttl;			/* TTL to send packet with if unicasting */

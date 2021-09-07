@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "202106050001Z"
+     LAST-UPDATED "202109040001Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "202109040001Z"
+     DESCRIPTION "add vrrp multicast address"
      REVISION "202106050001Z"
      DESCRIPTION "add snmp_name for virtual and real servers"
      REVISION "202006120001Z"
@@ -920,7 +922,9 @@ VrrpInstanceEntry ::= SEQUENCE {
     vrrpInstanceVrrpVersion INTEGER,
     vrrpInstanceScriptMstrRxLowerPri DisplayString,
     vrrpInstanceScriptDeleted DisplayString,
-    vrrpInstanceNotifyDeleted INTEGER
+    vrrpInstanceNotifyDeleted INTEGER,
+    vrrpInstanceMulticastAddressType InetAddressType,
+    vrrpInstanceMulticastAddress InetAddress
 }
 
 vrrpInstanceIndex OBJECT-TYPE
@@ -1203,6 +1207,22 @@ vrrpInstanceNotifyDeleted OBJECT-TYPE
     DESCRIPTION
         "Send Deleted rather than Fault notifications if instance is deleted on config reload."
     ::= { vrrpInstanceEntry 33 }
+
+vrrpInstanceMulticastAddressType OBJECT-TYPE
+    SYNTAX InetAddressType
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "A value that represents a type of Internet address."
+    ::= { vrrpInstanceEntry 34 }
+
+vrrpInstanceMulticastAddress OBJECT-TYPE
+    SYNTAX InetAddress
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Multicast address for adverts"
+    ::= { vrrpInstanceEntry 35 }
 
 vrrpTrackedInterfaceTable OBJECT-TYPE
     SYNTAX SEQUENCE OF VrrpTrackedInterfaceEntry
@@ -4885,6 +4905,8 @@ vrrpInstanceGroup OBJECT-GROUP
     vrrpInstanceScriptMstrRxLowerPri,
     vrrpInstanceScriptDeleted,
     vrrpInstanceNotifyDeleted,
+    vrrpInstanceMulticastAddressType,
+    vrrpInstanceMulticastAddress,
     vrrpTrackedInterfaceName,
     vrrpTrackedInterfaceWeight,
     vrrpTrackedInterfaceWgtRev,

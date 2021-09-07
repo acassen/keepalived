@@ -46,6 +46,7 @@ typedef struct _sock {
 	const interface_t	*vrf_ifp;
 #endif
 	const sockaddr_t	*unicast_src;
+	const sockaddr_t	*mcast_daddr;
 	int			fd_in;
 	int			fd_out;
 	int			rx_buf_size;

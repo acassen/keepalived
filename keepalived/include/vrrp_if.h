@@ -45,6 +45,7 @@
 #include "scheduler.h"
 #include "list_head.h"
 #include "timer.h"
+#include "sockaddr.h"
 
 #define LINK_UP   1
 #define LINK_DOWN 0
@@ -254,7 +255,7 @@ extern void free_interface_queue(void);
 extern void free_old_interface_queue(void);
 extern void dump_interface_queue(FILE *, list_head_t *);
 extern void reset_interface_queue(void);
-extern int if_join_vrrp_group(sa_family_t, int *, const interface_t *);
+extern int if_join_vrrp_group(sa_family_t, int *, const interface_t *, const sockaddr_t *);
 extern int if_setsockopt_bindtodevice(int *, const interface_t *);
 extern int if_setsockopt_hdrincl(int *);
 extern int if_setsockopt_ipv6_checksum(int *);

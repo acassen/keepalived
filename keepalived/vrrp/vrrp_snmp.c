@@ -220,6 +220,8 @@ enum snmp_vrrp_magic {
 	VRRP_SNMP_INSTANCE_SCRIPTMASTER_RX_LOWER_PRI,
 	VRRP_SNMP_INSTANCE_SCRIPTDELETED,
 	VRRP_SNMP_INSTANCE_NOTIFY_DELETED,
+	VRRP_SNMP_INSTANCE_MULTICAST_ADDRESSTYPE,
+	VRRP_SNMP_INSTANCE_MULTICAST_ADDRESS,
 	VRRP_SNMP_TRACKEDINTERFACE_NAME,
 	VRRP_SNMP_TRACKEDINTERFACE_WEIGHT,
 	VRRP_SNMP_TRACKEDINTERFACE_WEIGHT_REVERSE,
@@ -2200,6 +2202,18 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_INSTANCE_NOTIFY_DELETED:
 		long_ret.u = rt->notify_deleted ? 1 : 2;
 		return PTR_CAST(u_char, &long_ret);
+	case VRRP_SNMP_INSTANCE_MULTICAST_ADDRESSTYPE:
+		long_ret.u = (rt->mcast_daddr.ss_family == AF_INET6)?2:1;
+		return PTR_CAST(u_char, &long_ret);
+	case VRRP_SNMP_INSTANCE_MULTICAST_ADDRESS:
+		if (rt->mcast_daddr.ss_family == AF_INET6) {
+			*var_len = sizeof PTR_CAST(struct sockaddr_in6, &rt->mcast_daddr)->sin6_addr;
+			return PTR_CAST(u_char, &PTR_CAST(struct sockaddr_in6, &rt->mcast_daddr)->sin6_addr);
+		} else {
+			*var_len = sizeof PTR_CAST(struct sockaddr_in, &rt->mcast_daddr)->sin_addr;
+			return PTR_CAST(u_char, &PTR_CAST(struct sockaddr_in, &rt->mcast_daddr)->sin_addr);
+		}
+		break;
 	default:
 		return NULL;
 	}
@@ -2638,6 +2652,10 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_instance, 3, {3, 1, 32}},
 	{VRRP_SNMP_INSTANCE_NOTIFY_DELETED, ASN_INTEGER, RONLY,
 	 vrrp_snmp_instance, 3, {3, 1, 33}},
+	{VRRP_SNMP_INSTANCE_MULTICAST_ADDRESSTYPE, ASN_INTEGER, RONLY,
+	 vrrp_snmp_instance, 3, {3, 1, 34}},
+	{VRRP_SNMP_INSTANCE_MULTICAST_ADDRESS, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_instance, 3, {3, 1, 35}},
 
 	/* vrrpTrackedInterfaceTable */
 	{VRRP_SNMP_TRACKEDINTERFACE_NAME, ASN_OCTET_STR, RONLY,

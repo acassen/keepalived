@@ -1092,7 +1092,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 		list_for_each_entry(ipaddress, &vrrp->vip, e_list) {
 			if (!vrrp_in_chk_vips(vrrp, ipaddress, vips)) {
 				log_message(LOG_INFO, "(%s) ip address associated with VRID %d"
-						      " not present in MASTER advert : %s"
+						      " not present in MASTER advert: %s"
 						    , vrrp->iname, vrrp->vrid
 						    , inet_ntop(vrrp->family, vrrp->family == AF_INET6 ? &ipaddress->u.sin6_addr : (void *)&ipaddress->u.sin.sin_addr.s_addr,
 						      addr_str, sizeof(addr_str)));
@@ -1188,7 +1188,7 @@ vrrp_build_ip4(vrrp_t *vrrp, char *buffer)
 		ip->daddr = inet_sockaddrip4(&peer->address);
 	}
 	else
-		ip->daddr = global_data->vrrp_mcast_group4.sin_addr.s_addr;
+		ip->daddr = PTR_CAST(struct sockaddr_in, &vrrp->mcast_daddr)->sin_addr.s_addr;
 
 	ip->check = 0;
 }
@@ -1458,10 +1458,10 @@ vrrp_send_pkt(vrrp_t * vrrp, unicast_peer_t *peer)
 		msg.msg_namelen = sizeof(struct sockaddr_in6);
 		vrrp_build_ancillary_data(&msg, cbuf, src, vrrp);
 	} else if (vrrp->family == AF_INET) { /* Multicast sending path */
-		msg.msg_name = &global_data->vrrp_mcast_group4;
+		msg.msg_name = &vrrp->mcast_daddr;
 		msg.msg_namelen = sizeof(struct sockaddr_in);
 	} else if (vrrp->family == AF_INET6) {
-		msg.msg_name = &global_data->vrrp_mcast_group6;
+		msg.msg_name = &vrrp->mcast_daddr;
 		msg.msg_namelen = sizeof(struct sockaddr_in6);
 		vrrp_build_ancillary_data(&msg, cbuf, src, vrrp);
 	}
@@ -2398,7 +2398,7 @@ open_vrrp_read_socket(sa_family_t family, int proto, const interface_t *ifp,
 #ifdef _HAVE_VRF_
 		const interface_t *vrf_ifp,
 #endif
-		const sockaddr_t *unicast_src, int rx_buf_size)
+		const sockaddr_t *mcast_daddr, const sockaddr_t *unicast_src, int rx_buf_size)
 {
 	int fd = -1;
 	int val = rx_buf_size;
@@ -2426,19 +2426,14 @@ open_vrrp_read_socket(sa_family_t family, int proto, const interface_t *ifp,
 
 	if (!unicast_src) {
 		/* Join the VRRP multicast group */
-// TODO - allow different mcast per vrrp instance - VRID  check then needs to include mcast group
-// could have different socket per mcast addr, or not
-// OR just say use different keepalived instances
 		/* coverity[forward_null] - ifp cannot be NULL if not unicast */
-		if_join_vrrp_group(family, &fd, ifp);
+		if_join_vrrp_group(family, &fd, ifp, mcast_daddr);
 
 		/* Binding to the multicast address stops us receiving unicast
 		 * pkts when we are only interested in multicast.
 		 */
-		if (family == AF_INET6)
-			global_data->vrrp_mcast_group6.sin6_scope_id = ifp->ifindex;
-		if ((family == AF_INET && bind(fd, PTR_CAST_CONST(struct sockaddr, &global_data->vrrp_mcast_group4), sizeof(struct sockaddr_in))) ||
-		    (family == AF_INET6 && bind(fd, PTR_CAST_CONST(struct sockaddr, &global_data->vrrp_mcast_group6), sizeof(struct sockaddr_in6))))
+		if ((family == AF_INET && bind(fd, PTR_CAST_CONST(struct sockaddr_in, mcast_daddr), sizeof(struct sockaddr_in))) ||
+		    (family == AF_INET6 && bind(fd, PTR_CAST_CONST(struct sockaddr_in6, mcast_daddr), sizeof(struct sockaddr_in6))))
 			log_message(LOG_INFO, "bind for multicast failed %d - %m", errno);
 	} else {
 #ifdef _HAVE_VRF_
@@ -2531,7 +2526,7 @@ open_sockpool_socket(sock_t *sock)
 #ifdef _HAVE_VRF_
 					    sock->vrf_ifp,
 #endif
-					    unicast_src_p, sock->rx_buf_size);
+					    sock->mcast_daddr, unicast_src_p, sock->rx_buf_size);
 
 	if (sock->fd_in == -2) {
 		rb_for_each_entry(vrrp, &sock->rb_vrid, rb_vrid) {
@@ -2559,6 +2554,7 @@ static vrrp_t * __attribute__ ((pure))
 vrrp_exist(vrrp_t *old_vrrp, list_head_t *l)
 {
 	vrrp_t *vrrp;
+	sockaddr_t *mcast, *mcast_old;
 
 	list_for_each_entry(vrrp, l, e_list) {
 		if (vrrp->vrid != old_vrrp->vrid ||
@@ -2588,6 +2584,17 @@ vrrp_exist(vrrp_t *old_vrrp, list_head_t *l)
 		if (__test_bit(VRRP_VMAC_ADDR_BIT, &vrrp->flags) != __test_bit(VRRP_VMAC_ADDR_BIT, &old_vrrp->flags))
 			return NULL;
 #endif
+
+		/* If multicast addresses are different, then don't match */
+		if (vrrp->family == AF_INET) {
+			mcast = vrrp->mcast_daddr.ss_family == AF_UNSPEC ? PTR_CAST(sockaddr_t, &global_data->vrrp_mcast_group4) : &vrrp->mcast_daddr;
+			mcast_old = old_vrrp->mcast_daddr.ss_family == AF_UNSPEC ? PTR_CAST(sockaddr_t, &global_data->vrrp_mcast_group4) : &old_vrrp->mcast_daddr;
+		} else {
+			mcast = vrrp->mcast_daddr.ss_family == AF_UNSPEC ? PTR_CAST(sockaddr_t, &global_data->vrrp_mcast_group6) : &vrrp->mcast_daddr;
+			mcast_old = old_vrrp->mcast_daddr.ss_family == AF_UNSPEC ? PTR_CAST(sockaddr_t, &global_data->vrrp_mcast_group6) : &old_vrrp->mcast_daddr;
+		}
+		if (memcmp(mcast, mcast_old, vrrp->family == AF_INET ? sizeof (struct sockaddr_in) : sizeof (struct sockaddr_in6)))
+			return NULL;
 
 		return vrrp;
 	}
@@ -3182,6 +3189,17 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 #endif
 
+	/* Set the multicast address if appropriate */
+	if (!__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) && vrrp->mcast_daddr.ss_family == AF_UNSPEC) {
+		if (vrrp->family == AF_INET)
+			*PTR_CAST(struct sockaddr_in, &vrrp->mcast_daddr) = global_data->vrrp_mcast_group4;
+		else
+			*PTR_CAST(struct sockaddr_in6, &vrrp->mcast_daddr) = global_data->vrrp_mcast_group6;
+	} else if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) && vrrp->mcast_daddr.ss_family != AF_UNSPEC) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) multicast destination specified with unicast - ignoring", vrrp->iname);
+		vrrp->mcast_daddr.ss_family = AF_UNSPEC;
+	}
+
 	if (vrrp->garp_lower_prio_rep == PARAMETER_UNSET)
 		vrrp->garp_lower_prio_rep = vrrp->strict_mode ? 0 : global_data->vrrp_garp_lower_prio_rep;
 	else if (vrrp->strict_mode && vrrp->garp_lower_prio_rep) {
@@ -3594,6 +3612,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		add_vrrp_to_interface(vrrp, vrrp->ifp, __test_bit(VRRP_FLAG_DONT_TRACK_PRIMARY, &vrrp->flags) ? VRRP_NOT_TRACK_IF : 0, false, true, TRACK_VRRP);
 	}
 #endif
+
+	/* We need to set the scope_id for link local and node local multicast addresses, but we set it
+	 * for all IPv6 multicast addresses anyway. */
+	if (vrrp->mcast_daddr.ss_family == AF_INET6)
+		PTR_CAST(struct sockaddr_in6, &vrrp->mcast_daddr)->sin6_scope_id = vrrp->ifp->ifindex;
 
 	/* See if we need to enable the firewall */
 //TODO = we have a problem since SNMP may change accept mode
@@ -4238,11 +4261,12 @@ check_vrid_conflicts(void)
 	vrrp_t *vrrp1;
 	void *vrrp_saddr, *vrrp1_saddr;
 	bool had_error = false;
+	sockaddr_t *mcast, *mcast1;
 
 	/* NOTE: The following isn't perfect, since macvlan interfaces may be deleted and
 	 * recreated on a different interface. However, it is checking the current situation. */
 
-	/* Make sure don't have same vrid on same interface with the same address family */
+	/* Make sure don't have same vrid on same interface with the same address family and same multicast address if multicast */
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		/* Check none of the rest of the entries conflict */
 		if (list_is_last(&vrrp->e_list, &vrrp_data->vrrp))
@@ -4304,7 +4328,17 @@ check_vrid_conflicts(void)
 			     ))
 				continue;
 
-			/* Will need to check multicast address matches when allow multicast address per vrrp instance */
+			/* If multicast addresses are different, then no conflict */
+			if (vrrp->family == AF_INET) {
+				mcast = vrrp->mcast_daddr.ss_family == AF_UNSPEC ? PTR_CAST(sockaddr_t, &global_data->vrrp_mcast_group4) : &vrrp->mcast_daddr;
+				mcast1 = vrrp1->mcast_daddr.ss_family == AF_UNSPEC ? PTR_CAST(sockaddr_t, &global_data->vrrp_mcast_group4) : &vrrp1->mcast_daddr;
+			} else {
+				mcast = vrrp->mcast_daddr.ss_family == AF_UNSPEC ? PTR_CAST(sockaddr_t, &global_data->vrrp_mcast_group6) : &vrrp->mcast_daddr;
+				mcast1 = vrrp1->mcast_daddr.ss_family == AF_UNSPEC ? PTR_CAST(sockaddr_t, &global_data->vrrp_mcast_group6) : &vrrp1->mcast_daddr;
+			}
+			if (memcmp(mcast, mcast1, vrrp->family == AF_INET ? sizeof (struct sockaddr_in) : sizeof (struct sockaddr_in6)))
+				continue;
+
 #ifdef _HAVE_VRRP_VMAC_
 			if (global_data->allow_if_changes &&
 			    (VRRP_CONFIGURED_IFP(vrrp)->changeable_type ||

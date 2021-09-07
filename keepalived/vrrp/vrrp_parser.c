@@ -921,6 +921,35 @@ vrrp_unicast_srcip_handler(const vector_t *strvec)
 }
 
 static void
+vrrp_mcast_dstip_handler(const vector_t *strvec)
+{
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
+
+	if (inet_stosockaddr(strvec_slot(strvec, 1), NULL, &vrrp->mcast_daddr)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) malformed"
+				     " mcast dest address %s. Skipping..."
+				   , vrrp->iname, strvec_slot(strvec, 1));
+		return;
+	}
+
+	if (vrrp->family == AF_UNSPEC)
+		vrrp->family = vrrp->mcast_daddr.ss_family;
+	else if (vrrp->mcast_daddr.ss_family != vrrp->family) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) mcast dest address"
+				     " %s MUST match VRRP instance family. Skipping..."
+				   , vrrp->iname, strvec_slot(strvec, 1));
+		vrrp->mcast_daddr.ss_family = AF_UNSPEC;
+	}
+
+	if ((vrrp->mcast_daddr.ss_family == AF_INET && !IN_MULTICAST(htonl(PTR_CAST(struct sockaddr_in, &vrrp->mcast_daddr)->sin_addr.s_addr))) ||
+	    (vrrp->mcast_daddr.ss_family == AF_INET6 && !IN6_IS_ADDR_MC_LINKLOCAL(&PTR_CAST(struct sockaddr_in6, &vrrp->mcast_daddr)->sin6_addr))) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) mcast_dst_ip %s not%s multicast. Skipping..."
+				   , vrrp->iname, strvec_slot(strvec, 1), vrrp->mcast_daddr.ss_family == AF_INET6 ? " link-local" : "");
+		vrrp->mcast_daddr.ss_family = AF_UNSPEC;
+	}
+}
+
+static void
 vrrp_track_srcip_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
@@ -2112,6 +2141,7 @@ init_vrrp_keywords(bool active)
 #endif
 	install_keyword("mcast_src_ip", &vrrp_srcip_handler);
 	install_keyword("unicast_src_ip", &vrrp_unicast_srcip_handler);
+	install_keyword("mcast_dst_ip", &vrrp_mcast_dstip_handler);
 	install_keyword("track_src_ip", &vrrp_track_srcip_handler);
 	install_keyword("virtual_router_id", &vrrp_vrid_handler);
 	install_keyword("unicast_ttl", &vrrp_ttl_handler);

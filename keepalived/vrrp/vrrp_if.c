@@ -925,7 +925,7 @@ init_interface_queue(void)
 }
 
 int
-if_join_vrrp_group(sa_family_t family, int *sd, const interface_t *ifp)
+if_join_vrrp_group(sa_family_t family, int *sd, const interface_t *ifp, const sockaddr_t* mcast_daddr)
 {
 	struct ip_mreqn imr;
 	struct ipv6_mreq imr6;
@@ -979,7 +979,7 @@ if_join_vrrp_group(sa_family_t family, int *sd, const interface_t *ifp)
 
 	if (family == AF_INET) {
 		memset(&imr, 0, sizeof(imr));
-		imr.imr_multiaddr = global_data->vrrp_mcast_group4.sin_addr;
+		imr.imr_multiaddr = PTR_CAST_CONST(struct sockaddr_in, mcast_daddr)->sin_addr;
 
 		/* -> Need to handle multicast convergance after takeover.
 		 * We retry until multicast is available on the interface.
@@ -999,7 +999,7 @@ if_join_vrrp_group(sa_family_t family, int *sd, const interface_t *ifp)
 				 PTR_CAST(char, &imr), (socklen_t)sizeof(struct ip_mreqn));
 	} else {
 		memset(&imr6, 0, sizeof(imr6));
-		imr6.ipv6mr_multiaddr = global_data->vrrp_mcast_group6.sin6_addr;
+		imr6.ipv6mr_multiaddr = PTR_CAST_CONST(struct sockaddr_in6, mcast_daddr)->sin6_addr;
 #if defined _HAVE_VRRP_VMAC_
 		/* coverity[dead_error_condition] */
 		if (send_on_base_if) {
@@ -1015,8 +1015,8 @@ if_join_vrrp_group(sa_family_t family, int *sd, const interface_t *ifp)
 	}
 
 	if (ret < 0) {
-		log_message(LOG_INFO, "(%s) cant do IP%s_ADD_MEMBERSHIP errno=%s (%d)",
-			    ifp->ifname, (family == AF_INET) ? "" : "V6", strerror(errno), errno);
+		log_message(LOG_INFO, "(%s) cant do IP%s_ADD_MEMBERSHIP %s errno=%s (%d)",
+			    ifp->ifname, (family == AF_INET) ? "" : "v6", inet_sockaddrtos(mcast_daddr), strerror(errno), errno);
 		close(*sd);
 		*sd = -1;
 	}
@@ -1026,7 +1026,7 @@ if_join_vrrp_group(sa_family_t family, int *sd, const interface_t *ifp)
 
 #ifdef _INCLUDE_UNUSED_CODE_
 int
-if_leave_vrrp_group(sa_family_t family, int sd, const interface_t *ifp)
+if_leave_vrrp_group(sa_family_t family, int sd, const interface_t *ifp, const sockaddr_t *mcast_addr)
 {
 	struct ip_mreqn imr;
 	struct ipv6_mreq imr6;
@@ -1039,7 +1039,7 @@ if_leave_vrrp_group(sa_family_t family, int sd, const interface_t *ifp)
 	/* Leaving the VRRP multicast group */
 	if (family == AF_INET) {
 		memset(&imr, 0, sizeof(imr));
-		imr.imr_multiaddr = global_data->vrrp_mcast_group4.sin_addr;
+		imr.imr_multiaddr = mcast_daddr;
 #if defined _HAVE_VRRP_VMAC_ && defined _WITH_NFTABLES_ && !HAVE_DECL_NFTA_DUP_MAX
 		/* See description in if_join_vrrp_group */
 		if (IS_MAC_IP_VLAN(ifp) &&
@@ -1055,7 +1055,7 @@ if_leave_vrrp_group(sa_family_t family, int sd, const interface_t *ifp)
 #endif
 	} else {
 		memset(&imr6, 0, sizeof(imr6));
-		imr6.ipv6mr_multiaddr = global_data->vrrp_mcast_group6.sin6_addr;
+		imr6.ipv6mr_multiaddr = mcast_daddr;
 #if defined _HAVE_VRRP_VMAC_ && defined _WITH_NFTABLES_ && !HAVE_DECL_NFTA_DUP_MAX
 		/* See description in if_join_vrrp_group */
 		if (IS_MAC_IP_VLAN(ifp) &&
@@ -1073,8 +1073,8 @@ if_leave_vrrp_group(sa_family_t family, int sd, const interface_t *ifp)
 
 	if (ret < 0) {
 		/* coverity[deadcode] */
-		log_message(LOG_INFO, "(%s) cant do IP%s_DROP_MEMBERSHIP errno=%s (%d)",
-			    ifp->ifname, (family == AF_INET) ? "" : "V6", strerror(errno), errno);
+		log_message(LOG_INFO, "(%s) cant do IP%s_DROP_MEMBERSHIP %s errno=%s (%d)",
+			    ifp->ifname, (family == AF_INET) ? "" : "v6", inet_sockaddrtos(mcast_daddr), strerror(errno), errno);
 		return -1;
 	}
 
