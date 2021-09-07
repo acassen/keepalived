@@ -2985,7 +2985,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		vrrp->vmac_flags = 0;
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s): vmacs are only supported on Ethernet type interfaces"
 							, vrrp->iname);
-		vrrp->num_script_if_fault++;	/* Stop the vrrp instance running */
+		vrrp->num_config_faults++;	/* Stop the vrrp instance running */
 	}
 #endif
 
@@ -2994,7 +2994,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) interface %s does not support multicast,"
 							  " specify unicast peers - disabling"
 							, vrrp->iname, vrrp->ifp->ifname);
-		vrrp->num_script_if_fault++;	/* Stop the vrrp instance running */
+		vrrp->num_config_faults++;	/* Stop the vrrp instance running */
 	}
 
 	/* Warn if ARP not supported on interface */
@@ -3466,14 +3466,14 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) IPv4 ipvlan requires a source ip address"
 								  " to be configured. setting instance to fault state"
 								, vrrp->iname);
-			vrrp->num_script_if_fault++;
+			vrrp->num_config_faults++;
 		} else if (vrrp->ipvlan_addr) {
 			if (vrrp->family != vrrp->ipvlan_addr->ifa.ifa_family) {
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) IPv4 ipvlan address family"
 									  " does not match instance."
 									  " setting instance to fault state"
 									, vrrp->iname);
-				vrrp->num_script_if_fault++;
+				vrrp->num_config_faults++;
 			} else
 				vrrp->ipvlan_addr->ifp = vrrp->ifp;
 		}
@@ -4287,10 +4287,10 @@ check_vrid_conflicts(void)
 			    (VRRP_CONFIGURED_IFP(vrrp)->changeable_type ||
 			     VRRP_CONFIGURED_IFP(vrrp1)->changeable_type)) {
 				if (VRRP_CONFIGURED_IFP(vrrp)->changeable_type) {
-					vrrp->num_script_if_fault++;
+					vrrp->num_config_faults++;
 					vrrp->duplicate_vrid_fault = true;
 				} else {
-					vrrp1->num_script_if_fault++;
+					vrrp1->num_config_faults++;
 					vrrp1->duplicate_vrid_fault = true;
 				}
 				log_message(LOG_INFO, "(%s) - warning, VRID %d for IPv%d"
@@ -4360,7 +4360,7 @@ check_vmac_conflicts(void)
 					list_for_each_entry(vip, vip_list, e_list) {
 						if (vrrp->ifp == vip->ifp) {
 							report_config_error(CONFIG_GENERAL_ERROR, "(%s) VIP/eVIP %s uses same VMAC as VRRP instance %s, disabling %s", vrrp1->iname, ipaddresstos(NULL, vip), vrrp->iname, vrrp->iname);
-							vrrp->num_script_if_fault++;
+							vrrp->num_config_faults++;
 						}
 					}
 				}
@@ -4387,7 +4387,7 @@ check_vmac_conflicts(void)
 
 								ipaddresstos(vip1_str, vip1);
 								report_config_error(CONFIG_GENERAL_ERROR, "(%s) VIP/eVIP %s uses same VMAC as VRRP instance %s VIP/eVIP %s, disabling %s", vrrp1->iname, ipaddresstos(NULL, vip), vrrp->iname, vip1_str, vrrp->iname);
-								vrrp->num_script_if_fault++;
+								vrrp->num_config_faults++;
 							}
 						}
 					}
@@ -4506,16 +4506,16 @@ vrrp_complete_init(void)
 			max_mtu_len = vrrp->ifp->mtu;
 	}
 
-	/* If we add VMAC interfaces, we read netlink messages, which
-	 * may include link down/link up, and these will alter num_script_if_fault
-	 * but that is initialised in initialise_trackiing_priorities() called below.
-	 * We therefore need to clear num_script_if_fault here. */
-	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list)
-		vrrp->num_script_if_fault = 0;
-
 #ifdef _HAVE_VRRP_VMAC_
 	check_vmac_conflicts();
 #endif
+
+	/* If we add VMAC interfaces, we read netlink messages, which
+	 * may include link down/link up, and these will alter num_script_if_fault
+	 * but that is initialised in initialise_tracking_priorities() called below.
+	 * We therefore need to clear num_script_if_fault here. */
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list)
+		vrrp->num_script_if_fault = vrrp->num_config_faults;
 
 	/* Remove any VIPs from the list of default addresses for interfaces */
 	if (!reload)

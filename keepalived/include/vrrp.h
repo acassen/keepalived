@@ -246,6 +246,7 @@ typedef struct _vrrp_t {
 #ifdef _WITH_BFD_
 	list_head_t		track_bfd;		/* tracked_bfd_t - BFD instance state we monitor */
 #endif
+	unsigned		num_config_faults;	/* Number of configuration errors */
 	unsigned		num_script_if_fault;	/* Number of scripts and interfaces in fault state */
 	unsigned		num_script_init;	/* Number of scripts in init state */
 	bool			notifies_sent;		/* Set when initial notifies have been sent */
