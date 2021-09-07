@@ -1450,8 +1450,8 @@ cleanup_lost_interface(interface_t *ifp)
 		if (global_data->allow_if_changes &&
 		    ifp->changeable_type &&
 		    vrrp->configured_ifp == ifp &&
-		    vrrp->duplicate_vrid_fault) {
-			vrrp->duplicate_vrid_fault = false;
+		    __test_bit(VRRP_FLAG_DUPLICATE_VRID_FAULT, &vrrp->flags)) {
+			__clear_bit(VRRP_FLAG_DUPLICATE_VRID_FAULT, &vrrp->flags);
 			vrrp->num_script_if_fault--;
 		}
 #endif
@@ -1638,7 +1638,7 @@ update_added_interface(interface_t *ifp)
 				    vrrp->family == vrrp1->family &&
 				    vrrp->vrid == vrrp1->vrid) {
 					vrrp->num_script_if_fault++;
-					vrrp->duplicate_vrid_fault = true;
+					__set_bit(VRRP_FLAG_DUPLICATE_VRID_FAULT, &vrrp->flags);
 					log_message(LOG_INFO, "VRID conflict between %s and %s IPv%d vrid %d",
 							vrrp->iname, vrrp1->iname, vrrp->family == AF_INET ? 4 : 6, vrrp->vrid);
 					break;

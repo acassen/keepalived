@@ -618,7 +618,7 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 	if (fp) {
 		conf_write(fp, "   Number of interface and track script faults = %u", vrrp->num_script_if_fault);
 #ifdef _HAVE_VRRP_VMAC_
-		if (vrrp->duplicate_vrid_fault)
+		if (__test_bit(VRRP_FLAG_DUPLICATE_VRID_FAULT, &vrrp->flags))
 			conf_write(fp, "   Duplicate VRID");
 #endif
 		conf_write(fp, "   Number of track scripts init = %u", vrrp->num_script_init);

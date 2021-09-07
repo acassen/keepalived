@@ -4310,10 +4310,10 @@ check_vrid_conflicts(void)
 			     VRRP_CONFIGURED_IFP(vrrp1)->changeable_type)) {
 				if (VRRP_CONFIGURED_IFP(vrrp)->changeable_type) {
 					vrrp->num_config_faults++;
-					vrrp->duplicate_vrid_fault = true;
+					__set_bit(VRRP_FLAG_DUPLICATE_VRID_FAULT, &vrrp->flags);
 				} else {
 					vrrp1->num_config_faults++;
-					vrrp1->duplicate_vrid_fault = true;
+					__set_bit(VRRP_FLAG_DUPLICATE_VRID_FAULT, &vrrp1->flags);
 				}
 				log_message(LOG_INFO, "(%s) - warning, VRID %d for IPv%d"
 						      " is currently duplicated on %s"
