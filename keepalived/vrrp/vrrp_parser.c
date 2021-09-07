@@ -1420,7 +1420,7 @@ vrrp_promote_secondaries_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 
-	vrrp->promote_secondaries = true;
+	__set_bit(VRRP_FLAG_PROMOTE_SECONDARIES, &vrrp->flags);
 }
 static void
 vrrp_vroutes_handler(const vector_t *strvec)

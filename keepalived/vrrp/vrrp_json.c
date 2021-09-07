@@ -174,7 +174,7 @@ vrrp_json_data_dump(json_writer_t *wr, vrrp_t *vrrp)
 	jsonw_uint_field(wr, "base_priority", vrrp->base_priority);
 	jsonw_uint_field(wr, "effective_priority", vrrp->effective_priority);
 	jsonw_bool_field(wr, "vipset", vrrp->vipset);
-	jsonw_bool_field(wr, "promote_secondaries", vrrp->promote_secondaries);
+	jsonw_bool_field(wr, "promote_secondaries", __test_bit(VRRP_FLAG_PROMOTE_SECONDARIES, &vrrp->flags));
 	jsonw_float_field(wr, "adver_int", vrrp->adver_int / TIMER_HZ_DOUBLE);
 	jsonw_float_field(wr, "master_adver_int", vrrp->master_adver_int / TIMER_HZ_DOUBLE);
 #ifdef _WITH_FIREWALL_

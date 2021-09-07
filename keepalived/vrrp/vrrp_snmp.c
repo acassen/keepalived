@@ -2189,7 +2189,7 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 #endif
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_INSTANCE_PROMOTE_SECONDARIES:
-		long_ret.u = rt->promote_secondaries ? 1:2;
+		long_ret.u = __test_bit(VRRP_FLAG_PROMOTE_SECONDARIES, &rt->flags) ? 1:2;
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_INSTANCE_USE_LINKBEAT:
 		long_ret.u = __test_bit(VRRP_FLAG_LINKBEAT_USE_POLLING, &rt->flags) ? 1:2;

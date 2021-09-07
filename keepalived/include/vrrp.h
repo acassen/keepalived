@@ -60,6 +60,7 @@ enum vrrp_flags_bits {
 	VRRP_FLAG_SADDR_FROM_CONFIG,		/* Set if the source address is from configuration */
 	VRRP_FLAG_TRACK_SADDR,			/* Fault state if configured saddr is missing */
 	VRRP_FLAG_CHECK_UNICAST_SRC,		/* It set, check the source address of a unicast advert */
+	VRRP_FLAG_PROMOTE_SECONDARIES,		/* Set promote_secondaries option on interface */
 #ifdef _HAVE_VRRP_VMAC_
 	VRRP_VMAC_BIT,
 	VRRP_VMAC_UP_BIT,
@@ -314,7 +315,6 @@ typedef struct _vrrp_t {
 							 * Those VIPs will not be presents into the
 							 * VRRP adverts
 							 */
-	bool			promote_secondaries;	/* Set promote_secondaries option on interface */
 	bool			evip_other_family;	/* There are eVIPs of the different address family from the vrrp family */
 	list_head_t		vroutes;		/* ip_route_t - list of virtual routes */
 	list_head_t		vrules;			/* ip_rule_t - list of virtual rules */

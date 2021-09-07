@@ -3458,7 +3458,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			}
 		}
 
-		if (vrrp->promote_secondaries &&
+		if (__test_bit(VRRP_FLAG_PROMOTE_SECONDARIES, &vrrp->flags) &&
 		    (__test_bit(VRRP_VMAC_BIT, &vrrp->flags)
 #ifdef _HAVE_VRRP_IPVLAN_
 		    || __test_bit(VRRP_IPVLAN_BIT, &vrrp->flags)
@@ -3467,7 +3467,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) promote_secondaries is automatically"
 								  " set for vmacs - ignoring"
 								, vrrp->iname);
-			vrrp->promote_secondaries = false;
+			__clear_bit(VRRP_FLAG_PROMOTE_SECONDARIES, &vrrp->flags);
 		}
 
 		/* The VMAC uses the same up/down debounce delays as its parent interface */
@@ -3909,7 +3909,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 		/* See if we need to set promote_secondaries */
 		if (vrrp->ifp &&
-		    vrrp->promote_secondaries &&
+		    __test_bit(VRRP_FLAG_PROMOTE_SECONDARIES, &vrrp->flags) &&
 		    !vrrp->ifp->promote_secondaries &&
 		    !__test_bit(CONFIG_TEST_BIT, &debug))
 			set_promote_secondaries(vrrp->ifp);
