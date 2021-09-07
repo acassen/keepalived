@@ -1,4 +1,4 @@
-keepalived used kernel features that have been introduced over time,
+keepalived uses kernel features that have been introduced over time,
 but in order to still allow keepalived to be built and run on older
 kernel versions it has many checks of what kernel features are available.
 
@@ -13,6 +13,9 @@ At the end of this file is a list of kernel configure options that affect
 functionality that keepalived uses.
 
 =============================================================================
+
+The oldest kernel version currently supported is Linux 3.10
+-----------------------------------------------------------
 
 dnl ----[Check have IPV4_DEVCONF defines - since Linux 3.11]----
 
@@ -114,6 +117,8 @@ dnl --FRA_SPORT_RANGE		dnl -- Linux 4.17
 dnl --FRA_DPORT_RANGE		dnl -- Linux 4.17
 
 ./lib/rbtree.c:/* This is updated to Linux v4.18.10 lib/rbtree.c
+
+IPV6_MULTICAST_ALL since Linux v4.20
 
 dnl -- Linux/errqueue.h need sys/time.h before Linux < v5.1
 

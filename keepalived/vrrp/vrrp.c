@@ -2352,9 +2352,13 @@ open_vrrp_send_socket(sa_family_t family, int proto, const interface_t *ifp,
 	if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &val, len))
 		log_message(LOG_INFO, "vrrp set send socket buffer size error %d", errno);
 
+#if !HAVE_DECL_IPV6_MULTICAST_ALL
+	if (family == AF_INET)
+#endif
+		if_setsockopt_mcast_all(family, &fd);
+
 	if (family == AF_INET) {
 		/* Set v4 related */
-		if_setsockopt_mcast_all(AF_INET, &fd);
 		if_setsockopt_hdrincl(&fd);
 	} else if (family == AF_INET6) {
 		/* Set v6 related */
@@ -2415,7 +2419,9 @@ open_vrrp_read_socket(sa_family_t family, int proto, const interface_t *ifp,
 	}
 
 	/* Ensure no unwanted multicast packets are queued to this interface */
+#if !HAVE_DECL_IPV6_MULTICAST_ALL
 	if (family == AF_INET)
+#endif
 		if_setsockopt_mcast_all(family, &fd);
 
 	if (!unicast_src) {

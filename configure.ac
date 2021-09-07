@@ -1126,6 +1126,10 @@ AC_CHECK_DECLS([ETHERTYPE_IPV6], [],
   ],
   [[#include <net/ethernet.h>]])
 
+# IPV6_MULTICAST_ALL - added Linux v4.20
+AC_CHECK_DECLS([IPV6_MULTICAST_ALL], add_system_opt([IPV6_MULTICAST_ALL]), [],
+  [[#include <linux/in6.h>]])
+
 dnl ----[ Checks for openssl ]----
 # check for openssl headers
 NEED_EVP=no

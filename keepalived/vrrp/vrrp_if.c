@@ -32,6 +32,7 @@
 #include <inttypes.h>
 #include <linux/ip.h>
 #include <netinet/in.h>
+#include <linux/in6.h>
 #include <stdio.h>
 #include <linux/mii.h>
 #if defined _HAVE_NETINET_LINUX_IF_ETHER_H_COLLISION_ && \
@@ -1152,20 +1153,25 @@ int
 if_setsockopt_mcast_all(sa_family_t family, int *sd)
 {
 	int ret;
-	unsigned char no = 0;
+	int no = 0;
 
 	if (*sd < 0)
 		return -1;
 
-	if (family == AF_INET6)
-		return *sd;
-
 	/* Don't accept multicast packets we haven't requested */
-	ret = setsockopt(*sd, IPPROTO_IP, IP_MULTICAST_ALL, &no, sizeof(no));
+	if (family == AF_INET)
+		ret = setsockopt(*sd, IPPROTO_IP, IP_MULTICAST_ALL, &no, sizeof(no));
+	else {
+#if HAVE_DECL_IPV6_MULTICAST_ALL
+		ret = setsockopt(*sd, IPPROTO_IPV6, IPV6_MULTICAST_ALL, &no, sizeof(no));
+#else
+		return *sd;
+#endif
+	}
 
 	if (ret < 0) {
-		log_message(LOG_INFO, "cant set IP_MULTICAST_ALL IP option. errno=%d (%m)",
-			    errno);
+		log_message(LOG_INFO, "cant set IP%s_MULTICAST_ALL IP option. errno=%d (%m)",
+			    family == AF_INET ? "" : "V6", errno);
 		close(*sd);
 		*sd = -1;
 	}
