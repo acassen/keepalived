@@ -31,7 +31,6 @@
 #endif
 
 #include "bitops.h"
-#include "utils.h"
 
 #define	MAX_LOG_MSG	255
 

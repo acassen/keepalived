@@ -38,6 +38,9 @@
 #include "vector.h"
 #include "warnings.h"
 #include "sockaddr.h"
+#if defined _EINTR_DEBUG_
+#include "logger.h"
+#endif
 
 #define STR(x)  #x
 
@@ -87,7 +90,7 @@ extern bool do_eintr_debug;
  * If check_EINTR is defined as false, gcc will optimise out the
  * test, and remove any surrounding while loop such as:
  * while (recvmsg(...) == -1 && check_EINTR(errno)); */
-#if defined DEBUG_EINTR
+#if defined _EINTR_DEBUG_
 static inline bool
 check_EINTR(int xx)
 {
