@@ -1599,7 +1599,7 @@ vrrp_send_vmac_update(vrrp_t *vrrp)
 	for (vip_list = &vrrp->vip; vip_list; vip_list = vip_list == &vrrp->vip ? &vrrp->evip : NULL) {
 		list_for_each_entry(ip_addr, vip_list, e_list) {
 			/* Don't send for non VMAC i/fs unless specified */
-			if (!ip_addr->ifp->is_ours && !vrrp->vmac_garp_all_if)
+			if (!ip_addr->ifp->is_ours && !__test_bit(VRRP_FLAG_VMAC_GARP_ALL_IF, &vrrp->flags))
 				continue;
 
 			/* Don't send for our own interface unless xmit_base */
@@ -3765,13 +3765,14 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #ifdef _HAVE_VRRP_VMAC_
 	if (vrrp->vmac_garp_intvl.tv_sec == TIME_T_PARAMETER_UNSET) {
 		vrrp->vmac_garp_intvl.tv_sec = global_data->vrrp_vmac_garp_intvl;
-		vrrp->vmac_garp_all_if = global_data->vrrp_vmac_garp_all_if;
+		if (global_data->vrrp_vmac_garp_all_if)
+			__set_bit(VRRP_FLAG_VMAC_GARP_ALL_IF, &vrrp->flags);
 	}
 
 	/* If there are no extra interfaces, disable vmac_garp_intvl */
 	if (vrrp->vmac_garp_intvl.tv_sec) {
 		if ((!use_extra_if && !use_extra_vmac) ||
-		    (!use_extra_vmac && !vrrp->vmac_garp_all_if))
+		    (!use_extra_vmac && !__test_bit(VRRP_FLAG_VMAC_GARP_ALL_IF, &vrrp->flags)))
 			vrrp->vmac_garp_intvl.tv_sec = 0;
 	}
 #endif

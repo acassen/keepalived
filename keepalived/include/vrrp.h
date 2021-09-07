@@ -71,6 +71,7 @@ enum vrrp_flags_bits {
 	VRRP_VMAC_MAC_SPECIFIED,
 	VRRP_VMAC_MAC_USE_VRID,
 	VRRP_FLAG_DUPLICATE_VRID_FAULT,		/* Set if we have a fault due to duplicate VRID */
+	VRRP_FLAG_VMAC_GARP_ALL_IF,		/* Send GARPs on all i/fs, not just VMACs */
 #endif
 };
 
@@ -299,7 +300,6 @@ typedef struct _vrrp_t {
 	unsigned		higher_prio_send_advert; /* Send advert after higher prio advert received */
 #ifdef _HAVE_VRRP_VMAC_
 	timeval_t		vmac_garp_intvl;	/* Interval between GARPs on each VMAC */
-	bool			vmac_garp_all_if;	/* Send GARPs on all i/fs, not just VMACs */
 	timeval_t		vmac_garp_timer;	/* Next scheduled GARP for each VMAC */
 #endif
 	uint8_t			vrid;			/* virtual id. from 1(!) to 255 */

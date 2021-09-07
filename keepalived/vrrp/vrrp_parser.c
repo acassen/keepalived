@@ -1305,7 +1305,7 @@ vrrp_garp_extra_if_handler(const vector_t *strvec)
 
 	for (index = 1; index < vector_size(strvec); index++) {
 		if (!strcmp(strvec_slot(strvec, index), "all"))
-			vrrp->vmac_garp_all_if = true;
+			__set_bit(VRRP_FLAG_VMAC_GARP_ALL_IF, &vrrp->flags);
 		else if (!read_unsigned_strvec(strvec, index, &delay, 0, 86400, true)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s): %s '%s' invalid - ignoring", vrrp->iname, cmd_name, strvec_slot(strvec, index));
 			return;

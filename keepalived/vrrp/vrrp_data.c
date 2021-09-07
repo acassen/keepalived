@@ -696,7 +696,7 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 	conf_write(fp, "   Down timer adverts = %u", vrrp->down_timer_adverts);
 #ifdef _HAVE_VRRP_VMAC_
 	if (vrrp->vmac_garp_intvl.tv_sec) {
-		conf_write(fp, "   Gratuitous ARP for each secondary %s = %ld", vrrp->vmac_garp_all_if ? "i/f" : "VMAC", vrrp->vmac_garp_intvl.tv_sec);
+		conf_write(fp, "   Gratuitous ARP for each secondary %s = %ld", __test_bit(VRRP_FLAG_VMAC_GARP_ALL_IF, &vrrp->flags) ? "i/f" : "VMAC", vrrp->vmac_garp_intvl.tv_sec);
 		ctime_r(&vrrp->vmac_garp_timer.tv_sec, time_str);
 		conf_write(fp, "   Next gratuitous ARP for such secondary = %ld.%6.6ld (%.24s.%6.6ld)", vrrp->vmac_garp_timer.tv_sec, vrrp->vmac_garp_timer.tv_usec, time_str, vrrp->vmac_garp_timer.tv_usec);
 	}
