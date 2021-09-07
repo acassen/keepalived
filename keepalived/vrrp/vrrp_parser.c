@@ -447,7 +447,7 @@ vrrp_end_handler(void)
 	}
 
 	if (!vrrp->ifp)
-		vrrp->linkbeat_use_polling = false;
+		__clear_bit(VRRP_FLAG_LINKBEAT_USE_POLLING, &vrrp->flags);
 }
 #ifdef _HAVE_VRRP_VMAC_
 /* The following function is copied from kernel net/core/dev.c */
@@ -845,7 +845,7 @@ vrrp_linkbeat_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 
-	vrrp->linkbeat_use_polling = true;
+	__set_bit(VRRP_FLAG_LINKBEAT_USE_POLLING, &vrrp->flags);
 	report_config_error(CONFIG_GENERAL_ERROR, "(%s) 'linkbeat_use_polling' in vrrp instance deprecated - use linkbeat_interfaces block", vrrp->iname);
 }
 #endif

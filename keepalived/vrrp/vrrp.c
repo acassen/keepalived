@@ -3283,7 +3283,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #ifdef _WITH_LINKBEAT_
 	/* Set linkbeat polling on interface if wanted */
 	if (vrrp->ifp &&
-	    (vrrp->linkbeat_use_polling || global_data->linkbeat_use_polling))
+	    (__test_bit(VRRP_FLAG_LINKBEAT_USE_POLLING, &vrrp->flags) || global_data->linkbeat_use_polling))
 		vrrp->ifp->linkbeat_use_polling = true;
 #endif
 
