@@ -488,7 +488,7 @@ vrrp_create_sockpool(list_head_t *l)
 	struct sockaddr_storage *unicast_src;
 
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
-		if (list_empty(&vrrp->unicast_peer))
+		if (!__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags))
 			unicast_src = NULL;
 		else
 			unicast_src = &vrrp->saddr;
@@ -712,7 +712,7 @@ try_up_instance(vrrp_t *vrrp, bool leaving_init)
 	 * and we respond. If we don't do this, we can time out and transition to master
 	 * before the master renews its ARP entry, since the master cannot send us adverts
 	 * until it has done so. */
-	if (!list_empty(&vrrp->unicast_peer) &&
+	if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) &&
 	    vrrp->ifp &&
 	    vrrp->saddr.ss_family != AF_UNSPEC) {
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
@@ -1060,9 +1060,9 @@ vrrp_dispatcher_read(sock_t *sock)
 		 * so just discard them here.
 		 * For unicast sockets, if any other instance on the same interface is using multicast we
 		 * will also receive the multicast packets, so also discard them here. */
-		if (sock->family == AF_INET6 && vrrp->multicast_pkt != list_empty(&vrrp->unicast_peer)) {
+		if (sock->family == AF_INET6 && vrrp->multicast_pkt == __test_bit(VRRP_FLAG_UNICAST, &vrrp->flags)) {
 			if (__test_bit(LOG_DETAIL_BIT, &debug))
-				log_message(LOG_INFO, "(%s) discarding %sicast packet on %sicast instance", vrrp->iname, vrrp->multicast_pkt ? "mult" : "un", list_empty(&vrrp->unicast_peer) ? "mult" : "un");
+				log_message(LOG_INFO, "(%s) discarding %sicast packet on %sicast instance", vrrp->iname, vrrp->multicast_pkt ? "mult" : "un", __test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) ? "un" : "mult");
 			continue;
 		}
 

@@ -757,7 +757,7 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 		conf_write(fp, "   Virtual IP Excluded :");
 		dump_ipaddress_list(fp, &vrrp->evip);
 	}
-	if (!list_empty(&vrrp->unicast_peer)) {
+	if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags)) {
 		if (vrrp->ttl != -1)
 			conf_write(fp, "   Unicast TTL = %d", vrrp->ttl);
 		conf_write(fp, "   Check unicast src : %s", vrrp->check_unicast_src ? "yes" : "no");

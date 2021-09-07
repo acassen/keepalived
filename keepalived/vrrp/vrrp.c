@@ -384,7 +384,7 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage *addr)
 
 #ifdef _WITH_VRRP_AUTH_
 	/* We will need to be called again if there is more than one unicast peer, so don't calculate checksums */
-	if (!list_empty(&vrrp->unicast_peer))
+	if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags))
 		peer = list_first_entry(&vrrp->unicast_peer, unicast_peer_t, e_list);
 	final_update = (!peer || list_is_last(&peer->e_list, &vrrp->unicast_peer) || addr);
 #endif
@@ -485,7 +485,7 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage *addr)
 				/* zero the ip mutable fields */
 				iph.tos = 0;
 				iph.frag_off = 0;
-				if (!list_empty(&vrrp->unicast_peer))
+				if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags))
 					iph.ttl = 0;
 				/* Compute the ICV & trunc the digest to 96bits
 				   => No padding needed.
@@ -554,7 +554,7 @@ vrrp_in_chk_ipsecah(vrrp_t *vrrp, const struct iphdr *ip, const ipsec_ah_t *ah, 
 	ip_tmp->tos = 0;
 	ip_tmp->frag_off = 0;
 	ip_tmp->check = 0;
-	if (!list_empty(&vrrp->unicast_peer))
+	if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags))
 		ip_tmp->ttl = 0;
 	memset(ah_tmp->auth_data, 0, sizeof (ah_tmp->auth_data));
 	memset(digest, 0, MD5_DIGEST_LENGTH);
@@ -846,7 +846,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 	}
 
 	/* MUST verify that the IPv4 TTL/IPv6 HL is 255 (but not if unicast) */
-	if (list_empty(&vrrp->unicast_peer) &&
+	if (!__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) &&
 	    vrrp->rx_ttl_hop_limit != -1 && vrrp->rx_ttl_hop_limit != VRRP_IP_TTL) {
 		log_message(LOG_INFO, "(%s) invalid TTL/HL. Received %d and expect %d",
 			vrrp->iname, vrrp->rx_ttl_hop_limit, VRRP_IP_TTL);
@@ -997,7 +997,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 			if ((csum_calc = in_csum(PTR_CAST_CONST(uint16_t, hd), vrrppkt_len, acc_csum, &acc_csum))) {
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 				chksum_error = true;
-				if (!list_empty(&vrrp->unicast_peer) &&
+				if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) &&
 				    vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_NONE &&
 				    ipv4_phdr.dst != global_data->vrrp_mcast_group4.sin_addr.s_addr) {
 					ipv4_phdr.dst = global_data->vrrp_mcast_group4.sin_addr.s_addr;
@@ -1059,15 +1059,15 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 	/* check that destination address is multicast if don't have any unicast peers
 	 * and vice versa */
 	if (((vrrp->family == AF_INET && IN_MULTICAST(ntohl(ip->daddr))) ||
-	     (vrrp->family == AF_INET6 && vrrp->multicast_pkt)) != list_empty(&vrrp->unicast_peer)) {
+	     (vrrp->family == AF_INET6 && vrrp->multicast_pkt)) == __test_bit(VRRP_FLAG_UNICAST, &vrrp->flags)) {
 		/* So far as I can see, with IPv6 if multicasts are enabled on an interface, we will receive them
 		 * on a socket even if we haven't registered the multicast address on the socket.
 		 * If anyone know how to stop receiving them, please raise a github issue with the details.
 		 */
 		log_message(LOG_INFO, "(%s) Expected %sicast packet but received %sicast packet",
 				vrrp->iname,
-				list_empty(&vrrp->unicast_peer) ? "mult" : "un",
-				list_empty(&vrrp->unicast_peer) ? "un" : "mult");
+				__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) ? "un" : "mult",
+				__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) ? "mult" : "un");
 		++vrrp->stats->addr_list_err;
 		return VRRP_PACKET_KO;
 	}
@@ -1102,7 +1102,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 		}
 
 		/* check a unicast source address is in the unicast_peer list */
-		if (!list_empty(&vrrp->unicast_peer) &&
+		if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) &&
 		    (global_data->vrrp_check_unicast_src ||
 		     vrrp->check_unicast_src)) {
 			struct in_addr *saddr4 = NULL;	/* Avoid compiler warnings */
@@ -1183,7 +1183,7 @@ vrrp_build_ip4(vrrp_t *vrrp, char *buffer)
 	ip->saddr = VRRP_PKT_SADDR(vrrp);
 
 	/* If using unicast peers, pick the first one */
-	if (!list_empty(&vrrp->unicast_peer)) {
+	if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags)) {
 		unicast_peer_t *peer = list_first_entry(&vrrp->unicast_peer, unicast_peer_t, e_list);
 		ip->daddr = inet_sockaddrip4(&peer->address);
 	}
@@ -1415,7 +1415,7 @@ vrrp_build_ancillary_data(struct msghdr *msg, char *cbuf, struct sockaddr_storag
 			pkt->ipi6_ifindex = vrrp->ifp->ifindex;
 	}
 
-	if (vrrp->ttl != -1 && !list_empty(&vrrp->unicast_peer)) {
+	if (vrrp->ttl != -1 && __test_bit(VRRP_FLAG_UNICAST, &vrrp->flags)) {
 		msg->msg_controllen += CMSG_SPACE(sizeof(*hlim));
 		if ((cmsg = CMSG_NXTHDR(msg, cmsg))) {
 			cmsg->cmsg_level = IPPROTO_IPV6;
@@ -1511,7 +1511,7 @@ vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 
 	/* Send the packet, but don't log an error if it is a prio 0 message
 	 * and the interface is down. */
-	if (list_empty(&vrrp->unicast_peer)) {
+	if (!__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags)) {
 // What if mcast_src_ip is configured?
 		if (vrrp_send_pkt(vrrp, NULL) == -1 &&
 		    (prio != VRRP_PRIO_STOP || errno != ENETUNREACH || (vrrp->ifp && IF_FLAGS_UP(vrrp->ifp))))
@@ -2314,7 +2314,7 @@ chk_min_cfg(vrrp_t *vrrp)
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) the virtual router id must be set", vrrp->iname);
 		return false;
 	}
-	if (!vrrp->ifp && list_empty(&vrrp->unicast_peer)) {
+	if (!vrrp->ifp && !__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Unknown interface!", vrrp->iname);
 		return false;
 	}
@@ -2572,10 +2572,10 @@ vrrp_exist(vrrp_t *old_vrrp, list_head_t *l)
 			continue;
 
 		/* Check for unicast match */
-		if (list_empty(&vrrp->unicast_peer) != list_empty(&old_vrrp->unicast_peer))
+		if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) != __test_bit(VRRP_FLAG_UNICAST, &old_vrrp->flags))
 			continue;
 
-		if (!list_empty(&vrrp->unicast_peer)) {
+		if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags)) {
 			if (inet_sockaddrcmp(&old_vrrp->saddr, &vrrp->saddr))
 				continue;
 
@@ -2948,7 +2948,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #endif
 
 	/* unicast peers aren't allowed in strict mode if the interface supports multicast */
-	if (vrrp->strict_mode && !list_empty(&vrrp->unicast_peer) &&
+	if (vrrp->strict_mode && __test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) &&
 	    vrrp->ifp && vrrp->ifp->ifindex && (vrrp->ifp->ifi_flags & IFF_MULTICAST)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Unicast peers are not supported in strict mode"
 							, vrrp->iname);
@@ -3012,7 +3012,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #endif
 
 	/* If the interface doesn't support multicast, then we need to use unicast */
-	if (vrrp->ifp && vrrp->ifp->ifindex && !(vrrp->ifp->ifi_flags & IFF_MULTICAST) && list_empty(&vrrp->unicast_peer)) {
+	if (vrrp->ifp && vrrp->ifp->ifindex && !(vrrp->ifp->ifi_flags & IFF_MULTICAST) && !__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) interface %s does not support multicast,"
 							  " specify unicast peers - disabling"
 							, vrrp->iname, vrrp->ifp->ifname);
@@ -3029,7 +3029,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 							, vrrp->iname);
 
 	/* If the addresses are IPv6, then the first one must be link local */
-	if (vrrp->family == AF_INET6 && list_empty(&vrrp->unicast_peer) && !list_empty(&vrrp->vip)) {
+	if (vrrp->family == AF_INET6 && !__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) && !list_empty(&vrrp->vip)) {
 		ip_addr = list_first_entry(&vrrp->vip, ip_address_t, e_list);
 		if (!IN6_IS_ADDR_LINKLOCAL(&ip_addr->u.sin6_addr)) {
 			if (vrrp->strict_mode)
@@ -3043,7 +3043,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #ifdef _HAVE_VRF_
 	/* Check that if vrf is specified, we are using unicast and no interface has been specified */
 	if (vrrp->vrf_ifp &&
-	    (vrrp->ifp || list_empty(&vrrp->unicast_peer))) {
+	    (vrrp->ifp || !__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags))) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) vrf can only be specified with%s - clearing", vrrp->iname, vrrp->ifp ? "out interface" : " unicast");
 		vrrp->vrf_ifp = NULL;
 	}
@@ -4255,10 +4255,10 @@ check_vrid_conflicts(void)
 				continue;
 
 			/* Unicast and multicast are separate VRID spaces */
-			if (list_empty(&vrrp->unicast_peer) != list_empty(&vrrp1->unicast_peer))
+			if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) != __test_bit(VRRP_FLAG_UNICAST, &vrrp1->flags))
 				continue;
 
-			if (!list_empty(&vrrp->unicast_peer)) {
+			if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags)) {
 				/* They are both unicasting */
 
 				/* If they are configured on different interfaces, no match */

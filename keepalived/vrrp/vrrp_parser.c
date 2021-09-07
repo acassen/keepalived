@@ -429,7 +429,7 @@ vrrp_end_handler(void)
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 
 #ifdef _HAVE_VRRP_VMAC_
-	if (!list_empty(&vrrp->unicast_peer) && vrrp->vmac_flags) {
+	if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) && vrrp->vmac_flags) {
 		if (!vrrp->ifp) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s): Cannot use VMAC/ipvlan with unicast peers and no interface - clearing use_vmac", vrrp->iname);
 			vrrp->vmac_flags = 0;
@@ -441,7 +441,7 @@ vrrp_end_handler(void)
 	}
 #endif
 
-	if (list_empty(&vrrp->unicast_peer) && vrrp->ttl != -1) {
+	if (!__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) && vrrp->ttl != -1) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s): Cannot use unicast_ttl without unicast peers - resetting", vrrp->iname);
 		vrrp->ttl = 0;
 	}
