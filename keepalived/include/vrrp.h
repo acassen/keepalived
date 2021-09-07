@@ -57,6 +57,7 @@ enum vrrp_flags_bits {
 	VRRP_FLAG_LINKBEAT_USE_POLLING,		/* Don't use netlink for interface status */
 	VRRP_FLAG_SKIP_CHECK_ADV_ADDR,		/* If set, don't check the VIPs in subsequent
 						    adverts from the same master */
+	VRRP_FLAG_SADDR_FROM_CONFIG,		/* Set if the source address is from configuration */
 #ifdef _HAVE_VRRP_VMAC_
 	VRRP_VMAC_BIT,
 	VRRP_VMAC_UP_BIT,
@@ -268,7 +269,6 @@ typedef struct _vrrp_t {
 	unsigned		num_script_init;	/* Number of scripts in init state */
 	bool			notifies_sent;		/* Set when initial notifies have been sent */
 	struct sockaddr_storage	saddr;			/* Src IP address to use in VRRP IP header */
-	bool			saddr_from_config;	/* Set if the source address is from configuration */
 	bool			track_saddr;		/* Fault state if configured saddr is missing */
 	struct sockaddr_storage	pkt_saddr;		/* Src IP address received in VRRP IP header */
 	int			rx_ttl_hop_limit;	/* Received TTL/hop limit returned */

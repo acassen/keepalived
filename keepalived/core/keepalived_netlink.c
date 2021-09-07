@@ -999,7 +999,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 						    vrrp->num_script_if_fault &&
 						    vrrp->family == ifa->ifa_family &&
 						    vrrp->saddr.ss_family == AF_UNSPEC &&
-						    (!vrrp->saddr_from_config || is_tracking_saddr)) {
+						    (!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) || is_tracking_saddr)) {
 							/* Copy the address */
 							if (ifa->ifa_family == AF_INET)
 								inet_ip4tosockaddr(addr.in, &vrrp->saddr);
@@ -1028,7 +1028,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 									 */
 									if (add_link_local_address(vrrp->ifp, addr.in6) &&
 									    vrrp->num_script_if_fault &&
-									    (!vrrp->saddr_from_config || is_tracking_saddr))
+									    (!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) || is_tracking_saddr))
 										try_up_instance(vrrp, false);
 								} else
 #endif
@@ -1054,7 +1054,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 							vrrp = top->obj.vrrp;
 							if (VRRP_CONFIGURED_IFP(vrrp) != ifp)
 								continue;
-							if (vrrp->family != AF_INET || vrrp->saddr_from_config)
+							if (vrrp->family != AF_INET || __test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags))
 								continue;
 							inet_ip4tosockaddr(&ifp->sin_addr, &vrrp->saddr);
 						}
@@ -1081,7 +1081,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 							vrrp = top->obj.vrrp;
 							if (vrrp->ifp != ifp && ifp != vrrp->ifp->base_ifp)
 								continue;
-							if (vrrp->family != AF_INET6 || vrrp->saddr_from_config)
+							if (vrrp->family != AF_INET6 || __test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags))
 								continue;
 							inet_ip6tosockaddr(&ifp->sin6_addr, &vrrp->saddr);
 #ifdef _HAVE_VRRP_VMAC_
@@ -1140,7 +1140,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 					    __test_bit(VRRP_VMAC_BIT, &vrrp->flags) &&
 					    ifp == vrrp->ifp->base_ifp &&
 					    !__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags) &&
-					    !vrrp->saddr_from_config) {
+					    !__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags)) {
 // This is rubbish if base i/f addr changed. Check against address generated from base i/f's MAC
 						if (IF_ISUP(ifp) && replace_link_local_address(vrrp->ifp))
 						{
@@ -1162,7 +1162,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 							 vrrp->ifp) &&
 						 vrrp->family == ifa->ifa_family &&
 						 vrrp->saddr.ss_family != AF_UNSPEC &&
-						 (!vrrp->saddr_from_config || is_tracking_saddr)) {
+						 (!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) || is_tracking_saddr)) {
 						down_instance(vrrp);
 						vrrp->saddr.ss_family = AF_UNSPEC;
 					}

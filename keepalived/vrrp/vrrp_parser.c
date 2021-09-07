@@ -667,7 +667,7 @@ vrrp_ipvlan_handler(const vector_t *strvec)
 					PTR_CAST(struct sockaddr_in, &vrrp->saddr)->sin_addr = vrrp->ipvlan_addr->u.sin.sin_addr;
 				else
 					PTR_CAST(struct sockaddr_in6, &vrrp->saddr)->sin6_addr = vrrp->ipvlan_addr->u.sin6_addr;
-				vrrp->saddr_from_config = true;
+				__set_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags);
 			}
 
 			continue;
@@ -897,7 +897,7 @@ vrrp_srcip_handler(const vector_t *strvec)
 		return;
 	}
 
-	vrrp->saddr_from_config = true;
+	__set_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags);
 
 	if (vrrp->family == AF_UNSPEC)
 		vrrp->family = saddr->ss_family;
@@ -906,7 +906,7 @@ vrrp_srcip_handler(const vector_t *strvec)
 				     "[%s] MUST be of the same family !!! Skipping..."
 				   , vrrp->iname, strvec_slot(strvec, 1));
 		saddr->ss_family = AF_UNSPEC;
-		vrrp->saddr_from_config = false;
+		__clear_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags);
 	}
 }
 

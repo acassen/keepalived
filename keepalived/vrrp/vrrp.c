@@ -438,7 +438,7 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage *addr)
 		}
 
 		/* Has the source address changed? */
-		if (!vrrp->saddr_from_config &&
+		if (!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) &&
 		    ip->saddr != PTR_CAST(struct sockaddr_in, &vrrp->saddr)->sin_addr.s_addr) {
 			if (vrrp->version == VRRP_VERSION_2)
 				ip->saddr = PTR_CAST(struct sockaddr_in, &vrrp->saddr)->sin_addr.s_addr;
@@ -2956,7 +2956,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 	if (!vrrp->ifp) {
-		if (!vrrp->saddr_from_config) {
+		if (!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s): Unicast instances must have unicast_src_ip or interface", vrrp->iname);
 			return false;
 		}
@@ -3308,7 +3308,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		log_message(LOG_INFO, "%s: interface %s debounce timer(s) not less that %u * advert_int - resetting", vrrp->iname, vrrp->ifp->ifname, vrrp->down_timer_adverts - 1);
 
 	/* Clear track_saddr if no saddr specified */
-	if (!vrrp->saddr_from_config)
+	if (!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags))
 		vrrp->track_saddr = false;
 
 #ifdef _HAVE_VRRP_VMAC_
@@ -4185,7 +4185,7 @@ set_vrrp_src_addr(void)
 	vrrp_t *vrrp;
 
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
-		if (vrrp->saddr_from_config || !vrrp->ifp)
+		if (__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) || !vrrp->ifp)
 			continue;
 
 		/* Make sure we have an IP address as needed */
@@ -4269,16 +4269,16 @@ check_vrid_conflicts(void)
 				/* Check if the local addresses match */
 				if (vrrp->family == AF_INET) {
 					/* Check if both vrrp and vrrp1 have known addresses at the moment */
-					if ((!vrrp->saddr_from_config && !(vrrp->ifp && vrrp->ifp->sin_addr.s_addr)) ||
-					    (!vrrp1->saddr_from_config && !(vrrp1->ifp && vrrp1->ifp->sin_addr.s_addr)))
+					if ((!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) && !(vrrp->ifp && vrrp->ifp->sin_addr.s_addr)) ||
+					    (!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp1->flags) && !(vrrp1->ifp && vrrp1->ifp->sin_addr.s_addr)))
 						continue;
 
 					vrrp_saddr = vrrp->saddr.ss_family == AF_INET ? &PTR_CAST(struct sockaddr_in, &vrrp->saddr)->sin_addr : &vrrp->ifp->sin_addr;
 					vrrp1_saddr = vrrp1->saddr.ss_family == AF_INET ? &PTR_CAST(struct sockaddr_in, &vrrp1->saddr)->sin_addr : &vrrp1->ifp->sin_addr;
 				} else {
 					/* Check if both vrrp and vrrp1 have known addresses at the moment */
-					if ((!vrrp->saddr_from_config && !(vrrp->ifp && !IN6_IS_ADDR_UNSPECIFIED(&vrrp->ifp->sin6_addr))) ||
-					    (!vrrp1->saddr_from_config && !(vrrp1->ifp && !IN6_IS_ADDR_UNSPECIFIED(&vrrp1->ifp->sin6_addr))))
+					if ((!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) && !(vrrp->ifp && !IN6_IS_ADDR_UNSPECIFIED(&vrrp->ifp->sin6_addr))) ||
+					    (!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp1->flags) && !(vrrp1->ifp && !IN6_IS_ADDR_UNSPECIFIED(&vrrp1->ifp->sin6_addr))))
 						continue;
 
 					vrrp_saddr = vrrp->saddr.ss_family == AF_INET6 ? &PTR_CAST(struct sockaddr_in6, &vrrp->saddr)->sin6_addr : &vrrp->ifp->sin6_addr;

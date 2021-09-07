@@ -684,7 +684,7 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 	conf_write(fp, "   Using src_ip = %s%s", vrrp->saddr.ss_family != AF_UNSPEC
 						    ? inet_sockaddrtos(&vrrp->saddr)
 						    : "(none)",
-						  vrrp->saddr_from_config ? " (from configuration)" : "");
+						  __test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) ? " (from configuration)" : "");
 	conf_write(fp, "   Gratuitous ARP delay = %u",
 		       vrrp->garp_delay/TIMER_HZ);
 	conf_write(fp, "   Gratuitous ARP repeat = %u", vrrp->garp_rep);
