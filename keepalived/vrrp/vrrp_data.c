@@ -677,7 +677,7 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 #endif
 	if (__test_bit(VRRP_FLAG_DONT_TRACK_PRIMARY, &vrrp->flags))
 		conf_write(fp, "   VRRP interface tracking disabled");
-	if (vrrp->skip_check_adv_addr)
+	if (__test_bit(VRRP_FLAG_SKIP_CHECK_ADV_ADDR, &vrrp->flags))
 		conf_write(fp, "   Skip checking advert IP addresses");
 	if (vrrp->strict_mode)
 		conf_write(fp, "   Enforcing strict VRRP compliance");
@@ -951,7 +951,9 @@ alloc_vrrp(const char *iname)
 	new->smtp_alert = -1;
 	new->notify_priority_changes = -1;
 
-	new->skip_check_adv_addr = global_data->vrrp_skip_check_adv_addr;
+	if (global_data->vrrp_skip_check_adv_addr)
+		__set_bit(VRRP_FLAG_SKIP_CHECK_ADV_ADDR, &new->flags);
+
 	new->strict_mode = PARAMETER_UNSET;
 
 	list_add_tail(&new->e_list, &vrrp_data->vrrp);

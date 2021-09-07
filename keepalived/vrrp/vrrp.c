@@ -1911,7 +1911,7 @@ vrrp_state_backup(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buf, ssize_t bu
 	bool ignore_advert = false;
 
 	/* Process the incoming packet */
-	if (!vrrp->skip_check_adv_addr ||
+	if (!__test_bit(VRRP_FLAG_SKIP_CHECK_ADV_ADDR, &vrrp->flags) ||
 	    vrrp->master_saddr.ss_family != vrrp->pkt_saddr.ss_family)
 		check_addr = true;
 	else {

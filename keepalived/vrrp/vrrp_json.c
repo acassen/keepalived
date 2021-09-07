@@ -153,7 +153,7 @@ vrrp_json_data_dump(json_writer_t *wr, vrrp_t *vrrp)
 	/* Global instance related */
 	jsonw_string_field(wr, "iname", vrrp->iname);
 	jsonw_uint_field(wr, "dont_track_primary", __test_bit(VRRP_FLAG_DONT_TRACK_PRIMARY, &vrrp->flags));
-	jsonw_uint_field(wr, "skip_check_adv_addr", vrrp->skip_check_adv_addr);
+	jsonw_uint_field(wr, "skip_check_adv_addr", __test_bit(VRRP_FLAG_SKIP_CHECK_ADV_ADDR, &vrrp->flags));
 	jsonw_uint_field(wr, "strict_mode", vrrp->strict_mode);
 #ifdef _HAVE_VRRP_VMAC_
 	jsonw_string_field(wr, "vmac_ifname", vrrp->vmac_ifname);

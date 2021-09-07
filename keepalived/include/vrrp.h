@@ -55,6 +55,8 @@ enum vrrp_flags_bits {
 	VRRP_FLAG_UNICAST_FAULT_NO_PEERS,
 	VRRP_FLAG_DONT_TRACK_PRIMARY,		/* If set ignores ifp faults */
 	VRRP_FLAG_LINKBEAT_USE_POLLING,		/* Don't use netlink for interface status */
+	VRRP_FLAG_SKIP_CHECK_ADV_ADDR,		/* If set, don't check the VIPs in subsequent
+						    adverts from the same master */
 #ifdef _HAVE_VRRP_VMAC_
 	VRRP_VMAC_BIT,
 	VRRP_VMAC_UP_BIT,
@@ -240,8 +242,6 @@ typedef struct _vrrp_t {
 #ifdef _HAVE_VRF_
 	const interface_t	*vrf_ifp;		/* VRF interface if no interface specified */
 #endif
-	bool			skip_check_adv_addr;	/* If set, don't check the VIPs in subsequent
-							 * adverts from the same master */
 	unsigned		strict_mode;		/* Enforces strict VRRP compliance */
 	unsigned long		flags;
 #ifdef _HAVE_VRRP_VMAC_

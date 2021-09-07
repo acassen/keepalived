@@ -1001,12 +1001,12 @@ vrrp_skip_check_adv_addr_handler(const vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec, 1));
 		if (res >= 0)
-			vrrp->skip_check_adv_addr = (bool)res;
+			__set_bit(VRRP_FLAG_SKIP_CHECK_ADV_ADDR, &vrrp->flags);
 		else
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) invalid skip_check_adv_addr %s specified", vrrp->iname, strvec_slot(strvec, 1));
 	} else {
 		/* Defaults to true */
-		vrrp->skip_check_adv_addr = true;
+		__set_bit(VRRP_FLAG_SKIP_CHECK_ADV_ADDR, &vrrp->flags);
 	}
 }
 static void
