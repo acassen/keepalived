@@ -2294,7 +2294,7 @@ del_vrrp_from_interface(vrrp_t *vrrp, interface_t *ifp)
 
 	list_for_each_entry_safe(top, top_tmp, &ifp->tracking_vrrp, e_list) {
 		if (top->obj.vrrp == vrrp && top->type == TRACK_VRRP_DYNAMIC) {
-			if (!IF_ISUP(ifp) && !vrrp->dont_track_primary)
+			if (!IF_ISUP(ifp) && !__test_bit(VRRP_FLAG_DONT_TRACK_PRIMARY, &vrrp->flags))
 				vrrp->num_script_if_fault--;
 			free_tracking_obj(top);
 			break;
@@ -3517,14 +3517,14 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		}
 
 		/* Add this instance to the physical interface and vice versa */
-		add_vrrp_to_interface(vrrp, VRRP_CONFIGURED_IFP(vrrp), vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, false, true, TRACK_VRRP);
+		add_vrrp_to_interface(vrrp, VRRP_CONFIGURED_IFP(vrrp), __test_bit(VRRP_FLAG_DONT_TRACK_PRIMARY, &vrrp->flags) ? VRRP_NOT_TRACK_IF : 0, false, true, TRACK_VRRP);
 	}
 
 #ifdef _HAVE_VRRP_VMAC_
 	/* If the interface is configured onto a VMAC/IPVLAN interface, we want to track
 	 * the underlying interface too */
 	if (vrrp->configured_ifp && vrrp->configured_ifp != vrrp->configured_ifp->base_ifp && vrrp->configured_ifp->base_ifp)
-		add_vrrp_to_interface(vrrp, vrrp->configured_ifp->base_ifp, vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, false, true, TRACK_VRRP_DYNAMIC);
+		add_vrrp_to_interface(vrrp, vrrp->configured_ifp->base_ifp, __test_bit(VRRP_FLAG_DONT_TRACK_PRIMARY, &vrrp->flags) ? VRRP_NOT_TRACK_IF : 0, false, true, TRACK_VRRP_DYNAMIC);
 
 	if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags) &&
 	    !__test_bit(VRRP_VMAC_BIT, &vrrp->flags)) {
@@ -3591,7 +3591,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		}
 
 		/* Add this instance to the vmac interface */
-		add_vrrp_to_interface(vrrp, vrrp->ifp, vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, false, true, TRACK_VRRP);
+		add_vrrp_to_interface(vrrp, vrrp->ifp, __test_bit(VRRP_FLAG_DONT_TRACK_PRIMARY, &vrrp->flags) ? VRRP_NOT_TRACK_IF : 0, false, true, TRACK_VRRP);
 	}
 #endif
 
@@ -3747,7 +3747,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			/* If the vrrp instance doesn't track its primary interface,
 			 * ensure that VIPs/eVIPs don't cause it to be tracked. */
 			if (!ip_addr->dont_track &&
-			    (!vrrp->dont_track_primary ||
+			    (!__test_bit(VRRP_FLAG_DONT_TRACK_PRIMARY, &vrrp->flags) ||
 			     (ip_addr->ifp != vrrp->ifp
 #ifdef _HAVE_VRRP_VMAC_
 			      && ip_addr->ifp != IF_BASE_IFP(vrrp->ifp)

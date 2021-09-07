@@ -1118,7 +1118,7 @@ nft_update_addresses(const vrrp_t *vrrp, int cmd)
 			if (ip_addr->ifa.ifa_family == AF_INET)
 				nft_update_ipv4_address(batch, ip_addr, &ipv4_set);
 			else
-				nft_update_ipv6_address(batch, ip_addr, vrrp->dont_track_primary, vrrp->ifp,
+				nft_update_ipv6_address(batch, ip_addr, __test_bit(VRRP_FLAG_DONT_TRACK_PRIMARY, &vrrp->flags), vrrp->ifp,
 						&ipv6_set, &ipv6_ll_index_set, &ipv6_ll_name_set);
 
 			ip_addr->nftable_rule_set = set_rule;

@@ -875,7 +875,7 @@ static void
 vrrp_dont_track_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
-	vrrp->dont_track_primary = true;
+	__set_bit(VRRP_FLAG_DONT_TRACK_PRIMARY, &vrrp->flags);
 }
 #ifdef _WITH_BFD_
 static void

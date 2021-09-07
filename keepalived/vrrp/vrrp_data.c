@@ -675,7 +675,7 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 	if (vrrp->vrf_ifp)
 		conf_write(fp, "   VRF = %s", vrrp->vrf_ifp->ifname);
 #endif
-	if (vrrp->dont_track_primary)
+	if (__test_bit(VRRP_FLAG_DONT_TRACK_PRIMARY, &vrrp->flags))
 		conf_write(fp, "   VRRP interface tracking disabled");
 	if (vrrp->skip_check_adv_addr)
 		conf_write(fp, "   Skip checking advert IP addresses");
