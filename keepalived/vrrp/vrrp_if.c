@@ -1183,8 +1183,7 @@ int
 if_setsockopt_mcast_loop(sa_family_t family, int *sd)
 {
 	int ret;
-	unsigned char loop = 0;
-	int loopv6 = 0;
+	int loop = 0;
 
 	if (*sd < 0)
 		return -1;
@@ -1193,7 +1192,7 @@ if_setsockopt_mcast_loop(sa_family_t family, int *sd)
 	if (family == AF_INET)
 		ret = setsockopt(*sd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop));
 	else
-		ret = setsockopt(*sd, IPPROTO_IPV6, IPV6_MULTICAST_LOOP, &loopv6, sizeof(loopv6));
+		ret = setsockopt(*sd, IPPROTO_IPV6, IPV6_MULTICAST_LOOP, &loop, sizeof(loop));
 
 	if (ret < 0) {
 		log_message(LOG_INFO, "cant set IP%s_MULTICAST_LOOP IP option. errno=%d (%m)",
