@@ -262,10 +262,10 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	} req;
 	u_char if_ll_addr[ETH_ALEN];
 
-	if (!vrrp->ifp || __test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags) || !vrrp->vrid)
+	if (!vrrp->ifp || __test_bit(VRRP_VMAC_UP_BIT, &vrrp->flags) || !vrrp->vrid)
 		return false;
 
-	if (__test_bit(VRRP_VMAC_MAC_SPECIFIED, &vrrp->vmac_flags))
+	if (__test_bit(VRRP_VMAC_MAC_SPECIFIED, &vrrp->flags))
 		memcpy(if_ll_addr, vrrp->ll_addr, sizeof(vrrp->ll_addr));
 	else {
 		memcpy(if_ll_addr, ll_addr, ETH_ALEN - 2);
@@ -403,7 +403,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 
 		/* We don't want IPv6 running on the interface unless we have some IPv6
 		 * eVIPs, so disable it if not needed */
-		if (vrrp->family == AF_INET && !vrrp->evip_other_family)
+		if (vrrp->family == AF_INET && !__test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags))
 			link_set_ipv6(ifp, false);
 		else if (!create_interface) {
 			/* If we didn't create the VMAC we don't know what state it is in */
@@ -411,7 +411,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		}
 	}
 
-	if (vrrp->family == AF_INET6 || vrrp->evip_other_family) {
+	if (vrrp->family == AF_INET6 || __test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags)) {
 		/* Make sure IPv6 is enabled for the interface, in case the
 		 * sysctl net.ipv6.conf.default.disable_ipv6 is set true. */
 		link_set_ipv6(ifp, true);
@@ -445,7 +445,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 #endif
 
 		if (vrrp->family == AF_INET6 &&
-		    !__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) {
+		    !__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags)) {
 			if (!set_link_local_address(vrrp) && create_interface)
 				log_message(LOG_INFO, "(%s) adding link-local address to %s failed", vrrp->iname, vrrp->ifp->ifname);
 		}
@@ -457,11 +457,11 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 #endif
 
 	/* bring it UP ! */
-	__set_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
+	__set_bit(VRRP_VMAC_UP_BIT, &vrrp->flags);
 	netlink_link_up(vrrp);
 
 #if !HAVE_DECL_IFLA_INET6_ADDR_GEN_MODE
-	if (vrrp->family == AF_INET6 || vrrp->evip_other_family) {
+	if (vrrp->family == AF_INET6 || __test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags)) {
 		/* Delete the automatically created link-local address based on the
 		 * MAC address if we weren't able to configure the interface not to
 		 * create the address (see above).
@@ -526,7 +526,7 @@ netlink_link_add_ipvlan(vrrp_t *vrrp)
 		char buf[256];
 	} req;
 
-	if (!vrrp->ifp || __test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags) || !vrrp->vrid)
+	if (!vrrp->ifp || __test_bit(VRRP_VMAC_UP_BIT, &vrrp->flags) || !vrrp->vrid)
 		return false;
 
 	memset(&req, 0, sizeof (req));
@@ -618,7 +618,7 @@ netlink_link_add_ipvlan(vrrp_t *vrrp)
 	if (vrrp->family == AF_INET) {
 		/* We don't want IPv6 running on the interface unless we have some IPv6
 		 * eVIPs, so disable it if not needed */
-		if (vrrp->family == AF_INET && !vrrp->evip_other_family)
+		if (vrrp->family == AF_INET && !__test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags))
 			link_set_ipv6(ifp, false);
 		else if (!create_interface) {
 			/* If we didn't create the VMAC we don't know what state it is in */
@@ -626,14 +626,14 @@ netlink_link_add_ipvlan(vrrp_t *vrrp)
 		}
 	}
 
-	if (vrrp->family == AF_INET6 || vrrp->evip_other_family) {
+	if (vrrp->family == AF_INET6 || __test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags)) {
 		/* Make sure IPv6 is enabled for the interface, in case the
 		 * sysctl net.ipv6.conf.default.disable_ipv6 is set true. */
 		link_set_ipv6(ifp, true);
 	}
 
 	/* bring it UP ! */
-	__set_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
+	__set_bit(VRRP_VMAC_UP_BIT, &vrrp->flags);
 	netlink_link_up(vrrp);
 	kernel_netlink_poll();
 
@@ -699,7 +699,7 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 #ifdef _WITH_FIREWALL_
 // Why do we need this test?
 // PROBLEM !!! We have deleted the link, but firewall_remove_vmac uses the ifindex.
-	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
+	if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags) &&
 	    (vrrp->family == AF_INET6 || !global_data->disable_local_igmp))
 		firewall_remove_vmac(vrrp);
 #endif

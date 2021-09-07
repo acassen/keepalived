@@ -1576,7 +1576,7 @@ http_request_thread(thread_ref_t thread)
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
 	request_t *req = http_get_check->req;
-	struct sockaddr_storage *addr = &checker->co->dst;
+	sockaddr_t *addr = &checker->co->dst;
 	unsigned timeout = checker->co->connection_to;
 	const char *vhost;
 	const char *request_host;

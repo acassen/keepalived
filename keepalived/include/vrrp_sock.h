@@ -31,6 +31,7 @@
 /* local includes */
 #include "scheduler.h"
 #include "vrrp_if.h"
+#include "sockaddr.h"
 
 /*
  * Our instance dispatcher use a socket pool.
@@ -44,7 +45,8 @@ typedef struct _sock {
 #ifdef _HAVE_VRF_
 	const interface_t	*vrf_ifp;
 #endif
-	const struct sockaddr_storage	*unicast_src;
+	const sockaddr_t	*unicast_src;
+	const sockaddr_t	*mcast_daddr;
 	int			fd_in;
 	int			fd_out;
 	int			rx_buf_size;

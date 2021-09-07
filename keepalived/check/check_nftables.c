@@ -72,12 +72,6 @@ struct sctphdr {
 	__be32 sh_checksum;
 };
 
-typedef union {
-	struct sockaddr_in in;
-	struct sockaddr_in6 in6;
-	struct sockaddr_storage ss;
-} sockaddr_t;
-
 static bool ipvs_setup[2];
 static bool ipvs_tcp_setup[2];
 static bool ipvs_udp_setup[2];
@@ -245,9 +239,9 @@ nft_ipvs_add_set_rule(struct mnl_nlmsg_batch *batch, int af, uint16_t l4_protoco
 static void
 nft_update_ipvs_element(struct mnl_nlmsg_batch *batch,
 			struct nftnl_set *s,
-			const struct sockaddr_storage *addr,
+			const sockaddr_t *addr,
 #ifdef NFT_RANGE_CONCATS
-			const struct sockaddr_storage *addr_end,
+			const sockaddr_t *addr_end,
 #endif
 			uint32_t fwmark,
 			int cmd)
@@ -260,7 +254,7 @@ nft_update_ipvs_element(struct mnl_nlmsg_batch *batch,
 	union {
 		const struct sockaddr_in *in;
 		const struct sockaddr_in6 *in6;
-		const struct sockaddr_storage *ss;
+		const sockaddr_t *ss;
 	} ss = { .ss = addr };
 	int nfproto = addr->ss_family == AF_INET ? NFPROTO_IPV4 : NFPROTO_IPV6;
 
@@ -307,9 +301,9 @@ nft_update_ipvs_element(struct mnl_nlmsg_batch *batch,
 }
 
 static void
-nft_update_ipvs_entry(const struct sockaddr_storage *addr,
+nft_update_ipvs_entry(const sockaddr_t *addr,
 #ifdef NFT_RANGE_CONCATS
-		      const struct sockaddr_storage *addr_end,
+		      const sockaddr_t *addr_end,
 #endif
 		      uint16_t l4_protocol, uint32_t fwmark, int cmd)
 {
@@ -347,13 +341,13 @@ nft_update_ipvs_entry(const struct sockaddr_storage *addr,
 
 #ifdef _INCLUDE_UNUSED_CODE_
 void
-nft_add_ipvs_entry(const struct sockaddr_storage *addr, uint16_t l4_protocol, uint32_t fwmark)
+nft_add_ipvs_entry(const sockaddr_t *addr, uint16_t l4_protocol, uint32_t fwmark)
 {
 	nft_update_ipvs_entry(addr, l4_protocol, fwmark, NFT_MSG_NEWSETELEM);
 }
 
 void
-nft_remove_ipvs_entry(const struct sockaddr_storage *addr, uint16_t l4_protocol, uint32_t fwmark)
+nft_remove_ipvs_entry(const sockaddr_t *addr, uint16_t l4_protocol, uint32_t fwmark)
 {
 	nft_update_ipvs_entry(addr, l4_protocol, fwmark, NFT_MSG_DELSETELEM);
 }
@@ -460,10 +454,10 @@ get_next_fwmark(void)
 }
 
 static void
-process_fwmark_vsge_range(const struct sockaddr_storage *addr, const struct sockaddr_storage *addr_end, uint16_t service_type, unsigned fwmark, int cmd)
+process_fwmark_vsge_range(const sockaddr_t *addr, const sockaddr_t *addr_end, uint16_t service_type, unsigned fwmark, int cmd)
 {
 #ifndef NFT_RANGE_CONCATS
-	struct sockaddr_storage sockaddr;
+	sockaddr_t sockaddr;
 	struct sockaddr_in *sockaddr4 = PTR_CAST(struct sockaddr_in, &sockaddr);
 	struct sockaddr_in6 *sockaddr6 = PTR_CAST(struct sockaddr_in6, &sockaddr);
 	uint32_t end_addr = 0;		/* Stop GCC uninitialised warning */

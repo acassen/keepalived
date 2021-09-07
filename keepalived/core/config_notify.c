@@ -33,6 +33,7 @@
 #include "systemd.h"
 #include "main.h"
 #include "parser.h"
+#include "utils.h"
 
 
 static int child_reloaded_event = -1;

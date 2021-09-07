@@ -46,8 +46,38 @@
 #include "vrrp_if.h"
 #include "vrrp_sock.h"
 #include "vrrp_track.h"
+#include "sockaddr.h"
 
 struct _ip_address;
+
+enum vrrp_flags_bits {
+	VRRP_FLAG_UNICAST_CONFIGURED,
+	VRRP_FLAG_UNICAST,
+	VRRP_FLAG_UNICAST_FAULT_NO_PEERS,
+	VRRP_FLAG_DONT_TRACK_PRIMARY,		/* If set ignores ifp faults */
+	VRRP_FLAG_LINKBEAT_USE_POLLING,		/* Don't use netlink for interface status */
+	VRRP_FLAG_SKIP_CHECK_ADV_ADDR,		/* If set, don't check the VIPs in subsequent
+						    adverts from the same master */
+	VRRP_FLAG_SADDR_FROM_CONFIG,		/* Set if the source address is from configuration */
+	VRRP_FLAG_TRACK_SADDR,			/* Fault state if configured saddr is missing */
+	VRRP_FLAG_CHECK_UNICAST_SRC,		/* It set, check the source address of a unicast advert */
+	VRRP_FLAG_PROMOTE_SECONDARIES,		/* Set promote_secondaries option on interface */
+	VRRP_FLAG_EVIP_OTHER_FAMILY,		/* There are eVIPs of the different address family from the vrrp family */
+	VRRP_FLAG_NOPREEMPT,			/* true if higher prio does not preempt lower */
+#ifdef _HAVE_VRRP_VMAC_
+	VRRP_VMAC_BIT,
+	VRRP_VMAC_UP_BIT,
+	VRRP_VMAC_XMITBASE_BIT,
+	VRRP_VMAC_ADDR_BIT,
+#ifdef _HAVE_VRRP_IPVLAN_
+	VRRP_IPVLAN_BIT,
+#endif
+	VRRP_VMAC_MAC_SPECIFIED,
+	VRRP_VMAC_MAC_USE_VRID,
+	VRRP_FLAG_DUPLICATE_VRID_FAULT,		/* Set if we have a fault due to duplicate VRID */
+	VRRP_FLAG_VMAC_GARP_ALL_IF,		/* Send GARPs on all i/fs, not just VMACs */
+#endif
+};
 
 typedef struct _vrrphdr {			/* rfc2338.5.1 */
 	uint8_t			vers_type;	/* 0-3=type, 4-7=version */
@@ -200,7 +230,7 @@ typedef struct {
 #endif
 
 typedef struct _unicast_peer_t {
-	struct sockaddr_storage	address;
+	sockaddr_t		address;
 #ifdef _CHECKSUM_DEBUG_
 	checksum_check_t	chk;
 #endif
@@ -221,16 +251,11 @@ typedef struct _vrrp_t {
 #ifdef _HAVE_VRF_
 	const interface_t	*vrf_ifp;		/* VRF interface if no interface specified */
 #endif
-	bool			dont_track_primary;	/* If set ignores ifp faults */
-	bool			linkbeat_use_polling;	/* Don't use netlink for interface status */
-	bool			skip_check_adv_addr;	/* If set, don't check the VIPs in subsequent
-							 * adverts from the same master */
 	unsigned		strict_mode;		/* Enforces strict VRRP compliance */
+	unsigned long		flags;
 #ifdef _HAVE_VRRP_VMAC_
-	unsigned long		vmac_flags;		/* VRRP VMAC flags */
 	char			vmac_ifname[IFNAMSIZ];	/* Name of VRRP VMAC interface */
 	u_char			ll_addr[ETH_ALEN];	/* Override MAC address */
-	bool			duplicate_vrid_fault;	/* Set if we have a fault due to duplicate VRID */
 #ifdef _HAVE_VRRP_IPVLAN_
 	struct _ip_address	*ipvlan_addr;		/* Address to configure on an ipvlan interface */
 	int			ipvlan_type;		/* Bridge, private or VEPA mode */
@@ -246,25 +271,24 @@ typedef struct _vrrp_t {
 #ifdef _WITH_BFD_
 	list_head_t		track_bfd;		/* tracked_bfd_t - BFD instance state we monitor */
 #endif
+	unsigned		num_config_faults;	/* Number of configuration errors */
 	unsigned		num_script_if_fault;	/* Number of scripts and interfaces in fault state */
 	unsigned		num_script_init;	/* Number of scripts in init state */
 	bool			notifies_sent;		/* Set when initial notifies have been sent */
-	struct sockaddr_storage	saddr;			/* Src IP address to use in VRRP IP header */
-	bool			saddr_from_config;	/* Set if the source address is from configuration */
-	bool			track_saddr;		/* Fault state if configured saddr is missing */
-	struct sockaddr_storage	pkt_saddr;		/* Src IP address received in VRRP IP header */
-	int			rx_ttl_hop_limit;	/* Received TTL/hop limit returned */
 	bool			multicast_pkt;		/* Last IPv6 packet received was multicast */
+	sockaddr_t		saddr;			/* Src IP address to use in VRRP IP header */
+	sockaddr_t		pkt_saddr;		/* Src IP address received in VRRP IP header */
+	sockaddr_t		mcast_daddr;		/* Multicast destination address */
+	int			rx_ttl_hop_limit;	/* Received TTL/hop limit returned */
 	list_head_t		unicast_peer;		/* unicast_peer_t - peers to send unicast advert to */
 	int			ttl;			/* TTL to send packet with if unicasting */
-	bool			check_unicast_src;	/* It set, check the source address of a unicast advert */
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 	chksum_compatibility_t	unicast_chksum_compat;	/* Whether v1.3.6 and earlier chksum is used */
 #endif
 #ifdef _CHECKSUM_DEBUG_
 	checksum_check_t	chk;
 #endif
-	struct sockaddr_storage master_saddr;		/* Store last heard Master address */
+	sockaddr_t		master_saddr;		/* Store last heard Master address */
 	uint8_t			master_priority;	/* Store last heard priority */
 	timeval_t		last_transition;	/* Store transition time */
 	unsigned		garp_delay;		/* Delay to launch gratuitous ARP */
@@ -281,7 +305,6 @@ typedef struct _vrrp_t {
 	unsigned		higher_prio_send_advert; /* Send advert after higher prio advert received */
 #ifdef _HAVE_VRRP_VMAC_
 	timeval_t		vmac_garp_intvl;	/* Interval between GARPs on each VMAC */
-	bool			vmac_garp_all_if;	/* Send GARPs on all i/fs, not just VMACs */
 	timeval_t		vmac_garp_timer;	/* Next scheduled GARP for each VMAC */
 #endif
 	uint8_t			vrid;			/* virtual id. from 1(!) to 255 */
@@ -296,8 +319,6 @@ typedef struct _vrrp_t {
 							 * Those VIPs will not be presents into the
 							 * VRRP adverts
 							 */
-	bool			promote_secondaries;	/* Set promote_secondaries option on interface */
-	bool			evip_other_family;	/* There are eVIPs of the different address family from the vrrp family */
 	list_head_t		vroutes;		/* ip_route_t - list of virtual routes */
 	list_head_t		vrules;			/* ip_rule_t - list of virtual rules */
 	unsigned		adver_int;		/* locally configured delay between advertisements*/
@@ -313,7 +334,6 @@ typedef struct _vrrp_t {
 							 * the packets destined to VIP. */
 	bool			firewall_rules_set;	/* Firewall drop rules set to VIP list ? */
 #endif
-	bool			nopreempt;		/* true if higher prio does not preempt lower */
 	unsigned long		preempt_delay;		/* Seconds*TIMER_HZ after startup until
 							 * preemption based on higher prio over lower
 							 * prio is allowed.  0 means no delay.

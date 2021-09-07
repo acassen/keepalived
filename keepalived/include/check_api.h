@@ -35,6 +35,7 @@
 #include "check_data.h"
 #include "vector.h"
 #include "layer4.h"
+#include "sockaddr.h"
 
 typedef enum _checker_type {
 	CHECKER_MISC,
@@ -131,7 +132,7 @@ extern void dump_checkers_queue(FILE *);
 extern void free_checkers_queue(void);
 extern void register_checkers_thread(void);
 extern void install_checkers_keyword(void);
-extern void checker_set_dst_port(struct sockaddr_storage *, uint16_t);
+extern void checker_set_dst_port(sockaddr_t *, uint16_t);
 extern void install_checker_common_keywords(bool);
 extern void update_checker_activity(sa_family_t, void *, bool);
 

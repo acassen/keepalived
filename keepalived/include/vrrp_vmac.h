@@ -37,18 +37,6 @@
 #include "vrrp.h"
 #include "vrrp_if.h"
 
-/* Defines */
-enum vrrp_vmac_bits {
-	VRRP_VMAC_BIT,
-	VRRP_VMAC_UP_BIT,
-	VRRP_VMAC_XMITBASE_BIT,
-	VRRP_VMAC_ADDR_BIT,
-#ifdef _HAVE_VRRP_IPVLAN_
-	VRRP_IPVLAN_BIT,
-#endif
-	VRRP_VMAC_MAC_SPECIFIED,
-	VRRP_VMAC_MAC_USE_VRID,
-};
 
 extern const char * const macvlan_ll_kind;
 extern const u_char ll_addr[ETH_ALEN];

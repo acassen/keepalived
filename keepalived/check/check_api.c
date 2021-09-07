@@ -227,7 +227,7 @@ compare_conn_opts(const conn_opts_t *a, const conn_opts_t *b)
 }
 
 void
-checker_set_dst_port(struct sockaddr_storage *dst, uint16_t port)
+checker_set_dst_port(sockaddr_t *dst, uint16_t port)
 {
 	/* NOTE: we are relying on the offset of sin_port and sin6_port being
 	 * the same if an IPv6 address is specified after the port */

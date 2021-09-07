@@ -28,6 +28,7 @@
 
 #include "scheduler.h"
 #include "timer.h"
+#include "sockaddr.h"
 
 /*
  *	RFC5881
@@ -77,8 +78,8 @@
 typedef struct _bfd {
 	/* Configuration parameters */
 	char			iname[BFD_INAME_MAX];	/* Instance name */
-	struct sockaddr_storage	nbr_addr;		/* Neighbor address */
-	struct sockaddr_storage	src_addr;		/* Source address */
+	sockaddr_t	nbr_addr;		/* Neighbor address */
+	sockaddr_t	src_addr;		/* Source address */
 	uint32_t		local_min_rx_intv;	/* Required min RX interval */
 	uint32_t		local_min_tx_intv;	/* Desired min TX interval */
 	uint32_t		local_idle_tx_intv;	/* Desired idle TX interval */
@@ -227,8 +228,8 @@ typedef struct _bfdhdr {
  */
 typedef struct _bfdpkt {
 	bfdhdr_t *hdr;
-	struct sockaddr_storage src_addr;
-	struct sockaddr_storage dst_addr;
+	sockaddr_t src_addr;
+	sockaddr_t dst_addr;
 	unsigned int ttl;
 	unsigned int len;
 	const char *buf;

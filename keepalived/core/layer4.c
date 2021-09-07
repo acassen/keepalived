@@ -85,8 +85,8 @@ socket_bind_connect(int fd, conn_opts_t *co)
 	struct linger li;
 	socklen_t addrlen;
 	int ret;
-	const struct sockaddr_storage *addr = &co->dst;
-	const struct sockaddr_storage *bind_addr = &co->bindto;
+	const sockaddr_t *addr = &co->dst;
+	const sockaddr_t *bind_addr = &co->bindto;
 
 	optlen = sizeof(opt);
 	if (getsockopt(fd, SOL_SOCKET, SO_TYPE, (void *)&opt, &optlen) < 0) {
@@ -160,7 +160,7 @@ socket_bind_connect(int fd, conn_opts_t *co)
 }
 
 enum connect_result
-socket_connect(int fd, const struct sockaddr_storage *addr)
+socket_connect(int fd, const sockaddr_t *addr)
 {
 	conn_opts_t co = { .dst = *addr };
 
@@ -232,8 +232,8 @@ udp_bind_connect(int fd, conn_opts_t *co, uint8_t *payload, uint16_t payload_len
 {
 	socklen_t addrlen;
 	ssize_t ret;
-	const struct sockaddr_storage *addr = &co->dst;
-	const struct sockaddr_storage *bind_addr = &co->bindto;
+	const sockaddr_t *addr = &co->dst;
+	const sockaddr_t *bind_addr = &co->bindto;
 	char buf[UDP_BUFSIZE];
 	int on = 1;
 	int err;

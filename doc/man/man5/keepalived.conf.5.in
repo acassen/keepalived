@@ -1696,6 +1696,17 @@ The syntax for vrrp_instance is :
     \fBmcast_src_ip \fR<IPADDR>
     \fBunicast_src_ip \fR<IPADDR>
 
+    # specify an alternative multicast address to use as the destination
+    # of VRRP adverts and for listening for adverts. Note, if you are using
+    # multiple VRRP instances with VMACs and different multicast addresses
+    # and the same VRID, you will have to specify alternative MAC addresses
+    # for at least all but one of the VMACs.
+    # IPv6 multicast addresses must be link-local, i.e. start ffX2:
+    # Using different multicast addresses with IPv6 on the same interface without
+    # using VMACs is only supported if the kernel supports IPV6_MULTICAST_ALL
+    # (from Linux v4.20).
+    \fBmcast_dst_ip \fR<MULTICAST_IPADDR>
+
     # if the configured src_ip doesn't exist or is removed put the
     # instance into fault state
     \fBtrack_src_ip\fR
@@ -1723,6 +1734,13 @@ The syntax for vrrp_instance is :
         <IPADDR> [min_ttl {0..255}] [max_ttl {0..255}]
         ...
     }
+
+    # It is not possible to operate in unicast mode without any peers.
+    # Until v2.2.4 keepalived would silently operate in multicast mode
+    # if no peers were specified but a unicast keyword had been specified.
+    # Using this keywork stops defaulting to multicast if no peers are
+    # specified and puts the VRRP instance into fault state.
+    \fBunicast_fault_no_peer\fR
 
     # Specify the unicast TTL/HLIM for sending unicast adverts
     \fBunicast_ttl\fR {0..255}

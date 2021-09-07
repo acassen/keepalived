@@ -27,6 +27,7 @@
 #include <stdio.h>
 
 #include "bfd.h"
+#include "sockaddr.h"
 
 typedef struct _bfd_data {
 	list_head_t	bfd;		/* bfd_t - BFD instances */
@@ -53,7 +54,7 @@ extern void free_bfd_data(bfd_data_t *);
 extern void bfd_complete_init(void);
 extern void alloc_bfd_buffer(void);
 extern void free_bfd_buffer(void);
-extern bfd_t *find_bfd_by_addr(const struct sockaddr_storage *, const struct sockaddr_storage *) __attribute__ ((pure));
+extern bfd_t *find_bfd_by_addr(const sockaddr_t *, const sockaddr_t *) __attribute__ ((pure));
 extern bfd_t *find_bfd_by_discr(const uint32_t) __attribute__ ((pure));
 extern bfd_t *find_bfd_by_name(const char *) __attribute__ ((pure));
 extern uint32_t rand_intv(uint32_t, uint32_t);

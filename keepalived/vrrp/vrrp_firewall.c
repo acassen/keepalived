@@ -166,12 +166,12 @@ firewall_add_vmac(const vrrp_t *vrrp)
 
 #ifdef _WITH_IPTABLES_
 	if (global_data->vrrp_iptables_outchain)
-		iptables_add_vmac(vrrp->ifp, vrrp->family, vrrp->evip_other_family);
+		iptables_add_vmac(vrrp->ifp, vrrp->family, __test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags));
 #endif
 
 #ifdef _WITH_NFTABLES_
 	if (global_data->vrrp_nf_table_name)
-		nft_add_vmac(vrrp->ifp, vrrp->family, vrrp->evip_other_family);
+		nft_add_vmac(vrrp->ifp, vrrp->family, __test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags));
 #endif
 }
 
@@ -180,12 +180,12 @@ firewall_remove_vmac(const vrrp_t *vrrp)
 {
 #ifdef _WITH_IPTABLES_
 	if (global_data->vrrp_iptables_outchain)
-		iptables_remove_vmac(vrrp->ifp, vrrp->family, vrrp->evip_other_family);
+		iptables_remove_vmac(vrrp->ifp, vrrp->family, __test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags));
 #endif
 
 #ifdef _WITH_NFTABLES_
 	if (global_data->vrrp_nf_table_name)
-		nft_remove_vmac(vrrp->ifp, vrrp->family, vrrp->evip_other_family);
+		nft_remove_vmac(vrrp->ifp, vrrp->family, __test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags));
 #endif
 }
 #endif

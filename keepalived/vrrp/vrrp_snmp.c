@@ -220,6 +220,8 @@ enum snmp_vrrp_magic {
 	VRRP_SNMP_INSTANCE_SCRIPTMASTER_RX_LOWER_PRI,
 	VRRP_SNMP_INSTANCE_SCRIPTDELETED,
 	VRRP_SNMP_INSTANCE_NOTIFY_DELETED,
+	VRRP_SNMP_INSTANCE_MULTICAST_ADDRESSTYPE,
+	VRRP_SNMP_INSTANCE_MULTICAST_ADDRESS,
 	VRRP_SNMP_TRACKEDINTERFACE_NAME,
 	VRRP_SNMP_TRACKEDINTERFACE_WEIGHT,
 	VRRP_SNMP_TRACKEDINTERFACE_WEIGHT_REVERSE,
@@ -2019,13 +2021,13 @@ vrrp_snmp_instance_preempt(int action,
 			log_message(LOG_INFO,
 				    "(%s) preemption enabled with SNMP",
 				    vrrp->iname);
-			vrrp->nopreempt = 0;
+			__clear_bit(VRRP_FLAG_NOPREEMPT, &vrrp->flags);
 			break;
 		case 2:
 			log_message(LOG_INFO,
 				    "(%s) preemption disabled with SNMP",
 				    vrrp->iname);
-			vrrp->nopreempt = 1;
+			__set_bit(VRRP_FLAG_NOPREEMPT, &vrrp->flags);
 			break;
 		}
 		break;
@@ -2088,7 +2090,7 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 			    rt->adver_int / TIMER_CENTI_HZ;
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_INSTANCE_PREEMPT:
-		long_ret.u = rt->nopreempt?2:1;
+		long_ret.u = __test_bit(VRRP_FLAG_NOPREEMPT, &rt->flags)?2:1;
 		*write_method = vrrp_snmp_instance_preempt;
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_INSTANCE_PREEMPTDELAY:
@@ -2189,10 +2191,10 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 #endif
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_INSTANCE_PROMOTE_SECONDARIES:
-		long_ret.u = rt->promote_secondaries ? 1:2;
+		long_ret.u = __test_bit(VRRP_FLAG_PROMOTE_SECONDARIES, &rt->flags) ? 1:2;
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_INSTANCE_USE_LINKBEAT:
-		long_ret.u = rt->linkbeat_use_polling ? 1:2;
+		long_ret.u = __test_bit(VRRP_FLAG_LINKBEAT_USE_POLLING, &rt->flags) ? 1:2;
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_INSTANCE_VRRP_VERSION:
 		long_ret.u = rt->version;
@@ -2200,6 +2202,18 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_INSTANCE_NOTIFY_DELETED:
 		long_ret.u = rt->notify_deleted ? 1 : 2;
 		return PTR_CAST(u_char, &long_ret);
+	case VRRP_SNMP_INSTANCE_MULTICAST_ADDRESSTYPE:
+		long_ret.u = (rt->mcast_daddr.ss_family == AF_INET6)?2:1;
+		return PTR_CAST(u_char, &long_ret);
+	case VRRP_SNMP_INSTANCE_MULTICAST_ADDRESS:
+		if (rt->mcast_daddr.ss_family == AF_INET6) {
+			*var_len = sizeof PTR_CAST(struct sockaddr_in6, &rt->mcast_daddr)->sin6_addr;
+			return PTR_CAST(u_char, &PTR_CAST(struct sockaddr_in6, &rt->mcast_daddr)->sin6_addr);
+		} else {
+			*var_len = sizeof PTR_CAST(struct sockaddr_in, &rt->mcast_daddr)->sin_addr;
+			return PTR_CAST(u_char, &PTR_CAST(struct sockaddr_in, &rt->mcast_daddr)->sin_addr);
+		}
+		break;
 	default:
 		return NULL;
 	}
@@ -2638,6 +2652,10 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_instance, 3, {3, 1, 32}},
 	{VRRP_SNMP_INSTANCE_NOTIFY_DELETED, ASN_INTEGER, RONLY,
 	 vrrp_snmp_instance, 3, {3, 1, 33}},
+	{VRRP_SNMP_INSTANCE_MULTICAST_ADDRESSTYPE, ASN_INTEGER, RONLY,
+	 vrrp_snmp_instance, 3, {3, 1, 34}},
+	{VRRP_SNMP_INSTANCE_MULTICAST_ADDRESS, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_instance, 3, {3, 1, 35}},
 
 	/* vrrpTrackedInterfaceTable */
 	{VRRP_SNMP_TRACKEDINTERFACE_NAME, ASN_OCTET_STR, RONLY,
@@ -3465,7 +3483,7 @@ vrrp_rfcv2_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = rt->adver_int / TIMER_HZ;
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_RFC_SNMP_OPER_PREEMPT:
-		long_ret.s =  1 + rt->nopreempt;
+		long_ret.s =  1 + __test_bit(VRRP_FLAG_NOPREEMPT, &rt->flags);
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_RFC_SNMP_OPER_VR_UPTIME:
 		if (rt->state == VRRP_STATE_BACK ||
@@ -4115,7 +4133,7 @@ vrrp_rfcv3_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = rt->adver_int / TIMER_CENTI_HZ;
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_RFCv3_SNMP_OPER_PREEMPT:
-		long_ret.s =  1 + rt->nopreempt;
+		long_ret.s =  1 + __test_bit(VRRP_FLAG_NOPREEMPT, &rt->flags);
 		return PTR_CAST(u_char, &long_ret);
 #ifdef _WITH_FIREWALL_
 	case VRRP_RFCv3_SNMP_OPER_ACCEPT:

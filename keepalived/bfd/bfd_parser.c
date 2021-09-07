@@ -78,7 +78,7 @@ static void
 bfd_nbrip_handler(const vector_t *strvec)
 {
 	bfd_t *bfd;
-	struct sockaddr_storage nbr_addr;
+	sockaddr_t nbr_addr;
 
 	assert(strvec);
 	assert(bfd_data);
@@ -107,7 +107,7 @@ static void
 bfd_srcip_handler(const vector_t *strvec)
 {
 	bfd_t *bfd;
-	struct sockaddr_storage src_addr;
+	sockaddr_t src_addr;
 
 	assert(strvec);
 	assert(bfd_data);

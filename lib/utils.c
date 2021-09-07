@@ -464,9 +464,9 @@ inet_stor(const char *addr, uint32_t *range_end)
 #endif
 }
 
-/* Domain to sockaddr_storage */
+/* Domain to sockaddr_ka */
 int
-domain_stosockaddr(const char *domain, const char *port, struct sockaddr_storage *addr)
+domain_stosockaddr(const char *domain, const char *port, sockaddr_t *addr)
 {
 	struct addrinfo *res = NULL;
 	unsigned port_num;
@@ -488,7 +488,7 @@ domain_stosockaddr(const char *domain, const char *port, struct sockaddr_storage
 	/* Tempting as it is to do something like:
 	 *	*(struct sockaddr_in6 *)addr = *(struct sockaddr_in6 *)res->ai_addr;
 	 *  the alignment of struct sockaddr (short int) is less than the alignment of
-	 *  struct sockaddr_storage (long).
+	 *  sockaddr_t (long).
 	 */
 	memcpy(addr, res->ai_addr, res->ai_addrlen);
 
@@ -504,10 +504,10 @@ domain_stosockaddr(const char *domain, const char *port, struct sockaddr_storage
 	return 0;
 }
 
-/* IP string to sockaddr_storage
+/* IP string to sockaddr_ka
  *   return value is "error". */
 bool
-inet_stosockaddr(const char *ip, const char *port, struct sockaddr_storage *addr)
+inet_stosockaddr(const char *ip, const char *port, sockaddr_t *addr)
 {
 	void *addr_ip;
 	const char *cp;
@@ -554,18 +554,18 @@ inet_stosockaddr(const char *ip, const char *port, struct sockaddr_storage *addr
 	return false;
 }
 
-/* IPv4 to sockaddr_storage */
+/* IPv4 to sockaddr_ka */
 void
-inet_ip4tosockaddr(const struct in_addr *sin_addr, struct sockaddr_storage *addr)
+inet_ip4tosockaddr(const struct in_addr *sin_addr, sockaddr_t *addr)
 {
 	struct sockaddr_in *addr4 = PTR_CAST(struct sockaddr_in, addr);
 	addr4->sin_family = AF_INET;
 	addr4->sin_addr = *sin_addr;
 }
 
-/* IPv6 to sockaddr_storage */
+/* IPv6 to sockaddr_ka */
 void
-inet_ip6tosockaddr(const struct in6_addr *sin_addr, struct sockaddr_storage *addr)
+inet_ip6tosockaddr(const struct in6_addr *sin_addr, sockaddr_t *addr)
 {
 	struct sockaddr_in6 *addr6 = PTR_CAST(struct sockaddr_in6, addr);
 	addr6->sin6_family = AF_INET6;
@@ -616,7 +616,7 @@ check_valid_ipaddress(const char *str, bool allow_subnet_mask)
 
 /* IP network to string representation */
 static char *
-inet_sockaddrtos2(const struct sockaddr_storage *addr, char *addr_str)
+inet_sockaddrtos2(const sockaddr_t *addr, char *addr_str)
 {
 	const void *addr_ip;
 
@@ -635,7 +635,7 @@ inet_sockaddrtos2(const struct sockaddr_storage *addr, char *addr_str)
 }
 
 const char *
-inet_sockaddrtos(const struct sockaddr_storage *addr)
+inet_sockaddrtos(const sockaddr_t *addr)
 {
 	static char addr_str[INET6_ADDRSTRLEN];
 	inet_sockaddrtos2(addr, addr_str);
@@ -643,7 +643,7 @@ inet_sockaddrtos(const struct sockaddr_storage *addr)
 }
 
 uint16_t __attribute__ ((pure))
-inet_sockaddrport(const struct sockaddr_storage *addr)
+inet_sockaddrport(const sockaddr_t *addr)
 {
 	if (addr->ss_family == AF_INET6) {
 		const struct sockaddr_in6 *addr6 = PTR_CAST_CONST(struct sockaddr_in6, addr);
@@ -657,7 +657,7 @@ inet_sockaddrport(const struct sockaddr_storage *addr)
 }
 
 void
-inet_set_sockaddrport(struct sockaddr_storage *addr, uint16_t port)
+inet_set_sockaddrport(sockaddr_t *addr, uint16_t port)
 {
 	if (addr->ss_family == AF_INET6) {
 		struct sockaddr_in6 *addr6 = PTR_CAST(struct sockaddr_in6, addr);
@@ -669,7 +669,7 @@ inet_set_sockaddrport(struct sockaddr_storage *addr, uint16_t port)
 }
 
 const char *
-inet_sockaddrtopair(const struct sockaddr_storage *addr)
+inet_sockaddrtopair(const sockaddr_t *addr)
 {
 	char addr_str[INET6_ADDRSTRLEN];
 	static char ret[sizeof(addr_str) + 8];	/* '[' + addr_str + ']' + ':' + 'nnnnn' */
@@ -682,7 +682,7 @@ inet_sockaddrtopair(const struct sockaddr_storage *addr)
 }
 
 char *
-inet_sockaddrtotrio_r(const struct sockaddr_storage *addr, uint16_t proto, char *buf)
+inet_sockaddrtotrio_r(const sockaddr_t *addr, uint16_t proto, char *buf)
 {
 	char addr_str[INET6_ADDRSTRLEN];
 	const char *proto_str =
@@ -698,7 +698,7 @@ inet_sockaddrtotrio_r(const struct sockaddr_storage *addr, uint16_t proto, char 
 }
 
 const char *
-inet_sockaddrtotrio(const struct sockaddr_storage *addr, uint16_t proto)
+inet_sockaddrtotrio(const sockaddr_t *addr, uint16_t proto)
 {
 	static char ret[SOCKADDRTRIO_STR_LEN];
 
@@ -708,7 +708,7 @@ inet_sockaddrtotrio(const struct sockaddr_storage *addr, uint16_t proto)
 }
 
 uint32_t __attribute__ ((pure))
-inet_sockaddrip4(const struct sockaddr_storage *addr)
+inet_sockaddrip4(const sockaddr_t *addr)
 {
 	if (addr->ss_family != AF_INET)
 		return 0xffffffff;
@@ -717,7 +717,7 @@ inet_sockaddrip4(const struct sockaddr_storage *addr)
 }
 
 int
-inet_sockaddrip6(const struct sockaddr_storage *addr, struct in6_addr *ip6)
+inet_sockaddrip6(const sockaddr_t *addr, struct in6_addr *ip6)
 {
 	if (addr->ss_family != AF_INET6)
 		return -1;
@@ -757,8 +757,9 @@ inet_inaddrcmp(const int family, const void *a, const void *b)
 	return -2;
 }
 
+/* inet_sockaddcmp is similar to sockstorage_equal except the latter also compares the port */
 int  __attribute__ ((pure))
-inet_sockaddrcmp(const struct sockaddr_storage *a, const struct sockaddr_storage *b)
+inet_sockaddrcmp(const sockaddr_t *a, const sockaddr_t *b)
 {
 	if (a->ss_family != b->ss_family)
 		return -2;

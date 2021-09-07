@@ -429,26 +429,25 @@ vrrp_end_handler(void)
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 
 #ifdef _HAVE_VRRP_VMAC_
-	if (!list_empty(&vrrp->unicast_peer) && vrrp->vmac_flags) {
+	if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) && vrrp->flags) {
 		if (!vrrp->ifp) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s): Cannot use VMAC/ipvlan with unicast peers and no interface - clearing use_vmac", vrrp->iname);
-			vrrp->vmac_flags = 0;
+			vrrp->flags = 0;
 			vrrp->vmac_ifname[0] = '\0';
-		} else if (!__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) {
+		} else if (!__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unicast with use_vmac requires vmac_xmit_base - setting", vrrp->iname);
-			__set_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags);
+			__set_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags);
 		}
 	}
 #endif
 
-	if (list_empty(&vrrp->unicast_peer) && vrrp->ttl != -1) {
+	if (!__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) && vrrp->ttl != -1) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s): Cannot use unicast_ttl without unicast peers - resetting", vrrp->iname);
 		vrrp->ttl = 0;
 	}
 
-	if (!vrrp->ifp) {
-		vrrp->linkbeat_use_polling = false;
-	}
+	if (!vrrp->ifp)
+		__clear_bit(VRRP_FLAG_LINKBEAT_USE_POLLING, &vrrp->flags);
 }
 #ifdef _HAVE_VRRP_VMAC_
 /* The following function is copied from kernel net/core/dev.c */
@@ -484,13 +483,13 @@ vrrp_vmac_handler(const vector_t *strvec)
 	const char *p;
 	char *endptr;
 
-	__set_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags);
+	__set_bit(VRRP_VMAC_BIT, &vrrp->flags);
 
 	/* Ifname and MAC address can be specified */
 	for (i = 1; i < vector_size(strvec) && i <= 2; i++) {
 		if (strchr(strvec_slot(strvec, i), ':')) {
 			/* It's a MAC address - interface names cannot include a ':' */
-			if (__test_bit(VRRP_VMAC_MAC_SPECIFIED, &vrrp->vmac_flags)) {
+			if (__test_bit(VRRP_VMAC_MAC_SPECIFIED, &vrrp->flags)) {
 				report_config_error(CONFIG_GENERAL_ERROR, "VMAC interface address already specified");
 				continue;
 			}
@@ -515,7 +514,7 @@ vrrp_vmac_handler(const vector_t *strvec)
 				vrrp->ll_addr[j] = (u_char)byte_val;
 				if (j == ETH_ALEN - 2 &&
 				    (!*endptr || (*endptr == ':' && !*(endptr+1)))) {
-					__set_bit(VRRP_VMAC_MAC_USE_VRID, &vrrp->vmac_flags);
+					__set_bit(VRRP_VMAC_MAC_USE_VRID, &vrrp->flags);
 					break;
 				}
 				p = endptr + 1;
@@ -532,7 +531,7 @@ vrrp_vmac_handler(const vector_t *strvec)
 			else if (!memcmp(ll_addr, vrrp->ll_addr, ETH_ALEN - 2) && (vrrp->ll_addr[ETH_ALEN - 2] == 0x01 || vrrp->ll_addr[ETH_ALEN - 2] == 0x02))
 				report_config_error(CONFIG_GENERAL_ERROR, "VMAC MAC address not allowed to be RFC5798 address (%s) - ignoring", strvec_slot(strvec, i));
 			else
-				__set_bit(VRRP_VMAC_MAC_SPECIFIED, &vrrp->vmac_flags);
+				__set_bit(VRRP_VMAC_MAC_SPECIFIED, &vrrp->flags);
 		} else {
 			name = strvec_slot(strvec, i);
 
@@ -571,14 +570,14 @@ vrrp_vmac_addr_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 
-	__set_bit(VRRP_VMAC_ADDR_BIT, &vrrp->vmac_flags);
+	__set_bit(VRRP_VMAC_ADDR_BIT, &vrrp->flags);
 }
 static void
 vrrp_vmac_xmit_base_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 
-	__set_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags);
+	__set_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags);
 }
 #endif
 #ifdef _HAVE_VRRP_IPVLAN_
@@ -593,12 +592,12 @@ vrrp_ipvlan_handler(const vector_t *strvec)
 	size_t i;
 	const char *ifname;
 
-	if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags)) {
+	if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->flags)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) use_ipvlan already specified", vrrp->iname);
 		return;
 	}
 
-	__set_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags);
+	__set_bit(VRRP_IPVLAN_BIT, &vrrp->flags);
 
 	for (i = 1; i < vector_size(strvec); i++) {
 		if (!strcmp(strvec_slot(strvec, i), "bridge")) {
@@ -668,7 +667,7 @@ vrrp_ipvlan_handler(const vector_t *strvec)
 					PTR_CAST(struct sockaddr_in, &vrrp->saddr)->sin_addr = vrrp->ipvlan_addr->u.sin.sin_addr;
 				else
 					PTR_CAST(struct sockaddr_in6, &vrrp->saddr)->sin6_addr = vrrp->ipvlan_addr->u.sin6_addr;
-				vrrp->saddr_from_config = true;
+				__set_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags);
 			}
 
 			continue;
@@ -708,20 +707,38 @@ vrrp_ipvlan_handler(const vector_t *strvec)
 static void
 vrrp_unicast_peer_handler(const vector_t *strvec)
 {
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
+
+	__set_bit(VRRP_FLAG_UNICAST_CONFIGURED, &vrrp->flags);
+
 	alloc_value_block(alloc_vrrp_unicast_peer, strvec);
 }
+
+static void
+vrrp_unicast_fault_no_peer(__attribute__((unused)) const vector_t *strvec)
+{
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
+
+	__set_bit(VRRP_FLAG_UNICAST_CONFIGURED, &vrrp->flags);
+	__set_bit(VRRP_FLAG_UNICAST_FAULT_NO_PEERS, &vrrp->flags);
+}
+
 static void
 vrrp_check_unicast_src_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 
-	vrrp->check_unicast_src = true;
+	__set_bit(VRRP_FLAG_UNICAST_CONFIGURED, &vrrp->flags);
+
+	__set_bit(VRRP_FLAG_CHECK_UNICAST_SRC, &vrrp->flags);
 }
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 static void
 vrrp_unicast_chksum_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
+
+	__set_bit(VRRP_FLAG_UNICAST_CONFIGURED, &vrrp->flags);
 
 	if (vector_size(strvec) >= 2) {
 		if (!strcmp(strvec_slot(strvec, 1), "never"))
@@ -828,7 +845,7 @@ vrrp_linkbeat_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 
-	vrrp->linkbeat_use_polling = true;
+	__set_bit(VRRP_FLAG_LINKBEAT_USE_POLLING, &vrrp->flags);
 	report_config_error(CONFIG_GENERAL_ERROR, "(%s) 'linkbeat_use_polling' in vrrp instance deprecated - use linkbeat_interfaces block", vrrp->iname);
 }
 #endif
@@ -858,7 +875,7 @@ static void
 vrrp_dont_track_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
-	vrrp->dont_track_primary = true;
+	__set_bit(VRRP_FLAG_DONT_TRACK_PRIMARY, &vrrp->flags);
 }
 #ifdef _WITH_BFD_
 static void
@@ -871,7 +888,7 @@ static void
 vrrp_srcip_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
-	struct sockaddr_storage *saddr = &vrrp->saddr;
+	sockaddr_t *saddr = &vrrp->saddr;
 
 	if (inet_stosockaddr(strvec_slot(strvec, 1), NULL, saddr)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: VRRP instance[%s] malformed"
@@ -880,7 +897,7 @@ vrrp_srcip_handler(const vector_t *strvec)
 		return;
 	}
 
-	vrrp->saddr_from_config = true;
+	__set_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags);
 
 	if (vrrp->family == AF_UNSPEC)
 		vrrp->family = saddr->ss_family;
@@ -889,15 +906,55 @@ vrrp_srcip_handler(const vector_t *strvec)
 				     "[%s] MUST be of the same family !!! Skipping..."
 				   , vrrp->iname, strvec_slot(strvec, 1));
 		saddr->ss_family = AF_UNSPEC;
-		vrrp->saddr_from_config = false;
+		__clear_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags);
 	}
 }
+
+static void
+vrrp_unicast_srcip_handler(const vector_t *strvec)
+{
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
+
+	__set_bit(VRRP_FLAG_UNICAST_CONFIGURED, &vrrp->flags);
+
+	vrrp_srcip_handler(strvec);
+}
+
+static void
+vrrp_mcast_dstip_handler(const vector_t *strvec)
+{
+	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
+
+	if (inet_stosockaddr(strvec_slot(strvec, 1), NULL, &vrrp->mcast_daddr)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) malformed"
+				     " mcast dest address %s. Skipping..."
+				   , vrrp->iname, strvec_slot(strvec, 1));
+		return;
+	}
+
+	if (vrrp->family == AF_UNSPEC)
+		vrrp->family = vrrp->mcast_daddr.ss_family;
+	else if (vrrp->mcast_daddr.ss_family != vrrp->family) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) mcast dest address"
+				     " %s MUST match VRRP instance family. Skipping..."
+				   , vrrp->iname, strvec_slot(strvec, 1));
+		vrrp->mcast_daddr.ss_family = AF_UNSPEC;
+	}
+
+	if ((vrrp->mcast_daddr.ss_family == AF_INET && !IN_MULTICAST(htonl(PTR_CAST(struct sockaddr_in, &vrrp->mcast_daddr)->sin_addr.s_addr))) ||
+	    (vrrp->mcast_daddr.ss_family == AF_INET6 && !IN6_IS_ADDR_MC_LINKLOCAL(&PTR_CAST(struct sockaddr_in6, &vrrp->mcast_daddr)->sin6_addr))) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) mcast_dst_ip %s not%s multicast. Skipping..."
+				   , vrrp->iname, strvec_slot(strvec, 1), vrrp->mcast_daddr.ss_family == AF_INET6 ? " link-local" : "");
+		vrrp->mcast_daddr.ss_family = AF_UNSPEC;
+	}
+}
+
 static void
 vrrp_track_srcip_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 
-	vrrp->track_saddr = true;
+	__set_bit(VRRP_FLAG_TRACK_SADDR, &vrrp->flags);
 }
 static void
 vrrp_vrid_handler(const vector_t *strvec)
@@ -973,12 +1030,12 @@ vrrp_skip_check_adv_addr_handler(const vector_t *strvec)
 	if (vector_size(strvec) >= 2) {
 		res = check_true_false(strvec_slot(strvec, 1));
 		if (res >= 0)
-			vrrp->skip_check_adv_addr = (bool)res;
+			__set_bit(VRRP_FLAG_SKIP_CHECK_ADV_ADDR, &vrrp->flags);
 		else
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) invalid skip_check_adv_addr %s specified", vrrp->iname, strvec_slot(strvec, 1));
 	} else {
 		/* Defaults to true */
-		vrrp->skip_check_adv_addr = true;
+		__set_bit(VRRP_FLAG_SKIP_CHECK_ADV_ADDR, &vrrp->flags);
 	}
 }
 static void
@@ -1002,13 +1059,13 @@ static void
 vrrp_nopreempt_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
-	vrrp->nopreempt = 1;
+	__set_bit(VRRP_FLAG_NOPREEMPT, &vrrp->flags);
 }
 static void	/* backwards compatibility */
 vrrp_preempt_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
-	vrrp->nopreempt = 0;
+	__clear_bit(VRRP_FLAG_NOPREEMPT, &vrrp->flags);
 }
 static void
 vrrp_preempt_delay_handler(const vector_t *strvec)
@@ -1277,7 +1334,7 @@ vrrp_garp_extra_if_handler(const vector_t *strvec)
 
 	for (index = 1; index < vector_size(strvec); index++) {
 		if (!strcmp(strvec_slot(strvec, index), "all"))
-			vrrp->vmac_garp_all_if = true;
+			__set_bit(VRRP_FLAG_VMAC_GARP_ALL_IF, &vrrp->flags);
 		else if (!read_unsigned_strvec(strvec, index, &delay, 0, 86400, true)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s): %s '%s' invalid - ignoring", vrrp->iname, cmd_name, strvec_slot(strvec, index));
 			return;
@@ -1392,7 +1449,7 @@ vrrp_promote_secondaries_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 
-	vrrp->promote_secondaries = true;
+	__set_bit(VRRP_FLAG_PROMOTE_SECONDARIES, &vrrp->flags);
 }
 static void
 vrrp_vroutes_handler(const vector_t *strvec)
@@ -2061,6 +2118,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("use_ipvlan", &vrrp_ipvlan_handler);
 #endif
 	install_keyword("unicast_peer", &vrrp_unicast_peer_handler);
+	install_keyword("unicast_fault_no_peer", &vrrp_unicast_fault_no_peer);
 	install_keyword("check_unicast_src", &vrrp_check_unicast_src_handler);
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 	install_keyword("old_unicast_checksum", &vrrp_unicast_chksum_handler);
@@ -2082,7 +2140,8 @@ init_vrrp_keywords(bool active)
 	install_keyword("track_bfd", &vrrp_track_bfd_handler);
 #endif
 	install_keyword("mcast_src_ip", &vrrp_srcip_handler);
-	install_keyword("unicast_src_ip", &vrrp_srcip_handler);
+	install_keyword("unicast_src_ip", &vrrp_unicast_srcip_handler);
+	install_keyword("mcast_dst_ip", &vrrp_mcast_dstip_handler);
 	install_keyword("track_src_ip", &vrrp_track_srcip_handler);
 	install_keyword("virtual_router_id", &vrrp_vrid_handler);
 	install_keyword("unicast_ttl", &vrrp_ttl_handler);
