@@ -1935,7 +1935,7 @@ vrrp_state_backup(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buf, ssize_t bu
 #ifdef _WITH_SNMP_RFCV3_
 		vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_PRIORITY;
 #endif
-	} else if (vrrp->nopreempt ||
+	} else if (__test_bit(VRRP_FLAG_NOPREEMPT, &vrrp->flags) ||
 		   hd->priority >= vrrp->effective_priority ||
 		   (vrrp->preempt_delay &&
 		    (!vrrp->preempt_time.tv_sec ||
@@ -3089,22 +3089,22 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		}
 	}
 
-	if (vrrp->base_priority == VRRP_PRIO_OWNER && vrrp->nopreempt) {
+	if (vrrp->base_priority == VRRP_PRIO_OWNER && __test_bit(VRRP_FLAG_NOPREEMPT, &vrrp->flags)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) nopreempt is incompatible with priority %d."
 							  " resetting nopreempt"
 							, vrrp->iname, VRRP_PRIO_OWNER);
-		vrrp->nopreempt = false;
+		__clear_bit(VRRP_FLAG_NOPREEMPT, &vrrp->flags);
 	}
 
 	vrrp->effective_priority = vrrp->base_priority;
 	vrrp->total_priority = vrrp->base_priority;
 
 	if (vrrp->wantstate == VRRP_STATE_MAST) {
-		if (vrrp->nopreempt) {
+		if (__test_bit(VRRP_FLAG_NOPREEMPT, &vrrp->flags)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Warning - nopreempt will not work"
 								  " with initial state MASTER - clearing"
 								, vrrp->iname);
-			vrrp->nopreempt = false;
+			__clear_bit(VRRP_FLAG_NOPREEMPT, &vrrp->flags);
 		}
 		if (vrrp->preempt_delay) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Warning - preempt delay will not work"
@@ -3120,7 +3120,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 								, vrrp->iname);
 			vrrp->preempt_delay = 0;
 		}
-		if (vrrp->nopreempt) {
+		if (__test_bit(VRRP_FLAG_NOPREEMPT, &vrrp->flags)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) preempt_delay is incompatible with"
 								  " nopreempt mode - resetting"
 								, vrrp->iname);

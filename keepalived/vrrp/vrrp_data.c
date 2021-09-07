@@ -718,7 +718,7 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 #ifdef _WITH_FIREWALL_
 	conf_write(fp, "   Accept = %s", vrrp->accept ? "enabled" : "disabled");
 #endif
-	conf_write(fp, "   Preempt = %s", vrrp->nopreempt ? "disabled" : "enabled");
+	conf_write(fp, "   Preempt = %s", __test_bit(VRRP_FLAG_NOPREEMPT, &vrrp->flags) ? "disabled" : "enabled");
 	if (vrrp->preempt_delay)
 		conf_write(fp, "   Preempt delay = %g secs",
 		       vrrp->preempt_delay / TIMER_HZ_DOUBLE);

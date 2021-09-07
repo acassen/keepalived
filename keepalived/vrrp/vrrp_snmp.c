@@ -2019,13 +2019,13 @@ vrrp_snmp_instance_preempt(int action,
 			log_message(LOG_INFO,
 				    "(%s) preemption enabled with SNMP",
 				    vrrp->iname);
-			vrrp->nopreempt = 0;
+			__clear_bit(VRRP_FLAG_NOPREEMPT, &vrrp->flags);
 			break;
 		case 2:
 			log_message(LOG_INFO,
 				    "(%s) preemption disabled with SNMP",
 				    vrrp->iname);
-			vrrp->nopreempt = 1;
+			__set_bit(VRRP_FLAG_NOPREEMPT, &vrrp->flags);
 			break;
 		}
 		break;
@@ -2088,7 +2088,7 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 			    rt->adver_int / TIMER_CENTI_HZ;
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_INSTANCE_PREEMPT:
-		long_ret.u = rt->nopreempt?2:1;
+		long_ret.u = __test_bit(VRRP_FLAG_NOPREEMPT, &rt->flags)?2:1;
 		*write_method = vrrp_snmp_instance_preempt;
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_INSTANCE_PREEMPTDELAY:
@@ -3465,7 +3465,7 @@ vrrp_rfcv2_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = rt->adver_int / TIMER_HZ;
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_RFC_SNMP_OPER_PREEMPT:
-		long_ret.s =  1 + rt->nopreempt;
+		long_ret.s =  1 + __test_bit(VRRP_FLAG_NOPREEMPT, &rt->flags);
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_RFC_SNMP_OPER_VR_UPTIME:
 		if (rt->state == VRRP_STATE_BACK ||
@@ -4115,7 +4115,7 @@ vrrp_rfcv3_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = rt->adver_int / TIMER_CENTI_HZ;
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_RFCv3_SNMP_OPER_PREEMPT:
-		long_ret.s =  1 + rt->nopreempt;
+		long_ret.s =  1 + __test_bit(VRRP_FLAG_NOPREEMPT, &rt->flags);
 		return PTR_CAST(u_char, &long_ret);
 #ifdef _WITH_FIREWALL_
 	case VRRP_RFCv3_SNMP_OPER_ACCEPT:

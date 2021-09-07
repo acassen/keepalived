@@ -1030,13 +1030,13 @@ static void
 vrrp_nopreempt_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
-	vrrp->nopreempt = 1;
+	__set_bit(VRRP_FLAG_NOPREEMPT, &vrrp->flags);
 }
 static void	/* backwards compatibility */
 vrrp_preempt_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
-	vrrp->nopreempt = 0;
+	__clear_bit(VRRP_FLAG_NOPREEMPT, &vrrp->flags);
 }
 static void
 vrrp_preempt_delay_handler(const vector_t *strvec)

@@ -62,6 +62,7 @@ enum vrrp_flags_bits {
 	VRRP_FLAG_CHECK_UNICAST_SRC,		/* It set, check the source address of a unicast advert */
 	VRRP_FLAG_PROMOTE_SECONDARIES,		/* Set promote_secondaries option on interface */
 	VRRP_FLAG_EVIP_OTHER_FAMILY,		/* There are eVIPs of the different address family from the vrrp family */
+	VRRP_FLAG_NOPREEMPT,			/* true if higher prio does not preempt lower */
 #ifdef _HAVE_VRRP_VMAC_
 	VRRP_VMAC_BIT,
 	VRRP_VMAC_UP_BIT,
@@ -273,10 +274,10 @@ typedef struct _vrrp_t {
 	unsigned		num_script_if_fault;	/* Number of scripts and interfaces in fault state */
 	unsigned		num_script_init;	/* Number of scripts in init state */
 	bool			notifies_sent;		/* Set when initial notifies have been sent */
+	bool			multicast_pkt;		/* Last IPv6 packet received was multicast */
 	struct sockaddr_storage	saddr;			/* Src IP address to use in VRRP IP header */
 	struct sockaddr_storage	pkt_saddr;		/* Src IP address received in VRRP IP header */
 	int			rx_ttl_hop_limit;	/* Received TTL/hop limit returned */
-	bool			multicast_pkt;		/* Last IPv6 packet received was multicast */
 	list_head_t		unicast_peer;		/* unicast_peer_t - peers to send unicast advert to */
 	int			ttl;			/* TTL to send packet with if unicasting */
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
@@ -331,7 +332,6 @@ typedef struct _vrrp_t {
 							 * the packets destined to VIP. */
 	bool			firewall_rules_set;	/* Firewall drop rules set to VIP list ? */
 #endif
-	bool			nopreempt;		/* true if higher prio does not preempt lower */
 	unsigned long		preempt_delay;		/* Seconds*TIMER_HZ after startup until
 							 * preemption based on higher prio over lower
 							 * prio is allowed.  0 means no delay.

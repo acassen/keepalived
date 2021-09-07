@@ -180,7 +180,7 @@ vrrp_json_data_dump(json_writer_t *wr, vrrp_t *vrrp)
 #ifdef _WITH_FIREWALL_
 	jsonw_uint_field(wr, "accept", vrrp->accept);
 #endif
-	jsonw_bool_field(wr, "nopreempt", vrrp->nopreempt);
+	jsonw_bool_field(wr, "nopreempt", __test_bit(VRRP_FLAG_NOPREEMPT, &vrrp->flags));
 	jsonw_uint_field(wr, "preempt_delay", vrrp->preempt_delay / TIMER_HZ);
 	jsonw_uint_field(wr, "state", vrrp->state);
 	jsonw_uint_field(wr, "wantstate", vrrp->wantstate);
