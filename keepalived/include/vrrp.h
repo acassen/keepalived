@@ -59,6 +59,7 @@ enum vrrp_flags_bits {
 						    adverts from the same master */
 	VRRP_FLAG_SADDR_FROM_CONFIG,		/* Set if the source address is from configuration */
 	VRRP_FLAG_TRACK_SADDR,			/* Fault state if configured saddr is missing */
+	VRRP_FLAG_CHECK_UNICAST_SRC,		/* It set, check the source address of a unicast advert */
 #ifdef _HAVE_VRRP_VMAC_
 	VRRP_VMAC_BIT,
 	VRRP_VMAC_UP_BIT,
@@ -275,7 +276,6 @@ typedef struct _vrrp_t {
 	bool			multicast_pkt;		/* Last IPv6 packet received was multicast */
 	list_head_t		unicast_peer;		/* unicast_peer_t - peers to send unicast advert to */
 	int			ttl;			/* TTL to send packet with if unicasting */
-	bool			check_unicast_src;	/* It set, check the source address of a unicast advert */
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 	chksum_compatibility_t	unicast_chksum_compat;	/* Whether v1.3.6 and earlier chksum is used */
 #endif

@@ -760,7 +760,7 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 	if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags)) {
 		if (vrrp->ttl != -1)
 			conf_write(fp, "   Unicast TTL = %d", vrrp->ttl);
-		conf_write(fp, "   Check unicast src : %s", vrrp->check_unicast_src ? "yes" : "no");
+		conf_write(fp, "   Check unicast src : %s", __test_bit(VRRP_FLAG_CHECK_UNICAST_SRC, &vrrp->flags) ? "yes" : "no");
 		conf_write(fp, "   Unicast Peer :");
 		dump_unicast_peer_list(fp, &vrrp->unicast_peer);
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
@@ -1004,7 +1004,7 @@ alloc_vrrp_unicast_peer(const vector_t *strvec)
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown unicast_peer option %s", vrrp->iname, strvec_slot(strvec, i));
 				break;
 			}
-			vrrp->check_unicast_src = true;
+			__set_bit(VRRP_FLAG_CHECK_UNICAST_SRC, &vrrp->flags);
 		}
 	}
 

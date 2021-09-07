@@ -730,7 +730,7 @@ vrrp_check_unicast_src_handler(__attribute__((unused)) const vector_t *strvec)
 
 	__set_bit(VRRP_FLAG_UNICAST_CONFIGURED, &vrrp->flags);
 
-	vrrp->check_unicast_src = true;
+	__set_bit(VRRP_FLAG_CHECK_UNICAST_SRC, &vrrp->flags);
 }
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 static void

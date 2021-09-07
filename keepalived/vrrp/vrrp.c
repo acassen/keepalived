@@ -1104,7 +1104,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 		/* check a unicast source address is in the unicast_peer list */
 		if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) &&
 		    (global_data->vrrp_check_unicast_src ||
-		     vrrp->check_unicast_src)) {
+		     __test_bit(VRRP_FLAG_CHECK_UNICAST_SRC, &vrrp->flags))) {
 			struct in_addr *saddr4 = NULL;	/* Avoid compiler warnings */
 			struct in6_addr *saddr6 = NULL;
 			bool found_match = false;
