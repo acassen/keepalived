@@ -925,7 +925,7 @@ vrrp_track_srcip_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 
-	vrrp->track_saddr = true;
+	__set_bit(VRRP_FLAG_TRACK_SADDR, &vrrp->flags);
 }
 static void
 vrrp_vrid_handler(const vector_t *strvec)

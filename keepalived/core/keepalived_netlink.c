@@ -986,7 +986,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 					list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
 						vrrp = top->obj.vrrp;
 
-						if (vrrp->track_saddr && vrrp->family == ifa->ifa_family)
+						if (__test_bit(VRRP_FLAG_TRACK_SADDR, &vrrp->flags) && vrrp->family == ifa->ifa_family)
 							is_tracking_saddr = inaddr_equal(ifa->ifa_family, &vrrp->saddr, addr.addr);
 						else
 							is_tracking_saddr = false;
@@ -1130,7 +1130,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 					if (!inaddr_equal(ifa->ifa_family, vrrp->family == AF_INET ? &(PTR_CAST(struct sockaddr_in, &vrrp->saddr))->sin_addr : (void *)&(PTR_CAST(struct sockaddr_in6, &vrrp->saddr))->sin6_addr, addr.addr))
 						continue;
 
-					is_tracking_saddr = vrrp->track_saddr &&
+					is_tracking_saddr = __test_bit(VRRP_FLAG_TRACK_SADDR, &vrrp->flags) &&
 							    vrrp->family == ifa->ifa_family &&
 							    inaddr_equal(ifa->ifa_family, &vrrp->saddr, addr.addr);
 #ifdef _HAVE_VRRP_VMAC_

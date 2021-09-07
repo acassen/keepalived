@@ -58,6 +58,7 @@ enum vrrp_flags_bits {
 	VRRP_FLAG_SKIP_CHECK_ADV_ADDR,		/* If set, don't check the VIPs in subsequent
 						    adverts from the same master */
 	VRRP_FLAG_SADDR_FROM_CONFIG,		/* Set if the source address is from configuration */
+	VRRP_FLAG_TRACK_SADDR,			/* Fault state if configured saddr is missing */
 #ifdef _HAVE_VRRP_VMAC_
 	VRRP_VMAC_BIT,
 	VRRP_VMAC_UP_BIT,
@@ -269,7 +270,6 @@ typedef struct _vrrp_t {
 	unsigned		num_script_init;	/* Number of scripts in init state */
 	bool			notifies_sent;		/* Set when initial notifies have been sent */
 	struct sockaddr_storage	saddr;			/* Src IP address to use in VRRP IP header */
-	bool			track_saddr;		/* Fault state if configured saddr is missing */
 	struct sockaddr_storage	pkt_saddr;		/* Src IP address received in VRRP IP header */
 	int			rx_ttl_hop_limit;	/* Received TTL/hop limit returned */
 	bool			multicast_pkt;		/* Last IPv6 packet received was multicast */

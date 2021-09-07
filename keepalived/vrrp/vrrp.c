@@ -3309,7 +3309,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	/* Clear track_saddr if no saddr specified */
 	if (!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags))
-		vrrp->track_saddr = false;
+		__clear_bit(VRRP_FLAG_TRACK_SADDR, &vrrp->flags);
 
 #ifdef _HAVE_VRRP_VMAC_
 	/* Set a default interface name for the vmac if needed */
