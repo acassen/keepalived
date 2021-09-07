@@ -2400,7 +2400,6 @@ open_vrrp_read_socket(sa_family_t family, int proto, const interface_t *ifp,
 	int val = rx_buf_size;
 	socklen_t len = sizeof(val);
 	int on = 1;
-	struct sockaddr_in6 loopback6 = { .sin6_family = AF_INET6, .sin6_addr = IN6ADDR_LOOPBACK_INIT };	// ::1
 
 	/* open the socket */
 	fd = socket(family, SOCK_RAW | SOCK_CLOEXEC | SOCK_NONBLOCK, proto);
@@ -2427,13 +2426,13 @@ open_vrrp_read_socket(sa_family_t family, int proto, const interface_t *ifp,
 		/* coverity[forward_null] - ifp cannot be NULL if not unicast */
 		if_join_vrrp_group(family, &fd, ifp);
 
-		/* Binding to, for IPv4 the multicast address and for IPv6 the loopback address,
-		 * stops us receiving unicast pkts when we are only interested in multicast.
-		 * Binding to a multicast address appears to fail for IPv6, so if we allow different
-		 * mcast addresses we only need one socket per interface.
+		/* Binding to the multicast address stops us receiving unicast
+		 * pkts when we are only interested in multicast.
 		 */
+		if (family == AF_INET6)
+			global_data->vrrp_mcast_group6.sin6_scope_id = ifp->ifindex;
 		if ((family == AF_INET && bind(fd, PTR_CAST_CONST(struct sockaddr, &global_data->vrrp_mcast_group4), sizeof(struct sockaddr_in))) ||
-		    (family == AF_INET6 && bind(fd, PTR_CAST_CONST(struct sockaddr, &loopback6), sizeof(struct sockaddr_in6))))
+		    (family == AF_INET6 && bind(fd, PTR_CAST_CONST(struct sockaddr, &global_data->vrrp_mcast_group6), sizeof(struct sockaddr_in6))))
 			log_message(LOG_INFO, "bind for multicast failed %d - %m", errno);
 	} else {
 #ifdef _HAVE_VRF_
