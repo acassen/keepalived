@@ -429,14 +429,14 @@ vrrp_end_handler(void)
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 
 #ifdef _HAVE_VRRP_VMAC_
-	if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) && vrrp->vmac_flags) {
+	if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) && vrrp->flags) {
 		if (!vrrp->ifp) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s): Cannot use VMAC/ipvlan with unicast peers and no interface - clearing use_vmac", vrrp->iname);
-			vrrp->vmac_flags = 0;
+			vrrp->flags = 0;
 			vrrp->vmac_ifname[0] = '\0';
-		} else if (!__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) {
+		} else if (!__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unicast with use_vmac requires vmac_xmit_base - setting", vrrp->iname);
-			__set_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags);
+			__set_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags);
 		}
 	}
 #endif
@@ -483,13 +483,13 @@ vrrp_vmac_handler(const vector_t *strvec)
 	const char *p;
 	char *endptr;
 
-	__set_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags);
+	__set_bit(VRRP_VMAC_BIT, &vrrp->flags);
 
 	/* Ifname and MAC address can be specified */
 	for (i = 1; i < vector_size(strvec) && i <= 2; i++) {
 		if (strchr(strvec_slot(strvec, i), ':')) {
 			/* It's a MAC address - interface names cannot include a ':' */
-			if (__test_bit(VRRP_VMAC_MAC_SPECIFIED, &vrrp->vmac_flags)) {
+			if (__test_bit(VRRP_VMAC_MAC_SPECIFIED, &vrrp->flags)) {
 				report_config_error(CONFIG_GENERAL_ERROR, "VMAC interface address already specified");
 				continue;
 			}
@@ -514,7 +514,7 @@ vrrp_vmac_handler(const vector_t *strvec)
 				vrrp->ll_addr[j] = (u_char)byte_val;
 				if (j == ETH_ALEN - 2 &&
 				    (!*endptr || (*endptr == ':' && !*(endptr+1)))) {
-					__set_bit(VRRP_VMAC_MAC_USE_VRID, &vrrp->vmac_flags);
+					__set_bit(VRRP_VMAC_MAC_USE_VRID, &vrrp->flags);
 					break;
 				}
 				p = endptr + 1;
@@ -531,7 +531,7 @@ vrrp_vmac_handler(const vector_t *strvec)
 			else if (!memcmp(ll_addr, vrrp->ll_addr, ETH_ALEN - 2) && (vrrp->ll_addr[ETH_ALEN - 2] == 0x01 || vrrp->ll_addr[ETH_ALEN - 2] == 0x02))
 				report_config_error(CONFIG_GENERAL_ERROR, "VMAC MAC address not allowed to be RFC5798 address (%s) - ignoring", strvec_slot(strvec, i));
 			else
-				__set_bit(VRRP_VMAC_MAC_SPECIFIED, &vrrp->vmac_flags);
+				__set_bit(VRRP_VMAC_MAC_SPECIFIED, &vrrp->flags);
 		} else {
 			name = strvec_slot(strvec, i);
 
@@ -570,14 +570,14 @@ vrrp_vmac_addr_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 
-	__set_bit(VRRP_VMAC_ADDR_BIT, &vrrp->vmac_flags);
+	__set_bit(VRRP_VMAC_ADDR_BIT, &vrrp->flags);
 }
 static void
 vrrp_vmac_xmit_base_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 
-	__set_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags);
+	__set_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags);
 }
 #endif
 #ifdef _HAVE_VRRP_IPVLAN_
@@ -592,12 +592,12 @@ vrrp_ipvlan_handler(const vector_t *strvec)
 	size_t i;
 	const char *ifname;
 
-	if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags)) {
+	if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->flags)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) use_ipvlan already specified", vrrp->iname);
 		return;
 	}
 
-	__set_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags);
+	__set_bit(VRRP_IPVLAN_BIT, &vrrp->flags);
 
 	for (i = 1; i < vector_size(strvec); i++) {
 		if (!strcmp(strvec_slot(strvec, i), "bridge")) {

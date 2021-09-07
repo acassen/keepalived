@@ -1424,7 +1424,7 @@ cleanup_lost_interface(interface_t *ifp)
 #ifdef _HAVE_VRRP_VMAC_
 		/* If vmac going, clear VMAC_UP_BIT on vrrp instance */
 		if (vrrp->ifp->is_ours) {
-			__clear_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
+			__clear_bit(VRRP_VMAC_UP_BIT, &vrrp->flags);
 #ifdef _WITH_FIREWALL_
 			firewall_remove_vmac(vrrp);
 #endif
@@ -1497,11 +1497,11 @@ setup_interface(vrrp_t *vrrp)
 	/* If the vrrp instance uses a vmac, and that vmac i/f doesn't
 	 * exist, then create it */
 	if (!vrrp->ifp->ifindex) {
-		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
+		if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags) &&
 		    !netlink_link_add_vmac(vrrp))
 			return;
 #ifdef _HAVE_VRRP_IPVLAN_
-		else if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags) &&
+		else if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->flags) &&
 		    !netlink_link_add_ipvlan(vrrp))
 			return;
 #endif
@@ -1548,9 +1548,9 @@ recreate_vmac_thread(thread_ref_t thread)
 		if (vrrp->ifp != ifp)
 			continue;
 
-		if (!__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)
+		if (!__test_bit(VRRP_VMAC_BIT, &vrrp->flags)
 #ifdef _HAVE_VRRP_IPVLAN_
-		    && !__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags)
+		    && !__test_bit(VRRP_IPVLAN_BIT, &vrrp->flags)
 #endif
 								      )
 			continue;
@@ -1646,7 +1646,7 @@ update_added_interface(interface_t *ifp)
 			}
 		}
 
-		if (vrrp->vmac_flags) {
+		if (vrrp->flags) {
 			if (top->type & TRACK_VRRP) {
 				add_vrrp_to_interface(vrrp, ifp->base_ifp, top->weight, top->weight_multiplier == -1, false, TRACK_VRRP_DYNAMIC);
 				if (!IF_ISUP(vrrp->configured_ifp->base_ifp) && !vrrp->dont_track_primary) {
@@ -1678,7 +1678,7 @@ update_added_interface(interface_t *ifp)
 		/* Reopen any socket on this interface if necessary */
 		if (
 #ifdef _HAVE_VRRP_VMAC_
-		    !vrrp->vmac_flags &&
+		    !vrrp->flags &&
 #endif
 		    vrrp->sockets->fd_in == -1)
 			setup_interface(vrrp);

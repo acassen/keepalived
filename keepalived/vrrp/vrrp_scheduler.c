@@ -495,7 +495,7 @@ vrrp_create_sockpool(list_head_t *l)
 
 		ifp =
 #ifdef _HAVE_VRRP_VMAC_
-		      (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? vrrp->configured_ifp :
+		      (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags)) ? vrrp->configured_ifp :
 #endif
 										vrrp->ifp;
 

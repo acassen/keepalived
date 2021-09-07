@@ -1014,7 +1014,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 							 vrrp->ifp &&
 							 ifp == vrrp->ifp->base_ifp &&
 							 IS_MAC_IP_VLAN(vrrp->ifp) &&
-							 !__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&
+							 !__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags) &&
 							 ifa->ifa_family == AF_INET6 &&
 							 vrrp->ifp->is_ours) {
 								inet_ip6tosockaddr(addr.in6, &vrrp->saddr);
@@ -1137,9 +1137,9 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 					/* If we are a VMAC and took this address from the parent interface, we need to
 					 * release the address and create one for ourself */
 					if (ifa->ifa_family == AF_INET6 &&
-					    __test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
+					    __test_bit(VRRP_VMAC_BIT, &vrrp->flags) &&
 					    ifp == vrrp->ifp->base_ifp &&
-					    !__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&
+					    !__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags) &&
 					    !vrrp->saddr_from_config) {
 // This is rubbish if base i/f addr changed. Check against address generated from base i/f's MAC
 						if (IF_ISUP(ifp) && replace_link_local_address(vrrp->ifp))

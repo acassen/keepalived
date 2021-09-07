@@ -633,23 +633,23 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 		conf_write(fp, "   Master down timer = %u usecs", vrrp->ms_down_timer);
 	}
 #ifdef _HAVE_VRRP_VMAC_
-	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
+	if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags)) {
 		conf_write(fp, "   Use VMAC, i/f name %s, is_up = %s, xmit_base = %s",
 				vrrp->vmac_ifname,
-				__test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags) ? "true" : "false",
-				__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) ? "true" : "false");
-		if (__test_bit(VRRP_VMAC_MAC_SPECIFIED, &vrrp->vmac_flags))
+				__test_bit(VRRP_VMAC_UP_BIT, &vrrp->flags) ? "true" : "false",
+				__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags) ? "true" : "false");
+		if (__test_bit(VRRP_VMAC_MAC_SPECIFIED, &vrrp->flags))
 			conf_write(fp, "     MAC = %2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x%s",
 					vrrp->ll_addr[0], vrrp->ll_addr[1], vrrp->ll_addr[2], vrrp->ll_addr[3], vrrp->ll_addr[4], vrrp->ll_addr[5],
-					__test_bit(VRRP_VMAC_MAC_USE_VRID, &vrrp->vmac_flags) ? " (using VRID)" : "");
+					__test_bit(VRRP_VMAC_MAC_USE_VRID, &vrrp->flags) ? " (using VRID)" : "");
 	}
-	if (__test_bit(VRRP_VMAC_ADDR_BIT, &vrrp->vmac_flags))
+	if (__test_bit(VRRP_VMAC_ADDR_BIT, &vrrp->flags))
 		conf_write(fp, "   Use VMAC for VIPs on other interfaces");
 #ifdef _HAVE_VRRP_IPVLAN_
-	else if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->vmac_flags))
+	else if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->flags))
 		conf_write(fp, "   Use IPVLAN, i/f %s, is_up = %s%s%s, type %s",
 				vrrp->vmac_ifname,
-				__test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags) ? "true" : "false",
+				__test_bit(VRRP_VMAC_UP_BIT, &vrrp->flags) ? "true" : "false",
 				vrrp->ipvlan_addr ? ", i/f address = " : "",
 				vrrp->ipvlan_addr ? ipaddresstos(NULL, vrrp->ipvlan_addr) : "",
 #if HAVE_DECL_IFLA_IPVLAN_FLAGS	/* Since Linux v4.15 */
@@ -661,9 +661,9 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 #endif
 	if (vrrp->ifp && vrrp->ifp->is_ours) {
 		conf_write(fp, "   Interface = %s, %s on %s%s", IF_NAME(vrrp->ifp),
-				__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) ? "vmac" : "ipvlan",
+				__test_bit(VRRP_VMAC_BIT, &vrrp->flags) ? "vmac" : "ipvlan",
 				vrrp->ifp != vrrp->ifp->base_ifp ? vrrp->ifp->base_ifp->ifname : "(unknown)",
-				__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) ? ", xmit base i/f" : "");
+				__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags) ? ", xmit base i/f" : "");
 	} else
 #endif
 		conf_write(fp, "   Interface = %s", vrrp->ifp ? IF_NAME(vrrp->ifp) : "not configured");

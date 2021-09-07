@@ -53,6 +53,17 @@ enum vrrp_flags_bits {
 	VRRP_FLAG_UNICAST_CONFIGURED,
 	VRRP_FLAG_UNICAST,
 	VRRP_FLAG_UNICAST_FAULT_NO_PEERS,
+#ifdef _HAVE_VRRP_VMAC_
+	VRRP_VMAC_BIT,
+	VRRP_VMAC_UP_BIT,
+	VRRP_VMAC_XMITBASE_BIT,
+	VRRP_VMAC_ADDR_BIT,
+#ifdef _HAVE_VRRP_IPVLAN_
+	VRRP_IPVLAN_BIT,
+#endif
+	VRRP_VMAC_MAC_SPECIFIED,
+	VRRP_VMAC_MAC_USE_VRID,
+#endif
 };
 
 typedef struct _vrrphdr {			/* rfc2338.5.1 */
@@ -234,7 +245,6 @@ typedef struct _vrrp_t {
 	unsigned		strict_mode;		/* Enforces strict VRRP compliance */
 	unsigned long		flags;
 #ifdef _HAVE_VRRP_VMAC_
-	unsigned long		vmac_flags;		/* VRRP VMAC flags */
 	char			vmac_ifname[IFNAMSIZ];	/* Name of VRRP VMAC interface */
 	u_char			ll_addr[ETH_ALEN];	/* Override MAC address */
 	bool			duplicate_vrid_fault;	/* Set if we have a fault due to duplicate VRID */
