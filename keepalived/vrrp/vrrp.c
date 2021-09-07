@@ -3542,7 +3542,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		/* We need to know if we have eVIPs of the other address family */
 		list_for_each_entry(ip_addr, &vrrp->evip, e_list) {
 			if (ip_addr->ifa.ifa_family != vrrp->family) {
-				vrrp->evip_other_family = true;
+				__set_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags);
 				break;
 			}
 		}
@@ -4371,13 +4371,13 @@ check_vmac_conflicts(void)
 				continue;
 
 			if (vrrp->family != vrrp1->family &&
-			    !vrrp->evip_other_family &&
-			    !vrrp1->evip_other_family)
+			    !__test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags) &&
+			    !__test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp1->flags))
 				continue;
 
 			/* Check vrrp's vmac against vrrp1 VIPs */
 			if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags) &&
-			    (vrrp->family == vrrp1->family || vrrp1->evip_other_family)) {
+			    (vrrp->family == vrrp1->family || __test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp1->flags))) {
 				/* Only check if vrrp families match, or evips if have evips from other family */
 				for (vip_list = vrrp->family == vrrp1->family ? &vrrp1->vip : &vrrp1->evip; vip_list; vip_list = vip_list == &vrrp1->vip ? &vrrp1->evip : NULL) {
 					list_for_each_entry(vip, vip_list, e_list) {
@@ -4395,11 +4395,14 @@ check_vmac_conflicts(void)
 					if (vrrp->family != vrrp1->family) {
 						if (vip_list == &vrrp->vip && vip_list1 == &vrrp1->vip)
 							continue;
-						if (vip_list == &vrrp->vip && vip_list1 == &vrrp1->evip && !vrrp1->evip_other_family)
+						if (vip_list == &vrrp->vip && vip_list1 == &vrrp1->evip && !__test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp1->flags))
 							continue;
-						if (vip_list == &vrrp->evip && !vrrp->evip_other_family && vip_list1 == &vrrp1->vip)
+						if (vip_list == &vrrp->evip && !__test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags) && vip_list1 == &vrrp1->vip)
 							continue;
-						if (vip_list == &vrrp->evip && !vrrp->evip_other_family && vip_list1 == &vrrp1->evip && !vrrp1->evip_other_family)
+						if (vip_list == &vrrp->evip &&
+						    !__test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags) &&
+						    vip_list1 == &vrrp1->evip &&
+						    !__test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp1->flags))
 							continue;
 					}
 

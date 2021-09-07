@@ -403,7 +403,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 
 		/* We don't want IPv6 running on the interface unless we have some IPv6
 		 * eVIPs, so disable it if not needed */
-		if (vrrp->family == AF_INET && !vrrp->evip_other_family)
+		if (vrrp->family == AF_INET && !__test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags))
 			link_set_ipv6(ifp, false);
 		else if (!create_interface) {
 			/* If we didn't create the VMAC we don't know what state it is in */
@@ -411,7 +411,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		}
 	}
 
-	if (vrrp->family == AF_INET6 || vrrp->evip_other_family) {
+	if (vrrp->family == AF_INET6 || __test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags)) {
 		/* Make sure IPv6 is enabled for the interface, in case the
 		 * sysctl net.ipv6.conf.default.disable_ipv6 is set true. */
 		link_set_ipv6(ifp, true);
@@ -461,7 +461,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	netlink_link_up(vrrp);
 
 #if !HAVE_DECL_IFLA_INET6_ADDR_GEN_MODE
-	if (vrrp->family == AF_INET6 || vrrp->evip_other_family) {
+	if (vrrp->family == AF_INET6 || __test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags)) {
 		/* Delete the automatically created link-local address based on the
 		 * MAC address if we weren't able to configure the interface not to
 		 * create the address (see above).
@@ -618,7 +618,7 @@ netlink_link_add_ipvlan(vrrp_t *vrrp)
 	if (vrrp->family == AF_INET) {
 		/* We don't want IPv6 running on the interface unless we have some IPv6
 		 * eVIPs, so disable it if not needed */
-		if (vrrp->family == AF_INET && !vrrp->evip_other_family)
+		if (vrrp->family == AF_INET && !__test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags))
 			link_set_ipv6(ifp, false);
 		else if (!create_interface) {
 			/* If we didn't create the VMAC we don't know what state it is in */
@@ -626,7 +626,7 @@ netlink_link_add_ipvlan(vrrp_t *vrrp)
 		}
 	}
 
-	if (vrrp->family == AF_INET6 || vrrp->evip_other_family) {
+	if (vrrp->family == AF_INET6 || __test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags)) {
 		/* Make sure IPv6 is enabled for the interface, in case the
 		 * sysctl net.ipv6.conf.default.disable_ipv6 is set true. */
 		link_set_ipv6(ifp, true);
