@@ -4538,10 +4538,6 @@ vrrp_complete_init(void)
 			return false;
 	}
 
-	/* Make sure we don't have duplicate VRIDs */
-	if (check_vrid_conflicts())
-		return false;
-
 	/* Build synchronization group index, and remove any
 	 * empty groups */
 	list_for_each_entry_safe(sgroup, sgroup_tmp, &vrrp_data->vrrp_sync_group, e_list) {
@@ -4565,6 +4561,10 @@ vrrp_complete_init(void)
 		if (vrrp->ifp && vrrp->ifp->mtu > max_mtu_len)
 			max_mtu_len = vrrp->ifp->mtu;
 	}
+
+	/* Make sure we don't have duplicate VRIDs */
+	if (check_vrid_conflicts())
+		return false;
 
 #ifdef _HAVE_VRRP_VMAC_
 	check_vmac_conflicts();
