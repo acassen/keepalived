@@ -426,7 +426,7 @@ already_exist_sock(const list_head_t *l, sa_family_t family, int proto, const in
 #ifdef _HAVE_VRF_
 		   const interface_t *vrf_ifp,
 #endif
-		   const struct sockaddr_storage *unicast_src)
+		   const sockaddr_t *unicast_src)
 {
 	sock_t *sock;
 
@@ -450,7 +450,7 @@ alloc_sock(sa_family_t family, list_head_t *l, int proto, interface_t *ifp,
 #ifdef _HAVE_VRF_
 	   const interface_t *vrf_ifp,
 #endif
-	   const struct sockaddr_storage *unicast_src)
+	   const sockaddr_t *unicast_src)
 {
 	sock_t *new;
 
@@ -485,7 +485,7 @@ vrrp_create_sockpool(list_head_t *l)
 	interface_t *ifp;
 	int proto;
 	sock_t *sock;
-	struct sockaddr_storage *unicast_src;
+	sockaddr_t *unicast_src;
 
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		if (!__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags))
@@ -861,7 +861,7 @@ vrrp_dispatcher_read(sock_t *sock)
 	const vrrphdr_t *hd;
 	ssize_t len = 0;
 	int prev_state = 0;
-	struct sockaddr_storage src_addr = { .ss_family = AF_UNSPEC };
+	sockaddr_t src_addr = { .ss_family = AF_UNSPEC };
 	vrrp_t vrrp_lookup;
 #ifdef _NETWORK_TIMESTAMP_
 	char control_buf[128] __attribute__((aligned(__alignof__(struct cmsghdr))));

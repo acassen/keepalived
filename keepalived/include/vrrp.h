@@ -46,6 +46,7 @@
 #include "vrrp_if.h"
 #include "vrrp_sock.h"
 #include "vrrp_track.h"
+#include "sockaddr.h"
 
 struct _ip_address;
 
@@ -229,7 +230,7 @@ typedef struct {
 #endif
 
 typedef struct _unicast_peer_t {
-	struct sockaddr_storage	address;
+	sockaddr_t		address;
 #ifdef _CHECKSUM_DEBUG_
 	checksum_check_t	chk;
 #endif
@@ -275,8 +276,8 @@ typedef struct _vrrp_t {
 	unsigned		num_script_init;	/* Number of scripts in init state */
 	bool			notifies_sent;		/* Set when initial notifies have been sent */
 	bool			multicast_pkt;		/* Last IPv6 packet received was multicast */
-	struct sockaddr_storage	saddr;			/* Src IP address to use in VRRP IP header */
-	struct sockaddr_storage	pkt_saddr;		/* Src IP address received in VRRP IP header */
+	sockaddr_t		saddr;			/* Src IP address to use in VRRP IP header */
+	sockaddr_t		pkt_saddr;		/* Src IP address received in VRRP IP header */
 	int			rx_ttl_hop_limit;	/* Received TTL/hop limit returned */
 	list_head_t		unicast_peer;		/* unicast_peer_t - peers to send unicast advert to */
 	int			ttl;			/* TTL to send packet with if unicasting */
@@ -286,7 +287,7 @@ typedef struct _vrrp_t {
 #ifdef _CHECKSUM_DEBUG_
 	checksum_check_t	chk;
 #endif
-	struct sockaddr_storage master_saddr;		/* Store last heard Master address */
+	sockaddr_t		master_saddr;		/* Store last heard Master address */
 	uint8_t			master_priority;	/* Store last heard priority */
 	timeval_t		last_transition;	/* Store transition time */
 	unsigned		garp_delay;		/* Delay to launch gratuitous ARP */

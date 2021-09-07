@@ -31,6 +31,7 @@
 
 #include "libipvs.h"
 #include "check_data.h"
+#include "sockaddr.h"
 
 #define IPVS_ERROR	0
 #define IPVS_SUCCESS	1
@@ -53,7 +54,7 @@ struct lvs_syncd_config {
 	unsigned			syncid;		/* 0 .. 255, or PARAMETER_UNSET if not configured */
 #ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
 	uint16_t			sync_maxlen;
-	struct sockaddr_storage		mcast_group;
+	sockaddr_t			mcast_group;
 	uint16_t			mcast_port;
 	uint8_t				mcast_ttl;
 #endif

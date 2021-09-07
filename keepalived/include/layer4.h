@@ -31,6 +31,7 @@
 
 /* local includes */
 #include "scheduler.h"
+#include "sockaddr.h"
 
 
 enum connect_result {
@@ -44,14 +45,14 @@ enum connect_result {
 
 /* connection options structure definition */
 typedef struct _conn_opts {
-	struct sockaddr_storage		dst;
-	struct sockaddr_storage		bindto;
-	char				bind_if[IFNAMSIZ];
-	unsigned int			connection_to; /* connection time-out */
+	sockaddr_t	dst;
+	sockaddr_t	bindto;
+	char		bind_if[IFNAMSIZ];
+	unsigned int	connection_to; /* connection time-out */
 #ifdef _WITH_SO_MARK_
-	unsigned int			fwmark; /* to mark packets going out of the socket using SO_MARK */
+	unsigned int	fwmark; /* to mark packets going out of the socket using SO_MARK */
 #endif
-	int				last_errno;	/* Errno from last call to connect */
+	int		last_errno;	/* Errno from last call to connect */
 } conn_opts_t;
 
 /* Prototypes defs */
@@ -62,7 +63,7 @@ socket_bind_connect(int, conn_opts_t *);
 #endif
 
 extern enum connect_result
-socket_connect(int, const struct sockaddr_storage *);
+socket_connect(int, const sockaddr_t *);
 
 extern enum connect_result
 socket_state(thread_ref_t, thread_func_t, unsigned);
@@ -84,7 +85,7 @@ tcp_bind_connect(int fd, conn_opts_t *co)
 #endif
 
 static inline enum connect_result
-tcp_connect(int fd, const struct sockaddr_storage *addr)
+tcp_connect(int fd, const sockaddr_t *addr)
 {
 	return socket_connect(fd, addr);
 }

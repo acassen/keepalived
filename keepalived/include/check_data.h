@@ -46,6 +46,7 @@
 #endif
 #ifdef _WITH_NFTABLES_
 #include "logger.h"
+#include "sockaddr.h"
 #endif
 
 /* Daemon dynamic data structure definition */
@@ -75,7 +76,7 @@ typedef struct _ssl_data {
 
 /* Real Server definition */
 typedef struct _real_server {
-	struct sockaddr_storage		addr;
+	sockaddr_t			addr;
 	int64_t				effective_weight;
 	int64_t				peffective_weight; /* previous weight
 							    * used for reloading */
@@ -135,8 +136,8 @@ typedef struct _virtual_server_group_entry {
 	bool				is_fwmark;
 	union {
 		struct {
-			struct sockaddr_storage	addr;
-			struct sockaddr_storage	addr_end;
+			sockaddr_t	addr;
+			sockaddr_t	addr_end;
 			unsigned	tcp_alive;
 			unsigned	udp_alive;
 			unsigned	sctp_alive;
@@ -173,7 +174,7 @@ typedef struct _virtual_server_group {
 typedef struct _virtual_server {
 	const char			*vsgname;
 	virtual_server_group_t		*vsg;
-	struct sockaddr_storage		addr;
+	sockaddr_t			addr;
 	uint32_t			vfwmark;
 	real_server_t			*s_svr;
 	bool				s_svr_duplicates_rs;

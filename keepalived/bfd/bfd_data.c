@@ -352,7 +352,7 @@ free_bfd_buffer(void)
  * If local address is not set, then it is a configuration time check and
  * the bfd instance is configured without a local address. */
 bfd_t * __attribute__ ((pure))
-find_bfd_by_addr(const struct sockaddr_storage *nbr_addr, const struct sockaddr_storage *local_addr)
+find_bfd_by_addr(const sockaddr_t *nbr_addr, const sockaddr_t *local_addr)
 {
 	bfd_t *bfd;
 	assert(nbr_addr);

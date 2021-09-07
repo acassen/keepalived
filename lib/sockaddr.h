@@ -3,7 +3,7 @@
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
  *
- * Part:        check_nftables.c include file.
+ * Part:        sockaddr.h include file.
  *
  * Author:      Quentin Armitage, <quentin@armitage.org.uk>
  *
@@ -17,28 +17,32 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2020-2020 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2021-2021 Alexandre Cassen, <acassen@gmail.com>
  */
 
-#ifndef _CHECK_NFTABLES_H
-#define _CHECK_NFTABLES_H
+#ifndef _SOCKADDR_H
+#define _SOCKADDR_H
 
 #include "config.h"
 
-#include "nftables.h"
-#include "check_data.h"
-#include "sockaddr.h"
+#include <sys/socket.h>
+#include <netinet/in.h>
 
-#define	DEFAULT_NFTABLES_IPVS_TABLE	"keepalived_ipvs"
-#define DEFAULT_IPVS_NF_START_FWMARK    1000
+/* If you want to use struct sockaddr_storage rather than struct sockaddr
+ * use configure option --enable-sockaddr-storage
+ * struct sockaddr_storage_t is much larger than we need, 128 bytes, versus
+ * 28 bytes for the struct supporting just IPv4 and IPv6.
+ */
 
-#ifdef _INCLUDE_UNUSED_CODE_
-extern void nft_add_ipvs_entry(const sockaddr_t *, uint16_t, uint32_t);
-extern void nft_remove_ipvs_entry(const sockaddr_t *, uint16_t, uint32_t);
+#ifdef USE_SOCKADDR_STORAGE
+typedef struct sockaddr_storage sockaddr_t;
+#else
+typedef struct {
+	union {
+		sa_family_t ss_family;
+		struct sockaddr_in in;
+		struct sockaddr_in6 in6;
+	};
+} sockaddr_t;
 #endif
-extern void nft_ipvs_end(void);
-extern unsigned set_vs_fwmark(virtual_server_t *);
-extern void clear_vs_fwmark(virtual_server_t *);
-extern void remove_vs_fwmark_entry(virtual_server_t *, virtual_server_group_entry_t *);
-
 #endif

@@ -888,7 +888,7 @@ static void
 vrrp_srcip_handler(const vector_t *strvec)
 {
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
-	struct sockaddr_storage *saddr = &vrrp->saddr;
+	sockaddr_t *saddr = &vrrp->saddr;
 
 	if (inet_stosockaddr(strvec_slot(strvec, 1), NULL, saddr)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: VRRP instance[%s] malformed"

@@ -195,6 +195,8 @@ AC_ARG_ENABLE(routes,
   [AS_HELP_STRING([--disable-routes], [compile without ip rules/routes])])
 AC_ARG_ENABLE(linkbeat,
   [AS_HELP_STRING([--disable-linkbeat], [build without linkbeat support])])
+AC_ARG_ENABLE(sockaddr_storage,
+  [AS_HELP_STRING([--enable-sockaddr-storage], [build using sockaddr_storage rather than smaller sockaddr for IPv4/6 only])])
 AC_ARG_ENABLE(gnu-std-paths,
   [AS_HELP_STRING([--enable-gnu-std-paths], [use GNU standard paths for pid files etc])])
 AC_ARG_ENABLE(dynamic-linking,
@@ -2031,6 +2033,13 @@ AS_IF([test .$enable_linkbeat = .no],
   [
     LINKBEAT_SUPPORT=Yes
     AC_DEFINE([_WITH_LINKBEAT_], [ 1 ], [Define to 1 if have linkbeat support])
+  ])
+
+dnl ----[ Check if using sockaddr_storage wanted ]----
+AS_IF([test .$enable_sockaddr_storage = .yes],
+  [
+    AC_DEFINE([USE_SOCKADDR_STORAGE], [ 1 ], [Define to 1 if use sockaddr_storage])
+    add_config_opt([SOCKADDR_STORAGE])
   ])
 
 dnl ----[ Checks for kernel IFLA_INET6_ADDR_GEN_MODE support ]----

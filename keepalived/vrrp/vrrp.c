@@ -371,7 +371,7 @@ expected_vrrp_pkt_len(const vrrphdr_t *vh, int family)
 }
 
 static void
-vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage *addr)
+vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, sockaddr_t *addr)
 {
 	char *bufptr = vrrp->send_buffer;
 	vrrphdr_t *hd;
@@ -664,8 +664,8 @@ check_tx_checksum(vrrp_t *vrrp, unicast_peer_t *peer)
 	if (calc_chksum != pkt_chksum ||
 	    !chk->sent_to ||
 	    acc_csum != chk->last_tx_checksum) {
-		struct sockaddr_storage *dst_addr;
-		struct sockaddr_storage addr;
+		sockaddr_t *dst_addr;
+		sockaddr_t addr;
 
 		if (peer)
 			dst_addr = &peer->address;
@@ -705,7 +705,7 @@ check_rx_checksum(vrrp_t *vrrp, const ipv4_phdr_t *ipv4_phdr, const struct iphdr
 {
 	unicast_peer_t *peer;
 	struct in_addr *saddr4;
-	struct sockaddr_storage addr;
+	sockaddr_t addr;
 	checksum_check_t *chk;
 	bool peer_found = false;
 
@@ -1382,7 +1382,7 @@ vrrp_build_pkt(vrrp_t * vrrp)
 
 /* send VRRP packet */
 static int
-vrrp_build_ancillary_data(struct msghdr *msg, char *cbuf, struct sockaddr_storage *src, const vrrp_t *vrrp)
+vrrp_build_ancillary_data(struct msghdr *msg, char *cbuf, sockaddr_t *src, const vrrp_t *vrrp)
 {
 	struct cmsghdr *cmsg;
 	struct in6_pktinfo *pkt;
@@ -1433,7 +1433,7 @@ vrrp_build_ancillary_data(struct msghdr *msg, char *cbuf, struct sockaddr_storag
 static ssize_t
 vrrp_send_pkt(vrrp_t * vrrp, unicast_peer_t *peer)
 {
-	struct sockaddr_storage *src = &vrrp->saddr;
+	sockaddr_t *src = &vrrp->saddr;
 	struct msghdr msg;
 	struct iovec iov;
 	char cbuf[256] __attribute__((aligned(__alignof__(struct cmsghdr))));
@@ -2037,7 +2037,7 @@ vrrp_state_master_tx(vrrp_t * vrrp)
 }
 
 static int
-vrrp_saddr_cmp(struct sockaddr_storage *addr, vrrp_t *vrrp)
+vrrp_saddr_cmp(sockaddr_t *addr, vrrp_t *vrrp)
 {
 	interface_t *ifp = vrrp->ifp;
 
@@ -2328,7 +2328,7 @@ open_vrrp_send_socket(sa_family_t family, int proto, const interface_t *ifp,
 #ifdef _HAVE_VRF_
 			const interface_t *vrf_ifp,
 #endif
-			const struct sockaddr_storage *unicast_src)
+			const sockaddr_t *unicast_src)
 {
 	int fd = -1;
 	int val = 0;
@@ -2398,7 +2398,7 @@ open_vrrp_read_socket(sa_family_t family, int proto, const interface_t *ifp,
 #ifdef _HAVE_VRF_
 		const interface_t *vrf_ifp,
 #endif
-		const struct sockaddr_storage *unicast_src, int rx_buf_size)
+		const sockaddr_t *unicast_src, int rx_buf_size)
 {
 	int fd = -1;
 	int val = rx_buf_size;
@@ -2513,8 +2513,8 @@ void
 open_sockpool_socket(sock_t *sock)
 {
 	vrrp_t *vrrp;
-	struct sockaddr_storage unicast_src;
-	const struct sockaddr_storage *unicast_src_p = sock->unicast_src;
+	sockaddr_t unicast_src;
+	const sockaddr_t *unicast_src_p = sock->unicast_src;
 
 	if (sock->unicast_src &&
 	    sock->unicast_src->ss_family == AF_INET6 &&
