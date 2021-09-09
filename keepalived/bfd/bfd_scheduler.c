@@ -940,13 +940,11 @@ bfd_open_fd_in(bfd_data_t *data)
 
 	if ((ret = getaddrinfo(NULL, BFD_CONTROL_PORT, &hints, &ai_in)))
 		log_message(LOG_ERR, "getaddrinfo() error %d (%s)", ret, gai_strerror(ret));
-	else if ((data->fd_in = socket(AF_INET6, ai_in->ai_socktype, ai_in->ai_protocol)) == -1) {
+	else if (ai_in && (data->fd_in = socket(AF_INET6, ai_in->ai_socktype, ai_in->ai_protocol)) == -1) {
 		if (errno == EAFNOSUPPORT) {
 			/* IPv6 is disabled on the system, so we need to try using IPv4 */
-			if (ai_in) {
-				freeaddrinfo(ai_in);
-				ai_in = NULL;
-			}
+			freeaddrinfo(ai_in);
+			ai_in = NULL;
 			hints.ai_family = AF_INET;
 
 			if ((ret = getaddrinfo(NULL, BFD_CONTROL_PORT, &hints, &ai_in)))
