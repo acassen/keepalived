@@ -1304,7 +1304,7 @@ vrrp_snmp_route(struct variable *vp, oid *name, size_t *length,
 #else
 		if (!(route->mask & IPROUTE_BIT_FASTOPEN_NO_COOKIE))
 			break;
-		long_ret.u = route->fastopen_no_cookie;
+		long_ret.u = 2 - route->fastopen_no_cookie;
 		return PTR_CAST(u_char, &long_ret);
 #endif
 	case VRRP_SNMP_ROUTE_REALM_DST:
@@ -2810,7 +2810,7 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_encap, 3, {7, 1, 54}},
 #endif
 #if HAVE_DECL_RTAX_FASTOPEN_NO_COOKIE
-	{VRRP_SNMP_ROUTE_FASTOPEN_NO_COOKIE, ASN_UNSIGNED, RONLY,
+	{VRRP_SNMP_ROUTE_FASTOPEN_NO_COOKIE, ASN_INTEGER, RONLY,
 	 vrrp_snmp_route, 3, {7, 1, 55}},
 #endif
 #endif
@@ -2879,7 +2879,7 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_rule, 3, {8, 1, 31}},
 #endif
 #if HAVE_DECL_FRA_L3MDEV
-	{VRRP_SNMP_RULE_L3MDEV, ASN_UNSIGNED, RONLY,
+	{VRRP_SNMP_RULE_L3MDEV, ASN_INTEGER, RONLY,
 	 vrrp_snmp_rule, 3, {8, 1, 32}},
 #endif
 

@@ -931,38 +931,45 @@ static int
 bfd_open_fd_in(bfd_data_t *data)
 {
 	struct addrinfo hints = { .ai_family = AF_INET6, .ai_flags = AI_NUMERICSERV | AI_PASSIVE, .ai_protocol = IPPROTO_UDP, .ai_socktype = SOCK_DGRAM };
-	struct addrinfo *ai_in = NULL;
+	struct addrinfo *ai_in;
 	int ret;
 	int yes = 1;
+	int sav_errno;
 
 	assert(data);
 	assert(data->fd_in == -1);
 
-	if ((ret = getaddrinfo(NULL, BFD_CONTROL_PORT, &hints, &ai_in)))
+	if ((ret = getaddrinfo(NULL, BFD_CONTROL_PORT, &hints, &ai_in))) {
 		log_message(LOG_ERR, "getaddrinfo() error %d (%s)", ret, gai_strerror(ret));
-	else if (ai_in && (data->fd_in = socket(AF_INET6, ai_in->ai_socktype, ai_in->ai_protocol)) == -1) {
-		if (errno == EAFNOSUPPORT) {
-			/* IPv6 is disabled on the system, so we need to try using IPv4 */
-			freeaddrinfo(ai_in);
-			ai_in = NULL;
-			hints.ai_family = AF_INET;
+		return ret;
+	}
 
-			if ((ret = getaddrinfo(NULL, BFD_CONTROL_PORT, &hints, &ai_in)))
-				log_message(LOG_ERR, "getaddrinfo(AF_INET) error %d (%s)", ret, gai_strerror(ret));
-			else if ((data->fd_in = socket(AF_INET, ai_in->ai_socktype, ai_in->ai_protocol)) == -1) {
-				log_message(LOG_ERR, "socket(AF_INET) error %d (%m)", errno);
-				ret = 1;
-			}
-		} else {
+	if ((data->fd_in = socket(AF_INET6, ai_in->ai_socktype, ai_in->ai_protocol)) == -1) {
+		sav_errno = errno;
+
+		freeaddrinfo(ai_in);
+
+		if (sav_errno != EAFNOSUPPORT) {
 			log_message(LOG_ERR, "socket() error %d (%m)", errno);
-			ret = 1;
+			return 1;
+		}
+
+		/* IPv6 is disabled on the system, so we need to try using IPv4 */
+		hints.ai_family = AF_INET;
+
+		if ((ret = getaddrinfo(NULL, BFD_CONTROL_PORT, &hints, &ai_in))) {
+			log_message(LOG_ERR, "getaddrinfo(AF_INET) error %d (%s)", ret, gai_strerror(ret));
+			return ret;
+		}
+
+		if ((data->fd_in = socket(AF_INET, ai_in->ai_socktype, ai_in->ai_protocol)) == -1) {
+			log_message(LOG_ERR, "socket(AF_INET) error %d (%m)", errno);
+			freeaddrinfo(ai_in);
+			return 1;
 		}
 	}
 
-	if (ret) {
-		/* We have had an error, so don't do anything more */
-	}
-	else if ((ret = setsockopt(data->fd_in, IPPROTO_IP, IP_RECVTTL, &yes, sizeof (yes))) == -1)
+	if ((ret = setsockopt(data->fd_in, IPPROTO_IP, IP_RECVTTL, &yes, sizeof (yes))) == -1)
 		log_message(LOG_ERR, "setsockopt(IP_RECVTTL) error %d (%m)", errno);
 	else if (ai_in->ai_family == AF_INET6 && (ret = setsockopt(data->fd_in, IPPROTO_IPV6, IPV6_RECVHOPLIMIT, &yes, sizeof (yes))) == -1)
 		log_message(LOG_ERR, "setsockopt(IPV6_RECVHOPLIMIT) error %d (%m)", errno);
@@ -973,8 +980,12 @@ bfd_open_fd_in(bfd_data_t *data)
 	else if ((ret = bind(data->fd_in, ai_in->ai_addr, ai_in->ai_addrlen)) == -1)
 		log_message(LOG_ERR, "bind() error %d (%m)", errno);
 
-	if (ai_in)
-		freeaddrinfo(ai_in);
+	freeaddrinfo(ai_in);
+
+	if (ret) {
+		close(data->fd_in);
+		data->fd_in = -1;
+	}
 
 	return ret;
 }
@@ -1076,9 +1087,9 @@ bfd_open_fd_out(bfd_t *bfd)
 		} while (true);
 
 		if (ret == -1) {
-			log_message(LOG_ERR,
-				    "(%s) bind() error (%m)",
-				    bfd->iname);
+			log_message(LOG_ERR, "(%s) bind() error (%m)", bfd->iname);
+			close(bfd->fd_out);
+			bfd->fd_out = -1;
 			return 1;
 		}
 	} else {
@@ -1095,8 +1106,9 @@ bfd_open_fd_out(bfd_t *bfd)
 		ret = setsockopt(bfd->fd_out, IPPROTO_IPV6, IPV6_UNICAST_HOPS, &ttl, sizeof (ttl));
 
 	if (ret == -1) {
-		log_message(LOG_ERR, "(%s) setsockopt() "
-			    " error (%m)", bfd->iname);
+		log_message(LOG_ERR, "(%s) setsockopt() error (%m)", bfd->iname);
+		close(bfd->fd_out);
+		bfd->fd_out = -1;
 		return 1;
 	}
 

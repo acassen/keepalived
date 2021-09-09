@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "202109040001Z"
+     LAST-UPDATED "202109090001Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "202109090001Z"
+     DESCRIPTION "correct syntax of vrrpInstanceIndex"
      REVISION "202109040001Z"
      DESCRIPTION "add vrrp multicast address"
      REVISION "202106050001Z"
@@ -928,14 +930,12 @@ VrrpInstanceEntry ::= SEQUENCE {
 }
 
 vrrpInstanceIndex OBJECT-TYPE
-    SYNTAX INTEGER {
-        static(0)
-    }
+    SYNTAX Integer32 (0..2147483647)
     MAX-ACCESS not-accessible
     STATUS current
     DESCRIPTION
         "Index of the VRRP instance.
-         Instance 0 is for static IP and static routes."
+         Instance 0 is for static IP addresses, routes and rules."
     ::= { vrrpInstanceEntry 1 }
 
 vrrpInstanceName OBJECT-TYPE
