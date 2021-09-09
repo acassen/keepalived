@@ -87,9 +87,9 @@ check_iptables_nft(void)
 
 #ifdef ALLOW_IPTABLES_LEGACY
 		fp = popen("iptables-legacy -V", "r");
-		fclose(fp);
 
 		if (fp) {
+		    fclose(fp);
 			/* The iptables-legacy command exists, so can use iptables */
 			return;
 		}
