@@ -2002,7 +2002,7 @@ process_threads(thread_master_t *m)
 		m->current_thread = thread;
 		thread_type = thread->type;
 
-		if (thread && thread->type == THREAD_CHILD_TIMEOUT) {
+		if (thread->type == THREAD_CHILD_TIMEOUT) {
 			/* We remove the thread from the child_pid queue here so that
 			 * if the termination arrives before we processed the timeout
 			 * we can still handle the termination. */
