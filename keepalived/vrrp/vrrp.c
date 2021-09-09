@@ -3571,11 +3571,16 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		    !__test_bit(VRRP_VMAC_UP_BIT, &vrrp->flags) &&
 		    !__test_bit(CONFIG_TEST_BIT, &debug)) {
 #ifdef _HAVE_VRRP_IPVLAN_
-			if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->flags))
+			if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->flags)) {
+				/* coverity[var_deref_model] - vrrp->configured_ifp is not NULL for IPVLAN */
 				netlink_link_add_ipvlan(vrrp);
+			}
 			else
 #endif
+			{
+				/* coverity[var_deref_model] - vrrp->configured_ifp is not NULL for VMAC */
 				netlink_link_add_vmac(vrrp);
+			}
 		}
 
 		if (vrrp->ifp->base_ifp->ifindex &&

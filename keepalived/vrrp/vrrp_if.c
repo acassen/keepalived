@@ -1497,10 +1497,12 @@ setup_interface(vrrp_t *vrrp)
 	/* If the vrrp instance uses a vmac, and that vmac i/f doesn't
 	 * exist, then create it */
 	if (!vrrp->ifp->ifindex) {
+		/* coverity[var_deref_model] - vrrp->configured_ifp is not NULL for VMAC */
 		if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags) &&
 		    !netlink_link_add_vmac(vrrp))
 			return;
 #ifdef _HAVE_VRRP_IPVLAN_
+		/* coverity[var_deref_model] - vrrp->configured_ifp is not NULL for IPVLAN */
 		else if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->flags) &&
 		    !netlink_link_add_ipvlan(vrrp))
 			return;
