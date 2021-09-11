@@ -362,7 +362,7 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSGROUPMEMBERADDRTYPE:
 		if (be->is_fwmark) break;
-		long_ret.u = (be->addr.ss_family == AF_INET6) ? 2:1;
+		long_ret.u = SNMP_InetAddressType(be->addr.ss_family);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSGROUPMEMBERADDRESS:
 		if (be->is_fwmark || inet_sockaddrcmp(&be->addr, &be->addr_end)) break;
@@ -435,7 +435,7 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = v->vfwmark;
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSADDRTYPE:
-		long_ret.u = (v->af == AF_INET6) ? 2:1;
+		long_ret.u = SNMP_InetAddressType(v->af);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSADDRESS:
 		if (v->vfwmark || v->vsg) break;
@@ -925,7 +925,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = SNMP_TruthValue(type != STATE_RS_SORRY);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_RSADDRTYPE:
-		long_ret.u = (be->addr.ss_family == AF_INET6) ? 2:1;
+		long_ret.u = SNMP_InetAddressType(be->addr.ss_family);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_RSADDRESS:
 		RETURN_IP46ADDRESS(be);
@@ -1239,7 +1239,7 @@ check_snmp_lvs_sync_daemon(struct variable *vp, oid *name, size_t *length,
 		if (!global_data->lvs_syncd.ifname ||
 		    global_data->lvs_syncd.mcast_group.ss_family == AF_UNSPEC)
 			return NULL;
-		long_ret.u = (global_data->lvs_syncd.mcast_group.ss_family == AF_INET6) ? 2:1;
+		long_ret.u = SNMP_InetAddressType(global_data->lvs_syncd.mcast_group.ss_family);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_LVSSYNCDAEMONMCASTGROUPADDRVALUE:
 		if (!global_data->lvs_syncd.ifname ||
@@ -1707,7 +1707,7 @@ check_snmp_rs_trap(real_server_t *rs, virtual_server_t *vs, bool stopping)
 				  notification_oid_len * sizeof(oid));
 	if (rs) {
 		/* realServerAddrType */
-		addrtype = (rs->addr.ss_family == AF_INET6)?2:1;
+		addrtype = SNMP_InetAddressType(rs->addr.ss_family);
 		snmp_varlist_add_variable(&notification_vars,
 					  addrtype_oid, addrtype_oid_len,
 					  ASN_INTEGER,
@@ -1764,7 +1764,7 @@ check_snmp_rs_trap(real_server_t *rs, virtual_server_t *vs, bool stopping)
 					  PTR_CAST(u_char, &vsfwmark),
 					  sizeof(vsfwmark));
 	} else {
-		addrtype = (vs->addr.ss_family == AF_INET6)?2:1;
+		addrtype = SNMP_InetAddressType(vs->addr.ss_family);
 		snmp_varlist_add_variable(&notification_vars,
 					  vsaddrtype_oid, vsaddrtype_oid_len,
 					  ASN_INTEGER,

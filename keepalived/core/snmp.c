@@ -222,7 +222,7 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 		ret.cp = global_data->router_id;
 		return ret.p;
 	case SNMP_MAIL_SMTPSERVERADDRESSTYPE:
-		long_ret = (global_data->smtp_server.ss_family == AF_INET6)?2:1;
+		long_ret = SNMP_InetAddressType(global_data->smtp_server.ss_family);
 		return PTR_CAST(u_char, &long_ret);
 	case SNMP_MAIL_SMTPSERVERADDRESS:
 		if (global_data->smtp_server.ss_family == AF_INET6) {

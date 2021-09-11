@@ -951,7 +951,7 @@ vrrp_snmp_address(struct variable *vp, oid *name, size_t *length,
 
 	switch (vp->magic) {
 	case VRRP_SNMP_ADDRESS_ADDRESSTYPE:
-		long_ret.u = (addr->ifa.ifa_family == AF_INET6)?2:1;
+		long_ret.u = SNMP_InetAddressType(addr->ifa.ifa_family);
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_ADDRESS_VALUE:
 		if (addr->ifa.ifa_family == AF_INET6) {
@@ -1456,7 +1456,7 @@ vrrp_snmp_next_hop(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_ROUTE_NEXT_HOP_ADDRESS_TYPE:
 		if (!nh->addr)
 			break;
-		long_ret.u = (nh->addr->ifa.ifa_family == AF_INET6) ? 2 : 1;
+		long_ret.u = SNMP_InetAddressType(nh->addr->ifa.ifa_family);
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_ROUTE_NEXT_HOP_ADDRESS:
 		if (!nh->addr)
@@ -1532,7 +1532,7 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 		addr = rule->to_addr ? rule->to_addr : rule->from_addr;
 		if (!addr)
 			break;
-		long_ret.u = addr->ifa.ifa_family == AF_INET6 ? 2 : 1;
+		long_ret.u = SNMP_InetAddressType(addr->ifa.ifa_family);
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_RULE_ADDRESS:	/* obsolete */
 		addr = rule->to_addr ? rule->to_addr : rule->from_addr;
@@ -1564,7 +1564,7 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_RULE_DESTINATIONADDRESSTYPE:
 		if (!rule->to_addr)
 			break;
-		long_ret.u = (rule->to_addr->ifa.ifa_family == AF_INET6) ? 2 : 1;
+		long_ret.u = SNMP_InetAddressType(rule->to_addr->ifa.ifa_family);
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_RULE_DESTINATIONADDRESS:
 		if (!rule->to_addr)
@@ -1583,7 +1583,7 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_RULE_SOURCEADDRESSTYPE:
 		if (!rule->from_addr)
 			break;
-		long_ret.u = (rule->from_addr->ifa.ifa_family == AF_INET6) ? 2 : 1;
+		long_ret.u = SNMP_InetAddressType(rule->from_addr->ifa.ifa_family);
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_RULE_SOURCEADDRESS:
 		if (!rule->from_addr)
@@ -2205,7 +2205,7 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_INSTANCE_MULTICAST_ADDRESSTYPE:
 		if (__test_bit(VRRP_FLAG_UNICAST, &rt->flags))
 			break;
-		long_ret.u = (rt->mcast_daddr.ss_family == AF_INET6)?2:1;
+		long_ret.u = SNMP_InetAddressType(rt->mcast_daddr.ss_family);
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_INSTANCE_MULTICAST_ADDRESS:
 		if (__test_bit(VRRP_FLAG_UNICAST, &rt->flags))
@@ -3907,7 +3907,7 @@ vrrp_rfcv3_header_ar_table(struct variable *vp, oid *name, size_t *length,
 
 		current[0] = vrrp->ifp ? IF_BASE_INDEX(vrrp->ifp) : 0;
 		current[1] = vrrp->vrid;
-		current[2] = vrrp->family == AF_INET ? 1 : 2;
+		current[2] = SNMP_InetAddressType(vrrp->family);
 
 		if ((result = snmp_oid_compare(current, 3, target, target_len)) < 0)
 			continue;
@@ -4051,7 +4051,7 @@ snmp_rfcv3_header_list_table(struct variable *vp, oid *name, size_t *length,
 
 		current[0] = vrrp->ifp ? IF_BASE_INDEX(vrrp->ifp) : 0;
 		current[1] = vrrp->vrid;
-		current[2] = vrrp->family == AF_INET ? 1 : 2;
+		current[2] = SNMP_InetAddressType(vrrp->family);
 		if ((result = snmp_oid_compare(current, 3, target, target_len)) < 0)
 			continue;
 		if (result == 0) {

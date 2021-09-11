@@ -56,6 +56,9 @@ int header_generic(struct variable *, oid *, size_t *, int,
 /* A TruthValue has value 1 for true and 2 for false */
 #define SNMP_TruthValue(x)	(1 + !(x))
 
+/* A TruthValue has value 1 for AF_INET and 2 for AF_INET6 */
+#define SNMP_InetAddressType(x)	((x) == AF_INET ? 1 : 2)
+
 typedef union {
 	unsigned char uc;
 	unsigned long u;
