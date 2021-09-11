@@ -53,6 +53,12 @@ int header_generic(struct variable *, oid *, size_t *, int,
 #define SNMPTRAP_OID 1, 3, 6, 1, 6, 3, 1, 1, 4, 1, 0
 #define GLOBAL_OID {KEEPALIVED_OID, 1}
 
+/* A TruthValue has value 1 for true and 2 for false */
+#define SNMP_TruthValue(x)	(1 + !(x))
+
+/* A TruthValue has value 1 for AF_INET and 2 for AF_INET6 */
+#define SNMP_InetAddressType(x)	((x) == AF_INET ? 1 : 2)
+
 typedef union {
 	unsigned char uc;
 	unsigned long u;

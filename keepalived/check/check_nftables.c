@@ -438,6 +438,9 @@ nft_ipvs_cleanup(void)
 void
 nft_ipvs_end(void)
 {
+	if (!nl)
+		return;
+
 	nft_ipvs_cleanup();
 
 	mnl_socket_close(nl);

@@ -222,7 +222,7 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 		ret.cp = global_data->router_id;
 		return ret.p;
 	case SNMP_MAIL_SMTPSERVERADDRESSTYPE:
-		long_ret = (global_data->smtp_server.ss_family == AF_INET6)?2:1;
+		long_ret = SNMP_InetAddressType(global_data->smtp_server.ss_family);
 		return PTR_CAST(u_char, &long_ret);
 	case SNMP_MAIL_SMTPSERVERADDRESS:
 		if (global_data->smtp_server.ss_family == AF_INET6) {
@@ -248,20 +248,20 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 		return ret.p;
 #ifdef _WITH_VRRP_
 	case SNMP_MAIL_EMAILFAULTS:
-		long_ret = global_data->no_email_faults?2:1;
+		long_ret = SNMP_TruthValue(!global_data->no_email_faults);
 		return PTR_CAST(u_char, &long_ret);
 #endif
 	case SNMP_TRAPS:
-		long_ret = global_data->enable_traps?1:2;
+		long_ret = SNMP_TruthValue(global_data->enable_traps);
 		return PTR_CAST(u_char, &long_ret);
 #ifdef _WITH_LINKBEAT_
 	case SNMP_LINKBEAT:
-		long_ret = global_data->linkbeat_use_polling?2:1;
+		long_ret = global_data->linkbeat_use_polling ? 2 : 1;
 		return PTR_CAST(u_char, &long_ret);
 #endif
 #ifdef _WITH_LVS_
 	case SNMP_LVSFLUSH:
-		long_ret = global_data->lvs_flush?1:2;
+		long_ret = SNMP_TruthValue(global_data->lvs_flush);
 		return PTR_CAST(u_char, &long_ret);
 	case SNMP_LVSFLUSH_ONSTOP:
 		long_ret = global_data->lvs_flush_on_stop == LVS_FLUSH_FULL ? 1 :
@@ -294,7 +294,7 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 		return PTR_CAST(u_char, &long_ret);
 #ifdef _WITH_VRRP_
 	case SNMP_DYNAMIC_INTERFACES:
-		long_ret = global_data->dynamic_interfaces ? 1 : 2;
+		long_ret = SNMP_TruthValue(global_data->dynamic_interfaces);
 		return PTR_CAST(u_char, &long_ret);
 #endif
 	case SNMP_SMTP_ALERT:

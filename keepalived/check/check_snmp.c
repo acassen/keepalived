@@ -362,7 +362,7 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSGROUPMEMBERADDRTYPE:
 		if (be->is_fwmark) break;
-		long_ret.u = (be->addr.ss_family == AF_INET6) ? 2:1;
+		long_ret.u = SNMP_InetAddressType(be->addr.ss_family);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSGROUPMEMBERADDRESS:
 		if (be->is_fwmark || inet_sockaddrcmp(&be->addr, &be->addr_end)) break;
@@ -435,7 +435,7 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = v->vfwmark;
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSADDRTYPE:
-		long_ret.u = (v->af == AF_INET6) ? 2:1;
+		long_ret.u = SNMP_InetAddressType(v->af);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSADDRESS:
 		if (v->vfwmark || v->vsg) break;
@@ -497,7 +497,7 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		if (!long_ret.u) break;
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSSTATUS:
-		long_ret.u = v->alive?1:2;
+		long_ret.u = SNMP_TruthValue(v->alive);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSVIRTUALHOST:
 		if (!v->virtualhost) break;
@@ -505,7 +505,7 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		ret.cp = v->virtualhost;
 		return ret.p;
 	case CHECK_SNMP_VSPERSIST:
-		long_ret.u = (v->persistence_timeout)?1:2;
+		long_ret.u = SNMP_TruthValue(v->persistence_timeout);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSPERSISTTIMEOUT:
 		if (!v->persistence_timeout) break;
@@ -523,22 +523,22 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = v->delay_loop/TIMER_HZ;
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSHASUSPEND:
-		long_ret.u = v->ha_suspend?1:2;
+		long_ret.u = SNMP_TruthValue(v->ha_suspend);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSOPS:
-		long_ret.u = v->flags & IP_VS_SVC_F_ONEPACKET?1:2;
+		long_ret.u = SNMP_TruthValue(v->flags & IP_VS_SVC_F_ONEPACKET);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSALPHA:
-		long_ret.u = v->alpha?1:2;
+		long_ret.u = SNMP_TruthValue(v->alpha);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSOMEGA:
-		long_ret.u = v->omega?1:2;
+		long_ret.u = SNMP_TruthValue(v->omega);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSQUORUM:
 		long_ret.u = v->quorum;
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSQUORUMSTATUS:
-		long_ret.u = v->quorum_state_up ? 1 : 2;
+		long_ret.u = SNMP_TruthValue(v->quorum_state_up);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSQUORUMUP:
 		if (!v->notify_quorum_up) break;
@@ -668,26 +668,26 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 #endif
 #ifdef IP_VS_SVC_F_SCHED1
 	case CHECK_SNMP_VSHASHED:
-		long_ret.u = v->flags & IP_VS_SVC_F_HASHED ? 1 : 2;
+		long_ret.u = SNMP_TruthValue(v->flags & IP_VS_SVC_F_HASHED);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSSHFALLBACK:
-		long_ret.u = v->flags & IP_VS_SVC_F_SCHED_SH_FALLBACK ? 1 : 2;
+		long_ret.u = SNMP_TruthValue(v->flags & IP_VS_SVC_F_SCHED_SH_FALLBACK);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSSHPORT:
-		long_ret.u = v->flags & IP_VS_SVC_F_SCHED_SH_PORT ? 1 : 2;
+		long_ret.u = SNMP_TruthValue(v->flags & IP_VS_SVC_F_SCHED_SH_PORT);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSMHFALLBACK:
-		long_ret.u = v->flags & IP_VS_SVC_F_SCHED_MH_FALLBACK ? 1 : 2;
+		long_ret.u = SNMP_TruthValue(v->flags & IP_VS_SVC_F_SCHED_MH_FALLBACK);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSMHPORT:
-		long_ret.u = v->flags & IP_VS_SVC_F_SCHED_MH_PORT ? 1 : 2;
+		long_ret.u = SNMP_TruthValue(v->flags & IP_VS_SVC_F_SCHED_MH_PORT);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSSCHED3:
-		long_ret.u = v->flags & IP_VS_SVC_F_SCHED3 ? 1 : 2;
+		long_ret.u = SNMP_TruthValue(v->flags & IP_VS_SVC_F_SCHED3);
 		return PTR_CAST(u_char, &long_ret);
 #endif
 	case CHECK_SNMP_VSACTIONWHENDOWN:
-		long_ret.u = v->inhibit?2:1;
+		long_ret.u = SNMP_TruthValue(!v->inhibit);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSRETRY:
 		long_ret.u = v->retry == UINT_MAX ? 0 : v->retry;
@@ -702,7 +702,7 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		long_ret.s = v->weight;
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSSMTPALERT:
-		long_ret.u = v->smtp_alert?1:2;
+		long_ret.u = SNMP_TruthValue(v->smtp_alert);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSDELAYLOOPUSEC:
 		long_ret.u = v->delay_loop;
@@ -922,10 +922,10 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 
 	switch (vp->magic) {
 	case CHECK_SNMP_RSTYPE:
-		long_ret.u = (type == STATE_RS_SORRY)?2:1;
+		long_ret.u = SNMP_TruthValue(type != STATE_RS_SORRY);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_RSADDRTYPE:
-		long_ret.u = (be->addr.ss_family == AF_INET6) ? 2:1;
+		long_ret.u = SNMP_InetAddressType(be->addr.ss_family);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_RSADDRESS:
 		RETURN_IP46ADDRESS(be);
@@ -950,7 +950,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_RSSTATUS:
 		if (type == STATE_RS_SORRY) break;
-		long_ret.u = be->alive?1:2;
+		long_ret.u = SNMP_TruthValue(be->alive);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_RSWEIGHT:
 		if (type == STATE_RS_SORRY) break;
@@ -969,7 +969,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_RSACTIONWHENDOWN:
 		if (type == STATE_RS_SORRY) break;
-		long_ret.u = be->inhibit?2:1;
+		long_ret.u = SNMP_TruthValue(!be->inhibit);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_RSNOTIFYUP:
 		if (type == STATE_RS_SORRY) break;
@@ -1109,7 +1109,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		return PTR_CAST(u_char, &long_ret);
 #endif
 	case CHECK_SNMP_RSALPHA:
-		long_ret.u = be->alpha?1:2;
+		long_ret.u = SNMP_TruthValue(be->alpha);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_RSRETRY:
 		long_ret.u = be->retry == UINT_MAX ? 0 : be->retry;
@@ -1124,7 +1124,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = be->delay_loop == ULONG_MAX ? 0 : be->delay_loop / TIMER_HZ;
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_RSSMTPALERT:
-		long_ret.u = be->smtp_alert?1:2;
+		long_ret.u = SNMP_TruthValue(be->smtp_alert);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_RSDELAYBEFORERETRYUSEC:
 		long_ret.u = be->delay_before_retry == ULONG_MAX ? 0 : be->delay_before_retry;
@@ -1199,7 +1199,7 @@ check_snmp_lvs_sync_daemon(struct variable *vp, oid *name, size_t *length,
 
 	switch (vp->magic) {
 	case CHECK_SNMP_LVSSYNCDAEMONENABLED:
-		long_ret.u = global_data->lvs_syncd.ifname ? 1 : 2;
+		long_ret.u = SNMP_TruthValue(global_data->lvs_syncd.ifname);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_LVSSYNCDAEMONINTERFACE:
 		if (!global_data->lvs_syncd.ifname)
@@ -1236,12 +1236,14 @@ check_snmp_lvs_sync_daemon(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = global_data->lvs_syncd.mcast_ttl;
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_LVSSYNCDAEMONMCASTGROUPADDRTYPE:
-		if (!global_data->lvs_syncd.ifname)
+		if (!global_data->lvs_syncd.ifname ||
+		    global_data->lvs_syncd.mcast_group.ss_family == AF_UNSPEC)
 			return NULL;
-		long_ret.u = (global_data->lvs_syncd.mcast_group.ss_family == AF_INET6) ? 2:1;
+		long_ret.u = SNMP_InetAddressType(global_data->lvs_syncd.mcast_group.ss_family);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_LVSSYNCDAEMONMCASTGROUPADDRVALUE:
-		if (!global_data->lvs_syncd.ifname)
+		if (!global_data->lvs_syncd.ifname ||
+		    global_data->lvs_syncd.mcast_group.ss_family == AF_UNSPEC)
 			return NULL;
 		if (global_data->lvs_syncd.mcast_group.ss_family == AF_INET6) {
 			struct sockaddr_in6 *addr6 = PTR_CAST(struct sockaddr_in6, &global_data->lvs_syncd.mcast_group);
@@ -1705,7 +1707,7 @@ check_snmp_rs_trap(real_server_t *rs, virtual_server_t *vs, bool stopping)
 				  notification_oid_len * sizeof(oid));
 	if (rs) {
 		/* realServerAddrType */
-		addrtype = (rs->addr.ss_family == AF_INET6)?2:1;
+		addrtype = SNMP_InetAddressType(rs->addr.ss_family);
 		snmp_varlist_add_variable(&notification_vars,
 					  addrtype_oid, addrtype_oid_len,
 					  ASN_INTEGER,
@@ -1727,7 +1729,7 @@ check_snmp_rs_trap(real_server_t *rs, virtual_server_t *vs, bool stopping)
 					  PTR_CAST(u_char, &port),
 					  sizeof(port));
 		/* realServerStatus */
-		status = rs->alive?1:2;
+		status = SNMP_TruthValue(rs->alive);
 		snmp_varlist_add_variable(&notification_vars,
 					  status_oid, status_oid_len,
 					  ASN_INTEGER,
@@ -1762,7 +1764,7 @@ check_snmp_rs_trap(real_server_t *rs, virtual_server_t *vs, bool stopping)
 					  PTR_CAST(u_char, &vsfwmark),
 					  sizeof(vsfwmark));
 	} else {
-		addrtype = (vs->addr.ss_family == AF_INET6)?2:1;
+		addrtype = SNMP_InetAddressType(vs->addr.ss_family);
 		snmp_varlist_add_variable(&notification_vars,
 					  vsaddrtype_oid, vsaddrtype_oid_len,
 					  ASN_INTEGER,
@@ -1782,7 +1784,7 @@ check_snmp_rs_trap(real_server_t *rs, virtual_server_t *vs, bool stopping)
 					  PTR_CAST(u_char, &vsport),
 					  sizeof(vsport));
 	}
-	vsprotocol = (vs->service_type == IPPROTO_TCP)?1:2;
+	vsprotocol = SNMP_TruthValue(vs->service_type == IPPROTO_TCP);
 	snmp_varlist_add_variable(&notification_vars,
 				  vsprotocol_oid, vsprotocol_oid_len,
 				  ASN_INTEGER,
