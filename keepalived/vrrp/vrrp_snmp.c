@@ -4141,7 +4141,7 @@ vrrp_rfcv3_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 		return PTR_CAST(u_char, &long_ret);
 #ifdef _WITH_FIREWALL_
 	case VRRP_RFCv3_SNMP_OPER_ACCEPT:
-		long_ret.u = SNMP_TruthValue(!rt->accept);
+		long_ret.u = SNMP_TruthValue(rt->accept);
 		return PTR_CAST(u_char, &long_ret);
 #endif
 	case VRRP_RFCv3_SNMP_OPER_VR_UPTIME:
