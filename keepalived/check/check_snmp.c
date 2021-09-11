@@ -1236,12 +1236,14 @@ check_snmp_lvs_sync_daemon(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = global_data->lvs_syncd.mcast_ttl;
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_LVSSYNCDAEMONMCASTGROUPADDRTYPE:
-		if (!global_data->lvs_syncd.ifname)
+		if (!global_data->lvs_syncd.ifname ||
+		    global_data->lvs_syncd.mcast_group.ss_family == AF_UNSPEC)
 			return NULL;
 		long_ret.u = (global_data->lvs_syncd.mcast_group.ss_family == AF_INET6) ? 2:1;
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_LVSSYNCDAEMONMCASTGROUPADDRVALUE:
-		if (!global_data->lvs_syncd.ifname)
+		if (!global_data->lvs_syncd.ifname ||
+		    global_data->lvs_syncd.mcast_group.ss_family == AF_UNSPEC)
 			return NULL;
 		if (global_data->lvs_syncd.mcast_group.ss_family == AF_INET6) {
 			struct sockaddr_in6 *addr6 = PTR_CAST(struct sockaddr_in6, &global_data->lvs_syncd.mcast_group);
