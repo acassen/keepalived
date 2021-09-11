@@ -2203,9 +2203,13 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = rt->notify_deleted ? 1 : 2;
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_INSTANCE_MULTICAST_ADDRESSTYPE:
+		if (__test_bit(VRRP_FLAG_UNICAST, &rt->flags))
+			break;
 		long_ret.u = (rt->mcast_daddr.ss_family == AF_INET6)?2:1;
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_INSTANCE_MULTICAST_ADDRESS:
+		if (__test_bit(VRRP_FLAG_UNICAST, &rt->flags))
+			break;
 		if (rt->mcast_daddr.ss_family == AF_INET6) {
 			*var_len = sizeof PTR_CAST(struct sockaddr_in6, &rt->mcast_daddr)->sin6_addr;
 			return PTR_CAST(u_char, &PTR_CAST(struct sockaddr_in6, &rt->mcast_daddr)->sin6_addr);
