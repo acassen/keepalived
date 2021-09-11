@@ -1163,7 +1163,7 @@ vrrp_snmp_route(struct variable *vp, oid *name, size_t *length,
 		long_ret.s = route->protocol + 1;
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_ROUTE_ECN:
-		long_ret.s = SNMP_TruthValue(route->features & RTAX_FEATURE_ECN);
+		long_ret.u = SNMP_TruthValue(route->features & RTAX_FEATURE_ECN);
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_ROUTE_QUICK_ACK:
 		long_ret.u = SNMP_TruthValue(route->mask & IPROUTE_BIT_QUICKACK);
@@ -1559,7 +1559,7 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = SNMP_TruthValue(rule->set);
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_RULE_INVERT:
-		long_ret.s = SNMP_TruthValue(rule->invert);
+		long_ret.u = SNMP_TruthValue(rule->invert);
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_RULE_DESTINATIONADDRESSTYPE:
 		if (!rule->to_addr)
@@ -2255,7 +2255,7 @@ vrrp_snmp_trackedinterface(struct variable *vp, oid *name, size_t *length,
 		long_ret.s = bifp->weight;
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_TRACKEDINTERFACE_WEIGHT_REVERSE:
-		long_ret.s = SNMP_TruthValue(bifp->weight_reverse);
+		long_ret.u = SNMP_TruthValue(bifp->weight_reverse);
 		return PTR_CAST(u_char, &long_ret);
 	}
 	return NULL;
@@ -2287,7 +2287,7 @@ vrrp_snmp_trackedscript(struct variable *vp, oid *name, size_t *length,
 		long_ret.s = bscr->weight;
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_TRACKEDSCRIPT_WEIGHT_REVERSE:
-		long_ret.s = SNMP_TruthValue(bscr->weight_reverse);
+		long_ret.u = SNMP_TruthValue(bscr->weight_reverse);
 		return PTR_CAST(u_char, &long_ret);
 	}
 	return NULL;
@@ -2319,7 +2319,7 @@ vrrp_snmp_trackedfile(struct variable *vp, oid *name, size_t *length,
 		long_ret.s = bfile->file->weight;
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_TRACKEDFILE_WEIGHT_REVERSE:
-		long_ret.s = SNMP_TruthValue(bfile->file->weight_reverse);
+		long_ret.u = SNMP_TruthValue(bfile->file->weight_reverse);
 		return PTR_CAST(u_char, &long_ret);
 	}
 
@@ -2353,7 +2353,7 @@ vrrp_snmp_trackedbfd(struct variable *vp, oid *name, size_t *length,
 		long_ret.s = bbfd->bfd->weight;
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_TRACKEDBFD_WEIGHT_REVERSE:
-		long_ret.s = SNMP_TruthValue(bbfd->bfd->weight_reverse);
+		long_ret.u = SNMP_TruthValue(bbfd->bfd->weight_reverse);
 		return PTR_CAST(u_char, &long_ret);
 	}
 
@@ -2388,7 +2388,7 @@ vrrp_snmp_trackedprocess(struct variable *vp, oid *name, size_t *length,
 		long_ret.s = bproc->process->weight;
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_TRACKEDPROCESS_WEIGHT_REVERSE:
-		long_ret.s = SNMP_TruthValue(bproc->process->weight_reverse);
+		long_ret.u = SNMP_TruthValue(bproc->process->weight_reverse);
 		return PTR_CAST(u_char, &long_ret);
 	}
 
@@ -2422,7 +2422,7 @@ vrrp_snmp_group_trackedinterface(struct variable *vp, oid *name, size_t *length,
 		long_ret.s = bifp->weight;
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_SGROUPTRACKEDINTERFACE_WEIGHT_REVERSE:
-		long_ret.s = SNMP_TruthValue(bifp->weight_reverse);
+		long_ret.u = SNMP_TruthValue(bifp->weight_reverse);
 		return PTR_CAST(u_char, &long_ret);
 	}
 	return NULL;
@@ -2454,7 +2454,7 @@ vrrp_snmp_group_trackedscript(struct variable *vp, oid *name, size_t *length,
 		long_ret.s = bscr->weight;
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_SGROUPTRACKEDSCRIPT_WEIGHT_REVERSE:
-		long_ret.s = SNMP_TruthValue(bscr->weight_reverse);
+		long_ret.u = SNMP_TruthValue(bscr->weight_reverse);
 		return PTR_CAST(u_char, &long_ret);
 	}
 	return NULL;
@@ -2486,7 +2486,7 @@ vrrp_snmp_group_trackedfile(struct variable *vp, oid *name, size_t *length,
 		long_ret.s = bfile->file->weight;
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_SGROUPTRACKEDFILE_WEIGHT_REVERSE:
-		long_ret.s = SNMP_TruthValue(bfile->file->weight_reverse);
+		long_ret.u = SNMP_TruthValue(bfile->file->weight_reverse);
 		return PTR_CAST(u_char, &long_ret);
 	}
 
@@ -2520,7 +2520,7 @@ vrrp_snmp_group_trackedbfd(struct variable *vp, oid *name, size_t *length,
 		long_ret.s = bbfd->bfd->weight;
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_SGROUPTRACKEDBFD_WEIGHT_REVERSE:
-		long_ret.s = SNMP_TruthValue(bbfd->bfd->weight_reverse);
+		long_ret.u = SNMP_TruthValue(bbfd->bfd->weight_reverse);
 		return PTR_CAST(u_char, &long_ret);
 	}
 
@@ -2555,7 +2555,7 @@ vrrp_snmp_group_trackedprocess(struct variable *vp, oid *name, size_t *length,
 		long_ret.s = bproc->process->weight;
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_SNMP_SGROUPTRACKEDPROCESS_WEIGHT_REVERSE:
-		long_ret.s = SNMP_TruthValue(bproc->process->weight_reverse);
+		long_ret.u = SNMP_TruthValue(bproc->process->weight_reverse);
 		return PTR_CAST(u_char, &long_ret);
 	}
 
@@ -3487,7 +3487,7 @@ vrrp_rfcv2_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = rt->adver_int / TIMER_HZ;
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_RFC_SNMP_OPER_PREEMPT:
-		long_ret.s = SNMP_TruthValue(!__test_bit(VRRP_FLAG_NOPREEMPT, &rt->flags));
+		long_ret.u = SNMP_TruthValue(!__test_bit(VRRP_FLAG_NOPREEMPT, &rt->flags));
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_RFC_SNMP_OPER_VR_UPTIME:
 		if (rt->state == VRRP_STATE_BACK ||
@@ -4137,7 +4137,7 @@ vrrp_rfcv3_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = rt->adver_int / TIMER_CENTI_HZ;
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_RFCv3_SNMP_OPER_PREEMPT:
-		long_ret.s = SNMP_TruthValue(!__test_bit(VRRP_FLAG_NOPREEMPT, &rt->flags));
+		long_ret.u = SNMP_TruthValue(!__test_bit(VRRP_FLAG_NOPREEMPT, &rt->flags));
 		return PTR_CAST(u_char, &long_ret);
 #ifdef _WITH_FIREWALL_
 	case VRRP_RFCv3_SNMP_OPER_ACCEPT:
