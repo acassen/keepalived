@@ -796,7 +796,7 @@ vrrp_mcast_group4_handler(const vector_t *strvec)
 	}
 
 	/* Check the address is multicast */
-	if (!IN_MULTICAST(&PTR_CAST(struct sockaddr_in, &mcast)->sin_addr.s_addr)) {
+	if (!IN_MULTICAST(htonl(PTR_CAST(struct sockaddr_in, &mcast)->sin_addr.s_addr))) {
 		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_mcast_group4 [%s] is not multicast. Skipping"
 				   , strvec_slot(strvec, 1));
 		return;
