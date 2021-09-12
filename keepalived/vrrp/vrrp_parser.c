@@ -429,10 +429,18 @@ vrrp_end_handler(void)
 	vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
 
 #ifdef _HAVE_VRRP_VMAC_
-	if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) && vrrp->flags) {
+	if (__test_bit(VRRP_FLAG_UNICAST_CONFIGURED, &vrrp->flags) &&
+	    (__test_bit(VRRP_VMAC_BIT, &vrrp->flags)
+#ifdef _HAVE_VRRP_IPVLAN_
+	     || (__test_bit(VRRP_IPVLAN_BIT, &vrrp->flags))
+#endif
+							   )) {
 		if (!vrrp->ifp) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s): Cannot use VMAC/ipvlan with unicast peers and no interface - clearing use_vmac", vrrp->iname);
-			vrrp->flags = 0;
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s): Cannot use VMAC/ipvlan with unicast and no interface - clearing use_vmac", vrrp->iname);
+			__clear_bit(VRRP_VMAC_BIT, &vrrp->flags);
+#ifdef _HAVE_VRRP_IPVLAN_
+			__clear_bit(VRRP_IPVLAN_BIT, &vrrp->flags);
+#endif
 			vrrp->vmac_ifname[0] = '\0';
 		} else if (!__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) unicast with use_vmac requires vmac_xmit_base - setting", vrrp->iname);
@@ -441,7 +449,7 @@ vrrp_end_handler(void)
 	}
 #endif
 
-	if (!__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) && vrrp->ttl != -1) {
+	if (list_empty(&vrrp->unicast_peer) && vrrp->ttl != -1) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s): Cannot use unicast_ttl without unicast peers - resetting", vrrp->iname);
 		vrrp->ttl = 0;
 	}
