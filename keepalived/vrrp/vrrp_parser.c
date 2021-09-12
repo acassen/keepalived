@@ -449,7 +449,7 @@ vrrp_end_handler(void)
 	}
 #endif
 
-	if (!__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) && vrrp->ttl != -1) {
+	if (list_empty(&vrrp->unicast_peer) && vrrp->ttl != -1) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s): Cannot use unicast_ttl without unicast peers - resetting", vrrp->iname);
 		vrrp->ttl = 0;
 	}
