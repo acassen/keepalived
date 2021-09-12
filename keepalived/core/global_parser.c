@@ -781,7 +781,7 @@ get_priority(const vector_t *strvec, const char *process)
 static void
 vrrp_mcast_group4_handler(const vector_t *strvec)
 {
-	sockaddr_t mcast;
+	sockaddr_t mcast = { .ss_family = AF_UNSPEC };
 
 	if (inet_stosockaddr(strvec_slot(strvec, 1), 0, &mcast)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Can't parse vrrp_mcast_group4 [%s]. Skipping"
@@ -807,7 +807,7 @@ vrrp_mcast_group4_handler(const vector_t *strvec)
 static void
 vrrp_mcast_group6_handler(const vector_t *strvec)
 {
-	sockaddr_t mcast;
+	sockaddr_t mcast = { .ss_family = AF_UNSPEC };
 
 	if (inet_stosockaddr(strvec_slot(strvec, 1), 0, &mcast)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Can't parse vrrp_mcast_group6 [%s]. Skipping"
