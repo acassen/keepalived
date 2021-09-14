@@ -38,6 +38,7 @@
 #include "vector.h"
 #include "warnings.h"
 #include "sockaddr.h"
+#include "timer.h"
 #if defined _EINTR_DEBUG_
 #include "logger.h"
 #endif
@@ -288,6 +289,7 @@ extern void format_mac_buf(char *, size_t, const unsigned char *, size_t);
 extern const char *get_local_name(void) __attribute__((malloc));
 extern bool string_equal(const char *, const char *) __attribute__ ((pure));
 extern int integer_to_string(const int, char *, size_t);
+extern char *ctime_us_r(const timeval_t *, char *);
 extern FILE *fopen_safe(const char *, const char *) __attribute__((malloc));
 extern void set_std_fd(bool);
 extern void close_std_fd(void);
