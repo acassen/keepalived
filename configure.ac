@@ -1129,7 +1129,32 @@ AC_CHECK_DECLS([ETHERTYPE_IPV6], [],
   [[#include <net/ethernet.h>]])
 
 # IPV6_MULTICAST_ALL - added Linux v4.20
-AC_CHECK_DECLS([IPV6_MULTICAST_ALL], add_system_opt([IPV6_MULTICAST_ALL]), [],
+AC_CHECK_DECLS([IPV6_MULTICAST_ALL],
+  [
+    add_system_opt([IPV6_MULTICAST_ALL])
+
+    # We can't include <linux/in6.h> before <netinet/in.h> otherwise there a a lot of
+    #   duplicate definitions. If we include them the other way around and <netinet/in.h>
+    #   doesn't define IPV6_MULTICAST_ALL, then we don't get the definition from
+    #   <linux/in6.h> due to the UAPI guards to stop compile errors.
+    # IPV6_MULTICAST_ALL is defined in <linux/in6.h>, and if it isn't defined in
+    #   <netinet/in.h> we must create our own definition.
+    AC_COMPILE_IFELSE([AC_LANG_SOURCE(
+      [
+	#include <netinet/in.h>
+	int main(void)
+	{
+	  int val = IPV6_MULTICAST_ALL;
+	}
+      ])], [],
+      [
+        # Find the defined value of IPV6_MULTICAST_ALL
+	INCLUDE_FILES=`echo -e "#include <linux/in6.h>\n int main(void) { int var = IPV6_MULTICAST_ALL; }" | $CC -H -E - -o/dev/null 2>&1 | sed -e "s/^[.]*//" | grep "^ "`
+	IPV6_MCA=`grep "#define.*IPV6_MULTICAST_ALL" $INCLUDE_FILES | sed -e "s/.*IPV6_MULTICAST_ALL[[ \t]]*//"`
+	AC_DEFINE_UNQUOTED([IPV6_MULTICAST_ALL], [$IPV6_MCA], [Defined in linux/in6.h but not in netinet/in.h])
+      ])
+  ],
+  [],
   [[#include <linux/in6.h>]])
 
 dnl ----[ Checks for openssl ]----
