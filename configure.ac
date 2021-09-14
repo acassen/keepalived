@@ -1068,6 +1068,19 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   [LINE_type="unsigned int"], [LINE_type="int"])
 AC_DEFINE_UNQUOTED([LINE_type], [ $LINE_type ], [The type of parameter __line passed to __assert_fail()])
 
+# If sizeof(time_t) is only 4 bytes, then adding two times after Sat 10 Jan 13:37:04 GMT 2004
+#   results in overflow.
+AC_COMPILE_IFELSE(
+  [AC_LANG_PROGRAM(
+    [[#include <time.h>]],
+    [[
+      /* This is a bit of a trick. If sizeof(time_t) <= 4, then
+         the size of the array is negative, giving a compile error */
+      char arr[(int)sizeof(time_t) - 5];
+    ]])],
+  [],
+  [AC_DEFINE([TIME_T_ADD_OVERFLOWS], [ 1 ], [Define to 1 if sizeof(time_t) is 4 bytes])])
+
 dnl Check if libc supports __always_inline
 dnl See glibc sys/cdefs.h definition of __always_inline and comment
 SAV_CFLAGS="$CFLAGS"
@@ -1129,7 +1142,32 @@ AC_CHECK_DECLS([ETHERTYPE_IPV6], [],
   [[#include <net/ethernet.h>]])
 
 # IPV6_MULTICAST_ALL - added Linux v4.20
-AC_CHECK_DECLS([IPV6_MULTICAST_ALL], add_system_opt([IPV6_MULTICAST_ALL]), [],
+AC_CHECK_DECLS([IPV6_MULTICAST_ALL],
+  [
+    add_system_opt([IPV6_MULTICAST_ALL])
+
+    # We can't include <linux/in6.h> before <netinet/in.h> otherwise there a a lot of
+    #   duplicate definitions. If we include them the other way around and <netinet/in.h>
+    #   doesn't define IPV6_MULTICAST_ALL, then we don't get the definition from
+    #   <linux/in6.h> due to the UAPI guards to stop compile errors.
+    # IPV6_MULTICAST_ALL is defined in <linux/in6.h>, and if it isn't defined in
+    #   <netinet/in.h> we must create our own definition.
+    AC_COMPILE_IFELSE([AC_LANG_SOURCE(
+      [
+	#include <netinet/in.h>
+	int main(void)
+	{
+	  int val = IPV6_MULTICAST_ALL;
+	}
+      ])], [],
+      [
+        # Find the defined value of IPV6_MULTICAST_ALL
+	INCLUDE_FILES=`echo -e "#include <linux/in6.h>\n int main(void) { int var = IPV6_MULTICAST_ALL; }" | $CC -H -E - -o/dev/null 2>&1 | sed -e "s/^[.]*//" | grep "^ "`
+	IPV6_MCA=`grep "#define.*IPV6_MULTICAST_ALL" $INCLUDE_FILES | sed -e "s/.*IPV6_MULTICAST_ALL[[ \t]]*//"`
+	AC_DEFINE_UNQUOTED([IPV6_MULTICAST_ALL], [$IPV6_MCA], [Defined in linux/in6.h but not in netinet/in.h])
+      ])
+  ],
+  [],
   [[#include <linux/in6.h>]])
 
 dnl ----[ Checks for openssl ]----
@@ -1617,7 +1655,7 @@ if test .${enable_nftables} != .no; then
       # nft prior to version 0.8.3 does not support type ifname in sets. We can't check the version of
       #  nft, but we can check the version of libnftnl. nft v0.8.3 required libnftnl v1.0.9, but so did
       #  nft v0.8.2. So play safe, and require the next version.
-      LIBNFTNL_VERSION=`printf "0x%2.2x%2.2x%2.2xU" \`pkg-config --modversion libnftnl | sed -e "s/\./ /g"\``
+      LIBNFTNL_VERSION=`printf "0x%2.2x%2.2x%2.2xU" \`$PKG_CONFIG --modversion libnftnl | sed -e "s/\./ /g"\``
       AC_DEFINE_UNQUOTED([LIBNFTNL_VERSION], [ $LIBNFTNL_VERSION ], [libnftnl version in hex])
 
       add_pkg_config([libnftnl])
@@ -2127,6 +2165,17 @@ if test "$enable_snmp" = yes -o \
 
   # net-snmp-config can add -I/usr/include, so remove it
   NETSNMP_CFLAGS=`echo $NETSNMP_CFLAGS " " | sed -e "s:-I */usr/include ::"`
+
+  # net-snmp-config --base-cflags can specify include directories that don't
+  # exist on the build system
+  NEW_FLAGS=
+  for f in `echo $NETSNMP_CFLAGS | tr " " "\n" | grep "^-I"`; do
+	  DIR=`echo $f | sed -e "s/^-I *//"`
+	  if [ -d $DIR ]; then
+		  NEW_FLAGS+=" -I$DIR"
+	  fi
+  done
+  NETSNMP_CFLAGS=$NEW_FLAGS
 
   # net-snmp-config can specify LTO flags; remove them so they are only
   # included if --enable-lto is specified

@@ -33,6 +33,7 @@
 #include <sys/stat.h>
 #include <stdint.h>
 #include <errno.h>
+#include <time.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #if defined _WITH_LVS_ || defined _HAVE_LIBIPSET_
@@ -61,6 +62,7 @@
 #include "parser.h"
 #include "logger.h"
 #include "process.h"
+#include "timer.h"
 
 /* global vars */
 unsigned long debug = 0;
@@ -916,6 +918,21 @@ integer_to_string(const int value, char *str, size_t size)
 		str[len - (i + 1)] = t % 10 + '0';
 
 	return len;
+}
+
+/* Like ctime_r() but to microseconds and no terminating '\n'.
+   Buf must be at least 32 bytes */
+char *
+ctime_us_r(const timeval_t *timep, char *buf)
+{
+	struct tm tm;
+
+	localtime_r(&timep->tv_sec, &tm);
+	asctime_r(&tm, buf);
+	snprintf(buf + 19, 8, ".%6.6ld", timep->tv_usec);
+	strftime(buf + 26, 6, " %Y", &tm);
+
+	return buf;
 }
 
 /* We need to use O_NOFOLLOW if opening a file for write, so that a non privileged user can't

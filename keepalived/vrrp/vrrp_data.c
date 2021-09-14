@@ -579,7 +579,7 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 #ifdef _WITH_VRRP_AUTH_
 	char auth_data[sizeof(vrrp->auth_data) + 1];
 #endif
-	char time_str[26];
+	char time_str[32];	// Allow for decimal point and microseconds
 
 	/* If fp is NULL, we are writing configuration to syslog at
 	 * startup, so there is no point writing transient state information.
@@ -620,14 +620,13 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 			conf_write(fp, "   Duplicate VRID");
 #endif
 		conf_write(fp, "   Number of track scripts init = %u", vrrp->num_script_init);
-		ctime_r(&vrrp->last_transition.tv_sec, time_str);
-		conf_write(fp, "   Last transition = %ld.%6.6ld (%.24s.%6.6ld)", vrrp->last_transition.tv_sec, vrrp->last_transition.tv_usec, time_str, vrrp->last_transition.tv_usec);
+		conf_write(fp, "   Last transition = %ld.%6.6ld (%s)", vrrp->last_transition.tv_sec, vrrp->last_transition.tv_usec, ctime_us_r(&vrrp->last_transition, time_str));
 		if (!ctime_r(&vrrp->sands.tv_sec, time_str))
 			strcpy(time_str, "invalid time ");
 		if (vrrp->sands.tv_sec == TIMER_DISABLED)
 			conf_write(fp, "   Read timeout = DISABLED");
 		else
-			conf_write(fp, "   Read timeout = %ld.%6.6ld (%.19s.%6.6ld)", vrrp->sands.tv_sec, vrrp->sands.tv_usec, time_str, vrrp->sands.tv_usec);
+			conf_write(fp, "   Read timeout = %ld.%6.6ld (%s)", vrrp->sands.tv_sec, vrrp->sands.tv_usec, ctime_us_r(&vrrp->sands, time_str));
 		conf_write(fp, "   Master down timer = %u usecs", vrrp->ms_down_timer);
 	}
 #ifdef _HAVE_VRRP_VMAC_
