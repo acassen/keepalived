@@ -1068,6 +1068,19 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   [LINE_type="unsigned int"], [LINE_type="int"])
 AC_DEFINE_UNQUOTED([LINE_type], [ $LINE_type ], [The type of parameter __line passed to __assert_fail()])
 
+# If sizeof(time_t) is only 4 bytes, then adding two times after Sat 10 Jan 13:37:04 GMT 2004
+#   results in overflow.
+AC_COMPILE_IFELSE(
+  [AC_LANG_PROGRAM(
+    [[#include <time.h>]],
+    [[
+      /* This is a bit of a trick. If sizeof(time_t) <= 4, then
+         the size of the array is negative, giving a compile error */
+      char arr[(int)sizeof(time_t) - 5];
+    ]])],
+  [],
+  [AC_DEFINE([TIME_T_ADD_OVERFLOWS], [ 1 ], [Define to 1 if sizeof(time_t) is 4 bytes])])
+
 dnl Check if libc supports __always_inline
 dnl See glibc sys/cdefs.h definition of __always_inline and comment
 SAV_CFLAGS="$CFLAGS"

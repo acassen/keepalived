@@ -88,11 +88,23 @@ set_mono_offset(struct timespec *ts)
 	clock_gettime(CLOCK_MONOTONIC, &mono_offset);
 	clock_gettime(CLOCK_REALTIME, &realtime_1);
 
-	/* Calculate the mean realtime */
+	/* Calculate the mean realtime. If tv_sec is 4 bytes, then
+	 * adding two times after Sat 10 Jan 13:37:04 GMT 2004 results
+	 * in overflow. If tv_sec is only 6 bytes (unlikely) then
+	 * overflow doesn't occur until the two dates average
+	 * Tue 25 Sep 15:41:04 BST 2231866, */
 	realtime.tv_nsec = (realtime.tv_nsec + realtime_1.tv_nsec) / 2;
-	if ((realtime.tv_sec + realtime_1.tv_sec) & 1)
-		realtime.tv_nsec += NSEC_PER_SEC / 2;
+#ifndef TIME_T_ADD_OVERFLOWS
 	realtime.tv_sec = (realtime.tv_sec + realtime_1.tv_sec) / 2;
+#else
+	realtime.tv_sec = realtime.tv_sec / 2 + realtime_1.tv_sec / 2;
+	if ((realtime.tv_sec & 1) && (realtime_1.tv_sec & 1))
+		realtime.tv_sec++;
+#endif
+
+	/* If the sum would be odd, we need to add * 1/2 second. */
+	if ((realtime.tv_sec ^ realtime_1.tv_sec) & 1)
+		realtime.tv_nsec += NSEC_PER_SEC / 2;
 
 	if (realtime.tv_nsec < mono_offset.tv_nsec) {
 		realtime.tv_nsec += NSEC_PER_SEC;
