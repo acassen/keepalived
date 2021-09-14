@@ -1655,7 +1655,7 @@ if test .${enable_nftables} != .no; then
       # nft prior to version 0.8.3 does not support type ifname in sets. We can't check the version of
       #  nft, but we can check the version of libnftnl. nft v0.8.3 required libnftnl v1.0.9, but so did
       #  nft v0.8.2. So play safe, and require the next version.
-      LIBNFTNL_VERSION=`printf "0x%2.2x%2.2x%2.2xU" \`pkg-config --modversion libnftnl | sed -e "s/\./ /g"\``
+      LIBNFTNL_VERSION=`printf "0x%2.2x%2.2x%2.2xU" \`$PKG_CONFIG --modversion libnftnl | sed -e "s/\./ /g"\``
       AC_DEFINE_UNQUOTED([LIBNFTNL_VERSION], [ $LIBNFTNL_VERSION ], [libnftnl version in hex])
 
       add_pkg_config([libnftnl])
