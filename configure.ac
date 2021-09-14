@@ -2153,6 +2153,17 @@ if test "$enable_snmp" = yes -o \
   # net-snmp-config can add -I/usr/include, so remove it
   NETSNMP_CFLAGS=`echo $NETSNMP_CFLAGS " " | sed -e "s:-I */usr/include ::"`
 
+  # net-snmp-config --base-cflags can specify include directories that don't
+  # exist on the build system
+  NEW_FLAGS=
+  for f in `echo $NETSNMP_CFLAGS | tr " " "\n" | grep "^-I"`; do
+	  DIR=`echo $f | sed -e "s/^-I *//"`
+	  if [ -d $DIR ]; then
+		  NEW_FLAGS+=" -I$DIR"
+	  fi
+  done
+  NETSNMP_CFLAGS=$NEW_FLAGS
+
   # net-snmp-config can specify LTO flags; remove them so they are only
   # included if --enable-lto is specified
   NETSNMP_CFLAGS=`echo " $NETSNMP_CFLAGS " | sed -e "s/-f[[^ ]]*lto[[^ ]]* //g"`
