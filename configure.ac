@@ -2171,9 +2171,7 @@ if test "$enable_snmp" = yes -o \
   NEW_FLAGS=
   for f in `echo $NETSNMP_CFLAGS | tr " " "\n" | grep "^-I"`; do
 	  DIR=`echo $f | sed -e "s/^-I *//"`
-	  if [ -d $DIR ]; then
-		  NEW_FLAGS+=" -I$DIR"
-	  fi
+	  AS_IF([ test -d $DIR ], [ NEW_FLAGS+=" -I$DIR" ])
   done
   NETSNMP_CFLAGS=$NEW_FLAGS
 
