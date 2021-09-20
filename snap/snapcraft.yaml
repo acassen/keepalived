@@ -69,7 +69,7 @@ parts:
       snapcraftctl set-version $VER
       echo -n "Build kernel:"
       printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
-      KERNEL_VER=$(printf "%d%2.2d" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linuersion.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)../0x\1 0x\2/"))
+      KERNEL_VER=$(printf "%d%2.2d" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)../0x\1 0x\2/"))
       rm ${SNAPCRAFT_PART_INSTALL}/usr/bin/genhash
       ln -s ../sbin/keepalived-$KERNEL_VER ${SNAPCRAFT_PART_INSTALL}/usr/bin/genhash
     build-packages:
