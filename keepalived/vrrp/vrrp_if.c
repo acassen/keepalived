@@ -32,7 +32,6 @@
 #include <inttypes.h>
 #include <linux/ip.h>
 #include <netinet/in.h>
-#include <linux/in6.h>
 #include <stdio.h>
 #include <linux/mii.h>
 #if defined _HAVE_NETINET_LINUX_IF_ETHER_H_COLLISION_ && \
