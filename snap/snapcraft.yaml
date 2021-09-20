@@ -11,7 +11,7 @@ confinement: classic
 
 base: core18
 
-# linux-libc-dev for 5.0, 4.18 and 3.10 are no longer available via
+# linux-libc-dev for 4.18 and 3.10 are no longer available via
 #    http://security.ubuntu.com/ubuntu/pool/main/l/linux/
 # or
 #    http://ports.ubuntu.com/pool/main/l/linux/
@@ -32,20 +32,14 @@ apps:
     command: /bin/bash $SNAP/bin/keepalived-wrapper
   keepalived:
     command: /bin/bash $SNAP/bin/keepalived-wrapper
-  "508":        # Ubuntu 20.10 and Fedora 31
+  "508":        # Fedora 33
     command: usr/sbin/keepalived-508
-  "504":        # Ubuntu 20.04 and Fedora 31
+  "504":        # Ubuntu 20.04
     command: usr/sbin/keepalived-504
-  "503":        # Ubuntu 19.10 and Fedora 31
-    command: usr/sbin/keepalived-503
-  "500":        # Fedora 30
-    command: usr/sbin/keepalived-500
-  "418":        # Ubuntu 18.10 and RHEL 8 and Fedora 29
+  "418":        # RHEL 8
     command: usr/sbin/keepalived-418
   "415":        # Ubuntu 18.04
     command: usr/sbin/keepalived-415
-  "404":        # Ubuntu 16.04
-    command: usr/sbin/keepalived-404
   "310":        # RHEL 7
     command: usr/sbin/keepalived-310
   genhash:
@@ -75,8 +69,9 @@ parts:
       snapcraftctl set-version $VER
       echo -n "Build kernel:"
       printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
+      KERNEL_VER=$(printf "%d%2.2d" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linuersion.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)../0x\1 0x\2/"))
       rm ${SNAPCRAFT_PART_INSTALL}/usr/bin/genhash
-      ln -s ../sbin/keepalived-415 ${SNAPCRAFT_PART_INSTALL}/usr/bin/genhash
+      ln -s ../sbin/keepalived-$KERNEL_VER ${SNAPCRAFT_PART_INSTALL}/usr/bin/genhash
     build-packages:
       - iptables-dev
       - libipset-dev
