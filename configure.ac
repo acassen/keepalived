@@ -513,10 +513,10 @@ dnl -- Do we want -Wcast-align=strict?
 AS_IF([test .$enable_strict_cast_align = .yes],
       [WARNINGS_STD=$(echo $WARNINGS_STD | sed -e "s/cast-align /cast-align=strict /")])
 
-#### find the actual value for $prefix that we'll end up with
+#### find the actual value for $datadir that we'll end up with
 ##   (I know this is broken and should be done in the Makefile, but
 ##    that's a major pain and almost nobody actually seems to care)
-##   Actually the "Built Sources Example" section of the automake
+##   In fact the "Built Sources Example" section of the automake
 ##    manual suggests using configure as an option.
 AS_AC_EXPAND(EXPANDED_DATADIR, "$datadir")
 
@@ -2836,12 +2836,15 @@ dnl ----[Default runtime options (in /etc/sysconfig/keepalived)]----
 AC_SUBST([KEEPALIVED_RUNTIME_OPTIONS], ["$default_runtime_options"])
 
 dnl ----[Default keepalived configuration file]----
-AS_IF([test $default_config_file],
+AS_IF([test -n "$default_config_file"],
   [
     AS_IF([test $default_config_file = yes -o $default_config_file = no],
 	  [AC_MSG_ERROR([A filename must be specified for default-config-file])])
-    CONFIG_FILE=$default_config_file
-    add_config_opt([DEFAULT_CONFIG_FILE=${default_config_file}])
+    AS_IF([`echo $default_config_file | $(SED) -e "s/\(.\).*/\1/"` = / ],
+      [CONFIG_FILE=$default_config_file],
+      [CONFIG_FILE="\$(sysconfdir)/$PACKAGE/$default_config_file"])
+    add_config_opt([DEFAULT_CONFIG_FILE=$CONFIG_FILE])
+    default_config_file=$CONFIG_FILE
   ],
   [default_config_file="\$(sysconfdir)/$PACKAGE/$PACKAGE.conf"])
 dir=`echo $default_config_file | $SED -e "s|/[[^/]]*$||"`
@@ -2852,9 +2855,13 @@ AC_SUBST([DEFAULT_CONFIG_FILENAME], [${name}])
 # Change any make $(...) variable to the matching shell variable and substitute
 default_config_file=`echo $default_config_file | $SED -e "s|\\\$(\(.*\))|\\\${\1}|"`
 eval dcf=`echo $default_config_file`
-# Remove a leading ${prefix} since that is not part of the real file name
-dcf=`echo $dcf | $SED -e "s|^\\\${prefix}||"`
-AC_DEFINE_UNQUOTED([DEFAULT_CONFIG_FILE], ["$dcf"], [The default configuration file])
+AS_IF([ test x${prefix} = xNONE ],
+  [dcf_new=`echo $dcf | $SED -e "s|^\\\${prefix}|${ac_default_prefix}|"`],
+  [dcf_new=`echo $dcf`])
+AC_DEFINE_UNQUOTED([DEFAULT_CONFIG_FILE], ["$dcf_new"], [The default configuration file])
+# Remove a leading ${prefix} since that is not part of the old file name
+dcf_old=`echo $dcf | $SED -e "s|^\\\${prefix}||"`
+AC_DEFINE_UNQUOTED([OLD_DEFAULT_CONFIG_FILE], ["$dcf_old"], [The old default configuration file])
 
 if test -z "$INIT_TYPE"; then
   INIT_TYPE=undetected

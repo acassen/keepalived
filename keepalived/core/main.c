@@ -146,7 +146,7 @@ static const struct child_term children_term[] = {
 
 /* global var */
 const char *version_string = VERSION_STRING;		/* keepalived version */
-const char *conf_file = KEEPALIVED_CONFIG_FILE;		/* Configuration file */
+const char *conf_file;					/* Configuration file */
 bool reload;						/* Set during a reload */
 const char *main_pidfile;				/* overrule default pidfile */
 static bool free_main_pidfile;
@@ -2371,6 +2371,7 @@ keepalived_main(int argc, char **argv)
 	unsigned script_flags;
 	struct rusage usage;
 	struct rusage child_usage;
+	struct stat statbuf;
 
 #ifdef _WITH_LVS_
 	char *name = strrchr(argv[0], '/');
@@ -2495,6 +2496,20 @@ keepalived_main(int argc, char **argv)
 	}
 
 	log_command_line(0);
+
+	/* If no configuration file has been specified, select the
+	 * first default config file that exists. */
+	if (!conf_file) {
+		conf_file = DEFAULT_CONFIG_FILE;
+
+		/* If DEFAULT_CONFIG_FILE doesn't exist and
+		 * OLD_DEFAULT_CONFIG_FILE does exist, use the
+		 * latter */
+		if (strcmp(DEFAULT_CONFIG_FILE, OLD_DEFAULT_CONFIG_FILE) &&
+		    stat(DEFAULT_CONFIG_FILE, &statbuf) &&
+		    !stat(OLD_DEFAULT_CONFIG_FILE, &statbuf))
+			conf_file = OLD_DEFAULT_CONFIG_FILE;
+	}
 
 	/* Check we can read the configuration file(s).
 	   NOTE: the working directory will be / if we
