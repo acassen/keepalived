@@ -690,10 +690,14 @@ dbus_main(__attribute__ ((unused)) void *unused)
 				  NULL); /* user_data_free_func */
 
 	loop = g_main_loop_new(NULL, FALSE);
+
+	dbus_running = true;
 	g_main_loop_run(loop);
+	dbus_running = false;
 
 	/* cleanup after loop terminates */
 	g_main_loop_unref(loop);
+	loop = NULL;
 	g_bus_unown_name(owner_id);
 	global_connection = NULL;
 
@@ -950,7 +954,7 @@ dbus_start(void)
 	/* Reenable our signals */
 	pthread_sigmask(SIG_SETMASK, &cursigset, NULL);
 
-	dbus_running = true;
+//	dbus_running = true;
 
 	return true;
 }
