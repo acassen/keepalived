@@ -62,6 +62,8 @@
 #include <sys/types.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "vrrp_dbus.h"
 #include "vrrp_data.h"
@@ -604,33 +606,29 @@ on_name_lost(GDBusConnection *connection,
 static const gchar*
 read_file(const gchar* filepath)
 {
-	FILE * f;
-	long length;
+	int fd;
 	gchar *ret = NULL;
+	struct stat statbuf;
 
-	f = fopen(filepath, "r");
-	if (f) {
-		fseek(f, 0, SEEK_END);
-		length = ftell(f);
-		if (length < 0) {
-			fclose(f);
-			return NULL;
-		}
-		fseek(f, 0, SEEK_SET);
-
-		/* We can't use MALLOC since it isn't thread safe */
-		ret = MALLOC(length + 1);
-		if (ret) {
-			if (fread(ret, length, 1, f) != 1) {
-				log_message(LOG_INFO, "Failed to read all of %s", filepath);
-			}
-			ret[length] = '\0';
-		}
-		else
-			log_message(LOG_INFO, "Unable to read Dbus file %s", filepath);
-
-		fclose(f);
+	if ((fd = open(filepath, O_RDONLY)) == -1) {
+		log_message(LOG_INFO, "Unable to open DBus file %s, errno %d (%m)", filepath, errno);
+		return NULL;
 	}
+
+	if (fstat(fd, &statbuf))
+		log_message(LOG_INFO, "Unable to get DBus file size %s - %d (%m)", filepath, errno);
+	/* We can't use MALLOC since it isn't thread safe */
+	else if (!(ret = MALLOC(statbuf.st_size + 1)))
+		log_message(LOG_INFO, "Unable to malloc for Dbus file %s", filepath);
+	else if (read(fd, ret, statbuf.st_size) != statbuf.st_size) {
+		log_message(LOG_INFO, "Failed to read all of %s - %d (%m)", filepath, errno);
+		FREE(ret);
+		ret = NULL;
+	} else
+		ret[statbuf.st_size] = '\0';
+
+	close(fd);
+
 	return ret;
 }
 
