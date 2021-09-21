@@ -28,6 +28,11 @@ if WITH_IPVS
 	fi)
 endif
 
+if WITH_IPVS
+uninstall-local:
+	rm -f $(DESTDIR)$(bindir)/genhash
+endif
+
 clean-local:
 if WITH_IPVS
 	rm -f $(top_builddir)/bin/genhash
