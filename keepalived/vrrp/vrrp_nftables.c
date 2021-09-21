@@ -82,7 +82,9 @@ static const char vmac_set_name[] = "vmac_set";
 static const char vmac_set_name[] = "vmac_set";
 static const char *vmac_map_name = vmac_set_name;
 #endif
+#if HAVE_DECL_NFT_META_OIFKIND
 static const char macvlan[16] = "macvlan";
+#endif
 #endif
 
 static int ifname_type;
