@@ -108,6 +108,11 @@ typedef struct dbus_queue_ent {
 	GVariant *args;
 } dbus_queue_ent_t;
 
+typedef struct dbus_files {
+	const gchar	*interface_file;
+	const gchar	*instance_interface_file;
+} dbus_files_t;
+
 #define DBUS_SERVICE_NAME			"org.keepalived.Vrrp1"
 #define DBUS_VRRP_INTERFACE			"org.keepalived.Vrrp1.Vrrp"
 #define DBUS_VRRP_OBJECT_ROOT			"/org/keepalived/Vrrp1"
@@ -605,6 +610,7 @@ on_name_lost(GDBusConnection *connection,
 	global_connection = NULL;
 }
 
+/* This function must be called from the main thread since MALLOC isn't thread safe */
 static const gchar*
 read_file(const gchar* filepath)
 {
@@ -619,7 +625,6 @@ read_file(const gchar* filepath)
 
 	if (fstat(fd, &statbuf))
 		log_message(LOG_INFO, "Unable to get DBus file size %s - %d (%m)", filepath, errno);
-	/* We can't use MALLOC since it isn't thread safe */
 	else if (!(ret = MALLOC(statbuf.st_size + 1)))
 		log_message(LOG_INFO, "Unable to malloc for Dbus file %s", filepath);
 	else if (read(fd, ret, statbuf.st_size) != statbuf.st_size) {
@@ -642,11 +647,12 @@ free_wait_return(void *ret)
 }
 
 static void *
-dbus_main(__attribute__ ((unused)) void *unused)
+dbus_main(void *param)
 {
-	const gchar *introspection_xml;
 	guint owner_id;
 	const char *service_name;
+	dbus_files_t *files = param;
+	GError *error = NULL;
 
 	objects = g_hash_table_new(g_str_hash, g_str_equal);
 
@@ -659,14 +665,9 @@ dbus_main(__attribute__ ((unused)) void *unused)
 #ifdef DBUS_NEED_G_TYPE_INIT
 	g_type_init();
 #endif
-	GError *error = NULL;
 
 	/* read service interface data from xml files */
-	introspection_xml = read_file(DBUS_VRRP_INTERFACE_FILE_PATH);
-	if (!introspection_xml)
-		return free_wait_return(NULL);
-	vrrp_introspection_data = g_dbus_node_info_new_for_xml(introspection_xml, &error);
-	FREE_CONST(introspection_xml);
+	vrrp_introspection_data = g_dbus_node_info_new_for_xml(files->interface_file, &error);
 	if (error != NULL) {
 		log_message(LOG_INFO, "Parsing DBus interface %s from file %s failed: %s",
 			    DBUS_VRRP_INTERFACE, DBUS_VRRP_INTERFACE_FILE_PATH, error->message);
@@ -674,11 +675,7 @@ dbus_main(__attribute__ ((unused)) void *unused)
 		return free_wait_return(NULL);
 	}
 
-	introspection_xml = read_file(DBUS_VRRP_INSTANCE_INTERFACE_FILE_PATH);
-	if (!introspection_xml)
-		return free_wait_return(NULL);
-	vrrp_instance_introspection_data = g_dbus_node_info_new_for_xml(introspection_xml, &error);
-	FREE_CONST(introspection_xml);
+	vrrp_instance_introspection_data = g_dbus_node_info_new_for_xml(files->instance_interface_file, &error);
 	if (error != NULL) {
 		log_message(LOG_INFO, "Parsing DBus interface %s from file %s failed: %s",
 			    DBUS_VRRP_INSTANCE_INTERFACE, DBUS_VRRP_INSTANCE_INTERFACE_FILE_PATH, error->message);
@@ -915,27 +912,58 @@ dbus_reload(const list_head_t *o, const list_head_t *n)
 	thread_add_read(master, handle_dbus_msg, NULL, dbus_in_pipe[0], TIMER_NEVER, 0);
 }
 
+static bool
+dbus_start_error(dbus_files_t *files)
+{
+	if (files->interface_file)
+		FREE_CONST(files->interface_file);
+
+	if (files->instance_interface_file)
+		FREE_CONST(files->instance_interface_file);
+
+	if (dbus_in_pipe[0] != -1) {
+		close(dbus_in_pipe[0]);
+		close(dbus_in_pipe[1]);
+		dbus_in_pipe[0] = -1;
+		dbus_in_pipe[1] = -1;
+	}
+
+	if (dbus_out_pipe[0] != -1) {
+		close(dbus_out_pipe[0]);
+		close(dbus_out_pipe[1]);
+		dbus_out_pipe[0] = -1;
+		dbus_out_pipe[1] = -1;
+	}
+
+	return false;
+}
+
 bool
 dbus_start(void)
 {
 	pthread_t dbus_thread;
 	sigset_t sigset, cursigset;
 	int flags;
+	dbus_files_t files;
 
 	if (dbus_running)
 		return false;
 
+	/* read service interface data from xml files */
+	if (!(files.interface_file = read_file(DBUS_VRRP_INTERFACE_FILE_PATH)))
+		return false;
+	if (!(files.instance_interface_file = read_file(DBUS_VRRP_INSTANCE_INTERFACE_FILE_PATH))) {
+		FREE_CONST(files.interface_file);
+		return false;
+	}
+
 	if (open_pipe(dbus_in_pipe)) {
 		log_message(LOG_INFO, "Unable to create inbound dbus pipe - disabling DBus");
-		return false;
+		return dbus_start_error(&files);
 	}
 	if (open_pipe(dbus_out_pipe)) {
 		log_message(LOG_INFO, "Unable to create outbound dbus pipe - disabling DBus");
-		close(dbus_in_pipe[0]);
-		close(dbus_in_pipe[1]);
-		dbus_in_pipe[0] = -1;
-		dbus_out_pipe[0] = -1;
-		return false;
+		return dbus_start_error(&files);
 	}
 
 	/* We don't want the main thread to block when using the pipes,
@@ -963,18 +991,21 @@ dbus_start(void)
 	pthread_mutex_lock(&cond_mutex);
 
 	/* Now create the dbus thread */
-	pthread_create(&dbus_thread, NULL, &dbus_main, NULL);
+	pthread_create(&dbus_thread, NULL, &dbus_main, &files);
 
 	pthread_cond_wait(&startup_cond, &cond_mutex);
 	pthread_mutex_unlock(&cond_mutex);
 
-	if (!dbus_running)
-		log_message(LOG_INFO, "Failed to initialise DBus");
-
 	/* Reenable our signals */
 	pthread_sigmask(SIG_SETMASK, &cursigset, NULL);
 
-//	dbus_running = true;
+	if (!dbus_running) {
+		log_message(LOG_INFO, "Failed to initialise DBus");
+		return dbus_start_error(&files);
+	}
+
+	FREE_CONST(files.interface_file);
+	FREE_CONST(files.instance_interface_file);
 
 	return true;
 }
