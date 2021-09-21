@@ -117,6 +117,8 @@ typedef struct dbus_queue_ent {
 #define DBUS_VRRP_INSTANCE_INTERFACE_FILE_PATH	DBUS_DATADIR "/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml"
 
 static bool dbus_running;
+static pthread_mutex_t cond_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t startup_cond = PTHREAD_COND_INITIALIZER;
 
 /* Global file variables */
 static const char * const no_interface = "none";
@@ -633,6 +635,13 @@ read_file(const gchar* filepath)
 }
 
 static void *
+free_wait_return(void *ret)
+{
+	pthread_cond_signal(&startup_cond);
+	return ret;
+}
+
+static void *
 dbus_main(__attribute__ ((unused)) void *unused)
 {
 	const gchar *introspection_xml;
@@ -655,26 +664,26 @@ dbus_main(__attribute__ ((unused)) void *unused)
 	/* read service interface data from xml files */
 	introspection_xml = read_file(DBUS_VRRP_INTERFACE_FILE_PATH);
 	if (!introspection_xml)
-		return NULL;
+		return free_wait_return(NULL);
 	vrrp_introspection_data = g_dbus_node_info_new_for_xml(introspection_xml, &error);
 	FREE_CONST(introspection_xml);
 	if (error != NULL) {
 		log_message(LOG_INFO, "Parsing DBus interface %s from file %s failed: %s",
 			    DBUS_VRRP_INTERFACE, DBUS_VRRP_INTERFACE_FILE_PATH, error->message);
 		g_clear_error(&error);
-		return NULL;
+		return free_wait_return(NULL);
 	}
 
 	introspection_xml = read_file(DBUS_VRRP_INSTANCE_INTERFACE_FILE_PATH);
 	if (!introspection_xml)
-		return NULL;
+		return free_wait_return(NULL);
 	vrrp_instance_introspection_data = g_dbus_node_info_new_for_xml(introspection_xml, &error);
 	FREE_CONST(introspection_xml);
 	if (error != NULL) {
 		log_message(LOG_INFO, "Parsing DBus interface %s from file %s failed: %s",
 			    DBUS_VRRP_INSTANCE_INTERFACE, DBUS_VRRP_INSTANCE_INTERFACE_FILE_PATH, error->message);
 		g_clear_error(&error);
-		return NULL;
+		return free_wait_return(NULL);
 	}
 
 	service_name = global_data->dbus_service_name ? global_data->dbus_service_name : DBUS_SERVICE_NAME;
@@ -689,7 +698,10 @@ dbus_main(__attribute__ ((unused)) void *unused)
 
 	loop = g_main_loop_new(NULL, FALSE);
 
+	/* Notify main thread that we have completed initialising */
 	dbus_running = true;
+	pthread_cond_signal(&startup_cond);
+
 	g_main_loop_run(loop);
 	dbus_running = false;
 
@@ -946,8 +958,18 @@ dbus_start(void)
 	sigfillset(&sigset);
 	pthread_sigmask(SIG_SETMASK, &sigset, &cursigset);
 
+	/* Make sure that the DBus thread is running before we return, or
+	 * we know it has failed. */
+	pthread_mutex_lock(&cond_mutex);
+
 	/* Now create the dbus thread */
 	pthread_create(&dbus_thread, NULL, &dbus_main, NULL);
+
+	pthread_cond_wait(&startup_cond, &cond_mutex);
+	pthread_mutex_unlock(&cond_mutex);
+
+	if (!dbus_running)
+		log_message(LOG_INFO, "Failed to initialise DBus");
 
 	/* Reenable our signals */
 	pthread_sigmask(SIG_SETMASK, &cursigset, NULL);
