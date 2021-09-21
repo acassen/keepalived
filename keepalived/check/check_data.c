@@ -86,7 +86,7 @@ dump_ssl(FILE *fp)
 	}
 
 	if (ssl->password)
-		conf_write(fp, " Password : %s", ssl->password);
+		conf_write(fp, " Password : %s", ssl->password);	/* lgtm[security] lgtm[external/cwe/cwe-313] the password is read from a file */
 	if (ssl->cafile)
 		conf_write(fp, " CA-file : %s", ssl->cafile);
 	if (ssl->certfile)
