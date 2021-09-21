@@ -28,6 +28,27 @@ ACLOCAL_AMFLAGS = -I m4 ${ACLOCAL_FLAGS}
 README:	$(srcdir)/README.md
 	@$(edit) '$(srcdir)/$@.md' >$@
 
+if WITH_DBUS
+install-data-hook:
+	@if [ @sysconfdir@ != /etc ]; then \
+		echo; \
+		echo "NOTE:	To enable DBus to work you probably want to add:"; \
+		echo "	  <includedir>@sysconfdir@/dbus1/system.d</includedir>"; \
+		echo "	to /etc/dbus-1/system-local.conf"; \
+		echo; \
+		echo "	It should look something like:"; \
+		echo; \
+		echo "<!DOCTYPE busconfig PUBLIC \"-//freedesktop//DTD D-Bus Bus Configuration 1.0//EN\""; \
+		echo " \"http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd\">"; \
+		echo "<busconfig>"; \
+		echo ""; \
+		echo "  <includedir>@sysconfdir@/dbus-1/system.d</includedir>"; \
+		echo ""; \
+		echo "</busconfig>"; \
+		echo; \
+	fi
+endif
+
 distclean-local:
 	@rm -f aclocal.m4 keepalived-$(VERSION).tar.gz config.log config.status
 	@rm -rf autom4te.cache
