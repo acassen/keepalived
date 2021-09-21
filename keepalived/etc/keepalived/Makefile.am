@@ -7,10 +7,10 @@
 cp = echo "  CP       $@"; \
       cp
 
-@DEFAULT_CONFIG_FILENAME@.sample: $(srcdir)/keepalived.conf.in
+@DEFAULT_CONFIG_FILENAME@.sample: $(srcdir)/keepalived.conf.sample.in
 	@$(cp)  '$<' $@
 
-EXTRA_DIST		= keepalived.conf.in
+EXTRA_DIST		= keepalived.conf.sample.in
 
 configdir		= @DEFAULT_CONFIG_DIR@
 config_DATA		= @DEFAULT_CONFIG_FILENAME@.sample
