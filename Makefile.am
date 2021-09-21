@@ -9,7 +9,7 @@ export			DEBUG_CPPFLAGS
 export			DEBUG_LDFLAGS
 
 edit = echo "  EDIT     $@"; \
-	 sed -e "/^\[\!\[/d"
+	 @SED@ -e "/^\[\!\[/d"
 
 SUBDIRS			= lib keepalived doc
 

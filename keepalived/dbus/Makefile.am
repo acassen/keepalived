@@ -29,7 +29,7 @@ endif
 org.@PACKAGE@.Vrrp1.Vrrp.xml:	Makefile
 
 .xml_template.xml:
-	@echo "  SED      $@"
+	@echo "  EDIT     $@"
 	@@SED@ -e "s/^[A-Z]*$(XML_MATCH)[A-Z]*	//" -e "s/^[A-Z]*$(XML_MATCH)[A-Z]*$$//" -e "/^[A-Z]/d" $< >$@
 
 EXTRA_DIST		= org.@PACKAGE@.Vrrp1.Vrrp.xml_template

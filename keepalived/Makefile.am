@@ -11,7 +11,7 @@ AM_LDFLAGS		= $(KA_LDFLAGS) $(DEBUG_LDFLAGS)
 # AM_LIBTOOLFLAGS	= $(KA_LIBTOOLFLAGS)
 
 edit = echo "  EDIT     $@"; \
-	sed \
+	@SED@ \
 	 -e 's|@sbindir[@]|$(sbindir)|g' \
 	 -e 's|@localstatedir[@]|$(localstatedir)|g' \
 	 -e 's|@sysconfdir[@]|$(sysconfdir)|g' \
@@ -88,22 +88,22 @@ install-exec-hook:
 			d= ; \
 			s= ; \
 		else \
-			d=`echo $(bindir) | sed -e "s:^/::"`; \
-			s=`echo $(sbindir) | sed -e "s:^/::"`; \
+			d=`echo $(bindir) | @SED@ -e "s:^/::"`; \
+			s=`echo $(sbindir) | @SED@ -e "s:^/::"`; \
 			\
 			while [ 1 ]; do \
-				d1=`echo $$d | sed -e "s:/.*::"`; \
-				s1=`echo $$s | sed -e "s:/.*::"`; \
+				d1=`echo $$d | @SED@ -e "s:/.*::"`; \
+				s1=`echo $$s | @SED@ -e "s:/.*::"`; \
 				if [ $$d1 != $$s1 ]; then \
 					break; \
 				fi; \
-				d=`echo $$d | sed -e "s:^[^/]*/::"`; \
-				s=`echo $$s | sed -e "s:^[^/]*/::"`; \
+				d=`echo $$d | @SED@ -e "s:^[^/]*/::"`; \
+				s=`echo $$s | @SED@ -e "s:^[^/]*/::"`; \
 				if [ -z $$d ]; then break; fi; \
 				if [ -z $$s ]; then break; fi; \
 			done; \
 			\
-			d=`echo /$$d/ | sed -e "s:/[^/.]*/:/../:g" -e "s:/[^/.]*/:/../:g" -e "s:^/::"`; \
+			d=`echo /$$d/ | @SED@ -e "s:/[^/.]*/:/../:g" -e "s:/[^/.]*/:/../:g" -e "s:^/::"`; \
 			s=$$s/ ; \
 		fi; \
 		\
