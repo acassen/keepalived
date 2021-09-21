@@ -140,7 +140,7 @@ NFTNL_SET_ELEM_KEY_END
 
 dnl -- Since Linux 5.7
 NFT_SET_CONCAT
-NFTA_SET_EXPR also libnftnl 1.1.7, nft 0.9.5
+NFTNL_SET_EXPR also libnftnl 1.1.7, nft 0.9.5
 
 dnl ----[ Is HTTP_GET regex checking wanted? ]----
 $PKG_CONFIG --exists libpcre2-8

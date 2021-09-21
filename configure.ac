@@ -1729,7 +1729,7 @@ if test .${enable_nftables} != .no; then
       AS_IF([test $NFT_RANGE_CONCATS_OK -eq 1],
 	    [AC_DEFINE([NFT_RANGE_CONCATS], [ 1 ], [Define to 1 if can use concats with ranges in nftables])])
 
-      # NFTA_SET_EXPR since Linux 5.7, libnftnl 1.1.7, nft 0.9.5 - counters on set elements
+      # NFTNL_SET_EXPR since Linux 5.7, libnftnl 1.1.7, nft 0.9.5 - counters on set elements
       AC_CHECK_DECLS([NFTNL_SET_EXPR], [], [], [[#include <libnftnl/set.h>]])
     fi
   fi
