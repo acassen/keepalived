@@ -111,8 +111,8 @@ typedef struct dbus_queue_ent {
 #define DBUS_VRRP_OBJECT_ROOT			"/org/keepalived/Vrrp1"
 #define DBUS_VRRP_INSTANCE_PATH_DEFAULT_LENGTH	8
 #define DBUS_VRRP_INSTANCE_INTERFACE		"org.keepalived.Vrrp1.Instance"
-#define DBUS_VRRP_INTERFACE_FILE_PATH		"/usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml"
-#define DBUS_VRRP_INSTANCE_INTERFACE_FILE_PATH	"/usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml"
+#define DBUS_VRRP_INTERFACE_FILE_PATH		DBUS_DATADIR "/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml"
+#define DBUS_VRRP_INSTANCE_INTERFACE_FILE_PATH	DBUS_DATADIR "/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml"
 
 static bool dbus_running;
 

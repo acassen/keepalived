@@ -513,6 +513,17 @@ dnl -- Do we want -Wcast-align=strict?
 AS_IF([test .$enable_strict_cast_align = .yes],
       [WARNINGS_STD=$(echo $WARNINGS_STD | sed -e "s/cast-align /cast-align=strict /")])
 
+#### find the actual value for $prefix that we'll end up with
+##   (I know this is broken and should be done in the Makefile, but
+##    that's a major pain and almost nobody actually seems to care)
+##   Actually the "Built Sources Example" section of the automake
+##    manual suggests using configure as an option.
+AS_AC_EXPAND(EXPANDED_DATADIR, "$datadir")
+
+DBUS_DATADIR=$EXPANDED_DATADIR
+AC_SUBST(DBUS_DATADIR)
+AC_DEFINE_UNQUOTED(DBUS_DATADIR,"$DBUS_DATADIR", [Directory for installing DBUS data files])
+
 GCC_LTO=no
 AS_IF([test $CC = gcc],
   [
