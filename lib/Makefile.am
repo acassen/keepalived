@@ -61,7 +61,7 @@ $(GIT_COMMIT_FILE): FORCE
 		LATEST_FILE_DATE=`date -u --reference=$${LATEST_FILE} "+%m/%d,%Y"`; \
 		echo "/* Dates are UTC */" >$(abs_builddir)/$@; \
 		echo "#define GIT_DATE	\"$${LATEST_FILE_DATE}\"" >>$(abs_builddir)/$@; \
-		echo "#define GIT_YEAR	\"`echo $${LATEST_FILE_DATE} | sed -e "s/.*,//"`\"" >>$(abs_builddir)/$@; \
+		echo "#define GIT_YEAR	\"`echo $${LATEST_FILE_DATE} | @SED@ -e "s/.*,//"`\"" >>$(abs_builddir)/$@; \
 	fi; \
 	if [ -x `type -p git` ]; then \
 		cd $(srcdir); \
@@ -87,8 +87,8 @@ $(GIT_COMMIT_FILE): FORCE
 			if test -n "$${GIT_DATE}"; then \
 				GIT_YEAR=`date -u +"%Y" -d "1970-01-01 $${SECONDS_STR}"`; \
 			else \
-				GIT_DATE=`git log -1 --date=iso | grep Date: | sed -e "s/^[^ ]* *\(....\)-\(..\)-\(..\).*/\2\/\3,\1/"`; \
-				GIT_YEAR=`echo $${GIT_DATE} | sed -e "s/.*,//"`; \
+				GIT_DATE=`git log -1 --date=iso | grep Date: | @SED@ -e "s/^[^ ]* *\(....\)-\(..\)-\(..\).*/\2\/\3,\1/"`; \
+				GIT_YEAR=`echo $${GIT_DATE} | @SED@ -e "s/.*,//"`; \
 			fi; \
 			if [ "`git status --porcelain | \
 			       grep -v '^??' | \

@@ -27,7 +27,6 @@ Makefile.in
 /config.status
 /configure.scan
 /lib/stamp-h[12]
-/m4/
 
 .deps/
 

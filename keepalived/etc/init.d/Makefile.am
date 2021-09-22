@@ -7,7 +7,7 @@
 EXTRA_DIST		= keepalived.suse.init.in keepalived
 
 edit = echo "  EDIT     $@"; \
-	sed \
+	@SED@ \
 	 -e 's|@sbindir[@]|$(sbindir)|g' \
 	 -e 's|@sysconfdir[@]|$(sysconfdir)|g' \
 	 -e 's|@localstatedir[@]|$(localstatedir)|g'
