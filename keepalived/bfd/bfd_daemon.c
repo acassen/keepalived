@@ -55,11 +55,7 @@
 #endif
 #ifndef _ONE_PROCESS_DEBUG_
 #include "config_notify.h"
-#ifdef THREAD_DUMP
-#include "fuse_interface.h"
 #endif
-#endif
-#include "bfd_fuse.h"
 
 
 /* Global variables */
@@ -112,8 +108,6 @@ stop_bfd(int status)
 		free(no_const_char_p(bfd_syslog_ident));	/* malloc'd by make_syslog_ident() */
 #endif
 	close_std_fd();
-
-	stop_bfd_fuse();
 
 	exit(status);
 }
@@ -200,8 +194,6 @@ start_bfd(__attribute__((unused)) data_t *prev_global_data)
 
 	/* Set the process cpu affinity if configured */
 	set_process_cpu_affinity(&global_data->bfd_cpu_mask, "bfd");
-
-	start_bfd_fuse();
 }
 
 void
@@ -352,10 +344,6 @@ register_bfd_thread_addresses(void)
 	register_signal_thread_addresses();
 
 	register_bfd_scheduler_addresses();
-
-#ifndef ONE_PROCESS_DEBUG
-	register_fuse_thread_addresses();
-#endif
 
 	register_thread_address("bfd_dispatcher_init", bfd_dispatcher_init);
 	register_thread_address("reload_bfd_thread", reload_bfd_thread);

@@ -34,7 +34,7 @@ install-data-hook:
 		echo; \
 		echo "NOTE:	To enable DBus to work you probably want to add:"; \
 		echo "	  <includedir>@sysconfdir@/dbus1/system.d</includedir>"; \
-		echo "	to /etc/dbus-1/system-local.conf and restart dbus or reboot."; \
+		echo "	to /etc/dbus-1/system-local.conf"; \
 		echo; \
 		echo "	It should look something like:"; \
 		echo; \

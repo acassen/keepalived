@@ -18,8 +18,7 @@ libvrrp_a_SOURCES	= \
 	vrrp.c vrrp_notify.c vrrp_scheduler.c vrrp_sync.c \
 	vrrp_arp.c vrrp_if.c vrrp_track.c vrrp_ipaddress.c \
 	vrrp_ndisc.c vrrp_if_config.c vrrp_static_track.c \
-	vrrp_iproute.c vrrp_iprule.c vrrp_ip_rule_route_parser.c \
-	vrrp_fuse.c
+	vrrp_iproute.c vrrp_iprule.c vrrp_ip_rule_route_parser.c
 
 libvrrp_a_SOURCES	+= ../include/vrrp_daemon.h
 

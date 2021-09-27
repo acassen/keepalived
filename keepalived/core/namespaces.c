@@ -230,20 +230,17 @@ set_run_mount(const char *net_namespace)
 		return;
 	}
 
-#if 1
 	if (unshare(CLONE_NEWNS)) {
 		log_message(LOG_INFO, "mount unshare failed (%d) '%s'", errno, strerror(errno));
 		return;
 	}
-#endif
 
-	/* Make /run mounts slave mounts - systemd makes all mounts shared by default */
-	if (mount("", "/run", NULL, MS_SLAVE, NULL))
-		log_message(LOG_INFO, "Mount /run slave failed, error (%d) '%s'", errno, strerror(errno));
+	/* Make all mounts unshared - systemd makes them shared by default */
+	if (mount("", "/", NULL, MS_REC | MS_SLAVE, NULL))
+		log_message(LOG_INFO, "Mount slave failed, error (%d) '%s'", errno, strerror(errno));
+
 	if (mount(mount_dirname, pid_directory, NULL, MS_BIND, NULL))
 		log_message(LOG_INFO, "Mount failed, error (%d) '%s'", errno, strerror(errno));
-//	if (mount("", "/run", NULL, MS_SHARED, NULL))
-//		log_message(LOG_INFO, "Mount shared failed, error (%d) '%s'", errno, strerror(errno));
 
 	run_mount_set = true;
 }

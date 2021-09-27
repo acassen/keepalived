@@ -15,7 +15,7 @@ noinst_LIBRARIES	= libbfd.a
 
 libbfd_a_SOURCES = \
 	bfd.c bfd_data.c bfd_parser.c bfd_daemon.c bfd_scheduler.c \
-	bfd_event.c bfd_fuse.c
+	bfd_event.c
 
 EXTRA_libbfd_a_SOURCES =
 libbfd_a_LIBADD =

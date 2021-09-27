@@ -31,9 +31,6 @@
 /* local includes */
 #include "list_head.h"
 #include "vector.h"
-#include "vrrp.h"
-#include "vrrp_track.h"
-
 
 /* Configuration data root */
 typedef struct _vrrp_data {
