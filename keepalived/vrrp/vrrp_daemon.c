@@ -89,7 +89,11 @@
 #endif
 #ifndef _ONE_PROCESS_DEBUG_
 #include "config_notify.h"
+#ifdef THREAD_DUMP
+#include "fuse_interface.h"
 #endif
+#endif
+#include "vrrp_fuse.h"
 
 
 /* Global variables */
@@ -346,6 +350,8 @@ vrrp_terminate_phase2(int exit_status)
 		free(no_const_char_p(vrrp_syslog_ident));	/* malloc'd by make_syslog_ident() */
 #endif
 	close_std_fd();
+
+	stop_vrrp_fuse();
 
 	/* Stop daemon */
 	pidfile_rm(vrrp_pidfile);
@@ -674,6 +680,8 @@ start_vrrp(data_t *prev_global_data)
 
 	/* Ensure we can open sufficient file descriptors */
 	set_vrrp_max_fds();
+
+	start_vrrp_fuse();
 }
 
 #ifndef _ONE_PROCESS_DEBUG_
@@ -959,6 +967,8 @@ register_vrrp_thread_addresses(void)
 #endif
 
 #ifndef _ONE_PROCESS_DEBUG_
+	register_fuse_thread_addresses();
+
 	register_thread_address("print_vrrp_data", print_vrrp_data);
 	register_thread_address("print_vrrp_stats", print_vrrp_stats);
 	register_thread_address("reload_vrrp_thread", reload_vrrp_thread);

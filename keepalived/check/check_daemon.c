@@ -78,7 +78,12 @@
 #endif
 #ifndef _ONE_PROCESS_DEBUG_
 #include "config_notify.h"
+#ifdef THREAD_DUMP
+#include "fuse_interface.h"
 #endif
+#endif
+#include "check_fuse.h"
+
 
 /* Global variables */
 bool using_ha_suspend;
@@ -203,6 +208,8 @@ checker_terminate_phase2(void)
 		free(no_const_char_p(check_syslog_ident));	/* malloc'd by make_syslog_ident() */
 #endif
 	close_std_fd();
+
+	stop_check_fuse();
 
 	return 0;
 }
@@ -456,6 +463,8 @@ start_check(list_head_t *old_checkers_queue, data_t *prev_global_data)
 
 	/* Set the process cpu affinity if configured */
 	set_process_cpu_affinity(&global_data->checker_cpu_mask, "checker");
+
+	start_check_fuse();
 }
 
 void
@@ -643,6 +652,8 @@ register_check_thread_addresses(void)
 #endif
 
 #ifndef _ONE_PROCESS_DEBUG_
+	register_fuse_thread_addresses();
+
 	register_thread_address("reload_check_thread", reload_check_thread);
 	register_thread_address("start_checker_termination_thread", start_checker_termination_thread);
 #endif

@@ -18,7 +18,7 @@ libcheck_a_SOURCES = \
 	check_api.c check_tcp.c check_http.c check_ssl.c check_genhash.c \
 	check_smtp.c check_misc.c check_dns.c check_print.c \
 	ipwrapper.c ipvswrapper.c libipvs.c check_udp.c check_ping.c \
-	check_file.c
+	check_file.c check_fuse.c
 
 EXTRA_libcheck_a_SOURCES =
 libcheck_a_LIBADD =

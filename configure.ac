@@ -1741,6 +1741,8 @@ unset LIBS
 AS_IF([test $USE_IPTABLES = Yes -o $USE_NFTABLES = Yes], [AC_DEFINE([_WITH_FIREWALL_], [ 1 ], [Define to 1 if using iptables or nftables])])
 AM_CONDITIONAL([FIREWALL], [test $USE_IPTABLES = Yes -o $USE_NFTABLES = Yes])
 
+add_to_var([KA_LDFLAGS], [`$PKG_CONFIG --libs fuse3`])
+
 dnl ----[Check if have linux/if.h and net/if.h namespace collision]----
 # Including <linux/if.h> and <net/if.h> can cause a namespace collision.
 # Later versions of the headers are OK if linux/if.h is included second

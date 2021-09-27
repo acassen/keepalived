@@ -119,6 +119,10 @@
 #include "systemd.h"
 #endif
 #include "warnings.h"
+#ifdef THREAD_DUMP
+#include "fuse_interface.h"
+#endif
+#include "core_fuse.h"
 
 #define CHILD_WAIT_SECS	5
 
@@ -523,6 +527,7 @@ stop_keepalived(void)
 		pidfile_rm(bfd_pidfile);
 #endif
 
+	stop_core_fuse();
 	pidfile_rm(main_pidfile);
 #endif
 }
@@ -532,6 +537,8 @@ static void
 start_keepalived(__attribute__((unused)) thread_ref_t thread)
 {
 	bool have_child = false;
+
+	start_core_fuse();
 
 #ifdef _WITH_BFD_
 	/* must be opened before vrrp and bfd start */
@@ -2332,6 +2339,8 @@ register_parent_thread_addresses(void)
 	register_config_notify_addresses();
 #endif
 
+	register_fuse_thread_addresses();
+
 #ifdef _WITH_LVS_
 	register_check_parent_addresses();
 #endif
@@ -2599,6 +2608,9 @@ keepalived_main(int argc, char **argv)
 	}
 
 	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
+if (!use_pid_dir)
+	create_pid_dir();
+
 		if (global_data->instance_name) {
 			if (!main_pidfile && (main_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE, global_data->instance_name, PID_EXTENSION)))
 				free_main_pidfile = true;
