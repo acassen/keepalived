@@ -1020,8 +1020,10 @@ dbus_stop(void)
 	if (!dbus_running)
 		return;
 
-	g_hash_table_foreach_remove(objects, remove_object, NULL);
-	objects = NULL;
+	if (objects) {
+		g_hash_table_foreach_remove(objects, remove_object, NULL);
+		objects = NULL;
+	}
 
 	if (global_connection != NULL) {
 		path = dbus_object_create_path_vrrp();

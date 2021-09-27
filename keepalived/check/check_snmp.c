@@ -478,6 +478,8 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 			long_ret.u = 12;
 		else if (!strcmp(v->sched, "mh"))
 			long_ret.u = 13;
+		else if (!strcmp(v->sched, "twos"))
+			long_ret.u = 14;
 		else
 			long_ret.u = 99;
 		return PTR_CAST(u_char, &long_ret);

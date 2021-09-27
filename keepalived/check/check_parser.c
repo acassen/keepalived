@@ -50,7 +50,7 @@
 
 /* List of valid schedulers */
 static const char *lvs_schedulers[] =
-	{"rr", "wrr", "lc", "wlc", "lblc", "sh", "mh", "dh", "fo", "ovf", "lblcr", "sed", "nq", NULL};
+	{"rr", "wrr", "lc", "wlc", "lblc", "sh", "mh", "dh", "fo", "ovf", "lblcr", "sed", "nq", "twos", NULL};
 
 /* SSL handlers */
 static void

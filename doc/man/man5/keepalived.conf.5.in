@@ -2127,7 +2127,7 @@ The syntax for virtual_server is :
 \fBvirtual_server fwmark \fR<INTEGER> |
 \fBvirtual_server group \fR<STRING> {
     # LVS scheduler
-    \fBlvs_sched \fRrr|wrr|lc|wlc|lblc|sh|mh|dh|fo|ovf|lblcr|sed|nq
+    \fBlvs_sched \fRrr|wrr|lc|wlc|lblc|sh|mh|dh|fo|ovf|lblcr|sed|nq|twos
 
     # Enable flag-1 for scheduler (-b flag-1 in ipvsadm)
     \fBflag-1\fR

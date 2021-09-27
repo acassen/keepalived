@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "202109090001Z"
+     LAST-UPDATED "202109230001Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "202109230001Z"
+     DESCRIPTION "add twos LVS scheduler"
      REVISION "202109090001Z"
      DESCRIPTION "correct syntax of vrrpInstanceIndex"
      REVISION "202109040001Z"
@@ -3484,6 +3486,7 @@ virtualServerLoadBalancingAlgo OBJECT-TYPE
     fo(11),
     ovf(12),
     mh(13),
+    twos(14),
     unknown(99)
     }
     MAX-ACCESS read-only
