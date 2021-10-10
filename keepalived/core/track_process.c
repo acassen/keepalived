@@ -137,11 +137,12 @@ free_process_tree(void)
 {
 	tracked_process_instance_t *tpi, *next;
 
-	rb_for_each_entry_safe(tpi, next, &process_tree, pid_tree) {
+	rbtree_postorder_for_each_entry_safe(tpi, next, &process_tree, pid_tree) {
 		free_ref_tracked_process_list(&tpi->processes);
-		rb_erase(&tpi->pid_tree, &process_tree);
 		FREE(tpi);
 	}
+
+	process_tree = RB_ROOT;
 }
 
 static int

@@ -208,10 +208,10 @@ deregister_thread_addresses(void)
 	if (RB_EMPTY_ROOT(&funcs))
 		return;
 
-	rb_for_each_entry_safe(func_det, func_det_tmp, &funcs, n) {
-		rb_erase(&func_det->n, &funcs);
+	rbtree_postorder_for_each_entry_safe(func_det, func_det_tmp, &funcs, n)
 		FREE(func_det);
-	}
+
+	funcs = RB_ROOT;
 }
 #endif
 
@@ -240,7 +240,7 @@ register_shutdown_function(void (*func)(int))
 #endif
 
 /* Move ready thread into ready queue */
-static int
+static void
 thread_move_ready(thread_master_t *m, rb_root_cached_t *root, thread_t *thread, int type)
 {
 	rb_erase_cached(&thread->n, root);
@@ -248,16 +248,18 @@ thread_move_ready(thread_master_t *m, rb_root_cached_t *root, thread_t *thread, 
 	list_add_tail(&thread->e_list, &m->ready);
 	if (thread->type != THREAD_TIMER_SHUTDOWN)
 		thread->type = type;
-	return 0;
 }
 
 /* Move ready thread into ready queue */
 static void
 thread_rb_move_ready(thread_master_t *m, rb_root_cached_t *root, int type)
 {
-	thread_t *thread, *thread_tmp;
+	thread_t *thread;
+	rb_node_t *thread_node;
 
-	rb_for_each_entry_safe_cached(thread, thread_tmp, root, n) {
+	while ((thread_node = rb_first_cached(root))) {
+		thread = rb_entry(thread_node, thread_t, n);
+
 		if (thread->sands.tv_sec == TIMER_DISABLED || timercmp(&time_now, &thread->sands, <))
 			break;
 
@@ -265,6 +267,7 @@ thread_rb_move_ready(thread_master_t *m, rb_root_cached_t *root, int type)
 			thread->event->read = NULL;
 		else if (type == THREAD_WRITE_TIMEOUT)
 			thread->event->write = NULL;
+
 		thread_move_ready(m, root, thread, type);
 	}
 }
@@ -274,11 +277,12 @@ static void
 thread_update_timer(rb_root_cached_t *root, timeval_t *timer_min)
 {
 	const thread_t *first;
+	rb_node_t *first_node;
 
-	if (!root->rb_root.rb_node)
+	if (!(first_node = rb_first_cached(root)))
 		return;
 
-	first = rb_entry(rb_first_cached(root), thread_t, n);
+	first = rb_entry(first_node, thread_t, n);
 
 	if (first->sands.tv_sec == TIMER_DISABLED)
 		return;
@@ -956,11 +960,10 @@ thread_destroy_list(thread_master_t *m, list_head_t *l)
 static void
 thread_destroy_rb(thread_master_t *m, rb_root_cached_t *root)
 {
-	thread_t *thread, *thread_tmp;
+	thread_t *thread;
+	thread_t *thread_sav;
 
-	rb_for_each_entry_safe_cached(thread, thread_tmp, root, n) {
-		rb_erase_cached(&thread->n, root);
-
+	rbtree_postorder_for_each_entry_safe(thread, thread_sav, &root->rb_root, n) {
 		/* The following are relevant for the read and write rb lists */
 		if (thread->type == THREAD_READ ||
 		    thread->type == THREAD_WRITE) {
@@ -981,6 +984,8 @@ thread_destroy_rb(thread_master_t *m, rb_root_cached_t *root)
 
 		thread_add_unuse(m, thread);
 	}
+
+	*root = RB_ROOT_CACHED;
 }
 
 /* Cleanup master */
