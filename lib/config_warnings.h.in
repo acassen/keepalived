@@ -1,4 +1,3 @@
-
 /* The content of the .h.in file is automatically updated by
  * configure, so in theory the .h.in file does not need to be
  * in the source tree, but the file must exist, otherwise
@@ -9,4 +8,247 @@
  * configure writes the #undef statements to the .h.in file, so
  * that when AC_OUTPUT is invoked, the .h file is created from
  * the .h.in file, with the appropriate #define's being set.
+ *
+ * This file will be updated by configure if warnings are added,
+ * but it should still be updated in git.
+ *
+ * If warnings are removed, delete everything after this comment
+ * and run configure, which will add back the currently used entries.
  */
+
+/* Define to 1 if -Wall in use */
+#undef _HAVE_WARNING_ALL_
+
+/* Define to 1 if -Wextra in use */
+#undef _HAVE_WARNING_EXTRA_
+
+/* Define to 1 if -Wunused in use */
+#undef _HAVE_WARNING_UNUSED_
+
+/* Define to 1 if -Wstrict-prototypes in use */
+#undef _HAVE_WARNING_STRICT_PROTOTYPES_
+
+/* Define to 1 if -Wabi in use */
+#undef _HAVE_WARNING_ABI_
+
+/* Define to 1 if -Wabsolute-value in use */
+#undef _HAVE_WARNING_ABSOLUTE_VALUE_
+
+/* Define to 1 if -Waddress-of-packed-member in use */
+#undef _HAVE_WARNING_ADDRESS_OF_PACKED_MEMBER_
+
+/* Define to 1 if -Walloca in use */
+#undef _HAVE_WARNING_ALLOCA_
+
+/* Define to 1 if -Walloc-larger-than=4096 in use */
+#undef _HAVE_WARNING_ALLOC_LARGER_THAN_4096_
+
+/* Define to 1 if -Walloc-larger-than in use */
+#undef _HAVE_WARNING_ALLOC_LARGER_THAN_
+
+/* Define to 1 if -Walloc-zero in use */
+#undef _HAVE_WARNING_ALLOC_ZERO_
+
+/* Define to 1 if -Warith-conversion in use */
+#undef _HAVE_WARNING_ARITH_CONVERSION_
+
+/* Define to 1 if -Warray-bounds=2 in use */
+#undef _HAVE_WARNING_ARRAY_BOUNDS_2_
+
+/* Define to 1 if -Warray-bounds in use */
+#undef _HAVE_WARNING_ARRAY_BOUNDS_
+
+/* Define to 1 if -Wattribute-alias=2 in use */
+#undef _HAVE_WARNING_ATTRIBUTE_ALIAS_2_
+
+/* Define to 1 if -Wattribute-alias in use */
+#undef _HAVE_WARNING_ATTRIBUTE_ALIAS_
+
+/* Define to 1 if -Wbad-function-cast in use */
+#undef _HAVE_WARNING_BAD_FUNCTION_CAST_
+
+/* Define to 1 if -Wc11-c2x-compat in use */
+#undef _HAVE_WARNING_C11_C2X_COMPAT_
+
+/* Define to 1 if -Wcast-align in use */
+#undef _HAVE_WARNING_CAST_ALIGN_
+
+/* Define to 1 if -Wcast-qual in use */
+#undef _HAVE_WARNING_CAST_QUAL_
+
+/* Define to 1 if -Wchkp in use */
+#undef _HAVE_WARNING_CHKP_
+
+/* Define to 1 if -Wdate-time in use */
+#undef _HAVE_WARNING_DATE_TIME_
+
+/* Define to 1 if -Wdisabled-optimization in use */
+#undef _HAVE_WARNING_DISABLED_OPTIMIZATION_
+
+/* Define to 1 if -Wdouble-promotion in use */
+#undef _HAVE_WARNING_DOUBLE_PROMOTION_
+
+/* Define to 1 if -Wduplicated-branches in use */
+#undef _HAVE_WARNING_DUPLICATED_BRANCHES_
+
+/* Define to 1 if -Wduplicated-cond in use */
+#undef _HAVE_WARNING_DUPLICATED_COND_
+
+/* Define to 1 if -Wfloat-conversion in use */
+#undef _HAVE_WARNING_FLOAT_CONVERSION_
+
+/* Define to 1 if -Wfloat-equal in use */
+#undef _HAVE_WARNING_FLOAT_EQUAL_
+
+/* Define to 1 if -Wformat-overflow in use */
+#undef _HAVE_WARNING_FORMAT_OVERFLOW_
+
+/* Define to 1 if -Wformat-security in use */
+#undef _HAVE_WARNING_FORMAT_SECURITY_
+
+/* Define to 1 if -Wformat-signedness in use */
+#undef _HAVE_WARNING_FORMAT_SIGNEDNESS_
+
+/* Define to 1 if -Wformat-truncation in use */
+#undef _HAVE_WARNING_FORMAT_TRUNCATION_
+
+/* Define to 1 if -Wframe-larger-than=5120 in use */
+#undef _HAVE_WARNING_FRAME_LARGER_THAN_5120_
+
+/* Define to 1 if -Wframe-larger-than in use */
+#undef _HAVE_WARNING_FRAME_LARGER_THAN_
+
+/* Define to 1 if -Wimplicit-fallthrough=3 in use */
+#undef _HAVE_WARNING_IMPLICIT_FALLTHROUGH_3_
+
+/* Define to 1 if -Wimplicit-fallthrough in use */
+#undef _HAVE_WARNING_IMPLICIT_FALLTHROUGH_
+
+/* Define to 1 if -Winit-self in use */
+#undef _HAVE_WARNING_INIT_SELF_
+
+/* Define to 1 if -Winline in use */
+#undef _HAVE_WARNING_INLINE_
+
+/* Define to 1 if -Winvalid-pch in use */
+#undef _HAVE_WARNING_INVALID_PCH_
+
+/* Define to 1 if -Wjump-misses-init in use */
+#undef _HAVE_WARNING_JUMP_MISSES_INIT_
+
+/* Define to 1 if -Wlogical-op in use */
+#undef _HAVE_WARNING_LOGICAL_OP_
+
+/* Define to 1 if -Wmissing-declarations in use */
+#undef _HAVE_WARNING_MISSING_DECLARATIONS_
+
+/* Define to 1 if -Wmissing-field-initializers in use */
+#undef _HAVE_WARNING_MISSING_FIELD_INITIALIZERS_
+
+/* Define to 1 if -Wmissing-include-dirs in use */
+#undef _HAVE_WARNING_MISSING_INCLUDE_DIRS_
+
+/* Define to 1 if -Wmissing-prototypes in use */
+#undef _HAVE_WARNING_MISSING_PROTOTYPES_
+
+/* Define to 1 if -Wnested-externs in use */
+#undef _HAVE_WARNING_NESTED_EXTERNS_
+
+/* Define to 1 if -Wnormalized in use */
+#undef _HAVE_WARNING_NORMALIZED_
+
+/* Define to 1 if -Wnull-dereference in use */
+#undef _HAVE_WARNING_NULL_DEREFERENCE_
+
+/* Define to 1 if -Wold-style-definition in use */
+#undef _HAVE_WARNING_OLD_STYLE_DEFINITION_
+
+/* Define to 1 if -Woverlength-strings in use */
+#undef _HAVE_WARNING_OVERLENGTH_STRINGS_
+
+/* Define to 1 if -Wpointer-arith in use */
+#undef _HAVE_WARNING_POINTER_ARITH_
+
+/* Define to 1 if -Wredundant-decls in use */
+#undef _HAVE_WARNING_REDUNDANT_DECLS_
+
+/* Define to 1 if -Wshadow in use */
+#undef _HAVE_WARNING_SHADOW_
+
+/* Define to 1 if -Wshift-overflow=2 in use */
+#undef _HAVE_WARNING_SHIFT_OVERFLOW_2_
+
+/* Define to 1 if -Wshift-overflow in use */
+#undef _HAVE_WARNING_SHIFT_OVERFLOW_
+
+/* Define to 1 if -Wstack-protector in use */
+#undef _HAVE_WARNING_STACK_PROTECTOR_
+
+/* Define to 1 if -Wstrict-overflow=4 in use */
+#undef _HAVE_WARNING_STRICT_OVERFLOW_4_
+
+/* Define to 1 if -Wstrict-overflow in use */
+#undef _HAVE_WARNING_STRICT_OVERFLOW_
+
+/* Define to 1 if -Wstringop-overflow=2 in use */
+#undef _HAVE_WARNING_STRINGOP_OVERFLOW_2_
+
+/* Define to 1 if -Wstringop-overflow in use */
+#undef _HAVE_WARNING_STRINGOP_OVERFLOW_
+
+/* Define to 1 if -Wstringop-truncation in use */
+#undef _HAVE_WARNING_STRINGOP_TRUNCATION_
+
+/* Define to 1 if -Wsuggest-attribute=cold in use */
+#undef _HAVE_WARNING_SUGGEST_ATTRIBUTE_COLD_
+
+/* Define to 1 if -Wsuggest-attribute=const in use */
+#undef _HAVE_WARNING_SUGGEST_ATTRIBUTE_CONST_
+
+/* Define to 1 if -Wsuggest-attribute=format in use */
+#undef _HAVE_WARNING_SUGGEST_ATTRIBUTE_FORMAT_
+
+/* Define to 1 if -Wsuggest-attribute=malloc in use */
+#undef _HAVE_WARNING_SUGGEST_ATTRIBUTE_MALLOC_
+
+/* Define to 1 if -Wsuggest-attribute=noreturn in use */
+#undef _HAVE_WARNING_SUGGEST_ATTRIBUTE_NORETURN_
+
+/* Define to 1 if -Wsuggest-attribute=pure in use */
+#undef _HAVE_WARNING_SUGGEST_ATTRIBUTE_PURE_
+
+/* Define to 1 if -Wsync-nand in use */
+#undef _HAVE_WARNING_SYNC_NAND_
+
+/* Define to 1 if -Wtrampolines in use */
+#undef _HAVE_WARNING_TRAMPOLINES_
+
+/* Define to 1 if -Wundef in use */
+#undef _HAVE_WARNING_UNDEF_
+
+/* Define to 1 if -Wuninitialized in use */
+#undef _HAVE_WARNING_UNINITIALIZED_
+
+/* Define to 1 if -Wunknown-pragmas in use */
+#undef _HAVE_WARNING_UNKNOWN_PRAGMAS_
+
+/* Define to 1 if -Wunsafe-loop-optimizations in use */
+#undef _HAVE_WARNING_UNSAFE_LOOP_OPTIMIZATIONS_
+
+/* Define to 1 if -Wunsuffixed-float-constants in use */
+#undef _HAVE_WARNING_UNSUFFIXED_FLOAT_CONSTANTS_
+
+/* Define to 1 if -Wunused-const-variable=2 in use */
+#undef _HAVE_WARNING_UNUSED_CONST_VARIABLE_2_
+
+/* Define to 1 if -Wunused-const-variable in use */
+#undef _HAVE_WARNING_UNUSED_CONST_VARIABLE_
+
+/* Define to 1 if -Wunused-macros in use */
+#undef _HAVE_WARNING_UNUSED_MACROS_
+
+/* Define to 1 if -Wvariadic-macros in use */
+#undef _HAVE_WARNING_VARIADIC_MACROS_
+
+/* Define to 1 if -Wwrite-strings in use */
+#undef _HAVE_WARNING_WRITE_STRINGS_

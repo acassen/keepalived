@@ -682,11 +682,6 @@ fi
 
 CONFIG_WARNINGS=lib/config_warnings.h.in
 
-# Save (or restore) lib/config_warnings.h.in
-AS_IF([test ! -f ${CONFIG_WARNINGS}.sav],
-      [cp -p ${CONFIG_WARNINGS} ${CONFIG_WARNINGS}.sav],
-      [cp -p ${CONFIG_WARNINGS}.sav ${CONFIG_WARNINGS}])
-
 SAV_CFLAGS="$CFLAGS"
 for WARN in $WARNINGS_ENABLED
 do
@@ -2898,9 +2893,6 @@ KA_LDFLAGS=`echo $KA_LDFLAGS | sed -e "s/  */ /g" -e "s/^ //" -e "s/ $//"`
 KA_LIBS=`echo $KA_LIBS | sed -e "s/  */ /g" -e "s/^ //" -e "s/ $//"`
 
 AC_OUTPUT
-
-# Restore lib/config_warnings.h.in
-mv ${CONFIG_WARNINGS}.sav ${CONFIG_WARNINGS}
 
 dnl ----[ Display current configuration ]----
 cat <<EOF;
