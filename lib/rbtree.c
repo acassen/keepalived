@@ -13,6 +13,9 @@
  *   with the addition of the defined helper "functions" in rbtree.h
  */
 
+/* Allow including rbtree.h directly */
+#define _RBTREE_KA_H
+
 #include "config.h"
 
 #include <stdlib.h>

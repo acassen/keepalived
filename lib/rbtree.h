@@ -17,6 +17,10 @@
 #ifndef	_LINUX_RBTREE_H
 #define	_LINUX_RBTREE_H
 
+#if !defined _RBTREE_KA_H
+# error "Never include "rbtree.h" directly; use "rbtree_ka.h" instead."
+#endif
+
 #include "rbtree_types.h"
 
 #include <stdbool.h>
