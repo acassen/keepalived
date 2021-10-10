@@ -208,7 +208,12 @@ ssl_connect(thread_ref_t thread, int new_req)
 	request_t *req = http_get_check->req;
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 	url_t *url = http_get_check->url_it;
-	const char *vhost = NULL;
+	/* The man page for SSL_set_tlsext_host_name states name is const char *,
+	 * but it is cast to a void * */
+	union {
+		const char *name_const;
+		char *name;
+	} vhost;
 #endif
 	int ret = 0;
 
@@ -239,13 +244,15 @@ ssl_connect(thread_ref_t thread, int new_req)
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 		if (http_get_check->enable_sni) {
 			if (url && url->virtualhost)
-				vhost = url->virtualhost;
+				vhost.name_const = url->virtualhost;
 			else if (http_get_check->virtualhost)
-				vhost = http_get_check->virtualhost;
+				vhost.name_const = http_get_check->virtualhost;
 			else if (checker->vs->virtualhost)
-				vhost = checker->vs->virtualhost;
-			if (vhost)
-				SSL_set_tlsext_host_name(req->ssl, vhost);
+				vhost.name_const = checker->vs->virtualhost;
+			else
+				vhost.name_const = NULL;
+			if (vhost.name)
+				SSL_set_tlsext_host_name(req->ssl, vhost.name);
 		}
 #endif
 	}
