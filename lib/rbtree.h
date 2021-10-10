@@ -305,7 +305,7 @@ rb_find_first(const void *key, const struct rb_root *tree,
 			if (!c)
 				match = node;
 			node = node->rb_left;
-		} else if (c > 0) {
+		} else {
 			node = node->rb_right;
 		}
 	}
