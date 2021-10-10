@@ -29,7 +29,6 @@
 
 #include "config.h"
 
-
 /* musl does not define __GNUC_PREREQ, so create a dummy definition */
 #ifndef __GNUC_PREREQ
 #define __GNUC_PREREQ(maj, min) 0
@@ -40,6 +39,13 @@
 /* See https://clang.llvm.org/docs/DiagnosticsReference.html for clang diagnostics
  * See https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html for GCC warnings
 */
+
+#ifdef _HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_
+#define RELAX_END \
+_Pragma("GCC diagnostic pop")
+#else
+#define RELAX_END
+#endif
 
 #ifdef _HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_
 #define RELAX_STACK_PROTECTOR_START \
@@ -91,11 +97,24 @@ _Pragma("GCC diagnostic ignored \"-Wstringop-overflow\"")
 #define RELAX_STRINGOP_OVERFLOW_END
 #endif
 
-#ifdef _HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_
-#define RELAX_END \
-_Pragma("GCC diagnostic pop")
+#if defined _HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_ && defined _HAVE_WARNING_NESTED_EXTERNS_
+# define RELAX_NESTED_EXTERNS_START \
+_Pragma("GCC diagnostic push") \
+_Pragma("GCC diagnostic ignored \"-Wnested-externs\"")
+#define RELAX_NESTED_EXTERNS_END RELAX_END
 #else
-#define RELAX_END
+#define RELAX_NESTED_EXTERNS_START
+#define RELAX_NESTED_EXTERNS_END
+#endif
+
+#if defined _HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_ && defined _HAVE_WARNING_REDUNDANT_DECLS_
+#define RELAX_REDUNDANT_DECLS_START \
+_Pragma("GCC diagnostic push") \
+_Pragma("GCC diagnostic ignored \"-Wredundant-decls\"")
+#define RELAX_REDUNDANT_DECLS_END RELAX_END
+#else
+#define RELAX_REDUNDANT_DECLS_START
+#define RELAX_REDUNDANT_DECLS_END
 #endif
 
 #endif

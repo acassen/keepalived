@@ -755,6 +755,35 @@ AS_IF([test .$HAVE_WARNING_STRICT_OVERFLOW = .yes],
      )
 CFLAGS="$SAV_CFLAGS"
 
+dnl ---- [ Is function __attribute__((error(msg)) supported? ] ----
+AC_MSG_CHECKING([for function __attribute__((error(msg))) support])
+AC_COMPILE_IFELSE(
+  [
+    AC_LANG_PROGRAM(
+      [[
+        #include <stdio.h>
+
+        static int func(int i) __attribute__((error("deliberate error")))
+	{
+	  return i * 2;
+	}
+      ]],
+      [[
+	int i = func(2);
+	printf("%d", i);
+      ]]
+    )
+  ],
+  [
+    dnl -- The logic is inverted here. If the attribute is supported,
+    dnl -- the compilation will fail!
+    AC_MSG_RESULT([no])
+  ],
+  [
+    AC_MSG_RESULT([yes])
+    AC_DEFINE([_HAVE_FUNCTION_ATTRIBUTE_ERROR_], [ 1 ], [Define to 1 if function __attribute__((error(msg))) supported])
+  ])
+
 dnl ---- [ Do we want stricter configuration checking? ] ----
 STRICT_CONFIG=No
 if test "$enable_strict_config_checks" = yes; then
