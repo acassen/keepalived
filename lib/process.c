@@ -161,7 +161,7 @@ set_process_priorities(int realtime_priority, int max_realtime_priority, long mi
 	if (no_swap_stack_size)
 		set_process_dont_swap(no_swap_stack_size);
 }
-RELAX_END
+RELAX_STACK_PROTECTOR_END
 
 void
 reset_process_priorities(void)
