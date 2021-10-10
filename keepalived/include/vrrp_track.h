@@ -38,7 +38,7 @@
 #include "bfd.h"
 #endif
 #ifdef _WITH_TRACK_PROCESS_
-#include "rbtree.h"
+#include "rbtree_ka.h"
 #endif
 #include "tracker.h"
 

@@ -1665,7 +1665,7 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 		if (rule->mask & IPRULE_BIT_SUP_GROUP) {
 RELAX_CAST_QUAL_START
 			str = PTR_CAST_CONST(char, get_rttables_group(rule->suppress_group));
-RELAX_END
+RELAX_CAST_QUAL_END
 			*var_len = strlen(str);
 		}
 		else

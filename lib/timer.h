@@ -54,23 +54,44 @@ extern bool do_timer_check;
 #define set_time_now()	set_time_now_r((__FILE__), (__func__), (__LINE__))
 #endif
 
-#define RB_TIMER_CMP(obj)					\
+#define RB_TIMER_CMP(obj, nnn)					\
 static inline int						\
-obj##_timer_cmp(const obj##_t *r1, const obj##_t *r2)		\
+obj##_timer_cmp(const timeval_t *sands, const rb_node_t *a)	\
 {								\
-	if (r1->sands.tv_sec == TIMER_DISABLED) {		\
-		if (r2->sands.tv_sec == TIMER_DISABLED)		\
+	const obj##_t *r1 = rb_entry_const(a, obj##_t, nnn);	\
+								\
+	if (sands->tv_sec == TIMER_DISABLED) {			\
+		if (r1->sands.tv_sec == TIMER_DISABLED)		\
 			return 0;				\
 		return 1;					\
 	}							\
 								\
-	if (r2->sands.tv_sec == TIMER_DISABLED)			\
+	if (r1->sands.tv_sec == TIMER_DISABLED)			\
 		return -1;					\
 								\
-	if (r1->sands.tv_sec != r2->sands.tv_sec)		\
-		return r1->sands.tv_sec - r2->sands.tv_sec;	\
+	if (sands->tv_sec != r1->sands.tv_sec)			\
+		return sands->tv_sec - r1->sands.tv_sec;	\
 								\
-	return r1->sands.tv_usec - r2->sands.tv_usec;		\
+	return sands->tv_usec - r1->sands.tv_usec;		\
+}
+
+#define RB_TIMER_LESS(obj, nnn)					\
+static inline bool						\
+obj##_timer_less(rb_node_t *a, const rb_node_t *b)		\
+{								\
+	const obj##_t *r1 = rb_entry_const(a, obj##_t, nnn);	\
+	const obj##_t *r2 = rb_entry_const(b, obj##_t, nnn);	\
+								\
+	if (r1->sands.tv_sec == TIMER_DISABLED)			\
+		return false;					\
+								\
+	if (r2->sands.tv_sec == TIMER_DISABLED)			\
+		return true;					\
+								\
+	if (r1->sands.tv_sec != r2->sands.tv_sec)		\
+		return r1->sands.tv_sec < r2->sands.tv_sec;	\
+								\
+	return r1->sands.tv_usec < r2->sands.tv_usec;		\
 }
 
 /* timer sub from current time */
