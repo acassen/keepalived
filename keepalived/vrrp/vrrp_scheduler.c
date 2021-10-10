@@ -289,8 +289,8 @@ vrrp_init_state(list_head_t *l)
 	}
 }
 
-/* Declare vrrp_timer_cmp() rbtree compare function */
-RB_TIMER_CMP(vrrp);
+/* Declare vrrp_timer_less() rbtree compare function */
+RB_TIMER_LESS(vrrp, rb_sands);
 
 /* Compute the new instance sands */
 void
@@ -326,7 +326,7 @@ vrrp_init_instance_sands(vrrp_t *vrrp)
 	else if (vrrp->state == VRRP_STATE_FAULT || vrrp->state == VRRP_STATE_INIT)
 		vrrp->sands.tv_sec = TIMER_DISABLED;
 
-	rb_move_cached(&vrrp->sockets->rb_sands, vrrp, rb_sands, vrrp_timer_cmp);
+	rb_move_cached(&vrrp->rb_sands, &vrrp->sockets->rb_sands, vrrp_timer_less);
 }
 
 static void
@@ -336,7 +336,7 @@ vrrp_init_sands(list_head_t *l)
 
 	list_for_each_entry(vrrp, l, e_list) {
 		vrrp->sands.tv_sec = TIMER_DISABLED;
-		rb_insert_sort_cached(&vrrp->sockets->rb_sands, vrrp, rb_sands, vrrp_timer_cmp);
+		rb_add_cached(&vrrp->rb_sands, &vrrp->sockets->rb_sands, vrrp_timer_less);
 		vrrp_init_instance_sands(vrrp);
 		vrrp->reload_master = false;
 	}
@@ -476,9 +476,15 @@ alloc_sock(list_head_t *l, sa_family_t family, int proto, interface_t *ifp,
 }
 
 static inline int
-vrrp_vrid_cmp(const vrrp_t *v1, const vrrp_t *v2)
+vrrp_vrid_cmp(const void *vrid, const rb_node_t *a)
 {
-	return less_equal_greater_than(v1->vrid, v2->vrid);
+	return less_equal_greater_than(*PTR_CAST_CONST(uint8_t, vrid), rb_entry_const(a, vrrp_t, rb_vrid)->vrid);
+}
+
+static inline bool
+vrrp_vrid_less(rb_node_t *a, const rb_node_t *b)
+{
+	return rb_entry(a, vrrp_t, rb_vrid)->vrid < rb_entry_const(b, vrrp_t, rb_vrid)->vrid;
 }
 
 static void
@@ -521,7 +527,7 @@ vrrp_create_sockpool(list_head_t *l)
 					  &vrrp->mcast_daddr, unicast_src);
 
 		/* Add the vrrp_t indexed by vrid to the socket */
-		rb_insert_sort(&sock->rb_vrid, vrrp, rb_vrid, vrrp_vrid_cmp);
+		rb_add(&vrrp->rb_vrid, &sock->rb_vrid, vrrp_vrid_less);
 
 		if (vrrp->kernel_rx_buf_size)
 			sock->rx_buf_size += vrrp->kernel_rx_buf_size;
@@ -861,11 +867,11 @@ static int
 vrrp_dispatcher_read(sock_t *sock)
 {
 	vrrp_t *vrrp;
+	rb_node_t *vrrp_node;
 	const vrrphdr_t *hd;
 	ssize_t len = 0;
 	int prev_state = 0;
 	sockaddr_t src_addr = { .ss_family = AF_UNSPEC };
-	vrrp_t vrrp_lookup;
 #ifdef _NETWORK_TIMESTAMP_
 	char control_buf[128] __attribute__((aligned(__alignof__(struct cmsghdr))));
 #else
@@ -983,16 +989,16 @@ vrrp_dispatcher_read(sock_t *sock)
 		if (__test_and_set_bit_array(hd->vrid, rx_vrid_map))
 			terminate_receiving = true;
 
-		vrrp_lookup.vrid = hd->vrid;
-		vrrp = rb_search(&sock->rb_vrid, &vrrp_lookup, rb_vrid, vrrp_vrid_cmp);
+		vrrp_node = rb_find(&hd->vrid, &sock->rb_vrid, vrrp_vrid_cmp);
 
 		/* No instance found => ignore the advert */
-		if (!vrrp) {
+		if (!vrrp_node) {
 			if (global_data->log_unknown_vrids)
 				log_message(LOG_INFO, "Unknown VRID(%d) received on interface(%s). ignoring..."
 						    , hd->vrid, IF_NAME(sock->ifp));
 			continue;
 		}
+		vrrp = rb_entry(vrrp_node, vrrp_t, rb_vrid);
 
 		if (vrrp->state == VRRP_STATE_FAULT || vrrp->state == VRRP_STATE_INIT) {
 			/* We just ignore a message received when we are in fault state or

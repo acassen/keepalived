@@ -137,26 +137,31 @@ get_thread_type_str(thread_type_t id)
 }
 
 static inline int
-function_cmp(const func_det_t *func1, const func_det_t *func2)
+function_cmp(const void *func, const struct rb_node *a)
 {
-	if ((const void*)func1->func < (const void*)func2->func)
+	if (func < (void *)rb_entry_const(a, func_det_t, n)->func)
 		return -1;
-	if ((const void*)func1->func > (const void *)func2->func)
+	if (func > (void *)rb_entry_const(a, func_det_t, n)->func)
 		return 1;
 	return 0;
+}
+
+static inline bool
+function_less(struct rb_node *a, const struct rb_node *b)
+{
+	return (rb_entry_const(a, func_det_t, n)->func < rb_entry_const(b, func_det_t, n)->func);
 }
 
 static const char *
 get_function_name(thread_func_t func)
 {
-	func_det_t func_det = { .func = func };
-	func_det_t *match;
+	struct rb_node *match_node;
 	static char address[19];
 
 	if (!RB_EMPTY_ROOT(&funcs)) {
-		match = rb_search(&funcs, &func_det, n, function_cmp);
-		if (match)
-			return match->name;
+		match_node = rb_find((void *)func, &funcs, function_cmp);
+		if (match_node)
+			return rb_entry(match_node, func_det_t, n)->name;
 	}
 
 	snprintf(address, sizeof address, "%p", func);
@@ -185,7 +190,7 @@ register_thread_address(const char *func_name, thread_func_t func)
 	func_det->name = func_name;
 	func_det->func = func;
 
-	rb_insert_sort(&funcs, func_det, n, function_cmp);
+	rb_add(&func_det->n, &funcs, function_less);
 }
 
 void
@@ -361,9 +366,15 @@ thread_timerfd_handler(thread_ref_t thread)
 
 /* Child PID cmp helper */
 static inline int
-thread_child_pid_cmp(const thread_t *t1, const thread_t *t2)
+thread_child_pid_cmp(const void *pid, const rb_node_t *a)
 {
-	return less_equal_greater_than(t1->u.c.pid, t2->u.c.pid);
+	return less_equal_greater_than(*PTR_CAST_CONST(pid_t, pid), rb_entry_const(a, thread_t, rb_data)->u.c.pid);
+}
+
+static inline bool
+thread_child_pid_less(rb_node_t *a, const rb_node_t *b)
+{
+	return rb_entry(a, thread_t, rb_data)->u.c.pid < rb_entry_const(b, thread_t, rb_data)->u.c.pid;
 }
 
 void
@@ -606,13 +617,17 @@ thread_events_resize(thread_master_t *m, int delta)
 }
 
 static inline int
-thread_event_cmp(const thread_event_t *event1, const thread_event_t *event2)
+thread_event_cmp(const void *key, const rb_node_t *a)
 {
-	if (event1->fd < event2->fd)
-		return -1;
-	if (event1->fd > event2->fd)
-		return 1;
-	return 0;
+	int fd = *PTR_CAST_CONST(int, key);
+
+	return fd - rb_entry_const(a, thread_event_t, n)->fd;
+}
+
+static inline bool
+thread_event_less(rb_node_t *a, const rb_node_t *b)
+{
+	return rb_entry(a, thread_event_t, n)->fd < rb_entry_const(b, thread_event_t, n)->fd;
 }
 
 static thread_event_t *
@@ -631,7 +646,7 @@ thread_event_new(thread_master_t *m, int fd)
 
 	event->fd = fd;
 
-	rb_insert_sort(&m->io_events, event, n, thread_event_cmp);
+	rb_add(&event->n, &m->io_events, thread_event_less);
 
 	return event;
 }
@@ -639,9 +654,13 @@ thread_event_new(thread_master_t *m, int fd)
 static thread_event_t * __attribute__ ((pure))
 thread_event_get(thread_master_t *m, int fd)
 {
-	thread_event_t event = { .fd = fd };
+	rb_node_t *node;
 
-	return rb_search(&m->io_events, &event, n, thread_event_cmp);
+	node = rb_find(&fd, &m->io_events, thread_event_cmp);
+
+	if (!node)
+		return NULL;
+	return rb_entry(node, thread_event_t, n);
 }
 
 static int
@@ -867,8 +886,8 @@ dump_thread_data(const thread_master_t *m, FILE *fp)
 }
 #endif
 
-/* declare thread_timer_cmp() for rbtree compares */
-RB_TIMER_CMP(thread);
+/* declare thread_timer_less() for rbtree compares */
+RB_TIMER_LESS(thread, n);
 
 /* Free all unused thread. */
 static void
@@ -1111,7 +1130,7 @@ thread_add_read_sands(thread_master_t *m, thread_func_t func, void *arg, int fd,
 	thread->sands = *sands;
 
 	/* Sort the thread. */
-	rb_insert_sort_cached(&m->read, thread, n, thread_timer_cmp);
+	rb_add_cached(&thread->n, &m->read, thread_timer_less);
 
 	return thread;
 }
@@ -1175,7 +1194,7 @@ thread_read_requeue(thread_master_t *m, int fd, const timeval_t *new_sands)
 
 	thread->sands = *new_sands;
 
-	rb_move_cached(&thread->master->read, thread, n, thread_timer_cmp);
+	rb_move_cached(&thread->n, &thread->master->read, thread_timer_less);
 }
 
 /* Adjust the timeout of a read thread */
@@ -1241,7 +1260,7 @@ thread_add_write(thread_master_t *m, thread_func_t func, void *arg, int fd, unsi
 	}
 
 	/* Sort the thread. */
-	rb_insert_sort_cached(&m->write, thread, n, thread_timer_cmp);
+	rb_add_cached(&thread->n, &m->write, thread_timer_less);
 
 	return thread;
 }
@@ -1294,7 +1313,7 @@ thread_add_timer_uval(thread_master_t *m, thread_func_t func, void *arg, unsigne
 	}
 
 	/* Sort by timeval. */
-	rb_insert_sort_cached(&m->timer, thread, n, thread_timer_cmp);
+	rb_add_cached(&thread->n, &m->timer, thread_timer_less);
 
 	return thread;
 }
@@ -1332,7 +1351,7 @@ timer_thread_update_timeout(thread_ref_t thread_cp, unsigned long timer)
 
 	thread->sands = sands;
 
-	rb_move_cached(&thread->master->timer, thread, n, thread_timer_cmp);
+	rb_move_cached(&thread->n, &thread->master->timer, thread_timer_less);
 }
 
 thread_ref_t
@@ -1375,10 +1394,10 @@ thread_add_child(thread_master_t * m, thread_func_t func, void * arg, pid_t pid,
 	}
 
 	/* Sort by timeval. */
-	rb_insert_sort_cached(&m->child, thread, n, thread_timer_cmp);
+	rb_add_cached(&thread->n, &m->child,  thread_timer_less);
 
 	/* Sort by PID */
-	rb_insert_sort(&m->child_pid, thread, rb_data, thread_child_pid_cmp);
+	rb_add(&thread->rb_data, &m->child_pid, thread_child_pid_less);
 
 	return thread;
 }
@@ -2068,17 +2087,19 @@ static void
 process_child_termination(pid_t pid, int status)
 {
 	thread_master_t * m = master;
-	thread_t th = { .u.c.pid = pid };
+	rb_node_t *thread_node;
 	thread_t *thread;
 
-	thread = rb_search(&master->child_pid, &th, rb_data, thread_child_pid_cmp);
+	thread_node = rb_find(&pid, &master->child_pid, thread_child_pid_cmp);
+	if (thread_node)
+		thread = rb_entry(thread_node, thread_t, rb_data);
 
 #ifdef _EPOLL_DEBUG_
 	if (do_epoll_debug)
-		log_message(LOG_INFO, "Child %d terminated with status 0x%x, thread_id %lu", pid, (unsigned)status, thread ? thread->id : 0);
+		log_message(LOG_INFO, "Child %d terminated with status 0x%x, thread_id %lu", pid, (unsigned)status, thread_node ? thread->id : 0);
 #endif
 
-	if (!thread)
+	if (!thread_node)
 		return;
 
 	rb_erase(&thread->rb_data, &master->child_pid);

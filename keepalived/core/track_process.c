@@ -145,9 +145,15 @@ free_process_tree(void)
 }
 
 static int
-pid_compare(const tracked_process_instance_t *tpi1, const tracked_process_instance_t *tpi2)
+pid_compare(const void *pid, const rb_node_t *a)
 {
-	return less_equal_greater_than(tpi1->pid, tpi2->pid);
+	return less_equal_greater_than(*PTR_CAST_CONST(pid_t, pid), rb_entry_const(a, tracked_process_instance_t, pid_tree)->pid);
+}
+
+static bool
+pid_less(rb_node_t *a, const rb_node_t *b)
+{
+	return rb_entry(a, tracked_process_instance_t, pid_tree)->pid < rb_entry_const(b, tracked_process_instance_t, pid_tree)->pid;
 }
 
 static inline tracked_process_instance_t *
@@ -159,17 +165,23 @@ alloc_tracked_process_instance(pid_t pid)
 	INIT_LIST_HEAD(&new->processes);
 	new->pid = pid;
 	RB_CLEAR_NODE(&new->pid_tree);
-	rb_insert_sort(&process_tree, new, pid_tree, pid_compare);
+	rb_add(&new->pid_tree, &process_tree, pid_less);
 
 	return new;
 }
+
 static inline tracked_process_instance_t *
 add_process(pid_t pid, vrrp_tracked_process_t *tpr, tracked_process_instance_t *tpi)
 {
-	tracked_process_instance_t tp = { .pid = pid };
+	rb_node_t *tpi_node;
 
-	if (!tpi && !(tpi = rb_search(&process_tree, &tp, pid_tree, pid_compare)))
-		tpi = alloc_tracked_process_instance(tp.pid);
+	if (!tpi) {
+		if ((tpi_node = rb_find(&pid, &process_tree, pid_compare)))
+			tpi = rb_entry(tpi_node, tracked_process_instance_t, pid_tree);
+		else
+			tpi = alloc_tracked_process_instance(pid);
+	}
+
 	alloc_ref_tracked_process(tpr, tpi);
 	++tpr->num_cur_proc;
 
@@ -399,15 +411,17 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 	const char *param_start;
 	vrrp_tracked_process_t *tpr;
 	bool had_process;
-	tracked_process_instance_t tp = { .pid = pid };
+	rb_node_t *tpi_node;
 	bool have_comm = !!comm;
 #ifdef _TRACK_PROCESS_DEBUG_
 	int sav_errno;
 #endif
 
 	/* Are we counting this process now? */
-	if (!tpi)
-		tpi = rb_search(&process_tree, &tp, pid_tree, pid_compare);
+	if (!tpi) {
+		if ((tpi_node = rb_find(&pid, &process_tree, pid_compare)))
+			tpi = rb_entry(tpi_node, tracked_process_instance_t, pid_tree);
+	}
 	had_process = !!tpi;
 
 	/* We want to avoid reading /proc/PID/cmdline, since it reads the process
@@ -569,19 +583,20 @@ process_gained_quorum_timer_thread(thread_ref_t thread)
 static void
 check_process_fork(pid_t parent_pid, pid_t child_pid)
 {
-	tracked_process_instance_t tp = { .pid = parent_pid };
 	tracked_process_instance_t *tpi, *tpi_child;
+	rb_node_t *tpi_node;
 	vrrp_tracked_process_t *tpr;
 	ref_tracked_process_t *rtpr;
 
 	/* If we aren't interested in the parent, we aren't interested in the child */
-	if (!(tpi = rb_search(&process_tree, &tp, pid_tree, pid_compare))) {
+	if (!(tpi_node = rb_find(&parent_pid, &process_tree, pid_compare))) {
 #ifdef _TRACK_PROCESS_DEBUG_
 		if (do_track_process_debug_detail)
 			log_message(LOG_INFO, "Ignoring fork for untracked pid %d", parent_pid);
 #endif
 		return;
 	}
+	tpi = rb_entry(tpi_node, tracked_process_instance_t, pid_tree);
 
 	tpi_child = alloc_tracked_process_instance(child_pid);
 #ifdef _TRACK_PROCESS_DEBUG_
@@ -640,19 +655,20 @@ process_lost_quorum_timer_thread(thread_ref_t thread)
 static void
 check_process_termination(pid_t pid)
 {
-	tracked_process_instance_t tp = { .pid = pid };
 	tracked_process_instance_t *tpi;
+	rb_node_t *tpi_node;
 	vrrp_tracked_process_t *tpr;
 	ref_tracked_process_t *rtpr;
 
-	tpi = rb_search(&process_tree, &tp, pid_tree, pid_compare);
-	if (!tpi) {
+	tpi_node = rb_find(&pid, &process_tree, pid_compare);
+	if (!tpi_node) {
 #ifdef _TRACK_PROCESS_DEBUG_
 		if (do_track_process_debug_detail)
 			log_message(LOG_INFO, "Ignoring exit of untracked pid %d", pid);
 #endif
 		return;
 	}
+	tpi = rb_entry(tpi_node, tracked_process_instance_t, pid_tree);
 
 	list_for_each_entry(rtpr, &tpi->processes, e_list) {
 		tpr = rtpr->process;
@@ -684,19 +700,21 @@ check_process_termination(pid_t pid)
 static void
 check_process_comm_change(pid_t pid, char *comm)
 {
-	tracked_process_instance_t tp = { .pid = pid };
 	tracked_process_instance_t *tpi;
+	rb_node_t *tpi_node;
 	vrrp_tracked_process_t *tpr;
 	ref_tracked_process_t *rtpr, *rtpr_tmp;
 
-	tpi = rb_search(&process_tree, &tp, pid_tree, pid_compare);
-	if (!tpi) {
+	tpi_node = rb_find(&pid, &process_tree, pid_compare);
+	if (!tpi_node) {
 #ifdef _TRACK_PROCESS_DEBUG_
 		if (do_track_process_debug_detail)
 			log_message(LOG_INFO, "comm_change pid %d not found", pid);
 #endif
+		tpi = NULL;
 		goto end;
 	}
+	tpi = rb_entry(tpi_node, tracked_process_instance_t, pid_tree);
 
 	/* The process was being monitored by its old name */
 	list_for_each_entry_safe(rtpr, rtpr_tmp, &tpi->processes, e_list) {
