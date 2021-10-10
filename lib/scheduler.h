@@ -37,7 +37,7 @@
 
 #include "timer.h"
 #include "list_head.h"
-#include "rbtree.h"
+#include "rbtree_ka.h"
 
 /* Thread types. */
 typedef enum {

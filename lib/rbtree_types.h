@@ -7,12 +7,11 @@ struct rb_node {
 	struct rb_node *rb_right;
 	struct rb_node *rb_left;
 } __attribute__((aligned(sizeof(long))));
-typedef struct rb_node rb_node_t;
+/* The alignment might seem pointless, but allegedly CRIS needs it */
 
 struct rb_root {
 	struct rb_node *rb_node;
 };
-typedef struct rb_root rb_root_t;
 
 /*
  * Leftmost-cached rbtrees.
@@ -28,7 +27,6 @@ struct rb_root_cached {
 	struct rb_root rb_root;
 	struct rb_node *rb_leftmost;
 };
-typedef struct rb_root_cached rb_root_cached_t;
 
 #define RB_ROOT (struct rb_root) { NULL, }
 #define RB_ROOT_CACHED (struct rb_root_cached) { {NULL, }, NULL }

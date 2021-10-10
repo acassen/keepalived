@@ -47,7 +47,7 @@
 #ifdef _MEM_CHECK_
 #include "align.h"
 #include "timer.h"
-#include "rbtree.h"
+#include "rbtree_ka.h"
 #include "list_head.h"
 
 /* Global var */
