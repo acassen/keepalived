@@ -246,8 +246,10 @@ exchange_nl_msg(struct mnl_nlmsg_batch *batch)
 
 	FREE(buf);
 
-	if (ret == -1 || ret_cb < 0)
-		log_message(LOG_INFO, "mnl_socket_recvfrom error ret %d - errno %d, ret_cb %d,", ret, sav_errno, ret_cb);
+	if (ret == -1 || ret_cb < 0) {
+		errno = sav_errno;
+		log_message(LOG_INFO, "mnl_socket_recvfrom error ret %d - errno %d (%m), ret_cb %d,", ret, errno, ret_cb);
+	}
 }
 
 #ifdef _WITH_VRRP_
