@@ -2486,6 +2486,21 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   )
 CFLAGS="$SAV_CFLAGS"
 
+dnl ---[ Do we need __FAVOR_BSD for tcp.h and udp.h header files to be usable? ]---
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+  #include <netinet/tcp.h>
+  int
+  main(int argc, char **argv)
+  {
+    struct tcphdr hdr;
+
+    hdr.th_dport = argc;
+  }
+  ]])],
+  [],
+  [AC_DEFINE([NEED_FAVOR_BSD], [ 1 ], [Define if using VERY old (i.e. pre 2.19 - 2014) glibc])],
+  )
+
 dnl ---[ check for sphinx-build executable ]----
 if test -z "$SPHINXBUILD"; then
   SPHINXBUILDNAME=sphinx-build
