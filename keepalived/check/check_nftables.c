@@ -48,6 +48,9 @@
 #include <libnftnl/rule.h>
 #include <libnftnl/expr.h>
 
+#ifdef NEED_FAVOR_BSD
+#define __FAVOR_BSD
+#endif
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
 #include <netinet/icmp6.h>
