@@ -30,7 +30,7 @@
 #include "utils.h"
 
 /* lock pidfile */
-#define KEEPALIVED_PID_DIR	RUN_DIR PACKAGE "/"
+#define KEEPALIVED_PID_DIR	RUNSTATEDIR "/" PACKAGE "/"
 #define KEEPALIVED_PID_FILE	PACKAGE
 
 #ifdef _WITH_VRRP_

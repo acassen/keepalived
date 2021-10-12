@@ -188,7 +188,7 @@
 
 
 /* Local data */
-static const char *netns_dir = RUN_DIR "netns/";
+static const char *netns_dir = RUNSTATEDIR "/netns/";
 static char *mount_dirname;
 static bool run_mount_set;
 

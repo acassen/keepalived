@@ -183,8 +183,12 @@ exchange_nl_msg(struct mnl_nlmsg_batch *batch)
 
 #ifdef MNL_DEBUG
 	FILE *fp = NULL;
+	const char *file_name;
+
 	if (prog_type == PROG_TYPE_VRRP) {
-		fp = fopen(KA_TMP_DIR "/nftrace", "a");
+		file_name = make_tmp_filename("nftrace");
+		fp = fopen(file_name, "a");
+		FREE_CONST(file_name);
 		unsigned char *p = mnl_nlmsg_batch_head(batch);
 		size_t i;
 
@@ -258,9 +262,14 @@ exchange_nl_msg_single(struct nlmsghdr *nlm, int (*cb_func)(const struct nlmsghd
 {
 	int ret;
 	char buf[256];
-
 #ifdef MNL_DEBUG
-	FILE *fp = fopen(KA_TMP_DIR "/nftrace", "a");
+	const char *filename;
+	FILE *fp;
+
+	filename = make_tmp_filename("nftrace");
+	fp = fopen(filename, "a");
+	FREE_CONST(filename);
+
 	mnl_nlmsg_fprintf(fp, PTR_CAST(char, nlm), nlm->nlmsg_len, 0);
 	fclose(fp);
 #endif

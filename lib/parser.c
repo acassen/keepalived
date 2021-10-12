@@ -916,11 +916,18 @@ dump_keywords(vector_t *keydump, int level, FILE *fp)
 {
 	unsigned int i;
 	keyword_t *keyword_vec;
-	char file_name[KA_TMP_DIR_LEN + 1 + 8 + 1 + PID_MAX_DIGITS + 1];		/* KA_TMP_DIR/keywords.PID\0 */
+	char *file_name;
+	char file_name_len;
 
 	if (!level) {
-		snprintf(file_name, sizeof(file_name), KA_TMP_DIR "/keywords.%d", getpid());
+		file_name_len = strlen(tmp_dir) + 1 + 8 + 1 + PID_MAX_DIGITS + 1;		/* TMP_DIR/keywords.PID\0 */
+		file_name = MALLOC(file_name_len);
+		snprintf(file_name, file_name_len, "%s/keywords.%d", tmp_dir, getpid());
+
 		fp = fopen_safe(file_name, "w");
+
+		FREE(file_name);
+
 		if (!fp)
 			return;
 	}
@@ -3152,7 +3159,7 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 					else
 						log_message(LOG_INFO, "read from memfd failed with errno %d - %m", errno);
 					close(fd);
-					fd = open_tmpfile(RUN_DIR, O_RDWR | O_EXCL | O_CLOEXEC, S_IRUSR | S_IWUSR);
+					fd = open_tmpfile(RUNSTATEDIR, O_RDWR | O_EXCL | O_CLOEXEC, S_IRUSR | S_IWUSR);
 				}
 			}
 #endif
@@ -3160,7 +3167,7 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 #ifdef USE_MEMFD_CREATE_SYSCALL
 			if (fd == -1 && errno == ENOSYS)
 #endif
-				fd = open_tmpfile(RUN_DIR, O_RDWR | O_EXCL | O_CLOEXEC, S_IRUSR | S_IWUSR);
+				fd = open_tmpfile(RUNSTATEDIR, O_RDWR | O_EXCL | O_CLOEXEC, S_IRUSR | S_IWUSR);
 #endif
 			if (fd == -1)
 				log_message(LOG_INFO, "conf_copy open error %d - %m", errno);

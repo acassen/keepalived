@@ -36,15 +36,13 @@
 #include "vrrp_print.h"
 #include "utils.h"
 
-static const char *dump_file = KA_TMP_DIR "/keepalived.data";
-static const char *stats_file = KA_TMP_DIR "/keepalived.stats";
 
 void
 vrrp_print_data(void)
 {
 	FILE *fp;
 
-	fp = open_dump_file(dump_file);
+	fp = open_dump_file("keepalived.data");
 
 	if (!fp)
 		return;
@@ -57,15 +55,22 @@ vrrp_print_data(void)
 void
 vrrp_print_stats(bool clear_stats)
 {
-	FILE *file = fopen_safe(stats_file, "w");
+	FILE *file;
 	vrrp_t *vrrp;
+	const char *stats_file;
+
+	stats_file = make_tmp_filename("keepalived.stats");
+
+	file = fopen_safe(stats_file, "w");
 
 	if (!file) {
 		log_message(LOG_INFO, "Can't open %s (%d: %s)",
-			stats_file, errno, strerror(errno));
+				stats_file, errno, strerror(errno));
+		FREE_CONST(stats_file);
 		return;
 	}
 
+	FREE_CONST(stats_file);
 
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		fprintf(file, "VRRP Instance: %s\n", vrrp->iname);

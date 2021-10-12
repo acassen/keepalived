@@ -509,11 +509,16 @@ smtp_connect(smtp_t *smtp)
 static void
 smtp_log_to_file(smtp_t *smtp)
 {
-	FILE *fp = fopen_safe(KA_TMP_DIR "/smtp-alert.log", "a");
+	FILE *fp;
 	time_t now;
 	struct tm tm;
 	char time_buf[25];
 	int time_buf_len;
+	const char *file_name;
+
+	file_name = make_tmp_filename("smtp-alert.log");
+	fp = fopen_safe(file_name, "a");
+	FREE_CONST(file_name);
 
 	if (fp) {
 		time(&now);
