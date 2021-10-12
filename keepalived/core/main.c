@@ -2635,18 +2635,18 @@ keepalived_main(int argc, char **argv)
 		else
 		{
 			if (!main_pidfile)
-				main_pidfile = RUN_DIR KEEPALIVED_PID_FILE PID_EXTENSION;
+				main_pidfile = RUNSTATEDIR "/" KEEPALIVED_PID_FILE PID_EXTENSION;
 #ifdef _WITH_LVS_
 			if (!checkers_pidfile)
-				checkers_pidfile = RUN_DIR CHECKERS_PID_FILE PID_EXTENSION;
+				checkers_pidfile = RUNSTATEDIR "/" CHECKERS_PID_FILE PID_EXTENSION;
 #endif
 #ifdef _WITH_VRRP_
 			if (!vrrp_pidfile)
-				vrrp_pidfile = RUN_DIR VRRP_PID_FILE PID_EXTENSION;
+				vrrp_pidfile = RUNSTATEDIR "/" VRRP_PID_FILE PID_EXTENSION;
 #endif
 #ifdef _WITH_BFD_
 			if (!bfd_pidfile)
-				bfd_pidfile = RUN_DIR BFD_PID_FILE PID_EXTENSION;
+				bfd_pidfile = RUNSTATEDIR "/" BFD_PID_FILE PID_EXTENSION;
 #endif
 		}
 

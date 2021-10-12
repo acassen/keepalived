@@ -261,7 +261,7 @@ init_global_data(data_t * data, data_t *prev_global_data, bool copy_unchangeable
 		else if (use_pid_dir)
 			data->reload_file = STRDUP(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE RELOAD_EXTENSION);
 		else
-			data->reload_file = STRDUP(RUN_DIR KEEPALIVED_PID_FILE RELOAD_EXTENSION);
+			data->reload_file = STRDUP(RUNSTATEDIR "/" KEEPALIVED_PID_FILE RELOAD_EXTENSION);
 	}
 #endif
 

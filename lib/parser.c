@@ -3152,7 +3152,7 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 					else
 						log_message(LOG_INFO, "read from memfd failed with errno %d - %m", errno);
 					close(fd);
-					fd = open_tmpfile(RUN_DIR, O_RDWR | O_EXCL | O_CLOEXEC, S_IRUSR | S_IWUSR);
+					fd = open_tmpfile(RUNSTATEDIR, O_RDWR | O_EXCL | O_CLOEXEC, S_IRUSR | S_IWUSR);
 				}
 			}
 #endif
@@ -3160,7 +3160,7 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 #ifdef USE_MEMFD_CREATE_SYSCALL
 			if (fd == -1 && errno == ENOSYS)
 #endif
-				fd = open_tmpfile(RUN_DIR, O_RDWR | O_EXCL | O_CLOEXEC, S_IRUSR | S_IWUSR);
+				fd = open_tmpfile(RUNSTATEDIR, O_RDWR | O_EXCL | O_CLOEXEC, S_IRUSR | S_IWUSR);
 #endif
 			if (fd == -1)
 				log_message(LOG_INFO, "conf_copy open error %d - %m", errno);

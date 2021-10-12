@@ -222,8 +222,7 @@ AC_ARG_ENABLE(track-process,
 AC_ARG_ENABLE(systemd,
   [AS_HELP_STRING([--disable-systemd], [build without systemd integration])])
 AC_ARG_WITH(run-dir,
-  [AS_HELP_STRING([--with-run-dir=PATH_TO_RUN], [specify directory where /run is located])],
-  [RUN_DIR_SPECIFIED=Y], [RUN_DIR_SPECIFIED=N])
+  [AS_HELP_STRING([--with-run-dir=PATH_TO_RUN], [DEPRECATED - use --runstatedir=PATH_TO_RUN])])
 AC_ARG_WITH(tmp-dir,
   [AS_HELP_STRING([--with-tmp-dir=PATH_TO_TMP], [specify directory where run-time temporary files are to be located])],
   [TMP_DIR_SPECIFIED=Y], [TMP_DIR_SPECIFIED=N])
@@ -509,6 +508,9 @@ AS_IF([test .$enable_debug = .yes],
       ])
   ])
 
+dnl --with-run-dir duplicates standard --runstatedir
+AS_IF([test .$with_run_dir != .], [AC_MSG_ERROR([--with-run-dir is deprecated, use --runstatedir=${with_run_dir}/run instead])])
+
 dnl -- Do we want -Wcast-align=strict?
 AS_IF([test .$enable_strict_cast_align = .yes],
       [WARNINGS_STD=$(echo $WARNINGS_STD | sed -e "s/cast-align /cast-align=strict /")])
@@ -523,6 +525,20 @@ AS_AC_EXPAND(EXPANDED_DATADIR, "$datadir")
 DBUS_DATADIR=$EXPANDED_DATADIR
 AC_SUBST(DBUS_DATADIR)
 AC_DEFINE_UNQUOTED(DBUS_DATADIR,"$DBUS_DATADIR", [Directory for installing DBUS data files])
+
+dnl We want /run to be the default runstatedir, not ${localstatedir}/run which defaults to /usr/local/var/run
+dnl We want to know if --runstatedir or equivalent was specified
+echo "$ac_configure_args" | grep -q "'--r"
+RUNSTATEDIR_SPECIFIED=$?
+AS_IF([test $RUNSTATEDIR_SPECIFIED -eq 1],
+  [
+    echo "$ac_configure_args" | grep -q "'-runstatedir"
+    RUNSTATEDIR_SPECIFIED=$?
+  ])
+AS_IF([test $RUNSTATEDIR_SPECIFIED -eq 0],
+  [AS_AC_EXPAND(RUNSTATEDIR, "$runstatedir")],
+  [RUNSTATEDIR=/run])
+AC_DEFINE_UNQUOTED(RUNSTATEDIR, "$RUNSTATEDIR", [Directory for runtime state files])
 
 GCC_LTO=no
 AS_IF([test $CC = gcc],
@@ -2440,18 +2456,7 @@ dnl -- Do we want GNU standard paths (moves .pid files)
 GNU_STD_PATHS=No
 if test "${enable_gnu_std_paths}" = "yes"; then
   AC_DEFINE([GNU_STD_PATHS], [ 1 ], [set to enforce GNU standard paths, for .pid files etc])
-  RUN_DIR=$localstatedir
-elif test $RUN_DIR_SPECIFIED = Y -a .${with_run_dir} != .no; then
-  AS_IF([test `expr substr ${with_run_dir} 1 1` != /], [AC_MSG_ERROR([run-dir must be absolute path])])
-  # Remove any trailing /run and / - someone will include then sometime
-  RUN_DIR=`echo ${with_run_dir} | sed -e "s:/run/*$::" -e "s:/*$::"`
-elif test -d /run; then
-  RUN_DIR=
-else
-  RUN_DIR=/var
 fi
-AC_DEFINE_UNQUOTED([RUN_DIR_ROOT], [ "${RUN_DIR}" ], [Parent directory of /run])
-AC_SUBST([RUN_DIR_ROOT], [${RUN_DIR}])
 
 if test $TMP_DIR_SPECIFIED = Y; then
   AS_IF([test `expr substr ${with_tmp_dir} 1 1` != /], [AC_MSG_ERROR([tmp-dir must be absolute path])])
