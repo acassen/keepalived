@@ -1799,7 +1799,21 @@ The syntax for vrrp_instance is :
     \fBvirtual_router_id \fR51
 
     # for electing MASTER, highest priority wins.
-    # to be MASTER, make this 50 more than on other machines.
+    # The valid range of values for priority is [1-255], with priority
+    # 255 meaning "address owner".
+    # To be MASTER, it is recommended to make this 50 more than on
+    # other machines. All systems should have different priorities
+    # in order to make behaviour deterministic. If you want to stop
+    # a higher priority instance taking over as master when it starts,
+    # configure no_preempt rather than using equal priorities.
+    # If no_accept is configured (or vrrp_strict # which also sets
+    # no_accept mode), then unless the vrrp_instance has priority 255,
+    # the system will not receive packets addressed to the # VIPs/eVIPs,
+    # and the VIPs/eVIPs can only be used for routeing purposes.
+    # Further, if an instance has priority 255 configured, the priority cannot
+    # be reduced by track_scripts, track_process etc, and likewise
+    # track_scripts etc cannot increase the priority to 255 if the configured
+    # priority is not 255.
     \fBpriority \fR100
 
     # VRRP Advert interval in seconds (e.g. 0.92) (use default)
