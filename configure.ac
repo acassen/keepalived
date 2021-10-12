@@ -2465,9 +2465,7 @@ if test $TMP_DIR_SPECIFIED = Y; then
 else
   KA_TMP_DIR=/tmp
 fi
-KA_TMP_DIR_LEN=`expr length $KA_TMP_DIR`
 AC_DEFINE_UNQUOTED([KA_TMP_DIR], [ "${KA_TMP_DIR}" ], [Location for temporary files])
-AC_DEFINE_UNQUOTED([KA_TMP_DIR_LEN], [ ${KA_TMP_DIR_LEN} ], [Length of KA_TMP_DIR])
 AC_SUBST([KA_TMP_DIR], [${KA_TMP_DIR}])
 
 dnl - Check type of rlim_t for printf() - this check needs to be late on

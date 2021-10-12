@@ -1415,7 +1415,7 @@ dump_threads(void)
 	vrrp_t *vrrp;
 	const char *file_name;
 
-	file_name = make_file_name(KA_TMP_DIR "/thread_dump.dat",
+	file_name = make_file_name("thread_dump.dat",
 					"vrrp",
 					global_data->network_namespace,
 					global_data->instance_name);

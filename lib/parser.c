@@ -916,11 +916,18 @@ dump_keywords(vector_t *keydump, int level, FILE *fp)
 {
 	unsigned int i;
 	keyword_t *keyword_vec;
-	char file_name[KA_TMP_DIR_LEN + 1 + 8 + 1 + PID_MAX_DIGITS + 1];		/* KA_TMP_DIR/keywords.PID\0 */
+	char *file_name;
+	char file_name_len;
 
 	if (!level) {
-		snprintf(file_name, sizeof(file_name), KA_TMP_DIR "/keywords.%d", getpid());
+		file_name_len = strlen(tmp_dir) + 1 + 8 + 1 + PID_MAX_DIGITS + 1;		/* TMP_DIR/keywords.PID\0 */
+		file_name = MALLOC(file_name_len);
+		snprintf(file_name, file_name_len, "%s/keywords.%d", tmp_dir, getpid());
+
 		fp = fopen_safe(file_name, "w");
+
+		FREE(file_name);
+
 		if (!fp)
 			return;
 	}

@@ -67,6 +67,7 @@
 /* global vars */
 unsigned long debug = 0;
 mode_t umask_val = S_IXUSR | S_IRWXG | S_IRWXO;
+const char *tmp_dir;
 
 #ifdef _EINTR_DEBUG_
 bool do_eintr_debug;
@@ -151,7 +152,8 @@ write_stacktrace(const char *file_name, const char *str)
 	unsigned int nptrs;
 	unsigned int i;
 	char **strs;
-	char cmd[40];
+	char *cmd;
+	const char *tmp_filename = NULL;
 
 	nptrs = backtrace(buffer, 100);
 	if (file_name) {
@@ -180,8 +182,17 @@ write_stacktrace(const char *file_name, const char *str)
 	}
 
 	/* gstack() gives a more detailed stacktrace, using gdb and the bt command */
-	sprintf(cmd, "gstack %d >>%s", getpid(), file_name ? file_name : KA_TMP_DIR "/keepalived.stack");
-	system(cmd);
+	if (!file_name)
+		tmp_filename = make_tmp_filename("keepalived.stack");
+	else if (file_name[0] != '/')
+		tmp_filename = make_tmp_filename(file_name);
+	cmd = MALLOC(6 + 1 + PID_MAX_DIGITS + 1 + 2 + ( tmp_filename ? strlen(tmp_filename) : strlen(file_name)) + 1);
+	sprintf(cmd, "gstack %d >>%s", getpid(), tmp_filename ? tmp_filename : file_name);
+
+	i = system(cmd);	/* We don't care about return value but gcc thinks we should */
+
+	FREE(cmd);
+	FREE_CONST_PTR(tmp_filename);
 }
 #endif
 
@@ -196,7 +207,11 @@ make_file_name(const char *name, const char *prog, const char *namespace, const 
 	if (!name)
 		return NULL;
 
-	len = strlen(name);
+	if (name[0] != '/')
+		len = strlen(tmp_dir) + 1;
+	else
+		len = 0;
+	len += strlen(name);
 	if (prog)
 		len += strlen(prog) + 1;
 	if (namespace)
@@ -207,7 +222,14 @@ make_file_name(const char *name, const char *prog, const char *namespace, const 
 	file_name = MALLOC(len + 1);
 	dir_end = strrchr(name, '/');
 	extn_start = strrchr(dir_end ? dir_end : name, '.');
-	strncpy(file_name, name, extn_start ? (size_t)(extn_start - name) : len);
+
+	if (name[0] != '/') {
+		strcpy(file_name, tmp_dir);
+		strcat(file_name, "/");
+	} else
+		file_name[0] = '\0';
+
+	strncat(file_name, name, extn_start ? (size_t)(extn_start - name) : len);
 
 	if (prog) {
 		strcat(file_name, "_");
@@ -1209,6 +1231,26 @@ keepalived_modprobe(const char *mod_name)
 	return false;
 }
 #endif
+
+void
+set_tmp_dir(void)
+{
+	if (!(tmp_dir = getenv("TMPDIR")) || tmp_dir[0] != '/')
+		tmp_dir = KA_TMP_DIR;
+}
+
+const char *
+make_tmp_filename(const char *file_name)
+{
+	size_t tmp_dir_len = strlen(tmp_dir);
+	char *path = MALLOC(tmp_dir_len + 1 + strlen(file_name) + 1);
+
+	strcpy(path, tmp_dir);
+	path[tmp_dir_len] = '/';
+	strcpy(path + tmp_dir_len + 1, file_name);
+
+	return path;
+}
 
 void
 log_stopping(void)

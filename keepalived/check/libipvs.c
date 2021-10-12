@@ -233,8 +233,12 @@ static void
 dump_nl_msg(const char *msg, struct nl_msg *nlmsg)
 {
 	FILE *fp;
+	const char *filename;
 
-	fp = fopen(KA_TMP_DIR "/nlmsg.dmp", "a");
+	filename = make_tmp_filename("nlmsg.dmp");
+	fp = fopen(filename, "a");
+	FREE_CONST(filename);
+
 	fprintf(fp, "\n%s\n\n", msg);
 	if (nlmsg)
 		nl_msg_dump(nlmsg, fp);

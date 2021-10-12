@@ -211,10 +211,6 @@ static bool create_core_dump = false;
 static const char *core_dump_pattern = "core";
 static char *orig_core_dump_pattern = NULL;
 
-#ifndef _ONE_PROCESS_DEBUG_
-static const char *dump_file = KA_TMP_DIR "/keepalived_parent.data";
-#endif
-
 /* debug flags */
 #if defined _TIMER_CHECK_ || \
     defined _SMTP_ALERT_DEBUG_ || \
@@ -871,7 +867,7 @@ print_parent_data(__attribute__((unused)) thread_ref_t thread)
 
 	log_message(LOG_INFO, "Printing parent data for process(%d) on signal", getpid());
 
-	fp = open_dump_file(dump_file);
+	fp = open_dump_file("keepalived_parent.data");
 
 	if (!fp)
 		return;
@@ -1777,7 +1773,7 @@ usage(const char *prog)
 	fprintf(stderr, "  -D, --log-detail             Detailed log messages\n");
 	fprintf(stderr, "  -S, --log-facility=[0-7]     Set syslog facility to LOG_LOCAL[0-7]\n");
 #ifdef ENABLE_LOG_TO_FILE
-	fprintf(stderr, "  -g, --log-file=FILE          Also log to FILE (default " KA_TMP_DIR "/keepalived.log)\n");
+	fprintf(stderr, "  -g, --log-file=FILE          Also log to FILE (default %s/keepalived.log)\n", tmp_dir);
 	fprintf(stderr, "      --flush-log-file         Flush log file on write\n");
 #endif
 	fprintf(stderr, "  -G, --no-syslog              Don't log via syslog\n");
@@ -2121,7 +2117,7 @@ parse_cmdline(int argc, char **argv)
 			if (optarg && optarg[0])
 				log_file_name = optarg;
 			else
-				log_file_name = KA_TMP_DIR "/keepalived.log";
+				log_file_name = "keepalived.log";
 			open_log_file(log_file_name, NULL, NULL, NULL);
 #else
 			fprintf(stderr, "-g requires configure option --enable-log-file\n");
@@ -2391,6 +2387,9 @@ keepalived_main(int argc, char **argv)
 	/* Ensure time_now is set. We then don't have to check anywhere
 	 * else if it is set. */
 	set_time_now();
+
+	/* Is there a TMPDIR override? */
+	set_tmp_dir();
 
 	/* Save command line options in case need to log them later */
 	save_cmd_line_options(argc, argv);

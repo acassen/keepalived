@@ -37,8 +37,6 @@ bfd_data_t *bfd_data;
 bfd_data_t *old_bfd_data;
 char *bfd_buffer;
 
-/* Local vars */
-static const char *dump_file = KA_TMP_DIR "/keepalived_bfd.data";
 
 /*
  *	bfd_t functions
@@ -293,7 +291,7 @@ bfd_print_data(void)
 {
 	FILE *fp;
 
-	fp = open_dump_file(dump_file);
+	fp = open_dump_file("keepalived_bfd.data");
 
 	if (!fp)
 		return;

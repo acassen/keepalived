@@ -32,14 +32,13 @@
 #include "check_data.h"
 #include "utils.h"
 
-static const char *dump_file = KA_TMP_DIR "/keepalived_check.data";
 
 void
 check_print_data(void)
 {
 	FILE *fp;
 
-	fp = open_dump_file(dump_file);
+	fp = open_dump_file("keepalived_check.data");
 
 	if (!fp)
 		return;

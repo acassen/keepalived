@@ -245,6 +245,7 @@ extern mode_t umask_val;
 #ifdef _WITH_PERF_
 extern perf_t perf_run;
 #endif
+extern const char *tmp_dir;
 
 /* Prototypes defs */
 extern void dump_buffer(const char *, size_t, FILE *, int);
@@ -293,6 +294,8 @@ extern int memcmp_constant_time(const void *, const void *, size_t) __attribute_
 #if defined _WITH_LVS_ || defined _HAVE_LIBIPSET_
 extern bool keepalived_modprobe(const char *);
 #endif
+extern void set_tmp_dir(void);
+extern const char *make_tmp_filename(const char *);
 extern void log_stopping(void);
 
 #endif
