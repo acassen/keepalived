@@ -340,6 +340,7 @@ typedef struct _vrrp_t {
 							 */
 	timeval_t		preempt_time;		/* Time after which preemption can happen */
 	int			state;			/* internal state (init/backup/master/fault) */
+	bool		state_same_at_reload;   /* State prior to reload */
 #ifdef _WITH_SNMP_VRRP_
 	int			configured_state;	/* the configured state of the instance */
 #endif
@@ -484,6 +485,7 @@ extern void shutdown_vrrp_instances(void);
 extern void clear_diff_vrrp(void);
 extern void clear_diff_script(void);
 extern void set_previous_sync_group_states(void);
+extern void set_previous_sync_instance_states(void);
 #ifdef _WITH_BFD_
 extern void clear_diff_bfd(void);
 #endif

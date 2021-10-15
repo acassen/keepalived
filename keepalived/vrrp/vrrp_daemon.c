@@ -639,10 +639,11 @@ start_vrrp(data_t *prev_global_data)
 		clear_diff_vrrp();
 		vrrp_dispatcher_release(old_vrrp_data);
 
-		/* Set previous sync group states to suppress duplicate notifies.
+		/* Set previous sync states to suppress duplicate notifies.
       FIFO script is always notified at reload.
 		*/
 		set_previous_sync_group_states();
+		set_previous_sync_instance_states();
 	}
 
 #ifdef _WITH_DBUS_

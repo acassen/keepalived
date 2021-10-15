@@ -277,11 +277,11 @@ vrrp_init_state(list_head_t *l)
 				vrrp->state = VRRP_STATE_FAULT;
 			}
 			if (vrrp_begin_state != vrrp->state) {
-				if (vrrp->state != VRRP_STATE_FAULT || vrrp->num_script_if_fault)
-					send_instance_notifies(vrrp);
 				vrrp->last_transition = timer_now();
 			}
 		}
+		send_instance_notifies(vrrp);
+		vrrp->state_same_at_reload = false;
 #ifdef _WITH_SNMP_RFC_
 		vrrp->stats->uptime = timer_now();
 #endif

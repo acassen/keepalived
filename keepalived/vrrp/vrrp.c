@@ -5030,6 +5030,22 @@ clear_diff_script(void)
 }
 
 void
+set_previous_sync_instance_states(void)
+{
+	vrrp_t *ovrrp, *nvrrp;
+
+	list_for_each_entry(nvrrp, &vrrp_data->vrrp, e_list) {
+		list_for_each_entry(ovrrp, &vrrp_data->vrrp, e_list) {
+			if (!strcmp(nvrrp->iname, ovrrp->iname)) {
+				if (nvrrp->state == ovrrp->state)
+					nvrrp->state_same_at_reload = true;
+				break;
+			}
+		}
+	}
+}
+
+void
 set_previous_sync_group_states(void)
 {
 	vrrp_sgroup_t *ogroup, *ngroup;

@@ -286,7 +286,7 @@ send_instance_notifies(vrrp_t *vrrp)
 	vrrp->notifies_sent = true;
 
 	/* Launch the notify_* script */
-	if (script) {
+	if (script && !vrrp->state_same_at_reload) {
 		if (vrrp->state == VRRP_STATE_STOP)
 			system_call_script(master, child_killed_thread, NULL, TIMER_HZ, script);
 		else
@@ -294,11 +294,14 @@ send_instance_notifies(vrrp_t *vrrp)
 	}
 
 	/* Launch the generic notify script */
-	if (gscript)
+	if (gscript && !vrrp->state_same_at_reload)
 		notify_script_exec(gscript, "INSTANCE", vrrp->state, vrrp->iname,
 				   vrrp->effective_priority);
 
 	notify_instance_fifo(vrrp);
+
+	if (vrrp->state_same_at_reload)
+		return;
 
 #ifdef _WITH_DBUS_
 	if (global_data->enable_dbus)
