@@ -326,14 +326,17 @@ send_group_notifies(vrrp_sgroup_t *vgroup)
 	notify_script_t *gscript = get_ggscript(vgroup);
 
 	/* Launch the notify_* script */
-	if (script)
+	if (script && !vgroup->state_same_at_reload)
 		notify_exec(script);
 
 	/* Launch the generic notify script */
-	if (gscript)
+	if (gscript && !vgroup->state_same_at_reload)
 		notify_script_exec(gscript, "GROUP", vgroup->state, vgroup->gname, 0);
 
 	notify_group_fifo(vgroup);
+
+	if (vgroup->state_same_at_reload)
+		return;
 
 #ifdef _WITH_SNMP_VRRP_
 	vrrp_snmp_group_trap(vgroup);

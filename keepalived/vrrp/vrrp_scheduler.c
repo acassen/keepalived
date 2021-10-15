@@ -195,8 +195,7 @@ vrrp_init_state(list_head_t *l)
 	list_for_each_entry(vgroup, &vrrp_data->vrrp_sync_group, e_list) {
 		/* Init group if needed  */
 		if ((vgroup->state == VRRP_STATE_FAULT ||
-		     vgroup->state == VRRP_STATE_BACK) &&
-		     !vgroup->state_same_at_reload)
+		     vgroup->state == VRRP_STATE_BACK))
 			send_group_notifies(vgroup);
 		vgroup->state_same_at_reload = false;
 	}
