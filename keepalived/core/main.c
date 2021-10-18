@@ -880,8 +880,7 @@ print_parent_data(__attribute__((unused)) thread_ref_t thread)
 void
 reinitialise_global_vars(void)
 {
-	default_script_uid = 0;
-	default_script_gid = 0;
+	reset_default_script_user();
 }
 
 /* SIGHUP/USR1/USR2/STATS_CLEAR handler */
@@ -2390,6 +2389,8 @@ keepalived_main(int argc, char **argv)
 
 	/* Is there a TMPDIR override? */
 	set_tmp_dir();
+
+	set_our_uid_gid();
 
 	/* Save command line options in case need to log them later */
 	save_cmd_line_options(argc, argv);

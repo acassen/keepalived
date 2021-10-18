@@ -45,14 +45,17 @@
 #include "scheduler.h"
 
 
+/* Save our uid/gid */
+uid_t our_uid;
+gid_t our_gid;
+
 /* Default user/group for script execution */
-uid_t default_script_uid;
-gid_t default_script_gid;
+static uid_t default_script_uid;
+static gid_t default_script_gid;
 
 /* Have we got a default user OK? */
 static bool default_script_uid_set = false;
-static bool default_user_fail = false;			/* Set if failed to set default user,
-							   unless it defaults to root */
+static bool default_user_fail = false;
 
 /* Script security enabled */
 bool script_security = false;
@@ -69,24 +72,27 @@ static char cmd_str_buf[MAXBUF];
 static bool
 set_script_env(uid_t uid, gid_t gid)
 {
-	if (gid) {
+	if (uid == our_uid && gid == our_gid)
+		return false;
+
+	if (gid != our_gid) {
 		if (setgid(gid) < 0) {
 			log_message(LOG_ALERT, "Couldn't setgid: %u (%m)", gid);
 			return true;
 		}
-
-		/* Clear any extra supplementary groups */
-		if (setgroups(1, &gid) < 0) {
-			log_message(LOG_ALERT, "Couldn't setgroups: %u (%m)", gid);
-			return true;
-		}
 	}
 
-	if (uid) {
+	if (uid != our_uid) {
 		if (setuid(uid) < 0) {
 			log_message(LOG_ALERT, "Couldn't setuid: %u (%m)", uid);
 			return true;
 		}
+	}
+
+	/* Clear any extra supplementary groups */
+	if (setgroups(1, &gid) < 0) {
+		log_message(LOG_ALERT, "Couldn't setgroups: %u (%m)", gid);
+		return true;
 	}
 
 	/* Prepare for invoking process/script */
@@ -253,7 +259,8 @@ fifo_open(notify_fifo_t* fifo, thread_func_t script_exit, const char *type)
 		if (!(ret = mkfifo(fifo->name, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))) {
 			fifo->created_fifo = true;
 
-			if (chown(fifo->name, fifo->uid, fifo->gid))
+			if ((fifo->uid != our_uid || fifo->gid != our_gid) &&
+			     chown(fifo->name, our_uid != fifo->uid ? fifo->uid : (uid_t)-1, our_gid != fifo->gid ? fifo->gid : (gid_t)-1))
 				log_message(LOG_INFO, "Failed to set uid:gid for fifo %s", fifo->name);
 		} else {
 			sav_errno = errno;
@@ -467,12 +474,22 @@ find_path(notify_script_t *script)
 		goto exit1;
 	}
 
-	/* Set file access to the relevant uid/gid */
-	if (script->gid) {
-		if (setegid(script->gid)) {
-			log_message(LOG_INFO, "Unable to set egid to %u (%m)", script->gid);
-			ret_val = EACCES;
-			goto exit1;
+	if (script->uid != our_uid || script->gid != our_gid) {
+		/* Set file access to the relevant uid/gid */
+		if (script->gid != our_gid) {
+			if (setegid(script->gid)) {
+				log_message(LOG_INFO, "Unable to set egid to %u (%m)", script->gid);
+				ret_val = EACCES;
+				goto exit1;
+			}
+		}
+
+		if (script->uid != our_uid) {
+			if (seteuid(script->uid)) {
+				log_message(LOG_INFO, "Unable to set euid to %u (%m)", script->uid);
+				ret_val = EACCES;
+				goto exit;
+			}
 		}
 
 		/* Get our supplementary groups */
@@ -484,7 +501,7 @@ find_path(notify_script_t *script)
 		}
 		sgid_list = MALLOC(((size_t)sgid_num + 1) * sizeof(gid_t));
 		sgid_num = getgroups(sgid_num, sgid_list);
-		sgid_list[sgid_num++] = 0;
+		sgid_list[sgid_num++] = our_gid;
 
 		/* Clear the supplementary group list */
 		if (setgroups(1, &script->gid)) {
@@ -492,11 +509,6 @@ find_path(notify_script_t *script)
 			ret_val = EACCES;
 			goto exit;
 		}
-	}
-	if (script->uid && seteuid(script->uid)) {
-		log_message(LOG_INFO, "Unable to set euid to %u (%m)", script->uid);
-		ret_val = EACCES;
-		goto exit;
 	}
 
 	for (p = path; ; p = subp)
@@ -579,18 +591,16 @@ find_path(notify_script_t *script)
 
 exit:
 	/* Restore root euid/egid */
-	if (script->uid && seteuid(0))
+	if (script->gid != our_gid && setegid(our_gid))
+		log_message(LOG_INFO, "Unable to restore egid after script search (%m)");
+	if (script->uid != our_uid && seteuid(our_uid))
 		log_message(LOG_INFO, "Unable to restore euid after script search (%m)");
-	if (script->gid) {
-		if (setegid(0))
-			log_message(LOG_INFO, "Unable to restore egid after script search (%m)");
 
-		/* restore supplementary groups */
-		if (sgid_list) {
-			if (setgroups((size_t)sgid_num, sgid_list))
-				log_message(LOG_INFO, "Unable to restore supplementary groups after script search (%m)");
-			FREE(sgid_list);
-		}
+	/* restore supplementary groups */
+	if (sgid_list) {
+		if (setgroups((size_t)sgid_num, sgid_list))
+			log_message(LOG_INFO, "Unable to restore supplementary groups after script search (%m)");
+		FREE(sgid_list);
 	}
 
 exit1:
@@ -680,8 +690,6 @@ check_script_secure(notify_script_t *script,
 	int ret, ret_real, ret_new;
 	struct stat file_buf, real_buf;
 	bool need_script_protection = false;
-	uid_t old_uid = 0;
-	gid_t old_gid = 0;
 	char *new_path;
 	char *sav_path;
 	int sav_errno;
@@ -710,18 +718,13 @@ check_script_secure(notify_script_t *script,
 	}
 
 	/* Check script accessible by the user running it */
-	if (script->uid)
-		old_uid = geteuid();
-	if (script->gid)
-		old_gid = getegid();
-
-	if ((script->gid && setegid(script->gid)) ||
-	    (script->uid && seteuid(script->uid))) {
+	if ((script->gid != our_gid && setegid(script->gid)) ||
+	    (script->uid != our_uid && seteuid(script->uid))) {
 		log_message(LOG_INFO, "Unable to set uid:gid %u:%u for script %s - disabling", script->uid, script->gid, script->args[0]);
 
-		if ((script->uid && seteuid(old_uid)) ||
-		    (script->gid && setegid(old_gid)))
-			log_message(LOG_INFO, "Unable to restore uid:gid %u:%u after script %s", script->uid, script->gid, script->args[0]);
+		if ((script->uid != our_uid && seteuid(our_uid)) ||
+		    (script->gid != our_gid && setegid(our_gid)))
+			log_message(LOG_INFO, "Unable to restore uid:gid from %u:%u %u:%u after script %s", our_uid, our_gid, script->uid, script->gid, script->args[0]);
 
 		return SC_INHIBIT;
 	}
@@ -730,9 +733,9 @@ check_script_secure(notify_script_t *script,
 	new_path = realpath(script->args[0], NULL);
 	sav_errno = errno;
 
-	if ((script->gid && setegid(old_gid)) ||
-	    (script->uid && seteuid(old_uid)))
-		log_message(LOG_INFO, "Unable to restore uid:gid %u:%u after checking script %s", script->uid, script->gid, script->args[0]);
+	if ((script->gid != our_gid && setegid(our_gid)) ||
+	    (script->uid != our_uid && seteuid(our_uid)))
+		log_message(LOG_INFO, "Unable to restore uid:gid %u:%u from %u:%u after checking script %s", our_uid, our_gid, script->uid, script->gid, script->args[0]);
 
 	if (!new_path)
 	{
@@ -872,7 +875,7 @@ set_pwnam_buf_len(void)
 }
 
 static bool
-set_uid_gid(const char *username, const char *groupname, uid_t *uid_p, gid_t *gid_p, bool default_user)
+set_uid_gid(const char *username, const char *groupname, uid_t *uid_p, gid_t *gid_p)
 {
 	uid_t uid;
 	gid_t gid;
@@ -881,7 +884,6 @@ set_uid_gid(const char *username, const char *groupname, uid_t *uid_p, gid_t *gi
 	struct group grp;
 	struct group *grp_p;
 	int ret;
-	bool using_default_default_user = false;
 	char *buf;
 
 	if (!getpwnam_buf_len)
@@ -889,21 +891,13 @@ set_uid_gid(const char *username, const char *groupname, uid_t *uid_p, gid_t *gi
 
 	buf = MALLOC(getpwnam_buf_len);
 
-	if (default_user && !username) {
-		using_default_default_user = true;
-		username = "keepalived_script";
-	}
-
 	if ((ret = getpwnam_r(username, &pwd, buf, getpwnam_buf_len, &pwd_p))) {
-		log_message(LOG_INFO, "Unable to resolve %sscript username '%s' - ignoring", default_user ? "default " : "", username);
+		log_message(LOG_INFO, "Unable to resolve script username '%s' - ignoring", username);
 		FREE(buf);
 		return true;
 	}
 	if (!pwd_p) {
-		if (using_default_default_user)
-			log_message(LOG_INFO, "WARNING - default user '%s' for script execution does not exist - please create.", username);
-		else
-			log_message(LOG_INFO, "%script user '%s' does not exist", default_user ? "Default s" : "S", username);
+		log_message(LOG_INFO, "Script user '%s' does not exist", username);
 		FREE(buf);
 		return true;
 	}
@@ -913,12 +907,12 @@ set_uid_gid(const char *username, const char *groupname, uid_t *uid_p, gid_t *gi
 
 	if (groupname) {
 		if ((ret = getgrnam_r(groupname, &grp, buf, getpwnam_buf_len, &grp_p))) {
-			log_message(LOG_INFO, "Unable to resolve %sscript group name '%s' - ignoring", default_user ? "default " : "", groupname);
+			log_message(LOG_INFO, "Unable to resolve script group name '%s' - ignoring", groupname);
 			FREE(buf);
 			return true;
 		}
 		if (!grp_p) {
-			log_message(LOG_INFO, "%script group '%s' does not exist", default_user ? "Default s" : "S", groupname);
+			log_message(LOG_INFO, "Script group '%s' does not exist", groupname);
 			FREE(buf);
 			return true;
 		}
@@ -933,23 +927,52 @@ set_uid_gid(const char *username, const char *groupname, uid_t *uid_p, gid_t *gi
 	return false;
 }
 
-/* The default script user/group is keepalived_script if it exists, or root otherwise */
+/* The default script user/group is keepalived_script if it exists, or our uid/gid otherwise */
+void
+reset_default_script_user(void)
+{
+	default_script_uid_set = false;
+	default_user_fail = false;
+}
+
 bool
 set_default_script_user(const char *username, const char *groupname)
 {
-	if (!default_script_uid_set || username) {
+	/* Even if we fail to set it, there is no point in trying again */
+	default_script_uid_set = true;
+
+	if (set_uid_gid(username, groupname, &default_script_uid, &default_script_gid))
+		default_user_fail = true;
+
+	return default_user_fail;
+}
+
+bool
+get_default_script_user(uid_t *uid, gid_t *gid)
+{
+	const char *default_user = "keepalived_script";
+
+	if (default_user_fail)
+		return true;
+
+	if (!default_script_uid_set) {
 		/* Even if we fail to set it, there is no point in trying again */
 		default_script_uid_set = true;
 
-		if (set_uid_gid(username, groupname, &default_script_uid, &default_script_gid, true)) {
-			if (username || script_security)
-				default_user_fail = true;
+		default_script_uid = our_uid;
+		default_script_gid = our_gid;
+
+		if (set_uid_gid(default_user, NULL, &default_script_uid, &default_script_gid) && script_security) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Unable to set default user %s for script", default_user);
+			default_user_fail = true;
+			return true;
 		}
-		else
-			default_user_fail = false;
 	}
 
-	return default_user_fail;
+	*uid = default_script_uid;
+	*gid = default_script_gid;
+
+	return false;
 }
 
 bool
@@ -964,7 +987,7 @@ set_script_uid_gid(const vector_t *strvec, unsigned keyword_offset, uid_t *uid_p
 	else
 		groupname = NULL;
 
-	return set_uid_gid(username, groupname, uid_p, gid_p, false);
+	return set_uid_gid(username, groupname, uid_p, gid_p);
 }
 
 void
@@ -1044,18 +1067,12 @@ notify_script_init(int extra_params, const char *type)
 			free_strvec(strvec_qe);
 			return NULL;
 		}
-	}
-	else {
-		if (set_default_script_user(NULL, NULL)) {
-			log_message(LOG_INFO, "Failed to set default user for %s script %s - ignoring", type, script->args[0]);
-			FREE_CONST(script->args);
-			FREE(script);
-			free_strvec(strvec_qe);
-			return NULL;
-		}
-
-		script->uid = default_script_uid;
-		script->gid = default_script_gid;
+	} else if (get_default_script_user(&script->uid, &script->gid)) {
+		log_message(LOG_INFO, "Failed to set default user for %s script %s - ignoring", type, script->args[0]);
+		FREE_CONST(script->args);
+		FREE(script);
+		free_strvec(strvec_qe);
+		return NULL;
 	}
 
 	free_strvec(strvec_qe);
@@ -1102,6 +1119,13 @@ notify_script_compare(const notify_script_t *a, const notify_script_t *b)
 	}
 
 	return true;
+}
+
+void
+set_our_uid_gid(void)
+{
+	our_uid = geteuid();
+	our_gid = getegid();
 }
 
 #ifdef THREAD_DUMP

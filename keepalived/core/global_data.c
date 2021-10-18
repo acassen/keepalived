@@ -470,6 +470,8 @@ dump_global_data(FILE *fp, data_t * data)
 	struct tm tm;
 #endif
 	unsigned val;
+	uid_t uid;
+	gid_t gid;
 
 	if (!data)
 		return;
@@ -763,7 +765,8 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " DBus service name = %s", data->dbus_service_name ? data->dbus_service_name : "");
 #endif
 	conf_write(fp, " Script security %s", script_security ? "enabled" : "disabled");
-	conf_write(fp, " Default script uid:gid %u:%u", default_script_uid, default_script_gid);
+	get_default_script_user(&uid, &gid);
+	conf_write(fp, " Default script uid:gid %u:%u", uid, gid);
 #ifdef _WITH_VRRP_
 	conf_write(fp, " vrrp_netlink_cmd_rcv_bufs = %u", global_data->vrrp_netlink_cmd_rcv_bufs);
 	conf_write(fp, " vrrp_netlink_cmd_rcv_bufs_force = %d", global_data->vrrp_netlink_cmd_rcv_bufs_force);
