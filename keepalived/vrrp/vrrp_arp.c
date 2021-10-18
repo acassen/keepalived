@@ -31,7 +31,6 @@
 #include <net/if_arp.h>
 #include <linux/if_packet.h>
 #include <errno.h>
-#include <stdbool.h>
 
 /* local includes */
 #include "logger.h"
@@ -115,9 +114,6 @@ ssize_t send_gratuitous_arp_immediate(interface_t *ifp, ip_address_t *ipaddress)
 	ssize_t len, pack_len;
 
 	if (ifp->hw_addr_len == 0)
-		return -1;
-
-	if (!garp_buffer)
 		return -1;
 
 	/* Setup link layer header */
@@ -216,30 +212,27 @@ void send_gratuitous_arp(vrrp_t *vrrp, ip_address_t *ipaddress)
 /*
  *	Gratuitous ARP init/close
  */
-bool
-gratuitous_arp_init(void)
+void gratuitous_arp_init(void)
 {
 	if (garp_buffer)
-		return true;
+		return;
 
 	/* Create the socket descriptor */
 	garp_fd = socket(PF_PACKET, SOCK_RAW | SOCK_CLOEXEC | SOCK_NONBLOCK, htons(ETH_P_ARP));
 
-	if (garp_fd < 0) {
+	if (garp_fd >= 0) {
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "Registering gratuitous ARP shared channel");
+	} else {
 		log_message(LOG_INFO, "Error %d while registering gratuitous ARP shared channel", errno);
-		return (errno != EAFNOSUPPORT && errno != EPERM);
+		return;
 	}
-
-	if (__test_bit(LOG_DETAIL_BIT, &debug))
-		log_message(LOG_INFO, "Registering gratuitous ARP shared channel");
 
 	/* We don't want to receive any data on this socket */
 	if_setsockopt_no_receive(&garp_fd);
 
 	/* Initalize shared buffer */
 	garp_buffer = PTR_CAST(char, MALLOC(GARP_BUFFER_SIZE));
-
-	return true;
 }
 
 void gratuitous_arp_close(void)

@@ -557,13 +557,9 @@ vrrp_vmac_handler(const vector_t *strvec)
 			list_for_each_entry(ovrrp, &vrrp_data->vrrp, e_list) {
 				if (!strcmp(name, ovrrp->vmac_ifname)) {
 					report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRP instance %s is already using %s - ignoring name", vrrp->iname, ovrrp->iname, name);
-					name = NULL;
-					break;
+					continue;
 				}
 			}
-
-			if (!name)
-				continue;
 
 			strcpy(vrrp->vmac_ifname, name);
 
@@ -700,13 +696,9 @@ vrrp_ipvlan_handler(const vector_t *strvec)
 		list_for_each_entry(ovrrp, &vrrp_data->vrrp, e_list) {
 			if (!strcmp(ifname, ovrrp->vmac_ifname)) {
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRP instance %s is already using %s - ignoring name", vrrp->iname, ovrrp->iname, ifname);
-				ifname = NULL;
-				break;
+				continue;
 			}
 		}
-
-		if (!ifname)
-			continue;
 
 		strcpy(vrrp->vmac_ifname, ifname);
 
@@ -1611,7 +1603,7 @@ vrrp_vscript_end_handler(void)
 		if (script_user_set)
 			return;
 
-		if (get_default_script_user(&vscript->script.uid, &vscript->script.gid)) {
+		if (set_default_script_user(NULL, NULL)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Unable to set default user for vrrp"
 								  " script %s - removing"
 								, vscript->sname);
@@ -1623,6 +1615,9 @@ vrrp_vscript_end_handler(void)
 		free_vscript(vscript);
 		return;
 	}
+
+	vscript->script.uid = default_script_uid;
+	vscript->script.gid = default_script_gid;
 }
 
 #ifdef _WITH_TRACK_PROCESS_

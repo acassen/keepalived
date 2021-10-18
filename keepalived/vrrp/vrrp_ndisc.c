@@ -33,7 +33,6 @@
 #include <netinet/in.h>
 #include <stdint.h>
 #include <errno.h>
-#include <stdbool.h>
 
 /* local includes */
 #include "logger.h"
@@ -260,27 +259,25 @@ ndisc_send_unsolicited_na(vrrp_t *vrrp, ip_address_t *ipaddress)
 /*
  *	Neighbour Discovery init/close
  */
-bool
+void
 ndisc_init(void)
 {
 	if (ndisc_fd != -1)
-		return true;
+		return;
 
 	/* Create the socket descriptor */
 	ndisc_fd = socket(PF_PACKET, SOCK_RAW | SOCK_CLOEXEC | SOCK_NONBLOCK, htons(ETH_P_IPV6));
 
-	if (ndisc_fd < 0) {
+	if (ndisc_fd >= 0) {
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "Registering gratuitous NDISC shared channel");
+	} else {
 		log_message(LOG_INFO, "Error %d while registering gratuitous NDISC shared channel", errno);
-		return (errno != EAFNOSUPPORT && errno != EPERM);
+		return;
 	}
-
-	if (__test_bit(LOG_DETAIL_BIT, &debug))
-		log_message(LOG_INFO, "Registering gratuitous NDISC shared channel");
 
 	/* We don't want to receive any data on this socket */
 	if_setsockopt_no_receive(&ndisc_fd);
-
-	return true;
 }
 
 void

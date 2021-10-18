@@ -84,6 +84,10 @@ free_notify_script(notify_script_t **script)
 	*script = NULL;
 }
 
+/* Default user/group for script execution */
+extern uid_t default_script_uid;
+extern gid_t default_script_gid;
+
 /* Script security enabled */
 extern bool script_security;
 
@@ -98,16 +102,13 @@ extern void child_killed_thread(thread_ref_t);
 extern void script_killall(thread_master_t *, int, bool);
 extern unsigned check_script_secure(notify_script_t *, magic_t);
 extern unsigned check_notify_script_secure(notify_script_t **, magic_t);
-extern void reset_default_script_user(void);
 extern bool set_default_script_user(const char *, const char *);
-extern bool get_default_script_user(uid_t *, gid_t *);
 extern bool set_script_uid_gid(const vector_t *, unsigned, uid_t *, gid_t *);
 extern void set_script_params_array(const vector_t *, notify_script_t *, unsigned);
 extern notify_script_t* notify_script_init(int, const char *);
 extern void add_script_param(notify_script_t *, const char *);
 extern void notify_resource_release(void);
 extern bool notify_script_compare(const notify_script_t *, const notify_script_t *) __attribute__ ((pure));
-extern void set_our_uid_gid(void);
 #ifdef THREAD_DUMP
 extern void register_notify_addresses(void);
 #endif

@@ -27,7 +27,6 @@
 #include <asm/byteorder.h>
 #include <netinet/icmp6.h>
 #include <netinet/in.h>
-#include <stdbool.h>
 
 /* local includes */
 #include "vrrp.h"
@@ -61,7 +60,7 @@ struct ip6hdr {
 };
 
 /* prototypes */
-extern bool ndisc_init(void);
+extern void ndisc_init(void);
 extern void ndisc_close(void);
 extern void ndisc_send_unsolicited_na(vrrp_t *, ip_address_t *);
 extern void ndisc_send_unsolicited_na_immediate(interface_t *, ip_address_t *);

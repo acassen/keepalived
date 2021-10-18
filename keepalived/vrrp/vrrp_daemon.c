@@ -621,15 +621,13 @@ start_vrrp(data_t *prev_global_data)
 		return;
 
 	/* Start or stop gratuitous arp/ndisc as appropriate */
-	if (have_ipv4_instance) {
-		if (!gratuitous_arp_init())
-			stop_vrrp(KEEPALIVED_EXIT_MISSING_PERMISSION);
-	} else
+	if (have_ipv4_instance)
+		gratuitous_arp_init();
+	else
 		gratuitous_arp_close();
-	if (have_ipv6_instance) {
-		if (!ndisc_init())
-			stop_vrrp(KEEPALIVED_EXIT_MISSING_PERMISSION);
-	} else
+	if (have_ipv6_instance)
+		ndisc_init();
+	else
 		ndisc_close();
 
 	if (!reload)
