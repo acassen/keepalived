@@ -1810,6 +1810,8 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 				is_vrf = true;
 				ifp->if_type = IF_TYPE_VRF;
 				parse_rtattr_nested(vrf_attr, IFLA_VRF_MAX, linkinfo[IFLA_INFO_DATA]);
+				if (vrf_attr[IFLA_VRF_TABLE])
+					ifp->vrf_tb_id = *PTR_CAST(uint32_t, RTA_DATA(vrf_attr[IFLA_VRF_TABLE]));
 			}
 #endif
 		}

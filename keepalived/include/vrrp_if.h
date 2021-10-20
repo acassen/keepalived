@@ -168,6 +168,7 @@ typedef struct _interface {
 #ifdef _HAVE_VRF_
 	ifindex_t		vrf_master_ifindex;	/* Only used at startup if we find i/f before master i/f */
 	struct _interface	*vrf_master_ifp;	/* VRF master interface - pointer to self if VRF master */
+	uint32_t		vrf_tb_id;		/* Table id of VRF */
 #endif
 	int			reset_arp_config;	/* Count of how many vrrps have changed arp parameters on interface */
 	bool			arp_ignore;		/* Original value of arp_ignore to be restored */
