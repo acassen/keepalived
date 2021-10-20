@@ -1793,6 +1793,19 @@ alloc_route(list_head_t *rt_list, const vector_t *strvec, bool allow_track_group
 			if (!(new->track_group = static_track_group_find(strvec_slot(strvec, i))))
 				report_config_error(CONFIG_GENERAL_ERROR, "track_group %s not found", strvec_slot(strvec, i));
 		}
+#ifdef _HAVE_VRF_
+		else if (!strcmp(str, "vrf")) {
+			if (!(ifp = if_get_by_ifname(strvec_slot(strvec, ++i), IF_NO_CREATE))) {
+				report_config_error(CONFIG_GENERAL_ERROR, "VRF %s not found for route", strvec_slot(strvec, i));
+				goto err;
+			}
+			if (ifp->if_type != IF_TYPE_VRF) {
+				report_config_error(CONFIG_GENERAL_ERROR, "Route specified VRF %s is not a VRF", strvec_slot(strvec, i));
+				goto err;
+			}
+			new->table = ifp->vrf_tb_id;
+		}
+#endif
 		else {
 			if (!strcmp(str, "to"))
 				i++;

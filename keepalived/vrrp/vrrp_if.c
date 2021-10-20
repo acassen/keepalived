@@ -660,7 +660,7 @@ dump_if(FILE *fp, const interface_t *ifp)
 #endif
 #ifdef _HAVE_VRF_
 	if (ifp->vrf_master_ifp == ifp)
-		conf_write(fp, "   VRF master");
+		conf_write(fp, "   VRF master table %u", ifp->vrf_tb_id);
 	else if (ifp->vrf_master_ifp)
 		conf_write(fp, "   VRF slave of %s", ifp->vrf_master_ifp->ifname);
 #endif
