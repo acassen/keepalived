@@ -287,6 +287,11 @@ format_ipaddress(const ip_address_t *ip_addr, char *buf, size_t buf_len)
 	char *buf_p = buf;
 	char *buf_end = buf + buf_len;
 
+	if (ip_addr->ifa.ifa_family == AF_UNSPEC) {
+		snprintf(buf_p, buf_end - buf_p, "None");
+		return;
+	}
+
 	buf_p += snprintf(buf_p, buf_end - buf_p, "%s", ipaddresstos(NULL, ip_addr));
 	if (!IP_IS6(ip_addr) && ip_addr->u.sin.sin_brd.s_addr) {
 		buf_p += snprintf(buf_p, buf_end - buf_p, " brd %s",
@@ -294,6 +299,9 @@ format_ipaddress(const ip_address_t *ip_addr, char *buf, size_t buf_len)
 	}
 	buf_p += snprintf(buf_p, buf_end - buf_p, " dev %s", IF_NAME(ip_addr->ifp));
 #ifdef _HAVE_VRRP_VMAC_
+	if (!ip_addr->ifp)
+		buf_p += snprintf(buf_p, buf_end - buf_p, "@NOWHERE");
+	else
 	if (ip_addr->ifp != ip_addr->ifp->base_ifp)
 		buf_p += snprintf(buf_p, buf_end - buf_p, "@%s", ip_addr->ifp->base_ifp->ifname);
 	if (ip_addr->use_vmac)
