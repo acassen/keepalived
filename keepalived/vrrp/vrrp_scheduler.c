@@ -194,11 +194,14 @@ vrrp_init_state(list_head_t *l)
 	/* Do notifications for any sync groups in fault or backup state */
 	list_for_each_entry(vgroup, &vrrp_data->vrrp_sync_group, e_list) {
 		/* Init group if needed  */
-		if ((vgroup->state == VRRP_STATE_FAULT ||
-		     vgroup->state == VRRP_STATE_BACK) &&
-		     !vgroup->state_same_at_reload)
-			send_group_notifies(vgroup);
-		vgroup->state_same_at_reload = false;
+		if (vgroup->state == VRRP_STATE_FAULT ||
+		    vgroup->state == VRRP_STATE_BACK) {
+			if (!vgroup->state_same_at_reload) {
+				send_group_notifies(vgroup);
+				vgroup->state_same_at_reload = false;
+			} else if (reload && global_data->fifo_write_vrrp_states_on_reload)
+				notify_group_fifo(vgroup);
+		}
 	}
 
 	list_for_each_entry(vrrp, l, e_list) {
@@ -280,6 +283,8 @@ vrrp_init_state(list_head_t *l)
 			if (vrrp_begin_state != vrrp->state) {
 				if (vrrp->state != VRRP_STATE_FAULT || vrrp->num_script_if_fault)
 					send_instance_notifies(vrrp);
+				else if (reload && global_data->fifo_write_vrrp_states_on_reload)
+					notify_instance_fifo(vrrp);
 				vrrp->last_transition = timer_now();
 			}
 		}
@@ -608,6 +613,7 @@ vrrp_dispatcher_init(__attribute__((unused)) thread_ref_t thread)
 		dump_sock_list(NULL, &vrrp_data->vrrp_socket_pool);
 
 	vrrp_initialised = true;
+	UNSET_RELOAD;
 }
 
 #ifdef _WITH_BFD_

@@ -145,13 +145,13 @@ notify_fifo(const char *name, int state_num, bool group, uint8_t priority)
 	FREE(line);
 }
 
-static void
+void
 notify_instance_fifo(const vrrp_t *vrrp)
 {
 	notify_fifo(vrrp->iname, vrrp->state, false, vrrp->effective_priority);
 }
 
-static void
+void
 notify_group_fifo(const vrrp_sgroup_t *vgroup)
 {
 	notify_fifo(vgroup->gname, vgroup->state, true, 0);

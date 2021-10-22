@@ -218,6 +218,7 @@ typedef struct _data {
 	notify_fifo_t			notify_fifo;
 #ifdef _WITH_VRRP_
 	notify_fifo_t			vrrp_notify_fifo;
+	bool				fifo_write_vrrp_states_on_reload;
 #endif
 #ifdef _WITH_LVS_
 	notify_fifo_t			lvs_notify_fifo;

@@ -869,8 +869,6 @@ reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 	save_config(true, "vrrp", dump_data_vrrp);
 #endif
 
-	UNSET_RELOAD;
-
 	/* Post initializations */
 #ifdef _MEM_CHECK_
 	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);

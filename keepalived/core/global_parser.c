@@ -1423,6 +1423,11 @@ vrrp_notify_priority_changes(const vector_t *strvec)
 
 	global_data->vrrp_notify_priority_changes = res;
 }
+static void
+fifo_write_vrrp_states_on_reload(__attribute__((unused))const vector_t *strvec)
+{
+	global_data->fifo_write_vrrp_states_on_reload = true;
+}
 #endif
 #ifdef _WITH_LVS_
 static void
@@ -2382,6 +2387,7 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_notify_fifo", &vrrp_notify_fifo);
 	install_keyword("vrrp_notify_fifo_script", &vrrp_notify_fifo_script);
 	install_keyword("vrrp_notify_priority_changes", &vrrp_notify_priority_changes);
+	install_keyword("fifo_write_vrrp_states_on_reload", &fifo_write_vrrp_states_on_reload);
 #endif
 #ifdef _WITH_LVS_
 	install_keyword("lvs_notify_fifo", &lvs_notify_fifo);
