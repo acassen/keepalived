@@ -726,6 +726,11 @@ possibly following any cleanup actions needed.
     # The FIFO name will be passed to the script as the last parameter
     \fBlvs_notify_fifo_script \fRSTRING|QUOTED_STRING [username [groupname]]
 
+    # By default, when keepalived reloads the vrrp instance and sync group states
+    # are not written to the relevant FIFOs. Setting this option will cause the
+    # states to be sent to the FIFO(s) when keepalived reloads.
+    \fBfifo_write_vrrp_states_on_reload\fR
+
     # Allow configuration to include interfaces that don't exist at startup.
     # This allows keepalived to work with interfaces that may be deleted and restored
     # and also allows virtual and static routes and rules on VMAC interfaces.

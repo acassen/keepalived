@@ -636,6 +636,7 @@ dump_global_data(FILE *fp, data_t * data)
 	}
 #endif
 #ifdef _WITH_VRRP_
+	conf_write(fp, " FIFO write vrrp states on reload = %s", data->fifo_write_vrrp_states_on_reload ? "true" : "false");
 	conf_write(fp, " VRRP notify priority changes = %s", data->vrrp_notify_priority_changes ? "true" : "false");
 	if (data->vrrp_mcast_group4.sin_family) {
 		conf_write(fp, " VRRP IPv4 mcast group = %s"
