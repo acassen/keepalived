@@ -261,6 +261,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		char buf[256];
 	} req;
 	u_char if_ll_addr[ETH_ALEN];
+	bool update_interface = false;
 
 	if (!vrrp->ifp || __test_bit(VRRP_VMAC_UP_BIT, &vrrp->flags) || !vrrp->vrid)
 		return false;
@@ -286,15 +287,15 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_CREATE_ALWAYS);
 
 	if (ifp->ifindex) {
-		/* Check to see whether this interface has wrong mac ? */
-		if (memcmp((const void *)ifp->hw_addr, (const void *)if_ll_addr, ETH_ALEN) != 0 ||
-		     ifp->base_ifindex != vrrp->ifp->ifindex ||
-		     ifp->vmac_type != MACVLAN_MODE_PRIVATE) {
-			/* Be safe here - we don't want to remove a physical interface */
-			if (ifp->vmac_type) {
+		/* Check to see whether this interface has wrong mac ?
+		 * The parser checks the interface is a private mode macvlan. */
+		if (ifp->base_ifp->ifindex != vrrp->configured_ifp->ifindex) {
+			/* Be safe here - we don't want to remove a physical interface.
+			 * vrrp_vmac_handler() should have already ensured it is a macvlan */
+			if (ifp->if_type == IF_TYPE_MACVLAN) {
 				/* We have found a VIF but the vmac or type do not match */
 				log_message(LOG_INFO, "(%s) Removing old VMAC interface %s due to conflicting "
-						      "interface or MAC"
+						      "interface"
 						    , vrrp->iname, vrrp->vmac_ifname);
 
 				/* Request that NETLINK remove the VIF interface first */
@@ -316,8 +317,12 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 				log_message(LOG_INFO, "VMAC %s conflicts with existing interface", vrrp->vmac_ifname);
 				return false;
 			}
-		}
-		else
+		} else if (memcmp((const void *)ifp->hw_addr, (const void *)if_ll_addr, ETH_ALEN) != 0 ||
+			   ifp->vmac_type != MACVLAN_MODE_PRIVATE) {
+				log_message(LOG_INFO, "(%s) Update old VMAC interface %s due to wrong MAC/mode "
+						    , vrrp->iname, vrrp->vmac_ifname);
+			update_interface = true;
+		} else
 			create_interface = false;
 	}
 
@@ -325,9 +330,14 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	if (create_interface && vrrp->configured_ifp->base_ifp->ifindex) {
 		/* Request that NETLINK create the VIF interface */
 		req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
-		req.n.nlmsg_flags = NLM_F_REQUEST | NLM_F_CREATE | NLM_F_EXCL;
+		req.n.nlmsg_flags = NLM_F_REQUEST;
+		if (!update_interface)
+			req.n.nlmsg_flags |= NLM_F_CREATE | NLM_F_EXCL;
 		req.n.nlmsg_type = RTM_NEWLINK;
 		req.ifi.ifi_family = AF_UNSPEC;
+
+		if (update_interface)
+			req.ifi.ifi_index = (int)IF_INDEX(ifp);
 
 		/* macvlan settings */
 		linkinfo = PTR_CAST(struct rtattr, NLMSG_TAIL(&req.n));
@@ -346,17 +356,19 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		/* coverity[overrun-local] */
 		linkinfo->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)linkinfo);
 
-		/* Note: if the underlying interface is a macvlan, then the kernel will configure the
-		 * interface only the underlying interface of the macvlan */
-		addattr32(&req.n, sizeof(req), IFLA_LINK, vrrp->configured_ifp->ifindex);
-		addattr_l(&req.n, sizeof(req), IFLA_IFNAME, vrrp->vmac_ifname, strlen(vrrp->vmac_ifname));
+		if (!update_interface) {
+			/* Note: if the underlying interface is a macvlan, then the kernel will configure the
+			 * interface on the underlying interface of the macvlan */
+			addattr32(&req.n, sizeof(req), IFLA_LINK, vrrp->configured_ifp->ifindex);
+			addattr_l(&req.n, sizeof(req), IFLA_IFNAME, vrrp->vmac_ifname, strlen(vrrp->vmac_ifname));
+		}
 		addattr_l(&req.n, sizeof(req), IFLA_ADDRESS, if_ll_addr, ETH_ALEN);
 
 #ifdef _HAVE_VRF_
 		/* If the underlying interface is enslaved to a VRF master, then this
 		 * interface should be as well. */
-		if (vrrp->configured_ifp->vrf_master_ifp)
-			addattr32(&req.n, sizeof(req), IFLA_MASTER, vrrp->configured_ifp->vrf_master_ifp->ifindex);
+		if (vrrp->configured_ifp->vrf_master_ifp || update_interface)
+			addattr32(&req.n, sizeof(req), IFLA_MASTER, vrrp->configured_ifp->vrf_master_ifp ? vrrp->configured_ifp->vrf_master_ifp->ifindex : 0);
 #endif
 
 		if (netlink_talk(&nl_cmd, &req.n) < 0) {
@@ -366,8 +378,8 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		}
 
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
-			log_message(LOG_INFO, "(%s): Success creating VMAC interface %s"
-					    , vrrp->iname, vrrp->vmac_ifname);
+			log_message(LOG_INFO, "(%s): Success %sating VMAC interface %s"
+					    , vrrp->iname, update_interface ? "upd" : "cre", vrrp->vmac_ifname);
 
 		/*
 		 * Update interface queue and vrrp instance interface binding.
@@ -395,60 +407,10 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	if (!ifp->ifindex)
 		return false;
 
-	if (vrrp->family == AF_INET) {
+	if (vrrp->family == AF_INET && create_interface) {
 		/* Set the necessary kernel parameters to make macvlans work for us */
 // If this saves current base_ifp's settings, we need to be careful if multiple VMACs on same i/f
-		if (create_interface)
-			set_interface_parameters(ifp, ifp->base_ifp);
-
-		/* We don't want IPv6 running on the interface unless we have some IPv6
-		 * eVIPs, so disable it if not needed */
-		if (vrrp->family == AF_INET && !__test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags))
-			link_set_ipv6(ifp, false);
-		else if (!create_interface) {
-			/* If we didn't create the VMAC we don't know what state it is in */
-			link_set_ipv6(ifp, true);
-		}
-	}
-
-	if (vrrp->family == AF_INET6 || __test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags)) {
-		/* Make sure IPv6 is enabled for the interface, in case the
-		 * sysctl net.ipv6.conf.default.disable_ipv6 is set true. */
-		link_set_ipv6(ifp, true);
-
-		/* We don't want a link-local address auto assigned - see RFC5798 paragraph 7.4.
-		 * If we have a sufficiently recent kernel, we can stop a link local address
-		 * based on the MAC address being automatically assigned. If not, then we have
-		 * to delete the generated address after bringing the interface up (see below).
-		 */
-#if HAVE_DECL_IFLA_INET6_ADDR_GEN_MODE
-		memset(&req, 0, sizeof (req));
-		req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
-		req.n.nlmsg_flags = NLM_F_REQUEST ;
-		req.n.nlmsg_type = RTM_NEWLINK;
-		req.ifi.ifi_family = AF_UNSPEC;
-		req.ifi.ifi_index = (int)vrrp->ifp->ifindex;
-
-		struct rtattr* spec;
-
-		spec = PTR_CAST(struct rtattr, NLMSG_TAIL(&req.n));
-		addattr_l(&req.n, sizeof(req), IFLA_AF_SPEC, NULL,0);
-		data = PTR_CAST(struct rtattr, NLMSG_TAIL(&req.n));
-		addattr_l(&req.n, sizeof(req), AF_INET6, NULL,0);
-		addattr8(&req.n, sizeof(req), IFLA_INET6_ADDR_GEN_MODE, IN6_ADDR_GEN_MODE_NONE);
-		/* coverity[overrun-local] */
-		data->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)data);
-		spec->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)spec);
-
-		if (netlink_talk(&nl_cmd, &req.n) < 0)
-			log_message(LOG_INFO, "(%s) Error setting ADDR_GEN_MODE to NONE on %s", vrrp->iname, vrrp->ifp->ifname);
-#endif
-
-		if (vrrp->family == AF_INET6 &&
-		    !__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags)) {
-			if (!set_link_local_address(vrrp) && create_interface)
-				log_message(LOG_INFO, "(%s) adding link-local address to %s failed", vrrp->iname, vrrp->ifp->ifname);
-		}
+		set_interface_parameters(ifp, ifp->base_ifp);
 	}
 
 #ifdef _WITH_FIREWALL_
@@ -456,9 +418,58 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		firewall_add_vmac(vrrp);
 #endif
 
-	/* bring it UP ! */
-	__set_bit(VRRP_VMAC_UP_BIT, &vrrp->flags);
+	/* We don't want IPv6 running on the interface unless we have some IPv6
+	 * eVIPs, so disable it if not needed */
+// This isn't right if the eVIPs are not on the VMAC
+	if (vrrp->family == AF_INET && !__test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags))
+		link_set_ipv6(ifp, false);
+	else
+		link_set_ipv6(ifp, true);
+
+	/* We don't want a link-local address auto assigned - see RFC5798 paragraph 7.4.
+	 * If we have a sufficiently recent kernel, we can stop a link local address
+	 * based on the MAC address being automatically assigned. If not, then we have
+	 * to delete the generated address after bringing the interface up (see below).
+	 */
+
+#if HAVE_DECL_IFLA_INET6_ADDR_GEN_MODE
+	/* This can't be part of create/update i/f msg since the kernel
+	 * doesn't process IFLA_AF_SPEC when links are created.
+	 * We also up the interface here. */
+	memset(&req, 0, sizeof (req));
+	req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
+	req.n.nlmsg_flags = NLM_F_REQUEST;
+	req.n.nlmsg_type = RTM_NEWLINK;
+	req.ifi.ifi_family = AF_UNSPEC;
+	req.ifi.ifi_index = (int)vrrp->ifp->ifindex;
+	req.ifi.ifi_change |= IFF_UP;
+	req.ifi.ifi_flags |= IFF_UP;
+
+	struct rtattr* spec;
+
+	spec = PTR_CAST(struct rtattr, NLMSG_TAIL(&req.n));
+	addattr_l(&req.n, sizeof(req), IFLA_AF_SPEC, NULL,0);
+	data = PTR_CAST(struct rtattr, NLMSG_TAIL(&req.n));
+	addattr_l(&req.n, sizeof(req), AF_INET6, NULL,0);
+	addattr8(&req.n, sizeof(req), IFLA_INET6_ADDR_GEN_MODE, IN6_ADDR_GEN_MODE_NONE);
+	/* coverity[overrun-local] */
+	data->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)data);
+	spec->rta_len = (unsigned short)((char *)NLMSG_TAIL(&req.n) - (char *)spec);
+
+	if (netlink_talk(&nl_cmd, &req.n) < 0)
+		log_message(LOG_INFO, "(%s) Error setting ADDR_GEN_MODE to NONE on %s", vrrp->iname, vrrp->ifp->ifname);
+#else
 	netlink_link_up(vrrp);
+#endif
+
+	/* Mark it as UP ! */
+	__set_bit(VRRP_VMAC_UP_BIT, &vrrp->flags);
+
+	if (vrrp->family == AF_INET6 &&
+	    !__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags)) {
+		if (!set_link_local_address(vrrp) && create_interface)
+			log_message(LOG_INFO, "(%s) adding link-local address to %s failed", vrrp->iname, vrrp->ifp->ifname);
+	}
 
 #if !HAVE_DECL_IFLA_INET6_ADDR_GEN_MODE
 	if (vrrp->family == AF_INET6 || __test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags)) {
@@ -529,8 +540,6 @@ netlink_link_add_ipvlan(vrrp_t *vrrp)
 	if (!vrrp->ifp || __test_bit(VRRP_VMAC_UP_BIT, &vrrp->flags) || !vrrp->vrid)
 		return false;
 
-	memset(&req, 0, sizeof (req));
-
 	/*
 	 * Check to see if this ipvlan interface was created
 	 * by a previous instance.
@@ -542,11 +551,15 @@ netlink_link_add_ipvlan(vrrp_t *vrrp)
 
 	ifp->is_ours = true;
 	if (create_interface && vrrp->configured_ifp->base_ifp->ifindex) {
+		memset(&req, 0, sizeof (req));
+
 		/* Request that NETLINK create the VIF interface */
 		req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
 		req.n.nlmsg_flags = NLM_F_REQUEST | NLM_F_CREATE | NLM_F_EXCL;
 		req.n.nlmsg_type = RTM_NEWLINK;
 		req.ifi.ifi_family = AF_UNSPEC;
+		req.ifi.ifi_change |= IFF_UP;
+		req.ifi.ifi_flags |= IFF_UP;
 
 		/* ipvlan settings */
 
@@ -604,38 +617,31 @@ netlink_link_add_ipvlan(vrrp_t *vrrp)
 			ifp->base_ifp = ifp;
 		}
 
-		/* If we do anything that might cause the interface state to change, we must
-		 * read the reflected netlink messages to ensure that the link status doesn't
-		 * get updated by out of date queued messages */
-		kernel_netlink_poll();
+		__set_bit(VRRP_VMAC_UP_BIT, &vrrp->flags);
+
+	} else if (!(ifp->ifi_flags & IFF_UP)) {
+		/* bring it UP ! */
+		netlink_link_up(vrrp);
+
+		__set_bit(VRRP_VMAC_UP_BIT, &vrrp->flags);
 	}
+
+	/* If we do anything that might cause the interface state to change, we must
+	 * read the reflected netlink messages to ensure that the link status doesn't
+	 * get updated by out of date queued messages */
+	kernel_netlink_poll();
 
 	ifp->vmac_type = IPVLAN_MODE_L2;
 
 	if (!ifp->ifindex)
 		return false;
 
-	if (vrrp->family == AF_INET) {
-		/* We don't want IPv6 running on the interface unless we have some IPv6
-		 * eVIPs, so disable it if not needed */
-		if (vrrp->family == AF_INET && !__test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags))
-			link_set_ipv6(ifp, false);
-		else if (!create_interface) {
-			/* If we didn't create the VMAC we don't know what state it is in */
-			link_set_ipv6(ifp, true);
-		}
-	}
-
-	if (vrrp->family == AF_INET6 || __test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags)) {
-		/* Make sure IPv6 is enabled for the interface, in case the
-		 * sysctl net.ipv6.conf.default.disable_ipv6 is set true. */
+	/* We don't want IPv6 running on the interface unless we have some IPv6
+	 * eVIPs, so disable it if not needed */
+	if (vrrp->family == AF_INET && !__test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags))
+		link_set_ipv6(ifp, false);
+	else
 		link_set_ipv6(ifp, true);
-	}
-
-	/* bring it UP ! */
-	__set_bit(VRRP_VMAC_UP_BIT, &vrrp->flags);
-	netlink_link_up(vrrp);
-	kernel_netlink_poll();
 
 	if (vrrp->ipvlan_addr) {
 		if (netlink_ipaddress(vrrp->ipvlan_addr, IPADDRESS_ADD) != 1)

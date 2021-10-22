@@ -58,7 +58,7 @@
 #define LB_ETHTOOL 0x4
 #endif
 
-/* We need a default MTU in case a vrrp instance using usicast doesn't specify an interface */
+/* We need a default MTU in case a vrrp instance using unicast doesn't specify an interface */
 #define	DEFAULT_MTU	1500
 
 /* I don't know what the correct type is.
