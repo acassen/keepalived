@@ -2832,6 +2832,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	interface_t *ifp = NULL;
 	const char *if_type;
 	interface_t *base_ifp;
+	interface_t *old_interface = NULL;
 	bool if_sorted;
 	bool use_extra_if = false;
 	bool use_extra_vmac = false;
@@ -3426,11 +3427,13 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		    (ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_NO_CREATE)) &&
 		     ifp->ifindex) {
 			/* An interface with the same name exists, but it doesn't match */
-			if (IS_MAC_IP_VLAN(ifp))
+			if (IS_MAC_IP_VLAN(ifp)) {
 				log_message(LOG_INFO, "(%s) %s %s already exists but is incompatible."
 						      " It will be deleted/updated"
 						    , vrrp->iname, if_type, vrrp->vmac_ifname);
-			else {
+				if (ifp->base_ifp->ifindex != vrrp->configured_ifp->ifindex)
+					old_interface = ifp;
+			} else {
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) %s interface name %s"
 									  " already exists as a non %s"
 									  " interface. ignoring configured name"
@@ -3579,7 +3582,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #endif
 			{
 				/* coverity[var_deref_model] - vrrp->configured_ifp is not NULL for VMAC */
-				netlink_link_add_vmac(vrrp);
+				netlink_link_add_vmac(vrrp, old_interface);
 			}
 		}
 
@@ -3731,7 +3734,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 							memcpy(addr_vrrp.ll_addr, vrrp->ll_addr, sizeof(vrrp->ll_addr));
 						}
 
-						netlink_link_add_vmac(&addr_vrrp);
+						netlink_link_add_vmac(&addr_vrrp, false);
 					} else {
 						ifp->is_ours = true;
 						ifp->if_type = IF_TYPE_MACVLAN;

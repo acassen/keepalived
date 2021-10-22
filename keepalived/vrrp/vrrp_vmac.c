@@ -249,7 +249,7 @@ set_link_local_address(const vrrp_t *vrrp)
 }
 
 bool
-netlink_link_add_vmac(vrrp_t *vrrp)
+netlink_link_add_vmac(vrrp_t *vrrp, interface_t *old_interface)
 {
 	struct rtattr *linkinfo;
 	struct rtattr *data;
@@ -289,7 +289,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	if (ifp->ifindex) {
 		/* Check to see whether this interface has wrong mac ?
 		 * The parser checks the interface is a private mode macvlan. */
-		if (ifp->base_ifp->ifindex != vrrp->configured_ifp->ifindex) {
+		if (ifp->base_ifp->ifindex != vrrp->configured_ifp->ifindex || old_interface) {
 			/* Be safe here - we don't want to remove a physical interface.
 			 * vrrp_vmac_handler() should have already ensured it is a macvlan */
 			if (ifp->if_type == IF_TYPE_MACVLAN) {
