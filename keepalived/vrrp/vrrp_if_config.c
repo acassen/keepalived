@@ -176,7 +176,7 @@ nest_end(struct nlattr *nla, struct nlattr *nest)
 }
 
 static inline int
-netlink_set_interface_flags(int ifindex, const sysctl_opts_t *sys_opts)
+netlink_set_interface_flags(unsigned ifindex, const sysctl_opts_t *sys_opts)
 {
 	int status = 0;
 	struct {

@@ -1548,6 +1548,7 @@ thread_cancel(thread_ref_t thread_cp)
 		break;
 	case THREAD_EVENT:
 	case THREAD_READY:
+	case THREAD_READY_TIMER:
 #ifdef USE_SIGNAL_THREADS
 	case THREAD_SIGNAL:
 #endif
@@ -1555,7 +1556,13 @@ thread_cancel(thread_ref_t thread_cp)
 	case THREAD_CHILD_TERMINATED:
 		list_del_init(&thread->e_list);
 		break;
+	case THREAD_TIMER_SHUTDOWN:
+	case THREAD_TERMINATE_START:
+	case THREAD_TERMINATE:
+		log_message(LOG_WARNING, "ERROR - thread_cancel called for THREAD_%s", thread->type == THREAD_TIMER_SHUTDOWN ? "TIMER_SHUTDOWN" : thread->type == THREAD_TERMINATE ? "TERMINATE" : "TERMINATE_START");
+		return;
 	default:
+		log_message(LOG_WARNING, "ERROR - thread_cancel called for unknown thread type %u", thread->type);
 		break;
 	}
 

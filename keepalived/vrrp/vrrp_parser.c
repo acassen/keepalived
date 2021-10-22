@@ -569,7 +569,9 @@ vrrp_vmac_handler(const vector_t *strvec)
 
 			/* Check if the interface exists and is a macvlan we can use */
 			if ((ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_NO_CREATE)) &&
-			    ifp->vmac_type != MACVLAN_MODE_PRIVATE) {
+			    (ifp->if_type != IF_TYPE_MACVLAN ||
+			     ifp->vmac_type != MACVLAN_MODE_PRIVATE)) {
+				/* ??? also check ADDR_GEN_MODE and VRF enslavement matches parent */
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) interface %s already exists and is not a private macvlan; ignoring vmac if_name", vrrp->iname, vrrp->vmac_ifname);
 				vrrp->vmac_ifname[0] = '\0';
 			}
@@ -710,7 +712,8 @@ vrrp_ipvlan_handler(const vector_t *strvec)
 
 		strcpy(vrrp->vmac_ifname, ifname);
 
-		/* Check if the interface exists and is ipvlan we can use */
+		/* Check if the interface exists and is ipvlan we can use
+		   ??? also check ADDR_GEN_MODE and VRF enslavement matches parent */
 		if ((ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_NO_CREATE)) &&
 		    (ifp->if_type != IF_TYPE_IPVLAN ||
 		     ifp->vmac_type != IPVLAN_MODE_L2)) {

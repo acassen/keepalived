@@ -48,7 +48,7 @@ if [[ ! -p $FIFO ]]; then
 	if [[ $? -eq 0 ]]; then
 		CREATED_FIFO=1
 	else
-		echo "Unable to create fifo $FIFO"
+		echo "Unable to create fifo $FIFO" >>$LOG_FILE
 		exit 1
 	fi
 fi
@@ -58,7 +58,7 @@ fi
 # FIFO, the script will be blocked until it has been opened.
 while [[ 1 ]]
 do
-	[[ ! -p $FIFO ]] && echo FIFO $FIFO missing && exit 1
+	[[ ! -p $FIFO ]] && echo FIFO $FIFO missing >>$LOG_FILE && exit 1
 
 	while read line; do
 		PROLOGUE=$(echo "$(date +"%a %b %e %X %Y")": \[$PPID:$$\])

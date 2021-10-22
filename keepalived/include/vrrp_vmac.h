@@ -50,7 +50,7 @@ extern bool reset_link_local_address(struct in6_addr*, vrrp_t *);
 extern void remove_vmac_auto_gen_addr(interface_t *, struct in6_addr *);
 #endif
 extern bool set_link_local_address(const vrrp_t *);
-extern bool netlink_link_add_vmac(vrrp_t *);
+extern bool netlink_link_add_vmac(vrrp_t *, const interface_t *);
 extern void netlink_link_del_vmac(vrrp_t *);
 #ifdef _HAVE_VRRP_IPVLAN_
 extern bool netlink_link_add_ipvlan(vrrp_t *);

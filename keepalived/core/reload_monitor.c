@@ -67,6 +67,7 @@ reload_timer_thread(__attribute__((unused)) thread_ref_t thread)
 	inotify_thread = NULL;
 
 	close(inotify_fd);
+	inotify_fd = -1;
 
 	if (!global_data->reload_repeat ||
 	    global_data->reload_date_specified)
