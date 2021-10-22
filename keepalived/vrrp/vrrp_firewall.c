@@ -157,7 +157,11 @@ firewall_remove_rule_to_iplist(list_head_t *l)
 
 #ifdef _HAVE_VRRP_VMAC_
 void
-firewall_add_vmac(const vrrp_t *vrrp)
+firewall_add_vmac(const vrrp_t *vrrp,
+#ifndef _WITH_NFTABLES_
+			__attribute__((unused))
+#endif
+						const interface_t *old_ifp)
 {
 #if defined _WITH_IPTABLES_ && defined _WITH_NFTABLES_
 	if (!checked_iptables_nft)
@@ -171,7 +175,7 @@ firewall_add_vmac(const vrrp_t *vrrp)
 
 #ifdef _WITH_NFTABLES_
 	if (global_data->vrrp_nf_table_name)
-		nft_add_vmac(vrrp->ifp, vrrp->family, __test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags));
+		nft_add_vmac(vrrp->ifp, vrrp->family, __test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags), old_ifp);
 #endif
 }
 

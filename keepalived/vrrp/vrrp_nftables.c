@@ -1444,31 +1444,41 @@ nft_update_vmac_family(struct mnl_nlmsg_batch *batch, const interface_t *ifp, ui
 }
 
 static void
-nft_update_vmac(const interface_t *ifp, int family, bool other_family, int cmd)
+nft_update_vmac(struct mnl_nlmsg_batch *batch, const interface_t *ifp, int family, bool other_family, int cmd)
 {
-	struct mnl_nlmsg_batch *batch;
 	uint8_t nfproto = family == AF_INET ? NFPROTO_IPV4 : NFPROTO_IPV6;
-
-	batch = nft_start_batch();
 
 	nft_update_vmac_family(batch, ifp, nfproto, cmd);
 
 	if (other_family)
 		nft_update_vmac_family(batch, ifp, nfproto == NFPROTO_IPV4 ? NFPROTO_IPV6 : NFPROTO_IPV4, cmd);
+}
+
+void
+nft_add_vmac(const interface_t *ifp, int family, bool other_family, const interface_t *old_ifp)
+{
+	struct mnl_nlmsg_batch *batch;
+
+	batch = nft_start_batch();
+
+	if (old_ifp)
+		nft_update_vmac(batch, old_ifp, family, other_family, NFT_MSG_DELSETELEM);
+
+	nft_update_vmac(batch, ifp, family, other_family, NFT_MSG_NEWSETELEM);
 
 	nft_end_batch(batch, false);
 }
 
 void
-nft_add_vmac(const interface_t *ifp, int family, bool other_family)
-{
-	nft_update_vmac(ifp, family, other_family, NFT_MSG_NEWSETELEM);
-}
-
-void
 nft_remove_vmac(const interface_t *ifp, int family, bool other_family)
 {
-	nft_update_vmac(ifp, family, other_family, NFT_MSG_DELSETELEM);
+	struct mnl_nlmsg_batch *batch;
+
+	batch = nft_start_batch();
+
+	nft_update_vmac(batch, ifp, family, other_family, NFT_MSG_DELSETELEM);
+
+	nft_end_batch(batch, false);
 }
 #endif
 

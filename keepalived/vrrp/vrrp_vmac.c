@@ -249,7 +249,7 @@ set_link_local_address(const vrrp_t *vrrp)
 }
 
 bool
-netlink_link_add_vmac(vrrp_t *vrrp, interface_t *old_interface)
+netlink_link_add_vmac(vrrp_t *vrrp, const interface_t *old_interface)
 {
 	struct rtattr *linkinfo;
 	struct rtattr *data;
@@ -415,7 +415,7 @@ netlink_link_add_vmac(vrrp_t *vrrp, interface_t *old_interface)
 
 #ifdef _WITH_FIREWALL_
 	if (vrrp->family == AF_INET6 || !global_data->disable_local_igmp)
-		firewall_add_vmac(vrrp);
+		firewall_add_vmac(vrrp, old_interface);
 #endif
 
 	/* We don't want IPv6 running on the interface unless we have some IPv6
