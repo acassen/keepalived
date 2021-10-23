@@ -880,8 +880,7 @@ print_parent_data(__attribute__((unused)) thread_ref_t thread)
 void
 reinitialise_global_vars(void)
 {
-	default_script_uid = 0;
-	default_script_gid = 0;
+	reset_default_script_user();
 }
 
 /* SIGHUP/USR1/USR2/STATS_CLEAR handler */

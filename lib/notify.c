@@ -45,14 +45,17 @@
 #include "scheduler.h"
 
 
+/* Save our uid/gid */
+uid_t our_uid = (uid_t)-1;
+gid_t our_gid;
+
 /* Default user/group for script execution */
-uid_t default_script_uid;
-gid_t default_script_gid;
+static uid_t default_script_uid;
+static gid_t default_script_gid;
 
 /* Have we got a default user OK? */
 static bool default_script_uid_set = false;
-static bool default_user_fail = false;			/* Set if failed to set default user,
-							   unless it defaults to root */
+static bool default_user_fail = false;
 
 /* Script security enabled */
 bool script_security = false;
@@ -253,7 +256,13 @@ fifo_open(notify_fifo_t* fifo, thread_func_t script_exit, const char *type)
 		if (!(ret = mkfifo(fifo->name, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))) {
 			fifo->created_fifo = true;
 
-			if (chown(fifo->name, fifo->uid, fifo->gid))
+			if (our_uid == (uid_t)-1) {
+				our_uid = geteuid();
+				our_gid = getegid();
+			}
+
+			if ((fifo->uid != our_uid || fifo->gid != our_gid) &&
+			     chown(fifo->name, our_uid != fifo->uid ? fifo->uid : (uid_t)-1, our_gid != fifo->gid ? fifo->gid : (gid_t)-1))
 				log_message(LOG_INFO, "Failed to set uid:gid for fifo %s", fifo->name);
 		} else {
 			sav_errno = errno;
@@ -872,7 +881,7 @@ set_pwnam_buf_len(void)
 }
 
 static bool
-set_uid_gid(const char *username, const char *groupname, uid_t *uid_p, gid_t *gid_p, bool default_user)
+set_uid_gid(const char *username, const char *groupname, uid_t *uid_p, gid_t *gid_p)
 {
 	uid_t uid;
 	gid_t gid;
@@ -881,7 +890,6 @@ set_uid_gid(const char *username, const char *groupname, uid_t *uid_p, gid_t *gi
 	struct group grp;
 	struct group *grp_p;
 	int ret;
-	bool using_default_default_user = false;
 	char *buf;
 
 	if (!getpwnam_buf_len)
@@ -889,21 +897,13 @@ set_uid_gid(const char *username, const char *groupname, uid_t *uid_p, gid_t *gi
 
 	buf = MALLOC(getpwnam_buf_len);
 
-	if (default_user && !username) {
-		using_default_default_user = true;
-		username = "keepalived_script";
-	}
-
 	if ((ret = getpwnam_r(username, &pwd, buf, getpwnam_buf_len, &pwd_p))) {
-		log_message(LOG_INFO, "Unable to resolve %sscript username '%s' - ignoring", default_user ? "default " : "", username);
+		log_message(LOG_INFO, "Unable to resolve script username '%s' - ignoring", username);
 		FREE(buf);
 		return true;
 	}
 	if (!pwd_p) {
-		if (using_default_default_user)
-			log_message(LOG_INFO, "WARNING - default user '%s' for script execution does not exist - please create.", username);
-		else
-			log_message(LOG_INFO, "%script user '%s' does not exist", default_user ? "Default s" : "S", username);
+		log_message(LOG_INFO, "Script user '%s' does not exist", username);
 		FREE(buf);
 		return true;
 	}
@@ -913,12 +913,12 @@ set_uid_gid(const char *username, const char *groupname, uid_t *uid_p, gid_t *gi
 
 	if (groupname) {
 		if ((ret = getgrnam_r(groupname, &grp, buf, getpwnam_buf_len, &grp_p))) {
-			log_message(LOG_INFO, "Unable to resolve %sscript group name '%s' - ignoring", default_user ? "default " : "", groupname);
+			log_message(LOG_INFO, "Unable to resolve script group name '%s' - ignoring", groupname);
 			FREE(buf);
 			return true;
 		}
 		if (!grp_p) {
-			log_message(LOG_INFO, "%script group '%s' does not exist", default_user ? "Default s" : "S", groupname);
+			log_message(LOG_INFO, "Script group '%s' does not exist", groupname);
 			FREE(buf);
 			return true;
 		}
@@ -933,23 +933,57 @@ set_uid_gid(const char *username, const char *groupname, uid_t *uid_p, gid_t *gi
 	return false;
 }
 
-/* The default script user/group is keepalived_script if it exists, or root otherwise */
+/* The default script user/group is keepalived_script if it exists, or our uid/gid otherwise */
+void
+reset_default_script_user(void)
+{
+	default_script_uid_set = false;
+	default_user_fail = false;
+}
+
 bool
 set_default_script_user(const char *username, const char *groupname)
 {
-	if (!default_script_uid_set || username) {
+	/* Even if we fail to set it, there is no point in trying again */
+	default_script_uid_set = true;
+
+	if (set_uid_gid(username, groupname, &default_script_uid, &default_script_gid))
+		default_user_fail = true;
+
+	return default_user_fail;
+}
+
+bool
+get_default_script_user(uid_t *uid, gid_t *gid)
+{
+	const char *default_user = "keepalived_script";
+
+	if (default_user_fail)
+		return true;
+
+	if (!default_script_uid_set) {
 		/* Even if we fail to set it, there is no point in trying again */
 		default_script_uid_set = true;
 
-		if (set_uid_gid(username, groupname, &default_script_uid, &default_script_gid, true)) {
-			if (username || script_security)
-				default_user_fail = true;
+		if (our_uid == (uid_t)-1) {
+			our_uid = geteuid();
+			our_gid = getegid();
 		}
-		else
-			default_user_fail = false;
+
+		default_script_uid = our_uid;
+		default_script_gid = our_gid;
+
+		if (set_uid_gid(default_user, NULL, &default_script_uid, &default_script_gid) && script_security) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Unable to set default user %s for script", default_user);
+			default_user_fail = true;
+			return true;
+		}
 	}
 
-	return default_user_fail;
+	*uid = default_script_uid;
+	*gid = default_script_gid;
+
+	return false;
 }
 
 bool
@@ -964,7 +998,7 @@ set_script_uid_gid(const vector_t *strvec, unsigned keyword_offset, uid_t *uid_p
 	else
 		groupname = NULL;
 
-	return set_uid_gid(username, groupname, uid_p, gid_p, false);
+	return set_uid_gid(username, groupname, uid_p, gid_p);
 }
 
 void
@@ -1044,18 +1078,12 @@ notify_script_init(int extra_params, const char *type)
 			free_strvec(strvec_qe);
 			return NULL;
 		}
-	}
-	else {
-		if (set_default_script_user(NULL, NULL)) {
-			log_message(LOG_INFO, "Failed to set default user for %s script %s - ignoring", type, script->args[0]);
-			FREE_CONST(script->args);
-			FREE(script);
-			free_strvec(strvec_qe);
-			return NULL;
-		}
-
-		script->uid = default_script_uid;
-		script->gid = default_script_gid;
+	} else if (get_default_script_user(&script->uid, &script->gid)) {
+		log_message(LOG_INFO, "Failed to set default user for %s script %s - ignoring", type, script->args[0]);
+		FREE_CONST(script->args);
+		FREE(script);
+		free_strvec(strvec_qe);
+		return NULL;
 	}
 
 	free_strvec(strvec_qe);

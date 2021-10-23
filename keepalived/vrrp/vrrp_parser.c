@@ -1614,7 +1614,7 @@ vrrp_vscript_end_handler(void)
 		if (script_user_set)
 			return;
 
-		if (set_default_script_user(NULL, NULL)) {
+		if (get_default_script_user(&vscript->script.uid, &vscript->script.gid)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Unable to set default user for vrrp"
 								  " script %s - removing"
 								, vscript->sname);
@@ -1626,9 +1626,6 @@ vrrp_vscript_end_handler(void)
 		free_vscript(vscript);
 		return;
 	}
-
-	vscript->script.uid = default_script_uid;
-	vscript->script.gid = default_script_gid;
 }
 
 #ifdef _WITH_TRACK_PROCESS_
