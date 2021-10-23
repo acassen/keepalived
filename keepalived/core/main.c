@@ -2390,6 +2390,8 @@ keepalived_main(int argc, char **argv)
 	/* Is there a TMPDIR override? */
 	set_tmp_dir();
 
+	set_our_uid_gid();
+
 	/* Save command line options in case need to log them later */
 	save_cmd_line_options(argc, argv);
 

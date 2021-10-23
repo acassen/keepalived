@@ -46,7 +46,7 @@
 
 
 /* Save our uid/gid */
-uid_t our_uid = (uid_t)-1;
+uid_t our_uid;
 gid_t our_gid;
 
 /* Default user/group for script execution */
@@ -72,24 +72,27 @@ static char cmd_str_buf[MAXBUF];
 static bool
 set_script_env(uid_t uid, gid_t gid)
 {
-	if (gid) {
+	if (uid == our_uid && gid == our_gid)
+		return false;
+
+	if (gid != our_gid) {
 		if (setgid(gid) < 0) {
 			log_message(LOG_ALERT, "Couldn't setgid: %u (%m)", gid);
 			return true;
 		}
-
-		/* Clear any extra supplementary groups */
-		if (setgroups(1, &gid) < 0) {
-			log_message(LOG_ALERT, "Couldn't setgroups: %u (%m)", gid);
-			return true;
-		}
 	}
 
-	if (uid) {
+	if (uid != our_uid) {
 		if (setuid(uid) < 0) {
 			log_message(LOG_ALERT, "Couldn't setuid: %u (%m)", uid);
 			return true;
 		}
+	}
+
+	/* Clear any extra supplementary groups */
+	if (setgroups(1, &gid) < 0) {
+		log_message(LOG_ALERT, "Couldn't setgroups: %u (%m)", gid);
+		return true;
 	}
 
 	/* Prepare for invoking process/script */
@@ -255,11 +258,6 @@ fifo_open(notify_fifo_t* fifo, thread_func_t script_exit, const char *type)
 
 		if (!(ret = mkfifo(fifo->name, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))) {
 			fifo->created_fifo = true;
-
-			if (our_uid == (uid_t)-1) {
-				our_uid = geteuid();
-				our_gid = getegid();
-			}
 
 			if ((fifo->uid != our_uid || fifo->gid != our_gid) &&
 			     chown(fifo->name, our_uid != fifo->uid ? fifo->uid : (uid_t)-1, our_gid != fifo->gid ? fifo->gid : (gid_t)-1))
@@ -476,12 +474,22 @@ find_path(notify_script_t *script)
 		goto exit1;
 	}
 
-	/* Set file access to the relevant uid/gid */
-	if (script->gid) {
-		if (setegid(script->gid)) {
-			log_message(LOG_INFO, "Unable to set egid to %u (%m)", script->gid);
-			ret_val = EACCES;
-			goto exit1;
+	if (script->uid != our_uid || script->gid != our_gid) {
+		/* Set file access to the relevant uid/gid */
+		if (script->gid != our_gid) {
+			if (setegid(script->gid)) {
+				log_message(LOG_INFO, "Unable to set egid to %u (%m)", script->gid);
+				ret_val = EACCES;
+				goto exit1;
+			}
+		}
+
+		if (script->uid != our_uid) {
+			if (seteuid(script->uid)) {
+				log_message(LOG_INFO, "Unable to set euid to %u (%m)", script->uid);
+				ret_val = EACCES;
+				goto exit;
+			}
 		}
 
 		/* Get our supplementary groups */
@@ -493,7 +501,7 @@ find_path(notify_script_t *script)
 		}
 		sgid_list = MALLOC(((size_t)sgid_num + 1) * sizeof(gid_t));
 		sgid_num = getgroups(sgid_num, sgid_list);
-		sgid_list[sgid_num++] = 0;
+		sgid_list[sgid_num++] = our_gid;
 
 		/* Clear the supplementary group list */
 		if (setgroups(1, &script->gid)) {
@@ -501,11 +509,6 @@ find_path(notify_script_t *script)
 			ret_val = EACCES;
 			goto exit;
 		}
-	}
-	if (script->uid && seteuid(script->uid)) {
-		log_message(LOG_INFO, "Unable to set euid to %u (%m)", script->uid);
-		ret_val = EACCES;
-		goto exit;
 	}
 
 	for (p = path; ; p = subp)
@@ -588,18 +591,16 @@ find_path(notify_script_t *script)
 
 exit:
 	/* Restore root euid/egid */
-	if (script->uid && seteuid(0))
+	if (script->gid != our_gid && setegid(our_gid))
+		log_message(LOG_INFO, "Unable to restore egid after script search (%m)");
+	if (script->uid != our_uid && seteuid(our_uid))
 		log_message(LOG_INFO, "Unable to restore euid after script search (%m)");
-	if (script->gid) {
-		if (setegid(0))
-			log_message(LOG_INFO, "Unable to restore egid after script search (%m)");
 
-		/* restore supplementary groups */
-		if (sgid_list) {
-			if (setgroups((size_t)sgid_num, sgid_list))
-				log_message(LOG_INFO, "Unable to restore supplementary groups after script search (%m)");
-			FREE(sgid_list);
-		}
+	/* restore supplementary groups */
+	if (sgid_list) {
+		if (setgroups((size_t)sgid_num, sgid_list))
+			log_message(LOG_INFO, "Unable to restore supplementary groups after script search (%m)");
+		FREE(sgid_list);
 	}
 
 exit1:
@@ -689,8 +690,6 @@ check_script_secure(notify_script_t *script,
 	int ret, ret_real, ret_new;
 	struct stat file_buf, real_buf;
 	bool need_script_protection = false;
-	uid_t old_uid = 0;
-	gid_t old_gid = 0;
 	char *new_path;
 	char *sav_path;
 	int sav_errno;
@@ -719,18 +718,13 @@ check_script_secure(notify_script_t *script,
 	}
 
 	/* Check script accessible by the user running it */
-	if (script->uid)
-		old_uid = geteuid();
-	if (script->gid)
-		old_gid = getegid();
-
-	if ((script->gid && setegid(script->gid)) ||
-	    (script->uid && seteuid(script->uid))) {
+	if ((script->gid != our_gid && setegid(script->gid)) ||
+	    (script->uid != our_uid && seteuid(script->uid))) {
 		log_message(LOG_INFO, "Unable to set uid:gid %u:%u for script %s - disabling", script->uid, script->gid, script->args[0]);
 
-		if ((script->uid && seteuid(old_uid)) ||
-		    (script->gid && setegid(old_gid)))
-			log_message(LOG_INFO, "Unable to restore uid:gid %u:%u after script %s", script->uid, script->gid, script->args[0]);
+		if ((script->uid != our_uid && seteuid(our_uid)) ||
+		    (script->gid != our_gid && setegid(our_gid)))
+			log_message(LOG_INFO, "Unable to restore uid:gid from %u:%u %u:%u after script %s", our_uid, our_gid, script->uid, script->gid, script->args[0]);
 
 		return SC_INHIBIT;
 	}
@@ -739,9 +733,9 @@ check_script_secure(notify_script_t *script,
 	new_path = realpath(script->args[0], NULL);
 	sav_errno = errno;
 
-	if ((script->gid && setegid(old_gid)) ||
-	    (script->uid && seteuid(old_uid)))
-		log_message(LOG_INFO, "Unable to restore uid:gid %u:%u after checking script %s", script->uid, script->gid, script->args[0]);
+	if ((script->gid != our_gid && setegid(our_gid)) ||
+	    (script->uid != our_uid && seteuid(our_uid)))
+		log_message(LOG_INFO, "Unable to restore uid:gid %u:%u from %u:%u after checking script %s", our_uid, our_gid, script->uid, script->gid, script->args[0]);
 
 	if (!new_path)
 	{
@@ -965,11 +959,6 @@ get_default_script_user(uid_t *uid, gid_t *gid)
 		/* Even if we fail to set it, there is no point in trying again */
 		default_script_uid_set = true;
 
-		if (our_uid == (uid_t)-1) {
-			our_uid = geteuid();
-			our_gid = getegid();
-		}
-
 		default_script_uid = our_uid;
 		default_script_gid = our_gid;
 
@@ -1130,6 +1119,13 @@ notify_script_compare(const notify_script_t *a, const notify_script_t *b)
 	}
 
 	return true;
+}
+
+void
+set_our_uid_gid(void)
+{
+	our_uid = geteuid();
+	our_gid = getegid();
 }
 
 #ifdef THREAD_DUMP

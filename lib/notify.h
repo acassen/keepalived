@@ -107,6 +107,7 @@ extern notify_script_t* notify_script_init(int, const char *);
 extern void add_script_param(notify_script_t *, const char *);
 extern void notify_resource_release(void);
 extern bool notify_script_compare(const notify_script_t *, const notify_script_t *) __attribute__ ((pure));
+extern void set_our_uid_gid(void);
 #ifdef THREAD_DUMP
 extern void register_notify_addresses(void);
 #endif
