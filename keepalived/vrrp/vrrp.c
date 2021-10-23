@@ -4270,6 +4270,7 @@ check_vrid_conflicts(void)
 	void *vrrp_saddr, *vrrp1_saddr;
 	bool had_error = false;
 	sockaddr_t *mcast, *mcast1;
+	unicast_peer_t *peer, *peer1;
 
 	/* NOTE: The following isn't perfect, since macvlan interfaces may be deleted and
 	 * recreated on a different interface. However, it is checking the current situation. */
@@ -4319,6 +4320,23 @@ check_vrid_conflicts(void)
 				}
 
 				if (vrrp_saddr && vrrp1_saddr && inet_inaddrcmp(vrrp->family, vrrp_saddr, vrrp1_saddr))
+					continue;
+
+				/* Don't allow duplicate VRIDs with interface specified for one but not the other */
+
+				/* Mark the VRRP instances as have duplicate instances with same VRID/local address/interface */
+				__set_bit(VRRP_FLAG_UNICAST_DUPLICATE_VRID, &vrrp->flags);
+				__set_bit(VRRP_FLAG_UNICAST_DUPLICATE_VRID, &vrrp1->flags);
+
+				bool unicast_peer_matched = false;
+				list_for_each_entry(peer, &vrrp->unicast_peer, e_list) {
+					list_for_each_entry(peer1, &vrrp1->unicast_peer, e_list) {
+						if (inet_sockaddrcmp(&peer->address, &peer1->address) == 0)
+							unicast_peer_matched = true;
+					}
+				}
+
+				if (!unicast_peer_matched)
 					continue;
 
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) duplicate VRID conflict with %s VRID %d", vrrp->iname, vrrp1->iname, vrrp->vrid);

@@ -896,6 +896,7 @@ vrrp_dispatcher_read(sock_t *sock)
 	unsigned recv_data_count = 0;
 #endif
 	const struct iphdr *iph;
+	unicast_peer_t *unicast_peer;
 
 	/* Strategy here is to handle incoming adverts pending into socket recvq
 	 * but stop if receive 2nd advert for a VRID on socket (this applies to
@@ -989,12 +990,6 @@ vrrp_dispatcher_read(sock_t *sock)
 		if (!(hd = vrrp_get_header(sock->family, vrrp_buffer, len)))
 			break;
 
-		/* Defense strategy here is to handle no more than one advert
-		 * per VRID in order to flush socket rcvq...
-		 * This is a best effort mitigation */
-		if (__test_and_set_bit_array(hd->vrid, rx_vrid_map))
-			terminate_receiving = true;
-
 		vrrp_node = rb_find(&hd->vrid, &sock->rb_vrid, vrrp_vrid_cmp);
 
 		/* No instance found => ignore the advert */
@@ -1005,6 +1000,55 @@ vrrp_dispatcher_read(sock_t *sock)
 			continue;
 		}
 		vrrp = rb_entry(vrrp_node, vrrp_t, rb_vrid);
+
+		/* Defense strategy here is to handle no more than one advert
+		 * per VRID in order to flush socket rcvq...
+		 * This is a best effort mitigation */
+		if (__test_and_set_bit_array(hd->vrid, rx_vrid_map))
+			terminate_receiving = true;
+
+		if (__test_bit(VRRP_FLAG_UNICAST_DUPLICATE_VRID, &vrrp->flags)) {
+			rb_node_t *first = vrrp_node;	/* Save for second loop */
+
+			/* First check the address we last received an advert from. This is
+			 * an optimisation since we are most likely to receive an advert from
+			 * the same address as last time, and it saves searching all the peers. */
+			for (; vrrp_node; vrrp_node = rb_next_match(&hd->vrid, vrrp_node, vrrp_vrid_cmp)) {
+				vrrp = rb_entry(vrrp_node, vrrp_t, rb_vrid);
+				if (!inet_sockaddrcmp(&src_addr, &vrrp->pkt_saddr))
+					break;
+			}
+
+			if (!vrrp_node) {
+				/* Loop through VRRP instances matching hd->vrid if unicast to match
+				 * src address of packet against configured peers */
+				for (vrrp_node = first; vrrp_node; vrrp_node = rb_next_match(&hd->vrid, vrrp_node, vrrp_vrid_cmp)) {
+					vrrp = rb_entry(vrrp_node, vrrp_t, rb_vrid);
+
+					list_for_each_entry(unicast_peer, &vrrp->unicast_peer, e_list) {
+						if (inet_sockaddrcmp(&src_addr, &unicast_peer->address) == 0)
+							break;
+						if (list_is_last(&unicast_peer->e_list, &vrrp->unicast_peer)) {
+							unicast_peer = NULL;
+							break;
+						}
+					}
+
+					/* We have found the matching peer */
+					if (unicast_peer)
+						break;
+				}
+
+				if (!vrrp_node) {
+					/* Do nothing and fail because we didn't match any good instance */
+					if (global_data->log_unknown_vrids)
+						log_message(LOG_INFO, "Unknown VRID(%d) received on interface(%s) from %s. ignoring..."
+								    , hd->vrid, IF_NAME(sock->ifp), inet_sockaddrtos(&src_addr));
+
+					continue;
+				}
+			}
+		}
 
 		if (vrrp->state == VRRP_STATE_FAULT || vrrp->state == VRRP_STATE_INIT) {
 			/* We just ignore a message received when we are in fault state or

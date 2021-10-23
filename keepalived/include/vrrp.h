@@ -53,6 +53,7 @@ struct _ip_address;
 enum vrrp_flags_bits {
 	VRRP_FLAG_UNICAST_CONFIGURED,
 	VRRP_FLAG_UNICAST,
+	VRRP_FLAG_UNICAST_DUPLICATE_VRID,
 	VRRP_FLAG_UNICAST_FAULT_NO_PEERS,
 	VRRP_FLAG_DONT_TRACK_PRIMARY,		/* If set ignores ifp faults */
 	VRRP_FLAG_LINKBEAT_USE_POLLING,		/* Don't use netlink for interface status */
