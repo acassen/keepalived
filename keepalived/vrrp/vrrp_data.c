@@ -603,7 +603,7 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 	if (vrrp->flags) {
 		conf_write(fp, "   Flags:");
 		if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags))
-			conf_write(fp, "     Using unicast");
+			conf_write(fp, "     Using unicast%s", __test_bit(VRRP_FLAG_UNICAST_DUPLICATE_VRID, &vrrp->flags) ? " with VRID duplication" : "");
 		else if (__test_bit(VRRP_FLAG_UNICAST_CONFIGURED, &vrrp->flags))
 			conf_write(fp, "     Unicast config option specified but using multicast");
 		if (__test_bit(VRRP_FLAG_UNICAST_FAULT_NO_PEERS, &vrrp->flags))

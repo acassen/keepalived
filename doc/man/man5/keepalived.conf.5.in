@@ -1794,14 +1794,24 @@ The syntax for vrrp_instance is :
     # arbitrary unique number from 1 to 255
     # used to differentiate multiple instances of vrrpd
     # running on the same network interface and address
-    # family (and hence same socket).
+    # family and multicast/unicast (and hence same socket).
     # Note: using the same virtual_router_id with the same
     # address family on different interfaces has been known
     # to cause problems with some network switches; if you
     # are experiencing problems with using the same
     # virtual_router_id on different interfaces, but the problems
-    # are resolved by not duplicating virtual_router_ids, the
-    # your network switches are probably not functioning correctly.
+    # are resolved by not duplicating virtual_router_ids, your
+    # network switches are probably not functioning correctly.
+    #
+    # Whilst in general it is important not to duplicate a
+    # virtual_router_id on the same network interface, there is a
+    # special case when using unicasting if the unicast peers for
+    # the vrrp instances with duplicated virtual_router_ids on the
+    # network interface do not overlap, in which case virtual_router_ids
+    # can be duplicated.
+    # It is also possible to duplicate virtual_router_ids on an
+    # interface with multicasting if different multicast addresses
+    # are used (see mcast_dst_ip).
     \fBvirtual_router_id \fR51
 
     # for electing MASTER, highest priority wins.
