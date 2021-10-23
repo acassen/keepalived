@@ -443,6 +443,8 @@ int ipvs_init(void)
 		return ipvs_getinfo();
 
 	try_nl = false;
+#else
+	log_message(LOG_INFO, "Note: IPVS with IPv6 will not be supported");
 #endif
 
 	sockfd = socket_netns_name(global_data->network_namespace_ipvs, AF_INET, SOCK_RAW | SOCK_CLOEXEC, IPPROTO_RAW);
