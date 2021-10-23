@@ -79,6 +79,7 @@ alloc_bfd(const char *name)
 
 	/* Initialize internal variables */
 	bfd->fd_out = -1;
+	bfd->thread_open_fd_out = NULL;
 	bfd->thread_out = NULL;
 	bfd->thread_exp = NULL;
 	bfd->thread_rst = NULL;
@@ -159,6 +160,7 @@ dump_bfd(FILE *fp, const bfd_t *bfd)
 	/* If this is not at startup time, write some state variables */
 	if (fp) {
 		conf_write(fp, "   fd_out %d", bfd->fd_out);
+		conf_write(fp, "   thread_open_fd_out 0x%p", bfd->thread_open_fd_out);
 		conf_write(fp, "   thread_out 0x%p", bfd->thread_out);
 		conf_write_sands(fp, "sands_out", bfd->sands_out);
 		conf_write(fp, "   thread_exp 0x%p", bfd->thread_exp);

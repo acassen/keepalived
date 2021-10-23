@@ -47,6 +47,7 @@
 /* Locals */
 static int bfd_send_packet(int, bfdpkt_t *, bool);
 static void bfd_sender_schedule(bfd_t *);
+static int bfd_open_fd_out(bfd_t *);
 
 static void bfd_state_down(bfd_t *, uint8_t diag);
 
@@ -447,6 +448,26 @@ bfd_reset_discard(bfd_t *bfd)
 	bfd->sands_rst = TIMER_NEVER;
 }
 
+/* Cancels bfd_open_fd_out_thread run */
+static void
+bfd_open_fd_out_cancel(bfd_t *bfd)
+{
+	assert(bfd);
+	assert(bfd->thread_open_fd_out);
+
+	thread_cancel(bfd->thread_open_fd_out);
+	bfd->thread_open_fd_out = NULL;
+}
+
+/* Returns 1 if bfd_open_fd_out_thread is scheduled to run, 0 otherwise */
+static int __attribute__ ((pure))
+bfd_open_fd_out_scheduled(bfd_t *bfd)
+{
+	assert(bfd);
+
+	return bfd->thread_open_fd_out != NULL;
+}
+
 /*
  * State change handlers
  */
@@ -688,12 +709,21 @@ bfd_handle_packet(bfdpkt_t *pkt)
 
 	/* Discard all packets while in AdminDown state */
 	if (bfd->local_state == BFD_STATE_ADMINDOWN) {
-		if (__test_bit(LOG_DETAIL_BIT, &debug))
-			log_message(LOG_INFO, "Discarding packet from %s"
-				    " (session is in AdminDown state)",
-				    inet_sockaddrtopair(&pkt->src_addr));
+		/* See if we can open the out socket */
+		if (bfd_open_fd_out(bfd)) {
+			if (__test_bit(LOG_DETAIL_BIT, &debug))
+				log_message(LOG_INFO, "Discarding packet from %s"
+					    " (session is in AdminDown state)",
+					    inet_sockaddrtopair(&pkt->src_addr));
 
-		return;
+			return;
+		}
+
+		/* Open was successful, cancel the thread to open the socket */
+		if (bfd_open_fd_out_scheduled(bfd))
+			bfd_open_fd_out_cancel(bfd);
+
+		bfd_state_init(bfd);
 	}
 
 	/* Save old timers */
@@ -1145,6 +1175,26 @@ bfd_open_fds(bfd_data_t *data)
 	return 0;
 }
 
+static void
+bfd_open_fd_out_thread(thread_ref_t thread)
+{
+	bfd_t *bfd = THREAD_ARG(thread);
+
+	if (bfd->fd_out != -1)
+		return;
+
+	if (bfd_open_fd_out(bfd)) {
+		bfd->thread_open_fd_out = thread_add_timer(master, bfd_open_fd_out_thread, bfd, 60 * TIMER_HZ);
+		return;
+	}
+
+	bfd->local_state = BFD_STATE_DOWN;
+	bfd->sands_out = TIMER_NEVER;
+
+	if (!bfd->passive)
+		bfd_sender_schedule(bfd);
+}
+
 /* Registers sender and receiver threads */
 static void
 bfd_register_workers(bfd_data_t *data)
@@ -1187,8 +1237,11 @@ bfd_register_workers(bfd_data_t *data)
 		/* Send our status to VRRP process */
 		bfd_event_send(bfd);
 
+		if (BFD_ISADMINDOWN(bfd) && bfd->fd_out == -1)
+			bfd->thread_open_fd_out = thread_add_timer(master, bfd_open_fd_out_thread, bfd, 60 * TIMER_HZ);
+
 		/* If we are starting up, send a packet */
-		if (!reload && !bfd->passive)
+		if (!reload && !bfd->passive && !BFD_ISADMINDOWN(bfd))
 			thread_add_event(master, bfd_sender_thread, bfd, 0);
 	}
 }
@@ -1229,10 +1282,13 @@ bfd_dispatcher_release(bfd_data_t *data)
 		if (bfd_reset_scheduled(bfd))
 			bfd_reset_suspend(bfd);
 
-		assert(bfd->fd_out != -1);
+		if (bfd_open_fd_out_scheduled(bfd))
+			bfd_open_fd_out_cancel(bfd);
 
-		close(bfd->fd_out);
-		bfd->fd_out = -1;
+		if (bfd->fd_out != -1) {
+			close(bfd->fd_out);
+			bfd->fd_out = -1;
+		}
 	}
 
 	cancel_signal_read_thread();
@@ -1262,5 +1318,6 @@ register_bfd_scheduler_addresses(void)
 	register_thread_address("bfd_expire_thread", bfd_expire_thread);
 	register_thread_address("bfd_reset_thread", bfd_reset_thread);
 	register_thread_address("bfd_receiver_thread", bfd_receiver_thread);
+	register_thread_address("bfd_open_fd_out_thread", bfd_open_fd_out_thread);
 }
 #endif
