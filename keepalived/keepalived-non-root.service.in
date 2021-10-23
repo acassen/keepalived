@@ -1,0 +1,108 @@
+# This systemd service file allows keepalived to be run as a non-root user.
+#  To use this, edit the permissions according to your needs, and install the
+#  file in /usr/lib/systemd/system as keepalived.service
+[Unit]
+Description=LVS and VRRP High Availability Monitor
+After=network-online.target syslog.target # @SNMP_SERVICE@
+Requires=network-online.target
+# Wants=@SNMP_SERVICE@
+Documentation=man:keepalived(8)
+Documentation=man:keepalived.conf(5)
+Documentation=man:genhash(1)
+Documentation=https://keepalived.org
+StartLimitBurst=3
+StartLimitIntervalSec=10
+
+[Service]
+Type=@SYSTEMD_SERVICE_TYPE@
+NotifyAccess=all
+PIDFile=@RUN_DIR@/run/%N/%N.pid
+# CAP_CHOWN needed if using FIFOs and specify the owner/group
+AmbientCapabilities=CAP_CHOWN
+# CAP_KILL needed if running notify scripts, FIFO scripts, or using track_scripts, CHECK_MISC or startup/shutdown scripts
+AmbientCapabilities=CAP_KILL
+# CAP_NET_ADMIN is needed for VRRP, IPVS
+AmbientCapabilities=CAP_NET_ADMIN
+# CAP_NET_BIND_SERVICE needed for VRRP
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+# CAP_NET_RAW needed for VRRP and IPVS if not using netlink (unlikely)
+AmbientCapabilities=CAP_NET_RAW
+# CAP_SETUID and CAP_SETGID needed if running any scripts and user keepalived_script exists or the user/group of any script is specified
+AmbientCapabilities=CAP_SETUID
+AmbientCapabilities=CAP_SETGID
+# CAP_NET_MODULE needed to load ip_vs module (IPVS) and xt_set (VRRP with iptables)
+# Alternatively add a file in /usr/lib/modules-load.d with ip_vs and xt_set and
+#  don't enable CAP_NET_MODULE, at set ProtectKernelModules=yes
+AmbientCapabilities=CAP_SYS_MODULE
+# CAP_SYS_NICE needed for keepalived to set its nice priority. If in use, also remove LimitNICE=0
+AmbientCapabilities=CAP_SYS_NICE
+# CAP_SYS_RESOURCE needed for keepalived to adjust its realtime priority, or to increase the number of sockets (files) or corefile size.
+# If not allowing realtime scheduling, and LimitNOFILE and LimitCORE are specified below
+AmbientCapabilities=CAP_SYS_RESOURCE
+CacheDirectory=%N
+CacheDirectoryMode=0750
+# Each capability allowed in AmbientCapabilities needs to have a corresponding CapabilityBoundingSet=CAP_... below
+CapabilityBoundingSet=CAP_CHOWN
+CapabilityBoundingSet=CAP_KILL
+CapabilityBoundingSet=CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_RAW
+CapabilityBoundingSet=CAP_SETUID
+CapabilityBoundingSet=CAP_SETGID
+CapabilityBoundingSet=CAP_SYS_MODULE
+CapabilityBoundingSet=CAP_SYS_NICE
+CapabilityBoundingSet=CAP_SYS_RESOURCE
+ConfigurationDirectory=%N
+ConfigurationDirectoryMode=0755
+# Enable the following to make keepalived run with realtime scheduling
+# CPUScheduling=rr
+DeviceAllow=/dev/null
+DevicePolicy=strict
+DynamicUser=yes
+# Edit the following line if needed - for Ubuntu it should be -@sysconfdir/default/%N
+EnvironmentFile=-@sysconfdir@/sysconfig/%N
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStart=@sbindir@/keepalived --dont-fork $DAEMON_ARGS --pid=@RUN_DIR@/run/%N/%N.pid --vrrp_pid=@RUN_DIR@/run/%N/vrrp.pid --checkers_pid=@RUN_DIR@/run/%N/%N_checkers.pid --bfd_pid=@RUN_DIR@/run/%N/%N_bfd.pid
+IOSchedulingClass=realtime
+KillMode=process
+KillSignal=SIGTERM
+# Set the following if not allowing CAP_SYS_RESOURCE
+# LimitCORE=infinity
+LimitMEMLOCK=infinity
+# Add LimitNICE=0 if using realtime scheduling or to stop keepalived increasing its priority
+# LimitNICE=0
+# Set the following if not allowing CAP_SYS_RESOURCE
+# LimitNOFILE=500000
+LockPersonality=yes
+LogsDirectory=%N
+LogsDirectoryMode=0750
+NoNewPrivileges=yes
+OOMScoreAdjust=-500
+PrivateTmp=yes
+ProtectControlGroups=yes
+ProtectHome=read-only
+# ProtectKernelModules=no needed to load ip_vs module (IPVS) and xt_set (VRRP with iptables), otherwise set to yes
+ProtectKernelModules=no
+# ProtectKernelTunables=no keeded for VRRP using VMACs
+ProtectKernelTunables=no
+ProtectSystem=strict
+RemoveIPC=yes
+Restart=always
+RestartSec=5
+# AF_INET if using any IPv4, AF_INET6 if using any IPv6. AF_NETLINK for VRRP and IPVS. AF_PACKET for VRRP. AF_UNIX always needed.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK AF_UNIX AF_PACKET
+RestrictNamespaces=yes
+# Set to yes to disable keepalived turning on realtime scheduling and increasing priority
+RestrictRealtime=no
+RuntimeDirectory=%N
+RuntimeDirectoryMode=0750
+SystemCallArchitectures=native
+UMask=0007
+User=_%N
+Group=%N
+StateDirectory=%N
+StateDirectoryMode=0750
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

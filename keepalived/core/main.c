@@ -880,8 +880,7 @@ print_parent_data(__attribute__((unused)) thread_ref_t thread)
 void
 reinitialise_global_vars(void)
 {
-	default_script_uid = 0;
-	default_script_gid = 0;
+	reset_default_script_user();
 }
 
 /* SIGHUP/USR1/USR2/STATS_CLEAR handler */
@@ -2391,6 +2390,8 @@ keepalived_main(int argc, char **argv)
 	/* Is there a TMPDIR override? */
 	set_tmp_dir();
 
+	set_our_uid_gid();
+
 	/* Save command line options in case need to log them later */
 	save_cmd_line_options(argc, argv);
 
@@ -2582,16 +2583,16 @@ keepalived_main(int argc, char **argv)
 			/* Create the directory for pid files */
 			create_pid_dir();
 		}
-
-		/* If we want to monitor processes, we have to do it before calling
-		 * setns() */
-#ifdef _WITH_TRACK_PROCESS_
-		open_track_processes();
-#endif
 	}
 
 	if (global_data->network_namespace) {
-		if (global_data->network_namespace && !set_namespaces(global_data->network_namespace)) {
+		/* If we want to monitor processes, we have to do it before calling
+		 * setns(), so start it here if we are using network namespaces. */
+#ifdef _WITH_TRACK_PROCESS_
+		if (!__test_bit(CONFIG_TEST_BIT, &debug))
+			open_track_processes();
+#endif
+		if (!set_namespaces(global_data->network_namespace)) {
 			log_message(LOG_ERR, "Unable to set network namespace %s - exiting", global_data->network_namespace);
 			goto end;
 		}

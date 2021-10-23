@@ -681,7 +681,7 @@ possibly following any cleanup actions needed.
 
     # Specify the default username/groupname to run scripts under.
     # If this option is not specified, the user defaults to keepalived_script
-    # if that user exists, otherwise root.
+    # if that user exists, otherwise the uid/gid under which keepalived is running.
     # If groupname is not specified, it defaults to the user's group.
     \fBscript_user \fRusername [groupname]
 

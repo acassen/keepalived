@@ -96,6 +96,7 @@ typedef struct _bfd {
 
 	/* Internal variables */
 	int			fd_out;			/* Output socket fd */
+	thread_ref_t		thread_open_fd_out;	/* Open out socket thread, used if cannot open after load/reload */
 	thread_ref_t		thread_out;		/* Output socket thread */
 	unsigned long		sands_out;		/* Output thread sands, used for suspend/resume */
 	thread_ref_t		thread_exp;		/* Expire thread */

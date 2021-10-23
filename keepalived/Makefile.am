@@ -48,25 +48,30 @@ if WITH_BFD
 endif
 
 if INIT_SYSTEMD
-keepalived.service: $(srcdir)/Makefile.am
+keepalived.service keepalived-non-root.service: $(srcdir)/Makefile.am
 	@rm -f $@ $@.tmp
 	@$(edit) '$(srcdir)/$@.in' >$@
 
 keepalived.service: $(srcdir)/keepalived.service.in
+
+keepalived-non-root.service: $(srcdir)/keepalived-non-root.service.in
 endif
 
 SUBDIRS			= core $(VRRP_SUBDIR) $(IPVS_SUBDIR) $(DBUS_SUBDIR) $(BFD_SUBDIR) $(TRACKER_SUBDIR) etc
 
-EXTRA_DIST		= keepalived.service.in
+EXTRA_DIST		= keepalived.service.in keepalived-non-root.service.in
 
 keepalived_LDADD	= core/libcore.a $(IPVS_LIB) $(VRRP_LIB) $(BFD_LIB) core/libcore.a $(TRACKER_LIB) ../lib/liblib.a $(KA_LIBS)
 
-MOSTLYCLEANFILES	= keepalived.service
+if INIT_SYSTEMD
+MOSTLYCLEANFILES	= keepalived.service keeplived-non-root.service
+endif
 
 MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@
 
 if INIT_SYSTEMD
 systemdsystemunit_DATA	= keepalived.service
+noinst_DATA		= keepalived-non-root.service
 endif
 
 if INIT_OPENRC

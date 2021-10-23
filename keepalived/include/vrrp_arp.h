@@ -26,6 +26,7 @@
 /* system includes */
 #include <sys/types.h>
 #include <linux/if_infiniband.h>
+#include <stdbool.h>
 
 /* local includes */
 #include "vrrp.h"
@@ -52,7 +53,7 @@ typedef struct ipoib_hdr {
 } ipoib_hdr_t;
 
 /* prototypes */
-extern void gratuitous_arp_init(void);
+extern bool gratuitous_arp_init(void);
 extern void gratuitous_arp_close(void);
 extern void send_gratuitous_arp(vrrp_t *, ip_address_t *);
 extern ssize_t send_gratuitous_arp_immediate(interface_t *, ip_address_t *);

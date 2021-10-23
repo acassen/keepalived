@@ -546,8 +546,13 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 
 		/* Handle exit codes of vrrp or checker child */
 		if (exit_status == KEEPALIVED_EXIT_FATAL ||
-		    exit_status == KEEPALIVED_EXIT_CONFIG) {
-			log_message(LOG_INFO, "%s exited with permanent error %s. Terminating", prog_id, exit_status == KEEPALIVED_EXIT_CONFIG ? "CONFIG" : "FATAL" );
+		    exit_status == KEEPALIVED_EXIT_CONFIG ||
+		    exit_status == KEEPALIVED_EXIT_MISSING_PERMISSION) {
+			log_message(LOG_INFO, "%s exited with permanent error %s. Terminating",
+					prog_id,
+					exit_status == KEEPALIVED_EXIT_CONFIG ? "CONFIG" :
+					  exit_status == KEEPALIVED_EXIT_MISSING_PERMISSION ? "missing permission" :
+					  "FATAL" );
 			return true;
 		}
 
