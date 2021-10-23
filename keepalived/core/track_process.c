@@ -1176,6 +1176,9 @@ proc_events_ack_timer_thread(__attribute__((unused)) thread_ref_t thread)
 bool
 open_track_processes(void)
 {
+	if (nl_sock != -1)
+		return false;
+
 	nl_sock = nl_connect();
 	if (nl_sock == -1)
 		return true ;

@@ -4633,6 +4633,9 @@ vrrp_complete_init(void)
 #ifdef _WITH_TRACK_PROCESS_
 	/* Initialise any process tracking */
 	if (!list_empty(&vrrp_data->vrrp_track_processes)) {
+		if (!global_data->network_namespace)
+			open_track_processes();
+
 		if (reload)
 			reload_track_processes();
 		else
