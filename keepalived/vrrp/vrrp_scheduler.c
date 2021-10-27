@@ -194,14 +194,13 @@ vrrp_init_state(list_head_t *l)
 	/* Do notifications for any sync groups in fault or backup state */
 	list_for_each_entry(vgroup, &vrrp_data->vrrp_sync_group, e_list) {
 		/* Init group if needed  */
-		if (vgroup->state == VRRP_STATE_FAULT ||
-		    vgroup->state == VRRP_STATE_BACK) {
-			if (!vgroup->state_same_at_reload) {
-				send_group_notifies(vgroup);
-				vgroup->state_same_at_reload = false;
-			} else if (reload && global_data->fifo_write_vrrp_states_on_reload)
-				notify_group_fifo(vgroup);
-		}
+		if ((vgroup->state == VRRP_STATE_FAULT ||
+		     vgroup->state == VRRP_STATE_BACK) &&
+		    !vgroup->state_same_at_reload)
+			send_group_notifies(vgroup);
+		else if (reload && global_data->fifo_write_vrrp_states_on_reload)
+			notify_group_fifo(vgroup);
+		vgroup->state_same_at_reload = false;
 	}
 
 	list_for_each_entry(vrrp, l, e_list) {
@@ -280,13 +279,13 @@ vrrp_init_state(list_head_t *l)
 					log_message(LOG_INFO, "(%s) Entering FAULT STATE (init)", vrrp->iname);
 				vrrp->state = VRRP_STATE_FAULT;
 			}
-			if (vrrp_begin_state != vrrp->state) {
-				if (vrrp->state != VRRP_STATE_FAULT || vrrp->num_script_if_fault)
-					send_instance_notifies(vrrp);
-				else if (reload && global_data->fifo_write_vrrp_states_on_reload)
-					notify_instance_fifo(vrrp);
+			if (vrrp_begin_state != vrrp->state)
 				vrrp->last_transition = timer_now();
-			}
+			if (vrrp_begin_state != vrrp->state &&
+			    (vrrp->state != VRRP_STATE_FAULT || vrrp->num_script_if_fault))
+				send_instance_notifies(vrrp);
+			else if (reload && global_data->fifo_write_vrrp_states_on_reload)
+				notify_instance_fifo(vrrp);
 		}
 #ifdef _WITH_SNMP_RFC_
 		vrrp->stats->uptime = timer_now();
