@@ -72,9 +72,6 @@ static char cmd_str_buf[MAXBUF];
 static bool
 set_script_env(uid_t uid, gid_t gid)
 {
-	if (uid == our_uid && gid == our_gid)
-		return false;
-
 	if (gid != our_gid) {
 		if (setgid(gid) < 0) {
 			log_message(LOG_ALERT, "Couldn't setgid: %u (%m)", gid);
