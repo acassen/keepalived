@@ -18,6 +18,7 @@
 # it exits.
 
 CREATED_FIFO=0
+SHUTDOWN=0
 
 FIFO=$1
 [[ -z $FIFO ]] && echo "A FIFO name must be specified" && exit 1
@@ -28,6 +29,8 @@ stopping()
 {
 	PROLOGUE=$(echo "$(date +"%a %b %e %X %Y")": \[$PPID:$$\])
 	echo "$PROLOGUE" STOPPING >>$LOG_FILE
+	[[ $CREATED_FIFO -eq 1 ]] && rm -f $FIFO
+	exit 0
 }
 
 start_shutdown()
@@ -35,12 +38,15 @@ start_shutdown()
 	# When keepalived terminates, it sends a TERM signal to this script before
 	#  sending the fifo notifies. We catch the SIGTERM here, and after a short
 	#  delay send a SIGALRM to the main script process
+
+	SHUTDOWN=1
+
 	( sleep 0.5
-	  kill -ALRM $$
+	  kill -ALRM $$ 2>/dev/null
 	) &
 }
 
-trap "{ stopping; [[ $CREATED_FIFO -eq 1 ]] && rm -f $FIFO; exit 0; }" HUP INT QUIT USR1 USR2 PIPE ALRM
+trap stopping HUP INT QUIT USR1 USR2 PIPE ALRM
 trap start_shutdown TERM
 
 if [[ ! -p $FIFO ]]; then
@@ -58,9 +64,10 @@ fi
 # FIFO, the script will be blocked until it has been opened.
 while [[ 1 ]]
 do
+	[ $SHUTDOWN -eq 1 ] && break
 	[[ ! -p $FIFO ]] && echo FIFO $FIFO missing >>$LOG_FILE && exit 1
 
-	while read line; do
+	while [ $SHUTDOWN -eq 0 ] && read line; do
 		PROLOGUE=$(echo "$(date +"%a %b %e %X %Y")": \[$PPID:$$\])
 		set $line
 		TYPE=$1
@@ -91,3 +98,5 @@ do
 
 	echo "$PROLOGUE" STOPPED >>$LOG_FILE
 done
+
+stopping
