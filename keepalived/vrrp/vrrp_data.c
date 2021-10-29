@@ -682,8 +682,12 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 						    ? inet_sockaddrtos(&vrrp->saddr)
 						    : "(none)",
 						  __test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) ? " (from configuration)" : "");
-	if (!__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags))
-		conf_write(fp, "   Multicast address %s", inet_sockaddrtos(&vrrp->mcast_daddr));
+	if (!__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags)) {
+		if (vrrp->family == AF_INET)
+			conf_write(fp, "   Multicast address %s", inet_sockaddrtos(&vrrp->mcast_daddr));
+		else
+			conf_write(fp, "   Multicast address %s, ifindex %u", inet_sockaddrtos(&vrrp->mcast_daddr), PTR_CAST_CONST(struct sockaddr_in6, &vrrp->mcast_daddr)->sin6_scope_id);
+	}
 	conf_write(fp, "   Gratuitous ARP delay = %u",
 		       vrrp->garp_delay/TIMER_HZ);
 	conf_write(fp, "   Gratuitous ARP repeat = %u", vrrp->garp_rep);

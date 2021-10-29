@@ -3624,7 +3624,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	/* We need to set the scope_id for link local and node local multicast addresses, but we set it
 	 * for all IPv6 multicast addresses anyway. */
 	if (vrrp->mcast_daddr.ss_family == AF_INET6)
-		PTR_CAST(struct sockaddr_in6, &vrrp->mcast_daddr)->sin6_scope_id = vrrp->ifp->ifindex;
+		PTR_CAST(struct sockaddr_in6, &vrrp->mcast_daddr)->sin6_scope_id =
+#ifdef _HAVE_VRRP_VMAC_
+			   __test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags) ?
+				vrrp->ifp->base_ifp->ifindex :
+#endif
+				vrrp->ifp->ifindex;
 
 	/* See if we need to enable the firewall */
 //TODO = we have a problem since SNMP may change accept mode
