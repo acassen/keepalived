@@ -18,6 +18,7 @@
 # it exits.
 
 CREATED_FIFO=0
+SHUTDOWN=0
 
 FIFO=$1
 [[ -z $FIFO ]] && echo "A FIFO name must be specified" && exit 1
@@ -28,10 +29,16 @@ stopping()
 {
 	PROLOGUE=$(echo "$(date +"%a %b %e %X %Y")": \[$PPID:$$\])
 	echo "$PROLOGUE" STOPPING >>$LOG_FILE
+
+	[[ $CREATED_FIFO -eq 1 ]] && rm -f $FIFO
+
+	exit 0
 }
 
 start_shutdown()
 {
+	SHUTDOWN=1
+
 	# When keepalived terminates, it sends a TERM signal to this script before
 	#  sending the fifo notifies. We catch the SIGTERM here, and after a short
 	#  delay send a SIGALRM to the main script process
@@ -40,7 +47,7 @@ start_shutdown()
 	) &
 }
 
-trap "{ stopping; [[ $CREATED_FIFO -eq 1 ]] && rm -f $FIFO; exit 0; }" HUP INT QUIT USR1 USR2 PIPE ALRM
+trap stopping HUP INT QUIT USR1 USR2 PIPE ALRM
 trap start_shutdown TERM
 
 if [[ ! -p $FIFO ]]; then
@@ -56,7 +63,15 @@ fi
 # If keepalived terminates, the FIFO will be closed, so
 # read the FIFO in a loop. It keepalived hasn't opened the
 # FIFO, the script will be blocked until it has been opened.
-while [[ 1 ]]
+# When keepalived reloads, it sends the script a SIGTERM, and
+# then closes the FIFO. Since keepalived removes the FIFO,
+# creates a new one and runs the (possibly changed) FIFO script
+# again, we need to terminate if the FIFO is closed and we have
+# received a SIGTERM.
+# When keepalived stops it sends SIGTERM to the script and
+# afterwards send STOPPING messages, so we need to continue
+# reading the FIFO until it is closed.
+while [[ $SHUTDOWN -eq 0 ]]
 do
 	[[ ! -p $FIFO ]] && echo FIFO $FIFO missing >>$LOG_FILE && exit 1
 
@@ -89,5 +104,7 @@ do
 		fi
 	done < $FIFO
 
-	echo "$PROLOGUE" STOPPED >>$LOG_FILE
+	[[ $SHUTDOWN -eq 0 ]] && echo "$PROLOGUE" FIFO CLOSED >>$LOG_FILE
 done
+
+stopping
