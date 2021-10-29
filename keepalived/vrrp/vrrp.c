@@ -2554,7 +2554,6 @@ static vrrp_t * __attribute__ ((pure))
 vrrp_exist(vrrp_t *old_vrrp, list_head_t *l)
 {
 	vrrp_t *vrrp;
-	sockaddr_t *mcast, *mcast_old;
 
 	list_for_each_entry(vrrp, l, e_list) {
 		if (vrrp->vrid != old_vrrp->vrid ||
@@ -2587,14 +2586,15 @@ vrrp_exist(vrrp_t *old_vrrp, list_head_t *l)
 
 		/* If multicast addresses are different, then don't match */
 		if (vrrp->family == AF_INET) {
-			mcast = vrrp->mcast_daddr.ss_family == AF_UNSPEC ? PTR_CAST(sockaddr_t, &global_data->vrrp_mcast_group4) : &vrrp->mcast_daddr;
-			mcast_old = old_vrrp->mcast_daddr.ss_family == AF_UNSPEC ? PTR_CAST(sockaddr_t, &global_data->vrrp_mcast_group4) : &old_vrrp->mcast_daddr;
+			if (memcmp(&vrrp->mcast_daddr, &old_vrrp->mcast_daddr, sizeof (struct sockaddr_in)))
+				return NULL;
 		} else {
-			mcast = vrrp->mcast_daddr.ss_family == AF_UNSPEC ? PTR_CAST(sockaddr_t, &global_data->vrrp_mcast_group6) : &vrrp->mcast_daddr;
-			mcast_old = old_vrrp->mcast_daddr.ss_family == AF_UNSPEC ? PTR_CAST(sockaddr_t, &global_data->vrrp_mcast_group6) : &old_vrrp->mcast_daddr;
+			/* We need to avoid comparing the sin6_scope_id, and the port and flowinfo fields are not used. */
+			if (memcmp(&PTR_CAST(struct sockaddr_in6, &vrrp->mcast_daddr)->sin6_addr,
+				   &PTR_CAST(struct sockaddr_in6, &old_vrrp->mcast_daddr)->sin6_addr,
+				   sizeof (struct in6_addr)))
+				return NULL;
 		}
-		if (memcmp(mcast, mcast_old, vrrp->family == AF_INET ? sizeof (struct sockaddr_in) : sizeof (struct sockaddr_in6)))
-			return NULL;
 
 		return vrrp;
 	}
@@ -3624,7 +3624,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	/* We need to set the scope_id for link local and node local multicast addresses, but we set it
 	 * for all IPv6 multicast addresses anyway. */
 	if (vrrp->mcast_daddr.ss_family == AF_INET6)
-		PTR_CAST(struct sockaddr_in6, &vrrp->mcast_daddr)->sin6_scope_id = vrrp->ifp->ifindex;
+		PTR_CAST(struct sockaddr_in6, &vrrp->mcast_daddr)->sin6_scope_id =
+#ifdef _HAVE_VRRP_VMAC_
+			   __test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags) ?
+				vrrp->ifp->base_ifp->ifindex :
+#endif
+				vrrp->ifp->ifindex;
 
 	/* See if we need to enable the firewall */
 //TODO = we have a problem since SNMP may change accept mode

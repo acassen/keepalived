@@ -43,7 +43,7 @@ start_shutdown()
 	#  sending the fifo notifies. We catch the SIGTERM here, and after a short
 	#  delay send a SIGALRM to the main script process
 	( sleep 0.5
-	  kill -ALRM $$
+	  kill -ALRM $$ 2>/dev/null
 	) &
 }
 
