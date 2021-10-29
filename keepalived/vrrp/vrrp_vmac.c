@@ -442,8 +442,6 @@ netlink_link_add_vmac(vrrp_t *vrrp, const interface_t *old_interface)
 	req.n.nlmsg_type = RTM_NEWLINK;
 	req.ifi.ifi_family = AF_UNSPEC;
 	req.ifi.ifi_index = (int)vrrp->ifp->ifindex;
-	req.ifi.ifi_change |= IFF_UP;
-	req.ifi.ifi_flags |= IFF_UP;
 
 	struct rtattr* spec;
 
@@ -458,9 +456,8 @@ netlink_link_add_vmac(vrrp_t *vrrp, const interface_t *old_interface)
 
 	if (netlink_talk(&nl_cmd, &req.n) < 0)
 		log_message(LOG_INFO, "(%s) Error setting ADDR_GEN_MODE to NONE on %s", vrrp->iname, vrrp->ifp->ifname);
-#else
-	netlink_link_up(vrrp);
 #endif
+	netlink_link_up(vrrp);
 
 	/* Mark it as UP ! */
 	__set_bit(VRRP_VMAC_UP_BIT, &vrrp->flags);
