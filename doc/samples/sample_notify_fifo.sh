@@ -24,6 +24,7 @@ FIFO=$1
 [[ -z $FIFO ]] && echo "A FIFO name must be specified" && exit 1
 
 LOG_FILE=/tmp/${FIFO##*/}.log
+PID_FILE=/tmp/${FIFO##*/}.pid
 
 stopping()
 {
@@ -32,6 +33,7 @@ stopping()
 
 	[[ $CREATED_FIFO -eq 1 ]] && rm -f $FIFO
 
+	rm -f $PID_FILE
 	exit 0
 }
 
@@ -59,6 +61,17 @@ if [[ ! -p $FIFO ]]; then
 		exit 1
 	fi
 fi
+
+# wait for a previous instance of the script to finish
+if [ -f $PID_FILE ]; then
+	if command -v inotifywait &>/dev/null; then
+		inotifywait -e delete $PID_FILE
+	else
+		while [ -f $PID_FILE ]; do sleep 0.05; done
+	fi
+fi
+
+echo $$ >$PID_FILE
 
 # If keepalived terminates, the FIFO will be closed, so
 # read the FIFO in a loop. It keepalived hasn't opened the
