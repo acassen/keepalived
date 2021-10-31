@@ -120,6 +120,16 @@ done
 
 CMD=${!OPTIND}
 
+# Check if system is using iptables or nftables
+USE_IPTABLES=1
+type -f iptables >/dev/null
+if [[ $? -ne 0 ]]; then
+	USE_IPTABLES=0
+else
+	iptables -V | grep -q "nf_*t"
+	[[ $? -eq 0 ]] && USE_IPTABLES=0
+fi
+
 if [[ -z $NS_LIST ]]; then
 	[[ -z $BRIDGE_NS ]] && BRIDGE_NS=medium
 	NS_LIST="high low $BRIDGE_NS $ROOT_NS"
@@ -152,16 +162,18 @@ if [[ $CMD = add ]]; then
 	done
 fi
 
-for n in $NS_LIST; do
-	[[ $CMD = del ]] && IPT_CMD=X || IPT_CMD=N
+if [[ $USE_IPTABLES -eq 1 ]]; then
+	for n in $NS_LIST; do
+		[[ $CMD = del ]] && IPT_CMD=X || IPT_CMD=N
 
-	[[ $n = $ROOT_NS ]] && NETNS_CMD= || NETNS_CMD="ip netns exec $n"
-	for v in "" 6; do
-		for c in $CHAINS; do
-			$ECHO $NETNS_CMD ip${v}tables -$IPT_CMD $c
+		[[ $n = $ROOT_NS ]] && NETNS_CMD= || NETNS_CMD="ip netns exec $n"
+		for v in "" 6; do
+			for c in $CHAINS; do
+				$ECHO $NETNS_CMD ip${v}tables -$IPT_CMD $c
+			done
 		done
 	done
-done
+fi
 
 for n in $(seq $LOW $HIGH); do
 	if [[ $CMD = add || $CMD = remake ]]; then
