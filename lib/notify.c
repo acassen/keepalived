@@ -303,12 +303,12 @@ notify_fifo_open(notify_fifo_t* global_fifo, notify_fifo_t* fifo, thread_func_t 
 static void
 fifo_close(notify_fifo_t* fifo)
 {
+	if (fifo->created_fifo)
+		unlink(fifo->name);
 	if (fifo->fd != -1) {
 		close(fifo->fd);
 		fifo->fd = -1;
 	}
-	if (fifo->created_fifo)
-		unlink(fifo->name);
 }
 
 void
