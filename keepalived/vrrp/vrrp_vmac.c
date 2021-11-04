@@ -457,6 +457,10 @@ netlink_link_add_vmac(vrrp_t *vrrp, const interface_t *old_interface)
 	if (netlink_talk(&nl_cmd, &req.n) < 0)
 		log_message(LOG_INFO, "(%s) Error setting ADDR_GEN_MODE to NONE on %s", vrrp->iname, vrrp->ifp->ifname);
 #endif
+
+	/* We cannot include the link up setting with the ADDR_GEN_MODE message above
+	 * since the link is set up and an EUI64 address added to the interface before
+	 * the ADDR_GEN_MODE setting is changed. */
 	netlink_link_up(vrrp);
 
 	/* Mark it as UP ! */
