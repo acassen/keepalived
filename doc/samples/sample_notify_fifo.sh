@@ -71,9 +71,14 @@ fi
 # When keepalived stops it sends SIGTERM to the script and
 # afterwards send STOPPING messages, so we need to continue
 # reading the FIFO until it is closed.
+FIFO_INODE=$(stat -c "%i" $FIFO)
+[[ $? -ne 0 ]] && echo FIFO $FIFO not accessible >>$LOG_FILE && exit 1
+
 while [[ $SHUTDOWN -eq 0 ]]
 do
 	[[ ! -p $FIFO ]] && echo FIFO $FIFO missing >>$LOG_FILE && exit 1
+	exec <$FIFO
+	[[ $? -ne 0 || $(stat -c "%i" $FIFO 2>/dev/null) -ne $FIFO_INODE ]] && break
 
 	while read line; do
 		PROLOGUE=$(echo "$(date +"%a %b %e %X %Y")": \[$PPID:$$\])
@@ -102,7 +107,7 @@ do
 		else
 			echo "$PROLOGUE" $TYPE - unknown "($*)" >>$LOG_FILE
 		fi
-	done < $FIFO
+	done
 
 	[[ $SHUTDOWN -eq 0 ]] && echo "$PROLOGUE" FIFO CLOSED >>$LOG_FILE
 done
