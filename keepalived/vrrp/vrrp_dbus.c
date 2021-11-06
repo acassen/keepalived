@@ -122,6 +122,7 @@ typedef struct dbus_files {
 #define DBUS_VRRP_INSTANCE_INTERFACE_FILE_PATH	DBUS_DATADIR "/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml"
 
 static bool dbus_running;
+static bool dbus_startup_completed;
 static pthread_mutex_t cond_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t startup_cond = PTHREAD_COND_INITIALIZER;
 
@@ -640,10 +641,17 @@ read_file(const gchar* filepath)
 }
 
 static void *
-free_wait_return(void *ret)
+free_wait(void)
 {
+	/* Ensure the thread that started this thread
+	 * has executed pthread_cond_wait() */
+	pthread_mutex_lock(&cond_mutex);
+	pthread_mutex_unlock(&cond_mutex);
+
+	dbus_startup_completed = true;
 	pthread_cond_signal(&startup_cond);
-	return ret;
+
+	return NULL;
 }
 
 static void *
@@ -672,7 +680,7 @@ dbus_main(void *param)
 		log_message(LOG_INFO, "Parsing DBus interface %s from file %s failed: %s",
 			    DBUS_VRRP_INTERFACE, DBUS_VRRP_INTERFACE_FILE_PATH, error->message);
 		g_clear_error(&error);
-		return free_wait_return(NULL);
+		return free_wait();
 	}
 
 	vrrp_instance_introspection_data = g_dbus_node_info_new_for_xml(files->instance_interface_file, &error);
@@ -680,7 +688,7 @@ dbus_main(void *param)
 		log_message(LOG_INFO, "Parsing DBus interface %s from file %s failed: %s",
 			    DBUS_VRRP_INSTANCE_INTERFACE, DBUS_VRRP_INSTANCE_INTERFACE_FILE_PATH, error->message);
 		g_clear_error(&error);
-		return free_wait_return(NULL);
+		return free_wait();
 	}
 
 	service_name = global_data->dbus_service_name ? global_data->dbus_service_name : DBUS_SERVICE_NAME;
@@ -697,7 +705,7 @@ dbus_main(void *param)
 
 	/* Notify main thread that we have completed initialising */
 	dbus_running = true;
-	pthread_cond_signal(&startup_cond);
+	free_wait();
 
 	g_main_loop_run(loop);
 	dbus_running = false;
@@ -993,7 +1001,8 @@ dbus_start(void)
 	/* Now create the dbus thread */
 	pthread_create(&dbus_thread, NULL, &dbus_main, &files);
 
-	pthread_cond_wait(&startup_cond, &cond_mutex);
+	while (!dbus_startup_completed)
+		pthread_cond_wait(&startup_cond, &cond_mutex);
 	pthread_mutex_unlock(&cond_mutex);
 
 	/* Reenable our signals */
