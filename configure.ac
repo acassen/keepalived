@@ -315,9 +315,10 @@ AC_ARG_ENABLE(force-conversion-checks,
   [AS_HELP_STRING([--enable-force-conversion-checks], [compile with conversion warnings])])
 AC_ARG_ENABLE(Werror,
   [AS_HELP_STRING([--enable-Werror], [compile with warnings being errors])])
-
 AC_ARG_WITH([systemdsystemunitdir],
 	AS_HELP_STRING([--with-systemdsystemunitdir=DIR], [Directory for systemd service files])])
+AC_ARG_WITH([dbus-data-dir],
+	AS_HELP_STRING([--with-dbus-data-dir=DIR], [Directory for Dbus interface files])])
 
 # Set the kernel headers path
 if test -n "$kernel_src_path"; then
@@ -522,7 +523,8 @@ AS_IF([test .$enable_strict_cast_align = .yes],
 ##    manual suggests using configure as an option.
 AS_AC_EXPAND(EXPANDED_DATADIR, "$datadir")
 
-DBUS_DATADIR=$EXPANDED_DATADIR
+AS_IF([test .$with_dbus_data_dir != .],
+  [DBUS_DATADIR=$with_dbus_data_dir], [DBUS_DATADIR=$EXPANDED_DATADIR])
 AC_SUBST(DBUS_DATADIR)
 AC_DEFINE_UNQUOTED(DBUS_DATADIR,"$DBUS_DATADIR", [Directory for installing DBUS data files])
 
