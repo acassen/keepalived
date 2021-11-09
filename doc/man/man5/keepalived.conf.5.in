@@ -1396,7 +1396,7 @@ The syntax for vrrp_sync_group is :
     # reverse causes the direction of the adjustment of the priority to be reversed.
     \fBtrack_script \fR{
         <SCRIPT_NAME>
-        <SCRIPT_NAME> weight <-253..253> [reverse|no_reverse]
+        <SCRIPT_NAME> weight <-253..253> [reverse|noreverse]
     }
 
     # Files whose state we monitor, value is added to effective priority.

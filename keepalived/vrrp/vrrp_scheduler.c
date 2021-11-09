@@ -267,7 +267,10 @@ vrrp_init_state(list_head_t *l)
 
 			/* Set interface state */
 			vrrp_restore_interface(vrrp, false, false);
-			if (is_up && new_state != VRRP_STATE_FAULT && !vrrp->num_script_init && (!vrrp->sync || !vrrp->sync->num_member_init)) {
+			if (is_up &&
+			    new_state != VRRP_STATE_FAULT &&
+			    !vrrp->num_script_init &&
+			    (!vrrp->sync || !vrrp->sync->num_member_init)) {
 				if (vrrp->state != VRRP_STATE_BACK) {
 					log_message(LOG_INFO, "(%s) Entering BACKUP STATE (init)", vrrp->iname);
 					vrrp->state = VRRP_STATE_BACK;
@@ -352,7 +355,8 @@ vrrp_init_script(list_head_t *l)
 	vrrp_script_t *vscript;
 
 	list_for_each_entry(vscript, l, e_list) {
-		if (vscript->init_state == SCRIPT_INIT_STATE_INIT)
+		if (vscript->init_state == SCRIPT_INIT_STATE_INIT ||
+		    vscript->init_state == SCRIPT_INIT_STATE_INIT_RELOAD)
 			vscript->result = vscript->rise - 1; /* one success is enough */
 		else if (vscript->init_state == SCRIPT_INIT_STATE_FAILED)
 			vscript->result = 0; /* assume failed by config */
@@ -1355,7 +1359,8 @@ vrrp_script_child_thread(thread_ref_t thread)
 				vscript->result--;
 			} else {
 				if (vscript->result == vscript->rise ||
-				    vscript->init_state == SCRIPT_INIT_STATE_INIT) {
+				    vscript->init_state == SCRIPT_INIT_STATE_INIT ||
+				    vscript->init_state == SCRIPT_INIT_STATE_INIT_RELOAD) {
 					if (reason)
 						log_message(LOG_INFO, "VRRP_Script(%s) %s (%s %d)", vscript->sname, script_exit_type, reason, reason_code);
 					else
