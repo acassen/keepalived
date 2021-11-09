@@ -579,6 +579,7 @@ vrrp_snmp_script(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_SCRIPT_RESULT:
 		switch (scr->init_state) {
 		case SCRIPT_INIT_STATE_INIT:
+		case SCRIPT_INIT_STATE_INIT_RELOAD:
 			long_ret.u = 1; break;
 		case SCRIPT_INIT_STATE_FAILED:
 			long_ret.u = 5; break;

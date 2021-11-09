@@ -52,6 +52,7 @@ typedef enum {
 typedef enum {
 	SCRIPT_INIT_STATE_DONE,
 	SCRIPT_INIT_STATE_INIT,
+	SCRIPT_INIT_STATE_INIT_RELOAD,
 	SCRIPT_INIT_STATE_FAILED,
 } script_init_state_t;
 

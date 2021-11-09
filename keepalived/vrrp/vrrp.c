@@ -5030,6 +5030,16 @@ clear_diff_script(void)
 	list_for_each_entry(vscript, &old_vrrp_data->vrrp_script, e_list) {
 		nvscript = find_script_by_name(vscript->sname);
 		if (nvscript) {
+			if (vscript->init_state == SCRIPT_INIT_STATE_INIT) {
+				/* We need to undo the startup assumptions and apply new startup assumptions */
+				nvscript->init_state = SCRIPT_INIT_STATE_INIT;
+				nvscript->result = nvscript->rise - 1;
+				continue;
+			} else if (vscript->init_state == SCRIPT_INIT_STATE_INIT_RELOAD) {
+				nvscript->init_state = SCRIPT_INIT_STATE_INIT_RELOAD;
+				continue;
+			}
+
 			/* Set the script result to match the previous result */
 			if (vscript->result < vscript->rise) {
 				if (!vscript->result)

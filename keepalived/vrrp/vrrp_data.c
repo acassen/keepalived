@@ -294,6 +294,7 @@ dump_vscript(FILE *fp, const vrrp_script_t *vscript)
 	conf_write(fp, "   Weight = %d%s", vscript->weight, vscript->weight_reverse ? " reverse" : "");
 	conf_write(fp, "   Rise = %d", vscript->rise);
 	conf_write(fp, "   Fall = %d", vscript->fall);
+	conf_write(fp, "   Result = %d", vscript->result);
 	conf_write(fp, "   Insecure = %s", vscript->insecure ? "yes" : "no");
 
 	switch (vscript->init_state) {
@@ -301,10 +302,13 @@ dump_vscript(FILE *fp, const vrrp_script_t *vscript)
 		str = "INIT"; break;
 	case SCRIPT_INIT_STATE_FAILED:
 		str = "INIT/FAILED"; break;
+	case SCRIPT_INIT_STATE_INIT_RELOAD:
+		str = "INIT/RELOAD"; break;
 	default:
-		str = (vscript->result >= vscript->rise) ? "GOOD" : "BAD";
+		str = "unknown";
 	}
-	conf_write(fp, "   Status = %s", str);
+	conf_write(fp, "   Init state = %s", str);
+	conf_write(fp, "   Status = %s", vscript->result >= vscript->rise ? "GOOD" : "BAD");
 	conf_write(fp, "   Script uid:gid = %u:%u", vscript->script.uid, vscript->script.gid);
 	conf_write(fp, "   VRRP instances :");
 	dump_tracking_obj_list(fp, &vscript->tracking_vrrp, dump_tracking_vrrp);
@@ -1171,7 +1175,7 @@ alloc_vrrp_script(const char *sname)
 	new->timeout = VRRP_SCRIPT_DT * TIMER_HZ;
 	new->weight = VRRP_SCRIPT_DW;
 //	new->last_status = VRRP_SCRIPT_STATUS_NOT_SET;
-	new->init_state = SCRIPT_INIT_STATE_INIT;
+	new->init_state = reload ? SCRIPT_INIT_STATE_INIT_RELOAD : SCRIPT_INIT_STATE_INIT;
 	new->state = SCRIPT_STATE_IDLE;
 	new->rise = 1;
 	new->fall = 1;
