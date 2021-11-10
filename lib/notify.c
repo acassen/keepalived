@@ -324,6 +324,14 @@ notify_fifo_close(notify_fifo_t* global_fifo, notify_fifo_t* fifo)
 	fifo_close(fifo);
 }
 
+static void
+child_killed_reload(thread_ref_t thread)
+{
+	/* If the child didn't die, then force it */
+	if (thread->type == THREAD_CHILD_TIMEOUT)
+		kill(-getpgid(thread->u.c.pid), SIGKILL);
+}
+
 void
 child_killed_thread(thread_ref_t thread)
 {
@@ -340,7 +348,7 @@ child_killed_thread(thread_ref_t thread)
 }
 
 void
-script_killall(thread_master_t *m, int signo, bool requeue)
+script_killall(thread_master_t *m, int signo, bool shutting_down)
 {
 	thread_t *thread;
 	pid_t p_pgid, c_pgid;
@@ -358,8 +366,8 @@ script_killall(thread_master_t *m, int signo, bool requeue)
 	}
 
 	/* We want to timeout the killed children in 1 second */
-	if (requeue && signo != SIGKILL)
-		thread_children_reschedule(m, child_killed_thread, TIMER_HZ);
+	if (signo != SIGKILL)
+		thread_children_reschedule(m, shutting_down ? child_killed_thread : child_killed_reload, TIMER_HZ);
 }
 
 static bool
@@ -1134,5 +1142,6 @@ void
 register_notify_addresses(void)
 {
 	register_thread_address("child_killed_thread", child_killed_thread);
+	register_thread_address("child_killed_reload", child_killed_reload);
 }
 #endif

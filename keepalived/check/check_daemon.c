@@ -502,7 +502,7 @@ reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 
 	/* Destroy master thread */
 	checker_dispatcher_release();
-	thread_cleanup_master(master);
+	thread_cleanup_master(master, true);
 	thread_add_base_threads(master, with_snmp);
 
 	/* Save previous checker data */
