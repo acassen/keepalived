@@ -269,7 +269,7 @@ reload_bfd_thread(__attribute__((unused)) thread_ref_t thread)
 
 	/* Destroy master thread */
 	bfd_dispatcher_release(bfd_data);
-	thread_cleanup_master(master);
+	thread_cleanup_master(master, true);
 	thread_add_base_threads(master, false);
 
 	old_bfd_data = bfd_data;

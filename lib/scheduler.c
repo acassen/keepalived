@@ -995,20 +995,22 @@ thread_destroy_rb(thread_master_t *m, rb_root_cached_t *root)
 
 /* Cleanup master */
 void
-thread_cleanup_master(thread_master_t * m)
+thread_cleanup_master(thread_master_t * m, bool keep_children)
 {
 	/* Unuse current thread lists */
 	m->current_event = NULL;
 	thread_destroy_rb(m, &m->read);
 	thread_destroy_rb(m, &m->write);
 	thread_destroy_rb(m, &m->timer);
-	thread_destroy_rb(m, &m->child);
+	if (!keep_children)
+		thread_destroy_rb(m, &m->child);
 	thread_destroy_list(m, &m->event);
 #ifdef USE_SIGNAL_THREADS
 	thread_destroy_list(m, &m->signal);
 #endif
 	thread_destroy_list(m, &m->ready);
-	m->child_pid = RB_ROOT;
+	if (!keep_children)
+		m->child_pid = RB_ROOT;
 
 	if (m->current_thread) {
 		thread_add_unuse(m, m->current_thread);
@@ -1046,7 +1048,7 @@ thread_destroy_master(thread_master_t * m)
 	if (m->signal_fd != -1)
 		signal_handler_destroy();
 
-	thread_cleanup_master(m);
+	thread_cleanup_master(m, false);
 
 	FREE(m);
 }
@@ -1417,7 +1419,6 @@ thread_children_reschedule(thread_master_t *m, thread_func_t func, unsigned long
 {
 	thread_t *thread;
 
-// What is this used for ??
 	set_time_now();
 	rb_for_each_entry_cached(thread, &m->child, n) {
 		thread->func = func;

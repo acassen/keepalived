@@ -824,7 +824,7 @@ reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 	cancel_vrrp_threads();
 #endif
 	cancel_kernel_netlink_threads();
-	thread_cleanup_master(master);
+	thread_cleanup_master(master, true);
 	thread_add_base_threads(master, with_snmp);
 
 	/* Remove the notify fifo - we don't know if it will be the same after a reload */

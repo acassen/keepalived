@@ -249,7 +249,7 @@ extern thread_ref_t thread_add_start_terminate_event(thread_master_t *, thread_f
 #ifdef THREAD_DUMP
 extern void dump_thread_data(const thread_master_t *, FILE *);
 #endif
-extern void thread_cleanup_master(thread_master_t *);
+extern void thread_cleanup_master(thread_master_t *, bool);
 extern void thread_destroy_master(thread_master_t *);
 extern thread_ref_t thread_add_read_sands(thread_master_t *, thread_func_t, void *, int, const timeval_t *, unsigned);
 extern thread_ref_t thread_add_read(thread_master_t *, thread_func_t, void *, int, unsigned long, unsigned);
