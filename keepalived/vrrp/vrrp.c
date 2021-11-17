@@ -4827,6 +4827,15 @@ clear_diff_vrrp_vip(vrrp_t *old_vrrp, vrrp_t *vrrp)
 #ifdef _WITH_FIREWALL_
 	fw_set = (old_vrrp->base_priority != VRRP_PRIO_OWNER && !old_vrrp->accept);
 	vrrp->firewall_rules_set = fw_set;
+
+	/* If blocking traffic to VIPs is changing, update the firewall entries */
+	if ((vrrp->base_priority == VRRP_PRIO_OWNER || vrrp->accept) !=
+	    (old_vrrp->base_priority == VRRP_PRIO_OWNER || old_vrrp->accept)) {
+		if (vrrp->base_priority == VRRP_PRIO_OWNER || vrrp->accept)
+			firewall_handle_accept_mode(old_vrrp, IPADDRESS_DEL, true);
+		else
+			firewall_handle_accept_mode(vrrp, IPADDRESS_ADD, true);
+	}
 #endif
 	clear_address_list(&addr_list, fw_set);
 	free_ipaddress_list(&addr_list);
