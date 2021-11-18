@@ -19,19 +19,40 @@
 
 CREATED_FIFO=0
 SHUTDOWN=0
+TIMEOUT=10
 
 FIFO=$1
 [[ -z $FIFO ]] && echo "A FIFO name must be specified" && exit 1
 
 LOG_FILE=/tmp/${FIFO##*/}.log
 
+if [[ -d /run ]]; then
+    PID_DIR=/run
+elif [[ -d /var/run ]]; then
+    PID_DIR=/var/run
+else
+    PID_DIR=/tmp
+fi
+PID_FILE=$PID_DIR/${FIFO##*/}.pid
+
+exiting()
+{
+	# When this script exists, this function is always executed because
+	# it is associated to the bash EXIT signal.
+    [[ $CREATED_FIFO -eq 1 ]] && rm -f $FIFO
+
+    flock -u $FD
+}
+
+reload_terminate()
+{
+    exit 0
+}
+
 stopping()
 {
 	PROLOGUE=$(echo "$(date +"%a %b %e %X %Y")": \[$PPID:$$\])
 	echo "$PROLOGUE" STOPPING >>$LOG_FILE
-
-	[[ $CREATED_FIFO -eq 1 ]] && rm -f $FIFO
-
 	exit 0
 }
 
@@ -48,7 +69,24 @@ start_shutdown()
 }
 
 trap stopping HUP INT QUIT USR1 USR2 PIPE ALRM
+trap reload_terminate QUIT
 trap start_shutdown TERM
+trap exiting EXIT
+
+exec {FD}>>"$PID_FILE"
+if ! flock -e -n $FD; then
+		# Send SIGQUIT signal to the previous instance of this script.
+		# The previous script waits for its current executed command to end
+		# before actually calling reload_terminate(). The TIMEOUT value must
+		# take this constraint into account.
+       OLD_PID=$(cat $PID_FILE)
+       if ls -l /proc/$OLD_PID/fd | grep -qw "$(readlink -f "$PID_FILE")"
+       then
+			kill -QUIT $OLD_PID
+       fi
+       flock -e --timeout $TIMEOUT $FD || exit 1
+fi
+echo $$ >"$PID_FILE"
 
 if [[ ! -p $FIFO ]]; then
 	mkfifo $FIFO
