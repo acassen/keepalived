@@ -316,9 +316,9 @@ AC_ARG_ENABLE(force-conversion-checks,
 AC_ARG_ENABLE(Werror,
   [AS_HELP_STRING([--enable-Werror], [compile with warnings being errors])])
 AC_ARG_WITH([systemdsystemunitdir],
-	AS_HELP_STRING([--with-systemdsystemunitdir=DIR], [Directory for systemd service files])])
+  [AS_HELP_STRING([--with-systemdsystemunitdir=DIR], [Directory for systemd service files])])
 AC_ARG_WITH([dbus-data-dir],
-	AS_HELP_STRING([--with-dbus-data-dir=DIR], [Directory for Dbus interface files])])
+  [AS_HELP_STRING([--with-dbus-data-dir=DIR], [Directory for Dbus interface files])])
 
 # Set the kernel headers path
 if test -n "$kernel_src_path"; then
