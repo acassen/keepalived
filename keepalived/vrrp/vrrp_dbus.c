@@ -644,12 +644,13 @@ static void *
 free_wait(void)
 {
 	/* Ensure the thread that started this thread
-	 * has executed pthread_cond_wait() */
+	 * is executing pthread_cond_wait() */
 	pthread_mutex_lock(&cond_mutex);
-	pthread_mutex_unlock(&cond_mutex);
 
 	dbus_startup_completed = true;
 	pthread_cond_signal(&startup_cond);
+
+	pthread_mutex_unlock(&cond_mutex);
 
 	return NULL;
 }
