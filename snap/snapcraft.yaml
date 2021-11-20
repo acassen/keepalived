@@ -85,6 +85,7 @@ parts:
       - libpcre2-dev
       - libsnmp-dev
       - libssl-dev
+      - libkmod-dev
     stage-packages:
       - libnfnetlink0
       - libipset3
@@ -96,6 +97,7 @@ parts:
       - libnl-genl-3-200
       - libpcre2-8-0
       - libsnmp30
+      - libkmod
     organize:
       'usr/sbin/keepalived': usr/sbin/keepalived-415
 

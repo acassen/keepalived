@@ -16,6 +16,7 @@ BuildRequires: openssl-devel
 # We need both of these for proper LVS support
 BuildRequires: kernel-headers
 BuildRequires: autoconf automake pkgconfig
+BuildRequires: libkmod-devel
 @SNMP_TRUE@BuildRequires: net-snmp-devel
 @WITH_DBUS_TRUE@BuildRequires: glib2-devel
 @IPTABLES_TRUE@BuildRequires: iptables-devel
@@ -29,6 +30,7 @@ BuildRequires: autoconf automake pkgconfig
 @INIT_SYSTEMD_TRUE@BuildRequires: systemd-units
 @WITH_REGEX_TRUE@BuildRequires: pcre2-devel
 
+Requires: libkmod
 @IPTABLES_TRUE@%if 0%{?rhel} <= 7
 @IPTABLES_TRUE@Requires: iptables
 @IPTABLES_TRUE@%else

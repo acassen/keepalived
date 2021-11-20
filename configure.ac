@@ -1351,6 +1351,15 @@ AS_IF([test .$ac_cv_func_OPENSSL_init_crypto = .yes],
       ])
 unset LIBS
 
+dnl ----[ Check if libkmod available ]----
+$PKG_CONFIG --exists libkmod
+AS_IF([ test $? -eq 0 ],
+  [
+    AC_DEFINE([_HAVE_LIBKMOD_], [ 1 ], [Define to 1 if have libkmod])
+    add_pkg_config([libkmod])
+    add_system_opt([LIBKMOD])
+  ])
+
 dnl ----[ Check for IPv4 devconf netlink support ]----
 IPV4_DEVCONF=No
 if test .$enable_vrrp != .no; then
