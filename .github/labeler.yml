@@ -1,0 +1,98 @@
+repository:
+  - ./*
+
+github:
+  - .github/*
+  - .github/**/*
+
+bin:
+  - bin/*
+
+bin_install:
+  - bin_install/*
+
+documentation:
+  - doc/*
+  - doc/**/*
+  - doc/**/**/*
+  - doc/**/**/**/*
+
+man:
+   - doc/man/**/*
+
+man1:
+  - doc/man/man1/*
+
+man5:
+  - doc/man/man5/*
+
+man1:
+  - doc/man/man8/*
+
+samples:
+  - doc/samples/*
+
+source:
+  - doc/source/*
+  - doc/source/**/**
+
+docker:
+  - docker/*
+
+goodies:
+  - goodies/*
+
+keepalived:
+  - keepalived/*
+  - keepalived/**/*
+
+bfd:
+  - keepalived/bfd/*
+
+check:
+  - keepalived/check/*
+
+core:
+  - keepalived/core/*
+
+dbus:
+  - keepalived/dbus/*
+
+include:
+  - keepalived/include/*
+
+trackers:
+  - keepalived/trackers/*
+
+vrrp:
+  - keepalived/vrrp/*
+
+lib:
+  - lib/*
+
+m4:
+  - m4/*
+
+snap-tools:
+  - snap-tools/*
+
+snap:
+  - snap/*
+  - snap/**/*
+
+hooks:
+  - snap/hooks/*
+
+tests:
+  - test/*
+  - test/**/*
+
+ci:
+  - test/ci/*
+
+tools:
+  - tools/*
+  - tools/**/*
+
+jason_tracking:
+  - tools/json_tracking/*
