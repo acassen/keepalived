@@ -1460,11 +1460,14 @@ AM_CONDITIONAL([LIBNL3], [test $NETLINK_VER -eq 3])
 AM_CONDITIONAL([LIBNL_DYNAMIC], [test .$enable_lvs != .no -a .$enable_libnl_dynamic = .yes -a $NETLINK_VER -ne 0])
 unset LIBS
 
+MAGIC=0
 AC_CHECK_LIB(magic, magic_open,
   [
     AC_DEFINE([_HAVE_LIBMAGIC_], [ 1 ], [Define to 1 if have magic library])
     add_to_var([KA_LIBS], [-lmagic])
+    MAGIC=1
   ])
+AM_CONDITIONAL([MAGIC], [test $MAGIC -eq 1])
 unset LIBS
 
 dnl -- Check for the following variables introduced at various times into Linux
