@@ -16,6 +16,7 @@ BuildRequires: openssl-devel
 # We need both of these for proper LVS support
 BuildRequires: kernel-headers
 BuildRequires: autoconf automake pkgconfig
+BuildRequires: libkmod-devel
 @SNMP_TRUE@BuildRequires: net-snmp-devel
 @WITH_DBUS_TRUE@BuildRequires: glib2-devel
 @IPTABLES_TRUE@BuildRequires: iptables-devel
@@ -27,8 +28,14 @@ BuildRequires: autoconf automake pkgconfig
 @INIT_SYSV_TRUE@Requires(preun): /sbin/service, /sbin/chkconfig
 @INIT_SYSV_TRUE@Requires(postun): /sbin/service
 @INIT_SYSTEMD_TRUE@BuildRequires: systemd-units
+@INIT_SYSTEMD_TRUE@BuildRequires: systemd-devel
 @WITH_REGEX_TRUE@BuildRequires: pcre2-devel
+@MAGIC_TRUE@BuildRequires: file-devel
 
+Requires: openssl
+Requires: libkmod
+@SNMP_TRUE@Requires: net-snmp
+@WITH_DBUS_TRUE@Requires: glib2
 @IPTABLES_TRUE@%if 0%{?rhel} <= 7
 @IPTABLES_TRUE@Requires: iptables
 @IPTABLES_TRUE@%else
@@ -37,6 +44,8 @@ BuildRequires: autoconf automake pkgconfig
 @LIBIPSET_TRUE@Requires: ipset-libs
 @LIBNL1_TRUE@Requires: libnl
 @LIBNL3_TRUE@Requires: libnl3
+@NFTABLES_TRUE@Requires: libnftnl libmnl
+@WITH_REGEX_TRUE@Requires: pcre2
 
 %description
 The main goal of the keepalived project is to add a strong & robust keepalive

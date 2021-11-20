@@ -22,6 +22,7 @@ RUN apk --no-cache add \
 	libnl3 \
 	libnl3-dev \
 	libnftnl-dev \
+	libkmod-dev \
 	make \
 	musl-dev \
 	openssl \
@@ -43,6 +44,7 @@ RUN apk --no-cache add \
 	libnfnetlink-dev \
 	libnl3-dev \
 	libnftnl-dev \
+	libkmod-dev \
 	make \
 	musl-dev \
 	openssl-dev \

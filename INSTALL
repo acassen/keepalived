@@ -39,6 +39,8 @@ For nftables support
 	libnftnl-devel libmnl-devel
 For systemd integration
 	systemd-devel
+For efficient module loading
+	libkmod-devel
 
 For building the documentation, the following packages need to be installed:
 	Fedora: python-sphinx (will pull in: python2-sphinx_rtd_theme)
@@ -70,6 +72,8 @@ For nftables support
 	libnftnl-dev libmnl-dev
 For systemd integration
 	libsystemd-dev
+For efficient module loading
+	libkmod-dev
 
 For building the documentation, the following packages need to be installed:
 	python-sphinx python-sphinx-rtd-theme

@@ -34,6 +34,7 @@
 #include <stdint.h>
 #include <errno.h>
 #include <time.h>
+#include <stdbool.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #if defined _WITH_LVS_ || defined _HAVE_LIBIPSET_
@@ -51,6 +52,9 @@
 #include <sys/stat.h>
 #include <execinfo.h>
 #include <memory.h>
+#endif
+#ifdef _HAVE_LIBKMOD_
+#include <libkmod.h>
 #endif
 
 /* Local includes */
@@ -1139,6 +1143,57 @@ memcmp_constant_time(const void *s1, const void *s2, size_t n)
  */
 
 #if defined _WITH_LVS_ || defined _HAVE_LIBIPSET_
+
+#ifdef _HAVE_LIBKMOD_
+bool
+keepalived_modprobe(const char *mod_name)
+{
+	struct kmod_ctx *ctx;
+	struct kmod_list *list = NULL, *l;
+	int err;
+	int flags;
+	const char *null_config = NULL;
+
+	if (!(ctx = kmod_new(NULL, &null_config))) {
+		log_message(LOG_INFO, "kmod_new failed, err %d - %m", errno);
+
+		return false;
+	}
+
+	kmod_load_resources(ctx);
+
+	err = kmod_module_new_from_lookup(ctx, mod_name, &list);
+	if (list == NULL || err < 0) {
+		log_message(LOG_INFO, "kmod_module_new_from_lookup failed - err %d", -err);
+		kmod_unref(ctx);
+		return false;
+	}
+
+	flags = KMOD_PROBE_APPLY_BLACKLIST_ALIAS_ONLY; // | KMOD_PROBE_FAIL_ON_LOADED;
+	kmod_list_foreach(l, list) {
+		struct kmod_module *mod = kmod_module_get_module(l);
+		err = kmod_module_probe_insert_module(mod, flags, NULL, NULL, NULL, NULL);
+		if (err < 0) {
+			errno = -err;
+			log_message(LOG_INFO, "kmod_module_probe_insert_module %s failed - err %d - %m", kmod_module_get_name(mod), -err);
+			kmod_module_unref(mod);
+			kmod_module_unref_list(list);
+			kmod_unref(ctx);
+			return false;
+		}
+
+		kmod_module_unref(mod);
+	}
+
+	kmod_module_unref_list(list);
+
+	kmod_unref(ctx);
+
+	return true;
+}
+
+#else
+
 static char*
 get_modprobe(void)
 {
@@ -1198,38 +1253,47 @@ keepalived_modprobe(const char *mod_name)
 	sigemptyset(&act.sa_mask);
 	act.sa_flags = 0;
 
-	sigaction ( SIGCHLD, &act, &old_act);
+	sigaction(SIGCHLD, &act, &old_act);
 
 #ifdef ENABLE_LOG_TO_FILE
 	if (log_file_name)
 		flush_log_file();
 #endif
 
-	if (!(child = fork())) {
-		args.args = argv;
-		/* coverity[tainted_string] */
-		execv(argv[0], args.execve_args);
-		exit(1);
-	}
+	do {
+		if (!(child = fork())) {
+			args.args = argv;
+			/* coverity[tainted_string] */
+			execv(argv[0], args.execve_args);
+			exit(1);
+		}
 
-	rc = waitpid(child, &status, 0);
+		rc = waitpid(child, &status, 0);
+		if (rc < 0)
+			log_message(LOG_INFO, "modprobe: waitpid error (%s)"
+					    , strerror(errno));
 
-	sigaction ( SIGCHLD, &old_act, NULL);
+		/* It has been reported (see issue #2040) that some modprobes
+		 * do not support the -s option, so try without if we get a
+		 * failure. */
+		if (!WIFEXITED(status) || !WEXITSTATUS(status))
+			break;
 
-	if (rc < 0) {
-		log_message(LOG_INFO, "IPVS: waitpid error (%s)"
-				    , strerror(errno));
-	}
+		if (!argv[2])
+			break;
+
+		argv[1] = mod_name;
+		argv[2] = NULL;
+	 } while (true);
+
+	sigaction(SIGCHLD, &old_act, NULL);
 
 	if (modprobe)
 		FREE(modprobe);
 
-	if (!WIFEXITED(status) || WEXITSTATUS(status)) {
-		return true;
-	}
-
-	return false;
+	return WIFEXITED(status) && !WEXITSTATUS(status);
 }
+#endif
 #endif
 
 void

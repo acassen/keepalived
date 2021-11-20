@@ -316,9 +316,9 @@ AC_ARG_ENABLE(force-conversion-checks,
 AC_ARG_ENABLE(Werror,
   [AS_HELP_STRING([--enable-Werror], [compile with warnings being errors])])
 AC_ARG_WITH([systemdsystemunitdir],
-	AS_HELP_STRING([--with-systemdsystemunitdir=DIR], [Directory for systemd service files])])
+  [AS_HELP_STRING([--with-systemdsystemunitdir=DIR], [Directory for systemd service files])])
 AC_ARG_WITH([dbus-data-dir],
-	AS_HELP_STRING([--with-dbus-data-dir=DIR], [Directory for Dbus interface files])])
+  [AS_HELP_STRING([--with-dbus-data-dir=DIR], [Directory for Dbus interface files])])
 
 # Set the kernel headers path
 if test -n "$kernel_src_path"; then
@@ -1350,6 +1350,15 @@ AS_IF([test .$ac_cv_func_OPENSSL_init_crypto = .yes],
 	      [AC_DEFINE([HAVE_OPENSSL_INIT_NO_LOAD_CONFIG_BUG], [ 1 ], [Define to 1 if OPENSSL_init_crypto(OPENSSL_INIT_NO_LOAD_CONFIG) bug)])])
       ])
 unset LIBS
+
+dnl ----[ Check if libkmod available ]----
+$PKG_CONFIG --exists libkmod
+AS_IF([ test $? -eq 0 ],
+  [
+    AC_DEFINE([_HAVE_LIBKMOD_], [ 1 ], [Define to 1 if have libkmod])
+    add_pkg_config([libkmod])
+    add_system_opt([LIBKMOD])
+  ])
 
 dnl ----[ Check for IPv4 devconf netlink support ]----
 IPV4_DEVCONF=No
