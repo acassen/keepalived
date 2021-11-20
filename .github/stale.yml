@@ -1,0 +1,21 @@
+# Number of days of inactivity before an issue becomes stale
+daysUntilStale: 30
+# Number of days of inactivity before a stale issue is closed
+daysUntilClose: 7
+# Issues with these labels will never be considered stale
+exemptLabels:
+  - documents
+  - enhancement
+  - regression
+  - wiki
+  - bug
+# Label to use when marking an issue as stale
+staleLabel: stale
+# Comment to post when marking an issue as stale. Set to `false` to disable
+markComment: >
+  This issue is being marked as stale because it has not had any recent activity. 
+  It will be closed if no further activity occurs. 
+  If this is still an issue in the latest release of keepalived and you would like to keep it open, please comment on this issue within the next 7 days. 
+  Thank you for your contributions to keepalived.
+# Comment to post when closing a stale issue. Set to `false` to disable
+closeComment: false
