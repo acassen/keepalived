@@ -304,7 +304,7 @@ bool ipset_initialise(void)
 
 	ipset_load_types();
 
-	if (!set_match_loaded() && keepalived_modprobe("xt_set")) {
+	if (!set_match_loaded() && !keepalived_modprobe("xt_set")) {
 		log_message(LOG_INFO, "Unable to load module xt_set - not using ipsets");
 		return false;
 	}

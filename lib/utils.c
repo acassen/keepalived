@@ -1198,37 +1198,45 @@ keepalived_modprobe(const char *mod_name)
 	sigemptyset(&act.sa_mask);
 	act.sa_flags = 0;
 
-	sigaction ( SIGCHLD, &act, &old_act);
+	sigaction(SIGCHLD, &act, &old_act);
 
 #ifdef ENABLE_LOG_TO_FILE
 	if (log_file_name)
 		flush_log_file();
 #endif
 
-	if (!(child = fork())) {
-		args.args = argv;
-		/* coverity[tainted_string] */
-		execv(argv[0], args.execve_args);
-		exit(1);
-	}
+	do {
+		if (!(child = fork())) {
+			args.args = argv;
+			/* coverity[tainted_string] */
+			execv(argv[0], args.execve_args);
+			exit(1);
+		}
 
-	rc = waitpid(child, &status, 0);
+		rc = waitpid(child, &status, 0);
+		if (rc < 0)
+			log_message(LOG_INFO, "modprobe: waitpid error (%s)"
+					    , strerror(errno));
 
-	sigaction ( SIGCHLD, &old_act, NULL);
+		/* It has been reported (see issue #2040) that some modprobes
+		 * do not support the -s option, so try without if we get a
+		 * failure. */
+		if (!WIFEXITED(status) || !WEXITSTATUS(status))
+			break;
 
-	if (rc < 0) {
-		log_message(LOG_INFO, "IPVS: waitpid error (%s)"
-				    , strerror(errno));
-	}
+		if (!argv[2])
+			break;
+
+		argv[1] = mod_name;
+		argv[2] = NULL;
+	 } while (true);
+
+	sigaction(SIGCHLD, &old_act, NULL);
 
 	if (modprobe)
 		FREE(modprobe);
 
-	if (!WIFEXITED(status) || WEXITSTATUS(status)) {
-		return true;
-	}
-
-	return false;
+	return WIFEXITED(status) && !WEXITSTATUS(status);
 }
 #endif
 

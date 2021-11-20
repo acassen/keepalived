@@ -88,7 +88,7 @@ ipvs_start(void)
 	log_message(LOG_DEBUG, "%snitializing ipvs", reload ? "Rei" : "I");
 	/* Initialize IPVS module */
 	if (ipvs_init()) {
-		if (keepalived_modprobe("ip_vs") || ipvs_init()) {
+		if (!keepalived_modprobe("ip_vs") || ipvs_init()) {
 			log_message(LOG_INFO, "IPVS: Can't initialize ipvs: %s",
 			       ipvs_strerror(errno));
 			no_ipvs = true;
