@@ -11,9 +11,8 @@ Kernel needs
 Library dependencies
 ====================
 
-  In order to compile Keepalived needs the following libraries :
-
-  * OpenSSL, <www.openssl.org>
+  In order to compile Keepalived needs the following libraries (depending
+  on the Linux flavour):
 
 Linux flavours
 ==============
@@ -138,33 +137,56 @@ FIB_RULES if static or dynamic rules are specified
 Installing from a git repo
 ==========================
 To install from a git repo, execute:
+
   1. Ensure you have autoconf and automake installed
+
   2. git clone https://github.com/acassen/keepalived.git
+
   3. cd keepalived
-  4. ./build_setup	# generate the autoconf and automake environment
+
+  4. ./autogen.sh	# generate the autoconf and automake environment
+
   5. Follow the instructions below for Installation, omitting the first two steps.
 
 Installation
 ============
 
   1. tar -xf TARFILE
+
   2. cd into the directory
-  3. './configure'
+
+  3. './configure [BUILD_OPTIONS]'
+
   4. 'make'
+
   5. 'make install'. This will install keepalived on your system,
-     binaries and configuration file :
+     binaries and configuration filei etc. The location the files are
+     install to will depend on the configure options used :
      * keepalived : The keepalived daemon program.
      * genhash    : The MD5 url digest generator. You need it to
                     configure HTTP GET check and SSL GET check in
                     order to compute MD5SUM digest etalon.
      * /etc/keepalived/keepalived.conf
-  6. link keepalived.init into your runlevel directory. On Red Hat systems :
+     * /etc/keepalived/samples/*
+     * man pages
+     * /usr/share/snmp/mibs/{KEEPALIVED,VRRP,VRRPv3}-MIB.txt if SNMP is enabled
+     * /usr/lib/systemd/system/keepalived.service if using systemd
+     * If keepalived is built with DBus support:
+	/etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
+	/usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.{Instance,Vrrp}.xml
+
+  6. If you are using systemd, to enable the keepalived execute:
+	systemctl enable keepalived
+
+     If you are using an init, link keepalived.init into your runlevel directory.
+     On Red Hat systems :
      ln -s /etc/rc.d/init.d/keepalived.init /etc/rc.d/rc3.d/S99keepalived
 
   By default the configure script uses /usr/local as base directory. You can
   change this value to your own by passing it the --prefix value.
 
   eg: './configure --prefix=/usr/'
+      run './configure --help' to see all options.
 
 Building RPM files
 ==================
@@ -203,8 +225,16 @@ Configuration
 
 Creating a docker container
 ===========================
-There is a very useful github project maintained by osixia for building a
-docker container with keepalived.
+The simplest way to build a docker image is to execute the following
+commands:
+
+./configure OPTIONS
+make
+make docker
+
+
+Alternatively there is a very useful github project that was maintained
+by osixia for building a docker container with keepalived.
 
 To use, run the following:
 git clone https://github.com/osixia/docker-keepalived.git
