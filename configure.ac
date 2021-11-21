@@ -119,6 +119,7 @@ AH_BOTTOM(
 #endif])
 
 AC_CONFIG_FILES([Makefile keepalived/Makefile lib/Makefile keepalived/core/Makefile keepalived.spec \
+		 Dockerfile \
 		 keepalived/check/Makefile keepalived/vrrp/Makefile \
 		 keepalived/bfd/Makefile doc/Makefile bin_install/Makefile keepalived/dbus/Makefile \
 		 keepalived/etc/Makefile keepalived/etc/init/Makefile keepalived/etc/init.d/Makefile \
