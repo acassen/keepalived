@@ -1,0 +1,93 @@
+FROM alpine:latest
+ARG GIT_VER=
+ENV VER=@VERSION@
+LABEL version=@VERSION@${GIT_VER}
+LABEL author="Alexandre Cassen <acassen@gmail.com>"
+LABEL project="https://github.com/acassen/keepalived"
+LABEL homepage="https://www.keepalived.org"
+
+# add keepalived sources to /tmp/keepalived-@VERSION@
+ADD keepalived-@VERSION@.tar.gz /tmp
+
+# Add keepalived default script user to make sure their IDs get assigned consistently,
+# regardless of whatever dependencies get added
+RUN addgroup -S keepalived_script && adduser -D -S -G keepalived_script keepalived_script
+
+# 1. install required libraries and tools
+# 2. compile and install keepalived
+# 3. remove keepalived sources and unnecessary libraries and tools
+RUN apk --no-cache add \
+	binutils \
+@MAGIC_TRUE@	file \
+@MAGIC_TRUE@	file-dev \
+	gcc \
+@WITH_DBUS_TRUE@	glib \
+@WITH_DBUS_TRUE@	glib-dev \
+@LIBIPSET_TRUE@	ipset \
+@LIBIPSET_TRUE@	ipset-dev \
+@IPTABLES_TRUE@	iptables \
+@IPTABLES_TRUE@	iptables-dev \
+@NFTABLES_TRUE@	libmnl-dev \
+@NFTABLES_TRUE@	libnftnl-dev \
+	libnl3 \
+	libnl3-dev \
+	make \
+	musl-dev \
+@SNMP_TRUE@	net-snmp-dev \
+	openssl \
+	openssl-dev \
+@WITH_REGEX_TRUE@	pcre2 \
+@WITH_REGEX_TRUE@	pcre2-dev \
+	autoconf \
+	automake \
+    && cd /tmp/keepalived-@VERSION@/ \
+    && ./autogen.sh \
+    && ./configure \
+		--disable-dynamic-linking \
+		--prefix=/usr \
+		--exec-prefix=/usr \
+		--bindir=/usr/bin \
+		--sbindir=/usr/sbin \
+		--sysconfdir=/etc \
+		--datadir=/usr/share \
+		--localstatedir=/var \
+		--mandir=/usr/share/man \
+@WITH_DBUS_TRUE@		--with-dbus-data-dir=/usr/share \
+		--enable-bfd \
+@WITH_DBUS_TRUE@		--enable-dbus \
+@WITH_REGEX_TRUE@		--enable-regex \
+@SNMP_TRUE@		--enable-snmp \
+@SNMP_TRUE@		--enable-snmp-rfc \
+@NFTABLES_TRUE@		--enable-nftables \
+@IPTABLES_FALSE@		--disable-iptables \
+@IPTABLES_TRUE@@LIBIPSET_FALSE@		--disable-libipset \
+@WITH_JSON_TRUE@		--enable-json \
+    && make && make install \
+    && strip /usr/sbin/keepalived \
+    && cd - \
+    && rm -rf /tmp/keepalived-@VERSION@ \
+    && apk --no-cache del \
+	binutils \
+@MAGIC_TRUE@	file-dev \
+	gcc \
+@WITH_DBUS_TRUE@	glib-dev \
+@LIBIPSET_TRUE@	ipset-dev \
+@IPTABLES_TRUE@	iptables-dev \
+@NFTABLES_TRUE@	libmnl-dev \
+	libnl3-dev \
+@NFTABLES_TRUE@	libnftnl-dev \
+	make \
+	musl-dev \
+	openssl-dev \
+@WITH_REGEX_TRUE@	pcre2-dev \
+	autoconf \
+	automake
+
+ADD docker/keepalived.conf /etc/keepalived/keepalived.conf
+
+# set keepalived as image entrypoint with --dont-fork and --log-console (to make it docker friendly)
+# define /etc/keepalived/keepalived.conf as the configuration file to use
+ENTRYPOINT ["/usr/sbin/keepalived","--dont-fork","--log-console", "-f","/etc/keepalived/keepalived.conf"]
+
+# example command to customise keepalived daemon:
+# CMD ["--log-detail","--dump-conf"]

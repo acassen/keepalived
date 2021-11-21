@@ -2432,8 +2432,8 @@ open_vrrp_read_socket(sa_family_t family, int proto, const interface_t *ifp,
 		/* Binding to the multicast address stops us receiving unicast
 		 * pkts when we are only interested in multicast.
 		 */
-		if ((family == AF_INET && bind(fd, PTR_CAST_CONST(struct sockaddr_in, mcast_daddr), sizeof(struct sockaddr_in))) ||
-		    (family == AF_INET6 && bind(fd, PTR_CAST_CONST(struct sockaddr_in6, mcast_daddr), sizeof(struct sockaddr_in6))))
+		if ((family == AF_INET && bind(fd, PTR_CAST_CONST(struct sockaddr, mcast_daddr), sizeof(struct sockaddr_in))) ||
+		    (family == AF_INET6 && bind(fd, PTR_CAST_CONST(struct sockaddr, mcast_daddr), sizeof(struct sockaddr_in6))))
 			log_message(LOG_INFO, "bind for multicast failed %d - %m", errno);
 	} else {
 #ifdef _HAVE_VRF_
