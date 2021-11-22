@@ -79,6 +79,10 @@ For building the documentation, the following packages need to be installed:
    For latex or pdf files, the following are also needed:
 	texlive-latex-base texlive-generic-extra texlive-latex-recommended texlive-fonts-recommended texlive-latex-extra
 
+For runtime:
+For SNMP support
+	libsnmp30 (Ubuntu 18.04), libsnmp35 (Ubuntu 20.04)
+
 Alpine Linux
 ------------
 The following libraries need to be installed:

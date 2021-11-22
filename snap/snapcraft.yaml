@@ -98,7 +98,7 @@ parts:
       - libnl-3-200
       - libnl-genl-3-200
       - libpcre2-8-0
-      - libsnmp30
+      - libsnmp35
     organize:
       'usr/sbin/keepalived': usr/sbin/keepalived-504
 
