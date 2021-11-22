@@ -90,7 +90,7 @@ parts:
       - libkmod-dev
     stage-packages:
       - libnfnetlink0
-      - libipset3
+      - libipset13
       - libglib2.0-0
       - libmagic1
       - libmnl0
