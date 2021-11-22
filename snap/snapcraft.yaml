@@ -94,7 +94,7 @@ parts:
       - libglib2.0-0
       - libmagic1
       - libmnl0
-      - libnftnl7
+      - libnftnl11
       - libnl-3-200
       - libnl-genl-3-200
       - libpcre2-8-0
