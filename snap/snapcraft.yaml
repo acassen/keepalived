@@ -9,7 +9,7 @@ description: |
 grade: stable
 confinement: classic
 
-base: core18
+base: core20
 
 # linux-libc-dev for 4.18 and 3.10 are no longer available via
 #    http://security.ubuntu.com/ubuntu/pool/main/l/linux/
