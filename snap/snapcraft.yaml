@@ -29,9 +29,9 @@ base: core20
 apps:
   daemon:
     daemon: forking
-    command: $SNAP/bin/keepalived-wrapper
+    command: bin/keepalived-wrapper
   keepalived:
-    command: $SNAP/bin/keepalived-wrapper
+    command: bin/keepalived-wrapper
   "508":        # Fedora 33 and Ubuntu 20.10
     command: usr/sbin/keepalived-508
   "504":        # Ubuntu 20.04
