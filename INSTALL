@@ -82,6 +82,8 @@ For building the documentation, the following packages need to be installed:
 For runtime:
 For SNMP support
 	libsnmp30 (Ubuntu 18.04), libsnmp35 (Ubuntu 20.04)
+For ipset support
+	libipset3 (Ununtu 18.04), libipset13 (Ubuntu 20.04)
 
 Alpine Linux
 ------------
