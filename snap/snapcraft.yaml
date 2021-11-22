@@ -9,7 +9,7 @@ description: |
 grade: stable
 confinement: classic
 
-base: core18
+base: core20
 
 # linux-libc-dev for 4.18 and 3.10 are no longer available via
 #    http://security.ubuntu.com/ubuntu/pool/main/l/linux/
@@ -97,7 +97,6 @@ parts:
       - libnl-genl-3-200
       - libpcre2-8-0
       - libsnmp30
-      - libkmod
     organize:
       'usr/sbin/keepalived': usr/sbin/keepalived-415
 
