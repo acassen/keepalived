@@ -19,7 +19,7 @@ base: core20
 #
 # To find the relevant files, go to launchpad.net/ubuntu/CODENAME/ARCH/linux-libc-dev
 #   where CODENAME is, for example cosmic for Ubuntu 18.10, and ARCH is each of amd64,
-#   i386, ppc64el, arm64, armhf and s390x.
+#   ppc64el, arm64, armhf and s390x.
 # Select the most recent version, and click on link under Version column (RHS). Under
 #   Downloadable files is a link to the .deb file. That is what we need in DEB_URL.
 #
@@ -113,7 +113,7 @@ parts:
     override-pull: |
       KERNEL_VER="5.8.0"
       ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
-      if [ $ARCH = amd64 ] || [ $ARCH = i386 ]; then
+      if [ $ARCH = amd64 ]; then
         ARCHIVE_URL="http://security.ubuntu.com/ubuntu/pool/main/l/linux/"
       else
         ARCHIVE_URL="http://ports.ubuntu.com/pool/main/l/linux/"
@@ -183,8 +183,6 @@ parts:
       ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
       if [ $ARCH = amd64 ] || [ $ARCH = ppc64el ] ||  [ $ARCH = arm64 ]; then
         DEB_URL="http://launchpadlibrarian.net/431512728/linux-libc-dev_4.18.0-26.27_amd64.deb"
-      elif [ $ARCH = i386 ]; then
-        DEB_URL="http://launchpadlibrarian.net/431500961/linux-libc-dev_4.18.0-26.27_i386.deb"
       elif [ $ARCH = armhf ]; then
         DEB_URL="http://launchpadlibrarian.net/431525966/linux-libc-dev_4.18.0-26.27_armhf.deb"
       elif [ $ARCH = s390x ]; then
@@ -245,7 +243,7 @@ parts:
     override-pull: |
       KERNEL_VER="4.15.0"
       ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
-      if [ $ARCH = amd64 ] || [ $ARCH = i386 ]; then
+      if [ $ARCH = amd64 ]; then
         ARCHIVE_URL="http://security.ubuntu.com/ubuntu/pool/main/l/linux/"
       else
         ARCHIVE_URL="http://ports.ubuntu.com/pool/main/l/linux/"
@@ -307,8 +305,6 @@ parts:
       ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
       if [ $ARCH = amd64 ] || [ $ARCH = ppc64el ] ||  [ $ARCH = arm64 ]; then
         DEB_URL="http://launchpadlibrarian.net/144719237/linux-libc-dev_3.10.0-2.11_amd64.deb"
-      elif [ $ARCH = i386 ]; then
-        DEB_URL="http://launchpadlibrarian.net/144720155/linux-libc-dev_3.10.0-2.11_i386.deb"
       elif [ $ARCH = armhf ]; then
         DEB_URL="http://launchpadlibrarian.net/144753483/linux-libc-dev_3.10.0-2.11_armhf.deb"
       fi
