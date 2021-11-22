@@ -73,7 +73,9 @@ parts:
       rm ${SNAPCRAFT_PART_INSTALL}/usr/bin/genhash
       ln -s ../sbin/keepalived-$KERNEL_VER ${SNAPCRAFT_PART_INSTALL}/usr/bin/genhash
     build-packages:
-      - iptables-dev
+      - libxtables-dev
+      - libip4tc-dev
+      - libip6tc-dev
       - libipset-dev
       - libglib2.0-dev
       - libmagic-dev
