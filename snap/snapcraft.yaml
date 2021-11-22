@@ -97,7 +97,6 @@ parts:
       - libnl-genl-3-200
       - libpcre2-8-0
       - libsnmp30
-      - libkmod
     organize:
       'usr/sbin/keepalived': usr/sbin/keepalived-415
 
