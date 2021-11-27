@@ -79,17 +79,17 @@ set_script_env(uid_t uid, gid_t gid)
 		}
 	}
 
+	/* Clear any extra supplementary groups */
+	if (setgroups(1, &gid) < 0) {
+		log_message(LOG_ALERT, "Couldn't setgroups: %u (%m)", gid);
+		return true;
+	}
+
 	if (uid != our_uid) {
 		if (setuid(uid) < 0) {
 			log_message(LOG_ALERT, "Couldn't setuid: %u (%m)", uid);
 			return true;
 		}
-	}
-
-	/* Clear any extra supplementary groups */
-	if (setgroups(1, &gid) < 0) {
-		log_message(LOG_ALERT, "Couldn't setgroups: %u (%m)", gid);
-		return true;
 	}
 
 	/* Prepare for invoking process/script */

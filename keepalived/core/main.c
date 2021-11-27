@@ -1770,7 +1770,8 @@ usage(const char *prog)
 	fprintf(stderr, "      --all                    Force all child processes to run, even if have no configuration\n");
 	fprintf(stderr, "  -l, --log-console            Log messages to local console\n");
 	fprintf(stderr, "  -D, --log-detail             Detailed log messages\n");
-	fprintf(stderr, "  -S, --log-facility=[0-7]     Set syslog facility to LOG_LOCAL[0-7]\n");
+	fprintf(stderr, "  -S, --log-facility=([0-7]|local[0-7]|user|daemon)\n");
+	fprintf(stderr, "                               Set syslog facility to LOG_LOCAL[0-7], user or daemon (default)\n");
 #ifdef ENABLE_LOG_TO_FILE
 	fprintf(stderr, "  -g, --log-file=FILE          Also log to FILE (default %s/keepalived.log)\n", tmp_dir);
 	fprintf(stderr, "      --flush-log-file         Flush log file on write\n");

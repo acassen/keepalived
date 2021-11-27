@@ -5,6 +5,7 @@
 README
 bin/
 keepalived.spec
+Dockerfile
 *~
 *.swp
 .dir-locals.el
