@@ -1610,10 +1610,7 @@ vrrp_vscript_end_handler(void)
 							, vscript->sname);
 		remove_script = true;
 	}
-	else if (!remove_script) {
-		if (script_user_set)
-			return;
-
+	else if (!remove_script && !script_user_set) {
 		if (get_default_script_user(&vscript->script.uid, &vscript->script.gid)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Unable to set default user for vrrp"
 								  " script %s - removing"
