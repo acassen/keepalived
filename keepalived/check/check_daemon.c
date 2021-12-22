@@ -321,12 +321,6 @@ start_check(list_head_t *old_checkers_queue, data_t *prev_global_data)
 
 	init_data(conf_file, check_init_keywords, false);
 
-#ifndef _ONE_PROCESS_DEBUG_
-	/* Notify parent config has been read if appropriate */
-	if (!__test_bit(CONFIG_TEST_BIT, &debug))
-		notify_config_read();
-#endif
-
 	if (reload)
 		init_global_data(global_data, prev_global_data, true);
 
@@ -442,6 +436,12 @@ start_check(list_head_t *old_checkers_queue, data_t *prev_global_data)
 	/* Initialize IPVS topology */
 	if (!init_services())
 		stop_check(KEEPALIVED_EXIT_FATAL);
+
+#ifndef _ONE_PROCESS_DEBUG_
+	/* Notify parent config has been read if appropriate */
+	if (!__test_bit(CONFIG_TEST_BIT, &debug))
+		notify_config_read();
+#endif
 
 	/* Dump configuration */
 	if (__test_bit(DUMP_CONF_BIT, &debug))

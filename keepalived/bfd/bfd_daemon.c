@@ -152,12 +152,6 @@ start_bfd(__attribute__((unused)) data_t *prev_global_data)
 
 	init_data(conf_file, bfd_init_keywords, false);
 
-#ifndef _ONE_PROCESS_DEBUG_
-	/* Notify parent config has been read if appropriate */
-	if (!__test_bit(CONFIG_TEST_BIT, &debug))
-		notify_config_read();
-#endif
-
 	if (reload)
 		init_global_data(global_data, prev_global_data, true);
 
@@ -179,6 +173,10 @@ start_bfd(__attribute__((unused)) data_t *prev_global_data)
 		stop_bfd(KEEPALIVED_EXIT_CONFIG);
 		return;
 	}
+
+	/* Notify parent config has been read if appropriate */
+	if (!__test_bit(CONFIG_TEST_BIT, &debug))
+		notify_config_read();
 #endif
 
 	if (__test_bit(DUMP_CONF_BIT, &debug))

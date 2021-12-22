@@ -55,6 +55,7 @@
 #include "warnings.h"
 #include "process.h"
 #include "align.h"
+#include "systemd.h"
 
 
 #ifdef THREAD_DUMP
@@ -553,6 +554,11 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 					exit_status == KEEPALIVED_EXIT_CONFIG ? "CONFIG" :
 					  exit_status == KEEPALIVED_EXIT_MISSING_PERMISSION ? "missing permission" :
 					  "FATAL" );
+
+#ifdef _USE_SYSTEMD_NOTIFY_
+			systemd_notify_error(exit_status == KEEPALIVED_EXIT_MISSING_PERMISSION ? EPERM : EINVAL);
+#endif
+
 			return exit_status;
 		}
 
