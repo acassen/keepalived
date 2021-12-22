@@ -524,7 +524,7 @@ log_child_died(const char *process, pid_t pid)
 }
 
 /* report_child_status returns true if the exit is a hard error, so unable to continue */
-bool
+int
 report_child_status(int status, pid_t pid, char const *prog_name)
 {
 	char const *prog_id = NULL;
@@ -553,7 +553,7 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 					exit_status == KEEPALIVED_EXIT_CONFIG ? "CONFIG" :
 					  exit_status == KEEPALIVED_EXIT_MISSING_PERMISSION ? "missing permission" :
 					  "FATAL" );
-			return true;
+			return exit_status;
 		}
 
 		if (exit_status != EXIT_SUCCESS)
@@ -596,7 +596,7 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 					WTERMSIG(status) == SIGKILL ? " - has rlimit_rttime been exceeded?" : "");
 	}
 
-	return false;
+	return 0;
 }
 #endif
 
@@ -1448,7 +1448,7 @@ thread_add_event(thread_master_t * m, thread_func_t func, void *arg, int val)
 
 /* Add terminate event thread. */
 static thread_ref_t
-thread_add_generic_terminate_event(thread_master_t * m, thread_type_t type, thread_func_t func)
+thread_add_generic_terminate_event(thread_master_t * m, thread_type_t type, thread_func_t func, int status)
 {
 	thread_t *thread;
 
@@ -1459,7 +1459,7 @@ thread_add_generic_terminate_event(thread_master_t * m, thread_type_t type, thre
 	thread->master = m;
 	thread->func = func;
 	thread->arg = NULL;
-	thread->u.val = 0;
+	thread->u.val = status;
 	INIT_LIST_HEAD(&thread->e_list);
 	list_add_tail(&thread->e_list, &m->event);
 
@@ -1469,13 +1469,19 @@ thread_add_generic_terminate_event(thread_master_t * m, thread_type_t type, thre
 thread_ref_t
 thread_add_terminate_event(thread_master_t *m)
 {
-	return thread_add_generic_terminate_event(m, THREAD_TERMINATE, NULL);
+	return thread_add_generic_terminate_event(m, THREAD_TERMINATE, NULL, 0);
+}
+
+thread_ref_t
+thread_add_parent_terminate_event(thread_master_t *m, int status)
+{
+	return thread_add_generic_terminate_event(m, THREAD_TERMINATE, NULL, status);
 }
 
 thread_ref_t
 thread_add_start_terminate_event(thread_master_t *m, thread_func_t func)
 {
-	return thread_add_generic_terminate_event(m, THREAD_TERMINATE_START, func);
+	return thread_add_generic_terminate_event(m, THREAD_TERMINATE_START, func, 0);
 }
 
 #ifdef USE_SIGNAL_THREADS
@@ -2002,12 +2008,13 @@ thread_call(thread_t * thread)
 	(*thread->func) (thread);
 }
 
-void
+int
 process_threads(thread_master_t *m)
 {
 	thread_t* thread;
 	list_head_t *thread_list;
 	int thread_type;
+	int exit_code = 0;
 
 	/*
 	 * Processing the master thread queues,
@@ -2062,6 +2069,8 @@ process_threads(thread_master_t *m)
 		    thread->type == THREAD_CHILD_TERMINATED ||
 		    thread->type == THREAD_TIMER_SHUTDOWN ||
 		    thread->type == THREAD_TERMINATE) {
+			exit_code = thread->u.val;
+
 			if (thread->func)
 				thread_call(thread);
 
@@ -2097,8 +2106,10 @@ process_threads(thread_master_t *m)
 
 		/* If daemon hanging event is received stop processing */
 		if (thread_type == THREAD_TERMINATE)
-			break;
+			return exit_code;
 	}
+
+	return 0;
 }
 
 static void
@@ -2176,13 +2187,13 @@ thread_add_base_threads(thread_master_t *m,
 }
 
 /* Our infinite scheduling loop */
-void
+int
 launch_thread_scheduler(thread_master_t *m)
 {
 // TODO - do this somewhere better
 	signal_set(SIGCHLD, thread_child_handler, m);
 
-	process_threads(m);
+	return process_threads(m);
 }
 
 #ifdef THREAD_DUMP

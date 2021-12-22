@@ -200,17 +200,18 @@ typedef enum {
 #define THREAD_CHILD_PID(X) ((X)->u.c.pid)
 #define THREAD_CHILD_STATUS(X) ((X)->u.c.status)
 
-/* Exit codes */
+/* Exit codes. The values comply with the LSB so far as possible,
+ * and are also documented in the systemd.exec(5) man page. */
 enum exit_code {
 	KEEPALIVED_EXIT_OK = EXIT_SUCCESS,
-	KEEPALIVED_EXIT_NO_MEMORY = EXIT_FAILURE,
-	KEEPALIVED_EXIT_PROGRAM_ERROR,
-	KEEPALIVED_EXIT_FATAL,
-	KEEPALIVED_EXIT_CONFIG,
-	KEEPALIVED_EXIT_CONFIG_TEST,
-	KEEPALIVED_EXIT_CONFIG_TEST_SECURITY,
-	KEEPALIVED_EXIT_NO_CONFIG,
-	KEEPALIVED_EXIT_MISSING_PERMISSION,
+	KEEPALIVED_EXIT_NO_MEMORY = 204,	// EXIT_MEMORY
+	KEEPALIVED_EXIT_PROGRAM_ERROR = 70,	// EX_SOFTWARE
+	KEEPALIVED_EXIT_FATAL = 1,		// EXIT_FAILURE
+	KEEPALIVED_EXIT_CONFIG = 2,		// EXIT_INVALIDARGUMENT
+	KEEPALIVED_EXIT_CONFIG_TEST = 150,
+	KEEPALIVED_EXIT_CONFIG_TEST_SECURITY = 151,
+	KEEPALIVED_EXIT_NO_CONFIG = 6,		// EXIT_NOTCONFIGURED
+	KEEPALIVED_EXIT_MISSING_PERMISSION = 4,	// EXIT_NOPERMISSION
 } ;
 
 #define DEFAULT_CHILD_FINDER ((void *)1)
@@ -241,10 +242,11 @@ extern void log_command_line(unsigned);
 #ifndef _ONE_PROCESS_DEBUG_
 extern unsigned calc_restart_delay(const timeval_t *, unsigned *, const char *);
 extern void log_child_died(const char *, pid_t);
-extern bool report_child_status(int, pid_t, const char *);
+extern int report_child_status(int, pid_t, const char *);
 #endif
 extern thread_master_t *thread_make_master(void);
 extern thread_ref_t thread_add_terminate_event(thread_master_t *);
+extern thread_ref_t thread_add_parent_terminate_event(thread_master_t *, int);
 extern thread_ref_t thread_add_start_terminate_event(thread_master_t *, thread_func_t);
 #ifdef THREAD_DUMP
 extern void dump_thread_data(const thread_master_t *, FILE *);
@@ -273,10 +275,10 @@ extern void snmp_timeout_thread(thread_ref_t);
 extern void snmp_epoll_info(thread_master_t *);
 extern void snmp_epoll_clear(thread_master_t *);
 #endif
-extern void process_threads(thread_master_t *);
+extern int process_threads(thread_master_t *);
 extern void thread_child_handler(void *, int);
 extern void thread_add_base_threads(thread_master_t *, bool);
-extern void launch_thread_scheduler(thread_master_t *);
+extern int launch_thread_scheduler(thread_master_t *);
 #ifndef _ONE_PROCESS_DEBUG_
 extern void register_shutdown_function(void (*)(int));
 #endif
