@@ -30,6 +30,7 @@
 
 extern bool check_parent_systemd(void);
 extern void systemd_notify_running(void);
+extern void systemd_notify_error(int);
 extern void systemd_notify_reloading(void);
 extern void systemd_notify_stopping(void);
 extern void systemd_unset_notify(void);

@@ -37,6 +37,13 @@ if ASSERTS
   EXTRA_liblib_a_SOURCES += assert.c
 endif
 
+if !ONE_PROCESS_DEBUG
+if WITH_SYSTEMD_NOTIFY
+  liblib_a_LIBADD      += systemd.o
+  EXTRA_liblib_a_SOURCES += systemd.c
+endif
+endif
+
 EXTRA_DIST		= $(GIT_COMMIT_FILE)
 
 MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@

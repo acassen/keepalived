@@ -85,6 +85,13 @@ systemd_notify_reloading(void)
 }
 
 void
+systemd_notify_error(int error_code)
+{
+	if (parent_is_systemd)
+		sd_notifyf(0, "ERRNO=%d", error_code);
+}
+
+void
 systemd_notify_stopping(void)
 {
 	if (parent_is_systemd)

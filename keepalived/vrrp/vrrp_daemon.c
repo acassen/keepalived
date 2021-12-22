@@ -515,12 +515,6 @@ start_vrrp(data_t *prev_global_data)
 
 	init_data(conf_file, vrrp_init_keywords, false);
 
-#ifndef _ONE_PROCESS_DEBUG_
-	/* Notify parent config has been read if appropriate */
-	if (!__test_bit(CONFIG_TEST_BIT, &debug))
-		notify_config_read();
-#endif
-
 	/* Update process name if necessary */
 	if ((!reload && global_data->vrrp_process_name) ||
 	    (reload &&
@@ -631,6 +625,12 @@ start_vrrp(data_t *prev_global_data)
 			stop_vrrp(KEEPALIVED_EXIT_MISSING_PERMISSION);
 	} else
 		ndisc_close();
+
+#ifndef _ONE_PROCESS_DEBUG_
+	/* Notify parent config has been read if appropriate */
+	if (!__test_bit(CONFIG_TEST_BIT, &debug))
+		notify_config_read();
+#endif
 
 	if (!reload)
 		vrrp_restore_interfaces_startup();
