@@ -2733,7 +2733,7 @@ keepalived_main(int argc, char **argv)
 #endif
 
 	/* Launch the scheduling I/O multiplexer */
-	launch_thread_scheduler(master);
+	exit_code = launch_thread_scheduler(master);
 
 	/* Finish daemon process */
 	stop_keepalived();
