@@ -617,9 +617,6 @@ check_respawn_thread(thread_ref_t thread)
 static void
 register_check_thread_addresses(void)
 {
-	/* Remove anything we might have inherited from parent */
-	deregister_thread_addresses();
-
 	register_scheduler_addresses();
 	register_signal_thread_addresses();
 	register_notify_addresses();
@@ -696,6 +693,11 @@ start_check_child(void)
 	prog_type = PROG_TYPE_CHECKER;
 
 	initialise_debug_options();
+
+#ifdef THREAD_DUMP
+	/* Remove anything we might have inherited from parent */
+	deregister_thread_addresses();
+#endif
 
 #ifdef _WITH_BFD_
 	/* Close the write end of the BFD checker event notification pipe and the track_process fd */

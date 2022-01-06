@@ -336,9 +336,6 @@ bfd_respawn_thread(thread_ref_t thread)
 static void
 register_bfd_thread_addresses(void)
 {
-	/* Remove anything we might have inherited from parent */
-	deregister_thread_addresses();
-
 	register_scheduler_addresses();
 	register_signal_thread_addresses();
 
@@ -401,6 +398,11 @@ start_bfd_child(void)
 #endif
 #ifdef _WITH_LVS_
 	close(bfd_checker_event_pipe[0]);
+#endif
+
+#ifdef THREAD_DUMP
+	/* Remove anything we might have inherited from parent */
+	deregister_thread_addresses();
 #endif
 
 	initialise_debug_options();
