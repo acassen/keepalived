@@ -935,9 +935,6 @@ vrrp_respawn_thread(thread_ref_t thread)
 static void
 register_vrrp_thread_addresses(void)
 {
-	/* Remove anything we might have inherited from parent */
-	deregister_thread_addresses();
-
 	register_scheduler_addresses();
 	register_signal_thread_addresses();
 	register_notify_addresses();
@@ -1017,6 +1014,10 @@ start_vrrp_child(void)
 
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
+	/* Check our parent hasn't already changed since the fork */
+	if (main_pid != getppid())
+		kill(getpid(), SIGTERM);
+
 #ifdef _WITH_PERF_
 	if (perf_run == PERF_ALL)
 		run_perf("vrrp", global_data->network_namespace, global_data->instance_name);
@@ -1025,6 +1026,11 @@ start_vrrp_child(void)
 	prog_type = PROG_TYPE_VRRP;
 
 	initialise_debug_options();
+
+#ifdef THREAD_DUMP
+	/* Remove anything we might have inherited from parent */
+	deregister_thread_addresses();
+#endif
 
 #ifdef _WITH_BFD_
 	/* Close the write end of the BFD vrrp event notification pipe */
