@@ -9,9 +9,11 @@ DATE=`date -u --date=@\"\`git log -n 1 --format=%ct -- $@.in 2>/dev/null || date
 edit = echo "  EDIT     $@"; \
 	@SED@ \
 	 -e 's|@DEFAULT_CONFIG_FILE[@]|$(DEFAULT_CONFIG_FILE)|g' \
+	 -e 's|@OLD_DEFAULT_CONFIG_FILE[@]|$(OLD_DEFAULT_CONFIG_FILE)|g' \
 	 -e "s|@DATE[@]|$(DATE)|g" \
 	 -e 's|@RUN_DIR_ROOT[@]|$(RUN_DIR_ROOT)|g' \
-	 -e 's|@KA_TMP_DIR[@]|$(KA_TMP_DIR)|g'
+	 -e 's|@KA_TMP_DIR[@]|$(KA_TMP_DIR)|g' \
+	 -e '/""\.$$/d'
 
 dist_man8_MANS  = keepalived.8
 

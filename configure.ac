@@ -2897,7 +2897,8 @@ AS_IF([test -n "$default_config_file"],
   [
     AS_IF([test $default_config_file = yes -o $default_config_file = no],
 	  [AC_MSG_ERROR([A filename must be specified for default-config-file])])
-    AS_IF([`echo $default_config_file | $(SED) -e "s/\(.\).*/\1/"` = / ],
+    FIRST_CHAR=`echo $default_config_file | $SED -e "s/\(.\).*/\1/"`
+    AS_IF([test $FIRST_CHAR = / ],
       [CONFIG_FILE=$default_config_file],
       [CONFIG_FILE="\$(sysconfdir)/$PACKAGE/$default_config_file"])
     add_config_opt([DEFAULT_CONFIG_FILE=$CONFIG_FILE])
@@ -2910,15 +2911,31 @@ AC_SUBST([DEFAULT_CONFIG_FILE], [$default_config_file])
 AC_SUBST([DEFAULT_CONFIG_DIR], [${dir}])
 AC_SUBST([DEFAULT_CONFIG_FILENAME], [${name}])
 # Change any make $(...) variable to the matching shell variable and substitute
-default_config_file=`echo $default_config_file | $SED -e "s|\\\$(\(.*\))|\\\${\1}|"`
-eval dcf=`echo $default_config_file`
-AS_IF([ test x${prefix} = xNONE ],
-  [dcf_new=`echo $dcf | $SED -e "s|^\\\${prefix}|${ac_default_prefix}|"`],
-  [dcf_new=`echo $dcf`])
-AC_DEFINE_UNQUOTED([DEFAULT_CONFIG_FILE], ["$dcf_new"], [The default configuration file])
+default_config_file=`echo $default_config_file | $SED -e "s|\\\$(\([[^)]]*\))|\\\${\1}|g"`
+dcf=$default_config_file
+dcf_prev=x$dcf
+while [[ $dcf != $dcf_prev ]]; do
+  dcf_prev=$dcf
+  AS_IF([ test x${prefix} = xNONE ],
+    [dcf=`echo $dcf | $SED -e "s|^\\\${prefix}|${ac_default_prefix}|"`])
+  dcf=`eval echo $dcf`
+done
+AC_DEFINE_UNQUOTED([DEFAULT_CONFIG_FILE], ["$dcf"], [The default configuration file])
+
 # Remove a leading ${prefix} since that is not part of the old file name
-dcf_old=`echo $dcf | $SED -e "s|^\\\${prefix}||"`
-AC_DEFINE_UNQUOTED([OLD_DEFAULT_CONFIG_FILE], ["$dcf_old"], [The old default configuration file])
+dcf_old=$default_config_file
+dcf_prev=x$dcf_old
+while [[ $dcf_old != $dcf_prev ]]; do
+  dcf_prev=$dcf_old
+  AS_IF([ test x${prefix} = xNONE ],
+    [dcf_old=`echo $dcf_old | $SED -e "s|^\\\${prefix}||"`])
+  dcf_old=`eval echo $dcf_old`
+done
+AS_IF([test .$dcf != .$dcf_old],
+  [
+    AC_DEFINE_UNQUOTED([OLD_DEFAULT_CONFIG_FILE], ["$dcf_old"], [The old default configuration file])
+    AC_SUBST([OLD_DEFAULT_CONFIG_FILE], [$dcf_old])
+  ])
 
 if test -z "$INIT_TYPE"; then
   INIT_TYPE=undetected

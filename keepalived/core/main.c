@@ -1759,7 +1759,11 @@ static void
 usage(const char *prog)
 {
 	fprintf(stderr, "Usage: %s [OPTION...]\n", prog);
-	fprintf(stderr, "  -f, --use-file=FILE          Use the specified configuration file\n");
+	fprintf(stderr, "  -f, --use-file=FILE          Use the specified configuration file\n"
+			"                                default '%s'\n", DEFAULT_CONFIG_FILE);
+#ifdef OLD_DEFAULT_CONFIG_FILE
+	fprintf(stderr, "                                     or '%s'\n", OLD_DEFAULT_CONFIG_FILE);
+#endif
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 	fprintf(stderr, "  -P, --vrrp                   Only run with VRRP subsystem\n");
 	fprintf(stderr, "  -C, --check                  Only run with Health-checker subsystem\n");
@@ -2367,7 +2371,9 @@ keepalived_main(int argc, char **argv)
 	unsigned script_flags;
 	struct rusage usage;
 	struct rusage child_usage;
+#ifdef OLD_DEFAULT_CONFIG_FILE
 	struct stat statbuf;
+#endif
 
 #ifdef _WITH_LVS_
 	char *name = strrchr(argv[0], '/');
@@ -2503,13 +2509,17 @@ keepalived_main(int argc, char **argv)
 	if (!conf_file) {
 		conf_file = DEFAULT_CONFIG_FILE;
 
+#ifdef OLD_DEFAULT_CONFIG_FILE
 		/* If DEFAULT_CONFIG_FILE doesn't exist and
 		 * OLD_DEFAULT_CONFIG_FILE does exist, use the
 		 * latter */
-		if (strcmp(DEFAULT_CONFIG_FILE, OLD_DEFAULT_CONFIG_FILE) &&
-		    stat(DEFAULT_CONFIG_FILE, &statbuf) &&
-		    !stat(OLD_DEFAULT_CONFIG_FILE, &statbuf))
+		if (stat(DEFAULT_CONFIG_FILE, &statbuf) &&
+		    !stat(OLD_DEFAULT_CONFIG_FILE, &statbuf)) {
 			conf_file = OLD_DEFAULT_CONFIG_FILE;
+			log_message(LOG_INFO, "WARNING - using deprecated default config file '%s' - please move to '%s'",
+					OLD_DEFAULT_CONFIG_FILE, DEFAULT_CONFIG_FILE);
+		}
+#endif
 	}
 
 	/* Check we can read the configuration file(s).

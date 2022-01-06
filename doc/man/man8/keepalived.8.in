@@ -62,6 +62,7 @@ with director failover.
 \fB -f, --use-file\fP=FILE
 Use the specified configuration file. The default configuration file
 is "@DEFAULT_CONFIG_FILE@".
+Deprecated alternative is "@OLD_DEFAULT_CONFIG_FILE@".
 .TP
 \fB -P, --vrrp\fP
 Only run the VRRP subsystem. This is useful for configurations that do
