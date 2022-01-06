@@ -327,6 +327,11 @@ bfd_check_thread(thread_ref_t thread)
 {
 	bfd_event_t evt;
 
+	if (thread->type == THREAD_READ_ERROR) {
+		thread_close_fd(thread);
+		return;
+	}
+
 	bfd_thread = thread_add_read(master, bfd_check_thread, NULL,
 				     thread->u.f.fd, TIMER_NEVER, 0);
 
