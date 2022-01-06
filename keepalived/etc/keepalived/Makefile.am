@@ -45,9 +45,5 @@ install-data-hook:
 			diff -q - $(DESTDIR)$(configdir)/@DEFAULT_CONFIG_FILENAME@.sample; \
 		if test $$? -eq 0; then \
 			rm $(DESTDIR)$(configdir)/@DEFAULT_CONFIG_FILENAME@; \
-			if test $(configdir) != /etc; then \
-				cp -p $(DESTDIR)/etc/@DEFAULT_CONFIG_FILENAME@ $(DESTDIR)$(configdir); \
-				@SED@ "1i\\# `date` - keepalived config file now moved to @DEFAULT_CONFIG_DIR@/@DEFAULT_CONFIG_FILENAME@" -i $(DESTDIR)/etc/@DEFAULT_CONFIG_FILENAME@; \
-			fi; \
 		fi; \
 	fi;
