@@ -1014,6 +1014,10 @@ start_vrrp_child(void)
 
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
+	/* Check our parent hasn't already changed since the fork */
+	if (main_pid != getppid())
+		kill(getpid(), SIGTERM);
+
 #ifdef _WITH_PERF_
 	if (perf_run == PERF_ALL)
 		run_perf("vrrp", global_data->network_namespace, global_data->instance_name);

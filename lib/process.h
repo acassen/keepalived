@@ -33,6 +33,7 @@
 #define PID_MAX_DIGITS		7
 
 extern long min_auto_priority_delay;
+extern pid_t main_pid;
 
 extern void set_process_priorities(int, int, long, int, int, int);
 extern void reset_process_priorities(void);

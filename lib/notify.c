@@ -704,6 +704,7 @@ check_script_secure(notify_script_t *script,
 	int sav_errno;
 	char *real_file_path;
 	char *orig_file_part, *new_file_part;
+	int sav_death_sig;
 
 	if (!script)
 		return 0;
@@ -727,24 +728,38 @@ check_script_secure(notify_script_t *script,
 	}
 
 	/* Check script accessible by the user running it */
-	if ((script->gid != our_gid && setegid(script->gid)) ||
-	    (script->uid != our_uid && seteuid(script->uid))) {
-		log_message(LOG_INFO, "Unable to set uid:gid %u:%u for script %s - disabling", script->uid, script->gid, script->args[0]);
+	if (script->gid != our_gid || script->uid != our_uid) {
+		/* Save parent death signal */
+		prctl(PR_GET_PDEATHSIG, &sav_death_sig);
 
-		if ((script->uid != our_uid && seteuid(our_uid)) ||
-		    (script->gid != our_gid && setegid(our_gid)))
-			log_message(LOG_INFO, "Unable to restore uid:gid from %u:%u %u:%u after script %s", our_uid, our_gid, script->uid, script->gid, script->args[0]);
+		if ((script->gid != our_gid && setegid(script->gid)) ||
+		    (script->uid != our_uid && seteuid(script->uid))) {
+			log_message(LOG_INFO, "Unable to set uid:gid %u:%u for script %s - disabling", script->uid, script->gid, script->args[0]);
 
-		return SC_INHIBIT;
+			if ((script->uid != our_uid && seteuid(our_uid)) ||
+			    (script->gid != our_gid && setegid(our_gid)))
+				log_message(LOG_INFO, "Unable to restore uid:gid from %u:%u %u:%u after script %s", our_uid, our_gid, script->uid, script->gid, script->args[0]);
+
+			return SC_INHIBIT;
+		}
 	}
 
 	/* Remove /./, /../, multiple /'s, and resolve symbolic links */
 	new_path = realpath(script->args[0], NULL);
 	sav_errno = errno;
 
-	if ((script->gid != our_gid && setegid(our_gid)) ||
-	    (script->uid != our_uid && seteuid(our_uid)))
-		log_message(LOG_INFO, "Unable to restore uid:gid %u:%u from %u:%u after checking script %s", our_uid, our_gid, script->uid, script->gid, script->args[0]);
+	if (script->gid != our_gid || script->uid != our_uid) {
+		if ((script->gid != our_gid && setegid(our_gid)) ||
+		    (script->uid != our_uid && seteuid(our_uid)))
+			log_message(LOG_INFO, "Unable to restore uid:gid %u:%u from %u:%u after checking script %s", our_uid, our_gid, script->uid, script->gid, script->args[0]);
+
+		/* Restore parent death signal */
+		prctl(PR_SET_PDEATHSIG, sav_death_sig);
+
+		/* Check the parent didn't die in the window when PDEATHSIG was not set */
+		if (main_pid != getppid())
+			kill(getpid(), SIGTERM);
+	}
 
 	if (!new_path)
 	{

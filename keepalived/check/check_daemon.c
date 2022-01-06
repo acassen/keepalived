@@ -690,6 +690,10 @@ start_check_child(void)
 
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
+	/* Check our parent hasn't already changed since the fork */
+	if (main_pid != getppid())
+		kill(getpid(), SIGTERM);
+
 	prog_type = PROG_TYPE_CHECKER;
 
 	initialise_debug_options();

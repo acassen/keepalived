@@ -529,6 +529,15 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 {
 	bool have_child = false;
 
+	/* Although we use prctl to set PDEATHSIG, there are windows when it
+	 * is not set, i.e. before it is first executed after a fork, and also
+	 * after set(e)[ug]id() calls before PDEATHSIG can be reinstated. */
+	main_pid = getpid();
+
+	/* We want to ensure that any children of child process don't miss the
+	 * termination of their immediate parent. */
+	prctl(PR_SET_CHILD_SUBREAPER, 1);
+
 #ifdef _WITH_BFD_
 	/* must be opened before vrrp and bfd start */
 	if (!open_bfd_pipes()) {
