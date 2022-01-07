@@ -151,6 +151,8 @@ AC_ARG_ENABLE(bfd,
 AC_ARG_WITH(kernel-dir,
   [AS_HELP_STRING([--with-kernel-dir=DIR], [path to linux kernel source directory])],
   [AS_HELP_STRING([kernel_src_path="$withval"],], [[kernel_src_path=""])])
+AC_ARG_WITH(samples-dir,
+  [AS_HELP_STRING([--with-samples-dir=DIR], [specify location to install sample config files [SYSCONFDIR/samples]])])
 AC_ARG_ENABLE(fwmark,
   [AS_HELP_STRING([--disable-fwmark], [compile without SO_MARK support])])
 AC_ARG_ENABLE(snmp,
@@ -339,6 +341,14 @@ elif test ! -d /usr/include/linux -a \
 else
   kernelinc=
 fi
+
+AS_IF([test -n "$with_samples_dir"],
+  [
+    AS_IF([test $with_samples_dir = yes -o $with_samples_dir = no],
+	  [AC_MSG_ERROR([--with-samples-dir requires a directory])])
+    SAMPLES_DIR=$with_samples_dir
+  ],[SAMPLES_DIR="\$(sysconfdir)/$PACKAGE/samples"])
+AC_SUBST([SAMPLES_DIR])
 
 CPPFLAGS="$kernelinc $CPPFLAGS"
 
