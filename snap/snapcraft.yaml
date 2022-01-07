@@ -11,7 +11,7 @@ confinement: classic
 
 base: core20
 
-# linux-libc-dev for 4.18 and 3.10 are no longer available via
+# linux-libc-dev for 5.08, 4.18 and 3.10 are no longer available via
 #    http://security.ubuntu.com/ubuntu/pool/main/l/linux/
 # or
 #    http://ports.ubuntu.com/pool/main/l/linux/
@@ -114,12 +114,17 @@ parts:
       KERNEL_VER="5.8.0"
       ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
       if [ $ARCH = amd64 ]; then
-        ARCHIVE_URL="http://security.ubuntu.com/ubuntu/pool/main/l/linux/"
-      else
-        ARCHIVE_URL="http://ports.ubuntu.com/pool/main/l/linux/"
+        DEB_URL="http://launchpadlibrarian.net/548300974/linux-libc-dev_5.8.0-63.71_amd64.deb"
+      elif [ $ARCH = ppc64el ]; then
+        DEB_URL="http://launchpadlibrarian.net/548289994/linux-libc-dev_5.8.0-63.71_ppc64el.deb"
+      elif [ $ARCH = arm64 ]; then
+        DEB_URL="http://launchpadlibrarian.net/548341043/linux-libc-dev_5.8.0-63.71_arm64.deb"
+      elif [ $ARCH = armhf ]; then
+        DEB_URL="http://launchpadlibrarian.net/548325871/linux-libc-dev_5.8.0-63.71_armhf.deb"
+      elif [ $ARCH = s390x ]; then
+        DEB_URL="http://launchpadlibrarian.net/548279675/linux-libc-dev_5.8.0-63.71_s390x.deb"
       fi
-      DEB_SUFFIX=$(wget ${ARCHIVE_URL} -O - | grep linux-libc-dev | cut -d'_' -f2-3 | cut -d'"' -f1 | grep ${ARCH} | grep ${KERNEL_VER} | tail -n1)
-      wget --quiet ${ARCHIVE_URL}/linux-libc-dev_${DEB_SUFFIX} -O ${SNAPCRAFT_STAGE}/linux-libc-dev.deb
+      wget --quiet ${DEB_URL} -O ${SNAPCRAFT_STAGE}/linux-libc-dev.deb
       echo -n "Unpacking kernel headers..."
       dpkg -x ${SNAPCRAFT_STAGE}/linux-libc-dev.deb ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev
       printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
