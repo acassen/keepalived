@@ -39,7 +39,7 @@ For nftables support
 For systemd integration
 	systemd-devel
 For efficient module loading
-	libkmod-devel
+	kmod-devel
 
 For building the documentation, the following packages need to be installed:
 	Fedora: python-sphinx (will pull in: python2-sphinx_rtd_theme)
