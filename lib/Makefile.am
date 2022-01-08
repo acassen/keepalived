@@ -40,7 +40,7 @@ endif
 if !ONE_PROCESS_DEBUG
 if WITH_SYSTEMD_NOTIFY
   liblib_a_LIBADD      += systemd.o
-  EXTRA_liblib_a_SOURCES += systemd.c
+  EXTRA_liblib_a_SOURCES += systemd.c systemd.h
 endif
 endif
 
