@@ -290,8 +290,8 @@ add_nexthops(ip_route_t *route, struct nlmsghdr *nlh, struct rtmsg *rtm)
 }
 
 /* Add/Delete IP route to/from a specific interface.
- * Note: We do not set the NLM_F_EXCL flag, and so the equivalent ip route
- * command to add a route is: ip route prepend ...
+ * Note: By default we do not set the NLM_F_EXCL flag, and so the
+ * equivalent ip route command to add a route is: ip route prepend ...
  */
 static bool
 netlink_route(ip_route_t *iproute, int cmd)
@@ -315,6 +315,10 @@ netlink_route(ip_route_t *iproute, int cmd)
 		req.n.nlmsg_flags = NLM_F_REQUEST | NLM_F_CREATE;
 		if (cmd == IPROUTE_REPLACE)
 			req.n.nlmsg_flags |= NLM_F_REPLACE;
+		else if (iproute->mask & IPROUTE_BIT_ADD)
+			req.n.nlmsg_flags |= NLM_F_EXCL;
+		else if (iproute->mask & IPROUTE_BIT_APPEND)
+			req.n.nlmsg_flags |= NLM_F_APPEND;
 		req.n.nlmsg_type  = RTM_NEWROUTE;
 	}
 
@@ -686,6 +690,10 @@ format_iproute(const ip_route_t *route, char *buf, size_t buf_len)
 
 	/* The do {...} while(false) loop is so that we can break out of the loop if the buffer is filled */
 	do {
+		if ((op += (size_t)snprintf(op, (size_t)(buf_end - op), "%s ", 
+						route->mask & IPROUTE_BIT_ADD ? "add" :
+						route->mask & IPROUTE_BIT_APPEND ? "append" : "prepend")) >= buf_end - 1)
+			break;
 		if (route->type != RTN_UNICAST)
 			if ((op += (size_t)snprintf(op, (size_t)(buf_end - op), "%s ", get_rttables_rtntype(route->type))) >= buf_end - 1)
 				break;
@@ -1745,6 +1753,19 @@ alloc_route(list_head_t *rt_list, const vector_t *strvec, bool allow_track_group
 #else
 			report_config_error(CONFIG_GENERAL_ERROR, "%s not supported by kernel", "fastopen_no_cookie");
 #endif
+		}
+		else if (!strcmp(str, "add")) {
+			/* This is the default for iproute2 */
+			new->mask |= IPROUTE_BIT_ADD;
+			new->mask &= ~IPROUTE_BIT_APPEND;
+		}
+		else if (!strcmp(str, "prepend")) {
+			/* This is the default for the kernel and is the traditional keepalived behaviour */
+			new->mask &= ~( IPROUTE_BIT_ADD | IPROUTE_BIT_APPEND);
+		}
+		else if (!strcmp(str, "append")) {
+			new->mask |= IPROUTE_BIT_APPEND;
+			new->mask &= ~IPROUTE_BIT_ADD;
 		}
 		/* Maintained for backward compatibility */
 		else if (!strcmp(str, "or")) {

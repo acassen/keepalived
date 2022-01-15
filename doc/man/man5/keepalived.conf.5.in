@@ -963,7 +963,8 @@ The syntax for a track group is:
 .fi
 .SH Static routes/addresses/rules
 .PP
-Keepalived can configure static addresses, routes, and rules. These addresses are
+Keepalived can configure static addresses, routes, and rules. These addresses, routes
+and rules are
 \fBNOT\fR
 moved by vrrpd, they stay on the machine.
 If you already have IPs and routes on your machines and
@@ -986,6 +987,16 @@ bits of the address.
 .PP
 If a route or rule could apply to either IPv4 or IPv6 it will default to IPv4.
 To force a route/rule to be IPv6, add the keyword "inet6".
+.PP
+By default keepalived prepends routes (the kernel's default) which adds the route
+before any matching routes (this is the same behaviour as the (undocumented)
+'ip route prepend' command). If 'add' is specified, the behaviour will be the same
+as the 'ip route add' command, which only adds the route if there is no matching route.
+If 'append' is specified, the behaviour is the same as the 'ip route append' command,
+i.e. the route is added after any matching route.
+Note: the rules for whether a route matches differ between IPv4 and IPv6; for example
+specifying a different proto means a matching route can be prepended/appended for IPv4
+but not for IPv6. If in doubt, test it using the 'ip route add/prepend/append' commands.
 .PP
 .nf
     \fBstatic_ipaddress \fR{
@@ -1011,14 +1022,13 @@ To force a route/rule to be IPv6, add the keyword "inet6".
                          advmss 101 rtt 102 rttvar 103 reordering 104
                          window 105 cwnd 106 ssthresh lock 107 realms
                          PQA/0x14 rto_min 108 initcwnd 109 initrwnd 110
-                         vrf blue
-                         features ecn
+                         vrf blue features ecn add
 
         2001:470:69e9:1:2::4 dev p33p1.2 table 6909 tos 0x04 protocol
                              bird scope link priority 12 mtu 1000
                              hoplimit 100 advmss 101 rtt 102 rttvar 103
                              reordering 104 window 105 cwnd 106 ssthresh
-                             lock 107 rto_min 108 initcwnd 109
+                             lock 107 rto_min 108 initcwnd 109 append
                              initrwnd 110 features ecn fastopen_no_cookie 1
         ...
     }
