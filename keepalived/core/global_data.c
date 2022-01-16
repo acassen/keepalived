@@ -766,7 +766,7 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " DBus service name = %s", data->dbus_service_name ? data->dbus_service_name : "");
 #endif
 	conf_write(fp, " Script security %s", script_security ? "enabled" : "disabled");
-	if (get_default_script_user(&uid, &gid))
+	if (!get_default_script_user(&uid, &gid))
 		conf_write(fp, " Default script uid:gid %u:%u", uid, gid);
 #ifdef _WITH_VRRP_
 	conf_write(fp, " vrrp_netlink_cmd_rcv_bufs = %u", global_data->vrrp_netlink_cmd_rcv_bufs);
