@@ -793,6 +793,14 @@ static bool reload_config(void)
 		unsupported_change = true;
 	}
 
+#ifdef _WITH_LVS_
+	if (!!old_global_data->network_namespace_ipvs != !!global_data->network_namespace_ipvs ||
+	    (global_data->network_namespace_ipvs && strcmp(old_global_data->network_namespace_ipvs, global_data->network_namespace_ipvs))) {
+		log_message(LOG_INFO, "Cannot change IPVS network namespace at a reload - please restart %s", PACKAGE);
+		unsupported_change = true;
+	}
+#endif
+
 	if (!!old_global_data->instance_name != !!global_data->instance_name ||
 	    (global_data->instance_name && strcmp(old_global_data->instance_name, global_data->instance_name))) {
 		log_message(LOG_INFO, "Cannot change instance name at a reload - please restart %s", PACKAGE);
