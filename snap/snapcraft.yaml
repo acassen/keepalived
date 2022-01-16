@@ -63,10 +63,12 @@ parts:
       - --disable-systemd
     override-build: |
       snapcraftctl build
+      VER=
       if [ -f lib/git-commit.h ]; then
-        VER=$(grep GIT_COMMIT lib/git-commit.h | cut -d'"' -f2)
-      else
-        VER=
+        COMMIT=`grep GIT_COMMIT lib/git-commit.h | wc -l || true`
+        if [ $COMMIT -eq 1 ]; then
+          VER=$(grep GIT_COMMIT lib/git-commit.h | cut -d'"' -f2)
+        fi
       fi
       if [ -z $VER ]; then
         VER=`grep "^AC_INIT" configure.ac | tr '[' ']' | cut -d']' -f4`
