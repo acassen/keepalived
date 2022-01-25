@@ -16,7 +16,7 @@ BuildRequires: openssl-devel
 # We need both of these for proper LVS support
 BuildRequires: kernel-headers
 BuildRequires: autoconf automake pkgconfig
-BuildRequires: libkmod-devel
+BuildRequires: kmod-devel
 @SNMP_TRUE@BuildRequires: net-snmp-devel
 @WITH_DBUS_TRUE@BuildRequires: glib2-devel
 @IPTABLES_TRUE@BuildRequires: iptables-devel
@@ -33,7 +33,7 @@ BuildRequires: libkmod-devel
 @MAGIC_TRUE@BuildRequires: file-devel
 
 Requires: openssl
-Requires: libkmod
+Requires: kmod-libs
 @SNMP_TRUE@Requires: net-snmp
 @WITH_DBUS_TRUE@Requires: glib2
 @IPTABLES_TRUE@%if 0%{?rhel} <= 7
@@ -164,7 +164,7 @@ fi
 %doc AUTHOR ChangeLog CONTRIBUTORS COPYING README TODO
 %doc doc_install/*
 %dir %{_sysconfdir}/keepalived/
-%attr(0600,root,root) %config(noreplace) %{_sysconfdir}/keepalived/keepalived.conf
+%attr(0600,root,root) %{_sysconfdir}/keepalived/keepalived.conf.sample
 %attr(0600,root,root) %config(noreplace) %{_sysconfdir}/sysconfig/keepalived
 @INIT_SYSTEMD_TRUE@%{_unitdir}/keepalived.service
 @INIT_SYSV_TRUE@%{_initrddir}/keepalived
@@ -182,6 +182,12 @@ fi
 @WITH_DBUS_TRUE@%attr(0644,root,root) %{_datarootdir}/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
 
 %changelog
+* Mon Jan 24 2022 Quentin Armitage <quentin@armitage.org.uk> 2.2.7-2
+- RedHat has kmod-lib and kmod-devel rather than libkmod and libkmod-devel
+
+* Mon Jan 24 2022 Quentin Armitage <quentin@armitage.org.uk> 2.2.7-1
+- Change to install /etc/keepalived/keepalived.conf.sample instead of keepalived.conf
+
 * Wed Nov  1 2017 Quentin Armitage <quentin@armitage.org.uk> 1.3.9-1
 - Fix installation of keepalived.service
 

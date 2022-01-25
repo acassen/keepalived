@@ -134,7 +134,7 @@ if [[ -z $NS_LIST ]]; then
 	[[ -z $BRIDGE_NS ]] && BRIDGE_NS=medium
 	NS_LIST="high low $BRIDGE_NS $ROOT_NS"
 
-	ip=([high]=1 [low]=3 [$BRIDGE_NS]=2 [$ROOT_NS]=254)
+	ip=([high]=1 [low]=3 [$BRIDGE_NS]=2 [${ROOT_NS:-none}]=254)
 else
 	if [[ -z $BRIDGE_NS ]]; then
 		set $NS_LIST
