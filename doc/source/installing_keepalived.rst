@@ -42,8 +42,13 @@ Install Prerequisites on RHEL/CentOS/Fedora
 On RHEL, Centos, Fedora etc install the following prerequisites
 (on older systems replace dnf with yum)::
 
-    dnf install curl gcc autoconf automake openssl-devel libnl3-devel \
+    dnf install curl gcc autoconf make openssl-devel libnl3-devel \
         iptables-devel ipset-devel net-snmp-devel libnfnetlink-devel file-devel
+
+ipset-devel libnfnetlink-devel file-devel packages are available in PowerTools repository.
+If you need these packages::
+
+    dnf --enablerepo powertools install ipset-devel libnfnetlink-devel file-devel
 
 For DBUS support::
 
