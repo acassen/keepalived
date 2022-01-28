@@ -97,7 +97,7 @@ Use *curl* or any other transfer tool such as *wget* to download keepalived.
 The software is available at http://www.keepalived.org/download.html or
 https://github.com/acassen/keepalived. Then, compile the package::
 
-    curl --progress http://keepalived.org/software/keepalived-1.2.15.tar.gz | tar xz
+    curl --location --progress http://keepalived.org/software/keepalived-1.2.15.tar.gz | tar xz
     cd keepalived-1.2.15
     ./build_setup
     ./configure
