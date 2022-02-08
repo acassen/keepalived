@@ -35,6 +35,7 @@ dnl --FRA_SUPPRESS_IFGROUP	dnl -- Linux 3.12
 
 dnl - Introduced in Linux 3.14
 AC_CHECK_DECLS([IFA_FLAGS], [], [], [[#include <linux/if_addr.h>]])
+AC_CHECK_DECLS([NFT_META_L4PROTO], [], [], [#include <linux/netfilter/nf_tables.h>])
 
 ./keepalived/vrrp/vrrp_ipaddress.c:#ifdef IFA_F_MANAGETEMPADDR		/* Linux 3.14 */
 ./keepalived/vrrp/vrrp_ipaddress.c:#ifdef IFA_F_NOPREFIXROUTE		/* Linux 3.14 */
