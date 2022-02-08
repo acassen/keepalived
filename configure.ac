@@ -1754,6 +1754,11 @@ if test .${enable_nftables} != .no; then
 	],[
 	  AC_MSG_RESULT(no)
 	])
+
+      # nft l4proto from Linux 3.14
+      AC_CHECK_DECLS([NFT_META_L4PROTO], [], [],
+        [#include <linux/netfilter/nf_tables.h>])
+
       # nft dup from Linux 4.3
       AC_CHECK_DECLS([NFTA_DUP_MAX], [], [],
         [#include <linux/netfilter/nf_tables.h>])

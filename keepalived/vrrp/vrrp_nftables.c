@@ -1191,6 +1191,8 @@ setup_rule_move_igmp(uint8_t family, const char *table,
 	   otherwise:
 	     nft add rule ip keepalived out ip protocol igmp [meta oifkind macvlan] oif @vmac_set drop
 	     nft add rule ip6 keepalived out icmpv6 type mld2-listener-report [meta oifkind macvlan] oif @vmac_set drop
+	 *
+	 * Note: on 3.13 kernels, icmpv6 is specified as @nh,48,8 58
 	 */
 	struct nftnl_rule *r = NULL;
 	uint64_t handle_num;
@@ -1223,7 +1225,12 @@ setup_rule_move_igmp(uint8_t family, const char *table,
 			    offsetof(struct iphdr, daddr), sizeof(struct in_addr));
 #endif
 	} else {
-		add_meta(r, NFT_META_L4PROTO, NFT_REG_1);
+#if HAVE_DECL_NFT_META_L4PROTO
+		add_meta(r, NFT_META_L4PROTO, NFT_REG_1);	/* From Linux 3.14 */
+#else
+		add_payload(r, NFT_PAYLOAD_NETWORK_HEADER, NFT_REG_1,
+			    offsetof(struct ip6_hdr, ip6_nxt), sizeof(((struct ip6_hdr *)NULL)->ip6_nxt));
+#endif
 		protocol = IPPROTO_ICMPV6;
 		add_cmp(r, NFT_REG_1, NFT_CMP_EQ, &protocol, sizeof(protocol));
 		add_payload(r, NFT_PAYLOAD_TRANSPORT_HEADER, NFT_REG_1,
@@ -1279,7 +1286,12 @@ setup_rule_drop_router_solicit(const char *table, const char *chain,
 		nftnl_rule_set_u64(r, NFTNL_RULE_POSITION, handle_num);
 	}
 
-	add_meta(r, NFT_META_L4PROTO, NFT_REG_1);
+#if HAVE_DECL_NFT_META_L4PROTO
+	add_meta(r, NFT_META_L4PROTO, NFT_REG_1);	/* From Linux 3.14 */
+#else
+	add_payload(r, NFT_PAYLOAD_NETWORK_HEADER, NFT_REG_1,
+		    offsetof(struct ip6_hdr, ip6_nxt), sizeof(((struct ip6_hdr *)NULL)->ip6_nxt));
+#endif
 	protocol = IPPROTO_ICMPV6;
 	add_cmp(r, NFT_REG_1, NFT_CMP_EQ, &protocol, sizeof(protocol));
 	add_payload(r, NFT_PAYLOAD_TRANSPORT_HEADER, NFT_REG_1,
