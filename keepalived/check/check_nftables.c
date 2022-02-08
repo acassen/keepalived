@@ -150,7 +150,16 @@ setup_rule_set_mark(uint8_t family, const char *table,
 		nftnl_rule_set_u64(r, NFTNL_RULE_POSITION, handle_num);
 	}
 
-	add_meta(r, NFT_META_L4PROTO, NFT_REG_1);
+#if HAVE_DECL_NFT_META_L4PROTO
+	add_meta(r, NFT_META_L4PROTO, NFT_REG_1);	/* From Linux 3.14 */
+#else
+	if (family == NFPROTO_IPV4)
+		add_payload(r, NFT_PAYLOAD_NETWORK_HEADER, NFT_REG_1,
+			    offsetof(struct iphdr, protocol), sizeof(((struct iphdr *)NULL)->protocol));
+	else
+		add_payload(r, NFT_PAYLOAD_NETWORK_HEADER, NFT_REG_1,
+			    offsetof(struct ip6_hdr, ip6_nxt), sizeof(((struct ip6_hdr *)NULL)->ip6_nxt));
+#endif
 	add_cmp(r, NFT_REG_1, NFT_CMP_EQ, &l4_protocol, sizeof(l4_protocol));
 	if (family == NFPROTO_IPV4)
 		add_payload(r, NFT_PAYLOAD_NETWORK_HEADER, NFT_REG_1,
