@@ -317,17 +317,9 @@ vrrp_init_instance_sands(vrrp_t *vrrp)
 		 * time_now plus the Master Down Timer, when a non-preemptable packet is
 		 * received.
 		 */
-		if (vrrp_delayed_start_time.tv_sec) {
-			if (timercmp(&time_now, &vrrp_delayed_start_time, <))
-				vrrp->sands = timer_add_long(vrrp_delayed_start_time, vrrp->ms_down_timer);
-			else {
-				/* If we clear the delayed_start_time once past, then
-				 * the code will be slightly more efficient */
-				if (time_now.tv_sec > vrrp_delayed_start_time.tv_sec)
-					vrrp_delayed_start_time.tv_sec = 0;
-				vrrp->sands = timer_add_long(time_now, vrrp->ms_down_timer);
-			}
-		} else
+		if (vrrp_delayed_start_time.tv_sec)
+			vrrp->sands = timer_add_long(vrrp_delayed_start_time, vrrp->ms_down_timer);
+		else
 			vrrp->sands = timer_add_long(time_now, vrrp->ms_down_timer);
 	}
 	else if (vrrp->state == VRRP_STATE_FAULT || vrrp->state == VRRP_STATE_INIT)
@@ -992,6 +984,9 @@ vrrp_dispatcher_read(sock_t *sock)
 					    , sock->fd_in, sizeof(control_buf), msghdr.msg_controllen);
 			msghdr.msg_controllen = 0;
 		}
+
+		if (vrrp_delayed_start_time.tv_sec)
+			continue;
 
 		/* Check the received data includes at least the IP, possibly
 		 * the AH header and the VRRP header */
