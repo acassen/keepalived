@@ -29,6 +29,8 @@
 #endif
 #include <net/ethernet.h>
 #include <linux/if_packet.h>
+#include <linux/if_infiniband.h>
+#include <net/if_arp.h>
 #include <netinet/icmp6.h>
 #include <netinet/in.h>
 #include <stdint.h>
@@ -36,15 +38,27 @@
 #include <stdbool.h>
 
 /* local includes */
+#include "vrrp_ndisc.h"
 #include "logger.h"
 #include "utils.h"
 #include "vrrp_if_config.h"
 #include "vrrp_scheduler.h"
-#include "vrrp_ndisc.h"
+#include "vrrp_arp.h"
 #include "bitops.h"
+
 
 /* static vars */
 static int ndisc_fd = -1;
+
+/*
+ * See RFC 4391(Section 4 ) and RFC 4392 for details
+ * This is modified by the IPoIB driver to add the P_key
+ */
+static unsigned char  ipv6_bcast_addr[] = {
+	0x00, 0xff, 0xff, 0xff,
+	0xff, 0x12, 0x60, 0x1b, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff
+};
 
 /*
  *	Neighbour Advertisement sending routine.
@@ -52,7 +66,7 @@ static int ndisc_fd = -1;
 static void
 ndisc_send_na(ip_address_t *ipaddress, struct iovec *iov, int iovlen)
 {
-	struct sockaddr_ll sll;
+	struct sockaddr_large_ll sll;
 	ssize_t len;
 	char addr_str[INET6_ADDRSTRLEN] = "";
 	interface_t *ifp = ipaddress->ifp;
@@ -152,32 +166,48 @@ void
 ndisc_send_unsolicited_na_immediate(interface_t *ifp, ip_address_t *ipaddress)
 {
 	struct ether_header eth = { .ether_type = htons(ETHERTYPE_IPV6) };
+	ipoib_hdr_t ipoib = { .proto = htons(ETHERTYPE_IPV6) };
 	struct ip6hdr ip6h = { .version = 6, .nexthdr = IPPROTO_ICMPV6, .hop_limit = NDISC_HOPLIMIT };
 	struct nd_neighbor_advert ndh = { .nd_na_type = ND_NEIGHBOR_ADVERT };
-	struct nd_opt_hdr nd_opt_h = { .nd_opt_type = ND_OPT_TARGET_LINKADDR, .nd_opt_len = 1 };
-	char *lladdr = PTR_CAST(char, IF_HWADDR(ipaddress->ifp));
-	struct iovec iov[5];
+	struct nd_opt_hdr nd_opt_h = { .nd_opt_type = ND_OPT_TARGET_LINKADDR };
+	uint8_t nd_opt_h_pad[2] = { 0, 0 };
+	struct iovec iov[7];
+	unsigned num_iov;
+	unsigned icmp6_iov;
 
-	/* This needs updating to support IPv6 over Infiniband
-	 * (see vrrp_arp.c) */
+	/* For Infiniband see vrrp_arp.c and RFC2461 4.4, RFC4391, RFC4392 9.3 and
+	 * https://datatracker.ietf.org/doc/html/draft-kashyap-ipoib-ipv6-over-infiniband-00 */
 
-	/* Ethernet header:
-	 * Destination ethernet address MUST use specific address Mapping
-	 * as specified in rfc2464.7 Address Mapping for
-	 */
-	eth.ether_dhost[0] = eth.ether_dhost[1] = 0x33;
-	eth.ether_dhost[5] = 1;
-	memcpy(eth.ether_shost, lladdr, ETH_ALEN);
-	iov[0].iov_base = &eth;
-	iov[0].iov_len = sizeof(eth);
+	if (ifp->hw_type == ARPHRD_INFINIBAND) {
+		iov[0].iov_base = &ipv6_bcast_addr;
+		iov[0].iov_len = sizeof(ipv6_bcast_addr);
+
+		iov[1].iov_base = &ipoib;
+		iov[1].iov_len = sizeof(ipoib);
+
+		num_iov = 2;
+	} else {
+		/* Ethernet header:
+		 * Destination ethernet address MUST use specific address Mapping
+		 * as specified in rfc2464.7 Address Mapping for
+		 */
+
+		eth.ether_dhost[0] = eth.ether_dhost[1] = 0x33;
+		eth.ether_dhost[5] = 1;
+		memcpy(eth.ether_shost, ipaddress->ifp->hw_addr, ETH_ALEN);
+		iov[0].iov_base = &eth;
+		iov[0].iov_len = sizeof(eth);
+
+		num_iov = 1;
+	}
 
 	/* IPv6 Header */
-	ip6h.payload_len = htons(sizeof(struct nd_neighbor_advert) + sizeof(struct nd_opt_hdr) + ETH_ALEN);
 	memcpy(&ip6h.saddr, &ipaddress->u.sin6_addr, sizeof(struct in6_addr));
 	ip6h.daddr.s6_addr16[0] = htons(0xff02);
 	ip6h.daddr.s6_addr16[7] = htons(1);
-	iov[1].iov_base = &ip6h;
-	iov[1].iov_len = sizeof(ip6h);
+	iov[num_iov].iov_base = &ip6h;
+	iov[num_iov].iov_len = sizeof(ip6h);
+	num_iov++;
 
 	/* ICMPv6 Header */
 
@@ -194,22 +224,38 @@ ndisc_send_unsolicited_na_immediate(interface_t *ifp, ip_address_t *ipaddress)
 	 */
 	ndh.nd_na_flags_reserved |= ND_NA_FLAG_OVERRIDE;
 	ndh.nd_na_target = ipaddress->u.sin6_addr;
-	iov[2].iov_base = &ndh;
-	iov[2].iov_len = sizeof(ndh);
+	iov[num_iov].iov_base = &ndh;
+	iov[num_iov].iov_len = sizeof(ndh);
+	icmp6_iov = num_iov;
+	num_iov++;
 
 	/* NDISC Option header */
-	iov[3].iov_base = &nd_opt_h;
-	iov[3].iov_len = sizeof(nd_opt_h);
+	iov[num_iov].iov_base = &nd_opt_h;
+	iov[num_iov].iov_len = sizeof(nd_opt_h);
+	num_iov++;
+
+	if (ifp->hw_type == ARPHRD_INFINIBAND) {
+		nd_opt_h.nd_opt_len = 3;
+
+		iov[num_iov].iov_base = nd_opt_h_pad;
+		iov[num_iov].iov_len = sizeof(nd_opt_h_pad);
+
+		num_iov++;
+	} else
+		nd_opt_h.nd_opt_len = 1;
 
 	/* MAC address */
-	iov[4].iov_base = lladdr;
-	iov[4].iov_len = ETH_ALEN;
+	iov[num_iov].iov_base = ipaddress->ifp->hw_addr;
+	iov[num_iov].iov_len = ipaddress->ifp->hw_addr_len;
+	num_iov++;
 
-	/* Compute checksum  - ICMP6 header onwards*/
-	ndh.nd_na_hdr.icmp6_cksum = ndisc_icmp6_cksum(&ip6h, &iov[2], 3);
+	ip6h.payload_len = htons(sizeof(struct nd_neighbor_advert) + nd_opt_h.nd_opt_len * 8);
+
+	/* Compute checksum - ICMP6 header onwards*/
+	ndh.nd_na_hdr.icmp6_cksum = ndisc_icmp6_cksum(&ip6h, &iov[icmp6_iov], num_iov - icmp6_iov);
 
 	/* Send the neighbor advertisement message */
-	ndisc_send_na(ipaddress, iov, 5);
+	ndisc_send_na(ipaddress, iov, num_iov);
 
 	/* If we have to delay between sending NAs, note the next time we can */
 	if (ifp->garp_delay && ifp->garp_delay->have_gna_interval)
