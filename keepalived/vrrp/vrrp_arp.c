@@ -52,20 +52,6 @@
 #define GARP_BUFFER_SIZE (sizeof(inf_arphdr_t) + sizeof (ipoib_hdr_t) +\
 			  (INFINIBAND_ALEN))
 
-/*
- * Private link layer socket structure to hold infiniband size address
- * The infiniband MAC address is 20 bytes long
- */
-struct sockaddr_large_ll {
-	unsigned short	sll_family;
-	__be16		sll_protocol;
-	int		sll_ifindex;
-	unsigned short	sll_hatype;
-	unsigned char	sll_pkttype;
-	unsigned char	sll_halen;
-	unsigned char	sll_addr[INFINIBAND_ALEN];
-};
-
 /* static vars */
 static char *garp_buffer;
 static int garp_fd = -1;

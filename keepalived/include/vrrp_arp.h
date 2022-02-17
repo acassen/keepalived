@@ -33,18 +33,32 @@
 #include "vrrp_if.h"
 #include "vrrp_ipaddress.h"
 
+/*
+ * Private link layer socket structure to hold infiniband size address
+ * The infiniband MAC address is 20 bytes long
+ */
+struct sockaddr_large_ll {
+	unsigned short	sll_family;
+	__be16		sll_protocol;
+	int		sll_ifindex;
+	unsigned short	sll_hatype;
+	unsigned char	sll_pkttype;
+	unsigned char	sll_halen;
+	unsigned char	sll_addr[INFINIBAND_ALEN];
+};
+
 typedef struct inf_arphdr {
-	unsigned short int ar_hrd;
-	unsigned short int ar_pro;
-	unsigned char      ar_hln;
-	unsigned char      ar_pln;
-	unsigned short int ar_op;
+	uint16_t	ar_hrd;
+	uint16_t	ar_pro;
+	uint8_t		ar_hln;
+	uint8_t		ar_pln;
+	uint16_t	ar_op;
 
 	/* Infiniband arp looks like this */
-	unsigned char     __ar_sha[INFINIBAND_ALEN];
-	unsigned char     __ar_sip[4];
-	unsigned char     __ar_tha[INFINIBAND_ALEN];
-	unsigned char     __ar_tip[4];
+	unsigned char	__ar_sha[INFINIBAND_ALEN];
+	unsigned char	__ar_sip[4];
+	unsigned char	__ar_tha[INFINIBAND_ALEN];
+	unsigned char	__ar_tip[4];
 } inf_arphdr_t;
 
 typedef struct ipoib_hdr {
