@@ -26,10 +26,17 @@ base: core20
 # We should probably update the locations of the files to use this more difficult way
 #   of finding them once the Ubuntu version that provides them goes EOL.
 
+slots:
+  dbus-svc:
+    interface: dbus
+    bus: session
+    name: org.keepalived.Vrrp1
+
 apps:
   daemon:
     daemon: forking
     command: bin/keepalived-wrapper
+    slots: [ dbus-svc ]
   keepalived:
     command: bin/keepalived-wrapper
   "508":        # Fedora 33 and Ubuntu 20.10
