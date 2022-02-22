@@ -1369,12 +1369,12 @@ to a third party event such as interface, scripts, file, BFD.
 .sp
 \fBImportant\fR: for a SYNC group to run reliably, it is vital that all instances in
 the group are MASTER or that they are all either BACKUP or FAULT. A
-situation with half instances having higher priority on machine A
-half others with higher priority on machine B will lead to constant
+situation where some instances have higher priority on machine A
+and others have higher priority on machine B will lead to constant
 re-elections. For this reason, when instances are grouped, any
-track scripts/files configured against member VRRP instances will have
-their tracking weights automatically set to zero, in order to avoid
-inconsistent priorities across instances.
+track scripts/files configured against member VRRP instances must have
+their tracking weights unset (i.e. equal to zero). Any trackers with
+a non-zero priority will be ignored.
 .PP
 .nf
 The syntax for vrrp_sync_group is :
