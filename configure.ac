@@ -1275,6 +1275,18 @@ else
   OPENSSL_LIBS="-lssl -lcrypto"
 fi
 
+EXTRA_LIBS=`echo $OPENSSL_LIBS | sed -e "s/-lssl//"`
+AC_CHECK_LIB(ssl, SSL_CTX_new, [],
+  [
+    if test $NEED_SSL = yes; then
+      AC_MSG_ERROR([OpenSSL libraries are required])
+    fi
+  ], [$EXTRA_LIBS])
+if test $NEED_SSL = yes; then
+  add_to_var([KA_LIBS], [$LIBS])
+fi
+unset LIBS
+
 EXTRA_LIBS=`echo $OPENSSL_LIBS | sed -e "s/-lcrypto//"`
 AC_CHECK_LIB(crypto, EVP_DigestInit_ex, [],
   [
@@ -1291,18 +1303,6 @@ if test $NEED_EVP = yes; then
       AC_DEFINE([EVP_MD_CTX_reset(ctx)], [EVP_MD_CTX_init(ctx)], [Named changed in OpenSSL v1.1.0])
     ],
     [$EXTRA_LIBS])
-fi
-unset LIBS
-
-EXTRA_LIBS=`echo $OPENSSL_LIBS | sed -e "s/-lssl//"`
-AC_CHECK_LIB(ssl, SSL_CTX_new, [],
-  [
-    if test $NEED_SSL = yes; then
-      AC_MSG_ERROR([OpenSSL libraries are required])
-    fi
-  ], [$EXTRA_LIBS])
-if test $NEED_SSL = yes; then
-  add_to_var([KA_LIBS], [$LIBS])
 fi
 unset LIBS
 
