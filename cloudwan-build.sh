@@ -3,9 +3,11 @@
 PACKAGE=`pwd`
 PACKAGE=`basename $PACKAGE`
 VERSION=1.0-1
+DESCRIPTION='esi-keepalived'
 PKGDIR=${PACKAGE}_${VERSION}
-PACKAGE_COMMIT?=
-
+if [ ! -z ${PACKAGE_VERSION} ]; then
+  DESCRIPTION="${DESCRIPTION} commit(${PACKAGE_VERSION})"
+fi
 if [ ! -f /usr/bin/automake ]; then
   echo "Error: no automake. Run: sudo apt-get install -y automake" 1>&2 
   exit 1
@@ -37,7 +39,7 @@ Section: base
 Priority: required
 Architecture: amd64
 Maintainer: NTT Innovation Institute, Inc. <support@ntti3.com>
-Description: esi-keepalived (commit: $PACKAGE_COMMIT)
+Description: ${DESCRIPTION}
  Keepalived 2.0.7 modified for ESI
 EOF
 dpkg-deb --build $PKGDIR
