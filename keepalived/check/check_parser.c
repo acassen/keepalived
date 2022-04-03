@@ -922,6 +922,15 @@ omega_handler(__attribute__((unused)) const vector_t *strvec)
 	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
 	vs->omega = true;
 }
+
+static void
+checker_merge_handler(__attribute__((unused))const vector_t *strvec)
+{
+	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
+	vs->check_merge = 1;
+}
+
+
 static void
 quorum_up_handler(const vector_t *strvec)
 {
@@ -1037,6 +1046,7 @@ init_check_keywords(bool active)
 	install_keyword("quorum", &quorum_handler);
 	install_keyword("hysteresis", &hysteresis_handler);
 	install_keyword("weight", &vs_weight_handler);
+	install_keyword("checker_merge", &checker_merge_handler);
 
 	/* Real server mapping */
 	install_keyword("sorry_server", &ssvr_handler);
