@@ -742,6 +742,23 @@ set_checker_state(checker_t *checker, bool up)
 		checker->rs->num_failed_checkers--;
 }
 
+static void __update_checkers_queue_group(bool alive, checker_t *checker)
+{
+	checker_t *checker_tmp = NULL;
+
+	if (list_empty(&checker->i_list))
+		return;
+
+	list_head_t * l = &checker->i_list;
+	list_for_each_entry(checker_tmp, l, i_list) {
+		if ((alive && ISALIVE(checker_tmp->rs)) || (!alive && !ISALIVE(checker_tmp->rs)))
+			continue;
+
+		perform_svr_state(alive, checker_tmp);
+		set_checker_state(checker_tmp, alive);
+	}
+}
+
 /* Update checker's state */
 void
 update_svr_checker_state(bool alive, checker_t *checker)
@@ -762,6 +779,7 @@ update_svr_checker_state(bool alive, checker_t *checker)
 		if (checker->rs->num_failed_checkers <= 1) {
 			if (!perform_svr_state(true, checker))
 				return;
+			__update_checkers_queue_group(alive, checker);
 		}
 	}
 	else {
@@ -769,6 +787,7 @@ update_svr_checker_state(bool alive, checker_t *checker)
 		if (checker->rs->num_failed_checkers == 0) {
 			if (!perform_svr_state(false, checker))
 				return;
+			__update_checkers_queue_group(alive, checker);
 		}
 	}
 
