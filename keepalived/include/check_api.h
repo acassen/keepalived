@@ -86,6 +86,9 @@ typedef struct _checker {
 
 	/* Linked list member */
 	list_head_t			e_list;
+	list_head_t         h_list;  /* rs_hash_match */
+	list_head_t         i_list;  /* check merge list */
+	list_head_t         u_list;  /* unused checker*/
 } checker_t;
 
 typedef struct _checker_ref {

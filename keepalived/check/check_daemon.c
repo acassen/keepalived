@@ -164,6 +164,7 @@ checker_terminate_phase2(void)
 	thread_destroy_master(master);
 	master = NULL;
 	free_checkers_queue();
+	free_rs_check_merge_hash();
 	free_ssl();
 	set_ping_group_range(false);
 
@@ -318,6 +319,8 @@ start_check(list_head_t *old_checkers_queue, data_t *prev_global_data)
 		stop_check(KEEPALIVED_EXIT_FATAL);
 		return;
 	}
+
+	init_rs_check_merge_hash();
 
 	init_data(conf_file, check_init_keywords, false);
 
@@ -505,6 +508,7 @@ reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 	thread_cleanup_master(master, true);
 	thread_add_base_threads(master, with_snmp);
 
+	free_rs_check_merge_hash();
 	/* Save previous checker data */
 	list_copy(&old_checkers_queue, &checkers_queue);
 	init_checkers_queue();
@@ -760,6 +764,7 @@ start_check_child(void)
 	thread_destroy_master(master);	/* This destroys any residual settings from the parent */
 	master = thread_make_master();
 #endif
+
 
 	/* If last process died during a reload, we can get there and we
 	 * don't want to loop again, because we're not reloading anymore.
