@@ -59,10 +59,18 @@ list_head_t checkers_queue;
 bool do_checker_debug;
 #endif
 
+
 /* free checker data */
 void
 free_checker(checker_t *checker)
 {
+	list_head_t *l_checker, *l_tmp;
+	checker_t *temp;
+	list_for_each_safe(l_checker, l_tmp, &checker->i_list) {
+		temp = (checker_t *)list_entry(l_checker, checker_t, i_list);
+		(*temp->checker_funcs->free_func) (temp);
+	}
+	list_del_init(&checker->h_list);
 	list_del_init(&checker->e_list);
 	(*checker->checker_funcs->free_func) (checker);
 }
@@ -74,6 +82,7 @@ free_checker_list(list_head_t *l)
 	list_for_each_entry_safe(checker, checker_tmp, l, e_list)
 		free_checker(checker);
 }
+
 
 /* dump checker data */
 static void
@@ -152,6 +161,9 @@ queue_checker(const checker_funcs_t *funcs
 
 	PMALLOC(checker);
 	INIT_LIST_HEAD(&checker->e_list);
+	INIT_LIST_HEAD(&checker->h_list);
+	INIT_LIST_HEAD(&checker->i_list);
+	INIT_LIST_HEAD(&checker->u_list);
 	checker->checker_funcs = funcs;
 	checker->launch = launch;
 	checker->vs = vs;
@@ -171,6 +183,8 @@ queue_checker(const checker_funcs_t *funcs
 
 	/* queue the checker */
 	list_add_tail(&checker->e_list, &checkers_queue);
+
+	rs->checker = checker;
 
 	if (fd_required)
 		check_data->num_checker_fd_required++;
@@ -507,14 +521,67 @@ free_checkers_queue(void)
 	free_checker_list(&checkers_queue);
 }
 
+
+static inline int checker_merge_match(list_head_t * plist)
+{
+	void *addr = NULL;
+	void *address = NULL;
+	sa_family_t family;
+	checker_t *checker_s = list_entry(plist, checker_t , e_list);
+	uint32_t key;
+	checker_t *temp = NULL;
+
+	family = checker_s->rs->addr.ss_family;
+	if (family == AF_INET6) {
+		addr = (void *) &((struct sockaddr_in6 *)&checker_s->rs->addr)->sin6_addr;
+	} else {
+		addr = (void *) &((struct sockaddr_in *)&checker_s->rs->addr)->sin_addr;
+	}
+
+	key = real_server_hash(checker_s->rs);
+	list_for_each_entry(temp, &rs_check_merge[key], h_list) {
+		
+		if (family != temp->rs->addr.ss_family) {
+			log_message(LOG_ALERT, "Checker ip addr family not match, master:%d, slave%d\n",
+							temp->rs->addr.ss_family, family);
+			continue;
+		}
+
+		if (temp->rs->addr.ss_family == AF_INET6) {
+			address = (void *) &((struct sockaddr_in6 *)&temp->rs->addr)->sin6_addr;
+		} else {
+			address = (void *) &((struct sockaddr_in *)&temp->rs->addr)->sin_addr;
+		}
+
+		if (inaddr_equal(family, addr, address)) {
+
+			list_del_init(plist);
+			list_add_tail(&checker_s->i_list, &temp->i_list);
+
+			checker_s->rs->checker = checker_s;
+			return 1;
+		}
+	}
+
+	list_add_tail(&checker_s->h_list, &rs_check_merge[key]);
+	return 0;
+}
+
+
 /* register checkers to the global I/O scheduler */
 void
 register_checkers_thread(void)
 {
+	list_head_t * l_checker, *l_tmp;
 	checker_t *checker;
 	unsigned long warmup;
 
-	list_for_each_entry(checker, &checkers_queue, e_list) {
+	list_for_each_safe(l_checker, l_tmp, &checkers_queue)  {
+		checker = (checker_t *)list_entry(l_checker, checker_t, e_list);
+
+		checker->rs->checker = checker;
+
+
 		if (checker->launch) {
 			if (checker->vs->ha_suspend && !checker->vs->ha_suspend_addr_count)
 				checker->enabled = false;
@@ -533,6 +600,13 @@ register_checkers_thread(void)
 				/* coverity[dont_call] */
 				warmup = warmup * (unsigned)random() / RAND_MAX;
 			}
+
+			/* merge the later checkers if can be merged. */
+		if (checker->vs->check_merge) {
+			if (checker_merge_match(l_checker))
+				continue;
+		}
+
 			thread_add_timer(master, checker->launch, checker,
 					 BOOTSTRAP_DELAY + warmup);
 		}

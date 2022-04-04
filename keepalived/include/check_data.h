@@ -51,6 +51,9 @@
 
 /* Daemon dynamic data structure definition */
 #define KEEPALIVED_DEFAULT_DELAY	(60 * TIMER_HZ)
+#define RS_CHECK_MERGE_BITS		16
+#define RS_CHECK_MERGE_ENTRY_NUM	(1 << RS_CHECK_MERGE_BITS)
+#define RS_CHECK_MERGE_MASK 		(RS_CHECK_MERGE_ENTRY_NUM - 1)
 
 #ifdef _WITH_NFTABLES_
 /* Used for arrays of protocol entries */
@@ -127,6 +130,7 @@ typedef struct _real_server {
 	list_head_t			tracked_bfds;	/* cref_tracked_bfd_t */
 #endif
 
+	struct _checker			*checker;
 	/* Linked list member */
 	list_head_t			e_list;
 } real_server_t;
@@ -229,6 +233,8 @@ typedef struct _virtual_server {
 	struct ip_vs_stats64		stats;
 #endif
 #endif
+
+	unsigned			check_merge;
 	/* Linked list member */
 	list_head_t			e_list;
 } virtual_server_t;
@@ -291,6 +297,7 @@ protocol_to_index(int proto)
 /* Global vars exported */
 extern check_data_t *check_data;
 extern check_data_t *old_check_data;
+extern list_head_t rs_check_merge[RS_CHECK_MERGE_ENTRY_NUM];
 
 /* prototypes */
 extern ssl_data_t *alloc_ssl(void) __attribute((malloc));
@@ -314,5 +321,7 @@ extern const char *format_vs (const virtual_server_t *);
 extern const char *format_vsge (const virtual_server_group_entry_t *);
 extern const char *format_rs(const real_server_t *, const virtual_server_t *);
 extern bool validate_check_config(void);
-
+extern void init_rs_check_merge_hash(void);
+extern void free_rs_check_merge_hash(void);
+extern uint32_t real_server_hash(real_server_t *);
 #endif

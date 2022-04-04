@@ -46,7 +46,9 @@
 
 /* global vars */
 check_data_t *check_data = NULL;
+
 check_data_t *old_check_data = NULL;
+list_head_t rs_check_merge[RS_CHECK_MERGE_ENTRY_NUM];
 
 /* SSL facility functions */
 ssl_data_t *
@@ -823,6 +825,7 @@ alloc_vs(const char *param1, const char *param2)
 #endif
 	new->alpha = false;
 	new->omega = false;
+	new->check_merge = 0;
 	new->notify_quorum_up = NULL;
 	new->notify_quorum_down = NULL;
 	new->quorum = 1;
@@ -929,6 +932,24 @@ alloc_check_data(void)
 
 	return new;
 }
+void
+init_rs_check_merge_hash(void)
+{
+	int i;
+	for (i = 0; i < RS_CHECK_MERGE_ENTRY_NUM; i++) {
+		INIT_LIST_HEAD(&rs_check_merge[i]);
+	}
+}
+
+void
+free_rs_check_merge_hash(void)
+{
+	int i;
+	for (i = 0; i < RS_CHECK_MERGE_ENTRY_NUM; i++) {
+		list_del_init(&rs_check_merge[i]);
+	}
+}
+
 
 void
 free_check_data(check_data_t *data)
@@ -1397,4 +1418,21 @@ validate_check_config(void)
 	check_check_script_security();
 
 	return true;
+}
+
+uint32_t  __attribute__ ((pure))
+real_server_hash(real_server_t *s)
+{
+	struct sockaddr_in *addr = NULL;
+	struct sockaddr_in6 *addr6 = NULL;
+	__be32 addr_fold;
+	if (s->addr.ss_family == AF_INET) {
+		addr = (struct sockaddr_in *)&s->addr;
+		addr_fold = ntohl(addr->sin_addr.s_addr);
+	} else {
+		addr6 = (struct sockaddr_in6 *)&s->addr;
+		addr_fold = ntohl((addr6->sin6_addr.s6_addr32[0]) ^ ntohl(addr6->sin6_addr.s6_addr32[1]) ^
+			(addr6->sin6_addr.s6_addr32[2]) ^ (addr6->sin6_addr.s6_addr32[3]));
+	}
+	return (addr_fold ^ (addr_fold >> 16)) & RS_CHECK_MERGE_MASK;
 }
