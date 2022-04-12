@@ -1327,7 +1327,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
 AC_CHECK_FUNCS([SSL_CTX_set_verify_depth])
 
 # SSL_set0_rbio(), SSL_set0_wbio() OPENSSL_init_crypto() and TLS_method() introduced OpenSSL v1.1.0
-AC_CHECK_FUNCS([SSL_set0_rbio OPENSSL_init_crypto TLS_method])
+AC_CHECK_FUNCS([SSL_set0_wbio OPENSSL_init_crypto TLS_method])
 
 # In OpenSSL v1.1.1 the call to SSL_CTX_new() fails if OPENSSL_init_crypto() has been called with
 # OPENSSL_INIT_NO_LOAD_CONFIG. It does not fail in v1.1.0h and v1.1.1b.
