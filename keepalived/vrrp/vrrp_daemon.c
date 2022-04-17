@@ -285,7 +285,7 @@ vrrp_terminate_phase2(int exit_status)
 	    global_data->enable_snmp_rfcv3 ||
 #endif
 	    snmp_option)
-		vrrp_snmp_agent_close();
+		vrrp_snmp_agent_close(global_data);
 #endif
 
 #ifdef _WITH_LVS_
@@ -554,13 +554,19 @@ start_vrrp(data_t *prev_global_data)
 		     global_data->enable_snmp_rfcv3 ||
 #endif
 		     snmp_option)) {
-			if (reload)
+			if (snmp_running)
 				snmp_epoll_info(master);
 			else
 				vrrp_snmp_agent_init(global_data->snmp_socket);
 #ifdef _WITH_SNMP_RFC_
 			snmp_vrrp_start_time = time_now;
 #endif
+		} else {
+// We have a problem at reload if VRRP had SNMP and checker didn't, but now checker does.
+// Also race condition if changing so checker does and we dont, from other way round.
+// SOLUTION: Stop snmp before reload and start afterwards. ? A race anyway
+			if (snmp_running)
+				vrrp_snmp_agent_close(old_global_data);
 		}
 #endif
 

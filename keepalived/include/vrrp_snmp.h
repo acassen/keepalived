@@ -26,6 +26,7 @@
 
 #include "config.h"
 
+#include "global_data.h"
 #ifdef _WITH_SNMP_RFC_
 #include "timer.h"
 #endif
@@ -74,7 +75,7 @@ extern timeval_t snmp_vrrp_start_time;
 
 /* Prototypes */
 extern void vrrp_snmp_agent_init(const char *);
-extern void vrrp_snmp_agent_close(void);
+extern void vrrp_snmp_agent_close(const data_t *);
 
 #ifdef _WITH_SNMP_VRRP_
 extern void vrrp_snmp_instance_trap(vrrp_t *);
