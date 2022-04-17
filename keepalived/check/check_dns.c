@@ -40,6 +40,8 @@
 #include "parser.h"
 #include "layer4.h"
 #include "scheduler.h"
+#include "check_parser.h"
+
 
 const dns_type_t DNS_TYPE[] = {
 	{DNS_TYPE_A, "A"},
@@ -56,6 +58,7 @@ const dns_type_t DNS_TYPE[] = {
 
 static void dns_connect_thread(thread_ref_t);
 static void dns_send_thread(thread_ref_t);
+
 
 static uint16_t __attribute__ ((pure))
 dns_type_lookup(const char *label)
@@ -466,24 +469,23 @@ static const checker_funcs_t dns_checker_funcs = { CHECKER_DNS, free_dns_check, 
 static void
 dns_check_handler(__attribute__((unused)) const vector_t *strvec)
 {
-	checker_t *checker;
 	dns_check_t *dns_check;
 
 	PMALLOC(dns_check);
 	dns_check->type = DNS_DEFAULT_TYPE;
-	checker = queue_checker(&dns_checker_funcs, dns_connect_thread,
+	queue_checker(&dns_checker_funcs, dns_connect_thread,
 				dns_check, CHECKER_NEW_CO(), true);
 
 	/* Set the non-standard retry time */
-	checker->default_retry = DNS_DEFAULT_RETRY;
-	checker->default_delay_before_retry = 0;	/* This will default to delay_loop */
+	current_checker->default_retry = DNS_DEFAULT_RETRY;
+	current_checker->default_delay_before_retry = 0;	/* This will default to delay_loop */
 }
 
 static void
 dns_type_handler(const vector_t *strvec)
 {
+	dns_check_t *dns_check = current_checker->data;
 	uint16_t dns_type;
-	dns_check_t *dns_check = CHECKER_GET();
 
 	dns_type = dns_type_lookup(strvec_slot(strvec, 1));
 	if (!dns_type)
@@ -496,7 +498,7 @@ dns_type_handler(const vector_t *strvec)
 static void
 dns_name_handler(const vector_t *strvec)
 {
-	dns_check_t *dns_check = CHECKER_GET();
+	dns_check_t *dns_check = current_checker->data;
 	const char *name;
 	bool name_invalid = false;
 	const char *p;
@@ -530,28 +532,32 @@ dns_name_handler(const vector_t *strvec)
 static void
 dns_check_end(void)
 {
-	dns_check_t *dns_check;
+	dns_check_t *dns_check = current_checker->data;
 
-	if (!check_conn_opts(CHECKER_GET_CO())) {
+	if (!check_conn_opts(current_checker->co)) {
 		dequeue_new_checker();
 		return;
 	}
 
-	dns_check = CHECKER_GET();
 	if (!dns_check->name)
 		dns_check->name = STRDUP(DNS_DEFAULT_NAME);
+
+	/* queue the checker */
+	list_add_tail(&current_checker->e_list, &checkers_queue);
 }
 
 void
 install_dns_check_keyword(void)
 {
+	vpp_t check_ptr;
+
 	install_keyword("DNS_CHECK", &dns_check_handler);
-	install_sublevel();
+	check_ptr = install_sublevel(VPP &current_checker);
 	install_checker_common_keywords(true);
 	install_keyword("type", &dns_type_handler);
 	install_keyword("name", &dns_name_handler);
-	install_sublevel_end_handler(dns_check_end);
-	install_sublevel_end();
+	install_level_end_handler(dns_check_end);
+	install_sublevel_end(check_ptr);
 }
 
 #ifdef THREAD_DUMP

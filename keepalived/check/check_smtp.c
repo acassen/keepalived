@@ -38,6 +38,8 @@
 #ifdef THREAD_DUMP
 #include "scheduler.h"
 #endif
+#include "check_parser.h"
+
 
 /* Specifying host blocks within the SMTP checker is deprecated, but currently
  * still supported. All code to support it is in WITH_HOST_ENTRIES conditional
@@ -46,13 +48,13 @@
 
 #ifdef WITH_HOST_ENTRIES
 static LIST_HEAD_INITIALIZE(host_list); /* ref_co_t */
-static conn_opts_t *sav_co;	/* Saved conn_opts while host{} block processed */
 typedef struct _ref_co {
 	conn_opts_t	*co;
 
 	/* Linked list member */
 	list_head_t	e_list;
 } ref_co_t;
+static checker_t *current_checker_host;
 #endif
 
 static void smtp_connect_thread(thread_ref_t);
@@ -127,10 +129,9 @@ smtp_check_handler(__attribute__((unused)) const vector_t *strvec)
 static void
 smtp_check_end_handler(void)
 {
-	checker_t *checker = CHECKER_GET_CURRENT();
-	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
+	smtp_checker_t *smtp_checker = current_checker->data;
+	checker_t *checker = current_checker;
 #ifdef WITH_HOST_ENTRIES
-	checker_t *new_checker;
 	smtp_checker_t *new_smtp_checker;
 	conn_opts_t *co;
 	ref_co_t *rco, *rco_tmp;
@@ -149,52 +150,58 @@ smtp_check_end_handler(void)
 	 * we want to use any information provided, using defaults as necessary. */
 #ifdef WITH_HOST_ENTRIES
 	/* Have any of the connection parameters been set, or are there no hosts? */
-	if (checker->co->dst.ss_family != AF_UNSPEC ||
-	    PTR_CAST(struct sockaddr_in, &checker->co->dst)->sin_port ||
-	    checker->co->bindto.ss_family != AF_UNSPEC ||
-	    PTR_CAST(struct sockaddr_in, &checker->co->bindto)->sin_port ||
-	    checker->co->bind_if[0] ||
+	if (current_checker->co->dst.ss_family != AF_UNSPEC ||
+	    PTR_CAST(struct sockaddr_in, &current_checker->co->dst)->sin_port ||
+	    current_checker->co->bindto.ss_family != AF_UNSPEC ||
+	    PTR_CAST(struct sockaddr_in, &current_checker->co->bindto)->sin_port ||
+	    current_checker->co->bind_if[0] ||
 	    list_empty(&host_list) ||
 #ifdef _WITH_SO_MARK_
-	    checker->co->fwmark ||
+	    current_checker->co->fwmark ||
 #endif
-	    checker->co->connection_to != UINT_MAX)
+	    current_checker->co->connection_to != UINT_MAX)
 #endif
 	{
 		/* Set any necessary defaults. NOTE: we are relying on
 		 * struct sockaddr_in and sockaddr_in6 port offsets being the same. */
-		uint16_t saved_port = PTR_CAST(struct sockaddr_in, &checker->co->dst)->sin_port;
-		if (checker->co->dst.ss_family == AF_UNSPEC) {
-			checker->co->dst = checker->rs->addr;
+		uint16_t saved_port = PTR_CAST(struct sockaddr_in, &current_checker->co->dst)->sin_port;
+		if (current_checker->co->dst.ss_family == AF_UNSPEC) {
+			current_checker->co->dst = current_rs->addr;
 			if (saved_port)
-				checker_set_dst_port(&checker->co->dst, saved_port);
+				checker_set_dst_port(&current_checker->co->dst, saved_port);
 		}
 		if (!saved_port)
-			checker_set_dst_port(&checker->co->dst, PTR_CAST(struct sockaddr_in, &checker->rs->addr)->sin_port);
+			checker_set_dst_port(&current_checker->co->dst, PTR_CAST(struct sockaddr_in, &current_rs->addr)->sin_port);
 
-		if (!check_conn_opts(checker->co)) {
+		if (!check_conn_opts(current_checker->co)) {
 			dequeue_new_checker();
 			return;
 		}
 	}
 #ifdef WITH_HOST_ENTRIES
 	else {
-		FREE(checker->co);
+		/* No connection options have been specified, but there
+		 * is at least one host entry. Use that host entry's
+		 * connection options for the main checker. */
+		FREE(current_checker->co);
 
 		rco = list_first_entry(&host_list, ref_co_t, e_list);
-		checker->co = rco->co;
+		current_checker->co = rco->co;
 		list_del_init(&rco->e_list);
 		FREE(rco);
 	}
 #endif
-
+ 
 	/* Set the connection timeout if not set */
-	unsigned conn_to = checker->rs->connection_to;
+	unsigned conn_to = current_rs->connection_to;
 	if (conn_to == UINT_MAX)
-		conn_to = checker->vs->connection_to;
+		conn_to = current_vs->connection_to;
 
-	if (checker->co->connection_to == UINT_MAX)
-		checker->co->connection_to = conn_to;
+	if (current_checker->co->connection_to == UINT_MAX)
+		current_checker->co->connection_to = conn_to;
+
+	/* queue the checker */
+	list_add_tail(&current_checker->e_list, &checkers_queue);
 
 #ifdef WITH_HOST_ENTRIES
 	/* Create a new checker for each host on the host list */
@@ -208,22 +215,23 @@ smtp_check_end_handler(void)
 
 		new_smtp_checker->helo_name = STRDUP(smtp_checker->helo_name);
 
-		new_checker = queue_checker(&smtp_checker_funcs, smtp_start_check_thread,
+		queue_checker(&smtp_checker_funcs, smtp_start_check_thread,
 					      new_smtp_checker, NULL, true);
 
-		sav_e_list = new_checker->e_list;
-		*new_checker = *checker;
-		new_checker->e_list = sav_e_list;
-		new_checker->co = co;
-		new_checker->data = new_smtp_checker;
+		/* Copy the checker info, but preserve the list_head entry, th
+		 * co pointer and the pointer to new_smtp_checker. */
+		sav_e_list = current_checker->e_list;
+		*current_checker = *checker;
+		current_checker->e_list = sav_e_list;
+		current_checker->co = co;
+		current_checker->data = new_smtp_checker;
+
+		/* queue the checker */
+		list_add_tail(&current_checker->e_list, &checkers_queue);
 
 		list_del_init(&rco->e_list);
 		FREE(rco);
 	}
-
-	/* The list is now empty */
-	list_for_each_entry_safe(rco, rco_tmp, &host_list, e_list)
-		FREE(rco);
 #endif
 }
 
@@ -232,33 +240,29 @@ smtp_check_end_handler(void)
 static void
 smtp_host_handler(__attribute__((unused)) const vector_t *strvec)
 {
-	checker_t *checker = CHECKER_GET_CURRENT();
-
-	/* save the main conn_opts_t and set a new default for the host */
-	sav_co = checker->co;
-	PMALLOC(checker->co);
+	PMALLOC(current_checker_host);
+	PMALLOC(current_checker_host->co);
 
 	/* Default to the RS */
-	checker->co->dst = checker->rs->addr;
+	current_checker_host->co->dst = current_rs->addr;
 }
 
 static void
 smtp_host_end_handler(void)
 {
-	checker_t *checker = CHECKER_GET_CURRENT();
 	ref_co_t *rco;
 
-	if (!check_conn_opts(checker->co))
-		FREE(checker->co);
+	if (!check_conn_opts(current_checker_host->co))
+		FREE(current_checker_host->co);
 	else {
 		PMALLOC(rco);
 		INIT_LIST_HEAD(&rco->e_list);
-		rco->co = checker->co;
+		rco->co = current_checker_host->co;
 
 		list_add_tail(&rco->e_list, &host_list);
 	}
 
-	checker->co = sav_co;
+	FREE(current_checker_host);
 }
 #endif
 
@@ -266,7 +270,7 @@ smtp_host_end_handler(void)
 static void
 smtp_helo_name_handler(const vector_t *strvec)
 {
-	smtp_checker_t *smtp_checker = CHECKER_GET();
+	smtp_checker_t *smtp_checker = current_checker->data;
 
 	if (vector_size(strvec) < 2) {
 		report_config_error(CONFIG_GENERAL_ERROR, "SMTP_CHECK helo name missing");
@@ -283,13 +287,18 @@ smtp_helo_name_handler(const vector_t *strvec)
 void
 install_smtp_check_keyword(void)
 {
+	vpp_t check_ptr;
+#ifdef WITH_HOST_ENTRIES
+	vpp_t check_ptr1;
+#endif
+
 	/*
 	 * Notify the config log parser that we need to be notified via
 	 * callbacks when the following keywords are encountered in the
 	 * keepalive.conf file.
 	 */
 	install_keyword("SMTP_CHECK", &smtp_check_handler);
-	install_sublevel();
+	check_ptr = install_sublevel(VPP &current_checker);
 	install_keyword("helo_name", &smtp_helo_name_handler);
 
 	install_checker_common_keywords(true);
@@ -303,14 +312,14 @@ install_smtp_check_keyword(void)
 	 */
 #ifdef WITH_HOST_ENTRIES
 	install_keyword("host", &smtp_host_handler);
-	install_sublevel();
+	check_ptr1 = install_sublevel(VPP &current_checker_host);
 	install_checker_common_keywords(true);
-	install_sublevel_end_handler(smtp_host_end_handler);
-	install_sublevel_end();
+	install_level_end_handler(smtp_host_end_handler);
+	install_sublevel_end(check_ptr1);
 #endif
 
-	install_sublevel_end_handler(&smtp_check_end_handler);
-	install_sublevel_end();
+	install_level_end_handler(&smtp_check_end_handler);
+	install_sublevel_end(check_ptr);
 }
 
 /*

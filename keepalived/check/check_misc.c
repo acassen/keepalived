@@ -44,12 +44,12 @@
 #ifdef THREAD_DUMP
 #include "scheduler.h"
 #endif
+#include "check_parser.h"
 
 static void misc_check_thread(thread_ref_t);
 static void misc_check_child_thread(thread_ref_t);
 
 static bool script_user_set;
-static misc_checker_t *new_misck_checker;
 
 /* Configuration stream handling */
 static void
@@ -111,7 +111,7 @@ static const checker_funcs_t misc_checker_funcs = { CHECKER_MISC, free_misc_chec
 static void
 misc_check_handler(__attribute__((unused)) const vector_t *strvec)
 {
-	checker_t *checker;
+	misc_checker_t *new_misck_checker;
 
 	PMALLOC(new_misck_checker);
 	new_misck_checker->state = SCRIPT_STATE_IDLE;
@@ -119,19 +119,17 @@ misc_check_handler(__attribute__((unused)) const vector_t *strvec)
 	script_user_set = false;
 
 	/* queue new checker */
-	checker = queue_checker(&misc_checker_funcs, misc_check_thread, new_misck_checker, NULL, false);
+	queue_checker(&misc_checker_funcs, misc_check_thread, new_misck_checker, NULL, false);
 
 	/* Set non-standard default value */
-	checker->default_retry = 0;
+	current_checker->default_retry = 0;
 }
 
 static void
 misc_path_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	const vector_t *strvec_qe;
-
-	if (!new_misck_checker)
-		return;
+	misc_checker_t *new_misck_checker = current_checker->data;
 
 	/* We need to allow quoted and escaped strings for the script and parameters */
 	strvec_qe = alloc_strvec_quoted_escaped(NULL);
@@ -145,9 +143,7 @@ static void
 misc_timeout_handler(const vector_t *strvec)
 {
 	unsigned timeout;
-
-	if (!new_misck_checker)
-		return;
+	misc_checker_t *new_misck_checker = current_checker->data;
 
 	if (!read_unsigned_strvec(strvec, 1, &timeout, 0, UINT_MAX / TIMER_HZ, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid misc_timeout value '%s'", strvec_slot(strvec, 1));
@@ -160,8 +156,7 @@ misc_timeout_handler(const vector_t *strvec)
 static void
 misc_dynamic_handler(__attribute__((unused)) const vector_t *strvec)
 {
-	if (!new_misck_checker)
-		return;
+	misc_checker_t *new_misck_checker = current_checker->data;
 
 	new_misck_checker->dynamic = true;
 }
@@ -169,8 +164,7 @@ misc_dynamic_handler(__attribute__((unused)) const vector_t *strvec)
 static void
 misc_user_handler(const vector_t *strvec)
 {
-	if (!new_misck_checker)
-		return;
+	misc_checker_t *new_misck_checker = current_checker->data;
 
 	if (vector_size(strvec) < 2) {
 		report_config_error(CONFIG_GENERAL_ERROR, "No user specified for misc checker script %s", cmd_str(&new_misck_checker->script));
@@ -180,7 +174,6 @@ misc_user_handler(const vector_t *strvec)
 	if (set_script_uid_gid(strvec, 1, &new_misck_checker->script.uid, &new_misck_checker->script.gid)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Failed to set uid/gid for misc checker script %s - removing", cmd_str(&new_misck_checker->script));
 		dequeue_new_checker();
-		new_misck_checker = NULL;
 	}
 	else
 		script_user_set = true;
@@ -189,13 +182,11 @@ misc_user_handler(const vector_t *strvec)
 static void
 misc_end_handler(void)
 {
-	if (!new_misck_checker)
-		return;
+	misc_checker_t *new_misck_checker = current_checker->data;
 
 	if (!new_misck_checker->script.args) {
 		report_config_error(CONFIG_GENERAL_ERROR, "No script path has been specified for MISC_CHECKER - skipping");
 		dequeue_new_checker();
-		new_misck_checker = NULL;
 		return;
 	}
 
@@ -204,26 +195,28 @@ misc_end_handler(void)
 		if (get_default_script_user(&new_misck_checker->script.uid, &new_misck_checker->script.gid)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Unable to set default user for misc script %s - removing", cmd_str(&new_misck_checker->script));
 			dequeue_new_checker();
-			new_misck_checker = NULL;
 			return;
 		}
 	}
 
-	new_misck_checker = NULL;
+	/* queue the checker */
+	list_add_tail(&current_checker->e_list, &checkers_queue);
 }
 
 void
 install_misc_check_keyword(void)
 {
+	vpp_t check_ptr;
+
 	install_keyword("MISC_CHECK", &misc_check_handler);
-	install_sublevel();
+	check_ptr = install_sublevel(VPP &current_checker);
 	install_checker_common_keywords(false);
 	install_keyword("misc_path", &misc_path_handler);
 	install_keyword("misc_timeout", &misc_timeout_handler);
 	install_keyword("misc_dynamic", &misc_dynamic_handler);
 	install_keyword("user", &misc_user_handler);
-	install_sublevel_end_handler(&misc_end_handler);
-	install_sublevel_end();
+	install_level_end_handler(&misc_end_handler);
+	install_sublevel_end(check_ptr);
 }
 
 /* Check that the scripts are secure */

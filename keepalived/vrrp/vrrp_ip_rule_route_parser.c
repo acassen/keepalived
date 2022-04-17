@@ -139,7 +139,7 @@ get_u64(uint64_t *val, const char *str, uint64_t max, const char* errmsg)
 #define RTT_MAX_MS	120000U
 
 bool
-get_time_rtt(uint32_t *val, const char *str, unsigned unit_mult)
+get_time_rtt(uint32_t *val, const char *str, unsigned unit_mult, const char *type)
 {
 	unsigned res;
 	unsigned shift;
@@ -186,7 +186,7 @@ get_time_rtt(uint32_t *val, const char *str, unsigned unit_mult)
 	 * command is only supported if a decimal point is specified).
 	 */
 	if (strpbrk(str1, "eE")) {
-		log_message(LOG_INFO, "rtt value exponential form %s no longer supported", str);
+		report_config_error(CONFIG_GENERAL_ERROR, "%s value exponential form %s no longer supported", type, str);
 		if (str_cpy)
 			FREE(str_cpy);
 		return true;
@@ -204,10 +204,10 @@ get_time_rtt(uint32_t *val, const char *str, unsigned unit_mult)
 		res *= unit_mult;
 
 	if (res > RTT_MAX_MS * unit_mult) {
-		log_message(LOG_INFO, "rtt value %s exceeds maximum %us, resetting", str, RTT_MAX_MS / 1000U);
+		report_config_error(CONFIG_GENERAL_ERROR, "%s value %s exceeds maximum %us, resetting", type, str, RTT_MAX_MS / 1000U);
 		res = RTT_MAX_MS * unit_mult;
 	} else if (res < RTT_MIN_MS * unit_mult) {
-		log_message(LOG_INFO, "rtt value %s below minimum %ums, resetting", str, RTT_MIN_MS);
+		report_config_error(CONFIG_GENERAL_ERROR, "%s value %s below minimum %ums, resetting", type, str, RTT_MIN_MS);
 		res = RTT_MIN_MS * unit_mult;
 	}
 

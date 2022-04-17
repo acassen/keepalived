@@ -52,12 +52,15 @@
 #include "bfd_daemon.h"
 #endif
 #include "track_file.h"
+#include "check_parser.h"
+
 
 /* Global vars */
 list_head_t checkers_queue;
 #ifdef _CHECKER_DEBUG_
 bool do_checker_debug;
 #endif
+checker_t *current_checker;
 
 /* free checker data */
 void
@@ -133,20 +136,18 @@ dump_connection_opts(FILE *fp, const void *data)
 }
 
 /* Queue a checker into the checkers_queue */
-checker_t *
+void
 queue_checker(const checker_funcs_t *funcs
 	      , thread_func_t launch
 	      , void *data
 	      , conn_opts_t *co
 	      , bool fd_required)
 {
-	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
-	real_server_t *rs = list_last_entry(&vs->rs, real_server_t, e_list);
 	checker_t *checker;
 
 	/* Set default dst = RS, timeout = default */
 	if (co) {
-		co->dst = rs->addr;
+		co->dst = current_rs->addr;
 		co->connection_to = UINT_MAX;
 	}
 
@@ -154,8 +155,8 @@ queue_checker(const checker_funcs_t *funcs
 	INIT_LIST_HEAD(&checker->e_list);
 	checker->checker_funcs = funcs;
 	checker->launch = launch;
-	checker->vs = vs;
-	checker->rs = rs;
+	checker->vs = current_vs;
+	checker->rs = current_rs;
 	checker->data = data;
 	checker->co = co;
 	checker->enabled = true;
@@ -169,24 +170,22 @@ queue_checker(const checker_funcs_t *funcs
 	checker->default_delay_before_retry = 1 * TIMER_HZ;
 	checker->default_retry = 1 ;
 
-	/* queue the checker */
-	list_add_tail(&checker->e_list, &checkers_queue);
-
 	if (fd_required)
 		check_data->num_checker_fd_required++;
 
-	return checker;
+	current_checker = checker;
 }
 
 void
 dequeue_new_checker(void)
 {
-	checker_t *checker = CHECKER_GET_CURRENT();
+// TODO - queue checker at end, not at start
+	if (!current_checker->is_up)
+		set_checker_state(current_checker, true);
 
-	if (!checker->is_up)
-		set_checker_state(checker, true);
+	free_checker(current_checker);
 
-	free_checker(checker);
+	current_checker = NULL;
 }
 
 bool
@@ -247,7 +246,7 @@ checker_set_dst_port(sockaddr_t *dst, uint16_t port)
 static void
 co_ip_handler(const vector_t *strvec)
 {
-	conn_opts_t *co = CHECKER_GET_CO();
+	conn_opts_t *co = current_checker->co;
 
 	if (inet_stosockaddr(strvec_slot(strvec, 1), NULL, &co->dst))
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid connect_ip address %s - ignoring", strvec_slot(strvec, 1));
@@ -262,7 +261,7 @@ co_ip_handler(const vector_t *strvec)
 static void
 co_port_handler(const vector_t *strvec)
 {
-	conn_opts_t *co = CHECKER_GET_CO();
+	conn_opts_t *co = current_checker->co;
 	unsigned port;
 
 	if (!read_unsigned_strvec(strvec, 1, &port, 1, 65535, true)) {
@@ -277,7 +276,8 @@ co_port_handler(const vector_t *strvec)
 static void
 co_srcip_handler(const vector_t *strvec)
 {
-	conn_opts_t *co = CHECKER_GET_CO();
+	conn_opts_t *co = current_checker->co;
+
 	if (inet_stosockaddr(strvec_slot(strvec, 1), NULL, &co->bindto))
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid bindto address %s - ignoring", strvec_slot(strvec, 1));
 	else if (co->dst.ss_family != AF_UNSPEC &&
@@ -291,7 +291,7 @@ co_srcip_handler(const vector_t *strvec)
 static void
 co_srcport_handler(const vector_t *strvec)
 {
-	conn_opts_t *co = CHECKER_GET_CO();
+	conn_opts_t *co = current_checker->co;
 	unsigned port;
 
 	if (!read_unsigned_strvec(strvec, 1, &port, 1, 65535, true)) {
@@ -307,7 +307,7 @@ static void
 co_srcif_handler(const vector_t *strvec)
 {
 	// This is needed for link local IPv6 bindto address
-	conn_opts_t *co = CHECKER_GET_CO();
+	conn_opts_t *co = current_checker->co;
 
 	if (strlen(strvec_slot(strvec, 1)) > sizeof(co->bind_if) - 1) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Interface name %s is too long - ignoring", strvec_slot(strvec, 1));
@@ -320,7 +320,7 @@ co_srcif_handler(const vector_t *strvec)
 static void
 co_timeout_handler(const vector_t *strvec)
 {
-	conn_opts_t *co = CHECKER_GET_CO();
+	conn_opts_t *co = current_checker->co;
 	unsigned long timer;
 
 	if (!read_timer(strvec, 1, &timer, 1, UINT_MAX, true)) {
@@ -335,7 +335,7 @@ co_timeout_handler(const vector_t *strvec)
 static void
 co_fwmark_handler(const vector_t *strvec)
 {
-	conn_opts_t *co = CHECKER_GET_CO();
+	conn_opts_t *co = current_checker->co;
 	unsigned fwmark;
 
 	if (!read_unsigned_strvec(strvec, 1, &fwmark, 0, UINT_MAX, true)) {
@@ -349,7 +349,7 @@ co_fwmark_handler(const vector_t *strvec)
 static void
 retry_handler(const vector_t *strvec)
 {
-	checker_t *checker = CHECKER_GET_CURRENT();
+	checker_t *checker = current_checker;
 	unsigned retry;
 
 	if (!read_unsigned_strvec(strvec, 1, &retry, 0, UINT_MAX, true)) {
@@ -363,7 +363,7 @@ retry_handler(const vector_t *strvec)
 static void
 delay_before_retry_handler(const vector_t *strvec)
 {
-	checker_t *checker = CHECKER_GET_CURRENT();
+	checker_t *checker = current_checker;
 	unsigned long delay;
 
 	if (!read_timer(strvec, 1, &delay, 0, 0, true)) {
@@ -378,7 +378,7 @@ delay_before_retry_handler(const vector_t *strvec)
 static void
 warmup_handler(const vector_t *strvec)
 {
-	checker_t *checker = CHECKER_GET_CURRENT();
+	checker_t *checker = current_checker;
 	unsigned long warmup;
 
 	if (!read_timer(strvec, 1, &warmup, 0, 0, true)) {
@@ -392,7 +392,7 @@ warmup_handler(const vector_t *strvec)
 static void
 delay_handler(const vector_t *strvec)
 {
-	checker_t *checker = CHECKER_GET_CURRENT();
+	checker_t *checker = current_checker;
 	unsigned long delay_loop;
 
 	if (!read_timer(strvec, 1, &delay_loop, 1, 0, true)) {
@@ -406,7 +406,7 @@ delay_handler(const vector_t *strvec)
 static void
 alpha_handler(const vector_t *strvec)
 {
-	checker_t *checker = CHECKER_GET_CURRENT();
+	checker_t *checker = current_checker;
 	int res = true;
 
 	if (vector_size(strvec) >= 2) {
@@ -421,7 +421,7 @@ alpha_handler(const vector_t *strvec)
 static void
 log_all_failures_handler(const vector_t *strvec)
 {
-	checker_t *checker = CHECKER_GET_CURRENT();
+	checker_t *checker = current_checker;
 	int res = true;
 
 	if (vector_size(strvec) >= 2) {

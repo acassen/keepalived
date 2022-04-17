@@ -53,20 +53,19 @@ static unsigned long specified_event_processes;
 /* Allow for English spelling */
 static const char * neighbor_str = "neighbor";
 
+static void *current_bfd;
+
+
 static void
 bfd_handler(const vector_t *strvec)
 {
-	char *name;
-
 	global_data->have_bfd_config = true;
 
 	/* If we are not the bfd process, we don't need any more information */
 	if (!strvec)
 		return;
 
-	name = vector_slot(strvec, 1);
-
-	if (!alloc_bfd(name)) {
+	if (!(current_bfd = alloc_bfd(vector_slot(strvec, 1)))) {
 		skip_block(true);
 		return;
 	}
@@ -77,14 +76,11 @@ bfd_handler(const vector_t *strvec)
 static void
 bfd_nbrip_handler(const vector_t *strvec)
 {
-	bfd_t *bfd;
+	bfd_t *bfd = current_bfd;
 	sockaddr_t nbr_addr;
 
 	assert(strvec);
 	assert(bfd_data);
-
-	bfd = list_last_entry(&bfd_data->bfd, bfd_t, e_list);
-	assert(bfd);
 
 	if (!strcmp(vector_slot(strvec, 1), "neighbour_ip"))
 		neighbor_str = "neighbour";
@@ -95,6 +91,7 @@ bfd_nbrip_handler(const vector_t *strvec)
 			    " malformed %s address %s, ignoring instance",
 			    bfd->iname, neighbor_str, strvec_slot(strvec, 1));
 		free_bfd(bfd);
+		current_bfd = NULL;
 		skip_block(false);
 		return;
 	}
@@ -106,14 +103,11 @@ bfd_nbrip_handler(const vector_t *strvec)
 static void
 bfd_srcip_handler(const vector_t *strvec)
 {
-	bfd_t *bfd;
+	bfd_t *bfd = current_bfd;
 	sockaddr_t src_addr;
 
 	assert(strvec);
 	assert(bfd_data);
-
-	bfd = list_last_entry(&bfd_data->bfd, bfd_t, e_list);
-	assert(bfd);
 
 	if (inet_stosockaddr(strvec_slot(strvec, 1), NULL, &src_addr)) {
 		report_config_error(CONFIG_GENERAL_ERROR,
@@ -129,14 +123,11 @@ bfd_srcip_handler(const vector_t *strvec)
 static void
 bfd_minrx_handler(const vector_t *strvec)
 {
-	bfd_t *bfd;
+	bfd_t *bfd = current_bfd;
 	unsigned value;
 
 	assert(strvec);
 	assert(bfd_data);
-
-	bfd = list_last_entry(&bfd_data->bfd, bfd_t, e_list);
-	assert(bfd);
 
 	if (!read_decimal_unsigned_strvec(strvec, 1, &value, BFD_MINRX_MIN * 1000, BFD_MINRX_MAX * 1000, 3, false)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
@@ -157,14 +148,11 @@ bfd_minrx_handler(const vector_t *strvec)
 static void
 bfd_mintx_handler(const vector_t *strvec)
 {
-	bfd_t *bfd;
+	bfd_t *bfd = current_bfd;
 	unsigned value;
 
 	assert(strvec);
 	assert(bfd_data);
-
-	bfd = list_last_entry(&bfd_data->bfd, bfd_t, e_list);
-	assert(bfd);
 
 	if (!read_decimal_unsigned_strvec(strvec, 1, &value, BFD_MINTX_MIN * 1000, BFD_MINTX_MAX * 1000, 3, false)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
@@ -185,14 +173,11 @@ bfd_mintx_handler(const vector_t *strvec)
 static void
 bfd_idletx_handler(const vector_t *strvec)
 {
-	bfd_t *bfd;
+	bfd_t *bfd = current_bfd;
 	unsigned value;
 
 	assert(strvec);
 	assert(bfd_data);
-
-	bfd = list_last_entry(&bfd_data->bfd, bfd_t, e_list);
-	assert(bfd);
 
 	if (!read_decimal_unsigned_strvec(strvec, 1, &value, BFD_IDLETX_MIN * 1000, BFD_IDLETX_MAX * 1000, 3, false)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
@@ -213,14 +198,11 @@ bfd_idletx_handler(const vector_t *strvec)
 static void
 bfd_multiplier_handler(const vector_t *strvec)
 {
-	bfd_t *bfd;
+	bfd_t *bfd = current_bfd;
 	unsigned value;
 
 	assert(strvec);
 	assert(bfd_data);
-
-	bfd = list_last_entry(&bfd_data->bfd, bfd_t, e_list);
-	assert(bfd);
 
 	if (!read_unsigned_strvec(strvec, 1, &value, BFD_MULTIPLIER_MIN, BFD_MULTIPLIER_MAX, false))
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
@@ -234,12 +216,9 @@ bfd_multiplier_handler(const vector_t *strvec)
 static void
 bfd_passive_handler(__attribute__((unused)) const vector_t *strvec)
 {
-	bfd_t *bfd;
+	bfd_t *bfd = current_bfd;
 
 	assert(bfd_data);
-
-	bfd = list_last_entry(&bfd_data->bfd, bfd_t, e_list);
-	assert(bfd);
 
 	bfd->passive = true;
 }
@@ -247,14 +226,11 @@ bfd_passive_handler(__attribute__((unused)) const vector_t *strvec)
 static void
 bfd_ttl_handler(const vector_t *strvec)
 {
-	bfd_t *bfd;
+	bfd_t *bfd = current_bfd;
 	unsigned value;
 
 	assert(strvec);
 	assert(bfd_data);
-
-	bfd = list_last_entry(&bfd_data->bfd, bfd_t, e_list);
-	assert(bfd);
 
 	if (!read_unsigned_strvec(strvec, 1, &value, 1, BFD_TTL_MAX, false))
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
@@ -268,14 +244,11 @@ bfd_ttl_handler(const vector_t *strvec)
 static void
 bfd_maxhops_handler(const vector_t *strvec)
 {
-	bfd_t *bfd;
+	bfd_t *bfd = current_bfd;
 	int value;
 
 	assert(strvec);
 	assert(bfd_data);
-
-	bfd = list_last_entry(&bfd_data->bfd, bfd_t, e_list);
-	assert(bfd);
 
 	if (!read_int_strvec(strvec, 1, &value, -1, BFD_TTL_MAX, false))
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
@@ -291,10 +264,14 @@ bfd_maxhops_handler(const vector_t *strvec)
 static void
 bfd_vrrp_end_handler(void)
 {
-	vrrp_tracked_bfd_t *tbfd = list_last_entry(&vrrp_data->vrrp_track_bfds, vrrp_tracked_bfd_t, e_list);
+	vrrp_tracked_bfd_t *tbfd = current_bfd;
 
-	if (specified_event_processes && !__test_bit(DAEMON_VRRP, &specified_event_processes))
+	if (specified_event_processes && !__test_bit(DAEMON_VRRP, &specified_event_processes)) {
 		free_vrrp_tracked_bfd(tbfd);
+		return;
+	}
+
+	list_add_tail(&tbfd->e_list, &vrrp_data->vrrp_track_bfds);
 }
 #endif
 
@@ -302,19 +279,21 @@ bfd_vrrp_end_handler(void)
 static void
 bfd_checker_end_handler(void)
 {
-	checker_tracked_bfd_t *cbfd = list_last_entry(&check_data->track_bfds, checker_tracked_bfd_t, e_list);
+	checker_tracked_bfd_t *cbfd = current_bfd;
 
-	if (specified_event_processes && !__test_bit(DAEMON_CHECKERS, &specified_event_processes))
+	if (specified_event_processes && !__test_bit(DAEMON_CHECKERS, &specified_event_processes)) {
 		free_checker_bfd(cbfd);
+		return;
+	}
+
+	list_add_tail(&cbfd->e_list, &check_data->track_bfds);
 }
 #endif
 
 static void
 bfd_end_handler(void)
 {
-	bfd_t *bfd = list_last_entry(&bfd_data->bfd, bfd_t, e_list);
-
-	assert(bfd);
+	bfd_t *bfd = current_bfd;
 
 	if (!bfd->nbr_addr.ss_family) {
 		report_config_error(CONFIG_GENERAL_ERROR,
@@ -377,6 +356,8 @@ bfd_end_handler(void)
 	bfd_checker_end_handler();
 #endif
 #endif
+
+	list_add_tail(&bfd->e_list, &bfd_data->bfd);
 }
 
 #ifdef _WITH_VRRP_
@@ -384,13 +365,10 @@ bfd_end_handler(void)
 static void
 bfd_vrrp_handler(const vector_t *strvec)
 {
-	const char *name;
-
 	if (!strvec)
 		return;
 
-	name = strvec_slot(strvec, 1);
-	alloc_vrrp_tracked_bfd(name, &vrrp_data->vrrp_track_bfds);
+	current_bfd = alloc_vrrp_tracked_bfd(strvec_slot(strvec, 1), &vrrp_data->vrrp_track_bfds);
 
 	specified_event_processes = 0;
 }
@@ -399,14 +377,11 @@ bfd_vrrp_handler(const vector_t *strvec)
 static void
 bfd_vrrp_weight_handler(const vector_t *strvec)
 {
-	vrrp_tracked_bfd_t *tbfd;
+	vrrp_tracked_bfd_t *tbfd = current_bfd;
 	int value;
 
 	assert(strvec);
 	assert(vrrp_data);
-
-	tbfd = list_last_entry(&vrrp_data->vrrp_track_bfds, vrrp_tracked_bfd_t, e_list);
-	assert(tbfd);
 
 	if (!read_int_strvec(strvec, 1, &value, -253, 253, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
@@ -457,7 +432,8 @@ bfd_checker_handler(const vector_t *strvec)
 	INIT_LIST_HEAD(&cbfd->e_list);
 	INIT_LIST_HEAD(&cbfd->tracking_rs);
 	cbfd->bname = STRDUP(name);
-	list_add_tail(&cbfd->e_list, &check_data->track_bfds);
+
+	current_bfd = cbfd;
 
 	specified_event_processes = 0;
 }
@@ -494,21 +470,21 @@ init_bfd_keywords(bool active)
 	if (prog_type == PROG_TYPE_BFD || !active)
 #endif
 	{
-		install_keyword_root("bfd_instance", &bfd_handler, active);
-		install_sublevel_end_handler(bfd_end_handler);
+		install_keyword_root("bfd_instance", &bfd_handler, active, VPP &current_bfd);
+		install_level_end_handler(bfd_end_handler);
 		bfd_handlers = true;
 	}
 #ifndef _ONE_PROCESS_DEBUG_
 #ifdef _WITH_VRRP_
 	else if (prog_type == PROG_TYPE_VRRP) {
-		install_keyword_root("bfd_instance", &bfd_vrrp_handler, active);
-		install_sublevel_end_handler(bfd_vrrp_end_handler);
+		install_keyword_root("bfd_instance", &bfd_vrrp_handler, active, VPP &current_bfd);
+		install_level_end_handler(bfd_vrrp_end_handler);
 	}
 #endif
 #ifdef _WITH_LVS_
 	else if (prog_type == PROG_TYPE_CHECKER) {
-		install_keyword_root("bfd_instance", &bfd_checker_handler, active);
-		install_sublevel_end_handler(bfd_checker_end_handler);
+		install_keyword_root("bfd_instance", &bfd_checker_handler, active, VPP &current_bfd);
+		install_level_end_handler(bfd_checker_end_handler);
 	}
 #endif
 #endif

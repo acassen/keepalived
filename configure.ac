@@ -787,7 +787,7 @@ AS_IF([test .$HAVE_WARNING_STRICT_OVERFLOW = .yes],
      )
 CFLAGS="$SAV_CFLAGS"
 
-dnl ---- [ Is function __attribute__((error(msg)) supported? ] ----
+dnl ---- [ Is function __attribute__((error(msg))) supported? ] ----
 AC_MSG_CHECKING([for function __attribute__((error(msg))) support])
 AC_COMPILE_IFELSE(
   [
@@ -795,7 +795,9 @@ AC_COMPILE_IFELSE(
       [[
         #include <stdio.h>
 
-        static int func(int i) __attribute__((error("deliberate error")))
+        static int func(int i) __attribute__((error("deliberate-error")));
+
+        static int func(int i)
 	{
 	  return i * 2;
 	}
@@ -815,6 +817,38 @@ AC_COMPILE_IFELSE(
     AC_MSG_RESULT([yes])
     AC_DEFINE([_HAVE_FUNCTION_ATTRIBUTE_ERROR_], [ 1 ], [Define to 1 if function __attribute__((error(msg))) supported])
   ])
+
+SAV_CFLAGS="$CFLAGS"
+CFLAGS="$SAV_CFLAGS -Werror=attributes"
+dnl ---- [ Is function __attribute__((warn_unused_result)) supported? ] ----
+AC_MSG_CHECKING([for function __attribute__((warn_unused_result)) support])
+AC_COMPILE_IFELSE(
+  [
+    AC_LANG_PROGRAM(
+      [[
+        #include <stdio.h>
+
+        static int func(int i) __attribute__((warn_unused_result));
+
+        static int func(int i)
+	{
+	  return i * 2;
+	}
+      ]],
+      [[
+	func(2);
+	printf("%d", 2);
+      ]]
+    )
+  ],
+  [
+    AC_MSG_RESULT([yes])
+    AC_DEFINE([_HAVE_FUNCTION_WARN_UNUSED_RESULTS_], [ 1 ], [Define to 1 if function __attribute__((warn_unused_results)) supported])
+  ],
+  [
+    AC_MSG_RESULT([no])
+  ])
+CFLAGS="$SAV_CFLAGS"
 
 dnl ---- [ Do we want stricter configuration checking? ] ----
 STRICT_CONFIG=No

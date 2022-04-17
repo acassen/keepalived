@@ -196,7 +196,7 @@ extern void alloc_track_process(const char *, list_head_t *, const vector_t *);
 #endif
 #ifdef _WITH_BFD_
 extern vrrp_tracked_bfd_t *find_vrrp_tracked_bfd_by_name(const char *) __attribute__ ((pure));
-extern void alloc_vrrp_tracked_bfd(const char *, list_head_t *);
+extern vrrp_tracked_bfd_t *alloc_vrrp_tracked_bfd(const char *, list_head_t *);
 extern void dump_tracked_bfd_list(FILE *, const list_head_t *);
 extern void free_track_bfd(tracked_bfd_t *);
 extern void free_track_bfd_list(list_head_t *);

@@ -111,7 +111,7 @@ extern void dump_ipaddress(FILE *, const ip_address_t *);
 extern void dump_ipaddress_list(FILE *, const list_head_t *);
 extern ip_address_t *parse_ipaddress(ip_address_t *, const char *, bool);
 extern ip_address_t *parse_route(const char *);
-extern void alloc_ipaddress(list_head_t *, const vector_t *, bool);
+extern ip_address_t *alloc_ipaddress(const vector_t *, bool);
 extern void get_diff_address(vrrp_t *, vrrp_t *, list_head_t *);
 extern void clear_address_list(list_head_t *, bool);
 extern void clear_diff_static_addresses(void);

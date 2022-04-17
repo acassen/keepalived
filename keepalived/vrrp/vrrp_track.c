@@ -405,7 +405,7 @@ find_vrrp_tracked_bfd_by_name(const char *name)
 	return NULL;
 }
 
-void
+vrrp_tracked_bfd_t *
 alloc_vrrp_tracked_bfd(const char *name, list_head_t *l)
 {
 	vrrp_tracked_bfd_t *tbfd;
@@ -413,14 +413,14 @@ alloc_vrrp_tracked_bfd(const char *name, list_head_t *l)
 	if (strlen(name) >= BFD_INAME_MAX) {
 		report_config_error(CONFIG_GENERAL_ERROR, "BFD name %s too long", name);
 		skip_block(true);
-		return;
+		return NULL;
 	}
 
 	list_for_each_entry(tbfd, l, e_list) {
 		if (!strcmp(name, tbfd->bname)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "BFD %s already specified", name);
 			skip_block(true);
-			return;
+			return NULL;
 		}
 	}
 
@@ -431,7 +431,8 @@ alloc_vrrp_tracked_bfd(const char *name, list_head_t *l)
 	tbfd->weight_reverse = false;
 	tbfd->bfd_up = false;
 	INIT_LIST_HEAD(&tbfd->tracking_vrrp);
-	list_add_tail(&tbfd->e_list, l);
+
+	return tbfd;
 }
 
 /* Track bfd related */

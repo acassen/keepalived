@@ -2267,15 +2267,15 @@ init_global_keywords(bool global_active)
 {
 	/* global definitions mapping */
 #ifdef _WITH_LINKBEAT_
-	install_keyword_root("linkbeat_use_polling", use_polling_handler, global_active);
+	install_keyword_root("linkbeat_use_polling", use_polling_handler, global_active, NULL);
 #endif
-	install_keyword_root("net_namespace", &net_namespace_handler, global_active);
-	install_keyword_root("net_namespace_ipvs", &net_namespace_ipvs_handler, global_active);
-	install_keyword_root("namespace_with_ipsets", &namespace_ipsets_handler, global_active);
-	install_keyword_root("use_pid_dir", &use_pid_dir_handler, global_active);
-	install_keyword_root("instance", &instance_handler, global_active);
-	install_keyword_root("child_wait_time", &child_wait_handler, global_active);
-	install_keyword_root("global_defs", NULL, global_active);
+	install_keyword_root("net_namespace", &net_namespace_handler, global_active, NULL);
+	install_keyword_root("net_namespace_ipvs", &net_namespace_ipvs_handler, global_active, NULL);
+	install_keyword_root("namespace_with_ipsets", &namespace_ipsets_handler, global_active, NULL);
+	install_keyword_root("use_pid_dir", &use_pid_dir_handler, global_active, NULL);
+	install_keyword_root("instance", &instance_handler, global_active, NULL);
+	install_keyword_root("child_wait_time", &child_wait_handler, global_active, NULL);
+	install_keyword_root("global_defs", NULL, global_active, VPP &global_data);
 	install_keyword("process_names", &process_names_handler);
 	install_keyword("process_name", &process_name_handler);
 #ifdef _WITH_VRRP_

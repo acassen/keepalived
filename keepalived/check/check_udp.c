@@ -38,6 +38,7 @@
 #include "smtp.h"
 #include "utils.h"
 #include "parser.h"
+#include "check_parser.h"
 
 static void udp_connect_thread(thread_ref_t);
 
@@ -100,7 +101,7 @@ udp_check_handler(__attribute__((unused)) const vector_t *strvec)
 static void
 payload_handler(const vector_t *strvec)
 {
-	udp_check_t *udp_check = CHECKER_GET();
+	udp_check_t *udp_check = current_checker->data;
 	char *hex_str;
 
 	if (vector_size(strvec) == 1) {
@@ -120,7 +121,7 @@ payload_handler(const vector_t *strvec)
 static void
 require_reply_handler(const vector_t *strvec)
 {
-	udp_check_t *udp_check = CHECKER_GET();
+	udp_check_t *udp_check = current_checker->data;
 	char *hex_str;
 
 	udp_check->require_reply = true;
@@ -140,7 +141,7 @@ require_reply_handler(const vector_t *strvec)
 static void
 min_length_handler(const vector_t *strvec)
 {
-	udp_check_t *udp_check = CHECKER_GET();
+	udp_check_t *udp_check = current_checker->data;
 	unsigned len;
 
 	if (!read_unsigned_strvec(strvec, 1, &len, 0, UINT16_MAX, false)) {
@@ -154,7 +155,7 @@ min_length_handler(const vector_t *strvec)
 static void
 max_length_handler(const vector_t *strvec)
 {
-	udp_check_t *udp_check = CHECKER_GET();
+	udp_check_t *udp_check = current_checker->data;
 	unsigned len;
 
 	if (!read_unsigned_strvec(strvec, 1, &len, 0, UINT16_MAX, false)) {
@@ -168,9 +169,9 @@ max_length_handler(const vector_t *strvec)
 static void
 udp_check_end_handler(void)
 {
-	udp_check_t *udp_check = CHECKER_GET();
+	udp_check_t *udp_check = current_checker->data;
 
-	if (!check_conn_opts(CHECKER_GET_CO())) {
+	if (!check_conn_opts(current_checker->co)) {
 		dequeue_new_checker();
 		return;
 	}
@@ -178,21 +179,26 @@ udp_check_end_handler(void)
 	if (udp_check->min_reply_len > udp_check->max_reply_len)
 		report_config_error(CONFIG_GENERAL_ERROR, "UDP_CHECK min_reply length %d > max_reply_length %d - will always fail",
 				    udp_check->min_reply_len, udp_check->max_reply_len);
+
+	/* queue the checker */
+	list_add_tail(&current_checker->e_list, &checkers_queue);
 }
 
 void
 install_udp_check_keyword(void)
 {
+	vpp_t check_ptr;
+
 	/* We don't want some common keywords */
 	install_keyword("UDP_CHECK", &udp_check_handler);
-	install_sublevel();
+	check_ptr = install_sublevel(VPP &current_checker);
 	install_checker_common_keywords(true);
 	install_keyword("payload", &payload_handler);
 	install_keyword("require_reply", &require_reply_handler);
 	install_keyword("min_reply_length", &min_length_handler);
 	install_keyword("max_reply_length", &max_length_handler);
-	install_sublevel_end_handler(udp_check_end_handler);
-	install_sublevel_end();
+	install_level_end_handler(udp_check_end_handler);
+	install_sublevel_end(check_ptr);
 }
 
 static void

@@ -28,6 +28,11 @@
 
 /* local include */
 #include "vector.h"
+#include "vrrp.h"
+
+
+extern vrrp_t *current_vrrp;
+extern vrrp_sgroup_t *current_vsyncg;
 
 /* Prototypes */
 extern const vector_t *vrrp_init_keywords(void);

@@ -28,6 +28,7 @@
 
 #include "main.h"
 #include "check_data.h"
+#include "check_parser.h"
 #include "check_api.h"
 #include "check_misc.h"
 #include "check_daemon.h"
@@ -179,7 +180,8 @@ dump_vsg_list(FILE *fp, const list_head_t *l)
 	list_for_each_entry(vsg, l, e_list)
 		dump_vsg(fp, vsg);
 }
-void
+
+virtual_server_group_t *
 alloc_vsg(const char *gname)
 {
 	virtual_server_group_t *new;
@@ -190,12 +192,11 @@ alloc_vsg(const char *gname)
 	INIT_LIST_HEAD(&new->vfwmark);
 	new->gname = STRDUP(gname);
 
-	list_add_tail(&new->e_list, &check_data->vs_group);
+	return new;
 }
 void
 alloc_vsg_entry(const vector_t *strvec)
 {
-	virtual_server_group_t *vsg = list_last_entry(&check_data->vs_group, virtual_server_group_t, e_list);
 	virtual_server_group_entry_t *new;
 	uint32_t start;
 	const char *port_str;
@@ -217,7 +218,7 @@ alloc_vsg_entry(const vector_t *strvec)
 
 	if (!strcmp(addr_str, "fwmark")) {
 		if (!read_unsigned_strvec(strvec, 1, &fwmark, 0, UINT32_MAX, true)) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s): fwmark '%s' must be in [0, %u] - ignoring", vsg->gname, strvec_slot(strvec, 1), UINT32_MAX);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s): fwmark '%s' must be in [0, %u] - ignoring", current_vsg->gname, strvec_slot(strvec, 1), UINT32_MAX);
 			FREE(new);
 			return;
 		}
@@ -225,23 +226,23 @@ alloc_vsg_entry(const vector_t *strvec)
 			family_str = strvec_slot(strvec, 2);
 			if (!strcmp(family_str, "inet")) {
 				new->fwm_family = AF_INET;
-				vsg->have_ipv4 = true;
+				current_vsg->have_ipv4 = true;
 			} else if (!strcmp(family_str, "inet6")) {
 				new->fwm_family = AF_INET6;
-				vsg->have_ipv6 = true;
+				current_vsg->have_ipv6 = true;
 			} else {
-				report_config_error(CONFIG_GENERAL_ERROR, "(%s): fwmark '%u' family %s unknown - ignoring", vsg->gname, fwmark, family_str);
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s): fwmark '%u' family %s unknown - ignoring", current_vsg->gname, fwmark, family_str);
 				FREE(new);
 				return;
 			}
 		} else {
 			new->fwm_family = AF_UNSPEC;
-			vsg->fwmark_no_family = true;
+			current_vsg->fwmark_no_family = true;
 		}
 
 		new->vfwmark = fwmark;
 		new->is_fwmark = true;
-		list_add_tail(&new->e_list, &vsg->vfwmark);
+		list_add_tail(&new->e_list, &current_vsg->vfwmark);
 	} else {
 		if (vector_size(strvec) >= 2) {
 			/* Don't pass a port number of 0. This was added v2.0.7 to support legacy
@@ -377,12 +378,12 @@ alloc_vsg_entry(const vector_t *strvec)
 		}
 
 		new->is_fwmark = false;
-		list_add_tail(&new->e_list, &vsg->addr_range);
+		list_add_tail(&new->e_list, &current_vsg->addr_range);
 
 		if (new->addr.ss_family == AF_INET)
-			vsg->have_ipv4 = true;
+			current_vsg->have_ipv4 = true;
 		else
-			vsg->have_ipv6 = true;
+			current_vsg->have_ipv6 = true;
 	}
 }
 
@@ -554,10 +555,9 @@ dump_rs_list(FILE *fp, const list_head_t *l)
 		dump_rs(fp, rs);
 }
 
-void
+real_server_t *
 alloc_rs(const char *ip, const char *port)
 {
-	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
 	real_server_t *new;
 	const char *port_str;
 
@@ -574,7 +574,7 @@ alloc_rs(const char *ip, const char *port)
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid real server ip address/port %s/%s - skipping", ip, port);
 		skip_block(true);
 		FREE(new);
-		return;
+		return NULL;
 	}
 
 #ifndef LIBIPVS_USE_NL
@@ -582,26 +582,26 @@ alloc_rs(const char *ip, const char *port)
 		report_config_error(CONFIG_GENERAL_ERROR, "IPVS does not support IPv6 in this build - skipping %s/%s", ip, port);
 		skip_block(true);
 		FREE(new);
-		return;
+		return NULL;
 	}
 #else
 #if !HAVE_DECL_IPVS_DEST_ATTR_ADDR_FAMILY
-	if (vs->af != AF_UNSPEC && new->addr.ss_family != vs->af) {
+	if (current_vs->af != AF_UNSPEC && new->addr.ss_family != current_vs->af) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Your kernel doesn't support mixed IPv4/IPv6 for virtual/real servers");
 		skip_block(true);
 		FREE(new);
-		return;
+		return NULL;
 	}
 #endif
 #endif
 
 	new->effective_weight = INT64_MAX;
-	new->forwarding_method = vs->forwarding_method;
+	new->forwarding_method = current_vs->forwarding_method;
 #ifdef _HAVE_IPVS_TUN_TYPE_
-	new->tun_type = vs->tun_type;
-	new->tun_port = vs->tun_port;
+	new->tun_type = current_vs->tun_type;
+	new->tun_port = current_vs->tun_port;
 #ifdef _HAVE_IPVS_TUN_CSUM_
-	new->tun_flags = vs->tun_flags;
+	new->tun_flags = current_vs->tun_flags;
 #endif
 #endif
 	new->alpha = -1;
@@ -617,8 +617,7 @@ alloc_rs(const char *ip, const char *port)
 #endif
 	new->smtp_alert = -1;
 
-	list_add_tail(&new->e_list, &vs->rs);
-	vs->rs_cnt++;
+	return new;
 }
 
 /*
@@ -772,7 +771,7 @@ dump_vs_list(FILE *fp, const list_head_t *l)
 		dump_vs(fp, vs);
 }
 
-void
+virtual_server_t *
 alloc_vs(const char *param1, const char *param2)
 {
 	virtual_server_t *new;
@@ -791,7 +790,7 @@ alloc_vs(const char *param1, const char *param2)
 			report_config_error(CONFIG_GENERAL_ERROR, "virtual server fwmark '%s' must be in [0, %u] - ignoring", param2, IPVS_FWMARK_MAX);
 			skip_block(true);
 			FREE(new);
-			return;
+			return NULL;
 		}
 		new->vfwmark = fwmark;
 	} else {
@@ -803,7 +802,7 @@ alloc_vs(const char *param1, const char *param2)
 						port_str ? "/port" : "", param1, port_str ? "/" : "", port_str ? port_str : "");
 			skip_block(true);
 			FREE(new);
-			return;
+			return NULL;
 		}
 
 		new->af = new->addr.ss_family;
@@ -812,7 +811,7 @@ alloc_vs(const char *param1, const char *param2)
 			report_config_error(CONFIG_GENERAL_ERROR, "IPVS with IPv6 is not supported by this build");
 			FREE(new);
 			skip_block(true);
-			return;
+			return NULL;
 		}
 #endif
 	}
@@ -840,14 +839,13 @@ alloc_vs(const char *param1, const char *param2)
 	new->persistence_granularity = 0xffffffff;
 	INIT_LIST_HEAD(&new->rs);
 
-	list_add_tail(&new->e_list, &check_data->vs);
+	return new;
 }
 
 /* Sorry server facility functions */
 void
 alloc_ssvr(const char *ip, const char *port)
 {
-	virtual_server_t *vs = list_last_entry(&check_data->vs, virtual_server_t, e_list);
 	real_server_t *new;
 	const char *port_str;
 
@@ -857,12 +855,12 @@ alloc_ssvr(const char *ip, const char *port)
 	PMALLOC(new);
 	new->effective_weight = 1;
 	new->iweight = 1;
-	new->forwarding_method = vs->forwarding_method;
+	new->forwarding_method = current_vs->forwarding_method;
 #ifdef _HAVE_IPVS_TUN_TYPE_
-	new->tun_type = vs->tun_type;
-	new->tun_port = vs->tun_port;
+	new->tun_type = current_vs->tun_type;
+	new->tun_port = current_vs->tun_port;
 #ifdef _HAVE_IPVS_TUN_CSUM_
-	new->tun_flags = vs->tun_flags;
+	new->tun_flags = current_vs->tun_flags;
 #endif
 #endif
 	if (inet_stosockaddr(ip, port_str, &new->addr)) {
@@ -871,7 +869,7 @@ alloc_ssvr(const char *ip, const char *port)
 		return;
 	}
 
-	vs->s_svr = new;
+	current_vs->s_svr = new;
 }
 
 #ifdef _WITH_BFD_
@@ -1082,12 +1080,6 @@ validate_check_config(void)
 
 	using_ha_suspend = false;
 	list_for_each_entry_safe(vs, vs_tmp, &check_data->vs, e_list) {
-		if (list_empty(&vs->rs)) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s has no real servers - ignoring", FMT_VS(vs));
-			free_vs(vs);
-			continue;
-		}
-
 		/* Ensure that ha_suspend is not set for any virtual server using fwmarks */
 		if (vs->ha_suspend &&
 		    (vs->vfwmark || (vs->vsg && !list_empty(&vs->vsg->vfwmark)))) {

@@ -37,6 +37,7 @@
 #include "parser.h"
 #include "smtp.h"
 #include "ipwrapper.h"
+#include "check_parser.h"
 
 #define ICMP_BUFSIZE 128
 #define SOCK_RECV_BUFF 128*1024
@@ -156,19 +157,26 @@ ping_check_handler(__attribute__((unused)) const vector_t *strvec)
 static void
 ping_check_end_handler(void)
 {
-	if (!check_conn_opts(CHECKER_GET_CO()))
+	if (!check_conn_opts(current_checker->co)) {
 		dequeue_new_checker();
+		return;
+	}
+
+	/* queue the checker */
+	list_add_tail(&current_checker->e_list, &checkers_queue);
 }
 
 void
 install_ping_check_keyword(void)
 {
+	vpp_t check_ptr;
+
 	/* We don't want some common keywords */
 	install_keyword("PING_CHECK", &ping_check_handler);
-	install_sublevel();
+	check_ptr = install_sublevel(VPP &current_checker);
 	install_checker_common_keywords(true);
-	install_sublevel_end_handler(ping_check_end_handler);
-	install_sublevel_end();
+	install_level_end_handler(ping_check_end_handler);
+	install_sublevel_end(check_ptr);
 }
 
 static enum connect_result

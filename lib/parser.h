@@ -32,6 +32,8 @@
 /* local includes */
 #include "vector.h"
 #include "memory.h"
+#include "warnings.h"
+
 
 /* Global definitions */
 
@@ -73,13 +75,18 @@ typedef enum {
 } config_err_t;
 
 /* keyword definition */
+typedef void **vpp_t;
+#define	VPP (vpp_t)
 typedef struct _keyword {
 	const char *string;
 	void (*handler) (const vector_t *);
 	vector_t *sub;
 	void (*sub_close_handler) (void);
 	bool active;
+	vpp_t ptr;
+	vpp_t sub_close_ptr;
 } keyword_t;
+
 
 /* global vars exported */
 extern vector_t *keywords;
@@ -131,11 +138,10 @@ extern bool read_unsigned_base_strvec(const vector_t *, size_t, int, unsigned *,
 extern bool read_decimal_unsigned_strvec(const vector_t *, size_t, unsigned *, unsigned, unsigned, unsigned, bool);
 extern uint16_t read_hex_str(const char *, uint8_t **, uint8_t **);
 extern void set_random_seed(unsigned int);
-extern void install_keyword_root(const char *, void (*handler) (const vector_t *), bool);
-extern void install_root_end_handler(void (*handler) (void));
-extern void install_sublevel(void);
-extern void install_sublevel_end(void);
-extern void install_sublevel_end_handler(void (*handler) (void));
+extern void install_keyword_root(const char *, void (*handler) (const vector_t *), bool, vpp_t);
+extern vpp_t install_sublevel(vpp_t) WARN_UNUSED_RESULT;
+extern void install_sublevel_end(vpp_t);
+extern void install_level_end_handler(void (*handler) (void));
 extern void install_keyword(const char *, void (*handler) (const vector_t *));
 extern const vector_t *alloc_strvec_quoted_escaped(const char *);
 extern vector_t *alloc_strvec_r(const char *);

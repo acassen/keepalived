@@ -37,6 +37,8 @@
 #ifdef THREAD_DUMP
 #include "scheduler.h"
 #endif
+#include "check_parser.h"
+
 
 static void tcp_connect_thread(thread_ref_t);
 
@@ -72,19 +74,25 @@ tcp_check_handler(__attribute__((unused)) const vector_t *strvec)
 static void
 tcp_check_end_handler(void)
 {
-	if (!check_conn_opts(CHECKER_GET_CO())) {
+	if (!check_conn_opts(current_checker->co)) {
 		dequeue_new_checker();
+		return;
 	}
+
+	/* queue the checker */
+	list_add_tail(&current_checker->e_list, &checkers_queue);
 }
 
 void
 install_tcp_check_keyword(void)
 {
+	vpp_t check_ptr;
+
 	install_keyword("TCP_CHECK", &tcp_check_handler);
-	install_sublevel();
+	check_ptr = install_sublevel(VPP &current_checker);
 	install_checker_common_keywords(true);
-	install_sublevel_end_handler(tcp_check_end_handler);
-	install_sublevel_end();
+	install_level_end_handler(tcp_check_end_handler);
+	install_sublevel_end(check_ptr);
 }
 
 static void

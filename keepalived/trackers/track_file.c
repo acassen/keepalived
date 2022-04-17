@@ -30,6 +30,10 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include <sys/statvfs.h>
+#include <sys/statfs.h>
+#include <linux/magic.h>
+
 
 #include "track_file.h"
 #include "tracker.h"
@@ -51,6 +55,73 @@
 #include "vrrp_data.h"
 #endif
 
+/* The following definitions come from the statfs(2) man page.
+   Some of them are defined in <linux/magic.h>, others aren't. */
+#ifndef BPF_FS_MAGIC
+#define	BPF_FS_MAGIC 0xcafe4a11
+#endif
+#ifndef CGROUP_SUPER_MAGIC
+#define	CGROUP_SUPER_MAGIC 0x27e0eb
+#endif
+#ifndef CGROUP2_SUPER_MAGIC
+#define	CGROUP2_SUPER_MAGIC 0x63677270
+#endif
+#ifndef DEBUGFS_MAGIC
+#define	DEBUGFS_MAGIC 0x64626720
+#endif
+#ifndef DEVPTS_SUPER_MAGIC
+#define	DEVPTS_SUPER_MAGIC 0x1cd1
+#endif
+#ifndef EFIVARFS_MAGIC
+#define	EFIVARFS_MAGIC 0xde5e81e4
+#endif
+#ifndef FUSE_SUPER_MAGIC
+#define	FUSE_SUPER_MAGIC 0x65735546
+#endif
+#ifndef MQUEUE_MAGIC
+#define	MQUEUE_MAGIC 0x19800202
+#endif
+#ifndef NFS_SUPER_MAGIC
+#define	NFS_SUPER_MAGIC 0x6969
+#endif
+#ifndef PIPEFS_MAGIC
+#define	PIPEFS_MAGIC 0x50495045
+#endif
+#ifndef PROC_SUPER_MAGIC
+#define	PROC_SUPER_MAGIC 0x9fa0
+#endif
+#ifndef ROMFS_MAGIC
+#define	ROMFS_MAGIC 0x7275
+#endif
+#ifndef SELINUX_MAGIC
+#define	SELINUX_MAGIC 0xf97cff8c
+#endif
+#ifndef SMB_SUPER_MAGIC
+#define	SMB_SUPER_MAGIC 0x517b
+#endif
+#ifndef SMB2_MAGIC_NUMBER
+#define	SMB2_MAGIC_NUMBER 0xfe534d42
+#endif
+#ifndef SOCKFS_MAGIC
+#define	SOCKFS_MAGIC 0x534f434b
+#endif
+#ifndef SYSFS_MAGIC
+#define	SYSFS_MAGIC 0x62656572
+#endif
+#ifndef SYSV2_SUPER_MAGIC
+#define	SYSV2_SUPER_MAGIC 0x012ff7b6
+#endif
+#ifndef SYSV4_SUPER_MAGIC
+#define	SYSV4_SUPER_MAGIC 0x012ff7b5
+#endif
+#ifndef TRACEFS_MAGIC
+#define	TRACEFS_MAGIC 0x74726163
+#endif
+#ifndef XENFS_SUPER_MAGIC
+#define	XENFS_SUPER_MAGIC 0xabba1974
+#endif
+
+
 /* Used for initialising track files */
 static enum {
 	TRACK_FILE_NO_INIT,
@@ -58,7 +129,7 @@ static enum {
 	TRACK_FILE_INIT,
 } track_file_init;
 static int track_file_init_value;
-static tracked_file_t *cur_track_file;
+static tracked_file_t *current_tf;
 
 
 static int inotify_fd = -1;
@@ -189,11 +260,11 @@ track_file_handler(const vector_t *strvec)
 		return;
 
 	/* Allocate new file structure */
-	PMALLOC(cur_track_file);
-	INIT_LIST_HEAD(&cur_track_file->e_list);
-	INIT_LIST_HEAD(&cur_track_file->tracking_obj);
-	cur_track_file->fname = STRDUP(strvec_slot(strvec, 1));
-	cur_track_file->weight = 1;
+	PMALLOC(current_tf);
+	INIT_LIST_HEAD(&current_tf->e_list);
+	INIT_LIST_HEAD(&current_tf->tracking_obj);
+	current_tf->fname = STRDUP(strvec_slot(strvec, 1));
+	current_tf->weight = 1;
 
 	track_file_init = TRACK_FILE_NO_INIT;
 }
@@ -219,16 +290,13 @@ track_file_file_handler(const vector_t *strvec)
 		return;
 	}
 
-	if (!cur_track_file)
-		return;
-
-	if (cur_track_file->file_path) {
+	if (current_tf->file_path) {
 		report_config_error(CONFIG_GENERAL_ERROR, "File already set for track file %s - ignoring %s"
-							, cur_track_file->fname, strvec_slot(strvec, 1));
+							, current_tf->fname, strvec_slot(strvec, 1));
 		return;
 	}
 
-	cur_track_file->file_path = set_value(strvec);
+	current_tf->file_path = set_value(strvec);
 }
 
 static void
@@ -238,33 +306,30 @@ track_file_weight_handler(const vector_t *strvec)
 
 	if (vector_size(strvec) < 2) {
 		report_config_error(CONFIG_GENERAL_ERROR, "No weight specified for track file %s - ignoring"
-							, cur_track_file->fname);
+							, current_tf->fname);
 		return;
 	}
 
-	if (!cur_track_file)
-		return;
-
-	if (cur_track_file->weight != 1) {
+	if (current_tf->weight != 1) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Weight already set for track file %s - ignoring %s"
-							, cur_track_file->fname, strvec_slot(strvec, 1));
+							, current_tf->fname, strvec_slot(strvec, 1));
 		return;
 	}
 
 	if (!read_int_strvec(strvec, 1, &weight, -254, 254, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Weight (%s) for track_file %s must be between "
 							  "[-254..254] inclusive. Ignoring..."
-							, strvec_slot(strvec, 1), cur_track_file->fname);
+							, strvec_slot(strvec, 1), current_tf->fname);
 		weight = 1;
 	}
-	cur_track_file->weight = weight;
+	current_tf->weight = weight;
 
 	if (vector_size(strvec) >= 3) {
 		if (!strcmp(strvec_slot(strvec, 2), "reverse"))
-			cur_track_file->weight_reverse = true;
+			current_tf->weight_reverse = true;
 		else
 			report_config_error(CONFIG_GENERAL_ERROR, "track_file %s unknown weight option %s"
-								, cur_track_file->fname, strvec_slot(strvec, 2));
+								, current_tf->fname, strvec_slot(strvec, 2));
 	}
 }
 
@@ -274,9 +339,6 @@ track_file_init_handler(const vector_t *strvec)
 	unsigned i;
 	const char *word;
 	int value;
-
-	if (!cur_track_file)
-		return;
 
 	track_file_init = TRACK_FILE_CREATE;
 	track_file_init_value = 0;
@@ -288,14 +350,14 @@ track_file_init_handler(const vector_t *strvec)
 			if (!read_int_strvec(strvec, i, &value, INT_MIN, INT_MAX, false)) {
 				/* It is not a valid integer */
 				report_config_error(CONFIG_GENERAL_ERROR, "Track file %s init value %s is invalid"
-									, cur_track_file->fname, word);
+									, current_tf->fname, word);
 				value = 0;
 			}
 			else if (value < -254 || value > 254) {
 // This is not valid for checker process
 				report_config_error(CONFIG_GENERAL_ERROR, "Track file %s init value %d is"
 									  " outside sensible range [%d, %d]"
-									, cur_track_file->fname, value, -254, 254);
+									, current_tf->fname, value, -254, 254);
 			}
 
 			track_file_init_value = value;
@@ -311,21 +373,128 @@ static void
 track_file_end_handler(void)
 {
 	struct stat statb;
+	struct statfs fs_buf;
 	FILE *tf;
 	int ret;
 	tracked_file_t *track_file;
+	char *realpath_buf;
+	char *dir_end;
+	char *resolved_path;
 
-	if (!cur_track_file)
-		return;
+	track_file = current_tf;
+	current_tf = NULL;
 
-	if (!cur_track_file->file_path) {
+	if (!track_file->file_path) {
 		report_config_error(CONFIG_GENERAL_ERROR, "No file set for track_file %s - ignoring"
-							, cur_track_file->fname);
+							, track_file->fname);
+
+		FREE_CONST(track_file->fname);
+		FREE(track_file);
+
 		return;
 	}
 
-	track_file = cur_track_file;
-	cur_track_file = NULL;
+	/* Check the penultimate field in path is a directory */
+	if (!(dir_end = strrchr(track_file->file_path, '/'))) {
+		realpath_buf = MALLOC(2);
+		strcpy(realpath_buf, ".");
+	} else {
+		realpath_buf = MALLOC(dir_end - track_file->file_path + 1);
+		strncpy(realpath_buf, track_file->file_path, dir_end - track_file->file_path);
+		realpath_buf[dir_end - track_file->file_path] = '\0';
+	}
+
+	resolved_path = realpath(realpath_buf, NULL);
+	FREE(realpath_buf);
+
+	if (!resolved_path) {
+		report_config_error(CONFIG_GENERAL_ERROR, "realpath() error %d (%m) for %s",
+				  errno, track_file->fname);
+
+		FREE_CONST(track_file->fname);
+		FREE(track_file);
+
+		return;
+	}
+
+	/* Check filesystem type. We can check for some that we know won't work.
+	 * The list of filesystem types checked can be expanded as needed. */
+	ret = statfs(resolved_path, &fs_buf);
+	free(resolved_path);
+
+	if (ret) {
+		if (errno == ENOTDIR) {
+			report_config_error(CONFIG_GENERAL_ERROR, "track file directory for %s "
+								  "does not exist - removing",
+								  track_file->fname);
+
+			FREE_CONST(track_file->fname);
+			FREE(track_file);
+
+			return;
+		}
+
+		log_message(LOG_INFO, "statfs(%s) returned errno %d (%m)", track_file->fname, errno);
+	} else if (fs_buf.f_flags & ST_RDONLY ||
+		   fs_buf.f_type == BPF_FS_MAGIC ||
+		   fs_buf.f_type == CGROUP_SUPER_MAGIC ||
+		   fs_buf.f_type == CGROUP2_SUPER_MAGIC ||
+		   fs_buf.f_type == DEBUGFS_MAGIC ||
+		   fs_buf.f_type == DEVPTS_SUPER_MAGIC ||
+		   fs_buf.f_type == EFIVARFS_MAGIC ||
+		   fs_buf.f_type == FUSE_SUPER_MAGIC ||
+		   fs_buf.f_type == MQUEUE_MAGIC ||
+		   fs_buf.f_type == NFS_SUPER_MAGIC ||
+		   fs_buf.f_type == PIPEFS_MAGIC ||
+		   fs_buf.f_type == PROC_SUPER_MAGIC ||
+		   fs_buf.f_type == ROMFS_MAGIC ||
+		   fs_buf.f_type == SELINUX_MAGIC ||
+		   fs_buf.f_type == SMB_SUPER_MAGIC ||
+		   fs_buf.f_type == SMB2_MAGIC_NUMBER ||
+		   fs_buf.f_type == SOCKFS_MAGIC ||
+		   fs_buf.f_type == SYSFS_MAGIC ||
+		   fs_buf.f_type == SYSV2_SUPER_MAGIC ||
+		   fs_buf.f_type == SYSV4_SUPER_MAGIC ||
+		   fs_buf.f_type == TRACEFS_MAGIC) {
+		/* The specified file is on a type of filesystem that inotify cannot monitor,
+		 * or the filesystem is read-only. */
+		report_config_error(CONFIG_GENERAL_ERROR,
+			       	"The filesystem of %s is read only or cannot be monitored - ignoring", track_file->file_path);
+
+		FREE_CONST(track_file->fname);
+		FREE(track_file);
+
+		return;
+	}
+
+	if (track_file_init != TRACK_FILE_NO_INIT) {
+		ret = stat(track_file->file_path, &statb);
+		if (!ret && track_file_init == TRACK_FILE_INIT) {
+			if ((statb.st_mode & S_IFMT) != S_IFREG) {
+				/* It is not a regular file */
+				report_config_error(CONFIG_GENERAL_ERROR, "Cannot initialise track file %s"
+									  " - it is not a regular file"
+									, track_file->fname);
+
+				FREE_CONST(track_file->fname);
+				FREE(track_file);
+
+				return;
+			}
+		}
+
+		/* Don't overwrite a file on reload */
+		if (!reload && !__test_bit(CONFIG_TEST_BIT, &debug)) {
+			/* Write the value to the file */
+			if ((tf = fopen_safe(track_file->file_path, "w"))) {
+				fprintf(tf, "%d\n", track_file_init_value);
+				fclose(tf);
+			}
+			else
+				report_config_error(CONFIG_GENERAL_ERROR, "Unable to initialise track file %s"
+									, track_file->fname);
+		}
+	}
 
 #ifdef _WITH_VRRP_
 	if (vrrp_data)
@@ -348,56 +517,24 @@ track_file_end_handler(void)
 	}
 #endif
 
-	if (track_file_init == TRACK_FILE_NO_INIT)
-		return;
-
-	ret = stat(track_file->file_path, &statb);
-	if (!ret) {
-		if (track_file_init == TRACK_FILE_CREATE) {
-			/* The file exists */
-			return;
-		}
-		if ((statb.st_mode & S_IFMT) != S_IFREG) {
-			/* It is not a regular file */
-			report_config_error(CONFIG_GENERAL_ERROR, "Cannot initialise track file %s"
-								  " - it is not a regular file"
-								, track_file->fname);
-			return;
-		}
-
-		/* Don't overwrite a file on reload */
-		if (reload)
-			return;
-	}
-
-	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
-		/* Write the value to the file */
-		if ((tf = fopen_safe(track_file->file_path, "w"))) {
-			fprintf(tf, "%d\n", track_file_init_value);
-			fclose(tf);
-		}
-		else
-			report_config_error(CONFIG_GENERAL_ERROR, "Unable to initialise track file %s"
-								, track_file->fname);
-	}
 }
 
 void
 add_track_file_keywords(bool active)
 {
 	/* Track file declarations */
-	install_keyword_root("track_file", &track_file_handler, active);
+	install_keyword_root("track_file", &track_file_handler, active, VPP &current_tf);
 	install_keyword("file", &track_file_file_handler);
 	install_keyword("weight", &track_file_weight_handler);
 	install_keyword("init_file", &track_file_init_handler);
-	install_sublevel_end_handler(&track_file_end_handler);
+	install_level_end_handler(&track_file_end_handler);
 
 #ifdef _WITH_VRRP_
-	install_keyword_root("vrrp_track_file", &vrrp_track_file_handler, active);	/* Deprecated synonym - after v2.0.20 */
+	install_keyword_root("vrrp_track_file", &vrrp_track_file_handler, active, VPP &current_tf);	/* Deprecated synonym - after v2.0.20 */
 	install_keyword("file", &track_file_file_handler);
 	install_keyword("weight", &track_file_weight_handler);
 	install_keyword("init_file", &track_file_init_handler);
-	install_sublevel_end_handler(&track_file_end_handler);
+	install_level_end_handler(&track_file_end_handler);
 #endif
 }
 
