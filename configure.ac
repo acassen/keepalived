@@ -319,7 +319,8 @@ AC_ARG_ENABLE(force-conversion-checks,
 AC_ARG_ENABLE(Werror,
   [AS_HELP_STRING([--enable-Werror], [compile with warnings being errors])])
 AC_ARG_WITH([systemdsystemunitdir],
-  [AS_HELP_STRING([--with-systemdsystemunitdir=DIR], [Directory for systemd service files])])
+  [AS_HELP_STRING([--with-systemdsystemunitdir=DIR], [Directory for systemd service files])],,
+  [with_systemdsystemunitdir=auto])
 AC_ARG_WITH([dbus-data-dir],
   [AS_HELP_STRING([--with-dbus-data-dir=DIR], [Directory for Dbus interface files])])
 
@@ -2874,8 +2875,27 @@ AS_IF(
 	  ])
       ])
   ])
-AS_IF([test \( .$INIT_TYPE = .systemd -a -z "$with_systemdsystemunitdir" \)], [with_systemdsystemunitdir=$($PKG_CONFIG --variable=systemdsystemunitdir systemd)])
 AS_IF([test .$INIT_TYPE != .], [add_config_opt([INIT=$INIT_TYPE])])
+
+AS_IF([test .$INIT_TYPE = .systemd],
+  [
+    AS_IF([test -z "$with_systemdsystemunitdir" -o \
+		.$with_systemdsystemunitdir = .yes -o \
+		.$with_systemdsystemunitdir = .auto], 
+      [
+	def_systemdsystemunitdir=$($PKG_CONFIG --variable=systemdsystemunitdir systemd)
+
+	AS_IF([test -z "$def_systemdsystemunitdir"],
+          [
+            AS_IF([test .$with_systemdsystemunitdir = .yes],
+              [AC_MSG_ERROR([systemd support requested but pkg-config unable to query systemd package])])
+            with_systemdsystemunitdir=no
+          ],
+          [with_systemdsystemunitdir="$def_systemdsystemunitdir"])
+      ])
+    AS_IF([test .$with_systemdsystemunitdir != .no],
+      [AC_SUBST([systemdsystemunitdir], [$with_systemdsystemunitdir])])
+  ])
 
 USE_SYSTEMD_NOTIFY=No
 SYSTEMD_SERVICE_TYPE=forking
