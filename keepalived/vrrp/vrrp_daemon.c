@@ -284,7 +284,7 @@ vrrp_terminate_phase2(int exit_status)
 #ifdef _WITH_SNMP_RFCV3_
 	    global_data->enable_snmp_rfcv3 ||
 #endif
-	    snmp_option)
+	    false)
 		vrrp_snmp_agent_close(global_data);
 #endif
 
@@ -543,7 +543,7 @@ start_vrrp(data_t *prev_global_data)
 
 	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
 #if defined _WITH_SNMP_RFC_ || defined _WITH_SNMP_VRRP_
-		if ((
+		if (
 #ifdef _WITH_SNMP_VRRP_
 		     global_data->enable_snmp_vrrp ||
 #endif
@@ -553,7 +553,7 @@ start_vrrp(data_t *prev_global_data)
 #ifdef _WITH_SNMP_RFCV3_
 		     global_data->enable_snmp_rfcv3 ||
 #endif
-		     snmp_option)) {
+		     false) {
 			if (snmp_running)
 				snmp_epoll_info(master);
 			else
@@ -830,7 +830,7 @@ reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 #ifdef _WITH_SNMP_RFCV3_
 	    global_data->enable_snmp_rfcv3 ||
 #endif
-	    snmp_option)
+	    false)
 		with_snmp = true;
 #endif
 
