@@ -983,6 +983,9 @@ register_vrrp_thread_addresses(void)
 #ifdef _WITH_JSON_
 	register_signal_handler_address("sigjson_vrrp", sigjson_vrrp);
 #endif
+#ifdef THREAD_DUMP
+	register_signal_handler_address("thread_dump_signal", thread_dump_signal);
+#endif
 #endif
 }
 #endif
