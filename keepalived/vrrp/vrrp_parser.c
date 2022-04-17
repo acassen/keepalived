@@ -78,7 +78,9 @@ vrrp_sgroup_t *current_vsyncg;
 static garp_delay_t *current_ggd;
 vrrp_t *current_vrrp;
 static vrrp_script_t *current_vscr;
+#ifdef _WITH_TRACK_PROCESS_
 static vrrp_tracked_process_t *current_tp;
+#endif
 
 
 /* track groups for static items */
