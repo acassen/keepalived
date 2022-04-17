@@ -2928,13 +2928,18 @@ dnl ----[Default runtime options (in /etc/sysconfig/keepalived)]----
 AC_SUBST([KEEPALIVED_RUNTIME_OPTIONS], ["$default_runtime_options"])
 
 dnl ----[Default keepalived configuration file]----
+WANT_PREFIX=0
+FOUND_PREFIX=0
 AS_IF([test -n "$default_config_file"],
   [
     AS_IF([test $default_config_file = yes -o $default_config_file = no],
 	  [AC_MSG_ERROR([A filename must be specified for default-config-file])])
     FIRST_CHAR=`echo $default_config_file | $SED -e "s/\(.\).*/\1/"`
     AS_IF([test $FIRST_CHAR = / -o $FIRST_CHAR = '$' ],
-      [CONFIG_FILE=$default_config_file],
+      [
+	CONFIG_FILE="$default_config_file"
+	WANT_PREFIX=1
+      ],
       [CONFIG_FILE="\$(sysconfdir)/$PACKAGE/$default_config_file"])
     add_config_opt([DEFAULT_CONFIG_FILE=$CONFIG_FILE])
     default_config_file=$CONFIG_FILE
@@ -2948,12 +2953,15 @@ AC_SUBST([DEFAULT_CONFIG_FILENAME], [${name}])
 # Change any make $(...) variable to the matching shell variable and substitute
 default_config_file=`echo $default_config_file | $SED -e "s|\\\$(\([[^)]]*\))|\\\${\1}|g"`
 dcf=$default_config_file
-dcf_prev=x$dcf
+dcf_prev=x$dcf		# to force at least 1 iteration
 while [[ $dcf != $dcf_prev ]]; do
+  echo $dcf | grep -q "^\\\${prefix}"
+  [[ $? -eq 0 ]] && FOUND_PREFIX=1
   dcf_prev=$dcf
-  dcf=`echo $dcf | $SED -e "s|^\\\${prefix}|${ac_default_prefix}|"`
   dcf=`eval echo $dcf`
 done
+AS_IF([test $WANT_PREFIX -eq 1 -a $FOUND_PREFIX -eq 0],
+      [dcf=${prefix}$dcf])
 AC_DEFINE_UNQUOTED([DEFAULT_CONFIG_FILE], ["$dcf"], [The default configuration file])
 
 # Remove a leading ${prefix} since that is not part of the old file name
