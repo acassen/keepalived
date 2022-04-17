@@ -13,7 +13,7 @@ edit = echo "  EDIT     $@"; \
 	 -e 's|@localstatedir[@]|$(localstatedir)|g'
 
 if INIT_SUSE
-keepalived.suse.init: $(srcdir)/Makefile.am
+keepalived.suse.init: $(builddir)/Makefile
 	@rm -f $@ $@.tmp
 	@$(edit) '$(srcdir)/$@.in' >$@
 

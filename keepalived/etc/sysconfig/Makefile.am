@@ -9,7 +9,7 @@ edit = echo "  EDIT     $@"; \
 	 -e 's|@KEEPALIVED_RUNTIME_OPTIONS[@]|$(KEEPALIVED_RUNTIME_OPTIONS)|g'
 
 
-keepalived: $(srcdir)/keepalived.in
+keepalived: $(srcdir)/keepalived.in $(builddir)/Makefile
 	@rm -f $@ $@.tmp
 	@$(edit) '$(srcdir)/$@.in' >$@
 

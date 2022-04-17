@@ -4,7 +4,7 @@
 #
 # Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
 
-DATE=`date -u --date=@\"\`git log -n 1 --format=%ct -- $@.in 2>/dev/null || date --reference=$@.in +%s\`\" +\"%Y-%m-%d\"`
+DATE=`date -u --date=@\"\`git log -n 1 --format=%ct -- $@.in 2>/dev/null || date --reference=$(srcdir)/$@.in +%s\`\" +\"%Y-%m-%d\"`
 
 edit = echo "  EDIT     $@"; \
 	@SED@ \
@@ -17,7 +17,7 @@ edit = echo "  EDIT     $@"; \
 
 dist_man8_MANS  = keepalived.8
 
-keepalived.8: Makefile.am $(top_builddir)/lib/config.h
+keepalived.8: $(top_builddir)/lib/config.h $(builddir)/Makefile
 	@$(edit) '$(srcdir)/$@.in' >$@
 
 keepalived.8: $(srcdir)/keepalived.8.in

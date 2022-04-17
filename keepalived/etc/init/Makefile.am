@@ -11,7 +11,7 @@ edit = echo "  EDIT     $@"; \
 	 -e 's|@sbindir[@]|$(sbindir)|g' \
 	 -e 's|@sysconfdir[@]|$(sysconfdir)|g'
 
-keepalived.conf: Makefile
+keepalived.conf: $(builddir)/Makefile
 	@rm -f $@ $@.tmp
 	@$(edit) '$(srcdir)/$@.in' >$@
 

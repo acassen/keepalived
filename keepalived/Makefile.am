@@ -48,7 +48,7 @@ if WITH_BFD
 endif
 
 if INIT_SYSTEMD
-keepalived.service keepalived-non-root.service: $(srcdir)/Makefile.am
+keepalived.service keepalived-non-root.service: $(builddir)/Makefile
 	@rm -f $@ $@.tmp
 	@$(edit) '$(srcdir)/$@.in' >$@
 

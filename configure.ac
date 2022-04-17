@@ -343,6 +343,8 @@ else
   kernelinc=
 fi
 
+SRC_DIR=`AS_DIRNAME([$0])`
+
 AS_IF([test -n "$with_samples_dir"],
   [
     AS_IF([test $with_samples_dir = yes -o $with_samples_dir = no],
@@ -710,7 +712,7 @@ if test "$enable_Werror" = yes; then
   add_to_var([WARNINGS_ENABLED], [error])
 fi
 
-CONFIG_WARNINGS=lib/config_warnings.h.in
+CONFIG_WARNINGS=$SRC_DIR/lib/config_warnings.h.in
 
 SAV_CFLAGS="$CFLAGS"
 for WARN in $WARNINGS_ENABLED
