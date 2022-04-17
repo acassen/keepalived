@@ -284,8 +284,8 @@ vrrp_terminate_phase2(int exit_status)
 #ifdef _WITH_SNMP_RFCV3_
 	    global_data->enable_snmp_rfcv3 ||
 #endif
-	    snmp_option)
-		vrrp_snmp_agent_close();
+	    false)
+		vrrp_snmp_agent_close(global_data);
 #endif
 
 #ifdef _WITH_LVS_
@@ -543,7 +543,7 @@ start_vrrp(data_t *prev_global_data)
 
 	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
 #if defined _WITH_SNMP_RFC_ || defined _WITH_SNMP_VRRP_
-		if ((
+		if (
 #ifdef _WITH_SNMP_VRRP_
 		     global_data->enable_snmp_vrrp ||
 #endif
@@ -553,14 +553,20 @@ start_vrrp(data_t *prev_global_data)
 #ifdef _WITH_SNMP_RFCV3_
 		     global_data->enable_snmp_rfcv3 ||
 #endif
-		     snmp_option)) {
-			if (reload)
+		     false) {
+			if (snmp_running)
 				snmp_epoll_info(master);
 			else
 				vrrp_snmp_agent_init(global_data->snmp_socket);
 #ifdef _WITH_SNMP_RFC_
 			snmp_vrrp_start_time = time_now;
 #endif
+		} else {
+// We have a problem at reload if VRRP had SNMP and checker didn't, but now checker does.
+// Also race condition if changing so checker does and we dont, from other way round.
+// SOLUTION: Stop snmp before reload and start afterwards. ? A race anyway
+			if (snmp_running)
+				vrrp_snmp_agent_close(old_global_data);
 		}
 #endif
 
@@ -824,7 +830,7 @@ reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 #ifdef _WITH_SNMP_RFCV3_
 	    global_data->enable_snmp_rfcv3 ||
 #endif
-	    snmp_option)
+	    false)
 		with_snmp = true;
 #endif
 
@@ -982,6 +988,9 @@ register_vrrp_thread_addresses(void)
 	register_signal_handler_address("sigusr2_vrrp", sigusr2_vrrp);
 #ifdef _WITH_JSON_
 	register_signal_handler_address("sigjson_vrrp", sigjson_vrrp);
+#endif
+#ifdef THREAD_DUMP
+	register_signal_handler_address("thread_dump_signal", thread_dump_signal);
 #endif
 #endif
 }

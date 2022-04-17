@@ -215,6 +215,7 @@ static bool config_file_error;
 static vector_t *current_keywords;
 static int sublevel = 0;
 static int skip_sublevel = 0;
+static vpp_t cur_check_ptr;
 static LIST_HEAD_INITIALIZE(multiline_stack); /* multiline_stack_ent */
 static size_t multiline_seq_depth = 0;
 static char *buf_extern;
@@ -822,6 +823,7 @@ keyword_alloc(vector_t *keywords_vec, const char *string, void (*handler) (const
 	keyword->string = string;
 	keyword->handler = handler;
 	keyword->active = active;
+	keyword->ptr = cur_check_ptr;
 
 	vector_set_slot(keywords_vec, keyword);
 }
@@ -852,38 +854,33 @@ keyword_alloc_sub(vector_t *keywords_vec, const char *string, void (*handler) (c
 }
 
 /* Exported helpers */
-void
-install_sublevel(void)
+vpp_t
+install_sublevel(vpp_t new_check_ptr)
 {
+	vpp_t old_cur_check_ptr = cur_check_ptr;
+
 	sublevel++;
+	cur_check_ptr = new_check_ptr;
+
+	return old_cur_check_ptr;
 }
 
 void
-install_sublevel_end(void)
+install_sublevel_end(vpp_t check_ptr)
 {
 	sublevel--;
+
+	cur_check_ptr = check_ptr;
 }
 
 void
-install_keyword_root(const char *string, void (*handler) (const vector_t *), bool active)
+install_keyword_root(const char *string, void (*handler) (const vector_t *), bool active, vpp_t ptr)
 {
 	/* If the root keyword is inactive, the handler will still be called,
 	 * but with a NULL strvec */
+	cur_check_ptr = NULL;
 	keyword_alloc(keywords, string, handler, active);
-}
-
-void
-install_root_end_handler(void (*handler) (void))
-{
-	keyword_t *keyword;
-
-	/* fetch last keyword */
-	keyword = vector_slot(keywords, vector_size(keywords) - 1);
-
-	if (!keyword->active)
-		return;
-
-	keyword->sub_close_handler = handler;
+	cur_check_ptr = ptr;
 }
 
 void
@@ -893,7 +890,7 @@ install_keyword(const char *string, void (*handler) (const vector_t *))
 }
 
 void
-install_sublevel_end_handler(void (*handler) (void))
+install_level_end_handler(void (*handler) (void))
 {
 	int i = 0;
 	keyword_t *keyword;
@@ -907,7 +904,9 @@ install_sublevel_end_handler(void (*handler) (void))
 	/* position to last sub level */
 	for (i = 0; i < sublevel; i++)
 		keyword = vector_slot(keyword->sub, vector_size(keyword->sub) - 1);
+
 	keyword->sub_close_handler = handler;
+	keyword->sub_close_ptr = cur_check_ptr;
 }
 
 #ifdef _DUMP_KEYWORDS_
@@ -934,7 +933,12 @@ dump_keywords(vector_t *keydump, int level, FILE *fp)
 
 	for (i = 0; i < vector_size(keydump); i++) {
 		keyword_vec = vector_slot(keydump, i);
-		fprintf(fp, "%*sKeyword : %s (%s)\n", level * 2, "", keyword_vec->string, keyword_vec->active ? "active": "disabled");
+		fprintf(fp, "%*sKeyword : %s (%s), ptr %p", level * 2, "", keyword_vec->string,
+			    keyword_vec->active ? "active" : "disabled", keyword_vec->ptr);
+		if (keyword_vec->sub_close_handler)
+			    fprintf(fp, " sub_end %p sub_end_ptr %p\n", keyword_vec->sub_close_handler, keyword_vec->sub_close_ptr);
+		else
+			fprintf(fp, "\n");
 		if (keyword_vec->sub)
 			dump_keywords(keyword_vec->sub, level + 1, fp);
 	}
@@ -3076,7 +3080,7 @@ process_stream(vector_t *keywords_vec, int need_bob)
 						bob_needed = 1;
 				}
 
-				if (keyword_vec->active && keyword_vec->handler) {
+				if (keyword_vec->active && keyword_vec->handler && (!keyword_vec->ptr || *keyword_vec->ptr)) {
 					buf_extern = buf;	/* In case the raw line wants to be accessed */
 					(*keyword_vec->handler) (strvec);
 				}
@@ -3087,8 +3091,17 @@ process_stream(vector_t *keywords_vec, int need_bob)
 					kw_level--;
 
 					/* We mustn't run any close handler if the block was skipped */
-					if (!ret && keyword_vec->active && keyword_vec->sub_close_handler)
-						(*keyword_vec->sub_close_handler) ();
+					if (!ret &&
+					    keyword_vec->active) {
+						if (keyword_vec->sub_close_handler &&
+						    (!keyword_vec->sub_close_ptr || *keyword_vec->sub_close_ptr))
+							(*keyword_vec->sub_close_handler)();
+
+						/* We have finished the block, so the *keyword_vec->sub_close_ptr item is no longer current */
+						if (keyword_vec->sub_close_ptr)
+							*keyword_vec->sub_close_ptr = NULL;
+					}
+
 				}
 				break;
 			}

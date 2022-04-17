@@ -40,6 +40,12 @@
  * See https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html for GCC warnings
 */
 
+#ifdef _HAVE_FUNCTION_WARN_UNUSED_RESULTS_
+#define WARN_UNUSED_RESULT __attribute__((warn_unused_result))
+#else
+#define WARN_UNUSED_RESULT
+#endif
+
 #ifdef _HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_
 #define RELAX_END \
 _Pragma("GCC diagnostic pop")

@@ -28,6 +28,12 @@
 
 /* local include */
 #include "vector.h"
+#include "check_data.h"
+
+extern virtual_server_t *current_vs;
+extern real_server_t *current_rs;
+extern virtual_server_group_t *current_vsg;
+
 
 /* Prototypes */
 extern const vector_t *check_init_keywords(void);

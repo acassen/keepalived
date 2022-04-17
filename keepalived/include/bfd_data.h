@@ -42,7 +42,7 @@ extern bfd_data_t *bfd_data;
 extern bfd_data_t *old_bfd_data;
 extern char *bfd_buffer;
 
-extern bool alloc_bfd(const char *);
+extern bfd_t *alloc_bfd(const char *);
 extern void free_bfd(bfd_t *);
 extern bfd_data_t *alloc_bfd_data(void);
 extern void dump_bfd_data(FILE *, const bfd_data_t *);

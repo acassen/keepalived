@@ -68,7 +68,7 @@ typedef struct _checker {
 	thread_func_t			launch;
 	virtual_server_t		*vs;			/* pointer to the checker thread virtualserver */
 	real_server_t			*rs;			/* pointer to the checker thread realserver */
-	void				*data;
+	void				*data;			/* Details for the specific checker type */
 	bool				enabled;		/* Activation flag */
 	bool				is_up;			/* Set if checker is up */
 	bool				has_run;		/* Set if the checker has completed at least once */
@@ -98,14 +98,10 @@ typedef struct _checker_ref {
 /* Checkers queue */
 extern list_head_t checkers_queue;
 
+extern checker_t *current_checker;
+
 /* utility macro */
 #define CHECKER_ARG(X) ((X)->data)
-#define CHECKER_CO(X) (((checker_t *)X)->co)
-#define CHECKER_DATA(X) (((checker_t *)X)->data)
-#define CHECKER_GET_CURRENT() (list_last_entry(&checkers_queue, checker_t, e_list))
-#define CHECKER_GET() (CHECKER_DATA(CHECKER_GET_CURRENT()))
-#define CHECKER_GET_CO() (((checker_t *)CHECKER_GET_CURRENT())->co)
-#define CHECKER_HA_SUSPEND(C) ((C)->vs->ha_suspend)
 #define CHECKER_NEW_CO() ((conn_opts_t *) MALLOC(sizeof (conn_opts_t)))
 #define FMT_CHK(C) FMT_RS((C)->rs, (C)->vs)
 
@@ -120,7 +116,7 @@ extern void init_checkers_queue(void);
 extern void free_vs_checkers(const virtual_server_t *);
 extern void free_rs_checkers(const real_server_t *);
 extern void dump_connection_opts(FILE *, const void *);
-extern checker_t *queue_checker(const checker_funcs_t *
+extern void queue_checker(const checker_funcs_t *
 			  , thread_func_t
 			  , void *
 			  , conn_opts_t *

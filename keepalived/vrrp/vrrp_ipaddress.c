@@ -453,8 +453,8 @@ parse_route(const char *str)
 	return new;
 }
 
-void
-alloc_ipaddress(list_head_t *ip_list, const vector_t *strvec, bool static_addr)
+ip_address_t *
+alloc_ipaddress(const vector_t *strvec, bool static_addr)
 {
 /* The way this works is slightly strange.
  *
@@ -481,14 +481,14 @@ alloc_ipaddress(list_head_t *ip_list, const vector_t *strvec, bool static_addr)
 	PMALLOC(new);
 	if (!new) {
 		log_message(LOG_INFO, "Unable to allocate new ip_address");
-		return;
+		return NULL;
 	}
 	INIT_LIST_HEAD(&new->e_list);
 
 	/* We expect the address first */
 	if (!parse_ipaddress(new, strvec_slot(strvec, 0), true)) {
 		FREE(new);
-		return;
+		return NULL;
 	}
 
 	addr_idx = i++;
@@ -509,13 +509,13 @@ alloc_ipaddress(list_head_t *ip_list, const vector_t *strvec, bool static_addr)
 			if (new->ifp) {
 				report_config_error(CONFIG_GENERAL_ERROR, "Cannot specify ipaddress device more than once for %s", strvec_slot(strvec, addr_idx));
 				FREE(new);
-				return;
+				return NULL;
 			}
 			if (!(ifp_local = if_get_by_ifname(strvec_slot(strvec, ++i), IF_CREATE_IF_DYNAMIC))) {
 				report_config_error(CONFIG_GENERAL_ERROR, "WARNING - interface %s for ip address %s doesn't exist",
 						strvec_slot(strvec, i), strvec_slot(strvec, addr_idx));
 				FREE(new);
-				return;
+				return NULL;
 			}
 			new->ifp = ifp_local;
 		} else if (!strcmp(str, "scope")) {
@@ -539,7 +539,7 @@ alloc_ipaddress(list_head_t *ip_list, const vector_t *strvec, bool static_addr)
 						      "WTF... skipping VIP..."
 						    , strvec_slot(strvec, i), strvec_slot(strvec, addr_idx));
 				FREE(new);
-				return;
+				return NULL;
 			}
 
 			have_broadcast = true;
@@ -553,7 +553,7 @@ alloc_ipaddress(list_head_t *ip_list, const vector_t *strvec, bool static_addr)
 				report_config_error(CONFIG_GENERAL_ERROR, "VRRP is trying to assign invalid broadcast %s. "
 						      "skipping VIP...", strvec_slot(strvec, i));
 				FREE(new);
-				return;
+				return NULL;
 			}
 		} else if (!strcmp(str, "label")) {
 			if (!param_avail) {
@@ -565,7 +565,7 @@ alloc_ipaddress(list_head_t *ip_list, const vector_t *strvec, bool static_addr)
 			if (strlen(param) >= IFNAMSIZ) {
 				report_config_error(CONFIG_GENERAL_ERROR, "Address label %s is longer than maximum length %d - removing address", param, IFNAMSIZ - 1);
 				FREE(new);
-				return;
+				return NULL;
 			}
 
 			new->label = MALLOC(strlen(param) + 1);
@@ -657,7 +657,7 @@ alloc_ipaddress(list_head_t *ip_list, const vector_t *strvec, bool static_addr)
 	if (param_missing) {
 		report_config_error(CONFIG_GENERAL_ERROR, "No %s parameter specified for %s", str, strvec_slot(strvec, addr_idx));
 		FREE(new);
-		return;
+		return NULL;
 	}
 
 	/* Set the broadcast address if necessary */
@@ -684,7 +684,7 @@ alloc_ipaddress(list_head_t *ip_list, const vector_t *strvec, bool static_addr)
 							  " or default interface must exist"
 							, strvec_slot(strvec, addr_idx));
 			FREE(new);
-			return;
+			return NULL;
 		}
 	}
 
@@ -720,7 +720,7 @@ alloc_ipaddress(list_head_t *ip_list, const vector_t *strvec, bool static_addr)
 	}
 #endif
 
-	list_add_tail(&new->e_list, ip_list);
+	return new;
 }
 
 /* Find an address in a list */

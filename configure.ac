@@ -55,8 +55,8 @@ AC_DEFUN([add_pkg_config_without_libs],
     else
       KA_PKG_PFX=KA
     fi
-    add_to_var_ind_unique([${KA_PKG_PFX}_CPPFLAGS], [$($PKG_CONFIG --cflags-only-I $1)])
-    add_to_var_ind_unique([${KA_PKG_PFX}_CFLAGS], [$($PKG_CONFIG --cflags-only-other $1)])
+    add_to_var_ind_unique([${KA_PKG_PFX}_CPPFLAGS], [`$PKG_CONFIG --cflags-only-I $1`])
+    add_to_var_ind_unique([${KA_PKG_PFX}_CFLAGS], [`$PKG_CONFIG --cflags-only-other $1`])
   ])
 
 AC_DEFUN([add_config_opt], [add_to_var([CONFIG_OPTIONS], [$1])])
@@ -319,7 +319,8 @@ AC_ARG_ENABLE(force-conversion-checks,
 AC_ARG_ENABLE(Werror,
   [AS_HELP_STRING([--enable-Werror], [compile with warnings being errors])])
 AC_ARG_WITH([systemdsystemunitdir],
-  [AS_HELP_STRING([--with-systemdsystemunitdir=DIR], [Directory for systemd service files])])
+  [AS_HELP_STRING([--with-systemdsystemunitdir=DIR], [Directory for systemd service files])],,
+  [with_systemdsystemunitdir=auto])
 AC_ARG_WITH([dbus-data-dir],
   [AS_HELP_STRING([--with-dbus-data-dir=DIR], [Directory for Dbus interface files])])
 
@@ -341,6 +342,8 @@ elif test ! -d /usr/include/linux -a \
 else
   kernelinc=
 fi
+
+SRC_DIR=`AS_DIRNAME([$0])`
 
 AS_IF([test -n "$with_samples_dir"],
   [
@@ -525,7 +528,7 @@ AS_IF([test .$with_run_dir != .], [AC_MSG_ERROR([--with-run-dir is deprecated, u
 
 dnl -- Do we want -Wcast-align=strict?
 AS_IF([test .$enable_strict_cast_align = .yes],
-      [WARNINGS_STD=$(echo $WARNINGS_STD | sed -e "s/cast-align /cast-align=strict /")])
+      [WARNINGS_STD=`echo $WARNINGS_STD | sed -e "s/cast-align /cast-align=strict /"`])
 
 #### find the actual value for $datadir that we'll end up with
 ##   (I know this is broken and should be done in the Makefile, but
@@ -709,7 +712,7 @@ if test "$enable_Werror" = yes; then
   add_to_var([WARNINGS_ENABLED], [error])
 fi
 
-CONFIG_WARNINGS=lib/config_warnings.h.in
+CONFIG_WARNINGS=$SRC_DIR/lib/config_warnings.h.in
 
 SAV_CFLAGS="$CFLAGS"
 for WARN in $WARNINGS_ENABLED
@@ -784,7 +787,7 @@ AS_IF([test .$HAVE_WARNING_STRICT_OVERFLOW = .yes],
      )
 CFLAGS="$SAV_CFLAGS"
 
-dnl ---- [ Is function __attribute__((error(msg)) supported? ] ----
+dnl ---- [ Is function __attribute__((error(msg))) supported? ] ----
 AC_MSG_CHECKING([for function __attribute__((error(msg))) support])
 AC_COMPILE_IFELSE(
   [
@@ -792,7 +795,9 @@ AC_COMPILE_IFELSE(
       [[
         #include <stdio.h>
 
-        static int func(int i) __attribute__((error("deliberate error")))
+        static int func(int i) __attribute__((error("deliberate-error")));
+
+        static int func(int i)
 	{
 	  return i * 2;
 	}
@@ -812,6 +817,38 @@ AC_COMPILE_IFELSE(
     AC_MSG_RESULT([yes])
     AC_DEFINE([_HAVE_FUNCTION_ATTRIBUTE_ERROR_], [ 1 ], [Define to 1 if function __attribute__((error(msg))) supported])
   ])
+
+SAV_CFLAGS="$CFLAGS"
+CFLAGS="$SAV_CFLAGS -Werror=attributes"
+dnl ---- [ Is function __attribute__((warn_unused_result)) supported? ] ----
+AC_MSG_CHECKING([for function __attribute__((warn_unused_result)) support])
+AC_COMPILE_IFELSE(
+  [
+    AC_LANG_PROGRAM(
+      [[
+        #include <stdio.h>
+
+        static int func(int i) __attribute__((warn_unused_result));
+
+        static int func(int i)
+	{
+	  return i * 2;
+	}
+      ]],
+      [[
+	func(2);
+	printf("%d", 2);
+      ]]
+    )
+  ],
+  [
+    AC_MSG_RESULT([yes])
+    AC_DEFINE([_HAVE_FUNCTION_WARN_UNUSED_RESULTS_], [ 1 ], [Define to 1 if function __attribute__((warn_unused_results)) supported])
+  ],
+  [
+    AC_MSG_RESULT([no])
+  ])
+CFLAGS="$SAV_CFLAGS"
 
 dnl ---- [ Do we want stricter configuration checking? ] ----
 STRICT_CONFIG=No
@@ -974,7 +1011,7 @@ AC_RUN_IFELSE(
 AC_MSG_CHECKING([for unaligned memory access causes warnings])
 UNALIGNED_ACCESS_WARNED=0
 SAV_CFLAGS="$CFLAGS"
-CFLAGS=$(echo $KA_CFLAGS | sed -e "s/.*\(-Wcast-align[[^ ]]*\) .*/\1/")
+CFLAGS=`echo $KA_CFLAGS | sed -e "s/.*\(-Wcast-align[[^ ]]*\) .*/\1/"`
 CFLAGS="$CFLAGS -Werror"
 AC_COMPILE_IFELSE(
   [
@@ -2437,9 +2474,9 @@ if test "$enable_dbus" = yes; then
 
       dnl -- g_type_init() not needed and deprecated since glib 2.36
       SAV_CFLAGS=$CFLAGS
-      CFLAGS="$($PKG_CONFIG --cflags gio-2.0)"
+      CFLAGS=`$PKG_CONFIG --cflags gio-2.0`
       SAV_LIBS=$LIBS
-      LIBS="$($PKG_CONFIG --libs gio-2.0)"
+      LIBS=`$PKG_CONFIG --libs gio-2.0`
       AC_RUN_IFELSE(
 	[
 	  AC_LANG_PROGRAM(
@@ -2874,8 +2911,27 @@ AS_IF(
 	  ])
       ])
   ])
-AS_IF([test \( .$INIT_TYPE = .systemd -a -z "$with_systemdsystemunitdir" \)], [with_systemdsystemunitdir=$($PKG_CONFIG --variable=systemdsystemunitdir systemd)])
 AS_IF([test .$INIT_TYPE != .], [add_config_opt([INIT=$INIT_TYPE])])
+
+AS_IF([test .$INIT_TYPE = .systemd],
+  [
+    AS_IF([test -z "$with_systemdsystemunitdir" -o \
+		.$with_systemdsystemunitdir = .yes -o \
+		.$with_systemdsystemunitdir = .auto], 
+      [
+	def_systemdsystemunitdir=`$PKG_CONFIG --variable=systemdsystemunitdir systemd`
+
+	AS_IF([test -z "$def_systemdsystemunitdir"],
+          [
+            AS_IF([test .$with_systemdsystemunitdir = .yes],
+              [AC_MSG_ERROR([systemd support requested but pkg-config unable to query systemd package])])
+            with_systemdsystemunitdir=no
+          ],
+          [with_systemdsystemunitdir="$def_systemdsystemunitdir"])
+      ])
+    AS_IF([test .$with_systemdsystemunitdir != .no],
+      [AC_SUBST([systemdsystemunitdir], [$with_systemdsystemunitdir])])
+  ])
 
 USE_SYSTEMD_NOTIFY=No
 SYSTEMD_SERVICE_TYPE=forking
@@ -2908,13 +2964,26 @@ dnl ----[Default runtime options (in /etc/sysconfig/keepalived)]----
 AC_SUBST([KEEPALIVED_RUNTIME_OPTIONS], ["$default_runtime_options"])
 
 dnl ----[Default keepalived configuration file]----
+echo $default_config_file | grep -q '${'
+AS_IF([test $? -eq 0],
+  [
+    PARAM=`echo $default_config_file | sed -e 's:.*\(${.*}\).*:\1:'`
+    PARAM_BRACKETS=`echo $PARAM | sed -e "s:{:(:" -e "s:}:):"`
+    AC_MSG_WARN([--with-default-config-file specified with $PARAM - please use $PARAM_BRACKETS])
+    default_config_file=`echo $default_config_file | sed -e "s:{:(:" -e "s:}:):"`
+  ])
+WANT_PREFIX=0
+FOUND_PREFIX=0
 AS_IF([test -n "$default_config_file"],
   [
     AS_IF([test $default_config_file = yes -o $default_config_file = no],
 	  [AC_MSG_ERROR([A filename must be specified for default-config-file])])
     FIRST_CHAR=`echo $default_config_file | $SED -e "s/\(.\).*/\1/"`
     AS_IF([test $FIRST_CHAR = / -o $FIRST_CHAR = '$' ],
-      [CONFIG_FILE=$default_config_file],
+      [
+	CONFIG_FILE="$default_config_file"
+	WANT_PREFIX=1
+      ],
       [CONFIG_FILE="\$(sysconfdir)/$PACKAGE/$default_config_file"])
     add_config_opt([DEFAULT_CONFIG_FILE=$CONFIG_FILE])
     default_config_file=$CONFIG_FILE
@@ -2928,12 +2997,22 @@ AC_SUBST([DEFAULT_CONFIG_FILENAME], [${name}])
 # Change any make $(...) variable to the matching shell variable and substitute
 default_config_file=`echo $default_config_file | $SED -e "s|\\\$(\([[^)]]*\))|\\\${\1}|g"`
 dcf=$default_config_file
-dcf_prev=x$dcf
+dcf_prev=x$dcf		# to force at least 1 iteration
 while [[ $dcf != $dcf_prev ]]; do
+  echo $dcf | grep -q "^\\\${prefix}"
+  AS_IF(
+    [test $? -eq 0], [FOUND_PREFIX=1],
+    [test -n "${prefix}"],
+    [
+      echo $dcf | grep -q "^${prefix}/"
+      AS_IF([test $? -eq 0], [FOUND_PREFIX=1])
+    ])
   dcf_prev=$dcf
-  dcf=`echo $dcf | $SED -e "s|^\\\${prefix}|${ac_default_prefix}|"`
   dcf=`eval echo $dcf`
 done
+AS_IF([test $WANT_PREFIX -eq 1 -a $FOUND_PREFIX -eq 0],
+      [dcf=${prefix}$dcf])
+dcf=`echo $dcf | $SED -e "s://*:/:g"`
 AC_DEFINE_UNQUOTED([DEFAULT_CONFIG_FILE], ["$dcf"], [The default configuration file])
 
 # Remove a leading ${prefix} since that is not part of the old file name

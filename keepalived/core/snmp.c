@@ -496,6 +496,7 @@ snmp_agent_close(bool base_mib)
 	if (base_mib)
 		snmp_unregister_mib(global_oid, OID_LENGTH(global_oid));
 	snmp_shutdown(global_name);
+	shutdown_agent();
 
 	snmp_running = false;
 }

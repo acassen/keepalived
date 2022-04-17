@@ -42,7 +42,7 @@ char *bfd_buffer;
  *	bfd_t functions
  */
 /* Initialize bfd_t */
-bool
+bfd_t *
 alloc_bfd(const char *name)
 {
 	bfd_t *bfd;
@@ -87,9 +87,7 @@ alloc_bfd(const char *name)
 	bfd->sands_exp = TIMER_NEVER;
 	bfd->sands_rst = TIMER_NEVER;
 
-	list_add_tail(&bfd->e_list, &bfd_data->bfd);
-
-	return true;
+	return bfd;
 }
 
 void

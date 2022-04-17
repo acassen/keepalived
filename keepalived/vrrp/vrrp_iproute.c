@@ -1591,7 +1591,7 @@ alloc_route(list_head_t *rt_list, const vector_t *strvec, bool allow_track_group
 				new->lock |= 1 << RTAX_RTT;
 				i++;
 			}
-			if (get_time_rtt(&new->rtt, strvec_slot(strvec, i), 8)) { /* Units are 1/8000 second */
+			if (get_time_rtt(&new->rtt, strvec_slot(strvec, i), 8, "rtt")) { /* Units are 1/8000 second */
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid rtt %s for route", strvec_slot(strvec,i));
 				goto err;
 			}
@@ -1602,7 +1602,7 @@ alloc_route(list_head_t *rt_list, const vector_t *strvec, bool allow_track_group
 				new->lock |= 1 << RTAX_RTTVAR;
 				i++;
 			}
-			if (get_time_rtt(&new->rttvar, strvec_slot(strvec, i), 4)) { /* Units are 1/4000 second */
+			if (get_time_rtt(&new->rttvar, strvec_slot(strvec, i), 4, "rtt")) { /* Units are 1/4000 second */
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid rttvar %s for route", strvec_slot(strvec,i));
 				goto err;
 			}
@@ -1656,7 +1656,7 @@ alloc_route(list_head_t *rt_list, const vector_t *strvec, bool allow_track_group
 				new->lock |= 1 << RTAX_RTO_MIN;
 				i++;
 			}
-			if (get_time_rtt(&new->rto_min, strvec_slot(strvec, i), 1)) { /* Units are 1/1000 second */
+			if (get_time_rtt(&new->rto_min, strvec_slot(strvec, i), 1, "rto")) { /* Units are 1/1000 second */
 				report_config_error(CONFIG_GENERAL_ERROR, "Invalid rto_min value %s specified for route", strvec_slot(strvec, i));
 				goto err;
 			}

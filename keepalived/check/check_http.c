@@ -50,6 +50,8 @@
 #ifdef THREAD_DUMP
 #include "scheduler.h"
 #endif
+#include "check_parser.h"
+
 
 typedef enum {
 	REGISTER_CHECKER_NEW,
@@ -117,6 +119,9 @@ bool do_regex_timers;
 #ifdef _REGEX_DEBUG_
 bool do_regex_debug;
 #endif
+
+static url_t *current_url;
+
 
 /* GET processing command */
 static const char *request_template =
@@ -427,20 +432,18 @@ static const checker_funcs_t http_checker_funcs = { CHECKER_HTTP, free_http_chec
 static void
 http_get_handler(const vector_t *strvec)
 {
-	checker_t *checker;
 	http_checker_t *http_get_chk;
 	const char *str = strvec_slot(strvec, 0);
 
 	/* queue new checker */
 	http_get_chk = alloc_http_get(str);
-	checker = queue_checker(&http_checker_funcs, http_connect_thread, http_get_chk, CHECKER_NEW_CO(), true);
-	checker->default_delay_before_retry = 3 * TIMER_HZ;
+	queue_checker(&http_checker_funcs, http_connect_thread, http_get_chk, CHECKER_NEW_CO(), true);
+	current_checker->default_delay_before_retry = 3 * TIMER_HZ;
 }
 
 static void
 http_get_retry_handler(const vector_t *strvec)
 {
-	checker_t *checker = CHECKER_GET_CURRENT();
 	unsigned retry;
 
 	report_config_error(CONFIG_GENERAL_ERROR, "nb_get_retry is deprecated - please use 'retry'");
@@ -450,13 +453,13 @@ http_get_retry_handler(const vector_t *strvec)
 		return;
 	}
 
-	checker->retry = retry;
+	current_checker->retry = retry;
 }
 
 static void
 virtualhost_handler(const vector_t *strvec)
 {
-	http_checker_t *http_get_chk = CHECKER_GET();
+	http_checker_t *http_get_chk = current_checker->data;
 
 	if (vector_size(strvec) < 2) {
 		report_config_error(CONFIG_GENERAL_ERROR, "HTTP_GET virtualhost name missing");
@@ -469,50 +472,44 @@ virtualhost_handler(const vector_t *strvec)
 static void
 http_get_check_end(void)
 {
-	http_checker_t *http_get_chk = CHECKER_GET();
+	http_checker_t *http_get_chk = current_checker->data;
 
 	if (list_empty(&http_get_chk->url)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "HTTP/SSL_GET checker has no urls specified - ignoring");
 		dequeue_new_checker();
+		return;
 	}
 
-	if (!check_conn_opts(CHECKER_GET_CO())) {
+	if (!check_conn_opts(current_checker->co)) {
 		dequeue_new_checker();
+		return;
 	}
+
+	/* queue the checker */
+	list_add_tail(&current_checker->e_list, &checkers_queue);
 }
 
 static void
 url_handler(__attribute__((unused)) const vector_t *strvec)
 {
-	http_checker_t *http_get_chk = CHECKER_GET();
-	url_t *new;
-
 	/* allocate the new URL */
-	PMALLOC(new);
-	INIT_LIST_HEAD(&new->e_list);
-	list_add_tail(&new->e_list, &http_get_chk->url);
+	PMALLOC(current_url);
+	INIT_LIST_HEAD(&current_url->e_list);
 
 #ifdef _WITH_REGEX_CHECK_
 	conf_regex_options = 0;
 #endif
-
-	http_get_chk->url_it = list_first_entry(&http_get_chk->url, url_t, e_list);
 }
 
 static void
 path_handler(const vector_t *strvec)
 {
-	http_checker_t *http_get_chk = CHECKER_GET();
-	url_t *url = list_last_entry(&http_get_chk->url, url_t, e_list);
-
-	url->path = set_value(strvec);
+	current_url->path = set_value(strvec);
 }
 
 static void
 digest_handler(const vector_t *strvec)
 {
-	http_checker_t *http_get_chk = CHECKER_GET();
-	url_t *url = list_last_entry(&http_get_chk->url, url_t, e_list);
 	char *digest;
 	char *endptr;
 	int i;
@@ -520,7 +517,7 @@ digest_handler(const vector_t *strvec)
 
 	digest = STRDUP(strvec_slot(strvec, 1));
 
-	if (url->digest) {
+	if (current_url->digest) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Digest '%s' is a duplicate", digest);
 		FREE(digest);
 		return;
@@ -545,7 +542,7 @@ digest_handler(const vector_t *strvec)
 		}
 	}
 
-	url->digest = digest_buf;
+	current_url->digest = digest_buf;
 
 	FREE_CONST(digest);
 }
@@ -553,8 +550,6 @@ digest_handler(const vector_t *strvec)
 static void
 status_code_handler(const vector_t *strvec)
 {
-	http_checker_t *http_get_chk = CHECKER_GET();
-	url_t *url = list_last_entry(&http_get_chk->url, url_t, e_list);
 	const char *str;
 	unsigned int i, j;
 	char *endptr;
@@ -577,28 +572,26 @@ status_code_handler(const vector_t *strvec)
 		}
 
 		for (j = min; j <= max; j++)
-			__set_bit_array(j - HTTP_STATUS_CODE_MIN, url->status_code);
+			__set_bit_array(j - HTTP_STATUS_CODE_MIN, current_url->status_code);
 	}
 }
 
 static void
 url_virtualhost_handler(const vector_t *strvec)
 {
-	http_checker_t *http_get_chk = CHECKER_GET();
-	url_t *url = list_last_entry(&http_get_chk->url, url_t, e_list);
 
 	if (vector_size(strvec) < 2) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Missing HTTP_GET virtualhost name");
 		return;
 	}
 
-	url->virtualhost = set_value(strvec);
+	current_url->virtualhost = set_value(strvec);
 }
 
 static void
 http_protocol_handler(const vector_t *strvec)
 {
-	http_checker_t *http_get_chk = CHECKER_GET();
+	http_checker_t *http_get_chk = current_checker->data;
 
 	if (vector_size(strvec) < 2) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Missing http_protocol version");
@@ -637,10 +630,7 @@ regex_handler(__attribute__((unused)) const vector_t *strvec)
 static void
 regex_no_match_handler(__attribute__((unused)) const vector_t *strvec)
 {
-	http_checker_t *http_get_chk = CHECKER_GET();
-	url_t *url = list_last_entry(&http_get_chk->url, url_t, e_list);
-
-	url->regex_no_match = true;
+	current_url->regex_no_match = true;
 }
 
 static void
@@ -684,28 +674,20 @@ regex_offset_handler(const vector_t *strvec, const char *type)
 static void
 regex_min_offset_handler(const vector_t *strvec)
 {
-	http_checker_t *http_get_chk = CHECKER_GET();
-	url_t *url = list_last_entry(&http_get_chk->url, url_t, e_list);
-
-	url->regex_min_offset = regex_offset_handler(strvec, "min");
+	current_url->regex_min_offset = regex_offset_handler(strvec, "min");
 }
 
 static void
 regex_max_offset_handler(const vector_t *strvec)
 {
-	http_checker_t *http_get_chk = CHECKER_GET();
-	url_t *url = list_last_entry(&http_get_chk->url, url_t, e_list);
-
 	/* regex_max_offset is one beyond last acceptable position */
-	url->regex_max_offset = regex_offset_handler(strvec, "max") + 1;
+	current_url->regex_max_offset = regex_offset_handler(strvec, "max") + 1;
 }
 
 #ifndef PCRE2_DONT_USE_JIT
 static void
 regex_stack_handler(const vector_t *strvec)
 {
-	http_checker_t *http_get_chk = CHECKER_GET();
-	url_t *url = list_last_entry(&http_get_chk->url, url_t, e_list);
 	unsigned long stack_start, stack_max;
 	char *endptr;
 
@@ -735,7 +717,7 @@ regex_stack_handler(const vector_t *strvec)
 		jit_stack_start = stack_start;
 	if (stack_max > jit_stack_max)
 		jit_stack_max = stack_max;
-	url->regex_use_stack = true;
+	current_url->regex_use_stack = true;
 }
 #endif
 
@@ -806,7 +788,7 @@ prepare_regex(url_t *url)
 static void
 enable_sni_handler(const vector_t *strvec)
 {
-	http_checker_t *http_get_chk = CHECKER_GET();
+	http_checker_t *http_get_chk = current_checker->data;
 	int res = true;
 
 	if (vector_size(strvec) >= 2) {
@@ -823,7 +805,7 @@ enable_sni_handler(const vector_t *strvec)
 static void
 fast_recovery_handler(const vector_t *strvec)
 {
-	http_checker_t *http_get_chk = CHECKER_GET();
+	http_checker_t *http_get_chk = current_checker->data;
 	int res = true;
 
 	if (vector_size(strvec) >= 2) {
@@ -839,59 +821,66 @@ fast_recovery_handler(const vector_t *strvec)
 static void
 url_check(void)
 {
-	http_checker_t *http_get_chk = CHECKER_GET();
-	url_t *url = list_last_entry(&http_get_chk->url, url_t, e_list);
 	unsigned i;
+	http_checker_t *http_get_chk = current_checker->data;
 
-	if (!url->path) {
+
+	if (!current_url->path) {
 		report_config_error(CONFIG_GENERAL_ERROR, "HTTP/SSL_GET checker url has no path - ignoring");
-		free_url(url);
+		free_url(current_url);
 		return;
 	}
 
 	/* Set default status codes if none set */
-	for (i = 0; i < sizeof(url->status_code) / sizeof(url->status_code[0]); i++) {
-		if (url->status_code[i])
+	for (i = 0; i < sizeof(current_url->status_code) / sizeof(current_url->status_code[0]); i++) {
+		if (current_url->status_code[i])
 			break;
 	}
-	if (i >= sizeof(url->status_code) / sizeof(url->status_code[0])) {
+	if (i >= sizeof(current_url->status_code) / sizeof(current_url->status_code[0])) {
 		for (i = HTTP_DEFAULT_STATUS_CODE_MIN; i <= HTTP_DEFAULT_STATUS_CODE_MAX; i++)
-			__set_bit_array(i - HTTP_STATUS_CODE_MIN, url->status_code);
+			__set_bit_array(i - HTTP_STATUS_CODE_MIN, current_url->status_code);
 	}
 
 #ifdef _WITH_REGEX_CHECK_
 	if (conf_regex_pattern)
-		prepare_regex(url);
+		prepare_regex(current_url);
 	else if (conf_regex_options
-		 || url->regex_no_match
-		 || url->regex_min_offset
-		 || url->regex_max_offset
+		 || current_url->regex_no_match
+		 || current_url->regex_min_offset
+		 || current_url->regex_max_offset
 #ifndef PCRE2_DONT_USE_JIT
-		 || url->regex_use_stack
+		 || current_url->regex_use_stack
 #endif
 					 ) {
 		log_message(LOG_INFO, "regex parameters specified without regex");
 		conf_regex_options = 0;
-		url->regex_no_match = false;
-		url->regex_min_offset = 0;
-		url->regex_max_offset = 0;
+		current_url->regex_no_match = false;
+		current_url->regex_min_offset = 0;
+		current_url->regex_max_offset = 0;
 #ifndef PCRE2_DONT_USE_JIT
-		url->regex_use_stack = false;
+		current_url->regex_use_stack = false;
 #endif
 	}
 
-	if (url->regex_max_offset && url->regex_min_offset >= url->regex_max_offset) {
-		log_message(LOG_INFO, "regex min offset %zu > regex_max_offset %zu - ignoring", url->regex_min_offset, url->regex_max_offset - 1);
-		url->regex_min_offset = url->regex_max_offset = 0;
+	if (current_url->regex_max_offset && current_url->regex_min_offset >= current_url->regex_max_offset) {
+		log_message(LOG_INFO, "regex min offset %zu > regex_max_offset %zu - ignoring", current_url->regex_min_offset, current_url->regex_max_offset - 1);
+		current_url->regex_min_offset = current_url->regex_max_offset = 0;
 	}
 #endif
+
+	list_add_tail(&current_url->e_list, &http_get_chk->url);
+	if (!http_get_chk->url_it)
+		http_get_chk->url_it = current_url;
 }
 
 static void
 install_http_ssl_check_keyword(const char *keyword)
 {
+	vpp_t check_ptr;
+	vpp_t check_ptr1;
+
 	install_keyword(keyword, &http_get_handler);
-	install_sublevel();
+	check_ptr = install_sublevel(VPP &current_checker);
 	install_checker_common_keywords(true);
 	install_keyword("nb_get_retry", &http_get_retry_handler);	/* Deprecated */
 	install_keyword("virtualhost", &virtualhost_handler);
@@ -901,7 +890,7 @@ install_http_ssl_check_keyword(const char *keyword)
 #endif
 	install_keyword("fast_recovery", &fast_recovery_handler);
 	install_keyword("url", &url_handler);
-	install_sublevel();
+	check_ptr1 = install_sublevel(VPP &current_url);
 	install_keyword("path", &path_handler);
 	install_keyword("digest", &digest_handler);
 	install_keyword("status_code", &status_code_handler);
@@ -916,10 +905,10 @@ install_http_ssl_check_keyword(const char *keyword)
 	install_keyword("regex_stack", &regex_stack_handler);
 #endif
 #endif
-	install_sublevel_end_handler(url_check);
-	install_sublevel_end();
-	install_sublevel_end_handler(http_get_check_end);
-	install_sublevel_end();
+	install_level_end_handler(url_check);
+	install_sublevel_end(check_ptr1);
+	install_level_end_handler(http_get_check_end);
+	install_sublevel_end(check_ptr);
 }
 
 void

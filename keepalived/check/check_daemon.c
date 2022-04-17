@@ -650,6 +650,10 @@ register_check_thread_addresses(void)
 #ifndef _ONE_PROCESS_DEBUG_
 	register_signal_handler_address("sigreload_check", sigreload_check);
 	register_signal_handler_address("sigend_check", sigend_check);
+	register_signal_handler_address("sigusr1_check", sigusr1_check);
+#ifdef THREAD_DUMP
+	register_signal_handler_address("thread_dump_signal", thread_dump_signal);
+#endif
 #endif
 }
 #endif

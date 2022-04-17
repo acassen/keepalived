@@ -35,7 +35,7 @@ extern bool get_u8(uint8_t *, const char *, uint8_t, const char*);
 extern bool get_u32(uint32_t *, const char *, uint32_t, const char*);
 extern bool get_u16(uint16_t *, const char *, uint16_t, const char*);
 extern bool get_u64(uint64_t *, const char *, uint64_t, const char*);
-extern bool get_time_rtt(uint32_t *, const char *, unsigned);
+extern bool get_time_rtt(uint32_t *, const char *, unsigned, const char *);
 extern bool get_addr64(uint64_t *, const char *);
 #if HAVE_DECL_RTA_ENCAP && HAVE_DECL_LWTUNNEL_ENCAP_MPLS
 extern bool parse_mpls_address(const char *, encap_mpls_t *);

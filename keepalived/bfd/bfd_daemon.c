@@ -349,6 +349,9 @@ register_bfd_thread_addresses(void)
 	register_signal_handler_address("sigdump_bfd", sigdump_bfd);
 	register_signal_handler_address("sigend_bfd", sigend_bfd);
 	register_signal_handler_address("thread_child_handler", thread_child_handler);
+#ifdef THREAD_DUMP
+	register_signal_handler_address("thread_dump_signal", thread_dump_signal);
+#endif
 }
 #endif
 #endif
