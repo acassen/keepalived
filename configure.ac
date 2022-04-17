@@ -2930,6 +2930,14 @@ dnl ----[Default runtime options (in /etc/sysconfig/keepalived)]----
 AC_SUBST([KEEPALIVED_RUNTIME_OPTIONS], ["$default_runtime_options"])
 
 dnl ----[Default keepalived configuration file]----
+echo $default_config_file | grep -q '${'
+AS_IF([test $? -eq 0],
+  [
+    PARAM=`echo $default_config_file | sed -e 's:.*\(${.*}\).*:\1:'`
+    PARAM_BRACKETS=`echo $PARAM | sed -e "s:{:(:" -e "s:}:):"`
+    AC_MSG_WARN([--with-default-config-file specified with $PARAM - please use $PARAM_BRACKETS])
+    default_config_file=`echo $default_config_file | sed -e "s:{:(:" -e "s:}:):"`
+  ])
 WANT_PREFIX=0
 FOUND_PREFIX=0
 AS_IF([test -n "$default_config_file"],
@@ -2958,12 +2966,19 @@ dcf=$default_config_file
 dcf_prev=x$dcf		# to force at least 1 iteration
 while [[ $dcf != $dcf_prev ]]; do
   echo $dcf | grep -q "^\\\${prefix}"
-  [[ $? -eq 0 ]] && FOUND_PREFIX=1
+  AS_IF(
+    [test $? -eq 0], [FOUND_PREFIX=1],
+    [test -n "${prefix}"],
+    [
+      echo $dcf | grep -q "^${prefix}/"
+      AS_IF([test $? -eq 0], [FOUND_PREFIX=1])
+    ])
   dcf_prev=$dcf
   dcf=`eval echo $dcf`
 done
 AS_IF([test $WANT_PREFIX -eq 1 -a $FOUND_PREFIX -eq 0],
       [dcf=${prefix}$dcf])
+dcf=`echo $dcf | $SED -e "s://*:/:g"`
 AC_DEFINE_UNQUOTED([DEFAULT_CONFIG_FILE], ["$dcf"], [The default configuration file])
 
 # Remove a leading ${prefix} since that is not part of the old file name
