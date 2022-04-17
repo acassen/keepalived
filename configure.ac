@@ -55,8 +55,8 @@ AC_DEFUN([add_pkg_config_without_libs],
     else
       KA_PKG_PFX=KA
     fi
-    add_to_var_ind_unique([${KA_PKG_PFX}_CPPFLAGS], [$($PKG_CONFIG --cflags-only-I $1)])
-    add_to_var_ind_unique([${KA_PKG_PFX}_CFLAGS], [$($PKG_CONFIG --cflags-only-other $1)])
+    add_to_var_ind_unique([${KA_PKG_PFX}_CPPFLAGS], [`$PKG_CONFIG --cflags-only-I $1`])
+    add_to_var_ind_unique([${KA_PKG_PFX}_CFLAGS], [`$PKG_CONFIG --cflags-only-other $1`])
   ])
 
 AC_DEFUN([add_config_opt], [add_to_var([CONFIG_OPTIONS], [$1])])
@@ -526,7 +526,7 @@ AS_IF([test .$with_run_dir != .], [AC_MSG_ERROR([--with-run-dir is deprecated, u
 
 dnl -- Do we want -Wcast-align=strict?
 AS_IF([test .$enable_strict_cast_align = .yes],
-      [WARNINGS_STD=$(echo $WARNINGS_STD | sed -e "s/cast-align /cast-align=strict /")])
+      [WARNINGS_STD=`echo $WARNINGS_STD | sed -e "s/cast-align /cast-align=strict /"`])
 
 #### find the actual value for $datadir that we'll end up with
 ##   (I know this is broken and should be done in the Makefile, but
@@ -975,7 +975,7 @@ AC_RUN_IFELSE(
 AC_MSG_CHECKING([for unaligned memory access causes warnings])
 UNALIGNED_ACCESS_WARNED=0
 SAV_CFLAGS="$CFLAGS"
-CFLAGS=$(echo $KA_CFLAGS | sed -e "s/.*\(-Wcast-align[[^ ]]*\) .*/\1/")
+CFLAGS=`echo $KA_CFLAGS | sed -e "s/.*\(-Wcast-align[[^ ]]*\) .*/\1/"`
 CFLAGS="$CFLAGS -Werror"
 AC_COMPILE_IFELSE(
   [
@@ -2438,9 +2438,9 @@ if test "$enable_dbus" = yes; then
 
       dnl -- g_type_init() not needed and deprecated since glib 2.36
       SAV_CFLAGS=$CFLAGS
-      CFLAGS="$($PKG_CONFIG --cflags gio-2.0)"
+      CFLAGS=`$PKG_CONFIG --cflags gio-2.0`
       SAV_LIBS=$LIBS
-      LIBS="$($PKG_CONFIG --libs gio-2.0)"
+      LIBS=`$PKG_CONFIG --libs gio-2.0`
       AC_RUN_IFELSE(
 	[
 	  AC_LANG_PROGRAM(
@@ -2883,7 +2883,7 @@ AS_IF([test .$INIT_TYPE = .systemd],
 		.$with_systemdsystemunitdir = .yes -o \
 		.$with_systemdsystemunitdir = .auto], 
       [
-	def_systemdsystemunitdir=$($PKG_CONFIG --variable=systemdsystemunitdir systemd)
+	def_systemdsystemunitdir=`$PKG_CONFIG --variable=systemdsystemunitdir systemd`
 
 	AS_IF([test -z "$def_systemdsystemunitdir"],
           [
