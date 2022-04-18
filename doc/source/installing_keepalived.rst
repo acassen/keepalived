@@ -54,6 +54,9 @@ For JSON support::
 
     dnf install json-c-devel
 
+Note: On RHEL the codeready-builder-for-rhel-8-x86_64-rpms (or equivalent) repo
+      needs to be enabled, and on CentOS the PowerTools repo is needed.
+
 Install Prerequisites on Debian/Ubuntu
 ======================================
 
