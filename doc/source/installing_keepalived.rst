@@ -16,9 +16,9 @@ Installing on Red Hat Enterprise Linux
 
 As of Red Hat 6.4, Red Hat and the clones have included the keepalived package
 in the base repository.  Therefore, run the following to install the keepalived
-package and all the required dependencies using YUM::
+package and all the required dependencies using dnf (or yum on older systems)::
 
-    yum install keepalived
+    dnf install keepalived
 
 Installing on Debian
 ====================
@@ -42,8 +42,9 @@ Install Prerequisites on RHEL/CentOS/Fedora
 On RHEL, Centos, Fedora etc install the following prerequisites
 (on older systems replace dnf with yum)::
 
-    dnf install curl gcc autoconf automake openssl-devel libnl3-devel \
-        iptables-devel ipset-devel net-snmp-devel libnfnetlink-devel file-devel
+    dnf install gcc make autoconf automake openssl-devel libnl3-devel \
+        iptables-devel ipset-devel net-snmp-devel libnfnetlink-devel file-devel \
+        glib2-devel pcre2-revel libnftnl-devel libmnl-devel systemd-devel kmod-devel
 
 For DBUS support::
 
@@ -58,9 +59,12 @@ Install Prerequisites on Debian/Ubuntu
 
 On Debian/Ubuntu, install the following prerequisites::
 
-    apt-get install pkg-config curl gcc autoconf automake libssl-dev libnl-3-dev \
-        libnl-genl-3-dev libsnmp-dev libnl-route-3-dev libnfnetlink-dev libipset-dev \
-        iptables-dev libsnmp-dev
+    apt-get install build-essentials pkg-config curl gcc autoconf automake libssl-dev \
+        libnl-3-dev libnl-genl-3-dev libsnmp-dev libnl-route-3-dev libnfnetlink-dev \
+        iptables-dev* libipset-dev libsnmp-dev libmagic-dev libglib2.0-dev libpcre2-dev \
+        libnftnl-dev libmnl-dev libsystemd-dev libkmod-dev
+
+    * on more recent versions replace iptables-dev with libxtables-dev libip4tc-dev libip6tc-dev
 
 For DBUS support::
 
@@ -71,7 +75,9 @@ Install Prerequisites on Alpine Linux
 
 On Alpine Linux install the following prerequisites::
 
-    autoconf automake iptables-dev ipset-dev libnfnetlink-dev libnl3-dev musl-dev and
+    autoconf automake iptables-dev ipset-dev libnfnetlink-dev libnl3-dev musl-dev 
+        libnftnl-dev file-dev pcre2-dev
+      and
         openssl-dev or libressl-dev
  
 For SNMP support::
@@ -83,7 +89,7 @@ Install Prerequisites on Archlinux
 
 On Archlinux run the following to install the required libraries::
 
-    pacman -S ipset libnfnetlink libnl1
+    pacman -S ipset libnfnetlink libnl1 pcre-2
 
 For SNMP support::
 
