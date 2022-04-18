@@ -234,7 +234,7 @@ ssl_connect(thread_ref_t thread, int new_req)
 		BIO_get_fd(req->bio, &bio_fd);
 		if (fcntl(bio_fd, F_SETFD, fcntl(bio_fd, F_GETFD) | FD_CLOEXEC) == -1)
 			log_message(LOG_INFO, "Setting CLOEXEC failed on ssl socket - errno %d", errno);
-#ifdef HAVE_SSL_SET0_WBIO
+#if defined HAVE_SSL_SET0_RBIO && defined HAVE_SSL_SET0_WBIO
 		BIO_up_ref(req->bio);
 		SSL_set0_rbio(req->ssl, req->bio);
 		SSL_set0_wbio(req->ssl, req->bio);
