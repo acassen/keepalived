@@ -545,7 +545,7 @@ possibly following any cleanup actions needed.
     #   0 VIPs not allowed
     #   unicast peers not allowed
     #   IPv6 addresses not allowed in VRRP version 2
-    #   First IPv6 VIP is not link local
+    #   First IPv6 VIP is link local
     #   State MASTER can be configured if and only if priority is 255
     #   Authentication is not supported
     #   Preempt delay is not supported
