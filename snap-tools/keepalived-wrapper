@@ -12,7 +12,7 @@ elif [ ${RUNNING_KERNEL_VER} -ge 418 ]; then
 elif [ ${RUNNING_KERNEL_VER} -ge 415 ]; then
   BINARY="keepalived-415"
 elif [ ${RUNNING_KERNEL_VER} -ge 305 ]; then
-  BINARY="keepalived-310"
+  BINARY="keepalived-313"
 else
   echo "ERROR! You are running kernel ${RUNNING_KERNEL_VER},"
   echo "       which is not currently supported by the keepalived snap."

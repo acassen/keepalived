@@ -40,8 +40,8 @@ apps:
     command: usr/sbin/keepalived-418
   "415":        # Ubuntu 18.04
     command: usr/sbin/keepalived-415
-  "310":        # RHEL 7
-    command: usr/sbin/keepalived-310
+  "313":        # RHEL 7 - kernel 3.10 but launchpad no longer has 3.10 packages
+    command: usr/sbin/keepalived-313
   genhash:
     command: usr/bin/genhash
 
@@ -308,7 +308,7 @@ parts:
     prime:
       - usr/sbin/keepalived-415
 
-  linux-headers-310:
+  linux-headers-313:
     plugin: nil
     build-packages:
       - dpkg
@@ -319,9 +319,9 @@ parts:
     override-pull: |
       ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
       if [ $ARCH = amd64 ] || [ $ARCH = ppc64el ] ||  [ $ARCH = arm64 ]; then
-        DEB_URL="http://launchpadlibrarian.net/144719237/linux-libc-dev_3.10.0-2.11_amd64.deb"
+        DEB_URL="http://launchpadlibrarian.net/422971061/linux-libc-dev_3.13.0-170.220_amd64.deb"
       elif [ $ARCH = armhf ]; then
-        DEB_URL="http://launchpadlibrarian.net/144753483/linux-libc-dev_3.10.0-2.11_armhf.deb"
+        DEB_URL="http://launchpadlibrarian.net/422971427/linux-libc-dev_3.13.0-170.220_i386.deb"
       fi
       if [ $ARCH != s390x ]; then
         # s390x was not supported on Trusty, so there are no kernel headers for it.
@@ -352,12 +352,12 @@ parts:
     prime:
       - -*
 
-  keepalived-310:
+  keepalived-313:
     plugin: autotools
     source: .
     source-type: git
     after:
-      - linux-headers-310
+      - linux-headers-313
     autotools-configure-parameters:
       - --prefix=/usr
       - --with-samples-dir='$(docdir)'
@@ -369,11 +369,11 @@ parts:
       - --enable-snmp-rfc
       - --disable-libipset-dynamic
     organize:
-      'usr/sbin/keepalived': usr/sbin/keepalived-310
+      'usr/sbin/keepalived': usr/sbin/keepalived-313
     stage:
-      - usr/sbin/keepalived-310
+      - usr/sbin/keepalived-313
     prime:
-      - usr/sbin/keepalived-310
+      - usr/sbin/keepalived-313
 
   keepalived-wrapper:
     plugin: dump
