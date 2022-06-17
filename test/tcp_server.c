@@ -2,6 +2,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -270,7 +271,7 @@ print_usage(FILE *fp, const char *name)
 	fprintf(fp, "\t-v ver\t\tset HTML version to use (default 1.1)\n");
 	fprintf(fp, "\t-w url resp\tsend HTTP response for url\n");
 	fprintf(fp, "\t-W\t\tsend a pre-build HTTP response for GET /\n");
-	fprintf(fp, "\t-M[mail server name]\t\tbe an email server\n");
+	fprintf(fp, "\t-M[server_name]\tbe an email server\n");
 	fprintf(fp, "\t-l val\t\tASCII value to use for EOL char\n");
 	fprintf(fp, "\t-d delay\tdelay in ms before replying\n");
 	fprintf(fp, "\t-r\t\tuse random delay\n");
@@ -278,6 +279,8 @@ print_usage(FILE *fp, const char *name)
 	fprintf(fp, "\t-Z\t\ttoggle close on send (default off)\n");
 	fprintf(fp, "\t-g\t\tdebug data\n");
 	fprintf(fp, "\t-G\t\tdebug\n");
+	fprintf(fp, "\t-f qlen\t\tenable tcp_fastopen\n");
+	fprintf(fp, "\t-i [len|str]\tsend len bytes or string str immedately after accept\n");
 	fprintf(fp, "\t-h\t\tprint this\n");
 }
 
@@ -304,8 +307,12 @@ int main(int argc, char **argv)
 	unsigned backlog = 4;
 	bool close_after_send = false;
 	char *html_version = "1.1";
+	unsigned tcp_fastopen = 0;
+	unsigned immediate_data_len;
+	char *immediate_data = NULL;
+	bool immediate_data_malloc = false;
 
-	while ((opt = getopt(argc, argv, ":h46a:p:sueb:c:l:d:rm:v:WM::w:ZDgG")) != -1) {
+	while ((opt = getopt(argc, argv, ":h46a:p:sueb:c:l:d:rm:v:WM::w:ZDgGf:i:")) != -1) {
 		switch (opt) {
 		case '4':
 			family = AF_INET;
@@ -396,6 +403,22 @@ int main(int argc, char **argv)
 		case 'h':
 			print_usage(stdout, argv[0]);
 			exit(0);
+		case 'f':
+			tcp_fastopen = strtoul(optarg, &endptr, 10);
+			break;
+		case 'i':
+			if (immediate_data && immediate_data_malloc)
+				free(immediate_data);
+			immediate_data_len = strtoul(optarg, &endptr, 10);;
+			if (!*endptr && immediate_data_len) {
+				immediate_data = malloc(immediate_data_len);
+				immediate_data_malloc = true;
+			} else {
+				immediate_data = optarg;
+				immediate_data_len = strlen(immediate_data);
+				immediate_data_malloc = false;
+			}
+			break;
 		case ':':
 			fprintf(stderr, "Option '%c' is missing an argument\n", optopt);
 			break;
@@ -443,6 +466,13 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
+	if (tcp_fastopen) {
+		if (setsockopt(listenfd, SOL_TCP, TCP_FASTOPEN, &tcp_fastopen, sizeof(tcp_fastopen))) {
+			printf("(%d) Set TCP_FASTOPEN failed, errno %d (%m)\n", getpid(),  errno);
+			exit(1);
+		}
+	}
+
 	if (family == AF_INET) {
 		bzero(&servaddr, sizeof(servaddr));
 		servaddr.sin_family = AF_INET;
@@ -487,6 +517,10 @@ int main(int argc, char **argv)
 				printf("(%d) Received connection %lu\n", getpid(), connection_num);
 			if ((childpid = fork()) == 0) {
 				close(listenfd);
+
+				if (immediate_data)
+					write(connfd, immediate_data, immediate_data_len);
+
 				if (echo_data || cmd_resp_list || email_server)
 					process_data(connfd);
 				else
