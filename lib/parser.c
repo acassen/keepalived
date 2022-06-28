@@ -2746,6 +2746,7 @@ read_line(char *buf, size_t size)
 
 		do {
 			recheck = false;
+			len = strlen(buf);
 			if (buf[0] == '@') {
 				/* If the line starts '@', check the following word matches the system id.
 				   @^ reverses the sense of the match */
