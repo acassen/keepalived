@@ -318,7 +318,10 @@ route_is_ours(struct rtmsg* rt, struct rtattr *tb[RTA_MAX + 1], vrrp_t** ret_vrr
 		    tos != route->tos)
 			continue;
 
-		if (compare_addr(family, RTA_DATA(tb[RTA_DST]), route->dst))
+		if (!tb[RTA_DST])
+			memset(&default_addr, 0, sizeof(default_addr));
+
+		if (compare_addr(family, tb[RTA_DST] ? RTA_DATA(tb[RTA_DST]) : &default_addr, route->dst))
 			continue;
 
 		return route;
