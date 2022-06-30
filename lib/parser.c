@@ -2746,7 +2746,6 @@ read_line(char *buf, size_t size)
 
 		do {
 			recheck = false;
-			len = strlen(buf);
 			if (buf[0] == '@') {
 				/* If the line starts '@', check the following word matches the system id.
 				   @^ reverses the sense of the match */
@@ -2821,6 +2820,9 @@ read_line(char *buf, size_t size)
 					recheck = true;
 				if (strchr(buf, '$'))
 					recheck = true;
+
+				if (recheck)
+					len = strlen(buf);
 			}
 		} while (recheck);
 	} while (buf[0] == '\0' || check_include(buf));
