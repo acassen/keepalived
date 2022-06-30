@@ -1240,7 +1240,6 @@ free_vrrp_data(vrrp_data_t * data)
 	free_iproute_list(&data->static_routes);
 	free_iprule_list(&data->static_rules);
 	free_static_track_groups_list(&data->static_track_groups);
-	free_vrrp_list(&data->vrrp);
 	free_sync_group_list(&data->vrrp_sync_group);
 	free_vscript_list(&data->vrrp_script);
 	free_track_file_list(&data->vrrp_track_files);
@@ -1250,6 +1249,7 @@ free_vrrp_data(vrrp_data_t * data)
 #ifdef _WITH_BFD_
 	free_vrrp_tracked_bfd_list(&data->vrrp_track_bfds);
 #endif
+	free_vrrp_list(&data->vrrp);
 	FREE(data);
 }
 
