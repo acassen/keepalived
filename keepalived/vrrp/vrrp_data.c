@@ -684,6 +684,8 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 		conf_write(fp, "   VRRP interface tracking disabled");
 	if (__test_bit(VRRP_FLAG_SKIP_CHECK_ADV_ADDR, &vrrp->flags))
 		conf_write(fp, "   Skip checking advert IP addresses");
+	if (__test_bit(VRRP_FLAG_ALLOW_NO_VIPS, &vrrp->flags))
+		conf_write(fp, "   Suppress no VIPs warning");
 	if (vrrp->strict_mode)
 		conf_write(fp, "   Enforcing strict VRRP compliance");
 	conf_write(fp, "   Using src_ip = %s%s", vrrp->saddr.ss_family != AF_UNSPEC

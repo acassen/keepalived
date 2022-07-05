@@ -556,6 +556,7 @@ possibly following any cleanup actions needed.
     #   Cannot clear lower_prio_no_advert
     #   Cannot set higher_prio_send_advert
     #   Cannot use vmac_xmit_base
+    #   Cannot have no VIPs with VRRPv3
     \fBvrrp_strict\fR
 
     # Send vrrp instance priority notifications on notify FIFOs.
@@ -1920,6 +1921,18 @@ The syntax for vrrp_instance is :
         <IPADDR>[/<MASK>] ...
         ...
     }
+
+    # Specifying no virtual IP addresses is generally a configuration error
+    # and VRRP version 3 explicitly states that the minimum number of addresses
+    # is 1. Consequently keepalived warns if no VIPs are configured.
+    # There are, however, circumstances when it is useful to have no VIPs, for
+    # example when cloud servers, e.g. AWS, where floating IP addresses are
+    # managed administratively, and are not configured on the cloud virtual
+    # server. Specifying no_virtual_ipaddress supresses warnings for no VIPs,
+    # and allows VRRPv3 to be used with no VIPs.
+    # WARNING - when using this with VRRPv3 it causes a protocol violation and
+    # may not work with other VRRP implementations.
+    \fBno_virtual_ipaddress\fR
 
     # Set the promote_secondaries flag on the interface to stop other
     # addresses in the same CIDR being removed when 1 of them is removed

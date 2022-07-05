@@ -2892,15 +2892,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	if (vrrp->family == AF_INET && vrrp->ttl == -1)
 		vrrp->ttl = VRRP_IP_TTL;
 
-	if (list_empty(&vrrp->vip)) {
-		if (vrrp->version == VRRP_VERSION_3 || vrrp->strict_mode) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) No VIP specified; at least one is required"
-								, vrrp->iname);
-			return false;
-		}
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) No VIP specified; at least one is sensible", vrrp->iname);
-	}
-
 	/* If no priority has been set, derive it from the initial state */
 	if (vrrp->base_priority == 0) {
 		if (vrrp->wantstate == VRRP_STATE_MAST)
@@ -3813,8 +3804,15 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 #endif
 
-	if (list_empty(&vrrp->vip)) {
-		if (vrrp->version == VRRP_VERSION_3 || vrrp->family == AF_INET6 || vrrp->strict_mode) {
+
+	if (__test_bit(VRRP_FLAG_ALLOW_NO_VIPS, &vrrp->flags) && vrrp->strict_mode) {
+		report_config_error(CONFIG_WARNING, "(%s) no_virtual_ipaddress and strict mode incompatible, clearing no_virtual_ipaddress", vrrp->iname);
+		__clear_bit(VRRP_FLAG_ALLOW_NO_VIPS, &vrrp->flags);
+	}
+
+	if (!__test_bit(VRRP_FLAG_ALLOW_NO_VIPS, &vrrp->flags) &&
+	    list_empty(&vrrp->vip)) {
+		if (vrrp->version == VRRP_VERSION_3 || vrrp->strict_mode) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) No VIP specified; at least one is required", vrrp->iname);
 			return false;
 		}
