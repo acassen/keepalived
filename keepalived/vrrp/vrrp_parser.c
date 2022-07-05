@@ -1422,6 +1422,11 @@ vrrp_evip_handler(const vector_t *strvec)
 	alloc_value_block(alloc_vrrp_evip, strvec);
 }
 static void
+vrrp_no_vip_handler(__attribute__((unused)) const vector_t *strvec)
+{
+	__set_bit(VRRP_FLAG_ALLOW_NO_VIPS, &current_vrrp->flags);
+}
+static void
 vrrp_promote_secondaries_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	__set_bit(VRRP_FLAG_PROMOTE_SECONDARIES, &current_vrrp->flags);
@@ -2095,6 +2100,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("advert_int", &vrrp_adv_handler);
 	install_keyword("virtual_ipaddress", &vrrp_vip_handler);
 	install_keyword("virtual_ipaddress_excluded", &vrrp_evip_handler);
+	install_keyword("no_virtual_ipaddress", &vrrp_no_vip_handler);
 	install_keyword("promote_secondaries", &vrrp_promote_secondaries_handler);
 #ifdef _WITH_LINKBEAT_
 	install_keyword("linkbeat_use_polling", &vrrp_linkbeat_handler);
