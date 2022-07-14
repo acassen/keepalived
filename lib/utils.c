@@ -390,7 +390,6 @@ in_csum(const uint16_t *addr, size_t len, uint32_t csum, uint32_t *acc)
 {
 	register size_t nleft = len;
 	const uint16_t *w = addr;
-	register uint16_t answer;
 	register uint32_t sum = csum;
 
 	/*
@@ -429,8 +428,7 @@ in_csum(const uint16_t *addr, size_t len, uint32_t csum, uint32_t *acc)
 	 */
 	sum = (sum >> 16) + (sum & 0xffff);	/* add hi 16 to low 16 */
 	sum += (sum >> 16);			/* add carry */
-	answer = (~sum & 0xffff);		/* truncate to 16 bits */
-	return (answer);
+	return ~sum & 0xffff;			/* truncate to 16 bits */
 }
 
 /* IP network to ascii representation - address is in network byte order */
