@@ -390,7 +390,6 @@ in_csum(const uint16_t *addr, size_t len, uint32_t csum, uint32_t *acc)
 {
 	register size_t nleft = len;
 	const uint16_t *w = addr;
-	register uint16_t answer;
 	register uint32_t sum = csum;
 
 	/*
@@ -408,16 +407,28 @@ in_csum(const uint16_t *addr, size_t len, uint32_t csum, uint32_t *acc)
 	if (nleft == 1)
 		sum += htons(*PTR_CAST_CONST(u_char, w) << 8);
 
-	if (acc)
+	/* The change in the commit following 4d536fe, whilst sensible
+	 * as an optimisation of the code, was found to be a successful
+	 * workaround to a GCC LTO bug, which caused this function, when
+	 * built with LTO, to return inconsistent results.
+	 *
+	 * The problem was observed with GCC versions 11.2, 11.3.1 and
+	 * 12.1.1, on Ubuntu 22.04, Fedora 34, Fedora 36 and Fedora 37 (Rawhide).
+	 *
+	 * The problem did not occur when not using LTO, nor when using
+	 * clang, even with LTO.
+	 */
+	if (acc) {
 		*acc = sum;
+		return 0;
+	}
 
 	/*
 	 * add back carry outs from top 16 bits to low 16 bits
 	 */
 	sum = (sum >> 16) + (sum & 0xffff);	/* add hi 16 to low 16 */
 	sum += (sum >> 16);			/* add carry */
-	answer = (~sum & 0xffff);		/* truncate to 16 bits */
-	return (answer);
+	return ~sum & 0xffff;			/* truncate to 16 bits */
 }
 
 /* IP network to ascii representation - address is in network byte order */
