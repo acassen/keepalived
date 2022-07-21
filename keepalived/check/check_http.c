@@ -466,7 +466,10 @@ virtualhost_handler(const vector_t *strvec)
 		return;
 	}
 
-	http_get_chk->virtualhost = set_value(strvec);
+	if (!http_get_chk->virtualhost)
+		http_get_chk->virtualhost = set_value(strvec);
+	else
+		report_config_error(CONFIG_GENERAL_ERROR, "Duplicate virtualhost %s - ignoring", strvec_slot(strvec, 1));
 }
 
 static void
@@ -585,7 +588,10 @@ url_virtualhost_handler(const vector_t *strvec)
 		return;
 	}
 
-	current_url->virtualhost = set_value(strvec);
+	if (!current_url->virtualhost)
+		current_url->virtualhost = set_value(strvec);
+	else
+		report_config_error(CONFIG_GENERAL_ERROR, "Duplicate url virtualhost %s - ignoring", strvec_slot(strvec, 1));
 }
 
 static void
