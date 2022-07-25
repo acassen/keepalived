@@ -608,10 +608,7 @@ vs_virtualhost_handler(const vector_t *strvec)
 		return;
 	}
 
-	if (!current_vs->virtualhost)
-		current_vs->virtualhost = set_value(strvec);
-	else
-		report_config_error(CONFIG_GENERAL_ERROR, "Duplicate vs virtualhost %s - ignoring", strvec_slot(strvec, 1));
+	set_string(&current_vs->virtualhost, strvec, "vs virtualhost");
 }
 
 #ifdef _WITH_SNMP_CHECKER_
@@ -624,10 +621,7 @@ vs_snmp_name_handler(const vector_t *strvec)
 		return;
 	}
 
-	if (!current_vs->snmp_name)
-		current_vs->snmp_name = set_value(strvec);
-	else
-		report_config_error(CONFIG_GENERAL_ERROR, "Duplicate vs snmp_name %s - ignoring", strvec_slot(strvec, 1));
+	set_string(&current_vs->snmp_name, strvec, "vs snmp_name");
 }
 #endif
 
@@ -853,10 +847,7 @@ rs_virtualhost_handler(const vector_t *strvec)
 		return;
 	}
 
-	if (!current_rs->virtualhost)
-		current_rs->virtualhost = set_value(strvec);
-	else
-		report_config_error(CONFIG_GENERAL_ERROR, "Duplicate rs virtualhost %s - ignoring", strvec_slot(strvec, 1));
+	set_string(&current_rs->virtualhost, strvec, "rs virtualhost");
 }
 
 #ifdef _WITH_SNMP_CHECKER_
@@ -868,10 +859,7 @@ rs_snmp_name_handler(const vector_t *strvec)
 		return;
 	}
 
-	if (!current_rs->snmp_name)
-		current_rs->snmp_name = set_value(strvec);
-	else
-		report_config_error(CONFIG_GENERAL_ERROR, "Duplicate rs snmp_name %s - ignoring", strvec_slot(strvec, 1));
+	set_string(&current_rs->snmp_name, strvec, "rs snmp_name");
 }
 #endif
 
