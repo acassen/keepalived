@@ -806,6 +806,16 @@ read_hex_str(const char *str, uint8_t **data, uint8_t **data_mask)
 }
 
 void
+set_string(const char **var, const vector_t *strvec, const char *param_name)
+{
+	if (*var) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Duplicate %s - overwriting %s with %s", param_name, *var, strvec_slot(strvec, 1));
+		FREE_CONST_PTR(*var);
+	}
+	*var = set_value(strvec);
+}
+
+void
 set_random_seed(unsigned int seed)
 {
 	random_seed = seed;
