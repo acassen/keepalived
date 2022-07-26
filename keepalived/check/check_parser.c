@@ -79,11 +79,7 @@ handle_ssl_file(const vector_t *strvec, const char **file_name, const char *type
 		return;
 	}
 
-	if (*file_name) {
-		report_config_error(CONFIG_GENERAL_ERROR, "SSL %s already specified - replacing", type);
-		FREE_CONST(*file_name);
-	}
-	*file_name = set_value(strvec);
+	set_string(file_name, strvec, "SSL");
 }
 
 static void

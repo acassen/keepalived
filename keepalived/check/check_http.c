@@ -504,7 +504,7 @@ url_handler(__attribute__((unused)) const vector_t *strvec)
 static void
 path_handler(const vector_t *strvec)
 {
-	current_url->path = set_value(strvec);
+	set_string(&current_url->path, strvec, "path");
 }
 
 static void
@@ -618,9 +618,14 @@ regex_handler(__attribute__((unused)) const vector_t *strvec)
 	const vector_t *strvec_qe = alloc_strvec_quoted_escaped(NULL);
 
 	if (vector_size(strvec_qe) != 2) {
-		log_message(LOG_INFO, "regex missing or too many fields");
+		report_config_error(CONFIG_GENERAL_ERROR, "regex missing or too many fields");
 		free_strvec(strvec_qe);
 		return;
+	}
+
+	if (conf_regex_pattern) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Duplicate regex specified - replacing %s with %s", conf_regex_pattern, strvec_slot(strvec, 1));
+		FREE_CONST_PTR(conf_regex_pattern);
 	}
 
 	conf_regex_pattern = PTR_CAST_CONST(unsigned char, set_value(strvec_qe));
