@@ -1033,7 +1033,7 @@ start_vrrp_child(void)
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
 	/* Check our parent hasn't already changed since the fork */
-	if (main_pid != getppid())
+	if (main_id != 0 && main_pid != getppid())
 		kill(getpid(), SIGTERM);
 
 #ifdef _WITH_PERF_

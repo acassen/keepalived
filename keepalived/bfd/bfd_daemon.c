@@ -391,7 +391,7 @@ start_bfd_child(void)
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
 	/* Check our parent hasn't already changed since the fork */
-	if (main_pid != getppid())
+	if (main_pid != 0 && main_pid != getppid())
 		kill(getpid(), SIGTERM);
 
 	prog_type = PROG_TYPE_BFD;
