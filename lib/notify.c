@@ -756,8 +756,9 @@ check_script_secure(notify_script_t *script,
 		/* Restore parent death signal */
 		prctl(PR_SET_PDEATHSIG, sav_death_sig);
 
-		/* Check the parent didn't die in the window when PDEATHSIG was not set */
-		if (main_pid != getppid())
+		/* Check the parent didn't die in the window when PDEATHSIG was not set 
+		 * avoid the check during configuration testing */
+		if (main_pid != 0 && main_pid != getppid())
 			kill(getpid(), SIGTERM);
 	}
 
