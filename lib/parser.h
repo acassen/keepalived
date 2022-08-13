@@ -122,6 +122,7 @@ set_value_r(const vector_t *strvec)
 #endif
 
 /* Prototypes */
+extern void set_string(const char **, const vector_t *, const char *);
 extern void report_config_error(config_err_t, const char *format, ...)
 	__attribute__((format (printf, 2, 3)));
 extern void use_disk_copy_for_config(const char *);

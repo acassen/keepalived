@@ -277,8 +277,10 @@ smtp_helo_name_handler(const vector_t *strvec)
 		return;
 	}
 
-	if (smtp_checker->helo_name)
+	if (smtp_checker->helo_name) {
+		report_config_error(CONFIG_GENERAL_ERROR, "SMTP_CHECK helo name already specified");
 		FREE_CONST(smtp_checker->helo_name);
+	}
 
 	smtp_checker->helo_name = set_value(strvec);
 }
