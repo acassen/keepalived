@@ -687,7 +687,9 @@ possibly following any cleanup actions needed.
     \fBscript_user \fRusername [groupname]
 
     # Don't run scripts configured to be run as root if any part of the path
-    # is writable by a non-root user.
+    # is writable by a non-root user. Also, enforce the default script_user is
+    # keepalived_script, and don't default to the user under which keepalived
+    # is running (usually root).
     \fBenable_script_security\fR
 
     # Rather than using notify scripts, specifying a fifo allows more
