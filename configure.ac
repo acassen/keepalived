@@ -3128,8 +3128,8 @@ if test ${IPVS_SUPPORT} = Yes; then
   echo "IPVS syncd attributes    : ${IPVS_SYNCD_ATTRIBUTES}"
   echo "IPVS 64 bit stats        : ${IPVS_64BIT_STATS}"
   echo "HTTP_GET regex support   : ${WITH_REGEX}"
+  echo "fwmark socket support    : ${SO_MARK_SUPPORT}"
 fi
-echo "fwmark socket support    : ${SO_MARK_SUPPORT}"
 echo "Use VRRP Framework       : ${VRRP_SUPPORT}"
 if test ${VRRP_SUPPORT} = Yes; then
   echo "Use VRRP VMAC            : ${MACVLAN_SUPPORT}"
