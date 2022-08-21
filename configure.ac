@@ -403,8 +403,8 @@ KA_LDFLAGS=$LDFLAGS
 KA_LIBS=$LDLIBS
 
 # For reporting GCC bugs, uncomment the next two lines
-#KA_CPPFLAGS=$KA_CPPFLAGS -v -save-temps"
-#KA_CFLAGS=$KA_CFLAGS -v -save-temps"
+#KA_CPPFLAGS="$KA_CPPFLAGS -v -save-temps"
+#KA_CFLAGS="$KA_CFLAGS -v -save-temps"
 
 NEED_LIBDL=No
 #KA_LIBTOOLFLAGS =
