@@ -956,6 +956,45 @@ AC_SUBST(KA_LDFLAGS)
 AC_SUBST(KA_LIBS)
 # AC_SUBST(KA_LIBTOOLFLAGS)
 
+# Check for fallthrough attribute
+echo CFLAGS=$KA_CFLAGS
+SAV_CFLAGS=$CFLAGS
+CFLAGS="$KA_CFLAGS -Werror"
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+  int main(int argc, char **argv)
+  {
+    switch(argc) {
+    case 1:
+      argv[0][0] = argv[0][1];
+      [[fallthrough]];
+    case 2:
+      argv[1][0] = argv[1][1];
+      break;
+    }
+  }
+  ]])],
+  [
+    AC_DEFINE([__fallthrough], [ [[[fallthrough]]] ], [Define fallthrough attribute])
+  ],
+  [
+    AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+      int main(int argc, char **argv)
+      {
+	switch(argc) {
+	case 1:
+	  argv[0][0] = argv[0][1];
+	  __attribute__((fallthrough));
+	case 2:
+	  argv[1][0] = argv[1][1];
+	  break;
+	}
+      }
+      ]])],
+      [AC_DEFINE([__fallthrough], [ __attribute__((fallthrough)) ], [Define fallthrough attribute])],
+      [AC_DEFINE([__fallthrough], [ ], [Define fallthrough attribute])])
+  ])
+CFLAGS=$SAV_CFLAGS
+
 # Check if unaligned memory access is supported (for ARM not supported prior to ARMv6 processors)
 AC_MSG_CHECKING([for unaligned memory access])
 AC_RUN_IFELSE(
@@ -1035,7 +1074,7 @@ AC_COMPILE_IFELSE(
  )
 CFLAGS="$SAV_CFLAGS"
 
-dnl - Do we want/need to cat via a void *?
+dnl - Do we want/need to cast via a void *?
 AS_IF([test .$enable_cast_via_void = .no],
   [],
   [
