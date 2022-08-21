@@ -385,12 +385,26 @@ run_perf(const char *process, const char *network_namespace, const char *instanc
 #endif
 
 /* Compute a checksum */
-uint16_t
+
+/*
+ * There appears to be a GCC LTO bug, which caused this function, when
+ * built with LTO, to return inconsistent results.
+ *
+ * The problem was observed with GCC versions 11.2, 11.3.1 and
+ * 12.1.1, on Ubuntu 22.04, Fedora 34, Fedora 36 and Fedora 37 (Rawhide).
+ * No working versions of GCC have been identified.
+ *
+ * The problem did not occur when not using LTO, nor when using
+ * clang, even with LTO.
+ *
+ * The problem is that addr appears to have the wrong value for the first
+ * call of this function from vrrp_build_vrrp_v3(). ipv4_phdr.src, ipv4_phdr.dst
+ * nor any of the other values match addr[0], addr[1] etc.
+ */
+uint16_t GCC_LTO_NOINLINE
 in_csum(const uint16_t *addr, size_t len, uint32_t csum, uint32_t *acc)
 {
 	size_t nleft = len;
-	const uint16_t *w = addr;
-	uint32_t sum = csum;
 
 	/*
 	 *  Our algorithm is simple, using a 32 bit accumulator (sum),
@@ -399,23 +413,23 @@ in_csum(const uint16_t *addr, size_t len, uint32_t csum, uint32_t *acc)
 	 *  16 bits.
 	 */
 	while (nleft > 1) {
-		sum += *w++;
+		csum += *addr++;
 		nleft -= 2;
 	}
 
 	/* mop up an odd byte, if necessary */
 	if (nleft == 1)
-		sum += htons(*PTR_CAST_CONST(u_char, w) << 8);
+		csum += htons(*PTR_CAST_CONST(u_char, addr) << 8);
 
 	if (acc)
-		*acc = sum;
+		*acc = csum;
 
 	/*
 	 * add back carry outs from top 16 bits to low 16 bits
 	 */
-	sum = (sum >> 16) + (sum & 0xffff);	/* add hi 16 to low 16 */
-	sum += (sum >> 16);			/* add carry */
-	return ~sum & 0xffff;			/* truncate to 16 bits */
+	csum = (csum >> 16) + (csum & 0xffff);	/* add hi 16 to low 16 */
+	csum += (csum >> 16);			/* add carry */
+	return ~csum & 0xffff;			/* truncate to 16 bits */
 }
 
 /* IP network to ascii representation - address is in network byte order */

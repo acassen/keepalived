@@ -402,6 +402,10 @@ KA_CFLAGS="-g $CFLAGS"
 KA_LDFLAGS=$LDFLAGS
 KA_LIBS=$LDLIBS
 
+# For reporting GCC bugs, uncomment the next two lines
+#KA_CPPFLAGS=$KA_CPPFLAGS -v -save-temps"
+#KA_CFLAGS=$KA_CFLAGS -v -save-temps"
+
 NEED_LIBDL=No
 #KA_LIBTOOLFLAGS =
 
@@ -564,6 +568,8 @@ AS_IF([test $CC = gcc],
   dnl -- -Wstringop-overflow warnings
   dnl -- I haven't been able to produce a test case to demonstrate this GCC bug, so we can't
   dnl -- test it here, nor have I been able to report a bug upstream to GCC.
+  dnl -- Also (see github issue #2160) inlining with LTO makes in_csum behave incorrectly with
+  dnl -- GCC 11.2, 11.3.1 and 12.1.1.
   AC_MSG_CHECKING([if using GCC Link Time Optimisation])
   echo " $CFLAGS " | grep -q -- " -flto=auto "
   AS_IF([test $? -eq 0],
@@ -575,8 +581,8 @@ AS_IF([test $CC = gcc],
     ])
   ])
 AS_IF([test $GCC_LTO = yes],
-  [AC_DEFINE([LTO_NOINLINE], [ __attribute__((noinline)) ], [Define to not inline if using GCC LTO])],
-  [AC_DEFINE([LTO_NOINLINE], [], [Define to not inline if using GCC LTO])])
+  [AC_DEFINE([GCC_LTO_NOINLINE], [ __attribute__((noinline)) ], [Define to not inline if using GCC LTO])],
+  [AC_DEFINE([GCC_LTO_NOINLINE], [], [Define to not inline if using GCC LTO])])
 
 dnl -- ulibc/glibc differences
 AC_MSG_CHECKING([msghdr.msg_controllen is size_t])
