@@ -407,21 +407,8 @@ in_csum(const uint16_t *addr, size_t len, uint32_t csum, uint32_t *acc)
 	if (nleft == 1)
 		sum += htons(*PTR_CAST_CONST(u_char, w) << 8);
 
-	/* The change in the commit following 4d536fe, whilst sensible
-	 * as an optimisation of the code, was found to be a successful
-	 * workaround to a GCC LTO bug, which caused this function, when
-	 * built with LTO, to return inconsistent results.
-	 *
-	 * The problem was observed with GCC versions 11.2, 11.3.1 and
-	 * 12.1.1, on Ubuntu 22.04, Fedora 34, Fedora 36 and Fedora 37 (Rawhide).
-	 *
-	 * The problem did not occur when not using LTO, nor when using
-	 * clang, even with LTO.
-	 */
-	if (acc) {
+	if (acc)
 		*acc = sum;
-		return 0;
-	}
 
 	/*
 	 * add back carry outs from top 16 bits to low 16 bits
