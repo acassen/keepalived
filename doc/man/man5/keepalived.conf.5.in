@@ -1765,6 +1765,10 @@ The syntax for vrrp_instance is :
     \fBunicast_ttl\fR {0..255}
 
     # The checksum calculation when using VRRPv3 changed after v1.3.6.
+    #  The reason for the change is that keepalived was calculating the
+    #  checksum using the multicast address even when it was using
+    #  unicast, whereas the checksum should be calculated using the
+    #  actual address that is in the IPv4 header.
     #  Setting this flag forces the old checksum algorithm to be used
     #  to maintain backward compatibility, although keepalived will
     #  attempt to maintain compatibility anyway if it sees an old
