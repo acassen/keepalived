@@ -388,9 +388,9 @@ run_perf(const char *process, const char *network_namespace, const char *instanc
 uint16_t
 in_csum(const uint16_t *addr, size_t len, uint32_t csum, uint32_t *acc)
 {
-	register size_t nleft = len;
+	size_t nleft = len;
 	const uint16_t *w = addr;
-	register uint32_t sum = csum;
+	uint32_t sum = csum;
 
 	/*
 	 *  Our algorithm is simple, using a 32 bit accumulator (sum),
