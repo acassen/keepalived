@@ -679,7 +679,7 @@ netlink_close(nl_handle_t *nl)
  * and produces warnings when doing the LTO link of vrrp_vmac.o and vrrp_ipaddress.o.
  * This should be tested periodically to see if specifying noinline can be removed.
  */
-int LTO_NOINLINE
+int GCC_LTO_NOINLINE
 addattr_l(struct nlmsghdr *n, size_t maxlen, unsigned short type, const void *data, size_t alen)
 {
 	size_t len = RTA_LENGTH(alen);

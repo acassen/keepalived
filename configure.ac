@@ -402,6 +402,10 @@ KA_CFLAGS="-g $CFLAGS"
 KA_LDFLAGS=$LDFLAGS
 KA_LIBS=$LDLIBS
 
+# For reporting GCC bugs, uncomment the next two lines
+#KA_CPPFLAGS=$KA_CPPFLAGS -v -save-temps"
+#KA_CFLAGS=$KA_CFLAGS -v -save-temps"
+
 NEED_LIBDL=No
 #KA_LIBTOOLFLAGS =
 
@@ -564,6 +568,8 @@ AS_IF([test $CC = gcc],
   dnl -- -Wstringop-overflow warnings
   dnl -- I haven't been able to produce a test case to demonstrate this GCC bug, so we can't
   dnl -- test it here, nor have I been able to report a bug upstream to GCC.
+  dnl -- Also (see github issue #2160) inlining with LTO makes in_csum behave incorrectly with
+  dnl -- GCC 11.2, 11.3.1 and 12.1.1.
   AC_MSG_CHECKING([if using GCC Link Time Optimisation])
   echo " $CFLAGS " | grep -q -- " -flto=auto "
   AS_IF([test $? -eq 0],
@@ -575,8 +581,8 @@ AS_IF([test $CC = gcc],
     ])
   ])
 AS_IF([test $GCC_LTO = yes],
-  [AC_DEFINE([LTO_NOINLINE], [ __attribute__((noinline)) ], [Define to not inline if using GCC LTO])],
-  [AC_DEFINE([LTO_NOINLINE], [], [Define to not inline if using GCC LTO])])
+  [AC_DEFINE([GCC_LTO_NOINLINE], [ __attribute__((noinline)) ], [Define to not inline if using GCC LTO])],
+  [AC_DEFINE([GCC_LTO_NOINLINE], [], [Define to not inline if using GCC LTO])])
 
 dnl -- ulibc/glibc differences
 AC_MSG_CHECKING([msghdr.msg_controllen is size_t])
@@ -956,6 +962,45 @@ AC_SUBST(KA_LDFLAGS)
 AC_SUBST(KA_LIBS)
 # AC_SUBST(KA_LIBTOOLFLAGS)
 
+# Check for fallthrough attribute
+echo CFLAGS=$KA_CFLAGS
+SAV_CFLAGS=$CFLAGS
+CFLAGS="$KA_CFLAGS -Werror"
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+  int main(int argc, char **argv)
+  {
+    switch(argc) {
+    case 1:
+      argv[0][0] = argv[0][1];
+      [[fallthrough]];
+    case 2:
+      argv[1][0] = argv[1][1];
+      break;
+    }
+  }
+  ]])],
+  [
+    AC_DEFINE([__fallthrough], [ [[[fallthrough]]] ], [Define fallthrough attribute])
+  ],
+  [
+    AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+      int main(int argc, char **argv)
+      {
+	switch(argc) {
+	case 1:
+	  argv[0][0] = argv[0][1];
+	  __attribute__((fallthrough));
+	case 2:
+	  argv[1][0] = argv[1][1];
+	  break;
+	}
+      }
+      ]])],
+      [AC_DEFINE([__fallthrough], [ __attribute__((fallthrough)) ], [Define fallthrough attribute])],
+      [AC_DEFINE([__fallthrough], [ ], [Define fallthrough attribute])])
+  ])
+CFLAGS=$SAV_CFLAGS
+
 # Check if unaligned memory access is supported (for ARM not supported prior to ARMv6 processors)
 AC_MSG_CHECKING([for unaligned memory access])
 AC_RUN_IFELSE(
@@ -1035,7 +1080,7 @@ AC_COMPILE_IFELSE(
  )
 CFLAGS="$SAV_CFLAGS"
 
-dnl - Do we want/need to cat via a void *?
+dnl - Do we want/need to cast via a void *?
 AS_IF([test .$enable_cast_via_void = .no],
   [],
   [

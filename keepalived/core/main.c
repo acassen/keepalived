@@ -2224,7 +2224,7 @@ parse_cmdline(int argc, char **argv)
 			set_core_dump_pattern = true;
 			if (optarg && optarg[0])
 				core_dump_pattern = optarg;
-			/* ... falls through ... */
+			__fallthrough;
 		case 'm':
 			create_core_dump = true;
 			break;

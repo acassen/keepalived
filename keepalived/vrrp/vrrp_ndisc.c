@@ -111,7 +111,7 @@ ndisc_icmp6_cksum(const struct ip6hdr *ip6, struct iovec *iov, int iovcnt)
 	size_t i;
 	int j;
 	size_t len;
-	register const uint16_t *sp;
+	const uint16_t *sp;
 	uint32_t sum;
 	union {
 		struct {
