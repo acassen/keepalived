@@ -437,7 +437,7 @@ const char *
 inet_ntop2(uint32_t ip)
 {
 	static char buf[16];
-	const unsigned char (*bytep)[4] = (unsigned char (*)[4])&ip;
+	const unsigned char (*bytep)[4] = (const unsigned char (*)[4])&ip;
 
 	sprintf(buf, "%d.%d.%d.%d", (*bytep)[0], (*bytep)[1], (*bytep)[2], (*bytep)[3]);
 	return buf;
