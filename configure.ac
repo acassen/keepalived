@@ -793,6 +793,9 @@ AS_IF([test .$HAVE_WARNING_STRICT_OVERFLOW = .yes],
      )
 CFLAGS="$SAV_CFLAGS"
 
+# keepalived is not suitable for assuming strict aliasing (it does a lot of type casting)
+add_to_var([KA_CFLAGS], [-fno-strict-aliasing])
+
 dnl ---- [ Is function __attribute__((error(msg))) supported? ] ----
 AC_MSG_CHECKING([for function __attribute__((error(msg))) support])
 AC_COMPILE_IFELSE(
