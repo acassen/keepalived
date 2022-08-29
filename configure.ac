@@ -179,6 +179,8 @@ AC_ARG_ENABLE(regex,
   [AS_HELP_STRING([--enable-regex], [build with HTTP_GET regex checking])])
 AC_ARG_ENABLE(vmac,
   [AS_HELP_STRING([--disable-vmac], [build without VMAC support])])
+AC_ARG_ENABLE(nm,
+  [AS_HELP_STRING([--enable-nm], [enable setting VMACs unmanaged by NetworkManager (for pre 1.18 NM)])])
 AC_ARG_ENABLE(regex-timers,
   [AS_HELP_STRING([--enable-regex-timers], [build with HTTP_GET regex timers])])
 AC_ARG_ENABLE(json,
@@ -2276,6 +2278,24 @@ if test ${MACVLAN_SUPPORT} = Yes; then
   CPPFLAGS="$SAV_CPPFLAGS"
 fi
 
+LIBNM_SUPPORT=No
+AS_IF([test \( ${MACVLAN_SUPPORT} = Yes -a .$enable_nm = .yes \)],
+  [
+    dnl ----[ Check if libnm available ]----
+    $PKG_CONFIG --exists libnm
+    AS_IF([ test $? -eq 0 ],
+      [
+	AC_DEFINE([_HAVE_LIBNM_], [ 1 ], [Define to 1 to use libnm])
+	add_pkg_config([libnm])
+	add_system_opt([LIBNM])
+	LIBNM_SUPPORT=Yes
+      ],
+      [
+        AC_MSG_ERROR([--enable-nm requires NetworkManager libnm development package to be installed])
+      ])
+  ])
+AM_CONDITIONAL([NETWORK_MANAGER], [test $LIBNM_SUPPORT = Yes])
+
 dnl ----[ Checks for SNMP support ]----
 SNMP_SUPPORT=No
 SNMP_KEEPALIVED_SUPPORT=No
@@ -3139,6 +3159,8 @@ if test ${VRRP_SUPPORT} = Yes; then
   echo "Use VRRP authentication  : ${VRRP_AUTH_SUPPORT}"
   echo "With track_process       : ${WITH_TRACK_PROCESS}"
   echo "With linkbeat            : ${LINKBEAT_SUPPORT}"
+  AS_IF([test ${MACVLAN_SUPPORT} = Yes],
+    [echo "Use NetworkManager       : ${LIBNM_SUPPORT}"])
 fi
 echo "Use BFD Framework        : ${BFD_SUPPORT}"
 echo "SNMP vrrp support        : ${SNMP_VRRP_SUPPORT}"

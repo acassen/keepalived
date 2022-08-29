@@ -40,6 +40,10 @@ For systemd integration
 	systemd-devel
 For efficient module loading
 	kmod-devel
+For setting VMAC interfaces unmanaged by NetworkManager. This is not needed for
+   NetworkManager >= 1.18, and possibly some earlier versions, but is needed for
+   NetworkManager 1.12.
+	NetworkManager-libnm-devel
 
 For building the documentation, the following packages need to be installed:
 	Fedora: python-sphinx (will pull in: python2-sphinx_rtd_theme)
@@ -73,6 +77,8 @@ For systemd integration
 	libsystemd-dev
 For efficient module loading
 	libkmod-dev
+For setting VMAC interfaces unmanaged by NetworkManager (see comment above).
+	libnm-dev
 
 For building the documentation, the following packages need to be installed:
 	python-sphinx python-sphinx-rtd-theme
@@ -98,6 +104,8 @@ For SNMP support:
 	net-snmp-dev (requires libressl-dev and not openssl-dev)
 For PCRE support
 	pcre2-dev
+For setting VMAC interfaces unmanaged by NetworkManager (see comment above).
+	networkmanager-dev
 
 For building the documentation, the following packages need to be installed:
 	py-sphinx py3-sphinx_rtd_theme

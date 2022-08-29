@@ -70,4 +70,9 @@ if WITH_JSON
   EXTRA_libvrrp_a_SOURCES += vrrp_json.c
 endif
 
+if NETWORK_MANAGER
+  libvrrp_a_LIBADD	+= vrrp_vmac_nm.o
+  EXTRA_libvrrp_a_SOURCES += vrrp_vmac_nm.c
+endif
+
 MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@
