@@ -385,26 +385,11 @@ run_perf(const char *process, const char *network_namespace, const char *instanc
 #endif
 
 /* Compute a checksum */
-
-/*
- * There appears to be a GCC LTO bug, which caused this function, when
- * built with LTO, to return inconsistent results.
- *
- * The problem was observed with GCC versions 11.2, 11.3.1 and
- * 12.1.1, on Ubuntu 22.04, Fedora 34, Fedora 36 and Fedora 37 (Rawhide).
- * No working versions of GCC have been identified.
- *
- * The problem did not occur when not using LTO, nor when using
- * clang, even with LTO.
- *
- * The problem is that addr appears to have the wrong value for the first
- * call of this function from vrrp_build_vrrp_v3(). ipv4_phdr.src, ipv4_phdr.dst
- * nor any of the other values match addr[0], addr[1] etc.
- */
-uint16_t GCC_LTO_NOINLINE
-in_csum(const uint16_t *addr, size_t len, uint32_t csum, uint32_t *acc)
+uint16_t
+in_csum(const unsigned char *b_addr, size_t len, uint32_t csum, uint32_t *acc)
 {
 	size_t nleft = len;
+	uint16_t w16;
 
 	/*
 	 *  Our algorithm is simple, using a 32 bit accumulator (sum),
@@ -412,14 +397,26 @@ in_csum(const uint16_t *addr, size_t len, uint32_t csum, uint32_t *acc)
 	 *  back all the carry bits from the top 16 bits into the lower
 	 *  16 bits.
 	 */
+
+	/* What is not so simple is dealing with strict aliasing. We can only
+	 * access the data via a char/unsigned char pointer, since that is the
+	 * only type of pointer that can be used for aliasing.
+	 * The trick here is we use memcpy to copy the uint16_t via an unsigned
+	 * char *. The memcpy doesn't actually happen since the compiler sees
+	 * what is happening, optimizes it out and accesses the original memory,
+	 * but since the code is written to only access the original memory via
+	 * the unsigned char *, the compiler knows this might be aliasing.
+	 */
 	while (nleft > 1) {
-		csum += *addr++;
+		memcpy(&w16, b_addr, sizeof(w16));
+		csum += w16;
+		b_addr += sizeof(w16);
 		nleft -= 2;
 	}
 
 	/* mop up an odd byte, if necessary */
 	if (nleft == 1)
-		csum += htons(*PTR_CAST_CONST(u_char, addr) << 8);
+		csum += htons(*b_addr << 8);
 
 	if (acc)
 		*acc = csum;
@@ -437,7 +434,7 @@ const char *
 inet_ntop2(uint32_t ip)
 {
 	static char buf[16];
-	const unsigned char (*bytep)[4] = (unsigned char (*)[4])&ip;
+	const unsigned char (*bytep)[4] = (const unsigned char (*)[4])&ip;
 
 	sprintf(buf, "%d.%d.%d.%d", (*bytep)[0], (*bytep)[1], (*bytep)[2], (*bytep)[3]);
 	return buf;

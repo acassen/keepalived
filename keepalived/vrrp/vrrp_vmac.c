@@ -39,6 +39,9 @@
 #include "vrrp_ipaddress.h"
 #include "vrrp_firewall.h"
 #include "global_data.h"
+#ifdef _HAVE_LIBNM_
+#include "vrrp_vmac_nm.h"
+#endif
 
 const char * const macvlan_ll_kind = "macvlan";
 #ifdef _HAVE_VRRP_IPVLAN_
@@ -401,6 +404,11 @@ netlink_link_add_vmac(vrrp_t *vrrp, const interface_t *old_interface)
 		 * get updated by out of date queued messages */
 		kernel_netlink_poll();
 	}
+
+#ifdef _HAVE_LIBNM_
+	/* Set the interface not managed by NetworkManager */
+	set_vmac_unmanaged_nm(vrrp->vmac_ifname);
+#endif
 
 	ifp->vmac_type = MACVLAN_MODE_PRIVATE;
 

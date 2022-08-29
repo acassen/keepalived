@@ -2008,7 +2008,9 @@ interface_up_down_delays_handler(const vector_t *strvec)
 void
 init_vrrp_keywords(bool active)
 {
+#if defined _WITH_VRRP_AUTH_
 	vpp_t check_ptr;
+#endif
 
 	/* Track group declarations */
 	install_keyword_root("track_group", &static_track_group_handler, active, VPP &current_stg);

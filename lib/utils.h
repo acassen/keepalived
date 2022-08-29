@@ -260,7 +260,7 @@ extern void set_process_name(const char *);
 #ifdef _WITH_PERF_
 extern void run_perf(const char *, const char *, const char *);
 #endif
-extern uint16_t in_csum(const uint16_t *, size_t, uint32_t, uint32_t *) GCC_LTO_NOINLINE;
+extern uint16_t in_csum(const unsigned char *, size_t, uint32_t, uint32_t *);
 extern const char *inet_ntop2(uint32_t);
 extern bool inet_stor(const char *, uint32_t *);
 extern int domain_stosockaddr(const char *, const char *, sockaddr_t *);

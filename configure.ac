@@ -179,6 +179,8 @@ AC_ARG_ENABLE(regex,
   [AS_HELP_STRING([--enable-regex], [build with HTTP_GET regex checking])])
 AC_ARG_ENABLE(vmac,
   [AS_HELP_STRING([--disable-vmac], [build without VMAC support])])
+AC_ARG_ENABLE(nm,
+  [AS_HELP_STRING([--enable-nm], [enable setting VMACs unmanaged by NetworkManager (for pre 1.18 NM)])])
 AC_ARG_ENABLE(regex-timers,
   [AS_HELP_STRING([--enable-regex-timers], [build with HTTP_GET regex timers])])
 AC_ARG_ENABLE(json,
@@ -403,8 +405,11 @@ KA_LDFLAGS=$LDFLAGS
 KA_LIBS=$LDLIBS
 
 # For reporting GCC bugs, uncomment the next two lines
-#KA_CPPFLAGS=$KA_CPPFLAGS -v -save-temps"
-#KA_CFLAGS=$KA_CFLAGS -v -save-temps"
+#KA_CPPFLAGS="$KA_CPPFLAGS -v -save-temps"
+#KA_CFLAGS="$KA_CFLAGS -v -save-temps"
+
+# To produce mixed source and assembly
+#KA_CFLAGS="$KA_CFLAGS -Wa,adhln"
 
 NEED_LIBDL=No
 #KA_LIBTOOLFLAGS =
@@ -568,8 +573,6 @@ AS_IF([test $CC = gcc],
   dnl -- -Wstringop-overflow warnings
   dnl -- I haven't been able to produce a test case to demonstrate this GCC bug, so we can't
   dnl -- test it here, nor have I been able to report a bug upstream to GCC.
-  dnl -- Also (see github issue #2160) inlining with LTO makes in_csum behave incorrectly with
-  dnl -- GCC 11.2, 11.3.1 and 12.1.1.
   AC_MSG_CHECKING([if using GCC Link Time Optimisation])
   echo " $CFLAGS " | grep -q -- " -flto=auto "
   AS_IF([test $? -eq 0],
@@ -792,6 +795,9 @@ AS_IF([test .$HAVE_WARNING_STRICT_OVERFLOW = .yes],
       ]
      )
 CFLAGS="$SAV_CFLAGS"
+
+# keepalived is not suitable for assuming strict aliasing (it does a lot of type casting)
+add_to_var([KA_CFLAGS], [-fno-strict-aliasing])
 
 dnl ---- [ Is function __attribute__((error(msg))) supported? ] ----
 AC_MSG_CHECKING([for function __attribute__((error(msg))) support])
@@ -2273,6 +2279,24 @@ if test ${MACVLAN_SUPPORT} = Yes; then
   CPPFLAGS="$SAV_CPPFLAGS"
 fi
 
+LIBNM_SUPPORT=No
+AS_IF([test \( ${MACVLAN_SUPPORT} = Yes -a .$enable_nm = .yes \)],
+  [
+    dnl ----[ Check if libnm available ]----
+    $PKG_CONFIG --exists libnm
+    AS_IF([ test $? -eq 0 ],
+      [
+	AC_DEFINE([_HAVE_LIBNM_], [ 1 ], [Define to 1 to use libnm])
+	add_pkg_config([libnm])
+	add_system_opt([LIBNM])
+	LIBNM_SUPPORT=Yes
+      ],
+      [
+        AC_MSG_ERROR([--enable-nm requires NetworkManager libnm development package to be installed])
+      ])
+  ])
+AM_CONDITIONAL([NETWORK_MANAGER], [test $LIBNM_SUPPORT = Yes])
+
 dnl ----[ Checks for SNMP support ]----
 SNMP_SUPPORT=No
 SNMP_KEEPALIVED_SUPPORT=No
@@ -3128,14 +3152,16 @@ if test ${IPVS_SUPPORT} = Yes; then
   echo "IPVS syncd attributes    : ${IPVS_SYNCD_ATTRIBUTES}"
   echo "IPVS 64 bit stats        : ${IPVS_64BIT_STATS}"
   echo "HTTP_GET regex support   : ${WITH_REGEX}"
+  echo "fwmark socket support    : ${SO_MARK_SUPPORT}"
 fi
-echo "fwmark socket support    : ${SO_MARK_SUPPORT}"
 echo "Use VRRP Framework       : ${VRRP_SUPPORT}"
 if test ${VRRP_SUPPORT} = Yes; then
   echo "Use VRRP VMAC            : ${MACVLAN_SUPPORT}"
   echo "Use VRRP authentication  : ${VRRP_AUTH_SUPPORT}"
   echo "With track_process       : ${WITH_TRACK_PROCESS}"
   echo "With linkbeat            : ${LINKBEAT_SUPPORT}"
+  AS_IF([test ${MACVLAN_SUPPORT} = Yes],
+    [echo "Use NetworkManager       : ${LIBNM_SUPPORT}"])
 fi
 echo "Use BFD Framework        : ${BFD_SUPPORT}"
 echo "SNMP vrrp support        : ${SNMP_VRRP_SUPPORT}"
