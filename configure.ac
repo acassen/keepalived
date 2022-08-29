@@ -408,6 +408,9 @@ KA_LIBS=$LDLIBS
 #KA_CPPFLAGS="$KA_CPPFLAGS -v -save-temps"
 #KA_CFLAGS="$KA_CFLAGS -v -save-temps"
 
+# To produce mixed source and assembly
+#KA_CFLAGS="$KA_CFLAGS -Wa,adhln"
+
 NEED_LIBDL=No
 #KA_LIBTOOLFLAGS =
 
@@ -570,8 +573,6 @@ AS_IF([test $CC = gcc],
   dnl -- -Wstringop-overflow warnings
   dnl -- I haven't been able to produce a test case to demonstrate this GCC bug, so we can't
   dnl -- test it here, nor have I been able to report a bug upstream to GCC.
-  dnl -- Also (see github issue #2160) inlining with LTO makes in_csum behave incorrectly with
-  dnl -- GCC 11.2, 11.3.1 and 12.1.1.
   AC_MSG_CHECKING([if using GCC Link Time Optimisation])
   echo " $CFLAGS " | grep -q -- " -flto=auto "
   AS_IF([test $? -eq 0],
