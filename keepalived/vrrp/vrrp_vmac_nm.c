@@ -64,7 +64,7 @@ _device_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 }
 #endif
 
-/* Older versions of NetworkManager (certainly version 1.12, but resolved by 1.18)
+/* Older versions of NetworkManager (certainly version 1.0.6, but resolved by 1.18)
  * set macvlans, when created, as manager by NetworkManager. This caused problems
  * when the underlying interface went down, since NM would then down the macvlan
  * interface and when the underlying interface recovered, the macvlan interface
