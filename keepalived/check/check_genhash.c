@@ -155,7 +155,9 @@ check_genhash_parse_cmdline(int argc, char **argv, checker_t *checker)
 			__set_bit(GENHASH_SERVER_BIT, &parsed_bits);
 			break;
 		case 'V':
+RELAX_INLINE_START
 			http_get_check->virtualhost = STRDUP(optarg);
+RELAX_INLINE_END
 			__set_bit(GENHASH_VHOST_BIT, &parsed_bits);
 			break;
 		case 'p':
@@ -170,7 +172,9 @@ check_genhash_parse_cmdline(int argc, char **argv, checker_t *checker)
 		case 'u':
 			PMALLOC(url);
 			INIT_LIST_HEAD(&url->e_list);
+RELAX_INLINE_START
 			url->path = STRDUP(optarg);
+RELAX_INLINE_END
 			url->digest = MALLOC(MD5_DIGEST_LENGTH);
 			list_add_tail(&url->e_list, &http_get_check->url);
 			http_get_check->url_it = url;

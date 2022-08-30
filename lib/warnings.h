@@ -129,4 +129,14 @@ _Pragma("GCC diagnostic ignored \"-Wredundant-decls\"")
 #define RELAX_REDUNDANT_DECLS_END
 #endif
 
+#if defined _HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_ && defined _HAVE_WARNING_INLINE_
+#define RELAX_INLINE_START \
+_Pragma("GCC diagnostic push") \
+_Pragma("GCC diagnostic ignored \"-Winline\"")
+#define RELAX_INLINE_END RELAX_END
+#else
+#define RELAX_INLINE_START
+#define RELAX_INLINE_END
+#endif
+
 #endif
