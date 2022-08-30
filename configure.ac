@@ -242,9 +242,11 @@ AC_ARG_ENABLE(warnings,
 AC_ARG_ENABLE(extra-warnings,
   [AS_HELP_STRING([--enable-extra-warnings], [extra compiler warnings that will probably produce many warnings])])
 AC_ARG_ENABLE(mem-check,
-  [AS_HELP_STRING([--enable-mem-check], [compile with memory alloc checking])])
+  [AS_HELP_STRING([--enable-mem-check], [compile with memory alloc checking - e.g. no writes before or after buffer, everything allocated is freed])])
 AC_ARG_ENABLE(mem-check-log,
   [AS_HELP_STRING([--enable-mem-check-log], [compile with memory alloc checking writing to syslog])])
+AC_ARG_ENABLE(malloc-check,
+  [AS_HELP_STRING([--enable-malloc-check], [compile with malloc checking - i.e. malloc etc returning NULL])])
 AC_ARG_ENABLE(timer-check,
   [AS_HELP_STRING([--enable-timer-check], [compile with set time logging])])
 AC_ARG_ENABLE(debug,
@@ -2664,6 +2666,15 @@ if test "${enable_mem_check}" = "yes"; then
   fi
 fi
 
+dnl ----[ Malloc check or not ? ]----
+MALLOC_CHECK=No
+AS_IF([test ."${enable_malloc_check}" = ."yes"],
+  [
+    MALLOC_CHECK=Yes
+    AC_DEFINE([_MALLOC_CHECK_], [ 1 ], [Define to 1 to build with malloc failure checks])
+    add_config_opt([MALLOC_CHECK])
+  ])
+
 dnl ----[ Log calls to set_time or not ? ]----
 TIMER_CHECK=No
 if test "${enable_timer_check}" = "yes"; then
@@ -3197,6 +3208,8 @@ if test ${MEM_CHECK} = Yes; then
   echo "Memory alloc check       : Yes"
   echo "Memory alloc check log   : ${MEM_CHECK_LOG}"
 fi
+AS_IF([test ${MALLOC_CHECK} = Yes],
+  [echo "Malloc check             : Yes"])
 if test ${TIMER_CHECK} = Yes; then
   echo "Set time logging         : Yes"
 fi

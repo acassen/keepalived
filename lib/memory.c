@@ -97,6 +97,12 @@ zalloc(unsigned long size)
 
 	if (mem)
 		memset(mem, 0, size);
+#ifdef _MALLOC_CHECK_
+	else {
+		log_message(LOG_ERR, "zalloc(%zu) returned NULL", size);
+		exit(1);
+	}
+#endif
 
 	return mem;
 }
@@ -303,8 +309,13 @@ keepalived_strdup(const char *str, const char *file, const char *function, int l
 {
 	char *str_p;
 
-	if (!__test_bit(MEM_CHECK_BIT, &debug))
+	if (!__test_bit(MEM_CHECK_BIT, &debug)) {
+#ifdef _MALLOC_CHECK_
+		return strdup_check(str);
+#else
 		return strdup(str);
+#endif
+	}
 
 	str_p = keepalived_malloc_common(strlen(str) + 1, file, function, line, "strdup");
 	return strcpy(str_p, str);
@@ -316,8 +327,14 @@ keepalived_strndup(const char *str, size_t size, const char *file, const char *f
 	char *str_p;
 
 	if (!__test_bit(MEM_CHECK_BIT, &debug))
+#ifdef _MALLOC_CHECK_
+		return strndup_check(str, size);
+#else
 		return strndup(str, size);
+#endif
 
+	/* Note: keepalived_malloc_common initialises allocated memory to 0s.
+	 * This means that after the strncpy, str_p will be NULL terminated. */
 	str_p = keepalived_malloc_common(size + 1, file, function, line, "strndup");
 	return strncpy(str_p, str, size);
 }
@@ -548,8 +565,13 @@ void *
 keepalived_realloc(void *buffer, size_t size, const char *file,
 		   const char *function, int line)
 {
-	if (!__test_bit(MEM_CHECK_BIT, &debug))
+	if (!__test_bit(MEM_CHECK_BIT, &debug)) {
+#ifdef _MALLOC_CHECK_
+		return realloc_check(buffer, size);
+#else
 		return realloc(buffer, size);
+#endif
+	}
 
 	return keepalived_free_realloc_common(buffer, size, file, function, line, true);
 }

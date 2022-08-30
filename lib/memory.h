@@ -31,10 +31,19 @@
 #ifdef _MEM_CHECK_
 #include <sys/types.h>
 #include <sys/stat.h>
-#else
+#endif
+#ifdef _MALLOC_CHECK_
+#include <string.h>
+#endif
+#if !defined _MEM_CHECK || defined _MALLOC_CHECK_
 #include <stdlib.h>
 #endif
 #include <stdbool.h>
+
+/* local includes */
+#ifdef _MALLOC_CHECK_
+#include "logger.h"
+#endif
 
 /* Local defines */
 #ifdef _MEM_CHECK_
@@ -58,8 +67,47 @@ extern size_t mem_allocated;
 #ifdef _MEM_ERR_DEBUG_
 extern bool do_mem_err_debug;
 #endif
+#endif
+
+#ifdef _MALLOC_CHECK_
+static inline void *
+realloc_check(void *ptr, size_t size) {
+	void *ptr_ret;
+
+	if ((ptr_ret = realloc(ptr, size)))
+		return ptr_ret;
+
+	log_message(LOG_ERR, "realloc(%p, %zu) returned NULL", ptr, size);
+	exit(1);
+}
+
+static inline char *
+strdup_check(const char *s)
+{
+	char *s_ret;
+
+	if ((s_ret = strdup(s)))
+		return s_ret;
+
+	log_message(LOG_ERR, "strdup(%p) returned NULL", s);
+	exit(1);
+}
+
+static inline char *
+strndup_check(const char *s,size_t n)
+{
+	char *s_ret;
+
+	if ((s_ret = strndup(s, n)))
+		return s_ret;
+
+	log_message(LOG_ERR, "strndup(%p, %zu) returned NULL", s, n);
+	exit(1);
+}
+#endif
 
 /* Memory debug prototypes defs */
+#ifdef _MEM_CHECK_
 extern void memcheck_log(const char *, const char *, const char *, const char *, int);
 extern void *keepalived_malloc(size_t, const char *, const char *, int)
 		__attribute__((alloc_size(1))) __attribute__((malloc));
@@ -86,9 +134,16 @@ extern void *zalloc(unsigned long size);
 #define MALLOC(n)    (zalloc(n))
 #define FREE(p)      (free(p), (p) = NULL)
 #define FREE_ONLY(p) (free(p))
+
+#ifndef _MALLOC_CHECK_
 #define REALLOC(p,n) (realloc((p),(n)))
 #define STRDUP(p)    (strdup(p))
 #define STRNDUP(p,n) (strndup((p),(n)))
+#else
+#define REALLOC(p,n) (realloc_check((p),(n)))
+#define STRDUP(p)    (strdup_check(p))
+#define STRNDUP(p,n) (strndup_check((p),(n)))
+#endif
 
 #endif
 
