@@ -56,7 +56,7 @@
 
 
 /* Global vars */
-list_head_t checkers_queue;
+LIST_HEAD_INITIALIZE(checkers_queue);
 #ifdef _CHECKER_DEBUG_
 bool do_checker_debug;
 #endif
