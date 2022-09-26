@@ -6,19 +6,36 @@
 #include <unistd.h>
 #include <errno.h>
 #include <stdbool.h>
+#include <readline/readline.h>
+#include <readline/history.h>
+#include <string.h>
 
 static void
 print_usage(FILE *fp, const char *name)
 {
 	fprintf(fp, "Usage: %s [options]\n", name);
-	fprintf(fp, "\t-a addr\t\tbind to addr\n");
-	fprintf(fp, "\t-p port\t\tlisten on port\n");
+	fprintf(fp, "\t-a addr\t\tconnect to addr\n");
+	fprintf(fp, "\t-p port\t\tconnect to port\n");
 	fprintf(fp, "\t-s\t\tsilent\n");
 	fprintf(fp, "\t-u\t\tuse UDP\n");
 	fprintf(fp, "\t-d dly\tdelay dly seconds after connect\n");
-	fprintf(fp, "\t-e\t\techo\n");
+	fprintf(fp, "\t-e\t\tsend stdin\n");
 	fprintf(fp, "\t-f\t\tenable tcp_fastopen\n");
 	fprintf(fp, "\t-h\t\tprint this\n");
+}
+
+static void
+send_stdin(int sock)
+{
+	char *line;
+	size_t len;
+
+	while ((line = readline("Send> "))) {
+		len = strlen(line);
+		line[len] = '\n';	// No longer NULL terminated
+		write(sock, line, len + 1);
+		free(line);
+	}
 }
 
 int main(int argc, char **argv)
@@ -30,7 +47,7 @@ int main(int argc, char **argv)
 	char *addr_str;
 	char *port_str;
 	bool silent = false;
-	bool echo_data = false;
+	bool use_stdin = false;
 	int sock_type = SOCK_STREAM;
 	bool tcp_fastopen = false;
 	ssize_t r;
@@ -69,7 +86,7 @@ int main(int argc, char **argv)
 			delay_after_connect = strtol(optarg, &endptr, 10);
 			break;
 		case 'e':
-			echo_data = true;
+			use_stdin = true;
 			break;
 		case 'h':
 			print_usage(stdout, argv[0]);
@@ -113,19 +130,23 @@ int main(int argc, char **argv)
 		printf("Woken up\n");
 	}
 
-	int i = 0;
-	while (i++ < 5) {
-		uint16_t *p = (uint16_t *)msg;
-		for (int h = 0; h < msglen / sizeof(*p); h++)
-			*p++ = h + i;
-		write(sock, msg, msglen / 2);
-		if ((len = read(sock, buf, msglen - 1)) <= 0) {
-			printf("read returned %d (%m)\n", errno);
-			exit(1);
-		} else
-			printf("read read %zd bytes %u %u %u %u\n", len, buf[0], buf[1], buf[2], buf[3]);
+	if (use_stdin) {
+		send_stdin(sock);
+	} else {
+		int i = 0;
+		while (i++ < 5) {
+			uint16_t *p = (uint16_t *)msg;
+			for (int h = 0; h < msglen / sizeof(*p); h++)
+				*p++ = h + i;
+			write(sock, msg, msglen / 2);
+			if ((len = read(sock, buf, msglen - 1)) <= 0) {
+				printf("read returned %d (%m)\n", errno);
+				exit(1);
+			} else
+				printf("read read %zd bytes %u %u %u %u\n", len, buf[0], buf[1], buf[2], buf[3]);
 
-		sleep(1);
+			sleep(1);
+		}
 	}
 
 	shutdown(sock, SHUT_WR);

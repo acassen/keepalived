@@ -235,17 +235,19 @@ checker_terminate_phase1(bool schedule_next_thread)
 	if (using_ha_suspend || __test_bit(LOG_ADDRESS_CHANGES, &debug))
 		kernel_netlink_close();
 
-	/* Terminate all script processes */
-	if (master->child.rb_root.rb_node)
-		script_killall(master, SIGTERM, true);
+	if (check_data) {
+		/* Terminate all script processes */
+		if (master->child.rb_root.rb_node)
+			script_killall(master, SIGTERM, true);
 
-	/* Stop monitoring files */
-	if (!list_empty(&check_data->track_files))
-		stop_track_files();
+		/* Stop monitoring files */
+		if (!list_empty(&check_data->track_files))
+			stop_track_files();
 
-	/* Send shutdown messages */
-	if (!__test_bit(DONT_RELEASE_IPVS_BIT, &debug))
-		clear_services();
+		/* Send shutdown messages */
+		if (!__test_bit(DONT_RELEASE_IPVS_BIT, &debug))
+			clear_services();
+	}
 
 	if (schedule_next_thread) {
 		/* If there are no child processes, we can terminate immediately,

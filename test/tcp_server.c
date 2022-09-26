@@ -84,7 +84,8 @@ send_html_resp(int fd, struct cmd_resp *p)
 	write(fd, header_buf, strlen(header_buf));
 }
 
-static void find_resp(int fd, const char *cmd)
+static void
+find_resp(int fd, const char *cmd)
 {
 	struct cmd_resp *p;
 	const char *s, *e;
@@ -224,7 +225,7 @@ printf("Replying: %s", reply);
 }
 
 static void
-process_data(int fd)
+process_data(int fd, bool swallow)
 {
 	char buf[1024];
 	int len;
@@ -235,7 +236,7 @@ process_data(int fd)
 	}
 
 	while ((len = read(fd, buf, sizeof(buf) - 1)) > 0) {
-//printf("(%d) Read %d bytes\n", getpid(),  len);
+printf("(%d) Read %d bytes\n", getpid(),  len);
 		buf[len] = '\0';
 
 		/* Exit if receive ^D */
@@ -248,11 +249,11 @@ process_data(int fd)
 			send_email_response(fd, buf);
 		else if (cmd_resp_list)
 			find_resp(fd, buf);
-		else
+		else if (!swallow)
 			write(fd, buf, len);
-//printf("(%d) Going to read again\n", getpid());
+printf("(%d) Going to read again\n", getpid());
 	}
-//printf("(%d) Process_data returning, len = %d, errno %d - %m\n", getpid(),  len, errno);
+printf("(%d) Process_data returning, len = %d, errno %d - %m\n", getpid(),  len, errno);
 }
 
 static void
@@ -266,6 +267,7 @@ print_usage(FILE *fp, const char *name)
 	fprintf(fp, "\t-s\t\tsilent\n");
 	fprintf(fp, "\t-u\t\tuse UDP\n");
 	fprintf(fp, "\t-e\t\techo\n");
+	fprintf(fp, "\t-e\t\tswallow received data\n");
 	fprintf(fp, "\t-b len\t\tbacklog length\n");
 	fprintf(fp, "\t-c cmd resp\tsend resp if receive cmd\n");
 	fprintf(fp, "\t-v ver\t\tset HTML version to use (default 1.1)\n");
@@ -279,7 +281,9 @@ print_usage(FILE *fp, const char *name)
 	fprintf(fp, "\t-Z\t\ttoggle close on send (default off)\n");
 	fprintf(fp, "\t-g\t\tdebug data\n");
 	fprintf(fp, "\t-G\t\tdebug\n");
+#ifdef TCP_FASTOPEN
 	fprintf(fp, "\t-f qlen\t\tenable tcp_fastopen\n");
+#endif
 	fprintf(fp, "\t-i [len|str]\tsend len bytes or string str immedately after accept\n");
 	fprintf(fp, "\t-h\t\tprint this\n");
 }
@@ -302,17 +306,24 @@ int main(int argc, char **argv)
 	char *addr_str = NULL;
 	char addr_buf[sizeof (struct in6_addr)] __attribute__((align(__alignof__(struct in6_addr))));
 	bool echo_data = false;
+	bool swallow_data = false;
 	char *endptr;
 	long port_num;
 	unsigned backlog = 4;
 	bool close_after_send = false;
 	char *html_version = "1.1";
+#ifdef TCP_FASTOPEN
 	unsigned tcp_fastopen = 0;
+#endif
 	unsigned immediate_data_len;
 	char *immediate_data = NULL;
 	bool immediate_data_malloc = false;
 
-	while ((opt = getopt(argc, argv, ":h46a:p:sueb:c:l:d:rm:v:WM::w:ZDgGf:i:")) != -1) {
+	while ((opt = getopt(argc, argv, ":h46a:p:sueb:c:l:d:rm:v:WM::w:ZDgGi:S"
+#ifdef TCP_FASTOPEN
+					"f:"
+#endif
+					)) != -1) {
 		switch (opt) {
 		case '4':
 			family = AF_INET;
@@ -339,6 +350,9 @@ int main(int argc, char **argv)
 			break;
 		case 'e':
 			echo_data = true;
+			break;
+		case 'S':
+			swallow_data = true;
 			break;
 		case 'b':
 			backlog = strtoul(optarg, &endptr, 10);
@@ -403,9 +417,11 @@ int main(int argc, char **argv)
 		case 'h':
 			print_usage(stdout, argv[0]);
 			exit(0);
+#ifdef TCP_FASTOPEN
 		case 'f':
 			tcp_fastopen = strtoul(optarg, &endptr, 10);
 			break;
+#endif
 		case 'i':
 			if (immediate_data && immediate_data_malloc)
 				free(immediate_data);
@@ -466,12 +482,14 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
+#ifdef TCP_FASTOPEN
 	if (tcp_fastopen) {
 		if (setsockopt(listenfd, SOL_TCP, TCP_FASTOPEN, &tcp_fastopen, sizeof(tcp_fastopen))) {
 			printf("(%d) Set TCP_FASTOPEN failed, errno %d (%m)\n", getpid(),  errno);
 			exit(1);
 		}
 	}
+#endif
 
 	if (family == AF_INET) {
 		bzero(&servaddr, sizeof(servaddr));
@@ -521,8 +539,8 @@ int main(int argc, char **argv)
 				if (immediate_data)
 					write(connfd, immediate_data, immediate_data_len);
 
-				if (echo_data || cmd_resp_list || email_server)
-					process_data(connfd);
+				if (echo_data || cmd_resp_list || email_server || swallow_data)
+					process_data(connfd, swallow_data);
 				else
 					sleep (1);
 				exit(0);
