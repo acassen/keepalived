@@ -310,8 +310,6 @@ set_effective_weights(void)
 static void
 start_check(list_head_t *old_checkers_queue, data_t *prev_global_data)
 {
-	init_checkers_queue();
-
 	/* Parse configuration file */
 	if (reload)
 		global_data = alloc_global_data();
