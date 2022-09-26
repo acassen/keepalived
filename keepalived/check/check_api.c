@@ -504,7 +504,8 @@ free_rs_checkers(const real_server_t *rs)
 void
 free_checkers_queue(void)
 {
-	free_checker_list(&checkers_queue);
+	if (checkers_queue.prev && checkers_queue.next)
+		free_checker_list(&checkers_queue);
 }
 
 /* register checkers to the global I/O scheduler */
