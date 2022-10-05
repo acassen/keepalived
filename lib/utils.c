@@ -385,12 +385,14 @@ run_perf(const char *process, const char *network_namespace, const char *instanc
 #endif
 
 /* Compute a checksum */
+#define USE_MEMCPY_FOR_ALIASING
 #ifdef USE_MEMCPY_FOR_ALIASING
 uint16_t
-in_csum(const unsigned char *b_addr, size_t len, uint32_t csum, uint32_t *acc)
+in_csum(const void *addr, size_t len, uint32_t csum, uint32_t *acc)
 {
 	size_t nleft = len;
 	uint16_t w16;
+	const unsigned char *b_addr = addr;
 
 	/*
 	 *  Our algorithm is simple, using a 32 bit accumulator (sum),
@@ -432,11 +434,12 @@ in_csum(const unsigned char *b_addr, size_t len, uint32_t csum, uint32_t *acc)
 #else
 typedef uint16_t __attribute__((may_alias)) uint16_t_a;
 uint16_t
-in_csum(const uint16_t_a *addr, size_t len, uint32_t csum, uint32_t *acc)
+in_csum(const void *addr, size_t len, uint32_t csum, uint32_t *acc)
 {
-	register size_t nleft = len;
-	register uint16_t answer;
-	register uint32_t sum = csum;
+	size_t nleft = len;
+	const uint16_t_a *w = addr;
+	uint16_t answer;
+	uint32_t sum = csum;
 
 	/*
 	 *  Our algorithm is simple, using a 32 bit accumulator (sum),
@@ -445,13 +448,13 @@ in_csum(const uint16_t_a *addr, size_t len, uint32_t csum, uint32_t *acc)
 	 *  16 bits.
 	 */
 	while (nleft > 1) {
-		sum += *addr++;
+		sum += *w++;
 		nleft -= 2;
 	}
 
 	/* mop up an odd byte, if necessary */
 	if (nleft == 1)
-		sum += htons(*PTR_CAST_CONST(u_char, addr) << 8);
+		sum += htons(*PTR_CAST_CONST(u_char, w) << 8);
 
 	if (acc)
 		*acc = sum;
