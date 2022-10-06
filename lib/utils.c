@@ -385,11 +385,14 @@ run_perf(const char *process, const char *network_namespace, const char *instanc
 #endif
 
 /* Compute a checksum */
+#define USE_MEMCPY_FOR_ALIASING
+#ifdef USE_MEMCPY_FOR_ALIASING
 uint16_t
-in_csum(const unsigned char *b_addr, size_t len, uint32_t csum, uint32_t *acc)
+in_csum(const void *addr, size_t len, uint32_t csum, uint32_t *acc)
 {
 	size_t nleft = len;
 	uint16_t w16;
+	const unsigned char *b_addr = addr;
 
 	/*
 	 *  Our algorithm is simple, using a 32 bit accumulator (sum),
@@ -411,7 +414,7 @@ in_csum(const unsigned char *b_addr, size_t len, uint32_t csum, uint32_t *acc)
 		memcpy(&w16, b_addr, sizeof(w16));
 		csum += w16;
 		b_addr += sizeof(w16);
-		nleft -= 2;
+		nleft -= sizeof(w16);
 	}
 
 	/* mop up an odd byte, if necessary */
@@ -428,6 +431,43 @@ in_csum(const unsigned char *b_addr, size_t len, uint32_t csum, uint32_t *acc)
 	csum += (csum >> 16);			/* add carry */
 	return ~csum & 0xffff;			/* truncate to 16 bits */
 }
+#else
+typedef uint16_t __attribute__((may_alias)) uint16_t_a;
+uint16_t
+in_csum(const void *addr, size_t len, uint32_t csum, uint32_t *acc)
+{
+	size_t nleft = len;
+	const uint16_t_a *w = addr;
+	uint16_t answer;
+	uint32_t sum = csum;
+
+	/*
+	 *  Our algorithm is simple, using a 32 bit accumulator (sum),
+	 *  we add sequential 16 bit words to it, and at the end, fold
+	 *  back all the carry bits from the top 16 bits into the lower
+	 *  16 bits.
+	 */
+	while (nleft > 1) {
+		sum += *w++;
+		nleft -= 2;
+	}
+
+	/* mop up an odd byte, if necessary */
+	if (nleft == 1)
+		sum += htons(*PTR_CAST_CONST(u_char, w) << 8);
+
+	if (acc)
+		*acc = sum;
+
+	/*
+	 * add back carry outs from top 16 bits to low 16 bits
+	 */
+	sum = (sum >> 16) + (sum & 0xffff);	/* add hi 16 to low 16 */
+	sum += (sum >> 16);			/* add carry */
+	answer = (~sum & 0xffff);		/* truncate to 16 bits */
+	return (answer);
+}
+#endif
 
 /* IP network to ascii representation - address is in network byte order */
 const char *
