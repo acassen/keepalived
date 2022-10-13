@@ -255,7 +255,7 @@ keepalived_malloc_common(size_t size, const char *file, const char *function, in
 #ifndef _NO_UNALIGNED_ACCESS_
 	*(unsigned long *) PTR_CAST_ASSIGN((char *) buf + size) = size + CHECK_VAL;
 #else
-	unsigned long check_val = CHECK_VAL;
+	unsigned long check_val = size + CHECK_VAL;
 
 	memcpy((unsigned char *)buf + size, (unsigned char *)&check_val, sizeof(check_val));
 #endif
@@ -346,7 +346,7 @@ keepalived_free_realloc_common(void *buffer, size_t size, const char *file, cons
 	MEMCHECK *entry, *entry2, *le;
 	rb_node_t *entry_rb;
 #ifdef _NO_UNALIGNED_ACCESS_
-	unsigned long check_val = CHECK_VAL;
+	unsigned long check_val;
 #endif
 
 	/* If nullpointer remember */
@@ -430,7 +430,7 @@ keepalived_free_realloc_common(void *buffer, size_t size, const char *file, cons
 #ifndef _NO_UNALIGNED_ACCESS_
 	if (*(unsigned long *) PTR_CAST_ASSIGN((char *)buffer + entry->size) != check) {
 #else
-	if (memcmp((unsigned char *)buffer + entry->size, (unsigned char *)&check_val, sizeof(check_val))) {
+	if (memcmp((unsigned char *)buffer + entry->size, (unsigned char *)&check, sizeof(check))) {
 #endif
 		entry2 = get_free_alloc_entry();
 
@@ -530,6 +530,7 @@ keepalived_free_realloc_common(void *buffer, size_t size, const char *file, cons
 #ifndef _NO_UNALIGNED_ACCESS_
 	*(unsigned long *) PTR_CAST_ASSIGN((char *) buffer + size) = size + CHECK_VAL;
 #else
+	check_val = size + CHECK_VAL;
 	memcpy((unsigned char *)buffer + size, (unsigned char *)&check_val, sizeof(check_val));
 #endif
 
