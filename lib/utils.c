@@ -385,7 +385,6 @@ run_perf(const char *process, const char *network_namespace, const char *instanc
 #endif
 
 /* Compute a checksum */
-#define USE_MEMCPY_FOR_ALIASING
 #ifdef USE_MEMCPY_FOR_ALIASING
 uint16_t
 in_csum(const void *addr, size_t len, uint32_t csum, uint32_t *acc)
