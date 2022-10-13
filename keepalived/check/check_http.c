@@ -225,7 +225,7 @@ format_digest(const uint8_t *digest, char *buf)
 }
 
 static void
-dump_url(FILE *fp, const url_t *url)
+dump_url(FILE *fp, bool is_ssl, const url_t *url)
 {
 	char digest_buf[2 * MD5_DIGEST_LENGTH + 1];
 	unsigned int i = 0;
@@ -234,6 +234,8 @@ dump_url(FILE *fp, const url_t *url)
 	conf_write(fp, "   Checked url = %s", url->path);
 	if (url->digest)
 		conf_write(fp, "     digest = %s", format_digest(url->digest, digest_buf));
+	if (is_ssl)
+		conf_write(fp, "     tls_compliant %sset", url->tls_compliant ? "" : "un");
 
 	conf_write(fp, "     HTTP Status Code(s)");
 	for (i = HTTP_STATUS_CODE_MIN; i <= HTTP_STATUS_CODE_MAX; i++) {
@@ -295,12 +297,12 @@ dump_url(FILE *fp, const url_t *url)
 #endif
 }
 static void
-dump_url_list(FILE *fp, const list_head_t *l)
+dump_url_list(FILE *fp, bool is_ssl, const list_head_t *l)
 {
 	url_t *url;
 
 	list_for_each_entry(url, l, e_list)
-		dump_url(fp, url);
+		dump_url(fp, is_ssl, url);
 }
 
 static void
@@ -342,7 +344,9 @@ dump_http_check(FILE *fp, const checker_t *checker)
 	conf_write(fp, "   Enable SNI %sset", http_get_chk->enable_sni ? "" : "un");
 #endif
 	conf_write(fp, "   Fast recovery %sset", http_get_chk->fast_recovery ? "" : "un");
-	dump_url_list(fp, &http_get_chk->url);
+	if (http_get_chk->proto == PROTO_SSL)
+		conf_write(fp, "   tls_compliant %sset", http_get_chk->tls_compliant ? "" : "un");
+	dump_url_list(fp, http_get_chk->proto, &http_get_chk->url);
 	if (http_get_chk->failed_url)
 		conf_write(fp, "   Failed URL = %s", http_get_chk->failed_url->path);
 }
@@ -581,13 +585,27 @@ status_code_handler(const vector_t *strvec)
 static void
 url_virtualhost_handler(const vector_t *strvec)
 {
-
 	if (vector_size(strvec) < 2) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Missing HTTP_GET virtualhost name");
 		return;
 	}
 
 	set_string(&current_url->virtualhost, strvec, "url virtualhost");
+}
+
+static void
+url_tls_compliant_handler(const vector_t *strvec)
+{
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec, 1));
+		if (res == -1) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid tls_compliant option %s", strvec_slot(strvec, 1));
+			return;
+		}
+	}
+	current_url->tls_compliant = res;
 }
 
 static void
@@ -826,6 +844,22 @@ fast_recovery_handler(const vector_t *strvec)
 }
 
 static void
+tls_compliant_handler(const vector_t *strvec)
+{
+	http_checker_t *http_get_chk = current_checker->data;
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec, 1));
+		if (res == -1) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid tls_compliant option %s", strvec_slot(strvec, 1));
+			return;
+		}
+	}
+	http_get_chk->tls_compliant = res;
+}
+
+static void
 url_check(void)
 {
 	unsigned i;
@@ -896,6 +930,8 @@ install_http_ssl_check_keyword(const char *keyword)
 	install_keyword("enable_sni", &enable_sni_handler);
 #endif
 	install_keyword("fast_recovery", &fast_recovery_handler);
+	if (!strcmp(keyword, "SSL_GET"))
+		install_keyword("tls_compliant", &tls_compliant_handler);
 	install_keyword("url", &url_handler);
 	check_ptr1 = install_sublevel(VPP &current_url);
 	install_keyword("path", &path_handler);
@@ -912,6 +948,8 @@ install_http_ssl_check_keyword(const char *keyword)
 	install_keyword("regex_stack", &regex_stack_handler);
 #endif
 #endif
+	if (!strcmp(keyword, "SSL_GET"))
+		install_keyword("tls_compliant", &url_tls_compliant_handler);
 	install_level_end_handler(url_check);
 	install_sublevel_end(check_ptr1);
 	install_level_end_handler(http_get_check_end);

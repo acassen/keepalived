@@ -254,6 +254,9 @@ ssl_connect(thread_ref_t thread, int new_req)
 #endif
 #endif
 
+		if (!url->tls_compliant && !http_get_check->tls_compliant)
+			SSL_set_quiet_shutdown(req->ssl, 1);
+
 #if defined HAVE_SSL_SET0_RBIO && defined HAVE_SSL_SET0_WBIO
 		BIO_up_ref(req->bio);
 		SSL_set0_rbio(req->ssl, req->bio);
@@ -306,7 +309,6 @@ ssl_read_thread(thread_ref_t thread)
 
 	/* Handle read timeout */
 	if (thread->type == THREAD_READ_TIMEOUT) {
-		SSL_set_quiet_shutdown(req->ssl, 1);
 		SSL_shutdown(req->ssl);
 
 		timeout_epilog(thread, "Timeout SSL read");
@@ -388,13 +390,10 @@ ssl_read_thread(thread_ref_t thread)
 	} else
 		digest[0] = 0;
 
-	if (req->error != SSL_ERROR_SSL && req->error != SSL_ERROR_SYSCALL) {
-		SSL_set_quiet_shutdown(req->ssl, 1);
-
+	if (req->error != SSL_ERROR_SSL && req->error != SSL_ERROR_SYSCALL)
 		r = SSL_shutdown(req->ssl);
-	} else {
+	else
 		r = 0;
-	}
 
 	if (r && !req->extracted) {
 		timeout_epilog(thread, "SSL read error from");

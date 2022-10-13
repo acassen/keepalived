@@ -2464,12 +2464,17 @@ The syntax for virtual_server is :
                 # The maximum offset into the returned data for the
                 #   start of the subject match.
                 \fBregex_max_offset \fR<OFFSET>
+		# SSL_GET only - see SSL_GET below for description
+		\fBtls_compliant\fR
             }
         }
 
         \fBSSL_GET \fR{
             # when provided, send Server Name Indicator during SSL handshake
             \fBenable_sni\fR
+	    # Comply with TLS protocol - send close_notify alert
+	    #   (see SSL_set_quiet_shutdown(3) man page)
+	    \fBtls_compliant\fR
         }
 
         # TCP healthchecker
