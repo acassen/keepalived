@@ -234,6 +234,24 @@ ssl_connect(thread_ref_t thread, int new_req)
 		BIO_get_fd(req->bio, &bio_fd);
 		if (fcntl(bio_fd, F_SETFD, fcntl(bio_fd, F_GETFD) | FD_CLOEXEC) == -1)
 			log_message(LOG_INFO, "Setting CLOEXEC failed on ssl socket - errno %d", errno);
+
+		/* There is a memory leak in openSSL at least in version 3.0.1, which is fixed
+		 * by version 3.0.5. It was not present in version 1.1.1n. Since I haven't been
+		 * able to identify the OpenSSL patch that resolved the leak, we play safe and
+		 * assume it is in versions 3.0.0 up to 3.0.4.
+		 * The leak is memory allocated by
+		 *   p = OPENSSL_malloc(len);
+		 * in ssl3_setup_write_buffer() in ssl/record/ssl_buffer.c
+		 *
+		 * It appears that setting SSL_MODE_RELEASE_BUFFERS causes the memory leak not
+		 * to occur.
+		 */
+#ifdef OPENSSL_VERSION_MAJOR
+#if OPENSSL_VERSION_MAJOR == 3 && OPENSSL_VERSION_MINOR == 0 && OPENSSL_VERSION_PATCH <= 4
+		SSL_set_mode(req->ssl, SSL_MODE_RELEASE_BUFFERS);
+#endif
+#endif
+
 #if defined HAVE_SSL_SET0_RBIO && defined HAVE_SSL_SET0_WBIO
 		BIO_up_ref(req->bio);
 		SSL_set0_rbio(req->ssl, req->bio);
