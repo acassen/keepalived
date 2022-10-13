@@ -232,8 +232,10 @@ ssl_connect(thread_ref_t thread, int new_req)
 		}
 
 		BIO_get_fd(req->bio, &bio_fd);
-		if (fcntl(bio_fd, F_SETFD, fcntl(bio_fd, F_GETFD) | FD_CLOEXEC) == -1)
-			log_message(LOG_INFO, "Setting CLOEXEC failed on ssl socket - errno %d", errno);
+		if (bio_fd != thread->u.f.fd) {
+			if (fcntl(bio_fd, F_SETFD, fcntl(bio_fd, F_GETFD) | FD_CLOEXEC) == -1)
+				log_message(LOG_INFO, "Setting CLOEXEC failed on ssl socket - errno %d", errno);
+		}
 
 		/* There is a memory leak in openSSL at least in version 3.0.1, which is fixed
 		 * by version 3.0.5. It was not present in version 1.1.1n. Since I haven't been
