@@ -295,7 +295,7 @@ reload_bfd_thread(__attribute__((unused)) thread_ref_t thread)
 
 	/* Post initializations */
 #ifdef _MEM_CHECK_
-	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);
+	log_message(LOG_INFO, "Configuration is using : %zu Bytes", get_keepalived_cur_mem_allocated());
 #endif
 }
 
@@ -493,7 +493,7 @@ start_bfd_child(void)
 
 	/* Post initializations */
 #ifdef _MEM_CHECK_
-	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);
+	log_message(LOG_INFO, "Configuration is using : %zu Bytes", get_keepalived_cur_mem_allocated());
 #endif
 
 	/* Launch the scheduling I/O multiplexer */

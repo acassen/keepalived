@@ -61,12 +61,6 @@
 		      (__FILE__), (__func__), (__LINE__)))
 #define REALLOC(b,n) ( keepalived_realloc((b), (n), \
 		      (__FILE__), (__func__), (__LINE__)) )
-
-extern size_t mem_allocated;
-
-#ifdef _MEM_ERR_DEBUG_
-extern bool do_mem_err_debug;
-#endif
 #endif
 
 #ifdef _MALLOC_CHECK_
@@ -106,6 +100,10 @@ strndup_check(const char *s,size_t n)
 }
 #endif
 
+#ifdef _OPENSSL_MEM_CHECK_
+extern void openssl_mem_log_init(const char*, const char *);
+#endif
+
 /* Memory debug prototypes defs */
 #ifdef _MEM_CHECK_
 extern void memcheck_log(const char *, const char *, const char *, const char *, int);
@@ -127,6 +125,11 @@ extern void enable_mem_log_termination(void);
 extern void update_mem_check_log_perms(mode_t);
 extern void log_mem_check_message(const char* format, ...)
         __attribute__ ((format (printf, 1, 2)));
+
+extern size_t get_keepalived_cur_mem_allocated(void) __attribute__((pure));
+extern void set_keepalived_mem_err_debug(bool);
+extern bool get_keepalived_mem_err_debug(void) __attribute__((pure));
+
 #else
 
 extern void *zalloc(unsigned long size);

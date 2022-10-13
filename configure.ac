@@ -245,6 +245,8 @@ AC_ARG_ENABLE(mem-check,
   [AS_HELP_STRING([--enable-mem-check], [compile with memory alloc checking - e.g. no writes before or after buffer, everything allocated is freed])])
 AC_ARG_ENABLE(mem-check-log,
   [AS_HELP_STRING([--enable-mem-check-log], [compile with memory alloc checking writing to syslog])])
+AC_ARG_ENABLE(openssl-mem-check,
+  [AS_HELP_STRING([--enable-openssl-mem-check], [compile with OpenSSL memory alloc checking - e.g. no writes before or after buffer, everything allocated is freed])])
 AC_ARG_ENABLE(malloc-check,
   [AS_HELP_STRING([--enable-malloc-check], [compile with malloc checking - i.e. malloc etc returning NULL])])
 AC_ARG_ENABLE(timer-check,
@@ -475,6 +477,7 @@ AS_IF([test .$enable_lvs = .no],
     AS_IF([test .$enable_lvs_64bit_stats != .], [AC_MSG_ERROR([disable-lvs-64bit-stats requires lvs])])
     AS_IF([test .$enable_fwmark != .], [AC_MSG_ERROR([enable-fwmark requires lvs])])
     AS_IF([test .$enable_checker_debug != .], [AC_MSG_ERROR([enable-checker-debug requires lvs])])
+    AS_IF([test .$enable_openssl_mem_check != .], [AC_MSG_ERROR([enable-openssl-mem-check requires lvs])])
   )
 AS_IF([test .$enable_libnl = .no],
     AS_IF([test .$enable_libnl_dynamic != .], [AC_MSG_ERROR([enable-libnl-dynamic requires lvs and libnl])])
@@ -2674,6 +2677,14 @@ AS_IF([test ."${enable_malloc_check}" = ."yes"],
     add_config_opt([MALLOC_CHECK])
   ])
 
+dnl ----[ OpenSSL memory alloc check or not ? ]----
+OPENSSL_MEM_CHECK=No
+if test "${enable_openssl_mem_check}" = "yes"; then
+  OPENSSL_MEM_CHECK=Yes
+  AC_DEFINE([_OPENSSL_MEM_CHECK_], [ 1 ], [Define to 1 to build with malloc/free checks])
+  add_config_opt([OPENSSL_MEM_CHECK])
+fi
+
 dnl ----[ Log calls to set_time or not ? ]----
 TIMER_CHECK=No
 if test "${enable_timer_check}" = "yes"; then
@@ -3209,6 +3220,8 @@ if test ${MEM_CHECK} = Yes; then
 fi
 AS_IF([test ${MALLOC_CHECK} = Yes],
   [echo "Malloc check             : Yes"])
+AS_IF([test ${OPENSSL_MEM_CHECK} = Yes],
+  [echo "OpenSSL mem alloc check  : Yes"])
 if test ${TIMER_CHECK} = Yes; then
   echo "Set time logging         : Yes"
 fi

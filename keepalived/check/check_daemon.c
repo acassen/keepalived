@@ -533,7 +533,7 @@ reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 	UNSET_RELOAD;
 
 #ifdef _MEM_CHECK_
-	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);
+	log_message(LOG_INFO, "Configuration is using : %zu Bytes", get_keepalived_cur_mem_allocated());
 #endif
 }
 
@@ -741,6 +741,10 @@ start_check_child(void)
 #ifdef _MEM_CHECK_
 	mem_log_init(PROG_CHECK, "Healthcheck child process");
 #endif
+#ifdef _OPENSSL_MEM_CHECK_
+	if (__test_bit(OPENSSL_MEM_CHECK_BIT, &debug))
+		openssl_mem_log_init("OpenSSL_lib", "OpenSSL library");
+#endif
 
 	free_parent_mallocs_startup(true);
 
@@ -790,7 +794,7 @@ start_check_child(void)
 #endif
 
 #ifdef _MEM_CHECK_
-	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);
+	log_message(LOG_INFO, "Configuration is using : %zu Bytes", get_keepalived_cur_mem_allocated());
 #endif
 
 	/* Launch the scheduling I/O multiplexer */
