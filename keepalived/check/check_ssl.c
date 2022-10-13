@@ -285,21 +285,11 @@ ssl_connect(thread_ref_t thread, int new_req)
 bool
 ssl_send_request(SSL * ssl, const char *str_request, int request_len)
 {
-	int err, r = 0;
+	int r;
 
-	while (true) {
-		err = 1;
-		r = SSL_write(ssl, str_request, request_len);
-		if (SSL_ERROR_NONE != SSL_get_error(ssl, r))
-			break;
-		err++;
-		if (request_len != r)
-			break;
-		err++;
-		break;
-	}
+	r = SSL_write(ssl, str_request, request_len);
 
-	return (err == 3);
+	return (r == request_len);
 }
 
 /* Asynchronous SSL stream reader */
