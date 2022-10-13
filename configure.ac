@@ -453,8 +453,8 @@ AS_IF([test .$enable_vrrp = .no],
     AS_IF([test .$enable_routes != .], [AC_MSG_ERROR([disable-routes requires vrrp])])
     AS_IF([test .$enable_linkbeat != .], [AC_MSG_ERROR([disable-linkbeat requires vrrp])])
     AS_IF([test .$enable_bfd != .], [AC_MSG_ERROR([enable-bfd requires vrrp])])
-    AS_IF([test .$enable_iptables != .no], [AC_MSG_ERROR([enable-iptables requires vrrp])])
-    AS_IF([test .$enable_track_process != .], [AC_MSG_ERROR([enable-track-process requires vrrp])])
+    AS_IF([test .$enable_iptables != .no], [AC_MSG_ERROR([disable-iptables requires vrrp])])
+    AS_IF([test .$enable_track_process != .], [AC_MSG_ERROR([disable-track-process requires vrrp])])
     AS_IF([test .$enable_network_timestamp != .], [AC_MSG_ERROR([enable-network-timestamp requires vrrp])])
     AS_IF([test .$enable_netlink_timers != .], [AC_MSG_ERROR([enable-netlink-timers requires vrrp])])
   )
@@ -465,7 +465,7 @@ AS_IF([test .$enable_libipset = .no],
     AS_IF([test .$enable_libipset_dynamic != .], [AC_MSG_ERROR([disable-libipset-dynamic requires ipsets])])
   )
 AS_IF([test .$enable_snmp_rfc != .yes -a .$enable_snmp_rfcv3 != yes],
-    AS_IF([test .$enable_snmp_reply_v3_for_v2 != .], [AC_MSG_ERROR([enable-snmp-reply-v3-for-v2 requires enable-snmp-rfcv3 or enable-snmp-rfc])])
+    AS_IF([test .$enable_snmp_reply_v3_for_v2 != .], [AC_MSG_ERROR([disable-snmp-reply-v3-for-v2 requires enable-snmp-rfcv3 or enable-snmp-rfc])])
   )
 AS_IF([test .$enable_dbus != .yes],
     AS_IF([test .$enable_dbus_create_instance != .], [AC_MSG_ERROR([enable-dbus-create-instance requires enable-dbus])])
@@ -475,7 +475,7 @@ AS_IF([test .$enable_lvs = .no],
     AS_IF([test .$enable_libnl != .], [AC_MSG_ERROR([disable-libnl requires lvs])])
     AS_IF([test .$enable_lvs_syncd != .], [AC_MSG_ERROR([disable-lvs-syncd requires lvs])])
     AS_IF([test .$enable_lvs_64bit_stats != .], [AC_MSG_ERROR([disable-lvs-64bit-stats requires lvs])])
-    AS_IF([test .$enable_fwmark != .], [AC_MSG_ERROR([enable-fwmark requires lvs])])
+    AS_IF([test .$enable_fwmark != .], [AC_MSG_ERROR([disable-fwmark requires lvs])])
     AS_IF([test .$enable_checker_debug != .], [AC_MSG_ERROR([enable-checker-debug requires lvs])])
     AS_IF([test .$enable_openssl_mem_check != .], [AC_MSG_ERROR([enable-openssl-mem-check requires lvs])])
   )
