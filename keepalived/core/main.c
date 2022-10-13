@@ -1468,7 +1468,7 @@ initialise_debug_options(void)
 	do_checker_debug = !!(checker_debug & mask);
 #endif
 #ifdef _MEM_ERR_DEBUG_
-	do_mem_err_debug = !!(mem_err_debug & mask);
+	set_keepalived_mem_err_debug(!!(mem_err_debug & mask));
 #endif
 #ifdef _RECVMSG_DEBUG_
 	do_recvmsg_debug = !!(recvmsg_debug & mask);
@@ -1834,6 +1834,9 @@ usage(const char *prog)
 #ifdef _MEM_CHECK_LOG_
 	fprintf(stderr, "  -L, --mem-check-log          Log malloc/frees to syslog\n");
 #endif
+#ifdef _OPENSSL_MEM_CHECK_
+	fprintf(stderr, "      --openssl-mem-check      Enable OpenSSL malloc() etc mem-checks\n");
+#endif
 	fprintf(stderr, "  -e, --all-config             Error if any configuration file missing (same as includet)\n");
 	fprintf(stderr, "  -i, --config-id id           Skip any configuration lines beginning '@' that don't match id\n"
 			"                                or any lines beginning @^ that do match.\n"
@@ -1995,6 +1998,9 @@ parse_cmdline(int argc, char **argv)
 #ifdef _MEM_CHECK_LOG_
 		{"mem-check-log",	no_argument,		NULL, 'L'},
 #endif
+#ifdef _OPENSSL_MEM_CHECK_
+		{"openssl-mem-check",	no_argument,		NULL,  'O' },
+#endif
 		{"namespace",		required_argument,	NULL, 's'},
 		{"config-id",		required_argument,	NULL, 'i'},
 		{"signum",		required_argument,	NULL,  4 },
@@ -2039,6 +2045,9 @@ parse_cmdline(int argc, char **argv)
 #endif
 #ifdef _MEM_CHECK_LOG_
 					    "L"
+#endif
+#ifdef _OPENSSL_MEM_CHECK_
+					    "O"
 #endif
 				, long_options, &longindex)) != -1) {
 
@@ -2231,6 +2240,11 @@ parse_cmdline(int argc, char **argv)
 #ifdef _MEM_CHECK_LOG_
 		case 'L':
 			__set_bit(MEM_CHECK_LOG_BIT, &debug);
+			break;
+#endif
+#ifdef _OPENSSL_MEM_CHECK_
+		case 'O':
+			__set_bit(OPENSSL_MEM_CHECK_BIT, &debug);
 			break;
 #endif
 		case 's':

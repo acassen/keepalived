@@ -215,7 +215,7 @@ ssl_connect(thread_ref_t thread, int new_req)
 		char *name;
 	} vhost;
 #endif
-	int ret = 0;
+	int ret;
 
 	/* First round, create SSL context */
 	if (new_req) {
@@ -232,8 +232,10 @@ ssl_connect(thread_ref_t thread, int new_req)
 		}
 
 		BIO_get_fd(req->bio, &bio_fd);
-		if (fcntl(bio_fd, F_SETFD, fcntl(bio_fd, F_GETFD) | FD_CLOEXEC) == -1)
-			log_message(LOG_INFO, "Setting CLOEXEC failed on ssl socket - errno %d", errno);
+		if (bio_fd != thread->u.f.fd) {
+			if (fcntl(bio_fd, F_SETFD, fcntl(bio_fd, F_GETFD) | FD_CLOEXEC) == -1)
+				log_message(LOG_INFO, "Setting CLOEXEC failed on ssl socket - errno %d", errno);
+		}
 
 		/* There is a memory leak in openSSL at least in version 3.0.1, which is fixed
 		 * by version 3.0.5. It was not present in version 1.1.1n. Since I haven't been
@@ -251,6 +253,9 @@ ssl_connect(thread_ref_t thread, int new_req)
 		SSL_set_mode(req->ssl, SSL_MODE_RELEASE_BUFFERS);
 #endif
 #endif
+
+		if (!url->tls_compliant && !http_get_check->tls_compliant)
+			SSL_set_quiet_shutdown(req->ssl, 1);
 
 #if defined HAVE_SSL_SET0_RBIO && defined HAVE_SSL_SET0_WBIO
 		BIO_up_ref(req->bio);
@@ -283,21 +288,11 @@ ssl_connect(thread_ref_t thread, int new_req)
 bool
 ssl_send_request(SSL * ssl, const char *str_request, int request_len)
 {
-	int err, r = 0;
+	int r;
 
-	while (true) {
-		err = 1;
-		r = SSL_write(ssl, str_request, request_len);
-		if (SSL_ERROR_NONE != SSL_get_error(ssl, r))
-			break;
-		err++;
-		if (request_len != r)
-			break;
-		err++;
-		break;
-	}
+	r = SSL_write(ssl, str_request, request_len);
 
-	return (err == 3);
+	return (r == request_len);
 }
 
 /* Asynchronous SSL stream reader */
@@ -312,27 +307,20 @@ ssl_read_thread(thread_ref_t thread)
 	unsigned char digest[MD5_DIGEST_LENGTH];
 	int r = 0;
 
-	timeout = timer_long(thread->sands) - timer_long(time_now);
-
 	/* Handle read timeout */
 	if (thread->type == THREAD_READ_TIMEOUT) {
-		SSL_set_quiet_shutdown(req->ssl, 1);
 		SSL_shutdown(req->ssl);
 
 		timeout_epilog(thread, "Timeout SSL read");
 		return;
 	}
 
+	timeout = timer_long(thread->sands) - timer_long(time_now);
+
 	/* read the SSL stream - allow for terminating the data with '\0 */
 	r = SSL_read(req->ssl, req->buffer + req->len, (int)(MAX_BUFFER_LENGTH - 1 - req->len));
 
-	req->error = SSL_get_error(req->ssl, r);
-
-	if (req->error == SSL_ERROR_WANT_READ) {
-		 /* async read unfinished */
-		thread_add_read(thread->master, ssl_read_thread, checker,
-				thread->u.f.fd, timeout, THREAD_DESTROY_CLOSE_FD);
-	} else if (r > 0 && req->error == SSL_ERROR_NONE) {
+	if (r > 0) {
 		/* Handle response stream */
 		http_process_response(thread, req, (size_t)r, url);
 
@@ -340,32 +328,80 @@ ssl_read_thread(thread_ref_t thread)
 		 * Register next ssl stream reader.
 		 * Register itself to not perturbe global I/O multiplexer.
 		 */
+
 		thread_add_read(thread->master, ssl_read_thread, checker,
 				thread->u.f.fd, timeout, THREAD_DESTROY_CLOSE_FD);
-	} else if (req->error) {
-		/* All the SSL stream has been parsed */
-		if (url->digest) {
-			EVP_DigestFinal_ex(req->context, digest, NULL);
-			EVP_MD_CTX_free(req->context);
-			req->context = NULL;
-			if (req->error == SSL_ERROR_ZERO_RETURN &&
-			    http_get_check->genhash_flags & GENHASH_VERBOSE)
-				dump_digest(digest, MD5_DIGEST_LENGTH);
-		} else
-			digest[0] = 0;
-
-		SSL_set_quiet_shutdown(req->ssl, 1);
-
-		r = (req->error == SSL_ERROR_ZERO_RETURN) ? SSL_shutdown(req->ssl) : 0;
-
-		if (r && !req->extracted) {
-			timeout_epilog(thread, "SSL read error from");
-			return;
-		}
-
-		/* Handle response stream */
-		http_handle_response(thread, digest, !req->extracted);
+		return;
 	}
+
+	req->error = SSL_get_error(req->ssl, r);
+
+	if (req->error == SSL_ERROR_WANT_READ) {
+		 /* async read unfinished */
+		thread_add_read(thread->master, ssl_read_thread, checker,
+				thread->u.f.fd, timeout, THREAD_DESTROY_CLOSE_FD);
+		return;
+	}
+
+	if (req->error == SSL_ERROR_SSL) {
+		const char *file;
+		int line;
+#ifdef HAVE_ERR_GET_ERROR_ALL
+		const char *func;
+#endif
+		const char *data;
+		int flags;
+		unsigned long err;
+
+#ifdef HAVE_ERR_GET_ERROR_ALL
+		while ((err = ERR_get_error_all(&file, &line, &func, &data, &flags))) {
+#else
+		while ((err = ERR_get_error_line_data(&file, &line, &data, &flags))) {
+
+#endif
+			/* Don't output the same error message repeatedly */
+			if (err == url->last_ssl_error)
+				continue;
+
+			url->last_ssl_error = err;
+
+			log_message(LOG_INFO, "SSL error '%s' at %s:%d "
+#ifdef HAVE_ERR_GET_ERROR_ALL
+					"(%s) "
+#endif
+					"data '%s' flags 0x%x",
+					ERR_error_string(err, NULL),
+					file, line,
+#ifdef HAVE_ERR_GET_ERROR_ALL
+					func,
+#endif
+					data, (unsigned)flags);
+		}
+	}
+
+	/* All the SSL stream has been parsed */
+	if (url->digest) {
+		EVP_DigestFinal_ex(req->context, digest, NULL);
+		EVP_MD_CTX_free(req->context);
+		req->context = NULL;
+		if (req->error == SSL_ERROR_ZERO_RETURN &&
+		    http_get_check->genhash_flags & GENHASH_VERBOSE)
+			dump_digest(digest, MD5_DIGEST_LENGTH);
+	} else
+		digest[0] = 0;
+
+	if (req->error != SSL_ERROR_SSL && req->error != SSL_ERROR_SYSCALL)
+		r = SSL_shutdown(req->ssl);
+	else
+		r = 0;
+
+	if (r && !req->extracted) {
+		timeout_epilog(thread, "SSL read error from");
+		return;
+	}
+
+	/* Handle response stream */
+	http_handle_response(thread, digest, !req->extracted);
 }
 
 #ifdef THREAD_DUMP

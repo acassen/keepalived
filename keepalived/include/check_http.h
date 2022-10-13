@@ -100,6 +100,8 @@ typedef struct _url {
 	unsigned long			status_code[(HTTP_STATUS_CODE_MAX - HTTP_STATUS_CODE_MIN + 1 - 1) / (sizeof(unsigned long) * CHAR_BIT) + 1];
 	const char			*virtualhost;
 	ssize_t				len_mismatch;
+	bool				tls_compliant;
+	unsigned long			last_ssl_error;
 #ifdef _WITH_REGEX_CHECK_
 	bool				regex_no_match;
 	regex_t				*regex;
@@ -125,6 +127,7 @@ typedef struct _http_checker {
 	bool				enable_sni;
 #endif
 	bool				fast_recovery;
+	bool				tls_compliant;
 	int				genhash_flags;
 } http_checker_t;
 

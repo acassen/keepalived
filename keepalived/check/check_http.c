@@ -225,7 +225,7 @@ format_digest(const uint8_t *digest, char *buf)
 }
 
 static void
-dump_url(FILE *fp, const url_t *url)
+dump_url(FILE *fp, bool is_ssl, const url_t *url)
 {
 	char digest_buf[2 * MD5_DIGEST_LENGTH + 1];
 	unsigned int i = 0;
@@ -234,6 +234,8 @@ dump_url(FILE *fp, const url_t *url)
 	conf_write(fp, "   Checked url = %s", url->path);
 	if (url->digest)
 		conf_write(fp, "     digest = %s", format_digest(url->digest, digest_buf));
+	if (is_ssl)
+		conf_write(fp, "     tls_compliant %sset", url->tls_compliant ? "" : "un");
 
 	conf_write(fp, "     HTTP Status Code(s)");
 	for (i = HTTP_STATUS_CODE_MIN; i <= HTTP_STATUS_CODE_MAX; i++) {
@@ -257,6 +259,8 @@ dump_url(FILE *fp, const url_t *url)
 
 	if (url->virtualhost)
 		conf_write(fp, "     Virtual host = %s", url->virtualhost);
+	if (url->last_ssl_error)
+		conf_write(fp, "     Last SSL error = 0x%lx", url->last_ssl_error);
 
 #ifdef _WITH_REGEX_CHECK_
 	if (url->regex) {
@@ -293,12 +297,12 @@ dump_url(FILE *fp, const url_t *url)
 #endif
 }
 static void
-dump_url_list(FILE *fp, const list_head_t *l)
+dump_url_list(FILE *fp, bool is_ssl, const list_head_t *l)
 {
 	url_t *url;
 
 	list_for_each_entry(url, l, e_list)
-		dump_url(fp, url);
+		dump_url(fp, is_ssl, url);
 }
 
 static void
@@ -340,7 +344,9 @@ dump_http_check(FILE *fp, const checker_t *checker)
 	conf_write(fp, "   Enable SNI %sset", http_get_chk->enable_sni ? "" : "un");
 #endif
 	conf_write(fp, "   Fast recovery %sset", http_get_chk->fast_recovery ? "" : "un");
-	dump_url_list(fp, &http_get_chk->url);
+	if (http_get_chk->proto == PROTO_SSL)
+		conf_write(fp, "   tls_compliant %sset", http_get_chk->tls_compliant ? "" : "un");
+	dump_url_list(fp, http_get_chk->proto, &http_get_chk->url);
 	if (http_get_chk->failed_url)
 		conf_write(fp, "   Failed URL = %s", http_get_chk->failed_url->path);
 }
@@ -579,13 +585,27 @@ status_code_handler(const vector_t *strvec)
 static void
 url_virtualhost_handler(const vector_t *strvec)
 {
-
 	if (vector_size(strvec) < 2) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Missing HTTP_GET virtualhost name");
 		return;
 	}
 
 	set_string(&current_url->virtualhost, strvec, "url virtualhost");
+}
+
+static void
+url_tls_compliant_handler(const vector_t *strvec)
+{
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec, 1));
+		if (res == -1) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid tls_compliant option %s", strvec_slot(strvec, 1));
+			return;
+		}
+	}
+	current_url->tls_compliant = res;
 }
 
 static void
@@ -824,6 +844,22 @@ fast_recovery_handler(const vector_t *strvec)
 }
 
 static void
+tls_compliant_handler(const vector_t *strvec)
+{
+	http_checker_t *http_get_chk = current_checker->data;
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec, 1));
+		if (res == -1) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid tls_compliant option %s", strvec_slot(strvec, 1));
+			return;
+		}
+	}
+	http_get_chk->tls_compliant = res;
+}
+
+static void
 url_check(void)
 {
 	unsigned i;
@@ -894,6 +930,8 @@ install_http_ssl_check_keyword(const char *keyword)
 	install_keyword("enable_sni", &enable_sni_handler);
 #endif
 	install_keyword("fast_recovery", &fast_recovery_handler);
+	if (!strcmp(keyword, "SSL_GET"))
+		install_keyword("tls_compliant", &tls_compliant_handler);
 	install_keyword("url", &url_handler);
 	check_ptr1 = install_sublevel(VPP &current_url);
 	install_keyword("path", &path_handler);
@@ -910,6 +948,8 @@ install_http_ssl_check_keyword(const char *keyword)
 	install_keyword("regex_stack", &regex_stack_handler);
 #endif
 #endif
+	if (!strcmp(keyword, "SSL_GET"))
+		install_keyword("tls_compliant", &url_tls_compliant_handler);
 	install_level_end_handler(url_check);
 	install_sublevel_end(check_ptr1);
 	install_level_end_handler(http_get_check_end);
@@ -942,7 +982,7 @@ install_ssl_check_keyword(void)
  *            v
  *     http_check_thread (handle SSL connect)
  *            v
- *     http_request_thread (send SSL GET request)
+ *     http_request (send SSL GET request)
  *            v
  *     http_response_thread (initialize read stream step)
  *         /             \
@@ -1567,7 +1607,7 @@ http_response_thread(thread_ref_t thread)
 
 /* remote Web server is connected, send it the get url query.  */
 static void
-http_request_thread(thread_ref_t thread)
+http_request(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
@@ -1580,12 +1620,6 @@ http_request_thread(thread_ref_t thread)
 	char *str_request;
 	url_t *fetched_url;
 	int ret = 0;
-
-	/* Handle write timeout */
-	if (thread->type == THREAD_WRITE_TIMEOUT) {
-		timeout_epilog(thread, "Timeout WEB write");
-		return;
-	}
 
 	/* Allocate & clean the GET string */
 	str_request = PTR_CAST(char, MALLOC(GET_BUFFER_LENGTH));
@@ -1659,92 +1693,76 @@ http_check_thread(thread_ref_t thread)
 	bool new_req = false;
 
 	status = tcp_socket_state(thread, http_check_thread, 0);
-	switch (status) {
-	case connect_error:
-		timeout_epilog(thread, "Error connecting");
+	if (status != connect_success) {
+		if (status == connect_error)
+			timeout_epilog(thread, "Error connecting");
+		else if (status == connect_timeout)
+			timeout_epilog(thread, "Timeout connecting");
+		else if (status == connect_fail)
+			timeout_epilog(thread, "Connection failed");
 		return;
-		break;
+	}
 
-	case connect_timeout:
-		timeout_epilog(thread, "Timeout connecting");
-		return;
-		break;
+	if (!http_get_check->req) {
+		PMALLOC(http_get_check->req);
+		new_req = true;
+	} else
+		new_req = false;
 
-	case connect_fail:
-		timeout_epilog(thread, "Connection failed");
-		return;
-		break;
+	if (http_get_check->proto == PROTO_SSL) {
+		if (thread->type == THREAD_WRITE_TIMEOUT ||
+		    thread->type == THREAD_READ_TIMEOUT)
+		{
+			timeout_epilog(thread, "Timeout connecting");
+			return;
+		}
 
-	case connect_success:
-		if (!http_get_check->req) {
-			PMALLOC(http_get_check->req);
-			new_req = true;
-		} else
-			new_req = false;
-
-		if (http_get_check->proto == PROTO_SSL) {
+		ret = ssl_connect(thread, new_req);
+		if (ret < 0) {
 			timeout = timer_long(thread->sands) - timer_long(time_now);
-			if (thread->type != THREAD_WRITE_TIMEOUT &&
-			    thread->type != THREAD_READ_TIMEOUT)
-				ret = ssl_connect(thread, new_req);
-			else {
-				timeout_epilog(thread, "Timeout connecting");
+			ssl_err = SSL_get_error(http_get_check->req->ssl, ret);
+			if (ssl_err == SSL_ERROR_WANT_READ) {
+				thread_add_read(thread->master,
+						http_check_thread,
+						THREAD_ARG(thread),
+						thread->u.f.fd, timeout, THREAD_DESTROY_CLOSE_FD);
+				thread_del_write(thread);
 				return;
 			}
 
-			if (ret == -1) {
-				switch ((ssl_err = SSL_get_error(http_get_check->req->ssl,
-								 ret))) {
-				case SSL_ERROR_WANT_READ:
-					thread_add_read(thread->master,
-							http_check_thread,
-							THREAD_ARG(thread),
-							thread->u.f.fd, timeout, THREAD_DESTROY_CLOSE_FD);
-					thread_del_write(thread);
-					break;
-				case SSL_ERROR_WANT_WRITE:
-					thread_add_write(thread->master,
-							 http_check_thread,
-							 THREAD_ARG(thread),
-							 thread->u.f.fd, timeout, THREAD_DESTROY_CLOSE_FD);
-					thread_del_read(thread);
-					break;
-				default:
-					ret = 0;
-					break;
-				}
-				if (ret == -1)
-					break;
-			} else if (ret != 1)
-				ret = 0;
-		}
+			if (ssl_err == SSL_ERROR_WANT_WRITE) {
+				thread_add_write(thread->master,
+						 http_check_thread,
+						 THREAD_ARG(thread),
+						 thread->u.f.fd, timeout, THREAD_DESTROY_CLOSE_FD);
+				thread_del_read(thread);
+				return;
+			}
 
-		if (ret) {
-			/* Remote WEB server is connected.
-			 * Register the next step thread ssl_request_thread.
-			 */
-#ifdef _CHECKER_DEBUG_
-			if (do_checker_debug)
-				log_message(LOG_DEBUG, "Remote Web server %s connected.", FMT_CHK(checker));
-#endif
-			thread_add_write(thread->master,
-					 http_request_thread, checker,
-					 thread->u.f.fd,
-					 checker->co->connection_to, THREAD_DESTROY_CLOSE_FD);
-			thread_del_read(thread);
-		} else {
-#ifdef _CHECKER_DEBUG_
-			if (do_checker_debug)
-				log_message(LOG_DEBUG, "Connection trouble to: %s." , FMT_CHK(checker));
+			ret = 0;
+		} else if (ret != 1)
+			ret = 0;
+	}
 
-			if (http_get_check->proto == PROTO_SSL)
-				ssl_printerr(SSL_get_error (http_get_check->req->ssl, ret));
+	if (ret) {
+		/* Remote WEB server is connected.
+		 */
+#ifdef _CHECKER_DEBUG_
+		if (do_checker_debug)
+			log_message(LOG_DEBUG, "Remote Web server %s connected.", FMT_CHK(checker));
 #endif
-			timeout_epilog(thread, "SSL handshake/communication error"
-						 " connecting to");
-			return;
-		}
-		break;
+		 http_request(thread);
+	} else {
+#ifdef _CHECKER_DEBUG_
+		if (do_checker_debug)
+			log_message(LOG_DEBUG, "Connection trouble to: %s." , FMT_CHK(checker));
+
+		if (http_get_check->proto == PROTO_SSL)
+			ssl_printerr(SSL_get_error(http_get_check->req->ssl, ret));
+#endif
+		timeout_epilog(thread, "SSL handshake/communication error"
+					 " connecting to");
+		return;
 	}
 }
 
@@ -1806,7 +1824,6 @@ register_check_http_addresses(void)
 	register_thread_address("http_check_thread", http_check_thread);
 	register_thread_address("http_connect_thread", http_connect_thread);
 	register_thread_address("http_read_thread", http_read_thread);
-	register_thread_address("http_request_thread", http_request_thread);
 	register_thread_address("http_response_thread", http_response_thread);
 }
 #endif

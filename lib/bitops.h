@@ -109,6 +109,9 @@ enum global_bits {
 	MEM_CHECK_LOG_BIT,
 #endif
 #endif
+#ifdef _OPENSSL_MEM_CHECK_
+	OPENSSL_MEM_CHECK_BIT,
+#endif
 #ifdef _WITH_LVS_
 	LOG_ADDRESS_CHANGES,
 #endif

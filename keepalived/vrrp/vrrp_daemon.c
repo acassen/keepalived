@@ -888,7 +888,7 @@ reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 
 	/* Post initializations */
 #ifdef _MEM_CHECK_
-	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);
+	log_message(LOG_INFO, "Configuration is using : %zu Bytes", get_keepalived_cur_mem_allocated());
 #endif
 }
 
@@ -1140,7 +1140,7 @@ start_vrrp_child(void)
 	/* Note: there may be a proc_events_ack_timer thread which will not
 	 * exist when the same configuration is reloaded. This is a thread_t,
 	 * which currently adds 120 bytes to the allocated memory. */
-	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);
+	log_message(LOG_INFO, "Configuration is using : %zu Bytes", get_keepalived_cur_mem_allocated());
 #endif
 
 #ifdef _WITH_PERF_

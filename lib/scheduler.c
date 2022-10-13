@@ -2029,7 +2029,7 @@ process_threads(thread_master_t *m)
 	while ((thread_list = thread_fetch_next_queue(m))) {
 		/* Run until error, used for debuging only */
 #ifdef _MEM_ERR_DEBUG_
-		if (do_mem_err_debug &&
+		if (get_keepalived_mem_err_debug() &&
 		    __test_bit(MEM_ERR_DETECT_BIT, &debug)
 #ifdef _WITH_VRRP_
 		    && __test_bit(DONT_RELEASE_VRRP_BIT, &debug)
