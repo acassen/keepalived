@@ -1013,12 +1013,14 @@ epilog(thread_ref_t thread, register_checker_t method)
 		if (checker->is_up || !checker->has_run) {
 			if (checker->has_run && checker->retry)
 				log_message(LOG_INFO
-				   , "HTTP_CHECK on service %s failed after %u retries."
+				   , "%s_CHECK on service %s failed after %u retries."
+				   , (http_get_check->proto == PROTO_SSL) ? "SSL" : "HTTP"
 				   , FMT_CHK(checker)
 				   , checker->retry_it - 1);
 			else
 				log_message(LOG_INFO
-				   , "HTTP_CHECK on service %s failed."
+				   , "%s_CHECK on service %s failed."
+				   , (http_get_check->proto == PROTO_SSL) ? "SSL" : "HTTP"
 				   , FMT_CHK(checker));
 			checker_was_up = checker->is_up;
 			rs_was_alive = checker->rs->alive;
@@ -1027,7 +1029,7 @@ epilog(thread_ref_t thread, register_checker_t method)
 			    (rs_was_alive != checker->rs->alive || !global_data->no_checker_emails))
 				smtp_alert(SMTP_MSG_RS, checker, NULL,
 					   "=> CHECK failed on service"
-					   " : HTTP request failed <=");
+					   " : HTTP/SSL request failed <=");
 		}
 
 		/* Mark we have a failed URL */
@@ -1788,7 +1790,7 @@ http_connect_thread(thread_ref_t thread)
 	if (tcp_connection_state(fd, status, thread, http_check_thread, co->connection_to, 0)) {
 		close(fd);
 		if (status == connect_fail) {
-			timeout_epilog(thread, "HTTP_CHECK - network unreachable");
+			timeout_epilog(thread, "HTTP/SSL_CHECK - network unreachable");
 		} else {
 			log_message(LOG_INFO, "WEB socket bind failed. Rescheduling");
 			thread_add_timer(thread->master, http_connect_thread, checker,
