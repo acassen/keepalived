@@ -1343,8 +1343,6 @@ AC_CHECK_HEADERS([openssl/ssl.h openssl/err.h], [],
   !!! OpenSSL is not properly installed on your system. !!!
   !!! Can not include OpenSSL headers files.            !!!])
     fi
-    NEED_SSL=no
-    break
   ])
 AC_CHECK_HEADERS([openssl/md5.h openssl/evp.h], [],
   [
@@ -1353,8 +1351,6 @@ AC_CHECK_HEADERS([openssl/md5.h openssl/evp.h], [],
   !!! OpenSSL is not properly installed on your system. !!!
   !!! Can not include OpenSSL EVP headers files.        !!!])
     fi
-    NEED_EVP=no
-    break
   ])
 unset LIBS
 
@@ -1418,6 +1414,9 @@ AC_CHECK_FUNCS([SSL_CTX_set_verify_depth])
 
 # SSL_set0_rbio(), SSL_set0_wbio() OPENSSL_init_crypto() and TLS_method() introduced OpenSSL v1.1.0
 AC_CHECK_FUNCS([SSL_set0_rbio SSL_set0_wbio OPENSSL_init_crypto TLS_method])
+
+# ERR_get_error_all introduced in OpenSSL v3.0
+AC_CHECK_FUNCS([ERR_get_error_all])
 
 # In OpenSSL v1.1.1 the call to SSL_CTX_new() fails if OPENSSL_init_crypto() has been called with
 # OPENSSL_INIT_NO_LOAD_CONFIG. It does not fail in v1.1.0h and v1.1.1b.
