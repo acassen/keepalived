@@ -24,14 +24,16 @@
 #include "list_head.h"
 
 
+#ifdef _INCLUDE_UNUSED_CODE_
 /*
  * Returns a list organized in an intermediate format suited
  * to chaining of merge() calls: null-terminated, no reserved or
  * sentinel head node, "prev" links not maintained.
  */
 __attribute__((nonnull(1,2,3)))
-static struct list_head *merge(list_cmp_func_t cmp,
-				struct list_head *a, struct list_head *b)
+static struct
+list_head *merge(list_cmp_func_t cmp,
+		 struct list_head *a, struct list_head *b)
 {
 	struct list_head *head, **tail = &head;
 
@@ -66,8 +68,9 @@ static struct list_head *merge(list_cmp_func_t cmp,
  * throughout.
  */
 __attribute__((nonnull(1,2,3,4)))
-static void merge_final(list_cmp_func_t cmp, struct list_head *head,
-			struct list_head *a, struct list_head *b)
+static void
+merge_final(list_cmp_func_t cmp, struct list_head *head,
+	    struct list_head *a, struct list_head *b)
 {
 	struct list_head *tail = head;
 	unsigned char count = 0;
@@ -199,7 +202,8 @@ static void merge_final(list_cmp_func_t cmp, struct list_head *head,
  * 2^(k+1) - 1 (second merge of case 5 when x == 2^(k-1) - 1).
  */
 __attribute__((nonnull(1,2)))
-void list_sort(struct list_head *head, list_cmp_func_t cmp)
+void
+list_sort(struct list_head *head, list_cmp_func_t cmp)
 {
 	struct list_head *list = head->next, *pending = NULL;
 	size_t count = 0;	/* Count of pending */
@@ -267,3 +271,4 @@ void list_sort(struct list_head *head, list_cmp_func_t cmp)
 	/* The final merge, rebuilding prev links */
 	merge_final(cmp, head, pending, list);
 }
+#endif
