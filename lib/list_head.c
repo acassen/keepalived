@@ -20,7 +20,6 @@
  */
 
 #include "list_head.h"
-#include "warnings.h"
 
 
 void list_sort(struct list_head *head,
@@ -28,6 +27,10 @@ void list_sort(struct list_head *head,
 {
 	struct list_head *p, *q, *e, *list, *tail, *oldhead;
 	unsigned insize, nmerges, psize, qsize, i;
+
+	/* Don't sort an empty list, or one with only one entry */
+	if (head->next == head->prev)
+                return;
 
 	list = head->next;
 	list_head_del(head);
@@ -96,3 +99,4 @@ void list_sort(struct list_head *head,
 	list->prev->next = head;
 	list->prev = head;
 }
+#endif
