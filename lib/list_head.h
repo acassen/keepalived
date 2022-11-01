@@ -4,7 +4,7 @@
  *              a loadbalanced server pool using multi-layer checks.
  *		In addition it provides a VRRPv2 & VRRPv3 stack.
  *
- * Author:      Alexandre Cassen, <acassen@corp.free.fr>
+ * Author:      Alexandre Cassen, <acassen@gmail.com>
  *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,7 +16,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2018 Alexandre Cassen, <acassen@corp.free.fr>
+ * Copyright (C) 2022 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #ifndef _LIST_HEAD_H
@@ -253,8 +253,8 @@ static inline void list_splice_init(struct list_head *lst,
  * @head: the head of the list.
  * @cmp: the function used to compare to list nodes.
  */
-void list_sort(struct list_head *head,
-	       int (*cmp)(struct list_head *a, struct list_head *b));
+typedef int (*list_cmp_func_t)(const struct list_head *a, const struct list_head *b);
+void list_sort(struct list_head *head, list_cmp_func_t cmp);
 
 /**
  * list_entry - get the struct for this entry
