@@ -98,9 +98,27 @@ systemd_notify_stopping(void)
 		sd_notify(0, "STOPPING=1");
 }
 
+/* Clear the environment variable NOTIFY_SOCKET to stop any
+ * child processes we create sending notify messages to systemd */
 void
 systemd_unset_notify(void)
 {
-	if (parent_is_systemd)
+	/* This is only called in a child process of the main
+	 * process. If the systemd service type is notify (e.g. Debian),
+	 * then systemd will log:
+	 *   keepalived.service: Got notification message from PID nnnn, but reception only permitted for main PID nnnm
+	 * We therefore need to appear as though our parent process (the main process) is sending the message.
+	 *
+	 * In fact, it seems a bit daft to send a message just to clear a local environment variable, but this seems to
+	 * be the only option offered by systemd.
+	 */
+	if (parent_is_systemd) {
+#ifdef HAVE_SD_PID_NOTIFY
+		sd_pid_notify(getppid(), 1, "");
+#else
+		/* The above systemd message will be logged, but we don't have the functionality to stop it other
+		 * than setting NotifyAccess=all, but that is dangerous. */
 		sd_notify(1, "");
+#endif
+	}
 }
