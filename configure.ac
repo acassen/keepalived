@@ -3038,7 +3038,7 @@ AS_IF([test .$INIT_TYPE = .systemd],
 	add_pkg_config([libsystemd])
 	AC_DEFINE([_USE_SYSTEMD_NOTIFY_], [ 1 ], [Define to 1 if want systemd notify support])
 	add_config_opt([SYSTEMD_NOTIFY])
-	SYSTEMD_SERVICE_TYPE="notify\\nNotifyAccess=all"
+	SYSTEMD_SERVICE_TYPE="notify"
 	SYSTEMD_EXEC_START_OPTIONS+="--dont-fork"
 	SAV_CFLAGS=$CFLAGS
 	CFLAGS="$CFLAGS -Werror"
