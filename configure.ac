@@ -3040,6 +3040,18 @@ AS_IF([test .$INIT_TYPE = .systemd],
 	add_config_opt([SYSTEMD_NOTIFY])
 	SYSTEMD_SERVICE_TYPE="notify\\nNotifyAccess=all"
 	SYSTEMD_EXEC_START_OPTIONS+="--dont-fork"
+	SAV_CFLAGS=$CFLAGS
+	CFLAGS="$CFLAGS -Werror"
+	AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+	  #include <systemd/sd-daemon.h>
+
+	  int main(void)
+	  {
+	    sd_pid_notify(0, 1, "");
+	  }
+	  ]])],
+	  [AC_DEFINE([HAVE_SD_PID_NOTIFY], [ 1 ], [Define to 1 if you have the `sd_pid_notify` function])])
+	CFLAGS=$SAV_CFLAGS
        ],
        [
 	AS_IF([test .${enable_systemd} = .yes], [AC_MSG_WARN([libsystemd missing])])
