@@ -1086,7 +1086,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 #ifdef _HAVE_VRRP_VMAC_
 									     && ifp != vrrp->ifp->base_ifp
 #endif
-									     				  )
+													  )
 								continue;
 							if (vrrp->family != AF_INET6 || __test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags))
 								continue;
