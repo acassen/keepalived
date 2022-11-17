@@ -232,8 +232,7 @@ ignore_address_if_ours_or_link_local(struct ifaddrmsg *ifa, struct in_addr *addr
 					 * system IP, do not ignore. */
 					if (vrrp->base_priority == VRRP_PRIO_OWNER)
 						continue;
-					else
-						return true;
+					return true;
 				}
 			}
 		}
