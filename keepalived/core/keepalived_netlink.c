@@ -227,8 +227,14 @@ ignore_address_if_ours_or_link_local(struct ifaddrmsg *ifa, struct in_addr *addr
 
 		if (ifa->ifa_family == vrrp->family) {
 			list_for_each_entry(ip_addr, &vrrp->vip, e_list) {
-				if (addr_is_equal2(ifa, addr, ip_addr, ifp, vrrp))
-					return true;
+				if (addr_is_equal2(ifa, addr, ip_addr, ifp, vrrp)) {
+					/* When an instance is owning the
+					 * system IP, do not ignore. */
+					if (vrrp->base_priority == VRRP_PRIO_OWNER)
+						continue;
+					else
+						return true;
+				}
 			}
 		}
 
