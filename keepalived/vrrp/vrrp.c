@@ -638,19 +638,23 @@ check_tx_checksum(vrrp_t *vrrp, unicast_peer_t *peer)
 	vrrppkt_len = sizeof(vrrphdr_t) + hd->naddr * sizeof(struct in_addr);
 
 	if (vrrp->version == VRRP_VERSION_3) {
-		/* Create IPv4 pseudo-header */
-		ipv4_phdr.src   = ip->saddr;
+		if (__test_bit(VRRP_FLAG_V3_CHECKSUM_AS_V2, &vrrp->flags))
+			acc_csum = 0;
+		else {
+			/* Create IPv4 pseudo-header */
+			ipv4_phdr.src   = ip->saddr;
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
-		ipv4_phdr.dst   = vrrp->unicast_chksum_compat <= CHKSUM_COMPATIBILITY_MIN_COMPAT
-				  ? ip->daddr : global_data->vrrp_mcast_group4.sin_addr.s_addr;
+			ipv4_phdr.dst   = vrrp->unicast_chksum_compat <= CHKSUM_COMPATIBILITY_MIN_COMPAT
+					  ? ip->daddr : global_data->vrrp_mcast_group4.sin_addr.s_addr;
 #else
-		ipv4_phdr.dst   = ip->daddr;
+			ipv4_phdr.dst   = ip->daddr;
 #endif
-		ipv4_phdr.zero  = 0;
-		ipv4_phdr.proto = IPPROTO_VRRP;
-		ipv4_phdr.len   = htons(vrrppkt_len);
+			ipv4_phdr.zero  = 0;
+			ipv4_phdr.proto = IPPROTO_VRRP;
+			ipv4_phdr.len   = htons(vrrppkt_len);
 
-		in_csum(PTR_CAST_CONST(void, &ipv4_phdr), sizeof(ipv4_phdr), 0, &acc_csum);
+			in_csum(PTR_CAST_CONST(void, &ipv4_phdr), sizeof(ipv4_phdr), 0, &acc_csum);
+		}
 	} else {
 		vrrppkt_len += VRRP_AUTH_LEN;
 		acc_csum = 0;
@@ -981,20 +985,26 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 	if (vrrp->family == AF_INET) {
 		vrrppkt_len = sizeof(vrrphdr_t) + hd->naddr * sizeof(struct in_addr);
 		if (vrrp->version == VRRP_VERSION_3) {
-			/* Create IPv4 pseudo-header */
-			ipv4_phdr.src   = ip->saddr;
+			if (__test_bit(VRRP_FLAG_V3_CHECKSUM_AS_V2, &vrrp->flags))
+				acc_csum = 0;
+			else {
+				/* Create IPv4 pseudo-header */
+				ipv4_phdr.src   = ip->saddr;
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
-			ipv4_phdr.dst   = vrrp->unicast_chksum_compat <= CHKSUM_COMPATIBILITY_MIN_COMPAT
-					  ? ip->daddr : global_data->vrrp_mcast_group4.sin_addr.s_addr;
+				ipv4_phdr.dst   = vrrp->unicast_chksum_compat <= CHKSUM_COMPATIBILITY_MIN_COMPAT
+						  ? ip->daddr : global_data->vrrp_mcast_group4.sin_addr.s_addr;
 #else
-			ipv4_phdr.dst	= ip->daddr;
+				ipv4_phdr.dst	= ip->daddr;
 #endif
-			ipv4_phdr.zero  = 0;
-			ipv4_phdr.proto = IPPROTO_VRRP;
-			ipv4_phdr.len   = htons(vrrppkt_len);
+				ipv4_phdr.zero  = 0;
+				ipv4_phdr.proto = IPPROTO_VRRP;
+				ipv4_phdr.len   = htons(vrrppkt_len);
 
-			in_csum(PTR_CAST_CONST(void, &ipv4_phdr), sizeof(ipv4_phdr), 0, &acc_csum);
-			if ((csum_calc = in_csum(PTR_CAST_CONST(void, hd), vrrppkt_len, acc_csum, &acc_csum))) {
+				in_csum(PTR_CAST_CONST(void, &ipv4_phdr), sizeof(ipv4_phdr), 0, &acc_csum);
+			}
+
+			if ((csum_calc = in_csum(PTR_CAST_CONST(void, hd), vrrppkt_len, acc_csum, &acc_csum)) &&
+			     !__test_bit(VRRP_FLAG_V3_CHECKSUM_AS_V2, &vrrp->flags)) {
 
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 				chksum_error = true;
@@ -1316,21 +1326,25 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, char *buffer, struct iphdr *ip)
 		list_for_each_entry(ip_addr, &vrrp->vip, e_list)
 			iparr[i++] = ip_addr->u.sin.sin_addr;
 
-		/* Create IPv4 pseudo-header */
-		ipv4_phdr.src   = VRRP_PKT_SADDR(vrrp);
+		if (__test_bit(VRRP_FLAG_V3_CHECKSUM_AS_V2, &vrrp->flags))
+			vrrp->ipv4_csum = 0;
+		else {
+			/* Create IPv4 pseudo-header */
+			ipv4_phdr.src   = VRRP_PKT_SADDR(vrrp);
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
-		if (vrrp->unicast_chksum_compat >= CHKSUM_COMPATIBILITY_MIN_COMPAT)
-			ipv4_phdr.dst = global_data->vrrp_mcast_group4.sin_addr.s_addr;
-		else
+			if (vrrp->unicast_chksum_compat >= CHKSUM_COMPATIBILITY_MIN_COMPAT)
+				ipv4_phdr.dst = global_data->vrrp_mcast_group4.sin_addr.s_addr;
+			else
 #endif
-			ipv4_phdr.dst = ip->daddr;
-		ipv4_phdr.zero  = 0;
-		ipv4_phdr.proto = IPPROTO_VRRP;
-		ipv4_phdr.len   = htons(vrrp_pkt_len(vrrp));
+				ipv4_phdr.dst = ip->daddr;
+			ipv4_phdr.zero  = 0;
+			ipv4_phdr.proto = IPPROTO_VRRP;
+			ipv4_phdr.len   = htons(vrrp_pkt_len(vrrp));
 
-		/* finally compute vrrp checksum */
-		/* coverity[callee_ptr_arith] */
-		in_csum(PTR_CAST_CONST(void, &ipv4_phdr), sizeof(ipv4_phdr), 0, &vrrp->ipv4_csum);
+			/* finally compute vrrp checksum */
+			/* coverity[callee_ptr_arith] */
+			in_csum(PTR_CAST_CONST(void, &ipv4_phdr), sizeof(ipv4_phdr), 0, &vrrp->ipv4_csum);
+		}
 		hd->chksum = in_csum(PTR_CAST_CONST(void, hd), vrrp_pkt_len(vrrp), vrrp->ipv4_csum, NULL);
 	} else if (vrrp->family == AF_INET6) {
 		ip6arr = PTR_CAST(struct in6_addr, ((char *)hd + sizeof(*hd)));

@@ -439,6 +439,9 @@ possibly following any cleanup actions needed.
     # (default: 2, but IPv6 instances will use version 3)
     \fBvrrp_version \fR<2 or 3>
 
+    # See vrrp_instance description of V3_checksum_as_V2
+    \fBv3_checksum_as_v2\fR [<BOOL>]
+
     # keepalived uses a firewall (either nftables or iptables) for two purposes:
     #  i)  To implement no_accept mode
     #  ii) To stop IGMP/MLD/Router-Solicit packets being sent on VMAC interfaces,
@@ -1776,6 +1779,13 @@ The syntax for vrrp_instance is :
     #  of old checksums. [This option may not be enabled - check output
     #  of `keepalived -v` for OLD_CHKSUM_COMPAT.]
     \fBold_unicast_checksum \fR[never]
+
+    # Some manufacturers (e.g. Cisco) interpret RFC5798 5.2.8 as applying
+    #  only to IPv6, since the pseudo-header in RFC2460 is specified only
+    #  for IPv6. Keepalived by default uses a pseudo-header for VRRPv3 IPv4
+    #  as well. Setting this option turns off including the pseudo-header
+    #  in the checksum calculation for VRRPv3 IPv4.
+    \fBv3_checksum_as_v2\fR [<BOOL>]
 
     # interface specific settings, same as global parameters.
     # default to global parameters

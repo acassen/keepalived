@@ -134,6 +134,7 @@ typedef struct _data {
 	const char			*default_ifname;	/* Name of default interface */
 	interface_t			*default_ifp;		/* Default interface for static addresses */
 	bool				disable_local_igmp;
+	bool				v3_checksum_as_v2;
 #endif
 #ifdef _WITH_LVS_
 	ipvs_timeout_t			lvs_timeouts;

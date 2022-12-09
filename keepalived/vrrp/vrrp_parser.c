@@ -869,6 +869,25 @@ vrrp_linkbeat_handler(__attribute__((unused)) const vector_t *strvec)
 }
 #endif
 static void
+v3_checksum_as_v2(__attribute__((unused)) const vector_t *strvec)
+{
+	int res;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec, 1));
+		if (res >= 0) {
+			if (res)
+				__set_bit(VRRP_FLAG_V3_CHECKSUM_AS_V2, &current_vrrp->flags);
+			else
+				__clear_bit(VRRP_FLAG_V3_CHECKSUM_AS_V2, &current_vrrp->flags);
+		} else
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) invalid v3_checksum_as_v2 %s specified", current_vrrp->iname, strvec_slot(strvec, 1));
+	} else {
+		/* Defaults to true if specified */
+		__set_bit(VRRP_FLAG_V3_CHECKSUM_AS_V2, &current_vrrp->flags);
+	}
+}
+static void
 vrrp_track_if_handler(const vector_t *strvec)
 {
 	alloc_value_block(alloc_vrrp_track_if, strvec);
@@ -2107,6 +2126,7 @@ init_vrrp_keywords(bool active)
 #ifdef _WITH_LINKBEAT_
 	install_keyword("linkbeat_use_polling", &vrrp_linkbeat_handler);
 #endif
+	install_keyword("v3_checksum_as_v2", &v3_checksum_as_v2);
 	install_keyword("virtual_routes", &vrrp_vroutes_handler);
 	install_keyword("virtual_rules", &vrrp_vrules_handler);
 	install_keyword("accept", &vrrp_accept_handler);
