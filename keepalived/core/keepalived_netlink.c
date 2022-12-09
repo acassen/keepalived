@@ -942,6 +942,13 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 // link local address.
 		if (h->nlmsg_type == RTM_NEWADDR) {
 			if (!ignore_address_if_ours_or_link_local(ifa, addr.addr, ifp)) {
+/* The following code doesn't seem right.
+ * 1. If using unicast, and the peers and not link local, then we need a non link-local address
+ * 2. There is an argument that we should process this if vrrp->base_priority == VRRP_PRIO_OWNER
+ * 3. We should ignore loopback addresses.
+ * 4. If VRRP_PRIO_OWNER, should we check we have the VIP/eVIPs configured?
+ * 5. In ignore_address...() is tracking_vrrp set if the VIP is no_track?
+ */
 				/* If no address is set on interface then set the first time */
 // TODO if saddr from config && track saddr, addresses must match
 				if (ifa->ifa_family == AF_INET) {
@@ -1086,7 +1093,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 #ifdef _HAVE_VRRP_VMAC_
 									     && ifp != vrrp->ifp->base_ifp
 #endif
-									     				  )
+													  )
 								continue;
 							if (vrrp->family != AF_INET6 || __test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags))
 								continue;

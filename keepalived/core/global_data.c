@@ -582,6 +582,7 @@ dump_global_data(FILE *fp, data_t * data)
 #endif
 		conf_write(fp, " Default interface = %s", data->default_ifp ? data->default_ifp->ifname : DFLT_INT);
 	conf_write(fp, " Disable local IGMP = %s", data->disable_local_igmp ? "yes" : "no");
+	conf_write(fp, " Use VRRPv2 checksum for VRRPv3 IPv4 = %s", data->v3_checksum_as_v2 ? "yes" : "no");
 	if (data->lvs_syncd.ifname) {
 		if (data->lvs_syncd.vrrp)
 			conf_write(fp, " LVS syncd vrrp instance = %s"

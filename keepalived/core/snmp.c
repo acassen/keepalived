@@ -192,6 +192,7 @@ enum snmp_global_magic {
 	SNMP_LINKBEAT,
 	SNMP_LVSFLUSH,
 	SNMP_LVSFLUSH_ONSTOP,
+	SNMP_V3_CHECKSUM_AS_V2,
 	SNMP_IPVS_64BIT_STATS,
 	SNMP_NET_NAMESPACE,
 	SNMP_DBUS,
@@ -266,6 +267,11 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 	case SNMP_LVSFLUSH_ONSTOP:
 		long_ret = global_data->lvs_flush_on_stop == LVS_FLUSH_FULL ? 1 :
 			   global_data->lvs_flush_on_stop == LVS_FLUSH_VS ? 3 : 2;
+		return PTR_CAST(u_char, &long_ret);
+#endif
+#ifdef _WITH_VRRP_
+	case SNMP_V3_CHECKSUM_AS_V2:
+		long_ret = SNMP_TruthValue(global_data->v3_checksum_as_v2);
 		return PTR_CAST(u_char, &long_ret);
 #endif
 	case SNMP_IPVS_64BIT_STATS:
@@ -387,6 +393,9 @@ static struct variable8 global_vars[] = {
 #ifdef _WITH_LVS_
 	/* lvsFlushOnStop */
 	{SNMP_LVSFLUSH_ONSTOP, ASN_INTEGER, RONLY, snmp_scalar, 1, {11}},
+#endif
+#ifdef _WITH_VRRP_
+	{SNMP_V3_CHECKSUM_AS_V2, ASN_INTEGER, RONLY, snmp_scalar, 1, {12}},
 #endif
 };
 

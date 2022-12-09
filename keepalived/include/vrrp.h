@@ -66,6 +66,7 @@ enum vrrp_flags_bits {
 	VRRP_FLAG_EVIP_OTHER_FAMILY,		/* There are eVIPs of the different address family from the vrrp family */
 	VRRP_FLAG_ALLOW_NO_VIPS,		/* Suppresses warnings re no VIPs */
 	VRRP_FLAG_NOPREEMPT,			/* true if higher prio does not preempt lower */
+	VRRP_FLAG_V3_CHECKSUM_AS_V2,		/* Omit pseudo header from VRRPv3 IPv4 checksum calculation */
 #ifdef _HAVE_VRRP_VMAC_
 	VRRP_VMAC_BIT,
 	VRRP_VMAC_UP_BIT,

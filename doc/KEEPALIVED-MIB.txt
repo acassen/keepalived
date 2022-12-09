@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "202109230001Z"
+     LAST-UPDATED "202212090001Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "202212090001Z"
+     DESCRIPTION "add VRRPv3 checksum as VRRPv2"
      REVISION "202109230001Z"
      DESCRIPTION "add twos LVS scheduler"
      REVISION "202109090001Z"
@@ -425,6 +427,14 @@ lvsFlushOnStop OBJECT-TYPE
     DESCRIPTION
         "Indicate whether LVS config is flushed at shutdown."
     ::= { global 11 }
+
+v3ChecksumAsV2 OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "True if VRRPv3 IPv4 checksum excludes pseudo-header."
+    ::= { global 12 }
 
 -- ----------------------------------------------------------------------
 -- VRRP part
@@ -928,7 +938,8 @@ VrrpInstanceEntry ::= SEQUENCE {
     vrrpInstanceScriptDeleted DisplayString,
     vrrpInstanceNotifyDeleted INTEGER,
     vrrpInstanceMulticastAddressType InetAddressType,
-    vrrpInstanceMulticastAddress InetAddress
+    vrrpInstanceMulticastAddress InetAddress,
+    vrrpInstanceV3ChecksumAsV2 INTEGER
 }
 
 vrrpInstanceIndex OBJECT-TYPE
@@ -1225,6 +1236,14 @@ vrrpInstanceMulticastAddress OBJECT-TYPE
     DESCRIPTION
         "Multicast address for adverts"
     ::= { vrrpInstanceEntry 35 }
+
+vrrpInstanceV3ChecksumAsV2 OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "True if VRRPv3 IPv4 checksum excludes pseudo-header."
+    ::= { vrrpInstanceEntry 36 }
 
 vrrpTrackedInterfaceTable OBJECT-TYPE
     SYNTAX SEQUENCE OF VrrpTrackedInterfaceEntry
@@ -4833,7 +4852,8 @@ globalGroup OBJECT-GROUP
     netNamespace,
     dbus,
     dynamicInterfaces,
-    lvsFlushOnStop
+    lvsFlushOnStop,
+    v3ChecksumAsV2
     }
     STATUS current
     DESCRIPTION
@@ -4910,6 +4930,7 @@ vrrpInstanceGroup OBJECT-GROUP
     vrrpInstanceNotifyDeleted,
     vrrpInstanceMulticastAddressType,
     vrrpInstanceMulticastAddress,
+    vrrpInstanceV3ChecksumAsV2,
     vrrpTrackedInterfaceName,
     vrrpTrackedInterfaceWeight,
     vrrpTrackedInterfaceWgtRev,

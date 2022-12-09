@@ -222,6 +222,7 @@ enum snmp_vrrp_magic {
 	VRRP_SNMP_INSTANCE_NOTIFY_DELETED,
 	VRRP_SNMP_INSTANCE_MULTICAST_ADDRESSTYPE,
 	VRRP_SNMP_INSTANCE_MULTICAST_ADDRESS,
+	VRRP_SNMP_INSTANCE_V3_CHECKSUM_AS_V2,
 	VRRP_SNMP_TRACKEDINTERFACE_NAME,
 	VRRP_SNMP_TRACKEDINTERFACE_WEIGHT,
 	VRRP_SNMP_TRACKEDINTERFACE_WEIGHT_REVERSE,
@@ -2219,6 +2220,9 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 			return PTR_CAST(u_char, &PTR_CAST(struct sockaddr_in, &rt->mcast_daddr)->sin_addr);
 		}
 		break;
+	case VRRP_SNMP_INSTANCE_V3_CHECKSUM_AS_V2:
+		long_ret.u = (__test_bit(VRRP_FLAG_V3_CHECKSUM_AS_V2, &rt->flags)) ? 1 : 2;
+		return PTR_CAST(u_char, &long_ret);
 	default:
 		return NULL;
 	}
@@ -2661,6 +2665,8 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_instance, 3, {3, 1, 34}},
 	{VRRP_SNMP_INSTANCE_MULTICAST_ADDRESS, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_instance, 3, {3, 1, 35}},
+	{VRRP_SNMP_INSTANCE_V3_CHECKSUM_AS_V2, ASN_INTEGER, RONLY,
+	 vrrp_snmp_instance, 3, {3, 1, 36}},
 
 	/* vrrpTrackedInterfaceTable */
 	{VRRP_SNMP_TRACKEDINTERFACE_NAME, ASN_OCTET_STR, RONLY,

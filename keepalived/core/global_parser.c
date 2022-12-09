@@ -471,6 +471,11 @@ disable_local_igmp_handler(__attribute__((unused)) const vector_t *strvec)
 
 	global_data->disable_local_igmp = true;
 }
+static void
+v3_checksum_as_v2(__attribute__((unused)) const vector_t *strvec)
+{
+	global_data->v3_checksum_as_v2 = true;
+}
 #endif
 #ifdef _WITH_LVS_
 static void
@@ -2313,6 +2318,7 @@ init_global_keywords(bool global_active)
 	install_keyword("no_email_faults", &no_email_faults_handler);
 	install_keyword("default_interface", &default_interface_handler);
 	install_keyword("disable_local_igmp", &disable_local_igmp_handler);
+	install_keyword("v3_checksum_as_v2", &v3_checksum_as_v2);
 #endif
 #ifdef _WITH_LVS_
 	install_keyword("lvs_timeouts", &lvs_timeouts);
@@ -2442,8 +2448,6 @@ init_global_keywords(bool global_active)
 	install_keyword("lvs_netlink_cmd_rcv_bufs_force", &lvs_netlink_cmd_rcv_bufs_force_handler);
 	install_keyword("lvs_netlink_monitor_rcv_bufs", &lvs_netlink_monitor_rcv_bufs_handler);
 	install_keyword("lvs_netlink_monitor_rcv_bufs_force", &lvs_netlink_monitor_rcv_bufs_force_handler);
-#endif
-#ifdef _WITH_LVS_
 	install_keyword("rs_init_notifies", &rs_init_notifies_handler);
 	install_keyword("no_checker_emails", &no_checker_emails_handler);
 #endif

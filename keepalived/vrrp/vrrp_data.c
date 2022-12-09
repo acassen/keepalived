@@ -751,6 +751,10 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 	else if (vrrp->version == VRRP_VERSION_2)
 		conf_write(fp, "   Authentication type = none");
 #endif
+	if (vrrp->version == VRRP_VERSION_3 &&
+	    vrrp->family == AF_INET)
+		conf_write(fp, "   VRRPv3 uses VRRPv2 checksum = %s", __test_bit(VRRP_FLAG_V3_CHECKSUM_AS_V2, &vrrp->flags) ? "enabled" : "disabled");
+
 	if (vrrp->kernel_rx_buf_size)
 		conf_write(fp, "   Kernel rx buffer size = %zu", vrrp->kernel_rx_buf_size);
 
@@ -961,6 +965,8 @@ alloc_vrrp(const char *iname)
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 	new->unicast_chksum_compat = CHKSUM_COMPATIBILITY_NONE;
 #endif
+	if (global_data->v3_checksum_as_v2)
+	        __set_bit(VRRP_FLAG_V3_CHECKSUM_AS_V2, &new->flags);
 	new->smtp_alert = -1;
 	new->notify_priority_changes = -1;
 
