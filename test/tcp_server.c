@@ -267,7 +267,7 @@ print_usage(FILE *fp, const char *name)
 	fprintf(fp, "\t-s\t\tsilent\n");
 	fprintf(fp, "\t-u\t\tuse UDP\n");
 	fprintf(fp, "\t-e\t\techo\n");
-	fprintf(fp, "\t-e\t\tswallow received data\n");
+	fprintf(fp, "\t-S\t\tswallow received data\n");
 	fprintf(fp, "\t-b len\t\tbacklog length\n");
 	fprintf(fp, "\t-c cmd resp\tsend resp if receive cmd\n");
 	fprintf(fp, "\t-v ver\t\tset HTML version to use (default 1.1)\n");

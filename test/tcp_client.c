@@ -18,7 +18,7 @@ print_usage(FILE *fp, const char *name)
 	fprintf(fp, "\t-p port\t\tconnect to port\n");
 	fprintf(fp, "\t-s\t\tsilent\n");
 	fprintf(fp, "\t-u\t\tuse UDP\n");
-	fprintf(fp, "\t-d dly\tdelay dly seconds after connect\n");
+	fprintf(fp, "\t-d dly\t\tdelay dly seconds after connect\n");
 	fprintf(fp, "\t-e\t\tsend stdin\n");
 	fprintf(fp, "\t-f\t\tenable tcp_fastopen\n");
 	fprintf(fp, "\t-h\t\tprint this\n");
