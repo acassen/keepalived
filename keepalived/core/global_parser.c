@@ -400,6 +400,22 @@ min_auto_priority_delay_handler(const vector_t *strvec)
 
 	global_data->min_auto_priority_delay = delay;
 }
+
+static void
+vrrp_system_owner_handler(const vector_t *strvec)
+{
+
+	if (!strcmp(strvec_slot(strvec, 1), "strict")) {
+		global_data->vrrp_system_owner = 2;
+	}
+	else if (!strcmp(strvec_slot(strvec, 1), "any")) {
+		global_data->vrrp_system_owner = 1;
+	}
+	else {
+		global_data->vrrp_system_owner = 0;
+	}
+}
+
 #ifdef _WITH_VRRP_
 static void
 smtp_alert_vrrp_handler(const vector_t *strvec)
@@ -2301,6 +2317,7 @@ init_global_keywords(bool global_active)
 	install_keyword("shutdown_script_timeout", &shutdown_script_timeout_handler);
 	install_keyword("max_auto_priority", &max_auto_priority_handler);
 	install_keyword("min_auto_priority_delay", &min_auto_priority_delay_handler);
+	install_keyword("vrrp_system_owner", &vrrp_system_owner_handler);
 #ifdef _WITH_VRRP_
 	install_keyword("smtp_alert_vrrp", &smtp_alert_vrrp_handler);
 #endif

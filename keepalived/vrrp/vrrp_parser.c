@@ -1002,6 +1002,15 @@ vrrp_prio_handler(const vector_t *strvec)
 	}
 	else
 		current_vrrp->base_priority = (uint8_t)base_priority;
+
+	if (current_vrrp->base_priority == VRRP_PRIO_OWNER){
+		if (global_data->vrrp_system_owner == 2)
+			__set_bit(VRRP_FLAG_SYSTEM_OWNER_STRICT, &current_vrrp->flags);
+		else if (global_data->vrrp_system_owner == 1)
+			__set_bit(VRRP_FLAG_SYSTEM_OWNER_ANY, &current_vrrp->flags);
+		else
+			__set_bit(VRRP_FLAG_SYSTEM_OWNER_DFT, &current_vrrp->flags);
+	}
 }
 static void
 vrrp_adv_handler(const vector_t *strvec)

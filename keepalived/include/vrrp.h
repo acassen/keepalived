@@ -66,6 +66,9 @@ enum vrrp_flags_bits {
 	VRRP_FLAG_EVIP_OTHER_FAMILY,		/* There are eVIPs of the different address family from the vrrp family */
 	VRRP_FLAG_ALLOW_NO_VIPS,		/* Suppresses warnings re no VIPs */
 	VRRP_FLAG_NOPREEMPT,			/* true if higher prio does not preempt lower */
+	VRRP_FLAG_SYSTEM_OWNER_DFT,		/* system owner instance can transit with any IP address on physical interface */
+	VRRP_FLAG_SYSTEM_OWNER_ANY,		/* system owner instance can transit with any VIP on physical interface */
+	VRRP_FLAG_SYSTEM_OWNER_STRICT,		/* system owner instance can transit with all VIPs on physical interafce */
 #ifdef _HAVE_VRRP_VMAC_
 	VRRP_VMAC_BIT,
 	VRRP_VMAC_UP_BIT,
