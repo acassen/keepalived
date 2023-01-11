@@ -660,6 +660,59 @@ vrrp_lower_prio_gratuitous_arp_thread(thread_ref_t thread)
 	vrrp_send_link_update(vrrp, vrrp->garp_lower_prio_rep);
 }
 
+bool
+vrrp_system_owner_ready(vrrp_t *vrrp, interface_t *ifp) {
+
+	sin_addr_t *saddr;
+	ip_address_t *ip_addr;
+	bool any;
+
+
+	char addr_str[INET6_ADDRSTRLEN];
+
+	if (__test_bit(VRRP_FLAG_SYSTEM_OWNER_DFT, &vrrp->flags))
+		return true;
+
+	list_for_each_entry(ip_addr, &vrrp->vip, e_list) {
+		any = false;
+		if (vrrp->family == AF_INET) {
+			if (inaddr_equal(AF_INET, &ifp->sin_addr, &ip_addr->u.sin.sin_addr)) {
+				if (__test_bit(VRRP_FLAG_SYSTEM_OWNER_ANY, &vrrp->flags))
+					return true;
+				any = true;
+			}
+			list_for_each_entry(saddr, &ifp->sin_addr_l, e_list) {
+				if (inaddr_equal(AF_INET, &(saddr->u.sin_addr),
+						&ip_addr->u.sin.sin_addr)) {
+					if (__test_bit(VRRP_FLAG_SYSTEM_OWNER_ANY, &vrrp->flags))
+						return true;
+					any = true;
+				}
+			}
+		}
+		else {
+			if (inaddr_equal(AF_INET6, &(ifp->sin6_addr), &(ip_addr->u.sin6_addr))) {
+				if (__test_bit(VRRP_FLAG_SYSTEM_OWNER_ANY, &vrrp->flags))
+					return true;
+				any = true;
+			}
+			list_for_each_entry(saddr, &ifp->sin6_addr_l, e_list) {
+				if (inaddr_equal(AF_INET6, &(saddr->u.sin6_addr), &(ip_addr->u.sin6_addr))) {
+					if (__test_bit(VRRP_FLAG_SYSTEM_OWNER_ANY, &vrrp->flags))
+						return true;
+					any = true;
+				}
+			}
+		}
+
+
+		if (!any && __test_bit(VRRP_FLAG_SYSTEM_OWNER_STRICT, &vrrp->flags))
+			return false;
+	}
+
+	return any;
+}
+
 void
 try_up_instance(vrrp_t *vrrp, bool leaving_init)
 {

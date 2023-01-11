@@ -959,6 +959,17 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 						 * it might be being promoted from secondary to primary */
 						if (!have_address(addr.in, ifp, AF_INET))
 							if_extra_ipaddress_alloc(ifp, addr.in, AF_INET);
+
+						/* possible transition for
+						 * instances with 255 priority */
+						list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
+							vrrp = top->obj.vrrp;
+							if (vrrp->base_priority == VRRP_PRIO_OWNER &&
+								vrrp->saddr.ss_family == AF_UNSPEC){
+								addr_chg = true;
+								break;
+							}
+						}
 					}
 				} else {
 					if (IN6_IS_ADDR_UNSPECIFIED(&ifp->sin6_addr)) {
@@ -979,6 +990,17 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 						 * it might be being promoted from secondary to primary */
 						if (!have_address(addr.in6, ifp, AF_INET6))
 							if_extra_ipaddress_alloc(ifp, addr.in6, AF_INET6);
+
+						/* possible transition for
+						 * instances with 255 priority */
+						list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
+							vrrp = top->obj.vrrp;
+							if (vrrp->base_priority == VRRP_PRIO_OWNER &&
+								vrrp->saddr.ss_family == AF_UNSPEC){
+								addr_chg = true;
+								break;
+							}
+						}
 					}
 				}
 
@@ -1008,12 +1030,16 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 						    vrrp->family == ifa->ifa_family &&
 						    vrrp->saddr.ss_family == AF_UNSPEC &&
 						    (!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) || is_tracking_saddr)) {
-							/* Copy the address */
-							if (ifa->ifa_family == AF_INET)
-								inet_ip4tosockaddr(addr.in, &vrrp->saddr);
-							else
-								inet_ip6tosockaddr(addr.in6, &vrrp->saddr);
-							try_up_instance(vrrp, false);
+							if (vrrp->base_priority < VRRP_PRIO_OWNER ||
+									vrrp_system_owner_ready(vrrp, ifp)) {
+								/* Copy the address */
+								if (ifa->ifa_family == AF_INET)
+									inet_ip4tosockaddr(addr.in, &vrrp->saddr);
+								else
+									inet_ip6tosockaddr(addr.in6, &vrrp->saddr);
+
+								try_up_instance(vrrp, false);
+							}
 						}
 #ifdef _HAVE_VRRP_VMAC_
 						/* If IPv6 link local and vmac doesn't have an address or we have
@@ -1177,6 +1203,21 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 						 (!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) || is_tracking_saddr)) {
 						down_instance(vrrp);
 						vrrp->saddr.ss_family = AF_UNSPEC;
+					}
+				}
+			}
+			else {
+				/* check for 255 instances */
+				if (!list_empty(&ifp->tracking_vrrp)) {
+					if (h->nlmsg_type == RTM_DELADDR)
+					list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
+						vrrp = top->obj.vrrp;
+						if (vrrp->base_priority == VRRP_PRIO_OWNER
+							&& vrrp->state != VRRP_STATE_FAULT
+							&& !vrrp_system_owner_ready(vrrp, ifp)){
+							down_instance(vrrp);
+							vrrp->saddr.ss_family = AF_UNSPEC;
+						}
 					}
 				}
 			}

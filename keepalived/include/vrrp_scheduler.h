@@ -70,6 +70,7 @@ extern void vrrp_gratuitous_arp_thread(thread_ref_t);
 extern void vrrp_lower_prio_gratuitous_arp_thread(thread_ref_t);
 extern void vrrp_arp_thread(thread_ref_t);
 extern void try_up_instance(vrrp_t *, bool);
+extern bool vrrp_system_owner_ready(vrrp_t *, interface_t *);
 #ifdef _WITH_DUMP_THREADS_
 extern void dump_threads(void);
 #endif

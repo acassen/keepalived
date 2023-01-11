@@ -4250,17 +4250,22 @@ set_vrrp_src_addr(void)
 					vrrp->saddr.ss_family = AF_UNSPEC;
 				}
 			}
-			else if (vrrp->family == AF_INET)
-				inet_ip4tosockaddr(&VRRP_CONFIGURED_IFP(vrrp)->sin_addr, &vrrp->saddr);
+			else if (vrrp->family == AF_INET) {
+				if(vrrp->base_priority < VRRP_PRIO_OWNER || vrrp_system_owner_ready(vrrp, VRRP_CONFIGURED_IFP(vrrp)))
+					inet_ip4tosockaddr(&VRRP_CONFIGURED_IFP(vrrp)->sin_addr, &vrrp->saddr);
+			}
 			else if (vrrp->family == AF_INET6) {
+				if(vrrp->base_priority < VRRP_PRIO_OWNER ||
+					vrrp_system_owner_ready(vrrp, VRRP_CONFIGURED_IFP(vrrp))) {
 #ifdef _HAVE_VRRP_IPVLAN_
-				if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->flags)) {
-					if (!IN6_IS_ADDR_UNSPECIFIED(&vrrp->ifp->sin6_addr))
-						inet_ip6tosockaddr(&vrrp->ifp->sin6_addr, &vrrp->saddr);
-				} else
+					if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->flags)) {
+						if (!IN6_IS_ADDR_UNSPECIFIED(&vrrp->ifp->sin6_addr))
+							inet_ip6tosockaddr(&vrrp->ifp->sin6_addr, &vrrp->saddr);
+					} else
 #endif
-					if (!IN6_IS_ADDR_UNSPECIFIED(&VRRP_CONFIGURED_IFP(vrrp)->sin6_addr))
-						inet_ip6tosockaddr(&VRRP_CONFIGURED_IFP(vrrp)->sin6_addr, &vrrp->saddr);
+						if (!IN6_IS_ADDR_UNSPECIFIED(&VRRP_CONFIGURED_IFP(vrrp)->sin6_addr))
+							inet_ip6tosockaddr(&VRRP_CONFIGURED_IFP(vrrp)->sin6_addr, &vrrp->saddr);
+				}
 			}
 		}
 	}
