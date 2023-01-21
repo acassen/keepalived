@@ -722,10 +722,13 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 		conf_write(fp, "   Effective priority = %d", vrrp->effective_priority);
 		conf_write(fp, "   Total priority = %d", vrrp->total_priority);
 	}
+	if (__test_bit(VRRP_FLAG_NOPREEMPT, &vrrp->flags))
+		conf_write(fp, "   Highest other priority = %u", vrrp->highest_other_priority);
 	conf_write(fp, "   Advert interval = %u %s",
 		(vrrp->version == VRRP_VERSION_2) ? (vrrp->adver_int / TIMER_HZ) :
 		(vrrp->adver_int / (TIMER_HZ / 1000)),
 		(vrrp->version == VRRP_VERSION_2) ? "sec" : "milli-sec");
+	conf_write(fp, "   Last advert sent = %ld.%6.6ld", vrrp->last_advert_sent.tv_sec, vrrp->last_advert_sent.tv_usec);
 	if (vrrp->state == VRRP_STATE_BACK && vrrp->version == VRRP_VERSION_3)
 		conf_write(fp, "   Master advert interval = %u milli-sec", vrrp->master_adver_int / (TIMER_HZ / 1000));
 #ifdef _WITH_FIREWALL_

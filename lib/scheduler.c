@@ -98,6 +98,9 @@ static void (*extra_threads_debug)(void);
 static void (*shutdown_function)(int);
 #endif
 
+static void (*thread_timeout_handler)(unsigned);
+static unsigned thread_timeout_min;
+
 /* Function that returns prog_name if pid is a known child */
 static char const * (*child_finder_name)(pid_t);
 
@@ -1829,6 +1832,7 @@ thread_fetch_next_queue(thread_master_t *m)
 	int ret;
 	int i;
 	timeval_t earliest_timer;
+	unsigned timeout;
 
 	assert(m != NULL);
 
@@ -1921,12 +1925,9 @@ thread_fetch_next_queue(thread_master_t *m)
 			/* If it is over min_auto_increment_delay usecs after the timer should have expired,
 			 * we are not running soon enough. */
 			if (earliest_timer.tv_sec < 0) {
-				if (earliest_timer.tv_sec * -1000000 - earliest_timer.tv_usec > min_auto_priority_delay) {
-					if (earliest_timer.tv_usec) {
-						earliest_timer.tv_sec++;
-						earliest_timer.tv_usec = 1000000 - earliest_timer.tv_usec;
-					}
-					log_message(LOG_INFO, "A thread timer expired %ld.%6.6ld seconds ago", -earliest_timer.tv_sec, earliest_timer.tv_usec);
+				timeout = earliest_timer.tv_sec * -1000000 - earliest_timer.tv_usec;
+				if (timeout > min_auto_priority_delay) {
+					log_message(LOG_INFO, "A thread timer expired %u.%6.6u seconds ago", timeout / 1000000, timeout % 1000000);
 
 					/* Set realtime scheduling if not already using it, or if already in use,
 					 * increase the priority. */
@@ -1937,6 +1938,10 @@ thread_fetch_next_queue(thread_master_t *m)
 						dump_thread_data(m, NULL);
 #endif
 				}
+
+				if (thread_timeout_handler &&
+				    timeout >= thread_timeout_min)
+					thread_timeout_handler(timeout);
 			}
 		}
 
@@ -2200,6 +2205,13 @@ launch_thread_scheduler(thread_master_t *m)
 	signal_set(SIGCHLD, thread_child_handler, m);
 
 	return process_threads(m);
+}
+
+void
+register_thread_timeout_handler(void (*func)(unsigned), unsigned min_timeout)
+{
+	thread_timeout_handler = func;
+	thread_timeout_min = min_timeout;
 }
 
 #ifdef THREAD_DUMP
