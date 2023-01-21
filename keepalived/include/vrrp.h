@@ -315,6 +315,7 @@ typedef struct _vrrp_t {
 	uint8_t			effective_priority;	/* effective priority value */
 	int			total_priority;		/* base_priority +/- track_script, track_interface, track_bfd and track_file weights.
 							   effective_priority is this within the range [1,254]. */
+	uint8_t			highest_other_priority;	/* Used for timer_expired_backup */
 	bool			vipset;			/* All the vips are set ? */
 	list_head_t		vip;			/* ip_address_t - list of virtual ip addresses */
 	unsigned		vip_cnt;		/* size of vip list */
@@ -330,6 +331,7 @@ typedef struct _vrrp_t {
 							 * value we were originally configured with.
 							 * In v2, this will always be the configured adver_int.
 							 */
+	timeval_t		last_advert_sent;	/* Time of sending last advert */
 	size_t			kernel_rx_buf_size;	/* Socket receive buffer size */
 
 #ifdef _WITH_FIREWALL_

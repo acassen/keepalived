@@ -288,6 +288,7 @@ extern int launch_thread_scheduler(thread_master_t *);
 #ifndef _ONE_PROCESS_DEBUG_
 extern void register_shutdown_function(void (*)(int));
 #endif
+extern void register_thread_timeout_handler(void (*)(unsigned), unsigned);
 #ifdef THREAD_DUMP
 extern const char *get_signal_function_name(void (*)(void *, int));
 extern void register_signal_handler_address(const char *, void (*)(void *, int));
