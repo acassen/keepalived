@@ -62,7 +62,7 @@ Install Prerequisites on Debian/Ubuntu
 
 On Debian/Ubuntu, install the following prerequisites::
 
-    apt-get install build-essentials pkg-config curl gcc autoconf automake libssl-dev \
+    apt-get install build-essential pkg-config curl gcc autoconf automake libssl-dev \
         libnl-3-dev libnl-genl-3-dev libsnmp-dev libnl-route-3-dev libnfnetlink-dev \
         iptables-dev* libipset-dev libsnmp-dev libmagic-dev libglib2.0-dev libpcre2-dev \
         libnftnl-dev libmnl-dev libsystemd-dev libkmod-dev
