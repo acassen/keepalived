@@ -110,6 +110,7 @@ vrrp_json_track_script_dump(json_writer_t *wr, list_head_t *e)
 	return 0;
 }
 
+#ifdef _WITH_TRACK_PROCESS_
 static int
 vrrp_json_track_process_dump(json_writer_t *wr, list_head_t *e)
 {
@@ -119,6 +120,7 @@ vrrp_json_track_process_dump(json_writer_t *wr, list_head_t *e)
 	jsonw_string(wr, cmd_str(&vscript->process));
 	return 0;
 }
+#endif
 
 static int
 vrrp_json_array_dump(json_writer_t *wr, const char *prop, list_head_t *l,
