@@ -111,6 +111,16 @@ vrrp_json_track_script_dump(json_writer_t *wr, list_head_t *e)
 }
 
 static int
+vrrp_json_track_process_dump(json_writer_t *wr, list_head_t *e)
+{
+	tracked_ps_t *tps = list_entry(e, tracked_ps_t, e_list);
+	vrrp_process_t *vprocess = tps->scr;
+
+	jsonw_string(wr, cmd_str(&vscript->process));
+	return 0;
+}
+
+static int
 vrrp_json_array_dump(json_writer_t *wr, const char *prop, list_head_t *l,
 		     int (*func) (json_writer_t *, list_head_t *))
 {
