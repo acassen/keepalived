@@ -207,6 +207,9 @@ vrrp_json_data_dump(json_writer_t *wr, vrrp_t *vrrp)
 	/* Tracking related */
 	vrrp_json_array_dump(wr, "track_ifp", &vrrp->track_ifp, vrrp_json_track_ifp_dump);
 	vrrp_json_array_dump(wr, "track_script", &vrrp->track_script, vrrp_json_track_script_dump);
+#ifdef _WITH_TRACK_PROCESS_
+        vrrp_json_array_dump(wr, "track_process", &vrrp->track_process, vrrp_json_track_process_dump);
+#endif
 
 #ifdef _WITH_VRRP_AUTH_
 	jsonw_uint_field(wr, "auth_type", vrrp->auth_type);
