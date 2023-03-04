@@ -110,6 +110,18 @@ vrrp_json_track_script_dump(json_writer_t *wr, list_head_t *e)
 	return 0;
 }
 
+#ifdef _WITH_TRACK_PROCESS_
+static int
+vrrp_json_track_process_dump(json_writer_t *wr, list_head_t *e)
+{
+	tracked_process_t *tpr = list_entry(e, tracked_process_t, e_list);
+	vrrp_tracked_process_t *vprocess = tpr->process;
+
+	jsonw_string(wr, vprocess->pname);
+	return 0;
+}
+#endif
+
 static int
 vrrp_json_array_dump(json_writer_t *wr, const char *prop, list_head_t *l,
 		     int (*func) (json_writer_t *, list_head_t *))
@@ -207,6 +219,9 @@ vrrp_json_data_dump(json_writer_t *wr, vrrp_t *vrrp)
 	/* Tracking related */
 	vrrp_json_array_dump(wr, "track_ifp", &vrrp->track_ifp, vrrp_json_track_ifp_dump);
 	vrrp_json_array_dump(wr, "track_script", &vrrp->track_script, vrrp_json_track_script_dump);
+#ifdef _WITH_TRACK_PROCESS_
+	vrrp_json_array_dump(wr, "track_process", &vrrp->track_process, vrrp_json_track_process_dump);
+#endif
 
 #ifdef _WITH_VRRP_AUTH_
 	jsonw_uint_field(wr, "auth_type", vrrp->auth_type);
