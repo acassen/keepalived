@@ -114,11 +114,11 @@ vrrp_json_track_script_dump(json_writer_t *wr, list_head_t *e)
 static int
 vrrp_json_track_process_dump(json_writer_t *wr, list_head_t *e)
 {
-	tracked_process_t *tpr = list_entry(e, tracked_process_t, e_list);
-	vrrp_tracked_process_t *vprocess = tpr->process;
+        tracked_process_t *tpr = list_entry(e, tracked_process_t, e_list);
+        vrrp_tracked_process_t *vprocess = tpr->process;
 
-	jsonw_string(wr, cmd_str(&vprocess->process));
-	return 0;
+        jsonw_string(wr, vprocess->pname);
+        return 0;
 }
 #endif
 
