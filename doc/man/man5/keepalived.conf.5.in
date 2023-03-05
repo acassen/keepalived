@@ -925,6 +925,10 @@ possibly following any cleanup actions needed.
     # In order to alleviate this, enabling data_use_instance includes the
     # instance name and network namespace in the file name of the .data files.
     \fBdata_use_instance \fR[<BOOL>]
+
+    # json_version 2 puts the VRRP data in a named array and adds
+    # track_process details. Default is version 1.
+    \fBjson_version \fR{1|2}
 }
 .fi
 .SH Linkbeat interfaces

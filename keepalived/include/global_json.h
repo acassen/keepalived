@@ -6,7 +6,7 @@
  *
  * Part:        Output running VRRP state information in JSON format
  *
- * Author:      Damien Clabaut, <Damien.Clabaut@corp.ovh.com>
+ * Author:      Quentin Armitage <quentin@armitage.org.uk>
  *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,16 +18,16 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2017 Damien Clabaut, <Damien.Clabaut@corp.ovh.com>
- * Copyright (C) 2017-2023 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2023 Quentin Armitage <quentin@armitage.org.uk>
+ * Copyright (C) 2023-2023 Alexandre Cassen <acassen@gmail.com>
  */
 
-#ifndef _VRRP_JSON_H
-#define _VRRP_JSON_H
+#ifndef _GLOBAL_JSON_H
+#define _GLOBAL_JSON_H
 
-#include "global_json.h"
+/* https://jsonlint.com/ is useful to check validity of JSON output */
 
-/* Prototypes */
-extern void vrrp_print_json(void);
+#define JSON_VERSION_V1	1
+#define JSON_VERSION_V2	2
 
 #endif

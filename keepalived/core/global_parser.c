@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2001-2023 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #include "config.h"
@@ -65,6 +65,9 @@
 #endif
 #endif
 #include "namespaces.h"
+#ifdef _WITH_JSON_
+#include "global_json.h"
+#endif
 
 /* Defined in kernel source file include/linux/sched.h but
  * not currently (Linux v5.10.12) exposed to userspace.
@@ -2267,6 +2270,27 @@ data_use_instance_handler(const vector_t *strvec)
 
 	global_data->data_use_instance = res;
 }
+
+#ifdef _WITH_JSON_
+static void
+json_version_handler(const vector_t *strvec)
+{
+	unsigned version = true;
+
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "%s requires version", strvec_slot(strvec, 1));
+		return;
+	}
+
+	if (!read_unsigned_strvec(strvec, 1, &version, JSON_VERSION_V1, JSON_VERSION_V2, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Invalid JSON version");
+		return;
+	}
+
+	global_data->json_version = version;
+}
+#endif
+
 void
 init_global_keywords(bool global_active)
 {
@@ -2473,4 +2497,7 @@ init_global_keywords(bool global_active)
 #endif
 	install_keyword("tmp_config_directory", &config_copy_directory_handler);
 	install_keyword("data_use_instance", &data_use_instance_handler);
+#ifdef _WITH_JSON_
+	install_keyword("json_version", &json_version_handler);
+#endif
 }
