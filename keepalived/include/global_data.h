@@ -280,6 +280,9 @@ typedef struct _data {
 	const char			*vmac_addr_prefix;
 #endif
 #endif
+#ifdef _WITH_JSON_
+	unsigned			json_version;
+#endif
 } data_t;
 
 /* Global vars exported */

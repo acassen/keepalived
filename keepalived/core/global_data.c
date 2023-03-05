@@ -43,6 +43,9 @@
 #endif
 #include "align.h"
 #include "pidfile.h"
+#ifdef _WITH_JSON_
+#include "global_json.h"
+#endif
 
 /* global vars */
 data_t *global_data = NULL;
@@ -221,6 +224,10 @@ alloc_global_data(void)
 	new->lvs_syncd.mcast_group.ss_family = AF_UNSPEC;
 #endif
 #endif
+#endif
+
+#ifdef _WITH_JSON_
+	new->json_version = JSON_VERSION_V1;
 #endif
 
 	return new;
@@ -814,4 +821,7 @@ dump_global_data(FILE *fp, data_t * data)
 		conf_write(fp, " current realtime priority = %u", val);
 	if ((val = get_cur_rlimit_rttime()))
 		conf_write(fp, " current realtime time limit = %u", val);
+#ifdef _WITH_JSON_
+	conf_write(fp, " json_version %u", global_data->json_version);
+#endif
 }
