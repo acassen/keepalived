@@ -107,7 +107,7 @@ vrrp_json_track_script_dump(json_writer_t *wr, list_head_t *e)
 	tracked_sc_t *tsc = list_entry(e, tracked_sc_t, e_list);
 	vrrp_script_t *vscript = tsc->scr;
 
-	jsonw_string(wr, cmd_str(&vscript->script));
+	jsonw_string(wr, vscript->sname);
 	return 0;
 }
 
@@ -264,6 +264,73 @@ vrrp_json_stats_dump(json_writer_t *wr, vrrp_t *vrrp)
 	return 0;
 }
 
+static int
+vrrp_json_vscript_dump(json_writer_t *wr, list_head_t *e)
+{
+	vrrp_script_t *vscript = list_entry(e, vrrp_script_t, e_list);
+
+	jsonw_start_object(wr);
+
+	jsonw_string_field(wr, "script_name", vscript->sname);
+	jsonw_string_field(wr, "script", cmd_str(&vscript->script));
+	jsonw_uint_field(wr, "interval", vscript->interval / TIMER_HZ);
+	jsonw_uint_field(wr, "timeout", vscript->timeout / TIMER_HZ);
+	jsonw_int_field(wr, "weight", vscript->weight);
+	jsonw_bool_field(wr, "reverse", vscript->weight_reverse);
+	jsonw_int_field(wr, "rise", vscript->rise);
+	jsonw_int_field(wr, "fall", vscript->fall);
+	jsonw_uint_field(wr, "uid", vscript->script.uid);
+	jsonw_uint_field(wr, "gid", vscript->script.gid);
+
+	jsonw_int_field(wr, "init_state",
+		/*
+			unknown                         = -2
+			SCRIPT_INIT_STATE_FAILED        = -1
+			SCRIPT_INIT_STATE_INIT_RELOAD   = 0
+			SCRIPT_INIT_STATE_INIT          = 1
+                */
+		vscript->init_state == SCRIPT_INIT_STATE_INIT ? 1:
+		vscript->init_state == SCRIPT_INIT_STATE_FAILED ? -1 :
+		vscript->init_state == SCRIPT_INIT_STATE_INIT_RELOAD ? 0 :
+		-2
+	);
+	jsonw_int_field(wr, "status",
+		/*
+			BAD	= 0
+			GOOD	= 1
+		*/
+		vscript->result >= vscript->rise ? 1 :
+		0
+	);
+
+	jsonw_int_field(wr, "state",
+		/*
+			unknown                                 = -2
+			SCRIPT_STATE_FORCING_TERMINATION        = -1
+			SCRIPT_STATE_REQUESTING_TERMINATION     = 0
+			SCRIPT_STATE_IDLE                       = 1
+			SCRIPT_STATE_RUNNING                    = 2
+		*/
+		vscript->state == SCRIPT_STATE_IDLE ? 1 :
+		vscript->state == SCRIPT_STATE_RUNNING ? 2 :
+		vscript->state == SCRIPT_STATE_REQUESTING_TERMINATION ? 0 :
+		vscript->state == SCRIPT_STATE_FORCING_TERMINATION ? -1 :
+		-2
+	);
+
+	jsonw_end_object(wr);
+
+	return 0;
+}
+
+static int
+vrrp_json_vscripts_dump(json_writer_t *wr)
+{
+	vrrp_json_array_dump(wr, "track_script", &vrrp_data->vrrp_script, vrrp_json_vscript_dump);
+
+	return 0;
+}
+
 #ifdef _WITH_TRACK_PROCESS_
 static int
 vrrp_json_vprocess_dump(json_writer_t *wr, list_head_t *e)
@@ -283,12 +350,22 @@ vrrp_json_vprocess_dump(json_writer_t *wr, list_head_t *e)
 		jsonw_string_field(wr, "parameters", params);
 		FREE(params);
 	}
-	jsonw_string_field(wr, "param_match",
-		vprocess->param_match == PARAM_MATCH_NONE ? "none" :
-		vprocess->param_match == PARAM_MATCH_EXACT ? "exact" :
-		vprocess->param_match == PARAM_MATCH_PARTIAL ? "partial" :
-		vprocess->param_match == PARAM_MATCH_INITIAL ? "initial" :
-		"unknown");
+
+	jsonw_int_field(wr, "param_match",
+		/* 
+			unknown			= -2
+			PARAM_MATCH_NONE	= -1
+			PARAM_MATCH_EXACT	= 0
+			PARAM_MATCH_PARTIAL	= 1
+			PARAM_MATCH_INITIAL 	= 2
+		*/
+		vprocess->param_match == PARAM_MATCH_NONE ? -1 :
+		vprocess->param_match == PARAM_MATCH_EXACT ? 0 :
+		vprocess->param_match == PARAM_MATCH_PARTIAL ? 1 :
+		vprocess->param_match == PARAM_MATCH_INITIAL ? 2 :
+		-2
+	);
+
 	jsonw_uint_field(wr, "min_processes", vprocess->quorum);
 	if (vprocess->quorum_max < UINT_MAX)
 		jsonw_uint_field(wr, "max_processes", vprocess->quorum_max);
@@ -345,11 +422,12 @@ vrrp_json_dump(FILE *fp)
 	jsonw_end_array(wr);
 
 	if (global_data->json_version == JSON_VERSION_V2) {
+		if (!list_empty(&vrrp_data->vrrp_script))
+			vrrp_json_vscripts_dump(wr);
 #ifdef _WITH_TRACK_PROCESS_
 		if (!list_empty(&vrrp_data->vrrp_track_processes))
 			vrrp_json_vprocesses_dump(wr);
 #endif
-
 		jsonw_end_object(wr);
 	}
 
