@@ -283,23 +283,23 @@ vrrp_json_vprocess_dump(json_writer_t *wr, list_head_t *e)
 		jsonw_string_field(wr, "parameters", params);
 		FREE(params);
 	}
-	jsonw_string_field(wr, "param match",
+	jsonw_string_field(wr, "param_match",
 		vprocess->param_match == PARAM_MATCH_NONE ? "none" :
 		vprocess->param_match == PARAM_MATCH_EXACT ? "exact" :
 		vprocess->param_match == PARAM_MATCH_PARTIAL ? "partial" :
 		vprocess->param_match == PARAM_MATCH_INITIAL ? "initial" :
 		"unknown");
-	jsonw_uint_field(wr, "min processes", vprocess->quorum);
+	jsonw_uint_field(wr, "min_processes", vprocess->quorum);
 	if (vprocess->quorum_max < UINT_MAX)
-		jsonw_uint_field(wr, "max processes", vprocess->quorum_max);
-	jsonw_uint_field(wr, "current processes", vprocess->num_cur_proc);
-	jsonw_bool_field(wr, "have quorum", vprocess->have_quorum);
+		jsonw_uint_field(wr, "max_processes", vprocess->quorum_max);
+	jsonw_uint_field(wr, "current_processes", vprocess->num_cur_proc);
+	jsonw_bool_field(wr, "have_quorum", vprocess->have_quorum);
 	jsonw_int_field(wr, "weight", vprocess->weight_reverse ? -(int)vprocess->weight : vprocess->weight);
-	jsonw_float_field(wr, "terminate delay", (double)vprocess->terminate_delay / TIMER_HZ);
-	jsonw_float_field(wr, "fork delay", (double)vprocess->fork_delay / TIMER_HZ);
-	jsonw_bool_field(wr, "fork delay timer running", vprocess->fork_timer_thread);
-	jsonw_bool_field(wr, "terminate delay timer running", vprocess->terminate_timer_thread);
-	jsonw_bool_field(wr, "full command", vprocess->full_command);
+	jsonw_float_field(wr, "terminate_delay", (double)vprocess->terminate_delay / TIMER_HZ);
+	jsonw_float_field(wr, "fork_delay", (double)vprocess->fork_delay / TIMER_HZ);
+	jsonw_bool_field(wr, "fork_delay_timer_running", vprocess->fork_timer_thread);
+	jsonw_bool_field(wr, "terminate_delay_timer_running", vprocess->terminate_timer_thread);
+	jsonw_bool_field(wr, "full_command", vprocess->full_command);
 
 	jsonw_end_object(wr);
 
