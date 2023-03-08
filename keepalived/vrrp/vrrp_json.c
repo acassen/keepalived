@@ -62,10 +62,14 @@ static int
 vrrp_json_ip_dump(json_writer_t *wr, list_head_t *e)
 {
 	ip_address_t *ipaddr = list_entry(e, ip_address_t, e_list);
-	char buf[256];
 
-	format_ipaddress(ipaddr, buf, sizeof(buf));
-	jsonw_string(wr, buf);
+	jsonw_start_object(wr);
+
+	jsonw_string_field(wr, "ip", ipaddresstos(NULL, ipaddr));
+	jsonw_string_field(wr, "dev", IF_NAME(ipaddr->ifp));
+
+	jsonw_end_object(wr);
+
 	return 0;
 }
 
