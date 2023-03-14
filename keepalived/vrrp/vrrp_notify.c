@@ -271,6 +271,7 @@ send_instance_notifies(vrrp_t *vrrp)
 {
 	notify_script_t *script = get_iscript(vrrp);
 	notify_script_t *gscript = get_igscript(vrrp);
+    bool sync_exec = vrrp->state == VRRP_STATE_MAST && vrrp->exec_before_vip;
 
 	if (vrrp->notifies_sent && vrrp->sync && vrrp->state == vrrp->sync->state) {
 		/* We are already in the required state due to our sync group,
@@ -290,7 +291,7 @@ send_instance_notifies(vrrp_t *vrrp)
 		if (vrrp->state == VRRP_STATE_STOP)
 			system_call_script(master, child_killed_thread, NULL, TIMER_HZ, script);
 		else
-			notify_exec(script);
+            system_call_script_0(NULL, NULL, NULL, 0, script, sync_exec);
 	}
 
 	/* Launch the generic notify script */

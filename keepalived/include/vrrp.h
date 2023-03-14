@@ -368,7 +368,8 @@ typedef struct _vrrp_t {
 	notify_script_t		*script_deleted;
 	notify_script_t		*script_master_rx_lower_pri;
 	notify_script_t		*script;
-	int			notify_priority_changes;
+    int         exec_before_vip; /* exec script_master first before set vip address */
+    int			notify_priority_changes;
 
 	/* rfc2338.6.2 */
 	uint32_t		ms_down_timer;

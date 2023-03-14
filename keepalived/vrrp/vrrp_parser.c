@@ -1165,6 +1165,21 @@ vrrp_notify_handler(const vector_t *strvec)
 	current_vrrp->notify_exec = true;
 }
 static void
+vrrp_script_exec_handler(const vector_t *strvec)
+{
+    vrrp_t *vrrp = list_last_entry(&vrrp_data->vrrp, vrrp_t, e_list);
+    int res = true;
+
+    if (vector_size(strvec) >= 2) {
+        res = check_true_false(strvec_slot(strvec, 1));
+        if (res == -1) {
+            report_config_error(CONFIG_GENERAL_ERROR, "Invalid vrrp_group exec_before_vip parameter %s", strvec_slot(strvec, 1));
+            return;
+        }
+    }
+    vrrp->exec_before_vip = res;
+}
+static void
 vrrp_notify_master_rx_lower_pri(const vector_t *strvec)
 {
 	if (current_vrrp->script_master_rx_lower_pri) {
@@ -2159,7 +2174,8 @@ init_vrrp_keywords(bool active)
 	install_keyword("notify_stop", &vrrp_notify_stop_handler);
 	install_keyword("notify_deleted", &vrrp_notify_deleted_handler);
 	install_keyword("notify", &vrrp_notify_handler);
-	install_keyword("notify_master_rx_lower_pri", vrrp_notify_master_rx_lower_pri);
+    install_keyword("exec_before_vip", &vrrp_script_exec_handler);
+    install_keyword("notify_master_rx_lower_pri", vrrp_notify_master_rx_lower_pri);
 	install_keyword("smtp_alert", &vrrp_smtp_handler);
 	install_keyword("notify_priority_changes", &vrrp_notify_priority_changes_handler);
 #ifdef _WITH_LVS_

@@ -142,6 +142,7 @@ VRRP Instance Definitions Synopsis
         **priority** num
         **advert_int** num
         **smtp_alert**
+        **exec_before_vip**
         **authentication** {
             **auth_type** *PASS|AH*
             **auth_pass** string
@@ -185,6 +186,7 @@ notify_master               specify a shell script to be executed during transit
 notify_backup               specify a shell script to be executed during transition to backup state path
 notify_fault                specify a shell script to be executed during transition to fault state  path
 vrrp_sync_group             Identify the VRRP synchronization instances group                       string
+exec_before_vip             notify_master script executed before vip setted if this setted true
 ==========================  ======================================================================= =========
 
 Path type: A system path to a script eg: “/usr/local/bin/transit.sh <arg_list>”
