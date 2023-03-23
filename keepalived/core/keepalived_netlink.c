@@ -1645,8 +1645,6 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags, bool immediate)
 	ifp->ifi_flags = (ifi_flags & ~(IFF_UP | IFF_RUNNING))
 			| (ifp->ifi_flags & (IFF_UP | IFF_RUNNING));
 
-	/* We get called after a VMAC is created, but before tracking_vrrp is set */
-
 	/* For an interface to be really up, any underlying interface must also be up */
 	was_up = IF_FLAGS_UP(ifp);
 	now_up = FLAGS_UP(ifi_flags);
