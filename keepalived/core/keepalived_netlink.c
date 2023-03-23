@@ -1599,6 +1599,9 @@ process_interface_flags_change(interface_t *ifp, unsigned ifi_flags)
 		process_if_status_change(ifp);
 	}
 
+	if (!vrrp_data)
+		return;
+
 	if (!now_up)
 		interface_down(ifp);
 	else
@@ -1632,8 +1635,10 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags, bool immediate)
 			return;
 	}
 
-	if (!vrrp_data)
-		return;
+	/* We need to see the link state transition.
+	 * Update all interface flags except IFF_UP and IFF_RUNNING */
+	ifp->ifi_flags = (ifi_flags & ~(IFF_UP | IFF_RUNNING))
+			| (ifp->ifi_flags & (IFF_UP | IFF_RUNNING));
 
 	/* We get called after a VMAC is created, but before tracking_vrrp is set */
 
@@ -1947,7 +1952,6 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	ifp->rp_filter = UINT_MAX;	/* We have not read it yet */
 #endif
 
-	ifp->ifi_flags = ifi->ifi_flags;
 	if (FLAGS_UP(ifi->ifi_flags))
 		ifp->seen_up = true;
 
@@ -2263,9 +2267,6 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 #endif
 				if (ifp->mtu > old_mtu)
 					alloc_vrrp_buffer(ifp->mtu);
-
-			/* We need to see a transition to up, so mark it down for now */
-			ifp->ifi_flags &= ~(IFF_UP | IFF_RUNNING);
 		} else {
 			if (__test_bit(LOG_DETAIL_BIT, &debug))
 				log_message(LOG_INFO, "Unknown interface %s deleted", (char *)tb[IFLA_IFNAME]);
