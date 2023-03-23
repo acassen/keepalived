@@ -230,6 +230,33 @@ netlink_link_up(vrrp_t *vrrp)
 	return status;
 }
 
+static int
+netlink_link_group(interface_t *base_ifp)
+{
+	int status = 1;
+	uint32_t group = base_ifp->group;
+	struct {
+		struct nlmsghdr n;
+		struct ifinfomsg ifi;
+		char buf[256];
+	} req;
+
+	memset(&req, 0, sizeof (req));
+
+	req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
+	req.n.nlmsg_flags = NLM_F_REQUEST;
+	req.n.nlmsg_type = RTM_NEWLINK;
+	req.ifi.ifi_family = AF_UNSPEC;
+	req.ifi.ifi_index = (int)IF_INDEX(base_ifp);
+
+	addattr_l(&req.n, sizeof(req), IFLA_IFNAME, base_ifp->ifname, strlen(base_ifp->ifname));
+	addattr_l(&req.n, sizeof(req), IFLA_GROUP, &group, sizeof(group));
+	if (netlink_talk(&nl_cmd, &req.n) < 0)
+		status = -1;
+
+	return status;
+}
+
 bool
 set_link_local_address(const vrrp_t *vrrp)
 {
@@ -478,6 +505,19 @@ netlink_link_add_vmac(vrrp_t *vrrp, const interface_t *old_interface)
 	    !__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags)) {
 		if (!set_link_local_address(vrrp) && create_interface)
 			log_message(LOG_INFO, "(%s) adding link-local address to %s failed", vrrp->iname, vrrp->ifp->ifname);
+	}
+
+	/* If the base interface does not implement IFF_UNICAST_FLT, for example
+	 * it is a bridge interface, no netlink notification is sent by the kernel
+	 * when promiscuity is set on the base interface.
+	 * The promiscuous state of the base interface is correct in kernel but it
+	 * is in incorrect in daemons that listen to the interface netlink messages
+	 * (eg. DPDK).
+	 * Force a notification by re-setting IFLA_GROUP for the base interface.
+	 */
+	if (create_interface && vrrp->configured_ifp->base_ifp->ifindex) {
+		netlink_interface_lookup(vrrp->configured_ifp->base_ifp->ifname);
+		netlink_link_group(vrrp->configured_ifp->base_ifp);
 	}
 
 #if !HAVE_DECL_IFLA_INET6_ADDR_GEN_MODE

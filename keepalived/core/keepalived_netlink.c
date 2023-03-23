@@ -1853,6 +1853,8 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	ifp->mtu = *PTR_CAST(uint32_t, RTA_DATA(tb[IFLA_MTU]));
 	ifp->hw_type = ifi->ifi_type;
 
+	ifp->group = *(uint32_t *)RTA_DATA(tb[IFLA_GROUP]);
+
 	if (!netlink_if_get_ll_addr(ifp, tb, IFLA_ADDRESS, name))
 		return false;
 	if (!netlink_if_get_ll_addr(ifp, tb, IFLA_BROADCAST, name))

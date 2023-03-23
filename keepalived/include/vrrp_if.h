@@ -139,6 +139,7 @@ typedef struct _interface {
 	unsigned		up_debounce_timer;
 	unsigned		down_debounce_timer;
 	uint32_t		mtu;			/* MTU for this interface_t */
+	uint32_t		group;			/* GROUP for this interface_t */
 	unsigned short		hw_type;		/* Type of hardware address */
 	u_char			hw_addr[MAX_ADDR_LEN];	/* MAC address */
 	u_char			hw_addr_bcast[MAX_ADDR_LEN]; /* broadcast address */
