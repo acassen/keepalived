@@ -1587,11 +1587,13 @@ process_if_status_change(interface_t *ifp)
 }
 
 static void
-process_interface_flags_change(interface_t *ifp, unsigned ifi_flags)
+process_interface_status_flags_change(interface_t *ifp, unsigned ifi_flags)
 {
 	bool now_up = FLAGS_UP(ifi_flags);
 
-	ifp->ifi_flags = ifi_flags;
+	/* only update IFF_UP and IFF_RUNNING flags */
+	ifp->ifi_flags = (ifp->ifi_flags & ~(IFF_UP | IFF_RUNNING))
+			| (ifi_flags & (IFF_UP | IFF_RUNNING));
 
 	if (!list_empty(&ifp->tracking_vrrp)) {
 		log_message(LOG_INFO, "Netlink reports %s %s", ifp->ifname, now_up ? "up" : "down");
@@ -1616,7 +1618,7 @@ delayed_if_flags_change_thread(thread_ref_t thread)
 
 	ifp->flags_change_thread = NULL;
 
-	process_interface_flags_change(ifp, thread->u.val);
+	process_interface_status_flags_change(ifp, thread->u.val);
 }
 
 static void
@@ -1624,16 +1626,19 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags, bool immediate)
 {
 	bool was_up, now_up;
 	unsigned debounce_timer;
+	unsigned ifi_up_running_flags;
 
-	if (ifi_flags == ifp->ifi_flags || immediate) {
-		if (ifp->flags_change_thread) {
-			thread_cancel(ifp->flags_change_thread);
-			ifp->flags_change_thread = NULL;
-		}
-		if (ifi_flags == ifp->ifi_flags)
-			/* no flags change */
-			return;
+	ifi_up_running_flags = ifi_flags & (IFF_UP | IFF_RUNNING);
+
+	if ((((ifp->ifi_flags & (IFF_UP | IFF_RUNNING)) == ifi_up_running_flags)
+			|| immediate) && ifp->flags_change_thread) {
+		thread_cancel(ifp->flags_change_thread);
+		ifp->flags_change_thread = NULL;
 	}
+
+	if (ifi_flags == ifp->ifi_flags)
+		/* no flags change */
+		return;
 
 	/* We need to see the link state transition.
 	 * Update all interface flags except IFF_UP and IFF_RUNNING */
@@ -1647,13 +1652,13 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags, bool immediate)
 	now_up = FLAGS_UP(ifi_flags);
 
 	if (ifp->flags_change_thread) {
-		if (ifi_flags == ifp->flags_change_thread->u.uval)
+		if (ifi_up_running_flags == ifp->flags_change_thread->u.uval)
 			return;
 
 		/* If up/down status is same as last pending status change,
 		 * just update the thread's version of the interface state */
 		if (FLAGS_UP(ifp->flags_change_thread->u.uval) == now_up) {
-			thread_arg2 u = { .uval = ifi_flags };
+			thread_arg2 u = { .uval = ifi_up_running_flags };
 
 			thread_update_arg2(ifp->flags_change_thread, &u);
 			return ;
@@ -1669,15 +1674,15 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags, bool immediate)
 
 	debounce_timer = now_up ? ifp->up_debounce_timer : ifp->down_debounce_timer;
 	if (ifp->seen_up && debounce_timer && !immediate) {
-		ifp->flags_change_thread = thread_add_timer_uval(master, delayed_if_flags_change_thread, ifp, ifi_flags, debounce_timer);
-		log_message(LOG_INFO, "%s: Adding flags change from 0x%x to 0x%x delay by %u", ifp->ifname, ifp->ifi_flags, ifi_flags, debounce_timer);
+		ifp->flags_change_thread = thread_add_timer_uval(master, delayed_if_flags_change_thread, ifp, ifi_up_running_flags, debounce_timer);
+		log_message(LOG_INFO, "%s: Adding up and running flags change from 0x%x to 0x%x delay by %u", ifp->ifname, ifp->ifi_flags, ifi_up_running_flags, debounce_timer);
 		return;
 	}
 
 	if (now_up)
 		ifp->seen_up = true;
 
-	process_interface_flags_change(ifp, ifi_flags);
+	process_interface_status_flags_change(ifp, ifi_flags);
 }
 
 static const char *
