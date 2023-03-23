@@ -1627,7 +1627,8 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags, bool immediate)
 			thread_cancel(ifp->flags_change_thread);
 			ifp->flags_change_thread = NULL;
 		}
-		if (!immediate)
+		if (ifi_flags == ifp->ifi_flags)
+			/* no flags change */
 			return;
 	}
 
