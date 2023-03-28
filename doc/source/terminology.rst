@@ -17,9 +17,13 @@ LVS Component
 
 .. glossary::
 
-    VIP
-        The Virtual IP is the IP address that will be accessed by all the
-        clients. The clients only access this IP address.
+    IPVS (IP Virtual Server)
+         The linux kernel module that provides packet forwarding services 
+         for network load balancing (Layer-4 switching).
+         
+    Director
+        The server running IPVS which is responsible for distributing incoming 
+        network traffic among a pool of backend servers. 
 
     Real server
         A real server hosts the application accessed by client requests.
@@ -27,6 +31,17 @@ LVS Component
 
     Server pool
         A farm of real servers.
+    
+    RIP (Real IP)
+        Real IP address configured at a real server in the LVS cluster.
+
+    VIP
+        The Virtual IP is the IP address that will be accessed by all the
+        clients. The clients only access this IP address.
+
+    DIP (Director IP)
+        IP address of the LVS director node. Director uses this when communicating 
+        with a Real server.
 
     Virtual server
         The access point to a Server pool.
@@ -72,4 +87,3 @@ VRRP Component
         while in the MASTER state.
 
 .. todo::
-   Define RIP, DIP, Director, IPVS
