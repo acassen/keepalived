@@ -1599,10 +1599,10 @@ process_interface_flags_change(interface_t *ifp, unsigned ifi_flags)
 		process_if_status_change(ifp);
 	}
 
-	if (!now_up)
-		interface_down(ifp);
-	else
+	if (now_up)
 		interface_up(ifp);
+	else
+		interface_down(ifp);
 }
 
 static void
