@@ -1589,6 +1589,10 @@ process_if_status_change(interface_t *ifp)
 static void
 process_interface_flags_change(interface_t *ifp, unsigned ifi_flags)
 {
+#ifdef _HAVE_VRRP_VMAC_
+	tracking_obj_t *top;
+	vrrp_t *vrrp;
+#endif /* _HAVE_VRRP_VMAC_ */
 	bool now_up = FLAGS_UP(ifi_flags);
 
 	ifp->ifi_flags = ifi_flags;
@@ -1596,13 +1600,31 @@ process_interface_flags_change(interface_t *ifp, unsigned ifi_flags)
 	if (!list_empty(&ifp->tracking_vrrp)) {
 		log_message(LOG_INFO, "Netlink reports %s %s", ifp->ifname, now_up ? "up" : "down");
 
+#ifdef _HAVE_VRRP_VMAC_
+		if (ifp->vmac_type
+				&& ifp->is_ours
+				&& IN6_IS_ADDR_UNSPECIFIED(&ifp->sin6_addr)) {
+			list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
+				vrrp = top->obj.vrrp;
+				if (!__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags)) {
+					set_link_local_address(vrrp);
+					break;
+				}
+			}
+		}
+#endif /* _HAVE_VRRP_VMAC_ */
 		process_if_status_change(ifp);
 	}
 
 	if (now_up)
 		interface_up(ifp);
-	else
+	else {
 		interface_down(ifp);
+#ifdef _HAVE_VRRP_VMAC_
+		if (ifp->vmac_type && ifp->is_ours)
+			CLEAR_IP6_ADDR(&ifp->sin6_addr);
+#endif /* _HAVE_VRRP_VMAC_ */
+	}
 }
 
 static void
