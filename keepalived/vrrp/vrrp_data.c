@@ -1115,16 +1115,14 @@ alloc_vrrp_vip(const vector_t *strvec)
 	if (!(new_ipaddr = alloc_ipaddress(strvec, false)))
 		return;
 
-	if (last_ipaddr) {
-		address_family = IP_FAMILY(new_ipaddr);
+	address_family = IP_FAMILY(new_ipaddr);
 
-		if (current_vrrp->family == AF_UNSPEC)
-			current_vrrp->family = address_family;
-		else if (address_family != current_vrrp->family) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s): address family must match VRRP instance [%s] - ignoring", current_vrrp->iname, strvec_slot(strvec, 0));
-			free_ipaddress(new_ipaddr);
-			return;
-		}
+	if (current_vrrp->family == AF_UNSPEC)
+		current_vrrp->family = address_family;
+	else if (address_family != current_vrrp->family) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s): address family must match VRRP instance [%s] - ignoring", current_vrrp->iname, strvec_slot(strvec, 0));
+		free_ipaddress(new_ipaddr);
+		return;
 	}
 
 	list_add_tail(&new_ipaddr->e_list, &current_vrrp->vip);
