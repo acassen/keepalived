@@ -240,6 +240,7 @@ set_link_local_address(const vrrp_t *vrrp)
 	 * This is so that VRRP advertisements will be sent from a non-VIP address, but
 	 * using the VRRP MAC address */
 	struct in6_addr addr;
+	char addr_str[INET6_ADDRSTRLEN];
 
 	if (vrrp->saddr.ss_family == AF_INET6)
 		addr = PTR_CAST_CONST(struct sockaddr_in6, &vrrp->saddr)->sin6_addr;
@@ -247,6 +248,11 @@ set_link_local_address(const vrrp_t *vrrp)
 		addr = vrrp->configured_ifp->sin6_addr;
 	else
 		make_link_local_address(&addr, vrrp->configured_ifp->base_ifp->hw_addr);
+
+	inet_ntop(AF_INET6, &addr, addr_str, sizeof(addr_str));
+
+	log_message(LOG_INFO, "Adding link local address %s for %s, interface %u", addr_str,
+			vrrp->iname, vrrp->ifp->ifindex);
 
 	return add_link_local_address(vrrp->ifp, &addr);
 }
