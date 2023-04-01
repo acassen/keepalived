@@ -803,7 +803,8 @@ possibly following any cleanup actions needed.
 
     # The umask to use for creating files. The number can be specified in hex, octal
     #   or decimal. BITS are I{R|W|X}{USR|GRP|OTH}, e.g. IRGRP, separated by '|'s.
-    #   The default umask is IWGRP | IWOTH. This option cannot override the
+    #   IRWX{U|G|O} can also be specified.
+    #   The default umask is IXUSR | IRWXG | IRWXO. This option cannot override the
     #   command-line option.
     \fBumask \fR[NUMBER|BITS]
 
