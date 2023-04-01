@@ -791,7 +791,7 @@ vrrp_mcast_group4_handler(const vector_t *strvec)
 {
 	sockaddr_t mcast = { .ss_family = AF_UNSPEC };
 
-	if (inet_stosockaddr(strvec_slot(strvec, 1), 0, &mcast)) {
+	if (inet_stosockaddr(strvec_slot(strvec, 1), NULL, &mcast)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Can't parse vrrp_mcast_group4 [%s]. Skipping"
 				   , strvec_slot(strvec, 1));
 		return;
@@ -817,7 +817,7 @@ vrrp_mcast_group6_handler(const vector_t *strvec)
 {
 	sockaddr_t mcast = { .ss_family = AF_UNSPEC };
 
-	if (inet_stosockaddr(strvec_slot(strvec, 1), 0, &mcast)) {
+	if (inet_stosockaddr(strvec_slot(strvec, 1), NULL, &mcast)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Can't parse vrrp_mcast_group6 [%s]. Skipping"
 				   , strvec_slot(strvec, 1));
 		return;
