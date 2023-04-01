@@ -246,6 +246,7 @@ alloc_bfd_data(void)
 	/* Initialize internal variables */
 	data->thread_in = NULL;
 	data->fd_in = -1;
+	data->multihop_fd_in = -1;
 
 	return data;
 }
@@ -268,7 +269,10 @@ dump_bfd_data(FILE *fp, const bfd_data_t *data)
 
 	if (fp) {
 		conf_write(fp, "------< BFD Data >------");
-		conf_write(fp, " fd_in = %d", data->fd_in);
+		if (data->fd_in != -1)
+			conf_write(fp, " fd_in = %d", data->fd_in);
+		if (data->multihop_fd_in != -1)
+			conf_write(fp, " multihop fd_in = %d", data->multihop_fd_in);
 		conf_write(fp, " thread_in = 0x%p", data->thread_in);
 	}
 
@@ -322,8 +326,10 @@ bfd_complete_init(void)
 	}
 
 	/* Copy old input fd on reload */
-	if (reload)
+	if (reload) {
 		bfd_data->fd_in = old_bfd_data->fd_in;
+		bfd_data->multihop_fd_in = old_bfd_data->multihop_fd_in;
+	}
 }
 
 /*
@@ -346,11 +352,11 @@ free_bfd_buffer(void)
 /*
  *	Lookup functions
  */
-/* Looks up bfd instance by neighbor address, and optional local address.
+/* Looks up bfd instance by neighbor address and port, and optional local address.
  * If local address is not set, then it is a configuration time check and
  * the bfd instance is configured without a local address. */
 bfd_t * __attribute__ ((pure))
-find_bfd_by_addr(const sockaddr_t *nbr_addr, const sockaddr_t *local_addr)
+find_bfd_by_addr(const sockaddr_t *nbr_addr, const sockaddr_t *local_addr, bool multihop)
 {
 	bfd_t *bfd;
 	assert(nbr_addr);
@@ -362,6 +368,9 @@ find_bfd_by_addr(const sockaddr_t *nbr_addr, const sockaddr_t *local_addr)
 			continue;
 
 		if (inet_sockaddrcmp(&bfd->nbr_addr, nbr_addr))
+			continue;
+
+		if (multihop != bfd->multihop)
 			continue;
 
 		if (!bfd->src_addr.ss_family)

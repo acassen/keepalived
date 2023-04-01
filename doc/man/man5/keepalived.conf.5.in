@@ -1291,6 +1291,11 @@ The syntax for bfd instance is :
     #  (255 disables hop count checking)
     \fBmax_hops \fR<INTEGER>
 
+    # RFC 5883 specifies port 4784 must be used for multihop bfd, rather than
+    # port 3784. Specifying multihop enables that option, but if multiple hops
+    # are in use, then max_hops (see above) will also need to be configured.
+    \fBmultihop\fR [<BOOL>]
+
     # Default tracking weight
     # Normally, positive weights are added to the vrrp instance priority when
     # the bfd instance is up, negative weights reduce the priority when it is down.

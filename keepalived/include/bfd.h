@@ -37,6 +37,8 @@
 #define BFD_CONTROL_TTL		255
 #define BFD_CONTROL_HOPLIMIT	64
 
+#define	BFD_MULTIHOP_CONTROL_PORT "4784"	// See RFC5883
+
 #define	BFD_MIN_PORT		49152
 #define	BFD_MAX_PORT		65535
 
@@ -87,6 +89,7 @@ typedef struct _bfd {
 	uint8_t			ttl;			/* TTL/hopcount to send */
 	uint8_t			max_hops;		/* Maximum number of hops allowed to be traversed by received packet */
 	bool			passive;		/* Operate in passive mode */
+	bool			multihop;		/* Set for multihop BFD (RFC5883) */
 #ifdef _WITH_VRRP_
 	bool			vrrp;			/* Only send events to VRRP process */
 #endif
