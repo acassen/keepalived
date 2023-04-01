@@ -2043,12 +2043,15 @@ umask_handler(const vector_t *strvec)
 				if      (!strncmp(p, "IRUSR", 5)) umask_bits |= S_IRUSR;
 				else if (!strncmp(p, "IWUSR", 5)) umask_bits |= S_IWUSR;
 				else if (!strncmp(p, "IXUSR", 5)) umask_bits |= S_IXUSR;
+				else if (!strncmp(p, "IRWXU", 5)) umask_bits |= S_IRWXU;
 				else if (!strncmp(p, "IRGRP", 5)) umask_bits |= S_IRGRP;
 				else if (!strncmp(p, "IWGRP", 5)) umask_bits |= S_IWGRP;
 				else if (!strncmp(p, "IXGRP", 5)) umask_bits |= S_IXGRP;
+				else if (!strncmp(p, "IRWXG", 5)) umask_bits |= S_IRWXG;
 				else if (!strncmp(p, "IROTH", 5)) umask_bits |= S_IROTH;
 				else if (!strncmp(p, "IWOTH", 5)) umask_bits |= S_IWOTH;
 				else if (!strncmp(p, "IXOTH", 5)) umask_bits |= S_IXOTH;
+				else if (!strncmp(p, "IRWXO", 5)) umask_bits |= S_IRWXO;
 				else {
 					report_config_error(CONFIG_GENERAL_ERROR, "Unknown umask bit %s", p);
 					return;
