@@ -17,7 +17,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2015-2017 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2015-2023 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #ifndef _BFD_DATA_H
@@ -32,6 +32,7 @@
 typedef struct _bfd_data {
 	list_head_t	bfd;		/* bfd_t - BFD instances */
 	int		fd_in;		/* Input socket fd */
+	int		multihop_fd_in;	/* Input socket for multihop */
 	thread_ref_t	thread_in;	/* Input socket thread */
 } bfd_data_t;
 
@@ -54,7 +55,7 @@ extern void free_bfd_data(bfd_data_t *);
 extern void bfd_complete_init(void);
 extern void alloc_bfd_buffer(void);
 extern void free_bfd_buffer(void);
-extern bfd_t *find_bfd_by_addr(const sockaddr_t *, const sockaddr_t *) __attribute__ ((pure));
+extern bfd_t *find_bfd_by_addr(const sockaddr_t *, const sockaddr_t *, bool) __attribute__ ((pure));
 extern bfd_t *find_bfd_by_discr(const uint32_t) __attribute__ ((pure));
 extern bfd_t *find_bfd_by_name(const char *) __attribute__ ((pure));
 extern uint32_t rand_intv(uint32_t, uint32_t);

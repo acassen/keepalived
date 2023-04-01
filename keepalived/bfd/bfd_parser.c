@@ -85,7 +85,8 @@ bfd_nbrip_handler(const vector_t *strvec)
 	if (!strcmp(vector_slot(strvec, 1), "neighbour_ip"))
 		neighbor_str = "neighbour";
 
-	if (inet_stosockaddr(strvec_slot(strvec, 1), BFD_CONTROL_PORT, &nbr_addr)) {
+	/* multihop may have already been specified */
+	if (inet_stosockaddr(strvec_slot(strvec, 1), bfd->multihop ? BFD_MULTIHOP_CONTROL_PORT : BFD_CONTROL_PORT, &nbr_addr)) {
 		report_config_error(CONFIG_GENERAL_ERROR,
 			    "Configuration error: BFD instance %s has"
 			    " malformed %s address %s, ignoring instance",
@@ -259,6 +260,42 @@ bfd_maxhops_handler(const vector_t *strvec)
 		bfd->max_hops = value;
 }
 
+static void
+bfd_multihop_handler(const vector_t *strvec)
+{
+	bfd_t *bfd = current_bfd;
+	int value;
+
+	assert(strvec);
+	assert(bfd_data);
+
+	if (vector_size(strvec) == 1)
+		value = 1;
+	else {
+		value = check_true_false(vector_slot(strvec, 1));
+		if (value == -1) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Configuration error: BFD instance %s"
+				    " multihop setting not valid - %s", bfd->iname, strvec_slot(strvec, 1));
+			return;
+		}
+	}
+
+	bfd->multihop = value;
+
+	/* Neighbour IP may have already been specified */
+#ifndef USE_SOCKADDR_STORAGE
+	if (bfd->nbr_addr.ss_family == AF_INET)
+		bfd->nbr_addr.in.sin_port = htons(atoi(bfd->multihop ? BFD_MULTIHOP_CONTROL_PORT : BFD_CONTROL_PORT));
+	else if (bfd->nbr_addr.ss_family == AF_INET6)
+		bfd->nbr_addr.in6.sin6_port = htons(atoi(bfd->multihop ? BFD_MULTIHOP_CONTROL_PORT : BFD_CONTROL_PORT));
+#else
+	if (bfd->nbr_addr.ss_family == AF_INET)
+		PTR_CAST(struct sockaddr_in, &bfd->nbr_addr)->sin_port = htons(atoi(bfd->multihop ? BFD_MULTIHOP_CONTROL_PORT : BFD_CONTROL_PORT));
+	else if (bfd->nbr_addr.ss_family == AF_INET6)
+		PTR_CAST(struct sockaddr_in6, &bfd->nbr_addr)->sin6_port = htons(atoi(bfd->multihop ? BFD_MULTIHOP_CONTROL_PORT : BFD_CONTROL_PORT));
+#endif
+}
+
 /* Checks for minimum configuration requirements */
 #ifdef _WITH_VRRP_
 static void
@@ -316,7 +353,7 @@ bfd_end_handler(void)
 		return;
 	}
 
-	if (find_bfd_by_addr(&bfd->nbr_addr, &bfd->src_addr)) {
+	if (find_bfd_by_addr(&bfd->nbr_addr, &bfd->src_addr, bfd->multihop)) {
 		if (bfd->src_addr.ss_family) {
 			char src_addr[INET6_ADDRSTRLEN];
 			strcpy(src_addr, inet_sockaddrtos(&bfd->src_addr));
@@ -500,6 +537,7 @@ init_bfd_keywords(bool active)
 	install_keyword_conditional("ttl", &bfd_ttl_handler, bfd_handlers);
 	install_keyword_conditional("hoplimit", &bfd_ttl_handler, bfd_handlers);
 	install_keyword_conditional("max_hops", &bfd_maxhops_handler, bfd_handlers);
+	install_keyword_conditional("multihop", &bfd_multihop_handler, bfd_handlers);
 #ifdef _WITH_VRRP_
 	install_keyword_conditional("weight", &bfd_vrrp_weight_handler,
 #ifdef _ONE_PROCESS_DEBUG_

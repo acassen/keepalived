@@ -652,7 +652,7 @@ bfd_send_packet(int fd, bfdpkt_t *pkt, bool log_error)
 /* Handles incoming control packet (called from bfd_receiver_thread) and
    processes it through a BFD state machine. */
 static void
-bfd_handle_packet(bfdpkt_t *pkt)
+bfd_handle_packet(bfdpkt_t *pkt, bool multihop)
 {
 	uint32_t old_local_tx_intv;
 	uint32_t old_remote_rx_intv;
@@ -676,7 +676,7 @@ bfd_handle_packet(bfdpkt_t *pkt)
 
 	/* Lookup session */
 	if (!pkt->hdr->remote_discr)
-		bfd = find_bfd_by_addr(&pkt->src_addr, &pkt->dst_addr);
+		bfd = find_bfd_by_addr(&pkt->src_addr, &pkt->dst_addr, multihop);
 	else
 		bfd = find_bfd_by_discr(ntohl(pkt->hdr->remote_discr));
 
@@ -944,7 +944,7 @@ bfd_receiver_thread(thread_ref_t thread)
 	/* Ignore THREAD_READ_TIMEOUT */
 	if (thread->type == THREAD_READY_READ_FD) {
 		if (!bfd_receive_packet(&pkt, fd, bfd_buffer, BFD_BUFFER_SIZE))
-			bfd_handle_packet(&pkt);
+			bfd_handle_packet(&pkt, data->multihop_fd_in == fd);
 	}
 
 	data->thread_in =
@@ -956,68 +956,66 @@ bfd_receiver_thread(thread_ref_t thread)
  * Initialization functions
  */
 
-/* Prepares UDP socket for listening on *:3784 (both IPv4 and IPv6) */
+/* Prepares UDP socket for listening on *:3784 or *:4784 (multihop) - both IPv4 and IPv6 */
 static int
-bfd_open_fd_in(bfd_data_t *data)
+bfd_open_fd_in(const char *port)
 {
 	struct addrinfo hints = { .ai_family = AF_INET6, .ai_flags = AI_NUMERICSERV | AI_PASSIVE, .ai_protocol = IPPROTO_UDP, .ai_socktype = SOCK_DGRAM };
 	struct addrinfo *ai_in;
 	int ret;
 	int yes = 1;
 	int sav_errno;
+	int fd_in;
 
-	assert(data);
-	assert(data->fd_in == -1);
-
-	if ((ret = getaddrinfo(NULL, BFD_CONTROL_PORT, &hints, &ai_in))) {
+	if ((ret = getaddrinfo(NULL, port, &hints, &ai_in))) {
 		log_message(LOG_ERR, "getaddrinfo() error %d (%s)", ret, gai_strerror(ret));
-		return ret;
+		return -1;
 	}
 
-	if ((data->fd_in = socket(AF_INET6, ai_in->ai_socktype, ai_in->ai_protocol)) == -1) {
+	if ((fd_in = socket(AF_INET6, ai_in->ai_socktype, ai_in->ai_protocol)) == -1) {
 		sav_errno = errno;
 
 		freeaddrinfo(ai_in);
 
 		if (sav_errno != EAFNOSUPPORT) {
 			log_message(LOG_ERR, "socket() error %d (%m)", errno);
-			return 1;
+			return -1;
 		}
 
 		/* IPv6 is disabled on the system, so we need to try using IPv4 */
 		hints.ai_family = AF_INET;
 
-		if ((ret = getaddrinfo(NULL, BFD_CONTROL_PORT, &hints, &ai_in))) {
+		if ((ret = getaddrinfo(NULL, port, &hints, &ai_in))) {
 			log_message(LOG_ERR, "getaddrinfo(AF_INET) error %d (%s)", ret, gai_strerror(ret));
-			return ret;
+			return -1;
 		}
 
-		if ((data->fd_in = socket(AF_INET, ai_in->ai_socktype, ai_in->ai_protocol)) == -1) {
+		if ((fd_in = socket(AF_INET, ai_in->ai_socktype, ai_in->ai_protocol)) == -1) {
 			log_message(LOG_ERR, "socket(AF_INET) error %d (%m)", errno);
 			freeaddrinfo(ai_in);
-			return 1;
+			return -1;
 		}
 	}
 
-	if ((ret = setsockopt(data->fd_in, IPPROTO_IP, IP_RECVTTL, &yes, sizeof (yes))) == -1)
+	if ((ret = setsockopt(fd_in, IPPROTO_IP, IP_RECVTTL, &yes, sizeof (yes))) == -1)
 		log_message(LOG_ERR, "setsockopt(IP_RECVTTL) error %d (%m)", errno);
-	else if (ai_in->ai_family == AF_INET6 && (ret = setsockopt(data->fd_in, IPPROTO_IPV6, IPV6_RECVHOPLIMIT, &yes, sizeof (yes))) == -1)
+	else if (ai_in->ai_family == AF_INET6 && (ret = setsockopt(fd_in, IPPROTO_IPV6, IPV6_RECVHOPLIMIT, &yes, sizeof (yes))) == -1)
 		log_message(LOG_ERR, "setsockopt(IPV6_RECVHOPLIMIT) error %d (%m)", errno);
-	else if (ai_in->ai_family == AF_INET6 && (ret = setsockopt(data->fd_in, IPPROTO_IPV6, IPV6_RECVPKTINFO, &yes, sizeof (yes))) == -1)
+	else if (ai_in->ai_family == AF_INET6 && (ret = setsockopt(fd_in, IPPROTO_IPV6, IPV6_RECVPKTINFO, &yes, sizeof (yes))) == -1)
 		log_message(LOG_ERR, "setsockopt(IPV6_RECVPKTINFO) error %d (%m)", errno);
-	else if (ai_in->ai_family == AF_INET && (ret = setsockopt(data->fd_in, IPPROTO_IP, IP_PKTINFO, &yes, sizeof (yes))) == -1)
+	else if (ai_in->ai_family == AF_INET && (ret = setsockopt(fd_in, IPPROTO_IP, IP_PKTINFO, &yes, sizeof (yes))) == -1)
 		log_message(LOG_ERR, "setsockopt(IP_PKTINFO) error %d (%m)", errno);
-	else if ((ret = bind(data->fd_in, ai_in->ai_addr, ai_in->ai_addrlen)) == -1)
+	else if ((ret = bind(fd_in, ai_in->ai_addr, ai_in->ai_addrlen)) == -1)
 		log_message(LOG_ERR, "bind() error %d (%m)", errno);
 
 	freeaddrinfo(ai_in);
 
 	if (ret) {
-		close(data->fd_in);
-		data->fd_in = -1;
+		close(fd_in);
+		return -1;
 	}
 
-	return ret;
+	return fd_in;
 }
 
 static bool
@@ -1150,18 +1148,10 @@ static int
 bfd_open_fds(bfd_data_t *data)
 {
 	bfd_t *bfd;
+	bool need_multihop = false;
+	bool need_singlehop = false;
 
 	assert(data);
-
-	/* Do not reopen input socket on reload */
-	if (bfd_data->fd_in == -1) {
-		if (bfd_open_fd_in(data)) {
-			log_message(LOG_ERR, "Unable to open listening socket");
-
-			/* There is no point to stay alive w/o listening socket */
-			return 1;
-		}
-	}
 
 	list_for_each_entry(bfd, &data->bfd, e_list) {
 		if (bfd_open_fd_out(bfd)) {
@@ -1169,7 +1159,42 @@ bfd_open_fds(bfd_data_t *data)
 				    " open output socket, disabling instance",
 				    bfd->iname);
 			bfd_state_admindown(bfd);
+		} else {
+			if (bfd->multihop)
+				need_multihop = true;
+			else
+				need_singlehop = true;
 		}
+	}
+
+	/* Do not reopen input socket(s) alreay open, on reload.
+	 * On reload, close unneeded open sockets. */
+	if (data->fd_in == -1) {
+		if (need_singlehop &&
+		    (data->fd_in = bfd_open_fd_in(BFD_CONTROL_PORT)) == -1) {
+			log_message(LOG_ERR, "Unable to open listening socket");
+
+			/* There is no point to stay alive w/o listening socket */
+			if (!need_multihop)
+				return 1;
+		}
+	} else if (!need_singlehop) {
+		close(data->fd_in);
+		data->fd_in = -1;
+	}
+
+	if (data->multihop_fd_in == -1) {
+		if (need_multihop &&
+		    (data->multihop_fd_in = bfd_open_fd_in(BFD_MULTIHOP_CONTROL_PORT)) == -1) {
+			log_message(LOG_ERR, "Unable to open multihop listening socket");
+
+			/* There is no point to stay alive w/o listening socket */
+			if (!need_singlehop)
+				return 1;
+		}
+	} else if (!need_multihop) {
+		close(data->multihop_fd_in);
+		data->multihop_fd_in = -1;
 	}
 
 	return 0;
@@ -1205,8 +1230,12 @@ bfd_register_workers(bfd_data_t *data)
 	assert(!data->thread_in);
 
 	/* Set timeout to not expire */
-	data->thread_in = thread_add_read(master, bfd_receiver_thread,
-					  data, data->fd_in, TIMER_NEVER, 0);
+	if (data->fd_in != -1)
+		data->thread_in = thread_add_read(master, bfd_receiver_thread,
+						  data, data->fd_in, TIMER_NEVER, 0);
+	if (data->multihop_fd_in != -1)
+		data->thread_in = thread_add_read(master, bfd_receiver_thread,
+						  data, data->multihop_fd_in, TIMER_NEVER, 0);
 
 	/* Resume or schedule threads */
 	list_for_each_entry(bfd, &data->bfd, e_list) {
@@ -1259,15 +1288,19 @@ bfd_dispatcher_release(bfd_data_t *data)
 	if (!data->thread_in)
 		return;
 
-	assert(data->fd_in != -1);
-
 	thread_cancel(data->thread_in);
 	data->thread_in = NULL;
 
-	/* Do not close fd_in on reload */
+	/* Do not close fd_in(s) on reload */
 	if (!reload) {
-		close(data->fd_in);
-		data->fd_in = -1;
+		if (data->fd_in != -1) {
+			close(data->fd_in);
+			data->fd_in = -1;
+		}
+		if (data->multihop_fd_in != -1) {
+			close(data->multihop_fd_in);
+			data->multihop_fd_in = -1;
+		}
 	}
 
 	/* Suspend threads for possible resuming after reconfiguration */

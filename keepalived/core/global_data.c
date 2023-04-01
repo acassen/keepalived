@@ -93,9 +93,9 @@ static void
 set_default_mcast_group(data_t * data)
 {
 	/* coverity[check_return] */
-	inet_stosockaddr(INADDR_VRRP_GROUP, 0, PTR_CAST(sockaddr_t, &data->vrrp_mcast_group4));
+	inet_stosockaddr(INADDR_VRRP_GROUP, NULL, PTR_CAST(sockaddr_t, &data->vrrp_mcast_group4));
 	/* coverity[check_return] */
-	inet_stosockaddr(INADDR6_VRRP_GROUP, 0, PTR_CAST(sockaddr_t, &data->vrrp_mcast_group6));
+	inet_stosockaddr(INADDR6_VRRP_GROUP, NULL, PTR_CAST(sockaddr_t, &data->vrrp_mcast_group6));
 }
 
 static void
