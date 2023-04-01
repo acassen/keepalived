@@ -283,10 +283,17 @@ bfd_multihop_handler(const vector_t *strvec)
 	bfd->multihop = value;
 
 	/* Neighbour IP may have already been specified */
+#ifndef USE_SOCKADDR_STORAGE
 	if (bfd->nbr_addr.ss_family == AF_INET)
 		bfd->nbr_addr.in.sin_port = htons(atoi(bfd->multihop ? BFD_MULTIHOP_CONTROL_PORT : BFD_CONTROL_PORT));
 	else if (bfd->nbr_addr.ss_family == AF_INET6)
 		bfd->nbr_addr.in6.sin6_port = htons(atoi(bfd->multihop ? BFD_MULTIHOP_CONTROL_PORT : BFD_CONTROL_PORT));
+#else
+	if (bfd->nbr_addr.ss_family == AF_INET)
+		PTR_CAST(struct sockaddr_in, &bfd->nbr_addr)->sin_port = htons(atoi(bfd->multihop ? BFD_MULTIHOP_CONTROL_PORT : BFD_CONTROL_PORT));
+	else if (bfd->nbr_addr.ss_family == AF_INET6)
+		PTR_CAST(struct sockaddr_in6, &bfd->nbr_addr)->sin6_port = htons(atoi(bfd->multihop ? BFD_MULTIHOP_CONTROL_PORT : BFD_CONTROL_PORT));
+#endif
 }
 
 /* Checks for minimum configuration requirements */
