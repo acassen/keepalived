@@ -1106,11 +1106,8 @@ alloc_vrrp_group_track_bfd(const vector_t *strvec)
 void
 alloc_vrrp_vip(const vector_t *strvec)
 {
-	ip_address_t *last_ipaddr = NULL, *new_ipaddr;
+	ip_address_t *new_ipaddr;
 	sa_family_t address_family;
-
-	if (!list_empty(&current_vrrp->vip))
-		last_ipaddr = list_last_entry(&current_vrrp->vip, ip_address_t, e_list);
 
 	if (!(new_ipaddr = alloc_ipaddress(strvec, false)))
 		return;
