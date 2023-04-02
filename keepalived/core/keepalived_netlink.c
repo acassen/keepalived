@@ -1176,6 +1176,10 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 							 vrrp->ifp) &&
 						 vrrp->family == ifa->ifa_family &&
 						 vrrp->saddr.ss_family != AF_UNSPEC &&
+						 (vrrp->family != AF_INET6 ||	/* For an IPv6 VMAC if down removes the link local address */
+						  !__test_bit(VRRP_VMAC_BIT, &vrrp->flags) ||
+						  __test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags) ||
+						  IF_ISUP(ifp)) &&
 						 (!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) || is_tracking_saddr)) {
 						down_instance(vrrp);
 						vrrp->saddr.ss_family = AF_UNSPEC;
@@ -1590,12 +1594,31 @@ static void
 process_interface_flags_change(interface_t *ifp, unsigned ifi_flags)
 {
 	bool now_up = FLAGS_UP(ifi_flags);
+#ifdef _HAVE_VRRP_VMAC_
+	tracking_obj_t *top;
+	vrrp_t *vrrp;
+#endif
 
 	ifp->ifi_flags = ifi_flags;
 
 	if (!list_empty(&ifp->tracking_vrrp)) {
 		log_message(LOG_INFO, "Netlink reports %s %s", ifp->ifname, now_up ? "up" : "down");
 
+#ifdef _HAVE_VRRP_VMAC_
+		if (ifp->vmac_type &&
+		    ifp->is_ours &&
+		    ifp->hw_addr[sizeof(ll_addr) - 2] == 0x02 &&   /* Is it an IPv6 vmac? */
+		    now_up &&
+		    IN6_IS_ADDR_UNSPECIFIED(&ifp->sin6_addr)) {
+			list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
+				vrrp = top->obj.vrrp;
+				if (!__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags)) {
+					set_link_local_address(vrrp);
+					break;
+				}
+			}
+		}
+#endif
 		process_if_status_change(ifp);
 	}
 
