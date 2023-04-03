@@ -1032,22 +1032,24 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 							 ifa->ifa_family == AF_INET6 &&
 							 vrrp->ifp->is_ours) {
 							if (vrrp->saddr.ss_family == AF_UNSPEC) {
-								inet_ip6tosockaddr(addr.in6, &vrrp->saddr);
+								if (
 #if 0
-								if (IN6_IS_ADDR_UNSPECIFIED(&vrrp->ifp->sin6_addr)) {
 									/* This should never happen with the current code since we always
 									 * create a link local address on the VMAC interface.
 									 * However, if in future it is decided not to automatically create
 									 * a link local address on the VMAC interface if the parent interface
 									 * does not have one, then we will need the following code
 									 */
-									if (add_link_local_address(vrrp->ifp, addr.in6) &&
-									    vrrp->flags_if_fault &&
-									    (!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) || is_tracking_saddr))
-										try_up_instance(vrrp, false, VRRP_FAULT_FL_NO_SOURCE_IP);
-								} else
+										add_link_local_address(vrrp->ifp, addr.in6) &&
 #endif
-								reset_link_local_address(&vrrp->ifp->sin6_addr, vrrp);
+									    vrrp->flags_if_fault &&
+									    (!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) || is_tracking_saddr)) {
+										inet_ip6tosockaddr(addr.in6, &vrrp->saddr);
+										try_up_instance(vrrp, false, VRRP_FAULT_FL_NO_SOURCE_IP);
+								} else {
+									inet_ip6tosockaddr(addr.in6, &vrrp->saddr);
+									reset_link_local_address(&vrrp->ifp->sin6_addr, vrrp);
+								}
 							}
 						}
 #endif
