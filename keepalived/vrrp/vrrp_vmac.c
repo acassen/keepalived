@@ -163,10 +163,6 @@ replace_link_local_address(interface_t *ifp)
 	/* Create a new address */
 	make_link_local_address(&ipaddress_new, ifp->base_ifp->hw_addr);
 
-	/* There is no point in replacing the address with the same address */
-	if (inaddr_equal(AF_INET6, &ipaddress_new, &ifp->sin6_addr))
-		return true;
-
 	if (!change_link_local_address(ifp, &ifp->sin6_addr, &ipaddress_new))
 		return false;
 
