@@ -125,6 +125,10 @@ change_link_local_address(interface_t *ifp, struct in6_addr *old_addr, struct in
 {
 	ip_address_t ipaddress;
 
+	/* There is no point in replacing the address with the same address */
+	if (inaddr_equal(AF_INET6, old_addr, new_addr))
+		return true;
+
 	memset(&ipaddress, 0, sizeof(ipaddress));
 
 	/* Delete the old address */
