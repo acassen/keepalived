@@ -3481,7 +3481,16 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				log_message(LOG_INFO, "(%s) %s %s already exists but is incompatible."
 						      " It will be deleted/updated"
 						    , vrrp->iname, if_type, vrrp->vmac_ifname);
-				if (ifp->base_ifp->ifindex != vrrp->configured_ifp->ifindex)
+				if (reload && ifp->is_ours && !vrrp->ifp->base_ifp->ifindex) {
+					/* The base interface in the new configuration does not exist. */
+					list_for_each_entry(old_vrrp, &old_vrrp_data->vrrp, e_list) {
+						if (old_vrrp->ifp->ifindex == ifp->ifindex) {
+							log_message(LOG_INFO, "(%s) Deleting old VMAC interface %s", vrrp->iname, ifp->ifname);
+							netlink_link_del_vmac(old_vrrp);
+							break;
+						}
+					}
+				} else if (ifp->base_ifp->ifindex != vrrp->configured_ifp->ifindex)
 					old_interface = ifp;
 			} else {
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) %s interface name %s"
