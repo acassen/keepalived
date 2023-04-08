@@ -123,7 +123,7 @@ vrrp_json_ip_dump(json_writer_t *wr, list_head_t *e)
 		jsonw_bool_field(wr, "iptable_set", true);
 #endif
 #ifdef _WITH_NFTABLES_
-	if (ipaddr->iptable_rule_set)
+	if (ipaddr->nftable_rule_set)
 		jsonw_bool_field(wr, "nftable_set", true);
 #endif
 
