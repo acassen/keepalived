@@ -542,7 +542,9 @@ alloc_track_bfd(const char *name, list_head_t *l, const vector_t *strvec)
 void
 down_instance(vrrp_t *vrrp)
 {
-	if (vrrp->num_script_if_fault++ == 0 || vrrp->state == VRRP_STATE_INIT) {
+	if (vrrp->num_script_if_fault == 0 || vrrp->state == VRRP_STATE_INIT) {
+		vrrp->num_script_if_fault++;
+
 		vrrp->wantstate = VRRP_STATE_FAULT;
 		if (vrrp->state == VRRP_STATE_MAST)
 			vrrp_state_leave_master(vrrp, true);
@@ -551,7 +553,8 @@ down_instance(vrrp_t *vrrp)
 
 		if (vrrp->sync && vrrp->sync->num_member_fault++ == 0)
 			vrrp_sync_fault(vrrp);
-	}
+	} else
+		vrrp->num_script_if_fault++;
 }
 
 /* Set effective priorty, issue message on changes */
