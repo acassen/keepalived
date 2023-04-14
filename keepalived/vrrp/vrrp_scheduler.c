@@ -669,9 +669,13 @@ try_up_instance(vrrp_t *vrrp, bool leaving_init)
 	if (leaving_init) {
 		if (vrrp->num_script_if_fault)
 			return;
-	} else if (--vrrp->num_script_if_fault)
+	} else
+		vrrp->num_script_if_fault--;
+
+	if (vrrp->num_script_if_fault)
 		return;
-	else if (vrrp->num_script_init) {
+
+	if (vrrp->num_script_init) {
 		if (!vrrp->num_script_if_fault) {
 			if (vrrp->sync) {
 				vrrp->sync->num_member_fault--;
