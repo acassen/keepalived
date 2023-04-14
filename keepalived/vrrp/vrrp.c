@@ -2346,8 +2346,15 @@ del_vrrp_from_interface(vrrp_t *vrrp, interface_t *ifp)
 
 	list_for_each_entry_safe(top, top_tmp, &ifp->tracking_vrrp, e_list) {
 		if (top->obj.vrrp == vrrp && top->type == TRACK_VRRP_DYNAMIC) {
-			if (!IF_ISUP(ifp) && !__test_bit(VRRP_FLAG_DONT_TRACK_PRIMARY, &vrrp->flags))
-				vrrp->num_script_if_fault--;
+			if (!IF_ISUP(ifp) && !__test_bit(VRRP_FLAG_DONT_TRACK_PRIMARY, &vrrp->flags)) {
+#ifdef _HAVE_VRRP_VMAC_
+					if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags) && VRRP_CONFIGURED_IFP(vrrp) == ifp)
+							__clear_bit(VRRP_IF_FAULT_FLAG_BASE_INTERFACE_DOWN, &vrrp->flags_if_fault);
+					else
+#endif
+					   /* assuming there is only one tracked interface per vrrp : to be checked */
+						__clear_bit(VRRP_IF_FAULT_FLAG_INTERFACE_DOWN, &vrrp->flags_if_fault);
+			}
 			free_tracking_obj(top);
 			break;
 		}
@@ -2584,8 +2591,8 @@ open_sockpool_socket(sock_t *sock)
 		rb_for_each_entry(vrrp, &sock->rb_vrid, rb_vrid) {
 			if (vrrp->state != VRRP_STATE_FAULT)
 				log_message(LOG_INFO, "(%s): entering FAULT state (src address not configured)", vrrp->iname);
-			down_instance(vrrp);
-			if (vrrp->num_script_if_fault == 1)
+			down_instance(vrrp, false, VRRP_IF_FAULT_FLAG_NO_SOURCE_IP);
+			if ((__num_bit(&vrrp->flags_if_fault) + vrrp->num_track_fault) == 1)
 				send_instance_notifies(vrrp);
 		}
 		sock->fd_in = -1;
@@ -3961,7 +3968,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 	/* Add us to the vrrp list of the script, and update
-	 * effective_priority and num_script_if_fault */
+	 * effective_priority, flags_if_fault and num_track_fault */
 	list_for_each_entry_safe(sc, sc_tmp, &vrrp->track_script, e_list) {
 		vrrp_script_t *vsc = sc->scr;
 
@@ -4062,7 +4069,7 @@ sync_group_tracking_init(void)
 	bool sgroup_has_prio_owner;
 
 	/* Add sync group members to the vrrp list of the script, file, i/f,
-	 * and update effective_priority and num_script_if_fault */
+	 * and update effective_priority, flags_if_fault and num_track_fault */
 	list_for_each_entry(sgroup, &vrrp_data->vrrp_sync_group, e_list) {
 		if (list_empty(&sgroup->vrrp_instances))
 			continue;
@@ -4674,11 +4681,17 @@ vrrp_complete_init(void)
 #endif
 
 	/* If we add VMAC interfaces, we read netlink messages, which
-	 * may include link down/link up, and these will alter num_script_if_fault
+	 * may include link down/link up, and these will alter num_track_fault and flags_if_fault
 	 * but that is initialised in initialise_tracking_priorities() called below.
-	 * We therefore need to clear num_script_if_fault here. */
-	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list)
-		vrrp->num_script_if_fault = vrrp->num_config_faults;
+	 * We therefore need to clear num_track_fault and flags_if_fault here. */
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
+		if (vrrp->num_config_faults)
+			__set_bit(VRRP_IF_FAULT_FLAG_CONFIG_ERROR, &vrrp->flags_if_fault);
+		else {
+			vrrp->num_track_fault = 0;
+			vrrp->flags_if_fault = 0;
+		}
+	}
 
 	/* Remove any VIPs from the list of default addresses for interfaces */
 	if (!reload)

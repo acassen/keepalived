@@ -32,6 +32,8 @@
 #include <stdio.h>
 #include <inttypes.h>
 
+#include <assert.h>
+
 #include "vrrp_scheduler.h"
 #include "vrrp_track.h"
 #ifdef _HAVE_VRRP_VMAC_
@@ -285,7 +287,8 @@ vrrp_init_state(list_head_t *l)
 			if (vrrp_begin_state != vrrp->state)
 				vrrp->last_transition = timer_now();
 			if (vrrp_begin_state != vrrp->state &&
-			    (vrrp->state != VRRP_STATE_FAULT || vrrp->num_script_if_fault))
+			    (vrrp->state != VRRP_STATE_FAULT ||
+			     vrrp->num_track_fault || vrrp->flags_if_fault))
 				send_instance_notifies(vrrp);
 			else if (reload && global_data->fifo_write_vrrp_states_on_reload)
 				notify_instance_fifo(vrrp);
@@ -661,22 +664,33 @@ vrrp_lower_prio_gratuitous_arp_thread(thread_ref_t thread)
 }
 
 void
-try_up_instance(vrrp_t *vrrp, bool leaving_init)
+try_up_instance(vrrp_t *vrrp,bool leaving_init,
+		bool resolved_script,
+		enum vrrp_if_fault_flags_bits resolved_flag)
 {
 	int wantstate;
 	ip_address_t ip_addr = {};
 
-	if (leaving_init) {
-		if (vrrp->num_script_if_fault)
-			return;
-	} else
-		vrrp->num_script_if_fault--;
+	/* We can not use try_up_instance() for several resolution
+	 * at the same time
+	 */
+	assert(!(resolved_script && resolved_flag != VRRP_IF_FAULT_FLAG_UNSPECIFIED));
 
-	if (vrrp->num_script_if_fault)
+	if (leaving_init) {
+		if (vrrp->num_track_fault || vrrp->flags_if_fault)
+			return;
+	} else {
+		if (resolved_script)
+			vrrp->num_track_fault--;
+		if (resolved_flag != VRRP_IF_FAULT_FLAG_UNSPECIFIED)
+			__clear_bit(resolved_flag, &vrrp->flags_if_fault);
+	}
+
+	if (vrrp->num_track_fault || vrrp->flags_if_fault)
 		return;
 
 	if (vrrp->num_script_init) {
-		if (!vrrp->num_script_if_fault) {
+		if (!vrrp->num_track_fault && !vrrp->flags_if_fault) {
 			if (vrrp->sync) {
 				vrrp->sync->num_member_fault--;
 				vrrp->sync->state = VRRP_STATE_INIT;
@@ -805,9 +819,9 @@ vrrp_handle_bfd_event(bfd_event_t * evt)
 			}
 
 			if (!!vbfd->bfd_up == (tbfd->weight_multiplier == 1))
-				try_up_instance(vrrp, false);
+				try_up_instance(vrrp, false, true, VRRP_IF_FAULT_FLAG_UNSPECIFIED);
 			else
-				down_instance(vrrp);
+				down_instance(vrrp, false, VRRP_IF_FAULT_FLAG_UNSPECIFIED);
 		}
 
 		break;
