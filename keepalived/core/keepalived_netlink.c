@@ -1176,10 +1176,12 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 							 vrrp->ifp) &&
 						 vrrp->family == ifa->ifa_family &&
 						 vrrp->saddr.ss_family != AF_UNSPEC &&
+#ifdef _HAVE_VRRP_VMAC_
 						 (vrrp->family != AF_INET6 ||	/* For an IPv6 VMAC if down removes the link local address */
 						  !__test_bit(VRRP_VMAC_BIT, &vrrp->flags) ||
 						  __test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags) ||
 						  IF_ISUP(ifp)) &&
+#endif
 						 (!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) || is_tracking_saddr)) {
 						down_instance(vrrp);
 						vrrp->saddr.ss_family = AF_UNSPEC;
