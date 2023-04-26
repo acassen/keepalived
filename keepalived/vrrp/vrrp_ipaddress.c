@@ -43,6 +43,9 @@
 #include "vrrp_firewall.h"
 #endif
 
+
+#define INFINITY_LIFE_TIME      0xFFFFFFFF
+
 const char *
 ipaddresstos(char *buf, const ip_address_t *ip_addr)
 {
@@ -833,4 +836,3 @@ void reinstate_static_address(ip_address_t *ip_addr)
 	format_ipaddress(ip_addr, buf, sizeof(buf));
 	log_message(LOG_INFO, "Restoring deleted static address %s", buf);
 }
-

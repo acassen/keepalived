@@ -96,8 +96,6 @@ typedef struct _ip_address {
 
 #define	IPADDRESSTOS_BUF_LEN	(INET6_ADDRSTRLEN + 4)     /* allow for subnet */
 
-#define INFINITY_LIFE_TIME      0xFFFFFFFF
-
 /* Forward reference */
 struct ipt_handle;
 
@@ -120,4 +118,3 @@ extern void clear_diff_static_addresses(void);
 extern void reinstate_static_address(ip_address_t *);
 
 #endif
-

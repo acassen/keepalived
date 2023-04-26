@@ -42,6 +42,8 @@
 #include "rttables.h"
 #include "json_writer.h"
 
+#define INFINITY_LIFE_TIME      0xFFFFFFFF
+
 static inline double
 timeval_to_double(const timeval_t *t)
 {
