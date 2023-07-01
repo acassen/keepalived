@@ -76,3 +76,9 @@ Overflow-Connection (ovf)
 *************************
 
 The Overflow connection scheduling algorithm implements "overflow" loadbalancing according to a number of active connections, will keep all connections to the node with the highest weight and overflow to the next node if the number of connections exceeds the node's weight. Note that this scheduler might not be suitable for UDP because it only uses active connections
+
+Weighted failover (fo)
+*************************
+
+The weighted failover scheduling algorithm implements the simple failover solution.
+Connections are always directed to the selected server based solely on highest weight value and server availability.
