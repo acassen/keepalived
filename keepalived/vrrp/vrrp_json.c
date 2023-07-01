@@ -39,7 +39,10 @@
 #include "timer.h"
 #include "utils.h"
 #include "global_data.h"
+#include "rttables.h"
 #include "json_writer.h"
+
+#define INFINITY_LIFE_TIME      0xFFFFFFFF
 
 static inline double
 timeval_to_double(const timeval_t *t)
@@ -59,13 +62,68 @@ vrrp_json_script_dump(json_writer_t *wr, const char *prop, notify_script_t *scri
 }
 
 static int
+vrrp_json_ip_peer_dump(json_writer_t *wr, ip_address_t *ipaddr)
+{
+	char peer[INET6_ADDRSTRLEN + 4];
+
+	inet_ntop(ipaddr->ifa.ifa_family, &ipaddr->peer, peer, sizeof(peer));
+	jsonw_string_field(wr, "peer", peer);
+	jsonw_uint_field(wr, "peer_prefixlen", ipaddr->ifa.ifa_prefixlen);
+
+	return 0;
+}
+
+static int
 vrrp_json_ip_dump(json_writer_t *wr, list_head_t *e)
 {
 	ip_address_t *ipaddr = list_entry(e, ip_address_t, e_list);
-	char buf[256];
 
-	format_ipaddress(ipaddr, buf, sizeof(buf));
-	jsonw_string(wr, buf);
+	if (ipaddr->ifa.ifa_family == AF_UNSPEC)
+		return -1;
+
+	jsonw_start_object(wr);
+
+	jsonw_string_field(wr, "ip", ipaddresstos(NULL, ipaddr));
+	if (!IP_IS6(ipaddr) && ipaddr->u.sin.sin_brd.s_addr)
+		jsonw_string_field(wr, "brd", inet_ntop2(ipaddr->u.sin.sin_brd.s_addr));
+	jsonw_string_field(wr, "dev", IF_NAME(ipaddr->ifp));
+#ifdef _HAVE_VRRP_VMAC_
+	jsonw_string_field(wr, "base_ifp",(ipaddr->ifp != ipaddr->ifp->base_ifp) ? ipaddr->ifp->base_ifp->ifname : "none");
+	jsonw_bool_field(wr, "use_vmac", (ipaddr->use_vmac) ? true : false);
+#endif
+	jsonw_string_field(wr, "scope", get_rttables_scope(ipaddr->ifa.ifa_scope));
+	jsonw_string_field(wr, "label", (ipaddr->label) ? ipaddr->label : "");
+	vrrp_json_ip_peer_dump(wr, ipaddr);
+	jsonw_bool_field(wr, "home", (ipaddr->flags & IFA_F_HOMEADDRESS) ? true : false);
+	jsonw_bool_field(wr, "no_dad", (ipaddr->flagmask & IFA_F_NODAD) ? true : false);
+#ifdef IFA_F_MANAGETEMPADDR
+	jsonw_bool_field(wr, "mng_tmp_addr", (ipaddr->flags & IFA_F_MANAGETEMPADDR) ? true : false);
+#endif
+#ifdef IFA_F_NOPREFIXROUTE
+	jsonw_bool_field(wr, "no_prefix_route", (ipaddr->flags & IFA_F_NOPREFIXROUTE) ? true : false);
+#endif
+#ifdef IFA_F_MCAUTOJOIN
+	jsonw_bool_field(wr, "auto_join", (ipaddr->flags & IFA_F_MCAUTOJOIN) ? true : false);
+#endif
+	jsonw_bool_field(wr, "dont_track", (ipaddr->dont_track) ? true : false);
+	jsonw_bool_field(wr, "track_group", (ipaddr->track_group) ? true : false);
+	if (IP_IS6(ipaddr)) {
+		if (ipaddr->preferred_lft == 0)
+			jsonw_string_field(wr, "preferred_lft", "deprecated");
+		else if (ipaddr->preferred_lft == INFINITY_LIFE_TIME)
+			jsonw_string_field(wr, "preferred_lft", "forever");
+		else
+			jsonw_uint_field(wr, "preferred_lft", ipaddr->preferred_lft);
+	}
+	jsonw_bool_field(wr, "set", (ipaddr->set) ? true : false);
+#ifdef _WITH_IPTABLES_
+	jsonw_bool_field(wr, "iptable_set", (ipaddr->iptable_rule_set) ? true : false);
+#endif
+#ifdef _WITH_NFTABLES_
+	jsonw_bool_field(wr, "nftable_set", (ipaddr->nftable_rule_set) ? true : false);
+#endif
+
+	jsonw_end_object(wr);
 	return 0;
 }
 
@@ -107,7 +165,7 @@ vrrp_json_track_script_dump(json_writer_t *wr, list_head_t *e)
 	tracked_sc_t *tsc = list_entry(e, tracked_sc_t, e_list);
 	vrrp_script_t *vscript = tsc->scr;
 
-	jsonw_string(wr, cmd_str(&vscript->script));
+	jsonw_string(wr, vscript->sname);
 	return 0;
 }
 
@@ -264,6 +322,54 @@ vrrp_json_stats_dump(json_writer_t *wr, vrrp_t *vrrp)
 	return 0;
 }
 
+static int
+vrrp_json_vscript_dump(json_writer_t *wr, list_head_t *e)
+{
+	vrrp_script_t *vscript = list_entry(e, vrrp_script_t, e_list);
+
+	jsonw_start_object(wr);
+
+	jsonw_string_field(wr, "script_name", vscript->sname);
+	jsonw_string_field(wr, "script", cmd_str(&vscript->script));
+	jsonw_uint_field(wr, "interval", vscript->interval / TIMER_HZ);
+	jsonw_uint_field(wr, "timeout", vscript->timeout / TIMER_HZ);
+	jsonw_int_field(wr, "weight", vscript->weight);
+	jsonw_bool_field(wr, "reverse", vscript->weight_reverse);
+	jsonw_int_field(wr, "rise", vscript->rise);
+	jsonw_int_field(wr, "fall", vscript->fall);
+	jsonw_uint_field(wr, "uid", vscript->script.uid);
+	jsonw_uint_field(wr, "gid", vscript->script.gid);
+	jsonw_string_field(wr, "init_state",
+		vscript->init_state == SCRIPT_INIT_STATE_INIT ? "init":
+		vscript->init_state == SCRIPT_INIT_STATE_FAILED ? "failed" :
+		vscript->init_state == SCRIPT_INIT_STATE_INIT_RELOAD ? "reload" :
+		"unknown"
+	);
+	jsonw_int_field(wr, "status",
+		vscript->result >= vscript->rise ? 1 :
+		0
+	);
+	jsonw_string_field(wr, "state",
+		vscript->state == SCRIPT_STATE_IDLE ? "idle" :
+		vscript->state == SCRIPT_STATE_RUNNING ? "running" :
+		vscript->state == SCRIPT_STATE_REQUESTING_TERMINATION ? "requesting_termination" :
+		vscript->state == SCRIPT_STATE_FORCING_TERMINATION ? "forcing_termination" :
+		"unknown"
+	);
+
+	jsonw_end_object(wr);
+
+	return 0;
+}
+
+static int
+vrrp_json_vscripts_dump(json_writer_t *wr)
+{
+	vrrp_json_array_dump(wr, "track_script", &vrrp_data->vrrp_script, vrrp_json_vscript_dump);
+
+	return 0;
+}
+
 #ifdef _WITH_TRACK_PROCESS_
 static int
 vrrp_json_vprocess_dump(json_writer_t *wr, list_head_t *e)
@@ -345,6 +451,8 @@ vrrp_json_dump(FILE *fp)
 	jsonw_end_array(wr);
 
 	if (global_data->json_version == JSON_VERSION_V2) {
+		if (!list_empty(&vrrp_data->vrrp_script))
+			vrrp_json_vscripts_dump(wr);
 #ifdef _WITH_TRACK_PROCESS_
 		if (!list_empty(&vrrp_data->vrrp_track_processes))
 			vrrp_json_vprocesses_dump(wr);
