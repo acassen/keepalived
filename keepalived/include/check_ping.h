@@ -26,6 +26,8 @@
 #include "check_api.h"
 
 typedef struct _ping_check {
+	uint16_t	seq_no;
+	bool		response_expected;
 } ping_check_t;
 
 /* function prototypes */
