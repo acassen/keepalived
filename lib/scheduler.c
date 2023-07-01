@@ -1311,12 +1311,10 @@ thread_close_fd(thread_ref_t thread_cp)
 }
 
 /* Add timer event thread. */
-thread_ref_t
-thread_add_timer_uval(thread_master_t *m, thread_func_t func, void *arg, unsigned val, unsigned long timer)
+static thread_ref_t
+thread_add_timer_uval_sands(thread_master_t *m, thread_func_t func, void *arg, unsigned val, const timeval_t *sands)
 {
 	thread_t *thread;
-
-	assert(m != NULL);
 
 	thread = thread_new(m);
 	thread->type = THREAD_TIMER;
@@ -1325,13 +1323,7 @@ thread_add_timer_uval(thread_master_t *m, thread_func_t func, void *arg, unsigne
 	thread->arg = arg;
 	thread->u.uval = val;
 
-	/* Do we need jitter here? */
-	if (timer == TIMER_NEVER)
-		thread->sands.tv_sec = TIMER_DISABLED;
-	else {
-		set_time_now();
-		thread->sands = timer_add_long(time_now, timer);
-	}
+	thread->sands = *sands;
 
 	/* Sort by timeval. */
 	rb_add_cached(&thread->n, &m->timer, thread_timer_less);
@@ -1340,9 +1332,33 @@ thread_add_timer_uval(thread_master_t *m, thread_func_t func, void *arg, unsigne
 }
 
 thread_ref_t
+thread_add_timer_uval(thread_master_t *m, thread_func_t func, void *arg, unsigned val, unsigned long timer)
+{
+	timeval_t sands;
+
+	assert(m != NULL);
+
+	/* Do we need jitter here? */
+	if (timer == TIMER_NEVER)
+		sands.tv_sec = TIMER_DISABLED;
+	else {
+		set_time_now();
+		sands = timer_add_long(time_now, timer);
+	}
+
+	return thread_add_timer_uval_sands(m, func, arg, val, &sands);
+}
+
+thread_ref_t
 thread_add_timer(thread_master_t *m, thread_func_t func, void *arg, unsigned long timer)
 {
 	return thread_add_timer_uval(m, func, arg, 0, timer);
+}
+
+thread_ref_t
+thread_add_timer_sands(thread_master_t *m, thread_func_t func, void *arg, const timeval_t *sands)
+{
+	return thread_add_timer_uval_sands(m, func, arg, 0, sands);
 }
 
 void
