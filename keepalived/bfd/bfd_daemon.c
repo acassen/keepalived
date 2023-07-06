@@ -28,6 +28,9 @@
 #include <sys/prctl.h>
 #include <fcntl.h>
 #include <sys/time.h>
+#ifdef _WITH_PROFILING_
+#include <sys/gmon.h>
+#endif
 
 #include "bfd.h"
 #include "bfd_daemon.h"
@@ -387,6 +390,11 @@ start_bfd_child(void)
 				 pid, TIMER_NEVER);
 		return 0;
 	}
+
+#ifdef _WITH_PROFILING_
+	/* See https://lists.gnu.org/archive/html/bug-gnu-utils/2001-09/msg00047.html for details */
+	monstartup ((u_long) &_start, (u_long) &etext);
+#endif
 
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
