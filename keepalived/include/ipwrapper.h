@@ -56,7 +56,7 @@ extern void update_svr_checker_state(bool, checker_t *);
 extern bool init_services(void);
 extern void clear_services(void);
 extern void set_quorum_states(void);
-extern void clear_diff_services(list_head_t *);
+extern void clear_diff_services(void);
 extern void check_new_rs_state(void);
 extern void link_vsg_to_vs(void);
 

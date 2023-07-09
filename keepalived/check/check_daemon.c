@@ -166,7 +166,6 @@ checker_terminate_phase2(void)
 	checker_dispatcher_release();
 	thread_destroy_master(master);
 	master = NULL;
-	free_checkers_queue();
 	free_ssl();
 	set_ping_group_range(false);
 
@@ -301,17 +300,16 @@ set_effective_weights(void)
 	list_for_each_entry(vs, &check_data->vs, e_list) {
 		list_for_each_entry(rs, &vs->rs, e_list) {
 			rs->effective_weight = rs->iweight;
+
+			list_for_each_entry(checker, &rs->checkers_list, rs_list)
+				checker->rs->effective_weight += checker->cur_weight;
 		}
         }
-
-	list_for_each_entry(checker, &checkers_queue, e_list) {
-		checker->rs->effective_weight += checker->cur_weight;
-	}
 }
 
 /* Daemon init sequence */
 static void
-start_check(list_head_t *old_checkers_queue, data_t *prev_global_data)
+start_check(data_t *prev_global_data)
 {
 	/* Parse configuration file */
 	if (reload)
@@ -430,7 +428,7 @@ start_check(list_head_t *old_checkers_queue, data_t *prev_global_data)
 	/* Processing differential configuration parsing */
 	set_track_file_weights();
 	if (reload)
-		clear_diff_services(old_checkers_queue);
+		clear_diff_services();
 	set_track_file_checkers_down();
 	set_effective_weights();
 	if (reload)
@@ -464,7 +462,7 @@ start_check(list_head_t *old_checkers_queue, data_t *prev_global_data)
 void
 check_validate_config(void)
 {
-	start_check(NULL, NULL);
+	start_check(NULL);
 }
 
 #ifndef _ONE_PROCESS_DEBUG_
@@ -472,7 +470,6 @@ check_validate_config(void)
 static void
 reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 {
-	list_head_t old_checkers_queue;
 	bool with_snmp = false;
 
 	log_message(LOG_INFO, "Reloading");
@@ -508,10 +505,6 @@ reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 	thread_cleanup_master(master, true);
 	thread_add_base_threads(master, with_snmp);
 
-	/* Save previous checker data */
-	list_copy(&old_checkers_queue, &checkers_queue);
-	init_checkers_queue();
-
 	free_ssl();
 	ipvs_stop();
 
@@ -522,12 +515,11 @@ reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 	global_data = NULL;
 
 	/* Reload the conf */
-	start_check(&old_checkers_queue, old_global_data);
+	start_check(old_global_data);
 
 	/* free backup data */
 	free_check_data(old_check_data);
 	free_global_data(old_global_data);
-	free_checker_list(&old_checkers_queue);
 
 #ifndef _ONE_PROCESS_DEBUG_
 	save_config(true, "check", dump_data_check);
@@ -791,7 +783,7 @@ start_check_child(void)
 #endif
 
 	/* Start Healthcheck daemon */
-	start_check(NULL, NULL);
+	start_check(NULL);
 
 #ifdef _ONE_PROCESS_DEBUG_
 	return 0;

@@ -166,9 +166,6 @@ add_rs_to_track_files(void)
 				current_checker->alpha = false;
 
 				add_obj_to_track_file(current_checker, tfl, FMT_RS(rs, vs), dump_tracking_rs);
-
-				/* queue the checker */
-				list_add_tail(&current_checker->e_list, &checkers_queue);
 			}
 		}
 	}

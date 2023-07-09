@@ -541,9 +541,6 @@ dns_check_end(void)
 
 	if (!dns_check->name)
 		dns_check->name = STRDUP(DNS_DEFAULT_NAME);
-
-	/* queue the checker */
-	list_add_tail(&current_checker->e_list, &checkers_queue);
 }
 
 void

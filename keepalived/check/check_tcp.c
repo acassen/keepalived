@@ -78,9 +78,6 @@ tcp_check_end_handler(void)
 		dequeue_new_checker();
 		return;
 	}
-
-	/* queue the checker */
-	list_add_tail(&current_checker->e_list, &checkers_queue);
 }
 
 void
