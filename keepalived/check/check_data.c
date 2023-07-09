@@ -570,6 +570,8 @@ alloc_rs(const char *ip, const char *port)
 #ifdef _WITH_BFD_
 	INIT_LIST_HEAD(&new->tracked_bfds);
 #endif
+	INIT_LIST_HEAD(&new->checkers_list);
+
 	if (inet_stosockaddr(ip, port_str, &new->addr)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid real server ip address/port %s/%s - skipping", ip, port);
 		skip_block(true);
@@ -636,7 +638,6 @@ free_vs(virtual_server_t *vs)
 	free_rs_list(&vs->rs);
 	free_notify_script(&vs->notify_quorum_up);
 	free_notify_script(&vs->notify_quorum_down);
-	free_vs_checkers(vs);
 	FREE(vs);
 }
 
@@ -956,7 +957,7 @@ dump_check_data(FILE *fp, const check_data_t *data)
 			dump_vsg_list(fp, &data->vs_group);
 		dump_vs_list(fp, &data->vs);
 	}
-	dump_checkers_queue(fp);
+	dump_checkers(fp);
 
 	if (!list_empty(&data->track_files)) {
 		conf_write(fp, "------< Checker track files >------");
@@ -1336,44 +1337,48 @@ validate_check_config(void)
 		}
 	}
 
-	list_for_each_entry(checker, &checkers_queue, e_list) {
-		/* Ensure any checkers that don't have ha_suspend set are enabled */
-		if (!checker->vs->ha_suspend)
-			checker->enabled = true;
+	list_for_each_entry(vs, &check_data->vs, e_list) {
+		list_for_each_entry(rs, &vs->rs, e_list) {
+			list_for_each_entry(checker, &rs->checkers_list, rs_list) {
+				/* Ensure any checkers that don't have ha_suspend set are enabled */
+				if (!checker->vs->ha_suspend)
+					checker->enabled = true;
 
-		/* Take default values from real server */
-		if (checker->alpha == -1)
-			checker->alpha = checker->rs->alpha;
-		if (checker->launch) {
-			if (checker->retry == UINT_MAX)
-				checker->retry = checker->rs->retry != UINT_MAX ? checker->rs->retry : checker->default_retry;
-			if (checker->co && checker->co->connection_to == UINT_MAX)
-				checker->co->connection_to = checker->rs->connection_to;
-			if (checker->delay_loop == ULONG_MAX)
-				checker->delay_loop = checker->rs->delay_loop;
-			if (checker->warmup == ULONG_MAX)
-				checker->warmup = checker->rs->warmup != ULONG_MAX ? checker->rs->warmup : checker->delay_loop;
-			if (checker->delay_before_retry == ULONG_MAX) {
-				checker->delay_before_retry =
-					checker->rs->delay_before_retry != ULONG_MAX ?
-						checker->rs->delay_before_retry :
-					checker->default_delay_before_retry ?
-						checker->default_delay_before_retry :
-						checker->delay_loop;
+				/* Take default values from real server */
+				if (checker->alpha == -1)
+					checker->alpha = checker->rs->alpha;
+				if (checker->launch) {
+					if (checker->retry == UINT_MAX)
+						checker->retry = checker->rs->retry != UINT_MAX ? checker->rs->retry : checker->default_retry;
+					if (checker->co && checker->co->connection_to == UINT_MAX)
+						checker->co->connection_to = checker->rs->connection_to;
+					if (checker->delay_loop == ULONG_MAX)
+						checker->delay_loop = checker->rs->delay_loop;
+					if (checker->warmup == ULONG_MAX)
+						checker->warmup = checker->rs->warmup != ULONG_MAX ? checker->rs->warmup : checker->delay_loop;
+					if (checker->delay_before_retry == ULONG_MAX) {
+						checker->delay_before_retry =
+							checker->rs->delay_before_retry != ULONG_MAX ?
+								checker->rs->delay_before_retry :
+							checker->default_delay_before_retry ?
+								checker->default_delay_before_retry :
+								checker->delay_loop;
+					}
+				}
+
+				/* In Alpha mode also mark any checker that hasn't run as failed.
+				 * Reloading is handled in migrate_checkers() */
+				if (!reload) {
+					if (checker->alpha) {
+						set_checker_state(checker, false);
+						UNSET_ALIVE(checker->rs);
+					}
+
+					/* For non alpha mode, one failure is enough initially.
+					 * For alpha mode, log failure after one failure */
+					checker->retry_it = checker->retry;
+				}
 			}
-		}
-
-		/* In Alpha mode also mark any checker that hasn't run as failed.
-		 * Reloading is handled in migrate_checkers() */
-		if (!reload) {
-			if (checker->alpha) {
-				set_checker_state(checker, false);
-				UNSET_ALIVE(checker->rs);
-			}
-
-			/* For non alpha mode, one failure is enough initially.
-			 * For alpha mode, log failure after one failure */
-			checker->retry_it = checker->retry;
 		}
 	}
 

@@ -118,7 +118,7 @@ smtp_check_handler(__attribute__((unused)) const vector_t *strvec)
 	PMALLOC(co);
 	co->connection_to = UINT_MAX;
 
-	/* Have the checker queue code put our checker into the checkers_queue list. */
+	/* Have the checker queue code put our checker into the real server's checkers_queue list. */
 	queue_checker(&smtp_checker_funcs, smtp_start_check_thread, smtp_checker, co, true);
 
 	/* We need to be able to check if anything has been set */
@@ -135,7 +135,7 @@ smtp_check_end_handler(void)
 	smtp_checker_t *new_smtp_checker;
 	conn_opts_t *co;
 	ref_co_t *rco, *rco_tmp;
-	list_head_t sav_e_list;
+	list_head_t sav_rs_list;
 #endif
 
 	if (!smtp_checker->helo_name)
@@ -200,9 +200,6 @@ smtp_check_end_handler(void)
 	if (current_checker->co->connection_to == UINT_MAX)
 		current_checker->co->connection_to = conn_to;
 
-	/* queue the checker */
-	list_add_tail(&current_checker->e_list, &checkers_queue);
-
 #ifdef WITH_HOST_ENTRIES
 	/* Create a new checker for each host on the host list */
 	list_for_each_entry_safe(rco, rco_tmp, &host_list, e_list) {
@@ -220,14 +217,14 @@ smtp_check_end_handler(void)
 
 		/* Copy the checker info, but preserve the list_head entry, th
 		 * co pointer and the pointer to new_smtp_checker. */
-		sav_e_list = current_checker->e_list;
+		sav_rs_list = current_checker->rs_list;
 		*current_checker = *checker;
-		current_checker->e_list = sav_e_list;
+		current_checker->rs_list = sav_rs_list;
 		current_checker->co = co;
 		current_checker->data = new_smtp_checker;
 
 		/* queue the checker */
-		list_add_tail(&current_checker->e_list, &checkers_queue);
+		list_add_tail(&current_checker->rs_list, &checker->rs->checkers_list);
 
 		list_del_init(&rco->e_list);
 		FREE(rco);
@@ -756,9 +753,10 @@ smtp_check_thread(thread_ref_t thread)
 
 /*
  * This is the main thread, where all the action starts.
- * When the check daemon comes up, it goes down the checkers_queue
- * and launches a thread for each checker that got registered.
- * This is the callback/event function for that initial thread.
+ * When the check daemon comes up, it goes down each real
+ * server's checkers_queue and launches a thread for each
+ * checker that got registered. This is the callback/event
+ * function for that initial thread.
  *
  * It should be noted that we ARE responsible for scheduling
  * ourselves to run again. It doesn't have to be right here,

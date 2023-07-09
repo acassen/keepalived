@@ -2815,9 +2815,11 @@ fi
 dnl ----[ Profiling or not ? ]----
 WITH_PROFILING=No
 if test "${enable_profile}" = yes; then
+  # gprof keepalived/keepalived /gmon.keepalived.PID >/tmp/prof.PID.op to generate profile
   WITH_PROFILING=Yes
   add_config_opt([PROFILING])
   add_to_var([KA_CFLAGS], [-pg])
+  AC_DEFINE([_WITH_PROFILING_], [ 1 ], [Define to 1 to build with profiling support])
 fi
 AM_CONDITIONAL([PROFILE], [test $WITH_PROFILING = Yes])
 

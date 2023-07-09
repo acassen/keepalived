@@ -1167,7 +1167,7 @@ nft_remove_addresses(vrrp_t *vrrp)
 void
 nft_remove_addresses_iplist(list_head_t *l)
 {
-	vrrp_t vrrp = {};
+	vrrp_t vrrp = {0};
 
 	/* "Borrow" the list of addresses */
 	list_copy(&vrrp.vip, l);

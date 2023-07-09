@@ -945,30 +945,17 @@ rs_exist(real_server_t *old_rs, list_head_t *l)
 }
 
 static void
-migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new_rs,
-		 list_head_t *old_checkers_queue)
+migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new_rs)
 {
 	checker_t *old_c, *new_c;
-	checker_ref_t *ref, *ref_tmp;
 	checker_t dummy_checker;
 	bool a_checker_has_run = false;
-	LIST_HEAD_INITIALIZE(l);
 
-	list_for_each_entry(old_c, old_checkers_queue, e_list) {
-		if (old_c->rs == old_rs) {
-			PMALLOC(ref);
-			INIT_LIST_HEAD(&ref->e_list);
-			ref->checker = old_c;
-			list_add_tail(&ref->e_list, &l);
-		}
-	}
-
-	if (!list_empty(&l)) {
-		list_for_each_entry(new_c, &checkers_queue, e_list) {
-			if (new_c->rs != new_rs || !new_c->checker_funcs->compare)
+	if (!list_empty(&old_rs->checkers_list)) {
+		list_for_each_entry(new_c, &new_rs->checkers_list, rs_list) {
+			if (!new_c->checker_funcs->compare)
 				continue;
-			list_for_each_entry(ref, &l, e_list) {
-				old_c = ref->checker;
+			list_for_each_entry(old_c, &old_rs->checkers_list, rs_list) {
 				if (old_c->checker_funcs->type == new_c->checker_funcs->type && new_c->checker_funcs->compare(old_c, new_c)) {
 					/* Update status if different */
 					if (old_c->has_run && old_c->is_up != new_c->is_up)
@@ -983,12 +970,12 @@ migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new
 					 * If we no longer have any retries, one more failure should trigger
 					 * failed state.
 					 */
-					if (old_c->retry_it && new_c->retry) {
-						if (old_c->retry_it >= new_c->retry)
-							new_c->retry_it = new_c->retry - 1;
-						else
-							new_c->retry_it = old_c->retry_it;
-					}
+					if (!new_c->is_up)
+						new_c->retry_it = new_c->retry + 1;
+					else if (old_c->retry_it >= new_c->retry)
+						new_c->retry_it = new_c->retry;
+					else
+						new_c->retry_it = old_c->retry_it;
 
 					if (new_c->checker_funcs->migrate)
 						new_c->checker_funcs->migrate(new_c, old_c);
@@ -1001,9 +988,7 @@ migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new
 
 	/* Find out how many checkers are really failed */
 	new_rs->num_failed_checkers = 0;
-	list_for_each_entry(new_c, &checkers_queue, e_list) {
-		if (new_c->rs != new_rs)
-			continue;
+	list_for_each_entry(new_c, &new_rs->checkers_list, rs_list) {
 		if (new_c->has_run && !new_c->is_up)
 			new_rs->num_failed_checkers++;
 		if (new_c->has_run)
@@ -1013,9 +998,7 @@ migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new
 	/* If a checker has failed, set new alpha checkers to be down until
 	 * they have run. */
 	if (new_rs->num_failed_checkers || (!new_rs->alive && !a_checker_has_run)) {
-		list_for_each_entry(new_c, &checkers_queue, e_list) {
-			if (new_c->rs != new_rs)
-				continue;
+		list_for_each_entry(new_c, &new_rs->checkers_list, rs_list) {
 			if (!new_c->has_run) {
 				if (new_c->alpha)
 					set_checker_state(new_c, false);
@@ -1032,15 +1015,11 @@ migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new
 		perform_svr_state(true, &dummy_checker);
 	} else if (new_rs->num_failed_checkers && new_rs->set != new_rs->inhibit)
 		ipvs_cmd(new_rs->inhibit ? IP_VS_SO_SET_ADDDEST : IP_VS_SO_SET_DELDEST, vs, new_rs);
-
-	/* Release checkers reference list */
-	list_for_each_entry_safe(ref, ref_tmp, &l, e_list)
-		FREE(ref);
 }
 
 /* Clear the diff rs of the old vs */
 static void
-clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs, list_head_t *old_checkers_queue)
+clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs)
 {
 	real_server_t *rs, *new_rs;
 
@@ -1079,7 +1058,7 @@ clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs, list_head_t *o
 		 * For alpha mode checkers, if it was up, we don't need another
 		 * success to say it is now up.
 		 */
-		migrate_checkers(new_vs, rs, new_rs, old_checkers_queue);
+		migrate_checkers(new_vs, rs, new_rs);
 
 		/* Do we need to update the RS configuration? */
 		if ((new_rs->alive && new_rs->effective_weight != rs->effective_weight) ||
@@ -1131,7 +1110,7 @@ clear_diff_s_srv(virtual_server_t *old_vs, real_server_t *new_rs)
 /* When reloading configuration, remove negative diff entries
  * and copy status of existing entries to the new ones */
 void
-clear_diff_services(list_head_t *old_checkers_queue)
+clear_diff_services(void)
 {
 	virtual_server_t *vs, *new_vs;
 
@@ -1150,34 +1129,35 @@ clear_diff_services(list_head_t *old_checkers_queue)
 
 			/* Clear VS entry */
 			clear_service_vs(vs, false);
-		} else {
-			/* copy status fields from old VS */
-			new_vs->alive = vs->alive;
-			new_vs->quorum_state_up = vs->quorum_state_up;
-			new_vs->reloaded = true;
-			if (using_ha_suspend)
-				new_vs->ha_suspend_addr_count = vs->ha_suspend_addr_count;
 
-			if (vs->vsgname)
-				clear_diff_vsg(vs, new_vs);
-
-			/* If vs exist, perform rs pool diff */
-			/* omega = false must not prevent the notifiers from being called,
-			   because the VS still exists in new configuration */
-			if (strcmp(vs->sched, new_vs->sched) ||
-			    vs->flags != new_vs->flags ||
-			    strcmp(vs->pe_name, new_vs->pe_name) ||
-			    vs->persistence_granularity != new_vs->persistence_granularity ||
-			    vs->persistence_timeout != new_vs->persistence_timeout) {
-				ipvs_cmd(IP_VS_SO_SET_EDIT, new_vs, NULL);
-			}
-
-			vs->omega = true;
-			clear_diff_rs(vs, new_vs, old_checkers_queue);
-			clear_diff_s_srv(vs, new_vs->s_svr);
-
-			update_alive_counts(vs, new_vs);
+			continue;
 		}
+
+		/* copy status fields from old VS */
+		new_vs->alive = vs->alive;
+		new_vs->quorum_state_up = vs->quorum_state_up;
+		new_vs->reloaded = true;
+		if (using_ha_suspend)
+			new_vs->ha_suspend_addr_count = vs->ha_suspend_addr_count;
+
+		if (vs->vsgname)
+			clear_diff_vsg(vs, new_vs);
+
+		/* If vs exist, perform rs pool diff */
+		/* omega = false must not prevent the notifiers from being called,
+		   because the VS still exists in new configuration */
+		if (strcmp(vs->sched, new_vs->sched) ||
+		    vs->flags != new_vs->flags ||
+		    strcmp(vs->pe_name, new_vs->pe_name) ||
+		    vs->persistence_granularity != new_vs->persistence_granularity ||
+		    vs->persistence_timeout != new_vs->persistence_timeout)
+			ipvs_cmd(IP_VS_SO_SET_EDIT, new_vs, NULL);
+
+		vs->omega = true;
+		clear_diff_rs(vs, new_vs);
+		clear_diff_s_srv(vs, new_vs->s_svr);
+
+		update_alive_counts(vs, new_vs);
 	}
 }
 
@@ -1186,15 +1166,21 @@ clear_diff_services(list_head_t *old_checkers_queue)
 void
 check_new_rs_state(void)
 {
+	virtual_server_t *vs;
+	real_server_t *rs;
 	checker_t *checker;
 
-	list_for_each_entry(checker, &checkers_queue, e_list) {
-		if (checker->rs->reloaded)
-			continue;
-		if (!checker->alpha)
-			continue;
-		set_checker_state(checker, false);
-		UNSET_ALIVE(checker->rs);
+	list_for_each_entry(vs, &check_data->vs, e_list) {
+		list_for_each_entry(rs, &vs->rs, e_list) {
+			list_for_each_entry(checker, &rs->checkers_list, rs_list) {
+				if (checker->rs->reloaded)
+					continue;
+				if (!checker->alpha)
+					continue;
+				set_checker_state(checker, false);
+				UNSET_ALIVE(checker->rs);
+			}
+		}
 	}
 }
 

@@ -482,7 +482,7 @@ static const GDBusInterfaceVTable interface_vtable =
 	handle_method_call,
 	handle_get_property,
 	NULL, /* handle_set_property is null because we have no writeable property */
-	{}
+	{0}
 };
 
 static int

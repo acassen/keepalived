@@ -432,7 +432,34 @@ compare_http_check(const checker_t *old_c, checker_t *new_c)
 	return true;
 }
 
-static const checker_funcs_t http_checker_funcs = { CHECKER_HTTP, free_http_check, dump_http_check, compare_http_check, NULL };
+static void
+migrate_http_check(checker_t *new_c, const checker_t *old_c)
+{
+	url_t *old_url;
+	url_t *new_url;
+	http_checker_t *old_http_c;
+	http_checker_t *new_http_c;
+
+	if (new_c->is_up)
+		return;
+
+	old_http_c = CHECKER_ARG(old_c);
+	new_http_c = CHECKER_ARG(new_c);
+
+	/* For the real servers to be the same, the checkers must match,
+	 * which means that the urls match */
+	new_url = list_first_entry(&new_http_c->url, url_t, e_list);
+	list_for_each_entry(old_url, &old_http_c->url, e_list) {
+		if (old_url == old_http_c->failed_url) {
+			new_http_c->failed_url = new_url;
+			return;
+		}
+
+		new_url = list_entry(new_url->e_list.next, url_t, e_list);
+	}
+}
+
+static const checker_funcs_t http_checker_funcs = { CHECKER_HTTP, free_http_check, dump_http_check, compare_http_check, migrate_http_check };
 
 /* Configuration stream handling */
 static void
@@ -490,9 +517,6 @@ http_get_check_end(void)
 		dequeue_new_checker();
 		return;
 	}
-
-	/* queue the checker */
-	list_add_tail(&current_checker->e_list, &checkers_queue);
 }
 
 static void

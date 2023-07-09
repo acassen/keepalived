@@ -54,57 +54,57 @@ typedef struct _rt_entry {
 } rt_entry_t;
 
 static rt_entry_t const rtntypes[] = {
-	{ RTN_LOCAL, "local", {}},
-	{ RTN_NAT, "nat", {}},
-	{ RTN_BROADCAST, "broadcast", {}},
-	{ RTN_BROADCAST, "brd", {}},
-	{ RTN_ANYCAST, "anycast", {}},
-	{ RTN_MULTICAST, "multicast", {}},
-	{ RTN_PROHIBIT, "prohibit", {}},
-	{ RTN_UNREACHABLE, "unreachable", {}},
-	{ RTN_BLACKHOLE, "blackhole", {}},
-	{ RTN_XRESOLVE, "xresolve", {}},
-	{ RTN_UNICAST, "unicast", {}},
-	{ RTN_THROW, "throw", {}},
-	{ 0, NULL, {}},
+	{ RTN_LOCAL, "local", {0}},
+	{ RTN_NAT, "nat", {0}},
+	{ RTN_BROADCAST, "broadcast", {0}},
+	{ RTN_BROADCAST, "brd", {0}},
+	{ RTN_ANYCAST, "anycast", {0}},
+	{ RTN_MULTICAST, "multicast", {0}},
+	{ RTN_PROHIBIT, "prohibit", {0}},
+	{ RTN_UNREACHABLE, "unreachable", {0}},
+	{ RTN_BLACKHOLE, "blackhole", {0}},
+	{ RTN_XRESOLVE, "xresolve", {0}},
+	{ RTN_UNICAST, "unicast", {0}},
+	{ RTN_THROW, "throw", {0}},
+	{ 0, NULL, {0}},
 };
 
 static rt_entry_t const rtprot_default[] = {
-	{ RTPROT_UNSPEC, "none", {}},
-	{ RTPROT_REDIRECT, "redirect", {}},
-	{ RTPROT_KERNEL, "kernel", {}},
-	{ RTPROT_BOOT, "boot", {}},
-	{ RTPROT_STATIC, "static", {}},
+	{ RTPROT_UNSPEC, "none", {0}},
+	{ RTPROT_REDIRECT, "redirect", {0}},
+	{ RTPROT_KERNEL, "kernel", {0}},
+	{ RTPROT_BOOT, "boot", {0}},
+	{ RTPROT_STATIC, "static", {0}},
 
-	{ RTPROT_GATED, "gated", {}},
-	{ RTPROT_RA, "ra", {}},
-	{ RTPROT_MRT, "mrt", {}},
-	{ RTPROT_ZEBRA, "zebra", {}},
-	{ RTPROT_BIRD, "bird", {}},
+	{ RTPROT_GATED, "gated", {0}},
+	{ RTPROT_RA, "ra", {0}},
+	{ RTPROT_MRT, "mrt", {0}},
+	{ RTPROT_ZEBRA, "zebra", {0}},
+	{ RTPROT_BIRD, "bird", {0}},
 #ifdef RTPROT_BABEL		/* Since Linux 3.19 */
-	{ RTPROT_BABEL, "babel", {}},
+	{ RTPROT_BABEL, "babel", {0}},
 #endif
-	{ RTPROT_DNROUTED, "dnrouted", {}},
-	{ RTPROT_XORP, "xorp", {}},
-	{ RTPROT_NTK, "ntk", {}},
-	{ RTPROT_DHCP, "dhcp", {}},
-	{ 0, NULL, {}},
+	{ RTPROT_DNROUTED, "dnrouted", {0}},
+	{ RTPROT_XORP, "xorp", {0}},
+	{ RTPROT_NTK, "ntk", {0}},
+	{ RTPROT_DHCP, "dhcp", {0}},
+	{ 0, NULL, {0}},
 };
 
 static rt_entry_t const rttable_default[] = {
-	{ RT_TABLE_DEFAULT, "default", {}},
-	{ RT_TABLE_MAIN, "main", {}},
-	{ RT_TABLE_LOCAL, "local", {}},
-	{ 0, NULL, {}},
+	{ RT_TABLE_DEFAULT, "default", {0}},
+	{ RT_TABLE_MAIN, "main", {0}},
+	{ RT_TABLE_LOCAL, "local", {0}},
+	{ 0, NULL, {0}},
 };
 
 static rt_entry_t const rtscope_default[] = {
-	{ RT_SCOPE_UNIVERSE, "global", {}},
-	{ RT_SCOPE_NOWHERE, "nowhere", {}},
-	{ RT_SCOPE_HOST, "host", {}},
-	{ RT_SCOPE_LINK, "link", {}},
-	{ RT_SCOPE_SITE, "site", {}},
-	{ 0, NULL, {}},
+	{ RT_SCOPE_UNIVERSE, "global", {0}},
+	{ RT_SCOPE_NOWHERE, "nowhere", {0}},
+	{ RT_SCOPE_HOST, "host", {0}},
+	{ RT_SCOPE_LINK, "link", {0}},
+	{ RT_SCOPE_SITE, "site", {0}},
+	{ 0, NULL, {0}},
 };
 
 #define	MAX_RT_BUF	128

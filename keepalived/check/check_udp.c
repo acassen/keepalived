@@ -179,9 +179,6 @@ udp_check_end_handler(void)
 	if (udp_check->min_reply_len > udp_check->max_reply_len)
 		report_config_error(CONFIG_GENERAL_ERROR, "UDP_CHECK min_reply length %d > max_reply_length %d - will always fail",
 				    udp_check->min_reply_len, udp_check->max_reply_len);
-
-	/* queue the checker */
-	list_add_tail(&current_checker->e_list, &checkers_queue);
 }
 
 void

@@ -69,6 +69,10 @@
 #define LVS_MAX_TIMEOUT			(86400*31)      /* 31 days */
 #endif
 
+#ifdef _WITH_PROFILING_
+extern void _start(void), etext(void);
+#endif
+
 /* email link list */
 typedef struct _email {
 	char				*addr;

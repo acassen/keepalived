@@ -129,6 +129,8 @@ typedef struct _real_server {
 
 	/* Linked list member */
 	list_head_t			e_list;
+
+	list_head_t			checkers_list;
 } real_server_t;
 
 /* Virtual Server group definition */
