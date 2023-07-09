@@ -19,7 +19,7 @@
  * Copyright (C) 2022 Alexandre Cassen, <acassen@gmail.com>
  */
 
-/* This code is copied from the Linux kernel lib/list_head.c source file */
+/* This code is copied from the Linux kernel lib/list_sort.c source file */
 
 #include "list_head.h"
 

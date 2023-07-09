@@ -19,6 +19,8 @@
  * Copyright (C) 2022 Alexandre Cassen, <acassen@gmail.com>
  */
 
+/* This file is copied from the Linux kernel include/linux/list.h file */
+
 #ifndef _LIST_HEAD_H
 #define _LIST_HEAD_H
 
