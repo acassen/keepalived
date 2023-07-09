@@ -86,7 +86,7 @@ table_cb(const struct nlattr *attr, void *data)
 static void
 new_table(const struct nlmsghdr *nlh)
 {
-	struct nlattr *tb[NFTA_TABLE_MAX+1] = {};
+	struct nlattr *tb[NFTA_TABLE_MAX+1] = {0};
 	struct nfgenmsg *nfg = mnl_nlmsg_get_payload(nlh);
 
 	if (mnl_attr_parse(nlh, sizeof(*nfg), table_cb, tb) < 0) {

@@ -472,7 +472,7 @@ set_garp_delay(interface_t *ifp, const garp_delay_t *delay)
 void
 set_default_garp_delay(void)
 {
-	garp_delay_t default_delay = {};
+	garp_delay_t default_delay = {0};
 	interface_t *ifp;
 	vrrp_t *vrrp;
 	list_head_t *vip_list;

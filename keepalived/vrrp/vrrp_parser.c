@@ -617,7 +617,7 @@ vrrp_ipvlan_handler(const vector_t *strvec)
 	vrrp_t *ovrrp;
 	interface_t *ifp;
 	bool had_flags = false;
-	ip_address_t addr = {};
+	ip_address_t addr = {0};
 	size_t i;
 	const char *ifname;
 

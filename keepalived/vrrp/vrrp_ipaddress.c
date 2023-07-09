@@ -811,8 +811,8 @@ void
 clear_diff_static_addresses(void)
 {
 	LIST_HEAD_INITIALIZE(remove_addr);
-	vrrp_t old = {};
-	vrrp_t new = {};
+	vrrp_t old = {0};
+	vrrp_t new = {0};
 
 	list_copy(&old.vip, &old_vrrp_data->static_addresses);
 	list_copy(&new.vip, &vrrp_data->static_addresses);

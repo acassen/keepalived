@@ -664,7 +664,7 @@ void
 try_up_instance(vrrp_t *vrrp, bool leaving_init)
 {
 	int wantstate;
-	ip_address_t ip_addr = {};
+	ip_address_t ip_addr = {0};
 
 	if (leaving_init) {
 		if (vrrp->num_script_if_fault)
