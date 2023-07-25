@@ -1,11 +1,16 @@
 # This systemd service file allows keepalived to be run as a non-root user.
 #  To use this, edit the permissions according to your needs, and install the
 #  file in /usr/lib/systemd/system as keepalived.service
+#
+# If your version of systemd is v228 or older, edit this file to change
+#  "AmbientCapabilities=" to "Capabilities=". If that still doesn't work,
+#  use setcap(8) to set the capabilities listed below on the keepalived
+#  executable file.
 [Unit]
 Description=LVS and VRRP High Availability Monitor
-After=network-online.target syslog.target # @SNMP_SERVICE@
+After=network-online.target syslog.target @SNMP_SERVICE@
 Requires=network-online.target
-# Wants=@SNMP_SERVICE@
+Wants=@SNMP_SERVICE@
 Documentation=man:keepalived(8)
 Documentation=man:keepalived.conf(5)
 Documentation=man:genhash(1)
@@ -15,7 +20,7 @@ StartLimitIntervalSec=10
 
 [Service]
 Type=@SYSTEMD_SERVICE_TYPE@
-NotifyAccess=all
+NotifyAccess=main
 PIDFile=@RUN_DIR@/run/%N/%N.pid
 # CAP_CHOWN needed if using FIFOs and specify the owner/group
 AmbientCapabilities=CAP_CHOWN
@@ -32,7 +37,7 @@ AmbientCapabilities=CAP_SETUID
 AmbientCapabilities=CAP_SETGID
 # CAP_NET_MODULE needed to load ip_vs module (IPVS) and xt_set (VRRP with iptables)
 # Alternatively add a file in /usr/lib/modules-load.d with ip_vs and xt_set and
-#  don't enable CAP_NET_MODULE, at set ProtectKernelModules=yes
+#  don't enable CAP_NET_MODULE, and set ProtectKernelModules=yes
 AmbientCapabilities=CAP_SYS_MODULE
 # CAP_SYS_NICE needed for keepalived to set its nice priority. If in use, also remove LimitNICE=0
 AmbientCapabilities=CAP_SYS_NICE
@@ -62,7 +67,7 @@ DynamicUser=yes
 # Edit the following line if needed - for Ubuntu it should be -@sysconfdir/default/%N
 EnvironmentFile=-@sysconfdir@/sysconfig/%N
 ExecReload=/bin/kill -HUP $MAINPID
-ExecStart=@sbindir@/keepalived --dont-fork $DAEMON_ARGS --pid=@RUN_DIR@/run/%N/%N.pid --vrrp_pid=@RUN_DIR@/run/%N/vrrp.pid --checkers_pid=@RUN_DIR@/run/%N/%N_checkers.pid --bfd_pid=@RUN_DIR@/run/%N/%N_bfd.pid
+ExecStart=@sbindir@/keepalived --dont-fork $DAEMON_ARGS $KEEPALIVED_OPTIONS --pid=@RUN_DIR@/run/%N/%N.pid --vrrp_pid=@RUN_DIR@/run/%N/vrrp.pid --checkers_pid=@RUN_DIR@/run/%N/%N_checkers.pid --bfd_pid=@RUN_DIR@/run/%N/%N_bfd.pid
 IOSchedulingClass=realtime
 KillMode=process
 KillSignal=SIGTERM
