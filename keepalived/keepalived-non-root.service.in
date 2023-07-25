@@ -32,7 +32,7 @@ AmbientCapabilities=CAP_SETUID
 AmbientCapabilities=CAP_SETGID
 # CAP_NET_MODULE needed to load ip_vs module (IPVS) and xt_set (VRRP with iptables)
 # Alternatively add a file in /usr/lib/modules-load.d with ip_vs and xt_set and
-#  don't enable CAP_NET_MODULE, at set ProtectKernelModules=yes
+#  don't enable CAP_NET_MODULE, and set ProtectKernelModules=yes
 AmbientCapabilities=CAP_SYS_MODULE
 # CAP_SYS_NICE needed for keepalived to set its nice priority. If in use, also remove LimitNICE=0
 AmbientCapabilities=CAP_SYS_NICE
