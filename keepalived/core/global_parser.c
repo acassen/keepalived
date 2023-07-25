@@ -1097,7 +1097,9 @@ vrrp_ipsets_handler(const vector_t *strvec)
 	FREE_CONST_PTR(global_data->vrrp_ipset_address_iface6);
 	FREE_CONST_PTR(global_data->vrrp_ipset_igmp);
 	FREE_CONST_PTR(global_data->vrrp_ipset_mld);
+#ifdef _HAVE_VRRP_VMAC_
 	FREE_CONST_PTR(global_data->vrrp_ipset_vmac_nd);
+#endif
 
 	if (vector_size(strvec) < 2) {
 		global_data->using_ipsets = false;

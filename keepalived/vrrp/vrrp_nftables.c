@@ -559,6 +559,7 @@ static struct nftnl_rule *setup_rule_simple(uint8_t family, const char *table,
 }
 #endif
 
+#ifdef _HAVE_VRRP_VMAC_
 static void
 setup_parent_link_local(struct mnl_nlmsg_batch *batch)
 {
@@ -574,8 +575,10 @@ setup_parent_link_local(struct mnl_nlmsg_batch *batch)
 
 	type_for_if = global_data->vrrp_nf_ifindex ? NFT_TYPE_IFINDEX : ifname_type;
 
+#ifdef _HAVE_VRRP_VMAC_
 	/* nft add set ip6 keepalived parent_link_local { type ipv6_addr . iface_index/name } */
 	s = setup_set(NFPROTO_IPV6, global_data->vrrp_nf_table_name, parent_link_local_set_name, (NFT_TYPE_IP6ADDR << NFT_TYPE_BITS) | type_for_if, 0, 0);
+#endif
 
 	nlh = nftnl_set_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
 				      NFT_MSG_NEWSET, NFPROTO_IPV6,
@@ -633,6 +636,7 @@ setup_parent_link_local(struct mnl_nlmsg_batch *batch)
 	nftnl_rule_free(r);
 	my_mnl_nlmsg_batch_next(batch);
 }
+#endif
 
 static void
 setup_link_local_checks(struct mnl_nlmsg_batch *batch, bool concat_ifname)
@@ -886,7 +890,9 @@ nft_setup_ipv6(struct mnl_nlmsg_batch *batch)
 	nftnl_chain_free(t);
 	my_mnl_nlmsg_batch_next(batch);
 
+#ifdef _HAVE_VRRP_VMAC_
 	setup_parent_link_local(batch);
+#endif
 
 	ipv6_table_setup = true;
 }
