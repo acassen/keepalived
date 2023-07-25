@@ -15,7 +15,7 @@ StartLimitIntervalSec=10
 
 [Service]
 Type=@SYSTEMD_SERVICE_TYPE@
-NotifyAccess=all
+NotifyAccess=main
 PIDFile=@RUN_DIR@/run/%N/%N.pid
 # CAP_CHOWN needed if using FIFOs and specify the owner/group
 AmbientCapabilities=CAP_CHOWN
