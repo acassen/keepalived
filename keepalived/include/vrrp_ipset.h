@@ -40,6 +40,7 @@ extern void* ipset_session_start(void);
 extern void ipset_session_end(void *);
 extern void ipset_entry(void *, int, const ip_address_t*);
 extern void ipset_entry_igmp(void*, int, const char *, uint8_t);
+extern void ipset_entry_nd(void*, int, const interface_t *);
 extern void set_default_ipsets(void);
 extern void disable_ipsets(void);
 

@@ -1097,6 +1097,9 @@ vrrp_ipsets_handler(const vector_t *strvec)
 	FREE_CONST_PTR(global_data->vrrp_ipset_address_iface6);
 	FREE_CONST_PTR(global_data->vrrp_ipset_igmp);
 	FREE_CONST_PTR(global_data->vrrp_ipset_mld);
+#ifdef _HAVE_VRRP_VMAC_
+	FREE_CONST_PTR(global_data->vrrp_ipset_vmac_nd);
+#endif
 
 	if (vector_size(strvec) < 2) {
 		global_data->using_ipsets = false;
@@ -1115,22 +1118,21 @@ vrrp_ipsets_handler(const vector_t *strvec)
 			return;
 		}
 		global_data->vrrp_ipset_address6 = STRDUP(strvec_slot(strvec,2));
-	}
-	else {
+	} else {
 		/* No second set specified, copy first name and add "6" */
 		strcpy_safe(set_name, global_data->vrrp_ipset_address);
 		set_name[IPSET_MAXNAMELEN - 2] = '\0';
 		strcat(set_name, "6");
 		global_data->vrrp_ipset_address6 = STRDUP(set_name);
 	}
+
 	if (vector_size(strvec) >= 4) {
 		if (strlen(strvec_slot(strvec,3)) >= IPSET_MAXNAMELEN - 1) {
 			report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : ipset IPv6 address_iface name too long - ignored");
 			return;
 		}
 		global_data->vrrp_ipset_address_iface6 = STRDUP(strvec_slot(strvec,3));
-	}
-	else {
+	} else {
 		/* No third set specified, copy second name and add "_if6" */
 		strcpy_safe(set_name, global_data->vrrp_ipset_address6);
 		len = strlen(set_name);
@@ -1147,28 +1149,43 @@ vrrp_ipsets_handler(const vector_t *strvec)
 			return;
 		}
 		global_data->vrrp_ipset_igmp = STRDUP(strvec_slot(strvec,4));
-	}
-	else {
+	} else {
 		/* No second set specified, copy first name and add "_igmp" */
 		strcpy_safe(set_name, global_data->vrrp_ipset_address);
 		set_name[sizeof(set_name) - 6] = '\0';
 		strcat(set_name, "_igmp");
 		global_data->vrrp_ipset_igmp = STRDUP(set_name);
 	}
+
 	if (vector_size(strvec) >= 6) {
 		if (strlen(strvec_slot(strvec,5)) >= IPSET_MAXNAMELEN - 1) {
 			report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : ipset MLD name too long - ignored");
 			return;
 		}
 		global_data->vrrp_ipset_mld = STRDUP(strvec_slot(strvec,5));
-	}
-	else {
+	} else {
 		/* No second set specified, copy first name and add "_mld" */
 		strcpy_safe(set_name, global_data->vrrp_ipset_address);
 		set_name[sizeof(set_name) - 5] = '\0';
 		strcat(set_name, "_mld");
 		global_data->vrrp_ipset_mld = STRDUP(set_name);
 	}
+
+#ifdef _HAVE_VRRP_VMAC_
+	if (vector_size(strvec) >= 7) {
+		if (strlen(strvec_slot(strvec,6)) >= IPSET_MAXNAMELEN - 1) {
+			report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : ipset ND name too long - ignored");
+			return;
+		}
+		global_data->vrrp_ipset_vmac_nd = STRDUP(strvec_slot(strvec,6));
+	} else {
+		/* No second set specified, copy first name and add "_nd" */
+		strcpy_safe(set_name, global_data->vrrp_ipset_address);
+		set_name[sizeof(set_name) - 5] = '\0';
+		strcat(set_name, "_nd");
+		global_data->vrrp_ipset_vmac_nd = STRDUP(set_name);
+	}
+#endif
 }
 #endif
 #elif defined _WITH_NFTABLES_

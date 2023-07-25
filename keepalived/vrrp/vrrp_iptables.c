@@ -216,6 +216,9 @@ add_del_igmp_rules(struct ipt_handle *h, int cmd, uint8_t family)
 
 	if (h->h6 || (h->h6 = ip6tables_open("filter"))) {
 		ip6tables_add_rules(h->h6, global_data->vrrp_iptables_outchain, APPEND_RULE, IPSET_DIM_TWO, 0, XTC_LABEL_DROP, NULL, NULL, global_data->vrrp_ipset_mld, IPPROTO_ICMPV6, ICMPV6_MLD2_REPORT, cmd, false);
+#ifdef _HAVE_VRRP_VMAC_
+		ip6tables_add_rules(h->h6, global_data->vrrp_iptables_outchain, APPEND_RULE, IPSET_DIM_TWO, IPSET_DIM_ONE_SRC, XTC_LABEL_DROP, NULL, NULL, global_data->vrrp_ipset_vmac_nd, IPPROTO_ICMPV6, ND_NEIGHBOR_ADVERT, cmd, false);
+#endif
 		h->updated_v6 = true;
 	}
 }
@@ -341,32 +344,32 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, struct ipt_handle *
 	    IN6_IS_ADDR_LINKLOCAL(&ipaddress->u.sin6_addr))
 		ifname = ipaddress->ifp->ifname;
 
-	iptables_entry(h, family, global_data->vrrp_iptables_inchain, 0,
-			XTC_LABEL_DROP, NULL, ipaddress, ifname, NULL,
-			IPPROTO_NONE, 0, cmd, 0, force);
-
-	if (global_data->vrrp_iptables_outchain)
-		iptables_entry(h, family, global_data->vrrp_iptables_outchain, 0,
-				XTC_LABEL_DROP, ipaddress, NULL, NULL, ifname,
-				IPPROTO_NONE, 0, cmd, 0, force);
-
 	if (family == AF_INET6 && global_data->vrrp_iptables_inchain) {
 		if (global_data->vrrp_iptables_outchain) {
-			iptables_entry(h, AF_INET6, global_data->vrrp_iptables_outchain, 0,
+			iptables_entry(h, AF_INET6, global_data->vrrp_iptables_outchain, APPEND_RULE,
 					XTC_LABEL_ACCEPT, ipaddress, NULL, NULL, ifname,
 					IPPROTO_ICMPV6, ND_NEIGHBOR_SOLICIT, cmd, 0, force);
-			iptables_entry(h, AF_INET6, global_data->vrrp_iptables_outchain, 1,
+			iptables_entry(h, AF_INET6, global_data->vrrp_iptables_outchain, APPEND_RULE,
 					XTC_LABEL_ACCEPT, ipaddress, NULL, NULL, ifname,
 					IPPROTO_ICMPV6, ND_NEIGHBOR_ADVERT, cmd, 0, force);
 		}
 
-		iptables_entry(h, AF_INET6, global_data->vrrp_iptables_inchain, 0,
+		iptables_entry(h, AF_INET6, global_data->vrrp_iptables_inchain, APPEND_RULE,
 				XTC_LABEL_ACCEPT, NULL, ipaddress, ifname, NULL,
 				IPPROTO_ICMPV6, ND_NEIGHBOR_SOLICIT, cmd, 0, force);
-		iptables_entry(h, AF_INET6, global_data->vrrp_iptables_inchain, 1,
+		iptables_entry(h, AF_INET6, global_data->vrrp_iptables_inchain, APPEND_RULE,
 				XTC_LABEL_ACCEPT, NULL, ipaddress, ifname, NULL,
 				IPPROTO_ICMPV6, ND_NEIGHBOR_ADVERT, cmd, 0, force);
 	}
+
+	if (global_data->vrrp_iptables_outchain)
+		iptables_entry(h, family, global_data->vrrp_iptables_outchain, APPEND_RULE,
+				XTC_LABEL_DROP, ipaddress, NULL, NULL, ifname,
+				IPPROTO_NONE, 0, cmd, 0, force);
+
+	iptables_entry(h, family, global_data->vrrp_iptables_inchain, APPEND_RULE,
+			XTC_LABEL_DROP, NULL, ipaddress, ifname, NULL,
+			IPPROTO_NONE, 0, cmd, 0, force);
 
 	ipaddress->iptable_rule_set = (cmd != IPADDRESS_DEL);
 }
@@ -578,9 +581,55 @@ handle_iptable_rule_for_igmp(const char *ifname, int cmd, int family, struct ipt
 	}
 #endif
 
-	iptables_entry(h, family, global_data->vrrp_iptables_outchain, APPEND_RULE,
+	iptables_entry(h, family, global_data->vrrp_iptables_outchain, 0,
 			XTC_LABEL_DROP, NULL, NULL, NULL, ifname,
 			family == AF_INET ? IPPROTO_IGMP : IPPROTO_ICMPV6, family == AF_INET ? 0 : ICMPV6_MLD2_REPORT,
+			cmd, 0, false);
+}
+
+static void
+handle_iptable_rule_for_nd(const interface_t *ifp, int cmd, struct ipt_handle *h)
+{
+	ip_address_t addr = { .ifa.ifa_family = AF_INET6, .u.sin6_addr = ifp->base_ifp->sin6_addr };
+
+	if (!global_data->vrrp_iptables_outchain ||
+	    igmp_setup[1] == INIT_FAILED)
+		return;
+
+	if (igmp_setup[1] == NOT_INIT) {
+		if (setup[1] == NOT_INIT)
+			iptables_init(AF_INET6);
+
+		if (setup[1] == INIT_FAILED) {
+			igmp_setup[1] = INIT_FAILED;
+			return;
+		}
+
+#ifdef _HAVE_LIBIPSET_
+		if (global_data->using_ipsets) {
+			add_del_igmp_sets(h, IPADDRESS_ADD, AF_INET6);
+			add_del_igmp_rules(h, IPADDRESS_ADD, AF_INET6);
+		}
+#endif
+
+		igmp_setup[1] = INIT_SUCCESS;
+	}
+
+#ifdef _HAVE_LIBIPSET_
+	if (global_data->using_ipsets)
+	{
+		if (!h->session)
+			h->session = ipset_session_start();
+
+		ipset_entry_nd(h->session, cmd, ifp);
+
+		return;
+	}
+#endif
+
+	iptables_entry(h, AF_INET6, global_data->vrrp_iptables_outchain, 0,
+			XTC_LABEL_DROP, &addr, NULL, NULL, ifp->ifname,
+			IPPROTO_ICMPV6, ND_NEIGHBOR_ADVERT,
 			cmd, 0, false);
 }
 
@@ -598,6 +647,10 @@ iptables_update_vmac(const interface_t *ifp, int family, bool other_family, int 
 
 		if (other_family)
 			handle_iptable_rule_for_igmp(ifp->ifname, cmd, family == AF_INET ? AF_INET6 : AF_INET, h);
+
+		if (family == AF_INET6)
+			handle_iptable_rule_for_nd(ifp, cmd, h);
+
 		res = iptables_close(h);
 	} while (res == EAGAIN && ++tries < IPTABLES_MAX_TRIES);
 }
