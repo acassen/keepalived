@@ -399,6 +399,9 @@ free_global_data(data_t * data)
 	FREE_CONST_PTR(data->vrrp_ipset_address_iface6);
 	FREE_CONST_PTR(data->vrrp_ipset_igmp);
 	FREE_CONST_PTR(data->vrrp_ipset_mld);
+#ifdef _HAVE_VRRP_VMAC_
+	FREE_CONST_PTR(data->vrrp_ipset_vmac_nd);
+#endif
 #endif
 #endif
 #ifdef _WITH_NFTABLES_
@@ -691,6 +694,10 @@ dump_global_data(FILE *fp, data_t * data)
 				conf_write(fp," ipset IGMP set = %s", data->vrrp_ipset_igmp);
 			if (data->vrrp_ipset_mld)
 				conf_write(fp," ipset MLD set = %s", data->vrrp_ipset_mld);
+#ifdef _HAVE_VRRP_VMAC_
+			if (data->vrrp_ipset_vmac_nd)
+				conf_write(fp," ipset ND set = %s", data->vrrp_ipset_vmac_nd);
+#endif
 		}
 #endif
 	}

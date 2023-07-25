@@ -520,8 +520,8 @@ possibly following any cleanup actions needed.
     # iptables. If so, then the ipset names can be specified, defaults
     # as below. If no names are specified, ipsets will not be used,
     # otherwise any omitted names will be constructed by adding "_if"
-    # and/or "6" and _igmp/_mld to previously specified names.
-    \fBvrrp_ipsets \fR[keepalived [keepalived6 [keepalived_if6 [keepalived_igmp [keepalived_mld]]]]]
+    # and/or "6" and _igmp/_mld/_nd to previously specified names.
+    \fBvrrp_ipsets \fR[keepalived [keepalived6 [keepalived_if6 [keepalived_igmp [keepalived_mld [keepalived_vmac_nd]]]]]]
 
     # An alternative to moving IGMP messages from VMACs to their parent interfaces
     # is to disable them altogether in the kernel by setting
