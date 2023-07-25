@@ -62,7 +62,7 @@ DynamicUser=yes
 # Edit the following line if needed - for Ubuntu it should be -@sysconfdir/default/%N
 EnvironmentFile=-@sysconfdir@/sysconfig/%N
 ExecReload=/bin/kill -HUP $MAINPID
-ExecStart=@sbindir@/keepalived --dont-fork $DAEMON_ARGS --pid=@RUN_DIR@/run/%N/%N.pid --vrrp_pid=@RUN_DIR@/run/%N/vrrp.pid --checkers_pid=@RUN_DIR@/run/%N/%N_checkers.pid --bfd_pid=@RUN_DIR@/run/%N/%N_bfd.pid
+ExecStart=@sbindir@/keepalived --dont-fork $DAEMON_ARGS $KEEPALIVED_OPTIONS --pid=@RUN_DIR@/run/%N/%N.pid --vrrp_pid=@RUN_DIR@/run/%N/vrrp.pid --checkers_pid=@RUN_DIR@/run/%N/%N_checkers.pid --bfd_pid=@RUN_DIR@/run/%N/%N_bfd.pid
 IOSchedulingClass=realtime
 KillMode=process
 KillSignal=SIGTERM
