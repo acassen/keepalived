@@ -1,6 +1,11 @@
 # This systemd service file allows keepalived to be run as a non-root user.
 #  To use this, edit the permissions according to your needs, and install the
 #  file in /usr/lib/systemd/system as keepalived.service
+#
+# If your version of systemd is v228 or older, edit this file to change
+#  "AmbientCapabilities=" to "Capabilities=". If that still doesn't work,
+#  use setcap(8) to set the capabilities listed below on the keepalived
+#  executable file.
 [Unit]
 Description=LVS and VRRP High Availability Monitor
 After=network-online.target syslog.target # @SNMP_SERVICE@
