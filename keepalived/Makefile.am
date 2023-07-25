@@ -18,7 +18,8 @@ edit = echo "  EDIT     $@"; \
 	 -e 's|@RUN_DIR[@]|$(RUN_DIR)|g' \
 	 -e 's|@SNMP_SERVICE[@]|$(SNMP_SERVICE)|g' \
 	 -e 's|@SYSTEMD_SERVICE_TYPE[@]|$(SYSTEMD_SERVICE_TYPE)|g' \
-	 -e 's|@SYSTEMD_EXEC_START_OPTIONS[@]|$(SYSTEMD_EXEC_START_OPTIONS)|g'
+	 -e 's|@SYSTEMD_EXEC_START_OPTIONS[@]|$(SYSTEMD_EXEC_START_OPTIONS)|g' \
+	 -e '/^Wants= *$$/d'
 
 sbin_PROGRAMS		= keepalived
 keepalived_SOURCES	= main.c
