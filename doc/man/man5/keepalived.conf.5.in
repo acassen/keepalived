@@ -1141,12 +1141,15 @@ The configuration block looks like:
         #   any parameters, but specify param_match.
         param_match {initial|partial}
 
-        # default weight (default is 1). For description of reverse, see track_process.
+        # default weight (default is 0). For description of reverse, see track_process.
         # 'weight 0 reverse' will cause the vrrp instance to be down when the
-        # quorum is up, and vice versa.
+        #   quorum is up, and vice versa.
+	# A non-zero weight will adjust the VRRP priority of the tracking VRRP instance,
+	#   whereas a 0 weight will cause the VRRP instance to enter FAULT state if the
+	#   track process is in the failed state (see above for the effect of "reverse").
         \fBweight\fR <-254..254> [reverse]
 
-        # minimum number of processes for success
+        # minimum number of processes for success (default 1)
         \fBquorum\fR NUM
 
         # maximum number of processes for success. For example, setting
@@ -1154,6 +1157,7 @@ The configuration block looks like:
         #   were running (but beware forks - see fork_delay below).
         #   Setting this to 0 would mean failure if the matching process were
         #   running at all.
+	#   Default is unlimited.
         \fBquorum_max\fR NUM
 
         # time to delay after process quorum gained after fork before
