@@ -1794,11 +1794,13 @@ The syntax for vrrp_instance is :
     #  of `keepalived -v` for OLD_CHKSUM_COMPAT.]
     \fBold_unicast_checksum \fR[never]
 
-    # Some manufacturers (e.g. Cisco) interpret RFC5798 5.2.8 as applying
-    #  only to IPv6, since the pseudo-header in RFC2460 is specified only
-    #  for IPv6. Keepalived by default uses a pseudo-header for VRRPv3 IPv4
-    #  as well. Setting this option turns off including the pseudo-header
-    #  in the checksum calculation for VRRPv3 IPv4.
+    # Some manufacturers (e.g. Cisco and Juniper) interpret RFC5798 5.2.8
+    #  as applying only to IPv6, since the pseudo-header in RFC2460 is
+    #  specified only for IPv6, although most open source implementations,
+    #  including tcpdump/wireshark, include the pseudo-header for IPv4.
+    #  Keepalived by default uses a pseudo-header for VRRPv3 IPv4 as well.
+    #  Setting this option turns off including the pseudo-header in the
+    #  checksum calculation for VRRPv3 IPv4.
     \fBv3_checksum_as_v2\fR [<BOOL>]
 
     # interface specific settings, same as global parameters.
