@@ -46,6 +46,9 @@
 #ifdef _WITH_JSON_
 #include "global_json.h"
 #endif
+#ifdef _WITH_DBUS_
+#include "vrrp_dbus.h"
+#endif
 
 /* global vars */
 data_t *global_data = NULL;
@@ -417,6 +420,7 @@ free_global_data(data_t * data)
 #endif
 #ifdef _WITH_DBUS_
 	FREE_CONST_PTR(data->dbus_service_name);
+	FREE_CONST_PTR(data->dbus_no_interface_name);
 #endif
 #ifndef _ONE_PROCESS_DEBUG_
 	FREE_CONST_PTR(data->reload_check_config);
@@ -779,6 +783,7 @@ dump_global_data(FILE *fp, data_t * data)
 #ifdef _WITH_DBUS_
 	conf_write(fp, " DBus %s", data->enable_dbus ? "enabled" : "disabled");
 	conf_write(fp, " DBus service name = %s", data->dbus_service_name ? data->dbus_service_name : "");
+	conf_write(fp, " DBus no interface name = %s", data->dbus_no_interface_name ? data->dbus_no_interface_name : dbus_no_interface_name);
 #endif
 	conf_write(fp, " Script security %s", script_security ? "enabled" : "disabled");
 	if (!get_default_script_user(&uid, &gid))

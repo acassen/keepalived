@@ -2004,7 +2004,6 @@ netlink_if_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 	if (tb[IFLA_IFNAME] == NULL)
 		return -1;
 	name = (char *)RTA_DATA(tb[IFLA_IFNAME]);
-log_message(LOG_INFO, "Got netlink new message for %s", name);
 
 	/* Skip it if already exists */
 	ifp = if_get_by_ifname(name, IF_CREATE_NETLINK);
