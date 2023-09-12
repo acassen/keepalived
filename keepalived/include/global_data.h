@@ -255,6 +255,7 @@ typedef struct _data {
 #ifdef _WITH_DBUS_
 	bool				enable_dbus;
 	const char			*dbus_service_name;
+	const char			*dbus_no_interface_name;
 #endif
 #ifdef _WITH_VRRP_
 	unsigned			vrrp_netlink_cmd_rcv_bufs;

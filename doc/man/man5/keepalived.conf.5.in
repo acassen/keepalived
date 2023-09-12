@@ -683,6 +683,11 @@ possibly following any cleanup actions needed.
     # (default: org.keepalived.Vrrp1)
     \fBdbus_service_name \fRSERVICE_NAME
 
+    # String to use for DBus path when VRRP instance has no interface configured
+    # Useful if your system has an interface named "none"!
+    # (default: "none")
+    \fBdbus_no_interface_name \fRNAME
+
     # Specify the default username/groupname to run scripts under.
     # If this option is not specified, the user defaults to keepalived_script
     # if that user exists, otherwise the uid/gid under which keepalived is running.

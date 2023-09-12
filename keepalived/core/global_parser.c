@@ -1661,6 +1661,18 @@ dbus_service_name_handler(const vector_t *strvec)
 	FREE_CONST_PTR(global_data->dbus_service_name);
 	global_data->dbus_service_name = set_value(strvec);
 }
+
+static void
+dbus_no_interface_name_handler(const vector_t *strvec)
+{
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "dbus_no_interface_name missing - ignoring");
+		return;
+	}
+
+	FREE_CONST_PTR(global_data->dbus_no_interface_name);
+	global_data->dbus_no_interface_name = set_value(strvec);
+}
 #endif
 
 static void
@@ -2474,6 +2486,7 @@ init_global_keywords(bool global_active)
 #ifdef _WITH_DBUS_
 	install_keyword("enable_dbus", &enable_dbus_handler);
 	install_keyword("dbus_service_name", &dbus_service_name_handler);
+	install_keyword("dbus_no_interface_name", &dbus_no_interface_name_handler);
 #endif
 	install_keyword("script_user", &script_user_handler);
 	install_keyword("enable_script_security", &script_security_handler);
