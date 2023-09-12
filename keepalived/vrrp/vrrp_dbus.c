@@ -207,13 +207,18 @@ static vrrp_t * __attribute__ ((pure))
 get_vrrp_instance(const char *ifname, int vrid, int family)
 {
 	vrrp_t *vrrp;
+	bool no_if = !strcmp(ifname, no_interface);
 
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
-		if (vrrp->ifp &&
-		    vrrp->vrid == vrid &&
-		    vrrp->family == family &&
-		    !valid_path_cmp(VRRP_CONFIGURED_IFP(vrrp)->ifname, ifname))
-			return vrrp;
+		if (vrrp->vrid == vrid &&
+		    vrrp->family == family) {
+			if (no_if) {
+				if (!vrrp->ifp)
+					return vrrp;
+			} else if (vrrp->ifp &&
+				   !valid_path_cmp(VRRP_CONFIGURED_IFP(vrrp)->ifname, ifname))
+				return vrrp;
+		}
 	}
 
 	return NULL;
