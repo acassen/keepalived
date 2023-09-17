@@ -568,6 +568,13 @@ vrrp_vmac_handler(const vector_t *strvec)
 				continue;
 			}
 
+			/* The string "netlink_notify_msg" needs to be longer than IFNAMSIZ
+			 * so that it cannot be a valid interface name. */
+			if (!strcmp(name, "netlink_notify_msg")) {
+				__set_bit(VRRP_VMAC_NETLINK_NOTIFY, &current_vrrp->flags);
+				continue;
+			}
+
 			if (!dev_name_valid(name)) {
 				report_config_error(CONFIG_GENERAL_ERROR, "VMAC interface name '%s' too long or invalid characters - ignoring", name);
 				continue;
