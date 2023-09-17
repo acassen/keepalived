@@ -230,6 +230,26 @@ netlink_link_up(vrrp_t *vrrp)
 	return status;
 }
 
+static void
+netlink_link_group(interface_t *base_ifp)
+{
+	uint32_t group = base_ifp->group;
+	struct {
+		struct nlmsghdr n;
+		struct ifinfomsg ifi;
+		char buf[256];
+	} req = { .buf[0] = 0 };
+
+	req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
+	req.n.nlmsg_flags = NLM_F_REQUEST;
+	req.n.nlmsg_type = RTM_NEWLINK;
+	req.ifi.ifi_family = AF_UNSPEC;
+	req.ifi.ifi_index = (int)IF_INDEX(base_ifp);
+
+	addattr_l(&req.n, sizeof(req), IFLA_GROUP, &group, sizeof(group));
+	netlink_talk(&nl_cmd, &req.n);
+}
+
 bool
 set_link_local_address(const vrrp_t *vrrp)
 {
@@ -480,6 +500,21 @@ netlink_link_add_vmac(vrrp_t *vrrp, const interface_t *old_interface)
 			log_message(LOG_INFO, "(%s) adding link-local address to %s failed", vrrp->iname, vrrp->ifp->ifname);
 	}
 
+	/* If the base interface does not implement IFF_UNICAST_FLT, for example
+	 * it is a bridge interface, no netlink notification is sent by the kernel
+	 * when promiscuity is set on the base interface.
+	 * The promiscuous state of the base interface is correct in the kernel
+	 * but it is in incorrect in processes that listen to the interface netlink
+	 * messages due to the missing netlink message.
+	 *
+	 * Force a notification by re-setting IFLA_GROUP for the base interface.
+	 * NOTE: there is a window here where the group may have been changed by
+	 * 	 some other process but we have not received the netlink message yet.
+	 */
+	if (create_interface && vrrp->configured_ifp->base_ifp->ifindex &&
+	    __test_bit(VRRP_VMAC_NETLINK_NOTIFY, &vrrp->flags))
+		netlink_link_group(vrrp->configured_ifp->base_ifp);
+
 #if !HAVE_DECL_IFLA_INET6_ADDR_GEN_MODE
 	if (vrrp->family == AF_INET6 || __test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags)) {
 		/* Delete the automatically created link-local address based on the
@@ -709,6 +744,12 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 		log_message(LOG_INFO, "(%s) Error removing VMAC interface %s"
 				    , vrrp->iname, vrrp->vmac_ifname);
 		return;
+	}
+
+	if (__test_bit(VRRP_VMAC_NETLINK_NOTIFY, &vrrp->flags)) {
+		/* Force a netlink RTM_NEWLINK message for the base interface
+		 * since promiscuity may have been decremented. */
+		netlink_link_group(vrrp->configured_ifp->base_ifp);
 	}
 
 #ifdef _WITH_FIREWALL_

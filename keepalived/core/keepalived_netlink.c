@@ -1887,6 +1887,8 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	ifp->base_ifp = ifp;
 	ifp->base_ifindex = 0;
 
+	ifp->group = *PTR_CAST(uint32_t, RTA_DATA(tb[IFLA_GROUP]));
+
 	if (tb[IFLA_LINKINFO]) {
 		if (linkinfo[IFLA_INFO_KIND]) {
 			/* See if this interface is a MACVLAN */
@@ -2173,6 +2175,11 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 					}
 				}
 			}
+
+#ifdef _HAVE_VRRP_VMAC_
+			if (tb[IFLA_GROUP])
+				ifp->group = *PTR_CAST(uint32_t, RTA_DATA(tb[IFLA_GROUP]));
+#endif
 
 			if (strcmp(ifp->ifname, name)) {
 				/* The name can change, so handle that here */

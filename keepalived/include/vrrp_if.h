@@ -159,10 +159,8 @@ typedef struct _interface {
 #endif
 	struct _interface	*base_ifp;		/* Base interface (if interface is a VMAC interface),
 							   otherwise the physical interface */
-#ifdef _HAVE_VRRP_VMAC_
 	bool			is_ours;		/* keepalived created the interface */
 	bool			deleting;		/* Set when we are deleting the interface */
-#endif
 	bool			seen_interface;		/* The interface has existed at some point since we started */
 	bool			changeable_type;	/* The interface type or underlying interface can be changed */
 #ifdef _HAVE_VRF_
@@ -174,6 +172,7 @@ typedef struct _interface {
 	bool			arp_ignore;		/* Original value of arp_ignore to be restored */
 	bool			arp_filter;		/* Original value of arp_filter to be restored */
 	unsigned		rp_filter;		/* < UINT_MAX if we have changed the value */
+	uint32_t		group;			/* GROUP for this interface_t */
 #endif
 	garp_delay_t		*garp_delay;		/* Delays for sending gratuitous ARP/NA */
 	timeval_t		last_gna_router_check;	/* Time we last checked if IPv6 forwarding set on interface */

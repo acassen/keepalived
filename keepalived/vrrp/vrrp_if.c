@@ -574,6 +574,8 @@ dump_if(FILE *fp, const interface_t *ifp)
 	conf_write(fp, "   Down debounce timer = %uus", ifp->down_debounce_timer);
 
 #ifdef _HAVE_VRRP_VMAC_
+	conf_write(fp, "   Group = %u", ifp->group);
+
 	if (IS_MAC_IP_VLAN(ifp)) {
 		const char *if_type =
 #ifdef _HAVE_VRRP_IPVLAN_
