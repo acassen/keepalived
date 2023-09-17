@@ -572,9 +572,10 @@ dump_if(FILE *fp, const interface_t *ifp)
 	conf_write(fp, "   Delayed state change running = %s", ifp->flags_change_thread ? "true" : "false");
 	conf_write(fp, "   Up debounce timer = %uus", ifp->up_debounce_timer);
 	conf_write(fp, "   Down debounce timer = %uus", ifp->down_debounce_timer);
-	conf_write(fp, "   Group = %u", ifp->group);
 
 #ifdef _HAVE_VRRP_VMAC_
+	conf_write(fp, "   Group = %u", ifp->group);
+
 	if (IS_MAC_IP_VLAN(ifp)) {
 		const char *if_type =
 #ifdef _HAVE_VRRP_IPVLAN_
