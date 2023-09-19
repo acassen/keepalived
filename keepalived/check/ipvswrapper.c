@@ -671,6 +671,11 @@ ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge)
 			ipvs_set_drule(IP_VS_SO_SET_ADDDEST, &drule, rs);
 			drule.user.weight = rs->inhibit && !rs->alive ? 0 : real_weight(rs->effective_weight);
 
+			if (rs->forwarding_method != IP_VS_CONN_F_MASQ)
+				drule.user.port = inet_sockaddrport(&vsge->addr);
+			else
+				drule.user.port = inet_sockaddrport(&rs->addr);
+
 			/* Set vs rule */
 			if (srule.user.fwmark) {
 				/* Talk to the IPVS channel */
@@ -678,6 +683,8 @@ ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge)
 			}
 			else
 				ipvs_group_range_cmd(IP_VS_SO_SET_ADDDEST, &srule, &drule, vsge);
+
+			ipvs_set_vsge_alive_state(IP_VS_SO_SET_ADDDEST, vsge, vs);
 		}
 	}
 }
@@ -718,12 +725,17 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 	else
 		srule.user.port = inet_sockaddrport(&vsge->addr);
 
-	if (global_data->lvs_flush_on_stop == LVS_NO_FLUSH) {
-		/* Process realserver queue */
-		list_for_each_entry(rs, &vs->rs, e_list) {
-			if (rs->alive) {
+	/* Process realserver queue */
+	list_for_each_entry(rs, &vs->rs, e_list) {
+		if (rs->alive) {
+			if (global_data->lvs_flush_on_stop == LVS_NO_FLUSH) {
 				/* Setting IPVS drule */
 				ipvs_set_drule(IP_VS_SO_SET_DELDEST, &drule, rs);
+
+				if (rs->forwarding_method != IP_VS_CONN_F_MASQ)
+					drule.user.port = inet_sockaddrport(&vsge->addr);
+				else
+					drule.user.port = inet_sockaddrport(&rs->addr);
 
 				/* Delete rs rule */
 				if (srule.user.fwmark) {
@@ -733,6 +745,8 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 				else
 					ipvs_group_range_cmd(IP_VS_SO_SET_DELDEST, &srule, &drule, vsge);
 			}
+
+			ipvs_set_vsge_alive_state(IP_VS_SO_SET_DELDEST, vsge, vs);
 		}
 	}
 
