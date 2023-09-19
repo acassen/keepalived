@@ -31,6 +31,9 @@ vrrp_instance VI_1 {
         192.168.200.17
         192.168.200.18
     }
+
+    # Allow packets addressed to the VIPs above to be received
+    accept
 }
 
 virtual_server 192.168.200.100 443 {
