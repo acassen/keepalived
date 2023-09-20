@@ -201,7 +201,8 @@ address_is_ours(struct ifaddrmsg *ifa, struct in_addr *addr, interface_t *ifp)
 		     vip_list;
 		     vip_list = vip_list == &vrrp->vip ? &vrrp->evip : NULL) {
 			list_for_each_entry(ip_addr, vip_list, e_list) {
-				if (addr_is_equal(ifa, addr, ip_addr, ifp))
+				if (addr_is_equal(ifa, addr, ip_addr, ifp) &&
+				    ifa->ifa_prefixlen == ip_addr->ifa.ifa_prefixlen)
 					return ip_addr->dont_track ? NULL : vrrp;
 			}
 		}
