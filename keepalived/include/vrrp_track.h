@@ -204,7 +204,7 @@ extern void alloc_track_bfd(const char *, list_head_t *, const vector_t *);
 #endif
 extern vrrp_script_t *find_script_by_name(const char *) __attribute__ ((pure));
 extern void update_script_priorities(vrrp_script_t *, bool);
-extern void down_instance(struct _vrrp_t *);
+extern void down_instance(struct _vrrp_t *, bool, unsigned);
 extern void vrrp_set_effective_priority(struct _vrrp_t *);
 extern void initialise_tracking_priorities(void);
 #ifdef _WITH_TRACK_PROCESS_

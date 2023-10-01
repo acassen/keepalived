@@ -622,7 +622,8 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 	conf_write(fp, "   Wantstate = %s", get_state_str(vrrp->wantstate));
 	conf_write(fp, "   Number of config faults = %u", vrrp->num_config_faults);
 	if (fp) {
-		conf_write(fp, "   Number of interface and track script faults = %u", vrrp->num_script_if_fault);
+		conf_write(fp, "   Number of tracker faults = %u", vrrp->num_track_fault);
+		conf_write(fp, "   Flags of interface faults = %#lx", vrrp->flags_if_fault);
 #ifdef _HAVE_VRRP_VMAC_
 		if (__test_bit(VRRP_FLAG_DUPLICATE_VRID_FAULT, &vrrp->flags))
 			conf_write(fp, "   Duplicate VRID");

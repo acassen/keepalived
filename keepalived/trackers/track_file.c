@@ -699,7 +699,7 @@ process_update_vrrp_track_file_status(const tracked_file_t *tfile, int new_statu
 					    , vrrp->iname, tfile->fname);
 		if (top->weight)
 			vrrp->total_priority -= previous_status;
-		down_instance(vrrp);
+		down_instance(vrrp, true, VRRP_IF_FAULT_FLAG_UNSPECIFIED);
 	} else if (previous_status == -254) {
 		if (top->weight) {
 			vrrp->total_priority += new_status;
@@ -712,7 +712,7 @@ process_update_vrrp_track_file_status(const tracked_file_t *tfile, int new_statu
 				log_message(LOG_INFO, "(%s) Setting effective priority to %d"
 						    , vrrp->iname, vrrp->effective_priority);
 		}
-		try_up_instance(vrrp, false);
+		try_up_instance(vrrp, false, true, VRRP_IF_FAULT_FLAG_UNSPECIFIED);
 	} else {
 		vrrp->total_priority += new_status - previous_status;
 		vrrp_set_effective_priority(vrrp);

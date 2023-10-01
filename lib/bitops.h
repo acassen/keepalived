@@ -49,6 +49,18 @@ static inline bool __test_bit(unsigned idx, const unsigned long *bmap)
 	return !!(*bmap & BIT_MASK(idx));
 }
 
+static inline unsigned __num_bit(unsigned long *bmap)
+{
+	unsigned idx, count = 0;
+
+	for (idx = 0; idx < (sizeof(unsigned long) * 8); idx++)
+		if (__test_bit(idx, bmap))
+			count++;
+
+	return count;
+}
+
+
 static inline bool __test_and_set_bit(unsigned idx, unsigned long *bmap)
 {
 	if (__test_bit(idx, bmap))
