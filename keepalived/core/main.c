@@ -1001,6 +1001,7 @@ start_validate_reload_conf_child(void)
 	int fd;
 	int len;
 	char exe_buf[128];
+	struct stat sb;
 
 	exe_buf[sizeof(exe_buf) - 1] = '\0';
 	ret = readlink("/proc/self/exe", exe_buf, sizeof(exe_buf));
@@ -1055,8 +1056,13 @@ start_validate_reload_conf_child(void)
 	script.uid = 0;
 	script.gid = 0;
 
-	if (truncate(global_data->reload_check_config, 0) && errno != ENOENT)
-		log_message(LOG_INFO, "truncate of config check log %s failed (%d) - %m", global_data->reload_check_config, errno);
+	if (truncate(global_data->reload_check_config, 0) && errno != ENOENT) {
+		/* The file exists, but truncate failed. It might be a character
+		 * device like /dev/null. truncate() returns EINVAL in this case. */
+		if (stat(global_data->reload_check_config, &sb) ||
+		    !S_ISCHR(sb.st_mode))
+			log_message(LOG_INFO, "truncate of config check log %s failed (%d) - %m", global_data->reload_check_config, errno);
+	}
 
 	create_reload_file();
 
