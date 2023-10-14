@@ -81,6 +81,11 @@ static sysctl_opts_t vmac_sysctl[] = {
 	{ 0, 0}
 };
 
+static sysctl_opts_t vmac_sysctl_6[] = {
+	{ IPV4_DEVCONF_ARP_IGNORE, 1 },
+	{ 0, 0}
+};
+
 #endif
 #endif
 
@@ -216,10 +221,13 @@ netlink_set_interface_flags(unsigned ifindex, const sysctl_opts_t *sys_opts)
 
 #ifdef _HAVE_VRRP_VMAC_
 static inline int
-netlink_set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
+netlink_set_interface_parameters(const interface_t *ifp, interface_t *base_ifp, sa_family_t family)
 {
-	if (netlink_set_interface_flags(ifp->ifindex, vmac_sysctl))
+	if (netlink_set_interface_flags(ifp->ifindex, family == AF_INET6 ? vmac_sysctl_6 : vmac_sysctl))
 		return -1;
+
+	if (family == AF_INET6)
+		return 0;
 
 	/* If the underlying interface is a MACVLAN that has been moved into
 	 * a separate network namespace from the parent, we can't access the
@@ -271,9 +279,9 @@ netlink_reset_interface_parameters(const interface_t* ifp)
 }
 
 static inline void
-set_interface_parameters_devconf(const interface_t *ifp, interface_t *base_ifp)
+set_interface_parameters_devconf(const interface_t *ifp, interface_t *base_ifp, sa_family_t family)
 {
-	if (netlink_set_interface_parameters(ifp, base_ifp))
+	if (netlink_set_interface_parameters(ifp, base_ifp, family))
 		log_message(LOG_INFO, "Unable to set parameters for %s", ifp->ifname);
 }
 
@@ -310,11 +318,15 @@ reset_promote_secondaries_devconf(interface_t *ifp)
 
 #ifdef _HAVE_VRRP_VMAC_
 static inline void
-set_interface_parameters_sysctl(const interface_t *ifp, interface_t *base_ifp)
+set_interface_parameters_sysctl(const interface_t *ifp, interface_t *base_ifp, sa_family_t family)
 {
 	unsigned val;
 
 	set_sysctl("net/ipv4/conf", ifp->ifname, "arp_ignore", 1);
+
+	if (family == AF_INET6)
+		return;
+
 	set_sysctl("net/ipv4/conf", ifp->ifname, "accept_local", 1);
 	set_sysctl("net/ipv4/conf", ifp->ifname, "rp_filter", 0);
 
@@ -524,15 +536,15 @@ restore_rp_filter(void)
 }
 
 void
-set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
+set_interface_parameters(const interface_t *ifp, interface_t *base_ifp, sa_family_t family)
 {
 	if (all_rp_filter == UINT_MAX)
 		clear_rp_filter();
 
 #ifdef _HAVE_IPV4_DEVCONF_
-	set_interface_parameters_devconf(ifp, base_ifp);
+	set_interface_parameters_devconf(ifp, base_ifp, family);
 #else
-	set_interface_parameters_sysctl(ifp, base_ifp);
+	set_interface_parameters_sysctl(ifp, base_ifp, family);
 #endif
 }
 
