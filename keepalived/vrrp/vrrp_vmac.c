@@ -435,10 +435,9 @@ netlink_link_add_vmac(vrrp_t *vrrp, const interface_t *old_interface)
 	if (!ifp->ifindex)
 		return false;
 
-	if (vrrp->family == AF_INET && create_interface) {
+	if (create_interface) {
 		/* Set the necessary kernel parameters to make macvlans work for us */
-// If this saves current base_ifp's settings, we need to be careful if multiple VMACs on same i/f
-		set_interface_parameters(ifp, ifp->base_ifp);
+		set_interface_parameters(ifp, ifp->base_ifp, vrrp->family);
 	}
 
 #ifdef _WITH_FIREWALL_
