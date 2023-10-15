@@ -1814,7 +1814,10 @@ vrrp_state_leave_master(vrrp_t * vrrp, bool advF)
 	}
 	else if (vrrp->wantstate == VRRP_STATE_FAULT) {
 		log_message(LOG_INFO, "(%s) Entering FAULT STATE", vrrp->iname);
-		vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
+
+		/* If there is no address on the interface we cannot sent an IPv6 advert */
+		if (vrrp->family == AF_INET || vrrp->saddr.ss_family != AF_UNSPEC)
+			vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
 	}
 	else {
 		log_message(LOG_INFO, "(%s) vrrp_state_leave_master called with invalid wantstate %d", vrrp->iname, vrrp->wantstate);
