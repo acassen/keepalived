@@ -4292,8 +4292,7 @@ set_vrrp_src_addr(void)
 			if (vrrp->family == AF_INET) {
 				if (!(VRRP_CONFIGURED_IFP(vrrp))->sin_addr.s_addr)
 					addr_missing = true;
-			}
-			else {
+			} else {
 #ifdef _HAVE_VRRP_VMAC_
 				if (!__test_bit(VRRP_VMAC_BIT, &vrrp->flags))
 #endif
@@ -4311,8 +4310,13 @@ set_vrrp_src_addr(void)
 			else if (vrrp->family == AF_INET)
 				inet_ip4tosockaddr(&VRRP_CONFIGURED_IFP(vrrp)->sin_addr, &vrrp->saddr);
 			else if (vrrp->family == AF_INET6) {
+#ifdef _HAVE_VRRP_VMAC_
+				if (!__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags) &&
+				    (
 #ifdef _HAVE_VRRP_IPVLAN_
-				if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->flags)) {
+				     __test_bit(VRRP_IPVLAN_BIT, &vrrp->flags) ||
+#endif
+				     __test_bit(VRRP_VMAC_BIT, &vrrp->flags))) {
 					if (!IN6_IS_ADDR_UNSPECIFIED(&vrrp->ifp->sin6_addr))
 						inet_ip6tosockaddr(&vrrp->ifp->sin6_addr, &vrrp->saddr);
 				} else

@@ -285,6 +285,7 @@ netlink_link_add_vmac(vrrp_t *vrrp, const interface_t *old_interface)
 	} req;
 	u_char if_ll_addr[ETH_ALEN];
 	bool update_interface = false;
+	bool ret = true;
 
 	if (!vrrp->ifp || __test_bit(VRRP_VMAC_UP_BIT, &vrrp->flags) || !vrrp->vrid)
 		return false;
@@ -495,8 +496,10 @@ netlink_link_add_vmac(vrrp_t *vrrp, const interface_t *old_interface)
 
 	if (vrrp->family == AF_INET6 &&
 	    !__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags)) {
-		if (!set_link_local_address(vrrp) && create_interface)
+		if (!set_link_local_address(vrrp) && create_interface) {
 			log_message(LOG_INFO, "(%s) adding link-local address to %s failed", vrrp->iname, vrrp->ifp->ifname);
+			ret = false;
+		}
 	}
 
 	/* If the base interface does not implement IFF_UNICAST_FLT, for example
@@ -543,7 +546,7 @@ netlink_link_add_vmac(vrrp_t *vrrp, const interface_t *old_interface)
 	 * as we progress */
 	kernel_netlink_poll();
 
-	return true;
+	return ret;
 }
 
 #ifdef _INCLUDE_UNUSED_CODE_
