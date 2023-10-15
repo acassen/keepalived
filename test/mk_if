@@ -15,6 +15,8 @@ BR_NAME=br
 CHAINS=
 DEFAULT_CHAINS="TESTIN TESTOUT"
 SCRIPT=
+FIXED_LEN=0
+NUM_LEN=
 
 CMD=add
 LOW=0
@@ -33,6 +35,7 @@ $0 - Usage: $0 CMD [OPTIONS]
 	-h		Show this!
 	-f NUM		First interface number
 	-l NUM		Last interface number
+	-p		fixed interface name lenths
 	-n "NS NS .."	List of namespaces (default: high medium low default)
 	-b NS		Specify namespace for bridge (default: medium)
 	-r NS		Specify root namespace (default: default)
@@ -50,7 +53,7 @@ $0 - Usage: $0 CMD [OPTIONS]
 EOF
 }
 
-while getopts ":hf:l:n:b:r:N:eb:r:Rc:i:4:6:q:Q:I:s:" opt; do
+while getopts ":hf:l:n:pb:r:N:eb:r:Rc:i:4:6:q:Q:I:s:" opt; do
 	case $opt in
 	h)
 		show_help
@@ -64,6 +67,9 @@ while getopts ":hf:l:n:b:r:N:eb:r:Rc:i:4:6:q:Q:I:s:" opt; do
 		;;
 	l)
 		HIGH=$OPTARG
+		;;
+	p)
+		FIXED_LEN=1
 		;;
 	n)
 		NS_LIST=$OPTARG
@@ -120,6 +126,17 @@ done
 
 CMD=${!OPTIND}
 
+# Work out number length of interface names
+if [[ $FIXED_LEN -eq 1 ]]; then
+	NUM_LEN=1
+	LAST=$HIGH
+	while [[ $(( LAST /= 10 )) -gt 0 ]]; do
+		: $((NUM_LEN++))
+	done
+fi
+
+[[ $IF_NAME != eth ]] && BR_NAME=br${IF_NAME:2}
+
 # Check if system is using iptables or nftables
 USE_IPTABLES=1
 type -f iptables >/dev/null
@@ -156,9 +173,13 @@ fi
 if [[ $CMD = add ]]; then
 	for n in $NS_LIST; do
 		[[ .$n = .$ROOT_NS ]] && continue
+		ip netns | grep $n >/dev/null 2>/dev/null
+		[[ $? -eq 0 ]] && continue
 
 		$ECHO unshare -n ip netns add $n
 		$ECHO ip netns exec $n ip link set up lo
+
+		NEW_NS+=" $n"
 	done
 fi
 
@@ -176,12 +197,20 @@ if [[ $USE_IPTABLES -eq 1 ]]; then
 fi
 
 for n in $(seq $LOW $HIGH); do
+	if [[ -n $NUM_LEN ]]; then
+		IF=${IF_NAME}$(printf "%${NUM_LEN}.${NUM_LEN}d" $n)
+		BR=${BR_NAME}$(printf "%${NUM_LEN}.${NUM_LEN}d" $n)
+	else
+		IF=${IF_NAME}$n
+		BR=${BR_NAME}$n
+	fi
+
 	if [[ $CMD = add || $CMD = remake ]]; then
 		if [[ $CMD = add ]]; then
-			$ECHO ip netns exec $BRIDGE_NS ip link add ${BR_NAME}${n} type bridge
-			$ECHO ip netns exec $BRIDGE_NS ip link set ${BR_NAME}${n} up
-			$ECHO ip netns exec $BRIDGE_NS ip addr add ${IP_BASE_ADDR}.${n}.${ip[medium]}/24 broadcast + dev ${BR_NAME}${n}
-			$ECHO ip netns exec $BRIDGE_NS ip addr add ${IP6_BASE_ADDR}:$((100 + $n))::${ip[medium]}/64 dev ${BR_NAME}${n}
+			$ECHO ip netns exec $BRIDGE_NS ip link add ${BR} type bridge
+			$ECHO ip netns exec $BRIDGE_NS ip link set ${BR} up
+			$ECHO ip netns exec $BRIDGE_NS ip addr add ${IP_BASE_ADDR}.${n}.${ip[medium]}/24 broadcast + dev ${BR}
+			$ECHO ip netns exec $BRIDGE_NS ip addr add ${IP6_BASE_ADDR}:$((100 + $n))::${ip[medium]}/64 dev ${BR}
 			NS=$NS_LIST
 		else
 			NS=$SIDE
@@ -190,29 +219,29 @@ for n in $(seq $LOW $HIGH); do
 		for p in $NS; do
 			[[ $p = $BRIDGE_NS ]] && continue
 
-			$ECHO ip netns exec $BRIDGE_NS ip link add ${IF_NAME}${n}.$p type veth peer name ${IF_NAME}${n}
-			$ECHO ip netns exec $BRIDGE_NS ip link set ${IF_NAME}${n}.$p master ${BR_NAME}${n}
-			$ECHO ip netns exec $BRIDGE_NS ip link set ${IF_NAME}${n}.$p up
+			$ECHO ip netns exec $BRIDGE_NS ip link add ${IF}.$p type veth peer name ${IF}
+			$ECHO ip netns exec $BRIDGE_NS ip link set ${IF}.$p master ${BR}
+			$ECHO ip netns exec $BRIDGE_NS ip link set ${IF}.$p up
 
-			$ECHO ip netns exec $BRIDGE_NS ip link set ${IF_NAME}${n} netns ${p/$ROOT_NS/1}
+			$ECHO ip netns exec $BRIDGE_NS ip link set ${IF} netns ${p/$ROOT_NS/1}
 
 			[[ $p = $ROOT_NS ]] && NETNS_CMD= || NETNS_CMD="ip netns exec $p"
-			$ECHO $NETNS_CMD ip link set ${IF_NAME}${n} up
-			$ECHO $NETNS_CMD ip addr add ${IP_BASE_ADDR}.${n}.${ip[$p]}/24 broadcast + dev ${IF_NAME}${n}
-			$ECHO $NETNS_CMD ip addr add ${IP6_BASE_ADDR}:$((100 + $n))::${ip[$p]}/64 dev ${IF_NAME}${n}
+			$ECHO $NETNS_CMD ip link set ${IF} up
+			$ECHO $NETNS_CMD ip addr add ${IP_BASE_ADDR}.${n}.${ip[$p]}/24 broadcast + dev ${IF}
+			$ECHO $NETNS_CMD ip addr add ${IP6_BASE_ADDR}:$((100 + $n))::${ip[$p]}/64 dev ${IF}
 		done
 
-		$ECHO ip netns exec $BRIDGE_NS ip link add ${IF_NAME}${n} type dummy
-		$ECHO ip netns exec $BRIDGE_NS ip link set ${IF_NAME}${n} master ${BR_NAME}${n}
-		$ECHO ip netns exec $BRIDGE_NS ip link set up ${IF_NAME}${n}
+		$ECHO ip netns exec $BRIDGE_NS ip link add ${IF} type dummy
+		$ECHO ip netns exec $BRIDGE_NS ip link set ${IF} master ${BR}
+		$ECHO ip netns exec $BRIDGE_NS ip link set up ${IF}
 	elif [[ $CMD = del ]]; then
 		for p in $NS_LIST; do
 			[[ $p = $BRIDGE_NS ]] && continue
 
-			$ECHO ip netns exec $BRIDGE_NS ip link del ${IF_NAME}${n}.$p
+			$ECHO ip netns exec $BRIDGE_NS ip link del ${IF}.$p
 		done
-		$ECHO ip netns exec $BRIDGE_NS ip link del ${IF_NAME}${n}
-		$ECHO ip netns exec $BRIDGE_NS ip link del ${BR_NAME}${n}
+		$ECHO ip netns exec $BRIDGE_NS ip link del ${IF}
+		$ECHO ip netns exec $BRIDGE_NS ip link del ${BR}
 	else
 		echo Unknown command $CMD
 	fi
