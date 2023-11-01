@@ -3,6 +3,7 @@
 PACKAGE=`pwd`
 PACKAGE=`basename $PACKAGE`
 VERSION=1.0-1
+COMMIT=`git rev-parse HEAD`
 PKGDIR=${PACKAGE}_${VERSION}
 
 if [ ! -f /usr/bin/automake ]; then
@@ -38,5 +39,6 @@ Architecture: amd64
 Maintainer: NTT Innovation Institute, Inc. <support@ntti3.com>
 Description: esi-keepalived
  Keepalived 2.0.7 modified for ESI
+ Commit: $COMMIT
 EOF
 dpkg-deb --build $PKGDIR
