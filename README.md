@@ -1,6 +1,7 @@
 keepalived: Loadbalancing & High-Availability
 =============================================
 
+[![GitHub Sponsor](https://img.shields.io/static/v1?label=Sponsor&message=%E2%9D%A4&logo=GitHub&color=%23fe8e86)](https://github.com/sponsors/acassen)
 [![Keepalived CI](https://github.com/acassen/keepalived/actions/workflows/build.yml/badge.svg)](https://github.com/acassen/keepalived/actions/workflows/build.yml)
 [![Coverity Status](https://scan.coverity.com/projects/22678/badge.svg)](https://scan.coverity.com/projects/acassen-keepalived)
 [![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/acassen/keepalived.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/acassen/keepalived/context:cpp)
