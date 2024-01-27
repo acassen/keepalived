@@ -260,6 +260,39 @@ compare_addr(int family, void *addr1, ip_address_t *addr2)
 	       addr1_p.in6->s6_addr32[3] != addr2->u.sin6_addr.s6_addr32[3];
 }
 
+static bool
+compare_route(struct rtattr *tb[RTA_MAX + 1], ip_route_t *route, uint32_t table, int family, int mask_len, uint32_t priority, uint8_t tos)
+{
+	union {
+		struct in_addr in;
+		struct in6_addr in6;
+	} default_addr;
+
+	if (table != route->table ||
+	    family != route->family ||
+	    mask_len != route->dst->ifa.ifa_prefixlen ||
+	    priority != route->metric ||
+	    tos != route->tos)
+		return false;
+
+	if (route->oif) {
+		if (!tb[RTA_OIF] || route->oif->ifindex != *PTR_CAST(uint32_t, RTA_DATA(tb[RTA_OIF])))
+			return false;
+	} else {
+		if (route->set && route->configured_ifindex &&
+		    (!tb[RTA_OIF] || route->configured_ifindex != *PTR_CAST(uint32_t, RTA_DATA(tb[RTA_OIF]))))
+			return false;
+	}
+
+	if (!tb[RTA_DST])
+		memset(&default_addr, 0, sizeof(default_addr));
+
+	if (compare_addr(family, tb[RTA_DST] ? RTA_DATA(tb[RTA_DST]) : &default_addr, route->dst))
+		return false;
+
+	return true;
+}
+
 static ip_route_t *
 route_is_ours(struct rtmsg* rt, struct rtattr *tb[RTA_MAX + 1], vrrp_t** ret_vrrp)
 {
@@ -270,10 +303,6 @@ route_is_ours(struct rtmsg* rt, struct rtattr *tb[RTA_MAX + 1], vrrp_t** ret_vrr
 	uint8_t tos = rt->rtm_tos;
 	vrrp_t *vrrp;
 	ip_route_t *route;
-	union {
-		struct in_addr in;
-		struct in6_addr in6;
-	} default_addr;
 
 	*ret_vrrp = NULL;
 
@@ -284,48 +313,17 @@ route_is_ours(struct rtmsg* rt, struct rtattr *tb[RTA_MAX + 1], vrrp_t** ret_vrr
 
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		list_for_each_entry(route, &vrrp->vroutes, e_list) {
-			if (table != route->table ||
-			    family != route->family ||
-			    mask_len != route->dst->ifa.ifa_prefixlen ||
-			    priority != route->metric ||
-			    tos != route->tos)
-				continue;
-
-			if (route->oif) {
-				if (!tb[RTA_OIF] || route->oif->ifindex != *PTR_CAST(uint32_t, RTA_DATA(tb[RTA_OIF])))
-					continue;
-			} else {
-				if (route->set && route->configured_ifindex &&
-				    (!tb[RTA_OIF] || route->configured_ifindex != *PTR_CAST(uint32_t, RTA_DATA(tb[RTA_OIF]))))
-					continue;
+			if (compare_route(tb, route, table, family, mask_len, priority, tos)) {
+				*ret_vrrp = vrrp;
+				return route;
 			}
-
-			if (!tb[RTA_DST])
-				memset(&default_addr, 0, sizeof(default_addr));
-
-			if (compare_addr(family, tb[RTA_DST] ? RTA_DATA(tb[RTA_DST]) : &default_addr, route->dst))
-				continue;
-
-			*ret_vrrp = vrrp;
-			return route;
 		}
 	}
 
 	/* Now check the static routes */
 	list_for_each_entry(route, &vrrp_data->static_routes, e_list) {
-		if (table != route->table ||
-		    family != route->family ||
-		    mask_len != route->dst->ifa.ifa_prefixlen ||
-		    tos != route->tos)
-			continue;
-
-		if (!tb[RTA_DST])
-			memset(&default_addr, 0, sizeof(default_addr));
-
-		if (compare_addr(family, tb[RTA_DST] ? RTA_DATA(tb[RTA_DST]) : &default_addr, route->dst))
-			continue;
-
-		return route;
+		if (compare_route(tb, route, table, family, mask_len, priority, tos))
+			return route;
 	}
 
 	return NULL;
