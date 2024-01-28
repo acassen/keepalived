@@ -3086,7 +3086,7 @@ sysconfdir_real=${sysconfdir}
 # done
 sysconfdir_sav=${sysconfdir_real}
 eval sysconfdir_real=$sysconfdir_real
-while [ $sysconfdir_real != $sysconfdir_sav ]; do
+while [[ $sysconfdir_real != $sysconfdir_sav ]]; do
 	sysconfdir_sav=${sysconfdir_real}
 	eval sysconfdir_real=$sysconfdir_real
 done
