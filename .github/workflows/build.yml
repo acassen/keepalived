@@ -27,7 +27,7 @@ jobs:
         - "--disable-lvs --enable-snmp-vrrp --enable-snmp-rfc --enable-json --enable-dbus --disable-routes --enable-bfd --disable-iptables --disable-linkbeat"
         - "--disable-vrrp --enable-snmp-checker --enable-regex"
         - "--disable-hardening --enable-dump-threads --enable-epoll-debug --enable-snmp-rfcv3 --enable-log-file --disable-libipset"
-        - "--enable-snmp-rfc --enable-snmp --enable-dbus --enable-json --enable-bfd --enable-regex --enable-sockaddr-storage"
+        - "--enable-snmp-rfc --enable-snmp --enable-dbus --enable-json --enable-bfd --enable-regex --enable-sockaddr-storage --enable-reproducible-build"
     steps:
     - uses: actions/checkout@v2
     - name: Install Dependencies
