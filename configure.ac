@@ -189,6 +189,8 @@ AC_ARG_ENABLE(clang,
   [AS_HELP_STRING([--enable-clang], [use clang compiler])])
 AC_ARG_ENABLE(lto,
   [AS_HELP_STRING([--enable-lto], [use Link Time Optimisation])])
+AC_ARG_ENABLE(reproducible-build,
+  [AS_HELP_STRING([--enable-reproducible-build], [make builds reproducible])])
 AC_ARG_WITH(init,
   [AS_HELP_STRING([--with-init=(upstart|systemd|SYSV|SUSE|openrc)], [specify init type])],
   [init_type="$withval"], [init_type=""])
@@ -356,7 +358,7 @@ AS_IF([test -n "$with_samples_dir"],
     AS_IF([test $with_samples_dir = yes -o $with_samples_dir = no],
 	  [AC_MSG_ERROR([--with-samples-dir requires a directory])])
     SAMPLES_DIR=$with_samples_dir
-  ],[SAMPLES_DIR="\$(sysconfdir)/$PACKAGE/samples"])
+  ],[SAMPLES_DIR="\${sysconfdir}/$PACKAGE/samples"])
 AC_SUBST([SAMPLES_DIR])
 
 CPPFLAGS="$kernelinc $CPPFLAGS"
@@ -3078,6 +3080,20 @@ AS_IF([test $? -eq 0],
   ])
 WANT_PREFIX=0
 FOUND_PREFIX=0
+
+# $prefix defaults to NONE, which we need to get rid of
+sysconfdir_real=${sysconfdir}
+# while [[[ $sysconfdir_real =~ '\${' ]]]; do
+# 	eval sysconfdir_real=$sysconfdir_real
+# done
+sysconfdir_sav=${sysconfdir_real}
+eval sysconfdir_real=$sysconfdir_real
+while [[ $sysconfdir_real != $sysconfdir_sav ]]; do
+	sysconfdir_sav=${sysconfdir_real}
+	eval sysconfdir_real=$sysconfdir_real
+done
+
+AS_IF([test ${sysconfdir_real:0:5} = "NONE/"], [ sysconfdir_real=${sysconfdir_real:4} ])
 AS_IF([test -n "$default_config_file"],
   [
     AS_IF([test $default_config_file = yes -o $default_config_file = no],
@@ -3088,11 +3104,15 @@ AS_IF([test -n "$default_config_file"],
 	CONFIG_FILE="$default_config_file"
 	WANT_PREFIX=1
       ],
-      [CONFIG_FILE="\$(sysconfdir)/$PACKAGE/$default_config_file"])
+      [
+        CONFIG_FILE=${sysconfdir_real}/$PACKAGE/$default_config_file
+      ])
     add_config_opt([DEFAULT_CONFIG_FILE=$CONFIG_FILE])
     default_config_file=$CONFIG_FILE
   ],
-  [default_config_file="\$(sysconfdir)/$PACKAGE/$PACKAGE.conf"])
+  [
+    default_config_file=${sysconfdir_real}/$PACKAGE/$PACKAGE.conf
+  ])
 dir=`echo $default_config_file | $SED -e "s|/[[^/]]*$||"`
 name=`echo $default_config_file | $SED -e "s|.*/||"`
 AC_SUBST([DEFAULT_CONFIG_FILE], [$default_config_file])
@@ -3127,6 +3147,16 @@ AS_IF([test .$dcf != .$dcf_old],
     AC_DEFINE_UNQUOTED([OLD_DEFAULT_CONFIG_FILE], ["$dcf_old"], [The old default configuration file])
     AC_SUBST([OLD_DEFAULT_CONFIG_FILE], [$dcf_old])
   ])
+
+AS_IF([test .$enable_reproducible_build = .yes],
+  [
+    AC_DEFINE([_REPRODUCIBLE_BUILD_], [ 1 ], [Make the build reproducible])
+    KEEPALIVED_CONFIG_OPTIONS="$args"
+    AC_SUBST([KEEPALIVED_CONFIG_OPTIONS])
+    primary_config_opts=${sysconfdir_real}/$PACKAGE/$PACKAGE.config-opts
+    AC_DEFINE_UNQUOTED([CONFIG_OPTS_FILE_PRIMARY], ["$primary_config_opts"], [Primary file to read build config options from])
+  ])
+AM_CONDITIONAL([REPRODUCIBLE_BUILD], [test .$enable_reproducible_build = .yes])
 
 if test -z "$INIT_TYPE"; then
   INIT_TYPE=undetected

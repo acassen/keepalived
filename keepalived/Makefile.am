@@ -19,7 +19,8 @@ edit = echo "  EDIT     $@"; \
 	 -e 's|@SNMP_SERVICE[@]|$(SNMP_SERVICE)|g' \
 	 -e 's|@SYSTEMD_SERVICE_TYPE[@]|$(SYSTEMD_SERVICE_TYPE)|g' \
 	 -e 's|@SYSTEMD_EXEC_START_OPTIONS[@]|$(SYSTEMD_EXEC_START_OPTIONS)|g' \
-	 -e '/^Wants= *$$/d'
+	 -e '/^Wants= *$$/d' \
+	 -e 's|@CONFIG_OPTIONS[@]|$(KEEPALIVED_CONFIG_OPTIONS)|g'
 
 sbin_PROGRAMS		= keepalived
 keepalived_SOURCES	= main.c
@@ -60,12 +61,14 @@ endif
 
 SUBDIRS			= core $(VRRP_SUBDIR) $(IPVS_SUBDIR) $(DBUS_SUBDIR) $(BFD_SUBDIR) $(TRACKER_SUBDIR) etc
 
-EXTRA_DIST		= keepalived.service.in keepalived-non-root.service.in
+EXTRA_DIST		= keepalived.service.in keepalived-non-root.service.in keepalived.config-opts.in
 
 keepalived_LDADD	= core/libcore.a $(IPVS_LIB) $(VRRP_LIB) $(BFD_LIB) core/libcore.a $(TRACKER_LIB) ../lib/liblib.a $(KA_LIBS)
 
+MOSTLYCLEANFILES	=
+
 if INIT_SYSTEMD
-MOSTLYCLEANFILES	= keepalived.service keeplived-non-root.service
+MOSTLYCLEANFILES	+= keepalived.service keeplived-non-root.service
 endif
 
 MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@
@@ -78,6 +81,19 @@ endif
 if INIT_OPENRC
 initdir			= $(sysconfdir)/init.d
 init_DATA		= etc/openrc/keepalived
+endif
+
+if REPRODUCIBLE_BUILD
+MOSTLYCLEANFILES	+= keepalived.config-opts
+
+configdir               = @DEFAULT_CONFIG_DIR@
+config_DATA             = keepalived.config-opts
+
+keepalived.config-opts: $(builddir)/Makefile
+	@rm -f $@ $@.tmp
+	@$(edit) '$(srcdir)/$@.in' >$@
+
+keepalived.config-opts: $(srcdir)/keepalived.config-opts.in
 endif
 
 if WITH_IPVS

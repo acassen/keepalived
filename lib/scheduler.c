@@ -83,6 +83,11 @@ bool do_epoll_thread_dump;
 #ifdef _SCRIPT_DEBUG_
 bool do_script_debug;
 #endif
+#ifndef _REPRODUCIBLE_BUILD_
+const char *config_opts = KEEPALIVED_CONFIGURE_OPTIONS;
+#else
+const char *config_opts = "not read";
+#endif
 
 /* local variables */
 static bool shutting_down;
@@ -593,7 +598,7 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 			uname(&uname_buf);
 			log_message(LOG_INFO, "  Running on %s %s %s", uname_buf.sysname, uname_buf.release, uname_buf.version);
 			log_command_line(2);
-			log_options("configure options", KEEPALIVED_CONFIGURE_OPTIONS, 2);
+			log_options("configure options", config_opts, 2);
 			log_options("Config options", CONFIGURATION_OPTIONS, 2);
 			log_options("System options", SYSTEM_OPTIONS, 2);
 
