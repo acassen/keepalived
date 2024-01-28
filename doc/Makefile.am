@@ -10,9 +10,9 @@ endif
 EXTRA_DIST	= source samples keepalived.conf.SYNOPSIS NOTE_vrrp_vmac.txt KEEPALIVED-MIB.txt VRRP-MIB.txt VRRPv3-MIB.txt
 
 sampledir	= @SAMPLES_DIR@
-sample_DATA	= $(srcdir)/samples/*
+sample_DATA	= @srcdir@/samples/*
 
-mibsdir		= $(datarootdir)/snmp/mibs
+mibsdir		= @datarootdir@/snmp/mibs
 mibs_DATA	=
 if SNMP_KEEPALIVED
 mibs_DATA	+= KEEPALIVED-MIB.txt
