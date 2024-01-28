@@ -339,6 +339,10 @@ free_parent_mallocs_exit(void)
 #endif
 
 	FREE_CONST_PTR(config_id);
+
+#ifdef _REPRODUCABLE_BUILD_
+	FREE_CONST_PTR(config_opts);
+#endif
 }
 
 const char *
@@ -1777,6 +1781,41 @@ report_distro(void)
 	fclose(fp);
 }
 
+#ifdef _REPRODUCABLE_BUILD_
+static char *
+read_config_opts(const char *filename)
+{
+	struct stat statbuf;
+	int fd;
+	char *opts_buf;
+
+	if (stat(filename, &statbuf))
+		return NULL;
+
+	if ((fd = open(filename, O_RDONLY)) == -1) {
+		fprintf(stderr, "Failed to open %s\n", filename);
+		return NULL;
+	}
+
+	opts_buf = malloc(statbuf.st_size);
+
+	/* Read, skipping trailing \n */
+	if (read(fd, opts_buf, statbuf.st_size - 1) != statbuf.st_size - 1) {
+		fprintf(stderr, "Failed to read %s\n", filename);
+
+		close(fd);
+		free(opts_buf);
+
+		return NULL;
+	}
+
+	opts_buf[statbuf.st_size - 1] = '\0';
+	close(fd);
+
+	return opts_buf;
+}
+#endif
+
 /* Usage function */
 static void
 usage(const char *prog)
@@ -2077,7 +2116,7 @@ parse_cmdline(int argc, char **argv)
 			fprintf(stderr, "Running on %s %s %s\n", uname_buf.sysname, uname_buf.release, uname_buf.version);
 			report_distro();
 			fprintf(stderr, "\n");
-			fprintf(stderr, "configure options: %s\n\n", KEEPALIVED_CONFIGURE_OPTIONS);
+			fprintf(stderr, "configure options: %s\n\n", config_opts);
 			fprintf(stderr, "Config options: %s\n\n", CONFIGURATION_OPTIONS);
 			fprintf(stderr, "System options: %s\n", SYSTEM_OPTIONS);
 			exit(0);
@@ -2420,6 +2459,29 @@ keepalived_main(int argc, char **argv)
 	}
 #endif
 
+#ifdef _REPRODUCABLE_BUILD_
+	char *config_opts_read;
+
+	if (!(config_opts_read = read_config_opts(CONFIG_OPTS_FILE_PRIMARY))) {
+		/* Look for the config-opts file in same location as executable */
+		const char *suffix = ".config-opts";
+		char *file = malloc(strlen(argv[0]) + strlen(suffix) + 1);
+
+		strcpy(file, argv[0]);
+		strcat(file, suffix);
+
+		config_opts_read = read_config_opts(file);
+		free(file);
+	}
+
+	if (!config_opts_read) {
+		fprintf(stderr, "Unable to read build config options file\n");
+		exit(1);
+	}
+
+	config_opts = config_opts_read;
+#endif
+
 #ifdef _MEM_CHECK_
 	__set_bit(MEM_CHECK_BIT, &debug);
 #endif
@@ -2520,6 +2582,13 @@ keepalived_main(int argc, char **argv)
 
 	/* Handle any core file requirements */
 	core_dump_init();
+
+#ifdef _REPRODUCABLE_BUILD_
+	/* We want to use our MALLOC functions */
+	char *new_config_opts_str = STRDUP(config_opts);
+	free(config_opts_read);
+	config_opts = new_config_opts_str;
+#endif
 
 	if (os_major) {
 		if (KERNEL_VERSION(os_major, os_minor, os_release) < LINUX_VERSION_CODE) {
@@ -2834,6 +2903,11 @@ end:
 	FREE_CONST_PTR(syslog_ident);
 #endif
 	close_std_fd();
+
+#ifdef _REPRODUCABLE_BUILD_
+	FREE_CONST_PTR(config_opts);
+	config_opts = "removed";
+#endif
 
 	return exit_code;
 }

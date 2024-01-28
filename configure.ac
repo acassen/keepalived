@@ -189,6 +189,8 @@ AC_ARG_ENABLE(clang,
   [AS_HELP_STRING([--enable-clang], [use clang compiler])])
 AC_ARG_ENABLE(lto,
   [AS_HELP_STRING([--enable-lto], [use Link Time Optimisation])])
+AC_ARG_ENABLE(reproducable-build,
+  [AS_HELP_STRING([--enable-reproducable-build], [make builds reproducable])])
 AC_ARG_WITH(init,
   [AS_HELP_STRING([--with-init=(upstart|systemd|SYSV|SUSE|openrc)], [specify init type])],
   [init_type="$withval"], [init_type=""])
@@ -3145,6 +3147,16 @@ AS_IF([test .$dcf != .$dcf_old],
     AC_DEFINE_UNQUOTED([OLD_DEFAULT_CONFIG_FILE], ["$dcf_old"], [The old default configuration file])
     AC_SUBST([OLD_DEFAULT_CONFIG_FILE], [$dcf_old])
   ])
+
+AS_IF([test .$enable_reproducable_build = .yes],
+  [
+    AC_DEFINE([_REPRODUCABLE_BUILD_], [ 1 ], [Make the build reproducable])
+    KEEPALIVED_CONFIG_OPTIONS="$args"
+    AC_SUBST([KEEPALIVED_CONFIG_OPTIONS])
+    primary_config_opts=${sysconfdir_real}/$PACKAGE/$PACKAGE.config-opts
+    AC_DEFINE_UNQUOTED([CONFIG_OPTS_FILE_PRIMARY], ["$primary_config_opts"], [Primary file to read build config options from])
+  ])
+AM_CONDITIONAL([REPRODUCABLE_BUILD], [test .$enable_reproducable_build = .yes])
 
 if test -z "$INIT_TYPE"; then
   INIT_TYPE=undetected
