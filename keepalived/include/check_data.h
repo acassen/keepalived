@@ -58,8 +58,7 @@ typedef enum {
 	TCP_INDEX,
 	UDP_INDEX,
 	SCTP_INDEX,
-	PROTO_INDEX_NONE,
-	PROTO_INDEX_MAX = PROTO_INDEX_NONE
+	PROTO_INDEX_MAX
 } proto_index_t;
 #endif
 
@@ -275,14 +274,8 @@ real_weight(int64_t effective_weight)
 }
 
 #ifdef _WITH_NFTABLES_
-
-/* We need to ensure that the file/function/line logged relates to where
- * protocol_to_index() is called from.
- */
-#define protocol_to_index(proto)	protocol_to_index_flf(proto, __func__, __LINE__, __FILE__)
-
 static inline proto_index_t
-protocol_to_index_flf(int proto, const char *func, int line, const char *file)
+protocol_to_index(int proto)
 {
 	if (proto == IPPROTO_TCP)
 		return TCP_INDEX;
@@ -291,7 +284,7 @@ protocol_to_index_flf(int proto, const char *func, int line, const char *file)
 	if (proto == IPPROTO_SCTP)
 		return SCTP_INDEX;
 
-	log_message(LOG_INFO, "Unknown protocol %d in protocol_to_index() called from %s at %s:%d", proto, func, file, line);
+	log_message(LOG_INFO, "Unknown protocol %d at %s:%d in %s", proto, __func__, __LINE__, __FILE__);
 
 	return UDP_INDEX;
 }

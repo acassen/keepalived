@@ -39,7 +39,6 @@
 #include "track_file.h"
 #ifdef _WITH_NFTABLES_
 #include "check_nftables.h"
-#include "check_data.h"
 #endif
 
 static bool __attribute((pure))
@@ -359,7 +358,7 @@ clear_service_vs(virtual_server_t * vs, bool stopping)
 	/* The above will handle Omega case for VS as well. */
 
 #ifdef _WITH_NFTABLES_
-	if (VS_USES_VSG_AUTO_FWMARK(vs))
+	if (vs->vsg && vs->vsg->auto_fwmark[protocol_to_index(vs->service_type)])
 		clear_vs_fwmark(vs);
 #endif
 
@@ -628,11 +627,17 @@ perform_svr_state(bool alive, checker_t *checker)
 static bool
 init_service_vs(virtual_server_t * vs)
 {
+#ifdef _WITH_NFTABLES_
+	proto_index_t proto_index = 0;
+
+	if (vs->service_type != AF_UNSPEC)
+		proto_index = protocol_to_index(vs->service_type);
+#endif
+
 	/* Init the VS root */
 	if (!ISALIVE(vs) || vs->vsg) {
 #ifdef _WITH_NFTABLES_
-		if (ISALIVE(vs) &&
-		    VS_USES_VSG_AUTO_FWMARK(vs))
+		if (ISALIVE(vs) && vs->vsg && (vs->service_type == AF_UNSPEC || vs->vsg->auto_fwmark[proto_index]))
 			set_vs_fwmark(vs);
 		else
 #endif
@@ -645,9 +650,9 @@ init_service_vs(virtual_server_t * vs)
 	/* Processing real server queue */
 	init_service_rs(vs);
 
-	if (vs->reloaded && vs->vsg
+	if (vs->reloaded && vs->vsgname
 #ifdef _WITH_NFTABLES_
-	    && !VS_USES_VSG_AUTO_FWMARK(vs)
+	    && !vs->vsg->auto_fwmark[proto_index]
 #endif
 				    ) {
 		/* add reloaded dests into new vsg entries */
@@ -888,10 +893,9 @@ clear_diff_vsg(virtual_server_t *old_vs, virtual_server_t *new_vs)
 	virtual_server_group_t *new = new_vs->vsg;
 #ifdef _WITH_NFTABLES_
 	bool vsg_already_done;
-	proto_index_t proto_index;
+	proto_index_t proto_index = protocol_to_index(new_vs->service_type);
 
-	if (VS_USES_VSG_AUTO_FWMARK(old_vs)) {
-		proto_index = protocol_to_index(new_vs->service_type);
+	if (old_vs->vsg->auto_fwmark[proto_index]) {
 		vsg_already_done = !!new_vs->vsg->auto_fwmark[proto_index];
 
 		new_vs->vsg->auto_fwmark[proto_index] = old_vs->vsg->auto_fwmark[proto_index];
@@ -1113,7 +1117,7 @@ clear_diff_services(void)
 	/* Remove diff entries from previous IPVS rules */
 	list_for_each_entry(vs, &old_check_data->vs, e_list) {
 		/*
-		 * Try to find this vs in the new conf data
+		 * Try to find this vs into the new conf data
 		 * reloaded.
 		 */
 		new_vs = vs_exist(vs);
